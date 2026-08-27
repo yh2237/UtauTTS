@@ -32,23 +32,25 @@ ApplicationWindow {
         root.translator.tr("usage.page.project"),
         root.translator.tr("usage.page.pitch"),
         root.translator.tr("usage.page.dictionary"),
-        root.translator.tr("usage.page.settings")
+        root.translator.tr("usage.page.settings"),
+        root.translator.tr("usage.page.update")
     ]
 
     Component {
         id: usageStepRow
         RowLayout {
+            id: stepRow
             required property var modelData
             spacing: 8
             Layout.fillWidth: true
             Label {
-                text: modelData.number + "."
+                text: stepRow.modelData.number + "."
                 color: palette.highlight
                 font.bold: true
             }
             Label {
                 Layout.fillWidth: true
-                text: modelData.text
+                text: stepRow.modelData.text
                 wrapMode: Text.Wrap
             }
         }
@@ -102,11 +104,6 @@ ApplicationWindow {
                     Label {
                         Layout.fillWidth: true
                         text: root.translator.tr("usage.intro.description")
-                        wrapMode: Text.Wrap
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: root.translator.tr("usage.intro.placeholder")
                         wrapMode: Text.Wrap
                     }
                 }
@@ -197,7 +194,8 @@ ApplicationWindow {
                             { number: 2, text: root.translator.tr("usage.step.parameters.2") },
                             { number: 3, text: root.translator.tr("usage.step.parameters.3") },
                             { number: 4, text: root.translator.tr("usage.step.parameters.4") },
-                            { number: 5, text: root.translator.tr("usage.step.parameters.5") }
+                            { number: 5, text: root.translator.tr("usage.step.parameters.5") },
+                            { number: 6, text: root.translator.tr("usage.step.parameters.6") }
                         ]
                         delegate: usageStepRow
                     }
@@ -219,7 +217,8 @@ ApplicationWindow {
                         model: [
                             { number: 1, text: root.translator.tr("usage.step.project.1") },
                             { number: 2, text: root.translator.tr("usage.step.project.2") },
-                            { number: 3, text: root.translator.tr("usage.step.project.3") }
+                            { number: 3, text: root.translator.tr("usage.step.project.3") },
+                            { number: 4, text: root.translator.tr("usage.step.project.4") }
                         ]
                         delegate: usageStepRow
                     }
@@ -247,7 +246,8 @@ ApplicationWindow {
                             { number: 1, text: root.translator.tr("usage.step.pitch.1") },
                             { number: 2, text: root.translator.tr("usage.step.pitch.2") },
                             { number: 3, text: root.translator.tr("usage.step.pitch.3") },
-                            { number: 4, text: root.translator.tr("usage.step.pitch.4") }
+                            { number: 4, text: root.translator.tr("usage.step.pitch.4") },
+                            { number: 5, text: root.translator.tr("usage.step.pitch.5") }
                         ]
                         delegate: usageStepRow
                     }
@@ -291,7 +291,30 @@ ApplicationWindow {
                         model: [
                             { number: 1, text: root.translator.tr("usage.step.settings.1") },
                             { number: 2, text: root.translator.tr("usage.step.settings.2") },
-                            { number: 3, text: root.translator.tr("usage.step.settings.3") }                        ]
+                            { number: 3, text: root.translator.tr("usage.step.settings.3") },
+                            { number: 4, text: root.translator.tr("usage.step.settings.4") },
+                            { number: 5, text: root.translator.tr("usage.step.settings.5") }
+                        ]
+                        delegate: usageStepRow
+                    }
+                }
+            }
+
+            ScrollView {
+                id: updatePage
+                contentWidth: availableWidth
+                ColumnLayout {
+                    width: updatePage.availableWidth
+                    spacing: 12
+                    Label {
+                        text: root.translator.tr("usage.page.update")
+                        font.bold: true
+                        font.pixelSize: 20
+                    }
+                    Repeater {
+                        model: [
+                            { number: 1, text: root.translator.tr("usage.step.update.1") }
+                        ]
                         delegate: usageStepRow
                     }
                 }
