@@ -1029,6 +1029,7 @@ window.translator.load(window.appBackend.language);
         window.appBackend.setLanguage(settingsWindow.pendingLanguage);
         window.appBackend.setCloseLogOnSuccess(settingsWindow.pendingCloseLogOnSuccess);
         window.appBackend.setUpdateCheckEnabled(settingsWindow.pendingUpdateCheckEnabled);
+        window.appBackend.setPreviewCacheFileCount(settingsWindow.pendingPreviewCacheFileCount);
         window.appBackend.setDeveloperMode(settingsWindow.pendingDeveloperMode);
         window.appBackend.setDefaultVoicebank(settingsWindow.pendingDefaultVoicebankId);
         window.appBackend.setExportSettings(settingsWindow.pendingExportTextWithWav,
@@ -1155,6 +1156,7 @@ window.translator.load(window.appBackend.language);
     function reloadVoicebanks() {
         if (window.appBackend.busy || window.batchExportActive)
             return;
+        window.clearPlayback();
         window.voicebankReloadActive = true;
         voicebankReloadDialog.open();
         window.appBackend.reloadVoicebanks();

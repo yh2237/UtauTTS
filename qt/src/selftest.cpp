@@ -161,6 +161,12 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     if (!waitFor(backend, &Backend::previewReady,
                  [&] { backend.synthesize(commonRequest); }, QStringLiteral("synthesis")))
         return 1;
+    const QUrl firstPreviewURL = backend.previewUrl();
+    if (!waitFor(backend, &Backend::previewReady,
+                 [&] { backend.synthesize(commonRequest); }, QStringLiteral("cached synthesis"))
+            || !require(backend.previewUrl() == firstPreviewURL,
+                        QStringLiteral("cached synthesis created a different preview")))
+        return 1;
     diagnosticsFile.close();
     if (!require(backend.exportDiagnosticReport(diagnosticsURL, diagnosticContext), backend.error()))
         return 1;
@@ -226,11 +232,13 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     backend.setSynthesisDefaults(130, 190, 45, false,
                                  QStringLiteral("frame-intonation-v8"),
                                  QStringLiteral("openutau-worldline-r-faithful"));
+    backend.setPreviewCacheFileCount(7);
     backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y");
     if (!require(backend.defaultMoraDuration() == 130 && backend.defaultPauseDuration() == 190
                  && backend.defaultLeadingPreutterance() == 45
                  && backend.defaultModelId() == QStringLiteral("frame-intonation-v8")
                  && backend.defaultRenderer() == QStringLiteral("openutau-worldline-r-faithful")
+                 && backend.previewCacheFileCount() == 7
                  && !backend.defaultApplyPitch() && backend.undoShortcut() == QStringLiteral("Ctrl+Z"),
                  QStringLiteral("application settings failed")))
         return 1;

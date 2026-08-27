@@ -40,6 +40,7 @@ ApplicationWindow {
     property var languageCodes: root.backend.languageCodes()
     property bool pendingCloseLogOnSuccess: true
     property bool pendingUpdateCheckEnabled: true
+    property int pendingPreviewCacheFileCount: 32
     property bool pendingDeveloperMode: false
     property string pendingSynthesizeShortcut: "Ctrl+Enter"
     property string pendingSaveProjectShortcut: "Ctrl+S"
@@ -72,6 +73,7 @@ ApplicationWindow {
         pendingLanguage = root.backend.language;
         pendingCloseLogOnSuccess = root.backend.closeLogOnSuccess;
         pendingUpdateCheckEnabled = root.backend.updateCheckEnabled;
+        pendingPreviewCacheFileCount = root.backend.previewCacheFileCount;
         pendingDeveloperMode = root.backend.developerMode;
         pendingSynthesizeShortcut = root.backend.synthesizeShortcut;
         pendingSaveProjectShortcut = root.backend.saveProjectShortcut;
@@ -378,6 +380,42 @@ ApplicationWindow {
                                     Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
                                     checked: root.pendingApplyPitch
                                     onToggled: root.pendingApplyPitch = checked
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: root.translator.tr("settings.previewCacheFileCount")
+                                    Layout.fillWidth: true
+                                }
+                                SpinBox {
+                                    id: previewCacheSpin
+                                    Layout.preferredWidth: 180
+                                    from: 1
+                                    to: 256
+                                    value: root.pendingPreviewCacheFileCount
+                                    editable: true
+                                    Component.onCompleted: refreshTextFormatter()
+                                    function refreshTextFormatter() {
+                                        const unit = root.translator.tr("settings.previewCacheFileCount.unit");
+                                        textFromValue = value => value + " " + unit;
+                                        const currentValue = value;
+                                        value = currentValue < to ? currentValue + 1 : currentValue - 1;
+                                        value = currentValue;
+                                    }
+                                    valueFromText: text => parseInt(text)
+                                    onValueModified: root.pendingPreviewCacheFileCount = value
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton
+                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                        onDoubleTapped: root.pendingPreviewCacheFileCount = 32
+                                    }
+                                    Connections {
+                                        target: root.translator
+                                        function onTranslationsChanged() {
+                                            previewCacheSpin.refreshTextFormatter();
+                                        }
+                                    }
                                 }
                             }
                         }

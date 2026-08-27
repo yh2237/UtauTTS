@@ -1,8 +1,10 @@
 #pragma once
 
 #include <QObject>
+#include <QByteArray>
 #include <QFutureSynchronizer>
 #include <QHash>
+#include <QList>
 #include <QTemporaryDir>
 #include <QUrl>
 #include <QStringList>
@@ -37,6 +39,7 @@ class Backend final : public QObject {
     Q_PROPERTY(QString language READ language NOTIFY languageChanged)
     Q_PROPERTY(bool closeLogOnSuccess READ closeLogOnSuccess NOTIFY logSettingsChanged)
     Q_PROPERTY(bool updateCheckEnabled READ updateCheckEnabled NOTIFY updateSettingsChanged)
+    Q_PROPERTY(int previewCacheFileCount READ previewCacheFileCount NOTIFY cacheSettingsChanged)
     Q_PROPERTY(bool developerMode READ developerMode NOTIFY developerModeChanged)
     Q_PROPERTY(int defaultMoraDuration READ defaultMoraDuration NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(int defaultPauseDuration READ defaultPauseDuration NOTIFY synthesisDefaultsChanged)
@@ -77,6 +80,7 @@ public:
     QString language() const { return m_language; }
     bool closeLogOnSuccess() const { return m_closeLogOnSuccess; }
     bool updateCheckEnabled() const { return m_updateCheckEnabled; }
+    int previewCacheFileCount() const { return m_previewCacheFileCount; }
     bool developerMode() const { return m_developerMode; }
     int defaultMoraDuration() const { return m_defaultMoraDuration; }
     int defaultPauseDuration() const { return m_defaultPauseDuration; }
@@ -129,6 +133,7 @@ public:
     Q_INVOKABLE void clearLogs();
     Q_INVOKABLE void setCloseLogOnSuccess(bool value);
     Q_INVOKABLE void setUpdateCheckEnabled(bool value);
+    Q_INVOKABLE void setPreviewCacheFileCount(int value);
     Q_INVOKABLE void setDeveloperMode(bool value);
     Q_INVOKABLE void setSynthesisDefaults(int moraDuration, int pauseDuration,
                                           int leadingPreutterance, bool applyPitch,
@@ -157,6 +162,7 @@ signals:
     void languageChanged();
     void logSettingsChanged();
     void updateSettingsChanged();
+    void cacheSettingsChanged();
     void developerModeChanged();
     void synthesisDefaultsChanged();
     void exportSettingsChanged();
@@ -168,10 +174,22 @@ signals:
     void updateDownloadFinished(bool success, const QString &localZip);
 
 private:
+    struct PreviewCacheEntry {
+        QString path;
+        QString text;
+        QString lab;
+        QString synthesisJson;
+    };
+
     QVariantMap call(const QByteArray &method, const QVariantMap &request = {});
     void refreshMetadata();
     void setBusy(bool value);
     void setError(const QString &value);
+    QByteArray previewCacheKey(const QVariantMap &request) const;
+    bool restorePreviewCache(const QByteArray &key);
+    void storePreviewCache(const QByteArray &key, const PreviewCacheEntry &entry);
+    void trimPreviewCache();
+    void clearPreviewCache();
     uintptr_t m_handle = 0;
     bool m_busy = false;
     QString m_error;
@@ -179,6 +197,8 @@ private:
     QString m_previewText;
     QString m_previewLab;
     QTemporaryDir m_previewDirectory;
+    QHash<QByteArray, PreviewCacheEntry> m_previewCache;
+    QList<QByteArray> m_previewCacheOrder;
     QFutureSynchronizer<QVariantMap> m_activeCalls;
     int m_activeCallCount = 0;
     QVariantList m_voicebanks, m_models, m_renderers, m_dictionaryEntries;
@@ -196,6 +216,7 @@ private:
     mutable bool m_languageNamesLoaded = false;
     bool m_closeLogOnSuccess = true;
     bool m_updateCheckEnabled = true;
+    int m_previewCacheFileCount = 32;
     bool m_developerMode = false;
     int m_defaultMoraDuration = 120;
     int m_defaultPauseDuration = 180;

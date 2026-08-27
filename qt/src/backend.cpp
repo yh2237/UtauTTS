@@ -126,6 +126,7 @@ Backend::Backend(QObject *parent)
       m_language(QSettings().value("appearance/language", QStringLiteral("ja")).toString()),
       m_closeLogOnSuccess(QSettings().value("logging/closeOnSuccess", true).toBool()),
       m_updateCheckEnabled(QSettings().value("appearance/updateCheckEnabled", true).toBool()),
+      m_previewCacheFileCount(QSettings().value("performance/previewCacheFileCount", 32).toInt()),
       m_developerMode(QSettings().value("developer/enabled", false).toBool()),
       m_defaultRenderer(QSettings().value("synthesis/defaultRendererId",
                                           QStringLiteral("openutau-worldline-r-faithful")).toString().trimmed()),
@@ -150,6 +151,7 @@ Backend::Backend(QObject *parent)
     m_defaultMoraDuration = qBound(20, m_defaultMoraDuration, 1000);
     m_defaultPauseDuration = qBound(0, m_defaultPauseDuration, 3000);
     m_defaultLeadingPreutterance = qBound(0, m_defaultLeadingPreutterance, 300);
+    m_previewCacheFileCount = qBound(1, m_previewCacheFileCount, 256);
     if (m_exportTextEncoding != QStringLiteral("shift_jis"))
         m_exportTextEncoding = QStringLiteral("utf-8");
     const QByteArray dictionaryJSON = QSettings().value("dictionary/entries").toByteArray();
@@ -300,6 +302,18 @@ void Backend::setDefaultVoicebank(const QString &value) {
     settings.setValue("voicebank/defaultId", m_defaultVoicebankId);
     settings.sync();
     emit voicebankSettingsChanged();
+}
+
+void Backend::setPreviewCacheFileCount(int value) {
+    const int bounded = qBound(1, value, 256);
+    if (m_previewCacheFileCount == bounded)
+        return;
+    m_previewCacheFileCount = bounded;
+    QSettings settings;
+    settings.setValue(QStringLiteral("performance/previewCacheFileCount"), bounded);
+    settings.sync();
+    trimPreviewCache();
+    emit cacheSettingsChanged();
 }
 
 void Backend::setExportSettings(bool writeText, bool writeLab, const QString &textEncoding) {
@@ -716,6 +730,7 @@ void Backend::reloadVoicebanks() {
         if (result.contains("_error")) {
             setError(result.value("_error").toString());
         } else {
+            clearPreviewCache();
             m_voicebanks = result.value("voicebanks").toList();
             emit metadataChanged();
         }
@@ -844,6 +859,11 @@ void Backend::synthesize(const QVariantMap &input) {
         return;
     }
     QVariantMap request = input;
+    request.remove(QStringLiteral("output_path"));
+    const QByteArray cacheKey = previewCacheKey(request);
+    if (restorePreviewCache(cacheKey)) {
+        return;
+    }
     const QString previewText = request.value("text").toString().isEmpty()
             ? request.value("kana").toString() : request.value("text").toString();
     const QString outputPath = m_previewDirectory.filePath(
@@ -854,7 +874,7 @@ void Backend::synthesize(const QVariantMap &input) {
     setError({});
     auto *watcher = new QFutureWatcher<QVariantMap>(this);
     connect(watcher, &QFutureWatcher<QVariantMap>::finished, this,
-            [this, watcher, outputPath, previewText]() {
+            [this, watcher, outputPath, previewText, cacheKey]() {
                 setBusy(false);
                 const QVariantMap result = watcher->result();
                 if (result.contains("_error")) {
@@ -868,6 +888,8 @@ void Backend::synthesize(const QVariantMap &input) {
                     m_previewUrl = QUrl::fromLocalFile(outputPath);
                     m_synthesisJson = QString::fromUtf8(
                         QJsonDocument::fromVariant(result).toJson(QJsonDocument::Compact));
+                    storePreviewCache(cacheKey, PreviewCacheEntry{
+                        outputPath, previewText, m_previewLab, m_synthesisJson});
                     emit synthesisChanged();
                     appendLog(tr("音声合成が完了しました。"));
                     emit previewReady();
@@ -887,6 +909,71 @@ void Backend::synthesize(const QVariantMap &input) {
     ++m_activeCallCount;
     m_activeCalls.addFuture(future);
     watcher->setFuture(future);
+}
+
+QByteArray Backend::previewCacheKey(const QVariantMap &request) const {
+    return QCryptographicHash::hash(
+        QJsonDocument::fromVariant(request).toJson(QJsonDocument::Compact),
+        QCryptographicHash::Sha256);
+}
+
+bool Backend::restorePreviewCache(const QByteArray &key) {
+    const auto found = m_previewCache.constFind(key);
+    if (found == m_previewCache.cend())
+        return false;
+    const PreviewCacheEntry entry = found.value();
+    if (!QFileInfo::exists(entry.path)) {
+        m_previewCache.remove(key);
+        m_previewCacheOrder.removeAll(key);
+        return false;
+    }
+    m_previewCacheOrder.removeAll(key);
+    m_previewCacheOrder.append(key);
+    m_previewPath = entry.path;
+    m_previewText = entry.text;
+    m_previewLab = entry.lab;
+    m_previewUrl = QUrl::fromLocalFile(entry.path);
+    m_synthesisJson = entry.synthesisJson;
+    setError({});
+    appendLog(tr("キャッシュ済みの音声を使用しました。"));
+    emit synthesisChanged();
+    QMetaObject::invokeMethod(this, [this] { emit previewReady(); }, Qt::QueuedConnection);
+    return true;
+}
+
+void Backend::storePreviewCache(const QByteArray &key, const PreviewCacheEntry &entry) {
+    const auto existing = m_previewCache.constFind(key);
+    if (existing != m_previewCache.cend() && existing->path != entry.path)
+        QFile::remove(existing->path);
+    m_previewCache.insert(key, entry);
+    m_previewCacheOrder.removeAll(key);
+    m_previewCacheOrder.append(key);
+    trimPreviewCache();
+}
+
+void Backend::trimPreviewCache() {
+    while (m_previewCacheOrder.size() > m_previewCacheFileCount) {
+        const QByteArray oldest = m_previewCacheOrder.takeFirst();
+        const PreviewCacheEntry entry = m_previewCache.take(oldest);
+        if (!entry.path.isEmpty() && entry.path != m_previewPath)
+            QFile::remove(entry.path);
+    }
+}
+
+void Backend::clearPreviewCache() {
+    for (auto iterator = m_previewCache.cbegin(); iterator != m_previewCache.cend(); ++iterator) {
+        const PreviewCacheEntry &entry = iterator.value();
+        if (!entry.path.isEmpty())
+            QFile::remove(entry.path);
+    }
+    m_previewCache.clear();
+    m_previewCacheOrder.clear();
+    m_previewPath.clear();
+    m_previewText.clear();
+    m_previewLab.clear();
+    m_previewUrl = QUrl{};
+    m_synthesisJson.clear();
+    emit synthesisChanged();
 }
 
 bool Backend::savePreview(const QUrl &destination) {
