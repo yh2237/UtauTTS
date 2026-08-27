@@ -267,15 +267,3 @@ CLIとHTTP Serverも同じplugin catalogと`synth.Service`を使います。モ�
 ### fallbackを局所化し、理由を残す
 
 新しい制御値には範囲制限を設けます。NaN、非単調なtime anchor、過大なcrop、asset不足などを黙って通しません。実験Rendererを明示選択したのにassetがない場合も別Rendererへ黙って切り替えずエラーにします。低信頼度のunitや境界だけをfallbackする場合はその位置と理由をPlanへ残します。
-
-## 11. 今後の研究候補
-
-今後の方式も既存経路を残して独立したRendererか明示的な補助機能として追加します。候補には次があります。
-
-- 人手修正をv8へ加えるmanual residualモデル
-- 音源の圧縮率や子音分類に基づく、説明可能で保守的なtiming下限
-- `oto.ini`を事前値として小さなcrop／time-warp補正を出すcontroller
-- 複数話者hold-outと厳密なdata leakage検査を持つニューラル制御型連結Renderer
-- 音源ごとの候補密度と安全な連続runを事前監査する仕組み
-
-全波形生成、話者embeddingからのゼロショット生成、text-to-melを主経路にするとUTAUボイスバンクの原音を使うというプロジェクトの中心から外れます。ニューラル処理を使う場合も解釈できる制御値か局所的な補助処理を優先します。

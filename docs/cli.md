@@ -10,7 +10,7 @@
 - `--out <path>`: 出力WAVのパス
 - `--text <文>`または`--kana <読み>`: 合成する文章。片方だけ指定します（`--kana`は読み仮名を直接指定する場合用）
 
-これらが無い場合はusageとエラーを表示して終了します。`--text`はOpen JTalk frontendで読みとアクセントを解析する場合、`--kana`は読みがすでに分かっている場合に使います。
+`--text`は文章から読みを解析し、`--kana`は読み仮名を直接使います。
 
 ## 基本例
 
@@ -37,18 +37,7 @@
   --out ".\out.wav"
 ```
 
-モーラ長も予測したい場合は`--prosody prosody-multitask-v1`を使います。`--plan-out`を指定すると各ユニットの配置とタイミングを含む合成計画をJSONへ保存できます。
-
-```powershell
-.\UtauTTS\tools\utautts-cli.exe `
-  --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
-  --text "こんにちは" `
-  --renderer openutau-worldline-r-faithful `
-  --prosody prosody-multitask-v1 `
-  --apply-pitch `
-  --plan-out ".\out\plan.json" `
-  --out ".\out.wav"
-```
+モーラ長も予測する場合は`--prosody prosody-multitask-v1`を使います。`--plan-out`を指定すると原音の配置とタイミングをJSONへ保存できます。
 
 ## オプション
 
@@ -95,10 +84,7 @@
 
 ## モデルとRendererの指定
 
-`--prosody`と`--renderer`にはファイルパスではなくプラグインの`id`を指定します。idと一覧は[モデル／Rendererプラグイン](plugins.md)を参照してください。配布物に入っているのは次のものです。
-
-- モデル: `frame-intonation-v8`、`prosody-multitask-v1`
-- Renderer: `openutau-worldline-r-faithful`（既定）、`waveform`、`openutau-classic-worldline-faithful`、CUDA対応時は`openutau-classic-worldline-faithful-gpu`
+`--prosody`と`--renderer`にはファイルパスではなくプラグインの`id`を指定します。一覧は[モデル／Rendererプラグイン](plugins.md)を参照してください。
 
 モデルやRendererは実行ファイルの隣にある`models/`と`plugins/renderers/`から自動検出します。別のdirectoryを追加するなら`--model-dir`または`--renderer-dir`で指定します。
 
@@ -112,4 +98,4 @@
 wrote out.wav (4.81s, 44100 Hz, 34 units)
 ```
 
-合成の失敗や引数エラーは`log.Fatal`で終了コード1を返します。モデル・Rendererが見つからない場合も同じです。原音の明瞭度を先に確認したいなら`--renderer waveform`を使うのが分かりやすいと思います。
+合成の失敗や引数エラーは終了コード1を返します。原音の明瞭度を確認するなら`--renderer waveform`を使います。

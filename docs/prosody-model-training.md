@@ -1,6 +1,6 @@
 # 手動調整から抑揚モデルを作る
 
-UtauTTSのGUIでv8の自動イントネーションを調整し、その操作を教師データに小さな補正モデルを学習できます。生成されるversion 11モデルは固定した`frame-intonation-v8`とモーラ単位の補正headを一つのJSONへ収めた自己完結型モデルです。音声やボイスバンクそのものを学習するわけではありません。
+UtauTTSのGUIでv8の自動イントネーションを調整し、その操作を教師データにして小さな補正モデルを学習できます。生成されるversion 11モデルは`frame-intonation-v8`とモーラ単位の補正headを一つのJSONへ収めたものです。音声やボイスバンクそのものは学習しません。
 
 この機能は実験的です。少量の教師データから生成できることとv8より自然になることは同じではありません。必ず学習に使っていない文章でv8と比較してください。
 
@@ -11,7 +11,7 @@ UtauTTSのGUIでv8の自動イントネーションを調整し、その操作�
 - Python packageのNumPyとPyTorch
 - 教師データの試聴に使うボイスバンクとRenderer
 
-PowerShellでUtauTTSのルートディレクトリを開いて必要なPython packageを準備します。既存のPython環境へ影響させたくないなら仮想環境を使ってください。
+PowerShellでUtauTTSのルートディレクトリを開き、Python packageを準備します。
 
 ```powershell
 python -m venv .venv
@@ -20,7 +20,7 @@ python -m pip install --upgrade pip
 python -m pip install numpy torch
 ```
 
-学習はCPUだけで実行できます。現在の学習ツールはCPUを使うのでGPUは必要ありません。
+学習にGPUは必要ありません。
 
 ## 1. 教師データを収集する
 
@@ -34,7 +34,7 @@ python -m pip install numpy torch
 
 一度も合成していない文章は採用できません。収集中の状態は自動保存されて同じv8と辞書を利用できるなら「途中から再開」で続けられます。
 
-文章セットには動作確認向けの「基本確認セット（10文）」とJSUT BASIC5000から抑揚や文長の分布を見て選んだ50文セットが6個あります。最初は10文で操作を確認してから、BASIC5000セットを一つずつ集めるのがいいと思います。一回のsession中は文章セットが固定されます。すべてを一度に終わらせる必要はなく書き出した複数のJSONLを学習時にまとめられます。
+文章セットは「基本確認セット（10文）」とJSUT BASIC5000から選んだ50文セットが6個あります。最初は10文で操作を確認し、その後にBASIC5000セットを集めるのがいいと思います。複数回に分けて書き出したJSONLもまとめて学習できます。
 
 BASIC5000文章はJSUTの音声ではなくテキストだけを使っています。元テキストには田中コーパス（CC BY 2.0）、Wikipedia（CC BY-SA 3.0）、JSUT独自文（CC BY-SA 4.0）が含まれます。出典と条件は[`licenses/JSUT-DATA-AND-LABELS.txt`](../licenses/JSUT-DATA-AND-LABELS.txt)に記載しています。教師JSONLを再配布する場合もこの出典情報を一緒に示してください。
 
@@ -85,13 +85,11 @@ python tools/train-manual-intonation-residual.py `
   --seeds 23,29,41
 ```
 
-`--model-id`はGUI、CLI、Serverでモデルを指定する一意なIDです。英小文字、数字、ハイフンを使った後から変えなくて済む名前を推奨します。同じIDのモデルを`models/`へ複数置くと起動時に重複エラーになります。
+`--model-id`はGUI、CLI、Serverで使う一意なIDです。同じIDのモデルを複数置くと起動時にエラーになります。
 
 複数JSONLに同じ文章と読みがある場合は同じgroupとして扱って引数で後に指定したsessionの採用結果を使います。異なるv8、frontend、辞書fingerprintのデータは混在させられません。
 
-文章groupのhashを使っておおむねtrain 80%、validation 10%、test 10%へ固定分割します。少量データでどれかが空になる場合だけ最低1発話を決定的に割り当てます。同じ文章の再編集が別splitへ分かれることはありません。
-
-学習targetは手動補正を±120 centへ制限した値です。編集点を強い教師、採用済み未編集点を弱い0補正教師としてdilation 1、2、4の小型TCNを学習します。生成JSONにはv8のframe headも入るので実行時に別のv8 JSONを参照しません。
+同じ文章の再編集がtrain、validation、testへ分かれないよう文章単位で固定分割します。生成JSONにはv8の重みも入るので実行時に別のv8 JSONは必要ありません。
 
 ## 4. 学習reportを判断する
 
@@ -113,23 +111,6 @@ reportの`metrics`には各splitについて`zero`と`model`があります。
 - 200～300発話: 未学習文章の聴感比較と採用判断
 
 発話数だけでなく疑問文、複数のアクセント句、長文、促音、長音、鼻音、異なるアクセント核位置を入れます。BASIC5000セットはこの偏りを減らすために選んでいますが疑問文が少ないので基本確認セットも併用してください。学習済み文章を再生して自然でも汎化性能の証明にはなりません。
-
-## 文章セットを再生成する
-
-同じJSUT BASIC5000 transcriptから標準セットを作り直す場合は`pyopenjtalk`を導入して次を実行します。選抜は決定的で50文ごとのセット間でも特徴が偏りにくいように配分されます。
-
-```powershell
-python -m pip install pyopenjtalk
-python tools/select-jsut-prosody-prompts.py `
-  --transcript .\data\jsut\basic5000\transcript_utf8.txt `
-  --supplement .\tools\prosody-prompts-original-ja-v1.json `
-  --out .\qt\prosody-prompts-ja-v1.json `
-  --report .\out\prosody\jsut-basic5000-prosody-v1-selection-report.json `
-  --count 300 `
-  --pack-size 50
-```
-
-reportには入力transcriptのSHA-256、選抜条件、各セットのprompt IDと特徴coverageが残ります。
 
 ## 5. UtauTTSへ追加する
 
@@ -157,7 +138,7 @@ CLIでは`models/`へコピーせず検索directoryを追加して試すこと�
   --out .\out\my-manual-prosody.wav
 ```
 
-最初はv8と作成モデルを同じ文章、ボイスバンク、Rendererで比較してください。作成モデルのほうが悪ければJSONを`models/`から削除すれば元に戻せます。教師JSONLまで削除する必要はありません。
+最初はv8と作成モデルを同じ文章、ボイスバンク、Rendererで比較してください。不要ならモデルJSONを`models/`から外します。
 
 ## 再学習時の注意
 
@@ -165,4 +146,3 @@ CLIでは`models/`へコピーせず検索directoryを追加して試すこと�
 - dataset、base model、引数、seed、reportを一緒に保管します。
 - v8が更新された場合は古いv8で収集したデータをそのまま新しいv8の補正学習へ使いません。
 - 同じ文章を再調整した場合は新しいsessionを`--dataset`の後ろへ指定します。
-- モデルJSONには教師文章そのものは入りませんが、学習した特徴語彙や個人の調整傾向を含みます。公開範囲を自分で判断してください。

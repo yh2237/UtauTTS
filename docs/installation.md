@@ -6,12 +6,10 @@
 
 | パッケージ | 用途 |
 | --- | --- |
-| `UtauTTS-win-x64.zip` | Windows x64でGUIを使う。CLIと補助ツールも同梱 |
-| `UtauTTS-linux-x64.zip` | Linux x64でGUIを使う。CLIと補助ツールも同梱 |
-| `UtauTTS-Server-win-x64.zip` | Windows x64でHTTP APIを使う |
-| `UtauTTS-Server-linux-x64.zip` | Linux x64でHTTP APIを使う |
-
-配布ZIPには合成に必要なモデルとruntimeが含まれます。Worldline bridge用の.NETランタイムやPythonを別途インストールする必要はありません。
+| `UtauTTS-win-x64.zip` | Windows x64でGUIとCLI |
+| `UtauTTS-linux-x64.zip` | Linux x64でGUIとCLI |
+| `UtauTTS-Server-win-x64.zip` | Windows x64向けHTTP Server  |
+| `UtauTTS-Server-linux-x64.zip` | Linux x64向けHTTP Server  |
 
 ## Windows
 
@@ -39,29 +37,33 @@ chmod +x utautts tools/* runtime/utautts-openjtalk-features runtime/utautts-worl
 ./utautts
 ```
 
-Qtやデスクトップ環境が異なるディストリビューションでは同等のQt Quick・Qt Multimediaパッケージを導入してください。日本語が四角い記号になる場合は[トラブルシューティング](troubleshooting.md)を確認してください。
+Qtやデスクトップ環境が異なるディストリビューションでは同等のQt Quick・Qt Multimediaパッケージを導入してください。
 
 ## ボイスバンクを追加する
 
-実行ファイルと同じ階層の`voice`ディレクトリへ音源ごとにフォルダを分けて配置します。音源フォルダには使用する発音を定義した`oto.ini`が必要です。
+実行ファイルと同じ階層の`voice`ディレクトリへ音源ごとにフォルダを分けて配置します。
 
-配置したらGUIの「ファイル」→「音源を再読込」を選びます。「音源フォルダを開く」から配置先を直接開くこともできます。
+「ファイル」→「音源フォルダを開く」から`voice`ディレクトリを開けます。
 
-GUI版には「足立レイ UTAU音源 ver3.5.0」を初期音源として同梱しています。利用前に[ボイスバンクの利用条件](voicebank.md)と音源内の文書を確認してください。追加した音源にはそれぞれの配布元が定める利用条件が適用されます。
+配置したらUtauTTSを再起動するか「ファイル」→「音源を再読込」を選択して再読み込みしてください。
+
+GUI版には「足立レイ ver3.5.0」を初期音源として同梱しています。利用前に[ボイスバンクの利用条件](voicebank.md)と音源内の文書を確認してください。
 
 ## Server版
 
-Server版にGUIは入っていません。ZIPを展開してWindowsでは次のように起動します。
+Window
 
 ```powershell
 .\utautts-server.exe --voice-dir ".\voice"
 ```
 
-Linuxでは次のとおりです。
+Linux
 
 ```bash
 chmod +x utautts-server runtime/utautts-openjtalk-features runtime/utautts-worldline-bridge
 ./utautts-server --voice-dir ./voice
 ```
 
-起動すると`http://127.0.0.1:8080/`でコンソールUIを開けます。外部へ公開する前に[UtauTTS Server](server.md)の認証と入力制限を確認してください。
+`http://127.0.0.1:8080/`でコンソールUIを開けます。
+
+[UtauTTS Server](server.md)を確認してください。

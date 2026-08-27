@@ -27,7 +27,7 @@ Rendererは`plugins/renderers/<plugin>/plugin.json`を1つ持ちます。
 
 `id`は保存データやAPIで使うプラグイン固有ID、`backend`はUtauTTSが実行する実装adapterです。分けてあるので同じbackendへ別の名前、資産、既定値を持つRendererを追加できます。現在のmanifest APIは組み込みbackendの構成をプラグイン化するもので任意のnative codeをプロセスへロードする仕組みではありません。
 
-壊れたmanifest、未対応backend、Renderer IDの重複は起動時エラーになります。有効な項目だけ表示して問題を黙って無視することはありません。モデルJSONの破損とモデルIDの重複も同じです。`id`と`display_name`を持たないJSONはモデルpluginとして扱われません。
+壊れたmanifest、未対応backend、IDの重複は起動時エラーになります。
 
 `default_priority`が最大のものがcatalog上の既定Rendererで同値なら`display_name`順です。GUIでは設定に保存したデフォルトRendererを優先し、未設定なら`openutau-worldline-r-faithful`を使います。CLI／Serverの`--renderer`はこの値を上書きします。`acceleration`には`cpu`か`cuda`を指定できて必要DLLやモデルはmanifestからの相対pathを`assets`へ記述します。
 
@@ -82,8 +82,8 @@ GUIで調整した抑揚からversion 11の個人補正モデルを作る手順�
 - `frame-intonation-v8`: Open JTalkのアクセント特徴を使ったフレーム単位のイントネーション
 - `prosody-multitask-v1`: v8系のイントネーションに加えたモーラ長予測
 
-どちらもfaithful系Rendererを推奨します。`waveform`もframe pitchに対応しますが可変レートresamplingとWSOLAで適用するので原音確認ではpitchを無効にした出力も比較基準にしてください。
+どちらもfaithful系Rendererを推奨します。
 
 ## 配布物
 
-release buildは`plugins/renderers/`と`models/`へ明示的にinstallされた自己記述モデルをGUI・Serverの両方へコピーします。研究出力directoryから特定filenameを推測してコピーする処理はありません。`models/`が空ならrelease buildは失敗します。モデルを追加するたびにQt、Go、release scriptの何箇所も直さなくて済むようにしています。
+release buildは`plugins/renderers/`と`models/`へinstallされたものをGUI・Serverへコピーします。`models/`が空ならビルドは失敗します。

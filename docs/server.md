@@ -1,8 +1,10 @@
 # UtauTTS Server
 
-GUIを含まないWindows／Linux x64向けHTTPサーバーです。Worldline bridgeは自己完結形式で同梱されるので配布物を動かすために.NET 8ランタイムを別途入れる必要はありません。
+いWindows／Linux x64向けHTTPサーバーです。
 
-サーバーは初期状態で`127.0.0.1:8080`だけを待ち受けます。LANや外部から接続できるアドレスで起動する場合は必ず`--auth-token`を設定してください。
+サーバーは初期状態で`127.0.0.1:8080`を待ち受けます。LANや外部から接続できるアドレスで起動する場合は必ず`--auth-token`を設定してください。
+
+Window
 
 ```powershell
 .\utautts-server.exe `
@@ -10,7 +12,7 @@ GUIを含まないWindows／Linux x64向けHTTPサーバーです。Worldline br
   --renderer waveform
 ```
 
-Linuxでは次のように起動します。
+Linux
 
 ```bash
 ./utautts-server --voice-dir voice --renderer waveform
@@ -18,18 +20,16 @@ Linuxでは次のように起動します。
 
 標準では実行ファイルと同じ場所の`voice`ディレクトリを読み込みます。音源はフォルダごとに配置して`voicebank_id`には`/api/voicebanks`で取得したIDを指定します。省略するとID順で最初の音源が使われます。
 
-起動すると `UTAUTTS_READY=http://127.0.0.1:8080` の形式で待受URLを標準出力へ書き出します。
-
 ## コンソールUI
 
-ブラウザで`http://127.0.0.1:8080/`を開くと`/api/*`を直接呼び出せる簡易クライアントと、エンドポイントや制限をまとめたhtmlが表示されます。
+ブラウザで`http://127.0.0.1:8080/`を開くとAPIを試せるコンソールUIが表示されます。
 
 - 稼働状況・音源・モデル・Rendererの一覧表示
 - 文章の解析（`/api/analyze`）と読み・モーラ列の表示
-- 文章・音源・モデル・Renderer・durationなどを指定した合成（`/api/synthesize/audio`）。結果の再生、WAVダウンロード、使用した読みとengineヘッダーの表示
+- 文章・音源・モデル・Rendererなどを指定した合成とWAVダウンロード
 - `--auth-token`使用時はページ内のトークン入力へ保存すると以降のAPI呼び出しに`Authorization: Bearer <token>`を付加します
 
-コンソールUI（`/` と `/ui`）は公開されます。認証・Origin検査は `/api/*` にのみ適用されます。
+コンソールUI（`/`と`/ui`）は公開されます。認証・Origin検査は`/api/*`にのみ適用されます。
 
 ## エンドポイント一覧
 
@@ -57,11 +57,9 @@ Linuxでは次のように起動します。
 
 ### 認証
 
-`--auth-token`を設定すると全エンドポイントで`Authorization: Bearer <token>`ヘッダーが必要になります。無い場合は401です。トークンは定数時間比較で検証します。
+`--auth-token`を設定すると全エンドポイントで`Authorization: Bearer <token>`ヘッダーが必要になります。無い場合は401です。
 
 GET以外のリクエストに`Origin`ヘッダーがあり待受ホストのorigin（`http://<host>` / `https://<host>`）と一致しない場合は403で拒否します。
-
-非ループバックアドレス（例`0.0.0.0`）で認証トークンなしに起動すると警告が出ます。
 
 ## 各エンドポイント
 
@@ -71,7 +69,7 @@ GET以外のリクエストに`Origin`ヘッダーがあり待受ホストのori
 {"status":"ok","engine":"openutau-worldline-r-faithful"}
 ```
 
-`engine` には既定RendererのIDが入ります。
+`engine`には既定RendererのIDが入ります。
 
 ### `GET /api/voicebanks`
 
@@ -258,11 +256,3 @@ ID順にソートされた音源一覧です。
 - `--allow-voicebank-registration`: `POST /api/voicebanks` による音源パス登録を許可する（登録先は`--voice-dir`以下に制限）
 - `--worldline` / `--worldline-bridge`: worldlineライブラリとbridge実行ファイルを明示する
 - `--openjtalk-features` / `--openjtalk-dictionary`: 自動検出を使わずhelperまたは辞書を明示する開発用オプション
-
-## 注意事項
-
-`intonation_strength`は`0`〜`2`で初期値は`0`です。`apply_pitch`の初期値は`false`です。自動イントネーションを使うにはモデル、frame pitch対応Renderer、`apply_pitch: true`を指定します。直接のピッチ加工は声質と明瞭度を損なう場合があるので結果を確認しながら使ってください。WORLD系Rendererの必要assetはRenderer manifestから解決します。第三者ライセンスは`THIRD_PARTY_NOTICES.txt`にあります。
-
-APIとして公開するのは`/api/*`でコンソールUIは`/`だけです。GUIはHTTPサーバーを使わないので同梱GUIの音源・辞書設定がServerへ送られることもありません。
-
-利用できるRendererは`openutau-worldline-r-faithful`、`waveform`、`openutau-classic-worldline-faithful`、CUDA対応時の`openutau-classic-worldline-faithful-gpu`です。実際の一覧とモデルの詳細は`/api/renderers`と`/api/models`で確認できます。

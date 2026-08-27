@@ -61,4 +61,4 @@ Windows版とLinux版を続けて作成する場合は次を実行します。
 .\build.bat both
 ```
 
-LinuxビルドでもGoのテストと静的検査、GUI・CLI・Serverのビルド、ZIP展開後のGUI自己診断、合成、APIスモークテストまで実行されます。何を確認しているかは[リリーステスト](release-testing.md)にまとめています。
+ビルド後に行う検査は[リリーステスト](release-testing.md)にまとめています。

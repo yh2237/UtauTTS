@@ -24,9 +24,3 @@ B96D1B21145F22E573AFD9EC8AEAAD0EC9CBAEE581C2623C64ADDEB31DE46B3D
 ```text
 release/UtauTTS/voice/足立レイver3.5.0
 ```
-
-配布ZIP内からCLIを実行する場合は次のパスです。
-
-```text
-.\UtauTTS\voice\足立レイver3.5.0
-```

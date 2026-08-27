@@ -1,12 +1,12 @@
 # UtauTTS ドキュメント
 
-初めて使うなら[インストール](installation.md)から[GUIの使い方](gui.md)の順に読むと分かりやすいと思います。
+全体像と基本操作はrootの[README](../README.md)にまとめています。このディレクトリには、設定値やAPI、内部実装などの詳細があります。
 
 ## 導入と基本操作
 
 - [インストール](installation.md): パッケージの選択、Windows／Linuxでの起動、ボイスバンクの追加
 - [GUIの使い方](gui.md): 文章入力、再生、保存、ショートカット、動画編集ソフトとの連携
-- [設定](settings.md): 音声合成の初期値、TXT／LAB書き出し、表示、ログ、ショートカット、保存範囲
+- [設定](settings.md): 音声合成の初期値、TXT／LAB書き出し、表示、ログ、ショートカット
 - [トラブルシューティング](troubleshooting.md): 起動、runtime、Open JTalk、Renderer、Linuxフォントの問題
 - [ボイスバンクの利用条件](voicebank.md): 同梱音源の出所、利用条件、ハッシュ
 
@@ -32,5 +32,3 @@
 
 - [開発環境とビルド](building.md): Windows／Linux版のビルド要件と実行方法
 - [リリーステスト](release-testing.md): 配布物の自動スモークテストと手動確認項目
-
-プロジェクトの概要と最短手順はrootの[README](../README.md)にあります。`docs/`はリリース成果物にも収録して研究途中の記録は`notes/`に分けています。
