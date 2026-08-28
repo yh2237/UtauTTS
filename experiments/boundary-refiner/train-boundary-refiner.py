@@ -17,7 +17,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-sys.path.insert(0, str(Path(__file__).parent))
+# 現在も使う学習処理と共有しているGPU補助だけtoolsから読み込む。
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
 from torch_device import device_description, move_batch, resolve_device  # noqa: E402
 
 
