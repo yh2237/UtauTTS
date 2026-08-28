@@ -1,6 +1,7 @@
 package native
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +17,15 @@ const openJTalkHelperEnvironment = "UTAUTTS_TEST_OPENJTALK_HELPER"
 
 func TestMain(m *testing.M) {
 	if os.Getenv(openJTalkHelperEnvironment) == "1" {
+		for _, argument := range os.Args {
+			if argument == "--serve" {
+				scanner := bufio.NewScanner(os.Stdin)
+				for scanner.Scan() {
+					_, _ = fmt.Fprintln(os.Stdout, `{"version":1,"reading":"ハロー","morae":["は","ろ","ー"],"features":[{},{},{}]}`)
+				}
+				os.Exit(0)
+			}
+		}
 		_, _ = io.Copy(io.Discard, os.Stdin)
 		_, _ = fmt.Fprint(os.Stdout, `{"version":1,"reading":"ハロー","morae":["は","ろ","ー"],"features":[{},{},{}]}`)
 		os.Exit(0)

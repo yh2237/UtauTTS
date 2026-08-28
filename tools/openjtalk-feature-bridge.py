@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Open JTalk frontend bridge for the portable UtauTTS runtime.
 
-The executable built from this file reads {"text": "..."} from stdin and
-writes the reading plus v8-compatible sparse mora feature frames as JSON.
+The executable accepts one request or a newline-delimited persistent stream.
 """
 
 import argparse
@@ -14,24 +13,38 @@ import openjtalk
 from openjtalk_feature_common import analyze, sparse_features
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--dictionary", required=True)
-    args = parser.parse_args()
-    request = json.load(sys.stdin)
+def process(frontend, request):
     text = str(request.get("text", "")).strip()
     if not text:
         raise ValueError("text is empty")
-    frontend = openjtalk.OpenJTalk(dn_mecab=args.dictionary.encode("utf-8"))
     reading, tokens = analyze(frontend, text)
-    response = {
+    return {
         "version": 1,
         "reading": reading,
         "morae": [token.get("mora", "") for token in tokens],
         "features": [sparse_features(token) for token in tokens],
     }
-    json.dump(response, sys.stdout, ensure_ascii=False, separators=(",", ":"))
-    sys.stdout.write("\n")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dictionary", required=True)
+    parser.add_argument("--serve", action="store_true")
+    args = parser.parse_args()
+    frontend = openjtalk.OpenJTalk(dn_mecab=args.dictionary.encode("utf-8"))
+    if args.serve:
+        for line in sys.stdin:
+            try:
+                response = process(frontend, json.loads(line))
+            except Exception as error:
+                response = {"error": str(error)}
+            json.dump(response, sys.stdout, ensure_ascii=False, separators=(",", ":"))
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+    else:
+        json.dump(process(frontend, json.load(sys.stdin)), sys.stdout,
+                  ensure_ascii=False, separators=(",", ":"))
+        sys.stdout.write("\n")
 
 
 if __name__ == "__main__":

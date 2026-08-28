@@ -1,19 +1,15 @@
 package openjtalk
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
-	"utautts/internal/processutil"
 	"utautts/internal/prosody"
 )
 
@@ -56,40 +52,13 @@ func AnalyzeContext(ctx context.Context, text string, cfg Config) (*Analysis, er
 	if err != nil {
 		return nil, err
 	}
-	request, err := json.Marshal(struct {
-		Text string `json:"text"`
-	}{Text: text})
+	response, err := invokeFrontendHelper(ctx, helper, dictionary, text)
 	if err != nil {
-		return nil, err
-	}
-	command := exec.CommandContext(ctx, helper, "--dictionary", dictionary)
-	command.WaitDelay = 5 * time.Second
-	processutil.Configure(command)
-	command.Stdin = bytes.NewReader(request)
-	var stdout, stderr bytes.Buffer
-	command.Stdout = &stdout
-	command.Stderr = &stderr
-	if err := command.Run(); err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return nil, fmt.Errorf("Open JTalk frontend canceled: %w", ctxErr)
-		}
-		message := strings.TrimSpace(stderr.String())
-		details := []string{
-			fmt.Sprintf("helper=%q", helper),
-			fmt.Sprintf("dictionary=%q", dictionary),
-			fmt.Sprintf("text=%q", previewText(text)),
-		}
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			details = append(details, fmt.Sprintf("exit_code=%d", exitErr.ExitCode()))
-		}
-		if message == "" {
-			message = "helper returned no stderr"
-		}
-		return nil, fmt.Errorf("Open JTalk frontend failed (%s): %w: %s", strings.Join(details, ", "), err, message)
+		return nil, fmt.Errorf("Open JTalk frontend failed (helper=%q, dictionary=%q, text=%q): %w",
+			helper, dictionary, previewText(text), err)
 	}
 	var result Analysis
-	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+	if err := json.Unmarshal(response, &result); err != nil {
 		return nil, fmt.Errorf("decode Open JTalk response: %w", err)
 	}
 	if result.Version != 1 || result.Reading == "" || len(result.Morae) == 0 || len(result.Features) != len(result.Morae) {
