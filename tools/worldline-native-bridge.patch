@@ -1,0 +1,266 @@
+diff --git a/cpp/worldline/classic/resampler.cpp b/cpp/worldline/classic/resampler.cpp
+index 128933f..6744f63 100644
+--- a/cpp/worldline/classic/resampler.cpp
++++ b/cpp/worldline/classic/resampler.cpp
+@@ -4,6 +4,7 @@
+ #include <cmath>
+ #include <iterator>
+ #include <memory>
++#include <string>
+ #include <vector>
+
+ #include "timing.h"
+diff --git a/cpp/worldline/model/model.cpp b/cpp/worldline/model/model.cpp
+index 62b96ca..705d99f 100644
+--- a/cpp/worldline/model/model.cpp
++++ b/cpp/worldline/model/model.cpp
+@@ -22,6 +22,31 @@ Model::Model(std::vector<double> samples, int fs, double frame_ms,
+       f0_estimator_(std::move(f0_estimator)) {}
+ Model::Model(int fs, double frame_ms, int fft_size)
+     : fs_(fs), frame_ms_(frame_ms), fft_size_(fft_size) {}
++Model::Model(const Model& other)
++    : samples_(other.samples_),
++      fs_(other.fs_),
++      f0_estimator_(nullptr),
++      frame_ms_(other.frame_ms_),
++      f0_(other.f0_),
++      ts_(other.ts_),
++      fft_size_(other.fft_size_),
++      sp_(other.sp_),
++      ap_(other.ap_),
++      residual_(other.residual_) {}
++Model& Model::operator=(const Model& other) {
++  if (this == &other) return *this;
++  samples_ = other.samples_;
++  fs_ = other.fs_;
++  f0_estimator_.reset();
++  frame_ms_ = other.frame_ms_;
++  f0_ = other.f0_;
++  ts_ = other.ts_;
++  fft_size_ = other.fft_size_;
++  sp_ = other.sp_;
++  ap_ = other.ap_;
++  residual_ = other.residual_;
++  return *this;
++}
+
+ void Model::BuildF0() {
+   f0_estimator_->Estimate(samples_, fs_, frame_ms_, &f0_, &ts_);
+diff --git a/cpp/worldline/model/model.h b/cpp/worldline/model/model.h
+index 1ec34b5..6d14058 100644
+--- a/cpp/worldline/model/model.h
++++ b/cpp/worldline/model/model.h
+@@ -13,6 +13,8 @@ class Model {
+   Model(std::vector<double> samples, int fs, double frame_ms,
+         std::unique_ptr<F0Estimator> f0_estimator);
+   Model(int fs, double frame_ms, int fft_size);
++  Model(const Model& other);
++  Model& operator=(const Model& other);
+
+   void BuildF0();
+   void BuildSp();
+diff --git a/cpp/worldline/phrase_synth.cpp b/cpp/worldline/phrase_synth.cpp
+index 0851c80..207e4e1 100644
+--- a/cpp/worldline/phrase_synth.cpp
++++ b/cpp/worldline/phrase_synth.cpp
+@@ -3,6 +3,10 @@
+ #include <algorithm>
+ #include <cmath>
+ #include <iterator>
++#include <list>
++#include <mutex>
++#include <string>
++#include <unordered_map>
+ #include <vector>
+
+ #include "world/constantnumbers.h"
+@@ -18,6 +22,11 @@ namespace worldline {
+ constexpr double frame_ms = 10;
+ const int padding = 2;
+
++static std::mutex analysis_cache_mutex;
++static std::unordered_map<std::string, Model> analysis_cache;
++static std::list<std::string> analysis_cache_order;
++const int analysis_cache_capacity = 32;
++
+ static int ceil_int(double v) { return static_cast<int>(ceil(v)); }
+ static int floor_int(double v) { return static_cast<int>(floor(v)); }
+ static int round_int(double v) { return static_cast<int>(round(v)); }
+@@ -43,10 +52,22 @@ void PhraseSynth::AddRequestAt(int index, const SynthRequest& request,
+   parallel_timings_.emplace(index, std::move(prepared.second));
+ }
+
++void PhraseSynth::AddRequestAtCached(
++    int index, const SynthRequest& request, double pos_ms, double skip_ms,
++    double length_ms, double fade_in_ms, double fade_out_ms,
++    const char* cache_key, LogCallback logCallback) {
++  auto prepared = PrepareRequest(request, pos_ms, skip_ms, length_ms,
++                                 fade_in_ms, fade_out_ms, logCallback,
++                                 cache_key);
++  std::lock_guard<std::mutex> lock(parallel_mutex_);
++  parallel_models_.emplace(index, std::move(prepared.first));
++  parallel_timings_.emplace(index, std::move(prepared.second));
++}
++
+ std::pair<Model, PhraseSynth::ModelTiming> PhraseSynth::PrepareRequest(
+     const SynthRequest& request, double pos_ms, double skip_ms,
+     double length_ms, double fade_in_ms, double fade_out_ms,
+-    LogCallback logCallback) {
++    LogCallback logCallback, const char* cache_key) {
+   std::vector<double> samples;
+   samples.reserve(request.sample_length);
+   std::copy(request.sample, request.sample + request.sample_length,
+@@ -65,8 +86,6 @@ std::pair<Model, PhraseSynth::ModelTiming> PhraseSynth::PrepareRequest(
+
+   double src_max = vec_maxabs(model.samples());
+
+-  model.BuildF0();
+-
+   auto mapping = GetTimeMapping(model, request);
+
+   // Trim model to input region.
+@@ -78,14 +97,37 @@ std::pair<Model, PhraseSynth::ModelTiming> PhraseSynth::PrepareRequest(
+       in_start_frame;
+   double left_trimmed = in_start_frame * frame_ms;
+
+-  model.Trim(in_start_frame, in_length_frame);
+-
+-  double seg_max = vec_maxabs(model.samples());
+-  AutoGain(model.samples(), src_max, seg_max, model.GetVoicedRatio(),
+-           request.volume, request.flag_P);
+-
+-  model.BuildSp();
+-  model.BuildAp();
++  bool cache_hit = false;
++  if (cache_key != nullptr && cache_key[0] != '\0') {
++    std::lock_guard<std::mutex> lock(analysis_cache_mutex);
++    auto found = analysis_cache.find(cache_key);
++    if (found != analysis_cache.end()) {
++      model = Model(found->second);
++      analysis_cache_order.remove(cache_key);
++      analysis_cache_order.push_back(cache_key);
++      cache_hit = true;
++    }
++  }
++  if (!cache_hit) {
++    model.BuildF0();
++    model.Trim(in_start_frame, in_length_frame);
++    double seg_max = vec_maxabs(model.samples());
++    AutoGain(model.samples(), src_max, seg_max, model.GetVoicedRatio(),
++             request.volume, request.flag_P);
++    model.BuildSp();
++    model.BuildAp();
++    if (cache_key != nullptr && cache_key[0] != '\0') {
++      std::lock_guard<std::mutex> lock(analysis_cache_mutex);
++      if (analysis_cache.find(cache_key) == analysis_cache.end()) {
++        if (analysis_cache.size() >= analysis_cache_capacity) {
++          analysis_cache.erase(analysis_cache_order.front());
++          analysis_cache_order.pop_front();
++        }
++        analysis_cache.emplace(cache_key, model);
++        analysis_cache_order.push_back(cache_key);
++      }
++    }
++  }
+
+   ShiftTimeMapping(mapping, -left_trimmed);
+   PadTimeMapping(mapping, padding);
+diff --git a/cpp/worldline/phrase_synth.h b/cpp/worldline/phrase_synth.h
+index 269b4b2..7b3e782 100644
+--- a/cpp/worldline/phrase_synth.h
++++ b/cpp/worldline/phrase_synth.h
+@@ -23,6 +23,10 @@ class PhraseSynth {
+   void AddRequestAt(int index, const SynthRequest& request, double pos_ms,
+                     double skip_ms, double length_ms, double fade_in_ms,
+                     double fade_out_ms, LogCallback logCallback);
++  void AddRequestAtCached(int index, const SynthRequest& request,
++                          double pos_ms, double skip_ms, double length_ms,
++                          double fade_in_ms, double fade_out_ms,
++                          const char* cache_key, LogCallback logCallback);
+   void SetCurves(double* const f0, double* gender, double* tension,
+                  double* breathiness, double* voicing, int length,
+                  LogCallback logCallback);
+@@ -41,7 +45,7 @@ class PhraseSynth {
+   std::pair<Model, ModelTiming> PrepareRequest(
+       const SynthRequest& request, double pos_ms, double skip_ms,
+       double length_ms, double fade_in_ms, double fade_out_ms,
+-      LogCallback logCallback);
++      LogCallback logCallback, const char* cache_key = nullptr);
+
+   std::vector<Model> models_;
+   std::vector<ModelTiming> timings_;
+diff --git a/cpp/worldline/worldline.cpp b/cpp/worldline/worldline.cpp
+index b415905..2fab771 100644
+--- a/cpp/worldline/worldline.cpp
++++ b/cpp/worldline/worldline.cpp
+@@ -167,6 +167,13 @@ DLL_API int Resample(const SynthRequest* request, float** y) {
+   return out.size();
+ }
+
++DLL_API void UtauTTSFreeFloat(float* samples) { delete[] samples; }
++
++DLL_API void UtauTTSCopyFloat(const float* source, float* destination,
++                              int length) {
++  std::copy_n(source, length, destination);
++}
++
+ DLL_API PhraseSynth* PhraseSynthNew() { return new PhraseSynth(); }
+
+ DLL_API void PhraseSynthDelete(PhraseSynth* phrase_synth) {
+@@ -190,6 +197,14 @@ DLL_API void PhraseSynthAddRequestParallel(
+                              fade_in_ms, fade_out_ms, logCallback);
+ }
+
++DLL_API void UtauTTSPhraseSynthAddRequest(
++    PhraseSynth* phrase_synth, const SynthRequest* request, int index,
++    const UtauTTSPhraseTiming* timing, const char* cache_key) {
++  phrase_synth->AddRequestAtCached(
++      index, *request, timing->position_ms, timing->skip_ms, timing->length_ms,
++      timing->fade_in_ms, timing->fade_out_ms, cache_key, nullptr);
++}
++
+ DLL_API void PhraseSynthSetCurves(PhraseSynth* phrase_synth, double* f0,
+                                   double* gender, double* tension,
+                                   double* breathiness, double* voicing,
+diff --git a/cpp/worldline/worldline.h b/cpp/worldline/worldline.h
+index cb36501..c1e4820 100644
+--- a/cpp/worldline/worldline.h
++++ b/cpp/worldline/worldline.h
+@@ -15,6 +15,14 @@
+
+ using worldline::PhraseSynth;
+
++struct UtauTTSPhraseTiming {
++  double position_ms;
++  double skip_ms;
++  double length_ms;
++  double fade_in_ms;
++  double fade_out_ms;
++};
++
+ extern "C" {
+
+ DLL_API int F0(float* samples, int length, int fs, double frame_period,
+@@ -39,6 +47,11 @@ DLL_API int WorldSynthesis(double* const f0, int f0_length,
+
+ DLL_API int Resample(const SynthRequest* request, float** y);
+
++DLL_API void UtauTTSFreeFloat(float* samples);
++
++DLL_API void UtauTTSCopyFloat(const float* source, float* destination,
++                              int length);
++
+ DLL_API PhraseSynth* PhraseSynthNew();
+
+ DLL_API void PhraseSynthDelete(PhraseSynth* phrase_synth);
+@@ -54,6 +67,10 @@ DLL_API void PhraseSynthAddRequestParallel(
+     double pos_ms, double skip_ms, double length_ms, double fade_in_ms,
+     double fade_out_ms, worldline::LogCallback logCallback);
+
++DLL_API void UtauTTSPhraseSynthAddRequest(
++    PhraseSynth* phrase_synth, const SynthRequest* request, int index,
++    const UtauTTSPhraseTiming* timing, const char* cache_key);
++
+ DLL_API void PhraseSynthSetCurves(PhraseSynth* phrase_synth, double* f0,
+                                   double* gender, double* tension,
+                                   double* breathiness, double* voicing,

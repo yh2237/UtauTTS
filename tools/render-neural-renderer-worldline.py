@@ -172,7 +172,7 @@ def main() -> None:
     parser.add_argument("--decisions-dir", default="out/neural-renderer/diphone-f0-oracle-phase")
     parser.add_argument("--out", default="out/neural-renderer/diphone-worldline-f0-oracle")
     parser.add_argument("--worldline", default="out/neural-renderer/worldline.dll")
-    parser.add_argument("--bridge", default="tools/worldline-bridge/bin/Release/net8.0/win-x64/utautts-worldline-bridge.exe")
+    parser.add_argument("--bridge", default="release/UtauTTS/runtime/utautts-worldline-bridge.exe")
     parser.add_argument("--sample-rate", type=int, default=44_100)
     parser.add_argument("--decision-sample-rate", type=int, default=24_000)
     parser.add_argument("--fade-ms", type=float, default=10.0)

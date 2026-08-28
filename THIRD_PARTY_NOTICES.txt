@@ -148,7 +148,14 @@ https://github.com/r9y9/open_jtalk
 OpenUtau worldline
 ==================
 
-The Windows release bundles the worldline native library from OpenUtau.
+The Windows and Linux releases bundle a modified build of the worldline native
+library from OpenUtau. The UtauTTS changes are recorded in
+tools/worldline-parallel.patch, tools/world-thread-local.patch,
+tools/worldline-permissive.patch, and tools/worldline-native-bridge.patch.
+The permissive patch replaces the original GPL-licensed spline dependency with
+an independently implemented natural cubic spline and excludes unused
+audio-output code from the shared library. Neither the GPL spline implementation
+nor that audio-output code is present in the distributed worldline binaries.
 
 The MIT License (MIT)
 
@@ -174,6 +181,38 @@ SOFTWARE.
 
 Upstream source:
 https://github.com/openutau/OpenUtau/tree/0.1.565/cpp/worldline
+
+
+libpyin
+-------
+
+The worldline binaries include libpyin for F0 estimation.
+
+Copyright (c) 2015-2017, Kanru Hua
+All rights reserved.
+
+libpyin is distributed under the BSD-3-Clause license. Its complete license
+text is included as licenses/Worldline/LIBPYIN-LICENSE.txt in each release
+package.
+
+Upstream source:
+https://github.com/Sleepwalking/libpyin/tree/b38135390b335c3e8cea6ef35cf5093789b36dac
+
+
+libgvps
+-------
+
+The worldline binaries include libgvps through libpyin.
+
+Copyright (c) 2015, Kanru Hua
+All rights reserved.
+
+libgvps is distributed under the BSD-3-Clause license. Its complete license
+text is included as licenses/Worldline/LIBGVPS-LICENSE.txt in each release
+package.
+
+Upstream source:
+https://github.com/Sleepwalking/libgvps/tree/2f1b4106d72f8f8138dc447bf0123820c0772cbd
 
 
 WORLD
@@ -264,18 +303,6 @@ The exact Go runtime license text used by the build is included under
 licenses/Go/GO-LICENSE.txt. Go is distributed under a BSD-style license. The
 upstream text is available at:
 https://go.dev/LICENSE
-
-
-.NET runtime
-============
-
-The OpenUtau worldline bridge is distributed as a self-contained .NET
-application. The release therefore includes the .NET runtime and framework
-libraries. The exact runtime package's license and third-party notices are
-included under licenses/DotNet in every release package.
-
-Upstream license information:
-https://github.com/dotnet/core/blob/main/license-information.md
 
 
 golang.org/x/text

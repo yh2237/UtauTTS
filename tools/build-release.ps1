@@ -75,19 +75,11 @@ try {
         throw "Open JTalk frontend helper build failed with exit code $LASTEXITCODE"
     }
 
-    if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-        throw '.NET 8 SDK is required'
-    }
-    $previousNugetPackages = $env:NUGET_PACKAGES
-    $env:NUGET_PACKAGES = Join-Path $env:USERPROFILE '.nuget/packages'
-    try {
-        Invoke-Checked 'dotnet' @(
-            'publish', 'tools/worldline-bridge/worldline-bridge.csproj',
-            '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '--ignore-failed-sources', '-o', $guiRuntimePath
-        )
-    } finally {
-        $env:NUGET_PACKAGES = $previousNugetPackages
-    }
+    Write-Host '=== Build native worldline bridge ==='
+    Invoke-Checked 'go' @(
+        'build', '-trimpath', '-o', (Join-Path $guiRuntimePath 'utautts-worldline-bridge.exe'),
+        './cmd/utautts-worldline-bridge'
+    )
     & (Join-Path $PSScriptRoot 'fetch-worldline.ps1') -OutputPath (Join-Path $guiRuntimePath 'worldline.dll')
 
     if ($cudaAvailable) {

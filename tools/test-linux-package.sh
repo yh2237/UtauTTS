@@ -55,15 +55,16 @@ for required in \
   "${gui_root}/docs/building.md" \
   "${gui_root}/docs/technical-design.md" \
   "${server_root}/licenses/README.txt" \
-  "${gui_root}/licenses/DotNet/DOTNET-RUNTIME-LICENSE.txt" \
-  "${server_root}/licenses/DotNet/DOTNET-RUNTIME-THIRD-PARTY-NOTICES.txt" \
   "${gui_root}/licenses/PROSODY-MODELS.txt" \
   "${server_root}/models/README.md" \
   "${gui_root}/runtime/licenses/PYTHON_LICENSE.txt" \
   "${server_root}/runtime/licenses/PYINSTALLER_COPYING.txt" \
-  "${server_root}/runtime/libcoreclr.so" \
-  "${server_root}/runtime/libhostpolicy.so"; do
+  "${server_root}/runtime/utautts-worldline-bridge"; do
   [ -f "${required}" ] || fail "required package file is missing: ${required}"
+done
+for removed_runtime in libcoreclr.so libhostpolicy.so utautts-worldline-bridge.runtimeconfig.json; do
+  [ ! -e "${server_root}/runtime/${removed_runtime}" ] \
+    || fail "server package still contains an obsolete worldline runtime file: ${removed_runtime}"
 done
 for executable in \
   "${gui_root}/utautts" \

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -15,7 +14,6 @@ import (
 	"utautts/internal/audio"
 	"utautts/internal/pitch"
 	"utautts/internal/plan"
-	"utautts/internal/processutil"
 )
 
 const worldlineFrameMS = 10.0
@@ -43,6 +41,7 @@ func renderOpenUtauWorldlineRFaithful(synthesisPlan *plan.Plan, cfg Config) (*au
 }
 
 type worldlineManifestUnit struct {
+	CacheKey          string                   `json:"cache_key,omitempty"`
 	Source            string                   `json:"source"`
 	FRQPath           string                   `json:"frq_path,omitempty"`
 	PositionMS        float64                  `json:"position_ms"`
@@ -278,7 +277,8 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, 
 			fadeOutMS = envelopePoints[4].XMS - envelopePoints[3].XMS
 		}
 		manifest.Units = append(manifest.Units, worldlineManifestUnit{
-			Source: source, FRQPath: frqPath, PositionMS: positionMS, SkipMS: skipMS,
+			CacheKey: worldlineAnalysisCacheKey(source, frqPath, *unit, volume),
+			Source:   source, FRQPath: frqPath, PositionMS: positionMS, SkipMS: skipMS,
 			LengthMS: lengthMS, FadeInMS: fadeInMS,
 			FadeOutMS: fadeOutMS, OffsetMS: unit.OffsetMS, RequiredLengthMS: requiredLength,
 			ConsonantMS: unit.ConsonantMS, CutoffMS: unit.CutoffMS,
@@ -303,14 +303,11 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, 
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	command := exec.CommandContext(ctx, bridge, manifestPath)
-	command.WaitDelay = 5 * time.Second
-	processutil.Configure(command)
-	if output, err := command.CombinedOutput(); err != nil {
+	if commandErr := invokeWorldlineBridge(ctx, bridge, manifestPath); commandErr != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, fmt.Errorf("worldline bridge canceled: %w", ctxErr)
 		}
-		return nil, fmt.Errorf("worldline bridge failed: %w: %s", err, output)
+		return nil, fmt.Errorf("worldline bridge failed: %w", commandErr)
 	}
 	pcm, err := audio.ReadWav(manifest.OutputPath)
 	if err != nil {
@@ -449,6 +446,21 @@ func resolveWorldlineBridge(configured string) (string, error) {
 		return "", fmt.Errorf("worldline bridge %q: %w", configured, err)
 	}
 	return configured, nil
+}
+
+func worldlineAnalysisCacheKey(source, frqPath string, unit plan.Unit, volume float64) string {
+	identity := func(path string) string {
+		if path == "" {
+			return ""
+		}
+		info, err := os.Stat(path)
+		if err != nil {
+			return path
+		}
+		return fmt.Sprintf("%s:%d:%d", path, info.Size(), info.ModTime().UnixNano())
+	}
+	return fmt.Sprintf("%s|%s|%.6f|%.6f|%.6f|86",
+		identity(source), identity(frqPath), unit.OffsetMS, unit.CutoffMS, volume)
 }
 
 func resolveWorldlineLibrary(configured string) (string, error) {

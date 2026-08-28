@@ -1,0 +1,141 @@
+diff --git a/cpp/worldline/phrase_synth.cpp b/cpp/worldline/phrase_synth.cpp
+index c7f6718..0851c80 100644
+--- a/cpp/worldline/phrase_synth.cpp
++++ b/cpp/worldline/phrase_synth.cpp
+@@ -26,6 +26,27 @@ void PhraseSynth::AddRequest(const SynthRequest& request, double pos_ms,
+                              double skip_ms, double length_ms,
+                              double fade_in_ms, double fade_out_ms,
+                              LogCallback logCallback) {
++  auto prepared = PrepareRequest(request, pos_ms, skip_ms, length_ms,
++                                 fade_in_ms, fade_out_ms, logCallback);
++  models_.push_back(std::move(prepared.first));
++  timings_.push_back(std::move(prepared.second));
++}
++
++void PhraseSynth::AddRequestAt(int index, const SynthRequest& request,
++                               double pos_ms, double skip_ms, double length_ms,
++                               double fade_in_ms, double fade_out_ms,
++                               LogCallback logCallback) {
++  auto prepared = PrepareRequest(request, pos_ms, skip_ms, length_ms,
++                                 fade_in_ms, fade_out_ms, logCallback);
++  std::lock_guard<std::mutex> lock(parallel_mutex_);
++  parallel_models_.emplace(index, std::move(prepared.first));
++  parallel_timings_.emplace(index, std::move(prepared.second));
++}
++
++std::pair<Model, PhraseSynth::ModelTiming> PhraseSynth::PrepareRequest(
++    const SynthRequest& request, double pos_ms, double skip_ms,
++    double length_ms, double fade_in_ms, double fade_out_ms,
++    LogCallback logCallback) {
+   std::vector<double> samples;
+   samples.reserve(request.sample_length);
+   std::copy(request.sample, request.sample + request.sample_length,
+@@ -71,7 +92,6 @@ void PhraseSynth::AddRequest(const SynthRequest& request, double pos_ms,
+
+   model.Remap(mapping);
+
+-  models_.push_back(std::move(model));
+   ModelTiming timing;
+   timing.left_extra = padding;
+   timing.skip = (int)round(skip_ms / frame_ms);
+@@ -82,7 +102,7 @@ void PhraseSynth::AddRequest(const SynthRequest& request, double pos_ms,
+   timing.p0 = std::max(0, timing.p0);
+   timing.p1 = std::max(timing.p0 + 1, timing.p1);
+   timing.p3 = std::min(timing.p4 - 1, timing.p3);
+-  timings_.push_back(std::move(timing));
++  return std::make_pair(std::move(model), std::move(timing));
+ }
+
+ void PhraseSynth::SetCurves(double* const f0, double* gender, double* tension,
+@@ -97,6 +117,14 @@ void PhraseSynth::SetCurves(double* const f0, double* gender, double* tension,
+ }
+
+ std::vector<double> PhraseSynth::Synth(LogCallback logCallback) {
++  for (auto& item : parallel_models_) {
++    models_.push_back(std::move(item.second));
++  }
++  for (auto& item : parallel_timings_) {
++    timings_.push_back(std::move(item.second));
++  }
++  parallel_models_.clear();
++  parallel_timings_.clear();
+   int fs = models_[0].fs();
+   int fft_size = models_[0].fft_size();
+   int width = models_[0].sp()[0].size();
+diff --git a/cpp/worldline/phrase_synth.h b/cpp/worldline/phrase_synth.h
+index 4f128a3..269b4b2 100644
+--- a/cpp/worldline/phrase_synth.h
++++ b/cpp/worldline/phrase_synth.h
+@@ -2,7 +2,10 @@
+ #define WORLDLINE_PHRASE_SYNTH_H_
+
+ #include <memory>
++#include <map>
++#include <mutex>
+ #include <string>
++#include <utility>
+ #include <vector>
+
+ #include "worldline/model/model.h"
+@@ -17,6 +20,9 @@ class PhraseSynth {
+   void AddRequest(const SynthRequest& request, double pos_ms, double skip_ms,
+                   double length_ms, double fade_in_ms, double fade_out_ms,
+                   LogCallback logCallback);
++  void AddRequestAt(int index, const SynthRequest& request, double pos_ms,
++                    double skip_ms, double length_ms, double fade_in_ms,
++                    double fade_out_ms, LogCallback logCallback);
+   void SetCurves(double* const f0, double* gender, double* tension,
+                  double* breathiness, double* voicing, int length,
+                  LogCallback logCallback);
+@@ -32,8 +38,16 @@ class PhraseSynth {
+     int p4;
+   };
+
++  std::pair<Model, ModelTiming> PrepareRequest(
++      const SynthRequest& request, double pos_ms, double skip_ms,
++      double length_ms, double fade_in_ms, double fade_out_ms,
++      LogCallback logCallback);
++
+   std::vector<Model> models_;
+   std::vector<ModelTiming> timings_;
++  std::map<int, Model> parallel_models_;
++  std::map<int, ModelTiming> parallel_timings_;
++  std::mutex parallel_mutex_;
+
+   std::vector<double> f0_;
+   std::vector<double> gender_;
+diff --git a/cpp/worldline/worldline.cpp b/cpp/worldline/worldline.cpp
+index b300653..b415905 100644
+--- a/cpp/worldline/worldline.cpp
++++ b/cpp/worldline/worldline.cpp
+@@ -182,6 +182,14 @@ DLL_API void PhraseSynthAddRequest(PhraseSynth* phrase_synth,
+                            fade_out_ms, logCallback);
+ }
+
++DLL_API void PhraseSynthAddRequestParallel(
++    PhraseSynth* phrase_synth, const SynthRequest* request, int index,
++    double pos_ms, double skip_ms, double length_ms, double fade_in_ms,
++    double fade_out_ms, worldline::LogCallback logCallback) {
++  phrase_synth->AddRequestAt(index, *request, pos_ms, skip_ms, length_ms,
++                             fade_in_ms, fade_out_ms, logCallback);
++}
++
+DLL_API void PhraseSynthSetCurves(PhraseSynth* phrase_synth, double* f0,
+                                  double* gender, double* tension,
+                                  double* breathiness, double* voicing,
+diff --git a/cpp/worldline/worldline.h b/cpp/worldline/worldline.h
+index dd11fdd..cb36501 100644
+--- a/cpp/worldline/worldline.h
++++ b/cpp/worldline/worldline.h
+@@ -49,6 +49,11 @@ DLL_API void PhraseSynthAddRequest(PhraseSynth* phrase_synth,
+                                    double fade_in_ms, double fade_out_ms,
+                                    worldline::LogCallback logCallback);
+
++DLL_API void PhraseSynthAddRequestParallel(
++    PhraseSynth* phrase_synth, const SynthRequest* request, int index,
++    double pos_ms, double skip_ms, double length_ms, double fade_in_ms,
++    double fade_out_ms, worldline::LogCallback logCallback);
++
+ DLL_API void PhraseSynthSetCurves(PhraseSynth* phrase_synth, double* f0,
+                                   double* gender, double* tension,
+                                   double* breathiness, double* voicing,

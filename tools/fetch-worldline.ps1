@@ -4,22 +4,15 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$url = 'https://raw.githubusercontent.com/openutau/OpenUtau/0.1.565/runtimes/win-x64/native/worldline.dll'
-$expectedHash = '1A478B290E3EE4409A38BA37435C8B2DD8BFCAB555CE511A406F753D6BD8A05F'
+$root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$source = Join-Path $root 'assets/worldline/win-x64/worldline.dll'
+$expectedHash = '655D918375643BAD1A3FF95E9E76F0B560B6CAA009370BB56498407D1F5F0C28'
 $output = [IO.Path]::GetFullPath($OutputPath)
 $directory = Split-Path -Parent $output
-$temporary = "$output.download"
 
 New-Item -ItemType Directory -Force -Path $directory | Out-Null
-try {
-    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $temporary
-    $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $temporary).Hash
-    if ($actualHash -ne $expectedHash) {
-        throw "worldline.dll SHA-256 mismatch: $actualHash"
-    }
-    Move-Item -Force -LiteralPath $temporary -Destination $output
-} finally {
-    if (Test-Path -LiteralPath $temporary) {
-        Remove-Item -Force -LiteralPath $temporary
-    }
+$actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $source).Hash
+if ($actualHash -ne $expectedHash) {
+    throw "worldline.dll SHA-256 mismatch: $actualHash"
 }
+Copy-Item -Force -LiteralPath $source -Destination $output

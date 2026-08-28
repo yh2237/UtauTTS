@@ -1,0 +1,344 @@
+diff --git a/cpp/worldline/BUILD.bazel b/cpp/worldline/BUILD.bazel
+index 5a08669..8f72a5b 100644
+--- a/cpp/worldline/BUILD.bazel
++++ b/cpp/worldline/BUILD.bazel
+@@ -78,7 +78,6 @@ cc_library(
+ cc_shared_library(
+     name = "worldline",
+     deps = [
+-        ":audio_output_lib",
+         ":worldline_lib",
+     ],
+ )
+diff --git a/cpp/worldline/model/BUILD.bazel b/cpp/worldline/model/BUILD.bazel
+index 3b1cd05..c44ea6c 100644
+--- a/cpp/worldline/model/BUILD.bazel
++++ b/cpp/worldline/model/BUILD.bazel
+@@ -6,9 +6,6 @@ cc_library(
+     name = "effects",
+     srcs = ["effects.cpp"],
+     hdrs = ["effects.h"],
+-    deps = [
+-        "@spline",
+-    ],
+ )
+
+ cc_library(
+diff --git a/cpp/worldline/model/effects.cpp b/cpp/worldline/model/effects.cpp
+index 513210d..5585759 100644
+--- a/cpp/worldline/model/effects.cpp
++++ b/cpp/worldline/model/effects.cpp
+@@ -1,14 +1,68 @@
+ #include "effects.h"
+
++#include <algorithm>
+ #include <cmath>
+-#include <iostream>
+-#include <numeric>
+ #include <vector>
+
+-#include "spline.h"
+-
+ namespace worldline {
+
++namespace {
++
++class NaturalCubicSpline {
++ public:
++  NaturalCubicSpline(const std::vector<double>& x,
++                     const std::vector<double>& y)
++      : x_(x), y_(y), b_(x.size() - 1), c_(x.size()), d_(x.size() - 1) {
++    const int size = static_cast<int>(x_.size());
++    std::vector<double> h(size - 1);
++    for (int i = 0; i < size - 1; ++i) {
++      h[i] = x_[i + 1] - x_[i];
++    }
++
++    std::vector<double> alpha(size, 0);
++    for (int i = 1; i < size - 1; ++i) {
++      alpha[i] = 3 * (y_[i + 1] - y_[i]) / h[i] -
++                 3 * (y_[i] - y_[i - 1]) / h[i - 1];
++    }
++
++    std::vector<double> lower(size, 1);
++    std::vector<double> ratio(size, 0);
++    std::vector<double> solution(size, 0);
++    for (int i = 1; i < size - 1; ++i) {
++      lower[i] = 2 * (x_[i + 1] - x_[i - 1]) - h[i - 1] * ratio[i - 1];
++      ratio[i] = h[i] / lower[i];
++      solution[i] =
++          (alpha[i] - h[i - 1] * solution[i - 1]) / lower[i];
++    }
++
++    for (int i = size - 2; i >= 0; --i) {
++      c_[i] = solution[i] - ratio[i] * c_[i + 1];
++      b_[i] = (y_[i + 1] - y_[i]) / h[i] -
++              h[i] * (c_[i + 1] + 2 * c_[i]) / 3;
++      d_[i] = (c_[i + 1] - c_[i]) / (3 * h[i]);
++    }
++  }
++
++  double Evaluate(double x) const {
++    auto upper = std::upper_bound(x_.begin(), x_.end(), x);
++    int index = std::clamp(
++        static_cast<int>(upper - x_.begin()) - 1, 0,
++        static_cast<int>(x_.size()) - 2);
++    double offset = x - x_[index];
++    return y_[index] + b_[index] * offset + c_[index] * offset * offset +
++           d_[index] * offset * offset * offset;
++  }
++
++ private:
++  std::vector<double> x_;
++  std::vector<double> y_;
++  std::vector<double> b_;
++  std::vector<double> c_;
++  std::vector<double> d_;
++};
++
++}  // namespace
++
+ static void GenderWeights(std::vector<int>& indexes,
+                           std::vector<double>& weights, int width,
+                           double ratio) {
+@@ -98,7 +152,7 @@ std::vector<double> GetTensionCoefficients1(double f0, int fs, int value,
+ std::vector<double> GetTensionCoefficients(double f0, int fs, int value,
+                                            int width) {
+   std::vector<double> envelope(width, 1);
+-  if (f0 < 50) {
++  if (f0 < 50 || value == 0) {
+     return envelope;
+   }
+   double v = value * 0.01;
+@@ -127,9 +181,9 @@ std::vector<double> GetTensionCoefficients(double f0, int fs, int value,
+     py.push_back(0);
+     x++;
+   }
+-  tk::spline spline(px, py);
++  NaturalCubicSpline spline(px, py);
+   for (int i = 0; i < width; ++i) {
+-    envelope[i] = std::exp(spline(i));
++    envelope[i] = std::exp(spline.Evaluate(i));
+   }
+   return envelope;
+ }
+@@ -150,4 +204,4 @@ void AutoGain(std::vector<double>& samples, double src_max, double out_max,
+   }
+ }
+
+-}  // namespace worldline
+\ No newline at end of file
++}  // namespace worldline
+diff --git a/cpp/worldline/classic/BUILD.bazel b/cpp/worldline/classic/BUILD.bazel
+index e494a9f..d8c9400 100644
+--- a/cpp/worldline/classic/BUILD.bazel
++++ b/cpp/worldline/classic/BUILD.bazel
+@@ -44,12 +44,10 @@ cc_library(
+     srcs = ["resampler.cpp"],
+     hdrs = ["resampler.h"],
+     deps = [
+-        ":classic_args",
+         ":timing",
+         "//worldline:synth_request",
+         "//worldline/common:vec_utils",
+         "//worldline/model",
+         "//worldline/model:effects",
+-        "@world//:audioio",
+     ],
+ )
+diff --git a/cpp/worldline/classic/resampler.h b/cpp/worldline/classic/resampler.h
+index 72fd19e..ec7b321 100644
+--- a/cpp/worldline/classic/resampler.h
++++ b/cpp/worldline/classic/resampler.h
+@@ -2,7 +2,6 @@
+ #define WORLDLINE_CLASSIC_RESAMPLER_H_
+
+ #include <memory>
+-#include <string>
+ #include <vector>
+
+ #include "worldline/model/model.h"
+@@ -12,6 +11,5 @@ namespace worldline {
+ class Resampler {
+  public:
+   Resampler(SynthRequest request);
+-  Resampler(std::vector<std::string> args);
+
+   std::vector<double> Resample();
+diff --git a/cpp/worldline/classic/resampler.cpp b/cpp/worldline/classic/resampler.cpp
+index 237f389..80ccf22 100644
+--- a/cpp/worldline/classic/resampler.cpp
++++ b/cpp/worldline/classic/resampler.cpp
+@@ -2,16 +2,10 @@
+
+ #include <algorithm>
+ #include <cmath>
+-#include <fstream>
+-#include <iostream>
+ #include <iterator>
+ #include <memory>
+-#include <optional>
+-#include <sstream>
+ #include <vector>
+
+-#include "audioio.h"
+-#include "classic_args.h"
+ #include "timing.h"
+ #include "world/constantnumbers.h"
+ #include "worldline/common/vec_utils.h"
+@@ -45,43 +39,5 @@ Resampler::Resampler(SynthRequest request) : request_(request) {
+                                    frame_ms, std::move(f0_estimator));
+ }
+
+-static std::string ReadFrqFile(const std::string& wav_path) {
+-  int last_dot_index = wav_path.find_last_of('.');
+-  if (last_dot_index <= 0) {
+-    return "";
+-  }
+-  std::string frq_path = wav_path.substr(0, last_dot_index) + "_" +
+-                         wav_path.substr(last_dot_index + 1) + ".frq";
+-  std::ifstream frq_stream(frq_path.c_str(), std::ios::binary);
+-  if (!frq_stream.good() || !frq_stream.is_open()) {
+-    std::cout << "frq file not found" << std::endl;
+-    return "";
+-  }
+-  std::cout << "frq file found" << std::endl;
+-  std::stringstream sstream;
+-  std::copy(std::istreambuf_iterator<char>(frq_stream),
+-            std::istreambuf_iterator<char>(),
+-            std::ostreambuf_iterator<char>(sstream));
+-  frq_stream.close();
+-  return sstream.str();
+-}
+-
+-Resampler::Resampler(std::vector<std::string> args)
+-    : request_(ParseClassicArgs(args)) {
+-  std::vector<double> samples(GetAudioLength(args[0].c_str()), 0);
+-  int fs;
+-  int nbit;
+-  wavread(args[0].c_str(), &fs, &nbit, samples.data());
+-  std::string frq_data = ReadFrqFile(args[0]);
+-  std::unique_ptr<F0Estimator> f0_estimator;
+-  if (frq_data.empty()) {
+-    f0_estimator = std::make_unique<PyinEstimator>();
+-  } else {
+-    f0_estimator = std::make_unique<FrqEstimator>(frq_data);
+-  }
+-  model_ = std::make_unique<Model>(std::move(samples), fs, frame_ms,
+-                                   std::move(f0_estimator));
+-}
+-
+ std::vector<double> Resampler::Resample() {
+   double src_max = vec_maxabs(model_->samples());
+diff --git a/cpp/worldline/common/BUILD.bazel b/cpp/worldline/common/BUILD.bazel
+index 5d7dc7b..49d25b5 100644
+--- a/cpp/worldline/common/BUILD.bazel
++++ b/cpp/worldline/common/BUILD.bazel
+@@ -11,7 +11,4 @@ cc_library(
+     name = "vec_utils",
+     srcs = ["vec_utils.cpp"],
+     hdrs = ["vec_utils.h"],
+-    deps = [
+-        "@libnpy",
+-    ],
+ )
+diff --git a/cpp/worldline/common/vec_utils.cpp b/cpp/worldline/common/vec_utils.cpp
+index 15e8a0b..9d76dcc 100644
+--- a/cpp/worldline/common/vec_utils.cpp
++++ b/cpp/worldline/common/vec_utils.cpp
+@@ -1,13 +1,9 @@
+ #include "vec_utils.h"
+
+ #include <algorithm>
+-#include <iostream>
+ #include <iterator>
+-#include <string>
+ #include <vector>
+
+-#include "npy.hpp"
+-
+ namespace worldline {
+
+ std::vector<std::vector<double>> vec2d(int width, int length, double value) {
+@@ -23,15 +19,6 @@ std::vector<double*> vec2d_wrapper(std::vector<std::vector<double>>& vec) {
+   return result;
+ }
+
+-std::vector<double> vec2d_to_1d(const std::vector<std::vector<double>>& vec) {
+-  std::vector<double> result;
+-  result.reserve(vec.size() * vec[0].size());
+-  for (const std::vector<double>& v : vec) {
+-    std::copy(v.begin(), v.end(), std::back_inserter(result));
+-  }
+-  return result;
+-}
+-
+ std::vector<double> vec_lerp(const std::vector<double>& vec0,
+                              const std::vector<double>& vec1, double t) {
+   std::vector<double> result(vec0.size());
+@@ -41,32 +28,9 @@ std::vector<double> vec_lerp(const std::vector<double>& vec0,
+   return result;
+ }
+
+-void vec_print(const std::vector<double>& vec) {
+-  std::cout << "[";
+-  for (double v : vec) {
+-    std::cout << v << ", ";
+-  }
+-  std::cout << "]" << std::endl;
+-}
+-
+ double vec_maxabs(const std::vector<double>& vec) {
+   auto result = std::minmax_element(vec.begin(), vec.end());
+   return std::max(std::abs(*result.first), std::abs(*result.second));
+ }
+
+-void save_vec(const std::string& filename, const std::vector<double>& vec) {
+-  unsigned long shape[1];
+-  shape[0] = vec.size();
+-  npy::SaveArrayAsNumpy<double>(filename, false, 1, shape, vec);
+-}
+-
+-void save_vec2d(const std::string& filename,
+-                const std::vector<std::vector<double>>& vec) {
+-  std::vector<double> temp = vec2d_to_1d(vec);
+-  unsigned long shape[2];
+-  shape[0] = vec.size();
+-  shape[1] = vec[0].size();
+-  npy::SaveArrayAsNumpy<double>(filename, false, 2, shape, temp);
+-}
+-
+ }  // namespace worldline
+diff --git a/cpp/worldline/common/vec_utils.h b/cpp/worldline/common/vec_utils.h
+index 5363240..f8775d0 100644
+--- a/cpp/worldline/common/vec_utils.h
++++ b/cpp/worldline/common/vec_utils.h
+@@ -1,7 +1,6 @@
+ #ifndef WORLDLINE_MODEL_MODEL_UTILS_H_
+ #define WORLDLINE_MODEL_MODEL_UTILS_H_
+
+-#include <string>
+ #include <vector>
+
+ namespace worldline {
+@@ -10,20 +9,11 @@ std::vector<std::vector<double>> vec2d(int width, int length, double value);
+
+ std::vector<double*> vec2d_wrapper(std::vector<std::vector<double>>& vec);
+
+-std::vector<double> vec2d_to_1d(const std::vector<std::vector<double>>& vec);
+-
+ std::vector<double> vec_lerp(const std::vector<double>& vec0,
+                              const std::vector<double>& vec1, double t);
+
+-void vec_print(const std::vector<double>& vec);
+-
+ double vec_maxabs(const std::vector<double>& vec);
+
+-void save_vec(const std::string& filename, const std::vector<double>& vec);
+-
+-void save_vec2d(const std::string& filename,
+-                const std::vector<std::vector<double>>& vec);
+-
+ }  // namespace worldline
+
+ #endif  // WORLDLINE_MODEL_MODEL_UTILS_H_

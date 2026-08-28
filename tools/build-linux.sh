@@ -20,7 +20,7 @@ case "${release_root}" in
 esac
 rm -rf "${gui_dir}" "${server_dir}"
 
-for directory in /usr/local/go/bin /opt/dotnet; do
+for directory in /usr/local/go/bin; do
   if [ -d "${directory}" ]; then
     export PATH="${directory}:${PATH}"
   fi
@@ -49,7 +49,7 @@ if [ -n "${windows_user}" ] && [ -z "${GOMODCACHE:-}" ] && \
 fi
 export GOCACHE="${GOCACHE:-${root_dir}/build/linux-go-cache}"
 
-for command_name in go cmake dotnet python3 curl zip; do
+for command_name in go cmake python3 curl zip; do
   if ! command -v "${command_name}" >/dev/null 2>&1; then
     echo "${command_name} is required" >&2
     exit 1
@@ -86,29 +86,27 @@ for runtime_dir in "${gui_dir}/runtime" "${server_dir}/runtime"; do
   cp -R "${root_dir}/.tmp-openjtalk-linux/pyopenjtalk/open_jtalk_dic_utf_8-1.11" "${runtime_dir}/"
 done
 
-echo '=== Build worldline bridge and fetch Linux worldline library ==='
+echo '=== Build native worldline bridge and install Linux worldline library ==='
 staging_dir="${root_dir}/.tmp-worldline-linux"
 rm -rf "${staging_dir}"
 mkdir -p "${staging_dir}"
-dotnet publish "${root_dir}/tools/worldline-bridge/worldline-bridge.csproj" \
-  -c Release -r linux-x64 --self-contained true --ignore-failed-sources \
-  -o "${staging_dir}"
-worldline_url="https://raw.githubusercontent.com/openutau/OpenUtau/0.1.565/runtimes/linux-x64/native/libworldline.so"
-worldline_sha256="33A4123188BCF7B0B8FEC4AE6C5BF882FB16B1AAA5AEC6CD3391ECCB5A69C490"
-worldline_tmp="${root_dir}/.tmp-worldline-linux/libworldline.so"
-curl -fsSLo "${worldline_tmp}" "${worldline_url}"
+CGO_ENABLED=1 go build -trimpath \
+  -o "${staging_dir}/utautts-worldline-bridge" \
+  ./cmd/utautts-worldline-bridge
+worldline_sha256="EEAE80212191C84EF2A1EBCD33567F47D9700F8E74136578944DBBEEE209136C"
+worldline_source="${root_dir}/assets/worldline/linux-x64/libworldline.so"
 if ! command -v sha256sum >/dev/null 2>&1; then
   echo "sha256sum is required" >&2
   exit 1
 fi
-actual_worldline_hash="$(sha256sum "${worldline_tmp}" | awk '{print $1}')"
+actual_worldline_hash="$(sha256sum "${worldline_source}" | awk '{print $1}')"
 if [ "${actual_worldline_hash^^}" != "${worldline_sha256}" ]; then
   echo "libworldline.so SHA-256 mismatch: ${actual_worldline_hash}" >&2
   exit 1
 fi
 for runtime_dir in "${gui_dir}/runtime" "${server_dir}/runtime"; do
   cp -R "${staging_dir}/." "${runtime_dir}/"
-  cp "${worldline_tmp}" "${runtime_dir}/libworldline.so"
+  cp "${worldline_source}" "${runtime_dir}/libworldline.so"
 done
 
 echo '=== Python and PyInstaller licenses ==='
@@ -123,23 +121,6 @@ for runtime_dir in "${gui_dir}/runtime" "${server_dir}/runtime"; do
   mkdir -p "${license_dir}"
   cp "${python_license}" "${license_dir}/PYTHON_LICENSE.txt"
   cp "${pyinstaller_license}" "${license_dir}/PYINSTALLER_COPYING.txt"
-done
-
-echo '=== .NET runtime licenses ==='
-runtime_version="$(python3 -c 'import json,sys; data=json.load(open(sys.argv[1], encoding="utf-8")); print(data["runtimeOptions"]["includedFrameworks"][0]["version"])' "${staging_dir}/utautts-worldline-bridge.runtimeconfig.json")"
-nuget_root="${NUGET_PACKAGES:-${HOME}/.nuget/packages}"
-dotnet_runtime_package="${nuget_root}/microsoft.netcore.app.runtime.linux-x64/${runtime_version}"
-for required in LICENSE.TXT THIRD-PARTY-NOTICES.TXT; do
-  if [ ! -f "${dotnet_runtime_package}/${required}" ]; then
-    echo "required .NET runtime notice was not found: ${dotnet_runtime_package}/${required}" >&2
-    exit 1
-  fi
-done
-for package_dir in "${gui_dir}" "${server_dir}"; do
-  dotnet_license_dir="${package_dir}/licenses/DotNet"
-  mkdir -p "${dotnet_license_dir}"
-  cp "${dotnet_runtime_package}/LICENSE.TXT" "${dotnet_license_dir}/DOTNET-RUNTIME-LICENSE.txt"
-  cp "${dotnet_runtime_package}/THIRD-PARTY-NOTICES.TXT" "${dotnet_license_dir}/DOTNET-RUNTIME-THIRD-PARTY-NOTICES.txt"
 done
 
 echo '=== Go licenses ==='
@@ -160,11 +141,12 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
   done
 done
 
-echo '=== OpenJTalk and dataset licenses ==='
+echo '=== OpenJTalk, worldline, and dataset licenses ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
   license_root="${package_dir}/licenses"
-  mkdir -p "${license_root}/OpenJTalk"
+  mkdir -p "${license_root}/OpenJTalk" "${license_root}/Worldline"
   cp "${root_dir}/licenses/openjtalk/"*.txt "${license_root}/OpenJTalk/"
+  cp "${root_dir}/licenses/worldline/"*.txt "${license_root}/Worldline/"
   cp "${root_dir}/licenses/JSUT-DATA-AND-LABELS.txt" "${license_root}/"
   cp "${root_dir}/licenses/PROSODY-MODELS.txt" "${license_root}/"
   dict_copying="${package_dir}/runtime/open_jtalk_dic_utf_8-1.11/COPYING"

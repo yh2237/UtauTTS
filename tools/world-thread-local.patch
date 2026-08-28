@@ -1,0 +1,18 @@
+diff --git a/src/matlabfunctions.cpp b/src/matlabfunctions.cpp
+--- a/src/matlabfunctions.cpp
++++ b/src/matlabfunctions.cpp
+@@ -237,10 +237,10 @@ double MatlabRound(double x) {
+ // You must not use these variables.
+ // Note:
+ // I have no idea to implement the randn() and randn_reseed() without the
+ // global variables. If you have a good idea, please give me the information.
+-static uint32_t g_randn_x = 123456789;
+-static uint32_t g_randn_y = 362436069;
+-static uint32_t g_randn_z = 521288629;
+-static uint32_t g_randn_w = 88675123;
++static thread_local uint32_t g_randn_x = 123456789;
++static thread_local uint32_t g_randn_y = 362436069;
++static thread_local uint32_t g_randn_z = 521288629;
++static thread_local uint32_t g_randn_w = 88675123;
+
+ void randn_reseed() {

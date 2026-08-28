@@ -19,7 +19,6 @@ go vet ./...
 - Qt 6.5以降（Qt Quick、Qt Multimedia、Qt Concurrent）
 - CMakeとNinja
 - MSYS2 Clang
-- .NET 8 SDK
 - Python 3.12 x64
 
 Qt SDKを`.qt/<version>/mingw_64`へ置くと自動検出します。別の場所に置く場合はcompiler kitのパスを`QT_ROOT`に設定します。
@@ -42,7 +41,7 @@ sudo apt-get install -y build-essential cmake ninja-build pkg-config unzip zip c
   python3 python3-pip python3-venv
 ```
 
-Goを`/usr/local/go`、.NET 8 SDKを`/opt/dotnet`へ置くとビルドスクリプトがPATHへ追加します。Open JTalk frontendを作るためのPython環境も用意します。
+Goを`/usr/local/go`へ置くとビルドスクリプトがPATHへ追加します。Open JTalk frontendを作るためのPython環境も用意します。
 
 ```bash
 python3 -m venv /opt/utautts-py

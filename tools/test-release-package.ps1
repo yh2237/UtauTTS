@@ -43,8 +43,7 @@ try {
         Assert-Path (Join-Path $packageRoot 'licenses/Go/GO-LICENSE.txt') 'Go runtime license'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_ikawaha_kagome-dict-v1.1.7-LICENSE.txt') 'kagome-dict license'
         Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt') 'hts_engine_API license'
-        Assert-Path (Join-Path $packageRoot 'licenses/DotNet/DOTNET-RUNTIME-LICENSE.txt') '.NET runtime license'
-        Assert-Path (Join-Path $packageRoot 'licenses/DotNet/DOTNET-RUNTIME-THIRD-PARTY-NOTICES.txt') '.NET runtime third-party notices'
+        Assert-Path (Join-Path $packageRoot 'runtime/utautts-worldline-bridge.exe') 'native worldline bridge'
         Assert-Path (Join-Path $packageRoot 'licenses/PROSODY-MODELS.txt') 'prosody model license'
         Assert-Path (Join-Path $packageRoot 'models/README.md') 'model license readme'
         Assert-Path (Join-Path $packageRoot 'runtime/licenses/PYTHON_LICENSE.txt') 'Python runtime license'
@@ -80,8 +79,11 @@ try {
     }
 
     $serverRuntime = Join-Path $serverRoot 'runtime'
-    Assert-Path (Join-Path $serverRuntime 'hostpolicy.dll') 'self-contained .NET host policy in server package'
-    Assert-Path (Join-Path $serverRuntime 'coreclr.dll') 'self-contained .NET runtime in server package'
+    foreach ($removedRuntime in @('coreclr.dll', 'hostpolicy.dll', 'utautts-worldline-bridge.runtimeconfig.json')) {
+        if (Test-Path -LiteralPath (Join-Path $serverRuntime $removedRuntime)) {
+            throw "server package still contains an obsolete worldline runtime file: $removedRuntime"
+        }
+    }
     $gpuManifest = Test-Path -LiteralPath (Join-Path $serverRoot 'plugins/renderers/openutau-classic-faithful-gpu/plugin.json')
     $gpuBinary = Test-Path -LiteralPath (Join-Path $serverRuntime 'utautts-waveform-gpu.dll')
     if ($gpuManifest -ne $gpuBinary) {
