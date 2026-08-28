@@ -33,8 +33,8 @@ GUI / CLI / HTTP Server
           ▼
        Renderer
     ├─ waveform ─────────── Go内の波形接続
-    ├─ Classic faithful ─── .NET bridge + Worldline Resample
-    └─ WORLDLINE-R ──────── .NET bridge + Worldline PhraseSynth
+    ├─ Classic faithful ─── Go bridge + Worldline Resample
+    └─ WORLDLINE-R ──────── Go bridge + Worldline PhraseSynth
           │
           ▼
         PCM WAV
@@ -74,7 +74,7 @@ GUI、CLI、Serverは別々の合成実装を持ちません。最終的には�
 - 品詞と品詞細分類
 - 句境界と発話内位置
 
-Go本体は同梱された`utautts-openjtalk-features`を別プロセスとして起動してJSONで解析結果を受け取ります。PythonやOpen JTalkをGoプロセスへ直接埋め込まないのでGUI、CLI、Serverから同じ実行形式を利用できます。
+Go本体は同梱された`utautts-openjtalk-features`を別プロセスとして起動してJSONで解析結果を受け取ります。helperはアプリの稼働中に常駐し、約100MBの辞書を最初の一度だけ読み込みます。PythonやOpen JTalkをGoプロセスへ直接埋め込まないのでGUI、CLI、Serverから同じ実行形式を利用できます。
 
 Kagome側とOpen JTalk側でモーラ分割が一致しない場合は完全一致、母音一致、長音、skipへ異なるコストを与える動的計画法で対応位置を求めます。対応しなかった位置には最も近い特徴を補います。ここを単純な配列indexで結ぶと未知語や長音以降のアクセント特徴がすべてずれます。
 
@@ -207,7 +207,7 @@ Go側は次を行います。
 - 相対pitch曲線を原音ごとの局所F0へ重ねる
 - required length、skip、tone、consonant、5点envelopeをmanifestへ記録
 
-manifestは自己完結.NETアプリのWorldline bridgeへ渡されます。bridgeは`worldline.dll`を読み込んで原音ごとに分析・再合成してから共通phrase時刻へmixし、PCM WAVをGoへ返します。このプロセス境界があるのでGo／Qt側はOpenUtau由来native ABIへ直接依存しません。
+manifestは小さなGo製Worldline bridgeへ渡されます。bridgeはアプリの稼働中に常駐し、`worldline.dll`または`libworldline.so`を読み込んで原音ごとに分析・再合成してから共通phrase時刻へmixし、PCM WAVを本体へ返します。WORLDLINE-RではF0、スペクトル包絡、非周期性指標を32原音分キャッシュするため、抑揚だけを直した再生では原音解析を再利用できます。このプロセス境界があるのでGo／Qt側はOpenUtau由来native ABIへ直接依存しません。
 
 required lengthはClassic方式に合わせて50ms単位へ丸められて子音部は母音部と別の時間規則で扱われます。5点envelopeはpreutterance、前後のoverlap、次unitのtail intrusionを表して単純な一定長crossfadeより子音の流入と母音末尾を保ちます。
 
@@ -217,7 +217,7 @@ CUDA版は同じPlan、timing、Worldline条件を使って対応DLLで5点envel
 
 `openutau-worldline-r-faithful`は現在の既定Rendererです。OpenUtau 0.1.565のnative `PhraseSynth` APIを使います。Classic faithfulと同じphone timingを入力にしますが原音ごとの完成波形を重ねるのではなく、各原音のWORLD特徴を共通時間軸へ配置してからフレーズ全体を一度だけ合成します。
 
-Go側は先行発声を含むフレーズ時刻、絶対F0曲線、各unitの`position`、`skip`、`length`、fadeをmanifestへ記録します。.NET bridgeは原音とFRQを`PhraseSynthAddRequest`へ渡してgender、tension、breathiness、voicingの既定曲線とF0を設定し`PhraseSynthSynth`を呼びます。
+Go本体は先行発声を含むフレーズ時刻、絶対F0曲線、各unitの`position`、`skip`、`length`、fadeをmanifestへ記録します。Go bridgeは原音とFRQを`PhraseSynthAddRequest`へ渡してgender、tension、breathiness、voicingの既定曲線とF0を設定し`PhraseSynthSynth`を呼びます。
 
 WORLDLINE-Rの主要処理は`worldline.dll`内部で完結します。Classic CUDA版のGPU mixは利用できないのでWORLDLINE-R faithfulにCUDA版はありません。
 
