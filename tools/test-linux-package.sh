@@ -2,6 +2,12 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=linux-environment.sh
+source "${root_dir}/tools/linux-environment.sh"
+utautts_load_linux_env "${root_dir}"
+utautts_configure_qt_environment
+
+python_command="$(utautts_resolve_python "${root_dir}" || true)"
 release_root="${1:-${root_dir}/release}"
 gui_zip="${release_root}/UtauTTS-linux-x64.zip"
 server_zip="${release_root}/UtauTTS-Server-linux-x64.zip"
@@ -22,9 +28,29 @@ fail() {
   exit 1
 }
 
-for command_name in curl fc-list python3 timeout unzip; do
+has_linux_audio_service() {
+  local runtime_directory="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+  if command -v pactl >/dev/null 2>&1; then
+    if timeout 5 pactl info >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+  if command -v pw-cli >/dev/null 2>&1; then
+    if timeout 5 pw-cli info 0 >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+  if ! command -v pactl >/dev/null 2>&1 && ! command -v pw-cli >/dev/null 2>&1 && \
+     { [ -S "${runtime_directory}/pipewire-0" ] || [ -S "${runtime_directory}/pulse/native" ]; }; then
+    return 0
+  fi
+  return 1
+}
+
+for command_name in curl fc-list timeout unzip; do
   command -v "${command_name}" >/dev/null 2>&1 || fail "${command_name} is required"
 done
+[ -n "${python_command}" ] || fail 'python3 is required'
 japanese_fonts="$(fc-list :lang=ja 2>/dev/null)"
 [ -n "${japanese_fonts}" ] || fail 'a Japanese font is required; install fonts-noto-cjk'
 for archive in "${gui_zip}" "${server_zip}"; do
@@ -91,18 +117,22 @@ fi
 voicebank="$(find "${gui_root}/voice" -mindepth 1 -maxdepth 1 -type d -print -quit)"
 [ -n "${voicebank}" ] || fail 'GUI package contains no bundled voicebank'
 work_dir="${temporary_root}/work"
-runtime_dir="${temporary_root}/runtime"
-mkdir -p "${work_dir}" "${runtime_dir}"
-chmod 700 "${runtime_dir}"
+mkdir -p "${work_dir}"
 
-(
-  cd "${gui_root}"
-  XDG_RUNTIME_DIR="${runtime_dir}" QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
-    timeout 120 ./utautts --self-test >"${work_dir}/gui.stdout.log" 2>"${work_dir}/gui.stderr.log"
-) || {
-  tail -100 "${work_dir}/gui.stderr.log" >&2 || true
-  fail 'packaged Linux GUI self-test failed'
-}
+if [ "${UTAUTTS_SKIP_GUI_SELF_TEST:-0}" = "1" ]; then
+  echo 'Skipping packaged Linux GUI self-test (UTAUTTS_SKIP_GUI_SELF_TEST=1)'
+elif has_linux_audio_service || [ "${UTAUTTS_REQUIRE_GUI_SELF_TEST:-0}" = "1" ]; then
+  (
+    cd "${gui_root}"
+    QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+      timeout 120 ./utautts --self-test >"${work_dir}/gui.stdout.log" 2>"${work_dir}/gui.stderr.log"
+  ) || {
+    tail -100 "${work_dir}/gui.stderr.log" >&2 || true
+    fail 'packaged Linux GUI self-test failed'
+  }
+else
+  echo 'Skipping packaged Linux GUI self-test: no PipeWire/PulseAudio session was detected'
+fi
 
 smoke_text='こんにちは'
 "${gui_root}/tools/utautts-cli" --renderer waveform --voicebank "${voicebank}" \
@@ -125,7 +155,7 @@ if grep -qi panic "${work_dir}/nan.stderr.log"; then
   fail 'packaged CLI panicked on NaN input'
 fi
 
-port="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')"
+port="$("${python_command}" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')"
 (
   cd "${server_root}"
   exec ./utautts-server --host 127.0.0.1 --port "${port}" \
@@ -149,7 +179,7 @@ curl -fsS "${base_url}/api/voicebanks" >"${work_dir}/voicebanks.json"
 curl -fsS "${base_url}/api/models" >"${work_dir}/models.json"
 curl -fsS "${base_url}/api/renderers" >"${work_dir}/renderers.json"
 
-VOICEBANK_JSON="${work_dir}/voicebanks.json" REQUEST_DIR="${work_dir}" python3 - <<'PY'
+VOICEBANK_JSON="${work_dir}/voicebanks.json" REQUEST_DIR="${work_dir}" "${python_command}" - <<'PY'
 import json
 import os
 from pathlib import Path
@@ -179,7 +209,7 @@ PY
 curl -fsS -H 'Content-Type: application/json; charset=utf-8' --data-binary @"${work_dir}/analyze.json" \
   "${base_url}/api/analyze" >"${work_dir}/analysis.json"
 ANALYSIS_JSON="${work_dir}/analysis.json" MODELS_JSON="${work_dir}/models.json" \
-RENDERERS_JSON="${work_dir}/renderers.json" python3 - <<'PY'
+RENDERERS_JSON="${work_dir}/renderers.json" "${python_command}" - <<'PY'
 import json
 import os
 

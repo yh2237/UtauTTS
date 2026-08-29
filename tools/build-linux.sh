@@ -2,6 +2,11 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# shellcheck source=linux-environment.sh
+source "${root_dir}/tools/linux-environment.sh"
+utautts_load_linux_env "${root_dir}"
+
 release_root="${1:-${root_dir}/release}"
 gui_dir="${release_root}/UtauTTS-linux"
 server_dir="${release_root}/UtauTTS-Server-linux"
@@ -20,41 +25,40 @@ case "${release_root}" in
 esac
 rm -rf "${gui_dir}" "${server_dir}"
 
-for directory in /usr/local/go/bin; do
-  if [ -d "${directory}" ]; then
-    export PATH="${directory}:${PATH}"
-  fi
-done
-
 export CGO_ENABLED=1
 
-if [ -f "${root_dir}/.env" ]; then
-  set -a
-  source "${root_dir}/.env"
-  set +a
-fi
+utautts_configure_qt_environment
+go_command="$(utautts_resolve_go "${root_dir}" || true)"
+python_command="$(utautts_resolve_python "${root_dir}" || true)"
+cmake_command="$(utautts_resolve_executable "${CMAKE:-cmake}" || true)"
+ninja_command="$(utautts_resolve_executable "${NINJA:-ninja}" || true)"
 
-windows_user="${WINDOWS_USERNAME:-}"
-if [ -z "${windows_user}" ]; then
-  for user_dir in /mnt/c/Users/*/go; do
-    if [ -d "${user_dir}/pkg/mod" ]; then
-      windows_user="$(basename "$(dirname "${user_dir}")")"
-      break
-    fi
-  done
-fi
-if [ -n "${windows_user}" ] && [ -z "${GOMODCACHE:-}" ] && \
-   [ -d "/mnt/c/Users/${windows_user}/go/pkg/mod" ]; then
-  export GOMODCACHE="/mnt/c/Users/${windows_user}/go/pkg/mod"
-fi
-export GOCACHE="${GOCACHE:-${root_dir}/build/linux-go-cache}"
-
-for command_name in go cmake python3 curl zip; do
-  if ! command -v "${command_name}" >/dev/null 2>&1; then
-    echo "${command_name} is required" >&2
+for required in go_command python_command cmake_command ninja_command; do
+  if [ -z "${!required}" ]; then
+    echo "${required%_command} is required; run tools/setup-linux.sh" >&2
     exit 1
   fi
 done
+for command_name in curl zip sha256sum; do
+  if ! utautts_resolve_executable "${command_name}" >/dev/null; then
+    echo "${command_name} is required; run tools/setup-linux.sh" >&2
+    exit 1
+  fi
+done
+
+export GOCACHE="${GOCACHE:-${root_dir}/build/go-cache}"
+export GOMODCACHE="${GOMODCACHE:-${root_dir}/build/go-mod-cache}"
+
+qt_cmake_args=()
+if [ -n "${QT_ROOT:-}" ]; then
+  qt_config_dir="$(utautts_find_qt_config_dir || true)"
+  if [ -z "${qt_config_dir}" ]; then
+    echo "Qt6Config.cmake was not found below QT_ROOT=${QT_ROOT}" >&2
+    exit 1
+  fi
+  qt_cmake_args+=("-DQt6_DIR=${qt_config_dir}")
+  qt_cmake_args+=("-DCMAKE_PREFIX_PATH=${QT_ROOT};${QT_ROOT}/usr")
+fi
 
 mkdir -p "${gui_dir}/tools" "${gui_dir}/runtime" "${gui_dir}/models" "${gui_dir}/plugins" \
   "${server_dir}/runtime" "${server_dir}/models" "${server_dir}/plugins" \
@@ -62,25 +66,27 @@ mkdir -p "${gui_dir}/tools" "${gui_dir}/runtime" "${gui_dir}/models" "${gui_dir}
 cd "${root_dir}"
 
 echo '=== Test ==='
-go test ./...
-go vet ./...
+"${go_command}" test ./...
+"${go_command}" vet ./...
 
 echo '=== Build server ==='
-go build -trimpath -o "${server_dir}/utautts-server" ./cmd/utautts-server
+"${go_command}" build -trimpath -o "${server_dir}/utautts-server" ./cmd/utautts-server
 
 echo '=== Build CLI ==='
-go build -trimpath -o "${gui_dir}/tools/utautts-cli" ./cmd/utautts-cli
-go build -trimpath -o "${gui_dir}/tools/utautts-updater" ./cmd/utautts-updater
+"${go_command}" build -trimpath -o "${gui_dir}/tools/utautts-cli" ./cmd/utautts-cli
+"${go_command}" build -trimpath -o "${gui_dir}/tools/utautts-updater" ./cmd/utautts-updater
 
 echo '=== Build native library and Qt GUI ==='
-go build -trimpath -buildmode=c-shared -o "${root_dir}/build/native/libutautts_native.so" ./cmd/utautts-native
-cmake -S "${root_dir}/qt" -B "${root_dir}/build/qt-linux" -DCMAKE_BUILD_TYPE=Release -G Ninja
-cmake --build "${root_dir}/build/qt-linux" --config Release
+"${go_command}" build -trimpath -buildmode=c-shared -o "${root_dir}/build/native/libutautts_native.so" ./cmd/utautts-native
+"${cmake_command}" -S "${root_dir}/qt" -B "${root_dir}/build/qt-linux" \
+  -DCMAKE_BUILD_TYPE=Release -G Ninja \
+  "-DCMAKE_MAKE_PROGRAM=${ninja_command}" "${qt_cmake_args[@]}"
+"${cmake_command}" --build "${root_dir}/build/qt-linux" --config Release
 cp "${root_dir}/build/qt-linux/app/utautts" "${gui_dir}/utautts"
 cp "${root_dir}/build/native/libutautts_native.so" "${gui_dir}/libutautts_native.so"
 
 echo '=== Build Open JTalk frontend helper ==='
-PYTHON="${PYTHON:-/opt/utautts-py/bin/python}" bash "${root_dir}/tools/build-openjtalk-feature-bridge.sh"
+PYTHON="${python_command}" bash "${root_dir}/tools/build-openjtalk-feature-bridge.sh"
 for runtime_dir in "${gui_dir}/runtime" "${server_dir}/runtime"; do
   cp "${root_dir}/tools/openjtalk-feature-bridge/bin/utautts-openjtalk-features" "${runtime_dir}/"
   cp -R "${root_dir}/.tmp-openjtalk-linux/pyopenjtalk/open_jtalk_dic_utf_8-1.11" "${runtime_dir}/"
@@ -90,15 +96,11 @@ echo '=== Build native worldline bridge and install Linux worldline library ==='
 staging_dir="${root_dir}/.tmp-worldline-linux"
 rm -rf "${staging_dir}"
 mkdir -p "${staging_dir}"
-CGO_ENABLED=1 go build -trimpath \
+CGO_ENABLED=1 "${go_command}" build -trimpath \
   -o "${staging_dir}/utautts-worldline-bridge" \
   ./cmd/utautts-worldline-bridge
 worldline_sha256="EEAE80212191C84EF2A1EBCD33567F47D9700F8E74136578944DBBEEE209136C"
 worldline_source="${root_dir}/assets/worldline/linux-x64/libworldline.so"
-if ! command -v sha256sum >/dev/null 2>&1; then
-  echo "sha256sum is required" >&2
-  exit 1
-fi
 actual_worldline_hash="$(sha256sum "${worldline_source}" | awk '{print $1}')"
 if [ "${actual_worldline_hash^^}" != "${worldline_sha256}" ]; then
   echo "libworldline.so SHA-256 mismatch: ${actual_worldline_hash}" >&2
@@ -110,8 +112,31 @@ for runtime_dir in "${gui_dir}/runtime" "${server_dir}/runtime"; do
 done
 
 echo '=== Python and PyInstaller licenses ==='
-python_license="$(find /usr/lib -maxdepth 3 -name 'LICENSE.txt' -path '*python3*' 2>/dev/null | head -1 || true)"
-pyinstaller_license="$(find "${root_dir}/.tmp-pyinstaller-linux" -path '*/pyinstaller-*.dist-info/licenses/COPYING.txt' -print -quit)"
+python_license="$("${python_command}" - <<'PY'
+import os
+import sysconfig
+
+roots = [
+    sysconfig.get_path("stdlib"),
+    sysconfig.get_path("platstdlib"),
+    os.path.dirname(os.__file__),
+]
+for root in roots:
+    if not root:
+        continue
+    for name in ("LICENSE.txt", "LICENSE"):
+        candidate = os.path.join(root, name)
+        if os.path.isfile(candidate):
+            print(candidate)
+            raise SystemExit
+PY
+)"
+if [ -z "${python_license}" ]; then
+  python_license="$(find /usr/lib -maxdepth 3 -name 'LICENSE.txt' -path '*python3*' -print -quit 2>/dev/null || true)"
+fi
+pyinstaller_license="$(find "${root_dir}/.tmp-pyinstaller-linux" -type f \
+  \( -path '*/pyinstaller-*.dist-info/licenses/COPYING.txt' -o \
+     -path '*/pyinstaller-*.dist-info/COPYING.txt' \) -print -quit)"
 if [ -z "${python_license}" ] || [ -z "${pyinstaller_license}" ]; then
   echo 'Python or PyInstaller license was not found' >&2
   exit 1
@@ -127,9 +152,9 @@ echo '=== Go licenses ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
   license_dir="${package_dir}/licenses/Go"
   mkdir -p "${license_dir}"
-  cp "$(go env GOROOT)/LICENSE" "${license_dir}/GO-LICENSE.txt"
+  cp "$("${go_command}" env GOROOT)/LICENSE" "${license_dir}/GO-LICENSE.txt"
   for module in golang.org/x/text github.com/ikawaha/kagome/v2 github.com/ikawaha/kagome-dict github.com/ikawaha/kagome-dict/ipa; do
-    module_info="$(go list -m -f '{{.Dir}}|{{.Version}}' "${module}")"
+    module_info="$("${go_command}" list -m -f '{{.Dir}}|{{.Version}}' "${module}")"
     module_dir="${module_info%%|*}"
     module_version="${module_info#*|}"
     module_name="${module//\//_}"
@@ -202,7 +227,7 @@ done
 echo '=== Voicebanks ==='
 mkdir -p "${gui_dir}/voice"
 if compgen -G "${root_dir}/voice/*.zip" > /dev/null; then
-  SRC_DIR="${root_dir}/voice" OUT_DIR="${gui_dir}/voice" python3 - <<'PYEOF'
+  SRC_DIR="${root_dir}/voice" OUT_DIR="${gui_dir}/voice" "${python_command}" - <<'PYEOF'
 import glob
 import os
 import zipfile
@@ -240,7 +265,7 @@ rm -f "${gui_zip}" "${server_zip}"
 (cd "${server_dir}" && zip -qr "${server_zip}" .)
 
 echo '=== Release smoke test ==='
-bash "${root_dir}/tools/test-linux-package.sh" "${release_root}"
+PYTHON="${python_command}" bash "${root_dir}/tools/test-linux-package.sh" "${release_root}"
 
 echo "Built Linux packages:"
 echo "  ${gui_zip}"

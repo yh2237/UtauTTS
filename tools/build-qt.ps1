@@ -1,6 +1,11 @@
 param(
     [string]$QtRoot = $env:QT_ROOT,
-    [string]$OutputDirectory = ""
+    [string]$OutputDirectory = "",
+    [string]$Msys2Root = $env:MSYS2_ROOT,
+    [string]$QtMinGWRoot = $env:QT_MINGW_ROOT,
+    [string]$QtToolsRoot = $env:QT_TOOLS_ROOT,
+    [string]$CMakeCommand = $env:CMAKE,
+    [string]$NinjaCommand = $env:NINJA
 )
 $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -32,18 +37,67 @@ $deployTool = Join-Path $QtRoot 'bin/windeployqt.exe'
 if (-not (Test-Path -LiteralPath $qtConfig -PathType Leaf)) { throw "Qt6Config.cmake was not found under $QtRoot" }
 if (-not (Test-Path -LiteralPath $deployTool -PathType Leaf)) { throw "windeployqt.exe was not found under $QtRoot" }
 
-$toolsRoot = [IO.Path]::GetFullPath((Join-Path $QtRoot '../../Tools'))
-$compilerDirectory = Join-Path $toolsRoot 'mingw1310_64/bin'
+$toolsRoot = $QtToolsRoot
+if ([string]::IsNullOrWhiteSpace($toolsRoot)) {
+    $toolsRoot = Join-Path $QtRoot '../../Tools'
+}
+$toolsRoot = [IO.Path]::GetFullPath($toolsRoot)
+
+if ([string]::IsNullOrWhiteSpace($QtMinGWRoot)) {
+    $defaultCompilerRoot = Join-Path $toolsRoot 'mingw1310_64'
+    if (Test-Path -LiteralPath (Join-Path $defaultCompilerRoot 'bin/gcc.exe') -PathType Leaf) {
+        $QtMinGWRoot = $defaultCompilerRoot
+    } else {
+        $compilerCandidates = @(Get-ChildItem -LiteralPath $toolsRoot -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'bin/gcc.exe') -PathType Leaf } |
+            Sort-Object Name -Descending)
+        if ($compilerCandidates.Count -gt 0) {
+            $QtMinGWRoot = $compilerCandidates[0].FullName
+        }
+    }
+}
+if ([string]::IsNullOrWhiteSpace($QtMinGWRoot)) {
+    throw "Qt MinGW compiler was not found below $toolsRoot. Set QT_MINGW_ROOT to the compiler directory."
+}
+$QtMinGWRoot = [IO.Path]::GetFullPath($QtMinGWRoot)
+$compilerDirectory = Join-Path $QtMinGWRoot 'bin'
 $cc = Join-Path $compilerDirectory 'gcc.exe'
 $cxx = Join-Path $compilerDirectory 'g++.exe'
 $windres = Join-Path $compilerDirectory 'windres.exe'
-$goCC = 'C:\msys64\mingw64\bin\clang.exe'
-$goCXX = 'C:\msys64\mingw64\bin\clang++.exe'
+$msys2RootValue = $Msys2Root
+if ([string]::IsNullOrWhiteSpace($msys2RootValue)) { $msys2RootValue = 'C:\msys64' }
+$msys2RootValue = [IO.Path]::GetFullPath($msys2RootValue)
+$goCC = Join-Path $msys2RootValue 'mingw64/bin/clang.exe'
+$goCXX = Join-Path $msys2RootValue 'mingw64/bin/clang++.exe'
 $gendef = Join-Path $compilerDirectory 'gendef.exe'
 $dlltool = Join-Path $compilerDirectory 'dlltool.exe'
-$cmake = Join-Path $toolsRoot 'CMake_64/bin/cmake.exe'
-$ninjaDirectory = Join-Path $toolsRoot 'Ninja'
-foreach ($tool in @($cc,$cxx,$windres,$goCC,$goCXX,$gendef,$dlltool,$cmake,(Join-Path $ninjaDirectory 'ninja.exe'))) { if (-not (Test-Path -LiteralPath $tool -PathType Leaf)) { throw "Required Qt build tool was not found: $tool" } }
+
+function Resolve-BuildTool([string]$Configured, [string]$BundledPath, [string]$CommandName) {
+    if (-not [string]::IsNullOrWhiteSpace($Configured)) {
+        if (Test-Path -LiteralPath $Configured -PathType Leaf) {
+            return [IO.Path]::GetFullPath($Configured)
+        }
+        $resolved = Get-Command $Configured -ErrorAction SilentlyContinue
+        if ($null -ne $resolved) {
+            if ($resolved.Path) { return $resolved.Path }
+            return $resolved.Source
+        }
+        throw "Configured $CommandName was not found: $Configured"
+    }
+    if (Test-Path -LiteralPath $BundledPath -PathType Leaf) {
+        return [IO.Path]::GetFullPath($BundledPath)
+    }
+    $resolved = Get-Command $CommandName -ErrorAction SilentlyContinue
+    if ($null -ne $resolved) {
+        if ($resolved.Path) { return $resolved.Path }
+        return $resolved.Source
+    }
+    throw "$CommandName was not found. Install it or set the corresponding environment variable."
+}
+
+$cmake = Resolve-BuildTool $CMakeCommand (Join-Path $toolsRoot 'CMake_64/bin/cmake.exe') 'cmake'
+$ninja = Resolve-BuildTool $NinjaCommand (Join-Path $toolsRoot 'Ninja/ninja.exe') 'ninja'
+foreach ($tool in @($cc,$cxx,$windres,$goCC,$goCXX,$gendef,$dlltool,$cmake,$ninja)) { if (-not (Test-Path -LiteralPath $tool -PathType Leaf)) { throw "Required Qt build tool was not found: $tool" } }
 
 New-Item -ItemType Directory -Force -Path $nativeDir, $qtBuildDir, $OutputDirectory | Out-Null
 if (Test-Path -LiteralPath $appDirectory) { Remove-Item -LiteralPath $appDirectory -Recurse -Force }
@@ -67,6 +121,7 @@ try {
     } finally { Pop-Location }
 } finally { $env:CGO_ENABLED=$previousCgo;$env:CC=$previousCC;$env:CXX=$previousCXX;$env:GOCACHE=$previousGoCache;$env:Path=$previousPath }
 
+$ninjaDirectory = Split-Path -Parent $ninja
 $env:Path = $ninjaDirectory + ';' + $compilerDirectory + ';' + $env:Path
 & $cmake -S (Join-Path $root 'qt') -B $qtBuildDir -G Ninja "-DCMAKE_PREFIX_PATH=$QtRoot" "-DUTAUTTS_NATIVE_DIR=$nativeDir" "-DCMAKE_C_COMPILER=$cc" "-DCMAKE_CXX_COMPILER=$cxx" -DCMAKE_BUILD_TYPE=Release
 if ($LASTEXITCODE -ne 0) { throw 'Qt CMake configure failed' }

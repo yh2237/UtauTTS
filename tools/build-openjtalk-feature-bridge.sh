@@ -2,13 +2,17 @@
 set -euo pipefail
 
 # Linux向けutautts-openjtalk-featuresをPyInstallerで単一ファイル化する。
-
-# PYTHON: pipを利用できるPython（既定: /opt/utautts-py/bin/python）
+#
+# PYTHON: pipを利用できるPython（既定: リポジトリ/.venv/bin/python または python3）
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-python_bin="${PYTHON:-/opt/utautts-py/bin/python}"
-if [ ! -x "${python_bin}" ]; then
-  echo "python not found at ${python_bin}; set PYTHON to a venv interpreter" >&2
+# shellcheck source=linux-environment.sh
+source "${root_dir}/tools/linux-environment.sh"
+utautts_load_linux_env "${root_dir}"
+
+python_bin="$(utautts_resolve_python "${root_dir}" || true)"
+if [ -z "${python_bin}" ]; then
+  echo 'python3 is required; run tools/setup-linux.sh or set PYTHON for a custom interpreter' >&2
   exit 1
 fi
 

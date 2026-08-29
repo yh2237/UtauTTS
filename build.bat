@@ -35,13 +35,21 @@ if errorlevel 1 (
 )
 
 set "wsl_root="
-for /f "usebackq delims=" %%I in (`wsl.exe wslpath -a "%~dp0." 2^>nul`) do set "wsl_root=%%I"
+if defined UTAUTTS_WSL_DISTRO (
+    for /f "usebackq delims=" %%I in (`wsl.exe -d "%UTAUTTS_WSL_DISTRO%" wslpath -a "%~dp0." 2^>nul`) do set "wsl_root=%%I"
+) else (
+    for /f "usebackq delims=" %%I in (`wsl.exe wslpath -a "%~dp0." 2^>nul`) do set "wsl_root=%%I"
+)
 if not defined wsl_root (
     echo WSL could not translate the project path. Ensure a default Linux distribution is installed.
     exit /b 1
 )
 
-wsl.exe --cd "%wsl_root%" -- bash -lc "bash ./tools/build-linux.sh"
+if defined UTAUTTS_WSL_DISTRO (
+    wsl.exe -d "%UTAUTTS_WSL_DISTRO%" --cd "%wsl_root%" -- bash -lc "exec bash ./tools/build-linux.sh"
+) else (
+    wsl.exe --cd "%wsl_root%" -- bash -lc "exec bash ./tools/build-linux.sh"
+)
 exit /b %errorlevel%
 
 :usage
@@ -50,6 +58,8 @@ echo.
 echo   win    Build the Windows release package. (default)
 echo   linux  Build the Linux package through WSL.
 echo   both   Build Windows and then Linux packages.
+echo.
+echo Set UTAUTTS_WSL_DISTRO to select a non-default WSL distribution.
 exit /b 0
 
 :usage_error

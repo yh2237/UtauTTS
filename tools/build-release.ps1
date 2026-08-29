@@ -1,5 +1,11 @@
+param(
+    [string]$Python = $env:PYTHON
+)
+
 $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$pythonCommand = $Python
+if ([string]::IsNullOrWhiteSpace($pythonCommand)) { $pythonCommand = 'python' }
 $releaseRoot = Join-Path $root 'release'
 $guiPath = Join-Path $releaseRoot 'UtauTTS'
 $serverPath = Join-Path $releaseRoot 'UtauTTS-Server'
@@ -70,7 +76,7 @@ try {
     Invoke-Checked 'go' @('build', '-trimpath', '-o', (Join-Path $serverPath 'utautts-server.exe'), './cmd/utautts-server')
 
     Write-Host '=== Build Open JTalk frontend helper ==='
-    & (Join-Path $PSScriptRoot 'build-openjtalk-feature-bridge.ps1')
+    & (Join-Path $PSScriptRoot 'build-openjtalk-feature-bridge.ps1') -Python $pythonCommand
     if ($LASTEXITCODE -ne 0) {
         throw "Open JTalk frontend helper build failed with exit code $LASTEXITCODE"
     }
@@ -99,8 +105,18 @@ try {
         Copy-Item -LiteralPath $openJTalkDictionary -Destination $runtimePath -Recurse
         $licensePath = Join-Path $runtimePath 'licenses'
         New-Item -ItemType Directory -Force -Path $licensePath | Out-Null
-        $pythonCommand = Get-Command python -ErrorAction Stop
-        Copy-Item -LiteralPath (Join-Path (Split-Path $pythonCommand.Source) 'LICENSE.txt') -Destination (Join-Path $licensePath 'PYTHON_LICENSE.txt')
+        $pythonInfo = Get-Command $pythonCommand -ErrorAction Stop
+        $pythonExecutable = if ($pythonInfo.Path) { $pythonInfo.Path } else { $pythonInfo.Source }
+        $pythonStdlib = (& $pythonCommand -c "import sysconfig; print(sysconfig.get_path('stdlib'))" | Select-Object -First 1)
+        if ($LASTEXITCODE -ne 0) { throw 'Could not determine the Python standard-library path' }
+        $pythonLicense = @(
+            Get-ChildItem -LiteralPath $pythonStdlib -Filter 'LICENSE*' -File -ErrorAction SilentlyContinue
+            Get-ChildItem -LiteralPath (Split-Path $pythonStdlib -Parent) -Filter 'LICENSE*' -File -ErrorAction SilentlyContinue
+            Get-ChildItem -LiteralPath (Split-Path $pythonExecutable) -Filter 'LICENSE*' -File -ErrorAction SilentlyContinue
+            Get-ChildItem -LiteralPath (Split-Path (Split-Path $pythonExecutable)) -Filter 'LICENSE*' -File -ErrorAction SilentlyContinue
+        ) | Select-Object -First 1
+        if ($null -eq $pythonLicense) { throw "Python license was not found for $pythonExecutable" }
+        Copy-Item -LiteralPath $pythonLicense.FullName -Destination (Join-Path $licensePath 'PYTHON_LICENSE.txt')
         $pyInstallerLicense = @(Get-ChildItem -LiteralPath (Join-Path $root '.tmp-pyinstaller') -Recurse -Filter 'COPYING.txt' -File | Where-Object { $_.FullName -like '*pyinstaller-*.dist-info*' })
         if ($pyInstallerLicense.Count -ne 1) { throw 'Expected exactly one PyInstaller COPYING.txt' }
         Copy-Item -LiteralPath $pyInstallerLicense[0].FullName -Destination (Join-Path $licensePath 'PYINSTALLER_COPYING.txt')

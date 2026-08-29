@@ -91,6 +91,12 @@ static void native_phrase_delete(NativeLibrary* library, void* phrase) { library
 static void native_phrase_add(NativeLibrary* library, void* phrase, const SynthRequest* request, int index, const PhraseTiming* timing, const char* cache_key) { library->phrase_add(phrase, request, index, timing, cache_key); }
 static void native_phrase_set_curves(NativeLibrary* library, void* phrase, double* f0, double* gender, double* tension, double* breathiness, double* voicing, int length) { library->phrase_set_curves(phrase, f0, gender, tension, breathiness, voicing, length, NULL); }
 static int native_phrase_synth(NativeLibrary* library, void* phrase, float** output) { return library->phrase_synth(phrase, output, NULL); }
+// Keep uintptr_t-to-pointer conversions on the C side. Go 1.27's vet
+// unsafeptr check correctly rejects converting a handle back to a pointer in Go.
+static void native_phrase_delete_handle(NativeLibrary* library, uintptr_t phrase) { native_phrase_delete(library, (void*)phrase); }
+static void native_phrase_add_handle(NativeLibrary* library, uintptr_t phrase, const SynthRequest* request, int index, const PhraseTiming* timing, const char* cache_key) { native_phrase_add(library, (void*)phrase, request, index, timing, cache_key); }
+static void native_phrase_set_curves_handle(NativeLibrary* library, uintptr_t phrase, double* f0, double* gender, double* tension, double* breathiness, double* voicing, int length) { native_phrase_set_curves(library, (void*)phrase, f0, gender, tension, breathiness, voicing, length); }
+static int native_phrase_synth_handle(NativeLibrary* library, uintptr_t phrase, float** output) { return native_phrase_synth(library, (void*)phrase, output); }
 */
 import "C"
 
@@ -184,7 +190,7 @@ func (library *linuxLibrary) PhraseNew() (uintptr, error) {
 	return uintptr(pointer), nil
 }
 func (library *linuxLibrary) PhraseDelete(phrase uintptr) {
-	C.native_phrase_delete(library.pointer, unsafe.Pointer(phrase))
+	C.native_phrase_delete_handle(library.pointer, C.uintptr_t(phrase))
 }
 func (library *linuxLibrary) PhraseAdd(phrase uintptr, index int, request nativeRequest, timing phraseTiming) error {
 	native, allocations := linuxNativeRequest(request)
@@ -192,7 +198,7 @@ func (library *linuxLibrary) PhraseAdd(phrase uintptr, index int, request native
 	nativeTiming := C.PhraseTiming{position_ms: C.double(timing.PositionMS), skip_ms: C.double(timing.SkipMS), length_ms: C.double(timing.LengthMS), fade_in_ms: C.double(timing.FadeInMS), fade_out_ms: C.double(timing.FadeOutMS)}
 	cacheKey := C.CString(request.CacheKey)
 	defer C.free(unsafe.Pointer(cacheKey))
-	C.native_phrase_add(library.pointer, unsafe.Pointer(phrase), &native, C.int(index), &nativeTiming, cacheKey)
+	C.native_phrase_add_handle(library.pointer, C.uintptr_t(phrase), &native, C.int(index), &nativeTiming, cacheKey)
 	return nil
 }
 func (library *linuxLibrary) PhraseSetCurves(phrase uintptr, f0, gender, tension, breathiness, voicing []float64) error {
@@ -202,12 +208,12 @@ func (library *linuxLibrary) PhraseSetCurves(phrase uintptr, f0, gender, tension
 		pointers[index] = cBytes(arrays[index])
 	}
 	defer freePointers(pointers)
-	C.native_phrase_set_curves(library.pointer, unsafe.Pointer(phrase), (*C.double)(pointers[0]), (*C.double)(pointers[1]), (*C.double)(pointers[2]), (*C.double)(pointers[3]), (*C.double)(pointers[4]), C.int(len(f0)))
+	C.native_phrase_set_curves_handle(library.pointer, C.uintptr_t(phrase), (*C.double)(pointers[0]), (*C.double)(pointers[1]), (*C.double)(pointers[2]), (*C.double)(pointers[3]), (*C.double)(pointers[4]), C.int(len(f0)))
 	return nil
 }
 func (library *linuxLibrary) PhraseSynth(phrase uintptr) ([]float32, error) {
 	var output *C.float
-	count := int(C.native_phrase_synth(library.pointer, unsafe.Pointer(phrase), &output))
+	count := int(C.native_phrase_synth_handle(library.pointer, C.uintptr_t(phrase), &output))
 	if count <= 0 || output == nil {
 		return nil, fmt.Errorf("worldline PhraseSynthSynth returned no audio")
 	}

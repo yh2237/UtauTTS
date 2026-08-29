@@ -1,0 +1,2 @@
+pyopenjtalk==0.4.1
+pyinstaller==6.16.0
