@@ -107,8 +107,14 @@ try {
         New-Item -ItemType Directory -Force -Path $licensePath | Out-Null
         $pythonInfo = Get-Command $pythonCommand -ErrorAction Stop
         $pythonExecutable = if ($pythonInfo.Path) { $pythonInfo.Path } else { $pythonInfo.Source }
-        $pythonStdlib = (& $pythonCommand -c "import sysconfig; print(sysconfig.get_path('stdlib'))" | Select-Object -First 1)
-        if ($LASTEXITCODE -ne 0) { throw 'Could not determine the Python standard-library path' }
+        $pythonStdlibOutput = @(& $pythonCommand -c "import sysconfig; print(sysconfig.get_path('stdlib'))")
+        $pythonExitCode = $LASTEXITCODE
+        if ($pythonExitCode -ne 0) { throw 'Could not determine the Python standard-library path' }
+        $pythonStdlib = $pythonStdlibOutput | Select-Object -First 1
+        if ([string]::IsNullOrWhiteSpace($pythonStdlib) -or
+            -not (Test-Path -LiteralPath $pythonStdlib -PathType Container)) {
+            throw "Python standard-library path was not found: $pythonStdlib"
+        }
         $pythonLicense = @(
             Get-ChildItem -LiteralPath $pythonStdlib -Filter 'LICENSE*' -File -ErrorAction SilentlyContinue
             Get-ChildItem -LiteralPath (Split-Path $pythonStdlib -Parent) -Filter 'LICENSE*' -File -ErrorAction SilentlyContinue
