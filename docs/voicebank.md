@@ -19,7 +19,7 @@ B96D1B21145F22E573AFD9EC8AEAAD0EC9CBAEE581C2623C64ADDEB31DE46B3D
 
 ## 開発時のパス
 
-`build.bat`を実行すると開発用コマンドから次のパスで同梱音源を参照できます。
+`build.bat win`、`./build.sh linux`、またはWindowsからの`build.bat linux`を実行すると、開発用コマンドから次のパスで同梱音源を参照できます。
 
 ```text
 release/UtauTTS/voice/足立レイver3.5.0

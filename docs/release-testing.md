@@ -4,10 +4,10 @@
 
 ## 一括実行
 
-Windows版をビルドして全テストを実行する場合はリポジトリ直下で次を実行します。
+Windows版をWindows上でビルドして全テストを実行する場合は、リポジトリ直下で次を実行します。
 
 ```powershell
-./tools/build-release.ps1
+.\build.bat win
 ```
 
 この処理はGoの全テスト、GUI・CLI・Serverのビルド、ライセンス収集、ZIP作成、配布物スモークテストを順番に実行します。途中で一つでも失敗すればリリースビルド全体が失敗します。
@@ -18,11 +18,19 @@ Windows版をビルドして全テストを実行する場合はリポジトリ�
 ./tools/test-release-package.ps1
 ```
 
-Linux版はWSL2のDebian／Ubuntu環境から一括実行できます。
+Linux版はDebian／Ubuntu上で直接一括実行できます。
+
+```bash
+./build.sh linux
+```
+
+WindowsからLinux版を検査する場合は、WSL2側で一度セットアップした後、Windows側から次を実行します。
 
 ```powershell
 .\build.bat linux
 ```
+
+`build.bat linux`はWSL側のLinuxビルドと同じパッケージ検査まで実行します。WSLの準備方法は[開発環境とビルド](building.md#windowsからlinux-x64をビルドwsl2)を確認してください。
 
 作成済みのLinux ZIPだけを再検査する場合はLinux環境で次を実行します。
 
@@ -30,7 +38,7 @@ Linux版はWSL2のDebian／Ubuntu環境から一括実行できます。
 ./tools/test-linux-package.sh
 ```
 
-Linux検査ではZIPを一時ディレクトリへ展開して日本語フォント、共有ライブラリ解決、実行権限、QtオフスクリーンGUI自己診断、CLI合成、Serverの解析・合成・batch APIを確認します。
+Linux検査ではZIPを一時ディレクトリへ展開して日本語フォント、共有ライブラリ解決、実行権限、QtオフスクリーンGUI自己診断、CLI合成、Serverの解析・合成・batch APIを確認します。PipeWire／PulseAudioのセッションがない完全なヘッドレス環境ではGUI自己診断だけを自動的にスキップし、CLIとServerの検査を続行します。GUI自己診断を必須にする場合は`UTAUTTS_REQUIRE_GUI_SELF_TEST=1`を設定してください。
 
 ## 自動確認する機能
 
