@@ -659,7 +659,7 @@ window.translator.load(window.appBackend.language);
                 editorContent.pitchEditor.moraDurations = durations.slice();
                 editorContent.pitchEditor.moraPositions = positions.slice();
             }
-            if (!window.batchExportActive)
+            if (!window.batchExportActive && index === window.selectedIndex)
                 window.requestProsodyPreview(index);
         }
 
@@ -1575,6 +1575,17 @@ window.translator.load(window.appBackend.language);
         error = check(utterances.count === 2, "utterance add failed");
         if (error.length)
             return error;
+        utterances.setProperty(0, "moraeJson", JSON.stringify([{mora: "こ", pause: false}]));
+        utterances.setProperty(0, "pointsJson", "[0]");
+        utterances.setProperty(0, "autoPointsJson", "[75]");
+        utterances.setProperty(0, "autoMoraDurationsJson", "[120]");
+        utterances.setProperty(0, "autoMoraPositionsJson", "[0]");
+        window.selectUtterance(0);
+        error = check(Math.round(editorContent.pitchEditor.pitchAt(0)) === 75,
+                      "card switch did not restore automatic prosody");
+        if (error.length)
+            return error;
+        window.selectUtterance(1);
         window.moveUtterance(-1);
         error = check(window.selectedIndex === 0, "utterance move failed");
         if (error.length)
@@ -1787,9 +1798,7 @@ window.translator.load(window.appBackend.language);
         markUtteranceDirty(selectedIndex);
         if (["voicebankId", "aliasPolicy", "modelId", "renderer", "tone", "color", "moraDuration",
              "pauseDuration", "intonation", "applyPitch"].indexOf(name) >= 0) {
-            const updated = utterances.get(selectedIndex);
-            if (!window.batchExportActive && updated.content.trim() && updated.reading)
-                Qt.callLater(function() { window.requestProsodyPreview(selectedIndex); });
+            window.requestMissingProsodyPreview(selectedIndex);
         }
     }
 
@@ -2001,6 +2010,7 @@ window.translator.load(window.appBackend.language);
         selectCombo(editorContent.aliasPolicyCombo, window.normalizeAliasPolicy(item.aliasPolicy));
         selectCombo(editorContent.modelCombo, item.modelId);
         selectCombo(editorContent.rendererCombo, item.renderer);
+        window.requestMissingProsodyPreview(index);
     }
 
     function copySequence(sequence) {
@@ -2038,6 +2048,39 @@ window.translator.load(window.appBackend.language);
 
     function automaticSequence(item, name) {
         return decodeSequence(item ? item[name] : "[]");
+    }
+
+    function automaticProsodyReady(item) {
+        const moraCount = decodeSequence(item ? item.moraeJson : "[]").length;
+        return moraCount > 0
+                && automaticSequence(item, "autoPointsJson").length === moraCount
+                && automaticSequence(item, "autoMoraDurationsJson").length === moraCount
+                && automaticSequence(item, "autoMoraPositionsJson").length === moraCount;
+    }
+
+    function requestMissingProsodyPreview(index) {
+        if (window.batchExportActive || index < 0 || index >= utterances.count)
+            return;
+        const item = utterances.get(index);
+        if (!item.content.trim() || !item.reading || window.automaticProsodyReady(item))
+            return;
+        if (window.pendingProsodyUtteranceId === item.utteranceId
+                && window.pendingProsodyRevision === item.revision)
+            return;
+        const utteranceId = item.utteranceId;
+        const revision = item.revision;
+        Qt.callLater(function() {
+            const currentIndex = window.utteranceIndex(utteranceId);
+            if (currentIndex !== window.selectedIndex || currentIndex < 0)
+                return;
+            const selected = utterances.get(currentIndex);
+            if (selected.revision !== revision || window.automaticProsodyReady(selected))
+                return;
+            if (window.pendingProsodyUtteranceId === utteranceId
+                    && window.pendingProsodyRevision === revision)
+                return;
+            window.requestProsodyPreview(currentIndex);
+        });
     }
 
     function displayedMoraDurations(item) {
