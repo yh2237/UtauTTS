@@ -40,16 +40,16 @@ utautts_resolve_go() {
     candidate="$(utautts_resolve_executable "${GO_BIN}" || true)"
   fi
   if [ -z "${candidate}" ]; then
-    candidate="$(utautts_resolve_executable go || true)"
-  fi
-  if [ -z "${candidate}" ]; then
-    candidate="$(utautts_resolve_executable /usr/local/go/bin/go || true)"
-  fi
-  if [ -z "${candidate}" ]; then
     candidate="$(utautts_resolve_executable "$(utautts_go_install_root)/bin/go" || true)"
   fi
   if [ -z "${candidate}" ] && [ -n "${root_dir}" ]; then
     candidate="$(utautts_resolve_executable "${root_dir}/build/toolchain/go/1.27.0/bin/go" || true)"
+  fi
+  if [ -z "${candidate}" ]; then
+    candidate="$(utautts_resolve_executable go || true)"
+  fi
+  if [ -z "${candidate}" ]; then
+    candidate="$(utautts_resolve_executable /usr/local/go/bin/go || true)"
   fi
   [ -n "${candidate}" ] || return 1
   printf '%s\n' "${candidate}"
