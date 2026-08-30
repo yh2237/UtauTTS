@@ -89,6 +89,7 @@ ApplicationWindow {
     property var playbackQueue: []
     property int playbackQueueIndex: -1
     property bool projectDirty: false
+    property url projectFile
     property var undoStack: []
     property var redoStack: []
     property string historyMergeKey: ""
@@ -110,7 +111,7 @@ ApplicationWindow {
     Shortcut {
         sequence: window.qtShortcutSequence(window.appBackend.saveProjectShortcut)
         enabled: !settingsWindow.visible && !window.appBackend.busy && !window.batchExportActive
-        onActivated: window.openProjectSaveDialog()
+        onActivated: window.saveCurrentProject()
     }
 
     Shortcut {
@@ -414,7 +415,7 @@ ApplicationWindow {
                     onClicked: {
                         closeWarningDialog.close();
                         window.closeAfterProjectSave = true;
-                        window.openProjectSaveDialog();
+                        window.saveCurrentProject();
                     }
                 }
 
@@ -804,14 +805,20 @@ window.translator.load(window.appBackend.language);
                 onTriggered: projectOpenDialog.open()
             }
             MenuItem {
+                text: window.translator.tr("menu.file.save")
+                enabled: !window.appBackend.busy && !window.batchExportActive
+                onTriggered: window.saveCurrentProject()
+            }
+            MenuItem {
+                text: window.translator.tr("menu.file.saveAs")
+                enabled: !window.appBackend.busy && !window.batchExportActive
+                onTriggered: window.openProjectSaveDialog()
+            }
+            MenuSeparator {}
+            MenuItem {
                 text: window.translator.tr("menu.file.openVoiceDirectory")
                 enabled: !window.appBackend.busy && !window.batchExportActive
                 onTriggered: window.appBackend.openVoiceDirectory()
-            }
-            MenuItem {
-                text: window.translator.tr("menu.file.save")
-                enabled: !window.appBackend.busy && !window.batchExportActive
-                onTriggered: window.openProjectSaveDialog()
             }
             MenuSeparator {}
             MenuItem {
@@ -1677,8 +1684,19 @@ window.translator.load(window.appBackend.language);
     function openProjectSaveDialog() {
         if (window.appBackend.busy || window.batchExportActive)
             return;
-        projectSaveDialog.currentFile = window.appBackend.defaultSaveFile("untitled.utautts");
+        projectSaveDialog.currentFile = window.projectFile.toString().length
+                ? window.projectFile : window.appBackend.defaultSaveFile("untitled.utautts");
         projectSaveDialog.open();
+    }
+
+    function saveCurrentProject() {
+        if (window.appBackend.busy || window.batchExportActive)
+            return;
+        if (!window.projectFile.toString().length) {
+            window.openProjectSaveDialog();
+            return;
+        }
+        window.saveProjectTo(window.projectFile);
     }
 
     function saveProjectTo(destination) {
@@ -1689,6 +1707,7 @@ window.translator.load(window.appBackend.language);
             window.closeAfterProjectSave = false;
             return;
         }
+        window.projectFile = destination;
         window.endHistoryGesture();
         window.savedProjectFingerprint = window.editableFingerprint();
         window.projectDirty = false;
@@ -1771,6 +1790,7 @@ window.translator.load(window.appBackend.language);
         }
 
         window.projectDirty = migratedRenderer;
+        window.projectFile = source;
 
         if (!utterances.count) {
             selectedIndex = 0;
