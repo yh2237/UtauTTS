@@ -137,7 +137,7 @@ CLIはGUI版の`tools/utautts-cli.exe`または`tools/utautts-cli`に入って�
   --out ".\out.wav"
 ```
 
-読みを直接渡す`--kana`、合成計画を書き出す`--plan-out`、原音形式を指定する`--alias-policy`などもあります。全オプションは[コマンドライン](docs/cli.md)を参照してください。
+読みを直接渡す`--kana`、ユーザー辞書、モーラごとの長さ、TXT／LAB同時保存、合成計画を書き出す`--plan-out`などもあります。全オプションは[コマンドライン](docs/cli.md)を参照してください。
 
 ## HTTP Server
 
@@ -147,7 +147,7 @@ Server版を起動すると`http://127.0.0.1:8080/`でコンソールUIを使え
 .\UtauTTS-Server\utautts-server.exe --voice-dir ".\UtauTTS-Server\voice"
 ```
 
-文章解析、音源・モデル・Rendererの一覧、一件または複数件のWAV合成を`/api/*`から利用できます。APIのJSON形式と入力制限は[UtauTTS Server](docs/server.md)にあります。
+文章解析、ユーザー辞書、音源・モデル・Rendererの一覧、WAV／LAB、一括ZIPへのTXT／LAB同梱を`/api/*`から利用できます。APIのJSON形式と入力制限は[UtauTTS Server](docs/server.md)にあります。
 
 ## うまく動かないとき
 

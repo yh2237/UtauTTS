@@ -39,4 +39,4 @@ CPU版faithful Rendererと同じ処理をCUDAで実行する任意Rendererです
 
 デスクトップGUIはQt Quick/QMLで作りGoバックエンドをC ABI経由で同一プロセスから呼び出します。音源列挙、読み解析、合成にHTTP ServerやWebViewは使いません。
 
-HTTP Serverは`cmd/utautts-server`と`internal/api`に分かれていてCLIと同じRenderer・モデルcatalogを使います。詳細は[UtauTTS Server](server.md)にあります。
+HTTP Serverは`cmd/utautts-server`と`internal/api`に分かれていてCLIと同じRenderer・モデルcatalogを使います。合成後のWAV、LAB、再生時間、モーラ情報は`internal/synth`の共通結果からGUI、CLI、HTTP Serverへ渡します。TXT／LABの文字コード変換と保存も共通処理です。詳細は[UtauTTS Server](server.md)にあります。

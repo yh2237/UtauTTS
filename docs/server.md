@@ -1,10 +1,10 @@
 # UtauTTS Server
 
-いWindows／Linux x64向けHTTPサーバーです。
+Windows／Linux x64向けHTTPサーバーです。
 
 サーバーは初期状態で`127.0.0.1:8080`を待ち受けます。LANや外部から接続できるアドレスで起動する場合は必ず`--auth-token`を設定してください。
 
-Window
+Windows
 
 ```powershell
 .\utautts-server.exe `
@@ -43,6 +43,7 @@ Linux
 | `GET` | `/api/renderers` | Renderer一覧 |
 | `POST` | `/api/analyze` | 文章から読み・モーラ列への変換 |
 | `POST` | `/api/synthesize/audio` | 単一発話の合成（WAV） |
+| `POST` | `/api/synthesize/label` | 単一発話の音素ラベル（LAB） |
 | `POST` | `/api/synthesize/batch` | 複数発話の合成（ZIP） |
 
 ## 共通仕様
@@ -159,7 +160,10 @@ ID順にソートされた音源一覧です。
 文章を読みとモーラ列へ変換します。合成前の読み確認に使います。
 
 ```json
-{"text": "こんにちは"}
+{
+  "text": "v8を使います。",
+  "dictionary": [{"surface": "v8", "reading": "ぶいはち"}]
+}
 ```
 
 ```json
@@ -176,6 +180,8 @@ ID順にソートされた音源一覧です。
 ```
 
 `consonant`と`vowel`はCVVC候補生成に使う文脈です。`pause`が`true`のモーラは休止になります。`text`が空なら400、500文字を超えたら413、変換に失敗すると422です。
+
+`dictionary`はGUIのユーザー辞書と同じ表記・読みの配列です。合成リクエストにも同じ形式で指定できます。
 
 ### `POST /api/synthesize/audio`
 
@@ -215,6 +221,7 @@ ID順にソートされた音源一覧です。
 | `apply_pitch` | boolean | `false` | 波形ピッチ再サンプリング |
 | `manual_pitch` | object | なし | 手動ピッチ編集（[manual-pitch.md](manual-pitch.md) のJSON） |
 | `acoustic_mode` | string | なし | 音響特徴による候補選択の診断。`dry-run`または`apply` |
+| `dictionary` | object[] | なし | ユーザー辞書。各項目は`surface`と`reading`を持つ |
 
 ステータスコード：
 
@@ -223,12 +230,19 @@ ID順にソートされた音源一覧です。
 - `413`: 文字数・`manual_pitch` points超過、JSON 1 MiB超過
 - `422`: 合成の失敗（読み変換失敗、モデル評価失敗、未知の`alias_policy`など）
 
+### `POST /api/synthesize/label`
+
+`/api/synthesize/audio`と同じJSONを受け取り、合成音声に対応するHTK形式の音素ラベルを`text/plain`で返します。レスポンスには同じ`X-UtauTTS-Engine`と`X-UtauTTS-Reading`ヘッダーが付きます。
+
 ### `POST /api/synthesize/batch`
 
 複数発話を一つのZIPとして取得します。レスポンスは`application/zip`で`Content-Disposition: attachment; filename="utautts-audio.zip"`が付きます。
 
 ```json
 {
+  "write_text": true,
+  "write_lab": true,
+  "text_encoding": "utf-8",
   "items": [
     {
       "name": "001.wav",
@@ -242,7 +256,7 @@ ID順にソートされた音源一覧です。
 }
 ```
 
-`name`はパス部分が除去されて空や`..`なら`utterance-N.wav`に置き換えられます。重複するファイル名は400です。途中のアイテムで合成に失敗すると`item N: <error>`形式でエラーを返し、それより後ろは合成しません。
+`write_text`と`write_lab`を有効にすると、各WAVと同名のTXT／LABもZIPへ入ります。`text_encoding`は`utf-8`または`shift_jis`です。`name`はパス部分が除去され、`.wav`以外なら`.wav`が補われます。空や`..`なら`utterance-N.wav`に置き換えられます。重複するファイル名は400です。途中のアイテムで合成に失敗すると`item N: <error>`形式でエラーを返し、それより後ろは合成しません。
 
 ## 起動オプション
 

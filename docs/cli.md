@@ -39,6 +39,17 @@
 
 モーラ長も予測する場合は`--prosody prosody-multitask-v1`を使います。`--plan-out`を指定すると原音の配置とタイミングをJSONへ保存できます。
 
+GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`で渡します。
+
+```json
+[
+  {"surface": "v8", "reading": "ぶいはち"},
+  {"surface": "UtauTTS", "reading": "うたうてぃーてぃーえす"}
+]
+```
+
+`--write-text`または`--write-lab`を指定すると、WAVと同じ場所へ同名の`.txt`または`.lab`を保存します。
+
 ## オプション
 
 | オプション | 既定値 | 説明 |
@@ -52,8 +63,11 @@
 | `--color <name>` | | `character.yaml`で定義された音源タイプ／サブバンク |
 | `--out <path>` | | 出力WAVのパス（必須） |
 | `--plan-out <path>` | | 合成計画JSONを保存するパス |
+| `--dictionary <path>` | | 表記と読みを定義したユーザー辞書JSON |
 | `--mora-ms` | `140` | 基本モーラ長（ms） |
 | `--pause-ms` | `180` | 句読点の休止長（ms） |
+| `--mora-durations <path>` | | モーラごとの長さを配列または`mora_durations_ms`で持つJSON |
+| `--leading-preutterance-ms` | `0` | 文頭に確保する先行発声（ms）。0では`oto.ini`から自動決定 |
 | `--release-ms` | `20` | ユニット末尾のrelease envelope（ms） |
 | `--prosody <id>` | | 抑揚モデルのplugin ID |
 | `--prosody-pitch-only` | `false` | 学習ピッチのみ適用し、モーラ長・音量は固定値を使う |
@@ -81,6 +95,9 @@
 | `--model-dir <dir>` | | モデルJSONの検索directory（繰り返し指定可） |
 | `--openjtalk-features <path>` | runtime | Open JTalk feature helper（自動検出を上書き） |
 | `--openjtalk-dictionary <path>` | runtime | Open JTalk辞書ディレクトリ（自動検出を上書き） |
+| `--write-text` | `false` | WAVと同名のTXTを書き出す |
+| `--write-lab` | `false` | WAVと同名のHTK形式LABを書き出す |
+| `--text-encoding` | `utf-8` | TXTの文字コード（`utf-8`または`shift_jis`） |
 
 ## モデルとRendererの指定
 
@@ -92,7 +109,7 @@
 
 ## 出力
 
-成功するとWAVを書き出して次の行を表示します。
+成功するとWAVを書き出して次の行を表示します。`--write-text`と`--write-lab`の内容はGUIから保存した場合と同じです。
 
 ```
 wrote out.wav (4.81s, 44100 Hz, 34 units)
