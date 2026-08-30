@@ -82,6 +82,28 @@ func TestBuildUsesPerMoraDurationOverride(t *testing.T) {
 	}
 }
 
+func TestBuildUsesPerPauseDurationOverride(t *testing.T) {
+	morae, err := frontend.ParseKana("あ、い")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bank := &voicebank.Bank{Root: "bank"}
+	selections := []voicebank.Selection{
+		{Position: 0, Mora: morae[0], Alias: "あ", Entry: oto.Entry{Filename: "a.wav"}},
+		{Position: 2, Mora: morae[2], Alias: "い", Entry: oto.Entry{Filename: "i.wav"}},
+	}
+	got, err := Build(bank, "あ、い", morae, selections, Config{
+		MoraDurationMS: 100, PauseDurationMS: 180,
+		MoraDurationsMS: []float64{0, 320, 0},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Units) != 2 || got.Units[1].NoteStartMS != 420 || got.DurationMS != 520 {
+		t.Fatalf("pause override was not applied: units=%+v duration=%v", got.Units, got.DurationMS)
+	}
+}
+
 func TestBuildAddsCVVCTransitionWithoutChangingMoraTimeline(t *testing.T) {
 	morae, err := frontend.ParseKana("あか")
 	if err != nil {

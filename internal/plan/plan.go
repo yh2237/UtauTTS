@@ -191,11 +191,14 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			}
 		}
 		if mora.Pause {
-			duration := cfg.PauseDurationMS
-			if prediction.DurationMS > 0 {
-				duration = prediction.DurationMS
-			} else if prediction.DurationFactor > 0 {
-				duration *= prediction.DurationFactor
+			duration, manuallySet := configuredMoraDuration(position, cfg)
+			if !manuallySet {
+				duration = cfg.PauseDurationMS
+				if prediction.DurationMS > 0 {
+					duration = prediction.DurationMS
+				} else if prediction.DurationFactor > 0 {
+					duration *= prediction.DurationFactor
+				}
 			}
 			cursor += duration
 			continue
@@ -204,7 +207,7 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		if !ok {
 			return nil, fmt.Errorf("selection missing for mora %q at position %d", mora.Text, position)
 		}
-		duration, manuallySet := configuredMoraDuration(mora, position, cfg)
+		duration, manuallySet := configuredMoraDuration(position, cfg)
 		if !manuallySet {
 			duration = durationFor(mora, cfg.MoraDurationMS)
 			if prediction.DurationMS > 0 {
@@ -321,8 +324,8 @@ func transitionTarget(alias string) string {
 	return ""
 }
 
-func configuredMoraDuration(mora frontend.Mora, position int, cfg Config) (float64, bool) {
-	if mora.Pause || position < 0 || position >= len(cfg.MoraDurationsMS) {
+func configuredMoraDuration(position int, cfg Config) (float64, bool) {
+	if position < 0 || position >= len(cfg.MoraDurationsMS) {
 		return 0, false
 	}
 	duration := cfg.MoraDurationsMS[position]

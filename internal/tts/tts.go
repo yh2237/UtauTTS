@@ -460,7 +460,7 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	}
 	cursor := 0.0
 	for index, mora := range morae {
-		duration, manuallySet := previewConfiguredMoraDuration(mora, index, cfg)
+		duration, manuallySet := previewConfiguredMoraDuration(index, cfg)
 		if !manuallySet {
 			if mora.Pause {
 				duration = cfg.PauseDurationMS
@@ -517,8 +517,8 @@ func previewDurationFor(mora frontend.Mora, base float64) float64 {
 	return base
 }
 
-func previewConfiguredMoraDuration(mora frontend.Mora, position int, cfg Config) (float64, bool) {
-	if mora.Pause || position < 0 || position >= len(cfg.MoraDurationsMS) {
+func previewConfiguredMoraDuration(position int, cfg Config) (float64, bool) {
+	if position < 0 || position >= len(cfg.MoraDurationsMS) {
 		return 0, false
 	}
 	duration := cfg.MoraDurationsMS[position]

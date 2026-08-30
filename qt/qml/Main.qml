@@ -1571,6 +1571,21 @@ window.translator.load(window.appBackend.language);
         if (error.length)
             return error;
 
+        editorContent.pitchEditor.morae = [{mora: "あ", pause: false}, {mora: "", pause: true}];
+        editorContent.pitchEditor.moraDurations = [120, 180];
+        editorContent.pitchEditor.moraPositions = [0, 120];
+        error = check(editorContent.pitchEditor.durationIsEditable(1),
+                      "pause duration is not editable");
+        if (error.length)
+            return error;
+        editorContent.pitchEditor.updateEndPositionAt(
+                    editorContent.pitchEditor.sidePadding
+                    + 380 * editorContent.pitchEditor.durationScale);
+        error = check(Math.round(editorContent.pitchEditor.durationAt(1)) === 260,
+                      "pause duration edit failed");
+        if (error.length)
+            return error;
+
         window.addUtterance();
         error = check(utterances.count === 2, "utterance add failed");
         if (error.length)
