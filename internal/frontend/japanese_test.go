@@ -25,9 +25,13 @@ func TestToKanaPreservesKanaAndPunctuation(t *testing.T) {
 	}
 }
 
-func TestToKanaRejectsUnknownLatinToken(t *testing.T) {
-	if _, err := ToKana("UtauTTS"); err == nil {
-		t.Fatal("expected an unknown-token error")
+func TestToKanaIgnoresTokenWithoutPronunciation(t *testing.T) {
+	got, err := ToKana("こんにちは🙂。")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "コンニチワ。" {
+		t.Fatalf("reading = %q", got)
 	}
 }
 
@@ -49,6 +53,23 @@ func TestApplyDictionaryPrefersLongestSurface(t *testing.T) {
 		"東京都": "とうきょうと",
 	})
 	if got != "とうきょうと" {
+		t.Fatalf("replacement = %q", got)
+	}
+}
+
+func TestToKanaWithDictionaryDoesNotReinterpretReading(t *testing.T) {
+	got, err := ToKanaWithDictionary(" v8を使う。", map[string]string{"v8": "ぶいはち"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(got, "ブイハチヲ") {
+		t.Fatalf("reading = %q", got)
+	}
+}
+
+func TestApplyDictionaryForAnalysisUsesKatakanaReading(t *testing.T) {
+	got := ApplyDictionaryForAnalysis("v8を使う。", map[string]string{"v8": "ぶいはち"})
+	if got != "ブイハチを使う。" {
 		t.Fatalf("replacement = %q", got)
 	}
 }

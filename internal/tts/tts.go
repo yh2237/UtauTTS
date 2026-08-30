@@ -92,7 +92,7 @@ func ConvertToReadingContext(ctx context.Context, text string, dictionary map[st
 	if frontendErr == nil {
 		return reading, nil
 	}
-	analysis, openJTalkErr := analyzeOpenJTalkCached(ctx, frontend.ApplyDictionary(text, dictionary), openJTalk)
+	analysis, openJTalkErr := analyzeOpenJTalkCached(ctx, frontend.ApplyDictionaryForAnalysis(text, dictionary), openJTalk)
 	if openJTalkErr != nil {
 		return "", fmt.Errorf("convert text to reading: %v; Open JTalk fallback: %w", frontendErr, openJTalkErr)
 	}
@@ -123,7 +123,7 @@ func resolveProsodyFeatures(cfg Config, model *prosody.Model, morae []frontend.M
 	if model == nil || !model.RequiresExternalFeatures() || len(cfg.ProsodyFeatures) > 0 {
 		return cfg.ProsodyFeatures, nil
 	}
-	runtimeText := frontend.ApplyDictionary(cfg.Text, cfg.Dictionary)
+	runtimeText := frontend.ApplyDictionaryForAnalysis(cfg.Text, cfg.Dictionary)
 	if strings.TrimSpace(runtimeText) == "" {
 		// かなだけの入力では読みを表層テキストとして解析する。
 		runtimeText = reading

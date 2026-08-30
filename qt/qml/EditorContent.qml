@@ -732,7 +732,7 @@ import QtMultimedia
                              && window.playerMedia.playbackState === MediaPlayer.PlayingState
                     hasAudio: !window.batchExportActive && window.hasCurrentAudio()
                     canGenerate: !window.batchExportActive && window.utterancesModel.count
-                                 && window.current().content.trim().length > 0
+                                 && window.current().reading.length > 0
                     position: window.playerMedia.position
                     duration: window.playerMedia.duration
                     errorText: window.appBackend.error.length ? window.appBackend.error : window.playbackError

@@ -95,6 +95,23 @@ func TestEngineListsAnalyzesAndSynthesizes(t *testing.T) {
 	if dictionaryResult.Reading != "ア" {
 		t.Fatalf("dictionary analysis=%s", dictionaryAnalysis)
 	}
+	dictionaryAnalysis, err = engine.Call("analyze", []byte(`{"text":"v8","dictionary":[{"surface":"v8","reading":"ぶいはち"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(dictionaryAnalysis, &dictionaryResult); err != nil {
+		t.Fatal(err)
+	}
+	if dictionaryResult.Reading != "ブイハチ" {
+		t.Fatalf("dictionary reading was reinterpreted: %s", dictionaryAnalysis)
+	}
+	ignoredAnalysis, err := engine.Call("analyze", []byte(`{"text":"🙂"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(ignoredAnalysis) != `{"morae":[],"reading":""}` {
+		t.Fatalf("invalid character was not ignored: %s", ignoredAnalysis)
+	}
 	output := filepath.Join(root, "preview.wav")
 	request, _ := json.Marshal(map[string]any{"kana": "あ", "voicebank_id": "bank", "mora_duration_ms": 100, "output_path": output})
 	synthesis, err := engine.Call("synthesize", request)

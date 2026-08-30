@@ -55,8 +55,13 @@ func TestParseKanaConsonants(t *testing.T) {
 	}
 }
 
-func TestParseKanaRejectsUnknownCharacter(t *testing.T) {
-	if _, err := ParseKana("今日は"); err == nil {
-		t.Fatal("expected an error")
+func TestParseKanaIgnoresUnknownCharacter(t *testing.T) {
+	got, err := ParseKana("あ🙂Aい")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Mora{{Text: "あ", Vowel: "a"}, {Text: "い", Vowel: "i"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("morae = %#v, want %#v", got, want)
 	}
 }

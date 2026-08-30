@@ -26,7 +26,7 @@ func ParseKana(reading string) ([]Mora, error) {
 			continue
 		}
 		if !isKana(r) {
-			return nil, fmt.Errorf("unsupported character %q in kana reading", r)
+			continue
 		}
 
 		hiragana := toHiragana(r)

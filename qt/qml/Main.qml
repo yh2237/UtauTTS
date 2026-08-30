@@ -103,7 +103,7 @@ ApplicationWindow {
     Shortcut {
         sequence: window.qtShortcutSequence(window.appBackend.synthesizeShortcut)
         enabled: !settingsWindow.visible && !window.appBackend.busy && !window.batchExportActive
-                 && utterances.count > 0 && window.current().content.trim().length > 0
+                 && utterances.count > 0 && window.current().reading.length > 0
         onActivated: window.synthesizeCurrent()
     }
 
@@ -816,23 +816,23 @@ window.translator.load(window.appBackend.language);
             MenuSeparator {}
             MenuItem {
                 text: window.translator.tr("menu.file.saveWav")
-                enabled: utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive && window.current().content.trim().length > 0
+                enabled: utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive && window.current().reading.length > 0
                 onTriggered: window.saveCurrentAudio()
             }
             MenuItem {
                 text: window.translator.tr("menu.file.saveAllWav")
-                enabled: utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive
+                enabled: !window.appBackend.busy && !window.batchExportActive && window.hasPlayableTextFrom(0)
                 onTriggered: window.openSaveAllDialog()
             }
             MenuSeparator {}
             MenuItem {
                 text: window.translator.tr("menu.file.exportExo")
-                enabled: utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive && window.current().content.trim().length > 0
+                enabled: utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive && window.current().reading.length > 0
                 onTriggered: window.openDragExportDialog(true)
             }
             MenuItem {
                 text: window.translator.tr("menu.file.exportAllExo")
-                enabled: utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive
+                enabled: !window.appBackend.busy && !window.batchExportActive && window.hasPlayableTextFrom(0)
                 onTriggered: window.openDragExportDialog(false)
             }
             MenuItem {
@@ -866,7 +866,7 @@ window.translator.load(window.appBackend.language);
             MenuItem {
                 text: window.translator.tr("menu.playback.current")
                 enabled: utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive
-                         && !window.playbackQueueActive && window.current().content.trim().length > 0
+                         && !window.playbackQueueActive && window.current().reading.length > 0
                 onTriggered: window.synthesizeCurrent()
             }
             MenuItem {
@@ -1338,7 +1338,7 @@ window.translator.load(window.appBackend.language);
     }
 
     function saveCurrentAudio() {
-        if (!utterances.count || window.appBackend.busy || window.batchExportActive || !window.current().content.trim().length)
+        if (!utterances.count || window.appBackend.busy || window.batchExportActive || !window.current().reading.length)
             return;
         const item = window.current();
         window.clearPlayback();
@@ -1359,7 +1359,7 @@ window.translator.load(window.appBackend.language);
     function openDragExportDialog(selectedOnly) {
         if (!utterances.count || window.appBackend.busy || window.batchExportActive)
             return;
-        if (selectedOnly && !window.current().content.trim().length)
+        if (selectedOnly && !window.current().reading.length)
             return;
         window.dragExportSelectedOnly = selectedOnly;
         frameRateDialog.open();
@@ -2243,7 +2243,7 @@ window.translator.load(window.appBackend.language);
     function hasPlayableTextFrom(startIndex) {
         const first = Math.max(0, Number(startIndex) || 0);
         for (let index = first; index < utterances.count; ++index) {
-            if (utterances.get(index).content.trim().length)
+            if (utterances.get(index).reading.length)
                 return true;
         }
         return false;
@@ -2255,7 +2255,7 @@ window.translator.load(window.appBackend.language);
         const first = Math.max(0, Number(startIndex) || 0);
         const queue = [];
         for (let index = first; index < utterances.count; ++index) {
-            if (utterances.get(index).content.trim().length)
+            if (utterances.get(index).reading.length)
                 queue.push(index);
         }
         if (!queue.length)
@@ -2280,7 +2280,7 @@ window.translator.load(window.appBackend.language);
         }
 
         const index = Number(window.playbackQueue[window.playbackQueueIndex]);
-        if (index < 0 || index >= utterances.count || !utterances.get(index).content.trim().length) {
+        if (index < 0 || index >= utterances.count || !utterances.get(index).reading.length) {
             ++window.playbackQueueIndex;
             Qt.callLater(window.playNextPlaybackItem);
             return;
@@ -2303,6 +2303,8 @@ window.translator.load(window.appBackend.language);
 
     function synthesizeCurrent() {
         const item = current();
+        if (!item || !item.reading)
+            return;
         clearPlayback();
         window.pendingUtteranceId = item.utteranceId;
         window.pendingRevision = item.revision;
@@ -2394,12 +2396,12 @@ window.translator.load(window.appBackend.language);
     function buildExportQueue(selectedOnly) {
         const queue = [];
         if (selectedOnly) {
-            if (utterances.count && window.current().content.trim().length)
+            if (utterances.count && window.current().reading.length)
                 queue.push(window.selectedIndex);
             return queue;
         }
         for (let index = 0; index < utterances.count; ++index) {
-            if (utterances.get(index).content && utterances.get(index).content.trim().length)
+            if (utterances.get(index).reading.length)
                 queue.push(index);
         }
         return queue;
