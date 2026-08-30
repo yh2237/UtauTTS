@@ -1,6 +1,7 @@
 package api
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -219,6 +220,51 @@ func TestSynthesizeEndpointReportsWaveformRenderer(t *testing.T) {
 	}
 }
 
+func TestLabelAndBatchSidecarEndpoints(t *testing.T) {
+	root := t.TempDir()
+	wavPath := filepath.Join(root, "a.wav")
+	samples := make([]int16, 400)
+	for index := range samples {
+		samples[index] = 8000
+	}
+	if err := audio.WriteWav(wavPath, &audio.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	server := &Server{renderer: "waveform", catalog: &plugin.Catalog{Renderers: []plugin.Renderer{{ID: "waveform", Backend: "waveform"}}}, voicebanks: map[string]Voicebank{
+		"test": {ID: "test", Path: root},
+	}}
+	synthesis := `{"kana":"あ","voicebank_id":"test","mora_duration_ms":100}`
+
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/synthesize/label", strings.NewReader(synthesis)))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), " a\n") {
+		t.Fatalf("label response = %d %q", response.Code, response.Body.String())
+	}
+
+	response = httptest.NewRecorder()
+	body := `{"write_text":true,"write_lab":true,"items":[{"name":"sample","request":` + synthesis + `}]}`
+	server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(body)))
+	if response.Code != http.StatusOK {
+		t.Fatalf("batch response = %d %s", response.Code, response.Body.String())
+	}
+	archive, err := zip.NewReader(bytes.NewReader(response.Body.Bytes()), int64(response.Body.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := map[string]bool{}
+	for _, file := range archive.File {
+		names[file.Name] = true
+	}
+	for _, name := range []string{"sample.wav", "sample.txt", "sample.lab"} {
+		if !names[name] {
+			t.Fatalf("batch archive is missing %s: %#v", name, names)
+		}
+	}
+}
+
 func TestSynthesizeEndpointRejectsUnknownText(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0o644); err != nil {
@@ -301,6 +347,16 @@ func TestAnalyzeEndpointReturnsMoraes(t *testing.T) {
 	}
 	if payload.Reading == "" || len(payload.Morae) != 5 {
 		t.Fatalf("unexpected analysis: %#v", payload)
+	}
+}
+
+func TestAnalyzeEndpointUsesUserDictionary(t *testing.T) {
+	server := &Server{}
+	body := `{"text":"v8","dictionary":[{"surface":"v8","reading":"ぶいはち"}]}`
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/analyze", strings.NewReader(body)))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"reading":"ブイハチ"`) {
+		t.Fatalf("dictionary analysis = %d %s", response.Code, response.Body.String())
 	}
 }
 

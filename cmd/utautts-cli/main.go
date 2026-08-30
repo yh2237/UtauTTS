@@ -8,10 +8,11 @@ import (
 	"os"
 
 	"utautts/internal/appinfo"
-	"utautts/internal/audio"
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
+	"utautts/internal/sidecar"
+	"utautts/internal/synth"
 	"utautts/internal/tts"
 	"utautts/internal/voicebank"
 )
@@ -26,8 +27,11 @@ func main() {
 		color                   string
 		outPath                 string
 		planPath                string
+		dictionaryPath          string
+		moraDurationsPath       string
 		moraMS                  float64
 		pauseMS                 float64
+		leadingPreutteranceMS   float64
 		releaseMS               float64
 		prosodyPath             string
 		manualPitchPath         string
@@ -55,6 +59,9 @@ func main() {
 		joinScoreScale          float64
 		rendererDirectories     []string
 		modelDirectories        []string
+		writeText               bool
+		writeLab                bool
+		textEncoding            string
 		showVersion             bool
 	)
 	flag.BoolVar(&showVersion, "version", false, "print application version")
@@ -66,8 +73,11 @@ func main() {
 	flag.StringVar(&color, "color", "", "voicebank subbank/color (character.yaml)")
 	flag.StringVar(&outPath, "out", "", "output WAV path")
 	flag.StringVar(&planPath, "plan-out", "", "optional synthesis plan JSON path")
+	flag.StringVar(&dictionaryPath, "dictionary", "", "optional user dictionary JSON path")
+	flag.StringVar(&moraDurationsPath, "mora-durations", "", "optional mora duration JSON path")
 	flag.Float64Var(&moraMS, "mora-ms", 140, "base mora duration in milliseconds")
 	flag.Float64Var(&pauseMS, "pause-ms", 180, "punctuation pause in milliseconds")
+	flag.Float64Var(&leadingPreutteranceMS, "leading-preutterance-ms", 0, "leading preutterance in milliseconds (0 uses oto.ini)")
 	flag.Float64Var(&releaseMS, "release-ms", 20, "unit release envelope in milliseconds")
 	flag.StringVar(&prosodyPath, "prosody", "", "optional prosody model plugin ID")
 	flag.StringVar(&manualPitchPath, "manual-pitch", "", "optional mora pitch edit JSON")
@@ -93,6 +103,9 @@ func main() {
 	flag.StringVar(&acousticMode, "acoustic-selection", "", "acoustic candidate diagnostics: dry-run or apply")
 	flag.StringVar(&joinModelPath, "join-model", "", "optional learned join-cost model JSON")
 	flag.Float64Var(&joinScoreScale, "join-scale", 0, "learned logit score scale (default: model or 4)")
+	flag.BoolVar(&writeText, "write-text", false, "write a text file next to the WAV")
+	flag.BoolVar(&writeLab, "write-lab", false, "write an HTK label file next to the WAV")
+	flag.StringVar(&textEncoding, "text-encoding", sidecar.EncodingUTF8, "text sidecar encoding: utf-8 or shift_jis")
 	flag.Func("renderer-dir", "renderer plugin directory (repeatable)", func(value string) error { rendererDirectories = append(rendererDirectories, value); return nil })
 	flag.Func("model-dir", "prosody model directory (repeatable)", func(value string) error { modelDirectories = append(modelDirectories, value); return nil })
 	flag.Parse()
@@ -128,14 +141,25 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	dictionary, err := loadDictionary(dictionaryPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	moraDurations, err := loadMoraDurations(moraDurationsPath)
+	if err != nil {
+		log.Fatal(err)
+	}
 	synthConfig := tts.Config{
 		VoicebankPath:           voicebankPath,
 		Text:                    text,
 		Reading:                 reading,
+		Dictionary:              synth.DictionaryMap(dictionary),
 		Tone:                    tone,
 		Color:                   color,
 		MoraDurationMS:          moraMS,
 		PauseDurationMS:         pauseMS,
+		MoraDurationsMS:         moraDurations,
+		LeadingPreutteranceMS:   leadingPreutteranceMS,
 		ReleaseMS:               releaseMS,
 		ReleaseSet:              true,
 		ProsodyModelPath:        prosodyPath,
@@ -161,15 +185,25 @@ func main() {
 	if err := tts.ApplyRenderer(&synthConfig, catalog, renderer, worldlinePath, worldlineBridgePath); err != nil {
 		log.Fatal(err)
 	}
-	result, err := tts.Synthesize(synthConfig)
+	rendererID := renderer
+	if rendererID == "" {
+		rendererID = catalog.DefaultRenderer()
+	}
+	output, err := synth.SynthesizeConfig(synthConfig, rendererID)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := audio.WriteWav(outPath, result.Audio); err != nil {
+	exportText := text
+	if exportText == "" {
+		exportText = reading
+	}
+	if err := synth.WriteFiles(outPath, output, synth.ExportOptions{
+		Text: exportText, WriteText: writeText, WriteLab: writeLab, TextEncoding: textEncoding,
+	}); err != nil {
 		log.Fatal(err)
 	}
 	if planPath != "" {
-		data, err := json.MarshalIndent(result.Plan, "", "  ")
+		data, err := json.MarshalIndent(output.Plan, "", "  ")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -179,8 +213,49 @@ func main() {
 		}
 	}
 
-	duration := float64(len(result.Audio.Data)) / float64(result.Audio.SampleRate)
-	fmt.Printf("wrote %s (%.2fs, %d Hz, %d units)\n", outPath, duration, result.Audio.SampleRate, len(result.Plan.Units))
+	duration := output.DurationMS / 1000
+	fmt.Printf("wrote %s (%.2fs, %d Hz, %d units)\n", outPath, duration, output.Audio.SampleRate, len(output.Plan.Units))
+}
+
+func loadDictionary(path string) ([]synth.DictionaryEntry, error) {
+	if path == "" {
+		return nil, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var entries []synth.DictionaryEntry
+	if err := json.Unmarshal(data, &entries); err != nil {
+		return nil, fmt.Errorf("decode user dictionary: %w", err)
+	}
+	for index, entry := range entries {
+		if entry.Surface == "" || entry.Reading == "" {
+			return nil, fmt.Errorf("dictionary entry %d requires surface and reading", index+1)
+		}
+	}
+	return entries, nil
+}
+
+func loadMoraDurations(path string) ([]float64, error) {
+	if path == "" {
+		return nil, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var durations []float64
+	if err := json.Unmarshal(data, &durations); err == nil {
+		return durations, nil
+	}
+	var value struct {
+		MoraDurationsMS []float64 `json:"mora_durations_ms"`
+	}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return nil, fmt.Errorf("decode mora durations: %w", err)
+	}
+	return value.MoraDurationsMS, nil
 }
 
 func loadProsodyFeatures(path, caseID, text, reading string) ([]prosody.FeatureFrame, error) {

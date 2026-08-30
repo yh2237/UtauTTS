@@ -26,7 +26,7 @@ type Request struct {
 	Renderer              string
 	AliasPolicy           voicebank.AliasPolicy
 	AcousticMode          string
-	Dictionary            map[string]string
+	Dictionary            []DictionaryEntry
 	MoraDurationMS        float64
 	PauseDurationMS       float64
 	LeadingPreutteranceMS float64
@@ -34,6 +34,24 @@ type Request struct {
 	IntonationStrength    float64
 	ApplyPitch            bool
 	ManualPitch           *prosody.ManualPitchFile
+}
+
+// DictionaryEntryは表記と読みの対応。
+type DictionaryEntry struct {
+	Surface string `json:"surface"`
+	Reading string `json:"reading"`
+}
+
+// DictionaryMapは空の項目を除いて合成エンジン用の辞書へ変換する。
+func DictionaryMap(entries []DictionaryEntry) map[string]string {
+	result := make(map[string]string, len(entries))
+	for _, entry := range entries {
+		if entry.Surface == "" || entry.Reading == "" {
+			continue
+		}
+		result[entry.Surface] = entry.Reading
+	}
+	return result
 }
 
 // VoicebankResolverは音源IDをルートパスへ解決する。空なら既定音源を選ぶ。
@@ -61,22 +79,27 @@ func NewService(catalog *plugin.Catalog, renderer, worldlinePath, worldlineBridg
 	}
 }
 
-// Synthesizeはリクエストを解決して音声をレンダリングし、実際に使用されたレンダラIDを返す。
-func (s *Service) Synthesize(request Request) (*tts.Result, string, error) {
+// Synthesizeはリクエストを解決し、音声・LAB・使用Rendererをまとめて返す。
+func (s *Service) Synthesize(request Request) (*Result, error) {
 	return s.SynthesizeContext(context.Background(), request)
 }
 
-func (s *Service) SynthesizeContext(ctx context.Context, request Request) (*tts.Result, string, error) {
+func (s *Service) SynthesizeContext(ctx context.Context, request Request) (*Result, error) {
 	cfg, rendererID, err := s.config(request, true)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	cfg.Context = ctx
+	return SynthesizeConfig(cfg, rendererID)
+}
+
+// SynthesizeConfigは解決済み設定から共通の合成結果を作る。
+func SynthesizeConfig(cfg tts.Config, rendererID string) (*Result, error) {
 	result, err := tts.Synthesize(cfg)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
-	return result, rendererID, nil
+	return NewResult(result, rendererID)
 }
 
 // PredictProsodyは音声や音源を読み込まずにプロソディを返す。
@@ -100,7 +123,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	cfg := tts.Config{
 		Text:                    request.Text,
 		Reading:                 request.Kana,
-		Dictionary:              request.Dictionary,
+		Dictionary:              DictionaryMap(request.Dictionary),
 		Tone:                    request.Tone,
 		Color:                   request.Color,
 		AliasPolicy:             request.AliasPolicy,

@@ -37,7 +37,7 @@ func Write(wavPath string, options Options) error {
 	}
 	base := strings.TrimSuffix(absolute, filepath.Ext(absolute))
 	if options.WriteText {
-		data, encodeErr := encodeText(ensureTrailingNewline(options.Text), options.Encoding)
+		data, encodeErr := TextBytes(options.Text, options.Encoding)
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -46,14 +46,28 @@ func Write(wavPath string, options Options) error {
 		}
 	}
 	if options.WriteLab {
-		if strings.TrimSpace(options.Lab) == "" {
-			return fmt.Errorf("phoneme label is empty")
+		data, labelErr := LabBytes(options.Lab)
+		if labelErr != nil {
+			return labelErr
 		}
-		if err := os.WriteFile(base+".lab", []byte(ensureTrailingNewline(options.Lab)), 0o644); err != nil {
+		if err := os.WriteFile(base+".lab", data, 0o644); err != nil {
 			return fmt.Errorf("write label sidecar: %w", err)
 		}
 	}
 	return nil
+}
+
+// TextBytesは指定された文字コードの字幕ファイルを作る。
+func TextBytes(value, encoding string) ([]byte, error) {
+	return encodeText(ensureTrailingNewline(value), encoding)
+}
+
+// LabBytesは末尾を改行した音素ラベルを作る。
+func LabBytes(value string) ([]byte, error) {
+	if strings.TrimSpace(value) == "" {
+		return nil, fmt.Errorf("phoneme label is empty")
+	}
+	return []byte(ensureTrailingNewline(value)), nil
 }
 
 func encodeText(value, encoding string) ([]byte, error) {

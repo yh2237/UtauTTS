@@ -24,6 +24,7 @@ import (
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
+	"utautts/internal/sidecar"
 	"utautts/internal/synth"
 	"utautts/internal/tts"
 	"utautts/internal/voicebank"
@@ -134,6 +135,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/voicebanks", s.handleRegisterVoicebank)
 	mux.HandleFunc("POST /api/voicebanks/reload", s.handleReloadVoicebanks)
 	mux.HandleFunc("POST /api/synthesize/audio", s.handleSynthesizeAudio)
+	mux.HandleFunc("POST /api/synthesize/label", s.handleSynthesizeLabel)
 	mux.HandleFunc("POST /api/synthesize/batch", s.handleSynthesizeBatch)
 	mux.HandleFunc("GET /api/models", s.handleModels)
 	mux.HandleFunc("GET /api/renderers", s.handleRenderers)
@@ -243,7 +245,8 @@ func (s *Server) handleRenderers(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Text string `json:"text"`
+		Text       string                  `json:"text"`
+		Dictionary []synth.DictionaryEntry `json:"dictionary"`
 	}
 	if err := decodeJSONBody(w, r, &request); err != nil {
 		writeJSON(w, jsonDecodeStatus(err), map[string]string{"error": err.Error()})
@@ -257,7 +260,7 @@ func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{"error": fmt.Sprintf("text is limited to %d characters", maxTextRunes)})
 		return
 	}
-	reading, err := tts.ConvertToReadingContext(r.Context(), request.Text, nil, openjtalk.Config{
+	reading, err := tts.ConvertToReadingContext(r.Context(), request.Text, synth.DictionaryMap(request.Dictionary), openjtalk.Config{
 		HelperPath: s.openJTalkPath, DictionaryPath: s.openJTalkDictionary,
 	})
 	if err != nil {
@@ -372,6 +375,7 @@ type SynthesisRequest struct {
 	Renderer              string                   `json:"renderer"`
 	AliasPolicy           voicebank.AliasPolicy    `json:"alias_policy"`
 	AcousticMode          string                   `json:"acoustic_mode"`
+	Dictionary            []synth.DictionaryEntry  `json:"dictionary"`
 }
 
 func (s *Server) handleSynthesizeAudio(w http.ResponseWriter, r *http.Request) {
@@ -380,13 +384,13 @@ func (s *Server) handleSynthesizeAudio(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, jsonDecodeStatus(err), map[string]string{"error": err.Error()})
 		return
 	}
-	result, engine, status, err := s.synthesize(r.Context(), request)
+	result, status, err := s.synthesize(r.Context(), request)
 	if err != nil {
 		writeJSON(w, status, map[string]string{"error": err.Error()})
 		return
 	}
 	w.Header().Set("Content-Type", "audio/wav")
-	w.Header().Set("X-UtauTTS-Engine", engine)
+	w.Header().Set("X-UtauTTS-Engine", result.RendererID)
 	w.Header().Set("X-UtauTTS-Reading", result.Plan.Reading)
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(audio.PCMToWavBytes(result.Audio)); err != nil {
@@ -394,9 +398,32 @@ func (s *Server) handleSynthesizeAudio(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) handleSynthesizeLabel(w http.ResponseWriter, r *http.Request) {
+	var request SynthesisRequest
+	if err := decodeJSONBody(w, r, &request); err != nil {
+		writeJSON(w, jsonDecodeStatus(err), map[string]string{"error": err.Error()})
+		return
+	}
+	result, status, err := s.synthesize(r.Context(), request)
+	if err != nil {
+		writeJSON(w, status, map[string]string{"error": err.Error()})
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-UtauTTS-Engine", result.RendererID)
+	w.Header().Set("X-UtauTTS-Reading", result.Plan.Reading)
+	w.WriteHeader(http.StatusOK)
+	if _, err := io.WriteString(w, result.Lab); err != nil {
+		log.Printf("write label response: %v", err)
+	}
+}
+
 func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Items []struct {
+		WriteText    bool   `json:"write_text"`
+		WriteLab     bool   `json:"write_lab"`
+		TextEncoding string `json:"text_encoding"`
+		Items        []struct {
 			Name    string           `json:"name"`
 			Request SynthesisRequest `json:"request"`
 		} `json:"items"`
@@ -413,12 +440,21 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{"error": fmt.Sprintf("batch supports at most %d items", maxBatchItems)})
 		return
 	}
+	if request.WriteText {
+		if _, err := sidecar.TextBytes("", request.TextEncoding); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+	}
 	names := make([]string, len(request.Items))
 	seenNames := make(map[string]struct{}, len(request.Items))
 	for index, item := range request.Items {
 		name := filepath.Base(item.Name)
 		if name == "." || name == "" || name == ".." {
 			name = fmt.Sprintf("utterance-%d.wav", index+1)
+		}
+		if !strings.EqualFold(filepath.Ext(name), ".wav") {
+			name += ".wav"
 		}
 		if _, exists := seenNames[name]; exists {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("duplicate batch filename %q", name)})
@@ -449,7 +485,7 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 	archive := zip.NewWriter(output)
 	totalWAVBytes := 0
 	for index, item := range request.Items {
-		result, _, status, err := s.synthesize(r.Context(), item.Request)
+		result, status, err := s.synthesize(r.Context(), item.Request)
 		if err != nil {
 			_ = archive.Close()
 			writeJSON(w, status, map[string]string{"error": fmt.Sprintf("item %d: %v", index+1, err)})
@@ -474,6 +510,49 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
+		base := strings.TrimSuffix(name, filepath.Ext(name))
+		if request.WriteText {
+			text := item.Request.Text
+			if text == "" {
+				text = item.Request.Kana
+			}
+			data, err := sidecar.TextBytes(text, request.TextEncoding)
+			if err != nil {
+				_ = archive.Close()
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+				return
+			}
+			entry, err := archive.Create(base + ".txt")
+			if err != nil {
+				_ = archive.Close()
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
+			if _, err := entry.Write(data); err != nil {
+				_ = archive.Close()
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
+		}
+		if request.WriteLab {
+			data, err := sidecar.LabBytes(result.Lab)
+			if err != nil {
+				_ = archive.Close()
+				writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+				return
+			}
+			entry, err := archive.Create(base + ".lab")
+			if err != nil {
+				_ = archive.Close()
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
+			if _, err := entry.Write(data); err != nil {
+				_ = archive.Close()
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
+		}
 	}
 	if err := archive.Close(); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -491,42 +570,43 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*tts.Result, string, int, error) {
+func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*synth.Result, int, error) {
 	if s.synthesisSem != nil {
 		select {
 		case s.synthesisSem <- struct{}{}:
 		case <-ctx.Done():
-			return nil, "", http.StatusRequestTimeout, ctx.Err()
+			return nil, http.StatusRequestTimeout, ctx.Err()
 		}
 		defer func() { <-s.synthesisSem }()
 	}
 	if request.Kana == "" && request.Text == "" {
-		return nil, "", http.StatusBadRequest, fmt.Errorf("text or kana is required")
+		return nil, http.StatusBadRequest, fmt.Errorf("text or kana is required")
 	}
 	if len([]rune(request.Text)) > maxTextRunes || len([]rune(request.Kana)) > maxTextRunes {
-		return nil, "", http.StatusRequestEntityTooLarge, fmt.Errorf("text and kana are limited to %d characters", maxTextRunes)
+		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("text and kana are limited to %d characters", maxTextRunes)
 	}
 	if request.MoraDurationMS < 0 || request.MoraDurationMS > 1000 || request.PauseDurationMS < 0 || request.PauseDurationMS > 3000 || request.LeadingPreutteranceMS < 0 || request.LeadingPreutteranceMS > 1000 {
-		return nil, "", http.StatusBadRequest, fmt.Errorf("duration settings are outside the supported range")
+		return nil, http.StatusBadRequest, fmt.Errorf("duration settings are outside the supported range")
 	}
 	if len(request.MoraDurationsMS) > maxTextRunes {
-		return nil, "", http.StatusRequestEntityTooLarge, fmt.Errorf("mora duration settings contain too many values")
+		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("mora duration settings contain too many values")
 	}
 	for _, duration := range request.MoraDurationsMS {
 		if duration < 0 || duration > 1000 {
-			return nil, "", http.StatusBadRequest, fmt.Errorf("mora duration settings are outside the supported range")
+			return nil, http.StatusBadRequest, fmt.Errorf("mora duration settings are outside the supported range")
 		}
 	}
 	if request.IntonationStrength < 0 || request.IntonationStrength > render.MaxIntonationStrength {
-		return nil, "", http.StatusBadRequest, fmt.Errorf("intonation_strength must be between 0 and %.0f", render.MaxIntonationStrength)
+		return nil, http.StatusBadRequest, fmt.Errorf("intonation_strength must be between 0 and %.0f", render.MaxIntonationStrength)
 	}
 	if request.ManualPitch != nil && len(request.ManualPitch.Points) > maxManualPitchPoints {
-		return nil, "", http.StatusRequestEntityTooLarge, fmt.Errorf("manual pitch supports at most %d points", maxManualPitchPoints)
+		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("manual pitch supports at most %d points", maxManualPitchPoints)
 	}
-	result, rendererID, err := s.synthesisService().SynthesizeContext(ctx, synth.Request{
+	result, err := s.synthesisService().SynthesizeContext(ctx, synth.Request{
 		Text: request.Text, Kana: request.Kana, VoicebankID: request.VoicebankID,
 		Tone: request.Tone, Color: request.Color, ModelID: request.ModelID, Renderer: request.Renderer,
 		AliasPolicy: request.AliasPolicy, AcousticMode: request.AcousticMode,
+		Dictionary:     request.Dictionary,
 		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,
 		LeadingPreutteranceMS: request.LeadingPreutteranceMS,
 		MoraDurationsMS:       request.MoraDurationsMS, IntonationStrength: request.IntonationStrength,
@@ -534,14 +614,14 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*tts
 	})
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return nil, "", http.StatusRequestTimeout, err
+			return nil, http.StatusRequestTimeout, err
 		}
 		if errors.Is(err, synth.ErrUnavailable) {
-			return nil, "", http.StatusBadRequest, err
+			return nil, http.StatusBadRequest, err
 		}
-		return nil, "", http.StatusUnprocessableEntity, err
+		return nil, http.StatusUnprocessableEntity, err
 	}
-	return result, rendererID, http.StatusOK, nil
+	return result, http.StatusOK, nil
 }
 
 func contextErrorStatus(err error, fallback int) int {

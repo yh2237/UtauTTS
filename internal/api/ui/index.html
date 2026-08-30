@@ -132,6 +132,7 @@
         <tr><td><span class="tag get">GET</span></td><td><code>/api/renderers</code></td><td>Renderer一覧と既定Renderer</td></tr>
         <tr><td><span class="tag post">POST</span></td><td><code>/api/analyze</code></td><td>文章→読み・モーラ列（<code>{"text":"..."}</code>）</td></tr>
         <tr><td><span class="tag post">POST</span></td><td><code>/api/synthesize/audio</code></td><td>単一発話の合成。WAVを返す。ヘッダー<code>X-UtauTTS-Engine</code>・<code>X-UtauTTS-Reading</code></td></tr>
+        <tr><td><span class="tag post">POST</span></td><td><code>/api/synthesize/label</code></td><td>単一発話の合成。HTK形式の音素ラベルを返す</td></tr>
         <tr><td><span class="tag post">POST</span></td><td><code>/api/synthesize/batch</code></td><td>複数発話の合成。ZIPを返す（16発話・256 MiBまで）</td></tr>
       </tbody>
     </table>

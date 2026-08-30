@@ -10,15 +10,12 @@ import (
 	"sync"
 
 	"utautts/internal/appinfo"
-	"utautts/internal/audio"
 	"utautts/internal/aviutl"
 	"utautts/internal/frontend"
-	"utautts/internal/label"
 	"utautts/internal/openjtalk"
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
-	"utautts/internal/sidecar"
 	"utautts/internal/synth"
 	"utautts/internal/tts"
 	"utautts/internal/voicebank"
@@ -172,13 +169,13 @@ func (e *Engine) models() []plugin.Model {
 
 func (e *Engine) analyze(data []byte) (any, error) {
 	var request struct {
-		Text       string            `json:"text"`
-		Dictionary []dictionaryEntry `json:"dictionary"`
+		Text       string                  `json:"text"`
+		Dictionary []synth.DictionaryEntry `json:"dictionary"`
 	}
 	if err := json.Unmarshal(data, &request); err != nil || request.Text == "" {
 		return nil, fmt.Errorf("text is required")
 	}
-	reading, err := e.reading(request.Text, dictionaryMap(request.Dictionary))
+	reading, err := e.reading(request.Text, synth.DictionaryMap(request.Dictionary))
 	if err != nil {
 		return nil, err
 	}
@@ -200,12 +197,12 @@ type prosodyPreviewRequest struct {
 	ModelID   string `json:"model_id"`
 	Renderer  string `json:"renderer"`
 
-	MoraDurationMS     float64           `json:"mora_duration_ms"`
-	PauseDurationMS    float64           `json:"pause_duration_ms"`
-	MoraDurationsMS    []float64         `json:"mora_durations_ms"`
-	IntonationStrength float64           `json:"intonation_strength"`
-	ApplyPitch         bool              `json:"apply_pitch"`
-	Dictionary         []dictionaryEntry `json:"dictionary"`
+	MoraDurationMS     float64                 `json:"mora_duration_ms"`
+	PauseDurationMS    float64                 `json:"pause_duration_ms"`
+	MoraDurationsMS    []float64               `json:"mora_durations_ms"`
+	IntonationStrength float64                 `json:"intonation_strength"`
+	ApplyPitch         bool                    `json:"apply_pitch"`
+	Dictionary         []synth.DictionaryEntry `json:"dictionary"`
 }
 
 func (e *Engine) predictProsody(data []byte) (any, error) {
@@ -217,7 +214,7 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 		return nil, fmt.Errorf("text or kana is required")
 	}
 	preview, _, err := e.synth.PredictProsody(synth.Request{
-		Text: request.Text, Kana: request.Kana, Dictionary: dictionaryMap(request.Dictionary),
+		Text: request.Text, Kana: request.Kana, Dictionary: request.Dictionary,
 		ModelID: request.ModelID, Renderer: request.Renderer,
 		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,
 		MoraDurationsMS: request.MoraDurationsMS, IntonationStrength: request.IntonationStrength,
@@ -242,22 +239,6 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 	}, nil
 }
 
-type dictionaryEntry struct {
-	Surface string `json:"surface"`
-	Reading string `json:"reading"`
-}
-
-func dictionaryMap(entries []dictionaryEntry) map[string]string {
-	result := make(map[string]string, len(entries))
-	for _, entry := range entries {
-		if entry.Surface == "" || entry.Reading == "" {
-			continue
-		}
-		result[entry.Surface] = entry.Reading
-	}
-	return result
-}
-
 func (e *Engine) reading(text string, dictionary map[string]string) (string, error) {
 	return tts.ConvertToReading(text, dictionary, openjtalk.Config{
 		HelperPath:     e.config.OpenJTalkPath,
@@ -273,7 +254,7 @@ type synthesizeRequest struct {
 	MoraDurationsMS                                                            []float64
 	ApplyPitch                                                                 bool
 	ManualPitch                                                                *prosody.ManualPitchFile
-	Dictionary                                                                 []dictionaryEntry
+	Dictionary                                                                 []synth.DictionaryEntry
 }
 
 func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
@@ -295,7 +276,7 @@ func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
 		IntonationStrength    float64                  `json:"intonation_strength"`
 		ApplyPitch            bool                     `json:"apply_pitch"`
 		ManualPitch           *prosody.ManualPitchFile `json:"manual_pitch"`
-		Dictionary            []dictionaryEntry        `json:"dictionary"`
+		Dictionary            []synth.DictionaryEntry  `json:"dictionary"`
 	}
 	var value wire
 	if err := json.Unmarshal(data, &value); err != nil {
@@ -316,11 +297,11 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 	if request.OutputPath == "" {
 		return nil, fmt.Errorf("output_path is required")
 	}
-	result, rendererID, err := e.synth.Synthesize(synth.Request{
+	result, err := e.synth.Synthesize(synth.Request{
 		Text: request.Text, Kana: request.Kana, VoicebankID: request.VoicebankID,
 		Tone: request.Tone, Color: request.Color, ModelID: request.ModelID, Renderer: request.Renderer,
 		AliasPolicy: request.AliasPolicy, AcousticMode: request.AcousticMode,
-		Dictionary:     dictionaryMap(request.Dictionary),
+		Dictionary:     request.Dictionary,
 		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,
 		LeadingPreutteranceMS: request.LeadingPreutteranceMS,
 		MoraDurationsMS:       request.MoraDurationsMS, IntonationStrength: request.IntonationStrength,
@@ -336,22 +317,17 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		return nil, err
 	}
-	if err := audio.WriteWav(outputPath, result.Audio); err != nil {
+	if err := synth.WriteFiles(outputPath, result, synth.ExportOptions{}); err != nil {
 		return nil, err
-	}
-	audioDurationMS := float64(len(result.Audio.Data)) * 1000 / float64(result.Audio.SampleRate)
-	labText, err := label.HTS(result.Plan, result.MoraDurationsMS, audioDurationMS)
-	if err != nil {
-		return nil, fmt.Errorf("build phoneme label: %w", err)
 	}
 	return map[string]any{
 		"output_path":           outputPath,
 		"reading":               result.Plan.Reading,
-		"duration_ms":           audioDurationMS,
+		"duration_ms":           result.DurationMS,
 		"leading_margin_ms":     result.Plan.LeadingMarginMS,
-		"lab":                   labText,
+		"lab":                   result.Lab,
 		"unit_count":            len(result.Plan.Units),
-		"engine":                rendererID,
+		"engine":                result.RendererID,
 		"mora_durations_ms":     result.MoraDurationsMS,
 		"mora_positions_ms":     result.MoraPositionsMS,
 		"pitch_points":          result.PitchPoints,
@@ -374,10 +350,10 @@ func (e *Engine) writeSidecars(data []byte) (any, error) {
 	if request.WAVPath == "" {
 		return nil, fmt.Errorf("wav_path is required")
 	}
-	if err := sidecar.Write(request.WAVPath, sidecar.Options{
+	if err := synth.WriteSidecars(request.WAVPath, synth.ExportOptions{
 		WriteText: request.WriteText, WriteLab: request.WriteLab,
-		Encoding: request.Encoding, Text: request.Text, Lab: request.Lab,
-	}); err != nil {
+		TextEncoding: request.Encoding, Text: request.Text,
+	}, request.Lab); err != nil {
 		return nil, err
 	}
 	return map[string]any{"status": "ok"}, nil
