@@ -370,6 +370,11 @@ NVIDIA GPU driver is distributed by UtauTTS.
 gopkg.in/yaml.v3 (USTX export)
 ==============================
 
+The complete Apache License 2.0 text is distributed as
+licenses/Go/APACHE-2.0.txt. The exact upstream license and NOTICE files for
+the bundled version are distributed beside it as
+gopkg_in_yaml_v3-v3.0.1-LICENSE.txt and
+gopkg_in_yaml_v3-v3.0.1-NOTICE.txt.
 
 This project is covered by two different licenses: MIT and Apache.
 
