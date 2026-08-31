@@ -182,6 +182,7 @@ func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color 
 				transitionSpecs = affixCandidatesWithFallback(transitionSpecs, affix, true)
 			}
 		}
+		candidateSpecs = preferOriginalKanaCandidates(b, candidateSpecs)
 		allSpecs := append(append([]aliasCandidate{}, candidateSpecs...), transitionSpecs...)
 		candidates := candidateNames(allSpecs)
 		var candidatesAtPosition []Selection
@@ -329,9 +330,30 @@ func hasUsableCandidateEntries(bank *Bank, candidates []aliasCandidate) bool {
 }
 
 type aliasCandidate struct {
-	name string
-	tier int
-	kind AliasKind
+	name       string
+	tier       int
+	kind       AliasKind
+	equivalent bool
+}
+
+func preferOriginalKanaCandidates(bank *Bank, candidates []aliasCandidate) []aliasCandidate {
+	originals := make([]aliasCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if !candidate.equivalent {
+			originals = append(originals, candidate)
+		}
+	}
+	if !hasUsableCandidateEntries(bank, originals) {
+		return candidates
+	}
+
+	result := make([]aliasCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if !candidate.equivalent {
+			result = append(result, candidate)
+		}
+	}
+	return result
 }
 
 func affixCandidates(base []aliasCandidate, affix Affix) []aliasCandidate {
@@ -341,9 +363,9 @@ func affixCandidates(base []aliasCandidate, affix Affix) []aliasCandidate {
 func affixCandidatesWithFallback(base []aliasCandidate, affix Affix, allowUnprefixed bool) []aliasCandidate {
 	result := make([]aliasCandidate, 0, len(base)*2)
 	for _, candidate := range base {
-		result = append(result, aliasCandidate{name: affix.Prefix + candidate.name + affix.Suffix, tier: candidate.tier, kind: candidate.kind})
+		result = append(result, aliasCandidate{name: affix.Prefix + candidate.name + affix.Suffix, tier: candidate.tier, kind: candidate.kind, equivalent: candidate.equivalent})
 		if allowUnprefixed {
-			result = append(result, aliasCandidate{name: candidate.name, tier: candidate.tier + 1, kind: candidate.kind})
+			result = append(result, aliasCandidate{name: candidate.name, tier: candidate.tier + 1, kind: candidate.kind, equivalent: candidate.equivalent})
 		}
 	}
 	return uniqueCandidates(result)
@@ -385,8 +407,9 @@ func equivalentKanaForms(mora string) []string {
 // penalty applied to phonetically-equivalent alternates (を→お etc.) so a
 // bank that owns both recordings always prefers the original kana.
 type aliasForm struct {
-	text     string
-	fallback int
+	text       string
+	fallback   int
+	equivalent bool
 }
 
 func aliasCandidatesWithPolicy(mora, previousVowel string, phraseStart bool, policy AliasPolicy) []aliasCandidate {
@@ -403,12 +426,12 @@ func aliasCandidatesWithPolicy(mora, previousVowel string, phraseStart bool, pol
 	// when both recordings exist, independent of oto.ini entry quality.
 	base := []aliasForm{{text: mora}}
 	for _, equivalent := range equivalentKanaForms(mora) {
-		base = append(base, aliasForm{text: equivalent, fallback: 1})
+		base = append(base, aliasForm{text: equivalent, fallback: 1, equivalent: true})
 	}
 	for _, form := range base {
 		forms = append(forms, form)
 		if katakana := toKatakana(form.text); katakana != form.text {
-			forms = append(forms, aliasForm{text: katakana, fallback: form.fallback})
+			forms = append(forms, aliasForm{text: katakana, fallback: form.fallback, equivalent: form.equivalent})
 		}
 	}
 
@@ -416,19 +439,19 @@ func aliasCandidatesWithPolicy(mora, previousVowel string, phraseStart bool, pol
 	allowVCVTarget := mora != "っ"
 	if policy != AliasPolicyCVOnly && allowVCVTarget && phraseStart {
 		for _, form := range forms {
-			candidates = append(candidates, aliasCandidate{name: "- " + form.text, tier: form.fallback, kind: AliasVCV})
+			candidates = append(candidates, aliasCandidate{name: "- " + form.text, tier: form.fallback, kind: AliasVCV, equivalent: form.equivalent})
 		}
 	} else if policy != AliasPolicyCVOnly && allowVCVTarget && previousVowel != "" && previousVowel != "cl" {
 		for _, form := range forms {
-			candidates = append(candidates, aliasCandidate{name: previousVowel + " " + form.text, tier: form.fallback, kind: AliasVCV})
+			candidates = append(candidates, aliasCandidate{name: previousVowel + " " + form.text, tier: form.fallback, kind: AliasVCV, equivalent: form.equivalent})
 		}
 	}
 	for _, form := range forms {
-		candidates = append(candidates, aliasCandidate{name: form.text, tier: policyTier(policy, 1, AliasCV) + form.fallback, kind: AliasCV})
+		candidates = append(candidates, aliasCandidate{name: form.text, tier: policyTier(policy, 1, AliasCV) + form.fallback, kind: AliasCV, equivalent: form.equivalent})
 	}
 	if policy != AliasPolicyCVOnly && !phraseStart {
 		for _, form := range forms {
-			candidates = append(candidates, aliasCandidate{name: "* " + form.text, tier: policyTier(policy, 2, AliasCV) + form.fallback, kind: AliasCV})
+			candidates = append(candidates, aliasCandidate{name: "* " + form.text, tier: policyTier(policy, 2, AliasCV) + form.fallback, kind: AliasCV, equivalent: form.equivalent})
 		}
 	}
 	return uniqueCandidates(candidates)
@@ -522,6 +545,7 @@ func uniqueCandidates(values []aliasCandidate) []aliasCandidate {
 	for _, value := range values {
 		if index, ok := indices[value.name]; ok {
 			result[index].tier = min(result[index].tier, value.tier)
+			result[index].equivalent = result[index].equivalent && value.equivalent
 			if result[index].kind == AliasOther {
 				result[index].kind = value.kind
 			}

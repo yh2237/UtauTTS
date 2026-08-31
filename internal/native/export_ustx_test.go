@@ -215,6 +215,9 @@ func TestExportUstxDistinctVoicebanksGetDistinctTracks(t *testing.T) {
 	if first["track_no"] == second["track_no"] {
 		t.Fatal("different voicebanks must land on different tracks")
 	}
+	if second["position"].(int) <= first["position"].(int) {
+		t.Fatalf("cards on different tracks must remain sequential: %v / %v", first, second)
+	}
 	if tracks[0].(map[string]any)["singer"] != "bank-alpha" || tracks[1].(map[string]any)["singer"] != "bank-beta" {
 		t.Fatalf("track singers = %v / %v", tracks[0], tracks[1])
 	}

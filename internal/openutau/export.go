@@ -177,7 +177,7 @@ func ExportUSTX(project *UtauTTSProject, opts ExportOptions) ([]byte, error) {
 	}
 
 	trackByVoicebank := make(map[string]int)
-	trackEndTicks := make(map[int]int)
+	nextPartPosition := 0
 	for utteranceIndex, utterance := range project.Utterances {
 		if !hasVoicedMora(utterance) {
 			continue
@@ -207,17 +207,15 @@ func ExportUSTX(project *UtauTTSProject, opts ExportOptions) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("utterance %q: %w", utterance.Text, err)
 		}
-		// Place parts on the same track sequentially (with a one-beat gap)
-		// instead of stacking them all at tick 0, which would make them
-		// overlap and appear as a single part in OpenUtau.
-		part.Position = trackEndTicks[trackIndex]
+		// カードの順番を保ち、音源が異なるカードも同時再生されないように並べる。
+		part.Position = nextPartPosition
 		var partEnd int
 		if len(part.Notes) > 0 {
 			last := part.Notes[len(part.Notes)-1]
 			partEnd = last.Position + last.Duration
 		}
 		document.VoiceParts = append(document.VoiceParts, part)
-		trackEndTicks[trackIndex] = part.Position + partEnd + ustxResolution
+		nextPartPosition = part.Position + partEnd + ustxResolution
 	}
 	if len(document.VoiceParts) == 0 {
 		return nil, errors.New("project contains no utterances with notes to export")

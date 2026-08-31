@@ -325,6 +325,36 @@ func TestResolvePrefersOriginalKanaWhenBothRecordingsExist(t *testing.T) {
 	}
 }
 
+func TestResolvePrefersOriginalCVOverEquivalentVCV(t *testing.T) {
+	morae, err := frontend.ParseKana("あを")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bank := &Bank{Entries: map[string][]oto.Entry{
+		"- あ": {{Alias: "- あ", Filename: "a-start.wav"}},
+		"を":   {{Alias: "を", Filename: "wo.wav"}},
+		"a お": {{Alias: "a お", Filename: "a-o.wav", Preutterance: 30, Overlap: 20, Fixed: 40}},
+	}}
+
+	got, err := bank.Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[1].Alias != "を" {
+		t.Fatalf("alias = %q, want the dedicated CV recording を: %#v", got[1].Alias, got[1])
+	}
+
+	bank.Root = "."
+	bank.Entries["を"] = []oto.Entry{{Alias: "を", OtoPath: "oto.ini"}}
+	fallback, err := bank.Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fallback[1].Alias != "a お" {
+		t.Fatalf("alias = %q, want the equivalent VCV fallback when を is unusable: %#v", fallback[1].Alias, fallback[1])
+	}
+}
+
 func TestAuditLatticeReportsAliasKindsAndSelection(t *testing.T) {
 	bank := &Bank{Root: "bank", Entries: map[string][]oto.Entry{
 		"- あ": {{Alias: "- あ", Filename: "vcv-start.wav"}},
