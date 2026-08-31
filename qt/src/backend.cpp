@@ -1119,6 +1119,47 @@ bool Backend::saveProject(const QUrl &destination, const QVariantMap &project) {
     return true;
 }
 
+void Backend::exportUstx(const QUrl &destination, const QVariantMap &project) {
+    if (!destination.isLocalFile()) {
+        emit ustxExportFinished(false, tr("USTXの保存先が無効です"));
+        return;
+    }
+    if (m_busy) {
+        return;
+    }
+    setBusy(true);
+    setError({});
+    const QString outputPath = QDir::toNativeSeparators(destination.toLocalFile());
+    const QVariantMap request{{"output_path", outputPath}, {"project", project}};
+    auto *watcher = new QFutureWatcher<QVariantMap>(this);
+    connect(watcher, &QFutureWatcher<QVariantMap>::finished, this, [this, watcher, outputPath]() {
+        setBusy(false);
+        const QVariantMap result = watcher->result();
+        if (result.contains("_error")) {
+            const QString error = result.value("_error").toString();
+            setError(error);
+            emit ustxExportFinished(false, error);
+        } else {
+            emit ustxExportFinished(true, outputPath);
+        }
+        watcher->deleteLater();
+        if (--m_activeCallCount == 0) {
+            m_activeCalls.clearFutures();
+        }
+    });
+    const auto future = QtConcurrent::run([this, request]() {
+        try {
+            call("exportUstx", request);
+            return QVariantMap();
+        } catch (const std::exception &exception) {
+            return QVariantMap{{"_error", QString::fromUtf8(exception.what())}};
+        }
+    });
+    ++m_activeCallCount;
+    m_activeCalls.addFuture(future);
+    watcher->setFuture(future);
+}
+
 QVariantMap Backend::loadProject(const QUrl &source) {
     if (!source.isLocalFile()) {
         setError(tr("プロジェクトファイルが無効です"));

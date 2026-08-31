@@ -77,6 +77,9 @@ type ProsodyPreview struct {
 	MoraDurationsMS []float64
 	MoraPositionsMS []float64
 	PitchPoints     []float64
+	// FramePitchCurve is the 10ms frame-level intonation contour (scaled by
+	// intonation strength), when the selected model and renderer support it.
+	FramePitchCurve *render.PitchCurve
 }
 
 // ConvertToReadingは日本語テキストをかなに変換する。内蔵トークナイザが数字やラテン文字などのトークンを読みに変換できない場合はOpen JTalkにフォールバックする。
@@ -482,6 +485,7 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		question := strings.ContainsAny(cfg.Text, "?？")
 		if contour := loadedProsody.PredictFrameContour(morae, prosodyFeatures, timings, cursor+cfg.ReleaseMS, question); contour != nil {
 			curve := scaleAutomaticPitchCurve(&render.PitchCurve{FrameMS: contour.FrameMS, Cents: contour.Cents}, cfg.IntonationStrength)
+			result.FramePitchCurve = curve
 			for index, mora := range morae {
 				if curve != nil && !mora.Pause {
 					result.PitchPoints[index] = pitchCurveCentsAt(curve, result.MoraPositionsMS[index])

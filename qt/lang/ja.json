@@ -224,5 +224,10 @@
     "training.completeCounts": "採用 {0} 文、スキップ {1} 文",
     "training.export": "教師データを書き出す",
     "training.datasetFilter": "抑揚教師データ (*.jsonl)",
-    "training.exported": "JSONLとレポートを書き出しました。"
+    "training.exported": "JSONLとレポートを書き出しました。",
+    "menu.file.exportUstx": "USTXとして書き出す...",
+    "main.ustxExportTitle": "USTX書き出し",
+    "main.ustxExportSuccess": "USTXを書き出しました。\n{0}",
+    "main.ustxExportFailed": "USTXを書き出せませんでした。\n{0}",
+    "main.ustxFilter": "OpenUtauプロジェクト (*.ustx)"
 }

@@ -63,6 +63,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--color <name>` | | `character.yaml`で定義された音源タイプ／サブバンク |
 | `--out <path>` | | 出力WAVのパス（必須） |
 | `--plan-out <path>` | | 合成計画JSONを保存するパス |
+| `--ustx-out <path>` | | 合成パラメータをOpenUtauのUSTXプロジェクトへ保存するパス |
 | `--dictionary <path>` | | 表記と読みを定義したユーザー辞書JSON |
 | `--mora-ms` | `140` | 基本モーラ長（ms） |
 | `--pause-ms` | `180` | 句読点の休止長（ms） |
@@ -116,3 +117,13 @@ wrote out.wav (4.81s, 44100 Hz, 34 units)
 ```
 
 合成の失敗や引数エラーは終了コード1を返します。原音の明瞭度を確認するなら`--renderer waveform`を使います。
+
+## USTXへの一括変換
+
+保存済みの`.utautts`プロジェクトは、配布物の`tools/utautts-ustx.exe`または`tools/utautts-ustx`でOpenUtauのUSTXへ変換できます。開発時は`go run ./cmd/tools/utautts-ustx`でも実行できます。
+
+```console
+utautts-ustx project.utautts project.ustx
+```
+
+出力パスを省略すると、元のプロジェクトと同じ場所へ`<名前>.ustx`として保存します。解析結果が保存されていないカードは変換時に再解析します。

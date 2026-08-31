@@ -68,6 +68,7 @@ for required in \
   "${gui_root}/utautts" \
   "${gui_root}/libutautts_native.so" \
   "${gui_root}/tools/utautts-cli" \
+  "${gui_root}/tools/utautts-ustx" \
   "${gui_root}/tools/utautts-updater" \
   "${gui_root}/runtime/utautts-openjtalk-features" \
   "${gui_root}/runtime/utautts-worldline-bridge" \
@@ -95,6 +96,7 @@ done
 for executable in \
   "${gui_root}/utautts" \
   "${gui_root}/tools/utautts-cli" \
+  "${gui_root}/tools/utautts-ustx" \
   "${gui_root}/tools/utautts-updater" \
   "${gui_root}/runtime/utautts-openjtalk-features" \
   "${gui_root}/runtime/utautts-worldline-bridge" \

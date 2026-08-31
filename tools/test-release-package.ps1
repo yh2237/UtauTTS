@@ -153,6 +153,7 @@ try {
 
     $cli = Join-Path $guiRoot 'tools/utautts-cli.exe'
     Assert-Path $cli 'packaged CLI'
+    Assert-Path (Join-Path $guiRoot 'tools/utautts-ustx.exe') 'packaged USTX export tool'
     $workingDirectory = Join-Path $temporaryRoot 'working-directory'
     New-Item -ItemType Directory -Force -Path $workingDirectory | Out-Null
     $outputWav = Join-Path $workingDirectory 'package-smoke.wav'

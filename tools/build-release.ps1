@@ -71,6 +71,7 @@ try {
     & (Join-Path $PSScriptRoot 'build-qt.ps1') -OutputDirectory $guiPath
     if ($LASTEXITCODE -ne 0) { throw "Qt GUI build failed with exit code $LASTEXITCODE" }
     Invoke-Checked 'go' @('build', '-trimpath', '-o', (Join-Path $guiToolsPath 'utautts-cli.exe'), './cmd/utautts-cli')
+    Invoke-Checked 'go' @('build', '-trimpath', '-o', (Join-Path $guiToolsPath 'utautts-ustx.exe'), './cmd/tools/utautts-ustx')
 
     Write-Host '=== Build server package ==='
     Invoke-Checked 'go' @('build', '-trimpath', '-o', (Join-Path $serverPath 'utautts-server.exe'), './cmd/utautts-server')

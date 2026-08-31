@@ -224,5 +224,10 @@
     "training.completeCounts": "已采用 {0} 句，已跳过 {1} 句",
     "training.export": "导出训练数据",
     "training.datasetFilter": "韵律训练数据 (*.jsonl)",
-    "training.exported": "已导出 JSONL 数据集和报告。"
+    "training.exported": "已导出 JSONL 数据集和报告。",
+    "menu.file.exportUstx": "导出为 USTX...",
+    "main.ustxExportTitle": "USTX 导出",
+    "main.ustxExportSuccess": "已导出 USTX：\n{0}",
+    "main.ustxExportFailed": "USTX 导出失败：\n{0}",
+    "main.ustxFilter": "OpenUtau 工程文件 (*.ustx)"
 }
