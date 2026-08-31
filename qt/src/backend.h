@@ -44,7 +44,7 @@ class Backend final : public QObject {
     Q_PROPERTY(int defaultMoraDuration READ defaultMoraDuration NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(int defaultPauseDuration READ defaultPauseDuration NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(int defaultLeadingPreutterance READ defaultLeadingPreutterance NOTIFY synthesisDefaultsChanged)
-    Q_PROPERTY(bool defaultApplyPitch READ defaultApplyPitch NOTIFY synthesisDefaultsChanged)
+    Q_PROPERTY(double defaultIntonationStrength READ defaultIntonationStrength NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(bool exportTextWithWav READ exportTextWithWav NOTIFY exportSettingsChanged)
     Q_PROPERTY(bool exportLabWithWav READ exportLabWithWav NOTIFY exportSettingsChanged)
     Q_PROPERTY(QString exportTextEncoding READ exportTextEncoding NOTIFY exportSettingsChanged)
@@ -85,7 +85,7 @@ public:
     int defaultMoraDuration() const { return m_defaultMoraDuration; }
     int defaultPauseDuration() const { return m_defaultPauseDuration; }
     int defaultLeadingPreutterance() const { return m_defaultLeadingPreutterance; }
-    bool defaultApplyPitch() const { return m_defaultApplyPitch; }
+    double defaultIntonationStrength() const { return m_defaultIntonationStrength; }
     bool exportTextWithWav() const { return m_exportTextWithWav; }
     bool exportLabWithWav() const { return m_exportLabWithWav; }
     QString exportTextEncoding() const { return m_exportTextEncoding; }
@@ -100,6 +100,8 @@ public:
 
     Q_INVOKABLE void initialize();
     Q_INVOKABLE void reloadVoicebanks();
+    Q_INVOKABLE QString addExternalRenderer(const QUrl &executable);
+    Q_INVOKABLE bool removeExternalRenderer(const QString &id);
     Q_INVOKABLE bool openVoiceDirectory();
     Q_INVOKABLE void analyze(const QString &text, const QString &requestId);
     Q_INVOKABLE void predictProsody(const QVariantMap &request);
@@ -138,7 +140,7 @@ public:
     Q_INVOKABLE void setPreviewCacheFileCount(int value);
     Q_INVOKABLE void setDeveloperMode(bool value);
     Q_INVOKABLE void setSynthesisDefaults(int moraDuration, int pauseDuration,
-                                          int leadingPreutterance, bool applyPitch,
+                                          int leadingPreutterance, double intonationStrength,
                                           const QString &modelId, const QString &rendererId);
     Q_INVOKABLE void setDefaultVoicebank(const QString &value);
     Q_INVOKABLE void setExportSettings(bool writeText, bool writeLab, const QString &textEncoding);
@@ -193,6 +195,7 @@ private:
     void storePreviewCache(const QByteArray &key, const PreviewCacheEntry &entry);
     void trimPreviewCache();
     void clearPreviewCache();
+    bool restartNativeBackend();
     uintptr_t m_handle = 0;
     bool m_busy = false;
     QString m_error;
@@ -224,7 +227,7 @@ private:
     int m_defaultMoraDuration = 120;
     int m_defaultPauseDuration = 180;
     int m_defaultLeadingPreutterance = 0;
-    bool m_defaultApplyPitch = true;
+    double m_defaultIntonationStrength = 2.0;
     bool m_exportTextWithWav = false;
     bool m_exportLabWithWav = false;
     QString m_exportTextEncoding = QStringLiteral("utf-8");

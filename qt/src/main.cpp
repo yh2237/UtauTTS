@@ -10,7 +10,6 @@
 #include <QUrl>
 #include <QVariantList>
 #include <QStandardPaths>
-#include <QSettings>
 #include <QTemporaryDir>
 #include <memory>
 
@@ -99,8 +98,6 @@ int main(int argc, char *argv[]) {
         selfTestSettings = std::make_unique<QTemporaryDir>();
         if (!selfTestSettings->isValid())
             return 2;
-        QSettings::setDefaultFormat(QSettings::IniFormat);
-        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, selfTestSettings->path());
         qputenv("UTAUTTS_SELF_TEST_DIRECTORY", selfTestSettings->path().toUtf8());
     }
 

@@ -35,6 +35,8 @@
 #endif
 
 namespace {
+QDir resourceRoot();
+
 QString sanitizeLanguageCode(const QString &code) {
     const QString lower = code.trimmed().toLower();
     return lower.isEmpty() ? QStringLiteral("auto") : lower;
@@ -73,10 +75,15 @@ bool hasResourceLayout(const QDir &root) {
 QString prosodyTrainingSessionPath() {
     QString directory = qEnvironmentVariable("UTAUTTS_SELF_TEST_DIRECTORY");
     if (directory.isEmpty())
-        directory = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (directory.isEmpty())
-        directory = QDir::homePath();
+        directory = resourceRoot().absolutePath();
     return QDir(directory).filePath(QStringLiteral("prosody-training-session.json"));
+}
+
+QString externalRendererRootPath() {
+    QString directory = qEnvironmentVariable("UTAUTTS_SELF_TEST_DIRECTORY");
+    if (directory.isEmpty())
+        return resourceRoot().filePath(QStringLiteral("plugins/renderers"));
+    return QDir(directory).filePath(QStringLiteral("renderers"));
 }
 
 bool writeJSONFile(const QString &path, const QVariantMap &value, QString *error) {
@@ -144,43 +151,77 @@ QDir resourceRoot() {
     }
     return application;
 }
+
+QString portableSettingsPath() {
+    const QString selfTestDirectory = qEnvironmentVariable("UTAUTTS_SELF_TEST_DIRECTORY");
+    if (!selfTestDirectory.isEmpty())
+        return QDir(selfTestDirectory).filePath(QStringLiteral("config.ini"));
+    return resourceRoot().filePath(QStringLiteral("config.ini"));
+}
+
+void ensurePortableSettings() {
+    static bool initialized = false;
+    if (initialized)
+        return;
+    initialized = true;
+    const QString path = portableSettingsPath();
+    if (QFileInfo::exists(path))
+        return;
+
+    QSettings portable(path, QSettings::IniFormat);
+    if (qEnvironmentVariableIsEmpty("UTAUTTS_SELF_TEST_DIRECTORY")) {
+        QSettings legacy(QSettings::NativeFormat, QSettings::UserScope,
+                         QCoreApplication::organizationName(), QCoreApplication::applicationName());
+        for (const QString &key : legacy.allKeys())
+            portable.setValue(key, legacy.value(key));
+    }
+    portable.setValue(QStringLiteral("format/version"), 1);
+    portable.sync();
+}
+
+QVariant portableSettingValue(const QString &key, const QVariant &defaultValue = {}) {
+    ensurePortableSettings();
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    return settings.value(key, defaultValue);
+}
 }
 
 Backend::Backend(QObject *parent)
     : QObject(parent),
-      m_darkMode(QSettings().value("appearance/darkMode", false).toBool()),
-      m_language(QSettings().value("appearance/language", QStringLiteral("auto")).toString()),
-      m_closeLogOnSuccess(QSettings().value("logging/closeOnSuccess", true).toBool()),
-      m_updateCheckEnabled(QSettings().value("appearance/updateCheckEnabled", true).toBool()),
-      m_previewCacheFileCount(QSettings().value("performance/previewCacheFileCount", 32).toInt()),
-      m_developerMode(QSettings().value("developer/enabled", false).toBool()),
-      m_defaultRenderer(QSettings().value("synthesis/defaultRendererId",
+      m_darkMode(portableSettingValue("appearance/darkMode", false).toBool()),
+      m_language(portableSettingValue("appearance/language", QStringLiteral("auto")).toString()),
+      m_closeLogOnSuccess(portableSettingValue("logging/closeOnSuccess", true).toBool()),
+      m_updateCheckEnabled(portableSettingValue("appearance/updateCheckEnabled", true).toBool()),
+      m_previewCacheFileCount(portableSettingValue("performance/previewCacheFileCount", 32).toInt()),
+      m_developerMode(portableSettingValue("developer/enabled", false).toBool()),
+      m_defaultRenderer(portableSettingValue("synthesis/defaultRendererId",
                                           QStringLiteral("openutau-worldline-r-faithful")).toString().trimmed()),
-      m_defaultModelId(QSettings().value("synthesis/defaultModelId",
+      m_defaultModelId(portableSettingValue("synthesis/defaultModelId",
                                          QStringLiteral("frame-intonation-v8")).toString().trimmed()),
-      m_defaultVoicebankId(QSettings().value("voicebank/defaultId", QString()).toString().trimmed()),
-      m_defaultMoraDuration(QSettings().value("synthesis/defaultMoraDuration", 120).toInt()),
-      m_defaultPauseDuration(QSettings().value("synthesis/defaultPauseDuration", 180).toInt()),
-      m_defaultLeadingPreutterance(QSettings().value("synthesis/defaultLeadingPreutterance", 0).toInt()),
-      m_defaultApplyPitch(QSettings().value("synthesis/defaultApplyPitch", true).toBool()),
-      m_exportTextWithWav(QSettings().value("export/writeTextWithWav", false).toBool()),
-      m_exportLabWithWav(QSettings().value("export/writeLabWithWav", false).toBool()),
-      m_exportTextEncoding(QSettings().value("export/textEncoding", QStringLiteral("utf-8")).toString().trimmed().toLower()),
-      m_synthesizeShortcut(QSettings().value("shortcuts/synthesize", QStringLiteral("Ctrl+Enter")).toString()),
-      m_saveProjectShortcut(QSettings().value("shortcuts/saveProject", QStringLiteral("Ctrl+S")).toString()),
-      m_reloadVoicebanksShortcut(QSettings().value("shortcuts/reloadVoicebanks", QStringLiteral("Ctrl+O")).toString()),
-      m_addUtteranceShortcut(QSettings().value("shortcuts/addUtterance", QStringLiteral("Ctrl+D")).toString()),
-      m_removeUtteranceShortcut(QSettings().value("shortcuts/removeUtterance", QStringLiteral("Delete")).toString()),
-      m_undoShortcut(QSettings().value("shortcuts/undo", QStringLiteral("Ctrl+Z")).toString()),
-      m_redoShortcut(QSettings().value("shortcuts/redo", QStringLiteral("Ctrl+Y")).toString()),
+      m_defaultVoicebankId(portableSettingValue("voicebank/defaultId", QString()).toString().trimmed()),
+      m_defaultMoraDuration(portableSettingValue("synthesis/defaultMoraDuration", 120).toInt()),
+      m_defaultPauseDuration(portableSettingValue("synthesis/defaultPauseDuration", 180).toInt()),
+      m_defaultLeadingPreutterance(portableSettingValue("synthesis/defaultLeadingPreutterance", 0).toInt()),
+      m_defaultIntonationStrength(portableSettingValue("synthesis/defaultIntonationStrength", 2.0).toDouble()),
+      m_exportTextWithWav(portableSettingValue("export/writeTextWithWav", false).toBool()),
+      m_exportLabWithWav(portableSettingValue("export/writeLabWithWav", false).toBool()),
+      m_exportTextEncoding(portableSettingValue("export/textEncoding", QStringLiteral("utf-8")).toString().trimmed().toLower()),
+      m_synthesizeShortcut(portableSettingValue("shortcuts/synthesize", QStringLiteral("Ctrl+Enter")).toString()),
+      m_saveProjectShortcut(portableSettingValue("shortcuts/saveProject", QStringLiteral("Ctrl+S")).toString()),
+      m_reloadVoicebanksShortcut(portableSettingValue("shortcuts/reloadVoicebanks", QStringLiteral("Ctrl+O")).toString()),
+      m_addUtteranceShortcut(portableSettingValue("shortcuts/addUtterance", QStringLiteral("Ctrl+D")).toString()),
+      m_removeUtteranceShortcut(portableSettingValue("shortcuts/removeUtterance", QStringLiteral("Delete")).toString()),
+      m_undoShortcut(portableSettingValue("shortcuts/undo", QStringLiteral("Ctrl+Z")).toString()),
+      m_redoShortcut(portableSettingValue("shortcuts/redo", QStringLiteral("Ctrl+Y")).toString()),
       m_updateNetwork(new QNetworkAccessManager(this)) {
     m_defaultMoraDuration = qBound(20, m_defaultMoraDuration, 1000);
     m_defaultPauseDuration = qBound(0, m_defaultPauseDuration, 3000);
     m_defaultLeadingPreutterance = qBound(0, m_defaultLeadingPreutterance, 300);
+    m_defaultIntonationStrength = qBound(0.0, m_defaultIntonationStrength, 4.0);
     m_previewCacheFileCount = qBound(1, m_previewCacheFileCount, 256);
     if (m_exportTextEncoding != QStringLiteral("shift_jis"))
         m_exportTextEncoding = QStringLiteral("utf-8");
-    const QByteArray dictionaryJSON = QSettings().value("dictionary/entries").toByteArray();
+    const QByteArray dictionaryJSON = portableSettingValue("dictionary/entries").toByteArray();
     QJsonParseError parseError;
     const QJsonDocument dictionaryDocument = QJsonDocument::fromJson(dictionaryJSON, &parseError);
     if (parseError.error == QJsonParseError::NoError && dictionaryDocument.isArray()) {
@@ -209,7 +250,7 @@ void Backend::setDarkMode(bool value) {
         return;
     }
     m_darkMode = value;
-    QSettings settings;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("appearance/darkMode", value);
     settings.sync();
     emit themeChanged();
@@ -221,7 +262,7 @@ void Backend::setLanguage(const QString &value) {
         return;
     }
     m_language = normalized;
-    QSettings settings;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("appearance/language", normalized);
     settings.sync();
     emit languageChanged();
@@ -291,11 +332,11 @@ QString Backend::languageDisplayName(const QString &code) const {
 }
 
 QString Backend::suppressedUpdateVersion() const {
-    return QSettings().value(QStringLiteral("appearance/suppressedUpdateVersion"), QString()).toString();
+    return portableSettingValue(QStringLiteral("appearance/suppressedUpdateVersion"), QString()).toString();
 }
 
 void Backend::setSuppressedUpdateVersion(const QString &version) {
-    QSettings settings;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue(QStringLiteral("appearance/suppressedUpdateVersion"), version);
     settings.sync();
 }
@@ -305,7 +346,7 @@ void Backend::setCloseLogOnSuccess(bool value) {
         return;
     }
     m_closeLogOnSuccess = value;
-    QSettings settings;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("logging/closeOnSuccess", value);
     settings.sync();
     emit logSettingsChanged();
@@ -316,7 +357,7 @@ void Backend::setUpdateCheckEnabled(bool value) {
         return;
     }
     m_updateCheckEnabled = value;
-    QSettings settings;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("appearance/updateCheckEnabled", value);
     settings.sync();
     emit updateSettingsChanged();
@@ -326,7 +367,7 @@ void Backend::setDeveloperMode(bool value) {
     if (m_developerMode == value)
         return;
     m_developerMode = value;
-    QSettings settings;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue(QStringLiteral("developer/enabled"), value);
     settings.sync();
     emit developerModeChanged();
@@ -338,7 +379,7 @@ void Backend::setDefaultVoicebank(const QString &value) {
         return;
     }
     m_defaultVoicebankId = normalized;
-    QSettings settings;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("voicebank/defaultId", m_defaultVoicebankId);
     settings.sync();
     emit voicebankSettingsChanged();
@@ -349,7 +390,7 @@ void Backend::setPreviewCacheFileCount(int value) {
     if (m_previewCacheFileCount == bounded)
         return;
     m_previewCacheFileCount = bounded;
-    QSettings settings;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue(QStringLiteral("performance/previewCacheFileCount"), bounded);
     settings.sync();
     trimPreviewCache();
@@ -367,7 +408,7 @@ void Backend::setExportSettings(bool writeText, bool writeLab, const QString &te
     m_exportTextWithWav = writeText;
     m_exportLabWithWav = writeLab;
     m_exportTextEncoding = normalizedEncoding;
-    QSettings settings;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("export/writeTextWithWav", m_exportTextWithWav);
     settings.setValue("export/writeLabWithWav", m_exportLabWithWav);
     settings.setValue("export/textEncoding", m_exportTextEncoding);
@@ -376,17 +417,18 @@ void Backend::setExportSettings(bool writeText, bool writeLab, const QString &te
 }
 
 void Backend::setSynthesisDefaults(int moraDuration, int pauseDuration,
-                                   int leadingPreutterance, bool applyPitch,
+                                   int leadingPreutterance, double intonationStrength,
                                    const QString &modelId, const QString &rendererId) {
     const int boundedMoraDuration = qBound(20, moraDuration, 1000);
     const int boundedPauseDuration = qBound(0, pauseDuration, 3000);
     const int boundedLeadingPreutterance = qBound(0, leadingPreutterance, 300);
+    const double boundedIntonationStrength = qBound(0.0, intonationStrength, 4.0);
     const QString normalizedModelId = modelId.trimmed();
     const QString normalizedRendererId = rendererId.trimmed();
     if (m_defaultMoraDuration == boundedMoraDuration
             && m_defaultPauseDuration == boundedPauseDuration
             && m_defaultLeadingPreutterance == boundedLeadingPreutterance
-            && m_defaultApplyPitch == applyPitch
+            && qFuzzyCompare(m_defaultIntonationStrength, boundedIntonationStrength)
             && m_defaultModelId == normalizedModelId
             && m_defaultRenderer == normalizedRendererId) {
         return;
@@ -394,14 +436,15 @@ void Backend::setSynthesisDefaults(int moraDuration, int pauseDuration,
     m_defaultMoraDuration = boundedMoraDuration;
     m_defaultPauseDuration = boundedPauseDuration;
     m_defaultLeadingPreutterance = boundedLeadingPreutterance;
-    m_defaultApplyPitch = applyPitch;
+    m_defaultIntonationStrength = boundedIntonationStrength;
     m_defaultModelId = normalizedModelId;
     m_defaultRenderer = normalizedRendererId;
-    QSettings settings;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("synthesis/defaultMoraDuration", m_defaultMoraDuration);
     settings.setValue("synthesis/defaultPauseDuration", m_defaultPauseDuration);
     settings.setValue("synthesis/defaultLeadingPreutterance", m_defaultLeadingPreutterance);
-    settings.setValue("synthesis/defaultApplyPitch", m_defaultApplyPitch);
+    settings.setValue("synthesis/defaultIntonationStrength", m_defaultIntonationStrength);
+    settings.remove("synthesis/defaultApplyPitch");
     settings.setValue("synthesis/defaultModelId", m_defaultModelId);
     settings.setValue("synthesis/defaultRendererId", m_defaultRenderer);
     settings.sync();
@@ -431,7 +474,7 @@ void Backend::setShortcutSequences(const QString &synthesize,
     m_removeUtteranceShortcut = removeUtterance.trimmed();
     m_undoShortcut = undo.trimmed();
     m_redoShortcut = redo.trimmed();
-    QSettings settings;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("shortcuts/synthesize", m_synthesizeShortcut);
     settings.setValue("shortcuts/saveProject", m_saveProjectShortcut);
     settings.setValue("shortcuts/reloadVoicebanks", m_reloadVoicebanksShortcut);
@@ -457,7 +500,7 @@ void Backend::setDictionaryEntries(const QVariantList &entries) {
         return;
     }
     m_dictionaryEntries = normalized;
-    QSettings settings;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("dictionary/entries", QJsonDocument(QJsonArray::fromVariantList(m_dictionaryEntries)).toJson(QJsonDocument::Compact));
     settings.sync();
     emit dictionaryChanged();
@@ -678,9 +721,18 @@ void Backend::showUpdateError(const QString &title, const QString &text) {
 }
 
 void Backend::initialize() {
+    if (m_handle) {
+        UtauTTSDestroy(m_handle);
+        m_handle = 0;
+        emit connectedChanged();
+    }
     const QDir root = resourceRoot();
     QJsonObject config{{"voice_dir", root.filePath("voice")}};
-    config.insert("renderer_directories", QJsonArray{root.filePath("plugins/renderers")});
+    QJsonArray rendererDirectories{root.filePath("plugins/renderers")};
+    if (QDir(externalRendererRootPath()).absolutePath()
+            != QDir(root.filePath("plugins/renderers")).absolutePath())
+        rendererDirectories.append(externalRendererRootPath());
+    config.insert("renderer_directories", rendererDirectories);
     config.insert("model_directories", QJsonArray{root.filePath("models")});
     const QString runtime = root.filePath("runtime");
 #ifdef Q_OS_WIN
@@ -706,6 +758,99 @@ void Backend::initialize() {
     }
     emit connectedChanged();
     try { refreshMetadata(); setError({}); } catch (const std::exception &exception) { setError(QString::fromUtf8(exception.what())); }
+}
+
+bool Backend::restartNativeBackend() {
+    if (m_busy || m_activeCallCount != 0) {
+        setError(tr("処理中はRendererを変更できません。"));
+        return false;
+    }
+    clearPreviewCache();
+    initialize();
+    return m_handle != 0;
+}
+
+QString Backend::addExternalRenderer(const QUrl &executable) {
+    if (m_busy || m_activeCallCount != 0) {
+        setError(tr("処理中はRendererを変更できません。"));
+        return {};
+    }
+    const QString path = QFileInfo(executable.toLocalFile()).absoluteFilePath();
+    const QFileInfo info(path);
+    if (!info.isFile()) {
+        setError(tr("Rendererの実行ファイルが見つかりません。"));
+        return {};
+    }
+#ifdef Q_OS_WIN
+    if (info.suffix().compare(QStringLiteral("exe"), Qt::CaseInsensitive) != 0) {
+        setError(tr("Windowsでは.exe形式のUTAU Rendererを指定してください。"));
+        return {};
+    }
+#else
+    if (!info.isExecutable()) {
+        setError(tr("Rendererの実行権限がありません。"));
+        return {};
+    }
+#endif
+    QString slug = info.completeBaseName().toLower();
+    slug.replace(QRegularExpression(QStringLiteral("[^a-z0-9]+")), QStringLiteral("-"));
+    slug = slug.trimmed();
+    slug.remove(QRegularExpression(QStringLiteral("^-+|-+$")));
+    if (slug.isEmpty())
+        slug = QStringLiteral("renderer");
+    const QString digest = QString::fromLatin1(
+        QCryptographicHash::hash(path.toUtf8(), QCryptographicHash::Sha256).toHex().left(12));
+    const QString id = QStringLiteral("utau-external-%1-%2").arg(slug, digest);
+    const QString manifestPath = QDir(externalRendererRootPath()).filePath(
+        QStringLiteral("%1/plugin.json").arg(id));
+    const QVariantMap manifest{
+        {"manifest_version", 1}, {"kind", "renderer"}, {"id", id},
+        {"display_name", info.completeBaseName()},
+        {"description", tr("外部UTAU互換Renderer")},
+        {"backend", "utau-external-resampler"}, {"version", "1"},
+        {"acceleration", "cpu"}, {"default_priority", 0},
+        {"capabilities", QVariantMap{{"frame_pitch", true}}},
+        {"assets", QVariantMap{{"resampler", path}}},
+    };
+    QString writeError;
+    if (!writeJSONFile(manifestPath, manifest, &writeError)) {
+        setError(tr("Renderer設定を書き込めませんでした: %1").arg(writeError));
+        return {};
+    }
+    if (!restartNativeBackend())
+        return {};
+    const bool installed = std::any_of(m_renderers.cbegin(), m_renderers.cend(), [&id](const QVariant &value) {
+        return value.toMap().value(QStringLiteral("id")).toString() == id;
+    });
+    if (!installed)
+        setError(tr("Rendererを読み込めませんでした。"));
+    return installed ? id : QString();
+}
+
+bool Backend::removeExternalRenderer(const QString &id) {
+    if (m_busy || m_activeCallCount != 0) {
+        setError(tr("処理中はRendererを変更できません。"));
+        return false;
+    }
+    const auto item = std::find_if(m_renderers.cbegin(), m_renderers.cend(), [&id](const QVariant &value) {
+        const QVariantMap renderer = value.toMap();
+        return renderer.value(QStringLiteral("id")).toString() == id
+                && renderer.value(QStringLiteral("backend")).toString() == QStringLiteral("utau-external-resampler");
+    });
+    if (item == m_renderers.cend()) {
+        setError(tr("削除できる外部Rendererではありません。"));
+        return false;
+    }
+    const QDir root(externalRendererRootPath());
+    QDir target(root.filePath(id));
+    const QString expectedParent = QFileInfo(target.absolutePath()).absoluteDir().absolutePath();
+    const QString manifestPath = target.filePath(QStringLiteral("plugin.json"));
+    if (expectedParent != root.absolutePath() || !target.exists() || !QFile::remove(manifestPath)) {
+        setError(tr("Renderer設定を削除できませんでした。"));
+        return false;
+    }
+    root.rmdir(id);
+    return restartNativeBackend();
 }
 
 QVariantMap Backend::call(const QByteArray &method, const QVariantMap &request) {
@@ -1329,7 +1474,7 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
             {"default_mora_duration_ms", m_defaultMoraDuration},
             {"default_pause_duration_ms", m_defaultPauseDuration},
             {"default_leading_preutterance_ms", m_defaultLeadingPreutterance},
-            {"default_apply_pitch", m_defaultApplyPitch},
+            {"default_intonation_strength", m_defaultIntonationStrength},
             {"export_text_with_wav", m_exportTextWithWav},
             {"export_lab_with_wav", m_exportLabWithWav},
             {"export_text_encoding", m_exportTextEncoding},

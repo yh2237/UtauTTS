@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 
 ApplicationWindow {
     id: root
@@ -31,7 +32,7 @@ ApplicationWindow {
     property int pendingMoraDuration: 120
     property int pendingPauseDuration: 180
     property int pendingLeadingPreutterance: 0
-    property bool pendingApplyPitch: true
+    property real pendingDefaultIntonationStrength: 2.0
     property bool pendingExportTextWithWav: false
     property bool pendingExportLabWithWav: false
     property string pendingExportTextEncoding: "utf-8"
@@ -49,6 +50,36 @@ ApplicationWindow {
     property string pendingRemoveUtteranceShortcut: "Delete"
     property string pendingUndoShortcut: "Ctrl+Z"
     property string pendingRedoShortcut: "Ctrl+Y"
+    property string selectedExternalRendererId: ""
+
+    function externalRenderers() {
+        const items = [];
+        for (let index = 0; index < root.backend.renderers.length; ++index) {
+            const renderer = root.backend.renderers[index];
+            if (renderer.backend === "utau-external-resampler")
+                items.push(renderer);
+        }
+        return items;
+    }
+
+    function externalRendererIndex() {
+        const items = root.externalRenderers();
+        for (let index = 0; index < items.length; ++index)
+            if (items[index].id === root.selectedExternalRendererId)
+                return index;
+        return items.length ? 0 : -1;
+    }
+
+    function selectedExternalRendererPath() {
+        const items = root.externalRenderers();
+        for (let index = 0; index < items.length; ++index) {
+            if (items[index].id === root.selectedExternalRendererId) {
+                const assets = items[index].assets || {};
+                return String(assets.resampler || "");
+            }
+        }
+        return "";
+    }
 
     function languageLabels() {
         const labels = [];
@@ -68,7 +99,7 @@ ApplicationWindow {
         pendingPauseDuration = root.backend.defaultPauseDuration;
         pendingLeadingPreutterance = root.backend.defaultLeadingPreutterance;
         leadingPreutteranceSpin.value = pendingLeadingPreutterance;
-        pendingApplyPitch = root.backend.defaultApplyPitch;
+        pendingDefaultIntonationStrength = root.backend.defaultIntonationStrength;
         pendingExportTextWithWav = root.backend.exportTextWithWav;
         pendingExportLabWithWav = root.backend.exportLabWithWav;
         pendingExportTextEncoding = root.backend.exportTextEncoding;
@@ -90,6 +121,9 @@ ApplicationWindow {
         defaultVoicebankCombo.currentIndex = root.defaultVoicebankIndex();
         defaultModelCombo.currentIndex = root.defaultModelIndex();
         defaultRendererCombo.currentIndex = root.defaultRendererIndex();
+        const externalItems = root.externalRenderers();
+        selectedExternalRendererId = externalItems.length ? externalItems[0].id : "";
+        externalRendererCombo.currentIndex = root.externalRendererIndex();
     }
 
     function defaultVoicebankIndex() {
@@ -375,14 +409,57 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 Label {
-                                    text: root.translator.tr("settings.allowManualPitch")
+                                    text: root.translator.tr("settings.defaultIntonation")
                                     Layout.fillWidth: true
                                 }
-                                Switch {
-                                    id: applyPitchCheck
-                                    Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                    checked: root.pendingApplyPitch
-                                    onToggled: root.pendingApplyPitch = checked
+                                SpinBox {
+                                    id: defaultIntonationSpin
+                                    Layout.preferredWidth: 180
+                                    from: 0
+                                    to: 400
+                                    stepSize: 5
+                                    value: Math.round(root.pendingDefaultIntonationStrength * 100)
+                                    editable: true
+                                    textFromValue: value => (value / 100).toFixed(2)
+                                    valueFromText: text => Math.round(parseFloat(text) * 100)
+                                    onValueModified: root.pendingDefaultIntonationStrength = value / 100
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton
+                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                        onDoubleTapped: root.pendingDefaultIntonationStrength = 2.0
+                                    }
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: root.translator.tr("settings.externalRenderer")
+                                    Layout.fillWidth: true
+                                }
+                                ComboBox {
+                                    id: externalRendererCombo
+                                    Layout.preferredWidth: 160
+                                    model: root.externalRenderers()
+                                    textRole: "display_name"
+                                    valueRole: "id"
+                                    currentIndex: root.externalRendererIndex()
+                                    enabled: count > 0
+                                    onActivated: root.selectedExternalRendererId = currentValue
+
+                                    ToolTip.visible: hovered && root.selectedExternalRendererPath().length > 0
+                                    ToolTip.text: root.selectedExternalRendererPath()
+                                    ToolTip.delay: 500
+                                }
+                                Button {
+                                    text: root.translator.tr("common.add")
+                                    enabled: !root.backend.busy
+                                    onClicked: externalRendererFileDialog.open()
+                                }
+                                Button {
+                                    text: root.translator.tr("common.remove")
+                                    enabled: externalRendererCombo.count > 0 && !root.backend.busy
+                                    onClicked: removeExternalRendererDialog.open()
                                 }
                             }
                             RowLayout {
@@ -785,5 +862,48 @@ ApplicationWindow {
                 }
             }
         }
+    }
+
+    FileDialog {
+        id: externalRendererFileDialog
+        title: root.translator.tr("settings.externalRenderer.select")
+        fileMode: FileDialog.OpenFile
+        nameFilters: [root.translator.tr("settings.externalRenderer.filter"),
+                      root.translator.tr("settings.externalRenderer.filterAll")]
+        onAccepted: {
+            const addedId = root.backend.addExternalRenderer(selectedFile);
+            if (addedId.length) {
+                root.selectedExternalRendererId = addedId;
+                externalRendererCombo.currentIndex = root.externalRendererIndex();
+            } else {
+                externalRendererErrorDialog.text = root.backend.error;
+                externalRendererErrorDialog.open();
+            }
+        }
+    }
+
+    MessageDialog {
+        id: removeExternalRendererDialog
+        title: root.translator.tr("settings.externalRenderer.removeTitle")
+        text: root.translator.tr("settings.externalRenderer.removeConfirm")
+        buttons: MessageDialog.Yes | MessageDialog.No
+        onAccepted: {
+            if (root.backend.removeExternalRenderer(root.selectedExternalRendererId)) {
+                root.pendingDefaultRendererId = root.backend.defaultRenderer;
+                const items = root.externalRenderers();
+                root.selectedExternalRendererId = items.length ? items[0].id : "";
+                externalRendererCombo.currentIndex = root.externalRendererIndex();
+                defaultRendererCombo.currentIndex = root.defaultRendererIndex();
+            } else {
+                externalRendererErrorDialog.text = root.backend.error;
+                externalRendererErrorDialog.open();
+            }
+        }
+    }
+
+    MessageDialog {
+        id: externalRendererErrorDialog
+        title: root.translator.tr("settings.externalRenderer.errorTitle")
+        buttons: MessageDialog.Ok
     }
 }

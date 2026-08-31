@@ -2,6 +2,8 @@
 
 #include "backend.h"
 
+#include <QCoreApplication>
+#include <QDir>
 #include <QEventLoop>
 #include <QDebug>
 #include <QFileInfo>
@@ -75,7 +77,10 @@ QVariantMap sampleProject(const QString &voicebankID, const QString &modelID, co
 }
 
 int runSelfTest(Backend &backend, QObject *rootObject) {
+    const QString selfTestDirectory = qEnvironmentVariable("UTAUTTS_SELF_TEST_DIRECTORY");
     if (!require(backend.connected(), QStringLiteral("native backend is not connected"))
+            || !require(QFileInfo::exists(QDir(selfTestDirectory).filePath(QStringLiteral("config.ini"))),
+                        QStringLiteral("portable config file was not created"))
             || !require(!backend.voicebanks().isEmpty(), QStringLiteral("no bundled voicebank"))
             || !require(!backend.models().isEmpty(), QStringLiteral("no bundled prosody model"))
             || !require(!backend.renderers().isEmpty(), QStringLiteral("no bundled renderer")))
@@ -92,6 +97,37 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                         QStringLiteral("resolved UI language is unavailable: ") + resolvedLanguage)
             || !require(languageError.error == QJsonParseError::NoError && languageDocument.isObject(),
                         QStringLiteral("automatic language file could not be loaded")))
+        return 1;
+
+    const QString registeredRendererID = backend.addExternalRenderer(
+            QUrl::fromLocalFile(QCoreApplication::applicationFilePath()));
+    const QString externalManifest = QDir(selfTestDirectory).filePath(
+            QStringLiteral("renderers/%1/plugin.json").arg(registeredRendererID));
+    if (!require(!registeredRendererID.isEmpty(),
+                 QStringLiteral("external renderer could not be registered: ") + backend.error())
+            || !require(QFileInfo::exists(externalManifest),
+                        QStringLiteral("external renderer manifest was not created")))
+        return 1;
+    QString externalRendererID;
+    for (const QVariant &value : backend.renderers()) {
+        const QVariantMap renderer = value.toMap();
+        if (renderer.value(QStringLiteral("backend")).toString() == QStringLiteral("utau-external-resampler")) {
+            externalRendererID = renderer.value(QStringLiteral("id")).toString();
+            break;
+        }
+    }
+    if (!require(externalRendererID == registeredRendererID,
+                 QStringLiteral("registered external renderer is unavailable"))
+            || !require(backend.removeExternalRenderer(externalRendererID),
+                        QStringLiteral("external renderer could not be removed")))
+        return 1;
+    for (const QVariant &value : backend.renderers()) {
+        if (!require(value.toMap().value(QStringLiteral("id")).toString() != externalRendererID,
+                     QStringLiteral("removed external renderer remains available")))
+            return 1;
+    }
+    if (!require(!QFileInfo::exists(externalManifest),
+                 QStringLiteral("external renderer manifest was not removed")))
         return 1;
 
     QVariant interfaceResult;
@@ -242,7 +278,7 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     if (!require(backend.dictionaryEntries().size() == 1 && !backend.dictionaryFingerprint().isEmpty(),
                  QStringLiteral("dictionary settings failed")))
         return 1;
-    backend.setSynthesisDefaults(130, 190, 45, false,
+    backend.setSynthesisDefaults(130, 190, 45, 2.5,
                                  QStringLiteral("frame-intonation-v8"),
                                  QStringLiteral("openutau-worldline-r-faithful"));
     backend.setPreviewCacheFileCount(7);
@@ -252,7 +288,8 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  && backend.defaultModelId() == QStringLiteral("frame-intonation-v8")
                  && backend.defaultRenderer() == QStringLiteral("openutau-worldline-r-faithful")
                  && backend.previewCacheFileCount() == 7
-                 && !backend.defaultApplyPitch() && backend.undoShortcut() == QStringLiteral("Ctrl+Z"),
+                 && backend.defaultIntonationStrength() == 2.5
+                 && backend.undoShortcut() == QStringLiteral("Ctrl+Z"),
                  QStringLiteral("application settings failed")))
         return 1;
 

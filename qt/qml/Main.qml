@@ -41,7 +41,7 @@ ApplicationWindow {
     readonly property var appBackend: injectedBackend
     readonly property bool darkMode: appBackend.darkMode
     readonly property var licenseDocuments: injectedLegalDocuments
-    readonly property real defaultIntonationStrength: 2.0
+    readonly property real defaultIntonationStrength: appBackend.defaultIntonationStrength
     readonly property real maxIntonationStrength: 4.0
 
     property var translator: translatorInstance
@@ -1048,15 +1048,15 @@ ApplicationWindow {
             window.updateSetting("moraDuration", settingsWindow.pendingMoraDuration);
             window.updateSetting("pauseDuration", settingsWindow.pendingPauseDuration);
             window.updateSetting("leadingPreutterance", settingsWindow.pendingLeadingPreutterance);
+            window.updateSetting("intonation", settingsWindow.pendingDefaultIntonationStrength);
             window.updateSetting("modelId", settingsWindow.pendingDefaultModelId);
             window.updateSetting("renderer", settingsWindow.pendingDefaultRendererId);
-            window.updateSetting("applyPitch", settingsWindow.pendingApplyPitch);
             window.selectUtterance(window.selectedIndex);
         }
         window.appBackend.setSynthesisDefaults(settingsWindow.pendingMoraDuration,
                                                settingsWindow.pendingPauseDuration,
                                                settingsWindow.pendingLeadingPreutterance,
-                                               settingsWindow.pendingApplyPitch,
+                                               settingsWindow.pendingDefaultIntonationStrength,
                                                settingsWindow.pendingDefaultModelId,
                                                settingsWindow.pendingDefaultRendererId);
         window.appBackend.setDarkMode(settingsWindow.pendingDarkMode);
@@ -1828,7 +1828,7 @@ ApplicationWindow {
                 pauseDuration: window.projectNumber(saved.pause_duration_ms, window.appBackend.defaultPauseDuration, 0, 3000, true),
                 leadingPreutterance: window.projectNumber(saved.leading_preutterance_ms, 0, 0, 300, true),
                 intonation: window.projectNumber(saved.intonation, window.defaultIntonationStrength, 0, window.maxIntonationStrength, false),
-                applyPitch: saved.apply_pitch === undefined ? window.appBackend.defaultApplyPitch : !!saved.apply_pitch,
+                applyPitch: saved.apply_pitch === undefined ? true : !!saved.apply_pitch,
                 revision: 0
             });
         }
@@ -1915,7 +1915,6 @@ ApplicationWindow {
         utterances.setProperty(selectedIndex, "manualPitchEdited", true);
         if (!current().applyPitch) {
             utterances.setProperty(selectedIndex, "applyPitch", true);
-            settingsWindow.pendingApplyPitch = true;
         }
         markUtteranceDirty(selectedIndex);
     }
@@ -2274,7 +2273,7 @@ ApplicationWindow {
             pauseDuration: window.appBackend.defaultPauseDuration,
             leadingPreutterance: window.appBackend.defaultLeadingPreutterance,
             intonation: window.defaultIntonationStrength,
-            applyPitch: window.appBackend.defaultApplyPitch,
+            applyPitch: true,
             revision: 0
         });
         if (markDirty !== false)
