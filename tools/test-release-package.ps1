@@ -104,15 +104,11 @@ try {
     if ($unexpectedDebugFiles.Count -ne 0) {
         throw "Release package contains debug/development files: $($unexpectedDebugFiles.FullName -join ', ')"
     }
-    foreach ($developmentTool in @(
-        'connection-benchmark.exe', 'connection-compare.exe', 'connection-dataset.exe',
-        'connection-eval.exe', 'connection-lattice.exe', 'connection-train.exe',
-        'listening-score.exe', 'listening-test.exe', 'oto-inspect.exe',
-        'prosody-dataset.exe', 'prosody-train.exe', 'utautts-server.exe'
-    )) {
-        if (Test-Path -LiteralPath (Join-Path $guiRoot "tools/$developmentTool")) {
-            throw "GUI release package contains a development-only tool: $developmentTool"
-        }
+    $allowedTools = @('utautts-cli.exe', 'utautts-ustx.exe', 'utautts-updater.exe')
+    $unexpectedTools = @(Get-ChildItem -LiteralPath (Join-Path $guiRoot 'tools') -File |
+        Where-Object { $_.Name -notin $allowedTools })
+    if ($unexpectedTools.Count -ne 0) {
+        throw "GUI release package contains an unexpected tool: $($unexpectedTools.Name -join ', ')"
     }
     foreach ($unusedQtRuntime in @('opengl32sw.dll', 'dxcompiler.dll', 'dxil.dll', 'D3Dcompiler_47.dll')) {
         if (Test-Path -LiteralPath (Join-Path $guiRoot "app/$unusedQtRuntime")) {

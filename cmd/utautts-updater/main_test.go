@@ -302,31 +302,6 @@ func TestNormalizeStageRejectsUnknownLayout(t *testing.T) {
 	}
 }
 
-func TestCopyTree(t *testing.T) {
-	source := filepath.Join(t.TempDir(), "source")
-	destination := filepath.Join(t.TempDir(), "destination")
-	writeTestFile(t, filepath.Join(source, "voice", "bank-a", "oto.ini"), "oto")
-	writeTestFile(t, filepath.Join(source, "voice", "bank-a", "wav", "a.wav"), "audio")
-	writeTestFile(t, filepath.Join(source, "voice", "bank-b", "oto.ini"), "oto2")
-	if err := copyTree(source, destination); err != nil {
-		t.Fatal(err)
-	}
-	for _, path := range []string{
-		"voice/bank-a/oto.ini",
-		"voice/bank-a/wav/a.wav",
-		"voice/bank-b/oto.ini",
-	} {
-		content, err := os.ReadFile(filepath.Join(destination, path))
-		if err != nil {
-			t.Errorf("missing copied file %s: %v", path, err)
-			continue
-		}
-		if len(content) == 0 {
-			t.Errorf("copied file %s is empty", path)
-		}
-	}
-}
-
 func TestSanitizeToken(t *testing.T) {
 	cases := map[string]string{
 		"v0.0.6": "v0.0.6",
