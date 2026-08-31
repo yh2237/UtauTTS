@@ -78,7 +78,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--pitch-contours <path>` | | ケース別ピッチ係数JSON（計画へ記録。波形処理には `--apply-pitch` が必要） |
 | `--pitch-case <id>` | | `--pitch-contours` 内のケースID |
 | `--apply-pitch` | `false` | 波形のピッチ再サンプリング（実験的） |
-| `--intonation-strength` | `0` | 音源ピッチ安定化と句曲線の強さ（0〜2） |
+| `--intonation-strength` | `0` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
 | `--renderer <id>` | 既定Renderer | Renderer plugin ID（省略時はmanifestの `default_priority` が最大のもの） |
 | `--worldline <path>` | 実行ファイルの隣 | OpenUtau worldlineライブラリ |
 | `--worldline-bridge <path>` | | `utautts-worldline-bridge` 実行ファイル |
