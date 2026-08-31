@@ -110,6 +110,7 @@ public:
     Q_INVOKABLE QUrl defaultSaveFile(const QString &fileName) const;
     Q_INVOKABLE QUrl fileInDirectory(const QUrl &directory, const QString &fileName) const;
     Q_INVOKABLE bool saveProject(const QUrl &destination, const QVariantMap &project);
+    Q_INVOKABLE void exportUstx(const QUrl &destination, const QVariantMap &project);
     Q_INVOKABLE QVariantMap loadProject(const QUrl &source);
     Q_INVOKABLE bool exportDiagnosticReport(const QUrl &destination, const QVariantMap &context);
     Q_INVOKABLE QVariantMap loadProsodyPromptSet() const;
@@ -167,6 +168,7 @@ signals:
     void synthesisDefaultsChanged();
     void exportSettingsChanged();
     void voicebankSettingsChanged();
+    void ustxExportFinished(bool success, const QString &detail);
     void shortcutSettingsChanged();
     void dictionaryChanged();
     void logsChanged();

@@ -224,5 +224,10 @@
     "training.completeCounts": "Accepted {0}, skipped {1}",
     "training.export": "Export training data",
     "training.datasetFilter": "Prosody training data (*.jsonl)",
-    "training.exported": "Exported the JSONL dataset and report."
+    "training.exported": "Exported the JSONL dataset and report.",
+    "menu.file.exportUstx": "Export as USTX...",
+    "main.ustxExportTitle": "USTX Export",
+    "main.ustxExportSuccess": "Exported USTX:\n{0}",
+    "main.ustxExportFailed": "Failed to export USTX:\n{0}",
+    "main.ustxFilter": "OpenUtau Project (*.ustx)"
 }

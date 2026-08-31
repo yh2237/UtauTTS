@@ -13,6 +13,7 @@ import (
 	"utautts/internal/aviutl"
 	"utautts/internal/frontend"
 	"utautts/internal/openjtalk"
+	"utautts/internal/openutau"
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
@@ -90,6 +91,8 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 		result, err = e.synthesize(requestJSON)
 	case "writeExo":
 		result, err = e.writeExo(requestJSON)
+	case "exportUstx":
+		result, err = e.exportUstx(requestJSON)
 	case "writeSidecars":
 		result, err = e.writeSidecars(requestJSON)
 	default:
@@ -394,4 +397,111 @@ func (e *Engine) writeExo(data []byte) (any, error) {
 		return nil, err
 	}
 	return map[string]any{"exo_path": outputPath}, nil
+}
+
+// exportUstx writes the current project parameters to an OpenUtau USTX file.
+func (e *Engine) exportUstx(data []byte) (any, error) {
+	var request struct {
+		OutputPath string          `json:"output_path"`
+		Project    json.RawMessage `json:"project"`
+	}
+	if err := json.Unmarshal(data, &request); err != nil {
+		return nil, fmt.Errorf("decode export ustx request: %w", err)
+	}
+	if request.OutputPath == "" {
+		return nil, fmt.Errorf("output_path is required")
+	}
+	if len(request.Project) == 0 {
+		return nil, fmt.Errorf("project is required")
+	}
+	project, err := openutau.ParseUtauTTSProject(request.Project)
+	if err != nil {
+		return nil, err
+	}
+	options := openutau.ExportOptions{}
+	options.Curves = e.enrichAndCurves(project)
+	output, err := openutau.ExportUSTX(project, options)
+	if err != nil {
+		return nil, err
+	}
+	outputPath, err := filepath.Abs(request.OutputPath)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(outputPath, output, 0o644); err != nil {
+		return nil, err
+	}
+	return map[string]any{"ustx_path": outputPath}, nil
+}
+
+// enrichAndCurves prepares a project for USTX export:
+//   - utterances without a cached analysis (no reading/morae) are analyzed
+//     on the fly so the export does not silently drop them
+//   - utterances with a prosody model get their frame-level intonation
+//     contour recomputed for smooth 10ms pitch curves
+//
+// Both jobs share one PredictProsody pass per utterance. Entries for
+// utterances without a contour stay nil (the exporter falls back to
+// mora-level data).
+func (e *Engine) enrichAndCurves(project *openutau.UtauTTSProject) []openutau.FrameCurve {
+	curves := make([]openutau.FrameCurve, len(project.Utterances))
+	for index := range project.Utterances {
+		utterance := &project.Utterances[index]
+		if utterance.Text == "" && utterance.AnalysisCache.Reading == "" {
+			continue
+		}
+		needsAnalysis := len(utterance.AnalysisCache.Morae) == 0
+		needsCurve := utterance.ModelID != "" && !needsAnalysis
+		if !needsAnalysis && !needsCurve {
+			continue
+		}
+		strength := utterance.Intonation
+		if strength <= 0 {
+			strength = 1
+		}
+		renderer := utterance.RendererID
+		if renderer == "" {
+			renderer = "waveform"
+		}
+		preview, _, err := e.synth.PredictProsody(synth.Request{
+			Text:               utterance.Text,
+			Kana:               utterance.AnalysisCache.Reading,
+			ModelID:            utterance.ModelID,
+			Renderer:           renderer,
+			MoraDurationMS:     utterance.MoraDurationMS,
+			PauseDurationMS:    utterance.PauseDurationMS,
+			MoraDurationsMS:    utterance.MoraDurationsMS,
+			IntonationStrength: strength,
+			ApplyPitch:         true,
+		})
+		if err != nil || preview == nil {
+			continue
+		}
+		if needsAnalysis {
+			utterance.AnalysisCache.Reading = preview.Reading
+			utterance.AnalysisCache.Morae = previewMorae(preview.Morae)
+		}
+		if preview.FramePitchCurve != nil {
+			curves[index] = openutau.FrameCurve{
+				FrameMS: preview.FramePitchCurve.FrameMS,
+				Cents:   preview.FramePitchCurve.Cents,
+			}
+		}
+	}
+	return curves
+}
+
+// previewMorae converts a prosody preview mora list into the project format.
+func previewMorae(morae []frontend.Mora) []openutau.UtauTTSMora {
+	result := make([]openutau.UtauTTSMora, len(morae))
+	for index, mora := range morae {
+		result[index] = openutau.UtauTTSMora{
+			Position: index, Mora: mora.Text, Pause: mora.Pause,
+			Consonant: mora.Consonant, Vowel: mora.Vowel,
+		}
+	}
+	return result
 }
