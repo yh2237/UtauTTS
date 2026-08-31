@@ -45,6 +45,8 @@ class Backend final : public QObject {
     Q_PROPERTY(int defaultPauseDuration READ defaultPauseDuration NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(int defaultLeadingPreutterance READ defaultLeadingPreutterance NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(double defaultIntonationStrength READ defaultIntonationStrength NOTIFY synthesisDefaultsChanged)
+    Q_PROPERTY(QString defaultTone READ defaultTone NOTIFY synthesisDefaultsChanged)
+    Q_PROPERTY(QString defaultAliasPolicy READ defaultAliasPolicy NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(bool exportTextWithWav READ exportTextWithWav NOTIFY exportSettingsChanged)
     Q_PROPERTY(bool exportLabWithWav READ exportLabWithWav NOTIFY exportSettingsChanged)
     Q_PROPERTY(QString exportTextEncoding READ exportTextEncoding NOTIFY exportSettingsChanged)
@@ -86,6 +88,8 @@ public:
     int defaultPauseDuration() const { return m_defaultPauseDuration; }
     int defaultLeadingPreutterance() const { return m_defaultLeadingPreutterance; }
     double defaultIntonationStrength() const { return m_defaultIntonationStrength; }
+    QString defaultTone() const { return m_defaultTone; }
+    QString defaultAliasPolicy() const { return m_defaultAliasPolicy; }
     bool exportTextWithWav() const { return m_exportTextWithWav; }
     bool exportLabWithWav() const { return m_exportLabWithWav; }
     QString exportTextEncoding() const { return m_exportTextEncoding; }
@@ -141,7 +145,8 @@ public:
     Q_INVOKABLE void setDeveloperMode(bool value);
     Q_INVOKABLE void setSynthesisDefaults(int moraDuration, int pauseDuration,
                                           int leadingPreutterance, double intonationStrength,
-                                          const QString &modelId, const QString &rendererId);
+                                          const QString &modelId, const QString &rendererId,
+                                          const QString &tone, const QString &aliasPolicy);
     Q_INVOKABLE void setDefaultVoicebank(const QString &value);
     Q_INVOKABLE void setExportSettings(bool writeText, bool writeLab, const QString &textEncoding);
     Q_INVOKABLE void setShortcutSequences(const QString &synthesize,
@@ -228,6 +233,8 @@ private:
     int m_defaultPauseDuration = 180;
     int m_defaultLeadingPreutterance = 0;
     double m_defaultIntonationStrength = 2.0;
+    QString m_defaultTone = QStringLiteral("C4");
+    QString m_defaultAliasPolicy = QStringLiteral("auto");
     bool m_exportTextWithWav = false;
     bool m_exportLabWithWav = false;
     QString m_exportTextEncoding = QStringLiteral("utf-8");

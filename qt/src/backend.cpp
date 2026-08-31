@@ -42,6 +42,15 @@ QString sanitizeLanguageCode(const QString &code) {
     return lower.isEmpty() ? QStringLiteral("auto") : lower;
 }
 
+QString normalizeAliasPolicySetting(const QString &value) {
+    const QString normalized = value.trimmed().toLower();
+    const QStringList supported{
+        QStringLiteral("auto"), QStringLiteral("legacy"), QStringLiteral("cvvc-enhanced"),
+        QStringLiteral("vcv-prefer"), QStringLiteral("cvvc-prefer"), QStringLiteral("cv-only"),
+    };
+    return supported.contains(normalized) ? normalized : QStringLiteral("auto");
+}
+
 QStringList availableLanguageCodes() {
     const QStringList files = QDir(QStringLiteral(":/lang"))
             .entryList({QStringLiteral("*.json")}, QDir::Files, QDir::Name);
@@ -203,6 +212,9 @@ Backend::Backend(QObject *parent)
       m_defaultPauseDuration(portableSettingValue("synthesis/defaultPauseDuration", 180).toInt()),
       m_defaultLeadingPreutterance(portableSettingValue("synthesis/defaultLeadingPreutterance", 0).toInt()),
       m_defaultIntonationStrength(portableSettingValue("synthesis/defaultIntonationStrength", 2.0).toDouble()),
+      m_defaultTone(portableSettingValue("synthesis/defaultTone", QStringLiteral("C4")).toString().trimmed()),
+      m_defaultAliasPolicy(normalizeAliasPolicySetting(
+          portableSettingValue("synthesis/defaultAliasPolicy", QStringLiteral("auto")).toString())),
       m_exportTextWithWav(portableSettingValue("export/writeTextWithWav", false).toBool()),
       m_exportLabWithWav(portableSettingValue("export/writeLabWithWav", false).toBool()),
       m_exportTextEncoding(portableSettingValue("export/textEncoding", QStringLiteral("utf-8")).toString().trimmed().toLower()),
@@ -218,6 +230,8 @@ Backend::Backend(QObject *parent)
     m_defaultPauseDuration = qBound(0, m_defaultPauseDuration, 3000);
     m_defaultLeadingPreutterance = qBound(0, m_defaultLeadingPreutterance, 300);
     m_defaultIntonationStrength = qBound(0.0, m_defaultIntonationStrength, 4.0);
+    if (m_defaultTone.isEmpty())
+        m_defaultTone = QStringLiteral("C4");
     m_previewCacheFileCount = qBound(1, m_previewCacheFileCount, 256);
     if (m_exportTextEncoding != QStringLiteral("shift_jis"))
         m_exportTextEncoding = QStringLiteral("utf-8");
@@ -418,19 +432,24 @@ void Backend::setExportSettings(bool writeText, bool writeLab, const QString &te
 
 void Backend::setSynthesisDefaults(int moraDuration, int pauseDuration,
                                    int leadingPreutterance, double intonationStrength,
-                                   const QString &modelId, const QString &rendererId) {
+                                   const QString &modelId, const QString &rendererId,
+                                   const QString &tone, const QString &aliasPolicy) {
     const int boundedMoraDuration = qBound(20, moraDuration, 1000);
     const int boundedPauseDuration = qBound(0, pauseDuration, 3000);
     const int boundedLeadingPreutterance = qBound(0, leadingPreutterance, 300);
     const double boundedIntonationStrength = qBound(0.0, intonationStrength, 4.0);
     const QString normalizedModelId = modelId.trimmed();
     const QString normalizedRendererId = rendererId.trimmed();
+    const QString normalizedTone = tone.trimmed().isEmpty() ? QStringLiteral("C4") : tone.trimmed();
+    const QString normalizedAliasPolicy = normalizeAliasPolicySetting(aliasPolicy);
     if (m_defaultMoraDuration == boundedMoraDuration
             && m_defaultPauseDuration == boundedPauseDuration
             && m_defaultLeadingPreutterance == boundedLeadingPreutterance
             && qFuzzyCompare(m_defaultIntonationStrength, boundedIntonationStrength)
             && m_defaultModelId == normalizedModelId
-            && m_defaultRenderer == normalizedRendererId) {
+            && m_defaultRenderer == normalizedRendererId
+            && m_defaultTone == normalizedTone
+            && m_defaultAliasPolicy == normalizedAliasPolicy) {
         return;
     }
     m_defaultMoraDuration = boundedMoraDuration;
@@ -439,6 +458,8 @@ void Backend::setSynthesisDefaults(int moraDuration, int pauseDuration,
     m_defaultIntonationStrength = boundedIntonationStrength;
     m_defaultModelId = normalizedModelId;
     m_defaultRenderer = normalizedRendererId;
+    m_defaultTone = normalizedTone;
+    m_defaultAliasPolicy = normalizedAliasPolicy;
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("synthesis/defaultMoraDuration", m_defaultMoraDuration);
     settings.setValue("synthesis/defaultPauseDuration", m_defaultPauseDuration);
@@ -447,6 +468,8 @@ void Backend::setSynthesisDefaults(int moraDuration, int pauseDuration,
     settings.remove("synthesis/defaultApplyPitch");
     settings.setValue("synthesis/defaultModelId", m_defaultModelId);
     settings.setValue("synthesis/defaultRendererId", m_defaultRenderer);
+    settings.setValue("synthesis/defaultTone", m_defaultTone);
+    settings.setValue("synthesis/defaultAliasPolicy", m_defaultAliasPolicy);
     settings.sync();
     emit synthesisDefaultsChanged();
 }
@@ -1475,6 +1498,8 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
             {"default_pause_duration_ms", m_defaultPauseDuration},
             {"default_leading_preutterance_ms", m_defaultLeadingPreutterance},
             {"default_intonation_strength", m_defaultIntonationStrength},
+            {"default_tone", m_defaultTone},
+            {"default_alias_policy", m_defaultAliasPolicy},
             {"export_text_with_wav", m_exportTextWithWav},
             {"export_lab_with_wav", m_exportLabWithWav},
             {"export_text_encoding", m_exportTextEncoding},

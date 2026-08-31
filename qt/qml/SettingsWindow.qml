@@ -29,6 +29,8 @@ ApplicationWindow {
     property string pendingDefaultVoicebankId: ""
     property string pendingDefaultModelId: "frame-intonation-v8"
     property string pendingDefaultRendererId: "openutau-worldline-r-faithful"
+    property string pendingDefaultAliasPolicy: "auto"
+    property string pendingDefaultTone: "C4"
     property int pendingMoraDuration: 120
     property int pendingPauseDuration: 180
     property int pendingLeadingPreutterance: 0
@@ -95,6 +97,9 @@ ApplicationWindow {
         pendingDefaultVoicebankId = root.backend.defaultVoicebankId;
         pendingDefaultModelId = root.backend.defaultModelId;
         pendingDefaultRendererId = root.backend.defaultRenderer;
+        pendingDefaultAliasPolicy = root.backend.defaultAliasPolicy;
+        pendingDefaultTone = root.backend.defaultTone;
+        defaultToneField.text = pendingDefaultTone;
         pendingMoraDuration = root.backend.defaultMoraDuration;
         pendingPauseDuration = root.backend.defaultPauseDuration;
         pendingLeadingPreutterance = root.backend.defaultLeadingPreutterance;
@@ -279,6 +284,29 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 Label {
+                                    text: root.translator.tr("settings.defaultAliasPolicy")
+                                    Layout.fillWidth: true
+                                }
+                                ComboBox {
+                                    id: defaultAliasPolicyCombo
+                                    Layout.preferredWidth: 240
+                                    model: [
+                                        { id: "auto", display_name: root.translator.tr("main.aliasPolicy.auto") },
+                                        { id: "legacy", display_name: root.translator.tr("main.aliasPolicy.legacy") },
+                                        { id: "cvvc-enhanced", display_name: root.translator.tr("main.aliasPolicy.cvvcEnhanced") },
+                                        { id: "vcv-prefer", display_name: root.translator.tr("main.aliasPolicy.vcvPrefer") },
+                                        { id: "cvvc-prefer", display_name: root.translator.tr("main.aliasPolicy.cvvcPrefer") },
+                                        { id: "cv-only", display_name: root.translator.tr("main.aliasPolicy.cvOnly") }
+                                    ]
+                                    textRole: "display_name"
+                                    valueRole: "id"
+                                    currentIndex: indexOfValue(root.pendingDefaultAliasPolicy)
+                                    onActivated: root.pendingDefaultAliasPolicy = currentValue
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
                                     text: root.translator.tr("settings.defaultModel")
                                     Layout.fillWidth: true
                                 }
@@ -312,6 +340,44 @@ ApplicationWindow {
                                 }
                             }
 
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: root.translator.tr("settings.defaultTone")
+                                    Layout.fillWidth: true
+                                }
+                                TextField {
+                                    id: defaultToneField
+                                    Layout.preferredWidth: 180
+                                    horizontalAlignment: TextInput.AlignRight
+                                    text: root.pendingDefaultTone
+                                    onEditingFinished: root.pendingDefaultTone = text.trim().length ? text.trim() : "C4"
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: root.translator.tr("settings.defaultIntonation")
+                                    Layout.fillWidth: true
+                                }
+                                SpinBox {
+                                    id: defaultIntonationSpin
+                                    Layout.preferredWidth: 180
+                                    from: 0
+                                    to: 400
+                                    stepSize: 5
+                                    value: Math.round(root.pendingDefaultIntonationStrength * 100)
+                                    editable: true
+                                    textFromValue: value => (value / 100).toFixed(2)
+                                    valueFromText: text => Math.round(parseFloat(text) * 100)
+                                    onValueModified: root.pendingDefaultIntonationStrength = value / 100
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton
+                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                        onDoubleTapped: root.pendingDefaultIntonationStrength = 2.0
+                                    }
+                                }
+                            }
                             RowLayout {
                                 Layout.fillWidth: true
                                 Label {
@@ -406,31 +472,6 @@ ApplicationWindow {
                                     }
                                 }
                             }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultIntonation")
-                                    Layout.fillWidth: true
-                                }
-                                SpinBox {
-                                    id: defaultIntonationSpin
-                                    Layout.preferredWidth: 180
-                                    from: 0
-                                    to: 400
-                                    stepSize: 5
-                                    value: Math.round(root.pendingDefaultIntonationStrength * 100)
-                                    editable: true
-                                    textFromValue: value => (value / 100).toFixed(2)
-                                    valueFromText: text => Math.round(parseFloat(text) * 100)
-                                    onValueModified: root.pendingDefaultIntonationStrength = value / 100
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                        onDoubleTapped: root.pendingDefaultIntonationStrength = 2.0
-                                    }
-                                }
-                            }
-
                             RowLayout {
                                 Layout.fillWidth: true
                                 Label {

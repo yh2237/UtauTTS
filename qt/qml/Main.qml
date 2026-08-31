@@ -1045,6 +1045,8 @@ ApplicationWindow {
             usedShortcuts.push(normalized);
         }
         if (utterances.count) {
+            window.updateSetting("aliasPolicy", settingsWindow.pendingDefaultAliasPolicy);
+            window.updateSetting("tone", settingsWindow.pendingDefaultTone);
             window.updateSetting("moraDuration", settingsWindow.pendingMoraDuration);
             window.updateSetting("pauseDuration", settingsWindow.pendingPauseDuration);
             window.updateSetting("leadingPreutterance", settingsWindow.pendingLeadingPreutterance);
@@ -1058,7 +1060,9 @@ ApplicationWindow {
                                                settingsWindow.pendingLeadingPreutterance,
                                                settingsWindow.pendingDefaultIntonationStrength,
                                                settingsWindow.pendingDefaultModelId,
-                                               settingsWindow.pendingDefaultRendererId);
+                                               settingsWindow.pendingDefaultRendererId,
+                                               settingsWindow.pendingDefaultTone,
+                                               settingsWindow.pendingDefaultAliasPolicy);
         window.appBackend.setDarkMode(settingsWindow.pendingDarkMode);
         window.appBackend.setLanguage(settingsWindow.pendingLanguage);
         window.appBackend.setCloseLogOnSuccess(settingsWindow.pendingCloseLogOnSuccess);
@@ -1821,8 +1825,9 @@ ApplicationWindow {
                 imagePath: voice ? voice.image_path || "" : "",
                 modelId: String(saved.model_id || ""),
                 renderer: rendererId,
-                aliasPolicy: window.normalizeAliasPolicy(saved.alias_policy),
-                tone: String(saved.tone || "C4"),
+                aliasPolicy: saved.alias_policy === undefined
+                        ? window.appBackend.defaultAliasPolicy : window.normalizeAliasPolicy(saved.alias_policy),
+                tone: String(saved.tone || window.appBackend.defaultTone),
                 color: String(saved.color || ""),
                 moraDuration: window.projectNumber(saved.mora_duration_ms, window.appBackend.defaultMoraDuration, 20, 1000, true),
                 pauseDuration: window.projectNumber(saved.pause_duration_ms, window.appBackend.defaultPauseDuration, 0, 3000, true),
@@ -2266,8 +2271,8 @@ ApplicationWindow {
             imagePath: voice ? voice.image_path || "" : "",
             modelId: window.appBackend.models.length ? window.defaultModelId() : "",
             renderer: window.appBackend.renderers.length ? window.defaultRendererId() : "",
-            aliasPolicy: "auto",
-            tone: "C4",
+            aliasPolicy: window.appBackend.defaultAliasPolicy,
+            tone: window.appBackend.defaultTone,
             color: "",
             moraDuration: window.appBackend.defaultMoraDuration,
             pauseDuration: window.appBackend.defaultPauseDuration,

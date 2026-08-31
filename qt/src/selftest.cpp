@@ -280,7 +280,8 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
         return 1;
     backend.setSynthesisDefaults(130, 190, 45, 2.5,
                                  QStringLiteral("frame-intonation-v8"),
-                                 QStringLiteral("openutau-worldline-r-faithful"));
+                                 QStringLiteral("openutau-worldline-r-faithful"),
+                                 QStringLiteral("D4"), QStringLiteral("cv-only"));
     backend.setPreviewCacheFileCount(7);
     backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y");
     if (!require(backend.defaultMoraDuration() == 130 && backend.defaultPauseDuration() == 190
@@ -289,6 +290,8 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  && backend.defaultRenderer() == QStringLiteral("openutau-worldline-r-faithful")
                  && backend.previewCacheFileCount() == 7
                  && backend.defaultIntonationStrength() == 2.5
+                 && backend.defaultTone() == QStringLiteral("D4")
+                 && backend.defaultAliasPolicy() == QStringLiteral("cv-only")
                  && backend.undoShortcut() == QStringLiteral("Ctrl+Z"),
                  QStringLiteral("application settings failed")))
         return 1;
