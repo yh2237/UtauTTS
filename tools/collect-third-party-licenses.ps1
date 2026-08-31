@@ -57,12 +57,14 @@ function Resolve-QtRoot {
 function Copy-GoLicenses {
     $goRoot = Get-CommandOutput 'go' @('env', 'GOROOT')
     Copy-Required (Join-Path $goRoot 'LICENSE') (Join-Path $licenseRoot 'Go/GO-LICENSE.txt')
+    Copy-Required (Join-Path $root 'licenses/APACHE-2.0.txt') (Join-Path $licenseRoot 'Go/APACHE-2.0.txt')
 
     $modules = @(
         'golang.org/x/text',
         'github.com/ikawaha/kagome/v2',
         'github.com/ikawaha/kagome-dict',
-        'github.com/ikawaha/kagome-dict/ipa'
+        'github.com/ikawaha/kagome-dict/ipa',
+        'gopkg.in/yaml.v3'
     )
     foreach ($module in $modules) {
         $moduleInfo = Get-CommandOutput 'go' @('list', '-m', '-f={{.Dir}}|{{.Version}}', $module)
@@ -74,9 +76,12 @@ function Copy-GoLicenses {
         $moduleVersion = $parts[1]
         $safeName = $module.Replace('/', '_').Replace('.', '_')
         Copy-Required (Join-Path $moduleDirectory 'LICENSE') (Join-Path $licenseRoot "Go/$safeName-$moduleVersion-LICENSE.txt")
-        $notice = Join-Path $moduleDirectory 'NOTICE.txt'
-        if (Test-Path -LiteralPath $notice -PathType Leaf) {
-            Copy-Required $notice (Join-Path $licenseRoot "Go/$safeName-$moduleVersion-NOTICE.txt")
+        foreach ($noticeName in @('NOTICE', 'NOTICE.txt')) {
+            $notice = Join-Path $moduleDirectory $noticeName
+            if (Test-Path -LiteralPath $notice -PathType Leaf) {
+                Copy-Required $notice (Join-Path $licenseRoot "Go/$safeName-$moduleVersion-NOTICE.txt")
+                break
+            }
         }
     }
 }

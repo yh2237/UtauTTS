@@ -82,6 +82,12 @@ for required in \
   "${gui_root}/docs/building.md" \
   "${gui_root}/docs/technical-design.md" \
   "${server_root}/licenses/README.txt" \
+  "${gui_root}/licenses/Go/APACHE-2.0.txt" \
+  "${gui_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \
+  "${gui_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt" \
+  "${server_root}/licenses/Go/APACHE-2.0.txt" \
+  "${server_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \
+  "${server_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt" \
   "${gui_root}/licenses/PROSODY-MODELS.txt" \
   "${server_root}/models/README.md" \
   "${gui_root}/runtime/licenses/PYTHON_LICENSE.txt" \
