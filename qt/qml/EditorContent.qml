@@ -422,7 +422,7 @@ import QtMultimedia
                                 id: intonationInput
                                 Layout.preferredWidth: 86
                                 from: 0
-                                to: 200
+                                to: Math.round(window.maxIntonationStrength * 100)
                                 stepSize: 5
                                 editable: true
                                 value: Math.round(intonationSlider.value * 100)
@@ -441,7 +441,7 @@ import QtMultimedia
                                 id: intonationSlider
                                 anchors.fill: parent
                                 from: 0
-                                to: 2
+                                to: window.maxIntonationStrength
                                 stepSize: .05
                                 onMoved: {
                                     intonationInput.value = Math.round(value * 100);

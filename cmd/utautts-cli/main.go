@@ -93,7 +93,7 @@ func main() {
 	flag.StringVar(&pitchContourPath, "pitch-contours", "", "optional per-case pitch contour JSON (recorded in the plan; use --apply-pitch for direct waveform processing)")
 	flag.StringVar(&pitchContourCase, "pitch-case", "", "case ID in --pitch-contours")
 	flag.BoolVar(&applyPitch, "apply-pitch", false, "experimental waveform pitch resampling")
-	flag.Float64Var(&intonationStrength, "intonation-strength", 0, "experimental source-pitch stabilization and phrase contour strength (0..2)")
+	flag.Float64Var(&intonationStrength, "intonation-strength", 0, "experimental source-pitch stabilization and phrase contour strength (0..4)")
 	flag.StringVar(&renderer, "renderer", "", "renderer plugin ID (default: highest manifest priority)")
 	flag.StringVar(&worldlinePath, "worldline", "", "path to OpenUtau worldline library (default: next to executable)")
 	flag.StringVar(&worldlineBridgePath, "worldline-bridge", "", "path to utautts-worldline-bridge executable")

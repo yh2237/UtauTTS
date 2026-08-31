@@ -41,6 +41,8 @@ ApplicationWindow {
     readonly property var appBackend: injectedBackend
     readonly property bool darkMode: appBackend.darkMode
     readonly property var licenseDocuments: injectedLegalDocuments
+    readonly property real defaultIntonationStrength: 2.0
+    readonly property real maxIntonationStrength: 4.0
 
     property var translator: translatorInstance
     property string updateAvailableVersion: ""
@@ -1571,6 +1573,10 @@ window.translator.load(window.appBackend.language);
         let error = check(utterances.count === 1, "initial utterance is missing");
         if (error.length)
             return error;
+        error = check(utterances.get(0).intonation === window.defaultIntonationStrength,
+                      "initial intonation strength is incorrect");
+        if (error.length)
+            return error;
         window.updateUtteranceText(0, "こんにちは");
         analyzeTimer.stop();
         window.updatePitchPoints([20, -10]);
@@ -1821,7 +1827,7 @@ window.translator.load(window.appBackend.language);
                 moraDuration: window.projectNumber(saved.mora_duration_ms, window.appBackend.defaultMoraDuration, 20, 1000, true),
                 pauseDuration: window.projectNumber(saved.pause_duration_ms, window.appBackend.defaultPauseDuration, 0, 3000, true),
                 leadingPreutterance: window.projectNumber(saved.leading_preutterance_ms, 0, 0, 300, true),
-                intonation: window.projectNumber(saved.intonation, 1, 0, 2, false),
+                intonation: window.projectNumber(saved.intonation, window.defaultIntonationStrength, 0, window.maxIntonationStrength, false),
                 applyPitch: saved.apply_pitch === undefined ? window.appBackend.defaultApplyPitch : !!saved.apply_pitch,
                 revision: 0
             });
@@ -2225,9 +2231,9 @@ window.translator.load(window.appBackend.language);
     }
 
     function resetIntonation() {
-        editorContent.intonationSlider.value = 1;
-        editorContent.intonationInput.value = 100;
-        window.updateSetting("intonation", 1);
+        editorContent.intonationSlider.value = window.defaultIntonationStrength;
+        editorContent.intonationInput.value = Math.round(window.defaultIntonationStrength * 100);
+        window.updateSetting("intonation", window.defaultIntonationStrength);
     }
 
     function resetPauseDuration() {
@@ -2267,7 +2273,7 @@ window.translator.load(window.appBackend.language);
             moraDuration: window.appBackend.defaultMoraDuration,
             pauseDuration: window.appBackend.defaultPauseDuration,
             leadingPreutterance: window.appBackend.defaultLeadingPreutterance,
-            intonation: 1,
+            intonation: window.defaultIntonationStrength,
             applyPitch: window.appBackend.defaultApplyPitch,
             revision: 0
         });

@@ -40,7 +40,7 @@ const (
 )
 
 // MaxIntonationStrengthはユーザー向けイントネーション制御の上限値。
-const MaxIntonationStrength = 2.0
+const MaxIntonationStrength = 4.0
 
 // defaultReleaseMSは未指定時のリリース長。明示的な0にはReleaseSetを使う。
 const defaultReleaseMS = 20.0
