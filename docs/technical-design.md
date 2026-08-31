@@ -175,7 +175,7 @@ Rendererは各原音のF0を測ってこの相対曲線を音源側の声域へ�
 
 ## 7. Renderer
 
-Renderer pluginの`id`は保存データやUIで使う公開識別子、`backend`はGoに組み込まれた実装識別子です。現在のpluginは設定とassetを宣言するもので任意のnative codeを動的ロードする仕組みではありません。
+Renderer pluginの`id`は保存データやUIで使う公開識別子、`backend`はGoに組み込まれた実装識別子です。pluginは設定とassetを宣言するもので、任意のnative codeをUtauTTSのプロセスへ動的ロードする仕組みではありません。`utau-external-resampler`だけは、manifestで指定されたUTAU互換実行ファイルを独立したプロセスとして呼び出します。
 
 ### waveform
 
@@ -212,6 +212,12 @@ manifestは小さなGo製Worldline bridgeへ渡されます。bridgeはアプリ
 required lengthはClassic方式に合わせて50ms単位へ丸められて子音部は母音部と別の時間規則で扱われます。5点envelopeはpreutterance、前後のoverlap、次unitのtail intrusionを表して単純な一定長crossfadeより子音の流入と母音末尾を保ちます。
 
 CUDA版は同じPlan、timing、Worldline条件を使って対応DLLで5点envelopeによるmixをGPU化します。意味上はCPU版と同じですが環境依存機能なのでexperimentalとして配布されます。
+
+### 外部UTAU Renderer
+
+`utau-external-resampler`はClassic faithfulと同じphone timingを使い、Worldlineの代わりにmanifestの`assets.resampler`で指定されたUTAU互換実行ファイルをunitごとに呼びます。toneを基準に5tick間隔の相対pitchを12bit形式で符号化し、offset、required length、consonant、cutoffなどと一緒に渡します。返されたWAVのsample rateをフレーズ内で統一してskipを適用し、5点envelopeで共通時刻へ加算します。
+
+外部resamplerは独立したプロセスなのでUtauTTS本体とABIを共有しません。終了コード、出力WAV、timeoutを呼び出しごとに検査します。flagsと外部wavtoolの指定にはまだ対応していません。
 
 ### OpenUTAU WORLDLINE-R faithful
 

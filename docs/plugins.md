@@ -25,7 +25,7 @@ Rendererは`plugins/renderers/<plugin>/plugin.json`を1つ持ちます。
 }
 ```
 
-`id`は保存データやAPIで使うプラグイン固有ID、`backend`はUtauTTSが実行する実装adapterです。分けてあるので同じbackendへ別の名前、資産、既定値を持つRendererを追加できます。現在のmanifest APIは組み込みbackendの構成をプラグイン化するもので任意のnative codeをプロセスへロードする仕組みではありません。
+`id`は保存データやAPIで使うプラグイン固有ID、`backend`はUtauTTSが実行する実装adapterです。分けてあるので同じbackendへ別の名前、資産、既定値を持つRendererを追加できます。native codeをUtauTTSのプロセスへ直接ロードする仕組みはありません。
 
 壊れたmanifest、未対応backend、IDの重複は起動時エラーになります。
 
@@ -35,6 +35,7 @@ Rendererは`plugins/renderers/<plugin>/plugin.json`を1つ持ちます。
 
 - `worldline`
 - `worldline_bridge`
+- `resampler`: `utau-external-resampler` backendで実行するUTAU互換resampler
 
 現在の配布物に入っているRenderer IDは次のとおりです。
 
@@ -42,6 +43,28 @@ Rendererは`plugins/renderers/<plugin>/plugin.json`を1つ持ちます。
 - `openutau-worldline-r-faithful`: フレーズ全体をWORLD合成する既定Renderer
 - `openutau-classic-worldline-faithful`: CPU版faithful Renderer
 - `openutau-classic-worldline-faithful-gpu`: CUDA版faithful Renderer。CUDA対応の配布物にのみ含まれます。
+
+### 外部UTAU Renderer
+
+GUIの設定で実行ファイルを追加すると、UtauTTS直下の`plugins/renderers/<id>/plugin.json`へ次の形式で保存されます。実行ファイルは移動やコピーをせず、絶対pathで参照します。
+
+```json
+{
+  "manifest_version": 1,
+  "kind": "renderer",
+  "id": "utau-external-example-0123456789ab",
+  "display_name": "example",
+  "backend": "utau-external-resampler",
+  "version": "1",
+  "acceleration": "cpu",
+  "capabilities": { "frame_pitch": true },
+  "assets": { "resampler": "C:/path/to/example.exe" }
+}
+```
+
+呼び出し形式はUTAU互換で、入力WAV、出力WAV、音名、子音速度、flags、offset、必要長、consonant、cutoff、音量、modulation、tempo、ピッチ列を渡します。wavtoolは外部から指定せず、UtauTTSがOpenUTAU Classic方式のタイミングと5点包絡線で接続します。resampler固有flagsの設定にはまだ対応していません。
+
+GUI、CLI、Serverは同じ`plugins/renderers`を自動検出します。CLI／Serverでは`--renderer`へmanifestの`id`を渡します。外部実行ファイルの利用条件はUtauTTSのライセンスには含まれないため、各配布元の規約を確認してください。
 
 Qt GUI、native backend、HTTP API、CLIは同じcatalogを使います。追加directoryはnative JSONの`renderer_directories`かCLI／Serverの`--renderer-dir`で指定できます。`--renderer-dir`は繰り返し指定しても大丈夫です。
 
