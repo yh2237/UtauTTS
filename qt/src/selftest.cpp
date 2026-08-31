@@ -81,6 +81,19 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
             || !require(!backend.renderers().isEmpty(), QStringLiteral("no bundled renderer")))
         return 1;
 
+    const QStringList languageCodes = backend.languageCodes();
+    const QString resolvedLanguage = backend.resolvedLanguage();
+    QJsonParseError languageError;
+    const QJsonDocument languageDocument = QJsonDocument::fromJson(
+            backend.loadLanguageFile(QStringLiteral("auto")).toUtf8(), &languageError);
+    if (!require(!languageCodes.isEmpty() && languageCodes.first() == QStringLiteral("auto"),
+                 QStringLiteral("automatic language option is unavailable"))
+            || !require(languageCodes.contains(resolvedLanguage),
+                        QStringLiteral("resolved UI language is unavailable: ") + resolvedLanguage)
+            || !require(languageError.error == QJsonParseError::NoError && languageDocument.isObject(),
+                        QStringLiteral("automatic language file could not be loaded")))
+        return 1;
+
     QVariant interfaceResult;
     if (!require(rootObject != nullptr
                  && QMetaObject::invokeMethod(rootObject, "runInterfaceSelfTest",

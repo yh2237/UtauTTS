@@ -112,6 +112,7 @@
     "settings.previewCacheFileCount": "保持する合成音声",
     "settings.previewCacheFileCount.unit": "件",
     "settings.language": "言語",
+    "settings.language.auto": "自動",
     "settings.page.appearance": "表示",
     "settings.page.export": "書き出し",
     "settings.page.log": "ログ",

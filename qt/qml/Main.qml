@@ -616,7 +616,7 @@ ApplicationWindow {
         target: window.appBackend
 
         function onLanguageChanged() {
-window.translator.load(window.appBackend.language);
+            window.translator.load(window.appBackend.resolvedLanguage());
         }
 
         function onUstxExportFinished(success, detail) {
@@ -800,7 +800,7 @@ window.translator.load(window.appBackend.language);
     }
 
     Component.onCompleted: {
-        window.translator.load(window.appBackend.language);
+        window.translator.load(window.appBackend.resolvedLanguage());
         addUtterance(false);
         window.resetHistory(false);
         if (!window.injectedSelfTest && window.appBackend.updateCheckEnabled)

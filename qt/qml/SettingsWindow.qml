@@ -36,7 +36,7 @@ ApplicationWindow {
     property bool pendingExportLabWithWav: false
     property string pendingExportTextEncoding: "utf-8"
     property bool pendingDarkMode: false
-    property string pendingLanguage: "ja"
+    property string pendingLanguage: "auto"
     property var languageCodes: root.backend.languageCodes()
     property bool pendingCloseLogOnSuccess: true
     property bool pendingUpdateCheckEnabled: true
@@ -52,8 +52,11 @@ ApplicationWindow {
 
     function languageLabels() {
         const labels = [];
-        for (let index = 0; index < root.languageCodes.length; ++index)
-            labels.push(root.backend.languageDisplayName(root.languageCodes[index]));
+        for (let index = 0; index < root.languageCodes.length; ++index) {
+            const code = root.languageCodes[index];
+            labels.push(code === "auto" ? root.translator.tr("settings.language.auto")
+                                        : root.backend.languageDisplayName(code));
+        }
         return labels;
     }
 

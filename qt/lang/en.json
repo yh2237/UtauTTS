@@ -112,6 +112,7 @@
     "settings.previewCacheFileCount": "Cached Synthesized Audio",
     "settings.previewCacheFileCount.unit": "files",
     "settings.language": "Language",
+    "settings.language.auto": "Automatic",
     "settings.page.appearance": "Appearance",
     "settings.page.export": "Export",
     "settings.page.log": "Log",

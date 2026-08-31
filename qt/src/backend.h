@@ -121,6 +121,7 @@ public:
     Q_INVOKABLE QString dictionaryFingerprint() const;
     Q_INVOKABLE void setDarkMode(bool value);
     Q_INVOKABLE void setLanguage(const QString &value);
+    Q_INVOKABLE QString resolvedLanguage() const;
     Q_INVOKABLE QString loadLanguageFile(const QString &code) const;
     Q_INVOKABLE QStringList languageCodes() const;
     Q_INVOKABLE QString languageDisplayName(const QString &code) const;

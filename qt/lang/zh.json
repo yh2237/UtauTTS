@@ -112,6 +112,7 @@
     "settings.previewCacheFileCount": "保留的合成语音",
     "settings.previewCacheFileCount.unit": "条",
     "settings.language": "语言",
+    "settings.language.auto": "自动",
     "settings.page.appearance": "外观",
     "settings.page.export": "导出",
     "settings.page.log": "日志",
