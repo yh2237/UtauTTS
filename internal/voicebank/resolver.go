@@ -353,36 +353,82 @@ func aliasCandidates(mora, previousVowel string, phraseStart bool) []aliasCandid
 	return aliasCandidatesWithPolicy(mora, previousVowel, phraseStart, AliasPolicyAuto)
 }
 
+// equivalentKanaForms returns kana that are pronounced identically to the
+// given mora in modern standard Japanese. These are safe fallbacks for
+// voicebanks that lack a dedicated recording:
+//
+//	を = お   (the particle を is pronounced "o")
+//	ぢ = じ   (di and ji merged)
+//	づ = ず   (du and zu merged)
+//	ゐ = い   (archaic wi = i)
+//	ゑ = え   (archaic we = e)
+//
+// Small-kana combinations (てぃ, とぅ, ふぁ, ...) are NOT included because
+// they are genuinely different sounds.
+func equivalentKanaForms(mora string) []string {
+	switch mora {
+	case "を":
+		return []string{"お"}
+	case "ぢ":
+		return []string{"じ"}
+	case "づ":
+		return []string{"ず"}
+	case "ゐ":
+		return []string{"い"}
+	case "ゑ":
+		return []string{"え"}
+	}
+	return nil
+}
+
+// aliasForm is one surface form offered for a mora. fallback is an extra tier
+// penalty applied to phonetically-equivalent alternates (を→お etc.) so a
+// bank that owns both recordings always prefers the original kana.
+type aliasForm struct {
+	text     string
+	fallback int
+}
+
 func aliasCandidatesWithPolicy(mora, previousVowel string, phraseStart bool, policy AliasPolicy) []aliasCandidate {
-	forms := make([]string, 0, 4)
+	forms := make([]aliasForm, 0, 4)
 	if mora == "ー" {
 		if vowelKana := map[string]string{"a": "あ", "i": "い", "u": "う", "e": "え", "o": "お"}[previousVowel]; vowelKana != "" {
-			forms = append(forms, vowelKana, toKatakana(vowelKana))
+			forms = append(forms, aliasForm{text: vowelKana}, aliasForm{text: toKatakana(vowelKana)})
 		}
 	}
-	forms = append(forms, mora)
-	katakana := toKatakana(mora)
-	if katakana != mora {
-		forms = append(forms, katakana)
+	// The mora itself plus phonetically identical alternates (modern
+	// standard Japanese), so voicebanks that lack a dedicated recording
+	// still synthesize the mora: を=お, ぢ=じ, づ=ず, ゐ=い, ゑ=え.
+	// Alternates carry a +1 tier penalty: the original kana must win even
+	// when both recordings exist, independent of oto.ini entry quality.
+	base := []aliasForm{{text: mora}}
+	for _, equivalent := range equivalentKanaForms(mora) {
+		base = append(base, aliasForm{text: equivalent, fallback: 1})
+	}
+	for _, form := range base {
+		forms = append(forms, form)
+		if katakana := toKatakana(form.text); katakana != form.text {
+			forms = append(forms, aliasForm{text: katakana, fallback: form.fallback})
+		}
 	}
 
 	var candidates []aliasCandidate
 	allowVCVTarget := mora != "っ"
 	if policy != AliasPolicyCVOnly && allowVCVTarget && phraseStart {
 		for _, form := range forms {
-			candidates = append(candidates, aliasCandidate{name: "- " + form, tier: 0, kind: AliasVCV})
+			candidates = append(candidates, aliasCandidate{name: "- " + form.text, tier: form.fallback, kind: AliasVCV})
 		}
 	} else if policy != AliasPolicyCVOnly && allowVCVTarget && previousVowel != "" && previousVowel != "cl" {
 		for _, form := range forms {
-			candidates = append(candidates, aliasCandidate{name: previousVowel + " " + form, tier: 0, kind: AliasVCV})
+			candidates = append(candidates, aliasCandidate{name: previousVowel + " " + form.text, tier: form.fallback, kind: AliasVCV})
 		}
 	}
 	for _, form := range forms {
-		candidates = append(candidates, aliasCandidate{name: form, tier: policyTier(policy, 1, AliasCV), kind: AliasCV})
+		candidates = append(candidates, aliasCandidate{name: form.text, tier: policyTier(policy, 1, AliasCV) + form.fallback, kind: AliasCV})
 	}
 	if policy != AliasPolicyCVOnly && !phraseStart {
 		for _, form := range forms {
-			candidates = append(candidates, aliasCandidate{name: "* " + form, tier: policyTier(policy, 2, AliasCV), kind: AliasCV})
+			candidates = append(candidates, aliasCandidate{name: "* " + form.text, tier: policyTier(policy, 2, AliasCV) + form.fallback, kind: AliasCV})
 		}
 	}
 	return uniqueCandidates(candidates)

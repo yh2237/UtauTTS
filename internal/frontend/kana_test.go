@@ -36,6 +36,32 @@ func TestParseKanaLongVowel(t *testing.T) {
 	}
 }
 
+func TestParseKanaEllipsisAndBrackets(t *testing.T) {
+	got, err := ParseKana("ミナサン……（テスト）〜オハヨー〜")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Mora{
+		{Text: "み", Consonant: "m", Vowel: "i"},
+		{Text: "な", Consonant: "n", Vowel: "a"},
+		{Text: "さ", Consonant: "s", Vowel: "a"},
+		{Text: "ん", Consonant: "n", Vowel: "n"},
+		{Pause: true},
+		{Text: "て", Consonant: "t", Vowel: "e"},
+		{Text: "す", Consonant: "s", Vowel: "u"},
+		{Text: "と", Consonant: "t", Vowel: "o"},
+		{Pause: true},
+		{Text: "お", Vowel: "o"},
+		{Text: "は", Consonant: "h", Vowel: "a"},
+		{Text: "よ", Consonant: "y", Vowel: "o"},
+		{Text: "ー", Vowel: "o"},
+		{Pause: true},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("morae = %#v, want %#v", got, want)
+	}
+}
+
 func TestParseKanaConsonants(t *testing.T) {
 	got, err := ParseKana("かしゃつきょんっ")
 	if err != nil {

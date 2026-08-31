@@ -19,7 +19,7 @@ func ParseKana(reading string) ([]Mora, error) {
 	reading = norm.NFC.String(reading)
 	var result []Mora
 	for _, r := range reading {
-		if unicode.IsSpace(r) || strings.ContainsRune("、。，．,.!?！？・", r) {
+		if unicode.IsSpace(r) || strings.ContainsRune("、。，．,.!?！？・…‥〜～（）「」『』", r) {
 			if len(result) > 0 && !result[len(result)-1].Pause {
 				result = append(result, Mora{Pause: true})
 			}

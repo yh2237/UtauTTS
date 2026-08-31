@@ -224,6 +224,105 @@ func TestAliasCandidatesHandleSpecialMoraContexts(t *testing.T) {
 	if !contains(aliasCandidatesWithPolicy("ー", "u", false, AliasPolicyAuto), "u う") {
 		t.Fatal("long-vowel candidate did not use the preceding vowel")
 	}
+	// Phonetically identical fallbacks: を falls back to お, ぢ to じ, etc.
+	for mora, equivalent := range map[string]string{"を": "お", "ぢ": "じ", "づ": "ず", "ゐ": "い", "ゑ": "え"} {
+		candidates := aliasCandidatesWithPolicy(mora, "", true, AliasPolicyAuto)
+		if !contains(candidates, mora) {
+			t.Fatalf("mora %q candidate was not generated", mora)
+		}
+		if !contains(candidates, equivalent) {
+			t.Fatalf("mora %q did not fall back to equivalent %q", mora, equivalent)
+		}
+		if !contains(candidates, toKatakana(equivalent)) {
+			t.Fatalf("mora %q did not fall back to katakana %q", mora, toKatakana(equivalent))
+		}
+	}
+	// The original form must come before the equivalent fallback.
+	wo := aliasCandidatesWithPolicy("を", "", true, AliasPolicyAuto)
+	originalIndex, fallbackIndex := -1, -1
+	for index, candidate := range wo {
+		if candidate.name == "を" {
+			originalIndex = index
+		}
+		if candidate.name == "お" {
+			fallbackIndex = index
+		}
+	}
+	if originalIndex < 0 || fallbackIndex < 0 || originalIndex > fallbackIndex {
+		t.Fatalf("を must precede お in candidates: %v", wo)
+	}
+	// The equivalent fallback must also carry a worse tier so the original
+	// kana keeps winning once both recordings exist.
+	originalTier, fallbackTier := -1, -1
+	for _, candidate := range wo {
+		if candidate.name == "を" {
+			originalTier = candidate.tier
+		}
+		if candidate.name == "お" {
+			fallbackTier = candidate.tier
+		}
+	}
+	if originalTier < 0 || fallbackTier <= originalTier {
+		t.Fatalf("equivalent fallback must have a worse tier than the original: %v", wo)
+	}
+	// Small-kana combinations must NOT fall back (different sounds).
+	if contains(aliasCandidatesWithPolicy("てぃ", "", true, AliasPolicyAuto), "ち") {
+		t.Fatal("てぃ must not fall back to ち")
+	}
+}
+
+// TestResolvePrefersOriginalKanaWhenBothRecordingsExist covers a bank that
+// owns dedicated recordings for both the original kana and its phonetically
+// equivalent fallback: the original must always win, and the fallback must
+// still synthesize when the dedicated recording is absent.
+func TestResolvePrefersOriginalKanaWhenBothRecordingsExist(t *testing.T) {
+	morae, err := frontend.ParseKana("あを")
+	if err != nil {
+		t.Fatal(err)
+	}
+	both := &Bank{Entries: map[string][]oto.Entry{
+		"あ":   {{Alias: "あ", Filename: "a.wav"}},
+		"- あ": {{Alias: "- あ", Filename: "a-start.wav"}},
+		"a あ": {{Alias: "a あ", Filename: "a-a.wav"}},
+		"を":   {{Alias: "を", Filename: "wo.wav", Preutterance: 30, Overlap: 20, Fixed: 40}},
+		"- を": {{Alias: "- を", Filename: "wo-start.wav", Preutterance: 30, Overlap: 20, Fixed: 40}},
+		"a を": {{Alias: "a を", Filename: "a-wo.wav", Preutterance: 30, Overlap: 20, Fixed: 40}},
+		"お":   {{Alias: "お", Filename: "o.wav", Preutterance: 30, Overlap: 20, Fixed: 40}},
+		"- お": {{Alias: "- お", Filename: "o-start.wav", Preutterance: 30, Overlap: 20, Fixed: 40}},
+		"a お": {{Alias: "a お", Filename: "a-o.wav", Preutterance: 30, Overlap: 20, Fixed: 40}},
+	}}
+	got, err := both.Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("selections = %d, want 2", len(got))
+	}
+	if got[1].Alias != "a を" {
+		t.Fatalf("alias = %q, want the dedicated を recording: %#v", got[1].Alias, got[1])
+	}
+	if got[1].FallbackTier != 0 {
+		t.Fatalf("fallback tier = %d, want the original kana to keep the better tier: %#v", got[1].FallbackTier, got[1])
+	}
+
+	onlyO := &Bank{Entries: map[string][]oto.Entry{
+		"あ":   {{Alias: "あ", Filename: "a.wav"}},
+		"- あ": {{Alias: "- あ", Filename: "a-start.wav"}},
+		"a あ": {{Alias: "a あ", Filename: "a-a.wav"}},
+		"お":   {{Alias: "お", Filename: "o.wav", Preutterance: 30, Overlap: 20, Fixed: 40}},
+		"- お": {{Alias: "- お", Filename: "o-start.wav", Preutterance: 30, Overlap: 20, Fixed: 40}},
+		"a お": {{Alias: "a お", Filename: "a-o.wav", Preutterance: 30, Overlap: 20, Fixed: 40}},
+	}}
+	fallback, err := onlyO.Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fallback[1].Alias != "a お" {
+		t.Fatalf("alias = %q, want the equivalent お fallback when を is absent: %#v", fallback[1].Alias, fallback[1])
+	}
+	if fallback[1].FallbackTier != 1 {
+		t.Fatalf("fallback tier = %d, want 1 for the equivalent alias: %#v", fallback[1].FallbackTier, fallback[1])
+	}
 }
 
 func TestAuditLatticeReportsAliasKindsAndSelection(t *testing.T) {
