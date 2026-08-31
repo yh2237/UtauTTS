@@ -462,6 +462,38 @@ func TestSafePreservePathRejectsEscapes(t *testing.T) {
 	}
 }
 
+func TestRunPreservesPortableConfigAndExternalRenderers(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "UtauTTS")
+	writeTestFile(t, filepath.Join(target, "app", "utautts-gui.exe"), "old-gui")
+	writeTestFile(t, filepath.Join(target, "config.ini"), "portable-settings")
+	writeTestFile(t, filepath.Join(target, "plugins", "renderers", "external", "plugin.json"),
+		`{"backend":"utau-external-resampler","assets":{"resampler":"tool.exe"}}`)
+	writeTestFile(t, filepath.Join(target, "plugins", "renderers", "external", "user-data.txt"), "keep")
+	writeTestFile(t, filepath.Join(target, "plugins", "renderers", "builtin", "plugin.json"),
+		`{"backend":"waveform","version":"old"}`)
+
+	zipPath := makeZip(t, map[string]string{
+		"app/utautts-gui.exe":                    "new-gui",
+		"config.ini":                             "package-default",
+		"plugins/renderers/external/plugin.json": `{"backend":"waveform"}`,
+		"plugins/renderers/builtin/plugin.json":  `{"backend":"waveform","version":"new"}`,
+	})
+	if err := run(target, "", zipPath, 0, "test", []string{"config.ini"}, false); err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]string{
+		"config.ini": "portable-settings",
+		"plugins/renderers/external/user-data.txt": "keep",
+		"plugins/renderers/builtin/plugin.json":    `{"backend":"waveform","version":"new"}`,
+	} {
+		data, err := os.ReadFile(filepath.Join(target, filepath.FromSlash(path)))
+		if err != nil || string(data) != want {
+			t.Errorf("%s = %q, %v; want %q", path, data, err, want)
+		}
+	}
+}
+
 func TestRunDeletesApplicationOwnedLocalArchive(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(root, "UtauTTS")

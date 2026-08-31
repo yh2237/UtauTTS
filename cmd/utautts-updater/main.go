@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -35,7 +36,7 @@ func main() {
 	deleteZip := flag.Bool("delete-zip", false, "delete the local zip after staging (for application-owned temporary downloads)")
 	pid := flag.Int("pid", 0, "PID of the running GUI to wait for before replacing files")
 	version := flag.String("version", "", "incoming release tag (diagnostics)")
-	preserveFlag := flag.String("preserve", "voice", "comma-separated relative paths kept from the old install")
+	preserveFlag := flag.String("preserve", "voice,config.ini", "comma-separated relative paths kept from the old install")
 	flag.Parse()
 
 	if *target == "" || (*downloadURL == "" && *zipFlag == "") {
@@ -137,6 +138,10 @@ func run(target, url, zipPath string, pid int, version string, preserve []string
 			_ = os.RemoveAll(stage)
 			return fmt.Errorf("preserve %s: %w", rel, err)
 		}
+	}
+	if err := preserveExternalRendererPlugins(target, stage); err != nil {
+		_ = os.RemoveAll(stage)
+		return fmt.Errorf("preserve external renderers: %w", err)
 	}
 	if !waitForExit(pid, 5*time.Minute) {
 		_ = os.RemoveAll(stage)
@@ -348,6 +353,44 @@ func preservePath(target, stage, rel string) error {
 		return err
 	}
 	return copyTree(source, destination)
+}
+
+func preserveExternalRendererPlugins(target, stage string) error {
+	root := filepath.Join(target, "plugins", "renderers")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		source := filepath.Join(root, entry.Name())
+		data, err := os.ReadFile(filepath.Join(source, "plugin.json"))
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return err
+		}
+		var manifest struct {
+			Backend string `json:"backend"`
+		}
+		if err := json.Unmarshal(data, &manifest); err != nil || manifest.Backend != "utau-external-resampler" {
+			continue
+		}
+		destination := filepath.Join(stage, "plugins", "renderers", entry.Name())
+		if err := os.RemoveAll(destination); err != nil {
+			return err
+		}
+		if err := copyTree(source, destination); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func safePreservePath(value string) (string, error) {
