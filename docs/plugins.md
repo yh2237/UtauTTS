@@ -38,7 +38,7 @@ Rendererは`plugins/renderers/<plugin>/plugin.json`を1つ持ちます。
 - `world_engine`
 - `resampler`: `utau-external-resampler` backendで実行するUTAU互換resampler
 
-現在の配布物に入っているRenderer IDは次のとおりです。
+配布物に入っているRenderer IDは次のとおりです。
 
 - `waveform`: CPUで動作する標準の波形接続
 - `utautts-world-phrase`: 公式WORLDとUtauTTS独自の特徴配置を使う既定Renderer

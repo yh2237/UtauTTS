@@ -37,7 +37,7 @@ UtauTTS側の読みとOpen JTalk側の解析結果が一致していない可能
 
 ## Rendererやruntime assetが見つからない
 
-まず`waveform` Rendererで合成できるか確認してください。WORLD系Rendererに必要なファイルは[モデル／Rendererプラグイン](plugins.md)にあります。CUDA版はCUDA対応のWindows配布物にだけ含まれます。
+まず`waveform` Rendererで合成できるか確認してください。WORLD系Rendererに必要なファイルは[モデル／Rendererプラグイン](plugins.md)にあります。
 
 ## LinuxでGUIが起動しない
 
