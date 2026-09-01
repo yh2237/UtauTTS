@@ -47,6 +47,10 @@ try {
         Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_ikawaha_kagome-dict-v1.1.7-LICENSE.txt') 'kagome-dict license'
         Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt') 'hts_engine_API license'
         Assert-Path (Join-Path $packageRoot 'runtime/utautts-worldline-bridge.exe') 'native worldline bridge'
+        Assert-Path (Join-Path $packageRoot 'runtime/utautts-world-engine.dll') 'UtauTTS WORLD engine'
+        Assert-Path (Join-Path $packageRoot 'licenses/WORLD/WORLD-LICENSE.txt') 'official WORLD license'
+        Assert-Path (Join-Path $packageRoot 'licenses/WORLD/OOURA-NOTICE.txt') 'Ooura FFT notice'
+        Assert-Path (Join-Path $packageRoot 'licenses/WORLD/MACRODEFINITIONS-LICENSE.txt') 'WORLD macro definitions license'
         Assert-Path (Join-Path $packageRoot 'licenses/PROSODY-MODELS.txt') 'prosody model license'
         Assert-Path (Join-Path $packageRoot 'models/README.md') 'model license readme'
         Assert-Path (Join-Path $packageRoot 'runtime/licenses/PYTHON_LICENSE.txt') 'Python runtime license'
@@ -193,6 +197,19 @@ try {
         Pop-Location
     }
     Assert-Path $worldlineRWav 'packaged WORLDLINE-R renderer output'
+
+    $utauTTSWorldWav = Join-Path $workingDirectory 'package-utautts-world-smoke.wav'
+    Push-Location $workingDirectory
+    try {
+        & $cli --voicebank $voicebank.FullName --text $smokeText --prosody frame-intonation-v8 `
+            --renderer utautts-world-phrase --apply-pitch --intonation-strength 1 --out $utauTTSWorldWav
+        if ($LASTEXITCODE -ne 0) {
+            throw "Packaged UtauTTS WORLD synthesis failed with exit code $LASTEXITCODE"
+        }
+    } finally {
+        Pop-Location
+    }
+    Assert-Path $utauTTSWorldWav 'packaged UtauTTS WORLD renderer output'
 
     $savedErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'

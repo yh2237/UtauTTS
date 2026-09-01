@@ -72,6 +72,7 @@ for required in \
   "${gui_root}/tools/utautts-updater" \
   "${gui_root}/runtime/utautts-openjtalk-features" \
   "${gui_root}/runtime/utautts-worldline-bridge" \
+  "${gui_root}/runtime/utautts-world-engine.so" \
   "${gui_root}/runtime/libworldline.so" \
   "${server_root}/utautts-server" \
   "${server_root}/manual-pitch.md" \
@@ -89,10 +90,14 @@ for required in \
   "${server_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \
   "${server_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt" \
   "${gui_root}/licenses/PROSODY-MODELS.txt" \
+  "${gui_root}/licenses/WORLD/WORLD-LICENSE.txt" \
+  "${gui_root}/licenses/WORLD/OOURA-NOTICE.txt" \
+  "${gui_root}/licenses/WORLD/MACRODEFINITIONS-LICENSE.txt" \
   "${server_root}/models/README.md" \
   "${gui_root}/runtime/licenses/PYTHON_LICENSE.txt" \
   "${server_root}/runtime/licenses/PYINSTALLER_COPYING.txt" \
-  "${server_root}/runtime/utautts-worldline-bridge"; do
+  "${server_root}/runtime/utautts-worldline-bridge" \
+  "${server_root}/runtime/utautts-world-engine.so"; do
   [ -f "${required}" ] || fail "required package file is missing: ${required}"
 done
 for removed_runtime in libcoreclr.so libhostpolicy.so utautts-worldline-bridge.runtimeconfig.json; do
@@ -149,7 +154,10 @@ smoke_text='こんにちは'
 "${gui_root}/tools/utautts-cli" --voicebank "${voicebank}" --text "${smoke_text}" \
   --prosody frame-intonation-v8 --renderer openutau-worldline-r-faithful \
   --apply-pitch --intonation-strength 1 --out "${work_dir}/worldline-r.wav"
-for wav in "${work_dir}/waveform.wav" "${work_dir}/production.wav" "${work_dir}/worldline-r.wav"; do
+"${gui_root}/tools/utautts-cli" --voicebank "${voicebank}" --text "${smoke_text}" \
+  --prosody frame-intonation-v8 --renderer utautts-world-phrase \
+  --apply-pitch --intonation-strength 1 --out "${work_dir}/utautts-world.wav"
+for wav in "${work_dir}/waveform.wav" "${work_dir}/production.wav" "${work_dir}/worldline-r.wav" "${work_dir}/utautts-world.wav"; do
   [ "$(stat -c %s "${wav}")" -gt 44 ] || fail "synthesis output is empty: ${wav}"
 done
 if "${gui_root}/tools/utautts-cli" --renderer waveform --voicebank "${voicebank}" \

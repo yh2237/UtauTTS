@@ -107,6 +107,9 @@ function Copy-WorldlineLicenses {
         throw "Worldline license sources are missing: $source"
     }
     Copy-Item -LiteralPath $source -Destination (Join-Path $licenseRoot 'Worldline') -Recurse -Force
+    Copy-Required (Join-Path $root 'third_party/world/LICENSE.txt') (Join-Path $licenseRoot 'WORLD/WORLD-LICENSE.txt')
+    Copy-Required (Join-Path $root 'third_party/world/OOURA-NOTICE.txt') (Join-Path $licenseRoot 'WORLD/OOURA-NOTICE.txt')
+    Copy-Required (Join-Path $root 'third_party/world/MACRODEFINITIONS-LICENSE.txt') (Join-Path $licenseRoot 'WORLD/MACRODEFINITIONS-LICENSE.txt')
 }
 
 function Copy-QtLicenses {

@@ -87,6 +87,8 @@ try {
         'build', '-trimpath', '-o', (Join-Path $guiRuntimePath 'utautts-worldline-bridge.exe'),
         './cmd/utautts-worldline-bridge'
     )
+    & (Join-Path $PSScriptRoot 'build-world-engine.ps1') -OutputDirectory $guiRuntimePath
+    if ($LASTEXITCODE -ne 0) { throw "UtauTTS WORLD engine build failed with exit code $LASTEXITCODE" }
     & (Join-Path $PSScriptRoot 'fetch-worldline.ps1') -OutputPath (Join-Path $guiRuntimePath 'worldline.dll')
 
     if ($cudaAvailable) {

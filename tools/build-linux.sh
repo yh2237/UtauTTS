@@ -100,6 +100,7 @@ mkdir -p "${staging_dir}"
 CGO_ENABLED=1 "${go_command}" build -trimpath \
   -o "${staging_dir}/utautts-worldline-bridge" \
   ./cmd/utautts-worldline-bridge
+bash "${root_dir}/tools/build-world-engine.sh" "${staging_dir}"
 worldline_sha256="EEAE80212191C84EF2A1EBCD33567F47D9700F8E74136578944DBBEEE209136C"
 worldline_source="${root_dir}/assets/worldline/linux-x64/libworldline.so"
 actual_worldline_hash="$(sha256sum "${worldline_source}" | awk '{print $1}')"
@@ -174,9 +175,12 @@ done
 echo '=== OpenJTalk, worldline, and dataset licenses ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
   license_root="${package_dir}/licenses"
-  mkdir -p "${license_root}/OpenJTalk" "${license_root}/Worldline"
+  mkdir -p "${license_root}/OpenJTalk" "${license_root}/Worldline" "${license_root}/WORLD"
   cp "${root_dir}/licenses/openjtalk/"*.txt "${license_root}/OpenJTalk/"
   cp "${root_dir}/licenses/worldline/"*.txt "${license_root}/Worldline/"
+  cp "${root_dir}/third_party/world/LICENSE.txt" "${license_root}/WORLD/WORLD-LICENSE.txt"
+  cp "${root_dir}/third_party/world/OOURA-NOTICE.txt" "${license_root}/WORLD/OOURA-NOTICE.txt"
+  cp "${root_dir}/third_party/world/MACRODEFINITIONS-LICENSE.txt" "${license_root}/WORLD/MACRODEFINITIONS-LICENSE.txt"
   cp "${root_dir}/licenses/JSUT-DATA-AND-LABELS.txt" "${license_root}/"
   cp "${root_dir}/licenses/PROSODY-MODELS.txt" "${license_root}/"
   dict_copying="${package_dir}/runtime/open_jtalk_dic_utf_8-1.11/COPYING"
@@ -223,6 +227,18 @@ EOF
   "capabilities": { "frame_pitch": true },
   "assets": {
     "worldline": "../../../runtime/libworldline.so",
+    "worldline_bridge": "../../../runtime/utautts-worldline-bridge"
+  }
+}
+EOF
+  cat > "${package_dir}/plugins/renderers/utautts-world-phrase/plugin.json" <<'EOF'
+{
+  "manifest_version": 1, "kind": "renderer", "id": "utautts-world-phrase",
+  "display_name": "UtauTTS WORLD phrase (experimental)", "description": "公式WORLDで原音を解析し、UtauTTS独自の配置と補間でフレーズ全体を合成します。",
+  "backend": "utautts-world-phrase", "version": "1", "acceleration": "cpu", "default_priority": 20, "experimental": true,
+  "capabilities": { "frame_pitch": true },
+  "assets": {
+    "world_engine": "../../../runtime/utautts-world-engine.so",
     "worldline_bridge": "../../../runtime/utautts-worldline-bridge"
   }
 }

@@ -218,6 +218,11 @@ https://github.com/Sleepwalking/libgvps/tree/2f1b4106d72f8f8138dc447bf0123820c07
 WORLD
 =====
 
+The UtauTTS WORLD phrase renderer builds the official WORLD
+sources at commit d625e7608ca23a870018f01e7c562ac683d9847f into an UtauTTS-owned
+analysis and synthesis library. The WORLD license and bundled component
+notices are included under licenses/WORLD in each release package.
+
 Copyright (c) 2010 M. Morise
 All rights reserved.
 
@@ -247,6 +252,17 @@ POSSIBILITY OF SUCH DAMAGE.
 
 Upstream source:
 https://github.com/mmorise/World
+
+WORLD's fft.cpp contains FFT routines by Takuya Ooura. The package permits
+use, copying, modification, and distribution for any purpose, including
+commercial use, without a fee. Its notice and official source URL are included
+as licenses/WORLD/OOURA-NOTICE.txt.
+
+WORLD's macrodefinitions.h contains MIT-licensed definitions from the
+Department of Arts and Culture of the Government of the Republic of South
+Africa, with contributions from the Meraka Institute, CSIR, and Giulio Paci.
+The complete notice is included as
+licenses/WORLD/MACRODEFINITIONS-LICENSE.txt.
 
 
 足立レイ UTAU音源 ver3.5.0
