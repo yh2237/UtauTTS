@@ -256,7 +256,7 @@ function Copy-CudaLicense {
 CUDA renderer build provenance
 =============================
 
-The optional faithful GPU renderer's CUDA support was built with nvcc at:
+The experimental CUDA renderer support was built with nvcc at:
 $nvcc
 
 nvcc version output:

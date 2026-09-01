@@ -45,7 +45,15 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 			return nil, fmt.Errorf("WORLD units have inconsistent FFT sizes")
 		}
 	}
-	result := mixWorldFeatures(input, prepared, fftSize, worldCPUWorkers(frames))
+	var result worldFeatures
+	if input.Engine == "utautts-world-phrase-cuda" {
+		result, err = mixWorldFeaturesCUDA(input.GPUPath, input, prepared, fftSize)
+	} else {
+		result = mixWorldFeatures(input, prepared, fftSize, worldCPUWorkers(frames))
+	}
+	if err != nil {
+		return nil, err
+	}
 	wave, err := engine.Synthesize(result, input.SampleRate)
 	if err != nil {
 		return nil, err

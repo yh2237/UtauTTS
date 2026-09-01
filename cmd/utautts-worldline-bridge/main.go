@@ -11,6 +11,7 @@ type manifest struct {
 	Engine          string    `json:"engine"`
 	WorldlinePath   string    `json:"worldline_path"`
 	WorldEnginePath string    `json:"world_engine_path"`
+	GPUPath         string    `json:"gpu_path"`
 	OutputPath      string    `json:"output_path"`
 	SampleRate      int       `json:"sample_rate"`
 	F0Curve         []float64 `json:"f0_curve"`
@@ -118,7 +119,7 @@ func renderManifest(path string, state *bridgeState) error {
 	if len(input.Units) == 0 || len(input.F0Curve) < 2 {
 		return fmt.Errorf("manifest has no synthesis data")
 	}
-	if input.Engine == "utautts-world-phrase" {
+	if input.Engine == "utautts-world-phrase" || input.Engine == "utautts-world-phrase-cuda" {
 		var engine worldEngine
 		if state != nil {
 			engine = state.worldEngines[input.WorldEnginePath]

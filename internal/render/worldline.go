@@ -21,6 +21,7 @@ type worldlineManifest struct {
 	Engine          string                  `json:"engine,omitempty"`
 	WorldlinePath   string                  `json:"worldline_path"`
 	WorldEnginePath string                  `json:"world_engine_path,omitempty"`
+	GPUPath         string                  `json:"gpu_path,omitempty"`
 	OutputPath      string                  `json:"output_path"`
 	SampleRate      int                     `json:"sample_rate"`
 	F0Curve         []float64               `json:"f0_curve"`
@@ -33,6 +34,10 @@ func renderOpenUtauWorldlineRFaithful(synthesisPlan *plan.Plan, cfg Config) (*au
 
 func renderUtauTTSWorldPhrase(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
 	return renderWorldlineEngine(synthesisPlan, cfg, "utautts-world-phrase")
+}
+
+func renderUtauTTSWorldPhraseCUDA(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
+	return renderWorldlineEngine(synthesisPlan, cfg, "utautts-world-phrase-cuda")
 }
 
 type worldlineManifestUnit struct {
@@ -82,7 +87,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) 
 	synthesisPlan.CVVCTiming = cfg.CVVCTiming
 	synthesisPlan.CVVCTransitionGain = cfg.CVVCTransitionGain
 	synthesisPlan.CVVCPreBoundaryFade = cfg.CVVCPreBoundaryFade
-	customWorld := engine == "utautts-world-phrase"
+	customWorld := engine == "utautts-world-phrase" || engine == "utautts-world-phrase-cuda"
 	library, worldEnginePath := "", ""
 	var err error
 	if customWorld {
@@ -92,6 +97,16 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) 
 	}
 	if err != nil {
 		return nil, err
+	}
+	gpuPath := ""
+	if engine == "utautts-world-phrase-cuda" {
+		gpuPath = cfg.WorldGPUPath
+		if gpuPath == "" {
+			return nil, errors.New("CUDA WORLD feature mixer is not configured by the renderer plugin")
+		}
+		if _, err := os.Stat(gpuPath); err != nil {
+			return nil, fmt.Errorf("CUDA WORLD feature mixer %q: %w", gpuPath, err)
+		}
 	}
 	bridge, err := resolveWorldlineBridge(cfg.WorldlineBridgePath)
 	if err != nil {
@@ -153,6 +168,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) 
 		Engine:          engine,
 		WorldlinePath:   library,
 		WorldEnginePath: worldEnginePath,
+		GPUPath:         gpuPath,
 		SampleRate:      sampleRate,
 		F0Curve:         f0Curve,
 	}

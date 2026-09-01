@@ -91,11 +91,14 @@ try {
             throw "server package still contains an obsolete worldline runtime file: $removedRuntime"
         }
     }
-    $gpuBinary = Test-Path -LiteralPath (Join-Path $serverRuntime 'utautts-waveform-gpu.dll')
-    if ($gpuBinary) {
-        foreach ($packageRoot in @($guiRoot, $serverRoot)) {
-            Assert-Path (Join-Path $packageRoot 'licenses/CUDA/CUDA-EULA.txt') 'CUDA EULA'
-            Assert-Path (Join-Path $packageRoot 'licenses/CUDA/CUDA-BUILD.txt') 'CUDA build provenance'
+    foreach ($packageRoot in @($guiRoot, $serverRoot)) {
+        $gpuRenderer = Test-Path -LiteralPath (Join-Path $packageRoot 'plugins/renderers/utautts-world-phrase-cuda/plugin.json')
+        if ($gpuRenderer) {
+            throw 'experimental CUDA renderer must not be included in a release package'
+        }
+        $gpuBinary = Test-Path -LiteralPath (Join-Path $packageRoot 'runtime/utautts-waveform-gpu.dll')
+        if ($gpuBinary) {
+            throw 'experimental CUDA runtime must not be included in a release package'
         }
     }
 

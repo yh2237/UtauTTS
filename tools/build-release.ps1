@@ -20,7 +20,6 @@ $guiZip = Join-Path $releaseRoot 'UtauTTS-win-x64.zip'
 $serverZip = Join-Path $releaseRoot 'UtauTTS-Server-win-x64.zip'
 $bundledVoicebankDirectory = Join-Path $root 'voice'
 $bundledVoicebankSHA256 = 'B96D1B21145F22E573AFD9EC8AEAAD0EC9CBAEE581C2623C64ADDEB31DE46B3D'
-$cudaAvailable = $null -ne (Get-Command nvcc -ErrorAction SilentlyContinue)
 
 function Invoke-Checked([string]$Command, [string[]]$Arguments) {
     & $Command @Arguments
@@ -91,14 +90,6 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "UtauTTS WORLD engine build failed with exit code $LASTEXITCODE" }
     & (Join-Path $PSScriptRoot 'fetch-worldline.ps1') -OutputPath (Join-Path $guiRuntimePath 'worldline.dll')
 
-    if ($cudaAvailable) {
-        Write-Host '=== Build optional CUDA renderer support ==='
-        & (Join-Path $PSScriptRoot 'build-waveform-gpu.ps1') -OutputDirectory $guiRuntimePath
-        if ($LASTEXITCODE -ne 0) { throw "CUDA renderer support build failed with exit code $LASTEXITCODE" }
-    } else {
-        Write-Warning 'CUDA Toolkit was not found; faithful GPU renderer will not be included'
-    }
-
     Copy-Item -Path (Join-Path $guiRuntimePath '*') -Destination $serverRuntimePath -Recurse -Force
 
     $openJTalkHelper = Join-Path $root 'tools/openjtalk-feature-bridge/bin/utautts-openjtalk-features.exe'
@@ -147,6 +138,12 @@ try {
     Copy-Item -LiteralPath (Join-Path $sourceModels 'README.md') -Destination $serverModelsPath
     Copy-Item -LiteralPath (Join-Path $root 'plugins/renderers') -Destination $guiPluginsPath -Recurse
     Copy-Item -LiteralPath (Join-Path $root 'plugins/renderers') -Destination $serverPluginsPath -Recurse
+    foreach ($pluginsPath in @($guiPluginsPath, $serverPluginsPath)) {
+        $cudaRendererPath = Join-Path $pluginsPath 'renderers/utautts-world-phrase-cuda'
+        if (Test-Path -LiteralPath $cudaRendererPath) {
+            Remove-Item -LiteralPath $cudaRendererPath -Recurse -Force
+        }
+    }
     $guiDocs = Join-Path $guiPath 'docs'
     New-Item -ItemType Directory -Force -Path $guiDocs | Out-Null
     Copy-Item -Path 'docs/*' -Destination $guiDocs -Recurse
@@ -164,9 +161,9 @@ try {
     Copy-Item -LiteralPath 'LICENSE', 'THIRD_PARTY_NOTICES.txt' -Destination $serverPath
 
     Write-Host '=== Collect exact third-party licenses ==='
-    & (Join-Path $PSScriptRoot 'collect-third-party-licenses.ps1') -PackageRoot $guiPath -Variant windows-gui -CudaIncluded:$cudaAvailable
+    & (Join-Path $PSScriptRoot 'collect-third-party-licenses.ps1') -PackageRoot $guiPath -Variant windows-gui
     if ($LASTEXITCODE -ne 0) { throw 'GUI third-party license collection failed' }
-    & (Join-Path $PSScriptRoot 'collect-third-party-licenses.ps1') -PackageRoot $serverPath -Variant windows-server -CudaIncluded:$cudaAvailable
+    & (Join-Path $PSScriptRoot 'collect-third-party-licenses.ps1') -PackageRoot $serverPath -Variant windows-server
     if ($LASTEXITCODE -ne 0) { throw 'Server third-party license collection failed' }
 
     foreach ($packagePath in @($guiPath, $serverPath)) {

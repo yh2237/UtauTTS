@@ -127,6 +127,7 @@ func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {
 	want := map[string]string{
 		"openutau-worldline-r-faithful": "cpu",
 		"utautts-world-phrase":          "cpu",
+		"utautts-world-phrase-cuda":     "cuda",
 	}
 	for _, item := range items {
 		if acceleration, ok := want[item.ID]; ok {
