@@ -122,7 +122,7 @@ try {
         Copy-Item -LiteralPath $pyInstallerLicense[0].FullName -Destination (Join-Path $licensePath 'PYINSTALLER_COPYING.txt')
     }
 
-    Copy-Item -LiteralPath 'LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.txt' -Destination $guiPath
+    Copy-Item -LiteralPath 'LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.txt', 'THIRD_PARTY_NOTICES-WINDOWS-GUI.txt' -Destination $guiPath
 
     $sourceModels = Join-Path $root 'models'
     $bundledModels = @()

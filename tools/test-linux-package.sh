@@ -100,6 +100,10 @@ for required in \
   "${server_root}/runtime/utautts-world-engine.so"; do
   [ -f "${required}" ] || fail "required package file is missing: ${required}"
 done
+for package_root in "${gui_root}" "${server_root}"; do
+  [ ! -e "${package_root}/THIRD_PARTY_NOTICES-WINDOWS-GUI.txt" ] \
+    || fail "Linux package contains the Windows GUI third-party addendum: ${package_root}"
+done
 for removed_runtime in libcoreclr.so libhostpolicy.so utautts-worldline-bridge.runtimeconfig.json; do
   [ ! -e "${server_root}/runtime/${removed_runtime}" ] \
     || fail "server package still contains an obsolete worldline runtime file: ${removed_runtime}"

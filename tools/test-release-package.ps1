@@ -56,6 +56,10 @@ try {
         Assert-Path (Join-Path $packageRoot 'runtime/licenses/PYTHON_LICENSE.txt') 'Python runtime license'
         Assert-Path (Join-Path $packageRoot 'runtime/licenses/PYINSTALLER_COPYING.txt') 'PyInstaller license'
     }
+    Assert-Path (Join-Path $guiRoot 'THIRD_PARTY_NOTICES-WINDOWS-GUI.txt') 'Windows GUI third-party addendum'
+    if (Test-Path -LiteralPath (Join-Path $serverRoot 'THIRD_PARTY_NOTICES-WINDOWS-GUI.txt')) {
+        throw 'Server release package must not contain the Windows GUI third-party addendum'
+    }
     Assert-Path (Join-Path $serverRoot 'manual-pitch.md') 'server manual pitch documentation'
     Assert-Path (Join-Path $guiRoot 'docs/README.md') 'documentation index'
     Assert-Path (Join-Path $guiRoot 'docs/installation.md') 'installation documentation'
