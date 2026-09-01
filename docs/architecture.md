@@ -31,14 +31,6 @@ GUI、CLI、Serverの既定Rendererです。公式WORLDで各原音を分析し�
 
 OpenUTAU 0.1.565の`PhraseSynth` APIを使い、各原音のWORLD特徴を共通の時間軸へ配置してからフレーズ全体を合成します。`worldline.dll`と専用bridgeが必要です。
 
-### `openutau-classic-worldline-faithful`
-
-OpenUTAU Classicに近いphoneme timing、Worldline resampling、5点envelopeを使ってframe modelの相対ピッチ曲線を原音へ適用します。`worldline.dll`と専用bridgeが必要です。
-
-### `openutau-classic-worldline-faithful-gpu`
-
-CPU版faithful Rendererと同じ処理をCUDAで実行する任意Rendererです。CUDA対応の配布物でのみ利用できます。利用できない環境ではCPU版を選択してください。
-
 ## GUIとHTTP Server
 
 デスクトップGUIはQt Quick/QMLで作りGoバックエンドをC ABI経由で同一プロセスから呼び出します。音源列挙、読み解析、合成にHTTP ServerやWebViewは使いません。

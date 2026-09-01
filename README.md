@@ -110,9 +110,7 @@ exo出力後に表示される領域をAviUtlの拡張編集へドラッグす�
 | --- | --- |
 | `utautts-world-phrase` | 既定。公式WORLDで解析し、UtauTTS独自の特徴配置でフレーズ全体を合成 |
 | `openutau-worldline-r-faithful` | OpenUTAUの処理で原音の音響特徴を時間軸へ配置し、フレーズ全体を再合成 |
-| `openutau-classic-worldline-faithful` | OpenUTAU Classicと同じWorldline処理と5点包絡線で原音ごとに接続 |
 | `waveform` | Go内で原音波形を伸縮して接続。原音の明瞭度を確認しやすい |
-| `openutau-classic-worldline-faithful-gpu` | Classic faithfulのCUDA版。対応するWindows配布物だけに同梱 |
 | 外部Renderer | 設定で追加したUTAU互換resamplerを使い、UtauTTSの5点包絡線で接続 |
 
 「設定」→「設定...」の外部RendererからUTAU互換の実行ファイルを追加できます。

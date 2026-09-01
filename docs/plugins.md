@@ -43,8 +43,6 @@ Rendererは`plugins/renderers/<plugin>/plugin.json`を1つ持ちます。
 - `waveform`: CPUで動作する標準の波形接続
 - `utautts-world-phrase`: 公式WORLDとUtauTTS独自の特徴配置を使う既定Renderer
 - `openutau-worldline-r-faithful`: OpenUTAUの処理でフレーズ全体をWORLD合成するRenderer
-- `openutau-classic-worldline-faithful`: CPU版faithful Renderer
-- `openutau-classic-worldline-faithful-gpu`: CUDA版faithful Renderer。CUDA対応の配布物にのみ含まれます。
 
 ### 外部UTAU Renderer
 
@@ -64,7 +62,7 @@ GUIの設定で実行ファイルを追加すると、UtauTTS直下の`plugins/r
 }
 ```
 
-呼び出し形式はUTAU互換で、入力WAV、出力WAV、音名、子音速度、flags、offset、必要長、consonant、cutoff、音量、modulation、tempo、ピッチ列を渡します。wavtoolは外部から指定せず、UtauTTSがOpenUTAU Classic方式のタイミングと5点包絡線で接続します。resampler固有flagsの設定にはまだ対応していません。
+呼び出し形式はUTAU互換で、入力WAV、出力WAV、音名、子音速度、flags、offset、必要長、consonant、cutoff、音量、modulation、tempo、ピッチ列を渡します。wavtoolは外部から指定せず、UtauTTSがOpenUTAU由来のタイミングと5点包絡線で接続します。resampler固有flagsの設定にはまだ対応していません。
 
 GUI、CLI、Serverは同じ`plugins/renderers`を自動検出します。CLI／Serverでは`--renderer`へmanifestの`id`を渡します。外部実行ファイルの利用条件はUtauTTSのライセンスには含まれないため、各配布元の規約を確認してください。
 
