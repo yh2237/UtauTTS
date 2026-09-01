@@ -59,6 +59,14 @@ QVariantList legalDocuments() {
             documents.append(QVariantMap{{"name", sectionName}, {"text", finalSection}});
         }
     }
+#ifdef Q_OS_WIN
+    const QString windowsGuiAddendum =
+        readTextResource(":/legal/THIRD_PARTY_NOTICES-WINDOWS-GUI.txt");
+    if (!windowsGuiAddendum.isEmpty()) {
+        documents.append(QVariantMap{{"name", "Windows GUI third-party addendum"},
+                                     {"text", windowsGuiAddendum}});
+    }
+#endif
     return documents;
 }
 

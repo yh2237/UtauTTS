@@ -106,11 +106,22 @@ set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/../THIRD_PARTY_NOTICES.txt"
     PROPERTIES QT_RESOURCE_ALIAS "THIRD_PARTY_NOTICES.txt"
 )
+set(legal_files
+    "${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../THIRD_PARTY_NOTICES.txt"
+)
+if(WIN32)
+    set_source_files_properties(
+        "${CMAKE_CURRENT_SOURCE_DIR}/../THIRD_PARTY_NOTICES-WINDOWS-GUI.txt"
+        PROPERTIES QT_RESOURCE_ALIAS "THIRD_PARTY_NOTICES-WINDOWS-GUI.txt"
+    )
+    list(APPEND legal_files
+        "${CMAKE_CURRENT_SOURCE_DIR}/../THIRD_PARTY_NOTICES-WINDOWS-GUI.txt"
+    )
+endif()
 qt_add_resources(utautts "legal"
     PREFIX "/legal"
-    FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../THIRD_PARTY_NOTICES.txt"
+    FILES ${legal_files}
 )
 
 # UI language files (JSON). Translator.qml loads qrc:/lang/<code>.json.
