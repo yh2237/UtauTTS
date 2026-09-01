@@ -8,13 +8,14 @@ import (
 )
 
 type manifest struct {
-	Engine        string    `json:"engine"`
-	WorldlinePath string    `json:"worldline_path"`
-	GPUPath       string    `json:"gpu_path"`
-	OutputPath    string    `json:"output_path"`
-	SampleRate    int       `json:"sample_rate"`
-	F0Curve       []float64 `json:"f0_curve"`
-	Units         []unit    `json:"units"`
+	Engine          string    `json:"engine"`
+	WorldlinePath   string    `json:"worldline_path"`
+	WorldEnginePath string    `json:"world_engine_path"`
+	GPUPath         string    `json:"gpu_path"`
+	OutputPath      string    `json:"output_path"`
+	SampleRate      int       `json:"sample_rate"`
+	F0Curve         []float64 `json:"f0_curve"`
+	Units           []unit    `json:"units"`
 }
 
 type unit struct {
@@ -68,17 +69,23 @@ type serveResponse struct {
 }
 
 func serve(input *os.File, output *os.File) error {
-	libraries := make(map[string]nativeLibrary)
+	state := &bridgeState{
+		libraries: make(map[string]nativeLibrary), worldEngines: make(map[string]worldEngine),
+		worldUnits: newWorldFeatureCache(32),
+	}
 	defer func() {
-		for _, library := range libraries {
+		for _, library := range state.libraries {
 			_ = library.Close()
+		}
+		for _, engine := range state.worldEngines {
+			_ = engine.Close()
 		}
 	}()
 	scanner := bufio.NewScanner(input)
 	writer := bufio.NewWriter(output)
 	for scanner.Scan() {
 		path := scanner.Text()
-		err := renderManifest(path, libraries)
+		err := renderManifest(path, state)
 		response := serveResponse{OK: err == nil}
 		if err != nil {
 			response.Error = err.Error()
@@ -94,7 +101,13 @@ func serve(input *os.File, output *os.File) error {
 	return scanner.Err()
 }
 
-func renderManifest(path string, libraries map[string]nativeLibrary) error {
+type bridgeState struct {
+	libraries    map[string]nativeLibrary
+	worldEngines map[string]worldEngine
+	worldUnits   *worldFeatureCache
+}
+
+func renderManifest(path string, state *bridgeState) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -106,14 +119,43 @@ func renderManifest(path string, libraries map[string]nativeLibrary) error {
 	if len(input.Units) == 0 || len(input.F0Curve) < 2 {
 		return fmt.Errorf("manifest has no synthesis data")
 	}
-	library := libraries[input.WorldlinePath]
+	if input.Engine == "utautts-world-phrase" {
+		var engine worldEngine
+		if state != nil {
+			engine = state.worldEngines[input.WorldEnginePath]
+		}
+		if engine == nil {
+			engine, err = openWorldEngine(input.WorldEnginePath)
+			if err != nil {
+				return err
+			}
+			if state != nil {
+				state.worldEngines[input.WorldEnginePath] = engine
+			} else {
+				defer engine.Close()
+			}
+		}
+		var cache *worldFeatureCache
+		if state != nil {
+			cache = state.worldUnits
+		}
+		samples, renderErr := renderUtauTTSWorldPhrase(engine, input, cache)
+		if renderErr != nil {
+			return renderErr
+		}
+		return writePCM16(input.OutputPath, input.SampleRate, samples)
+	}
+	var library nativeLibrary
+	if state != nil {
+		library = state.libraries[input.WorldlinePath]
+	}
 	if library == nil {
 		library, err = openNativeLibrary(input.WorldlinePath)
 		if err != nil {
 			return err
 		}
-		if libraries != nil {
-			libraries[input.WorldlinePath] = library
+		if state != nil {
+			state.libraries[input.WorldlinePath] = library
 		} else {
 			defer library.Close()
 		}

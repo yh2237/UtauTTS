@@ -19,13 +19,14 @@ import (
 const worldlineFrameMS = 10.0
 
 type worldlineManifest struct {
-	Engine        string                  `json:"engine,omitempty"`
-	WorldlinePath string                  `json:"worldline_path"`
-	GPUPath       string                  `json:"gpu_path,omitempty"`
-	OutputPath    string                  `json:"output_path"`
-	SampleRate    int                     `json:"sample_rate"`
-	F0Curve       []float64               `json:"f0_curve"`
-	Units         []worldlineManifestUnit `json:"units"`
+	Engine          string                  `json:"engine,omitempty"`
+	WorldlinePath   string                  `json:"worldline_path"`
+	WorldEnginePath string                  `json:"world_engine_path,omitempty"`
+	GPUPath         string                  `json:"gpu_path,omitempty"`
+	OutputPath      string                  `json:"output_path"`
+	SampleRate      int                     `json:"sample_rate"`
+	F0Curve         []float64               `json:"f0_curve"`
+	Units           []worldlineManifestUnit `json:"units"`
 }
 
 func renderOpenUtauClassicWorldlineFaithful(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
@@ -38,6 +39,10 @@ func renderOpenUtauClassicWorldlineFaithfulGPU(synthesisPlan *plan.Plan, cfg Con
 
 func renderOpenUtauWorldlineRFaithful(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
 	return renderWorldlineEngine(synthesisPlan, cfg, "worldline-r-faithful", false)
+}
+
+func renderUtauTTSWorldPhrase(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
+	return renderWorldlineEngine(synthesisPlan, cfg, "utautts-world-phrase", false)
 }
 
 type worldlineManifestUnit struct {
@@ -87,7 +92,14 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, 
 	synthesisPlan.CVVCTiming = cfg.CVVCTiming
 	synthesisPlan.CVVCTransitionGain = cfg.CVVCTransitionGain
 	synthesisPlan.CVVCPreBoundaryFade = cfg.CVVCPreBoundaryFade
-	library, err := resolveWorldlineLibrary(cfg.WorldlinePath)
+	customWorld := engine == "utautts-world-phrase"
+	library, worldEnginePath := "", ""
+	var err error
+	if customWorld {
+		worldEnginePath, err = resolveWorldEngine(cfg.WorldEnginePath)
+	} else {
+		library, err = resolveWorldlineLibrary(cfg.WorldlinePath)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +123,8 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, 
 	var classicTimings []openUtauClassicTiming
 	phraseStartMS := 0.0
 	faithfulClassic := strings.HasPrefix(engine, "classic-worldline-faithful")
-	faithfulWorldlineR := engine == "worldline-r-faithful"
-	openUtauTiming := faithfulClassic || faithfulWorldlineR
+	phraseTiming := engine == "worldline-r-faithful" || customWorld
+	openUtauTiming := faithfulClassic || phraseTiming
 	if openUtauTiming {
 		classicTimings, phraseStartMS = openUtauClassicTimings(synthesisPlan.Units, cfg.CVVCTiming)
 	}
@@ -154,7 +166,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, 
 	frameMS := worldlineFrameMS
 	curveStartMS := 0.0
 	curveDurationMS := synthesisPlan.DurationMS + cfg.ReleaseMS
-	if faithfulWorldlineR {
+	if phraseTiming {
 		curveStartMS = -leadingMS
 		curveDurationMS += leadingMS
 	}
@@ -164,11 +176,12 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, 
 		f0Curve = worldlineLocalF0Curve(synthesisPlan, pitches, pitchFactors, reference, len(f0Curve))
 	}
 	manifest := worldlineManifest{
-		Engine:        engine,
-		WorldlinePath: library,
-		GPUPath:       gpuPath,
-		SampleRate:    sampleRate,
-		F0Curve:       f0Curve,
+		Engine:          engine,
+		WorldlinePath:   library,
+		WorldEnginePath: worldEnginePath,
+		GPUPath:         gpuPath,
+		SampleRate:      sampleRate,
+		F0Curve:         f0Curve,
 	}
 	for frame := range manifest.F0Curve {
 		manifest.F0Curve[frame] *= pitchCurveFactorAt(cfg.PitchCurve, curveStartMS+float64(frame)*frameMS)
@@ -179,8 +192,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, 
 	}
 	defer os.RemoveAll(tempDir)
 
-	// 全ユニットをフレーズのレートへ統一してからbridgeへ渡す。
-	// 再サンプル後は位置が合わないFRQを捨て、波形からF0を再測定する。
+	// bridgeへ渡す前にsample rateを揃え、無効になったFRQを破棄する。
 	normalizedSources := make(map[string]string)
 	for index := range synthesisPlan.Units {
 		unit := &synthesisPlan.Units[index]
@@ -232,15 +244,15 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, 
 		}
 		var envelopePoints []worldlineEnvelopePoint
 		pitchLengthMS := 0.0
-		if strings.HasPrefix(engine, "classic-worldline-") || faithfulWorldlineR {
-			// OpenUtau互換でbendを元のpreutteranceから始め、余分な先頭を後で飛ばす。
+		if strings.HasPrefix(engine, "classic-worldline-") || phraseTiming {
+			// OpenUTAUと同じ位置からbendを始め、先頭の余剰をskipする。
 			pitchLeadingMS := unit.PreutteranceMS
 			skipMS = math.Max(0, pitchLeadingMS-timing.preutteranceMS)
 			pitchStartMS = unit.NoteStartMS - pitchLeadingMS
 			durCorrection := 0.0
 			if openUtauTiming {
 				phoneTiming := classicTimings[i]
-				// 呼び出し側に依存せず、クラシック方式のskipMSを非負に保つ。
+				// Classic方式のskipを非負に保つ。
 				skipMS = math.Max(0, pitchLeadingMS-phoneTiming.preutter)
 				durCorrection = phoneTiming.preutter - phoneTiming.tailIntrude + phoneTiming.tailOverlap
 				envelopePoints = openUtauEnvelopeFromTiming(*unit, phoneTiming)
@@ -264,20 +276,31 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, 
 			lengthMS -= leadingTrimMS
 			positionMS = 0
 		}
-		source, frqPath := unit.Source, findFRQPath(unit.Source)
+		originalSource := unit.Source
+		source, frqPath := originalSource, findFRQPath(originalSource)
 		if normalized, ok := normalizedSources[unit.Source]; ok {
 			source = normalized
 			frqPath = ""
 		}
 		fadeInMS := math.Max(2, timing.preutteranceMS-timing.overlapMS)
 		fadeOutMS := cfg.ReleaseMS
-		if faithfulWorldlineR && len(envelopePoints) == 5 {
+		if phraseTiming && len(envelopePoints) == 5 {
 			lengthMS = envelopePoints[4].XMS - envelopePoints[0].XMS
 			fadeInMS = envelopePoints[1].XMS - envelopePoints[0].XMS
 			fadeOutMS = envelopePoints[4].XMS - envelopePoints[3].XMS
 		}
+		cacheSource := source
+		cacheVolume := volume
+		if customWorld {
+			cacheSource = originalSource
+			cacheVolume = 100
+		}
+		cacheKey := worldlineAnalysisCacheKey(cacheSource, frqPath, *unit, cacheVolume)
+		if customWorld {
+			cacheKey += fmt.Sprintf("|fs=%d", sampleRate)
+		}
 		manifest.Units = append(manifest.Units, worldlineManifestUnit{
-			CacheKey: worldlineAnalysisCacheKey(source, frqPath, *unit, volume),
+			CacheKey: cacheKey,
 			Source:   source, FRQPath: frqPath, PositionMS: positionMS, SkipMS: skipMS,
 			LengthMS: lengthMS, FadeInMS: fadeInMS,
 			FadeOutMS: fadeOutMS, OffsetMS: unit.OffsetMS, RequiredLengthMS: requiredLength,
@@ -444,6 +467,16 @@ func resolveWorldlineBridge(configured string) (string, error) {
 	}
 	if _, err := os.Stat(configured); err != nil {
 		return "", fmt.Errorf("worldline bridge %q: %w", configured, err)
+	}
+	return configured, nil
+}
+
+func resolveWorldEngine(configured string) (string, error) {
+	if configured == "" {
+		return "", errors.New("UtauTTS WORLD engine is not configured by the renderer plugin")
+	}
+	if _, err := os.Stat(configured); err != nil {
+		return "", fmt.Errorf("UtauTTS WORLD engine %q: %w", configured, err)
 	}
 	return configured, nil
 }

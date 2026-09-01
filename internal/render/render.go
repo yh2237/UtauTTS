@@ -25,6 +25,7 @@ type Config struct {
 	Backend                 string
 	WorldlinePath           string
 	WorldlineBridgePath     string
+	WorldEnginePath         string
 	ExternalResamplerPath   string
 	WorldlineExactLength    bool
 	BoundaryBridgeMS        float64
@@ -52,6 +53,7 @@ var rendererImplementations = map[string]func(*plan.Plan, Config) (*audio.PCM, e
 	"openutau-classic-worldline-faithful":     renderOpenUtauClassicWorldlineFaithful,
 	"openutau-classic-worldline-faithful-gpu": renderOpenUtauClassicWorldlineFaithfulGPU,
 	"openutau-worldline-r-faithful":           renderOpenUtauWorldlineRFaithful,
+	"utautts-world-phrase":                    renderUtauTTSWorldPhrase,
 	"utau-external-resampler":                 renderUtauExternalResampler,
 }
 

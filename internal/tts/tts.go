@@ -48,6 +48,7 @@ type Config struct {
 	RendererCapabilities    *plugin.Capabilities
 	WorldlinePath           string
 	WorldlineBridgePath     string
+	WorldEnginePath         string
 	ExternalResamplerPath   string
 	BoundaryBridgeMS        float64
 	BoundaryBridgeThreshold float64
@@ -179,6 +180,7 @@ func ApplyResolvedRenderer(cfg *Config, renderer plugin.Renderer, worldlinePath,
 	cfg.RendererCapabilities = &renderer.Capabilities
 	cfg.WorldlinePath = preferExplicit(worldlinePath, renderer.Asset("worldline"))
 	cfg.WorldlineBridgePath = preferExplicit(worldlineBridgePath, renderer.Asset("worldline_bridge"))
+	cfg.WorldEnginePath = renderer.Asset("world_engine")
 	cfg.ExternalResamplerPath = renderer.Asset("resampler")
 }
 
@@ -347,6 +349,7 @@ func Synthesize(cfg Config) (*Result, error) {
 		Backend:                 cfg.Renderer,
 		WorldlinePath:           cfg.WorldlinePath,
 		WorldlineBridgePath:     cfg.WorldlineBridgePath,
+		WorldEnginePath:         cfg.WorldEnginePath,
 		ExternalResamplerPath:   cfg.ExternalResamplerPath,
 		BoundaryBridgeMS:        cfg.BoundaryBridgeMS,
 		BoundaryBridgeThreshold: cfg.BoundaryBridgeThreshold,
