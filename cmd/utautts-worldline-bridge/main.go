@@ -70,7 +70,7 @@ type serveResponse struct {
 func serve(input *os.File, output *os.File) error {
 	state := &bridgeState{
 		libraries: make(map[string]nativeLibrary), worldEngines: make(map[string]worldEngine),
-		worldUnits: newWorldFeatureCache(32),
+		worldUnits: newWorldFeatureCache(128),
 	}
 	defer func() {
 		for _, library := range state.libraries {

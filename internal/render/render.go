@@ -49,10 +49,10 @@ const defaultReleaseMS = 20.0
 
 // rendererImplementationsは実行可能なbackendの一覧。表示情報はplugin.jsonに置く。
 var rendererImplementations = map[string]func(*plan.Plan, Config) (*audio.PCM, error){
-	"waveform":                                renderWaveform,
-	"openutau-worldline-r-faithful":           renderOpenUtauWorldlineRFaithful,
-	"utautts-world-phrase":                    renderUtauTTSWorldPhrase,
-	"utau-external-resampler":                 renderUtauExternalResampler,
+	"waveform":                      renderWaveform,
+	"openutau-worldline-r-faithful": renderOpenUtauWorldlineRFaithful,
+	"utautts-world-phrase":          renderUtauTTSWorldPhrase,
+	"utau-external-resampler":       renderUtauExternalResampler,
 }
 
 func IsKnownRenderer(id string) bool {
@@ -113,6 +113,25 @@ var globalWAVCache = wavCache{
 	order:  list.New(),
 }
 
+const maxUnitPitchCacheEntries = 4096
+
+type unitPitchCacheKey struct {
+	path                      string
+	size, modTime             int64
+	offset, cutoff, consonant uint64
+}
+
+type unitPitchCacheEntry struct {
+	key   unitPitchCacheKey
+	value float64
+}
+
+var globalUnitPitchCache = struct {
+	sync.Mutex
+	entries map[unitPitchCacheKey]*list.Element
+	order   *list.List
+}{entries: make(map[unitPitchCacheKey]*list.Element), order: list.New()}
+
 func (c *wavCache) remove(element *list.Element) {
 	entry := element.Value.(*wavCacheEntry)
 	c.bytes -= int64(len(entry.pcm.Data)) * 2
@@ -164,6 +183,57 @@ func ClearWAVCache() {
 		globalWAVCache.remove(element)
 		element = next
 	}
+	globalUnitPitchCache.Lock()
+	globalUnitPitchCache.entries = make(map[unitPitchCacheKey]*list.Element)
+	globalUnitPitchCache.order.Init()
+	globalUnitPitchCache.Unlock()
+}
+
+func estimateUnitPitch(unit plan.Unit, mono *audio.PCM) (float64, error) {
+	key := unitPitchCacheKey{
+		path: unit.Source, offset: math.Float64bits(unit.OffsetMS), cutoff: math.Float64bits(unit.CutoffMS),
+		consonant: math.Float64bits(unit.ConsonantMS),
+	}
+	if info, err := os.Stat(unit.Source); err == nil {
+		key.size = info.Size()
+		key.modTime = info.ModTime().UnixNano()
+	}
+	globalUnitPitchCache.Lock()
+	if element, found := globalUnitPitchCache.entries[key]; found {
+		globalUnitPitchCache.order.MoveToFront(element)
+		value := element.Value.(unitPitchCacheEntry).value
+		globalUnitPitchCache.Unlock()
+		return value, nil
+	}
+	globalUnitPitchCache.Unlock()
+
+	trimmed, err := audio.TrimPCM(mono, unit.OffsetMS, unit.CutoffMS)
+	if err != nil {
+		return 0, err
+	}
+	wave := pcmFloats(trimmed.Data)
+	start := min(len(wave), msToFrames(unit.ConsonantMS, mono.SampleRate))
+	end := min(len(wave), start+msToFrames(180, mono.SampleRate))
+	value := 0.0
+	if end-start >= msToFrames(30, mono.SampleRate) {
+		value = pitch.EstimateMedian(wave[start:end], mono.SampleRate)
+	}
+
+	globalUnitPitchCache.Lock()
+	if element, found := globalUnitPitchCache.entries[key]; found {
+		globalUnitPitchCache.order.MoveToFront(element)
+		value = element.Value.(unitPitchCacheEntry).value
+	} else {
+		element := globalUnitPitchCache.order.PushFront(unitPitchCacheEntry{key: key, value: value})
+		globalUnitPitchCache.entries[key] = element
+		if globalUnitPitchCache.order.Len() > maxUnitPitchCacheEntries {
+			oldest := globalUnitPitchCache.order.Back()
+			delete(globalUnitPitchCache.entries, oldest.Value.(unitPitchCacheEntry).key)
+			globalUnitPitchCache.order.Remove(oldest)
+		}
+	}
+	globalUnitPitchCache.Unlock()
+	return value, nil
 }
 
 type effectiveTiming struct {
@@ -519,17 +589,7 @@ func identityFactors(size int) []float64 {
 }
 
 func analyzeIntonation(synthesisPlan *plan.Plan, timings []effectiveTiming, cache *sourceCache, strength float64) []float64 {
-	factors := make([]float64, len(synthesisPlan.Units))
-	for i := range factors {
-		factors[i] = 1
-	}
-	strength = math.Max(0, math.Min(MaxIntonationStrength, strength))
-	if strength == 0 {
-		return factors
-	}
-
 	pitches := make([]float64, len(synthesisPlan.Units))
-	var voiced []float64
 	for i, unit := range synthesisPlan.Units {
 		if unit.Silent || unit.Role == "transition" {
 			continue
@@ -538,23 +598,22 @@ func analyzeIntonation(synthesisPlan *plan.Plan, timings []effectiveTiming, cach
 		if err != nil {
 			continue
 		}
-		trimmed, err := audio.TrimPCM(mono, unit.OffsetMS, unit.CutoffMS)
+		pitches[i], err = estimateUnitPitch(unit, mono)
 		if err != nil {
 			continue
 		}
-		wave := pcmFloats(trimmed.Data)
-		start := min(len(wave), msToFrames(unit.ConsonantMS, mono.SampleRate))
-		end := min(len(wave), start+msToFrames(180, mono.SampleRate))
-		if end-start < msToFrames(30, mono.SampleRate) {
-			continue
-		}
-		pitches[i] = pitch.EstimateMedian(wave[start:end], mono.SampleRate)
-		if pitches[i] > 0 {
-			voiced = append(voiced, pitches[i])
-		}
+	}
+	return analyzeIntonationFromPitches(synthesisPlan, timings, pitches, strength)
+}
+
+func analyzeIntonationFromPitches(synthesisPlan *plan.Plan, timings []effectiveTiming, pitches []float64, strength float64) []float64 {
+	factors := identityFactors(len(synthesisPlan.Units))
+	strength = math.Max(0, math.Min(MaxIntonationStrength, strength))
+	if strength == 0 {
+		return factors
 	}
 	pitches = stabilizeWorldlinePitches(pitches)
-	voiced = nonzeroFloats(pitches)
+	voiced := nonzeroFloats(pitches)
 	reference := medianFloat(voiced)
 	if reference <= 0 {
 		return factors

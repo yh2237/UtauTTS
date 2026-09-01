@@ -78,12 +78,12 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 		unit.IntonationFactor = 1
 	}
 	intonation := identityFactors(len(synthesisPlan.Units))
-	if cfg.ApplyPitch {
-		intonation = analyzeIntonation(synthesisPlan, timings, &cache, cfg.IntonationStrength)
-	}
 	sourcePitches, _, err := measureWorldlinePitches(synthesisPlan, &cache)
 	if err != nil {
 		return nil, err
+	}
+	if cfg.ApplyPitch {
+		intonation = analyzeIntonationFromPitches(synthesisPlan, timings, sourcePitches, cfg.IntonationStrength)
 	}
 	reference := medianFloat(nonzeroFloats(sourcePitches))
 	if reference <= 0 {

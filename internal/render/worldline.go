@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"utautts/internal/audio"
-	"utautts/internal/pitch"
 	"utautts/internal/plan"
 )
 
@@ -124,12 +123,12 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) 
 		unit.IntonationFactor = 1
 	}
 	intonation := identityFactors(len(synthesisPlan.Units))
-	if cfg.ApplyPitch {
-		intonation = analyzeIntonation(synthesisPlan, timings, &cache, cfg.IntonationStrength)
-	}
 	pitches, sampleRate, err := measureWorldlinePitches(synthesisPlan, &cache)
 	if err != nil {
 		return nil, err
+	}
+	if cfg.ApplyPitch {
+		intonation = analyzeIntonationFromPitches(synthesisPlan, timings, pitches, cfg.IntonationStrength)
 	}
 	reference := medianFloat(nonzeroFloats(pitches))
 	if reference <= 0 {
@@ -494,15 +493,9 @@ func measureWorldlinePitches(synthesisPlan *plan.Plan, cache *sourceCache) ([]fl
 		if sampleRate == 0 {
 			sampleRate = mono.SampleRate
 		}
-		trimmed, err := audio.TrimPCM(mono, unit.OffsetMS, unit.CutoffMS)
+		values[i], err = estimateUnitPitch(unit, mono)
 		if err != nil {
 			return nil, 0, err
-		}
-		wave := pcmFloats(trimmed.Data)
-		start := min(len(wave), msToFrames(unit.ConsonantMS, mono.SampleRate))
-		end := min(len(wave), start+msToFrames(180, mono.SampleRate))
-		if end-start >= msToFrames(30, mono.SampleRate) {
-			values[i] = pitch.EstimateMedian(wave[start:end], mono.SampleRate)
 		}
 	}
 	return stabilizeWorldlinePitches(values), sampleRate, nil

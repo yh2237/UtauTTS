@@ -24,16 +24,26 @@ type worldEngine interface {
 type worldFeatureCacheEntry struct {
 	key   string
 	value cachedWorldUnit
+	bytes int64
 }
 
 type worldFeatureCache struct {
 	capacity int
+	maxBytes int64
+	bytes    int64
 	order    *list.List
 	entries  map[string]*list.Element
 }
 
 func newWorldFeatureCache(capacity int) *worldFeatureCache {
-	return &worldFeatureCache{capacity: max(1, capacity), order: list.New(), entries: make(map[string]*list.Element)}
+	return newWorldFeatureCacheWithLimit(capacity, 256<<20)
+}
+
+func newWorldFeatureCacheWithLimit(capacity int, maxBytes int64) *worldFeatureCache {
+	return &worldFeatureCache{
+		capacity: max(1, capacity), maxBytes: max(1, maxBytes),
+		order: list.New(), entries: make(map[string]*list.Element),
+	}
 }
 
 func (cache *worldFeatureCache) get(key string) (cachedWorldUnit, bool) {
@@ -53,18 +63,37 @@ func (cache *worldFeatureCache) put(key string, value cachedWorldUnit) {
 		return
 	}
 	if element, found := cache.entries[key]; found {
-		element.Value = worldFeatureCacheEntry{key: key, value: value}
+		previous := element.Value.(worldFeatureCacheEntry)
+		entryBytes := worldFeatureCacheBytes(value)
+		cache.bytes += entryBytes - previous.bytes
+		element.Value = worldFeatureCacheEntry{key: key, value: value, bytes: entryBytes}
 		cache.order.MoveToFront(element)
+		cache.evict()
 		return
 	}
-	element := cache.order.PushFront(worldFeatureCacheEntry{key: key, value: value})
+	entryBytes := worldFeatureCacheBytes(value)
+	element := cache.order.PushFront(worldFeatureCacheEntry{key: key, value: value, bytes: entryBytes})
 	cache.entries[key] = element
-	if cache.order.Len() <= cache.capacity {
-		return
+	cache.bytes += entryBytes
+	cache.evict()
+}
+
+func (cache *worldFeatureCache) evict() {
+	for cache.order.Len() > cache.capacity || cache.bytes > cache.maxBytes {
+		oldest := cache.order.Back()
+		if oldest == nil {
+			return
+		}
+		entry := oldest.Value.(worldFeatureCacheEntry)
+		cache.bytes -= entry.bytes
+		delete(cache.entries, entry.key)
+		cache.order.Remove(oldest)
 	}
-	oldest := cache.order.Back()
-	delete(cache.entries, oldest.Value.(worldFeatureCacheEntry).key)
-	cache.order.Remove(oldest)
+}
+
+func worldFeatureCacheBytes(value cachedWorldUnit) int64 {
+	features := value.features
+	return int64(len(features.F0)+len(features.Spectrum)+len(features.Aperiodicity)) * 8
 }
 
 func worldSynthesisLength(frames, sampleRate int) int {

@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"math"
+	"runtime"
+	"sync"
 )
 
 type cachedWorldUnit struct {
@@ -14,56 +16,123 @@ type preparedWorldUnit struct {
 	cached cachedWorldUnit
 }
 
+type worldAnalysisJob struct {
+	key     string
+	item    unit
+	indexes []int
+}
+
+type worldAnalysisResult struct {
+	entry cachedWorldUnit
+	err   error
+}
+
 func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFeatureCache) ([]float32, error) {
 	frames := len(input.F0Curve)
 	if frames < 2 {
 		return nil, fmt.Errorf("WORLD phrase has no frames")
 	}
-	var fftSize int
+	prepared, err := prepareWorldUnits(engine, input, cache, worldCPUWorkers(len(input.Units)))
+	if err != nil {
+		return nil, err
+	}
+	fftSize := 0
+	for _, item := range prepared {
+		if fftSize == 0 {
+			fftSize = item.cached.features.FFTSize
+		}
+		if item.cached.features.FFTSize != fftSize {
+			return nil, fmt.Errorf("WORLD units have inconsistent FFT sizes")
+		}
+	}
+	result := mixWorldFeatures(input, prepared, fftSize, worldCPUWorkers(frames))
+	wave, err := engine.Synthesize(result, input.SampleRate)
+	if err != nil {
+		return nil, err
+	}
+	output := make([]float32, len(wave))
+	for index, sample := range wave {
+		output[index] = float32(sample)
+	}
+	return output, nil
+}
+
+func prepareWorldUnits(engine worldEngine, input manifest, cache *worldFeatureCache, workers int) ([]preparedWorldUnit, error) {
 	prepared := make([]preparedWorldUnit, len(input.Units))
+	jobs := make([]worldAnalysisJob, 0, len(input.Units))
+	jobByKey := make(map[string]int, len(input.Units))
 	for index, item := range input.Units {
 		key := item.CacheKey
 		if key == "" {
 			key = fmt.Sprintf("%s|%.4f|%.4f", item.Source, item.OffsetMS, item.CutoffMS)
 		}
 		entry, found := cache.get(key)
-		if !found {
-			sampleRate, samples, err := readPCM16(item.Source)
-			if err != nil {
-				return nil, fmt.Errorf("read WORLD unit %q: %w", item.Source, err)
-			}
-			if sampleRate != input.SampleRate {
-				return nil, fmt.Errorf("WORLD unit sample rate is %d, expected %d", sampleRate, input.SampleRate)
-			}
-			features, duration, err := analyzeWorldUnit(engine, item, samples, sampleRate)
-			if err != nil {
-				return nil, fmt.Errorf("analyze WORLD unit %q: %w", item.Source, err)
-			}
-			entry = cachedWorldUnit{features: features, duration: duration}
-			cache.put(key, entry)
+		if found {
+			prepared[index] = preparedWorldUnit{cached: entry}
+			continue
 		}
-		if fftSize == 0 {
-			fftSize = entry.features.FFTSize
+		if jobIndex, exists := jobByKey[key]; exists {
+			jobs[jobIndex].indexes = append(jobs[jobIndex].indexes, index)
+			continue
 		}
-		if entry.features.FFTSize != fftSize {
-			return nil, fmt.Errorf("WORLD units have inconsistent FFT sizes")
-		}
-		prepared[index] = preparedWorldUnit{cached: entry}
+		jobByKey[key] = len(jobs)
+		jobs = append(jobs, worldAnalysisJob{key: key, item: item, indexes: []int{index}})
 	}
+	results := make([]worldAnalysisResult, len(jobs))
+	parallelWorldWork(len(jobs), workers, func(jobIndex int) {
+		job := jobs[jobIndex]
+		sampleRate, samples, err := readPCM16(job.item.Source)
+		if err != nil {
+			err = fmt.Errorf("read WORLD unit %q: %w", job.item.Source, err)
+		} else if sampleRate != input.SampleRate {
+			err = fmt.Errorf("WORLD unit sample rate is %d, expected %d", sampleRate, input.SampleRate)
+		}
+		var features worldFeatures
+		var duration float64
+		if err == nil {
+			features, duration, err = analyzeWorldUnit(engine, job.item, samples, sampleRate)
+			if err != nil {
+				err = fmt.Errorf("analyze WORLD unit %q: %w", job.item.Source, err)
+			}
+		}
+		results[jobIndex] = worldAnalysisResult{
+			entry: cachedWorldUnit{features: features, duration: duration}, err: err,
+		}
+	})
+	for jobIndex, result := range results {
+		if result.err != nil {
+			return nil, result.err
+		}
+		job := jobs[jobIndex]
+		cache.put(job.key, result.entry)
+		for _, index := range job.indexes {
+			prepared[index] = preparedWorldUnit{cached: result.entry}
+		}
+	}
+	return prepared, nil
+}
+
+func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, workers int) worldFeatures {
+	frames := len(input.F0Curve)
 	bins := fftSize/2 + 1
 	result := worldFeatures{
 		Frames: frames, FFTSize: fftSize, F0: append([]float64(nil), input.F0Curve...),
 		Spectrum: make([]float64, frames*bins), Aperiodicity: make([]float64, frames*bins),
 	}
-	for index := range result.Spectrum {
-		result.Spectrum[index] = 1e-12
-		result.Aperiodicity[index] = 1
-	}
 	dirty := make([]bool, frames)
 	sourceVoiced := make([]bool, frames)
-	for unitIndex, item := range input.Units {
-		entry := prepared[unitIndex].cached
-		for frame := 0; frame < frames; frame++ {
+	frameWorkers := workers
+	if frames*bins < 32768 {
+		frameWorkers = 1
+	}
+	parallelWorldWork(frames, frameWorkers, func(frame int) {
+		frameOffset := frame * bins
+		for bin := 0; bin < bins; bin++ {
+			result.Spectrum[frameOffset+bin] = 1e-12
+			result.Aperiodicity[frameOffset+bin] = 1
+		}
+		for unitIndex, item := range input.Units {
+			entry := prepared[unitIndex].cached
 			timeMS := float64(frame) * worldFramePeriodMS
 			localMS := timeMS - item.PositionMS
 			if localMS < 0 || localMS > item.LengthMS {
@@ -87,16 +156,16 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 				leftIndex, rightIndex := left*bins+bin, right*bins+bin
 				spectrum := lerp(entry.features.Spectrum[leftIndex], entry.features.Spectrum[rightIndex], fraction) * volumeGain * volumeGain
 				ap := lerp(entry.features.Aperiodicity[leftIndex], entry.features.Aperiodicity[rightIndex], fraction)
-				result.Spectrum[frame*bins+bin] += weight * spectrum
+				result.Spectrum[frameOffset+bin] += weight * spectrum
 				if !dirty[frame] {
-					result.Aperiodicity[frame*bins+bin] = ap
+					result.Aperiodicity[frameOffset+bin] = ap
 				} else {
-					result.Aperiodicity[frame*bins+bin] = result.Aperiodicity[frame*bins+bin]*(1-weight) + ap*weight
+					result.Aperiodicity[frameOffset+bin] = result.Aperiodicity[frameOffset+bin]*(1-weight) + ap*weight
 				}
 			}
 			dirty[frame] = true
 		}
-	}
+	})
 	for frame := 0; frame < frames; frame++ {
 		if !dirty[frame] {
 			result.F0[frame] = 0
@@ -106,15 +175,37 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 			result.F0[frame] = 0
 		}
 	}
-	wave, err := engine.Synthesize(result, input.SampleRate)
-	if err != nil {
-		return nil, err
+	return result
+}
+
+func worldCPUWorkers(tasks int) int {
+	return min(max(1, tasks), max(1, runtime.GOMAXPROCS(0)))
+}
+
+func parallelWorldWork(tasks, workers int, work func(int)) {
+	workers = min(max(1, workers), max(1, tasks))
+	if workers == 1 {
+		for index := 0; index < tasks; index++ {
+			work(index)
+		}
+		return
 	}
-	output := make([]float32, len(wave))
-	for index, sample := range wave {
-		output[index] = float32(sample)
+	jobs := make(chan int)
+	var group sync.WaitGroup
+	group.Add(workers)
+	for range workers {
+		go func() {
+			defer group.Done()
+			for index := range jobs {
+				work(index)
+			}
+		}()
 	}
-	return output, nil
+	for index := 0; index < tasks; index++ {
+		jobs <- index
+	}
+	close(jobs)
+	group.Wait()
 }
 
 func analyzeWorldUnit(engine worldEngine, item unit, samples []float64, sampleRate int) (worldFeatures, float64, error) {
