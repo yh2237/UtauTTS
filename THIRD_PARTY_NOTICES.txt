@@ -73,7 +73,7 @@ kagome-dict/ipa v1.2.6 are included under licenses/Go in the release package.
 pyopenjtalk frontend bridge
 ==========================
 
-The Windows release includes a standalone frontend helper built from
+The Windows and Linux releases include a standalone frontend helper built from
 pyopenjtalk 0.4.1. UtauTTS uses only its Open JTalk text-processing frontend.
 
 MIT License
@@ -289,26 +289,14 @@ Bundled archive SHA-256:
 B96D1B21145F22E573AFD9EC8AEAAD0EC9CBAEE581C2623C64ADDEB31DE46B3D
 
 
-Qt 6
-====
+Windows GUI addendum
+====================
 
-The desktop GUI uses dynamically linked Qt 6 modules, including Qt Core,
-Qt GUI, Qt QML, Qt Quick, Qt Quick Controls, Qt Multimedia, and Qt Concurrent.
-The open-source Qt modules used by this application are distributed under the
-GNU Lesser General Public License version 3. Users may replace the dynamically
-linked Qt libraries with compatible modified versions. Any modifications made
-to LGPL-covered Qt components must be provided under the applicable license.
-
-Copyright (C) The Qt Company Ltd. and other contributors.
-
-License and source information:
-https://www.qt.io/licensing/
-https://code.qt.io/cgit/qt/
-
-The LGPLv3 text, a written source offer for the Qt version used by the build,
-Qt replacement/relinking instructions, and Qt third-party attribution links are
-included under licenses/Qt. Qt Multimedia's FFmpeg deployment and corresponding
-source request procedure are also documented there.
+The Windows GUI package additionally bundles Qt 6, Qt Multimedia's FFmpeg
+deployment, and MinGW runtime files. Their package-specific license and source
+notices are included in
+`THIRD_PARTY_NOTICES-WINDOWS-GUI.txt` beside this file. Server and Linux
+packages do not include those Windows GUI components or that addendum.
 
 
 Go runtime and standard library
@@ -325,25 +313,10 @@ golang.org/x/text
 =================
 
 UtauTTS uses golang.org/x/text for Japanese encoding and Unicode processing.
-The release uses golang.org/x/text v0.32.0. Its exact license text is included
+The release uses golang.org/x/text v0.39.0. Its exact license text is included
 under licenses/Go. The module is distributed under the BSD-3-Clause license.
 The upstream text is available at:
 https://github.com/golang/text/blob/master/LICENSE
-
-
-FFmpeg libraries distributed by Qt Multimedia
-==============================================
-
-The Windows GUI distribution includes the FFmpeg DLLs delivered by the Qt
-Multimedia deployment (avcodec-61.dll, avformat-61.dll, avutil-59.dll,
-swresample-5.dll, swscale-8.dll, and ffmpegmediaplugin.dll in the current build).
-The exact Qt version, deployment provenance, and source/license links are
-included under licenses/Qt. The exact FFmpeg source/build corresponding to these
-files can be requested using the written source offer there.
-FFmpeg is generally LGPLv2.1-or-later, but optional GPL components change the
-applicable terms. Refer to the FFmpeg license and corresponding source for the
-exact binary build:
-https://ffmpeg.org/legal.html
 
 
 JSUT and jsut-label prosody data
@@ -365,20 +338,13 @@ repository-level MIT License applies to the source code and does not override
 the terms for models, prompts, voicebanks, or other third-party assets.
 
 
-MinGW runtime libraries
-=======================
+NVIDIA CUDA runtime (experimental source build)
+===============================================
 
-The Windows GUI distribution includes MinGW runtime DLLs supplied by the Qt
-toolchain. The exact GCC, MinGW-w64, and winpthreads license files from the
-toolchain used by the build are included under licenses/MinGW.
-
-
-NVIDIA CUDA runtime (optional faithful GPU renderer)
-====================================================
-
-When the optional faithful GPU renderer is included, its CUDA support is built
-with the CUDA toolkit and links the CUDA runtime statically. The exact CUDA toolkit
-EULA, license, and nvcc version output are included under licenses/CUDA. No
+The source tree contains an experimental `utautts-world-phrase-cuda` build path,
+but the formal Windows and Linux release packages remove that renderer and do
+not include a CUDA runtime. If a custom package includes it, the CUDA toolkit
+EULA, license, and build provenance must be included under licenses/CUDA. No
 NVIDIA GPU driver is distributed by UtauTTS.
 
 
@@ -398,7 +364,7 @@ This project is covered by two different licenses: MIT and Apache.
 
 The following files were ported to Go from C files of libyaml, and thus
 are still covered by their original MIT license, with the additional
-copyright staring in 2011 when the project was ported over:
+copyright starting in 2011 when the project was ported over:
 
     apic.go emitterc.go parserc.go readerc.go scannerc.go
     writerc.go yamlh.go yamlprivateh.go

@@ -1,0 +1,51 @@
+UtauTTS Windows GUI third-party addendum
+========================================
+
+This file supplements THIRD_PARTY_NOTICES.txt in the Windows GUI package. It
+applies only to the Qt libraries, Qt Multimedia deployment, and MinGW runtime
+files bundled with that package.
+
+
+Qt 6
+====
+
+The desktop GUI uses dynamically linked Qt 6 modules, including Qt Core,
+Qt GUI, Qt QML, Qt Quick, Qt Quick Controls, Qt Multimedia, and Qt Concurrent.
+The open-source Qt modules used by this application are distributed under the
+GNU Lesser General Public License version 3. Users may replace the dynamically
+linked Qt libraries with compatible modified versions. Any modifications made
+to LGPL-covered Qt components must be provided under the applicable license.
+
+Copyright (C) The Qt Company Ltd. and other contributors.
+
+License and source information:
+https://www.qt.io/licensing/
+https://code.qt.io/cgit/qt/
+
+The LGPLv3 text, a written source offer for the Qt version used by the build,
+Qt replacement/relinking instructions, and Qt third-party attribution links are
+included under licenses/Qt. Qt Multimedia's FFmpeg deployment and corresponding
+source request procedure are also documented there.
+
+
+FFmpeg libraries distributed by Qt Multimedia
+==============================================
+
+The Windows GUI distribution includes the FFmpeg DLLs delivered by the Qt
+Multimedia deployment (avcodec-61.dll, avformat-61.dll, avutil-59.dll,
+swresample-5.dll, swscale-8.dll, and ffmpegmediaplugin.dll in the current build).
+The exact Qt version, deployment provenance, and source/license links are
+included under licenses/Qt. The exact FFmpeg source/build corresponding to these
+files can be requested using the written source offer there.
+FFmpeg is generally LGPLv2.1-or-later, but optional GPL components change the
+applicable terms. Refer to the FFmpeg license and corresponding source for the
+exact binary build:
+https://ffmpeg.org/legal.html
+
+
+MinGW runtime libraries
+=======================
+
+The Windows GUI distribution includes MinGW runtime DLLs supplied by the Qt
+toolchain. The exact GCC, MinGW-w64, and winpthreads license files from the
+toolchain used by the build are included under licenses/MinGW.
