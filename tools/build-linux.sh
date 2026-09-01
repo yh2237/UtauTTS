@@ -206,19 +206,6 @@ echo '=== Models and plugins ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
   cp -R "${root_dir}/models/." "${package_dir}/models/"
   cp -R "${root_dir}/plugins/renderers/." "${package_dir}/plugins/renderers/"
-  rm -rf "${package_dir}/plugins/renderers/openutau-classic-faithful-gpu"
-  cat > "${package_dir}/plugins/renderers/openutau-classic-faithful/plugin.json" <<'EOF'
-{
-  "manifest_version": 1, "kind": "renderer", "id": "openutau-classic-worldline-faithful",
-  "display_name": "OpenUTAU Classic faithful", "description": "OpenUTAU Classicのphone timing、Worldline resampling、5点envelopeを再現します。",
-  "backend": "openutau-classic-worldline-faithful", "version": "1", "acceleration": "cpu", "default_priority": 50,
-  "capabilities": { "frame_pitch": true },
-  "assets": {
-    "worldline": "../../../runtime/libworldline.so",
-    "worldline_bridge": "../../../runtime/utautts-worldline-bridge"
-  }
-}
-EOF
   cat > "${package_dir}/plugins/renderers/openutau-worldline-r-faithful/plugin.json" <<'EOF'
 {
   "manifest_version": 1, "kind": "renderer", "id": "openutau-worldline-r-faithful",

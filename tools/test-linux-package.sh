@@ -149,15 +149,12 @@ smoke_text='こんにちは'
 "${gui_root}/tools/utautts-cli" --renderer waveform --voicebank "${voicebank}" \
   --text "${smoke_text}" --out "${work_dir}/waveform.wav"
 "${gui_root}/tools/utautts-cli" --voicebank "${voicebank}" --text "${smoke_text}" \
-  --prosody frame-intonation-v8 --renderer openutau-classic-worldline-faithful \
-  --apply-pitch --intonation-strength 1 --out "${work_dir}/production.wav"
-"${gui_root}/tools/utautts-cli" --voicebank "${voicebank}" --text "${smoke_text}" \
   --prosody frame-intonation-v8 --renderer openutau-worldline-r-faithful \
   --apply-pitch --intonation-strength 1 --out "${work_dir}/worldline-r.wav"
 "${gui_root}/tools/utautts-cli" --voicebank "${voicebank}" --text "${smoke_text}" \
   --prosody frame-intonation-v8 --renderer utautts-world-phrase \
   --apply-pitch --intonation-strength 1 --out "${work_dir}/utautts-world.wav"
-for wav in "${work_dir}/waveform.wav" "${work_dir}/production.wav" "${work_dir}/worldline-r.wav" "${work_dir}/utautts-world.wav"; do
+for wav in "${work_dir}/waveform.wav" "${work_dir}/worldline-r.wav" "${work_dir}/utautts-world.wav"; do
   [ "$(stat -c %s "${wav}")" -gt 44 ] || fail "synthesis output is empty: ${wav}"
 done
 if "${gui_root}/tools/utautts-cli" --renderer waveform --voicebank "${voicebank}" \
@@ -211,7 +208,7 @@ voice = voices[0]["id"]
 (root / "faithful.json").write_text(json.dumps({
     "text": "こんにちは", "voicebank_id": voice,
     "model_id": "frame-intonation-v8",
-    "renderer": "openutau-classic-worldline-faithful",
+    "renderer": "openutau-worldline-r-faithful",
     "intonation_strength": 1, "apply_pitch": True,
 }, ensure_ascii=False), encoding="utf-8")
 (root / "batch.json").write_text(json.dumps({"items": [

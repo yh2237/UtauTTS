@@ -91,11 +91,7 @@ try {
             throw "server package still contains an obsolete worldline runtime file: $removedRuntime"
         }
     }
-    $gpuManifest = Test-Path -LiteralPath (Join-Path $serverRoot 'plugins/renderers/openutau-classic-faithful-gpu/plugin.json')
     $gpuBinary = Test-Path -LiteralPath (Join-Path $serverRuntime 'utautts-waveform-gpu.dll')
-    if ($gpuManifest -ne $gpuBinary) {
-        throw "faithful GPU renderer manifest and runtime DLL disagree: manifest=$gpuManifest dll=$gpuBinary"
-    }
     if ($gpuBinary) {
         foreach ($packageRoot in @($guiRoot, $serverRoot)) {
             Assert-Path (Join-Path $packageRoot 'licenses/CUDA/CUDA-EULA.txt') 'CUDA EULA'
@@ -171,19 +167,6 @@ try {
         Pop-Location
     }
     Assert-Path $outputWav 'packaged CLI output'
-
-    $productionWav = Join-Path $workingDirectory 'package-production-smoke.wav'
-    Push-Location $workingDirectory
-    try {
-        & $cli --voicebank $voicebank.FullName --text $smokeText --prosody frame-intonation-v8 `
-            --renderer openutau-classic-worldline-faithful --apply-pitch --intonation-strength 1 --out $productionWav
-        if ($LASTEXITCODE -ne 0) {
-            throw "Packaged production synthesis failed with exit code $LASTEXITCODE"
-        }
-    } finally {
-        Pop-Location
-    }
-    Assert-Path $productionWav 'packaged production renderer output'
 
     $worldlineRWav = Join-Path $workingDirectory 'package-worldline-r-smoke.wav'
     Push-Location $workingDirectory
@@ -291,7 +274,7 @@ try {
             text = $smokeText
             voicebank_id = $voicebankId
             model_id = 'frame-intonation-v8'
-            renderer = 'openutau-classic-worldline-faithful'
+            renderer = 'openutau-worldline-r-faithful'
             intonation_strength = 1
             apply_pitch = $true
         } | ConvertTo-Json -Compress

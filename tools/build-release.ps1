@@ -147,14 +147,6 @@ try {
     Copy-Item -LiteralPath (Join-Path $sourceModels 'README.md') -Destination $serverModelsPath
     Copy-Item -LiteralPath (Join-Path $root 'plugins/renderers') -Destination $guiPluginsPath -Recurse
     Copy-Item -LiteralPath (Join-Path $root 'plugins/renderers') -Destination $serverPluginsPath -Recurse
-    if (-not $cudaAvailable) {
-        foreach ($pluginsPath in @($guiPluginsPath, $serverPluginsPath)) {
-            $faithfulGPUManifest = Join-Path $pluginsPath 'renderers/openutau-classic-faithful-gpu'
-            if (Test-Path -LiteralPath $faithfulGPUManifest) {
-                Remove-Item -LiteralPath $faithfulGPUManifest -Recurse -Force
-            }
-        }
-    }
     $guiDocs = Join-Path $guiPath 'docs'
     New-Item -ItemType Directory -Force -Path $guiDocs | Out-Null
     Copy-Item -Path 'docs/*' -Destination $guiDocs -Recurse
