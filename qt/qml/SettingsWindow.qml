@@ -28,7 +28,7 @@ ApplicationWindow {
     property int currentPage: 0
     property string pendingDefaultVoicebankId: ""
     property string pendingDefaultModelId: "frame-intonation-v8"
-    property string pendingDefaultRendererId: "openutau-worldline-r-faithful"
+    property string pendingDefaultRendererId: "utautts-world-phrase"
     property string pendingDefaultAliasPolicy: "auto"
     property string pendingDefaultTone: "C4"
     property int pendingMoraDuration: 120

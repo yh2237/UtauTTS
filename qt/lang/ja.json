@@ -161,7 +161,7 @@
     "usage.step.dictionary.2": "ボイスバンクは実行ファイルと同じ階層のvoiceフォルダへ置き、「ファイル」→「音源を再読込」で一覧へ反映します。「音源フォルダを開く」から配置先を直接開くこともできます。",
     "usage.step.dictionary.3": "「ヘルプ」→「ボイスバンクの詳細...」では現在選んでいる音源の収録形式やREADMEを確認できます。",
     "usage.step.parameters.1": "右側の「音源」と「原音形式」で使うボイスバンクと原音の選び方を指定します。通常は原音形式を「自動」のまま使えます。",
-    "usage.step.parameters.2": "「抑揚モデル」でイントネーションの予測方法、「Renderer」で原音の長さや高さを変えて接続する方法を選びます。既定RendererはOpenUTAU WORLDLINE-R faithfulです。",
+    "usage.step.parameters.2": "「抑揚モデル」でイントネーションの予測方法、「Renderer」で原音の長さや高さを変えて接続する方法を選びます。既定RendererはUtauTTS WORLD phraseです。",
     "usage.step.parameters.3": "「音高」はprefix.mapがある音源で使う音階です。音源タイプが用意されている場合はその種類も選べます。",
     "usage.step.parameters.4": "「抑揚」「モーラ長」「休止長」で話し方を調整します。「文頭の長さ」は通常「自動」にします。最初の音が欠けたり余計なノイズが入ったりする音源だけ手動で変えます。",
     "usage.step.parameters.5": "モデルが予測したイントネーションとモーラ長は合成前にグラフへ表示されます。右側の設定はセリフごとに保存されるので音源やRendererを途中で変えても大丈夫です。",

@@ -29,18 +29,20 @@ Rendererは`plugins/renderers/<plugin>/plugin.json`を1つ持ちます。
 
 壊れたmanifest、未対応backend、IDの重複は起動時エラーになります。
 
-`default_priority`が最大のものがcatalog上の既定Rendererで同値なら`display_name`順です。GUIでは設定に保存したデフォルトRendererを優先し、未設定なら`openutau-worldline-r-faithful`を使います。CLI／Serverの`--renderer`はこの値を上書きします。`acceleration`には`cpu`か`cuda`を指定できて必要DLLやモデルはmanifestからの相対pathを`assets`へ記述します。
+`default_priority`が最大のものがcatalog上の既定Rendererで同値なら`display_name`順です。GUIでは設定に保存したデフォルトRendererを優先し、未設定なら`utautts-world-phrase`を使います。CLI／Serverの`--renderer`はこの値を上書きします。`acceleration`には`cpu`か`cuda`を指定できて必要DLLやモデルはmanifestからの相対pathを`assets`へ記述します。
 
 認識するasset key:
 
 - `worldline`
 - `worldline_bridge`
+- `world_engine`
 - `resampler`: `utau-external-resampler` backendで実行するUTAU互換resampler
 
 現在の配布物に入っているRenderer IDは次のとおりです。
 
 - `waveform`: CPUで動作する標準の波形接続
-- `openutau-worldline-r-faithful`: フレーズ全体をWORLD合成する既定Renderer
+- `utautts-world-phrase`: 公式WORLDとUtauTTS独自の特徴配置を使う既定Renderer
+- `openutau-worldline-r-faithful`: OpenUTAUの処理でフレーズ全体をWORLD合成するRenderer
 - `openutau-classic-worldline-faithful`: CPU版faithful Renderer
 - `openutau-classic-worldline-faithful-gpu`: CUDA版faithful Renderer。CUDA対応の配布物にのみ含まれます。
 
@@ -77,7 +79,7 @@ Qt GUI、native backend、HTTP API、CLIは同じcatalogを使います。追加
   "id": "my-model-v1",
   "display_name": "My intonation model",
   "description": "モデルの用途と学習条件",
-  "recommended_renderers": ["openutau-worldline-r-faithful"],
+  "recommended_renderers": ["utautts-world-phrase"],
   "default_priority": 100,
   "version": 8,
   "feature_version": 1,
@@ -92,7 +94,7 @@ Qt GUI、native backend、HTTP API、CLIは同じcatalogを使います。追加
   -ModelPath .\out\prosody\my-model.json `
   -Id my-model-v1 `
   -DisplayName "My intonation model" `
-  -RecommendedRenderer openutau-worldline-r-faithful `
+  -RecommendedRenderer utautts-world-phrase `
   -DestinationDirectory .\models
 ```
 

@@ -23,9 +23,13 @@ RendererのID、表示名、説明、対応機能、必要な資産は`plugins/r
 
 Go内で原音を時間伸縮し、クロスフェードで接続します。外部音声処理へ依存しないので原音の明瞭度を確認する比較基準にも使えます。
 
+### `utautts-world-phrase`
+
+GUI、CLI、Serverの既定Rendererです。公式WORLDで各原音を分析し、UtauTTS側で音響特徴を共通の時間軸へ配置してからフレーズ全体を合成します。公式WORLDからビルドしたworld engineと専用bridgeが必要です。
+
 ### `openutau-worldline-r-faithful`
 
-GUI、CLI、Serverの既定Rendererです。OpenUTAU 0.1.565の`PhraseSynth` APIを使い各原音のWORLD特徴を共通の時間軸へ配置してからフレーズ全体を合成します。`worldline.dll`と専用bridgeが必要です。
+OpenUTAU 0.1.565の`PhraseSynth` APIを使い、各原音のWORLD特徴を共通の時間軸へ配置してからフレーズ全体を合成します。`worldline.dll`と専用bridgeが必要です。
 
 ### `openutau-classic-worldline-faithful`
 

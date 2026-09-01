@@ -30,7 +30,7 @@
 .\UtauTTS\tools\utautts-cli.exe `
   --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
   --text "あらゆる現実をすべて自分のほうへねじ曲げたのだ。" `
-  --renderer openutau-worldline-r-faithful `
+  --renderer utautts-world-phrase `
   --prosody frame-intonation-v8 `
   --prosody-pitch-only `
   --apply-pitch `

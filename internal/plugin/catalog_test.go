@@ -17,8 +17,8 @@ func TestRepositoryRendererPluginsAreSelfDescribing(t *testing.T) {
 	if len(items) < 2 {
 		t.Fatalf("renderer plugins = %d, want multiple independently described plugins", len(items))
 	}
-	if items[0].ID != "openutau-worldline-r-faithful" {
-		t.Fatalf("default renderer = %q, want manifest-priority OpenUTAU WORLDLINE-R faithful", items[0].ID)
+	if items[0].ID != "utautts-world-phrase" {
+		t.Fatalf("default renderer = %q, want manifest-priority UtauTTS WORLD phrase", items[0].ID)
 	}
 	for _, item := range items {
 		if item.ID == "" || item.DisplayName == "" || item.Backend == "" || item.Directory == "" {
@@ -128,6 +128,7 @@ func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {
 		"openutau-classic-worldline-faithful":     "cpu",
 		"openutau-classic-worldline-faithful-gpu": "cuda",
 		"openutau-worldline-r-faithful":           "cpu",
+		"utautts-world-phrase":                    "cpu",
 	}
 	for _, item := range items {
 		if acceleration, ok := want[item.ID]; ok {

@@ -2,13 +2,12 @@
   "manifest_version": 1,
   "kind": "renderer",
   "id": "utautts-world-phrase",
-  "display_name": "UtauTTS WORLD phrase (experimental)",
+  "display_name": "UtauTTS WORLD phrase",
   "description": "公式WORLDで原音を分析し、UtauTTS独自の配置と補間でフレーズ全体を合成します。",
   "backend": "utautts-world-phrase",
   "version": "1",
   "acceleration": "cpu",
-  "default_priority": 20,
-  "experimental": true,
+  "default_priority": 300,
   "capabilities": {
     "frame_pitch": true
   },

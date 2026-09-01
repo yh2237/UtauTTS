@@ -24,7 +24,7 @@
 - 音源: 使用するボイスバンク
 - 原音形式: `自動`（音源のVC/VCV収録比から選択）、`従来互換`（v0.0.9の選択・接続）、`CVVC明瞭化`（CVVC優先・sequential接続・VC音量35%）、`VCV優先`、`CVVC優先`、`単独音のみ`。通常は`自動`を使用します。
 - 抑揚モデル: 自動イントネーションや自動モーラ長に使うモデル。`frame-intonation-v8`はフレーム単位のイントネーション、`prosody-multitask-v1`はv8系のイントネーションに加えてモーラ長を予測します。
-- Renderer: 原音の接続とピッチ処理の方式。通常は既定の`OpenUTAU WORLDLINE-R faithful`を使います。`waveform`は原音の明瞭度を確認するときの比較基準、`OpenUTAU Classic faithful`は原音ごとのWorldline再合成と5点包絡線で接続する方式です。
+- Renderer: 原音の接続とピッチ処理の方式。通常は既定の`UtauTTS WORLD phrase`を使います。`waveform`は原音の明瞭度を確認するときの比較基準、`OpenUTAU WORLDLINE-R faithful`と`OpenUTAU Classic faithful`は音源との相性に応じて選べます。
 - 音高: `prefix.map`で使用する音階
 - 抑揚: 自動イントネーションの強さ。標準は2で、0にすると無効になります。2より上では予測された高低差をさらに強調します。
 - モーラ長: 個々のモーラに自動値がない場合に使う基本長

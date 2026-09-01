@@ -234,8 +234,8 @@ EOF
   cat > "${package_dir}/plugins/renderers/utautts-world-phrase/plugin.json" <<'EOF'
 {
   "manifest_version": 1, "kind": "renderer", "id": "utautts-world-phrase",
-  "display_name": "UtauTTS WORLD phrase (experimental)", "description": "公式WORLDで原音を解析し、UtauTTS独自の配置と補間でフレーズ全体を合成します。",
-  "backend": "utautts-world-phrase", "version": "1", "acceleration": "cpu", "default_priority": 20, "experimental": true,
+  "display_name": "UtauTTS WORLD phrase", "description": "公式WORLDで原音を解析し、UtauTTS独自の配置と補間でフレーズ全体を合成します。",
+  "backend": "utautts-world-phrase", "version": "1", "acceleration": "cpu", "default_priority": 300,
   "capabilities": { "frame_pitch": true },
   "assets": {
     "world_engine": "../../../runtime/utautts-world-engine.so",

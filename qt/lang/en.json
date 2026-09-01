@@ -161,7 +161,7 @@
     "usage.step.dictionary.2": "Place voicebanks in the voice directory beside the executable, then choose File > Reload Voicebanks. File > Open Voice Directory opens the destination directly.",
     "usage.step.dictionary.3": "Help > Voicebank Details... shows the recording formats and README of the currently selected voicebank.",
     "usage.step.parameters.1": "Use Voicebank and Alias Format on the right to choose the source voice and sample-selection policy. Automatic is suitable for normal use.",
-    "usage.step.parameters.2": "Prosody Model controls intonation prediction. Renderer controls how samples are stretched, pitch-shifted, and joined. The default is OpenUTAU WORLDLINE-R faithful.",
+    "usage.step.parameters.2": "Prosody Model controls intonation prediction. Renderer controls how samples are stretched, pitch-shifted, and joined. The default is UtauTTS WORLD phrase.",
     "usage.step.parameters.3": "Pitch selects the prefix.map tone. If the voicebank provides voice colors, you can choose one here as well.",
     "usage.step.parameters.4": "Adjust Intonation, Mora Duration, and Pause Duration for each utterance. Leave Leading Audio on Automatic unless the first sound is clipped or contains unwanted noise.",
     "usage.step.parameters.5": "Predicted intonation and mora duration appear in the graph before synthesis. These settings are stored separately for each utterance.",

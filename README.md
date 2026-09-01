@@ -81,7 +81,7 @@ voice/
 | 休止長 | 句読点などの休止時間 |
 | 文頭の長さ | 最初の原音に確保する先行発声。通常は`自動` |
 
-文頭が欠ける音源では「文頭の長さ」を長くし、余計なノイズを拾う音源では短くしてください。新規作成したカードに使う既定値は「設定」→「設定...」から変更できます。初期状態では原音形式が自動、音高が`C4`、抑揚が2、モーラ長が120 ms、休止長が180 ms、抑揚モデルが`frame-intonation-v8`、Rendererが`openutau-worldline-r-faithful`です。
+文頭が欠ける音源では「文頭の長さ」を長くし、余計なノイズを拾う音源では短くしてください。新規作成したカードに使う既定値は「設定」→「設定...」から変更できます。初期状態では原音形式が自動、音高が`C4`、抑揚が2、モーラ長が120 ms、休止長が180 ms、抑揚モデルが`frame-intonation-v8`、Rendererが`utautts-world-phrase`です。
 
 ### イントネーションと長さを直す
 
@@ -108,7 +108,8 @@ exo出力後に表示される領域をAviUtlの拡張編集へドラッグす�
 
 | Renderer | 特徴 |
 | --- | --- |
-| `openutau-worldline-r-faithful` | 既定。原音の音響特徴を時間軸へ配置し、フレーズ全体を再合成 |
+| `utautts-world-phrase` | 既定。公式WORLDで解析し、UtauTTS独自の特徴配置でフレーズ全体を合成 |
+| `openutau-worldline-r-faithful` | OpenUTAUの処理で原音の音響特徴を時間軸へ配置し、フレーズ全体を再合成 |
 | `openutau-classic-worldline-faithful` | OpenUTAU Classicと同じWorldline処理と5点包絡線で原音ごとに接続 |
 | `waveform` | Go内で原音波形を伸縮して接続。原音の明瞭度を確認しやすい |
 | `openutau-classic-worldline-faithful-gpu` | Classic faithfulのCUDA版。対応するWindows配布物だけに同梱 |
@@ -135,7 +136,7 @@ CLIはGUI版の`tools/utautts-cli.exe`または`tools/utautts-cli`に入って�
 .\UtauTTS\tools\utautts-cli.exe `
   --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
   --text "こんにちは、今日はいい天気です。" `
-  --renderer openutau-worldline-r-faithful `
+  --renderer utautts-world-phrase `
   --prosody frame-intonation-v8 `
   --prosody-pitch-only `
   --apply-pitch `

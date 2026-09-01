@@ -161,7 +161,7 @@
     "usage.step.dictionary.2": "将音源库放入程序旁的 voice 文件夹，再选择“文件”>“重新加载音源”。也可以通过“打开音源目录”直接打开存放位置。",
     "usage.step.dictionary.3": "通过“帮助”>“音源详情...”可查看当前音源库的录音格式和 README。",
     "usage.step.parameters.1": "在右侧通过“音源”和“原音格式”选择音源库及原音选择方式。一般保持“自动”即可。",
-    "usage.step.parameters.2": "“韵律模型”决定语调的预测方式，“Renderer”决定如何调整原音长度、音高并进行拼接。默认使用 OpenUTAU WORLDLINE-R faithful。",
+    "usage.step.parameters.2": "“韵律模型”决定语调的预测方式，“Renderer”决定如何调整原音长度、音高并进行拼接。默认使用 UtauTTS WORLD phrase。",
     "usage.step.parameters.3": "“音高”用于选择 prefix.map 中的音阶。如果音源库提供音色类型，也可以在这里选择。",
     "usage.step.parameters.4": "使用“抑扬”“音拍时长”“停顿时长”调整说话方式。“句首长度”通常保持“自动”，只有首音缺失或混入多余噪声时才需要手动修改。",
     "usage.step.parameters.5": "模型预测的语调和音拍时长会在合成前显示到图表中。右侧设置按每条台词分别保存。",

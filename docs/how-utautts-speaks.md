@@ -170,8 +170,9 @@ GUIで抑揚を動かすと手で直したcent値が自動曲線へ加わるか�
 | waveform | Go内で原音を切り出し時間伸縮して包絡線を掛けて足す |
 | OpenUTAU Classic faithful | Worldlineで原音ごとに長さと高さを変え5点包絡線で重ねる |
 | OpenUTAU WORLDLINE-R faithful | 原音から取り出した音響特徴を共通の時間軸へ置き、フレーズを一度に再合成する |
+| UtauTTS WORLD phrase | 公式WORLDで原音を分析し、UtauTTS側で音響特徴を配置してフレーズを一度に再合成する |
 
-Classicは「加工済みの原音を最後に重ねる」方式。既定のWORLDLINE-Rは「原音の特徴を並べてから、最後に一つの声へ戻す」方式です。元になる原音とタイミングは共通なのでwaveform以外はあまり差が分からないかもしれません。
+Classicは「加工済みの原音を最後に重ねる」方式。WORLDLINE-Rと既定のUtauTTS WORLD phraseは「原音の特徴を並べてから、最後に一つの声へ戻す」方式です。元になる原音とタイミングは共通なのでwaveform以外はあまり差が分からないかもしれません。
 
 ## この方式の制約
 

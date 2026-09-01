@@ -34,7 +34,7 @@
 go run ./cmd/utautts-cli `
   --voicebank "release/UtauTTS/voice/ボイスバンク" `
   --text "こんにちは" `
-  --renderer openutau-worldline-r-faithful `
+  --renderer utautts-world-phrase `
   --prosody frame-intonation-v8 `
   --prosody-pitch-only `
   --apply-pitch `

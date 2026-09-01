@@ -204,7 +204,7 @@ Backend::Backend(QObject *parent)
       m_previewCacheFileCount(portableSettingValue("performance/previewCacheFileCount", 32).toInt()),
       m_developerMode(portableSettingValue("developer/enabled", false).toBool()),
       m_defaultRenderer(portableSettingValue("synthesis/defaultRendererId",
-                                          QStringLiteral("openutau-worldline-r-faithful")).toString().trimmed()),
+                                          QStringLiteral("utautts-world-phrase")).toString().trimmed()),
       m_defaultModelId(portableSettingValue("synthesis/defaultModelId",
                                          QStringLiteral("frame-intonation-v8")).toString().trimmed()),
       m_defaultVoicebankId(portableSettingValue("voicebank/defaultId", QString()).toString().trimmed()),

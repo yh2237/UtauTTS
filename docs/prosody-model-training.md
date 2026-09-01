@@ -132,7 +132,7 @@ CLIでは`models/`へコピーせず検索directoryを追加して試すこと�
   --prosody my-manual-prosody-v1 `
   --prosody-pitch-only `
   --apply-pitch `
-  --renderer openutau-worldline-r-faithful `
+  --renderer utautts-world-phrase `
   --voicebank .\voice\my-voicebank `
   --text "こんにちは、今日はいい天気です。" `
   --out .\out\my-manual-prosody.wav

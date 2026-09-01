@@ -67,7 +67,7 @@ GET以外のリクエストに`Origin`ヘッダーがあり待受ホストのori
 ### `GET /api/health`
 
 ```json
-{"status":"ok","engine":"openutau-worldline-r-faithful"}
+{"status":"ok","engine":"utautts-world-phrase"}
 ```
 
 `engine`には既定RendererのIDが入ります。
@@ -131,7 +131,7 @@ ID順にソートされた音源一覧です。
       "version": 8,
       "mode": "intonation_frame_tcn_accent_bounded",
       "outputs": {"pitch": true},
-      "recommended_renderers": ["openutau-worldline-r-faithful", "openutau-classic-worldline-faithful"],
+      "recommended_renderers": ["utautts-world-phrase", "openutau-worldline-r-faithful"],
       "default_priority": 100,
       "requires_features": true,
       "frame_contour": true
@@ -146,9 +146,9 @@ ID順にソートされた音源一覧です。
 
 ```json
 {
-  "default_renderer": "openutau-worldline-r-faithful",
+  "default_renderer": "utautts-world-phrase",
   "renderers": [
-    {"id": "openutau-worldline-r-faithful", "display_name": "OpenUTAU WORLDLINE-R faithful", "description": "...", "backend": "openutau-worldline-r-faithful", "capabilities": {"frame_pitch": true}, "default_priority": 200}
+    {"id": "utautts-world-phrase", "display_name": "UtauTTS WORLD phrase", "description": "...", "backend": "utautts-world-phrase", "capabilities": {"frame_pitch": true}, "default_priority": 300}
   ]
 }
 ```
@@ -192,7 +192,7 @@ ID順にソートされた音源一覧です。
   "text": "こんにちは、今日はいい天気です。",
   "voicebank_id": "足立レイver3.5.0",
   "model_id": "frame-intonation-v8",
-  "renderer": "openutau-worldline-r-faithful",
+  "renderer": "utautts-world-phrase",
   "alias_policy": "auto",
   "intonation_strength": 1,
   "apply_pitch": true

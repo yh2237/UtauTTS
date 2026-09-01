@@ -197,7 +197,7 @@ Renderer pluginの`id`は保存データやUIで使う公開識別子、`backend
 
 ### OpenUTAU Classic faithful
 
-`openutau-classic-worldline-faithful`はOpenUtau Classicに近いphone timing、Worldlineによるunit再合成、5点envelopeを組み合わせるRendererです。現在の既定は後述する`openutau-worldline-r-faithful`でClassic faithfulは比較や音源との相性に応じて選べます。
+`openutau-classic-worldline-faithful`はOpenUtau Classicに近いphone timing、Worldlineによるunit再合成、5点envelopeを組み合わせるRendererです。Classic faithfulは比較や音源との相性に応じて選べます。
 
 Go側は次を行います。
 
@@ -221,11 +221,17 @@ CUDA版は同じPlan、timing、Worldline条件を使って対応DLLで5点envel
 
 ### OpenUTAU WORLDLINE-R faithful
 
-`openutau-worldline-r-faithful`は現在の既定Rendererです。OpenUtau 0.1.565のnative `PhraseSynth` APIを使います。Classic faithfulと同じphone timingを入力にしますが原音ごとの完成波形を重ねるのではなく、各原音のWORLD特徴を共通時間軸へ配置してからフレーズ全体を一度だけ合成します。
+`openutau-worldline-r-faithful`はOpenUtau 0.1.565のnative `PhraseSynth` APIを使います。Classic faithfulと同じphone timingを入力にしますが原音ごとの完成波形を重ねるのではなく、各原音のWORLD特徴を共通時間軸へ配置してからフレーズ全体を一度だけ合成します。
 
 Go本体は先行発声を含むフレーズ時刻、絶対F0曲線、各unitの`position`、`skip`、`length`、fadeをmanifestへ記録します。Go bridgeは原音とFRQを`PhraseSynthAddRequest`へ渡してgender、tension、breathiness、voicingの既定曲線とF0を設定し`PhraseSynthSynth`を呼びます。
 
 WORLDLINE-Rの主要処理は`worldline.dll`内部で完結します。Classic CUDA版のGPU mixは利用できないのでWORLDLINE-R faithfulにCUDA版はありません。
+
+### UtauTTS WORLD phrase
+
+`utautts-world-phrase`は現在の既定Rendererです。OpenUtauの`PhraseSynth`を使わず、公式WORLDのHarvest、CheapTrick、D4C、SynthesisだけをDSP部品として使います。原音の切り出し、子音を保つ時間写像、前後のfade、特徴量の補間と重なりの処理はUtauTTS側にあります。
+
+原音ごとのF0、スペクトル包絡、非周期性指標はbridge内にキャッシュします。再生時はこれらをフレーズの10 ms時間軸へ置き直し、隣接する分析frameを補間してから一度だけWORLD合成します。
 
 ### Rendererを変更するときの境界
 
