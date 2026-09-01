@@ -8,8 +8,8 @@
 | --- | --- |
 | `UtauTTS-win-x64.zip` | Windows x64でGUIとCLI |
 | `UtauTTS-linux-x64.zip` | Linux x64でGUIとCLI |
-| `UtauTTS-Server-win-x64.zip` | Windows x64向けHTTP Server  |
-| `UtauTTS-Server-linux-x64.zip` | Linux x64向けHTTP Server  |
+| `UtauTTS-Server-win-x64.zip` | Windows x64向けHTTP Server |
+| `UtauTTS-Server-linux-x64.zip` | Linux x64向けHTTP Server |
 
 ## Windows
 
@@ -51,7 +51,7 @@ GUI版には「足立レイ ver3.5.0」を初期音源として同梱してい�
 
 ## Server版
 
-Window
+Windows
 
 ```powershell
 .\utautts-server.exe --voice-dir ".\voice"

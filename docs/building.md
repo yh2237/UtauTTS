@@ -27,7 +27,7 @@ go test ./...
 go vet ./...
 ```
 
-リリースビルドで使用する依存物の条件は[THIRD_PARTY_NOTICES.txt](../THIRD_PARTY_NOTICES.txt)と`licenses/`を確認してください。
+リリースビルドで使用する依存物の条件は[THIRD_PARTY_NOTICES.txt](../THIRD_PARTY_NOTICES.txt)、Windows GUI固有の`THIRD_PARTY_NOTICES-WINDOWS-GUI.txt`、`licenses/`を確認してください。
 
 ## Linux x64（Linuxネイティブ／WSL共通）
 
