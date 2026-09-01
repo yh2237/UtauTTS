@@ -178,12 +178,6 @@ void ensurePortableSettings() {
         return;
 
     QSettings portable(path, QSettings::IniFormat);
-    if (qEnvironmentVariableIsEmpty("UTAUTTS_SELF_TEST_DIRECTORY")) {
-        QSettings legacy(QSettings::NativeFormat, QSettings::UserScope,
-                         QCoreApplication::organizationName(), QCoreApplication::applicationName());
-        for (const QString &key : legacy.allKeys())
-            portable.setValue(key, legacy.value(key));
-    }
     portable.setValue(QStringLiteral("format/version"), 1);
     portable.sync();
 }
