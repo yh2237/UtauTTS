@@ -56,7 +56,7 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 	synthesisPlan.CVVCTiming = cfg.CVVCTiming
 	synthesisPlan.CVVCTransitionGain = cfg.CVVCTransitionGain
 	synthesisPlan.CVVCPreBoundaryFade = cfg.CVVCPreBoundaryFade
-	classicTimings, phraseStartMS := openUtauClassicTimings(synthesisPlan.Units, cfg.CVVCTiming)
+	phoneTimings, phraseStartMS := openUtauPhoneTimings(synthesisPlan.Units, cfg.CVVCTiming)
 	leadingMS := limitLeadingPreutterance(math.Max(0, -phraseStartMS), cfg.LeadingPreutteranceMS)
 	synthesisPlan.LeadingMarginMS = leadingMS
 
@@ -66,8 +66,8 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 		unit := &synthesisPlan.Units[index]
 		timings[index] = normalizeTiming(*unit, cfg.ReleaseMS)
 		if !unit.Silent {
-			timings[index].preutteranceMS = classicTimings[index].preutter
-			timings[index].overlapMS = classicTimings[index].overlap
+			timings[index].preutteranceMS = phoneTimings[index].preutter
+			timings[index].overlapMS = phoneTimings[index].overlap
 			timings[index].consonantMS = unit.ConsonantMS
 			timings[index].scale = 1
 		}
@@ -109,7 +109,7 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 		if unit.Silent {
 			continue
 		}
-		timing := classicTimings[index]
+		timing := phoneTimings[index]
 		envelopePoints := openUtauEnvelopeFromTiming(*unit, timing)
 		if cfg.CVVCPreBoundaryFade && unit.Role == "transition" {
 			envelopePoints = cvvcPreBoundaryEnvelope(envelopePoints, timing)

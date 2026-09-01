@@ -15,6 +15,13 @@ import (
 
 const ManifestVersion = 1
 
+const OpenUtauWorldlineRRendererID = "openutau-worldline-r-faithful"
+
+var legacyRendererIDs = map[string]string{
+	"openutau-classic-worldline-faithful":     OpenUtauWorldlineRRendererID,
+	"openutau-classic-worldline-faithful-gpu": OpenUtauWorldlineRRendererID,
+}
+
 type Capabilities struct {
 	FramePitch     bool `json:"frame_pitch,omitempty"`
 	BoundaryBridge bool `json:"boundary_bridge,omitempty"`
@@ -211,12 +218,22 @@ func (catalog *Catalog) DefaultRenderer() string {
 }
 
 func (catalog *Catalog) Renderer(id string) (Renderer, bool) {
+	id = NormalizeRendererID(id)
 	for _, item := range catalog.Renderers {
 		if item.ID == id {
 			return item, true
 		}
 	}
 	return Renderer{}, false
+}
+
+// NormalizeRendererIDは廃止したRenderer IDを後継Rendererへ移行する。
+func NormalizeRendererID(id string) string {
+	trimmed := strings.TrimSpace(id)
+	if replacement, ok := legacyRendererIDs[strings.ToLower(trimmed)]; ok {
+		return replacement
+	}
+	return trimmed
 }
 
 func (renderer Renderer) Asset(name string) string {

@@ -11,7 +11,6 @@ type manifest struct {
 	Engine          string    `json:"engine"`
 	WorldlinePath   string    `json:"worldline_path"`
 	WorldEnginePath string    `json:"world_engine_path"`
-	GPUPath         string    `json:"gpu_path"`
 	OutputPath      string    `json:"output_path"`
 	SampleRate      int       `json:"sample_rate"`
 	F0Curve         []float64 `json:"f0_curve"`
@@ -165,8 +164,6 @@ func renderManifest(path string, state *bridgeState) error {
 	switch input.Engine {
 	case "worldline-r-faithful":
 		samples, err = renderWorldlineR(library, input)
-	case "classic-worldline-faithful", "classic-worldline-faithful-gpu":
-		samples, err = renderClassic(library, input)
 	default:
 		err = fmt.Errorf("unknown engine: %s", input.Engine)
 	}

@@ -43,7 +43,6 @@ typedef struct {
   double fade_out_ms;
 } PhraseTiming;
 
-typedef int (*ResampleFn)(const SynthRequest*, float**);
 typedef void (*FreeFloatFn)(float*);
 typedef void* (*PhraseNewFn)(void);
 typedef void (*PhraseDeleteFn)(void*);
@@ -53,7 +52,6 @@ typedef int (*PhraseSynthFn)(void*, float**, void*);
 
 typedef struct {
   void* handle;
-  ResampleFn resample;
   FreeFloatFn free_float;
   PhraseNewFn phrase_new;
   PhraseDeleteFn phrase_delete;
@@ -72,7 +70,6 @@ static NativeLibrary* native_open(const char* path, char* error, int capacity) {
     return NULL;
   }
 #define LOAD(field, name) do { library->field = (void*)dlsym(library->handle, name); if (!library->field) { snprintf(error, capacity, "missing %s", name); dlclose(library->handle); free(library); return NULL; } } while (0)
-  LOAD(resample, "Resample");
   LOAD(free_float, "UtauTTSFreeFloat");
   LOAD(phrase_new, "PhraseSynthNew");
   LOAD(phrase_delete, "PhraseSynthDelete");
@@ -84,7 +81,6 @@ static NativeLibrary* native_open(const char* path, char* error, int capacity) {
 }
 
 static void native_close(NativeLibrary* library) { if (library) { dlclose(library->handle); free(library); } }
-static int native_resample(NativeLibrary* library, const SynthRequest* request, float** output) { return library->resample(request, output); }
 static void native_free_float(NativeLibrary* library, float* output) { library->free_float(output); }
 static void* native_phrase_new(NativeLibrary* library) { return library->phrase_new(); }
 static void native_phrase_delete(NativeLibrary* library, void* phrase) { library->phrase_delete(phrase); }
@@ -169,17 +165,6 @@ func (library *linuxLibrary) copyAndFree(output *C.float, length int) []float32 
 	}
 	defer C.native_free_float(library.pointer, output)
 	return append([]float32(nil), unsafe.Slice((*float32)(unsafe.Pointer(output)), length)...)
-}
-
-func (library *linuxLibrary) Resample(request nativeRequest) ([]float32, error) {
-	native, allocations := linuxNativeRequest(request)
-	defer freePointers(allocations)
-	var output *C.float
-	count := int(C.native_resample(library.pointer, &native, &output))
-	if count <= 0 || output == nil {
-		return nil, fmt.Errorf("worldline Resample returned no audio")
-	}
-	return library.copyAndFree(output, count), nil
 }
 
 func (library *linuxLibrary) PhraseNew() (uintptr, error) {

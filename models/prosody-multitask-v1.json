@@ -6,9 +6,7 @@
   "license_notice": "licenses/PROSODY-MODELS.txt",
   "recommended_renderers": [
     "utautts-world-phrase",
-    "openutau-worldline-r-faithful",
-    "openutau-classic-worldline-faithful",
-    "openutau-classic-worldline-faithful-gpu"
+    "openutau-worldline-r-faithful"
   ],
   "version": 10,
   "feature_version": 2,

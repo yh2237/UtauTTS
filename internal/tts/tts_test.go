@@ -175,12 +175,6 @@ func TestPitchProcessingSwitchControlsModelFrameContour(t *testing.T) {
 	}
 }
 
-func TestFaithfulGPUSupportsFramePitch(t *testing.T) {
-	if !rendererSupportsFramePitch("openutau-classic-worldline-faithful-gpu", nil) {
-		t.Fatal("GPU faithful renderer rejected a frame pitch contour")
-	}
-}
-
 func TestWaveformRendererSupportsFramePitch(t *testing.T) {
 	if !rendererSupportsFramePitch("waveform", nil) {
 		t.Fatal("waveform renderer rejected a frame pitch contour")

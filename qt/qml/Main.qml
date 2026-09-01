@@ -1330,7 +1330,10 @@ ApplicationWindow {
     }
 
     function normalizeRendererId(id) {
-        const rendererId = String(id || "");
+        let rendererId = String(id || "");
+        if (rendererId === "openutau-classic-worldline-faithful"
+                || rendererId === "openutau-classic-worldline-faithful-gpu")
+            rendererId = "openutau-worldline-r-faithful";
         if (rendererId && window.rendererById(rendererId))
             return rendererId;
         const waveform = window.rendererById("waveform");

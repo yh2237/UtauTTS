@@ -125,10 +125,8 @@ func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		"openutau-classic-worldline-faithful":     "cpu",
-		"openutau-classic-worldline-faithful-gpu": "cuda",
-		"openutau-worldline-r-faithful":           "cpu",
-		"utautts-world-phrase":                    "cpu",
+		"openutau-worldline-r-faithful": "cpu",
+		"utautts-world-phrase":          "cpu",
 	}
 	for _, item := range items {
 		if acceleration, ok := want[item.ID]; ok {
@@ -139,7 +137,20 @@ func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {
 		}
 	}
 	if len(want) != 0 {
-		t.Fatalf("missing classic renderers: %#v", want)
+		t.Fatalf("missing worldline renderers: %#v", want)
+	}
+}
+
+func TestLegacyClassicRendererIDsResolveToWorldlineR(t *testing.T) {
+	catalog := &Catalog{Renderers: []Renderer{{ID: OpenUtauWorldlineRRendererID}}}
+	for _, legacy := range []string{
+		"openutau-classic-worldline-faithful",
+		"openutau-classic-worldline-faithful-gpu",
+	} {
+		got, ok := catalog.Renderer(legacy)
+		if !ok || got.ID != OpenUtauWorldlineRRendererID {
+			t.Fatalf("Renderer(%q) = %#v, %v", legacy, got, ok)
+		}
 	}
 }
 

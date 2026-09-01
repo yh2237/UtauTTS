@@ -916,7 +916,11 @@ void Backend::refreshMetadata() {
             return item.toMap().value(QStringLiteral("id")).toString() == id;
         });
     };
-    if (!containsId(m_renderers, m_defaultRenderer))
+    if ((m_defaultRenderer == QLatin1String("openutau-classic-worldline-faithful")
+            || m_defaultRenderer == QLatin1String("openutau-classic-worldline-faithful-gpu"))
+            && containsId(m_renderers, QStringLiteral("openutau-worldline-r-faithful")))
+        m_defaultRenderer = QStringLiteral("openutau-worldline-r-faithful");
+    else if (!containsId(m_renderers, m_defaultRenderer))
         m_defaultRenderer = m_catalogDefaultRenderer;
     if (m_defaultModelId != QStringLiteral("none") && !containsId(m_models, m_defaultModelId))
         m_defaultModelId = m_models.isEmpty()

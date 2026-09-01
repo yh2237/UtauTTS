@@ -33,7 +33,6 @@ type phraseTiming struct {
 
 type nativeLibrary interface {
 	Close() error
-	Resample(nativeRequest) ([]float32, error)
 	PhraseNew() (uintptr, error)
 	PhraseDelete(uintptr)
 	PhraseAdd(uintptr, int, nativeRequest, phraseTiming) error

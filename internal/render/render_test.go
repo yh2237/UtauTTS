@@ -22,13 +22,6 @@ func TestRenderHonorsCanceledContext(t *testing.T) {
 	}
 }
 
-func TestFaithfulGPURendererIsRegistered(t *testing.T) {
-	const backend = "openutau-classic-worldline-faithful-gpu"
-	if !IsKnownRenderer(backend) {
-		t.Fatalf("GPU faithful renderer %q is not registered", backend)
-	}
-}
-
 func TestWorldlineRFaithfulRendererIsRegistered(t *testing.T) {
 	const backend = "openutau-worldline-r-faithful"
 	if !IsKnownRenderer(backend) {
@@ -182,7 +175,7 @@ func TestOpenUtauEnvelopeUsesNextPhoneTailTiming(t *testing.T) {
 		{NoteStartMS: 0, DurationMS: 100, PreutteranceMS: 30, OverlapMS: 5},
 		{NoteStartMS: 100, DurationMS: 100, PreutteranceMS: 40, OverlapMS: 10},
 	}
-	timings, phraseStart := openUtauClassicTimings(units, CVVCTimingLegacy)
+	timings, phraseStart := openUtauPhoneTimings(units, CVVCTimingLegacy)
 	if timings[0].tailIntrude != 40 || timings[0].tailOverlap != 10 || !timings[1].overlapped || phraseStart != -30 {
 		t.Fatalf("timing = %+v %+v phraseStart=%.1f", timings[0], timings[1], phraseStart)
 	}
@@ -207,13 +200,13 @@ func TestLimitLeadingPreutterance(t *testing.T) {
 	}
 }
 
-func TestOpenUtauClassicTimingsKeepMoraTimingAcrossCVVCTransition(t *testing.T) {
+func TestOpenUtauPhoneTimingsKeepMoraTimingAcrossCVVCTransition(t *testing.T) {
 	units := []plan.Unit{
 		{Position: 0, Role: "mora", NoteStartMS: 0, DurationMS: 100, PreutteranceMS: 30, OverlapMS: 5},
 		{Position: 1, Role: "transition", NoteStartMS: 100, DurationMS: 30, PreutteranceMS: 50, OverlapMS: 20},
 		{Position: 1, Role: "mora", NoteStartMS: 100, DurationMS: 100, PreutteranceMS: 40, OverlapMS: 10},
 	}
-	timings, phraseStart := openUtauClassicTimings(units, CVVCTimingLegacy)
+	timings, phraseStart := openUtauPhoneTimings(units, CVVCTimingLegacy)
 	if timings[1].preutter != 50 || timings[1].overlap != 20 {
 		t.Fatalf("transition timing = %+v", timings[1])
 	}
@@ -225,13 +218,13 @@ func TestOpenUtauClassicTimingsKeepMoraTimingAcrossCVVCTransition(t *testing.T) 
 	}
 }
 
-func TestOpenUtauClassicSequentialCVVCTimingChainsTransitionAndMainPhone(t *testing.T) {
+func TestOpenUtauSequentialCVVCTimingChainsTransitionAndMainPhone(t *testing.T) {
 	units := []plan.Unit{
 		{Position: 0, Role: "mora", NoteStartMS: 0, DurationMS: 100, PreutteranceMS: 30, OverlapMS: 5},
 		{Position: 1, Role: "transition", NoteStartMS: 100, DurationMS: 30, PreutteranceMS: 50, OverlapMS: 20},
 		{Position: 1, Role: "mora", NoteStartMS: 100, DurationMS: 100, PreutteranceMS: 40, OverlapMS: 10},
 	}
-	timings, phraseStart := openUtauClassicTimings(units, CVVCTimingSequential)
+	timings, phraseStart := openUtauPhoneTimings(units, CVVCTimingSequential)
 	if timings[0].tailIntrude != 50 || timings[0].tailOverlap != 20 {
 		t.Fatalf("previous mora tail timing = %+v", timings[0])
 	}
@@ -246,20 +239,20 @@ func TestOpenUtauClassicSequentialCVVCTimingChainsTransitionAndMainPhone(t *test
 	}
 }
 
-func TestOpenUtauClassicSequentialTimingDoesNotChangeNonCVVCSequence(t *testing.T) {
+func TestOpenUtauSequentialTimingDoesNotChangeNonCVVCSequence(t *testing.T) {
 	units := []plan.Unit{
 		{Position: 0, Role: "mora", NoteStartMS: 0, DurationMS: 100, PreutteranceMS: 30, OverlapMS: 5},
 		{Position: 1, Role: "mora", NoteStartMS: 100, DurationMS: 100, PreutteranceMS: 40, OverlapMS: 10},
 	}
-	legacy, legacyStart := openUtauClassicTimings(units, CVVCTimingLegacy)
-	sequential, sequentialStart := openUtauClassicTimings(units, CVVCTimingSequential)
+	legacy, legacyStart := openUtauPhoneTimings(units, CVVCTimingLegacy)
+	sequential, sequentialStart := openUtauPhoneTimings(units, CVVCTimingSequential)
 	if !reflect.DeepEqual(legacy, sequential) || legacyStart != sequentialStart {
 		t.Fatalf("non-CVVC timing changed: legacy=%+v sequential=%+v", legacy, sequential)
 	}
 }
 
 func TestWorldlineRejectsUnknownCVVCTimingBeforeResolvingAssets(t *testing.T) {
-	_, err := renderWorldlineEngine(&plan.Plan{Units: []plan.Unit{{Role: "mora"}}}, Config{CVVCTiming: "unknown"}, "classic-worldline-faithful", true)
+	_, err := renderWorldlineEngine(&plan.Plan{Units: []plan.Unit{{Role: "mora"}}}, Config{CVVCTiming: "unknown"}, "worldline-r-faithful")
 	if err == nil || !strings.Contains(err.Error(), "unknown CVVC timing mode") {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -270,7 +263,7 @@ func TestCVVCPreBoundaryEnvelopeEndsAtFollowingMoraBoundary(t *testing.T) {
 		{XMS: -80, Y: 0}, {XMS: -50, Y: 1}, {XMS: 0, Y: 1},
 		{XMS: 10, Y: 1}, {XMS: 30, Y: 0},
 	}
-	got := cvvcPreBoundaryEnvelope(points, openUtauClassicTiming{tailOverlap: 20})
+	got := cvvcPreBoundaryEnvelope(points, openUtauPhoneTiming{tailOverlap: 20})
 	if got[2].XMS != -20 || got[3].XMS != -20 || got[4].XMS != 0 {
 		t.Fatalf("unexpected pre-boundary envelope: %+v", got)
 	}
@@ -342,7 +335,7 @@ func TestRenderRejectsNonFinitePitchCurve(t *testing.T) {
 		{FrameMS: math.NaN(), Cents: []float64{0}},
 		{FrameMS: 5, Cents: []float64{math.Inf(1)}},
 	} {
-		_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "openutau-classic-worldline-faithful", ApplyPitch: true, PitchCurve: curve})
+		_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "openutau-worldline-r-faithful", ApplyPitch: true, PitchCurve: curve})
 		if err == nil {
 			t.Fatalf("accepted non-finite curve: %+v", curve)
 		}
@@ -426,7 +419,7 @@ func TestRenderRejectsUnsafePitchCurveRangeAndFrame(t *testing.T) {
 		{FrameMS: 5, Cents: []float64{4801}},
 		{FrameMS: 5, Cents: []float64{-4801}},
 	} {
-		_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "openutau-classic-worldline-faithful", ApplyPitch: true, PitchCurve: curve})
+		_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "openutau-worldline-r-faithful", ApplyPitch: true, PitchCurve: curve})
 		if err == nil {
 			t.Fatalf("accepted unsafe curve: %+v", curve)
 		}
@@ -434,7 +427,7 @@ func TestRenderRejectsUnsafePitchCurveRangeAndFrame(t *testing.T) {
 }
 
 func TestBoundaryBridgeRequiresWaveformRenderer(t *testing.T) {
-	_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "openutau-classic-worldline-faithful", BoundaryBridgeMS: 20})
+	_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "openutau-worldline-r-faithful", BoundaryBridgeMS: 20})
 	if err == nil {
 		t.Fatal("boundary bridge was accepted by non-waveform renderer")
 	}
@@ -490,19 +483,6 @@ func TestWorldlineF0CurveAppliesLearnedPitchFactors(t *testing.T) {
 	curve := worldlineF0Curve(p, []float64{200, 200}, []float64{1.03, 0.97}, 200, 11)
 	if math.Abs(curve[0]-206) > 0.01 || math.Abs(curve[10]-194) > 0.01 {
 		t.Fatalf("factored curve endpoints = %.2f..%.2f", curve[0], curve[10])
-	}
-}
-
-func TestWorldlineLocalF0CurveDoesNotGlideBetweenRecordings(t *testing.T) {
-	p := &plan.Plan{Units: []plan.Unit{{NoteStartMS: 0}, {NoteStartMS: 100}}}
-	curve := worldlineLocalF0Curve(p, []float64{200, 400}, []float64{1.03, 0.97}, 220, 11)
-	for frame := 0; frame < 10; frame++ {
-		if math.Abs(curve[frame]-206) > 0.01 {
-			t.Fatalf("frame %d = %.2f, want local 206Hz baseline", frame, curve[frame])
-		}
-	}
-	if math.Abs(curve[10]-388) > 0.01 {
-		t.Fatalf("next unit = %.2f, want local 388Hz baseline", curve[10])
 	}
 }
 

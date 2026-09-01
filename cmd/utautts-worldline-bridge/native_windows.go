@@ -35,7 +35,7 @@ type windowsTiming struct {
 
 type windowsLibrary struct {
 	dll                        *syscall.DLL
-	resample, freeFloat        *syscall.Proc
+	freeFloat                  *syscall.Proc
 	copyFloat                  *syscall.Proc
 	phraseNew, phraseDelete    *syscall.Proc
 	phraseAdd, phraseSetCurves *syscall.Proc
@@ -54,7 +54,7 @@ func openNativeLibrary(path string) (nativeLibrary, error) {
 		}
 		return proc, nil
 	}
-	names := []string{"Resample", "UtauTTSFreeFloat", "UtauTTSCopyFloat", "PhraseSynthNew", "PhraseSynthDelete", "UtauTTSPhraseSynthAddRequest", "PhraseSynthSetCurves", "PhraseSynthSynth"}
+	names := []string{"UtauTTSFreeFloat", "UtauTTSCopyFloat", "PhraseSynthNew", "PhraseSynthDelete", "UtauTTSPhraseSynthAddRequest", "PhraseSynthSetCurves", "PhraseSynthSynth"}
 	procs := make([]*syscall.Proc, len(names))
 	for index, name := range names {
 		procs[index], err = load(name)
@@ -63,7 +63,7 @@ func openNativeLibrary(path string) (nativeLibrary, error) {
 			return nil, err
 		}
 	}
-	return &windowsLibrary{dll: dll, resample: procs[0], freeFloat: procs[1], copyFloat: procs[2], phraseNew: procs[3], phraseDelete: procs[4], phraseAdd: procs[5], phraseSetCurves: procs[6], phraseSynth: procs[7]}, nil
+	return &windowsLibrary{dll: dll, freeFloat: procs[0], copyFloat: procs[1], phraseNew: procs[2], phraseDelete: procs[3], phraseAdd: procs[4], phraseSetCurves: procs[5], phraseSynth: procs[6]}, nil
 }
 
 func (library *windowsLibrary) Close() error { return library.dll.Release() }
@@ -96,17 +96,6 @@ func (library *windowsLibrary) copyAndFree(pointer uintptr, length int) []float3
 	result := make([]float32, length)
 	library.copyFloat.Call(pointer, windowsSlicePointer(result), uintptr(length))
 	return result
-}
-
-func (library *windowsLibrary) Resample(request nativeRequest) ([]float32, error) {
-	native := windowsNativeRequest(request)
-	var output uintptr
-	count, _, _ := library.resample.Call(uintptr(unsafe.Pointer(&native)), uintptr(unsafe.Pointer(&output)))
-	runtime.KeepAlive(request)
-	if int32(count) <= 0 || output == 0 {
-		return nil, fmt.Errorf("worldline Resample returned no audio")
-	}
-	return library.copyAndFree(output, int(int32(count))), nil
 }
 
 func (library *windowsLibrary) PhraseNew() (uintptr, error) {

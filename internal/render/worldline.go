@@ -22,27 +22,18 @@ type worldlineManifest struct {
 	Engine          string                  `json:"engine,omitempty"`
 	WorldlinePath   string                  `json:"worldline_path"`
 	WorldEnginePath string                  `json:"world_engine_path,omitempty"`
-	GPUPath         string                  `json:"gpu_path,omitempty"`
 	OutputPath      string                  `json:"output_path"`
 	SampleRate      int                     `json:"sample_rate"`
 	F0Curve         []float64               `json:"f0_curve"`
 	Units           []worldlineManifestUnit `json:"units"`
 }
 
-func renderOpenUtauClassicWorldlineFaithful(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
-	return renderWorldlineEngine(synthesisPlan, cfg, "classic-worldline-faithful", true)
-}
-
-func renderOpenUtauClassicWorldlineFaithfulGPU(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
-	return renderWorldlineEngine(synthesisPlan, cfg, "classic-worldline-faithful-gpu", true)
-}
-
 func renderOpenUtauWorldlineRFaithful(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
-	return renderWorldlineEngine(synthesisPlan, cfg, "worldline-r-faithful", false)
+	return renderWorldlineEngine(synthesisPlan, cfg, "worldline-r-faithful")
 }
 
 func renderUtauTTSWorldPhrase(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
-	return renderWorldlineEngine(synthesisPlan, cfg, "utautts-world-phrase", false)
+	return renderWorldlineEngine(synthesisPlan, cfg, "utautts-world-phrase")
 }
 
 type worldlineManifestUnit struct {
@@ -73,7 +64,7 @@ type worldlineEnvelopePoint struct {
 	Y   float64 `json:"y"`
 }
 
-func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, localSourcePitch bool) (*audio.PCM, error) {
+func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) (*audio.PCM, error) {
 	if synthesisPlan == nil || len(synthesisPlan.Units) == 0 {
 		return nil, errors.New("empty synthesis plan")
 	}
@@ -107,35 +98,22 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, 
 	if err != nil {
 		return nil, err
 	}
-	gpuPath := ""
-	if strings.HasSuffix(engine, "-gpu") {
-		if err := gpuWaveformAvailable(); err != nil {
-			return nil, err
-		}
-		gpuPath, err = gpuWaveformLibraryPath()
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	cache := newSourceCache()
 	timings := make([]effectiveTiming, len(synthesisPlan.Units))
-	var classicTimings []openUtauClassicTiming
+	var phoneTimings []openUtauPhoneTiming
 	phraseStartMS := 0.0
-	faithfulClassic := strings.HasPrefix(engine, "classic-worldline-faithful")
 	phraseTiming := engine == "worldline-r-faithful" || customWorld
-	openUtauTiming := faithfulClassic || phraseTiming
-	if openUtauTiming {
-		classicTimings, phraseStartMS = openUtauClassicTimings(synthesisPlan.Units, cfg.CVVCTiming)
+	if phraseTiming {
+		phoneTimings, phraseStartMS = openUtauPhoneTimings(synthesisPlan.Units, cfg.CVVCTiming)
 	}
 	leadingMS := limitLeadingPreutterance(math.Max(0, -phraseStartMS), cfg.LeadingPreutteranceMS)
 	synthesisPlan.LeadingMarginMS = leadingMS
 	for i := range synthesisPlan.Units {
 		unit := &synthesisPlan.Units[i]
 		timings[i] = normalizeTiming(*unit, cfg.ReleaseMS)
-		if len(classicTimings) == len(synthesisPlan.Units) && !unit.Silent {
-			timings[i].preutteranceMS = classicTimings[i].preutter
-			timings[i].overlapMS = classicTimings[i].overlap
+		if len(phoneTimings) == len(synthesisPlan.Units) && !unit.Silent {
+			timings[i].preutteranceMS = phoneTimings[i].preutter
+			timings[i].overlapMS = phoneTimings[i].overlap
 			timings[i].consonantMS = unit.ConsonantMS
 			timings[i].scale = 1
 		}
@@ -172,14 +150,10 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, 
 	}
 	f0Curve := worldlineF0CurveAtOffset(synthesisPlan, pitches, pitchFactors, reference,
 		max(2, int(math.Ceil(curveDurationMS/frameMS))+2), frameMS, curveStartMS)
-	if localSourcePitch {
-		f0Curve = worldlineLocalF0Curve(synthesisPlan, pitches, pitchFactors, reference, len(f0Curve))
-	}
 	manifest := worldlineManifest{
 		Engine:          engine,
 		WorldlinePath:   library,
 		WorldEnginePath: worldEnginePath,
-		GPUPath:         gpuPath,
 		SampleRate:      sampleRate,
 		F0Curve:         f0Curve,
 	}
@@ -244,15 +218,15 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, 
 		}
 		var envelopePoints []worldlineEnvelopePoint
 		pitchLengthMS := 0.0
-		if strings.HasPrefix(engine, "classic-worldline-") || phraseTiming {
+		if phraseTiming {
 			// OpenUTAUと同じ位置からbendを始め、先頭の余剰をskipする。
 			pitchLeadingMS := unit.PreutteranceMS
 			skipMS = math.Max(0, pitchLeadingMS-timing.preutteranceMS)
 			pitchStartMS = unit.NoteStartMS - pitchLeadingMS
 			durCorrection := 0.0
-			if openUtauTiming {
-				phoneTiming := classicTimings[i]
-				// Classic方式のskipを非負に保つ。
+			if phraseTiming {
+				phoneTiming := phoneTimings[i]
+				// bridgeへ渡すskipを非負に保つ。
 				skipMS = math.Max(0, pitchLeadingMS-phoneTiming.preutter)
 				durCorrection = phoneTiming.preutter - phoneTiming.tailIntrude + phoneTiming.tailOverlap
 				envelopePoints = openUtauEnvelopeFromTiming(*unit, phoneTiming)
@@ -270,7 +244,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string, 
 			lengthMS = timing.preutteranceMS + unit.DurationMS + cfg.ReleaseMS
 			consonantVelocity = 100
 		}
-		if !faithfulClassic && positionMS < 0 {
+		if positionMS < 0 {
 			leadingTrimMS := -positionMS
 			skipMS += leadingTrimMS
 			lengthMS -= leadingTrimMS
@@ -357,7 +331,7 @@ func findFRQPath(wavPath string) string {
 	return ""
 }
 
-type openUtauClassicTiming struct {
+type openUtauPhoneTiming struct {
 	preutter    float64
 	overlap     float64
 	tailIntrude float64
@@ -365,8 +339,8 @@ type openUtauClassicTiming struct {
 	overlapped  bool
 }
 
-func openUtauClassicTimings(units []plan.Unit, cvvcTiming string) ([]openUtauClassicTiming, float64) {
-	result := make([]openUtauClassicTiming, len(units))
+func openUtauPhoneTimings(units []plan.Unit, cvvcTiming string) ([]openUtauPhoneTiming, float64) {
+	result := make([]openUtauPhoneTiming, len(units))
 	previous := -1
 	first := -1
 	for index, unit := range units {
@@ -428,7 +402,7 @@ func openUtauClassicTimings(units []plan.Unit, cvvcTiming string) ([]openUtauCla
 	return result, phraseStart
 }
 
-func openUtauEnvelopeFromTiming(unit plan.Unit, timing openUtauClassicTiming) []worldlineEnvelopePoint {
+func openUtauEnvelopeFromTiming(unit plan.Unit, timing openUtauPhoneTiming) []worldlineEnvelopePoint {
 	fadeIn := 5.0
 	if timing.overlapped {
 		fadeIn = timing.overlap
@@ -448,7 +422,7 @@ func openUtauEnvelopeFromTiming(unit plan.Unit, timing openUtauClassicTiming) []
 	}
 }
 
-func cvvcPreBoundaryEnvelope(points []worldlineEnvelopePoint, timing openUtauClassicTiming) []worldlineEnvelopePoint {
+func cvvcPreBoundaryEnvelope(points []worldlineEnvelopePoint, timing openUtauPhoneTiming) []worldlineEnvelopePoint {
 	if len(points) != 5 {
 		return points
 	}
@@ -609,26 +583,6 @@ func worldlineF0CurveAtOffset(synthesisPlan *plan.Plan, pitches, factors []float
 			}
 		}
 		curve[frame] = value
-	}
-	return curve
-}
-
-func worldlineLocalF0Curve(synthesisPlan *plan.Plan, pitches, factors []float64, reference float64, length int) []float64 {
-	targets := make([]float64, len(pitches))
-	for index, value := range pitches {
-		if value <= 0 {
-			value = reference
-		}
-		targets[index] = value * factors[index]
-	}
-	curve := make([]float64, length)
-	unitIndex := 0
-	for frame := range curve {
-		timeMS := float64(frame) * worldlineFrameMS
-		for unitIndex+1 < len(synthesisPlan.Units) && synthesisPlan.Units[unitIndex+1].NoteStartMS <= timeMS {
-			unitIndex++
-		}
-		curve[frame] = targets[unitIndex]
 	}
 	return curve
 }
