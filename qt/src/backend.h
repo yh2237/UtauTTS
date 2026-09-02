@@ -16,6 +16,8 @@ class QFile;
 class QNetworkAccessManager;
 class QNetworkReply;
 
+QStringList updateLockPaths(const QString &target);
+
 class Backend final : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool connected READ connected NOTIFY connectedChanged)

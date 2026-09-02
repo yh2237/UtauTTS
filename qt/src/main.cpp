@@ -76,8 +76,15 @@ bool updateInProgress() {
     QDir root(QCoreApplication::applicationDirPath());
     if (root.dirName().compare(QLatin1String("app"), Qt::CaseInsensitive) == 0)
         root.cdUp();
-    const QString lockPath = root.absolutePath() + QStringLiteral(".update-lock.json");
-    if (!QFileInfo::exists(lockPath))
+    const QStringList lockPaths = updateLockPaths(root.absolutePath());
+    QString lockPath;
+    for (const QString &path : lockPaths) {
+        if (QFileInfo::exists(path)) {
+            lockPath = path;
+            break;
+        }
+    }
+    if (lockPath.isEmpty())
         return false;
 #ifdef Q_OS_WIN
     const QString title = QStringLiteral("UtauTTS 更新中");

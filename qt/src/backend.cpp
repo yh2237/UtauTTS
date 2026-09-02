@@ -116,30 +116,29 @@ bool writeJSONFile(const QString &path, const QVariantMap &value, QString *error
     return true;
 }
 
-QString updateLockPath(const QDir &root) {
-    return root.absolutePath() + QStringLiteral(".update-lock.json");
-}
-
 bool writePendingUpdateLock(const QDir &root, const QString &version, QString *error) {
-    QSaveFile file(updateLockPath(root));
-    if (!file.open(QIODevice::WriteOnly)) {
-        if (error)
-            *error = file.errorString();
-        return false;
-    }
     const QJsonObject state{
         {QStringLiteral("version"), version},
         {QStringLiteral("started_at"), QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)},
         {QStringLiteral("updater_pid"), 0},
     };
     const QByteArray data = QJsonDocument(state).toJson(QJsonDocument::Compact) + '\n';
-    if (file.write(data) != data.size() || !file.commit()) {
-        if (error)
-            *error = file.errorString();
+    QStringList failures;
+    for (const QString &path : updateLockPaths(root.absolutePath())) {
+        QSaveFile file(path);
+        if (!file.open(QIODevice::WriteOnly)) {
+            failures.append(file.errorString());
+            continue;
+        }
+        if (file.write(data) == data.size() && file.commit()) {
+            return true;
+        }
+        failures.append(file.errorString());
         file.cancelWriting();
-        return false;
     }
-    return true;
+    if (error)
+        *error = failures.join(QStringLiteral("; "));
+    return false;
 }
 
 QDir resourceRoot() {
@@ -189,6 +188,18 @@ QVariant portableSettingValue(const QString &key, const QVariant &defaultValue =
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     return settings.value(key, defaultValue);
 }
+}
+
+QStringList updateLockPaths(const QString &target) {
+    const QString absolute = QFileInfo(target).absoluteFilePath();
+    QString normalized = QDir::cleanPath(absolute).replace('\\', '/');
+#ifdef Q_OS_WIN
+    normalized = normalized.toLower();
+#endif
+    const QByteArray hash = QCryptographicHash::hash(normalized.toUtf8(), QCryptographicHash::Sha256).toHex();
+    const QString fallback = QDir(QDir::tempPath()).filePath(
+        QStringLiteral("utautts-update-lock-%1.json").arg(QString::fromLatin1(hash)));
+    return {absolute + QStringLiteral(".update-lock.json"), fallback};
 }
 
 Backend::Backend(QObject *parent)
@@ -728,7 +739,8 @@ bool Backend::installUpdate(const QString &localZip, const QString &version) {
     }
     qint64 updaterPid = 0;
     if (!QProcess::startDetached(tempUpdater, arguments, QDir::tempPath(), &updaterPid)) {
-        QFile::remove(updateLockPath(root));
+        for (const QString &path : updateLockPaths(root.absolutePath()))
+            QFile::remove(path);
         const QString message = tr("アップデータを起動できませんでした。");
         setError(message);
         showUpdateError(tr("更新に失敗しました"), message);

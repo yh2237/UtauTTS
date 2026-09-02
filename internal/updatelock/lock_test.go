@@ -54,3 +54,19 @@ func TestReadAcceptsQtPendingLock(t *testing.T) {
 		t.Fatalf("state = %+v", state)
 	}
 }
+
+func TestReadFallbackLock(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "UtauTTS")
+	if err := WriteFallback(target, "v1.2.4", 5678); err != nil {
+		t.Fatal(err)
+	}
+	defer Remove(target)
+
+	state, err := Read(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Version != "v1.2.4" || state.UpdaterPID != 5678 || state.StartedAt.IsZero() {
+		t.Fatalf("state = %+v", state)
+	}
+}

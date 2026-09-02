@@ -37,6 +37,7 @@ func main() {
 	pid := flag.Int("pid", 0, "PID of the running GUI to wait for before replacing files")
 	version := flag.String("version", "", "incoming release tag (diagnostics)")
 	preserveFlag := flag.String("preserve", "voice,config.ini", "comma-separated relative paths kept from the old install")
+	elevated := flag.Bool("elevated", false, "internal: updater was relaunched with administrator privileges")
 	flag.Parse()
 
 	if *target == "" || (*downloadURL == "" && *zipFlag == "") {
@@ -54,9 +55,25 @@ func main() {
 	if err := updatelock.Write(*target, *version, os.Getpid()); err != nil {
 		ok = false
 		logf("update lock failed: %v", err)
-	} else if err := run(*target, *downloadURL, *zipFlag, *pid, *version, preserve, *deleteZip); err != nil {
-		ok = false
-		logf("update failed: %v", err)
+	} else if !*elevated {
+		args := append([]string{}, os.Args[1:]...)
+		args = append(args, "-elevated")
+		relaunched, err := relaunchElevatedIfNeeded(*target, args)
+		if err != nil {
+			ok = false
+			logf("administrator elevation failed: %v", err)
+		} else if relaunched {
+			return
+		}
+	}
+	if ok {
+		if err := run(*target, *downloadURL, *zipFlag, *pid, *version, preserve, *deleteZip); err != nil {
+			ok = false
+			logf("update failed: %v", err)
+		}
+	}
+	if !ok {
+		_ = updatelock.Remove(*target)
 	}
 	launchApp(*target)
 	if err := updatelock.Remove(*target); err != nil {

@@ -42,9 +42,14 @@ func updateBlocked(root string) bool {
 	active := false
 	if err == nil {
 		active = lockStateActive(state, time.Now(), processAlive)
-	} else if path, pathErr := updatelock.Path(root); pathErr == nil {
-		if info, statErr := os.Stat(path); statErr == nil {
-			active = time.Since(info.ModTime()) < time.Minute
+	} else if paths, pathErr := updatelock.Paths(root); pathErr == nil {
+		for _, path := range paths {
+			if info, statErr := os.Stat(path); statErr == nil {
+				active = time.Since(info.ModTime()) < time.Minute
+				if active {
+					break
+				}
+			}
 		}
 	}
 	if active {
