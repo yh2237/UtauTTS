@@ -292,7 +292,7 @@ ApplicationWindow {
         hostPalette: window.palette
         backend: window.appBackend
         translator: window.translator
-        onSaveRequested: window.saveSettings()
+        onApplyRequested: closeAfter => window.saveSettings(closeAfter)
     }
 
     DictionaryWindow {
@@ -821,74 +821,105 @@ ApplicationWindow {
     menuBar: MenuBar {
         Menu {
             title: window.translator.tr("menu.file")
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.open")
                 enabled: !window.appBackend.busy && !window.batchExportActive
                 onTriggered: projectOpenDialog.open()
             }
-            MenuItem {
+            Menu {
+                id: recentProjectsMenu
+                title: window.translator.tr("menu.file.recent")
+
+                Instantiator {
+                    model: window.appBackend.recentProjects
+                    delegate: GrayscaleMenuItem {
+                        required property string modelData
+                        text: window.recentProjectLabel(modelData)
+                        enabled: !window.appBackend.busy && !window.batchExportActive
+                        ToolTip.visible: hovered
+                        ToolTip.text: modelData
+                        ToolTip.delay: 500
+                        onTriggered: window.loadRecentProject(modelData)
+                    }
+                    onObjectAdded: recentProjectsMenu.insertItem(index, object)
+                    onObjectRemoved: recentProjectsMenu.removeItem(object)
+                }
+
+                GrayscaleMenuItem {
+                    text: window.translator.tr("menu.file.recent.empty")
+                    enabled: false
+                    visible: window.appBackend.recentProjects.length === 0
+                }
+                MenuSeparator {}
+                GrayscaleMenuItem {
+                    text: window.translator.tr("menu.file.recent.clear")
+                    enabled: window.appBackend.recentProjects.length > 0
+                    onTriggered: window.appBackend.clearRecentProjects()
+                }
+            }
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.save")
                 enabled: !window.appBackend.busy && !window.batchExportActive
                 onTriggered: window.saveCurrentProject()
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.saveAs")
                 enabled: !window.appBackend.busy && !window.batchExportActive
                 onTriggered: window.openProjectSaveDialog()
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.exportUstx")
                 enabled: utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive
                 onTriggered: window.openUstxExportDialog()
             }
             MenuSeparator {}
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.openVoiceDirectory")
                 enabled: !window.appBackend.busy && !window.batchExportActive
                 onTriggered: window.appBackend.openVoiceDirectory()
             }
             MenuSeparator {}
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.saveWav")
                 enabled: utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive && window.current().reading.length > 0
                 onTriggered: window.saveCurrentAudio()
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.saveAllWav")
                 enabled: !window.appBackend.busy && !window.batchExportActive && window.hasPlayableTextFrom(0)
                 onTriggered: window.openSaveAllDialog()
             }
             MenuSeparator {}
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.exportExo")
                 enabled: utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive && window.current().reading.length > 0
                 onTriggered: window.openDragExportDialog(true)
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.exportAllExo")
                 enabled: !window.appBackend.busy && !window.batchExportActive && window.hasPlayableTextFrom(0)
                 onTriggered: window.openDragExportDialog(false)
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.reloadVoicebanks")
                 enabled: !window.appBackend.busy
                 onTriggered: window.reloadVoicebanks()
             }
             MenuSeparator {}
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.quit")
                 onTriggered: Qt.quit()
             }
         }
         Menu {
             title: window.translator.tr("menu.edit")
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.edit.undo")
                 enabled: window.canUndo && !window.appBackend.busy && !window.batchExportActive
                          && !window.playbackQueueActive
                 onTriggered: window.undo()
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.edit.redo")
                 enabled: window.canRedo && !window.appBackend.busy && !window.batchExportActive
                          && !window.playbackQueueActive
@@ -897,26 +928,26 @@ ApplicationWindow {
         }
         Menu {
             title: window.translator.tr("menu.playback")
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.playback.current")
                 enabled: utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive
                          && !window.playbackQueueActive && window.current().reading.length > 0
                 onTriggered: window.synthesizeCurrent()
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.playback.all")
                 enabled: !window.appBackend.busy && !window.batchExportActive && !window.playbackQueueActive
                          && window.hasPlayableTextFrom(0)
                 onTriggered: window.startPlaybackQueue(0)
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.playback.fromSelected")
                 enabled: !window.appBackend.busy && !window.batchExportActive && !window.playbackQueueActive
                          && window.hasPlayableTextFrom(window.selectedIndex)
                 onTriggered: window.startPlaybackQueue(window.selectedIndex)
             }
             MenuSeparator {}
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.playback.replay")
                 enabled: !window.appBackend.busy && !window.batchExportActive && !window.playbackQueueActive
                          && window.hasCachedAudio()
@@ -925,18 +956,18 @@ ApplicationWindow {
         }
         Menu {
             title: window.translator.tr("menu.settings")
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.settings.settings")
                 onTriggered: {
                     window.showAuxiliaryWindow(settingsWindow);
                     settingsWindow.loadCurrent();
                 }
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.settings.dictionary")
                 onTriggered: window.openDictionarySettings()
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 visible: window.appBackend.developerMode
                 height: visible ? implicitHeight : 0
                 text: window.translator.tr("menu.settings.trainingData")
@@ -946,31 +977,31 @@ ApplicationWindow {
         }
         Menu {
             title: window.translator.tr("menu.help")
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.help.about")
                 onTriggered: {
                     if (!window.appBackend.showNativeAboutDialog())
                         aboutDialog.open();
                 }
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.help.repository")
                 onTriggered: Qt.openUrlExternally(window.repositoryUrl)
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.help.license")
                 onTriggered: window.showAuxiliaryWindow(licenseWindow)
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.help.usage")
                 onTriggered: window.showAuxiliaryWindow(usageWindow)
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.help.voicebankDetails")
                 enabled: window.appBackend.voicebanks.length > 0
                 onTriggered: window.showVoicebankDetails()
             }
-            MenuItem {
+            GrayscaleMenuItem {
                 text: window.translator.tr("menu.help.exportDiagnostics")
                 onTriggered: {
                     diagnosticSaveDialog.currentFile = window.appBackend.defaultSaveFile(
@@ -1017,6 +1048,21 @@ ApplicationWindow {
         return parts.join("+");
     }
 
+    function recentProjectLabel(path) {
+        const normalized = String(path || "").replace(/\\/g, "/");
+        const slash = normalized.lastIndexOf("/");
+        return slash >= 0 ? normalized.slice(slash + 1) : normalized;
+    }
+
+    function loadRecentProject(path) {
+        const normalized = String(path || "").replace(/\\/g, "/");
+        if (!normalized.length)
+            return;
+        const encoded = normalized.split("/").map(segment => encodeURIComponent(segment)).join("/");
+        const url = normalized.startsWith("/") ? "file://" + encoded : "file:///" + encoded;
+        window.loadProjectFrom(url);
+    }
+
     function showVoicebankDetails() {
         if (!window.appBackend.voicebanks.length)
             return;
@@ -1024,7 +1070,7 @@ ApplicationWindow {
         window.showAuxiliaryWindow(voicebankDetailsWindow);
     }
 
-    function saveSettings() {
+    function saveSettings(closeAfter) {
         const shortcuts = [settingsWindow.pendingSynthesizeShortcut,
                            settingsWindow.pendingSaveProjectShortcut,
                            settingsWindow.pendingReloadVoicebanksShortcut,
@@ -1080,8 +1126,10 @@ ApplicationWindow {
                                                settingsWindow.pendingRemoveUtteranceShortcut,
                                                settingsWindow.pendingUndoShortcut,
                                                settingsWindow.pendingRedoShortcut);
-        settingsWindow.close();
-        settingsWindow.visible = false;
+        if (closeAfter) {
+            settingsWindow.close();
+            settingsWindow.visible = false;
+        }
     }
 
     function showAuxiliaryWindow(auxiliaryWindow) {
@@ -1759,6 +1807,7 @@ ApplicationWindow {
             return;
         }
         window.projectFile = destination;
+        window.appBackend.rememberRecentProject(destination);
         window.endHistoryGesture();
         window.savedProjectFingerprint = window.editableFingerprint();
         window.projectDirty = false;
@@ -1843,6 +1892,7 @@ ApplicationWindow {
 
         window.projectDirty = migratedRenderer;
         window.projectFile = source;
+        window.appBackend.rememberRecentProject(source);
 
         if (!utterances.count) {
             selectedIndex = 0;

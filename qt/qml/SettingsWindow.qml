@@ -11,7 +11,7 @@ ApplicationWindow {
     required property var hostPalette
     required property var backend
     required property var translator
-    signal saveRequested()
+    signal applyRequested(bool closeAfter)
 
     title: root.translator.tr("settings.title")
     visible: false
@@ -105,22 +105,39 @@ ApplicationWindow {
         pendingLeadingPreutterance = root.backend.defaultLeadingPreutterance;
         leadingPreutteranceSpin.value = pendingLeadingPreutterance;
         pendingDefaultIntonationStrength = root.backend.defaultIntonationStrength;
+        defaultIntonationSpin.value = Math.round(pendingDefaultIntonationStrength * 100);
         pendingExportTextWithWav = root.backend.exportTextWithWav;
+        exportTextWithWavSwitch.checked = pendingExportTextWithWav;
         pendingExportLabWithWav = root.backend.exportLabWithWav;
+        exportLabWithWavSwitch.checked = pendingExportLabWithWav;
         pendingExportTextEncoding = root.backend.exportTextEncoding;
+        exportTextEncodingCombo.currentIndex = pendingExportTextEncoding === "shift_jis" ? 1 : 0;
         pendingDarkMode = root.backend.darkMode;
         pendingLanguage = root.backend.language;
         pendingCloseLogOnSuccess = root.backend.closeLogOnSuccess;
+        closeLogOnSuccessSwitch.checked = pendingCloseLogOnSuccess;
         pendingUpdateCheckEnabled = root.backend.updateCheckEnabled;
+        updateCheckSwitch.checked = pendingUpdateCheckEnabled;
         pendingPreviewCacheFileCount = root.backend.previewCacheFileCount;
+        previewCacheSpin.value = pendingPreviewCacheFileCount;
         pendingDeveloperMode = root.backend.developerMode;
+        developerModeSwitch.checked = pendingDeveloperMode;
+        moraSpin.value = pendingMoraDuration;
+        pauseSpin.value = pendingPauseDuration;
         pendingSynthesizeShortcut = root.backend.synthesizeShortcut;
+        synthesizeShortcutField.text = pendingSynthesizeShortcut;
         pendingSaveProjectShortcut = root.backend.saveProjectShortcut;
+        saveProjectShortcutField.text = pendingSaveProjectShortcut;
         pendingReloadVoicebanksShortcut = root.backend.reloadVoicebanksShortcut;
+        reloadVoicebanksShortcutField.text = pendingReloadVoicebanksShortcut;
         pendingAddUtteranceShortcut = root.backend.addUtteranceShortcut;
+        addUtteranceShortcutField.text = pendingAddUtteranceShortcut;
         pendingRemoveUtteranceShortcut = root.backend.removeUtteranceShortcut;
+        removeUtteranceShortcutField.text = pendingRemoveUtteranceShortcut;
         pendingUndoShortcut = root.backend.undoShortcut;
+        undoShortcutField.text = pendingUndoShortcut;
         pendingRedoShortcut = root.backend.redoShortcut;
+        redoShortcutField.text = pendingRedoShortcut;
         themeCombo.currentIndex = pendingDarkMode ? 1 : 0;
         languageCombo.currentIndex = root.languageCodes.indexOf(pendingLanguage);
         defaultVoicebankCombo.currentIndex = root.defaultVoicebankIndex();
@@ -129,6 +146,131 @@ ApplicationWindow {
         const externalItems = root.externalRenderers();
         selectedExternalRendererId = externalItems.length ? externalItems[0].id : "";
         externalRendererCombo.currentIndex = root.externalRendererIndex();
+    }
+
+    function resetDefaultVoicebank() {
+        pendingDefaultVoicebankId = "";
+        defaultVoicebankCombo.currentIndex = 0;
+    }
+
+    function resetDefaultAliasPolicy() {
+        pendingDefaultAliasPolicy = "auto";
+        defaultAliasPolicyCombo.currentIndex = defaultAliasPolicyCombo.indexOfValue("auto");
+    }
+
+    function resetDefaultModel() {
+        pendingDefaultModelId = "frame-intonation-v8";
+        defaultModelCombo.currentIndex = root.defaultModelIndex();
+    }
+
+    function resetDefaultRenderer() {
+        pendingDefaultRendererId = "utautts-world-phrase";
+        defaultRendererCombo.currentIndex = root.defaultRendererIndex();
+    }
+
+    function resetDefaultTone() {
+        pendingDefaultTone = "C4";
+        defaultToneField.text = pendingDefaultTone;
+    }
+
+    function resetDefaultIntonation() {
+        pendingDefaultIntonationStrength = 2.0;
+        defaultIntonationSpin.value = 200;
+    }
+
+    function resetDefaultMoraDuration() {
+        pendingMoraDuration = 120;
+        moraSpin.value = 120;
+    }
+
+    function resetDefaultPauseDuration() {
+        pendingPauseDuration = 180;
+        pauseSpin.value = 180;
+    }
+
+    function resetDefaultLeadingPreutterance() {
+        pendingLeadingPreutterance = 0;
+        leadingPreutteranceSpin.value = 0;
+    }
+
+    function resetPreviewCacheFileCount() {
+        pendingPreviewCacheFileCount = 32;
+        previewCacheSpin.value = 32;
+    }
+
+    function resetExportTextWithWav() {
+        pendingExportTextWithWav = false;
+        exportTextWithWavSwitch.checked = false;
+    }
+
+    function resetExportTextEncoding() {
+        pendingExportTextEncoding = "utf-8";
+        exportTextEncodingCombo.currentIndex = 0;
+    }
+
+    function resetExportLabWithWav() {
+        pendingExportLabWithWav = false;
+        exportLabWithWavSwitch.checked = false;
+    }
+
+    function resetTheme() {
+        pendingDarkMode = false;
+        themeCombo.currentIndex = 0;
+    }
+
+    function resetLanguage() {
+        pendingLanguage = "auto";
+        languageCombo.currentIndex = root.languageCodes.indexOf("auto");
+    }
+
+    function resetUpdateCheckEnabled() {
+        pendingUpdateCheckEnabled = true;
+        updateCheckSwitch.checked = true;
+    }
+
+    function resetDeveloperMode() {
+        pendingDeveloperMode = false;
+        developerModeSwitch.checked = false;
+    }
+
+    function resetCloseLogOnSuccess() {
+        pendingCloseLogOnSuccess = true;
+        closeLogOnSuccessSwitch.checked = true;
+    }
+
+    function resetSynthesizeShortcut() {
+        pendingSynthesizeShortcut = "Ctrl+Enter";
+        synthesizeShortcutField.text = pendingSynthesizeShortcut;
+    }
+
+    function resetSaveProjectShortcut() {
+        pendingSaveProjectShortcut = "Ctrl+S";
+        saveProjectShortcutField.text = pendingSaveProjectShortcut;
+    }
+
+    function resetReloadVoicebanksShortcut() {
+        pendingReloadVoicebanksShortcut = "Ctrl+O";
+        reloadVoicebanksShortcutField.text = pendingReloadVoicebanksShortcut;
+    }
+
+    function resetAddUtteranceShortcut() {
+        pendingAddUtteranceShortcut = "Ctrl+D";
+        addUtteranceShortcutField.text = pendingAddUtteranceShortcut;
+    }
+
+    function resetRemoveUtteranceShortcut() {
+        pendingRemoveUtteranceShortcut = "Delete";
+        removeUtteranceShortcutField.text = pendingRemoveUtteranceShortcut;
+    }
+
+    function resetUndoShortcut() {
+        pendingUndoShortcut = "Ctrl+Z";
+        undoShortcutField.text = pendingUndoShortcut;
+    }
+
+    function resetRedoShortcut() {
+        pendingRedoShortcut = "Ctrl+Y";
+        redoShortcutField.text = pendingRedoShortcut;
     }
 
     function defaultVoicebankIndex() {
@@ -280,6 +422,10 @@ ApplicationWindow {
                                     currentIndex: root.defaultVoicebankIndex()
                                     onActivated: root.pendingDefaultVoicebankId = currentValue
                                 }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultVoicebank()
+                                }
                             }
                             RowLayout {
                                 Layout.fillWidth: true
@@ -303,6 +449,10 @@ ApplicationWindow {
                                     currentIndex: indexOfValue(root.pendingDefaultAliasPolicy)
                                     onActivated: root.pendingDefaultAliasPolicy = currentValue
                                 }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultAliasPolicy()
+                                }
                             }
                             RowLayout {
                                 Layout.fillWidth: true
@@ -322,6 +472,10 @@ ApplicationWindow {
                                     currentIndex: root.defaultModelIndex()
                                     onActivated: root.pendingDefaultModelId = currentValue
                                 }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultModel()
+                                }
                             }
                             RowLayout {
                                 Layout.fillWidth: true
@@ -338,6 +492,10 @@ ApplicationWindow {
                                     currentIndex: root.defaultRendererIndex()
                                     onActivated: root.pendingDefaultRendererId = currentValue
                                 }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultRenderer()
+                                }
                             }
 
                             RowLayout {
@@ -352,6 +510,10 @@ ApplicationWindow {
                                     horizontalAlignment: TextInput.AlignRight
                                     text: root.pendingDefaultTone
                                     onEditingFinished: root.pendingDefaultTone = text.trim().length ? text.trim() : "C4"
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultTone()
                                 }
                             }
                             RowLayout {
@@ -377,6 +539,10 @@ ApplicationWindow {
                                         onDoubleTapped: root.pendingDefaultIntonationStrength = 2.0
                                     }
                                 }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultIntonation()
+                                }
                             }
                             RowLayout {
                                 Layout.fillWidth: true
@@ -401,6 +567,10 @@ ApplicationWindow {
                                         onDoubleTapped: root.pendingMoraDuration = 120
                                     }
                                 }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultMoraDuration()
+                                }
                             }
                             RowLayout {
                                 Layout.fillWidth: true
@@ -424,6 +594,10 @@ ApplicationWindow {
                                         grabPermissions: PointerHandler.CanTakeOverFromAnything
                                         onDoubleTapped: root.pendingPauseDuration = 180
                                     }
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultPauseDuration()
                                 }
                             }
                             RowLayout {
@@ -470,6 +644,10 @@ ApplicationWindow {
                                             leadingPreutteranceSpin.refreshTextFormatter();
                                         }
                                     }
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultLeadingPreutterance()
                                 }
                             }
                             RowLayout {
@@ -538,6 +716,10 @@ ApplicationWindow {
                                         }
                                     }
                                 }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetPreviewCacheFileCount()
+                                }
                             }
                         }
                     }
@@ -558,23 +740,33 @@ ApplicationWindow {
                                 text: root.translator.tr("settings.exportTextWithWav")
                             }
                             Switch {
+                                id: exportTextWithWavSwitch
                                 checked: root.pendingExportTextWithWav
                                 onToggled: root.pendingExportTextWithWav = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetExportTextWithWav()
                             }
                         }
 
                         RowLayout {
                             Layout.fillWidth: true
-                            enabled: root.pendingExportTextWithWav
                             Label {
                                 Layout.fillWidth: true
                                 text: root.translator.tr("settings.exportTextEncoding")
                             }
                             ComboBox {
+                                id: exportTextEncodingCombo
                                 Layout.preferredWidth: 180
+                                enabled: root.pendingExportTextWithWav
                                 model: ["UTF-8", "Shift_JIS (CP932)"]
                                 currentIndex: root.pendingExportTextEncoding === "shift_jis" ? 1 : 0
                                 onActivated: root.pendingExportTextEncoding = currentIndex === 1 ? "shift_jis" : "utf-8"
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetExportTextEncoding()
                             }
                         }
 
@@ -585,8 +777,13 @@ ApplicationWindow {
                                 text: root.translator.tr("settings.exportLabWithWav")
                             }
                             Switch {
+                                id: exportLabWithWavSwitch
                                 checked: root.pendingExportLabWithWav
                                 onToggled: root.pendingExportLabWithWav = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetExportLabWithWav()
                             }
                         }
                     }
@@ -613,6 +810,10 @@ ApplicationWindow {
                                 currentIndex: root.pendingDarkMode ? 1 : 0
                                 onActivated: root.pendingDarkMode = currentIndex === 1
                             }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetTheme()
+                            }
                         }
 
                         RowLayout {
@@ -628,6 +829,10 @@ ApplicationWindow {
                                 currentIndex: root.languageCodes.indexOf(root.pendingLanguage)
                                 onActivated: root.pendingLanguage = root.languageCodes[currentIndex]
                             }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetLanguage()
+                            }
                         }
 
                         RowLayout {
@@ -637,9 +842,14 @@ ApplicationWindow {
                                 text: root.translator.tr("settings.updateCheckEnabled")
                             }
                             Switch {
+                                id: updateCheckSwitch
                                 Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
                                 checked: root.pendingUpdateCheckEnabled
                                 onToggled: root.pendingUpdateCheckEnabled = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetUpdateCheckEnabled()
                             }
                         }
 
@@ -650,9 +860,14 @@ ApplicationWindow {
                                 text: root.translator.tr("settings.developerMode")
                             }
                             Switch {
+                                id: developerModeSwitch
                                 Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
                                 checked: root.pendingDeveloperMode
                                 onToggled: root.pendingDeveloperMode = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetDeveloperMode()
                             }
                         }
                     }
@@ -673,9 +888,14 @@ ApplicationWindow {
                                 text: root.translator.tr("settings.closeLogOnSuccess")
                             }
                             Switch {
+                                id: closeLogOnSuccessSwitch
                                 Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
                                 checked: root.pendingCloseLogOnSuccess
                                 onToggled: root.pendingCloseLogOnSuccess = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetCloseLogOnSuccess()
                             }
                         }
                     }
@@ -702,6 +922,7 @@ ApplicationWindow {
                                 text: root.translator.tr("settings.shortcut.undo")
                             }
                             TextField {
+                                id: undoShortcutField
                                 Layout.preferredWidth: 180
                                 text: root.pendingUndoShortcut
                                 readOnly: true
@@ -720,6 +941,10 @@ ApplicationWindow {
                                     }
                                 }
                             }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetUndoShortcut()
+                            }
                         }
 
                         RowLayout {
@@ -729,6 +954,7 @@ ApplicationWindow {
                                 text: root.translator.tr("settings.shortcut.redo")
                             }
                             TextField {
+                                id: redoShortcutField
                                 Layout.preferredWidth: 180
                                 text: root.pendingRedoShortcut
                                 readOnly: true
@@ -746,6 +972,10 @@ ApplicationWindow {
                                         event.accepted = true;
                                     }
                                 }
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetRedoShortcut()
                             }
                         }
 
@@ -775,6 +1005,10 @@ ApplicationWindow {
                                     }
                                 }
                             }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetSynthesizeShortcut()
+                            }
                         }
 
                         RowLayout {
@@ -802,6 +1036,10 @@ ApplicationWindow {
                                         event.accepted = true;
                                     }
                                 }
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetSaveProjectShortcut()
                             }
                         }
 
@@ -831,6 +1069,10 @@ ApplicationWindow {
                                     }
                                 }
                             }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetReloadVoicebanksShortcut()
+                            }
                         }
 
                         RowLayout {
@@ -858,6 +1100,10 @@ ApplicationWindow {
                                         event.accepted = true;
                                     }
                                 }
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetAddUtteranceShortcut()
                             }
                         }
 
@@ -887,6 +1133,10 @@ ApplicationWindow {
                                     }
                                 }
                             }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetRemoveUtteranceShortcut()
+                            }
                         }
                     }
                 }
@@ -898,8 +1148,19 @@ ApplicationWindow {
                     Layout.fillWidth: true
                 }
                 Button {
-                    text: root.translator.tr("common.save")
-                    onClicked: root.saveRequested()
+                    text: root.translator.tr("common.ok")
+                    onClicked: root.applyRequested(true)
+                }
+                Button {
+                    text: root.translator.tr("common.cancel")
+                    onClicked: {
+                        root.loadCurrent();
+                        root.close();
+                    }
+                }
+                Button {
+                    text: root.translator.tr("common.apply")
+                    onClicked: root.applyRequested(false)
                 }
             }
         }

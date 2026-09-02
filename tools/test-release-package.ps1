@@ -72,6 +72,7 @@ try {
         'licenses/Qt/Qt-RELINK-INSTRUCTIONS.txt',
         'licenses/Qt/Qt-THIRD-PARTY-ATTRIBUTIONS.txt',
         'licenses/Qt/FFmpeg-SOURCE-AND-LICENSE.txt',
+        'licenses/Breeze/COPYING-ICONS.txt',
         'licenses/JSUT-DATA-AND-LABELS.txt',
         'licenses/MinGW/COPYING.RUNTIME',
         'licenses/MinGW/COPYING.MinGW-w64-runtime.txt'

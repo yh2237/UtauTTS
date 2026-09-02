@@ -161,6 +161,13 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  && loadedProject.value(QStringLiteral("utterances")).toList().size() == 1,
                  QStringLiteral("project round trip failed")))
         return 1;
+    backend.clearRecentProjects();
+    backend.rememberRecentProject(projectURL);
+    if (!require(backend.recentProjects().size() == 1
+                 && backend.recentProjects().first() == QFileInfo(projectURL.toLocalFile()).absoluteFilePath(),
+                 QStringLiteral("recent project tracking failed")))
+        return 1;
+    backend.clearRecentProjects();
 
     const QUrl diagnosticsURL = QUrl::fromLocalFile(temporary.filePath(QStringLiteral("diagnostics.json")));
     const QVariantMap diagnosticContext{

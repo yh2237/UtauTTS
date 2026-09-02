@@ -44,7 +44,7 @@ ApplicationWindow {
         dictionaryList.positionViewAtEnd();
     }
 
-    function saveCurrent() {
+    function saveCurrent(closeAfter) {
         const entries = [];
         for (let index = 0; index < dictionaryEntriesModel.count; ++index) {
             const entry = dictionaryEntriesModel.get(index);
@@ -55,8 +55,10 @@ ApplicationWindow {
         }
         root.backend.setDictionaryEntries(entries);
         root.hostWindow.reanalyzeAll();
-        root.close();
-        root.visible = false;
+        if (closeAfter) {
+            root.close();
+            root.visible = false;
+        }
     }
 
     ColumnLayout {
@@ -129,36 +131,17 @@ ApplicationWindow {
 
                 ToolButton {
                     id: dictionaryDeleteButton
-                    Layout.preferredWidth: 32
-                    Layout.minimumWidth: 32
-                    Layout.maximumWidth: 32
-                    Layout.preferredHeight: 32
+                    Layout.preferredWidth: 24
+                    Layout.minimumWidth: 24
+                    Layout.maximumWidth: 24
+                    Layout.preferredHeight: 24
                     Layout.alignment: Qt.AlignVCenter
-                    contentItem: Canvas {
-                        id: dictionaryDeleteIcon
+                    contentItem: BreezeIcon {
                         anchors.centerIn: parent
-                        width: 22
-                        height: 22
-                        property color iconColor: dictionaryDeleteButton.palette.buttonText
-                        onIconColorChanged: requestPaint()
-                        onPaint: {
-                            const context = getContext("2d");
-                            context.clearRect(0, 0, width, height);
-                            context.strokeStyle = iconColor;
-                            context.lineWidth = 1.8;
-                            context.lineCap = "round";
-                            context.lineJoin = "round";
-                            context.beginPath();
-                            context.moveTo(width * 0.29, height * 0.31);
-                            context.lineTo(width * 0.71, height * 0.31);
-                            context.moveTo(width * 0.41, height * 0.24);
-                            context.lineTo(width * 0.59, height * 0.24);
-                            context.moveTo(width * 0.37, height * 0.31);
-                            context.lineTo(width * 0.41, height * 0.76);
-                            context.lineTo(width * 0.59, height * 0.76);
-                            context.lineTo(width * 0.63, height * 0.31);
-                            context.stroke();
-                        }
+                        width: 18
+                        height: 18
+                        source: "qrc:/icons/breeze-edit-delete.svg"
+                        iconColor: dictionaryDeleteButton.palette.buttonText
                     }
                     onClicked: dictionaryEntriesModel.remove(dictionaryEntryRow.index)
                     ToolTip.visible: hovered
@@ -180,17 +163,23 @@ ApplicationWindow {
             }
 
             Button {
+                text: root.translator.tr("common.ok")
+                highlighted: true
+                onClicked: root.saveCurrent(true)
+            }
+
+            Button {
                 text: root.translator.tr("common.cancel")
                 onClicked: {
+                    root.loadCurrent();
                     root.close();
                     root.visible = false;
                 }
             }
 
             Button {
-                text: root.translator.tr("common.save")
-                highlighted: true
-                onClicked: root.saveCurrent()
+                text: root.translator.tr("common.apply")
+                onClicked: root.saveCurrent(false)
             }
         }
     }

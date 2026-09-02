@@ -35,6 +35,8 @@
 #endif
 
 namespace {
+constexpr int maxRecentProjects = 10;
+
 QDir resourceRoot();
 
 QString sanitizeLanguageCode(const QString &code) {
@@ -219,6 +221,7 @@ Backend::Backend(QObject *parent)
       m_removeUtteranceShortcut(portableSettingValue("shortcuts/removeUtterance", QStringLiteral("Delete")).toString()),
       m_undoShortcut(portableSettingValue("shortcuts/undo", QStringLiteral("Ctrl+Z")).toString()),
       m_redoShortcut(portableSettingValue("shortcuts/redo", QStringLiteral("Ctrl+Y")).toString()),
+      m_recentProjects(portableSettingValue("projects/recent", QStringList()).toStringList()),
       m_updateNetwork(new QNetworkAccessManager(this)) {
     m_defaultMoraDuration = qBound(20, m_defaultMoraDuration, 1000);
     m_defaultPauseDuration = qBound(0, m_defaultPauseDuration, 3000);
@@ -229,6 +232,20 @@ Backend::Backend(QObject *parent)
     m_previewCacheFileCount = qBound(1, m_previewCacheFileCount, 256);
     if (m_exportTextEncoding != QStringLiteral("shift_jis"))
         m_exportTextEncoding = QStringLiteral("utf-8");
+    QStringList existingProjects;
+    for (const QString &path : m_recentProjects) {
+        const QString absolutePath = QFileInfo(path).absoluteFilePath();
+        if (QFileInfo(absolutePath).isFile() && !existingProjects.contains(absolutePath))
+            existingProjects.append(absolutePath);
+        if (existingProjects.size() >= maxRecentProjects)
+            break;
+    }
+    if (m_recentProjects != existingProjects) {
+        m_recentProjects = existingProjects;
+        QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+        settings.setValue(QStringLiteral("projects/recent"), m_recentProjects);
+        settings.sync();
+    }
     const QByteArray dictionaryJSON = portableSettingValue("dictionary/entries").toByteArray();
     QJsonParseError parseError;
     const QJsonDocument dictionaryDocument = QJsonDocument::fromJson(dictionaryJSON, &parseError);
@@ -1392,6 +1409,55 @@ QVariantMap Backend::loadProject(const QUrl &source) {
     Q_UNUSED(utterances)
     setError({});
     return project;
+}
+
+void Backend::rememberRecentProject(const QUrl &source) {
+    if (!source.isLocalFile())
+        return;
+    const QString path = QFileInfo(source.toLocalFile()).absoluteFilePath();
+    if (path.isEmpty())
+        return;
+
+    QStringList updated{path};
+    for (const QString &existing : m_recentProjects) {
+        const QString absolutePath = QFileInfo(existing).absoluteFilePath();
+        if (!QFileInfo(absolutePath).isFile() || absolutePath == path || updated.size() >= maxRecentProjects)
+            continue;
+        updated.append(absolutePath);
+    }
+    if (m_recentProjects == updated)
+        return;
+    m_recentProjects = updated;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    settings.setValue(QStringLiteral("projects/recent"), m_recentProjects);
+    settings.sync();
+    emit recentProjectsChanged();
+}
+
+void Backend::removeRecentProject(const QString &path) {
+    const QString absolutePath = QFileInfo(path).absoluteFilePath();
+    QStringList updated;
+    for (const QString &existing : m_recentProjects) {
+        if (QFileInfo(existing).absoluteFilePath() != absolutePath)
+            updated.append(existing);
+    }
+    if (updated == m_recentProjects)
+        return;
+    m_recentProjects = updated;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    settings.setValue(QStringLiteral("projects/recent"), m_recentProjects);
+    settings.sync();
+    emit recentProjectsChanged();
+}
+
+void Backend::clearRecentProjects() {
+    if (m_recentProjects.isEmpty())
+        return;
+    m_recentProjects.clear();
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    settings.remove(QStringLiteral("projects/recent"));
+    settings.sync();
+    emit recentProjectsChanged();
 }
 
 bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap &context) {

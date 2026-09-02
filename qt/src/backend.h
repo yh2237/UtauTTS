@@ -57,6 +57,7 @@ class Backend final : public QObject {
     Q_PROPERTY(QString removeUtteranceShortcut READ removeUtteranceShortcut NOTIFY shortcutSettingsChanged)
     Q_PROPERTY(QString undoShortcut READ undoShortcut NOTIFY shortcutSettingsChanged)
     Q_PROPERTY(QString redoShortcut READ redoShortcut NOTIFY shortcutSettingsChanged)
+    Q_PROPERTY(QStringList recentProjects READ recentProjects NOTIFY recentProjectsChanged)
     Q_PROPERTY(QStringList logLines READ logLines NOTIFY logsChanged)
 public:
     explicit Backend(QObject *parent = nullptr);
@@ -100,6 +101,7 @@ public:
     QString removeUtteranceShortcut() const { return m_removeUtteranceShortcut; }
     QString undoShortcut() const { return m_undoShortcut; }
     QString redoShortcut() const { return m_redoShortcut; }
+    QStringList recentProjects() const { return m_recentProjects; }
     QStringList logLines() const { return m_logLines; }
 
     Q_INVOKABLE void initialize();
@@ -118,6 +120,9 @@ public:
     Q_INVOKABLE bool saveProject(const QUrl &destination, const QVariantMap &project);
     Q_INVOKABLE void exportUstx(const QUrl &destination, const QVariantMap &project);
     Q_INVOKABLE QVariantMap loadProject(const QUrl &source);
+    Q_INVOKABLE void rememberRecentProject(const QUrl &source);
+    Q_INVOKABLE void removeRecentProject(const QString &path);
+    Q_INVOKABLE void clearRecentProjects();
     Q_INVOKABLE bool exportDiagnosticReport(const QUrl &destination, const QVariantMap &context);
     Q_INVOKABLE QVariantMap loadProsodyPromptSet() const;
     Q_INVOKABLE QVariantMap loadProsodyTrainingSession();
@@ -178,6 +183,7 @@ signals:
     void voicebankSettingsChanged();
     void ustxExportFinished(bool success, const QString &detail);
     void shortcutSettingsChanged();
+    void recentProjectsChanged();
     void dictionaryChanged();
     void logsChanged();
     void updateDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
@@ -245,6 +251,7 @@ private:
     QString m_removeUtteranceShortcut;
     QString m_undoShortcut;
     QString m_redoShortcut;
+    QStringList m_recentProjects;
     QStringList m_logLines;
     QNetworkAccessManager *m_updateNetwork = nullptr;
     QNetworkReply *m_updateReply = nullptr;

@@ -144,7 +144,14 @@ import QtMultimedia
                             }
 
                             ToolButton {
-                                text: "⋮"
+                                id: cardMenuButton
+                                contentItem: BreezeIcon {
+                                    anchors.centerIn: parent
+                                    width: 22
+                                    height: 22
+                                    source: "qrc:/icons/breeze-overflow-menu.svg"
+                                    iconColor: cardMenuButton.palette.buttonText
+                                }
                                 visible: card.index === window.selectedIndex
                                 onClicked: cardMenu.open()
 
@@ -235,7 +242,6 @@ import QtMultimedia
                     highlighted: true
                     z: 2
                     contentItem: Canvas {
-                        id: addIcon
                         anchors.fill: parent
                         property color iconColor: addButton.palette.buttonText
                         onIconColorChanged: requestPaint()

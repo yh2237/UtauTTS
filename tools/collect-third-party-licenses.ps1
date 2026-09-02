@@ -243,6 +243,10 @@ source.
     }
 }
 
+function Copy-BreezeLicense {
+    Copy-Required (Join-Path $root 'licenses/breeze/COPYING-ICONS.txt') (Join-Path $licenseRoot 'Breeze/COPYING-ICONS.txt')
+}
+
 function Copy-CudaLicense {
     $nvcc = (Get-Command nvcc -ErrorAction Stop).Source
     $cudaRoot = Split-Path -Parent (Split-Path -Parent $nvcc)
@@ -277,6 +281,7 @@ Copy-WorldlineLicenses
 
 if ($Variant -eq 'windows-gui') {
     Copy-QtLicenses
+    Copy-BreezeLicense
 }
 
 if ($CudaIncluded) {
