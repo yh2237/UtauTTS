@@ -689,11 +689,6 @@ import QtMultimedia
                     Item {
                         Layout.fillWidth: true
                     }
-                    Label {
-                        text: window.translator.tr("main.pitch.range")
-                        color: window.mutedText
-                        font.pixelSize: 11
-                    }
                 }
                 Rectangle {
                     Layout.fillWidth: true

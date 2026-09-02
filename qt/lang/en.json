@@ -59,7 +59,6 @@
     "main.aliasPolicy.vcvPrefer": "Prefer VCV",
     "main.aliasPolicy.cvvcPrefer": "Prefer CVVC",
     "main.aliasPolicy.cvOnly": "CV Only",
-    "main.pitch.range": "±300 cent",
     "main.pitch.title": "Intonation",
     "main.playback.generateAndPlay": "Generate and Play",
     "main.playback.paused": "Paused",

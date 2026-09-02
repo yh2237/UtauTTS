@@ -59,7 +59,6 @@
     "main.aliasPolicy.vcvPrefer": "VCV優先",
     "main.aliasPolicy.cvvcPrefer": "CVVC優先",
     "main.aliasPolicy.cvOnly": "単独音のみ",
-    "main.pitch.range": "±300 cent",
     "main.pitch.title": "イントネーション",
     "main.playback.generateAndPlay": "生成して再生",
     "main.playback.paused": "一時停止",

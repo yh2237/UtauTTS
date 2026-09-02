@@ -59,7 +59,6 @@
     "main.aliasPolicy.vcvPrefer": "优先VCV",
     "main.aliasPolicy.cvvcPrefer": "优先CVVC",
     "main.aliasPolicy.cvOnly": "仅单独音",
-    "main.pitch.range": "±300 音分",
     "main.pitch.title": "语调",
     "main.playback.generateAndPlay": "生成并播放",
     "main.playback.paused": "已暂停",
