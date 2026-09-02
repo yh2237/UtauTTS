@@ -1,10 +1,10 @@
 # モデル／Rendererプラグイン
 
-UtauTTSでは画面や配布scriptにモデル名とRenderer名を直接並べていません。各要素が安定ID、表示名、説明、互換情報を持ち、アプリケーション側は検索directoryと既定IDだけを扱います。
+モデルとRendererは、安定したIDを使ってGUI、CLI、Serverから共通に選びます。配布物では実行ファイルの隣にある`models/`と`plugins/renderers/`を自動検出し、追加の場所は設定または`--model-dir`／`--renderer-dir`で指定できます。
 
 ## Renderer
 
-Rendererは`plugins/renderers/<plugin>/plugin.json`を1つ持ちます。
+Rendererは`plugins/renderers/<plugin>/plugin.json`で定義します。
 
 ```json
 {
@@ -25,28 +25,23 @@ Rendererは`plugins/renderers/<plugin>/plugin.json`を1つ持ちます。
 }
 ```
 
-`id`は保存データやAPIで使うプラグイン固有ID、`backend`はUtauTTSが実行する実装adapterです。分けてあるので同じbackendへ別の名前、資産、既定値を持つRendererを追加できます。native codeをUtauTTSのプロセスへ直接ロードする仕組みはありません。
+`id`はプロジェクトやAPIへ保存する公開ID、`backend`はUtauTTS内の実装を選ぶIDです。manifestの破損、未対応backend、ID重複は起動時エラーになります。`default_priority`が最大のRendererがカタログの既定値です。
 
-壊れたmanifest、未対応backend、IDの重複は起動時エラーになります。
+認識するasset keyは`worldline`、`worldline_bridge`、`world_engine`、`resampler`です。assetのpathはmanifestからの相対pathで指定します。任意のnative codeをUtauTTSへ動的ロードする仕組みはありません。
 
-`default_priority`が最大のものがcatalog上の既定Rendererで同値なら`display_name`順です。GUIでは設定に保存したデフォルトRendererを優先し、未設定なら`utautts-world-phrase`を使います。CLI／Serverの`--renderer`はこの値を上書きします。`acceleration`には`cpu`か`cuda`を指定できて必要DLLやモデルはmanifestからの相対pathを`assets`へ記述します。
+配布物には次のRendererが入っています。
 
-認識するasset key:
-
-- `worldline`
-- `worldline_bridge`
-- `world_engine`
-- `resampler`: `utau-external-resampler` backendで実行するUTAU互換resampler
-
-配布物に入っているRenderer IDは次のとおりです。
-
-- `waveform`: CPUで動作する標準の波形接続
 - `utautts-world-phrase`: 公式WORLDとUtauTTS独自の特徴配置を使う既定Renderer
-- `openutau-worldline-r-faithful`: OpenUTAUの処理でフレーズ全体をWORLD合成するRenderer
+- `openutau-worldline-r-faithful`: OpenUTAUのWORLDLINE-R系PhraseSynthを使うRenderer
+- `waveform`: Go内で原音を伸縮・接続する比較用Renderer
+
+開発用には`utautts-world-phrase-cuda`もありますが、実験的なため配布ZIPには含めません。
+
+未知のIDはカタログの既定Rendererへ解決されます。明示したRendererのassetが不足している場合は、別Rendererへ黙って切り替えずエラーになります。
 
 ### 外部UTAU Renderer
 
-GUIの設定で実行ファイルを追加すると、UtauTTS直下の`plugins/renderers/<id>/plugin.json`へ次の形式で保存されます。実行ファイルは移動やコピーをせず、絶対pathで参照します。
+GUIの設定でUTAU互換resamplerの実行ファイルを追加すると、`plugins/renderers/<id>/plugin.json`へ次のmanifestが保存されます。実行ファイルは移動せず絶対pathで参照します。
 
 ```json
 {
@@ -62,15 +57,11 @@ GUIの設定で実行ファイルを追加すると、UtauTTS直下の`plugins/r
 }
 ```
 
-呼び出し形式はUTAU互換で、入力WAV、出力WAV、音名、子音速度、flags、offset、必要長、consonant、cutoff、音量、modulation、tempo、ピッチ列を渡します。wavtoolは外部から指定せず、UtauTTSがOpenUTAU由来のタイミングと5点包絡線で接続します。resampler固有flagsの設定にはまだ対応していません。
-
-GUI、CLI、Serverは同じ`plugins/renderers`を自動検出します。CLI／Serverでは`--renderer`へmanifestの`id`を渡します。外部実行ファイルの利用条件はUtauTTSのライセンスには含まれないため、各配布元の規約を確認してください。
-
-Qt GUI、native backend、HTTP API、CLIは同じcatalogを使います。追加directoryはnative JSONの`renderer_directories`かCLI／Serverの`--renderer-dir`で指定できます。`--renderer-dir`は繰り返し指定しても大丈夫です。
+UTAU互換の引数で各原音を処理し、返されたWAVをUtauTTSが共通の時刻と5点包絡線で接続します。flagsや外部wavtoolには対応していません。外部実行ファイルの利用条件は配布元の規約に従ってください。
 
 ## 抑揚モデル
 
-モデルには別のmanifestを用意せずモデルJSON自身がidentityを持ちます。モデルIDはGUI、CLI、Serverで共通です。
+モデルJSON自身がmanifestを兼ねます。
 
 ```json
 {
@@ -85,28 +76,20 @@ Qt GUI、native backend、HTTP API、CLIは同じcatalogを使います。追加
 }
 ```
 
-`id`と`display_name`のないJSONはモデルpluginとして扱いません。学習scriptは上のfieldを出力します。過去の学習出力を移行する場合はinstallerへidentityを明示してJSON自体を書き換えます。
+`id`と`display_name`がないJSONはモデルとして扱いません。同じIDを複数置くと起動時エラーになります。CLIの`--prosody`にはファイルpathではなくIDを指定します。
+
+GUIで集めた手動調整からモデルを作る方法は[手動調整から抑揚モデルを作る](prosody-model-training.md)にあります。既存のJSONを`models/`へ登録する場合は、必要なidentityを付けてから配置してください。
+
+identityのない学習結果には、登録前に次のscriptでIDと表示名を付けます。
 
 ```powershell
 .\tools\install-prosody-model.ps1 `
   -ModelPath .\out\prosody\my-model.json `
   -Id my-model-v1 `
   -DisplayName "My intonation model" `
-  -RecommendedRenderer utautts-world-phrase `
   -DestinationDirectory .\models
 ```
 
-GUIとServerは`models/`を走査します。追加directoryはnative JSONの`model_directories`かCLI／Serverの`--model-dir`で指定します。CLIの`--prosody`に指定するのはmodel IDです。
-
-GUIで調整した抑揚からversion 11の個人補正モデルを作る手順は[手動調整から抑揚モデルを作る](prosody-model-training.md)にあります。
-
-配布モデルは次の2種類です。
-
-- `frame-intonation-v8`: Open JTalkのアクセント特徴を使ったフレーム単位のイントネーション
-- `prosody-multitask-v1`: v8系のイントネーションに加えたモーラ長予測
-
-どちらもfaithful系Rendererを推奨します。
-
 ## 配布物
 
-release buildは`plugins/renderers/`と`models/`へinstallされたものをGUI・Serverへコピーします。`models/`が空ならビルドは失敗します。
+release buildは`plugins/renderers/`と`models/`の内容をGUI・Serverへコピーします。モデルが一つもない場合はビルドに失敗します。各モデル、Renderer、外部assetのライセンスは[ライセンス表示](../THIRD_PARTY_NOTICES.txt)と配布元の文書を確認してください。

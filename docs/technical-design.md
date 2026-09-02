@@ -4,16 +4,9 @@
 
 ## 1. 中心となる考え方
 
-UtauTTSはテキストから音声波形を生成するニューラルTTSではありません。UTAUボイスバンクに収録された原音を選び`oto.ini`を基準に配置・時間伸縮・接続して必要な場合だけ学習済みの韻律を加える連結型TTSです。
+UtauTTSは、UTAUボイスバンクに収録された原音を`oto.ini`を基準に配置・時間伸縮・接続し、必要な場合だけ学習済みの韻律を加える連結型TTSです。音声を生成するのではなく、原音の声質を保ったまま発話として並べ替えます。
 
-この方式では品質を次の順で守ります。
-
-1. 文章と音素を正しく聞き取れること
-2. 子音が欠けず、接続クリックや途切れが目立たないこと
-3. ボイスバンク固有の声質を壊さないこと
-4. リズムとイントネーションが自然であること
-
-抑揚が不自然でも文章は聞き取れますが子音が脱落すると発話内容そのものが変わります。なので滑らかさだけを改善して明瞭度を失う変更は採用しません。
+品質を判断するときは、まず明瞭度と子音の保持、次に接続の滑らかさと声質、最後にリズムとイントネーションを見ます。抑揚を改善しても発話内容が聞き取れなくなるなら採用しません。
 
 ## 2. システム全体
 
@@ -39,21 +32,7 @@ GUI / CLI / HTTP Server
         PCM WAV
 ```
 
-主要な責務は次のように分かれています。
-
-| 領域 | 主な場所 | 責務 |
-| --- | --- | --- |
-| 共有オーケストレーション | `internal/synth`、`internal/tts` | 入力検証、各段階の呼び出し、GUI・CLI・Server間の挙動統一 |
-| 日本語解析 | `internal/frontend`、`internal/openjtalk` | 読み、モーラ、アクセント句、単語境界、品詞 |
-| ボイスバンク | `internal/oto`、`internal/voicebank` | `oto.ini`、`prefix.map`、subbank、alias候補、原音選択 |
-| 韻律 | `internal/prosody`、`models` | モーラ長、相対ピッチ曲線、手動補正 |
-| 合成計画 | `internal/plan` | Rendererに依存しない時刻付きunit列と診断情報 |
-| 波形生成 | `internal/render` | 時間伸縮、ピッチ処理、包絡、mix、Worldline bridge呼び出し |
-| 拡張カタログ | `internal/plugin`、`plugins/renderers` | Rendererとモデルの発見、ID、能力、asset解決 |
-| GUI境界 | `internal/native`、`cmd/utautts-native`、`qt` | QMLからC ABI経由で共有合成処理を呼ぶ |
-| HTTP API | `internal/api`、`cmd/utautts-server` | 共有合成処理をHTTPとして公開する |
-
-GUI、CLI、Serverは別々の合成実装を持ちません。最終的には同じ`tts.Synthesize`へ到達するので機能追加では入口ごとの設定伝播を確認し、音声処理を重複実装しないようにします。
+GUI、CLI、Serverは別々の音声処理を持たず、最終的には同じ`synth.Service`と`tts.Synthesize`へ到達します。入口を追加・変更するときは設定の伝播だけを確認し、音声処理を重複実装しないようにします。各パッケージの担当範囲は[構成](architecture.md)にまとめています。
 
 ## 3. テキストからモーラまで
 
@@ -257,6 +236,6 @@ CLIとHTTP Serverも同じplugin catalogと`synth.Service`を使います。モ�
 
 既存の正式Rendererの意味と出力を新実験のために変更しないでください。新方式は別backend／plugin IDか既定offの明示オプションとして追加します。実験が失敗しても同じ入力で以前のWAVへ戻れる状態を保ちます。
 
-### fallbackを局所化し、理由を残す
+### fallbackの扱いを統一する
 
-新しい制御値には範囲制限を設けます。NaN、非単調なtime anchor、過大なcrop、asset不足などを黙って通しません。実験Rendererを明示選択したのにassetがない場合も別Rendererへ黙って切り替えずエラーにします。低信頼度のunitや境界だけをfallbackする場合はその位置と理由をPlanへ残します。
+新しい制御値には範囲制限を設けます。NaN、非単調なtime anchor、過大なcrop、asset不足などを黙って通しません。未知のRenderer IDはカタログの既定Rendererへ解決しますが、明示したRendererのasset不足はエラーにします。低信頼度のunitや境界だけをfallbackする場合は、その位置と理由をPlanへ残します。

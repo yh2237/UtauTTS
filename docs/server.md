@@ -211,7 +211,7 @@ ID順にソートされた音源一覧です。
 | `tone` | string | `C4` | `prefix.map` 使用時の音階 |
 | `color` | string | なし | `character.yaml`で定義された音源タイプ／サブバンク |
 | `model_id` | string | なし | `GET /api/models` の `id` |
-| `renderer` | string | 既定Renderer | `GET /api/renderers` の `id` |
+| `renderer` | string | 既定Renderer | `GET /api/renderers` の `id`。未知のIDは既定Rendererへ解決されます |
 | `alias_policy` | string | `auto` | `auto`（VC/VCV収録比から自動選択）、`legacy`（v0.0.9互換）、`cvvc-enhanced`（CVVC優先・sequential timing・VC音量35%）、`vcv-prefer`、`cvvc-prefer`、`cv-only` |
 | `mora_duration_ms` | number | `140` | 基本モーラ長（0〜1000） |
 | `pause_duration_ms` | number | `180` | 句読点の休止長（0〜3000） |
@@ -226,7 +226,7 @@ ID順にソートされた音源一覧です。
 ステータスコード：
 
 - `200`: WAVバイナリ。`X-UtauTTS-Engine` / `X-UtauTTS-Reading` ヘッダー付き
-- `400`: `text`/`kana` の両方なし、範囲外のduration・`intonation_strength`、音源・モデル・Rendererが未登録（`ErrUnavailable`）
+- `400`: `text`/`kana` の両方なし、範囲外のduration・`intonation_strength`、音源・モデルが未登録、指定Rendererのasset不足（`ErrUnavailable`）
 - `413`: 文字数・`manual_pitch` points超過、JSON 1 MiB超過
 - `422`: 合成の失敗（読み変換失敗、モデル評価失敗、未知の`alias_policy`など）
 

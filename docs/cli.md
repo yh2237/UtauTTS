@@ -106,6 +106,8 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 
 モデルやRendererは実行ファイルの隣にある`models/`と`plugins/renderers/`から自動検出します。別のdirectoryを追加するなら`--model-dir`または`--renderer-dir`で指定します。
 
+`--renderer`に存在しないIDを指定した場合はカタログの既定Rendererへ解決されます。指定したRendererのassetが不足している場合はエラーになります。
+
 `--apply-pitch`と`--intonation-strength`による直接的なピッチ加工は声質と明瞭度を損なう場合があります。自然なイントネーションを試すならモデルとfaithful系Rendererを組み合わせます。
 
 ## 出力

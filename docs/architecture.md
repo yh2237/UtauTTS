@@ -1,38 +1,43 @@
 # 構成
 
-UtauTTSはUTAUボイスバンクに収録された原音を選んで配置・接続し、必要に応じて学習した日本語イントネーションを加えます。ボイスバンク自体や話者の声をニューラルネットワークで生成する方式ではありません。
+UtauTTSは、UTAUボイスバンクの原音を選び、時間と音高を整えて接続する連結型TTSです。
 
-内部データ構造、各Rendererの処理、研究結果から決めたことは[技術設計ガイド](technical-design.md)に書いてあります。
+## 合成の流れ
 
-## 合成パイプライン
+```text
+文章
+  ↓ 読み・モーラ・アクセント
+原音候補（oto.ini / prefix.map）
+  ↓ フレーズ全体で候補を選択
+合成計画（時刻、長さ、音高）
+  ↓ Renderer
+WAV / LAB
+```
 
-1. `frontend`: 入力文章を読みとモーラへ変換します。イントネーションモデルを使う場合は配布物内のOpenJTalk frontendがアクセント句、アクセント核、単語境界、品詞を作ります。
-2. `voicebank`: `oto.ini`と`prefix.map`から各モーラの原音候補を作ります。原音設定との合い方を表すtarget scoreと隣接原音の境界を表すjoin scoreを使い、フレーズ全体の経路を選びます。
-3. `prosody`: 固定値か自己記述モデルからモーラ長・音量・ピッチを決めます。手動指定がある値はモデルの予測より優先されます。
-4. `render`: 合成計画に従って原音を時間配置して波形を作ります。
+1. `frontend`が文章を読みとモーラへ変換します。必要に応じてOpen JTalk frontendからアクセント句や品詞などを受け取ります。
+2. `voicebank`が`oto.ini`、`prefix.map`、subbankから原音候補を作り、隣り合う原音のつながりも考えてフレーズ全体の経路を選びます。
+3. `prosody`がモーラ長、音量、ピッチを決めます。GUIで手動編集した値は自動予測より優先されます。
+4. `render`が合成計画に従って原音を配置し、Rendererごとの方法でWAVへ変換します。
 
-## 原音選択
-
-VCV、CVVC、CVなどの候補をモーラごとに作り、target scoreと隣接原音のjoin scoreを使うViterbi探索でフレーズ全体の経路を選びます。既定の原音形式`auto`は音源のVC／VCV収録比から選択方針を切り替えます。
+原音選択とRendererの間は`internal/plan`の合成計画でつながっています。同じ計画を複数のRendererへ渡せるため、原音選択の差と波形処理の差を分けて比較できます。
 
 ## Renderer
 
-RendererのID、表示名、説明、対応機能、必要な資産は`plugins/renderers/*/plugin.json`で管理します。形式と追加方法は[モデル／Rendererプラグイン](plugins.md)にあります。
+RendererのID、表示名、必要なファイルは`plugins/renderers/*/plugin.json`で管理します。追加方法は[モデル／Rendererプラグイン](plugins.md)、内部処理は[技術設計ガイド](technical-design.md)を参照してください。
 
-### `waveform`
+| ID | 概要 |
+| --- | --- |
+| `utautts-world-phrase` | 既定。原音ごとのWORLD特徴を共通の時間軸へ配置し、フレーズ全体を合成 |
+| `openutau-worldline-r-faithful` | OpenUTAUのWORLDLINE-R系PhraseSynthを使ってフレーズ全体を合成 |
+| `waveform` | Go内で原音波形を伸縮・クロスフェードする比較用Renderer |
+| 外部Renderer | 登録したUTAU互換resamplerを実行し、UtauTTS側で接続 |
 
-Go内で原音を時間伸縮し、クロスフェードで接続します。外部音声処理へ依存しないので原音の明瞭度を確認する比較基準にも使えます。
+未知のRenderer IDはカタログの既定Rendererへ解決されます。assetが不足しているRendererを明示的に選んだ場合はエラーになります。
 
-### `utautts-world-phrase`
+## 共通の入口
 
-GUI、CLI、Serverの既定Rendererです。公式WORLDで各原音を分析し、UtauTTS側で音響特徴を共通の時間軸へ配置してからフレーズ全体を合成します。公式WORLDからビルドしたworld engineと専用bridgeが必要です。
+GUI、CLI、HTTP Serverは別々の音声処理を持たず、同じ`synth.Service`を使います。モデル、Renderer、辞書、LAB書き出しも共通です。
 
-### `openutau-worldline-r-faithful`
-
-OpenUTAU 0.1.565の`PhraseSynth` APIを使い、各原音のWORLD特徴を共通の時間軸へ配置してからフレーズ全体を合成します。`worldline.dll`と専用bridgeが必要です。
-
-## GUIとHTTP Server
-
-デスクトップGUIはQt Quick/QMLで作りGoバックエンドをC ABI経由で同一プロセスから呼び出します。音源列挙、読み解析、合成にHTTP ServerやWebViewは使いません。
-
-HTTP Serverは`cmd/utautts-server`と`internal/api`に分かれていてCLIと同じRenderer・モデルcatalogを使います。合成後のWAV、LAB、再生時間、モーラ情報は`internal/synth`の共通結果からGUI、CLI、HTTP Serverへ渡します。TXT／LABの文字コード変換と保存も共通処理です。詳細は[UtauTTS Server](server.md)にあります。
+- GUI: Qt Quick/QMLからGo backendを呼び出します。
+- CLI: `utautts-cli`で一つのWAVを作ります。[CLI](cli.md)
+- HTTP Server: `/api/*`から解析、合成、一覧取得を行います。[Server](server.md)
