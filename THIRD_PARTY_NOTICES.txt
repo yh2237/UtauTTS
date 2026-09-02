@@ -349,6 +349,28 @@ NVIDIA GPU driver is distributed by UtauTTS.
 
 
 
+Breeze Icons
+============
+
+The GUI bundles selected KDE Breeze action icons as Qt resources:
+`view-refresh.svg`, `list-add.svg`, `edit-delete.svg`,
+`media-playback-pause.svg`, `media-playback-start.svg`, and
+`overflow-menu.svg`.
+Copyright (C) 2014 Uri Herrera and others.
+These icons are distributed under the GNU Lesser General Public License,
+version 3 or later, with the KDE artwork-library clarification in the upstream
+`COPYING-ICONS` file.
+SPDX-License-Identifier: LGPL-3.0-or-later
+
+Upstream icons:
+https://github.com/KDE/breeze-icons/tree/master/icons/actions/22
+License and attribution:
+https://github.com/KDE/breeze-icons/blob/master/COPYING-ICONS
+The complete upstream COPYING-ICONS text is included in the GUI package under
+licenses/Breeze/COPYING-ICONS.txt.
+
+
+
 gopkg.in/yaml.v3 (USTX export)
 ==============================
 
