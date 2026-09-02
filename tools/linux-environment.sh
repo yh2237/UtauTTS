@@ -11,8 +11,7 @@ utautts_load_linux_env() {
   local root_dir="$1"
   if [ -f "${root_dir}/.env" ]; then
     set -a
-    # shellcheck disable=SC1091
-    source "${root_dir}/.env"
+    source <(sed 's/\r$//' "${root_dir}/.env")
     set +a
   fi
 }
