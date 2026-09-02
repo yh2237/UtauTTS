@@ -18,8 +18,10 @@ ApplicationWindow {
     visible: false
     width: 980
     height: 700
-    minimumWidth: 760
-    minimumHeight: 560
+    minimumWidth: 980
+    maximumWidth: 980
+    minimumHeight: 700
+    maximumHeight: 700
     transientParent: hostWindow
     modality: Qt.WindowModal
     flags: Qt.Dialog

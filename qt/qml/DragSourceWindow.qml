@@ -20,8 +20,10 @@ Window {
     visible: false
     width: 720
     height: 420
-    minimumWidth: 580
-    minimumHeight: 360
+    minimumWidth: 720
+    maximumWidth: 720
+    minimumHeight: 420
+    maximumHeight: 420
     modality: Qt.NonModal
     flags: Qt.Window
     palette: hostPalette

@@ -16,8 +16,10 @@ Window {
     transientParent: hostWindow
     width: 720
     height: 420
-    minimumWidth: 520
-    minimumHeight: 280
+    minimumWidth: 720
+    maximumWidth: 720
+    minimumHeight: 420
+    maximumHeight: 420
     palette: hostPalette
     color: palette.window
 
