@@ -469,6 +469,29 @@ func TestRunPreservesPortableConfigAndExternalRenderers(t *testing.T) {
 	}
 }
 
+func TestCopyTreePreservesExecutableMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not expose Unix executable permission bits")
+	}
+	source := filepath.Join(t.TempDir(), "source")
+	destination := filepath.Join(t.TempDir(), "destination")
+	executable := filepath.Join(source, "renderer")
+	writeTestFile(t, executable, "#!/bin/sh\n")
+	if err := os.Chmod(executable, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyTree(source, destination); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(filepath.Join(destination, "renderer"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm()&0o111 == 0 {
+		t.Fatalf("copied renderer mode = %o, executable bit was lost", info.Mode().Perm())
+	}
+}
+
 func TestRunDeletesApplicationOwnedLocalArchive(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(root, "UtauTTS")

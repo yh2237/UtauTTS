@@ -3,11 +3,23 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"utautts/internal/updatelock"
 )
+
+func TestUpdateBlockedWithoutLock(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "UtauTTS")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if updateBlocked(root) {
+		t.Fatal("launcher blocked startup without an update lock")
+	}
+}
 
 func TestLockStateActive(t *testing.T) {
 	now := time.Now()

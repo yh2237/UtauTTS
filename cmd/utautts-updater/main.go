@@ -36,6 +36,7 @@ func main() {
 	deleteZip := flag.Bool("delete-zip", false, "delete the local zip after staging (for application-owned temporary downloads)")
 	pid := flag.Int("pid", 0, "PID of the running GUI to wait for before replacing files")
 	version := flag.String("version", "", "incoming release tag (diagnostics)")
+	lockToken := flag.String("lock-token", "", "internal: token of the pending update lock")
 	preserveFlag := flag.String("preserve", "voice,config.ini", "comma-separated relative paths kept from the old install")
 	elevated := flag.Bool("elevated", false, "internal: updater was relaunched with administrator privileges")
 	flag.Parse()
@@ -52,18 +53,32 @@ func main() {
 	}
 
 	ok := true
-	if err := updatelock.Write(*target, *version, os.Getpid()); err != nil {
+	lockOwned := false
+	claimedToken := strings.TrimSpace(*lockToken)
+	var lockErr error
+	if claimedToken == "" {
+		claimedToken, lockErr = updatelock.Acquire(*target, *version, os.Getpid())
+	} else {
+		lockErr = updatelock.WriteWithToken(*target, *version, os.Getpid(), claimedToken)
+	}
+	if lockErr != nil {
 		ok = false
-		logf("update lock failed: %v", err)
-	} else if !*elevated {
-		args := append([]string{}, os.Args[1:]...)
-		args = append(args, "-elevated")
-		relaunched, err := relaunchElevatedIfNeeded(*target, args)
-		if err != nil {
-			ok = false
-			logf("administrator elevation failed: %v", err)
-		} else if relaunched {
-			return
+		logf("update lock failed: %v", lockErr)
+	} else {
+		lockOwned = true
+		if !*elevated {
+			args := append([]string{}, os.Args[1:]...)
+			args = append(args, "-elevated")
+			if strings.TrimSpace(*lockToken) == "" {
+				args = append(args, "-lock-token", claimedToken)
+			}
+			relaunched, err := relaunchElevatedIfNeeded(*target, args)
+			if err != nil {
+				ok = false
+				logf("administrator elevation failed: %v", err)
+			} else if relaunched {
+				return
+			}
 		}
 	}
 	if ok {
@@ -72,8 +87,11 @@ func main() {
 			logf("update failed: %v", err)
 		}
 	}
-	if !ok {
+	if !ok && lockOwned {
 		_ = updatelock.Remove(*target)
+	}
+	if !lockOwned {
+		os.Exit(1)
 	}
 	launchApp(*target)
 	if err := updatelock.Remove(*target); err != nil {
@@ -439,7 +457,11 @@ func copyTree(source, destination string) error {
 		if entry.IsDir() {
 			return os.MkdirAll(target, 0o755)
 		}
-		return copyFile(path, target, 0o644)
+		mode := fs.FileMode(0o644)
+		if info, statErr := os.Stat(path); statErr == nil {
+			mode = info.Mode().Perm()
+		}
+		return copyFile(path, target, mode)
 	})
 }
 
@@ -458,7 +480,10 @@ func copyFile(source, destination string, mode fs.FileMode) error {
 	}
 	defer out.Close()
 	_, err = io.Copy(out, in)
-	return err
+	if err != nil {
+		return err
+	}
+	return os.Chmod(destination, mode)
 }
 
 func sanitizeToken(value string) string {

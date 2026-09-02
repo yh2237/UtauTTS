@@ -116,29 +116,68 @@ bool writeJSONFile(const QString &path, const QVariantMap &value, QString *error
     return true;
 }
 
-bool writePendingUpdateLock(const QDir &root, const QString &version, QString *error) {
+bool writePendingUpdateLock(const QDir &root, const QString &version, QString *token, QString *error) {
+    const QString lockToken = QUuid::createUuid().toString(QUuid::WithoutBraces);
     const QJsonObject state{
         {QStringLiteral("version"), version},
         {QStringLiteral("started_at"), QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)},
         {QStringLiteral("updater_pid"), 0},
+        {QStringLiteral("token"), lockToken},
     };
     const QByteArray data = QJsonDocument(state).toJson(QJsonDocument::Compact) + '\n';
     QStringList failures;
-    for (const QString &path : updateLockPaths(root.absolutePath())) {
-        QSaveFile file(path);
-        if (!file.open(QIODevice::WriteOnly)) {
+    const QStringList paths = updateLockPaths(root.absolutePath());
+    for (const QString &path : paths) {
+        if (QFileInfo::exists(path)) {
+            failures.append(QStringLiteral("更新がすでに実行中です: ") + path);
+            if (error)
+                *error = failures.join(QStringLiteral("; "));
+            return false;
+        }
+    }
+    for (const QString &path : paths) {
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::NewOnly)) {
+            if (QFileInfo::exists(path)) {
+                failures.append(QStringLiteral("更新がすでに実行中です: ") + path);
+                break;
+            }
             failures.append(file.errorString());
             continue;
         }
-        if (file.write(data) == data.size() && file.commit()) {
+        const bool writeSucceeded = file.write(data) == data.size() && file.flush();
+        const QString fileError = file.errorString();
+        file.close();
+        if (writeSucceeded) {
+            if (token)
+                *token = lockToken;
             return true;
         }
-        failures.append(file.errorString());
-        file.cancelWriting();
+        failures.append(fileError);
+        QFile::remove(path);
     }
     if (error)
         *error = failures.join(QStringLiteral("; "));
     return false;
+}
+
+void removePendingUpdateLock(const QDir &root, const QString &token) {
+    if (token.isEmpty())
+        return;
+    for (const QString &path : updateLockPaths(root.absolutePath())) {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            continue;
+        const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+        file.close();
+        if (!document.isObject())
+            continue;
+        const QJsonObject state = document.object();
+        if (state.value(QStringLiteral("token")).toString() == token
+            && state.value(QStringLiteral("updater_pid")).toInteger() == 0) {
+            QFile::remove(path);
+        }
+    }
 }
 
 QDir resourceRoot() {
@@ -723,24 +762,26 @@ bool Backend::installUpdate(const QString &localZip, const QString &version) {
         return false;
     }
 #endif
-    const QStringList arguments{
+    QStringList arguments{
         QStringLiteral("-target"), QDir::toNativeSeparators(root.absolutePath()),
         QStringLiteral("-zip"), QDir::toNativeSeparators(localZip),
         QStringLiteral("-delete-zip"),
         QStringLiteral("-pid"), QString::number(QCoreApplication::applicationPid()),
         QStringLiteral("-version"), version,
     };
+    QString lockToken;
     QString lockError;
-    if (!writePendingUpdateLock(root, version, &lockError)) {
+    if (!writePendingUpdateLock(root, version, &lockToken, &lockError)) {
         const QString message = tr("更新中ロックを作成できませんでした: %1").arg(lockError);
         setError(message);
         showUpdateError(tr("更新に失敗しました"), message);
         return false;
     }
+    arguments.append(QStringLiteral("-lock-token"));
+    arguments.append(lockToken);
     qint64 updaterPid = 0;
     if (!QProcess::startDetached(tempUpdater, arguments, QDir::tempPath(), &updaterPid)) {
-        for (const QString &path : updateLockPaths(root.absolutePath()))
-            QFile::remove(path);
+        removePendingUpdateLock(root, lockToken);
         const QString message = tr("アップデータを起動できませんでした。");
         setError(message);
         showUpdateError(tr("更新に失敗しました"), message);

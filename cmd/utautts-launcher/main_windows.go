@@ -35,22 +35,35 @@ func main() {
 }
 
 func updateBlocked(root string) bool {
-	state, err := updatelock.Read(root)
-	if os.IsNotExist(err) {
+	paths, err := updatelock.Paths(root)
+	if err != nil {
 		return false
 	}
+	now := time.Now()
 	active := false
-	if err == nil {
-		active = lockStateActive(state, time.Now(), processAlive)
-	} else if paths, pathErr := updatelock.Paths(root); pathErr == nil {
-		for _, path := range paths {
+	found := false
+	for _, path := range paths {
+		state, readErr := updatelock.ReadPath(path)
+		if readErr == nil {
+			found = true
+			if lockStateActive(state, now, processAlive) {
+				active = true
+				break
+			}
+			continue
+		}
+		if !os.IsNotExist(readErr) {
 			if info, statErr := os.Stat(path); statErr == nil {
-				active = time.Since(info.ModTime()) < time.Minute
-				if active {
+				found = true
+				if time.Since(info.ModTime()) < time.Minute {
+					active = true
 					break
 				}
 			}
 		}
+	}
+	if !found {
+		return false
 	}
 	if active {
 		showMessage("UtauTTS 更新中", "UtauTTSを更新しています。\n完了すると自動的に再起動します。", 0x40)

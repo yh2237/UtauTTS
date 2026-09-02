@@ -1,9 +1,11 @@
 package updatelock
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestWriteReadRemove(t *testing.T) {
@@ -68,5 +70,109 @@ func TestReadFallbackLock(t *testing.T) {
 	}
 	if state.Version != "v1.2.4" || state.UpdaterPID != 5678 || state.StartedAt.IsZero() {
 		t.Fatalf("state = %+v", state)
+	}
+}
+
+func TestWriteRejectsExistingLock(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "UtauTTS")
+	defer Remove(target)
+	if err := Write(target, "v1.2.3", 5678); err != nil {
+		t.Fatal(err)
+	}
+	if err := Write(target, "v1.2.4", 9012); err == nil {
+		t.Fatal("second updater acquired an existing lock")
+	}
+}
+
+func TestWriteRejectsExistingFallbackLock(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "UtauTTS")
+	defer Remove(target)
+	if err := WriteFallback(target, "v1.2.3", 5678); err != nil {
+		t.Fatal(err)
+	}
+	if err := Write(target, "v1.2.4", 9012); err == nil {
+		t.Fatal("updater ignored an existing fallback lock")
+	}
+}
+
+func TestAcquireReturnsHandoffToken(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "UtauTTS")
+	defer Remove(target)
+	token, err := Acquire(target, "v1.2.3", 5678)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if token == "" {
+		t.Fatal("Acquire returned an empty handoff token")
+	}
+	state, err := Read(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Token != token || state.UpdaterPID != 5678 {
+		t.Fatalf("state = %+v, token = %q", state, token)
+	}
+}
+
+func TestWriteWithTokenClaimsPendingLock(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "UtauTTS")
+	path, err := Path(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending := State{Version: "v1.2.4", StartedAt: time.Now().UTC(), Token: "pending-token"}
+	data, err := json.Marshal(pending)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteWithToken(target, "v1.2.4", 9012, "pending-token"); err != nil {
+		t.Fatal(err)
+	}
+	state, err := Read(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.UpdaterPID != 9012 || state.Token != "pending-token" {
+		t.Fatalf("state = %+v", state)
+	}
+	if err := WriteWithToken(target, "v1.2.4", 3456, "pending-token"); err != nil {
+		t.Fatal(err)
+	}
+	state, err = Read(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.UpdaterPID != 3456 {
+		t.Fatalf("lock handoff state = %+v", state)
+	}
+}
+
+func TestReadPrefersNewestLock(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "UtauTTS")
+	paths, err := Paths(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := State{Version: "old", StartedAt: time.Now().Add(-time.Minute)}
+	newState := State{Version: "new", StartedAt: time.Now()}
+	for path, state := range map[string]State{paths[0]: old, paths[1]: newState} {
+		data, marshalErr := json.Marshal(state)
+		if marshalErr != nil {
+			t.Fatal(marshalErr)
+		}
+		if writeErr := os.WriteFile(path, data, 0o644); writeErr != nil {
+			t.Fatal(writeErr)
+		}
+	}
+	defer Remove(target)
+	state, err := Read(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Version != "new" {
+		t.Fatalf("Read returned stale lock: %+v", state)
 	}
 }

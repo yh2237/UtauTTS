@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -35,6 +36,39 @@ func TestLoadMergesNestedOtoFiles(t *testing.T) {
 	}
 	if len(bank.Diagnostics) != 1 || bank.Diagnostics[0].Line != 3 {
 		t.Fatalf("diagnostics = %+v", bank.Diagnostics)
+	}
+}
+
+func TestSourcePathWithinRejectsSymlinkOutsideVoicebank(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation requires elevated privileges on Windows")
+	}
+	parent := t.TempDir()
+	root := filepath.Join(parent, "bank")
+	if err := os.Mkdir(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(parent, "outside.wav")
+	if err := os.WriteFile(outside, []byte("outside"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "linked.wav")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlinks are unavailable: %v", err)
+	}
+	if sourcePathWithin(root, link) {
+		t.Fatal("source symlink outside voicebank was accepted")
+	}
+}
+
+func TestSourcePathWithinAcceptsRegularFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "inside.wav")
+	if err := os.WriteFile(path, []byte("inside"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !sourcePathWithin(root, path) {
+		t.Fatal("regular voicebank source was rejected")
 	}
 }
 

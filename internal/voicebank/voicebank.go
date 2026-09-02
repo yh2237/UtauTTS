@@ -134,6 +134,16 @@ func sourcePathWithin(root, candidate string) bool {
 		return true
 	}
 	resolvedCandidate := filepath.Join(resolvedParent, filepath.Base(candidate))
+	if info, err := os.Lstat(candidate); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			resolvedCandidate, err = filepath.EvalSymlinks(candidate)
+			if err != nil {
+				return false
+			}
+		}
+	} else if !os.IsNotExist(err) {
+		return false
+	}
 	resolvedRelative, err := filepath.Rel(resolvedRoot, resolvedCandidate)
 	return err == nil && resolvedRelative != ".." && !strings.HasPrefix(resolvedRelative, ".."+string(filepath.Separator)) && !filepath.IsAbs(resolvedRelative)
 }
