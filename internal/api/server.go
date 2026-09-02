@@ -106,8 +106,8 @@ func New(config Config) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("discover plugins: %w", err)
 	}
-	if config.Renderer == "" {
-		config.Renderer = catalog.DefaultRenderer()
+	if renderer, ok := catalog.Renderer(config.Renderer); ok {
+		config.Renderer = renderer.ID
 	}
 	srv := &Server{
 		voicebanks:   map[string]Voicebank{},

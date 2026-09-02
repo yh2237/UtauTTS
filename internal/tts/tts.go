@@ -157,22 +157,19 @@ func analyzeAndAlignRuntimeFeatures(ctx context.Context, morae []frontend.Mora, 
 }
 
 // ApplyRendererはrendererIDを解決してcfgへ反映する。指定パスを同梱資源より優先する。
-func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlinePath, worldlineBridgePath string) error {
+func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlinePath, worldlineBridgePath string) (string, error) {
 	if catalog == nil {
-		return errors.New("renderer catalog is not initialized")
-	}
-	if rendererID == "" {
-		rendererID = catalog.DefaultRenderer()
+		return "", errors.New("renderer catalog is not initialized")
 	}
 	renderer, found := catalog.Renderer(rendererID)
 	if !found {
-		return fmt.Errorf("renderer plugin %q is not installed", rendererID)
+		return "", errors.New("renderer catalog has no available renderer")
 	}
 	if !render.IsKnownRenderer(renderer.Backend) {
-		return fmt.Errorf("renderer plugin %q requires unavailable backend %q", rendererID, renderer.Backend)
+		return "", fmt.Errorf("renderer plugin %q requires unavailable backend %q", renderer.ID, renderer.Backend)
 	}
 	ApplyResolvedRenderer(cfg, renderer, worldlinePath, worldlineBridgePath)
-	return nil
+	return renderer.ID, nil
 }
 
 // ApplyResolvedRendererは、解決済みのレンダラプラグインからcfgのレンダラ依存フィールドを埋める。

@@ -142,15 +142,12 @@ func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {
 	}
 }
 
-func TestLegacyClassicRendererIDsResolveToWorldlineR(t *testing.T) {
-	catalog := &Catalog{Renderers: []Renderer{{ID: OpenUtauWorldlineRRendererID}}}
-	for _, legacy := range []string{
-		"openutau-classic-worldline-faithful",
-		"openutau-classic-worldline-faithful-gpu",
-	} {
-		got, ok := catalog.Renderer(legacy)
-		if !ok || got.ID != OpenUtauWorldlineRRendererID {
-			t.Fatalf("Renderer(%q) = %#v, %v", legacy, got, ok)
+func TestUnknownRendererFallsBackToDefault(t *testing.T) {
+	catalog := &Catalog{Renderers: []Renderer{{ID: "default"}, {ID: "other"}}}
+	for _, requested := range []string{"unknown", "removed-renderer", ""} {
+		got, ok := catalog.Renderer(requested)
+		if !ok || got.ID != "default" {
+			t.Fatalf("Renderer(%q) = %#v, %v", requested, got, ok)
 		}
 	}
 }

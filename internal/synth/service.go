@@ -150,10 +150,11 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		cfg.VoicebankPath = voicebankPath
 	}
 	rendererID := s.rendererID(request.Renderer)
-	if err := tts.ApplyRenderer(&cfg, s.catalog, rendererID, s.worldlinePath, s.worldlineBridgePath); err != nil {
+	resolvedRendererID, err := tts.ApplyRenderer(&cfg, s.catalog, rendererID, s.worldlinePath, s.worldlineBridgePath)
+	if err != nil {
 		return tts.Config{}, "", fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
-	return cfg, rendererID, nil
+	return cfg, resolvedRendererID, nil
 }
 
 func (s *Service) rendererID(requested string) string {

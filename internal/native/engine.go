@@ -47,8 +47,8 @@ func New(config Config) (*Engine, error) {
 	if err != nil {
 		return nil, fmt.Errorf("discover plugins: %w", err)
 	}
-	if config.Renderer == "" {
-		config.Renderer = catalog.DefaultRenderer()
+	if renderer, ok := catalog.Renderer(config.Renderer); ok {
+		config.Renderer = renderer.ID
 	}
 	engine := &Engine{config: config, voicebanks: make(map[string]voicebank.Summary), catalog: catalog}
 	engine.synth = synth.NewService(catalog, config.Renderer, config.WorldlinePath, config.WorldlineBridgePath, config.OpenJTalkPath, config.OpenJTalkDictionary, nativeVoicebankResolver{engine: engine})

@@ -186,14 +186,11 @@ func main() {
 		JoinModelPath:           joinModelPath,
 		JoinScoreScale:          joinScoreScale,
 	}
-	if err := tts.ApplyRenderer(&synthConfig, catalog, renderer, worldlinePath, worldlineBridgePath); err != nil {
+	resolvedRendererID, err := tts.ApplyRenderer(&synthConfig, catalog, renderer, worldlinePath, worldlineBridgePath)
+	if err != nil {
 		log.Fatal(err)
 	}
-	rendererID := renderer
-	if rendererID == "" {
-		rendererID = catalog.DefaultRenderer()
-	}
-	output, err := synth.SynthesizeConfig(synthConfig, rendererID)
+	output, err := synth.SynthesizeConfig(synthConfig, resolvedRendererID)
 	if err != nil {
 		log.Fatal(err)
 	}
