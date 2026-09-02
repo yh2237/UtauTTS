@@ -4,7 +4,7 @@ GUI版にはメカニカルガール公式配布の「足立レイ UTAU音源 ve
 
 ## 利用条件
 
-足立レイ音源はUtauTTS本体のMIT Licenseの対象外です。音源に同梱されたreadme、ガイドライン、開発履歴などが適用されます。リリースを作るときもこれらのファイルは削除・変更しません。
+足立レイ音源はUtauTTS本体のMIT Licenseの対象外です。
 
 - [公式配布ページ](https://mechanicalgirl.jp/adachi-rei/)
 - [キャラクター／音源使用ガイドライン](https://mechanicalgirl.jp/guidelines/)
