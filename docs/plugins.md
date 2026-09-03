@@ -27,7 +27,7 @@ Rendererは`plugins/renderers/<plugin>/plugin.json`で定義します。
 
 `id`はプロジェクトやAPIへ保存する公開ID、`backend`はUtauTTS内の実装を選ぶIDです。manifestの破損、未対応backend、ID重複は起動時エラーになります。`default_priority`が最大のRendererがカタログの既定値です。
 
-認識するasset keyは`worldline`、`worldline_bridge`、`world_engine`、`resampler`です。assetのpathはmanifestからの相対pathで指定します。任意のnative codeをUtauTTSへ動的ロードする仕組みはありません。
+認識するasset keyは`worldline`、`worldline_bridge`、`world_engine`、`resampler`、`wavtool`です。assetのpathはmanifestからの相対pathで指定します。任意のnative codeをUtauTTSへ動的ロードする仕組みはありません。
 
 配布物には次のRendererが入っています。
 
@@ -53,11 +53,42 @@ GUIの設定でUTAU互換resamplerの実行ファイルを追加すると、`plu
   "version": "1",
   "acceleration": "cpu",
   "capabilities": { "frame_pitch": true },
-  "assets": { "resampler": "C:/path/to/example.exe" }
+  "resampler_options": {
+    "velocity": 100,
+    "flags": "",
+    "modulation": 0,
+    "tempo": 120
+  },
+  "assets": {
+    "resampler": "C:/path/to/resampler.exe",
+    "wavtool": "C:/path/to/wavtool.exe"
+  }
 }
 ```
 
-UTAU互換の引数で各原音を処理し、返されたWAVをUtauTTSが共通の時刻と5点包絡線で接続します。flagsや外部wavtoolには対応していません。外部実行ファイルの利用条件は配布元の規約に従ってください。
+UTAU互換の引数で各原音を処理します。`wavtool`を指定した場合はOpenUtau Classic Rendererと同じ位置引数で接続し、未指定の場合はUtauTTS内蔵の5点包絡線処理を使います。外部実行ファイルの利用条件は配布元の規約に従ってください。
+
+resamplerの呼び出し形式はOpenUtau Classic Rendererと同じ13引数です。入力WAV、出力WAV、音高、velocity、flags、offset、必要長、consonant、cutoff、volume、modulation、tempo、12bit Base64ピッチ列の順に渡します。`resampler_options`を省略した場合はvelocity 100、空のflags、modulation 0、tempo 120を使います。
+
+ノート単位の設定はAPIの`resampler_expressions`、またはCLIの`--resampler-expressions`で指定します。`position`は読みのモーラ位置で、CVVC transitionにも親モーラの設定が引き継がれます。省略した値はRenderer全体の設定を使います。
+
+```json
+[
+  { "position": 0, "velocity": 86, "volume": 90, "flags": "g-3", "modulation": 4, "tempo": 150 },
+  { "position": 2, "flags": "Mt10" }
+]
+```
+
+複数の実行ファイルを同じ条件で診断する場合は`resampler-compat`を使います。`--mode direct`は13引数の直接呼び出し、`--mode integration`はUtauTTSのPlanと内蔵接続処理まで含む試験です。結果は終了状態、WAV形式、長さ、peak、RMSを含むJSONで出力されます。
+
+```powershell
+go run ./cmd/tools/resampler-compat `
+  --mode integration `
+  --wavtool path/to/wavtool.exe `
+  --input sample.wav `
+  --out-dir out/resampler-compat `
+  path/to/resampler.exe
+```
 
 ## 抑揚モデル
 
