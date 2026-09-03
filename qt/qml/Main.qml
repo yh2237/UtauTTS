@@ -886,6 +886,12 @@ ApplicationWindow {
                 text: window.translator.tr("menu.file.openWavtoolsDirectory")
                 onTriggered: window.appBackend.openClassicToolDirectory("wavtool")
             }
+            MenuSeparator {}
+            GrayscaleMenuItem {
+                text: window.translator.tr("menu.file.reloadVoicebanks")
+                enabled: !window.appBackend.busy
+                onTriggered: window.reloadVoicebanks()
+            }
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.reloadClassicTools")
                 enabled: !window.appBackend.busy
@@ -912,11 +918,6 @@ ApplicationWindow {
                 text: window.translator.tr("menu.file.exportAllExo")
                 enabled: !window.appBackend.busy && !window.batchExportActive && window.hasPlayableTextFrom(0)
                 onTriggered: window.openDragExportDialog(false)
-            }
-            GrayscaleMenuItem {
-                text: window.translator.tr("menu.file.reloadVoicebanks")
-                enabled: !window.appBackend.busy
-                onTriggered: window.reloadVoicebanks()
             }
             MenuSeparator {}
             GrayscaleMenuItem {

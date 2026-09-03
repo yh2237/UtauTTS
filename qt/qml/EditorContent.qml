@@ -289,6 +289,10 @@ import QtMultimedia
                         width: Math.max(0, parameterScroll.availableWidth - 14)
                         spacing: 12
 
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+
                         Label {
                             text: window.translator.tr("main.param.voicebank")
                             font.pixelSize: 12
@@ -324,6 +328,7 @@ import QtMultimedia
                         }
 
                         Label {
+                            Layout.topMargin: 8
                             text: window.translator.tr("main.param.language")
                             font.pixelSize: 12
                             color: window.mutedText
@@ -346,6 +351,7 @@ import QtMultimedia
                         }
 
                         Label {
+                            Layout.topMargin: 8
                             text: window.translator.tr("main.param.phonemizer")
                             font.pixelSize: 12
                             color: window.mutedText
@@ -361,6 +367,7 @@ import QtMultimedia
                         }
 
                         Label {
+                            Layout.topMargin: 8
                             text: window.translator.tr("main.param.aliasPolicy")
                             color: window.mutedText
                             font.pixelSize: 12
@@ -382,6 +389,7 @@ import QtMultimedia
                         }
 
                         Label {
+                            Layout.topMargin: 8
                             text: window.translator.tr("main.param.intonationModel")
                             font.pixelSize: 12
                             color: window.mutedText
@@ -409,6 +417,7 @@ import QtMultimedia
                         }
 
                         Label {
+                            Layout.topMargin: 8
                             text: window.translator.tr("main.param.renderer")
                             font.pixelSize: 12
                             color: window.mutedText
@@ -422,6 +431,7 @@ import QtMultimedia
                             onActivated: window.updateSetting("renderer", currentValue)
                         }
                         Label {
+                            Layout.topMargin: 8
                             visible: rendererCombo.currentValue === "classic-utau"
                             text: window.translator.tr("main.param.resampler")
                             font.pixelSize: 12
@@ -437,6 +447,7 @@ import QtMultimedia
                             onActivated: window.updateSetting("resampler", currentValue)
                         }
                         Label {
+                            Layout.topMargin: 8
                             visible: rendererCombo.currentValue === "classic-utau"
                             text: window.translator.tr("main.param.wavtool")
                             font.pixelSize: 12
@@ -450,6 +461,7 @@ import QtMultimedia
                             textRole: "display_name"
                             valueRole: "id"
                             onActivated: window.updateSetting("wavtool", currentValue)
+                        }
                         }
                         Label {
                             Layout.fillWidth: true

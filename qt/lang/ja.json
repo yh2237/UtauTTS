@@ -54,7 +54,7 @@
     "main.param.voicebankType": "音源タイプ",
     "main.color.default": "通常",
     "main.param.voicebank": "音源",
-    "main.param.language": "歌唱言語",
+    "main.param.language": "言語",
     "main.param.phonemizer": "Phonemizer",
     "main.language.ja": "日本語",
     "main.language.en": "英語",
