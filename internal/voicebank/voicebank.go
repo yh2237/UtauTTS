@@ -30,6 +30,7 @@ type Bank struct {
 	PrefixMap       map[string]Affix
 	Subbanks        []Subbank
 	CharacterYAML   string
+	ARPAsing        map[string]string
 	Diagnostics     []Diagnostic
 	extractor       *connection.Extractor
 	validationMu    sync.Mutex
@@ -82,6 +83,7 @@ func Load(root string) (*Bank, error) {
 		extractor: connection.NewExtractor(),
 	}
 	bank.loadMetadata()
+	bank.loadARPAsing()
 	for _, path := range otoFiles {
 		ini, err := oto.ReadIni(path)
 		if err != nil {

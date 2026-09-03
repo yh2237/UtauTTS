@@ -250,6 +250,16 @@ func Synthesize(cfg Config) (*Result, error) {
 		requestedAliasPolicy = voicebank.AliasPolicyAuto
 	}
 	applyAliasProfile(bank, &cfg)
+	if len(bank.ARPAsing) > 0 {
+		dictionary := make(map[string]string, len(bank.ARPAsing)+len(cfg.Dictionary))
+		for key, value := range bank.ARPAsing {
+			dictionary[key] = value
+		}
+		for key, value := range cfg.Dictionary {
+			dictionary[key] = value
+		}
+		cfg.Dictionary = dictionary
+	}
 	language, phonemizer, reading, morae, err := resolvePronunciation(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)

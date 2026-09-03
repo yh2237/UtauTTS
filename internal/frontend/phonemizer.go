@@ -2,8 +2,10 @@ package frontend
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/mozillazg/go-pinyin"
 )
@@ -106,18 +108,10 @@ func ParseChineseCVVC(text, reading string, dictionary map[string]string) (strin
 	} else if value := dictionary[text]; value != "" {
 		syllables = strings.Fields(value)
 	} else {
-		args := pinyin.NewArgs()
-		args.Style = pinyin.Normal
-		for _, r := range text {
-			if unicode.IsSpace(r) || unicode.IsPunct(r) {
-				syllables = append(syllables, "|")
-				continue
-			}
-			values := pinyin.SinglePinyin(r, args)
-			if len(values) == 0 {
-				return "", nil, fmt.Errorf("cannot convert %q to Pinyin; specify --reading", string(r))
-			}
-			syllables = append(syllables, values[0])
+		var err error
+		syllables, err = chineseSyllables(text, dictionary)
+		if err != nil {
+			return "", nil, err
 		}
 	}
 	var morae []Mora
@@ -153,6 +147,45 @@ func ParseChineseCVVC(text, reading string, dictionary map[string]string) (strin
 		return "", nil, fmt.Errorf("Pinyin reading is empty")
 	}
 	return strings.Join(syllables, " "), morae, nil
+}
+
+func chineseSyllables(text string, dictionary map[string]string) ([]string, error) {
+	args := pinyin.NewArgs()
+	args.Style = pinyin.Normal
+	keys := make([]string, 0, len(dictionary))
+	for key := range dictionary {
+		if key != "" {
+			keys = append(keys, key)
+		}
+	}
+	sort.SliceStable(keys, func(i, j int) bool { return len([]rune(keys[i])) > len([]rune(keys[j])) })
+	var result []string
+	for len(text) > 0 {
+		matched := false
+		for _, key := range keys {
+			if strings.HasPrefix(text, key) {
+				result = append(result, strings.Fields(dictionary[key])...)
+				text = strings.TrimPrefix(text, key)
+				matched = true
+				break
+			}
+		}
+		if matched {
+			continue
+		}
+		r, size := utf8.DecodeRuneInString(text)
+		text = text[size:]
+		if unicode.IsSpace(r) || unicode.IsPunct(r) {
+			result = append(result, "|")
+			continue
+		}
+		values := pinyin.SinglePinyin(r, args)
+		if len(values) == 0 {
+			return nil, fmt.Errorf("cannot convert %q to Pinyin; specify --reading", string(r))
+		}
+		result = append(result, values[0])
+	}
+	return result, nil
 }
 
 var englishVowels = map[string]bool{

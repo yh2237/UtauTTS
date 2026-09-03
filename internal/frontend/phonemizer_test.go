@@ -41,6 +41,18 @@ func TestParseChineseCVVC(t *testing.T) {
 	}
 }
 
+func TestParseChineseCVVCUsesLongestDictionaryEntry(t *testing.T) {
+	reading, _, err := ParseChineseCVVC("重庆人", "", map[string]string{
+		"重": "zhong", "重庆": "chong qing",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reading != "chong qing ren" {
+		t.Fatalf("reading = %q", reading)
+	}
+}
+
 func TestResolveLanguageDefaults(t *testing.T) {
 	language, phonemizer, err := ResolveLanguage("zh", "")
 	if err != nil || language != LanguageChinese || phonemizer != PhonemizerChinese {
