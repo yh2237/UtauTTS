@@ -2,7 +2,6 @@
 
 #include "backend.h"
 
-#include <QCoreApplication>
 #include <QDir>
 #include <QEventLoop>
 #include <QDebug>
@@ -97,37 +96,6 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                         QStringLiteral("resolved UI language is unavailable: ") + resolvedLanguage)
             || !require(languageError.error == QJsonParseError::NoError && languageDocument.isObject(),
                         QStringLiteral("automatic language file could not be loaded")))
-        return 1;
-
-    const QString registeredRendererID = backend.addExternalRenderer(
-            QUrl::fromLocalFile(QCoreApplication::applicationFilePath()));
-    const QString externalManifest = QDir(selfTestDirectory).filePath(
-            QStringLiteral("renderers/%1/plugin.json").arg(registeredRendererID));
-    if (!require(!registeredRendererID.isEmpty(),
-                 QStringLiteral("external renderer could not be registered: ") + backend.error())
-            || !require(QFileInfo::exists(externalManifest),
-                        QStringLiteral("external renderer manifest was not created")))
-        return 1;
-    QString externalRendererID;
-    for (const QVariant &value : backend.renderers()) {
-        const QVariantMap renderer = value.toMap();
-        if (renderer.value(QStringLiteral("backend")).toString() == QStringLiteral("utau-external-resampler")) {
-            externalRendererID = renderer.value(QStringLiteral("id")).toString();
-            break;
-        }
-    }
-    if (!require(externalRendererID == registeredRendererID,
-                 QStringLiteral("registered external renderer is unavailable"))
-            || !require(backend.removeExternalRenderer(externalRendererID),
-                        QStringLiteral("external renderer could not be removed")))
-        return 1;
-    for (const QVariant &value : backend.renderers()) {
-        if (!require(value.toMap().value(QStringLiteral("id")).toString() != externalRendererID,
-                     QStringLiteral("removed external renderer remains available")))
-            return 1;
-    }
-    if (!require(!QFileInfo::exists(externalManifest),
-                 QStringLiteral("external renderer manifest was not removed")))
         return 1;
 
     QVariant interfaceResult;

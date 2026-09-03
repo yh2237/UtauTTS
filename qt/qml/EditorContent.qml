@@ -13,6 +13,8 @@ import QtMultimedia
         property alias aliasPolicyCombo: aliasPolicyCombo
         property alias modelCombo: modelCombo
         property alias rendererCombo: rendererCombo
+        property alias resamplerCombo: resamplerCombo
+        property alias wavtoolCombo: wavtoolCombo
         property alias toneField: toneField
         property alias colorCombo: colorCombo
         property alias intonationInput: intonationInput
@@ -371,6 +373,36 @@ import QtMultimedia
                             textRole: "display_name"
                             valueRole: "id"
                             onActivated: window.updateSetting("renderer", currentValue)
+                        }
+                        Label {
+                            visible: rendererCombo.currentValue === "classic-utau"
+                            text: window.translator.tr("main.param.resampler")
+                            font.pixelSize: 12
+                            color: window.mutedText
+                        }
+                        ComboBox {
+                            id: resamplerCombo
+                            visible: rendererCombo.currentValue === "classic-utau"
+                            Layout.fillWidth: true
+                            model: window.appBackend.resamplers
+                            textRole: "display_name"
+                            valueRole: "id"
+                            onActivated: window.updateSetting("resampler", currentValue)
+                        }
+                        Label {
+                            visible: rendererCombo.currentValue === "classic-utau"
+                            text: window.translator.tr("main.param.wavtool")
+                            font.pixelSize: 12
+                            color: window.mutedText
+                        }
+                        ComboBox {
+                            id: wavtoolCombo
+                            visible: rendererCombo.currentValue === "classic-utau"
+                            Layout.fillWidth: true
+                            model: window.appBackend.wavtools
+                            textRole: "display_name"
+                            valueRole: "id"
+                            onActivated: window.updateSetting("wavtool", currentValue)
                         }
                         Label {
                             Layout.fillWidth: true

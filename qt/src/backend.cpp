@@ -90,13 +90,6 @@ QString prosodyTrainingSessionPath() {
     return QDir(directory).filePath(QStringLiteral("prosody-training-session.json"));
 }
 
-QString externalRendererRootPath() {
-    QString directory = qEnvironmentVariable("UTAUTTS_SELF_TEST_DIRECTORY");
-    if (directory.isEmpty())
-        return resourceRoot().filePath(QStringLiteral("plugins/renderers"));
-    return QDir(directory).filePath(QStringLiteral("renderers"));
-}
-
 bool writeJSONFile(const QString &path, const QVariantMap &value, QString *error) {
     const QJsonDocument document = QJsonDocument::fromVariant(value);
     if (!document.isObject()) {
@@ -815,11 +808,7 @@ void Backend::initialize() {
     }
     const QDir root = resourceRoot();
     QJsonObject config{{"voice_dir", root.filePath("voice")}};
-    QJsonArray rendererDirectories{root.filePath("plugins/renderers")};
-    if (QDir(externalRendererRootPath()).absolutePath()
-            != QDir(root.filePath("plugins/renderers")).absolutePath())
-        rendererDirectories.append(externalRendererRootPath());
-    config.insert("renderer_directories", rendererDirectories);
+    config.insert("renderer_directories", QJsonArray{root.filePath("plugins/renderers")});
     config.insert("model_directories", QJsonArray{root.filePath("models")});
     const QString runtime = root.filePath("runtime");
 #ifdef Q_OS_WIN
@@ -857,90 +846,6 @@ bool Backend::restartNativeBackend() {
     return m_handle != 0;
 }
 
-QString Backend::addExternalRenderer(const QUrl &executable) {
-    if (m_busy || m_activeCallCount != 0) {
-        setError(tr("処理中はRendererを変更できません。"));
-        return {};
-    }
-    const QString path = QFileInfo(executable.toLocalFile()).absoluteFilePath();
-    const QFileInfo info(path);
-    if (!info.isFile()) {
-        setError(tr("Rendererの実行ファイルが見つかりません。"));
-        return {};
-    }
-#ifdef Q_OS_WIN
-    if (info.suffix().compare(QStringLiteral("exe"), Qt::CaseInsensitive) != 0) {
-        setError(tr("Windowsでは.exe形式のUTAU Rendererを指定してください。"));
-        return {};
-    }
-#else
-    if (!info.isExecutable()) {
-        setError(tr("Rendererの実行権限がありません。"));
-        return {};
-    }
-#endif
-    QString slug = info.completeBaseName().toLower();
-    slug.replace(QRegularExpression(QStringLiteral("[^a-z0-9]+")), QStringLiteral("-"));
-    slug = slug.trimmed();
-    slug.remove(QRegularExpression(QStringLiteral("^-+|-+$")));
-    if (slug.isEmpty())
-        slug = QStringLiteral("renderer");
-    const QString digest = QString::fromLatin1(
-        QCryptographicHash::hash(path.toUtf8(), QCryptographicHash::Sha256).toHex().left(12));
-    const QString id = QStringLiteral("utau-external-%1-%2").arg(slug, digest);
-    const QString manifestPath = QDir(externalRendererRootPath()).filePath(
-        QStringLiteral("%1/plugin.json").arg(id));
-    const QVariantMap manifest{
-        {"manifest_version", 1}, {"kind", "renderer"}, {"id", id},
-        {"display_name", info.completeBaseName()},
-        {"description", tr("外部UTAU互換Renderer")},
-        {"backend", "utau-external-resampler"}, {"version", "1"},
-        {"acceleration", "cpu"}, {"default_priority", 0},
-        {"capabilities", QVariantMap{{"frame_pitch", true}}},
-        {"resampler_options", QVariantMap{{"velocity", 100}, {"modulation", 0}, {"tempo", 120}}},
-        {"assets", QVariantMap{{"resampler", path}}},
-    };
-    QString writeError;
-    if (!writeJSONFile(manifestPath, manifest, &writeError)) {
-        setError(tr("Renderer設定を書き込めませんでした: %1").arg(writeError));
-        return {};
-    }
-    if (!restartNativeBackend())
-        return {};
-    const bool installed = std::any_of(m_renderers.cbegin(), m_renderers.cend(), [&id](const QVariant &value) {
-        return value.toMap().value(QStringLiteral("id")).toString() == id;
-    });
-    if (!installed)
-        setError(tr("Rendererを読み込めませんでした。"));
-    return installed ? id : QString();
-}
-
-bool Backend::removeExternalRenderer(const QString &id) {
-    if (m_busy || m_activeCallCount != 0) {
-        setError(tr("処理中はRendererを変更できません。"));
-        return false;
-    }
-    const auto item = std::find_if(m_renderers.cbegin(), m_renderers.cend(), [&id](const QVariant &value) {
-        const QVariantMap renderer = value.toMap();
-        return renderer.value(QStringLiteral("id")).toString() == id
-                && renderer.value(QStringLiteral("backend")).toString() == QStringLiteral("utau-external-resampler");
-    });
-    if (item == m_renderers.cend()) {
-        setError(tr("削除できる外部Rendererではありません。"));
-        return false;
-    }
-    const QDir root(externalRendererRootPath());
-    QDir target(root.filePath(id));
-    const QString expectedParent = QFileInfo(target.absolutePath()).absoluteDir().absolutePath();
-    const QString manifestPath = target.filePath(QStringLiteral("plugin.json"));
-    if (expectedParent != root.absolutePath() || !target.exists() || !QFile::remove(manifestPath)) {
-        setError(tr("Renderer設定を削除できませんでした。"));
-        return false;
-    }
-    root.rmdir(id);
-    return restartNativeBackend();
-}
-
 QVariantMap Backend::call(const QByteArray &method, const QVariantMap &request) {
     if (!m_handle) {
         throw std::runtime_error("backend is not initialized");
@@ -975,6 +880,8 @@ void Backend::refreshMetadata() {
     m_voicebanks = voices.value("voicebanks").toList();
     m_models = models.value("models").toList();
     m_renderers = renderers.value("renderers").toList();
+    m_resamplers = renderers.value("resamplers").toList();
+    m_wavtools = renderers.value("wavtools").toList();
     m_catalogDefaultRenderer = renderers.value("default_renderer").toString();
     const auto containsId = [](const QVariantList &items, const QString &id) {
         return std::any_of(items.cbegin(), items.cend(), [&id](const QVariant &item) {
@@ -1037,6 +944,26 @@ bool Backend::openVoiceDirectory() {
     }
     setError({});
     return true;
+}
+
+bool Backend::openClassicToolDirectory(const QString &kind) {
+    const QString directoryName = kind == QStringLiteral("wavtool")
+            ? QStringLiteral("Wavtools") : QStringLiteral("Resamplers");
+    const QDir directory(resourceRoot().filePath(directoryName));
+    if (!directory.exists() && !QDir().mkpath(directory.absolutePath())) {
+        setError(tr("ツール用ディレクトリを作成できませんでした。"));
+        return false;
+    }
+    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(directory.absolutePath()))) {
+        setError(tr("ツール用ディレクトリを開けませんでした。"));
+        return false;
+    }
+    setError({});
+    return true;
+}
+
+bool Backend::reloadClassicTools() {
+    return restartNativeBackend();
 }
 
 void Backend::analyze(const QString &text, const QString &requestId) {

@@ -26,6 +26,8 @@ class Backend final : public QObject {
     Q_PROPERTY(QVariantList voicebanks READ voicebanks NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList models READ models NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList renderers READ renderers NOTIFY metadataChanged)
+    Q_PROPERTY(QVariantList resamplers READ resamplers NOTIFY metadataChanged)
+    Q_PROPERTY(QVariantList wavtools READ wavtools NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList dictionaryEntries READ dictionaryEntries NOTIFY dictionaryChanged)
     Q_PROPERTY(QString defaultRenderer READ defaultRenderer NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(QString defaultModelId READ defaultModelId NOTIFY synthesisDefaultsChanged)
@@ -70,6 +72,8 @@ public:
     QVariantList voicebanks() const { return m_voicebanks; }
     QVariantList models() const { return m_models; }
     QVariantList renderers() const { return m_renderers; }
+    QVariantList resamplers() const { return m_resamplers; }
+    QVariantList wavtools() const { return m_wavtools; }
     QVariantList dictionaryEntries() const { return m_dictionaryEntries; }
     QString defaultRenderer() const { return m_defaultRenderer; }
     QString defaultModelId() const { return m_defaultModelId; }
@@ -108,9 +112,9 @@ public:
 
     Q_INVOKABLE void initialize();
     Q_INVOKABLE void reloadVoicebanks();
-    Q_INVOKABLE QString addExternalRenderer(const QUrl &executable);
-    Q_INVOKABLE bool removeExternalRenderer(const QString &id);
     Q_INVOKABLE bool openVoiceDirectory();
+    Q_INVOKABLE bool openClassicToolDirectory(const QString &kind);
+    Q_INVOKABLE bool reloadClassicTools();
     Q_INVOKABLE void analyze(const QString &text, const QString &requestId);
     Q_INVOKABLE void predictProsody(const QVariantMap &request);
     Q_INVOKABLE void synthesize(const QVariantMap &request);
@@ -220,7 +224,7 @@ private:
     QList<QByteArray> m_previewCacheOrder;
     QFutureSynchronizer<QVariantMap> m_activeCalls;
     int m_activeCallCount = 0;
-    QVariantList m_voicebanks, m_models, m_renderers, m_dictionaryEntries;
+    QVariantList m_voicebanks, m_models, m_renderers, m_resamplers, m_wavtools, m_dictionaryEntries;
     QString m_catalogDefaultRenderer;
     QString m_defaultRenderer;
     QString m_defaultModelId;

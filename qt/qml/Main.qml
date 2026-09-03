@@ -967,6 +967,23 @@ ApplicationWindow {
                 text: window.translator.tr("menu.settings.dictionary")
                 onTriggered: window.openDictionarySettings()
             }
+            Menu {
+                title: window.translator.tr("menu.settings.classicTools")
+                GrayscaleMenuItem {
+                    text: window.translator.tr("menu.settings.classicTools.resamplers")
+                    onTriggered: window.appBackend.openClassicToolDirectory("resampler")
+                }
+                GrayscaleMenuItem {
+                    text: window.translator.tr("menu.settings.classicTools.wavtools")
+                    onTriggered: window.appBackend.openClassicToolDirectory("wavtool")
+                }
+                MenuSeparator {}
+                GrayscaleMenuItem {
+                    text: window.translator.tr("menu.settings.classicTools.reload")
+                    enabled: !window.appBackend.busy
+                    onTriggered: window.appBackend.reloadClassicTools()
+                }
+            }
             GrayscaleMenuItem {
                 visible: window.appBackend.developerMode
                 height: visible ? implicitHeight : 0
@@ -1030,6 +1047,8 @@ ApplicationWindow {
             voicebank_id: item.voicebankId || "",
             model_id: item.modelId || "",
             renderer: item.renderer || "",
+            resampler: item.resampler || "",
+            wavtool: item.wavtool || "builtin",
             alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
             tone: item.tone || "C4",
             color: item.color || "",
@@ -1720,6 +1739,8 @@ ApplicationWindow {
                 voicebank_id: item.voicebankId || "",
                 model_id: item.modelId || "",
                 renderer_id: item.renderer || "",
+                resampler: item.resampler || "",
+                wavtool: item.wavtool || "builtin",
                 alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
                 tone: item.tone || "C4",
                 color: item.color || "",
@@ -1844,7 +1865,9 @@ ApplicationWindow {
             const voice = window.voicebankById(voicebankId);
             const points = window.copySequence(saved.pitch_points);
             const content = String(saved.text || "");
-            const rendererId = window.normalizeRendererId(saved.renderer_id);
+            let rendererId = window.normalizeRendererId(saved.renderer_id);
+            let resamplerId = String(saved.resampler || "");
+            let wavtoolId = String(saved.wavtool || "builtin");
             if (String(saved.renderer_id || "") !== rendererId)
                 migratedRenderer = true;
             const manualDurations = window.copySequence(saved.mora_durations_ms);
@@ -1876,6 +1899,8 @@ ApplicationWindow {
                 imagePath: voice ? voice.image_path || "" : "",
                 modelId: String(saved.model_id || ""),
                 renderer: rendererId,
+                resampler: resamplerId,
+                wavtool: wavtoolId,
                 aliasPolicy: saved.alias_policy === undefined
                         ? window.appBackend.defaultAliasPolicy : window.normalizeAliasPolicy(saved.alias_policy),
                 tone: String(saved.tone || window.appBackend.defaultTone),
@@ -2145,6 +2170,8 @@ ApplicationWindow {
         selectCombo(editorContent.aliasPolicyCombo, window.normalizeAliasPolicy(item.aliasPolicy));
         selectCombo(editorContent.modelCombo, item.modelId);
         selectCombo(editorContent.rendererCombo, item.renderer);
+        selectCombo(editorContent.resamplerCombo, item.resampler || "");
+        selectCombo(editorContent.wavtoolCombo, item.wavtool || "builtin");
         window.requestMissingProsodyPreview(index);
     }
 
@@ -2324,6 +2351,8 @@ ApplicationWindow {
             imagePath: voice ? voice.image_path || "" : "",
             modelId: window.appBackend.models.length ? window.defaultModelId() : "",
             renderer: window.appBackend.renderers.length ? window.defaultRendererId() : "",
+            resampler: window.appBackend.resamplers.length ? window.appBackend.resamplers[0].id : "",
+            wavtool: "builtin",
             aliasPolicy: window.appBackend.defaultAliasPolicy,
             tone: window.appBackend.defaultTone,
             color: "",
@@ -2467,6 +2496,8 @@ ApplicationWindow {
             voicebank_id: item.voicebankId || editorContent.voiceCombo.currentValue,
             model_id: item.modelId,
             renderer: item.renderer,
+            resampler: item.resampler || "",
+            wavtool: item.wavtool || "builtin",
             alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
             tone: item.tone,
             color: item.color || "",
