@@ -62,26 +62,57 @@ func Discover(root string) ([]Summary, error) {
 }
 
 func inspectDiscoveredRoot(root string) (Summary, error) {
-	if hasDirectOto(root) {
-		return Inspect(root)
+	resolved, err := findVoicebankRoot(root)
+	if err != nil {
+		return Summary{}, err
 	}
-	entries, err := os.ReadDir(root)
-	if err == nil {
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
-			}
-			nested := filepath.Join(root, entry.Name())
-			if !hasDirectOto(nested) {
-				continue
-			}
-			if summary, inspectErr := Inspect(nested); inspectErr == nil {
-				return summary, nil
-			}
+	return Inspect(resolved)
+}
+
+func findVoicebankRoot(root string) (string, error) {
+	if hasDirectOto(root) || hasVoicebankMetadata(root) {
+		if _, err := Inspect(root); err == nil {
+			return root, nil
 		}
 	}
-	// 直下に複数のoto.iniを持つ音源も受け入れる。
-	return Inspect(root)
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return "", err
+	}
+	var found []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if nested, nestedErr := findVoicebankRoot(filepath.Join(root, entry.Name())); nestedErr == nil {
+			found = append(found, nested)
+		}
+	}
+	if len(found) == 1 {
+		return found[0], nil
+	}
+	if len(found) > 1 {
+		// 複数サブバンクは共通の親を音源ルートにする。
+		return root, nil
+	}
+	return "", ErrNoOto
+}
+
+func hasVoicebankMetadata(root string) bool {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := strings.ToLower(entry.Name())
+		if name == "character.txt" || name == "character.yaml" || name == "prefix.map" {
+			return true
+		}
+	}
+	return false
 }
 
 func hasDirectOto(root string) bool {

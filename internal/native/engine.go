@@ -153,6 +153,9 @@ func (e *Engine) voicebankList() []map[string]any {
 		}
 		if bank, err := voicebank.Load(item.Path); err == nil {
 			capabilities := bank.AliasCapabilities()
+			language, phonemizer := bank.SuggestedLanguage()
+			entry["suggested_language"] = language
+			entry["suggested_phonemizer"] = phonemizer
 			entry["types"] = bank.SubbankOptions()
 			entry["alias_counts"] = capabilities.Counts
 			entry["vcv_contexts"] = capabilities.VCVContexts

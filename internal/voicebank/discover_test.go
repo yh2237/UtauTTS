@@ -124,6 +124,26 @@ func TestDiscoverFindsOneLevelWrappedVoicebank(t *testing.T) {
 	}
 }
 
+func TestDiscoverFindsMetadataRootInsideTwoWrappers(t *testing.T) {
+	root := t.TempDir()
+	bankRoot := filepath.Join(root, "archive", "voice-library")
+	otoRoot := filepath.Join(bankRoot, "english")
+	if err := os.MkdirAll(otoRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bankRoot, "character.txt"), []byte("name=Teto English\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(otoRoot, "oto.ini"), []byte("a.wav=- h@,0,0,0,0,0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := Discover(root)
+	if err != nil || len(got) != 1 || got[0].Path != bankRoot || got[0].Name != "Teto English" {
+		t.Fatalf("Discover() = %#v, %v", got, err)
+	}
+}
+
 func TestInspectFindsNestedOtoWithoutParsingIt(t *testing.T) {
 	root := t.TempDir()
 	nested := filepath.Join(root, "append")

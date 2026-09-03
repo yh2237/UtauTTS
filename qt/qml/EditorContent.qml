@@ -304,6 +304,14 @@ import QtMultimedia
                                 window.updateSetting("voicebankId", currentValue);
                                 const voice = window.voicebankById(currentValue);
                                 window.utterancesModel.setProperty(window.selectedIndex, "imagePath", voice ? voice.image_path : "");
+                                if (voice && voice.suggested_language) {
+                                    const language = String(voice.suggested_language);
+                                    const phonemizer = String(voice.suggested_phonemizer
+                                                              || window.defaultPhonemizer(language));
+                                    window.updateSpeechLanguage(language, phonemizer);
+                                    window.selectCombo(speechLanguageCombo, language);
+                                    window.selectCombo(phonemizerCombo, phonemizer);
+                                }
 
                                 const item = window.current();
                                 if (!window.voicebankHasColor(currentValue, item.color || "")) {

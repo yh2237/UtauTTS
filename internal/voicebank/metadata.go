@@ -19,6 +19,15 @@ func (b *Bank) loadMetadata() {
 		b.CharacterYAML = path
 		b.Subbanks = subbanks
 		b.Diagnostics = append(b.Diagnostics, diagnostics...)
+		if text, err := readMetadata(path); err == nil {
+			for _, line := range strings.Split(text, "\n") {
+				key, value, ok := splitYAMLField(strings.TrimSpace(line))
+				if ok && strings.EqualFold(key, "default_phonemizer") {
+					b.DefaultPhonemizer = parseYAMLScalar(value)
+					break
+				}
+			}
+		}
 	}
 	if path := findRootFile(b.Root, "character.txt"); path != "" {
 		if text, err := readMetadata(path); err == nil {

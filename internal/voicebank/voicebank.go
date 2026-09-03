@@ -23,18 +23,19 @@ type Diagnostic struct {
 }
 
 type Bank struct {
-	Root            string
-	Name            string
-	OtoFiles        []string
-	Entries         map[string][]oto.Entry
-	PrefixMap       map[string]Affix
-	Subbanks        []Subbank
-	CharacterYAML   string
-	ARPAsing        map[string]string
-	Diagnostics     []Diagnostic
-	extractor       *connection.Extractor
-	validationMu    sync.Mutex
-	validationCache map[oto.Entry]cachedEntryValidation
+	Root              string
+	Name              string
+	OtoFiles          []string
+	Entries           map[string][]oto.Entry
+	PrefixMap         map[string]Affix
+	Subbanks          []Subbank
+	CharacterYAML     string
+	DefaultPhonemizer string
+	ARPAsing          map[string]string
+	Diagnostics       []Diagnostic
+	extractor         *connection.Extractor
+	validationMu      sync.Mutex
+	validationCache   map[oto.Entry]cachedEntryValidation
 }
 
 func Load(root string) (*Bank, error) {
