@@ -438,3 +438,16 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+
+Gofonix and CMU Pronouncing Dictionary
+======================================
+
+English grapheme-to-phoneme conversion uses Gofonix v0.3.1-alpha,
+Copyright 2026 Nikolas Kraljevic, under the Apache License 2.0.
+Gofonix includes a reduced dictionary derived from CMUdict,
+Copyright (C) 1993-2015 Carnegie Mellon University.
+The CMUdict license is included as `licenses/Go/CMUDICT-LICENSE.txt`.
+
+https://github.com/NK8007/gofonix
+https://github.com/cmusphinx/cmudict

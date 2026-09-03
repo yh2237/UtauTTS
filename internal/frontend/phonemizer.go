@@ -135,7 +135,11 @@ func englishPronunciation(text, reading string, dictionary map[string]string) (s
 				value = dictionary[strings.ToLower(word)]
 			}
 			if value == "" {
-				return "", nil, fmt.Errorf("English dictionary has no pronunciation for %q; specify --reading in ARPAbet", word)
+				var err error
+				value, err = englishWordPronunciation(word)
+				if err != nil {
+					return "", nil, err
+				}
 			}
 			parts = append(parts, value)
 		}
@@ -197,7 +201,11 @@ func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (s
 				value = dictionary[strings.ToLower(word)]
 			}
 			if value == "" {
-				return "", nil, fmt.Errorf("English dictionary has no pronunciation for %q; specify --reading in ARPAbet", word)
+				var err error
+				value, err = englishWordPronunciation(word)
+				if err != nil {
+					return "", nil, err
+				}
 			}
 			parts = append(parts, value)
 		}

@@ -16,7 +16,7 @@ CLIでは`--language ja|en|zh`を指定します。`--phonemizer`を省略する
 
 ### 英語
 
-現段階では、`--reading`へ空白区切りのARPAbetを指定するのが確実です。強勢番号はalias生成時に除去されます。
+英語文章は内蔵辞書と規則ベースG2PでARPAbetへ変換されます。`--reading`へ空白区切りのARPAbetを直接指定することもでき、強勢番号はalias生成時に除去されます。
 
 ```powershell
 utautts-cli --language en --reading "HH AH0 L OW1" --voicebank voice/en --out hello.wav

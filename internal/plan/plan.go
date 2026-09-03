@@ -54,6 +54,7 @@ type Plan struct {
 	LeadingMarginMS         float64                  `json:"leading_margin_ms,omitempty"`
 	DurationMS              float64                  `json:"duration_ms"`
 	Units                   []Unit                   `json:"units"`
+	Morae                   []frontend.Mora          `json:"-"`
 }
 
 // BoundaryBridgeはレンダラーが適用する短い遷移補正を記録する。
@@ -180,7 +181,8 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 	}
 	result := &Plan{
 		Version: Version, Voicebank: bank.Root, Reading: reading,
-		Tone: cfg.Tone, Color: cfg.Color, AcousticMode: cfg.AcousticMode,
+		Morae: append([]frontend.Mora(nil), morae...),
+		Tone:  cfg.Tone, Color: cfg.Color, AcousticMode: cfg.AcousticMode,
 		SelectionMode: string(selectionMode), AliasPolicy: string(aliasPolicy), JoinCostMode: joinCostMode,
 		JoinModelVersion: cfg.JoinModelVersion,
 		JoinScoreScale:   cfg.JoinScoreScale,

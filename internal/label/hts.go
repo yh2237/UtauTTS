@@ -26,9 +26,13 @@ func HTS(synthesisPlan *plan.Plan, moraDurationsMS []float64, audioDurationMS fl
 	if audioDurationMS <= 0 || math.IsNaN(audioDurationMS) || math.IsInf(audioDurationMS, 0) {
 		return "", fmt.Errorf("audio duration must be positive and finite")
 	}
-	morae, err := frontend.ParseKana(synthesisPlan.Reading)
-	if err != nil {
-		return "", fmt.Errorf("parse reading: %w", err)
+	morae := synthesisPlan.Morae
+	if len(morae) == 0 {
+		var err error
+		morae, err = frontend.ParseKana(synthesisPlan.Reading)
+		if err != nil {
+			return "", fmt.Errorf("parse reading: %w", err)
+		}
 	}
 	if len(moraDurationsMS) != len(morae) {
 		return "", fmt.Errorf("mora durations: got %d values for %d morae", len(moraDurationsMS), len(morae))

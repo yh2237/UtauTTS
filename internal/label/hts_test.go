@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"utautts/internal/frontend"
 	"utautts/internal/plan"
 )
 
@@ -29,6 +30,29 @@ func TestHTSUsesLeadingMarginAndEffectivePreutterance(t *testing.T) {
 	} {
 		if !strings.Contains(got, want+"\n") {
 			t.Fatalf("label missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestHTSUsesAnalyzedEnglishUnits(t *testing.T) {
+	p := &plan.Plan{
+		Reading: "HH AH L OW", LeadingMarginMS: 20,
+		Morae: []frontend.Mora{
+			{Text: "hV", Consonant: "h", Vowel: "V"},
+			{Text: "loU", Consonant: "l", Vowel: "oU"},
+		},
+		Units: []plan.Unit{
+			{Position: 0, Role: "mora", EffectivePreutteranceMS: 20},
+			{Position: 1, Role: "mora", EffectivePreutteranceMS: 20},
+		},
+	}
+	got, err := HTS(p, []float64{100, 100}, 220)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, phone := range []string{"h", "V", "l", "oU"} {
+		if !strings.Contains(got, " "+phone+"\n") {
+			t.Fatalf("label missing %q:\n%s", phone, got)
 		}
 	}
 }
