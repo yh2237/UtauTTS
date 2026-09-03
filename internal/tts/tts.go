@@ -139,6 +139,12 @@ func resolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, 
 	case frontend.PhonemizerEnglish:
 		reading, morae, err := frontend.ParseEnglishARPAsing(cfg.Text, cfg.Reading, cfg.Dictionary)
 		return language, phonemizer, reading, morae, err
+	case frontend.PhonemizerEnglishDelta:
+		reading, morae, err := frontend.ParseEnglishDelta(cfg.Text, cfg.Reading, cfg.Dictionary)
+		return language, phonemizer, reading, morae, err
+	case frontend.PhonemizerEnglishVCCV:
+		reading, morae, err := frontend.ParseEnglishVCCV(cfg.Text, cfg.Reading, cfg.Dictionary)
+		return language, phonemizer, reading, morae, err
 	case frontend.PhonemizerChinese:
 		reading, morae, err := frontend.ParseChineseCVVC(cfg.Text, cfg.Reading, cfg.Dictionary)
 		return language, phonemizer, reading, morae, err

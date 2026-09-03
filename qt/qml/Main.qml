@@ -1951,12 +1951,17 @@ ApplicationWindow {
     }
 
     function phonemizerOptions(language) {
-        const id = window.defaultPhonemizer(language);
         const labels = {
             "ja-kana": window.translator.tr("main.phonemizer.jaKana"),
             "en-arpasing": window.translator.tr("main.phonemizer.enArpasing"),
+            "en-delta": window.translator.tr("main.phonemizer.enDelta"),
+            "en-vccv": window.translator.tr("main.phonemizer.enVccv"),
             "zh-cvvc": window.translator.tr("main.phonemizer.zhCvvc")
         };
+        if (language === "en")
+            return ["en-arpasing", "en-delta", "en-vccv"].map(
+                        id => ({id: id, display_name: labels[id]}));
+        const id = window.defaultPhonemizer(language);
         return [{id: id, display_name: labels[id]}];
     }
 

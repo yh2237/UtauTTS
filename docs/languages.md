@@ -8,6 +8,8 @@ UtauTTSは、文章を発音単位とUTAU alias候補へ変換する処理をPho
 |---|---|---|---|
 | 日本語 | `ja-kana` | 日本語文章またはかな | CV、VCV、CVVC |
 | 英語 | `en-arpasing` | ARPAbet読み、または辞書付き英単語 | ARPAsing |
+| 英語 | `en-delta` | ARPAbet読み、または辞書付き英単語 | デルタ式CVVC・重音テト英語方式 |
+| 英語 | `en-vccv` | ARPAbet読み、または辞書付き英単語 | Cz式VCCV |
 | 中国語 | `zh-cvvc` | 簡体字・繁体字、または無声調Pinyin読み | Mandarin CVVC/CVV |
 
 CLIでは`--language ja|en|zh`を指定します。`--phonemizer`を省略すると言語に合う方式が選ばれます。HTTP APIでは同じ値を`language`と`phonemizer`へ渡します。

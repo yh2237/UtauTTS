@@ -61,6 +61,8 @@
     "main.language.zh": "中文",
     "main.phonemizer.jaKana": "日语假名",
     "main.phonemizer.enArpasing": "英语 ARPAsing",
+    "main.phonemizer.enDelta": "英语 Delta CVVC",
+    "main.phonemizer.enVccv": "英语 Cz VCCV",
     "main.phonemizer.zhCvvc": "中文 CVVC",
     "main.param.aliasPolicy": "音源格式",
     "main.aliasPolicy.auto": "自动",

@@ -221,10 +221,16 @@ func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color 
 					SubbankID:   subbank.ID, Color: subbank.Color, RequestedTone: requestedTone,
 					ResolvedTone: resolvedTone, EntryStatus: validation.Status, EntryValidation: validation.Checks,
 				}
-				candidatesAtPosition = append(candidatesAtPosition, main)
+				if !explicitCandidates {
+					candidatesAtPosition = append(candidatesAtPosition, main)
+				}
 				if candidate.kind != AliasCV || isWildcardAlias(candidate.name) || len(transitionSpecs) == 0 {
+					if explicitCandidates {
+						candidatesAtPosition = append(candidatesAtPosition, main)
+					}
 					continue
 				}
+				compositeAdded := false
 				for _, transitionSpec := range transitionSpecs {
 					for _, validatedTransition := range validatedEntries(transitionSpec.name, b.Entries[transitionSpec.name]) {
 						transitionEntry, transitionValidation := validatedTransition.entry, validatedTransition.validation
@@ -241,7 +247,11 @@ func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color 
 						composite.Transition = &transition
 						composite.TransitionScore = transition.TargetScore
 						candidatesAtPosition = append(candidatesAtPosition, composite)
+						compositeAdded = true
 					}
+				}
+				if explicitCandidates && !compositeAdded {
+					candidatesAtPosition = append(candidatesAtPosition, main)
 				}
 			}
 		}

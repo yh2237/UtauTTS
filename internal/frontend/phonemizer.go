@@ -15,9 +15,11 @@ const (
 	LanguageEnglish  = "en"
 	LanguageChinese  = "zh"
 
-	PhonemizerJapanese = "ja-kana"
-	PhonemizerEnglish  = "en-arpasing"
-	PhonemizerChinese  = "zh-cvvc"
+	PhonemizerJapanese     = "ja-kana"
+	PhonemizerEnglish      = "en-arpasing"
+	PhonemizerEnglishDelta = "en-delta"
+	PhonemizerEnglishVCCV  = "en-vccv"
+	PhonemizerChinese      = "zh-cvvc"
 )
 
 func ResolveLanguage(language, phonemizer string) (string, string, error) {
@@ -25,7 +27,7 @@ func ResolveLanguage(language, phonemizer string) (string, string, error) {
 	phonemizer = strings.ToLower(strings.TrimSpace(phonemizer))
 	if language == "" {
 		switch phonemizer {
-		case PhonemizerEnglish:
+		case PhonemizerEnglish, PhonemizerEnglishDelta, PhonemizerEnglishVCCV:
 			language = LanguageEnglish
 		case PhonemizerChinese:
 			language = LanguageChinese
@@ -40,18 +42,145 @@ func ResolveLanguage(language, phonemizer string) (string, string, error) {
 			LanguageChinese:  PhonemizerChinese,
 		}[language]
 	}
-	want := map[string]string{
-		LanguageJapanese: PhonemizerJapanese,
-		LanguageEnglish:  PhonemizerEnglish,
-		LanguageChinese:  PhonemizerChinese,
+	valid := map[string]map[string]bool{
+		LanguageJapanese: {PhonemizerJapanese: true},
+		LanguageEnglish:  {PhonemizerEnglish: true, PhonemizerEnglishDelta: true, PhonemizerEnglishVCCV: true},
+		LanguageChinese:  {PhonemizerChinese: true},
 	}[language]
-	if want == "" {
+	if valid == nil {
 		return "", "", fmt.Errorf("unsupported language %q", language)
 	}
-	if phonemizer != want {
+	if !valid[phonemizer] {
 		return "", "", fmt.Errorf("phonemizer %q does not support language %q", phonemizer, language)
 	}
 	return language, phonemizer, nil
+}
+
+// ParseEnglishDeltaはARPAbet読みをデルタ式CVVCへ変換する。
+func ParseEnglishDelta(text, reading string, dictionary map[string]string) (string, []Mora, error) {
+	return parseEnglishSyllables(text, reading, dictionary, deltaEnglishSymbols, " ", true)
+}
+
+// ParseEnglishVCCVはARPAbet読みをCz式VCCVへ変換する。
+func ParseEnglishVCCV(text, reading string, dictionary map[string]string) (string, []Mora, error) {
+	return parseEnglishSyllables(text, reading, dictionary, vccvEnglishSymbols, "", false)
+}
+
+func parseEnglishSyllables(text, reading string, dictionary map[string]string, symbols map[string][]string, separator string, spacedStart bool) (string, []Mora, error) {
+	pronunciation, arpabet, err := englishPronunciation(text, reading, dictionary)
+	if err != nil {
+		return "", nil, err
+	}
+	type syllable struct {
+		onset []string
+		vowel string
+	}
+	var syllables []syllable
+	var onset []string
+	for _, phoneme := range arpabet {
+		mapped := symbols[phoneme]
+		if len(mapped) == 0 {
+			return "", nil, fmt.Errorf("unsupported ARPAbet phoneme %q", phoneme)
+		}
+		if englishVowels[phoneme] {
+			syllables = append(syllables, syllable{onset: append([]string(nil), onset...), vowel: phoneme})
+			onset = nil
+		} else {
+			onset = append(onset, phoneme)
+		}
+	}
+	if len(syllables) == 0 {
+		return "", nil, fmt.Errorf("ARPAbet reading contains no vowel")
+	}
+	units := make([]Mora, 0, len(syllables))
+	previousVowels := []string(nil)
+	for i, syllable := range syllables {
+		main := combineEnglishAliases(syllable.onset, symbols[syllable.vowel], symbols)
+		if i == 0 {
+			prefix := "-"
+			if spacedStart {
+				prefix = "- "
+			}
+			for _, alias := range append([]string(nil), main...) {
+				main = append(main, prefix+alias)
+			}
+			main = append(main[len(main)/2:], main[:len(main)/2]...)
+		}
+		transitions := combineEnglishTransitionAliases(previousVowels, syllable.onset, symbols, separator)
+		units = append(units, Mora{Text: main[0], Consonant: strings.Join(syllable.onset, " "), Vowel: symbols[syllable.vowel][0], Aliases: &AliasHints{Main: uniqueStrings(main), Transition: uniqueStrings(transitions)}})
+		previousVowels = symbols[syllable.vowel]
+	}
+	if len(onset) > 0 {
+		endings := combineEnglishTransitionAliases(previousVowels, onset, symbols, separator)
+		cluster := combineEnglishAliases(onset, []string{""}, symbols)
+		for _, value := range cluster {
+			endings = append(endings, value+separator+"-", value+"-")
+		}
+		units = append(units, Mora{Text: endings[0], Consonant: strings.Join(onset, " "), Aliases: &AliasHints{Main: uniqueStrings(endings)}})
+	}
+	return pronunciation, units, nil
+}
+
+func englishPronunciation(text, reading string, dictionary map[string]string) (string, []string, error) {
+	pronunciation := strings.TrimSpace(reading)
+	if pronunciation == "" {
+		words := latinWords(text)
+		if len(words) == 0 {
+			return "", nil, fmt.Errorf("English text contains no words")
+		}
+		parts := make([]string, 0, len(words))
+		for _, word := range words {
+			value := dictionary[word]
+			if value == "" {
+				value = dictionary[strings.ToLower(word)]
+			}
+			if value == "" {
+				return "", nil, fmt.Errorf("English dictionary has no pronunciation for %q; specify --reading in ARPAbet", word)
+			}
+			parts = append(parts, value)
+		}
+		pronunciation = strings.Join(parts, " ")
+	}
+	fields := strings.Fields(pronunciation)
+	if len(fields) == 0 {
+		return "", nil, fmt.Errorf("ARPAbet reading is empty")
+	}
+	for i := range fields {
+		fields[i] = normalizeARPAbet(fields[i])
+	}
+	return pronunciation, fields, nil
+}
+
+func combineEnglishAliases(onset []string, vowels []string, symbols map[string][]string) []string {
+	aliases := []string{""}
+	for _, phoneme := range append(append([]string(nil), onset...), "") {
+		values := vowels
+		if phoneme != "" {
+			values = symbols[phoneme]
+		}
+		next := make([]string, 0, len(aliases)*len(values))
+		for _, left := range aliases {
+			for _, right := range values {
+				next = append(next, left+right)
+			}
+		}
+		aliases = next
+	}
+	return aliases
+}
+
+func combineEnglishTransitionAliases(previous []string, onset []string, symbols map[string][]string, separator string) []string {
+	if len(previous) == 0 || len(onset) == 0 {
+		return nil
+	}
+	cluster := combineEnglishAliases(onset, []string{""}, symbols)
+	var result []string
+	for _, vowel := range previous {
+		for _, consonant := range cluster {
+			result = append(result, vowel+separator+consonant)
+		}
+	}
+	return result
 }
 
 func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (string, []Mora, error) {
@@ -192,6 +321,30 @@ var englishVowels = map[string]bool{
 	"aa": true, "ae": true, "ah": true, "ao": true, "aw": true, "ay": true,
 	"eh": true, "er": true, "ey": true, "ih": true, "iy": true, "ow": true,
 	"oy": true, "uh": true, "uw": true,
+}
+
+var deltaEnglishSymbols = map[string][]string{
+	"aa": {"A", "Q"}, "ae": {"{"}, "ah": {"V", "@"}, "ao": {"O", "Q"},
+	"aw": {"aU", "au"}, "ay": {"aI", "ai"}, "eh": {"E", "e"}, "er": {"3"},
+	"ey": {"eI", "ei"}, "ih": {"I", "i"}, "iy": {"i"}, "ow": {"oU", "o"},
+	"oy": {"OI", "oi"}, "uh": {"U"}, "uw": {"u"},
+	"b": {"b"}, "ch": {"tS", "ch"}, "d": {"d"}, "dh": {"D", "dh"},
+	"f": {"f"}, "g": {"g"}, "hh": {"h"}, "jh": {"dZ", "j"}, "k": {"k"},
+	"l": {"l"}, "m": {"m"}, "n": {"n"}, "ng": {"N", "ng"}, "p": {"p"},
+	"r": {"r"}, "s": {"s"}, "sh": {"S", "sh"}, "t": {"t"}, "th": {"T", "th"},
+	"v": {"v"}, "w": {"w"}, "y": {"j", "y"}, "z": {"z"}, "zh": {"Z", "zh"},
+}
+
+var vccvEnglishSymbols = map[string][]string{
+	"aa": {"Q", "A"}, "ae": {"A", "&"}, "ah": {"@", "6"}, "ao": {"0", "Q"},
+	"aw": {"aW"}, "ay": {"aI"}, "eh": {"E", "e"}, "er": {"3", "0r"},
+	"ey": {"A"}, "ih": {"I"}, "iy": {"i"}, "ow": {"0", "O"},
+	"oy": {"OI"}, "uh": {"U"}, "uw": {"u"},
+	"b": {"b"}, "ch": {"ch"}, "d": {"d", "dd"}, "dh": {"dh"}, "f": {"f"},
+	"g": {"g"}, "hh": {"h"}, "jh": {"j"}, "k": {"k"}, "l": {"l"},
+	"m": {"m"}, "n": {"n"}, "ng": {"ng"}, "p": {"p"}, "r": {"r"},
+	"s": {"s"}, "sh": {"sh"}, "t": {"t"}, "th": {"th"}, "v": {"v"},
+	"w": {"w"}, "y": {"y"}, "z": {"z"}, "zh": {"zh"},
 }
 
 func normalizeARPAbet(value string) string {

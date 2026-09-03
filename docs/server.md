@@ -209,7 +209,7 @@ ID順にソートされた音源一覧です。
 | `reading` | string | | かな、ARPAbet、Pinyinによる読みの直接指定 |
 | `kana` | string | | `reading`の旧名称 |
 | `language` | string | `ja` | `ja`、`en`、`zh` |
-| `phonemizer` | string | 言語から選択 | `ja-kana`、`en-arpasing`、`zh-cvvc` |
+| `phonemizer` | string | 言語から選択 | `ja-kana`、`en-arpasing`、`en-delta`、`en-vccv`、`zh-cvvc` |
 | `voicebank_id` | string | ID順先頭 | `GET /api/voicebanks` の `id` |
 | `tone` | string | `C4` | `prefix.map` 使用時の音階 |
 | `color` | string | なし | `character.yaml`で定義された音源タイプ／サブバンク |
