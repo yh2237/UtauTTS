@@ -878,6 +878,19 @@ ApplicationWindow {
                 enabled: !window.appBackend.busy && !window.batchExportActive
                 onTriggered: window.appBackend.openVoiceDirectory()
             }
+            GrayscaleMenuItem {
+                text: window.translator.tr("menu.file.openResamplersDirectory")
+                onTriggered: window.appBackend.openClassicToolDirectory("resampler")
+            }
+            GrayscaleMenuItem {
+                text: window.translator.tr("menu.file.openWavtoolsDirectory")
+                onTriggered: window.appBackend.openClassicToolDirectory("wavtool")
+            }
+            GrayscaleMenuItem {
+                text: window.translator.tr("menu.file.reloadClassicTools")
+                enabled: !window.appBackend.busy
+                onTriggered: window.appBackend.reloadClassicTools()
+            }
             MenuSeparator {}
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.saveWav")
@@ -966,23 +979,6 @@ ApplicationWindow {
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.settings.dictionary")
                 onTriggered: window.openDictionarySettings()
-            }
-            Menu {
-                title: window.translator.tr("menu.settings.classicTools")
-                GrayscaleMenuItem {
-                    text: window.translator.tr("menu.settings.classicTools.resamplers")
-                    onTriggered: window.appBackend.openClassicToolDirectory("resampler")
-                }
-                GrayscaleMenuItem {
-                    text: window.translator.tr("menu.settings.classicTools.wavtools")
-                    onTriggered: window.appBackend.openClassicToolDirectory("wavtool")
-                }
-                MenuSeparator {}
-                GrayscaleMenuItem {
-                    text: window.translator.tr("menu.settings.classicTools.reload")
-                    enabled: !window.appBackend.busy
-                    onTriggered: window.appBackend.reloadClassicTools()
-                }
             }
             GrayscaleMenuItem {
                 visible: window.appBackend.developerMode
