@@ -4,7 +4,25 @@
 
 ## Renderer
 
-Rendererは`plugins/renderers/<plugin>/plugin.json`で定義します。
+Rendererは音声合成方式全体を表します。`UtauTTS WORLD phrase`、`OpenUTAU WORLDLINE-R faithful`、`Waveform`、`Classic UTAU`が該当します。Classic UTAUだけがresamplerとwavtoolを組み合わせます。
+
+## Classic UTAUツール
+
+resamplerは`Resamplers/`、wavtoolは`Wavtools/`へ配置します。`plugin.json`は不要です。OpenUtauと同様にサブディレクトリも探索するため、依存DLLを実行ファイルと同じディレクトリへ置けます。プロジェクトには絶対パスではなく、各ディレクトリからの相対IDを保存します。
+
+```text
+Resamplers/
+  moresampler.exe
+  L2R/
+    L2R.exe
+    dependency.dll
+Wavtools/
+  wavtool.exe
+```
+
+GUIではRendererに`Classic UTAU`を選択した場合だけ、ResamplerとWavtoolの選択欄が表示されます。外部wavtoolを使わない場合は`UtauTTS built-in`を選びます。
+
+UtauTTS WORLD phraseなどの同梱Rendererは`plugins/renderers/<plugin>/plugin.json`で定義しています。これはRenderer全体の定義であり、Classic UTAUのresamplerやwavtoolには使いません。
 
 ```json
 {
@@ -39,36 +57,11 @@ Rendererは`plugins/renderers/<plugin>/plugin.json`で定義します。
 
 未知のIDはカタログの既定Rendererへ解決されます。明示したRendererのassetが不足している場合は、別Rendererへ黙って切り替えずエラーになります。
 
-### 外部UTAU Renderer
+### Classic UTAU互換仕様
 
-GUIの設定でUTAU互換resamplerの実行ファイルを追加すると、`plugins/renderers/<id>/plugin.json`へ次のmanifestが保存されます。実行ファイルは移動せず絶対pathで参照します。
+UTAU互換の引数で各原音を処理します。外部wavtoolを選んだ場合はOpenUtau Classic Rendererと同じ位置引数で接続し、`builtin`ではUtauTTS内蔵の5点包絡線処理を使います。外部実行ファイルの利用条件は配布元の規約に従ってください。
 
-```json
-{
-  "manifest_version": 1,
-  "kind": "renderer",
-  "id": "utau-external-example-0123456789ab",
-  "display_name": "example",
-  "backend": "utau-external-resampler",
-  "version": "1",
-  "acceleration": "cpu",
-  "capabilities": { "frame_pitch": true },
-  "resampler_options": {
-    "velocity": 100,
-    "flags": "",
-    "modulation": 0,
-    "tempo": 120
-  },
-  "assets": {
-    "resampler": "C:/path/to/resampler.exe",
-    "wavtool": "C:/path/to/wavtool.exe"
-  }
-}
-```
-
-UTAU互換の引数で各原音を処理します。`wavtool`を指定した場合はOpenUtau Classic Rendererと同じ位置引数で接続し、未指定の場合はUtauTTS内蔵の5点包絡線処理を使います。外部実行ファイルの利用条件は配布元の規約に従ってください。
-
-resamplerの呼び出し形式はOpenUtau Classic Rendererと同じ13引数です。入力WAV、出力WAV、音高、velocity、flags、offset、必要長、consonant、cutoff、volume、modulation、tempo、12bit Base64ピッチ列の順に渡します。`resampler_options`を省略した場合はvelocity 100、空のflags、modulation 0、tempo 120を使います。
+resamplerの呼び出し形式はOpenUtau Classic Rendererと同じ13引数です。入力WAV、出力WAV、音高、velocity、flags、offset、必要長、consonant、cutoff、volume、modulation、tempo、12bit Base64ピッチ列の順に渡します。既定値はvelocity 100、空のflags、modulation 0、tempo 120です。
 
 ノート単位の設定はAPIの`resampler_expressions`、またはCLIの`--resampler-expressions`で指定します。`position`は読みのモーラ位置で、CVVC transitionにも親モーラの設定が引き継がれます。省略した値はRenderer全体の設定を使います。
 

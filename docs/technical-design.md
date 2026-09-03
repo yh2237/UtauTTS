@@ -173,9 +173,9 @@ Renderer pluginの`id`は保存データやUIで使う公開識別子、`backend
 
 位相を合わせた短い境界bridgeも診断機能として実装していますが標準では無効です。
 
-### 外部UTAU Renderer
+### Classic UTAU Renderer
 
-`utau-external-resampler`はOpenUTAU由来のphone timingを使い、manifestの`assets.resampler`で指定されたUTAU互換実行ファイルをunitごとに呼びます。toneを基準に5tick間隔の相対pitchを12bit形式で符号化し、offset、required length、consonant、cutoffなどと一緒に渡します。返されたWAVのsample rateをフレーズ内で統一してskipを適用し、5点envelopeで共通時刻へ加算します。
+`utau-external-resampler`はOpenUTAU由来のphone timingを使い、選択されたUTAU互換resamplerをunitごとに呼びます。toneを基準に5tick間隔の相対pitchを12bit形式で符号化し、offset、required length、consonant、cutoffなどと一緒に渡します。返されたWAVのsample rateをフレーズ内で統一してskipを適用し、内蔵wavtoolまたは選択された外部wavtoolで接続します。
 
 外部resamplerは独立したプロセスなのでUtauTTS本体とABIを共有しません。終了コード、出力WAV、timeoutを呼び出しごとに検査します。flagsと外部wavtoolの指定にはまだ対応していません。
 

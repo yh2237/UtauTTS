@@ -79,7 +79,9 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--pitch-case <id>` | | `--pitch-contours` 内のケースID |
 | `--apply-pitch` | `false` | 波形のピッチ再サンプリング（実験的） |
 | `--intonation-strength` | `0` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
-| `--renderer <id>` | 既定Renderer | Renderer plugin ID（省略時はmanifestの `default_priority` が最大のもの） |
+| `--renderer <id>` | 既定Renderer | Renderer ID（省略時は設定された優先度が最大のもの） |
+| `--resampler <id>` | 自動選択 | Classic UTAUで使う`Resamplers/`からの相対ID |
+| `--wavtool <id>` | `builtin` | Classic UTAUで使う`Wavtools/`からの相対ID |
 | `--worldline <path>` | 実行ファイルの隣 | OpenUtau worldlineライブラリ |
 | `--worldline-bridge <path>` | | `utautts-worldline-bridge` 実行ファイル |
 | `--boundary-bridge-ms` | `0` | 位相を揃えた波形接続修復の最大幅（0で無効） |
@@ -102,7 +104,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 
 ## モデルとRendererの指定
 
-`--prosody`と`--renderer`にはファイルパスではなくプラグインの`id`を指定します。一覧は[モデル／Rendererプラグイン](plugins.md)を参照してください。
+`--prosody`と`--renderer`にはファイルパスではなくIDを指定します。Classic UTAUのツールも絶対パスではなく、`Resamplers/`または`Wavtools/`からの相対IDを指定します。一覧は[モデル／Rendererプラグイン](plugins.md)を参照してください。
 
 モデルやRendererは実行ファイルの隣にある`models/`と`plugins/renderers/`から自動検出します。別のdirectoryを追加するなら`--model-dir`または`--renderer-dir`で指定します。
 

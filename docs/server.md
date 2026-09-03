@@ -153,7 +153,7 @@ ID順にソートされた音源一覧です。
 }
 ```
 
-`default_renderer` はサーバー起動時の既定Rendererです。
+`default_renderer`はサーバー起動時の既定Rendererです。レスポンスの`resamplers`と`wavtools`にはClassic UTAUで選択できるツールが含まれます。
 
 ### `POST /api/analyze`
 
@@ -212,6 +212,8 @@ ID順にソートされた音源一覧です。
 | `color` | string | なし | `character.yaml`で定義された音源タイプ／サブバンク |
 | `model_id` | string | なし | `GET /api/models` の `id` |
 | `renderer` | string | 既定Renderer | `GET /api/renderers` の `id`。未知のIDは既定Rendererへ解決されます |
+| `resampler` | string | 自動選択 | Classic UTAUで使うresamplerの相対ID |
+| `wavtool` | string | `builtin` | Classic UTAUで使うwavtoolの相対ID |
 | `alias_policy` | string | `auto` | `auto`（VC/VCV収録比から自動選択）、`legacy`（v0.0.9互換）、`cvvc-enhanced`（CVVC優先・sequential timing・VC音量35%）、`vcv-prefer`、`cvvc-prefer`、`cv-only` |
 | `mora_duration_ms` | number | `140` | 基本モーラ長（0〜1000） |
 | `pause_duration_ms` | number | `180` | 句読点の休止長（0〜3000） |
@@ -261,7 +263,7 @@ ID順にソートされた音源一覧です。
 ## 起動オプション
 
 - `--voice-dir`: ボイスバンクを格納したディレクトリ
-- `--renderer`: Renderer plugin ID。省略時はmanifestの`default_priority`が最も高いものを使う
+- `--renderer`: Renderer ID。省略時は設定された優先度が最も高いものを使う
 - `--renderer-dir`: Renderer pluginの検索directory。複数回指定できる
 - `--model-dir`: 自己記述モデルJSONの検索directory。複数回指定できてリクエストの`model_id`で選択する
 - `--host`: 待受アドレス。初期値は`127.0.0.1`

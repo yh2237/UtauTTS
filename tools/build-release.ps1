@@ -138,6 +138,10 @@ try {
     Copy-Item -LiteralPath (Join-Path $sourceModels 'README.md') -Destination $serverModelsPath
     Copy-Item -LiteralPath (Join-Path $root 'plugins/renderers') -Destination $guiPluginsPath -Recurse
     Copy-Item -LiteralPath (Join-Path $root 'plugins/renderers') -Destination $serverPluginsPath -Recurse
+    foreach ($directoryName in @('Resamplers', 'Wavtools')) {
+        Copy-Item -LiteralPath (Join-Path $root $directoryName) -Destination $guiPath -Recurse
+        Copy-Item -LiteralPath (Join-Path $root $directoryName) -Destination $serverPath -Recurse
+    }
     foreach ($pluginsPath in @($guiPluginsPath, $serverPluginsPath)) {
         $cudaRendererPath = Join-Path $pluginsPath 'renderers/utautts-world-phrase-cuda'
         if (Test-Path -LiteralPath $cudaRendererPath) {
