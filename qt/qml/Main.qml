@@ -1037,7 +1037,8 @@ ApplicationWindow {
             pause_duration_ms: item.pauseDuration,
             leading_preutterance_ms: item.leadingPreutterance,
             intonation_strength: item.intonation,
-            apply_pitch: item.applyPitch
+            apply_pitch: item.applyPitch,
+            resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson)
         };
     }
 
@@ -1735,6 +1736,7 @@ ApplicationWindow {
                 automatic_mora_positions_ms: window.automaticSequence(item, "autoMoraPositionsJson"),
                 manual_pitch_edited: window.hasManualPitch(item),
                 manual_mora_duration_edited: window.hasManualMoraDurations(item),
+                resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson),
                 analysis_cache: {
                     reading: item.reading || "",
                     morae: window.decodeSequence(item.moraeJson)
@@ -1864,6 +1866,7 @@ ApplicationWindow {
                 autoPointsJson: JSON.stringify(window.copySequence(saved.automatic_pitch_points)),
                 autoMoraDurationsJson: JSON.stringify(automaticDurations),
                 autoMoraPositionsJson: JSON.stringify(automaticPositions),
+                resamplerExpressionsJson: JSON.stringify(window.copySequence(saved.resampler_expressions)),
                 manualPitchEdited: saved.manual_pitch_edited === undefined
                         ? points.some(value => Math.abs(Number(value)) > .1) : !!saved.manual_pitch_edited,
                 manualMoraDurationEdited: saved.manual_mora_duration_edited === undefined
@@ -2314,6 +2317,7 @@ ApplicationWindow {
             autoPointsJson: "[]",
             autoMoraDurationsJson: "[]",
             autoMoraPositionsJson: "[]",
+            resamplerExpressionsJson: "[]",
             manualPitchEdited: false,
             manualMoraDurationEdited: false,
             voicebankId: voice ? voice.id : "",
@@ -2471,7 +2475,8 @@ ApplicationWindow {
             leading_preutterance_ms: item.leadingPreutterance,
             mora_durations_ms: manualDurations,
             intonation_strength: item.intonation,
-            apply_pitch: item.applyPitch
+            apply_pitch: item.applyPitch,
+            resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson)
         };
         if (item.applyPitch && item.reading && manualPitch && points.some(value => Math.abs(Number(value)) > .1)) {
             const manualPoints = [];

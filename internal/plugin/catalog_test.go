@@ -152,6 +152,28 @@ func TestUnknownRendererFallsBackToDefault(t *testing.T) {
 	}
 }
 
+func TestExternalResamplerOptionsAreValidated(t *testing.T) {
+	velocity, modulation := 86, 4
+	valid := Renderer{
+		ManifestVersion: ManifestVersion, Kind: "renderer", ID: "external", DisplayName: "External",
+		Backend:          "utau-external-resampler",
+		ResamplerOptions: &ResamplerOptions{Velocity: &velocity, Flags: "g-3Mt10", Modulation: &modulation, Tempo: 120},
+	}
+	if err := validateRenderer(valid, func(string) bool { return true }); err != nil {
+		t.Fatalf("valid resampler options rejected: %v", err)
+	}
+	invalidVelocity := 201
+	valid.ResamplerOptions.Velocity = &invalidVelocity
+	if err := validateRenderer(valid, func(string) bool { return true }); err == nil {
+		t.Fatal("out-of-range resampler velocity was accepted")
+	}
+	valid.ResamplerOptions.Velocity = &velocity
+	valid.ResamplerOptions.Flags = "g-3 bad"
+	if err := validateRenderer(valid, func(string) bool { return true }); err == nil {
+		t.Fatal("resampler flags containing whitespace were accepted")
+	}
+}
+
 func TestPackagedDirectoriesTakePrecedenceOverWorkspaceDirectories(t *testing.T) {
 	workspace := t.TempDir()
 	packaged := filepath.Join(workspace, "release", "UtauTTS")

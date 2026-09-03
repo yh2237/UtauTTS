@@ -19,49 +19,57 @@ import (
 )
 
 type Config struct {
-	Context                 context.Context
-	VoicebankPath           string
-	Voicebank               *voicebank.Bank
-	Text                    string
-	Reading                 string
-	Dictionary              map[string]string
-	Tone                    string
-	Color                   string
-	MoraDurationMS          float64
-	PauseDurationMS         float64
-	MoraDurationsMS         []float64
-	ReleaseMS               float64
-	ReleaseSet              bool
-	LeadingPreutteranceMS   float64
-	ProsodyModelPath        string
-	ProsodyModel            *prosody.Model
-	ManualPitchPath         string
-	ManualPitch             *prosody.ManualPitchFile
-	ProsodyFeatures         []prosody.FeatureFrame
-	ProsodyPitchOnly        bool
-	OpenJTalkPath           string
-	OpenJTalkDictionaryPath string
-	PitchFactors            []float64
-	ApplyPitch              bool
-	IntonationStrength      float64
-	Renderer                string
-	RendererCapabilities    *plugin.Capabilities
-	WorldlinePath           string
-	WorldlineBridgePath     string
-	WorldEnginePath         string
-	WorldGPUPath            string
-	ExternalResamplerPath   string
-	BoundaryBridgeMS        float64
-	BoundaryBridgeThreshold float64
-	CVVCTiming              string
-	CVVCTransitionGain      float64
-	CVVCPreBoundaryFade     bool
-	PitchCurve              *render.PitchCurve
-	SelectionMode           voicebank.SelectionMode
-	AliasPolicy             voicebank.AliasPolicy
-	AcousticMode            string
-	JoinModelPath           string
-	JoinScoreScale          float64
+	Context                        context.Context
+	VoicebankPath                  string
+	Voicebank                      *voicebank.Bank
+	Text                           string
+	Reading                        string
+	Dictionary                     map[string]string
+	Tone                           string
+	Color                          string
+	MoraDurationMS                 float64
+	PauseDurationMS                float64
+	MoraDurationsMS                []float64
+	ReleaseMS                      float64
+	ReleaseSet                     bool
+	LeadingPreutteranceMS          float64
+	ProsodyModelPath               string
+	ProsodyModel                   *prosody.Model
+	ManualPitchPath                string
+	ManualPitch                    *prosody.ManualPitchFile
+	ProsodyFeatures                []prosody.FeatureFrame
+	ProsodyPitchOnly               bool
+	OpenJTalkPath                  string
+	OpenJTalkDictionaryPath        string
+	PitchFactors                   []float64
+	ApplyPitch                     bool
+	IntonationStrength             float64
+	Renderer                       string
+	RendererCapabilities           *plugin.Capabilities
+	WorldlinePath                  string
+	WorldlineBridgePath            string
+	WorldEnginePath                string
+	WorldGPUPath                   string
+	ExternalResamplerPath          string
+	ExternalResamplerVelocity      int
+	ExternalResamplerVelocitySet   bool
+	ExternalResamplerFlags         string
+	ExternalResamplerModulation    int
+	ExternalResamplerModulationSet bool
+	ExternalResamplerTempo         float64
+	ExternalWavtoolPath            string
+	ExternalResamplerExpressions   []render.ResamplerExpression
+	BoundaryBridgeMS               float64
+	BoundaryBridgeThreshold        float64
+	CVVCTiming                     string
+	CVVCTransitionGain             float64
+	CVVCPreBoundaryFade            bool
+	PitchCurve                     *render.PitchCurve
+	SelectionMode                  voicebank.SelectionMode
+	AliasPolicy                    voicebank.AliasPolicy
+	AcousticMode                   string
+	JoinModelPath                  string
+	JoinScoreScale                 float64
 }
 
 type Result struct {
@@ -80,8 +88,7 @@ type ProsodyPreview struct {
 	MoraDurationsMS []float64
 	MoraPositionsMS []float64
 	PitchPoints     []float64
-	// FramePitchCurve is the 10ms frame-level intonation contour (scaled by
-	// intonation strength), when the selected model and renderer support it.
+	// FramePitchCurveは強度適用後の10ms単位のピッチ曲線。
 	FramePitchCurve *render.PitchCurve
 }
 
@@ -181,6 +188,25 @@ func ApplyResolvedRenderer(cfg *Config, renderer plugin.Renderer, worldlinePath,
 	cfg.WorldEnginePath = renderer.Asset("world_engine")
 	cfg.WorldGPUPath = renderer.Asset("world_gpu")
 	cfg.ExternalResamplerPath = renderer.Asset("resampler")
+	cfg.ExternalWavtoolPath = renderer.Asset("wavtool")
+	cfg.ExternalResamplerVelocity = 0
+	cfg.ExternalResamplerVelocitySet = false
+	cfg.ExternalResamplerFlags = ""
+	cfg.ExternalResamplerModulation = 0
+	cfg.ExternalResamplerModulationSet = false
+	cfg.ExternalResamplerTempo = 0
+	if options := renderer.ResamplerOptions; options != nil {
+		cfg.ExternalResamplerFlags = options.Flags
+		cfg.ExternalResamplerTempo = options.Tempo
+		if options.Velocity != nil {
+			cfg.ExternalResamplerVelocity = *options.Velocity
+			cfg.ExternalResamplerVelocitySet = true
+		}
+		if options.Modulation != nil {
+			cfg.ExternalResamplerModulation = *options.Modulation
+			cfg.ExternalResamplerModulationSet = true
+		}
+	}
 }
 
 func preferExplicit(explicit, manifestValue string) string {
@@ -339,24 +365,32 @@ func Synthesize(cfg Config) (*Result, error) {
 	}
 	intonationStrength := effectiveIntonationStrength(cfg)
 	pcm, err := render.Render(synthesisPlan, render.Config{
-		Context:                 cfg.Context,
-		ReleaseMS:               cfg.ReleaseMS,
-		ReleaseSet:              cfg.ReleaseSet,
-		LeadingPreutteranceMS:   cfg.LeadingPreutteranceMS,
-		IntonationStrength:      intonationStrength,
-		ApplyPitch:              applyPitch,
-		Backend:                 cfg.Renderer,
-		WorldlinePath:           cfg.WorldlinePath,
-		WorldlineBridgePath:     cfg.WorldlineBridgePath,
-		WorldEnginePath:         cfg.WorldEnginePath,
-		WorldGPUPath:            cfg.WorldGPUPath,
-		ExternalResamplerPath:   cfg.ExternalResamplerPath,
-		BoundaryBridgeMS:        cfg.BoundaryBridgeMS,
-		BoundaryBridgeThreshold: cfg.BoundaryBridgeThreshold,
-		CVVCTiming:              cfg.CVVCTiming,
-		CVVCTransitionGain:      cfg.CVVCTransitionGain,
-		CVVCPreBoundaryFade:     cfg.CVVCPreBoundaryFade,
-		PitchCurve:              pitchCurve,
+		Context:                        cfg.Context,
+		ReleaseMS:                      cfg.ReleaseMS,
+		ReleaseSet:                     cfg.ReleaseSet,
+		LeadingPreutteranceMS:          cfg.LeadingPreutteranceMS,
+		IntonationStrength:             intonationStrength,
+		ApplyPitch:                     applyPitch,
+		Backend:                        cfg.Renderer,
+		WorldlinePath:                  cfg.WorldlinePath,
+		WorldlineBridgePath:            cfg.WorldlineBridgePath,
+		WorldEnginePath:                cfg.WorldEnginePath,
+		WorldGPUPath:                   cfg.WorldGPUPath,
+		ExternalResamplerPath:          cfg.ExternalResamplerPath,
+		ExternalResamplerVelocity:      cfg.ExternalResamplerVelocity,
+		ExternalResamplerVelocitySet:   cfg.ExternalResamplerVelocitySet,
+		ExternalResamplerFlags:         cfg.ExternalResamplerFlags,
+		ExternalResamplerModulation:    cfg.ExternalResamplerModulation,
+		ExternalResamplerModulationSet: cfg.ExternalResamplerModulationSet,
+		ExternalResamplerTempo:         cfg.ExternalResamplerTempo,
+		ExternalWavtoolPath:            cfg.ExternalWavtoolPath,
+		ExternalResamplerExpressions:   cfg.ExternalResamplerExpressions,
+		BoundaryBridgeMS:               cfg.BoundaryBridgeMS,
+		BoundaryBridgeThreshold:        cfg.BoundaryBridgeThreshold,
+		CVVCTiming:                     cfg.CVVCTiming,
+		CVVCTransitionGain:             cfg.CVVCTransitionGain,
+		CVVCPreBoundaryFade:            cfg.CVVCPreBoundaryFade,
+		PitchCurve:                     pitchCurve,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("render: %w", err)

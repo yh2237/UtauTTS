@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
 
 	"utautts/internal/prosody"
 )
@@ -20,20 +22,29 @@ type Capabilities struct {
 	BoundaryBridge bool `json:"boundary_bridge,omitempty"`
 }
 
+// ResamplerOptionsは全原音に共通するUTAU resampler設定。
+type ResamplerOptions struct {
+	Velocity   *int    `json:"velocity,omitempty"`
+	Flags      string  `json:"flags,omitempty"`
+	Modulation *int    `json:"modulation,omitempty"`
+	Tempo      float64 `json:"tempo,omitempty"`
+}
+
 type Renderer struct {
-	ManifestVersion int               `json:"manifest_version"`
-	Kind            string            `json:"kind"`
-	ID              string            `json:"id"`
-	DisplayName     string            `json:"display_name"`
-	Description     string            `json:"description,omitempty"`
-	Backend         string            `json:"backend"`
-	Version         string            `json:"version,omitempty"`
-	Experimental    bool              `json:"experimental,omitempty"`
-	Acceleration    string            `json:"acceleration,omitempty"`
-	DefaultPriority int               `json:"default_priority,omitempty"`
-	Capabilities    Capabilities      `json:"capabilities,omitempty"`
-	Assets          map[string]string `json:"assets,omitempty"`
-	Directory       string            `json:"-"`
+	ManifestVersion  int               `json:"manifest_version"`
+	Kind             string            `json:"kind"`
+	ID               string            `json:"id"`
+	DisplayName      string            `json:"display_name"`
+	Description      string            `json:"description,omitempty"`
+	Backend          string            `json:"backend"`
+	Version          string            `json:"version,omitempty"`
+	Experimental     bool              `json:"experimental,omitempty"`
+	Acceleration     string            `json:"acceleration,omitempty"`
+	DefaultPriority  int               `json:"default_priority,omitempty"`
+	Capabilities     Capabilities      `json:"capabilities,omitempty"`
+	ResamplerOptions *ResamplerOptions `json:"resampler_options,omitempty"`
+	Assets           map[string]string `json:"assets,omitempty"`
+	Directory        string            `json:"-"`
 }
 
 type Model struct {
@@ -312,6 +323,23 @@ func validateRenderer(renderer Renderer, supportsBackend func(string) bool) erro
 	}
 	if supportsBackend != nil && !supportsBackend(renderer.Backend) {
 		return fmt.Errorf("backend %q is not installed", renderer.Backend)
+	}
+	if options := renderer.ResamplerOptions; options != nil {
+		if renderer.Backend != "utau-external-resampler" {
+			return errors.New("resampler_options requires backend utau-external-resampler")
+		}
+		if options.Velocity != nil && (*options.Velocity < 0 || *options.Velocity > 200) {
+			return fmt.Errorf("resampler velocity must be between 0 and 200; got %d", *options.Velocity)
+		}
+		if options.Modulation != nil && (*options.Modulation < 0 || *options.Modulation > 100) {
+			return fmt.Errorf("resampler modulation must be between 0 and 100; got %d", *options.Modulation)
+		}
+		if options.Tempo < 0 || math.IsNaN(options.Tempo) || math.IsInf(options.Tempo, 0) || options.Tempo > 1000 {
+			return fmt.Errorf("resampler tempo must be finite and between 0 and 1000; got %v", options.Tempo)
+		}
+		if strings.IndexFunc(options.Flags, unicode.IsSpace) >= 0 || strings.IndexByte(options.Flags, 0) >= 0 {
+			return errors.New("resampler flags must not contain whitespace or NUL")
+		}
 	}
 	return nil
 }

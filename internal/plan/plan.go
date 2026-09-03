@@ -108,6 +108,11 @@ type Unit struct {
 	OverlapMS                 float64                        `json:"overlap_ms"`
 	PitchFactor               float64                        `json:"pitch_factor"`
 	EnergyFactor              float64                        `json:"energy_factor"`
+	ResamplerVelocity         int                            `json:"resampler_velocity,omitempty"`
+	ResamplerVolume           int                            `json:"resampler_volume,omitempty"`
+	ResamplerFlags            string                         `json:"resampler_flags,omitempty"`
+	ResamplerModulation       int                            `json:"resampler_modulation,omitempty"`
+	ResamplerTempo            float64                        `json:"resampler_tempo,omitempty"`
 	TimingScale               float64                        `json:"timing_scale"`
 	EffectivePreutteranceMS   float64                        `json:"effective_preutterance_ms"`
 	EffectiveConsonantMS      float64                        `json:"effective_consonant_ms"`

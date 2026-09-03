@@ -897,6 +897,7 @@ QString Backend::addExternalRenderer(const QUrl &executable) {
         {"backend", "utau-external-resampler"}, {"version", "1"},
         {"acceleration", "cpu"}, {"default_priority", 0},
         {"capabilities", QVariantMap{{"frame_pitch", true}}},
+        {"resampler_options", QVariantMap{{"velocity", 100}, {"modulation", 0}, {"tempo", 120}}},
         {"assets", QVariantMap{{"resampler", path}}},
     };
     QString writeError;

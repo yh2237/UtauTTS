@@ -16,25 +16,42 @@ import (
 )
 
 type Config struct {
-	Context                 context.Context
-	ReleaseMS               float64
-	ReleaseSet              bool
-	LeadingPreutteranceMS   float64
-	IntonationStrength      float64
-	ApplyPitch              bool
-	Backend                 string
-	WorldlinePath           string
-	WorldlineBridgePath     string
-	WorldEnginePath         string
-	WorldGPUPath            string
-	ExternalResamplerPath   string
-	WorldlineExactLength    bool
-	BoundaryBridgeMS        float64
-	BoundaryBridgeThreshold float64
-	CVVCTiming              string
-	CVVCTransitionGain      float64
-	CVVCPreBoundaryFade     bool
-	PitchCurve              *PitchCurve
+	Context                        context.Context
+	ReleaseMS                      float64
+	ReleaseSet                     bool
+	LeadingPreutteranceMS          float64
+	IntonationStrength             float64
+	ApplyPitch                     bool
+	Backend                        string
+	WorldlinePath                  string
+	WorldlineBridgePath            string
+	WorldEnginePath                string
+	WorldGPUPath                   string
+	ExternalResamplerPath          string
+	ExternalResamplerVelocity      int
+	ExternalResamplerVelocitySet   bool
+	ExternalResamplerFlags         string
+	ExternalResamplerModulation    int
+	ExternalResamplerModulationSet bool
+	ExternalResamplerTempo         float64
+	ExternalWavtoolPath            string
+	ExternalResamplerExpressions   []ResamplerExpression
+	WorldlineExactLength           bool
+	BoundaryBridgeMS               float64
+	BoundaryBridgeThreshold        float64
+	CVVCTiming                     string
+	CVVCTransitionGain             float64
+	CVVCPreBoundaryFade            bool
+	PitchCurve                     *PitchCurve
+}
+
+type ResamplerExpression struct {
+	Position   int      `json:"position"`
+	Velocity   *int     `json:"velocity,omitempty"`
+	Volume     *int     `json:"volume,omitempty"`
+	Flags      *string  `json:"flags,omitempty"`
+	Modulation *int     `json:"modulation,omitempty"`
+	Tempo      *float64 `json:"tempo,omitempty"`
 }
 
 const (

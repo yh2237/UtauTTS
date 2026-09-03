@@ -258,34 +258,36 @@ type synthesizeRequest struct {
 	ApplyPitch                                                                 bool
 	ManualPitch                                                                *prosody.ManualPitchFile
 	Dictionary                                                                 []synth.DictionaryEntry
+	ResamplerExpressions                                                       []render.ResamplerExpression
 }
 
 func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
 	type wire struct {
-		Text                  string                   `json:"text"`
-		Kana                  string                   `json:"kana"`
-		VoicebankID           string                   `json:"voicebank_id"`
-		Tone                  string                   `json:"tone"`
-		Color                 string                   `json:"color"`
-		ModelID               string                   `json:"model_id"`
-		Renderer              string                   `json:"renderer"`
-		AliasPolicy           voicebank.AliasPolicy    `json:"alias_policy"`
-		AcousticMode          string                   `json:"acoustic_mode"`
-		OutputPath            string                   `json:"output_path"`
-		MoraDurationMS        float64                  `json:"mora_duration_ms"`
-		PauseDurationMS       float64                  `json:"pause_duration_ms"`
-		LeadingPreutteranceMS float64                  `json:"leading_preutterance_ms"`
-		MoraDurationsMS       []float64                `json:"mora_durations_ms"`
-		IntonationStrength    float64                  `json:"intonation_strength"`
-		ApplyPitch            bool                     `json:"apply_pitch"`
-		ManualPitch           *prosody.ManualPitchFile `json:"manual_pitch"`
-		Dictionary            []synth.DictionaryEntry  `json:"dictionary"`
+		Text                  string                       `json:"text"`
+		Kana                  string                       `json:"kana"`
+		VoicebankID           string                       `json:"voicebank_id"`
+		Tone                  string                       `json:"tone"`
+		Color                 string                       `json:"color"`
+		ModelID               string                       `json:"model_id"`
+		Renderer              string                       `json:"renderer"`
+		AliasPolicy           voicebank.AliasPolicy        `json:"alias_policy"`
+		AcousticMode          string                       `json:"acoustic_mode"`
+		OutputPath            string                       `json:"output_path"`
+		MoraDurationMS        float64                      `json:"mora_duration_ms"`
+		PauseDurationMS       float64                      `json:"pause_duration_ms"`
+		LeadingPreutteranceMS float64                      `json:"leading_preutterance_ms"`
+		MoraDurationsMS       []float64                    `json:"mora_durations_ms"`
+		IntonationStrength    float64                      `json:"intonation_strength"`
+		ApplyPitch            bool                         `json:"apply_pitch"`
+		ManualPitch           *prosody.ManualPitchFile     `json:"manual_pitch"`
+		Dictionary            []synth.DictionaryEntry      `json:"dictionary"`
+		ResamplerExpressions  []render.ResamplerExpression `json:"resampler_expressions"`
 	}
 	var value wire
 	if err := json.Unmarshal(data, &value); err != nil {
 		return err
 	}
-	*r = synthesizeRequest{Text: value.Text, Kana: value.Kana, VoicebankID: value.VoicebankID, Tone: value.Tone, Color: value.Color, ModelID: value.ModelID, Renderer: value.Renderer, AliasPolicy: value.AliasPolicy, AcousticMode: value.AcousticMode, OutputPath: value.OutputPath, MoraDurationMS: value.MoraDurationMS, PauseDurationMS: value.PauseDurationMS, LeadingPreutteranceMS: value.LeadingPreutteranceMS, MoraDurationsMS: value.MoraDurationsMS, IntonationStrength: value.IntonationStrength, ApplyPitch: value.ApplyPitch, ManualPitch: value.ManualPitch, Dictionary: value.Dictionary}
+	*r = synthesizeRequest{Text: value.Text, Kana: value.Kana, VoicebankID: value.VoicebankID, Tone: value.Tone, Color: value.Color, ModelID: value.ModelID, Renderer: value.Renderer, AliasPolicy: value.AliasPolicy, AcousticMode: value.AcousticMode, OutputPath: value.OutputPath, MoraDurationMS: value.MoraDurationMS, PauseDurationMS: value.PauseDurationMS, LeadingPreutteranceMS: value.LeadingPreutteranceMS, MoraDurationsMS: value.MoraDurationsMS, IntonationStrength: value.IntonationStrength, ApplyPitch: value.ApplyPitch, ManualPitch: value.ManualPitch, Dictionary: value.Dictionary, ResamplerExpressions: value.ResamplerExpressions}
 	return nil
 }
 
@@ -309,6 +311,7 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 		LeadingPreutteranceMS: request.LeadingPreutteranceMS,
 		MoraDurationsMS:       request.MoraDurationsMS, IntonationStrength: request.IntonationStrength,
 		ApplyPitch: request.ApplyPitch, ManualPitch: request.ManualPitch,
+		ResamplerExpressions: request.ResamplerExpressions,
 	})
 	if err != nil {
 		return nil, err

@@ -21,51 +21,52 @@ import (
 
 func main() {
 	var (
-		voicebankPath           string
-		otoPath                 string
-		reading                 string
-		text                    string
-		tone                    string
-		color                   string
-		outPath                 string
-		planPath                string
-		ustxOut                 string
-		dictionaryPath          string
-		moraDurationsPath       string
-		moraMS                  float64
-		pauseMS                 float64
-		leadingPreutteranceMS   float64
-		releaseMS               float64
-		prosodyPath             string
-		manualPitchPath         string
-		prosodyFeaturesPath     string
-		prosodyFeaturesCase     string
-		prosodyPitchOnly        bool
-		openJTalkPath           string
-		openJTalkDictionaryPath string
-		pitchContourPath        string
-		pitchContourCase        string
-		applyPitch              bool
-		intonationStrength      float64
-		renderer                string
-		worldlinePath           string
-		worldlineBridgePath     string
-		boundaryBridgeMS        float64
-		boundaryBridgeThreshold float64
-		cvvcTiming              string
-		cvvcTransitionGain      float64
-		cvvcPreBoundaryFade     bool
-		selectionMode           string
-		aliasPolicy             string
-		acousticMode            string
-		joinModelPath           string
-		joinScoreScale          float64
-		rendererDirectories     []string
-		modelDirectories        []string
-		writeText               bool
-		writeLab                bool
-		textEncoding            string
-		showVersion             bool
+		voicebankPath            string
+		otoPath                  string
+		reading                  string
+		text                     string
+		tone                     string
+		color                    string
+		outPath                  string
+		planPath                 string
+		ustxOut                  string
+		dictionaryPath           string
+		moraDurationsPath        string
+		resamplerExpressionsPath string
+		moraMS                   float64
+		pauseMS                  float64
+		leadingPreutteranceMS    float64
+		releaseMS                float64
+		prosodyPath              string
+		manualPitchPath          string
+		prosodyFeaturesPath      string
+		prosodyFeaturesCase      string
+		prosodyPitchOnly         bool
+		openJTalkPath            string
+		openJTalkDictionaryPath  string
+		pitchContourPath         string
+		pitchContourCase         string
+		applyPitch               bool
+		intonationStrength       float64
+		renderer                 string
+		worldlinePath            string
+		worldlineBridgePath      string
+		boundaryBridgeMS         float64
+		boundaryBridgeThreshold  float64
+		cvvcTiming               string
+		cvvcTransitionGain       float64
+		cvvcPreBoundaryFade      bool
+		selectionMode            string
+		aliasPolicy              string
+		acousticMode             string
+		joinModelPath            string
+		joinScoreScale           float64
+		rendererDirectories      []string
+		modelDirectories         []string
+		writeText                bool
+		writeLab                 bool
+		textEncoding             string
+		showVersion              bool
 	)
 	flag.BoolVar(&showVersion, "version", false, "print application version")
 	flag.StringVar(&voicebankPath, "voicebank", "", "path to a UTAU voicebank directory")
@@ -79,6 +80,7 @@ func main() {
 	flag.StringVar(&ustxOut, "ustx-out", "", "optional OpenUtau USTX project path")
 	flag.StringVar(&dictionaryPath, "dictionary", "", "optional user dictionary JSON path")
 	flag.StringVar(&moraDurationsPath, "mora-durations", "", "optional mora duration JSON path")
+	flag.StringVar(&resamplerExpressionsPath, "resampler-expressions", "", "optional per-mora resampler expression JSON path")
 	flag.Float64Var(&moraMS, "mora-ms", 140, "base mora duration in milliseconds")
 	flag.Float64Var(&pauseMS, "pause-ms", 180, "punctuation pause in milliseconds")
 	flag.Float64Var(&leadingPreutteranceMS, "leading-preutterance-ms", 0, "leading preutterance in milliseconds (0 uses oto.ini)")
@@ -153,38 +155,43 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	resamplerExpressions, err := loadResamplerExpressions(resamplerExpressionsPath)
+	if err != nil {
+		log.Fatal(err)
+	}
 	synthConfig := tts.Config{
-		VoicebankPath:           voicebankPath,
-		Text:                    text,
-		Reading:                 reading,
-		Dictionary:              synth.DictionaryMap(dictionary),
-		Tone:                    tone,
-		Color:                   color,
-		MoraDurationMS:          moraMS,
-		PauseDurationMS:         pauseMS,
-		MoraDurationsMS:         moraDurations,
-		LeadingPreutteranceMS:   leadingPreutteranceMS,
-		ReleaseMS:               releaseMS,
-		ReleaseSet:              true,
-		ProsodyModelPath:        prosodyPath,
-		ManualPitchPath:         manualPitchPath,
-		ProsodyFeatures:         prosodyFeatures,
-		ProsodyPitchOnly:        prosodyPitchOnly,
-		OpenJTalkPath:           openJTalkPath,
-		OpenJTalkDictionaryPath: openJTalkDictionaryPath,
-		PitchFactors:            pitchFactors,
-		ApplyPitch:              applyPitch,
-		IntonationStrength:      intonationStrength,
-		BoundaryBridgeMS:        boundaryBridgeMS,
-		BoundaryBridgeThreshold: boundaryBridgeThreshold,
-		CVVCTiming:              cvvcTiming,
-		CVVCTransitionGain:      cvvcTransitionGain,
-		CVVCPreBoundaryFade:     cvvcPreBoundaryFade,
-		SelectionMode:           voicebank.SelectionMode(selectionMode),
-		AliasPolicy:             voicebank.AliasPolicy(aliasPolicy),
-		AcousticMode:            acousticMode,
-		JoinModelPath:           joinModelPath,
-		JoinScoreScale:          joinScoreScale,
+		VoicebankPath:                voicebankPath,
+		Text:                         text,
+		Reading:                      reading,
+		Dictionary:                   synth.DictionaryMap(dictionary),
+		Tone:                         tone,
+		Color:                        color,
+		MoraDurationMS:               moraMS,
+		PauseDurationMS:              pauseMS,
+		MoraDurationsMS:              moraDurations,
+		LeadingPreutteranceMS:        leadingPreutteranceMS,
+		ReleaseMS:                    releaseMS,
+		ReleaseSet:                   true,
+		ProsodyModelPath:             prosodyPath,
+		ManualPitchPath:              manualPitchPath,
+		ProsodyFeatures:              prosodyFeatures,
+		ProsodyPitchOnly:             prosodyPitchOnly,
+		OpenJTalkPath:                openJTalkPath,
+		OpenJTalkDictionaryPath:      openJTalkDictionaryPath,
+		PitchFactors:                 pitchFactors,
+		ApplyPitch:                   applyPitch,
+		IntonationStrength:           intonationStrength,
+		BoundaryBridgeMS:             boundaryBridgeMS,
+		BoundaryBridgeThreshold:      boundaryBridgeThreshold,
+		CVVCTiming:                   cvvcTiming,
+		CVVCTransitionGain:           cvvcTransitionGain,
+		CVVCPreBoundaryFade:          cvvcPreBoundaryFade,
+		SelectionMode:                voicebank.SelectionMode(selectionMode),
+		AliasPolicy:                  voicebank.AliasPolicy(aliasPolicy),
+		AcousticMode:                 acousticMode,
+		JoinModelPath:                joinModelPath,
+		JoinScoreScale:               joinScoreScale,
+		ExternalResamplerExpressions: resamplerExpressions,
 	}
 	resolvedRendererID, err := tts.ApplyRenderer(&synthConfig, catalog, renderer, worldlinePath, worldlineBridgePath)
 	if err != nil {
@@ -228,6 +235,21 @@ func main() {
 
 	duration := output.DurationMS / 1000
 	fmt.Printf("wrote %s (%.2fs, %d Hz, %d units)\n", outPath, duration, output.Audio.SampleRate, len(output.Plan.Units))
+}
+
+func loadResamplerExpressions(path string) ([]render.ResamplerExpression, error) {
+	if path == "" {
+		return nil, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var values []render.ResamplerExpression
+	if err := json.Unmarshal(data, &values); err != nil {
+		return nil, fmt.Errorf("decode resampler expressions: %w", err)
+	}
+	return values, nil
 }
 
 func loadDictionary(path string) ([]synth.DictionaryEntry, error) {

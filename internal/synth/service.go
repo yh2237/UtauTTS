@@ -8,6 +8,7 @@ import (
 
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
+	"utautts/internal/render"
 	"utautts/internal/tts"
 	"utautts/internal/voicebank"
 )
@@ -34,6 +35,7 @@ type Request struct {
 	IntonationStrength    float64
 	ApplyPitch            bool
 	ManualPitch           *prosody.ManualPitchFile
+	ResamplerExpressions  []render.ResamplerExpression
 }
 
 // DictionaryEntryは表記と読みの対応。
@@ -121,23 +123,24 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		return tts.Config{}, "", err
 	}
 	cfg := tts.Config{
-		Text:                    request.Text,
-		Reading:                 request.Kana,
-		Dictionary:              DictionaryMap(request.Dictionary),
-		Tone:                    request.Tone,
-		Color:                   request.Color,
-		AliasPolicy:             request.AliasPolicy,
-		AcousticMode:            request.AcousticMode,
-		MoraDurationMS:          request.MoraDurationMS,
-		PauseDurationMS:         request.PauseDurationMS,
-		LeadingPreutteranceMS:   request.LeadingPreutteranceMS,
-		MoraDurationsMS:         request.MoraDurationsMS,
-		ProsodyModelPath:        modelPath,
-		ManualPitch:             request.ManualPitch,
-		IntonationStrength:      request.IntonationStrength,
-		ApplyPitch:              request.ApplyPitch,
-		OpenJTalkPath:           s.openJTalkPath,
-		OpenJTalkDictionaryPath: s.openJTalkDictionary,
+		Text:                         request.Text,
+		Reading:                      request.Kana,
+		Dictionary:                   DictionaryMap(request.Dictionary),
+		Tone:                         request.Tone,
+		Color:                        request.Color,
+		AliasPolicy:                  request.AliasPolicy,
+		AcousticMode:                 request.AcousticMode,
+		MoraDurationMS:               request.MoraDurationMS,
+		PauseDurationMS:              request.PauseDurationMS,
+		LeadingPreutteranceMS:        request.LeadingPreutteranceMS,
+		MoraDurationsMS:              request.MoraDurationsMS,
+		ProsodyModelPath:             modelPath,
+		ManualPitch:                  request.ManualPitch,
+		IntonationStrength:           request.IntonationStrength,
+		ApplyPitch:                   request.ApplyPitch,
+		OpenJTalkPath:                s.openJTalkPath,
+		OpenJTalkDictionaryPath:      s.openJTalkDictionary,
+		ExternalResamplerExpressions: append([]render.ResamplerExpression(nil), request.ResamplerExpressions...),
 	}
 	if requireVoicebank {
 		if s.voicebanks == nil {

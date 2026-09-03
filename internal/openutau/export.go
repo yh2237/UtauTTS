@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"utautts/internal/render"
 )
 
 // USTX export for UtauTTS projects.
@@ -38,26 +40,27 @@ type UtauTTSProject struct {
 
 // UtauTTSUtterance is one synthesis card in a UtauTTS project.
 type UtauTTSUtterance struct {
-	Text                 string               `json:"text"`
-	VoicebankID          string               `json:"voicebank_id"`
-	ModelID              string               `json:"model_id,omitempty"`
-	RendererID           string               `json:"renderer_id,omitempty"`
-	AliasPolicy          string               `json:"alias_policy,omitempty"`
-	Tone                 string               `json:"tone"`
-	Color                string               `json:"color,omitempty"`
-	MoraDurationMS       float64              `json:"mora_duration_ms"`
-	PauseDurationMS      float64              `json:"pause_duration_ms"`
-	Intonation           float64              `json:"intonation"`
-	ApplyPitch           bool                 `json:"apply_pitch"`
-	PitchPoints          []float64            `json:"pitch_points,omitempty"`
-	MoraDurationsMS      []float64            `json:"mora_durations_ms,omitempty"`
-	MoraPositionsMS      []float64            `json:"mora_positions_ms,omitempty"`
-	AutomaticPitchPoints []float64            `json:"automatic_pitch_points,omitempty"`
-	AutomaticMoraDurMS   []float64            `json:"automatic_mora_durations_ms,omitempty"`
-	AutomaticMoraPosMS   []float64            `json:"automatic_mora_positions_ms,omitempty"`
-	ManualPitchEdited    bool                 `json:"manual_pitch_edited"`
-	ManualMoraDurEdited  bool                 `json:"manual_mora_duration_edited"`
-	AnalysisCache        UtauTTSAnalysisCache `json:"analysis_cache"`
+	Text                 string                       `json:"text"`
+	VoicebankID          string                       `json:"voicebank_id"`
+	ModelID              string                       `json:"model_id,omitempty"`
+	RendererID           string                       `json:"renderer_id,omitempty"`
+	AliasPolicy          string                       `json:"alias_policy,omitempty"`
+	Tone                 string                       `json:"tone"`
+	Color                string                       `json:"color,omitempty"`
+	MoraDurationMS       float64                      `json:"mora_duration_ms"`
+	PauseDurationMS      float64                      `json:"pause_duration_ms"`
+	Intonation           float64                      `json:"intonation"`
+	ApplyPitch           bool                         `json:"apply_pitch"`
+	PitchPoints          []float64                    `json:"pitch_points,omitempty"`
+	MoraDurationsMS      []float64                    `json:"mora_durations_ms,omitempty"`
+	MoraPositionsMS      []float64                    `json:"mora_positions_ms,omitempty"`
+	AutomaticPitchPoints []float64                    `json:"automatic_pitch_points,omitempty"`
+	AutomaticMoraDurMS   []float64                    `json:"automatic_mora_durations_ms,omitempty"`
+	AutomaticMoraPosMS   []float64                    `json:"automatic_mora_positions_ms,omitempty"`
+	ManualPitchEdited    bool                         `json:"manual_pitch_edited"`
+	ManualMoraDurEdited  bool                         `json:"manual_mora_duration_edited"`
+	ResamplerExpressions []render.ResamplerExpression `json:"resampler_expressions,omitempty"`
+	AnalysisCache        UtauTTSAnalysisCache         `json:"analysis_cache"`
 }
 
 // UtauTTSAnalysisCache holds the cached reading and mora analysis of a card.

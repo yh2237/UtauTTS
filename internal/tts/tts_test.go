@@ -181,6 +181,23 @@ func TestWaveformRendererSupportsFramePitch(t *testing.T) {
 	}
 }
 
+func TestApplyResolvedRendererPropagatesExternalResamplerOptions(t *testing.T) {
+	velocity, modulation := 86, 4
+	cfg := Config{}
+	ApplyResolvedRenderer(&cfg, plugin.Renderer{
+		Backend: "utau-external-resampler",
+		Assets:  map[string]string{"resampler": "resampler.exe", "wavtool": "wavtool.exe"},
+		ResamplerOptions: &plugin.ResamplerOptions{
+			Velocity: &velocity, Flags: "g-3Mt10", Modulation: &modulation, Tempo: 150,
+		},
+	}, "", "")
+	if cfg.ExternalResamplerPath != "resampler.exe" || cfg.ExternalWavtoolPath != "wavtool.exe" || !cfg.ExternalResamplerVelocitySet || cfg.ExternalResamplerVelocity != 86 ||
+		cfg.ExternalResamplerFlags != "g-3Mt10" || !cfg.ExternalResamplerModulationSet || cfg.ExternalResamplerModulation != 4 ||
+		cfg.ExternalResamplerTempo != 150 {
+		t.Fatalf("external resampler options were not propagated: %#v", cfg)
+	}
+}
+
 func TestAlignRuntimeProsodyFeaturesAcceptsAlternatePronunciations(t *testing.T) {
 	morae := []frontend.Mora{
 		{Text: "\u3044", Vowel: "i"},
