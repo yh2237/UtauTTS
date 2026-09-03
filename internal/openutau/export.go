@@ -44,6 +44,8 @@ type UtauTTSUtterance struct {
 	VoicebankID          string                       `json:"voicebank_id"`
 	ModelID              string                       `json:"model_id,omitempty"`
 	RendererID           string                       `json:"renderer_id,omitempty"`
+	Resampler            string                       `json:"resampler,omitempty"`
+	Wavtool              string                       `json:"wavtool,omitempty"`
 	AliasPolicy          string                       `json:"alias_policy,omitempty"`
 	Tone                 string                       `json:"tone"`
 	Color                string                       `json:"color,omitempty"`

@@ -82,7 +82,10 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 	case "models":
 		result = map[string]any{"models": e.models()}
 	case "renderers":
-		result = map[string]any{"default_renderer": e.config.Renderer, "renderers": e.catalog.Renderers}
+		result = map[string]any{
+			"default_renderer": e.config.Renderer, "renderers": e.catalog.Renderers,
+			"resamplers": e.catalog.Resamplers, "wavtools": e.catalog.Wavtools,
+		}
 	case "analyze":
 		result, err = e.analyze(requestJSON)
 	case "predictProsody":
@@ -250,15 +253,15 @@ func (e *Engine) reading(text string, dictionary map[string]string) (string, err
 }
 
 type synthesizeRequest struct {
-	Text, Kana, VoicebankID, Tone, Color, ModelID, Renderer, OutputPath        string
-	AliasPolicy                                                                voicebank.AliasPolicy
-	AcousticMode                                                               string
-	MoraDurationMS, PauseDurationMS, LeadingPreutteranceMS, IntonationStrength float64
-	MoraDurationsMS                                                            []float64
-	ApplyPitch                                                                 bool
-	ManualPitch                                                                *prosody.ManualPitchFile
-	Dictionary                                                                 []synth.DictionaryEntry
-	ResamplerExpressions                                                       []render.ResamplerExpression
+	Text, Kana, VoicebankID, Tone, Color, ModelID, Renderer, Resampler, Wavtool, OutputPath string
+	AliasPolicy                                                                             voicebank.AliasPolicy
+	AcousticMode                                                                            string
+	MoraDurationMS, PauseDurationMS, LeadingPreutteranceMS, IntonationStrength              float64
+	MoraDurationsMS                                                                         []float64
+	ApplyPitch                                                                              bool
+	ManualPitch                                                                             *prosody.ManualPitchFile
+	Dictionary                                                                              []synth.DictionaryEntry
+	ResamplerExpressions                                                                    []render.ResamplerExpression
 }
 
 func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
@@ -270,6 +273,8 @@ func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
 		Color                 string                       `json:"color"`
 		ModelID               string                       `json:"model_id"`
 		Renderer              string                       `json:"renderer"`
+		Resampler             string                       `json:"resampler"`
+		Wavtool               string                       `json:"wavtool"`
 		AliasPolicy           voicebank.AliasPolicy        `json:"alias_policy"`
 		AcousticMode          string                       `json:"acoustic_mode"`
 		OutputPath            string                       `json:"output_path"`
@@ -287,7 +292,7 @@ func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &value); err != nil {
 		return err
 	}
-	*r = synthesizeRequest{Text: value.Text, Kana: value.Kana, VoicebankID: value.VoicebankID, Tone: value.Tone, Color: value.Color, ModelID: value.ModelID, Renderer: value.Renderer, AliasPolicy: value.AliasPolicy, AcousticMode: value.AcousticMode, OutputPath: value.OutputPath, MoraDurationMS: value.MoraDurationMS, PauseDurationMS: value.PauseDurationMS, LeadingPreutteranceMS: value.LeadingPreutteranceMS, MoraDurationsMS: value.MoraDurationsMS, IntonationStrength: value.IntonationStrength, ApplyPitch: value.ApplyPitch, ManualPitch: value.ManualPitch, Dictionary: value.Dictionary, ResamplerExpressions: value.ResamplerExpressions}
+	*r = synthesizeRequest{Text: value.Text, Kana: value.Kana, VoicebankID: value.VoicebankID, Tone: value.Tone, Color: value.Color, ModelID: value.ModelID, Renderer: value.Renderer, Resampler: value.Resampler, Wavtool: value.Wavtool, AliasPolicy: value.AliasPolicy, AcousticMode: value.AcousticMode, OutputPath: value.OutputPath, MoraDurationMS: value.MoraDurationMS, PauseDurationMS: value.PauseDurationMS, LeadingPreutteranceMS: value.LeadingPreutteranceMS, MoraDurationsMS: value.MoraDurationsMS, IntonationStrength: value.IntonationStrength, ApplyPitch: value.ApplyPitch, ManualPitch: value.ManualPitch, Dictionary: value.Dictionary, ResamplerExpressions: value.ResamplerExpressions}
 	return nil
 }
 
@@ -305,6 +310,7 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 	result, err := e.synth.Synthesize(synth.Request{
 		Text: request.Text, Kana: request.Kana, VoicebankID: request.VoicebankID,
 		Tone: request.Tone, Color: request.Color, ModelID: request.ModelID, Renderer: request.Renderer,
+		Resampler: request.Resampler, Wavtool: request.Wavtool,
 		AliasPolicy: request.AliasPolicy, AcousticMode: request.AcousticMode,
 		Dictionary:     request.Dictionary,
 		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,

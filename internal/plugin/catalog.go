@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
-	"unicode"
 
 	"utautts/internal/prosody"
 )
@@ -22,29 +21,20 @@ type Capabilities struct {
 	BoundaryBridge bool `json:"boundary_bridge,omitempty"`
 }
 
-// ResamplerOptionsは全原音に共通するUTAU resampler設定。
-type ResamplerOptions struct {
-	Velocity   *int    `json:"velocity,omitempty"`
-	Flags      string  `json:"flags,omitempty"`
-	Modulation *int    `json:"modulation,omitempty"`
-	Tempo      float64 `json:"tempo,omitempty"`
-}
-
 type Renderer struct {
-	ManifestVersion  int               `json:"manifest_version"`
-	Kind             string            `json:"kind"`
-	ID               string            `json:"id"`
-	DisplayName      string            `json:"display_name"`
-	Description      string            `json:"description,omitempty"`
-	Backend          string            `json:"backend"`
-	Version          string            `json:"version,omitempty"`
-	Experimental     bool              `json:"experimental,omitempty"`
-	Acceleration     string            `json:"acceleration,omitempty"`
-	DefaultPriority  int               `json:"default_priority,omitempty"`
-	Capabilities     Capabilities      `json:"capabilities,omitempty"`
-	ResamplerOptions *ResamplerOptions `json:"resampler_options,omitempty"`
-	Assets           map[string]string `json:"assets,omitempty"`
-	Directory        string            `json:"-"`
+	ManifestVersion int               `json:"manifest_version"`
+	Kind            string            `json:"kind"`
+	ID              string            `json:"id"`
+	DisplayName     string            `json:"display_name"`
+	Description     string            `json:"description,omitempty"`
+	Backend         string            `json:"backend"`
+	Version         string            `json:"version,omitempty"`
+	Experimental    bool              `json:"experimental,omitempty"`
+	Acceleration    string            `json:"acceleration,omitempty"`
+	DefaultPriority int               `json:"default_priority,omitempty"`
+	Capabilities    Capabilities      `json:"capabilities,omitempty"`
+	Assets          map[string]string `json:"assets,omitempty"`
+	Directory       string            `json:"-"`
 }
 
 type Model struct {
@@ -64,8 +54,17 @@ type Model struct {
 }
 
 type Catalog struct {
-	Renderers []Renderer
-	Models    []Model
+	Renderers  []Renderer
+	Models     []Model
+	Resamplers []ClassicTool
+	Wavtools   []ClassicTool
+}
+
+type ClassicTool struct {
+	ID          string `json:"id"`
+	DisplayName string `json:"display_name"`
+	Path        string `json:"path,omitempty"`
+	BuiltIn     bool   `json:"built_in,omitempty"`
 }
 
 func Discover(rendererDirectories, modelDirectories []string, supportsBackend func(string) bool) (*Catalog, error) {
@@ -79,7 +78,105 @@ func DiscoverWithDefaults(rendererDirectories, modelDirectories []string, suppor
 	defaultRendererDirs, defaultModelDirs := DefaultDirectories()
 	rendererDirectories = append(rendererDirectories, defaultRendererDirs...)
 	modelDirectories = append(modelDirectories, defaultModelDirs...)
-	return Discover(rendererDirectories, modelDirectories, supportsBackend)
+	catalog, err := Discover(rendererDirectories, modelDirectories, supportsBackend)
+	resamplerDirs, wavtoolDirs := DefaultClassicToolDirectories()
+	catalog.Resamplers, catalog.Wavtools = DiscoverClassicTools(resamplerDirs, wavtoolDirs)
+	catalog.Wavtools = append([]ClassicTool{{ID: "builtin", DisplayName: "UtauTTS built-in", BuiltIn: true}}, catalog.Wavtools...)
+	activeRenderers := catalog.Renderers[:0]
+	for _, renderer := range catalog.Renderers {
+		if renderer.Backend != "utau-external-resampler" {
+			activeRenderers = append(activeRenderers, renderer)
+		}
+	}
+	catalog.Renderers = activeRenderers
+	catalog.Renderers = append(catalog.Renderers, Renderer{
+		ManifestVersion: ManifestVersion, Kind: "renderer", ID: "classic-utau",
+		DisplayName: "Classic UTAU", Description: "UTAU互換のresamplerとwavtoolを使います。",
+		Backend: "utau-external-resampler", Version: "1", Acceleration: "cpu",
+		DefaultPriority: -100, Capabilities: Capabilities{FramePitch: true},
+	})
+	return catalog, err
+}
+
+func DefaultClassicToolDirectories() (resamplerDirectories, wavtoolDirectories []string) {
+	var roots []string
+	if executable, err := os.Executable(); err == nil {
+		root := filepath.Dir(executable)
+		if strings.EqualFold(filepath.Base(root), "tools") || strings.EqualFold(filepath.Base(root), "app") {
+			root = filepath.Dir(root)
+		}
+		roots = append(roots, root)
+	}
+	if current, err := os.Getwd(); err == nil {
+		roots = append(roots, workspaceRoot(current))
+	}
+	for _, root := range uniqueDirectories(roots) {
+		resamplerDirectories = append(resamplerDirectories, filepath.Join(root, "Resamplers"))
+		wavtoolDirectories = append(wavtoolDirectories, filepath.Join(root, "Wavtools"))
+	}
+	return uniqueDirectories(resamplerDirectories), uniqueDirectories(wavtoolDirectories)
+}
+
+func DiscoverClassicTools(resamplerDirectories, wavtoolDirectories []string) ([]ClassicTool, []ClassicTool) {
+	return discoverClassicTools(resamplerDirectories), discoverClassicTools(wavtoolDirectories)
+}
+
+func discoverClassicTools(directories []string) []ClassicTool {
+	seen := map[string]bool{}
+	var result []ClassicTool
+	for _, root := range uniqueDirectories(directories) {
+		_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+			if err != nil || entry.IsDir() || !isClassicExecutable(entry) {
+				return nil
+			}
+			relative, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return nil
+			}
+			id := filepath.ToSlash(relative)
+			key := strings.ToLower(id)
+			if seen[key] {
+				return nil
+			}
+			seen[key] = true
+			result = append(result, ClassicTool{ID: id, DisplayName: strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name())), Path: path})
+			return nil
+		})
+	}
+	sort.Slice(result, func(i, j int) bool { return strings.ToLower(result[i].ID) < strings.ToLower(result[j].ID) })
+	return result
+}
+
+func isClassicExecutable(entry os.DirEntry) bool {
+	extension := strings.ToLower(filepath.Ext(entry.Name()))
+	if runtime.GOOS == "windows" {
+		return extension == ".exe"
+	}
+	if extension != "" && extension != ".sh" {
+		return false
+	}
+	info, err := entry.Info()
+	return err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0
+}
+
+func (catalog *Catalog) Resampler(id string) (ClassicTool, bool) {
+	return classicTool(catalog.Resamplers, id)
+}
+
+func (catalog *Catalog) Wavtool(id string) (ClassicTool, bool) {
+	return classicTool(catalog.Wavtools, id)
+}
+
+func classicTool(values []ClassicTool, id string) (ClassicTool, bool) {
+	for _, value := range values {
+		if strings.EqualFold(value.ID, strings.TrimSpace(id)) {
+			return value, true
+		}
+	}
+	if id == "" && len(values) > 0 {
+		return values[0], true
+	}
+	return ClassicTool{}, false
 }
 
 func DiscoverRenderers(directories []string, supportsBackend func(string) bool) ([]Renderer, error) {
@@ -323,23 +420,6 @@ func validateRenderer(renderer Renderer, supportsBackend func(string) bool) erro
 	}
 	if supportsBackend != nil && !supportsBackend(renderer.Backend) {
 		return fmt.Errorf("backend %q is not installed", renderer.Backend)
-	}
-	if options := renderer.ResamplerOptions; options != nil {
-		if renderer.Backend != "utau-external-resampler" {
-			return errors.New("resampler_options requires backend utau-external-resampler")
-		}
-		if options.Velocity != nil && (*options.Velocity < 0 || *options.Velocity > 200) {
-			return fmt.Errorf("resampler velocity must be between 0 and 200; got %d", *options.Velocity)
-		}
-		if options.Modulation != nil && (*options.Modulation < 0 || *options.Modulation > 100) {
-			return fmt.Errorf("resampler modulation must be between 0 and 100; got %d", *options.Modulation)
-		}
-		if options.Tempo < 0 || math.IsNaN(options.Tempo) || math.IsInf(options.Tempo, 0) || options.Tempo > 1000 {
-			return fmt.Errorf("resampler tempo must be finite and between 0 and 1000; got %v", options.Tempo)
-		}
-		if strings.IndexFunc(options.Flags, unicode.IsSpace) >= 0 || strings.IndexByte(options.Flags, 0) >= 0 {
-			return errors.New("resampler flags must not contain whitespace or NUL")
-		}
 	}
 	return nil
 }

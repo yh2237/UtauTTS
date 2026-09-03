@@ -25,6 +25,8 @@ type Request struct {
 	Color                 string
 	ModelID               string
 	Renderer              string
+	Resampler             string
+	Wavtool               string
 	AliasPolicy           voicebank.AliasPolicy
 	AcousticMode          string
 	Dictionary            []DictionaryEntry
@@ -156,6 +158,18 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	resolvedRendererID, err := tts.ApplyRenderer(&cfg, s.catalog, rendererID, s.worldlinePath, s.worldlineBridgePath)
 	if err != nil {
 		return tts.Config{}, "", fmt.Errorf("%w: %v", ErrUnavailable, err)
+	}
+	if requireVoicebank && resolvedRendererID == "classic-utau" {
+		resampler, found := s.catalog.Resampler(request.Resampler)
+		if !found {
+			return tts.Config{}, "", fmt.Errorf("%w: classic UTAU resampler %q not found", ErrUnavailable, request.Resampler)
+		}
+		wavtool, found := s.catalog.Wavtool(request.Wavtool)
+		if !found {
+			return tts.Config{}, "", fmt.Errorf("%w: classic UTAU wavtool %q not found", ErrUnavailable, request.Wavtool)
+		}
+		cfg.ExternalResamplerPath = resampler.Path
+		cfg.ExternalWavtoolPath = wavtool.Path
 	}
 	return cfg, resolvedRendererID, nil
 }

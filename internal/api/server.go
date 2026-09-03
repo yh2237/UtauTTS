@@ -240,7 +240,11 @@ func (s *Server) handleModels(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleRenderers(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"default_renderer": s.renderer, "renderers": s.pluginCatalog().Renderers})
+	catalog := s.pluginCatalog()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"default_renderer": s.renderer, "renderers": catalog.Renderers,
+		"resamplers": catalog.Resamplers, "wavtools": catalog.Wavtools,
+	})
 }
 
 func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
@@ -373,6 +377,8 @@ type SynthesisRequest struct {
 	ManualPitch           *prosody.ManualPitchFile     `json:"manual_pitch"`
 	ModelID               string                       `json:"model_id"`
 	Renderer              string                       `json:"renderer"`
+	Resampler             string                       `json:"resampler"`
+	Wavtool               string                       `json:"wavtool"`
 	AliasPolicy           voicebank.AliasPolicy        `json:"alias_policy"`
 	AcousticMode          string                       `json:"acoustic_mode"`
 	Dictionary            []synth.DictionaryEntry      `json:"dictionary"`
@@ -609,6 +615,7 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 	result, err := s.synthesisService().SynthesizeContext(ctx, synth.Request{
 		Text: request.Text, Kana: request.Kana, VoicebankID: request.VoicebankID,
 		Tone: request.Tone, Color: request.Color, ModelID: request.ModelID, Renderer: request.Renderer,
+		Resampler: request.Resampler, Wavtool: request.Wavtool,
 		AliasPolicy: request.AliasPolicy, AcousticMode: request.AcousticMode,
 		Dictionary:     request.Dictionary,
 		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,

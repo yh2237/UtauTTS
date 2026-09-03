@@ -49,6 +49,8 @@ func main() {
 		applyPitch               bool
 		intonationStrength       float64
 		renderer                 string
+		resampler                string
+		wavtool                  string
 		worldlinePath            string
 		worldlineBridgePath      string
 		boundaryBridgeMS         float64
@@ -96,7 +98,9 @@ func main() {
 	flag.StringVar(&pitchContourCase, "pitch-case", "", "case ID in --pitch-contours")
 	flag.BoolVar(&applyPitch, "apply-pitch", false, "experimental waveform pitch resampling")
 	flag.Float64Var(&intonationStrength, "intonation-strength", 0, "experimental source-pitch stabilization and phrase contour strength (0..4)")
-	flag.StringVar(&renderer, "renderer", "", "renderer plugin ID (default: highest manifest priority)")
+	flag.StringVar(&renderer, "renderer", "", "renderer ID (default: highest configured priority)")
+	flag.StringVar(&resampler, "resampler", "", "Classic UTAU resampler ID from Resamplers")
+	flag.StringVar(&wavtool, "wavtool", "builtin", "Classic UTAU wavtool ID from Wavtools")
 	flag.StringVar(&worldlinePath, "worldline", "", "path to OpenUtau worldline library (default: next to executable)")
 	flag.StringVar(&worldlineBridgePath, "worldline-bridge", "", "path to utautts-worldline-bridge executable")
 	flag.Float64Var(&boundaryBridgeMS, "boundary-bridge-ms", 0, "maximum width for phase-aligned waveform boundary repair candidates (0 disables)")
@@ -196,6 +200,18 @@ func main() {
 	resolvedRendererID, err := tts.ApplyRenderer(&synthConfig, catalog, renderer, worldlinePath, worldlineBridgePath)
 	if err != nil {
 		log.Fatal(err)
+	}
+	if resolvedRendererID == "classic-utau" {
+		resamplerTool, found := catalog.Resampler(resampler)
+		if !found {
+			log.Fatalf("Classic UTAU resampler %q is not installed", resampler)
+		}
+		wavtoolTool, found := catalog.Wavtool(wavtool)
+		if !found {
+			log.Fatalf("Classic UTAU wavtool %q is not installed", wavtool)
+		}
+		synthConfig.ExternalResamplerPath = resamplerTool.Path
+		synthConfig.ExternalWavtoolPath = wavtoolTool.Path
 	}
 	output, err := synth.SynthesizeConfig(synthConfig, resolvedRendererID)
 	if err != nil {

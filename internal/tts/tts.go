@@ -187,26 +187,14 @@ func ApplyResolvedRenderer(cfg *Config, renderer plugin.Renderer, worldlinePath,
 	cfg.WorldlineBridgePath = preferExplicit(worldlineBridgePath, renderer.Asset("worldline_bridge"))
 	cfg.WorldEnginePath = renderer.Asset("world_engine")
 	cfg.WorldGPUPath = renderer.Asset("world_gpu")
-	cfg.ExternalResamplerPath = renderer.Asset("resampler")
-	cfg.ExternalWavtoolPath = renderer.Asset("wavtool")
+	cfg.ExternalResamplerPath = ""
+	cfg.ExternalWavtoolPath = ""
 	cfg.ExternalResamplerVelocity = 0
 	cfg.ExternalResamplerVelocitySet = false
 	cfg.ExternalResamplerFlags = ""
 	cfg.ExternalResamplerModulation = 0
 	cfg.ExternalResamplerModulationSet = false
 	cfg.ExternalResamplerTempo = 0
-	if options := renderer.ResamplerOptions; options != nil {
-		cfg.ExternalResamplerFlags = options.Flags
-		cfg.ExternalResamplerTempo = options.Tempo
-		if options.Velocity != nil {
-			cfg.ExternalResamplerVelocity = *options.Velocity
-			cfg.ExternalResamplerVelocitySet = true
-		}
-		if options.Modulation != nil {
-			cfg.ExternalResamplerModulation = *options.Modulation
-			cfg.ExternalResamplerModulationSet = true
-		}
-	}
 }
 
 func preferExplicit(explicit, manifestValue string) string {

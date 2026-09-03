@@ -33,7 +33,7 @@ func main() {
 	flag.IntVar(&port, "port", 8080, "port")
 	flag.StringVar(&host, "host", "127.0.0.1", "host")
 	flag.StringVar(&config.VoiceDir, "voice-dir", "voice", "directory containing voicebanks")
-	flag.StringVar(&config.Renderer, "renderer", "", "default renderer plugin ID (default: highest manifest priority)")
+	flag.StringVar(&config.Renderer, "renderer", "", "default renderer ID (default: highest configured priority)")
 	flag.StringVar(&config.WorldlinePath, "worldline", "", "path to worldline library")
 	flag.StringVar(&config.WorldlineBridgePath, "worldline-bridge", "", "path to worldline bridge")
 	flag.StringVar(&config.OpenJTalkPath, "openjtalk-features", "", "path to Open JTalk feature helper")

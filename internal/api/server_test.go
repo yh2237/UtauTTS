@@ -318,12 +318,22 @@ func TestAPIMetadata(t *testing.T) {
 		Renderers []struct {
 			ID string `json:"id"`
 		} `json:"renderers"`
+		Wavtools []struct {
+			ID string `json:"id"`
+		} `json:"wavtools"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &renderers); err != nil {
 		t.Fatal(err)
 	}
 	if len(renderers.Renderers) < 2 {
 		t.Fatalf("renderers = %#v", renderers.Renderers)
+	}
+	foundClassic := false
+	for _, renderer := range renderers.Renderers {
+		foundClassic = foundClassic || renderer.ID == "classic-utau"
+	}
+	if !foundClassic || len(renderers.Wavtools) == 0 || renderers.Wavtools[0].ID != "builtin" {
+		t.Fatalf("Classic UTAU metadata = %#v", renderers)
 	}
 }
 
