@@ -169,7 +169,7 @@ ApplicationWindow {
                     return;
                 }
                 const item = window.current();
-                window.appBackend.analyze(item.content, item.utteranceId);
+                window.analyzeUtterance(window.selectedIndex);
             }
         }
     }
@@ -1715,7 +1715,7 @@ ApplicationWindow {
         if (error.length)
             return error;
         const project = window.projectData();
-        error = check(project.format === "utautts-project" && project.format_version === 5
+        error = check(project.format === "utautts-project" && project.format_version === 6
                       && project.utterances.length === 1, "project data generation failed");
 
         analyzeTimer.stop();
@@ -1732,6 +1732,8 @@ ApplicationWindow {
             const item = utterances.get(index);
             savedUtterances.push({
                 text: item.content || "",
+                language: item.language || "ja",
+                phonemizer: item.phonemizer || window.defaultPhonemizer(item.language || "ja"),
                 voicebank_id: item.voicebankId || "",
                 model_id: item.modelId || "",
                 renderer_id: item.renderer || "",
@@ -1762,7 +1764,7 @@ ApplicationWindow {
         }
         return {
             format: "utautts-project",
-            format_version: 5,
+            format_version: 6,
             app_version: Qt.application.version,
             utterances: savedUtterances,
             selected_index: utterances.count ? selectedIndex : 0
@@ -1776,7 +1778,7 @@ ApplicationWindow {
             utterances.setProperty(index, "reading", "");
             utterances.setProperty(index, "moraeJson", "[]");
             if (item.content.trim())
-                window.appBackend.analyze(item.content, item.utteranceId);
+                window.analyzeUtterance(index);
         }
         if (utterances.count)
             window.selectUtterance(window.selectedIndex);
@@ -1877,6 +1879,8 @@ ApplicationWindow {
             utterances.append({
                 utteranceId: "utterance-" + window.nextUtteranceId++,
                 content: content,
+                language: String(saved.language || "ja"),
+                phonemizer: String(saved.phonemizer || window.defaultPhonemizer(saved.language || "ja")),
                 reading: "",
                 moraeJson: "[]",
                 pointsJson: JSON.stringify(points),
@@ -1928,7 +1932,7 @@ ApplicationWindow {
         for (let index = 0; index < utterances.count; ++index) {
             const item = utterances.get(index);
             if (item.content.trim())
-                window.appBackend.analyze(item.content, item.utteranceId);
+                window.analyzeUtterance(index);
         }
         editorContent.utteranceList.positionViewAtIndex(selectedIndex, ListView.Contain);
         window.resetHistory(migratedRenderer);
@@ -1938,6 +1942,54 @@ ApplicationWindow {
         return path ? encodeURI("file:///" + path.replace(/\\/g, "/")) : "";
     }
 
+    function defaultPhonemizer(language) {
+        if (language === "en")
+            return "en-arpasing";
+        if (language === "zh")
+            return "zh-cvvc";
+        return "ja-kana";
+    }
+
+    function phonemizerOptions(language) {
+        const id = window.defaultPhonemizer(language);
+        const labels = {
+            "ja-kana": window.translator.tr("main.phonemizer.jaKana"),
+            "en-arpasing": window.translator.tr("main.phonemizer.enArpasing"),
+            "zh-cvvc": window.translator.tr("main.phonemizer.zhCvvc")
+        };
+        return [{id: id, display_name: labels[id]}];
+    }
+
+    function analyzeUtterance(index) {
+        if (index < 0 || index >= utterances.count)
+            return;
+        const item = utterances.get(index);
+        if (!item.content.trim())
+            return;
+        window.appBackend.analyzeSpeech(item.content, item.utteranceId,
+                                        item.language || "ja",
+                                        item.phonemizer || window.defaultPhonemizer(item.language || "ja"),
+                                        item.voicebankId || "");
+    }
+
+    function updateSpeechLanguage(language, phonemizer) {
+        if (!utterances.count)
+            return;
+        const item = current();
+        if (item.language === language && item.phonemizer === phonemizer)
+            return;
+        utterances.setProperty(selectedIndex, "language", language);
+        utterances.setProperty(selectedIndex, "phonemizer", phonemizer);
+        if (language !== "ja")
+            utterances.setProperty(selectedIndex, "modelId", "none");
+        utterances.setProperty(selectedIndex, "reading", "");
+        utterances.setProperty(selectedIndex, "moraeJson", "[]");
+        clearAutomaticProsody(selectedIndex);
+        markUtteranceDirty(selectedIndex);
+        selectCombo(editorContent.modelCombo, current().modelId);
+        window.analyzeUtterance(selectedIndex);
+    }
+
     function updateSetting(name, value) {
         if (!utterances.count)
             return;
@@ -1945,7 +1997,7 @@ ApplicationWindow {
         if (item[name] === value)
             return;
         utterances.setProperty(selectedIndex, name, value);
-        if (["voicebankId", "modelId", "renderer", "aliasPolicy", "tone", "color", "moraDuration", "pauseDuration",
+        if (["voicebankId", "modelId", "renderer", "aliasPolicy", "phonemizer", "tone", "color", "moraDuration", "pauseDuration",
              "intonation", "applyPitch"].indexOf(name) >= 0)
             clearAutomaticProsody(selectedIndex);
         if (name === "moraDuration")
@@ -1953,6 +2005,16 @@ ApplicationWindow {
         else if (name === "pauseDuration")
             editorContent.pitchEditor.defaultPauseDuration = value;
         markUtteranceDirty(selectedIndex);
+        if (name === "phonemizer") {
+            utterances.setProperty(selectedIndex, "reading", "");
+            utterances.setProperty(selectedIndex, "moraeJson", "[]");
+            window.analyzeUtterance(selectedIndex);
+        }
+        if (name === "voicebankId" && (item.language || "ja") === "en") {
+            utterances.setProperty(selectedIndex, "reading", "");
+            utterances.setProperty(selectedIndex, "moraeJson", "[]");
+            window.analyzeUtterance(selectedIndex);
+        }
         if (["voicebankId", "aliasPolicy", "modelId", "renderer", "tone", "color", "moraDuration",
              "pauseDuration", "intonation", "applyPitch"].indexOf(name) >= 0) {
             window.requestMissingProsodyPreview(selectedIndex);
@@ -2156,6 +2218,9 @@ ApplicationWindow {
         editorContent.pitchEditor.moraDurations = window.displayedMoraDurations(item);
         editorContent.pitchEditor.moraPositions = window.displayedMoraPositions(item);
         selectCombo(editorContent.voiceCombo, item.voicebankId);
+        selectCombo(editorContent.speechLanguageCombo, item.language || "ja");
+        selectCombo(editorContent.phonemizerCombo,
+                    item.phonemizer || window.defaultPhonemizer(item.language || "ja"));
         Qt.callLater(function() {
             if (window.selectedIndex !== index || !utterances.count)
                 return;
@@ -2332,6 +2397,8 @@ ApplicationWindow {
         utterances.append({
             utteranceId: "utterance-" + nextUtteranceId++,
             content: "",
+            language: "ja",
+            phonemizer: "ja-kana",
             reading: "",
             moraeJson: "[]",
             pointsJson: "[]",
@@ -2487,7 +2554,9 @@ ApplicationWindow {
                 ? window.decodeSequence(item.moraDurationsJson) : [];
         const request = {
             text: item.content,
-            kana: item.reading || "",
+            reading: item.reading || "",
+            language: item.language || "ja",
+            phonemizer: item.phonemizer || window.defaultPhonemizer(item.language || "ja"),
             dictionary: window.appBackend.dictionaryEntries,
             voicebank_id: item.voicebankId || editorContent.voiceCombo.currentValue,
             model_id: item.modelId,
@@ -2531,7 +2600,9 @@ ApplicationWindow {
         return {
             request_id: requestId,
             text: item.content,
-            kana: item.reading || "",
+            reading: item.reading || "",
+            language: item.language || "ja",
+            phonemizer: item.phonemizer || window.defaultPhonemizer(item.language || "ja"),
             dictionary: window.appBackend.dictionaryEntries,
             model_id: item.modelId,
             renderer: item.renderer,

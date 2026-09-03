@@ -251,6 +251,29 @@ func TestEngineFallsBackToOpenJTalkForEnglish(t *testing.T) {
 	}
 }
 
+func TestEngineAnalyzesChinese(t *testing.T) {
+	engine, err := New(Config{VoiceDir: t.TempDir(), Renderer: "waveform"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := engine.Call("analyze", []byte(`{"text":"你好","language":"zh","phonemizer":"zh-cvvc"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var analysis struct {
+		Reading string `json:"reading"`
+		Morae   []struct {
+			Mora string `json:"mora"`
+		} `json:"morae"`
+	}
+	if err := json.Unmarshal(result, &analysis); err != nil {
+		t.Fatal(err)
+	}
+	if analysis.Reading != "ni hao" || len(analysis.Morae) != 2 || analysis.Morae[0].Mora != "ni" {
+		t.Fatalf("analysis=%s", result)
+	}
+}
+
 func TestNewReportsInvalidPlugin(t *testing.T) {
 	pluginDirectory := t.TempDir()
 	if err := os.WriteFile(filepath.Join(pluginDirectory, "plugin.json"), []byte(`{"kind":"renderer"}`), 0644); err != nil {

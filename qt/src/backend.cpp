@@ -967,6 +967,12 @@ bool Backend::reloadClassicTools() {
 }
 
 void Backend::analyze(const QString &text, const QString &requestId) {
+    analyzeSpeech(text, requestId, QStringLiteral("ja"), QStringLiteral("ja-kana"), {});
+}
+
+void Backend::analyzeSpeech(const QString &text, const QString &requestId,
+                            const QString &language, const QString &phonemizer,
+                            const QString &voicebankId) {
     if (m_busy) {
         return;
     }
@@ -995,9 +1001,11 @@ void Backend::analyze(const QString &text, const QString &requestId) {
                 }
             });
     const QVariantList dictionary = m_dictionaryEntries;
-    const auto future = QtConcurrent::run([this, text, dictionary]() {
+    const auto future = QtConcurrent::run([this, text, dictionary, language, phonemizer, voicebankId]() {
         try {
-            return call("analyze", {{"text", text}, {"dictionary", dictionary}});
+            return call("analyze", {{"text", text}, {"language", language},
+                                    {"phonemizer", phonemizer}, {"voicebank_id", voicebankId},
+                                    {"dictionary", dictionary}});
         } catch (const std::exception &exception) {
             return QVariantMap{{"_error", QString::fromUtf8(exception.what())}};
         }

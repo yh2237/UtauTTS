@@ -12,7 +12,6 @@ import (
 	"utautts/internal/appinfo"
 	"utautts/internal/aviutl"
 	"utautts/internal/frontend"
-	"utautts/internal/openjtalk"
 	"utautts/internal/openutau"
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
@@ -175,33 +174,56 @@ func (e *Engine) models() []plugin.Model {
 
 func (e *Engine) analyze(data []byte) (any, error) {
 	var request struct {
-		Text       string                  `json:"text"`
-		Dictionary []synth.DictionaryEntry `json:"dictionary"`
+		Text        string                  `json:"text"`
+		Language    string                  `json:"language"`
+		Phonemizer  string                  `json:"phonemizer"`
+		VoicebankID string                  `json:"voicebank_id"`
+		Dictionary  []synth.DictionaryEntry `json:"dictionary"`
 	}
 	if err := json.Unmarshal(data, &request); err != nil || request.Text == "" {
 		return nil, fmt.Errorf("text is required")
 	}
-	reading, err := e.reading(request.Text, synth.DictionaryMap(request.Dictionary))
+	dictionary := synth.DictionaryMap(request.Dictionary)
+	if request.Language == frontend.LanguageEnglish && request.VoicebankID != "" {
+		e.mu.RLock()
+		summary, found := e.voicebanks[request.VoicebankID]
+		e.mu.RUnlock()
+		if found {
+			bankDictionary, _, loadErr := voicebank.LoadARPAsingDictionary(summary.Path)
+			if loadErr != nil {
+				return nil, loadErr
+			}
+			for key, value := range bankDictionary {
+				if dictionary[key] == "" {
+					dictionary[key] = value
+				}
+			}
+		}
+	}
+	preview, err := tts.PredictProsody(tts.Config{
+		Text: request.Text, Language: request.Language, Phonemizer: request.Phonemizer,
+		Dictionary: dictionary, OpenJTalkPath: e.config.OpenJTalkPath,
+		OpenJTalkDictionaryPath: e.config.OpenJTalkDictionary,
+	})
 	if err != nil {
 		return nil, err
 	}
-	morae, err := frontend.ParseKana(reading)
-	if err != nil {
-		return nil, err
-	}
-	items := make([]map[string]any, 0, len(morae))
-	for index, mora := range morae {
+	items := make([]map[string]any, 0, len(preview.Morae))
+	for index, mora := range preview.Morae {
 		items = append(items, map[string]any{"position": index, "mora": mora.Text, "consonant": mora.Consonant, "vowel": mora.Vowel, "pause": mora.Pause})
 	}
-	return map[string]any{"reading": reading, "morae": items}, nil
+	return map[string]any{"reading": preview.Reading, "morae": items}, nil
 }
 
 type prosodyPreviewRequest struct {
-	RequestID string `json:"request_id"`
-	Text      string `json:"text"`
-	Kana      string `json:"kana"`
-	ModelID   string `json:"model_id"`
-	Renderer  string `json:"renderer"`
+	RequestID  string `json:"request_id"`
+	Text       string `json:"text"`
+	Kana       string `json:"kana"`
+	Reading    string `json:"reading"`
+	Language   string `json:"language"`
+	Phonemizer string `json:"phonemizer"`
+	ModelID    string `json:"model_id"`
+	Renderer   string `json:"renderer"`
 
 	MoraDurationMS     float64                 `json:"mora_duration_ms"`
 	PauseDurationMS    float64                 `json:"pause_duration_ms"`
@@ -216,11 +238,15 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 	if err := json.Unmarshal(data, &request); err != nil {
 		return nil, fmt.Errorf("decode prosody preview request: %w", err)
 	}
-	if request.Text == "" && request.Kana == "" {
-		return nil, fmt.Errorf("text or kana is required")
+	if request.Text == "" && request.Reading == "" && request.Kana == "" {
+		return nil, fmt.Errorf("text or reading is required")
+	}
+	reading := request.Reading
+	if reading == "" {
+		reading = request.Kana
 	}
 	preview, _, err := e.synth.PredictProsody(synth.Request{
-		Text: request.Text, Kana: request.Kana, Dictionary: request.Dictionary,
+		Text: request.Text, Reading: reading, Language: request.Language, Phonemizer: request.Phonemizer, Dictionary: request.Dictionary,
 		ModelID: request.ModelID, Renderer: request.Renderer,
 		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,
 		MoraDurationsMS: request.MoraDurationsMS, IntonationStrength: request.IntonationStrength,
@@ -245,29 +271,25 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 	}, nil
 }
 
-func (e *Engine) reading(text string, dictionary map[string]string) (string, error) {
-	return tts.ConvertToReading(text, dictionary, openjtalk.Config{
-		HelperPath:     e.config.OpenJTalkPath,
-		DictionaryPath: e.config.OpenJTalkDictionary,
-	})
-}
-
 type synthesizeRequest struct {
-	Text, Kana, VoicebankID, Tone, Color, ModelID, Renderer, Resampler, Wavtool, OutputPath string
-	AliasPolicy                                                                             voicebank.AliasPolicy
-	AcousticMode                                                                            string
-	MoraDurationMS, PauseDurationMS, LeadingPreutteranceMS, IntonationStrength              float64
-	MoraDurationsMS                                                                         []float64
-	ApplyPitch                                                                              bool
-	ManualPitch                                                                             *prosody.ManualPitchFile
-	Dictionary                                                                              []synth.DictionaryEntry
-	ResamplerExpressions                                                                    []render.ResamplerExpression
+	Text, Reading, Language, Phonemizer, VoicebankID, Tone, Color, ModelID, Renderer, Resampler, Wavtool, OutputPath string
+	AliasPolicy                                                                                                      voicebank.AliasPolicy
+	AcousticMode                                                                                                     string
+	MoraDurationMS, PauseDurationMS, LeadingPreutteranceMS, IntonationStrength                                       float64
+	MoraDurationsMS                                                                                                  []float64
+	ApplyPitch                                                                                                       bool
+	ManualPitch                                                                                                      *prosody.ManualPitchFile
+	Dictionary                                                                                                       []synth.DictionaryEntry
+	ResamplerExpressions                                                                                             []render.ResamplerExpression
 }
 
 func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
 	type wire struct {
 		Text                  string                       `json:"text"`
 		Kana                  string                       `json:"kana"`
+		Reading               string                       `json:"reading"`
+		Language              string                       `json:"language"`
+		Phonemizer            string                       `json:"phonemizer"`
 		VoicebankID           string                       `json:"voicebank_id"`
 		Tone                  string                       `json:"tone"`
 		Color                 string                       `json:"color"`
@@ -292,7 +314,11 @@ func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &value); err != nil {
 		return err
 	}
-	*r = synthesizeRequest{Text: value.Text, Kana: value.Kana, VoicebankID: value.VoicebankID, Tone: value.Tone, Color: value.Color, ModelID: value.ModelID, Renderer: value.Renderer, Resampler: value.Resampler, Wavtool: value.Wavtool, AliasPolicy: value.AliasPolicy, AcousticMode: value.AcousticMode, OutputPath: value.OutputPath, MoraDurationMS: value.MoraDurationMS, PauseDurationMS: value.PauseDurationMS, LeadingPreutteranceMS: value.LeadingPreutteranceMS, MoraDurationsMS: value.MoraDurationsMS, IntonationStrength: value.IntonationStrength, ApplyPitch: value.ApplyPitch, ManualPitch: value.ManualPitch, Dictionary: value.Dictionary, ResamplerExpressions: value.ResamplerExpressions}
+	reading := value.Reading
+	if reading == "" {
+		reading = value.Kana
+	}
+	*r = synthesizeRequest{Text: value.Text, Reading: reading, Language: value.Language, Phonemizer: value.Phonemizer, VoicebankID: value.VoicebankID, Tone: value.Tone, Color: value.Color, ModelID: value.ModelID, Renderer: value.Renderer, Resampler: value.Resampler, Wavtool: value.Wavtool, AliasPolicy: value.AliasPolicy, AcousticMode: value.AcousticMode, OutputPath: value.OutputPath, MoraDurationMS: value.MoraDurationMS, PauseDurationMS: value.PauseDurationMS, LeadingPreutteranceMS: value.LeadingPreutteranceMS, MoraDurationsMS: value.MoraDurationsMS, IntonationStrength: value.IntonationStrength, ApplyPitch: value.ApplyPitch, ManualPitch: value.ManualPitch, Dictionary: value.Dictionary, ResamplerExpressions: value.ResamplerExpressions}
 	return nil
 }
 
@@ -301,14 +327,14 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 	if err := json.Unmarshal(data, &request); err != nil {
 		return nil, fmt.Errorf("decode synthesis request: %w", err)
 	}
-	if request.Text == "" && request.Kana == "" {
-		return nil, fmt.Errorf("text or kana is required")
+	if request.Text == "" && request.Reading == "" {
+		return nil, fmt.Errorf("text or reading is required")
 	}
 	if request.OutputPath == "" {
 		return nil, fmt.Errorf("output_path is required")
 	}
 	result, err := e.synth.Synthesize(synth.Request{
-		Text: request.Text, Kana: request.Kana, VoicebankID: request.VoicebankID,
+		Text: request.Text, Reading: request.Reading, Language: request.Language, Phonemizer: request.Phonemizer, VoicebankID: request.VoicebankID,
 		Tone: request.Tone, Color: request.Color, ModelID: request.ModelID, Renderer: request.Renderer,
 		Resampler: request.Resampler, Wavtool: request.Wavtool,
 		AliasPolicy: request.AliasPolicy, AcousticMode: request.AcousticMode,

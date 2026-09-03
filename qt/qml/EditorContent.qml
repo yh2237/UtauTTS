@@ -10,6 +10,8 @@ import QtMultimedia
         property alias pitchEditor: pitchEditor
         property alias utteranceList: utteranceList
         property alias voiceCombo: voiceCombo
+        property alias speechLanguageCombo: speechLanguageCombo
+        property alias phonemizerCombo: phonemizerCombo
         property alias aliasPolicyCombo: aliasPolicyCombo
         property alias modelCombo: modelCombo
         property alias rendererCombo: rendererCombo
@@ -311,6 +313,43 @@ import QtMultimedia
                                 Qt.callLater(() => window.selectCombo(colorCombo,
                                         window.typeIdForColor(currentValue, window.current().color || "")));
                             }
+                        }
+
+                        Label {
+                            text: window.translator.tr("main.param.language")
+                            font.pixelSize: 12
+                            color: window.mutedText
+                        }
+                        ComboBox {
+                            id: speechLanguageCombo
+                            Layout.fillWidth: true
+                            model: [
+                                { id: "ja", display_name: window.translator.tr("main.language.ja") },
+                                { id: "en", display_name: window.translator.tr("main.language.en") },
+                                { id: "zh", display_name: window.translator.tr("main.language.zh") }
+                            ]
+                            textRole: "display_name"
+                            valueRole: "id"
+                            onActivated: {
+                                const selectedPhonemizer = window.defaultPhonemizer(currentValue);
+                                window.updateSpeechLanguage(currentValue, selectedPhonemizer);
+                                window.selectCombo(phonemizerCombo, selectedPhonemizer);
+                            }
+                        }
+
+                        Label {
+                            text: window.translator.tr("main.param.phonemizer")
+                            font.pixelSize: 12
+                            color: window.mutedText
+                        }
+                        ComboBox {
+                            id: phonemizerCombo
+                            Layout.fillWidth: true
+                            model: window.phonemizerOptions(window.utterancesModel.count
+                                    ? window.current().language || "ja" : "ja")
+                            textRole: "display_name"
+                            valueRole: "id"
+                            onActivated: window.updateSetting("phonemizer", currentValue)
                         }
 
                         Label {

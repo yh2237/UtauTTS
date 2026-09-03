@@ -116,6 +116,9 @@ public:
     Q_INVOKABLE bool openClassicToolDirectory(const QString &kind);
     Q_INVOKABLE bool reloadClassicTools();
     Q_INVOKABLE void analyze(const QString &text, const QString &requestId);
+    Q_INVOKABLE void analyzeSpeech(const QString &text, const QString &requestId,
+                                   const QString &language, const QString &phonemizer,
+                                   const QString &voicebankId);
     Q_INVOKABLE void predictProsody(const QVariantMap &request);
     Q_INVOKABLE void synthesize(const QVariantMap &request);
     Q_INVOKABLE bool savePreview(const QUrl &destination);
