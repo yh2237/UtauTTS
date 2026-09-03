@@ -50,6 +50,25 @@ func TestResolveUsesCVVCTransitionWhenVCVIsUnavailable(t *testing.T) {
 	}
 }
 
+func TestResolveUsesPhonemizerAliasHints(t *testing.T) {
+	bank := &Bank{Entries: map[string][]oto.Entry{
+		"- ni": {{Alias: "- ni", Filename: "ni.wav"}},
+		"hao":  {{Alias: "hao", Filename: "hao.wav"}},
+		"i h":  {{Alias: "i h", Filename: "ih.wav"}},
+	}}
+	morae := []frontend.Mora{
+		{Text: "ni", Vowel: "i", Aliases: &frontend.AliasHints{Main: []string{"- ni", "ni"}}},
+		{Text: "hao", Consonant: "h", Vowel: "ao", Aliases: &frontend.AliasHints{Main: []string{"i hao", "hao"}, Transition: []string{"i h"}}},
+	}
+	got, err := bank.Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Alias != "- ni" || got[1].Alias != "hao" || got[1].Transition == nil || got[1].Transition.Alias != "i h" {
+		t.Fatalf("selections = %#v", got)
+	}
+}
+
 func TestResolveDoesNotInventClosureTransition(t *testing.T) {
 	bank := &Bank{Entries: map[string][]oto.Entry{
 		"っ":    {{Alias: "っ", Filename: "cl.wav"}},

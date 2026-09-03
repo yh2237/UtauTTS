@@ -13,6 +13,12 @@ type Mora struct {
 	Consonant string
 	Vowel     string
 	Pause     bool
+	Aliases   *AliasHints
+}
+
+type AliasHints struct {
+	Main       []string
+	Transition []string
 }
 
 func ParseKana(reading string) ([]Mora, error) {

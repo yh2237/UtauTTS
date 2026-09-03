@@ -364,7 +364,10 @@ func pathWithin(root, candidate string) (string, error) {
 
 type SynthesisRequest struct {
 	Kana                  string                       `json:"kana"`
+	Reading               string                       `json:"reading"`
 	Text                  string                       `json:"text"`
+	Language              string                       `json:"language"`
+	Phonemizer            string                       `json:"phonemizer"`
 	VoicebankID           string                       `json:"voicebank_id"`
 	Tone                  string                       `json:"tone"`
 	Color                 string                       `json:"color"`
@@ -521,7 +524,7 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 		if request.WriteText {
 			text := item.Request.Text
 			if text == "" {
-				text = item.Request.Kana
+				text = synthesisReading(item.Request)
 			}
 			data, err := sidecar.TextBytes(text, request.TextEncoding)
 			if err != nil {
@@ -586,11 +589,11 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 		}
 		defer func() { <-s.synthesisSem }()
 	}
-	if request.Kana == "" && request.Text == "" {
-		return nil, http.StatusBadRequest, fmt.Errorf("text or kana is required")
+	if synthesisReading(request) == "" && request.Text == "" {
+		return nil, http.StatusBadRequest, fmt.Errorf("text or reading is required")
 	}
-	if len([]rune(request.Text)) > maxTextRunes || len([]rune(request.Kana)) > maxTextRunes {
-		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("text and kana are limited to %d characters", maxTextRunes)
+	if len([]rune(request.Text)) > maxTextRunes || len([]rune(synthesisReading(request))) > maxTextRunes {
+		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("text and reading are limited to %d characters", maxTextRunes)
 	}
 	if request.MoraDurationMS < 0 || request.MoraDurationMS > 1000 || request.PauseDurationMS < 0 || request.PauseDurationMS > 3000 || request.LeadingPreutteranceMS < 0 || request.LeadingPreutteranceMS > 1000 {
 		return nil, http.StatusBadRequest, fmt.Errorf("duration settings are outside the supported range")
@@ -613,7 +616,7 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("resampler_expressions contains too many values")
 	}
 	result, err := s.synthesisService().SynthesizeContext(ctx, synth.Request{
-		Text: request.Text, Kana: request.Kana, VoicebankID: request.VoicebankID,
+		Text: request.Text, Reading: synthesisReading(request), Language: request.Language, Phonemizer: request.Phonemizer, VoicebankID: request.VoicebankID,
 		Tone: request.Tone, Color: request.Color, ModelID: request.ModelID, Renderer: request.Renderer,
 		Resampler: request.Resampler, Wavtool: request.Wavtool,
 		AliasPolicy: request.AliasPolicy, AcousticMode: request.AcousticMode,
@@ -634,6 +637,13 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 		return nil, http.StatusUnprocessableEntity, err
 	}
 	return result, http.StatusOK, nil
+}
+
+func synthesisReading(request SynthesisRequest) string {
+	if request.Reading != "" {
+		return request.Reading
+	}
+	return request.Kana
 }
 
 func contextErrorStatus(err error, fallback int) int {

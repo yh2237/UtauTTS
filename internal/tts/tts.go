@@ -24,6 +24,8 @@ type Config struct {
 	Voicebank                      *voicebank.Bank
 	Text                           string
 	Reading                        string
+	Language                       string
+	Phonemizer                     string
 	Dictionary                     map[string]string
 	Tone                           string
 	Color                          string
@@ -119,6 +121,30 @@ func resolveReading(cfg Config) (string, error) {
 	return ConvertToReadingContext(cfg.Context, cfg.Text, cfg.Dictionary, openjtalk.Config{
 		HelperPath: cfg.OpenJTalkPath, DictionaryPath: cfg.OpenJTalkDictionaryPath,
 	})
+}
+
+func resolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, error) {
+	language, phonemizer, err := frontend.ResolveLanguage(cfg.Language, cfg.Phonemizer)
+	if err != nil {
+		return "", "", "", nil, err
+	}
+	switch phonemizer {
+	case frontend.PhonemizerJapanese:
+		reading, err := resolveReading(cfg)
+		if err != nil {
+			return "", "", "", nil, err
+		}
+		morae, err := frontend.ParseKana(reading)
+		return language, phonemizer, reading, morae, err
+	case frontend.PhonemizerEnglish:
+		reading, morae, err := frontend.ParseEnglishARPAsing(cfg.Text, cfg.Reading, cfg.Dictionary)
+		return language, phonemizer, reading, morae, err
+	case frontend.PhonemizerChinese:
+		reading, morae, err := frontend.ParseChineseCVVC(cfg.Text, cfg.Reading, cfg.Dictionary)
+		return language, phonemizer, reading, morae, err
+	default:
+		return "", "", "", nil, fmt.Errorf("unsupported phonemizer %q", phonemizer)
+	}
 }
 
 func resolveProsodyModel(cfg Config) (*prosody.Model, error) {
@@ -224,17 +250,16 @@ func Synthesize(cfg Config) (*Result, error) {
 		requestedAliasPolicy = voicebank.AliasPolicyAuto
 	}
 	applyAliasProfile(bank, &cfg)
+	language, phonemizer, reading, morae, err := resolvePronunciation(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("phonemize: %w", err)
+	}
 	loadedProsody, err := resolveProsodyModel(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)
 	}
-	reading, err := resolveReading(cfg)
-	if err != nil {
-		return nil, err
-	}
-	morae, err := frontend.ParseKana(reading)
-	if err != nil {
-		return nil, fmt.Errorf("parse reading: %w", err)
+	if language != frontend.LanguageJapanese {
+		loadedProsody = nil
 	}
 	prosodyFeatures, err := resolveProsodyFeatures(cfg, loadedProsody, morae, reading)
 	if err != nil {
@@ -314,6 +339,8 @@ func Synthesize(cfg Config) (*Result, error) {
 		return nil, fmt.Errorf("build synthesis plan: %w", err)
 	}
 	synthesisPlan.Text = cfg.Text
+	synthesisPlan.Language = language
+	synthesisPlan.Phonemizer = phonemizer
 	synthesisPlan.RequestedAliasPolicy = string(requestedAliasPolicy)
 	synthesisPlan.CVVCTiming = cfg.CVVCTiming
 	synthesisPlan.CVVCTransitionGain = cfg.CVVCTransitionGain
@@ -455,17 +482,16 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		cfg.ReleaseMS = 20
 	}
 
+	language, _, reading, morae, err := resolvePronunciation(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("phonemize: %w", err)
+	}
 	loadedProsody, err := resolveProsodyModel(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)
 	}
-	reading, err := resolveReading(cfg)
-	if err != nil {
-		return nil, err
-	}
-	morae, err := frontend.ParseKana(reading)
-	if err != nil {
-		return nil, fmt.Errorf("parse reading: %w", err)
+	if language != frontend.LanguageJapanese {
+		loadedProsody = nil
 	}
 
 	prosodyFeatures, err := resolveProsodyFeatures(cfg, loadedProsody, morae, reading)

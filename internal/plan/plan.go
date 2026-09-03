@@ -11,7 +11,7 @@ import (
 	"utautts/internal/voicebank"
 )
 
-const Version = 17
+const Version = 18
 
 type Config struct {
 	MoraDurationMS   float64
@@ -33,6 +33,8 @@ type Plan struct {
 	Voicebank               string                   `json:"voicebank"`
 	Text                    string                   `json:"text,omitempty"`
 	Reading                 string                   `json:"reading"`
+	Language                string                   `json:"language,omitempty"`
+	Phonemizer              string                   `json:"phonemizer,omitempty"`
 	Tone                    string                   `json:"tone,omitempty"`
 	Color                   string                   `json:"color,omitempty"`
 	AcousticMode            string                   `json:"acoustic_mode,omitempty"`

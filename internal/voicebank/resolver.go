@@ -161,6 +161,11 @@ func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color 
 			consonant = frontend.ConsonantOf(mora.Text)
 		}
 		transitionSpecs := vcAliasCandidates(previousVowel, consonant, policy)
+		explicitCandidates := mora.Aliases != nil && len(mora.Aliases.Main) > 0
+		if explicitCandidates {
+			candidateSpecs = explicitMainAliasCandidates(mora.Aliases.Main, mora.Text)
+			transitionSpecs = explicitAliasCandidates(mora.Aliases.Transition, AliasVC)
+		}
 		if hasAffix {
 			strictSubbank := subbank.ID != "" && subbank.ID != "prefix.map"
 			if strictSubbank {
@@ -182,7 +187,9 @@ func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color 
 				transitionSpecs = affixCandidatesWithFallback(transitionSpecs, affix, true)
 			}
 		}
-		candidateSpecs = preferOriginalKanaCandidates(b, candidateSpecs)
+		if !explicitCandidates {
+			candidateSpecs = preferOriginalKanaCandidates(b, candidateSpecs)
+		}
 		allSpecs := append(append([]aliasCandidate{}, candidateSpecs...), transitionSpecs...)
 		candidates := candidateNames(allSpecs)
 		var candidatesAtPosition []Selection
@@ -334,6 +341,26 @@ type aliasCandidate struct {
 	tier       int
 	kind       AliasKind
 	equivalent bool
+}
+
+func explicitAliasCandidates(names []string, kind AliasKind) []aliasCandidate {
+	result := make([]aliasCandidate, 0, len(names))
+	for tier, name := range names {
+		if name = strings.TrimSpace(name); name != "" {
+			result = append(result, aliasCandidate{name: name, tier: tier, kind: kind})
+		}
+	}
+	return uniqueCandidates(result)
+}
+
+func explicitMainAliasCandidates(names []string, fallback string) []aliasCandidate {
+	result := explicitAliasCandidates(names, AliasOther)
+	for index := range result {
+		if result[index].name == fallback {
+			result[index].kind = AliasCV
+		}
+	}
+	return result
 }
 
 func preferOriginalKanaCandidates(bank *Bank, candidates []aliasCandidate) []aliasCandidate {

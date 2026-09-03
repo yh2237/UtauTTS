@@ -59,6 +59,8 @@ func main() {
 		cvvcTransitionGain       float64
 		cvvcPreBoundaryFade      bool
 		selectionMode            string
+		language                 string
+		phonemizer               string
 		aliasPolicy              string
 		acousticMode             string
 		joinModelPath            string
@@ -74,7 +76,10 @@ func main() {
 	flag.StringVar(&voicebankPath, "voicebank", "", "path to a UTAU voicebank directory")
 	flag.StringVar(&otoPath, "oto", "", "deprecated alias for --voicebank")
 	flag.StringVar(&reading, "kana", "", "kana reading to synthesize")
-	flag.StringVar(&text, "text", "", "Japanese text to synthesize")
+	flag.StringVar(&reading, "reading", "", "pronunciation to synthesize (kana, ARPAbet, or Pinyin)")
+	flag.StringVar(&text, "text", "", "text to synthesize")
+	flag.StringVar(&language, "language", "ja", "language: ja, en, or zh")
+	flag.StringVar(&phonemizer, "phonemizer", "", "phonemizer ID (default: selected by language)")
 	flag.StringVar(&tone, "tone", "C4", "voicebank tone used with prefix.map")
 	flag.StringVar(&color, "color", "", "voicebank subbank/color (character.yaml)")
 	flag.StringVar(&outPath, "out", "", "output WAV path")
@@ -140,7 +145,7 @@ func main() {
 	}
 	if voicebankPath == "" || (reading == "" && text == "") || outPath == "" {
 		flag.Usage()
-		log.Fatal("--voicebank, --out, and either --text or --kana are required")
+		log.Fatal("--voicebank, --out, and either --text or --reading are required")
 	}
 
 	pitchFactors, err := loadPitchFactors(pitchContourPath, pitchContourCase)
@@ -167,6 +172,8 @@ func main() {
 		VoicebankPath:                voicebankPath,
 		Text:                         text,
 		Reading:                      reading,
+		Language:                     language,
+		Phonemizer:                   phonemizer,
 		Dictionary:                   synth.DictionaryMap(dictionary),
 		Tone:                         tone,
 		Color:                        color,

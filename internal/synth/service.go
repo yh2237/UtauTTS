@@ -19,7 +19,10 @@ var ErrUnavailable = errors.New("unavailable")
 // Requestは合成とプレビューで共有する入力。
 type Request struct {
 	Text                  string
+	Reading               string
 	Kana                  string
+	Language              string
+	Phonemizer            string
 	VoicebankID           string
 	Tone                  string
 	Color                 string
@@ -124,9 +127,15 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	if err != nil {
 		return tts.Config{}, "", err
 	}
+	reading := request.Reading
+	if reading == "" {
+		reading = request.Kana
+	}
 	cfg := tts.Config{
 		Text:                         request.Text,
-		Reading:                      request.Kana,
+		Reading:                      reading,
+		Language:                     request.Language,
+		Phonemizer:                   request.Phonemizer,
 		Dictionary:                   DictionaryMap(request.Dictionary),
 		Tone:                         request.Tone,
 		Color:                        request.Color,
