@@ -8,9 +8,9 @@
 
 - `--voicebank <dir>`: UTAUボイスバンクのディレクトリ
 - `--out <path>`: 出力WAVのパス
-- `--text <文>`または`--kana <読み>`: 合成する文章。片方だけ指定します（`--kana`は読み仮名を直接指定する場合用）
+- `--text <文>`または`--reading <読み>`: 合成する文章または読み
 
-`--text`は文章から読みを解析し、`--kana`は読み仮名を直接使います。
+`--text`は文章から読みを生成します。`--reading`は読み仮名を直接使います。`--kana`は旧名です。
 
 ## 基本例
 
@@ -57,8 +57,9 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--version` | | アプリケーションのバージョンを表示して終了 |
 | `--voicebank <dir>` | | ボイスバンクのディレクトリ（必須） |
 | `--oto <dir>` | | `--voicebank` の旧名（deprecated） |
-| `--text <文>` | | 合成する日本語文章 |
-| `--kana <読み>` | | 合成する読み仮名 |
+| `--text <文>` | | 合成する文章 |
+| `--reading <読み>` | | 読み仮名を直接指定 |
+| `--kana <読み>` | | `--reading`の旧名 |
 | `--tone` | `C4` | `prefix.map` 使用時に使う音階 |
 | `--color <name>` | | `character.yaml`で定義された音源タイプ／サブバンク |
 | `--out <path>` | | 出力WAVのパス（必須） |
@@ -82,6 +83,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--renderer <id>` | 既定Renderer | Renderer ID（省略時は設定された優先度が最大のもの） |
 | `--resampler <id>` | 自動選択 | Classic UTAUで使う`Resamplers/`からの相対ID |
 | `--wavtool <id>` | `builtin` | Classic UTAUで使う`Wavtools/`からの相対ID |
+| `--resampler-expressions <path>` | | unit単位のresampler設定JSON |
 | `--worldline <path>` | 実行ファイルの隣 | OpenUtau worldlineライブラリ |
 | `--worldline-bridge <path>` | | `utautts-worldline-bridge` 実行ファイル |
 | `--boundary-bridge-ms` | `0` | 位相を揃えた波形接続修復の最大幅（0で無効） |
@@ -110,7 +112,9 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 
 `--renderer`に存在しないIDを指定した場合はカタログの既定Rendererへ解決されます。指定したRendererのassetが不足している場合はエラーになります。
 
-`--apply-pitch`と`--intonation-strength`による直接的なピッチ加工は声質と明瞭度を損なう場合があります。自然なイントネーションを試すならモデルとfaithful系Rendererを組み合わせます。
+`--resampler-expressions`のJSONは[Classic UTAU互換仕様](plugins.md#classic-utau互換仕様)を参照してください。
+
+`--apply-pitch`と`--intonation-strength`による直接的なピッチ加工は声質と明瞭度を損なう場合があります。
 
 ## 出力
 

@@ -111,11 +111,11 @@ exo出力後に表示される領域をAviUtlの拡張編集へドラッグす�
 | `utautts-world-phrase` | 既定。公式WORLDで解析し、UtauTTS独自の特徴配置でフレーズ全体を合成 |
 | `openutau-worldline-r-faithful` | OpenUTAUの処理で原音の音響特徴を時間軸へ配置し、フレーズ全体を再合成 |
 | `waveform` | Go内で原音波形を伸縮して接続。原音の明瞭度を確認しやすい |
-| 外部Renderer | 設定で追加したUTAU互換resamplerを使い、UtauTTSの5点包絡線で接続 |
+| `classic-utau` | UTAU互換resamplerで原音を処理し、wavtoolまたは内蔵処理で接続 |
 
-「設定」→「設定...」の外部RendererからUTAU互換の実行ファイルを追加できます。
+Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置きます。各フォルダは「ファイル」メニューから開けます。配置後は同じメニューの「Classic UTAUツールを再読み込み」を選びます。
 
-アプリ設定は`config.ini`、外部Rendererの定義は`plugins/renderers/<Renderer ID>/plugin.json`へ保存されます。
+Renderer pluginは`plugins/renderers/<Renderer ID>/plugin.json`で定義します。Classic UTAUのresamplerとwavtoolにmanifestは不要です。
 
 ### 抑揚モデル
 

@@ -1,6 +1,6 @@
 # モデル／Rendererプラグイン
 
-モデルとRendererは、安定したIDを使ってGUI、CLI、Serverから共通に選びます。配布物では実行ファイルの隣にある`models/`と`plugins/renderers/`を自動検出し、追加の場所は設定または`--model-dir`／`--renderer-dir`で指定できます。
+モデルとRendererは、安定したIDを使ってGUI、CLI、Serverから共通に選びます。実行ファイルの隣にある`models/`と`plugins/renderers/`を自動検出します。CLIとServerでは`--model-dir`／`--renderer-dir`で探索先を追加できます。
 
 ## Renderer
 
@@ -21,6 +21,8 @@ Wavtools/
 ```
 
 GUIではRendererに`Classic UTAU`を選択した場合だけ、ResamplerとWavtoolの選択欄が表示されます。外部wavtoolを使わない場合は`UtauTTS built-in`を選びます。
+
+各フォルダは「ファイル」メニューから開けます。配置後は「Classic UTAUツールを再読み込み」を選びます。
 
 UtauTTS WORLD phraseなどの同梱Rendererは`plugins/renderers/<plugin>/plugin.json`で定義しています。これはRenderer全体の定義であり、Classic UTAUのresamplerやwavtoolには使いません。
 
@@ -45,13 +47,14 @@ UtauTTS WORLD phraseなどの同梱Rendererは`plugins/renderers/<plugin>/plugin
 
 `id`はプロジェクトやAPIへ保存する公開ID、`backend`はUtauTTS内の実装を選ぶIDです。manifestの破損、未対応backend、ID重複は起動時エラーになります。`default_priority`が最大のRendererがカタログの既定値です。
 
-認識するasset keyは`worldline`、`worldline_bridge`、`world_engine`、`resampler`、`wavtool`です。assetのpathはmanifestからの相対pathで指定します。任意のnative codeをUtauTTSへ動的ロードする仕組みはありません。
+認識するasset keyは`worldline`、`worldline_bridge`、`world_engine`、`world_gpu`です。pathはmanifestからの相対pathで指定します。任意のnative codeをUtauTTSへ動的ロードする仕組みはありません。
 
 配布物には次のRendererが入っています。
 
 - `utautts-world-phrase`: 公式WORLDとUtauTTS独自の特徴配置を使う既定Renderer
 - `openutau-worldline-r-faithful`: OpenUTAUのWORLDLINE-R系PhraseSynthを使うRenderer
 - `waveform`: Go内で原音を伸縮・接続する比較用Renderer
+- `classic-utau`: 配置したresamplerとwavtoolを使うRenderer
 
 開発用には`utautts-world-phrase-cuda`もありますが、実験的なため配布ZIPには含めません。
 

@@ -206,10 +206,8 @@ ID順にソートされた音源一覧です。
 | field | 型 | 既定値 | 説明 |
 |---|---|---|---|
 | `text` | string | | 合成する文章。`reading` とどちらか一方が必須 |
-| `reading` | string | | かな、ARPAbet、Pinyinによる読みの直接指定 |
+| `reading` | string | | 読み仮名の直接指定 |
 | `kana` | string | | `reading`の旧名称 |
-| `language` | string | `ja` | `ja`、`en`、`zh` |
-| `phonemizer` | string | 言語から選択 | `ja-kana`、`en-arpasing`、`en-delta`、`en-vccv`、`zh-cvvc` |
 | `voicebank_id` | string | ID順先頭 | `GET /api/voicebanks` の `id` |
 | `tone` | string | `C4` | `prefix.map` 使用時の音階 |
 | `color` | string | なし | `character.yaml`で定義された音源タイプ／サブバンク |
@@ -217,6 +215,7 @@ ID順にソートされた音源一覧です。
 | `renderer` | string | 既定Renderer | `GET /api/renderers` の `id`。未知のIDは既定Rendererへ解決されます |
 | `resampler` | string | 自動選択 | Classic UTAUで使うresamplerの相対ID |
 | `wavtool` | string | `builtin` | Classic UTAUで使うwavtoolの相対ID |
+| `resampler_expressions` | object[] | なし | unit単位のresampler設定。形式は[Classic UTAU互換仕様](plugins.md#classic-utau互換仕様)を参照 |
 | `alias_policy` | string | `auto` | `auto`（VC/VCV収録比から自動選択）、`legacy`（v0.0.9互換）、`cvvc-enhanced`（CVVC優先・sequential timing・VC音量35%）、`vcv-prefer`、`cvvc-prefer`、`cv-only` |
 | `mora_duration_ms` | number | `140` | 基本モーラ長（0〜1000） |
 | `pause_duration_ms` | number | `180` | 句読点の休止長（0〜3000） |

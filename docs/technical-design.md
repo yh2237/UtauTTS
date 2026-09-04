@@ -26,6 +26,8 @@ GUI / CLI / HTTP Server
           ▼
        Renderer
     ├─ waveform ─────────── Go内の波形接続
+    ├─ Classic UTAU ─────── resampler + wavtool
+    ├─ UtauTTS WORLD phrase
     └─ WORLDLINE-R ──────── Go bridge + Worldline PhraseSynth
           │
           ▼
@@ -153,7 +155,7 @@ Rendererは各原音のF0を測ってこの相対曲線を音源側の声域へ�
 
 ## 7. Renderer
 
-Renderer pluginの`id`は保存データやUIで使う公開識別子、`backend`はGoに組み込まれた実装識別子です。pluginは設定とassetを宣言するもので、任意のnative codeをUtauTTSのプロセスへ動的ロードする仕組みではありません。`utau-external-resampler`だけは、manifestで指定されたUTAU互換実行ファイルを独立したプロセスとして呼び出します。
+Renderer pluginの`id`は保存データやUIで使う公開識別子、`backend`はGoに組み込まれた実装識別子です。pluginは設定とassetを宣言するもので、任意のnative codeをUtauTTSへ動的ロードしません。`classic-utau`はmanifestを使わず、`Resamplers/`と`Wavtools/`の実行ファイルを組み合わせます。
 
 ### waveform
 
@@ -175,9 +177,9 @@ Renderer pluginの`id`は保存データやUIで使う公開識別子、`backend
 
 ### Classic UTAU Renderer
 
-`utau-external-resampler`はOpenUTAU由来のphone timingを使い、選択されたUTAU互換resamplerをunitごとに呼びます。toneを基準に5tick間隔の相対pitchを12bit形式で符号化し、offset、required length、consonant、cutoffなどと一緒に渡します。返されたWAVのsample rateをフレーズ内で統一してskipを適用し、内蔵wavtoolまたは選択された外部wavtoolで接続します。
+`classic-utau`は内部backendの`utau-external-resampler`を使います。OpenUTAU由来のphone timingに従ってresamplerをunitごとに呼び、tone、offset、必要長、consonant、cutoff、12bit形式のpitch列などを渡します。返されたWAVはsample rateを統一し、内蔵処理または選択したwavtoolで接続します。
 
-外部resamplerは独立したプロセスなのでUtauTTS本体とABIを共有しません。終了コード、出力WAV、timeoutを呼び出しごとに検査します。flagsと外部wavtoolの指定にはまだ対応していません。
+resamplerとwavtoolは独立したプロセスです。終了コード、出力WAV、timeoutを呼び出しごとに検査します。velocity、flags、volume、modulation、tempoはunit単位でも指定できます。
 
 ### OpenUTAU WORLDLINE-R faithful
 

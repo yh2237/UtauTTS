@@ -23,14 +23,14 @@ WAV / LAB
 
 ## Renderer
 
-RendererのID、表示名、必要なファイルは`plugins/renderers/*/plugin.json`で管理します。追加方法は[モデル／Rendererプラグイン](plugins.md)、内部処理は[技術設計ガイド](technical-design.md)を参照してください。
+Renderer pluginのID、表示名、必要なファイルは`plugins/renderers/*/plugin.json`で管理します。`classic-utau`だけは内蔵定義です。追加方法は[モデル／Rendererプラグイン](plugins.md)、内部処理は[技術設計ガイド](technical-design.md)を参照してください。
 
 | ID | 概要 |
 | --- | --- |
 | `utautts-world-phrase` | 既定。原音ごとのWORLD特徴を共通の時間軸へ配置し、フレーズ全体を合成 |
 | `openutau-worldline-r-faithful` | OpenUTAUのWORLDLINE-R系PhraseSynthを使ってフレーズ全体を合成 |
 | `waveform` | Go内で原音波形を伸縮・クロスフェードする比較用Renderer |
-| Classic UTAU | 選択したUTAU互換resamplerを実行し、wavtoolまたは内蔵処理で接続 |
+| `classic-utau` | 選択したUTAU互換resamplerを実行し、wavtoolまたは内蔵処理で接続 |
 
 未知のRenderer IDはカタログの既定Rendererへ解決されます。assetが不足しているRendererを明示的に選んだ場合はエラーになります。
 
