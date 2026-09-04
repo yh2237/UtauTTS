@@ -2400,9 +2400,9 @@ ApplicationWindow {
 
     function addUtterance(markDirty) {
         const voice = window.defaultVoicebank();
-        const language = voice && voice.suggested_language
+        const language = window.appBackend.developerMode && voice && voice.suggested_language
                 ? String(voice.suggested_language) : "ja";
-        const phonemizer = voice && voice.suggested_phonemizer
+        const phonemizer = window.appBackend.developerMode && voice && voice.suggested_phonemizer
                 ? String(voice.suggested_phonemizer) : window.defaultPhonemizer(language);
         utterances.append({
             utteranceId: "utterance-" + nextUtteranceId++,
