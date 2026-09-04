@@ -90,6 +90,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "UtauTTS WORLD engine build failed with exit code $LASTEXITCODE" }
     & (Join-Path $PSScriptRoot 'fetch-worldline.ps1') -OutputPath (Join-Path $guiRuntimePath 'worldline.dll')
 
+    Write-Host '=== Build DiffSinger bridge ==='
+    & (Join-Path $PSScriptRoot 'build-diffsinger-bridge.ps1') -OutputDirectory $guiRuntimePath
+    if ($LASTEXITCODE -ne 0) { throw "DiffSinger bridge build failed with exit code $LASTEXITCODE" }
+
     Copy-Item -Path (Join-Path $guiRuntimePath '*') -Destination $serverRuntimePath -Recurse -Force
 
     $openJTalkHelper = Join-Path $root 'tools/openjtalk-feature-bridge/bin/utautts-openjtalk-features.exe'

@@ -18,6 +18,7 @@
 - [構成](architecture.md): 合成パイプラインと各入口の関係
 - [技術設計ガイド](technical-design.md): 内部データ、アルゴリズム、実装上の制約
 - [モデル／Rendererプラグイン](plugins.md): Renderer、Classic UTAUツール、モデルの追加
+- [DiffSinger](diffsinger.md): 試験実装の対応範囲と音源配置
 - [イントネーションとモーラ長の編集](manual-pitch.md): GUIとJSON／CLI
 - [手動調整から抑揚モデルを作る](prosody-model-training.md): 教師データの収集と学習
 

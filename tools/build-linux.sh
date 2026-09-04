@@ -207,6 +207,7 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
   cp -R "${root_dir}/models/." "${package_dir}/models/"
   cp -R "${root_dir}/plugins/renderers/." "${package_dir}/plugins/renderers/"
   rm -rf -- "${package_dir}/plugins/renderers/utautts-world-phrase-cuda"
+  rm -rf -- "${package_dir}/plugins/renderers/diffsinger"
   cat > "${package_dir}/plugins/renderers/openutau-worldline-r-faithful/plugin.json" <<'EOF'
 {
   "manifest_version": 1, "kind": "renderer", "id": "openutau-worldline-r-faithful",

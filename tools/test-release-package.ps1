@@ -47,6 +47,7 @@ try {
         Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_ikawaha_kagome-dict-v1.1.7-LICENSE.txt') 'kagome-dict license'
         Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt') 'hts_engine_API license'
         Assert-Path (Join-Path $packageRoot 'runtime/utautts-worldline-bridge.exe') 'native worldline bridge'
+        Assert-Path (Join-Path $packageRoot 'runtime/utautts-diffsinger-bridge.exe') 'DiffSinger bridge'
         Assert-Path (Join-Path $packageRoot 'runtime/utautts-world-engine.dll') 'UtauTTS WORLD engine'
         Assert-Path (Join-Path $packageRoot 'licenses/WORLD/WORLD-LICENSE.txt') 'official WORLD license'
         Assert-Path (Join-Path $packageRoot 'licenses/WORLD/OOURA-NOTICE.txt') 'Ooura FFT notice'

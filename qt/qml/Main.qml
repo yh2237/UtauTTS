@@ -2021,6 +2021,17 @@ ApplicationWindow {
             utterances.setProperty(selectedIndex, "moraeJson", "[]");
             window.analyzeUtterance(selectedIndex);
         }
+        if (name === "voicebankId") {
+            const voice = window.voicebankById(value);
+            if (voice && String(voice.kind || "") === "diffsinger") {
+                utterances.setProperty(selectedIndex, "renderer", "diffsinger");
+                selectCombo(editorContent.rendererCombo, "diffsinger");
+            } else if (item.renderer === "diffsinger") {
+                const renderer = window.defaultRendererId();
+                utterances.setProperty(selectedIndex, "renderer", renderer);
+                selectCombo(editorContent.rendererCombo, renderer);
+            }
+        }
         if (["voicebankId", "aliasPolicy", "modelId", "renderer", "tone", "color", "moraDuration",
              "pauseDuration", "intonation", "applyPitch"].indexOf(name) >= 0) {
             window.requestMissingProsodyPreview(selectedIndex);
@@ -2423,7 +2434,8 @@ ApplicationWindow {
             voicebankId: voice ? voice.id : "",
             imagePath: voice ? voice.image_path || "" : "",
             modelId: window.appBackend.models.length ? window.defaultModelId() : "",
-            renderer: window.appBackend.renderers.length ? window.defaultRendererId() : "",
+            renderer: voice && String(voice.kind || "") === "diffsinger"
+                    ? "diffsinger" : (window.appBackend.renderers.length ? window.defaultRendererId() : ""),
             resampler: window.appBackend.resamplers.length ? window.appBackend.resamplers[0].id : "",
             wavtool: "builtin",
             aliasPolicy: window.appBackend.defaultAliasPolicy,
