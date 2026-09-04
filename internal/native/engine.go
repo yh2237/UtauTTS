@@ -147,6 +147,7 @@ func (e *Engine) voicebankList() []map[string]any {
 			"id":          id,
 			"name":        item.Name,
 			"path":        item.Path,
+			"kind":        item.Kind,
 			"image_path":  item.ImagePath,
 			"readme_path": item.ReadmePath,
 			"readme_text": presentation.ReadmeText,
@@ -163,6 +164,9 @@ func (e *Engine) voicebankList() []map[string]any {
 			entry["has_vc"] = capabilities.HasVC
 			entry["has_initial_vcv"] = capabilities.HasInitialVCV
 			entry["has_n_context_vcv"] = capabilities.HasNContextVCV
+		} else if item.Kind == "diffsinger" {
+			entry["suggested_language"] = "ja"
+			entry["suggested_phonemizer"] = "ja-kana"
 		}
 		list = append(list, entry)
 	}

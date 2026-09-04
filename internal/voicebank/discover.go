@@ -7,12 +7,15 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"utautts/internal/diffsinger"
 )
 
 // Summaryはvoicebankピッカーに表示するための軽量な情報。
 type Summary struct {
 	Name          string `json:"name"`
 	Path          string `json:"path"`
+	Kind          string `json:"kind,omitempty"`
 	ImagePath     string `json:"image_path,omitempty"`
 	CharacterPath string `json:"character_path,omitempty"`
 	ReadmePath    string `json:"readme_path,omitempty"`
@@ -30,7 +33,7 @@ func Discover(root string) ([]Summary, error) {
 		root = "voice"
 	}
 	if looksLikeVoicebankRoot(root) {
-		if summary, err := Inspect(root); err == nil {
+		if summary, err := InspectSinger(root); err == nil {
 			return []Summary{summary}, nil
 		}
 	}
@@ -66,12 +69,12 @@ func inspectDiscoveredRoot(root string) (Summary, error) {
 	if err != nil {
 		return Summary{}, err
 	}
-	return Inspect(resolved)
+	return InspectSinger(resolved)
 }
 
 func findVoicebankRoot(root string) (string, error) {
 	if hasDirectOto(root) || hasVoicebankMetadata(root) {
-		if _, err := Inspect(root); err == nil {
+		if _, err := InspectSinger(root); err == nil {
 			return root, nil
 		}
 	}
@@ -92,7 +95,19 @@ func findVoicebankRoot(root string) (string, error) {
 		return found[0], nil
 	}
 	if len(found) > 1 {
+		var preferred []string
+		for _, candidate := range found {
+			if hasDirectOto(candidate) || (diffsinger.IsSinger(candidate) && hasVoicebankMetadata(candidate)) {
+				preferred = append(preferred, candidate)
+			}
+		}
+		if len(preferred) == 1 {
+			return preferred[0], nil
+		}
 		// 複数サブバンクは共通の親を音源ルートにする。
+		return root, nil
+	}
+	if diffsinger.IsSinger(root) {
 		return root, nil
 	}
 	return "", ErrNoOto
@@ -212,7 +227,52 @@ func Inspect(root string) (Summary, error) {
 	if readmePath == "" {
 		readmePath = findRootFile(absRoot, "readme.md")
 	}
-	return Summary{Name: name, Path: absRoot, ImagePath: imagePath, CharacterPath: characterPath, ReadmePath: readmePath}, nil
+	return Summary{Name: name, Path: absRoot, Kind: "utau", ImagePath: imagePath, CharacterPath: characterPath, ReadmePath: readmePath}, nil
+}
+
+// InspectSingerはUTAU音源とDiffSinger音源の表示情報を読む。
+func InspectSinger(root string) (Summary, error) {
+	if diffsinger.IsSinger(root) {
+		return inspectDiffSinger(root)
+	}
+	return Inspect(root)
+}
+
+func inspectDiffSinger(root string) (Summary, error) {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return Summary{}, err
+	}
+	if !diffsinger.IsSinger(absRoot) {
+		return Summary{}, ErrNoOto
+	}
+	name := filepath.Base(absRoot)
+	characterPath := findRootFile(absRoot, "character.txt")
+	imagePath := ""
+	if characterPath != "" {
+		if text, readErr := readMetadata(characterPath); readErr == nil {
+			for _, line := range strings.Split(text, "\n") {
+				parts := strings.SplitN(strings.TrimSpace(line), "=", 2)
+				if len(parts) != 2 {
+					continue
+				}
+				switch {
+				case strings.EqualFold(strings.TrimSpace(parts[0]), "name") && strings.TrimSpace(parts[1]) != "":
+					name = strings.TrimSpace(parts[1])
+				case strings.EqualFold(strings.TrimSpace(parts[0]), "image"):
+					imagePath = safePresentationFile(absRoot, strings.TrimSpace(parts[1]))
+				}
+			}
+		}
+	}
+	if imagePath == "" {
+		imagePath = findRootImage(absRoot)
+	}
+	readmePath := findRootFile(absRoot, "readme.txt")
+	if readmePath == "" {
+		readmePath = findRootFile(absRoot, "readme.md")
+	}
+	return Summary{Name: name, Path: absRoot, Kind: diffsinger.SingerKind, ImagePath: imagePath, CharacterPath: characterPath, ReadmePath: readmePath}, nil
 }
 
 func findRootImage(root string) string {
@@ -275,7 +335,7 @@ func looksLikeVoicebankRoot(root string) bool {
 			continue
 		}
 		switch {
-		case strings.EqualFold(entry.Name(), "oto.ini"), strings.EqualFold(entry.Name(), "character.txt"), strings.EqualFold(entry.Name(), "prefix.map"):
+		case strings.EqualFold(entry.Name(), "oto.ini"), strings.EqualFold(entry.Name(), "character.txt"), strings.EqualFold(entry.Name(), "prefix.map"), strings.EqualFold(entry.Name(), "dsconfig.yaml"):
 			return true
 		}
 	}

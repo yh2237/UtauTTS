@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"utautts/internal/audio"
+	"utautts/internal/diffsinger"
 	"utautts/internal/frontend"
 	"utautts/internal/openjtalk"
 	"utautts/internal/plugin"
@@ -63,6 +64,7 @@ type Voicebank struct {
 	ID              string                      `json:"id"`
 	Name            string                      `json:"name"`
 	Path            string                      `json:"path"`
+	Kind            string                      `json:"kind,omitempty"`
 	Types           []voicebank.SubbankOption   `json:"types,omitempty"`
 	OtoFileCount    int                         `json:"oto_file_count"`
 	PhonemeCount    int                         `json:"phoneme_count"`
@@ -188,7 +190,7 @@ func (s *Server) loadVoiceDirectory() error {
 	next := make(map[string]Voicebank, len(summaries))
 	for _, summary := range summaries {
 		id := filepath.Base(summary.Path)
-		item := Voicebank{ID: id, Name: summary.Name, Path: summary.Path}
+		item := Voicebank{ID: id, Name: summary.Name, Path: summary.Path, Kind: summary.Kind}
 		if inspected, inspectErr := inspectVoicebank(summary.Path); inspectErr != nil {
 			log.Printf("voicebank metadata: %s: %v", summary.Path, inspectErr)
 		} else {
@@ -205,6 +207,17 @@ func (s *Server) loadVoiceDirectory() error {
 }
 
 func inspectVoicebank(path string) (Voicebank, error) {
+	if diffsinger.IsSinger(path) {
+		singer, err := diffsinger.Load(path)
+		if err != nil {
+			return Voicebank{}, err
+		}
+		summary, _ := voicebank.InspectSinger(path)
+		return Voicebank{
+			ID: filepath.Base(singer.Root), Name: summary.Name, Path: singer.Root,
+			Kind: diffsinger.SingerKind, PhonemeCount: len(singer.Tokens),
+		}, nil
+	}
 	bank, err := voicebank.Load(path)
 	if err != nil {
 		return Voicebank{}, err
@@ -214,6 +227,7 @@ func inspectVoicebank(path string) (Voicebank, error) {
 		ID:              filepath.Base(bank.Root),
 		Name:            bank.Name,
 		Path:            bank.Root,
+		Kind:            "utau",
 		Types:           bank.SubbankOptions(),
 		OtoFileCount:    len(bank.OtoFiles),
 		PhonemeCount:    bank.EntryCount(),

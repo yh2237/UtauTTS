@@ -38,6 +38,77 @@ func TestDiscoverVoicebanksUsesMetadataNameAndSorts(t *testing.T) {
 	}
 }
 
+func TestDiscoverDiffSingerWithoutOto(t *testing.T) {
+	root := t.TempDir()
+	singer := filepath.Join(root, "diffsinger")
+	if err := os.Mkdir(singer, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(singer, "dsconfig.yaml"), []byte("acoustic: acoustic.onnx\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(singer, "character.txt"), []byte("name=DS Test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Discover(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Kind != "diffsinger" || got[0].Name != "DS Test" {
+		t.Fatalf("voicebanks = %#v", got)
+	}
+}
+
+func TestDiscoverDiffSingerBundleIgnoresCoreModules(t *testing.T) {
+	root := t.TempDir()
+	bundle := filepath.Join(root, "Lewy")
+	singer := filepath.Join(bundle, "Lewisia")
+	core := filepath.Join(bundle, "0_CORE")
+	for _, path := range []string{
+		filepath.Join(singer, "dsconfig.yaml"),
+		filepath.Join(core, "dsacoustic", "dsconfig.yaml"),
+		filepath.Join(core, "dsdur", "dsconfig.yaml"),
+		filepath.Join(core, "dspitch", "dsconfig.yaml"),
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("phonemes: phonemes.txt\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(singer, "character.txt"), []byte("name=Lewisia\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := Discover(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Path != singer || got[0].Name != "Lewisia" || got[0].Kind != "diffsinger" {
+		t.Fatalf("voicebanks = %#v", got)
+	}
+}
+
+func TestDiscoverMinimalDiffSingerWithoutMetadata(t *testing.T) {
+	root := t.TempDir()
+	singer := filepath.Join(root, "Minimal")
+	if err := os.Mkdir(singer, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(singer, "dsconfig.yaml"), []byte("acoustic: acoustic.onnx\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := Discover(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Path != singer || got[0].Name != "Minimal" {
+		t.Fatalf("voicebanks = %#v", got)
+	}
+}
+
 func TestInspectFindsSafeImageAndPresentationText(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0o644); err != nil {
