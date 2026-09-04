@@ -18,6 +18,7 @@ type Selection struct {
 	Kind                      AliasKind
 	Composite                 bool
 	Transition                *Selection
+	Endings                   []Selection
 	FallbackTier              int
 	Entry                     oto.Entry
 	Candidates                []string
@@ -163,8 +164,14 @@ func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color 
 		transitionSpecs := vcAliasCandidates(previousVowel, consonant, policy)
 		explicitCandidates := mora.Aliases != nil && len(mora.Aliases.Main) > 0
 		if explicitCandidates {
-			candidateSpecs = explicitMainAliasCandidates(mora.Aliases.Main, mora.Text)
+			candidateSpecs = explicitMainAliasCandidates(mora.Aliases.Main, mora.Aliases.MainKinds, mora.Text)
 			transitionSpecs = explicitAliasCandidates(mora.Aliases.Transition, AliasVC)
+		}
+		var endingSpecs [][]aliasCandidate
+		if mora.Aliases != nil {
+			for _, aliases := range mora.Aliases.Endings {
+				endingSpecs = append(endingSpecs, explicitAliasCandidates(aliases, AliasOther))
+			}
 		}
 		if hasAffix {
 			strictSubbank := subbank.ID != "" && subbank.ID != "prefix.map"
@@ -186,11 +193,17 @@ func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color 
 				candidateSpecs = affixCandidatesWithFallback(candidateSpecs, affix, true)
 				transitionSpecs = affixCandidatesWithFallback(transitionSpecs, affix, true)
 			}
+			for index := range endingSpecs {
+				endingSpecs[index] = affixCandidatesWithFallback(endingSpecs[index], affix, true)
+			}
 		}
 		if !explicitCandidates {
 			candidateSpecs = preferOriginalKanaCandidates(b, candidateSpecs)
 		}
 		allSpecs := append(append([]aliasCandidate{}, candidateSpecs...), transitionSpecs...)
+		for _, specs := range endingSpecs {
+			allSpecs = append(allSpecs, specs...)
+		}
 		candidates := candidateNames(allSpecs)
 		var candidatesAtPosition []Selection
 		var rejections []CandidateRejection
@@ -210,17 +223,44 @@ func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color 
 			}
 			return valid
 		}
+		attachEndings := func(main Selection) Selection {
+			for _, specs := range endingSpecs {
+				bestScore := math.Inf(-1)
+				var best *Selection
+				for _, endingSpec := range specs {
+					for _, validatedEnding := range validatedEntries(endingSpec.name, b.Entries[endingSpec.name]) {
+						score := candidateScore(endingSpec.tier, validatedEnding.entry)
+						if score <= bestScore {
+							continue
+						}
+						ending := Selection{
+							Position: position, Mora: mora, Alias: endingSpec.name, Kind: AliasOther,
+							FallbackTier: endingSpec.tier, Entry: validatedEnding.entry, Candidates: candidates,
+							TargetScore: score, SubbankID: subbank.ID, Color: subbank.Color,
+							RequestedTone: requestedTone, ResolvedTone: resolvedTone,
+							EntryStatus: validatedEnding.validation.Status, EntryValidation: validatedEnding.validation.Checks,
+						}
+						best, bestScore = &ending, score
+					}
+				}
+				if best == nil {
+					break
+				}
+				main.Endings = append(main.Endings, *best)
+			}
+			return main
+		}
 		for _, candidate := range candidateSpecs {
 			entries := validatedEntries(candidate.name, b.Entries[candidate.name])
 			for _, validated := range entries {
 				entry, validation := validated.entry, validated.validation
-				main := Selection{
+				main := attachEndings(Selection{
 					Position: position, Mora: mora, Alias: candidate.name, Kind: candidate.kind,
 					FallbackTier: candidate.tier, Entry: entry, Candidates: candidates,
 					TargetScore: candidateScore(candidate.tier, entry),
 					SubbankID:   subbank.ID, Color: subbank.Color, RequestedTone: requestedTone,
 					ResolvedTone: resolvedTone, EntryStatus: validation.Status, EntryValidation: validation.Checks,
-				}
+				})
 				if !explicitCandidates {
 					candidatesAtPosition = append(candidatesAtPosition, main)
 				}
@@ -260,6 +300,9 @@ func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color 
 			if candidatesAtPosition[index].Transition != nil {
 				candidatesAtPosition[index].Transition.CandidateRejections = append([]CandidateRejection(nil), rejections...)
 			}
+			for endingIndex := range candidatesAtPosition[index].Endings {
+				candidatesAtPosition[index].Endings[endingIndex].CandidateRejections = append([]CandidateRejection(nil), rejections...)
+			}
 		}
 		if len(candidatesAtPosition) == 0 {
 			if mora.Vowel == "cl" {
@@ -291,6 +334,9 @@ func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color 
 			candidatesAtPosition[index].CandidateCount = len(candidatesAtPosition)
 			if candidatesAtPosition[index].Transition != nil {
 				candidatesAtPosition[index].Transition.CandidateCount = len(candidatesAtPosition)
+			}
+			for endingIndex := range candidatesAtPosition[index].Endings {
+				candidatesAtPosition[index].Endings[endingIndex].CandidateCount = len(candidatesAtPosition)
 			}
 		}
 		layers = append(layers, candidatesAtPosition)
@@ -363,9 +409,19 @@ func explicitAliasCandidates(names []string, kind AliasKind) []aliasCandidate {
 	return uniqueCandidates(result)
 }
 
-func explicitMainAliasCandidates(names []string, fallback string) []aliasCandidate {
+func explicitMainAliasCandidates(names, kinds []string, fallback string) []aliasCandidate {
 	result := explicitAliasCandidates(names, AliasOther)
 	for index := range result {
+		if index < len(kinds) {
+			switch strings.ToLower(strings.TrimSpace(kinds[index])) {
+			case "cv":
+				result[index].kind = AliasCV
+			case "vcv":
+				result[index].kind = AliasVCV
+			case "vc":
+				result[index].kind = AliasVC
+			}
+		}
 		if result[index].name == fallback {
 			result[index].kind = AliasCV
 		}

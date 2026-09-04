@@ -66,7 +66,7 @@ func selectPhrasePathWithAcoustic(layers [][]Selection, cache *connection.Extrac
 		for currentIndex, current := range layers[layerIndex] {
 			best := pathState{score: math.Inf(-1), previous: -1}
 			for previousIndex, previous := range layers[layerIndex-1] {
-				join, probability := pairScoreWithAcoustic(previous.Entry, currentStartEntry(current), cache, model, acousticMode)
+				join, probability := pairScoreWithAcoustic(currentEndEntry(previous), currentStartEntry(current), cache, model, acousticMode)
 				local, transitionJoin, transitionProbability := candidateScoresWithAcoustic(current, cache, model, true, acousticMode)
 				score := states[layerIndex-1][previousIndex].score + local + join
 				if score > best.score {
@@ -117,7 +117,7 @@ func selectGreedyPathWithAcoustic(layers [][]Selection, cache *connection.Extrac
 		for candidateIndex, candidate := range layer {
 			join, probability := 0.0, 0.0
 			if useJoin && layerIndex > 0 {
-				join, probability = pairScoreWithAcoustic(path[layerIndex-1].Entry, currentStartEntry(candidate), cache, model, acousticMode)
+				join, probability = pairScoreWithAcoustic(currentEndEntry(path[layerIndex-1]), currentStartEntry(candidate), cache, model, acousticMode)
 			}
 			local, transitionJoin, transitionProbability := candidateScoresWithAcoustic(candidate, cache, model, useJoin, acousticMode)
 			local += join
@@ -146,7 +146,7 @@ func selectGreedyPathWithAcoustic(layers [][]Selection, cache *connection.Extrac
 func setPathAcousticJoinScores(path []Selection, cache *connection.Extractor) {
 	for index := 1; index < len(path); index++ {
 		path[index].AcousticJoinScore = acousticPairAdjustment(
-			cache.Pair(currentStartEntry(path[index-1]), currentStartEntry(path[index])),
+			cache.Pair(currentEndEntry(path[index-1]), currentStartEntry(path[index])),
 		)
 	}
 }
@@ -154,6 +154,13 @@ func setPathAcousticJoinScores(path []Selection, cache *connection.Extractor) {
 func currentStartEntry(selection Selection) oto.Entry {
 	if selection.Transition != nil {
 		return selection.Transition.Entry
+	}
+	return selection.Entry
+}
+
+func currentEndEntry(selection Selection) oto.Entry {
+	if len(selection.Endings) > 0 {
+		return selection.Endings[len(selection.Endings)-1].Entry
 	}
 	return selection.Entry
 }
@@ -166,6 +173,15 @@ func candidateScoresWithAcoustic(selection Selection, cache *connection.Extracto
 	local = selection.TargetScore + selection.PreferenceScore
 	if acousticMode == AcousticModeApply {
 		local += selection.AcousticTargetScore
+	}
+	previous := selection.Entry
+	for _, ending := range selection.Endings {
+		local += ending.TargetScore - 114
+		if includeJoin {
+			endingJoin, _ := pairScoreWithAcoustic(previous, ending.Entry, cache, model, acousticMode)
+			local += endingJoin
+		}
+		previous = ending.Entry
 	}
 	if selection.Transition == nil {
 		return local, 0, 0

@@ -32,6 +32,7 @@ type Bank struct {
 	CharacterYAML     string
 	DefaultPhonemizer string
 	ARPAsing          map[string]string
+	Presamp           *Presamp
 	Diagnostics       []Diagnostic
 	extractor         *connection.Extractor
 	validationMu      sync.Mutex
@@ -85,6 +86,7 @@ func Load(root string) (*Bank, error) {
 	}
 	bank.loadMetadata()
 	bank.loadARPAsing()
+	bank.loadPresamp()
 	for _, path := range otoFiles {
 		ini, err := oto.ReadIni(path)
 		if err != nil {

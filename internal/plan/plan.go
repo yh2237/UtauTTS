@@ -11,7 +11,7 @@ import (
 	"utautts/internal/voicebank"
 )
 
-const Version = 18
+const Version = 19
 
 type Config struct {
 	MoraDurationMS   float64
@@ -239,6 +239,13 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		mainUnit.TransitionJoinScore = selection.TransitionJoinScore
 		mainUnit.TransitionJoinProbability = selection.TransitionJoinProbability
 		result.Units = append(result.Units, mainUnit)
+		if len(selection.Endings) > 0 {
+			endingDuration := endingDurationFor(duration, len(selection.Endings))
+			endingStart := cursor + duration - endingDuration*float64(len(selection.Endings))
+			for index := range selection.Endings {
+				result.Units = append(result.Units, unitFromSelection(&selection.Endings[index], position, endingStart+float64(index)*endingDuration, endingDuration, prediction, "ending"))
+			}
+		}
 		cursor += duration
 	}
 	result.DurationMS = cursor
@@ -295,8 +302,18 @@ func unitFromSelection(selection *voicebank.Selection, position int, noteStart, 
 		unit.EnergyFactor = 1
 		unit.PreutteranceMS, unit.OverlapMS = transitionTiming(entry, duration)
 		unit.ConsonantMS = math.Min(math.Max(0, entry.Fixed), duration)
+	} else if role == "ending" {
+		unit.ParentPosition = position
 	}
 	return unit
+}
+
+func endingDurationFor(moraDuration float64, count int) float64 {
+	if count <= 0 {
+		return 0
+	}
+	target := math.Max(12, math.Min(60, moraDuration/6))
+	return math.Min(target, moraDuration*0.5/float64(count))
 }
 
 func transitionDurationFor(entry oto.Entry, moraDuration float64) float64 {
@@ -345,6 +362,9 @@ func configuredMoraDuration(position int, cfg Config) (float64, bool) {
 }
 
 func durationFor(mora frontend.Mora, base float64) float64 {
+	if mora.DurationScale > 0 {
+		return base * mora.DurationScale
+	}
 	switch mora.Vowel {
 	case "cl":
 		return base * 0.65

@@ -138,3 +138,24 @@ func TestBuildAddsCVVCTransitionWithoutChangingMoraTimeline(t *testing.T) {
 		t.Fatalf("duration = %v", got.DurationMS)
 	}
 }
+
+func TestBuildPlacesEndingInsideLastMora(t *testing.T) {
+	mora := frontend.Mora{Text: "hao", Vowel: "ao"}
+	ending := &voicebank.Selection{
+		Position: 0, Mora: mora, Alias: "ao R",
+		Entry: oto.Entry{Filename: "ending.wav", Preutterance: 80, Overlap: 20},
+	}
+	selections := []voicebank.Selection{{
+		Position: 0, Mora: mora, Alias: "hao", Entry: oto.Entry{Filename: "hao.wav"}, Endings: []voicebank.Selection{*ending},
+	}}
+	got, err := Build(&voicebank.Bank{Root: "bank"}, "hao", []frontend.Mora{mora}, selections, Config{MoraDurationMS: 180})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Units) != 2 || got.Units[1].Role != "ending" || got.Units[1].Alias != "ao R" {
+		t.Fatalf("units=%#v", got.Units)
+	}
+	if got.Units[1].NoteStartMS != 150 || got.Units[1].DurationMS != 30 || got.DurationMS != 180 {
+		t.Fatalf("timing=%#v duration=%v", got.Units[1], got.DurationMS)
+	}
+}

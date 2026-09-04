@@ -269,7 +269,7 @@ func TestEngineAnalyzesChinese(t *testing.T) {
 	if err := json.Unmarshal(result, &analysis); err != nil {
 		t.Fatal(err)
 	}
-	if analysis.Reading != "ni hao" || len(analysis.Morae) != 2 || analysis.Morae[0].Mora != "ni" {
+	if analysis.Reading != "ni3 hao3" || len(analysis.Morae) != 2 || analysis.Morae[0].Mora != "ni" {
 		t.Fatalf("analysis=%s", result)
 	}
 }

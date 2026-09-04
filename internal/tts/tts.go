@@ -140,13 +140,21 @@ func resolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, 
 		reading, morae, err := frontend.ParseEnglishARPAsing(cfg.Text, cfg.Reading, cfg.Dictionary)
 		return language, phonemizer, reading, morae, err
 	case frontend.PhonemizerEnglishDelta:
-		reading, morae, err := frontend.ParseEnglishDelta(cfg.Text, cfg.Reading, cfg.Dictionary)
+		var presamp frontend.PresampConfig
+		if cfg.Voicebank != nil {
+			presamp = cfg.Voicebank.Presamp.FrontendConfig()
+		}
+		reading, morae, err := frontend.ParseEnglishDeltaWithConfig(cfg.Text, cfg.Reading, cfg.Dictionary, presamp)
 		return language, phonemizer, reading, morae, err
 	case frontend.PhonemizerEnglishVCCV:
 		reading, morae, err := frontend.ParseEnglishVCCV(cfg.Text, cfg.Reading, cfg.Dictionary)
 		return language, phonemizer, reading, morae, err
 	case frontend.PhonemizerChinese:
-		reading, morae, err := frontend.ParseChineseCVVC(cfg.Text, cfg.Reading, cfg.Dictionary)
+		var presamp frontend.PresampConfig
+		if cfg.Voicebank != nil {
+			presamp = cfg.Voicebank.Presamp.FrontendConfig()
+		}
+		reading, morae, err := frontend.ParseChineseCVVCWithConfig(cfg.Text, cfg.Reading, cfg.Dictionary, presamp)
 		return language, phonemizer, reading, morae, err
 	default:
 		return "", "", "", nil, fmt.Errorf("unsupported phonemizer %q", phonemizer)
@@ -251,6 +259,7 @@ func Synthesize(cfg Config) (*Result, error) {
 			return nil, fmt.Errorf("load voicebank: %w", err)
 		}
 	}
+	cfg.Voicebank = bank
 	requestedAliasPolicy := cfg.AliasPolicy
 	if requestedAliasPolicy == "" {
 		requestedAliasPolicy = voicebank.AliasPolicyAuto
@@ -363,6 +372,13 @@ func Synthesize(cfg Config) (*Result, error) {
 	synthesisPlan.CVVCPreBoundaryFade = cfg.CVVCPreBoundaryFade
 	pitchCurve := cfg.PitchCurve
 	applyPitch := applyPitchEnabled(cfg)
+	if pitchCurve == nil && language == frontend.LanguageChinese {
+		timings := moraTimings(morae, synthesisPlan)
+		pitchCurve = mandarinToneCurve(morae, timings, synthesisPlan.DurationMS+cfg.ReleaseMS)
+		if pitchCurve != nil {
+			applyPitch = true
+		}
+	}
 	if pitchCurve == nil && shouldPredictFrameContour(cfg, loadedProsody) {
 		timings := moraTimings(morae, synthesisPlan)
 		question := strings.ContainsAny(cfg.Text, "?？")
@@ -551,15 +567,20 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		cursor += duration
 	}
 
-	if shouldPredictFrameContour(cfg, loadedProsody) {
+	if language == frontend.LanguageChinese {
+		result.FramePitchCurve = mandarinToneCurve(morae, timings, cursor+cfg.ReleaseMS)
+	}
+	if result.FramePitchCurve == nil && shouldPredictFrameContour(cfg, loadedProsody) {
 		question := strings.ContainsAny(cfg.Text, "?？")
 		if contour := loadedProsody.PredictFrameContour(morae, prosodyFeatures, timings, cursor+cfg.ReleaseMS, question); contour != nil {
 			curve := scaleAutomaticPitchCurve(&render.PitchCurve{FrameMS: contour.FrameMS, Cents: contour.Cents}, cfg.IntonationStrength)
 			result.FramePitchCurve = curve
-			for index, mora := range morae {
-				if curve != nil && !mora.Pause {
-					result.PitchPoints[index] = pitchCurveCentsAt(curve, result.MoraPositionsMS[index])
-				}
+		}
+	}
+	if result.FramePitchCurve != nil {
+		for index, mora := range morae {
+			if !mora.Pause {
+				result.PitchPoints[index] = pitchCurveCentsAt(result.FramePitchCurve, result.MoraPositionsMS[index])
 			}
 		}
 	}
@@ -579,6 +600,9 @@ func synthesisContextError(ctx context.Context) error {
 }
 
 func previewDurationFor(mora frontend.Mora, base float64) float64 {
+	if mora.DurationScale > 0 {
+		return base * mora.DurationScale
+	}
 	switch mora.Vowel {
 	case "cl":
 		return base * 0.65

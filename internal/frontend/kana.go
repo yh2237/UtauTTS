@@ -9,16 +9,21 @@ import (
 )
 
 type Mora struct {
-	Text      string
-	Consonant string
-	Vowel     string
-	Pause     bool
-	Aliases   *AliasHints
+	Text          string
+	Consonant     string
+	Vowel         string
+	Pause         bool
+	Stress        int
+	Tone          int
+	DurationScale float64
+	Aliases       *AliasHints
 }
 
 type AliasHints struct {
 	Main       []string
+	MainKinds  []string
 	Transition []string
+	Endings    [][]string
 }
 
 func ParseKana(reading string) ([]Mora, error) {

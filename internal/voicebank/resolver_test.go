@@ -69,6 +69,32 @@ func TestResolveUsesPhonemizerAliasHints(t *testing.T) {
 	}
 }
 
+func TestResolveUsesExplicitKindsAndEnding(t *testing.T) {
+	bank := &Bank{Entries: map[string][]oto.Entry{
+		"- ni": {{Alias: "- ni", Filename: "ni.wav"}},
+		"hao":  {{Alias: "hao", Filename: "hao.wav"}},
+		"i h":  {{Alias: "i h", Filename: "ih.wav"}},
+		"ao R": {{Alias: "ao R", Filename: "aor.wav"}},
+	}}
+	morae := []frontend.Mora{
+		{Text: "ni", Vowel: "i", Aliases: &frontend.AliasHints{Main: []string{"- ni", "ni"}, MainKinds: []string{"vcv", "cv"}}},
+		{Text: "hao", Consonant: "h", Vowel: "ao", Aliases: &frontend.AliasHints{
+			Main: []string{"i hao", "hao"}, MainKinds: []string{"vcv", "cv"},
+			Transition: []string{"i h"}, Endings: [][]string{{"ao R"}},
+		}},
+	}
+	got, err := bank.Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Kind != AliasVCV || !got[1].Composite || got[1].Transition == nil {
+		t.Fatalf("selections=%#v", got)
+	}
+	if len(got[1].Endings) != 1 || got[1].Endings[0].Alias != "ao R" {
+		t.Fatalf("ending=%#v", got[1].Endings)
+	}
+}
+
 func TestResolveDoesNotInventClosureTransition(t *testing.T) {
 	bank := &Bank{Entries: map[string][]oto.Entry{
 		"っ":    {{Alias: "っ", Filename: "cl.wav"}},
