@@ -52,6 +52,7 @@ type Config struct {
 	WorldlineBridgePath            string
 	WorldEnginePath                string
 	WorldGPUPath                   string
+	DiffSingerBridgePath           string
 	ExternalResamplerPath          string
 	ExternalResamplerVelocity      int
 	ExternalResamplerVelocitySet   bool
@@ -227,6 +228,7 @@ func ApplyResolvedRenderer(cfg *Config, renderer plugin.Renderer, worldlinePath,
 	cfg.WorldlineBridgePath = preferExplicit(worldlineBridgePath, renderer.Asset("worldline_bridge"))
 	cfg.WorldEnginePath = renderer.Asset("world_engine")
 	cfg.WorldGPUPath = renderer.Asset("world_gpu")
+	cfg.DiffSingerBridgePath = renderer.Asset("diffsinger_bridge")
 	cfg.ExternalResamplerPath = ""
 	cfg.ExternalWavtoolPath = ""
 	cfg.ExternalResamplerVelocity = 0
@@ -250,6 +252,9 @@ func Synthesize(cfg Config) (*Result, error) {
 	}
 	if err := validateConfig(cfg); err != nil {
 		return nil, err
+	}
+	if cfg.Renderer == "diffsinger" {
+		return synthesizeDiffSinger(cfg)
 	}
 	bank := cfg.Voicebank
 	var err error

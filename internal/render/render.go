@@ -78,6 +78,9 @@ func IsKnownRenderer(id string) bool {
 	if id == "" {
 		return true
 	}
+	if id == "diffsinger" {
+		return true
+	}
 	_, ok := rendererImplementations[id]
 	return ok
 }

@@ -1,0 +1,16 @@
+{
+  "manifest_version": 1,
+  "kind": "renderer",
+  "id": "diffsinger",
+  "display_name": "DiffSinger (experimental)",
+  "description": "OpenUtau形式のDiffSinger音源を合成します。",
+  "backend": "diffsinger",
+  "version": "0.1",
+  "acceleration": "cpu",
+  "experimental": true,
+  "default_priority": -50,
+  "capabilities": { "frame_pitch": true },
+  "assets": {
+    "diffsinger_bridge": "../../../runtime/utautts-diffsinger-bridge.exe"
+  }
+}
