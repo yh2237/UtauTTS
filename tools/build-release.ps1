@@ -1,5 +1,8 @@
 param(
-    [string]$Python = $env:PYTHON
+    [string]$Python = $env:PYTHON,
+    [ValidateSet('Full', 'Japanese')]
+    [string]$Profile = 'Full',
+    [string]$OutputDirectory = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -7,6 +10,12 @@ $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $pythonCommand = $Python
 if ([string]::IsNullOrWhiteSpace($pythonCommand)) { $pythonCommand = 'python' }
 $releaseRoot = Join-Path $root 'release'
+if (-not [string]::IsNullOrWhiteSpace($OutputDirectory)) {
+    $releaseRoot = [IO.Path]::GetFullPath($OutputDirectory)
+    if (-not $releaseRoot.StartsWith($root + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Release output must be a subdirectory of the project'
+    }
+}
 $guiPath = Join-Path $releaseRoot 'UtauTTS'
 $serverPath = Join-Path $releaseRoot 'UtauTTS-Server'
 $guiToolsPath = Join-Path $guiPath 'tools'
@@ -88,11 +97,12 @@ try {
     )
     & (Join-Path $PSScriptRoot 'build-world-engine.ps1') -OutputDirectory $guiRuntimePath
     if ($LASTEXITCODE -ne 0) { throw "UtauTTS WORLD engine build failed with exit code $LASTEXITCODE" }
-    & (Join-Path $PSScriptRoot 'fetch-worldline.ps1') -OutputPath (Join-Path $guiRuntimePath 'worldline.dll')
-
-    Write-Host '=== Build DiffSinger bridge ==='
-    & (Join-Path $PSScriptRoot 'build-diffsinger-bridge.ps1') -OutputDirectory $guiRuntimePath
-    if ($LASTEXITCODE -ne 0) { throw "DiffSinger bridge build failed with exit code $LASTEXITCODE" }
+    if ($Profile -eq 'Full') {
+        & (Join-Path $PSScriptRoot 'fetch-worldline.ps1') -OutputPath (Join-Path $guiRuntimePath 'worldline.dll')
+        Write-Host '=== Build DiffSinger bridge ==='
+        & (Join-Path $PSScriptRoot 'build-diffsinger-bridge.ps1') -OutputDirectory $guiRuntimePath
+        if ($LASTEXITCODE -ne 0) { throw "DiffSinger bridge build failed with exit code $LASTEXITCODE" }
+    }
 
     Copy-Item -Path (Join-Path $guiRuntimePath '*') -Destination $serverRuntimePath -Recurse -Force
 
@@ -188,7 +198,7 @@ try {
     Compress-Archive -Path (Join-Path $guiPath '*') -DestinationPath $guiZip -CompressionLevel Optimal
     Compress-Archive -Path (Join-Path $serverPath '*') -DestinationPath $serverZip -CompressionLevel Optimal
 
-    & (Join-Path $PSScriptRoot 'test-release-package.ps1') -ReleaseRoot $releaseRoot
+    & (Join-Path $PSScriptRoot 'test-release-package.ps1') -ReleaseRoot $releaseRoot -Profile $Profile
     if ($LASTEXITCODE -ne 0) { throw "Release package smoke test failed with exit code $LASTEXITCODE" }
 
     Write-Host 'GUI:'

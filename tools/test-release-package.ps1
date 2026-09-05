@@ -1,5 +1,7 @@
 param(
-    [string]$ReleaseRoot = "$(Join-Path $PSScriptRoot '..\release')"
+    [string]$ReleaseRoot = "$(Join-Path $PSScriptRoot '..\release')",
+    [ValidateSet('Full', 'Japanese')]
+    [string]$Profile = 'Full'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -47,7 +49,16 @@ try {
         Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_ikawaha_kagome-dict-v1.1.7-LICENSE.txt') 'kagome-dict license'
         Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt') 'hts_engine_API license'
         Assert-Path (Join-Path $packageRoot 'runtime/utautts-worldline-bridge.exe') 'native worldline bridge'
-        Assert-Path (Join-Path $packageRoot 'runtime/utautts-diffsinger-bridge.exe') 'DiffSinger bridge'
+        if ($Profile -eq 'Full') {
+            Assert-Path (Join-Path $packageRoot 'runtime/utautts-diffsinger-bridge.exe') 'DiffSinger bridge'
+            Assert-Path (Join-Path $packageRoot 'runtime/worldline.dll') 'WORLDLINE runtime'
+        } else {
+            foreach ($optionalRuntime in @('utautts-diffsinger-bridge.exe', 'worldline.dll')) {
+                if (Test-Path -LiteralPath (Join-Path $packageRoot "runtime/$optionalRuntime")) {
+                    throw "Japanese package contains optional runtime: $optionalRuntime"
+                }
+            }
+        }
         Assert-Path (Join-Path $packageRoot 'runtime/utautts-world-engine.dll') 'UtauTTS WORLD engine'
         Assert-Path (Join-Path $packageRoot 'licenses/WORLD/WORLD-LICENSE.txt') 'official WORLD license'
         Assert-Path (Join-Path $packageRoot 'licenses/WORLD/OOURA-NOTICE.txt') 'Ooura FFT notice'
@@ -177,6 +188,7 @@ try {
     }
     Assert-Path $outputWav 'packaged CLI output'
 
+    if ($Profile -eq 'Full') {
     $worldlineRWav = Join-Path $workingDirectory 'package-worldline-r-smoke.wav'
     Push-Location $workingDirectory
     try {
@@ -189,6 +201,7 @@ try {
         Pop-Location
     }
     Assert-Path $worldlineRWav 'packaged WORLDLINE-R renderer output'
+    }
 
     $utauTTSWorldWav = Join-Path $workingDirectory 'package-utautts-world-smoke.wav'
     Push-Location $workingDirectory
@@ -279,6 +292,7 @@ try {
         if ((Get-Item -LiteralPath $serverWav).Length -le 44) {
             throw 'Packaged server synthesis output is empty'
         }
+        if ($Profile -eq 'Full') {
         $faithfulBody = @{
             text = $smokeText
             voicebank_id = $voicebankId
@@ -294,6 +308,7 @@ try {
         Assert-Path $faithfulServerWav 'packaged server faithful synthesis output'
         if ((Get-Item -LiteralPath $faithfulServerWav).Length -le 44) {
             throw 'Packaged server faithful synthesis output is empty'
+        }
         }
         $batchItems = @()
         $batchItems += @{ name = 'first.wav'; request = @{ text = $smokeText; voicebank_id = $voicebankId; renderer = 'waveform' } }
