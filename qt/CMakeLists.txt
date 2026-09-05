@@ -101,6 +101,13 @@ qt_add_resources(utautts "appicon"
         "${CMAKE_CURRENT_SOURCE_DIR}/../icons/icon512.png"
 )
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # PIE alone can still emit direct external data accesses and COPY
+    # relocations. Qt built with indirect-extern-access rejects those.
+    target_compile_options(utautts PRIVATE -fPIC)
+    target_link_options(utautts PRIVATE "LINKER:-z,nocopyreloc" "LINKER:-z,text")
+endif()
+
 set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/breeze-view-refresh.svg"
     PROPERTIES QT_RESOURCE_ALIAS "breeze-view-refresh.svg"

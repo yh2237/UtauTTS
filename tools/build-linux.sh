@@ -39,7 +39,7 @@ for required in go_command python_command cmake_command ninja_command; do
     exit 1
   fi
 done
-for command_name in curl zip sha256sum; do
+for command_name in curl zip sha256sum readelf; do
   if ! utautts_resolve_executable "${command_name}" >/dev/null; then
     echo "${command_name} is required; run tools/setup-linux.sh" >&2
     exit 1
@@ -83,6 +83,7 @@ echo '=== Build native library and Qt GUI ==='
   -DCMAKE_BUILD_TYPE=Release -G Ninja \
   "-DCMAKE_MAKE_PROGRAM=${ninja_command}" "${qt_cmake_args[@]}"
 "${cmake_command}" --build "${root_dir}/build/qt-linux" --config Release
+bash "${root_dir}/tools/check-linux-relocations.sh" "${root_dir}/build/qt-linux/app/utautts"
 cp "${root_dir}/build/qt-linux/app/utautts" "${gui_dir}/utautts"
 cp "${root_dir}/build/native/libutautts_native.so" "${gui_dir}/libutautts_native.so"
 

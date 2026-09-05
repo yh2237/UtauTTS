@@ -47,7 +47,7 @@ has_linux_audio_service() {
   return 1
 }
 
-for command_name in curl fc-list timeout unzip; do
+for command_name in curl fc-list timeout unzip readelf; do
   command -v "${command_name}" >/dev/null 2>&1 || fail "${command_name} is required"
 done
 [ -n "${python_command}" ] || fail 'python3 is required'
@@ -63,6 +63,7 @@ server_root="${temporary_root}/server"
 mkdir -p "${gui_root}" "${server_root}"
 unzip -q "${gui_zip}" -d "${gui_root}"
 unzip -q "${server_zip}" -d "${server_root}"
+bash "${root_dir}/tools/check-linux-relocations.sh" "${gui_root}/utautts"
 
 for required in \
   "${gui_root}/utautts" \
