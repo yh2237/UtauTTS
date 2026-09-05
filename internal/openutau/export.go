@@ -14,22 +14,12 @@ import (
 	"utautts/internal/render"
 )
 
-// USTX export for UtauTTS projects.
-//
-// A `.utautts` project (the GUI project file) is converted into an OpenUtau
-// `.ustx` file (YAML 1.2, ustx_version 0.6) so the same text, timing, tone
-// and pitch parameters can be opened and further edited in OpenUtau.
-//
-// Mapping rules:
-//   - one voice part per utterance card
-//   - one track per voicebank used by the project
-//   - one note per mora (lyric = mora, tone = card tone, duration = mora duration)
-//   - manual pitch edits become note pitch data (cents offsets)
-//   - millisecond timing is converted to ticks at the exported BPM (default 120)
+// UtauTTSのプロジェクトをOpenUtauのUSTXへ変換する。
+// 1発話を1パート、音源ごとに1トラック、モーラごとに1ノートへ対応付ける。
 
 const utauTTSProjectFormat = "utautts-project"
 
-// UtauTTSProject mirrors the GUI project file (`projectData()` in Main.qml).
+// UtauTTSProjectはGUIのプロジェクト形式(Main.qmlのprojectData)に対応する。
 type UtauTTSProject struct {
 	Format        string             `json:"format"`
 	FormatVersion int                `json:"format_version"`
@@ -38,7 +28,7 @@ type UtauTTSProject struct {
 	SelectedIndex int                `json:"selected_index,omitempty"`
 }
 
-// UtauTTSUtterance is one synthesis card in a UtauTTS project.
+// UtauTTSUtteranceは1枚の合成カード。
 type UtauTTSUtterance struct {
 	Text                 string                       `json:"text"`
 	VoicebankID          string                       `json:"voicebank_id"`
@@ -65,13 +55,13 @@ type UtauTTSUtterance struct {
 	AnalysisCache        UtauTTSAnalysisCache         `json:"analysis_cache"`
 }
 
-// UtauTTSAnalysisCache holds the cached reading and mora analysis of a card.
+// UtauTTSAnalysisCacheはカードの読みとモーラ解析結果を保持する。
 type UtauTTSAnalysisCache struct {
 	Reading string        `json:"reading"`
 	Morae   []UtauTTSMora `json:"morae"`
 }
 
-// UtauTTSMora is a single mora of the analyzed reading.
+// UtauTTSMoraは解析済み読みの1モーラ。
 type UtauTTSMora struct {
 	Position  int    `json:"position"`
 	Mora      string `json:"mora"`
@@ -80,7 +70,7 @@ type UtauTTSMora struct {
 	Vowel     string `json:"vowel,omitempty"`
 }
 
-// LoadUtauTTSProject reads and validates a `.utautts` project file.
+// LoadUtauTTSProjectは.utauttsを読み込み、検証する。
 func LoadUtauTTSProject(path string) (*UtauTTSProject, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -89,7 +79,7 @@ func LoadUtauTTSProject(path string) (*UtauTTSProject, error) {
 	return ParseUtauTTSProject(data)
 }
 
-// ParseUtauTTSProject parses and validates `.utautts` project JSON.
+// ParseUtauTTSProjectは.utauttsのJSONを解析し、検証する。
 func ParseUtauTTSProject(data []byte) (*UtauTTSProject, error) {
 	var project UtauTTSProject
 	if err := json.Unmarshal(data, &project); err != nil {
@@ -116,27 +106,23 @@ func ParseUtauTTSProject(data []byte) (*UtauTTSProject, error) {
 	return &project, nil
 }
 
-// ExportOptions controls USTX export.
+// ExportOptionsはUSTX出力を制御する。
 type ExportOptions struct {
-	// ProjectName is the USTX project name (default "UtauTTS Project").
+	// ProjectNameはUSTXのプロジェクト名(既定値はUtauTTS Project)。
 	ProjectName string
-	// BPM is the tempo used to convert millisecond timing to ticks (default 120).
+	// BPMはミリ秒をtickへ変換するテンポ(既定値120)。
 	BPM float64
-	// Curves holds optional 10ms frame-level intonation contours aligned with
-	// project.Utterances (nil entries fall back to mora-level pitch data).
-	// When present, note pitch is sampled from the smooth contour instead of
-	// emitting a flat line per mora.
+	// Curvesは発話ごとの10msフレーム輪郭。nilならモーラ単位の値を使う。
 	Curves []FrameCurve
 }
 
-// FrameCurve is a frame-level pitch contour (cents at FrameMS intervals),
-// independent of the render package to keep the exporter self-contained.
+// FrameCurveはFrameMS間隔のフレーム単位ピッチ輪郭(cent)。
 type FrameCurve struct {
 	FrameMS float64
 	Cents   []float64
 }
 
-// curveCentsAt linearly interpolates the contour at time tMS.
+// curveCentsAtは時刻tMSの輪郭値を線形補間する。
 func curveCentsAt(curve *FrameCurve, tMS float64) float64 {
 	if curve == nil || curve.FrameMS <= 0 || len(curve.Cents) == 0 {
 		return 0
@@ -153,7 +139,7 @@ func curveCentsAt(curve *FrameCurve, tMS float64) float64 {
 	return curve.Cents[left]*(1-progress) + curve.Cents[left+1]*progress
 }
 
-// ExportUSTX converts a UtauTTS project into a USTX YAML document.
+// ExportUSTXはUtauTTSプロジェクトをUSTXのYAMLへ変換する。
 func ExportUSTX(project *UtauTTSProject, opts ExportOptions) ([]byte, error) {
 	if opts.ProjectName == "" {
 		opts.ProjectName = "UtauTTS Project"
@@ -233,7 +219,7 @@ func ExportUSTX(project *UtauTTSProject, opts ExportOptions) ([]byte, error) {
 	return data, nil
 }
 
-// hasVoicedMora reports whether the utterance has at least one non-pause mora.
+// hasVoicedMoraは休止以外のモーラがあるか返す。
 func hasVoicedMora(utterance UtauTTSUtterance) bool {
 	for _, mora := range utterance.AnalysisCache.Morae {
 		if !mora.Pause && mora.Mora != "" {
@@ -263,12 +249,12 @@ func utteranceToVoicePart(utterance UtauTTSUtterance, trackIndex int, msToTicks 
 		pauseDuration = 180
 	}
 
-	// Prefer manual mora durations, then automatic durations, then the base.
+	// 手動値、自動値、基準値の順にモーラ長を選ぶ。
 	durations := utterance.MoraDurationsMS
 	if !utterance.ManualMoraDurEdited || len(durations) == 0 {
 		durations = utterance.AutomaticMoraDurMS
 	}
-	// Prefer explicit mora positions when present.
+	// 明示されたモーラ位置を優先する。
 	positions := utterance.MoraPositionsMS
 	if !utterance.ManualMoraDurEdited || len(positions) == 0 {
 		if len(utterance.AutomaticMoraPosMS) > 0 {
@@ -306,9 +292,7 @@ func utteranceToVoicePart(utterance UtauTTSUtterance, trackIndex int, msToTicks 
 		}
 		var pitchData []USTXPitchPoint
 		if curve != nil {
-			// Sample the smooth 10ms contour across the note span. Manual
-			// offsets are per-mora relative corrections on top of the model
-			// contour (matching synthesis behavior).
+			// ノート区間を10ms輪郭からサンプルする。手動値はモデル輪郭への相対補正。
 			span := math.Max(1, durationMS)
 			for t := 0.0; t < span; t += curve.FrameMS {
 				cents := curveCentsAt(curve, positionMS+t) + manualOffset
@@ -328,11 +312,8 @@ func utteranceToVoicePart(utterance UtauTTSUtterance, trackIndex int, msToTicks 
 				{X: durationMS, Y: cents / 10, Shape: "io"},
 			}
 		}
-		// USTX pitch semantics (see OpenUtau UNotePitch.Sample):
-		//   - X is in milliseconds relative to the note start
-		//   - Y is in 0.1 semitones (10 cents per unit)
-		//   - snap_first must be false, otherwise OpenUtau resets the first
-		//     point to 0 on load and the exported pitch is lost.
+		// USTXのピッチ形式: Xはノート先頭からのms、Yは0.1半音単位。
+		// snap_firstをfalseにしないとOpenUtauが先頭値を0へ戻す。
 		note := USTXNote{
 			Position: positionTicks,
 			Duration: durationTicks,
@@ -365,11 +346,8 @@ func firstLine(value string) string {
 	return value
 }
 
-// exportLyric decides the USTX note lyric for a mora. A long vowel mark (ー)
-// has no phoneme of its own in the voicebank, so it is exported as a UTAU
-// extension note ("+vowel", e.g. "+お") which OpenUtau renders as an
-// extension of the previous note. A sokuon (っ) stays as-is; only the long
-// vowel mark is converted.
+// exportLyricはモーラをUSTXの歌詞へ変換する。長音(ー)は前の母音への
+// 拡張ノート(+おなど)にし、促音(っ)はそのまま出力する。
 func exportLyric(mora UtauTTSMora, notes []USTXNote) string {
 	if mora.Mora != "ー" {
 		return mora.Mora
@@ -395,8 +373,7 @@ func exportLyric(mora UtauTTSMora, notes []USTXNote) string {
 	return "+"
 }
 
-// ToneToMIDI converts a note name such as "C4", "B3" or "F#5" to a MIDI
-// note number (C4 = 60).
+// ToneToMIDIは音名をMIDIノート番号へ変換する(C4=60)。
 func ToneToMIDI(tone string) (int, error) {
 	tone = strings.TrimSpace(tone)
 	if number, err := strconv.Atoi(tone); err == nil {
@@ -437,8 +414,7 @@ var midiSemitones = map[string]int{
 	"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11,
 }
 
-// USTX document model. YAML field names follow the OpenUtau `.ustx` format
-// (see OpenUtau.Core/Ustx and the USTX file format wiki).
+// USTXのドキュメントモデル。YAMLのフィールド名はOpenUtauの形式に合わせる。
 const ustxResolution = 480
 
 type USTXProject struct {
@@ -539,8 +515,7 @@ type USTXVibrato struct {
 	Drift  float64 `yaml:"drift"`
 }
 
-// defaultUSTXExpressions returns the standard OpenUtau expression set, matching
-// the template used by UtaFormatix so the project opens with familiar defaults.
+// defaultUSTXExpressionsはUtaFormatix互換の既定エクスプレッションを返す。
 func defaultUSTXExpressions() map[string]USTXExpr {
 	return map[string]USTXExpr{
 		"dyn":  {Name: "dynamics (curve)", Abbr: "dyn", Type: "Curve", Min: -240, Max: 120, DefaultValue: 0},

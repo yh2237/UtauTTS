@@ -10,9 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// exportEngine constructs an Engine without any external assets (empty voice
-// directory, no plugins, no Open JTalk helper). USTX export works purely from
-// the project data, so the tests below stay independent of the local machine.
+// 外部資源なしのEngineを作り、ローカル環境に依存しない出力を検証する。
 func exportEngine(t *testing.T) *Engine {
 	t.Helper()
 	engine, err := New(Config{
@@ -34,16 +32,13 @@ func exportProject(t *testing.T, engine *Engine, project map[string]any) string 
 	return exportProjectTo(t, engine, outputPath, projectData)
 }
 
-// exportRequest mirrors the native exportUstx request envelope.
 type exportRequest struct {
 	OutputPath string          `json:"output_path"`
 	Project    json.RawMessage `json:"project"`
 }
 
-// exportProjectTo runs one export request against the engine and returns the
-// exported USTX text. The request is always serialized with encoding/json so
-// platform-specific output paths (Windows backslashes under t.TempDir())
-// cannot produce invalid JSON escapes.
+// exportProjectToは要求を実行し、出力されたUSTXを返す。
+// パスはencoding/jsonで直列化し、Windowsの区切り文字も安全に扱う。
 func exportProjectTo(t *testing.T, engine *Engine, outputPath string, projectData []byte) string {
 	t.Helper()
 	request, err := json.Marshal(exportRequest{OutputPath: outputPath, Project: projectData})
@@ -74,8 +69,7 @@ func utteranceWithReading(text, reading string) map[string]any {
 		if mora == "、" || mora == "。" {
 			entry["pause"] = true
 		} else if mora == "ー" {
-			// the vowel is carried over from the previous mora by the analyzer;
-			// tests only need the extension-note behavior to work
+			// 母音は解析側で前のモーラから引き継ぐため、空でよい。
 			entry["vowel"] = ""
 		}
 		morae = append(morae, entry)
@@ -95,9 +89,6 @@ func utteranceWithReading(text, reading string) map[string]any {
 	}
 }
 
-// TestExportUstxMultiUtteranceSequentialParts covers several cards on one
-// voicebank: every card becomes its own part, laid out sequentially on the
-// track instead of stacked at tick 0.
 func TestExportUstxMultiUtteranceSequentialParts(t *testing.T) {
 	engine := exportEngine(t)
 	text := exportProject(t, engine, map[string]any{
@@ -168,8 +159,6 @@ func TestExportUstxMultiUtteranceSequentialParts(t *testing.T) {
 	}
 }
 
-// TestExportUstxDistinctVoicebanksGetDistinctTracks covers several banks in
-// one project: each bank becomes its own USTX track.
 func TestExportUstxDistinctVoicebanksGetDistinctTracks(t *testing.T) {
 	engine := exportEngine(t)
 	text := exportProject(t, engine, map[string]any{
@@ -223,8 +212,6 @@ func TestExportUstxDistinctVoicebanksGetDistinctTracks(t *testing.T) {
 	}
 }
 
-// TestExportUstxSkipsEmptyCardsButKeepsTheRest covers projects that contain
-// an empty/unanalyzed card next to analyzed ones.
 func TestExportUstxSkipsEmptyCardsButKeepsTheRest(t *testing.T) {
 	engine := exportEngine(t)
 	text := exportProject(t, engine, map[string]any{
@@ -260,8 +247,6 @@ func TestExportUstxSkipsEmptyCardsButKeepsTheRest(t *testing.T) {
 	}
 }
 
-// TestExportUstxRejectsEmptyProject makes sure exporting a project with no
-// synthesizable content fails loudly instead of writing an empty file.
 func TestExportUstxRejectsEmptyProject(t *testing.T) {
 	engine := exportEngine(t)
 	projectData, err := json.Marshal(map[string]any{
@@ -283,10 +268,6 @@ func TestExportUstxRejectsEmptyProject(t *testing.T) {
 	}
 }
 
-// TestExportUstxOutputPathWithBackslashes guards the request serialization on
-// Windows, where t.TempDir() returns backslash paths (C:\Users\...). Raw
-// string concatenation would embed them as invalid JSON escapes (\U, \A, ...);
-// serializing the whole request with encoding/json keeps them intact.
 func TestExportUstxOutputPathWithBackslashes(t *testing.T) {
 	engine := exportEngine(t)
 	outputPath := filepath.Join(t.TempDir(), `win\out.ustx`)

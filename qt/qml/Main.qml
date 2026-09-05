@@ -1312,7 +1312,7 @@ ApplicationWindow {
         for (let i = 0; i < window.appBackend.voicebanks.length; ++i)
             if (window.appBackend.voicebanks[i].id === id)
                 return window.appBackend.voicebanks[i];
-        // v1 projects used directory basenames. Resolve only unambiguous aliases.
+        // v1はディレクトリ名をIDに使ったため、曖昧でない別名だけ解決する。
         let legacy = null;
         for (let i = 0; i < window.appBackend.voicebanks.length; ++i) {
             const candidate = window.appBackend.voicebanks[i];

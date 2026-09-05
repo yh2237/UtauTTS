@@ -1,4 +1,4 @@
-// Package rendererpluginは診断・評価ツール向けにレンダラープラグインを解決する。
+// rendererpluginパッケージは診断・評価ツール向けにレンダラープラグインを解決する。
 package rendererplugin
 
 import (

@@ -208,8 +208,8 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 	return &Result{Plan: synthesisPlan, Audio: pcm, MoraDurationsMS: durations, MoraPositionsMS: positions, PitchPoints: pitchPoints}, nil
 }
 
-// Keep the acoustic model on the same speech timeline as the editor. DiffSinger
-// head padding belongs to the output timeline, not to the prosody model input.
+// 音響モデルを編集画面と同じ発話時間軸に置く。DiffSingerの先頭パディングは
+// 出力側に属し、プロソディモデルの入力には含めない。
 func prepareDiffSingerProsody(cfg Config, reading string, morae []frontend.Mora, frameMS float64) (Config, *ProsodyPreview, error) {
 	preview, err := PredictProsody(cfg)
 	if err != nil {

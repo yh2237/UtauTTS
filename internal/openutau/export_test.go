@@ -156,7 +156,7 @@ func TestExportUSTX(t *testing.T) {
 		}
 	}
 
-	// The YAML must parse back and match the expected structure.
+	// YAMLとして再解析できることを確認する。
 	var parsed map[string]any
 	if err := yaml.Unmarshal(data, &parsed); err != nil {
 		t.Fatalf("exported YAML does not parse: %v", err)
@@ -193,7 +193,7 @@ func TestExportUSTX(t *testing.T) {
 		t.Errorf("second note pitch y = %v, want 5 (50 cents / 10)", y)
 	}
 
-	// Track positions and pause handling: 5 voiced morae before pause, then 4.
+	// 休止前後のトラック位置を確認する。
 	if pos := firstPart["track_no"]; pos != 0 {
 		t.Errorf("first part track_no = %v, want 0", pos)
 	}
@@ -277,7 +277,7 @@ func TestExportUSTXFrameCurveSampling(t *testing.T) {
 	if len(first) < 10 {
 		t.Fatalf("first note pitch points = %d, want ~10 (10ms sampling over 100ms)", len(first))
 	}
-	// First point at x=0, y=0 (cents 0 / 10); last point near x=100 with y=5.
+	// 輪郭の先頭と末尾が正しく変換されることを確認する。
 	firstPoint := first[0].(map[string]any)
 	if x := firstPoint["x"]; x != 0 && x != float64(0) {
 		t.Errorf("first point x = %v, want 0", x)
@@ -285,7 +285,7 @@ func TestExportUSTXFrameCurveSampling(t *testing.T) {
 	if y := firstPoint["y"]; y != 0 && y != float64(0) {
 		t.Errorf("first point y = %v, want 0", y)
 	}
-	// A middle point of the first note (~50ms) should be ~25 cents → y=2.5.
+	// ノート中央の値が補間されることを確認する。
 	found := false
 	for _, p := range first {
 		pt := p.(map[string]any)
@@ -343,8 +343,7 @@ func TestExportUSTXSequentialSameTrackParts(t *testing.T) {
 	if len(parts) != 2 {
 		t.Fatalf("voice_parts = %d, want 2", len(parts))
 	}
-	// Same-track parts must not overlap: the second starts after the first
-	// plus the one-beat gap (resolution 480).
+	// 同じトラックのパートが重ならず、1拍分の間隔を持つことを確認する。
 	first := parts[0].(map[string]any)
 	second := parts[1].(map[string]any)
 	firstStart := first["position"].(int)
@@ -394,7 +393,7 @@ func TestExportUSTXLongVowelExtension(t *testing.T) {
 	for i, n := range notes {
 		lyrics[i] = n.(map[string]any)["lyric"].(string)
 	}
-	// The ー mora after よ must become a "+お" extension note.
+	// よの後の長音が「+お」の拡張ノートになることを確認する。
 	want := []string{"お", "は", "よ", "+お", "ご", "ざ", "い", "ま", "す"}
 	for i := range want {
 		if lyrics[i] != want[i] {
@@ -424,7 +423,7 @@ func TestExportUSTXDurationsAndPauses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// At bpm 120, 1 tick = 500/480 ms. 80ms -> 77 ticks, 200ms pause -> 192, 120ms -> 115.
+	// BPM120のmsからtickへの変換を確認する。
 	text := string(data)
 	for _, want := range []string{"position: 0", "duration: 77", "position: 269", "duration: 115"} {
 		if !strings.Contains(text, want) {
@@ -433,11 +432,6 @@ func TestExportUSTXDurationsAndPauses(t *testing.T) {
 	}
 }
 
-// TestExportUSTXUsesAutomaticMoraTiming makes sure notes land on the
-// synthesized timing (automatic_mora_durations_ms / automatic_mora_positions_ms)
-// instead of the uniform mora_duration_ms grid. The CLI export restores these
-// arrays from the synthesis plan, so prosody-predicted durations survive the
-// trip to OpenUtau.
 func TestExportUSTXUsesAutomaticMoraTiming(t *testing.T) {
 	project := &UtauTTSProject{
 		Format:        "utautts-project",
@@ -446,7 +440,7 @@ func TestExportUSTXUsesAutomaticMoraTiming(t *testing.T) {
 			Text: "カキ", VoicebankID: "bank", Tone: "C4",
 			MoraDurationMS:  140,
 			PauseDurationMS: 180,
-			// Plan-derived timing that differs from the fixed 140ms grid.
+			// 固定の140msグリッドとは異なる計画上の時間。
 			AutomaticMoraDurMS: []float64{100, 120},
 			AutomaticMoraPosMS: []float64{0, 130},
 			AnalysisCache: UtauTTSAnalysisCache{
@@ -478,7 +472,7 @@ func TestExportUSTXUsesAutomaticMoraTiming(t *testing.T) {
 	if len(notes) != 2 {
 		t.Fatalf("notes = %d, want 2", len(notes))
 	}
-	// Same conversion as the exporter: round(ms * 480 / (60000 / bpm)).
+	// 出力側と同じmsからtickへの変換。
 	ticks := func(ms float64) int {
 		return int(math.Round(ms * 480.0 / (60000.0 / 120.0)))
 	}

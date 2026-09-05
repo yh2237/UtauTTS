@@ -11,9 +11,7 @@ import (
 
 const maxPackageBytes = 512 << 20
 
-// InstallPackage stages and validates a package before publishing it. Existing
-// installations are left untouched; callers can move an old installation aside
-// before installing an updated package with the same stable ID.
+// InstallPackageは公開前にパッケージを検証する。既存のインストール先は変更しない。
 func InstallPackage(archive, destination string, supportsBackend func(string) bool) (Renderer, error) {
 	reader, err := zip.OpenReader(archive)
 	if err != nil {

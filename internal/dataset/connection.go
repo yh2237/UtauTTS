@@ -1,4 +1,4 @@
-// Package datasetはUTAU音源から学習例を構築する。
+// datasetパッケージはUTAU音源から学習例を構築する。
 package dataset
 
 import (

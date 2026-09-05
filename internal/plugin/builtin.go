@@ -6,7 +6,7 @@ import (
 	"runtime"
 )
 
-// BuiltinRenderers is the single source of backend capabilities and runtime names.
+// BuiltinRenderersはバックエンド機能とランタイム名の定義元。
 func BuiltinRenderers() []Renderer {
 	items := []Renderer{
 		{ID: "utautts-world-phrase", DisplayName: "UtauTTS WORLD phrase", Backend: "utautts-world-phrase", DefaultPriority: 300, Assets: map[string]string{"world_engine": runtimeAsset("world-engine"), "worldline_bridge": runtimeAsset("worldline-bridge")}, Capabilities: Capabilities{FramePitch: true}},

@@ -19,8 +19,7 @@ func mixWorldFeaturesCUDA(path string, input manifest, prepared []preparedWorldU
 	bins := fftSize/2 + 1
 	units := make([]cudaWorldUnit, len(prepared))
 	totalSourceFrames := 0
-	// Cached features are immutable. Repeated units share their backing arrays;
-	// transfer each distinct analysis once, retaining independent unit timing.
+	// キャッシュ済み特徴量は不変。重複する解析は一度だけ転送し、配置時刻は保つ。
 	offsets := make(map[[3]*float64]int)
 	unique := make([]int, 0, len(prepared))
 	for index, entry := range prepared {

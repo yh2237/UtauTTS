@@ -468,7 +468,7 @@ func (e *Engine) writeExo(data []byte) (any, error) {
 	return map[string]any{"exo_path": outputPath}, nil
 }
 
-// exportUstx writes the current project parameters to an OpenUtau USTX file.
+// exportUstxは現在のプロジェクト設定をOpenUtauのUSTXへ書き出す。
 func (e *Engine) exportUstx(data []byte) (any, error) {
 	var request struct {
 		OutputPath string          `json:"output_path"`
@@ -506,15 +506,8 @@ func (e *Engine) exportUstx(data []byte) (any, error) {
 	return map[string]any{"ustx_path": outputPath}, nil
 }
 
-// enrichAndCurves prepares a project for USTX export:
-//   - utterances without a cached analysis (no reading/morae) are analyzed
-//     on the fly so the export does not silently drop them
-//   - utterances with a prosody model get their frame-level intonation
-//     contour recomputed for smooth 10ms pitch curves
-//
-// Both jobs share one PredictProsody pass per utterance. Entries for
-// utterances without a contour stay nil (the exporter falls back to
-// mora-level data).
+// enrichAndCurvesはUSTX出力前に解析と10msピッチ輪郭を補う。
+// 輪郭を作れない発話はnilのままにし、出力側でモーラ値へ戻す。
 func (e *Engine) enrichAndCurves(project *openutau.UtauTTSProject) []openutau.FrameCurve {
 	curves := make([]openutau.FrameCurve, len(project.Utterances))
 	for index := range project.Utterances {
@@ -563,7 +556,7 @@ func (e *Engine) enrichAndCurves(project *openutau.UtauTTSProject) []openutau.Fr
 	return curves
 }
 
-// previewMorae converts a prosody preview mora list into the project format.
+// previewMoraeはプロソディプレビューのモーラ列をプロジェクト形式へ変換する。
 func previewMorae(morae []frontend.Mora) []openutau.UtauTTSMora {
 	result := make([]openutau.UtauTTSMora, len(morae))
 	for index, mora := range morae {

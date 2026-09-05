@@ -244,8 +244,7 @@ func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color 
 					}
 				}
 				if best == nil {
-					// An unavailable coda must not suppress later consonants
-					// for which this voicebank does have a recording.
+					// 録音のない末子音で、後続の録音可能な子音を隠さない。
 					continue
 				}
 				main.Endings = append(main.Endings, *best)
@@ -470,18 +469,11 @@ func aliasCandidates(mora, previousVowel string, phraseStart bool) []aliasCandid
 	return aliasCandidatesWithPolicy(mora, previousVowel, phraseStart, AliasPolicyAuto)
 }
 
-// equivalentKanaForms returns kana that are pronounced identically to the
-// given mora in modern standard Japanese. These are safe fallbacks for
-// voicebanks that lack a dedicated recording:
+// equivalentKanaFormsは、専用録音がない場合に使える同音の仮名を返す。
 //
-//	を = お   (the particle を is pronounced "o")
-//	ぢ = じ   (di and ji merged)
-//	づ = ず   (du and zu merged)
-//	ゐ = い   (archaic wi = i)
-//	ゑ = え   (archaic we = e)
+//	を = お、ぢ = じ、づ = ず、ゐ = い、ゑ = え
 //
-// Small-kana combinations (てぃ, とぅ, ふぁ, ...) are NOT included because
-// they are genuinely different sounds.
+// 小書き仮名の組み合わせは別の音なので含めない。
 func equivalentKanaForms(mora string) []string {
 	switch mora {
 	case "を":
@@ -498,9 +490,7 @@ func equivalentKanaForms(mora string) []string {
 	return nil
 }
 
-// aliasForm is one surface form offered for a mora. fallback is an extra tier
-// penalty applied to phonetically-equivalent alternates (を→お etc.) so a
-// bank that owns both recordings always prefers the original kana.
+// aliasFormはモーラに対して試す表記。fallbackは同音候補への追加ペナルティ。
 type aliasForm struct {
 	text       string
 	fallback   int
@@ -514,11 +504,7 @@ func aliasCandidatesWithPolicy(mora, previousVowel string, phraseStart bool, pol
 			forms = append(forms, aliasForm{text: vowelKana}, aliasForm{text: toKatakana(vowelKana)})
 		}
 	}
-	// The mora itself plus phonetically identical alternates (modern
-	// standard Japanese), so voicebanks that lack a dedicated recording
-	// still synthesize the mora: を=お, ぢ=じ, づ=ず, ゐ=い, ゑ=え.
-	// Alternates carry a +1 tier penalty: the original kana must win even
-	// when both recordings exist, independent of oto.ini entry quality.
+	// 専用録音がない場合も同音候補で合成し、元の仮名を常に優先する。
 	base := []aliasForm{{text: mora}}
 	for _, equivalent := range equivalentKanaForms(mora) {
 		base = append(base, aliasForm{text: equivalent, fallback: 1, equivalent: true})

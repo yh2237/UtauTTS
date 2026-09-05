@@ -207,7 +207,7 @@ echo '=== Models and plugins ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
   cp -R "${root_dir}/models/." "${package_dir}/models/"
   cp -R "${root_dir}/plugins/renderers/." "${package_dir}/plugins/renderers/"
-  # Built-in renderers resolve platform runtimes from the Go registry.
+  # 組み込みレンダラーのランタイムはGoのレジストリから解決する。
 done
 
 echo '=== Voicebanks ==='

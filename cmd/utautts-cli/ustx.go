@@ -9,9 +9,7 @@ import (
 	"utautts/internal/tts"
 )
 
-// ustxFrameCurves recomputes the frame-level intonation contour from the
-// prosody model so the USTX export carries the smooth 10ms pitch curve.
-// count is the number of utterances in the export (the CLI exports one).
+// ustxFrameCurvesはUSTX出力用の10msピッチ輪郭を再計算する。
 func ustxFrameCurves(cfg tts.Config, count int) []openutau.FrameCurve {
 	curves := make([]openutau.FrameCurve, count)
 	if cfg.ProsodyModelPath == "" {
@@ -36,9 +34,7 @@ func ustxFrameCurves(cfg tts.Config, count int) []openutau.FrameCurve {
 	return curves
 }
 
-// ustxProjectFromSynthesis builds a single-utterance UtauTTS project from a
-// completed synthesis so the same parameters (reading, tone, mora pitch
-// factors) can be exported to an OpenUtau USTX file via --ustx-out.
+// ustxProjectFromSynthesisは合成結果からUSTX出力用の1発話プロジェクトを作る。
 func ustxProjectFromSynthesis(cfg tts.Config, p *plan.Plan, voicebankID string) *openutau.UtauTTSProject {
 	utterance := openutau.UtauTTSUtterance{
 		Text:            cfg.Text,
@@ -53,10 +49,7 @@ func ustxProjectFromSynthesis(cfg tts.Config, p *plan.Plan, voicebankID string) 
 			Morae:   planMorae(p),
 		},
 	}
-	// Per-mora pitch offsets (cents) derived from the applied pitch factors.
-	// These are the model's mora-level values; they are only used as a
-	// fallback when no frame contour is exported (the frame contour already
-	// carries the model pitch, so it must not be added on top).
+	// フレーム輪郭がない場合に使うモーラ単位のピッチ補正。
 	cents := make([]float64, len(utterance.AnalysisCache.Morae))
 	for _, unit := range p.Units {
 		if unit.Silent || unit.Role == "transition" {
@@ -72,10 +65,7 @@ func ustxProjectFromSynthesis(cfg tts.Config, p *plan.Plan, voicebankID string) 
 		cents[unit.Position] = 1200 * math.Log2(factor)
 	}
 	utterance.AutomaticPitchPoints = cents
-	// Actual synthesized timing: prosody predictions and duration overrides
-	// replace the uniform mora duration during planning, so the exported
-	// notes must land where the synthesis really placed them instead of on
-	// the fixed MoraDurationMS grid.
+	// プロソディ予測後の実際の配置と長さをUSTXへ反映する。
 	morae := utterance.AnalysisCache.Morae
 	durationsMS := make([]float64, len(morae))
 	positionsMS := make([]float64, len(morae))
@@ -100,9 +90,7 @@ func ustxProjectFromSynthesis(cfg tts.Config, p *plan.Plan, voicebankID string) 
 	}
 }
 
-// planMorae reconstructs the mora sequence (including pauses) from the
-// reading with the same parser the plan uses, so long vowel marks carry the
-// correct vowel for USTX extension-note export.
+// planMoraeは計画と同じ解析でモーラ列を復元し、長音の母音も保持する。
 func planMorae(p *plan.Plan) []openutau.UtauTTSMora {
 	morae, err := frontend.ParseKana(p.Reading)
 	if err == nil && len(morae) > 0 {
@@ -115,7 +103,7 @@ func planMorae(p *plan.Plan) []openutau.UtauTTSMora {
 		}
 		return result
 	}
-	// Fallback: derive from the plan units (no vowel information).
+	// 解析できない場合は計画ユニットから復元する(母音情報はない)。
 	var fallback []openutau.UtauTTSMora
 	seen := make(map[int]bool)
 	for _, unit := range p.Units {

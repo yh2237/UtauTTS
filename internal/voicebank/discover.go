@@ -11,7 +11,7 @@ import (
 	"utautts/internal/diffsinger"
 )
 
-// Summaryはvoicebankピッカーに表示するための軽量な情報。
+// Summaryは音源ピッカーに表示する軽量な情報。
 type Summary struct {
 	Name          string `json:"name"`
 	Path          string `json:"path"`

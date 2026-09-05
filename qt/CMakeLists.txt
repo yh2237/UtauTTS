@@ -102,8 +102,7 @@ qt_add_resources(utautts "appicon"
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    # PIE alone can still emit direct external data accesses and COPY
-    # relocations. Qt built with indirect-extern-access rejects those.
+    # PIEだけでは外部データ参照やCOPY再配置が残るため、Qtの要件に合わせる。
     target_compile_options(utautts PRIVATE -fPIC)
     target_link_options(utautts PRIVATE "LINKER:-z,nocopyreloc" "LINKER:-z,text")
 endif()
@@ -154,8 +153,8 @@ qt_add_resources(utautts "legal"
     FILES ${legal_files}
 )
 
-# UI language files (JSON). Translator.qml loads qrc:/lang/<code>.json.
-# Adding a new <code>.json here automatically makes it a selectable language.
+# UI言語ファイル(JSON)。Translator.qmlがqrc:/lang/<code>.jsonを読み込む。
+# ファイルを追加すると選択可能な言語にも追加される。
 file(GLOB lang_files CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/lang/*.json"
 )

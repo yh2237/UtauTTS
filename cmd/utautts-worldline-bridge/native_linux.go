@@ -87,8 +87,7 @@ static void native_phrase_delete(NativeLibrary* library, void* phrase) { library
 static void native_phrase_add(NativeLibrary* library, void* phrase, const SynthRequest* request, int index, const PhraseTiming* timing, const char* cache_key) { library->phrase_add(phrase, request, index, timing, cache_key); }
 static void native_phrase_set_curves(NativeLibrary* library, void* phrase, double* f0, double* gender, double* tension, double* breathiness, double* voicing, int length) { library->phrase_set_curves(phrase, f0, gender, tension, breathiness, voicing, length, NULL); }
 static int native_phrase_synth(NativeLibrary* library, void* phrase, float** output) { return library->phrase_synth(phrase, output, NULL); }
-// Keep uintptr_t-to-pointer conversions on the C side. Go 1.27's vet
-// unsafeptr check correctly rejects converting a handle back to a pointer in Go.
+// uintptr_tとポインタの変換はC側で行う。GoのvetはGo側でのハンドル復元を拒否する。
 static void native_phrase_delete_handle(NativeLibrary* library, uintptr_t phrase) { native_phrase_delete(library, (void*)phrase); }
 static void native_phrase_add_handle(NativeLibrary* library, uintptr_t phrase, const SynthRequest* request, int index, const PhraseTiming* timing, const char* cache_key) { native_phrase_add(library, (void*)phrase, request, index, timing, cache_key); }
 static void native_phrase_set_curves_handle(NativeLibrary* library, uintptr_t phrase, double* f0, double* gender, double* tension, double* breathiness, double* voicing, int length) { native_phrase_set_curves(library, (void*)phrase, f0, gender, tension, breathiness, voicing, length); }

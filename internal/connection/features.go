@@ -1,4 +1,4 @@
-// Package connectionはUTAUユニット間の音響的な相性を測定する。
+// connectionパッケージはUTAUユニット間の音響的な相性を測定する。
 package connection
 
 import (

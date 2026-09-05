@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// StableID distinguishes identically named banks inside different archives.
+// StableIDは別アーカイブ内の同名音源を区別する。
 func StableID(root, path string) string {
 	if absolute, err := filepath.Abs(root); err == nil {
 		root = absolute
@@ -20,7 +20,7 @@ func StableID(root, path string) string {
 	return filepath.ToSlash(rel)
 }
 
-// ResolveLegacyID accepts the old basename only if it is unambiguous.
+// ResolveLegacyIDは旧形式のベース名が一意な場合だけ受け入れる。
 func ResolveLegacyID[T any](items map[string]T, id string) (T, bool) {
 	if value, ok := items[id]; ok {
 		return value, true

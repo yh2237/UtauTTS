@@ -285,7 +285,7 @@ func TestAliasCandidatesHandleSpecialMoraContexts(t *testing.T) {
 	if !contains(aliasCandidatesWithPolicy("ー", "u", false, AliasPolicyAuto), "u う") {
 		t.Fatal("long-vowel candidate did not use the preceding vowel")
 	}
-	// Phonetically identical fallbacks: を falls back to お, ぢ to じ, etc.
+	// 同音の仮名へフォールバックする。
 	for mora, equivalent := range map[string]string{"を": "お", "ぢ": "じ", "づ": "ず", "ゐ": "い", "ゑ": "え"} {
 		candidates := aliasCandidatesWithPolicy(mora, "", true, AliasPolicyAuto)
 		if !contains(candidates, mora) {
@@ -298,7 +298,7 @@ func TestAliasCandidatesHandleSpecialMoraContexts(t *testing.T) {
 			t.Fatalf("mora %q did not fall back to katakana %q", mora, toKatakana(equivalent))
 		}
 	}
-	// The original form must come before the equivalent fallback.
+	// 元の表記を同音候補より先に試す。
 	wo := aliasCandidatesWithPolicy("を", "", true, AliasPolicyAuto)
 	originalIndex, fallbackIndex := -1, -1
 	for index, candidate := range wo {
@@ -312,8 +312,7 @@ func TestAliasCandidatesHandleSpecialMoraContexts(t *testing.T) {
 	if originalIndex < 0 || fallbackIndex < 0 || originalIndex > fallbackIndex {
 		t.Fatalf("を must precede お in candidates: %v", wo)
 	}
-	// The equivalent fallback must also carry a worse tier so the original
-	// kana keeps winning once both recordings exist.
+	// 同音候補にはペナルティを付け、両方あれば元の表記を選ぶ。
 	originalTier, fallbackTier := -1, -1
 	for _, candidate := range wo {
 		if candidate.name == "を" {
@@ -326,16 +325,12 @@ func TestAliasCandidatesHandleSpecialMoraContexts(t *testing.T) {
 	if originalTier < 0 || fallbackTier <= originalTier {
 		t.Fatalf("equivalent fallback must have a worse tier than the original: %v", wo)
 	}
-	// Small-kana combinations must NOT fall back (different sounds).
+	// 小書き仮名の組み合わせは別音なのでフォールバックしない。
 	if contains(aliasCandidatesWithPolicy("てぃ", "", true, AliasPolicyAuto), "ち") {
 		t.Fatal("てぃ must not fall back to ち")
 	}
 }
 
-// TestResolvePrefersOriginalKanaWhenBothRecordingsExist covers a bank that
-// owns dedicated recordings for both the original kana and its phonetically
-// equivalent fallback: the original must always win, and the fallback must
-// still synthesize when the dedicated recording is absent.
 func TestResolvePrefersOriginalKanaWhenBothRecordingsExist(t *testing.T) {
 	morae, err := frontend.ParseKana("あを")
 	if err != nil {

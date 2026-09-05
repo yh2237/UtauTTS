@@ -1,4 +1,4 @@
-// Package synthはGUIとHTTPサーバで共有する合成処理を提供する。
+// synthパッケージはGUIとHTTPサーバで共有する合成処理を提供する。
 package synth
 
 import (

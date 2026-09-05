@@ -7,10 +7,6 @@ import (
 	"utautts/internal/tts"
 )
 
-// TestUstxProjectFromSynthesisCarriesPlanTiming makes sure the USTX export
-// restores the actual synthesized mora timing from the plan (prosody
-// predictions override the uniform mora duration) instead of falling back to
-// the fixed MoraDurationMS grid.
 func TestUstxProjectFromSynthesisCarriesPlanTiming(t *testing.T) {
 	p := &plan.Plan{
 		Version: 1,

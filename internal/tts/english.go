@@ -9,9 +9,8 @@ import (
 	"utautts/internal/render"
 )
 
-// A conservative fallback for English, whose phones cannot use the Japanese
-// accent model. Explicit lexical stress is used when the pronunciation has it.
-// This is a rule-based speech baseline, not a trained English prosody model.
+// 日本語アクセントモデルを使えない英語向けの保守的なフォールバック。
+// 辞書に強勢があればそれを使う。学習済みモデルではなく規則ベースの基準実装。
 func englishPredictions(morae []frontend.Mora) []prosody.Prediction {
 	result := make([]prosody.Prediction, len(morae))
 	for i, mora := range morae {
@@ -23,7 +22,7 @@ func englishPredictions(morae []frontend.Mora) []prosody.Prediction {
 			case 2:
 				factor = 1.1
 			}
-			// Reserve time for codas in syllable-based phonemizers.
+			// 音節単位の音素化では末子音の時間を確保する。
 			if mora.DurationScale == 0 && mora.Aliases != nil {
 				factor += math.Min(0.5, float64(len(mora.Aliases.Endings))*0.15)
 			}

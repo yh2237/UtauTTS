@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Inspect without loading system Qt: even older build hosts must reject
-# binaries incompatible with Qt's indirect external access requirement.
+# システムQtを読み込まず、互換性のないELFを早期に拒否する。
 binary="${1:?usage: check-linux-relocations.sh ELF-executable}"
 relocations="$(LC_ALL=C readelf --relocs --wide "${binary}")"
 dynamic="$(LC_ALL=C readelf --dynamic --wide "${binary}")"

@@ -1,4 +1,4 @@
-// Package atomicfile preserves the previous file until replacement is complete.
+// atomicfileパッケージは置換完了まで既存ファイルを保持する。
 package atomicfile
 
 import (

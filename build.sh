@@ -36,7 +36,7 @@ run_linux_build_through_wsl() {
     exit 1
   fi
 
-  # Keep WSL paths from being converted back to Windows paths by MSYS/Git Bash.
+  # MSYS/Git BashによるWSLパスの変換を抑止する。
   MSYS_NO_PATHCONV=1 wsl.exe --cd "${wsl_root}" -- \
     bash -lc 'exec bash ./tools/build-linux.sh "$@"' -- "$@"
 }

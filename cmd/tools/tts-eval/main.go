@@ -1,4 +1,4 @@
-// tts-eval produces reproducible Japanese listening material and timing reports.
+// tts-evalは日本語の聴取用音声と再現可能な計測結果を作る。
 package main
 
 import (
@@ -78,7 +78,7 @@ func run() error {
 	if !ok {
 		return fmt.Errorf("unknown model %q", *model)
 	}
-	// Never overwrite an earlier listening baseline.
+	// 既存の基準音声は上書きしない。
 	if err := os.MkdirAll(filepath.Dir(*out), 0755); err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func run() error {
 				}
 				rows = append(rows, row)
 				fmt.Printf("%s %s #%d: %.0f ms, RTF %.3f %s\n", rendererID, p.ID, repetition, row.ElapsedMS, row.RTF, row.Error)
-				// Persist partial results even if a later case fails.
+				// 後続ケースが失敗しても途中結果を保存する。
 				report := struct {
 					GOOS, GOARCH, Voicebank, Model string
 					CorpusSHA256, Bridge, GPU      string

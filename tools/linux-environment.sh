@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 
-# Shared helpers for the Linux development scripts.
+# Linux用開発スクリプトで共有する補助関数。
 #
-# A normal installation needs no .env file: Go is found in PATH or in the
-# user-local location used by setup-linux.sh, Python is found in .venv, and
-# CMake/Ninja/Qt are found from the system installation. .env is only for
-# exceptional path overrides such as QT_ROOT.
+# 通常の環境では.envは不要。GoはPATHまたはsetup-linux.shの配置先、Pythonは.venv、
+# CMake/Ninja/Qtはシステムから解決する。.envはQT_ROOTなどの例外的な上書きに使う。
 
 utautts_load_linux_env() {
   local root_dir="$1"
