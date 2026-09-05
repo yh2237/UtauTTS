@@ -17,6 +17,26 @@ type parallelTestWorldEngine struct {
 	analyses atomic.Int32
 }
 
+func TestWorldMixIsOrderIndependentAndPreservesFade(t *testing.T) {
+	makeUnit := func(f0, ap float64) preparedWorldUnit {
+		return preparedWorldUnit{cached: cachedWorldUnit{duration: 20, features: worldFeatures{Frames: 2, FFTSize: 2, F0: []float64{f0, f0}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{ap, ap, ap, ap}}}}
+	}
+	u := unit{LengthMS: 40, FadeInMS: 40, RequiredLengthMS: 40, ConsonantVelocity: 100, Volume: 100}
+	in := manifest{F0Curve: []float64{200, 200, 200}, Units: []unit{u, u}}
+	a, b := makeUnit(200, .1), makeUnit(0, .9)
+	ab := mixWorldFeatures(in, []preparedWorldUnit{a, b}, 2, 1)
+	ba := mixWorldFeatures(in, []preparedWorldUnit{b, a}, 2, 1)
+	if !reflect.DeepEqual(ab, ba) {
+		t.Fatalf("order-dependent mix: %+v / %+v", ab, ba)
+	}
+	if math.Abs(ab.Spectrum[2]-.5) > 1e-10 {
+		t.Fatal("fade was normalized away")
+	}
+	if math.Abs(ab.Aperiodicity[2]-math.Sqrt(.505)) > 1e-10 {
+		t.Fatal("aperiodic energy was not conserved")
+	}
+}
+
 func (*parallelTestWorldEngine) Close() error { return nil }
 
 func (engine *parallelTestWorldEngine) Analyze(samples []float64, sampleRate int, inputF0 []float64) (worldFeatures, error) {

@@ -128,16 +128,16 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 		Spectrum: make([]float64, frames*bins), Aperiodicity: make([]float64, frames*bins),
 	}
 	dirty := make([]bool, frames)
-	sourceVoiced := make([]bool, frames)
 	frameWorkers := workers
 	if frames*bins < 32768 {
 		frameWorkers = 1
 	}
 	parallelWorldWork(frames, frameWorkers, func(frame int) {
+		voicedWeight, totalWeight := 0.0, 0.0
 		frameOffset := frame * bins
 		for bin := 0; bin < bins; bin++ {
 			result.Spectrum[frameOffset+bin] = 1e-12
-			result.Aperiodicity[frameOffset+bin] = 1
+			result.Aperiodicity[frameOffset+bin] = 0
 		}
 		for unitIndex, item := range input.Units {
 			entry := prepared[unitIndex].cached
@@ -157,30 +157,39 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 			right := min(left+1, entry.features.Frames-1)
 			fraction := sourceFrame - float64(left)
 			voicedFrame := lerp(entry.features.F0[left], entry.features.F0[right], fraction) > 71
-			if !dirty[frame] || weight > 0.5 {
-				sourceVoiced[frame] = voicedFrame
+			effectiveWeight := weight * volumeGain * volumeGain
+			totalWeight += effectiveWeight
+			if voicedFrame {
+				voicedWeight += effectiveWeight
 			}
 			for bin := 0; bin < bins; bin++ {
 				leftIndex, rightIndex := left*bins+bin, right*bins+bin
 				spectrum := lerp(entry.features.Spectrum[leftIndex], entry.features.Spectrum[rightIndex], fraction) * volumeGain * volumeGain
 				ap := lerp(entry.features.Aperiodicity[leftIndex], entry.features.Aperiodicity[rightIndex], fraction)
-				result.Spectrum[frameOffset+bin] += weight * spectrum
-				if !dirty[frame] {
-					result.Aperiodicity[frameOffset+bin] = ap
-				} else {
-					result.Aperiodicity[frameOffset+bin] = result.Aperiodicity[frameOffset+bin]*(1-weight) + ap*weight
+				if !voicedFrame {
+					ap = 1
 				}
+				result.Spectrum[frameOffset+bin] += weight * spectrum
+				result.Aperiodicity[frameOffset+bin] += weight * spectrum * ap * ap
 			}
 			dirty[frame] = true
+		}
+		for bin := 0; bin < bins; bin++ {
+			i := frameOffset + bin
+			if !dirty[frame] || totalWeight <= 1e-12 {
+				result.Aperiodicity[i] = 1
+			} else {
+				result.Aperiodicity[i] = math.Sqrt(math.Max(0, math.Min(1, result.Aperiodicity[i]/result.Spectrum[i])))
+			}
+		}
+		if totalWeight <= 1e-12 || voicedWeight*2 <= totalWeight {
+			result.F0[frame] = 0
 		}
 	})
 	for frame := 0; frame < frames; frame++ {
 		if !dirty[frame] {
 			result.F0[frame] = 0
 			continue
-		}
-		if !sourceVoiced[frame] {
-			result.F0[frame] = 0
 		}
 	}
 	return result

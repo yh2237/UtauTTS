@@ -35,7 +35,7 @@ func loadCUDAWorldFeatureLibrary(path string) (*cudaWorldFeatureLibrary, error) 
 		_ = dll.Release()
 		return nil, err
 	}
-	mix, err := dll.FindProc("UtauTTSGPUWorldFeatureMix")
+	mix, err := dll.FindProc("UtauTTSGPUWorldFeatureMixV2")
 	if err != nil {
 		_ = dll.Release()
 		return nil, err

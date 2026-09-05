@@ -166,12 +166,12 @@ namespace
         const int bins = fft_size / 2 + 1;
         const double time_ms = static_cast<double>(frame) * 10.0;
         bool dirty = false;
-        bool source_voiced = false;
+        double voiced_weight = 0.0, total_weight = 0.0;
 
         for (int bin = static_cast<int>(threadIdx.x); bin < bins; bin += static_cast<int>(blockDim.x))
         {
             output_spectrum[frame * bins + bin] = 1e-12;
-            output_ap[frame * bins + bin] = 1.0;
+            output_ap[frame * bins + bin] = 0.0;
         }
 
         for (int unit_index = 0; unit_index < unit_count; ++unit_index)
@@ -211,14 +211,11 @@ namespace
             const int left = clamp_int(static_cast<int>(floor(source_frame)), 0, unit.feature_frames - 1);
             const int right = min(left + 1, unit.feature_frames - 1);
             const double fraction = source_frame - static_cast<double>(left);
-            if (threadIdx.x == 0)
-            {
-                const bool voiced = lerp_double(source_f0[unit.feature_offset + left],
-                                                source_f0[unit.feature_offset + right], fraction) > 71.0;
-                if (!dirty || weight > 0.5)
-                    source_voiced = voiced;
-            }
+            const bool voiced = lerp_double(source_f0[unit.feature_offset + left],
+                                            source_f0[unit.feature_offset + right], fraction) > 71.0;
             const double volume_gain = fmax(0.0, unit.volume) / 100.0;
+            total_weight += weight * volume_gain * volume_gain;
+            if (voiced) voiced_weight += weight * volume_gain * volume_gain;
             for (int bin = static_cast<int>(threadIdx.x); bin < bins; bin += static_cast<int>(blockDim.x))
             {
                 const int output_index = frame * bins + bin;
@@ -226,18 +223,19 @@ namespace
                 const int right_index = (unit.feature_offset + right) * bins + bin;
                 const double spectrum = lerp_double(source_spectrum[left_index], source_spectrum[right_index], fraction) *
                                         volume_gain * volume_gain;
-                const double aperiodicity = lerp_double(source_ap[left_index], source_ap[right_index], fraction);
+                const double aperiodicity = voiced ? lerp_double(source_ap[left_index], source_ap[right_index], fraction) : 1.0;
                 output_spectrum[output_index] += weight * spectrum;
-                if (!dirty)
-                    output_ap[output_index] = aperiodicity;
-                else
-                    output_ap[output_index] = output_ap[output_index] * (1.0 - weight) + aperiodicity * weight;
+                output_ap[output_index] += weight * spectrum * aperiodicity * aperiodicity;
             }
             dirty = true;
         }
 
+        for (int bin = static_cast<int>(threadIdx.x); bin < bins; bin += static_cast<int>(blockDim.x)) {
+            const int index = frame * bins + bin;
+            output_ap[index] = !dirty || total_weight <= 1e-12 ? 1.0 : sqrt(fmax(0.0, fmin(1.0, output_ap[index] / output_spectrum[index])));
+        }
         if (threadIdx.x == 0)
-            output_f0[frame] = dirty && source_voiced ? input_f0[frame] : 0.0;
+            output_f0[frame] = total_weight > 1e-12 && voiced_weight * 2.0 > total_weight ? input_f0[frame] : 0.0;
     }
 
 }
@@ -338,7 +336,7 @@ UTAUTTS_EXPORT int UtauTTSGPUWSOLA(const double *source, int source_frames,
     return 1;
 }
 
-UTAUTTS_EXPORT int UtauTTSGPUWorldFeatureMix(const double *input_f0, int frames, int fft_size,
+UTAUTTS_EXPORT int UtauTTSGPUWorldFeatureMixV2(const double *input_f0, int frames, int fft_size,
                                              const WorldFeatureUnit *units, int unit_count,
                                              const double *source_f0, const double *source_spectrum,
                                              const double *source_ap, double *output_f0,
