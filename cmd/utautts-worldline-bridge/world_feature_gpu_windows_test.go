@@ -14,6 +14,8 @@ func TestCUDAWorldFeatureMixMatchesCPU(t *testing.T) {
 		t.Skip("set UTAUTTS_TEST_WORLD_GPU to the rebuilt V2 DLL")
 	}
 	input, prepared, fftSize := worldMixFixture()
+	// Reusing a source must not discard the second unit's different timing.
+	prepared[1] = prepared[0]
 	for i := range prepared {
 		for frame := range prepared[i].cached.features.F0 {
 			if (frame+i)%3 == 0 {

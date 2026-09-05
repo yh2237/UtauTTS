@@ -1,10 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
+	"os"
 	"runtime"
 	"sync"
+	"time"
 )
 
 type cachedWorldUnit struct {
@@ -28,11 +31,13 @@ type worldAnalysisResult struct {
 }
 
 func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFeatureCache) ([]float32, error) {
+	started := time.Now()
 	frames := len(input.F0Curve)
 	if frames < 2 {
 		return nil, fmt.Errorf("WORLD phrase has no frames")
 	}
 	prepared, err := prepareWorldUnits(engine, input, cache, worldCPUWorkers(len(input.Units)))
+	analysisDone := time.Now()
 	if err != nil {
 		return nil, err
 	}
@@ -54,9 +59,25 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 	if err != nil {
 		return nil, err
 	}
+	mixDone := time.Now()
 	wave, err := engine.Synthesize(result, input.SampleRate)
 	if err != nil {
 		return nil, err
+	}
+	if path := os.Getenv("UTAUTTS_WORLD_PROFILE"); path != "" {
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			return nil, fmt.Errorf("open WORLD profile: %w", err)
+		}
+		profile := map[string]any{"engine": input.Engine, "frames": frames, "units": len(input.Units), "analysis_ms": float64(analysisDone.Sub(started).Microseconds()) / 1000, "mix_ms": float64(mixDone.Sub(analysisDone).Microseconds()) / 1000, "synthesis_ms": float64(time.Since(mixDone).Microseconds()) / 1000}
+		encodeErr := json.NewEncoder(file).Encode(profile)
+		closeErr := file.Close()
+		if encodeErr != nil {
+			return nil, encodeErr
+		}
+		if closeErr != nil {
+			return nil, closeErr
+		}
 	}
 	output := make([]float32, len(wave))
 	for index, sample := range wave {
