@@ -359,6 +359,60 @@ ApplicationWindow {
     }
 
     FileDialog {
+        id: rendererPackageDialog
+        fileMode: FileDialog.OpenFile
+        nameFilters: [window.translator.tr("plugins.filter")]
+        onAccepted: window.appBackend.installRendererPackage(selectedFile)
+    }
+
+    Dialog {
+        id: rendererPackagesDialog
+        title: window.translator.tr("plugins.title")
+        anchors.centerIn: parent
+        width: Math.min(620, window.width - 40)
+        height: Math.min(540, window.height - 40)
+        modal: true
+        standardButtons: Dialog.Close
+        contentItem: ColumnLayout {
+            Button {
+                text: window.translator.tr("plugins.install")
+                enabled: !window.appBackend.busy
+                onClicked: rendererPackageDialog.open()
+            }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Column {
+                    width: parent.width
+                    spacing: 10
+                    Repeater {
+                        model: window.appBackend.renderers
+                        delegate: Label {
+                            required property var modelData
+                            width: parent.width
+                            wrapMode: Text.Wrap
+                            text: modelData.display_name + "  " + (modelData.version || "")
+                                + (modelData.built_in ? " (" + window.translator.tr("plugins.builtin") + ")" : "")
+                        }
+                    }
+                    Label {
+                        width: parent.width
+                        visible: window.appBackend.pluginProblems.length > 0
+                        wrapMode: Text.Wrap
+                        text: window.translator.tr("plugins.disabled") + "\n" + window.appBackend.pluginProblems.join("\n\n")
+                    }
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: window.appBackend.error
+                visible: text.length > 0
+            }
+        }
+    }
+
+    FileDialog {
         id: projectOpenDialog
         fileMode: FileDialog.OpenFile
         nameFilters: [window.translator.tr("main.projectFilter")]
@@ -841,8 +895,8 @@ ApplicationWindow {
                         ToolTip.delay: 500
                         onTriggered: window.loadRecentProject(modelData)
                     }
-                    onObjectAdded: recentProjectsMenu.insertItem(index, object)
-                    onObjectRemoved: recentProjectsMenu.removeItem(object)
+                    onObjectAdded: (index, object) => recentProjectsMenu.insertItem(index, object)
+                    onObjectRemoved: (index, object) => recentProjectsMenu.removeItem(object)
                 }
 
                 GrayscaleMenuItem {
@@ -896,6 +950,11 @@ ApplicationWindow {
                 text: window.translator.tr("menu.file.reloadClassicTools")
                 enabled: !window.appBackend.busy
                 onTriggered: window.appBackend.reloadClassicTools()
+            }
+            GrayscaleMenuItem {
+                text: window.translator.tr("plugins.title")
+                enabled: !window.appBackend.busy && !window.batchExportActive
+                onTriggered: rendererPackagesDialog.open()
             }
             MenuSeparator {}
             GrayscaleMenuItem {
@@ -1253,7 +1312,17 @@ ApplicationWindow {
         for (let i = 0; i < window.appBackend.voicebanks.length; ++i)
             if (window.appBackend.voicebanks[i].id === id)
                 return window.appBackend.voicebanks[i];
-        return null;
+        // v1 projects used directory basenames. Resolve only unambiguous aliases.
+        let legacy = null;
+        for (let i = 0; i < window.appBackend.voicebanks.length; ++i) {
+            const candidate = window.appBackend.voicebanks[i];
+            if (candidate.id.split("/").pop() !== id)
+                continue;
+            if (legacy)
+                return null;
+            legacy = candidate;
+        }
+        return legacy;
     }
 
     function reloadVoicebanks() {
@@ -2162,7 +2231,12 @@ ApplicationWindow {
             return;
         for (let i = 0; i < utterances.count; ++i) {
             const item = utterances.get(i);
-            if (!item.voicebankId || !window.voicebankById(item.voicebankId)) {
+            const resolved = window.voicebankById(item.voicebankId);
+            if (resolved && resolved.id !== item.voicebankId) {
+                utterances.setProperty(i, "voicebankId", resolved.id);
+                utterances.setProperty(i, "imagePath", resolved.image_path || "");
+                markUtteranceDirty(i, suppressDirty !== true);
+            } else if (!item.voicebankId) {
                 utterances.setProperty(i, "voicebankId", voice.id);
                 utterances.setProperty(i, "imagePath", voice.image_path || "");
                 markUtteranceDirty(i, suppressDirty !== true);

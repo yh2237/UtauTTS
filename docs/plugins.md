@@ -24,30 +24,34 @@ GUIではRendererに`Classic UTAU`を選択した場合だけ、ResamplerとWavt
 
 各フォルダは「ファイル」メニューから開けます。配置後は「Classic UTAUツールを再読み込み」を選びます。
 
-UtauTTS WORLD phraseなどの同梱Rendererは`plugins/renderers/<plugin>/plugin.json`で定義しています。これはRenderer全体の定義であり、Classic UTAUのresamplerやwavtoolには使いません。
+### Rendererパッケージ v2
+
+同梱RendererはGo側のレジストリで定義します。内蔵Rendererを使うだけなら`plugin.json`の編集は不要です。外部パッケージだけが`plugins/renderers/<plugin>/plugin.json`を持ちます。Classic UTAUのresamplerやwavtoolとは別の仕組みです。
+
+GUIの「ファイル」→「Rendererプラグイン」からZIPを導入できます。ZIPにはv2の`plugin.json`を一つだけ含めます（トップレベルのフォルダで包んでも構いません）。検証後に配置して一覧を再読み込みします。既存IDは上書きしません。更新する場合は既存フォルダを探索先の外へバックアップしてから導入してください。更新前後でIDは変えないでください。
+
+最小例は次のとおりです。機能情報と標準ランタイムの場所はbackendから継承するので、重複して書く必要はありません。
 
 ```json
 {
-  "manifest_version": 1,
+  "manifest_version": 2,
   "kind": "renderer",
   "id": "example.renderer",
   "display_name": "Example Renderer",
   "description": "画面に表示する説明",
   "backend": "waveform",
-  "version": "1",
-  "experimental": false,
-  "default_priority": 0,
-  "capabilities": {
-    "frame_pitch": false,
-    "boundary_bridge": true
-  },
-  "assets": {}
+  "version": "1.0.0",
+  "protocol_version": 1
 }
 ```
 
-`id`はプロジェクトやAPIへ保存する公開ID、`backend`はUtauTTS内の実装を選ぶIDです。manifestの破損、未対応backend、ID重複は起動時エラーになります。`default_priority`が最大のRendererがカタログの既定値です。
+`id`はプロジェクトやAPIへ保存する公開ID、`backend`はUtauTTS内の実装を選ぶIDです。新しい合成方式をJSONだけで実装できる仕組みではありません。内蔵IDは予約されています。壊れたmanifestや未対応backendは診断としてGUIとAPIの`problems`へ表示し、アプリ全体の起動を妨げません。`default_priority`が最大のRendererがカタログの既定値です。
 
-認識するasset keyは`worldline`、`worldline_bridge`、`world_engine`、`world_gpu`です。pathはmanifestからの相対pathで指定します。任意のnative codeをUtauTTSへ動的ロードする仕組みはありません。
+詳しい形式は[JSON Schema](renderer-plugin-v2.schema.json)を参照してください。`runtimes`ではasset keyごとに同梱ランタイムの`id`と契約の`version: "1"`を指定できます。通常は省略して標準を使います。asset keyはbackendに応じて`worldline`、`worldline_bridge`、`world_engine`、`world_gpu`、`diffsinger_bridge`です。
+
+独自バイナリを同梱する場合は`platforms.windows-amd64`や`platforms.linux-amd64`（共通なら`any`）の下に、asset keyと`{ "path": "bin/engine.dll", "sha256": "64桁のハッシュ" }`を指定します。pathはパッケージ内の相対パスに限定し、利用するプラットフォームのファイルをSHA-256で検証します。`any`よりOS・CPU別の指定が優先されます。ハッシュは改ざんの署名検証ではありません。実行ファイルやDLLを含むため、信頼できる配布元のZIPだけを導入してください。
+
+ZIP展開は一時ディレクトリで行い、パス逸脱、シンボリックリンク、重複パス、4096件を超えるエントリ、展開後512 MiB超を拒否します。v2の未知フィールドはエラーにします。従来のv1形式は手動配置で引き続き読み込めます。同梱Rendererと同じID・backendの旧v1定義は内蔵定義に置き換えて扱います。
 
 配布物には次のRendererが入っています。
 
@@ -58,7 +62,7 @@ UtauTTS WORLD phraseなどの同梱Rendererは`plugins/renderers/<plugin>/plugin
 
 開発用には`utautts-world-phrase-cuda`もありますが、実験的なため配布ZIPには含めません。
 
-未知のIDはカタログの既定Rendererへ解決されます。明示したRendererのassetが不足している場合は、別Rendererへ黙って切り替えずエラーになります。
+IDを省略した場合だけ既定Rendererへ解決します。未知のIDや、明示したRendererのasset不足はエラーにし、別Rendererへ黙って切り替えません。
 
 ### Classic UTAU互換仕様
 
@@ -103,7 +107,7 @@ go run ./cmd/tools/resampler-compat `
 }
 ```
 
-`id`と`display_name`がないJSONはモデルとして扱いません。同じIDを複数置くと起動時エラーになります。CLIの`--prosody`にはファイルpathではなくIDを指定します。
+`id`と`display_name`がないJSONはモデルとして扱いません。同じIDを複数置くと診断に表示されます。CLIの`--prosody`にはファイルpathではなくIDを指定します。
 
 GUIで集めた手動調整からモデルを作る方法は[手動調整から抑揚モデルを作る](prosody-model-training.md)にあります。既存のJSONを`models/`へ登録する場合は、必要なidentityを付けてから配置してください。
 

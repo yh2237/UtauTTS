@@ -1,4 +1,9 @@
 {
+    "plugins.title": "Rendererプラグイン",
+    "plugins.install": "ZIPから導入…",
+    "plugins.filter": "Rendererパッケージ (*.zip)",
+    "plugins.builtin": "内蔵",
+    "plugins.disabled": "読み込めなかったプラグインと理由：",
     "common.cancel": "キャンセル",
     "common.close": "閉じる",
     "common.add": "追加",

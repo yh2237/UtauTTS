@@ -26,6 +26,7 @@ class Backend final : public QObject {
     Q_PROPERTY(QVariantList voicebanks READ voicebanks NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList models READ models NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList renderers READ renderers NOTIFY metadataChanged)
+    Q_PROPERTY(QStringList pluginProblems READ pluginProblems NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList resamplers READ resamplers NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList wavtools READ wavtools NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList dictionaryEntries READ dictionaryEntries NOTIFY dictionaryChanged)
@@ -72,6 +73,7 @@ public:
     QVariantList voicebanks() const { return m_voicebanks; }
     QVariantList models() const { return m_models; }
     QVariantList renderers() const { return m_renderers; }
+    QStringList pluginProblems() const { return m_pluginProblems; }
     QVariantList resamplers() const { return m_resamplers; }
     QVariantList wavtools() const { return m_wavtools; }
     QVariantList dictionaryEntries() const { return m_dictionaryEntries; }
@@ -115,6 +117,7 @@ public:
     Q_INVOKABLE bool openVoiceDirectory();
     Q_INVOKABLE bool openClassicToolDirectory(const QString &kind);
     Q_INVOKABLE bool reloadClassicTools();
+    Q_INVOKABLE void installRendererPackage(const QUrl &archive);
     Q_INVOKABLE void analyze(const QString &text, const QString &requestId);
     Q_INVOKABLE void analyzeSpeech(const QString &text, const QString &requestId,
                                    const QString &language, const QString &phonemizer,
@@ -228,6 +231,7 @@ private:
     QFutureSynchronizer<QVariantMap> m_activeCalls;
     int m_activeCallCount = 0;
     QVariantList m_voicebanks, m_models, m_renderers, m_resamplers, m_wavtools, m_dictionaryEntries;
+    QStringList m_pluginProblems;
     QString m_catalogDefaultRenderer;
     QString m_defaultRenderer;
     QString m_defaultModelId;

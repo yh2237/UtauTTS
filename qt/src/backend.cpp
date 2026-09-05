@@ -304,6 +304,9 @@ Backend::Backend(QObject *parent)
     }
 }
 Backend::~Backend() {
+    if (m_handle) {
+        try { call("shutdown"); } catch (...) { }
+    }
     if (m_updateReply) {
         m_updateReply->abort();
     }
@@ -880,6 +883,11 @@ void Backend::refreshMetadata() {
     m_voicebanks = voices.value("voicebanks").toList();
     m_models = models.value("models").toList();
     m_renderers = renderers.value("renderers").toList();
+    m_pluginProblems.clear();
+    for (const QVariant &problem : renderers.value("problems").toList())
+        m_pluginProblems.append(problem.toString());
+    for (const QString &problem : m_pluginProblems)
+        appendLog(problem);
     m_resamplers = renderers.value("resamplers").toList();
     m_wavtools = renderers.value("wavtools").toList();
     m_catalogDefaultRenderer = renderers.value("default_renderer").toString();
@@ -964,6 +972,38 @@ bool Backend::openClassicToolDirectory(const QString &kind) {
 
 bool Backend::reloadClassicTools() {
     return restartNativeBackend();
+}
+
+void Backend::installRendererPackage(const QUrl &archive) {
+    if (m_busy || m_activeCallCount != 0 || !archive.isLocalFile()) {
+        setError(tr("処理が終わってからプラグインを導入してください。"));
+        return;
+    }
+    setBusy(true);
+    auto *watcher = new QFutureWatcher<QVariantMap>(this);
+    connect(watcher, &QFutureWatcher<QVariantMap>::finished, this, [this, watcher]() {
+        const QVariantMap result = watcher->result();
+        watcher->deleteLater();
+        if (--m_activeCallCount == 0)
+            m_activeCalls.clearFutures();
+        setBusy(false);
+        if (result.contains("_error")) {
+            setError(result.value("_error").toString());
+            return;
+        }
+        appendLog(tr("プラグインを導入しました: %1").arg(result.value("id").toString()));
+        restartNativeBackend();
+    });
+    const auto future = QtConcurrent::run([this, archive]() {
+        try {
+            return call("installRendererPackage", {{"path", archive.toLocalFile()}});
+        } catch (const std::exception &exception) {
+            return QVariantMap{{"_error", QString::fromUtf8(exception.what())}};
+        }
+    });
+    ++m_activeCallCount;
+    m_activeCalls.addFuture(future);
+    watcher->setFuture(future);
 }
 
 void Backend::analyze(const QString &text, const QString &requestId) {

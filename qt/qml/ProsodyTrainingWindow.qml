@@ -570,6 +570,7 @@ ApplicationWindow {
 
     Dialog {
         id: unchangedDialog
+        width: Math.min(480, root.width - 32)
         title: root.translator.tr("training.unchangedTitle")
         modal: true
         anchors.centerIn: Overlay.overlay
@@ -584,6 +585,7 @@ ApplicationWindow {
 
     Dialog {
         id: replaceSessionDialog
+        width: Math.min(480, root.width - 32)
         title: root.translator.tr("training.replaceTitle")
         modal: true
         anchors.centerIn: Overlay.overlay
@@ -671,7 +673,7 @@ ApplicationWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Button {
-                    visible: root.savedSession && root.savedSession.session_id
+                    visible: !!(root.savedSession && root.savedSession.session_id)
                     text: root.translator.tr("training.resume")
                     onClicked: root.resumeSession()
                 }

@@ -23,7 +23,7 @@ WAV / LAB
 
 ## Renderer
 
-Renderer pluginのID、表示名、必要なファイルは`plugins/renderers/*/plugin.json`で管理します。`classic-utau`だけは内蔵定義です。追加方法は[モデル／Rendererプラグイン](plugins.md)、内部処理は[技術設計ガイド](technical-design.md)を参照してください。
+同梱RendererのID、機能、ランタイムは`internal/plugin/builtin.go`で一元管理します。外部Rendererはv2の`plugin.json`を含むZIPで導入でき、v1の手動配置も読み込めます。追加方法は[モデル／Rendererプラグイン](plugins.md)、内部処理は[技術設計ガイド](technical-design.md)を参照してください。
 
 | ID | 概要 |
 | --- | --- |

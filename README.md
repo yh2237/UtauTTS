@@ -115,7 +115,7 @@ exo出力後に表示される領域をAviUtlの拡張編集へドラッグす�
 
 Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置きます。各フォルダは「ファイル」メニューから開けます。配置後は同じメニューの「Classic UTAUツールを再読み込み」を選びます。
 
-Renderer pluginは`plugins/renderers/<Renderer ID>/plugin.json`で定義します。Classic UTAUのresamplerとwavtoolにmanifestは不要です。
+同梱Rendererのmanifest編集は不要です。外部Rendererは「ファイル」→「Rendererプラグイン」からv2のZIPパッケージを導入できます。旧v1形式の手動配置も対応します。Classic UTAUのresamplerとwavtoolにmanifestは不要です。
 
 ### 抑揚モデル
 
