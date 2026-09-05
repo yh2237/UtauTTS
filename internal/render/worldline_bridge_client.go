@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"sync"
 
 	"utautts/internal/processutil"
 )
@@ -18,7 +17,6 @@ type worldlineBridgeResponse struct {
 }
 
 type worldlineBridgeProcess struct {
-	mutex  sync.Mutex
 	path   string
 	cmd    *exec.Cmd
 	stdin  io.WriteCloser
@@ -26,11 +24,19 @@ type worldlineBridgeProcess struct {
 }
 
 var sharedWorldlineBridge worldlineBridgeProcess
+var worldlineBridgeGate = make(chan struct{}, 1)
 
 func invokeWorldlineBridge(ctx context.Context, bridge, manifestPath string) error {
 	client := &sharedWorldlineBridge
-	client.mutex.Lock()
-	defer client.mutex.Unlock()
+	select {
+	case worldlineBridgeGate <- struct{}{}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	defer func() { <-worldlineBridgeGate }()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if client.cmd == nil || client.path != bridge {
 		client.stop()
 		command := exec.Command(bridge, "--serve")
@@ -56,8 +62,9 @@ func invokeWorldlineBridge(ctx context.Context, bridge, manifestPath string) err
 		line string
 		err  error
 	}, 1)
+	stdout := client.stdout
 	go func() {
-		line, err := client.stdout.ReadString('\n')
+		line, err := stdout.ReadString('\n')
 		responseLine <- struct {
 			line string
 			err  error

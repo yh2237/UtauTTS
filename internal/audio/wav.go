@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"utautts/internal/atomicfile"
 )
 
 type PCM struct {
@@ -150,61 +151,58 @@ func WriteWav(path string, pcm *PCM) error {
 		return errors.New("empty pcm data")
 	}
 
-	file, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+	return atomicfile.Write(path, func(file io.Writer) error {
 
-	dataSize := uint32(len(pcm.Data) * 2)
-	riffSize := 4 + (8 + 16) + (8 + dataSize)
+		dataSize := uint32(len(pcm.Data) * 2)
+		riffSize := 4 + (8 + 16) + (8 + dataSize)
 
-	writer := bufio.NewWriter(file)
-	if _, err := writer.WriteString("RIFF"); err != nil {
-		return err
-	}
-	if err := binary.Write(writer, binary.LittleEndian, uint32(riffSize)); err != nil {
-		return err
-	}
-	if _, err := writer.WriteString("WAVE"); err != nil {
-		return err
-	}
-	if _, err := writer.WriteString("fmt "); err != nil {
-		return err
-	}
-	if err := binary.Write(writer, binary.LittleEndian, uint32(16)); err != nil {
-		return err
-	}
-	if err := binary.Write(writer, binary.LittleEndian, uint16(1)); err != nil {
-		return err
-	}
-	if err := binary.Write(writer, binary.LittleEndian, uint16(pcm.Channels)); err != nil {
-		return err
-	}
-	if err := binary.Write(writer, binary.LittleEndian, uint32(pcm.SampleRate)); err != nil {
-		return err
-	}
-	byteRate := uint32(pcm.SampleRate * pcm.Channels * 2)
-	if err := binary.Write(writer, binary.LittleEndian, byteRate); err != nil {
-		return err
-	}
-	blockAlign := uint16(pcm.Channels * 2)
-	if err := binary.Write(writer, binary.LittleEndian, blockAlign); err != nil {
-		return err
-	}
-	if err := binary.Write(writer, binary.LittleEndian, uint16(16)); err != nil {
-		return err
-	}
-	if _, err := writer.WriteString("data"); err != nil {
-		return err
-	}
-	if err := binary.Write(writer, binary.LittleEndian, dataSize); err != nil {
-		return err
-	}
-	if err := binary.Write(writer, binary.LittleEndian, pcm.Data); err != nil {
-		return err
-	}
-	return writer.Flush()
+		writer := bufio.NewWriter(file)
+		if _, err := writer.WriteString("RIFF"); err != nil {
+			return err
+		}
+		if err := binary.Write(writer, binary.LittleEndian, uint32(riffSize)); err != nil {
+			return err
+		}
+		if _, err := writer.WriteString("WAVE"); err != nil {
+			return err
+		}
+		if _, err := writer.WriteString("fmt "); err != nil {
+			return err
+		}
+		if err := binary.Write(writer, binary.LittleEndian, uint32(16)); err != nil {
+			return err
+		}
+		if err := binary.Write(writer, binary.LittleEndian, uint16(1)); err != nil {
+			return err
+		}
+		if err := binary.Write(writer, binary.LittleEndian, uint16(pcm.Channels)); err != nil {
+			return err
+		}
+		if err := binary.Write(writer, binary.LittleEndian, uint32(pcm.SampleRate)); err != nil {
+			return err
+		}
+		byteRate := uint32(pcm.SampleRate * pcm.Channels * 2)
+		if err := binary.Write(writer, binary.LittleEndian, byteRate); err != nil {
+			return err
+		}
+		blockAlign := uint16(pcm.Channels * 2)
+		if err := binary.Write(writer, binary.LittleEndian, blockAlign); err != nil {
+			return err
+		}
+		if err := binary.Write(writer, binary.LittleEndian, uint16(16)); err != nil {
+			return err
+		}
+		if _, err := writer.WriteString("data"); err != nil {
+			return err
+		}
+		if err := binary.Write(writer, binary.LittleEndian, dataSize); err != nil {
+			return err
+		}
+		if err := binary.Write(writer, binary.LittleEndian, pcm.Data); err != nil {
+			return err
+		}
+		return writer.Flush()
+	})
 }
 
 func readChunkID(reader *bufio.Reader) (string, error) {

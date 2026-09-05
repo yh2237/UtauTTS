@@ -2,9 +2,9 @@ package sidecar
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
+	"utautts/internal/atomicfile"
 
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
@@ -41,7 +41,7 @@ func Write(wavPath string, options Options) error {
 		if encodeErr != nil {
 			return encodeErr
 		}
-		if err := os.WriteFile(base+".txt", data, 0o644); err != nil {
+		if err := atomicfile.WriteFile(base+".txt", data); err != nil {
 			return fmt.Errorf("write text sidecar: %w", err)
 		}
 	}
@@ -50,7 +50,7 @@ func Write(wavPath string, options Options) error {
 		if labelErr != nil {
 			return labelErr
 		}
-		if err := os.WriteFile(base+".lab", data, 0o644); err != nil {
+		if err := atomicfile.WriteFile(base+".lab", data); err != nil {
 			return fmt.Errorf("write label sidecar: %w", err)
 		}
 	}
