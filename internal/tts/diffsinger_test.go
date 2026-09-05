@@ -7,7 +7,79 @@ import (
 
 	"utautts/internal/diffsinger"
 	"utautts/internal/frontend"
+	"utautts/internal/plugin"
+	"utautts/internal/prosody"
+	"utautts/internal/render"
 )
+
+func TestDiffSingerUsesSelectedSpeechModel(t *testing.T) {
+	morae, _ := frontend.ParseKana("あい")
+	model := &prosody.Model{Version: prosody.FramePitchModelVersion, FeatureVersion: 1, Mode: "intonation_frame_tcn_accent_bounded",
+		FramePitch: &prosody.FramePitchModel{FeatureNames: []string{"mora_progress"}, InputWeights: [][]float64{{2}}, InputBias: []float64{0}, OutputWeight: []float64{100}, FrameMS: 10, LowCents: -60, HighCents: 60},
+	}
+	cfg, _, err := prepareDiffSingerProsody(Config{Reading: "あい", ProsodyModel: model, ApplyPitch: true, IntonationStrength: 1, RendererCapabilities: &plugin.Capabilities{FramePitch: true}}, "あい", morae, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PitchCurve == nil {
+		t.Fatal("selected model did not reach DiffSinger")
+	}
+	low, high := math.Inf(1), math.Inf(-1)
+	for _, value := range cfg.PitchCurve.Cents {
+		low = math.Min(low, value)
+		high = math.Max(high, value)
+	}
+	if high-low < 1 {
+		t.Fatal("speech model contour was flattened")
+	}
+}
+
+func TestDiffSingerSpeechProsodyPreservesManualTimingAndPitch(t *testing.T) {
+	morae, err := frontend.ParseKana("あい")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := Config{Reading: "あい", Renderer: "diffsinger", MoraDurationMS: 120,
+		MoraDurationsMS: []float64{90, 150},
+		ManualPitch: &prosody.ManualPitchFile{Version: 1, Reading: "あい", Mode: "replace",
+			Points: []prosody.ManualPitchPoint{{Position: 0, Cents: 120}, {Position: 1, Cents: -120}}},
+	}
+	prepared, preview, err := prepareDiffSingerProsody(cfg, "あい", morae, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(preview.MoraDurationsMS, cfg.MoraDurationsMS) {
+		t.Fatalf("durations = %v", preview.MoraDurationsMS)
+	}
+	for _, point := range preview.PitchPoints {
+		if point != 0 {
+			t.Fatal("manual pitch leaked into automatic preview")
+		}
+	}
+	padding := diffsinger.HeadFrames * 10.0
+	if prepared.PitchCurve == nil || pitchCurveCentsAt(prepared.PitchCurve, padding+45) <= pitchCurveCentsAt(prepared.PitchCurve, padding+165) || pitchCurveCentsAt(prepared.PitchCurve, padding+240) >= 0 {
+		t.Fatalf("manual speech curve not reflected at padded mora positions: %#v", prepared.PitchCurve)
+	}
+	cfg.ManualPitch.Reading = "う"
+	if _, _, err := prepareDiffSingerProsody(cfg, "あい", morae, 10); err == nil {
+		t.Fatal("accepted mismatched manual reading")
+	}
+}
+
+func TestDiffSingerSpeechCurveStartsAfterHeadPadding(t *testing.T) {
+	morae, _ := frontend.ParseKana("あ")
+	curve := &render.PitchCurve{FrameMS: 10, Cents: []float64{0, 100, 200, 300}}
+	cfg, _, err := prepareDiffSingerProsody(Config{Reading: "あ", Renderer: "diffsinger", PitchCurve: curve}, "あ", morae, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := pitchCurveCentsAt(cfg.PitchCurve, diffsinger.HeadFrames*10+10); got != 100 {
+		t.Fatalf("shifted pitch = %v", got)
+	}
+	if curve.Cents[1] != 100 {
+		t.Fatal("input curve mutated")
+	}
+}
 
 func TestDiffSingerPhones(t *testing.T) {
 	singer := &diffsinger.Singer{Tokens: map[string]int64{"SP": 0, "k": 1, "a": 2, "N": 3}}

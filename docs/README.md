@@ -19,6 +19,7 @@
 - [技術設計ガイド](technical-design.md): 内部データ、アルゴリズム、実装上の制約
 - [モデル／Rendererプラグイン](plugins.md): Renderer、Classic UTAUツール、モデルの追加
 - [DiffSinger](diffsinger.md): 試験実装の対応範囲と音源配置
+- [多言語TTS](multilingual.md): 英語・中国語の試験実装
 - [イントネーションとモーラ長の編集](manual-pitch.md): GUIとJSON／CLI
 - [手動調整から抑揚モデルを作る](prosody-model-training.md): 教師データの収集と学習
 

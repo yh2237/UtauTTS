@@ -12,6 +12,22 @@ import (
 	"utautts/internal/oto"
 )
 
+func TestMissingEndingDoesNotDropRemainingConsonants(t *testing.T) {
+	bank := &Bank{Entries: map[string][]oto.Entry{
+		"a":   {{Alias: "a", Filename: "a.wav"}},
+		"s t": {{Alias: "s t", Filename: "st.wav"}},
+	}}
+	selections, err := bank.Resolve([]frontend.Mora{{Text: "a", Vowel: "a", Aliases: &frontend.AliasHints{
+		Main: []string{"a"}, Endings: [][]string{{"a s"}, {"s t"}},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(selections[0].Endings) != 1 || selections[0].Endings[0].Alias != "s t" {
+		t.Fatalf("endings = %#v", selections[0].Endings)
+	}
+}
+
 func TestResolvePrefersVCVAndFallsBackToCV(t *testing.T) {
 	bank := &Bank{Entries: map[string][]oto.Entry{
 		"- こ": {{Alias: "- こ", Filename: "start.wav"}},

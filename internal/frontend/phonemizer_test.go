@@ -2,6 +2,28 @@ package frontend
 
 import "testing"
 
+func TestEnglishPunctuationPreservesPhrasePauses(t *testing.T) {
+	for _, parser := range []func(string, string, map[string]string) (string, []Mora, error){ParseEnglishARPAsing, ParseEnglishDelta, ParseEnglishVCCV} {
+		reading, units, err := parser("Cat, is!", "", map[string]string{"cat": "K AE1 T", "is": "IH0 Z"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		pauses := 0
+		for _, unit := range units {
+			if unit.Pause {
+				pauses++
+			}
+		}
+		if pauses != 2 {
+			t.Fatalf("reading=%q pauses=%d", reading, pauses)
+		}
+		_, roundtrip, err := parser("", reading, nil)
+		if err != nil || len(roundtrip) != len(units) {
+			t.Fatalf("reading roundtrip: %v", err)
+		}
+	}
+}
+
 func TestParseEnglishARPAsingReading(t *testing.T) {
 	reading, units, err := ParseEnglishARPAsing("", "HH AH0 L OW1", nil)
 	if err != nil {
@@ -135,8 +157,11 @@ func TestEnglishExplicitReadingAcceptsWordBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reading != "K AE T | IH Z" || len(units) != 5 || units[3].Aliases.Main[0] != "- ih" {
+	if reading != "K AE T | IH Z" || len(units) != 5 || units[3].Aliases.Main[0] != "t ih" {
 		t.Fatalf("reading=%q units=%#v", reading, units)
+	}
+	if len(units[2].Aliases.Endings) != 0 || len(units[4].Aliases.Endings) != 1 {
+		t.Fatal("word boundaries must not insert phrase-final releases")
 	}
 }
 

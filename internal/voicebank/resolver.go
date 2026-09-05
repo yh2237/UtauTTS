@@ -244,7 +244,9 @@ func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color 
 					}
 				}
 				if best == nil {
-					break
+					// An unavailable coda must not suppress later consonants
+					// for which this voicebank does have a recording.
+					continue
 				}
 				main.Endings = append(main.Endings, *best)
 			}

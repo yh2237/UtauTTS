@@ -84,12 +84,16 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 	}
 	var syllableWords [][]englishSyllable
 	for _, word := range words {
+		if len(word) == 1 && word[0] == "SP" {
+			syllableWords = append(syllableWords, nil)
+			continue
+		}
 		syllables, syllableErr := syllabifyEnglishWord(word, symbols)
 		if syllableErr != nil {
 			return "", nil, syllableErr
 		}
 		if len(syllables) == 0 {
-			if len(syllableWords) == 0 {
+			if len(syllableWords) == 0 || len(syllableWords[len(syllableWords)-1]) == 0 {
 				return "", nil, fmt.Errorf("ARPAbet reading contains no vowel")
 			}
 			lastWord := syllableWords[len(syllableWords)-1]
@@ -105,6 +109,13 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 	previousVowels := []string(nil)
 	phraseStart := true
 	for wordIndex, syllables := range syllableWords {
+		if len(syllables) == 0 {
+			if len(units) > 0 && !units[len(units)-1].Pause {
+				units = append(units, Mora{Pause: true})
+			}
+			previousVowels, phraseStart = nil, true
+			continue
+		}
 		for syllableIndex, syllable := range syllables {
 			atPhraseStart := phraseStart
 			mainOnset := syllable.onset
@@ -143,7 +154,7 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 			current := &units[len(units)-1]
 			previousVowels = symbols[syllable.vowel]
 			lastSyllable := syllableIndex+1 == len(syllables)
-			lastWord := wordIndex+1 == len(syllableWords)
+			lastWord := wordIndex+1 == len(syllableWords) || len(syllableWords[wordIndex+1]) == 0
 			if len(syllable.coda) > 0 {
 				if lastSyllable {
 					current.Aliases.Endings = englishTerminalConsonants(previousVowels, syllable.coda, symbols, separator)
@@ -328,6 +339,11 @@ func englishPronunciation(text, reading string, dictionary map[string]string) (s
 		}
 		parts := make([]string, 0, len(words))
 		for _, word := range words {
+			if word == "<pause>" {
+				result = append(result, []string{"SP"})
+				parts = append(parts, "SP")
+				continue
+			}
 			value := dictionary[word]
 			if value == "" {
 				value = dictionary[strings.ToLower(word)]
@@ -421,9 +437,17 @@ func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (s
 		return "", nil, err
 	}
 	var morae []Mora
+	previous := "-"
 	for _, word := range words {
-		previous := "-"
-		wordStart := len(morae)
+		if len(word) == 1 && word[0] == "SP" {
+			if len(morae) > 0 && !morae[len(morae)-1].Pause {
+				last := &morae[len(morae)-1]
+				last.Aliases.Endings = [][]string{{last.Text + " -", last.Text + "-"}}
+				morae = append(morae, Mora{Pause: true})
+			}
+			previous = "-"
+			continue
+		}
 		for _, raw := range word {
 			symbol := normalizeARPAbet(raw)
 			if symbol == "" {
@@ -444,10 +468,10 @@ func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (s
 			morae = append(morae, mora)
 			previous = symbol
 		}
-		if len(morae) > wordStart {
-			last := morae[len(morae)-1].Text
-			morae[len(morae)-1].Aliases.Endings = [][]string{{last + " -", last + "-"}}
-		}
+	}
+	if len(morae) > 0 && !morae[len(morae)-1].Pause {
+		last := morae[len(morae)-1].Text
+		morae[len(morae)-1].Aliases.Endings = [][]string{{last + " -", last + "-"}}
 	}
 	return pronunciation, morae, nil
 }
@@ -616,9 +640,26 @@ func arpabetStress(value string) int {
 }
 
 func latinWords(text string) []string {
-	return strings.FieldsFunc(text, func(r rune) bool {
-		return !unicode.IsLetter(r) && r != '\''
-	})
+	var result []string
+	var word strings.Builder
+	flush := func() {
+		if word.Len() > 0 {
+			result = append(result, word.String())
+			word.Reset()
+		}
+	}
+	for _, r := range text {
+		if unicode.IsLetter(r) || r == '\'' {
+			word.WriteRune(r)
+			continue
+		}
+		flush()
+		if strings.ContainsRune(",.;:!?、。！？\n", r) && len(result) > 0 && result[len(result)-1] != "<pause>" {
+			result = append(result, "<pause>")
+		}
+	}
+	flush()
+	return result
 }
 
 func normalizePinyin(value string) string {

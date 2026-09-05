@@ -9,6 +9,8 @@ import (
 	"utautts/internal/frontend"
 	"utautts/internal/openutau"
 	"utautts/internal/plan"
+	"utautts/internal/prosody"
+	"utautts/internal/render"
 )
 
 const (
@@ -28,7 +30,11 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 	if language != frontend.LanguageJapanese {
 		return nil, fmt.Errorf("DiffSinger MVP currently supports Japanese input only")
 	}
-	durations := diffsingerMoraDurations(cfg, morae)
+	cfg, preview, err := prepareDiffSingerProsody(cfg, reading, morae, singer.FrameMS())
+	if err != nil {
+		return nil, err
+	}
+	durations := preview.MoraDurationsMS
 	phones, phoneDurations, phoneCounts, err := diffsingerPhones(singer, morae, durations)
 	if err != nil {
 		return nil, err
@@ -117,7 +123,7 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 			}
 		}
 	}
-	if singer.Pitch != nil {
+	if singer.Pitch != nil && cfg.PitchCurve == nil {
 		request.PitchLinguisticPath = singer.Pitch.LinguisticPath
 		request.PitchPredictorPath = singer.Pitch.PredictorPath
 		request.PitchTokens = make([]int64, len(symbols))
@@ -194,34 +200,60 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 	cursor := synthesisPlan.LeadingMarginMS
 	for index, duration := range durations {
 		positions[index] = cursor + duration/2
-		if !morae[index].Pause && cfg.PitchCurve != nil {
-			pitchPoints[index] = pitchCurveCentsAt(cfg.PitchCurve, positions[index])
+		if !morae[index].Pause {
+			pitchPoints[index] = preview.PitchPoints[index]
 		}
 		cursor += duration
 	}
 	return &Result{Plan: synthesisPlan, Audio: pcm, MoraDurationsMS: durations, MoraPositionsMS: positions, PitchPoints: pitchPoints}, nil
 }
 
-func diffsingerMoraDurations(cfg Config, morae []frontend.Mora) []float64 {
-	base := cfg.MoraDurationMS
-	if base <= 0 {
-		base = 140
+// Keep the acoustic model on the same speech timeline as the editor. DiffSinger
+// head padding belongs to the output timeline, not to the prosody model input.
+func prepareDiffSingerProsody(cfg Config, reading string, morae []frontend.Mora, frameMS float64) (Config, *ProsodyPreview, error) {
+	preview, err := PredictProsody(cfg)
+	if err != nil {
+		return cfg, nil, fmt.Errorf("predict DiffSinger speech prosody: %w", err)
 	}
-	pause := cfg.PauseDurationMS
-	if pause <= 0 {
-		pause = 180
+	curve := cfg.PitchCurve
+	if curve == nil {
+		curve = preview.FramePitchCurve
 	}
-	result := make([]float64, len(morae))
-	for index, mora := range morae {
-		if index < len(cfg.MoraDurationsMS) && cfg.MoraDurationsMS[index] > 0 {
-			result[index] = cfg.MoraDurationsMS[index]
-		} else if mora.Pause {
-			result[index] = pause
-		} else {
-			result[index] = previewDurationFor(mora, base)
+	timings := make([]prosody.MoraTiming, len(morae))
+	cursor := 0.0
+	for i, duration := range preview.MoraDurationsMS {
+		timings[i] = prosody.MoraTiming{StartMS: cursor, DurationMS: duration}
+		cursor += duration
+	}
+	manual := cfg.ManualPitch
+	if manual == nil && cfg.ManualPitchPath != "" {
+		manual, err = prosody.LoadManualPitch(cfg.ManualPitchPath)
+		if err != nil {
+			return cfg, nil, err
 		}
 	}
-	return result
+	if manual != nil {
+		if err := manual.Validate(); err != nil {
+			return cfg, nil, err
+		}
+		if manual.Reading != "" && manual.Reading != reading {
+			return cfg, nil, fmt.Errorf("manual pitch reading does not match synthesis reading")
+		}
+		contour, err := manual.Curve(morae, timings, cursor)
+		if err != nil {
+			return cfg, nil, err
+		}
+		curve = render.ConstrainPitchCurve(mergeManualPitchCurve(curve, contour, manual.Mode), 20, 8)
+	}
+	if curve != nil {
+		padding := diffsinger.HeadFrames * frameMS
+		shifted := &render.PitchCurve{FrameMS: frameMS, Cents: make([]float64, int(math.Ceil((cursor+padding+diffsinger.TailFrames*frameMS)/frameMS))+1)}
+		for i := range shifted.Cents {
+			shifted.Cents[i] = pitchCurveCentsAt(curve, math.Max(0, float64(i)*frameMS-padding))
+		}
+		cfg.PitchCurve = shifted
+	}
+	return cfg, preview, nil
 }
 
 func diffsingerPhones(singer *diffsinger.Singer, morae []frontend.Mora, durations []float64) ([]string, []float64, []int64, error) {

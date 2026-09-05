@@ -20,6 +20,22 @@ import (
 	"utautts/internal/voicebank"
 )
 
+func TestMoraTimingsIgnoreCodaAndTransitionUnits(t *testing.T) {
+	morae := []frontend.Mora{{Text: "test"}, {Pause: true}, {Text: "a"}}
+	p := &plan.Plan{DurationMS: 400, Units: []plan.Unit{
+		{Position: 0, Role: "mora", NoteStartMS: 0, DurationMS: 200},
+		{Position: 0, Role: "ending", NoteStartMS: 150, DurationMS: 25},
+		{Position: 0, Role: "ending", NoteStartMS: 175, DurationMS: 25},
+		{Position: 2, Role: "transition", NoteStartMS: 300, DurationMS: 30},
+		{Position: 2, Role: "mora", NoteStartMS: 300, DurationMS: 100},
+	}}
+	got := moraTimings(morae, p)
+	want := []prosody.MoraTiming{{StartMS: 0, DurationMS: 200}, {StartMS: 200, DurationMS: 100}, {StartMS: 300, DurationMS: 100}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("timings=%v want=%v", got, want)
+	}
+}
+
 func TestSynthesizeHonorsCanceledContextBeforeLoadingInputs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

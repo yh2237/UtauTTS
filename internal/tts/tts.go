@@ -320,6 +320,9 @@ func Synthesize(cfg Config) (*Result, error) {
 		return nil, fmt.Errorf("resolve voicebank units: %w", err)
 	}
 	var predictions []prosody.Prediction
+	if language == frontend.LanguageEnglish {
+		predictions = englishPredictions(morae)
+	}
 	if loadedProsody != nil {
 		if loadedProsody.RequiresExternalFeatures() && len(prosodyFeatures) != len(morae) {
 			return nil, fmt.Errorf("prosody model %d/%s requires %d mora-level accent feature frames, got %d", loadedProsody.Version, loadedProsody.Mode, len(morae), len(prosodyFeatures))
@@ -377,6 +380,9 @@ func Synthesize(cfg Config) (*Result, error) {
 	synthesisPlan.CVVCPreBoundaryFade = cfg.CVVCPreBoundaryFade
 	pitchCurve := cfg.PitchCurve
 	applyPitch := applyPitchEnabled(cfg)
+	if pitchCurve == nil && language == frontend.LanguageEnglish && applyPitch {
+		pitchCurve = scaleAutomaticPitchCurve(englishSpeechCurve(morae, moraTimings(morae, synthesisPlan), synthesisPlan.DurationMS+cfg.ReleaseMS, cfg.Text), cfg.IntonationStrength)
+	}
 	if pitchCurve == nil && language == frontend.LanguageChinese {
 		timings := moraTimings(morae, synthesisPlan)
 		pitchCurve = mandarinToneCurve(morae, timings, synthesisPlan.DurationMS+cfg.ReleaseMS)
@@ -537,6 +543,9 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	}
 
 	var predictions []prosody.Prediction
+	if language == frontend.LanguageEnglish {
+		predictions = englishPredictions(morae)
+	}
 	if loadedProsody != nil {
 		if loadedProsody.RequiresExternalFeatures() && len(prosodyFeatures) != len(morae) {
 			return nil, fmt.Errorf("prosody model %d/%s requires %d mora-level accent feature frames, got %d", loadedProsody.Version, loadedProsody.Mode, len(morae), len(prosodyFeatures))
@@ -545,6 +554,11 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	}
 
 	timings := make([]prosody.MoraTiming, len(morae))
+	if loadedProsody != nil && cfg.ProsodyPitchOnly {
+		for i := range predictions {
+			predictions[i].DurationFactor = 1
+		}
+	}
 	result := &ProsodyPreview{
 		Reading: reading, Morae: append([]frontend.Mora(nil), morae...),
 		Features:        append([]prosody.FeatureFrame(nil), prosodyFeatures...),
@@ -574,6 +588,9 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 
 	if language == frontend.LanguageChinese {
 		result.FramePitchCurve = mandarinToneCurve(morae, timings, cursor+cfg.ReleaseMS)
+	}
+	if language == frontend.LanguageEnglish && applyPitchEnabled(cfg) {
+		result.FramePitchCurve = scaleAutomaticPitchCurve(englishSpeechCurve(morae, timings, cursor+cfg.ReleaseMS, cfg.Text), cfg.IntonationStrength)
 	}
 	if result.FramePitchCurve == nil && shouldPredictFrameContour(cfg, loadedProsody) {
 		question := strings.ContainsAny(cfg.Text, "?？")
@@ -898,7 +915,7 @@ func cloneFeatureFrame(frame prosody.FeatureFrame) prosody.FeatureFrame {
 func moraTimings(morae []frontend.Mora, synthesisPlan *plan.Plan) []prosody.MoraTiming {
 	byPosition := make(map[int]plan.Unit, len(synthesisPlan.Units))
 	for _, unit := range synthesisPlan.Units {
-		if unit.Role == "transition" {
+		if unit.Role == "transition" || unit.Role == "ending" {
 			continue
 		}
 		byPosition[unit.Position] = unit
