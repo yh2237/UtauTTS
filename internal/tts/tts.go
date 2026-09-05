@@ -392,7 +392,7 @@ func Synthesize(cfg Config) (*Result, error) {
 	}
 	if pitchCurve == nil && shouldPredictFrameContour(cfg, loadedProsody) {
 		timings := moraTimings(morae, synthesisPlan)
-		question := strings.ContainsAny(cfg.Text, "?？")
+		question := finalPhraseIsQuestion(cfg.Text)
 		if contour := loadedProsody.PredictFrameContour(morae, prosodyFeatures, timings, synthesisPlan.DurationMS+cfg.ReleaseMS, question); contour != nil {
 			pitchCurve = &render.PitchCurve{FrameMS: contour.FrameMS, Cents: contour.Cents}
 			pitchCurve = scaleAutomaticPitchCurve(pitchCurve, cfg.IntonationStrength)
@@ -593,7 +593,7 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		result.FramePitchCurve = scaleAutomaticPitchCurve(englishSpeechCurve(morae, timings, cursor+cfg.ReleaseMS, cfg.Text), cfg.IntonationStrength)
 	}
 	if result.FramePitchCurve == nil && shouldPredictFrameContour(cfg, loadedProsody) {
-		question := strings.ContainsAny(cfg.Text, "?？")
+		question := finalPhraseIsQuestion(cfg.Text)
 		if contour := loadedProsody.PredictFrameContour(morae, prosodyFeatures, timings, cursor+cfg.ReleaseMS, question); contour != nil {
 			curve := scaleAutomaticPitchCurve(&render.PitchCurve{FrameMS: contour.FrameMS, Cents: contour.Cents}, cfg.IntonationStrength)
 			result.FramePitchCurve = curve
