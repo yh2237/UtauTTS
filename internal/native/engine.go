@@ -1,6 +1,7 @@
 package native
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,6 +34,8 @@ type Config struct {
 }
 
 type Engine struct {
+	ctx        context.Context
+	cancel     context.CancelFunc
 	config     Config
 	mu         sync.RWMutex
 	voicebanks map[string]voicebank.Summary
@@ -50,8 +53,10 @@ func New(config Config) (*Engine, error) {
 		config.Renderer = renderer.ID
 	}
 	engine := &Engine{config: config, voicebanks: make(map[string]voicebank.Summary), catalog: catalog}
+	engine.ctx, engine.cancel = context.WithCancel(context.Background())
 	engine.synth = synth.NewService(catalog, config.Renderer, config.WorldlinePath, config.WorldlineBridgePath, config.OpenJTalkPath, config.OpenJTalkDictionary, nativeVoicebankResolver{engine: engine})
 	if err := engine.reload(); err != nil {
+		engine.cancel()
 		return nil, fmt.Errorf("load voicebanks: %w", err)
 	}
 	return engine, nil
@@ -71,6 +76,26 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 	var result any
 	var err error
 	switch method {
+	case "installRendererPackage":
+		var request struct {
+			Path string `json:"path"`
+		}
+		if err := json.Unmarshal(requestJSON, &request); err != nil {
+			return nil, err
+		}
+		directories := e.config.RendererDirectories
+		if len(directories) == 0 {
+			directories, _ = plugin.DefaultDirectories()
+		}
+		if len(directories) == 0 {
+			return nil, fmt.Errorf("renderer directory is not configured")
+		}
+		var installed plugin.Renderer
+		installed, err = plugin.InstallPackage(request.Path, directories[0], render.IsKnownRenderer)
+		result = map[string]any{"id": installed.ID}
+	case "shutdown":
+		e.cancel()
+		result = map[string]bool{"ok": true}
 	case "health":
 		result = map[string]any{"status": "ok", "engine": e.config.Renderer, "version": appinfo.Version()}
 	case "voicebanks":
@@ -83,6 +108,7 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 	case "renderers":
 		result = map[string]any{
 			"default_renderer": e.config.Renderer, "renderers": e.catalog.Renderers,
+			"problems":   e.catalog.Problems,
 			"resamplers": e.catalog.Resamplers, "wavtools": e.catalog.Wavtools,
 		}
 	case "analyze":
@@ -114,7 +140,7 @@ func (r nativeVoicebankResolver) Resolve(id string) (string, bool) {
 	r.engine.mu.RLock()
 	defer r.engine.mu.RUnlock()
 	if id != "" {
-		summary, ok := r.engine.voicebanks[id]
+		summary, ok := voicebank.ResolveLegacyID(r.engine.voicebanks, id)
 		return summary.Path, ok
 	}
 	first := voicebank.DefaultSortedKey(r.engine.voicebanks)
@@ -129,7 +155,7 @@ func (e *Engine) reload() error {
 	}
 	next := make(map[string]voicebank.Summary, len(summaries))
 	for _, summary := range summaries {
-		next[filepath.Base(summary.Path)] = summary
+		next[voicebank.StableID(e.config.VoiceDir, summary.Path)] = summary
 	}
 	e.mu.Lock()
 	e.voicebanks = next
@@ -193,7 +219,7 @@ func (e *Engine) analyze(data []byte) (any, error) {
 	dictionary := synth.DictionaryMap(request.Dictionary)
 	if request.Language == frontend.LanguageEnglish && request.VoicebankID != "" {
 		e.mu.RLock()
-		summary, found := e.voicebanks[request.VoicebankID]
+		summary, found := voicebank.ResolveLegacyID(e.voicebanks, request.VoicebankID)
 		e.mu.RUnlock()
 		if found {
 			bankDictionary, _, loadErr := voicebank.LoadARPAsingDictionary(summary.Path)
@@ -208,7 +234,8 @@ func (e *Engine) analyze(data []byte) (any, error) {
 		}
 	}
 	preview, err := tts.PredictProsody(tts.Config{
-		Text: request.Text, Language: request.Language, Phonemizer: request.Phonemizer,
+		Context: e.ctx,
+		Text:    request.Text, Language: request.Language, Phonemizer: request.Phonemizer,
 		Dictionary: dictionary, OpenJTalkPath: e.config.OpenJTalkPath,
 		OpenJTalkDictionaryPath: e.config.OpenJTalkDictionary,
 	})
@@ -252,7 +279,7 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 	if reading == "" {
 		reading = request.Kana
 	}
-	preview, _, err := e.synth.PredictProsody(synth.Request{
+	preview, _, err := e.synth.PredictProsodyContext(e.ctx, synth.Request{
 		Text: request.Text, Reading: reading, Language: request.Language, Phonemizer: request.Phonemizer, Dictionary: request.Dictionary,
 		ModelID: request.ModelID, Renderer: request.Renderer,
 		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,
@@ -340,7 +367,7 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 	if request.OutputPath == "" {
 		return nil, fmt.Errorf("output_path is required")
 	}
-	result, err := e.synth.Synthesize(synth.Request{
+	result, err := e.synth.SynthesizeContext(e.ctx, synth.Request{
 		Text: request.Text, Reading: request.Reading, Language: request.Language, Phonemizer: request.Phonemizer, VoicebankID: request.VoicebankID,
 		Tone: request.Tone, Color: request.Color, ModelID: request.ModelID, Renderer: request.Renderer,
 		Resampler: request.Resampler, Wavtool: request.Wavtool,

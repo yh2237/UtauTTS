@@ -206,32 +206,7 @@ echo '=== Models and plugins ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
   cp -R "${root_dir}/models/." "${package_dir}/models/"
   cp -R "${root_dir}/plugins/renderers/." "${package_dir}/plugins/renderers/"
-  rm -rf -- "${package_dir}/plugins/renderers/utautts-world-phrase-cuda"
-  rm -rf -- "${package_dir}/plugins/renderers/diffsinger"
-  cat > "${package_dir}/plugins/renderers/openutau-worldline-r-faithful/plugin.json" <<'EOF'
-{
-  "manifest_version": 1, "kind": "renderer", "id": "openutau-worldline-r-faithful",
-  "display_name": "OpenUTAU WORLDLINE-R faithful", "description": "OpenUTAU 0.1.565のPhraseSynthでフレーズ全体をWORLD合成します。",
-  "backend": "openutau-worldline-r-faithful", "version": "1", "acceleration": "cpu", "default_priority": 200,
-  "capabilities": { "frame_pitch": true },
-  "assets": {
-    "worldline": "../../../runtime/libworldline.so",
-    "worldline_bridge": "../../../runtime/utautts-worldline-bridge"
-  }
-}
-EOF
-  cat > "${package_dir}/plugins/renderers/utautts-world-phrase/plugin.json" <<'EOF'
-{
-  "manifest_version": 1, "kind": "renderer", "id": "utautts-world-phrase",
-  "display_name": "UtauTTS WORLD phrase", "description": "公式WORLDで原音を解析し、UtauTTS独自の配置と補間でフレーズ全体を合成します。",
-  "backend": "utautts-world-phrase", "version": "1", "acceleration": "cpu", "default_priority": 300,
-  "capabilities": { "frame_pitch": true },
-  "assets": {
-    "world_engine": "../../../runtime/utautts-world-engine.so",
-    "worldline_bridge": "../../../runtime/utautts-worldline-bridge"
-  }
-}
-EOF
+  # Built-in renderers resolve platform runtimes from the Go registry.
 done
 
 echo '=== Voicebanks ==='

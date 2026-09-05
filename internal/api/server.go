@@ -189,13 +189,14 @@ func (s *Server) loadVoiceDirectory() error {
 	}
 	next := make(map[string]Voicebank, len(summaries))
 	for _, summary := range summaries {
-		id := filepath.Base(summary.Path)
+		id := voicebank.StableID(s.voiceDir, summary.Path)
 		item := Voicebank{ID: id, Name: summary.Name, Path: summary.Path, Kind: summary.Kind}
 		if inspected, inspectErr := inspectVoicebank(summary.Path); inspectErr != nil {
 			log.Printf("voicebank metadata: %s: %v", summary.Path, inspectErr)
 		} else {
 			item = inspected
 		}
+		item.ID = id
 		next[id] = item
 		log.Printf("voicebank: %s (%s)", summary.Name, id)
 	}
@@ -257,6 +258,7 @@ func (s *Server) handleRenderers(w http.ResponseWriter, _ *http.Request) {
 	catalog := s.pluginCatalog()
 	writeJSON(w, http.StatusOK, map[string]any{
 		"default_renderer": s.renderer, "renderers": catalog.Renderers,
+		"problems":   catalog.Problems,
 		"resamplers": catalog.Resamplers, "wavtools": catalog.Wavtools,
 	})
 }
@@ -346,6 +348,7 @@ func (s *Server) handleRegisterVoicebank(w http.ResponseWriter, r *http.Request)
 	if request.Name != "" {
 		vb.Name = request.Name
 	}
+	vb.ID = voicebank.StableID(s.voiceDir, path)
 	s.mu.Lock()
 	s.voicebanks[vb.ID] = vb
 	s.mu.Unlock()
@@ -683,7 +686,7 @@ func (s *Server) resolveVoicebank(id string) (Voicebank, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if id != "" {
-		vb, ok := s.voicebanks[id]
+		vb, ok := voicebank.ResolveLegacyID(s.voicebanks, id)
 		return vb, ok
 	}
 	first := voicebank.DefaultSortedKey(s.voicebanks)

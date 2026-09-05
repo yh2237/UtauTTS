@@ -211,7 +211,7 @@ func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlinePa
 	}
 	renderer, found := catalog.Renderer(rendererID)
 	if !found {
-		return "", errors.New("renderer catalog has no available renderer")
+		return "", fmt.Errorf("renderer %q is not available; select an installed renderer", rendererID)
 	}
 	if !render.IsKnownRenderer(renderer.Backend) {
 		return "", fmt.Errorf("renderer plugin %q requires unavailable backend %q", renderer.ID, renderer.Backend)
@@ -956,7 +956,8 @@ func rendererSupportsFramePitch(renderer string, capabilities *plugin.Capabiliti
 		return capabilities.FramePitch
 	}
 	directories, _ := plugin.DefaultDirectories()
-	items, _ := plugin.DiscoverRenderers(directories, nil)
+	external, _ := plugin.DiscoverRenderers(directories, nil)
+	items := append(plugin.BuiltinRenderers(), external...)
 	for _, item := range items {
 		if item.ID == renderer || item.Backend == renderer {
 			return item.Capabilities.FramePitch

@@ -111,10 +111,15 @@ func SynthesizeConfig(cfg tts.Config, rendererID string) (*Result, error) {
 
 // PredictProsodyは音声や音源を読み込まずにプロソディを返す。
 func (s *Service) PredictProsody(request Request) (*tts.ProsodyPreview, string, error) {
+	return s.PredictProsodyContext(context.Background(), request)
+}
+
+func (s *Service) PredictProsodyContext(ctx context.Context, request Request) (*tts.ProsodyPreview, string, error) {
 	cfg, rendererID, err := s.config(request, false)
 	if err != nil {
 		return nil, "", err
 	}
+	cfg.Context = ctx
 	preview, err := tts.PredictProsody(cfg)
 	if err != nil {
 		return nil, "", err

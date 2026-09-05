@@ -115,8 +115,12 @@ func TestNewReportsInvalidPlugin(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(pluginDirectory, "plugin.json"), []byte(`{"kind":"renderer"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := New(Config{VoiceDir: t.TempDir(), RendererDirectories: []string{pluginDirectory}}); err == nil {
-		t.Fatal("invalid renderer plugin was silently ignored")
+	server, err := New(Config{VoiceDir: t.TempDir(), RendererDirectories: []string{pluginDirectory}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(server.pluginCatalog().Problems) == 0 {
+		t.Fatal("invalid plugin was not reported")
 	}
 }
 

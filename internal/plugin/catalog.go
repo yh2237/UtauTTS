@@ -22,6 +22,7 @@ type Capabilities struct {
 }
 
 type Renderer struct {
+	BuiltIn         bool              `json:"built_in,omitempty"`
 	ManifestVersion int               `json:"manifest_version"`
 	Kind            string            `json:"kind"`
 	ID              string            `json:"id"`
@@ -54,6 +55,7 @@ type Model struct {
 }
 
 type Catalog struct {
+	Problems   []string `json:"problems,omitempty"`
 	Renderers  []Renderer
 	Models     []Model
 	Resamplers []ClassicTool
@@ -79,23 +81,39 @@ func DiscoverWithDefaults(rendererDirectories, modelDirectories []string, suppor
 	rendererDirectories = append(rendererDirectories, defaultRendererDirs...)
 	modelDirectories = append(modelDirectories, defaultModelDirs...)
 	catalog, err := Discover(rendererDirectories, modelDirectories, supportsBackend)
+	if err != nil {
+		catalog.Problems = append(catalog.Problems, err.Error())
+	}
 	resamplerDirs, wavtoolDirs := DefaultClassicToolDirectories()
 	catalog.Resamplers, catalog.Wavtools = DiscoverClassicTools(resamplerDirs, wavtoolDirs)
 	catalog.Wavtools = append([]ClassicTool{{ID: "builtin", DisplayName: "UtauTTS built-in", BuiltIn: true}}, catalog.Wavtools...)
+	builtins := BuiltinRenderers()
+	builtinByID := map[string]Renderer{}
+	for _, item := range builtins {
+		builtinByID[item.ID] = item
+	}
 	activeRenderers := catalog.Renderers[:0]
 	for _, renderer := range catalog.Renderers {
+		if builtin, exists := builtinByID[renderer.ID]; exists {
+			if renderer.ManifestVersion != 1 || renderer.Backend != builtin.Backend {
+				catalog.Problems = append(catalog.Problems, fmt.Sprintf("%s: built-in renderer ID is reserved", renderer.ID))
+			}
+			continue
+		}
 		if renderer.Backend != "utau-external-resampler" {
 			activeRenderers = append(activeRenderers, renderer)
 		}
 	}
 	catalog.Renderers = activeRenderers
-	catalog.Renderers = append(catalog.Renderers, Renderer{
-		ManifestVersion: ManifestVersion, Kind: "renderer", ID: "classic-utau",
-		DisplayName: "Classic UTAU", Description: "UTAU互換のresamplerとwavtoolを使います。",
-		Backend: "utau-external-resampler", Version: "1", Acceleration: "cpu",
-		DefaultPriority: -100, Capabilities: Capabilities{FramePitch: true},
+	for _, builtin := range builtins {
+		if supportsBackend == nil || supportsBackend(builtin.Backend) {
+			catalog.Renderers = append(catalog.Renderers, builtin)
+		}
+	}
+	sort.SliceStable(catalog.Renderers, func(i, j int) bool {
+		return catalog.Renderers[i].DefaultPriority > catalog.Renderers[j].DefaultPriority
 	})
-	return catalog, err
+	return catalog, nil
 }
 
 func DefaultClassicToolDirectories() (resamplerDirectories, wavtoolDirectories []string) {
@@ -191,6 +209,9 @@ func DiscoverRenderers(directories []string, supportsBackend func(string) bool) 
 				}
 				return nil
 			}
+			if entry.IsDir() && path != root && strings.HasPrefix(entry.Name(), ".") {
+				return filepath.SkipDir
+			}
 			if entry.IsDir() || !strings.EqualFold(entry.Name(), "plugin.json") {
 				return nil
 			}
@@ -199,8 +220,8 @@ func DiscoverRenderers(directories []string, supportsBackend func(string) bool) 
 				problems = append(problems, fmt.Errorf("read renderer manifest %q: %w", path, err))
 				return nil
 			}
-			var renderer Renderer
-			if err := json.Unmarshal(data, &renderer); err != nil {
+			renderer, err := decodeRenderer(data, filepath.Dir(path))
+			if err != nil {
 				problems = append(problems, fmt.Errorf("decode renderer manifest %q: %w", path, err))
 				return nil
 			}
@@ -325,7 +346,7 @@ func (catalog *Catalog) Renderer(id string) (Renderer, bool) {
 			return item, true
 		}
 	}
-	if len(catalog.Renderers) > 0 {
+	if id == "" && len(catalog.Renderers) > 0 {
 		return catalog.Renderers[0], true
 	}
 	return Renderer{}, false
@@ -409,7 +430,7 @@ func workspaceRoot(start string) string {
 }
 
 func validateRenderer(renderer Renderer, supportsBackend func(string) bool) error {
-	if renderer.ManifestVersion != ManifestVersion {
+	if renderer.ManifestVersion != ManifestVersion && renderer.ManifestVersion != 2 {
 		return fmt.Errorf("unsupported manifest_version %d", renderer.ManifestVersion)
 	}
 	if renderer.Kind != "renderer" || renderer.ID == "" || renderer.DisplayName == "" || renderer.Backend == "" {

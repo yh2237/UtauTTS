@@ -10,11 +10,7 @@ import (
 )
 
 func TestRepositoryRendererPluginsAreSelfDescribing(t *testing.T) {
-	rendererDirectories, _ := DefaultDirectories()
-	items, err := DiscoverRenderers(rendererDirectories, func(string) bool { return true })
-	if err != nil {
-		t.Fatal(err)
-	}
+	items := BuiltinRenderers()
 	if len(items) < 2 {
 		t.Fatalf("renderer plugins = %d, want multiple independently described plugins", len(items))
 	}
@@ -22,7 +18,7 @@ func TestRepositoryRendererPluginsAreSelfDescribing(t *testing.T) {
 		t.Fatalf("default renderer = %q, want manifest-priority UtauTTS WORLD phrase", items[0].ID)
 	}
 	for _, item := range items {
-		if item.ID == "" || item.DisplayName == "" || item.Backend == "" || item.Directory == "" {
+		if item.ID == "" || item.DisplayName == "" || item.Backend == "" || !item.BuiltIn {
 			t.Fatalf("incomplete renderer plugin: %#v", item)
 		}
 	}
@@ -120,15 +116,14 @@ func TestRepositoryBundlesSelfDescribingModels(t *testing.T) {
 }
 
 func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {
-	rendererDirectories, _ := DefaultDirectories()
-	items, err := DiscoverRenderers(rendererDirectories, func(string) bool { return true })
-	if err != nil {
-		t.Fatal(err)
-	}
+	items := BuiltinRenderers()
 	want := map[string]string{
 		"openutau-worldline-r-faithful": "cpu",
 		"utautts-world-phrase":          "cpu",
 		"utautts-world-phrase-cuda":     "cuda",
+	}
+	if runtime.GOOS != "windows" {
+		delete(want, "utautts-world-phrase-cuda")
 	}
 	for _, item := range items {
 		if acceleration, ok := want[item.ID]; ok {
@@ -143,11 +138,11 @@ func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {
 	}
 }
 
-func TestUnknownRendererFallsBackToDefault(t *testing.T) {
+func TestUnknownRendererRequiresExplicitSelection(t *testing.T) {
 	catalog := &Catalog{Renderers: []Renderer{{ID: "default"}, {ID: "other"}}}
 	for _, requested := range []string{"unknown", "removed-renderer", ""} {
 		got, ok := catalog.Renderer(requested)
-		if !ok || got.ID != "default" {
+		if (requested == "" && (!ok || got.ID != "default")) || (requested != "" && ok) {
 			t.Fatalf("Renderer(%q) = %#v, %v", requested, got, ok)
 		}
 	}

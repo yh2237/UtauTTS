@@ -279,8 +279,18 @@ func TestNewReportsInvalidPlugin(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(pluginDirectory, "plugin.json"), []byte(`{"kind":"renderer"}`), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := New(Config{VoiceDir: t.TempDir(), RendererDirectories: []string{pluginDirectory}}); err == nil {
-		t.Fatal("invalid renderer plugin was silently ignored")
+	engine, err := New(Config{VoiceDir: t.TempDir(), RendererDirectories: []string{pluginDirectory}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(engine.catalog.Problems) == 0 {
+		t.Fatal("invalid plugin was not reported")
+	}
+	if _, err := engine.Call("shutdown", nil); err != nil {
+		t.Fatal(err)
+	}
+	if engine.ctx.Err() == nil {
+		t.Fatal("shutdown did not cancel engine context")
 	}
 }
 
