@@ -51,15 +51,9 @@ jobs:
             windows desktop $env:QT_VERSION win64_mingw `
             --modules qtmultimedia
 
-          $mingwVariants = @(python -m aqt list-tool windows desktop tools_mingw |
-            ForEach-Object { $_.Trim() } |
-            Where-Object { $_ -match '^qt\.tools\.win64_mingw1310(?:_64)?$' })
-          if ($mingwVariants.Count -eq 0) {
-            python -m aqt list-tool windows desktop tools_mingw
-            throw 'The Qt MinGW 13.1 tool variant was not found.'
-          }
-          $mingwVariant = $mingwVariants[0]
-          python -m aqt install-tool --outputdir $qtRoot windows desktop tools_mingw $mingwVariant
+          # Qt publishes the MinGW 13.1 compiler as its own tool name rather
+          # than as a variant of the older tools_mingw catalog.
+          python -m aqt install-tool --outputdir $qtRoot windows desktop tools_mingw1310
           python -m aqt install-tool --outputdir $qtRoot windows desktop tools_cmake
           python -m aqt install-tool --outputdir $qtRoot windows desktop tools_ninja
 
