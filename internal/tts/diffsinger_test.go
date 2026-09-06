@@ -12,6 +12,16 @@ import (
 	"utautts/internal/render"
 )
 
+func TestDiffSingerIsRegisteredAsNeuralSynthesizer(t *testing.T) {
+	synthesizer, found := neuralSynthesizerForProvider("diffsinger")
+	if !found || synthesizer.ProviderID() != "diffsinger" {
+		t.Fatalf("DiffSinger neural provider = %#v, found=%v", synthesizer, found)
+	}
+	if _, found := neuralSynthesizerForProvider("waveform"); found {
+		t.Fatal("unit renderer was registered as a neural synthesizer")
+	}
+}
+
 func TestDiffSingerUsesSelectedSpeechModel(t *testing.T) {
 	morae, _ := frontend.ParseKana("あい")
 	model := &prosody.Model{Version: prosody.FramePitchModelVersion, FeatureVersion: 1, Mode: "intonation_frame_tcn_accent_bounded",
@@ -146,11 +156,5 @@ func TestGroupedFrameDurations(t *testing.T) {
 	got := groupedFrameDurations([]int64{8, 3, 7, 5, 8}, []int64{1, 2, 1, 1})
 	if !reflect.DeepEqual(got, []int64{8, 10, 5, 8}) {
 		t.Fatalf("durations = %#v", got)
-	}
-}
-
-func TestDiffSingerMelScale(t *testing.T) {
-	if got := diffsingerMelScale("10", "e"); got < 2.3025 || got > 2.3026 {
-		t.Fatalf("scale = %v", got)
 	}
 }

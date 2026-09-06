@@ -381,6 +381,13 @@ func TestSynthesizePropagatesAliasPolicyIntoPlan(t *testing.T) {
 			t.Fatalf("cv-only unit = %#v", unit)
 		}
 	}
+	if result.RenderReport == nil || result.Plan.LeadingMarginMS != 0 {
+		t.Fatalf("selection plan retained renderer diagnostics: report=%#v plan=%#v", result.RenderReport, result.Plan)
+	}
+	renderedPlan := result.RenderedPlan()
+	if renderedPlan == nil || renderedPlan.LeadingMarginMS == 0 || renderedPlan.Units[0].EffectivePreutteranceMS == 0 {
+		t.Fatalf("rendered plan lost diagnostics: %#v", renderedPlan)
+	}
 }
 
 func TestSynthesizeUsesCVVCTransitionInAutoMode(t *testing.T) {

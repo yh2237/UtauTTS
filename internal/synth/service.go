@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"utautts/internal/engine"
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
@@ -128,7 +129,7 @@ func (s *Service) PredictProsodyContext(ctx context.Context, request Request) (*
 }
 
 func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, string, error) {
-	modelPath, err := s.modelPath(request.ModelID)
+	modelPath, err := s.ResolveModel(request.ModelID)
 	if err != nil {
 		return tts.Config{}, "", err
 	}
@@ -168,25 +169,113 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		}
 		cfg.VoicebankPath = voicebankPath
 	}
-	rendererID := s.rendererID(request.Renderer)
-	resolvedRendererID, err := tts.ApplyRenderer(&cfg, s.catalog, rendererID, s.worldlinePath, s.worldlineBridgePath)
+	resolvedEngine, err := s.ResolveRenderer(request.Renderer)
 	if err != nil {
-		return tts.Config{}, "", fmt.Errorf("%w: %v", ErrUnavailable, err)
+		return tts.Config{}, "", err
 	}
-	// Classic UTAUは予約IDではなくbackendで判定する。
-	if requireVoicebank && cfg.Renderer == "utau-external-resampler" {
-		resampler, found := s.catalog.Resampler(request.Resampler)
-		if !found {
-			return tts.Config{}, "", fmt.Errorf("%w: classic UTAU resampler %q not found", ErrUnavailable, request.Resampler)
+	if requireVoicebank {
+		if availabilityErr := resolvedEngine.RequireAvailable(); availabilityErr != nil {
+			return tts.Config{}, "", fmt.Errorf("%w: %v", ErrUnavailable, availabilityErr)
 		}
-		wavtool, found := s.catalog.Wavtool(request.Wavtool)
-		if !found {
-			return tts.Config{}, "", fmt.Errorf("%w: classic UTAU wavtool %q not found", ErrUnavailable, request.Wavtool)
-		}
-		cfg.ExternalResamplerPath = resampler.Path
-		cfg.ExternalWavtoolPath = wavtool.Path
 	}
-	return cfg, resolvedRendererID, nil
+	tts.ApplyResolvedEngine(&cfg, resolvedEngine, s.worldlinePath, s.worldlineBridgePath)
+	// Classic UTAUは公開Renderer IDではなく解決済みproviderで判定する。
+	if requireVoicebank && resolvedEngine.Provider.ID == "utau-external-resampler" {
+		tools, toolsErr := s.ResolveClassicTools(request.Resampler, request.Wavtool)
+		if toolsErr != nil {
+			return tts.Config{}, "", toolsErr
+		}
+		cfg.ExternalResamplerPath = tools.Resampler.Path
+		cfg.ExternalWavtoolPath = tools.Wavtool.Path
+	}
+	return cfg, string(resolvedEngine.PublicID()), nil
+}
+
+// ResolveRenderer resolves the user-facing Renderer ID to its provider and
+// manifest resources. GUI, HTTP, and CLI use this method so they cannot
+// diverge on default or missing-ID behavior.
+func (s *Service) ResolveRenderer(requested string) (engine.ResolvedEngine, error) {
+	resolved, err := tts.ResolveRendererWithOptions(s.catalog, s.rendererID(requested), engine.ResolveOptions{
+		ResourceOverrides: map[engine.ResourceKey]string{
+			engine.ResourceWorldline:       s.worldlinePath,
+			engine.ResourceWorldlineBridge: s.worldlineBridgePath,
+		},
+	})
+	if err != nil {
+		return engine.ResolvedEngine{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
+	}
+	return resolved, nil
+}
+
+// RendererAvailability returns preflight information for every discovered
+// renderer. It is intentionally non-fatal so listing endpoints can explain
+// missing runtimes before a user starts synthesis.
+func (s *Service) RendererAvailability() map[string]engine.Availability {
+	result := make(map[string]engine.Availability)
+	if s.catalog == nil {
+		return result
+	}
+	for _, renderer := range s.catalog.Renderers {
+		resolved, err := s.ResolveRenderer(renderer.ID)
+		if err != nil {
+			result[renderer.ID] = engine.Availability{
+				Available: false,
+				Issues:    []engine.AvailabilityIssue{{Message: err.Error()}},
+			}
+			continue
+		}
+		availability := resolved.Availability
+		if availability.Available && resolved.Provider.ID == "utau-external-resampler" {
+			if _, toolsErr := s.ResolveClassicTools("", ""); toolsErr != nil {
+				availability = engine.Availability{
+					Available: false,
+					Issues:    []engine.AvailabilityIssue{{Message: toolsErr.Error()}},
+				}
+			}
+		}
+		result[renderer.ID] = availability
+	}
+	return result
+}
+
+// ClassicTools are the resolved external tools selected for Classic UTAU.
+type ClassicTools struct {
+	Resampler plugin.ClassicTool
+	Wavtool   plugin.ClassicTool
+	Resources map[engine.ResourceKey]string
+}
+
+// ResolveClassicTools resolves Classic UTAU tool IDs with the same catalog
+// used by every entry point.
+func (s *Service) ResolveClassicTools(resamplerID, wavtoolID string) (ClassicTools, error) {
+	if s.catalog == nil {
+		return ClassicTools{}, fmt.Errorf("%w: renderer catalog is not initialized", ErrUnavailable)
+	}
+	resampler, found := s.catalog.Resampler(resamplerID)
+	if !found {
+		return ClassicTools{}, fmt.Errorf("%w: classic UTAU resampler %q not found", ErrUnavailable, resamplerID)
+	}
+	wavtool, found := s.catalog.Wavtool(wavtoolID)
+	if !found {
+		return ClassicTools{}, fmt.Errorf("%w: classic UTAU wavtool %q not found", ErrUnavailable, wavtoolID)
+	}
+	resources := map[engine.ResourceKey]string{
+		engine.ResourceClassicResampler: resampler.Path,
+	}
+	requirements := []engine.ResourceRequirement{{
+		Key: engine.ResourceClassicResampler, Required: true, Executable: true,
+	}}
+	if wavtool.Path != "" {
+		resources[engine.ResourceClassicWavtool] = wavtool.Path
+		requirements = append(requirements, engine.ResourceRequirement{
+			Key: engine.ResourceClassicWavtool, Required: true, Executable: true,
+		})
+	}
+	availability := engine.CheckResources(resources, requirements...)
+	if !availability.Available {
+		return ClassicTools{}, fmt.Errorf("%w: classic UTAU tools: %s", ErrUnavailable, availability.Error())
+	}
+	return ClassicTools{Resampler: resampler, Wavtool: wavtool, Resources: resources}, nil
 }
 
 func (s *Service) rendererID(requested string) string {
@@ -196,10 +285,13 @@ func (s *Service) rendererID(requested string) string {
 	return s.renderer
 }
 
-// modelPathはモデルIDをパスへ解決する。空または"none"ならモデルを使わない。
-func (s *Service) modelPath(id string) (string, error) {
+// ResolveModel resolves a model ID or catalogued path to a runtime path.
+func (s *Service) ResolveModel(id string) (string, error) {
 	if id == "" || id == "none" {
 		return "", nil
+	}
+	if s.catalog == nil {
+		return "", fmt.Errorf("%w: model catalog is not initialized", ErrUnavailable)
 	}
 	model, found := s.catalog.Model(id)
 	if !found {

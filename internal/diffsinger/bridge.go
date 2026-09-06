@@ -70,6 +70,9 @@ type Request struct {
 	MelScale                  float32   `json:"mel_scale,omitempty"`
 }
 
+// Render invokes the legacy one-shot bridge protocol. New synthesis calls
+// should use RenderSession; this function remains the compatibility fallback
+// for older installed bridge binaries.
 func Render(ctx context.Context, bridgePath string, request Request) (*audio.PCM, error) {
 	if ctx == nil {
 		ctx = context.Background()

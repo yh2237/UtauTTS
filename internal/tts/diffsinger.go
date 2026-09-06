@@ -6,16 +6,12 @@ import (
 	"strings"
 
 	"utautts/internal/diffsinger"
+	"utautts/internal/engine"
 	"utautts/internal/frontend"
 	"utautts/internal/openutau"
 	"utautts/internal/plan"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
-)
-
-const (
-	diffsingerSpeechDurationMix = 0.2
-	diffsingerSpeechPitchMix    = 0.03
 )
 
 func synthesizeDiffSinger(cfg Config) (*Result, error) {
@@ -44,14 +40,6 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 	phoneDurations = append(phoneDurations, diffsinger.TailFrames*frameMS)
 	frames := durationsMSToFrames(phoneDurations, frameMS)
 	symbols := append(append([]string{"SP"}, phones...), "SP")
-	tokens := make([]int64, 0, len(symbols))
-	for _, symbol := range symbols {
-		token, tokenErr := singer.Token(symbol)
-		if tokenErr != nil {
-			return nil, tokenErr
-		}
-		tokens = append(tokens, token)
-	}
 	totalFrames := 0
 	for _, duration := range frames {
 		totalFrames += int(duration)
@@ -64,133 +52,19 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	steps := int64(20)
-	depth, err := diffsingerDepth(singer.Config)
-	if err != nil {
-		return nil, err
-	}
-	request := diffsinger.Request{
-		AcousticPath: singer.AcousticPath, VocoderPath: singer.VocoderPath,
-		Tokens: tokens, Durations: frames, F0: f0, SampleRate: singer.Config.SampleRate,
-		Steps: steps, Speedup: diffusionSpeedup(steps), PitchControllable: singer.Vocoder.PitchControllable,
-		UseContinuousAcceleration: singer.Config.UseContinuousAcceleration,
-		UseVariableDepth:          diffsingerUsesVariableDepth(singer.Config),
-		Depth:                     depth,
-		UseGender:                 singer.Config.UseKeyShiftEmbed,
-		UseVelocity:               singer.Config.UseSpeedEmbed,
-		UseEnergy:                 singer.Config.UseEnergyEmbed,
-		UseBreathiness:            singer.Config.UseBreathinessEmbed,
-		UseVoicing:                singer.Config.UseVoicingEmbed,
-		UseTension:                singer.Config.UseTensionEmbed,
-		SpeakerEmbed:              singer.SpeakerEmbed,
-		MelScale:                  diffsingerMelScale(singer.Config.MelBase, singer.Vocoder.MelBase),
-	}
-	if singer.Config.UseLangID {
-		request.Languages = make([]int64, len(tokens))
-		for index, symbol := range symbols {
-			if slash := strings.IndexByte(symbol, '/'); slash > 0 {
-				request.Languages[index] = singer.LanguageIDs[symbol[:slash]]
-			}
-		}
-	}
 	wordDiv := append(append([]int64{1}, phoneCounts...), 1)
 	wordDur := groupedFrameDurations(frames, wordDiv)
-	if singer.Duration != nil {
-		request.DurationLinguisticPath = singer.Duration.LinguisticPath
-		request.DurationPredictorPath = singer.Duration.PredictorPath
-		request.DurationTokens = make([]int64, len(symbols))
-		for index, symbol := range symbols {
-			token, found := singer.Duration.Tokens[symbol]
-			if !found {
-				return nil, fmt.Errorf("duration model has no phoneme %q", symbol)
-			}
-			request.DurationTokens[index] = token
-		}
-		request.WordDiv = wordDiv
-		request.WordDur = wordDur
-		request.PhMIDI = make([]int64, len(symbols))
-		for index := range request.PhMIDI {
-			request.PhMIDI[index] = int64(midi)
-		}
-		request.DurationSpeakerEmbed = singer.Duration.SpeakerEmbed
-		request.DurationPredictorMix = diffsingerSpeechDurationMix
-		if singer.Duration.Config.UseLangID {
-			request.DurationLanguages = make([]int64, len(symbols))
-			for index, symbol := range symbols {
-				if slash := strings.IndexByte(symbol, '/'); slash > 0 {
-					request.DurationLanguages[index] = singer.Duration.LanguageIDs[symbol[:slash]]
-				}
-			}
-		}
+	noteRest := append([]bool{true}, make([]bool, len(morae))...)
+	for index, mora := range morae {
+		noteRest[index+1] = mora.Pause
 	}
-	if singer.Pitch != nil && cfg.PitchCurve == nil {
-		request.PitchLinguisticPath = singer.Pitch.LinguisticPath
-		request.PitchPredictorPath = singer.Pitch.PredictorPath
-		request.PitchTokens = make([]int64, len(symbols))
-		for index, symbol := range symbols {
-			token, found := singer.Pitch.Tokens[symbol]
-			if !found {
-				return nil, fmt.Errorf("pitch model has no phoneme %q", symbol)
-			}
-			request.PitchTokens[index] = token
-		}
-		request.WordDiv = wordDiv
-		request.WordDur = wordDur
-		request.PitchSpeakerEmbed = singer.Pitch.SpeakerEmbed
-		request.PitchPredictsDur = singer.Pitch.Config.PredictDur == nil || *singer.Pitch.Config.PredictDur
-		request.PitchContinuous = singer.Pitch.Config.UseContinuousAcceleration
-		request.PitchUseExpr = singer.Pitch.Config.UseExpr
-		request.PitchUseNoteRest = singer.Pitch.Config.UseNoteRest
-		request.PitchPredictorMix = diffsingerSpeechPitchMix
-		request.NoteMIDI = make([]float32, len(wordDiv))
-		for index := range request.NoteMIDI {
-			request.NoteMIDI[index] = float32(midi)
-		}
-		request.NoteRest = make([]bool, 0, len(wordDiv))
-		request.NoteRest = append(request.NoteRest, true)
-		for _, mora := range morae {
-			request.NoteRest = append(request.NoteRest, mora.Pause)
-		}
-		request.NoteRest = append(request.NoteRest, true)
-		if singer.Pitch.Config.UseLangID {
-			request.PitchLanguages = make([]int64, len(symbols))
-			for index, symbol := range symbols {
-				if slash := strings.IndexByte(symbol, '/'); slash > 0 {
-					request.PitchLanguages[index] = singer.Pitch.LanguageIDs[symbol[:slash]]
-				}
-			}
-		}
+	noteRest = append(noteRest, true)
+	score := engine.NeuralScore{
+		Symbols: symbols, Durations: frames, F0: f0, MIDI: midi,
+		WordDiv: wordDiv, WordDur: wordDur, NoteRest: noteRest,
+		UsePitchPredictor: singer.Pitch != nil && cfg.PitchCurve == nil,
 	}
-	if singer.Variance != nil {
-		request.VarianceLinguisticPath = singer.Variance.LinguisticPath
-		request.VariancePredictorPath = singer.Variance.PredictorPath
-		request.VarianceTokens = make([]int64, len(symbols))
-		for index, symbol := range symbols {
-			token, found := singer.Variance.Tokens[symbol]
-			if !found {
-				return nil, fmt.Errorf("variance model has no phoneme %q", symbol)
-			}
-			request.VarianceTokens[index] = token
-		}
-		request.WordDiv = wordDiv
-		request.WordDur = wordDur
-		request.VarianceSpeakerEmbed = singer.Variance.SpeakerEmbed
-		request.VariancePredictsDur = singer.Variance.Config.PredictDur
-		request.VariancePredictsEnergy = singer.Variance.Config.PredictEnergy
-		request.VariancePredictsBreath = singer.Variance.Config.PredictBreathiness
-		request.VariancePredictsVoicing = singer.Variance.Config.PredictVoicing
-		request.VariancePredictsTension = singer.Variance.Config.PredictTension
-		request.VarianceContinuous = singer.Variance.Config.UseContinuousAcceleration
-		if singer.Variance.Config.UseLangID {
-			request.VarianceLanguages = make([]int64, len(symbols))
-			for index, symbol := range symbols {
-				if slash := strings.IndexByte(symbol, '/'); slash > 0 {
-					request.VarianceLanguages[index] = singer.Variance.LanguageIDs[symbol[:slash]]
-				}
-			}
-		}
-	}
-	pcm, err := diffsinger.Render(cfg.Context, cfg.DiffSingerBridgePath, request)
+	pcm, err := diffsinger.RenderScore(cfg.Context, cfg.DiffSingerBridgePath, singer, score)
 	if err != nil {
 		return nil, err
 	}
@@ -428,48 +302,6 @@ func diffsingerMIDI(tone string) (int, error) {
 		return 0, fmt.Errorf("DiffSinger tone: %w", err)
 	}
 	return midi, nil
-}
-
-func diffusionSpeedup(steps int64) int64 {
-	value := int64(1000) / steps
-	if value < 1 {
-		value = 1
-	}
-	for value > 1 && 1000%value != 0 {
-		value--
-	}
-	return value
-}
-
-func diffsingerUsesVariableDepth(cfg diffsinger.Config) bool {
-	if cfg.UseVariableDepth != nil {
-		return *cfg.UseVariableDepth
-	}
-	return cfg.UseShallowDiffusion != nil && *cfg.UseShallowDiffusion
-}
-
-func diffsingerDepth(cfg diffsinger.Config) (float32, error) {
-	if !diffsingerUsesVariableDepth(cfg) {
-		return 1, nil
-	}
-	maximum := cfg.MaxDepth
-	if !cfg.UseContinuousAcceleration {
-		maximum /= 1000
-	}
-	if maximum < 0 {
-		return 0, fmt.Errorf("DiffSinger max_depth must not be negative")
-	}
-	return float32(math.Min(1, maximum)), nil
-}
-
-func diffsingerMelScale(acousticBase, vocoderBase string) float32 {
-	if acousticBase == vocoderBase {
-		return 1
-	}
-	if acousticBase == "10" && vocoderBase == "e" {
-		return 2.30259
-	}
-	return 0.434294
 }
 
 func diffsingerPlan(cfg Config, reading, language, phonemizer string, morae []frontend.Mora, durations []float64, frameMS float64) *plan.Plan {

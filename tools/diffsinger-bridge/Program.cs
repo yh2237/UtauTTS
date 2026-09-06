@@ -3,6 +3,14 @@ using System.Text.Json.Serialization;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 
+if (args.Length == 2 && args[0] == "--provider") {
+    if (!string.Equals(args[1], "diffsinger", StringComparison.Ordinal)) {
+        Console.Error.WriteLine($"unsupported provider {args[1]}");
+        return 2;
+    }
+    return RunProviderSession();
+}
+
 if (args.Length == 2 && args[0] == "--inspect") {
     try {
         using var session = new InferenceSession(args[1]);
@@ -23,7 +31,7 @@ if (args.Length == 2 && args[0] == "--inspect") {
 }
 
 if (args.Length != 1) {
-    Console.Error.WriteLine("usage: utautts-diffsinger-bridge REQUEST.json | --inspect MODEL.onnx");
+    Console.Error.WriteLine("usage: utautts-diffsinger-bridge REQUEST.json | --inspect MODEL.onnx | --provider diffsinger");
     return 2;
 }
 
@@ -32,7 +40,8 @@ try {
     var request = JsonSerializer.Deserialize<Request>(json)
         ?? throw new InvalidDataException("request is empty");
     Validate(request);
-    var samples = Render(request);
+    using var runtime = new InferenceRuntime();
+    var samples = Render(request, runtime);
     WriteWave(request.OutputPath, request.SampleRate, samples);
     return 0;
 } catch (Exception error) {
@@ -40,17 +49,17 @@ try {
     return 1;
 }
 
-static float[] Render(Request request) {
+static float[] Render(Request request, InferenceRuntime runtime) {
     var durations = request.DurationLinguisticPath.Length > 0
-        ? BlendDurations(request, PredictDurations(request))
+        ? BlendDurations(request, PredictDurations(request, runtime))
         : request.Durations;
     var f0 = request.PitchLinguisticPath.Length > 0
-        ? BlendPitch(request.F0, PredictPitch(request, durations), request.PitchPredictorMix)
+        ? BlendPitch(request.F0, PredictPitch(request, durations, runtime), request.PitchPredictorMix)
         : request.F0;
     var variance = request.VarianceLinguisticPath.Length > 0
-        ? PredictVariance(request, durations, f0)
+        ? PredictVariance(request, durations, f0, runtime)
         : new VarianceResult();
-    using var acoustic = new InferenceSession(request.AcousticPath);
+    var acoustic = runtime.Open(request.AcousticPath);
     var acousticInputs = new List<NamedOnnxValue>();
     acousticInputs.Add(Tensor("tokens", request.Tokens, 1, request.Tokens.Length));
     acousticInputs.Add(Tensor("durations", durations, 1, durations.Length));
@@ -108,13 +117,130 @@ static float[] Render(Request request) {
     }
     var mel = new DenseTensor<float>(melValues, acousticMel.Dimensions.ToArray());
 
-    using var vocoder = new InferenceSession(request.VocoderPath);
+    var vocoder = runtime.Open(request.VocoderPath);
     var vocoderInputs = new List<NamedOnnxValue>();
     vocoderInputs.Add(NamedOnnxValue.CreateFromTensor("mel", mel));
     vocoderInputs.Add(Tensor("f0", f0, 1, f0.Length));
     CheckInputs(vocoder, vocoderInputs, "vocoder");
     using var vocoderOutputs = vocoder.Run(vocoderInputs);
     return vocoderOutputs.First().AsTensor<float>().ToArray();
+}
+
+static int RunProviderSession() {
+    try {
+        WriteProviderMessage(new ProviderHello {
+            Type = "hello",
+            Protocol = "utautts-provider",
+            ProtocolVersion = 1,
+            Provider = "diffsinger",
+            ProviderVersion = "1",
+            Session = true,
+            Capabilities = ["frame_pitch", "neural_score_job_v1"],
+            Contracts = [new ProviderContract { Name = "neural-synthesizer", Version = 1 }],
+        });
+    } catch (Exception error) {
+        Console.Error.WriteLine($"provider handshake failed: {error.Message}");
+        return 1;
+    }
+
+    using var runtime = new InferenceRuntime();
+    string? line;
+    while ((line = Console.ReadLine()) is not null) {
+        if (string.IsNullOrWhiteSpace(line)) continue;
+        var requestId = "";
+        try {
+            using var document = JsonDocument.Parse(line);
+            if (!document.RootElement.TryGetProperty("type", out var typeElement)) {
+                throw new InvalidDataException("provider message has no type");
+            }
+            var type = typeElement.GetString();
+            if (type == "shutdown") return 0;
+            if (type == "cancel") continue;
+            if (type != "render") {
+                throw new InvalidDataException($"unsupported provider message type {type ?? "<null>"}");
+            }
+
+            var providerRequest = JsonSerializer.Deserialize<ProviderRenderRequest>(line)
+                ?? throw new InvalidDataException("provider render request is empty");
+            requestId = providerRequest.RequestId;
+            HandleProviderRender(providerRequest, runtime);
+        } catch (Exception error) {
+            Console.Error.WriteLine($"provider request failed: {error.Message}");
+            try {
+                WriteProviderMessage(new ProviderError {
+                    Type = "error",
+                    RequestId = requestId,
+                    Code = "render_failed",
+                    Message = error.Message,
+                });
+            } catch (Exception outputError) {
+                Console.Error.WriteLine($"provider error response failed: {outputError.Message}");
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static void HandleProviderRender(ProviderRenderRequest providerRequest, InferenceRuntime runtime) {
+    if (providerRequest.Contract != "neural-synthesizer" || providerRequest.ContractVersion != 1) {
+        throw new InvalidDataException("unsupported neural-synthesizer contract version");
+    }
+    if (string.IsNullOrWhiteSpace(providerRequest.RequestId)) {
+        throw new InvalidDataException("provider render request id is required");
+    }
+    if (string.IsNullOrWhiteSpace(providerRequest.InputPath) || string.IsNullOrWhiteSpace(providerRequest.OutputPath)) {
+        throw new InvalidDataException("provider render paths are required");
+    }
+
+    var job = JsonSerializer.Deserialize<NeuralProviderJob>(File.ReadAllText(providerRequest.InputPath))
+        ?? throw new InvalidDataException("DiffSinger provider job is empty");
+    if (job.Version != 1 || job.Contract != "neural-synthesizer" || job.ContractVersion != 1) {
+        throw new InvalidDataException("unsupported DiffSinger provider job version");
+    }
+    if (job.Options.ValueKind != JsonValueKind.Object) {
+        throw new InvalidDataException("DiffSinger provider job options must be an object");
+    }
+    var request = job.Options.Deserialize<Request>()
+        ?? throw new InvalidDataException("DiffSinger provider job options are empty");
+    request.AcousticPath = RequiredResource(job.Resources, "acoustic_model");
+    request.VocoderPath = RequiredResource(job.Resources, "vocoder_model");
+    request.DurationLinguisticPath = OptionalResource(job.Resources, "duration_linguistic_model");
+    request.DurationPredictorPath = OptionalResource(job.Resources, "duration_predictor_model");
+    request.PitchLinguisticPath = OptionalResource(job.Resources, "pitch_linguistic_model");
+    request.PitchPredictorPath = OptionalResource(job.Resources, "pitch_predictor_model");
+    request.VarianceLinguisticPath = OptionalResource(job.Resources, "variance_linguistic_model");
+    request.VariancePredictorPath = OptionalResource(job.Resources, "variance_predictor_model");
+    request.OutputPath = providerRequest.OutputPath;
+    Validate(request);
+    var samples = Render(request, runtime);
+    WriteWave(request.OutputPath, request.SampleRate, samples);
+    WriteProviderMessage(new ProviderResult {
+        Type = "result",
+        RequestId = providerRequest.RequestId,
+        Audio = new ProviderAudio {
+            Path = request.OutputPath,
+            Format = "wav_pcm_s16le",
+            SampleRate = request.SampleRate,
+            Channels = 1,
+        },
+    });
+}
+
+static void WriteProviderMessage(object message) {
+    Console.WriteLine(JsonSerializer.Serialize(message));
+    Console.Out.Flush();
+}
+
+static string RequiredResource(Dictionary<string, string>? resources, string name) {
+    var value = OptionalResource(resources, name);
+    if (value.Length == 0) throw new InvalidDataException($"DiffSinger provider resource {name} is required");
+    return value;
+}
+
+static string OptionalResource(Dictionary<string, string>? resources, string name) {
+    if (resources is null || !resources.TryGetValue(name, out var value)) return "";
+    return value.Trim();
 }
 
 static float[] RequiredVariance(float[]? values, string name) {
@@ -126,8 +252,8 @@ static float[] RequiredVariance(float[]? values, string name) {
     return values.Select(value => Math.Clamp(value, minimum, maximum)).ToArray();
 }
 
-static VarianceResult PredictVariance(Request request, long[] durations, float[] f0) {
-    using var linguistic = new InferenceSession(request.VarianceLinguisticPath);
+static VarianceResult PredictVariance(Request request, long[] durations, float[] f0, InferenceRuntime runtime) {
+    var linguistic = runtime.Open(request.VarianceLinguisticPath);
     var linguisticInputs = new List<NamedOnnxValue> {
         Tensor("tokens", request.VarianceTokens!, 1, request.VarianceTokens!.Length),
     };
@@ -176,7 +302,7 @@ static VarianceResult PredictVariance(Request request, long[] durations, float[]
         }
         predictorInputs.Add(Tensor("spk_embed", values, 1, totalFrames, request.VarianceSpeakerEmbed.Length));
     }
-    using var predictor = new InferenceSession(request.VariancePredictorPath);
+    var predictor = runtime.Open(request.VariancePredictorPath);
     CheckInputs(predictor, predictorInputs, "variance predictor");
     using var outputs = predictor.Run(predictorInputs);
     float[]? Output(string name, bool enabled) {
@@ -216,8 +342,8 @@ static float[] BlendPitch(float[] requested, float[] predicted, float mix) {
     return result;
 }
 
-static float[] PredictPitch(Request request, long[] durations) {
-    using var linguistic = new InferenceSession(request.PitchLinguisticPath);
+static float[] PredictPitch(Request request, long[] durations, InferenceRuntime runtime) {
+    var linguistic = runtime.Open(request.PitchLinguisticPath);
     var linguisticInputs = new List<NamedOnnxValue> {
         Tensor("tokens", request.PitchTokens!, 1, request.PitchTokens!.Length),
     };
@@ -234,7 +360,7 @@ static float[] PredictPitch(Request request, long[] durations) {
     using var linguisticOutputs = linguistic.Run(linguisticInputs);
     var encoder = linguisticOutputs.First(value => value.Name == "encoder_out").AsTensor<float>();
 
-    using var predictor = new InferenceSession(request.PitchPredictorPath);
+    var predictor = runtime.Open(request.PitchPredictorPath);
     var totalFrames = request.F0.Length;
     var predictorInputs = new List<NamedOnnxValue> {
         NamedOnnxValue.CreateFromTensor("encoder_out", encoder),
@@ -281,8 +407,8 @@ static float[] PredictPitch(Request request, long[] durations) {
     return result;
 }
 
-static long[] PredictDurations(Request request) {
-    using var linguistic = new InferenceSession(request.DurationLinguisticPath);
+static long[] PredictDurations(Request request, InferenceRuntime runtime) {
+    var linguistic = runtime.Open(request.DurationLinguisticPath);
     var linguisticInputs = new List<NamedOnnxValue> {
         Tensor("tokens", request.DurationTokens!, 1, request.DurationTokens!.Length),
         Tensor("word_div", request.WordDiv!, 1, request.WordDiv!.Length),
@@ -296,7 +422,7 @@ static long[] PredictDurations(Request request) {
     var encoder = linguisticOutputs.First(value => value.Name == "encoder_out").AsTensor<float>();
     var masks = linguisticOutputs.First(value => value.Name == "x_masks").AsTensor<bool>();
 
-    using var predictor = new InferenceSession(request.DurationPredictorPath);
+    var predictor = runtime.Open(request.DurationPredictorPath);
     var predictorInputs = new List<NamedOnnxValue> {
         NamedOnnxValue.CreateFromTensor("encoder_out", encoder),
         NamedOnnxValue.CreateFromTensor("x_masks", masks),
@@ -467,6 +593,89 @@ static void WriteWave(string path, int sampleRate, float[] samples) {
     foreach (var sample in samples) {
         writer.Write((short)Math.Round(Math.Clamp(sample, -1f, 1f) * short.MaxValue));
     }
+}
+
+sealed class InferenceRuntime : IDisposable {
+    private readonly Dictionary<string, InferenceSession> sessions = new(StringComparer.OrdinalIgnoreCase);
+
+    public InferenceSession Open(string modelPath) {
+        var fullPath = Path.GetFullPath(modelPath);
+        if (!sessions.TryGetValue(fullPath, out var session)) {
+            session = new InferenceSession(fullPath);
+            sessions.Add(fullPath, session);
+        }
+        return session;
+    }
+
+    public void Dispose() {
+        foreach (var session in sessions.Values) session.Dispose();
+        sessions.Clear();
+    }
+}
+
+sealed class ProviderHello {
+    [JsonPropertyName("type")] public string Type { get; set; } = "";
+    [JsonPropertyName("protocol")] public string Protocol { get; set; } = "";
+    [JsonPropertyName("protocol_version")] public int ProtocolVersion { get; set; }
+    [JsonPropertyName("provider")] public string Provider { get; set; } = "";
+    [JsonPropertyName("provider_version")] public string ProviderVersion { get; set; } = "";
+    [JsonPropertyName("session")] public bool Session { get; set; }
+    [JsonPropertyName("capabilities")] public string[] Capabilities { get; set; } = [];
+    [JsonPropertyName("contracts")] public ProviderContract[] Contracts { get; set; } = [];
+}
+
+sealed class ProviderContract {
+    [JsonPropertyName("name")] public string Name { get; set; } = "";
+    [JsonPropertyName("version")] public int Version { get; set; }
+}
+
+sealed class ProviderRenderRequest {
+    [JsonPropertyName("type")] public string Type { get; set; } = "";
+    [JsonPropertyName("request_id")] public string RequestId { get; set; } = "";
+    [JsonPropertyName("contract")] public string Contract { get; set; } = "";
+    [JsonPropertyName("contract_version")] public int ContractVersion { get; set; }
+    [JsonPropertyName("input_path")] public string InputPath { get; set; } = "";
+    [JsonPropertyName("output_path")] public string OutputPath { get; set; } = "";
+}
+
+sealed class ProviderResult {
+    [JsonPropertyName("type")] public string Type { get; set; } = "";
+    [JsonPropertyName("request_id")] public string RequestId { get; set; } = "";
+    [JsonPropertyName("audio")] public ProviderAudio Audio { get; set; } = new();
+}
+
+sealed class ProviderAudio {
+    [JsonPropertyName("path")] public string Path { get; set; } = "";
+    [JsonPropertyName("format")] public string Format { get; set; } = "";
+    [JsonPropertyName("sample_rate")] public int SampleRate { get; set; }
+    [JsonPropertyName("channels")] public int Channels { get; set; }
+}
+
+sealed class ProviderError {
+    [JsonPropertyName("type")] public string Type { get; set; } = "";
+    [JsonPropertyName("request_id")] public string RequestId { get; set; } = "";
+    [JsonPropertyName("code")] public string Code { get; set; } = "";
+    [JsonPropertyName("message")] public string Message { get; set; } = "";
+}
+
+sealed class NeuralProviderJob {
+    [JsonPropertyName("version")] public int Version { get; set; }
+    [JsonPropertyName("contract")] public string Contract { get; set; } = "";
+    [JsonPropertyName("contract_version")] public int ContractVersion { get; set; }
+    [JsonPropertyName("score")] public NeuralScore Score { get; set; } = new();
+    [JsonPropertyName("options")] public JsonElement Options { get; set; }
+    [JsonPropertyName("resources")] public Dictionary<string, string>? Resources { get; set; }
+}
+
+sealed class NeuralScore {
+    [JsonPropertyName("symbols")] public string[] Symbols { get; set; } = [];
+    [JsonPropertyName("durations")] public long[] Durations { get; set; } = [];
+    [JsonPropertyName("f0")] public float[] F0 { get; set; } = [];
+    [JsonPropertyName("midi")] public int MIDI { get; set; }
+    [JsonPropertyName("word_div")] public long[]? WordDiv { get; set; }
+    [JsonPropertyName("word_dur")] public long[]? WordDur { get; set; }
+    [JsonPropertyName("note_rest")] public bool[]? NoteRest { get; set; }
+    [JsonPropertyName("use_pitch_predictor")] public bool UsePitchPredictor { get; set; }
 }
 
 sealed class Request {

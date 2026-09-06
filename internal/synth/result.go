@@ -23,7 +23,7 @@ func NewResult(result *tts.Result, rendererID string) (*Result, error) {
 		return nil, fmt.Errorf("synthesis result contains no audio")
 	}
 	durationMS := float64(len(result.Audio.Data)) * 1000 / float64(result.Audio.SampleRate)
-	lab, err := label.HTS(result.Plan, result.MoraDurationsMS, durationMS)
+	lab, err := label.HTS(result.RenderedPlan(), result.MoraDurationsMS, durationMS)
 	if err != nil {
 		return nil, fmt.Errorf("build phoneme label: %w", err)
 	}

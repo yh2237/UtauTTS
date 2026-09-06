@@ -9,6 +9,7 @@ import (
 
 	"utautts/internal/audio"
 	"utautts/internal/connection"
+	"utautts/internal/engine"
 	"utautts/internal/frontend"
 	"utautts/internal/openjtalk"
 	"utautts/internal/plan"
@@ -20,6 +21,7 @@ import (
 
 type Config struct {
 	Context                        context.Context
+	RendererDefinition             *engine.Definition
 	VoicebankPath                  string
 	Voicebank                      *voicebank.Bank
 	Text                           string
@@ -79,9 +81,23 @@ type Result struct {
 	Voicebank       *voicebank.Bank
 	Plan            *plan.Plan
 	Audio           *audio.PCM
+	RenderReport    *render.RenderReport
 	MoraDurationsMS []float64
 	MoraPositionsMS []float64
 	PitchPoints     []float64
+}
+
+// RenderedPlan returns an export copy that includes renderer diagnostics.
+// Plan itself remains the selection plan that was handed to the renderer.
+func (result *Result) RenderedPlan() *plan.Plan {
+	if result == nil {
+		return nil
+	}
+	rendered := plan.Clone(result.Plan)
+	if rendered != nil && result.RenderReport != nil {
+		result.RenderReport.ApplyTo(rendered)
+	}
+	return rendered
 }
 
 type ProsodyPreview struct {
@@ -205,30 +221,54 @@ func analyzeAndAlignRuntimeFeatures(ctx context.Context, morae []frontend.Mora, 
 }
 
 // ApplyRendererはrendererIDを解決してcfgへ反映する。指定パスを同梱資源より優先する。
-func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlinePath, worldlineBridgePath string) (string, error) {
-	if catalog == nil {
-		return "", errors.New("renderer catalog is not initialized")
-	}
-	renderer, found := catalog.Renderer(rendererID)
-	if !found {
-		return "", fmt.Errorf("renderer %q is not available; select an installed renderer", rendererID)
-	}
-	if !render.IsKnownRenderer(renderer.Backend) {
-		return "", fmt.Errorf("renderer plugin %q requires unavailable backend %q", renderer.ID, renderer.Backend)
-	}
-	ApplyResolvedRenderer(cfg, renderer, worldlinePath, worldlineBridgePath)
-	return renderer.ID, nil
+func ResolveRenderer(catalog *plugin.Catalog, rendererID string) (engine.ResolvedEngine, error) {
+	return ResolveRendererWithOptions(catalog, rendererID, engine.ResolveOptions{})
 }
 
-// ApplyResolvedRendererは、解決済みのレンダラプラグインからcfgのレンダラ依存フィールドを埋める。
-func ApplyResolvedRenderer(cfg *Config, renderer plugin.Renderer, worldlinePath, worldlineBridgePath string) {
-	cfg.Renderer = renderer.Backend
-	cfg.RendererCapabilities = &renderer.Capabilities
-	cfg.WorldlinePath = preferExplicit(worldlinePath, renderer.Asset("worldline"))
-	cfg.WorldlineBridgePath = preferExplicit(worldlineBridgePath, renderer.Asset("worldline_bridge"))
-	cfg.WorldEnginePath = renderer.Asset("world_engine")
-	cfg.WorldGPUPath = renderer.Asset("world_gpu")
-	cfg.DiffSingerBridgePath = renderer.Asset("diffsinger_bridge")
+// ResolveRendererWithOptions resolves a renderer and applies application-level
+// resource overrides before the provider preflight is evaluated.
+func ResolveRendererWithOptions(catalog *plugin.Catalog, rendererID string, options engine.ResolveOptions) (engine.ResolvedEngine, error) {
+	if catalog == nil {
+		return engine.ResolvedEngine{}, errors.New("renderer catalog is not initialized")
+	}
+	resolver := engine.NewResolver(engine.BuiltinRegistry())
+	return resolver.ResolveWithOptions(engine.DefinitionsFromCatalog(catalog), rendererID, options)
+}
+
+// ApplyRenderer resolves a user-facing renderer ID and applies its legacy
+// runtime fields to Config. New callers should keep the ResolvedEngine so the
+// public ID and implementation ID do not become conflated again.
+func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlinePath, worldlineBridgePath string) (string, error) {
+	resolved, err := ResolveRendererWithOptions(catalog, rendererID, engine.ResolveOptions{
+		ResourceOverrides: map[engine.ResourceKey]string{
+			engine.ResourceWorldline:       worldlinePath,
+			engine.ResourceWorldlineBridge: worldlineBridgePath,
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	ApplyResolvedEngine(cfg, resolved, worldlinePath, worldlineBridgePath)
+	return string(resolved.PublicID()), nil
+}
+
+// ApplyResolvedEngine applies the compatibility fields still consumed by tts
+// and render. Provider-specific options remain in this compatibility envelope
+// until each provider has its own typed application boundary.
+func ApplyResolvedEngine(cfg *Config, resolved engine.ResolvedEngine, worldlinePath, worldlineBridgePath string) {
+	definition := resolved.Definition
+	cfg.RendererDefinition = &definition
+	capabilities := plugin.Capabilities{
+		FramePitch:     resolved.Definition.Capabilities.FramePitch,
+		BoundaryBridge: resolved.Definition.Capabilities.BoundaryBridge,
+	}
+	cfg.Renderer = string(resolved.Provider.ID)
+	cfg.RendererCapabilities = &capabilities
+	cfg.WorldlinePath = preferExplicit(worldlinePath, resolved.Resource(engine.ResourceWorldline))
+	cfg.WorldlineBridgePath = preferExplicit(worldlineBridgePath, resolved.Resource(engine.ResourceWorldlineBridge))
+	cfg.WorldEnginePath = resolved.Resource(engine.ResourceWorldEngine)
+	cfg.WorldGPUPath = resolved.Resource(engine.ResourceWorldGPU)
+	cfg.DiffSingerBridgePath = resolved.Resource(engine.ResourceDiffSingerBridge)
 	cfg.ExternalResamplerPath = ""
 	cfg.ExternalWavtoolPath = ""
 	cfg.ExternalResamplerVelocity = 0
@@ -237,6 +277,24 @@ func ApplyResolvedRenderer(cfg *Config, renderer plugin.Renderer, worldlinePath,
 	cfg.ExternalResamplerModulation = 0
 	cfg.ExternalResamplerModulationSet = false
 	cfg.ExternalResamplerTempo = 0
+}
+
+// ApplyResolvedRenderer is a compatibility wrapper for callers that still
+// pass a v1 manifest directly. Resolver-based callers should use
+// ApplyResolvedEngine.
+func ApplyResolvedRenderer(cfg *Config, renderer plugin.Renderer, worldlinePath, worldlineBridgePath string) {
+	definition := engine.DefinitionFromV1(renderer)
+	if renderer.ManifestVersion == 2 {
+		definition = engine.DefinitionFromV2(renderer)
+	}
+	ApplyResolvedEngine(cfg, engine.ResolvedEngine{
+		Definition: definition,
+		Provider: engine.Provider{
+			ID:       definition.Provider,
+			Contract: definition.Contract,
+			Version:  definition.ProviderVersion,
+		},
+	}, worldlinePath, worldlineBridgePath)
 }
 
 func preferExplicit(explicit, manifestValue string) string {
@@ -253,8 +311,8 @@ func Synthesize(cfg Config) (*Result, error) {
 	if err := validateConfig(cfg); err != nil {
 		return nil, err
 	}
-	if cfg.Renderer == "diffsinger" {
-		return synthesizeDiffSinger(cfg)
+	if synthesizer, found := neuralSynthesizerForProvider(engine.ProviderID(cfg.Renderer)); found {
+		return synthesizer.Synthesize(cfg)
 	}
 	bank := cfg.Voicebank
 	var err error
@@ -422,7 +480,7 @@ func Synthesize(cfg Config) (*Result, error) {
 		pitchCurve = render.ConstrainPitchCurve(pitchCurve, 20, 8)
 	}
 	intonationStrength := effectiveIntonationStrength(cfg)
-	pcm, err := render.Render(synthesisPlan, render.Config{
+	rendered, err := render.RenderWithReport(synthesisPlan, render.Config{
 		Context:                        cfg.Context,
 		ReleaseMS:                      cfg.ReleaseMS,
 		ReleaseSet:                     cfg.ReleaseSet,
@@ -430,6 +488,7 @@ func Synthesize(cfg Config) (*Result, error) {
 		IntonationStrength:             intonationStrength,
 		ApplyPitch:                     applyPitch,
 		Backend:                        cfg.Renderer,
+		EngineDefinition:               cfg.RendererDefinition,
 		WorldlinePath:                  cfg.WorldlinePath,
 		WorldlineBridgePath:            cfg.WorldlineBridgePath,
 		WorldEnginePath:                cfg.WorldEnginePath,
@@ -453,6 +512,7 @@ func Synthesize(cfg Config) (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("render: %w", err)
 	}
+	pcm := rendered.Audio
 	timings := moraTimings(morae, synthesisPlan)
 	moraDurations := make([]float64, len(timings))
 	moraPositions := make([]float64, len(timings))
@@ -468,6 +528,7 @@ func Synthesize(cfg Config) (*Result, error) {
 		Voicebank:       bank,
 		Plan:            synthesisPlan,
 		Audio:           pcm,
+		RenderReport:    &rendered.Report,
 		MoraDurationsMS: moraDurations,
 		MoraPositionsMS: moraPositions,
 		PitchPoints:     pitchPoints,

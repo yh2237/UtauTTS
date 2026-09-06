@@ -13,6 +13,10 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if os.Getenv("UTAUTTS_DIFFSINGER_PROVIDER_HELPER") == "1" {
+		runDiffSingerProviderHelper()
+		os.Exit(0)
+	}
 	if os.Getenv("UTAUTTS_DIFFSINGER_TEST_BRIDGE") == "1" {
 		data, err := os.ReadFile(os.Args[1])
 		if err != nil {

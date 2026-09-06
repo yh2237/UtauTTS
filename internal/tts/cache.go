@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"utautts/internal/diffsinger"
 	"utautts/internal/openjtalk"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
@@ -121,6 +122,10 @@ func analyzeOpenJTalkCached(ctx context.Context, text string, cfg openjtalk.Conf
 
 // ClearCachesは音源やランタイム資源の更新後に合成入力を破棄する。
 func ClearCaches() {
+	// A DiffSinger bridge keeps ONNX sessions resident by model path. Closing
+	// it here prevents a replaced model at the same path from remaining live
+	// in the child process after a voicebank/model reload.
+	_ = diffsinger.CloseProviderSessions()
 	synthesisCache.Lock()
 	synthesisCache.banks = make(map[string]*voicebank.Bank)
 	synthesisCache.models = make(map[string]modelCacheEntry)
