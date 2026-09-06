@@ -47,6 +47,20 @@ UtauTTS側の読みとOpen JTalk側の解析結果が一致していない可能
 
 端末から`./utautts`を実行して不足しているライブラリ名を確認します。`ldd ./utautts | grep 'not found'`でも共有ライブラリを確認できます。Qt Quick、Qt Quick Controls、Qt Multimediaの実行パッケージが必要です。ZIP展開後に実行権限が失われた場合はREADMEに記載した`chmod +x`を実行してください。
 
+### glibc 2.44以降でCOPY relocationのエラーが出る
+
+`COPY relocation against non-copyable protected symbol`や`GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`を含むエラーは、f5dcc81より前に作られたLinux GUIバイナリで起きることがあります。古いZIPを再展開しても直らないため、この修正を含む新しいリリースを使用してください。ソースからビルドする場合は`./build.sh linux`で、ビルド直後とパッケージ展開後のELF検査も実行されます。
+
+### MangoHudを有効にすると音声初期化時に落ちる
+
+MangoHudのVulkanレイヤーとQt MultimediaのFFmpegプラグインの組み合わせで、`vkCreateDevice`付近のクラッシュが起きることがあります。これは上のローダーエラーとは別の問題です。切り分けや回避には次を使ってください。
+
+```bash
+MANGOHUD=0 ./utautts
+```
+
+MangoHud側の互換性問題を解消するまでの回避策です。
+
 ## Linuxで日本語が四角い記号（豆腐）になる
 
 日本語グリフを含むフォントがインストールされていません。Debian／Ubuntuでは`sudo apt-get install fontconfig fonts-noto-cjk`を実行してからGUIを起動し直してください。`fc-list :lang=ja`で利用可能な日本語フォントを確認できます。

@@ -38,7 +38,29 @@ WindowsからLinux版を検査する場合は、WSL2側で一度セットアッ�
 ./tools/test-linux-package.sh
 ```
 
-Linux検査ではZIPを一時ディレクトリへ展開して日本語フォント、共有ライブラリ解決、実行権限、QtオフスクリーンGUI自己診断、CLI合成、Serverの解析・合成・batch APIを確認します。PipeWire／PulseAudioのセッションがない完全なヘッドレス環境ではGUI自己診断だけを自動的にスキップし、CLIとServerの検査を続行します。GUI自己診断を必須にする場合は`UTAUTTS_REQUIRE_GUI_SELF_TEST=1`を設定してください。
+Linux検査ではZIPを一時ディレクトリへ展開して日本語フォント、共有ライブラリ解決、実行権限、GUI ELFのCOPY relocation／TEXTREL、QtオフスクリーンGUI自己診断、CLI合成、Serverの解析・合成・batch APIを確認します。PipeWire／PulseAudioのセッションがない完全なヘッドレス環境ではGUI自己診断だけを自動的にスキップし、CLIとServerの検査を続行します。GUI自己診断を必須にする場合は`UTAUTTS_REQUIRE_GUI_SELF_TEST=1`を設定してください。
+
+Windowsの標準ビルドは`Full`プロファイルです。作成済みの日本語軽量版を検査する場合は、ビルド時と同じプロファイルを指定します。
+
+```powershell
+.\tools\build-release.ps1 -Profile Japanese
+.\tools\test-release-package.ps1 -Profile Japanese
+```
+
+## 更新経路とリリースメタデータ
+
+リリース前には、`appinfo.json`のversionと更新schemaが前リリースから後退していないことを確認します。v1.2.2から最初の更新を作る場合は、前バージョンだけを渡せば、v1.2.2の旧metadata baselineを検査側が補います。
+
+```powershell
+$expected = 'v1.2.3'  # 実際に作成するタグへ置き換える
+.\tools\check-release.ps1 `
+  -ExpectedVersion $expected `
+  -PreviousVersion v1.2.2
+```
+
+`build-release.ps1`と`test-release-package.ps1`もこの検査を呼び出します。`go test ./cmd/utautts-updater`には、v1.2.2形式の更新が現行パッケージを導入できること、音源・設定を保持できること、旧Renderer定義を移行できることを確認するテストが含まれます。Qtの配布物self-testでは、初回起動migration schemaの記録とpending update markerの消去も確認します。
+
+GUIの手動確認では、更新通知を有効にした状態で安定版だけが候補になること、開発者モードを有効にした後だけ「プレリリース版も確認する」が表示されること、両方を有効にしたときだけプレリリース版が候補になることを確認します。同じ数値バージョンの安定版とプレリリース版がある場合は安定版を選びます。
 
 ## 自動確認する機能
 

@@ -10,7 +10,7 @@
 - `--out <path>`: 出力WAVのパス
 - `--text <文>`または`--reading <読み>`: 合成する文章または読み
 
-`--text`は文章から読みを生成します。`--reading`は読み仮名を直接使います。`--kana`は旧名です。
+`--text`は選択した言語とphonemizerで発音を生成します。`--reading`は読み・ARPAbet・Pinyinを直接指定します。`--kana`は`--reading`の旧名です。日本語以外を使う場合は`--language`も指定してください。
 
 ## 基本例
 
@@ -58,8 +58,10 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--voicebank <dir>` | | ボイスバンクのディレクトリ（必須） |
 | `--oto <dir>` | | `--voicebank` の旧名（deprecated） |
 | `--text <文>` | | 合成する文章 |
-| `--reading <読み>` | | 読み仮名を直接指定 |
+| `--reading <読み>` | | かな、ARPAbet、またはPinyinを直接指定 |
 | `--kana <読み>` | | `--reading`の旧名 |
+| `--language <id>` | `ja` | 言語。`ja`、`en`、`zh` |
+| `--phonemizer <id>` | 言語から自動選択 | phonemizer。`ja-kana`、`en-arpasing`、`en-delta`、`en-vccv`、`zh-cvvc` |
 | `--tone` | `C4` | `prefix.map` 使用時に使う音階 |
 | `--color <name>` | | `character.yaml`で定義された音源タイプ／サブバンク |
 | `--out <path>` | | 出力WAVのパス（必須） |
@@ -80,7 +82,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--pitch-case <id>` | | `--pitch-contours` 内のケースID |
 | `--apply-pitch` | `false` | 波形のピッチ再サンプリング（実験的） |
 | `--intonation-strength` | `0` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
-| `--renderer <id>` | 既定Renderer | Renderer ID（省略時は設定された優先度が最大のもの） |
+| `--renderer <id>` | 既定Renderer | Renderer ID（省略時は設定された優先度が最大のもの。未知の明示IDはエラー） |
 | `--resampler <id>` | 自動選択 | Classic UTAUで使う`Resamplers/`からの相対ID |
 | `--wavtool <id>` | `builtin` | Classic UTAUで使う`Wavtools/`からの相対ID |
 | `--resampler-expressions <path>` | | unit単位のresampler設定JSON |
@@ -110,7 +112,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 
 モデルやRendererは実行ファイルの隣にある`models/`と`renderer/`から自動検出します。別のdirectoryを追加するなら`--model-dir`または`--renderer-dir`で指定します。明示したRenderer定義は同梱定義より優先されます。
 
-`--renderer`に存在しないIDを指定した場合はカタログの既定Rendererへ解決されます。指定したRendererのassetが不足している場合はエラーになります。
+`--renderer`を省略した場合はカタログの`default_priority`が最大のRendererを使います。存在しないIDを明示した場合はエラーになります。指定したRendererのassetが不足している場合もエラーになります。
 
 `--resampler-expressions`のJSONは[Classic UTAU互換仕様](plugins.md#classic-utau互換仕様)を参照してください。
 

@@ -58,7 +58,7 @@ Linux
 
 ### 認証
 
-`--auth-token`を設定すると全エンドポイントで`Authorization: Bearer <token>`ヘッダーが必要になります。無い場合は401です。
+`--auth-token`を設定すると`/api/*`の全エンドポイントで`Authorization: Bearer <token>`ヘッダーが必要になります。無い場合は401です。コンソールUI（`/`と`/ui`）自体は公開されます。
 
 GET以外のリクエストに`Origin`ヘッダーがあり待受ホストのorigin（`http://<host>` / `https://<host>`）と一致しない場合は403で拒否します。
 
@@ -148,12 +148,15 @@ ID順にソートされた音源一覧です。
 {
   "default_renderer": "utautts-world-phrase",
   "renderers": [
-    {"id": "utautts-world-phrase", "display_name": "UtauTTS WORLD phrase", "description": "...", "backend": "utautts-world-phrase", "capabilities": {"frame_pitch": true}, "default_priority": 300}
-  ]
+    {"manifest_version": 2, "kind": "synthesis-engine", "id": "utautts-world-phrase", "display_name": "UtauTTS WORLD phrase", "description": "...", "contract": "unit-renderer", "provider": "utautts-world-phrase", "provider_version": "1", "capabilities": {"frame_pitch": true}, "default_priority": 300}
+  ],
+  "problems": [],
+  "resamplers": [],
+  "wavtools": [{"id": "builtin", "display_name": "UtauTTS built-in", "built_in": true}]
 }
 ```
 
-`default_renderer`はサーバー起動時の既定Rendererです。レスポンスの`resamplers`と`wavtools`にはClassic UTAUで選択できるツールが含まれます。
+`default_renderer`はサーバー起動時の既定Rendererです。`problems`には読み込めなかったmanifestなどの診断が入ります。`resamplers`と`wavtools`にはClassic UTAUで選択できるツールが含まれ、`wavtools`には常に`builtin`が含まれます。リクエストで未知のRenderer IDを明示すると、既定Rendererへ切り替えずエラーになります。
 
 ### `POST /api/analyze`
 
@@ -183,6 +186,8 @@ ID順にソートされた音源一覧です。
 
 `dictionary`はGUIのユーザー辞書と同じ表記・読みの配列です。合成リクエストにも同じ形式で指定できます。
 
+このエンドポイントは日本語の読み・かなモーラ解析用です。英語・中国語の合成では、`/api/synthesize/*`の`language`／`phonemizer`を指定し、必要なら`reading`でARPAbetまたはPinyinを直接渡してください。
+
 ### `POST /api/synthesize/audio`
 
 一つの発話を合成して`audio/wav`を返します。
@@ -206,13 +211,15 @@ ID順にソートされた音源一覧です。
 | field | 型 | 既定値 | 説明 |
 |---|---|---|---|
 | `text` | string | | 合成する文章。`reading` とどちらか一方が必須 |
-| `reading` | string | | 読み仮名の直接指定 |
+| `reading` | string | | かな、ARPAbet、またはPinyinを直接指定 |
 | `kana` | string | | `reading`の旧名称 |
+| `language` | string | `ja` | 言語。`ja`、`en`、`zh`。空欄なら日本語 |
+| `phonemizer` | string | 言語から自動選択 | `ja-kana`、`en-arpasing`、`en-delta`、`en-vccv`、`zh-cvvc`。言語に対応しない組み合わせはエラー |
 | `voicebank_id` | string | ID順先頭 | `GET /api/voicebanks` の `id` |
 | `tone` | string | `C4` | `prefix.map` 使用時の音階 |
 | `color` | string | なし | `character.yaml`で定義された音源タイプ／サブバンク |
 | `model_id` | string | なし | `GET /api/models` の `id` |
-| `renderer` | string | 既定Renderer | `GET /api/renderers` の `id`。未知のIDは既定Rendererへ解決されます |
+| `renderer` | string | 既定Renderer | `GET /api/renderers` の `id`。省略時だけ既定Rendererを使い、未知の明示IDはエラーになります |
 | `resampler` | string | 自動選択 | Classic UTAUで使うresamplerの相対ID |
 | `wavtool` | string | `builtin` | Classic UTAUで使うwavtoolの相対ID |
 | `resampler_expressions` | object[] | なし | unit単位のresampler設定。形式は[Classic UTAU互換仕様](plugins.md#classic-utau互換仕様)を参照 |
@@ -264,6 +271,7 @@ ID順にソートされた音源一覧です。
 
 ## 起動オプション
 
+- `--version`: バージョンを表示して終了する
 - `--voice-dir`: ボイスバンクを格納したディレクトリ
 - `--renderer`: Renderer ID。省略時は設定された優先度が最も高いものを使う
 - `--renderer-dir`: Renderer pluginの検索directory。複数回指定できる

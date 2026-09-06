@@ -21,7 +21,7 @@ ZIP内のファイルは同じ階層構造のまま使用してください。ru
 
 ## Linux
 
-Linux GUI版にはQt 6.5以降と日本語フォントが必要です。Debian 13では次のパッケージ構成で確認しています。
+Linux GUI版にはシステムにインストールしたQt 6.5以降（Qt Quick、Qt Quick Controls、Qt Multimedia）と日本語フォントが必要です。QtはLinux ZIPへ同梱されません。Debian 13では次のパッケージ構成で確認しています。
 
 ```bash
 sudo apt-get update
@@ -38,6 +38,12 @@ chmod +x utautts tools/* runtime/utautts-openjtalk-features runtime/utautts-worl
 ```
 
 Qtやデスクトップ環境が異なるディストリビューションでは同等のQt Quick・Qt Multimediaパッケージを導入してください。
+
+## 更新
+
+GUI版のアプリ内アップデーターは、通常は安定版だけを更新候補にします。開発者モードを有効にすると「プレリリース版も確認する」が設定画面に現れ、これも有効にした場合だけプレリリース版を確認します。プレリリースも通常リリースと同じ`vMAJOR.MINOR.PATCH`形式で判定します。
+
+更新では`voice/`、`Resamplers/`、`Wavtools/`、`config.ini`と、引き継ぎ可能なユーザーRenderer定義を保持します。v1.2.2からの更新では、旧`plugins/renderers/`の`plugin.json`を現行の`renderer/`配置へ移す処理も更新中に行われ、更新後の初回起動で設定の移行状態を記録します。互換性を使う場合はZIPを手動で上書きせず、アプリ内アップデーターを使用してください。
 
 ## ボイスバンクを追加する
 

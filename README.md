@@ -75,6 +75,7 @@ voice/
 | 原音形式 | CV、VCV、CVVCの選び方。規定値は`自動` |
 | 抑揚モデル | 自動イントネーションやモーラ長の予測に使うモデル |
 | Renderer | 原音の長さと高さを変え、接続してWAVにする方式 |
+| 言語／phonemizer | 言語別の読み上げ方式。日本語は`ja-kana`、英語は`en-arpasing`／`en-delta`／`en-vccv`、中国語は`zh-cvvc`（開発者モードでのみ） |
 | 音高 | `prefix.map`から選ぶ音階 |
 | 抑揚 | 自動イントネーションの強さ |
 | モーラ長 | 自動値がない場合に使う基本長 |
@@ -112,10 +113,11 @@ exo出力後に表示される領域をAviUtlの拡張編集へドラッグす�
 | `openutau-worldline-r-faithful` | OpenUTAUの処理で原音の音響特徴を時間軸へ配置し、フレーズ全体を再合成 |
 | `waveform` | Go内で原音波形を伸縮して接続。原音の明瞭度を確認しやすい |
 | `classic-utau` | UTAU互換resamplerで原音を処理し、wavtoolまたは内蔵処理で接続 |
+| `diffsinger` | DiffSinger音源とbridgeを使う試験実装。Windows x64のFull配布のみ |
 
 Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置きます。各フォルダは「ファイル」メニューから開けます。配置後は同じメニューの「Classic UTAUツールを再読み込み」を選びます。
 
-同梱Rendererも外部Rendererも`renderer/<id>/renderer.json`から検出します。Rendererの表示情報とruntime pathはmanifestに置きます。GUIにZIPインストーラーはなく、定義を`renderer/`または`--renderer-dir`の探索先へ配置して再起動します。JSONだけで任意の新規engine ABIを追加する機能はありません。Classic UTAUのresamplerとwavtoolにmanifestは不要です。
+同梱Rendererも外部Rendererも`renderer/<id>/renderer.json`から検出します。現在の定義はmanifest v2で、公開ID、contract、provider、runtime resourceを分けて記述します。実行時は既存ユーザー定義のためmanifest v1も読めますが、新しい定義にはv2を使ってください。GUIにZIPインストーラーはなく、定義を`renderer/`または`--renderer-dir`の探索先へ配置して再起動します。JSONだけで任意の新規engine ABIを追加する機能はありません。Classic UTAUのresamplerとwavtoolにmanifestは不要です。
 
 ### 抑揚モデル
 
@@ -141,7 +143,7 @@ CLIはGUI版の`tools/utautts-cli.exe`または`tools/utautts-cli`に入って�
   --out ".\out.wav"
 ```
 
-読みを直接渡す`--kana`、ユーザー辞書、モーラごとの長さ、TXT／LAB同時保存、合成計画を書き出す`--plan-out`などもあります。全オプションは[コマンドライン](docs/cli.md)を参照してください。
+読みを直接渡す`--reading`（`--kana`は旧名）、言語／phonemizer、ユーザー辞書、モーラごとの長さ、TXT／LAB同時保存、合成計画を書き出す`--plan-out`などもあります。全オプションは[コマンドライン](docs/cli.md)を参照してください。
 
 ## HTTP Server
 

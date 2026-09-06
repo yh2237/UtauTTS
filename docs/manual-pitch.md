@@ -32,7 +32,7 @@
 
 ```powershell
 go run ./cmd/utautts-cli `
-  --voicebank "release/UtauTTS/voice/ボイスバンク" `
+  --voicebank "voice/ボイスバンク" `
   --text "こんにちは" `
   --renderer utautts-world-phrase `
   --prosody frame-intonation-v8 `
@@ -42,4 +42,4 @@ go run ./cmd/utautts-cli `
   --out "out/manual-pitch.wav"
 ```
 
-手動カーブは10ms刻みへ補間されて急激な変化はRenderer側の安全制約で滑らかに制限されます。モーラ長は`mora_durations_ms`へ読みのモーラ順で入れます。位置も明示する場合は`mora_positions_ms`を使います。
+`--apply-pitch`を付けない場合、手動ピッチは波形へ適用されません。手動カーブは10ms刻みへ補間され、急激な変化は安全制約で滑らかに制限されます。モーラ長はCLIの`--mora-durations`で、読みのモーラ順の配列、または`{"mora_durations_ms": [...]}`として渡します。`mora_positions_ms`はプレビューや合成結果に含まれる出力値で、入力としてモーラ長を指定する項目ではありません。

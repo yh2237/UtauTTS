@@ -39,7 +39,7 @@ Linuxネイティブ環境とWSL環境では同じLinuxセットアップスク�
 
 このスクリプトは次を行います。
 
-- Qt 6.5以降（Qt Quick、Qt Multimedia、Qt Concurrent）とCMake／NinjaなどのAPTパッケージを導入
+- Qt 6.5以降（Qt Quick、Qt Multimedia、Qt Concurrent）とCMake／Ninja、`readelf`（binutils）などのAPTパッケージを導入
 - Python仮想環境`.venv`を作成し、`pyopenjtalk==0.4.1`と`pyinstaller==6.16.0`を導入
 - Go 1.27.0以上を確認し、必要なら公式Linux x64アーカイブをユーザー領域へ導入
 - Go、Python、CMake、NinjaをPATHまたは標準のセットアップ先から自動検出
@@ -55,6 +55,8 @@ Linux版のGUIとServerをビルドし、ZIPのスモークテストまで実行
 ```bash
 ./build.sh linux
 ```
+
+ビルド中とZIP展開後に`readelf`でLinux GUIのELFを検査し、COPY relocationとTEXTRELがあれば失敗します。QtをロードするGUIテストが使えない環境でも、この検査とCLI／Serverの検査は実行されます。
 
 直接実行する場合は`bash tools/build-linux.sh`でも同じです。出力は`release/`に作成されます。
 
@@ -81,6 +83,14 @@ Qt SDKを`.qt/<version>/mingw_64`へ置くと自動検出します。別の場�
 ```
 
 GUI版とServer版のZIPが`release/`へ作成され、そのまま配布物スモークテストまで実行されます。
+
+既定の`Full`プロファイルではWORLDLINE-RとDiffSingerのruntimeもビルドします。日本語向けの軽量な構成にする場合は、PowerShellから次を実行します。
+
+```powershell
+.\tools\build-release.ps1 -Profile Japanese
+```
+
+`Japanese`では`openutau-worldline-r-faithful`と`diffsinger`のRendererおよび対応runtimeを除外します。`build.bat win`は`Full`プロファイルです。
 
 開発サーバーは次で起動します。
 
@@ -149,5 +159,11 @@ GO_BIN=/path/to/go PYTHON=/path/to/python ./build.sh linux
 WindowsのPowerShellスクリプトでは、必要に応じて`PYTHON`、`QT_ROOT`、`MSYS2_ROOT`、`QT_MINGW_ROOT`、`QT_TOOLS_ROOT`を環境変数として設定できます。
 
 `WINDOWS_USERNAME`は使用しません。WSLのLinux版ビルドはWindows側ユーザーのGoキャッシュを参照せず、プロジェクト内の`build/go-mod-cache`を使います。
+
+## `tools/`と`experiments/`の役割
+
+`tools/`は通常の開発・ビルド・リリース・配布物検査と、現行モデルを再生成するための補助スクリプトを置く場所です。`build*.bat`／`build*.sh`や`tools/build-*`、`tools/test-*`から呼ばれるものはここに残します。
+
+`experiments/`は通常のビルドやリリースから呼び出さない研究用コードです。韻律の診断スクリプトと旧モーラ単位学習器は`experiments/prosody/`へ移してあり、現行のフレームモデル学習経路は`tools/`にあります。実験用ディレクトリの内容を配布ZIPへ追加しないでください。
 
 ビルド後に行う配布物の検査は[リリーステスト](release-testing.md)にまとめています。

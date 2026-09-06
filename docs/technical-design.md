@@ -15,23 +15,24 @@ GUI / CLI / HTTP Server
           │
           ▼
       synth.Service
-          │ 設定、音源、モデル、RendererをIDから解決
+          │ 共通入力、音源、モデル、公開Renderer IDを解決
           ▼
-    ┌─ Japanese frontend ── 読み・モーラ
+       Catalog / engine resolver
+          │ Public ID → Definition → Contract / Provider / resources
+          ▼
+    ┌─ Language frontends ── 読み・音素・モーラ
     ├─ Open JTalk helper ── アクセント・単語・品詞特徴
     ├─ Voicebank resolver ─ 候補ラティスと選択経路
     ├─ Prosody model ────── モーラ長・10msピッチ曲線
     └─ Plan builder ─────── 時刻付きの原音unit列
           │
           ▼
-       Renderer
-    ├─ waveform ─────────── Go内の波形接続
-    ├─ Classic UTAU ─────── resampler + wavtool
-    ├─ UtauTTS WORLD phrase
-    └─ WORLDLINE-R ──────── Go bridge + Worldline PhraseSynth
+       render.Config
+    ├─ UnitRenderer ─────── waveform / WORLD / Classic / external Provider
+    └─ NeuralSynthesizer ── DiffSinger score + Provider session
           │
           ▼
-        PCM WAV
+       PCM + RenderReport
 ```
 
 GUI、CLI、Serverは別々の音声処理を持たず、最終的には同じ`synth.Service`と`tts.Synthesize`へ到達します。入口を追加・変更するときは設定の伝播だけを確認し、音声処理を重複実装しないようにします。各パッケージの担当範囲は[構成](architecture.md)にまとめています。
@@ -41,6 +42,8 @@ GUI、CLI、Serverは別々の音声処理を持たず、最終的には同じ`s
 ### 読みの生成
 
 読みが明示されていない場合は最初にユーザー辞書を長い表記から順に適用してKagomeとIPA辞書で読みへ変換します。数字やラテン文字など内蔵経路で発音を得られないトークンがあればOpen JTalk frontendへフォールバックします。
+
+日本語は`ja-kana`、英語は`en-arpasing`／`en-delta`／`en-vccv`、中国語は`zh-cvvc`のphonemizerへ分岐します。英語と中国語では日本語用のOpen JTalk抑揚モデルを使わず、英語は規則的な強勢・句曲線、中国語はPinyinの声調曲線を使います。入力形式と制約は[多言語TTS](multilingual.md)にまとめています。
 
 かな入力は`frontend.ParseKana`でモーラ列へ分解されます。各モーラが持つのは少なくとも表記、子音、母音、休止かどうかです。促音、撥音、長音、拗音を文字単位ではなく合成単位として扱うのでこの段階より後ろでは元のUnicode文字列を直接走査しません。
 
@@ -108,9 +111,11 @@ join scoreは隣接原音のenergy、スペクトル、F0などの境界特徴�
 - target、join、累積path score
 - fallback段階、subbank、tone、color
 - 候補の除外理由と音響score
-- Rendererが実際に使ったtimingとF0
+- Rendererへ渡す前のselection値。Renderer由来の実効値は`RenderReport`へ分離
 
 Planは単なるデバッグ出力ではありません。候補選択、時間設計、Rendererのどこで差が生じたかを切り分けられる再現可能な記録です。新しい自動補正を加える場合は入力値、実効値、採用理由、fallback理由をPlanへ記録してください。最終WAVだけでは退行原因を追えません。
+
+RendererはPlanの共有インスタンスを直接変更しません。`UnitRenderer`にはPlanのcloneを渡し、Rendererが計算したleading margin、boundary bridge、実効preutterance／consonant／overlap、source／target F0などは`RenderReport`として返します。CLIのPlan JSONやLABのように描画後の値が必要な出力だけが、`tts.Result.RenderedPlan()`でcloneへReportを適用します。
 
 ## 6. 韻律モデル
 
@@ -155,7 +160,9 @@ Rendererは各原音のF0を測ってこの相対曲線を音源側の声域へ�
 
 ## 7. Renderer
 
-Renderer manifestの`id`は保存データやUIで使う公開識別子、`backend`はGoに組み込まれた実装識別子です。manifestは表示情報とassetを宣言するもので、任意のnative codeや新しいengine ABIをUtauTTSへ動的ロードしません。標準Rendererも`renderer/<id>/renderer.json`から読み込みます。`utau-external-resampler` backendは`Resamplers/`と`Wavtools/`の実行ファイルを組み合わせます。
+Renderer manifestの`id`は保存データやUIで使う公開識別子です。catalogはこの公開IDを`engine.ResolvedEngine`へ解決し、`contract`、`provider`、provider version、typed resource、platform、capabilityを検証します。v1の`backend`は互換decoderでproviderへ変換され、現在の同梱定義と新しいユーザー定義はv2を使います。manifestは表示情報とruntime resourceを宣言するもので、任意のnative codeや新しいengine ABIをUtauTTSへ動的ロードしません。標準Rendererも`renderer/<id>/renderer.json`から読み込みます。`utau-external-resampler` providerは`Resamplers/`と`Wavtools/`の実行ファイルを組み合わせます。
+
+設定の境界もRenderer単位で分けます。`tts.Config`はテキスト、音源、モデル、Plan作成に必要な共通入力と解決済み`engine.ResolvedEngine`を持ち、Classicの実行ファイルやWORLDの専用スイッチを集めません。`render.Config`は共通render controlに加えて`render.ProviderOptions`を持ち、Classicは`ClassicOptions`、WORLDは`WorldlineProviderOptions`へ固有設定を閉じ込めます。
 
 ### waveform
 
@@ -195,9 +202,15 @@ WORLDLINE-Rの主要処理は`worldline.dll`内部で完結します。
 
 原音ごとのF0、スペクトル包絡、非周期性指標はbridge内にキャッシュします。再生時はこれらをフレーズの10 ms時間軸へ置き直し、隣接する分析frameを補間してから一度だけWORLD合成します。
 
+### DiffSinger
+
+`diffsinger`は専用のDiffSinger音源を`dsconfig.yaml`から読み込み、Windows x64のbridgeを通じて音響モデルとvocoderを実行する試験実装です。通常のUTAU音源の`oto.ini`、resampler、wavtoolを使う経路とは異なります。対応範囲と配置は[DiffSinger](diffsinger.md)を参照してください。
+
 ### Rendererを変更するときの境界
 
 Rendererは選ばれたunitを受け取って別のaliasへ勝手に変更しません。候補選択を改善する場合は`voicebank`、時間付きunit列を変える場合は`plan`、波形処理だけを変える場合は`render`へ実装します。この境界を守れば同じPlanを複数Rendererへ渡して比較できます。
+
+内蔵Providerと外部Providerは同じ`UnitRenderer`境界で扱います。内蔵側もcloneしたPlanへ処理を行い、外部側は`utautts-provider`のhandshakeと共通jobを通じて音声と診断を返します。DiffSingerはUTAUのUnit Planを入力にするRendererではなく、`neural-synthesizer` contractの`NeuralScore`経路を使います。
 
 ## 8. GUI、CLI、Serverとキャッシュ
 
@@ -213,6 +226,8 @@ CLIとHTTP Serverも同じrenderer catalogと`synth.Service`を使います。�
 - 最大256MiBのデコード済みWAV LRU
 
 音源再読込ではこれらを明示的に破棄します。新しいcacheを追加するときはファイル更新の検知、上限、明示clear、並行アクセスの4点を揃えてください。
+
+外部helperとProviderの寿命はcacheとは別に管理します。Open JTalk helper、WORLD bridge、DiffSinger bridge、session対応の外部Providerは初回利用時にlazy startし、同じEngine instanceで複数の合成要求から再利用します。通常の「1合成1プロセス」にはせず、cancel／timeoutやprocess終了時だけ再起動します。Classic UTAUのresamplerとwavtoolは現状ではunitごとのprocessです。
 
 合成要求は`context.Context`でキャンセルされます。外部helperにはtimeoutと終了待ち時間があり長いunit処理中も定期的にキャンセルを確認します。GUIだけでなくServerの切断や終了処理でも同じ仕組みを使います。
 
