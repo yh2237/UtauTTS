@@ -2,9 +2,11 @@ package main
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -442,25 +444,108 @@ func TestRunPreservesPortableConfig(t *testing.T) {
 	target := filepath.Join(root, "UtauTTS")
 	writeTestFile(t, filepath.Join(target, "app", "utautts-gui.exe"), "old-gui")
 	writeTestFile(t, filepath.Join(target, "config.ini"), "portable-settings")
-	writeTestFile(t, filepath.Join(target, "plugins", "renderers", "builtin", "plugin.json"),
+	writeTestFile(t, filepath.Join(target, "renderer", "builtin", "renderer.json"),
 		`{"backend":"waveform","version":"old"}`)
 
 	zipPath := makeZip(t, map[string]string{
-		"app/utautts-gui.exe":                   "new-gui",
-		"config.ini":                            "package-default",
-		"plugins/renderers/builtin/plugin.json": `{"backend":"waveform","version":"new"}`,
+		"app/utautts-gui.exe":            "new-gui",
+		"config.ini":                     "package-default",
+		"renderer/builtin/renderer.json": `{"backend":"waveform","version":"new"}`,
 	})
 	if err := run(target, "", zipPath, 0, "test", []string{"config.ini"}, false); err != nil {
 		t.Fatal(err)
 	}
 	for path, want := range map[string]string{
-		"config.ini":                            "portable-settings",
-		"plugins/renderers/builtin/plugin.json": `{"backend":"waveform","version":"new"}`,
+		"config.ini":                     "portable-settings",
+		"renderer/builtin/renderer.json": `{"backend":"waveform","version":"new"}`,
 	} {
 		data, err := os.ReadFile(filepath.Join(target, filepath.FromSlash(path)))
 		if err != nil || string(data) != want {
 			t.Errorf("%s = %q, %v; want %q", path, data, err, want)
 		}
+	}
+}
+
+func TestMigrateRendererDefinitionsKeepsNewStandardAndConvertsLegacy(t *testing.T) {
+	root := t.TempDir()
+	current := filepath.Join(root, "current")
+	stage := filepath.Join(root, "stage")
+	writeTestFile(t, filepath.Join(stage, "renderer", "waveform", "renderer.json"),
+		`{"manifest_version":1,"kind":"renderer","id":"waveform","display_name":"New","backend":"waveform"}`)
+	writeTestFile(t, filepath.Join(current, "renderer", "waveform", "renderer.json"),
+		`{"manifest_version":1,"kind":"renderer","id":"waveform","display_name":"Old","backend":"waveform"}`)
+	writeTestFile(t, filepath.Join(current, "renderer", "custom-current", "renderer.json"),
+		`{"manifest_version":1,"kind":"renderer","id":"custom-current","display_name":"Current","backend":"waveform"}`)
+	writeTestFile(t, filepath.Join(current, "renderer", "managed-removed", "renderer.json"),
+		`{"manifest_version":1,"kind":"renderer","id":"managed-removed","display_name":"Removed","backend":"waveform","update_managed":true}`)
+	writeTestFile(t, filepath.Join(current, "plugins", "renderers", "legacy-v1", "plugin.json"),
+		`{"manifest_version":1,"kind":"renderer","id":"legacy-v1","display_name":"Legacy v1","backend":"waveform","assets":{"engine":"../../../runtime/engine.dll"}}`)
+	writeTestFile(t, filepath.Join(current, "plugins", "renderers", "legacy-v2", "plugin.json"),
+		`{"manifest_version":2,"kind":"renderer","id":"legacy-v2","display_name":"Legacy v2","version":"1","backend":"waveform","protocol_version":1,"platforms":{"windows-amd64":{"engine":{"path":"engine.dll","sha256":"00"}}}}`)
+	writeTestFile(t, filepath.Join(current, "plugins", "renderers", "legacy-v2", "engine.dll"), "engine")
+
+	if err := migrateRendererDefinitions(current, stage); err != nil {
+		t.Fatal(err)
+	}
+	standard, err := os.ReadFile(filepath.Join(stage, "renderer", "waveform", "renderer.json"))
+	if err != nil || !strings.Contains(string(standard), `"display_name":"New"`) {
+		t.Fatalf("new standard renderer was replaced: %q, %v", standard, err)
+	}
+	for _, id := range []string{"custom-current", "legacy-v1", "legacy-v2"} {
+		data, err := os.ReadFile(filepath.Join(stage, "renderer", id, "renderer.json"))
+		if err != nil {
+			t.Fatalf("migrated renderer %s: %v", id, err)
+		}
+		var manifest rendererMigrationManifest
+		if err := json.Unmarshal(data, &manifest); err != nil || manifest.ManifestVersion != 1 || manifest.ID != id {
+			t.Fatalf("migrated renderer %s = %s, %v", id, data, err)
+		}
+		if id == "legacy-v2" && manifest.PlatformAssets["windows-amd64"]["engine"] != "engine.dll" {
+			t.Fatalf("legacy v2 platform assets = %#v", manifest.PlatformAssets)
+		}
+		if id == "legacy-v1" && manifest.Assets["engine"] != "../../runtime/engine.dll" {
+			t.Fatalf("legacy v1 asset path = %#v", manifest.Assets)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(stage, "renderer", "legacy-v2", "engine.dll")); err != nil {
+		t.Fatalf("legacy renderer asset was not copied: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(stage, "renderer", "managed-removed")); !os.IsNotExist(err) {
+		t.Fatalf("removed managed renderer was carried forward: %v", err)
+	}
+}
+
+func TestConvertLegacyRendererExpandsImplicitRuntimeDefaults(t *testing.T) {
+	manifest, err := convertLegacyRenderer([]byte(
+		`{"manifest_version":2,"kind":"renderer","id":"world-alias","display_name":"World alias","version":"1","backend":"utautts-world-phrase","protocol_version":1}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !manifest.legacyDefaults || len(manifest.PlatformAssets) != 0 {
+		t.Fatalf("legacy conversion state = %#v", manifest)
+	}
+	applyLegacyBackendDefaults(&manifest)
+	if !manifest.Capabilities["frame_pitch"] || manifest.Acceleration != "cpu" {
+		t.Fatalf("legacy defaults = %#v", manifest)
+	}
+	if manifest.PlatformAssets["windows-amd64"]["world_engine"] != "../../runtime/utautts-world-engine.dll" ||
+		manifest.PlatformAssets["linux-amd64"]["worldline_bridge"] != "../../runtime/utautts-worldline-bridge" {
+		t.Fatalf("legacy runtime assets = %#v", manifest.PlatformAssets)
+	}
+}
+
+func TestRebaseRendererAssetsMovesInstallAbsolutePath(t *testing.T) {
+	root := t.TempDir()
+	current := filepath.Join(root, "current")
+	stage := filepath.Join(root, "stage")
+	source := filepath.Join(current, "plugins", "renderers", "custom")
+	destination := filepath.Join(stage, "renderer", "custom")
+	manifest := rendererMigrationManifest{Assets: map[string]string{
+		"engine": filepath.Join(current, "runtime", "engine.dll"),
+	}}
+	rebaseRendererAssets(&manifest, source, current, destination, stage)
+	if manifest.Assets["engine"] != "../../runtime/engine.dll" {
+		t.Fatalf("rebased absolute asset = %q", manifest.Assets["engine"])
 	}
 }
 
