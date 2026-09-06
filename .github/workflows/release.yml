@@ -54,7 +54,7 @@ jobs:
       - name: Download macOS packages
         uses: actions/download-artifact@v7
         with:
-          name: utautts-macos-arm64
+          name: utautts-mac-arm64
           path: release-assets
 
       - name: Create Draft Release

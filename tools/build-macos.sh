@@ -5,8 +5,8 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 release_root="${1:-${root_dir}/release}"
 gui_dir="${release_root}/UtauTTS-macos"
 server_dir="${release_root}/UtauTTS-Server-macos"
-gui_zip="${release_root}/UtauTTS-macos-arm64.zip"
-server_zip="${release_root}/UtauTTS-Server-macos-arm64.zip"
+gui_zip="${release_root}/UtauTTS-mac-arm64.zip"
+server_zip="${release_root}/UtauTTS-Server-mac-arm64.zip"
 
 case "${release_root}" in
   "${root_dir}/release"|"${root_dir}/release"/*) ;;

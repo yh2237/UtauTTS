@@ -3,8 +3,8 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 release_root="${1:-${root_dir}/release}"
-gui_zip="${release_root}/UtauTTS-macos-arm64.zip"
-server_zip="${release_root}/UtauTTS-Server-macos-arm64.zip"
+gui_zip="${release_root}/UtauTTS-mac-arm64.zip"
+server_zip="${release_root}/UtauTTS-Server-mac-arm64.zip"
 python_command="${PYTHON:-python3}"
 temporary_root="$(mktemp -d -t utautts-macos-release-test.XXXXXX)"
 server_pid=""
