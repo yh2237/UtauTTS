@@ -81,7 +81,7 @@ mkdir -p "${work_dir}"
 app_binary="${app}/Contents/MacOS/utautts"
 (
   cd "${gui_root}"
-  QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+  QT_QPA_PLATFORM=cocoa QT_QUICK_BACKEND=software \
     "${app_binary}" --self-test >"${work_dir}/gui.stdout.log" 2>"${work_dir}/gui.stderr.log"
 ) || {
   tail -100 "${work_dir}/gui.stderr.log" >&2 || true
