@@ -5,10 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
-	"strings"
 
-	"utautts/internal/processutil"
 	"utautts/internal/provider"
 )
 
@@ -25,7 +22,7 @@ type worldlineBridgeProcess struct {
 var sharedWorldlineBridge worldlineBridgeProcess
 var worldlineBridgeGate = make(chan struct{}, 1)
 
-func invokeWorldlineBridge(ctx context.Context, bridge, manifestPath string, legacyManifestPath ...string) error {
+func invokeWorldlineBridge(ctx context.Context, bridge, jobPath, outputPath string) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -39,7 +36,7 @@ func invokeWorldlineBridge(ctx context.Context, bridge, manifestPath string, leg
 		return err
 	}
 
-	job, err := readWorldlineBridgeJob(manifestPath)
+	job, err := readWorldlineBridgeJob(jobPath)
 	if err != nil {
 		return err
 	}
@@ -49,10 +46,6 @@ func invokeWorldlineBridge(ctx context.Context, bridge, manifestPath string, leg
 	}
 
 	client := &sharedWorldlineBridge
-	legacyPath := manifestPath
-	if len(legacyManifestPath) > 0 && strings.TrimSpace(legacyManifestPath[0]) != "" {
-		legacyPath = legacyManifestPath[0]
-	}
 	if client.session == nil || client.path != bridge || client.provider != providerID || !client.session.IsAlive() {
 		client.stop()
 		session, startErr := provider.StartSession(ctx, provider.SessionOptions{
@@ -60,19 +53,13 @@ func invokeWorldlineBridge(ctx context.Context, bridge, manifestPath string, leg
 			Args:            []string{"--provider", providerID},
 			Provider:        providerID,
 			ProviderVersion: "1",
-			Capabilities:    []string{provider.CapabilityUnitRendererJobV1},
+			Capabilities:    []string{provider.CapabilityUnitRendererJobV2},
 			Contract:        "unit-renderer",
 			ContractVersion: 1,
 			ProtocolVersion: provider.ProtocolVersion,
 		})
 		if startErr != nil {
-			// Keep compatibility with an older installed bridge. This path is
-			// deliberately only a fallback; the bundled bridge uses the session
-			// protocol above and therefore keeps its native runtime resident.
-			if fallbackErr := invokeWorldlineBridgeLegacy(ctx, bridge, legacyPath); fallbackErr != nil {
-				return fmt.Errorf("start worldline provider session: %w (legacy fallback: %v)", startErr, fallbackErr)
-			}
-			return nil
+			return fmt.Errorf("start worldline provider session: %w", startErr)
 		}
 		client.path = bridge
 		client.provider = providerID
@@ -82,8 +69,8 @@ func invokeWorldlineBridge(ctx context.Context, bridge, manifestPath string, leg
 	_, err = client.session.Render(ctx, provider.RenderRequest{
 		Contract:        "unit-renderer",
 		ContractVersion: 1,
-		InputPath:       manifestPath,
-		OutputPath:      job.OutputPath,
+		InputPath:       jobPath,
+		OutputPath:      outputPath,
 	}, provider.RenderOptions{})
 	if err != nil && !client.session.IsAlive() {
 		client.stop()
@@ -92,42 +79,31 @@ func invokeWorldlineBridge(ctx context.Context, bridge, manifestPath string, leg
 }
 
 type worldlineBridgeJob struct {
-	Engine     string `json:"engine"`
-	OutputPath string `json:"output_path"`
+	Engine string `json:"engine"`
 }
 
 func readWorldlineBridgeJob(path string) (worldlineBridgeJob, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return worldlineBridgeJob{}, fmt.Errorf("read worldline manifest: %w", err)
+		return worldlineBridgeJob{}, fmt.Errorf("read worldline job: %w", err)
 	}
 	var commonJob provider.UnitRendererJob
-	if err := json.Unmarshal(data, &commonJob); err == nil &&
-		commonJob.Version == provider.UnitRendererJobVersion &&
-		commonJob.Contract == "unit-renderer" && commonJob.ContractVersion == 1 &&
-		len(commonJob.ProviderPayload) > 0 {
-		var payload struct {
-			Engine     string `json:"engine"`
-			OutputPath string `json:"output_path"`
-		}
-		if err := json.Unmarshal(commonJob.ProviderPayload, &payload); err != nil {
-			return worldlineBridgeJob{}, fmt.Errorf("decode worldline provider payload: %w", err)
-		}
-		return validateWorldlineBridgeJob(worldlineBridgeJob{Engine: payload.Engine, OutputPath: payload.OutputPath})
+	if err := json.Unmarshal(data, &commonJob); err != nil {
+		return worldlineBridgeJob{}, fmt.Errorf("decode worldline job: %w", err)
 	}
-	var legacy worldlineBridgeJob
-	if err := json.Unmarshal(data, &legacy); err != nil {
-		return worldlineBridgeJob{}, fmt.Errorf("decode worldline manifest: %w", err)
+	if commonJob.Version != provider.UnitRendererJobVersion ||
+		commonJob.Contract != "unit-renderer" || commonJob.ContractVersion != 1 {
+		return worldlineBridgeJob{}, fmt.Errorf("unsupported worldline job contract")
 	}
-	return validateWorldlineBridgeJob(legacy)
+	if commonJob.Options.Worldline == nil {
+		return worldlineBridgeJob{}, fmt.Errorf("worldline job has no typed worldline options")
+	}
+	return validateWorldlineBridgeJob(worldlineBridgeJob{Engine: commonJob.Options.Worldline.Engine})
 }
 
 func validateWorldlineBridgeJob(job worldlineBridgeJob) (worldlineBridgeJob, error) {
 	if job.Engine == "" {
-		return worldlineBridgeJob{}, fmt.Errorf("worldline manifest has no engine")
-	}
-	if job.OutputPath == "" {
-		return worldlineBridgeJob{}, fmt.Errorf("worldline manifest has no output_path")
+		return worldlineBridgeJob{}, fmt.Errorf("worldline job has no engine")
 	}
 	return job, nil
 }
@@ -141,19 +117,6 @@ func worldlineProviderID(engineID string) (string, error) {
 	default:
 		return "", fmt.Errorf("unknown worldline bridge engine %q", engineID)
 	}
-}
-
-func invokeWorldlineBridgeLegacy(ctx context.Context, bridge, manifestPath string) error {
-	command := exec.CommandContext(ctx, bridge, manifestPath)
-	processutil.Configure(command)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		return fmt.Errorf("%w: %s", err, output)
-	}
-	return nil
 }
 
 func (client *worldlineBridgeProcess) stop() {

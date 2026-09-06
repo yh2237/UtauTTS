@@ -239,7 +239,7 @@ func providerCapabilities(capabilities engine.Capabilities) []string {
 	// capabilities below describe optional behavior inside that envelope; the
 	// envelope capability itself is therefore required for every external unit
 	// renderer session.
-	result := []string{provider.CapabilityUnitRendererJobV1}
+	result := []string{provider.CapabilityUnitRendererJobV2}
 	if capabilities.FramePitch {
 		result = append(result, "frame_pitch")
 	}

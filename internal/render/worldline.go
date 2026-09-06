@@ -307,14 +307,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	if err != nil {
 		return nil, err
 	}
-	legacyManifestPath := filepath.Join(tempDir, "worldline-manifest.json")
-	legacyData, err := json.Marshal(manifest)
-	if err != nil {
-		return nil, err
-	}
-	if err := os.WriteFile(legacyManifestPath, legacyData, 0o600); err != nil {
-		return nil, err
-	}
 	jobPath := filepath.Join(tempDir, "job.json")
 	jobData, err := json.Marshal(job)
 	if err != nil {
@@ -329,7 +321,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	if commandErr := invokeWorldlineBridge(ctx, bridge, jobPath, legacyManifestPath); commandErr != nil {
+	if commandErr := invokeWorldlineBridge(ctx, bridge, jobPath, manifest.OutputPath); commandErr != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, fmt.Errorf("worldline bridge canceled: %w", ctxErr)
 		}
@@ -347,10 +339,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 }
 
 func worldlineProviderJob(synthesisPlan *plan.Plan, cfg Config, manifest worldlineManifest, bridge string) (provider.UnitRendererJob, error) {
-	payload, err := json.Marshal(manifest)
-	if err != nil {
-		return provider.UnitRendererJob{}, err
-	}
 	planData, err := json.Marshal(plan.Clone(synthesisPlan))
 	if err != nil {
 		return provider.UnitRendererJob{}, err
@@ -369,6 +357,27 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg Config, manifest worldli
 	if len(resources) == 0 {
 		resources = nil
 	}
+	worldline := provider.WorldlineOptions{
+		Engine: manifest.Engine, SampleRate: manifest.SampleRate, ExactLength: cfg.ProviderOptions.Worldline.ExactLength,
+		F0Curve: append([]float64(nil), manifest.F0Curve...),
+		Units:   make([]provider.WorldlineUnit, len(manifest.Units)),
+	}
+	for index, unit := range manifest.Units {
+		converted := provider.WorldlineUnit{
+			CacheKey: unit.CacheKey, Source: unit.Source, FRQPath: unit.FRQPath,
+			PositionMS: unit.PositionMS, SkipMS: unit.SkipMS, LengthMS: unit.LengthMS,
+			FadeInMS: unit.FadeInMS, FadeOutMS: unit.FadeOutMS, OffsetMS: unit.OffsetMS,
+			RequiredLengthMS: unit.RequiredLengthMS, ConsonantMS: unit.ConsonantMS,
+			CutoffMS: unit.CutoffMS, Tone: unit.Tone, ConsonantVelocity: unit.ConsonantVelocity,
+			PitchStartMS: unit.PitchStartMS, PitchLengthMS: unit.PitchLengthMS,
+			Volume: unit.Volume, Modulation: unit.Modulation, Tempo: unit.Tempo,
+			Envelope: make([]provider.WorldlineEnvelopePoint, len(unit.Envelope)),
+		}
+		for pointIndex, point := range unit.Envelope {
+			converted.Envelope[pointIndex] = provider.WorldlineEnvelopePoint{XMS: point.XMS, Y: point.Y}
+		}
+		worldline.Units[index] = converted
+	}
 	return provider.UnitRendererJob{
 		Version:         provider.UnitRendererJobVersion,
 		Contract:        "unit-renderer",
@@ -385,9 +394,9 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg Config, manifest worldli
 			CVVCTransitionGain:      cfg.CVVCTransitionGain,
 			CVVCPreBoundaryFade:     cfg.CVVCPreBoundaryFade,
 			PitchCurve:              providerPitchCurve(cfg.PitchCurve),
+			Worldline:               &worldline,
 		},
-		Resources:       resources,
-		ProviderPayload: payload,
+		Resources: resources,
 	}, nil
 }
 

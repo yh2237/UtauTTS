@@ -58,24 +58,13 @@ func main() {
 }
 
 func run(args []string) error {
-	if len(args) == 1 && args[0] == "--serve" {
-		return serve(os.Stdin, os.Stdout)
-	}
 	if len(args) == 2 && args[0] == "--provider" {
 		if strings.TrimSpace(args[1]) == "" {
 			return fmt.Errorf("provider id must not be empty")
 		}
 		return serveProvider(os.Stdin, os.Stdout, args[1])
 	}
-	if len(args) != 1 {
-		return fmt.Errorf("usage: utautts-worldline-bridge MANIFEST.json | --serve | --provider PROVIDER_ID")
-	}
-	return renderManifest(args[0], nil)
-}
-
-type serveResponse struct {
-	OK    bool   `json:"ok"`
-	Error string `json:"error,omitempty"`
+	return fmt.Errorf("usage: utautts-worldline-bridge --provider PROVIDER_ID")
 }
 
 func newBridgeState() *bridgeState {
@@ -94,32 +83,8 @@ func (state *bridgeState) close() {
 	}
 }
 
-func serve(input io.Reader, output io.Writer) error {
-	state := newBridgeState()
-	defer state.close()
-	scanner := bufio.NewScanner(input)
-	writer := bufio.NewWriter(output)
-	for scanner.Scan() {
-		path := scanner.Text()
-		err := renderManifest(path, state)
-		response := serveResponse{OK: err == nil}
-		if err != nil {
-			response.Error = err.Error()
-		}
-		data, _ := json.Marshal(response)
-		if _, writeErr := writer.Write(append(data, '\n')); writeErr != nil {
-			return writeErr
-		}
-		if err := writer.Flush(); err != nil {
-			return err
-		}
-	}
-	return scanner.Err()
-}
-
-// serveProvider is the v1 external-provider protocol adapter. It accepts the
-// shared unit-renderer job and keeps the old worldline manifest as a
-// provider-specific migration payload inside that job.
+// serveProvider is the v1 external-provider protocol adapter. It accepts only
+// the common unit-renderer job and its typed WORLD options.
 func serveProvider(input io.Reader, output io.Writer, providerID string) error {
 	state := newBridgeState()
 	defer state.close()
@@ -128,7 +93,7 @@ func serveProvider(input io.Reader, output io.Writer, providerID string) error {
 	if err := encoder.Encode(provider.Hello{
 		Type: provider.MessageHello, Protocol: provider.ProtocolName, ProtocolVersion: provider.ProtocolVersion,
 		Provider: providerID, ProviderVersion: "1", Session: true,
-		Capabilities: []string{"frame_pitch", provider.CapabilityUnitRendererJobV1},
+		Capabilities: []string{"frame_pitch", provider.CapabilityUnitRendererJobV2},
 		Contracts:    []provider.ContractSupport{{Name: "unit-renderer", Version: 1}},
 	}); err != nil {
 		return err
@@ -203,58 +168,53 @@ type bridgeState struct {
 	worldUnits   *worldFeatureCache
 }
 
-func renderManifest(path string, state *bridgeState) error {
-	_, err := renderManifestAt(path, "", state)
-	return err
-}
-
-func renderManifestAt(path, outputPath string, state *bridgeState) (manifest, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return manifest{}, err
-	}
-	return renderManifestData(data, outputPath, state)
-}
-
 func renderProviderInputAt(path, outputPath string, state *bridgeState) (manifest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return manifest{}, err
 	}
-	input, err := decodeProviderManifest(data)
+	input, err := decodeProviderJob(data, outputPath)
 	if err != nil {
 		return manifest{}, err
 	}
 	return renderManifestValue(input, outputPath, state)
 }
 
-func decodeProviderManifest(data []byte) (manifest, error) {
+func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
 	var job provider.UnitRendererJob
-	if err := json.Unmarshal(data, &job); err == nil &&
-		job.Version == provider.UnitRendererJobVersion &&
-		job.Contract == "unit-renderer" && job.ContractVersion == 1 &&
-		len(job.ProviderPayload) > 0 {
-		var input manifest
-		if err := json.Unmarshal(job.ProviderPayload, &input); err != nil {
-			return manifest{}, fmt.Errorf("decode worldline provider payload: %w", err)
-		}
-		return input, nil
+	if err := json.Unmarshal(data, &job); err != nil {
+		return manifest{}, fmt.Errorf("decode worldline job: %w", err)
 	}
-	// Accept a raw manifest during the migration window so a newer bridge can
-	// still be paired with an older session client.
-	var input manifest
-	if err := json.Unmarshal(data, &input); err != nil {
-		return manifest{}, fmt.Errorf("decode manifest: %w", err)
+	if job.Version != provider.UnitRendererJobVersion || job.Contract != "unit-renderer" || job.ContractVersion != 1 {
+		return manifest{}, fmt.Errorf("unsupported worldline job contract")
+	}
+	if job.Options.Worldline == nil {
+		return manifest{}, fmt.Errorf("worldline job has no typed worldline options")
+	}
+	options := job.Options.Worldline
+	input := manifest{
+		Engine: options.Engine, OutputPath: outputPath, SampleRate: options.SampleRate,
+		F0Curve: append([]float64(nil), options.F0Curve...), Units: make([]unit, len(options.Units)),
+		WorldlinePath: job.Resources["worldline"], WorldEnginePath: job.Resources["world_engine"],
+		GPUPath: job.Resources["world_gpu"],
+	}
+	for index, source := range options.Units {
+		target := unit{
+			CacheKey: source.CacheKey, Source: source.Source, FrqPath: source.FRQPath,
+			PositionMS: source.PositionMS, SkipMS: source.SkipMS, LengthMS: source.LengthMS,
+			FadeInMS: source.FadeInMS, FadeOutMS: source.FadeOutMS, OffsetMS: source.OffsetMS,
+			RequiredLengthMS: source.RequiredLengthMS, ConsonantMS: source.ConsonantMS,
+			CutoffMS: source.CutoffMS, Tone: source.Tone, ConsonantVelocity: source.ConsonantVelocity,
+			PitchStartMS: source.PitchStartMS, PitchLengthMS: source.PitchLengthMS,
+			Volume: source.Volume, Modulation: source.Modulation, Tempo: source.Tempo,
+			Envelope: make([]envelopePoint, len(source.Envelope)),
+		}
+		for pointIndex, point := range source.Envelope {
+			target.Envelope[pointIndex] = envelopePoint{XMS: point.XMS, Y: point.Y}
+		}
+		input.Units[index] = target
 	}
 	return input, nil
-}
-
-func renderManifestData(data []byte, outputPath string, state *bridgeState) (manifest, error) {
-	var input manifest
-	if err := json.Unmarshal(data, &input); err != nil {
-		return manifest{}, fmt.Errorf("decode manifest: %w", err)
-	}
-	return renderManifestValue(input, outputPath, state)
 }
 
 func renderManifestValue(input manifest, outputPath string, state *bridgeState) (manifest, error) {

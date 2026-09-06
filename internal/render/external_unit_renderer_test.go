@@ -24,7 +24,7 @@ func TestExternalRendererHelper(t *testing.T) {
 	if err := encoder.Encode(provider.Hello{
 		Type: provider.MessageHello, Protocol: provider.ProtocolName, ProtocolVersion: provider.ProtocolVersion,
 		Provider: "test.external", ProviderVersion: "1", Session: true,
-		Capabilities: []string{provider.CapabilityUnitRendererJobV1},
+		Capabilities: []string{provider.CapabilityUnitRendererJobV2},
 		Contracts:    []provider.ContractSupport{{Name: "unit-renderer", Version: 1}},
 	}); err != nil {
 		return

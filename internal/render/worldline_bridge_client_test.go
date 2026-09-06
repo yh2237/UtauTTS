@@ -11,16 +11,12 @@ import (
 )
 
 func TestReadWorldlineBridgeJobReadsCommonUnitJob(t *testing.T) {
-	payload, err := json.Marshal(worldlineBridgeJob{Engine: "worldline-r-faithful", OutputPath: "output.wav"})
-	if err != nil {
-		t.Fatal(err)
-	}
 	data, err := json.Marshal(provider.UnitRendererJob{
 		Version:         provider.UnitRendererJobVersion,
 		Contract:        "unit-renderer",
 		ContractVersion: 1,
 		Plan:            json.RawMessage(`{"version":19}`),
-		ProviderPayload: payload,
+		Options:         provider.UnitRendererOptions{Worldline: &provider.WorldlineOptions{Engine: "worldline-r-faithful"}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -33,23 +29,19 @@ func TestReadWorldlineBridgeJobReadsCommonUnitJob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Engine != "worldline-r-faithful" || got.OutputPath != "output.wav" {
+	if got.Engine != "worldline-r-faithful" {
 		t.Fatalf("job = %#v", got)
 	}
 }
 
-func TestReadWorldlineBridgeJobKeepsLegacyManifestSupport(t *testing.T) {
+func TestReadWorldlineBridgeJobRejectsLegacyManifest(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "manifest.json")
 	data := []byte(`{"engine":"utautts-world-phrase","output_path":"output.wav"}`)
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	got, err := readWorldlineBridgeJob(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Engine != "utautts-world-phrase" || got.OutputPath != "output.wav" {
-		t.Fatalf("job = %#v", got)
+	if _, err := readWorldlineBridgeJob(path); err == nil {
+		t.Fatal("legacy manifest was accepted")
 	}
 }
 
@@ -64,14 +56,11 @@ func TestWorldlineProviderJobCarriesCommonPlanAndResources(t *testing.T) {
 	}
 	if job.Version != provider.UnitRendererJobVersion || job.Contract != "unit-renderer" ||
 		len(job.Plan) == 0 || job.Resources["worldline"] != "worldline.dll" ||
-		job.Resources["worldline_bridge"] != "bridge.exe" || !job.Options.ApplyPitch {
+		job.Resources["worldline_bridge"] != "bridge.exe" || !job.Options.ApplyPitch ||
+		job.Options.Worldline == nil {
 		t.Fatalf("job = %#v", job)
 	}
-	var payload worldlineManifest
-	if err := json.Unmarshal(job.ProviderPayload, &payload); err != nil {
-		t.Fatal(err)
-	}
-	if payload.Engine != "worldline-r-faithful" || payload.OutputPath != "output.wav" {
-		t.Fatalf("payload = %#v", payload)
+	if job.Options.Worldline.Engine != "worldline-r-faithful" || job.Options.Worldline.SampleRate != 44100 {
+		t.Fatalf("worldline options = %#v", job.Options.Worldline)
 	}
 }
