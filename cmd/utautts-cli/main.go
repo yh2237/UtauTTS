@@ -132,12 +132,13 @@ func main() {
 	if catalogErr != nil {
 		log.Printf("plugin discovery warning: %v", catalogErr)
 	}
+	resolver := synth.NewService(catalog, "", worldlinePath, worldlineBridgePath, openJTalkPath, openJTalkDictionaryPath, nil)
 	if prosodyPath != "" {
-		model, found := catalog.Model(prosodyPath)
-		if !found {
-			log.Fatalf("prosody model plugin %q is not installed", prosodyPath)
+		resolvedModelPath, resolveErr := resolver.ResolveModel(prosodyPath)
+		if resolveErr != nil {
+			log.Fatal(resolveErr)
 		}
-		prosodyPath = model.Path
+		prosodyPath = resolvedModelPath
 	}
 
 	if voicebankPath == "" {
@@ -204,23 +205,23 @@ func main() {
 		JoinScoreScale:               joinScoreScale,
 		ExternalResamplerExpressions: resamplerExpressions,
 	}
-	resolvedRendererID, err := tts.ApplyRenderer(&synthConfig, catalog, renderer, worldlinePath, worldlineBridgePath)
+	resolvedEngine, err := resolver.ResolveRenderer(renderer)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if synthConfig.Renderer == "utau-external-resampler" {
-		resamplerTool, found := catalog.Resampler(resampler)
-		if !found {
-			log.Fatalf("Classic UTAU resampler %q is not installed", resampler)
-		}
-		wavtoolTool, found := catalog.Wavtool(wavtool)
-		if !found {
-			log.Fatalf("Classic UTAU wavtool %q is not installed", wavtool)
-		}
-		synthConfig.ExternalResamplerPath = resamplerTool.Path
-		synthConfig.ExternalWavtoolPath = wavtoolTool.Path
+	if err := resolvedEngine.RequireAvailable(); err != nil {
+		log.Fatal(err)
 	}
-	output, err := synth.SynthesizeConfig(synthConfig, resolvedRendererID)
+	tts.ApplyResolvedEngine(&synthConfig, resolvedEngine, worldlinePath, worldlineBridgePath)
+	if resolvedEngine.Provider.ID == "utau-external-resampler" {
+		classicTools, toolsErr := resolver.ResolveClassicTools(resampler, wavtool)
+		if toolsErr != nil {
+			log.Fatal(toolsErr)
+		}
+		synthConfig.ExternalResamplerPath = classicTools.Resampler.Path
+		synthConfig.ExternalWavtoolPath = classicTools.Wavtool.Path
+	}
+	output, err := synth.SynthesizeConfig(synthConfig, string(resolvedEngine.PublicID()))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -234,7 +235,7 @@ func main() {
 		log.Fatal(err)
 	}
 	if planPath != "" {
-		data, err := json.MarshalIndent(output.Plan, "", "  ")
+		data, err := json.MarshalIndent(output.RenderedPlan(), "", "  ")
 		if err != nil {
 			log.Fatal(err)
 		}

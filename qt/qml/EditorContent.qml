@@ -30,7 +30,7 @@ import QtMultimedia
 
         function classicRendererSelected() {
             const renderer = window.rendererById(rendererCombo.currentValue);
-            return renderer && renderer.backend === "utau-external-resampler";
+            return renderer && (renderer.provider || renderer.backend) === "utau-external-resampler";
         }
 
         anchors.fill: parent

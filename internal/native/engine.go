@@ -12,6 +12,7 @@ import (
 
 	"utautts/internal/appinfo"
 	"utautts/internal/aviutl"
+	"utautts/internal/diffsinger"
 	"utautts/internal/frontend"
 	"utautts/internal/openutau"
 	"utautts/internal/plugin"
@@ -78,6 +79,8 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 	switch method {
 	case "shutdown":
 		e.cancel()
+		_ = render.CloseProviderSessions()
+		_ = diffsinger.CloseProviderSessions()
 		result = map[string]bool{"ok": true}
 	case "health":
 		result = map[string]any{"status": "ok", "engine": e.config.Renderer, "version": appinfo.Version()}
@@ -91,8 +94,9 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 	case "renderers":
 		result = map[string]any{
 			"default_renderer": e.config.Renderer, "renderers": e.catalog.Renderers,
-			"problems":   e.catalog.Problems,
-			"resamplers": e.catalog.Resamplers, "wavtools": e.catalog.Wavtools,
+			"availability": e.synth.RendererAvailability(),
+			"problems":     e.catalog.Problems,
+			"resamplers":   e.catalog.Resamplers, "wavtools": e.catalog.Wavtools,
 		}
 	case "analyze":
 		result, err = e.analyze(requestJSON)
@@ -375,11 +379,16 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 	if err := synth.WriteFiles(outputPath, result, synth.ExportOptions{}); err != nil {
 		return nil, err
 	}
+	renderedPlan := result.RenderedPlan()
+	leadingMarginMS := 0.0
+	if renderedPlan != nil {
+		leadingMarginMS = renderedPlan.LeadingMarginMS
+	}
 	return map[string]any{
 		"output_path":           outputPath,
 		"reading":               result.Plan.Reading,
 		"duration_ms":           result.DurationMS,
-		"leading_margin_ms":     result.Plan.LeadingMarginMS,
+		"leading_margin_ms":     leadingMarginMS,
 		"lab":                   result.Lab,
 		"unit_count":            len(result.Plan.Units),
 		"engine":                result.RendererID,

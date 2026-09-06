@@ -258,8 +258,9 @@ func (s *Server) handleRenderers(w http.ResponseWriter, _ *http.Request) {
 	catalog := s.pluginCatalog()
 	writeJSON(w, http.StatusOK, map[string]any{
 		"default_renderer": s.renderer, "renderers": catalog.Renderers,
-		"problems":   catalog.Problems,
-		"resamplers": catalog.Resamplers, "wavtools": catalog.Wavtools,
+		"availability": s.synthesisService().RendererAvailability(),
+		"problems":     catalog.Problems,
+		"resamplers":   catalog.Resamplers, "wavtools": catalog.Wavtools,
 	})
 }
 

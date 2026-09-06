@@ -102,11 +102,17 @@ func TestRendererMetadataIncludesConfiguredDefault(t *testing.T) {
 	response := httptest.NewRecorder()
 	mustNewServer(t, Config{VoiceDir: t.TempDir(), Renderer: "waveform"}).Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/renderers", nil))
 	var payload struct {
-		Default string `json:"default_renderer"`
+		Default      string `json:"default_renderer"`
+		Availability map[string]struct {
+			Available bool `json:"available"`
+		} `json:"availability"`
 	}
 	_ = json.Unmarshal(response.Body.Bytes(), &payload)
 	if payload.Default != "waveform" {
 		t.Fatalf("default = %q", payload.Default)
+	}
+	if status, found := payload.Availability["waveform"]; !found || !status.Available {
+		t.Fatalf("waveform availability = %#v", payload.Availability)
 	}
 }
 

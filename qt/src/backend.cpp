@@ -1493,8 +1493,13 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
         renderers.append(QVariantMap{
             {"id", source.value("id")},
             {"display_name", source.value("display_name")},
+            {"manifest_version", source.value("manifest_version")},
+            {"kind", source.value("kind")},
             {"version", source.value("version")},
             {"backend", source.value("backend")},
+            {"contract", source.value("contract")},
+            {"provider", source.value("provider")},
+            {"provider_version", source.value("provider_version")},
             {"acceleration", source.value("acceleration")},
             {"experimental", source.value("experimental")},
             {"capabilities", source.value("capabilities")},

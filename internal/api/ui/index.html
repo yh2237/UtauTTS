@@ -310,7 +310,7 @@ async function loadRenderers() {
         "<div><code>" + escapeHtml(renderer.id) + "</code>" +
         (renderer.id === data.default_renderer ? " <span class=\"tag get\">既定</span>" : "") +
         " — " + escapeHtml(renderer.display_name || "") +
-        " <span class=\"muted\">(" + escapeHtml(renderer.backend || "") + ")</span></div>"
+        " <span class=\"muted\">(" + escapeHtml(renderer.provider || renderer.backend || "") + ")</span></div>"
       )).join("");
     }
   } catch (error) {
