@@ -22,8 +22,15 @@ func TestRepositoryRendererPluginsAreSelfDescribing(t *testing.T) {
 		t.Fatalf("default renderer = %q, want manifest-priority UtauTTS WORLD phrase", items[0].ID)
 	}
 	for _, item := range items {
-		if item.ID == "" || item.DisplayName == "" || item.Backend == "" {
+		implementation := item.Backend
+		if item.ManifestVersion == 2 {
+			implementation = item.Provider
+		}
+		if item.ID == "" || item.DisplayName == "" || implementation == "" {
 			t.Fatalf("incomplete renderer plugin: %#v", item)
+		}
+		if item.ManifestVersion != 2 || item.Contract == "" || item.ProviderVersion == "" {
+			t.Fatalf("bundled renderer was not migrated to explicit v2 metadata: %#v", item)
 		}
 	}
 }
@@ -228,7 +235,11 @@ func TestDefaultCatalogIncludesClassicUtau(t *testing.T) {
 		t.Fatal(err)
 	}
 	renderer, ok := catalog.Renderer("classic-utau")
-	if !ok || renderer.Backend != "utau-external-resampler" {
+	implementation := renderer.Backend
+	if renderer.ManifestVersion == 2 {
+		implementation = renderer.Provider
+	}
+	if !ok || implementation != "utau-external-resampler" {
 		t.Fatalf("classic renderer = %#v, %v", renderer, ok)
 	}
 	wavtool, ok := catalog.Wavtool("builtin")

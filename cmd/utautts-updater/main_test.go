@@ -515,6 +515,29 @@ func TestMigrateRendererDefinitionsKeepsNewStandardAndConvertsLegacy(t *testing.
 	}
 }
 
+func TestMigrateRendererDefinitionsCarriesCurrentManifestV2(t *testing.T) {
+	root := t.TempDir()
+	current := filepath.Join(root, "current")
+	stage := filepath.Join(root, "stage")
+	document := `{"manifest_version":2,"kind":"synthesis-engine","id":"custom-v2","display_name":"Custom v2","contract":"unit-renderer","provider":"waveform","provider_version":"1","resources":{"engine":{"path":"engine.dll","required":true}}}`
+	writeTestFile(t, filepath.Join(current, "renderer", "custom-v2", "renderer.json"), document)
+	writeTestFile(t, filepath.Join(current, "renderer", "custom-v2", "engine.dll"), "engine")
+
+	if err := migrateRendererDefinitions(current, stage); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(stage, "renderer", "custom-v2", "renderer.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != document {
+		t.Fatalf("v2 manifest was rewritten: %s", data)
+	}
+	if _, err := os.Stat(filepath.Join(stage, "renderer", "custom-v2", "engine.dll")); err != nil {
+		t.Fatalf("v2 renderer asset was not copied: %v", err)
+	}
+}
+
 func TestConvertLegacyRendererExpandsImplicitRuntimeDefaults(t *testing.T) {
 	manifest, err := convertLegacyRenderer([]byte(
 		`{"manifest_version":2,"kind":"renderer","id":"world-alias","display_name":"World alias","version":"1","backend":"utautts-world-phrase","protocol_version":1}`))

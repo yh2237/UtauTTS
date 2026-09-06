@@ -1,22 +1,23 @@
 {
-  "manifest_version": 1,
-  "kind": "renderer",
+  "manifest_version": 2,
+  "kind": "synthesis-engine",
   "id": "utautts-world-phrase-cuda",
   "display_name": "UtauTTS WORLD phrase (CUDA, experimental)",
   "description": "CUDA waveform renderer",
-  "backend": "utautts-world-phrase-cuda",
-  "version": "1",
+  "contract": "unit-renderer",
+  "provider": "utautts-world-phrase-cuda",
+  "provider_version": "1",
   "update_managed": true,
   "experimental": true,
   "acceleration": "cuda",
   "default_priority": -200,
   "capabilities": { "frame_pitch": true },
   "platforms": ["windows-amd64"],
-  "platform_assets": {
+  "platform_resources": {
     "windows-amd64": {
-      "world_engine": "../../runtime/utautts-world-engine.dll",
-      "worldline_bridge": "../../runtime/utautts-worldline-bridge.exe",
-      "world_gpu": "../../runtime/utautts-waveform-gpu.dll"
+      "world_engine": { "path": "../../runtime/utautts-world-engine.dll", "required": true },
+      "worldline_bridge": { "path": "../../runtime/utautts-worldline-bridge.exe", "required": true, "executable": true },
+      "world_gpu": { "path": "../../runtime/utautts-waveform-gpu.dll", "required": true }
     }
   }
 }

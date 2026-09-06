@@ -285,8 +285,27 @@ func carryCurrentRenderers(sourceRoot, destinationRoot, current, stage string) e
 		if err != nil {
 			return err
 		}
+		var header struct {
+			ManifestVersion int `json:"manifest_version"`
+		}
+		if err := json.Unmarshal(data, &header); err != nil {
+			return nil
+		}
+		if header.ManifestVersion == 2 {
+			var manifest struct {
+				ManifestVersion int    `json:"manifest_version"`
+				Kind            string `json:"kind"`
+				ID              string `json:"id"`
+				DisplayName     string `json:"display_name"`
+				UpdateManaged   bool   `json:"update_managed,omitempty"`
+			}
+			if err := json.Unmarshal(data, &manifest); err != nil || manifest.Kind != "synthesis-engine" || manifest.DisplayName == "" || manifest.UpdateManaged || !safeRendererID(manifest.ID) {
+				return nil
+			}
+			return carryCurrentRendererVerbatim(filepath.Dir(path), destinationRoot, manifest.ID)
+		}
 		var manifest rendererMigrationManifest
-		if err := json.Unmarshal(data, &manifest); err != nil || manifest.ManifestVersion != 1 {
+		if header.ManifestVersion != 1 || json.Unmarshal(data, &manifest) != nil {
 			return nil
 		}
 		if manifest.UpdateManaged {
@@ -294,6 +313,20 @@ func carryCurrentRenderers(sourceRoot, destinationRoot, current, stage string) e
 		}
 		return installMigratedRenderer(filepath.Dir(path), destinationRoot, current, stage, manifest)
 	})
+}
+
+func carryCurrentRendererVerbatim(sourceDirectory, destinationRoot, id string) error {
+	destination := filepath.Join(destinationRoot, id)
+	if _, err := os.Stat(filepath.Join(destination, "renderer.json")); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := copyTree(sourceDirectory, destination); err != nil {
+		return err
+	}
+	logf("current manifest v2 renderer carried forward: %s", id)
+	return nil
 }
 
 func installMigratedRenderer(sourceDirectory, destinationRoot, current, stage string, manifest rendererMigrationManifest) error {
