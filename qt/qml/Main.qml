@@ -49,6 +49,7 @@ ApplicationWindow {
     property string updateReleaseNotes: ""
     property url updateReleaseUrl: ""
     property url updateDownloadUrl: ""
+    property bool updateAvailablePreRelease: false
     property double updateDownloadReceived: 0
     property double updateDownloadTotal: 0
     property bool updateSuppressVersion: false
@@ -524,6 +525,15 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 text: window.translator.tr("update.message", window.updateAvailableVersion)
                 wrapMode: Text.WordWrap
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: window.updateAvailablePreRelease
+                text: window.translator.tr("update.preReleaseNotice")
+                wrapMode: Text.WordWrap
+                color: window.mutedText
+                font.pixelSize: 11
             }
 
             ScrollView {
@@ -1176,6 +1186,8 @@ ApplicationWindow {
         window.appBackend.setLanguage(settingsWindow.pendingLanguage);
         window.appBackend.setCloseLogOnSuccess(settingsWindow.pendingCloseLogOnSuccess);
         window.appBackend.setUpdateCheckEnabled(settingsWindow.pendingUpdateCheckEnabled);
+        window.appBackend.setPreReleaseUpdateCheckEnabled(
+                    settingsWindow.pendingPreReleaseUpdateCheckEnabled);
         window.appBackend.setPreviewCacheFileCount(settingsWindow.pendingPreviewCacheFileCount);
         window.appBackend.setDeveloperMode(settingsWindow.pendingDeveloperMode);
         window.appBackend.setDefaultVoicebank(settingsWindow.pendingDefaultVoicebankId);
@@ -1226,10 +1238,53 @@ ApplicationWindow {
         return 0;
     }
 
+    function releaseAssetURL(release) {
+        const packageName = Qt.platform.os === "linux"
+                ? "UtauTTS-linux-x64.zip" : "UtauTTS-win-x64.zip";
+        const assets = release && Array.isArray(release.assets) ? release.assets : [];
+        for (const asset of assets) {
+            if (asset && asset.name === packageName && asset.browser_download_url)
+                return String(asset.browser_download_url);
+        }
+        return "";
+    }
+
+    function isNewerRelease(left, right) {
+        const versionOrder = window.compareVersions(left.tag_name, right.tag_name);
+        if (versionOrder !== 0)
+            return versionOrder > 0;
+        if (!!left.prerelease !== !!right.prerelease)
+            return !left.prerelease;
+        const leftDate = Date.parse(String(left.published_at || left.created_at || ""));
+        const rightDate = Date.parse(String(right.published_at || right.created_at || ""));
+        return Number.isFinite(leftDate) && leftDate > rightDate;
+    }
+
+    function selectUpdateRelease(data, allowPreRelease) {
+        const releases = Array.isArray(data) ? data : [data];
+        let selected = null;
+        for (const release of releases) {
+            if (!release || release.draft || (!allowPreRelease && release.prerelease))
+                continue;
+            if (!release.tag_name || window.compareVersions(release.tag_name, Qt.application.version) <= 0)
+                continue;
+            if (!window.releaseAssetURL(release))
+                continue;
+            if (!selected || window.isNewerRelease(release, selected))
+                selected = release;
+        }
+        return selected;
+    }
+
     function checkForUpdates() {
         const request = new XMLHttpRequest();
         request.timeout = 10000;
-        request.open("GET", "https://api.github.com/repos/yh2237/UtauTTS/releases/latest");
+        const allowPreRelease = window.appBackend.developerMode
+                && window.appBackend.preReleaseUpdateCheckEnabled;
+        const endpoint = allowPreRelease
+                ? "https://api.github.com/repos/yh2237/UtauTTS/releases?per_page=100"
+                : "https://api.github.com/repos/yh2237/UtauTTS/releases/latest";
+        request.open("GET", endpoint);
         request.onreadystatechange = function() {
             if (request.readyState !== XMLHttpRequest.DONE)
                 return;
@@ -1241,30 +1296,20 @@ ApplicationWindow {
             } catch (error) {
                 return;
             }
-            if (!data || !data.tag_name)
+            const release = window.selectUpdateRelease(data, allowPreRelease);
+            if (!release)
                 return;
-            const latest = String(data.tag_name);
-            if (window.compareVersions(latest, Qt.application.version) > 0) {
-                const suppressed = window.appBackend.suppressedUpdateVersion();
-                if (suppressed && window.compareVersions(latest, suppressed) <= 0)
-                    return;
-                window.updateSuppressVersion = false;
-                window.updateAvailableVersion = latest;
-                window.updateReleaseNotes = data.body ? String(data.body) : "";
-                window.updateReleaseUrl = data.html_url ? String(data.html_url) : "";
-                let downloadUrl = "";
-                const assets = Array.isArray(data.assets) ? data.assets : [];
-                const packageName = Qt.platform.os === "linux"
-                    ? "UtauTTS-linux-x64.zip" : "UtauTTS-win-x64.zip";
-                for (const asset of assets) {
-                    if (asset && asset.name === packageName && asset.browser_download_url) {
-                        downloadUrl = String(asset.browser_download_url);
-                        break;
-                    }
-                }
-                window.updateDownloadUrl = downloadUrl;
-                updateDialog.open();
-            }
+            const latest = String(release.tag_name);
+            const suppressed = window.appBackend.suppressedUpdateVersion();
+            if (suppressed && window.compareVersions(latest, suppressed) <= 0)
+                return;
+            window.updateSuppressVersion = false;
+            window.updateAvailableVersion = latest;
+            window.updateReleaseNotes = release.body ? String(release.body) : "";
+            window.updateReleaseUrl = release.html_url ? String(release.html_url) : "";
+            window.updateDownloadUrl = window.releaseAssetURL(release);
+            window.updateAvailablePreRelease = !!release.prerelease;
+            updateDialog.open();
         };
         request.send();
     }

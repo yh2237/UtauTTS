@@ -1,6 +1,9 @@
 {
   "name": "UtauTTS",
   "version": "v1.2.2",
+  "update_schema": 1,
+  "migration_schema": 1,
+  "install_layout": 2,
   "organization": "UtauTTS",
   "repository": "https://github.com/yh2237/UtauTTS",
   "license": "MIT"

@@ -240,6 +240,8 @@ Backend::Backend(QObject *parent)
       m_language(portableSettingValue("appearance/language", QStringLiteral("auto")).toString()),
       m_closeLogOnSuccess(portableSettingValue("logging/closeOnSuccess", true).toBool()),
       m_updateCheckEnabled(portableSettingValue("appearance/updateCheckEnabled", true).toBool()),
+      m_preReleaseUpdateCheckEnabled(portableSettingValue(
+          "appearance/preReleaseUpdateCheckEnabled", false).toBool()),
       m_previewCacheFileCount(portableSettingValue("performance/previewCacheFileCount", 32).toInt()),
       m_developerMode(portableSettingValue("developer/enabled", false).toBool()),
       m_defaultRenderer(portableSettingValue("synthesis/defaultRendererId",
@@ -301,6 +303,48 @@ Backend::Backend(QObject *parent)
                 m_dictionaryEntries.append(QVariantMap{{"surface", surface}, {"reading", reading}});
             }
         }
+    }
+    runStartupMigrations();
+}
+
+void Backend::runStartupMigrations() {
+    const int currentMigrationSchema = QStringLiteral(UTAUTTS_MIGRATION_SCHEMA).toInt();
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    const int previousSchema = settings.value(QStringLiteral("migration/schema"), 0).toInt();
+    const QString pendingFrom = settings.value(QStringLiteral("migration/pending_from")).toString().trimmed();
+    const QString pendingTo = settings.value(QStringLiteral("migration/pending_to")).toString().trimmed();
+    const QString currentVersion = QCoreApplication::applicationVersion();
+
+    // v1.2.2 and earlier do not have this key. Treat that installation as a
+    // legacy install and run every idempotent bootstrap step below.
+    if (previousSchema < 1) {
+        settings.setValue(QStringLiteral("migration/legacy_install"), true);
+        settings.setValue(QStringLiteral("migration/schema"), currentMigrationSchema);
+    }
+    if (!settings.contains(QStringLiteral("appearance/preReleaseUpdateCheckEnabled"))) {
+        settings.setValue(QStringLiteral("appearance/preReleaseUpdateCheckEnabled"), false);
+    }
+
+    // These values are intentionally kept in config.ini. The v1.2.2 updater
+    // already preserves that file, so a newer application can finish a
+    // migration even when an older updater performed the package swap.
+    // Only complete the marker after the process has actually started with the
+    // target version. If an update launch fails and the old process starts
+    // again, the marker must remain pending for diagnostics/recovery.
+    if (!pendingTo.isEmpty() && pendingTo == currentVersion) {
+        settings.setValue(QStringLiteral("migration/last_from"), pendingFrom);
+        settings.setValue(QStringLiteral("migration/last_to"), pendingTo);
+        settings.setValue(QStringLiteral("migration/last_completed_at"),
+                          QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+        settings.remove(QStringLiteral("migration/pending_from"));
+        settings.remove(QStringLiteral("migration/pending_to"));
+        settings.remove(QStringLiteral("migration/pending_started_at"));
+    }
+    settings.setValue(QStringLiteral("migration/last_app_version"),
+                      QCoreApplication::applicationVersion());
+    settings.sync();
+    if (settings.status() != QSettings::NoError) {
+        m_startupMigrationError = QStringLiteral("could not save startup migration state");
     }
 }
 Backend::~Backend() {
@@ -430,6 +474,16 @@ void Backend::setUpdateCheckEnabled(bool value) {
     m_updateCheckEnabled = value;
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("appearance/updateCheckEnabled", value);
+    settings.sync();
+    emit updateSettingsChanged();
+}
+
+void Backend::setPreReleaseUpdateCheckEnabled(bool value) {
+    if (m_preReleaseUpdateCheckEnabled == value)
+        return;
+    m_preReleaseUpdateCheckEnabled = value;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    settings.setValue(QStringLiteral("appearance/preReleaseUpdateCheckEnabled"), value);
     settings.sync();
     emit updateSettingsChanged();
 }
@@ -773,11 +827,30 @@ bool Backend::installUpdate(const QString &localZip, const QString &version) {
         showUpdateError(tr("更新に失敗しました"), message);
         return false;
     }
+    QSettings migrationSettings(portableSettingsPath(), QSettings::IniFormat);
+    migrationSettings.setValue(QStringLiteral("migration/pending_from"),
+                               QCoreApplication::applicationVersion());
+    migrationSettings.setValue(QStringLiteral("migration/pending_to"), version.trimmed());
+    migrationSettings.setValue(QStringLiteral("migration/pending_started_at"),
+                               QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+    migrationSettings.sync();
+    if (migrationSettings.status() != QSettings::NoError) {
+        removePendingUpdateLock(root, lockToken);
+        const QString message = tr("更新後の移行情報を保存できませんでした。");
+        setError(message);
+        showUpdateError(tr("更新に失敗しました"), message);
+        return false;
+    }
     arguments.append(QStringLiteral("-lock-token"));
     arguments.append(lockToken);
     qint64 updaterPid = 0;
     if (!QProcess::startDetached(tempUpdater, arguments, QDir::tempPath(), &updaterPid)) {
         removePendingUpdateLock(root, lockToken);
+        QSettings failedMigrationSettings(portableSettingsPath(), QSettings::IniFormat);
+        failedMigrationSettings.remove(QStringLiteral("migration/pending_from"));
+        failedMigrationSettings.remove(QStringLiteral("migration/pending_to"));
+        failedMigrationSettings.remove(QStringLiteral("migration/pending_started_at"));
+        failedMigrationSettings.sync();
         const QString message = tr("アップデータを起動できませんでした。");
         setError(message);
         showUpdateError(tr("更新に失敗しました"), message);
@@ -836,7 +909,15 @@ void Backend::initialize() {
         return;
     }
     emit connectedChanged();
-    try { refreshMetadata(); setError({}); } catch (const std::exception &exception) { setError(QString::fromUtf8(exception.what())); }
+    try {
+        refreshMetadata();
+        if (!m_startupMigrationError.isEmpty())
+            setError(m_startupMigrationError);
+        else
+            setError({});
+    } catch (const std::exception &exception) {
+        setError(QString::fromUtf8(exception.what()));
+    }
 }
 
 bool Backend::restartNativeBackend() {

@@ -44,6 +44,7 @@ class Backend final : public QObject {
     Q_PROPERTY(QString language READ language NOTIFY languageChanged)
     Q_PROPERTY(bool closeLogOnSuccess READ closeLogOnSuccess NOTIFY logSettingsChanged)
     Q_PROPERTY(bool updateCheckEnabled READ updateCheckEnabled NOTIFY updateSettingsChanged)
+    Q_PROPERTY(bool preReleaseUpdateCheckEnabled READ preReleaseUpdateCheckEnabled NOTIFY updateSettingsChanged)
     Q_PROPERTY(int previewCacheFileCount READ previewCacheFileCount NOTIFY cacheSettingsChanged)
     Q_PROPERTY(bool developerMode READ developerMode NOTIFY developerModeChanged)
     Q_PROPERTY(int defaultMoraDuration READ defaultMoraDuration NOTIFY synthesisDefaultsChanged)
@@ -91,6 +92,7 @@ public:
     QString language() const { return m_language; }
     bool closeLogOnSuccess() const { return m_closeLogOnSuccess; }
     bool updateCheckEnabled() const { return m_updateCheckEnabled; }
+    bool preReleaseUpdateCheckEnabled() const { return m_preReleaseUpdateCheckEnabled; }
     int previewCacheFileCount() const { return m_previewCacheFileCount; }
     bool developerMode() const { return m_developerMode; }
     int defaultMoraDuration() const { return m_defaultMoraDuration; }
@@ -157,6 +159,7 @@ public:
     Q_INVOKABLE void clearLogs();
     Q_INVOKABLE void setCloseLogOnSuccess(bool value);
     Q_INVOKABLE void setUpdateCheckEnabled(bool value);
+    Q_INVOKABLE void setPreReleaseUpdateCheckEnabled(bool value);
     Q_INVOKABLE void setPreviewCacheFileCount(int value);
     Q_INVOKABLE void setDeveloperMode(bool value);
     Q_INVOKABLE void setSynthesisDefaults(int moraDuration, int pauseDuration,
@@ -212,6 +215,7 @@ private:
     void refreshMetadata();
     void setBusy(bool value);
     void setError(const QString &value);
+    void runStartupMigrations();
     QByteArray previewCacheKey(const QVariantMap &request) const;
     bool restorePreviewCache(const QByteArray &key);
     void storePreviewCache(const QByteArray &key, const PreviewCacheEntry &entry);
@@ -245,6 +249,8 @@ private:
     mutable bool m_languageNamesLoaded = false;
     bool m_closeLogOnSuccess = true;
     bool m_updateCheckEnabled = true;
+    bool m_preReleaseUpdateCheckEnabled = false;
+    QString m_startupMigrationError;
     int m_previewCacheFileCount = 32;
     bool m_developerMode = false;
     int m_defaultMoraDuration = 120;

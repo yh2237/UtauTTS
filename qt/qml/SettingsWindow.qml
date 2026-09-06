@@ -44,6 +44,7 @@ ApplicationWindow {
     property var languageCodes: root.backend.languageCodes()
     property bool pendingCloseLogOnSuccess: true
     property bool pendingUpdateCheckEnabled: true
+    property bool pendingPreReleaseUpdateCheckEnabled: false
     property int pendingPreviewCacheFileCount: 32
     property bool pendingDeveloperMode: false
     property string pendingSynthesizeShortcut: "Ctrl+Enter"
@@ -88,6 +89,8 @@ ApplicationWindow {
         closeLogOnSuccessSwitch.checked = pendingCloseLogOnSuccess;
         pendingUpdateCheckEnabled = root.backend.updateCheckEnabled;
         updateCheckSwitch.checked = pendingUpdateCheckEnabled;
+        pendingPreReleaseUpdateCheckEnabled = root.backend.preReleaseUpdateCheckEnabled;
+        preReleaseUpdateSwitch.checked = pendingPreReleaseUpdateCheckEnabled;
         pendingPreviewCacheFileCount = root.backend.previewCacheFileCount;
         previewCacheSpin.value = pendingPreviewCacheFileCount;
         pendingDeveloperMode = root.backend.developerMode;
@@ -193,6 +196,11 @@ ApplicationWindow {
     function resetUpdateCheckEnabled() {
         pendingUpdateCheckEnabled = true;
         updateCheckSwitch.checked = true;
+    }
+
+    function resetPreReleaseUpdateCheckEnabled() {
+        pendingPreReleaseUpdateCheckEnabled = false;
+        preReleaseUpdateSwitch.checked = false;
     }
 
     function resetDeveloperMode() {
@@ -804,6 +812,26 @@ ApplicationWindow {
                             SettingsResetButton {
                                 translator: root.translator
                                 onResetRequested: root.resetDeveloperMode()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: root.pendingDeveloperMode
+                            height: visible ? implicitHeight : 0
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.preReleaseUpdateCheckEnabled")
+                            }
+                            Switch {
+                                id: preReleaseUpdateSwitch
+                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                checked: root.pendingPreReleaseUpdateCheckEnabled
+                                onToggled: root.pendingPreReleaseUpdateCheckEnabled = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetPreReleaseUpdateCheckEnabled()
                             }
                         }
                     }

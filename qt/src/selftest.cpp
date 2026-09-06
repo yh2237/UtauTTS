@@ -10,6 +10,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMetaObject>
+#include <QSettings>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QUrl>
@@ -83,6 +84,14 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
             || !require(!backend.voicebanks().isEmpty(), QStringLiteral("no bundled voicebank"))
             || !require(!backend.models().isEmpty(), QStringLiteral("no bundled prosody model"))
             || !require(!backend.renderers().isEmpty(), QStringLiteral("no bundled renderer")))
+        return 1;
+
+    QSettings migrationSettings(QDir(selfTestDirectory).filePath(QStringLiteral("config.ini")),
+                                QSettings::IniFormat);
+    if (!require(migrationSettings.value(QStringLiteral("migration/schema")).toInt() >= 1,
+                 QStringLiteral("startup migration schema was not recorded"))
+            || !require(!migrationSettings.contains(QStringLiteral("migration/pending_to")),
+                        QStringLiteral("startup migration remained pending")))
         return 1;
 
     const QStringList languageCodes = backend.languageCodes();
