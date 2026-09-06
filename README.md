@@ -173,7 +173,8 @@ Server版を起動すると`http://127.0.0.1:8080/`でコンソールUIを使え
 
 ## 謝辞
 
-- Testing by [アアアアアアア（@a7_riri）](https://x.com/a7_riri)
+- [アアアアアアア（@a7_riri）](https://x.com/a7_riri)
+- [siyukatu（@siyukatu）](https://x.com/siyukatu)
 
 ## ライセンス
 
