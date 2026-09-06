@@ -57,6 +57,46 @@ type Plan struct {
 	Morae                   []frontend.Mora          `json:"-"`
 }
 
+// Clone returns an independent copy suitable for renderer execution. Renderer
+// diagnostics must not leak back into the unit-selection plan that was used to
+// make a synthesis decision.
+func Clone(source *Plan) *Plan {
+	if source == nil {
+		return nil
+	}
+	result := *source
+	result.Units = append([]Unit(nil), source.Units...)
+	for index := range result.Units {
+		result.Units[index].EntryValidation = append([]string(nil), source.Units[index].EntryValidation...)
+		result.Units[index].CandidateRejections = append([]voicebank.CandidateRejection(nil), source.Units[index].CandidateRejections...)
+	}
+	result.BoundaryBridges = append([]BoundaryBridge(nil), source.BoundaryBridges...)
+	result.BoundaryRepairDecisions = append([]BoundaryRepairDecision(nil), source.BoundaryRepairDecisions...)
+	if source.Morae != nil {
+		result.Morae = make([]frontend.Mora, len(source.Morae))
+		for index, mora := range source.Morae {
+			result.Morae[index] = cloneMora(mora)
+		}
+	}
+	return &result
+}
+
+func cloneMora(mora frontend.Mora) frontend.Mora {
+	if mora.Aliases == nil {
+		return mora
+	}
+	hints := *mora.Aliases
+	hints.Main = append([]string(nil), mora.Aliases.Main...)
+	hints.MainKinds = append([]string(nil), mora.Aliases.MainKinds...)
+	hints.Transition = append([]string(nil), mora.Aliases.Transition...)
+	hints.Endings = make([][]string, len(mora.Aliases.Endings))
+	for index, endings := range mora.Aliases.Endings {
+		hints.Endings[index] = append([]string(nil), endings...)
+	}
+	mora.Aliases = &hints
+	return mora
+}
+
 // BoundaryBridgeはレンダラーが適用する短い遷移補正を記録する。
 type BoundaryBridge struct {
 	UnitIndex   int     `json:"unit_index"`

@@ -573,6 +573,39 @@ func TestRenderLongVCVUsesWeightedCrossfade(t *testing.T) {
 	}
 }
 
+func TestRenderWithReportKeepsSelectionPlanImmutable(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/unit.wav"
+	data := make([]int16, 400)
+	for index := range data {
+		data[index] = 9000
+	}
+	if err := audio.WriteWav(path, &audio.PCM{SampleRate: 1000, Channels: 1, Data: data}); err != nil {
+		t.Fatal(err)
+	}
+	input := &plan.Plan{DurationMS: 140, Units: []plan.Unit{{
+		Position: 0, Alias: "a", Source: path, NoteStartMS: 0, DurationMS: 140,
+		PreutteranceMS: 80, OverlapMS: 20, ConsonantMS: 100,
+	}}}
+	before := plan.Clone(input)
+
+	result, err := RenderWithReport(input, Config{ReleaseMS: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Audio == nil || len(result.Report.Units) != 1 {
+		t.Fatalf("render result = %#v", result)
+	}
+	if !reflect.DeepEqual(input, before) {
+		t.Fatalf("renderer mutated input plan: before=%#v after=%#v", before, input)
+	}
+	exportPlan := plan.Clone(input)
+	result.Report.ApplyTo(exportPlan)
+	if exportPlan.LeadingMarginMS == 0 || exportPlan.Units[0].EffectivePreutteranceMS == 0 {
+		t.Fatalf("report did not retain renderer diagnostics: %#v", result.Report)
+	}
+}
+
 func TestConnectedUnitsUseComplementaryHandoff(t *testing.T) {
 	dir := t.TempDir()
 	path := dir + "/unit.wav"

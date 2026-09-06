@@ -11,12 +11,14 @@ import (
 	"sync"
 
 	"utautts/internal/audio"
+	"utautts/internal/engine"
 	"utautts/internal/pitch"
 	"utautts/internal/plan"
 )
 
 type Config struct {
 	Context                        context.Context
+	EngineDefinition               *engine.Definition
 	ReleaseMS                      float64
 	ReleaseSet                     bool
 	LeadingPreutteranceMS          float64
@@ -78,11 +80,7 @@ func IsKnownRenderer(id string) bool {
 	if id == "" {
 		return true
 	}
-	if id == "diffsinger" {
-		return true
-	}
-	_, ok := rendererImplementations[id]
-	return ok
+	return engine.IsBuiltinProvider(id)
 }
 
 var boundaryBridgeRenderers = map[string]struct{}{
@@ -266,6 +264,10 @@ type effectiveTiming struct {
 }
 
 func Render(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
+	return renderMutable(synthesisPlan, cfg)
+}
+
+func renderMutable(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
 	if err := contextError(cfg.Context); err != nil {
 		return nil, err
 	}

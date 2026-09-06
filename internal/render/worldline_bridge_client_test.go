@@ -1,25 +1,77 @@
 package render
 
 import (
-	"context"
-	"errors"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
-	"time"
+
+	"utautts/internal/plan"
+	"utautts/internal/provider"
 )
 
-func TestCanceledBridgeWaitReturnsBeforeActiveRender(t *testing.T) {
-	worldlineBridgeGate <- struct{}{}
-	defer func() { <-worldlineBridgeGate }()
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	done := make(chan error, 1)
-	go func() { done <- invokeWorldlineBridge(ctx, "must-not-start", "") }()
-	select {
-	case err := <-done:
-		if !errors.Is(err, context.Canceled) {
-			t.Fatalf("error=%v", err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("canceled request blocked behind active render")
+func TestReadWorldlineBridgeJobReadsCommonUnitJob(t *testing.T) {
+	payload, err := json.Marshal(worldlineBridgeJob{Engine: "worldline-r-faithful", OutputPath: "output.wav"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(provider.UnitRendererJob{
+		Version:         provider.UnitRendererJobVersion,
+		Contract:        "unit-renderer",
+		ContractVersion: 1,
+		Plan:            json.RawMessage(`{"version":19}`),
+		ProviderPayload: payload,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "job.json")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := readWorldlineBridgeJob(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Engine != "worldline-r-faithful" || got.OutputPath != "output.wav" {
+		t.Fatalf("job = %#v", got)
+	}
+}
+
+func TestReadWorldlineBridgeJobKeepsLegacyManifestSupport(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "manifest.json")
+	data := []byte(`{"engine":"utautts-world-phrase","output_path":"output.wav"}`)
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := readWorldlineBridgeJob(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Engine != "utautts-world-phrase" || got.OutputPath != "output.wav" {
+		t.Fatalf("job = %#v", got)
+	}
+}
+
+func TestWorldlineProviderJobCarriesCommonPlanAndResources(t *testing.T) {
+	synthesisPlan := &plan.Plan{Version: plan.Version, Voicebank: "bank", Units: []plan.Unit{{Source: "voice.wav", DurationMS: 100}}}
+	job, err := worldlineProviderJob(synthesisPlan, Config{ApplyPitch: true}, worldlineManifest{
+		Engine: "worldline-r-faithful", WorldlinePath: "worldline.dll", OutputPath: "output.wav",
+		SampleRate: 44100, F0Curve: []float64{220, 220},
+	}, "bridge.exe")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Version != provider.UnitRendererJobVersion || job.Contract != "unit-renderer" ||
+		len(job.Plan) == 0 || job.Resources["worldline"] != "worldline.dll" ||
+		job.Resources["worldline_bridge"] != "bridge.exe" || !job.Options.ApplyPitch {
+		t.Fatalf("job = %#v", job)
+	}
+	var payload worldlineManifest
+	if err := json.Unmarshal(job.ProviderPayload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Engine != "worldline-r-faithful" || payload.OutputPath != "output.wav" {
+		t.Fatalf("payload = %#v", payload)
 	}
 }

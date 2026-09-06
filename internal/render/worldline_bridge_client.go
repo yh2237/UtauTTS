@@ -1,33 +1,34 @@
 package render
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
+	"os"
 	"os/exec"
+	"strings"
 
 	"utautts/internal/processutil"
+	"utautts/internal/provider"
 )
 
-type worldlineBridgeResponse struct {
-	OK    bool   `json:"ok"`
-	Error string `json:"error"`
-}
-
+// worldlineBridgeProcess owns the long-lived provider session used by the
+// built-in WORLD adapters. The gate keeps the protocol v1 single in-flight
+// request guarantee simple while allowing the native library/model state to
+// stay resident across syntheses.
 type worldlineBridgeProcess struct {
-	path   string
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout *bufio.Reader
+	path     string
+	provider string
+	session  *provider.Session
 }
 
 var sharedWorldlineBridge worldlineBridgeProcess
 var worldlineBridgeGate = make(chan struct{}, 1)
 
-func invokeWorldlineBridge(ctx context.Context, bridge, manifestPath string) error {
-	client := &sharedWorldlineBridge
+func invokeWorldlineBridge(ctx context.Context, bridge, manifestPath string, legacyManifestPath ...string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	select {
 	case worldlineBridgeGate <- struct{}{}:
 	case <-ctx.Done():
@@ -37,73 +38,127 @@ func invokeWorldlineBridge(ctx context.Context, bridge, manifestPath string) err
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if client.cmd == nil || client.path != bridge {
-		client.stop()
-		command := exec.Command(bridge, "--serve")
-		processutil.Configure(command)
-		stdin, err := command.StdinPipe()
-		if err != nil {
-			return err
-		}
-		stdout, err := command.StdoutPipe()
-		if err != nil {
-			return err
-		}
-		if err := command.Start(); err != nil {
-			return err
-		}
-		client.path, client.cmd, client.stdin, client.stdout = bridge, command, stdin, bufio.NewReader(stdout)
-	}
-	if _, err := fmt.Fprintln(client.stdin, manifestPath); err != nil {
-		client.stop()
+
+	job, err := readWorldlineBridgeJob(manifestPath)
+	if err != nil {
 		return err
 	}
-	responseLine := make(chan struct {
-		line string
-		err  error
-	}, 1)
-	stdout := client.stdout
-	go func() {
-		line, err := stdout.ReadString('\n')
-		responseLine <- struct {
-			line string
-			err  error
-		}{line, err}
-	}()
-	select {
-	case <-ctx.Done():
+	providerID, err := worldlineProviderID(job.Engine)
+	if err != nil {
+		return err
+	}
+
+	client := &sharedWorldlineBridge
+	legacyPath := manifestPath
+	if len(legacyManifestPath) > 0 && strings.TrimSpace(legacyManifestPath[0]) != "" {
+		legacyPath = legacyManifestPath[0]
+	}
+	if client.session == nil || client.path != bridge || client.provider != providerID || !client.session.IsAlive() {
 		client.stop()
-		return ctx.Err()
-	case result := <-responseLine:
-		if result.err != nil {
-			client.stop()
-			command := exec.CommandContext(ctx, bridge, manifestPath)
-			processutil.Configure(command)
-			output, err := command.CombinedOutput()
-			if err != nil {
-				return fmt.Errorf("%w: %s", err, output)
+		session, startErr := provider.StartSession(ctx, provider.SessionOptions{
+			Executable:      bridge,
+			Args:            []string{"--provider", providerID},
+			Provider:        providerID,
+			ProviderVersion: "1",
+			Capabilities:    []string{provider.CapabilityUnitRendererJobV1},
+			Contract:        "unit-renderer",
+			ContractVersion: 1,
+			ProtocolVersion: provider.ProtocolVersion,
+		})
+		if startErr != nil {
+			// Keep compatibility with an older installed bridge. This path is
+			// deliberately only a fallback; the bundled bridge uses the session
+			// protocol above and therefore keeps its native runtime resident.
+			if fallbackErr := invokeWorldlineBridgeLegacy(ctx, bridge, legacyPath); fallbackErr != nil {
+				return fmt.Errorf("start worldline provider session: %w (legacy fallback: %v)", startErr, fallbackErr)
 			}
 			return nil
 		}
-		var response worldlineBridgeResponse
-		if err := json.Unmarshal([]byte(result.line), &response); err != nil {
-			client.stop()
-			return fmt.Errorf("decode worldline bridge response: %w", err)
+		client.path = bridge
+		client.provider = providerID
+		client.session = session
+	}
+
+	_, err = client.session.Render(ctx, provider.RenderRequest{
+		Contract:        "unit-renderer",
+		ContractVersion: 1,
+		InputPath:       manifestPath,
+		OutputPath:      job.OutputPath,
+	}, provider.RenderOptions{})
+	if err != nil && !client.session.IsAlive() {
+		client.stop()
+	}
+	return err
+}
+
+type worldlineBridgeJob struct {
+	Engine     string `json:"engine"`
+	OutputPath string `json:"output_path"`
+}
+
+func readWorldlineBridgeJob(path string) (worldlineBridgeJob, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return worldlineBridgeJob{}, fmt.Errorf("read worldline manifest: %w", err)
+	}
+	var commonJob provider.UnitRendererJob
+	if err := json.Unmarshal(data, &commonJob); err == nil &&
+		commonJob.Version == provider.UnitRendererJobVersion &&
+		commonJob.Contract == "unit-renderer" && commonJob.ContractVersion == 1 &&
+		len(commonJob.ProviderPayload) > 0 {
+		var payload struct {
+			Engine     string `json:"engine"`
+			OutputPath string `json:"output_path"`
 		}
-		if !response.OK {
-			return fmt.Errorf("%s", response.Error)
+		if err := json.Unmarshal(commonJob.ProviderPayload, &payload); err != nil {
+			return worldlineBridgeJob{}, fmt.Errorf("decode worldline provider payload: %w", err)
 		}
-		return nil
+		return validateWorldlineBridgeJob(worldlineBridgeJob{Engine: payload.Engine, OutputPath: payload.OutputPath})
+	}
+	var legacy worldlineBridgeJob
+	if err := json.Unmarshal(data, &legacy); err != nil {
+		return worldlineBridgeJob{}, fmt.Errorf("decode worldline manifest: %w", err)
+	}
+	return validateWorldlineBridgeJob(legacy)
+}
+
+func validateWorldlineBridgeJob(job worldlineBridgeJob) (worldlineBridgeJob, error) {
+	if job.Engine == "" {
+		return worldlineBridgeJob{}, fmt.Errorf("worldline manifest has no engine")
+	}
+	if job.OutputPath == "" {
+		return worldlineBridgeJob{}, fmt.Errorf("worldline manifest has no output_path")
+	}
+	return job, nil
+}
+
+func worldlineProviderID(engineID string) (string, error) {
+	switch engineID {
+	case "worldline-r-faithful":
+		return "openutau-worldline-r-faithful", nil
+	case "utautts-world-phrase", "utautts-world-phrase-cuda":
+		return engineID, nil
+	default:
+		return "", fmt.Errorf("unknown worldline bridge engine %q", engineID)
 	}
 }
 
+func invokeWorldlineBridgeLegacy(ctx context.Context, bridge, manifestPath string) error {
+	command := exec.CommandContext(ctx, bridge, manifestPath)
+	processutil.Configure(command)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return fmt.Errorf("%w: %s", err, output)
+	}
+	return nil
+}
+
 func (client *worldlineBridgeProcess) stop() {
-	if client.stdin != nil {
-		_ = client.stdin.Close()
+	if client.session != nil {
+		_ = client.session.Close()
 	}
-	if client.cmd != nil && client.cmd.Process != nil {
-		_ = client.cmd.Process.Kill()
-		_ = client.cmd.Wait()
-	}
-	client.path, client.cmd, client.stdin, client.stdout = "", nil, nil, nil
+	client.path, client.provider, client.session = "", "", nil
 }

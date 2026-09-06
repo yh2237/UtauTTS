@@ -13,6 +13,7 @@ import (
 
 	"utautts/internal/audio"
 	"utautts/internal/plan"
+	"utautts/internal/provider"
 )
 
 const worldlineFrameMS = 10.0
@@ -301,12 +302,24 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) 
 	}
 
 	manifest.OutputPath = filepath.Join(tempDir, "output.wav")
-	manifestPath := filepath.Join(tempDir, "manifest.json")
-	data, err := json.Marshal(manifest)
+	job, err := worldlineProviderJob(synthesisPlan, cfg, manifest, bridge)
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(manifestPath, data, 0o600); err != nil {
+	legacyManifestPath := filepath.Join(tempDir, "worldline-manifest.json")
+	legacyData, err := json.Marshal(manifest)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(legacyManifestPath, legacyData, 0o600); err != nil {
+		return nil, err
+	}
+	jobPath := filepath.Join(tempDir, "job.json")
+	jobData, err := json.Marshal(job)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(jobPath, jobData, 0o600); err != nil {
 		return nil, err
 	}
 	ctx := cfg.Context
@@ -315,7 +328,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) 
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	if commandErr := invokeWorldlineBridge(ctx, bridge, manifestPath); commandErr != nil {
+	if commandErr := invokeWorldlineBridge(ctx, bridge, jobPath, legacyManifestPath); commandErr != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, fmt.Errorf("worldline bridge canceled: %w", ctxErr)
 		}
@@ -330,6 +343,51 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) 
 		pcm.Data = append(pcm.Data, make([]int16, minimumFrames-len(pcm.Data))...)
 	}
 	return pcm, nil
+}
+
+func worldlineProviderJob(synthesisPlan *plan.Plan, cfg Config, manifest worldlineManifest, bridge string) (provider.UnitRendererJob, error) {
+	payload, err := json.Marshal(manifest)
+	if err != nil {
+		return provider.UnitRendererJob{}, err
+	}
+	planData, err := json.Marshal(plan.Clone(synthesisPlan))
+	if err != nil {
+		return provider.UnitRendererJob{}, err
+	}
+	resources := map[string]string{
+		"worldline":        manifest.WorldlinePath,
+		"world_engine":     manifest.WorldEnginePath,
+		"world_gpu":        manifest.GPUPath,
+		"worldline_bridge": bridge,
+	}
+	for key, value := range resources {
+		if strings.TrimSpace(value) == "" {
+			delete(resources, key)
+		}
+	}
+	if len(resources) == 0 {
+		resources = nil
+	}
+	return provider.UnitRendererJob{
+		Version:         provider.UnitRendererJobVersion,
+		Contract:        "unit-renderer",
+		ContractVersion: 1,
+		Plan:            planData,
+		Options: provider.UnitRendererOptions{
+			ReleaseMS:               cfg.ReleaseMS,
+			LeadingPreutteranceMS:   cfg.LeadingPreutteranceMS,
+			IntonationStrength:      cfg.IntonationStrength,
+			ApplyPitch:              cfg.ApplyPitch,
+			BoundaryBridgeMS:        cfg.BoundaryBridgeMS,
+			BoundaryBridgeThreshold: cfg.BoundaryBridgeThreshold,
+			CVVCTiming:              cfg.CVVCTiming,
+			CVVCTransitionGain:      cfg.CVVCTransitionGain,
+			CVVCPreBoundaryFade:     cfg.CVVCPreBoundaryFade,
+			PitchCurve:              providerPitchCurve(cfg.PitchCurve),
+		},
+		Resources:       resources,
+		ProviderPayload: payload,
+	}, nil
 }
 
 func findFRQPath(wavPath string) string {
