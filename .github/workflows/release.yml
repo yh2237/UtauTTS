@@ -40,19 +40,19 @@ jobs:
       contents: write
     steps:
       - name: Download Windows packages
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: utautts-windows-x64
           path: release-assets
 
       - name: Download Linux packages
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: utautts-linux-x64
           path: release-assets
 
       - name: Download macOS packages
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: utautts-macos-arm64
           path: release-assets

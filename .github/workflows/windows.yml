@@ -103,7 +103,7 @@ jobs:
         run: .\tools\build-release.ps1 -Profile Full
 
       - name: Upload Windows packages
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: utautts-windows-x64
           path: release/*-win-x64.zip

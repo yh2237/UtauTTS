@@ -101,7 +101,7 @@ jobs:
         run: bash tools/build-macos.sh
 
       - name: Upload macOS packages
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: utautts-macos-arm64
           path: release/*-macos-arm64.zip

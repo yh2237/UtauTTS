@@ -50,7 +50,7 @@ jobs:
         run: bash tools/build-linux.sh
 
       - name: Upload Linux packages
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: utautts-linux-x64
           path: release/*-linux-x64.zip
