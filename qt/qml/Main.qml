@@ -1240,7 +1240,10 @@ ApplicationWindow {
 
     function releaseAssetURL(release) {
         const packageName = Qt.platform.os === "linux"
-                ? "UtauTTS-linux-x64.zip" : "UtauTTS-win-x64.zip";
+                ? "UtauTTS-linux-x64.zip"
+                : Qt.platform.os === "osx"
+                ? "UtauTTS-macos-arm64.zip"
+                : "UtauTTS-win-x64.zip";
         const assets = release && Array.isArray(release.assets) ? release.assets : [];
         for (const asset of assets) {
             if (asset && asset.name === packageName && asset.browser_download_url)
