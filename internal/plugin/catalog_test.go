@@ -133,12 +133,13 @@ func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		"openutau-worldline-r-faithful": "cpu",
-		"utautts-world-phrase":          "cpu",
-		"utautts-world-phrase-cuda":     "cuda",
+		"utautts-world-phrase": "cpu",
 	}
-	if runtime.GOOS != "windows" {
-		delete(want, "utautts-world-phrase-cuda")
+	if runtime.GOOS == "linux" {
+		want["openutau-worldline-r-faithful"] = "cpu"
+	}
+	if runtime.GOOS == "windows" {
+		want["utautts-world-phrase-cuda"] = "cuda"
 	}
 	for _, item := range items {
 		if acceleration, ok := want[item.ID]; ok {
