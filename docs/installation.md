@@ -1,15 +1,15 @@
 # インストール
 
-## パッケージを選ぶ
-
 [GitHub Releases](https://github.com/yh2237/UtauTTS/releases)から環境と用途に合うZIPをダウンロードします。
 
 | パッケージ | 用途 |
 | --- | --- |
 | `UtauTTS-win-x64.zip` | Windows x64でGUIとCLI |
 | `UtauTTS-linux-x64.zip` | Linux x64でGUIとCLI |
+| `UtauTTS-mac-arm64.zip` | Apple Silicon MacでGUIとCLI |
 | `UtauTTS-Server-win-x64.zip` | Windows x64向けHTTP Server |
 | `UtauTTS-Server-linux-x64.zip` | Linux x64向けHTTP Server |
+| `UtauTTS-Server-mac-arm64.zip` | Apple Silicon Mac向けHTTP Server |
 
 ## Windows
 
@@ -18,6 +18,20 @@
 3. 左側へ文章を入力して再生ボタンで合成を確認します。
 
 ZIP内のファイルは同じ階層構造のまま使用してください。runtimeやモデルだけを移動すると合成できません。
+
+## macOS
+
+macOS版はApple Silicon（arm64）向けです。`UtauTTS-mac-arm64.zip`を展開し、展開先のフォルダ構成を変更せずに使用してください。
+
+現在のmacOS版はAppleの署名・公証を行っていないため初回起動時に警告が表示されることがあります。公式GitHub Releasesからダウンロードしたファイルであることを確認したうえで展開先へ移動し、隔離属性を解除して起動します。
+
+```bash
+cd "/path/to/extracted-folder"
+xattr -rc "utautts.app" tools runtime
+open "utautts.app"
+```
+
+`/path/to/extracted-folder`は実際に展開したフォルダのパスへ置き換えてください。`xattr`はアプリ本体だけでなく、同梱のCLI・更新ツール・runtimeにも適用します。配布元が信頼できることを確認できないファイルでは、この操作を行わないでください。
 
 ## Linux
 
@@ -67,6 +81,13 @@ Linux
 
 ```bash
 chmod +x utautts-server runtime/utautts-openjtalk-features runtime/utautts-worldline-bridge
+./utautts-server --voice-dir ./voice
+```
+
+macOS
+
+```bash
+xattr -rc "utautts-server" runtime
 ./utautts-server --voice-dir ./voice
 ```
 
