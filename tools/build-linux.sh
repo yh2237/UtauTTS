@@ -60,8 +60,8 @@ if [ -n "${QT_ROOT:-}" ]; then
   qt_cmake_args+=("-DCMAKE_PREFIX_PATH=${QT_ROOT};${QT_ROOT}/usr")
 fi
 
-mkdir -p "${gui_dir}/tools" "${gui_dir}/runtime" "${gui_dir}/models" "${gui_dir}/plugins" \
-  "${server_dir}/runtime" "${server_dir}/models" "${server_dir}/plugins" \
+mkdir -p "${gui_dir}/tools" "${gui_dir}/runtime" "${gui_dir}/models" "${gui_dir}/renderer" \
+  "${server_dir}/runtime" "${server_dir}/models" "${server_dir}/renderer" \
   "${root_dir}/build/native" "${root_dir}/build/qt-linux"
 cd "${root_dir}"
 
@@ -203,11 +203,12 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
   find "${license_root}" -type f | sort | sed "s#${package_dir}/##" >> "${manifest}"
 done
 
-echo '=== Models and plugins ==='
+echo '=== Models and renderer manifests ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
   cp -R "${root_dir}/models/." "${package_dir}/models/"
-  cp -R "${root_dir}/plugins/renderers/." "${package_dir}/plugins/renderers/"
-  # 組み込みレンダラーのランタイムはGoのレジストリから解決する。
+  cp -R "${root_dir}/renderer/." "${package_dir}/renderer/"
+  rm -rf "${package_dir}/renderer/utautts-world-phrase-cuda"
+  # Rendererのruntime pathは各renderer.jsonから解決する。
 done
 
 echo '=== Voicebanks ==='

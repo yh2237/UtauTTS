@@ -169,13 +169,13 @@ $appQmlToolingPath = Join-Path $appDirectory 'qmltooling'
 if (Test-Path -LiteralPath $appQmlToolingPath -PathType Container) { Remove-Item -LiteralPath $appQmlToolingPath -Recurse -Force }
 Get-ChildItem -LiteralPath $OutputDirectory -Filter '*.dll' -File | Remove-Item -Force
 if ($standaloneDevelopmentPackage) {
-    foreach ($name in @('models','plugins','runtime','voice')) {
+    foreach ($name in @('models','renderer','runtime','voice')) {
         $assetPath = Join-Path $OutputDirectory $name
         if (Test-Path -LiteralPath $assetPath) { Remove-Item -LiteralPath $assetPath -Recurse -Force }
     }
     Copy-Item -LiteralPath (Join-Path $root 'models') -Destination (Join-Path $OutputDirectory 'models') -Recurse
-    New-Item -ItemType Directory -Force -Path (Join-Path $OutputDirectory 'plugins') | Out-Null
-    Copy-Item -LiteralPath (Join-Path $root 'plugins/renderers') -Destination (Join-Path $OutputDirectory 'plugins') -Recurse
+    New-Item -ItemType Directory -Force -Path (Join-Path $OutputDirectory 'renderer') | Out-Null
+    Copy-Item -Path (Join-Path $root 'renderer/*') -Destination (Join-Path $OutputDirectory 'renderer') -Recurse
     $runtimeCandidates = @(
         (Join-Path $root 'runtime'),
         (Join-Path $root 'release/UtauTTS/runtime')

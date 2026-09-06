@@ -21,10 +21,10 @@ $serverPath = Join-Path $releaseRoot 'UtauTTS-Server'
 $guiToolsPath = Join-Path $guiPath 'tools'
 $guiRuntimePath = Join-Path $guiPath 'runtime'
 $guiModelsPath = Join-Path $guiPath 'models'
-$guiPluginsPath = Join-Path $guiPath 'plugins'
+$guiRendererPath = Join-Path $guiPath 'renderer'
 $serverRuntimePath = Join-Path $serverPath 'runtime'
 $serverModelsPath = Join-Path $serverPath 'models'
-$serverPluginsPath = Join-Path $serverPath 'plugins'
+$serverRendererPath = Join-Path $serverPath 'renderer'
 $guiZip = Join-Path $releaseRoot 'UtauTTS-win-x64.zip'
 $serverZip = Join-Path $releaseRoot 'UtauTTS-Server-win-x64.zip'
 $bundledVoicebankDirectory = Join-Path $root 'voice'
@@ -62,7 +62,7 @@ function Expand-BundledVoicebank([string]$Destination) {
 
 Reset-Directory $guiPath
 Reset-Directory $serverPath
-New-Item -ItemType Directory -Force -Path $guiToolsPath, $guiRuntimePath, $guiModelsPath, $guiPluginsPath, $serverRuntimePath, $serverModelsPath, $serverPluginsPath | Out-Null
+New-Item -ItemType Directory -Force -Path $guiToolsPath, $guiRuntimePath, $guiModelsPath, $guiRendererPath, $serverRuntimePath, $serverModelsPath, $serverRendererPath | Out-Null
 foreach ($zip in @($guiZip, $serverZip)) {
     if (Test-Path -LiteralPath $zip) {
         Remove-Item -Force -LiteralPath $zip
@@ -150,16 +150,24 @@ try {
     $bundledModels | Copy-Item -Destination $serverModelsPath
     Copy-Item -LiteralPath (Join-Path $sourceModels 'README.md') -Destination $guiModelsPath
     Copy-Item -LiteralPath (Join-Path $sourceModels 'README.md') -Destination $serverModelsPath
-    Copy-Item -LiteralPath (Join-Path $root 'plugins/renderers') -Destination $guiPluginsPath -Recurse
-    Copy-Item -LiteralPath (Join-Path $root 'plugins/renderers') -Destination $serverPluginsPath -Recurse
+    Copy-Item -Path (Join-Path $root 'renderer/*') -Destination $guiRendererPath -Recurse
+    Copy-Item -Path (Join-Path $root 'renderer/*') -Destination $serverRendererPath -Recurse
     foreach ($directoryName in @('Resamplers', 'Wavtools')) {
         Copy-Item -LiteralPath (Join-Path $root $directoryName) -Destination $guiPath -Recurse
         Copy-Item -LiteralPath (Join-Path $root $directoryName) -Destination $serverPath -Recurse
     }
-    foreach ($pluginsPath in @($guiPluginsPath, $serverPluginsPath)) {
-        $cudaRendererPath = Join-Path $pluginsPath 'renderers/utautts-world-phrase-cuda'
+    foreach ($rendererPath in @($guiRendererPath, $serverRendererPath)) {
+        $cudaRendererPath = Join-Path $rendererPath 'utautts-world-phrase-cuda'
         if (Test-Path -LiteralPath $cudaRendererPath) {
             Remove-Item -LiteralPath $cudaRendererPath -Recurse -Force
+        }
+        if ($Profile -eq 'Japanese') {
+            foreach ($optionalRenderer in @('openutau-worldline-r-faithful', 'diffsinger')) {
+                $optionalRendererPath = Join-Path $rendererPath $optionalRenderer
+                if (Test-Path -LiteralPath $optionalRendererPath) {
+                    Remove-Item -LiteralPath $optionalRendererPath -Recurse -Force
+                }
+            }
         }
     }
     $guiDocs = Join-Path $guiPath 'docs'

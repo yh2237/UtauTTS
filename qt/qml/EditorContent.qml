@@ -28,6 +28,11 @@ import QtMultimedia
         property alias leadingPreutteranceInput: leadingPreutteranceInput
         property alias leadingPreutteranceSlider: leadingPreutteranceSlider
 
+        function classicRendererSelected() {
+            const renderer = window.rendererById(rendererCombo.currentValue);
+            return renderer && renderer.backend === "utau-external-resampler";
+        }
+
         anchors.fill: parent
         orientation: Qt.Vertical
 
@@ -436,14 +441,14 @@ import QtMultimedia
                         }
                         Label {
                             Layout.topMargin: 8
-                            visible: rendererCombo.currentValue === "classic-utau"
+                            visible: classicRendererSelected()
                             text: window.translator.tr("main.param.resampler")
                             font.pixelSize: 12
                             color: window.mutedText
                         }
                         ComboBox {
                             id: resamplerCombo
-                            visible: rendererCombo.currentValue === "classic-utau"
+                            visible: classicRendererSelected()
                             Layout.fillWidth: true
                             model: window.appBackend.resamplers
                             textRole: "display_name"
@@ -452,14 +457,14 @@ import QtMultimedia
                         }
                         Label {
                             Layout.topMargin: 8
-                            visible: rendererCombo.currentValue === "classic-utau"
+                            visible: classicRendererSelected()
                             text: window.translator.tr("main.param.wavtool")
                             font.pixelSize: 12
                             color: window.mutedText
                         }
                         ComboBox {
                             id: wavtoolCombo
-                            visible: rendererCombo.currentValue === "classic-utau"
+                            visible: classicRendererSelected()
                             Layout.fillWidth: true
                             model: window.appBackend.wavtools
                             textRole: "display_name"

@@ -276,7 +276,7 @@ func TestEngineAnalyzesChinese(t *testing.T) {
 
 func TestNewReportsInvalidPlugin(t *testing.T) {
 	pluginDirectory := t.TempDir()
-	if err := os.WriteFile(filepath.Join(pluginDirectory, "plugin.json"), []byte(`{"kind":"renderer"}`), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginDirectory, "renderer.json"), []byte(`{"kind":"renderer"}`), 0644); err != nil {
 		t.Fatal(err)
 	}
 	engine, err := New(Config{VoiceDir: t.TempDir(), RendererDirectories: []string{pluginDirectory}})

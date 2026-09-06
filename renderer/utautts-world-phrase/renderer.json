@@ -1,0 +1,24 @@
+{
+  "manifest_version": 1,
+  "kind": "renderer",
+  "id": "utautts-world-phrase",
+  "display_name": "UtauTTS WORLD phrase",
+  "description": "WORLD phrase renderer with the UtauTTS bridge",
+  "backend": "utautts-world-phrase",
+  "version": "1",
+  "update_managed": true,
+  "acceleration": "cpu",
+  "default_priority": 300,
+  "capabilities": { "frame_pitch": true },
+  "platforms": ["windows-amd64", "linux-amd64"],
+  "platform_assets": {
+    "windows-amd64": {
+      "world_engine": "../../runtime/utautts-world-engine.dll",
+      "worldline_bridge": "../../runtime/utautts-worldline-bridge.exe"
+    },
+    "linux-amd64": {
+      "world_engine": "../../runtime/utautts-world-engine.so",
+      "worldline_bridge": "../../runtime/utautts-worldline-bridge"
+    }
+  }
+}

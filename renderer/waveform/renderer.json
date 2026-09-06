@@ -1,0 +1,13 @@
+{
+  "manifest_version": 1,
+  "kind": "renderer",
+  "id": "waveform",
+  "display_name": "Waveform",
+  "description": "UtauTTS native waveform renderer",
+  "backend": "waveform",
+  "version": "1",
+  "update_managed": true,
+  "acceleration": "cpu",
+  "default_priority": 100,
+  "capabilities": { "frame_pitch": true, "boundary_bridge": true }
+}

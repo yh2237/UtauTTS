@@ -195,6 +195,13 @@ curl -fsS "${base_url}/api/voicebanks" >"${work_dir}/voicebanks.json"
 curl -fsS "${base_url}/api/models" >"${work_dir}/models.json"
 curl -fsS "${base_url}/api/renderers" >"${work_dir}/renderers.json"
 
+for renderer_id in waveform classic-utau utautts-world-phrase openutau-worldline-r-faithful; do
+  test -f "${gui_root}/renderer/${renderer_id}/renderer.json" \
+    || fail "missing renderer manifest: ${renderer_id}"
+done
+test ! -e "${gui_root}/renderer/utautts-world-phrase-cuda" \
+  || fail 'Linux package contains the experimental CUDA renderer manifest'
+
 VOICEBANK_JSON="${work_dir}/voicebanks.json" REQUEST_DIR="${work_dir}" "${python_command}" - <<'PY'
 import json
 import os

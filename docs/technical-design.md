@@ -155,7 +155,7 @@ Rendererは各原音のF0を測ってこの相対曲線を音源側の声域へ�
 
 ## 7. Renderer
 
-Renderer pluginの`id`は保存データやUIで使う公開識別子、`backend`はGoに組み込まれた実装識別子です。pluginは設定とassetを宣言するもので、任意のnative codeをUtauTTSへ動的ロードしません。`classic-utau`はmanifestを使わず、`Resamplers/`と`Wavtools/`の実行ファイルを組み合わせます。
+Renderer manifestの`id`は保存データやUIで使う公開識別子、`backend`はGoに組み込まれた実装識別子です。manifestは表示情報とassetを宣言するもので、任意のnative codeや新しいengine ABIをUtauTTSへ動的ロードしません。標準Rendererも`renderer/<id>/renderer.json`から読み込みます。`utau-external-resampler` backendは`Resamplers/`と`Wavtools/`の実行ファイルを組み合わせます。
 
 ### waveform
 
@@ -203,7 +203,7 @@ Rendererは選ばれたunitを受け取って別のaliasへ勝手に変更しま
 
 Qt GUIはQMLからC ABIで`internal/native.Engine`を呼びます。音源列挙、解析、韻律preview、合成、exo出力はmethod名とJSONでやり取りします。HTTPやWebViewはGUI内部の合成経路には使いません。
 
-CLIとHTTP Serverも同じplugin catalogと`synth.Service`を使います。モデルとRendererはファイル名ではなくIDで選択して明示directory、配布物内directory、開発workspaceの順に解決します。assetの相対pathはplugin directoryを基準に絶対pathへ変換します。
+CLIとHTTP Serverも同じrenderer catalogと`synth.Service`を使います。モデルとRendererはファイル名ではなくIDで選択して明示directory、配布物内directory、開発workspaceの順に解決します。assetの相対pathはrenderer directoryを基準に絶対pathへ変換します。
 
 反復編集を軽くするため次をプロセス内でcacheします。
 
@@ -236,8 +236,8 @@ CLIとHTTP Serverも同じplugin catalogと`synth.Service`を使います。モ�
 
 ### 公開IDと既存経路を維持する
 
-既存の正式Rendererの意味と出力を新実験のために変更しないでください。新方式は別backend／plugin IDか既定offの明示オプションとして追加します。実験が失敗しても同じ入力で以前のWAVへ戻れる状態を保ちます。
+既存の正式Rendererの意味と出力を新実験のために変更しないでください。新方式は別backend／renderer IDか既定offの明示オプションとして追加します。実験が失敗しても同じ入力で以前のWAVへ戻れる状態を保ちます。
 
 ### fallbackの扱いを統一する
 
-新しい制御値には範囲制限を設けます。NaN、非単調なtime anchor、過大なcrop、asset不足などを黙って通しません。未知のRenderer IDはカタログの既定Rendererへ解決しますが、明示したRendererのasset不足はエラーにします。低信頼度のunitや境界だけをfallbackする場合は、その位置と理由をPlanへ残します。
+新しい制御値には範囲制限を設けます。NaN、非単調なtime anchor、過大なcrop、asset不足などを黙って通しません。Renderer IDを省略した場合だけカタログの既定Rendererへ解決し、未知の明示IDはエラーにします。低信頼度のunitや境界だけをfallbackする場合は、その位置と理由をPlanへ残します。

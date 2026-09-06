@@ -1,8 +1,5 @@
 {
     "plugins.title": "渲染器插件",
-    "plugins.install": "从 ZIP 安装…",
-    "plugins.filter": "渲染器包 (*.zip)",
-    "plugins.builtin": "内置",
     "plugins.disabled": "无法加载的插件及原因：",
     "common.cancel": "取消",
     "common.close": "关闭",

@@ -1,8 +1,5 @@
 {
     "plugins.title": "Renderer plugins",
-    "plugins.install": "Install from ZIP…",
-    "plugins.filter": "Renderer package (*.zip)",
-    "plugins.builtin": "Built-in",
     "plugins.disabled": "Unavailable plugins and reasons:",
     "common.cancel": "Cancel",
     "common.close": "Close",

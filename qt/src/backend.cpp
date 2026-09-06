@@ -80,7 +80,7 @@ QString languageCodeForLocale(const QString &locale, const QStringList &availabl
 }
 
 bool hasResourceLayout(const QDir &root) {
-    return root.exists("plugins/renderers") || root.exists("models") || root.exists("voice");
+    return root.exists("renderer") || root.exists("models") || root.exists("voice");
 }
 
 QString prosodyTrainingSessionPath() {
@@ -811,7 +811,7 @@ void Backend::initialize() {
     }
     const QDir root = resourceRoot();
     QJsonObject config{{"voice_dir", root.filePath("voice")}};
-    config.insert("renderer_directories", QJsonArray{root.filePath("plugins/renderers")});
+    config.insert("renderer_directories", QJsonArray{root.filePath("renderer")});
     config.insert("model_directories", QJsonArray{root.filePath("models")});
     const QString runtime = root.filePath("runtime");
 #ifdef Q_OS_WIN
@@ -972,38 +972,6 @@ bool Backend::openClassicToolDirectory(const QString &kind) {
 
 bool Backend::reloadClassicTools() {
     return restartNativeBackend();
-}
-
-void Backend::installRendererPackage(const QUrl &archive) {
-    if (m_busy || m_activeCallCount != 0 || !archive.isLocalFile()) {
-        setError(tr("処理が終わってからプラグインを導入してください。"));
-        return;
-    }
-    setBusy(true);
-    auto *watcher = new QFutureWatcher<QVariantMap>(this);
-    connect(watcher, &QFutureWatcher<QVariantMap>::finished, this, [this, watcher]() {
-        const QVariantMap result = watcher->result();
-        watcher->deleteLater();
-        if (--m_activeCallCount == 0)
-            m_activeCalls.clearFutures();
-        setBusy(false);
-        if (result.contains("_error")) {
-            setError(result.value("_error").toString());
-            return;
-        }
-        appendLog(tr("プラグインを導入しました: %1").arg(result.value("id").toString()));
-        restartNativeBackend();
-    });
-    const auto future = QtConcurrent::run([this, archive]() {
-        try {
-            return call("installRendererPackage", {{"path", archive.toLocalFile()}});
-        } catch (const std::exception &exception) {
-            return QVariantMap{{"_error", QString::fromUtf8(exception.what())}};
-        }
-    });
-    ++m_activeCallCount;
-    m_activeCalls.addFuture(future);
-    watcher->setFuture(future);
 }
 
 void Backend::analyze(const QString &text, const QString &requestId) {

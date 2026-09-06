@@ -108,7 +108,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 
 `--prosody`と`--renderer`にはファイルパスではなくIDを指定します。Classic UTAUのツールも絶対パスではなく、`Resamplers/`または`Wavtools/`からの相対IDを指定します。一覧は[モデル／Rendererプラグイン](plugins.md)を参照してください。
 
-モデルやRendererは実行ファイルの隣にある`models/`と`plugins/renderers/`から自動検出します。別のdirectoryを追加するなら`--model-dir`または`--renderer-dir`で指定します。
+モデルやRendererは実行ファイルの隣にある`models/`と`renderer/`から自動検出します。別のdirectoryを追加するなら`--model-dir`または`--renderer-dir`で指定します。明示したRenderer定義は同梱定義より優先されます。
 
 `--renderer`に存在しないIDを指定した場合はカタログの既定Rendererへ解決されます。指定したRendererのassetが不足している場合はエラーになります。
 

@@ -65,6 +65,19 @@ try {
         Assert-Path (Join-Path $packageRoot 'licenses/WORLD/MACRODEFINITIONS-LICENSE.txt') 'WORLD macro definitions license'
         Assert-Path (Join-Path $packageRoot 'licenses/PROSODY-MODELS.txt') 'prosody model license'
         Assert-Path (Join-Path $packageRoot 'models/README.md') 'model license readme'
+        foreach ($rendererId in @('waveform', 'classic-utau', 'utautts-world-phrase')) {
+            Assert-Path (Join-Path $packageRoot "renderer/$rendererId/renderer.json") "renderer manifest $rendererId"
+        }
+        if ($Profile -eq 'Full') {
+            Assert-Path (Join-Path $packageRoot 'renderer/openutau-worldline-r-faithful/renderer.json') 'WORLDLINE-R renderer manifest'
+            Assert-Path (Join-Path $packageRoot 'renderer/diffsinger/renderer.json') 'DiffSinger renderer manifest'
+        } else {
+            foreach ($optionalRenderer in @('openutau-worldline-r-faithful', 'diffsinger')) {
+                if (Test-Path -LiteralPath (Join-Path $packageRoot "renderer/$optionalRenderer/renderer.json")) {
+                    throw "Japanese package contains optional renderer: $optionalRenderer"
+                }
+            }
+        }
         Assert-Path (Join-Path $packageRoot 'runtime/licenses/PYTHON_LICENSE.txt') 'Python runtime license'
         Assert-Path (Join-Path $packageRoot 'runtime/licenses/PYINSTALLER_COPYING.txt') 'PyInstaller license'
     }
@@ -109,7 +122,7 @@ try {
         }
     }
     foreach ($packageRoot in @($guiRoot, $serverRoot)) {
-        $gpuRenderer = Test-Path -LiteralPath (Join-Path $packageRoot 'plugins/renderers/utautts-world-phrase-cuda/plugin.json')
+        $gpuRenderer = Test-Path -LiteralPath (Join-Path $packageRoot 'renderer/utautts-world-phrase-cuda/renderer.json')
         if ($gpuRenderer) {
             throw 'experimental CUDA renderer must not be included in a release package'
         }

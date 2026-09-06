@@ -23,7 +23,9 @@ WAV / LAB
 
 ## Renderer
 
-同梱RendererのID、機能、ランタイムは`internal/plugin/builtin.go`で一元管理します。外部Rendererはv2の`plugin.json`を含むZIPで導入でき、v1の手動配置も読み込めます。追加方法は[モデル／Rendererプラグイン](plugins.md)、内部処理は[技術設計ガイド](technical-design.md)を参照してください。
+RendererのID、機能、ランタイムは`renderer/<id>/renderer.json`で定義します。同梱とユーザー定義は同じ探索処理を使い、明示した探索先を優先します。JSONだけで任意の新規engine ABIを追加する機能はありません。追加方法は[モデル／Rendererプラグイン](plugins.md)、内部処理は[技術設計ガイド](technical-design.md)を参照してください。
+
+Renderer manifestは現行形式だけを読み込みます。旧配置からの変換はアプリ内アップデーターが更新前に行い、通常実行時の互換分岐は持ちません。
 
 | ID | 概要 |
 | --- | --- |

@@ -47,7 +47,7 @@ func New(config Config) (*Engine, error) {
 	config.VoiceDir = voicebank.ResolveDirectory(config.VoiceDir)
 	catalog, err := plugin.DiscoverWithDefaults(config.RendererDirectories, config.ModelDirectories, render.IsKnownRenderer)
 	if err != nil {
-		return nil, fmt.Errorf("discover plugins: %w", err)
+		return nil, fmt.Errorf("discover renderers: %w", err)
 	}
 	if renderer, ok := catalog.Renderer(config.Renderer); ok {
 		config.Renderer = renderer.ID
@@ -76,23 +76,6 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 	var result any
 	var err error
 	switch method {
-	case "installRendererPackage":
-		var request struct {
-			Path string `json:"path"`
-		}
-		if err := json.Unmarshal(requestJSON, &request); err != nil {
-			return nil, err
-		}
-		directories := e.config.RendererDirectories
-		if len(directories) == 0 {
-			directories, _ = plugin.DefaultDirectories()
-		}
-		if len(directories) == 0 {
-			return nil, fmt.Errorf("renderer directory is not configured")
-		}
-		var installed plugin.Renderer
-		installed, err = plugin.InstallPackage(request.Path, directories[0], render.IsKnownRenderer)
-		result = map[string]any{"id": installed.ID}
 	case "shutdown":
 		e.cancel()
 		result = map[string]bool{"ok": true}

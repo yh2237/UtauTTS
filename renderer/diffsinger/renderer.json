@@ -1,0 +1,20 @@
+{
+  "manifest_version": 1,
+  "kind": "renderer",
+  "id": "diffsinger",
+  "display_name": "DiffSinger (experimental)",
+  "description": "DiffSinger bridge renderer",
+  "backend": "diffsinger",
+  "version": "1",
+  "update_managed": true,
+  "experimental": true,
+  "acceleration": "cpu",
+  "default_priority": -50,
+  "capabilities": { "frame_pitch": true },
+  "platforms": ["windows-amd64"],
+  "platform_assets": {
+    "windows-amd64": {
+      "diffsinger_bridge": "../../runtime/utautts-diffsinger-bridge.exe"
+    }
+  }
+}

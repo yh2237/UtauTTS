@@ -358,13 +358,6 @@ ApplicationWindow {
         onAccepted: window.exportUstxTo(selectedFile)
     }
 
-    FileDialog {
-        id: rendererPackageDialog
-        fileMode: FileDialog.OpenFile
-        nameFilters: [window.translator.tr("plugins.filter")]
-        onAccepted: window.appBackend.installRendererPackage(selectedFile)
-    }
-
     Dialog {
         id: rendererPackagesDialog
         title: window.translator.tr("plugins.title")
@@ -374,11 +367,6 @@ ApplicationWindow {
         modal: true
         standardButtons: Dialog.Close
         contentItem: ColumnLayout {
-            Button {
-                text: window.translator.tr("plugins.install")
-                enabled: !window.appBackend.busy
-                onClicked: rendererPackageDialog.open()
-            }
             ScrollView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -392,7 +380,6 @@ ApplicationWindow {
                             width: parent.width
                             wrapMode: Text.Wrap
                             text: modelData.display_name + "  " + (modelData.version || "")
-                                + (modelData.built_in ? " (" + window.translator.tr("plugins.builtin") + ")" : "")
                         }
                     }
                     Label {

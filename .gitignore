@@ -19,7 +19,6 @@ tools/openjtalk-feature-bridge/bin/
 /listening-results*.json
 /config.ini
 /prosody-training-session.json
-/plugins/renderers/utau-external-*/
 .codex/
 .env
 .qt/
