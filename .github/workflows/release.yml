@@ -1,0 +1,81 @@
+name: Draft release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Build Windows release package
+    uses: ./.github/workflows/windows.yml
+    with:
+      expected_version: ${{ github.ref_name }}
+    permissions:
+      contents: read
+
+  linux:
+    name: Build Linux release package
+    uses: ./.github/workflows/linux.yml
+    permissions:
+      contents: read
+
+  macos:
+    name: Build macOS release package
+    uses: ./.github/workflows/macos.yml
+    permissions:
+      contents: read
+
+  draft-release:
+    name: Create Draft Release
+    needs:
+      - windows
+      - linux
+      - macos
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Windows packages
+        uses: actions/download-artifact@v6
+        with:
+          name: utautts-windows-x64
+          path: release-assets
+
+      - name: Download Linux packages
+        uses: actions/download-artifact@v6
+        with:
+          name: utautts-linux-x64
+          path: release-assets
+
+      - name: Download macOS packages
+        uses: actions/download-artifact@v6
+        with:
+          name: utautts-macos-arm64
+          path: release-assets
+
+      - name: Create Draft Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          mapfile -t assets < <(find release-assets -type f -name '*.zip' -print | sort)
+          if [ "${#assets[@]}" -ne 6 ]; then
+            printf 'Expected six package archives, found %s:\n' "${#assets[@]}" >&2
+            printf '%s\n' "${assets[@]}" >&2
+            exit 1
+          fi
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "A release for $tag already exists. Remove it before retrying this workflow." >&2
+            exit 1
+          fi
+          gh release create "$tag" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$tag" \
+            --generate-notes \
+            --draft
