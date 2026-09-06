@@ -7,6 +7,7 @@ system_name="$(uname -s)"
 default_target="linux"
 case "${system_name}" in
   MINGW*|MSYS*|CYGWIN*) default_target="win" ;;
+  Darwin*) default_target="macos" ;;
 esac
 
 target="${1:-${default_target}}"
@@ -52,6 +53,13 @@ case "${target}" in
         ;;
     esac
     ;;
+  mac|macos|darwin)
+    if [[ "${system_name}" != "Darwin" ]]; then
+      echo 'The macOS package must be built on macOS; use GitHub Actions or a Mac.' >&2
+      exit 1
+    fi
+    exec bash "${root_dir}/tools/build-macos.sh" "$@"
+    ;;
   win|windows)
     case "${system_name}" in
       MINGW*|MSYS*|CYGWIN*)
@@ -67,20 +75,21 @@ case "${target}" in
     exit 1
     ;;
   both)
-    echo 'Build Windows with build.bat win, and Linux with ./build.sh linux on Linux or WSL.' >&2
+    echo 'Build Windows with build.bat win, Linux with ./build.sh linux, and macOS with ./build.sh macos.' >&2
     exit 1
     ;;
   help|--help|-h)
     cat <<'EOF'
-Usage: ./build.sh [linux]
+Usage: ./build.sh [linux|macos]
 
 Linux builds run natively on Linux. On Windows, build.bat (or this script from
 Git Bash) delegates the Linux target to WSL; the Windows target is native.
+macOS builds run natively on macOS or in the macOS GitHub Actions workflow.
 EOF
     ;;
   *)
     echo "Unknown build target: ${target}" >&2
-    echo 'Usage: ./build.sh [linux]' >&2
+    echo 'Usage: ./build.sh [linux|macos]' >&2
     exit 2
     ;;
 esac

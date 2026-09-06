@@ -11,7 +11,7 @@
   "acceleration": "cpu",
   "default_priority": 300,
   "capabilities": { "frame_pitch": true },
-  "platforms": ["windows-amd64", "linux-amd64"],
+  "platforms": ["windows-amd64", "linux-amd64", "darwin-amd64", "darwin-arm64"],
   "platform_resources": {
     "windows-amd64": {
       "world_engine": { "path": "../../runtime/utautts-world-engine.dll", "required": true },
@@ -19,6 +19,14 @@
     },
     "linux-amd64": {
       "world_engine": { "path": "../../runtime/utautts-world-engine.so", "required": true },
+      "worldline_bridge": { "path": "../../runtime/utautts-worldline-bridge", "required": true, "executable": true }
+    },
+    "darwin-amd64": {
+      "world_engine": { "path": "../../runtime/utautts-world-engine.dylib", "required": true },
+      "worldline_bridge": { "path": "../../runtime/utautts-worldline-bridge", "required": true, "executable": true }
+    },
+    "darwin-arm64": {
+      "world_engine": { "path": "../../runtime/utautts-world-engine.dylib", "required": true },
       "worldline_bridge": { "path": "../../runtime/utautts-worldline-bridge", "required": true, "executable": true }
     }
   }

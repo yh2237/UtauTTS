@@ -121,6 +121,14 @@ bool updateInProgress() {
     QDir root(QCoreApplication::applicationDirPath());
     if (root.dirName().compare(QLatin1String("app"), Qt::CaseInsensitive) == 0)
         root.cdUp();
+#ifdef Q_OS_MACOS
+    if (root.dirName().compare(QLatin1String("MacOS"), Qt::CaseInsensitive) == 0) {
+        // package/UtauTTS.app/Contents/MacOS/utautts から配布packageのrootへ戻す。
+        root.cdUp();
+        root.cdUp();
+        root.cdUp();
+    }
+#endif
     const QStringList lockPaths = updateLockPaths(root.absolutePath());
     bool active = false;
     QStringList stalePaths;

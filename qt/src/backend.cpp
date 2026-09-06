@@ -178,6 +178,18 @@ QDir resourceRoot() {
     if (application.dirName().compare("app", Qt::CaseInsensitive) == 0) {
         application.cdUp();
     }
+#ifdef Q_OS_MACOS
+    // macOS bundleの実行ファイルは package/UtauTTS.app/Contents/MacOS に
+    // 置かれる。runtime等はbundleの外側へ置くため、配布packageのrootまで
+    // 上がってから同梱資源を探す。
+    if (application.dirName().compare("MacOS", Qt::CaseInsensitive) == 0) {
+        QDir packageRoot(application);
+        if (packageRoot.cdUp() && packageRoot.cdUp() && packageRoot.cdUp()
+                && hasResourceLayout(packageRoot)) {
+            return packageRoot;
+        }
+    }
+#endif
     if (hasResourceLayout(application)) {
         return application;
     }

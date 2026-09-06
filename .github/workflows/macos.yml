@@ -1,0 +1,108 @@
+name: macOS package
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/macos.yml'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'native/**'
+      - 'qt/**'
+      - 'renderer/**'
+      - 'models/**'
+      - 'voice/**'
+      - 'docs/**'
+      - 'licenses/**'
+      - 'third_party/world/**'
+      - 'icons/**'
+      - 'README.md'
+      - 'LICENSE'
+      - 'THIRD_PARTY_NOTICES.txt'
+      - 'tools/build-macos.sh'
+      - 'tools/build-openjtalk-feature-bridge-macos.sh'
+      - 'tools/build-world-engine-macos.sh'
+      - 'tools/test-macos-package.sh'
+      - 'go.mod'
+      - 'go.sum'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/macos.yml'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'native/**'
+      - 'qt/**'
+      - 'renderer/**'
+      - 'models/**'
+      - 'voice/**'
+      - 'docs/**'
+      - 'licenses/**'
+      - 'third_party/world/**'
+      - 'icons/**'
+      - 'README.md'
+      - 'LICENSE'
+      - 'THIRD_PARTY_NOTICES.txt'
+      - 'tools/build-macos.sh'
+      - 'tools/build-openjtalk-feature-bridge-macos.sh'
+      - 'tools/build-world-engine-macos.sh'
+      - 'tools/test-macos-package.sh'
+      - 'go.mod'
+      - 'go.sum'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      QT_VERSION: '6.8.3'
+      MACOS_ARCH: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: tools/requirements-build.txt
+
+      - name: Install native build tools
+        run: brew install cmake ninja
+
+      - name: Verify runner architecture
+        run: test "$(uname -m)" = arm64
+
+      - name: Install Qt
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check 'aqtinstall==3.3.0'
+          python -m aqt install-qt \
+            --outputdir "$RUNNER_TEMP/qt" \
+            mac desktop "$QT_VERSION" clang_64 \
+            --modules qtmultimedia
+          echo "QT_ROOT=$RUNNER_TEMP/qt/$QT_VERSION/macos" >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP/qt/$QT_VERSION/macos/bin" >> "$GITHUB_PATH"
+
+      - name: Build and smoke-test macOS packages
+        shell: bash
+        run: bash tools/build-macos.sh
+
+      - name: Upload macOS packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: utautts-macos-arm64
+          path: release/*-macos-arm64.zip
+          if-no-files-found: error
+          retention-days: 14

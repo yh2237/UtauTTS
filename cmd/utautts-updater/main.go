@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -763,6 +764,21 @@ func sanitizeToken(value string) string {
 }
 
 func launchApp(target string) {
+	if runtime.GOOS == "darwin" {
+		app := filepath.Join(target, "UtauTTS.app")
+		launcher := filepath.Join(app, "Contents", "MacOS", "utautts")
+		if info, err := os.Stat(launcher); err == nil && !info.IsDir() {
+			command := exec.Command(launcher)
+			command.Dir = target
+			command.Env = append(os.Environ(), "UTAUTTS_UPDATE_RELAUNCH=1")
+			if err := command.Start(); err != nil {
+				logf("relaunch failed: %v", err)
+				return
+			}
+			logf("relaunched %s", app)
+			return
+		}
+	}
 	var launcher string
 	for _, relative := range []string{"utautts.exe", filepath.Join("app", "utautts-gui.exe"), "utautts"} {
 		candidate := filepath.Join(target, relative)

@@ -45,6 +45,15 @@ qt_add_executable(utautts
 if(WIN32)
     target_sources(utautts PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/utautts.rc")
     set_target_properties(utautts PROPERTIES WIN32_EXECUTABLE TRUE)
+elseif(APPLE)
+    # macOSはQtの標準的な.app bundleとして配布する。アプリ本体の外側に
+    # runtime、models、renderer、voiceを置く構成はresourceRoot()で解決する。
+    set_target_properties(utautts PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_RPATH TRUE
+        BUILD_RPATH "${UTAUTTS_NATIVE_DIR}"
+        INSTALL_RPATH "@loader_path/../Frameworks"
+    )
 else()
     set_target_properties(utautts PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/app")
     set_target_properties(utautts PROPERTIES BUILD_RPATH "$ORIGIN;${UTAUTTS_NATIVE_DIR}" INSTALL_RPATH "$ORIGIN")
@@ -182,6 +191,8 @@ qt_add_resources(utautts "data"
 
 if(WIN32)
     target_link_libraries(utautts PRIVATE "${UTAUTTS_NATIVE_DIR}/utautts_native.dll.a")
+elseif(APPLE)
+    target_link_libraries(utautts PRIVATE "${UTAUTTS_NATIVE_DIR}/libutautts_native.dylib")
 else()
     target_link_libraries(utautts PRIVATE "${UTAUTTS_NATIVE_DIR}/libutautts_native.so")
 endif()
