@@ -79,7 +79,7 @@ import zipfile
 
 archive_path, destination = sys.argv[1:3]
 os.makedirs(destination, exist_ok=True)
-with zipfile.ZipFile(archive_path, metadata_encoding="cp932") as archive:
+with zipfile.ZipFile(archive_path, metadata_encoding='cp932') as archive:
     archive.extractall(destination)
 '@
     & $pythonCommand -c $extractScript $bundledVoicebankArchive $Destination
