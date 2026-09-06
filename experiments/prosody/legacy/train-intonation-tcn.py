@@ -5,12 +5,14 @@ import argparse
 import json
 import math
 import random
+import sys
 from pathlib import Path
 
 import torch
 from torch import nn
 from torch.nn import functional as F
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "tools"))
 from torch_device import device_description, move_batch, resolve_device
 
 

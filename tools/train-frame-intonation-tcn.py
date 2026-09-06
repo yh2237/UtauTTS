@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Train a frame-level (10 ms) intonation TCN and export portable JSON.
 
-The mora-level trainer in :mod:`train-intonation-tcn` learns one value per
+The legacy mora-level trainer in
+``experiments/prosody/legacy/train-intonation-tcn.py`` learns one value per
 token.  This trainer keeps the same small residual TCN and sparse linguistic
 feature representation, but expands each JSUT token to a 10 ms frame grid and
 uses an F0 track measured from the corresponding ``audio_path``. The target
