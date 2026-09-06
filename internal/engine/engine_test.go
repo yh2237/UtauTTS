@@ -219,8 +219,34 @@ func TestBundledManifestDefinitionsResolveAgainstBuiltinRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 	resolver := NewResolver(BuiltinRegistry())
+	fixtureRoot := t.TempDir()
+	fixtures := make(map[ResourceKey]string)
+	resourceFixture := func(key ResourceKey) string {
+		if path, ok := fixtures[key]; ok {
+			return path
+		}
+		path := filepath.Join(fixtureRoot, string(key))
+		if err := os.WriteFile(path, []byte("runtime fixture"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		fixtures[key] = path
+		return path
+	}
 	for _, definition := range DefinitionsFromCatalog(&plugin.Catalog{Renderers: renderers}) {
-		resolved, resolveErr := resolver.Resolve([]Definition{definition}, string(definition.ID))
+		provider, providerOK := resolver.registry.Provider(definition.Provider)
+		if !providerOK {
+			t.Fatalf("bundled renderer %q provider %q is not registered", definition.ID, definition.Provider)
+		}
+		overrides := make(map[ResourceKey]string, len(provider.Requirements))
+		for _, requirement := range provider.Requirements {
+			if requirement.Required && definition.Resource(requirement.Key) == "" {
+				t.Fatalf("bundled renderer %q does not declare required resource %q", definition.ID, requirement.Key)
+			}
+			overrides[requirement.Key] = resourceFixture(requirement.Key)
+		}
+		resolved, resolveErr := resolver.ResolveWithOptions([]Definition{definition}, string(definition.ID), ResolveOptions{
+			ResourceOverrides: overrides,
+		})
 		if resolveErr != nil {
 			t.Fatalf("resolve bundled renderer %q: %v", definition.ID, resolveErr)
 		}
@@ -228,7 +254,7 @@ func TestBundledManifestDefinitionsResolveAgainstBuiltinRegistry(t *testing.T) {
 			t.Fatalf("renderer %q provider = %q, want %q", definition.ID, resolved.Provider.ID, definition.Provider)
 		}
 		if !resolved.Availability.Available {
-			t.Fatalf("bundled renderer %q is missing runtime resources: %s", definition.ID, resolved.Availability.Error())
+			t.Fatalf("bundled renderer %q cannot resolve declared resources: %s", definition.ID, resolved.Availability.Error())
 		}
 	}
 }
