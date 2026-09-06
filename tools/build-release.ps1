@@ -2,13 +2,25 @@ param(
     [string]$Python = $env:PYTHON,
     [ValidateSet('Full', 'Japanese')]
     [string]$Profile = 'Full',
-    [string]$OutputDirectory = ''
+    [string]$OutputDirectory = '',
+    [string]$ExpectedVersion = $env:UTAUTTS_RELEASE_VERSION,
+    [string]$PreviousVersion = $env:UTAUTTS_PREVIOUS_VERSION,
+    [int]$PreviousUpdateSchema = 0,
+    [int]$PreviousInstallLayout = 0,
+    [int]$PreviousMigrationSchema = 0
 )
 
 $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $pythonCommand = $Python
 if ([string]::IsNullOrWhiteSpace($pythonCommand)) { $pythonCommand = 'python' }
+$releaseCheck = Join-Path $PSScriptRoot 'check-release.ps1'
+& $releaseCheck `
+    -ExpectedVersion $ExpectedVersion `
+    -PreviousVersion $PreviousVersion `
+    -PreviousUpdateSchema $PreviousUpdateSchema `
+    -PreviousInstallLayout $PreviousInstallLayout `
+    -PreviousMigrationSchema $PreviousMigrationSchema
 $releaseRoot = Join-Path $root 'release'
 if (-not [string]::IsNullOrWhiteSpace($OutputDirectory)) {
     $releaseRoot = [IO.Path]::GetFullPath($OutputDirectory)

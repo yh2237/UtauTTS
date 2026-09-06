@@ -5,6 +5,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$releaseCheck = Join-Path $PSScriptRoot 'check-release.ps1'
+& $releaseCheck
 $null = Add-Type -AssemblyName System.IO.Compression.FileSystem
 $ReleaseRoot = [IO.Path]::GetFullPath($ReleaseRoot)
 $guiZip = Join-Path $ReleaseRoot 'UtauTTS-win-x64.zip'

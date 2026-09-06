@@ -120,6 +120,13 @@ func detachFromTarget(target string) error {
 }
 
 func run(target, url, zipPath string, pid int, version string, preserve []string, deleteLocalZip bool) error {
+	return runPackage(target, url, zipPath, pid, version, preserve, deleteLocalZip, true)
+}
+
+// runPackage keeps the old updater's package-swap path testable. The
+// v1.2.2 updater did not have renderer migration; compatibility tests pass
+// migrateRenderers=false to model that exact behavior.
+func runPackage(target, url, zipPath string, pid int, version string, preserve []string, deleteLocalZip, migrateRenderers bool) error {
 	logf("utautts-updater start: target=%s version=%s", target, version)
 	absolute, err := filepath.Abs(target)
 	if err != nil {
@@ -167,9 +174,11 @@ func run(target, url, zipPath string, pid int, version string, preserve []string
 	if err := normalizeStage(stage); err != nil {
 		return err
 	}
-	if err := migrateRendererDefinitions(target, stage); err != nil {
-		_ = os.RemoveAll(stage)
-		return fmt.Errorf("migrate renderer definitions: %w", err)
+	if migrateRenderers {
+		if err := migrateRendererDefinitions(target, stage); err != nil {
+			_ = os.RemoveAll(stage)
+			return fmt.Errorf("migrate renderer definitions: %w", err)
+		}
 	}
 
 	for _, rel := range preserve {

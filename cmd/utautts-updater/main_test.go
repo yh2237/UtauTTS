@@ -466,6 +466,62 @@ func TestRunPreservesPortableConfig(t *testing.T) {
 	}
 }
 
+func TestV122UpdaterCanInstallCurrentPackageLayout(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "UtauTTS")
+	writeTestFile(t, filepath.Join(target, "utautts.exe"), "old-launcher")
+	writeTestFile(t, filepath.Join(target, "app", "utautts-gui.exe"), "old-gui")
+	writeTestFile(t, filepath.Join(target, "config.ini"), "user-settings")
+	writeTestFile(t, filepath.Join(target, "voice", "user-bank", "oto.ini"), "voice-data")
+	writeTestFile(t, filepath.Join(target, "plugins", "renderers", "waveform", "plugin.json"), "old-renderer")
+
+	zipPath := makeZip(t, map[string]string{
+		"utautts.exe":                         "new-launcher",
+		"app/utautts-gui.exe":                 "new-gui",
+		"app/qml/Main.qml":                    "new-main",
+		"renderer/waveform/renderer.json":     `{"manifest_version":1,"kind":"renderer","id":"waveform"}`,
+		"renderer/classic-utau/renderer.json": `{"manifest_version":1,"kind":"renderer","id":"classic-utau"}`,
+		"tools/utautts-updater.exe":           "new-updater",
+	})
+
+	// These are exactly the preserve paths used by the v1.2.2 updater. The
+	// migration flag is disabled to model that old updater rather than today's
+	// renderer-aware implementation.
+	if err := runPackage(target, "", zipPath, 0, "v1.2.3", []string{
+		"voice", "Resamplers", "Wavtools", "config.ini",
+	}, false, false); err != nil {
+		t.Fatalf("v1.2.2-style update failed: %v", err)
+	}
+	for _, path := range []string{
+		"utautts.exe",
+		"app/utautts-gui.exe",
+		"app/qml/Main.qml",
+		"renderer/waveform/renderer.json",
+		"renderer/classic-utau/renderer.json",
+		"tools/utautts-updater.exe",
+	} {
+		if _, err := os.Stat(filepath.Join(target, filepath.FromSlash(path))); err != nil {
+			t.Errorf("new package is missing %s: %v", path, err)
+		}
+	}
+	for path, want := range map[string]string{
+		"config.ini":                             "user-settings",
+		"voice/user-bank/oto.ini":                "voice-data",
+		"plugins/renderers/waveform/plugin.json": "old-renderer",
+	} {
+		data, err := os.ReadFile(filepath.Join(target, filepath.FromSlash(path)))
+		if path == "plugins/renderers/waveform/plugin.json" {
+			if !os.IsNotExist(err) {
+				t.Errorf("legacy renderer should not be copied by the v1.2.2 updater: %q, %v", data, err)
+			}
+			continue
+		}
+		if err != nil || string(data) != want {
+			t.Errorf("preserved %s = %q, %v; want %q", path, data, err, want)
+		}
+	}
+}
+
 func TestMigrateRendererDefinitionsKeepsNewStandardAndConvertsLegacy(t *testing.T) {
 	root := t.TempDir()
 	current := filepath.Join(root, "current")
