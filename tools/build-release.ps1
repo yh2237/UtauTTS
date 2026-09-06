@@ -69,7 +69,23 @@ function Expand-BundledVoicebank([string]$Destination) {
     if ($actualHash -ne $bundledVoicebankSHA256) {
         throw "Bundled voicebank hash mismatch: expected $bundledVoicebankSHA256, got $actualHash"
     }
-    Expand-Archive -LiteralPath $bundledVoicebankArchive -DestinationPath $Destination
+    # The official voicebank archive contains CP932-encoded Japanese entry
+    # names. Expand-Archive decodes those names incorrectly on the hosted
+    # Windows runner, so use Python's explicit metadata_encoding support.
+    $extractScript = @'
+import os
+import sys
+import zipfile
+
+archive_path, destination = sys.argv[1:3]
+os.makedirs(destination, exist_ok=True)
+with zipfile.ZipFile(archive_path, metadata_encoding="cp932") as archive:
+    archive.extractall(destination)
+'@
+    & $pythonCommand -c $extractScript $bundledVoicebankArchive $Destination
+    if ($LASTEXITCODE -ne 0) {
+        throw "Bundled voicebank extraction failed with exit code $LASTEXITCODE"
+    }
 }
 
 Reset-Directory $guiPath
