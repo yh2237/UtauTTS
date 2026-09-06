@@ -52,9 +52,19 @@ jobs:
           python -m pip install --disable-pip-version-check 'aqtinstall==3.3.0'
           python -m aqt install-qt \
             --outputdir "$RUNNER_TEMP/qt" \
-            linux desktop "$QT_VERSION" gcc_64 \
+            linux desktop "$QT_VERSION" linux_gcc_64 \
             --modules qtmultimedia
-          echo "QT_ROOT=$RUNNER_TEMP/qt/$QT_VERSION/gcc_64" >> "$GITHUB_ENV"
+          qt_config="$(find "$RUNNER_TEMP/qt/$QT_VERSION" -type f -name Qt6Config.cmake -print -quit)"
+          if [ -z "$qt_config" ]; then
+            echo 'Qt6Config.cmake was not found after the Qt SDK installation.' >&2
+            exit 1
+          fi
+          qt_root="${qt_config%/lib/cmake/Qt6/Qt6Config.cmake}"
+          if [ "$qt_root" = "$qt_config" ]; then
+            echo "Unexpected Qt6Config.cmake path: $qt_config" >&2
+            exit 1
+          fi
+          echo "QT_ROOT=$qt_root" >> "$GITHUB_ENV"
 
       - name: Build and smoke-test Linux packages
         shell: bash
