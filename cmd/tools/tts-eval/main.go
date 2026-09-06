@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"utautts/internal/atomicfile"
+	"utautts/internal/engine"
 	"utautts/internal/plugin"
 	"utautts/internal/render"
 	"utautts/internal/synth"
@@ -103,7 +104,10 @@ func run() error {
 				cfg := tts.Config{VoicebankPath: *bank, Text: p.Text, Language: "ja", Tone: "C4", MoraDurationMS: 120, PauseDurationMS: 180, ApplyPitch: true, IntonationStrength: 1, ProsodyModelPath: prosody.Path}
 				resolved, callErr := tts.ApplyRenderer(&cfg, catalog, rendererID, "", *bridge)
 				if *gpu != "" {
-					cfg.WorldGPUPath = *gpu
+					if cfg.Engine.Definition.Resources == nil {
+						cfg.Engine.Definition.Resources = make(map[engine.ResourceKey]string)
+					}
+					cfg.Engine.Definition.Resources[engine.ResourceWorldGPU] = *gpu
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 				cfg.Context = ctx

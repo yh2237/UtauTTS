@@ -31,14 +31,14 @@ func TestClassicUtauResolvesSelectedTools(t *testing.T) {
 		Wavtools:   []plugin.ClassicTool{{ID: "builtin", BuiltIn: true}, {ID: "wavtool.exe", Path: wavtoolPath}},
 	}
 	service := NewService(catalog, "classic-utau", "", "", "", "", testVoicebankResolver{path: "voicebank"})
-	cfg, renderer, err := service.config(Request{
+	cfg, renderer, options, err := service.config(Request{
 		Renderer: "classic-utau", Resampler: "nested/resampler.exe", Wavtool: "wavtool.exe",
 	}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renderer != "classic-utau" || cfg.ExternalResamplerPath != resamplerPath || cfg.ExternalWavtoolPath != wavtoolPath {
-		t.Fatalf("classic UTAU config = %#v, renderer %q", cfg, renderer)
+	if renderer != "classic-utau" || options.Classic.ResamplerPath != resamplerPath || options.Classic.WavtoolPath != wavtoolPath {
+		t.Fatalf("classic UTAU config = %#v, provider options %#v, renderer %q", cfg, options, renderer)
 	}
 }
 
@@ -48,7 +48,7 @@ func TestClassicUtauRejectsUnknownResampler(t *testing.T) {
 		Wavtools:  []plugin.ClassicTool{{ID: "builtin", BuiltIn: true}},
 	}
 	service := NewService(catalog, "classic-utau", "", "", "", "", testVoicebankResolver{path: "voicebank"})
-	if _, _, err := service.config(Request{Renderer: "classic-utau", Resampler: "missing", Wavtool: "builtin"}, true); err == nil {
+	if _, _, _, err := service.config(Request{Renderer: "classic-utau", Resampler: "missing", Wavtool: "builtin"}, true); err == nil {
 		t.Fatal("unknown resampler was accepted")
 	}
 }
@@ -105,7 +105,7 @@ func TestSynthesisConfigRejectsUnavailableRendererRuntime(t *testing.T) {
 	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{{
 		ID: "world", DisplayName: "WORLD", Backend: "utautts-world-phrase",
 	}}}, "", "", "", "", "", testVoicebankResolver{path: "voicebank"})
-	if _, _, err := service.config(Request{Renderer: "world"}, true); !errors.Is(err, ErrUnavailable) {
+	if _, _, _, err := service.config(Request{Renderer: "world"}, true); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("unavailable runtime error = %v", err)
 	}
 }

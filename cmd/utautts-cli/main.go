@@ -170,41 +170,43 @@ func main() {
 		log.Fatal(err)
 	}
 	synthConfig := tts.Config{
-		VoicebankPath:                voicebankPath,
-		Text:                         text,
-		Reading:                      reading,
-		Language:                     language,
-		Phonemizer:                   phonemizer,
-		Dictionary:                   synth.DictionaryMap(dictionary),
-		Tone:                         tone,
-		Color:                        color,
-		MoraDurationMS:               moraMS,
-		PauseDurationMS:              pauseMS,
-		MoraDurationsMS:              moraDurations,
-		LeadingPreutteranceMS:        leadingPreutteranceMS,
-		ReleaseMS:                    releaseMS,
-		ReleaseSet:                   true,
-		ProsodyModelPath:             prosodyPath,
-		ManualPitchPath:              manualPitchPath,
-		ProsodyFeatures:              prosodyFeatures,
-		ProsodyPitchOnly:             prosodyPitchOnly,
-		OpenJTalkPath:                openJTalkPath,
-		OpenJTalkDictionaryPath:      openJTalkDictionaryPath,
-		PitchFactors:                 pitchFactors,
-		ApplyPitch:                   applyPitch,
-		IntonationStrength:           intonationStrength,
-		BoundaryBridgeMS:             boundaryBridgeMS,
-		BoundaryBridgeThreshold:      boundaryBridgeThreshold,
-		CVVCTiming:                   cvvcTiming,
-		CVVCTransitionGain:           cvvcTransitionGain,
-		CVVCPreBoundaryFade:          cvvcPreBoundaryFade,
-		SelectionMode:                voicebank.SelectionMode(selectionMode),
-		AliasPolicy:                  voicebank.AliasPolicy(aliasPolicy),
-		AcousticMode:                 acousticMode,
-		JoinModelPath:                joinModelPath,
-		JoinScoreScale:               joinScoreScale,
-		ExternalResamplerExpressions: resamplerExpressions,
+		VoicebankPath:           voicebankPath,
+		Text:                    text,
+		Reading:                 reading,
+		Language:                language,
+		Phonemizer:              phonemizer,
+		Dictionary:              synth.DictionaryMap(dictionary),
+		Tone:                    tone,
+		Color:                   color,
+		MoraDurationMS:          moraMS,
+		PauseDurationMS:         pauseMS,
+		MoraDurationsMS:         moraDurations,
+		LeadingPreutteranceMS:   leadingPreutteranceMS,
+		ReleaseMS:               releaseMS,
+		ReleaseSet:              true,
+		ProsodyModelPath:        prosodyPath,
+		ManualPitchPath:         manualPitchPath,
+		ProsodyFeatures:         prosodyFeatures,
+		ProsodyPitchOnly:        prosodyPitchOnly,
+		OpenJTalkPath:           openJTalkPath,
+		OpenJTalkDictionaryPath: openJTalkDictionaryPath,
+		PitchFactors:            pitchFactors,
+		ApplyPitch:              applyPitch,
+		IntonationStrength:      intonationStrength,
+		BoundaryBridgeMS:        boundaryBridgeMS,
+		BoundaryBridgeThreshold: boundaryBridgeThreshold,
+		CVVCTiming:              cvvcTiming,
+		CVVCTransitionGain:      cvvcTransitionGain,
+		CVVCPreBoundaryFade:     cvvcPreBoundaryFade,
+		SelectionMode:           voicebank.SelectionMode(selectionMode),
+		AliasPolicy:             voicebank.AliasPolicy(aliasPolicy),
+		AcousticMode:            acousticMode,
+		JoinModelPath:           joinModelPath,
+		JoinScoreScale:          joinScoreScale,
 	}
+	providerOptions := render.ProviderOptions{Classic: render.ClassicOptions{
+		ResamplerExpressions: resamplerExpressions,
+	}}
 	resolvedEngine, err := resolver.ResolveRenderer(renderer)
 	if err != nil {
 		log.Fatal(err)
@@ -212,16 +214,16 @@ func main() {
 	if err := resolvedEngine.RequireAvailable(); err != nil {
 		log.Fatal(err)
 	}
-	tts.ApplyResolvedEngine(&synthConfig, resolvedEngine, worldlinePath, worldlineBridgePath)
+	tts.ApplyResolvedEngine(&synthConfig, resolvedEngine)
 	if resolvedEngine.Provider.ID == "utau-external-resampler" {
 		classicTools, toolsErr := resolver.ResolveClassicTools(resampler, wavtool)
 		if toolsErr != nil {
 			log.Fatal(toolsErr)
 		}
-		synthConfig.ExternalResamplerPath = classicTools.Resampler.Path
-		synthConfig.ExternalWavtoolPath = classicTools.Wavtool.Path
+		providerOptions.Classic.ResamplerPath = classicTools.Resampler.Path
+		providerOptions.Classic.WavtoolPath = classicTools.Wavtool.Path
 	}
-	output, err := synth.SynthesizeConfig(synthConfig, string(resolvedEngine.PublicID()))
+	output, err := synth.SynthesizeConfigWithOptions(synthConfig, string(resolvedEngine.PublicID()), providerOptions)
 	if err != nil {
 		log.Fatal(err)
 	}

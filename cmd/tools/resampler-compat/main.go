@@ -100,11 +100,13 @@ func probeIntegration(input, output, executable, wavtool string, timeout time.Du
 	}}}
 	started := time.Now()
 	pcm, err := render.Render(synthesisPlan, render.Config{
-		Context: ctx, Backend: "utau-external-resampler", ExternalResamplerPath: executable, ExternalWavtoolPath: wavtool,
+		Context: ctx, Backend: "utau-external-resampler",
+		ProviderOptions: render.ProviderOptions{Classic: render.ClassicOptions{
+			ResamplerPath: executable, WavtoolPath: wavtool,
+			Velocity: velocity, VelocitySet: true, Flags: flags,
+			Modulation: modulation, ModulationSet: true, Tempo: tempo,
+		}},
 		ReleaseSet: true, CVVCTiming: render.CVVCTimingLegacy,
-		ExternalResamplerVelocity: velocity, ExternalResamplerVelocitySet: true,
-		ExternalResamplerFlags: flags, ExternalResamplerModulation: modulation,
-		ExternalResamplerModulationSet: true, ExternalResamplerTempo: tempo,
 	})
 	r.ElapsedMS = time.Since(started).Milliseconds()
 	if ctx.Err() != nil {

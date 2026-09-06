@@ -65,7 +65,8 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 	if synthesisPlan == nil || len(synthesisPlan.Units) == 0 {
 		return nil, errors.New("empty synthesis plan")
 	}
-	resampler := strings.TrimSpace(cfg.ExternalResamplerPath)
+	classic := cfg.ProviderOptions.Classic
+	resampler := strings.TrimSpace(classic.ResamplerPath)
 	if resampler == "" {
 		return nil, errors.New("external UTAU resampler is not configured by the renderer plugin")
 	}
@@ -79,12 +80,12 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 	if cfg.CVVCTiming == "" {
 		cfg.CVVCTiming = CVVCTimingLegacy
 	}
-	if cfg.ExternalWavtoolPath != "" {
-		if info, statErr := os.Stat(cfg.ExternalWavtoolPath); statErr != nil || info.IsDir() {
+	if classic.WavtoolPath != "" {
+		if info, statErr := os.Stat(classic.WavtoolPath); statErr != nil || info.IsDir() {
 			if statErr == nil {
 				statErr = errors.New("path is a directory")
 			}
-			return nil, fmt.Errorf("external UTAU wavtool %q: %w", cfg.ExternalWavtoolPath, statErr)
+			return nil, fmt.Errorf("external UTAU wavtool %q: %w", classic.WavtoolPath, statErr)
 		}
 	}
 	if cfg.CVVCTiming != CVVCTimingLegacy && cfg.CVVCTiming != CVVCTimingSequential {
@@ -100,19 +101,19 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 	synthesisPlan.CVVCTransitionGain = cfg.CVVCTransitionGain
 	synthesisPlan.CVVCPreBoundaryFade = cfg.CVVCPreBoundaryFade
 	velocity := 100
-	if cfg.ExternalResamplerVelocitySet {
-		velocity = cfg.ExternalResamplerVelocity
+	if classic.VelocitySet {
+		velocity = classic.Velocity
 	}
 	modulation := 0
-	if cfg.ExternalResamplerModulationSet {
-		modulation = cfg.ExternalResamplerModulation
+	if classic.ModulationSet {
+		modulation = classic.Modulation
 	}
-	tempo := cfg.ExternalResamplerTempo
+	tempo := classic.Tempo
 	if tempo == 0 {
 		tempo = 120
 	}
-	expressions, err := resolveResamplerExpressions(cfg.ExternalResamplerExpressions, effectiveResamplerExpression{
-		velocity: velocity, flags: cfg.ExternalResamplerFlags, modulation: modulation, tempo: tempo,
+	expressions, err := resolveResamplerExpressions(classic.ResamplerExpressions, effectiveResamplerExpression{
+		velocity: velocity, flags: classic.Flags, modulation: modulation, tempo: tempo,
 	})
 	if err != nil {
 		return nil, err
@@ -247,14 +248,14 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 		unit.TargetF0Hz = externalTargetF0At(synthesisPlan, sourcePitches, factors, reference, unit.NoteStartMS)
 		unit.TargetF0Hz *= pitchCurveFactorAt(cfg.PitchCurve, unit.NoteStartMS)
 		unit.IntonationFactor = intonation[index]
-		if cfg.ExternalWavtoolPath != "" {
+		if classic.WavtoolPath != "" {
 			durationTicks := unit.DurationMS * expression.tempo * 480 / 60000
 			duration := formatUtauNumber(durationTicks) + "@" + formatUtauNumber(expression.tempo)
 			if durationCorrection >= 0 {
 				duration += "+"
 			}
 			duration += formatUtauNumber(durationCorrection)
-			if err := runExternalWavtool(cfg.Context, cfg.ExternalWavtoolPath, wavtoolOutput, outputPath,
+			if err := runExternalWavtool(cfg.Context, classic.WavtoolPath, wavtoolOutput, outputPath,
 				skipOverMS, duration, envelopePoints, timing.overlap); err != nil {
 				return nil, fmt.Errorf("wavtool unit %q: %w", unit.Alias, err)
 			}
@@ -276,7 +277,7 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 			skipMS:     skipMS, wave: pcmFloats(pcm.Data), envelope: envelopePoints,
 		})
 	}
-	if cfg.ExternalWavtoolPath != "" {
+	if classic.WavtoolPath != "" {
 		if err := finalizeExternalWavtoolOutput(wavtoolOutput); err != nil {
 			return nil, err
 		}

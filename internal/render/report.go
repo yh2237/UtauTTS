@@ -106,12 +106,14 @@ func RenderWithReport(synthesisPlan *plan.Plan, cfg Config) (*UnitRenderResult, 
 // UnitRendererForConfig selects a built-in adapter or a manifest-declared
 // external Provider. Keeping this decision at the UnitRenderer boundary lets
 // the rest of the TTS pipeline remain unaware of process transport details.
+
 func UnitRendererForConfig(cfg Config) (UnitRenderer, error) {
-	if cfg.EngineDefinition != nil && cfg.EngineDefinition.Protocol == "utautts-provider" {
-		if cfg.EngineDefinition.Contract != engine.ContractUnitRenderer {
-			return nil, fmt.Errorf("external provider contract %q is not a unit-renderer", cfg.EngineDefinition.Contract)
+	definition := cfg.Engine.Definition
+	if definition.Protocol == "utautts-provider" {
+		if definition.Contract != engine.ContractUnitRenderer {
+			return nil, fmt.Errorf("external provider contract %q is not a unit-renderer", definition.Contract)
 		}
-		return newExternalUnitRenderer(*cfg.EngineDefinition), nil
+		return newExternalUnitRenderer(definition), nil
 	}
 	return UnitRendererForBackend(cfg.Backend)
 }

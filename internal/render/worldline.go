@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"utautts/internal/audio"
+	"utautts/internal/engine"
 	"utautts/internal/plan"
 	"utautts/internal/provider"
 )
@@ -69,7 +70,7 @@ type worldlineEnvelopePoint struct {
 	Y   float64 `json:"y"`
 }
 
-func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) (*audio.PCM, error) {
+func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID string) (*audio.PCM, error) {
 	if synthesisPlan == nil || len(synthesisPlan.Units) == 0 {
 		return nil, errors.New("empty synthesis plan")
 	}
@@ -88,20 +89,20 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) 
 	synthesisPlan.CVVCTiming = cfg.CVVCTiming
 	synthesisPlan.CVVCTransitionGain = cfg.CVVCTransitionGain
 	synthesisPlan.CVVCPreBoundaryFade = cfg.CVVCPreBoundaryFade
-	customWorld := engine == "utautts-world-phrase" || engine == "utautts-world-phrase-cuda"
+	customWorld := providerID == "utautts-world-phrase" || providerID == "utautts-world-phrase-cuda"
 	library, worldEnginePath := "", ""
 	var err error
 	if customWorld {
-		worldEnginePath, err = resolveWorldEngine(cfg.WorldEnginePath)
+		worldEnginePath, err = resolveWorldEngine(cfg.resource(engine.ResourceWorldEngine))
 	} else {
-		library, err = resolveWorldlineLibrary(cfg.WorldlinePath)
+		library, err = resolveWorldlineLibrary(cfg.resource(engine.ResourceWorldline))
 	}
 	if err != nil {
 		return nil, err
 	}
 	gpuPath := ""
-	if engine == "utautts-world-phrase-cuda" {
-		gpuPath = cfg.WorldGPUPath
+	if providerID == "utautts-world-phrase-cuda" {
+		gpuPath = cfg.resource(engine.ResourceWorldGPU)
 		if gpuPath == "" {
 			return nil, errors.New("CUDA WORLD feature mixer is not configured by the renderer plugin")
 		}
@@ -109,7 +110,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) 
 			return nil, fmt.Errorf("CUDA WORLD feature mixer %q: %w", gpuPath, err)
 		}
 	}
-	bridge, err := resolveWorldlineBridge(cfg.WorldlineBridgePath)
+	bridge, err := resolveWorldlineBridge(cfg.resource(engine.ResourceWorldlineBridge))
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +118,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) 
 	timings := make([]effectiveTiming, len(synthesisPlan.Units))
 	var phoneTimings []openUtauPhoneTiming
 	phraseStartMS := 0.0
-	phraseTiming := engine == "worldline-r-faithful" || customWorld
+	phraseTiming := providerID == "worldline-r-faithful" || customWorld
 	if phraseTiming {
 		phoneTimings, phraseStartMS = openUtauPhoneTimings(synthesisPlan.Units, cfg.CVVCTiming)
 	}
@@ -166,7 +167,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) 
 	f0Curve := worldlineF0CurveAtOffset(synthesisPlan, pitches, pitchFactors, reference,
 		max(2, int(math.Ceil(curveDurationMS/frameMS))+2), frameMS, curveStartMS)
 	manifest := worldlineManifest{
-		Engine:          engine,
+		Engine:          providerID,
 		WorldlinePath:   library,
 		WorldEnginePath: worldEnginePath,
 		GPUPath:         gpuPath,
@@ -254,7 +255,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, engine string) 
 			}
 			requiredLength = math.Max(unit.DurationMS+durCorrection+skipMS, unit.ConsonantMS)
 			requiredLength = math.Ceil(requiredLength/50+0.5) * 50
-			if cfg.WorldlineExactLength {
+			if cfg.ProviderOptions.Worldline.ExactLength {
 				requiredLength = unit.DurationMS
 			}
 			lengthMS = timing.preutteranceMS + unit.DurationMS + cfg.ReleaseMS

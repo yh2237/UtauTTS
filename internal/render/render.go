@@ -17,34 +17,59 @@ import (
 )
 
 type Config struct {
-	Context                        context.Context
-	EngineDefinition               *engine.Definition
-	ReleaseMS                      float64
-	ReleaseSet                     bool
-	LeadingPreutteranceMS          float64
-	IntonationStrength             float64
-	ApplyPitch                     bool
-	Backend                        string
-	WorldlinePath                  string
-	WorldlineBridgePath            string
-	WorldEnginePath                string
-	WorldGPUPath                   string
-	ExternalResamplerPath          string
-	ExternalResamplerVelocity      int
-	ExternalResamplerVelocitySet   bool
-	ExternalResamplerFlags         string
-	ExternalResamplerModulation    int
-	ExternalResamplerModulationSet bool
-	ExternalResamplerTempo         float64
-	ExternalWavtoolPath            string
-	ExternalResamplerExpressions   []ResamplerExpression
-	WorldlineExactLength           bool
-	BoundaryBridgeMS               float64
-	BoundaryBridgeThreshold        float64
-	CVVCTiming                     string
-	CVVCTransitionGain             float64
-	CVVCPreBoundaryFade            bool
-	PitchCurve                     *PitchCurve
+	Context                 context.Context
+	Engine                  engine.ResolvedEngine
+	ReleaseMS               float64
+	ReleaseSet              bool
+	LeadingPreutteranceMS   float64
+	IntonationStrength      float64
+	ApplyPitch              bool
+	Backend                 string
+	ProviderOptions         ProviderOptions
+	BoundaryBridgeMS        float64
+	BoundaryBridgeThreshold float64
+	CVVCTiming              string
+	CVVCTransitionGain      float64
+	CVVCPreBoundaryFade     bool
+	PitchCurve              *PitchCurve
+}
+
+// ProviderOptions contains settings that belong to a concrete provider.
+// Keeping these out of the top-level render Config prevents unrelated
+// providers from accumulating one another's executable paths and switches.
+type ProviderOptions struct {
+	Classic   ClassicOptions
+	Worldline WorldlineProviderOptions
+}
+
+// ClassicOptions contains the external UTAU resampler/wavtool settings.
+type ClassicOptions struct {
+	ResamplerPath        string
+	WavtoolPath          string
+	Velocity             int
+	VelocitySet          bool
+	Flags                string
+	Modulation           int
+	ModulationSet        bool
+	Tempo                float64
+	ResamplerExpressions []ResamplerExpression
+}
+
+// WorldlineProviderOptions contains WORLD-only host controls. The prepared
+// WORLD job carries the rest of its provider input in provider options.
+type WorldlineProviderOptions struct {
+	ExactLength bool
+}
+
+func (cfg Config) resource(key engine.ResourceKey) string {
+	return cfg.Engine.Resource(key)
+}
+
+func (cfg Config) providerID() engine.ProviderID {
+	if cfg.Engine.Provider.ID != "" {
+		return cfg.Engine.Provider.ID
+	}
+	return engine.ProviderID(cfg.Backend)
 }
 
 type ResamplerExpression struct {

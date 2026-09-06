@@ -131,7 +131,8 @@ func TestRenderUtauExternalResamplerInvokesCompatibleExecutable(t *testing.T) {
 		PitchFactor: 1, EnergyFactor: 1,
 	}}}
 	result, err := renderUtauExternalResampler(synthesisPlan, Config{
-		ExternalResamplerPath: executable, ReleaseSet: true, CVVCTiming: CVVCTimingLegacy,
+		ProviderOptions: ProviderOptions{Classic: ClassicOptions{ResamplerPath: executable}},
+		ReleaseSet:      true, CVVCTiming: CVVCTimingLegacy,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -194,8 +195,8 @@ func TestRenderUtauExternalResamplerUsesExternalWavtool(t *testing.T) {
 		PitchFactor: 1, EnergyFactor: 1,
 	}}}
 	result, err := renderUtauExternalResampler(p, Config{
-		ExternalResamplerPath: executable, ExternalWavtoolPath: executable,
-		ReleaseSet: true, CVVCTiming: CVVCTimingLegacy,
+		ProviderOptions: ProviderOptions{Classic: ClassicOptions{ResamplerPath: executable, WavtoolPath: executable}},
+		ReleaseSet:      true, CVVCTiming: CVVCTimingLegacy,
 	})
 	if err != nil {
 		t.Fatal(err)

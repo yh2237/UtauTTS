@@ -20,61 +20,47 @@ import (
 )
 
 type Config struct {
-	Context                        context.Context
-	RendererDefinition             *engine.Definition
-	VoicebankPath                  string
-	Voicebank                      *voicebank.Bank
-	Text                           string
-	Reading                        string
-	Language                       string
-	Phonemizer                     string
-	Dictionary                     map[string]string
-	Tone                           string
-	Color                          string
-	MoraDurationMS                 float64
-	PauseDurationMS                float64
-	MoraDurationsMS                []float64
-	ReleaseMS                      float64
-	ReleaseSet                     bool
-	LeadingPreutteranceMS          float64
-	ProsodyModelPath               string
-	ProsodyModel                   *prosody.Model
-	ManualPitchPath                string
-	ManualPitch                    *prosody.ManualPitchFile
-	ProsodyFeatures                []prosody.FeatureFrame
-	ProsodyPitchOnly               bool
-	OpenJTalkPath                  string
-	OpenJTalkDictionaryPath        string
-	PitchFactors                   []float64
-	ApplyPitch                     bool
-	IntonationStrength             float64
-	Renderer                       string
-	RendererCapabilities           *plugin.Capabilities
-	WorldlinePath                  string
-	WorldlineBridgePath            string
-	WorldEnginePath                string
-	WorldGPUPath                   string
-	DiffSingerBridgePath           string
-	ExternalResamplerPath          string
-	ExternalResamplerVelocity      int
-	ExternalResamplerVelocitySet   bool
-	ExternalResamplerFlags         string
-	ExternalResamplerModulation    int
-	ExternalResamplerModulationSet bool
-	ExternalResamplerTempo         float64
-	ExternalWavtoolPath            string
-	ExternalResamplerExpressions   []render.ResamplerExpression
-	BoundaryBridgeMS               float64
-	BoundaryBridgeThreshold        float64
-	CVVCTiming                     string
-	CVVCTransitionGain             float64
-	CVVCPreBoundaryFade            bool
-	PitchCurve                     *render.PitchCurve
-	SelectionMode                  voicebank.SelectionMode
-	AliasPolicy                    voicebank.AliasPolicy
-	AcousticMode                   string
-	JoinModelPath                  string
-	JoinScoreScale                 float64
+	Context                 context.Context
+	Engine                  engine.ResolvedEngine
+	VoicebankPath           string
+	Voicebank               *voicebank.Bank
+	Text                    string
+	Reading                 string
+	Language                string
+	Phonemizer              string
+	Dictionary              map[string]string
+	Tone                    string
+	Color                   string
+	MoraDurationMS          float64
+	PauseDurationMS         float64
+	MoraDurationsMS         []float64
+	ReleaseMS               float64
+	ReleaseSet              bool
+	LeadingPreutteranceMS   float64
+	ProsodyModelPath        string
+	ProsodyModel            *prosody.Model
+	ManualPitchPath         string
+	ManualPitch             *prosody.ManualPitchFile
+	ProsodyFeatures         []prosody.FeatureFrame
+	ProsodyPitchOnly        bool
+	OpenJTalkPath           string
+	OpenJTalkDictionaryPath string
+	PitchFactors            []float64
+	ApplyPitch              bool
+	IntonationStrength      float64
+	Renderer                string
+	RendererCapabilities    *plugin.Capabilities
+	BoundaryBridgeMS        float64
+	BoundaryBridgeThreshold float64
+	CVVCTiming              string
+	CVVCTransitionGain      float64
+	CVVCPreBoundaryFade     bool
+	PitchCurve              *render.PitchCurve
+	SelectionMode           voicebank.SelectionMode
+	AliasPolicy             voicebank.AliasPolicy
+	AcousticMode            string
+	JoinModelPath           string
+	JoinScoreScale          float64
 }
 
 type Result struct {
@@ -235,9 +221,8 @@ func ResolveRendererWithOptions(catalog *plugin.Catalog, rendererID string, opti
 	return resolver.ResolveWithOptions(engine.DefinitionsFromCatalog(catalog), rendererID, options)
 }
 
-// ApplyRenderer resolves a user-facing renderer ID and applies its legacy
-// runtime fields to Config. New callers should keep the ResolvedEngine so the
-// public ID and implementation ID do not become conflated again.
+// ApplyRenderer resolves a user-facing renderer ID and stores the resolved
+// engine on Config. Provider resources remain inside ResolvedEngine.
 func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlinePath, worldlineBridgePath string) (string, error) {
 	resolved, err := ResolveRendererWithOptions(catalog, rendererID, engine.ResolveOptions{
 		ResourceOverrides: map[engine.ResourceKey]string{
@@ -248,41 +233,26 @@ func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlinePa
 	if err != nil {
 		return "", err
 	}
-	ApplyResolvedEngine(cfg, resolved, worldlinePath, worldlineBridgePath)
+	ApplyResolvedEngine(cfg, resolved)
 	return string(resolved.PublicID()), nil
 }
 
-// ApplyResolvedEngine applies the compatibility fields still consumed by tts
-// and render. Provider-specific options remain in this compatibility envelope
-// until each provider has its own typed application boundary.
-func ApplyResolvedEngine(cfg *Config, resolved engine.ResolvedEngine, worldlinePath, worldlineBridgePath string) {
-	definition := resolved.Definition
-	cfg.RendererDefinition = &definition
+// ApplyResolvedEngine stores the resolved engine as the provider boundary.
+// Runtime resources remain owned by the resolved engine instead of being
+// copied into the generic TTS configuration.
+func ApplyResolvedEngine(cfg *Config, resolved engine.ResolvedEngine) {
+	cfg.Engine = resolved
 	capabilities := plugin.Capabilities{
 		FramePitch:     resolved.Definition.Capabilities.FramePitch,
 		BoundaryBridge: resolved.Definition.Capabilities.BoundaryBridge,
 	}
 	cfg.Renderer = string(resolved.Provider.ID)
 	cfg.RendererCapabilities = &capabilities
-	cfg.WorldlinePath = preferExplicit(worldlinePath, resolved.Resource(engine.ResourceWorldline))
-	cfg.WorldlineBridgePath = preferExplicit(worldlineBridgePath, resolved.Resource(engine.ResourceWorldlineBridge))
-	cfg.WorldEnginePath = resolved.Resource(engine.ResourceWorldEngine)
-	cfg.WorldGPUPath = resolved.Resource(engine.ResourceWorldGPU)
-	cfg.DiffSingerBridgePath = resolved.Resource(engine.ResourceDiffSingerBridge)
-	cfg.ExternalResamplerPath = ""
-	cfg.ExternalWavtoolPath = ""
-	cfg.ExternalResamplerVelocity = 0
-	cfg.ExternalResamplerVelocitySet = false
-	cfg.ExternalResamplerFlags = ""
-	cfg.ExternalResamplerModulation = 0
-	cfg.ExternalResamplerModulationSet = false
-	cfg.ExternalResamplerTempo = 0
 }
 
-// ApplyResolvedRenderer is a compatibility wrapper for callers that still
-// pass a v1 manifest directly. Resolver-based callers should use
-// ApplyResolvedEngine.
-func ApplyResolvedRenderer(cfg *Config, renderer plugin.Renderer, worldlinePath, worldlineBridgePath string) {
+// ApplyResolvedRenderer adapts a discovered renderer manifest for callers
+// that have not migrated to the resolver API yet.
+func ApplyResolvedRenderer(cfg *Config, renderer plugin.Renderer) {
 	definition := engine.DefinitionFromV1(renderer)
 	if renderer.ManifestVersion == 2 {
 		definition = engine.DefinitionFromV2(renderer)
@@ -294,24 +264,28 @@ func ApplyResolvedRenderer(cfg *Config, renderer plugin.Renderer, worldlinePath,
 			Contract: definition.Contract,
 			Version:  definition.ProviderVersion,
 		},
-	}, worldlinePath, worldlineBridgePath)
-}
-
-func preferExplicit(explicit, manifestValue string) string {
-	if explicit != "" {
-		return explicit
-	}
-	return manifestValue
+	})
 }
 
 func Synthesize(cfg Config) (*Result, error) {
+	return SynthesizeWithOptions(cfg, render.ProviderOptions{})
+}
+
+// SynthesizeWithOptions runs the common TTS pipeline with settings owned by
+// the selected provider. The generic Config intentionally contains no
+// provider executable paths or provider switches.
+func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (*Result, error) {
 	if err := synthesisContextError(cfg.Context); err != nil {
 		return nil, err
 	}
 	if err := validateConfig(cfg); err != nil {
 		return nil, err
 	}
-	if synthesizer, found := neuralSynthesizerForProvider(engine.ProviderID(cfg.Renderer)); found {
+	providerID := engine.ProviderID(cfg.Renderer)
+	if cfg.Engine.Provider.ID != "" {
+		providerID = cfg.Engine.Provider.ID
+	}
+	if synthesizer, found := neuralSynthesizerForProvider(providerID); found {
 		return synthesizer.Synthesize(cfg)
 	}
 	bank := cfg.Voicebank
@@ -481,33 +455,21 @@ func Synthesize(cfg Config) (*Result, error) {
 	}
 	intonationStrength := effectiveIntonationStrength(cfg)
 	rendered, err := render.RenderWithReport(synthesisPlan, render.Config{
-		Context:                        cfg.Context,
-		ReleaseMS:                      cfg.ReleaseMS,
-		ReleaseSet:                     cfg.ReleaseSet,
-		LeadingPreutteranceMS:          cfg.LeadingPreutteranceMS,
-		IntonationStrength:             intonationStrength,
-		ApplyPitch:                     applyPitch,
-		Backend:                        cfg.Renderer,
-		EngineDefinition:               cfg.RendererDefinition,
-		WorldlinePath:                  cfg.WorldlinePath,
-		WorldlineBridgePath:            cfg.WorldlineBridgePath,
-		WorldEnginePath:                cfg.WorldEnginePath,
-		WorldGPUPath:                   cfg.WorldGPUPath,
-		ExternalResamplerPath:          cfg.ExternalResamplerPath,
-		ExternalResamplerVelocity:      cfg.ExternalResamplerVelocity,
-		ExternalResamplerVelocitySet:   cfg.ExternalResamplerVelocitySet,
-		ExternalResamplerFlags:         cfg.ExternalResamplerFlags,
-		ExternalResamplerModulation:    cfg.ExternalResamplerModulation,
-		ExternalResamplerModulationSet: cfg.ExternalResamplerModulationSet,
-		ExternalResamplerTempo:         cfg.ExternalResamplerTempo,
-		ExternalWavtoolPath:            cfg.ExternalWavtoolPath,
-		ExternalResamplerExpressions:   cfg.ExternalResamplerExpressions,
-		BoundaryBridgeMS:               cfg.BoundaryBridgeMS,
-		BoundaryBridgeThreshold:        cfg.BoundaryBridgeThreshold,
-		CVVCTiming:                     cfg.CVVCTiming,
-		CVVCTransitionGain:             cfg.CVVCTransitionGain,
-		CVVCPreBoundaryFade:            cfg.CVVCPreBoundaryFade,
-		PitchCurve:                     pitchCurve,
+		Context:                 cfg.Context,
+		Engine:                  cfg.Engine,
+		ReleaseMS:               cfg.ReleaseMS,
+		ReleaseSet:              cfg.ReleaseSet,
+		LeadingPreutteranceMS:   cfg.LeadingPreutteranceMS,
+		IntonationStrength:      intonationStrength,
+		ApplyPitch:              applyPitch,
+		Backend:                 cfg.Renderer,
+		ProviderOptions:         providerOptions,
+		BoundaryBridgeMS:        cfg.BoundaryBridgeMS,
+		BoundaryBridgeThreshold: cfg.BoundaryBridgeThreshold,
+		CVVCTiming:              cfg.CVVCTiming,
+		CVVCTransitionGain:      cfg.CVVCTransitionGain,
+		CVVCPreBoundaryFade:     cfg.CVVCPreBoundaryFade,
+		PitchCurve:              pitchCurve,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("render: %w", err)

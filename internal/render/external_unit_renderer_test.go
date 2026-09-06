@@ -94,9 +94,11 @@ func TestExternalUnitRendererKeepsProviderResidentAcrossRenders(t *testing.T) {
 	input := &plan.Plan{Version: plan.Version, Voicebank: "bank", Units: []plan.Unit{{Source: "unit.wav", DurationMS: 100}}}
 	for index := 0; index < 2; index++ {
 		result, err := RenderWithReport(input, Config{
-			Context:          context.Background(),
-			Backend:          string(definition.Provider),
-			EngineDefinition: &definition,
+			Context: context.Background(), Backend: string(definition.Provider),
+			Engine: engine.ResolvedEngine{
+				Definition: definition,
+				Provider:   engine.Provider{ID: definition.Provider, Contract: definition.Contract, Version: definition.ProviderVersion},
+			},
 		})
 		if err != nil {
 			t.Fatal(err)

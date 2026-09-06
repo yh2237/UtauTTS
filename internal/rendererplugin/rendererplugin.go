@@ -30,5 +30,5 @@ func Resolve(renderers []plugin.Renderer, id string) (plugin.Renderer, error) {
 }
 
 func Apply(renderer plugin.Renderer, config *tts.Config) {
-	tts.ApplyResolvedRenderer(config, renderer, config.WorldlinePath, config.WorldlineBridgePath)
+	tts.ApplyResolvedRenderer(config, renderer)
 }

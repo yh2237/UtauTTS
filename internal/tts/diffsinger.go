@@ -64,7 +64,11 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 		WordDiv: wordDiv, WordDur: wordDur, NoteRest: noteRest,
 		UsePitchPredictor: singer.Pitch != nil && cfg.PitchCurve == nil,
 	}
-	pcm, err := diffsinger.RenderScore(cfg.Context, cfg.DiffSingerBridgePath, singer, score)
+	bridgePath := cfg.Engine.Resource(engine.ResourceDiffSingerBridge)
+	if bridgePath == "" {
+		return nil, fmt.Errorf("DiffSinger bridge is not configured by the renderer plugin")
+	}
+	pcm, err := diffsinger.RenderScore(cfg.Context, bridgePath, singer, score)
 	if err != nil {
 		return nil, err
 	}

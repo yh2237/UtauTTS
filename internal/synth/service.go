@@ -93,17 +93,23 @@ func (s *Service) Synthesize(request Request) (*Result, error) {
 }
 
 func (s *Service) SynthesizeContext(ctx context.Context, request Request) (*Result, error) {
-	cfg, rendererID, err := s.config(request, true)
+	cfg, rendererID, providerOptions, err := s.config(request, true)
 	if err != nil {
 		return nil, err
 	}
 	cfg.Context = ctx
-	return SynthesizeConfig(cfg, rendererID)
+	return SynthesizeConfigWithOptions(cfg, rendererID, providerOptions)
 }
 
 // SynthesizeConfigは解決済み設定から共通の合成結果を作る。
 func SynthesizeConfig(cfg tts.Config, rendererID string) (*Result, error) {
-	result, err := tts.Synthesize(cfg)
+	return SynthesizeConfigWithOptions(cfg, rendererID, render.ProviderOptions{})
+}
+
+// SynthesizeConfigWithOptions runs a resolved config with provider-owned
+// options kept outside tts.Config.
+func SynthesizeConfigWithOptions(cfg tts.Config, rendererID string, providerOptions render.ProviderOptions) (*Result, error) {
+	result, err := tts.SynthesizeWithOptions(cfg, providerOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +122,7 @@ func (s *Service) PredictProsody(request Request) (*tts.ProsodyPreview, string, 
 }
 
 func (s *Service) PredictProsodyContext(ctx context.Context, request Request) (*tts.ProsodyPreview, string, error) {
-	cfg, rendererID, err := s.config(request, false)
+	cfg, rendererID, _, err := s.config(request, false)
 	if err != nil {
 		return nil, "", err
 	}
@@ -128,67 +134,69 @@ func (s *Service) PredictProsodyContext(ctx context.Context, request Request) (*
 	return preview, rendererID, nil
 }
 
-func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, string, error) {
+func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, string, render.ProviderOptions, error) {
 	modelPath, err := s.ResolveModel(request.ModelID)
 	if err != nil {
-		return tts.Config{}, "", err
+		return tts.Config{}, "", render.ProviderOptions{}, err
 	}
 	reading := request.Reading
 	if reading == "" {
 		reading = request.Kana
 	}
 	cfg := tts.Config{
-		Text:                         request.Text,
-		Reading:                      reading,
-		Language:                     request.Language,
-		Phonemizer:                   request.Phonemizer,
-		Dictionary:                   DictionaryMap(request.Dictionary),
-		Tone:                         request.Tone,
-		Color:                        request.Color,
-		AliasPolicy:                  request.AliasPolicy,
-		AcousticMode:                 request.AcousticMode,
-		MoraDurationMS:               request.MoraDurationMS,
-		PauseDurationMS:              request.PauseDurationMS,
-		LeadingPreutteranceMS:        request.LeadingPreutteranceMS,
-		MoraDurationsMS:              request.MoraDurationsMS,
-		ProsodyModelPath:             modelPath,
-		ManualPitch:                  request.ManualPitch,
-		IntonationStrength:           request.IntonationStrength,
-		ApplyPitch:                   request.ApplyPitch,
-		OpenJTalkPath:                s.openJTalkPath,
-		OpenJTalkDictionaryPath:      s.openJTalkDictionary,
-		ExternalResamplerExpressions: append([]render.ResamplerExpression(nil), request.ResamplerExpressions...),
+		Text:                    request.Text,
+		Reading:                 reading,
+		Language:                request.Language,
+		Phonemizer:              request.Phonemizer,
+		Dictionary:              DictionaryMap(request.Dictionary),
+		Tone:                    request.Tone,
+		Color:                   request.Color,
+		AliasPolicy:             request.AliasPolicy,
+		AcousticMode:            request.AcousticMode,
+		MoraDurationMS:          request.MoraDurationMS,
+		PauseDurationMS:         request.PauseDurationMS,
+		LeadingPreutteranceMS:   request.LeadingPreutteranceMS,
+		MoraDurationsMS:         request.MoraDurationsMS,
+		ProsodyModelPath:        modelPath,
+		ManualPitch:             request.ManualPitch,
+		IntonationStrength:      request.IntonationStrength,
+		ApplyPitch:              request.ApplyPitch,
+		OpenJTalkPath:           s.openJTalkPath,
+		OpenJTalkDictionaryPath: s.openJTalkDictionary,
 	}
+	providerOptions := render.ProviderOptions{Classic: render.ClassicOptions{
+		ResamplerExpressions: append([]render.ResamplerExpression(nil), request.ResamplerExpressions...),
+	}}
 	if requireVoicebank {
 		if s.voicebanks == nil {
-			return tts.Config{}, "", fmt.Errorf("%w: voicebank resolver is not configured", ErrUnavailable)
+			return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: voicebank resolver is not configured", ErrUnavailable)
 		}
 		voicebankPath, ok := s.voicebanks.Resolve(request.VoicebankID)
 		if !ok {
-			return tts.Config{}, "", fmt.Errorf("%w: voicebank not found", ErrUnavailable)
+			return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: voicebank not found", ErrUnavailable)
 		}
 		cfg.VoicebankPath = voicebankPath
 	}
 	resolvedEngine, err := s.ResolveRenderer(request.Renderer)
 	if err != nil {
-		return tts.Config{}, "", err
+		return tts.Config{}, "", render.ProviderOptions{}, err
 	}
 	if requireVoicebank {
 		if availabilityErr := resolvedEngine.RequireAvailable(); availabilityErr != nil {
-			return tts.Config{}, "", fmt.Errorf("%w: %v", ErrUnavailable, availabilityErr)
+			return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: %v", ErrUnavailable, availabilityErr)
 		}
 	}
-	tts.ApplyResolvedEngine(&cfg, resolvedEngine, s.worldlinePath, s.worldlineBridgePath)
+	tts.ApplyResolvedEngine(&cfg, resolvedEngine)
 	// Classic UTAUは公開Renderer IDではなく解決済みproviderで判定する。
 	if requireVoicebank && resolvedEngine.Provider.ID == "utau-external-resampler" {
 		tools, toolsErr := s.ResolveClassicTools(request.Resampler, request.Wavtool)
 		if toolsErr != nil {
-			return tts.Config{}, "", toolsErr
+			return tts.Config{}, "", render.ProviderOptions{}, toolsErr
 		}
-		cfg.ExternalResamplerPath = tools.Resampler.Path
-		cfg.ExternalWavtoolPath = tools.Wavtool.Path
+		providerOptions.Classic.ResamplerPath = tools.Resampler.Path
+		providerOptions.Classic.WavtoolPath = tools.Wavtool.Path
 	}
-	return cfg, string(resolvedEngine.PublicID()), nil
+	return cfg, string(resolvedEngine.PublicID()), providerOptions, nil
 }
 
 // ResolveRenderer resolves the user-facing Renderer ID to its provider and
