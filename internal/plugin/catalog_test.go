@@ -10,7 +10,11 @@ import (
 )
 
 func TestRepositoryRendererPluginsAreSelfDescribing(t *testing.T) {
-	items := BuiltinRenderers()
+	directories, _ := DefaultDirectories()
+	items, err := DiscoverRenderers(directories, func(string) bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(items) < 2 {
 		t.Fatalf("renderer plugins = %d, want multiple independently described plugins", len(items))
 	}
@@ -18,7 +22,7 @@ func TestRepositoryRendererPluginsAreSelfDescribing(t *testing.T) {
 		t.Fatalf("default renderer = %q, want manifest-priority UtauTTS WORLD phrase", items[0].ID)
 	}
 	for _, item := range items {
-		if item.ID == "" || item.DisplayName == "" || item.Backend == "" || !item.BuiltIn {
+		if item.ID == "" || item.DisplayName == "" || item.Backend == "" {
 			t.Fatalf("incomplete renderer plugin: %#v", item)
 		}
 	}
@@ -116,7 +120,11 @@ func TestRepositoryBundlesSelfDescribingModels(t *testing.T) {
 }
 
 func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {
-	items := BuiltinRenderers()
+	directories, _ := DefaultDirectories()
+	items, err := DiscoverRenderers(directories, func(string) bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := map[string]string{
 		"openutau-worldline-r-faithful": "cpu",
 		"utautts-world-phrase":          "cpu",
@@ -151,13 +159,13 @@ func TestUnknownRendererRequiresExplicitSelection(t *testing.T) {
 func TestPackagedDirectoriesTakePrecedenceOverWorkspaceDirectories(t *testing.T) {
 	workspace := t.TempDir()
 	packaged := filepath.Join(workspace, "release", "UtauTTS")
-	if err := os.MkdirAll(filepath.Join(workspace, "plugins", "renderers"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(workspace, "renderer"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(workspace, "models"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(packaged, "plugins", "renderers"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(packaged, "renderer"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(packaged, "models"), 0o755); err != nil {
@@ -167,7 +175,7 @@ func TestPackagedDirectoriesTakePrecedenceOverWorkspaceDirectories(t *testing.T)
 		t.Fatal(err)
 	}
 	renderers, models := defaultDirectories(filepath.Join(packaged, "tools", "utautts-cli.exe"), workspace)
-	if len(renderers) != 1 || filepath.Clean(renderers[0]) != filepath.Join(packaged, "plugins", "renderers") {
+	if len(renderers) != 1 || filepath.Clean(renderers[0]) != filepath.Join(packaged, "renderer") {
 		t.Fatalf("renderer directories = %#v", renderers)
 	}
 	if len(models) != 1 || filepath.Clean(models[0]) != filepath.Join(packaged, "models") {
@@ -226,5 +234,43 @@ func TestDefaultCatalogIncludesClassicUtau(t *testing.T) {
 	wavtool, ok := catalog.Wavtool("builtin")
 	if !ok || !wavtool.BuiltIn || wavtool.Path != "" {
 		t.Fatalf("built-in wavtool = %#v, %v", wavtool, ok)
+	}
+}
+
+func TestExplicitRendererDirectoryOverridesPackagedID(t *testing.T) {
+	root := t.TempDir()
+	packaged := filepath.Join(root, "packaged")
+	explicit := filepath.Join(root, "explicit")
+	for _, directory := range []string{
+		filepath.Join(packaged, "waveform"), filepath.Join(explicit, "waveform"),
+	} {
+		if err := os.MkdirAll(directory, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	manifest := `{"manifest_version":1,"kind":"renderer","id":"waveform","display_name":"packaged","backend":"waveform"}`
+	if err := os.WriteFile(filepath.Join(packaged, "waveform", "renderer.json"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	manifest = `{"manifest_version":1,"kind":"renderer","id":"waveform","display_name":"explicit","backend":"waveform"}`
+	if err := os.WriteFile(filepath.Join(explicit, "waveform", "renderer.json"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	items, err := DiscoverRenderers([]string{explicit, packaged}, func(string) bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].DisplayName != "explicit" {
+		t.Fatalf("renderer override = %#v", items)
+	}
+}
+
+func TestDirectoryWithoutManifestHasNoRenderers(t *testing.T) {
+	items, err := DiscoverRenderers([]string{t.TempDir()}, func(string) bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("manifest-free directory yielded renderers: %#v", items)
 	}
 }

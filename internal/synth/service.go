@@ -173,7 +173,8 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	if err != nil {
 		return tts.Config{}, "", fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
-	if requireVoicebank && resolvedRendererID == "classic-utau" {
+	// Classic UTAUは予約IDではなくbackendで判定する。
+	if requireVoicebank && cfg.Renderer == "utau-external-resampler" {
 		resampler, found := s.catalog.Resampler(request.Resampler)
 		if !found {
 			return tts.Config{}, "", fmt.Errorf("%w: classic UTAU resampler %q not found", ErrUnavailable, request.Resampler)

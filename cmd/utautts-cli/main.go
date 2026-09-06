@@ -208,7 +208,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if resolvedRendererID == "classic-utau" {
+	if synthConfig.Renderer == "utau-external-resampler" {
 		resamplerTool, found := catalog.Resampler(resampler)
 		if !found {
 			log.Fatalf("Classic UTAU resampler %q is not installed", resampler)

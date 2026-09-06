@@ -65,7 +65,7 @@ const MaxIntonationStrength = 4.0
 // defaultReleaseMSは未指定時のリリース長。明示的な0にはReleaseSetを使う。
 const defaultReleaseMS = 20.0
 
-// rendererImplementationsは実行可能なbackendの一覧。表示情報はplugin.jsonに置く。
+// rendererImplementationsは実行可能なbackendの一覧。表示情報はrenderer.jsonに置く。
 var rendererImplementations = map[string]func(*plan.Plan, Config) (*audio.PCM, error){
 	"waveform":                      renderWaveform,
 	"openutau-worldline-r-faithful": renderOpenUtauWorldlineRFaithful,

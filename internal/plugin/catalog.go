@@ -22,7 +22,6 @@ type Capabilities struct {
 }
 
 type Renderer struct {
-	BuiltIn         bool              `json:"built_in,omitempty"`
 	ManifestVersion int               `json:"manifest_version"`
 	Kind            string            `json:"kind"`
 	ID              string            `json:"id"`
@@ -35,7 +34,10 @@ type Renderer struct {
 	DefaultPriority int               `json:"default_priority,omitempty"`
 	Capabilities    Capabilities      `json:"capabilities,omitempty"`
 	Assets          map[string]string `json:"assets,omitempty"`
-	Directory       string            `json:"-"`
+	// PlatformAssetsはOS・CPU別のasset path。
+	PlatformAssets map[string]map[string]string `json:"platform_assets,omitempty"`
+	Platforms      []string                     `json:"platforms,omitempty"`
+	Directory      string                       `json:"-"`
 }
 
 type Model struct {
@@ -87,29 +89,6 @@ func DiscoverWithDefaults(rendererDirectories, modelDirectories []string, suppor
 	resamplerDirs, wavtoolDirs := DefaultClassicToolDirectories()
 	catalog.Resamplers, catalog.Wavtools = DiscoverClassicTools(resamplerDirs, wavtoolDirs)
 	catalog.Wavtools = append([]ClassicTool{{ID: "builtin", DisplayName: "UtauTTS built-in", BuiltIn: true}}, catalog.Wavtools...)
-	builtins := BuiltinRenderers()
-	builtinByID := map[string]Renderer{}
-	for _, item := range builtins {
-		builtinByID[item.ID] = item
-	}
-	activeRenderers := catalog.Renderers[:0]
-	for _, renderer := range catalog.Renderers {
-		if builtin, exists := builtinByID[renderer.ID]; exists {
-			if renderer.ManifestVersion != 1 || renderer.Backend != builtin.Backend {
-				catalog.Problems = append(catalog.Problems, fmt.Sprintf("%s: built-in renderer ID is reserved", renderer.ID))
-			}
-			continue
-		}
-		if renderer.Backend != "utau-external-resampler" {
-			activeRenderers = append(activeRenderers, renderer)
-		}
-	}
-	catalog.Renderers = activeRenderers
-	for _, builtin := range builtins {
-		if supportsBackend == nil || supportsBackend(builtin.Backend) {
-			catalog.Renderers = append(catalog.Renderers, builtin)
-		}
-	}
 	sort.SliceStable(catalog.Renderers, func(i, j int) bool {
 		return catalog.Renderers[i].DefaultPriority > catalog.Renderers[j].DefaultPriority
 	})
@@ -212,7 +191,7 @@ func DiscoverRenderers(directories []string, supportsBackend func(string) bool) 
 			if entry.IsDir() && path != root && strings.HasPrefix(entry.Name(), ".") {
 				return filepath.SkipDir
 			}
-			if entry.IsDir() || !strings.EqualFold(entry.Name(), "plugin.json") {
+			if entry.IsDir() || !strings.EqualFold(entry.Name(), "renderer.json") {
 				return nil
 			}
 			data, err := os.ReadFile(path)
@@ -225,13 +204,16 @@ func DiscoverRenderers(directories []string, supportsBackend func(string) bool) 
 				problems = append(problems, fmt.Errorf("decode renderer manifest %q: %w", path, err))
 				return nil
 			}
+			if !rendererSupportedOnCurrentPlatform(renderer) {
+				return nil
+			}
 			if err := validateRenderer(renderer, supportsBackend); err != nil {
 				problems = append(problems, fmt.Errorf("renderer manifest %q: %w", path, err))
 				return nil
 			}
 			key := strings.ToLower(renderer.ID)
-			if previous, exists := seen[key]; exists {
-				problems = append(problems, fmt.Errorf("duplicate renderer id %q in %q and %q", renderer.ID, previous, path))
+			if _, exists := seen[key]; exists {
+				// 明示ディレクトリを同梱定義より優先する。
 				return nil
 			}
 			seen[key] = path
@@ -354,6 +336,14 @@ func (catalog *Catalog) Renderer(id string) (Renderer, bool) {
 
 func (renderer Renderer) Asset(name string) string {
 	value := strings.TrimSpace(renderer.Assets[name])
+	for _, platform := range []string{runtime.GOOS + "-" + runtime.GOARCH, "any"} {
+		if assets := renderer.PlatformAssets[platform]; assets != nil {
+			if candidate := strings.TrimSpace(assets[name]); candidate != "" {
+				value = candidate
+				break
+			}
+		}
+	}
 	if value == "" || filepath.IsAbs(value) {
 		return value
 	}
@@ -387,7 +377,7 @@ func defaultDirectories(executable, current string) (rendererDirectories, modelD
 		if strings.EqualFold(filepath.Base(root), "tools") || strings.EqualFold(filepath.Base(root), "app") {
 			root = filepath.Dir(root)
 		}
-		packagedRendererDirectory = filepath.Join(root, "plugins", "renderers")
+		packagedRendererDirectory = filepath.Join(root, "renderer")
 		packagedModelDirectory = filepath.Join(root, "models")
 		if isDirectory(packagedRendererDirectory) {
 			rendererDirectories = append(rendererDirectories, packagedRendererDirectory)
@@ -398,7 +388,7 @@ func defaultDirectories(executable, current string) (rendererDirectories, modelD
 	}
 	if current != "" {
 		root := workspaceRoot(current)
-		workspaceRendererDirectory := filepath.Join(root, "plugins", "renderers")
+		workspaceRendererDirectory := filepath.Join(root, "renderer")
 		workspaceModelDirectory := filepath.Join(root, "models")
 		if len(rendererDirectories) == 0 {
 			rendererDirectories = append(rendererDirectories, workspaceRendererDirectory)
@@ -430,7 +420,7 @@ func workspaceRoot(start string) string {
 }
 
 func validateRenderer(renderer Renderer, supportsBackend func(string) bool) error {
-	if renderer.ManifestVersion != ManifestVersion && renderer.ManifestVersion != 2 {
+	if renderer.ManifestVersion != ManifestVersion {
 		return fmt.Errorf("unsupported manifest_version %d", renderer.ManifestVersion)
 	}
 	if renderer.Kind != "renderer" || renderer.ID == "" || renderer.DisplayName == "" || renderer.Backend == "" {
@@ -443,6 +433,26 @@ func validateRenderer(renderer Renderer, supportsBackend func(string) bool) erro
 		return fmt.Errorf("backend %q is not installed", renderer.Backend)
 	}
 	return nil
+}
+
+func rendererSupportedOnCurrentPlatform(renderer Renderer) bool {
+	platforms := renderer.Platforms
+	if len(platforms) == 0 && len(renderer.PlatformAssets) > 0 {
+		platforms = make([]string, 0, len(renderer.PlatformAssets))
+		for platform := range renderer.PlatformAssets {
+			platforms = append(platforms, platform)
+		}
+	}
+	if len(platforms) == 0 {
+		return true
+	}
+	current := runtime.GOOS + "-" + runtime.GOARCH
+	for _, platform := range platforms {
+		if strings.EqualFold(strings.TrimSpace(platform), "any") || strings.EqualFold(strings.TrimSpace(platform), current) {
+			return true
+		}
+	}
+	return false
 }
 
 func uniqueDirectories(values []string) []string {

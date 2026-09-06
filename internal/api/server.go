@@ -106,7 +106,7 @@ func New(config Config) (*Server, error) {
 	voiceDir := voicebank.ResolveDirectory(config.VoiceDir)
 	catalog, err := plugin.DiscoverWithDefaults(config.RendererDirectories, config.ModelDirectories, render.IsKnownRenderer)
 	if err != nil {
-		return nil, fmt.Errorf("discover plugins: %w", err)
+		return nil, fmt.Errorf("discover renderers: %w", err)
 	}
 	if renderer, ok := catalog.Renderer(config.Renderer); ok {
 		config.Renderer = renderer.ID

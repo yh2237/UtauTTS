@@ -192,7 +192,7 @@ func TestPitchProcessingSwitchControlsModelFrameContour(t *testing.T) {
 }
 
 func TestWaveformRendererSupportsFramePitch(t *testing.T) {
-	if !rendererSupportsFramePitch("waveform", nil) {
+	if !rendererSupportsFramePitch("waveform", &plugin.Capabilities{FramePitch: true}) {
 		t.Fatal("waveform renderer rejected a frame pitch contour")
 	}
 }

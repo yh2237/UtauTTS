@@ -955,9 +955,9 @@ func rendererSupportsFramePitch(renderer string, capabilities *plugin.Capabiliti
 	if capabilities != nil {
 		return capabilities.FramePitch
 	}
+	// 直接呼出し時も外部manifestだけを参照し、Go側の既定値は持たない。
 	directories, _ := plugin.DefaultDirectories()
-	external, _ := plugin.DiscoverRenderers(directories, nil)
-	items := append(plugin.BuiltinRenderers(), external...)
+	items, _ := plugin.DiscoverRenderers(directories, nil)
 	for _, item := range items {
 		if item.ID == renderer || item.Backend == renderer {
 			return item.Capabilities.FramePitch
