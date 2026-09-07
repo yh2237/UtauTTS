@@ -42,6 +42,19 @@ if ([string]::IsNullOrWhiteSpace([string]$model.display_name)) {
 if ([string]$model.id -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
     throw "Invalid model id: $($model.id)"
 }
+if ([string]::IsNullOrWhiteSpace([string]$model.license)) {
+    throw 'The model must contain a license description.'
+}
+if ([string]::IsNullOrWhiteSpace([string]$model.license_notice)) {
+    throw 'The model must contain a license_notice path.'
+}
+$licenseNotice = ([string]$model.license_notice).Trim()
+if ($licenseNotice -ne [string]$model.license_notice -or
+    $licenseNotice -notmatch '^licenses/[^/\\]+(?:/[^/\\]+)*$' -or
+    $licenseNotice -match '(^|/)\.\.?(/|$)' -or
+    $licenseNotice.Contains(':')) {
+    throw 'The model license_notice must be a normalized path below licenses/.'
+}
 New-Item -ItemType Directory -Force -Path $destinationRoot | Out-Null
 $destination = Join-Path $destinationRoot ($model.id + '.json')
 $raw = $raw -replace "`r`n", "`n"

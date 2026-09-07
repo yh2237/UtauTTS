@@ -13,7 +13,25 @@
       "id": "jsut-basic5000",
       "name": "JSUT corpus BASIC5000",
       "url": "https://sites.google.com/site/shinnosuketakamichi/publication/jsut",
-      "license_note": "JSUT LICENCE.txtに従う。田中コーパス、Wikipedia、JSUT独自文を含む。",
+      "license": "Mixed; see licenses/JSUT-DATA-AND-LABELS.txt",
+      "licenses": [
+        {
+          "component": "TANAKA corpus text",
+          "license": "CC BY 2.0",
+          "url": "https://creativecommons.org/licenses/by/2.0/"
+        },
+        {
+          "component": "Japanese Wikipedia text",
+          "license": "CC BY-SA 3.0",
+          "url": "https://creativecommons.org/licenses/by-sa/3.0/"
+        },
+        {
+          "component": "JSUT original sentences",
+          "license": "CC BY-SA 4.0",
+          "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+        }
+      ],
+      "license_note": "JSUT LICENCE.txtに従う混在データ。田中コーパス、Wikipedia、JSUT独自文を含む。個別の出典条件はlicenses/JSUT-DATA-AND-LABELS.txtを参照する。",
       "transcript_sha256": "34150d56cf3f72d1dcadc93b4019ae087826bc422697556b57e533be9a219084",
       "selection_tool": "tools/select-jsut-prosody-prompts.py"
     }
