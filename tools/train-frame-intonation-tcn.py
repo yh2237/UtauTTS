@@ -981,7 +981,7 @@ def export_model(
         "license_notice": "licenses/PROSODY-MODELS.txt",
         "provenance": {
             "training_corpus": "JSUT Japanese speech corpus",
-            "training_corpus_license": "CC BY-SA 4.0",
+            "training_corpus_license": "JSUT terms: text CC BY-SA 4.0 etc.; audio research/non-commercial/personal use; commercial permission required",
             "source_notice": "licenses/JSUT-DATA-AND-LABELS.txt",
         },
         "recommended_renderers": list(args.recommended_renderer or ["utautts-world-phrase"]),
