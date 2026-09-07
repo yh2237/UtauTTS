@@ -1,12 +1,13 @@
 Conditions for models trained from JSUT audio
 =============================================
 
-The JSON files distributed under models/ were trained using JSUT audio. They
-are not distributed under the Creative Commons Attribution-ShareAlike 4.0
-International license. You may use, modify, and redistribute these model files
-and model adaptations only for academic research, non-commercial research
-(including research conducted within commercial organizations), and personal
-use. Commercial use requires prior permission from the JSUT rights holders.
+The official JSUT-derived JSON model files distributed under models/ were
+trained using JSUT audio. They are not distributed under the Creative Commons
+Attribution-ShareAlike 4.0 International license. You may use, modify, and
+redistribute these model files and model adaptations only for academic
+research, non-commercial research (including research conducted within
+commercial organizations), and personal use. Commercial use requires prior
+permission from the JSUT rights holders.
 
 Copyright (c) 2026 yh
 

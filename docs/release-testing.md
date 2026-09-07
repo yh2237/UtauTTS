@@ -40,6 +40,18 @@ WindowsからLinux版を検査する場合は、WSL2側で一度セットアッ�
 
 Linux検査ではZIPを一時ディレクトリへ展開して日本語フォント、共有ライブラリ解決、実行権限、GUI ELFのCOPY relocation／TEXTREL、QtオフスクリーンGUI自己診断、CLI合成、Serverの解析・合成・batch APIを確認します。PipeWire／PulseAudioのセッションがない完全なヘッドレス環境ではGUI自己診断だけを自動的にスキップし、CLIとServerの検査を続行します。GUI自己診断を必須にする場合は`UTAUTTS_REQUIRE_GUI_SELF_TEST=1`を設定してください。
 
+macOS版はApple Silicon Mac、またはGitHub ActionsのmacOSワークフローで一括実行します。
+
+```bash
+./build.sh macos
+```
+
+作成済みのmacOS ZIPだけを再検査する場合は、macOS環境で次を実行します。
+
+```bash
+./tools/test-macos-package.sh
+```
+
 Windowsの標準ビルドは`Full`プロファイルです。作成済みの日本語軽量版を検査する場合は、ビルド時と同じプロファイルを指定します。
 
 ```powershell
@@ -75,4 +87,4 @@ GUIの手動確認では、更新通知を有効にした状態で安定版だ�
 | CLI | `waveform`による最小合成、v8モデルと既定Rendererによる実運用合成、不正数値の拒否 |
 | HTTP server | コンソール、health、音源・モデル・Renderer一覧、解析、`waveform`／既定Renderer合成、batch ZIP、音源再読込 |
 
-GUIの検査にはWindowsなら配布された`app/utautts-gui.exe --self-test`、Linuxなら`QT_QPA_PLATFORM=offscreen ./utautts --self-test`を使います。画面や更新確認は開かずテスト専用の一時設定と一時ファイルだけを使うようになっています。
+GUIの検査には、Windowsなら配布された`app/utautts-gui.exe --self-test`、Linuxなら`QT_QPA_PLATFORM=offscreen ./utautts --self-test`、macOSなら`QT_QPA_PLATFORM=cocoa QT_QUICK_BACKEND=software`を設定したアプリバンドル内の実行ファイルを使います。画面や更新確認は開かずテスト専用の一時設定と一時ファイルだけを使うようになっています。

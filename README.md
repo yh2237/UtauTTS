@@ -12,8 +12,10 @@ UTAUボイスバンクの原音接続に学習ベースのイントネーショ�
 | --- | --- |
 | `UtauTTS-win-x64.zip` | Windows x64向けGUIとCLI |
 | `UtauTTS-linux-x64.zip` | Linux x64向けGUIとCLI |
+| `UtauTTS-mac-arm64.zip` | Apple Silicon Mac向けGUIとCLI |
 | `UtauTTS-Server-win-x64.zip` | Windows x64向けHTTP Server |
 | `UtauTTS-Server-linux-x64.zip` | Linux x64向けHTTP Server |
+| `UtauTTS-Server-mac-arm64.zip` | Apple Silicon Mac向けHTTP Server |
 
 Windows版はZIPを展開して`utautts.exe`を実行します。
 
@@ -23,6 +25,8 @@ Linux版はQt 6.5以降、Qt Quick、Qt Multimedia、日本語フォントが必
 chmod +x utautts tools/* runtime/utautts-openjtalk-features runtime/utautts-worldline-bridge
 ./utautts
 ```
+
+macOS版はApple Silicon（arm64）向けです。署名・公証を行っていないため、初回起動時の隔離属性解除が必要になる場合があります。手順は[インストール](docs/installation.md)を確認してください。
 
 詳しくは[インストール](docs/installation.md)にあります。
 
@@ -178,4 +182,4 @@ Server版を起動すると`http://127.0.0.1:8080/`でコンソールUIを使え
 
 ## ライセンス
 
-UtauTTSのソースコードは[MIT License](./LICENSE)です。`models/`のJSONモデルファイルはJSUT音声を使って学習しています。学術研究、非商用研究、個人利用の範囲でのみ利用・改変・再配布できます。商用利用にはJSUT権利者の許諾が必要です。同梱ボイスバンク、学習済みモデル、OpenUtau由来ファイルなどには個別の利用条件があります。配布物の[THIRD_PARTY_NOTICES.txt](./THIRD_PARTY_NOTICES.txt)、Windows GUI版に同梱される`THIRD_PARTY_NOTICES-WINDOWS-GUI.txt`、`licenses/`、各同梱文書を確認してください。
+UtauTTSのソースコードは[MIT License](./LICENSE)です。同梱モデル、ボイスバンク、文章データ、OpenUtau/WORLD由来ファイル、Qtなどの第三者コンポーネントには個別の利用条件があります。詳細は[ライセンスの適用範囲](./LICENSE-SCOPE.md)、[第三者通知](./THIRD_PARTY_NOTICES.txt)、`THIRD_PARTY_NOTICES-*`、`licenses/`、各同梱文書を確認してください。

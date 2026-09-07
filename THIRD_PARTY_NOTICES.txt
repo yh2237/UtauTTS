@@ -344,13 +344,13 @@ https://github.com/golang/text/blob/master/LICENSE
 JSUT and jsut-label prosody data
 ================================
 
-The bundled learned prosody models were trained from the JSUT Japanese speech
-corpus. The GUI also includes 300 unchanged BASIC5000 sentences, arranged into
+The official bundled learned prosody models were trained from the JSUT Japanese
+speech corpus. The GUI also includes 300 unchanged BASIC5000 sentences, arranged into
 six prompt packs for manual prosody adjustment. The optional BASIC5000 HTS-style
 labels come from https://github.com/sarulab-speech/jsut-label. The original corpus
-and label files are not bundled in this release. Component text sources carry their own terms
-(Wikipedia CC BY-SA 3.0, TANAKA corpus CC BY 2.0, and JSUT original sentences
-CC BY-SA 4.0). Contributors and complete source
+and label files are not bundled in this release. Component text sources carry
+their own terms (Wikipedia CC BY-SA 3.0, TANAKA corpus CC BY 2.0, and JSUT
+original sentences CC BY-SA 4.0). Contributors and complete source
 attribution are recorded in licenses/JSUT-DATA-AND-LABELS.txt, which is included
 in the release license bundle.
 
@@ -363,9 +363,10 @@ describe limited publication of a small part of the corpus (for example, about
 JSUT rights holders. See the official terms and current contact information:
 https://sites.google.com/site/shinnosuketakamichi/publication/jsut
 
-The bundled JSON model files were trained using JSUT audio. They may be used,
-modified, and redistributed only for academic research, non-commercial research,
-and personal use, including research conducted within commercial organizations.
+The official JSUT-derived JSON model files were trained using JSUT audio. They
+may be used, modified, and redistributed only for academic research,
+non-commercial research, and personal use, including research conducted within
+commercial organizations.
 Commercial use requires prior permission from the JSUT rights holders. The
 model-specific notice is included as
 licenses/PROSODY-MODELS.txt and models/README.md. UtauTTS's repository-level MIT

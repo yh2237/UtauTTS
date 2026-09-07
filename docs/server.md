@@ -1,6 +1,6 @@
 # UtauTTS Server
 
-Windows／Linux x64向けHTTPサーバーです。
+Windows／Linux x64およびmacOS arm64向けHTTPサーバーです。
 
 サーバーは初期状態で`127.0.0.1:8080`を待ち受けます。LANや外部から接続できるアドレスで起動する場合は必ず`--auth-token`を設定してください。
 
@@ -15,6 +15,13 @@ Windows
 Linux
 
 ```bash
+./utautts-server --voice-dir voice --renderer waveform
+```
+
+macOS
+
+```bash
+xattr -rc "utautts-server" runtime
 ./utautts-server --voice-dir voice --renderer waveform
 ```
 

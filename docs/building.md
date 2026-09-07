@@ -2,13 +2,14 @@
 
 ## ビルド方法の使い分け
 
-Linux版はLinux上で直接ビルドできます。Windows上でLinux版を作る場合はWSL2を使います。
+Linux版はLinux上で直接ビルドできます。Windows上でLinux版を作る場合はWSL2を使います。macOS版はApple Silicon MacまたはGitHub Actionsでビルドします。
 
-| 実行環境 | Windows版 | Linux版 |
-| --- | --- | --- |
-| Debian／UbuntuなどのLinux | — | `./build.sh linux`（ネイティブ） |
-| Windows PowerShell／コマンドプロンプト | .\build.bat win | .\build.bat linux（WSL2） |
-| Windows Git Bash | `./build.bat win` | `./build.sh linux`（WSL2） |
+| 実行環境 | Windows版 | Linux版 | macOS版 |
+| --- | --- | --- | --- |
+| Debian／UbuntuなどのLinux | — | `./build.sh linux`（ネイティブ） | — |
+| Windows PowerShell／コマンドプロンプト | .\build.bat win | .\build.bat linux（WSL2） | — |
+| Windows Git Bash | `./build.bat win` | `./build.sh linux`（WSL2） | — |
+| Apple Silicon macOS | — | — | `./build.sh macos` |
 
 ## 共通
 
@@ -27,7 +28,7 @@ go test ./...
 go vet ./...
 ```
 
-リリースビルドで使用する依存物の条件は[THIRD_PARTY_NOTICES.txt](../THIRD_PARTY_NOTICES.txt)、Windows GUI固有の`THIRD_PARTY_NOTICES-WINDOWS-GUI.txt`、`licenses/`を確認してください。
+リリースビルドで使用するモデル、音源、依存物の条件は、[ライセンスの適用範囲](../LICENSE-SCOPE.md)、[第三者通知](../THIRD_PARTY_NOTICES.txt)、`THIRD_PARTY_NOTICES-*`、`../licenses/`、各コンポーネントの同梱文書を確認してください。
 
 ## Linux x64（Linuxネイティブ／WSL共通）
 
@@ -97,6 +98,16 @@ GUI版とServer版のZIPが`release/`へ作成され、そのまま配布物ス�
 ```powershell
 .\dev.bat
 ```
+
+## macOS arm64
+
+macOS版はApple Silicon（arm64）向けです。Go、Python 3.12以降、CMake、Ninja、Qt 6.5以降（Qt Quick、Qt Multimedia、Qt Concurrent）、`zip`、`unzip`、`curl`、`shasum`を用意してください。Qtを標準外の場所に置く場合は、Qt kitのルートを`QT_ROOT`に設定します。
+
+```bash
+QT_ROOT=/path/to/Qt ./build.sh macos
+```
+
+`tools/build-macos.sh`を直接実行しても同じ処理になります。GUI版とServer版のApple Silicon向けZIPを`release/`へ作成し、配布物のスモークテストまで実行します。Mac実機を使えない場合は、GitHub ActionsのmacOSワークフローで同じビルドを実行できます。
 
 ## WindowsからLinux x64をビルド（WSL2）
 

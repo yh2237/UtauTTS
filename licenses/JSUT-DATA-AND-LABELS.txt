@@ -1,10 +1,10 @@
 JSUT and jsut-label provenance
 ==============================
 
-The bundled learned prosody models were trained from the JSUT Japanese speech
-corpus and are distributed with this application as model files. UtauTTS also
-bundles a selection of 300 unchanged BASIC5000 sentences as prompts for manual
-prosody adjustment. The original JSUT recordings and the complete label
+The official bundled learned prosody models were trained from the JSUT Japanese
+speech corpus and are distributed with this application as model files. UtauTTS
+also bundles a selection of 300 unchanged BASIC5000 sentences as prompts for
+manual prosody adjustment. The original JSUT recordings and the complete label
 repository are not bundled in UtauTTS.
 
 JSUT corpus
@@ -83,6 +83,7 @@ complete terms.
 Model-specific provenance
 -------------------------
 
-The self-describing model JSON files in models/ identify their JSUT training
-provenance and point back to this notice. This notice is included in the release
-license bundle even though the original corpus and label files are not included.
+The self-describing model JSON files for the official JSUT-derived models
+identify their training provenance and point back to this notice. This notice
+is included in the release license bundle even though the original corpus and
+label files are not included.

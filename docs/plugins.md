@@ -213,4 +213,4 @@ sessionはアプリケーションの合成単位ではなくProvider processの
 
 ## 配布物
 
-release buildは`renderer/`と`models/`をGUI・Serverへコピーします。モデルが一つもない場合はビルドに失敗します。各モデル、Renderer、外部assetのライセンスは[ライセンス表示](../THIRD_PARTY_NOTICES.txt)と配布元の文書を確認してください。
+リリースビルドでは`renderer/`と`models/`をGUI版・Server版へコピーします。モデルが一つもない場合はビルドに失敗します。`models/`へ登録するモデルJSONには`license`と`license_notice`を必ず記載してください。`license_notice`は配布物のルートからの相対パスで、リポジトリの`licenses/`以下に実在するファイルを指定します。各モデル、Renderer、外部アセットのライセンスは、[ライセンスの適用範囲](../LICENSE-SCOPE.md)、[第三者通知](../THIRD_PARTY_NOTICES.txt)、配布元の文書を確認してください。

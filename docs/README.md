@@ -25,6 +25,7 @@
 
 ## 開発と配布
 
-- [開発環境とビルド](building.md): Windows／Linux版のビルド
+- [開発環境とビルド](building.md): Windows／Linux／macOS版のビルド
 - [リリーステスト](release-testing.md): 配布物の自動検査と手動確認
 - [同梱ボイスバンク](voicebank.md): 出所、利用条件、ハッシュ
+- [ライセンスの適用範囲](../LICENSE-SCOPE.md): 本体コード、モデル、音源、第三者コンポーネントの適用範囲
