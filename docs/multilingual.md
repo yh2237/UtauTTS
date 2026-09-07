@@ -10,7 +10,7 @@ CLI、Server、プロジェクトの各発話では、次の言語とphonemizer�
 | 英語 | `en` | `en-vccv` |  | 英文またはARPAbet読み |
 | 中国語 | `zh` | `zh-cvvc` | `zh-cvvc` | 中国語文章または声調付きPinyin |
 
-GUIでは発話カードの言語／phonemizer欄を使います。現在は試験実装として開発者モードで表示されます。DiffSinger音源は別の音源形式で、詳細は[DiffSinger](diffsinger.md)を参照してください。
+GUIでは発話カードの言語／phonemizer欄を使います。これらは開発者モードを有効にし、「開発者向け」設定の「多言語／phonemizer機能を表示する」を有効にすると表示されます。DiffSinger音源は別の音源形式で、詳細は[DiffSinger](diffsinger.md)を参照してください。
 
 CLIでは次のように指定します。
 
