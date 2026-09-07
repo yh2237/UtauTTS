@@ -341,6 +341,15 @@ CC BY-SA 4.0). Contributors and complete source
 attribution are recorded in licenses/JSUT-DATA-AND-LABELS.txt, which is included
 in the release license bundle.
 
+The JSUT terms separately restrict the source audio. The audio is intended for
+academic research, non-commercial research (including research within
+commercial organizations), and personal use. The source audio is not included
+in this release and general redistribution is not permitted; the official terms
+describe limited publication of a small part of the corpus (for example, about
+100 audio files) on a website or blog. Commercial use requires contacting the
+JSUT rights holders. See the official terms and current contact information:
+https://sites.google.com/site/shinnosuketakamichi/publication/jsut
+
 The bundled JSON model files are licensed under CC BY-SA 4.0. The model-specific
 notice is included as licenses/PROSODY-MODELS.txt and models/README.md. UtauTTS's
 repository-level MIT License applies to the source code and does not override
