@@ -78,6 +78,7 @@ for required in \
   "${server_root}/utautts-server" \
   "${server_root}/manual-pitch.md" \
   "${gui_root}/LICENSE" \
+  "${gui_root}/LICENSE-SCOPE.md" \
   "${gui_root}/THIRD_PARTY_NOTICES.txt" \
   "${gui_root}/docs/README.md" \
   "${gui_root}/docs/installation.md" \
@@ -104,7 +105,6 @@ for required in \
   "${server_root}/licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt" \
   "${server_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \
   "${server_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt" \
-  "${gui_root}/licenses/PROSODY-MODELS.txt" \
   "${gui_root}/licenses/WORLD/WORLD-LICENSE.txt" \
   "${gui_root}/licenses/WORLD/OOURA-NOTICE.txt" \
   "${gui_root}/licenses/WORLD/MACRODEFINITIONS-LICENSE.txt" \
@@ -114,6 +114,22 @@ for required in \
   "${server_root}/runtime/utautts-worldline-bridge" \
   "${server_root}/runtime/utautts-world-engine.so"; do
   [ -f "${required}" ] || fail "required package file is missing: ${required}"
+done
+for package_root in "${gui_root}" "${server_root}"; do
+  "${python_command}" "${root_dir}/tools/copy-model-license-notices.py" \
+    --models "${package_root}/models" \
+    --package-root "${package_root}" \
+    --check-only \
+    || fail "packaged model license metadata is invalid: ${package_root}"
+  cmp -s "${root_dir}/LICENSE-SCOPE.md" "${package_root}/LICENSE-SCOPE.md" \
+    || fail "package contains a stale LICENSE-SCOPE.md: ${package_root}"
+  cmp -s "${root_dir}/THIRD_PARTY_NOTICES.txt" "${package_root}/THIRD_PARTY_NOTICES.txt" \
+    || fail "package contains stale THIRD_PARTY_NOTICES.txt: ${package_root}"
+  cmp -s "${root_dir}/models/README.md" "${package_root}/models/README.md" \
+    || fail "package contains a stale models/README.md: ${package_root}"
+  if find "${package_root}" -type f \( -path '*/data/*' -o -path '*/out/*' -o -path '*/.tmp-*/*' \) -print -quit | grep -q .; then
+    fail "package contains ignored training/build data: ${package_root}"
+  fi
 done
 for package_root in "${gui_root}" "${server_root}"; do
   [ ! -e "${package_root}/THIRD_PARTY_NOTICES-WINDOWS-GUI.txt" ] \

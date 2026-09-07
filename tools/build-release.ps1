@@ -164,7 +164,7 @@ try {
         Copy-Item -LiteralPath $pyInstallerLicense[0].FullName -Destination (Join-Path $licensePath 'PYINSTALLER_COPYING.txt')
     }
 
-    Copy-Item -LiteralPath 'LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.txt', 'THIRD_PARTY_NOTICES-WINDOWS-GUI.txt' -Destination $guiPath
+    Copy-Item -LiteralPath 'LICENSE', 'LICENSE-SCOPE.md', 'README.md', 'THIRD_PARTY_NOTICES.txt', 'THIRD_PARTY_NOTICES-WINDOWS-GUI.txt' -Destination $guiPath
 
     $sourceModels = Join-Path $root 'models'
     $bundledModels = @()
@@ -174,10 +174,22 @@ try {
     if ($bundledModels.Count -eq 0) {
         throw 'No bundled prosody models found. Install self-describing models into models/ with tools/install-prosody-model.ps1.'
     }
+    $modelReadmePath = Join-Path $sourceModels 'README.md'
+    if (-not (Test-Path -LiteralPath $modelReadmePath -PathType Leaf)) {
+        throw 'models/README.md is required when bundling prosody models.'
+    }
     $bundledModels | Copy-Item -Destination $guiModelsPath
     $bundledModels | Copy-Item -Destination $serverModelsPath
-    Copy-Item -LiteralPath (Join-Path $sourceModels 'README.md') -Destination $guiModelsPath
-    Copy-Item -LiteralPath (Join-Path $sourceModels 'README.md') -Destination $serverModelsPath
+    Copy-Item -LiteralPath $modelReadmePath -Destination $guiModelsPath
+    Copy-Item -LiteralPath $modelReadmePath -Destination $serverModelsPath
+    foreach ($packagePath in @($guiPath, $serverPath)) {
+        Invoke-Checked $pythonCommand @(
+            (Join-Path $root 'tools/copy-model-license-notices.py'),
+            '--models', (Join-Path $packagePath 'models'),
+            '--repository-root', $root,
+            '--package-root', $packagePath
+        )
+    }
     Copy-Item -Path (Join-Path $root 'renderer/*') -Destination $guiRendererPath -Recurse
     Copy-Item -Path (Join-Path $root 'renderer/*') -Destination $serverRendererPath -Recurse
     foreach ($directoryName in @('Resamplers', 'Wavtools')) {
@@ -212,7 +224,7 @@ try {
 
     Copy-Item -LiteralPath 'docs/server.md' -Destination (Join-Path $serverPath 'README.md')
     Copy-Item -LiteralPath 'docs/manual-pitch.md' -Destination $serverPath
-    Copy-Item -LiteralPath 'LICENSE', 'THIRD_PARTY_NOTICES.txt' -Destination $serverPath
+    Copy-Item -LiteralPath 'LICENSE', 'LICENSE-SCOPE.md', 'THIRD_PARTY_NOTICES.txt' -Destination $serverPath
 
     Write-Host '=== Collect exact third-party licenses ==='
     & (Join-Path $PSScriptRoot 'collect-third-party-licenses.ps1') -PackageRoot $guiPath -Variant windows-gui

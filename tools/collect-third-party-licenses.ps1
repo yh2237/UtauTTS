@@ -308,7 +308,8 @@ $manifest = @(
     'This directory contains license and notice files copied from the exact',
     'SDK/package/toolchain versions used to assemble this release.',
     '',
-    'The project-wide summary is ../THIRD_PARTY_NOTICES.txt.'
+    'The project-wide license scope summary is ../LICENSE-SCOPE.md.',
+    'The project-wide dependency summary is ../THIRD_PARTY_NOTICES.txt.'
 )
 $manifest += @(Get-ChildItem -LiteralPath $licenseRoot -Recurse -File | ForEach-Object {
     $_.FullName.Substring($PackageRoot.Length + 1)

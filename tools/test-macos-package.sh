@@ -62,6 +62,7 @@ done
 for package_root in "${gui_root}" "${server_root}"; do
   for required in \
     "${package_root}/LICENSE" \
+    "${package_root}/LICENSE-SCOPE.md" \
     "${package_root}/THIRD_PARTY_NOTICES.txt" \
     "${package_root}/licenses/README.txt" \
     "${package_root}/licenses/Go/GO-LICENSE.txt" \
@@ -75,6 +76,22 @@ for package_root in "${gui_root}" "${server_root}"; do
     "${package_root}/licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt"; do
     [[ -f "${required}" ]] || fail "required license file is missing: ${required}"
   done
+done
+for package_root in "${gui_root}" "${server_root}"; do
+  "${python_command}" "${root_dir}/tools/copy-model-license-notices.py" \
+    --models "${package_root}/models" \
+    --package-root "${package_root}" \
+    --check-only \
+    || fail "packaged model license metadata is invalid: ${package_root}"
+  cmp -s "${root_dir}/LICENSE-SCOPE.md" "${package_root}/LICENSE-SCOPE.md" \
+    || fail "package contains a stale LICENSE-SCOPE.md: ${package_root}"
+  cmp -s "${root_dir}/THIRD_PARTY_NOTICES.txt" "${package_root}/THIRD_PARTY_NOTICES.txt" \
+    || fail "package contains stale THIRD_PARTY_NOTICES.txt: ${package_root}"
+  cmp -s "${root_dir}/models/README.md" "${package_root}/models/README.md" \
+    || fail "package contains a stale models/README.md: ${package_root}"
+  if find "${package_root}" -type f \( -path '*/data/*' -o -path '*/out/*' -o -path '*/.tmp-*/*' \) -print -quit | grep -q .; then
+    fail "package contains ignored training/build data: ${package_root}"
+  fi
 done
 for required in \
   "${gui_root}/THIRD_PARTY_NOTICES-MACOS-GUI.txt" \

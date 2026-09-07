@@ -19,6 +19,7 @@ on:
       - 'icons/**'
       - 'README.md'
       - 'LICENSE'
+      - 'LICENSE-SCOPE.md'
       - 'THIRD_PARTY_NOTICES.txt'
       - 'THIRD_PARTY_NOTICES-MACOS-GUI.txt'
       - 'tools/build-macos.sh'
@@ -27,6 +28,7 @@ on:
       - 'tools/build-openjtalk-feature-bridge-macos.sh'
       - 'tools/build-world-engine-macos.sh'
       - 'tools/test-macos-package.sh'
+      - 'tools/copy-model-license-notices.py'
       - 'go.mod'
       - 'go.sum'
   push:
@@ -47,6 +49,7 @@ on:
       - 'icons/**'
       - 'README.md'
       - 'LICENSE'
+      - 'LICENSE-SCOPE.md'
       - 'THIRD_PARTY_NOTICES.txt'
       - 'THIRD_PARTY_NOTICES-MACOS-GUI.txt'
       - 'tools/build-macos.sh'
@@ -55,6 +58,7 @@ on:
       - 'tools/build-openjtalk-feature-bridge-macos.sh'
       - 'tools/build-world-engine-macos.sh'
       - 'tools/test-macos-package.sh'
+      - 'tools/copy-model-license-notices.py'
       - 'go.mod'
       - 'go.sum'
 

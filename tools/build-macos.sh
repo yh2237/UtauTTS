@@ -127,6 +127,10 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
     "${package_dir}/renderer/utautts-world-phrase-cuda" \
     "${package_dir}/renderer/openutau-worldline-r-faithful" \
     "${package_dir}/renderer/diffsinger"
+  "${python_command}" "${root_dir}/tools/copy-model-license-notices.py" \
+    --models "${package_dir}/models" \
+    --repository-root "${root_dir}" \
+    --package-root "${package_dir}"
 done
 
 echo '=== Voicebanks ==='
@@ -150,12 +154,14 @@ echo 'Place each UTAU voicebank in its own folder here.' > "${server_dir}/voice/
 echo '=== Docs and legal files ==='
 cp -R "${root_dir}/docs" "${gui_dir}/docs"
 cp "${root_dir}/LICENSE" "${gui_dir}/LICENSE"
+cp "${root_dir}/LICENSE-SCOPE.md" "${gui_dir}/LICENSE-SCOPE.md"
 cp "${root_dir}/THIRD_PARTY_NOTICES.txt" "${gui_dir}/THIRD_PARTY_NOTICES.txt"
 cp "${root_dir}/THIRD_PARTY_NOTICES-MACOS-GUI.txt" "${gui_dir}/THIRD_PARTY_NOTICES-MACOS-GUI.txt"
 cp "${root_dir}/README.md" "${gui_dir}/README.md"
 cp "${root_dir}/docs/server.md" "${server_dir}/README.md"
 cp "${root_dir}/docs/manual-pitch.md" "${server_dir}/manual-pitch.md"
 cp "${root_dir}/LICENSE" "${server_dir}/LICENSE"
+cp "${root_dir}/LICENSE-SCOPE.md" "${server_dir}/LICENSE-SCOPE.md"
 cp "${root_dir}/THIRD_PARTY_NOTICES.txt" "${server_dir}/THIRD_PARTY_NOTICES.txt"
 
 for package_dir in "${gui_dir}" "${server_dir}"; do
@@ -208,7 +214,8 @@ PY
     echo 'This directory contains license and notice files copied from the exact'
     echo 'SDK/package/toolchain versions used to assemble this release.'
     echo ''
-    echo 'The project-wide summary is ../THIRD_PARTY_NOTICES.txt.'
+    echo 'The project-wide license scope summary is ../LICENSE-SCOPE.md.'
+    echo 'The project-wide dependency summary is ../THIRD_PARTY_NOTICES.txt.'
   } > "${license_root}/README.txt"
 done
 

@@ -9,6 +9,10 @@ $releaseCheck = Join-Path $PSScriptRoot 'check-release.ps1'
 & $releaseCheck
 $null = Add-Type -AssemblyName System.IO.Compression.FileSystem
 $ReleaseRoot = [IO.Path]::GetFullPath($ReleaseRoot)
+$projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$sourceLicenseScope = [IO.File]::ReadAllText((Join-Path $projectRoot 'LICENSE-SCOPE.md'))
+$sourceNotice = [IO.File]::ReadAllText((Join-Path $projectRoot 'THIRD_PARTY_NOTICES.txt'))
+$sourceModelReadme = [IO.File]::ReadAllText((Join-Path $projectRoot 'models/README.md'))
 $guiZip = Join-Path $ReleaseRoot 'UtauTTS-win-x64.zip'
 $serverZip = Join-Path $ReleaseRoot 'UtauTTS-Server-win-x64.zip'
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) ('utautts-release-test-' + [Guid]::NewGuid().ToString('N'))
@@ -16,6 +20,38 @@ $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) ('utautts-release-test-' +
 function Assert-Path([string]$Path, [string]$Description) {
     if (-not (Test-Path -LiteralPath $Path)) {
         throw "Missing ${Description}: $Path"
+    }
+}
+
+function Assert-PackagedModelLicenseNotices([string]$PackageRoot) {
+    $modelsPath = Join-Path $PackageRoot 'models'
+    Assert-Path $modelsPath 'packaged models directory'
+    $modelFiles = @(Get-ChildItem -LiteralPath $modelsPath -Filter '*.json' -File)
+    if ($modelFiles.Count -eq 0) {
+        throw "No packaged model JSON files found: $modelsPath"
+    }
+    foreach ($modelFile in $modelFiles) {
+        try {
+            $metadata = Get-Content -LiteralPath $modelFile.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+        } catch {
+            throw "Packaged model metadata is not valid JSON: $($modelFile.Name): $($_.Exception.Message)"
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$metadata.license)) {
+            throw "Packaged model has no license description: $($modelFile.Name)"
+        }
+        $notice = ([string]$metadata.license_notice).Trim()
+        if ($notice -notmatch '^licenses/[^/\\]+(?:/[^/\\]+)*$' -or
+            $notice -match '(^|/)\.\.?(/|$)' -or
+            $notice.Contains(':')) {
+            throw "Packaged model has an invalid license_notice path: $($modelFile.Name)"
+        }
+        $noticePath = Join-Path $PackageRoot ($notice.Replace('/', '\'))
+        Assert-Path $noticePath "model license notice for $($modelFile.Name)"
+        $sourceNoticePath = Join-Path $projectRoot ($notice.Replace('/', '\'))
+        Assert-Path $sourceNoticePath "source model license notice for $($modelFile.Name)"
+        if ([IO.File]::ReadAllText($noticePath) -ne [IO.File]::ReadAllText($sourceNoticePath)) {
+            throw "Package contains a stale model license notice: $noticePath"
+        }
     }
 }
 
@@ -42,6 +78,7 @@ try {
 
     foreach ($packageRoot in @($guiRoot, $serverRoot)) {
         Assert-Path (Join-Path $packageRoot 'LICENSE') 'project license'
+        Assert-Path (Join-Path $packageRoot 'LICENSE-SCOPE.md') 'license scope summary'
         Assert-Path (Join-Path $packageRoot 'THIRD_PARTY_NOTICES.txt') 'third-party notices'
         Assert-Path (Join-Path $packageRoot 'licenses/README.txt') 'license bundle manifest'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/GO-LICENSE.txt') 'Go runtime license'
@@ -83,8 +120,25 @@ try {
         Assert-Path (Join-Path $packageRoot 'licenses/WORLD/WORLD-LICENSE.txt') 'official WORLD license'
         Assert-Path (Join-Path $packageRoot 'licenses/WORLD/OOURA-NOTICE.txt') 'Ooura FFT notice'
         Assert-Path (Join-Path $packageRoot 'licenses/WORLD/MACRODEFINITIONS-LICENSE.txt') 'WORLD macro definitions license'
-        Assert-Path (Join-Path $packageRoot 'licenses/PROSODY-MODELS.txt') 'prosody model license'
         Assert-Path (Join-Path $packageRoot 'models/README.md') 'model license readme'
+        Assert-PackagedModelLicenseNotices $packageRoot
+        if ([IO.File]::ReadAllText((Join-Path $packageRoot 'LICENSE-SCOPE.md')) -ne $sourceLicenseScope) {
+            throw "Package contains a stale LICENSE-SCOPE.md: $packageRoot"
+        }
+        if ([IO.File]::ReadAllText((Join-Path $packageRoot 'THIRD_PARTY_NOTICES.txt')) -ne $sourceNotice) {
+            throw "Package contains stale THIRD_PARTY_NOTICES.txt: $packageRoot"
+        }
+        if ([IO.File]::ReadAllText((Join-Path $packageRoot 'models/README.md')) -ne $sourceModelReadme) {
+            throw "Package contains a stale models/README.md: $packageRoot"
+        }
+        $forbiddenBundledData = @(Get-ChildItem -LiteralPath $packageRoot -Recurse -Force -File |
+            ForEach-Object {
+                $relative = $_.FullName.Substring($packageRoot.Length + 1)
+                if ($relative -match '(^|[\\/])(data|out|\.tmp-[^\\/]*)([\\/]|$)') { $_.FullName }
+            })
+        if ($forbiddenBundledData.Count -ne 0) {
+            throw "Release package contains ignored training/build data: $($forbiddenBundledData -join ', ')"
+        }
         foreach ($rendererId in @('waveform', 'classic-utau', 'utautts-world-phrase')) {
             Assert-Path (Join-Path $packageRoot "renderer/$rendererId/renderer.json") "renderer manifest $rendererId"
         }
