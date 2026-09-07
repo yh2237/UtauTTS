@@ -178,7 +178,7 @@ Server版を起動すると`http://127.0.0.1:8080/`でコンソールUIを使え
 ## 謝辞
 
 - [アアアアアアア（@a7_riri）](https://x.com/a7_riri)
-- [siyukatu（@siyukatu）](https://x.com/siyukat)
+- [siyukatu（@siyukat）](https://x.com/siyukat)
 - [WhosThat（@WndertheTree）](https://x.com/WndertheTree)
 
 ## ライセンス
