@@ -146,8 +146,13 @@ set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/../THIRD_PARTY_NOTICES.txt"
     PROPERTIES QT_RESOURCE_ALIAS "THIRD_PARTY_NOTICES.txt"
 )
+set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE-SCOPE.md"
+    PROPERTIES QT_RESOURCE_ALIAS "LICENSE-SCOPE.md"
+)
 set(legal_files
     "${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE-SCOPE.md"
     "${CMAKE_CURRENT_SOURCE_DIR}/../THIRD_PARTY_NOTICES.txt"
 )
 if(WIN32)
@@ -157,6 +162,15 @@ if(WIN32)
     )
     list(APPEND legal_files
         "${CMAKE_CURRENT_SOURCE_DIR}/../THIRD_PARTY_NOTICES-WINDOWS-GUI.txt"
+    )
+endif()
+if(APPLE)
+    set_source_files_properties(
+        "${CMAKE_CURRENT_SOURCE_DIR}/../THIRD_PARTY_NOTICES-MACOS-GUI.txt"
+        PROPERTIES QT_RESOURCE_ALIAS "THIRD_PARTY_NOTICES-MACOS-GUI.txt"
+    )
+    list(APPEND legal_files
+        "${CMAKE_CURRENT_SOURCE_DIR}/../THIRD_PARTY_NOTICES-MACOS-GUI.txt"
     )
 endif()
 qt_add_resources(utautts "legal"

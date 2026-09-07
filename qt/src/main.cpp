@@ -37,6 +37,11 @@ QVariantList legalDocuments() {
     QVariantList documents;
     documents.append(QVariantMap{{"name", "UtauTTS"},
                                  {"text", readTextResource(":/legal/LICENSE")}});
+    const QString licenseScope = readTextResource(":/legal/LICENSE-SCOPE.md");
+    if (!licenseScope.isEmpty()) {
+        documents.append(QVariantMap{{"name", "License scope summary"},
+                                     {"text", licenseScope}});
+    }
 
     const QString notices = readTextResource(":/legal/THIRD_PARTY_NOTICES.txt");
     const QStringList lines = notices.split('\n');
@@ -72,6 +77,14 @@ QVariantList legalDocuments() {
     if (!windowsGuiAddendum.isEmpty()) {
         documents.append(QVariantMap{{"name", "Windows GUI third-party addendum"},
                                      {"text", windowsGuiAddendum}});
+    }
+#endif
+#ifdef Q_OS_MACOS
+    const QString macOSGuiAddendum =
+        readTextResource(":/legal/THIRD_PARTY_NOTICES-MACOS-GUI.txt");
+    if (!macOSGuiAddendum.isEmpty()) {
+        documents.append(QVariantMap{{"name", "macOS GUI third-party addendum"},
+                                     {"text", macOSGuiAddendum}});
     }
 #endif
     return documents;
