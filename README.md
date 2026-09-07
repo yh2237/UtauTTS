@@ -178,4 +178,4 @@ Server版を起動すると`http://127.0.0.1:8080/`でコンソールUIを使え
 
 ## ライセンス
 
-UtauTTSのソースコードは[MIT License](./LICENSE)です。`models/`のJSONモデルファイルは、UtauTTSが権利を持つ範囲でCC BY-SA 4.0として配布しています。ただし、JSUT音声、BASIC5000テキスト、jsut-label由来データの上流条件を置き換えるものではありません。同梱ボイスバンク、学習済みモデル、OpenUtau由来ファイルなどには個別の利用条件があります。配布物の[THIRD_PARTY_NOTICES.txt](./THIRD_PARTY_NOTICES.txt)、Windows GUI版に同梱される`THIRD_PARTY_NOTICES-WINDOWS-GUI.txt`、`licenses/`、各同梱文書を確認してください。
+UtauTTSのソースコードは[MIT License](./LICENSE)です。`models/`のJSONモデルファイルは`UtauTTS JSUT-Derived Model Terms 1.0`で配布しています。学術研究、非商用研究、個人利用の範囲で利用・再配布できますが、商用利用にはJSUT権利者の許諾が必要です。同梱ボイスバンク、学習済みモデル、OpenUtau由来ファイルなどには個別の利用条件があります。配布物の[THIRD_PARTY_NOTICES.txt](./THIRD_PARTY_NOTICES.txt)、Windows GUI版に同梱される`THIRD_PARTY_NOTICES-WINDOWS-GUI.txt`、`licenses/`、各同梱文書を確認してください。

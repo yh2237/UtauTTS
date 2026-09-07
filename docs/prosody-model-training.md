@@ -4,6 +4,9 @@ UtauTTSのGUIでv8の自動イントネーションを調整し、その操作�
 
 この機能は実験的です。少量の教師データから生成できることとv8より自然になることは同じではありません。必ず学習に使っていない文章でv8と比較してください。
 
+この手順で生成したモデルJSONは、同梱のJSUT由来モデルを基にする限り
+`UtauTTS JSUT-Derived Model Terms 1.0`の対象です。学術研究、非商用研究、個人利用の範囲で利用・改変・再配布できますが、商用利用にはJSUT権利者の事前許諾が必要です。公開時は`licenses/PROSODY-MODELS.txt`と`licenses/JSUT-DATA-AND-LABELS.txt`を一緒に示してください。別のベースモデルを使う場合は、そのモデル自身の利用条件も確認してください。
+
 ## 必要なもの
 
 - UtauTTSのソースツリー、または`tools/`と`models/frame-intonation-v8.json`を含む開発用配布物

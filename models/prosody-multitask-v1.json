@@ -2,7 +2,7 @@
   "id": "prosody-multitask-v1",
   "display_name": "Prosody multitask v1",
   "description": "Learned Japanese mora duration with v8 frame intonation",
-  "license": "CC-BY-SA-4.0",
+  "license": "UTAUTTS-JSUT-DERIVED-MODEL-TERMS-1.0",
   "license_notice": "licenses/PROSODY-MODELS.txt",
   "recommended_renderers": [
     "utautts-world-phrase",

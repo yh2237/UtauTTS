@@ -1,14 +1,29 @@
-UtauTTS bundled prosody models
-==============================
+UtauTTS JSUT-Derived Model Terms 1.0
+====================================
 
-The JSON files distributed under models/ are licensed under the Creative
-Commons Attribution-ShareAlike 4.0 International license (CC-BY-SA-4.0) by
-UtauTTS, to the extent that UtauTTS can license those model files.
+The JSON files distributed under models/ are not distributed under the
+Creative Commons Attribution-ShareAlike 4.0 International license. They are
+distributed under these project-specific terms.
 
 Copyright (c) 2026 yh
 
-License text:
-https://creativecommons.org/licenses/by-sa/4.0/legalcode
+Permitted uses:
+
+- academic research;
+- non-commercial research, including research conducted within commercial
+  organizations; and
+- personal use.
+
+For the permitted uses above, you may use, reproduce, modify, and redistribute
+the model files and model adaptations, provided that you preserve this notice,
+licenses/JSUT-DATA-AND-LABELS.txt, and the model's source attribution.
+
+Commercial use of a bundled model or an adaptation requires prior permission
+from the JSUT rights holders. Commercial use includes incorporating the model
+into a paid product or service, offering a paid service that uses the model,
+or redistributing it for commercial use. See the official JSUT page for the
+current terms and contact information:
+https://sites.google.com/site/shinnosuketakamichi/publication/jsut
 
 The models were trained from JSUT audio and jsut-label-derived annotations.
 The JSUT corpus has separate terms for its text, audio, and labels. The JSUT
@@ -19,8 +34,9 @@ JSUT-derived model must be confirmed with the JSUT rights holders before use;
 see the official JSUT page for the current contact information:
 https://sites.google.com/site/shinnosuketakamichi/publication/jsut
 
-This model-file license does not grant rights to the upstream JSUT audio,
-BASIC5000 text, or jsut-label data, and does not replace their terms. Preserve
+These project-specific terms do not grant rights to the upstream JSUT audio,
+BASIC5000 text, or jsut-label data, and do not replace their terms. The source
+audio and complete source label files are not included in UtauTTS. Preserve
 this notice together with JSUT-DATA-AND-LABELS.txt when redistributing the
 models or adaptations of them.
 

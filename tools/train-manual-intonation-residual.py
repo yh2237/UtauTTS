@@ -406,7 +406,7 @@ def main() -> int:
         "id": model_id,
         "display_name": str(args.display_name or model_id),
         "description": str(args.description or "GUIで確認した手動抑揚補正をv8へ加える個人モデル"),
-        "license": base_model.get("license", "CC-BY-SA-4.0"),
+        "license": base_model.get("license", "UTAUTTS-JSUT-DERIVED-MODEL-TERMS-1.0"),
         "license_notice": base_model.get("license_notice", "licenses/PROSODY-MODELS.txt"),
         "provenance": base_model.get("provenance"),
         "recommended_renderers": args.recommended_renderer or base_model.get("recommended_renderers", []),
