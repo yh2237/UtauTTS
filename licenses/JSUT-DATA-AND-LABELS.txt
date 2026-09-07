@@ -15,6 +15,14 @@ the training corpus for the learned prosody models. The JSUT distribution
 identifies the component sources and licenses of its text data in its LICENCE
 file. BASIC5000 includes text from the sources listed below.
 
+The JSUT official terms distinguish the text from the audio. The audio may be
+used for academic research, non-commercial research (including research within
+commercial organizations), and personal use. The audio may not be redistributed.
+Commercial use requires contacting the JSUT rights holders. This notice does
+not redistribute JSUT audio and does not grant commercial rights to the bundled
+prosody models; see the official JSUT page for the current terms and contacts:
+https://sites.google.com/site/shinnosuketakamichi/publication/jsut
+
 Upstream information:
 https://sites.google.com/site/shinnosuketakamichi/publication/jsut
 https://creativecommons.org/licenses/by-sa/4.0/
