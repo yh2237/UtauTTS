@@ -59,6 +59,34 @@ for required in \
   "${gui_root}/renderer/utautts-world-phrase/renderer.json"; do
   [[ -f "${required}" ]] || fail "required package file is missing: ${required}"
 done
+for package_root in "${gui_root}" "${server_root}"; do
+  for required in \
+    "${package_root}/LICENSE" \
+    "${package_root}/THIRD_PARTY_NOTICES.txt" \
+    "${package_root}/licenses/README.txt" \
+    "${package_root}/licenses/Go/GO-LICENSE.txt" \
+    "${package_root}/licenses/Go/APACHE-2.0.txt" \
+    "${package_root}/licenses/Go/CMUDICT-LICENSE.txt" \
+    "${package_root}/licenses/Go/PINYIN-DATA-NOTICE.txt" \
+    "${package_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-LICENSE.txt" \
+    "${package_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-NOTICE.txt" \
+    "${package_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-THIRD_PARTY_NOTICES.md" \
+    "${package_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-DATA_LICENSES.md" \
+    "${package_root}/licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt"; do
+    [[ -f "${required}" ]] || fail "required license file is missing: ${required}"
+  done
+done
+for required in \
+  "${gui_root}/THIRD_PARTY_NOTICES-MACOS-GUI.txt" \
+  "${gui_root}/licenses/Qt/LGPL-3.0.txt" \
+  "${gui_root}/licenses/Qt/Qt-SOURCE-OFFER.txt" \
+  "${gui_root}/licenses/Qt/Qt-RELINK-INSTRUCTIONS.txt" \
+  "${gui_root}/licenses/Qt/Qt-THIRD-PARTY-ATTRIBUTIONS.txt" \
+  "${gui_root}/licenses/Qt/FFmpeg-SOURCE-AND-LICENSE.txt"; do
+  [[ -f "${required}" ]] || fail "required macOS GUI license file is missing: ${required}"
+done
+[[ ! -e "${server_root}/THIRD_PARTY_NOTICES-MACOS-GUI.txt" ]] \
+  || fail 'server package must not contain the macOS GUI third-party addendum'
 for removed in \
   "${gui_root}/renderer/openutau-worldline-r-faithful" \
   "${gui_root}/renderer/diffsinger" \

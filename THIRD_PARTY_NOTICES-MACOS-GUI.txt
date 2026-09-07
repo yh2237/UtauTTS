@@ -1,0 +1,39 @@
+UtauTTS macOS GUI third-party addendum
+=======================================
+
+This file supplements THIRD_PARTY_NOTICES.txt in the macOS GUI package. It
+applies only to the dynamically linked Qt libraries and Qt Multimedia
+deployment bundled inside UtauTTS.app.
+
+
+Qt 6
+====
+
+The desktop GUI uses dynamically linked Qt 6 modules, including Qt Core,
+Qt GUI, Qt QML, Qt Quick, Qt Quick Controls, Qt Multimedia, and Qt Concurrent.
+The open-source Qt modules used by this application are distributed under the
+GNU Lesser General Public License version 3. Users may replace the dynamically
+linked Qt frameworks with compatible modified versions, subject to the
+applicable license terms and ABI compatibility.
+
+License and source information:
+https://www.qt.io/licensing/
+https://code.qt.io/cgit/qt/
+
+The LGPLv3 text, a written source offer for the exact Qt version used by the
+build, Qt replacement/relinking instructions, and Qt third-party attribution
+links are included under licenses/Qt. Qt Multimedia's FFmpeg deployment and
+corresponding source guidance are documented there as well.
+
+
+FFmpeg libraries distributed by Qt Multimedia
+==============================================
+
+Qt Multimedia may deploy FFmpeg components. The exact files detected in the
+GUI app bundle, their SHA-256 values, and the applicable source guidance are
+listed in licenses/Qt/FFmpeg-SOURCE-AND-LICENSE.txt.
+
+FFmpeg licensing depends on the exact build configuration; optional GPL
+components can change the applicable terms. Refer to the exact binary's
+corresponding source and the current FFmpeg legal guidance:
+https://ffmpeg.org/legal.html

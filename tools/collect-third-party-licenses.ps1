@@ -58,12 +58,16 @@ function Copy-GoLicenses {
     $goRoot = Get-CommandOutput 'go' @('env', 'GOROOT')
     Copy-Required (Join-Path $goRoot 'LICENSE') (Join-Path $licenseRoot 'Go/GO-LICENSE.txt')
     Copy-Required (Join-Path $root 'licenses/APACHE-2.0.txt') (Join-Path $licenseRoot 'Go/APACHE-2.0.txt')
+    Copy-Required (Join-Path $root 'licenses/Go/CMUDICT-LICENSE.txt') (Join-Path $licenseRoot 'Go/CMUDICT-LICENSE.txt')
+    Copy-Required (Join-Path $root 'licenses/Go/PINYIN-DATA-NOTICE.txt') (Join-Path $licenseRoot 'Go/PINYIN-DATA-NOTICE.txt')
 
     $modules = @(
         'golang.org/x/text',
+        'github.com/NK8007/gofonix',
         'github.com/ikawaha/kagome/v2',
         'github.com/ikawaha/kagome-dict',
         'github.com/ikawaha/kagome-dict/ipa',
+        'github.com/mozillazg/go-pinyin',
         'gopkg.in/yaml.v3'
     )
     foreach ($module in $modules) {
@@ -75,12 +79,23 @@ function Copy-GoLicenses {
         $moduleDirectory = $parts[0]
         $moduleVersion = $parts[1]
         $safeName = $module.Replace('/', '_').Replace('.', '_')
-        Copy-Required (Join-Path $moduleDirectory 'LICENSE') (Join-Path $licenseRoot "Go/$safeName-$moduleVersion-LICENSE.txt")
-        foreach ($noticeName in @('NOTICE', 'NOTICE.txt')) {
+        $licenseFile = @('LICENSE', 'LICENSE.txt', 'COPYING', 'COPYING.txt') |
+            ForEach-Object { Join-Path $moduleDirectory $_ } |
+            Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+            Select-Object -First 1
+        if ($null -eq $licenseFile) {
+            throw "A license file was not found for Go module: $module"
+        }
+        Copy-Required $licenseFile (Join-Path $licenseRoot "Go/$safeName-$moduleVersion-LICENSE.txt")
+        foreach ($noticeName in @('NOTICE', 'NOTICE.txt', 'THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.txt', 'DATA_LICENSES.md')) {
             $notice = Join-Path $moduleDirectory $noticeName
             if (Test-Path -LiteralPath $notice -PathType Leaf) {
-                Copy-Required $notice (Join-Path $licenseRoot "Go/$safeName-$moduleVersion-NOTICE.txt")
-                break
+                if ($noticeName -eq 'NOTICE' -or $noticeName -eq 'NOTICE.txt') {
+                    $destinationName = "$safeName-$moduleVersion-NOTICE.txt"
+                } else {
+                    $destinationName = "$safeName-$moduleVersion-$noticeName"
+                }
+                Copy-Required $notice (Join-Path $licenseRoot "Go/$destinationName")
             }
         }
     }
@@ -117,10 +132,11 @@ function Copy-QtLicenses {
     $qtVersion = (Get-Item -LiteralPath $qtRoot).Parent.Name
     $toolsRoot = [IO.Path]::GetFullPath((Join-Path $qtRoot '../../Tools'))
     $lgpl = Get-ChildItem -LiteralPath $toolsRoot -Recurse -File -Filter 'LGPLv3.txt' -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($null -eq $lgpl) {
-        throw "The Qt SDK did not provide an LGPLv3 license text: $toolsRoot"
+    if ($null -ne $lgpl) {
+        Copy-Required $lgpl.FullName (Join-Path $licenseRoot 'Qt/LGPL-3.0.txt')
+    } else {
+        Copy-Required (Join-Path $root 'licenses/Qt/LGPL-3.0.txt') (Join-Path $licenseRoot 'Qt/LGPL-3.0.txt')
     }
-    Copy-Required $lgpl.FullName (Join-Path $licenseRoot 'Qt/LGPL-3.0.txt')
 
     $qtSourceOffer = @"
 Qt source offer

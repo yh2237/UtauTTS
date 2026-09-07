@@ -75,8 +75,11 @@ go-pinyin
 
 UtauTTS uses github.com/mozillazg/go-pinyin v0.21.0 to convert Chinese text
 to Pinyin. It is distributed under the MIT License, Copyright (c) 2016
-mozillazg. The exact module license is included under licenses/Go in the
-release package.
+mozillazg. The exact module license and the generated pinyin-data provenance
+notice are included under licenses/Go in every release package.
+
+Upstream data project:
+https://github.com/mozillazg/pinyin-data
 
 
 pyopenjtalk frontend bridge
@@ -308,6 +311,16 @@ notices are included in
 packages do not include those Windows GUI components or that addendum.
 
 
+macOS GUI addendum
+==================
+
+The macOS GUI package additionally bundles dynamically linked Qt 6 frameworks
+and Qt Multimedia's deployment. Their package-specific license, source-offer,
+relinking, attribution, and FFmpeg notices are included under licenses/Qt and
+in `THIRD_PARTY_NOTICES-MACOS-GUI.txt` beside this file. Server and Linux
+packages do not include that macOS GUI addendum.
+
+
 Go runtime and standard library
 ===============================
 
@@ -370,14 +383,29 @@ EULA, license, and build provenance must be included under licenses/CUDA. No
 NVIDIA GPU driver is distributed by UtauTTS.
 
 
+DiffSinger ONNX Runtime and DirectML bridge
+===========================================
+
+The Full Windows package includes the optional DiffSinger bridge. It embeds
+ONNX Runtime with the DirectML execution provider and the Microsoft DirectML
+runtime. The exact license and third-party notice files for the
+Microsoft.ML.OnnxRuntime.DirectML, Microsoft.ML.OnnxRuntime.Managed, and
+Microsoft.AI.DirectML package versions used by the build are included under
+runtime/licenses alongside the .NET runtime notices. The bridge is not
+included in the Japanese profile or in the Linux/macOS packages.
+
+Upstream package pages:
+https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.DirectML/1.23.0
+https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.Managed/1.23.0
+https://www.nuget.org/packages/Microsoft.AI.DirectML/1.15.4
+
+
 
 Breeze Icons
 ============
 
 The GUI bundles selected KDE Breeze action icons as Qt resources:
-`view-refresh.svg`, `list-add.svg`, `edit-delete.svg`,
-`media-playback-pause.svg`, `media-playback-start.svg`, and
-`overflow-menu.svg`.
+`view-refresh.svg`, `edit-delete.svg`, and `overflow-menu.svg`.
 Copyright (C) 2014 Uri Herrera and others.
 These icons are distributed under the GNU Lesser General Public License,
 version 3 or later, with the KDE artwork-library clarification in the upstream
@@ -460,7 +488,8 @@ English grapheme-to-phoneme conversion uses Gofonix v0.3.1-alpha,
 Copyright 2026 Nikolas Kraljevic, under the Apache License 2.0.
 Gofonix includes a reduced dictionary derived from CMUdict,
 Copyright (C) 1993-2015 Carnegie Mellon University.
-The CMUdict license is included as `licenses/Go/CMUDICT-LICENSE.txt`.
+The CMUdict license, Gofonix data-license description, and the module's
+third-party notices are included under licenses/Go in each release package.
 
 https://github.com/NK8007/gofonix
 https://github.com/cmusphinx/cmudict

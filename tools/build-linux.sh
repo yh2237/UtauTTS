@@ -153,24 +153,7 @@ done
 
 echo '=== Go licenses ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
-  license_dir="${package_dir}/licenses/Go"
-  mkdir -p "${license_dir}"
-  cp "$("${go_command}" env GOROOT)/LICENSE" "${license_dir}/GO-LICENSE.txt"
-  cp "${root_dir}/licenses/APACHE-2.0.txt" "${license_dir}/APACHE-2.0.txt"
-  for module in golang.org/x/text github.com/ikawaha/kagome/v2 github.com/ikawaha/kagome-dict github.com/ikawaha/kagome-dict/ipa gopkg.in/yaml.v3; do
-    module_info="$("${go_command}" list -m -f '{{.Dir}}|{{.Version}}' "${module}")"
-    module_dir="${module_info%%|*}"
-    module_version="${module_info#*|}"
-    module_name="${module//\//_}"
-    module_name="${module_name//./_}"
-    cp "${module_dir}/LICENSE" "${license_dir}/${module_name}-${module_version}-LICENSE.txt"
-    for notice in NOTICE NOTICE.txt; do
-      if [[ -f "${module_dir}/${notice}" ]]; then
-        cp "${module_dir}/${notice}" "${license_dir}/${module_name}-${module_version}-NOTICE.txt"
-        break
-      fi
-    done
-  done
+  bash "${root_dir}/tools/collect-go-licenses.sh" "${package_dir}" "${go_command}"
 done
 
 echo '=== OpenJTalk, worldline, and dataset licenses ==='

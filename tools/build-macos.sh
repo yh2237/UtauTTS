@@ -23,7 +23,7 @@ ninja_command="${NINJA:-ninja}"
 qt_root="${QT_ROOT:-}"
 mac_arch="${MACOS_ARCH:-$(uname -m)}"
 
-for command_name in "${go_command}" "${python_command}" "${cmake_command}" "${ninja_command}" zip unzip curl install_name_tool; do
+for command_name in "${go_command}" "${python_command}" "${cmake_command}" "${ninja_command}" zip unzip curl shasum install_name_tool; do
   if ! command -v "${command_name}" >/dev/null 2>&1; then
     echo "required command was not found: ${command_name}" >&2
     exit 1
@@ -151,6 +151,7 @@ echo '=== Docs and legal files ==='
 cp -R "${root_dir}/docs" "${gui_dir}/docs"
 cp "${root_dir}/LICENSE" "${gui_dir}/LICENSE"
 cp "${root_dir}/THIRD_PARTY_NOTICES.txt" "${gui_dir}/THIRD_PARTY_NOTICES.txt"
+cp "${root_dir}/THIRD_PARTY_NOTICES-MACOS-GUI.txt" "${gui_dir}/THIRD_PARTY_NOTICES-MACOS-GUI.txt"
 cp "${root_dir}/README.md" "${gui_dir}/README.md"
 cp "${root_dir}/docs/server.md" "${server_dir}/README.md"
 cp "${root_dir}/docs/manual-pitch.md" "${server_dir}/manual-pitch.md"
@@ -161,6 +162,7 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
   license_root="${package_dir}/licenses"
   mkdir -p "${license_root}/Go" "${license_root}/OpenJTalk" "${license_root}/Worldline" "${license_root}/WORLD"
   cp -R "${root_dir}/licenses/." "${license_root}/"
+  bash "${root_dir}/tools/collect-go-licenses.sh" "${package_dir}" "${go_command}"
   cp "${root_dir}/third_party/world/LICENSE.txt" "${license_root}/WORLD/WORLD-LICENSE.txt"
   cp "${root_dir}/third_party/world/OOURA-NOTICE.txt" "${license_root}/WORLD/OOURA-NOTICE.txt"
   cp "${root_dir}/third_party/world/MACRODEFINITIONS-LICENSE.txt" "${license_root}/WORLD/MACRODEFINITIONS-LICENSE.txt"
@@ -169,6 +171,10 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
   cp "${root_dir}/licenses/openjtalk/"*.txt "${license_root}/OpenJTalk/"
   cp "${root_dir}/licenses/worldline/"*.txt "${license_root}/Worldline/"
   cp "${root_dir}/licenses/APACHE-2.0.txt" "${license_root}/APACHE-2.0.txt"
+
+  if [[ "${package_dir}" == "${gui_dir}" ]]; then
+    bash "${root_dir}/tools/collect-macos-qt-licenses.sh" "${package_dir}" "${app_path}" "${qt_root}"
+  fi
 
   python_license="$("${python_command}" - <<'PY'
 import os

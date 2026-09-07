@@ -46,6 +46,13 @@ try {
         Assert-Path (Join-Path $packageRoot 'licenses/README.txt') 'license bundle manifest'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/GO-LICENSE.txt') 'Go runtime license'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/APACHE-2.0.txt') 'Apache License 2.0 text'
+        Assert-Path (Join-Path $packageRoot 'licenses/Go/CMUDICT-LICENSE.txt') 'CMUdict license'
+        Assert-Path (Join-Path $packageRoot 'licenses/Go/PINYIN-DATA-NOTICE.txt') 'pinyin data provenance notice'
+        Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-LICENSE.txt') 'Gofonix license'
+        Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-NOTICE.txt') 'Gofonix notice'
+        Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-THIRD_PARTY_NOTICES.md') 'Gofonix third-party notices'
+        Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-DATA_LICENSES.md') 'Gofonix data license description'
+        Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt') 'go-pinyin license'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt') 'yaml.v3 license'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt') 'yaml.v3 notice'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_ikawaha_kagome-dict-v1.1.7-LICENSE.txt') 'kagome-dict license'
@@ -54,6 +61,17 @@ try {
         if ($Profile -eq 'Full') {
             Assert-Path (Join-Path $packageRoot 'runtime/utautts-diffsinger-bridge.exe') 'DiffSinger bridge'
             Assert-Path (Join-Path $packageRoot 'runtime/worldline.dll') 'WORLDLINE runtime'
+            foreach ($diffSingerLicense in @(
+                'ONNXRUNTIME-LICENSE.txt',
+                'ONNXRUNTIME-THIRD-PARTY-NOTICES.txt',
+                'ONNXRUNTIME-MANAGED-LICENSE.txt',
+                'ONNXRUNTIME-MANAGED-THIRD-PARTY-NOTICES.txt',
+                'DIRECTML-LICENSE.txt',
+                'DIRECTML-LICENSE-CODE.txt',
+                'DIRECTML-THIRD-PARTY-NOTICES.txt'
+            )) {
+                Assert-Path (Join-Path $packageRoot "runtime/licenses/$diffSingerLicense") "DiffSinger dependency license: $diffSingerLicense"
+            }
         } else {
             foreach ($optionalRuntime in @('utautts-diffsinger-bridge.exe', 'worldline.dll')) {
                 if (Test-Path -LiteralPath (Join-Path $packageRoot "runtime/$optionalRuntime")) {
