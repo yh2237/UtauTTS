@@ -47,6 +47,8 @@ class Backend final : public QObject {
     Q_PROPERTY(bool preReleaseUpdateCheckEnabled READ preReleaseUpdateCheckEnabled NOTIFY updateSettingsChanged)
     Q_PROPERTY(int previewCacheFileCount READ previewCacheFileCount NOTIFY cacheSettingsChanged)
     Q_PROPERTY(bool developerMode READ developerMode NOTIFY developerModeChanged)
+    Q_PROPERTY(bool developerMultilingualEnabled READ developerMultilingualEnabled NOTIFY developerFeaturesChanged)
+    Q_PROPERTY(bool developerProsodyTrainingEnabled READ developerProsodyTrainingEnabled NOTIFY developerFeaturesChanged)
     Q_PROPERTY(int defaultMoraDuration READ defaultMoraDuration NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(int defaultPauseDuration READ defaultPauseDuration NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(int defaultLeadingPreutterance READ defaultLeadingPreutterance NOTIFY synthesisDefaultsChanged)
@@ -95,6 +97,8 @@ public:
     bool preReleaseUpdateCheckEnabled() const { return m_preReleaseUpdateCheckEnabled; }
     int previewCacheFileCount() const { return m_previewCacheFileCount; }
     bool developerMode() const { return m_developerMode; }
+    bool developerMultilingualEnabled() const { return m_developerMultilingualEnabled; }
+    bool developerProsodyTrainingEnabled() const { return m_developerProsodyTrainingEnabled; }
     int defaultMoraDuration() const { return m_defaultMoraDuration; }
     int defaultPauseDuration() const { return m_defaultPauseDuration; }
     int defaultLeadingPreutterance() const { return m_defaultLeadingPreutterance; }
@@ -162,6 +166,8 @@ public:
     Q_INVOKABLE void setPreReleaseUpdateCheckEnabled(bool value);
     Q_INVOKABLE void setPreviewCacheFileCount(int value);
     Q_INVOKABLE void setDeveloperMode(bool value);
+    Q_INVOKABLE void setDeveloperMultilingualEnabled(bool value);
+    Q_INVOKABLE void setDeveloperProsodyTrainingEnabled(bool value);
     Q_INVOKABLE void setSynthesisDefaults(int moraDuration, int pauseDuration,
                                           int leadingPreutterance, double intonationStrength,
                                           const QString &modelId, const QString &rendererId,
@@ -192,6 +198,7 @@ signals:
     void updateSettingsChanged();
     void cacheSettingsChanged();
     void developerModeChanged();
+    void developerFeaturesChanged();
     void synthesisDefaultsChanged();
     void exportSettingsChanged();
     void voicebankSettingsChanged();
@@ -253,6 +260,8 @@ private:
     QString m_startupMigrationError;
     int m_previewCacheFileCount = 32;
     bool m_developerMode = false;
+    bool m_developerMultilingualEnabled = true;
+    bool m_developerProsodyTrainingEnabled = true;
     int m_defaultMoraDuration = 120;
     int m_defaultPauseDuration = 180;
     int m_defaultLeadingPreutterance = 0;

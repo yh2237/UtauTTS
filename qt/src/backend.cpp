@@ -256,6 +256,10 @@ Backend::Backend(QObject *parent)
           "appearance/preReleaseUpdateCheckEnabled", false).toBool()),
       m_previewCacheFileCount(portableSettingValue("performance/previewCacheFileCount", 32).toInt()),
       m_developerMode(portableSettingValue("developer/enabled", false).toBool()),
+      m_developerMultilingualEnabled(
+          portableSettingValue("developer/multilingualEnabled", true).toBool()),
+      m_developerProsodyTrainingEnabled(
+          portableSettingValue("developer/prosodyTrainingEnabled", true).toBool()),
       m_defaultRenderer(portableSettingValue("synthesis/defaultRendererId",
                                           QStringLiteral("utautts-world-phrase")).toString().trimmed()),
       m_defaultModelId(portableSettingValue("synthesis/defaultModelId",
@@ -510,6 +514,26 @@ void Backend::setDeveloperMode(bool value) {
     emit developerModeChanged();
 }
 
+void Backend::setDeveloperMultilingualEnabled(bool value) {
+    if (m_developerMultilingualEnabled == value)
+        return;
+    m_developerMultilingualEnabled = value;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    settings.setValue(QStringLiteral("developer/multilingualEnabled"), value);
+    settings.sync();
+    emit developerFeaturesChanged();
+}
+
+void Backend::setDeveloperProsodyTrainingEnabled(bool value) {
+    if (m_developerProsodyTrainingEnabled == value)
+        return;
+    m_developerProsodyTrainingEnabled = value;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    settings.setValue(QStringLiteral("developer/prosodyTrainingEnabled"), value);
+    settings.sync();
+    emit developerFeaturesChanged();
+}
+
 void Backend::setDefaultVoicebank(const QString &value) {
     const QString normalized = value.trimmed();
     if (m_defaultVoicebankId == normalized) {
@@ -676,7 +700,7 @@ void Backend::clearLogs() {
 bool Backend::showNativeAboutDialog() {
 #ifdef Q_OS_WIN
     const QString title = tr("UtauTTSについて");
-    const QString text = QStringLiteral("UtauTTS %1 \n\nDeveloped by yh（@2237yh）\nTesting by アアアアアアア（@a7_riri）\n\nUTAUボイスバンクの原音接続に、学習ベースのイントネーション調整を加えた日本語TTS").arg(QCoreApplication::applicationVersion());
+    const QString text = QStringLiteral("UtauTTS %1 \n\nDeveloped by yh\n\nUTAUボイスバンクの原音接続に、学習ベースのイントネーション調整を加えた日本語TTS").arg(QCoreApplication::applicationVersion());
     MessageBoxW(GetActiveWindow(),
                 reinterpret_cast<LPCWSTR>(text.utf16()),
                 reinterpret_cast<LPCWSTR>(title.utf16()),
@@ -1660,7 +1684,10 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
             {"export_text_encoding", m_exportTextEncoding},
             {"close_log_on_success", m_closeLogOnSuccess},
             {"update_check_enabled", m_updateCheckEnabled},
+            {"pre_release_update_check_enabled", m_preReleaseUpdateCheckEnabled},
             {"developer_mode", m_developerMode},
+            {"developer_multilingual_enabled", m_developerMultilingualEnabled},
+            {"developer_prosody_training_enabled", m_developerProsodyTrainingEnabled},
         }},
         {"current_selection", selection},
         {"catalog", QVariantMap{

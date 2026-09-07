@@ -47,6 +47,8 @@ ApplicationWindow {
     property bool pendingPreReleaseUpdateCheckEnabled: false
     property int pendingPreviewCacheFileCount: 32
     property bool pendingDeveloperMode: false
+    property bool pendingDeveloperMultilingualEnabled: true
+    property bool pendingDeveloperProsodyTrainingEnabled: true
     property string pendingSynthesizeShortcut: "Ctrl+Enter"
     property string pendingSaveProjectShortcut: "Ctrl+S"
     property string pendingReloadVoicebanksShortcut: "Ctrl+O"
@@ -62,6 +64,25 @@ ApplicationWindow {
                                         : root.backend.languageDisplayName(code));
         }
         return labels;
+    }
+
+    function settingsPageLabels() {
+        const pages = [root.translator.tr("settings.page.synthesis"),
+            root.translator.tr("settings.page.export"),
+            root.translator.tr("settings.page.appearance"),
+            root.translator.tr("settings.page.log"),
+            root.translator.tr("settings.page.shortcuts")];
+        if (root.backend.developerMode)
+            pages.push(root.translator.tr("settings.page.developer"));
+        return pages;
+    }
+
+    Connections {
+        target: root.backend
+        function onDeveloperModeChanged() {
+            if (!root.backend.developerMode && root.currentPage >= 5)
+                root.currentPage = 2;
+        }
     }
 
     function loadCurrent() {
@@ -95,6 +116,10 @@ ApplicationWindow {
         previewCacheSpin.value = pendingPreviewCacheFileCount;
         pendingDeveloperMode = root.backend.developerMode;
         developerModeSwitch.checked = pendingDeveloperMode;
+        pendingDeveloperMultilingualEnabled = root.backend.developerMultilingualEnabled;
+        developerMultilingualSwitch.checked = pendingDeveloperMultilingualEnabled;
+        pendingDeveloperProsodyTrainingEnabled = root.backend.developerProsodyTrainingEnabled;
+        developerProsodyTrainingSwitch.checked = pendingDeveloperProsodyTrainingEnabled;
         moraSpin.value = pendingMoraDuration;
         pauseSpin.value = pendingPauseDuration;
         pendingSynthesizeShortcut = root.backend.synthesizeShortcut;
@@ -206,6 +231,16 @@ ApplicationWindow {
     function resetDeveloperMode() {
         pendingDeveloperMode = false;
         developerModeSwitch.checked = false;
+    }
+
+    function resetDeveloperMultilingualEnabled() {
+        pendingDeveloperMultilingualEnabled = true;
+        developerMultilingualSwitch.checked = true;
+    }
+
+    function resetDeveloperProsodyTrainingEnabled() {
+        pendingDeveloperProsodyTrainingEnabled = true;
+        developerProsodyTrainingSwitch.checked = true;
     }
 
     function resetCloseLogOnSuccess() {
@@ -334,11 +369,7 @@ ApplicationWindow {
             Layout.preferredWidth: 170
             Layout.fillHeight: true
             clip: true
-            model: [root.translator.tr("settings.page.synthesis"),
-                root.translator.tr("settings.page.export"),
-                root.translator.tr("settings.page.appearance"),
-                root.translator.tr("settings.page.log"),
-                root.translator.tr("settings.page.shortcuts")]
+            model: root.settingsPageLabels()
             currentIndex: root.currentPage
 
             delegate: ItemDelegate {
@@ -815,25 +846,6 @@ ApplicationWindow {
                             }
                         }
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            visible: root.pendingDeveloperMode
-                            height: visible ? implicitHeight : 0
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.preReleaseUpdateCheckEnabled")
-                            }
-                            Switch {
-                                id: preReleaseUpdateSwitch
-                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                checked: root.pendingPreReleaseUpdateCheckEnabled
-                                onToggled: root.pendingPreReleaseUpdateCheckEnabled = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetPreReleaseUpdateCheckEnabled()
-                            }
-                        }
                     }
                 }
 
@@ -1100,6 +1112,71 @@ ApplicationWindow {
                             SettingsResetButton {
                                 translator: root.translator
                                 onResetRequested: root.resetRemoveUtteranceShortcut()
+                            }
+                        }
+                    }
+                }
+
+                ScrollView {
+                    id: developerSettingsPage
+                    visible: root.backend.developerMode
+                    contentWidth: availableWidth
+
+                    ColumnLayout {
+                        width: developerSettingsPage.availableWidth
+                        spacing: 8
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.preReleaseUpdateCheckEnabled")
+                            }
+                            Switch {
+                                id: preReleaseUpdateSwitch
+                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                checked: root.pendingPreReleaseUpdateCheckEnabled
+                                onToggled: root.pendingPreReleaseUpdateCheckEnabled = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetPreReleaseUpdateCheckEnabled()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.developer.multilingual")
+                            }
+                            Switch {
+                                id: developerMultilingualSwitch
+                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                checked: root.pendingDeveloperMultilingualEnabled
+                                onToggled: root.pendingDeveloperMultilingualEnabled = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetDeveloperMultilingualEnabled()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.developer.prosodyTraining")
+                            }
+                            Switch {
+                                id: developerProsodyTrainingSwitch
+                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                checked: root.pendingDeveloperProsodyTrainingEnabled
+                                onToggled: root.pendingDeveloperProsodyTrainingEnabled = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetDeveloperProsodyTrainingEnabled()
                             }
                         }
                     }

@@ -1039,6 +1039,7 @@ ApplicationWindow {
             }
             GrayscaleMenuItem {
                 visible: window.appBackend.developerMode
+                        && window.appBackend.developerProsodyTrainingEnabled
                 height: visible ? implicitHeight : 0
                 text: window.translator.tr("menu.settings.trainingData")
                 enabled: !window.appBackend.busy
@@ -1190,6 +1191,10 @@ ApplicationWindow {
                     settingsWindow.pendingPreReleaseUpdateCheckEnabled);
         window.appBackend.setPreviewCacheFileCount(settingsWindow.pendingPreviewCacheFileCount);
         window.appBackend.setDeveloperMode(settingsWindow.pendingDeveloperMode);
+        window.appBackend.setDeveloperMultilingualEnabled(
+                    settingsWindow.pendingDeveloperMultilingualEnabled);
+        window.appBackend.setDeveloperProsodyTrainingEnabled(
+                    settingsWindow.pendingDeveloperProsodyTrainingEnabled);
         window.appBackend.setDefaultVoicebank(settingsWindow.pendingDefaultVoicebankId);
         window.appBackend.setExportSettings(settingsWindow.pendingExportTextWithWav,
                                             settingsWindow.pendingExportLabWithWav,
@@ -2520,9 +2525,11 @@ ApplicationWindow {
 
     function addUtterance(markDirty) {
         const voice = window.defaultVoicebank();
-        const language = window.appBackend.developerMode && voice && voice.suggested_language
+        const multilingualEnabled = window.appBackend.developerMode
+                && window.appBackend.developerMultilingualEnabled;
+        const language = multilingualEnabled && voice && voice.suggested_language
                 ? String(voice.suggested_language) : "ja";
-        const phonemizer = window.appBackend.developerMode && voice && voice.suggested_phonemizer
+        const phonemizer = multilingualEnabled && voice && voice.suggested_phonemizer
                 ? String(voice.suggested_phonemizer) : window.defaultPhonemizer(language);
         utterances.append({
             utteranceId: "utterance-" + nextUtteranceId++,

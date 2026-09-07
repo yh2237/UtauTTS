@@ -313,7 +313,9 @@ import QtMultimedia
                                 window.updateSetting("voicebankId", currentValue);
                                 const voice = window.voicebankById(currentValue);
                                 window.utterancesModel.setProperty(window.selectedIndex, "imagePath", voice ? voice.image_path : "");
-                                if (window.appBackend.developerMode && voice && voice.suggested_language) {
+                                if (window.appBackend.developerMode
+                                        && window.appBackend.developerMultilingualEnabled
+                                        && voice && voice.suggested_language) {
                                     const language = String(voice.suggested_language);
                                     const phonemizer = String(voice.suggested_phonemizer
                                                               || window.defaultPhonemizer(language));
@@ -335,6 +337,7 @@ import QtMultimedia
                         Label {
                             Layout.topMargin: 8
                             visible: window.appBackend.developerMode
+                                    && window.appBackend.developerMultilingualEnabled
                             text: window.translator.tr("main.param.language")
                             font.pixelSize: 12
                             color: window.mutedText
@@ -342,6 +345,7 @@ import QtMultimedia
                         ComboBox {
                             id: speechLanguageCombo
                             visible: window.appBackend.developerMode
+                                    && window.appBackend.developerMultilingualEnabled
                             Layout.fillWidth: true
                             model: [
                                 { id: "ja", display_name: window.translator.tr("main.language.ja") },
@@ -360,6 +364,7 @@ import QtMultimedia
                         Label {
                             Layout.topMargin: 8
                             visible: window.appBackend.developerMode
+                                    && window.appBackend.developerMultilingualEnabled
                             text: window.translator.tr("main.param.phonemizer")
                             font.pixelSize: 12
                             color: window.mutedText
@@ -367,6 +372,7 @@ import QtMultimedia
                         ComboBox {
                             id: phonemizerCombo
                             visible: window.appBackend.developerMode
+                                    && window.appBackend.developerMultilingualEnabled
                             Layout.fillWidth: true
                             model: window.phonemizerOptions(window.utterancesModel.count
                                     ? window.current().language || "ja" : "ja")
