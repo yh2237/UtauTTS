@@ -1,39 +1,42 @@
 # ライセンスの適用範囲
 
-UtauTTSはOSSのフリーソフトウェアとして公開しています。ただしリポジトリに含まれる学習済みモデル、音源、辞書、アイコン、データ、外部ライブラリのすべてがMIT Licenseの対象になるわけではありません。
+UtauTTSのソースコードはMIT Licenseで公開しています。学習済みモデル、ボイスバンク、文章データ、アイコン、外部ライブラリなど、第三者が権利を持つ成果物には個別の利用条件が適用されます。
 
-## UtauTTS の本体コード
+## UtauTTSのソースコード
 
-UtauTTSのオリジナルコードは、リポジトリ直下の[`LICENSE`](./LICENSE)に記載したMIT Licenseの対象です。MIT Licenseは、第三者が著作権を持つコード、データ、モデル、音源の利用条件を変更しません。
+UtauTTSのオリジナルコードは[`LICENSE`](./LICENSE)のMIT Licenseに従います。このライセンスは、第三者が権利を持つコード、データ、モデル、音源の利用条件を変更しません。
 
 ## 学習済みモデル
 
-- 現在`models/`に同梱しているJSONモデルは、JSUT日本語音声コーパスの音声を使って学習したモデルです。
-- 同梱モデルの利用・改変・再配布条件は、学術研究、非商用研究、個人利用に限られます。商用利用にはJSUT権利者の事前許諾が必要です。
-- モデル自体をCreative Commons Attribution-ShareAlike 4.0 Internationalとして配布しているわけではありません。
-- 詳細は[`models/README.md`](./models/README.md)、[`licenses/PROSODY-MODELS.txt`](./licenses/PROSODY-MODELS.txt)、[`licenses/JSUT-DATA-AND-LABELS.txt`](./licenses/JSUT-DATA-AND-LABELS.txt)を参照してください。
-- JSUTの元音声、BASIC5000原典全体、jsut-labelの全データは、リリースパッケージに同梱していません。GUIに埋め込まれるBASIC5000の選択300文については、次の文章セットの項を参照してください。モデルの条件は、これらの上流データの権利を移転するものではありません。
+現在配布している`models/`の公式JSONモデルは、JSUT日本語音声コーパスの音声を使って学習しています。
+
+- 利用、改変、再配布は、学術研究、非商用研究、個人利用に限られます。
+- 商用利用にはJSUT権利者の事前許諾が必要です。
+- モデル自体はCreative Commons Attribution-ShareAlike 4.0 Internationalとして配布していません。
+- 詳細な条件と出典は、[`models/README.md`](./models/README.md)、[`licenses/PROSODY-MODELS.txt`](./licenses/PROSODY-MODELS.txt)、[`licenses/JSUT-DATA-AND-LABELS.txt`](./licenses/JSUT-DATA-AND-LABELS.txt)を確認してください。
+
+JSUTの元音声、BASIC5000全体、jsut-labelの全データは配布物に含まれません。モデルの利用条件は、これらの上流データの権利を移転するものではありません。
 
 ## 抑揚調整用の文章セット
 
-GUIに埋め込まれる`qt/prosody-prompts-ja-v1.json`は、UtauTTSが作成した10文と、JSUT BASIC5000から選択した300文を含む混在データです。ファイル全体をMIT Licenseと表示してはいけません。構成要素ごとの条件はJSONの`sources`メタデータと[`licenses/JSUT-DATA-AND-LABELS.txt`](./licenses/JSUT-DATA-AND-LABELS.txt)に記載しています。
+GUIに組み込まれる`qt/prosody-prompts-ja-v1.json`には、UtauTTS独自の10文と、JSUT BASIC5000から選択した300文が含まれます。選択した文章の出典と条件は、JSONの`sources`メタデータと[`licenses/JSUT-DATA-AND-LABELS.txt`](./licenses/JSUT-DATA-AND-LABELS.txt)に記載しています。ファイル全体にMIT Licenseを適用することはできません。
 
-選択したBASIC5000の文章を含むリソースや、そこから作成した教師データを再配布する場合は、田中コーパス、Wikipedia、JSUT独自文それぞれの出典表示とライセンス条件を維持してください。
+この文章セットまたは、文章セットを含む教師データを再配布する場合は、田中コーパス、Wikipedia、JSUT独自文それぞれの出典表示とライセンス条件を維持してください。
 
 ## ボイスバンク
 
-GUI版に同梱する`voice/`の足立レイ音源は、メカニカルガール公式配布物に含まれる音源であり、UtauTTS本体のMIT Licenseとは別の条件に従います。リポジトリでは`voice/README.md`と`docs/voicebank.md`、配布物では`voice/`内の公式文書と最新の公式ガイドラインを確認してください。Server版にはこの音源を同梱しません。商用・収益目的など、配布元への確認が必要な用途は、許諾を得てから行ってください。
+GUI版には、メカニカルガール公式配布の「足立レイ UTAU音源 ver3.5.0」を同梱しています。この音源はUtauTTS本体のMIT Licenseの対象外です。利用条件は[同梱ボイスバンクの案内](./docs/voicebank.md)、音源に付属する文書、[公式ガイドライン](https://mechanicalgirl.jp/guidelines/)を確認してください。Server版にはこの音源を同梱していません。
 
 ## その他の第三者コンポーネント
 
-OpenUtau/WORLD/WORLDLINE、Qt、FFmpeg、Breeze Icons、Open JTalk、Go/Pythonの依存関係などは、それぞれのライセンスと通知を維持します。対象と配布時のファイルは[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、`THIRD_PARTY_NOTICES-*`、[`licenses/`](./licenses/)および各コンポーネントの同梱文書に記載しています。
+OpenUtau、WORLD、WORLDLINE、Qt、FFmpeg、Breeze Icons、Open JTalk、Go/Pythonの依存関係などには、それぞれのライセンスと通知が適用されます。詳細は[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、[Windows GUI通知](./THIRD_PARTY_NOTICES-WINDOWS-GUI.txt)、[macOS GUI通知](./THIRD_PARTY_NOTICES-MACOS-GUI.txt)、[`licenses/`](./licenses/)、各コンポーネントの同梱文書を確認してください。
 
-`icons/`のアプリケーションアイコン、`qt/assets/icons/`のUIアイコンなど、画像・アイコンの出所とライセンスは個別に確認してください。KDE Breeze由来のUIアイコンには、同梱されるBreezeの通知とライセンスが適用されます。
+アプリケーションアイコンとUIアイコンも、出典ごとに利用条件が異なります。`icons/`および`qt/assets/icons/`のアイコンを再配布・改変する場合は、対応する通知とライセンスを確認してください。
 
-## リリースに含める範囲
+## リリースパッケージ
 
-リリースビルドは、GUI版とServer版それぞれに必要なモデル、Renderer、ランタイム、ライセンス文書を明示的にコピーします。GUI版には初期音源を同梱しますが、Server版には同梱しません。`data/`、`out/`、`.tmp-*`、旧版の`release/`などの開発用・学習用ディレクトリは、配布物に含めません。
+GUI版とServer版には、それぞれの実行に必要なモデル、Renderer、ランタイム、ライセンス文書を含めます。GUI版には初期ボイスバンクを同梱しますが、Server版には同梱しません。
 
-各リリースパッケージには、少なくとも本体の[`LICENSE`](./LICENSE)、この文書、[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、`licenses/`、モデルの個別文書を含めます。GUI版には対象プラットフォームのGUI固有通知と同梱音源の公式文書も含めます。Server版にはGUI固有通知と同梱音源を含めません。
+各パッケージには、少なくとも[`LICENSE`](./LICENSE)、この文書、[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、`licenses/`、モデルの個別文書を含めます。GUI版には対象プラットフォームのGUI固有通知と、同梱ボイスバンクの公式文書も含めます。Server版にはGUI固有通知と同梱ボイスバンクを含めません。
 
-この文書は適用範囲の要約です。具体的な利用条件に矛盾がある場合は、各権利者の原文ライセンス・配布条件および同梱通知を優先してください。
+具体的な利用条件に矛盾がある場合は、各権利者が公開する原文ライセンス、配布条件、同梱通知を優先してください。

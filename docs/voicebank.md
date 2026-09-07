@@ -1,6 +1,6 @@
 # 同梱ボイスバンク
 
-GUI版にはメカニカルガール公式配布の「足立レイ UTAU音源 ver3.5.0」を初期ボイスバンクとして同梱します。リポジトリでは公式ZIPを`voice/足立レイver3.5.0.zip`に置き、リリースビルド時に`voice/足立レイver3.5.0`へ展開します。
+GUI版には、メカニカルガール公式配布の「足立レイ UTAU音源 ver3.5.0」を初期ボイスバンクとして同梱します。音源はUtauTTS本体とは別の利用条件で配布されます。
 
 ## 利用条件
 
@@ -11,16 +11,8 @@ GUI版にはメカニカルガール公式配布の「足立レイ UTAU音源 ve
 
 ## SHA-256
 
-同梱している公式ZIPのSHA-256
+同梱音源の元となる公式配布ZIPのSHA-256
 
 ```text
 B96D1B21145F22E573AFD9EC8AEAAD0EC9CBAEE581C2623C64ADDEB31DE46B3D
-```
-
-## 開発時のパス
-
-`build.bat win`、`./build.sh linux`、またはWindowsからの`build.bat linux`を実行すると、開発用コマンドから次のパスで同梱音源を参照できます。
-
-```text
-release/UtauTTS/voice/足立レイver3.5.0
 ```
