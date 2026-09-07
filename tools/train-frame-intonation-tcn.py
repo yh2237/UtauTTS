@@ -977,7 +977,7 @@ def export_model(
         "id": str(args.model_id or Path(args.out).stem),
         "display_name": str(args.display_name or Path(args.out).stem),
         "description": str(args.description or "Frame-level learned intonation model"),
-        "license": "UTAUTTS-JSUT-DERIVED-MODEL-TERMS-1.0",
+        "license": "Academic research, non-commercial research, and personal use only; commercial use requires permission from the JSUT rights holders",
         "license_notice": "licenses/PROSODY-MODELS.txt",
         "provenance": {
             "training_corpus": "JSUT Japanese speech corpus",

@@ -203,7 +203,7 @@ def export_duration_model(model, feature_index, args, records, validation_mae: f
         "id": args.model_id or Path(args.out).stem,
         "display_name": args.display_name or "Prosody multitask v1",
         "description": args.description or "Learned Japanese mora duration with v8 frame intonation",
-        "license": frame_model.get("license", "UTAUTTS-JSUT-DERIVED-MODEL-TERMS-1.0"),
+        "license": frame_model.get("license", "Academic research, non-commercial research, and personal use only; commercial use requires permission from the JSUT rights holders"),
         "license_notice": frame_model.get("license_notice", "licenses/PROSODY-MODELS.txt"),
         "recommended_renderers": args.recommended_renderer or frame_model.get("recommended_renderers", []),
         "version": 10,

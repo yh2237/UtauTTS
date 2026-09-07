@@ -350,11 +350,11 @@ describe limited publication of a small part of the corpus (for example, about
 JSUT rights holders. See the official terms and current contact information:
 https://sites.google.com/site/shinnosuketakamichi/publication/jsut
 
-The bundled JSON model files are distributed under the UtauTTS JSUT-Derived
-Model Terms 1.0. Academic research, non-commercial research, and personal use
-are permitted, including redistribution for those permitted uses when the
-notices are preserved. Commercial use requires prior permission from the JSUT
-rights holders. The model-specific notice is included as
+The bundled JSON model files were trained using JSUT audio. They may be used,
+modified, and redistributed only for academic research, non-commercial research,
+and personal use, including research conducted within commercial organizations.
+Commercial use requires prior permission from the JSUT rights holders. The
+model-specific notice is included as
 licenses/PROSODY-MODELS.txt and models/README.md. UtauTTS's repository-level MIT
 License applies to the source code and does not override the terms for models,
 prompts, voicebanks, or other third-party assets.

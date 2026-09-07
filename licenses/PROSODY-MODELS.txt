@@ -1,28 +1,22 @@
-UtauTTS JSUT-Derived Model Terms 1.0
-====================================
+Conditions for models trained from JSUT audio
+=============================================
 
-The JSON files distributed under models/ are not distributed under the
-Creative Commons Attribution-ShareAlike 4.0 International license. They are
-distributed under these project-specific terms.
+The JSON files distributed under models/ were trained using JSUT audio. They
+are not distributed under the Creative Commons Attribution-ShareAlike 4.0
+International license. You may use, modify, and redistribute these model files
+and model adaptations only for academic research, non-commercial research
+(including research conducted within commercial organizations), and personal
+use. Commercial use requires prior permission from the JSUT rights holders.
 
 Copyright (c) 2026 yh
 
-Permitted uses:
-
-- academic research;
-- non-commercial research, including research conducted within commercial
-  organizations; and
-- personal use.
-
-For the permitted uses above, you may use, reproduce, modify, and redistribute
-the model files and model adaptations, provided that you preserve this notice,
+When using or redistributing the model files or adaptations for those permitted
+uses, preserve this notice,
 licenses/JSUT-DATA-AND-LABELS.txt, and the model's source attribution.
 
-Commercial use of a bundled model or an adaptation requires prior permission
-from the JSUT rights holders. Commercial use includes incorporating the model
-into a paid product or service, offering a paid service that uses the model,
-or redistributing it for commercial use. See the official JSUT page for the
-current terms and contact information:
+Commercial use includes incorporating the model into a paid product or service,
+offering a paid service that uses the model, or redistributing it for commercial
+use. See the official JSUT page for the current terms and contact information:
 https://sites.google.com/site/shinnosuketakamichi/publication/jsut
 
 The models were trained from JSUT audio and jsut-label-derived annotations.
@@ -34,7 +28,7 @@ JSUT-derived model must be confirmed with the JSUT rights holders before use;
 see the official JSUT page for the current contact information:
 https://sites.google.com/site/shinnosuketakamichi/publication/jsut
 
-These project-specific terms do not grant rights to the upstream JSUT audio,
+These conditions do not grant rights to the upstream JSUT audio,
 BASIC5000 text, or jsut-label data, and do not replace their terms. The source
 audio and complete source label files are not included in UtauTTS. Preserve
 this notice together with JSUT-DATA-AND-LABELS.txt when redistributing the

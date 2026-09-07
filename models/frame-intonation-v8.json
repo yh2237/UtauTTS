@@ -2,7 +2,7 @@
   "id":"frame-intonation-v8",
   "display_name":"Frame intonation TCN v8",
   "description":"JSUT frame-level learned intonation model",
-  "license":"UTAUTTS-JSUT-DERIVED-MODEL-TERMS-1.0",
+  "license":"Academic research, non-commercial research, and personal use only; commercial use requires permission from the JSUT rights holders",
   "license_notice":"licenses/PROSODY-MODELS.txt",
   "provenance": {
     "training_corpus": "JSUT Japanese speech corpus",
