@@ -23,21 +23,26 @@ import (
 	"utautts/internal/tts"
 )
 
-type prompt struct{ ID, Text, Focus, Reading, Language, Phonemizer string }
+type prompt struct {
+	ID, Text, Focus, Reading, Language, Phonemizer string
+	MoraDurationsMS                                []float64          `json:"mora_durations_ms,omitempty"`
+	PitchCurve                                     *render.PitchCurve `json:"pitch_curve,omitempty"`
+}
 type measurement struct {
-	ID          string  `json:"id"`
-	Text        string  `json:"text"`
-	Focus       string  `json:"focus"`
-	Renderer    string  `json:"renderer"`
-	Repetition  int     `json:"repetition"`
-	ElapsedMS   float64 `json:"elapsed_ms"`
-	AudioMS     float64 `json:"audio_ms"`
-	RTF         float64 `json:"rtf"`
-	Peak        float64 `json:"peak"`
-	RMS         float64 `json:"rms"`
-	SilentUnits int     `json:"silent_units"`
-	Error       string  `json:"error,omitempty"`
-	WAV         string  `json:"wav,omitempty"`
+	ID                 string  `json:"id"`
+	Text               string  `json:"text"`
+	Focus              string  `json:"focus"`
+	Renderer           string  `json:"renderer"`
+	Repetition         int     `json:"repetition"`
+	ElapsedMS          float64 `json:"elapsed_ms"`
+	AudioMS            float64 `json:"audio_ms"`
+	RTF                float64 `json:"rtf"`
+	Peak               float64 `json:"peak"`
+	RMS                float64 `json:"rms"`
+	SilentUnits        int     `json:"silent_units"`
+	MissingPhoneGroups int     `json:"missing_phone_groups"`
+	Error              string  `json:"error,omitempty"`
+	WAV                string  `json:"wav,omitempty"`
 }
 
 func main() {
@@ -47,6 +52,7 @@ func main() {
 	}
 }
 func run() error {
+	speechTiming := flag.Bool("speech-timing", false, "experimental speech timing and voicebank calibration")
 	bank := flag.String("voicebank", "", "voicebank directory (required)")
 	diagnose := flag.Bool("diagnose", false, "write frontend and candidate diagnostics without rendering")
 	corpus := flag.String("corpus", "tools/evaluation/japanese-v1.json", "JSON listening corpus")
@@ -114,6 +120,9 @@ func run() error {
 			for repetition := 1; repetition <= *repeats; repetition++ {
 				row := measurement{ID: p.ID, Text: p.Text, Focus: p.Focus, Renderer: rendererID, Repetition: repetition}
 				cfg := tts.Config{VoicebankPath: *bank, Text: p.Text, Reading: p.Reading, Language: p.Language, Phonemizer: p.Phonemizer, Tone: "C4", MoraDurationMS: 120, PauseDurationMS: 180, ApplyPitch: true, IntonationStrength: 1}
+				cfg.SpeechTiming = *speechTiming
+				cfg.MoraDurationsMS = p.MoraDurationsMS
+				cfg.PitchCurve = p.PitchCurve
 				if *model != "none" {
 					cfg.ProsodyModelPath = prosody.Path
 				}
@@ -138,6 +147,7 @@ func run() error {
 				cancel()
 				if callErr == nil {
 					row.AudioMS = result.DurationMS
+					row.MissingPhoneGroups = len(result.Plan.MissingPhones)
 					if row.AudioMS > 0 {
 						row.RTF = row.ElapsedMS / row.AudioMS
 					}

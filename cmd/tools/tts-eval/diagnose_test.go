@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"utautts/internal/render"
 )
 
 func TestValidatePrompts(t *testing.T) {
@@ -12,6 +13,8 @@ func TestValidatePrompts(t *testing.T) {
 		{{ID: "x", Text: "hello"}, {ID: "x", Text: "hello"}},
 		{{ID: "x"}},
 		{{ID: "x", Text: "hello", Language: "zh", Phonemizer: "en-vccv"}},
+		{{ID: "x", Text: "hello", MoraDurationsMS: []float64{-1}}},
+		{{ID: "x", Text: "hello", PitchCurve: &render.PitchCurve{FrameMS: 0, Cents: []float64{0}}}},
 	} {
 		if validatePrompts(rows) == nil {
 			t.Fatal("invalid corpus accepted")

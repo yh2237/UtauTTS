@@ -52,6 +52,8 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 
 ## オプション
 
+`--speech-timing`は[発話タイミングと音源校正](speech-quality-experiment.md)の実験機能を有効にします。既定は無効です。
+
 | オプション | 既定値 | 説明 |
 |---|---|---|
 | `--version` | | アプリケーションのバージョンを表示して終了 |

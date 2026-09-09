@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,21 @@ func validatePrompts(prompts []prompt) error {
 		}
 		if _, _, err := frontend.ResolveLanguage(p.Language, p.Phonemizer); err != nil {
 			return fmt.Errorf("case %s: %w", p.ID, err)
+		}
+		for _, duration := range p.MoraDurationsMS {
+			if math.IsNaN(duration) || math.IsInf(duration, 0) || duration < 0 {
+				return fmt.Errorf("case %s: invalid mora duration", p.ID)
+			}
+		}
+		if p.PitchCurve != nil {
+			if p.PitchCurve.FrameMS <= 0 || math.IsNaN(p.PitchCurve.FrameMS) || math.IsInf(p.PitchCurve.FrameMS, 0) || len(p.PitchCurve.Cents) == 0 {
+				return fmt.Errorf("case %s: invalid pitch curve", p.ID)
+			}
+			for _, cent := range p.PitchCurve.Cents {
+				if math.IsNaN(cent) || math.IsInf(cent, 0) {
+					return fmt.Errorf("case %s: nonfinite pitch", p.ID)
+				}
+			}
 		}
 	}
 	return nil
@@ -69,6 +85,10 @@ func diagnoseCorpus(bankPath, out string, prompts []prompt) error {
 			row.Lattice, err = bank.AuditLattice(row.Units, "C4", nil)
 			if err != nil {
 				row.Stage = "candidate_selection"
+			}
+			if err == nil && len(row.Coverage.MissingPhones) > 0 {
+				row.Stage = "phoneme_coverage"
+				err = fmt.Errorf("%d required phone groups are missing", len(row.Coverage.MissingPhones))
 			}
 		}
 		if err != nil {
