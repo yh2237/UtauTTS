@@ -649,8 +649,6 @@ func previewDurationFor(mora frontend.Mora, base float64) float64 {
 		return base * mora.DurationScale
 	}
 	switch mora.Vowel {
-	case "cl":
-		return base * 0.65
 	case "n":
 		return base * 0.9
 	}

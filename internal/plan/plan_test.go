@@ -36,10 +36,10 @@ func TestBuildPlacesMoraeAndPause(t *testing.T) {
 	if got.Units[1].NoteStartMS != 300 || got.Units[1].DurationMS != 90 {
 		t.Fatalf("nasal unit = %+v", got.Units[1])
 	}
-	if got.Units[2].NoteStartMS != 390 || got.Units[2].DurationMS != 65 {
+	if got.Units[2].NoteStartMS != 390 || got.Units[2].DurationMS != 100 {
 		t.Fatalf("closure unit = %+v", got.Units[2])
 	}
-	if got.DurationMS != 455 {
+	if got.DurationMS != 490 {
 		t.Fatalf("duration = %v", got.DurationMS)
 	}
 	if got.Version != Version || got.SelectionMode != "greedy" || got.AliasPolicy != string(voicebank.AliasPolicyCVOnly) || got.JoinCostMode != "learned" || got.JoinModelVersion != 1 {
