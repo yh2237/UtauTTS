@@ -5,8 +5,7 @@
   "license": "Academic research, non-commercial research, and personal use only; commercial use requires permission from the JSUT rights holders",
   "license_notice": "licenses/PROSODY-MODELS.txt",
   "recommended_renderers": [
-    "utautts-world-phrase",
-    "openutau-worldline-r-faithful"
+    "utautts-world-phrase"
   ],
   "version": 10,
   "feature_version": 2,

@@ -110,8 +110,6 @@ func validateWorldlineBridgeJob(job worldlineBridgeJob) (worldlineBridgeJob, err
 
 func worldlineProviderID(engineID string) (string, error) {
 	switch engineID {
-	case "worldline-r-faithful":
-		return "openutau-worldline-r-faithful", nil
 	case "utautts-world-phrase", "utautts-world-phrase-cuda":
 		return engineID, nil
 	default:

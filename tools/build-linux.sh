@@ -94,7 +94,7 @@ for runtime_dir in "${gui_dir}/runtime" "${server_dir}/runtime"; do
   cp -R "${root_dir}/.tmp-openjtalk-linux/pyopenjtalk/open_jtalk_dic_utf_8-1.11" "${runtime_dir}/"
 done
 
-echo '=== Build native worldline bridge and install Linux worldline library ==='
+echo '=== Build native bridge and UtauTTS WORLD engine ==='
 staging_dir="${root_dir}/.tmp-worldline-linux"
 rm -rf "${staging_dir}"
 mkdir -p "${staging_dir}"
@@ -102,16 +102,8 @@ CGO_ENABLED=1 "${go_command}" build -trimpath \
   -o "${staging_dir}/utautts-worldline-bridge" \
   ./cmd/utautts-worldline-bridge
 bash "${root_dir}/tools/build-world-engine.sh" "${staging_dir}"
-worldline_sha256="EEAE80212191C84EF2A1EBCD33567F47D9700F8E74136578944DBBEEE209136C"
-worldline_source="${root_dir}/assets/worldline/linux-x64/libworldline.so"
-actual_worldline_hash="$(sha256sum "${worldline_source}" | awk '{print $1}')"
-if [ "${actual_worldline_hash^^}" != "${worldline_sha256}" ]; then
-  echo "libworldline.so SHA-256 mismatch: ${actual_worldline_hash}" >&2
-  exit 1
-fi
 for runtime_dir in "${gui_dir}/runtime" "${server_dir}/runtime"; do
   cp -R "${staging_dir}/." "${runtime_dir}/"
-  cp "${worldline_source}" "${runtime_dir}/libworldline.so"
 done
 
 echo '=== Python and PyInstaller licenses ==='
@@ -200,6 +192,7 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
   cp -R "${root_dir}/models/." "${package_dir}/models/"
   cp -R "${root_dir}/renderer/." "${package_dir}/renderer/"
   rm -rf "${package_dir}/renderer/utautts-world-phrase-cuda"
+  rm -rf "${package_dir}/renderer/openutau-worldline-r-faithful"
   # Rendererのruntime pathは各renderer.jsonから解決する。
 done
 

@@ -95,9 +95,13 @@ try {
         Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_ikawaha_kagome-dict-v1.1.7-LICENSE.txt') 'kagome-dict license'
         Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt') 'hts_engine_API license'
         Assert-Path (Join-Path $packageRoot 'runtime/utautts-worldline-bridge.exe') 'native worldline bridge'
+        foreach ($removedPath in @('runtime/worldline.dll', 'renderer/openutau-worldline-r-faithful')) {
+            if (Test-Path (Join-Path $packageRoot $removedPath)) {
+                throw "Package contains removed component: $removedPath"
+            }
+        }
         if ($Profile -eq 'Full') {
             Assert-Path (Join-Path $packageRoot 'runtime/utautts-diffsinger-bridge.exe') 'DiffSinger bridge'
-            Assert-Path (Join-Path $packageRoot 'runtime/worldline.dll') 'WORLDLINE runtime'
             foreach ($diffSingerLicense in @(
                 'ONNXRUNTIME-LICENSE.txt',
                 'ONNXRUNTIME-THIRD-PARTY-NOTICES.txt',
@@ -143,7 +147,6 @@ try {
             Assert-Path (Join-Path $packageRoot "renderer/$rendererId/renderer.json") "renderer manifest $rendererId"
         }
         if ($Profile -eq 'Full') {
-            Assert-Path (Join-Path $packageRoot 'renderer/openutau-worldline-r-faithful/renderer.json') 'WORLDLINE-R renderer manifest'
             Assert-Path (Join-Path $packageRoot 'renderer/diffsinger/renderer.json') 'DiffSinger renderer manifest'
         } else {
             foreach ($optionalRenderer in @('openutau-worldline-r-faithful', 'diffsinger')) {
@@ -276,18 +279,18 @@ try {
     Assert-Path $outputWav 'packaged CLI output'
 
     if ($Profile -eq 'Full') {
-    $worldlineRWav = Join-Path $workingDirectory 'package-worldline-r-smoke.wav'
+    $worldV9Wav = Join-Path $workingDirectory 'package-world-v9-smoke.wav'
     Push-Location $workingDirectory
     try {
-        & $cli --voicebank $voicebank.FullName --text $smokeText --prosody frame-intonation-v8 `
-            --renderer openutau-worldline-r-faithful --apply-pitch --intonation-strength 1 --out $worldlineRWav
+        & $cli --voicebank $voicebank.FullName --text $smokeText --prosody frame-intonation-v9 `
+            --renderer utautts-world-phrase --apply-pitch --intonation-strength 1 --out $worldV9Wav
         if ($LASTEXITCODE -ne 0) {
-            throw "Packaged WORLDLINE-R synthesis failed with exit code $LASTEXITCODE"
+            throw "Packaged WORLD v9 synthesis failed with exit code $LASTEXITCODE"
         }
     } finally {
         Pop-Location
     }
-    Assert-Path $worldlineRWav 'packaged WORLDLINE-R renderer output'
+    Assert-Path $worldV9Wav 'packaged WORLD v9 renderer output'
     }
 
     $utauTTSWorldWav = Join-Path $workingDirectory 'package-utautts-world-smoke.wav'
@@ -380,21 +383,21 @@ try {
             throw 'Packaged server synthesis output is empty'
         }
         if ($Profile -eq 'Full') {
-        $faithfulBody = @{
+        $worldV9Body = @{
             text = $smokeText
             voicebank_id = $voicebankId
-            model_id = 'frame-intonation-v8'
-            renderer = 'openutau-worldline-r-faithful'
+            model_id = 'frame-intonation-v9'
+            renderer = 'utautts-world-phrase'
             intonation_strength = 1
             apply_pitch = $true
         } | ConvertTo-Json -Compress
-        $faithfulServerWav = Join-Path $workingDirectory 'server-faithful-smoke.wav'
+        $worldV9ServerWav = Join-Path $workingDirectory 'server-worldV9-smoke.wav'
         Invoke-WebRequest -UseBasicParsing -Method Post -Uri "$baseUrl/api/synthesize/audio" `
-            -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($faithfulBody)) `
-            -OutFile $faithfulServerWav -TimeoutSec 120 | Out-Null
-        Assert-Path $faithfulServerWav 'packaged server faithful synthesis output'
-        if ((Get-Item -LiteralPath $faithfulServerWav).Length -le 44) {
-            throw 'Packaged server faithful synthesis output is empty'
+            -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($worldV9Body)) `
+            -OutFile $worldV9ServerWav -TimeoutSec 120 | Out-Null
+        Assert-Path $worldV9ServerWav 'packaged server worldV9 synthesis output'
+        if ((Get-Item -LiteralPath $worldV9ServerWav).Length -le 44) {
+            throw 'Packaged server worldV9 synthesis output is empty'
         }
         }
         $batchItems = @()

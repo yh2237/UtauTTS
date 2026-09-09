@@ -30,10 +30,6 @@ type worldlineManifest struct {
 	Units           []worldlineManifestUnit `json:"units"`
 }
 
-func renderOpenUtauWorldlineRFaithful(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
-	return renderWorldlineEngine(synthesisPlan, cfg, "worldline-r-faithful")
-}
-
 func renderUtauTTSWorldPhrase(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
 	return renderWorldlineEngine(synthesisPlan, cfg, "utautts-world-phrase")
 }

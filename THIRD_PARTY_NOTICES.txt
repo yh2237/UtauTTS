@@ -157,17 +157,13 @@ Upstream source:
 https://github.com/r9y9/open_jtalk
 
 
-OpenUtau worldline
-==================
+OpenUtau-derived compatibility code
+===================================
 
-The Windows and Linux releases bundle a modified build of the worldline native
-library from OpenUtau. The UtauTTS changes are recorded in
-tools/worldline-parallel.patch, tools/world-thread-local.patch,
-tools/worldline-permissive.patch, and tools/worldline-native-bridge.patch.
-The permissive patch replaces the original GPL-licensed spline dependency with
-an independently implemented natural cubic spline and excludes unused
-audio-output code from the shared library. Neither the GPL spline implementation
-nor that audio-output code is present in the distributed worldline binaries.
+UtauTTS retains code informed by OpenUtau's phone timing and renderer
+compatibility behavior. The separately built OpenUtau worldline native library,
+its libpyin/libgvps dependencies, and the former build patches are no longer
+included. This notice is retained for the remaining OpenUtau-derived code.
 
 The MIT License (MIT)
 
@@ -198,7 +194,9 @@ https://github.com/openutau/OpenUtau/tree/0.1.565/cpp/worldline
 libpyin
 -------
 
-The worldline binaries include libpyin for F0 estimation.
+This notice is retained for source and binary distributions that included the
+former OpenUtau worldline renderer. Current UtauTTS packages do not include
+libpyin.
 
 Copyright (c) 2015-2017, Kanru Hua
 All rights reserved.
@@ -214,7 +212,9 @@ https://github.com/Sleepwalking/libpyin/tree/b38135390b335c3e8cea6ef35cf5093789b
 libgvps
 -------
 
-The worldline binaries include libgvps through libpyin.
+This notice is retained for source and binary distributions that included the
+former OpenUtau worldline renderer. Current UtauTTS packages do not include
+libgvps.
 
 Copyright (c) 2015, Kanru Hua
 All rights reserved.

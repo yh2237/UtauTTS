@@ -147,9 +147,6 @@ func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {
 	want := map[string]string{
 		"utautts-world-phrase": "cpu",
 	}
-	if runtime.GOOS == "linux" {
-		want["openutau-worldline-r-faithful"] = "cpu"
-	}
 	if runtime.GOOS == "windows" {
 		want["utautts-world-phrase-cuda"] = "cuda"
 	}

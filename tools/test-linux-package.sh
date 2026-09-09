@@ -63,6 +63,10 @@ server_root="${temporary_root}/server"
 mkdir -p "${gui_root}" "${server_root}"
 unzip -q "${gui_zip}" -d "${gui_root}"
 unzip -q "${server_zip}" -d "${server_root}"
+for package_root in "${gui_root}" "${server_root}"; do
+  [ ! -e "${package_root}/runtime/libworldline.so" ] || fail 'obsolete worldline library is bundled'
+  [ ! -e "${package_root}/renderer/openutau-worldline-r-faithful" ] || fail 'removed faithful renderer is bundled'
+done
 bash "${root_dir}/tools/check-linux-relocations.sh" "${gui_root}/utautts"
 
 for required in \
@@ -74,7 +78,6 @@ for required in \
   "${gui_root}/runtime/utautts-openjtalk-features" \
   "${gui_root}/runtime/utautts-worldline-bridge" \
   "${gui_root}/runtime/utautts-world-engine.so" \
-  "${gui_root}/runtime/libworldline.so" \
   "${server_root}/utautts-server" \
   "${server_root}/manual-pitch.md" \
   "${gui_root}/LICENSE" \
@@ -184,12 +187,12 @@ smoke_text='こんにちは'
 "${gui_root}/tools/utautts-cli" --renderer waveform --voicebank "${voicebank}" \
   --text "${smoke_text}" --out "${work_dir}/waveform.wav"
 "${gui_root}/tools/utautts-cli" --voicebank "${voicebank}" --text "${smoke_text}" \
-  --prosody frame-intonation-v8 --renderer openutau-worldline-r-faithful \
-  --apply-pitch --intonation-strength 1 --out "${work_dir}/worldline-r.wav"
+  --prosody frame-intonation-v9 --renderer utautts-world-phrase \
+  --apply-pitch --intonation-strength 1 --out "${work_dir}/world-v9.wav"
 "${gui_root}/tools/utautts-cli" --voicebank "${voicebank}" --text "${smoke_text}" \
   --prosody frame-intonation-v8 --renderer utautts-world-phrase \
   --apply-pitch --intonation-strength 1 --out "${work_dir}/utautts-world.wav"
-for wav in "${work_dir}/waveform.wav" "${work_dir}/worldline-r.wav" "${work_dir}/utautts-world.wav"; do
+for wav in "${work_dir}/waveform.wav" "${work_dir}/world-v9.wav" "${work_dir}/utautts-world.wav"; do
   [ "$(stat -c %s "${wav}")" -gt 44 ] || fail "synthesis output is empty: ${wav}"
 done
 if "${gui_root}/tools/utautts-cli" --renderer waveform --voicebank "${voicebank}" \
@@ -225,7 +228,7 @@ curl -fsS "${base_url}/api/voicebanks" >"${work_dir}/voicebanks.json"
 curl -fsS "${base_url}/api/models" >"${work_dir}/models.json"
 curl -fsS "${base_url}/api/renderers" >"${work_dir}/renderers.json"
 
-for renderer_id in waveform classic-utau utautts-world-phrase openutau-worldline-r-faithful; do
+for renderer_id in waveform classic-utau utautts-world-phrase; do
   test -f "${gui_root}/renderer/${renderer_id}/renderer.json" \
     || fail "missing renderer manifest: ${renderer_id}"
 done
@@ -247,10 +250,10 @@ voice = voices[0]["id"]
 (root / "synthesize.json").write_text(json.dumps({
     "text": "こんにちは", "voicebank_id": voice, "renderer": "waveform", "mora_duration_ms": 120
 }, ensure_ascii=False), encoding="utf-8")
-(root / "faithful.json").write_text(json.dumps({
+(root / "world-v9.json").write_text(json.dumps({
     "text": "こんにちは", "voicebank_id": voice,
-    "model_id": "frame-intonation-v8",
-    "renderer": "openutau-worldline-r-faithful",
+    "model_id": "frame-intonation-v9",
+    "renderer": "utautts-world-phrase",
     "intonation_strength": 1, "apply_pitch": True,
 }, ensure_ascii=False), encoding="utf-8")
 (root / "batch.json").write_text(json.dumps({"items": [
@@ -281,9 +284,9 @@ PY
 curl -fsS -H 'Content-Type: application/json; charset=utf-8' --data-binary @"${work_dir}/synthesize.json" \
   "${base_url}/api/synthesize/audio" >"${work_dir}/server.wav"
 [ "$(stat -c %s "${work_dir}/server.wav")" -gt 44 ] || fail 'server synthesis output is empty'
-curl -fsS -H 'Content-Type: application/json; charset=utf-8' --data-binary @"${work_dir}/faithful.json" \
-  "${base_url}/api/synthesize/audio" >"${work_dir}/server-faithful.wav"
-[ "$(stat -c %s "${work_dir}/server-faithful.wav")" -gt 44 ] || fail 'server faithful synthesis output is empty'
+curl -fsS -H 'Content-Type: application/json; charset=utf-8' --data-binary @"${work_dir}/world-v9.json" \
+  "${base_url}/api/synthesize/audio" >"${work_dir}/server-world-v9.wav"
+[ "$(stat -c %s "${work_dir}/server-world-v9.wav")" -gt 44 ] || fail 'server WORLD v9 synthesis output is empty'
 curl -fsS -H 'Content-Type: application/json; charset=utf-8' --data-binary @"${work_dir}/batch.json" \
   "${base_url}/api/synthesize/batch" >"${work_dir}/batch.zip"
 unzip -tq "${work_dir}/batch.zip" >/dev/null

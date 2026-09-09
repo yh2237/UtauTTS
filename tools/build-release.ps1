@@ -126,7 +126,6 @@ try {
     & (Join-Path $PSScriptRoot 'build-world-engine.ps1') -OutputDirectory $guiRuntimePath
     if ($LASTEXITCODE -ne 0) { throw "UtauTTS WORLD engine build failed with exit code $LASTEXITCODE" }
     if ($Profile -eq 'Full') {
-        & (Join-Path $PSScriptRoot 'fetch-worldline.ps1') -OutputPath (Join-Path $guiRuntimePath 'worldline.dll')
         Write-Host '=== Build DiffSinger bridge ==='
         & (Join-Path $PSScriptRoot 'build-diffsinger-bridge.ps1') -OutputDirectory $guiRuntimePath
         if ($LASTEXITCODE -ne 0) { throw "DiffSinger bridge build failed with exit code $LASTEXITCODE" }
@@ -197,12 +196,14 @@ try {
         Copy-Item -LiteralPath (Join-Path $root $directoryName) -Destination $serverPath -Recurse
     }
     foreach ($rendererPath in @($guiRendererPath, $serverRendererPath)) {
-        $cudaRendererPath = Join-Path $rendererPath 'utautts-world-phrase-cuda'
-        if (Test-Path -LiteralPath $cudaRendererPath) {
-            Remove-Item -LiteralPath $cudaRendererPath -Recurse -Force
+        foreach ($excludedRenderer in @('utautts-world-phrase-cuda', 'openutau-worldline-r-faithful')) {
+            $excludedRendererPath = Join-Path $rendererPath $excludedRenderer
+            if (Test-Path -LiteralPath $excludedRendererPath) {
+                Remove-Item -LiteralPath $excludedRendererPath -Recurse -Force
+            }
         }
         if ($Profile -eq 'Japanese') {
-            foreach ($optionalRenderer in @('openutau-worldline-r-faithful', 'diffsinger')) {
+            foreach ($optionalRenderer in @('diffsinger')) {
                 $optionalRendererPath = Join-Path $rendererPath $optionalRenderer
                 if (Test-Path -LiteralPath $optionalRendererPath) {
                     Remove-Item -LiteralPath $optionalRendererPath -Recurse -Force

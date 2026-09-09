@@ -9,7 +9,7 @@
     "training_corpus_license": "JSUT terms: text CC BY-SA 4.0 etc.; audio research/non-commercial/personal use; commercial permission required",
     "source_notice": "licenses/JSUT-DATA-AND-LABELS.txt"
   },
-  "recommended_renderers":["utautts-world-phrase","openutau-worldline-r-faithful"],
+  "recommended_renderers":["utautts-world-phrase"],
   "default_priority":100,
   "version": 8,
   "feature_version": 1,

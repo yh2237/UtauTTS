@@ -22,10 +22,10 @@ func TestRenderHonorsCanceledContext(t *testing.T) {
 	}
 }
 
-func TestWorldlineRFaithfulRendererIsRegistered(t *testing.T) {
+func TestWorldlineRFaithfulRendererIsRemoved(t *testing.T) {
 	const backend = "openutau-worldline-r-faithful"
-	if !IsKnownRenderer(backend) {
-		t.Fatalf("WORLDLINE-R faithful renderer %q is not registered", backend)
+	if IsKnownRenderer(backend) {
+		t.Fatalf("removed renderer %q is still registered", backend)
 	}
 }
 
@@ -335,7 +335,7 @@ func TestRenderRejectsNonFinitePitchCurve(t *testing.T) {
 		{FrameMS: math.NaN(), Cents: []float64{0}},
 		{FrameMS: 5, Cents: []float64{math.Inf(1)}},
 	} {
-		_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "openutau-worldline-r-faithful", ApplyPitch: true, PitchCurve: curve})
+		_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "utautts-world-phrase", ApplyPitch: true, PitchCurve: curve})
 		if err == nil {
 			t.Fatalf("accepted non-finite curve: %+v", curve)
 		}
@@ -419,7 +419,7 @@ func TestRenderRejectsUnsafePitchCurveRangeAndFrame(t *testing.T) {
 		{FrameMS: 5, Cents: []float64{4801}},
 		{FrameMS: 5, Cents: []float64{-4801}},
 	} {
-		_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "openutau-worldline-r-faithful", ApplyPitch: true, PitchCurve: curve})
+		_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "utautts-world-phrase", ApplyPitch: true, PitchCurve: curve})
 		if err == nil {
 			t.Fatalf("accepted unsafe curve: %+v", curve)
 		}
@@ -427,7 +427,7 @@ func TestRenderRejectsUnsafePitchCurveRangeAndFrame(t *testing.T) {
 }
 
 func TestBoundaryBridgeRequiresWaveformRenderer(t *testing.T) {
-	_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "openutau-worldline-r-faithful", BoundaryBridgeMS: 20})
+	_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "utautts-world-phrase", BoundaryBridgeMS: 20})
 	if err == nil {
 		t.Fatal("boundary bridge was accepted by non-waveform renderer")
 	}

@@ -159,13 +159,6 @@ func mustRegistry(providers ...Provider) Registry {
 var builtinRegistry = mustRegistry(
 	Provider{ID: "waveform", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true, BoundaryBridge: true}},
 	Provider{
-		ID: "openutau-worldline-r-faithful", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true},
-		Requirements: []ResourceRequirement{
-			{Key: ResourceWorldline, Required: true},
-			{Key: ResourceWorldlineBridge, Required: true, Executable: true},
-		},
-	},
-	Provider{
 		ID: "utautts-world-phrase", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true},
 		Requirements: []ResourceRequirement{
 			{Key: ResourceWorldEngine, Required: true},

@@ -95,7 +95,6 @@ const defaultReleaseMS = 20.0
 // rendererImplementationsは実行可能なbackendの一覧。表示情報はrenderer.jsonに置く。
 var rendererImplementations = map[string]func(*plan.Plan, Config) (*audio.PCM, error){
 	"waveform":                      renderWaveform,
-	"openutau-worldline-r-faithful": renderOpenUtauWorldlineRFaithful,
 	"utautts-world-phrase":          renderUtauTTSWorldPhrase,
 	"utautts-world-phrase-cuda":     renderUtauTTSWorldPhraseCUDA,
 	"utau-external-resampler":       renderUtauExternalResampler,

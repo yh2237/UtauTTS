@@ -467,9 +467,6 @@ func applyLegacyBackendDefaults(manifest *rendererMigrationManifest) {
 		assets["world_engine"] = [2]string{"utautts-world-engine.dll", ""}
 		assets["worldline_bridge"] = [2]string{"utautts-worldline-bridge.exe", ""}
 		assets["world_gpu"] = [2]string{"utautts-waveform-gpu.dll", ""}
-	case "openutau-worldline-r-faithful":
-		assets["worldline"] = [2]string{"worldline.dll", "libworldline.so"}
-		assets["worldline_bridge"] = [2]string{"utautts-worldline-bridge.exe", "utautts-worldline-bridge"}
 	case "diffsinger":
 		assets["diffsinger_bridge"] = [2]string{"utautts-diffsinger-bridge.exe", ""}
 	}
