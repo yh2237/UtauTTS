@@ -128,6 +128,10 @@ func (b *Bank) candidateLayersWithPolicy(morae []frontend.Mora, tone, color stri
 }
 
 func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color string, policy AliasPolicy, acousticMode string) ([][]Selection, error) {
+	return b.candidateLayersDiagnostic(morae, tone, color, policy, acousticMode, nil)
+}
+
+func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color string, policy AliasPolicy, acousticMode string, missing *[]MissingAliasError) ([][]Selection, error) {
 	if !validAcousticMode(acousticMode) {
 		return nil, fmt.Errorf("unknown acoustic selection mode %q", acousticMode)
 	}
@@ -319,7 +323,16 @@ func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color 
 				phraseStart = false
 				continue
 			}
-			return nil, &MissingAliasError{Position: position, Mora: mora.Text, Candidates: candidates, CandidateRejections: rejections}
+			failure := MissingAliasError{Position: position, Mora: mora.Text, Candidates: candidates, CandidateRejections: rejections}
+			if missing == nil {
+				return nil, &failure
+			}
+			*missing = append(*missing, failure)
+			layers = append(layers, nil)
+			previousLayer = nil
+			previousVowel = mora.Vowel
+			phraseStart = false
+			continue
 		}
 		applyCompositePreferences(candidatesAtPosition, policy)
 		b.populateAcousticScores(candidatesAtPosition, previousLayer, acousticMode)

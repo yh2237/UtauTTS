@@ -1,0 +1,8 @@
+[
+    {"id":"greeting-auto","language":"zh","text":"你好，世界。","focus":"automatic reading"},
+    {"id":"greeting-reading","language":"zh","text":"你好，世界。","reading":"ni3 hao3 | shi4 jie4 |","focus":"explicit lexical tones and third-tone sequence"},
+    {"id":"tones","language":"zh","reading":"ma1 ma2 ma3 ma4 ma5","focus":"four tones and neutral tone"},
+    {"id":"nasal-finals","language":"zh","reading":"an1 ang1 en1 eng1 in1 ing1","focus":"nasal finals"},
+    {"id":"question","language":"zh","text":"你准备好了吗？","focus":"question and neutral tone"},
+    {"id":"polyphone","language":"zh","text":"银行行长来了。","focus":"context-dependent pronunciation"}
+]

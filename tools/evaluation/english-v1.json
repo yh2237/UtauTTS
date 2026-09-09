@@ -1,0 +1,7 @@
+[
+    {"id":"greeting-auto","language":"en","text":"Hello world.","focus":"automatic pronunciation"},
+    {"id":"greeting-reading","language":"en","text":"Hello world.","reading":"HH AH0 L OW1 | W ER1 L D | SP","focus":"explicit stress and final consonants"},
+    {"id":"cluster","language":"en","text":"Stop, please.","reading":"S T AA1 P | SP | P L IY1 Z | SP","focus":"initial clusters and pauses"},
+    {"id":"question","language":"en","text":"Are you ready?","focus":"question rhythm"},
+    {"id":"numbers","language":"en","text":"Meet me at 3:15.","focus":"number normalization; unsupported input should be reported"}
+]

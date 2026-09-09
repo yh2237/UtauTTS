@@ -126,6 +126,12 @@ func resolveReading(cfg Config) (string, error) {
 	})
 }
 
+// ResolvePronunciation exposes the synthesis frontend for diagnostic tools.
+// Callers supply Voicebank when bank-specific presamp mappings are needed.
+func ResolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, error) {
+	return resolvePronunciation(cfg)
+}
+
 func resolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, error) {
 	language, phonemizer, err := frontend.ResolveLanguage(cfg.Language, cfg.Phonemizer)
 	if err != nil {

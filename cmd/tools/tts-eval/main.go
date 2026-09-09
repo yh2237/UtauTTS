@@ -23,7 +23,7 @@ import (
 	"utautts/internal/tts"
 )
 
-type prompt struct{ ID, Text, Focus string }
+type prompt struct{ ID, Text, Focus, Reading, Language, Phonemizer string }
 type measurement struct {
 	ID          string  `json:"id"`
 	Text        string  `json:"text"`
@@ -48,10 +48,12 @@ func main() {
 }
 func run() error {
 	bank := flag.String("voicebank", "", "voicebank directory (required)")
+	diagnose := flag.Bool("diagnose", false, "write frontend and candidate diagnostics without rendering")
 	corpus := flag.String("corpus", "tools/evaluation/japanese-v1.json", "JSON listening corpus")
 	out := flag.String("out", "out/tts-eval", "new output directory")
 	renderers := flag.String("renderers", "utautts-world-phrase,utautts-world-phrase-cuda", "comma-separated renderer IDs")
 	model := flag.String("model", "frame-intonation-v8", "prosody model ID")
+	modelFile := flag.String("model-file", "", "explicit experimental prosody model JSON (overrides model ID)")
 	bridge := flag.String("bridge", "", "override WORLD bridge executable")
 	gpu := flag.String("gpu", "", "override CUDA DLL")
 	repeats := flag.Int("repeat", 2, "repetitions in the same process; first and warm runs are separate")
@@ -71,12 +73,22 @@ func run() error {
 	if len(prompts) == 0 {
 		return fmt.Errorf("empty corpus")
 	}
+	if err := validatePrompts(prompts); err != nil {
+		return err
+	}
+	if *diagnose {
+		return diagnoseCorpus(*bank, *out, prompts)
+	}
 	catalog, err := plugin.DiscoverWithDefaults(nil, nil, render.IsKnownRenderer)
 	if err != nil {
 		return err
 	}
 	prosody, ok := catalog.Model(*model)
-	if !ok {
+	modelIdentity := *model
+	if *modelFile != "" {
+		modelIdentity = *modelFile
+	}
+	if !ok && *model != "none" && *modelFile == "" {
 		return fmt.Errorf("unknown model %q", *model)
 	}
 	// 既存の基準音声は上書きしない。
@@ -101,7 +113,13 @@ func run() error {
 		for index, p := range prompts {
 			for repetition := 1; repetition <= *repeats; repetition++ {
 				row := measurement{ID: p.ID, Text: p.Text, Focus: p.Focus, Renderer: rendererID, Repetition: repetition}
-				cfg := tts.Config{VoicebankPath: *bank, Text: p.Text, Language: "ja", Tone: "C4", MoraDurationMS: 120, PauseDurationMS: 180, ApplyPitch: true, IntonationStrength: 1, ProsodyModelPath: prosody.Path}
+				cfg := tts.Config{VoicebankPath: *bank, Text: p.Text, Reading: p.Reading, Language: p.Language, Phonemizer: p.Phonemizer, Tone: "C4", MoraDurationMS: 120, PauseDurationMS: 180, ApplyPitch: true, IntonationStrength: 1}
+				if *model != "none" {
+					cfg.ProsodyModelPath = prosody.Path
+				}
+				if *modelFile != "" {
+					cfg.ProsodyModelPath = *modelFile
+				}
 				resolved, callErr := tts.ApplyRenderer(&cfg, catalog, rendererID, "", *bridge)
 				if *gpu != "" {
 					if cfg.Engine.Definition.Resources == nil {
@@ -138,6 +156,13 @@ func run() error {
 					}
 					row.WAV = fmt.Sprintf("%02d-renderer%02d-%d.wav", index+1, rendererIndex+1, repetition)
 					callErr = synth.WriteFiles(filepath.Join(*out, row.WAV), result, synth.ExportOptions{Text: p.Text, WriteText: true, WriteLab: true})
+					if callErr == nil {
+						var planData []byte
+						planData, callErr = json.MarshalIndent(result.Plan, "", "  ")
+						if callErr == nil {
+							callErr = atomicfile.WriteFile(filepath.Join(*out, strings.TrimSuffix(row.WAV, ".wav")+".plan.json"), planData)
+						}
+					}
 				}
 				if callErr != nil {
 					row.Error = callErr.Error()
@@ -151,7 +176,7 @@ func run() error {
 					CorpusSHA256, Bridge, GPU      string
 					Build                          *debug.BuildInfo
 					Measurements                   []measurement
-				}{runtime.GOOS, runtime.GOARCH, *bank, *model, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, *gpu, buildInfo, rows}
+				}{runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, *gpu, buildInfo, rows}
 				encoded, err := json.MarshalIndent(report, "", "  ")
 				if err != nil {
 					return err
