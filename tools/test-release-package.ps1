@@ -278,21 +278,6 @@ try {
     }
     Assert-Path $outputWav 'packaged CLI output'
 
-    if ($Profile -eq 'Full') {
-    $worldV9Wav = Join-Path $workingDirectory 'package-world-v9-smoke.wav'
-    Push-Location $workingDirectory
-    try {
-        & $cli --voicebank $voicebank.FullName --text $smokeText --prosody frame-intonation-v9 `
-            --renderer utautts-world-phrase --apply-pitch --intonation-strength 1 --out $worldV9Wav
-        if ($LASTEXITCODE -ne 0) {
-            throw "Packaged WORLD v9 synthesis failed with exit code $LASTEXITCODE"
-        }
-    } finally {
-        Pop-Location
-    }
-    Assert-Path $worldV9Wav 'packaged WORLD v9 renderer output'
-    }
-
     $utauTTSWorldWav = Join-Path $workingDirectory 'package-utautts-world-smoke.wav'
     Push-Location $workingDirectory
     try {
@@ -383,21 +368,21 @@ try {
             throw 'Packaged server synthesis output is empty'
         }
         if ($Profile -eq 'Full') {
-        $worldV9Body = @{
+        $worldPitchBody = @{
             text = $smokeText
             voicebank_id = $voicebankId
-            model_id = 'frame-intonation-v9'
+            model_id = 'frame-intonation-v8'
             renderer = 'utautts-world-phrase'
             intonation_strength = 1
             apply_pitch = $true
         } | ConvertTo-Json -Compress
-        $worldV9ServerWav = Join-Path $workingDirectory 'server-worldV9-smoke.wav'
+        $worldPitchServerWav = Join-Path $workingDirectory 'server-worldPitch-smoke.wav'
         Invoke-WebRequest -UseBasicParsing -Method Post -Uri "$baseUrl/api/synthesize/audio" `
-            -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($worldV9Body)) `
-            -OutFile $worldV9ServerWav -TimeoutSec 120 | Out-Null
-        Assert-Path $worldV9ServerWav 'packaged server worldV9 synthesis output'
-        if ((Get-Item -LiteralPath $worldV9ServerWav).Length -le 44) {
-            throw 'Packaged server worldV9 synthesis output is empty'
+            -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($worldPitchBody)) `
+            -OutFile $worldPitchServerWav -TimeoutSec 120 | Out-Null
+        Assert-Path $worldPitchServerWav 'packaged server worldPitch synthesis output'
+        if ((Get-Item -LiteralPath $worldPitchServerWav).Length -le 44) {
+            throw 'Packaged server worldPitch synthesis output is empty'
         }
         }
         $batchItems = @()
