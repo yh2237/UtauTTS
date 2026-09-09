@@ -138,7 +138,7 @@ ID順にソートされた音源一覧です。
       "version": 8,
       "mode": "intonation_frame_tcn_accent_bounded",
       "outputs": {"pitch": true},
-      "recommended_renderers": ["utautts-world-phrase", "openutau-worldline-r-faithful"],
+      "recommended_renderers": ["utautts-world-phrase"],
       "default_priority": 100,
       "requires_features": true,
       "frame_contour": true

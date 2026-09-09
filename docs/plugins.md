@@ -62,17 +62,17 @@
 }
 ```
 
-対応する内蔵provider adapterは`waveform`、`utautts-world-phrase`、`openutau-worldline-r-faithful`、`utau-external-resampler`、`diffsinger`です。標準定義の追加やユーザー定義によって、既存adapterを別の公開IDで選べます。任意の新規engine ABIを動的ロードする機能はまだありません。
+対応する内蔵provider adapterは`waveform`、`utautts-world-phrase`、`utau-external-resampler`、`diffsinger`です。標準定義の追加やユーザー定義によって、既存adapterを別の公開IDで選べます。任意の新規engine ABIを動的ロードする機能はまだありません。
 
 配布プロファイルによって利用できるmanifestとruntimeが異なります。
 
 | 配布物 | 利用できるRenderer |
 | --- | --- |
-| Windows Full | `utautts-world-phrase`、`openutau-worldline-r-faithful`、`waveform`、`classic-utau`、`diffsinger`（試験実装） |
+| Windows Full | `utautts-world-phrase`、`waveform`、`classic-utau`、`diffsinger`（試験実装） |
 | Windows Japanese | `utautts-world-phrase`、`waveform`、`classic-utau` |
-| Linux x64 | `utautts-world-phrase`、`openutau-worldline-r-faithful`、`waveform`、`classic-utau` |
+| Linux x64 | `utautts-world-phrase`、`waveform`、`classic-utau` |
 
-WindowsのFullプロファイルだけがWORLDLINE-RとDiffSingerのruntimeを含みます。LinuxのDiffSinger manifestは対象プラットフォーム外なのでカタログから除外されます。`utautts-world-phrase-cuda`は評価用の実験定義で、どのリリースZIPにも含めません。
+WindowsのFullプロファイルだけがDiffSingerのruntimeを含みます。LinuxのDiffSinger manifestは対象プラットフォーム外なのでカタログから除外されます。`utautts-world-phrase-cuda`は評価用の実験定義で、どのリリースZIPにも含めません。
 
 Rendererの追加・更新はZIPインストールでは行いません。`renderer/<id>/renderer.json`を探索先へ配置してからGUIを再起動（またはCLI／Serverを再起動）してください。既存IDを明示ディレクトリに置くと同梱定義を上書きできます。
 

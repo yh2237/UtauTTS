@@ -85,13 +85,13 @@ Qt SDKを`.qt/<version>/mingw_64`へ置くと自動検出します。別の場�
 
 GUI版とServer版のZIPが`release/`へ作成され、そのまま配布物スモークテストまで実行されます。
 
-既定の`Full`プロファイルではWORLDLINE-RとDiffSingerのruntimeもビルドします。日本語向けの軽量な構成にする場合は、PowerShellから次を実行します。
+既定の`Full`プロファイルではDiffSingerのruntimeもビルドします。日本語向けの軽量な構成にする場合は、PowerShellから次を実行します。
 
 ```powershell
 .\tools\build-release.ps1 -Profile Japanese
 ```
 
-`Japanese`では`openutau-worldline-r-faithful`と`diffsinger`のRendererおよび対応runtimeを除外します。`build.bat win`は`Full`プロファイルです。
+`Japanese`では`diffsinger`のRendererおよび対応runtimeを除外します。`build.bat win`は`Full`プロファイルです。
 
 開発サーバーは次で起動します。
 

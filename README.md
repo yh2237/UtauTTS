@@ -114,7 +114,6 @@ exo出力後に表示される領域をAviUtlの拡張編集へドラッグす�
 | Renderer | 特徴 |
 | --- | --- |
 | `utautts-world-phrase` | 既定。公式WORLDで解析し、UtauTTS独自の特徴配置でフレーズ全体を合成 |
-| `openutau-worldline-r-faithful` | OpenUTAUの処理で原音の音響特徴を時間軸へ配置し、フレーズ全体を再合成 |
 | `waveform` | Go内で原音波形を伸縮して接続。原音の明瞭度を確認しやすい |
 | `classic-utau` | UTAU互換resamplerで原音を処理し、wavtoolまたは内蔵処理で接続 |
 | `diffsinger` | DiffSinger音源とbridgeを使う試験実装。Windows x64のFull配布のみ |

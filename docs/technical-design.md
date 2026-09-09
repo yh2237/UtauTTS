@@ -188,14 +188,6 @@ Renderer manifestの`id`は保存データやUIで使う公開識別子です。
 
 resamplerとwavtoolは独立したプロセスです。終了コード、出力WAV、timeoutを呼び出しごとに検査します。velocity、flags、volume、modulation、tempoはunit単位でも指定できます。
 
-### OpenUTAU WORLDLINE-R faithful
-
-`openutau-worldline-r-faithful`はOpenUtau 0.1.565のnative `PhraseSynth` APIを使います。OpenUTAU由来のphone timingを入力にし、各原音のWORLD特徴を共通時間軸へ配置してからフレーズ全体を一度だけ合成します。
-
-Go本体は先行発声を含むフレーズ時刻、絶対F0曲線、各unitの`position`、`skip`、`length`、fadeをmanifestへ記録します。Go bridgeは原音とFRQを`PhraseSynthAddRequest`へ渡してgender、tension、breathiness、voicingの既定曲線とF0を設定し`PhraseSynthSynth`を呼びます。
-
-WORLDLINE-Rの主要処理は`worldline.dll`内部で完結します。
-
 ### UtauTTS WORLD phrase
 
 `utautts-world-phrase`は現在の既定Rendererです。OpenUtauの`PhraseSynth`を使わず、公式WORLDのHarvest、CheapTrick、D4C、SynthesisだけをDSP部品として使います。原音の切り出し、子音を保つ時間写像、前後のfade、特徴量の補間と重なりの処理はUtauTTS側にあります。

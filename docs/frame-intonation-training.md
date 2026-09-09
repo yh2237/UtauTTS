@@ -2,7 +2,7 @@
 
 `tools/train-frame-intonation-v9.py`はフレームTCNを学習し、互換性のあるversion 8形式のJSONを出力します。モデルIDのv9はスキーマ番号ではありません。出力を自動で同梱・既定設定にはしません。
 
-Python環境にはPyTorch、NumPy、pyopenjtalkが必要です。F0抽出にはWORLDLINEのDLLを指定します。CPUでも実行できます。
+Python環境にはPyTorch、NumPy、pyopenjtalkが必要です。F0抽出には`tools/build-world-engine.ps1`（Linuxは`.sh`、macOSは`build-world-engine-macos.sh`）で作る独自WORLDエンジンを使います。CPUでも実行できます。
 
 ## 全BASIC5000からの学習
 
@@ -10,7 +10,7 @@ JSUT BASIC5000の音声・transcript_utf8.txtと、sarulab-speech/jsut-labelの�
 
 ```powershell
 python tools/prepare-jsut-full-labels.py --labels <label-directory> --corpus <basic5000-directory> --out out/jsut-all5000.jsonl
-python tools/train-frame-intonation-v9.py --dataset out/jsut-all5000.jsonl --worldline runtime/worldline.dll --jsut-context-labels --all-data-training --out out/frame-intonation-v9.json
+python tools/train-frame-intonation-v9.py --dataset out/jsut-all5000.jsonl --world-engine runtime/utautts-world-engine.dll --jsut-context-labels --all-data-training --out out/frame-intonation-v9.json
 ```
 
 同梱v9はこの全件学習方式、hidden 32、24 epoch、seed 1、WORLDLINE Harvestで作成し、監視値が最良だった23 epoch目を採用しています。学習時はJSUTのアクセント注釈を使います。品詞と語境界は未知として扱い、推論時のOpen JTalk特徴との違いがある点に注意してください。

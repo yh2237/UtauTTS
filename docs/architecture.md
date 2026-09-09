@@ -30,7 +30,6 @@ RendererのID、機能、ランタイムは`renderer/<id>/renderer.json`で定�
 | ID | 概要 |
 | --- | --- |
 | `utautts-world-phrase` | 既定。原音ごとのWORLD特徴を共通の時間軸へ配置し、フレーズ全体を合成 |
-| `openutau-worldline-r-faithful` | OpenUTAUのWORLDLINE-R系PhraseSynthを使ってフレーズ全体を合成 |
 | `waveform` | Go内で原音波形を伸縮・クロスフェードする比較用Renderer |
 | `classic-utau` | 選択したUTAU互換resamplerを実行し、wavtoolまたは内蔵処理で接続 |
 | `diffsinger` | DiffSinger音源とbridgeを使う試験的なRenderer（Windows x64のFull配布のみ） |
