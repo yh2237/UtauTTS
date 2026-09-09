@@ -24,6 +24,7 @@ period and cent bounds needed by a Go implementation.
 from __future__ import annotations
 
 import argparse
+import copy
 import ctypes
 import json
 import math
@@ -40,6 +41,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from torch_device import device_description, move_batch, resolve_device
+from frame_render_metrics import render_contour
 
 
 FRAME_MS = 10.0
@@ -810,6 +812,8 @@ def prepare(
             ]
             sequence.append(sparse)
         prepared.append((sequence, (targets / max(1.0, target_scale)).astype(float).tolist(), mask.tolist(), frame_times.tolist()))
+        if len(prepared) % 100 == 0:
+            print(f"prepared {len(prepared)}/{len(records)} utterances", flush=True)
     return prepared, feature_index
 
 
@@ -908,19 +912,30 @@ def evaluate(
     high_cents: float,
     target_scale: float = 1.0,
     device: torch.device = torch.device("cpu"),
+    render_args=None,
 ) -> float:
     model.eval()
     errors: list[float] = []
     for values, targets, mask in batches(records, feature_count, batch_size, random.Random(0)):
         values, targets, mask = move_batch(device, values, targets, mask)
-        predicted = centered(model(values), mask).clamp(
+        raw_predicted = model(values)
+        predicted = centered(raw_predicted, mask).clamp(
             low_cents / max(1.0, target_scale), high_cents / max(1.0, target_scale)
         ) * max(1.0, target_scale)
         expected = targets * max(1.0, target_scale)
         for row in range(values.shape[0]):
             valid = mask[row]
             if bool(valid.any()):
-                errors.extend((predicted[row][valid] - expected[row][valid]).abs().detach().cpu().tolist())
+                if render_args is None:
+                    errors.extend((predicted[row][valid] - expected[row][valid]).abs().detach().cpu().tolist())
+                else:
+                    selected = valid.cpu().numpy()
+                    options = dict(frame_ms=render_args.frame_ms, strength=render_args.render_strength,
+                                   smoothing_ms=render_args.render_smoothing_ms, p99=render_args.render_p99_cents,
+                                   maximum=render_args.render_max_cents, low=low_cents, high=high_cents)
+                    actual = render_contour(raw_predicted[row].cpu().numpy() * target_scale, selected, **options)
+                    reference = render_contour(expected[row].cpu().numpy(), selected, **options)
+                    errors.extend(np.abs(actual[selected] - reference[selected]).tolist())
     return float(sum(errors) / len(errors)) if errors else 0.0
 
 
@@ -1138,6 +1153,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--device", default="auto", help="PyTorch device: auto, cpu, cuda, cuda:N, xpu, or mps")
     parser.add_argument("--limit", type=int, default=0, help="maximum utterances before deterministic split (0=all)")
     parser.add_argument("--seed", type=int, default=1)
+
+    parser.add_argument("--holdout-test", action="store_true", help="reserve hash(id) modulo 10 == 1 from training for final test")
+    parser.add_argument("--all-data-training", action="store_true", help="include validation/test IDs in training; metrics become in-sample only")
+    parser.add_argument("--jsut-context-labels", action="store_true", help="use preannotated JSUT accent contexts instead of Open JTalk alignment")
     parser.add_argument("--frame-ms", type=float, default=FRAME_MS)
     parser.add_argument("--low-cents", type=float, default=DEFAULT_LOW_CENTS)
     parser.add_argument("--high-cents", type=float, default=DEFAULT_HIGH_CENTS)
@@ -1178,10 +1197,30 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"training device: {device_description(device)}")
 
     train_raw, validation_raw = load_records(args.dataset, args.limit)
+    if args.all_data_training:
+        train_raw = sorted(train_raw + validation_raw, key=lambda r: str(r["id"]))
+        args.holdout_test = False
+    if args.jsut_context_labels:
+        for record in train_raw + validation_raw:
+            if record.get("accent_source") != "jsut_context_labels":
+                raise ValueError("expected explicitly annotated JSUT context records")
+    test_raw = []
+    if args.holdout_test:
+        test_raw = [r for r in train_raw if fnv1a(str(r["id"])) % 10 == 1]
+        train_raw = [r for r in train_raw if fnv1a(str(r["id"])) % 10 != 1]
+        if not train_raw or not test_raw:
+            raise ValueError("holdout split requires nonempty train and test")
     train_alignment: dict = {}
     validation_alignment: dict = {}
-    train_raw = add_openjtalk_features(train_raw, args.openjtalk_accent, train_alignment, min_alignment_rate=0.0)
-    validation_raw = add_openjtalk_features(validation_raw, args.openjtalk_accent, validation_alignment, min_alignment_rate=0.0)
+    if not args.jsut_context_labels:
+        train_raw = add_openjtalk_features(train_raw, args.openjtalk_accent, train_alignment, min_alignment_rate=0.0)
+        validation_raw = add_openjtalk_features(validation_raw, args.openjtalk_accent, validation_alignment, min_alignment_rate=0.0)
+    test_alignment = {}
+    if args.holdout_test:
+        if not args.jsut_context_labels:
+            test_raw = add_openjtalk_features(test_raw, args.openjtalk_accent, test_alignment, min_alignment_rate=0.0)
+        if not test_raw:
+            raise ValueError("alignment removed every test utterance")
     if not train_raw or not validation_raw:
         raise ValueError("Open JTalk alignment removed every utterance from a train or validation split")
     total_input_records = len(train_raw) + len(validation_raw) + train_alignment.get("skipped_records", 0) + validation_alignment.get("skipped_records", 0)
@@ -1238,6 +1277,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     model = FrameIntonationTCN(len(feature_index), args.hidden).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=1e-5)
     rng = random.Random(args.seed)
+    best_state = None
+    best_mae = float("inf")
+    best_epoch = 0
+    history = []
     for epoch in range(args.epochs):
         model.train()
         total = torch.zeros((), device=device)
@@ -1256,6 +1299,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             total += loss.detach()
             count += 1
         print(f"epoch {epoch + 1:02d}/{args.epochs}: loss={float(total.cpu()) / max(1, count):.6f}")
+        epoch_mae = evaluate(model, validation, len(feature_index), args.batch_size,
+                             args.low_cents, args.high_cents, args.target_scale, device)
+        rendered_mae = evaluate(model, validation, len(feature_index), args.batch_size,
+                               args.low_cents, args.high_cents, args.target_scale, device, args)
+        history.append({"epoch": epoch + 1, "validation_mae_cents": epoch_mae, "rendered_mae_cents": rendered_mae})
+        if rendered_mae < best_mae:
+            best_mae, best_epoch = rendered_mae, epoch + 1
+            best_state = copy.deepcopy(model.state_dict())
+        print(f"validation MAE: {epoch_mae:.3f} cents; best epoch {best_epoch}", flush=True)
+
+    if best_state is None:
+        raise ValueError("training produced no valid checkpoint")
+    model.load_state_dict(best_state)
 
     validation_mae = evaluate(
         model, validation, len(feature_index), args.batch_size, args.low_cents, args.high_cents,
@@ -1274,6 +1330,31 @@ def main(argv: Sequence[str] | None = None) -> int:
         alignment_metadata,
         sum(len(record["tokens"]) for record in train_raw),
     )
+    exported["training"]["best_epoch"] = best_epoch
+    exported["training"]["evaluation_is_in_sample"] = args.all_data_training
+    exported["training"]["accent_source"] = "jsut_context_labels" if args.jsut_context_labels else "openjtalk"
+    if args.jsut_context_labels:
+        exported["training"]["openjtalk_accent"] = False
+    exported["training"]["selection_metric"] = "validation_rendered_contour_mae"
+    exported["metrics"]["validation_rendered_mae_cents"] = best_mae
+    exported["training"]["history"] = history
+    exported["training"]["split_ids"] = {
+        "train": [r["id"] for r in train_raw],
+        "validation": [r["id"] for r in validation_raw],
+        "test": [r["id"] for r in test_raw],
+    }
+    if args.holdout_test:
+        test, _ = prepare(test_raw, feature_index, dataset_path=args.dataset,
+                          audio_root=args.audio_root, frame_ms=args.frame_ms,
+                          low_cents=args.low_cents, high_cents=args.high_cents,
+                          target_scale=args.target_scale, worldline=worldline)
+        exported["metrics"]["test_mae_cents"] = evaluate(
+            model, test, len(feature_index), args.batch_size, args.low_cents,
+            args.high_cents, args.target_scale, device)
+        exported["metrics"]["test_rendered_mae_cents"] = evaluate(
+            model, test, len(feature_index), args.batch_size, args.low_cents,
+            args.high_cents, args.target_scale, device, args)
+        exported["training"]["test_alignment"] = test_alignment
     _write_json(args.out, exported)
     print(
         f"wrote {args.out} ({len(train)} train/{len(validation)} validation records, "
