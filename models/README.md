@@ -1,5 +1,13 @@
 # Prosody model license
 
+## Bundled intonation choices
+
+`frame-intonation-v8` remains the default. `frame-intonation-v9` is an alternative
+trained on all 5,000 BASIC5000 utterances with JSUT accent annotations. It is
+not designated as a quality replacement for v8. Its recorded evaluation uses
+training utterances, not an independent test set. Both use the version 8
+frame-model JSON schema; the model ID and schema version serve different purposes.
+
 The official JSON model files currently bundled in this directory were trained
 using JSUT audio. They may be used, modified, and redistributed only for
 academic research, non-commercial research, and personal use. Commercial use

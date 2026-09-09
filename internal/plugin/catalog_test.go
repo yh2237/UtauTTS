@@ -119,6 +119,18 @@ func TestRepositoryBundlesSelfDescribingModels(t *testing.T) {
 	if models[0].ID != "frame-intonation-v8" {
 		t.Fatalf("default model = %q, want metadata-priority frame-intonation-v8", models[0].ID)
 	}
+	foundV9 := false
+	for _, model := range models {
+		if model.ID == "frame-intonation-v9" {
+			foundV9 = true
+			if model.DisplayName != "Frame intonation TCN v9" {
+				t.Fatalf("unexpected v9 display name: %q", model.DisplayName)
+			}
+		}
+	}
+	if !foundV9 {
+		t.Fatal("bundled v9 model missing")
+	}
 	for _, model := range models {
 		if model.ID == "" || model.DisplayName == "" {
 			t.Fatalf("incomplete bundled model: %#v", model)
