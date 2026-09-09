@@ -10,10 +10,9 @@ is a smoothed utterance-relative log-F0 command in cents. Pitch is interpolated
 across unvoiced consonants, while pause frames are excluded from the loss so
 training and text-only inference share the same mask.
 
-The preferred F0 extractor is the ``F0`` entry point exported by the local
-WORLDLINE DLL.  The pure-Python/numpy autocorrelation extractor is deliberately
-kept as a fallback so that dataset preparation and small smoke tests do not
-depend on a particular native build.
+Training uses Harvest through the local ``utautts-world-engine`` library.
+Build that library before training; a missing library is an error rather than
+an implicit switch to a different F0 extraction algorithm.
 
 The exported model is inference-oriented JSON; it does not contain a Python
 pickle or a torch checkpoint.  Its ``frame_pitch`` object mirrors the
@@ -25,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import copy
-import ctypes
 import json
 import math
 import random
@@ -381,80 +379,16 @@ def read_wav(path: str | Path) -> tuple[np.ndarray, int]:
     return np.asarray(values, dtype=np.float32), sample_rate
 
 
-class WorldlineF0:
-    """Small ctypes adapter for worldline.dll's exported F0 function."""
-
-    def __init__(self, library_path: str | Path, method: int = 1):
-        self.path = Path(library_path)
-        loader = getattr(ctypes, "WinDLL", ctypes.CDLL)
-        self.library = loader(str(self.path))
-        self.method = int(method)
-        self._f0 = self.library.F0
-        self._f0.argtypes = [
-            ctypes.POINTER(ctypes.c_float),
-            ctypes.c_int,
-            ctypes.c_int,
-            ctypes.c_double,
-            ctypes.c_int,
-            ctypes.POINTER(ctypes.POINTER(ctypes.c_double)),
-        ]
-        self._f0.restype = ctypes.c_int
-
-    def extract(self, samples: np.ndarray, sample_rate: int, frame_ms: float = FRAME_MS) -> np.ndarray:
-        values = np.ascontiguousarray(samples, dtype=np.float32)
-        if values.size == 0:
-            return np.zeros(0, dtype=np.float64)
-        sample_buffer = (ctypes.c_float * int(values.size)).from_buffer_copy(values)
-        output = ctypes.POINTER(ctypes.c_double)()
-        count = int(
-            self._f0(
-                sample_buffer,
-                int(values.size),
-                int(sample_rate),
-                float(frame_ms),
-                self.method,
-                ctypes.byref(output),
-            )
-        )
-        if not output:
-            return np.zeros(0, dtype=np.float64)
-        try:
-            if count <= 0:
-                return np.zeros(0, dtype=np.float64)
-            return np.ctypeslib.as_array(output, shape=(count,)).copy()
-        finally:
-            # F0バッファを解放し、大規模学習時の蓄積を防ぐ。
-            ole32 = getattr(getattr(ctypes, "windll", None), "ole32", None)
-            free = getattr(ole32, "CoTaskMemFree", None)
-            if free is not None:
-                free.argtypes = [ctypes.c_void_p]
-                free.restype = None
-                free(output)
+# Internal names are retained for the shared multitask trainer API.
+from world_engine_f0 import WorldEngineF0 as WorldlineF0
 
 
-def load_worldline(path: str | Path | None = None, method: int = 1) -> WorldlineF0 | None:
-    """Try a configured/local worldline library, returning None on failure."""
-
-    candidates: list[Path] = []
+def load_worldline(path: str | Path | None = None, method: int = 1) -> WorldlineF0:
     if path:
-        candidates.append(Path(path))
-    here = Path(__file__).resolve().parents[1]
-    candidates.extend(
-        [
-            here / "release" / "UtauTTS" / "runtime" / "worldline.dll",
-            here / "release" / "UtauTTS-Server" / "runtime" / "worldline.dll",
-            here / "release" / "UtauTTS" / "worldline.dll",
-            here / "release" / "UtauTTS-Server" / "worldline.dll",
-        ]
-    )
-    for candidate in candidates:
-        if not candidate.exists():
-            continue
-        try:
-            return WorldlineF0(candidate, method)
-        except (OSError, AttributeError, ctypes.ArgumentError):
-            continue
-    return None
+        return WorldlineF0(path, method)
+    root = Path(__file__).resolve().parents[1]
+    suffix = ".dll" if sys.platform == "win32" else ".dylib" if sys.platform == "darwin" else ".so"
+    return WorldlineF0(root / "runtime" / ("utautts-world-engine" + suffix), method)
 
 
 def _autocorrelation_pitch(windowed: np.ndarray, sample_rate: int, fmin: float, fmax: float) -> float:
@@ -1164,8 +1098,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--render-smoothing-ms", type=float, default=20.0)
     parser.add_argument("--render-p99-cents", type=float, default=75.0)
     parser.add_argument("--render-max-cents", type=float, default=90.0)
-    parser.add_argument("--worldline", help="path to worldline.dll; local release paths are tried automatically")
-    parser.add_argument("--f0-method", type=int, default=1, help="worldline F0 method: 0=DIO, 1=Harvest, 2=PYIN")
+    parser.add_argument("--world-engine", "--worldline", dest="worldline", help="path to utautts-world-engine library; --worldline is a deprecated flag alias")
+    parser.add_argument("--f0-method", type=int, default=1, choices=[1], help="Harvest (1)")
     parser.add_argument("--audio-root", help="optional root used to resolve record audio_path")
     accent = parser.add_mutually_exclusive_group()
     accent.add_argument("--openjtalk-accent", dest="openjtalk_accent", action="store_true")
@@ -1243,12 +1177,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
     }
     worldline = load_worldline(args.worldline, args.f0_method)
-    args.f0_source = "worldline" if worldline is not None else "internal_autocorrelation"
+    args.f0_source = "utautts_world_harvest"
     args.target_scale = max(1.0, abs(args.low_cents), abs(args.high_cents))
-    if worldline is None:
-        print("worldline.dll unavailable; using internal autocorrelation F0 extractor", file=sys.stderr)
-    else:
-        print(f"using worldline F0: {worldline.path}")
+    print(f"using UtauTTS WORLD Harvest: {worldline.path}")
 
     train, feature_index = prepare(
         train_raw,

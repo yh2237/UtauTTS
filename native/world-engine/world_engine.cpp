@@ -53,6 +53,26 @@ int UtauTTSWorldAnalysisShape(UtauTTSWorldAnalysisShapeRequest* request,
   return 1;
 }
 
+int UtauTTSWorldF0(const double* samples, int count, int rate, double frame_ms,
+                    double* output, int capacity, char* error, int error_capacity) {
+  UtauTTSWorldAnalysisShapeRequest shape{count, rate, frame_ms, 0, 0};
+  if (!UtauTTSWorldAnalysisShape(&shape, error, error_capacity)) return 0;
+  if (!samples || !output || capacity < shape.frame_count)
+    return fail("invalid F0 buffers", error, error_capacity);
+  try {
+    HarvestOption option{};
+    InitializeHarvestOption(&option);
+    option.frame_period = frame_ms;
+    option.f0_floor = kF0Floor;
+    option.f0_ceil = kF0Ceil;
+    std::vector<double> times(shape.frame_count);
+    Harvest(samples, count, rate, &option, times.data(), output);
+    return shape.frame_count;
+  } catch (const std::exception& e) {
+    return fail(e.what(), error, error_capacity);
+  }
+}
+
 int UtauTTSWorldAnalyze(const UtauTTSWorldAnalysisRequest* request,
                         char* error, int error_capacity) {
   if (request == nullptr || request->samples == nullptr ||

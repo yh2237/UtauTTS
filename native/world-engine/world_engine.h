@@ -43,6 +43,8 @@ struct UtauTTSWorldSynthesisRequest {
 };
 
 extern "C" {
+UTAUTTS_WORLD_API int UtauTTSWorldF0(const double* samples, int count, int rate,
+    double frame_ms, double* output, int capacity, char* error, int error_capacity);
 UTAUTTS_WORLD_API int UtauTTSWorldAnalysisShape(
     UtauTTSWorldAnalysisShapeRequest* request, char* error, int error_capacity);
 UTAUTTS_WORLD_API int UtauTTSWorldAnalyze(

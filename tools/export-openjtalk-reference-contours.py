@@ -59,7 +59,7 @@ def normalize_contour(values: np.ndarray, mask: np.ndarray, p99_cents: float, ma
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--corpus", required=True)
-    parser.add_argument("--worldline", required=True)
+    parser.add_argument("--world-engine", "--worldline", dest="worldline", help="path to utautts-world-engine library")
     parser.add_argument("--out", required=True)
     parser.add_argument("--frame-ms", type=float, default=10.0)
     parser.add_argument("--mora-ms", type=float, default=140.0)
@@ -74,8 +74,6 @@ def main() -> int:
 
     trainer = load_trainer(root)
     worldline = trainer.load_worldline(args.worldline, method=1)
-    if worldline is None:
-        raise RuntimeError(f"cannot load Worldline F0 extractor: {args.worldline}")
     corpus = json.loads(Path(args.corpus).read_text(encoding="utf-8"))
     cases = []
     for item in corpus["cases"]:
@@ -104,7 +102,7 @@ def main() -> int:
     output = {
         "version": 1,
         "name": "openjtalk-standard-reference-v1",
-        "source": "pyopenjtalk.tts + Worldline Harvest F0",
+        "source": "pyopenjtalk.tts + UtauTTS WORLD Harvest F0",
         "p99_cents": args.p99_cents,
         "max_cents": args.max_cents,
         "cases": cases,
