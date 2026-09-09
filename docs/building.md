@@ -30,6 +30,8 @@ go vet ./...
 
 リリースビルドで使用するモデル、音源、依存物の条件は、[ライセンスの適用範囲](../LICENSE-SCOPE.md)、[第三者通知](../THIRD_PARTY_NOTICES.txt)、`THIRD_PARTY_NOTICES-*`、`../licenses/`、各コンポーネントの同梱文書を確認してください。
 
+Go依存のライセンス収集対象は[go-license-modules.txt](../tools/go-license-modules.txt)で管理します。WindowsとLinux/macOSの収集スクリプトで共用します。依存を追加・削除した場合はこの一覧と配布テストも更新してください。辞書などのデータ通知は収集スクリプトで別途指定します。
+
 ## Linux x64（Linuxネイティブ／WSL共通）
 
 Linuxネイティブ環境とWSL環境では同じLinuxセットアップスクリプトを使います。実行するLinux環境ごとに一度だけリポジトリ直下で実行してください。

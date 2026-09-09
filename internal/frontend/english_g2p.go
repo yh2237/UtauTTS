@@ -22,6 +22,9 @@ func englishWordPronunciation(word string) (string, error) {
 	if pronunciation != "" {
 		return pronunciation, nil
 	}
+	if pronunciation, err = englishInflectedPronunciation(word); err != nil || pronunciation != "" {
+		return pronunciation, err
+	}
 	englishG2POnce.Do(func() {
 		englishG2PEngine, englishG2PErr = g2p.New(g2p.Options{Language: "en", Mode: g2p.ModeBatch})
 	})

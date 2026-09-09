@@ -24,17 +24,9 @@ copy_required "${root_dir}/licenses/APACHE-2.0.txt" "${license_dir}/APACHE-2.0.t
 copy_required "${root_dir}/licenses/Go/CMUDICT-LICENSE.txt" "${license_dir}/CMUDICT-LICENSE.txt"
 copy_required "${root_dir}/licenses/Go/PINYIN-DATA-NOTICE.txt" "${license_dir}/PINYIN-DATA-NOTICE.txt"
 
-modules=(
-  golang.org/x/text
-  github.com/NK8007/gofonix
-  github.com/ikawaha/kagome/v2
-  github.com/ikawaha/kagome-dict
-  github.com/ikawaha/kagome-dict/ipa
-  github.com/mozillazg/go-pinyin
-  gopkg.in/yaml.v3
-)
-
-for module in "${modules[@]}"; do
+while IFS= read -r module || [[ -n "${module}" ]]; do
+  module="${module%$'\r'}"
+  [[ -z "${module}" ]] && continue
   module_info="$(${go_command} list -m -f '{{.Dir}}|{{.Version}}' "${module}")"
   module_dir="${module_info%%|*}"
   module_version="${module_info#*|}"
@@ -71,4 +63,4 @@ for module in "${modules[@]}"; do
       copy_required "${module_dir}/${notice}" "${destination}"
     fi
   done
-done
+done < "${root_dir}/tools/go-license-modules.txt"

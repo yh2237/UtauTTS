@@ -61,15 +61,8 @@ function Copy-GoLicenses {
     Copy-Required (Join-Path $root 'licenses/Go/CMUDICT-LICENSE.txt') (Join-Path $licenseRoot 'Go/CMUDICT-LICENSE.txt')
     Copy-Required (Join-Path $root 'licenses/Go/PINYIN-DATA-NOTICE.txt') (Join-Path $licenseRoot 'Go/PINYIN-DATA-NOTICE.txt')
 
-    $modules = @(
-        'golang.org/x/text',
-        'github.com/NK8007/gofonix',
-        'github.com/ikawaha/kagome/v2',
-        'github.com/ikawaha/kagome-dict',
-        'github.com/ikawaha/kagome-dict/ipa',
-        'github.com/mozillazg/go-pinyin',
-        'gopkg.in/yaml.v3'
-    )
+    $modules = @(Get-Content -LiteralPath (Join-Path $PSScriptRoot 'go-license-modules.txt') -Encoding UTF8 |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     foreach ($module in $modules) {
         $moduleInfo = Get-CommandOutput 'go' @('list', '-m', '-f={{.Dir}}|{{.Version}}', $module)
         $parts = $moduleInfo.Split('|', 2)
