@@ -489,6 +489,9 @@ English grapheme-to-phoneme conversion uses Gofonix v0.3.1-alpha,
 Copyright 2026 Nikolas Kraljevic, under the Apache License 2.0.
 Gofonix includes a reduced dictionary derived from CMUdict,
 Copyright (C) 1993-2015 Carnegie Mellon University.
+UtauTTS also embeds the full CMUdict pronunciation dictionary directly to
+preserve lexical stress. The pinned source revision and SHA-256 are recorded
+in internal/frontend/lexicon/README.md; the same CMUdict license applies.
 The CMUdict license, Gofonix data-license description, and the module's
 third-party notices are included under licenses/Go in each release package.
 

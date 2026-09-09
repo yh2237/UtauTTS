@@ -31,7 +31,7 @@ func TestParseKanaLongVowel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got[1] != (Mora{Text: "ー", Vowel: "u"}) || got[3] != (Mora{Text: "ー", Vowel: "a"}) {
+	if !reflect.DeepEqual(got[1], Mora{Text: "ー", Vowel: "u"}) || !reflect.DeepEqual(got[3], Mora{Text: "ー", Vowel: "a"}) {
 		t.Fatalf("morae = %#v", got)
 	}
 }

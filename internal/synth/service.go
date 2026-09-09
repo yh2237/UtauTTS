@@ -19,6 +19,7 @@ var ErrUnavailable = errors.New("unavailable")
 
 // Requestは合成とプレビューで共有する入力。
 type Request struct {
+	SpeechTiming          bool
 	Text                  string
 	Reading               string
 	Kana                  string
@@ -144,6 +145,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		reading = request.Kana
 	}
 	cfg := tts.Config{
+		SpeechTiming:            request.SpeechTiming,
 		Text:                    request.Text,
 		Reading:                 reading,
 		Language:                request.Language,

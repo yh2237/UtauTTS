@@ -1,4 +1,5 @@
 {
+    "main.speechTiming": "语音时长与音源校准（实验）",
     "plugins.title": "渲染器插件",
     "plugins.disabled": "无法加载的插件及原因：",
     "common.cancel": "取消",

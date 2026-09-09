@@ -9,6 +9,7 @@ type Coverage struct {
 	Covered         int                 `json:"covered"`
 	CandidateCounts []int               `json:"candidate_counts"`
 	Missing         []MissingAliasError `json:"missing"`
+	MissingPhones   []SpeechGap         `json:"missing_phones,omitempty"`
 }
 
 // AuditCoverage keeps the complete linguistic context while continuing past
@@ -28,6 +29,14 @@ func (b *Bank) AuditCoverage(morae []frontend.Mora, tone string) (*Coverage, err
 		result.CandidateCounts[i] = len(layers[i])
 		if len(layers[i]) > 0 {
 			result.Covered++
+			// Report the least incomplete available candidate, not optional releases.
+			best := layers[i][0]
+			for _, candidate := range layers[i][1:] {
+				if len(candidate.MissingPhones) < len(best.MissingPhones) {
+					best = candidate
+				}
+			}
+			result.MissingPhones = append(result.MissingPhones, best.MissingPhones...)
 		}
 	}
 	return result, nil

@@ -37,6 +37,7 @@ type Bank struct {
 	extractor         *connection.Extractor
 	validationMu      sync.Mutex
 	validationCache   map[oto.Entry]cachedEntryValidation
+	speechProfiles    map[oto.Entry]SpeechProfile
 }
 
 func Load(root string) (*Bank, error) {

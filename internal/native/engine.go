@@ -237,14 +237,15 @@ func (e *Engine) analyze(data []byte) (any, error) {
 }
 
 type prosodyPreviewRequest struct {
-	RequestID  string `json:"request_id"`
-	Text       string `json:"text"`
-	Kana       string `json:"kana"`
-	Reading    string `json:"reading"`
-	Language   string `json:"language"`
-	Phonemizer string `json:"phonemizer"`
-	ModelID    string `json:"model_id"`
-	Renderer   string `json:"renderer"`
+	SpeechTiming bool   `json:"speech_timing"`
+	RequestID    string `json:"request_id"`
+	Text         string `json:"text"`
+	Kana         string `json:"kana"`
+	Reading      string `json:"reading"`
+	Language     string `json:"language"`
+	Phonemizer   string `json:"phonemizer"`
+	ModelID      string `json:"model_id"`
+	Renderer     string `json:"renderer"`
 
 	MoraDurationMS     float64                 `json:"mora_duration_ms"`
 	PauseDurationMS    float64                 `json:"pause_duration_ms"`
@@ -267,7 +268,8 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 		reading = request.Kana
 	}
 	preview, _, err := e.synth.PredictProsodyContext(e.ctx, synth.Request{
-		Text: request.Text, Reading: reading, Language: request.Language, Phonemizer: request.Phonemizer, Dictionary: request.Dictionary,
+		SpeechTiming: request.SpeechTiming,
+		Text:         request.Text, Reading: reading, Language: request.Language, Phonemizer: request.Phonemizer, Dictionary: request.Dictionary,
 		ModelID: request.ModelID, Renderer: request.Renderer,
 		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,
 		MoraDurationsMS: request.MoraDurationsMS, IntonationStrength: request.IntonationStrength,
@@ -293,6 +295,7 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 }
 
 type synthesizeRequest struct {
+	SpeechTiming                                                                                                     bool
 	Text, Reading, Language, Phonemizer, VoicebankID, Tone, Color, ModelID, Renderer, Resampler, Wavtool, OutputPath string
 	AliasPolicy                                                                                                      voicebank.AliasPolicy
 	AcousticMode                                                                                                     string
@@ -306,6 +309,7 @@ type synthesizeRequest struct {
 
 func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
 	type wire struct {
+		SpeechTiming          bool                         `json:"speech_timing"`
 		Text                  string                       `json:"text"`
 		Kana                  string                       `json:"kana"`
 		Reading               string                       `json:"reading"`
@@ -340,6 +344,7 @@ func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
 		reading = value.Kana
 	}
 	*r = synthesizeRequest{Text: value.Text, Reading: reading, Language: value.Language, Phonemizer: value.Phonemizer, VoicebankID: value.VoicebankID, Tone: value.Tone, Color: value.Color, ModelID: value.ModelID, Renderer: value.Renderer, Resampler: value.Resampler, Wavtool: value.Wavtool, AliasPolicy: value.AliasPolicy, AcousticMode: value.AcousticMode, OutputPath: value.OutputPath, MoraDurationMS: value.MoraDurationMS, PauseDurationMS: value.PauseDurationMS, LeadingPreutteranceMS: value.LeadingPreutteranceMS, MoraDurationsMS: value.MoraDurationsMS, IntonationStrength: value.IntonationStrength, ApplyPitch: value.ApplyPitch, ManualPitch: value.ManualPitch, Dictionary: value.Dictionary, ResamplerExpressions: value.ResamplerExpressions}
+	r.SpeechTiming = value.SpeechTiming
 	return nil
 }
 
@@ -355,7 +360,8 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 		return nil, fmt.Errorf("output_path is required")
 	}
 	result, err := e.synth.SynthesizeContext(e.ctx, synth.Request{
-		Text: request.Text, Reading: request.Reading, Language: request.Language, Phonemizer: request.Phonemizer, VoicebankID: request.VoicebankID,
+		SpeechTiming: request.SpeechTiming,
+		Text:         request.Text, Reading: request.Reading, Language: request.Language, Phonemizer: request.Phonemizer, VoicebankID: request.VoicebankID,
 		Tone: request.Tone, Color: request.Color, ModelID: request.ModelID, Renderer: request.Renderer,
 		Resampler: request.Resampler, Wavtool: request.Wavtool,
 		AliasPolicy: request.AliasPolicy, AcousticMode: request.AcousticMode,

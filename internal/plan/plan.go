@@ -14,6 +14,7 @@ import (
 const Version = 19
 
 type Config struct {
+	SpeechTiming     bool
 	MoraDurationMS   float64
 	PauseDurationMS  float64
 	MoraDurationsMS  []float64
@@ -29,6 +30,9 @@ type Config struct {
 }
 
 type Plan struct {
+	SpeechTiming            bool                     `json:"speech_timing,omitempty"`
+	PhoneTimings            []PhoneTiming            `json:"phone_timings,omitempty"`
+	MissingPhones           []voicebank.SpeechGap    `json:"missing_phones,omitempty"`
 	Version                 int                      `json:"version"`
 	Voicebank               string                   `json:"voicebank"`
 	Text                    string                   `json:"text,omitempty"`
@@ -65,8 +69,19 @@ func Clone(source *Plan) *Plan {
 		return nil
 	}
 	result := *source
+	result.PhoneTimings = append([]PhoneTiming(nil), source.PhoneTimings...)
+	result.MissingPhones = append([]voicebank.SpeechGap(nil), source.MissingPhones...)
+	for i, gap := range source.MissingPhones {
+		result.MissingPhones[i] = gap
+		result.MissingPhones[i].Phones = append([]string(nil), gap.Phones...)
+		result.MissingPhones[i].Aliases = append([]string(nil), gap.Aliases...)
+	}
 	result.Units = append([]Unit(nil), source.Units...)
 	for index := range result.Units {
+		if source.Units[index].SpeechProfile != nil {
+			profile := *source.Units[index].SpeechProfile
+			result.Units[index].SpeechProfile = &profile
+		}
 		result.Units[index].EntryValidation = append([]string(nil), source.Units[index].EntryValidation...)
 		result.Units[index].CandidateRejections = append([]voicebank.CandidateRejection(nil), source.Units[index].CandidateRejections...)
 	}
@@ -82,10 +97,21 @@ func Clone(source *Plan) *Plan {
 }
 
 func cloneMora(mora frontend.Mora) frontend.Mora {
+	mora.Phones = append([]frontend.Phone(nil), mora.Phones...)
 	if mora.Aliases == nil {
 		return mora
 	}
 	hints := *mora.Aliases
+	if mora.Aliases.MainMissing != nil {
+		hints.MainMissing = make(map[string][]string, len(mora.Aliases.MainMissing))
+		for alias, phones := range mora.Aliases.MainMissing {
+			hints.MainMissing[alias] = append([]string(nil), phones...)
+		}
+	}
+	hints.EndingPhones = make([][]string, len(mora.Aliases.EndingPhones))
+	for i, phones := range mora.Aliases.EndingPhones {
+		hints.EndingPhones[i] = append([]string(nil), phones...)
+	}
 	hints.Main = append([]string(nil), mora.Aliases.Main...)
 	hints.MainKinds = append([]string(nil), mora.Aliases.MainKinds...)
 	hints.Transition = append([]string(nil), mora.Aliases.Transition...)
@@ -129,6 +155,7 @@ type BoundaryRepairDecision struct {
 }
 
 type Unit struct {
+	SpeechProfile             *voicebank.SpeechProfile       `json:"speech_profile,omitempty"`
 	Position                  int                            `json:"position"`
 	Role                      string                         `json:"role"`
 	ParentPosition            int                            `json:"parent_position,omitempty"`
@@ -220,7 +247,8 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		joinCostMode = "handcrafted"
 	}
 	result := &Plan{
-		Version: Version, Voicebank: bank.Root, Reading: reading,
+		SpeechTiming: cfg.SpeechTiming,
+		Version:      Version, Voicebank: bank.Root, Reading: reading,
 		Morae: append([]frontend.Mora(nil), morae...),
 		Tone:  cfg.Tone, Color: cfg.Color, AcousticMode: cfg.AcousticMode,
 		SelectionMode: string(selectionMode), AliasPolicy: string(aliasPolicy), JoinCostMode: joinCostMode,
@@ -256,6 +284,7 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		if !ok {
 			return nil, fmt.Errorf("selection missing for mora %q at position %d", mora.Text, position)
 		}
+		result.MissingPhones = append(result.MissingPhones, selection.MissingPhones...)
 		duration, manuallySet := configuredMoraDuration(position, cfg)
 		if !manuallySet {
 			duration = durationFor(mora, cfg.MoraDurationMS)
@@ -264,6 +293,12 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			} else if prediction.DurationFactor > 0 {
 				duration *= prediction.DurationFactor
 			}
+		}
+		phoneCursor := cursor
+		phoneSpans := frontend.PhoneSpans(mora.Phones, duration)
+		for i, phone := range mora.Phones {
+			result.PhoneTimings = append(result.PhoneTimings, PhoneTiming{Position: position, Symbol: phone.Symbol, Role: phone.Role, StartMS: phoneCursor, DurationMS: phoneSpans[i]})
+			phoneCursor += phoneSpans[i]
 		}
 		if selection.Transition != nil {
 			transition := selection.Transition
@@ -275,6 +310,13 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			aliasKind = voicebank.ClassifyAlias(selection.Alias)
 		}
 		mainUnit := unitFromSelection(&selection, position, cursor, duration, prediction, "mora")
+		if cfg.SpeechTiming && mora.Vowel != "" && mora.Vowel != "cl" && !mainUnit.Silent {
+			profile := bank.CalibrateSpeech(selection.Entry)
+			mainUnit.SpeechProfile = &profile
+			if profile.Applied {
+				mainUnit.ConsonantMS = profile.SuggestedFixedMS
+			}
+		}
 		mainUnit.AliasKind = string(aliasKind)
 		mainUnit.TransitionJoinScore = selection.TransitionJoinScore
 		mainUnit.TransitionJoinProbability = selection.TransitionJoinProbability
@@ -283,7 +325,11 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			endingDuration := endingDurationFor(duration, len(selection.Endings))
 			endingStart := cursor + duration - endingDuration*float64(len(selection.Endings))
 			for index := range selection.Endings {
-				result.Units = append(result.Units, unitFromSelection(&selection.Endings[index], position, endingStart+float64(index)*endingDuration, endingDuration, prediction, "ending"))
+				start, span := endingStart+float64(index)*endingDuration, endingDuration
+				if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil && len(mora.Aliases.EndingPhones) > 0 {
+					start, span = speechEndingTiming(mora, selection.Endings[index].EndingIndex, cursor, duration)
+				}
+				result.Units = append(result.Units, unitFromSelection(&selection.Endings[index], position, start, span, prediction, "ending"))
 			}
 		}
 		cursor += duration

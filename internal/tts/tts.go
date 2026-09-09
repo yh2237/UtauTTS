@@ -20,6 +20,7 @@ import (
 )
 
 type Config struct {
+	SpeechTiming            bool
 	Context                 context.Context
 	Engine                  engine.ResolvedEngine
 	VoicebankPath           string
@@ -144,6 +145,9 @@ func resolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, 
 			return "", "", "", nil, err
 		}
 		morae, err := frontend.ParseKana(reading)
+		if cfg.SpeechTiming {
+			japaneseSpeechPhones(morae)
+		}
 		return language, phonemizer, reading, morae, err
 	case frontend.PhonemizerEnglish:
 		reading, morae, err := frontend.ParseEnglishARPAsing(cfg.Text, cfg.Reading, cfg.Dictionary)
@@ -360,6 +364,8 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	var predictions []prosody.Prediction
 	if language == frontend.LanguageEnglish {
 		predictions = englishPredictions(morae)
+	} else if language == frontend.LanguageChinese {
+		predictions = mandarinPredictions(morae)
 	}
 	if loadedProsody != nil {
 		if loadedProsody.RequiresExternalFeatures() && len(prosodyFeatures) != len(morae) {
@@ -373,6 +379,9 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 				predictions[i].EnergyFactor = 1
 			}
 		}
+	}
+	if language == frontend.LanguageJapanese {
+		predictions = japaneseSpeechRhythm(cfg, loadedProsody, morae, predictions)
 	}
 	if len(cfg.PitchFactors) > 0 {
 		if len(cfg.PitchFactors) != len(morae) {
@@ -393,6 +402,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		}
 	}
 	synthesisPlan, err := plan.Build(bank, reading, morae, selections, plan.Config{
+		SpeechTiming:     cfg.SpeechTiming,
 		MoraDurationMS:   cfg.MoraDurationMS,
 		PauseDurationMS:  cfg.PauseDurationMS,
 		MoraDurationsMS:  cfg.MoraDurationsMS,
@@ -574,6 +584,8 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	var predictions []prosody.Prediction
 	if language == frontend.LanguageEnglish {
 		predictions = englishPredictions(morae)
+	} else if language == frontend.LanguageChinese {
+		predictions = mandarinPredictions(morae)
 	}
 	if loadedProsody != nil {
 		if loadedProsody.RequiresExternalFeatures() && len(prosodyFeatures) != len(morae) {
@@ -582,6 +594,9 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		predictions = loadedProsody.PredictWithFeatures(morae, prosodyFeatures)
 	}
 
+	if language == frontend.LanguageJapanese {
+		predictions = japaneseSpeechRhythm(cfg, loadedProsody, morae, predictions)
+	}
 	timings := make([]prosody.MoraTiming, len(morae))
 	if loadedProsody != nil && cfg.ProsodyPitchOnly {
 		for i := range predictions {

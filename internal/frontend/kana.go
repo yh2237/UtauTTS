@@ -9,11 +9,17 @@ import (
 )
 
 type Mora struct {
+	Language      string  `json:",omitempty"`
+	WordIndex     int     `json:",omitempty"`
+	WordEnd       bool    `json:",omitempty"`
+	SourceText    string  `json:",omitempty"`
+	Phones        []Phone `json:",omitempty"`
 	Text          string
 	Consonant     string
 	Vowel         string
 	Pause         bool
 	Stress        int
+	StressKnown   bool `json:",omitempty"`
 	Tone          int
 	DurationScale float64
 	Aliases       *AliasHints
@@ -24,6 +30,16 @@ type AliasHints struct {
 	MainKinds  []string
 	Transition []string
 	Endings    [][]string
+	// EndingPhones identifies required speech phones, unlike optional releases.
+	EndingPhones [][]string `json:",omitempty"`
+	// Missing onset phones for phrase-initial shortened CV fallbacks.
+	MainMissing map[string][]string `json:",omitempty"`
+}
+
+// Phone is independent of the voicebank alias alphabet. Role is onset, nucleus or coda.
+type Phone struct {
+	Symbol string
+	Role   string
 }
 
 func ParseKana(reading string) ([]Mora, error) {

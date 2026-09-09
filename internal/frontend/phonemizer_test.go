@@ -55,7 +55,7 @@ func TestParseEnglishUsesBuiltInG2P(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reading != "HH AH L OW" || len(units) != 2 {
+	if reading != "HH AH0 L OW1" || len(units) != 2 {
 		t.Fatalf("reading=%q units=%#v", reading, units)
 	}
 }
@@ -147,7 +147,7 @@ func TestEnglishGeneratedReadingKeepsWordBoundaries(t *testing.T) {
 	if reading != "K AE T | IH Z" {
 		t.Fatalf("reading=%q", reading)
 	}
-	if len(units) != 2 || units[0].Aliases.Endings[0][0] != "{ t-" || units[1].Aliases.Main[0] != "- I" {
+	if len(units) != 2 || units[0].Aliases.Endings[0][0] != "{ t" || units[1].Aliases.Main[0] != "tI" {
 		t.Fatalf("units=%#v", units)
 	}
 }

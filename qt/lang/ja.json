@@ -1,4 +1,5 @@
 {
+    "main.speechTiming": "発話タイミング・音源校正（実験）",
     "plugins.title": "Rendererプラグイン",
     "plugins.disabled": "読み込めなかったプラグインと理由：",
     "common.cancel": "キャンセル",

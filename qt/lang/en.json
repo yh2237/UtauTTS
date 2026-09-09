@@ -1,4 +1,5 @@
 {
+    "main.speechTiming": "Speech timing and voicebank calibration (experimental)",
     "plugins.title": "Renderer plugins",
     "plugins.disabled": "Unavailable plugins and reasons:",
     "common.cancel": "Cancel",

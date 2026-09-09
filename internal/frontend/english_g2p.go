@@ -15,6 +15,13 @@ var (
 )
 
 func englishWordPronunciation(word string) (string, error) {
+	pronunciation, err := lookupEnglishDictionary(word)
+	if err != nil {
+		return "", err
+	}
+	if pronunciation != "" {
+		return pronunciation, nil
+	}
 	englishG2POnce.Do(func() {
 		englishG2PEngine, englishG2PErr = g2p.New(g2p.Options{Language: "en", Mode: g2p.ModeBatch})
 	})

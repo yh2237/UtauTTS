@@ -21,11 +21,18 @@ func englishPredictions(morae []frontend.Mora) []prosody.Prediction {
 				factor = 1.2
 			case 2:
 				factor = 1.1
+			case 0:
+				if mora.StressKnown {
+					factor = 0.85
+				}
 			}
 			// 音節単位の音素化では末子音の時間を確保する。
 			if mora.DurationScale == 0 && mora.Aliases != nil {
 				factor += math.Min(0.5, float64(len(mora.Aliases.Endings))*0.15)
 			}
+		}
+		if !mora.Pause && (i+1 == len(morae) || morae[i+1].Pause) {
+			factor *= 1.12
 		}
 		result[i] = prosody.Prediction{DurationFactor: factor, EnergyFactor: 1, PitchFactor: 1}
 	}

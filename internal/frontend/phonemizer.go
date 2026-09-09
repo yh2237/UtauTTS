@@ -2,12 +2,8 @@ package frontend
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"unicode"
-	"unicode/utf8"
-
-	"github.com/mozillazg/go-pinyin"
 )
 
 const (
@@ -119,6 +115,13 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 		for syllableIndex, syllable := range syllables {
 			atPhraseStart := phraseStart
 			mainOnset := syllable.onset
+			if syllableIndex == 0 && wordIndex > 0 && len(syllableWords[wordIndex-1]) > 0 && len(mainOnset) == 0 {
+				prior := syllableWords[wordIndex-1]
+				coda := prior[len(prior)-1].coda
+				if len(coda) > 0 {
+					mainOnset = coda[len(coda)-1:]
+				}
+			}
 			if syllableIndex > 0 && len(syllable.onset) == 0 && len(syllables[syllableIndex-1].coda) > 0 {
 				bridgeOnset := append([]string{syllables[syllableIndex-1].coda[len(syllables[syllableIndex-1].coda)-1]}, syllable.onset...)
 				mainOnset = bridgeOnset
@@ -148,22 +151,40 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 			}
 			main = uniqueStrings(main)
 			units = append(units, Mora{
-				Text: main[0], Consonant: strings.Join(syllable.onset, " "), Vowel: symbols[syllable.vowel][0], Stress: syllable.stress,
+				Language: LanguageEnglish, WordIndex: wordIndex, WordEnd: syllableIndex+1 == len(syllables),
+				Phones: englishSyllablePhones(syllable),
+				Text:   main[0], Consonant: strings.Join(syllable.onset, " "), Vowel: symbols[syllable.vowel][0], Stress: syllable.stress,
 				Aliases: &AliasHints{Main: main, MainKinds: repeatAliasKind("cv", len(main)), Transition: uniqueStrings(transitions)},
 			})
 			current := &units[len(units)-1]
+			if atPhraseStart && len(syllable.onset) > 1 {
+				current.Aliases.MainMissing = make(map[string][]string)
+				for start := 1; start < len(syllable.onset); start++ {
+					for _, alias := range combineEnglishAliases(syllable.onset[start:], symbols[syllable.vowel], symbols) {
+						for _, prefix := range []string{"", "-", "- "} {
+							current.Aliases.MainMissing[prefix+alias] = append([]string(nil), syllable.onset[:start]...)
+						}
+					}
+				}
+			}
+			current.StressKnown = syllable.stressKnown
 			previousVowels = symbols[syllable.vowel]
 			lastSyllable := syllableIndex+1 == len(syllables)
 			lastWord := wordIndex+1 == len(syllableWords) || len(syllableWords[wordIndex+1]) == 0
 			if len(syllable.coda) > 0 {
 				if lastSyllable {
-					current.Aliases.Endings = englishTerminalConsonants(previousVowels, syllable.coda, symbols, separator)
-					phraseStart = !lastWord
-					if phraseStart {
-						previousVowels = nil
+					if lastWord {
+						current.Aliases.Endings = englishTerminalConsonants(previousVowels, syllable.coda, symbols, separator)
+					} else {
+						current.Aliases.Endings = englishSyllableBridge(previousVowels, syllable.coda, syllableWords[wordIndex+1][0].onset, symbols, separator)
 					}
+					previousVowels = nil
 				} else {
 					current.Aliases.Endings = englishSyllableBridge(previousVowels, syllable.coda, syllables[syllableIndex+1].onset, symbols, separator)
+				}
+				current.Aliases.EndingPhones = [][]string{append([]string(nil), syllable.coda[:1]...)}
+				if len(current.Aliases.Endings) > 1 {
+					current.Aliases.EndingPhones = append(current.Aliases.EndingPhones, append([]string(nil), syllable.coda[1:]...))
 				}
 			} else if lastSyllable && lastWord {
 				current.Aliases.Endings = [][]string{englishEndingAliases(previousVowels, config)}
@@ -174,10 +195,11 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 }
 
 type englishSyllable struct {
-	onset  []string
-	vowel  string
-	coda   []string
-	stress int
+	onset       []string
+	vowel       string
+	coda        []string
+	stress      int
+	stressKnown bool
 }
 
 func syllabifyEnglishWord(raw []string, symbols map[string][]string) ([]englishSyllable, error) {
@@ -200,6 +222,7 @@ func syllabifyEnglishWord(raw []string, symbols map[string][]string) ([]englishS
 	for i, vowelAt := range vowels {
 		syllables[i].vowel = phones[vowelAt]
 		syllables[i].stress = arpabetStress(raw[vowelAt])
+		syllables[i].stressKnown = arpabetHasStress(raw[vowelAt])
 		if i == 0 {
 			syllables[i].onset = append([]string(nil), phones[:vowelAt]...)
 			continue
@@ -269,6 +292,12 @@ func englishTerminalConsonants(vowels, coda []string, symbols map[string][]strin
 				endings = append(endings, vowel+separator+value+"-", vowel+value+"-")
 			}
 		}
+		// A missing release marker must not make an available VC disappear.
+		for _, vowel := range vowels {
+			for _, value := range cluster {
+				endings = append(endings, vowel+separator+value, vowel+value)
+			}
+		}
 		return [][]string{uniqueStrings(endings)}
 	}
 	first := combineEnglishAliases(coda[:1], []string{""}, symbols)
@@ -333,7 +362,7 @@ func englishPronunciation(text, reading string, dictionary map[string]string) (s
 			}
 		}
 	} else {
-		words := latinWords(text)
+		words := latinWords(normalizeEnglishText(text))
 		if len(words) == 0 {
 			return "", nil, fmt.Errorf("English text contains no words")
 		}
@@ -438,7 +467,7 @@ func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (s
 	}
 	var morae []Mora
 	previous := "-"
-	for _, word := range words {
+	for wordIndex, word := range words {
 		if len(word) == 1 && word[0] == "SP" {
 			if len(morae) > 0 && !morae[len(morae)-1].Pause {
 				last := &morae[len(morae)-1]
@@ -448,7 +477,7 @@ func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (s
 			previous = "-"
 			continue
 		}
-		for _, raw := range word {
+		for phoneIndex, raw := range word {
 			symbol := normalizeARPAbet(raw)
 			if symbol == "" {
 				continue
@@ -457,13 +486,19 @@ func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (s
 			if previous != "-" {
 				candidates = append(candidates, "- "+symbol)
 			}
-			mora := Mora{Text: symbol, Stress: arpabetStress(raw), Aliases: &AliasHints{Main: uniqueStrings(candidates)}}
+			if !englishVowels[symbol] && len(deltaEnglishSymbols[symbol]) == 0 {
+				return "", nil, fmt.Errorf("unsupported ARPAbet phoneme %q", raw)
+			}
+			mora := Mora{Language: LanguageEnglish, WordIndex: wordIndex, WordEnd: phoneIndex+1 == len(word), Text: symbol, Stress: arpabetStress(raw), Aliases: &AliasHints{Main: uniqueStrings(candidates)}}
+			mora.StressKnown = arpabetHasStress(raw)
 			if englishVowels[symbol] {
 				mora.Vowel = symbol
 				mora.DurationScale = 1
+				mora.Phones = []Phone{{Symbol: symbol, Role: "nucleus"}}
 			} else {
 				mora.Consonant = symbol
-				mora.DurationScale = 0.45
+				mora.DurationScale = PhoneWeight(symbol, "onset")
+				mora.Phones = []Phone{{Symbol: symbol, Role: "onset"}}
 			}
 			morae = append(morae, mora)
 			previous = symbol
@@ -482,21 +517,38 @@ func ParseChineseCVVC(text, reading string, dictionary map[string]string) (strin
 
 func ParseChineseCVVCWithConfig(text, reading string, dictionary map[string]string, config PresampConfig) (string, []Mora, error) {
 	var syllables []string
+	var tokens []chineseToken
 	if strings.TrimSpace(reading) != "" {
 		syllables = strings.Fields(reading)
 	} else if value := dictionary[text]; value != "" {
 		syllables = strings.Fields(value)
 	} else {
 		var err error
-		syllables, err = chineseSyllables(text, dictionary)
+		tokens, err = chineseReadingTokens(text, dictionary)
 		if err != nil {
 			return "", nil, err
+		}
+		for _, token := range tokens {
+			syllables = append(syllables, token.reading)
 		}
 	}
 	var morae []Mora
 	previousFinal := ""
+	// GUI previews send the generated reading back. Recover lexical metadata
+	// only for an exact match; never reinterpret an explicitly edited reading.
+	if len(tokens) == 0 && text != "" {
+		if inferred, err := chineseReadingTokens(text, dictionary); err == nil {
+			var values []string
+			for _, token := range inferred {
+				values = append(values, token.reading)
+			}
+			if strings.Join(values, " ") == strings.Join(syllables, " ") {
+				tokens = inferred
+			}
+		}
+	}
 	phraseStart := true
-	for _, raw := range syllables {
+	for syllableIndex, raw := range syllables {
 		if raw == "|" {
 			if len(morae) > 0 && !morae[len(morae)-1].Pause {
 				setChineseEnding(&morae[len(morae)-1], config)
@@ -526,7 +578,17 @@ func ParseChineseCVVCWithConfig(text, reading string, dictionary map[string]stri
 			candidates = append([]string{previousFinal + " " + syllable}, candidates...)
 			kinds = append([]string{"vcv"}, kinds...)
 		}
-		mora := Mora{Text: syllable, Consonant: initial, Vowel: final, Tone: tone, Aliases: &AliasHints{Main: candidates, MainKinds: kinds}}
+		mora := Mora{Language: LanguageChinese, WordIndex: syllableIndex, WordEnd: true, Text: syllable, Consonant: initial, Vowel: final, Tone: tone, Aliases: &AliasHints{Main: candidates, MainKinds: kinds}}
+		if len(tokens) == len(syllables) {
+			mora.SourceText = tokens[syllableIndex].source
+			mora.WordIndex = tokens[syllableIndex].word
+			mora.WordEnd = tokens[syllableIndex].end
+		}
+		phoneInitial, phoneFinal := splitPinyin(normalizePinyin(raw))
+		if phoneInitial != "" {
+			mora.Phones = append(mora.Phones, Phone{phoneInitial, "onset"})
+		}
+		mora.Phones = append(mora.Phones, Phone{phoneFinal, "nucleus"})
 		if previousFinal != "" && initial != "" {
 			mora.Aliases.Transition = []string{previousFinal + " " + initial}
 		}
@@ -555,40 +617,13 @@ func setChineseEnding(mora *Mora, config PresampConfig) {
 }
 
 func chineseSyllables(text string, dictionary map[string]string) ([]string, error) {
-	args := pinyin.NewArgs()
-	args.Style = pinyin.Tone3
-	keys := make([]string, 0, len(dictionary))
-	for key := range dictionary {
-		if key != "" {
-			keys = append(keys, key)
-		}
+	tokens, err := chineseReadingTokens(text, dictionary)
+	if err != nil {
+		return nil, err
 	}
-	sort.SliceStable(keys, func(i, j int) bool { return len([]rune(keys[i])) > len([]rune(keys[j])) })
 	var result []string
-	for len(text) > 0 {
-		matched := false
-		for _, key := range keys {
-			if strings.HasPrefix(text, key) {
-				result = append(result, strings.Fields(dictionary[key])...)
-				text = strings.TrimPrefix(text, key)
-				matched = true
-				break
-			}
-		}
-		if matched {
-			continue
-		}
-		r, size := utf8.DecodeRuneInString(text)
-		text = text[size:]
-		if unicode.IsSpace(r) || unicode.IsPunct(r) {
-			result = append(result, "|")
-			continue
-		}
-		values := pinyin.SinglePinyin(r, args)
-		if len(values) == 0 {
-			return nil, fmt.Errorf("cannot convert %q to Pinyin; specify --reading", string(r))
-		}
-		result = append(result, values[0])
+	for _, token := range tokens {
+		result = append(result, token.reading)
 	}
 	return result, nil
 }
@@ -637,6 +672,11 @@ func arpabetStress(value string) int {
 		return int(last - '0')
 	}
 	return 0
+}
+
+func arpabetHasStress(value string) bool {
+	value = strings.TrimSpace(value)
+	return len(value) > 0 && value[len(value)-1] >= '0' && value[len(value)-1] <= '2'
 }
 
 func latinWords(text string) []string {

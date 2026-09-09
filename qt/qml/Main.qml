@@ -1107,6 +1107,7 @@ ApplicationWindow {
             tone: item.tone || "C4",
             color: item.color || "",
             mora_duration_ms: item.moraDuration,
+            speech_timing: !!item.speechTiming,
             pause_duration_ms: item.pauseDuration,
             leading_preutterance_ms: item.leadingPreutterance,
             intonation_strength: item.intonation,
@@ -1615,6 +1616,7 @@ ApplicationWindow {
                 tone: item.tone,
                 color: item.color,
                 moraDuration: item.moraDuration,
+                speechTiming: !!item.speechTiming,
                 pauseDuration: item.pauseDuration,
                 leadingPreutterance: item.leadingPreutterance,
                 intonation: item.intonation,
@@ -1824,9 +1826,16 @@ ApplicationWindow {
         error = check(utterances.count === 1, "utterance remove failed");
         if (error.length)
             return error;
+        utterances.setProperty(0, "speechTiming", true);
+        error = check(window.buildSynthesisRequest(window.current()).speech_timing === true
+                      && window.buildProsodyRequest(window.current(), "speech-self-test").speech_timing === true,
+                      "speech timing was lost from native requests");
+        if (error.length)
+            return error;
         const project = window.projectData();
         error = check(project.format === "utautts-project" && project.format_version === 6
-                      && project.utterances.length === 1, "project data generation failed");
+                      && project.utterances.length === 1
+                      && project.utterances[0].speech_timing === true, "project data generation failed");
 
         analyzeTimer.stop();
         utterances.clear();
@@ -1853,6 +1862,7 @@ ApplicationWindow {
                 tone: item.tone || "C4",
                 color: item.color || "",
                 mora_duration_ms: item.moraDuration,
+                speech_timing: !!item.speechTiming,
                 pause_duration_ms: item.pauseDuration,
                 leading_preutterance_ms: item.leadingPreutterance,
                 intonation: item.intonation,
@@ -2016,6 +2026,7 @@ ApplicationWindow {
                 tone: String(saved.tone || window.appBackend.defaultTone),
                 color: String(saved.color || ""),
                 moraDuration: window.projectNumber(saved.mora_duration_ms, window.appBackend.defaultMoraDuration, 20, 1000, true),
+                speechTiming: saved.speech_timing === true,
                 pauseDuration: window.projectNumber(saved.pause_duration_ms, window.appBackend.defaultPauseDuration, 0, 3000, true),
                 leadingPreutterance: window.projectNumber(saved.leading_preutterance_ms, 0, 0, 300, true),
                 intonation: window.projectNumber(saved.intonation, window.defaultIntonationStrength, 0, window.maxIntonationStrength, false),
@@ -2113,7 +2124,7 @@ ApplicationWindow {
             return;
         utterances.setProperty(selectedIndex, name, value);
         if (["voicebankId", "modelId", "renderer", "aliasPolicy", "phonemizer", "tone", "color", "moraDuration", "pauseDuration",
-             "intonation", "applyPitch"].indexOf(name) >= 0)
+             "intonation", "applyPitch", "speechTiming"].indexOf(name) >= 0)
             clearAutomaticProsody(selectedIndex);
         if (name === "moraDuration")
             editorContent.pitchEditor.defaultMoraDuration = value;
@@ -2142,7 +2153,7 @@ ApplicationWindow {
             }
         }
         if (["voicebankId", "aliasPolicy", "modelId", "renderer", "tone", "color", "moraDuration",
-             "pauseDuration", "intonation", "applyPitch"].indexOf(name) >= 0) {
+             "pauseDuration", "intonation", "applyPitch", "speechTiming"].indexOf(name) >= 0) {
             window.requestMissingProsodyPreview(selectedIndex);
         }
     }
@@ -2558,6 +2569,7 @@ ApplicationWindow {
             tone: window.appBackend.defaultTone,
             color: "",
             moraDuration: window.appBackend.defaultMoraDuration,
+            speechTiming: false,
             pauseDuration: window.appBackend.defaultPauseDuration,
             leadingPreutterance: window.appBackend.defaultLeadingPreutterance,
             intonation: window.defaultIntonationStrength,
@@ -2705,6 +2717,7 @@ ApplicationWindow {
             tone: item.tone,
             color: item.color || "",
             mora_duration_ms: item.moraDuration,
+            speech_timing: !!item.speechTiming,
             pause_duration_ms: item.pauseDuration,
             leading_preutterance_ms: item.leadingPreutterance,
             mora_durations_ms: manualDurations,
@@ -2745,6 +2758,7 @@ ApplicationWindow {
             model_id: item.modelId,
             renderer: item.renderer,
             mora_duration_ms: item.moraDuration,
+            speech_timing: !!item.speechTiming,
             pause_duration_ms: item.pauseDuration,
             mora_durations_ms: window.hasManualMoraDurations(item)
                     ? window.decodeSequence(item.moraDurationsJson) : [],

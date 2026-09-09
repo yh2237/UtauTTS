@@ -381,6 +381,7 @@ func pathWithin(root, candidate string) (string, error) {
 }
 
 type SynthesisRequest struct {
+	SpeechTiming          bool                         `json:"speech_timing"`
 	Kana                  string                       `json:"kana"`
 	Reading               string                       `json:"reading"`
 	Text                  string                       `json:"text"`
@@ -640,6 +641,7 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 		AliasPolicy: request.AliasPolicy, AcousticMode: request.AcousticMode,
 		Dictionary:     request.Dictionary,
 		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,
+		SpeechTiming:          request.SpeechTiming,
 		LeadingPreutteranceMS: request.LeadingPreutteranceMS,
 		MoraDurationsMS:       request.MoraDurationsMS, IntonationStrength: request.IntonationStrength,
 		ApplyPitch: request.ApplyPitch, ManualPitch: request.ManualPitch,

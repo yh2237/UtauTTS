@@ -15,6 +15,21 @@ import (
 
 const openJTalkHelperEnvironment = "UTAUTTS_TEST_OPENJTALK_HELPER"
 
+func TestSpeechTimingRequestWire(t *testing.T) {
+	var synthesis synthesizeRequest
+	var preview prosodyPreviewRequest
+	data := []byte(`{"reading":"カサ","speech_timing":true}`)
+	if err := json.Unmarshal(data, &synthesis); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(data, &preview); err != nil {
+		t.Fatal(err)
+	}
+	if !synthesis.SpeechTiming || !preview.SpeechTiming {
+		t.Fatal("speech timing lost at native boundary")
+	}
+}
+
 func TestMain(m *testing.M) {
 	if os.Getenv(openJTalkHelperEnvironment) == "1" {
 		for _, argument := range os.Args {

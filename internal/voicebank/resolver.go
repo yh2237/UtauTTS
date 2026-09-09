@@ -19,6 +19,8 @@ type Selection struct {
 	Composite                 bool
 	Transition                *Selection
 	Endings                   []Selection
+	EndingIndex               int
+	MissingPhones             []SpeechGap
 	FallbackTier              int
 	Entry                     oto.Entry
 	Candidates                []string
@@ -50,6 +52,13 @@ type CandidateRejection struct {
 }
 
 const maxCandidatesPerPosition = 32
+
+type SpeechGap struct {
+	Position int      `json:"position"`
+	Role     string   `json:"role"`
+	Phones   []string `json:"phones"`
+	Aliases  []string `json:"aliases"`
+}
 
 type SelectionMode string
 
@@ -228,7 +237,7 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 			return valid
 		}
 		attachEndings := func(main Selection) Selection {
-			for _, specs := range endingSpecs {
+			for endingIndex, specs := range endingSpecs {
 				bestScore := math.Inf(-1)
 				var best *Selection
 				for _, endingSpec := range specs {
@@ -238,7 +247,8 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 							continue
 						}
 						ending := Selection{
-							Position: position, Mora: mora, Alias: endingSpec.name, Kind: AliasOther,
+							EndingIndex: endingIndex,
+							Position:    position, Mora: mora, Alias: endingSpec.name, Kind: AliasOther,
 							FallbackTier: endingSpec.tier, Entry: validatedEnding.entry, Candidates: candidates,
 							TargetScore: score, SubbankID: subbank.ID, Color: subbank.Color,
 							RequestedTone: requestedTone, ResolvedTone: resolvedTone,
@@ -248,6 +258,13 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 					}
 				}
 				if best == nil {
+					if mora.Aliases != nil && endingIndex < len(mora.Aliases.EndingPhones) && len(mora.Aliases.EndingPhones[endingIndex]) > 0 {
+						gap := SpeechGap{Position: position, Role: "coda", Phones: append([]string(nil), mora.Aliases.EndingPhones[endingIndex]...)}
+						for _, spec := range specs {
+							gap.Aliases = append(gap.Aliases, spec.name)
+						}
+						main.MissingPhones = append(main.MissingPhones, gap)
+					}
 					// 録音のない末子音で、後続の録音可能な子音を隠さない。
 					continue
 				}
@@ -301,6 +318,15 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 			}
 		}
 		for index := range candidatesAtPosition {
+			selected := &candidatesAtPosition[index]
+			if mora.Aliases != nil && selected.Transition == nil {
+				for alias, phones := range mora.Aliases.MainMissing {
+					if selected.Alias == alias || (hasAffix && selected.Alias == affix.Prefix+alias+affix.Suffix) {
+						selected.MissingPhones = append(append([]SpeechGap(nil), selected.MissingPhones...), SpeechGap{Position: position, Role: "onset", Phones: append([]string(nil), phones...), Aliases: append([]string(nil), mora.Aliases.Transition...)})
+						break
+					}
+				}
+			}
 			candidatesAtPosition[index].CandidateRejections = append([]CandidateRejection(nil), rejections...)
 			if candidatesAtPosition[index].Transition != nil {
 				candidatesAtPosition[index].Transition.CandidateRejections = append([]CandidateRejection(nil), rejections...)
