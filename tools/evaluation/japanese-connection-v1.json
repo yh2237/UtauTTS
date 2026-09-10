@@ -1,0 +1,8 @@
+[
+  {"id":"vowels","text":"ああ、いい、うう、ええ、おお。","reading":"アア、イイ、ウウ、エエ、オオ。","focus":"repeated vowels and pauses"},
+  {"id":"stops","text":"高かった。ぱっと、きっと。","reading":"タカカッタ。パット、キット。","focus":"stop releases and closures"},
+  {"id":"fricatives","text":"さしすせそ。ひふへほ。","reading":"サシスセソ。ヒフヘホ。","focus":"fricatives"},
+  {"id":"sonorants","text":"なめらかな丸いもの。","reading":"ナメラカナマルイモノ。","focus":"nasals and sonorants"},
+  {"id":"connections","text":"これは青い家です。","reading":"コレワアオイイエデス。","focus":"vowel connections in speech"},
+  {"id":"long-vowels","text":"ああ、そうなんだ。いいね。","reading":"アア、ソーナンダ。イイネ。","focus":"long vowels and phrase boundaries"}
+]

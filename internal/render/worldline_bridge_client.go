@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 
 	"utautts/internal/provider"
 )
@@ -23,6 +24,10 @@ var sharedWorldlineBridge worldlineBridgeProcess
 var worldlineBridgeGate = make(chan struct{}, 1)
 
 func invokeWorldlineBridge(ctx context.Context, bridge, jobPath, outputPath string) error {
+	return invokeWorldlineBridgeReport(ctx, bridge, jobPath, outputPath, nil)
+}
+
+func invokeWorldlineBridgeReport(ctx context.Context, bridge, jobPath, outputPath string, report *[]provider.WorldSpeechResult) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -66,7 +71,10 @@ func invokeWorldlineBridge(ctx context.Context, bridge, jobPath, outputPath stri
 		client.session = session
 	}
 
-	_, err = client.session.Render(ctx, provider.RenderRequest{
+	if job.Speech && !slices.Contains(client.session.Hello().Capabilities, provider.CapabilityWorldSpeechV1) {
+		return fmt.Errorf("WORLD bridge does not support speech timing; rebuild utautts-worldline-bridge")
+	}
+	result, err := client.session.Render(ctx, provider.RenderRequest{
 		Contract:        "unit-renderer",
 		ContractVersion: 1,
 		InputPath:       jobPath,
@@ -75,10 +83,23 @@ func invokeWorldlineBridge(ctx context.Context, bridge, jobPath, outputPath stri
 	if err != nil && !client.session.IsAlive() {
 		client.stop()
 	}
+	if err == nil && report != nil {
+		data, encodeErr := json.Marshal(result.Report["world_speech"])
+		if encodeErr != nil {
+			return encodeErr
+		}
+		if decodeErr := json.Unmarshal(data, report); decodeErr != nil {
+			return fmt.Errorf("decode WORLD speech report: %w", decodeErr)
+		}
+		if job.Speech && *report == nil {
+			return fmt.Errorf("WORLD bridge omitted speech report")
+		}
+	}
 	return err
 }
 
 type worldlineBridgeJob struct {
+	Speech bool
 	Engine string `json:"engine"`
 }
 
@@ -98,7 +119,11 @@ func readWorldlineBridgeJob(path string) (worldlineBridgeJob, error) {
 	if commonJob.Options.Worldline == nil {
 		return worldlineBridgeJob{}, fmt.Errorf("worldline job has no typed worldline options")
 	}
-	return validateWorldlineBridgeJob(worldlineBridgeJob{Engine: commonJob.Options.Worldline.Engine})
+	job := worldlineBridgeJob{Engine: commonJob.Options.Worldline.Engine}
+	for _, unit := range commonJob.Options.Worldline.Units {
+		job.Speech = job.Speech || unit.Speech != nil
+	}
+	return validateWorldlineBridgeJob(job)
 }
 
 func validateWorldlineBridgeJob(job worldlineBridgeJob) (worldlineBridgeJob, error) {

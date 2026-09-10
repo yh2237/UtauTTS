@@ -12,37 +12,39 @@ import (
 )
 
 type manifest struct {
-	Engine          string    `json:"engine"`
-	WorldlinePath   string    `json:"worldline_path"`
-	WorldEnginePath string    `json:"world_engine_path"`
-	GPUPath         string    `json:"gpu_path"`
-	OutputPath      string    `json:"output_path"`
-	SampleRate      int       `json:"sample_rate"`
-	F0Curve         []float64 `json:"f0_curve"`
-	Units           []unit    `json:"units"`
+	SpeechResults   *[]provider.WorldSpeechResult `json:"-"`
+	Engine          string                        `json:"engine"`
+	WorldlinePath   string                        `json:"worldline_path"`
+	WorldEnginePath string                        `json:"world_engine_path"`
+	GPUPath         string                        `json:"gpu_path"`
+	OutputPath      string                        `json:"output_path"`
+	SampleRate      int                           `json:"sample_rate"`
+	F0Curve         []float64                     `json:"f0_curve"`
+	Units           []unit                        `json:"units"`
 }
 
 type unit struct {
-	CacheKey          string          `json:"cache_key"`
-	Source            string          `json:"source"`
-	FrqPath           string          `json:"frq_path"`
-	PositionMS        float64         `json:"position_ms"`
-	SkipMS            float64         `json:"skip_ms"`
-	LengthMS          float64         `json:"length_ms"`
-	FadeInMS          float64         `json:"fade_in_ms"`
-	FadeOutMS         float64         `json:"fade_out_ms"`
-	OffsetMS          float64         `json:"offset_ms"`
-	RequiredLengthMS  float64         `json:"required_length_ms"`
-	ConsonantMS       float64         `json:"consonant_ms"`
-	CutoffMS          float64         `json:"cutoff_ms"`
-	Tone              int             `json:"tone"`
-	ConsonantVelocity float64         `json:"consonant_velocity"`
-	PitchStartMS      float64         `json:"pitch_start_ms"`
-	PitchLengthMS     float64         `json:"pitch_length_ms"`
-	Volume            float64         `json:"volume"`
-	Modulation        float64         `json:"modulation"`
-	Tempo             float64         `json:"tempo"`
-	Envelope          []envelopePoint `json:"envelope"`
+	Speech            *provider.WorldSpeechTiming `json:"speech,omitempty"`
+	CacheKey          string                      `json:"cache_key"`
+	Source            string                      `json:"source"`
+	FrqPath           string                      `json:"frq_path"`
+	PositionMS        float64                     `json:"position_ms"`
+	SkipMS            float64                     `json:"skip_ms"`
+	LengthMS          float64                     `json:"length_ms"`
+	FadeInMS          float64                     `json:"fade_in_ms"`
+	FadeOutMS         float64                     `json:"fade_out_ms"`
+	OffsetMS          float64                     `json:"offset_ms"`
+	RequiredLengthMS  float64                     `json:"required_length_ms"`
+	ConsonantMS       float64                     `json:"consonant_ms"`
+	CutoffMS          float64                     `json:"cutoff_ms"`
+	Tone              int                         `json:"tone"`
+	ConsonantVelocity float64                     `json:"consonant_velocity"`
+	PitchStartMS      float64                     `json:"pitch_start_ms"`
+	PitchLengthMS     float64                     `json:"pitch_length_ms"`
+	Volume            float64                     `json:"volume"`
+	Modulation        float64                     `json:"modulation"`
+	Tempo             float64                     `json:"tempo"`
+	Envelope          []envelopePoint             `json:"envelope"`
 }
 
 type envelopePoint struct {
@@ -93,7 +95,7 @@ func serveProvider(input io.Reader, output io.Writer, providerID string) error {
 	if err := encoder.Encode(provider.Hello{
 		Type: provider.MessageHello, Protocol: provider.ProtocolName, ProtocolVersion: provider.ProtocolVersion,
 		Provider: providerID, ProviderVersion: "1", Session: true,
-		Capabilities: []string{"frame_pitch", provider.CapabilityUnitRendererJobV2},
+		Capabilities: []string{"frame_pitch", provider.CapabilityUnitRendererJobV2, provider.CapabilityWorldSpeechV1},
 		Contracts:    []provider.ContractSupport{{Name: "unit-renderer", Version: 1}},
 	}); err != nil {
 		return err
@@ -150,7 +152,8 @@ func serveProvider(input io.Reader, output io.Writer, providerID string) error {
 				return encodeErr
 			}
 		} else if err := encoder.Encode(provider.Result{
-			Type: provider.MessageResult, RequestID: request.RequestID,
+			Report: map[string]any{"world_speech": result.SpeechResults},
+			Type:   provider.MessageResult, RequestID: request.RequestID,
 			Audio: provider.AudioArtifact{Path: result.OutputPath, Format: "wav_pcm_s16le", SampleRate: result.SampleRate, Channels: 1},
 		}); err != nil {
 			return err
@@ -213,11 +216,16 @@ func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
 			target.Envelope[pointIndex] = envelopePoint{XMS: point.XMS, Y: point.Y}
 		}
 		input.Units[index] = target
+		input.Units[index].Speech = source.Speech
+		if source.Speech != nil && input.Engine != "utautts-world-phrase" {
+			return manifest{}, fmt.Errorf("speech feature processing requires utautts-world-phrase")
+		}
 	}
 	return input, nil
 }
 
 func renderManifestValue(input manifest, outputPath string, state *bridgeState) (manifest, error) {
+	input.SpeechResults = new([]provider.WorldSpeechResult)
 	var err error
 	if outputPath != "" {
 		input.OutputPath = outputPath

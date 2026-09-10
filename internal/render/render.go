@@ -94,10 +94,10 @@ const defaultReleaseMS = 20.0
 
 // rendererImplementationsは実行可能なbackendの一覧。表示情報はrenderer.jsonに置く。
 var rendererImplementations = map[string]func(*plan.Plan, Config) (*audio.PCM, error){
-	"waveform":                      renderWaveform,
-	"utautts-world-phrase":          renderUtauTTSWorldPhrase,
-	"utautts-world-phrase-cuda":     renderUtauTTSWorldPhraseCUDA,
-	"utau-external-resampler":       renderUtauExternalResampler,
+	"waveform":                  renderWaveform,
+	"utautts-world-phrase":      renderUtauTTSWorldPhrase,
+	"utautts-world-phrase-cuda": renderUtauTTSWorldPhraseCUDA,
+	"utau-external-resampler":   renderUtauExternalResampler,
 }
 
 func IsKnownRenderer(id string) bool {
@@ -380,12 +380,14 @@ func renderWaveform(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
 }
 
 type preparedWaveformUnit struct {
-	unitIndex                int
-	timing                   effectiveTiming
-	wave                     []float64
-	targetFrames             int
-	sourceConsonantFrames    int
-	effectiveConsonantFrames int
+	unitIndex                   int
+	timing                      effectiveTiming
+	wave                        []float64
+	targetFrames                int
+	sourceConsonantFrames       int
+	sourcePreutteranceFrames    int
+	speechSourceConsonantFrames int
+	effectiveConsonantFrames    int
 }
 
 // CUDA資源の過剰生成を防ぎつつGPUを活用できる数に制限する。
@@ -412,6 +414,8 @@ func renderWaveformWithStretch(synthesisPlan *plan.Plan, cfg Config, parallelRet
 	timings := make([]effectiveTiming, len(synthesisPlan.Units))
 	for i := range synthesisPlan.Units {
 		unit := &synthesisPlan.Units[i]
+		unit.SpeechRetimeApplied = false
+		unit.SpeechJoinApplied = false
 		timings[i] = normalizeTiming(*unit, cfg.ReleaseMS)
 		unit.TimingScale = timings[i].scale
 		unit.EffectivePreutteranceMS = timings[i].preutteranceMS
@@ -456,8 +460,10 @@ func renderWaveformWithStretch(synthesisPlan *plan.Plan, cfg Config, parallelRet
 		targetMS := math.Max(1, timing.preutteranceMS+unit.DurationMS+cfg.ReleaseMS)
 		targetFrames := msToFrames(targetMS, sampleRate)
 		sourceConsonantFrames := msToFrames(unit.ConsonantMS, sampleRate)
+		sourcePreutteranceFrames := msToFrames(unit.PreutteranceMS, sampleRate)
 		effectiveConsonantFrames := msToFrames(timing.consonantMS, sampleRate)
 		wave := pcmFloats(trimmed.Data)
+		sourceFrames := len(wave)
 		appliedPitch := 1.0
 		if cfg.ApplyPitch {
 			appliedPitch = unit.PitchFactor * intonation[unitIndex]
@@ -475,17 +481,42 @@ func renderWaveformWithStretch(synthesisPlan *plan.Plan, cfg Config, parallelRet
 				consonantFactor = clampPitchFactor(appliedPitch * pitchCurveFactorAt(cfg.PitchCurve, unit.NoteStartMS-timing.preutteranceMS))
 			}
 			sourceConsonantFrames = int(math.Round(float64(sourceConsonantFrames) / consonantFactor))
+			sourcePreutteranceFrames = int(math.Round(float64(sourcePreutteranceFrames) / consonantFactor))
+		}
+		speechSourceConsonantFrames := sourceConsonantFrames
+		if synthesisPlan.SpeechTiming && cfg.PitchCurve != nil {
+			positionMS := unit.NoteStartMS - timing.preutteranceMS
+			spanMS := framesToMS(sourceFrames, sampleRate)
+			sourcePreutteranceFrames = speechPitchAnchor(sourceFrames, msToFrames(unit.PreutteranceMS, sampleRate), appliedPitch, cfg.PitchCurve, positionMS, spanMS)
+			speechSourceConsonantFrames = speechPitchAnchor(sourceFrames, msToFrames(unit.ConsonantMS, sampleRate), appliedPitch, cfg.PitchCurve, positionMS, spanMS)
 		}
 		prepared = append(prepared, preparedWaveformUnit{unitIndex: unitIndex, timing: timing, wave: wave,
 			targetFrames: targetFrames, sourceConsonantFrames: sourceConsonantFrames,
-			effectiveConsonantFrames: effectiveConsonantFrames})
+			sourcePreutteranceFrames:    sourcePreutteranceFrames,
+			speechSourceConsonantFrames: speechSourceConsonantFrames,
+			effectiveConsonantFrames:    effectiveConsonantFrames})
 	}
 	retimeUnit := func(index int) error {
 		if err := contextError(cfg.Context); err != nil {
 			return err
 		}
 		item := &prepared[index]
-		wave, err := retime(item.wave, item.targetFrames, item.sourceConsonantFrames, item.effectiveConsonantFrames, sampleRate)
+		unit := &synthesisPlan.Units[item.unitIndex]
+		var wave []float64
+		var err error
+		if synthesisPlan.SpeechTiming && !parallelRetime && unit.Role == "mora" && unit.SpeechProfile != nil && unit.SpeechProfile.Applied {
+			var targetFixed int
+			wave, targetFixed, unit.SpeechRetimeApplied = speechRetime(item.wave, item.targetFrames, item.sourcePreutteranceFrames,
+				item.speechSourceConsonantFrames, msToFrames(item.timing.preutteranceMS, sampleRate), item.effectiveConsonantFrames, sampleRate, speechStop(synthesisPlan, *unit))
+			if unit.SpeechRetimeApplied {
+				item.timing.consonantMS = framesToMS(targetFixed, sampleRate)
+				timings[item.unitIndex].consonantMS = item.timing.consonantMS
+				unit.EffectiveConsonantMS = item.timing.consonantMS
+			}
+		}
+		if !unit.SpeechRetimeApplied {
+			wave, err = retime(item.wave, item.targetFrames, item.sourceConsonantFrames, item.effectiveConsonantFrames, sampleRate)
+		}
 		if err != nil {
 			return err
 		}

@@ -45,14 +45,21 @@ type boundaryRepairChoice struct {
 }
 
 func applyBoundaryBridges(mix, mixWeights []float64, rendered []renderedUnit, synthesisPlan *plan.Plan, cfg Config, sampleRate int) {
-	if cfg.BoundaryBridgeMS <= 0 || sampleRate <= 0 || len(rendered) < 2 {
+	if (cfg.BoundaryBridgeMS <= 0 && !synthesisPlan.SpeechTiming) || sampleRate <= 0 || len(rendered) < 2 {
 		return
 	}
 
 	bridgeMS := math.Max(minimumBoundaryBridgeMS, math.Min(maximumBoundaryBridgeMS, cfg.BoundaryBridgeMS))
+	automaticSpeech := cfg.BoundaryBridgeMS <= 0
+	if automaticSpeech {
+		bridgeMS = 20
+	}
 	extractor := connection.NewExtractor()
 	for index := 1; index < len(rendered); index++ {
 		previous, current := rendered[index-1], rendered[index]
+		if automaticSpeech && !speechVowelJoin(synthesisPlan, previous, current) {
+			continue
+		}
 		if previous.index+1 != current.index || previous.unit.Role == "transition" || current.unit.Role == "transition" || previous.unit.Position+1 != current.unit.Position {
 			continue
 		}
@@ -61,11 +68,15 @@ func applyBoundaryBridges(mix, mixWeights []float64, rendered []renderedUnit, sy
 			continue
 		}
 		joinScore := connection.HandcraftedScore(features)
-		if joinScore > cfg.BoundaryBridgeThreshold {
+		if !automaticSpeech && joinScore > cfg.BoundaryBridgeThreshold {
 			continue
 		}
 
 		choice := chooseBoundaryRepair(mix, mixWeights, previous, current, bridgeMS, sampleRate)
+		if automaticSpeech && choice.correlation < 0.6 {
+			choice.applied = false
+			choice.selected = choice.baseline
+		}
 		selectedKind := "normal"
 		if choice.applied {
 			selectedKind = "phase-aligned-vowel-tail"

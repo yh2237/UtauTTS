@@ -60,6 +60,21 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 		return nil, err
 	}
 	mixDone := time.Now()
+	if input.Engine == "utautts-world-phrase" {
+		report := applyWorldSpeechJoins(input, &result)
+		for index, item := range input.Units {
+			if item.Speech == nil {
+				continue
+			}
+			anchors, ok := worldSpeechAnchors(item, prepared[index].cached.duration)
+			entry := report[item.Speech.UnitIndex]
+			entry.UnitIndex = item.Speech.UnitIndex
+			entry.RetimeApplied, entry.TargetFixedMS = ok, anchors.targetFixed
+			if input.SpeechResults != nil {
+				*input.SpeechResults = append(*input.SpeechResults, entry)
+			}
+		}
+	}
 	wave, err := engine.Synthesize(result, input.SampleRate)
 	if err != nil {
 		return nil, err
@@ -329,6 +344,9 @@ func worldAutoGain(segment, source, f0 []float64) float64 {
 
 func mapWorldSourceTime(item unit, sourceDuration, localMS float64) float64 {
 	destinationMS := math.Max(0, item.SkipMS+localMS)
+	if anchors, ok := worldSpeechAnchors(item, sourceDuration); ok {
+		return anchors.sourceTime(destinationMS)
+	}
 	consonantSpeed := math.Pow(0.5, 1-item.ConsonantVelocity/100)
 	sourceConsonant := min(math.Max(0, item.ConsonantMS), sourceDuration)
 	destinationConsonant := sourceConsonant / consonantSpeed

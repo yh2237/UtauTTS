@@ -64,3 +64,40 @@ func TestWorldlineProviderJobCarriesCommonPlanAndResources(t *testing.T) {
 		t.Fatalf("worldline options = %#v", job.Options.Worldline)
 	}
 }
+
+func TestWorldSpeechJobAndExportReport(t *testing.T) {
+	speech := &provider.WorldSpeechTiming{UnitIndex: 0, SourceOnsetMS: 60, TargetOnsetMS: 40, ProtectStop: true}
+	p := &plan.Plan{Units: []plan.Unit{{DurationMS: 120}}}
+	job, err := worldlineProviderJob(p, Config{}, worldlineManifest{Engine: "utautts-world-phrase", Units: []worldlineManifestUnit{{Speech: speech}}}, "bridge.exe")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := job.Options.Worldline.Units[0].Speech; got == nil || *got != *speech {
+		t.Fatal("lost speech controls", got)
+	}
+	data, err := json.Marshal(job)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "job.json")
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := readWorldlineBridgeJob(path)
+	if err != nil || !decoded.Speech {
+		t.Fatal("missing capability requirement", decoded, err)
+	}
+	working := plan.Clone(p)
+	working.Units[0].SpeechRetimeApplied = true
+	working.Units[0].SpeechJoinApplied = true
+	working.Units[0].EffectiveConsonantMS = 80
+	report := reportFromPlan("utautts-world-phrase", working)
+	exported := plan.Clone(p)
+	report.ApplyTo(exported)
+	if p.Units[0].SpeechRetimeApplied || p.Units[0].SpeechJoinApplied {
+		t.Fatal("canonical plan mutated")
+	}
+	if !exported.Units[0].SpeechRetimeApplied || !exported.Units[0].SpeechJoinApplied || exported.Units[0].EffectiveConsonantMS != 80 {
+		t.Fatal("lost applied diagnostics")
+	}
+}

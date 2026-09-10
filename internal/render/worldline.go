@@ -39,26 +39,27 @@ func renderUtauTTSWorldPhraseCUDA(synthesisPlan *plan.Plan, cfg Config) (*audio.
 }
 
 type worldlineManifestUnit struct {
-	CacheKey          string                   `json:"cache_key,omitempty"`
-	Source            string                   `json:"source"`
-	FRQPath           string                   `json:"frq_path,omitempty"`
-	PositionMS        float64                  `json:"position_ms"`
-	SkipMS            float64                  `json:"skip_ms"`
-	LengthMS          float64                  `json:"length_ms"`
-	FadeInMS          float64                  `json:"fade_in_ms"`
-	FadeOutMS         float64                  `json:"fade_out_ms"`
-	OffsetMS          float64                  `json:"offset_ms"`
-	RequiredLengthMS  float64                  `json:"required_length_ms"`
-	ConsonantMS       float64                  `json:"consonant_ms"`
-	CutoffMS          float64                  `json:"cutoff_ms"`
-	Tone              int                      `json:"tone"`
-	ConsonantVelocity float64                  `json:"consonant_velocity"`
-	PitchStartMS      float64                  `json:"pitch_start_ms,omitempty"`
-	PitchLengthMS     float64                  `json:"pitch_length_ms,omitempty"`
-	Volume            float64                  `json:"volume,omitempty"`
-	Modulation        float64                  `json:"modulation,omitempty"`
-	Tempo             float64                  `json:"tempo,omitempty"`
-	Envelope          []worldlineEnvelopePoint `json:"envelope,omitempty"`
+	Speech            *provider.WorldSpeechTiming `json:"speech,omitempty"`
+	CacheKey          string                      `json:"cache_key,omitempty"`
+	Source            string                      `json:"source"`
+	FRQPath           string                      `json:"frq_path,omitempty"`
+	PositionMS        float64                     `json:"position_ms"`
+	SkipMS            float64                     `json:"skip_ms"`
+	LengthMS          float64                     `json:"length_ms"`
+	FadeInMS          float64                     `json:"fade_in_ms"`
+	FadeOutMS         float64                     `json:"fade_out_ms"`
+	OffsetMS          float64                     `json:"offset_ms"`
+	RequiredLengthMS  float64                     `json:"required_length_ms"`
+	ConsonantMS       float64                     `json:"consonant_ms"`
+	CutoffMS          float64                     `json:"cutoff_ms"`
+	Tone              int                         `json:"tone"`
+	ConsonantVelocity float64                     `json:"consonant_velocity"`
+	PitchStartMS      float64                     `json:"pitch_start_ms,omitempty"`
+	PitchLengthMS     float64                     `json:"pitch_length_ms,omitempty"`
+	Volume            float64                     `json:"volume,omitempty"`
+	Modulation        float64                     `json:"modulation,omitempty"`
+	Tempo             float64                     `json:"tempo,omitempty"`
+	Envelope          []worldlineEnvelopePoint    `json:"envelope,omitempty"`
 }
 
 type worldlineEnvelopePoint struct {
@@ -122,6 +123,8 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	synthesisPlan.LeadingMarginMS = leadingMS
 	for i := range synthesisPlan.Units {
 		unit := &synthesisPlan.Units[i]
+		unit.SpeechRetimeApplied = false
+		unit.SpeechJoinApplied = false
 		timings[i] = normalizeTiming(*unit, cfg.ReleaseMS)
 		if len(phoneTimings) == len(synthesisPlan.Units) && !unit.Silent {
 			timings[i].preutteranceMS = phoneTimings[i].preutter
@@ -286,7 +289,17 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		if customWorld {
 			cacheKey += fmt.Sprintf("|fs=%d", sampleRate)
 		}
+		var speech *provider.WorldSpeechTiming
+		if providerID == "utautts-world-phrase" && synthesisPlan.SpeechTiming && unit.Role == "mora" && unit.SpeechProfile != nil && unit.SpeechProfile.Applied {
+			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS,
+				TargetOnsetMS: skipMS + unit.NoteStartMS + leadingMS - positionMS, ProtectStop: speechStop(synthesisPlan, *unit)}
+			if i > 0 {
+				speech.VowelJoin = !synthesisPlan.Units[i-1].Silent && speechVowelJoin(synthesisPlan,
+					renderedUnit{index: i - 1, unit: synthesisPlan.Units[i-1]}, renderedUnit{index: i, unit: *unit})
+			}
+		}
 		manifest.Units = append(manifest.Units, worldlineManifestUnit{
+			Speech:   speech,
 			CacheKey: cacheKey,
 			Source:   source, FRQPath: frqPath, PositionMS: positionMS, SkipMS: skipMS,
 			LengthMS: lengthMS, FadeInMS: fadeInMS,
@@ -317,11 +330,23 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	if commandErr := invokeWorldlineBridge(ctx, bridge, jobPath, manifest.OutputPath); commandErr != nil {
+	var speechResults []provider.WorldSpeechResult
+	if commandErr := invokeWorldlineBridgeReport(ctx, bridge, jobPath, manifest.OutputPath, &speechResults); commandErr != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, fmt.Errorf("worldline bridge canceled: %w", ctxErr)
 		}
 		return nil, fmt.Errorf("worldline bridge failed: %w", commandErr)
+	}
+	for _, result := range speechResults {
+		if result.UnitIndex < 0 || result.UnitIndex >= len(synthesisPlan.Units) {
+			return nil, fmt.Errorf("invalid WORLD speech report unit %d", result.UnitIndex)
+		}
+		unit := &synthesisPlan.Units[result.UnitIndex]
+		unit.SpeechRetimeApplied = result.RetimeApplied
+		unit.SpeechJoinApplied = result.JoinApplied
+		if result.RetimeApplied {
+			unit.EffectiveConsonantMS = result.TargetFixedMS
+		}
 	}
 	pcm, err := audio.ReadWav(manifest.OutputPath)
 	if err != nil {
@@ -360,6 +385,7 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg Config, manifest worldli
 	}
 	for index, unit := range manifest.Units {
 		converted := provider.WorldlineUnit{
+			Speech:   unit.Speech,
 			CacheKey: unit.CacheKey, Source: unit.Source, FRQPath: unit.FRQPath,
 			PositionMS: unit.PositionMS, SkipMS: unit.SkipMS, LengthMS: unit.LengthMS,
 			FadeInMS: unit.FadeInMS, FadeOutMS: unit.FadeOutMS, OffsetMS: unit.OffsetMS,

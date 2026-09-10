@@ -63,6 +63,7 @@ type WorldlineOptions struct {
 }
 
 type WorldlineUnit struct {
+	Speech            *WorldSpeechTiming       `json:"speech,omitempty"`
 	CacheKey          string                   `json:"cache_key,omitempty"`
 	Source            string                   `json:"source"`
 	FRQPath           string                   `json:"frq_path,omitempty"`
@@ -83,6 +84,24 @@ type WorldlineUnit struct {
 	Modulation        float64                  `json:"modulation,omitempty"`
 	Tempo             float64                  `json:"tempo,omitempty"`
 	Envelope          []WorldlineEnvelopePoint `json:"envelope,omitempty"`
+}
+
+const CapabilityWorldSpeechV1 = "world_speech_v1"
+
+// WorldSpeechTiming contains request-local anchors relative to the trimmed source.
+type WorldSpeechTiming struct {
+	UnitIndex     int     `json:"unit_index"`
+	SourceOnsetMS float64 `json:"source_onset_ms"`
+	TargetOnsetMS float64 `json:"target_onset_ms"`
+	ProtectStop   bool    `json:"protect_stop,omitempty"`
+	VowelJoin     bool    `json:"vowel_join,omitempty"`
+}
+
+type WorldSpeechResult struct {
+	UnitIndex     int     `json:"unit_index"`
+	RetimeApplied bool    `json:"retime_applied"`
+	TargetFixedMS float64 `json:"target_fixed_ms"`
+	JoinApplied   bool    `json:"join_applied"`
 }
 
 type WorldlineEnvelopePoint struct {

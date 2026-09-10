@@ -44,9 +44,19 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers wave
 | Planの`phone_timings` | 発音単位ごとの目標時刻 |
 | Planの`missing_phones` | 選択した経路で不足した必須語尾や検出可能な句頭子音群 |
 | unitの`speech_profile` | 固定部の元の値と提案値。安定区間・F0・音量・有声率・信頼度・採否の理由 |
+| unitの`speech_retime_applied` | waveformまたはCPU版WORLDの区間別伸縮を適用したか |
+| unitの`speech_join_applied` | CPU版WORLDの母音接続補修を適用したか |
+| unitの`effective_consonant_ms` | 伸縮後の固定部の位置 |
+| Planの`boundary_repair_decisions` | waveformの接続補修の候補数と採否。補修前後の波形差分指標 |
 | reportの`missing_phone_groups` | 必須音が不足したグループの件数 |
 
 任意のリリース音は必須音の不足と区別します。語中の複雑な子音群や原音の発音誤りをすべて検出できるわけではありません。音声生成では代替候補を使うため生成成功だけでは音の欠落を判断できません。
+
+子音と接続の比較には`--corpus tools/evaluation/japanese-connection-v1.json`を指定します。同じ読みを使う6ケースで母音連続・破裂音・摩擦音・鼻音・長母音を確認できます。単独音と連続音など複数の収録形式で試してください。
+
+出力するPlan JSONには合成後の診断情報を含みます。区間別伸縮を適用しても指定したモーラ長は変えません。`boundary_repair_decisions`の指標が改善しても自然さが向上したとは限らないため補修箇所を試聴してください。
+
+CPU版WORLDは音響特徴の時間軸と母音接続を調整します。`--renderers utautts-world-phrase --speech-timing`で比較できます。本体とブリッジの両方をビルドしてください。解析キャッシュを使う2回目の合成も確認する場合は`--repeat 2`を指定します。CUDA版はこの区間別伸縮と接続補修の対象外です。
 
 ## 読み・長さ・ピッチを固定する
 

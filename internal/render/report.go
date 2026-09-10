@@ -49,6 +49,8 @@ type RenderDiagnostic struct {
 
 // UnitRenderReport contains renderer-derived diagnostics for one input unit.
 type UnitRenderReport struct {
+	SpeechJoinApplied       bool
+	SpeechRetimeApplied     bool
 	Index                   int
 	TimingScale             float64
 	EffectivePreutteranceMS float64
@@ -134,6 +136,8 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 	report.Units = make([]UnitRenderReport, len(synthesisPlan.Units))
 	for index, unit := range synthesisPlan.Units {
 		report.Units[index] = UnitRenderReport{
+			SpeechJoinApplied:       unit.SpeechJoinApplied,
+			SpeechRetimeApplied:     unit.SpeechRetimeApplied,
 			Index:                   index,
 			TimingScale:             unit.TimingScale,
 			EffectivePreutteranceMS: unit.EffectivePreutteranceMS,
@@ -166,6 +170,8 @@ func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 			continue
 		}
 		unit := &synthesisPlan.Units[unitReport.Index]
+		unit.SpeechRetimeApplied = unitReport.SpeechRetimeApplied
+		unit.SpeechJoinApplied = unitReport.SpeechJoinApplied
 		unit.TimingScale = unitReport.TimingScale
 		unit.EffectivePreutteranceMS = unitReport.EffectivePreutteranceMS
 		unit.EffectiveConsonantMS = unitReport.EffectiveConsonantMS

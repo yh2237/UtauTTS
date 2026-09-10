@@ -155,6 +155,8 @@ type BoundaryRepairDecision struct {
 }
 
 type Unit struct {
+	SpeechRetimeApplied       bool                           `json:"speech_retime_applied,omitempty"`
+	SpeechJoinApplied         bool                           `json:"speech_join_applied,omitempty"`
 	SpeechProfile             *voicebank.SpeechProfile       `json:"speech_profile,omitempty"`
 	Position                  int                            `json:"position"`
 	Role                      string                         `json:"role"`

@@ -168,7 +168,7 @@ func run() error {
 					callErr = synth.WriteFiles(filepath.Join(*out, row.WAV), result, synth.ExportOptions{Text: p.Text, WriteText: true, WriteLab: true})
 					if callErr == nil {
 						var planData []byte
-						planData, callErr = json.MarshalIndent(result.Plan, "", "  ")
+						planData, callErr = json.MarshalIndent(result.RenderedPlan(), "", "  ")
 						if callErr == nil {
 							callErr = atomicfile.WriteFile(filepath.Join(*out, strings.TrimSuffix(row.WAV, ".wav")+".plan.json"), planData)
 						}
