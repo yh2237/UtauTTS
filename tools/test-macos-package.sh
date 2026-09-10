@@ -69,10 +69,6 @@ for package_root in "${gui_root}" "${server_root}"; do
     "${package_root}/licenses/Go/APACHE-2.0.txt" \
     "${package_root}/licenses/Go/CMUDICT-LICENSE.txt" \
     "${package_root}/licenses/Go/PINYIN-DATA-NOTICE.txt" \
-    "${package_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-LICENSE.txt" \
-    "${package_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-NOTICE.txt" \
-    "${package_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-THIRD_PARTY_NOTICES.md" \
-    "${package_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-DATA_LICENSES.md" \
     "${package_root}/licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt"; do
     [[ -f "${required}" ]] || fail "required license file is missing: ${required}"
   done

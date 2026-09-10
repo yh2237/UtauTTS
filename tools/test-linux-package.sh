@@ -91,20 +91,12 @@ for required in \
   "${gui_root}/licenses/Go/APACHE-2.0.txt" \
   "${gui_root}/licenses/Go/CMUDICT-LICENSE.txt" \
   "${gui_root}/licenses/Go/PINYIN-DATA-NOTICE.txt" \
-  "${gui_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-LICENSE.txt" \
-  "${gui_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-NOTICE.txt" \
-  "${gui_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-THIRD_PARTY_NOTICES.md" \
-  "${gui_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-DATA_LICENSES.md" \
   "${gui_root}/licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt" \
   "${gui_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \
   "${gui_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt" \
   "${server_root}/licenses/Go/APACHE-2.0.txt" \
   "${server_root}/licenses/Go/CMUDICT-LICENSE.txt" \
   "${server_root}/licenses/Go/PINYIN-DATA-NOTICE.txt" \
-  "${server_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-LICENSE.txt" \
-  "${server_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-NOTICE.txt" \
-  "${server_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-THIRD_PARTY_NOTICES.md" \
-  "${server_root}/licenses/Go/github_com_NK8007_gofonix-v0.3.1-alpha-DATA_LICENSES.md" \
   "${server_root}/licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt" \
   "${server_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \
   "${server_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt" \

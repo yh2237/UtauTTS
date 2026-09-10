@@ -1,5 +1,4 @@
 golang.org/x/text
-github.com/NK8007/gofonix
 github.com/ikawaha/kagome/v2
 github.com/ikawaha/kagome-dict
 github.com/ikawaha/kagome-dict/ipa
