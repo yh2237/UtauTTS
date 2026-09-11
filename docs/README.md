@@ -6,9 +6,9 @@
 
 - [インストール](installation.md): パッケージ、起動、音源の追加
 - [GUIの使い方](gui.md): 文章入力、編集、再生、保存、exo出力
-- [設定](settings.md): 初期値、書き出し、表示、ログ、ショートカット
+- [設定](settings.md): 初期値、書き出し、表示と動作、ショートカット
 - [辞書設定](dictionary.md): 表記と読みの登録
-- [発話タイミングと音源校正](speech-quality-experiment.md): 原音の長さと接続を調整する実験機能
+- [発話タイミングと音源校正](speech-quality-experiment.md): 原音の長さと接続の補正
 - [コマンドライン](cli.md): CLIのオプションとUSTX変換
 - [UtauTTS Server](server.md): HTTP API、認証、入力制限
 - [トラブルシューティング](troubleshooting.md): 起動・解析・合成の問題

@@ -237,7 +237,7 @@ ID順にソートされた音源一覧です。
 | `mora_durations_ms` | number[] | | モーラごとの長さ。値は0〜1000 |
 | `intonation_strength` | number | `0` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
 | `apply_pitch` | boolean | `false` | 波形ピッチ再サンプリング |
-| `speech_timing` | boolean | `false` | [発話タイミングと音源校正](speech-quality-experiment.md)を有効にする（実験） |
+| `speech_timing` | boolean | `false` | [発話タイミングと音源校正](speech-quality-experiment.md)を有効にする |
 | `manual_pitch` | object | なし | 手動ピッチ編集（[manual-pitch.md](manual-pitch.md) のJSON） |
 | `acoustic_mode` | string | なし | 音響特徴による候補選択の診断。`dry-run`または`apply` |
 | `dictionary` | object[] | なし | ユーザー辞書。各項目は`surface`と`reading`を持つ |
