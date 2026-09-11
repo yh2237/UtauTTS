@@ -87,21 +87,26 @@ type WorldlineUnit struct {
 }
 
 const CapabilityWorldSpeechV1 = "world_speech_v1"
+const CapabilityCodaReleaseV1 = "coda_release_v1"
+const CapabilityContextTransitionV1 = "context_transition_v1"
 
 // WorldSpeechTiming contains request-local anchors relative to the trimmed source.
 type WorldSpeechTiming struct {
-	UnitIndex     int     `json:"unit_index"`
-	SourceOnsetMS float64 `json:"source_onset_ms"`
-	TargetOnsetMS float64 `json:"target_onset_ms"`
-	ProtectStop   bool    `json:"protect_stop,omitempty"`
-	VowelJoin     bool    `json:"vowel_join,omitempty"`
+	CodaRelease       bool    `json:"coda_release,omitempty"`
+	ProtectTransition bool    `json:"protect_transition,omitempty"`
+	UnitIndex         int     `json:"unit_index"`
+	SourceOnsetMS     float64 `json:"source_onset_ms"`
+	TargetOnsetMS     float64 `json:"target_onset_ms"`
+	ProtectStop       bool    `json:"protect_stop,omitempty"`
+	VowelJoin         bool    `json:"vowel_join,omitempty"`
 }
 
 type WorldSpeechResult struct {
-	UnitIndex     int     `json:"unit_index"`
-	RetimeApplied bool    `json:"retime_applied"`
-	TargetFixedMS float64 `json:"target_fixed_ms"`
-	JoinApplied   bool    `json:"join_applied"`
+	ProtectedTransitionMS float64 `json:"protected_transition_ms,omitempty"`
+	UnitIndex             int     `json:"unit_index"`
+	RetimeApplied         bool    `json:"retime_applied"`
+	TargetFixedMS         float64 `json:"target_fixed_ms"`
+	JoinApplied           bool    `json:"join_applied"`
 }
 
 type WorldlineEnvelopePoint struct {

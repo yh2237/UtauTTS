@@ -25,6 +25,7 @@ type UnitRenderResult struct {
 // RenderReport contains values previously written back to plan.Plan by a
 // renderer. It can be applied to an export copy for backward compatibility.
 type RenderReport struct {
+	TargetF0                *F0Track `json:"target_f0,omitempty"`
 	Provider                engine.ProviderID
 	LeadingMarginMS         float64
 	BoundaryBridgeMS        float64
@@ -36,6 +37,13 @@ type RenderReport struct {
 	CVVCPreBoundaryFade     bool
 	Diagnostics             []RenderDiagnostic `json:"diagnostics,omitempty"`
 	Units                   []UnitRenderReport
+}
+
+// F0Trackは有声判定前のWORLD用目標値。StartMSはPlan基準で負値は文頭余白を表す。0は無声。
+type F0Track struct {
+	StartMS float64   `json:"start_ms"`
+	FrameMS float64   `json:"frame_ms"`
+	Hz      []float64 `json:"hz"`
 }
 
 // RenderDiagnostic is a provider message retained separately from the
@@ -51,6 +59,8 @@ type RenderDiagnostic struct {
 type UnitRenderReport struct {
 	SpeechJoinApplied       bool
 	SpeechRetimeApplied     bool
+	BoundaryEnvelope        string
+	ProtectedTransitionMS   float64
 	Index                   int
 	TimingScale             float64
 	EffectivePreutteranceMS float64
@@ -72,14 +82,20 @@ func (renderer builtinUnitRenderer) ProviderID() engine.ProviderID {
 func (renderer builtinUnitRenderer) Render(synthesisPlan *plan.Plan, cfg Config) (*UnitRenderResult, error) {
 	workingPlan := plan.Clone(synthesisPlan)
 	cfg.Backend = string(renderer.provider)
+	targetF0 := &F0Track{}
+	cfg.targetF0 = targetF0
 	pcm, err := renderMutable(workingPlan, cfg)
 	if err != nil {
 		return nil, err
 	}
-	return &UnitRenderResult{
+	result := &UnitRenderResult{
 		Audio:  pcm,
 		Report: reportFromPlan(renderer.provider, workingPlan),
-	}, nil
+	}
+	if len(targetF0.Hz) > 0 {
+		result.Report.TargetF0 = targetF0
+	}
+	return result, nil
 }
 
 // UnitRendererForBackend returns the current built-in adapter for a legacy
@@ -138,6 +154,8 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 		report.Units[index] = UnitRenderReport{
 			SpeechJoinApplied:       unit.SpeechJoinApplied,
 			SpeechRetimeApplied:     unit.SpeechRetimeApplied,
+			BoundaryEnvelope:        unit.BoundaryEnvelope,
+			ProtectedTransitionMS:   unit.ProtectedTransitionMS,
 			Index:                   index,
 			TimingScale:             unit.TimingScale,
 			EffectivePreutteranceMS: unit.EffectivePreutteranceMS,
@@ -171,6 +189,8 @@ func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 		}
 		unit := &synthesisPlan.Units[unitReport.Index]
 		unit.SpeechRetimeApplied = unitReport.SpeechRetimeApplied
+		unit.BoundaryEnvelope = unitReport.BoundaryEnvelope
+		unit.ProtectedTransitionMS = unitReport.ProtectedTransitionMS
 		unit.SpeechJoinApplied = unitReport.SpeechJoinApplied
 		unit.TimingScale = unitReport.TimingScale
 		unit.EffectivePreutteranceMS = unitReport.EffectivePreutteranceMS

@@ -66,7 +66,7 @@ func TestWorldlineProviderJobCarriesCommonPlanAndResources(t *testing.T) {
 }
 
 func TestWorldSpeechJobAndExportReport(t *testing.T) {
-	speech := &provider.WorldSpeechTiming{UnitIndex: 0, SourceOnsetMS: 60, TargetOnsetMS: 40, ProtectStop: true}
+	speech := &provider.WorldSpeechTiming{UnitIndex: 0, SourceOnsetMS: 60, TargetOnsetMS: 40, ProtectStop: true, ProtectTransition: true}
 	p := &plan.Plan{Units: []plan.Unit{{DurationMS: 120}}}
 	job, err := worldlineProviderJob(p, Config{}, worldlineManifest{Engine: "utautts-world-phrase", Units: []worldlineManifestUnit{{Speech: speech}}}, "bridge.exe")
 	if err != nil {
@@ -84,16 +84,20 @@ func TestWorldSpeechJobAndExportReport(t *testing.T) {
 		t.Fatal(err)
 	}
 	decoded, err := readWorldlineBridgeJob(path)
-	if err != nil || !decoded.Speech {
+	if err != nil || !decoded.Speech || !decoded.ProtectTransition {
 		t.Fatal("missing capability requirement", decoded, err)
 	}
 	working := plan.Clone(p)
 	working.Units[0].SpeechRetimeApplied = true
 	working.Units[0].SpeechJoinApplied = true
 	working.Units[0].EffectiveConsonantMS = 80
+	working.Units[0].ProtectedTransitionMS = 60
 	report := reportFromPlan("utautts-world-phrase", working)
 	exported := plan.Clone(p)
 	report.ApplyTo(exported)
+	if exported.Units[0].ProtectedTransitionMS != 60 || p.Units[0].ProtectedTransitionMS != 0 {
+		t.Fatal("lost protection diagnostic or mutated input")
+	}
 	if p.Units[0].SpeechRetimeApplied || p.Units[0].SpeechJoinApplied {
 		t.Fatal("canonical plan mutated")
 	}

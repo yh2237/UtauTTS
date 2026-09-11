@@ -20,48 +20,53 @@ import (
 )
 
 type Config struct {
-	SpeechTiming            bool
-	Context                 context.Context
-	Engine                  engine.ResolvedEngine
-	VoicebankPath           string
-	Voicebank               *voicebank.Bank
-	Text                    string
-	Reading                 string
-	Language                string
-	Phonemizer              string
-	Dictionary              map[string]string
-	Tone                    string
-	Color                   string
-	MoraDurationMS          float64
-	PauseDurationMS         float64
-	MoraDurationsMS         []float64
-	ReleaseMS               float64
-	ReleaseSet              bool
-	LeadingPreutteranceMS   float64
-	ProsodyModelPath        string
-	ProsodyModel            *prosody.Model
-	ManualPitchPath         string
-	ManualPitch             *prosody.ManualPitchFile
-	ProsodyFeatures         []prosody.FeatureFrame
-	ProsodyPitchOnly        bool
-	OpenJTalkPath           string
-	OpenJTalkDictionaryPath string
-	PitchFactors            []float64
-	ApplyPitch              bool
-	IntonationStrength      float64
-	Renderer                string
-	RendererCapabilities    *plugin.Capabilities
-	BoundaryBridgeMS        float64
-	BoundaryBridgeThreshold float64
-	CVVCTiming              string
-	CVVCTransitionGain      float64
-	CVVCPreBoundaryFade     bool
-	PitchCurve              *render.PitchCurve
-	SelectionMode           voicebank.SelectionMode
-	AliasPolicy             voicebank.AliasPolicy
-	AcousticMode            string
-	JoinModelPath           string
-	JoinScoreScale          float64
+	CodaVowelExperiment      bool
+	WordBoundaryEnvelope     bool
+	SpeechProsodyExperiment  string
+	SourceContextExperiment  string
+	ProtectContextTransition bool
+	SpeechTiming             bool
+	Context                  context.Context
+	Engine                   engine.ResolvedEngine
+	VoicebankPath            string
+	Voicebank                *voicebank.Bank
+	Text                     string
+	Reading                  string
+	Language                 string
+	Phonemizer               string
+	Dictionary               map[string]string
+	Tone                     string
+	Color                    string
+	MoraDurationMS           float64
+	PauseDurationMS          float64
+	MoraDurationsMS          []float64
+	ReleaseMS                float64
+	ReleaseSet               bool
+	LeadingPreutteranceMS    float64
+	ProsodyModelPath         string
+	ProsodyModel             *prosody.Model
+	ManualPitchPath          string
+	ManualPitch              *prosody.ManualPitchFile
+	ProsodyFeatures          []prosody.FeatureFrame
+	ProsodyPitchOnly         bool
+	OpenJTalkPath            string
+	OpenJTalkDictionaryPath  string
+	PitchFactors             []float64
+	ApplyPitch               bool
+	IntonationStrength       float64
+	Renderer                 string
+	RendererCapabilities     *plugin.Capabilities
+	BoundaryBridgeMS         float64
+	BoundaryBridgeThreshold  float64
+	CVVCTiming               string
+	CVVCTransitionGain       float64
+	CVVCPreBoundaryFade      bool
+	PitchCurve               *render.PitchCurve
+	SelectionMode            voicebank.SelectionMode
+	AliasPolicy              voicebank.AliasPolicy
+	AcousticMode             string
+	JoinModelPath            string
+	JoinScoreScale           float64
 }
 
 type Result struct {
@@ -326,6 +331,12 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
+	if cfg.SourceContextExperiment != "" && cfg.SourceContextExperiment != "off" {
+		morae = frontend.RecordedContextCandidates(morae, phonemizer)
+	}
+	if cfg.CodaVowelExperiment {
+		morae = frontend.CodaVowelCandidates(morae, phonemizer)
+	}
 	loadedProsody, err := resolveProsodyModel(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)
@@ -361,11 +372,20 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, fmt.Errorf("resolve voicebank units: %w", err)
 	}
+	if cfg.SourceContextExperiment != "" && cfg.SourceContextExperiment != "off" {
+		selections = bank.ApplyRecordedContext(morae, selections, cfg.SourceContextExperiment == "recover")
+		if cfg.SourceContextExperiment == "repeated" {
+			selections = bank.ApplyRepeatedContext(morae, selections)
+		}
+	}
 	var predictions []prosody.Prediction
 	if language == frontend.LanguageEnglish {
 		predictions = englishPredictions(morae)
 	} else if language == frontend.LanguageChinese {
 		predictions = mandarinPredictions(morae)
+	}
+	if experimentalSpeechTiming(cfg) {
+		predictions = speechRhythmExperiment(morae, predictions, cfg.MoraDurationsMS)
 	}
 	if loadedProsody != nil {
 		if loadedProsody.RequiresExternalFeatures() && len(prosodyFeatures) != len(morae) {
@@ -419,6 +439,8 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, fmt.Errorf("build synthesis plan: %w", err)
 	}
+	synthesisPlan.ProtectContextTransition = cfg.ProtectContextTransition
+	synthesisPlan.WordBoundaryEnvelope = cfg.WordBoundaryEnvelope
 	synthesisPlan.Text = cfg.Text
 	synthesisPlan.Language = language
 	synthesisPlan.Phonemizer = phonemizer
@@ -446,6 +468,9 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 			pitchCurve = scaleAutomaticPitchCurve(pitchCurve, cfg.IntonationStrength)
 		}
 	}
+	if cfg.PitchCurve == nil && experimentalSpeechPitch(cfg) && applyPitch {
+		pitchCurve = speechPitchExperiment(language, morae, moraTimings(morae, synthesisPlan), synthesisPlan.DurationMS+cfg.ReleaseMS, cfg.Text, cfg.IntonationStrength)
+	}
 	automaticPitchCurve := pitchCurve
 	manualPitch := cfg.ManualPitch
 	if manualPitch == nil && cfg.ManualPitchPath != "" {
@@ -470,6 +495,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		pitchCurve = render.ConstrainPitchCurve(pitchCurve, 20, 8)
 	}
 	intonationStrength := effectiveIntonationStrength(cfg)
+	providerOptions.Worldline.SpeechPitchReference = experimentalSpeechPitch(cfg) && applyPitch
 	rendered, err := render.RenderWithReport(synthesisPlan, render.Config{
 		Context:                 cfg.Context,
 		Engine:                  cfg.Engine,
@@ -587,6 +613,9 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	} else if language == frontend.LanguageChinese {
 		predictions = mandarinPredictions(morae)
 	}
+	if experimentalSpeechTiming(cfg) {
+		predictions = speechRhythmExperiment(morae, predictions, cfg.MoraDurationsMS)
+	}
 	if loadedProsody != nil {
 		if loadedProsody.RequiresExternalFeatures() && len(prosodyFeatures) != len(morae) {
 			return nil, fmt.Errorf("prosody model %d/%s requires %d mora-level accent feature frames, got %d", loadedProsody.Version, loadedProsody.Mode, len(morae), len(prosodyFeatures))
@@ -635,6 +664,9 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	}
 	if language == frontend.LanguageEnglish && applyPitchEnabled(cfg) {
 		result.FramePitchCurve = scaleAutomaticPitchCurve(englishSpeechCurve(morae, timings, cursor+cfg.ReleaseMS, cfg.Text), cfg.IntonationStrength)
+	}
+	if experimentalSpeechPitch(cfg) && (language == frontend.LanguageChinese || applyPitchEnabled(cfg)) {
+		result.FramePitchCurve = speechPitchExperiment(language, morae, timings, cursor+cfg.ReleaseMS, cfg.Text, cfg.IntonationStrength)
 	}
 	if result.FramePitchCurve == nil && shouldPredictFrameContour(cfg, loadedProsody) {
 		question := finalPhraseIsQuestion(cfg.Text)
@@ -691,6 +723,42 @@ func previewConfiguredMoraDuration(position int, cfg Config) (float64, bool) {
 }
 
 func validateConfig(cfg Config) error {
+	if cfg.CodaVowelExperiment {
+		if err := validateMultilingualWorldExperiment(cfg); err != nil {
+			return err
+		}
+		_, ph, err := frontend.ResolveLanguage(cfg.Language, cfg.Phonemizer)
+		if err != nil {
+			return err
+		}
+		if ph == frontend.PhonemizerChinese {
+			return fmt.Errorf("coda vowel experiment requires English")
+		}
+	}
+	if cfg.WordBoundaryEnvelope {
+		if err := validateMultilingualWorldExperiment(cfg); err != nil {
+			return err
+		}
+	}
+	if cfg.ProtectContextTransition {
+		if !cfg.SpeechTiming || (cfg.SourceContextExperiment != "existing" && cfg.SourceContextExperiment != "recover") {
+			return fmt.Errorf("context transition protection requires speech timing and source context existing or recover")
+		}
+		if err := validateMultilingualWorldExperiment(cfg); err != nil {
+			return err
+		}
+	}
+	if cfg.SourceContextExperiment != "" && cfg.SourceContextExperiment != "off" {
+		if cfg.SourceContextExperiment != "existing" && cfg.SourceContextExperiment != "recover" && cfg.SourceContextExperiment != "repeated" {
+			return fmt.Errorf("unknown source context experiment %q", cfg.SourceContextExperiment)
+		}
+		if err := validateMultilingualWorldExperiment(cfg); err != nil {
+			return fmt.Errorf("source context experiment: %w", err)
+		}
+	}
+	if err := validateSpeechExperiment(cfg); err != nil {
+		return err
+	}
 	finite := map[string]float64{
 		"mora_duration_ms":          cfg.MoraDurationMS,
 		"pause_duration_ms":         cfg.PauseDurationMS,

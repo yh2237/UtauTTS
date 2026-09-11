@@ -17,6 +17,7 @@ import (
 )
 
 type Config struct {
+	targetF0                *F0Track
 	Context                 context.Context
 	Engine                  engine.ResolvedEngine
 	ReleaseMS               float64
@@ -58,7 +59,8 @@ type ClassicOptions struct {
 // WorldlineProviderOptions contains WORLD-only host controls. The prepared
 // WORLD job carries the rest of its provider input in provider options.
 type WorldlineProviderOptions struct {
-	ExactLength bool
+	SpeechPitchReference bool
+	ExactLength          bool
 }
 
 func (cfg Config) resource(key engine.ResourceKey) string {

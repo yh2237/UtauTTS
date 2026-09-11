@@ -12,6 +12,8 @@ import (
 )
 
 type Selection struct {
+	SourceContext             string
+	SourceContextReason       string
 	Position                  int
 	Mora                      frontend.Mora
 	Alias                     string

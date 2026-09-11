@@ -17,6 +17,10 @@ type tonePoint struct {
 }
 
 func mandarinToneCurve(morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) *render.PitchCurve {
+	return mandarinToneCurveAligned(morae, timings, durationMS, false)
+}
+
+func mandarinToneCurveAligned(morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64, vowelAligned bool) *render.PitchCurve {
 	if len(morae) == 0 || len(timings) != len(morae) || durationMS <= 0 {
 		return nil
 	}
@@ -52,6 +56,9 @@ func mandarinToneCurve(morae []frontend.Mora, timings []prosody.MoraTiming, dura
 			if p.Role == "onset" {
 				onset += spans[j]
 			}
+		}
+		if vowelAligned {
+			onset = 0
 		}
 		start := max(0, int(math.Ceil(timing.StartMS/mandarinPitchFrameMS)))
 		end := min(len(curve.Cents)-1, int(math.Floor((timing.StartMS+timing.DurationMS)/mandarinPitchFrameMS)))

@@ -30,35 +30,37 @@ type Config struct {
 }
 
 type Plan struct {
-	SpeechTiming            bool                     `json:"speech_timing,omitempty"`
-	PhoneTimings            []PhoneTiming            `json:"phone_timings,omitempty"`
-	MissingPhones           []voicebank.SpeechGap    `json:"missing_phones,omitempty"`
-	Version                 int                      `json:"version"`
-	Voicebank               string                   `json:"voicebank"`
-	Text                    string                   `json:"text,omitempty"`
-	Reading                 string                   `json:"reading"`
-	Language                string                   `json:"language,omitempty"`
-	Phonemizer              string                   `json:"phonemizer,omitempty"`
-	Tone                    string                   `json:"tone,omitempty"`
-	Color                   string                   `json:"color,omitempty"`
-	AcousticMode            string                   `json:"acoustic_mode,omitempty"`
-	SelectionMode           string                   `json:"selection_mode"`
-	AliasPolicy             string                   `json:"alias_policy"`
-	RequestedAliasPolicy    string                   `json:"requested_alias_policy,omitempty"`
-	JoinCostMode            string                   `json:"join_cost_mode"`
-	JoinModelVersion        int                      `json:"join_model_version,omitempty"`
-	JoinScoreScale          float64                  `json:"join_score_scale,omitempty"`
-	BoundaryBridgeMS        float64                  `json:"boundary_bridge_ms,omitempty"`
-	BoundaryBridgeThreshold float64                  `json:"boundary_bridge_threshold,omitempty"`
-	BoundaryBridges         []BoundaryBridge         `json:"boundary_bridges,omitempty"`
-	BoundaryRepairDecisions []BoundaryRepairDecision `json:"boundary_repair_decisions,omitempty"`
-	CVVCTiming              string                   `json:"cvvc_timing,omitempty"`
-	CVVCTransitionGain      float64                  `json:"cvvc_transition_gain,omitempty"`
-	CVVCPreBoundaryFade     bool                     `json:"cvvc_pre_boundary_fade,omitempty"`
-	LeadingMarginMS         float64                  `json:"leading_margin_ms,omitempty"`
-	DurationMS              float64                  `json:"duration_ms"`
-	Units                   []Unit                   `json:"units"`
-	Morae                   []frontend.Mora          `json:"-"`
+	WordBoundaryEnvelope     bool                     `json:"word_boundary_envelope,omitempty"`
+	ProtectContextTransition bool                     `json:"protect_context_transition,omitempty"`
+	SpeechTiming             bool                     `json:"speech_timing,omitempty"`
+	PhoneTimings             []PhoneTiming            `json:"phone_timings,omitempty"`
+	MissingPhones            []voicebank.SpeechGap    `json:"missing_phones,omitempty"`
+	Version                  int                      `json:"version"`
+	Voicebank                string                   `json:"voicebank"`
+	Text                     string                   `json:"text,omitempty"`
+	Reading                  string                   `json:"reading"`
+	Language                 string                   `json:"language,omitempty"`
+	Phonemizer               string                   `json:"phonemizer,omitempty"`
+	Tone                     string                   `json:"tone,omitempty"`
+	Color                    string                   `json:"color,omitempty"`
+	AcousticMode             string                   `json:"acoustic_mode,omitempty"`
+	SelectionMode            string                   `json:"selection_mode"`
+	AliasPolicy              string                   `json:"alias_policy"`
+	RequestedAliasPolicy     string                   `json:"requested_alias_policy,omitempty"`
+	JoinCostMode             string                   `json:"join_cost_mode"`
+	JoinModelVersion         int                      `json:"join_model_version,omitempty"`
+	JoinScoreScale           float64                  `json:"join_score_scale,omitempty"`
+	BoundaryBridgeMS         float64                  `json:"boundary_bridge_ms,omitempty"`
+	BoundaryBridgeThreshold  float64                  `json:"boundary_bridge_threshold,omitempty"`
+	BoundaryBridges          []BoundaryBridge         `json:"boundary_bridges,omitempty"`
+	BoundaryRepairDecisions  []BoundaryRepairDecision `json:"boundary_repair_decisions,omitempty"`
+	CVVCTiming               string                   `json:"cvvc_timing,omitempty"`
+	CVVCTransitionGain       float64                  `json:"cvvc_transition_gain,omitempty"`
+	CVVCPreBoundaryFade      bool                     `json:"cvvc_pre_boundary_fade,omitempty"`
+	LeadingMarginMS          float64                  `json:"leading_margin_ms,omitempty"`
+	DurationMS               float64                  `json:"duration_ms"`
+	Units                    []Unit                   `json:"units"`
+	Morae                    []frontend.Mora          `json:"-"`
 }
 
 // Clone returns an independent copy suitable for renderer execution. Renderer
@@ -78,6 +80,7 @@ func Clone(source *Plan) *Plan {
 	}
 	result.Units = append([]Unit(nil), source.Units...)
 	for index := range result.Units {
+		result.Units[index].CodaPhones = append([]string(nil), source.Units[index].CodaPhones...)
 		if source.Units[index].SpeechProfile != nil {
 			profile := *source.Units[index].SpeechProfile
 			result.Units[index].SpeechProfile = &profile
@@ -155,8 +158,13 @@ type BoundaryRepairDecision struct {
 }
 
 type Unit struct {
+	CodaPhones                []string                       `json:"coda_phones,omitempty"`
+	BoundaryEnvelope          string                         `json:"boundary_envelope,omitempty"`
+	ProtectedTransitionMS     float64                        `json:"protected_transition_ms,omitempty"`
 	SpeechRetimeApplied       bool                           `json:"speech_retime_applied,omitempty"`
 	SpeechJoinApplied         bool                           `json:"speech_join_applied,omitempty"`
+	SourceContext             string                         `json:"source_context,omitempty"`
+	SourceContextReason       string                         `json:"source_context_reason,omitempty"`
 	SpeechProfile             *voicebank.SpeechProfile       `json:"speech_profile,omitempty"`
 	Position                  int                            `json:"position"`
 	Role                      string                         `json:"role"`
@@ -331,7 +339,12 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 				if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil && len(mora.Aliases.EndingPhones) > 0 {
 					start, span = speechEndingTiming(mora, selection.Endings[index].EndingIndex, cursor, duration)
 				}
-				result.Units = append(result.Units, unitFromSelection(&selection.Endings[index], position, start, span, prediction, "ending"))
+				endingUnit := unitFromSelection(&selection.Endings[index], position, start, span, prediction, "ending")
+				endingIndex := selection.Endings[index].EndingIndex
+				if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil && endingIndex >= 0 && endingIndex < len(mora.Aliases.EndingPhones) {
+					endingUnit.CodaPhones = append([]string(nil), mora.Aliases.EndingPhones[endingIndex]...)
+				}
+				result.Units = append(result.Units, endingUnit)
 			}
 		}
 		cursor += duration
@@ -349,6 +362,8 @@ func unitFromSelection(selection *voicebank.Selection, position int, noteStart, 
 	unit := Unit{
 		Position:            position,
 		Role:                role,
+		SourceContext:       selection.SourceContext,
+		SourceContextReason: selection.SourceContextReason,
 		Mora:                selection.Mora.Text,
 		Alias:               selection.Alias,
 		AliasKind:           string(aliasKind),

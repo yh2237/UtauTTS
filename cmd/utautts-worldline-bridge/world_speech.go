@@ -6,6 +6,8 @@ import (
 )
 
 type worldSpeechMap struct {
+	coda                                                                                bool
+	transitionProtected                                                                 bool
 	sourceOnset, targetOnset, sourceFixed, targetFixed, sourceEnd, targetEnd, protected float64
 }
 
@@ -17,6 +19,20 @@ func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
 	shift := math.Max(0, item.OffsetMS) - math.Floor(math.Max(0, item.OffsetMS)/worldFramePeriodMS)*worldFramePeriodMS
 	a := worldSpeechMap{sourceOnset: item.Speech.SourceOnsetMS + shift, targetOnset: item.Speech.TargetOnsetMS,
 		sourceFixed: item.ConsonantMS + shift, sourceEnd: duration, targetEnd: item.RequiredLengthMS}
+	for _, v := range []float64{a.sourceOnset, a.targetOnset, a.sourceEnd, item.OffsetMS} {
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return worldSpeechMap{}, false
+		}
+	}
+	if item.Speech.CodaRelease {
+		a.targetEnd = item.SkipMS + item.LengthMS
+		if !math.IsNaN(a.targetEnd) && !math.IsInf(a.targetEnd, 0) && a.sourceOnset >= 0 && a.targetOnset >= 0 && (a.targetOnset > 0 || a.sourceOnset == 0) && a.sourceEnd-a.sourceOnset >= 10 && a.targetEnd-a.targetOnset >= 10 {
+			a.coda = true
+			a.targetFixed = a.targetEnd
+			return a, true
+		}
+		return worldSpeechMap{}, false
+	}
 	for _, v := range []float64{a.sourceOnset, a.targetOnset, a.sourceFixed, a.sourceEnd, a.targetEnd, item.OffsetMS} {
 		if math.IsNaN(v) || math.IsInf(v, 0) {
 			return worldSpeechMap{}, false
@@ -31,11 +47,23 @@ func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
 	if item.Speech.ProtectStop {
 		a.protected = math.Min(8, math.Min(a.sourceOnset-4, a.targetOnset-4))
 	}
+	// 安定母音へ移る動きを収録時の速さで保つ。後続の母音区間を確保できる場合だけ使う。
+	if item.Speech.ProtectTransition && a.targetEnd-a.targetOnset >= a.sourceFixed-a.sourceOnset+20 {
+		a.targetFixed = a.targetOnset + a.sourceFixed - a.sourceOnset
+		a.protected = math.Min(30, math.Min(a.sourceOnset-4, a.targetOnset-4))
+		a.transitionProtected = true
+	}
 	return a, true
 }
 
 func (a worldSpeechMap) sourceTime(t float64) float64 {
 	t = math.Max(0, math.Min(a.targetEnd, t))
+	if a.coda {
+		if t < a.targetOnset {
+			return t * a.sourceOnset / a.targetOnset
+		}
+		return a.sourceOnset + (t-a.targetOnset)*(a.sourceEnd-a.sourceOnset)/(a.targetEnd-a.targetOnset)
+	}
 	switch {
 	case t < a.targetOnset-a.protected:
 		return t * (a.sourceOnset - a.protected) / (a.targetOnset - a.protected)

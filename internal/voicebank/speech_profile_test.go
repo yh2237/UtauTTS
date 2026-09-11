@@ -78,3 +78,29 @@ func TestInitialClusterFallbackReportsMissingPhone(t *testing.T) {
 		t.Fatalf("cluster bridge ignored %+v %v", coverage, err)
 	}
 }
+
+func TestEnglishCodaBeforeClusterUsesAvailableRecording(t *testing.T) {
+	_, morae, err := frontend.ParseEnglishDelta("", "N EH1 K S T | S T EH1 P S | SP", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bank := &Bank{Entries: map[string][]oto.Entry{}}
+	for _, alias := range []string{"nE", "stE", "E k", "k st-", "E p", "p s-"} {
+		bank.Entries[alias] = []oto.Entry{{Alias: alias, Filename: "source.wav"}}
+	}
+	selected, err := bank.Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(selected[0].MissingPhones) != 0 || len(selected[0].Endings) != 2 || selected[0].Endings[1].Alias != "k st-" {
+		t.Fatalf("lost recorded coda: %+v", selected[0])
+	}
+	delete(bank.Entries, "k st-")
+	selected, err = bank.Resolve(morae)
+	if err != nil || len(selected[0].MissingPhones) != 1 {
+		t.Fatal("missing coda no longer reported", selected, err)
+	}
+	if got := selected[0].MissingPhones[0].Phones; len(got) != 2 || got[0] != "s" || got[1] != "t" {
+		t.Fatal("wrong missing phones", got)
+	}
+}

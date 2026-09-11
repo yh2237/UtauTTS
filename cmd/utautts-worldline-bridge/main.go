@@ -95,7 +95,7 @@ func serveProvider(input io.Reader, output io.Writer, providerID string) error {
 	if err := encoder.Encode(provider.Hello{
 		Type: provider.MessageHello, Protocol: provider.ProtocolName, ProtocolVersion: provider.ProtocolVersion,
 		Provider: providerID, ProviderVersion: "1", Session: true,
-		Capabilities: []string{"frame_pitch", provider.CapabilityUnitRendererJobV2, provider.CapabilityWorldSpeechV1},
+		Capabilities: []string{"frame_pitch", provider.CapabilityUnitRendererJobV2, provider.CapabilityWorldSpeechV1, provider.CapabilityContextTransitionV1, provider.CapabilityCodaReleaseV1},
 		Contracts:    []provider.ContractSupport{{Name: "unit-renderer", Version: 1}},
 	}); err != nil {
 		return err

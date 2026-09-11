@@ -70,6 +70,9 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 			entry := report[item.Speech.UnitIndex]
 			entry.UnitIndex = item.Speech.UnitIndex
 			entry.RetimeApplied, entry.TargetFixedMS = ok, anchors.targetFixed
+			if ok && anchors.transitionProtected {
+				entry.ProtectedTransitionMS = anchors.protected + anchors.sourceFixed - anchors.sourceOnset
+			}
 			if input.SpeechResults != nil {
 				*input.SpeechResults = append(*input.SpeechResults, entry)
 			}

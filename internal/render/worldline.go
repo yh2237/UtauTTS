@@ -117,13 +117,15 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	phraseStartMS := 0.0
 	phraseTiming := providerID == "worldline-r-faithful" || customWorld
 	if phraseTiming {
-		phoneTimings, phraseStartMS = openUtauPhoneTimings(synthesisPlan.Units, cfg.CVVCTiming)
+		phoneTimings, phraseStartMS = openUtauPhoneTimingsWithCoda(synthesisPlan.Units, cfg.CVVCTiming, providerID == "utautts-world-phrase")
 	}
 	leadingMS := limitLeadingPreutterance(math.Max(0, -phraseStartMS), cfg.LeadingPreutteranceMS)
 	synthesisPlan.LeadingMarginMS = leadingMS
 	for i := range synthesisPlan.Units {
 		unit := &synthesisPlan.Units[i]
 		unit.SpeechRetimeApplied = false
+		unit.BoundaryEnvelope = ""
+		unit.ProtectedTransitionMS = 0
 		unit.SpeechJoinApplied = false
 		timings[i] = normalizeTiming(*unit, cfg.ReleaseMS)
 		if len(phoneTimings) == len(synthesisPlan.Units) && !unit.Silent {
@@ -156,6 +158,12 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		pitchFactors[i] = intonation[i]
 		pitchFactors[i] *= effectiveUnitPitchFactor(unit, cfg.ApplyPitch)
 	}
+	if cfg.ProviderOptions.Worldline.SpeechPitchReference && cfg.ApplyPitch {
+		pitchFactors, reference = speechReferencePitchFactors(synthesisPlan, pitches, reference)
+		for i, unit := range synthesisPlan.Units {
+			intonation[i] = pitchFactors[i] / effectiveUnitPitchFactor(unit, true)
+		}
+	}
 	frameMS := worldlineFrameMS
 	curveStartMS := 0.0
 	curveDurationMS := synthesisPlan.DurationMS + cfg.ReleaseMS
@@ -175,6 +183,9 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	}
 	for frame := range manifest.F0Curve {
 		manifest.F0Curve[frame] *= pitchCurveFactorAt(cfg.PitchCurve, curveStartMS+float64(frame)*frameMS)
+	}
+	if cfg.targetF0 != nil {
+		*cfg.targetF0 = F0Track{StartMS: curveStartMS, FrameMS: frameMS, Hz: append([]float64(nil), manifest.F0Curve...)}
 	}
 	tempDir, err := os.MkdirTemp("", "utautts-worldline-")
 	if err != nil {
@@ -250,6 +261,9 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 					envelopePoints = cvvcPreBoundaryEnvelope(envelopePoints, phoneTiming)
 				}
 				pitchLengthMS = envelopePoints[4].XMS + pitchLeadingMS
+				if synthesisPlan.WordBoundaryEnvelope {
+					envelopePoints, unit.BoundaryEnvelope = wordBoundaryEnvelope(synthesisPlan, *unit, envelopePoints)
+				}
 				positionMS = unit.NoteStartMS - phoneTiming.preutter + leadingMS
 			}
 			requiredLength = math.Max(unit.DurationMS+durCorrection+skipMS, unit.ConsonantMS)
@@ -297,8 +311,13 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 				speech.VowelJoin = !synthesisPlan.Units[i-1].Silent && speechVowelJoin(synthesisPlan,
 					renderedUnit{index: i - 1, unit: synthesisPlan.Units[i-1]}, renderedUnit{index: i, unit: *unit})
 			}
+			speech.ProtectTransition = synthesisPlan.ProtectContextTransition && (unit.SourceContext == "existing" || unit.SourceContext == "recovered-vc")
+		}
+		if providerID == "utautts-world-phrase" && worldCodaReleaseEligible(synthesisPlan, *unit) {
+			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS, TargetOnsetMS: skipMS + unit.NoteStartMS + leadingMS - positionMS, CodaRelease: true}
 		}
 		manifest.Units = append(manifest.Units, worldlineManifestUnit{
+
 			Speech:   speech,
 			CacheKey: cacheKey,
 			Source:   source, FRQPath: frqPath, PositionMS: positionMS, SkipMS: skipMS,
@@ -343,6 +362,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		}
 		unit := &synthesisPlan.Units[result.UnitIndex]
 		unit.SpeechRetimeApplied = result.RetimeApplied
+		unit.ProtectedTransitionMS = result.ProtectedTransitionMS
 		unit.SpeechJoinApplied = result.JoinApplied
 		if result.RetimeApplied {
 			unit.EffectiveConsonantMS = result.TargetFixedMS
@@ -445,6 +465,10 @@ type openUtauPhoneTiming struct {
 }
 
 func openUtauPhoneTimings(units []plan.Unit, cvvcTiming string) ([]openUtauPhoneTiming, float64) {
+	return openUtauPhoneTimingsWithCoda(units, cvvcTiming, false)
+}
+
+func openUtauPhoneTimingsWithCoda(units []plan.Unit, cvvcTiming string, protectCoda bool) ([]openUtauPhoneTiming, float64) {
 	result := make([]openUtauPhoneTiming, len(units))
 	previous := -1
 	first := -1
@@ -478,6 +502,12 @@ func openUtauPhoneTimings(units []plan.Unit, cvvcTiming string) ([]openUtauPhone
 				maxPreutter = gapMS
 			}
 			if autoPreutter > maxPreutter && autoPreutter > 0 {
+				if protectCoda && adjacent && len(previousUnit.CodaPhones) > 0 && previousDuration >= 20 {
+					remaining := previousDuration - maxPreutter + autoOverlap*maxPreutter/autoPreutter
+					if remaining < 10 {
+						maxPreutter = math.Min(maxPreutter, previousDuration-math.Min(20, previousDuration*.5))
+					}
+				}
 				ratio := maxPreutter / autoPreutter
 				autoPreutter = maxPreutter
 				autoOverlap *= ratio

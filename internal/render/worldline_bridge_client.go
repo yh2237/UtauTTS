@@ -74,6 +74,12 @@ func invokeWorldlineBridgeReport(ctx context.Context, bridge, jobPath, outputPat
 	if job.Speech && !slices.Contains(client.session.Hello().Capabilities, provider.CapabilityWorldSpeechV1) {
 		return fmt.Errorf("WORLD bridge does not support speech timing; rebuild utautts-worldline-bridge")
 	}
+	if job.CodaRelease && !slices.Contains(client.session.Hello().Capabilities, provider.CapabilityCodaReleaseV1) {
+		return fmt.Errorf("WORLD bridge does not support coda release timing; rebuild utautts-worldline-bridge")
+	}
+	if job.ProtectTransition && !slices.Contains(client.session.Hello().Capabilities, provider.CapabilityContextTransitionV1) {
+		return fmt.Errorf("WORLD bridge does not support context transition protection; rebuild utautts-worldline-bridge")
+	}
 	result, err := client.session.Render(ctx, provider.RenderRequest{
 		Contract:        "unit-renderer",
 		ContractVersion: 1,
@@ -99,8 +105,10 @@ func invokeWorldlineBridgeReport(ctx context.Context, bridge, jobPath, outputPat
 }
 
 type worldlineBridgeJob struct {
-	Speech bool
-	Engine string `json:"engine"`
+	CodaRelease       bool
+	Speech            bool
+	ProtectTransition bool
+	Engine            string `json:"engine"`
 }
 
 func readWorldlineBridgeJob(path string) (worldlineBridgeJob, error) {
@@ -122,6 +130,8 @@ func readWorldlineBridgeJob(path string) (worldlineBridgeJob, error) {
 	job := worldlineBridgeJob{Engine: commonJob.Options.Worldline.Engine}
 	for _, unit := range commonJob.Options.Worldline.Units {
 		job.Speech = job.Speech || unit.Speech != nil
+		job.CodaRelease = job.CodaRelease || unit.Speech != nil && unit.Speech.CodaRelease
+		job.ProtectTransition = job.ProtectTransition || unit.Speech != nil && unit.Speech.ProtectTransition
 	}
 	return validateWorldlineBridgeJob(job)
 }
