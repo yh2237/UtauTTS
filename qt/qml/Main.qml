@@ -22,21 +22,21 @@ ApplicationWindow {
     color: palette.window
     palette: Palette {
         window: window.darkMode ? "#202124" : "#f6f6f6"
-        windowText: window.darkMode ? "#e8eaed" : "#202124"
+        windowText: window.darkMode ? "#e8eaed" : "#000000"
         base: window.darkMode ? "#292a2d" : "#ffffff"
         alternateBase: window.darkMode ? "#303134" : "#f0f1f2"
-        text: window.darkMode ? "#e8eaed" : "#202124"
+        text: window.darkMode ? "#e8eaed" : "#000000"
         button: window.darkMode ? "#303134" : "#f0f1f2"
-        buttonText: window.darkMode ? "#e8eaed" : "#202124"
+        buttonText: window.darkMode ? "#e8eaed" : "#000000"
         highlight: window.darkMode ? "#e8837d" : "#d35f6b"
         highlightedText: window.darkMode ? "#202124" : "#ffffff"
-        placeholderText: window.darkMode ? "#aeb4ba" : "#697078"
+        placeholderText: window.darkMode ? "#e8eaed" : "#000000"
         mid: window.darkMode ? "#5f6368" : "#aeb4ba"
     }
 
     property color accent: palette.highlight
     property color borderColor: palette.mid
-    property color mutedText: palette.placeholderText
+    property color mutedText: palette.text
     readonly property url repositoryUrl: injectedRepositoryUrl
     readonly property var appBackend: injectedBackend
     readonly property bool darkMode: appBackend.darkMode
@@ -1165,17 +1165,6 @@ ApplicationWindow {
             }
             usedShortcuts.push(normalized);
         }
-        if (utterances.count) {
-            window.updateSetting("aliasPolicy", settingsWindow.pendingDefaultAliasPolicy);
-            window.updateSetting("tone", settingsWindow.pendingDefaultTone);
-            window.updateSetting("moraDuration", settingsWindow.pendingMoraDuration);
-            window.updateSetting("pauseDuration", settingsWindow.pendingPauseDuration);
-            window.updateSetting("leadingPreutterance", settingsWindow.pendingLeadingPreutterance);
-            window.updateSetting("intonation", settingsWindow.pendingDefaultIntonationStrength);
-            window.updateSetting("modelId", settingsWindow.pendingDefaultModelId);
-            window.updateSetting("renderer", settingsWindow.pendingDefaultRendererId);
-            window.selectUtterance(window.selectedIndex);
-        }
         window.appBackend.setSynthesisDefaults(settingsWindow.pendingMoraDuration,
                                                settingsWindow.pendingPauseDuration,
                                                settingsWindow.pendingLeadingPreutterance,
@@ -1192,8 +1181,6 @@ ApplicationWindow {
                     settingsWindow.pendingPreReleaseUpdateCheckEnabled);
         window.appBackend.setPreviewCacheFileCount(settingsWindow.pendingPreviewCacheFileCount);
         window.appBackend.setDeveloperMode(settingsWindow.pendingDeveloperMode);
-        window.appBackend.setDeveloperMultilingualEnabled(
-                    settingsWindow.pendingDeveloperMultilingualEnabled);
         window.appBackend.setDeveloperProsodyTrainingEnabled(
                     settingsWindow.pendingDeveloperProsodyTrainingEnabled);
         window.appBackend.setDefaultVoicebank(settingsWindow.pendingDefaultVoicebankId);
@@ -1752,6 +1739,42 @@ ApplicationWindow {
         let error = check(utterances.count === 1, "initial utterance is missing");
         if (error.length)
             return error;
+        error = check(window.current().speechTiming === true
+                      && window.current().phonemizer === "auto"
+                      && window.buildSynthesisRequest(window.current()).phonemizer !== "auto"
+                      && !editorContent.advancedSettingsButton.checked
+                      && !window.appBackend.developerMode,
+                      "normal GUI defaults are incorrect");
+        if (error.length)
+            return error;
+        for (let voiceIndex = 0; voiceIndex < window.appBackend.voicebanks.length; ++voiceIndex) {
+            const voice = window.appBackend.voicebanks[voiceIndex];
+            if (!voice.suggested_language || !voice.suggested_phonemizer)
+                continue;
+            error = check(window.resolvedPhonemizer(voice.suggested_language, "auto", voice.id)
+                          === voice.suggested_phonemizer,
+                          "automatic phoneme format detection failed");
+            if (error.length)
+                return error;
+        }
+        const originalDefaultMoraDuration = window.appBackend.defaultMoraDuration;
+        settingsWindow.loadCurrent();
+        settingsWindow.pendingMoraDuration = originalDefaultMoraDuration + 5;
+        window.saveSettings(false);
+        error = check(window.current().moraDuration === originalDefaultMoraDuration,
+                      "saving defaults changed the current utterance");
+        if (error.length)
+            return error;
+        window.addUtterance(false);
+        error = check(window.current().moraDuration === originalDefaultMoraDuration + 5,
+                      "new utterance did not use the saved defaults");
+        if (error.length)
+            return error;
+        window.removeUtterance();
+        settingsWindow.loadCurrent();
+        settingsWindow.pendingMoraDuration = originalDefaultMoraDuration;
+        window.saveSettings(false);
+        window.resetHistory(false);
         error = check(utterances.get(0).intonation === window.defaultIntonationStrength,
                       "initial intonation strength is incorrect");
         if (error.length)
@@ -2026,7 +2049,7 @@ ApplicationWindow {
                 tone: String(saved.tone || window.appBackend.defaultTone),
                 color: String(saved.color || ""),
                 moraDuration: window.projectNumber(saved.mora_duration_ms, window.appBackend.defaultMoraDuration, 20, 1000, true),
-                speechTiming: saved.speech_timing === true,
+                speechTiming: saved.speech_timing === undefined ? true : saved.speech_timing === true,
                 pauseDuration: window.projectNumber(saved.pause_duration_ms, window.appBackend.defaultPauseDuration, 0, 3000, true),
                 leadingPreutterance: window.projectNumber(saved.leading_preutterance_ms, 0, 0, 300, true),
                 intonation: window.projectNumber(saved.intonation, window.defaultIntonationStrength, 0, window.maxIntonationStrength, false),
@@ -2073,6 +2096,7 @@ ApplicationWindow {
 
     function phonemizerOptions(language) {
         const labels = {
+            "auto": window.translator.tr("main.phonemizer.auto"),
             "ja-kana": window.translator.tr("main.phonemizer.jaKana"),
             "en-arpasing": window.translator.tr("main.phonemizer.enArpasing"),
             "en-delta": window.translator.tr("main.phonemizer.enDelta"),
@@ -2080,10 +2104,22 @@ ApplicationWindow {
             "zh-cvvc": window.translator.tr("main.phonemizer.zhCvvc")
         };
         if (language === "en")
-            return ["en-arpasing", "en-delta", "en-vccv"].map(
+            return ["auto", "en-arpasing", "en-delta", "en-vccv"].map(
                         id => ({id: id, display_name: labels[id]}));
         const id = window.defaultPhonemizer(language);
-        return [{id: id, display_name: labels[id]}];
+        return ["auto", id].map(value => ({id: value, display_name: labels[value]}));
+    }
+
+    function resolvedPhonemizer(language, phonemizer, voicebankId) {
+        language = language || "ja";
+        phonemizer = phonemizer || "auto";
+        if (phonemizer !== "auto")
+            return phonemizer;
+        const voice = window.voicebankById(voicebankId || "");
+        if (voice && String(voice.suggested_language || "") === language
+                && voice.suggested_phonemizer)
+            return String(voice.suggested_phonemizer);
+        return window.defaultPhonemizer(language);
     }
 
     function analyzeUtterance(index) {
@@ -2094,7 +2130,8 @@ ApplicationWindow {
             return;
         window.appBackend.analyzeSpeech(item.content, item.utteranceId,
                                         item.language || "ja",
-                                        item.phonemizer || window.defaultPhonemizer(item.language || "ja"),
+                                        window.resolvedPhonemizer(item.language, item.phonemizer,
+                                                                 item.voicebankId),
                                         item.voicebankId || "");
     }
 
@@ -2136,7 +2173,7 @@ ApplicationWindow {
             utterances.setProperty(selectedIndex, "moraeJson", "[]");
             window.analyzeUtterance(selectedIndex);
         }
-        if (name === "voicebankId" && (item.language || "ja") === "en") {
+        if (name === "voicebankId") {
             utterances.setProperty(selectedIndex, "reading", "");
             utterances.setProperty(selectedIndex, "moraeJson", "[]");
             window.analyzeUtterance(selectedIndex);
@@ -2290,6 +2327,13 @@ ApplicationWindow {
             } else if (!item.voicebankId) {
                 utterances.setProperty(i, "voicebankId", voice.id);
                 utterances.setProperty(i, "imagePath", voice.image_path || "");
+                if (!String(item.content || "").trim().length && voice.suggested_language) {
+                    const language = String(voice.suggested_language);
+                    utterances.setProperty(i, "language", language);
+                    utterances.setProperty(i, "phonemizer", "auto");
+                    utterances.setProperty(i, "modelId",
+                                           language === "ja" ? window.defaultModelId() : "none");
+                }
                 markUtteranceDirty(i, suppressDirty !== true);
             }
         }
@@ -2297,7 +2341,7 @@ ApplicationWindow {
     }
 
     function assignDefaultSynthesisSettings(suppressDirty) {
-        if (!utterances.count || !window.appBackend.models.length || !window.appBackend.renderers.length)
+        if (!utterances.count || !window.appBackend.renderers.length)
             return;
         const modelId = window.defaultModelId();
         const rendererId = window.defaultRendererId();
@@ -2305,7 +2349,8 @@ ApplicationWindow {
             const item = utterances.get(index);
             let changed = false;
             if (!item.modelId) {
-                utterances.setProperty(index, "modelId", modelId);
+                utterances.setProperty(index, "modelId",
+                                       (item.language || "ja") === "ja" ? modelId : "none");
                 changed = true;
             }
             if (!item.renderer) {
@@ -2326,9 +2371,11 @@ ApplicationWindow {
         for (let i = 0; i < combo.count; ++i) {
             if (combo.valueAt(i) === value) {
                 combo.currentIndex = i;
-                return;
+                return true;
             }
         }
+        combo.currentIndex = -1;
+        return false;
     }
 
     function selectUtterance(index, preservePlaybackQueue) {
@@ -2347,11 +2394,7 @@ ApplicationWindow {
         editorContent.moraSlider.value = item.moraDuration;
         editorContent.pauseSlider.value = item.pauseDuration;
         editorContent.leadingPreutteranceSlider.value = item.leadingPreutterance;
-        editorContent.moraInput.value = item.moraDuration;
-        editorContent.pauseInput.value = item.pauseDuration;
-        editorContent.leadingPreutteranceInput.value = item.leadingPreutterance;
         editorContent.intonationSlider.value = item.intonation;
-        editorContent.intonationInput.value = Math.round(item.intonation * 100);
         editorContent.pitchEditor.points = window.decodeSequence(item.pointsJson);
         editorContent.pitchEditor.autoPoints = window.automaticSequence(item, "autoPointsJson");
         editorContent.pitchEditor.morae = window.decodeSequence(item.moraeJson);
@@ -2512,36 +2555,29 @@ ApplicationWindow {
 
     function resetMoraDuration() {
         editorContent.moraSlider.value = 120;
-        editorContent.moraInput.value = 120;
         window.updateSetting("moraDuration", 120);
     }
 
     function resetIntonation() {
         editorContent.intonationSlider.value = window.defaultIntonationStrength;
-        editorContent.intonationInput.value = Math.round(window.defaultIntonationStrength * 100);
         window.updateSetting("intonation", window.defaultIntonationStrength);
     }
 
     function resetPauseDuration() {
         editorContent.pauseSlider.value = 180;
-        editorContent.pauseInput.value = 180;
         window.updateSetting("pauseDuration", 180);
     }
 
     function resetLeadingPreutterance() {
         editorContent.leadingPreutteranceSlider.value = 0;
-        editorContent.leadingPreutteranceInput.value = 0;
         window.updateSetting("leadingPreutterance", 0);
     }
 
     function addUtterance(markDirty) {
         const voice = window.defaultVoicebank();
-        const multilingualEnabled = window.appBackend.developerMode
-                && window.appBackend.developerMultilingualEnabled;
-        const language = multilingualEnabled && voice && voice.suggested_language
+        const language = voice && voice.suggested_language
                 ? String(voice.suggested_language) : "ja";
-        const phonemizer = multilingualEnabled && voice && voice.suggested_phonemizer
-                ? String(voice.suggested_phonemizer) : window.defaultPhonemizer(language);
+        const phonemizer = "auto";
         utterances.append({
             utteranceId: "utterance-" + nextUtteranceId++,
             content: "",
@@ -2560,7 +2596,7 @@ ApplicationWindow {
             manualMoraDurationEdited: false,
             voicebankId: voice ? voice.id : "",
             imagePath: voice ? voice.image_path || "" : "",
-            modelId: window.appBackend.models.length ? window.defaultModelId() : "",
+            modelId: language === "ja" && window.appBackend.models.length ? window.defaultModelId() : "none",
             renderer: voice && String(voice.kind || "") === "diffsinger"
                     ? "diffsinger" : (window.appBackend.renderers.length ? window.defaultRendererId() : ""),
             resampler: window.appBackend.resamplers.length ? window.appBackend.resamplers[0].id : "",
@@ -2569,7 +2605,7 @@ ApplicationWindow {
             tone: window.appBackend.defaultTone,
             color: "",
             moraDuration: window.appBackend.defaultMoraDuration,
-            speechTiming: false,
+            speechTiming: true,
             pauseDuration: window.appBackend.defaultPauseDuration,
             leadingPreutterance: window.appBackend.defaultLeadingPreutterance,
             intonation: window.defaultIntonationStrength,
@@ -2706,7 +2742,7 @@ ApplicationWindow {
             text: item.content,
             reading: item.reading || "",
             language: item.language || "ja",
-            phonemizer: item.phonemizer || window.defaultPhonemizer(item.language || "ja"),
+            phonemizer: window.resolvedPhonemizer(item.language, item.phonemizer, item.voicebankId),
             dictionary: window.appBackend.dictionaryEntries,
             voicebank_id: item.voicebankId || editorContent.voiceCombo.currentValue,
             model_id: item.modelId,
@@ -2753,7 +2789,7 @@ ApplicationWindow {
             text: item.content,
             reading: item.reading || "",
             language: item.language || "ja",
-            phonemizer: item.phonemizer || window.defaultPhonemizer(item.language || "ja"),
+            phonemizer: window.resolvedPhonemizer(item.language, item.phonemizer, item.voicebankId),
             dictionary: window.appBackend.dictionaryEntries,
             model_id: item.modelId,
             renderer: item.renderer,

@@ -256,8 +256,6 @@ Backend::Backend(QObject *parent)
           "appearance/preReleaseUpdateCheckEnabled", false).toBool()),
       m_previewCacheFileCount(portableSettingValue("performance/previewCacheFileCount", 32).toInt()),
       m_developerMode(portableSettingValue("developer/enabled", false).toBool()),
-      m_developerMultilingualEnabled(
-          portableSettingValue("developer/multilingualEnabled", true).toBool()),
       m_developerProsodyTrainingEnabled(
           portableSettingValue("developer/prosodyTrainingEnabled", true).toBool()),
       m_defaultRenderer(portableSettingValue("synthesis/defaultRendererId",
@@ -512,16 +510,6 @@ void Backend::setDeveloperMode(bool value) {
     settings.setValue(QStringLiteral("developer/enabled"), value);
     settings.sync();
     emit developerModeChanged();
-}
-
-void Backend::setDeveloperMultilingualEnabled(bool value) {
-    if (m_developerMultilingualEnabled == value)
-        return;
-    m_developerMultilingualEnabled = value;
-    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
-    settings.setValue(QStringLiteral("developer/multilingualEnabled"), value);
-    settings.sync();
-    emit developerFeaturesChanged();
 }
 
 void Backend::setDeveloperProsodyTrainingEnabled(bool value) {
@@ -1686,7 +1674,6 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
             {"update_check_enabled", m_updateCheckEnabled},
             {"pre_release_update_check_enabled", m_preReleaseUpdateCheckEnabled},
             {"developer_mode", m_developerMode},
-            {"developer_multilingual_enabled", m_developerMultilingualEnabled},
             {"developer_prosody_training_enabled", m_developerProsodyTrainingEnabled},
         }},
         {"current_selection", selection},

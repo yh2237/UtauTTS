@@ -10,12 +10,14 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMetaObject>
+#include <QQuickWindow>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
+#include <utility>
 
 namespace {
 constexpr int asyncTimeoutMS = 60000;
@@ -117,6 +119,41 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
         return 1;
 
     QTemporaryDir temporary;
+    const QString captureDirectory = qEnvironmentVariable("UTAUTTS_UI_CAPTURE_DIR");
+    if (!captureDirectory.isEmpty()) {
+        auto *window = qobject_cast<QQuickWindow *>(rootObject);
+        auto *advanced = rootObject->findChild<QObject *>(QStringLiteral("advancedSettingsButton"));
+        auto *settings = rootObject->findChild<QQuickWindow *>(QStringLiteral("settingsWindow"));
+        if (!require(window && advanced && settings && QDir().mkpath(captureDirectory),
+                     QStringLiteral("UI capture could not be initialized")))
+            return 1;
+        window->show();
+        for (const bool expanded : {false, true}) {
+            advanced->setProperty("checked", expanded);
+            QEventLoop loop;
+            QTimer::singleShot(300, &loop, &QEventLoop::quit);
+            loop.exec();
+            const QString name = expanded ? QStringLiteral("advanced.png") : QStringLiteral("normal.png");
+            if (!require(window->grabWindow().save(QDir(captureDirectory).filePath(name)),
+                         QStringLiteral("UI capture failed")))
+                return 1;
+        }
+        advanced->setProperty("checked", false);
+        window->hide();
+        settings->show();
+        for (const auto &[page, name] : {
+                 std::pair{0, QStringLiteral("settings-synthesis.png")},
+                 std::pair{2, QStringLiteral("settings-behavior.png")}}) {
+            settings->setProperty("currentPage", page);
+            QEventLoop loop;
+            QTimer::singleShot(300, &loop, &QEventLoop::quit);
+            loop.exec();
+            if (!require(settings->grabWindow().save(QDir(captureDirectory).filePath(name)),
+                         QStringLiteral("settings UI capture failed")))
+                return 1;
+        }
+        settings->hide();
+    }
     if (!require(temporary.isValid(), QStringLiteral("temporary directory is unavailable")))
         return 1;
 
@@ -139,6 +176,26 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  QStringLiteral("project round trip failed")))
         return 1;
     backend.clearRecentProjects();
+    for (int timingSetting : {-1, 0, 1}) {
+        QVariantMap compatibilityProject = project;
+        QVariantMap utterance = project.value("utterances").toList().first().toMap();
+        if (timingSetting >= 0)
+            utterance.insert("speech_timing", timingSetting == 1);
+        compatibilityProject.insert("utterances", QVariantList{utterance});
+        QVariant savedState;
+        if (!require(backend.saveProject(projectURL, compatibilityProject)
+                     && QMetaObject::invokeMethod(rootObject, "loadProjectFrom",
+                                                  Q_ARG(QVariant, QVariant(projectURL)))
+                     && QMetaObject::invokeMethod(rootObject, "projectData",
+                                                  Q_RETURN_ARG(QVariant, savedState)),
+                     QStringLiteral("QML project migration could not be invoked")))
+            return 1;
+        const QVariantList rows = savedState.toMap().value("utterances").toList();
+        if (!require(rows.size() == 1
+                     && rows.first().toMap().value("speech_timing").toBool() == (timingSetting != 0),
+                     QStringLiteral("saved speech timing setting was not preserved")))
+            return 1;
+    }
     backend.rememberRecentProject(projectURL);
     if (!require(backend.recentProjects().size() == 1
                  && backend.recentProjects().first() == QFileInfo(projectURL.toLocalFile()).absoluteFilePath(),

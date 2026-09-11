@@ -12,6 +12,7 @@ import QtMultimedia
         property alias voiceCombo: voiceCombo
         property alias speechLanguageCombo: speechLanguageCombo
         property alias phonemizerCombo: phonemizerCombo
+        property alias advancedSettingsButton: advancedSettingsButton
         property alias aliasPolicyCombo: aliasPolicyCombo
         property alias modelCombo: modelCombo
         property alias rendererCombo: rendererCombo
@@ -296,29 +297,27 @@ import QtMultimedia
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 4
+                            spacing: 6
 
-                        Label {
-                            text: window.translator.tr("main.param.voicebank")
-                            font.pixelSize: 12
-                            color: window.mutedText
-                        }
-                        ComboBox {
-                            id: voiceCombo
+                        RowLayout {
                             Layout.fillWidth: true
-                            model: window.appBackend.voicebanks
-                            textRole: "name"
-                            valueRole: "id"
-                            onActivated: {
+                            Label {
+                                text: window.translator.tr("main.param.voicebank")
+                                Layout.fillWidth: true
+                            }
+                            ComboBox {
+                                id: voiceCombo
+                                Layout.fillWidth: true
+                                model: window.appBackend.voicebanks
+                                textRole: "name"
+                                valueRole: "id"
+                                onActivated: {
                                 window.updateSetting("voicebankId", currentValue);
                                 const voice = window.voicebankById(currentValue);
                                 window.utterancesModel.setProperty(window.selectedIndex, "imagePath", voice ? voice.image_path : "");
-                                if (window.appBackend.developerMode
-                                        && window.appBackend.developerMultilingualEnabled
-                                        && voice && voice.suggested_language) {
+                                if (voice && voice.suggested_language) {
                                     const language = String(voice.suggested_language);
-                                    const phonemizer = String(voice.suggested_phonemizer
-                                                              || window.defaultPhonemizer(language));
+                                    const phonemizer = "auto";
                                     window.updateSpeechLanguage(language, phonemizer);
                                     window.selectCombo(speechLanguageCombo, language);
                                     window.selectCombo(phonemizerCombo, phonemizer);
@@ -331,161 +330,34 @@ import QtMultimedia
                                 }
                                 Qt.callLater(() => window.selectCombo(colorCombo,
                                         window.typeIdForColor(currentValue, window.current().color || "")));
-                            }
-                        }
-
-                        Label {
-                            Layout.topMargin: 8
-                            visible: window.appBackend.developerMode
-                                    && window.appBackend.developerMultilingualEnabled
-                            text: window.translator.tr("main.param.language")
-                            font.pixelSize: 12
-                            color: window.mutedText
-                        }
-                        ComboBox {
-                            id: speechLanguageCombo
-                            visible: window.appBackend.developerMode
-                                    && window.appBackend.developerMultilingualEnabled
-                            Layout.fillWidth: true
-                            model: [
-                                { id: "ja", display_name: window.translator.tr("main.language.ja") },
-                                { id: "en", display_name: window.translator.tr("main.language.en") },
-                                { id: "zh", display_name: window.translator.tr("main.language.zh") }
-                            ]
-                            textRole: "display_name"
-                            valueRole: "id"
-                            onActivated: {
-                                const selectedPhonemizer = window.defaultPhonemizer(currentValue);
-                                window.updateSpeechLanguage(currentValue, selectedPhonemizer);
-                                window.selectCombo(phonemizerCombo, selectedPhonemizer);
-                            }
-                        }
-
-                        Label {
-                            Layout.topMargin: 8
-                            visible: window.appBackend.developerMode
-                                    && window.appBackend.developerMultilingualEnabled
-                            text: window.translator.tr("main.param.phonemizer")
-                            font.pixelSize: 12
-                            color: window.mutedText
-                        }
-                        ComboBox {
-                            id: phonemizerCombo
-                            visible: window.appBackend.developerMode
-                                    && window.appBackend.developerMultilingualEnabled
-                            Layout.fillWidth: true
-                            model: window.phonemizerOptions(window.utterancesModel.count
-                                    ? window.current().language || "ja" : "ja")
-                            textRole: "display_name"
-                            valueRole: "id"
-                            onActivated: window.updateSetting("phonemizer", currentValue)
-                        }
-
-                        Label {
-                            Layout.topMargin: 8
-                            text: window.translator.tr("main.param.aliasPolicy")
-                            color: window.mutedText
-                            font.pixelSize: 12
-                        }
-                        ComboBox {
-                            id: aliasPolicyCombo
-                            Layout.fillWidth: true
-                            model: [
-                                { id: "auto", display_name: window.translator.tr("main.aliasPolicy.auto") },
-                                { id: "legacy", display_name: window.translator.tr("main.aliasPolicy.legacy") },
-                                { id: "cvvc-enhanced", display_name: window.translator.tr("main.aliasPolicy.cvvcEnhanced") },
-                                { id: "vcv-prefer", display_name: window.translator.tr("main.aliasPolicy.vcvPrefer") },
-                                { id: "cvvc-prefer", display_name: window.translator.tr("main.aliasPolicy.cvvcPrefer") },
-                                { id: "cv-only", display_name: window.translator.tr("main.aliasPolicy.cvOnly") }
-                            ]
-                            textRole: "display_name"
-                            valueRole: "id"
-                            onActivated: window.updateSetting("aliasPolicy", currentValue)
-                        }
-
-                        CheckBox {
-                            Layout.fillWidth: true
-                            visible: window.appBackend.developerMode
-                            text: window.translator.tr("main.speechTiming")
-                            checked: window.utterancesModel.count > 0 && !!window.current().speechTiming
-                            onClicked: window.updateSetting("speechTiming", checked)
-                        }
-
-                        Label {
-                            Layout.topMargin: 8
-                            text: window.translator.tr("main.param.intonationModel")
-                            font.pixelSize: 12
-                            color: window.mutedText
-                        }
-                        ComboBox {
-                            id: modelCombo
-                            Layout.fillWidth: true
-                            model: [
-                                {
-                                    id: "none",
-                                    display_name: window.translator.tr("main.modelNone")
-                                }
-                            ].concat(window.appBackend.models)
-                            textRole: "display_name"
-                            valueRole: "id"
-                            onActivated: {
-                                window.updateSetting("modelId", currentValue);
-                                const model = window.modelById(currentValue);
-                                const renderer = window.preferredRendererForModel(model);
-                                if (renderer) {
-                                    window.updateSetting("renderer", renderer);
-                                    window.selectCombo(rendererCombo, renderer);
                                 }
                             }
                         }
 
-                        Label {
-                            Layout.topMargin: 8
-                            text: window.translator.tr("main.param.renderer")
-                            font.pixelSize: 12
-                            color: window.mutedText
-                        }
-                        ComboBox {
-                            id: rendererCombo
+                        RowLayout {
                             Layout.fillWidth: true
-                            model: window.appBackend.renderers
-                            textRole: "display_name"
-                            valueRole: "id"
-                            onActivated: window.updateSetting("renderer", currentValue)
+                            Label {
+                                text: window.translator.tr("main.param.language")
+                                Layout.fillWidth: true
+                            }
+                            ComboBox {
+                                id: speechLanguageCombo
+                                Layout.fillWidth: true
+                                model: [
+                                    { id: "ja", display_name: window.translator.tr("main.language.ja") },
+                                    { id: "en", display_name: window.translator.tr("main.language.en") },
+                                    { id: "zh", display_name: window.translator.tr("main.language.zh") }
+                                ]
+                                textRole: "display_name"
+                                valueRole: "id"
+                                onActivated: {
+                                    const selectedPhonemizer = "auto";
+                                    window.updateSpeechLanguage(currentValue, selectedPhonemizer);
+                                    window.selectCombo(phonemizerCombo, selectedPhonemizer);
+                                }
+                            }
                         }
-                        Label {
-                            Layout.topMargin: 8
-                            visible: classicRendererSelected()
-                            text: window.translator.tr("main.param.resampler")
-                            font.pixelSize: 12
-                            color: window.mutedText
-                        }
-                        ComboBox {
-                            id: resamplerCombo
-                            visible: classicRendererSelected()
-                            Layout.fillWidth: true
-                            model: window.appBackend.resamplers
-                            textRole: "display_name"
-                            valueRole: "id"
-                            onActivated: window.updateSetting("resampler", currentValue)
-                        }
-                        Label {
-                            Layout.topMargin: 8
-                            visible: classicRendererSelected()
-                            text: window.translator.tr("main.param.wavtool")
-                            font.pixelSize: 12
-                            color: window.mutedText
-                        }
-                        ComboBox {
-                            id: wavtoolCombo
-                            visible: classicRendererSelected()
-                            Layout.fillWidth: true
-                            model: window.appBackend.wavtools
-                            textRole: "display_name"
-                            valueRole: "id"
-                            onActivated: window.updateSetting("wavtool", currentValue)
-                        }
-                        }
+
                         Label {
                             Layout.fillWidth: true
                             visible: window.appBackend.error.length > 0 || window.playbackError.length > 0
@@ -493,21 +365,6 @@ import QtMultimedia
                             color: window.palette.text
                             wrapMode: Text.Wrap
                             font.pixelSize: 11
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                text: window.translator.tr("main.param.tone")
-                                Layout.fillWidth: true
-                            }
-                            TextField {
-                                id: toneField
-                                Layout.preferredWidth: 72
-                                horizontalAlignment: TextInput.AlignRight
-                                text: "C4"
-                                onEditingFinished: window.updateSetting("tone", text)
-                            }
                         }
 
                         RowLayout {
@@ -564,7 +421,6 @@ import QtMultimedia
                                 to: window.maxIntonationStrength
                                 stepSize: .05
                                 onMoved: {
-                                    intonationInput.value = Math.round(value * 100);
                                     window.updateSetting("intonation", value);
                                 }
                             }
@@ -581,7 +437,6 @@ import QtMultimedia
                                     const fraction = Math.max(0, Math.min(1, x / width));
                                     const value = Math.round((intonationSlider.from + fraction * (intonationSlider.to - intonationSlider.from)) / intonationSlider.stepSize) * intonationSlider.stepSize;
                                     intonationSlider.value = value;
-                                    intonationInput.value = Math.round(value * 100);
                                     window.updateSetting("intonation", value);
                                 }
                             }
@@ -620,7 +475,6 @@ import QtMultimedia
                                 stepSize: 5
                                 onMoved: {
                                     window.updateSetting("moraDuration", value);
-                                    moraInput.value = value;
                                 }
                             }
                             MouseArea {
@@ -636,7 +490,6 @@ import QtMultimedia
                                     const fraction = Math.max(0, Math.min(1, x / width));
                                     const value = Math.round((moraSlider.from + fraction * (moraSlider.to - moraSlider.from)) / moraSlider.stepSize) * moraSlider.stepSize;
                                     moraSlider.value = value;
-                                    moraInput.value = value;
                                     window.updateSetting("moraDuration", value);
                                 }
                             }
@@ -675,7 +528,6 @@ import QtMultimedia
                                 stepSize: 10
                                 onMoved: {
                                     window.updateSetting("pauseDuration", value);
-                                    pauseInput.value = value;
                                 }
                             }
                             MouseArea {
@@ -691,14 +543,160 @@ import QtMultimedia
                                     const fraction = Math.max(0, Math.min(1, x / width));
                                     const value = Math.round((pauseSlider.from + fraction * (pauseSlider.to - pauseSlider.from)) / pauseSlider.stepSize) * pauseSlider.stepSize;
                                     pauseSlider.value = value;
-                                    pauseInput.value = value;
                                     window.updateSetting("pauseDuration", value);
+                                }
+                            }
+                        }
+
+                        Button {
+                            id: advancedSettingsButton
+                            objectName: "advancedSettingsButton"
+                            Layout.fillWidth: true
+                            checkable: true
+                            checked: false
+                            text: window.translator.tr("main.advancedSettings")
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            visible: advancedSettingsButton.checked
+                            spacing: 6
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                text: window.translator.tr("main.param.phonemizer")
+                                Layout.fillWidth: true
+                            }
+                            ComboBox {
+                                id: phonemizerCombo
+                                Layout.fillWidth: true
+                                model: window.phonemizerOptions(window.utterancesModel.count
+                                        ? window.current().language || "ja" : "ja")
+                                textRole: "display_name"
+                                valueRole: "id"
+                                onActivated: window.updateSetting("phonemizer", currentValue)
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                text: window.translator.tr("main.param.aliasPolicy")
+                                Layout.fillWidth: true
+                            }
+                            ComboBox {
+                                id: aliasPolicyCombo
+                                Layout.fillWidth: true
+                                model: [
+                                    { id: "auto", display_name: window.translator.tr("main.aliasPolicy.auto") },
+                                    { id: "legacy", display_name: window.translator.tr("main.aliasPolicy.legacy") },
+                                    { id: "cvvc-enhanced", display_name: window.translator.tr("main.aliasPolicy.cvvcEnhanced") },
+                                    { id: "vcv-prefer", display_name: window.translator.tr("main.aliasPolicy.vcvPrefer") },
+                                    { id: "cvvc-prefer", display_name: window.translator.tr("main.aliasPolicy.cvvcPrefer") },
+                                    { id: "cv-only", display_name: window.translator.tr("main.aliasPolicy.cvOnly") }
+                                ]
+                                textRole: "display_name"
+                                valueRole: "id"
+                                onActivated: window.updateSetting("aliasPolicy", currentValue)
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: !window.utterancesModel.count || window.current().language === "ja"
+                            Label {
+                                text: window.translator.tr("main.param.intonationModel")
+                                Layout.fillWidth: true
+                            }
+                            ComboBox {
+                                id: modelCombo
+                                Layout.fillWidth: true
+                                model: [{
+                                    id: "none",
+                                    display_name: window.translator.tr("main.modelNone")
+                                }].concat(window.appBackend.models)
+                                textRole: "display_name"
+                                valueRole: "id"
+                                onActivated: {
+                                    window.updateSetting("modelId", currentValue);
+                                    const model = window.modelById(currentValue);
+                                    const renderer = window.preferredRendererForModel(model);
+                                    if (renderer) {
+                                        window.updateSetting("renderer", renderer);
+                                        window.selectCombo(rendererCombo, renderer);
+                                    }
                                 }
                             }
                         }
 
                         RowLayout {
                             Layout.fillWidth: true
+                            Label {
+                                text: window.translator.tr("main.param.renderer")
+                                Layout.fillWidth: true
+                            }
+                            ComboBox {
+                                id: rendererCombo
+                                Layout.fillWidth: true
+                                model: window.appBackend.renderers
+                                textRole: "display_name"
+                                valueRole: "id"
+                                onActivated: window.updateSetting("renderer", currentValue)
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.topMargin: 8
+                            Label {
+                                text: window.translator.tr("main.param.tone")
+                                Layout.fillWidth: true
+                            }
+                            TextField {
+                                id: toneField
+                                Layout.preferredWidth: 72
+                                horizontalAlignment: TextInput.AlignRight
+                                text: "C4"
+                                onEditingFinished: window.updateSetting("tone", text)
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: classicRendererSelected()
+                            Label {
+                                text: window.translator.tr("main.param.resampler")
+                                Layout.fillWidth: true
+                            }
+                            ComboBox {
+                                id: resamplerCombo
+                                Layout.fillWidth: true
+                                model: window.appBackend.resamplers
+                                textRole: "display_name"
+                                valueRole: "id"
+                                onActivated: window.updateSetting("resampler", currentValue)
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: classicRendererSelected()
+                            Label {
+                                text: window.translator.tr("main.param.wavtool")
+                                Layout.fillWidth: true
+                            }
+                            ComboBox {
+                                id: wavtoolCombo
+                                Layout.fillWidth: true
+                                model: window.appBackend.wavtools
+                                textRole: "display_name"
+                                valueRole: "id"
+                                onActivated: window.updateSetting("wavtool", currentValue)
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.topMargin: 8
                             Label {
                                 text: window.translator.tr("main.param.leadingPreutterance")
                                 Layout.fillWidth: true
@@ -710,17 +708,15 @@ import QtMultimedia
                                 to: 300
                                 stepSize: 5
                                 editable: true
+                                property string automaticText: ""
                                 value: Math.round(leadingPreutteranceSlider.value)
-                                textFromValue: value => value + " ms"
-                                Component.onCompleted: refreshTextFormatter()
-                                function refreshTextFormatter() {
-                                    const automaticText = window.translator.tr("main.aliasPolicy.auto");
-                                    textFromValue = value => value === 0
-                                            ? automaticText : value + " ms";
-                                    const currentValue = value;
-                                    value = currentValue < to ? currentValue + 1 : currentValue - 1;
-                                    value = currentValue;
+                                textFromValue: value => value === 0
+                                        ? leadingPreutteranceInput.automaticText : value + " ms"
+                                function refreshText() {
+                                    automaticText = window.translator.tr("main.aliasPolicy.auto");
+                                    Qt.callLater(() => contentItem.text = textFromValue(value, locale));
                                 }
+                                Component.onCompleted: refreshText()
                                 valueFromText: text => {
                                     const parsed = parseInt(text);
                                     return isNaN(parsed) ? 0 : parsed;
@@ -732,7 +728,7 @@ import QtMultimedia
                                 Connections {
                                     target: window.translator
                                     function onTranslationsChanged() {
-                                        leadingPreutteranceInput.refreshTextFormatter();
+                                        leadingPreutteranceInput.refreshText();
                                     }
                                 }
                             }
@@ -748,7 +744,6 @@ import QtMultimedia
                                 stepSize: 5
                                 onMoved: {
                                     window.updateSetting("leadingPreutterance", value);
-                                    leadingPreutteranceInput.value = value;
                                 }
                             }
                             MouseArea {
@@ -764,15 +759,24 @@ import QtMultimedia
                                     const fraction = Math.max(0, Math.min(1, x / width));
                                     const value = Math.round((leadingPreutteranceSlider.from + fraction * (leadingPreutteranceSlider.to - leadingPreutteranceSlider.from)) / leadingPreutteranceSlider.stepSize) * leadingPreutteranceSlider.stepSize;
                                     leadingPreutteranceSlider.value = value;
-                                    leadingPreutteranceInput.value = value;
                                     window.updateSetting("leadingPreutterance", value);
                                 }
                             }
                         }
 
+                        CheckBox {
+                            Layout.fillWidth: true
+                            Layout.topMargin: 8
+                            text: window.translator.tr("main.speechTiming")
+                            checked: window.utterancesModel.count > 0 && !!window.current().speechTiming
+                            onClicked: window.updateSetting("speechTiming", checked)
+                        }
+                        }
+
                         Item {
                             Layout.fillHeight: true
                         }
+                    }
                     }
                 }
             }

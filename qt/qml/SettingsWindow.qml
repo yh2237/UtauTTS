@@ -6,6 +6,7 @@ import QtQuick.Layouts
 
 ApplicationWindow {
     id: root
+    objectName: "settingsWindow"
     required property var hostWindow
     required property var hostPalette
     required property var backend
@@ -47,7 +48,6 @@ ApplicationWindow {
     property bool pendingPreReleaseUpdateCheckEnabled: false
     property int pendingPreviewCacheFileCount: 32
     property bool pendingDeveloperMode: false
-    property bool pendingDeveloperMultilingualEnabled: true
     property bool pendingDeveloperProsodyTrainingEnabled: true
     property string pendingSynthesizeShortcut: "Ctrl+Enter"
     property string pendingSaveProjectShortcut: "Ctrl+S"
@@ -70,7 +70,6 @@ ApplicationWindow {
         const pages = [root.translator.tr("settings.page.synthesis"),
             root.translator.tr("settings.page.export"),
             root.translator.tr("settings.page.appearance"),
-            root.translator.tr("settings.page.log"),
             root.translator.tr("settings.page.shortcuts")];
         if (root.backend.developerMode)
             pages.push(root.translator.tr("settings.page.developer"));
@@ -80,207 +79,148 @@ ApplicationWindow {
     Connections {
         target: root.backend
         function onDeveloperModeChanged() {
-            if (!root.backend.developerMode && root.currentPage >= 5)
+            if (!root.backend.developerMode && root.currentPage >= 4)
                 root.currentPage = 2;
         }
     }
 
     function loadCurrent() {
-        pendingDefaultVoicebankId = root.backend.defaultVoicebankId;
-        pendingDefaultModelId = root.backend.defaultModelId;
-        pendingDefaultRendererId = root.backend.defaultRenderer;
+        pendingDefaultVoicebankId = root.validDefaultVoicebankId(root.backend.defaultVoicebankId);
+        pendingDefaultModelId = root.validDefaultModelId(root.backend.defaultModelId);
+        pendingDefaultRendererId = root.validDefaultRendererId(root.backend.defaultRenderer);
         pendingDefaultAliasPolicy = root.backend.defaultAliasPolicy;
         pendingDefaultTone = root.backend.defaultTone;
-        defaultToneField.text = pendingDefaultTone;
         pendingMoraDuration = root.backend.defaultMoraDuration;
         pendingPauseDuration = root.backend.defaultPauseDuration;
         pendingLeadingPreutterance = root.backend.defaultLeadingPreutterance;
-        leadingPreutteranceSpin.value = pendingLeadingPreutterance;
         pendingDefaultIntonationStrength = root.backend.defaultIntonationStrength;
-        defaultIntonationSpin.value = Math.round(pendingDefaultIntonationStrength * 100);
         pendingExportTextWithWav = root.backend.exportTextWithWav;
-        exportTextWithWavSwitch.checked = pendingExportTextWithWav;
         pendingExportLabWithWav = root.backend.exportLabWithWav;
-        exportLabWithWavSwitch.checked = pendingExportLabWithWav;
         pendingExportTextEncoding = root.backend.exportTextEncoding;
-        exportTextEncodingCombo.currentIndex = pendingExportTextEncoding === "shift_jis" ? 1 : 0;
         pendingDarkMode = root.backend.darkMode;
         pendingLanguage = root.backend.language;
         pendingCloseLogOnSuccess = root.backend.closeLogOnSuccess;
-        closeLogOnSuccessSwitch.checked = pendingCloseLogOnSuccess;
         pendingUpdateCheckEnabled = root.backend.updateCheckEnabled;
-        updateCheckSwitch.checked = pendingUpdateCheckEnabled;
         pendingPreReleaseUpdateCheckEnabled = root.backend.preReleaseUpdateCheckEnabled;
-        preReleaseUpdateSwitch.checked = pendingPreReleaseUpdateCheckEnabled;
         pendingPreviewCacheFileCount = root.backend.previewCacheFileCount;
-        previewCacheSpin.value = pendingPreviewCacheFileCount;
         pendingDeveloperMode = root.backend.developerMode;
-        developerModeSwitch.checked = pendingDeveloperMode;
-        pendingDeveloperMultilingualEnabled = root.backend.developerMultilingualEnabled;
-        developerMultilingualSwitch.checked = pendingDeveloperMultilingualEnabled;
         pendingDeveloperProsodyTrainingEnabled = root.backend.developerProsodyTrainingEnabled;
-        developerProsodyTrainingSwitch.checked = pendingDeveloperProsodyTrainingEnabled;
-        moraSpin.value = pendingMoraDuration;
-        pauseSpin.value = pendingPauseDuration;
         pendingSynthesizeShortcut = root.backend.synthesizeShortcut;
-        synthesizeShortcutField.text = pendingSynthesizeShortcut;
         pendingSaveProjectShortcut = root.backend.saveProjectShortcut;
-        saveProjectShortcutField.text = pendingSaveProjectShortcut;
         pendingReloadVoicebanksShortcut = root.backend.reloadVoicebanksShortcut;
-        reloadVoicebanksShortcutField.text = pendingReloadVoicebanksShortcut;
         pendingAddUtteranceShortcut = root.backend.addUtteranceShortcut;
-        addUtteranceShortcutField.text = pendingAddUtteranceShortcut;
         pendingRemoveUtteranceShortcut = root.backend.removeUtteranceShortcut;
-        removeUtteranceShortcutField.text = pendingRemoveUtteranceShortcut;
         pendingUndoShortcut = root.backend.undoShortcut;
-        undoShortcutField.text = pendingUndoShortcut;
         pendingRedoShortcut = root.backend.redoShortcut;
-        redoShortcutField.text = pendingRedoShortcut;
-        themeCombo.currentIndex = pendingDarkMode ? 1 : 0;
-        languageCombo.currentIndex = root.languageCodes.indexOf(pendingLanguage);
-        defaultVoicebankCombo.currentIndex = root.defaultVoicebankIndex();
-        defaultModelCombo.currentIndex = root.defaultModelIndex();
-        defaultRendererCombo.currentIndex = root.defaultRendererIndex();
     }
 
     function resetDefaultVoicebank() {
         pendingDefaultVoicebankId = "";
-        defaultVoicebankCombo.currentIndex = 0;
     }
 
     function resetDefaultAliasPolicy() {
         pendingDefaultAliasPolicy = "auto";
-        defaultAliasPolicyCombo.currentIndex = defaultAliasPolicyCombo.indexOfValue("auto");
     }
 
     function resetDefaultModel() {
-        pendingDefaultModelId = "frame-intonation-v8";
-        defaultModelCombo.currentIndex = root.defaultModelIndex();
+        pendingDefaultModelId = root.validDefaultModelId("frame-intonation-v8");
     }
 
     function resetDefaultRenderer() {
-        pendingDefaultRendererId = "utautts-world-phrase";
-        defaultRendererCombo.currentIndex = root.defaultRendererIndex();
+        pendingDefaultRendererId = root.validDefaultRendererId("utautts-world-phrase");
     }
 
     function resetDefaultTone() {
         pendingDefaultTone = "C4";
-        defaultToneField.text = pendingDefaultTone;
     }
 
     function resetDefaultIntonation() {
         pendingDefaultIntonationStrength = 2.0;
-        defaultIntonationSpin.value = 200;
     }
 
     function resetDefaultMoraDuration() {
         pendingMoraDuration = 120;
-        moraSpin.value = 120;
     }
 
     function resetDefaultPauseDuration() {
         pendingPauseDuration = 180;
-        pauseSpin.value = 180;
     }
 
     function resetDefaultLeadingPreutterance() {
         pendingLeadingPreutterance = 0;
-        leadingPreutteranceSpin.value = 0;
     }
 
     function resetPreviewCacheFileCount() {
         pendingPreviewCacheFileCount = 32;
-        previewCacheSpin.value = 32;
     }
 
     function resetExportTextWithWav() {
         pendingExportTextWithWav = false;
-        exportTextWithWavSwitch.checked = false;
     }
 
     function resetExportTextEncoding() {
         pendingExportTextEncoding = "utf-8";
-        exportTextEncodingCombo.currentIndex = 0;
     }
 
     function resetExportLabWithWav() {
         pendingExportLabWithWav = false;
-        exportLabWithWavSwitch.checked = false;
     }
 
     function resetTheme() {
         pendingDarkMode = false;
-        themeCombo.currentIndex = 0;
     }
 
     function resetLanguage() {
         pendingLanguage = "auto";
-        languageCombo.currentIndex = root.languageCodes.indexOf("auto");
     }
 
     function resetUpdateCheckEnabled() {
         pendingUpdateCheckEnabled = true;
-        updateCheckSwitch.checked = true;
     }
 
     function resetPreReleaseUpdateCheckEnabled() {
         pendingPreReleaseUpdateCheckEnabled = false;
-        preReleaseUpdateSwitch.checked = false;
     }
 
     function resetDeveloperMode() {
         pendingDeveloperMode = false;
-        developerModeSwitch.checked = false;
     }
 
-    function resetDeveloperMultilingualEnabled() {
-        pendingDeveloperMultilingualEnabled = true;
-        developerMultilingualSwitch.checked = true;
-    }
 
     function resetDeveloperProsodyTrainingEnabled() {
         pendingDeveloperProsodyTrainingEnabled = true;
-        developerProsodyTrainingSwitch.checked = true;
     }
 
     function resetCloseLogOnSuccess() {
         pendingCloseLogOnSuccess = true;
-        closeLogOnSuccessSwitch.checked = true;
     }
 
     function resetSynthesizeShortcut() {
         pendingSynthesizeShortcut = "Ctrl+Enter";
-        synthesizeShortcutField.text = pendingSynthesizeShortcut;
     }
 
     function resetSaveProjectShortcut() {
         pendingSaveProjectShortcut = "Ctrl+S";
-        saveProjectShortcutField.text = pendingSaveProjectShortcut;
     }
 
     function resetReloadVoicebanksShortcut() {
         pendingReloadVoicebanksShortcut = "Ctrl+O";
-        reloadVoicebanksShortcutField.text = pendingReloadVoicebanksShortcut;
     }
 
     function resetAddUtteranceShortcut() {
         pendingAddUtteranceShortcut = "Ctrl+D";
-        addUtteranceShortcutField.text = pendingAddUtteranceShortcut;
     }
 
     function resetRemoveUtteranceShortcut() {
         pendingRemoveUtteranceShortcut = "Delete";
-        removeUtteranceShortcutField.text = pendingRemoveUtteranceShortcut;
     }
 
     function resetUndoShortcut() {
         pendingUndoShortcut = "Ctrl+Z";
-        undoShortcutField.text = pendingUndoShortcut;
     }
 
     function resetRedoShortcut() {
         pendingRedoShortcut = "Ctrl+Y";
-        redoShortcutField.text = pendingRedoShortcut;
     }
 
     function defaultVoicebankIndex() {
@@ -292,6 +232,32 @@ ApplicationWindow {
                 return index + 1;
         }
         return 0;
+    }
+
+    function validDefaultVoicebankId(value) {
+        const id = String(value || "");
+        for (let index = 0; index < root.backend.voicebanks.length; ++index)
+            if (root.backend.voicebanks[index].id === id)
+                return id;
+        return "";
+    }
+
+    function validDefaultModelId(value) {
+        const id = String(value || "none");
+        if (id === "none")
+            return id;
+        for (let index = 0; index < root.backend.models.length; ++index)
+            if (root.backend.models[index].id === id)
+                return id;
+        return root.backend.models.length ? root.backend.models[0].id : "none";
+    }
+
+    function validDefaultRendererId(value) {
+        const id = String(value || "");
+        for (let index = 0; index < root.backend.renderers.length; ++index)
+            if (root.backend.renderers[index].id === id)
+                return id;
+        return root.backend.renderers.length ? root.backend.renderers[0].id : "";
     }
 
     function defaultModelIndex() {
@@ -436,6 +402,91 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 Label {
+                                    text: root.translator.tr("settings.defaultIntonation")
+                                    Layout.fillWidth: true
+                                }
+                                SpinBox {
+                                    id: defaultIntonationSpin
+                                    Layout.preferredWidth: 180
+                                    from: 0
+                                    to: 400
+                                    stepSize: 5
+                                    value: Math.round(root.pendingDefaultIntonationStrength * 100)
+                                    editable: true
+                                    textFromValue: value => (value / 100).toFixed(2)
+                                    valueFromText: text => Math.round(parseFloat(text) * 100)
+                                    onValueModified: root.pendingDefaultIntonationStrength = value / 100
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton
+                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                        onDoubleTapped: root.pendingDefaultIntonationStrength = 2.0
+                                    }
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultIntonation()
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: root.translator.tr("settings.defaultMoraDuration")
+                                    Layout.fillWidth: true
+                                }
+                                SpinBox {
+                                    id: moraSpin
+                                    Layout.preferredWidth: 180
+                                    Layout.alignment: Qt.AlignVCenter
+                                    from: 20
+                                    to: 1000
+                                    value: root.pendingMoraDuration
+                                    editable: true
+                                    textFromValue: value => value + " ms"
+                                    valueFromText: text => parseInt(text)
+                                    onValueModified: root.pendingMoraDuration = value
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton
+                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                        onDoubleTapped: root.pendingMoraDuration = 120
+                                    }
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultMoraDuration()
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: root.translator.tr("settings.defaultPauseDuration")
+                                    Layout.fillWidth: true
+                                }
+                                SpinBox {
+                                    id: pauseSpin
+                                    Layout.preferredWidth: 180
+                                    Layout.alignment: Qt.AlignVCenter
+                                    from: 0
+                                    to: 3000
+                                    value: root.pendingPauseDuration
+                                    editable: true
+                                    textFromValue: value => value + " ms"
+                                    valueFromText: text => parseInt(text)
+                                    onValueModified: root.pendingPauseDuration = value
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton
+                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                        onDoubleTapped: root.pendingPauseDuration = 180
+                                    }
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultPauseDuration()
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
                                     text: root.translator.tr("settings.defaultAliasPolicy")
                                     Layout.fillWidth: true
                                 }
@@ -525,90 +576,6 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 Label {
-                                    text: root.translator.tr("settings.defaultIntonation")
-                                    Layout.fillWidth: true
-                                }
-                                SpinBox {
-                                    id: defaultIntonationSpin
-                                    Layout.preferredWidth: 180
-                                    from: 0
-                                    to: 400
-                                    stepSize: 5
-                                    value: Math.round(root.pendingDefaultIntonationStrength * 100)
-                                    editable: true
-                                    textFromValue: value => (value / 100).toFixed(2)
-                                    valueFromText: text => Math.round(parseFloat(text) * 100)
-                                    onValueModified: root.pendingDefaultIntonationStrength = value / 100
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                        onDoubleTapped: root.pendingDefaultIntonationStrength = 2.0
-                                    }
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultIntonation()
-                                }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultMoraDuration")
-                                    Layout.fillWidth: true
-                                }
-                                SpinBox {
-                                    id: moraSpin
-                                    Layout.preferredWidth: 180
-                                    Layout.alignment: Qt.AlignVCenter
-                                    from: 20
-                                    to: 1000
-                                    value: root.pendingMoraDuration
-                                    editable: true
-                                    textFromValue: value => value + " ms"
-                                    valueFromText: text => parseInt(text)
-                                    onValueModified: root.pendingMoraDuration = value
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                        onDoubleTapped: root.pendingMoraDuration = 120
-                                    }
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultMoraDuration()
-                                }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultPauseDuration")
-                                    Layout.fillWidth: true
-                                }
-                                SpinBox {
-                                    id: pauseSpin
-                                    Layout.preferredWidth: 180
-                                    Layout.alignment: Qt.AlignVCenter
-                                    from: 0
-                                    to: 3000
-                                    value: root.pendingPauseDuration
-                                    editable: true
-                                    textFromValue: value => value + " ms"
-                                    valueFromText: text => parseInt(text)
-                                    onValueModified: root.pendingPauseDuration = value
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                        onDoubleTapped: root.pendingPauseDuration = 180
-                                    }
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultPauseDuration()
-                                }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
                                     text: root.translator.tr("settings.defaultLeadingPreutterance")
                                     Layout.fillWidth: true
                                 }
@@ -621,16 +588,14 @@ ApplicationWindow {
                                     stepSize: 5
                                     value: root.pendingLeadingPreutterance
                                     editable: true
-                                    textFromValue: value => value + " ms"
-                                    Component.onCompleted: refreshTextFormatter()
-                                    function refreshTextFormatter() {
-                                        const automaticText = root.translator.tr("main.aliasPolicy.auto");
-                                        textFromValue = value => value === 0
-                                                ? automaticText : value + " ms";
-                                        const currentValue = value;
-                                        value = currentValue < to ? currentValue + 1 : currentValue - 1;
-                                        value = currentValue;
+                                    property string automaticText: ""
+                                    textFromValue: value => value === 0
+                                            ? leadingPreutteranceSpin.automaticText : value + " ms"
+                                    function refreshText() {
+                                        automaticText = root.translator.tr("main.aliasPolicy.auto");
+                                        Qt.callLater(() => contentItem.text = textFromValue(value, locale));
                                     }
+                                    Component.onCompleted: refreshText()
                                     valueFromText: text => {
                                         const parsed = parseInt(text);
                                         return isNaN(parsed) ? 0 : parsed;
@@ -641,59 +606,18 @@ ApplicationWindow {
                                         grabPermissions: PointerHandler.CanTakeOverFromAnything
                                         onDoubleTapped: {
                                             root.pendingLeadingPreutterance = 0;
-                                            leadingPreutteranceSpin.value = 0;
                                         }
                                     }
                                     Connections {
                                         target: root.translator
                                         function onTranslationsChanged() {
-                                            leadingPreutteranceSpin.refreshTextFormatter();
+                                            leadingPreutteranceSpin.refreshText();
                                         }
                                     }
                                 }
                                 SettingsResetButton {
                                     translator: root.translator
                                     onResetRequested: root.resetDefaultLeadingPreutterance()
-                                }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.previewCacheFileCount")
-                                    Layout.fillWidth: true
-                                }
-                                SpinBox {
-                                    id: previewCacheSpin
-                                    Layout.preferredWidth: 180
-                                    from: 1
-                                    to: 256
-                                    value: root.pendingPreviewCacheFileCount
-                                    editable: true
-                                    Component.onCompleted: refreshTextFormatter()
-                                    function refreshTextFormatter() {
-                                        const unit = root.translator.tr("settings.previewCacheFileCount.unit");
-                                        textFromValue = value => value + " " + unit;
-                                        const currentValue = value;
-                                        value = currentValue < to ? currentValue + 1 : currentValue - 1;
-                                        value = currentValue;
-                                    }
-                                    valueFromText: text => parseInt(text)
-                                    onValueModified: root.pendingPreviewCacheFileCount = value
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                        onDoubleTapped: root.pendingPreviewCacheFileCount = 32
-                                    }
-                                    Connections {
-                                        target: root.translator
-                                        function onTranslationsChanged() {
-                                            previewCacheSpin.refreshTextFormatter();
-                                        }
-                                    }
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetPreviewCacheFileCount()
                                 }
                             }
                         }
@@ -832,6 +756,64 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Label {
                                 Layout.fillWidth: true
+                                text: root.translator.tr("settings.closeLogOnSuccess")
+                            }
+                            Switch {
+                                id: closeLogOnSuccessSwitch
+                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                checked: root.pendingCloseLogOnSuccess
+                                onToggled: root.pendingCloseLogOnSuccess = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetCloseLogOnSuccess()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                text: root.translator.tr("settings.previewCacheFileCount")
+                                Layout.fillWidth: true
+                            }
+                            SpinBox {
+                                id: previewCacheSpin
+                                Layout.preferredWidth: 180
+                                from: 1
+                                to: 256
+                                value: root.pendingPreviewCacheFileCount
+                                editable: true
+                                property string unitText: ""
+                                textFromValue: value => value + " " + previewCacheSpin.unitText
+                                function refreshText() {
+                                    unitText = root.translator.tr("settings.previewCacheFileCount.unit");
+                                    Qt.callLater(() => contentItem.text = textFromValue(value, locale));
+                                }
+                                Component.onCompleted: refreshText()
+                                valueFromText: text => parseInt(text)
+                                onValueModified: root.pendingPreviewCacheFileCount = value
+                                TapHandler {
+                                    acceptedButtons: Qt.LeftButton
+                                    grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                    onDoubleTapped: root.pendingPreviewCacheFileCount = 32
+                                }
+                                Connections {
+                                    target: root.translator
+                                    function onTranslationsChanged() {
+                                        previewCacheSpin.refreshText();
+                                    }
+                                }
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetPreviewCacheFileCount()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                Layout.fillWidth: true
                                 text: root.translator.tr("settings.developerMode")
                             }
                             Switch {
@@ -846,34 +828,6 @@ ApplicationWindow {
                             }
                         }
 
-                    }
-                }
-
-                ScrollView {
-                    id: logSettingsPage
-                    contentWidth: availableWidth
-
-                    ColumnLayout {
-                        width: logSettingsPage.availableWidth
-                        spacing: 8
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.closeLogOnSuccess")
-                            }
-                            Switch {
-                                id: closeLogOnSuccessSwitch
-                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                checked: root.pendingCloseLogOnSuccess
-                                onToggled: root.pendingCloseLogOnSuccess = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetCloseLogOnSuccess()
-                            }
-                        }
                     }
                 }
 
@@ -1141,24 +1095,6 @@ ApplicationWindow {
                             SettingsResetButton {
                                 translator: root.translator
                                 onResetRequested: root.resetPreReleaseUpdateCheckEnabled()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.developer.multilingual")
-                            }
-                            Switch {
-                                id: developerMultilingualSwitch
-                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                checked: root.pendingDeveloperMultilingualEnabled
-                                onToggled: root.pendingDeveloperMultilingualEnabled = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetDeveloperMultilingualEnabled()
                             }
                         }
 
