@@ -52,6 +52,15 @@ func main() {
 	}
 }
 func run() error {
+	codaVowel := flag.Bool("coda-vowel-experiment", false, "use independent vowels after word-final codas (English CPU WORLD diagnostic)")
+	wordEnvelope := flag.Bool("word-boundary-envelope", false, "halve fades at word boundaries without changing source or pitch (CPU WORLD)")
+	protectTransition := flag.Bool("protect-context-transition", false, "preserve recorded context transitions at original speed (requires source-context and speech-timing)")
+	sourceContext := flag.String("source-context", "off", "recorded context comparison: off, existing, recover, repeated (CPU WORLD only)")
+	exportSources := flag.Bool("export-sources", false, "export original, selected and mixed-output source audit clips")
+	moraMS := flag.Float64("mora-ms", 120, "base syllable duration in milliseconds")
+	experiment := flag.String("prosody-experiment", "baseline", "speech prosody comparison: baseline, timing, pitch, both (CPU WORLD only)")
+	measurePitch := flag.Bool("measure-pitch", false, "write WORLD target and measured output F0 traces")
+	phonemizer := flag.String("phonemizer", "", "override corpus phonemizer for the selected voicebank")
 	speechTiming := flag.Bool("speech-timing", false, "experimental speech timing and voicebank calibration")
 	bank := flag.String("voicebank", "", "voicebank directory (required)")
 	diagnose := flag.Bool("diagnose", false, "write frontend and candidate diagnostics without rendering")
@@ -65,6 +74,18 @@ func run() error {
 	repeats := flag.Int("repeat", 2, "repetitions in the same process; first and warm runs are separate")
 	timeout := flag.Duration("timeout", 2*time.Minute, "timeout per synthesis")
 	flag.Parse()
+	if *codaVowel && *diagnose {
+		return fmt.Errorf("coda-vowel-experiment requires synthesis")
+	}
+	if *wordEnvelope && *diagnose {
+		return fmt.Errorf("word-boundary-envelope requires synthesis")
+	}
+	if *protectTransition && (*diagnose || !*speechTiming || (*sourceContext != "existing" && *sourceContext != "recover")) {
+		return fmt.Errorf("protect-context-transition requires synthesis, speech-timing and source-context existing or recover")
+	}
+	if *moraMS <= 0 || math.IsNaN(*moraMS) || math.IsInf(*moraMS, 0) {
+		return fmt.Errorf("mora-ms must be positive and finite")
+	}
 	if *bank == "" || *repeats < 1 || *timeout <= 0 {
 		return fmt.Errorf("voicebank, positive repeat and timeout are required")
 	}
@@ -79,10 +100,27 @@ func run() error {
 	if len(prompts) == 0 {
 		return fmt.Errorf("empty corpus")
 	}
+	if *phonemizer != "" {
+		for i := range prompts {
+			prompts[i].Phonemizer = *phonemizer
+		}
+	}
 	if err := validatePrompts(prompts); err != nil {
 		return err
 	}
+	if err := validateProsodyExperiment(*experiment, *renderers, *model, *modelFile, *diagnose, prompts); err != nil {
+		return err
+	}
+	if *measurePitch && (*diagnose || *renderers != "utautts-world-phrase") {
+		return fmt.Errorf("pitch measurement requires CPU WORLD synthesis")
+	}
 	if *diagnose {
+		if *exportSources {
+			return fmt.Errorf("export-sources requires synthesis")
+		}
+		if *sourceContext != "off" {
+			return fmt.Errorf("source-context requires synthesis")
+		}
 		return diagnoseCorpus(*bank, *out, prompts)
 	}
 	catalog, err := plugin.DiscoverWithDefaults(nil, nil, render.IsKnownRenderer)
@@ -121,6 +159,12 @@ func run() error {
 				row := measurement{ID: p.ID, Text: p.Text, Focus: p.Focus, Renderer: rendererID, Repetition: repetition}
 				cfg := tts.Config{VoicebankPath: *bank, Text: p.Text, Reading: p.Reading, Language: p.Language, Phonemizer: p.Phonemizer, Tone: "C4", MoraDurationMS: 120, PauseDurationMS: 180, ApplyPitch: true, IntonationStrength: 1}
 				cfg.SpeechTiming = *speechTiming
+				cfg.SpeechProsodyExperiment = *experiment
+				cfg.SourceContextExperiment = *sourceContext
+				cfg.CodaVowelExperiment = *codaVowel
+				cfg.WordBoundaryEnvelope = *wordEnvelope
+				cfg.ProtectContextTransition = *protectTransition
+				cfg.MoraDurationMS = *moraMS
 				cfg.MoraDurationsMS = p.MoraDurationsMS
 				cfg.PitchCurve = p.PitchCurve
 				if *model != "none" {
@@ -173,6 +217,12 @@ func run() error {
 							callErr = atomicfile.WriteFile(filepath.Join(*out, strings.TrimSuffix(row.WAV, ".wav")+".plan.json"), planData)
 						}
 					}
+					if callErr == nil && *measurePitch {
+						callErr = writePitchTrace(filepath.Join(*out, strings.TrimSuffix(row.WAV, ".wav")+".pitch.json"), result)
+					}
+					if callErr == nil && *exportSources {
+						callErr = writeSourceAudit(filepath.Join(*out, strings.TrimSuffix(row.WAV, ".wav")+"-sources"), result)
+					}
 				}
 				if callErr != nil {
 					row.Error = callErr.Error()
@@ -182,11 +232,18 @@ func run() error {
 				fmt.Printf("%s %s #%d: %.0f ms, RTF %.3f %s\n", rendererID, p.ID, repetition, row.ElapsedMS, row.RTF, row.Error)
 				// 後続ケースが失敗しても途中結果を保存する。
 				report := struct {
+					CodaVowelExperiment            bool
+					WordBoundaryEnvelope           bool
+					ProtectContextTransition       bool
+					SourceContext                  string
+					MoraMS                         float64
+					ProsodyExperiment, Phonemizer  string
+					MeasurePitch, SpeechTiming     bool
 					GOOS, GOARCH, Voicebank, Model string
 					CorpusSHA256, Bridge, GPU      string
 					Build                          *debug.BuildInfo
 					Measurements                   []measurement
-				}{runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, *gpu, buildInfo, rows}
+				}{*codaVowel, *wordEnvelope, *protectTransition, *sourceContext, *moraMS, *experiment, *phonemizer, *measurePitch, *speechTiming, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, *gpu, buildInfo, rows}
 				encoded, err := json.MarshalIndent(report, "", "  ")
 				if err != nil {
 					return err

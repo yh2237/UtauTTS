@@ -1,0 +1,10 @@
+[
+  {"id":"greeting-auto","language":"en","text":"Hello world.","focus":"automatic reading and unstressed AH0"},
+  {"id":"greeting-reading","language":"en","reading":"HH AH0 L OW1 | W ER1 L D | SP","focus":"explicit stress and final consonants"},
+  {"id":"cluster","language":"en","reading":"S T AA1 P | SP | P L IY1 Z | SP","focus":"initial clusters and pauses"},
+  {"id":"question","language":"en","text":"Are you ready?","focus":"question rhythm"},
+  {"id":"numbers","language":"en","text":"Meet me at 3:15.","focus":"number normalization"},
+  {"id":"schwa-auto","language":"en","text":"Another cup.","focus":"unstressed and stressed AH in one phrase"},
+  {"id":"schwa-coda","language":"en","reading":"AH0 B AW1 T | AH0 | M IH1 N AH0 T | SP","focus":"schwa with transitions and final consonants"},
+  {"id":"final-clusters","language":"en","text":"Next steps.","focus":"required consonants across words and at phrase end"}
+]

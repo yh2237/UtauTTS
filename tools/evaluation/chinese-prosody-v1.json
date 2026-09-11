@@ -1,0 +1,5 @@
+[
+  {"id":"greeting","language":"zh","text":"你好，世界。","focus":"third-tone sandhi and vowel alignment"},
+  {"id":"tones","language":"zh","reading":"ma1 ma2 ma3 ma4 ma5","focus":"diagnostic tone contours and neutral-tone duration"},
+  {"id":"question","language":"zh","text":"你准备好了吗？","focus":"third-tone sequence and neutral syllables"}
+]

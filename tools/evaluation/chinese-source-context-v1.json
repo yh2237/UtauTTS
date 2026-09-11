@@ -1,0 +1,5 @@
+[
+  {"id":"matching-h","language":"zh","reading":"ni3 he1","focus":"recover he from i_he recording"},
+  {"id":"matching-j","language":"zh","reading":"shi4 ji1","focus":"recover ji using matching previous vowel class"},
+  {"id":"mismatch-h","language":"zh","reading":"ni3 hao3","focus":"do not recover hao from i_he recording"}
+]

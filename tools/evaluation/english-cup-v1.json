@@ -1,0 +1,7 @@
+[
+ {"id":"cup","language":"en","phonemizer":"en-delta","reading":"K AH1 P | SP","focus":"isolated cup"},
+ {"id":"cup-of-strong","language":"en","phonemizer":"en-delta","reading":"K AH1 P | AH1 V | SP","focus":"strong of"},
+ {"id":"cup-of-weak","language":"en","phonemizer":"en-delta","reading":"K AH1 P | AH0 V | SP","focus":"weak of including stress-dependent prosody"},
+ {"id":"sentence-strong","language":"en","phonemizer":"en-delta","reading":"AH0 N AH1 DH ER0 | K AH1 P | AH1 V | K AA1 F IY0 | SP","focus":"original sentence reading"},
+ {"id":"sentence-weak","language":"en","phonemizer":"en-delta","reading":"AH0 N AH1 DH ER0 | K AH1 P | AH0 V | K AA1 F IY0 | SP","focus":"weak of including stress-dependent prosody"}
+]

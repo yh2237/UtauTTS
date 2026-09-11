@@ -1,0 +1,5 @@
+[
+ {"id":"cup","language":"en","phonemizer":"en-delta","reading":"K AH1 P | SP","focus":"cup vowel and stop audibility"},
+ {"id":"cap","language":"en","phonemizer":"en-delta","reading":"K AE1 P | SP","focus":"contrast with cap"},
+ {"id":"cop","language":"en","phonemizer":"en-delta","reading":"K AA1 P | SP","focus":"contrast with cop"}
+]

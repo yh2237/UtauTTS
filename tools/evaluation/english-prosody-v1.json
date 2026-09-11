@@ -1,0 +1,5 @@
+[
+  {"id":"greeting","language":"en","text":"Hello world.","focus":"weak syllable, stressed vowels and phrase ending"},
+  {"id":"rhythm","language":"en","text":"Another minute.","focus":"alternating unstressed and stressed syllables"},
+  {"id":"question","language":"en","text":"Are you ready?","focus":"sentence accent and question contour"}
+]

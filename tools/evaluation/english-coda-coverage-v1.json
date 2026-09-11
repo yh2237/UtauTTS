@@ -1,0 +1,18 @@
+[
+ {"id":"cup","language":"en","text":"cup"},
+ {"id":"cut","language":"en","text":"cut"},
+ {"id":"back","language":"en","text":"back"},
+ {"id":"cab","language":"en","text":"cab"},
+ {"id":"bed","language":"en","text":"bed"},
+ {"id":"dog","language":"en","text":"dog"},
+ {"id":"safe","language":"en","text":"safe"},
+ {"id":"save","language":"en","text":"save"},
+ {"id":"bus","language":"en","text":"bus"},
+ {"id":"fish","language":"en","text":"fish"},
+ {"id":"room","language":"en","text":"room"},
+ {"id":"sun","language":"en","text":"sun"},
+ {"id":"milk","language":"en","text":"milk"},
+ {"id":"next","language":"en","text":"next"},
+ {"id":"sentence","language":"en","text":"Put the cup back on the desk."},
+ {"id":"clusters","language":"en","text":"Next steps. Save the last file."}
+]
