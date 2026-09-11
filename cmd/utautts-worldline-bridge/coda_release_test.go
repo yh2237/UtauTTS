@@ -52,3 +52,13 @@ func TestCodaReleaseReachesBurstBeforeAudibleEnd(t *testing.T) {
 		t.Fatal("zero-preutterance CC mapping", z, ok)
 	}
 }
+
+func TestCodaReleasePreservesStopTransient(t *testing.T) {
+	u := unit{SkipMS: 70, LengthMS: 60, Speech: &provider.WorldSpeechTiming{
+		SourceOnsetMS: 100, TargetOnsetMS: 100, CodaRelease: true, ProtectStop: true,
+	}}
+	a, ok := worldSpeechAnchors(u, 300)
+	if !ok || a.protected != 26 || a.sourceTime(120) != 120 || a.sourceTime(130) != 300 {
+		t.Fatalf("anchors=%+v ok=%v", a, ok)
+	}
+}

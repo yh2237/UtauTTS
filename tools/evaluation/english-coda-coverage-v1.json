@@ -13,6 +13,10 @@
  {"id":"sun","language":"en","text":"sun"},
  {"id":"milk","language":"en","text":"milk"},
  {"id":"next","language":"en","text":"next"},
+ {"id":"world","language":"en","text":"world"},
+ {"id":"cold","language":"en","text":"cold"},
+ {"id":"held","language":"en","text":"held"},
+ {"id":"find","language":"en","text":"find"},
  {"id":"sentence","language":"en","text":"Put the cup back on the desk."},
  {"id":"clusters","language":"en","text":"Next steps. Save the last file."}
 ]

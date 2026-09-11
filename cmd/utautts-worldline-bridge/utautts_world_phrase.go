@@ -82,6 +82,8 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 	if err != nil {
 		return nil, err
 	}
+	// WORLDのフレーム分析で薄くなりやすい破裂音の瞬間成分を補う。
+	mixProtectedStopBursts(input, prepared, wave, input.SampleRate)
 	if path := os.Getenv("UTAUTTS_WORLD_PROFILE"); path != "" {
 		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {

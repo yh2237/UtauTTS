@@ -293,6 +293,10 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 			fadeInMS = envelopePoints[1].XMS - envelopePoints[0].XMS
 			fadeOutMS = envelopePoints[4].XMS - envelopePoints[3].XMS
 		}
+		codaRelease := providerID == "utautts-world-phrase" && worldCodaReleaseEligible(synthesisPlan, *unit)
+		if codaRelease {
+			envelopePoints, fadeOutMS = codaReleaseEnvelope(*unit, envelopePoints, fadeOutMS)
+		}
 		cacheSource := source
 		cacheVolume := volume
 		if customWorld {
@@ -313,8 +317,8 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 			}
 			speech.ProtectTransition = synthesisPlan.ProtectContextTransition && (unit.SourceContext == "existing" || unit.SourceContext == "recovered-vc")
 		}
-		if providerID == "utautts-world-phrase" && worldCodaReleaseEligible(synthesisPlan, *unit) {
-			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS, TargetOnsetMS: skipMS + unit.NoteStartMS + leadingMS - positionMS, CodaRelease: true}
+		if codaRelease {
+			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS, TargetOnsetMS: skipMS + unit.NoteStartMS + leadingMS - positionMS, CodaRelease: true, ProtectStop: codaReleaseStop(*unit)}
 		}
 		manifest.Units = append(manifest.Units, worldlineManifestUnit{
 

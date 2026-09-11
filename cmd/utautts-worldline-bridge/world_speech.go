@@ -29,6 +29,9 @@ func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
 		if !math.IsNaN(a.targetEnd) && !math.IsInf(a.targetEnd, 0) && a.sourceOnset >= 0 && a.targetOnset >= 0 && (a.targetOnset > 0 || a.sourceOnset == 0) && a.sourceEnd-a.sourceOnset >= 10 && a.targetEnd-a.targetOnset >= 10 {
 			a.coda = true
 			a.targetFixed = a.targetEnd
+			if item.Speech.ProtectStop {
+				a.protected = math.Min(30, math.Min(a.sourceEnd-a.sourceOnset-4, a.targetEnd-a.targetOnset-4))
+			}
 			return a, true
 		}
 		return worldSpeechMap{}, false
@@ -62,7 +65,10 @@ func (a worldSpeechMap) sourceTime(t float64) float64 {
 		if t < a.targetOnset {
 			return t * a.sourceOnset / a.targetOnset
 		}
-		return a.sourceOnset + (t-a.targetOnset)*(a.sourceEnd-a.sourceOnset)/(a.targetEnd-a.targetOnset)
+		if t < a.targetOnset+a.protected {
+			return a.sourceOnset + t - a.targetOnset
+		}
+		return a.sourceOnset + a.protected + (t-a.targetOnset-a.protected)*(a.sourceEnd-a.sourceOnset-a.protected)/(a.targetEnd-a.targetOnset-a.protected)
 	}
 	switch {
 	case t < a.targetOnset-a.protected:

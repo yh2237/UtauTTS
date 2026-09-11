@@ -105,6 +105,21 @@ func TestEnglishCVVCSplitsFinalCluster(t *testing.T) {
 	if units[0].Aliases.Endings[0][0] != "E k" || units[0].Aliases.Endings[1][0] != "k st-" {
 		t.Fatalf("endings=%#v", units[0].Aliases.Endings)
 	}
+	for _, alias := range []string{"k st", "kst", "st-", "st"} {
+		if !containsString(units[0].Aliases.Endings[1], alias) {
+			t.Fatalf("missing fallback %q: %#v", alias, units[0].Aliases.Endings[1])
+		}
+	}
+}
+
+func TestEnglishFinalClusterCanUseLastConsonantAlone(t *testing.T) {
+	_, units, err := ParseEnglishDelta("world", "", nil)
+	if err != nil || len(units) != 1 || len(units[0].Aliases.Endings) != 2 {
+		t.Fatalf("units=%#v err=%v", units, err)
+	}
+	if !containsString(units[0].Aliases.Endings[1], "d") {
+		t.Fatalf("d fallback missing: %#v", units[0].Aliases.Endings[1])
+	}
 }
 
 func TestEnglishSyllabificationSplitsIllegalOnset(t *testing.T) {

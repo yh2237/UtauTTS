@@ -319,8 +319,13 @@ func englishTerminalConsonants(vowels, coda []string, symbols map[string][]strin
 	}
 	for _, left := range first {
 		for _, right := range rest {
-			restAliases = append(restAliases, left+separator+right+"-", left+right+"-")
+			restAliases = append(restAliases,
+				left+separator+right+"-", left+right+"-",
+				left+separator+right, left+right)
 		}
+	}
+	for _, value := range rest {
+		restAliases = append(restAliases, value+"-", value)
 	}
 	return [][]string{uniqueStrings(firstAliases), uniqueStrings(restAliases)}
 }

@@ -196,7 +196,10 @@ if ($standaloneDevelopmentPackage) {
     }
 }
 # ホストと同じリビジョンの音声合成ブリッジを組み込む。
-$worldBridgeDirectory = Join-Path $OutputDirectory 'runtime'
+if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
+    throw 'Qt package output directory was not resolved'
+}
+$worldBridgeDirectory = [IO.Path]::Combine($OutputDirectory, 'runtime')
 New-Item -ItemType Directory -Force -Path $worldBridgeDirectory | Out-Null
 Push-Location $root
 try {
