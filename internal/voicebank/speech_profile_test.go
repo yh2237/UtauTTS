@@ -26,6 +26,9 @@ func TestSpeechProfileBoundedAndInvalidated(t *testing.T) {
 	if !profile.Applied || math.Abs(profile.SuggestedFixedMS-100) > 20 || math.Abs(profile.F0Hz-200) > 5 {
 		t.Fatalf("profile: %+v", profile)
 	}
+	if math.Abs(profile.TrimmedLengthMS-500) > 0.01 || math.Abs(profile.VowelTailMS-400) > 0.01 {
+		t.Fatalf("source metrics: %+v", profile)
+	}
 	for i := range pcm.Data {
 		pcm.Data[i] = 0
 	}

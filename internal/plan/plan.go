@@ -32,6 +32,7 @@ type Config struct {
 type Plan struct {
 	WordBoundaryEnvelope     bool                     `json:"word_boundary_envelope,omitempty"`
 	ProtectContextTransition bool                     `json:"protect_context_transition,omitempty"`
+	SingleCV                 bool                     `json:"single_cv,omitempty"`
 	SpeechTiming             bool                     `json:"speech_timing,omitempty"`
 	PhoneTimings             []PhoneTiming            `json:"phone_timings,omitempty"`
 	MissingPhones            []voicebank.SpeechGap    `json:"missing_phones,omitempty"`
@@ -81,6 +82,7 @@ func Clone(source *Plan) *Plan {
 	result.Units = append([]Unit(nil), source.Units...)
 	for index := range result.Units {
 		result.Units[index].CodaPhones = append([]string(nil), source.Units[index].CodaPhones...)
+		result.Units[index].CVTimingWarnings = append([]string(nil), source.Units[index].CVTimingWarnings...)
 		if source.Units[index].SpeechProfile != nil {
 			profile := *source.Units[index].SpeechProfile
 			result.Units[index].SpeechProfile = &profile
@@ -163,6 +165,8 @@ type Unit struct {
 	ProtectedTransitionMS     float64                        `json:"protected_transition_ms,omitempty"`
 	SpeechRetimeApplied       bool                           `json:"speech_retime_applied,omitempty"`
 	SpeechJoinApplied         bool                           `json:"speech_join_applied,omitempty"`
+	CVTimingApplied           bool                           `json:"cv_timing_applied,omitempty"`
+	CVTimingWarnings          []string                       `json:"cv_timing_warnings,omitempty"`
 	SourceContext             string                         `json:"source_context,omitempty"`
 	SourceContextReason       string                         `json:"source_context_reason,omitempty"`
 	SpeechProfile             *voicebank.SpeechProfile       `json:"speech_profile,omitempty"`
@@ -258,6 +262,7 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 	}
 	result := &Plan{
 		SpeechTiming: cfg.SpeechTiming,
+		SingleCV:     voicebank.IsSingleCVSelections(selections),
 		Version:      Version, Voicebank: bank.Root, Reading: reading,
 		Morae: append([]frontend.Mora(nil), morae...),
 		Tone:  cfg.Tone, Color: cfg.Color, AcousticMode: cfg.AcousticMode,
@@ -320,10 +325,10 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			aliasKind = voicebank.ClassifyAlias(selection.Alias)
 		}
 		mainUnit := unitFromSelection(&selection, position, cursor, duration, prediction, "mora")
-		if cfg.SpeechTiming && mora.Vowel != "" && mora.Vowel != "cl" && !mainUnit.Silent {
+		if (cfg.SpeechTiming || result.SingleCV) && mora.Vowel != "" && mora.Vowel != "cl" && !mainUnit.Silent {
 			profile := bank.CalibrateSpeech(selection.Entry)
 			mainUnit.SpeechProfile = &profile
-			if profile.Applied {
+			if profile.Applied && !result.SingleCV {
 				mainUnit.ConsonantMS = profile.SuggestedFixedMS
 			}
 		}

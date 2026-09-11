@@ -287,6 +287,8 @@ type effectiveTiming struct {
 	consonantMS    float64
 	overlapMS      float64
 	scale          float64
+	cvApplied      bool
+	cvWarnings     []string
 }
 
 func Render(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
@@ -418,11 +420,13 @@ func renderWaveformWithStretch(synthesisPlan *plan.Plan, cfg Config, parallelRet
 		unit := &synthesisPlan.Units[i]
 		unit.SpeechRetimeApplied = false
 		unit.SpeechJoinApplied = false
-		timings[i] = normalizeTiming(*unit, cfg.ReleaseMS)
+		timings[i] = normalizePlanTiming(synthesisPlan, *unit, cfg.ReleaseMS)
 		unit.TimingScale = timings[i].scale
 		unit.EffectivePreutteranceMS = timings[i].preutteranceMS
 		unit.EffectiveConsonantMS = timings[i].consonantMS
 		unit.EffectiveOverlapMS = timings[i].preutteranceMS - fadeInDurationMS(timings[i])
+		unit.CVTimingApplied = timings[i].cvApplied
+		unit.CVTimingWarnings = append([]string(nil), timings[i].cvWarnings...)
 		unit.IntonationFactor = 1
 	}
 	leadingMS := limitLeadingPreutterance(leadingPreutteranceMS(synthesisPlan.Units, timings), cfg.LeadingPreutteranceMS)
@@ -857,7 +861,7 @@ func normalizeTiming(unit plan.Unit, releaseMS float64) effectiveTiming {
 		minimumTailMS := releaseMS + math.Max(40, unit.DurationMS*0.35)
 		consonant = math.Min(consonant, math.Max(0, targetMS-minimumTailMS))
 	}
-	return effectiveTiming{preutterance, consonant, overlap, scale}
+	return effectiveTiming{preutteranceMS: preutterance, consonantMS: consonant, overlapMS: overlap, scale: scale}
 }
 
 func resampleForPitch(source []float64, factor float64) []float64 {

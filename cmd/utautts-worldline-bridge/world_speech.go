@@ -19,7 +19,7 @@ func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
 	shift := math.Max(0, item.OffsetMS) - math.Floor(math.Max(0, item.OffsetMS)/worldFramePeriodMS)*worldFramePeriodMS
 	a := worldSpeechMap{sourceOnset: item.Speech.SourceOnsetMS + shift, targetOnset: item.Speech.TargetOnsetMS,
 		sourceFixed: item.ConsonantMS + shift, sourceEnd: duration, targetEnd: item.RequiredLengthMS}
-	for _, v := range []float64{a.sourceOnset, a.targetOnset, a.sourceEnd, item.OffsetMS} {
+	for _, v := range []float64{a.sourceOnset, a.targetOnset, a.sourceEnd, item.OffsetMS, item.Speech.TargetFixedMS} {
 		if math.IsNaN(v) || math.IsInf(v, 0) {
 			return worldSpeechMap{}, false
 		}
@@ -44,9 +44,13 @@ func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
 	if a.sourceOnset < 4 || a.targetOnset < 4 || a.sourceFixed-a.sourceOnset < 4 || a.sourceEnd-a.sourceFixed < 20 || a.targetEnd-a.targetOnset < 24 {
 		return worldSpeechMap{}, false
 	}
-	ratio := (a.targetEnd - a.targetOnset) / (a.sourceEnd - a.sourceOnset)
-	transition := (a.sourceFixed - a.sourceOnset) * math.Max(.75, math.Min(1.25, math.Sqrt(ratio)))
-	a.targetFixed = math.Min(a.targetEnd-20, a.targetOnset+math.Max(4, transition))
+	if item.Speech.TargetFixedMS > 0 {
+		a.targetFixed = math.Min(a.targetEnd-20, math.Max(a.targetOnset+4, item.Speech.TargetFixedMS))
+	} else {
+		ratio := (a.targetEnd - a.targetOnset) / (a.sourceEnd - a.sourceOnset)
+		transition := (a.sourceFixed - a.sourceOnset) * math.Max(.75, math.Min(1.25, math.Sqrt(ratio)))
+		a.targetFixed = math.Min(a.targetEnd-20, a.targetOnset+math.Max(4, transition))
+	}
 	if item.Speech.ProtectStop {
 		a.protected = math.Min(8, math.Min(a.sourceOnset-4, a.targetOnset-4))
 	}
@@ -91,7 +95,14 @@ func applyWorldSpeechJoins(input manifest, features *worldFeatures) map[int]prov
 		if item.Speech == nil || !item.Speech.VowelJoin || index == 0 {
 			continue
 		}
-		centerMS := item.PositionMS + item.Speech.TargetOnsetMS - item.SkipMS
+		joinMS := item.Speech.TargetJoinMS
+		if joinMS <= 0 {
+			joinMS = item.Speech.TargetOnsetMS
+		}
+		centerMS := item.PositionMS + joinMS - item.SkipMS
+		if math.IsNaN(centerMS) || math.IsInf(centerMS, 0) {
+			continue
+		}
 		center := int(math.Round(centerMS / worldFramePeriodMS))
 		start, end := center-2, center+2
 		if start <= lastEnd || start < 0 || end >= features.Frames {

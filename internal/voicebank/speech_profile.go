@@ -14,6 +14,8 @@ type SpeechProfile struct {
 	Version          int     `json:"version"`
 	SourceSize       int64   `json:"source_size"`
 	SourceModTime    int64   `json:"source_mod_time"`
+	TrimmedLengthMS  float64 `json:"trimmed_length_ms"`
+	VowelTailMS      float64 `json:"vowel_tail_ms"`
 	OriginalFixedMS  float64 `json:"original_fixed_ms"`
 	SuggestedFixedMS float64 `json:"suggested_fixed_ms"`
 	StableStartMS    float64 `json:"stable_start_ms"`
@@ -68,6 +70,8 @@ func measureSpeechProfile(wave []float64, rate int, entry oto.Entry, result Spee
 	if rate <= 0 || len(wave) < 32 || math.IsNaN(entry.Fixed) || math.IsInf(entry.Fixed, 0) {
 		return result
 	}
+	result.TrimmedLengthMS = float64(len(wave)) * 1000 / float64(rate)
+	result.VowelTailMS = math.Max(0, result.TrimmedLengthMS-math.Max(0, entry.Fixed))
 	// Downsample for analysis only; the renderer retains the original samples.
 	stride := max(1, rate/8000)
 	samples := make([]float64, 0, len(wave)/stride)

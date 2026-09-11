@@ -53,6 +53,18 @@ func TestWorldSpeechMappingAnchorsAndStop(t *testing.T) {
 	}
 }
 
+func TestWorldSpeechMappingHonorsTargetFixed(t *testing.T) {
+	u := unit{OffsetMS: 0, ConsonantMS: 100, RequiredLengthMS: 240, Speech: &provider.WorldSpeechTiming{
+		SourceOnsetMS: 60, TargetOnsetMS: 40, TargetFixedMS: 96}}
+	a, ok := worldSpeechAnchors(u, 400)
+	if !ok {
+		t.Fatal("valid anchors rejected")
+	}
+	if math.Abs(a.targetFixed-96) > 1e-9 {
+		t.Fatalf("target fixed = %.3f, want 96", a.targetFixed)
+	}
+}
+
 func speechTestFeatures() worldFeatures {
 	f := worldFeatures{Frames: 7, FFTSize: 2, F0: []float64{180, 190, 200, 220, 210, 190, 180}, Spectrum: make([]float64, 14), Aperiodicity: make([]float64, 14)}
 	for i := range f.Spectrum {
@@ -104,10 +116,27 @@ func TestWorldSpeechJoinEligibilityAndReport(t *testing.T) {
 	if len(applyWorldSpeechJoins(in, &f)) != 0 {
 		t.Fatal("smoothed across a third unit")
 	}
+	in.Units = in.Units[:2]
+	in.Units[1].Speech.TargetJoinMS = math.NaN()
+	f = speechTestFeatures()
+	if len(applyWorldSpeechJoins(in, &f)) != 0 {
+		t.Fatal("NaN join anchor was accepted")
+	}
+}
+
+func TestWorldSpeechJoinUsesExplicitAnchor(t *testing.T) {
+	in := manifest{Units: []unit{
+		{PositionMS: 0, LengthMS: 100},
+		{PositionMS: 20, LengthMS: 80, Speech: &provider.WorldSpeechTiming{UnitIndex: 1, TargetOnsetMS: 10, TargetJoinMS: 20, VowelJoin: true}},
+	}}
+	f := speechTestFeatures()
+	if !applyWorldSpeechJoins(in, &f)[1].JoinApplied {
+		t.Fatal("explicit anchor did not select the repair window")
+	}
 }
 
 func TestWorldSpeechWireAndUnsupportedEngine(t *testing.T) {
-	speech := &provider.WorldSpeechTiming{UnitIndex: 4, SourceOnsetMS: 30, TargetOnsetMS: 20, ProtectStop: true, VowelJoin: true}
+	speech := &provider.WorldSpeechTiming{UnitIndex: 4, SourceOnsetMS: 30, TargetOnsetMS: 20, TargetFixedMS: 55, TargetJoinMS: 30, ProtectStop: true, VowelJoin: true}
 	job := provider.UnitRendererJob{Version: provider.UnitRendererJobVersion, Contract: "unit-renderer", ContractVersion: 1,
 		Options: provider.UnitRendererOptions{Worldline: &provider.WorldlineOptions{Engine: "utautts-world-phrase", Units: []provider.WorldlineUnit{{Speech: speech}}}}}
 	data, _ := json.Marshal(job)

@@ -99,6 +99,8 @@ type WorldSpeechTiming struct {
 	TargetOnsetMS     float64 `json:"target_onset_ms"`
 	ProtectStop       bool    `json:"protect_stop,omitempty"`
 	VowelJoin         bool    `json:"vowel_join,omitempty"`
+	TargetFixedMS     float64 `json:"target_fixed_ms,omitempty"`
+	TargetJoinMS      float64 `json:"target_join_ms,omitempty"`
 }
 
 type WorldSpeechResult struct {

@@ -59,6 +59,8 @@ type RenderDiagnostic struct {
 type UnitRenderReport struct {
 	SpeechJoinApplied       bool
 	SpeechRetimeApplied     bool
+	CVTimingApplied         bool
+	CVTimingWarnings        []string
 	BoundaryEnvelope        string
 	ProtectedTransitionMS   float64
 	Index                   int
@@ -154,6 +156,8 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 		report.Units[index] = UnitRenderReport{
 			SpeechJoinApplied:       unit.SpeechJoinApplied,
 			SpeechRetimeApplied:     unit.SpeechRetimeApplied,
+			CVTimingApplied:         unit.CVTimingApplied,
+			CVTimingWarnings:        append([]string(nil), unit.CVTimingWarnings...),
 			BoundaryEnvelope:        unit.BoundaryEnvelope,
 			ProtectedTransitionMS:   unit.ProtectedTransitionMS,
 			Index:                   index,
@@ -189,6 +193,8 @@ func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 		}
 		unit := &synthesisPlan.Units[unitReport.Index]
 		unit.SpeechRetimeApplied = unitReport.SpeechRetimeApplied
+		unit.CVTimingApplied = unitReport.CVTimingApplied
+		unit.CVTimingWarnings = append([]string(nil), unitReport.CVTimingWarnings...)
 		unit.BoundaryEnvelope = unitReport.BoundaryEnvelope
 		unit.ProtectedTransitionMS = unitReport.ProtectedTransitionMS
 		unit.SpeechJoinApplied = unitReport.SpeechJoinApplied

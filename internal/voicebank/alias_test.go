@@ -57,8 +57,42 @@ func TestAliasCapabilitiesSummarizeVCVContexts(t *testing.T) {
 	if capabilities.VCVContexts["a"] != 1 || capabilities.VCVContexts["n"] != 1 || capabilities.VCVContexts["-"] != 1 {
 		t.Fatalf("contexts = %#v", capabilities.VCVContexts)
 	}
+	if capabilities.InitialAliases != 1 || capabilities.ContextVCV != 2 {
+		t.Fatalf("vcv context split = %+v", capabilities)
+	}
 	if !capabilities.HasVC || capabilities.VCContexts["あ"] != 1 {
 		t.Fatalf("vc capabilities = %+v", capabilities)
+	}
+}
+
+func TestInitialContextDoesNotCountAsRealVCV(t *testing.T) {
+	if !IsInitialContextAlias("- か") || !IsInitialContextAlias("- か C4") || IsInitialContextAlias("a か") {
+		t.Fatal("initial alias classification failed")
+	}
+	if !IsContextVCVAlias("a か") || !IsContextVCVAlias("a か C4") || IsContextVCVAlias("- か") {
+		t.Fatal("context VCV classification failed")
+	}
+	selections := []Selection{
+		{Alias: "- か C4"},
+		{Alias: "き", Kind: AliasCV},
+	}
+	if !IsSingleCVSelections(selections) {
+		t.Fatal("initial CV selection was not recognized")
+	}
+	selections[1] = Selection{Alias: "a き", Kind: AliasVCV}
+	if IsSingleCVSelections(selections) {
+		t.Fatal("real VCV selection was treated as standalone CV")
+	}
+}
+
+func TestAliasCapabilitiesRecognizeToneSuffixedContext(t *testing.T) {
+	bank := &Bank{Entries: map[string][]oto.Entry{
+		"- か C4": {{Alias: "- か C4"}},
+		"a か C4": {{Alias: "a か C4"}},
+	}}
+	capabilities := bank.AliasCapabilities()
+	if capabilities.InitialAliases != 1 || capabilities.ContextVCV != 1 || capabilities.Counts[AliasVCV] != 2 || !capabilities.HasInitialVCV || !capabilities.HasVCV {
+		t.Fatalf("tone-suffixed context = %+v", capabilities)
 	}
 }
 

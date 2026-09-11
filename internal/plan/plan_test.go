@@ -57,6 +57,24 @@ func TestBuildPlacesMoraeAndPause(t *testing.T) {
 	}
 }
 
+func TestBuildMarksStandaloneCVPlan(t *testing.T) {
+	morae, err := frontend.ParseKana("\u304b\u304d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	selections := []voicebank.Selection{
+		{Position: 0, Mora: morae[0], Alias: "\u304b", Kind: voicebank.AliasCV, Entry: oto.Entry{Filename: "ka.wav"}},
+		{Position: 1, Mora: morae[1], Alias: "\u304d", Kind: voicebank.AliasCV, Entry: oto.Entry{Filename: "ki.wav"}},
+	}
+	got, err := Build(&voicebank.Bank{Root: "bank"}, "\u304b\u304d", morae, selections, Config{MoraDurationMS: 140})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.SingleCV || got.Units[0].SpeechProfile == nil || got.Units[1].SpeechProfile == nil {
+		t.Fatalf("standalone CV metadata = %+v", got)
+	}
+}
+
 func TestBuildUsesPerMoraDurationOverride(t *testing.T) {
 	morae, err := frontend.ParseKana("あい")
 	if err != nil {

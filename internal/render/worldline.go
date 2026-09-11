@@ -117,7 +117,20 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	phraseStartMS := 0.0
 	phraseTiming := providerID == "worldline-r-faithful" || customWorld
 	if phraseTiming {
-		phoneTimings, phraseStartMS = openUtauPhoneTimingsWithCoda(synthesisPlan.Units, cfg.CVVCTiming, providerID == "utautts-world-phrase")
+		phoneUnits := synthesisPlan.Units
+		if synthesisPlan.SingleCV {
+			phoneUnits = append([]plan.Unit(nil), synthesisPlan.Units...)
+			for index := range phoneUnits {
+				if phoneUnits[index].Silent || phoneUnits[index].Role != "mora" {
+					continue
+				}
+				timing := normalizePlanTiming(synthesisPlan, phoneUnits[index], cfg.ReleaseMS)
+				phoneUnits[index].PreutteranceMS = timing.preutteranceMS
+				phoneUnits[index].OverlapMS = singleCVWorldOverlapMS(synthesisPlan, phoneUnits[index], timing.preutteranceMS)
+				phoneUnits[index].ConsonantMS = timing.consonantMS
+			}
+		}
+		phoneTimings, phraseStartMS = openUtauPhoneTimingsWithCoda(phoneUnits, cfg.CVVCTiming, providerID == "utautts-world-phrase")
 	}
 	leadingMS := limitLeadingPreutterance(math.Max(0, -phraseStartMS), cfg.LeadingPreutteranceMS)
 	synthesisPlan.LeadingMarginMS = leadingMS
@@ -127,17 +140,21 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		unit.BoundaryEnvelope = ""
 		unit.ProtectedTransitionMS = 0
 		unit.SpeechJoinApplied = false
-		timings[i] = normalizeTiming(*unit, cfg.ReleaseMS)
+		timings[i] = normalizePlanTiming(synthesisPlan, *unit, cfg.ReleaseMS)
 		if len(phoneTimings) == len(synthesisPlan.Units) && !unit.Silent {
 			timings[i].preutteranceMS = phoneTimings[i].preutter
 			timings[i].overlapMS = phoneTimings[i].overlap
-			timings[i].consonantMS = unit.ConsonantMS
-			timings[i].scale = 1
+			if !synthesisPlan.SingleCV || unit.Role != "mora" {
+				timings[i].consonantMS = unit.ConsonantMS
+				timings[i].scale = 1
+			}
 		}
 		unit.TimingScale = timings[i].scale
 		unit.EffectivePreutteranceMS = timings[i].preutteranceMS
 		unit.EffectiveConsonantMS = timings[i].consonantMS
 		unit.EffectiveOverlapMS = timings[i].overlapMS
+		unit.CVTimingApplied = timings[i].cvApplied
+		unit.CVTimingWarnings = append([]string(nil), timings[i].cvWarnings...)
 		unit.IntonationFactor = 1
 	}
 	intonation := identityFactors(len(synthesisPlan.Units))
@@ -239,6 +256,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		skipMS := 0.0
 		lengthMS := requiredLength
 		pitchStartMS := positionMS
+		singleCVUnit := synthesisPlan.SingleCV && unit.Role == "mora"
 		volume, modulation, tempo := 100.0, 0.0, 120.0
 		if unit.Role == "transition" {
 			volume *= cfg.CVVCTransitionGain
@@ -248,6 +266,9 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		if phraseTiming {
 			// OpenUTAUと同じ位置からbendを始め、先頭の余剰をskipする。
 			pitchLeadingMS := unit.PreutteranceMS
+			if singleCVUnit {
+				pitchLeadingMS = phoneTimings[i].preutter
+			}
 			skipMS = math.Max(0, pitchLeadingMS-timing.preutteranceMS)
 			pitchStartMS = unit.NoteStartMS - pitchLeadingMS
 			durCorrection := 0.0
@@ -266,7 +287,11 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 				}
 				positionMS = unit.NoteStartMS - phoneTiming.preutter + leadingMS
 			}
-			requiredLength = math.Max(unit.DurationMS+durCorrection+skipMS, unit.ConsonantMS)
+			consonantLength := unit.ConsonantMS
+			if singleCVUnit {
+				consonantLength = timing.consonantMS
+			}
+			requiredLength = math.Max(unit.DurationMS+durCorrection+skipMS, consonantLength)
 			requiredLength = math.Ceil(requiredLength/50+0.5) * 50
 			if cfg.ProviderOptions.Worldline.ExactLength {
 				requiredLength = unit.DurationMS
@@ -308,12 +333,24 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 			cacheKey += fmt.Sprintf("|fs=%d", sampleRate)
 		}
 		var speech *provider.WorldSpeechTiming
-		if providerID == "utautts-world-phrase" && synthesisPlan.SpeechTiming && unit.Role == "mora" && unit.SpeechProfile != nil && unit.SpeechProfile.Applied {
+		if providerID == "utautts-world-phrase" && unit.Role == "mora" && (singleCVUnit || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied) {
+			targetOnset := skipMS + unit.NoteStartMS + leadingMS - positionMS
+			if singleCVUnit {
+				targetOnset = timing.preutteranceMS
+			}
 			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS,
-				TargetOnsetMS: skipMS + unit.NoteStartMS + leadingMS - positionMS, ProtectStop: speechStop(synthesisPlan, *unit)}
+				TargetOnsetMS: targetOnset, ProtectStop: speechStop(synthesisPlan, *unit)}
+			if singleCVUnit {
+				speech.TargetFixedMS = timing.consonantMS
+			}
 			if i > 0 {
-				speech.VowelJoin = !synthesisPlan.Units[i-1].Silent && speechVowelJoin(synthesisPlan,
-					renderedUnit{index: i - 1, unit: synthesisPlan.Units[i-1]}, renderedUnit{index: i, unit: *unit})
+				if singleCVUnit && singleCVMoraBoundaryEligible(synthesisPlan, i) && !singleCVProtectedOnset(synthesisPlan, *unit) {
+					speech.VowelJoin = true
+					speech.TargetJoinMS = timing.preutteranceMS
+				} else {
+					speech.VowelJoin = !synthesisPlan.Units[i-1].Silent && speechVowelJoin(synthesisPlan,
+						renderedUnit{index: i - 1, unit: synthesisPlan.Units[i-1]}, renderedUnit{index: i, unit: *unit})
+				}
 			}
 			speech.ProtectTransition = synthesisPlan.ProtectContextTransition && (unit.SourceContext == "existing" || unit.SourceContext == "recovered-vc")
 		}

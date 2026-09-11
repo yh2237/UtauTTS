@@ -45,13 +45,17 @@ type boundaryRepairChoice struct {
 }
 
 func applyBoundaryBridges(mix, mixWeights []float64, rendered []renderedUnit, synthesisPlan *plan.Plan, cfg Config, sampleRate int) {
-	if (cfg.BoundaryBridgeMS <= 0 && !synthesisPlan.SpeechTiming) || sampleRate <= 0 || len(rendered) < 2 {
+	if (cfg.BoundaryBridgeMS <= 0 && !synthesisPlan.SpeechTiming && !synthesisPlan.SingleCV) || sampleRate <= 0 || len(rendered) < 2 {
 		return
 	}
 
 	bridgeMS := math.Max(minimumBoundaryBridgeMS, math.Min(maximumBoundaryBridgeMS, cfg.BoundaryBridgeMS))
 	automaticSpeech := cfg.BoundaryBridgeMS <= 0
 	if automaticSpeech {
+		if synthesisPlan.SingleCV {
+			applySingleCVBoundaryBridges(mix, mixWeights, rendered, synthesisPlan, sampleRate)
+			return
+		}
 		bridgeMS = 20
 	}
 	extractor := connection.NewExtractor()
@@ -112,6 +116,61 @@ func applyBoundaryBridges(mix, mixWeights []float64, rendered []renderedUnit, sy
 			SelectedPeak:     choice.selected.peak,
 			BaselineDeltaRMS: choice.baseline.deltaRMS,
 			SelectedDeltaRMS: choice.selected.deltaRMS,
+		})
+	}
+}
+
+// applySingleCVBoundaryBridges はCV境界へ短い母音末尾だけを補う
+// 次の子音を主信号として残し子音の欠落を防ぐ
+func applySingleCVBoundaryBridges(mix, mixWeights []float64, rendered []renderedUnit, synthesisPlan *plan.Plan, sampleRate int) {
+	if sampleRate <= 0 || len(mix) == 0 || len(mixWeights) != len(mix) {
+		return
+	}
+	for index := 1; index < len(rendered); index++ {
+		previous, current := rendered[index-1], rendered[index]
+		if !singleCVBoundaryEligible(synthesisPlan, previous, current) {
+			continue
+		}
+		if singleCVProtectedOnset(synthesisPlan, current.unit) {
+			// 破裂音と破擦音の閉鎖や破裂を残す
+			continue
+		}
+		widthFrames := min(msToFrames(12, sampleRate), current.fadeInFrames)
+		widthFrames = min(widthFrames, len(mix)-max(0, current.startFrame))
+		if widthFrames < msToFrames(minimumBoundaryBridgeMS, sampleRate) {
+			continue
+		}
+		start := max(1, current.startFrame)
+		end := min(len(mix), start+widthFrames)
+		if end-start != widthFrames {
+			continue
+		}
+		target := normalizedMix(mix, mixWeights, start, end)
+		segment, lagFrames, correlation := bestAlignedVowelSegment(previous, target, widthFrames, sampleRate)
+		if len(segment) != widthFrames || correlation < 0.3 {
+			continue
+		}
+		segment = matchLevelAndMean(segment, target)
+		baseline := measureTransition(target)
+		for frame := range target {
+			alpha := 0.18 * bridgeEnvelope(frame, widthFrames)
+			mix[start+frame] = target[frame]*(1-alpha) + segment[frame]*alpha
+			mixWeights[start+frame] = 1
+		}
+		synthesisPlan.Units[current.index].SpeechJoinApplied = true
+		selected := measureTransition(normalizedMix(mix, mixWeights, start, end))
+		synthesisPlan.BoundaryBridges = append(synthesisPlan.BoundaryBridges, plan.BoundaryBridge{
+			UnitIndex: current.index, Position: current.unit.Position,
+			StartMS: framesToMS(start, sampleRate), EndMS: framesToMS(end, sampleRate),
+			DurationMS: framesToMS(widthFrames, sampleRate), LagMS: framesToMS(lagFrames, sampleRate),
+			Correlation: correlation, Source: previous.unit.Source, Kind: "single-cv-vowel-tail",
+		})
+		synthesisPlan.BoundaryRepairDecisions = append(synthesisPlan.BoundaryRepairDecisions, plan.BoundaryRepairDecision{
+			UnitIndex: current.index, Position: current.unit.Position, CandidateCount: 1,
+			SelectedKind: "single-cv-vowel-tail", Applied: true, DurationMS: framesToMS(widthFrames, sampleRate),
+			LagMS: framesToMS(lagFrames, sampleRate), Correlation: correlation,
+			BaselinePeak: baseline.peak, SelectedPeak: selected.peak,
+			BaselineDeltaRMS: baseline.deltaRMS, SelectedDeltaRMS: selected.deltaRMS,
 		})
 	}
 }
