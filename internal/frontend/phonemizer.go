@@ -113,6 +113,7 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 			continue
 		}
 		for syllableIndex, syllable := range syllables {
+			vowels := englishSyllableVowels(syllable, symbols)
 			atPhraseStart := phraseStart
 			mainOnset := syllable.onset
 			if syllableIndex == 0 && wordIndex > 0 && len(syllableWords[wordIndex-1]) > 0 && len(mainOnset) == 0 {
@@ -126,9 +127,9 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 				bridgeOnset := append([]string{syllables[syllableIndex-1].coda[len(syllables[syllableIndex-1].coda)-1]}, syllable.onset...)
 				mainOnset = bridgeOnset
 			}
-			main := englishMainAliases(mainOnset, symbols[syllable.vowel], symbols)
+			main := englishMainAliases(mainOnset, vowels, symbols)
 			if !sameStrings(mainOnset, syllable.onset) {
-				main = append(main, englishMainAliases(syllable.onset, symbols[syllable.vowel], symbols)...)
+				main = append(main, englishMainAliases(syllable.onset, vowels, symbols)...)
 			}
 			if atPhraseStart {
 				prefix := "-"
@@ -153,14 +154,14 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 			units = append(units, Mora{
 				Language: LanguageEnglish, WordIndex: wordIndex, WordEnd: syllableIndex+1 == len(syllables),
 				Phones: englishSyllablePhones(syllable),
-				Text:   main[0], Consonant: strings.Join(syllable.onset, " "), Vowel: symbols[syllable.vowel][0], Stress: syllable.stress,
+				Text:   main[0], Consonant: strings.Join(syllable.onset, " "), Vowel: vowels[0], Stress: syllable.stress,
 				Aliases: &AliasHints{Main: main, MainKinds: repeatAliasKind("cv", len(main)), Transition: uniqueStrings(transitions)},
 			})
 			current := &units[len(units)-1]
 			if atPhraseStart && len(syllable.onset) > 1 {
 				current.Aliases.MainMissing = make(map[string][]string)
 				for start := 1; start < len(syllable.onset); start++ {
-					for _, alias := range combineEnglishAliases(syllable.onset[start:], symbols[syllable.vowel], symbols) {
+					for _, alias := range combineEnglishAliases(syllable.onset[start:], vowels, symbols) {
 						for _, prefix := range []string{"", "-", "- "} {
 							current.Aliases.MainMissing[prefix+alias] = append([]string(nil), syllable.onset[:start]...)
 						}
@@ -168,7 +169,7 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 				}
 			}
 			current.StressKnown = syllable.stressKnown
-			previousVowels = symbols[syllable.vowel]
+			previousVowels = vowels
 			lastSyllable := syllableIndex+1 == len(syllables)
 			lastWord := wordIndex+1 == len(syllableWords) || len(syllableWords[wordIndex+1]) == 0
 			if len(syllable.coda) > 0 {
@@ -200,6 +201,14 @@ type englishSyllable struct {
 	coda        []string
 	stress      int
 	stressKnown bool
+}
+
+// CMUdictのAH0は曖昧母音として扱い AXエイリアスを優先する。
+func englishSyllableVowels(s englishSyllable, symbols map[string][]string) []string {
+	if s.vowel == "ah" && s.stressKnown && s.stress == 0 {
+		return uniqueStrings(append(append([]string(nil), symbols["ax"]...), symbols["ah"]...))
+	}
+	return symbols[s.vowel]
 }
 
 func syllabifyEnglishWord(raw []string, symbols map[string][]string) ([]englishSyllable, error) {
@@ -336,6 +345,15 @@ func englishSyllableBridge(vowels, coda, nextOnset []string, symbols map[string]
 			bridge = append(bridge, left+separator+right, left+right)
 		}
 	}
+	// 語境界の子音連続がなくても語末子音全体を選べるようにする。
+	if len(coda) > 1 && len(nextOnset) > 0 {
+		codaRest := combineEnglishAliases(coda[1:], []string{""}, symbols)
+		for _, left := range first {
+			for _, right := range codaRest {
+				bridge = append(bridge, left+separator+right, left+right, left+separator+right+"-", left+right+"-")
+			}
+		}
+	}
 	return append(result, uniqueStrings(bridge))
 }
 
@@ -367,7 +385,7 @@ func englishPronunciation(text, reading string, dictionary map[string]string) (s
 			return "", nil, fmt.Errorf("English text contains no words")
 		}
 		parts := make([]string, 0, len(words))
-		for _, word := range words {
+		for index, word := range words {
 			if word == "<pause>" {
 				result = append(result, []string{"SP"})
 				parts = append(parts, "SP")
@@ -382,6 +400,10 @@ func englishPronunciation(text, reading string, dictionary map[string]string) (s
 				value, err = englishWordPronunciation(word)
 				if err != nil {
 					return "", nil, err
+				}
+				// ofの弱形は句中だけ補い 明示した読みと辞書を優先する。
+				if strings.EqualFold(word, "of") && index > 0 && index+1 < len(words) && words[index-1] != "<pause>" && words[index+1] != "<pause>" {
+					value = "AH0 V"
 				}
 			}
 			fields := strings.Fields(value)
@@ -562,21 +584,43 @@ func ParseChineseCVVCWithConfig(text, reading string, dictionary map[string]stri
 		if replacement := config.Replacements[syllable]; replacement != "" {
 			syllable = replacement
 		}
+		spellings := chineseAliasSpellings(syllable)
 		initial, final := config.Consonants[syllable], config.Vowels[syllable]
+		// WAV名とpresamp.iniでuとvが異なる音源にも対応する。
+		for _, spelling := range spellings[1:] {
+			if initial == "" {
+				initial = config.Consonants[spelling]
+			}
+			if final == "" {
+				final = config.Vowels[spelling]
+			}
+		}
 		if final == "" {
-			initial, final = splitPinyin(syllable)
+			fallbackInitial, fallbackFinal := splitPinyin(syllable)
+			if initial == "" {
+				initial = fallbackInitial
+			}
+			final = fallbackFinal
 		}
 		if final == "" {
 			return "", nil, fmt.Errorf("invalid Pinyin syllable %q", raw)
 		}
-		candidates := []string{syllable}
-		kinds := []string{"cv"}
+		candidates := append([]string(nil), spellings...)
+		kinds := repeatAliasKind("cv", len(spellings))
 		if phraseStart {
-			candidates = append([]string{"- " + syllable}, candidates...)
-			kinds = append([]string{"vcv"}, kinds...)
+			var starts []string
+			for _, spelling := range spellings {
+				starts = append(starts, "- "+spelling)
+			}
+			candidates = append(starts, candidates...)
+			kinds = append(repeatAliasKind("vcv", len(starts)), kinds...)
 		} else if previousFinal != "" {
-			candidates = append([]string{previousFinal + " " + syllable}, candidates...)
-			kinds = append([]string{"vcv"}, kinds...)
+			var connected []string
+			for _, spelling := range spellings {
+				connected = append(connected, previousFinal+" "+spelling)
+			}
+			candidates = append(connected, candidates...)
+			kinds = append(repeatAliasKind("vcv", len(connected)), kinds...)
 		}
 		mora := Mora{Language: LanguageChinese, WordIndex: syllableIndex, WordEnd: true, Text: syllable, Consonant: initial, Vowel: final, Tone: tone, Aliases: &AliasHints{Main: candidates, MainKinds: kinds}}
 		if len(tokens) == len(syllables) {
@@ -614,6 +658,12 @@ func setChineseEnding(mora *Mora, config PresampConfig) {
 	}
 	endings = append(endings, mora.Vowel+" R")
 	mora.Aliases.Endings = [][]string{uniqueStrings(endings)}
+}
+
+func chineseAliasSpellings(syllable string) []string {
+	// üeだけu表記とv表記を補完する。nuとnv、luとlvは別の母音として扱う。
+	other := map[string]string{"nve": "nue", "nue": "nve", "lve": "lue", "lue": "lve"}[syllable]
+	return uniqueStrings([]string{syllable, other})
 }
 
 func chineseSyllables(text string, dictionary map[string]string) ([]string, error) {

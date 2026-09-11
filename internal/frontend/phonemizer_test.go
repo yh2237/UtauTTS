@@ -65,10 +65,10 @@ func TestParseEnglishDelta(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(units) != 2 || units[0].Aliases.Main[0] != "- hV" || units[1].Aliases.Main[0] != "loU" {
+	if len(units) != 2 || units[0].Aliases.Main[0] != "- h@" || units[1].Aliases.Main[0] != "loU" {
 		t.Fatalf("units=%#v", units)
 	}
-	if units[1].Aliases.Transition[0] != "V l" {
+	if units[1].Aliases.Transition[0] != "@ l" {
 		t.Fatalf("transition=%#v", units[1].Aliases.Transition)
 	}
 }
@@ -78,10 +78,10 @@ func TestParseEnglishVCCV(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(units) != 2 || units[0].Aliases.Main[0] != "-hu" || units[1].Aliases.Main[0] != "lO" {
+	if len(units) != 2 || units[0].Aliases.Main[0] != "-hx" || units[1].Aliases.Main[0] != "lO" {
 		t.Fatalf("units=%#v", units)
 	}
-	if units[1].Aliases.Transition[0] != "u l" {
+	if units[1].Aliases.Transition[0] != "x l" {
 		t.Fatalf("transition=%#v", units[1].Aliases.Transition)
 	}
 }
