@@ -124,6 +124,16 @@ func TestRepositoryBundlesSelfDescribingModels(t *testing.T) {
 			t.Fatalf("incomplete bundled model: %#v", model)
 		}
 	}
+	var english *Model
+	for index := range models {
+		if models[index].ID == "english-intonation-v1" {
+			english = &models[index]
+			break
+		}
+	}
+	if english == nil || english.Language != "en" || !english.FrameContour || english.RequiresFeatures {
+		t.Fatalf("English model metadata = %#v", english)
+	}
 }
 
 func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {

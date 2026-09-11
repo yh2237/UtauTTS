@@ -363,6 +363,7 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 			continue
 		}
 		applyCompositePreferences(candidatesAtPosition, policy)
+		applyEnglishCandidatePreferences(candidatesAtPosition, previousLayer)
 		b.populateAcousticScores(candidatesAtPosition, previousLayer, acousticMode)
 		if len(candidatesAtPosition) > maxCandidatesPerPosition {
 			sort.SliceStable(candidatesAtPosition, func(i, j int) bool {

@@ -65,6 +65,63 @@ func TestAliasProfilesBundleSelectionAndRendererSettings(t *testing.T) {
 	}
 }
 
+func TestEnglishSpeechProfileKeepsCVVCTransitionsAudible(t *testing.T) {
+	cfg := Config{AliasPolicy: voicebank.AliasPolicyCVVCPrefer, CVVCTransitionGain: 0.35}
+	applyLanguageSpeechProfile(frontend.LanguageEnglish, &cfg)
+	if cfg.CVVCTransitionGain != 0.55 {
+		t.Fatalf("English transition gain = %.2f, want 0.55", cfg.CVVCTransitionGain)
+	}
+	cfg.CVVCTransitionGain = 0.6
+	applyLanguageSpeechProfile(frontend.LanguageEnglish, &cfg)
+	if cfg.CVVCTransitionGain != 0.6 {
+		t.Fatalf("explicit transition gain was changed: %.2f", cfg.CVVCTransitionGain)
+	}
+	applyLanguageSpeechProfile(frontend.LanguageJapanese, &cfg)
+	if cfg.CVVCTransitionGain != 0.6 {
+		t.Fatalf("Japanese transition gain was changed: %.2f", cfg.CVVCTransitionGain)
+	}
+}
+
+func TestResolveProsodyModelForLanguageUsesBundledEnglishFallback(t *testing.T) {
+	directory := t.TempDir()
+	japanesePath := filepath.Join(directory, "frame-intonation-v8.json")
+	englishPath := filepath.Join(directory, "english-intonation-v1.json")
+	japanese := &prosody.Model{
+		Version: prosody.FramePitchModelVersion, FeatureVersion: 1, Mode: "intonation_frame_tcn_accent_bounded",
+		FramePitch: &prosody.FramePitchModel{
+			FeatureNames: []string{"bias"}, InputWeights: [][]float64{{0}}, InputBias: []float64{0},
+			OutputWeight: []float64{0}, FrameMS: 10, LowCents: -100, HighCents: 100,
+		},
+	}
+	if err := japanese.Save(japanesePath); err != nil {
+		t.Fatal(err)
+	}
+	english := &prosody.Model{
+		Language: frontend.LanguageEnglish, Version: prosody.EnglishIntonationModelVersion,
+		FeatureVersion: 1, Mode: "english_intonation_v1",
+		EnglishIntonation: &prosody.EnglishIntonationModel{
+			FrameMS: 10, BaselineStartCents: 42, BaselineEndCents: -42,
+			PrimaryStressCents: 64, SecondaryStressCents: 34, UnstressedCents: -14,
+			PreStressDipCents: -12, WordDownstepCents: 4, PhraseFinalFallCents: -38,
+			QuestionRiseCents: 72, SmoothingMS: 18, LowCents: -180, HighCents: 180,
+			P99Cents: 90, MaxCents: 105, PrimaryDurationFactor: 1.18,
+			SecondaryDurationFactor: 1.08, UnstressedDurationFactor: 0.88,
+			PhraseFinalDurationFactor: 1.08,
+		},
+	}
+	if err := english.Save(englishPath); err != nil {
+		t.Fatal(err)
+	}
+	got, err := resolveProsodyModelForLanguage(Config{ProsodyModelPath: japanesePath}, frontend.LanguageEnglish)
+	if err != nil || got == nil || got.Language != frontend.LanguageEnglish {
+		t.Fatalf("English fallback = %#v err=%v", got, err)
+	}
+	got, err = resolveProsodyModelForLanguage(Config{ProsodyModelPath: japanesePath}, frontend.LanguageJapanese)
+	if err != nil || got == nil || got.Language != "" {
+		t.Fatalf("Japanese model = %#v err=%v", got, err)
+	}
+}
+
 func TestMoraTimingsIncludePausesMissingFromPlanUnits(t *testing.T) {
 	morae := []frontend.Mora{{Text: "a"}, {Pause: true}, {Text: "i"}}
 	p := &plan.Plan{DurationMS: 380, Units: []plan.Unit{

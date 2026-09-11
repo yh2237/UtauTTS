@@ -88,6 +88,8 @@ voice/
 
 文頭が欠ける音源では「文頭の長さ」を長くし、余計なノイズを拾う音源では短くしてください。新規作成したカードに使う既定値は「設定」→「設定...」から変更できます。初期状態では原音形式が自動、音高が`C4`、抑揚が2、モーラ長が120 ms、休止長が180 ms、抑揚モデルが`frame-intonation-v8`、Rendererが`utautts-world-phrase`です。
 
+英語のカードでは、抑揚モデルが日本語用のままでも同梱の`english-intonation-v1`へ自動で切り替わります。
+
 ### イントネーションと長さを直す
 
 テキストの解析が終わるとモデルが予測した値がグラフへ表示されます。
@@ -128,6 +130,7 @@ Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置�
 | --- | --- |
 | `frame-intonation-v8` | Open JTalkのアクセント特徴からフレーム単位のイントネーションを予測 |
 | `prosody-multitask-v1` | v8系のイントネーションに加えてモーラ長も予測 |
+| `english-intonation-v1` | 英語の強勢と句末境界を軽量に予測 |
 
 モデルやRendererはGUI、CLI、Serverで共通です。追加方法は[モデル／Rendererプラグイン](docs/plugins.md)、GUIで集めた手動調整から個人用モデルを作る手順は[手動調整から抑揚モデルを作る](docs/prosody-model-training.md)にあります。
 

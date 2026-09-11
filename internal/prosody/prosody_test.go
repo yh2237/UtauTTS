@@ -292,6 +292,59 @@ func TestStandardAccentContourFollowsHighLowPattern(t *testing.T) {
 	}
 }
 
+func TestEnglishIntonationModelUsesStressAndPhraseBoundary(t *testing.T) {
+	model := &Model{
+		ID: "english-intonation-v1", Language: frontend.LanguageEnglish,
+		Version: EnglishIntonationModelVersion, FeatureVersion: 1, Mode: "english_intonation_v1",
+		EnglishIntonation: &EnglishIntonationModel{
+			FrameMS: 10, BaselineStartCents: 42, BaselineEndCents: -42,
+			PrimaryStressCents: 64, SecondaryStressCents: 34, UnstressedCents: -14,
+			PreStressDipCents: -12, WordDownstepCents: 4, PhraseFinalFallCents: -38,
+			QuestionRiseCents: 72, SmoothingMS: 18, LowCents: -180, HighCents: 180,
+			P99Cents: 90, MaxCents: 105, PrimaryDurationFactor: 1.18,
+			SecondaryDurationFactor: 1.08, UnstressedDurationFactor: 0.88,
+			PhraseFinalDurationFactor: 1.08,
+		},
+	}
+	morae := []frontend.Mora{
+		{Language: frontend.LanguageEnglish, WordIndex: 0, WordEnd: true, Vowel: "ah", Stress: 0, StressKnown: true},
+		{Language: frontend.LanguageEnglish, WordIndex: 1, WordEnd: true, Vowel: "ae", Stress: 1, StressKnown: true},
+	}
+	timings := []MoraTiming{{StartMS: 0, DurationMS: 120}, {StartMS: 120, DurationMS: 140}}
+	statement := model.PredictFrameContour(morae, nil, timings, 260, false)
+	question := model.PredictFrameContour(morae, nil, timings, 260, true)
+	if statement == nil || question == nil || len(statement.Cents) != 27 {
+		t.Fatalf("statement=%#v question=%#v", statement, question)
+	}
+	if statement.Cents[17] <= statement.Cents[5] {
+		t.Fatalf("primary stress did not rise above weak syllable: weak=%.2f stress=%.2f", statement.Cents[5], statement.Cents[17])
+	}
+	if statement.Cents[26] >= statement.Cents[20] {
+		t.Fatalf("statement boundary did not fall: before=%.2f final=%.2f", statement.Cents[20], statement.Cents[26])
+	}
+	if question.Cents[26] <= statement.Cents[26] {
+		t.Fatalf("question boundary did not rise: question=%.2f statement=%.2f", question.Cents[26], statement.Cents[26])
+	}
+	predictions := model.Predict(morae)
+	if predictions[1].DurationFactor <= predictions[0].DurationFactor {
+		t.Fatalf("stress duration did not exceed weak duration: %#v", predictions)
+	}
+	if !model.SupportsLanguage(frontend.LanguageEnglish) || model.SupportsLanguage(frontend.LanguageJapanese) {
+		t.Fatalf("language compatibility is wrong")
+	}
+	if model.RequiresExternalFeatures() || !model.HasFrameContour() {
+		t.Fatalf("English model feature requirements are wrong")
+	}
+	path := filepath.Join(t.TempDir(), "english-intonation-v1.json")
+	if err := model.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadModel(path)
+	if err != nil || loaded.EnglishIntonation == nil {
+		t.Fatalf("English model did not round-trip: model=%#v err=%v", loaded, err)
+	}
+}
+
 func TestPhraseAnchorV9ProducesSmoothContourAndLoads(t *testing.T) {
 	model := &Model{
 		Version: StandardAccentModelVersion, FeatureVersion: 1, Mode: "intonation_phrase_anchor_v9",

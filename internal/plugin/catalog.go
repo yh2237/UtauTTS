@@ -63,6 +63,7 @@ type Model struct {
 	ID                   string          `json:"id"`
 	DisplayName          string          `json:"display_name"`
 	Description          string          `json:"description,omitempty"`
+	Language             string          `json:"language,omitempty"`
 	Path                 string          `json:"path"`
 	Version              int             `json:"version"`
 	FeatureVersion       int             `json:"feature_version"`
@@ -304,7 +305,8 @@ func DiscoverModels(directories []string) ([]Model, error) {
 			seenIDs[key], seenPaths[strings.ToLower(path)] = path, true
 			result = append(result, Model{
 				ID: id, DisplayName: name, Description: loaded.Description, Path: path,
-				Version: loaded.Version, FeatureVersion: loaded.FeatureVersion, Mode: loaded.Mode,
+				Language: loaded.Language,
+				Version:  loaded.Version, FeatureVersion: loaded.FeatureVersion, Mode: loaded.Mode,
 				SHA256:               fmt.Sprintf("%x", sha256.Sum256(data)),
 				Outputs:              cloneBoolMap(loaded.Outputs),
 				RecommendedRenderers: append([]string(nil), loaded.RecommendedRenderers...),

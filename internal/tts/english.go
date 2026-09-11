@@ -63,7 +63,10 @@ func englishSpeechCurve(morae []frontend.Mora, timings []prosody.MoraTiming, dur
 				cents := 55 - 110*phase
 				if morae[i].Vowel != "" && morae[i].Stress > 0 {
 					local := (t - timing.StartMS) / math.Max(1, timing.DurationMS)
-					cents += 65 * math.Sin(math.Pi*local) / float64(morae[i].Stress)
+					cents += englishStressAccent(morae[i].Stress, local)
+				} else if morae[i].Vowel != "" && morae[i].StressKnown && morae[i].Stress == 0 {
+					local := (t - timing.StartMS) / math.Max(1, timing.DurationMS)
+					cents -= 18 * math.Sin(math.Pi*math.Max(0, math.Min(1, local)))
 				}
 				if strings.HasSuffix(strings.TrimSpace(text), "?") && end >= len(morae)-2 && phase > 0.7 {
 					cents += 140 * (phase - 0.7) / 0.3
@@ -73,5 +76,19 @@ func englishSpeechCurve(morae []frontend.Mora, timings []prosody.MoraTiming, dur
 		}
 		start = end + 1
 	}
-	return render.ConstrainPitchCurve(curve, 20, 8)
+	return render.ConstrainPitchCurve(curve, 16, 7)
+}
+
+func englishStressAccent(stress int, local float64) float64 {
+	if stress <= 0 {
+		return 0
+	}
+	local = math.Max(0, math.Min(1, local))
+	strength := 62.0 / float64(stress)
+	// 強勢母音の前に小さな下降を置き上昇下降の輪郭にする
+	dip := 0.0
+	if local < 0.28 {
+		dip = -12 * (1 - local/0.28) / float64(stress)
+	}
+	return dip + strength*math.Sin(math.Pi*local)
 }

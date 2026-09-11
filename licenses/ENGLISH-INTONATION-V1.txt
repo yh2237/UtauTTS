@@ -1,0 +1,9 @@
+UtauTTS English intonation v1
+==============================
+
+This model contains original coefficients authored for UtauTTS. The model
+metadata and coefficients are released under the MIT License. The repository
+LICENSE file contains the complete license text.
+
+This model was calibrated from phonological rules and does not include speech
+recordings, external datasets, or third-party model weights.

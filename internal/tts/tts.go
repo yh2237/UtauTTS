@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"utautts/internal/audio"
@@ -189,6 +191,25 @@ func resolveProsodyModel(cfg Config) (*prosody.Model, error) {
 	return loadProsodyModelCached(cfg.ProsodyModelPath)
 }
 
+func resolveProsodyModelForLanguage(cfg Config, language string) (*prosody.Model, error) {
+	model, err := resolveProsodyModel(cfg)
+	if err != nil || model == nil || model.SupportsLanguage(language) {
+		return model, err
+	}
+	if language != frontend.LanguageEnglish || cfg.ProsodyModel != nil || cfg.ProsodyModelPath == "" {
+		return nil, nil
+	}
+	// 既定の日本語モデルが選ばれていても同じ models ディレクトリの英語モデルを使う
+	path := filepath.Join(filepath.Dir(cfg.ProsodyModelPath), "english-intonation-v1.json")
+	if _, statErr := os.Stat(path); statErr != nil {
+		if os.IsNotExist(statErr) {
+			return nil, nil
+		}
+		return nil, statErr
+	}
+	return loadProsodyModelCached(path)
+}
+
 // resolveProsodyFeaturesは未指定のモーラ単位アクセント特徴をOpen JTalkで補う。
 func resolveProsodyFeatures(cfg Config, model *prosody.Model, morae []frontend.Mora, reading string) ([]prosody.FeatureFrame, error) {
 	if model == nil || !model.RequiresExternalFeatures() || len(cfg.ProsodyFeatures) > 0 {
@@ -331,18 +352,16 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
+	applyLanguageSpeechProfile(language, &cfg)
 	if cfg.SourceContextExperiment != "" && cfg.SourceContextExperiment != "off" {
 		morae = frontend.RecordedContextCandidates(morae, phonemizer)
 	}
 	if cfg.CodaVowelExperiment {
 		morae = frontend.CodaVowelCandidates(morae, phonemizer)
 	}
-	loadedProsody, err := resolveProsodyModel(cfg)
+	loadedProsody, err := resolveProsodyModelForLanguage(cfg, language)
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)
-	}
-	if language != frontend.LanguageJapanese {
-		loadedProsody = nil
 	}
 	prosodyFeatures, err := resolveProsodyFeatures(cfg, loadedProsody, morae, reading)
 	if err != nil {
@@ -450,7 +469,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	synthesisPlan.CVVCPreBoundaryFade = cfg.CVVCPreBoundaryFade
 	pitchCurve := cfg.PitchCurve
 	applyPitch := applyPitchEnabled(cfg)
-	if pitchCurve == nil && language == frontend.LanguageEnglish && applyPitch {
+	if pitchCurve == nil && language == frontend.LanguageEnglish && applyPitch && !shouldPredictFrameContour(cfg, loadedProsody) {
 		pitchCurve = scaleAutomaticPitchCurve(englishSpeechCurve(morae, moraTimings(morae, synthesisPlan), synthesisPlan.DurationMS+cfg.ReleaseMS, cfg.Text), cfg.IntonationStrength)
 	}
 	if pitchCurve == nil && language == frontend.LanguageChinese {
@@ -572,6 +591,16 @@ func applyCVVCEnhancedProfile(cfg *Config) {
 	cfg.CVVCPreBoundaryFade = false
 }
 
+func applyLanguageSpeechProfile(language string, cfg *Config) {
+	if cfg == nil || language != frontend.LanguageEnglish {
+		return
+	}
+	// 英語の語境界では遷移音を少し強める
+	if cfg.AliasPolicy == voicebank.AliasPolicyCVVCPrefer && cfg.CVVCTransitionGain == 0.35 {
+		cfg.CVVCTransitionGain = 0.55
+	}
+}
+
 // PredictProsodyは音声合成せずに選択されたプロソディモデルを評価する。手動のモーラ長を尊重するため、プレビューはGUIで編集中の値に従う。
 func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	if err := synthesisContextError(cfg.Context); err != nil {
@@ -594,12 +623,9 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
-	loadedProsody, err := resolveProsodyModel(cfg)
+	loadedProsody, err := resolveProsodyModelForLanguage(cfg, language)
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)
-	}
-	if language != frontend.LanguageJapanese {
-		loadedProsody = nil
 	}
 
 	prosodyFeatures, err := resolveProsodyFeatures(cfg, loadedProsody, morae, reading)
@@ -662,7 +688,7 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	if language == frontend.LanguageChinese {
 		result.FramePitchCurve = mandarinToneCurve(morae, timings, cursor+cfg.ReleaseMS)
 	}
-	if language == frontend.LanguageEnglish && applyPitchEnabled(cfg) {
+	if language == frontend.LanguageEnglish && applyPitchEnabled(cfg) && !shouldPredictFrameContour(cfg, loadedProsody) {
 		result.FramePitchCurve = scaleAutomaticPitchCurve(englishSpeechCurve(morae, timings, cursor+cfg.ReleaseMS, cfg.Text), cfg.IntonationStrength)
 	}
 	if experimentalSpeechPitch(cfg) && (language == frontend.LanguageChinese || applyPitchEnabled(cfg)) {

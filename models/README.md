@@ -6,7 +6,11 @@
 `prosody-multitask-v1`を選べます。学習と比較の手順は
 [フレーム抑揚モデルの学習](../docs/frame-intonation-training.md)を参照してください。
 
-The official JSON model files currently bundled in this directory were trained
+英語では`english-intonation-v1`を使います。強勢と句末の上げ下げを
+英語のモーラ情報だけから予測する軽量モデルで、Open JTalkや外部データは必要ありません。
+英語のカードで日本語モデルが選ばれている場合も、同じフォルダにこのモデルがあれば自動で切り替わります。
+
+The official Japanese JSON model files currently bundled in this directory were trained
 using JSUT audio. They may be used, modified, and redistributed only for
 academic research, non-commercial research, and personal use. Commercial use
 requires prior permission from the JSUT rights holders. They are not
@@ -30,3 +34,6 @@ These model terms do not grant rights to the upstream JSUT audio, BASIC5000
 text, or jsut-label data, and do not replace the upstream terms.
 
 UtauTTS source code remains covered by the repository-level MIT License. This model license does not cover bundled voicebanks or other third-party assets.
+
+`english-intonation-v1`はUtauTTS用に作成した係数だけで構成され、
+`licenses/ENGLISH-INTONATION-V1.txt`のMIT Licenseで配布します。

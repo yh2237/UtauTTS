@@ -176,7 +176,7 @@ func candidateScoresWithAcoustic(selection Selection, cache *connection.Extracto
 	}
 	previous := selection.Entry
 	for _, ending := range selection.Endings {
-		local += ending.TargetScore - 114
+		local += ending.TargetScore - 114 + englishEndingReleasePreference(ending)
 		if includeJoin {
 			endingJoin, _ := pairScoreWithAcoustic(previous, ending.Entry, cache, model, acousticMode)
 			local += endingJoin

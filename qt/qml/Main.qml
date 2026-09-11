@@ -1473,6 +1473,36 @@ ApplicationWindow {
                 ? configured : (window.appBackend.models.length ? window.appBackend.models[0].id : "none");
     }
 
+    function defaultModelIdForLanguage(language) {
+        const normalized = String(language || "ja").toLowerCase();
+        if (normalized === "en") {
+            if (String(window.appBackend.defaultModelId || "none") === "none")
+                return "none";
+            for (let index = 0; index < window.appBackend.models.length; ++index) {
+                const model = window.appBackend.models[index];
+                if (String(model.language || "").toLowerCase() === "en")
+                    return model.id;
+            }
+            return "none";
+        }
+        if (normalized !== "ja")
+            return "none";
+        const selected = window.defaultModelId();
+        if (selected === "none")
+            return "none";
+        const configured = window.modelById(selected);
+        if (!configured || !String(configured.language || "").trim()
+                || String(configured.language).toLowerCase() === "ja")
+            return configured ? configured.id : "none";
+        for (let index = 0; index < window.appBackend.models.length; ++index) {
+            const model = window.appBackend.models[index];
+            if (!String(model.language || "").trim()
+                    || String(model.language).toLowerCase() === "ja")
+                return model.id;
+        }
+        return "none";
+    }
+
     function preferredRendererForModel(model) {
         const recommended = model && model.recommended_renderers ? model.recommended_renderers : [];
         for (let index = 0; index < recommended.length; ++index) {
@@ -2143,8 +2173,7 @@ ApplicationWindow {
             return;
         utterances.setProperty(selectedIndex, "language", language);
         utterances.setProperty(selectedIndex, "phonemizer", phonemizer);
-        if (language !== "ja")
-            utterances.setProperty(selectedIndex, "modelId", "none");
+        utterances.setProperty(selectedIndex, "modelId", window.defaultModelIdForLanguage(language));
         utterances.setProperty(selectedIndex, "reading", "");
         utterances.setProperty(selectedIndex, "moraeJson", "[]");
         clearAutomaticProsody(selectedIndex);
@@ -2331,8 +2360,7 @@ ApplicationWindow {
                     const language = String(voice.suggested_language);
                     utterances.setProperty(i, "language", language);
                     utterances.setProperty(i, "phonemizer", "auto");
-                    utterances.setProperty(i, "modelId",
-                                           language === "ja" ? window.defaultModelId() : "none");
+                    utterances.setProperty(i, "modelId", window.defaultModelIdForLanguage(language));
                 }
                 markUtteranceDirty(i, suppressDirty !== true);
             }
@@ -2343,14 +2371,13 @@ ApplicationWindow {
     function assignDefaultSynthesisSettings(suppressDirty) {
         if (!utterances.count || !window.appBackend.renderers.length)
             return;
-        const modelId = window.defaultModelId();
         const rendererId = window.defaultRendererId();
         for (let index = 0; index < utterances.count; ++index) {
             const item = utterances.get(index);
             let changed = false;
             if (!item.modelId) {
                 utterances.setProperty(index, "modelId",
-                                       (item.language || "ja") === "ja" ? modelId : "none");
+                                       window.defaultModelIdForLanguage(item.language || "ja"));
                 changed = true;
             }
             if (!item.renderer) {
@@ -2596,7 +2623,7 @@ ApplicationWindow {
             manualMoraDurationEdited: false,
             voicebankId: voice ? voice.id : "",
             imagePath: voice ? voice.image_path || "" : "",
-            modelId: language === "ja" && window.appBackend.models.length ? window.defaultModelId() : "none",
+            modelId: window.defaultModelIdForLanguage(language),
             renderer: voice && String(voice.kind || "") === "diffsinger"
                     ? "diffsinger" : (window.appBackend.renderers.length ? window.defaultRendererId() : ""),
             resampler: window.appBackend.resamplers.length ? window.appBackend.resamplers[0].id : "",

@@ -123,16 +123,19 @@ RendererはPlanの共有インスタンスを直接変更しません。`UnitRen
 
 モデルは任意コードではなく重みとメタデータを持つ自己記述JSONです。`id`、`version`、`feature_version`、`mode`からGo側の決定論的な推論器を選びます。未知形式、壊れたshape、ID重複は読み飛ばさずカタログ構築時のエラーにします。
 
-現在同梱するモデルは次の2つです。
+現在同梱するモデルは次の3つです。
 
 | モデル | 形式 | 出力 |
 | --- | --- | --- |
 | `frame-intonation-v8` | version 8 / feature 1 | 10ms単位の相対ピッチ |
 | `prosody-multitask-v1` | version 10 / feature 2 | v8系ピッチとモーラ長倍率 |
+| `english-intonation-v1` | version 12 / feature 1 | 英語の強勢と句末境界の10ms単位ピッチおよび長さ倍率 |
 
 v8のframe headはモーラとOpen JTalk由来特徴をフレームへ展開してdilationを持つ小型TCNで相対pitchを予測します。同梱モデルは406特徴、10ms間隔、学習出力範囲±250 centです。推論後にはモデル内のrender strength、平滑化、percentile／最大値制約を適用して学習音声の細かなF0揺れをそのまま強制しないようにします。
 
 multitaskモデルは同じframe headへ423特徴からモーラ長倍率を出すduration headを加えたものです。絶対msではなく基準モーラ長に対する倍率なのでGUIの話速設定や音源差と共存できます。
+
+英語モデルは外部特徴を要求せず、ARPAbetから得た強勢、語境界、句境界を決定論的な軽量ヘッドへ入力します。英語のカードで日本語モデルが選択されている場合は同じフォルダの英語モデルへ切り替えます。
 
 version 11のmanual residual形式もruntimeが解釈できます。これはv8を基準にGUIで行った人手修正の傾向だけを小さなcent補正として学習する形式です。元モデルのSHA-256と補正範囲を持ち、基準モデルを置き換えず残差を加えます。標準配布モデルにはまだ含まれていません。
 

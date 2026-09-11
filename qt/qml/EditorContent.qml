@@ -603,7 +603,7 @@ import QtMultimedia
 
                         RowLayout {
                             Layout.fillWidth: true
-                            visible: !window.utterancesModel.count || window.current().language === "ja"
+                            visible: !window.utterancesModel.count || ["ja", "en"].indexOf(window.current().language || "ja") >= 0
                             Label {
                                 text: window.translator.tr("main.param.intonationModel")
                                 Layout.fillWidth: true

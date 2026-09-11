@@ -1585,6 +1585,8 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
         models.append(QVariantMap{
             {"id", source.value("id")},
             {"display_name", source.value("display_name")},
+            {"description", source.value("description")},
+            {"language", source.value("language")},
             {"version", source.value("version")},
             {"format", source.value("format")},
             {"license", source.value("license")},

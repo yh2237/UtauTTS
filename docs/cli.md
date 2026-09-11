@@ -39,6 +39,8 @@
 
 モーラ長も予測する場合は`--prosody prosody-multitask-v1`を使います。`--plan-out`を指定すると原音の配置とタイミングをJSONへ保存できます。
 
+英語では`--prosody english-intonation-v1`を指定します。英語用モデルはOpen JTalkを使わず、`utautts-world-phrase`のようなframe pitch対応Rendererで強勢と句末境界を適用します。
+
 GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`で渡します。
 
 ```json

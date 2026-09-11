@@ -1,0 +1,53 @@
+{
+  "id": "english-intonation-v1",
+  "display_name": "English intonation v1",
+  "description": "Compact English stress and phrase-boundary intonation model",
+  "language": "en",
+  "license": "MIT License",
+  "license_notice": "licenses/ENGLISH-INTONATION-V1.txt",
+  "recommended_renderers": [
+    "utautts-world-phrase"
+  ],
+  "default_priority": 50,
+  "version": 12,
+  "feature_version": 1,
+  "mode": "english_intonation_v1",
+  "outputs": {
+    "pitch": true,
+    "mora_duration": true
+  },
+  "duration_weights": {},
+  "english_intonation": {
+    "frame_ms": 10,
+    "baseline_start_cents": 42,
+    "baseline_end_cents": -42,
+    "primary_stress_cents": 64,
+    "secondary_stress_cents": 34,
+    "unstressed_cents": -14,
+    "pre_stress_dip_cents": -12,
+    "word_downstep_cents": 4,
+    "phrase_final_fall_cents": -38,
+    "question_rise_cents": 72,
+    "smoothing_ms": 18,
+    "low_cents": -180,
+    "high_cents": 180,
+    "p99_cents": 90,
+    "max_cents": 105,
+    "primary_duration_factor": 1.18,
+    "secondary_duration_factor": 1.08,
+    "unstressed_duration_factor": 0.88,
+    "phrase_final_duration_factor": 1.08
+  },
+  "metrics": {
+    "records": 0,
+    "tokens": 0,
+    "normalized_duration_mae_ms": 0
+  },
+  "training": {
+    "records": 0,
+    "tokens": 0,
+    "epochs": 0,
+    "learning_rate": 0,
+    "seed": 20260912
+  }
+}
