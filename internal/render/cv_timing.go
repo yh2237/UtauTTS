@@ -97,7 +97,7 @@ func normalizeSingleCVTiming(synthesisPlan *plan.Plan, unit plan.Unit, timing ef
 func singleCVOnsetFadeInMS(synthesisPlan *plan.Plan, unit plan.Unit) float64 {
 	onset := singleCVOnset(synthesisPlan, unit)
 	switch strings.ToLower(strings.TrimSpace(onset)) {
-	case "p", "b", "t", "d", "k", "g", "q", "cl":
+	case "p", "b", "t", "d", "k", "g", "q", "py", "by", "ty", "dy", "ky", "gy", "cl":
 		return 12
 	case "ch", "jh", "ts", "dz", "c", "j":
 		return 17
@@ -142,6 +142,9 @@ func singleCVBoundaryEligible(synthesisPlan *plan.Plan, previous, current render
 	if previous.unit.Silent || current.unit.Silent || current.unit.Position < 0 || current.unit.Position >= len(synthesisPlan.Morae) {
 		return false
 	}
+	if len(previous.unit.CodaPhones) > 0 {
+		return false
+	}
 	return singleCVMoraBoundaryEligible(synthesisPlan, current.unit.Position)
 }
 
@@ -151,8 +154,14 @@ func singleCVMoraBoundaryEligible(synthesisPlan *plan.Plan, position int) bool {
 	}
 	previous := synthesisPlan.Morae[position-1]
 	mora := synthesisPlan.Morae[position]
-	if previous.Pause || mora.Pause || mora.Vowel == "" || mora.Vowel == "cl" || mora.Vowel == "n" {
+	if previous.Pause || mora.Pause || previous.Vowel == "" || previous.Vowel == "cl" || previous.Vowel == "n" ||
+		mora.Vowel == "" || mora.Vowel == "cl" || mora.Vowel == "n" {
 		return false
+	}
+	for _, phone := range previous.Phones {
+		if phone.Role == "coda" {
+			return false
+		}
 	}
 	return true
 }
@@ -160,7 +169,7 @@ func singleCVMoraBoundaryEligible(synthesisPlan *plan.Plan, position int) bool {
 func singleCVProtectedOnset(synthesisPlan *plan.Plan, unit plan.Unit) bool {
 	symbol := strings.ToLower(strings.TrimSpace(singleCVOnset(synthesisPlan, unit)))
 	switch symbol {
-	case "p", "b", "t", "d", "k", "g", "q", "ch", "jh", "ts", "dz", "c", "j":
+	case "p", "b", "t", "d", "k", "g", "q", "py", "by", "ty", "dy", "ky", "gy", "ch", "jh", "ts", "dz", "c", "j":
 		return true
 	default:
 		return false
