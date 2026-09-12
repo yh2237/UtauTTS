@@ -230,7 +230,7 @@ ID順にソートされた音源一覧です。
 | `resampler` | string | 自動選択 | Classic UTAUで使うresamplerの相対ID |
 | `wavtool` | string | `builtin` | Classic UTAUで使うwavtoolの相対ID |
 | `resampler_expressions` | object[] | なし | unit単位のresampler設定。形式は[Classic UTAU互換仕様](plugins.md#classic-utau互換仕様)を参照 |
-| `alias_policy` | string | `auto` | `auto`（VC/VCV収録比から自動選択）、`legacy`（v0.0.9互換）、`cvvc-enhanced`（CVVC優先・sequential timing・VC音量35%）、`vcv-prefer`、`cvvc-prefer`、`cv-only` |
+| `alias_policy` | string | `auto` | `auto`（VC/VCV収録比から自動選択）、`cvvc-enhanced`（CVVC優先・sequential timing・VC音量35%）、`vcv-prefer`、`cvvc-prefer`、`cv-only` |
 | `mora_duration_ms` | number | `140` | 基本モーラ長（0〜1000） |
 | `pause_duration_ms` | number | `180` | 句読点の休止長（0〜3000） |
 | `leading_preutterance_ms` | number | `0`（自動） | 文頭に確保する先行発声（0〜1000）。0では先頭原音の`oto.ini`から決定 |
@@ -239,7 +239,6 @@ ID順にソートされた音源一覧です。
 | `apply_pitch` | boolean | `false` | 波形ピッチ再サンプリング |
 | `speech_timing` | boolean | `false` | [発話タイミングと音源校正](speech-quality-experiment.md)を有効にする |
 | `manual_pitch` | object | なし | 手動ピッチ編集（[manual-pitch.md](manual-pitch.md) のJSON） |
-| `acoustic_mode` | string | なし | 音響特徴による候補選択の診断。`dry-run`または`apply` |
 | `dictionary` | object[] | なし | ユーザー辞書。各項目は`surface`と`reading`を持つ |
 
 ステータスコード：
@@ -288,5 +287,5 @@ ID順にソートされた音源一覧です。
 - `--port`: ポート。初期値は`8080`
 - `--auth-token`: 認証トークン。設定すると`Authorization: Bearer <token>`が必須になる
 - `--allow-voicebank-registration`: `POST /api/voicebanks` による音源パス登録を許可する（登録先は`--voice-dir`以下に制限）
-- `--worldline` / `--worldline-bridge`: worldlineライブラリとbridge実行ファイルを明示する
+- `--worldline-bridge`: worldline bridge実行ファイルを明示する
 - `--openjtalk-features` / `--openjtalk-dictionary`: 自動検出を使わずhelperまたは辞書を明示する開発用オプション

@@ -60,7 +60,6 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 |---|---|---|
 | `--version` | | アプリケーションのバージョンを表示して終了 |
 | `--voicebank <dir>` | | ボイスバンクのディレクトリ（必須） |
-| `--oto <dir>` | | `--voicebank` の旧名（deprecated） |
 | `--text <文>` | | 合成する文章 |
 | `--reading <読み>` | | かな、ARPAbet、またはPinyinを直接指定 |
 | `--kana <読み>` | | `--reading`の旧名 |
@@ -90,18 +89,13 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--resampler <id>` | 自動選択 | Classic UTAUで使う`Resamplers/`からの相対ID |
 | `--wavtool <id>` | `builtin` | Classic UTAUで使う`Wavtools/`からの相対ID |
 | `--resampler-expressions <path>` | | unit単位のresampler設定JSON |
-| `--worldline <path>` | 実行ファイルの隣 | OpenUtau worldlineライブラリ |
 | `--worldline-bridge <path>` | | `utautts-worldline-bridge` 実行ファイル |
 | `--boundary-bridge-ms` | `0` | 位相を揃えた波形接続修復の最大幅（0で無効） |
 | `--boundary-bridge-threshold` | `0` | handcrafted join scoreがこの値以下のとき接続修復を適用 |
-| `--selection` | `viterbi` | 原音選択方式（`viterbi`、`greedy`、`target-only`） |
-| `--alias-policy` | `auto` | 音源適応モード。`auto`はVC/VCV収録比から自動選択、`legacy`はv0.0.9互換、`cvvc-enhanced`はCVVC優先・sequential timing・VC音量35%。詳細指定として`vcv-prefer`、`cvvc-prefer`、`cv-only`も利用可能 |
-| `--cvvc-timing` | `legacy` | CVVC遷移の配置方式（`legacy`または`sequential`）。通常は`--alias-policy`でまとめて指定 |
+| `--alias-policy` | `auto` | 音源適応モード。`auto`はVC/VCV収録比から自動選択、`cvvc-enhanced`はCVVC優先・sequential timing・VC音量35%。詳細指定として`vcv-prefer`、`cvvc-prefer`、`cv-only`も利用可能 |
+| `--cvvc-timing` | `sequential` | CVVC遷移の配置方式。現在は`sequential`のみ |
 | `--cvvc-transition-gain` | `1` | CVVC遷移ユニットの音量（0〜1） |
 | `--cvvc-pre-boundary-fade` | `false` | 後続CVの子音より前でCVVC遷移をフェードアウト |
-| `--acoustic-selection` | | 音響特徴による候補選択の診断（`dry-run`または`apply`）。通常利用では空欄 |
-| `--join-model <path>` | | 学習済みjoin-costモデルJSON |
-| `--join-scale` | `0` | 学習済みlogitスコアの倍率（既定はモデル値または4） |
 | `--renderer-dir <dir>` | | Renderer pluginの検索directory（繰り返し指定可） |
 | `--model-dir <dir>` | | モデルJSONの検索directory（繰り返し指定可） |
 | `--openjtalk-features <path>` | runtime | Open JTalk feature helper（自動検出を上書き） |

@@ -70,9 +70,9 @@ $expected = 'v1.2.3'  # 実際に作成するタグへ置き換える
   -PreviousVersion v1.2.2
 ```
 
-`build-release.ps1`と`test-release-package.ps1`もこの検査を呼び出します。`go test ./cmd/utautts-updater`には、v1.2.2形式の更新が現行パッケージを導入できること、音源・設定を保持できること、旧Renderer定義を移行できることを確認するテストが含まれます。Qtの配布物self-testでは、初回起動migration schemaの記録とpending update markerの消去も確認します。
+`build-release.ps1`と`test-release-package.ps1`もこの検査を呼び出します。`go test ./cmd/utautts-updater`では現行パッケージの導入と音源・設定の保持を確認します。Qtの配布物self-testでは、初回起動migration schemaの記録とpending update markerの消去も確認します。
 
-GUIでは開発者モードが無効でも読み上げ言語を選べることを確認します。「詳細設定」で発音形式と合成方式を変更できること、新規発話で発話タイミング補正が有効なことも確認します。開発者モードではプレリリース版の確認と抑揚教師データ生成を切り替えます。同じ数値バージョンの安定版とプレリリース版がある場合は安定版を選びます。
+GUIでは開発者モードが無効でも読み上げ言語を選べることを確認します。「詳細設定」で発音形式と合成方式を変更できること、新規発話で発話タイミング補正が有効なことも確認します。開発者モードではプレリリース版の確認を切り替えます。同じ数値バージョンの安定版とプレリリース版がある場合は安定版を選びます。
 
 ## 自動確認する機能
 
@@ -83,7 +83,7 @@ GUIでは開発者モードが無効でも読み上げ言語を選べること�
 | GUI | QMLロード、Goネイティブ接続、音源・モデル・Renderer列挙 |
 | GUI編集基盤 | プロジェクト保存・読込、辞書と設定の保存 |
 | GUI音声処理 | 文章解析、抑揚予測、実運用Rendererでの合成、WAV保存 |
-| GUI出力 | exo出力、抑揚教師データの途中保存・読込・書出し |
+| GUI出力 | exo出力、設定とWAVの保存・読込 |
 | CLI | `waveform`による最小合成、v8モデルと既定Rendererによる実運用合成、不正数値の拒否 |
 | HTTP server | コンソール、health、音源・モデル・Renderer一覧、解析、`waveform`／既定Renderer合成、batch ZIP、音源再読込 |
 

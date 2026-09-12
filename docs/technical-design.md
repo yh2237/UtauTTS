@@ -81,7 +81,7 @@ Kagome側とOpen JTalk側でモーラ分割が一致しない場合は完全一�
 
 CVVCのVCは一つのモーラではなく次のCVへ入る`transition` unitです。Plan上では主unitと分けて保持しますがモーラ全体の時間を余分には増やしません。
 
-`AliasPolicy=auto`は音源内のVC／VCV収録比を見て従来互換かCVVC向けプロファイルを選びます。CVVC向けプロファイルではCVVC候補を優先してtransitionをsequential timingで置き、VC音量を35%にします。明示指定されたpolicyは自動判定より優先です。
+`AliasPolicy=auto`は音源内のVC／VCV収録比を見て標準プロファイルかCVVC向けプロファイルを選びます。CVVC向けプロファイルではCVVC候補を優先してtransitionをsequential timingで置き、VC音量を35%にします。明示指定されたpolicyは自動判定より優先です。
 
 候補WAVは選択前に構造検証されます。存在しないWAV、読めない形式、成立しない切り出し範囲などは候補から外して理由をPlanへ残します。候補数は各位置で最大32件に制限して組合せ爆発を防ぎます。
 
@@ -93,9 +93,9 @@ CVVCのVCは一つのモーラではなく次のCVへ入る`transition` unitで�
 path score = Σ local candidate score + Σ adjacent join score
 ```
 
-local scoreにはaliasのfallback段階、`oto.ini`値の整合性、subbankや形式の優先度が入ります。任意の音響選択モードでは候補のRMS、F0、有声率などから得た保守的な補正も加わります。
+local scoreにはaliasのfallback段階、`oto.ini`値の整合性、subbankや形式の優先度が入ります。
 
-join scoreは隣接原音のenergy、スペクトル、F0などの境界特徴と同じ録音groupかどうかを評価します。同じWAV内の前向きなanchorには加点しますが、560 msを超える離れた移動は加点を減らします。VCVのincoming側が閉鎖区間になる場合は減点を弱め、母音側の候補scoreを優先します。通常は手設計scoreを使い研究用途なら学習済みjoin-cost JSONへ差し替えられます。`greedy`と`target-only`は診断・互換比較用です。
+join scoreは隣接原音のenergy、スペクトル、F0などの境界特徴と同じ録音groupかどうかを評価します。同じWAV内の前向きなanchorには加点しますが、560 msを超える離れた移動は加点を減らします。VCVのincoming側が閉鎖区間になる場合は減点を弱め、母音側の候補scoreを優先します。手設計scoreを使うViterbi探索で経路を決めます。
 
 候補が疎なUTAU音源では境界の連続性を優先すると音素文脈や声質が変わることがあります。なのでjoin scoreは候補の言語的な適合性を置き換えず保守的な補助値として扱います。
 
@@ -163,7 +163,7 @@ Rendererは各原音のF0を測ってこの相対曲線を音源側の声域へ�
 
 ## 7. Renderer
 
-Renderer manifestの`id`は保存データやUIで使う公開識別子です。catalogはこの公開IDを`engine.ResolvedEngine`へ解決し、`contract`、`provider`、provider version、typed resource、platform、capabilityを検証します。v1の`backend`は互換decoderでproviderへ変換され、現在の同梱定義と新しいユーザー定義はv2を使います。manifestは表示情報とruntime resourceを宣言するもので、任意のnative codeや新しいengine ABIをUtauTTSへ動的ロードしません。標準Rendererも`renderer/<id>/renderer.json`から読み込みます。`utau-external-resampler` providerは`Resamplers/`と`Wavtools/`の実行ファイルを組み合わせます。
+Renderer manifestの`id`は保存データやUIで使う公開識別子です。catalogはこの公開IDを`engine.ResolvedEngine`へ解決し、`contract`、`provider`、provider version、typed resource、platform、capabilityを検証します。manifestは表示情報とruntime resourceを宣言するもので、任意のnative codeや新しいengine ABIをUtauTTSへ動的ロードしません。標準Rendererも`renderer/<id>/renderer.json`から読み込みます。`utau-external-resampler` providerは`Resamplers/`と`Wavtools/`の実行ファイルを組み合わせます。
 
 設定の境界もRenderer単位で分けます。`tts.Config`はテキスト、音源、モデル、Plan作成に必要な共通入力と解決済み`engine.ResolvedEngine`を持ち、Classicの実行ファイルやWORLDの専用スイッチを集めません。`render.Config`は共通render controlに加えて`render.ProviderOptions`を持ち、Classicは`ClassicOptions`、WORLDは`WorldlineProviderOptions`へ固有設定を閉じ込めます。
 
@@ -242,11 +242,11 @@ CLIとHTTP Serverも同じrenderer catalogと`synth.Service`を使います。�
 
 波形補修は入力に残っている情報しか利用できず候補選択は収録されていない音素文脈を生成できません。補修やscoreを追加する前に候補密度、原音の文脈、適用できる位置を確認します。
 
-## 10. 変更時に保つ互換性
+## 10. 変更時の方針
 
 ### 公開IDと既存経路を維持する
 
-既存の正式Rendererの意味と出力を新実験のために変更しないでください。新方式は別backend／renderer IDか既定offの明示オプションとして追加します。実験が失敗しても同じ入力で以前のWAVへ戻れる状態を保ちます。
+既存の正式Rendererの意味と出力を新方式の検証で不用意に変えないでください。新方式は別renderer IDか既定offの明示オプションとして追加します。実験が失敗しても同じ入力で以前のWAVへ戻せる状態を保ちます。
 
 ### fallbackの扱いを統一する
 

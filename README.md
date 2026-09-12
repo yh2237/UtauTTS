@@ -79,7 +79,7 @@ voice/
 | 原音形式 | CV、VCV、CVVCの選び方。規定値は`自動` |
 | 抑揚モデル | 自動イントネーションやモーラ長の予測に使うモデル |
 | Renderer | 原音の長さと高さを変え、接続してWAVにする方式 |
-| 言語／phonemizer | 言語別の読み上げ方式。日本語は`ja-kana`、英語は`en-arpasing`／`en-delta`／`en-vccv`、中国語は`zh-cvvc`（開発者モードでのみ） |
+| 言語／phonemizer | 言語別の読み上げ方式。日本語は`ja-kana`、英語は`en-arpasing`／`en-delta`／`en-vccv`、中国語は`zh-cvvc` |
 | 音高 | `prefix.map`から選ぶ音階 |
 | 抑揚 | 自動イントネーションの強さ |
 | モーラ長 | 自動値がない場合に使う基本長 |
@@ -122,7 +122,7 @@ exo出力後に表示される領域をAviUtlの拡張編集へドラッグす�
 
 Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置きます。各フォルダは「ファイル」メニューから開けます。配置後は同じメニューの「Classic UTAUツールを再読み込み」を選びます。
 
-同梱Rendererも外部Rendererも`renderer/<id>/renderer.json`から検出します。現在の定義はmanifest v2で、公開ID、contract、provider、runtime resourceを分けて記述します。実行時は既存ユーザー定義のためmanifest v1も読めますが、新しい定義にはv2を使ってください。GUIにZIPインストーラーはなく、定義を`renderer/`または`--renderer-dir`の探索先へ配置して再起動します。JSONだけで任意の新規engine ABIを追加する機能はありません。Classic UTAUのresamplerとwavtoolにmanifestは不要です。
+同梱Rendererも外部Rendererも`renderer/<id>/renderer.json`から検出します。定義はmanifest v2で、公開ID、contract、provider、runtime resourceを分けて記述します。GUIにZIPインストーラーはなく、定義を`renderer/`または`--renderer-dir`の探索先へ配置して再起動します。JSONだけで任意の新規engine ABIを追加する機能はありません。Classic UTAUのresamplerとwavtoolにmanifestは不要です。
 
 ### 抑揚モデル
 
@@ -132,7 +132,7 @@ Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置�
 | `prosody-multitask-v1` | v8系のイントネーションに加えてモーラ長も予測 |
 | `english-intonation-v1` | 英語の強勢と句末境界を軽量に予測 |
 
-モデルやRendererはGUI、CLI、Serverで共通です。追加方法は[モデル／Rendererプラグイン](docs/plugins.md)、GUIで集めた手動調整から個人用モデルを作る手順は[手動調整から抑揚モデルを作る](docs/prosody-model-training.md)にあります。
+モデルやRendererはGUI、CLI、Serverで共通です。追加方法は[モデル／Rendererプラグイン](docs/plugins.md)にあります。
 
 ## CLI
 

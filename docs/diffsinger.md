@@ -29,4 +29,4 @@ GUIではDiffSinger音源を選ぶと、DiffSinger Rendererへ自動で切り替
 
 これらは話声のタイミングと抑揚を反映する処理であり、音響モデル自体を話声用に再学習するものではない。音源によっては歌唱由来の発声が残る。
 
-合成時は、対応するbridgeが`utautts-provider` session modeを実装していれば同じプロセスを次の合成でも再利用する。C# bridgeはモデルpathごとにONNX Runtimeの推論sessionを保持するため、合成ごとのモデル初期化を避けられる。古いbridgeを指定した場合は従来の1回起動経路へ自動的にfallbackする。
+合成時は、対応するbridgeの`utautts-provider` sessionを同じプロセスで次の合成にも再利用する。C# bridgeはモデルpathごとにONNX Runtimeの推論sessionを保持するため、合成ごとのモデル初期化を避けられる。sessionを開始できない場合はエラーになります。

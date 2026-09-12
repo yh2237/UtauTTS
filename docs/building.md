@@ -173,10 +173,8 @@ WindowsのPowerShellスクリプトでは、必要に応じて`PYTHON`、`QT_ROO
 
 `WINDOWS_USERNAME`は使用しません。WSLのLinux版ビルドはWindows側ユーザーのGoキャッシュを参照せず、プロジェクト内の`build/go-mod-cache`を使います。
 
-## `tools/`と`experiments/`の役割
+## `tools/`の役割
 
 `tools/`は通常の開発・ビルド・リリース・配布物検査と、現行モデルを再生成するための補助スクリプトを置く場所です。`build*.bat`／`build*.sh`や`tools/build-*`、`tools/test-*`から呼ばれるものはここに残します。
-
-`experiments/`は通常のビルドやリリースから呼び出さない研究用コードです。韻律の診断スクリプトと旧モーラ単位学習器は`experiments/prosody/`へ移してあり、現行のフレームモデル学習経路は`tools/`にあります。実験用ディレクトリの内容を配布ZIPへ追加しないでください。
 
 ビルド後に行う配布物の検査は[リリーステスト](release-testing.md)にまとめています。

@@ -36,9 +36,9 @@ utautts-cli --voicebank "./voice/japanese-bank" --reading "カサ、キク。" -
 
 `utautts-world-phrase`でも区間別の伸縮と自動接続補修を使えます。VCVでは補正後の先行発声と固定部をWORLDの時刻写像へ渡します。WORLDの音響特徴を参照する時刻を区間ごとに変えます。ピッチは指定された曲線を使います。同じ母音の接続では前後20 msの有声区間を調べてスペクトルの急変が小さくなる場合だけ補修します。無声区間や別の原音が重なる箇所は補修しません。
 
-WORLD版を使うには本体と`utautts-worldline-bridge`を両方ビルドしてください。古いブリッジを使うと更新を求めるエラーになります。CLIの指定例は`--renderer utautts-world-phrase --speech-timing`です。追加の依存関係やモデルは不要です。
+WORLD版を使うには本体と`utautts-worldline-bridge`を両方ビルドしてください。本体とbridgeのjob versionが異なる場合はエラーになります。CLIの指定例は`--renderer utautts-world-phrase --speech-timing`です。追加の依存関係やモデルは不要です。
 
-CUDA版の`utautts-world-phrase-cuda`にはこの区間別伸縮と接続補修を適用しません。発話の長さ調整と音源校正は従来どおり使えます。
+`utautts-world-phrase`ではこの区間別伸縮と接続補修を適用します。発話の長さ調整と音源校正は従来どおり使えます。
 
 ## 対応範囲
 

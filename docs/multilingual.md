@@ -59,8 +59,6 @@ Delta・VCCV音源では無強勢の`AH0`に弱母音の原音を優先します
 
 CPU版WORLDはDelta・VCCV英語の必須語末子音で原音後半が再生時間内に収まるよう補正します。対象は発音データから判定するため音高などの接尾辞が付いたaliasにも対応します。子音群では次の原音との重なりで子音が消えないよう再生時間を確保します。本体とWORLDブリッジの両方を更新してください。任意のリリース音やARPAsingは対象外です。
 
-原音の接続位置の補正は[発話タイミングと音源校正](speech-quality-experiment.md)を参照してください。
-
-原音に目的の音が残っている場合は切り出し方を変える余地があります。[原音の接続と切り出し範囲の比較](../tools/evaluation/README.md#原音の接続と切り出し範囲を比較する)では既存の長い接続音と中国語VC録音からの母音回収を試せます。開発者向けの実験機能で通常の読み上げには適用しません。
+原音の接続位置の補正は[発話タイミングと音源校正](speech-quality-experiment.md)を参照してください。[選択した原音の確認](../tools/evaluation/README.md#選択した原音を確認する)では切り出し範囲と合成結果を比較できます。
 
 音素表記の参考は[OpenUtauのVCCV対応表](https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Plugin.Builtin/EnglishVCCVPhonemizer.cs)と[香港理工大学のPinyin綴り規則](https://www.polyu.edu.hk/bepth/introduction-to-phonetics/spelling-rules-in-pinyin/?sc_lang=en)を参照してください。

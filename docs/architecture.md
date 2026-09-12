@@ -25,7 +25,7 @@ WAV / LAB
 
 RendererのID、機能、ランタイムは`renderer/<id>/renderer.json`で定義します。同梱とユーザー定義は同じ探索処理を使い、明示した探索先を優先します。JSONだけで任意の新規engine ABIを追加する機能はありません。追加方法は[モデル／Rendererプラグイン](plugins.md)、内部処理は[技術設計ガイド](technical-design.md)を参照してください。
 
-同梱Rendererはmanifest v2で定義します。実行時のcatalogは`renderer.json`のv1とv2を読み込めますが、v1は既存のユーザー定義を維持するための互換形式です。旧`plugins/renderers/*/plugin.json`は通常のcatalog探索では読み込まず、アプリ内アップデーターが更新中に`renderer/<id>/renderer.json`へ移行します。
+同梱Rendererはmanifest v2で定義します。実行時のcatalogも`manifest_version: 2`だけを読み込みます。
 
 | ID | 概要 |
 | --- | --- |
