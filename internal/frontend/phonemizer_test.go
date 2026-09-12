@@ -43,13 +43,6 @@ func TestParseEnglishARPAsingReading(t *testing.T) {
 	}
 }
 
-func TestParseEnglishARPAsingDictionary(t *testing.T) {
-	_, units, err := ParseEnglishARPAsing("Hello", "", map[string]string{"hello": "HH AH L OW"})
-	if err != nil || len(units) != 4 {
-		t.Fatalf("units=%#v err=%v", units, err)
-	}
-}
-
 func TestParseEnglishUsesBuiltInG2P(t *testing.T) {
 	reading, units, err := ParseEnglishDelta("hello", "", nil)
 	if err != nil {

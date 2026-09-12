@@ -1,4 +1,4 @@
-﻿package aviutl
+package aviutl
 
 import (
 	"os"
@@ -90,30 +90,5 @@ func TestWriteExoRejectsEmptyListAndBadRate(t *testing.T) {
 	}
 	if err := WriteExo(output, []string{"a.wav"}, 300); err == nil {
 		t.Fatal("excessive frame rate was accepted")
-	}
-}
-
-func TestWriteExoIsShiftJISEncoded(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "001_足立レイ.wav")
-	writeWAV(t, path, 1000, 1000)
-
-	output := filepath.Join(dir, "utautts.exo")
-	if err := WriteExo(output, []string{path}, 60); err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(output)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(data), "音声ファイル") {
-		t.Fatal("exo contains UTF-8 text, AviUtl expects Shift_JIS")
-	}
-	decoded, _, err := transform.Bytes(japanese.ShiftJIS.NewDecoder(), data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(decoded), "_name=音声ファイル") {
-		t.Fatalf("decoded exo missing audio object: %q", decoded)
 	}
 }

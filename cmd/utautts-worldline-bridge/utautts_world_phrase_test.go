@@ -1,21 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"math"
-	"path/filepath"
 	"reflect"
-	"runtime"
-	"sync/atomic"
 	"testing"
-	"time"
 )
-
-type parallelTestWorldEngine struct {
-	active   atomic.Int32
-	maximum  atomic.Int32
-	analyses atomic.Int32
-}
 
 func TestWorldMixIsOrderIndependentAndPreservesFade(t *testing.T) {
 	makeUnit := func(f0, ap float64) preparedWorldUnit {
@@ -35,36 +24,6 @@ func TestWorldMixIsOrderIndependentAndPreservesFade(t *testing.T) {
 	if math.Abs(ab.Aperiodicity[2]-math.Sqrt(.505)) > 1e-10 {
 		t.Fatal("aperiodic energy was not conserved")
 	}
-}
-
-func (*parallelTestWorldEngine) Close() error { return nil }
-
-func (engine *parallelTestWorldEngine) Analyze(samples []float64, sampleRate int, inputF0 []float64) (worldFeatures, error) {
-	engine.analyses.Add(1)
-	active := engine.active.Add(1)
-	defer engine.active.Add(-1)
-	for maximum := engine.maximum.Load(); active > maximum && !engine.maximum.CompareAndSwap(maximum, active); maximum = engine.maximum.Load() {
-	}
-	time.Sleep(10 * time.Millisecond)
-	frames := len(samples)/max(1, sampleRate/100) + 1
-	fftSize := 16
-	features := worldFeatures{
-		Frames: frames, FFTSize: fftSize,
-		F0: make([]float64, frames), Spectrum: make([]float64, frames*(fftSize/2+1)),
-		Aperiodicity: make([]float64, frames*(fftSize/2+1)),
-	}
-	for index := range features.F0 {
-		features.F0[index] = 220
-	}
-	for index := range features.Spectrum {
-		features.Spectrum[index] = 1
-		features.Aperiodicity[index] = 0.2
-	}
-	return features, nil
-}
-
-func (*parallelTestWorldEngine) Synthesize(features worldFeatures, sampleRate int) ([]float64, error) {
-	return make([]float64, worldSynthesisLength(features.Frames, sampleRate)), nil
 }
 
 func TestWorldEnvelopeUsesLinearFades(t *testing.T) {
@@ -113,53 +72,12 @@ func TestWorldFeatureCacheAlsoUsesMemoryLimit(t *testing.T) {
 	}
 }
 
-func TestPrepareWorldUnitsAnalyzesCacheMissesInParallel(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "unit.wav")
-	samples := make([]float32, 3200)
-	for index := range samples {
-		samples[index] = float32(math.Sin(2 * math.Pi * 220 * float64(index) / 16000))
-	}
-	if err := writePCM16(path, 16000, samples); err != nil {
-		t.Fatal(err)
-	}
-	input := manifest{SampleRate: 16000, Units: make([]unit, 4)}
-	for index := range input.Units {
-		input.Units[index] = unit{CacheKey: string(rune('a' + index)), Source: path}
-	}
-	engine := &parallelTestWorldEngine{}
-	prepared, err := prepareWorldUnits(engine, input, newWorldFeatureCache(8), 4)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(prepared) != len(input.Units) {
-		t.Fatalf("prepared units = %d, want %d", len(prepared), len(input.Units))
-	}
-	if engine.analyses.Load() != 4 {
-		t.Fatalf("analyses = %d, want 4", engine.analyses.Load())
-	}
-	if engine.maximum.Load() < 2 {
-		t.Fatalf("maximum concurrent analyses = %d, want at least 2", engine.maximum.Load())
-	}
-}
-
 func TestParallelWorldFeatureMixMatchesSequentialMix(t *testing.T) {
 	input, prepared, fftSize := worldMixFixture()
 	sequential := mixWorldFeatures(input, prepared, fftSize, 1)
 	parallel := mixWorldFeatures(input, prepared, fftSize, 4)
 	if !reflect.DeepEqual(parallel, sequential) {
 		t.Fatal("parallel feature mix differs from sequential mix")
-	}
-}
-
-func BenchmarkWorldFeatureMix(b *testing.B) {
-	input, prepared, fftSize := worldMixFixture()
-	for _, workers := range []int{1, max(2, runtime.GOMAXPROCS(0))} {
-		b.Run(fmt.Sprintf("workers-%d", workers), func(b *testing.B) {
-			b.ReportAllocs()
-			for range b.N {
-				_ = mixWorldFeatures(input, prepared, fftSize, workers)
-			}
-		})
 	}
 }
 

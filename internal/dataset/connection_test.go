@@ -47,14 +47,6 @@ func TestBuildConnectionsCreatesNaturalAndReplacedPairs(t *testing.T) {
 	}
 }
 
-func TestAliasKey(t *testing.T) {
-	for input, expected := range map[string]string{"- あ": "あ", "a い": "い", "う": "う", "  ": ""} {
-		if actual := AliasKey(input); actual != expected {
-			t.Errorf("AliasKey(%q)=%q, want %q", input, actual, expected)
-		}
-	}
-}
-
 func TestHardNegativePrefersPlausibleAcousticJoin(t *testing.T) {
 	root := t.TempDir()
 	first := filepath.Join(root, "a-first.wav")

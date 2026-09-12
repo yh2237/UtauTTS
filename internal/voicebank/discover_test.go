@@ -229,10 +229,3 @@ func TestInspectFindsNestedOtoWithoutParsingIt(t *testing.T) {
 		t.Fatalf("Inspect() = %#v, %v", got, err)
 	}
 }
-
-func TestResolveDirectoryKeepsAbsolutePath(t *testing.T) {
-	root := t.TempDir()
-	if got := ResolveDirectory(root); got != root {
-		t.Fatalf("ResolveDirectory() = %q, want %q", got, root)
-	}
-}

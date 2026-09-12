@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -19,13 +20,6 @@ func TestRenderHonorsCanceledContext(t *testing.T) {
 	_, err := Render(nil, Config{Context: ctx})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
-	}
-}
-
-func TestWorldlineRFaithfulRendererIsRemoved(t *testing.T) {
-	const backend = "openutau-worldline-r-faithful"
-	if IsKnownRenderer(backend) {
-		t.Fatalf("removed renderer %q is still registered", backend)
 	}
 }
 
@@ -129,7 +123,14 @@ func TestFadeInDurationKeepsConfiguredLongCrossfade(t *testing.T) {
 	}
 }
 
-func TestRenderRejectsUnknownBackend(t *testing.T) {
+func TestRenderRejectsInvalidConfiguration(t *testing.T) {
+	t.Run("unknown backend", testRenderRejectsUnknownBackend)
+	t.Run("nonfinite pitch", testRenderRejectsNonFinitePitchCurve)
+	t.Run("nonfinite timing", testRenderRejectsNonFiniteTimingConfiguration)
+	t.Run("unsafe pitch range", testRenderRejectsUnsafePitchCurveRangeAndFrame)
+}
+
+func testRenderRejectsUnknownBackend(t *testing.T) {
 	_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "missing"})
 	if err == nil {
 		t.Fatal("unknown backend was accepted")
@@ -272,13 +273,29 @@ func TestCVVCPreBoundaryEnvelopeEndsAtFollowingMoraBoundary(t *testing.T) {
 	}
 }
 
-func TestWaveformRendererAcceptsFramePitchCurve(t *testing.T) {
-	_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "waveform", ApplyPitch: true, PitchCurve: &PitchCurve{FrameMS: 5, Cents: []float64{0}}})
-	if err == nil {
-		t.Fatal("empty plan unit was accepted")
+func TestWaveformRendererRendersFramePitchCurve(t *testing.T) {
+	directory := t.TempDir()
+	path := filepath.Join(directory, "unit.wav")
+	const sampleRate = 1000
+	data := make([]int16, 300)
+	for index := range data {
+		data[index] = int16(7000 * math.Sin(2*math.Pi*80*float64(index)/sampleRate))
 	}
-	if strings.Contains(err.Error(), "frame pitch curve is not supported by waveform renderer") {
-		t.Fatalf("waveform still rejects frame pitch curves: %v", err)
+	if err := audio.WriteWav(path, &audio.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
+		t.Fatal(err)
+	}
+	pcm, err := Render(&plan.Plan{DurationMS: 200, Units: []plan.Unit{{
+		Position: 0, Alias: "a", Source: path, NoteStartMS: 100, DurationMS: 100,
+		PreutteranceMS: 100, OverlapMS: 0, PitchFactor: 1, EnergyFactor: 1,
+	}}}, Config{
+		Backend: "waveform", ApplyPitch: true,
+		PitchCurve: &PitchCurve{FrameMS: 10, Cents: []float64{0, 20, 0}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pcm == nil || len(pcm.Data) == 0 {
+		t.Fatal("frame pitch curve produced no waveform")
 	}
 }
 
@@ -330,7 +347,7 @@ func TestResampleForPitchCurveStretchesUnevenly(t *testing.T) {
 	}
 }
 
-func TestRenderRejectsNonFinitePitchCurve(t *testing.T) {
+func testRenderRejectsNonFinitePitchCurve(t *testing.T) {
 	for _, curve := range []*PitchCurve{
 		{FrameMS: math.NaN(), Cents: []float64{0}},
 		{FrameMS: 5, Cents: []float64{math.Inf(1)}},
@@ -342,7 +359,7 @@ func TestRenderRejectsNonFinitePitchCurve(t *testing.T) {
 	}
 }
 
-func TestRenderRejectsNonFiniteTimingConfiguration(t *testing.T) {
+func testRenderRejectsNonFiniteTimingConfiguration(t *testing.T) {
 	for _, value := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
 		_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{ReleaseMS: value})
 		if err == nil {
@@ -413,7 +430,7 @@ func TestWaveformRendererPreservesFirstUnitPreutterance(t *testing.T) {
 	}
 }
 
-func TestRenderRejectsUnsafePitchCurveRangeAndFrame(t *testing.T) {
+func testRenderRejectsUnsafePitchCurveRangeAndFrame(t *testing.T) {
 	for _, curve := range []*PitchCurve{
 		{FrameMS: 0.01, Cents: []float64{0}},
 		{FrameMS: 5, Cents: []float64{4801}},

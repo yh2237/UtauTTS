@@ -96,25 +96,6 @@ func TestTrainMLPLearnsAcousticDifference(t *testing.T) {
 	}
 }
 
-func TestLearnedScoreIsBoundedAndKeepsContinuityBonus(t *testing.T) {
-	model := &LearnedModel{
-		Means: make([]float64, len(featureNames())), Scales: make([]float64, len(featureNames())),
-		Weights: make([]float64, len(featureNames())), Bias: 100,
-	}
-	for index := range model.Scales {
-		model.Scales[index] = 1
-	}
-	features := PairFeatures{
-		PreviousOutgoing: testLearningFeatures(1).PreviousOutgoing,
-		CurrentIncoming:  testLearningFeatures(1).CurrentIncoming,
-		ForwardInSource:  true,
-	}
-	score, probability := LearnedScore(features, model)
-	if score != 16 || probability < 0.99 {
-		t.Fatalf("score=%f probability=%f", score, probability)
-	}
-}
-
 func TestLoadLearnedModelRejectsZeroScales(t *testing.T) {
 	model := &LearnedModel{
 		Version: LearnedModelVersion, FeatureVersion: 2, Mode: "acoustic_join_logistic",

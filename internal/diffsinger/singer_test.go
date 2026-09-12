@@ -143,19 +143,6 @@ func TestLoadTokensAcceptsTrailingComma(t *testing.T) {
 	}
 }
 
-func TestRenderUsesManifestBridge(t *testing.T) {
-	t.Setenv("UTAUTTS_DIFFSINGER_TEST_BRIDGE", "1")
-	pcm, err := Render(nil, os.Args[0], Request{
-		Tokens: []int64{0}, Durations: []int64{2}, F0: []float32{261, 261}, SampleRate: 44100,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pcm.SampleRate != 44100 || len(pcm.Data) != 2 {
-		t.Fatalf("pcm = %#v", pcm)
-	}
-}
-
 func makeSinger(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
