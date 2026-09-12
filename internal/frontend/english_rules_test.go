@@ -5,7 +5,14 @@ import (
 	"testing"
 )
 
-func TestEnglishSpellingFallback(t *testing.T) {
+func TestEnglishPronunciationRules(t *testing.T) {
+	t.Run("spelling fallback", testEnglishSpellingFallback)
+	t.Run("unsupported input", testEnglishSpellingRejectsUnsupportedInput)
+	t.Run("prefix pronunciation", testEnglishPrefixPreservesStemPronunciation)
+	t.Run("phonemizer overrides", testEnglishOOVAcrossPhonemizersAndDictionaryOverride)
+}
+
+func testEnglishSpellingFallback(t *testing.T) {
 	for _, tc := range []struct{ word, want string }{
 		{"phlame", "F L EY M"},
 		{"quindle", "K W IH N D AH L"},
@@ -31,7 +38,7 @@ func TestEnglishSpellingFallback(t *testing.T) {
 	}
 }
 
-func TestEnglishSpellingRejectsUnsupportedInput(t *testing.T) {
+func testEnglishSpellingRejectsUnsupportedInput(t *testing.T) {
 	for _, word := range []string{"", "'", "123", "hello!", "二", "a b", "naïve"} {
 		if _, err := englishRulePronunciation(word); err == nil {
 			t.Errorf("accepted %q", word)
@@ -39,7 +46,7 @@ func TestEnglishSpellingRejectsUnsupportedInput(t *testing.T) {
 	}
 }
 
-func TestEnglishPrefixPreservesStemPronunciation(t *testing.T) {
+func testEnglishPrefixPreservesStemPronunciation(t *testing.T) {
 	for _, tc := range []struct{ word, stem, prefix string }{
 		{"microblogging", "blogging", "M AY2 K R OW0"},
 		{"unmuting", "muting", "AH0 N"},
@@ -63,7 +70,7 @@ func TestEnglishPrefixPreservesStemPronunciation(t *testing.T) {
 	}
 }
 
-func TestEnglishOOVAcrossPhonemizersAndDictionaryOverride(t *testing.T) {
+func testEnglishOOVAcrossPhonemizersAndDictionaryOverride(t *testing.T) {
 	for _, parse := range []func(string, string, map[string]string) (string, []Mora, error){ParseEnglishARPAsing, ParseEnglishDelta, ParseEnglishVCCV} {
 		reading, units, err := parse("phlame", "", nil)
 		if err != nil || reading != "F L EY M" || len(units) == 0 {

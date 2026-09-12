@@ -61,21 +61,11 @@ func TestSourcePathWithinRejectsSymlinkOutsideVoicebank(t *testing.T) {
 	}
 }
 
-func TestSourcePathWithinAcceptsRegularFile(t *testing.T) {
-	root := t.TempDir()
-	path := filepath.Join(root, "inside.wav")
-	if err := os.WriteFile(path, []byte("inside"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if !sourcePathWithin(root, path) {
-		t.Fatal("regular voicebank source was rejected")
-	}
-}
-
 func TestLoadAcceptsOtoPath(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "oto.ini")
 	write(t, path, "a.wav=あ,0,0,0,0,0\n")
+	write(t, filepath.Join(root, "a.wav"), "")
 	bank, err := Load(path)
 	if err != nil {
 		t.Fatal(err)

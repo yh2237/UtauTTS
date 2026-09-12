@@ -34,6 +34,9 @@ func TestCodaReleaseScope(t *testing.T) {
 	if worldCodaReleaseEligible(p, u) {
 		t.Fatal("optional ending mistaken for required coda")
 	}
+	if !codaReleaseStop(plan.Unit{CodaPhones: []string{"d"}}) || codaReleaseStop(plan.Unit{CodaPhones: []string{"l"}}) {
+		t.Fatal("wrong stop classification")
+	}
 }
 
 func TestCodaReleaseEnvelopeKeepsConsonantAudible(t *testing.T) {
@@ -42,11 +45,5 @@ func TestCodaReleaseEnvelopeKeepsConsonantAudible(t *testing.T) {
 	got, fade := codaReleaseEnvelope(u, points, 30)
 	if fade != 5 || got[3].XMS != 25 || got[4].XMS != 30 {
 		t.Fatalf("fade=%v points=%#v", fade, got)
-	}
-}
-
-func TestCodaReleaseStopUsesRequiredPhone(t *testing.T) {
-	if !codaReleaseStop(plan.Unit{CodaPhones: []string{"d"}}) || codaReleaseStop(plan.Unit{CodaPhones: []string{"l"}}) {
-		t.Fatal("wrong stop classification")
 	}
 }

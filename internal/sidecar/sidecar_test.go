@@ -10,7 +10,12 @@ import (
 	"golang.org/x/text/transform"
 )
 
-func TestWriteCreatesMatchingUTF8Sidecars(t *testing.T) {
+func TestWriteSidecars(t *testing.T) {
+	t.Run("UTF-8", testWriteCreatesMatchingUTF8Sidecars)
+	t.Run("Shift_JIS", testWriteEncodesShiftJIS)
+}
+
+func testWriteCreatesMatchingUTF8Sidecars(t *testing.T) {
 	directory := t.TempDir()
 	wav := filepath.Join(directory, "voice.wav")
 	if err := Write(wav, Options{WriteText: true, WriteLab: true, Encoding: EncodingUTF8,
@@ -27,7 +32,7 @@ func TestWriteCreatesMatchingUTF8Sidecars(t *testing.T) {
 	}
 }
 
-func TestWriteEncodesShiftJIS(t *testing.T) {
+func testWriteEncodesShiftJIS(t *testing.T) {
 	directory := t.TempDir()
 	if err := Write(filepath.Join(directory, "voice.wav"), Options{
 		WriteText: true, Encoding: EncodingShiftJIS, Text: "足立レイ",

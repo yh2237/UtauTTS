@@ -94,45 +94,40 @@ func TestSessionKeepsProviderResidentAcrossRequests(t *testing.T) {
 	if !session.Hello().Session {
 		t.Fatal("provider did not advertise session support")
 	}
+	var progress Progress
 	for index := 0; index < 2; index++ {
+		renderOptions := RenderOptions{}
+		if index == 1 {
+			renderOptions.OnProgress = func(value Progress) { progress = value }
+		}
 		result, err := session.Render(context.Background(), RenderRequest{
 			InputPath: "/tmp/input.json", OutputPath: "/tmp/output.wav",
-		}, RenderOptions{})
+		}, renderOptions)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if result.Audio.Format != "pcm_s16le" || result.Audio.SampleRate != 44100 {
+		if result.Audio.Format != "pcm_s16le" || result.Audio.SampleRate != 44100 || result.RequestID == "" {
 			t.Fatalf("result = %#v", result)
 		}
 	}
-}
-
-func TestSessionReportsProgressAndDiagnostics(t *testing.T) {
-	session, err := StartSession(context.Background(), testSessionOptions(t, ""))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer session.Close()
-	var progress Progress
-	result, err := session.Render(context.Background(), RenderRequest{InputPath: "input", OutputPath: "output"}, RenderOptions{
-		OnProgress: func(value Progress) { progress = value },
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if progress.Phase != "render" || progress.Progress != 0.5 || result.RequestID == "" {
-		t.Fatalf("progress=%#v result=%#v", progress, result)
+	if progress.Phase != "render" || progress.Progress != 0.5 {
+		t.Fatalf("progress = %#v", progress)
 	}
 }
 
-func TestSessionHandshakeRejectsProviderMismatch(t *testing.T) {
+func TestSessionHandshakeRejectsInvalidHello(t *testing.T) {
+	t.Run("provider mismatch", testSessionHandshakeRejectsProviderMismatch)
+	t.Run("missing capability", testSessionHandshakeRejectsMissingCapability)
+}
+
+func testSessionHandshakeRejectsProviderMismatch(t *testing.T) {
 	_, err := StartSession(context.Background(), testSessionOptions(t, "bad-provider"))
 	if err == nil || !strings.Contains(err.Error(), "provider id mismatch") {
 		t.Fatalf("error = %v", err)
 	}
 }
 
-func TestSessionHandshakeRejectsMissingCapability(t *testing.T) {
+func testSessionHandshakeRejectsMissingCapability(t *testing.T) {
 	options := testSessionOptions(t, "")
 	options.Capabilities = []string{"frame_pitch"}
 	_, err := StartSession(context.Background(), options)

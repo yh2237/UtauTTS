@@ -5,7 +5,12 @@ import (
 	"testing"
 )
 
-func TestEnglishInflectionAllomorphs(t *testing.T) {
+func TestEnglishInflection(t *testing.T) {
+	t.Run("allomorphs", testEnglishInflectionAllomorphs)
+	t.Run("dictionary-backed stem fallback", testEnglishInflectionFallsBackOnlyForDictionaryBackedStems)
+}
+
+func testEnglishInflectionAllomorphs(t *testing.T) {
 	for _, tc := range []struct{ word, want string }{
 		{"cat's", "K AE1 T S"},
 		{"dog's", "D AO1 G Z"},
@@ -29,7 +34,7 @@ func TestEnglishInflectionAllomorphs(t *testing.T) {
 	}
 }
 
-func TestEnglishInflectionFallsBackOnlyForDictionaryBackedStems(t *testing.T) {
+func testEnglishInflectionFallsBackOnlyForDictionaryBackedStems(t *testing.T) {
 	for _, word := range []string{"qzxqzx's", "qzxqzxing", "hello", "ss"} {
 		if got, err := englishInflectedPronunciation(word); err != nil || got != "" {
 			t.Fatalf("%s: got %q, %v", word, got, err)

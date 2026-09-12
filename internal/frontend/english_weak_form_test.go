@@ -5,7 +5,12 @@ import (
 	"testing"
 )
 
-func TestOfWeakFormOnlyAutomaticPhraseInterior(t *testing.T) {
+func TestEnglishWeakForm(t *testing.T) {
+	t.Run("automatic phrase interior", testOfWeakFormOnlyAutomaticPhraseInterior)
+	t.Run("manual reading remains equivalent", testAutomaticOfMatchesAcceptedManualReading)
+}
+
+func testOfWeakFormOnlyAutomaticPhraseInterior(t *testing.T) {
 	for _, tc := range []struct {
 		text, reading string
 		dict          map[string]string
@@ -28,7 +33,7 @@ func TestOfWeakFormOnlyAutomaticPhraseInterior(t *testing.T) {
 	}
 }
 
-func TestAutomaticOfMatchesAcceptedManualReading(t *testing.T) {
+func testAutomaticOfMatchesAcceptedManualReading(t *testing.T) {
 	for _, parse := range []func(string, string, map[string]string) (string, []Mora, error){ParseEnglishDelta, ParseEnglishVCCV} {
 		got, _, err := parse("Another cup of coffee.", "", nil)
 		if err != nil {

@@ -20,7 +20,13 @@ import (
 	"utautts/internal/voicebank"
 )
 
-func TestMoraTimingsIgnoreCodaAndTransitionUnits(t *testing.T) {
+func TestMoraTimings(t *testing.T) {
+	t.Run("ignores coda and transition units", testMoraTimingsIgnoreCodaAndTransitionUnits)
+	t.Run("includes missing pauses", testMoraTimingsIncludePausesMissingFromPlanUnits)
+	t.Run("distributes trailing pauses", testMoraTimingsDistributeConsecutiveTrailingPauses)
+}
+
+func testMoraTimingsIgnoreCodaAndTransitionUnits(t *testing.T) {
 	morae := []frontend.Mora{{Text: "test"}, {Pause: true}, {Text: "a"}}
 	p := &plan.Plan{DurationMS: 400, Units: []plan.Unit{
 		{Position: 0, Role: "mora", NoteStartMS: 0, DurationMS: 200},
@@ -122,7 +128,7 @@ func TestResolveProsodyModelForLanguageUsesBundledEnglishFallback(t *testing.T) 
 	}
 }
 
-func TestMoraTimingsIncludePausesMissingFromPlanUnits(t *testing.T) {
+func testMoraTimingsIncludePausesMissingFromPlanUnits(t *testing.T) {
 	morae := []frontend.Mora{{Text: "a"}, {Pause: true}, {Text: "i"}}
 	p := &plan.Plan{DurationMS: 380, Units: []plan.Unit{
 		{Position: 0, NoteStartMS: 0, DurationMS: 100},
@@ -134,7 +140,12 @@ func TestMoraTimingsIncludePausesMissingFromPlanUnits(t *testing.T) {
 	}
 }
 
-func TestMergeManualPitchCurveAddsToLearnedCurve(t *testing.T) {
+func TestMergeManualPitchCurve(t *testing.T) {
+	t.Run("adds to learned curve", testMergeManualPitchCurveAddsToLearnedCurve)
+	t.Run("replaces learned curve", testMergeManualPitchCurveCanReplaceLearnedCurve)
+}
+
+func testMergeManualPitchCurveAddsToLearnedCurve(t *testing.T) {
 	base := &render.PitchCurve{FrameMS: 20, Cents: []float64{10, 30, 50}}
 	manual := &prosody.PitchContour{FrameMS: 10, Cents: []float64{0, 10, 20, 30, 40}}
 	got := mergeManualPitchCurve(base, manual, "offset")
@@ -146,7 +157,7 @@ func TestMergeManualPitchCurveAddsToLearnedCurve(t *testing.T) {
 	}
 }
 
-func TestMergeManualPitchCurveCanReplaceLearnedCurve(t *testing.T) {
+func testMergeManualPitchCurveCanReplaceLearnedCurve(t *testing.T) {
 	base := &render.PitchCurve{FrameMS: 10, Cents: []float64{100, 100}}
 	manual := &prosody.PitchContour{FrameMS: 10, Cents: []float64{0, -20}}
 	got := mergeManualPitchCurve(base, manual, "replace")
@@ -210,7 +221,7 @@ func TestPredictProsodyDoesNotRenderAudio(t *testing.T) {
 	}
 }
 
-func TestMoraTimingsDistributeConsecutiveTrailingPauses(t *testing.T) {
+func testMoraTimingsDistributeConsecutiveTrailingPauses(t *testing.T) {
 	morae := []frontend.Mora{{Text: "a"}, {Pause: true}, {Pause: true}}
 	p := &plan.Plan{DurationMS: 300, Units: []plan.Unit{{Position: 0, NoteStartMS: 0, DurationMS: 100}}}
 	got := moraTimings(morae, p)
@@ -219,7 +230,13 @@ func TestMoraTimingsDistributeConsecutiveTrailingPauses(t *testing.T) {
 	}
 }
 
-func TestExternalPitchFactorsDoNotImplicitlyEnableWaveformPitchProcessing(t *testing.T) {
+func TestPitchProcessingConfiguration(t *testing.T) {
+	t.Run("external factors", testExternalPitchFactorsDoNotImplicitlyEnableWaveformPitchProcessing)
+	t.Run("model contour switch", testPitchProcessingSwitchControlsModelFrameContour)
+	t.Run("waveform capability", testWaveformRendererSupportsFramePitch)
+}
+
+func testExternalPitchFactorsDoNotImplicitlyEnableWaveformPitchProcessing(t *testing.T) {
 	if applyPitchEnabled(Config{PitchFactors: []float64{1.02}}) {
 		t.Fatal("external pitch targets implicitly enabled waveform pitch processing")
 	}
@@ -231,7 +248,7 @@ func TestExternalPitchFactorsDoNotImplicitlyEnableWaveformPitchProcessing(t *tes
 	}
 }
 
-func TestPitchProcessingSwitchControlsModelFrameContour(t *testing.T) {
+func testPitchProcessingSwitchControlsModelFrameContour(t *testing.T) {
 	model := &prosody.Model{FramePitch: &prosody.FramePitchModel{}}
 	capabilities := &plugin.Capabilities{FramePitch: true}
 	if shouldPredictFrameContour(Config{RendererCapabilities: capabilities}, model) {
@@ -248,13 +265,20 @@ func TestPitchProcessingSwitchControlsModelFrameContour(t *testing.T) {
 	}
 }
 
-func TestWaveformRendererSupportsFramePitch(t *testing.T) {
+func testWaveformRendererSupportsFramePitch(t *testing.T) {
 	if !rendererSupportsFramePitch("waveform", &plugin.Capabilities{FramePitch: true}) {
 		t.Fatal("waveform renderer rejected a frame pitch contour")
 	}
 }
 
-func TestAlignRuntimeProsodyFeaturesAcceptsAlternatePronunciations(t *testing.T) {
+func TestAlignRuntimeProsodyFeatures(t *testing.T) {
+	t.Run("alternate pronunciations", testAlignRuntimeProsodyFeaturesAcceptsAlternatePronunciations)
+	t.Run("long vowel notation", testAlignRuntimeProsodyFeaturesAcceptsLongVowelNotation)
+	t.Run("fills missing mora", testAlignRuntimeProsodyFeaturesFillsMissingGoMora)
+	t.Run("skips extra OpenJTalk mora", testAlignRuntimeProsodyFeaturesSkipsExtraOpenJTalkMorae)
+}
+
+func testAlignRuntimeProsodyFeaturesAcceptsAlternatePronunciations(t *testing.T) {
 	morae := []frontend.Mora{
 		{Text: "\u3044", Vowel: "i"},
 		{Text: "\u304b", Vowel: "a"},
@@ -279,7 +303,7 @@ func TestAlignRuntimeProsodyFeaturesAcceptsAlternatePronunciations(t *testing.T)
 	}
 }
 
-func TestAlignRuntimeProsodyFeaturesAcceptsLongVowelNotation(t *testing.T) {
+func testAlignRuntimeProsodyFeaturesAcceptsLongVowelNotation(t *testing.T) {
 	morae := []frontend.Mora{{Text: "\u305b", Vowel: "e"}, {Text: "\u3044", Vowel: "i"}, {Text: "\u3044", Vowel: "i"}}
 	analysis := &openjtalk.Analysis{
 		Morae:    []string{"\u305b", "\u30fc", "\u3044"},
@@ -294,7 +318,7 @@ func TestAlignRuntimeProsodyFeaturesAcceptsLongVowelNotation(t *testing.T) {
 	}
 }
 
-func TestAlignRuntimeProsodyFeaturesFillsMissingGoMora(t *testing.T) {
+func testAlignRuntimeProsodyFeaturesFillsMissingGoMora(t *testing.T) {
 	morae := []frontend.Mora{{Text: "こ"}, {Text: "れ"}, {Text: "い"}}
 	analysis := &openjtalk.Analysis{
 		Morae:    []string{"こ", "れ"},
@@ -309,7 +333,7 @@ func TestAlignRuntimeProsodyFeaturesFillsMissingGoMora(t *testing.T) {
 	}
 }
 
-func TestAlignRuntimeProsodyFeaturesSkipsExtraOpenJTalkMorae(t *testing.T) {
+func testAlignRuntimeProsodyFeaturesSkipsExtraOpenJTalkMorae(t *testing.T) {
 	morae := []frontend.Mora{{Text: "\u3053"}, {Text: "\u3044"}}
 	analysis := &openjtalk.Analysis{
 		Morae: []string{"\u3053", "\u304f", "\u3089", "\u3044"},
@@ -325,25 +349,6 @@ func TestAlignRuntimeProsodyFeaturesSkipsExtraOpenJTalkMorae(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(aligned) != 2 || aligned[0]["source"] != 0 || aligned[1]["source"] != 3 {
-		t.Fatalf("aligned features = %#v", aligned)
-	}
-}
-
-func TestAlignRuntimeProsodyFeaturesAcceptsAlternatePronunciation(t *testing.T) {
-	morae := []frontend.Mora{{Text: "\u3044"}, {Text: "\u304b"}, {Text: "\u308a"}}
-	analysis := &openjtalk.Analysis{
-		Morae: []string{"\u304a", "\u3053", "\u308a"},
-		Features: []prosody.FeatureFrame{
-			{"source": 0},
-			{"source": 1},
-			{"source": 2},
-		},
-	}
-	aligned, err := alignRuntimeProsodyFeatures(morae, analysis)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(aligned) != 3 || aligned[0]["source"] != 0 || aligned[2]["source"] != 2 {
 		t.Fatalf("aligned features = %#v", aligned)
 	}
 }

@@ -5,7 +5,20 @@ import (
 	"testing"
 )
 
-func TestToKanaUsesDictionaryPronunciation(t *testing.T) {
+func TestToKana(t *testing.T) {
+	t.Run("dictionary pronunciation", testToKanaUsesDictionaryPronunciation)
+	t.Run("preserves kana and punctuation", testToKanaPreservesKanaAndPunctuation)
+	t.Run("ignores token without pronunciation", testToKanaIgnoresTokenWithoutPronunciation)
+}
+
+func TestToKanaWithDictionary(t *testing.T) {
+	t.Run("overrides surface reading", testToKanaWithDictionaryOverridesSurfaceReading)
+	t.Run("prefers longest surface", testApplyDictionaryPrefersLongestSurface)
+	t.Run("does not reinterpret reading", testToKanaWithDictionaryDoesNotReinterpretReading)
+	t.Run("analysis uses katakana reading", testApplyDictionaryForAnalysisUsesKatakanaReading)
+}
+
+func testToKanaUsesDictionaryPronunciation(t *testing.T) {
 	got, err := ToKana("今日はいい天気です。")
 	if err != nil {
 		t.Fatal(err)
@@ -15,7 +28,7 @@ func TestToKanaUsesDictionaryPronunciation(t *testing.T) {
 	}
 }
 
-func TestToKanaPreservesKanaAndPunctuation(t *testing.T) {
+func testToKanaPreservesKanaAndPunctuation(t *testing.T) {
 	got, err := ToKana("こんにちは、テストです。")
 	if err != nil {
 		t.Fatal(err)
@@ -25,7 +38,7 @@ func TestToKanaPreservesKanaAndPunctuation(t *testing.T) {
 	}
 }
 
-func TestToKanaIgnoresTokenWithoutPronunciation(t *testing.T) {
+func testToKanaIgnoresTokenWithoutPronunciation(t *testing.T) {
 	got, err := ToKana("こんにちは🙂。")
 	if err != nil {
 		t.Fatal(err)
@@ -35,7 +48,7 @@ func TestToKanaIgnoresTokenWithoutPronunciation(t *testing.T) {
 	}
 }
 
-func TestToKanaWithDictionaryOverridesSurfaceReading(t *testing.T) {
+func testToKanaWithDictionaryOverridesSurfaceReading(t *testing.T) {
 	got, err := ToKanaWithDictionary("UtauTTSを試します。", map[string]string{
 		"UtauTTS": "うたうてぃーてぃーえす",
 	})
@@ -47,7 +60,7 @@ func TestToKanaWithDictionaryOverridesSurfaceReading(t *testing.T) {
 	}
 }
 
-func TestApplyDictionaryPrefersLongestSurface(t *testing.T) {
+func testApplyDictionaryPrefersLongestSurface(t *testing.T) {
 	got := ApplyDictionary("東京都", map[string]string{
 		"東京":  "とうきょう",
 		"東京都": "とうきょうと",
@@ -57,7 +70,7 @@ func TestApplyDictionaryPrefersLongestSurface(t *testing.T) {
 	}
 }
 
-func TestToKanaWithDictionaryDoesNotReinterpretReading(t *testing.T) {
+func testToKanaWithDictionaryDoesNotReinterpretReading(t *testing.T) {
 	got, err := ToKanaWithDictionary(" v8を使う。", map[string]string{"v8": "ぶいはち"})
 	if err != nil {
 		t.Fatal(err)
@@ -67,7 +80,7 @@ func TestToKanaWithDictionaryDoesNotReinterpretReading(t *testing.T) {
 	}
 }
 
-func TestApplyDictionaryForAnalysisUsesKatakanaReading(t *testing.T) {
+func testApplyDictionaryForAnalysisUsesKatakanaReading(t *testing.T) {
 	got := ApplyDictionaryForAnalysis("v8を使う。", map[string]string{"v8": "ぶいはち"})
 	if got != "ブイハチを使う。" {
 		t.Fatalf("replacement = %q", got)

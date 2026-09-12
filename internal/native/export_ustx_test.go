@@ -245,11 +245,7 @@ func TestExportUstxSkipsEmptyCardsButKeepsTheRest(t *testing.T) {
 	if len(parts) != 1 {
 		t.Fatalf("voice_parts = %d, want 1 (empty card skipped)", len(parts))
 	}
-}
-
-func TestExportUstxRejectsEmptyProject(t *testing.T) {
-	engine := exportEngine(t)
-	projectData, err := json.Marshal(map[string]any{
+	emptyProject, err := json.Marshal(map[string]any{
 		"format":         "utautts-project",
 		"format_version": 5,
 		"utterances": []any{
@@ -259,7 +255,7 @@ func TestExportUstxRejectsEmptyProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request, err := json.Marshal(exportRequest{OutputPath: "unused.ustx", Project: projectData})
+	request, err := json.Marshal(exportRequest{OutputPath: "unused.ustx", Project: emptyProject})
 	if err != nil {
 		t.Fatal(err)
 	}

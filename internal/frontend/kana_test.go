@@ -24,9 +24,13 @@ func TestParseKana(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("morae = %#v, want %#v", got, want)
 	}
+	t.Run("long-vowel", testParseKanaLongVowel)
+	t.Run("ellipsis-and-brackets", testParseKanaEllipsisAndBrackets)
+	t.Run("consonants", testParseKanaConsonants)
+	t.Run("unknown-character", testParseKanaIgnoresUnknownCharacter)
 }
 
-func TestParseKanaLongVowel(t *testing.T) {
+func testParseKanaLongVowel(t *testing.T) {
 	got, err := ParseKana("スーパー")
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +40,7 @@ func TestParseKanaLongVowel(t *testing.T) {
 	}
 }
 
-func TestParseKanaEllipsisAndBrackets(t *testing.T) {
+func testParseKanaEllipsisAndBrackets(t *testing.T) {
 	got, err := ParseKana("ミナサン……（テスト）〜オハヨー〜")
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +66,7 @@ func TestParseKanaEllipsisAndBrackets(t *testing.T) {
 	}
 }
 
-func TestParseKanaConsonants(t *testing.T) {
+func testParseKanaConsonants(t *testing.T) {
 	got, err := ParseKana("かしゃつきょんっ")
 	if err != nil {
 		t.Fatal(err)
@@ -81,7 +85,7 @@ func TestParseKanaConsonants(t *testing.T) {
 	}
 }
 
-func TestParseKanaIgnoresUnknownCharacter(t *testing.T) {
+func testParseKanaIgnoresUnknownCharacter(t *testing.T) {
 	got, err := ParseKana("あ🙂Aい")
 	if err != nil {
 		t.Fatal(err)

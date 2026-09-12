@@ -7,6 +7,11 @@ import (
 )
 
 func TestSuggestedLanguage(t *testing.T) {
+	t.Run("inventory aliases", testSuggestedLanguage)
+	t.Run("OpenUtau phonemizer", testSuggestedLanguageUsesOpenUtauPhonemizer)
+}
+
+func testSuggestedLanguage(t *testing.T) {
 	tests := []struct {
 		name, language, phonemizer string
 		aliases                    []string
@@ -31,7 +36,7 @@ func TestSuggestedLanguage(t *testing.T) {
 	}
 }
 
-func TestSuggestedLanguageUsesOpenUtauPhonemizer(t *testing.T) {
+func testSuggestedLanguageUsesOpenUtauPhonemizer(t *testing.T) {
 	bank := &Bank{DefaultPhonemizer: "OpenUtau.Plugin.Builtin.ChineseCVVCPhonemizer"}
 	language, phonemizer := bank.SuggestedLanguage()
 	if language != "zh" || phonemizer != "zh-cvvc" {

@@ -9,7 +9,12 @@ import (
 	"utautts/internal/oto"
 )
 
-func TestMeasureCandidateF0UsesVowelRegion(t *testing.T) {
+func TestMeasureCandidateF0(t *testing.T) {
+	t.Run("vowel region", testMeasureCandidateF0UsesVowelRegion)
+	t.Run("silence invalid", testMeasureCandidateF0MarksSilenceInvalid)
+}
+
+func testMeasureCandidateF0UsesVowelRegion(t *testing.T) {
 	const sampleRate = 16000
 	data := make([]int16, sampleRate/4)
 	for index := sampleRate * 85 / 1000; index < len(data); index++ {
@@ -25,7 +30,7 @@ func TestMeasureCandidateF0UsesVowelRegion(t *testing.T) {
 	}
 }
 
-func TestMeasureCandidateF0MarksSilenceInvalid(t *testing.T) {
+func testMeasureCandidateF0MarksSilenceInvalid(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "silence.wav")
 	if err := audio.WriteWav(path, &audio.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 4000)}); err != nil {
 		t.Fatal(err)
