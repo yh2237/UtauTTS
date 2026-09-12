@@ -48,7 +48,6 @@ ApplicationWindow {
     property bool pendingPreReleaseUpdateCheckEnabled: false
     property int pendingPreviewCacheFileCount: 32
     property bool pendingDeveloperMode: false
-    property bool pendingDeveloperProsodyTrainingEnabled: true
     property string pendingSynthesizeShortcut: "Ctrl+Enter"
     property string pendingSaveProjectShortcut: "Ctrl+S"
     property string pendingReloadVoicebanksShortcut: "Ctrl+O"
@@ -104,7 +103,6 @@ ApplicationWindow {
         pendingPreReleaseUpdateCheckEnabled = root.backend.preReleaseUpdateCheckEnabled;
         pendingPreviewCacheFileCount = root.backend.previewCacheFileCount;
         pendingDeveloperMode = root.backend.developerMode;
-        pendingDeveloperProsodyTrainingEnabled = root.backend.developerProsodyTrainingEnabled;
         pendingSynthesizeShortcut = root.backend.synthesizeShortcut;
         pendingSaveProjectShortcut = root.backend.saveProjectShortcut;
         pendingReloadVoicebanksShortcut = root.backend.reloadVoicebanksShortcut;
@@ -184,11 +182,6 @@ ApplicationWindow {
 
     function resetDeveloperMode() {
         pendingDeveloperMode = false;
-    }
-
-
-    function resetDeveloperProsodyTrainingEnabled() {
-        pendingDeveloperProsodyTrainingEnabled = true;
     }
 
     function resetCloseLogOnSuccess() {
@@ -495,7 +488,6 @@ ApplicationWindow {
                                     Layout.preferredWidth: 240
                                     model: [
                                         { id: "auto", display_name: root.translator.tr("main.aliasPolicy.auto") },
-                                        { id: "legacy", display_name: root.translator.tr("main.aliasPolicy.legacy") },
                                         { id: "cvvc-enhanced", display_name: root.translator.tr("main.aliasPolicy.cvvcEnhanced") },
                                         { id: "vcv-prefer", display_name: root.translator.tr("main.aliasPolicy.vcvPrefer") },
                                         { id: "cvvc-prefer", display_name: root.translator.tr("main.aliasPolicy.cvvcPrefer") },
@@ -1098,23 +1090,6 @@ ApplicationWindow {
                             }
                         }
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.developer.prosodyTraining")
-                            }
-                            Switch {
-                                id: developerProsodyTrainingSwitch
-                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                checked: root.pendingDeveloperProsodyTrainingEnabled
-                                onToggled: root.pendingDeveloperProsodyTrainingEnabled = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetDeveloperProsodyTrainingEnabled()
-                            }
-                        }
                     }
                 }
             }

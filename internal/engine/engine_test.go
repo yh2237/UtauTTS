@@ -4,49 +4,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"utautts/internal/plugin"
 )
-
-func TestDefinitionFromV1SeparatesPublicIDProviderAndResources(t *testing.T) {
-	directory := t.TempDir()
-	renderer := plugin.Renderer{
-		ManifestVersion: 1,
-		ID:              "world-phrase-fast",
-		DisplayName:     "World phrase fast",
-		Backend:         "utautts-world-phrase",
-		Version:         "renderer-definition-2",
-		Capabilities:    plugin.Capabilities{FramePitch: true},
-		Directory:       directory,
-		PlatformAssets: map[string]map[string]string{
-			runtime.GOOS + "-" + runtime.GOARCH: {
-				"world_engine": "runtime/world-engine",
-			},
-		},
-	}
-
-	definition := DefinitionFromV1(renderer)
-	if definition.ID != "world-phrase-fast" {
-		t.Fatalf("public id = %q", definition.ID)
-	}
-	if definition.Provider != "utautts-world-phrase" {
-		t.Fatalf("provider = %q", definition.Provider)
-	}
-	if definition.ProviderVersion != "" {
-		t.Fatalf("v1 renderer version was treated as provider version: %q", definition.ProviderVersion)
-	}
-	if definition.Contract != ContractUnitRenderer {
-		t.Fatalf("contract = %q", definition.Contract)
-	}
-	if got, want := definition.Resource(ResourceWorldEngine), filepath.Join(directory, "runtime", "world-engine"); got != want {
-		t.Fatalf("world engine resource = %q, want %q", got, want)
-	}
-	if !definition.Capabilities.FramePitch {
-		t.Fatal("frame pitch capability was lost")
-	}
-}
 
 func TestDefinitionFromV2UsesExplicitContractProviderAndResources(t *testing.T) {
 	directory := t.TempDir()
@@ -214,7 +175,9 @@ func TestResolverReportsMissingRequiredResourceAndHonorsOverride(t *testing.T) {
 
 func TestBundledManifestDefinitionsResolveAgainstBuiltinRegistry(t *testing.T) {
 	directories, _ := plugin.DefaultDirectories()
-	renderers, err := plugin.DiscoverRenderers(directories, IsBuiltinProvider)
+	renderers, err := plugin.DiscoverRenderers(directories, func(id string) bool {
+		return BuiltinRegistry().Supports(ProviderID(id))
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

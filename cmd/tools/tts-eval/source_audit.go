@@ -13,7 +13,7 @@ import (
 
 type sourceAudit struct {
 	Unit                                      int
-	Alias, Source, Context, Reason            string
+	Alias, Source                             string
 	SourceStartMS, SourceEndMS, VowelAnchorMS float64
 	ExcerptStartMS, ExcerptEndMS              float64
 	MixedStartMS, MixedEndMS                  float64
@@ -50,7 +50,7 @@ func writeSourceAudit(dir string, result *synth.Result) error {
 				return err
 			}
 		}
-		rows = append(rows, sourceAudit{i, u.Alias, u.Source, u.SourceContext, u.SourceContextReason, start, end, u.OffsetMS + u.PreutteranceMS, exStart, exEnd, mixStart, mixEnd})
+		rows = append(rows, sourceAudit{i, u.Alias, u.Source, start, end, u.OffsetMS + u.PreutteranceMS, exStart, exEnd, mixStart, mixEnd})
 	}
 	data, err := json.MarshalIndent(rows, "", "  ")
 	if err != nil {

@@ -22,7 +22,6 @@ import (
 func main() {
 	var (
 		voicebankPath            string
-		otoPath                  string
 		reading                  string
 		text                     string
 		tone                     string
@@ -52,20 +51,15 @@ func main() {
 		renderer                 string
 		resampler                string
 		wavtool                  string
-		worldlinePath            string
 		worldlineBridgePath      string
 		boundaryBridgeMS         float64
 		boundaryBridgeThreshold  float64
 		cvvcTiming               string
 		cvvcTransitionGain       float64
 		cvvcPreBoundaryFade      bool
-		selectionMode            string
 		language                 string
 		phonemizer               string
 		aliasPolicy              string
-		acousticMode             string
-		joinModelPath            string
-		joinScoreScale           float64
 		rendererDirectories      []string
 		modelDirectories         []string
 		writeText                bool
@@ -76,7 +70,6 @@ func main() {
 	flag.BoolVar(&showVersion, "version", false, "print application version")
 	flag.BoolVar(&speechTiming, "speech-timing", false, "experimental speech timing and bounded voicebank calibration")
 	flag.StringVar(&voicebankPath, "voicebank", "", "path to a UTAU voicebank directory")
-	flag.StringVar(&otoPath, "oto", "", "deprecated alias for --voicebank")
 	flag.StringVar(&reading, "kana", "", "kana reading to synthesize")
 	flag.StringVar(&reading, "reading", "", "pronunciation to synthesize (kana, ARPAbet, or Pinyin)")
 	flag.StringVar(&text, "text", "", "text to synthesize")
@@ -108,18 +101,13 @@ func main() {
 	flag.StringVar(&renderer, "renderer", "", "renderer ID (default: highest configured priority)")
 	flag.StringVar(&resampler, "resampler", "", "Classic UTAU resampler ID from Resamplers")
 	flag.StringVar(&wavtool, "wavtool", "builtin", "Classic UTAU wavtool ID from Wavtools")
-	flag.StringVar(&worldlinePath, "worldline", "", "path to OpenUtau worldline library (default: next to executable)")
 	flag.StringVar(&worldlineBridgePath, "worldline-bridge", "", "path to utautts-worldline-bridge executable")
 	flag.Float64Var(&boundaryBridgeMS, "boundary-bridge-ms", 0, "maximum width for phase-aligned waveform boundary repair candidates (0 disables)")
 	flag.Float64Var(&boundaryBridgeThreshold, "boundary-bridge-threshold", 0, "apply boundary repair when handcrafted join score is at or below this value")
-	flag.StringVar(&cvvcTiming, "cvvc-timing", render.CVVCTimingLegacy, "CVVC timing: legacy or sequential")
+	flag.StringVar(&cvvcTiming, "cvvc-timing", render.CVVCTimingSequential, "CVVC timing: sequential")
 	flag.Float64Var(&cvvcTransitionGain, "cvvc-transition-gain", 1, "CVVC transition volume multiplier (0..1)")
 	flag.BoolVar(&cvvcPreBoundaryFade, "cvvc-pre-boundary-fade", false, "fade CVVC transitions out before the following CV consonant")
-	flag.StringVar(&selectionMode, "selection", string(voicebank.SelectionViterbi), "unit selection: viterbi, greedy, or target-only")
-	flag.StringVar(&aliasPolicy, "alias-policy", string(voicebank.AliasPolicyAuto), "voicebank mode: auto, legacy, cvvc-enhanced, vcv-prefer, cvvc-prefer, or cv-only")
-	flag.StringVar(&acousticMode, "acoustic-selection", "", "acoustic candidate diagnostics: dry-run or apply")
-	flag.StringVar(&joinModelPath, "join-model", "", "optional learned join-cost model JSON")
-	flag.Float64Var(&joinScoreScale, "join-scale", 0, "learned logit score scale (default: model or 4)")
+	flag.StringVar(&aliasPolicy, "alias-policy", string(voicebank.AliasPolicyAuto), "voicebank mode: auto, cvvc-enhanced, vcv-prefer, cvvc-prefer, or cv-only")
 	flag.BoolVar(&writeText, "write-text", false, "write a text file next to the WAV")
 	flag.BoolVar(&writeLab, "write-lab", false, "write an HTK label file next to the WAV")
 	flag.StringVar(&textEncoding, "text-encoding", sidecar.EncodingUTF8, "text sidecar encoding: utf-8 or shift_jis")
@@ -134,7 +122,7 @@ func main() {
 	if catalogErr != nil {
 		log.Printf("plugin discovery warning: %v", catalogErr)
 	}
-	resolver := synth.NewService(catalog, "", worldlinePath, worldlineBridgePath, openJTalkPath, openJTalkDictionaryPath, nil)
+	resolver := synth.NewService(catalog, "", worldlineBridgePath, openJTalkPath, openJTalkDictionaryPath, nil)
 	if prosodyPath != "" {
 		resolvedModelPath, resolveErr := resolver.ResolveModel(prosodyPath)
 		if resolveErr != nil {
@@ -143,9 +131,6 @@ func main() {
 		prosodyPath = resolvedModelPath
 	}
 
-	if voicebankPath == "" {
-		voicebankPath = otoPath
-	}
 	if voicebankPath == "" || (reading == "" && text == "") || outPath == "" {
 		flag.Usage()
 		log.Fatal("--voicebank, --out, and either --text or --reading are required")
@@ -201,11 +186,7 @@ func main() {
 		CVVCTiming:              cvvcTiming,
 		CVVCTransitionGain:      cvvcTransitionGain,
 		CVVCPreBoundaryFade:     cvvcPreBoundaryFade,
-		SelectionMode:           voicebank.SelectionMode(selectionMode),
 		AliasPolicy:             voicebank.AliasPolicy(aliasPolicy),
-		AcousticMode:            acousticMode,
-		JoinModelPath:           joinModelPath,
-		JoinScoreScale:          joinScoreScale,
 	}
 	providerOptions := render.ProviderOptions{Classic: render.ClassicOptions{
 		ResamplerExpressions: resamplerExpressions,

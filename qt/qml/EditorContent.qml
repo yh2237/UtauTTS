@@ -31,7 +31,7 @@ import QtMultimedia
 
         function classicRendererSelected() {
             const renderer = window.rendererById(rendererCombo.currentValue);
-            return renderer && (renderer.provider || renderer.backend) === "utau-external-resampler";
+            return renderer && renderer.provider === "utau-external-resampler";
         }
 
         anchors.fill: parent
@@ -589,7 +589,6 @@ import QtMultimedia
                                 Layout.fillWidth: true
                                 model: [
                                     { id: "auto", display_name: window.translator.tr("main.aliasPolicy.auto") },
-                                    { id: "legacy", display_name: window.translator.tr("main.aliasPolicy.legacy") },
                                     { id: "cvvc-enhanced", display_name: window.translator.tr("main.aliasPolicy.cvvcEnhanced") },
                                     { id: "vcv-prefer", display_name: window.translator.tr("main.aliasPolicy.vcvPrefer") },
                                     { id: "cvvc-prefer", display_name: window.translator.tr("main.aliasPolicy.cvvcPrefer") },

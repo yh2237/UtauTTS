@@ -59,7 +59,7 @@ def normalize_contour(values: np.ndarray, mask: np.ndarray, p99_cents: float, ma
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--corpus", required=True)
-    parser.add_argument("--world-engine", "--worldline", dest="worldline", help="path to utautts-world-engine library")
+    parser.add_argument("--world-engine", dest="worldline", help="path to utautts-world-engine library")
     parser.add_argument("--out", required=True)
     parser.add_argument("--frame-ms", type=float, default=10.0)
     parser.add_argument("--mora-ms", type=float, default=140.0)

@@ -4,8 +4,7 @@ import "utautts/internal/engine"
 
 // NeuralSynthesizer is the provider dispatch contract for engines that build
 // audio from a neural singing score rather than a selected UTAU Unit Plan.
-// Config remains the compatibility envelope until provider-specific synthesis
-// configuration is moved out of tts entirely.
+// Config is the common input envelope used before provider-specific synthesis.
 type NeuralSynthesizer interface {
 	ProviderID() engine.ProviderID
 	Synthesize(Config) (*Result, error)

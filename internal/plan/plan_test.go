@@ -20,15 +20,14 @@ func TestBuildPlacesMoraeAndPause(t *testing.T) {
 		{
 			Position: 0, Mora: morae[0], Alias: "あ", Entry: oto.Entry{Filename: "a.wav"},
 			Kind: voicebank.AliasCV, FallbackTier: 1,
-			CandidateCount: 3, TargetScore: 100, JoinScore: -2, JoinProbability: 0.75, PathScore: 98,
+			CandidateCount: 3, TargetScore: 100, JoinScore: -2, PathScore: 98,
 		},
 		{Position: 2, Mora: morae[2], Alias: "ん", Entry: oto.Entry{Filename: "n.wav"}},
 		{Position: 3, Mora: morae[3], Alias: "っ", Entry: oto.Entry{Filename: "cl.wav"}},
 	}
 	got, err := Build(bank, "あ、んっ", morae, selections, Config{
-		MoraDurationMS: 100, PauseDurationMS: 200, SelectionMode: voicebank.SelectionGreedy,
-		AliasPolicy:  voicebank.AliasPolicyCVOnly,
-		JoinCostMode: "learned", JoinModelVersion: 1,
+		MoraDurationMS: 100, PauseDurationMS: 200,
+		AliasPolicy: voicebank.AliasPolicyCVOnly,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -42,10 +41,10 @@ func TestBuildPlacesMoraeAndPause(t *testing.T) {
 	if got.DurationMS != 490 {
 		t.Fatalf("duration = %v", got.DurationMS)
 	}
-	if got.Version != Version || got.SelectionMode != "greedy" || got.AliasPolicy != string(voicebank.AliasPolicyCVOnly) || got.JoinCostMode != "learned" || got.JoinModelVersion != 1 {
+	if got.Version != Version || got.SelectionMode != "viterbi" || got.AliasPolicy != string(voicebank.AliasPolicyCVOnly) || got.JoinCostMode != "handcrafted" {
 		t.Fatalf("plan audit = %#v", got)
 	}
-	if unit := got.Units[0]; unit.AliasKind != string(voicebank.AliasCV) || unit.FallbackTier != 1 || unit.CandidateCount != 3 || unit.TargetScore != 100 || unit.JoinScore != -2 || unit.JoinProbability != 0.75 || unit.PathScore != 98 {
+	if unit := got.Units[0]; unit.AliasKind != string(voicebank.AliasCV) || unit.FallbackTier != 1 || unit.CandidateCount != 3 || unit.TargetScore != 100 || unit.JoinScore != -2 || unit.PathScore != 98 {
 		t.Fatalf("selection score audit = %#v", unit)
 	}
 	encoded, err := json.Marshal(got)

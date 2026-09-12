@@ -77,19 +77,6 @@ func TestDiffSingerProviderSessionKeepsBridgeResident(t *testing.T) {
 	}
 }
 
-func TestRenderSessionFallsBackToLegacyBridge(t *testing.T) {
-	t.Setenv("UTAUTTS_DIFFSINGER_TEST_BRIDGE", "1")
-	pcm, err := RenderSession(nil, os.Args[0], Request{
-		Tokens: []int64{0}, Durations: []int64{2}, F0: []float32{261, 261}, SampleRate: 44100,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pcm.SampleRate != 44100 || len(pcm.Data) != 2 {
-		t.Fatalf("pcm = %#v", pcm)
-	}
-}
-
 func TestWriteProviderRequestUsesCommonNeuralScoreJob(t *testing.T) {
 	score := engine.NeuralScore{
 		Symbols: []string{"SP", "a"}, Durations: []int64{2, 4}, F0: []float32{220, 220, 220, 220, 220, 220},

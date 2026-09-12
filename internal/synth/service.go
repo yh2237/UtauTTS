@@ -33,7 +33,6 @@ type Request struct {
 	Resampler             string
 	Wavtool               string
 	AliasPolicy           voicebank.AliasPolicy
-	AcousticMode          string
 	Dictionary            []DictionaryEntry
 	MoraDurationMS        float64
 	PauseDurationMS       float64
@@ -72,18 +71,17 @@ type VoicebankResolver interface {
 type Service struct {
 	catalog             *plugin.Catalog
 	renderer            string
-	worldlinePath       string
 	worldlineBridgePath string
 	openJTalkPath       string
 	openJTalkDictionary string
 	voicebanks          VoicebankResolver
 }
 
-func NewService(catalog *plugin.Catalog, renderer, worldlinePath, worldlineBridgePath, openJTalkPath, openJTalkDictionary string, voicebanks VoicebankResolver) *Service {
+func NewService(catalog *plugin.Catalog, renderer, worldlineBridgePath, openJTalkPath, openJTalkDictionary string, voicebanks VoicebankResolver) *Service {
 	return &Service{
 		catalog: catalog, renderer: renderer,
-		worldlinePath: worldlinePath, worldlineBridgePath: worldlineBridgePath,
-		openJTalkPath: openJTalkPath, openJTalkDictionary: openJTalkDictionary,
+		worldlineBridgePath: worldlineBridgePath,
+		openJTalkPath:       openJTalkPath, openJTalkDictionary: openJTalkDictionary,
 		voicebanks: voicebanks,
 	}
 }
@@ -154,7 +152,6 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		Tone:                    request.Tone,
 		Color:                   request.Color,
 		AliasPolicy:             request.AliasPolicy,
-		AcousticMode:            request.AcousticMode,
 		MoraDurationMS:          request.MoraDurationMS,
 		PauseDurationMS:         request.PauseDurationMS,
 		LeadingPreutteranceMS:   request.LeadingPreutteranceMS,
@@ -207,7 +204,6 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 func (s *Service) ResolveRenderer(requested string) (engine.ResolvedEngine, error) {
 	resolved, err := tts.ResolveRendererWithOptions(s.catalog, s.rendererID(requested), engine.ResolveOptions{
 		ResourceOverrides: map[engine.ResourceKey]string{
-			engine.ResourceWorldline:       s.worldlinePath,
 			engine.ResourceWorldlineBridge: s.worldlineBridgePath,
 		},
 	})

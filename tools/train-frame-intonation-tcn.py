@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """Train a frame-level (10 ms) intonation TCN and export portable JSON.
 
-The legacy mora-level trainer in
-``experiments/prosody/legacy/train-intonation-tcn.py`` learns one value per
-token.  This trainer keeps the same small residual TCN and sparse linguistic
-feature representation, but expands each JSUT token to a 10 ms frame grid and
+This script learns one value per token. It uses a small residual TCN and sparse
+linguistic feature representation, expands each JSUT token to a 10 ms frame grid and
 uses an F0 track measured from the corresponding ``audio_path``. The target
 is a smoothed utterance-relative log-F0 command in cents. Pitch is interpolated
 across unvoiced consonants, while pause frames are excluded from the loss so
@@ -1098,7 +1096,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--render-smoothing-ms", type=float, default=20.0)
     parser.add_argument("--render-p99-cents", type=float, default=75.0)
     parser.add_argument("--render-max-cents", type=float, default=90.0)
-    parser.add_argument("--world-engine", "--worldline", dest="worldline", help="path to utautts-world-engine library; --worldline is a deprecated flag alias")
+    parser.add_argument("--world-engine", dest="worldline", help="path to utautts-world-engine library")
     parser.add_argument("--f0-method", type=int, default=1, choices=[1], help="Harvest (1)")
     parser.add_argument("--audio-root", help="optional root used to resolve record audio_path")
     accent = parser.add_mutually_exclusive_group()

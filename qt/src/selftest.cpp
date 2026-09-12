@@ -56,8 +56,7 @@ QString productionRenderer(const Backend &backend, const QVariantMap &model) {
         const QString wanted = wantedValue.toString();
         for (const QVariant &rendererValue : backend.renderers()) {
             const QVariantMap renderer = rendererValue.toMap();
-            if (renderer.value(QStringLiteral("id")).toString() == wanted
-                    && renderer.value(QStringLiteral("acceleration")).toString() != QStringLiteral("cuda"))
+            if (renderer.value(QStringLiteral("id")).toString() == wanted)
                 return wanted;
         }
     }
@@ -291,28 +290,6 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     const QUrl exoURL = backend.writeDragExo(QUrl::fromLocalFile(temporary.path()), QVariantList{wavURL}, 30);
     if (!require(exoURL.isLocalFile() && QFileInfo::exists(exoURL.toLocalFile()),
                  QStringLiteral("exo export failed: ") + backend.error()))
-        return 1;
-
-    if (!require(!backend.loadProsodyPromptSet().contains(QStringLiteral("_error")),
-                 QStringLiteral("prosody prompt set could not be loaded")))
-        return 1;
-    const QVariantMap acceptedRecord{
-        {"text", QStringLiteral("あ")}, {"reading", QStringLiteral("ア")},
-        {"morae", QVariantList{QStringLiteral("あ")}}, {"features", QVariantList{QVariantMap{}}},
-        {"base_points_cents", QVariantList{0.0}}, {"manual_offsets_cents", QVariantList{0.0}},
-        {"edit_mask", QVariantList{false}}, {"accepted", true}, {"status", "accepted"}
-    };
-    const QVariantMap session{{"format", "utautts-prosody-training-session"},
-                              {"format_version", 1}, {"records", QVariantList{acceptedRecord}}};
-    if (!require(backend.saveProsodyTrainingSession(session), backend.error())
-            || !require(backend.loadProsodyTrainingSession().value(QStringLiteral("format")).toString()
-                        == QStringLiteral("utautts-prosody-training-session"),
-                        QStringLiteral("prosody training session round trip failed")))
-        return 1;
-    const QUrl datasetURL = QUrl::fromLocalFile(temporary.filePath(QStringLiteral("training.jsonl")));
-    if (!require(backend.exportProsodyTrainingDataset(datasetURL, session), backend.error())
-            || !require(QFileInfo::exists(datasetURL.toLocalFile()), QStringLiteral("training dataset export failed"))
-            || !require(backend.clearProsodyTrainingSession(), backend.error()))
         return 1;
 
     backend.setDictionaryEntries(QVariantList{QVariantMap{{"surface", "UtauTTS"}, {"reading", "うたうてぃーてぃーえす"}}});

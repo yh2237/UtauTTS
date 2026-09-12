@@ -10,8 +10,7 @@ import (
 	"utautts/internal/engine"
 )
 
-// Score is kept as a provider-package alias so existing DiffSinger callers
-// remain source-compatible while the actual contract lives in engine.
+// Score is the DiffSinger view of the shared neural synthesis contract.
 type Score = engine.NeuralScore
 
 // RenderScore renders a score using the selected singer and a resident bridge

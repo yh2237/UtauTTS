@@ -7,39 +7,39 @@ import (
 )
 
 func TestRendererManifestUsesDeclaredMetadata(t *testing.T) {
-	const document = `{"manifest_version":1,"kind":"renderer","id":"example.wave","display_name":"Example","version":"1.0","backend":"waveform","acceleration":"cpu","capabilities":{"frame_pitch":true},"assets":{"engine":"../../runtime/engine"}}`
+	const document = `{"manifest_version":2,"kind":"synthesis-engine","id":"example.wave","display_name":"Example","contract":"unit-renderer","provider":"waveform","provider_version":"1","acceleration":"cpu","capabilities":{"frame_pitch":true},"resources":{"engine":{"path":"../../runtime/engine","required":true}}}`
 	item, err := decodeRenderer([]byte(document), t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if item.ID != "example.wave" || item.Backend != "waveform" || item.Acceleration != "cpu" || !item.Capabilities.FramePitch {
+	if item.ID != "example.wave" || item.Provider != "waveform" || item.Acceleration != "cpu" || !item.Capabilities.FramePitch {
 		t.Fatalf("manifest metadata = %#v", item)
 	}
-	if item.Assets["engine"] != "../../runtime/engine" {
-		t.Fatalf("manifest assets = %#v", item.Assets)
+	if item.Resources["engine"].Path != "../../runtime/engine" {
+		t.Fatalf("manifest resources = %#v", item.Resources)
 	}
 }
 
-func TestRendererManifestRejectsLegacyAndUnknownFields(t *testing.T) {
+func TestRendererManifestRejectsUnsupportedAndInvalidFields(t *testing.T) {
 	for _, document := range []string{
 		`{"manifest_version":2,"kind":"renderer","id":"example.wave","display_name":"Example","backend":"waveform"}`,
 		`{"manifest_version":1,"kind":"renderer","id":"example.wave","display_name":"Example","backend":"waveform","protocol_version":1}`,
 		`{"manifest_version":2,"kind":"synthesis-engine","id":"example.wave","display_name":"Example","contract":"unit-renderer","provider":"waveform","provider_version":"1","resources":{"engine":{"required":true}}}`,
 	} {
 		if _, err := decodeRenderer([]byte(document), t.TempDir()); err == nil {
-			t.Fatalf("legacy or unknown field was accepted: %s", document)
+			t.Fatalf("unsupported or invalid field was accepted: %s", document)
 		}
 	}
 }
 
-func TestRendererManifestV1PlatformAssetsSelectCurrentPlatform(t *testing.T) {
+func TestRendererManifestV2PlatformResourcesSelectCurrentPlatform(t *testing.T) {
 	directory := t.TempDir()
-	document := `{"manifest_version":1,"kind":"renderer","id":"example.wave","display_name":"Example","version":"1","backend":"waveform","platform_assets":{"any":{"engine":"any-engine"}}}`
+	document := `{"manifest_version":2,"kind":"synthesis-engine","id":"example.wave","display_name":"Example","contract":"unit-renderer","provider":"waveform","provider_version":"1","platform_resources":{"any":{"engine":{"path":"any-engine"}}}}`
 	item, err := decodeRenderer([]byte(document), directory)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := filepath.Base(item.Asset("engine")); got != "any-engine" {
+	if got := filepath.Base(item.Resource("engine").Path); got != "any-engine" {
 		t.Fatalf("asset = %q", got)
 	}
 }
@@ -58,7 +58,7 @@ func TestRendererManifestV2UsesExplicitProviderAndTypedResources(t *testing.T) {
 		t.Fatalf("v2 renderers = %#v", items)
 	}
 	item := items[0]
-	if item.ManifestVersion != 2 || item.Kind != "synthesis-engine" || item.Provider != "waveform" || item.Contract != "unit-renderer" || item.ProviderVersion != "1" || item.Backend != "" {
+	if item.ManifestVersion != 2 || item.Kind != "synthesis-engine" || item.Provider != "waveform" || item.Contract != "unit-renderer" || item.ProviderVersion != "1" {
 		t.Fatalf("v2 metadata = %#v", item)
 	}
 	resource := item.Resource("engine")
@@ -95,7 +95,7 @@ func TestRendererManifestV2AcceptsExternalProviderSession(t *testing.T) {
 
 func TestRendererManifestUnsupportedPlatformIsSkipped(t *testing.T) {
 	directory := t.TempDir()
-	document := `{"manifest_version":1,"kind":"renderer","id":"example.future","display_name":"Future","version":"1","backend":"waveform","platforms":["plan9-amd64"]}`
+	document := `{"manifest_version":2,"kind":"synthesis-engine","id":"example.future","display_name":"Future","contract":"unit-renderer","provider":"waveform","provider_version":"1","platforms":["plan9-amd64"]}`
 	item, err := decodeRenderer([]byte(document), directory)
 	if err != nil {
 		t.Fatal(err)

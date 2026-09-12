@@ -19,11 +19,6 @@ import (
 
 const unitRendererJobVersion = provider.UnitRendererJobVersion
 
-// Keep the old local names as aliases while all unit-renderer adapters use
-// the shared contract types from internal/provider.
-type externalUnitRendererJob = provider.UnitRendererJob
-type externalUnitRendererJobOptions = provider.UnitRendererOptions
-
 type externalUnitRenderer struct {
 	definition engine.Definition
 }
@@ -57,12 +52,12 @@ func (renderer externalUnitRenderer) Render(synthesisPlan *plan.Plan, cfg Config
 	if err != nil {
 		return nil, fmt.Errorf("encode external unit renderer plan: %w", err)
 	}
-	job := externalUnitRendererJob{
+	job := provider.UnitRendererJob{
 		Version:         unitRendererJobVersion,
 		Contract:        string(renderer.definition.Contract),
 		ContractVersion: renderer.definition.ContractVersion,
 		Plan:            planData,
-		Options: externalUnitRendererJobOptions{
+		Options: provider.UnitRendererOptions{
 			ReleaseMS:               cfg.ReleaseMS,
 			LeadingPreutteranceMS:   cfg.LeadingPreutteranceMS,
 			IntonationStrength:      cfg.IntonationStrength,

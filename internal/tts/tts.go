@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"utautts/internal/audio"
-	"utautts/internal/connection"
 	"utautts/internal/engine"
 	"utautts/internal/frontend"
 	"utautts/internal/openjtalk"
@@ -22,53 +21,46 @@ import (
 )
 
 type Config struct {
-	CodaVowelExperiment      bool
-	WordBoundaryEnvelope     bool
-	SpeechProsodyExperiment  string
-	SourceContextExperiment  string
-	ProtectContextTransition bool
-	SpeechTiming             bool
-	Context                  context.Context
-	Engine                   engine.ResolvedEngine
-	VoicebankPath            string
-	Voicebank                *voicebank.Bank
-	Text                     string
-	Reading                  string
-	Language                 string
-	Phonemizer               string
-	Dictionary               map[string]string
-	Tone                     string
-	Color                    string
-	MoraDurationMS           float64
-	PauseDurationMS          float64
-	MoraDurationsMS          []float64
-	ReleaseMS                float64
-	ReleaseSet               bool
-	LeadingPreutteranceMS    float64
-	ProsodyModelPath         string
-	ProsodyModel             *prosody.Model
-	ManualPitchPath          string
-	ManualPitch              *prosody.ManualPitchFile
-	ProsodyFeatures          []prosody.FeatureFrame
-	ProsodyPitchOnly         bool
-	OpenJTalkPath            string
-	OpenJTalkDictionaryPath  string
-	PitchFactors             []float64
-	ApplyPitch               bool
-	IntonationStrength       float64
-	Renderer                 string
-	RendererCapabilities     *plugin.Capabilities
-	BoundaryBridgeMS         float64
-	BoundaryBridgeThreshold  float64
-	CVVCTiming               string
-	CVVCTransitionGain       float64
-	CVVCPreBoundaryFade      bool
-	PitchCurve               *render.PitchCurve
-	SelectionMode            voicebank.SelectionMode
-	AliasPolicy              voicebank.AliasPolicy
-	AcousticMode             string
-	JoinModelPath            string
-	JoinScoreScale           float64
+	WordBoundaryEnvelope    bool
+	SpeechProsodyExperiment string
+	SpeechTiming            bool
+	Context                 context.Context
+	Engine                  engine.ResolvedEngine
+	VoicebankPath           string
+	Voicebank               *voicebank.Bank
+	Text                    string
+	Reading                 string
+	Language                string
+	Phonemizer              string
+	Dictionary              map[string]string
+	Tone                    string
+	Color                   string
+	MoraDurationMS          float64
+	PauseDurationMS         float64
+	MoraDurationsMS         []float64
+	ReleaseMS               float64
+	ReleaseSet              bool
+	LeadingPreutteranceMS   float64
+	ProsodyModelPath        string
+	ProsodyModel            *prosody.Model
+	ManualPitchPath         string
+	ManualPitch             *prosody.ManualPitchFile
+	ProsodyFeatures         []prosody.FeatureFrame
+	ProsodyPitchOnly        bool
+	OpenJTalkPath           string
+	OpenJTalkDictionaryPath string
+	PitchFactors            []float64
+	ApplyPitch              bool
+	IntonationStrength      float64
+	Renderer                string
+	RendererCapabilities    *plugin.Capabilities
+	BoundaryBridgeMS        float64
+	BoundaryBridgeThreshold float64
+	CVVCTiming              string
+	CVVCTransitionGain      float64
+	CVVCPreBoundaryFade     bool
+	PitchCurve              *render.PitchCurve
+	AliasPolicy             voicebank.AliasPolicy
 }
 
 type Result struct {
@@ -259,10 +251,9 @@ func ResolveRendererWithOptions(catalog *plugin.Catalog, rendererID string, opti
 
 // ApplyRenderer resolves a user-facing renderer ID and stores the resolved
 // engine on Config. Provider resources remain inside ResolvedEngine.
-func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlinePath, worldlineBridgePath string) (string, error) {
+func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlineBridgePath string) (string, error) {
 	resolved, err := ResolveRendererWithOptions(catalog, rendererID, engine.ResolveOptions{
 		ResourceOverrides: map[engine.ResourceKey]string{
-			engine.ResourceWorldline:       worldlinePath,
 			engine.ResourceWorldlineBridge: worldlineBridgePath,
 		},
 	})
@@ -284,23 +275,6 @@ func ApplyResolvedEngine(cfg *Config, resolved engine.ResolvedEngine) {
 	}
 	cfg.Renderer = string(resolved.Provider.ID)
 	cfg.RendererCapabilities = &capabilities
-}
-
-// ApplyResolvedRenderer adapts a discovered renderer manifest for callers
-// that have not migrated to the resolver API yet.
-func ApplyResolvedRenderer(cfg *Config, renderer plugin.Renderer) {
-	definition := engine.DefinitionFromV1(renderer)
-	if renderer.ManifestVersion == 2 {
-		definition = engine.DefinitionFromV2(renderer)
-	}
-	ApplyResolvedEngine(cfg, engine.ResolvedEngine{
-		Definition: definition,
-		Provider: engine.Provider{
-			ID:       definition.Provider,
-			Contract: definition.Contract,
-			Version:  definition.ProviderVersion,
-		},
-	})
 }
 
 func Synthesize(cfg Config) (*Result, error) {
@@ -353,12 +327,6 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
 	applyLanguageSpeechProfile(language, &cfg)
-	if cfg.SourceContextExperiment != "" && cfg.SourceContextExperiment != "off" {
-		morae = frontend.RecordedContextCandidates(morae, phonemizer)
-	}
-	if cfg.CodaVowelExperiment {
-		morae = frontend.CodaVowelCandidates(morae, phonemizer)
-	}
 	loadedProsody, err := resolveProsodyModelForLanguage(cfg, language)
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)
@@ -367,35 +335,11 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, err
 	}
-	var joinModel *connection.LearnedModel
-	joinCostMode := "handcrafted"
-	joinModelVersion := 0
-	if cfg.JoinModelPath != "" {
-		joinModel, err = connection.LoadLearnedModel(cfg.JoinModelPath)
-		if err != nil {
-			return nil, fmt.Errorf("load join model: %w", err)
-		}
-		joinCostMode = "learned"
-		joinModelVersion = joinModel.Version
-		if cfg.JoinScoreScale > 0 {
-			joinModel.ScoreScale = cfg.JoinScoreScale
-		}
-	}
-	if cfg.SelectionMode == voicebank.SelectionTargetOnly {
-		joinCostMode = "none"
-	}
 	selections, err := bank.ResolveWithConfig(morae, voicebank.ResolveConfig{
-		Tone: cfg.Tone, Color: cfg.Color, Mode: cfg.SelectionMode, AliasPolicy: cfg.AliasPolicy,
-		AcousticMode: cfg.AcousticMode, JoinModel: joinModel,
+		Tone: cfg.Tone, Color: cfg.Color, AliasPolicy: cfg.AliasPolicy,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("resolve voicebank units: %w", err)
-	}
-	if cfg.SourceContextExperiment != "" && cfg.SourceContextExperiment != "off" {
-		selections = bank.ApplyRecordedContext(morae, selections, cfg.SourceContextExperiment == "recover")
-		if cfg.SourceContextExperiment == "repeated" {
-			selections = bank.ApplyRepeatedContext(morae, selections)
-		}
 	}
 	var predictions []prosody.Prediction
 	if language == frontend.LanguageEnglish {
@@ -441,24 +385,18 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		}
 	}
 	synthesisPlan, err := plan.Build(bank, reading, morae, selections, plan.Config{
-		SpeechTiming:     cfg.SpeechTiming,
-		MoraDurationMS:   cfg.MoraDurationMS,
-		PauseDurationMS:  cfg.PauseDurationMS,
-		MoraDurationsMS:  cfg.MoraDurationsMS,
-		Predictions:      predictions,
-		SelectionMode:    cfg.SelectionMode,
-		AliasPolicy:      cfg.AliasPolicy,
-		Tone:             cfg.Tone,
-		Color:            cfg.Color,
-		AcousticMode:     cfg.AcousticMode,
-		JoinCostMode:     joinCostMode,
-		JoinModelVersion: joinModelVersion,
-		JoinScoreScale:   joinModelScoreScale(joinModel),
+		SpeechTiming:    cfg.SpeechTiming,
+		MoraDurationMS:  cfg.MoraDurationMS,
+		PauseDurationMS: cfg.PauseDurationMS,
+		MoraDurationsMS: cfg.MoraDurationsMS,
+		Predictions:     predictions,
+		AliasPolicy:     cfg.AliasPolicy,
+		Tone:            cfg.Tone,
+		Color:           cfg.Color,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build synthesis plan: %w", err)
 	}
-	synthesisPlan.ProtectContextTransition = cfg.ProtectContextTransition
 	synthesisPlan.WordBoundaryEnvelope = cfg.WordBoundaryEnvelope
 	synthesisPlan.Text = cfg.Text
 	synthesisPlan.Language = language
@@ -563,25 +501,17 @@ func applyAliasProfile(bank *voicebank.Bank, cfg *Config) {
 	if policy == "" {
 		policy = voicebank.AliasPolicyAuto
 	}
+	if cfg.CVVCTiming == "" {
+		cfg.CVVCTiming = render.CVVCTimingSequential
+	}
 	switch policy {
 	case voicebank.AliasPolicyAuto:
 		if bank != nil && bank.RecommendCVVCEnhanced() {
 			applyCVVCEnhancedProfile(cfg)
-		} else {
-			applyLegacyAliasProfile(cfg)
 		}
-	case voicebank.AliasPolicyLegacy:
-		applyLegacyAliasProfile(cfg)
 	case voicebank.AliasPolicyEnhanced:
 		applyCVVCEnhancedProfile(cfg)
 	}
-}
-
-func applyLegacyAliasProfile(cfg *Config) {
-	cfg.AliasPolicy = voicebank.AliasPolicyAuto
-	cfg.CVVCTiming = render.CVVCTimingLegacy
-	cfg.CVVCTransitionGain = 1
-	cfg.CVVCPreBoundaryFade = false
 }
 
 func applyCVVCEnhancedProfile(cfg *Config) {
@@ -749,37 +679,9 @@ func previewConfiguredMoraDuration(position int, cfg Config) (float64, bool) {
 }
 
 func validateConfig(cfg Config) error {
-	if cfg.CodaVowelExperiment {
-		if err := validateMultilingualWorldExperiment(cfg); err != nil {
-			return err
-		}
-		_, ph, err := frontend.ResolveLanguage(cfg.Language, cfg.Phonemizer)
-		if err != nil {
-			return err
-		}
-		if ph == frontend.PhonemizerChinese {
-			return fmt.Errorf("coda vowel experiment requires English")
-		}
-	}
 	if cfg.WordBoundaryEnvelope {
 		if err := validateMultilingualWorldExperiment(cfg); err != nil {
 			return err
-		}
-	}
-	if cfg.ProtectContextTransition {
-		if !cfg.SpeechTiming || (cfg.SourceContextExperiment != "existing" && cfg.SourceContextExperiment != "recover") {
-			return fmt.Errorf("context transition protection requires speech timing and source context existing or recover")
-		}
-		if err := validateMultilingualWorldExperiment(cfg); err != nil {
-			return err
-		}
-	}
-	if cfg.SourceContextExperiment != "" && cfg.SourceContextExperiment != "off" {
-		if cfg.SourceContextExperiment != "existing" && cfg.SourceContextExperiment != "recover" && cfg.SourceContextExperiment != "repeated" {
-			return fmt.Errorf("unknown source context experiment %q", cfg.SourceContextExperiment)
-		}
-		if err := validateMultilingualWorldExperiment(cfg); err != nil {
-			return fmt.Errorf("source context experiment: %w", err)
 		}
 	}
 	if err := validateSpeechExperiment(cfg); err != nil {
@@ -792,7 +694,6 @@ func validateConfig(cfg Config) error {
 		"intonation_strength":       cfg.IntonationStrength,
 		"boundary_bridge_ms":        cfg.BoundaryBridgeMS,
 		"boundary_bridge_threshold": cfg.BoundaryBridgeThreshold,
-		"join_score_scale":          cfg.JoinScoreScale,
 	}
 	for name, value := range finite {
 		if math.IsNaN(value) || math.IsInf(value, 0) {
@@ -1095,7 +996,7 @@ func rendererSupportsFramePitch(renderer string, capabilities *plugin.Capabiliti
 	directories, _ := plugin.DefaultDirectories()
 	items, _ := plugin.DiscoverRenderers(directories, nil)
 	for _, item := range items {
-		if item.ID == renderer || item.Backend == renderer {
+		if item.ID == renderer || item.Provider == renderer {
 			return item.Capabilities.FramePitch
 		}
 	}
@@ -1134,11 +1035,4 @@ func scaleAutomaticPitchCurve(curve *render.PitchCurve, strength float64) *rende
 		result.Cents[index] = cents * strength
 	}
 	return result
-}
-
-func joinModelScoreScale(model *connection.LearnedModel) float64 {
-	if model == nil {
-		return 0
-	}
-	return model.ScoreScale
 }

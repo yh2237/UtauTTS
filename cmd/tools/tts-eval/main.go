@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"utautts/internal/atomicfile"
-	"utautts/internal/engine"
 	"utautts/internal/plugin"
 	"utautts/internal/render"
 	"utautts/internal/synth"
@@ -52,10 +51,7 @@ func main() {
 	}
 }
 func run() error {
-	codaVowel := flag.Bool("coda-vowel-experiment", false, "use independent vowels after word-final codas (English CPU WORLD diagnostic)")
 	wordEnvelope := flag.Bool("word-boundary-envelope", false, "halve fades at word boundaries without changing source or pitch (CPU WORLD)")
-	protectTransition := flag.Bool("protect-context-transition", false, "preserve recorded context transitions at original speed (requires source-context and speech-timing)")
-	sourceContext := flag.String("source-context", "off", "recorded context comparison: off, existing, recover, repeated (CPU WORLD only)")
 	exportSources := flag.Bool("export-sources", false, "export original, selected and mixed-output source audit clips")
 	moraMS := flag.Float64("mora-ms", 120, "base syllable duration in milliseconds")
 	experiment := flag.String("prosody-experiment", "baseline", "speech prosody comparison: baseline, timing, pitch, both (CPU WORLD only)")
@@ -66,22 +62,15 @@ func run() error {
 	diagnose := flag.Bool("diagnose", false, "write frontend and candidate diagnostics without rendering")
 	corpus := flag.String("corpus", "tools/evaluation/japanese-v1.json", "JSON listening corpus")
 	out := flag.String("out", "out/tts-eval", "new output directory")
-	renderers := flag.String("renderers", "utautts-world-phrase,utautts-world-phrase-cuda", "comma-separated renderer IDs")
+	renderers := flag.String("renderers", "utautts-world-phrase", "comma-separated renderer IDs")
 	model := flag.String("model", "frame-intonation-v8", "prosody model ID")
 	modelFile := flag.String("model-file", "", "explicit experimental prosody model JSON (overrides model ID)")
 	bridge := flag.String("bridge", "", "override WORLD bridge executable")
-	gpu := flag.String("gpu", "", "override CUDA DLL")
 	repeats := flag.Int("repeat", 2, "repetitions in the same process; first and warm runs are separate")
 	timeout := flag.Duration("timeout", 2*time.Minute, "timeout per synthesis")
 	flag.Parse()
-	if *codaVowel && *diagnose {
-		return fmt.Errorf("coda-vowel-experiment requires synthesis")
-	}
 	if *wordEnvelope && *diagnose {
 		return fmt.Errorf("word-boundary-envelope requires synthesis")
-	}
-	if *protectTransition && (*diagnose || !*speechTiming || (*sourceContext != "existing" && *sourceContext != "recover")) {
-		return fmt.Errorf("protect-context-transition requires synthesis, speech-timing and source-context existing or recover")
 	}
 	if *moraMS <= 0 || math.IsNaN(*moraMS) || math.IsInf(*moraMS, 0) {
 		return fmt.Errorf("mora-ms must be positive and finite")
@@ -117,9 +106,6 @@ func run() error {
 	if *diagnose {
 		if *exportSources {
 			return fmt.Errorf("export-sources requires synthesis")
-		}
-		if *sourceContext != "off" {
-			return fmt.Errorf("source-context requires synthesis")
 		}
 		return diagnoseCorpus(*bank, *out, prompts)
 	}
@@ -160,10 +146,7 @@ func run() error {
 				cfg := tts.Config{VoicebankPath: *bank, Text: p.Text, Reading: p.Reading, Language: p.Language, Phonemizer: p.Phonemizer, Tone: "C4", MoraDurationMS: 120, PauseDurationMS: 180, ApplyPitch: true, IntonationStrength: 1}
 				cfg.SpeechTiming = *speechTiming
 				cfg.SpeechProsodyExperiment = *experiment
-				cfg.SourceContextExperiment = *sourceContext
-				cfg.CodaVowelExperiment = *codaVowel
 				cfg.WordBoundaryEnvelope = *wordEnvelope
-				cfg.ProtectContextTransition = *protectTransition
 				cfg.MoraDurationMS = *moraMS
 				cfg.MoraDurationsMS = p.MoraDurationsMS
 				cfg.PitchCurve = p.PitchCurve
@@ -173,13 +156,7 @@ func run() error {
 				if *modelFile != "" {
 					cfg.ProsodyModelPath = *modelFile
 				}
-				resolved, callErr := tts.ApplyRenderer(&cfg, catalog, rendererID, "", *bridge)
-				if *gpu != "" {
-					if cfg.Engine.Definition.Resources == nil {
-						cfg.Engine.Definition.Resources = make(map[engine.ResourceKey]string)
-					}
-					cfg.Engine.Definition.Resources[engine.ResourceWorldGPU] = *gpu
-				}
+				resolved, callErr := tts.ApplyRenderer(&cfg, catalog, rendererID, *bridge)
 				ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 				cfg.Context = ctx
 				started := time.Now()
@@ -232,18 +209,15 @@ func run() error {
 				fmt.Printf("%s %s #%d: %.0f ms, RTF %.3f %s\n", rendererID, p.ID, repetition, row.ElapsedMS, row.RTF, row.Error)
 				// 後続ケースが失敗しても途中結果を保存する。
 				report := struct {
-					CodaVowelExperiment            bool
 					WordBoundaryEnvelope           bool
-					ProtectContextTransition       bool
-					SourceContext                  string
 					MoraMS                         float64
 					ProsodyExperiment, Phonemizer  string
 					MeasurePitch, SpeechTiming     bool
 					GOOS, GOARCH, Voicebank, Model string
-					CorpusSHA256, Bridge, GPU      string
+					CorpusSHA256, Bridge           string
 					Build                          *debug.BuildInfo
 					Measurements                   []measurement
-				}{*codaVowel, *wordEnvelope, *protectTransition, *sourceContext, *moraMS, *experiment, *phonemizer, *measurePitch, *speechTiming, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, *gpu, buildInfo, rows}
+				}{*wordEnvelope, *moraMS, *experiment, *phonemizer, *measurePitch, *speechTiming, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, buildInfo, rows}
 				encoded, err := json.MarshalIndent(report, "", "  ")
 				if err != nil {
 					return err

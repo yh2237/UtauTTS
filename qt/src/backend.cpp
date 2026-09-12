@@ -47,7 +47,7 @@ QString sanitizeLanguageCode(const QString &code) {
 QString normalizeAliasPolicySetting(const QString &value) {
     const QString normalized = value.trimmed().toLower();
     const QStringList supported{
-        QStringLiteral("auto"), QStringLiteral("legacy"), QStringLiteral("cvvc-enhanced"),
+        QStringLiteral("auto"), QStringLiteral("cvvc-enhanced"),
         QStringLiteral("vcv-prefer"), QStringLiteral("cvvc-prefer"), QStringLiteral("cv-only"),
     };
     return supported.contains(normalized) ? normalized : QStringLiteral("auto");
@@ -83,12 +83,6 @@ bool hasResourceLayout(const QDir &root) {
     return root.exists("renderer") || root.exists("models") || root.exists("voice");
 }
 
-QString prosodyTrainingSessionPath() {
-    QString directory = qEnvironmentVariable("UTAUTTS_SELF_TEST_DIRECTORY");
-    if (directory.isEmpty())
-        directory = resourceRoot().absolutePath();
-    return QDir(directory).filePath(QStringLiteral("prosody-training-session.json"));
-}
 
 bool writeJSONFile(const QString &path, const QVariantMap &value, QString *error) {
     const QJsonDocument document = QJsonDocument::fromVariant(value);
@@ -256,8 +250,6 @@ Backend::Backend(QObject *parent)
           "appearance/preReleaseUpdateCheckEnabled", false).toBool()),
       m_previewCacheFileCount(portableSettingValue("performance/previewCacheFileCount", 32).toInt()),
       m_developerMode(portableSettingValue("developer/enabled", false).toBool()),
-      m_developerProsodyTrainingEnabled(
-          portableSettingValue("developer/prosodyTrainingEnabled", true).toBool()),
       m_defaultRenderer(portableSettingValue("synthesis/defaultRendererId",
                                           QStringLiteral("utautts-world-phrase")).toString().trimmed()),
       m_defaultModelId(portableSettingValue("synthesis/defaultModelId",
@@ -512,15 +504,6 @@ void Backend::setDeveloperMode(bool value) {
     emit developerModeChanged();
 }
 
-void Backend::setDeveloperProsodyTrainingEnabled(bool value) {
-    if (m_developerProsodyTrainingEnabled == value)
-        return;
-    m_developerProsodyTrainingEnabled = value;
-    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
-    settings.setValue(QStringLiteral("developer/prosodyTrainingEnabled"), value);
-    settings.sync();
-    emit developerFeaturesChanged();
-}
 
 void Backend::setDefaultVoicebank(const QString &value) {
     const QString normalized = value.trimmed();
@@ -1602,8 +1585,6 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
             {"display_name", source.value("display_name")},
             {"manifest_version", source.value("manifest_version")},
             {"kind", source.value("kind")},
-            {"version", source.value("version")},
-            {"backend", source.value("backend")},
             {"contract", source.value("contract")},
             {"provider", source.value("provider")},
             {"provider_version", source.value("provider_version")},
@@ -1676,7 +1657,6 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
             {"update_check_enabled", m_updateCheckEnabled},
             {"pre_release_update_check_enabled", m_preReleaseUpdateCheckEnabled},
             {"developer_mode", m_developerMode},
-            {"developer_prosody_training_enabled", m_developerProsodyTrainingEnabled},
         }},
         {"current_selection", selection},
         {"catalog", QVariantMap{
@@ -1702,133 +1682,10 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
     return true;
 }
 
-QVariantMap Backend::loadProsodyPromptSet() const {
-    QFile file(QStringLiteral(":/data/prosody-prompts-ja-v1.json"));
-    if (!file.open(QIODevice::ReadOnly))
-        return {{"_error", tr("教師データ用の文章セットを開けませんでした")}};
-    QJsonParseError parseError;
-    const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
-    if (parseError.error != QJsonParseError::NoError || !document.isObject())
-        return {{"_error", tr("教師データ用の文章セットが壊れています")}};
-    return document.toVariant().toMap();
-}
 
-QVariantMap Backend::loadProsodyTrainingSession() {
-    QFile file(prosodyTrainingSessionPath());
-    if (!file.exists())
-        return {};
-    if (!file.open(QIODevice::ReadOnly)) {
-        setError(tr("教師データ収集の途中保存を開けませんでした"));
-        return {{"_error", error()}};
-    }
-    QJsonParseError parseError;
-    const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
-    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
-        setError(tr("教師データ収集の途中保存が壊れています"));
-        return {{"_error", error()}};
-    }
-    setError({});
-    return document.toVariant().toMap();
-}
 
-bool Backend::saveProsodyTrainingSession(const QVariantMap &session) {
-    if (session.value("format").toString() != QLatin1String("utautts-prosody-training-session")
-            || session.value("format_version").toInt() != 1) {
-        setError(tr("教師データ収集の保存内容が無効です"));
-        return false;
-    }
-    QString writeError;
-    if (!writeJSONFile(prosodyTrainingSessionPath(), session, &writeError)) {
-        setError(tr("教師データ収集を途中保存できませんでした: %1").arg(writeError));
-        return false;
-    }
-    setError({});
-    return true;
-}
 
-bool Backend::clearProsodyTrainingSession() {
-    const QString path = prosodyTrainingSessionPath();
-    if (QFileInfo::exists(path) && !QFile::remove(path)) {
-        setError(tr("教師データ収集の途中保存を削除できませんでした"));
-        return false;
-    }
-    setError({});
-    return true;
-}
 
-bool Backend::exportProsodyTrainingDataset(const QUrl &destination, const QVariantMap &session) {
-    if (!destination.isLocalFile()) {
-        setError(tr("教師データの保存先が無効です"));
-        return false;
-    }
-    const QVariantList records = session.value("records").toList();
-    QByteArray jsonl;
-    int accepted = 0, skipped = 0, drafts = 0;
-    for (const QVariant &value : records) {
-        const QVariantMap record = value.toMap();
-        if (!record.value("accepted").toBool()) {
-            if (record.value("status").toString() == QLatin1String("skipped"))
-                ++skipped;
-            else if (record.value("status").toString() == QLatin1String("draft"))
-                ++drafts;
-            continue;
-        }
-        const int moraCount = record.value("morae").toList().size();
-        if (record.value("text").toString().isEmpty()
-                || record.value("reading").toString().isEmpty()
-                || moraCount == 0
-                || record.value("features").toList().size() != moraCount
-                || record.value("base_points_cents").toList().size() != moraCount
-                || record.value("manual_offsets_cents").toList().size() != moraCount
-                || record.value("edit_mask").toList().size() != moraCount) {
-            setError(tr("教師データに不完全な発話が含まれています"));
-            return false;
-        }
-        const QJsonDocument document = QJsonDocument::fromVariant(record);
-        if (!document.isObject()) {
-            setError(tr("教師データに無効な発話が含まれています"));
-            return false;
-        }
-        jsonl += document.toJson(QJsonDocument::Compact);
-        jsonl += '\n';
-        ++accepted;
-    }
-    if (accepted == 0) {
-        setError(tr("書き出せる確認済み発話がありません"));
-        return false;
-    }
-
-    QSaveFile dataset(destination.toLocalFile());
-    if (!dataset.open(QIODevice::WriteOnly) || dataset.write(jsonl) != jsonl.size() || !dataset.commit()) {
-        dataset.cancelWriting();
-        setError(tr("教師データを書き出せませんでした"));
-        return false;
-    }
-
-    QFileInfo destinationInfo(destination.toLocalFile());
-    const QString baseName = destinationInfo.completeBaseName();
-    const QString reportPath = destinationInfo.dir().filePath(baseName + QStringLiteral("-report.json"));
-    QVariantMap report{
-        {"format", QStringLiteral("utautts-prosody-training-report")},
-        {"format_version", 1},
-        {"session_id", session.value("session_id")},
-        {"shuffle_seed", session.value("shuffle_seed")},
-        {"prompt_set", session.value("prompt_set")},
-        {"synthesis_context", session.value("synthesis_context")},
-        {"accepted_count", accepted},
-        {"record_count", records.size()},
-        {"skipped_count", skipped},
-        {"draft_count", drafts},
-        {"exported_at", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)},
-    };
-    QString writeError;
-    if (!writeJSONFile(reportPath, report, &writeError)) {
-        setError(tr("教師データのレポートを書き出せませんでした: %1").arg(writeError));
-        return false;
-    }
-    setError({});
-    return true;
-}
 
 QString Backend::dictionaryFingerprint() const {
     const QByteArray data = QJsonDocument::fromVariant(m_dictionaryEntries).toJson(QJsonDocument::Compact);

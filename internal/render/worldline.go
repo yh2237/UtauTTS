@@ -21,9 +21,7 @@ const worldlineFrameMS = 10.0
 
 type worldlineManifest struct {
 	Engine          string                  `json:"engine,omitempty"`
-	WorldlinePath   string                  `json:"worldline_path"`
 	WorldEnginePath string                  `json:"world_engine_path,omitempty"`
-	GPUPath         string                  `json:"gpu_path,omitempty"`
 	OutputPath      string                  `json:"output_path"`
 	SampleRate      int                     `json:"sample_rate"`
 	F0Curve         []float64               `json:"f0_curve"`
@@ -32,10 +30,6 @@ type worldlineManifest struct {
 
 func renderUtauTTSWorldPhrase(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
 	return renderWorldlineEngine(synthesisPlan, cfg, "utautts-world-phrase")
-}
-
-func renderUtauTTSWorldPhraseCUDA(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
-	return renderWorldlineEngine(synthesisPlan, cfg, "utautts-world-phrase-cuda")
 }
 
 type worldlineManifestUnit struct {
@@ -72,9 +66,9 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		return nil, errors.New("empty synthesis plan")
 	}
 	if cfg.CVVCTiming == "" {
-		cfg.CVVCTiming = CVVCTimingLegacy
+		cfg.CVVCTiming = CVVCTimingSequential
 	}
-	if cfg.CVVCTiming != CVVCTimingLegacy && cfg.CVVCTiming != CVVCTimingSequential {
+	if cfg.CVVCTiming != CVVCTimingSequential {
 		return nil, fmt.Errorf("unknown CVVC timing mode %q", cfg.CVVCTiming)
 	}
 	if cfg.CVVCTransitionGain == 0 {
@@ -86,26 +80,9 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	synthesisPlan.CVVCTiming = cfg.CVVCTiming
 	synthesisPlan.CVVCTransitionGain = cfg.CVVCTransitionGain
 	synthesisPlan.CVVCPreBoundaryFade = cfg.CVVCPreBoundaryFade
-	customWorld := providerID == "utautts-world-phrase" || providerID == "utautts-world-phrase-cuda"
-	library, worldEnginePath := "", ""
-	var err error
-	if customWorld {
-		worldEnginePath, err = resolveWorldEngine(cfg.resource(engine.ResourceWorldEngine))
-	} else {
-		library, err = resolveWorldlineLibrary(cfg.resource(engine.ResourceWorldline))
-	}
+	worldEnginePath, err := resolveWorldEngine(cfg.resource(engine.ResourceWorldEngine))
 	if err != nil {
 		return nil, err
-	}
-	gpuPath := ""
-	if providerID == "utautts-world-phrase-cuda" {
-		gpuPath = cfg.resource(engine.ResourceWorldGPU)
-		if gpuPath == "" {
-			return nil, errors.New("CUDA WORLD feature mixer is not configured by the renderer plugin")
-		}
-		if _, err := os.Stat(gpuPath); err != nil {
-			return nil, fmt.Errorf("CUDA WORLD feature mixer %q: %w", gpuPath, err)
-		}
 	}
 	bridge, err := resolveWorldlineBridge(cfg.resource(engine.ResourceWorldlineBridge))
 	if err != nil {
@@ -115,7 +92,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	timings := make([]effectiveTiming, len(synthesisPlan.Units))
 	var phoneTimings []openUtauPhoneTiming
 	phraseStartMS := 0.0
-	phraseTiming := providerID == "worldline-r-faithful" || customWorld
+	phraseTiming := true
 	if phraseTiming {
 		phoneUnits := normalizedPhoneTimingUnits(synthesisPlan, cfg.ReleaseMS)
 		if synthesisPlan.SingleCV {
@@ -126,7 +103,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 				phoneUnits[index].OverlapMS = singleCVWorldOverlapMS(synthesisPlan, phoneUnits[index], phoneUnits[index].PreutteranceMS)
 			}
 		}
-		phoneTimings, phraseStartMS = openUtauPhoneTimingsWithCoda(phoneUnits, cfg.CVVCTiming, providerID == "utautts-world-phrase")
+		phoneTimings, phraseStartMS = openUtauPhoneTimingsWithCoda(phoneUnits, cfg.CVVCTiming, true)
 	}
 	leadingMS := limitLeadingPreutterance(math.Max(0, -phraseStartMS), cfg.LeadingPreutteranceMS)
 	synthesisPlan.LeadingMarginMS = leadingMS
@@ -134,7 +111,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		unit := &synthesisPlan.Units[i]
 		unit.SpeechRetimeApplied = false
 		unit.BoundaryEnvelope = ""
-		unit.ProtectedTransitionMS = 0
 		unit.SpeechJoinApplied = false
 		timings[i] = normalizePlanTiming(synthesisPlan, *unit, cfg.ReleaseMS)
 		if len(phoneTimings) == len(synthesisPlan.Units) && !unit.Silent {
@@ -188,9 +164,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		max(2, int(math.Ceil(curveDurationMS/frameMS))+2), frameMS, curveStartMS)
 	manifest := worldlineManifest{
 		Engine:          providerID,
-		WorldlinePath:   library,
 		WorldEnginePath: worldEnginePath,
-		GPUPath:         gpuPath,
 		SampleRate:      sampleRate,
 		F0Curve:         f0Curve,
 	}
@@ -321,14 +295,10 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		}
 		cacheSource := source
 		cacheVolume := volume
-		if customWorld {
-			cacheSource = originalSource
-			cacheVolume = 100
-		}
+		cacheSource = originalSource
+		cacheVolume = 100
 		cacheKey := worldlineAnalysisCacheKey(cacheSource, frqPath, *unit, cacheVolume)
-		if customWorld {
-			cacheKey += fmt.Sprintf("|fs=%d", sampleRate)
-		}
+		cacheKey += fmt.Sprintf("|fs=%d", sampleRate)
 		var speech *provider.WorldSpeechTiming
 		if providerID == "utautts-world-phrase" && unit.Role == "mora" && (singleCVUnit || vcvUnit || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied) {
 			targetOnset := skipMS + unit.NoteStartMS + leadingMS - positionMS
@@ -349,7 +319,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 						renderedUnit{index: i - 1, unit: synthesisPlan.Units[i-1]}, renderedUnit{index: i, unit: *unit})
 				}
 			}
-			speech.ProtectTransition = synthesisPlan.ProtectContextTransition && (unit.SourceContext == "existing" || unit.SourceContext == "recovered-vc")
 		}
 		if codaRelease {
 			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS, TargetOnsetMS: skipMS + unit.NoteStartMS + leadingMS - positionMS, CodaRelease: true, ProtectStop: codaReleaseStop(*unit)}
@@ -400,7 +369,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		}
 		unit := &synthesisPlan.Units[result.UnitIndex]
 		unit.SpeechRetimeApplied = result.RetimeApplied
-		unit.ProtectedTransitionMS = result.ProtectedTransitionMS
 		unit.SpeechJoinApplied = result.JoinApplied
 		if result.RetimeApplied {
 			unit.EffectiveConsonantMS = result.TargetFixedMS
@@ -423,9 +391,7 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg Config, manifest worldli
 		return provider.UnitRendererJob{}, err
 	}
 	resources := map[string]string{
-		"worldline":        manifest.WorldlinePath,
 		"world_engine":     manifest.WorldEnginePath,
-		"world_gpu":        manifest.GPUPath,
 		"worldline_bridge": bridge,
 	}
 	for key, value := range resources {
@@ -641,16 +607,6 @@ func worldlineAnalysisCacheKey(source, frqPath string, unit plan.Unit, volume fl
 	}
 	return fmt.Sprintf("%s|%s|%.6f|%.6f|%.6f|86",
 		identity(source), identity(frqPath), unit.OffsetMS, unit.CutoffMS, volume)
-}
-
-func resolveWorldlineLibrary(configured string) (string, error) {
-	if configured == "" {
-		return "", errors.New("worldline library is not configured by the renderer plugin")
-	}
-	if _, err := os.Stat(configured); err != nil {
-		return "", fmt.Errorf("worldline library %q: %w", configured, err)
-	}
-	return configured, nil
 }
 
 func measureWorldlinePitches(synthesisPlan *plan.Plan, cache *sourceCache) ([]float64, int, error) {

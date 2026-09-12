@@ -14,54 +14,45 @@ import (
 const Version = 19
 
 type Config struct {
-	SpeechTiming     bool
-	MoraDurationMS   float64
-	PauseDurationMS  float64
-	MoraDurationsMS  []float64
-	Predictions      []prosody.Prediction
-	Tone             string
-	Color            string
-	AcousticMode     string
-	SelectionMode    voicebank.SelectionMode
-	AliasPolicy      voicebank.AliasPolicy
-	JoinCostMode     string
-	JoinModelVersion int
-	JoinScoreScale   float64
+	SpeechTiming    bool
+	MoraDurationMS  float64
+	PauseDurationMS float64
+	MoraDurationsMS []float64
+	Predictions     []prosody.Prediction
+	Tone            string
+	Color           string
+	AliasPolicy     voicebank.AliasPolicy
 }
 
 type Plan struct {
-	WordBoundaryEnvelope     bool                     `json:"word_boundary_envelope,omitempty"`
-	ProtectContextTransition bool                     `json:"protect_context_transition,omitempty"`
-	SingleCV                 bool                     `json:"single_cv,omitempty"`
-	SpeechTiming             bool                     `json:"speech_timing,omitempty"`
-	PhoneTimings             []PhoneTiming            `json:"phone_timings,omitempty"`
-	MissingPhones            []voicebank.SpeechGap    `json:"missing_phones,omitempty"`
-	Version                  int                      `json:"version"`
-	Voicebank                string                   `json:"voicebank"`
-	Text                     string                   `json:"text,omitempty"`
-	Reading                  string                   `json:"reading"`
-	Language                 string                   `json:"language,omitempty"`
-	Phonemizer               string                   `json:"phonemizer,omitempty"`
-	Tone                     string                   `json:"tone,omitempty"`
-	Color                    string                   `json:"color,omitempty"`
-	AcousticMode             string                   `json:"acoustic_mode,omitempty"`
-	SelectionMode            string                   `json:"selection_mode"`
-	AliasPolicy              string                   `json:"alias_policy"`
-	RequestedAliasPolicy     string                   `json:"requested_alias_policy,omitempty"`
-	JoinCostMode             string                   `json:"join_cost_mode"`
-	JoinModelVersion         int                      `json:"join_model_version,omitempty"`
-	JoinScoreScale           float64                  `json:"join_score_scale,omitempty"`
-	BoundaryBridgeMS         float64                  `json:"boundary_bridge_ms,omitempty"`
-	BoundaryBridgeThreshold  float64                  `json:"boundary_bridge_threshold,omitempty"`
-	BoundaryBridges          []BoundaryBridge         `json:"boundary_bridges,omitempty"`
-	BoundaryRepairDecisions  []BoundaryRepairDecision `json:"boundary_repair_decisions,omitempty"`
-	CVVCTiming               string                   `json:"cvvc_timing,omitempty"`
-	CVVCTransitionGain       float64                  `json:"cvvc_transition_gain,omitempty"`
-	CVVCPreBoundaryFade      bool                     `json:"cvvc_pre_boundary_fade,omitempty"`
-	LeadingMarginMS          float64                  `json:"leading_margin_ms,omitempty"`
-	DurationMS               float64                  `json:"duration_ms"`
-	Units                    []Unit                   `json:"units"`
-	Morae                    []frontend.Mora          `json:"-"`
+	WordBoundaryEnvelope    bool                     `json:"word_boundary_envelope,omitempty"`
+	SingleCV                bool                     `json:"single_cv,omitempty"`
+	SpeechTiming            bool                     `json:"speech_timing,omitempty"`
+	PhoneTimings            []PhoneTiming            `json:"phone_timings,omitempty"`
+	MissingPhones           []voicebank.SpeechGap    `json:"missing_phones,omitempty"`
+	Version                 int                      `json:"version"`
+	Voicebank               string                   `json:"voicebank"`
+	Text                    string                   `json:"text,omitempty"`
+	Reading                 string                   `json:"reading"`
+	Language                string                   `json:"language,omitempty"`
+	Phonemizer              string                   `json:"phonemizer,omitempty"`
+	Tone                    string                   `json:"tone,omitempty"`
+	Color                   string                   `json:"color,omitempty"`
+	SelectionMode           string                   `json:"selection_mode"`
+	AliasPolicy             string                   `json:"alias_policy"`
+	RequestedAliasPolicy    string                   `json:"requested_alias_policy,omitempty"`
+	JoinCostMode            string                   `json:"join_cost_mode"`
+	BoundaryBridgeMS        float64                  `json:"boundary_bridge_ms,omitempty"`
+	BoundaryBridgeThreshold float64                  `json:"boundary_bridge_threshold,omitempty"`
+	BoundaryBridges         []BoundaryBridge         `json:"boundary_bridges,omitempty"`
+	BoundaryRepairDecisions []BoundaryRepairDecision `json:"boundary_repair_decisions,omitempty"`
+	CVVCTiming              string                   `json:"cvvc_timing,omitempty"`
+	CVVCTransitionGain      float64                  `json:"cvvc_transition_gain,omitempty"`
+	CVVCPreBoundaryFade     bool                     `json:"cvvc_pre_boundary_fade,omitempty"`
+	LeadingMarginMS         float64                  `json:"leading_margin_ms,omitempty"`
+	DurationMS              float64                  `json:"duration_ms"`
+	Units                   []Unit                   `json:"units"`
+	Morae                   []frontend.Mora          `json:"-"`
 }
 
 // Clone returns an independent copy suitable for renderer execution. Renderer
@@ -160,69 +151,61 @@ type BoundaryRepairDecision struct {
 }
 
 type Unit struct {
-	CodaPhones                []string                       `json:"coda_phones,omitempty"`
-	BoundaryEnvelope          string                         `json:"boundary_envelope,omitempty"`
-	ProtectedTransitionMS     float64                        `json:"protected_transition_ms,omitempty"`
-	SpeechRetimeApplied       bool                           `json:"speech_retime_applied,omitempty"`
-	SpeechJoinApplied         bool                           `json:"speech_join_applied,omitempty"`
-	CVTimingApplied           bool                           `json:"cv_timing_applied,omitempty"`
-	CVTimingWarnings          []string                       `json:"cv_timing_warnings,omitempty"`
-	SourceContext             string                         `json:"source_context,omitempty"`
-	SourceContextReason       string                         `json:"source_context_reason,omitempty"`
-	SpeechProfile             *voicebank.SpeechProfile       `json:"speech_profile,omitempty"`
-	Position                  int                            `json:"position"`
-	Role                      string                         `json:"role"`
-	ParentPosition            int                            `json:"parent_position,omitempty"`
-	TransitionFrom            string                         `json:"transition_from,omitempty"`
-	TransitionTo              string                         `json:"transition_to,omitempty"`
-	Mora                      string                         `json:"mora"`
-	Alias                     string                         `json:"alias"`
-	Source                    string                         `json:"source"`
-	Silent                    bool                           `json:"silent,omitempty"`
-	LongUnitGroup             int                            `json:"long_unit_group,omitempty"`
-	LongUnitSize              int                            `json:"long_unit_size,omitempty"`
-	OtoPath                   string                         `json:"oto_path"`
-	OtoLine                   int                            `json:"oto_line"`
-	NoteStartMS               float64                        `json:"note_start_ms"`
-	DurationMS                float64                        `json:"duration_ms"`
-	OffsetMS                  float64                        `json:"offset_ms"`
-	ConsonantMS               float64                        `json:"consonant_ms"`
-	CutoffMS                  float64                        `json:"cutoff_ms"`
-	PreutteranceMS            float64                        `json:"preutterance_ms"`
-	OverlapMS                 float64                        `json:"overlap_ms"`
-	PitchFactor               float64                        `json:"pitch_factor"`
-	EnergyFactor              float64                        `json:"energy_factor"`
-	ResamplerVelocity         int                            `json:"resampler_velocity,omitempty"`
-	ResamplerVolume           int                            `json:"resampler_volume,omitempty"`
-	ResamplerFlags            string                         `json:"resampler_flags,omitempty"`
-	ResamplerModulation       int                            `json:"resampler_modulation,omitempty"`
-	ResamplerTempo            float64                        `json:"resampler_tempo,omitempty"`
-	TimingScale               float64                        `json:"timing_scale"`
-	EffectivePreutteranceMS   float64                        `json:"effective_preutterance_ms"`
-	EffectiveConsonantMS      float64                        `json:"effective_consonant_ms"`
-	EffectiveOverlapMS        float64                        `json:"effective_overlap_ms"`
-	SourceF0Hz                float64                        `json:"source_f0_hz,omitempty"`
-	TargetF0Hz                float64                        `json:"target_f0_hz,omitempty"`
-	IntonationFactor          float64                        `json:"intonation_factor"`
-	CandidateCount            int                            `json:"candidate_count"`
-	TargetScore               float64                        `json:"target_score"`
-	JoinScore                 float64                        `json:"join_score"`
-	JoinProbability           float64                        `json:"join_probability,omitempty"`
-	TransitionJoinScore       float64                        `json:"transition_join_score,omitempty"`
-	TransitionJoinProbability float64                        `json:"transition_join_probability,omitempty"`
-	PathScore                 float64                        `json:"path_score"`
-	AliasKind                 string                         `json:"alias_kind,omitempty"`
-	FallbackTier              int                            `json:"fallback_tier"`
-	SubbankID                 string                         `json:"subbank_id,omitempty"`
-	Color                     string                         `json:"color,omitempty"`
-	RequestedTone             string                         `json:"requested_tone,omitempty"`
-	ResolvedTone              string                         `json:"resolved_tone,omitempty"`
-	EntryStatus               string                         `json:"entry_status,omitempty"`
-	EntryValidation           []string                       `json:"entry_validation,omitempty"`
-	CandidateRejections       []voicebank.CandidateRejection `json:"candidate_rejections,omitempty"`
-	AcousticTargetScore       float64                        `json:"acoustic_target_score,omitempty"`
-	AcousticJoinScore         float64                        `json:"acoustic_join_score,omitempty"`
-	SelectionMargin           float64                        `json:"selection_margin,omitempty"`
+	CodaPhones              []string                       `json:"coda_phones,omitempty"`
+	BoundaryEnvelope        string                         `json:"boundary_envelope,omitempty"`
+	SpeechRetimeApplied     bool                           `json:"speech_retime_applied,omitempty"`
+	SpeechJoinApplied       bool                           `json:"speech_join_applied,omitempty"`
+	CVTimingApplied         bool                           `json:"cv_timing_applied,omitempty"`
+	CVTimingWarnings        []string                       `json:"cv_timing_warnings,omitempty"`
+	SpeechProfile           *voicebank.SpeechProfile       `json:"speech_profile,omitempty"`
+	Position                int                            `json:"position"`
+	Role                    string                         `json:"role"`
+	ParentPosition          int                            `json:"parent_position,omitempty"`
+	TransitionFrom          string                         `json:"transition_from,omitempty"`
+	TransitionTo            string                         `json:"transition_to,omitempty"`
+	Mora                    string                         `json:"mora"`
+	Alias                   string                         `json:"alias"`
+	Source                  string                         `json:"source"`
+	Silent                  bool                           `json:"silent,omitempty"`
+	LongUnitGroup           int                            `json:"long_unit_group,omitempty"`
+	LongUnitSize            int                            `json:"long_unit_size,omitempty"`
+	OtoPath                 string                         `json:"oto_path"`
+	OtoLine                 int                            `json:"oto_line"`
+	NoteStartMS             float64                        `json:"note_start_ms"`
+	DurationMS              float64                        `json:"duration_ms"`
+	OffsetMS                float64                        `json:"offset_ms"`
+	ConsonantMS             float64                        `json:"consonant_ms"`
+	CutoffMS                float64                        `json:"cutoff_ms"`
+	PreutteranceMS          float64                        `json:"preutterance_ms"`
+	OverlapMS               float64                        `json:"overlap_ms"`
+	PitchFactor             float64                        `json:"pitch_factor"`
+	EnergyFactor            float64                        `json:"energy_factor"`
+	ResamplerVelocity       int                            `json:"resampler_velocity,omitempty"`
+	ResamplerVolume         int                            `json:"resampler_volume,omitempty"`
+	ResamplerFlags          string                         `json:"resampler_flags,omitempty"`
+	ResamplerModulation     int                            `json:"resampler_modulation,omitempty"`
+	ResamplerTempo          float64                        `json:"resampler_tempo,omitempty"`
+	TimingScale             float64                        `json:"timing_scale"`
+	EffectivePreutteranceMS float64                        `json:"effective_preutterance_ms"`
+	EffectiveConsonantMS    float64                        `json:"effective_consonant_ms"`
+	EffectiveOverlapMS      float64                        `json:"effective_overlap_ms"`
+	SourceF0Hz              float64                        `json:"source_f0_hz,omitempty"`
+	TargetF0Hz              float64                        `json:"target_f0_hz,omitempty"`
+	IntonationFactor        float64                        `json:"intonation_factor"`
+	CandidateCount          int                            `json:"candidate_count"`
+	TargetScore             float64                        `json:"target_score"`
+	JoinScore               float64                        `json:"join_score"`
+	TransitionJoinScore     float64                        `json:"transition_join_score,omitempty"`
+	PathScore               float64                        `json:"path_score"`
+	AliasKind               string                         `json:"alias_kind,omitempty"`
+	FallbackTier            int                            `json:"fallback_tier"`
+	SubbankID               string                         `json:"subbank_id,omitempty"`
+	Color                   string                         `json:"color,omitempty"`
+	RequestedTone           string                         `json:"requested_tone,omitempty"`
+	ResolvedTone            string                         `json:"resolved_tone,omitempty"`
+	EntryStatus             string                         `json:"entry_status,omitempty"`
+	EntryValidation         []string                       `json:"entry_validation,omitempty"`
+	CandidateRejections     []voicebank.CandidateRejection `json:"candidate_rejections,omitempty"`
 }
 
 func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selections []voicebank.Selection, cfg Config) (*Plan, error) {
@@ -248,27 +231,17 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		byPosition[selection.Position] = selection
 	}
 
-	selectionMode := cfg.SelectionMode
-	if selectionMode == "" {
-		selectionMode = voicebank.SelectionViterbi
-	}
 	aliasPolicy := cfg.AliasPolicy
 	if aliasPolicy == "" {
 		aliasPolicy = voicebank.AliasPolicyAuto
-	}
-	joinCostMode := cfg.JoinCostMode
-	if joinCostMode == "" {
-		joinCostMode = "handcrafted"
 	}
 	result := &Plan{
 		SpeechTiming: cfg.SpeechTiming,
 		SingleCV:     voicebank.IsSingleCVSelections(selections),
 		Version:      Version, Voicebank: bank.Root, Reading: reading,
 		Morae: append([]frontend.Mora(nil), morae...),
-		Tone:  cfg.Tone, Color: cfg.Color, AcousticMode: cfg.AcousticMode,
-		SelectionMode: string(selectionMode), AliasPolicy: string(aliasPolicy), JoinCostMode: joinCostMode,
-		JoinModelVersion: cfg.JoinModelVersion,
-		JoinScoreScale:   cfg.JoinScoreScale,
+		Tone:  cfg.Tone, Color: cfg.Color,
+		SelectionMode: "viterbi", AliasPolicy: string(aliasPolicy), JoinCostMode: "handcrafted",
 	}
 	cursor := 0.0
 	for position, mora := range morae {
@@ -337,7 +310,6 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		}
 		mainUnit.AliasKind = string(aliasKind)
 		mainUnit.TransitionJoinScore = selection.TransitionJoinScore
-		mainUnit.TransitionJoinProbability = selection.TransitionJoinProbability
 		result.Units = append(result.Units, mainUnit)
 		if len(selection.Endings) > 0 {
 			endingDuration := endingDurationFor(duration, len(selection.Endings))
@@ -370,8 +342,6 @@ func unitFromSelection(selection *voicebank.Selection, position int, noteStart, 
 	unit := Unit{
 		Position:            position,
 		Role:                role,
-		SourceContext:       selection.SourceContext,
-		SourceContextReason: selection.SourceContextReason,
 		Mora:                selection.Mora.Text,
 		Alias:               selection.Alias,
 		AliasKind:           string(aliasKind),
@@ -383,9 +353,6 @@ func unitFromSelection(selection *voicebank.Selection, position int, noteStart, 
 		EntryStatus:         selection.EntryStatus,
 		EntryValidation:     append([]string(nil), selection.EntryValidation...),
 		CandidateRejections: append([]voicebank.CandidateRejection(nil), selection.CandidateRejections...),
-		AcousticTargetScore: selection.AcousticTargetScore,
-		AcousticJoinScore:   selection.AcousticJoinScore,
-		SelectionMargin:     selection.SelectionMargin,
 		Source:              entry.Filename,
 		Silent:              entry.Filename == "",
 		OtoPath:             entry.OtoPath,
@@ -402,7 +369,6 @@ func unitFromSelection(selection *voicebank.Selection, position int, noteStart, 
 		CandidateCount:      selection.CandidateCount,
 		TargetScore:         selection.TargetScore,
 		JoinScore:           selection.JoinScore,
-		JoinProbability:     selection.JoinProbability,
 		PathScore:           selection.PathScore,
 	}
 	if role == "transition" {

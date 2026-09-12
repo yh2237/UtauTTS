@@ -2,7 +2,7 @@ package render
 
 import "math"
 
-// wsolaStretchは失敗しうるGPU実装と同じ形で使えるCPUストレッチ関数。
+// wsolaStretchはWSOLAを共通のストレッチ関数型で呼び出す。
 func wsolaStretch(source []float64, targetFrames, sampleRate int) ([]float64, error) {
 	return wsola(source, targetFrames, sampleRate), nil
 }

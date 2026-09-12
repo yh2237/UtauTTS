@@ -177,7 +177,7 @@ func TestResolverRejectsUnreadableAndSilentWAVCandidates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	selected, err := bank.ResolveWithConfig(morae, ResolveConfig{Mode: SelectionTargetOnly})
+	selected, err := bank.Resolve(morae)
 	if err != nil || len(selected) != 1 {
 		t.Fatalf("selection=%+v err=%v", selected, err)
 	}
@@ -201,36 +201,5 @@ func writeTestTone(t *testing.T, path string, frequency float64, amplitude int16
 	}
 	if err := audio.WriteWav(path, &audio.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestAcousticSelectionDryRunAndApplyModes(t *testing.T) {
-	root := t.TempDir()
-	quiet := filepath.Join(root, "quiet.wav")
-	loud := filepath.Join(root, "loud.wav")
-	writeTestTone(t, quiet, 220, 5000)
-	writeTestTone(t, loud, 220, 14000)
-	write(t, filepath.Join(root, "oto.ini"), "quiet.wav=あ,0,0,0,0,0\nloud.wav=あ,0,0,0,0,0\n")
-	bank, err := Load(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	morae, err := frontend.ParseKana("あ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	dry, err := bank.ResolveWithConfig(morae, ResolveConfig{Mode: SelectionTargetOnly, AcousticMode: AcousticModeDryRun})
-	if err != nil || len(dry) != 1 {
-		t.Fatalf("dry-run selection=%+v err=%v", dry, err)
-	}
-	if math.Abs(dry[0].AcousticTargetScore) < 1e-6 {
-		t.Fatalf("dry-run acoustic score=%f", dry[0].AcousticTargetScore)
-	}
-	apply, err := bank.ResolveWithConfig(morae, ResolveConfig{Mode: SelectionTargetOnly, AcousticMode: AcousticModeApply})
-	if err != nil || len(apply) != 1 {
-		t.Fatalf("apply selection=%+v err=%v", apply, err)
-	}
-	if apply[0].TargetScore != dry[0].TargetScore || apply[0].PathScore == dry[0].PathScore {
-		t.Fatalf("dry=%+v apply=%+v", dry[0], apply[0])
 	}
 }

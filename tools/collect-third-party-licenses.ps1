@@ -2,8 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$PackageRoot,
     [ValidateSet('windows-gui', 'windows-server', 'linux')]
-    [string]$Variant = 'windows-gui',
-    [switch]$CudaIncluded
+    [string]$Variant = 'windows-gui'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -109,12 +108,7 @@ function Copy-ProsodyDataProvenance {
     Copy-Required (Join-Path $root 'licenses/PROSODY-MODELS.txt') (Join-Path $licenseRoot 'PROSODY-MODELS.txt')
 }
 
-function Copy-WorldlineLicenses {
-    $source = Join-Path $root 'licenses/worldline'
-    if (-not (Test-Path -LiteralPath $source -PathType Container)) {
-        throw "Worldline license sources are missing: $source"
-    }
-    Copy-Item -LiteralPath $source -Destination (Join-Path $licenseRoot 'Worldline') -Recurse -Force
+function Copy-WorldLicenses {
     Copy-Required (Join-Path $root 'third_party/world/LICENSE.txt') (Join-Path $licenseRoot 'WORLD/WORLD-LICENSE.txt')
     Copy-Required (Join-Path $root 'third_party/world/OOURA-NOTICE.txt') (Join-Path $licenseRoot 'WORLD/OOURA-NOTICE.txt')
     Copy-Required (Join-Path $root 'third_party/world/MACRODEFINITIONS-LICENSE.txt') (Join-Path $licenseRoot 'WORLD/MACRODEFINITIONS-LICENSE.txt')
@@ -256,45 +250,15 @@ function Copy-BreezeLicense {
     Copy-Required (Join-Path $root 'licenses/breeze/COPYING-ICONS.txt') (Join-Path $licenseRoot 'Breeze/COPYING-ICONS.txt')
 }
 
-function Copy-CudaLicense {
-    $nvcc = (Get-Command nvcc -ErrorAction Stop).Source
-    $cudaRoot = Split-Path -Parent (Split-Path -Parent $nvcc)
-    Copy-Required (Join-Path $cudaRoot 'EULA.txt') (Join-Path $licenseRoot 'CUDA/CUDA-EULA.txt')
-    $cudaLicense = Join-Path $cudaRoot 'LICENSE'
-    if (Test-Path -LiteralPath $cudaLicense -PathType Leaf) {
-        Copy-Required $cudaLicense (Join-Path $licenseRoot 'CUDA/CUDA-LICENSE.txt')
-    }
-    $version = (& $nvcc '--version' | Out-String).Trim()
-    $cudaNotice = @"
-CUDA renderer build provenance
-=============================
-
-The experimental CUDA renderer support was built with nvcc at:
-$nvcc
-
-nvcc version output:
-$version
-
-The renderer uses the statically linked CUDA runtime (-cudart static). The
-applicable NVIDIA CUDA Toolkit terms are included in CUDA-EULA.txt. No NVIDIA
-GPU driver is distributed by this package.
-"@
-    Write-ReleaseText (Join-Path $licenseRoot 'CUDA/CUDA-BUILD.txt') $cudaNotice
-}
-
 New-Item -ItemType Directory -Force -Path $licenseRoot | Out-Null
 Copy-GoLicenses
 Copy-OpenJTalkLicenses
 Copy-ProsodyDataProvenance
-Copy-WorldlineLicenses
+Copy-WorldLicenses
 
 if ($Variant -eq 'windows-gui') {
     Copy-QtLicenses
     Copy-BreezeLicense
-}
-
-if ($CudaIncluded) {
-    Copy-CudaLicense
 }
 
 $manifest = @(

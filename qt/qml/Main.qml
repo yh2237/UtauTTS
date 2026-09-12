@@ -281,7 +281,7 @@ ApplicationWindow {
 
     SynthesisLogWindow {
         id: synthesisLogWindow
-        hostWindow: prosodyTrainingWindow.visible ? prosodyTrainingWindow : window
+        hostWindow: window
         hostPalette: window.palette
         backend: window.appBackend
         translator: window.translator
@@ -331,15 +331,6 @@ ApplicationWindow {
         id: historyMergeTimer
         interval: 700
         onTriggered: window.historyMergeKey = ""
-    }
-
-    ProsodyTrainingWindow {
-        id: prosodyTrainingWindow
-        hostWindow: window
-        hostPalette: window.palette
-        backend: window.appBackend
-        translator: window.translator
-        synthesisLogWindow: synthesisLogWindow
     }
 
     FileDialog {
@@ -1037,14 +1028,6 @@ ApplicationWindow {
                 text: window.translator.tr("menu.settings.dictionary")
                 onTriggered: window.openDictionarySettings()
             }
-            GrayscaleMenuItem {
-                visible: window.appBackend.developerMode
-                        && window.appBackend.developerProsodyTrainingEnabled
-                height: visible ? implicitHeight : 0
-                text: window.translator.tr("menu.settings.trainingData")
-                enabled: !window.appBackend.busy
-                onTriggered: prosodyTrainingWindow.openWindow()
-            }
         }
         Menu {
             title: window.translator.tr("menu.help")
@@ -1181,8 +1164,6 @@ ApplicationWindow {
                     settingsWindow.pendingPreReleaseUpdateCheckEnabled);
         window.appBackend.setPreviewCacheFileCount(settingsWindow.pendingPreviewCacheFileCount);
         window.appBackend.setDeveloperMode(settingsWindow.pendingDeveloperMode);
-        window.appBackend.setDeveloperProsodyTrainingEnabled(
-                    settingsWindow.pendingDeveloperProsodyTrainingEnabled);
         window.appBackend.setDefaultVoicebank(settingsWindow.pendingDefaultVoicebankId);
         window.appBackend.setExportSettings(settingsWindow.pendingExportTextWithWav,
                                             settingsWindow.pendingExportLabWithWav,
@@ -1340,17 +1321,7 @@ ApplicationWindow {
         for (let i = 0; i < window.appBackend.voicebanks.length; ++i)
             if (window.appBackend.voicebanks[i].id === id)
                 return window.appBackend.voicebanks[i];
-        // v1はディレクトリ名をIDに使ったため、曖昧でない別名だけ解決する。
-        let legacy = null;
-        for (let i = 0; i < window.appBackend.voicebanks.length; ++i) {
-            const candidate = window.appBackend.voicebanks[i];
-            if (candidate.id.split("/").pop() !== id)
-                continue;
-            if (legacy)
-                return null;
-            legacy = candidate;
-        }
-        return legacy;
+        return null;
     }
 
     function reloadVoicebanks() {
@@ -1530,7 +1501,7 @@ ApplicationWindow {
 
     function normalizeAliasPolicy(value) {
         const policy = String(value || "auto");
-        return ["auto", "legacy", "cvvc-enhanced", "vcv-prefer", "cvvc-prefer", "cv-only"].indexOf(policy) >= 0 ? policy : "auto";
+        return ["auto", "cvvc-enhanced", "vcv-prefer", "cvvc-prefer", "cv-only"].indexOf(policy) >= 0 ? policy : "auto";
     }
 
     function utteranceIndex(id) {

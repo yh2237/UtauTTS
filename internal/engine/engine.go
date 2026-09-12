@@ -31,8 +31,7 @@ const (
 )
 
 // Capabilities are the features exposed by an engine definition or provider.
-// The v1 manifest adapter fills the definition from plugin.Capabilities; a
-// definition may advertise only a subset of its provider's capabilities.
+// A definition may advertise only a subset of its provider's capabilities.
 type Capabilities struct {
 	FramePitch     bool
 	BoundaryBridge bool
@@ -43,16 +42,12 @@ func (capabilities Capabilities) Supports(requested Capabilities) bool {
 		(!requested.BoundaryBridge || capabilities.BoundaryBridge)
 }
 
-// ResourceKey is the name of an engine runtime resource. The type is
-// introduced now so v1 assets can be carried through the resolver without
-// keeping their string map in tts.Config.
+// ResourceKey is the name of an engine runtime resource.
 type ResourceKey string
 
 const (
-	ResourceWorldline          ResourceKey = "worldline"
 	ResourceWorldlineBridge    ResourceKey = "worldline_bridge"
 	ResourceWorldEngine        ResourceKey = "world_engine"
-	ResourceWorldGPU           ResourceKey = "world_gpu"
 	ResourceDiffSingerBridge   ResourceKey = "diffsinger_bridge"
 	ResourceClassicResampler   ResourceKey = "classic_resampler"
 	ResourceClassicWavtool     ResourceKey = "classic_wavtool"
@@ -67,8 +62,7 @@ type ResourceRequirement struct {
 }
 
 // Definition is the user-visible declaration of a synthesis engine.
-// Resources are resolved absolute paths when the definition came from a v1
-// renderer manifest.
+// Resources are resolved absolute paths when loaded from a renderer manifest.
 type Definition struct {
 	ID              PublicID
 	DisplayName     string
@@ -93,9 +87,7 @@ func (definition Definition) Resource(key ResourceKey) string {
 	return definition.Resources[key]
 }
 
-// Provider describes an available implementation. In this first migration
-// phase it is metadata only; the rendering interface will be added after the
-// request resolver and typed resources are in place.
+// Provider describes an available implementation and its typed resources.
 type Provider struct {
 	ID           ProviderID
 	Contract     Contract
@@ -165,14 +157,6 @@ var builtinRegistry = mustRegistry(
 			{Key: ResourceWorldlineBridge, Required: true, Executable: true},
 		},
 	},
-	Provider{
-		ID: "utautts-world-phrase-cuda", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true},
-		Requirements: []ResourceRequirement{
-			{Key: ResourceWorldEngine, Required: true},
-			{Key: ResourceWorldlineBridge, Required: true, Executable: true},
-			{Key: ResourceWorldGPU, Required: true},
-		},
-	},
 	Provider{ID: "utau-external-resampler", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true}},
 	Provider{
 		ID: "diffsinger", Contract: ContractNeuralSynthesizer, Version: "1", Capabilities: Capabilities{FramePitch: true},
@@ -214,16 +198,6 @@ func cloneProvider(provider Provider) Provider {
 func (registry Registry) Supports(id ProviderID) bool {
 	_, found := registry.Provider(id)
 	return found
-}
-
-// IsBuiltinProvider is a compatibility check used while renderer.json v1
-// still calls its implementation field "backend".
-func IsBuiltinProvider(id string) bool {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return false
-	}
-	return builtinRegistry.Supports(ProviderID(id))
 }
 
 // ResolvedEngine binds a user-visible definition to an available provider.
@@ -279,8 +253,8 @@ func (resolved ResolvedEngine) RequireAvailable() error {
 }
 
 // ResolveOptions applies explicit application-level resource paths over
-// manifest-derived paths. It lets --worldline and GUI settings participate in
-// the same preflight as packaged runtime assets.
+// manifest-derived paths so configured runtime assets participate in the same
+// preflight as packaged resources.
 type ResolveOptions struct {
 	ResourceOverrides map[ResourceKey]string
 }
@@ -448,55 +422,9 @@ func DefinitionsFromCatalog(catalog *plugin.Catalog) []Definition {
 	}
 	result := make([]Definition, 0, len(catalog.Renderers))
 	for _, renderer := range catalog.Renderers {
-		if renderer.ManifestVersion == 2 {
-			result = append(result, DefinitionFromV2(renderer))
-		} else {
-			result = append(result, DefinitionFromV1(renderer))
-		}
+		result = append(result, DefinitionFromV2(renderer))
 	}
 	return result
-}
-
-// DefinitionFromV1 adapts the existing renderer.json v1 shape. Its backend
-// becomes a ProviderID and its contract is inferred. v1's version is the
-// public definition version, not a provider version, so it is not used for
-// provider compatibility checks.
-func DefinitionFromV1(renderer plugin.Renderer) Definition {
-	resourceNames := make(map[string]struct{}, len(renderer.Assets)+len(renderer.PlatformAssets))
-	for name := range renderer.Assets {
-		resourceNames[name] = struct{}{}
-	}
-	for _, assets := range renderer.PlatformAssets {
-		for name := range assets {
-			resourceNames[name] = struct{}{}
-		}
-	}
-	resources := make(map[ResourceKey]string, len(resourceNames))
-	for name := range resourceNames {
-		if path := strings.TrimSpace(renderer.Asset(name)); path != "" {
-			resources[ResourceKey(name)] = path
-		}
-	}
-	if len(resources) == 0 {
-		resources = nil
-	}
-	provider := ProviderID(strings.TrimSpace(renderer.Backend))
-	return Definition{
-		ID:              PublicID(renderer.ID),
-		DisplayName:     renderer.DisplayName,
-		Description:     renderer.Description,
-		Contract:        ContractForLegacyProvider(provider),
-		Provider:        provider,
-		ManifestVersion: renderer.ManifestVersion,
-		Experimental:    renderer.Experimental,
-		Acceleration:    renderer.Acceleration,
-		DefaultPriority: renderer.DefaultPriority,
-		Capabilities: Capabilities{
-			FramePitch:     renderer.Capabilities.FramePitch,
-			BoundaryBridge: renderer.Capabilities.BoundaryBridge,
-		},
-		Resources: resources,
-	}
 }
 
 // DefinitionFromV2 adapts the explicit contract/provider manifest shape.
@@ -542,17 +470,4 @@ func DefinitionFromV2(renderer plugin.Renderer) Definition {
 		},
 		Resources: resources,
 	}
-}
-
-// ContractForLegacyProvider maps the v1 backend vocabulary to the new input
-// contracts. Unknown v1 backends remain unit renderers until a provider is
-// registered for them; the resolver will then reject the unavailable provider.
-func ContractForLegacyProvider(provider ProviderID) Contract {
-	if provider == "diffsinger" {
-		return ContractNeuralSynthesizer
-	}
-	if provider == "" {
-		return ContractUnknown
-	}
-	return ContractUnitRenderer
 }

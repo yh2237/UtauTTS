@@ -47,7 +47,7 @@ func TestExternalRendererHelper(t *testing.T) {
 			if err != nil {
 				return
 			}
-			var job externalUnitRendererJob
+			var job provider.UnitRendererJob
 			if json.Unmarshal(data, &job) != nil || job.Version != unitRendererJobVersion || len(job.Plan) == 0 {
 				return
 			}

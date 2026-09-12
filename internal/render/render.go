@@ -84,7 +84,6 @@ type ResamplerExpression struct {
 }
 
 const (
-	CVVCTimingLegacy     = "legacy"
 	CVVCTimingSequential = "sequential"
 )
 
@@ -96,17 +95,16 @@ const defaultReleaseMS = 20.0
 
 // rendererImplementationsは実行可能なbackendの一覧。表示情報はrenderer.jsonに置く。
 var rendererImplementations = map[string]func(*plan.Plan, Config) (*audio.PCM, error){
-	"waveform":                  renderWaveform,
-	"utautts-world-phrase":      renderUtauTTSWorldPhrase,
-	"utautts-world-phrase-cuda": renderUtauTTSWorldPhraseCUDA,
-	"utau-external-resampler":   renderUtauExternalResampler,
+	"waveform":                renderWaveform,
+	"utautts-world-phrase":    renderUtauTTSWorldPhrase,
+	"utau-external-resampler": renderUtauExternalResampler,
 }
 
 func IsKnownRenderer(id string) bool {
 	if id == "" {
 		return true
 	}
-	return engine.IsBuiltinProvider(id)
+	return engine.BuiltinRegistry().Supports(engine.ProviderID(id))
 }
 
 var boundaryBridgeRenderers = map[string]struct{}{
@@ -383,6 +381,8 @@ func renderWaveform(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
 	})
 }
 
+const maxParallelRetimeUnits = 32
+
 type preparedWaveformUnit struct {
 	unitIndex                   int
 	timing                      effectiveTiming
@@ -393,9 +393,6 @@ type preparedWaveformUnit struct {
 	speechSourceConsonantFrames int
 	effectiveConsonantFrames    int
 }
-
-// CUDA資源の過剰生成を防ぎつつGPUを活用できる数に制限する。
-const maxParallelGPUUnits = 32
 
 func renderWaveformWithStretch(synthesisPlan *plan.Plan, cfg Config, parallelRetime bool, retime func([]float64, int, int, int, int) ([]float64, error)) (*audio.PCM, error) {
 	if synthesisPlan == nil || len(synthesisPlan.Units) == 0 {
@@ -537,7 +534,7 @@ func renderWaveformWithStretch(synthesisPlan *plan.Plan, cfg Config, parallelRet
 	}
 	retimeErrors := make([]error, len(prepared))
 	if parallelRetime {
-		workerCount := min(len(prepared), maxParallelGPUUnits)
+		workerCount := min(len(prepared), maxParallelRetimeUnits)
 		jobs := make(chan int)
 		var workers sync.WaitGroup
 		workers.Add(workerCount)

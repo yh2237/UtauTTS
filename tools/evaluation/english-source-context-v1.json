@@ -1,5 +1,0 @@
-[
-  {"id":"vowel-h","language":"en","phonemizer":"en-delta","text":"He had a hat.","focus":"existing V-CV aliases"},
-  {"id":"greeting","language":"en","phonemizer":"en-delta","text":"Hello world.","focus":"fallback when contextual recordings are unavailable"},
-  {"id":"clusters","language":"en","phonemizer":"en-delta","text":"Next steps.","focus":"preserve codas and consonant clusters"}
-]

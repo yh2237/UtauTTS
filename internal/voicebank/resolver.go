@@ -12,39 +12,32 @@ import (
 )
 
 type Selection struct {
-	SourceContext             string
-	SourceContextReason       string
-	Position                  int
-	Mora                      frontend.Mora
-	Alias                     string
-	Kind                      AliasKind
-	Composite                 bool
-	Transition                *Selection
-	Endings                   []Selection
-	EndingIndex               int
-	MissingPhones             []SpeechGap
-	FallbackTier              int
-	Entry                     oto.Entry
-	Candidates                []string
-	CandidateCount            int
-	TargetScore               float64
-	PreferenceScore           float64
-	TransitionScore           float64
-	JoinScore                 float64
-	JoinProbability           float64
-	TransitionJoinScore       float64
-	TransitionJoinProbability float64
-	PathScore                 float64
-	SubbankID                 string
-	Color                     string
-	RequestedTone             string
-	ResolvedTone              string
-	EntryStatus               string
-	EntryValidation           []string
-	CandidateRejections       []CandidateRejection
-	AcousticTargetScore       float64
-	AcousticJoinScore         float64
-	SelectionMargin           float64
+	Position            int
+	Mora                frontend.Mora
+	Alias               string
+	Kind                AliasKind
+	Composite           bool
+	Transition          *Selection
+	Endings             []Selection
+	EndingIndex         int
+	MissingPhones       []SpeechGap
+	FallbackTier        int
+	Entry               oto.Entry
+	Candidates          []string
+	CandidateCount      int
+	TargetScore         float64
+	PreferenceScore     float64
+	TransitionScore     float64
+	JoinScore           float64
+	TransitionJoinScore float64
+	PathScore           float64
+	SubbankID           string
+	Color               string
+	RequestedTone       string
+	ResolvedTone        string
+	EntryStatus         string
+	EntryValidation     []string
+	CandidateRejections []CandidateRejection
 }
 
 type CandidateRejection struct {
@@ -62,21 +55,10 @@ type SpeechGap struct {
 	Aliases  []string `json:"aliases"`
 }
 
-type SelectionMode string
-
-const (
-	SelectionViterbi    SelectionMode = "viterbi"
-	SelectionGreedy     SelectionMode = "greedy"
-	SelectionTargetOnly SelectionMode = "target-only"
-)
-
 type ResolveConfig struct {
-	Tone         string
-	Color        string
-	Mode         SelectionMode
-	AliasPolicy  AliasPolicy
-	AcousticMode string
-	JoinModel    *connection.LearnedModel
+	Tone        string
+	Color       string
+	AliasPolicy AliasPolicy
 }
 
 type MissingAliasError struct {
@@ -103,13 +85,6 @@ func (b *Bank) ResolveAtTone(morae []frontend.Mora, tone string) ([]Selection, e
 }
 
 func (b *Bank) ResolveWithConfig(morae []frontend.Mora, cfg ResolveConfig) ([]Selection, error) {
-	mode := cfg.Mode
-	if mode == "" {
-		mode = SelectionViterbi
-	}
-	if mode != SelectionViterbi && mode != SelectionGreedy && mode != SelectionTargetOnly {
-		return nil, fmt.Errorf("unknown selection mode %q", mode)
-	}
 	policy := cfg.AliasPolicy
 	if policy == "" {
 		policy = AliasPolicyAuto
@@ -117,17 +92,14 @@ func (b *Bank) ResolveWithConfig(morae []frontend.Mora, cfg ResolveConfig) ([]Se
 	if !policy.valid() {
 		return nil, fmt.Errorf("unknown alias policy %q", policy)
 	}
-	if !validAcousticMode(cfg.AcousticMode) {
-		return nil, fmt.Errorf("unknown acoustic selection mode %q", cfg.AcousticMode)
-	}
-	layers, err := b.candidateLayersWithPolicyMode(morae, cfg.Tone, cfg.Color, policy, cfg.AcousticMode)
+	layers, err := b.candidateLayersWithPolicy(morae, cfg.Tone, cfg.Color, policy)
 	if err != nil {
 		return nil, err
 	}
 	if b.extractor == nil {
 		b.extractor = connection.NewExtractor()
 	}
-	return selectBestPathsWithAcoustic(layers, mode, cfg.JoinModel, b.extractor, cfg.AcousticMode), nil
+	return selectBestPaths(layers, b.extractor), nil
 }
 
 func (b *Bank) candidateLayers(morae []frontend.Mora, tone string) ([][]Selection, error) {
@@ -135,17 +107,10 @@ func (b *Bank) candidateLayers(morae []frontend.Mora, tone string) ([][]Selectio
 }
 
 func (b *Bank) candidateLayersWithPolicy(morae []frontend.Mora, tone, color string, policy AliasPolicy) ([][]Selection, error) {
-	return b.candidateLayersWithPolicyMode(morae, tone, color, policy, "")
+	return b.candidateLayersDiagnostic(morae, tone, color, policy, nil)
 }
 
-func (b *Bank) candidateLayersWithPolicyMode(morae []frontend.Mora, tone, color string, policy AliasPolicy, acousticMode string) ([][]Selection, error) {
-	return b.candidateLayersDiagnostic(morae, tone, color, policy, acousticMode, nil)
-}
-
-func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color string, policy AliasPolicy, acousticMode string, missing *[]MissingAliasError) ([][]Selection, error) {
-	if !validAcousticMode(acousticMode) {
-		return nil, fmt.Errorf("unknown acoustic selection mode %q", acousticMode)
-	}
+func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color string, policy AliasPolicy, missing *[]MissingAliasError) ([][]Selection, error) {
 	layers := make([][]Selection, 0, len(morae))
 	affix, subbank, hasAffix := b.AffixForToneAndColor(tone, color)
 	requestedTone := strings.ToUpper(strings.TrimSpace(tone))
@@ -364,11 +329,10 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 		}
 		applyCompositePreferences(candidatesAtPosition, policy)
 		applyEnglishCandidatePreferences(candidatesAtPosition, previousLayer)
-		b.populateAcousticScores(candidatesAtPosition, previousLayer, acousticMode)
 		if len(candidatesAtPosition) > maxCandidatesPerPosition {
 			sort.SliceStable(candidatesAtPosition, func(i, j int) bool {
-				left := localCandidateScore(candidatesAtPosition[i], acousticMode)
-				right := localCandidateScore(candidatesAtPosition[j], acousticMode)
+				left := localCandidateScore(candidatesAtPosition[i])
+				right := localCandidateScore(candidatesAtPosition[j])
 				return left > right
 			})
 			candidatesAtPosition = candidatesAtPosition[:maxCandidatesPerPosition]
@@ -416,12 +380,8 @@ func candidateScore(candidateTier int, entry oto.Entry) float64 {
 	return score
 }
 
-func localCandidateScore(candidate Selection, acousticMode string) float64 {
-	score := candidate.TargetScore + candidate.PreferenceScore
-	if acousticMode == AcousticModeApply {
-		score += candidate.AcousticTargetScore
-	}
-	return score
+func localCandidateScore(candidate Selection) float64 {
+	return candidate.TargetScore + candidate.PreferenceScore
 }
 
 func hasUsableCandidateEntries(bank *Bank, candidates []aliasCandidate) bool {

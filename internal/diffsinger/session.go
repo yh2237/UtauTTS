@@ -15,10 +15,8 @@ import (
 	"utautts/internal/provider"
 )
 
-// RenderSession uses the provider protocol when the bridge supports it. The
-// bridge process stays alive between calls so ONNX Runtime sessions can remain
-// resident. Older bridge binaries are still accepted through the existing
-// one-shot Render fallback.
+// RenderSession uses the provider protocol and keeps the bridge process alive
+// between calls so ONNX Runtime sessions can remain resident.
 func RenderSession(ctx context.Context, bridgePath string, request Request) (*audio.PCM, error) {
 	return renderSession(ctx, bridgePath, engine.NeuralScore{}, request)
 }
@@ -39,11 +37,7 @@ func renderSession(ctx context.Context, bridgePath string, score engine.NeuralSc
 
 	session, key, err := diffSingerProviderSessions.get(ctx, executable)
 	if err != nil {
-		pcm, fallbackErr := Render(ctx, executable, request)
-		if fallbackErr != nil {
-			return nil, fmt.Errorf("start DiffSinger provider session: %w (legacy fallback: %v)", err, fallbackErr)
-		}
-		return pcm, nil
+		return nil, fmt.Errorf("start DiffSinger provider session: %w", err)
 	}
 	result, err := session.Render(ctx, provider.RenderRequest{
 		Contract:        "neural-synthesizer",

@@ -176,7 +176,7 @@ func TestOpenUtauEnvelopeUsesNextPhoneTailTiming(t *testing.T) {
 		{NoteStartMS: 0, DurationMS: 100, PreutteranceMS: 30, OverlapMS: 5},
 		{NoteStartMS: 100, DurationMS: 100, PreutteranceMS: 40, OverlapMS: 10},
 	}
-	timings, phraseStart := openUtauPhoneTimings(units, CVVCTimingLegacy)
+	timings, phraseStart := openUtauPhoneTimings(units, CVVCTimingSequential)
 	if timings[0].tailIntrude != 40 || timings[0].tailOverlap != 10 || !timings[1].overlapped || phraseStart != -30 {
 		t.Fatalf("timing = %+v %+v phraseStart=%.1f", timings[0], timings[1], phraseStart)
 	}
@@ -201,24 +201,6 @@ func TestLimitLeadingPreutterance(t *testing.T) {
 	}
 }
 
-func TestOpenUtauPhoneTimingsKeepMoraTimingAcrossCVVCTransition(t *testing.T) {
-	units := []plan.Unit{
-		{Position: 0, Role: "mora", NoteStartMS: 0, DurationMS: 100, PreutteranceMS: 30, OverlapMS: 5},
-		{Position: 1, Role: "transition", NoteStartMS: 100, DurationMS: 30, PreutteranceMS: 50, OverlapMS: 20},
-		{Position: 1, Role: "mora", NoteStartMS: 100, DurationMS: 100, PreutteranceMS: 40, OverlapMS: 10},
-	}
-	timings, phraseStart := openUtauPhoneTimings(units, CVVCTimingLegacy)
-	if timings[1].preutter != 50 || timings[1].overlap != 20 {
-		t.Fatalf("transition timing = %+v", timings[1])
-	}
-	if timings[2].preutter != 40 || timings[2].overlap != 10 || !timings[2].overlapped {
-		t.Fatalf("main timing = %+v", timings[2])
-	}
-	if timings[0].tailIntrude != 50 || timings[0].tailOverlap != 20 || phraseStart != -30 {
-		t.Fatalf("mora tail timing = %+v phraseStart=%.1f", timings[0], phraseStart)
-	}
-}
-
 func TestOpenUtauSequentialCVVCTimingChainsTransitionAndMainPhone(t *testing.T) {
 	units := []plan.Unit{
 		{Position: 0, Role: "mora", NoteStartMS: 0, DurationMS: 100, PreutteranceMS: 30, OverlapMS: 5},
@@ -240,20 +222,8 @@ func TestOpenUtauSequentialCVVCTimingChainsTransitionAndMainPhone(t *testing.T) 
 	}
 }
 
-func TestOpenUtauSequentialTimingDoesNotChangeNonCVVCSequence(t *testing.T) {
-	units := []plan.Unit{
-		{Position: 0, Role: "mora", NoteStartMS: 0, DurationMS: 100, PreutteranceMS: 30, OverlapMS: 5},
-		{Position: 1, Role: "mora", NoteStartMS: 100, DurationMS: 100, PreutteranceMS: 40, OverlapMS: 10},
-	}
-	legacy, legacyStart := openUtauPhoneTimings(units, CVVCTimingLegacy)
-	sequential, sequentialStart := openUtauPhoneTimings(units, CVVCTimingSequential)
-	if !reflect.DeepEqual(legacy, sequential) || legacyStart != sequentialStart {
-		t.Fatalf("non-CVVC timing changed: legacy=%+v sequential=%+v", legacy, sequential)
-	}
-}
-
 func TestWorldlineRejectsUnknownCVVCTimingBeforeResolvingAssets(t *testing.T) {
-	_, err := renderWorldlineEngine(&plan.Plan{Units: []plan.Unit{{Role: "mora"}}}, Config{CVVCTiming: "unknown"}, "worldline-r-faithful")
+	_, err := renderWorldlineEngine(&plan.Plan{Units: []plan.Unit{{Role: "mora"}}}, Config{CVVCTiming: "unknown"}, "utautts-world-phrase")
 	if err == nil || !strings.Contains(err.Error(), "unknown CVVC timing mode") {
 		t.Fatalf("unexpected error: %v", err)
 	}

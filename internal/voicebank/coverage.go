@@ -17,7 +17,7 @@ type Coverage struct {
 // No path is selected across gaps.
 func (b *Bank) AuditCoverage(morae []frontend.Mora, tone string) (*Coverage, error) {
 	result := &Coverage{CandidateCounts: make([]int, len(morae)), Missing: []MissingAliasError{}}
-	layers, err := b.candidateLayersDiagnostic(morae, tone, "", AliasPolicyAuto, "", &result.Missing)
+	layers, err := b.candidateLayersDiagnostic(morae, tone, "", AliasPolicyAuto, &result.Missing)
 	if err != nil {
 		return nil, err
 	}

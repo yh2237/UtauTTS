@@ -63,10 +63,6 @@ server_root="${temporary_root}/server"
 mkdir -p "${gui_root}" "${server_root}"
 unzip -q "${gui_zip}" -d "${gui_root}"
 unzip -q "${server_zip}" -d "${server_root}"
-for package_root in "${gui_root}" "${server_root}"; do
-  [ ! -e "${package_root}/runtime/libworldline.so" ] || fail 'obsolete worldline library is bundled'
-  [ ! -e "${package_root}/renderer/openutau-worldline-r-faithful" ] || fail 'removed faithful renderer is bundled'
-done
 bash "${root_dir}/tools/check-linux-relocations.sh" "${gui_root}/utautts"
 
 for required in \
@@ -221,9 +217,6 @@ for renderer_id in waveform classic-utau utautts-world-phrase; do
   test -f "${gui_root}/renderer/${renderer_id}/renderer.json" \
     || fail "missing renderer manifest: ${renderer_id}"
 done
-test ! -e "${gui_root}/renderer/utautts-world-phrase-cuda" \
-  || fail 'Linux package contains the experimental CUDA renderer manifest'
-
 VOICEBANK_JSON="${work_dir}/voicebanks.json" REQUEST_DIR="${work_dir}" "${python_command}" - <<'PY'
 import json
 import os

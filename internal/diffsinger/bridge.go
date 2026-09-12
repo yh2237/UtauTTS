@@ -1,17 +1,5 @@
 package diffsinger
 
-import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
-
-	"utautts/internal/audio"
-)
-
 type Request struct {
 	Version                   int       `json:"version"`
 	AcousticPath              string    `json:"acoustic_path"`
@@ -68,47 +56,4 @@ type Request struct {
 	VariancePredictsTension   bool      `json:"variance_predicts_tension,omitempty"`
 	VarianceContinuous        bool      `json:"variance_continuous,omitempty"`
 	MelScale                  float32   `json:"mel_scale,omitempty"`
-}
-
-// Render invokes the legacy one-shot bridge protocol. New synthesis calls
-// should use RenderSession; this function remains the compatibility fallback
-// for older installed bridge binaries.
-func Render(ctx context.Context, bridgePath string, request Request) (*audio.PCM, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	if strings.TrimSpace(bridgePath) == "" {
-		return nil, fmt.Errorf("DiffSinger bridge is not configured")
-	}
-	if _, err := os.Stat(bridgePath); err != nil {
-		return nil, fmt.Errorf("DiffSinger bridge %q: %w", bridgePath, err)
-	}
-	temp, err := os.MkdirTemp("", "utautts-diffsinger-")
-	if err != nil {
-		return nil, err
-	}
-	defer os.RemoveAll(temp)
-	request.Version = 1
-	request.OutputPath = filepath.Join(temp, "output.wav")
-	manifestPath := filepath.Join(temp, "request.json")
-	data, err := json.Marshal(request)
-	if err != nil {
-		return nil, err
-	}
-	if err := os.WriteFile(manifestPath, data, 0o600); err != nil {
-		return nil, err
-	}
-	command := exec.CommandContext(ctx, bridgePath, manifestPath)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return nil, fmt.Errorf("DiffSinger bridge canceled: %w", ctxErr)
-		}
-		return nil, fmt.Errorf("DiffSinger bridge failed: %w: %s", err, strings.TrimSpace(string(output)))
-	}
-	pcm, err := audio.ReadWav(request.OutputPath)
-	if err != nil {
-		return nil, fmt.Errorf("read DiffSinger output: %w", err)
-	}
-	return pcm, nil
 }

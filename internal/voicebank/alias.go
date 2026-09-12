@@ -18,7 +18,6 @@ type AliasPolicy string
 
 const (
 	AliasPolicyAuto       AliasPolicy = "auto"
-	AliasPolicyLegacy     AliasPolicy = "legacy"
 	AliasPolicyEnhanced   AliasPolicy = "cvvc-enhanced"
 	AliasPolicyVCVPrefer  AliasPolicy = "vcv-prefer"
 	AliasPolicyCVVCPrefer AliasPolicy = "cvvc-prefer"
@@ -26,7 +25,7 @@ const (
 )
 
 func (p AliasPolicy) valid() bool {
-	return p == "" || p == AliasPolicyAuto || p == AliasPolicyLegacy || p == AliasPolicyEnhanced || p == AliasPolicyVCVPrefer || p == AliasPolicyCVVCPrefer || p == AliasPolicyCVOnly
+	return p == "" || p == AliasPolicyAuto || p == AliasPolicyEnhanced || p == AliasPolicyVCVPrefer || p == AliasPolicyCVVCPrefer || p == AliasPolicyCVOnly
 }
 
 type AliasCapabilities struct {

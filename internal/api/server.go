@@ -54,7 +54,7 @@ const (
 
 type Config struct {
 	VoiceDir, Renderer                            string
-	WorldlinePath, WorldlineBridgePath            string
+	WorldlineBridgePath                           string
 	OpenJTalkPath, OpenJTalkDictionary, AuthToken string
 	AllowVoicebankRegistration                    bool
 	RendererDirectories, ModelDirectories         []string
@@ -83,7 +83,6 @@ type Server struct {
 	synthesisSem        chan struct{}
 	batchSem            chan struct{}
 	renderer            string
-	worldlinePath       string
 	worldlineBridgePath string
 	openJTalkPath       string
 	openJTalkDictionary string
@@ -115,7 +114,7 @@ func New(config Config) (*Server, error) {
 		voicebanks:   map[string]Voicebank{},
 		synthesisSem: make(chan struct{}, maxConcurrentSynthesis),
 		batchSem:     make(chan struct{}, maxConcurrentBatches),
-		renderer:     config.Renderer, worldlinePath: config.WorldlinePath, worldlineBridgePath: config.WorldlineBridgePath, voiceDir: voiceDir,
+		renderer:     config.Renderer, worldlineBridgePath: config.WorldlineBridgePath, voiceDir: voiceDir,
 		openJTalkPath: config.OpenJTalkPath, openJTalkDictionary: config.OpenJTalkDictionary,
 		authToken: config.AuthToken, allowRegistration: config.AllowVoicebankRegistration,
 		catalog: catalog,
@@ -402,7 +401,6 @@ type SynthesisRequest struct {
 	Resampler             string                       `json:"resampler"`
 	Wavtool               string                       `json:"wavtool"`
 	AliasPolicy           voicebank.AliasPolicy        `json:"alias_policy"`
-	AcousticMode          string                       `json:"acoustic_mode"`
 	Dictionary            []synth.DictionaryEntry      `json:"dictionary"`
 	ResamplerExpressions  []render.ResamplerExpression `json:"resampler_expressions"`
 }
@@ -638,7 +636,7 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 		Text: request.Text, Reading: synthesisReading(request), Language: request.Language, Phonemizer: request.Phonemizer, VoicebankID: request.VoicebankID,
 		Tone: request.Tone, Color: request.Color, ModelID: request.ModelID, Renderer: request.Renderer,
 		Resampler: request.Resampler, Wavtool: request.Wavtool,
-		AliasPolicy: request.AliasPolicy, AcousticMode: request.AcousticMode,
+		AliasPolicy:    request.AliasPolicy,
 		Dictionary:     request.Dictionary,
 		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,
 		SpeechTiming:          request.SpeechTiming,
@@ -674,7 +672,7 @@ func contextErrorStatus(err error, fallback int) int {
 }
 
 func (s *Server) synthesisService() *synth.Service {
-	return synth.NewService(s.pluginCatalog(), s.renderer, s.worldlinePath, s.worldlineBridgePath,
+	return synth.NewService(s.pluginCatalog(), s.renderer, s.worldlineBridgePath,
 		s.openJTalkPath, s.openJTalkDictionary, apiVoicebankResolver{server: s})
 }
 
@@ -689,7 +687,7 @@ func (s *Server) resolveVoicebank(id string) (Voicebank, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if id != "" {
-		vb, ok := voicebank.ResolveLegacyID(s.voicebanks, id)
+		vb, ok := s.voicebanks[id]
 		return vb, ok
 	}
 	first := voicebank.DefaultSortedKey(s.voicebanks)

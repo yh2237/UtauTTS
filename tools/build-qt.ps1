@@ -186,7 +186,7 @@ if ($standaloneDevelopmentPackage) {
     if ($runtimeSource) {
         Copy-Item -LiteralPath $runtimeSource -Destination (Join-Path $OutputDirectory 'runtime') -Recurse
     } else {
-        Write-Warning 'Runtime assets were not found. Run build.bat once to prepare Open JTalk and WORLDLINE assets.'
+        Write-Warning 'Runtime assets were not found. Run build.bat once to prepare Open JTalk and WORLD assets.'
     }
     $voiceDirectory = Join-Path $OutputDirectory 'voice'
     New-Item -ItemType Directory -Force -Path $voiceDirectory | Out-Null

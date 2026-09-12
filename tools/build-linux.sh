@@ -148,12 +148,11 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
   bash "${root_dir}/tools/collect-go-licenses.sh" "${package_dir}" "${go_command}"
 done
 
-echo '=== OpenJTalk, worldline, and dataset licenses ==='
+echo '=== OpenJTalk, WORLD, and dataset licenses ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
   license_root="${package_dir}/licenses"
-  mkdir -p "${license_root}/OpenJTalk" "${license_root}/Worldline" "${license_root}/WORLD"
+  mkdir -p "${license_root}/OpenJTalk" "${license_root}/WORLD"
   cp "${root_dir}/licenses/openjtalk/"*.txt "${license_root}/OpenJTalk/"
-  cp "${root_dir}/licenses/worldline/"*.txt "${license_root}/Worldline/"
   cp "${root_dir}/third_party/world/LICENSE.txt" "${license_root}/WORLD/WORLD-LICENSE.txt"
   cp "${root_dir}/third_party/world/OOURA-NOTICE.txt" "${license_root}/WORLD/OOURA-NOTICE.txt"
   cp "${root_dir}/third_party/world/MACRODEFINITIONS-LICENSE.txt" "${license_root}/WORLD/MACRODEFINITIONS-LICENSE.txt"
@@ -191,9 +190,6 @@ echo '=== Models and renderer manifests ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
   cp -R "${root_dir}/models/." "${package_dir}/models/"
   cp -R "${root_dir}/renderer/." "${package_dir}/renderer/"
-  rm -rf "${package_dir}/renderer/utautts-world-phrase-cuda"
-  rm -rf "${package_dir}/renderer/openutau-worldline-r-faithful"
-  # Rendererのruntime pathは各renderer.jsonから解決する。
 done
 
 echo '=== Voicebanks ==='

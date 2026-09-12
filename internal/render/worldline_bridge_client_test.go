@@ -16,7 +16,7 @@ func TestReadWorldlineBridgeJobReadsCommonUnitJob(t *testing.T) {
 		Contract:        "unit-renderer",
 		ContractVersion: 1,
 		Plan:            json.RawMessage(`{"version":19}`),
-		Options:         provider.UnitRendererOptions{Worldline: &provider.WorldlineOptions{Engine: "worldline-r-faithful"}},
+		Options:         provider.UnitRendererOptions{Worldline: &provider.WorldlineOptions{Engine: "utautts-world-phrase"}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -29,44 +29,44 @@ func TestReadWorldlineBridgeJobReadsCommonUnitJob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Engine != "worldline-r-faithful" {
+	if got.Engine != "utautts-world-phrase" {
 		t.Fatalf("job = %#v", got)
 	}
 }
 
-func TestReadWorldlineBridgeJobRejectsLegacyManifest(t *testing.T) {
+func TestReadWorldlineBridgeJobRejectsOldJobShape(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "manifest.json")
 	data := []byte(`{"engine":"utautts-world-phrase","output_path":"output.wav"}`)
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := readWorldlineBridgeJob(path); err == nil {
-		t.Fatal("legacy manifest was accepted")
+		t.Fatal("old job shape was accepted")
 	}
 }
 
 func TestWorldlineProviderJobCarriesCommonPlanAndResources(t *testing.T) {
 	synthesisPlan := &plan.Plan{Version: plan.Version, Voicebank: "bank", Units: []plan.Unit{{Source: "voice.wav", DurationMS: 100}}}
 	job, err := worldlineProviderJob(synthesisPlan, Config{ApplyPitch: true}, worldlineManifest{
-		Engine: "worldline-r-faithful", WorldlinePath: "worldline.dll", OutputPath: "output.wav",
+		Engine: "utautts-world-phrase", OutputPath: "output.wav",
 		SampleRate: 44100, F0Curve: []float64{220, 220},
 	}, "bridge.exe")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if job.Version != provider.UnitRendererJobVersion || job.Contract != "unit-renderer" ||
-		len(job.Plan) == 0 || job.Resources["worldline"] != "worldline.dll" ||
-		job.Resources["worldline_bridge"] != "bridge.exe" || !job.Options.ApplyPitch ||
+		len(job.Plan) == 0 || job.Resources["worldline_bridge"] != "bridge.exe" ||
+		job.Resources["world_engine"] != "" || !job.Options.ApplyPitch ||
 		job.Options.Worldline == nil {
 		t.Fatalf("job = %#v", job)
 	}
-	if job.Options.Worldline.Engine != "worldline-r-faithful" || job.Options.Worldline.SampleRate != 44100 {
+	if job.Options.Worldline.Engine != "utautts-world-phrase" || job.Options.Worldline.SampleRate != 44100 {
 		t.Fatalf("worldline options = %#v", job.Options.Worldline)
 	}
 }
 
 func TestWorldSpeechJobAndExportReport(t *testing.T) {
-	speech := &provider.WorldSpeechTiming{UnitIndex: 0, SourceOnsetMS: 60, TargetOnsetMS: 40, ProtectStop: true, ProtectTransition: true}
+	speech := &provider.WorldSpeechTiming{UnitIndex: 0, SourceOnsetMS: 60, TargetOnsetMS: 40, ProtectStop: true}
 	p := &plan.Plan{Units: []plan.Unit{{DurationMS: 120}}}
 	job, err := worldlineProviderJob(p, Config{}, worldlineManifest{Engine: "utautts-world-phrase", Units: []worldlineManifestUnit{{Speech: speech}}}, "bridge.exe")
 	if err != nil {
@@ -84,20 +84,16 @@ func TestWorldSpeechJobAndExportReport(t *testing.T) {
 		t.Fatal(err)
 	}
 	decoded, err := readWorldlineBridgeJob(path)
-	if err != nil || !decoded.Speech || !decoded.ProtectTransition {
-		t.Fatal("missing capability requirement", decoded, err)
+	if err != nil || !decoded.Speech {
+		t.Fatal("missing speech requirement", decoded, err)
 	}
 	working := plan.Clone(p)
 	working.Units[0].SpeechRetimeApplied = true
 	working.Units[0].SpeechJoinApplied = true
 	working.Units[0].EffectiveConsonantMS = 80
-	working.Units[0].ProtectedTransitionMS = 60
 	report := reportFromPlan("utautts-world-phrase", working)
 	exported := plan.Clone(p)
 	report.ApplyTo(exported)
-	if exported.Units[0].ProtectedTransitionMS != 60 || p.Units[0].ProtectedTransitionMS != 0 {
-		t.Fatal("lost protection diagnostic or mutated input")
-	}
 	if p.Units[0].SpeechRetimeApplied || p.Units[0].SpeechJoinApplied {
 		t.Fatal("canonical plan mutated")
 	}

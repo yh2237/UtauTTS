@@ -106,7 +106,7 @@ func probeIntegration(input, output, executable, wavtool string, timeout time.Du
 			Velocity: velocity, VelocitySet: true, Flags: flags,
 			Modulation: modulation, ModulationSet: true, Tempo: tempo,
 		}},
-		ReleaseSet: true, CVVCTiming: render.CVVCTimingLegacy,
+		ReleaseSet: true, CVVCTiming: render.CVVCTimingSequential,
 	})
 	r.ElapsedMS = time.Since(started).Milliseconds()
 	if ctx.Err() != nil {

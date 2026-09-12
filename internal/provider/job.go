@@ -7,11 +7,10 @@ import (
 )
 
 const (
-	// CapabilityUnitRendererJobV2 marks the common unit-renderer job envelope
-	// without the removed opaque provider payload.
+	// CapabilityUnitRendererJobV2 marks the common unit-renderer job envelope.
 	CapabilityUnitRendererJobV2 = "unit_renderer_job_v2"
 	// CapabilityNeuralScoreJobV1 marks the common neural-synthesizer job
-	// envelope. It lets older providers fail handshake and use legacy fallback.
+	// envelope.
 	CapabilityNeuralScoreJobV1 = "neural_score_job_v1"
 )
 
@@ -52,8 +51,7 @@ type UnitRendererOptions struct {
 }
 
 // WorldlineOptions is the typed WORLD provider extension of a unit-renderer
-// job. It replaces the historical standalone manifest and is deliberately
-// nested under the common Options object.
+// job nested under the common Options object.
 type WorldlineOptions struct {
 	Engine      string          `json:"engine"`
 	SampleRate  int             `json:"sample_rate"`
@@ -88,27 +86,24 @@ type WorldlineUnit struct {
 
 const CapabilityWorldSpeechV1 = "world_speech_v1"
 const CapabilityCodaReleaseV1 = "coda_release_v1"
-const CapabilityContextTransitionV1 = "context_transition_v1"
 
 // WorldSpeechTiming contains request-local anchors relative to the trimmed source.
 type WorldSpeechTiming struct {
-	CodaRelease       bool    `json:"coda_release,omitempty"`
-	ProtectTransition bool    `json:"protect_transition,omitempty"`
-	UnitIndex         int     `json:"unit_index"`
-	SourceOnsetMS     float64 `json:"source_onset_ms"`
-	TargetOnsetMS     float64 `json:"target_onset_ms"`
-	ProtectStop       bool    `json:"protect_stop,omitempty"`
-	VowelJoin         bool    `json:"vowel_join,omitempty"`
-	TargetFixedMS     float64 `json:"target_fixed_ms,omitempty"`
-	TargetJoinMS      float64 `json:"target_join_ms,omitempty"`
+	CodaRelease   bool    `json:"coda_release,omitempty"`
+	UnitIndex     int     `json:"unit_index"`
+	SourceOnsetMS float64 `json:"source_onset_ms"`
+	TargetOnsetMS float64 `json:"target_onset_ms"`
+	ProtectStop   bool    `json:"protect_stop,omitempty"`
+	VowelJoin     bool    `json:"vowel_join,omitempty"`
+	TargetFixedMS float64 `json:"target_fixed_ms,omitempty"`
+	TargetJoinMS  float64 `json:"target_join_ms,omitempty"`
 }
 
 type WorldSpeechResult struct {
-	ProtectedTransitionMS float64 `json:"protected_transition_ms,omitempty"`
-	UnitIndex             int     `json:"unit_index"`
-	RetimeApplied         bool    `json:"retime_applied"`
-	TargetFixedMS         float64 `json:"target_fixed_ms"`
-	JoinApplied           bool    `json:"join_applied"`
+	UnitIndex     int     `json:"unit_index"`
+	RetimeApplied bool    `json:"retime_applied"`
+	TargetFixedMS float64 `json:"target_fixed_ms"`
+	JoinApplied   bool    `json:"join_applied"`
 }
 
 type WorldlineEnvelopePoint struct {

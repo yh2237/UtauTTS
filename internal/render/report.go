@@ -23,7 +23,7 @@ type UnitRenderResult struct {
 }
 
 // RenderReport contains values previously written back to plan.Plan by a
-// renderer. It can be applied to an export copy for backward compatibility.
+// renderer. It can be applied to an export copy when diagnostics are needed.
 type RenderReport struct {
 	TargetF0                *F0Track `json:"target_f0,omitempty"`
 	Provider                engine.ProviderID
@@ -62,7 +62,6 @@ type UnitRenderReport struct {
 	CVTimingApplied         bool
 	CVTimingWarnings        []string
 	BoundaryEnvelope        string
-	ProtectedTransitionMS   float64
 	Index                   int
 	TimingScale             float64
 	EffectivePreutteranceMS float64
@@ -100,17 +99,15 @@ func (renderer builtinUnitRenderer) Render(synthesisPlan *plan.Plan, cfg Config)
 	return result, nil
 }
 
-// UnitRendererForBackend returns the current built-in adapter for a legacy
-// backend name. renderer.json v1 still supplies this value through its
-// compatibility adapter.
-func UnitRendererForBackend(backend string) (UnitRenderer, error) {
-	if backend == "" {
-		backend = "waveform"
+// UnitRendererForProvider returns the current built-in adapter for a provider.
+func UnitRendererForProvider(provider string) (UnitRenderer, error) {
+	if provider == "" {
+		provider = "waveform"
 	}
-	if _, found := rendererImplementations[backend]; !found {
-		return nil, fmt.Errorf("unknown unit renderer provider %q", backend)
+	if _, found := rendererImplementations[provider]; !found {
+		return nil, fmt.Errorf("unknown unit renderer provider %q", provider)
 	}
-	return builtinUnitRenderer{provider: engine.ProviderID(backend)}, nil
+	return builtinUnitRenderer{provider: engine.ProviderID(provider)}, nil
 }
 
 // RenderWithReport renders an isolated copy of the input Plan. Unlike Render,
@@ -135,7 +132,7 @@ func UnitRendererForConfig(cfg Config) (UnitRenderer, error) {
 		}
 		return newExternalUnitRenderer(definition), nil
 	}
-	return UnitRendererForBackend(cfg.Backend)
+	return UnitRendererForProvider(cfg.Backend)
 }
 
 func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) RenderReport {
@@ -159,7 +156,6 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 			CVTimingApplied:         unit.CVTimingApplied,
 			CVTimingWarnings:        append([]string(nil), unit.CVTimingWarnings...),
 			BoundaryEnvelope:        unit.BoundaryEnvelope,
-			ProtectedTransitionMS:   unit.ProtectedTransitionMS,
 			Index:                   index,
 			TimingScale:             unit.TimingScale,
 			EffectivePreutteranceMS: unit.EffectivePreutteranceMS,
@@ -196,7 +192,6 @@ func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 		unit.CVTimingApplied = unitReport.CVTimingApplied
 		unit.CVTimingWarnings = append([]string(nil), unitReport.CVTimingWarnings...)
 		unit.BoundaryEnvelope = unitReport.BoundaryEnvelope
-		unit.ProtectedTransitionMS = unitReport.ProtectedTransitionMS
 		unit.SpeechJoinApplied = unitReport.SpeechJoinApplied
 		unit.TimingScale = unitReport.TimingScale
 		unit.EffectivePreutteranceMS = unitReport.EffectivePreutteranceMS

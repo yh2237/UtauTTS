@@ -14,7 +14,7 @@ import (
 	"utautts/internal/prosody"
 )
 
-const ManifestVersion = 1
+const ManifestVersion = 2
 
 type Capabilities struct {
 	FramePitch     bool `json:"frame_pitch,omitempty"`
@@ -22,28 +22,23 @@ type Capabilities struct {
 }
 
 type Renderer struct {
-	ManifestVersion int                         `json:"manifest_version"`
-	Kind            string                      `json:"kind"`
-	ID              string                      `json:"id"`
-	DisplayName     string                      `json:"display_name"`
-	Description     string                      `json:"description,omitempty"`
-	Backend         string                      `json:"backend,omitempty"`
-	Contract        string                      `json:"contract,omitempty"`
-	ContractVersion int                         `json:"contract_version,omitempty"`
-	Provider        string                      `json:"provider,omitempty"`
-	ProviderVersion string                      `json:"provider_version,omitempty"`
-	Protocol        string                      `json:"protocol,omitempty"`
-	ProtocolVersion int                         `json:"protocol_version,omitempty"`
-	ProviderArgs    []string                    `json:"provider_args,omitempty"`
-	Version         string                      `json:"version,omitempty"`
-	Experimental    bool                        `json:"experimental,omitempty"`
-	Acceleration    string                      `json:"acceleration,omitempty"`
-	DefaultPriority int                         `json:"default_priority,omitempty"`
-	Capabilities    Capabilities                `json:"capabilities,omitempty"`
-	Assets          map[string]string           `json:"assets,omitempty"`
-	Resources       map[string]RendererResource `json:"resources,omitempty"`
-	// PlatformAssetsはOS・CPU別のasset path。
-	PlatformAssets    map[string]map[string]string           `json:"platform_assets,omitempty"`
+	ManifestVersion   int                                    `json:"manifest_version"`
+	Kind              string                                 `json:"kind"`
+	ID                string                                 `json:"id"`
+	DisplayName       string                                 `json:"display_name"`
+	Description       string                                 `json:"description,omitempty"`
+	Contract          string                                 `json:"contract,omitempty"`
+	ContractVersion   int                                    `json:"contract_version,omitempty"`
+	Provider          string                                 `json:"provider,omitempty"`
+	ProviderVersion   string                                 `json:"provider_version,omitempty"`
+	Protocol          string                                 `json:"protocol,omitempty"`
+	ProtocolVersion   int                                    `json:"protocol_version,omitempty"`
+	ProviderArgs      []string                               `json:"provider_args,omitempty"`
+	Experimental      bool                                   `json:"experimental,omitempty"`
+	Acceleration      string                                 `json:"acceleration,omitempty"`
+	DefaultPriority   int                                    `json:"default_priority,omitempty"`
+	Capabilities      Capabilities                           `json:"capabilities,omitempty"`
+	Resources         map[string]RendererResource            `json:"resources,omitempty"`
 	PlatformResources map[string]map[string]RendererResource `json:"platform_resources,omitempty"`
 	Platforms         []string                               `json:"platforms,omitempty"`
 	Directory         string                                 `json:"-"`
@@ -355,22 +350,6 @@ func (catalog *Catalog) Renderer(id string) (Renderer, bool) {
 	return Renderer{}, false
 }
 
-func (renderer Renderer) Asset(name string) string {
-	value := strings.TrimSpace(renderer.Assets[name])
-	for _, platform := range []string{runtime.GOOS + "-" + runtime.GOARCH, "any"} {
-		if assets := renderer.PlatformAssets[platform]; assets != nil {
-			if candidate := strings.TrimSpace(assets[name]); candidate != "" {
-				value = candidate
-				break
-			}
-		}
-	}
-	if value == "" || filepath.IsAbs(value) {
-		return value
-	}
-	return filepath.Clean(filepath.Join(renderer.Directory, value))
-}
-
 // Resource returns the selected manifest v2 resource with its path resolved
 // against the renderer directory.
 func (renderer Renderer) Resource(name string) RendererResource {
@@ -465,47 +444,40 @@ func workspaceRoot(start string) string {
 }
 
 func validateRenderer(renderer Renderer, supportsProvider func(string) bool) error {
-	implementation := renderer.Backend
-	switch renderer.ManifestVersion {
-	case 1:
-		if renderer.Kind != "renderer" || renderer.ID == "" || renderer.DisplayName == "" || renderer.Backend == "" {
-			return errors.New("kind=renderer, id, display_name, and backend are required")
-		}
-	case 2:
-		implementation = renderer.Provider
-		if renderer.Kind != "synthesis-engine" || renderer.ID == "" || renderer.DisplayName == "" || renderer.Contract == "" || renderer.Provider == "" || renderer.ProviderVersion == "" {
-			return errors.New("kind=synthesis-engine, id, display_name, contract, provider, and provider_version are required")
-		}
-		if renderer.Contract != "unit-renderer" && renderer.Contract != "neural-synthesizer" {
-			return fmt.Errorf("unsupported contract %q", renderer.Contract)
-		}
-		if renderer.Protocol != "" {
-			if renderer.Protocol != "utautts-provider" {
-				return fmt.Errorf("unsupported provider protocol %q", renderer.Protocol)
-			}
-			if renderer.Contract != "unit-renderer" {
-				return fmt.Errorf("external provider protocol currently supports only unit-renderer, got %q", renderer.Contract)
-			}
-			if renderer.ProtocolVersion != 1 {
-				return fmt.Errorf("unsupported provider protocol version %d", renderer.ProtocolVersion)
-			}
-			if renderer.ContractVersion <= 0 {
-				return errors.New("external provider contract_version must be positive")
-			}
-			resource := renderer.Resource("provider_executable")
-			if strings.TrimSpace(resource.Path) == "" || !resource.Executable {
-				return errors.New("external provider requires executable provider_executable resource")
-			}
-			for _, argument := range renderer.ProviderArgs {
-				if strings.TrimSpace(argument) == "" {
-					return errors.New("provider_args must not contain empty values")
-				}
-			}
-		}
-	default:
+	if renderer.ManifestVersion != ManifestVersion {
 		return fmt.Errorf("unsupported manifest_version %d", renderer.ManifestVersion)
 	}
-	if renderer.Acceleration != "" && renderer.Acceleration != "cpu" && renderer.Acceleration != "cuda" {
+	implementation := renderer.Provider
+	if renderer.Kind != "synthesis-engine" || renderer.ID == "" || renderer.DisplayName == "" || renderer.Contract == "" || renderer.Provider == "" || renderer.ProviderVersion == "" {
+		return errors.New("kind=synthesis-engine, id, display_name, contract, provider, and provider_version are required")
+	}
+	if renderer.Contract != "unit-renderer" && renderer.Contract != "neural-synthesizer" {
+		return fmt.Errorf("unsupported contract %q", renderer.Contract)
+	}
+	if renderer.Protocol != "" {
+		if renderer.Protocol != "utautts-provider" {
+			return fmt.Errorf("unsupported provider protocol %q", renderer.Protocol)
+		}
+		if renderer.Contract != "unit-renderer" {
+			return fmt.Errorf("external provider protocol currently supports only unit-renderer, got %q", renderer.Contract)
+		}
+		if renderer.ProtocolVersion != 1 {
+			return fmt.Errorf("unsupported provider protocol version %d", renderer.ProtocolVersion)
+		}
+		if renderer.ContractVersion <= 0 {
+			return errors.New("external provider contract_version must be positive")
+		}
+		resource := renderer.Resource("provider_executable")
+		if strings.TrimSpace(resource.Path) == "" || !resource.Executable {
+			return errors.New("external provider requires executable provider_executable resource")
+		}
+		for _, argument := range renderer.ProviderArgs {
+			if strings.TrimSpace(argument) == "" {
+				return errors.New("provider_args must not contain empty values")
+			}
+		}
+	}
+	if renderer.Acceleration != "" && renderer.Acceleration != "cpu" {
 		return fmt.Errorf("unsupported acceleration %q", renderer.Acceleration)
 	}
 	if supportsProvider != nil && !supportsProvider(implementation) && renderer.Protocol == "" {
@@ -516,9 +488,9 @@ func validateRenderer(renderer Renderer, supportsProvider func(string) bool) err
 
 func rendererSupportedOnCurrentPlatform(renderer Renderer) bool {
 	platforms := renderer.Platforms
-	if len(platforms) == 0 && len(renderer.PlatformAssets) > 0 {
-		platforms = make([]string, 0, len(renderer.PlatformAssets))
-		for platform := range renderer.PlatformAssets {
+	if len(platforms) == 0 && len(renderer.PlatformResources) > 0 {
+		platforms = make([]string, 0, len(renderer.PlatformResources))
+		for platform := range renderer.PlatformResources {
 			platforms = append(platforms, platform)
 		}
 	}

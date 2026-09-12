@@ -189,7 +189,7 @@ func TestAuditLatticeReportsCVVCSelection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	audit, err := bank.AuditLattice(morae, "C4", nil)
+	audit, err := bank.AuditLattice(morae, "C4")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -422,7 +422,7 @@ func TestAuditLatticeReportsAliasKindsAndSelection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	audit, err := bank.AuditLattice(morae, "C4", nil)
+	audit, err := bank.AuditLattice(morae, "C4")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -531,47 +531,6 @@ func TestResolveUsesPhrasePathInsteadOfGreedyDuplicateChoice(t *testing.T) {
 	}
 	if got[1].JoinScore != 8 || got[1].TargetScore+got[1].JoinScore != 122 || got[1].PathScore != 236 {
 		t.Fatalf("second score audit = %#v", got[1])
-	}
-
-	greedy, err := bank.ResolveWithConfig(morae, ResolveConfig{Mode: SelectionGreedy})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if greedy[0].Entry.Filename != "isolated.wav" || greedy[1].JoinScore != 0 || greedy[1].PathScore != 228 {
-		t.Fatalf("greedy path = %#v", greedy)
-	}
-
-	targetOnly, err := bank.ResolveWithConfig(morae, ResolveConfig{Mode: SelectionTargetOnly})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if targetOnly[0].Entry.Filename != "isolated.wav" || targetOnly[1].JoinScore != 0 {
-		t.Fatalf("target-only path = %#v", targetOnly)
-	}
-
-	scales := make([]float64, 14)
-	for index := range scales {
-		scales[index] = 1
-	}
-	learned, err := bank.ResolveWithConfig(morae, ResolveConfig{
-		Mode: SelectionViterbi,
-		JoinModel: &connection.LearnedModel{
-			Means: make([]float64, 14), Scales: scales, Weights: make([]float64, 14),
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if learned[0].Entry.Filename != "continuous.wav" || learned[1].JoinScore != 8 || learned[1].JoinProbability != 0.5 {
-		t.Fatalf("learned path audit = %#v", learned)
-	}
-}
-
-func TestResolveRejectsUnknownSelectionMode(t *testing.T) {
-	bank := &Bank{Entries: map[string][]oto.Entry{}}
-	morae, _ := frontend.ParseKana("あ")
-	if _, err := bank.ResolveWithConfig(morae, ResolveConfig{Mode: "unknown"}); err == nil {
-		t.Fatal("unknown selection mode was accepted")
 	}
 }
 

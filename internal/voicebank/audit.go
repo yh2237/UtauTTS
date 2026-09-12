@@ -14,7 +14,6 @@ import (
 type LatticeAudit struct {
 	Tone                    string          `json:"tone,omitempty"`
 	Color                   string          `json:"color,omitempty"`
-	AcousticMode            string          `json:"acoustic_mode,omitempty"`
 	VCVSelectedPositions    int             `json:"vcv_selected_positions"`
 	CVVCSelectedPositions   int             `json:"cvvc_selected_positions"`
 	CVSelectedPositions     int             `json:"cv_selected_positions"`
@@ -26,9 +25,6 @@ type LatticeAudit struct {
 	PitchChoicePositions    int             `json:"pitch_choice_positions"`
 	WidePitchPositions      int             `json:"wide_pitch_positions"`
 	WidePitchWithinGroup    int             `json:"wide_pitch_within_group_positions"`
-	HandcraftedChanges      int             `json:"handcrafted_changes_from_target_only"`
-	LearnedChanges          int             `json:"learned_changes_from_target_only"`
-	LearnedFromHandcrafted  int             `json:"learned_changes_from_handcrafted"`
 }
 
 type PositionAudit struct {
@@ -44,7 +40,6 @@ type PositionAudit struct {
 	SelectedColor        string           `json:"selected_color,omitempty"`
 	RequestedTone        string           `json:"requested_tone,omitempty"`
 	ResolvedTone         string           `json:"resolved_tone,omitempty"`
-	SelectedMargin       float64          `json:"selected_margin,omitempty"`
 	Position             int              `json:"position"`
 	Mora                 string           `json:"mora"`
 	CandidateCount       int              `json:"candidate_count"`
@@ -55,42 +50,34 @@ type PositionAudit struct {
 	PitchSpanCents       float64          `json:"pitch_span_cents,omitempty"`
 	WithinGroupPitchSpan float64          `json:"within_group_pitch_span_cents,omitempty"`
 	SourceGroupCount     int              `json:"source_group_count"`
-	TargetSelected       int              `json:"target_selected"`
-	HandcraftedSelected  int              `json:"handcrafted_selected"`
-	LearnedSelected      int              `json:"learned_selected,omitempty"`
 	Candidates           []CandidateAudit `json:"candidates"`
 }
 
 type CandidateAudit struct {
-	Index                  int                  `json:"index"`
-	Alias                  string               `json:"alias"`
-	AliasKind              string               `json:"alias_kind"`
-	Composite              bool                 `json:"composite,omitempty"`
-	TransitionAlias        string               `json:"transition_alias,omitempty"`
-	FallbackTier           int                  `json:"fallback_tier"`
-	Source                 string               `json:"source"`
-	OtoPath                string               `json:"oto_path"`
-	OtoLine                int                  `json:"oto_line"`
-	TargetScore            float64              `json:"target_score"`
-	SubbankID              string               `json:"subbank_id,omitempty"`
-	Color                  string               `json:"color,omitempty"`
-	EntryStatus            string               `json:"entry_status,omitempty"`
-	EntryValidation        []string             `json:"entry_validation,omitempty"`
-	CandidateRejections    []CandidateRejection `json:"candidate_rejections,omitempty"`
-	AcousticTargetScore    float64              `json:"acoustic_target_score,omitempty"`
-	AcousticJoinScore      float64              `json:"acoustic_join_score,omitempty"`
-	SelectionMargin        float64              `json:"selection_margin,omitempty"`
-	SourceGroup            string               `json:"source_group"`
-	SourceF0Hz             float64              `json:"source_f0_hz"`
-	PitchValid             bool                 `json:"pitch_valid"`
-	BestHandcraftedJoin    float64              `json:"best_handcrafted_join"`
-	BestLearnedJoin        float64              `json:"best_learned_join,omitempty"`
-	BestLearnedProbability float64              `json:"best_learned_probability,omitempty"`
+	Index               int                  `json:"index"`
+	Alias               string               `json:"alias"`
+	AliasKind           string               `json:"alias_kind"`
+	Composite           bool                 `json:"composite,omitempty"`
+	TransitionAlias     string               `json:"transition_alias,omitempty"`
+	FallbackTier        int                  `json:"fallback_tier"`
+	Source              string               `json:"source"`
+	OtoPath             string               `json:"oto_path"`
+	OtoLine             int                  `json:"oto_line"`
+	TargetScore         float64              `json:"target_score"`
+	SubbankID           string               `json:"subbank_id,omitempty"`
+	Color               string               `json:"color,omitempty"`
+	EntryStatus         string               `json:"entry_status,omitempty"`
+	EntryValidation     []string             `json:"entry_validation,omitempty"`
+	CandidateRejections []CandidateRejection `json:"candidate_rejections,omitempty"`
+	SourceGroup         string               `json:"source_group"`
+	SourceF0Hz          float64              `json:"source_f0_hz"`
+	PitchValid          bool                 `json:"pitch_valid"`
+	BestHandcraftedJoin float64              `json:"best_handcrafted_join"`
 }
 
 // AuditLatticeは診断用に全候補と各候補への最良の入エッジを返す。
-func (b *Bank) AuditLattice(morae []frontend.Mora, tone string, model *connection.LearnedModel) (*LatticeAudit, error) {
-	return b.AuditLatticeWithConfig(morae, ResolveConfig{Tone: tone, JoinModel: model})
+func (b *Bank) AuditLattice(morae []frontend.Mora, tone string) (*LatticeAudit, error) {
+	return b.AuditLatticeWithConfig(morae, ResolveConfig{Tone: tone})
 }
 
 func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) (*LatticeAudit, error) {
@@ -101,36 +88,26 @@ func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) 
 	if !policy.valid() {
 		return nil, fmt.Errorf("unknown alias policy %q", policy)
 	}
-	layers, err := b.candidateLayersWithPolicyMode(morae, cfg.Tone, cfg.Color, policy, cfg.AcousticMode)
+	layers, err := b.candidateLayersWithPolicy(morae, cfg.Tone, cfg.Color, policy)
 	if err != nil {
 		return nil, err
 	}
 	if b.extractor == nil {
 		b.extractor = connection.NewExtractor()
 	}
-	targetPath := selectBestPathsWithAcoustic(layers, SelectionTargetOnly, nil, b.extractor, cfg.AcousticMode)
-	handcraftedPath := selectBestPathsWithAcoustic(layers, SelectionViterbi, nil, b.extractor, cfg.AcousticMode)
-	var learnedPath []Selection
-	if cfg.JoinModel != nil {
-		learnedPath = selectBestPathsWithAcoustic(layers, SelectionViterbi, cfg.JoinModel, b.extractor, cfg.AcousticMode)
-	}
-	targetByPosition := selectionsByPosition(targetPath)
-	handcraftedByPosition := selectionsByPosition(handcraftedPath)
-	learnedByPosition := selectionsByPosition(learnedPath)
+	selectedByPosition := selectionsByPosition(selectBestPaths(layers, b.extractor))
 	cache := connection.NewExtractor()
 	pitchCache := map[candidatePitchKey]candidatePitch{}
-	result := &LatticeAudit{Tone: cfg.Tone, Color: cfg.Color, AcousticMode: cfg.AcousticMode}
+	result := &LatticeAudit{Tone: cfg.Tone, Color: cfg.Color}
 	for layerIndex, layer := range layers {
 		if len(layer) == 0 {
 			continue
 		}
 		position := PositionAudit{
 			Position: layer[0].Position, Mora: layer[0].Mora.Text,
-			CandidateCount: len(layer), TargetSelected: candidateIndex(layer, targetByPosition[layer[0].Position]),
-			HandcraftedSelected: candidateIndex(layer, handcraftedByPosition[layer[0].Position]),
-			LearnedSelected:     -1,
+			CandidateCount: len(layer),
 		}
-		selected := handcraftedByPosition[layer[0].Position]
+		selected := selectedByPosition[layer[0].Position]
 		position.SelectedAlias = selected.Alias
 		position.SelectedAliasKind = string(selected.Kind)
 		position.SelectedComposite = selected.Composite
@@ -142,10 +119,6 @@ func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) 
 		position.SelectedColor = selected.Color
 		position.RequestedTone = selected.RequestedTone
 		position.ResolvedTone = selected.ResolvedTone
-		position.SelectedMargin = selected.SelectionMargin
-		if cfg.JoinModel != nil {
-			position.LearnedSelected = candidateIndex(layer, learnedByPosition[layer[0].Position])
-		}
 		minimum, maximum := layer[0].TargetScore, layer[0].TargetScore
 		sourceGroups := map[string]bool{}
 		groupPitches := map[string][]float64{}
@@ -187,9 +160,7 @@ func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) 
 				SubbankID: candidate.SubbankID, Color: candidate.Color,
 				EntryStatus: candidate.EntryStatus, EntryValidation: append([]string(nil), candidate.EntryValidation...),
 				CandidateRejections: append([]CandidateRejection(nil), candidate.CandidateRejections...),
-				AcousticTargetScore: candidate.AcousticTargetScore, AcousticJoinScore: candidate.AcousticJoinScore,
-				SelectionMargin: candidate.SelectionMargin,
-				SourceF0Hz:      measuredPitch.Hz, PitchValid: measuredPitch.Valid,
+				SourceF0Hz:          measuredPitch.Hz, PitchValid: measuredPitch.Valid,
 			}
 			if candidate.Transition != nil {
 				audit.TransitionAlias = candidate.Transition.Alias
@@ -199,11 +170,7 @@ func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) 
 				if candidate.Transition != nil {
 					incoming = candidate.Transition.Entry
 				}
-				audit.BestHandcraftedJoin = bestIncoming(layers[layerIndex-1], incoming, cache, nil).score
-				if cfg.JoinModel != nil {
-					best := bestIncoming(layers[layerIndex-1], incoming, cache, cfg.JoinModel)
-					audit.BestLearnedJoin, audit.BestLearnedProbability = best.score, best.probability
-				}
+				audit.BestHandcraftedJoin = bestIncoming(layers[layerIndex-1], incoming, cache).score
 			}
 			position.Candidates = append(position.Candidates, audit)
 		}
@@ -237,9 +204,6 @@ func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) 
 				result.SameTargetPositions++
 			}
 		}
-		if position.HandcraftedSelected != position.TargetSelected {
-			result.HandcraftedChanges++
-		}
 		switch position.SelectedAliasKind {
 		case string(AliasVCV):
 			result.VCVSelectedPositions++
@@ -249,12 +213,6 @@ func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) 
 			} else {
 				result.CVSelectedPositions++
 			}
-		}
-		if cfg.JoinModel != nil && position.LearnedSelected != position.TargetSelected {
-			result.LearnedChanges++
-		}
-		if cfg.JoinModel != nil && position.LearnedSelected != position.HandcraftedSelected {
-			result.LearnedFromHandcrafted++
 		}
 		result.Positions = append(result.Positions, position)
 	}
@@ -273,14 +231,14 @@ func sourceGroup(root string, entry oto.Entry) string {
 	return strings.Split(directory, "/")[0]
 }
 
-type incomingScore struct{ score, probability float64 }
+type incomingScore struct{ score float64 }
 
-func bestIncoming(previous []Selection, current oto.Entry, cache *connection.Extractor, model *connection.LearnedModel) incomingScore {
+func bestIncoming(previous []Selection, current oto.Entry, cache *connection.Extractor) incomingScore {
 	best := incomingScore{score: -1e100}
 	for _, candidate := range previous {
-		score, probability := pairScore(candidate.Entry, current, cache, model)
+		score := joinScore(candidate.Entry, current, cache)
 		if score > best.score {
-			best = incomingScore{score: score, probability: probability}
+			best = incomingScore{score: score}
 		}
 	}
 	return best
@@ -292,22 +250,6 @@ func selectionsByPosition(selections []Selection) map[int]Selection {
 		result[selection.Position] = selection
 	}
 	return result
-}
-
-func candidateIndex(layer []Selection, selected Selection) int {
-	for index, candidate := range layer {
-		if candidate.Entry != selected.Entry || candidate.Alias != selected.Alias || candidate.Composite != selected.Composite {
-			continue
-		}
-		if (candidate.Transition == nil) != (selected.Transition == nil) {
-			continue
-		}
-		if candidate.Transition != nil && (candidate.Transition.Entry != selected.Transition.Entry || candidate.Transition.Alias != selected.Transition.Alias) {
-			continue
-		}
-		return index
-	}
-	return -1
 }
 
 func relativePath(root, path string) string {

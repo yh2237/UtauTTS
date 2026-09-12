@@ -22,11 +22,7 @@ func TestRepositoryRendererPluginsAreSelfDescribing(t *testing.T) {
 		t.Fatalf("default renderer = %q, want manifest-priority UtauTTS WORLD phrase", items[0].ID)
 	}
 	for _, item := range items {
-		implementation := item.Backend
-		if item.ManifestVersion == 2 {
-			implementation = item.Provider
-		}
-		if item.ID == "" || item.DisplayName == "" || implementation == "" {
+		if item.ID == "" || item.DisplayName == "" || item.Provider == "" {
 			t.Fatalf("incomplete renderer plugin: %#v", item)
 		}
 		if item.ManifestVersion != 2 || item.Contract == "" || item.ProviderVersion == "" {
@@ -40,9 +36,9 @@ func TestModelUsesIdentityStoredInsideModel(t *testing.T) {
 	path := filepath.Join(directory, "arbitrary-filename.json")
 	data := []byte(`{
   "id":"intonation.example", "display_name":"Example model", "description":"self described",
-  "recommended_renderers":["waveform"], "version":9, "feature_version":1,
-  "mode":"standard_japanese_accent", "duration_weights":{},
-  "standard_accent":{"frame_ms":10,"accent_range_cents":100,"declination_cents":20,"question_rise_cents":50,"smoothing_ms":20,"p99_cents":200,"max_cents":250},
+  "recommended_renderers":["waveform"], "version":8, "feature_version":1,
+  "mode":"intonation_frame_tcn_accent_bounded", "duration_weights":{},
+  "frame_pitch":{"feature_names":["bias"],"input_weights":[[0]],"input_bias":[0],"layers":[],"output_weight":[0],"output_bias":0,"frame_ms":10,"low_cents":-100,"high_cents":100},
   "metrics":{}, "training":{}
 }`)
 	if err := os.WriteFile(path, data, 0o600); err != nil {
@@ -65,9 +61,9 @@ func TestModelWithoutIdentityIsNotCatalogued(t *testing.T) {
 	directory := t.TempDir()
 	path := filepath.Join(directory, "filename-must-not-become-an-id.json")
 	data := []byte(`{
-  "version":9, "feature_version":1, "mode":"standard_japanese_accent",
+  "version":8, "feature_version":1, "mode":"intonation_frame_tcn_accent_bounded",
   "duration_weights":{},
-  "standard_accent":{"frame_ms":10,"accent_range_cents":100,"declination_cents":20,"question_rise_cents":50,"smoothing_ms":20,"p99_cents":200,"max_cents":250},
+  "frame_pitch":{"frame_ms":10,"low_cents":-100,"high_cents":100},
   "metrics":{}, "training":{}
 }`)
 	if err := os.WriteFile(path, data, 0o600); err != nil {
@@ -144,9 +140,6 @@ func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {
 	}
 	want := map[string]string{
 		"utautts-world-phrase": "cpu",
-	}
-	if runtime.GOOS == "windows" {
-		want["utautts-world-phrase-cuda"] = "cuda"
 	}
 	for _, item := range items {
 		if acceleration, ok := want[item.ID]; ok {
@@ -243,11 +236,7 @@ func TestDefaultCatalogIncludesClassicUtau(t *testing.T) {
 		t.Fatal(err)
 	}
 	renderer, ok := catalog.Renderer("classic-utau")
-	implementation := renderer.Backend
-	if renderer.ManifestVersion == 2 {
-		implementation = renderer.Provider
-	}
-	if !ok || implementation != "utau-external-resampler" {
+	if !ok || renderer.Provider != "utau-external-resampler" {
 		t.Fatalf("classic renderer = %#v, %v", renderer, ok)
 	}
 	wavtool, ok := catalog.Wavtool("builtin")
@@ -267,11 +256,11 @@ func TestExplicitRendererDirectoryOverridesPackagedID(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	manifest := `{"manifest_version":1,"kind":"renderer","id":"waveform","display_name":"packaged","backend":"waveform"}`
+	manifest := `{"manifest_version":2,"kind":"synthesis-engine","id":"waveform","display_name":"packaged","contract":"unit-renderer","provider":"waveform","provider_version":"1"}`
 	if err := os.WriteFile(filepath.Join(packaged, "waveform", "renderer.json"), []byte(manifest), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	manifest = `{"manifest_version":1,"kind":"renderer","id":"waveform","display_name":"explicit","backend":"waveform"}`
+	manifest = `{"manifest_version":2,"kind":"synthesis-engine","id":"waveform","display_name":"explicit","contract":"unit-renderer","provider":"waveform","provider_version":"1"}`
 	if err := os.WriteFile(filepath.Join(explicit, "waveform", "renderer.json"), []byte(manifest), 0o600); err != nil {
 		t.Fatal(err)
 	}

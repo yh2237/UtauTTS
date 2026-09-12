@@ -78,7 +78,6 @@ qt_add_qml_module(utautts
         qml/LicenseWindow.qml
         qml/UsageWindow.qml
         qml/VoicebankDetailsWindow.qml
-        qml/ProsodyTrainingWindow.qml
         qml/Translator.qml
 )
 
@@ -191,16 +190,6 @@ qt_add_resources(utautts "lang"
     PREFIX "/lang"
     FILES
         ${lang_files}
-)
-
-set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/prosody-prompts-ja-v1.json"
-    PROPERTIES QT_RESOURCE_ALIAS "prosody-prompts-ja-v1.json"
-)
-qt_add_resources(utautts "data"
-    PREFIX "/data"
-    FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/prosody-prompts-ja-v1.json"
 )
 
 if(WIN32)

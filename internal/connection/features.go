@@ -37,33 +37,6 @@ type PairFeatures struct {
 	CurrentVCV bool `json:"current_vcv,omitempty"`
 }
 
-// LearningFeaturesは弱い正解ラベルに使うソース連続性を除いたモデル入力。
-type LearningFeatures struct {
-	PreviousOutgoing    acoustic.Frame `json:"previous_outgoing"`
-	CurrentIncoming     acoustic.Frame `json:"current_incoming"`
-	SpectrumDelta       float64        `json:"spectrum_delta_db"`
-	RMSDelta            float64        `json:"rms_delta_db"`
-	F0DeltaCents        float64        `json:"f0_delta_cents"`
-	VoicingMismatch     bool           `json:"voicing_mismatch"`
-	WaveformCorrelation float64        `json:"waveform_correlation"`
-}
-
-func ToLearningFeatures(features PairFeatures) LearningFeatures {
-	return LearningFeatures{
-		PreviousOutgoing:    features.PreviousOutgoing,
-		CurrentIncoming:     features.CurrentIncoming,
-		SpectrumDelta:       features.SpectrumDelta,
-		RMSDelta:            features.RMSDelta,
-		F0DeltaCents:        features.F0DeltaCents,
-		VoicingMismatch:     features.VoicingMismatch,
-		WaveformCorrelation: features.WaveformCorrelation,
-	}
-}
-
-func (features LearningFeatures) Valid() bool {
-	return features.PreviousOutgoing.Valid && features.CurrentIncoming.Valid
-}
-
 // Extractorは複数ペアで使うWAV分析結果をキャッシュする。
 type Extractor struct {
 	mutex sync.Mutex

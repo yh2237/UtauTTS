@@ -121,13 +121,10 @@ func detachFromTarget(target string) error {
 }
 
 func run(target, url, zipPath string, pid int, version string, preserve []string, deleteLocalZip bool) error {
-	return runPackage(target, url, zipPath, pid, version, preserve, deleteLocalZip, true)
+	return runPackage(target, url, zipPath, pid, version, preserve, deleteLocalZip)
 }
 
-// runPackage keeps the old updater's package-swap path testable. The
-// v1.2.2 updater did not have renderer migration; compatibility tests pass
-// migrateRenderers=false to model that exact behavior.
-func runPackage(target, url, zipPath string, pid int, version string, preserve []string, deleteLocalZip, migrateRenderers bool) error {
+func runPackage(target, url, zipPath string, pid int, version string, preserve []string, deleteLocalZip bool) error {
 	logf("utautts-updater start: target=%s version=%s", target, version)
 	absolute, err := filepath.Abs(target)
 	if err != nil {
@@ -175,11 +172,9 @@ func runPackage(target, url, zipPath string, pid int, version string, preserve [
 	if err := normalizeStage(stage); err != nil {
 		return err
 	}
-	if migrateRenderers {
-		if err := migrateRendererDefinitions(target, stage); err != nil {
-			_ = os.RemoveAll(stage)
-			return fmt.Errorf("migrate renderer definitions: %w", err)
-		}
+	if err := carryCurrentRenderers(target, stage); err != nil {
+		_ = os.RemoveAll(stage)
+		return fmt.Errorf("carry renderer definitions: %w", err)
 	}
 
 	for _, rel := range preserve {
@@ -216,71 +211,20 @@ func runPackage(target, url, zipPath string, pid int, version string, preserve [
 	return nil
 }
 
-type rendererMigrationManifest struct {
-	ManifestVersion int                          `json:"manifest_version"`
-	Kind            string                       `json:"kind"`
-	ID              string                       `json:"id"`
-	DisplayName     string                       `json:"display_name"`
-	Description     string                       `json:"description,omitempty"`
-	Backend         string                       `json:"backend"`
-	Version         string                       `json:"version,omitempty"`
-	Experimental    bool                         `json:"experimental,omitempty"`
-	Acceleration    string                       `json:"acceleration,omitempty"`
-	DefaultPriority int                          `json:"default_priority,omitempty"`
-	UpdateManaged   bool                         `json:"update_managed,omitempty"`
-	Capabilities    map[string]bool              `json:"capabilities,omitempty"`
-	Assets          map[string]string            `json:"assets,omitempty"`
-	PlatformAssets  map[string]map[string]string `json:"platform_assets,omitempty"`
-	Platforms       []string                     `json:"platforms,omitempty"`
-	legacyDefaults  bool                         `json:"-"`
+type rendererPackageManifest struct {
+	ManifestVersion int    `json:"manifest_version"`
+	Kind            string `json:"kind"`
+	ID              string `json:"id"`
+	DisplayName     string `json:"display_name"`
+	UpdateManaged   bool   `json:"update_managed,omitempty"`
 }
 
-type legacyRendererPackage struct {
-	rendererMigrationManifest
-	ProtocolVersion int `json:"protocol_version"`
-	Runtimes        map[string]struct {
-		ID      string `json:"id"`
-		Version string `json:"version"`
-	} `json:"runtimes"`
-	Platforms map[string]map[string]struct {
-		Path string `json:"path"`
-	} `json:"platforms"`
-}
-
-// migrateRendererDefinitionsは更新に含まれないユーザー定義を新配置へ引き継ぐ。
-func migrateRendererDefinitions(current, stage string) error {
+func carryCurrentRenderers(current, stage string) error {
 	destinationRoot := filepath.Join(stage, "renderer")
 	if err := os.MkdirAll(destinationRoot, 0o755); err != nil {
 		return err
 	}
-	if err := carryCurrentRenderers(filepath.Join(current, "renderer"), destinationRoot, current, stage); err != nil {
-		return err
-	}
-	legacyRoot := filepath.Join(current, "plugins", "renderers")
-	return filepath.WalkDir(legacyRoot, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			if os.IsNotExist(walkErr) {
-				return nil
-			}
-			return walkErr
-		}
-		if entry.IsDir() || !strings.EqualFold(entry.Name(), "plugin.json") {
-			return nil
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		manifest, err := convertLegacyRenderer(data)
-		if err != nil {
-			logf("legacy renderer was not migrated: %s: %v", path, err)
-			return nil
-		}
-		return installMigratedRenderer(filepath.Dir(path), destinationRoot, current, stage, manifest)
-	})
-}
-
-func carryCurrentRenderers(sourceRoot, destinationRoot, current, stage string) error {
+	sourceRoot := filepath.Join(current, "renderer")
 	return filepath.WalkDir(sourceRoot, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			if os.IsNotExist(walkErr) {
@@ -295,33 +239,11 @@ func carryCurrentRenderers(sourceRoot, destinationRoot, current, stage string) e
 		if err != nil {
 			return err
 		}
-		var header struct {
-			ManifestVersion int `json:"manifest_version"`
-		}
-		if err := json.Unmarshal(data, &header); err != nil {
+		var manifest rendererPackageManifest
+		if err := json.Unmarshal(data, &manifest); err != nil || manifest.ManifestVersion != 2 || manifest.Kind != "synthesis-engine" || manifest.DisplayName == "" || manifest.UpdateManaged || !safeRendererID(manifest.ID) {
 			return nil
 		}
-		if header.ManifestVersion == 2 {
-			var manifest struct {
-				ManifestVersion int    `json:"manifest_version"`
-				Kind            string `json:"kind"`
-				ID              string `json:"id"`
-				DisplayName     string `json:"display_name"`
-				UpdateManaged   bool   `json:"update_managed,omitempty"`
-			}
-			if err := json.Unmarshal(data, &manifest); err != nil || manifest.Kind != "synthesis-engine" || manifest.DisplayName == "" || manifest.UpdateManaged || !safeRendererID(manifest.ID) {
-				return nil
-			}
-			return carryCurrentRendererVerbatim(filepath.Dir(path), destinationRoot, manifest.ID)
-		}
-		var manifest rendererMigrationManifest
-		if header.ManifestVersion != 1 || json.Unmarshal(data, &manifest) != nil {
-			return nil
-		}
-		if manifest.UpdateManaged {
-			return nil
-		}
-		return installMigratedRenderer(filepath.Dir(path), destinationRoot, current, stage, manifest)
+		return carryCurrentRendererVerbatim(filepath.Dir(path), destinationRoot, manifest.ID)
 	})
 }
 
@@ -335,160 +257,8 @@ func carryCurrentRendererVerbatim(sourceDirectory, destinationRoot, id string) e
 	if err := copyTree(sourceDirectory, destination); err != nil {
 		return err
 	}
-	logf("current manifest v2 renderer carried forward: %s", id)
+	logf("current renderer carried forward: %s", id)
 	return nil
-}
-
-func installMigratedRenderer(sourceDirectory, destinationRoot, current, stage string, manifest rendererMigrationManifest) error {
-	if !safeRendererID(manifest.ID) || manifest.Kind != "renderer" || manifest.DisplayName == "" || manifest.Backend == "" {
-		return nil
-	}
-	destination := filepath.Join(destinationRoot, manifest.ID)
-	if _, err := os.Stat(filepath.Join(destination, "renderer.json")); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	if err := copyTree(sourceDirectory, destination); err != nil {
-		return err
-	}
-	rebaseRendererAssets(&manifest, sourceDirectory, current, destination, stage)
-	if manifest.legacyDefaults {
-		applyLegacyBackendDefaults(&manifest)
-	}
-	manifest.ManifestVersion = 1
-	data, err := json.MarshalIndent(manifest, "", "  ")
-	if err != nil {
-		return err
-	}
-	data = append(data, '\n')
-	if err := os.WriteFile(filepath.Join(destination, "renderer.json"), data, 0o644); err != nil {
-		return err
-	}
-	_ = os.Remove(filepath.Join(destination, "plugin.json"))
-	logf("renderer definition migrated: %s", manifest.ID)
-	return nil
-}
-
-func rebaseRendererAssets(manifest *rendererMigrationManifest, sourceDirectory, current, destination, stage string) {
-	rebase := func(value string) string {
-		if value == "" {
-			return value
-		}
-		oldTarget := filepath.Clean(filepath.FromSlash(value))
-		if !filepath.IsAbs(oldTarget) {
-			oldTarget = filepath.Clean(filepath.Join(sourceDirectory, oldTarget))
-			if relative, err := filepath.Rel(sourceDirectory, oldTarget); err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
-				return value
-			}
-		}
-		relative, err := filepath.Rel(current, oldTarget)
-		if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
-			return value
-		}
-		newTarget := filepath.Join(stage, relative)
-		if value, err := filepath.Rel(destination, newTarget); err == nil {
-			return filepath.ToSlash(value)
-		}
-		return value
-	}
-	for name, value := range manifest.Assets {
-		manifest.Assets[name] = rebase(value)
-	}
-	for _, assets := range manifest.PlatformAssets {
-		for name, value := range assets {
-			assets[name] = rebase(value)
-		}
-	}
-}
-
-func convertLegacyRenderer(data []byte) (rendererMigrationManifest, error) {
-	var header struct {
-		ManifestVersion int `json:"manifest_version"`
-	}
-	if err := json.Unmarshal(data, &header); err != nil {
-		return rendererMigrationManifest{}, err
-	}
-	if header.ManifestVersion == 1 {
-		var manifest rendererMigrationManifest
-		if err := json.Unmarshal(data, &manifest); err != nil {
-			return manifest, err
-		}
-		return manifest, nil
-	}
-	if header.ManifestVersion != 2 {
-		return rendererMigrationManifest{}, fmt.Errorf("unsupported manifest_version %d", header.ManifestVersion)
-	}
-	var legacy legacyRendererPackage
-	if err := json.Unmarshal(data, &legacy); err != nil {
-		return rendererMigrationManifest{}, err
-	}
-	if legacy.ProtocolVersion != 1 {
-		return rendererMigrationManifest{}, fmt.Errorf("unsupported protocol_version %d", legacy.ProtocolVersion)
-	}
-	manifest := legacy.rendererMigrationManifest
-	manifest.ManifestVersion = 1
-	manifest.legacyDefaults = true
-	manifest.Platforms = make([]string, 0, len(legacy.Platforms))
-	if manifest.PlatformAssets == nil && len(legacy.Platforms) > 0 {
-		manifest.PlatformAssets = map[string]map[string]string{}
-	}
-	for platform, assets := range legacy.Platforms {
-		manifest.Platforms = append(manifest.Platforms, platform)
-		if manifest.PlatformAssets[platform] == nil {
-			manifest.PlatformAssets[platform] = map[string]string{}
-		}
-		for name, asset := range assets {
-			manifest.PlatformAssets[platform][name] = asset.Path
-		}
-	}
-	return manifest, nil
-}
-
-func applyLegacyBackendDefaults(manifest *rendererMigrationManifest) {
-	if manifest.Capabilities == nil {
-		manifest.Capabilities = map[string]bool{"frame_pitch": true}
-		if manifest.Backend == "waveform" {
-			manifest.Capabilities["boundary_bridge"] = true
-		}
-	}
-	if manifest.Acceleration == "" {
-		manifest.Acceleration = "cpu"
-		if manifest.Backend == "utautts-world-phrase-cuda" {
-			manifest.Acceleration = "cuda"
-		}
-	}
-	assets := map[string][2]string{}
-	switch manifest.Backend {
-	case "utautts-world-phrase":
-		assets["world_engine"] = [2]string{"utautts-world-engine.dll", "utautts-world-engine.so"}
-		assets["worldline_bridge"] = [2]string{"utautts-worldline-bridge.exe", "utautts-worldline-bridge"}
-	case "utautts-world-phrase-cuda":
-		assets["world_engine"] = [2]string{"utautts-world-engine.dll", ""}
-		assets["worldline_bridge"] = [2]string{"utautts-worldline-bridge.exe", ""}
-		assets["world_gpu"] = [2]string{"utautts-waveform-gpu.dll", ""}
-	case "diffsinger":
-		assets["diffsinger_bridge"] = [2]string{"utautts-diffsinger-bridge.exe", ""}
-	}
-	if len(assets) == 0 {
-		return
-	}
-	if manifest.PlatformAssets == nil {
-		manifest.PlatformAssets = map[string]map[string]string{}
-	}
-	for platformIndex, platform := range []string{"windows-amd64", "linux-amd64"} {
-		for name, names := range assets {
-			if names[platformIndex] == "" {
-				continue
-			}
-			if manifest.PlatformAssets[platform] == nil {
-				manifest.PlatformAssets[platform] = map[string]string{}
-			}
-			if manifest.PlatformAssets[platform][name] == "" {
-				manifest.PlatformAssets[platform][name] = "../../runtime/" + names[platformIndex]
-			}
-		}
-	}
 }
 
 func safeRendererID(id string) bool {

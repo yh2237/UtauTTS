@@ -12,6 +12,13 @@ import (
 
 type testVoicebankResolver struct{ path string }
 
+func testRenderer(id, provider string) plugin.Renderer {
+	return plugin.Renderer{
+		ManifestVersion: 2, Kind: "synthesis-engine", ID: id, DisplayName: id,
+		Contract: "unit-renderer", Provider: provider, ProviderVersion: "1",
+	}
+}
+
 func (resolver testVoicebankResolver) Resolve(string) (string, bool) {
 	return resolver.path, true
 }
@@ -26,11 +33,11 @@ func TestClassicUtauResolvesSelectedTools(t *testing.T) {
 		}
 	}
 	catalog := &plugin.Catalog{
-		Renderers:  []plugin.Renderer{{ID: "classic-utau", Backend: "utau-external-resampler"}},
+		Renderers:  []plugin.Renderer{testRenderer("classic-utau", "utau-external-resampler")},
 		Resamplers: []plugin.ClassicTool{{ID: "nested/resampler.exe", Path: resamplerPath}},
 		Wavtools:   []plugin.ClassicTool{{ID: "builtin", BuiltIn: true}, {ID: "wavtool.exe", Path: wavtoolPath}},
 	}
-	service := NewService(catalog, "classic-utau", "", "", "", "", testVoicebankResolver{path: "voicebank"})
+	service := NewService(catalog, "classic-utau", "", "", "", testVoicebankResolver{path: "voicebank"})
 	cfg, renderer, options, err := service.config(Request{
 		Renderer: "classic-utau", Resampler: "nested/resampler.exe", Wavtool: "wavtool.exe",
 	}, true)
@@ -44,10 +51,10 @@ func TestClassicUtauResolvesSelectedTools(t *testing.T) {
 
 func TestClassicUtauRejectsUnknownResampler(t *testing.T) {
 	catalog := &plugin.Catalog{
-		Renderers: []plugin.Renderer{{ID: "classic-utau", Backend: "utau-external-resampler"}},
+		Renderers: []plugin.Renderer{testRenderer("classic-utau", "utau-external-resampler")},
 		Wavtools:  []plugin.ClassicTool{{ID: "builtin", BuiltIn: true}},
 	}
-	service := NewService(catalog, "classic-utau", "", "", "", "", testVoicebankResolver{path: "voicebank"})
+	service := NewService(catalog, "classic-utau", "", "", "", testVoicebankResolver{path: "voicebank"})
 	if _, _, _, err := service.config(Request{Renderer: "classic-utau", Resampler: "missing", Wavtool: "builtin"}, true); err == nil {
 		t.Fatal("unknown resampler was accepted")
 	}
@@ -55,20 +62,24 @@ func TestClassicUtauRejectsUnknownResampler(t *testing.T) {
 
 func TestClassicUtauRejectsMissingToolExecutable(t *testing.T) {
 	catalog := &plugin.Catalog{
-		Renderers:  []plugin.Renderer{{ID: "classic-utau", Backend: "utau-external-resampler"}},
+		Renderers:  []plugin.Renderer{testRenderer("classic-utau", "utau-external-resampler")},
 		Resamplers: []plugin.ClassicTool{{ID: "missing.exe", Path: filepath.Join(t.TempDir(), "missing.exe")}},
 		Wavtools:   []plugin.ClassicTool{{ID: "builtin", BuiltIn: true}},
 	}
-	service := NewService(catalog, "classic-utau", "", "", "", "", testVoicebankResolver{path: "voicebank"})
+	service := NewService(catalog, "classic-utau", "", "", "", testVoicebankResolver{path: "voicebank"})
 	if _, err := service.ResolveClassicTools("missing.exe", "builtin"); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("missing tool error = %v", err)
 	}
 }
 
 func TestResolveRendererSeparatesPublicIDFromProvider(t *testing.T) {
-	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{{
-		ID: "friendly-world", DisplayName: "Friendly WORLD", Backend: "utautts-world-phrase",
-	}}}, "", "", "", "", "", nil)
+	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{
+		func() plugin.Renderer {
+			renderer := testRenderer("friendly-world", "utautts-world-phrase")
+			renderer.DisplayName = "Friendly WORLD"
+			return renderer
+		}(),
+	}}, "", "", "", "", nil)
 
 	resolved, err := service.ResolveRenderer("friendly-world")
 	if err != nil {
@@ -83,18 +94,20 @@ func TestResolveRendererSeparatesPublicIDFromProvider(t *testing.T) {
 }
 
 func TestResolveRendererDoesNotFallbackForMissingExplicitID(t *testing.T) {
-	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{{
-		ID: "default", DisplayName: "Default", Backend: "waveform",
-	}}}, "default", "", "", "", "", nil)
+	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{testRenderer("default", "waveform")}}, "default", "", "", "", nil)
 	if _, err := service.ResolveRenderer("removed"); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("missing explicit renderer error = %v", err)
 	}
 }
 
 func TestRendererAvailabilityReportsMissingRuntimeWithoutRejectingListing(t *testing.T) {
-	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{{
-		ID: "world", DisplayName: "WORLD", Backend: "utautts-world-phrase",
-	}}}, "", "", "", "", "", nil)
+	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{
+		func() plugin.Renderer {
+			renderer := testRenderer("world", "utautts-world-phrase")
+			renderer.DisplayName = "WORLD"
+			return renderer
+		}(),
+	}}, "", "", "", "", nil)
 	availability := service.RendererAvailability()["world"]
 	if availability.Available || len(availability.Issues) == 0 {
 		t.Fatalf("availability = %#v", availability)
@@ -102,9 +115,13 @@ func TestRendererAvailabilityReportsMissingRuntimeWithoutRejectingListing(t *tes
 }
 
 func TestSynthesisConfigRejectsUnavailableRendererRuntime(t *testing.T) {
-	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{{
-		ID: "world", DisplayName: "WORLD", Backend: "utautts-world-phrase",
-	}}}, "", "", "", "", "", testVoicebankResolver{path: "voicebank"})
+	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{
+		func() plugin.Renderer {
+			renderer := testRenderer("world", "utautts-world-phrase")
+			renderer.DisplayName = "WORLD"
+			return renderer
+		}(),
+	}}, "", "", "", "", testVoicebankResolver{path: "voicebank"})
 	if _, _, _, err := service.config(Request{Renderer: "world"}, true); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("unavailable runtime error = %v", err)
 	}

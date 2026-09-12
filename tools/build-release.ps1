@@ -196,12 +196,6 @@ try {
         Copy-Item -LiteralPath (Join-Path $root $directoryName) -Destination $serverPath -Recurse
     }
     foreach ($rendererPath in @($guiRendererPath, $serverRendererPath)) {
-        foreach ($excludedRenderer in @('utautts-world-phrase-cuda', 'openutau-worldline-r-faithful')) {
-            $excludedRendererPath = Join-Path $rendererPath $excludedRenderer
-            if (Test-Path -LiteralPath $excludedRendererPath) {
-                Remove-Item -LiteralPath $excludedRendererPath -Recurse -Force
-            }
-        }
         if ($Profile -eq 'Japanese') {
             foreach ($optionalRenderer in @('diffsinger')) {
                 $optionalRendererPath = Join-Path $rendererPath $optionalRenderer

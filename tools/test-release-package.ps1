@@ -91,11 +91,6 @@ try {
         Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_ikawaha_kagome-dict-v1.1.7-LICENSE.txt') 'kagome-dict license'
         Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt') 'hts_engine_API license'
         Assert-Path (Join-Path $packageRoot 'runtime/utautts-worldline-bridge.exe') 'native worldline bridge'
-        foreach ($removedPath in @('runtime/worldline.dll', 'renderer/openutau-worldline-r-faithful')) {
-            if (Test-Path (Join-Path $packageRoot $removedPath)) {
-                throw "Package contains removed component: $removedPath"
-            }
-        }
         if ($Profile -eq 'Full') {
             Assert-Path (Join-Path $packageRoot 'runtime/utautts-diffsinger-bridge.exe') 'DiffSinger bridge'
             foreach ($diffSingerLicense in @(
@@ -110,7 +105,7 @@ try {
                 Assert-Path (Join-Path $packageRoot "runtime/licenses/$diffSingerLicense") "DiffSinger dependency license: $diffSingerLicense"
             }
         } else {
-            foreach ($optionalRuntime in @('utautts-diffsinger-bridge.exe', 'worldline.dll')) {
+            foreach ($optionalRuntime in @('utautts-diffsinger-bridge.exe')) {
                 if (Test-Path -LiteralPath (Join-Path $packageRoot "runtime/$optionalRuntime")) {
                     throw "Japanese package contains optional runtime: $optionalRuntime"
                 }
@@ -145,7 +140,7 @@ try {
         if ($Profile -eq 'Full') {
             Assert-Path (Join-Path $packageRoot 'renderer/diffsinger/renderer.json') 'DiffSinger renderer manifest'
         } else {
-            foreach ($optionalRenderer in @('openutau-worldline-r-faithful', 'diffsinger')) {
+            foreach ($optionalRenderer in @('diffsinger')) {
                 if (Test-Path -LiteralPath (Join-Path $packageRoot "renderer/$optionalRenderer/renderer.json")) {
                     throw "Japanese package contains optional renderer: $optionalRenderer"
                 }
@@ -194,17 +189,6 @@ try {
             throw "server package still contains an obsolete worldline runtime file: $removedRuntime"
         }
     }
-    foreach ($packageRoot in @($guiRoot, $serverRoot)) {
-        $gpuRenderer = Test-Path -LiteralPath (Join-Path $packageRoot 'renderer/utautts-world-phrase-cuda/renderer.json')
-        if ($gpuRenderer) {
-            throw 'experimental CUDA renderer must not be included in a release package'
-        }
-        $gpuBinary = Test-Path -LiteralPath (Join-Path $packageRoot 'runtime/utautts-waveform-gpu.dll')
-        if ($gpuBinary) {
-            throw 'experimental CUDA runtime must not be included in a release package'
-        }
-    }
-
     $unexpectedDebugFiles = @(Get-ChildItem -LiteralPath $guiRoot -Recurse -File |
         Where-Object { $_.Extension -in @('.pdb', '.lib', '.exp') })
     if ($unexpectedDebugFiles.Count -ne 0) {

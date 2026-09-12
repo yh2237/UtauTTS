@@ -98,7 +98,6 @@
         <label for="syn-alias-policy">原音処理（alias_policy）</label>
         <select id="syn-alias-policy">
           <option value="auto" selected>自動（音源構成から判定）</option>
-          <option value="legacy">従来互換（v0.0.9）</option>
           <option value="cvvc-enhanced">CVVC明瞭化</option>
           <option value="vcv-prefer">VCV優先（詳細設定）</option>
           <option value="cvvc-prefer">CVVC優先（詳細設定）</option>
@@ -310,7 +309,7 @@ async function loadRenderers() {
         "<div><code>" + escapeHtml(renderer.id) + "</code>" +
         (renderer.id === data.default_renderer ? " <span class=\"tag get\">既定</span>" : "") +
         " — " + escapeHtml(renderer.display_name || "") +
-        " <span class=\"muted\">(" + escapeHtml(renderer.provider || renderer.backend || "") + ")</span></div>"
+        " <span class=\"muted\">(" + escapeHtml(renderer.provider || "") + ")</span></div>"
       )).join("");
     }
   } catch (error) {

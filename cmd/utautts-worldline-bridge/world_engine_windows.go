@@ -41,6 +41,13 @@ type windowsWorldSynthesis struct {
 	OutputSize int32
 }
 
+func windowsSlicePointer[T any](values []T) uintptr {
+	if len(values) == 0 {
+		return 0
+	}
+	return uintptr(unsafe.Pointer(&values[0]))
+}
+
 func openWorldEngine(path string) (worldEngine, error) {
 	dll, err := syscall.LoadDLL(path)
 	if err != nil {

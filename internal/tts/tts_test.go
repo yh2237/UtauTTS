@@ -52,10 +52,10 @@ func TestSynthesizeHonorsCanceledContextBeforeLoadingInputs(t *testing.T) {
 }
 
 func TestAliasProfilesBundleSelectionAndRendererSettings(t *testing.T) {
-	legacy := Config{AliasPolicy: voicebank.AliasPolicyLegacy, CVVCTiming: render.CVVCTimingSequential, CVVCTransitionGain: 0.2, CVVCPreBoundaryFade: true}
-	applyAliasProfile(nil, &legacy)
-	if legacy.AliasPolicy != voicebank.AliasPolicyAuto || legacy.CVVCTiming != render.CVVCTimingLegacy || legacy.CVVCTransitionGain != 1 || legacy.CVVCPreBoundaryFade {
-		t.Fatalf("legacy profile = %+v", legacy)
+	automatic := Config{AliasPolicy: voicebank.AliasPolicyAuto}
+	applyAliasProfile(nil, &automatic)
+	if automatic.AliasPolicy != voicebank.AliasPolicyAuto || automatic.CVVCTiming != render.CVVCTimingSequential {
+		t.Fatalf("automatic profile = %+v", automatic)
 	}
 
 	enhanced := Config{AliasPolicy: voicebank.AliasPolicyEnhanced}

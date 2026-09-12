@@ -82,7 +82,7 @@ func diagnoseCorpus(bankPath, out string, prompts []prompt) error {
 			if err != nil {
 				return err
 			}
-			row.Lattice, err = bank.AuditLattice(row.Units, "C4", nil)
+			row.Lattice, err = bank.AuditLattice(row.Units, "C4")
 			if err != nil {
 				row.Stage = "candidate_selection"
 			}

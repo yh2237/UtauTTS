@@ -124,8 +124,6 @@ cp -R "${root_dir}/renderer/." "${gui_dir}/renderer/"
 cp -R "${root_dir}/renderer/." "${server_dir}/renderer/"
 for package_dir in "${gui_dir}" "${server_dir}"; do
   rm -rf \
-    "${package_dir}/renderer/utautts-world-phrase-cuda" \
-    "${package_dir}/renderer/openutau-worldline-r-faithful" \
     "${package_dir}/renderer/diffsinger"
   "${python_command}" "${root_dir}/tools/copy-model-license-notices.py" \
     --models "${package_dir}/models" \
@@ -166,7 +164,7 @@ cp "${root_dir}/THIRD_PARTY_NOTICES.txt" "${server_dir}/THIRD_PARTY_NOTICES.txt"
 
 for package_dir in "${gui_dir}" "${server_dir}"; do
   license_root="${package_dir}/licenses"
-  mkdir -p "${license_root}/Go" "${license_root}/OpenJTalk" "${license_root}/Worldline" "${license_root}/WORLD"
+  mkdir -p "${license_root}/Go" "${license_root}/OpenJTalk" "${license_root}/WORLD"
   cp -R "${root_dir}/licenses/." "${license_root}/"
   bash "${root_dir}/tools/collect-go-licenses.sh" "${package_dir}" "${go_command}"
   cp "${root_dir}/third_party/world/LICENSE.txt" "${license_root}/WORLD/WORLD-LICENSE.txt"
@@ -175,7 +173,6 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
   cp "${root_dir}/licenses/JSUT-DATA-AND-LABELS.txt" "${license_root}/"
   cp "${root_dir}/licenses/PROSODY-MODELS.txt" "${license_root}/"
   cp "${root_dir}/licenses/openjtalk/"*.txt "${license_root}/OpenJTalk/"
-  cp "${root_dir}/licenses/worldline/"*.txt "${license_root}/Worldline/"
   cp "${root_dir}/licenses/APACHE-2.0.txt" "${license_root}/APACHE-2.0.txt"
 
   if [[ "${package_dir}" == "${gui_dir}" ]]; then

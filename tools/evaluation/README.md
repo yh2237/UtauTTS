@@ -58,7 +58,7 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers wave
 
 出力するPlan JSONには合成後の診断情報を含みます。区間別伸縮を適用しても指定したモーラ長は変えません。`boundary_repair_decisions`の指標が改善しても自然さが向上したとは限らないため補修箇所を試聴してください。
 
-CPU版WORLDは音響特徴の時間軸と母音接続を調整します。`--renderers utautts-world-phrase --speech-timing`で比較できます。本体とブリッジの両方をビルドしてください。解析キャッシュを使う2回目の合成も確認する場合は`--repeat 2`を指定します。CUDA版はこの区間別伸縮と接続補修の対象外です。
+CPU版WORLDは音響特徴の時間軸と母音接続を調整します。`--renderers utautts-world-phrase --speech-timing`で比較できます。本体とブリッジの両方をビルドしてください。解析キャッシュを使う2回目の合成も確認する場合は`--repeat 2`を指定します。
 
 ## 読み・長さ・ピッチを固定する
 
@@ -99,57 +99,18 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/english-bank" --corpus tools/ev
 
 推定対象は60–500 Hzです。`measured_hz`の0は無声または推定不能を表します。`target_hz`はWORLDの有声・無声判定前の値です。誤差の集計は両方に有効な値があるフレームだけを使います。無声子音・短い母音・急な音高変化では推定が不安定になります。誤差が小さくても自然な発音とは限りません。計測時間はRTFに含めません。
 
-## 原音の接続と切り出し範囲を比較する
-
-`--source-context`は英語・中国語向けの原音選択実験です。CPU版の`utautts-world-phrase`で使います。通常の合成は変更しません。
-
-| 指定値 | 内容 |
-| --- | --- |
-| `off` | 従来の原音選択。既定値 |
-| `existing` | 英語で前の母音と次の子音・母音を含む既存aliasを候補に追加 |
-| `recover` | 既存aliasに加えて中国語VC録音の後ろにある母音の回収を試す |
-| `repeated` | 中国語の3回反復録音を複数のoto定義で確認して途中のVCから次の母音を回収 |
-
-中国語の回収は`i_he.wav`のように2音節を示すファイル名が対象です。後半が目的の音節と一致し前半の母音も一致する場合だけ調べます。無声区間の後に持続する有声区間が見つかれば仮のVCVとして使います。元の`oto.ini`は変更しません。`i_he.wav`から`hao`を回収することはありません。
-
-対応する声母は`b p d t g k j q x zh ch sh z c s f h`です。休止や前の音節の語末子音をまたぐ接続は追加しません。反復音節の録音や任意のファイル名は回収対象外です。音素認識ではないため境界推定には誤差があります。回収できない場合は従来の原音を使います。回収後の原音で候補経路のスコアを再計算する処理は未実装です。
-
-```powershell
-go run ./cmd/tools/tts-eval --voicebank "./voice/chinese-bank" --corpus tools/evaluation/chinese-source-context-v1.json --renderers utautts-world-phrase --model none --speech-timing --source-context recover --export-sources --out out/zh-source-recover
-```
-
-`off`・`existing`・`recover`で出力先を変えて比較します。英語には`english-source-context-v1.json`を使います。`--phonemizer en-vccv`でVCCVへ切り替えられます。`--mora-ms 160`で基本音節長を変更できます。既定値は120 msです。原音の効果と速度の効果を分けるため各条件を同じ長さで比較してください。
-
-Planの`source_context`は`existing`または`recovered-vc`を示します。`source_context_reason`に回収の採否を記録します。回収したunitの候補スコアは回収前の選択に対する値です。
+## 選択した原音を確認する
 
 `--export-sources`は音声ごとに`*-sources`フォルダーを作ります。
 
 | ファイル | 内容 |
 | --- | --- |
 | `*-original-context.wav` | 選択範囲の前後150 msを含む原音 |
-| `*-selected.wav` | 選択したoto範囲。回収時は仮の範囲 |
+| `*-selected.wav` | 選択したoto範囲 |
 | `*-mixed-output.wav` | 対応する合成音声の区間。隣接音との重なりを含む |
 | `sources.json` | 原音のパス・切り出し範囲・母音開始の推定位置・出力時刻 |
 
 原音の時刻は元WAVの先頭から測ります。出力時刻は先行発声の余白を含む合成WAVの先頭から測ります。これらの音声にはボイスバンクの原音が含まれます。共有する場合は音源の利用条件に従ってください。
-
-### 反復録音の接続を一続きで使う
-
-`--source-context repeated`は`hao_hao_hao.wav`のような3回反復録音を対象にします。同じWAVの先頭CV・途中VC・最後のCVの定義が時間順に並んでいることを確認します。途中VCの後ろで母音を探し最後のCVより前で探索を止めます。推定した範囲を仮のVCVとして使いVCと別区間のCVをつなぐ処理を減らします。
-
-比較には`chinese-repeated-context-v1.json`の`hao3 hao3`を使います。同じ条件で`off`と`repeated`を比較してください。`--protect-context-transition`は併用しません。2音節録音向けの`recover`とは別の実験です。音節と前の母音の一致を確認できない場合や境界を推定できない場合は従来の原音を使います。
-
-### 回収した接続音の移行区間を保つ
-
-`--protect-context-transition`は長い接続音の伸縮を比較する実験です。`--source-context existing`または`recover`と`--speech-timing`を併用します。CPU版WORLD専用で新しい本体とブリッジが必要です。
-
-既存または回収した接続音に限り母音開始前の最大30 msと開始後の固定部までを原速で保ちます。長さの差は残りの区間で吸収します。母音開始位置と音節長は変えません。固定部の位置には音源校正の結果を使うため保護範囲は音源ごとに異なります。安定母音の末尾を20 ms以上確保できない場合は従来の伸縮へ戻します。
-
-原音選択をそろえてフラグの有無を比較してください。Planのunitに出る`protected_transition_ms`は原速で保った区間の長さです。音源校正が不成立の場合や対応する接続音がない場合は適用しません。通常の設定は変更しません。
-
-```powershell
-go run ./cmd/tools/tts-eval --voicebank "./voice/chinese-bank" --corpus tools/evaluation/chinese-source-context-v1.json --renderers utautts-world-phrase --model none --speech-timing --source-context recover --protect-context-transition --mora-ms 160 --export-sources --out out/zh-transition-protected
-```
 
 ### 単語境界のフェードを比較する
 
@@ -161,21 +122,19 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/chinese-bank" --corpus tools/ev
 
 `english-cup-v1.json`はcup単体・cup of・Another cup of coffee.の比較です。ofの強勢ありとなしを読みで指定しています。無強勢化は原音候補に加えて規則による時間配分と抑揚にも影響します。実際に弱母音の原音が選ばれたかはPlanで確認してください。
 
-`--coda-vowel-experiment`は英語の語末子音の次に母音が来る場合に母音単独の原音を使う診断用フラグです。前の語末子音は残します。通常の候補にある子音付きCVとの比較に使います。対応する母音単独の原音がない音源では合成に失敗する場合があります。CPU版WORLD専用です。既定の発音処理は変更しません。
-
 ### 英語の語末子音の再生範囲を確認する
 
-CPU版WORLDではDelta・VCCV英語音源の必須語末子音について先行発声より後ろの原音を実際の再生終了までに収めます。固定部が長い原音で子音の後半より前に再生が終わる問題を補正します。元のoto値と音節長は変えません。補正は通常の合成で有効です。旧実験フラグ`--coda-release-experiment`は廃止しました。
+CPU版WORLDではDelta・VCCV英語音源の必須語末子音について先行発声より後ろの原音を実際の再生終了までに収めます。固定部が長い原音で子音の後半より前に再生が終わる問題を補正します。元のoto値と音節長は変えません。補正は通常の合成で有効です。
 
 新しい本体とWORLDブリッジが必要です。`english-cup-v1.json`を`--mora-ms 160`・`200`・`240`で比較できます。語末unitの`coda_phones`が必須の語末子音を示し`speech_retime_applied`で補正の適用を確認できます。任意のリリースや次の語頭だけを補う接続は対象外です。原音の後半には無音も含まれるため破裂部分が短くなる場合があります。
 
 `english-coda-coverage-v1.json`は破裂音・摩擦音・鼻音・子音群と短文の16ケースです。`--phonemizer en-delta`または`en-vccv`で音源に合わせます。次の原音が必須語末子音の再生時間を10 ms未満まで削る場合は重なりを抑えます。この調整はCPU版WORLDに限定しています。原音に含まれない音は補えず音源や文章による聞き取りやすさの差は残ります。
 
-## CPUとCUDAの速度を比較する
+## 合成速度を比較する
 
-`--renderers utautts-world-phrase,utautts-world-phrase-cuda --repeat 2`で比較します。CUDA対応ランタイムが必要です。解析キャッシュを共有するため各Rendererの初回と2回目以降を分けて確認します。
+`--renderers utautts-world-phrase --repeat 2`で確認します。解析キャッシュを共有するため初回と2回目以降を分けて確認します。
 
-RTFは合成時間を音声時間で割った値です。保存時間は含みません。CUDA化の対象は特徴量混合で波形生成はCPUです。文章の長さや音源によって速度が変わるため同じ条件で測定してください。
+RTFは合成時間を音声時間で割った値です。保存時間は含みません。文章の長さや音源によって速度が変わるため同じ条件で測定してください。
 
 ## 内部データと音源校正
 

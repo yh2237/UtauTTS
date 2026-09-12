@@ -213,7 +213,7 @@ func TestSynthesizeEndpointReportsWaveformRenderer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := &Server{renderer: "waveform", catalog: &plugin.Catalog{Renderers: []plugin.Renderer{{ID: "waveform", Backend: "waveform"}}}, voicebanks: map[string]Voicebank{
+	server := &Server{renderer: "waveform", catalog: &plugin.Catalog{Renderers: []plugin.Renderer{{ManifestVersion: 2, Kind: "synthesis-engine", ID: "waveform", DisplayName: "waveform", Contract: "unit-renderer", Provider: "waveform", ProviderVersion: "1"}}}, voicebanks: map[string]Voicebank{
 		"test": {ID: "test", Name: "test", Path: root},
 	}}
 	body := bytes.NewBufferString(`{"kana":"あ","voicebank_id":"test","mora_duration_ms":100}`)
@@ -243,7 +243,7 @@ func TestLabelAndBatchSidecarEndpoints(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	server := &Server{renderer: "waveform", catalog: &plugin.Catalog{Renderers: []plugin.Renderer{{ID: "waveform", Backend: "waveform"}}}, voicebanks: map[string]Voicebank{
+	server := &Server{renderer: "waveform", catalog: &plugin.Catalog{Renderers: []plugin.Renderer{{ManifestVersion: 2, Kind: "synthesis-engine", ID: "waveform", DisplayName: "waveform", Contract: "unit-renderer", Provider: "waveform", ProviderVersion: "1"}}}, voicebanks: map[string]Voicebank{
 		"test": {ID: "test", Path: root},
 	}}
 	synthesis := `{"kana":"あ","voicebank_id":"test","mora_duration_ms":100}`
@@ -280,7 +280,7 @@ func TestSynthesizeEndpointRejectsUnknownText(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	server := &Server{renderer: "waveform", catalog: &plugin.Catalog{Renderers: []plugin.Renderer{{ID: "waveform", Backend: "waveform"}}}, voicebanks: map[string]Voicebank{
+	server := &Server{renderer: "waveform", catalog: &plugin.Catalog{Renderers: []plugin.Renderer{{ManifestVersion: 2, Kind: "synthesis-engine", ID: "waveform", DisplayName: "waveform", Contract: "unit-renderer", Provider: "waveform", ProviderVersion: "1"}}}, voicebanks: map[string]Voicebank{
 		"test": {ID: "test", Path: root},
 	}}
 	request := httptest.NewRequest(http.MethodPost, "/api/synthesize/audio", bytes.NewBufferString(`{"text":"UtauTTS","voicebank_id":"test"}`))

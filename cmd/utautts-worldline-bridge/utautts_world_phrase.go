@@ -50,15 +50,7 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 			return nil, fmt.Errorf("WORLD units have inconsistent FFT sizes")
 		}
 	}
-	var result worldFeatures
-	if input.Engine == "utautts-world-phrase-cuda" {
-		result, err = mixWorldFeaturesCUDA(input.GPUPath, input, prepared, fftSize)
-	} else {
-		result = mixWorldFeatures(input, prepared, fftSize, worldCPUWorkers(frames))
-	}
-	if err != nil {
-		return nil, err
-	}
+	result := mixWorldFeatures(input, prepared, fftSize, worldCPUWorkers(frames))
 	mixDone := time.Now()
 	if input.Engine == "utautts-world-phrase" {
 		report := applyWorldSpeechJoins(input, &result)
@@ -70,9 +62,6 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 			entry := report[item.Speech.UnitIndex]
 			entry.UnitIndex = item.Speech.UnitIndex
 			entry.RetimeApplied, entry.TargetFixedMS = ok, anchors.targetFixed
-			if ok && anchors.transitionProtected {
-				entry.ProtectedTransitionMS = anchors.protected + anchors.sourceFixed - anchors.sourceOnset
-			}
 			if input.SpeechResults != nil {
 				*input.SpeechResults = append(*input.SpeechResults, entry)
 			}

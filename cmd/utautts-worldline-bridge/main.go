@@ -14,9 +14,7 @@ import (
 type manifest struct {
 	SpeechResults   *[]provider.WorldSpeechResult `json:"-"`
 	Engine          string                        `json:"engine"`
-	WorldlinePath   string                        `json:"worldline_path"`
 	WorldEnginePath string                        `json:"world_engine_path"`
-	GPUPath         string                        `json:"gpu_path"`
 	OutputPath      string                        `json:"output_path"`
 	SampleRate      int                           `json:"sample_rate"`
 	F0Curve         []float64                     `json:"f0_curve"`
@@ -71,15 +69,12 @@ func run(args []string) error {
 
 func newBridgeState() *bridgeState {
 	return &bridgeState{
-		libraries: make(map[string]nativeLibrary), worldEngines: make(map[string]worldEngine),
-		worldUnits: newWorldFeatureCache(128),
+		worldEngines: make(map[string]worldEngine),
+		worldUnits:   newWorldFeatureCache(128),
 	}
 }
 
 func (state *bridgeState) close() {
-	for _, library := range state.libraries {
-		_ = library.Close()
-	}
 	for _, engine := range state.worldEngines {
 		_ = engine.Close()
 	}
@@ -95,7 +90,7 @@ func serveProvider(input io.Reader, output io.Writer, providerID string) error {
 	if err := encoder.Encode(provider.Hello{
 		Type: provider.MessageHello, Protocol: provider.ProtocolName, ProtocolVersion: provider.ProtocolVersion,
 		Provider: providerID, ProviderVersion: "1", Session: true,
-		Capabilities: []string{"frame_pitch", provider.CapabilityUnitRendererJobV2, provider.CapabilityWorldSpeechV1, provider.CapabilityContextTransitionV1, provider.CapabilityCodaReleaseV1},
+		Capabilities: []string{"frame_pitch", provider.CapabilityUnitRendererJobV2, provider.CapabilityWorldSpeechV1, provider.CapabilityCodaReleaseV1},
 		Contracts:    []provider.ContractSupport{{Name: "unit-renderer", Version: 1}},
 	}); err != nil {
 		return err
@@ -166,7 +161,6 @@ func serveProvider(input io.Reader, output io.Writer, providerID string) error {
 }
 
 type bridgeState struct {
-	libraries    map[string]nativeLibrary
 	worldEngines map[string]worldEngine
 	worldUnits   *worldFeatureCache
 }
@@ -195,11 +189,13 @@ func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
 		return manifest{}, fmt.Errorf("worldline job has no typed worldline options")
 	}
 	options := job.Options.Worldline
+	if options.Engine != "utautts-world-phrase" {
+		return manifest{}, fmt.Errorf("unsupported worldline engine %q", options.Engine)
+	}
 	input := manifest{
 		Engine: options.Engine, OutputPath: outputPath, SampleRate: options.SampleRate,
 		F0Curve: append([]float64(nil), options.F0Curve...), Units: make([]unit, len(options.Units)),
-		WorldlinePath: job.Resources["worldline"], WorldEnginePath: job.Resources["world_engine"],
-		GPUPath: job.Resources["world_gpu"],
+		WorldEnginePath: job.Resources["world_engine"],
 	}
 	for index, source := range options.Units {
 		target := unit{
@@ -233,7 +229,7 @@ func renderManifestValue(input manifest, outputPath string, state *bridgeState) 
 	if len(input.Units) == 0 || len(input.F0Curve) < 2 {
 		return manifest{}, fmt.Errorf("manifest has no synthesis data")
 	}
-	if input.Engine == "utautts-world-phrase" || input.Engine == "utautts-world-phrase-cuda" {
+	if input.Engine == "utautts-world-phrase" {
 		var engine worldEngine
 		if state != nil {
 			engine = state.worldEngines[input.WorldEnginePath]
@@ -259,31 +255,5 @@ func renderManifestValue(input manifest, outputPath string, state *bridgeState) 
 		}
 		return input, writePCM16(input.OutputPath, input.SampleRate, samples)
 	}
-	var library nativeLibrary
-	if state != nil {
-		library = state.libraries[input.WorldlinePath]
-	}
-	if library == nil {
-		library, err = openNativeLibrary(input.WorldlinePath)
-		if err != nil {
-			return manifest{}, err
-		}
-		if state != nil {
-			state.libraries[input.WorldlinePath] = library
-		} else {
-			defer library.Close()
-		}
-	}
-
-	var samples []float32
-	switch input.Engine {
-	case "worldline-r-faithful":
-		samples, err = renderWorldlineR(library, input)
-	default:
-		err = fmt.Errorf("unknown engine: %s", input.Engine)
-	}
-	if err != nil {
-		return manifest{}, err
-	}
-	return input, writePCM16(input.OutputPath, input.SampleRate, samples)
+	return manifest{}, fmt.Errorf("unknown engine: %s", input.Engine)
 }

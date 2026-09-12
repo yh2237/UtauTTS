@@ -7,7 +7,6 @@ import (
 
 type worldSpeechMap struct {
 	coda                                                                                bool
-	transitionProtected                                                                 bool
 	sourceOnset, targetOnset, sourceFixed, targetFixed, sourceEnd, targetEnd, protected float64
 }
 
@@ -53,12 +52,6 @@ func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
 	}
 	if item.Speech.ProtectStop {
 		a.protected = math.Min(8, math.Min(a.sourceOnset-4, a.targetOnset-4))
-	}
-	// 安定母音へ移る動きを収録時の速さで保つ。後続の母音区間を確保できる場合だけ使う。
-	if item.Speech.ProtectTransition && a.targetEnd-a.targetOnset >= a.sourceFixed-a.sourceOnset+20 {
-		a.targetFixed = a.targetOnset + a.sourceFixed - a.sourceOnset
-		a.protected = math.Min(30, math.Min(a.sourceOnset-4, a.targetOnset-4))
-		a.transitionProtected = true
 	}
 	return a, true
 }

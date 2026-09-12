@@ -78,7 +78,7 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 		return nil, fmt.Errorf("external UTAU resampler %q: %w", resampler, err)
 	}
 	if cfg.CVVCTiming == "" {
-		cfg.CVVCTiming = CVVCTimingLegacy
+		cfg.CVVCTiming = CVVCTimingSequential
 	}
 	if classic.WavtoolPath != "" {
 		if info, statErr := os.Stat(classic.WavtoolPath); statErr != nil || info.IsDir() {
@@ -88,7 +88,7 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 			return nil, fmt.Errorf("external UTAU wavtool %q: %w", classic.WavtoolPath, statErr)
 		}
 	}
-	if cfg.CVVCTiming != CVVCTimingLegacy && cfg.CVVCTiming != CVVCTimingSequential {
+	if cfg.CVVCTiming != CVVCTimingSequential {
 		return nil, fmt.Errorf("unknown CVVC timing mode %q", cfg.CVVCTiming)
 	}
 	if cfg.CVVCTransitionGain == 0 {

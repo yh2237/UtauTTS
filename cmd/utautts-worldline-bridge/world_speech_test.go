@@ -45,9 +45,9 @@ func TestWorldSpeechMappingAnchorsAndStop(t *testing.T) {
 		if _, ok := worldSpeechAnchors(bad, 400); ok {
 			t.Fatal("invalid anchors accepted", bad)
 		}
-		legacy := bad
-		legacy.Speech = nil
-		if got, want := mapWorldSourceTime(bad, 400, 80), mapWorldSourceTime(legacy, 400, 80); got != want {
+		plain := bad
+		plain.Speech = nil
+		if got, want := mapWorldSourceTime(bad, 400, 80), mapWorldSourceTime(plain, 400, 80); got != want {
 			t.Fatal("fallback differs", got, want)
 		}
 	}
@@ -143,11 +143,6 @@ func TestWorldSpeechWireAndUnsupportedEngine(t *testing.T) {
 	in, err := decodeProviderJob(data, "out.wav")
 	if err != nil || !reflect.DeepEqual(in.Units[0].Speech, speech) {
 		t.Fatal("speech wire", in, err)
-	}
-	job.Options.Worldline.Engine = "utautts-world-phrase-cuda"
-	data, _ = json.Marshal(job)
-	if _, err := decodeProviderJob(data, "out.wav"); err == nil {
-		t.Fatal("CUDA silently ignored speech controls")
 	}
 }
 

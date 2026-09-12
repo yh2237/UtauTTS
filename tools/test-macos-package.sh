@@ -101,9 +101,7 @@ done
 [[ ! -e "${server_root}/THIRD_PARTY_NOTICES-MACOS-GUI.txt" ]] \
   || fail 'server package must not contain the macOS GUI third-party addendum'
 for removed in \
-  "${gui_root}/renderer/openutau-worldline-r-faithful" \
-  "${gui_root}/renderer/diffsinger" \
-  "${gui_root}/renderer/utautts-world-phrase-cuda"; do
+  "${gui_root}/renderer/diffsinger"; do
   [[ ! -e "${removed}" ]] || fail "initial macOS package contains an excluded renderer: ${removed}"
 done
 for executable in \
