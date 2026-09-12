@@ -1,5 +1,6 @@
 sample/
 out/
+tmp/
 data/
 *.exe
 __pycache__/
