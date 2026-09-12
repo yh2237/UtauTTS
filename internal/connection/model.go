@@ -224,10 +224,12 @@ func (model *LearnedModel) Predict(features LearningFeatures) float64 {
 
 // LearnedScoreはクリップしたlogitを接続ボーナスと同じ尺度へ変換する。
 func LearnedScore(features PairFeatures, model *LearnedModel) (score, probability float64) {
-	if features.ForwardInSource {
-		score += 8
-	}
+	score = sourceContinuityScore(features)
 	learning := ToLearningFeatures(features)
+	// 既存モデルの入力次元を変えずVCVの想定内の無声閉鎖を強い負例にしない。
+	if features.CurrentVCV && features.VoicingMismatch {
+		learning.VoicingMismatch = false
+	}
 	if model == nil || !learning.Valid() {
 		return score, 0.5
 	}

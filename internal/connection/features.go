@@ -4,7 +4,9 @@ package connection
 import (
 	"math"
 	"path/filepath"
+	"strings"
 	"sync"
+	"unicode"
 
 	"utautts/internal/acoustic"
 	"utautts/internal/audio"
@@ -21,15 +23,18 @@ type Boundary struct {
 
 // PairFeaturesはモデルとヒューリスティックで共有する入力。
 type PairFeatures struct {
-	PreviousOutgoing    acoustic.Frame `json:"previous_outgoing"`
-	CurrentIncoming     acoustic.Frame `json:"current_incoming"`
-	SpectrumDelta       float64        `json:"spectrum_delta_db"`
-	RMSDelta            float64        `json:"rms_delta_db"`
-	F0DeltaCents        float64        `json:"f0_delta_cents"`
-	VoicingMismatch     bool           `json:"voicing_mismatch"`
-	WaveformCorrelation float64        `json:"waveform_correlation"`
-	SameSource          bool           `json:"same_source"`
-	ForwardInSource     bool           `json:"forward_in_source"`
+	PreviousOutgoing       acoustic.Frame `json:"previous_outgoing"`
+	CurrentIncoming        acoustic.Frame `json:"current_incoming"`
+	SpectrumDelta          float64        `json:"spectrum_delta_db"`
+	RMSDelta               float64        `json:"rms_delta_db"`
+	F0DeltaCents           float64        `json:"f0_delta_cents"`
+	VoicingMismatch        bool           `json:"voicing_mismatch"`
+	WaveformCorrelation    float64        `json:"waveform_correlation"`
+	SameSource             bool           `json:"same_source"`
+	ForwardInSource        bool           `json:"forward_in_source"`
+	SourceAnchorDistanceMS float64        `json:"source_anchor_distance_ms,omitempty"`
+	// CurrentVCVは境界の無声閉鎖を含むことがあるVCV原音を示す。
+	CurrentVCV bool `json:"current_vcv,omitempty"`
 }
 
 // LearningFeaturesは弱い正解ラベルに使うソース連続性を除いたモデル入力。
@@ -89,8 +94,12 @@ func (e *Extractor) Pair(previous, current oto.Entry) PairFeatures {
 		PreviousOutgoing: left.Outgoing,
 		CurrentIncoming:  right.Incoming,
 		SameSource:       SameSource(previous.Filename, current.Filename),
+		CurrentVCV:       IsContextVCVAlias(current.Alias),
 	}
 	result.ForwardInSource = result.SameSource && current.Offset > previous.Offset
+	if result.SameSource {
+		result.SourceAnchorDistanceMS = current.Offset + current.Preutterance - previous.Offset - previous.Preutterance
+	}
 	result.WaveformCorrelation = maxCorrelation(left.outgoingWave, right.incomingWave, 40)
 	if !left.Outgoing.Valid || !right.Incoming.Valid {
 		return result
@@ -107,21 +116,60 @@ func (e *Extractor) Pair(previous, current oto.Entry) PairFeatures {
 
 // HandcraftedScoreは学習モデルとの比較基準となる。
 func HandcraftedScore(features PairFeatures) float64 {
-	score := 0.0
-	if features.ForwardInSource {
-		score += 8
-	}
+	score := sourceContinuityScore(features)
 	if !features.PreviousOutgoing.Valid || !features.CurrentIncoming.Valid {
 		return score
 	}
-	score -= math.Min(18, features.SpectrumDelta*0.8)
-	score -= math.Min(6, features.RMSDelta*0.25)
+	spectrumWeight, rmsWeight := 0.8, 0.25
+	if features.CurrentVCV {
+		// VCVの境界は閉鎖区間になることがあるため接続点の減点を弱める。
+		// 原音の適性は母音側の音響scoreで判断する。
+		spectrumWeight, rmsWeight = 0.42, 0.13
+	}
+	score -= math.Min(18, features.SpectrumDelta*spectrumWeight)
+	score -= math.Min(6, features.RMSDelta*rmsWeight)
 	if features.PreviousOutgoing.F0Hz > 0 && features.CurrentIncoming.F0Hz > 0 {
 		score -= math.Min(8, features.F0DeltaCents*0.015)
-	} else if features.VoicingMismatch {
+	} else if features.VoicingMismatch && !features.CurrentVCV {
 		score -= 4
 	}
 	return score
+}
+
+func sourceContinuityScore(features PairFeatures) float64 {
+	if !features.ForwardInSource {
+		return 0
+	}
+	score := 8.0
+	// 同じ録音でも遠い位置への移動は連続性の利点として扱わない。
+	const safeAnchorDistanceMS = 560.0
+	if features.SourceAnchorDistanceMS > safeAnchorDistanceMS {
+		score -= math.Min(4, (features.SourceAnchorDistanceMS-safeAnchorDistanceMS)/140)
+	}
+	return score
+}
+
+// IsContextVCVAliasは英語のVCCVやVCと区別して日本語VCV表記を判定する。
+func IsContextVCVAlias(alias string) bool {
+	parts := strings.Fields(strings.TrimSpace(alias))
+	if len(parts) < 2 || (parts[0] != "-" && !isVowelContext(parts[0])) {
+		return false
+	}
+	for _, r := range parts[1] {
+		if unicode.In(r, unicode.Hiragana, unicode.Katakana) {
+			return true
+		}
+	}
+	return false
+}
+
+func isVowelContext(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "a", "i", "u", "e", "o", "n", "あ", "い", "う", "え", "お", "ん", "ア", "イ", "ウ", "エ", "オ", "ン":
+		return true
+	default:
+		return false
+	}
 }
 
 func measureBoundary(entry oto.Entry) Boundary {

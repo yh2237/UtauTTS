@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"utautts/internal/acoustic"
 	"utautts/internal/audio"
 	"utautts/internal/oto"
 )
@@ -41,5 +42,47 @@ func TestPairMeasuresPitchSynchronousWaveformCorrelation(t *testing.T) {
 	features := extractor.Pair(left, right)
 	if features.WaveformCorrelation < 0.95 {
 		t.Fatalf("correlation=%f", features.WaveformCorrelation)
+	}
+}
+
+func TestContextVCVAliasSoftensExpectedClosurePenalty(t *testing.T) {
+	base := PairFeatures{
+		PreviousOutgoing: acoustic.Frame{Valid: true, F0Hz: 220, RMSDB: -18},
+		CurrentIncoming:  acoustic.Frame{Valid: true, F0Hz: 0, RMSDB: -42},
+		SpectrumDelta:    20, RMSDelta: 20, VoicingMismatch: true,
+	}
+	withoutContext := HandcraftedScore(base)
+	base.CurrentVCV = true
+	withContext := HandcraftedScore(base)
+	if withContext <= withoutContext {
+		t.Fatalf("VCV closure score = %.3f, ordinary score = %.3f", withContext, withoutContext)
+	}
+}
+
+func TestIsContextVCVAliasOnlyRecognizesKanaContexts(t *testing.T) {
+	for _, test := range []struct {
+		alias string
+		want  bool
+	}{
+		{alias: "a か", want: true},
+		{alias: "あ か", want: true},
+		{alias: "- しょ C4", want: true},
+		{alias: "a k", want: false},
+		{alias: "か", want: false},
+	} {
+		if got := IsContextVCVAlias(test.alias); got != test.want {
+			t.Fatalf("IsContextVCVAlias(%q) = %v, want %v", test.alias, got, test.want)
+		}
+	}
+}
+
+func TestSourceContinuityScoreDoesNotRewardDistantJump(t *testing.T) {
+	near := PairFeatures{ForwardInSource: true, SourceAnchorDistanceMS: 500}
+	far := PairFeatures{ForwardInSource: true, SourceAnchorDistanceMS: 1120}
+	if HandcraftedScore(near) <= HandcraftedScore(far) {
+		t.Fatalf("near=%f far=%f", HandcraftedScore(near), HandcraftedScore(far))
+	}
+	if HandcraftedScore(far) != 4 {
+		t.Fatalf("distant continuity score = %f, want 4", HandcraftedScore(far))
 	}
 }

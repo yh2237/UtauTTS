@@ -14,6 +14,7 @@ func TestClassifyAlias(t *testing.T) {
 		"- あ":   AliasVCV,
 		"a か":   AliasVCV,
 		"n だ":   AliasVCV,
+		"あ か":   AliasVCV,
 		"* あ":   AliasCV,
 		"あ k":   AliasVC,
 		"a k":   AliasVC,

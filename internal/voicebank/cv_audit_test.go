@@ -37,4 +37,26 @@ func TestAuditSingleCVReportsSourceTiming(t *testing.T) {
 	if audit.Entries[0].TrimmedLengthMS != 300 || audit.Entries[0].VowelTailMS != 120 {
 		t.Fatalf("source metrics = %+v", audit.Entries[0])
 	}
+	contextWarnings := []string(nil)
+	for _, entry := range audit.Entries {
+		if entry.ContextVCV {
+			contextWarnings = entry.Warnings
+		}
+	}
+	if audit.VCVProfiledEntries != 1 || len(contextWarnings) != 0 {
+		t.Fatalf("VCV profile metrics = %+v", audit)
+	}
+}
+
+func TestAuditTimingWarningsUseVCVLimits(t *testing.T) {
+	entry := oto.Entry{Preutterance: 210, Fixed: 360, Overlap: 70}
+	warnings := auditTimingWarnings(entry, true)
+	for _, warning := range warnings {
+		if warning == "long-preutterance" || warning == "long-fixed" {
+			t.Fatalf("VCV timing used CV warning: %v", warnings)
+		}
+	}
+	if len(warnings) != 1 || warnings[0] != "vcv-preutterance-clamp-needed" {
+		t.Fatalf("VCV warnings = %v", warnings)
+	}
 }

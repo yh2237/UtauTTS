@@ -14,14 +14,128 @@ const (
 	singleCVMaximumPreutteranceMS = 110
 	singleCVMinimumVowelTailMS    = 35
 	singleCVVowelTailRatio        = 0.35
+	vcvMinimumPreutteranceMS      = 48
+	vcvMaximumPreutteranceMS      = 150
+	vcvMinimumVowelTailMS         = 45
+	vcvVowelTailRatio             = 0.30
 )
 
 func normalizePlanTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64) effectiveTiming {
 	timing := normalizeTiming(unit, releaseMS)
-	if synthesisPlan == nil || !synthesisPlan.SingleCV || unit.Silent || unit.Role != "mora" {
+	if synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
 		return timing
 	}
-	return normalizeSingleCVTiming(synthesisPlan, unit, timing, releaseMS)
+	if synthesisPlan.SingleCV {
+		return normalizeSingleCVTiming(synthesisPlan, unit, timing, releaseMS)
+	}
+	if strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV") {
+		return normalizeVCVTiming(unit, timing, releaseMS)
+	}
+	return timing
+}
+
+// normalizedPhoneTimingUnitsはwaveformと同じ補正値をphrase timingへ渡す。
+// 形式別補正が不要な場合はPlanのsliceをそのまま返す。
+func normalizedPhoneTimingUnits(synthesisPlan *plan.Plan, releaseMS float64) []plan.Unit {
+	if synthesisPlan == nil {
+		return nil
+	}
+	needsCopy := synthesisPlan.SingleCV
+	if !needsCopy {
+		for _, unit := range synthesisPlan.Units {
+			if isVCVUnit(unit) {
+				needsCopy = true
+				break
+			}
+		}
+	}
+	if !needsCopy {
+		return synthesisPlan.Units
+	}
+	result := append([]plan.Unit(nil), synthesisPlan.Units...)
+	for index := range result {
+		unit := result[index]
+		if unit.Silent || unit.Role != "mora" || (!synthesisPlan.SingleCV && !isVCVUnit(unit)) {
+			continue
+		}
+		timing := normalizePlanTiming(synthesisPlan, unit, releaseMS)
+		result[index].PreutteranceMS = timing.preutteranceMS
+		result[index].OverlapMS = timing.overlapMS
+		result[index].ConsonantMS = timing.consonantMS
+	}
+	return result
+}
+
+func isVCVUnit(unit plan.Unit) bool {
+	return strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV")
+}
+
+// normalizeVCVTimingは長い録音のVCV境界を短いモーラへ収める。
+// fixedをそのまま使うと対象モーラの母音がほとんど残らないことがある。
+func normalizeVCVTiming(unit plan.Unit, timing effectiveTiming, releaseMS float64) effectiveTiming {
+	duration := math.Max(1, unit.DurationMS)
+	releaseMS = math.Max(0, releaseMS)
+	rawPreutterance := math.Max(0, unit.PreutteranceMS)
+	preutterance := math.Max(0, timing.preutteranceMS)
+	overlap := math.Max(0, timing.overlapMS)
+	warnings := make([]string, 0, 3)
+	changed := false
+
+	maxPreutterance := math.Max(vcvMinimumPreutteranceMS, math.Min(vcvMaximumPreutteranceMS, duration*0.75))
+	if preutterance > maxPreutterance {
+		preutterance = maxPreutterance
+		changed = true
+		warnings = append(warnings, "vcv-preutterance-clamped")
+	}
+	if rawPreutterance > 0 && preutterance < rawPreutterance && overlap > 0 {
+		overlap *= preutterance / rawPreutterance
+	}
+	overlap = math.Min(overlap, preutterance)
+
+	transition := math.Max(0, unit.ConsonantMS-rawPreutterance)
+	if profile := unit.SpeechProfile; profile != nil && profile.Applied {
+		// otoの位置ずれをstable startで補い、破裂音の長さは範囲内に保つ。
+		if profile.StableStartMS > rawPreutterance {
+			transition = math.Max(transition, profile.StableStartMS-rawPreutterance)
+		}
+		if profile.TrimmedLengthMS > 0 {
+			ratio := (duration + releaseMS) / profile.TrimmedLengthMS
+			ratio = math.Max(0.75, math.Min(1.25, math.Sqrt(ratio)))
+			transition *= ratio
+		}
+	}
+	targetFixed := preutterance + transition
+	targetMS := preutterance + duration + releaseMS
+	minimumTail := math.Max(vcvMinimumVowelTailMS, duration*vcvVowelTailRatio)
+	maximumFixed := math.Max(preutterance, targetMS-minimumTail)
+	if targetFixed > maximumFixed {
+		targetFixed = maximumFixed
+		changed = true
+		warnings = append(warnings, "vcv-vowel-tail-preserved")
+	}
+	if targetFixed < preutterance {
+		targetFixed = preutterance
+	}
+	if math.Abs(targetFixed-unit.ConsonantMS) > 0.5 {
+		changed = true
+		warnings = append(warnings, "vcv-fixed-retimed")
+	}
+
+	scale := timing.scale
+	if rawPreutterance > 0 {
+		scale = math.Min(scale, preutterance/rawPreutterance)
+	}
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
+	return effectiveTiming{
+		preutteranceMS: preutterance,
+		consonantMS:    targetFixed,
+		overlapMS:      overlap,
+		scale:          scale,
+		cvApplied:      changed,
+		cvWarnings:     uniqueTimingWarnings(warnings),
+	}
 }
 
 func normalizeSingleCVTiming(synthesisPlan *plan.Plan, unit plan.Unit, timing effectiveTiming, releaseMS float64) effectiveTiming {

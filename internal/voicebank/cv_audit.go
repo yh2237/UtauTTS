@@ -21,6 +21,9 @@ type SingleCVAudit struct {
 	InitialContextEntries int            `json:"initial_context_entries"`
 	ContextVCVEntries     int            `json:"context_vcv_entries"`
 	VCEntries             int            `json:"vc_entries"`
+	VCVProfiledEntries    int            `json:"vcv_profiled_entries,omitempty"`
+	VCVStableEntries      int            `json:"vcv_stable_entries,omitempty"`
+	VCVMeanConfidence     float64        `json:"vcv_mean_confidence,omitempty"`
 	SingleCVBank          bool           `json:"single_cv_bank"`
 	WarningEntryCount     int            `json:"warning_entry_count"`
 	Entries               []CVEntryAudit `json:"entries"`
@@ -30,6 +33,7 @@ type CVEntryAudit struct {
 	Alias           string   `json:"alias"`
 	Kind            string   `json:"kind"`
 	InitialContext  bool     `json:"initial_context,omitempty"`
+	ContextVCV      bool     `json:"context_vcv,omitempty"`
 	Source          string   `json:"source"`
 	OtoPath         string   `json:"oto_path"`
 	OtoLine         int      `json:"oto_line"`
@@ -40,6 +44,9 @@ type CVEntryAudit struct {
 	OverlapMS       float64  `json:"overlap_ms"`
 	TrimmedLengthMS float64  `json:"trimmed_length_ms,omitempty"`
 	VowelTailMS     float64  `json:"vowel_tail_ms,omitempty"`
+	StableStartMS   float64  `json:"stable_start_ms,omitempty"`
+	StableEndMS     float64  `json:"stable_end_ms,omitempty"`
+	Confidence      float64  `json:"confidence,omitempty"`
 	Warnings        []string `json:"warnings,omitempty"`
 }
 
@@ -73,13 +80,14 @@ func (b *Bank) AuditSingleCV() (*SingleCVAudit, error) {
 			case kind == AliasVC:
 				result.VCEntries++
 			}
+			contextVCV := IsContextVCVAlias(alias)
 			row := CVEntryAudit{
-				Alias: alias, Kind: string(kind), InitialContext: IsInitialContextAlias(alias),
+				Alias: alias, Kind: string(kind), InitialContext: IsInitialContextAlias(alias), ContextVCV: contextVCV,
 				Source: relativePath(b.Root, entry.Filename), OtoPath: relativePath(b.Root, entry.OtoPath), OtoLine: entry.Line,
 				OffsetMS: entry.Offset, FixedMS: entry.Fixed, BlankMS: entry.Blank,
 				PreutteranceMS: entry.Preutterance, OverlapMS: entry.Overlap,
 			}
-			row.Warnings = append(row.Warnings, auditTimingWarnings(entry)...)
+			row.Warnings = append(row.Warnings, auditTimingWarnings(entry, contextVCV)...)
 			if entry.Filename == "" {
 				row.Warnings = append(row.Warnings, "missing-source")
 			} else if pcm, err := audio.ReadWav(filepath.Clean(entry.Filename)); err != nil {
@@ -92,8 +100,23 @@ func (b *Bank) AuditSingleCV() (*SingleCVAudit, error) {
 				frames := len(trimmed.Data) / trimmed.Channels
 				row.TrimmedLengthMS = float64(frames) * 1000 / float64(trimmed.SampleRate)
 				row.VowelTailMS = math.Max(0, row.TrimmedLengthMS-math.Max(0, entry.Fixed))
-				if row.VowelTailMS < 40 {
+				minimumTail := 40.0
+				if contextVCV {
+					minimumTail = 45
+				}
+				if row.VowelTailMS < minimumTail {
 					row.Warnings = append(row.Warnings, "short-vowel-tail")
+				}
+				if contextVCV {
+					profile := b.CalibrateSpeech(entry)
+					row.StableStartMS = profile.StableStartMS
+					row.StableEndMS = profile.StableEndMS
+					row.Confidence = profile.Confidence
+					result.VCVProfiledEntries++
+					result.VCVMeanConfidence += profile.Confidence
+					if profile.StableEndMS > profile.StableStartMS {
+						result.VCVStableEntries++
+					}
 				}
 				if acoustic.RMS(acoustic.Mono(trimmed)) < 1e-5 {
 					row.Warnings = append(row.Warnings, "trim-silent")
@@ -107,10 +130,13 @@ func (b *Bank) AuditSingleCV() (*SingleCVAudit, error) {
 		}
 	}
 	result.SingleCVBank = result.ContextVCVEntries == 0 && result.VCEntries == 0
+	if result.VCVProfiledEntries > 0 {
+		result.VCVMeanConfidence /= float64(result.VCVProfiledEntries)
+	}
 	return result, nil
 }
 
-func auditTimingWarnings(entry oto.Entry) []string {
+func auditTimingWarnings(entry oto.Entry, contextVCV bool) []string {
 	warnings := make([]string, 0, 4)
 	if entry.Preutterance > entry.Fixed+1 {
 		warnings = append(warnings, "preutterance-after-fixed")
@@ -118,11 +144,14 @@ func auditTimingWarnings(entry oto.Entry) []string {
 	if entry.Overlap > entry.Preutterance+1 {
 		warnings = append(warnings, "overlap-after-preutterance")
 	}
-	if entry.Preutterance > 120 {
+	if !contextVCV && entry.Preutterance > 120 {
 		warnings = append(warnings, "long-preutterance")
 	}
-	if entry.Fixed > 200 {
+	if !contextVCV && entry.Fixed > 200 {
 		warnings = append(warnings, "long-fixed")
+	}
+	if contextVCV && entry.Preutterance > 150 {
+		warnings = append(warnings, "vcv-preutterance-clamp-needed")
 	}
 	return warnings
 }

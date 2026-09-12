@@ -123,7 +123,12 @@ func IsSingleCVSelections(selections []Selection) bool {
 
 func isVowelContext(value string) bool {
 	value = strings.ToLower(value)
-	return value == "a" || value == "i" || value == "u" || value == "e" || value == "o" || value == "n"
+	switch value {
+	case "a", "i", "u", "e", "o", "n", "あ", "い", "う", "え", "お", "ん", "ア", "イ", "ウ", "エ", "オ", "ン":
+		return true
+	default:
+		return false
+	}
 }
 
 func isConsonantContext(value string) bool {

@@ -117,17 +117,13 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	phraseStartMS := 0.0
 	phraseTiming := providerID == "worldline-r-faithful" || customWorld
 	if phraseTiming {
-		phoneUnits := synthesisPlan.Units
+		phoneUnits := normalizedPhoneTimingUnits(synthesisPlan, cfg.ReleaseMS)
 		if synthesisPlan.SingleCV {
-			phoneUnits = append([]plan.Unit(nil), synthesisPlan.Units...)
 			for index := range phoneUnits {
 				if phoneUnits[index].Silent || phoneUnits[index].Role != "mora" {
 					continue
 				}
-				timing := normalizePlanTiming(synthesisPlan, phoneUnits[index], cfg.ReleaseMS)
-				phoneUnits[index].PreutteranceMS = timing.preutteranceMS
-				phoneUnits[index].OverlapMS = singleCVWorldOverlapMS(synthesisPlan, phoneUnits[index], timing.preutteranceMS)
-				phoneUnits[index].ConsonantMS = timing.consonantMS
+				phoneUnits[index].OverlapMS = singleCVWorldOverlapMS(synthesisPlan, phoneUnits[index], phoneUnits[index].PreutteranceMS)
 			}
 		}
 		phoneTimings, phraseStartMS = openUtauPhoneTimingsWithCoda(phoneUnits, cfg.CVVCTiming, providerID == "utautts-world-phrase")
@@ -144,7 +140,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		if len(phoneTimings) == len(synthesisPlan.Units) && !unit.Silent {
 			timings[i].preutteranceMS = phoneTimings[i].preutter
 			timings[i].overlapMS = phoneTimings[i].overlap
-			if !synthesisPlan.SingleCV || unit.Role != "mora" {
+			if unit.Role != "mora" || (!synthesisPlan.SingleCV && !isVCVUnit(*unit)) {
 				timings[i].consonantMS = unit.ConsonantMS
 				timings[i].scale = 1
 			}
@@ -257,6 +253,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		lengthMS := requiredLength
 		pitchStartMS := positionMS
 		singleCVUnit := synthesisPlan.SingleCV && unit.Role == "mora"
+		vcvUnit := unit.Role == "mora" && isVCVUnit(*unit)
 		volume, modulation, tempo := 100.0, 0.0, 120.0
 		if unit.Role == "transition" {
 			volume *= cfg.CVVCTransitionGain
@@ -266,7 +263,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		if phraseTiming {
 			// OpenUTAUと同じ位置からbendを始め、先頭の余剰をskipする。
 			pitchLeadingMS := unit.PreutteranceMS
-			if singleCVUnit {
+			if singleCVUnit || vcvUnit {
 				pitchLeadingMS = phoneTimings[i].preutter
 			}
 			skipMS = math.Max(0, pitchLeadingMS-timing.preutteranceMS)
@@ -288,7 +285,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 				positionMS = unit.NoteStartMS - phoneTiming.preutter + leadingMS
 			}
 			consonantLength := unit.ConsonantMS
-			if singleCVUnit {
+			if singleCVUnit || isVCVUnit(*unit) {
 				consonantLength = timing.consonantMS
 			}
 			requiredLength = math.Max(unit.DurationMS+durCorrection+skipMS, consonantLength)
@@ -333,14 +330,14 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 			cacheKey += fmt.Sprintf("|fs=%d", sampleRate)
 		}
 		var speech *provider.WorldSpeechTiming
-		if providerID == "utautts-world-phrase" && unit.Role == "mora" && (singleCVUnit || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied) {
+		if providerID == "utautts-world-phrase" && unit.Role == "mora" && (singleCVUnit || vcvUnit || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied) {
 			targetOnset := skipMS + unit.NoteStartMS + leadingMS - positionMS
-			if singleCVUnit {
+			if singleCVUnit || vcvUnit {
 				targetOnset = timing.preutteranceMS
 			}
 			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS,
 				TargetOnsetMS: targetOnset, ProtectStop: speechStop(synthesisPlan, *unit)}
-			if singleCVUnit {
+			if singleCVUnit || vcvUnit {
 				speech.TargetFixedMS = timing.consonantMS
 			}
 			if i > 0 {

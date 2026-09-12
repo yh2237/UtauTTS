@@ -30,12 +30,12 @@ func (b *Bank) populateAcousticScores(candidates []Selection, previous []Selecti
 	frames := make(map[oto.Entry]acoustic.Frame)
 	groups := make(map[string][]acoustic.Frame)
 	for _, candidate := range candidates {
-		frame := b.entryAcousticFrame(candidate.Entry, frames)
+		frame := b.entryAcousticFrame(candidate.Entry, candidate.Kind, frames)
 		if frame.Valid {
 			groups[acousticGroupKey(b.Root, candidate)] = append(groups[acousticGroupKey(b.Root, candidate)], frame)
 		}
 		if candidate.Transition != nil {
-			b.entryAcousticFrame(candidate.Transition.Entry, frames)
+			b.entryAcousticFrame(candidate.Transition.Entry, candidate.Transition.Kind, frames)
 		}
 	}
 	medians := make(map[string]acoustic.Frame, len(groups))
@@ -88,12 +88,17 @@ func (b *Bank) populateAcousticScores(candidates []Selection, previous []Selecti
 	}
 }
 
-func (b *Bank) entryAcousticFrame(entry oto.Entry, cache map[oto.Entry]acoustic.Frame) acoustic.Frame {
+func (b *Bank) entryAcousticFrame(entry oto.Entry, kind AliasKind, cache map[oto.Entry]acoustic.Frame) acoustic.Frame {
 	if frame, ok := cache[entry]; ok {
 		return frame
 	}
 	boundary := b.extractor.Boundary(entry)
 	frame := boundary.Incoming
+	if kind == AliasVCV || IsContextVCVAlias(entry.Alias) {
+		// VCVはfixedの終端側を母音の代表点として候補を比較する。
+		// incoming側は閉鎖区間になりやすく録音間比較に向かない。
+		frame = boundary.Outgoing
+	}
 	if !frame.Valid {
 		frame = boundary.Outgoing
 	}
@@ -156,11 +161,15 @@ func acousticPairAdjustment(features connection.PairFeatures) float64 {
 	if !features.PreviousOutgoing.Valid || !features.CurrentIncoming.Valid {
 		return 0
 	}
-	result := -math.Min(2, features.SpectrumDelta*0.08)
-	result -= math.Min(1.5, features.RMSDelta*0.08)
+	spectrumWeight, rmsWeight := 0.08, 0.08
+	if features.CurrentVCV {
+		spectrumWeight, rmsWeight = 0.045, 0.045
+	}
+	result := -math.Min(2, features.SpectrumDelta*spectrumWeight)
+	result -= math.Min(1.5, features.RMSDelta*rmsWeight)
 	if features.PreviousOutgoing.F0Hz > 0 && features.CurrentIncoming.F0Hz > 0 {
 		result -= math.Min(2, features.F0DeltaCents*0.004)
-	} else if features.VoicingMismatch {
+	} else if features.VoicingMismatch && !features.CurrentVCV {
 		result -= 0.75
 	}
 	if features.WaveformCorrelation > 0 {

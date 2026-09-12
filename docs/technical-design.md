@@ -95,7 +95,7 @@ path score = Σ local candidate score + Σ adjacent join score
 
 local scoreにはaliasのfallback段階、`oto.ini`値の整合性、subbankや形式の優先度が入ります。任意の音響選択モードでは候補のRMS、F0、有声率などから得た保守的な補正も加わります。
 
-join scoreは隣接原音のenergy、スペクトル、F0などの境界特徴と同じ録音groupかどうかを評価します。通常は手設計scoreを使い研究用途なら学習済みjoin-cost JSONへ差し替えられます。`greedy`と`target-only`は診断・互換比較用です。
+join scoreは隣接原音のenergy、スペクトル、F0などの境界特徴と同じ録音groupかどうかを評価します。同じWAV内の前向きなanchorには加点しますが、560 msを超える離れた移動は加点を減らします。VCVのincoming側が閉鎖区間になる場合は減点を弱め、母音側の候補scoreを優先します。通常は手設計scoreを使い研究用途なら学習済みjoin-cost JSONへ差し替えられます。`greedy`と`target-only`は診断・互換比較用です。
 
 候補が疎なUTAU音源では境界の連続性を優先すると音素文脈や声質が変わることがあります。なのでjoin scoreは候補の言語的な適合性を置き換えず保守的な補助値として扱います。
 
@@ -236,7 +236,7 @@ CLIとHTTP Serverも同じrenderer catalogと`synth.Service`を使います。�
 
 ### 連続anchorは高品質でも適用範囲が狭い
 
-同じ録音WAV内の隣接原音は分割せず連続した時間写像を使える場合があります。ただし対応する録音列は限られて局所的な方式切替によって新しい境界も生まれるので標準Rendererには統合していません。
+同じ録音WAV内の隣接原音は候補選択で連続性を加味します。原音を分割せず連続した時間写像へ置き換える方式は対応する録音列が限られ局所的な方式切替で新しい境界も生まれるため標準Rendererには統合していません。
 
 ### 波形補修と候補選択には上限がある
 

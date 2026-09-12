@@ -325,10 +325,13 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			aliasKind = voicebank.ClassifyAlias(selection.Alias)
 		}
 		mainUnit := unitFromSelection(&selection, position, cursor, duration, prediction, "mora")
-		if (cfg.SpeechTiming || result.SingleCV) && mora.Vowel != "" && mora.Vowel != "cl" && !mainUnit.Silent {
+		// VCVはSpeechTimingが無効でも原音の境界を解析する。
+		// 実際のspeech retimeはSpeechTimingの設定に従う。
+		isVCV := aliasKind == voicebank.AliasVCV || voicebank.IsContextVCVAlias(selection.Alias)
+		if (cfg.SpeechTiming || result.SingleCV || isVCV) && mora.Vowel != "" && mora.Vowel != "cl" && !mainUnit.Silent {
 			profile := bank.CalibrateSpeech(selection.Entry)
 			mainUnit.SpeechProfile = &profile
-			if profile.Applied && !result.SingleCV {
+			if profile.Applied && !result.SingleCV && cfg.SpeechTiming {
 				mainUnit.ConsonantMS = profile.SuggestedFixedMS
 			}
 		}
