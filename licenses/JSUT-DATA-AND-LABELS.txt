@@ -2,10 +2,9 @@ JSUT and jsut-label provenance
 ==============================
 
 The official bundled learned prosody models were trained from the JSUT Japanese
-speech corpus and are distributed with this application as model files. UtauTTS
-also bundles a selection of 300 unchanged BASIC5000 sentences as prompts for
-manual prosody adjustment. The original JSUT recordings and the complete label
-repository are not bundled in UtauTTS.
+speech corpus and are distributed with this application as model files. The
+original JSUT recordings and the complete label repository are not bundled in
+UtauTTS.
 
 JSUT corpus
 -----------
@@ -31,32 +30,6 @@ Reference:
 Ryosuke Sonobe, Shinnosuke Takamichi, and Hiroshi Saruwatari,
 "JSUT corpus: free large-scale Japanese speech corpus for end-to-end speech
 synthesis," arXiv preprint 1711.00354, 2017.
-
-Bundled BASIC5000 prompt selection
-----------------------------------
-
-The GUI resource qt/prosody-prompts-ja-v1.json contains 300 sentences selected
-from JSUT BASIC5000. The sentence text is unchanged. UtauTTS assigns the selected
-sentences to six 50-sentence packs and adds its own separate 10-sentence starter
-pack. Selection metadata records the source transcript SHA-256 and tool used.
-
-The applicable terms identified by the upstream JSUT LICENCE file are:
-
-- TANAKA corpus text: CC BY 2.0
-  http://www.edrdg.org/wiki/index.php/Tanaka_Corpus
-  https://creativecommons.org/licenses/by/2.0/
-- Japanese Wikipedia text: CC BY-SA 3.0
-  https://ja.wikipedia.org/
-  https://creativecommons.org/licenses/by-sa/3.0/
-- JSUT original sentences: CC BY-SA 4.0
-  https://creativecommons.org/licenses/by-sa/4.0/
-
-Upstream JSUT information and licence mapping:
-https://sites.google.com/site/shinnosuketakamichi/publication/jsut
-
-When redistributing the bundled prompt resource or exported teacher data that
-contains these sentences, preserve this attribution and the applicable Creative
-Commons terms. No JSUT audio is included in the prompt resource.
 
 jsut-label BASIC5000 labels
 ---------------------------

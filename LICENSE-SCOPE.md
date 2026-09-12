@@ -17,19 +17,13 @@ UtauTTSのオリジナルコードは[`LICENSE`](./LICENSE)のMIT Licenseに従�
 
 JSUTの元音声、BASIC5000全体、jsut-labelの全データは配布物に含まれません。モデルの利用条件は、これらの上流データの権利を移転するものではありません。
 
-## 抑揚調整用の文章セット
-
-GUIに組み込まれる`qt/prosody-prompts-ja-v1.json`には、UtauTTS独自の10文と、JSUT BASIC5000から選択した300文が含まれます。選択した文章の出典と条件は、JSONの`sources`メタデータと[`licenses/JSUT-DATA-AND-LABELS.txt`](./licenses/JSUT-DATA-AND-LABELS.txt)に記載しています。ファイル全体にMIT Licenseを適用することはできません。
-
-この文章セットまたは、文章セットを含む教師データを再配布する場合は、田中コーパス、Wikipedia、JSUT独自文それぞれの出典表示とライセンス条件を維持してください。
-
 ## ボイスバンク
 
 GUI版には、メカニカルガール公式配布の「足立レイ UTAU音源 ver3.5.0」を同梱しています。この音源はUtauTTS本体のMIT Licenseの対象外です。利用条件は[同梱ボイスバンクの案内](./docs/voicebank.md)、音源に付属する文書、[公式ガイドライン](https://mechanicalgirl.jp/guidelines/)を確認してください。Server版にはこの音源を同梱していません。
 
 ## その他の第三者コンポーネント
 
-OpenUtau、WORLD、WORLDLINE、Qt、FFmpeg、Breeze Icons、Open JTalk、Go/Pythonの依存関係などには、それぞれのライセンスと通知が適用されます。詳細は[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、[Windows GUI通知](./THIRD_PARTY_NOTICES-WINDOWS-GUI.txt)、[macOS GUI通知](./THIRD_PARTY_NOTICES-MACOS-GUI.txt)、[`licenses/`](./licenses/)、各コンポーネントの同梱文書を確認してください。
+OpenUtau、WORLD、Qt、FFmpeg、Breeze Icons、Open JTalk、Go/Pythonの依存関係などには、それぞれのライセンスと通知が適用されます。詳細は[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、[Windows GUI通知](./THIRD_PARTY_NOTICES-WINDOWS-GUI.txt)、[macOS GUI通知](./THIRD_PARTY_NOTICES-MACOS-GUI.txt)、[`licenses/`](./licenses/)、各コンポーネントの同梱文書を確認してください。
 
 アプリケーションアイコンとUIアイコンも、出典ごとに利用条件が異なります。`icons/`および`qt/assets/icons/`のアイコンを再配布・改変する場合は、対応する通知とライセンスを確認してください。
 
