@@ -23,6 +23,7 @@ type manifest struct {
 
 type unit struct {
 	Speech            *provider.WorldSpeechTiming `json:"speech,omitempty"`
+	LegacyMix         bool                        `json:"legacy_mix,omitempty"`
 	CacheKey          string                      `json:"cache_key"`
 	Source            string                      `json:"source"`
 	FrqPath           string                      `json:"frq_path"`
@@ -42,6 +43,7 @@ type unit struct {
 	Volume            float64                     `json:"volume"`
 	Modulation        float64                     `json:"modulation"`
 	Tempo             float64                     `json:"tempo"`
+	EnergyFactor      float64                     `json:"energy_factor"`
 	Envelope          []envelopePoint             `json:"envelope"`
 }
 
@@ -199,20 +201,20 @@ func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
 	}
 	for index, source := range options.Units {
 		target := unit{
+			Speech: source.Speech, LegacyMix: source.LegacyMix,
 			CacheKey: source.CacheKey, Source: source.Source, FrqPath: source.FRQPath,
 			PositionMS: source.PositionMS, SkipMS: source.SkipMS, LengthMS: source.LengthMS,
 			FadeInMS: source.FadeInMS, FadeOutMS: source.FadeOutMS, OffsetMS: source.OffsetMS,
 			RequiredLengthMS: source.RequiredLengthMS, ConsonantMS: source.ConsonantMS,
 			CutoffMS: source.CutoffMS, Tone: source.Tone, ConsonantVelocity: source.ConsonantVelocity,
 			PitchStartMS: source.PitchStartMS, PitchLengthMS: source.PitchLengthMS,
-			Volume: source.Volume, Modulation: source.Modulation, Tempo: source.Tempo,
+			Volume: source.Volume, Modulation: source.Modulation, Tempo: source.Tempo, EnergyFactor: source.EnergyFactor,
 			Envelope: make([]envelopePoint, len(source.Envelope)),
 		}
 		for pointIndex, point := range source.Envelope {
 			target.Envelope[pointIndex] = envelopePoint{XMS: point.XMS, Y: point.Y}
 		}
 		input.Units[index] = target
-		input.Units[index].Speech = source.Speech
 		if source.Speech != nil && input.Engine != "utautts-world-phrase" {
 			return manifest{}, fmt.Errorf("speech feature processing requires utautts-world-phrase")
 		}

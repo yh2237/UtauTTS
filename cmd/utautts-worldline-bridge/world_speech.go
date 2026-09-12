@@ -11,7 +11,7 @@ type worldSpeechMap struct {
 }
 
 func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
-	if item.Speech == nil {
+	if item.Speech == nil || item.Speech.PreserveStopOnly {
 		return worldSpeechMap{}, false
 	}
 	// Analysis starts at the preceding WORLD frame rather than exactly oto.offset.

@@ -65,6 +65,42 @@ func TestWorldlineProviderJobCarriesCommonPlanAndResources(t *testing.T) {
 	}
 }
 
+func TestWorldlineProviderJobCarriesEnergyFactor(t *testing.T) {
+	job, err := worldlineProviderJob(&plan.Plan{Version: plan.Version}, Config{}, worldlineManifest{
+		Engine: "utautts-world-phrase", SampleRate: 44100,
+		Units: []worldlineManifestUnit{{Source: "voice.wav", EnergyFactor: .65, LegacyMix: true}},
+	}, "bridge.exe")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := job.Options.Worldline.Units[0].EnergyFactor; got != .65 {
+		t.Fatalf("energy factor = %f, want .65", got)
+	}
+	if !job.Options.Worldline.Units[0].LegacyMix {
+		t.Fatal("legacy mix flag was not carried into the provider job")
+	}
+}
+
+func TestLegacyJapaneseContinuousMixOnlyUsesOrdinaryJapanesePlans(t *testing.T) {
+	cases := []struct {
+		name string
+		plan *plan.Plan
+		want bool
+	}{
+		{name: "japanese", plan: &plan.Plan{Language: "ja", Phonemizer: "ja-kana"}, want: true},
+		{name: "single-cv", plan: &plan.Plan{Language: "ja", SingleCV: true}, want: false},
+		{name: "speech-timing", plan: &plan.Plan{Language: "ja", SpeechTiming: true}, want: false},
+		{name: "english", plan: &plan.Plan{Language: "en", Phonemizer: "en-vccv"}, want: false},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			if got := legacyJapaneseContinuousMix(test.plan); got != test.want {
+				t.Fatalf("legacy mix = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
 func TestWorldSpeechJobAndExportReport(t *testing.T) {
 	speech := &provider.WorldSpeechTiming{UnitIndex: 0, SourceOnsetMS: 60, TargetOnsetMS: 40, ProtectStop: true}
 	p := &plan.Plan{Units: []plan.Unit{{DurationMS: 120}}}

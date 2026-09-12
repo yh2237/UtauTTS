@@ -2,6 +2,7 @@ package render
 
 import (
 	"math"
+	"reflect"
 	"testing"
 
 	"utautts/internal/frontend"
@@ -65,6 +66,33 @@ func TestNormalizedPhoneTimingUnitsApplyVCVAnchors(t *testing.T) {
 		t.Fatalf("normalized phone units = %+v", units)
 	}
 	if p.Units[0].PreutteranceMS != 210 || p.Units[0].ConsonantMS != 360 {
+		t.Fatalf("source plan was mutated: %+v", p.Units[0])
+	}
+}
+
+func TestWorldlineVCVTimingKeepsOTOAnchorsUnlessSpeechTimingIsEnabled(t *testing.T) {
+	unit := plan.Unit{Role: "mora", AliasKind: "VCV", DurationMS: 140,
+		PreutteranceMS: 210, OverlapMS: 70, ConsonantMS: 360,
+		SpeechProfile: &voicebank.SpeechProfile{Applied: true, TrimmedLengthMS: 560, StableStartMS: 335}}
+	plain := worldlineTiming(&plan.Plan{}, unit, 20)
+	if plain.preutteranceMS != 210 || plain.consonantMS != 360 || plain.overlapMS != 70 {
+		t.Fatalf("WORLD default changed oto anchors: %+v", plain)
+	}
+	optIn := worldlineTiming(&plan.Plan{SpeechTiming: true}, unit, 20)
+	if optIn.preutteranceMS >= unit.PreutteranceMS || optIn.consonantMS >= unit.ConsonantMS || !optIn.cvApplied {
+		t.Fatalf("WORLD speech timing did not apply VCV normalization: %+v", optIn)
+	}
+}
+
+func TestWorldlinePhoneTimingUnitsDoesNotMutatePlan(t *testing.T) {
+	unit := plan.Unit{Role: "mora", AliasKind: "VCV", DurationMS: 140,
+		PreutteranceMS: 210, OverlapMS: 70, ConsonantMS: 360}
+	p := &plan.Plan{Units: []plan.Unit{unit}}
+	got := worldlinePhoneTimingUnits(p, 20)
+	if len(got) != 1 || !reflect.DeepEqual(got[0], unit) {
+		t.Fatalf("WORLD default phone timing changed: %+v", got)
+	}
+	if !reflect.DeepEqual(p.Units[0], unit) {
 		t.Fatalf("source plan was mutated: %+v", p.Units[0])
 	}
 }

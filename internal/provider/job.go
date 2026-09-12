@@ -61,7 +61,10 @@ type WorldlineOptions struct {
 }
 
 type WorldlineUnit struct {
-	Speech            *WorldSpeechTiming       `json:"speech,omitempty"`
+	Speech *WorldSpeechTiming `json:"speech,omitempty"`
+	// LegacyMix keeps ordinary Japanese continuous-bank units on the original
+	// WORLD feature mix. The host sets this when no speech-timing correction is used.
+	LegacyMix         bool                     `json:"legacy_mix,omitempty"`
 	CacheKey          string                   `json:"cache_key,omitempty"`
 	Source            string                   `json:"source"`
 	FRQPath           string                   `json:"frq_path,omitempty"`
@@ -81,6 +84,7 @@ type WorldlineUnit struct {
 	Volume            float64                  `json:"volume,omitempty"`
 	Modulation        float64                  `json:"modulation,omitempty"`
 	Tempo             float64                  `json:"tempo,omitempty"`
+	EnergyFactor      float64                  `json:"energy_factor,omitempty"`
 	Envelope          []WorldlineEnvelopePoint `json:"envelope,omitempty"`
 }
 
@@ -89,14 +93,15 @@ const CapabilityCodaReleaseV1 = "coda_release_v1"
 
 // WorldSpeechTiming contains request-local anchors relative to the trimmed source.
 type WorldSpeechTiming struct {
-	CodaRelease   bool    `json:"coda_release,omitempty"`
-	UnitIndex     int     `json:"unit_index"`
-	SourceOnsetMS float64 `json:"source_onset_ms"`
-	TargetOnsetMS float64 `json:"target_onset_ms"`
-	ProtectStop   bool    `json:"protect_stop,omitempty"`
-	VowelJoin     bool    `json:"vowel_join,omitempty"`
-	TargetFixedMS float64 `json:"target_fixed_ms,omitempty"`
-	TargetJoinMS  float64 `json:"target_join_ms,omitempty"`
+	CodaRelease      bool    `json:"coda_release,omitempty"`
+	PreserveStopOnly bool    `json:"preserve_stop_only,omitempty"`
+	UnitIndex        int     `json:"unit_index"`
+	SourceOnsetMS    float64 `json:"source_onset_ms"`
+	TargetOnsetMS    float64 `json:"target_onset_ms"`
+	ProtectStop      bool    `json:"protect_stop,omitempty"`
+	VowelJoin        bool    `json:"vowel_join,omitempty"`
+	TargetFixedMS    float64 `json:"target_fixed_ms,omitempty"`
+	TargetJoinMS     float64 `json:"target_join_ms,omitempty"`
 }
 
 type WorldSpeechResult struct {

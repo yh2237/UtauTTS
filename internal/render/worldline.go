@@ -34,6 +34,7 @@ func renderUtauTTSWorldPhrase(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM,
 
 type worldlineManifestUnit struct {
 	Speech            *provider.WorldSpeechTiming `json:"speech,omitempty"`
+	LegacyMix         bool                        `json:"legacy_mix,omitempty"`
 	CacheKey          string                      `json:"cache_key,omitempty"`
 	Source            string                      `json:"source"`
 	FRQPath           string                      `json:"frq_path,omitempty"`
@@ -53,6 +54,7 @@ type worldlineManifestUnit struct {
 	Volume            float64                     `json:"volume,omitempty"`
 	Modulation        float64                     `json:"modulation,omitempty"`
 	Tempo             float64                     `json:"tempo,omitempty"`
+	EnergyFactor      float64                     `json:"energy_factor,omitempty"`
 	Envelope          []worldlineEnvelopePoint    `json:"envelope,omitempty"`
 }
 
@@ -93,8 +95,9 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	var phoneTimings []openUtauPhoneTiming
 	phraseStartMS := 0.0
 	phraseTiming := true
+	legacyMix := legacyJapaneseContinuousMix(synthesisPlan)
 	if phraseTiming {
-		phoneUnits := normalizedPhoneTimingUnits(synthesisPlan, cfg.ReleaseMS)
+		phoneUnits := worldlinePhoneTimingUnits(synthesisPlan, cfg.ReleaseMS)
 		if synthesisPlan.SingleCV {
 			for index := range phoneUnits {
 				if phoneUnits[index].Silent || phoneUnits[index].Role != "mora" {
@@ -112,11 +115,13 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		unit.SpeechRetimeApplied = false
 		unit.BoundaryEnvelope = ""
 		unit.SpeechJoinApplied = false
-		timings[i] = normalizePlanTiming(synthesisPlan, *unit, cfg.ReleaseMS)
+		vcvUnit := unit.Role == "mora" && isVCVUnit(*unit)
+		vcvSpeech := vcvUnit && synthesisPlan.SpeechTiming
+		timings[i] = worldlineTiming(synthesisPlan, *unit, cfg.ReleaseMS)
 		if len(phoneTimings) == len(synthesisPlan.Units) && !unit.Silent {
 			timings[i].preutteranceMS = phoneTimings[i].preutter
 			timings[i].overlapMS = phoneTimings[i].overlap
-			if unit.Role != "mora" || (!synthesisPlan.SingleCV && !isVCVUnit(*unit)) {
+			if unit.Role != "mora" || (!synthesisPlan.SingleCV && (!vcvUnit || !vcvSpeech)) {
 				timings[i].consonantMS = unit.ConsonantMS
 				timings[i].scale = 1
 			}
@@ -228,6 +233,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		pitchStartMS := positionMS
 		singleCVUnit := synthesisPlan.SingleCV && unit.Role == "mora"
 		vcvUnit := unit.Role == "mora" && isVCVUnit(*unit)
+		vcvSpeech := vcvUnit && synthesisPlan.SpeechTiming
 		volume, modulation, tempo := 100.0, 0.0, 120.0
 		if unit.Role == "transition" {
 			volume *= cfg.CVVCTransitionGain
@@ -237,7 +243,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		if phraseTiming {
 			// OpenUTAUと同じ位置からbendを始め、先頭の余剰をskipする。
 			pitchLeadingMS := unit.PreutteranceMS
-			if singleCVUnit || vcvUnit {
+			if singleCVUnit || vcvSpeech {
 				pitchLeadingMS = phoneTimings[i].preutter
 			}
 			skipMS = math.Max(0, pitchLeadingMS-timing.preutteranceMS)
@@ -259,7 +265,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 				positionMS = unit.NoteStartMS - phoneTiming.preutter + leadingMS
 			}
 			consonantLength := unit.ConsonantMS
-			if singleCVUnit || isVCVUnit(*unit) {
+			if singleCVUnit || vcvSpeech {
 				consonantLength = timing.consonantMS
 			}
 			requiredLength = math.Max(unit.DurationMS+durCorrection+skipMS, consonantLength)
@@ -300,14 +306,15 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		cacheKey := worldlineAnalysisCacheKey(cacheSource, frqPath, *unit, cacheVolume)
 		cacheKey += fmt.Sprintf("|fs=%d", sampleRate)
 		var speech *provider.WorldSpeechTiming
-		if providerID == "utautts-world-phrase" && unit.Role == "mora" && (singleCVUnit || vcvUnit || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied) {
+		protectStopOnly := providerID == "utautts-world-phrase" && !legacyMix && unit.Role == "mora" && !singleCVUnit && !vcvUnit && !vcvSpeech && speechStop(synthesisPlan, *unit)
+		if providerID == "utautts-world-phrase" && unit.Role == "mora" && (singleCVUnit || vcvSpeech || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied || protectStopOnly) {
 			targetOnset := skipMS + unit.NoteStartMS + leadingMS - positionMS
-			if singleCVUnit || vcvUnit {
+			if singleCVUnit || vcvSpeech {
 				targetOnset = timing.preutteranceMS
 			}
 			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS,
-				TargetOnsetMS: targetOnset, ProtectStop: speechStop(synthesisPlan, *unit)}
-			if singleCVUnit || vcvUnit {
+				TargetOnsetMS: targetOnset, ProtectStop: speechStop(synthesisPlan, *unit), PreserveStopOnly: protectStopOnly}
+			if singleCVUnit || vcvSpeech {
 				speech.TargetFixedMS = timing.consonantMS
 			}
 			if i > 0 {
@@ -323,9 +330,11 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		if codaRelease {
 			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS, TargetOnsetMS: skipMS + unit.NoteStartMS + leadingMS - positionMS, CodaRelease: true, ProtectStop: codaReleaseStop(*unit)}
 		}
+		// 日本語の連続音はv1.3.0のWORLD混合則を使う。単独音と
+		// 明示的な発話タイミング補正、多言語経路は新しい補正を使う。
 		manifest.Units = append(manifest.Units, worldlineManifestUnit{
 
-			Speech:   speech,
+			Speech: speech, LegacyMix: legacyMix,
 			CacheKey: cacheKey,
 			Source:   source, FRQPath: frqPath, PositionMS: positionMS, SkipMS: skipMS,
 			LengthMS: lengthMS, FadeInMS: fadeInMS,
@@ -333,6 +342,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 			ConsonantMS: unit.ConsonantMS, CutoffMS: unit.CutoffMS,
 			Tone: int(math.Round(69 + 12*math.Log2(unitPitch/440))), ConsonantVelocity: consonantVelocity,
 			PitchStartMS: pitchStartMS, Volume: volume, Modulation: modulation, Tempo: tempo,
+			EnergyFactor:  unit.EnergyFactor,
 			PitchLengthMS: pitchLengthMS, Envelope: envelopePoints,
 		})
 	}
@@ -385,6 +395,65 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	return pcm, nil
 }
 
+func legacyJapaneseContinuousMix(synthesisPlan *plan.Plan) bool {
+	if synthesisPlan == nil || synthesisPlan.SingleCV || synthesisPlan.SpeechTiming {
+		return false
+	}
+	language := strings.ToLower(strings.TrimSpace(synthesisPlan.Language))
+	phonemizer := strings.ToLower(strings.TrimSpace(synthesisPlan.Phonemizer))
+	return language == "ja" || phonemizer == "ja" || strings.HasPrefix(phonemizer, "ja-")
+}
+
+// worldlineTiming keeps VCV timing faithful to oto.ini unless the caller
+// explicitly enables speech timing. VCV fixed regions are already authored as
+// consonant boundaries and should not be retimed by the normal renderer path.
+func worldlineTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64) effectiveTiming {
+	timing := normalizeTiming(unit, releaseMS)
+	if synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
+		return timing
+	}
+	if synthesisPlan.SingleCV {
+		return normalizeSingleCVTiming(synthesisPlan, unit, timing, releaseMS)
+	}
+	if synthesisPlan.SpeechTiming && isVCVUnit(unit) {
+		return normalizeVCVTiming(unit, timing, releaseMS)
+	}
+	return timing
+}
+
+// worldlinePhoneTimingUnits mirrors the phone timing passed to the bridge.
+// VCV normalization is opt-in for the phrase renderer so ordinary synthesis
+// keeps the authored oto.ini anchors intact.
+func worldlinePhoneTimingUnits(synthesisPlan *plan.Plan, releaseMS float64) []plan.Unit {
+	if synthesisPlan == nil {
+		return nil
+	}
+	needsCopy := synthesisPlan.SingleCV
+	if !needsCopy && synthesisPlan.SpeechTiming {
+		for _, unit := range synthesisPlan.Units {
+			if isVCVUnit(unit) {
+				needsCopy = true
+				break
+			}
+		}
+	}
+	if !needsCopy {
+		return synthesisPlan.Units
+	}
+	result := append([]plan.Unit(nil), synthesisPlan.Units...)
+	for index := range result {
+		unit := result[index]
+		if unit.Silent || unit.Role != "mora" || (!synthesisPlan.SingleCV && !isVCVUnit(unit)) {
+			continue
+		}
+		timing := worldlineTiming(synthesisPlan, unit, releaseMS)
+		result[index].PreutteranceMS = timing.preutteranceMS
+		result[index].OverlapMS = timing.overlapMS
+		result[index].ConsonantMS = timing.consonantMS
+	}
+	return result
+}
+
 func worldlineProviderJob(synthesisPlan *plan.Plan, cfg Config, manifest worldlineManifest, bridge string) (provider.UnitRendererJob, error) {
 	planData, err := json.Marshal(plan.Clone(synthesisPlan))
 	if err != nil {
@@ -409,14 +478,14 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg Config, manifest worldli
 	}
 	for index, unit := range manifest.Units {
 		converted := provider.WorldlineUnit{
-			Speech:   unit.Speech,
+			Speech: unit.Speech, LegacyMix: unit.LegacyMix,
 			CacheKey: unit.CacheKey, Source: unit.Source, FRQPath: unit.FRQPath,
 			PositionMS: unit.PositionMS, SkipMS: unit.SkipMS, LengthMS: unit.LengthMS,
 			FadeInMS: unit.FadeInMS, FadeOutMS: unit.FadeOutMS, OffsetMS: unit.OffsetMS,
 			RequiredLengthMS: unit.RequiredLengthMS, ConsonantMS: unit.ConsonantMS,
 			CutoffMS: unit.CutoffMS, Tone: unit.Tone, ConsonantVelocity: unit.ConsonantVelocity,
 			PitchStartMS: unit.PitchStartMS, PitchLengthMS: unit.PitchLengthMS,
-			Volume: unit.Volume, Modulation: unit.Modulation, Tempo: unit.Tempo,
+			Volume: unit.Volume, Modulation: unit.Modulation, Tempo: unit.Tempo, EnergyFactor: unit.EnergyFactor,
 			Envelope: make([]provider.WorldlineEnvelopePoint, len(unit.Envelope)),
 		}
 		for pointIndex, point := range unit.Envelope {

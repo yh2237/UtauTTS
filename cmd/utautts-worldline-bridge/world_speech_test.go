@@ -65,6 +65,19 @@ func TestWorldSpeechMappingHonorsTargetFixed(t *testing.T) {
 	}
 }
 
+func TestWorldSpeechPreserveStopOnlyDoesNotRetargetFeatures(t *testing.T) {
+	u := unit{OffsetMS: 3, ConsonantMS: 70, RequiredLengthMS: 180,
+		Speech: &provider.WorldSpeechTiming{SourceOnsetMS: 50, TargetOnsetMS: 50, PreserveStopOnly: true}}
+	if _, ok := worldSpeechAnchors(u, 300); ok {
+		t.Fatal("preserve-only stop unexpectedly enabled feature retiming")
+	}
+	plain := u
+	plain.Speech = nil
+	if got, want := mapWorldSourceTime(u, 300, 90), mapWorldSourceTime(plain, 300, 90); got != want {
+		t.Fatalf("preserve-only stop changed source mapping: %f != %f", got, want)
+	}
+}
+
 func speechTestFeatures() worldFeatures {
 	f := worldFeatures{Frames: 7, FFTSize: 2, F0: []float64{180, 190, 200, 220, 210, 190, 180}, Spectrum: make([]float64, 14), Aperiodicity: make([]float64, 14)}
 	for i := range f.Spectrum {

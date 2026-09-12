@@ -61,12 +61,19 @@ func speechStop(p *plan.Plan, unit plan.Unit) bool {
 	if unit.Position < 0 || unit.Position >= len(p.Morae) {
 		return false
 	}
+	if isStopPhone(p.Morae[unit.Position].Consonant) {
+		return true
+	}
 	for _, phone := range p.Morae[unit.Position].Phones {
-		if phone.Role == "onset" && strings.Contains(" p py b by t d k ky g gy ", " "+strings.ToLower(phone.Symbol)+" ") {
+		if phone.Role == "onset" && isStopPhone(phone.Symbol) {
 			return true
 		}
 	}
 	return false
+}
+
+func isStopPhone(phone string) bool {
+	return strings.Contains(" p py b by t d k ky g gy ", " "+strings.ToLower(strings.TrimSpace(phone))+" ")
 }
 
 // Use the same source-to-output integral as resampleForPitchCurve. Scaling by

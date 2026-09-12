@@ -39,6 +39,17 @@ func TestSpeechRetimePreservesStopReleaseAndLength(t *testing.T) {
 	}
 }
 
+func TestSpeechStopUsesMoraConsonantWithoutPhoneMetadata(t *testing.T) {
+	p := &plan.Plan{Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
+	if !speechStop(p, plan.Unit{Position: 0}) {
+		t.Fatal("stop consonant was not detected without phone metadata")
+	}
+	p.Morae[0].Consonant = "s"
+	if speechStop(p, plan.Unit{Position: 0}) {
+		t.Fatal("fricative was classified as a stop")
+	}
+}
+
 func TestSpeechRetimeIdentityAndUncertainBoundaries(t *testing.T) {
 	const rate = 16000
 	source := make([]float64, 3200)

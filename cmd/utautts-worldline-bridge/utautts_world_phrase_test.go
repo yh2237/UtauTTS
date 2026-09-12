@@ -4,6 +4,8 @@ import (
 	"math"
 	"reflect"
 	"testing"
+
+	"utautts/internal/provider"
 )
 
 func TestWorldMixIsOrderIndependentAndPreservesFade(t *testing.T) {
@@ -26,10 +28,128 @@ func TestWorldMixIsOrderIndependentAndPreservesFade(t *testing.T) {
 	}
 }
 
+func TestWorldMixNormalizesOverlappingEnvelopeGain(t *testing.T) {
+	prepared := []preparedWorldUnit{{cached: cachedWorldUnit{duration: 20, features: worldFeatures{
+		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
+	}}}, {cached: cachedWorldUnit{duration: 20, features: worldFeatures{
+		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
+	}}}}
+	input := manifest{F0Curve: []float64{200, 200}, Units: []unit{
+		{LengthMS: 20, RequiredLengthMS: 20, Volume: 100},
+		{LengthMS: 20, RequiredLengthMS: 20, Volume: 100},
+	}}
+	result := mixWorldFeatures(input, prepared, 2, 1)
+	if math.Abs(result.Spectrum[0]-1) > 1e-9 {
+		t.Fatalf("overlap gain = %f, want 1", result.Spectrum[0])
+	}
+	if math.Abs(result.Aperiodicity[0]-.2) > 1e-9 {
+		t.Fatalf("overlap aperiodicity = %f, want .2", result.Aperiodicity[0])
+	}
+}
+
+func TestWorldMixLegacyModeKeepsOverlappingGain(t *testing.T) {
+	prepared := []preparedWorldUnit{{cached: cachedWorldUnit{duration: 20, features: worldFeatures{
+		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
+	}}}, {cached: cachedWorldUnit{duration: 20, features: worldFeatures{
+		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
+	}}}}
+	input := manifest{F0Curve: []float64{200, 200}, Units: []unit{
+		{LengthMS: 20, RequiredLengthMS: 20, Volume: 100, LegacyMix: true},
+		{LengthMS: 20, RequiredLengthMS: 20, Volume: 100, LegacyMix: true},
+	}}
+	result := mixWorldFeatures(input, prepared, 2, 1)
+	if math.Abs(result.Spectrum[0]-2) > 1e-9 {
+		t.Fatalf("legacy overlap gain = %f, want 2", result.Spectrum[0])
+	}
+	if math.Abs(result.Aperiodicity[0]-.2) > 1e-9 {
+		t.Fatalf("legacy overlap aperiodicity = %f, want .2", result.Aperiodicity[0])
+	}
+}
+
 func TestWorldEnvelopeUsesLinearFades(t *testing.T) {
 	item := unit{LengthMS: 200, FadeInMS: 50, FadeOutMS: 50}
 	if got := worldEnvelopeWeight(item, 25); math.Abs(got-0.5) > 1e-9 {
 		t.Fatalf("fade-in weight = %f, want 0.5", got)
+	}
+}
+
+func TestWorldEnvelopeUsesUTAUPoints(t *testing.T) {
+	item := unit{LengthMS: 150, Envelope: []envelopePoint{
+		{XMS: -100, Y: 0}, {XMS: -50, Y: 1}, {XMS: 0, Y: 1}, {XMS: 50, Y: 0},
+	}}
+	if got := worldEnvelopeWeight(item, 0); got != 0 {
+		t.Fatalf("envelope start = %f, want 0", got)
+	}
+	if got := worldEnvelopeWeight(item, 75); got != 1 {
+		t.Fatalf("envelope plateau = %f, want 1", got)
+	}
+	if got := worldEnvelopeWeight(item, 125); math.Abs(got-.5) > 1e-9 {
+		t.Fatalf("envelope release = %f, want .5", got)
+	}
+}
+
+func TestWorldEnvelopeLegacyModeUsesLinearFades(t *testing.T) {
+	item := unit{LengthMS: 150, FadeInMS: 50, Envelope: []envelopePoint{
+		{XMS: -100, Y: 0}, {XMS: -50, Y: 1}, {XMS: 0, Y: 1}, {XMS: 50, Y: 0},
+	}, LegacyMix: true}
+	if got := worldEnvelopeWeight(item, 25); math.Abs(got-.5) > 1e-9 {
+		t.Fatalf("legacy envelope weight = %f, want .5", got)
+	}
+}
+
+func TestWorldMixAppliesEnergyFactorAsAmplitude(t *testing.T) {
+	prepared := []preparedWorldUnit{{cached: cachedWorldUnit{duration: 20, features: worldFeatures{
+		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
+	}}}}
+	input := manifest{F0Curve: []float64{200, 200}, Units: []unit{{LengthMS: 20, RequiredLengthMS: 20, Volume: 100, EnergyFactor: .5}}}
+	result := mixWorldFeatures(input, prepared, 2, 1)
+	if math.Abs(result.Spectrum[0]-.25) > 1e-9 {
+		t.Fatalf("energy-scaled spectrum = %f, want .25", result.Spectrum[0])
+	}
+}
+
+func TestWorldMixNormalizesEnvelopeBeforeEnergyScaling(t *testing.T) {
+	prepared := []preparedWorldUnit{{cached: cachedWorldUnit{duration: 20, features: worldFeatures{
+		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
+	}}}, {cached: cachedWorldUnit{duration: 20, features: worldFeatures{
+		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
+	}}}}
+	input := manifest{F0Curve: []float64{200, 200}, Units: []unit{
+		{LengthMS: 20, RequiredLengthMS: 20, Volume: 100, EnergyFactor: .5},
+		{LengthMS: 20, RequiredLengthMS: 20, Volume: 100, EnergyFactor: .5},
+	}}
+	result := mixWorldFeatures(input, prepared, 2, 1)
+	if math.Abs(result.Spectrum[0]-.25) > 1e-9 {
+		t.Fatalf("energy-scaled overlap spectrum = %f, want .25", result.Spectrum[0])
+	}
+}
+
+func TestWorldUnitAmplitudeGainRestoresNeutralDefaults(t *testing.T) {
+	if got := worldUnitAmplitudeGain(unit{}); math.Abs(got-1) > 1e-9 {
+		t.Fatalf("neutral gain = %f, want 1", got)
+	}
+	if got := worldUnitAmplitudeGain(unit{Volume: 50, EnergyFactor: .8}); math.Abs(got-.4) > 1e-9 {
+		t.Fatalf("combined gain = %f, want .4", got)
+	}
+	if got := worldUnitAmplitudeGain(unit{Volume: 50, EnergyFactor: .8, LegacyMix: true}); math.Abs(got-.5) > 1e-9 {
+		t.Fatalf("legacy gain = %f, want .5", got)
+	}
+}
+
+func TestMapWorldFeatureTimeAppliesFractionalOtoOffset(t *testing.T) {
+	entry := cachedWorldUnit{duration: 300, sourceShiftMS: 3}
+	item := unit{ConsonantMS: 100, RequiredLengthMS: 100, ConsonantVelocity: 100}
+	if got := mapWorldFeatureTime(item, entry, 20); math.Abs(got-23) > 1e-9 {
+		t.Fatalf("feature source time = %f, want 23", got)
+	}
+	item.LegacyMix = true
+	if got := mapWorldFeatureTime(item, entry, 20); math.Abs(got-20) > 1e-9 {
+		t.Fatalf("legacy feature source time = %f, want 20", got)
+	}
+	item.ConsonantMS, item.RequiredLengthMS = 70, 180
+	item.Speech = &provider.WorldSpeechTiming{SourceOnsetMS: 50, TargetOnsetMS: 50}
+	if got := mapWorldFeatureTime(item, entry, 20); math.Abs(got-20) > 1e-9 {
+		t.Fatalf("speech-retimed source time = %f, want 20", got)
 	}
 }
 

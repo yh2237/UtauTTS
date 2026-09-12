@@ -29,10 +29,15 @@ func mixProtectedStopBursts(input manifest, prepared []preparedWorldUnit, wave [
 				transient: highPass(samples, actualRate, 280)}
 			sources[item.Source] = source
 		}
+		if item.Speech.PreserveStopOnly {
+			mixProtectedStopBurst(wave, source, worldSourceExactBaseMS(item.OffsetMS)+item.Speech.SourceOnsetMS-8,
+				item.PositionMS+item.Speech.TargetOnsetMS-item.SkipMS-8, 8, 32, item.Volume*worldUnitEnergy(item))
+			continue
+		}
 		if item.Speech.CodaRelease {
 			// 語末unitは短い終端範囲の外にpreutteranceを持つことがある。
 			mixProtectedStopBurst(wave, source, worldSourceFrameBaseMS(item.OffsetMS)+prepared[index].cached.duration-22,
-				item.PositionMS+item.LengthMS-22, 22, 4, item.Volume)
+				item.PositionMS+item.LengthMS-22, 22, 4, item.Volume*worldUnitEnergy(item))
 			continue
 		}
 		anchors, ok := worldSpeechAnchors(item, prepared[index].cached.duration)
@@ -41,17 +46,29 @@ func mixProtectedStopBursts(input manifest, prepared []preparedWorldUnit, wave [
 		}
 		if anchors.coda {
 			mixProtectedStopBurst(wave, source, worldSourceFrameBaseMS(item.OffsetMS)+anchors.sourceEnd-22,
-				item.PositionMS+anchors.targetEnd-item.SkipMS-22, 22, 4, item.Volume)
+				item.PositionMS+anchors.targetEnd-item.SkipMS-22, 22, 4, item.Volume*worldUnitEnergy(item))
 			continue
 		}
 		mixProtectedStopBurst(wave, source, worldSourceFrameBaseMS(item.OffsetMS)+anchors.sourceOnset-8,
-			item.PositionMS+anchors.targetOnset-item.SkipMS-8, 8, 32, item.Volume)
+			item.PositionMS+anchors.targetOnset-item.SkipMS-8, 8, 32, item.Volume*worldUnitEnergy(item))
 	}
+}
+
+func worldUnitEnergy(item unit) float64 {
+	energy := item.EnergyFactor
+	if energy <= 0 || math.IsNaN(energy) || math.IsInf(energy, 0) {
+		return 1
+	}
+	return math.Min(1.5, energy)
 }
 
 func worldSourceFrameBaseMS(offsetMS float64) float64 {
 	// WORLDの解析はoto.offsetより前のフレームから始まるため余りを二重加算しない。
 	return math.Floor(math.Max(0, offsetMS)/worldFramePeriodMS) * worldFramePeriodMS
+}
+
+func worldSourceExactBaseMS(offsetMS float64) float64 {
+	return math.Max(0, offsetMS)
 }
 
 func highPass(samples []float64, sampleRate int, cutoffHz float64) []float64 {

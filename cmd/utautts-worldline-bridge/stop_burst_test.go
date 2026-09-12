@@ -55,3 +55,20 @@ func TestMixProtectedStopBurstsAlignsNonFrameOffset(t *testing.T) {
 		t.Fatal("burst was not aligned to the target onset")
 	}
 }
+
+func TestMixProtectedStopBurstsSupportsPreserveOnlyTiming(t *testing.T) {
+	const rate = 16000
+	samples := make([]float32, rate/10)
+	samples[rate*53/1000] = 1
+	path := filepath.Join(t.TempDir(), "stop-preserve.wav")
+	if err := writePCM16(path, rate, samples); err != nil {
+		t.Fatal(err)
+	}
+	wave := make([]float64, len(samples))
+	item := unit{Source: path, OffsetMS: 3, PositionMS: 0, SkipMS: 0, LengthMS: 100, Volume: 100,
+		Speech: &provider.WorldSpeechTiming{SourceOnsetMS: 50, TargetOnsetMS: 50, ProtectStop: true, PreserveStopOnly: true}}
+	mixProtectedStopBursts(manifest{SampleRate: rate, Units: []unit{item}}, []preparedWorldUnit{{cached: cachedWorldUnit{duration: 100}}}, wave, rate)
+	if wave[rate*50/1000] == 0 {
+		t.Fatal("preserve-only burst was not aligned to the target onset")
+	}
+}

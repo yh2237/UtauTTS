@@ -11,8 +11,9 @@ import (
 )
 
 type cachedWorldUnit struct {
-	features worldFeatures
-	duration float64
+	features      worldFeatures
+	duration      float64
+	sourceShiftMS float64
 }
 
 type preparedWorldUnit struct {
@@ -127,14 +128,18 @@ func prepareWorldUnits(engine worldEngine, input manifest, cache *worldFeatureCa
 		}
 		var features worldFeatures
 		var duration float64
+		sourceShiftMS := 0.0
 		if err == nil {
 			features, duration, err = analyzeWorldUnit(engine, job.item, samples, sampleRate)
 			if err != nil {
 				err = fmt.Errorf("analyze WORLD unit %q: %w", job.item.Source, err)
+			} else {
+				offsetMS := math.Max(0, job.item.OffsetMS)
+				sourceShiftMS = offsetMS - math.Floor(offsetMS/worldFramePeriodMS)*worldFramePeriodMS
 			}
 		}
 		results[jobIndex] = worldAnalysisResult{
-			entry: cachedWorldUnit{features: features, duration: duration}, err: err,
+			entry: cachedWorldUnit{features: features, duration: duration, sourceShiftMS: sourceShiftMS}, err: err,
 		}
 	})
 	for jobIndex, result := range results {
@@ -163,7 +168,8 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 		frameWorkers = 1
 	}
 	parallelWorldWork(frames, frameWorkers, func(frame int) {
-		voicedWeight, totalWeight := 0.0, 0.0
+		voicedWeight, totalWeight, envelopeWeight := 0.0, 0.0, 0.0
+		normalizeOverlap := false
 		frameOffset := frame * bins
 		for bin := 0; bin < bins; bin++ {
 			result.Spectrum[frameOffset+bin] = 1e-12
@@ -180,14 +186,18 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 			if weight <= 1e-6 {
 				continue
 			}
-			volumeGain := math.Max(0, item.Volume) / 100
-			sourceMS := mapWorldSourceTime(item, entry.duration, localMS)
+			if !item.LegacyMix {
+				normalizeOverlap = true
+			}
+			volumeGain := worldUnitAmplitudeGain(item)
+			sourceMS := mapWorldFeatureTime(item, entry, localMS)
 			sourceFrame := sourceMS / worldFramePeriodMS
 			left := min(max(0, int(math.Floor(sourceFrame))), entry.features.Frames-1)
 			right := min(left+1, entry.features.Frames-1)
 			fraction := sourceFrame - float64(left)
 			voicedFrame := lerp(entry.features.F0[left], entry.features.F0[right], fraction) > 71
 			effectiveWeight := weight * volumeGain * volumeGain
+			envelopeWeight += weight
 			totalWeight += effectiveWeight
 			if voicedFrame {
 				voicedWeight += effectiveWeight
@@ -203,6 +213,17 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 				result.Aperiodicity[frameOffset+bin] += weight * spectrum * ap * ap
 			}
 			dirty[frame] = true
+		}
+		if normalizeOverlap && envelopeWeight > 1 {
+			// The waveform renderer normalizes overlapping envelopes. Apply the
+			// same bound to WORLD power spectra so a VCV overlap does not create
+			// an artificial loudness jump. Scale the aperiodic-energy numerator
+			// together so the aperiodicity ratio remains unchanged.
+			normalization := 1 / envelopeWeight
+			for bin := 0; bin < bins; bin++ {
+				result.Spectrum[frameOffset+bin] *= normalization
+				result.Aperiodicity[frameOffset+bin] *= normalization
+			}
 		}
 		for bin := 0; bin < bins; bin++ {
 			i := frameOffset + bin
@@ -223,6 +244,38 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 		}
 	}
 	return result
+}
+
+// worldUnitAmplitudeGain keeps the WORLD power spectrum consistent with the
+// amplitude controls used by the waveform renderer. Older jobs omitted these
+// fields, so their neutral values are restored here.
+func worldUnitAmplitudeGain(item unit) float64 {
+	volume := item.Volume
+	if volume <= 0 || math.IsNaN(volume) || math.IsInf(volume, 0) {
+		volume = 100
+	}
+	if item.LegacyMix {
+		return math.Max(0, volume/100)
+	}
+	energy := item.EnergyFactor
+	if energy <= 0 || math.IsNaN(energy) || math.IsInf(energy, 0) {
+		energy = 1
+	}
+	return math.Min(1.5, math.Max(0, volume/100*energy))
+}
+
+// mapWorldFeatureTime compensates for oto.offset values that fall between
+// WORLD's 10 ms analysis frames. Speech-retimed units already carry this
+// fraction in their source anchors.
+func mapWorldFeatureTime(item unit, entry cachedWorldUnit, localMS float64) float64 {
+	sourceMS := mapWorldSourceTime(item, entry.duration, localMS)
+	if item.LegacyMix || entry.sourceShiftMS == 0 {
+		return sourceMS
+	}
+	if _, ok := worldSpeechAnchors(item, entry.duration); !ok {
+		sourceMS += entry.sourceShiftMS
+	}
+	return sourceMS
 }
 
 func worldCPUWorkers(tasks int) int {
@@ -353,6 +406,33 @@ func mapWorldSourceTime(item unit, sourceDuration, localMS float64) float64 {
 }
 
 func worldEnvelopeWeight(item unit, localMS float64) float64 {
+	if !item.LegacyMix && len(item.Envelope) >= 2 {
+		// Envelope coordinates are relative to the first point, while localMS
+		// starts at the unit's output position.
+		x := localMS + item.Envelope[0].XMS
+		for index := 0; index+1 < len(item.Envelope); index++ {
+			left, right := item.Envelope[index], item.Envelope[index+1]
+			if math.IsNaN(left.XMS) || math.IsInf(left.XMS, 0) || math.IsNaN(right.XMS) || math.IsInf(right.XMS, 0) {
+				return 0
+			}
+			if x > right.XMS {
+				continue
+			}
+			if right.XMS <= left.XMS {
+				continue
+			}
+			fraction := (x - left.XMS) / (right.XMS - left.XMS)
+			fraction = math.Max(0, math.Min(1, fraction))
+			// Smooth the gain change to avoid a hard attack at each unit.
+			fraction = fraction * fraction * (3 - 2*fraction)
+			return math.Max(0, math.Min(1, lerp(left.Y, right.Y, fraction)))
+		}
+		last := item.Envelope[len(item.Envelope)-1]
+		if x < item.Envelope[0].XMS {
+			return math.Max(0, math.Min(1, item.Envelope[0].Y))
+		}
+		return math.Max(0, math.Min(1, last.Y))
+	}
 	weight := 1.0
 	if item.FadeInMS > 0 && localMS < item.FadeInMS {
 		weight = localMS / item.FadeInMS
