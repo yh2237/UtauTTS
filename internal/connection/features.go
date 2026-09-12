@@ -41,10 +41,25 @@ type PairFeatures struct {
 type Extractor struct {
 	mutex sync.Mutex
 	cache map[oto.Entry]Boundary
+	model *JoinModel
 }
 
 func NewExtractor() *Extractor {
 	return &Extractor{cache: map[oto.Entry]Boundary{}}
+}
+
+// NewExtractorWithModel creates an extractor that applies an optional learned
+// join correction while retaining the same acoustic boundary cache.
+func NewExtractorWithModel(model *JoinModel) *Extractor {
+	return &Extractor{cache: map[oto.Entry]Boundary{}, model: model}
+}
+
+// JoinModel reports the immutable model used by this extractor.
+func (e *Extractor) JoinModel() *JoinModel {
+	if e == nil {
+		return nil
+	}
+	return e.model
 }
 
 func (e *Extractor) Boundary(entry oto.Entry) Boundary {
@@ -87,6 +102,23 @@ func (e *Extractor) Pair(previous, current oto.Entry) PairFeatures {
 	return result
 }
 
+// ScoreEntries evaluates one transition with the configured model. The
+// handcrafted score remains the fallback for missing or low-confidence model
+// decisions.
+func (e *Extractor) ScoreEntries(previous, current oto.Entry) float64 {
+	features := e.Pair(previous, current)
+	return e.ScoreFeatures(features)
+}
+
+// ScoreFeatures evaluates already extracted features without touching the
+// boundary cache.
+func (e *Extractor) ScoreFeatures(features PairFeatures) float64 {
+	if e != nil && e.model != nil {
+		return e.model.Predict(features).Score
+	}
+	return HandcraftedScore(features)
+}
+
 // HandcraftedScoreは学習モデルとの比較基準となる。
 func HandcraftedScore(features PairFeatures) float64 {
 	score := sourceContinuityScore(features)
@@ -113,13 +145,10 @@ func sourceContinuityScore(features PairFeatures) float64 {
 	if !features.ForwardInSource {
 		return 0
 	}
-	score := 8.0
-	// 同じ録音でも遠い位置への移動は連続性の利点として扱わない。
-	const safeAnchorDistanceMS = 560.0
-	if features.SourceAnchorDistanceMS > safeAnchorDistanceMS {
-		score -= math.Min(4, (features.SourceAnchorDistanceMS-safeAnchorDistanceMS)/140)
-	}
-	return score
+	// 同じ録音内の前向きの境界は、距離に関係なく連続性を優先する。
+	// VCVやVCの録音では一つのファイルに複数モーラが収録されるため、
+	// アンカー間の距離だけでこの利点を減らすと遷移音が外れやすい。
+	return 8
 }
 
 // IsContextVCVAliasは英語のVCCVやVCと区別して日本語VCV表記を判定する。

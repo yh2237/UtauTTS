@@ -59,6 +59,7 @@ type ResolveConfig struct {
 	Tone        string
 	Color       string
 	AliasPolicy AliasPolicy
+	JoinModel   *connection.JoinModel
 }
 
 type MissingAliasError struct {
@@ -85,6 +86,11 @@ func (b *Bank) ResolveAtTone(morae []frontend.Mora, tone string) ([]Selection, e
 }
 
 func (b *Bank) ResolveWithConfig(morae []frontend.Mora, cfg ResolveConfig) ([]Selection, error) {
+	if cfg.JoinModel != nil {
+		if err := cfg.JoinModel.Validate(); err != nil {
+			return nil, fmt.Errorf("join model: %w", err)
+		}
+	}
 	policy := cfg.AliasPolicy
 	if policy == "" {
 		policy = AliasPolicyAuto
@@ -99,7 +105,11 @@ func (b *Bank) ResolveWithConfig(morae []frontend.Mora, cfg ResolveConfig) ([]Se
 	if b.extractor == nil {
 		b.extractor = connection.NewExtractor()
 	}
-	return selectBestPaths(layers, b.extractor), nil
+	extractor := b.extractor
+	if cfg.JoinModel != nil {
+		extractor = connection.NewExtractorWithModel(cfg.JoinModel)
+	}
+	return selectBestPaths(layers, extractor), nil
 }
 
 func (b *Bank) candidateLayers(morae []frontend.Mora, tone string) ([][]Selection, error) {

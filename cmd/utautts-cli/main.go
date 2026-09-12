@@ -60,6 +60,7 @@ func main() {
 		language                 string
 		phonemizer               string
 		aliasPolicy              string
+		joinModelPath            string
 		rendererDirectories      []string
 		modelDirectories         []string
 		writeText                bool
@@ -108,6 +109,7 @@ func main() {
 	flag.Float64Var(&cvvcTransitionGain, "cvvc-transition-gain", 1, "CVVC transition volume multiplier (0..1)")
 	flag.BoolVar(&cvvcPreBoundaryFade, "cvvc-pre-boundary-fade", false, "fade CVVC transitions out before the following CV consonant")
 	flag.StringVar(&aliasPolicy, "alias-policy", string(voicebank.AliasPolicyAuto), "voicebank mode: auto, cvvc-enhanced, vcv-prefer, cvvc-prefer, or cv-only")
+	flag.StringVar(&joinModelPath, "join-model", "", "optional learned join-quality model JSON")
 	flag.BoolVar(&writeText, "write-text", false, "write a text file next to the WAV")
 	flag.BoolVar(&writeLab, "write-lab", false, "write an HTK label file next to the WAV")
 	flag.StringVar(&textEncoding, "text-encoding", sidecar.EncodingUTF8, "text sidecar encoding: utf-8 or shift_jis")
@@ -187,6 +189,7 @@ func main() {
 		CVVCTransitionGain:      cvvcTransitionGain,
 		CVVCPreBoundaryFade:     cvvcPreBoundaryFade,
 		AliasPolicy:             voicebank.AliasPolicy(aliasPolicy),
+		JoinModelPath:           joinModelPath,
 	}
 	providerOptions := render.ProviderOptions{Classic: render.ClassicOptions{
 		ResamplerExpressions: resamplerExpressions,

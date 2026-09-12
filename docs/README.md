@@ -27,6 +27,7 @@
 
 - [開発環境とビルド](building.md): Windows／Linux／macOS版のビルド
 - [読み上げ品質の評価](../tools/evaluation/README.md): 読みと原音候補の診断や音声の比較
+- [接続品質の監査と学習](join-quality.md): 境界特徴の出力と任意の接続ランカー
 - [リリーステスト](release-testing.md): 配布物の自動検査と手動確認
 - [同梱ボイスバンク](voicebank.md): 出所、利用条件、ハッシュ
 - [ライセンスの適用範囲](../LICENSE-SCOPE.md): 本体コード、モデル、音源、第三者コンポーネントの適用範囲

@@ -76,13 +76,13 @@ func TestIsContextVCVAliasOnlyRecognizesKanaContexts(t *testing.T) {
 	}
 }
 
-func TestSourceContinuityScoreDoesNotRewardDistantJump(t *testing.T) {
+func TestSourceContinuityScoreKeepsForwardRecordingBonus(t *testing.T) {
 	near := PairFeatures{ForwardInSource: true, SourceAnchorDistanceMS: 500}
 	far := PairFeatures{ForwardInSource: true, SourceAnchorDistanceMS: 1120}
-	if HandcraftedScore(near) <= HandcraftedScore(far) {
+	if HandcraftedScore(near) != HandcraftedScore(far) {
 		t.Fatalf("near=%f far=%f", HandcraftedScore(near), HandcraftedScore(far))
 	}
-	if HandcraftedScore(far) != 4 {
-		t.Fatalf("distant continuity score = %f, want 4", HandcraftedScore(far))
+	if HandcraftedScore(far) != 8 {
+		t.Fatalf("forward continuity score = %f, want 8", HandcraftedScore(far))
 	}
 }

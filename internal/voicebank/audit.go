@@ -73,6 +73,7 @@ type CandidateAudit struct {
 	SourceF0Hz          float64              `json:"source_f0_hz"`
 	PitchValid          bool                 `json:"pitch_valid"`
 	BestHandcraftedJoin float64              `json:"best_handcrafted_join"`
+	BestJoinScore       float64              `json:"best_join_score,omitempty"`
 }
 
 // AuditLatticeは診断用に全候補と各候補への最良の入エッジを返す。
@@ -81,6 +82,11 @@ func (b *Bank) AuditLattice(morae []frontend.Mora, tone string) (*LatticeAudit, 
 }
 
 func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) (*LatticeAudit, error) {
+	if cfg.JoinModel != nil {
+		if err := cfg.JoinModel.Validate(); err != nil {
+			return nil, fmt.Errorf("join model: %w", err)
+		}
+	}
 	policy := cfg.AliasPolicy
 	if policy == "" {
 		policy = AliasPolicyAuto
@@ -95,8 +101,12 @@ func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) 
 	if b.extractor == nil {
 		b.extractor = connection.NewExtractor()
 	}
-	selectedByPosition := selectionsByPosition(selectBestPaths(layers, b.extractor))
-	cache := connection.NewExtractor()
+	extractor := b.extractor
+	if cfg.JoinModel != nil {
+		extractor = connection.NewExtractorWithModel(cfg.JoinModel)
+	}
+	selectedByPosition := selectionsByPosition(selectBestPaths(layers, extractor))
+	cache := extractor
 	pitchCache := map[candidatePitchKey]candidatePitch{}
 	result := &LatticeAudit{Tone: cfg.Tone, Color: cfg.Color}
 	for layerIndex, layer := range layers {
@@ -170,7 +180,9 @@ func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) 
 				if candidate.Transition != nil {
 					incoming = candidate.Transition.Entry
 				}
-				audit.BestHandcraftedJoin = bestIncoming(layers[layerIndex-1], incoming, cache).score
+				incomingScore := bestIncoming(layers[layerIndex-1], incoming, cache)
+				audit.BestHandcraftedJoin = incomingScore.handcrafted
+				audit.BestJoinScore = incomingScore.score
 			}
 			position.Candidates = append(position.Candidates, audit)
 		}
@@ -231,14 +243,18 @@ func sourceGroup(root string, entry oto.Entry) string {
 	return strings.Split(directory, "/")[0]
 }
 
-type incomingScore struct{ score float64 }
+type incomingScore struct {
+	score       float64
+	handcrafted float64
+}
 
 func bestIncoming(previous []Selection, current oto.Entry, cache *connection.Extractor) incomingScore {
 	best := incomingScore{score: -1e100}
 	for _, candidate := range previous {
-		score := joinScore(candidate.Entry, current, cache)
+		features := cache.Pair(candidate.Entry, current)
+		score := cache.ScoreFeatures(features) + sourceGroupContinuityScore(candidate.Entry, current)
 		if score > best.score {
-			best = incomingScore{score: score}
+			best = incomingScore{score: score, handcrafted: connection.HandcraftedScore(features) + sourceGroupContinuityScore(candidate.Entry, current)}
 		}
 	}
 	return best

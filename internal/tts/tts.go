@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"utautts/internal/audio"
+	"utautts/internal/connection"
 	"utautts/internal/engine"
 	"utautts/internal/frontend"
 	"utautts/internal/openjtalk"
@@ -61,6 +62,8 @@ type Config struct {
 	CVVCPreBoundaryFade     bool
 	PitchCurve              *render.PitchCurve
 	AliasPolicy             voicebank.AliasPolicy
+	JoinModelPath           string
+	JoinModel               *connection.JoinModel
 }
 
 type Result struct {
@@ -307,6 +310,10 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		}
 	}
 	cfg.Voicebank = bank
+	joinModel, err := resolveJoinModel(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("load join model: %w", err)
+	}
 	requestedAliasPolicy := cfg.AliasPolicy
 	if requestedAliasPolicy == "" {
 		requestedAliasPolicy = voicebank.AliasPolicyAuto
@@ -336,7 +343,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		return nil, err
 	}
 	selections, err := bank.ResolveWithConfig(morae, voicebank.ResolveConfig{
-		Tone: cfg.Tone, Color: cfg.Color, AliasPolicy: cfg.AliasPolicy,
+		Tone: cfg.Tone, Color: cfg.Color, AliasPolicy: cfg.AliasPolicy, JoinModel: joinModel,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("resolve voicebank units: %w", err)
@@ -402,6 +409,10 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	synthesisPlan.Language = language
 	synthesisPlan.Phonemizer = phonemizer
 	synthesisPlan.RequestedAliasPolicy = string(requestedAliasPolicy)
+	if joinModel != nil {
+		synthesisPlan.JoinCostMode = "learned"
+		synthesisPlan.JoinModelID = joinModel.ID
+	}
 	synthesisPlan.CVVCTiming = cfg.CVVCTiming
 	synthesisPlan.CVVCTransitionGain = cfg.CVVCTransitionGain
 	synthesisPlan.CVVCPreBoundaryFade = cfg.CVVCPreBoundaryFade
@@ -494,6 +505,19 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		MoraPositionsMS: moraPositions,
 		PitchPoints:     pitchPoints,
 	}, nil
+}
+
+func resolveJoinModel(cfg Config) (*connection.JoinModel, error) {
+	if cfg.JoinModel != nil {
+		if err := cfg.JoinModel.Validate(); err != nil {
+			return nil, err
+		}
+		return cfg.JoinModel, nil
+	}
+	if strings.TrimSpace(cfg.JoinModelPath) == "" {
+		return nil, nil
+	}
+	return connection.LoadJoinModel(cfg.JoinModelPath)
 }
 
 func applyAliasProfile(bank *voicebank.Bank, cfg *Config) {

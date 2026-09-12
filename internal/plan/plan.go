@@ -42,6 +42,7 @@ type Plan struct {
 	AliasPolicy             string                   `json:"alias_policy"`
 	RequestedAliasPolicy    string                   `json:"requested_alias_policy,omitempty"`
 	JoinCostMode            string                   `json:"join_cost_mode"`
+	JoinModelID             string                   `json:"join_model_id,omitempty"`
 	BoundaryBridgeMS        float64                  `json:"boundary_bridge_ms,omitempty"`
 	BoundaryBridgeThreshold float64                  `json:"boundary_bridge_threshold,omitempty"`
 	BoundaryBridges         []BoundaryBridge         `json:"boundary_bridges,omitempty"`

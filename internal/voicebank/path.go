@@ -117,7 +117,7 @@ func candidateScores(selection Selection, cache *connection.Extractor, includeJo
 }
 
 func joinScore(previous, current oto.Entry, cache *connection.Extractor) float64 {
-	return connection.HandcraftedScore(cache.Pair(previous, current)) + sourceGroupContinuityScore(previous, current)
+	return cache.ScoreEntries(previous, current) + sourceGroupContinuityScore(previous, current)
 }
 
 func sourceGroupContinuityScore(previous, current oto.Entry) float64 {
