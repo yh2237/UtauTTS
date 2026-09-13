@@ -18,10 +18,13 @@ type Config struct {
 	MoraDurationMS  float64
 	PauseDurationMS float64
 	MoraDurationsMS []float64
-	Predictions     []prosody.Prediction
-	Tone            string
-	Color           string
-	AliasPolicy     voicebank.AliasPolicy
+	// PhoneWeightsはモーラ内の音素時間比。nilなら既存の固定重みを使う。
+	PhoneWeights       [][]float64
+	PhoneWeightsSource string
+	Predictions        []prosody.Prediction
+	Tone               string
+	Color              string
+	AliasPolicy        voicebank.AliasPolicy
 }
 
 type Plan struct {
@@ -29,6 +32,7 @@ type Plan struct {
 	SingleCV                bool                     `json:"single_cv,omitempty"`
 	SpeechTiming            bool                     `json:"speech_timing,omitempty"`
 	PhoneTimings            []PhoneTiming            `json:"phone_timings,omitempty"`
+	PhoneTimingSource       string                   `json:"phone_timing_source,omitempty"`
 	MissingPhones           []voicebank.SpeechGap    `json:"missing_phones,omitempty"`
 	Version                 int                      `json:"version"`
 	Voicebank               string                   `json:"voicebank"`
@@ -56,9 +60,7 @@ type Plan struct {
 	Morae                   []frontend.Mora          `json:"-"`
 }
 
-// Clone returns an independent copy suitable for renderer execution. Renderer
-// diagnostics must not leak back into the unit-selection plan that was used to
-// make a synthesis decision.
+// Cloneはレンダラー用の独立したコピーを返す。診断結果を選択計画へ戻さない。
 func Clone(source *Plan) *Plan {
 	if source == nil {
 		return nil
@@ -243,6 +245,7 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		Morae: append([]frontend.Mora(nil), morae...),
 		Tone:  cfg.Tone, Color: cfg.Color,
 		SelectionMode: "viterbi", AliasPolicy: string(aliasPolicy), JoinCostMode: "handcrafted",
+		PhoneTimingSource: cfg.PhoneWeightsSource,
 	}
 	cursor := 0.0
 	for position, mora := range morae {
@@ -284,7 +287,10 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			}
 		}
 		phoneCursor := cursor
-		phoneSpans := frontend.PhoneSpans(mora.Phones, duration)
+		phoneSpans, err := phoneSpansForMora(mora, duration, cfg.PhoneWeights, position)
+		if err != nil {
+			return nil, err
+		}
 		for i, phone := range mora.Phones {
 			result.PhoneTimings = append(result.PhoneTimings, PhoneTiming{Position: position, Symbol: phone.Symbol, Role: phone.Role, StartMS: phoneCursor, DurationMS: phoneSpans[i]})
 			phoneCursor += phoneSpans[i]
@@ -299,8 +305,7 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			aliasKind = voicebank.ClassifyAlias(selection.Alias)
 		}
 		mainUnit := unitFromSelection(&selection, position, cursor, duration, prediction, "mora")
-		// VCVはSpeechTimingが無効でも原音の境界を解析する。
-		// 実際のspeech retimeはSpeechTimingの設定に従う。
+		// VCVの境界は発話タイミング補正なしでも解析し、伸縮だけ設定に従う。
 		isVCV := aliasKind == voicebank.AliasVCV || voicebank.IsContextVCVAlias(selection.Alias)
 		if (cfg.SpeechTiming || result.SingleCV || isVCV) && mora.Vowel != "" && mora.Vowel != "cl" && !mainUnit.Silent {
 			profile := bank.CalibrateSpeech(selection.Entry)
@@ -308,6 +313,9 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			if profile.Applied && !result.SingleCV && cfg.SpeechTiming {
 				mainUnit.ConsonantMS = profile.SuggestedFixedMS
 			}
+		}
+		if position < len(cfg.PhoneWeights) && cfg.PhoneWeights[position] != nil {
+			applyPhoneTimingAnchor(&mainUnit, mora, phoneSpans)
 		}
 		mainUnit.AliasKind = string(aliasKind)
 		mainUnit.TransitionJoinScore = selection.TransitionJoinScore
@@ -332,6 +340,46 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 	}
 	result.DurationMS = cursor
 	return result, nil
+}
+
+func phoneSpansForMora(mora frontend.Mora, duration float64, weights [][]float64, position int) ([]float64, error) {
+	if position < 0 || position >= len(weights) || weights[position] == nil {
+		return frontend.PhoneSpans(mora.Phones, duration), nil
+	}
+	if len(weights[position]) != len(mora.Phones) {
+		return nil, fmt.Errorf("phone weights at position %d: got %d values for %d phones", position, len(weights[position]), len(mora.Phones))
+	}
+	sum := 0.0
+	for index, weight := range weights[position] {
+		if math.IsNaN(weight) || math.IsInf(weight, 0) || weight < 0 {
+			return nil, fmt.Errorf("phone weight at position %d/%d is invalid: %v", position, index, weight)
+		}
+		sum += weight
+	}
+	if len(weights[position]) > 0 && (sum <= 0 || math.IsNaN(sum) || math.IsInf(sum, 0)) {
+		return nil, fmt.Errorf("phone weights at position %d have no positive value", position)
+	}
+	spans := make([]float64, len(weights[position]))
+	for index, weight := range weights[position] {
+		spans[index] = duration * weight / sum
+	}
+	return spans, nil
+}
+
+func applyPhoneTimingAnchor(unit *Unit, mora frontend.Mora, spans []float64) {
+	if unit == nil || len(spans) != len(mora.Phones) || unit.PreutteranceMS <= 0 {
+		return
+	}
+	onsetMS := 0.0
+	for index, phone := range mora.Phones {
+		if phone.Role == "onset" {
+			onsetMS += spans[index]
+		}
+	}
+	if onsetMS <= 0 || math.IsNaN(onsetMS) || math.IsInf(onsetMS, 0) {
+		return
+	}
+	unit.ConsonantMS = unit.PreutteranceMS + onsetMS
 }
 
 func unitFromSelection(selection *voicebank.Selection, position int, noteStart, duration float64, prediction prosody.Prediction, role string) Unit {

@@ -163,6 +163,108 @@ func TestMapWorldSourceTimePreservesConsonantAndStretchesTail(t *testing.T) {
 	}
 }
 
+func TestRepairWorldFeatureGapsFillsOnlyOverlappingLegacyBoundary(t *testing.T) {
+	input := manifest{F0Curve: make([]float64, 12), Units: []unit{
+		{LegacyMix: true, PositionMS: 0, LengthMS: 80, RequiredLengthMS: 80, ConsonantMS: 10, Volume: 100},
+		{LegacyMix: true, PositionMS: 50, LengthMS: 80, RequiredLengthMS: 80, ConsonantMS: 10, Volume: 101},
+	}}
+	for index := range input.F0Curve {
+		input.F0Curve[index] = 200
+	}
+	prepared := []preparedWorldUnit{
+		{cached: cachedWorldUnit{duration: 120, features: worldFeatures{Frames: 12, FFTSize: 2, F0: make([]float64, 12), Spectrum: make([]float64, 12*2), Aperiodicity: make([]float64, 12*2)}}},
+		{cached: cachedWorldUnit{duration: 120, features: worldFeatures{Frames: 12, FFTSize: 2, F0: make([]float64, 12), Spectrum: make([]float64, 12*2), Aperiodicity: make([]float64, 12*2)}}},
+	}
+	for index := range prepared {
+		for frame := range prepared[index].cached.features.F0 {
+			prepared[index].cached.features.F0[frame] = 200
+		}
+	}
+	features := worldFeatures{Frames: 12, FFTSize: 2, F0: make([]float64, 12), Spectrum: make([]float64, 12*2), Aperiodicity: make([]float64, 12*2)}
+	for frame := range features.F0 {
+		features.F0[frame] = 200
+		for bin := 0; bin < 2; bin++ {
+			features.Spectrum[frame*2+bin] = 1
+			features.Aperiodicity[frame*2+bin] = .2
+		}
+	}
+	for frame := 5; frame < 8; frame++ {
+		features.F0[frame] = 0
+	}
+	if got := repairWorldFeatureGaps(input, prepared, &features); got != 1 {
+		t.Fatalf("repaired gaps = %d, want 1", got)
+	}
+	for frame := 5; frame < 8; frame++ {
+		if features.F0[frame] <= 71 {
+			t.Fatalf("gap frame %d remained unvoiced", frame)
+		}
+	}
+
+	input.Units[1].PositionMS = 90
+	features.F0[5], features.F0[6], features.F0[7] = 0, 0, 0
+	if got := repairWorldFeatureGaps(input, prepared, &features); got != 0 {
+		t.Fatalf("non-overlapping boundary was repaired %d times", got)
+	}
+
+	input.Units[1].PositionMS = 50
+	for frame := range features.F0 {
+		features.F0[frame] = 200
+	}
+	features.F0[6] = 0
+	if got := repairWorldFeatureGaps(input, prepared, &features); got != 0 {
+		t.Fatalf("single-frame dip was repaired %d times", got)
+	}
+}
+
+func TestRepairWorldFeatureGapsFillsSpectralDip(t *testing.T) {
+	input := manifest{F0Curve: make([]float64, 30), Units: []unit{
+		{LegacyMix: true, PositionMS: 0, LengthMS: 170, RequiredLengthMS: 170, ConsonantMS: 10, Volume: 100},
+		{LegacyMix: true, PositionMS: 100, LengthMS: 170, RequiredLengthMS: 170, ConsonantMS: 10, Volume: 100},
+	}}
+	prepared := make([]preparedWorldUnit, 2)
+	for index := range input.F0Curve {
+		input.F0Curve[index] = 200
+	}
+	for index := range prepared {
+		prepared[index].cached = cachedWorldUnit{duration: 300, features: worldFeatures{
+			Frames: 30, FFTSize: 2, F0: make([]float64, 30), Spectrum: make([]float64, 30*2), Aperiodicity: make([]float64, 30*2),
+		}}
+		for frame := range prepared[index].cached.features.F0 {
+			prepared[index].cached.features.F0[frame] = 200
+		}
+	}
+	features := worldFeatures{Frames: 30, FFTSize: 2, F0: make([]float64, 30), Spectrum: make([]float64, 30*2), Aperiodicity: make([]float64, 30*2)}
+	for frame := range features.F0 {
+		features.F0[frame] = 200
+		for bin := 0; bin < 2; bin++ {
+			features.Spectrum[frame*2+bin] = 1
+			features.Aperiodicity[frame*2+bin] = .2
+		}
+	}
+	for frame := 10; frame < 16; frame++ {
+		features.Spectrum[frame*2], features.Spectrum[frame*2+1] = .001, .001
+	}
+	if got := repairWorldFeatureGaps(input, prepared, &features); got != 1 {
+		t.Fatalf("spectral dip repairs = %d, want 1", got)
+	}
+	for frame := 10; frame < 16; frame++ {
+		if features.Spectrum[frame*2] <= .01 {
+			t.Fatalf("spectral dip frame %d remained weak", frame)
+		}
+	}
+	for frame := range features.F0 {
+		for bin := 0; bin < 2; bin++ {
+			features.Spectrum[frame*2+bin] = 1
+		}
+	}
+	for frame := 20; frame < 26; frame++ {
+		features.Spectrum[frame*2], features.Spectrum[frame*2+1] = .001, .001
+	}
+	if got := repairWorldFeatureGaps(input, prepared, &features); got != 0 {
+		t.Fatalf("out-of-boundary spectral dip was repaired %d times", got)
+	}
+}
+
 func TestWorldFeatureCacheIsBounded(t *testing.T) {
 	cache := newWorldFeatureCache(2)
 	cache.put("a", cachedWorldUnit{})

@@ -74,6 +74,9 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--mora-ms` | `140` | 基本モーラ長（ms） |
 | `--pause-ms` | `180` | 句読点の休止長（ms） |
 | `--mora-durations <path>` | | モーラごとの長さを配列または`mora_durations_ms`で持つJSON |
+| `--target-prior <path>` | | JSUT音素時間事前分布JSON（日本語の実験用） |
+| `--target-prior-strength` | `1` | 事前分布によるモーラ内音素配分の強さ（0〜1） |
+| `--target-prior-min-context` | `5` | コンテキスト統計を使うための最小観測数 |
 | `--leading-preutterance-ms` | `0` | 文頭に確保する先行発声（ms）。0では`oto.ini`から自動決定 |
 | `--release-ms` | `20` | ユニット末尾のrelease envelope（ms） |
 | `--prosody <id>` | | 抑揚モデルのplugin ID |

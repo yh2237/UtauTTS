@@ -61,6 +61,9 @@ func main() {
 		phonemizer               string
 		aliasPolicy              string
 		joinModelPath            string
+		targetPriorPath          string
+		targetPriorStrength      float64
+		targetPriorMinContext    int
 		rendererDirectories      []string
 		modelDirectories         []string
 		writeText                bool
@@ -110,6 +113,9 @@ func main() {
 	flag.BoolVar(&cvvcPreBoundaryFade, "cvvc-pre-boundary-fade", false, "fade CVVC transitions out before the following CV consonant")
 	flag.StringVar(&aliasPolicy, "alias-policy", string(voicebank.AliasPolicyAuto), "voicebank mode: auto, cvvc-enhanced, vcv-prefer, cvvc-prefer, or cv-only")
 	flag.StringVar(&joinModelPath, "join-model", "", "optional learned join-quality model JSON")
+	flag.StringVar(&targetPriorPath, "target-prior", "", "optional JSUT phone timing prior JSON (Japanese experiment)")
+	flag.Float64Var(&targetPriorStrength, "target-prior-strength", 1, "target prior phone allocation strength (0..1)")
+	flag.IntVar(&targetPriorMinContext, "target-prior-min-context", 5, "minimum context observations for the target prior")
 	flag.BoolVar(&writeText, "write-text", false, "write a text file next to the WAV")
 	flag.BoolVar(&writeLab, "write-lab", false, "write an HTK label file next to the WAV")
 	flag.StringVar(&textEncoding, "text-encoding", sidecar.EncodingUTF8, "text sidecar encoding: utf-8 or shift_jis")
@@ -190,6 +196,9 @@ func main() {
 		CVVCPreBoundaryFade:     cvvcPreBoundaryFade,
 		AliasPolicy:             voicebank.AliasPolicy(aliasPolicy),
 		JoinModelPath:           joinModelPath,
+		TargetPriorPath:         targetPriorPath,
+		TargetPriorStrength:     targetPriorStrength,
+		TargetPriorMinContext:   targetPriorMinContext,
 	}
 	providerOptions := render.ProviderOptions{Classic: render.ClassicOptions{
 		ResamplerExpressions: resamplerExpressions,

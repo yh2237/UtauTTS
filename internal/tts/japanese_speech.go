@@ -13,6 +13,7 @@ func japaneseSpeechPhones(morae []frontend.Mora) {
 			continue
 		}
 		m.Language = frontend.LanguageJapanese
+		m.Phones = nil
 		if m.Consonant != "" && m.Vowel != "n" && m.Vowel != "cl" {
 			m.Phones = append(m.Phones, frontend.Phone{Symbol: m.Consonant, Role: "onset"})
 		}
@@ -38,7 +39,7 @@ func japaneseSpeechRhythm(cfg Config, model *prosody.Model, morae []frontend.Mor
 		if m.Consonant != "" {
 			factor = (1 + frontend.PhoneWeight(m.Consonant, "onset")) / 1.45
 		}
-		// Shorten likely devoicing contexts without forcing recorded vowels silent.
+		// 無声化しやすい文脈だけ短くし、録音母音は無音にしない。
 		unvoiced := func(c string) bool { return c != "" && strings.Contains(" k ky s sh t ts ch h hy f p py ", " "+c+" ") }
 		if (m.Vowel == "i" || m.Vowel == "u") && unvoiced(m.Consonant) && i+1 < len(morae) && !morae[i+1].Pause && unvoiced(morae[i+1].Consonant) {
 			factor *= 0.85

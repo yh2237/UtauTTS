@@ -52,6 +52,9 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 		}
 	}
 	result := mixWorldFeatures(input, prepared, fftSize, worldCPUWorkers(frames))
+	if input.Engine == "utautts-world-phrase" {
+		repairWorldFeatureGaps(input, prepared, &result)
+	}
 	mixDone := time.Now()
 	if input.Engine == "utautts-world-phrase" {
 		report := applyWorldSpeechJoins(input, &result)
@@ -72,7 +75,7 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 	if err != nil {
 		return nil, err
 	}
-	// WORLDのフレーム分析で薄くなりやすい破裂音の瞬間成分を補う。
+	// WORLD分析で薄くなりやすい破裂音を補う。
 	mixProtectedStopBursts(input, prepared, wave, input.SampleRate)
 	if path := os.Getenv("UTAUTTS_WORLD_PROFILE"); path != "" {
 		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -215,10 +218,7 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 			dirty[frame] = true
 		}
 		if normalizeOverlap && envelopeWeight > 1 {
-			// The waveform renderer normalizes overlapping envelopes. Apply the
-			// same bound to WORLD power spectra so a VCV overlap does not create
-			// an artificial loudness jump. Scale the aperiodic-energy numerator
-			// together so the aperiodicity ratio remains unchanged.
+			// 波形版と同じく重なりを正規化し、スペクトルと非周期成分を同じ比率で縮小する。
 			normalization := 1 / envelopeWeight
 			for bin := 0; bin < bins; bin++ {
 				result.Spectrum[frameOffset+bin] *= normalization
@@ -246,9 +246,7 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 	return result
 }
 
-// worldUnitAmplitudeGain keeps the WORLD power spectrum consistent with the
-// amplitude controls used by the waveform renderer. Older jobs omitted these
-// fields, so their neutral values are restored here.
+// WORLDのパワースペクトルへ波形版と同じ音量係数を適用する。
 func worldUnitAmplitudeGain(item unit) float64 {
 	volume := item.Volume
 	if volume <= 0 || math.IsNaN(volume) || math.IsInf(volume, 0) {
@@ -264,9 +262,7 @@ func worldUnitAmplitudeGain(item unit) float64 {
 	return math.Min(1.5, math.Max(0, volume/100*energy))
 }
 
-// mapWorldFeatureTime compensates for oto.offset values that fall between
-// WORLD's 10 ms analysis frames. Speech-retimed units already carry this
-// fraction in their source anchors.
+// oto.offsetのフレーム端数を補正する。発話タイミング補正済みなら時刻基準を使う。
 func mapWorldFeatureTime(item unit, entry cachedWorldUnit, localMS float64) float64 {
 	sourceMS := mapWorldSourceTime(item, entry.duration, localMS)
 	if item.LegacyMix || entry.sourceShiftMS == 0 {
@@ -407,8 +403,7 @@ func mapWorldSourceTime(item unit, sourceDuration, localMS float64) float64 {
 
 func worldEnvelopeWeight(item unit, localMS float64) float64 {
 	if !item.LegacyMix && len(item.Envelope) >= 2 {
-		// Envelope coordinates are relative to the first point, while localMS
-		// starts at the unit's output position.
+		// envelopeは先頭点基準、localMSは出力位置からの相対時間。
 		x := localMS + item.Envelope[0].XMS
 		for index := 0; index+1 < len(item.Envelope); index++ {
 			left, right := item.Envelope[index], item.Envelope[index+1]
@@ -423,7 +418,7 @@ func worldEnvelopeWeight(item unit, localMS float64) float64 {
 			}
 			fraction := (x - left.XMS) / (right.XMS - left.XMS)
 			fraction = math.Max(0, math.Min(1, fraction))
-			// Smooth the gain change to avoid a hard attack at each unit.
+			// 音量変化を滑らかにする。
 			fraction = fraction * fraction * (3 - 2*fraction)
 			return math.Max(0, math.Min(1, lerp(left.Y, right.Y, fraction)))
 		}

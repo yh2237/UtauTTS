@@ -13,6 +13,7 @@ import (
 	"utautts/internal/connection"
 	"utautts/internal/engine"
 	"utautts/internal/frontend"
+	"utautts/internal/jsut"
 	"utautts/internal/openjtalk"
 	"utautts/internal/plan"
 	"utautts/internal/plugin"
@@ -64,6 +65,10 @@ type Config struct {
 	AliasPolicy             voicebank.AliasPolicy
 	JoinModelPath           string
 	JoinModel               *connection.JoinModel
+	TargetPriorPath         string
+	TargetPrior             *jsut.Prior
+	TargetPriorStrength     float64
+	TargetPriorMinContext   int
 }
 
 type Result struct {
@@ -76,8 +81,7 @@ type Result struct {
 	PitchPoints     []float64
 }
 
-// RenderedPlan returns an export copy that includes renderer diagnostics.
-// Plan itself remains the selection plan that was handed to the renderer.
+// RenderedPlanはレンダラー診断を含む出力用コピーを返す。元の選択計画は変えない。
 func (result *Result) RenderedPlan() *plan.Plan {
 	if result == nil {
 		return nil
@@ -100,7 +104,7 @@ type ProsodyPreview struct {
 	FramePitchCurve *render.PitchCurve
 }
 
-// ConvertToReadingは日本語テキストをかなに変換する。内蔵トークナイザが数字やラテン文字などのトークンを読みに変換できない場合はOpen JTalkにフォールバックする。
+// ConvertToReadingは日本語テキストをかなへ変換し、必要ならOpen JTalkを使う。
 func ConvertToReading(text string, dictionary map[string]string, openJTalk openjtalk.Config) (string, error) {
 	return ConvertToReadingContext(context.Background(), text, dictionary, openJTalk)
 }
@@ -129,8 +133,7 @@ func resolveReading(cfg Config) (string, error) {
 	})
 }
 
-// ResolvePronunciation exposes the synthesis frontend for diagnostic tools.
-// Callers supply Voicebank when bank-specific presamp mappings are needed.
+// ResolvePronunciationは発音解析を行う。音源固有のpresamp設定も利用する。
 func ResolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, error) {
 	return resolvePronunciation(cfg)
 }
@@ -205,7 +208,7 @@ func resolveProsodyModelForLanguage(cfg Config, language string) (*prosody.Model
 	return loadProsodyModelCached(path)
 }
 
-// resolveProsodyFeaturesは未指定のモーラ単位アクセント特徴をOpen JTalkで補う。
+// resolveProsodyFeaturesは未指定のアクセント特徴をOpen JTalkで補う。
 func resolveProsodyFeatures(cfg Config, model *prosody.Model, morae []frontend.Mora, reading string) ([]prosody.FeatureFrame, error) {
 	if model == nil || !model.RequiresExternalFeatures() || len(cfg.ProsodyFeatures) > 0 {
 		return cfg.ProsodyFeatures, nil
@@ -237,13 +240,12 @@ func analyzeAndAlignRuntimeFeatures(ctx context.Context, morae []frontend.Mora, 
 	return alignRuntimeProsodyFeatures(morae, analysis)
 }
 
-// ApplyRendererはrendererIDを解決してcfgへ反映する。指定パスを同梱資源より優先する。
+// ResolveRendererはrendererIDを解決する。
 func ResolveRenderer(catalog *plugin.Catalog, rendererID string) (engine.ResolvedEngine, error) {
 	return ResolveRendererWithOptions(catalog, rendererID, engine.ResolveOptions{})
 }
 
-// ResolveRendererWithOptions resolves a renderer and applies application-level
-// resource overrides before the provider preflight is evaluated.
+// ResolveRendererWithOptionsは資源上書きを適用してからRendererを検査する。
 func ResolveRendererWithOptions(catalog *plugin.Catalog, rendererID string, options engine.ResolveOptions) (engine.ResolvedEngine, error) {
 	if catalog == nil {
 		return engine.ResolvedEngine{}, errors.New("renderer catalog is not initialized")
@@ -252,8 +254,7 @@ func ResolveRendererWithOptions(catalog *plugin.Catalog, rendererID string, opti
 	return resolver.ResolveWithOptions(engine.DefinitionsFromCatalog(catalog), rendererID, options)
 }
 
-// ApplyRenderer resolves a user-facing renderer ID and stores the resolved
-// engine on Config. Provider resources remain inside ResolvedEngine.
+// ApplyRendererは表示用IDを解決し、解決済みEngineをConfigへ保存する。
 func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlineBridgePath string) (string, error) {
 	resolved, err := ResolveRendererWithOptions(catalog, rendererID, engine.ResolveOptions{
 		ResourceOverrides: map[engine.ResourceKey]string{
@@ -267,9 +268,7 @@ func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlineBr
 	return string(resolved.PublicID()), nil
 }
 
-// ApplyResolvedEngine stores the resolved engine as the provider boundary.
-// Runtime resources remain owned by the resolved engine instead of being
-// copied into the generic TTS configuration.
+// ApplyResolvedEngineは解決済みEngineをprovider境界として保存する。
 func ApplyResolvedEngine(cfg *Config, resolved engine.ResolvedEngine) {
 	cfg.Engine = resolved
 	capabilities := plugin.Capabilities{
@@ -284,9 +283,7 @@ func Synthesize(cfg Config) (*Result, error) {
 	return SynthesizeWithOptions(cfg, render.ProviderOptions{})
 }
 
-// SynthesizeWithOptions runs the common TTS pipeline with settings owned by
-// the selected provider. The generic Config intentionally contains no
-// provider executable paths or provider switches.
+// SynthesizeWithOptionsは選択したproviderの設定で共通TTS処理を実行する。
 func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (*Result, error) {
 	if err := synthesisContextError(cfg.Context); err != nil {
 		return nil, err
@@ -332,6 +329,25 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	language, phonemizer, reading, morae, err := resolvePronunciation(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
+	}
+	targetPrior, err := resolveTargetPrior(cfg)
+	if err != nil {
+		return nil, err
+	}
+	var phoneWeights [][]float64
+	phoneTimingSource := ""
+	if targetPrior != nil {
+		if language != frontend.LanguageJapanese {
+			return nil, fmt.Errorf("target prior supports Japanese only, got %q", language)
+		}
+		// PhoneSpansと同じ音素表現を作り、音源候補は変えない。
+		japaneseSpeechPhones(morae)
+		strength := cfg.TargetPriorStrength
+		if strength <= 0 {
+			strength = 1
+		}
+		phoneWeights = targetPriorPhoneWeights(targetPrior, morae, strength, cfg.TargetPriorMinContext)
+		phoneTimingSource = "jsut-target-prior"
 	}
 	applyLanguageSpeechProfile(language, &cfg)
 	loadedProsody, err := resolveProsodyModelForLanguage(cfg, language)
@@ -396,10 +412,12 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		MoraDurationMS:  cfg.MoraDurationMS,
 		PauseDurationMS: cfg.PauseDurationMS,
 		MoraDurationsMS: cfg.MoraDurationsMS,
-		Predictions:     predictions,
-		AliasPolicy:     cfg.AliasPolicy,
-		Tone:            cfg.Tone,
-		Color:           cfg.Color,
+		PhoneWeights:    phoneWeights,
+		PhoneWeightsSource: phoneTimingSource,
+		Predictions: predictions,
+		AliasPolicy: cfg.AliasPolicy,
+		Tone:        cfg.Tone,
+		Color:       cfg.Color,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build synthesis plan: %w", err)
@@ -718,6 +736,7 @@ func validateConfig(cfg Config) error {
 		"intonation_strength":       cfg.IntonationStrength,
 		"boundary_bridge_ms":        cfg.BoundaryBridgeMS,
 		"boundary_bridge_threshold": cfg.BoundaryBridgeThreshold,
+		"target_prior_strength":     cfg.TargetPriorStrength,
 	}
 	for name, value := range finite {
 		if math.IsNaN(value) || math.IsInf(value, 0) {
@@ -739,6 +758,12 @@ func validateConfig(cfg Config) error {
 	}
 	if cfg.ReleaseMS < 0 {
 		return fmt.Errorf("release_ms must be non-negative, got %v", cfg.ReleaseMS)
+	}
+	if cfg.TargetPriorStrength < 0 || cfg.TargetPriorStrength > 1 {
+		return fmt.Errorf("target_prior_strength must be between 0 and 1, got %v", cfg.TargetPriorStrength)
+	}
+	if cfg.TargetPriorMinContext < 0 {
+		return fmt.Errorf("target_prior_min_context must be non-negative, got %v", cfg.TargetPriorMinContext)
 	}
 	return nil
 }

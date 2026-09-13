@@ -185,7 +185,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	}
 	defer os.RemoveAll(tempDir)
 
-	// bridgeへ渡す前にsample rateを揃え、無効になったFRQを破棄する。
+	// bridgeへ渡す前にサンプルレートを揃える。
 	normalizedSources := make(map[string]string)
 	for index := range synthesisPlan.Units {
 		unit := &synthesisPlan.Units[index]
@@ -251,7 +251,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 			durCorrection := 0.0
 			if phraseTiming {
 				phoneTiming := phoneTimings[i]
-				// bridgeへ渡すskipを非負に保つ。
 				skipMS = math.Max(0, pitchLeadingMS-phoneTiming.preutter)
 				durCorrection = phoneTiming.preutter - phoneTiming.tailIntrude + phoneTiming.tailOverlap
 				envelopePoints = openUtauEnvelopeFromTiming(*unit, phoneTiming)
@@ -306,14 +305,15 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		cacheKey := worldlineAnalysisCacheKey(cacheSource, frqPath, *unit, cacheVolume)
 		cacheKey += fmt.Sprintf("|fs=%d", sampleRate)
 		var speech *provider.WorldSpeechTiming
-		protectStopOnly := providerID == "utautts-world-phrase" && !legacyMix && unit.Role == "mora" && !singleCVUnit && !vcvUnit && !vcvSpeech && speechStop(synthesisPlan, *unit)
+		stopProtected := worldlineStopProtection(synthesisPlan, *unit)
+		protectStopOnly := providerID == "utautts-world-phrase" && !legacyMix && unit.Role == "mora" && !singleCVUnit && !vcvUnit && !vcvSpeech && stopProtected
 		if providerID == "utautts-world-phrase" && unit.Role == "mora" && (singleCVUnit || vcvSpeech || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied || protectStopOnly) {
 			targetOnset := skipMS + unit.NoteStartMS + leadingMS - positionMS
 			if singleCVUnit || vcvSpeech {
 				targetOnset = timing.preutteranceMS
 			}
 			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS,
-				TargetOnsetMS: targetOnset, ProtectStop: speechStop(synthesisPlan, *unit), PreserveStopOnly: protectStopOnly}
+				TargetOnsetMS: targetOnset, ProtectStop: stopProtected, PreserveStopOnly: protectStopOnly}
 			if singleCVUnit || vcvSpeech {
 				speech.TargetFixedMS = timing.consonantMS
 			}
@@ -330,8 +330,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		if codaRelease {
 			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS, TargetOnsetMS: skipMS + unit.NoteStartMS + leadingMS - positionMS, CodaRelease: true, ProtectStop: codaReleaseStop(*unit)}
 		}
-		// 日本語の連続音はv1.3.0のWORLD混合則を使う。単独音と
-		// 明示的な発話タイミング補正、多言語経路は新しい補正を使う。
+		// 日本語の連続音はv1.3.0互換の混合を使い、単独音・発話タイミング補正・多言語は新補正を使う。
 		manifest.Units = append(manifest.Units, worldlineManifestUnit{
 
 			Speech: speech, LegacyMix: legacyMix,
@@ -404,9 +403,24 @@ func legacyJapaneseContinuousMix(synthesisPlan *plan.Plan) bool {
 	return language == "ja" || phonemizer == "ja" || strings.HasPrefix(phonemizer, "ja-")
 }
 
-// worldlineTiming keeps VCV timing faithful to oto.ini unless the caller
-// explicitly enables speech timing. VCV fixed regions are already authored as
-// consonant boundaries and should not be retimed by the normal renderer path.
+// 生波形補強は英語の破裂音と単独音だけに使う。日本語VCVでは隣接音や録音ノイズを重ねない。
+func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit) bool {
+	if synthesisPlan == nil {
+		return false
+	}
+	if !speechStop(synthesisPlan, unit) {
+		return false
+	}
+	language := strings.ToLower(strings.TrimSpace(synthesisPlan.Language))
+	phonemizer := strings.ToLower(strings.TrimSpace(synthesisPlan.Phonemizer))
+	japanese := language == "ja" || phonemizer == "ja" || strings.HasPrefix(phonemizer, "ja-")
+	if japanese && strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV") {
+		return false
+	}
+	return true
+}
+
+// VCVはoto.iniの境界を使い、発話タイミング補正を明示した場合だけ伸縮する。
 func worldlineTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64) effectiveTiming {
 	timing := normalizeTiming(unit, releaseMS)
 	if synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
@@ -421,9 +435,7 @@ func worldlineTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64
 	return timing
 }
 
-// worldlinePhoneTimingUnits mirrors the phone timing passed to the bridge.
-// VCV normalization is opt-in for the phrase renderer so ordinary synthesis
-// keeps the authored oto.ini anchors intact.
+// bridgeへ渡す音素時間を作る。VCVの正規化はphrase rendererだけで行う。
 func worldlinePhoneTimingUnits(synthesisPlan *plan.Plan, releaseMS float64) []plan.Unit {
 	if synthesisPlan == nil {
 		return nil
@@ -700,8 +712,7 @@ func measureWorldlinePitches(synthesisPlan *plan.Plan, cache *sourceCache) ([]fl
 	return stabilizeWorldlinePitches(values), sampleRate, nil
 }
 
-// stabilizeWorldlinePitchesは短い有声録音の倍音誤検出を補正する。
-// 相互補正を避けるため低周波側を基準に高周波側だけを折り畳む。
+// 短い有声録音の倍音誤検出を低域基準で補正する。
 func stabilizeWorldlinePitches(values []float64) []float64 {
 	result := append([]float64(nil), values...)
 	for index, value := range values {

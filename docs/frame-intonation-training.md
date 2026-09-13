@@ -13,7 +13,7 @@ JSUT BASIC5000の音声と`transcript_utf8.txt`に加えてsarulab-speech/jsut-l
 次のパスは手元のデータに置き換えてください。候補モデルは`out/`へ出力します。同梱モデルの選択肢には自動で追加されません。
 
 ```powershell
-python tools/prepare-jsut-full-labels.py --labels "./data/jsut-label" --corpus "./data/BASIC5000" --out out/jsut-all5000.jsonl
+python tools/prepare-jsut-full-labels.py --labels "./data/jsut-label" --corpus "./data/jsut/basic5000" --out out/jsut-all5000.jsonl
 python tools/train-frame-intonation-tcn.py --dataset out/jsut-all5000.jsonl --world-engine runtime/utautts-world-engine.dll --jsut-context-labels --holdout-test --model-id frame-intonation-candidate --display-name "Frame intonation candidate" --out out/frame-intonation-candidate.json
 ```
 

@@ -1740,7 +1740,7 @@ ApplicationWindow {
         let error = check(utterances.count === 1, "initial utterance is missing");
         if (error.length)
             return error;
-        error = check(window.current().speechTiming === true
+        error = check(window.current().speechTiming === false
                       && window.current().phonemizer === "auto"
                       && window.buildSynthesisRequest(window.current()).phonemizer !== "auto"
                       && !editorContent.advancedSettingsButton.checked
@@ -2050,7 +2050,7 @@ ApplicationWindow {
                 tone: String(saved.tone || window.appBackend.defaultTone),
                 color: String(saved.color || ""),
                 moraDuration: window.projectNumber(saved.mora_duration_ms, window.appBackend.defaultMoraDuration, 20, 1000, true),
-                speechTiming: saved.speech_timing === undefined ? true : saved.speech_timing === true,
+                speechTiming: saved.speech_timing === undefined ? false : saved.speech_timing === true,
                 pauseDuration: window.projectNumber(saved.pause_duration_ms, window.appBackend.defaultPauseDuration, 0, 3000, true),
                 leadingPreutterance: window.projectNumber(saved.leading_preutterance_ms, 0, 0, 300, true),
                 intonation: window.projectNumber(saved.intonation, window.defaultIntonationStrength, 0, window.maxIntonationStrength, false),
@@ -2603,7 +2603,7 @@ ApplicationWindow {
             tone: window.appBackend.defaultTone,
             color: "",
             moraDuration: window.appBackend.defaultMoraDuration,
-            speechTiming: true,
+            speechTiming: false,
             pauseDuration: window.appBackend.defaultPauseDuration,
             leadingPreutterance: window.appBackend.defaultLeadingPreutterance,
             intonation: window.defaultIntonationStrength,

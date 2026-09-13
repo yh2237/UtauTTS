@@ -191,7 +191,7 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
             return 1;
         const QVariantList rows = savedState.toMap().value("utterances").toList();
         if (!require(rows.size() == 1
-                     && rows.first().toMap().value("speech_timing").toBool() == (timingSetting != 0),
+                     && rows.first().toMap().value("speech_timing").toBool() == (timingSetting == 1),
                      QStringLiteral("saved speech timing setting was not preserved")))
             return 1;
     }
