@@ -12,6 +12,10 @@ Training uses Harvest through the local ``utautts-world-engine`` library.
 Build that library before training; a missing library is an error rather than
 an implicit switch to a different F0 extraction algorithm.
 
+This trainer is for JSUT BASIC5000 JSONL.  The exported metadata contains the
+UtauTTS distribution policy for JSUT-derived models, so do not pass another
+corpus without changing the metadata and its license notice.
+
 The exported model is inference-oriented JSON; it does not contain a Python
 pickle or a torch checkpoint.  Its ``frame_pitch`` object mirrors the
 ``sequence_pitch`` object produced by the older trainer and adds the frame
@@ -25,6 +29,7 @@ import copy
 import json
 import math
 import random
+import re
 import struct
 import sys
 import wave
@@ -46,6 +51,16 @@ DEFAULT_LOW_CENTS = -250.0
 DEFAULT_HIGH_CENTS = 250.0
 DEFAULT_FMIN_HZ = 50.0
 DEFAULT_FMAX_HZ = 600.0
+
+JSUT_MODEL_POLICY = (
+    "UtauTTS project policy: academic research, non-commercial research, and "
+    "personal use only; commercial use requires prior permission from the JSUT rights holders"
+)
+JSUT_CORPUS_TERMS = (
+    "JSUT official terms: text CC BY-SA 4.0 and other source terms; audio "
+    "academic/non-commercial research and personal use; general redistribution not permitted"
+)
+JSUT_BASIC5000_ID = re.compile(r"^BASIC5000_\d{4}$")
 
 
 def fnv1a(text: str) -> int:
@@ -87,8 +102,10 @@ def deterministic_split(records: Sequence[dict]) -> tuple[list[dict], list[dict]
     return train, validation
 
 
-def load_records(path: str | Path, limit: int = 0) -> tuple[list[dict], list[dict]]:
-    """Read version-1 JSUT JSONL and return deterministic train/validation."""
+def load_records(
+    path: str | Path, limit: int = 0, *, require_jsut: bool = False
+) -> tuple[list[dict], list[dict]]:
+    """Read version-1 JSONL and return deterministic train/validation."""
 
     records: list[dict] = []
     source_path = Path(path)
@@ -111,6 +128,18 @@ def load_records(path: str | Path, limit: int = 0) -> tuple[list[dict], list[dic
             records.append(record)
     if not records:
         raise ValueError(f"{path}: dataset is empty")
+    if require_jsut:
+        invalid_ids = [
+            str(record.get("id", ""))
+            for record in records
+            if not JSUT_BASIC5000_ID.fullmatch(str(record.get("id", "")))
+        ]
+        if invalid_ids:
+            sample = ", ".join(invalid_ids[:3])
+            raise ValueError(
+                "dataset must be JSUT BASIC5000 JSONL with IDs such as "
+                f"BASIC5000_0001 (invalid: {sample})"
+            )
     if limit > 0:
         records = records[:limit]
     return deterministic_split(records)
@@ -924,11 +953,11 @@ def export_model(
         "id": str(args.model_id or Path(args.out).stem),
         "display_name": str(args.display_name or Path(args.out).stem),
         "description": str(args.description or "Frame-level learned intonation model"),
-        "license": "Academic research, non-commercial research, and personal use only; commercial use requires permission from the JSUT rights holders",
+        "license": JSUT_MODEL_POLICY,
         "license_notice": "licenses/PROSODY-MODELS.txt",
         "provenance": {
             "training_corpus": "JSUT Japanese speech corpus",
-            "training_corpus_license": "JSUT terms: text CC BY-SA 4.0 etc.; audio research/non-commercial/personal use; commercial permission required",
+            "training_corpus_license": JSUT_CORPUS_TERMS,
             "source_notice": "licenses/JSUT-DATA-AND-LABELS.txt",
         },
         "recommended_renderers": list(args.recommended_renderer or ["utautts-world-phrase"]),
@@ -1072,7 +1101,7 @@ def _write_json(path: str | Path, value: dict) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dataset", required=True, help="version-1 JSUT JSONL with token boundaries and audio_path")
+    parser.add_argument("--dataset", required=True, help="version-1 JSUT BASIC5000 JSONL with token boundaries and audio_path")
     parser.add_argument("--out", default="out/prosody/intonation-frame-tcn-v7.json")
     parser.add_argument("--model-id", default="", help="stable plugin ID stored in the model")
     parser.add_argument("--display-name", default="", help="user-facing model name")
@@ -1088,7 +1117,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     parser.add_argument("--holdout-test", action="store_true", help="reserve hash(id) modulo 10 == 1 from training for final test")
     parser.add_argument("--all-data-training", action="store_true", help="include validation/test IDs in training; metrics become in-sample only")
-    parser.add_argument("--jsut-context-labels", action="store_true", help="use preannotated JSUT accent contexts instead of Open JTalk alignment")
+    parser.add_argument("--jsut-context-labels", action="store_true", help="use jsut-label accent contexts instead of Open JTalk features")
     parser.add_argument("--frame-ms", type=float, default=FRAME_MS)
     parser.add_argument("--low-cents", type=float, default=DEFAULT_LOW_CENTS)
     parser.add_argument("--high-cents", type=float, default=DEFAULT_HIGH_CENTS)
@@ -1128,7 +1157,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args.resolved_device = str(device)
     print(f"training device: {device_description(device)}")
 
-    train_raw, validation_raw = load_records(args.dataset, args.limit)
+    train_raw, validation_raw = load_records(args.dataset, args.limit, require_jsut=True)
     if args.all_data_training:
         train_raw = sorted(train_raw + validation_raw, key=lambda r: str(r["id"]))
         args.holdout_test = False

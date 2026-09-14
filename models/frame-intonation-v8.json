@@ -2,11 +2,11 @@
   "id":"frame-intonation-v8",
   "display_name":"Frame intonation TCN v8",
   "description":"JSUT frame-level learned intonation model",
-  "license":"Academic research, non-commercial research, and personal use only; commercial use requires permission from the JSUT rights holders",
+  "license":"UtauTTS project policy: academic research, non-commercial research, and personal use only; commercial use requires prior permission from the JSUT rights holders",
   "license_notice":"licenses/PROSODY-MODELS.txt",
   "provenance": {
     "training_corpus": "JSUT Japanese speech corpus",
-    "training_corpus_license": "JSUT terms: text CC BY-SA 4.0 etc.; audio research/non-commercial/personal use; commercial permission required",
+    "training_corpus_license": "JSUT official terms: text CC BY-SA 4.0 and other source terms; audio academic/non-commercial research and personal use; general redistribution not permitted",
     "source_notice": "licenses/JSUT-DATA-AND-LABELS.txt"
   },
   "recommended_renderers":["utautts-world-phrase"],
@@ -34471,6 +34471,7 @@
     "batch_size": 16,
     "seed": 1,
     "openjtalk_accent": true,
+    "accent_source": "openjtalk",
     "f0_source": "worldline",
     "alignment": {
       "train": {

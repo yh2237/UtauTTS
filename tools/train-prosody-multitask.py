@@ -203,7 +203,7 @@ def export_duration_model(model, feature_index, args, records, validation_mae: f
         "id": args.model_id or Path(args.out).stem,
         "display_name": args.display_name or "Prosody multitask v1",
         "description": args.description or "Learned Japanese mora duration with v8 frame intonation",
-        "license": frame_model.get("license", "Academic research, non-commercial research, and personal use only; commercial use requires permission from the JSUT rights holders"),
+        "license": frame_model.get("license", frame_training.JSUT_MODEL_POLICY),
         "license_notice": frame_model.get("license_notice", "licenses/PROSODY-MODELS.txt"),
         "recommended_renderers": args.recommended_renderer or frame_model.get("recommended_renderers", []),
         "version": 10,
@@ -224,6 +224,7 @@ def export_duration_model(model, feature_index, args, records, validation_mae: f
             "epochs": args.epochs,
             "learning_rate": args.learning_rate,
             "seed": args.seed,
+            "accent_source": "openjtalk" if args.openjtalk_accent else "fallback",
         },
         "provenance": frame_model.get("provenance"),
     }
@@ -265,7 +266,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"training device: {device_description(device)}")
 
     frame_model = load_model(args.frame_model)
-    train_raw, validation_raw = frame_training.load_records(args.dataset, args.limit)
+    train_raw, validation_raw = frame_training.load_records(args.dataset, args.limit, require_jsut=True)
     train_raw = frame_training.add_openjtalk_features(train_raw, args.openjtalk_accent, min_alignment_rate=0.0)
     validation_raw = frame_training.add_openjtalk_features(validation_raw, args.openjtalk_accent, min_alignment_rate=0.0)
     if not train_raw or not validation_raw:

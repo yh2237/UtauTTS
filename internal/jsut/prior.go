@@ -87,8 +87,8 @@ func BuildPrior(records []Alignment, includePauses bool, id, description string)
 		},
 		Phones: make(map[string]PhonePrior), Contexts: make(map[string]PhonePrior),
 		Boundaries: make(map[string]BoundaryPrior), Utterances: len(records),
-		Provenance:    "Trained from JSUT BASIC5000 audio and jsut-label HTS labels; timing is Julius-estimated",
-		License:       "JSUT-derived model terms; see licenses/PROSODY-MODELS.txt",
+		Provenance:    "Generated from JSUT BASIC5000 audio and jsut-label HTS labels; timing is Julius-estimated",
+		License:       "UtauTTS project policy: academic research, non-commercial research, and personal use only; commercial use requires prior permission from the JSUT rights holders",
 		LicenseNotice: "licenses/PROSODY-MODELS.txt",
 		DataNotice:    "licenses/JSUT-DATA-AND-LABELS.txt",
 	}
