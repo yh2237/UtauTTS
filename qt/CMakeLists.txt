@@ -72,7 +72,6 @@ qt_add_qml_module(utautts
         qml/SynthesisLogWindow.qml
         qml/SettingsWindow.qml
         qml/SettingsResetButton.qml
-        qml/BreezeIcon.qml
         qml/GrayscaleMenuItem.qml
         qml/DictionaryWindow.qml
         qml/LicenseWindow.qml
@@ -116,26 +115,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_compile_options(utautts PRIVATE -fPIC)
     target_link_options(utautts PRIVATE "LINKER:-z,nocopyreloc" "LINKER:-z,text")
 endif()
-
-set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/breeze-view-refresh.svg"
-    PROPERTIES QT_RESOURCE_ALIAS "breeze-view-refresh.svg"
-)
-set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/breeze-edit-delete.svg"
-    PROPERTIES QT_RESOURCE_ALIAS "breeze-edit-delete.svg"
-)
-set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/breeze-overflow-menu.svg"
-    PROPERTIES QT_RESOURCE_ALIAS "breeze-overflow-menu.svg"
-)
-qt_add_resources(utautts "uiicons"
-    PREFIX "/icons"
-    FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/breeze-view-refresh.svg"
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/breeze-edit-delete.svg"
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/breeze-overflow-menu.svg"
-)
 
 set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE"

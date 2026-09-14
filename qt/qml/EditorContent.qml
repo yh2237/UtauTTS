@@ -155,12 +155,15 @@ import QtMultimedia
 
                             ToolButton {
                                 id: cardMenuButton
-                                contentItem: BreezeIcon {
+                                contentItem: Text {
                                     anchors.centerIn: parent
                                     width: 22
                                     height: 22
-                                    source: "qrc:/icons/breeze-overflow-menu.svg"
-                                    iconColor: cardMenuButton.palette.buttonText
+                                    text: "⋮"
+                                    color: cardMenuButton.palette.buttonText
+                                    font.pixelSize: 20
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
                                 }
                                 visible: card.index === window.selectedIndex
                                 onClicked: cardMenu.open()

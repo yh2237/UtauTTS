@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 
 ApplicationWindow {
@@ -42,6 +43,7 @@ ApplicationWindow {
     property string pendingExportTextEncoding: "utf-8"
     property bool pendingDarkMode: false
     property string pendingLanguage: "auto"
+    property string pendingFfmpegPath: ""
     property var languageCodes: root.backend.languageCodes()
     property bool pendingCloseLogOnSuccess: true
     property bool pendingUpdateCheckEnabled: true
@@ -83,6 +85,16 @@ ApplicationWindow {
         }
     }
 
+    FolderDialog {
+        id: ffmpegFolderDialog
+        title: root.translator.tr("settings.ffmpegPath.choose")
+        onAccepted: {
+            const path = selectedFolder.toLocalFile();
+            if (path.length)
+                root.pendingFfmpegPath = path;
+        }
+    }
+
     function loadCurrent() {
         pendingDefaultVoicebankId = root.validDefaultVoicebankId(root.backend.defaultVoicebankId);
         pendingDefaultModelId = root.validDefaultModelId(root.backend.defaultModelId);
@@ -98,6 +110,7 @@ ApplicationWindow {
         pendingExportTextEncoding = root.backend.exportTextEncoding;
         pendingDarkMode = root.backend.darkMode;
         pendingLanguage = root.backend.language;
+        pendingFfmpegPath = root.backend.ffmpegPath;
         pendingCloseLogOnSuccess = root.backend.closeLogOnSuccess;
         pendingUpdateCheckEnabled = root.backend.updateCheckEnabled;
         pendingPreReleaseUpdateCheckEnabled = root.backend.preReleaseUpdateCheckEnabled;
@@ -170,6 +183,10 @@ ApplicationWindow {
 
     function resetLanguage() {
         pendingLanguage = "auto";
+    }
+
+    function resetFfmpegPath() {
+        pendingFfmpegPath = "";
     }
 
     function resetUpdateCheckEnabled() {
@@ -724,6 +741,38 @@ ApplicationWindow {
                                 translator: root.translator
                                 onResetRequested: root.resetLanguage()
                             }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.ffmpegPath")
+                            }
+                            TextField {
+                                id: ffmpegPathField
+                                Layout.fillWidth: true
+                                placeholderText: root.translator.tr("settings.ffmpegPath.placeholder")
+                                text: root.pendingFfmpegPath
+                                selectByMouse: true
+                                onTextEdited: root.pendingFfmpegPath = text
+                            }
+                            Button {
+                                text: root.translator.tr("settings.ffmpegPath.choose")
+                                onClicked: ffmpegFolderDialog.open()
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetFfmpegPath()
+                            }
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: root.translator.tr("settings.ffmpegPathHint")
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: 12
+                            opacity: 0.75
                         }
 
                         RowLayout {

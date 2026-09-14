@@ -83,6 +83,39 @@ bool hasResourceLayout(const QDir &root) {
     return root.exists("renderer") || root.exists("models") || root.exists("voice");
 }
 
+QString normalizeFfmpegPath(const QString &value) {
+    const QString trimmed = QDir::fromNativeSeparators(value.trimmed());
+    if (trimmed.isEmpty())
+        return {};
+    const QFileInfo info(trimmed);
+    if (info.exists()) {
+        if (info.isFile())
+            return info.absolutePath();
+        if (info.isDir())
+            return info.absoluteFilePath();
+    }
+    return QDir::cleanPath(trimmed);
+}
+
+QString detectFfmpegPath() {
+    const QStringList environmentNames{
+        QStringLiteral("UTAUTTS_FFMPEG_PATH"),
+        QStringLiteral("FFMPEG_PATH"),
+        QStringLiteral("FFMPEG_DIR"),
+        QStringLiteral("FFMPEG_ROOT"),
+    };
+    for (const QString &name : environmentNames) {
+        const QString value = qEnvironmentVariable(name.toUtf8().constData()).trimmed();
+        if (value.isEmpty())
+            continue;
+        const QString path = normalizeFfmpegPath(value);
+        if (!path.isEmpty() && QFileInfo::exists(path))
+            return path;
+    }
+
+    return {};
+}
+
 
 bool writeJSONFile(const QString &path, const QVariantMap &value, QString *error) {
     const QJsonDocument document = QJsonDocument::fromVariant(value);
@@ -250,6 +283,8 @@ Backend::Backend(QObject *parent)
           "appearance/preReleaseUpdateCheckEnabled", false).toBool()),
       m_previewCacheFileCount(portableSettingValue("performance/previewCacheFileCount", 32).toInt()),
       m_developerMode(portableSettingValue("developer/enabled", false).toBool()),
+      m_ffmpegPath(normalizeFfmpegPath(
+          portableSettingValue("media/ffmpegPath", QString()).toString())),
       m_defaultRenderer(portableSettingValue("synthesis/defaultRendererId",
                                           QStringLiteral("utautts-world-phrase")).toString().trimmed()),
       m_defaultModelId(portableSettingValue("synthesis/defaultModelId",
@@ -311,6 +346,15 @@ Backend::Backend(QObject *parent)
         }
     }
     runStartupMigrations();
+    if (m_ffmpegPath.isEmpty()) {
+        m_ffmpegPath = detectFfmpegPath();
+        if (!m_ffmpegPath.isEmpty()) {
+            QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+            settings.setValue(QStringLiteral("media/ffmpegPath"), m_ffmpegPath);
+            settings.sync();
+        }
+    }
+    configureFfmpegPath(m_ffmpegPath);
 }
 
 void Backend::runStartupMigrations() {
@@ -364,6 +408,75 @@ Backend::~Backend() {
     if (m_handle) {
         UtauTTSDestroy(m_handle);
     }
+}
+
+void Backend::configureFfmpegPath(const QString &path) {
+    const QString directoryPath = normalizeFfmpegPath(path);
+    if (directoryPath.isEmpty())
+        return;
+    const QFileInfo directoryInfo(directoryPath);
+    if (!directoryInfo.isDir())
+        return;
+
+    const QDir directory(directoryPath);
+    QStringList libraryRoots;
+    QStringList environmentRoots;
+    const auto addLibraryRoot = [&libraryRoots](const QString &candidate) {
+        const QString normalized = QFileInfo(candidate).absoluteFilePath();
+        if (QFileInfo(normalized).isDir() && !libraryRoots.contains(normalized))
+            libraryRoots.append(normalized);
+    };
+    const auto addEnvironmentRoot = [&environmentRoots](const QString &candidate) {
+        const QString normalized = QFileInfo(candidate).absoluteFilePath();
+        if (QFileInfo(normalized).isDir() && !environmentRoots.contains(normalized))
+            environmentRoots.append(normalized);
+    };
+    addLibraryRoot(directoryPath);
+    addEnvironmentRoot(directoryPath);
+    if (directory.dirName().compare(QStringLiteral("multimedia"), Qt::CaseInsensitive) == 0)
+        addLibraryRoot(directory.filePath(QStringLiteral("..")));
+    if (directory.exists(QStringLiteral("multimedia")))
+        addLibraryRoot(directoryPath);
+    if (directory.exists(QStringLiteral("plugins/multimedia")))
+        addLibraryRoot(directory.filePath(QStringLiteral("plugins")));
+    if (directory.dirName().compare(QStringLiteral("plugins"), Qt::CaseInsensitive) == 0
+            && directory.exists(QStringLiteral("multimedia"))) {
+        addLibraryRoot(directoryPath);
+    }
+    QDir ancestor(directoryPath);
+    for (int depth = 0; depth < 4; ++depth) {
+        if (ancestor.exists(QStringLiteral("plugins/multimedia")))
+            addLibraryRoot(ancestor.filePath(QStringLiteral("plugins")));
+        if (ancestor.exists(QStringLiteral("multimedia")))
+            addLibraryRoot(ancestor.absolutePath());
+        for (const QString &name : {QStringLiteral("bin"), QStringLiteral("lib"),
+                                    QStringLiteral("lib64")}) {
+            if (ancestor.exists(name))
+                addEnvironmentRoot(ancestor.filePath(name));
+        }
+        if (!ancestor.cdUp())
+            break;
+    }
+    for (const QString &root : libraryRoots)
+        QCoreApplication::addLibraryPath(root);
+
+    const QString separator(QDir::listSeparator());
+    const auto prependEnvironmentPath = [&separator](const char *name, const QString &path) {
+        const QString current = QString::fromLocal8Bit(qgetenv(name));
+        QStringList entries = current.split(separator, Qt::SkipEmptyParts);
+        entries.removeAll(path);
+        entries.prepend(path);
+        qputenv(name, entries.join(separator).toLocal8Bit());
+    };
+    for (const QString &root : environmentRoots)
+        prependEnvironmentPath("PATH", root);
+#ifdef Q_OS_MACOS
+    for (const QString &root : environmentRoots)
+        prependEnvironmentPath("DYLD_LIBRARY_PATH", root);
+#elif defined(Q_OS_UNIX)
+    for (const QString &root : environmentRoots)
+        prependEnvironmentPath("LD_LIBRARY_PATH", root);
+#endif
 }
 
 void Backend::setDarkMode(bool value) {
@@ -502,6 +615,21 @@ void Backend::setDeveloperMode(bool value) {
     settings.setValue(QStringLiteral("developer/enabled"), value);
     settings.sync();
     emit developerModeChanged();
+}
+
+void Backend::setFfmpegPath(const QString &value) {
+    const QString normalized = normalizeFfmpegPath(value);
+    if (m_ffmpegPath == normalized)
+        return;
+    m_ffmpegPath = normalized;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    if (m_ffmpegPath.isEmpty())
+        settings.remove(QStringLiteral("media/ffmpegPath"));
+    else
+        settings.setValue(QStringLiteral("media/ffmpegPath"), m_ffmpegPath);
+    settings.sync();
+    configureFfmpegPath(m_ffmpegPath);
+    emit ffmpegSettingsChanged();
 }
 
 
@@ -670,8 +798,13 @@ void Backend::clearLogs() {
 
 bool Backend::showNativeAboutDialog() {
 #ifdef Q_OS_WIN
-    const QString title = tr("UtauTTSについて");
-    const QString text = QStringLiteral("UtauTTS %1 \n\nDeveloped by yh\n\nUTAUボイスバンクの原音接続に、学習ベースのイントネーション調整を加えた日本語TTS").arg(QCoreApplication::applicationVersion());
+    const QString title = tr("About UtauTTS");
+    const QString text = QStringLiteral(
+        "UtauTTS %1\n\n"
+        "Developed by yh\n\n"
+        "Japanese TTS using UTAU voicebank concatenation and learning-based intonation.\n\n"
+        "FFmpeg is not bundled. Qt Multimedia uses an available backend. "
+        "See the license documents for details.").arg(QCoreApplication::applicationVersion());
     MessageBoxW(GetActiveWindow(),
                 reinterpret_cast<LPCWSTR>(text.utf16()),
                 reinterpret_cast<LPCWSTR>(title.utf16()),
@@ -1657,6 +1790,7 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
             {"update_check_enabled", m_updateCheckEnabled},
             {"pre_release_update_check_enabled", m_preReleaseUpdateCheckEnabled},
             {"developer_mode", m_developerMode},
+            {"ffmpeg_path", m_ffmpegPath},
         }},
         {"current_selection", selection},
         {"catalog", QVariantMap{

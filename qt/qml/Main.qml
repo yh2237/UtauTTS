@@ -1158,6 +1158,7 @@ ApplicationWindow {
                                                settingsWindow.pendingDefaultAliasPolicy);
         window.appBackend.setDarkMode(settingsWindow.pendingDarkMode);
         window.appBackend.setLanguage(settingsWindow.pendingLanguage);
+        window.appBackend.setFfmpegPath(settingsWindow.pendingFfmpegPath);
         window.appBackend.setCloseLogOnSuccess(settingsWindow.pendingCloseLogOnSuccess);
         window.appBackend.setUpdateCheckEnabled(settingsWindow.pendingUpdateCheckEnabled);
         window.appBackend.setPreReleaseUpdateCheckEnabled(

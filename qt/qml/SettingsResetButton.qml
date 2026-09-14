@@ -14,12 +14,15 @@ ToolButton {
     Layout.maximumWidth: 24
     Layout.preferredHeight: 24
     Layout.alignment: Qt.AlignVCenter
-    contentItem: BreezeIcon {
+    contentItem: Text {
         anchors.centerIn: parent
         width: 18
         height: 18
-        source: "qrc:/icons/breeze-view-refresh.svg"
-        iconColor: root.palette.buttonText
+        text: "↻"
+        color: root.palette.buttonText
+        font.pixelSize: 17
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
     }
     onClicked: resetRequested()
     ToolTip.visible: hovered

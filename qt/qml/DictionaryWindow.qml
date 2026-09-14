@@ -138,12 +138,15 @@ ApplicationWindow {
                     Layout.maximumWidth: 24
                     Layout.preferredHeight: 24
                     Layout.alignment: Qt.AlignVCenter
-                    contentItem: BreezeIcon {
+                    contentItem: Text {
                         anchors.centerIn: parent
                         width: 18
                         height: 18
-                        source: "qrc:/icons/breeze-edit-delete.svg"
-                        iconColor: dictionaryDeleteButton.palette.buttonText
+                        text: "×"
+                        color: dictionaryDeleteButton.palette.buttonText
+                        font.pixelSize: 20
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
                     onClicked: dictionaryEntriesModel.remove(dictionaryEntryRow.index)
                     ToolTip.visible: hovered
