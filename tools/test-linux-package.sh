@@ -88,6 +88,7 @@ for required in \
   "${gui_root}/licenses/Go/PINYIN-DATA-NOTICE.txt" \
   "${gui_root}/licenses/Go/github_com_ikawaha_kagome_v2-v2.11.0-LICENSE.txt" \
   "${gui_root}/licenses/Go/github_com_ikawaha_kagome-dict_ipa-v1.2.6-NOTICE.txt" \
+  "${gui_root}/licenses/Go/github_com_ikawaha_kagome-dict-v1.1.7-LICENSE.txt" \
   "${gui_root}/licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt" \
   "${gui_root}/licenses/Go/golang_org_x_text-v0.39.0-PATENTS.txt" \
   "${gui_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \
@@ -97,6 +98,7 @@ for required in \
   "${server_root}/licenses/Go/PINYIN-DATA-NOTICE.txt" \
   "${server_root}/licenses/Go/github_com_ikawaha_kagome_v2-v2.11.0-LICENSE.txt" \
   "${server_root}/licenses/Go/github_com_ikawaha_kagome-dict_ipa-v1.2.6-NOTICE.txt" \
+  "${server_root}/licenses/Go/github_com_ikawaha_kagome-dict-v1.1.7-LICENSE.txt" \
   "${server_root}/licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt" \
   "${server_root}/licenses/Go/golang_org_x_text-v0.39.0-PATENTS.txt" \
   "${server_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \

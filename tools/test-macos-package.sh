@@ -69,8 +69,11 @@ for package_root in "${gui_root}" "${server_root}"; do
     "${package_root}/licenses/Go/PINYIN-DATA-NOTICE.txt" \
     "${package_root}/licenses/Go/github_com_ikawaha_kagome_v2-v2.11.0-LICENSE.txt" \
     "${package_root}/licenses/Go/github_com_ikawaha_kagome-dict_ipa-v1.2.6-NOTICE.txt" \
+    "${package_root}/licenses/Go/github_com_ikawaha_kagome-dict-v1.1.7-LICENSE.txt" \
     "${package_root}/licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt" \
     "${package_root}/licenses/Go/golang_org_x_text-v0.39.0-PATENTS.txt" \
+    "${package_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \
+    "${package_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt" \
     "${package_root}/licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt" \
     "${package_root}/licenses/OpenJTalk/MECAB_COPYING.txt" \
     "${package_root}/licenses/OpenJTalk/MECAB_NAIST_JDIC_COPYING.txt" \
