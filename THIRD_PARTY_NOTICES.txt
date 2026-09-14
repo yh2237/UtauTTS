@@ -316,6 +316,30 @@ The upstream text is available at:
 https://github.com/golang/text/blob/master/LICENSE
 
 
+gopkg.in/yaml.v3
+=================
+
+UtauTTS uses gopkg.in/yaml.v3 v3.0.1 for USTX, voicebank, and DiffSinger
+project data. The module is distributed under the MIT License and Apache
+License 2.0. Its complete LICENSE and NOTICE files are included under
+licenses/Go in each release package.
+
+Upstream source:
+https://github.com/go-yaml/yaml/tree/v3.0.1
+
+
+CMU Pronouncing Dictionary
+==========================
+
+UtauTTS embeds the CMUdict pronunciation dictionary for English pronunciation
+and lexical stress. The bundled dictionary uses revision
+74790861f652b15e4ac49015a90074ad62a27690 and the source license is included as
+licenses/Go/CMUDICT-LICENSE.txt in each release package.
+
+Upstream source:
+https://github.com/cmusphinx/cmudict
+
+
 JSUT-derived prosody models and jsut-label
 ==========================================
 
