@@ -83,29 +83,72 @@ for required in \
   "${gui_root}/docs/installation.md" \
   "${gui_root}/docs/building.md" \
   "${gui_root}/docs/technical-design.md" \
-  "${server_root}/licenses/README.txt" \
-  "${gui_root}/licenses/Go/APACHE-2.0.txt" \
+  "${gui_root}/licenses/Go/GO-LICENSE.txt" \
   "${gui_root}/licenses/Go/CMUDICT-LICENSE.txt" \
   "${gui_root}/licenses/Go/PINYIN-DATA-NOTICE.txt" \
+  "${gui_root}/licenses/Go/github_com_ikawaha_kagome_v2-v2.11.0-LICENSE.txt" \
+  "${gui_root}/licenses/Go/github_com_ikawaha_kagome-dict_ipa-v1.2.6-NOTICE.txt" \
   "${gui_root}/licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt" \
+  "${gui_root}/licenses/Go/golang_org_x_text-v0.39.0-PATENTS.txt" \
   "${gui_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \
   "${gui_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt" \
-  "${server_root}/licenses/Go/APACHE-2.0.txt" \
+  "${server_root}/licenses/Go/GO-LICENSE.txt" \
   "${server_root}/licenses/Go/CMUDICT-LICENSE.txt" \
   "${server_root}/licenses/Go/PINYIN-DATA-NOTICE.txt" \
+  "${server_root}/licenses/Go/github_com_ikawaha_kagome_v2-v2.11.0-LICENSE.txt" \
+  "${server_root}/licenses/Go/github_com_ikawaha_kagome-dict_ipa-v1.2.6-NOTICE.txt" \
   "${server_root}/licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt" \
+  "${server_root}/licenses/Go/golang_org_x_text-v0.39.0-PATENTS.txt" \
   "${server_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \
   "${server_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt" \
   "${gui_root}/licenses/WORLD/WORLD-LICENSE.txt" \
   "${gui_root}/licenses/WORLD/OOURA-NOTICE.txt" \
   "${gui_root}/licenses/WORLD/MACRODEFINITIONS-LICENSE.txt" \
+  "${gui_root}/licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt" \
+  "${gui_root}/licenses/OpenJTalk/MECAB_COPYING.txt" \
+  "${gui_root}/licenses/OpenJTalk/MECAB_NAIST_JDIC_COPYING.txt" \
+  "${gui_root}/licenses/OpenJTalk/OPENJTALK_COPYING.txt" \
+  "${gui_root}/runtime/open_jtalk_dic_utf_8-1.11/COPYING" \
+  "${server_root}/licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt" \
+  "${server_root}/licenses/OpenJTalk/MECAB_COPYING.txt" \
+  "${server_root}/licenses/OpenJTalk/MECAB_NAIST_JDIC_COPYING.txt" \
+  "${server_root}/licenses/OpenJTalk/OPENJTALK_COPYING.txt" \
+  "${server_root}/runtime/open_jtalk_dic_utf_8-1.11/COPYING" \
   "${server_root}/models/README.md" \
   "${gui_root}/runtime/licenses/PYTHON_LICENSE.txt" \
+  "${gui_root}/runtime/licenses/PYINSTALLER_COPYING.txt" \
+  "${server_root}/runtime/licenses/PYTHON_LICENSE.txt" \
   "${server_root}/runtime/licenses/PYINSTALLER_COPYING.txt" \
   "${server_root}/runtime/utautts-worldline-bridge" \
   "${server_root}/runtime/utautts-world-engine.so"; do
   [ -f "${required}" ] || fail "required package file is missing: ${required}"
 done
+grep -q 'system Qt' "${gui_root}/THIRD_PARTY_NOTICES.txt" \
+  || fail 'Linux GUI Qt notice is missing from the package notice'
+for package_root in "${gui_root}" "${server_root}"; do
+  [ ! -e "${package_root}/licenses/Go/APACHE-2.0.txt" ] \
+    || fail "obsolete Apache license copy is present: ${package_root}"
+  [ ! -e "${package_root}/licenses/Go/github_com_ikawaha_kagome-dict_ipa-v1.2.6-LICENSE.txt" ] \
+    || fail "duplicate Kagome IPA license is present: ${package_root}"
+  [ ! -e "${package_root}/licenses/Go/golang_org_x_text-v0.39.0-LICENSE.txt" ] \
+    || fail "duplicate x/text license is present: ${package_root}"
+  [ ! -e "${package_root}/licenses/OpenJTalk/DICTIONARY_COPYING.txt" ] \
+    || fail "duplicate Open JTalk dictionary license is present: ${package_root}"
+  [ ! -e "${package_root}/runtime/licenses/OPENSSL-NOTICE.txt" ] \
+    || fail "obsolete OpenSSL notice is present: ${package_root}"
+  [ ! -e "${package_root}/runtime/licenses/OPENSSL-LICENSE.txt" ] \
+    || fail "obsolete OpenSSL license is present: ${package_root}"
+done
+voice_archives=()
+while IFS= read -r candidate; do
+  [[ -n "${candidate}" ]] && voice_archives+=("${candidate}")
+done < <(find "${root_dir}/voice" -maxdepth 1 -type f -name '*.zip' -print | sort)
+[[ "${#voice_archives[@]}" -eq 1 ]] || fail "expected exactly one source voicebank archive, found ${#voice_archives[@]}"
+voice_archive="${voice_archives[0]}"
+expected_voicebank_sha256='B96D1B21145F22E573AFD9EC8AEAAD0EC9CBAEE581C2623C64ADDEB31DE46B3D'
+actual_voicebank_sha256="$(sha256sum "${voice_archive}" | awk '{print toupper($1)}')"
+[[ "${actual_voicebank_sha256}" == "${expected_voicebank_sha256}" ]] \
+  || fail "source voicebank hash mismatch: expected ${expected_voicebank_sha256}, got ${actual_voicebank_sha256}"
 for package_root in "${gui_root}" "${server_root}"; do
   "${python_command}" "${root_dir}/tools/copy-model-license-notices.py" \
     --models "${package_root}/models" \
@@ -125,6 +168,8 @@ done
 for package_root in "${gui_root}" "${server_root}"; do
   [ ! -e "${package_root}/THIRD_PARTY_NOTICES-WINDOWS-GUI.txt" ] \
     || fail "Linux package contains the Windows GUI third-party addendum: ${package_root}"
+  [ ! -e "${package_root}/licenses/openjtalk" ] \
+    || fail "Open JTalk licenses are duplicated under a lowercase directory: ${package_root}"
 done
 for removed_runtime in libcoreclr.so libhostpolicy.so utautts-worldline-bridge.runtimeconfig.json; do
   [ ! -e "${server_root}/runtime/${removed_runtime}" ] \

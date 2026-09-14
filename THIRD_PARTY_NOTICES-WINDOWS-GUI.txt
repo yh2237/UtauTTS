@@ -2,7 +2,7 @@ UtauTTS Windows GUI third-party addendum
 ========================================
 
 This file supplements THIRD_PARTY_NOTICES.txt in the Windows GUI package. It
-applies only to the Qt libraries, Qt Multimedia deployment, and MinGW runtime
+applies only to the Qt libraries, Qt Multimedia runtime configuration, and MinGW runtime
 files bundled with that package.
 
 
@@ -22,24 +22,26 @@ License and source information:
 https://www.qt.io/licensing/
 https://code.qt.io/cgit/qt/
 
-The LGPLv3 text, a written source offer for the Qt version used by the build,
-Qt replacement/relinking instructions, and Qt third-party attribution links are
-included under licenses/Qt. Qt Multimedia's FFmpeg deployment and corresponding
-source request procedure are also documented there.
+The LGPLv3 text, written source offer, replacement/relinking instructions, and
+Qt SBOM manifest are included under licenses/Qt. Raw SBOM JSON location: build
+audit output.
 
 
-FFmpeg libraries distributed by Qt Multimedia
-==============================================
+FFmpeg runtime
+===============
 
-The Windows GUI distribution includes the FFmpeg DLLs delivered by the Qt
-Multimedia deployment (avcodec-61.dll, avformat-61.dll, avutil-59.dll,
-swresample-5.dll, swscale-8.dll, and ffmpegmediaplugin.dll in the current build).
-The exact Qt version, deployment provenance, and source/license links are
-included under licenses/Qt. The exact FFmpeg source/build corresponding to these
-files can be requested using the written source offer there.
-FFmpeg is generally LGPLv2.1-or-later, but optional GPL components change the
-applicable terms. Refer to the FFmpeg license and corresponding source for the
-exact binary build:
+FFmpeg integration: Qt Multimedia uses the native Windows backend when
+available. An external Qt Multimedia FFmpeg backend can be selected in
+Settings or by setting UTAUTTS_FFMPEG_PATH, FFMPEG_PATH, FFMPEG_DIR, or
+FFMPEG_ROOT before the first launch.
+
+Backend path contents: the Qt Multimedia FFmpeg plugin and its codec libraries.
+The command-line ffmpeg executable and the Qt Multimedia plugin are separate
+interfaces. Qt SBOM JSON location: build audit output. Package notice:
+licenses/Qt/FFmpeg-OPTIONAL.txt.
+
+Qt and FFmpeg references:
+https://doc.qt.io/qt-6.8/qtmultimedia-index.html
 https://ffmpeg.org/legal.html
 
 

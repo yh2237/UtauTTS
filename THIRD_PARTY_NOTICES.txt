@@ -66,8 +66,10 @@ Upstream sources:
 https://github.com/ikawaha/kagome
 https://github.com/ikawaha/kagome-dict
 
-The exact module license files for Kagome v2.11.0, kagome-dict v1.1.7, and
-kagome-dict/ipa v1.2.6 are included under licenses/Go in the release package.
+The LICENSE text shared by Kagome v2.11.0 and kagome-dict/ipa v1.2.6 is included
+once as licenses/Go/github_com_ikawaha_kagome_v2-v2.11.0-LICENSE.txt. The
+kagome-dict/ipa NOTICE, kagome-dict v1.1.7 license, and other module-specific
+notices remain under licenses/Go in the release package.
 
 
 go-pinyin
@@ -85,7 +87,7 @@ https://github.com/mozillazg/pinyin-data
 pyopenjtalk frontend bridge
 ==========================
 
-The Windows and Linux releases include a standalone frontend helper built from
+The Windows, Linux, and macOS releases include a standalone frontend helper built from
 pyopenjtalk 0.4.1. UtauTTS uses only its Open JTalk text-processing frontend.
 
 MIT License
@@ -144,10 +146,12 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-The bundled dictionary retains its own COPYING file inside
-runtime/open_jtalk_dic_utf_8-1.11. The helper also embeds CPython and the
+The bundled dictionary retains its own COPYING file at
+runtime/open_jtalk_dic_utf_8-1.11/COPYING. This is the only copy of the
+dictionary notice in the package. The helper also embeds CPython and the
 PyInstaller bootloader; their complete license texts are included under
-runtime/licenses.
+runtime/licenses. If Microsoft Visual C++/UCRT files are present, the
+corresponding license notice is included in the same directory.
 
 The pyopenjtalk frontend also incorporates hts_engine_API, MeCab, and the
 NAIST/UniDic dictionary terms. Their original COPYING files are included
@@ -160,8 +164,9 @@ https://github.com/r9y9/open_jtalk
 OpenUtau-derived code
 =====================
 
-UtauTTS includes timing and renderer code derived from OpenUtau. This notice
-covers that code and its license.
+UtauTTS includes timing and renderer compatibility code informed by OpenUtau.
+This notice covers the compatibility code and its MIT license. The upstream
+source is the OpenUtau repository listed below.
 
 The MIT License (MIT)
 
@@ -243,14 +248,12 @@ licenses/WORLD/MACRODEFINITIONS-LICENSE.txt.
 
 The UtauTTS GUI distribution bundles the official 足立レイ UTAU voicebank
 version 3.5.0. The voicebank was designed and created by みさいる / Mechanical
-Girl and is distributed under its own guidelines. It is not covered by the
-UtauTTS software license.
+Girl. Voicebank terms: the Mechanical Girl guidelines linked below.
 
-The original readme, usage guidelines, history, and related documents are
-included inside the bundled voicebank directory. Refer to those files for the
-full terms. The official guidelines permit redistribution and use embedded in
-programs or devices. Commercial or for-profit use may require prior contact
-with Mechanical Girl under the current online guidelines.
+Bundled documents: the original readme, usage guidelines, history, and related
+documents in the voicebank directory. UTAU audio redistribution and modification
+are permitted under the current guidelines. Commercial or for-profit use:
+contact Mechanical Girl before use.
 
 Official distribution:
 https://mechanicalgirl.jp/adachi-rei/
@@ -265,21 +268,29 @@ B96D1B21145F22E573AFD9EC8AEAAD0EC9CBAEE581C2623C64ADDEB31DE46B3D
 Windows GUI addendum
 ====================
 
-The Windows GUI package additionally bundles Qt 6, Qt Multimedia's FFmpeg
-deployment, and MinGW runtime files. Their package-specific license and source
-notices are included in
-`THIRD_PARTY_NOTICES-WINDOWS-GUI.txt` beside this file. Server and Linux
-packages do not include those Windows GUI components or that addendum.
+The Windows GUI package additionally bundles Qt 6 and MinGW runtime files.
+Package-specific license notices: THIRD_PARTY_NOTICES-WINDOWS-GUI.txt.
+FFmpeg integration: an external Qt Multimedia backend configured by the user.
 
 
 macOS GUI addendum
 ==================
 
-The macOS GUI package additionally bundles dynamically linked Qt 6 frameworks
-and Qt Multimedia's deployment. Their package-specific license, source-offer,
-relinking, attribution, and FFmpeg notices are included under licenses/Qt and
-in `THIRD_PARTY_NOTICES-MACOS-GUI.txt` beside this file. Server and Linux
-packages do not include that macOS GUI addendum.
+The macOS GUI package additionally bundles dynamically linked Qt 6 frameworks.
+Package-specific license, source-offer, relinking, and attribution notices:
+licenses/Qt and THIRD_PARTY_NOTICES-MACOS-GUI.txt. FFmpeg integration: an
+external Qt Multimedia backend configured by the user. The macOS GUI addendum
+applies to the macOS GUI package.
+
+
+Linux GUI and system Qt
+=======================
+
+The Linux GUI links dynamically to Qt 6 supplied by the host system. Qt 6 and
+the FFmpeg backend are host components with their own license, source, and
+relinking information. Reference license texts for the Windows and macOS GUI
+packages: licenses/Qt. Runtime prerequisite: a compatible Qt package from the
+distribution.
 
 
 Go runtime and standard library
@@ -296,43 +307,45 @@ golang.org/x/text
 =================
 
 UtauTTS uses golang.org/x/text for Japanese encoding and Unicode processing.
-The release uses golang.org/x/text v0.39.0. Its exact license text is included
-under licenses/Go. The module is distributed under the BSD-3-Clause license.
+The release uses golang.org/x/text v0.39.0. Its PATENTS file is included as
+licenses/Go/golang_org_x_text-v0.39.0-PATENTS.txt. Its LICENSE text is
+identical to the Go runtime license and is included once as
+licenses/Go/GO-LICENSE.txt. The module is distributed under the BSD-3-Clause
+license.
 The upstream text is available at:
 https://github.com/golang/text/blob/master/LICENSE
 
 
-JSUT and jsut-label prosody data
-================================
+JSUT-derived prosody models and jsut-label
+==========================================
 
-The official bundled learned prosody models were trained from the JSUT Japanese
-speech corpus. The GUI also includes 300 unchanged BASIC5000 sentences, arranged into
-six prompt packs for manual prosody adjustment. The optional BASIC5000 HTS-style
-labels come from https://github.com/sarulab-speech/jsut-label. The original corpus
-and label files are not bundled in this release. Component text sources carry
-their own terms (Wikipedia CC BY-SA 3.0, TANAKA corpus CC BY 2.0, and JSUT
-original sentences CC BY-SA 4.0). Contributors and complete source
-attribution are recorded in licenses/JSUT-DATA-AND-LABELS.txt, which is included
-in the release license bundle.
+This section covers the bundled JSUT-derived models
+models/frame-intonation-v8.json and models/prosody-multitask-v1.json, together
+with JSON target priors generated by cmd/tools/jsut-target-prior. The models
+are trained from JSUT audio. The training tools use the BASIC5000 HTS-style
+labels from https://github.com/sarulab-speech/jsut-label. Source terms and
+attribution are recorded in licenses/JSUT-DATA-AND-LABELS.txt.
 
-The JSUT terms separately restrict the source audio. The audio is intended for
-academic research, non-commercial research (including research within
-commercial organizations), and personal use. The source audio is not included
-in this release and general redistribution is not permitted; the official terms
-describe limited publication of a small part of the corpus (for example, about
-100 audio files) on a website or blog. Commercial use requires contacting the
-JSUT rights holders. See the official terms and current contact information:
-https://sites.google.com/site/shinnosuketakamichi/publication/jsut
+The [official JSUT terms](https://sites.google.com/site/shinnosuketakamichi/publication/jsut)
+define separate text and audio conditions:
 
-The official JSUT-derived JSON model files were trained using JSUT audio. They
-may be used, modified, and redistributed only for academic research,
-non-commercial research, and personal use, including research conducted within
-commercial organizations.
-Commercial use requires prior permission from the JSUT rights holders. The
-model-specific notice is included as
-licenses/PROSODY-MODELS.txt and models/README.md. UtauTTS's repository-level MIT
-License applies to the source code and does not override the terms for models,
-prompts, voicebanks, or other third-party assets.
+- Text: CC-BY-SA 4.0 and other source terms
+- Audio use: academic research, non-commercial research including research
+  within commercial organizations, and personal use
+- Audio publication: the limited website or blog publication described on the
+  official page, such as about 100 audio files
+- Commercial use: contact the JSUT rights holders listed on the official page
+
+Model and target-prior distribution policy: the academic research,
+non-commercial research, and personal-use terms in
+licenses/PROSODY-MODELS.txt. Commercial use requires prior permission from the
+JSUT rights holders.
+
+The english-intonation-v1 model contains original UtauTTS coefficients and is
+distributed under the MIT License. Its notice is
+licenses/ENGLISH-INTONATION-V1.txt. UtauTTS source code uses the repository MIT
+License; models, prompts, voicebanks, and other third-party assets use their
+respective notices.
 
 
 DiffSinger ONNX Runtime and DirectML bridge
@@ -340,105 +353,15 @@ DiffSinger ONNX Runtime and DirectML bridge
 
 The Full Windows package includes the optional DiffSinger bridge. It embeds
 ONNX Runtime with the DirectML execution provider and the Microsoft DirectML
-runtime. The exact license and third-party notice files for the
-Microsoft.ML.OnnxRuntime.DirectML, Microsoft.ML.OnnxRuntime.Managed, and
-Microsoft.AI.DirectML package versions used by the build are included under
-runtime/licenses alongside the .NET runtime notices. The bridge is not
-included in the Japanese profile or in the Linux/macOS packages.
+runtime. The Microsoft.ML.OnnxRuntime.DirectML and
+Microsoft.ML.OnnxRuntime.Managed packages have identical license and
+third-party notice files. Those files are included once as
+ONNXRUNTIME-LICENSE.txt and ONNXRUNTIME-THIRD-PARTY-NOTICES.txt. The three
+Microsoft.AI.DirectML notices remain under runtime/licenses alongside the .NET
+runtime notices. Package profiles: Full Windows = bridge included; Japanese
+Windows, Linux, and macOS = bridge absent.
 
 Upstream package pages:
 https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.DirectML/1.23.0
 https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.Managed/1.23.0
 https://www.nuget.org/packages/Microsoft.AI.DirectML/1.15.4
-
-
-
-Breeze Icons
-============
-
-The GUI bundles selected KDE Breeze action icons as Qt resources:
-`view-refresh.svg`, `edit-delete.svg`, and `overflow-menu.svg`.
-Copyright (C) 2014 Uri Herrera and others.
-These icons are distributed under the GNU Lesser General Public License,
-version 3 or later, with the KDE artwork-library clarification in the upstream
-`COPYING-ICONS` file.
-SPDX-License-Identifier: LGPL-3.0-or-later
-
-Upstream icons:
-https://github.com/KDE/breeze-icons/tree/master/icons/actions/22
-License and attribution:
-https://github.com/KDE/breeze-icons/blob/master/COPYING-ICONS
-The complete upstream COPYING-ICONS text is included in the GUI package under
-licenses/Breeze/COPYING-ICONS.txt.
-
-
-
-gopkg.in/yaml.v3 (USTX export)
-==============================
-
-The complete Apache License 2.0 text is distributed as
-licenses/Go/APACHE-2.0.txt. The exact upstream license and NOTICE files for
-the bundled version are distributed beside it as
-gopkg_in_yaml_v3-v3.0.1-LICENSE.txt and
-gopkg_in_yaml_v3-v3.0.1-NOTICE.txt.
-
-This project is covered by two different licenses: MIT and Apache.
-
-#### MIT License ####
-
-The following files were ported to Go from C files of libyaml, and thus
-are still covered by their original MIT license, with the additional
-copyright starting in 2011 when the project was ported over:
-
-    apic.go emitterc.go parserc.go readerc.go scannerc.go
-    writerc.go yamlh.go yamlprivateh.go
-
-Copyright (c) 2006-2010 Kirill Simonov
-Copyright (c) 2006-2011 Kirill Simonov
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-### Apache License ###
-
-All the remaining project files are covered by the Apache license:
-
-Copyright (c) 2011-2019 Canonical Ltd
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-
-CMU Pronouncing Dictionary
-==========================
-
-UtauTTS embeds the full CMUdict pronunciation dictionary directly to
-preserve lexical stress. The pinned source revision and SHA-256 are recorded
-in internal/frontend/lexicon/README.md. The dictionary is distributed under
-the terms in licenses/Go/CMUDICT-LICENSE.txt in each release package.
-
-https://github.com/cmusphinx/cmudict

@@ -2,8 +2,8 @@ UtauTTS macOS GUI third-party addendum
 =======================================
 
 This file supplements THIRD_PARTY_NOTICES.txt in the macOS GUI package. It
-applies only to the dynamically linked Qt libraries and Qt Multimedia
-deployment bundled inside UtauTTS.app.
+applies only to the dynamically linked Qt libraries and Qt Multimedia runtime
+configuration used by UtauTTS.app.
 
 
 Qt 6
@@ -20,20 +20,24 @@ License and source information:
 https://www.qt.io/licensing/
 https://code.qt.io/cgit/qt/
 
-The LGPLv3 text, a written source offer for the exact Qt version used by the
-build, Qt replacement/relinking instructions, and Qt third-party attribution
-links are included under licenses/Qt. Qt Multimedia's FFmpeg deployment and
-corresponding source guidance are documented there as well.
+The LGPLv3 text, written source offer, replacement/relinking instructions, and
+Qt SBOM manifest are included under licenses/Qt. Raw SBOM JSON location: build
+audit output.
 
 
-FFmpeg libraries distributed by Qt Multimedia
-==============================================
+FFmpeg runtime
+===============
 
-Qt Multimedia may deploy FFmpeg components. The exact files detected in the
-GUI app bundle, their SHA-256 values, and the applicable source guidance are
-listed in licenses/Qt/FFmpeg-SOURCE-AND-LICENSE.txt.
+FFmpeg integration: Qt Multimedia uses the native macOS backend when
+available. An external Qt Multimedia FFmpeg backend can be selected in
+Settings or by setting UTAUTTS_FFMPEG_PATH, FFMPEG_PATH, FFMPEG_DIR, or
+FFMPEG_ROOT before the first launch.
 
-FFmpeg licensing depends on the exact build configuration; optional GPL
-components can change the applicable terms. Refer to the exact binary's
-corresponding source and the current FFmpeg legal guidance:
+Backend path contents: the Qt Multimedia FFmpeg plugin and its codec libraries.
+The command-line ffmpeg executable and the Qt Multimedia plugin are separate
+interfaces. Qt SBOM JSON location: build audit output. Package notice:
+licenses/Qt/FFmpeg-OPTIONAL.txt.
+
+Qt and FFmpeg references:
+https://doc.qt.io/qt-6.8/qtmultimedia-index.html
 https://ffmpeg.org/legal.html

@@ -32,7 +32,13 @@ if [[ ! -d "${pyinstaller_root}/PyInstaller" ]]; then
   "${python_bin}" -m pip install --target "${pyinstaller_root}" 'pyinstaller==6.16.0'
 fi
 
-extension="$(find "${package_root}/pyopenjtalk" -maxdepth 1 -name 'openjtalk*.so' -print | head -1)"
+extension=""
+for candidate in "${package_root}/pyopenjtalk"/openjtalk*.so; do
+  if [[ -f "${candidate}" ]]; then
+    extension="${candidate}"
+    break
+  fi
+done
 if [[ -z "${extension}" ]]; then
   echo "no macOS pyopenjtalk extension (openjtalk*.so) in ${package_root}/pyopenjtalk" >&2
   exit 1
@@ -48,6 +54,7 @@ cp "${extension}" "${input_path}/openjtalk.so"
 
 PYTHONPATH="${pyinstaller_root}" "${python_bin}" -m PyInstaller --noconfirm --clean --onefile \
   --name utautts-openjtalk-features \
+  --exclude-module _hashlib \
   --paths "${input_path}" \
   --hidden-import openjtalk \
   --distpath "${dist_path}" \

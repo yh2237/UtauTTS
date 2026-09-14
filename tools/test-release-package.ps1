@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$pythonCommand = if ([string]::IsNullOrWhiteSpace($env:PYTHON)) { 'python' } else { $env:PYTHON }
 $releaseCheck = Join-Path $PSScriptRoot 'check-release.ps1'
 & $releaseCheck
 $null = Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -80,24 +81,27 @@ try {
         Assert-Path (Join-Path $packageRoot 'LICENSE') 'project license'
         Assert-Path (Join-Path $packageRoot 'LICENSE-SCOPE.md') 'license scope summary'
         Assert-Path (Join-Path $packageRoot 'THIRD_PARTY_NOTICES.txt') 'third-party notices'
-        Assert-Path (Join-Path $packageRoot 'licenses/README.txt') 'license bundle manifest'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/GO-LICENSE.txt') 'Go runtime license'
-        Assert-Path (Join-Path $packageRoot 'licenses/Go/APACHE-2.0.txt') 'Apache License 2.0 text'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/CMUDICT-LICENSE.txt') 'CMUdict license'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/PINYIN-DATA-NOTICE.txt') 'pinyin data provenance notice'
+        Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_ikawaha_kagome_v2-v2.11.0-LICENSE.txt') 'kagome v2 license'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt') 'go-pinyin license'
+        Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_ikawaha_kagome-dict_ipa-v1.2.6-NOTICE.txt') 'kagome IPA notice'
+        Assert-Path (Join-Path $packageRoot 'licenses/Go/golang_org_x_text-v0.39.0-PATENTS.txt') 'x/text patents notice'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt') 'yaml.v3 license'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt') 'yaml.v3 notice'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_ikawaha_kagome-dict-v1.1.7-LICENSE.txt') 'kagome-dict license'
         Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt') 'hts_engine_API license'
+        Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/MECAB_COPYING.txt') 'MeCab license'
+        Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/MECAB_NAIST_JDIC_COPYING.txt') 'MeCab NAIST dictionary license'
+        Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/OPENJTALK_COPYING.txt') 'Open JTalk license'
+        Assert-Path (Join-Path $packageRoot 'runtime/open_jtalk_dic_utf_8-1.11/COPYING') 'Open JTalk dictionary license'
         Assert-Path (Join-Path $packageRoot 'runtime/utautts-worldline-bridge.exe') 'native worldline bridge'
         if ($Profile -eq 'Full') {
             Assert-Path (Join-Path $packageRoot 'runtime/utautts-diffsinger-bridge.exe') 'DiffSinger bridge'
             foreach ($diffSingerLicense in @(
                 'ONNXRUNTIME-LICENSE.txt',
                 'ONNXRUNTIME-THIRD-PARTY-NOTICES.txt',
-                'ONNXRUNTIME-MANAGED-LICENSE.txt',
-                'ONNXRUNTIME-MANAGED-THIRD-PARTY-NOTICES.txt',
                 'DIRECTML-LICENSE.txt',
                 'DIRECTML-LICENSE-CODE.txt',
                 'DIRECTML-THIRD-PARTY-NOTICES.txt'
@@ -148,6 +152,20 @@ try {
         }
         Assert-Path (Join-Path $packageRoot 'runtime/licenses/PYTHON_LICENSE.txt') 'Python runtime license'
         Assert-Path (Join-Path $packageRoot 'runtime/licenses/PYINSTALLER_COPYING.txt') 'PyInstaller license'
+        foreach ($removedLicense in @(
+            'licenses/Go/APACHE-2.0.txt',
+            'licenses/Go/github_com_ikawaha_kagome-dict_ipa-v1.2.6-LICENSE.txt',
+            'licenses/Go/golang_org_x_text-v0.39.0-LICENSE.txt',
+            'licenses/OpenJTalk/DICTIONARY_COPYING.txt',
+            'runtime/licenses/OPENSSL-NOTICE.txt',
+            'runtime/licenses/OPENSSL-LICENSE.txt',
+            'runtime/licenses/ONNXRUNTIME-MANAGED-LICENSE.txt',
+            'runtime/licenses/ONNXRUNTIME-MANAGED-THIRD-PARTY-NOTICES.txt'
+        )) {
+            if (Test-Path -LiteralPath (Join-Path $packageRoot $removedLicense)) {
+                throw "Release package contains an obsolete license notice: $removedLicense"
+            }
+        }
     }
     Assert-Path (Join-Path $guiRoot 'THIRD_PARTY_NOTICES-WINDOWS-GUI.txt') 'Windows GUI third-party addendum'
     if (Test-Path -LiteralPath (Join-Path $serverRoot 'THIRD_PARTY_NOTICES-WINDOWS-GUI.txt')) {
@@ -158,29 +176,35 @@ try {
     Assert-Path (Join-Path $guiRoot 'docs/installation.md') 'installation documentation'
     Assert-Path (Join-Path $guiRoot 'docs/building.md') 'build documentation'
     Assert-Path (Join-Path $guiRoot 'docs/technical-design.md') 'technical design documentation'
-
     foreach ($asset in @(
         'licenses/Qt/LGPL-3.0.txt',
         'licenses/Qt/Qt-SOURCE-OFFER.txt',
         'licenses/Qt/Qt-RELINK-INSTRUCTIONS.txt',
         'licenses/Qt/Qt-THIRD-PARTY-ATTRIBUTIONS.txt',
-        'licenses/Qt/FFmpeg-SOURCE-AND-LICENSE.txt',
-        'licenses/Breeze/COPYING-ICONS.txt',
+        'licenses/Qt/FFmpeg-OPTIONAL.txt',
+        'licenses/Qt/Qt-SBOM-MANIFEST.txt',
         'licenses/JSUT-DATA-AND-LABELS.txt',
-        'licenses/MinGW/COPYING.RUNTIME',
-        'licenses/MinGW/COPYING.MinGW-w64-runtime.txt'
+        'licenses/MinGW/gcc-COPYING',
+        'licenses/MinGW/gcc-COPYING.LIB',
+        'licenses/MinGW/gcc-COPYING.RUNTIME',
+        'licenses/MinGW/mingw-w64-COPYING',
+        'licenses/MinGW/mingw-w64-COPYING.MinGW-w64-runtime.txt',
+        'licenses/MinGW/mingw-w64-COPYING.MinGW-w64.txt',
+        'licenses/MinGW/winpthreads-COPYING'
     )) {
         Assert-Path (Join-Path $guiRoot $asset) "GUI license asset $asset"
     }
-
-    $ffmpegNoticePath = Join-Path $guiRoot 'licenses/Qt/FFmpeg-SOURCE-AND-LICENSE.txt'
-    $ffmpegNotice = Get-Content -LiteralPath $ffmpegNoticePath -Raw
+    $qtSbomDirectory = Join-Path $guiRoot 'licenses/Qt/sbom'
+    if (Test-Path -LiteralPath $qtSbomDirectory) {
+        throw 'Raw Qt SBOM JSON must remain outside the release package'
+    }
+    if (Test-Path -LiteralPath (Join-Path $guiRoot 'licenses/Qt/LGPL-2.1.txt')) {
+        throw 'LGPL-2.1 text must not be shipped because FFmpeg is never bundled'
+    }
     $ffmpegFiles = @(Get-ChildItem -LiteralPath (Join-Path $guiRoot 'app') -Recurse -File |
-        Where-Object { $_.Name -match '^(avcodec|avformat|avutil|swresample|swscale)-\d+\.dll$|ffmpeg' })
-    foreach ($ffmpegFile in $ffmpegFiles) {
-        if ($ffmpegNotice -notmatch [regex]::Escape($ffmpegFile.Name)) {
-            throw "FFmpeg-related file is missing from its package notice: $($ffmpegFile.Name)"
-        }
+        Where-Object { $_.Name -match '^(avcodec|avformat|avutil|swresample|swscale)[-_.].*|ffmpeg' })
+    if ($ffmpegFiles.Count -ne 0) {
+        throw "Release package contains FFmpeg files: $($ffmpegFiles.Name -join ', ')"
     }
 
     $serverRuntime = Join-Path $serverRoot 'runtime'
@@ -190,7 +214,10 @@ try {
         }
     }
     $unexpectedDebugFiles = @(Get-ChildItem -LiteralPath $guiRoot -Recurse -File |
-        Where-Object { $_.Extension -in @('.pdb', '.lib', '.exp') })
+        Where-Object {
+            $_.Extension -in @('.pdb', '.lib', '.exp') -and
+            $_.FullName.Substring($guiRoot.Length + 1) -notmatch '^(licenses[\\/])'
+        })
     if ($unexpectedDebugFiles.Count -ne 0) {
         throw "Release package contains debug/development files: $($unexpectedDebugFiles.FullName -join ', ')"
     }
@@ -205,10 +232,38 @@ try {
             throw "Release package contains an unused Qt auxiliary runtime: $unusedQtRuntime"
         }
     }
+    if (Test-Path -LiteralPath (Join-Path $guiRoot 'app/translations')) {
+        throw 'Release package contains Qt standard translations'
+    }
+    foreach ($unusedQtStyle in @('FluentWinUI3', 'Imagine', 'Material', 'Universal', 'Windows')) {
+        if (Test-Path -LiteralPath (Join-Path $guiRoot "app/qml/QtQuick/Controls/$unusedQtStyle")) {
+            throw "Release package contains an unused Qt Quick Controls style: $unusedQtStyle"
+        }
+    }
+    foreach ($unusedQtDialogStyle in @('+Imagine', '+Material', '+Universal')) {
+        if (Test-Path -LiteralPath (Join-Path $guiRoot "app/qml/QtQuick/Dialogs/quickimpl/qml/$unusedQtDialogStyle")) {
+            throw "Release package contains an unused Qt Quick Dialogs style: $unusedQtDialogStyle"
+        }
+    }
+    foreach ($unusedQtLibrary in @('Qt6Svg.dll', 'Qt6QuickEffects.dll', 'Qt6QuickControls2Imagine.dll',
+            'Qt6QuickControls2Material.dll', 'Qt6QuickControls2Universal.dll')) {
+        if (Test-Path -LiteralPath (Join-Path $guiRoot "app/$unusedQtLibrary")) {
+            throw "Release package contains an unused Qt library: $unusedQtLibrary"
+        }
+    }
 
     $voicebank = Get-ChildItem -LiteralPath (Join-Path $guiRoot 'voice') -Directory | Select-Object -First 1
     if ($null -eq $voicebank) {
         throw 'GUI release package contains no bundled voicebank'
+    }
+    $voiceArchives = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'voice') -Filter '*.zip' -File)
+    if ($voiceArchives.Count -ne 1) {
+        throw "Expected exactly one source voicebank archive, found $($voiceArchives.Count)"
+    }
+    $expectedVoicebankSHA256 = 'B96D1B21145F22E573AFD9EC8AEAAD0EC9CBAEE581C2623C64ADDEB31DE46B3D'
+    $actualVoicebankSHA256 = (Get-FileHash -LiteralPath $voiceArchives[0].FullName -Algorithm SHA256).Hash.ToUpperInvariant()
+    if ($actualVoicebankSHA256 -ne $expectedVoicebankSHA256) {
+        throw "Source voicebank hash mismatch: expected $expectedVoicebankSHA256, got $actualVoicebankSHA256"
     }
     $gui = Join-Path $guiRoot 'app/utautts-gui.exe'
     Assert-Path $gui 'packaged GUI'

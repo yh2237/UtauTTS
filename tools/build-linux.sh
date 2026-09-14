@@ -12,6 +12,7 @@ gui_dir="${release_root}/UtauTTS-linux"
 server_dir="${release_root}/UtauTTS-Server-linux"
 gui_zip="${release_root}/UtauTTS-linux-x64.zip"
 server_zip="${release_root}/UtauTTS-Server-linux-x64.zip"
+bundled_voicebank_sha256='B96D1B21145F22E573AFD9EC8AEAAD0EC9CBAEE581C2623C64ADDEB31DE46B3D'
 
 case "${release_root}" in
   "${root_dir}"/release)
@@ -141,6 +142,12 @@ for runtime_dir in "${gui_dir}/runtime" "${server_dir}/runtime"; do
   mkdir -p "${license_dir}"
   cp "${python_license}" "${license_dir}/PYTHON_LICENSE.txt"
   cp "${pyinstaller_license}" "${license_dir}/PYINSTALLER_COPYING.txt"
+  PYTHONPATH="${root_dir}/.tmp-pyinstaller-linux" "${python_command}" \
+    "${root_dir}/tools/collect-pyinstaller-runtime-licenses.py" \
+    --archive "${runtime_dir}/utautts-openjtalk-features" \
+    --output-dir "${license_dir}" \
+    --python-license "${python_license}" \
+    --pyinstaller-license "${pyinstaller_license}"
 done
 
 echo '=== Go licenses ==='
@@ -152,6 +159,7 @@ echo '=== OpenJTalk, WORLD, and dataset licenses ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
   license_root="${package_dir}/licenses"
   mkdir -p "${license_root}/OpenJTalk" "${license_root}/WORLD"
+  rm -f "${license_root}/OpenJTalk/DICTIONARY_COPYING.txt"
   cp "${root_dir}/licenses/openjtalk/"*.txt "${license_root}/OpenJTalk/"
   cp "${root_dir}/third_party/world/LICENSE.txt" "${license_root}/WORLD/WORLD-LICENSE.txt"
   cp "${root_dir}/third_party/world/OOURA-NOTICE.txt" "${license_root}/WORLD/OOURA-NOTICE.txt"
@@ -159,9 +167,10 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
   cp "${root_dir}/licenses/JSUT-DATA-AND-LABELS.txt" "${license_root}/"
   cp "${root_dir}/licenses/PROSODY-MODELS.txt" "${license_root}/"
   dict_copying="${package_dir}/runtime/open_jtalk_dic_utf_8-1.11/COPYING"
-  if [[ -f "${dict_copying}" ]]; then
-    cp "${dict_copying}" "${license_root}/OpenJTalk/DICTIONARY_COPYING.txt"
-  fi
+  [[ -f "${dict_copying}" ]] || {
+    echo "Open JTalk dictionary license was not found: ${dict_copying}" >&2
+    exit 1
+  }
 done
 
 echo '=== Model license notices ==='
@@ -172,21 +181,7 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
     --package-root "${package_dir}"
 done
 
-echo '=== License manifest ==='
-for package_dir in "${gui_dir}" "${server_dir}"; do
-  license_root="${package_dir}/licenses"
-  manifest="${license_root}/README.txt"
-  {
-    echo 'This directory contains license and notice files copied from the exact'
-    echo 'SDK/package/toolchain versions used to assemble this release.'
-    echo ''
-    echo 'The project-wide license scope summary is ../LICENSE-SCOPE.md.'
-    echo 'The project-wide dependency summary is ../THIRD_PARTY_NOTICES.txt.'
-  } > "${manifest}"
-  find "${license_root}" -type f | sort | sed "s#${package_dir}/##" >> "${manifest}"
-done
-
-echo '=== Models and renderer manifests ==='
+echo '=== Models and renderers ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
   cp -R "${root_dir}/models/." "${package_dir}/models/"
   cp -R "${root_dir}/renderer/." "${package_dir}/renderer/"
@@ -194,19 +189,29 @@ done
 
 echo '=== Voicebanks ==='
 mkdir -p "${gui_dir}/voice"
-if compgen -G "${root_dir}/voice/*.zip" > /dev/null; then
-  SRC_DIR="${root_dir}/voice" OUT_DIR="${gui_dir}/voice" "${python_command}" - <<'PYEOF'
-import glob
+voice_archives=()
+while IFS= read -r archive; do
+  [[ -n "${archive}" ]] && voice_archives+=("${archive}")
+done < <(find "${root_dir}/voice" -maxdepth 1 -type f -name '*.zip' -print | sort)
+if [[ "${#voice_archives[@]}" -eq 1 ]]; then
+  voice_hash="$(sha256sum "${voice_archives[0]}" | awk '{print toupper($1)}')"
+  [[ "${voice_hash}" == "${bundled_voicebank_sha256}" ]] || {
+    echo "Bundled voicebank hash mismatch: expected ${bundled_voicebank_sha256}, got ${voice_hash}" >&2
+    exit 1
+  }
+  OUT_DIR="${gui_dir}/voice" ARCHIVE="${voice_archives[0]}" "${python_command}" - <<'PYEOF'
 import os
 import zipfile
 
-src_dir = os.environ["SRC_DIR"]
 out_dir = os.environ["OUT_DIR"]
-for archive in sorted(glob.glob(os.path.join(src_dir, "*.zip"))):
-    with zipfile.ZipFile(archive, metadata_encoding="cp932") as zf:
-        zf.extractall(out_dir)
-    print(f"extracted {os.path.basename(archive)}")
+archive = os.environ["ARCHIVE"]
+with zipfile.ZipFile(archive, metadata_encoding="cp932") as zf:
+    zf.extractall(out_dir)
+print(f"extracted {os.path.basename(archive)}")
 PYEOF
+else
+  echo "Expected exactly one bundled voicebank archive, found ${#voice_archives[@]}" >&2
+  exit 1
 fi
 mkdir -p "${server_dir}/voice"
 echo 'Place each UTAU voicebank in its own folder here.' > "${server_dir}/voice/PUT_VOICEBANKS_HERE.txt"

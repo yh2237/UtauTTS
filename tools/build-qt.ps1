@@ -132,8 +132,57 @@ if ($null -eq $executable) { throw 'Qt executable was not produced' }
 Copy-Item -LiteralPath $executable.FullName -Destination (Join-Path $appDirectory 'utautts-gui.exe') -Force
 Copy-Item -LiteralPath (Join-Path $nativeDir 'utautts_native.dll') -Destination $appDirectory -Force
 & $deployTool --release --qmldir (Join-Path $root 'qt/qml') --no-system-d3d-compiler `
-    --no-system-dxc-compiler --no-opengl-sw (Join-Path $appDirectory 'utautts-gui.exe')
+    --no-system-dxc-compiler --no-opengl-sw --no-ffmpeg --no-translations `
+    (Join-Path $appDirectory 'utautts-gui.exe')
 if ($LASTEXITCODE -ne 0) { throw 'windeployqt failed' }
+
+# Remove optional Qt Multimedia, translation, and style files from the package.
+$ffmpegNamePattern = '^(ffmpeg.*|avcodec.*|avformat.*|avutil.*|swresample.*|swscale.*)$'
+Get-ChildItem -LiteralPath $appDirectory -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -match $ffmpegNamePattern -or $_.Name -match 'ffmpegmediaplugin' } |
+    Remove-Item -Force
+$appTranslationsDirectory = Join-Path $appDirectory 'translations'
+if (Test-Path -LiteralPath $appTranslationsDirectory -PathType Container) {
+    Remove-Item -LiteralPath $appTranslationsDirectory -Recurse -Force
+}
+$controlsDirectory = Join-Path $appDirectory 'qml/QtQuick/Controls'
+foreach ($styleName in @('FluentWinUI3', 'Imagine', 'Material', 'Universal', 'Windows')) {
+    $stylePath = Join-Path $controlsDirectory $styleName
+    if (Test-Path -LiteralPath $stylePath -PathType Container) {
+        Remove-Item -LiteralPath $stylePath -Recurse -Force
+    }
+}
+$dialogStyleDirectory = Join-Path $appDirectory 'qml/QtQuick/Dialogs/quickimpl/qml'
+foreach ($styleName in @('+Imagine', '+Material', '+Universal')) {
+    $stylePath = Join-Path $dialogStyleDirectory $styleName
+    if (Test-Path -LiteralPath $stylePath -PathType Container) {
+        Remove-Item -LiteralPath $stylePath -Recurse -Force
+    }
+}
+foreach ($unusedPlugin in @(
+        'iconengines/qsvgicon.dll',
+        'imageformats/qsvg.dll')) {
+    $unusedPluginPath = Join-Path $appDirectory $unusedPlugin
+    if (Test-Path -LiteralPath $unusedPluginPath -PathType Leaf) {
+        Remove-Item -LiteralPath $unusedPluginPath -Force
+    }
+}
+foreach ($styleLibrary in @(
+        'Qt6Svg.dll',
+        'Qt6QuickEffects.dll',
+        'Qt6QuickControls2FluentWinUI3StyleImpl.dll',
+        'Qt6QuickControls2Imagine.dll',
+        'Qt6QuickControls2ImagineStyleImpl.dll',
+        'Qt6QuickControls2Material.dll',
+        'Qt6QuickControls2MaterialStyleImpl.dll',
+        'Qt6QuickControls2Universal.dll',
+        'Qt6QuickControls2UniversalStyleImpl.dll',
+        'Qt6QuickControls2WindowsStyleImpl.dll')) {
+    $styleLibraryPath = Join-Path $appDirectory $styleLibrary
+    if (Test-Path -LiteralPath $styleLibraryPath -PathType Leaf) {
+        Remove-Item -LiteralPath $styleLibraryPath -Force
+    }
+}
 $previousLauncherGoCache = $env:GOCACHE
 $env:GOCACHE = Join-Path $root 'build\go-cache'
 $launcherDirectory = Join-Path $root 'cmd/utautts-launcher'

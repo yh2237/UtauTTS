@@ -7,6 +7,7 @@ gui_dir="${release_root}/UtauTTS-macos"
 server_dir="${release_root}/UtauTTS-Server-macos"
 gui_zip="${release_root}/UtauTTS-mac-arm64.zip"
 server_zip="${release_root}/UtauTTS-Server-mac-arm64.zip"
+bundled_voicebank_sha256='B96D1B21145F22E573AFD9EC8AEAAD0EC9CBAEE581C2623C64ADDEB31DE46B3D'
 
 case "${release_root}" in
   "${root_dir}/release"|"${root_dir}/release"/*) ;;
@@ -95,6 +96,24 @@ install_name_tool -change 'libutautts_native.dylib' \
   '@rpath/libutautts_native.dylib' "${app_path}/Contents/MacOS/utautts" || true
 "${macdeployqt}" "${app_path}" "-qmldir=${root_dir}/qt/qml"
 
+# Remove optional Qt Multimedia, translation, and style files from the package.
+find "${app_path}" -type f \( -iname '*ffmpeg*' -o -iname 'libavcodec*' \
+  -o -iname 'libavformat*' -o -iname 'libavutil*' -o -iname 'libswresample*' \
+  -o -iname 'libswscale*' \) -delete
+find "${app_path}" -type d -path '*/Resources/translations' -prune -exec rm -rf {} +
+controls_dir="${app_path}/Contents/Resources/qml/QtQuick/Controls"
+for style_name in FluentWinUI3 Imagine Material Universal Windows; do
+  rm -rf "${controls_dir}/${style_name}"
+done
+dialog_style_dir="${app_path}/Contents/Resources/qml/QtQuick/Dialogs/quickimpl/qml"
+for style_name in +Imagine +Material +Universal; do
+  rm -rf "${dialog_style_dir}/${style_name}"
+done
+find "${app_path}" -type f \( -iname 'QtSvg' -o -iname 'QtQuickEffects' \
+  -o -iname 'qsvgicon.dylib' -o -iname 'qsvg.dylib' \) -delete
+find "${app_path}" -type f \( -iname '*FluentWinUI3*' -o -iname '*Imagine*' \
+  -o -iname '*Material*' -o -iname '*Universal*' -o -iname '*WindowsStyleImpl*' \) -delete
+
 echo '=== Build Open JTalk frontend helper ==='
 PYTHON="${python_command}" bash "${root_dir}/tools/build-openjtalk-feature-bridge-macos.sh"
 openjtalk_helper="${root_dir}/tools/openjtalk-feature-bridge/bin/utautts-openjtalk-features"
@@ -117,7 +136,7 @@ cp "${openjtalk_helper}" "${server_dir}/runtime/"
 cp -R "${openjtalk_dictionary}" "${gui_dir}/runtime/"
 cp -R "${openjtalk_dictionary}" "${server_dir}/runtime/"
 
-echo '=== Models and renderer manifests ==='
+echo '=== Models and renderers ==='
 cp -R "${root_dir}/models/." "${gui_dir}/models/"
 cp -R "${root_dir}/models/." "${server_dir}/models/"
 cp -R "${root_dir}/renderer/." "${gui_dir}/renderer/"
@@ -133,19 +152,29 @@ done
 
 echo '=== Voicebanks ==='
 mkdir -p "${gui_dir}/voice" "${server_dir}/voice"
-if compgen -G "${root_dir}/voice/*.zip" >/dev/null; then
-  SRC_DIR="${root_dir}/voice" OUT_DIR="${gui_dir}/voice" "${python_command}" - <<'PY'
-import glob
+voice_archives=()
+for archive in "${root_dir}/voice"/*.zip; do
+  [[ -f "${archive}" ]] && voice_archives+=("${archive}")
+done
+if [[ "${#voice_archives[@]}" -eq 1 ]]; then
+  voice_hash="$(shasum -a 256 "${voice_archives[0]}" | awk '{print toupper($1)}')"
+  [[ "${voice_hash}" == "${bundled_voicebank_sha256}" ]] || {
+    echo "Bundled voicebank hash mismatch: expected ${bundled_voicebank_sha256}, got ${voice_hash}" >&2
+    exit 1
+  }
+  OUT_DIR="${gui_dir}/voice" ARCHIVE="${voice_archives[0]}" "${python_command}" - <<'PY'
 import os
 import zipfile
 
-src_dir = os.environ["SRC_DIR"]
 out_dir = os.environ["OUT_DIR"]
-for archive in sorted(glob.glob(os.path.join(src_dir, "*.zip"))):
-    with zipfile.ZipFile(archive, metadata_encoding="cp932") as zf:
-        zf.extractall(out_dir)
-    print(f"extracted {os.path.basename(archive)}")
+archive = os.environ["ARCHIVE"]
+with zipfile.ZipFile(archive, metadata_encoding="cp932") as zf:
+    zf.extractall(out_dir)
+print(f"extracted {os.path.basename(archive)}")
 PY
+else
+  echo "Expected exactly one bundled voicebank archive, found ${#voice_archives[@]}" >&2
+  exit 1
 fi
 echo 'Place each UTAU voicebank in its own folder here.' > "${server_dir}/voice/PUT_VOICEBANKS_HERE.txt"
 
@@ -165,18 +194,25 @@ cp "${root_dir}/THIRD_PARTY_NOTICES.txt" "${server_dir}/THIRD_PARTY_NOTICES.txt"
 for package_dir in "${gui_dir}" "${server_dir}"; do
   license_root="${package_dir}/licenses"
   mkdir -p "${license_root}/Go" "${license_root}/OpenJTalk" "${license_root}/WORLD"
-  cp -R "${root_dir}/licenses/." "${license_root}/"
   bash "${root_dir}/tools/collect-go-licenses.sh" "${package_dir}" "${go_command}"
   cp "${root_dir}/third_party/world/LICENSE.txt" "${license_root}/WORLD/WORLD-LICENSE.txt"
   cp "${root_dir}/third_party/world/OOURA-NOTICE.txt" "${license_root}/WORLD/OOURA-NOTICE.txt"
   cp "${root_dir}/third_party/world/MACRODEFINITIONS-LICENSE.txt" "${license_root}/WORLD/MACRODEFINITIONS-LICENSE.txt"
   cp "${root_dir}/licenses/JSUT-DATA-AND-LABELS.txt" "${license_root}/"
   cp "${root_dir}/licenses/PROSODY-MODELS.txt" "${license_root}/"
+  rm -f "${license_root}/OpenJTalk/DICTIONARY_COPYING.txt"
   cp "${root_dir}/licenses/openjtalk/"*.txt "${license_root}/OpenJTalk/"
-  cp "${root_dir}/licenses/APACHE-2.0.txt" "${license_root}/APACHE-2.0.txt"
+  dict_copying="${package_dir}/runtime/open_jtalk_dic_utf_8-1.11/COPYING"
+  [[ -f "${dict_copying}" ]] || {
+    echo "Open JTalk dictionary license was not found: ${dict_copying}" >&2
+    exit 1
+  }
 
   if [[ "${package_dir}" == "${gui_dir}" ]]; then
-    bash "${root_dir}/tools/collect-macos-qt-licenses.sh" "${package_dir}" "${app_path}" "${qt_root}"
+    qt_audit_root="${root_dir}/build/license-audit/Qt/macos"
+    bash "${root_dir}/tools/collect-macos-qt-licenses.sh" "${package_dir}" "${app_path}" "${qt_root}" "${qt_audit_root}"
+    "${python_command}" "${root_dir}/tools/verify-qt-sbom.py" \
+      --package-root "${package_dir}" --sbom-root "${qt_audit_root}"
   fi
 
   python_license="$("${python_command}" - <<'PY'
@@ -198,22 +234,27 @@ for root in roots:
             raise SystemExit
 PY
   )"
+  runtime_license_root="${package_dir}/runtime/licenses"
+  mkdir -p "${runtime_license_root}"
   if [[ -n "${python_license}" ]]; then
-    cp "${python_license}" "${license_root}/PYTHON_LICENSE.txt"
+    cp "${python_license}" "${runtime_license_root}/PYTHON_LICENSE.txt"
   fi
   pyinstaller_license="$(find "${root_dir}/.tmp-pyinstaller-macos" -type f \
     \( -path '*/pyinstaller-*.dist-info/licenses/COPYING.txt' -o \
        -path '*/pyinstaller-*.dist-info/COPYING.txt' \) -print -quit)"
   if [[ -n "${pyinstaller_license}" ]]; then
-    cp "${pyinstaller_license}" "${license_root}/PYINSTALLER_COPYING.txt"
+    cp "${pyinstaller_license}" "${runtime_license_root}/PYINSTALLER_COPYING.txt"
   fi
-  {
-    echo 'This directory contains license and notice files copied from the exact'
-    echo 'SDK/package/toolchain versions used to assemble this release.'
-    echo ''
-    echo 'The project-wide license scope summary is ../LICENSE-SCOPE.md.'
-    echo 'The project-wide dependency summary is ../THIRD_PARTY_NOTICES.txt.'
-  } > "${license_root}/README.txt"
+  [[ -n "${python_license}" && -n "${pyinstaller_license}" ]] || {
+    echo 'Python or PyInstaller license was not found' >&2
+    exit 1
+  }
+  PYTHONPATH="${root_dir}/.tmp-pyinstaller-macos" "${python_command}" \
+    "${root_dir}/tools/collect-pyinstaller-runtime-licenses.py" \
+    --archive "${package_dir}/runtime/utautts-openjtalk-features" \
+    --output-dir "${runtime_license_root}" \
+    --python-license "${python_license}" \
+    --pyinstaller-license "${pyinstaller_license}"
 done
 
 chmod +x "${app_path}/Contents/MacOS/utautts" \

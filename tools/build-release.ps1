@@ -60,12 +60,12 @@ function Reset-Directory([string]$Path) {
 }
 
 function Expand-BundledVoicebank([string]$Destination) {
-    $archives = @(Get-ChildItem -LiteralPath $bundledVoicebankDirectory -Filter '*ver3.5.0.zip' -File)
+    $archives = @(Get-ChildItem -LiteralPath $bundledVoicebankDirectory -Filter '*.zip' -File)
     if ($archives.Count -ne 1) {
         throw "Expected exactly one bundled voicebank archive, found $($archives.Count) in $bundledVoicebankDirectory"
     }
     $bundledVoicebankArchive = $archives[0].FullName
-    $actualHash = (Get-FileHash -LiteralPath $bundledVoicebankArchive -Algorithm SHA256).Hash
+    $actualHash = (Get-FileHash -LiteralPath $bundledVoicebankArchive -Algorithm SHA256).Hash.ToUpperInvariant()
     if ($actualHash -ne $bundledVoicebankSHA256) {
         throw "Bundled voicebank hash mismatch: expected $bundledVoicebankSHA256, got $actualHash"
     }
@@ -135,6 +135,10 @@ try {
 
     $openJTalkHelper = Join-Path $root 'tools/openjtalk-feature-bridge/bin/utautts-openjtalk-features.exe'
     $openJTalkDictionary = Join-Path $root '.tmp-openjtalk/pyopenjtalk/open_jtalk_dic_utf_8-1.11'
+    $microsoftRuntimeSourceManifest = Join-Path $root '.tmp-openjtalk-ms-runtime/source-manifest.json'
+    if (-not (Test-Path -LiteralPath $microsoftRuntimeSourceManifest -PathType Leaf)) {
+        throw "Microsoft runtime source manifest was not produced: $microsoftRuntimeSourceManifest"
+    }
     foreach ($runtimePath in @($guiRuntimePath, $serverRuntimePath)) {
         Copy-Item -LiteralPath $openJTalkHelper -Destination $runtimePath
         Copy-Item -LiteralPath $openJTalkDictionary -Destination $runtimePath -Recurse
@@ -161,6 +165,20 @@ try {
         $pyInstallerLicense = @(Get-ChildItem -LiteralPath (Join-Path $root '.tmp-pyinstaller') -Recurse -Filter 'COPYING.txt' -File | Where-Object { $_.FullName -like '*pyinstaller-*.dist-info*' })
         if ($pyInstallerLicense.Count -ne 1) { throw 'Expected exactly one PyInstaller COPYING.txt' }
         Copy-Item -LiteralPath $pyInstallerLicense[0].FullName -Destination (Join-Path $licensePath 'PYINSTALLER_COPYING.txt')
+        $previousPythonPath = $env:PYTHONPATH
+        try {
+            $env:PYTHONPATH = Join-Path $root '.tmp-pyinstaller'
+            Invoke-Checked $pythonCommand @(
+                (Join-Path $root 'tools/collect-pyinstaller-runtime-licenses.py'),
+                '--archive', (Join-Path $runtimePath 'utautts-openjtalk-features.exe'),
+                '--output-dir', $licensePath,
+                '--python-license', $pythonLicense.FullName,
+                '--pyinstaller-license', $pyInstallerLicense[0].FullName,
+                '--microsoft-runtime-source-manifest', $microsoftRuntimeSourceManifest
+            )
+        } finally {
+            $env:PYTHONPATH = $previousPythonPath
+        }
     }
 
     Copy-Item -LiteralPath 'LICENSE', 'LICENSE-SCOPE.md', 'README.md', 'THIRD_PARTY_NOTICES.txt', 'THIRD_PARTY_NOTICES-WINDOWS-GUI.txt' -Destination $guiPath
@@ -222,14 +240,23 @@ try {
     Copy-Item -LiteralPath 'LICENSE', 'LICENSE-SCOPE.md', 'THIRD_PARTY_NOTICES.txt' -Destination $serverPath
 
     Write-Host '=== Collect exact third-party licenses ==='
-    & (Join-Path $PSScriptRoot 'collect-third-party-licenses.ps1') -PackageRoot $guiPath -Variant windows-gui
+    $qtAuditRoot = Join-Path $root 'build/license-audit/Qt/windows'
+    & (Join-Path $PSScriptRoot 'collect-third-party-licenses.ps1') -PackageRoot $guiPath -Variant windows-gui -AuditDirectory $qtAuditRoot
     if ($LASTEXITCODE -ne 0) { throw 'GUI third-party license collection failed' }
+    Invoke-Checked $pythonCommand @(
+        (Join-Path $root 'tools/verify-qt-sbom.py'),
+        '--package-root', $guiPath,
+        '--sbom-root', $qtAuditRoot
+    )
     & (Join-Path $PSScriptRoot 'collect-third-party-licenses.ps1') -PackageRoot $serverPath -Variant windows-server
     if ($LASTEXITCODE -ne 0) { throw 'Server third-party license collection failed' }
 
     foreach ($packagePath in @($guiPath, $serverPath)) {
         Get-ChildItem -LiteralPath $packagePath -Recurse -File |
-            Where-Object { $_.Extension -in @('.pdb', '.lib', '.exp') } |
+            Where-Object {
+                $_.Extension -in @('.pdb', '.lib', '.exp') -and
+                $_.FullName.Substring($packagePath.Length + 1) -notmatch '^(licenses[\\/])'
+            } |
             Remove-Item -Force
     }
     $qmlToolingPath = Join-Path $guiPath 'app/qmltooling'

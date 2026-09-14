@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$PackageRoot,
     [ValidateSet('windows-gui', 'windows-server', 'linux')]
-    [string]$Variant = 'windows-gui'
+    [string]$Variant = 'windows-gui',
+    [string]$AuditDirectory = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -54,11 +55,18 @@ function Resolve-QtRoot {
 }
 
 function Copy-GoLicenses {
+    $goLicenseRoot = Join-Path $licenseRoot 'Go'
+    New-Item -ItemType Directory -Force -Path $goLicenseRoot | Out-Null
+    Get-ChildItem -LiteralPath $goLicenseRoot -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force
     $goRoot = Get-CommandOutput 'go' @('env', 'GOROOT')
-    Copy-Required (Join-Path $goRoot 'LICENSE') (Join-Path $licenseRoot 'Go/GO-LICENSE.txt')
-    Copy-Required (Join-Path $root 'licenses/APACHE-2.0.txt') (Join-Path $licenseRoot 'Go/APACHE-2.0.txt')
+    $goLicensePath = Join-Path $licenseRoot 'Go/GO-LICENSE.txt'
+    Copy-Required (Join-Path $goRoot 'LICENSE') $goLicensePath
     Copy-Required (Join-Path $root 'licenses/Go/CMUDICT-LICENSE.txt') (Join-Path $licenseRoot 'Go/CMUDICT-LICENSE.txt')
     Copy-Required (Join-Path $root 'licenses/Go/PINYIN-DATA-NOTICE.txt') (Join-Path $licenseRoot 'Go/PINYIN-DATA-NOTICE.txt')
+    $licenseHashes = @{
+        (Get-FileHash -Algorithm SHA256 -LiteralPath $goLicensePath).Hash = $goLicensePath
+    }
 
     $modules = @(Get-Content -LiteralPath (Join-Path $PSScriptRoot 'go-license-modules.txt') -Encoding UTF8 |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
@@ -71,23 +79,35 @@ function Copy-GoLicenses {
         $moduleDirectory = $parts[0]
         $moduleVersion = $parts[1]
         $safeName = $module.Replace('/', '_').Replace('.', '_')
-        $licenseFile = @('LICENSE', 'LICENSE.txt', 'COPYING', 'COPYING.txt') |
-            ForEach-Object { Join-Path $moduleDirectory $_ } |
-            Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
-            Select-Object -First 1
-        if ($null -eq $licenseFile) {
+        $licenseFiles = @(Get-ChildItem -LiteralPath $moduleDirectory -Recurse -File |
+            Where-Object {
+                $_.Name -match '^(LICENSE|COPYING|PATENTS)(\..*)?$' -or
+                $_.Name -match '^(NOTICE|THIRD_PARTY_NOTICES|DATA_LICENSES)(\..*)?$'
+            } | Sort-Object FullName)
+        $primaryLicense = $licenseFiles | Where-Object {
+            $_.Name -match '^(LICENSE|COPYING)(\..*)?$'
+        } | Select-Object -First 1
+        if ($null -eq $primaryLicense) {
             throw "A license file was not found for Go module: $module"
         }
-        Copy-Required $licenseFile (Join-Path $licenseRoot "Go/$safeName-$moduleVersion-LICENSE.txt")
-        foreach ($noticeName in @('NOTICE', 'NOTICE.txt', 'THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.txt', 'DATA_LICENSES.md')) {
-            $notice = Join-Path $moduleDirectory $noticeName
-            if (Test-Path -LiteralPath $notice -PathType Leaf) {
-                if ($noticeName -eq 'NOTICE' -or $noticeName -eq 'NOTICE.txt') {
-                    $destinationName = "$safeName-$moduleVersion-NOTICE.txt"
-                } else {
-                    $destinationName = "$safeName-$moduleVersion-$noticeName"
+        foreach ($licenseFile in $licenseFiles) {
+            $isPrimaryLicense = $licenseFile.Name -match '^(LICENSE|COPYING)(\..*)?$'
+            $licenseHash = $null
+            if ($isPrimaryLicense) {
+                $licenseHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $licenseFile.FullName).Hash
+                if ($licenseHashes.ContainsKey($licenseHash)) {
+                    continue
                 }
-                Copy-Required $notice (Join-Path $licenseRoot "Go/$destinationName")
+            }
+            $relativeName = $licenseFile.FullName.Substring($moduleDirectory.Length).TrimStart('\', '/')
+            $destinationName = $relativeName.Replace('\', '__').Replace('/', '__')
+            if ($relativeName -eq 'LICENSE') { $destinationName = 'LICENSE.txt' }
+            if ($relativeName -eq 'NOTICE') { $destinationName = 'NOTICE.txt' }
+            if ($relativeName -eq 'PATENTS') { $destinationName = 'PATENTS.txt' }
+            $destination = Join-Path $licenseRoot "Go/$safeName-$moduleVersion-$destinationName"
+            Copy-Required $licenseFile.FullName $destination
+            if ($isPrimaryLicense) {
+                $licenseHashes[$licenseHash] = $destination
             }
         }
     }
@@ -98,9 +118,21 @@ function Copy-OpenJTalkLicenses {
     if (-not (Test-Path -LiteralPath $source -PathType Container)) {
         throw "Open JTalk license sources are missing: $source"
     }
-    Copy-Item -LiteralPath $source -Destination (Join-Path $licenseRoot 'OpenJTalk') -Recurse -Force
+    $staleDestination = Join-Path $licenseRoot 'openjtalk'
+    if (Test-Path -LiteralPath $staleDestination) {
+        Remove-Item -LiteralPath $staleDestination -Recurse -Force
+    }
+    $staleDictionaryCopying = Join-Path $licenseRoot 'OpenJTalk/DICTIONARY_COPYING.txt'
+    if (Test-Path -LiteralPath $staleDictionaryCopying -PathType Leaf) {
+        Remove-Item -LiteralPath $staleDictionaryCopying -Force
+    }
+    Get-ChildItem -LiteralPath $source -File | ForEach-Object {
+        Copy-Required $_.FullName (Join-Path $licenseRoot "OpenJTalk/$($_.Name)")
+    }
     $dictionaryCopying = Join-Path $PackageRoot 'runtime/open_jtalk_dic_utf_8-1.11/COPYING'
-    Copy-Required $dictionaryCopying (Join-Path $licenseRoot 'OpenJTalk/DICTIONARY_COPYING.txt')
+    if (-not (Test-Path -LiteralPath $dictionaryCopying -PathType Leaf)) {
+        throw "Open JTalk dictionary license was not found: $dictionaryCopying"
+    }
 }
 
 function Copy-ProsodyDataProvenance {
@@ -117,14 +149,72 @@ function Copy-WorldLicenses {
 function Copy-QtLicenses {
     $qtRoot = Resolve-QtRoot
     $qtVersion = (Get-Item -LiteralPath $qtRoot).Parent.Name
+    $qtDocSeries = $qtVersion.Substring(0, $qtVersion.LastIndexOf('.'))
     $toolsRoot = [IO.Path]::GetFullPath((Join-Path $qtRoot '../../Tools'))
+    $qtLicenseRoot = Join-Path $licenseRoot 'Qt'
+    foreach ($staleFile in @('LGPL-2.1.txt', 'FFmpeg-SOURCE-AND-LICENSE.txt', 'FFmpeg-SOURCE-OFFER.txt', 'FFmpeg-OPTIONAL.txt')) {
+        $stalePath = Join-Path $qtLicenseRoot $staleFile
+        if (Test-Path -LiteralPath $stalePath -PathType Leaf) {
+            Remove-Item -LiteralPath $stalePath -Force
+        }
+    }
+    $staleSbomDirectory = Join-Path $qtLicenseRoot 'sbom'
+    if (Test-Path -LiteralPath $staleSbomDirectory -PathType Container) {
+        Remove-Item -LiteralPath $staleSbomDirectory -Recurse -Force
+    }
+    $sbomSourceRoot = Join-Path $qtRoot 'sbom'
+    $sbomAuditRoot = if ([string]::IsNullOrWhiteSpace($AuditDirectory)) {
+        Join-Path $root 'build/license-audit/Qt/windows'
+    } else {
+        [IO.Path]::GetFullPath($AuditDirectory)
+    }
+    if (Test-Path -LiteralPath $sbomAuditRoot) {
+        Remove-Item -LiteralPath $sbomAuditRoot -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path $sbomAuditRoot | Out-Null
+    $sbomNames = @(
+        "qtbase-$qtVersion.spdx.json",
+        "qtdeclarative-$qtVersion.spdx.json",
+        "qtmultimedia-$qtVersion.spdx.json"
+    )
+    $sbomLines = @(
+        "Qt SBOM files for Qt $qtVersion",
+        "=================================",
+        "",
+        'Raw SPDX JSON files are kept in the build audit directory and are not included in the release package.',
+        'Audit directory: build/license-audit/Qt/windows',
+        ''
+    )
+    foreach ($sbomName in $sbomNames) {
+        $sbomSource = Join-Path $sbomSourceRoot $sbomName
+        if (-not (Test-Path -LiteralPath $sbomSource -PathType Leaf)) {
+            throw "Qt SBOM file was not found: $sbomSource"
+        }
+        Copy-Required $sbomSource (Join-Path $sbomAuditRoot $sbomName)
+        $sbomHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $sbomSource).Hash
+        $sbomLines += $sbomName
+        $sbomLines += "  SHA-256: $sbomHash"
+    }
+    $ffmpegDlls = @(Get-ChildItem -LiteralPath (Join-Path $PackageRoot 'app') -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^(avcodec|avformat|avutil|swresample|swscale)[-_.].*|ffmpeg' })
+    if ($ffmpegDlls.Count -gt 0) {
+        $names = $ffmpegDlls | ForEach-Object { $_.Name }
+        throw "FFmpeg files must not be bundled: $($names -join ', ')"
+    }
+    $sbomLines += @(
+        '',
+        'Qt Multimedia FFmpeg status:',
+        'FFmpeg is not bundled. The Qt Multimedia SBOM may list optional FFmpeg support from the Qt SDK.',
+        'FFmpeg package files bundled: false'
+    )
+    Write-ReleaseText (Join-Path $qtLicenseRoot 'Qt-SBOM-MANIFEST.txt') ($sbomLines -join [Environment]::NewLine)
+
     $lgpl = Get-ChildItem -LiteralPath $toolsRoot -Recurse -File -Filter 'LGPLv3.txt' -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($null -ne $lgpl) {
         Copy-Required $lgpl.FullName (Join-Path $licenseRoot 'Qt/LGPL-3.0.txt')
     } else {
         Copy-Required (Join-Path $root 'licenses/Qt/LGPL-3.0.txt') (Join-Path $licenseRoot 'Qt/LGPL-3.0.txt')
     }
-
     $qtSourceOffer = @"
 Qt source offer
 ===============
@@ -139,9 +229,8 @@ Source requests:
 https://github.com/yh2237/UtauTTS/issues/new?title=Qt%20source%20request
 
 Include the UtauTTS release version and the Qt version shown in this file in a
-source request. The request must identify whether the request concerns Qt itself,
-Qt Multimedia's FFmpeg deployment, or both. The project repository and its build
-scripts provide the corresponding application source and relinking instructions.
+source request. The project repository and its build scripts provide the
+corresponding application source and relinking instructions.
 
 The upstream source archives used to prepare the corresponding source archive are:
 
@@ -170,9 +259,9 @@ To rebuild the application against a modified Qt build:
    tools/build-release.ps1 as described in README.md.
 4. Deploy the resulting application with the compatible modified Qt DLLs.
 
-The corresponding Qt source offer, LGPLv3 text, and Qt third-party attribution
-information are included beside this file. The source request procedure is
-specified in Qt-SOURCE-OFFER.txt.
+The corresponding Qt source offer, LGPLv3 text, and third-party attribution
+information are included beside this file. Raw Qt SBOM JSON files are kept in
+build/license-audit/Qt/windows during the build.
 "@
     Write-ReleaseText (Join-Path $licenseRoot 'Qt/Qt-RELINK-INSTRUCTIONS.txt') $qtRelinkInstructions
 
@@ -181,15 +270,17 @@ Qt $qtVersion third-party attributions
 ======================================
 
 Qt's modules contain third-party components with their own copyright and license
-terms. The authoritative attribution list for this Qt version is:
+terms. Raw SPDX SBOM files used for this package are kept in the build audit
+directory, with SHA-256 values recorded in Qt-SBOM-MANIFEST.txt. The
+authoritative attribution list for this Qt version is:
 
-https://doc.qt.io/qt-6.8/licenses-used-in-qt.html
+https://doc.qt.io/qt-$qtDocSeries/licenses-used-in-qt.html
 
-Qt Multimedia uses FFmpeg. The Qt Multimedia license and source guidance is:
-https://doc.qt.io/qt-6.8/qtmultimedia-index.html
+Qt Multimedia attribution and optional FFmpeg guidance:
+https://doc.qt.io/qt-$qtDocSeries/qtmultimedia-attribution-ffmpeg.html
 https://ffmpeg.org/legal.html
 
-The Qt source offer and the LGPLv3 text are included beside this file.
+The LGPLv3 text is included beside this file.
 "@
     Write-ReleaseText (Join-Path $licenseRoot 'Qt/Qt-THIRD-PARTY-ATTRIBUTIONS.txt') $qtAttributions
 
@@ -210,46 +301,31 @@ The Qt source offer and the LGPLv3 text are included beside this file.
         'winpthreads/COPYING'
     )
     foreach ($relativePath in $mingwFiles) {
-        Copy-Required (Join-Path $mingwLicenseRoot $relativePath) (Join-Path $licenseRoot "MinGW/$([IO.Path]::GetFileName($relativePath))")
+        $parts = $relativePath -split '[\\/]'
+        $destinationName = "$($parts[0])-$($parts[1])"
+        Copy-Required (Join-Path $mingwLicenseRoot $relativePath) (Join-Path $licenseRoot "MinGW/$destinationName")
     }
+    $ffmpegOptional = @"
+Optional FFmpeg runtime
+=======================
 
-    $ffmpegDlls = @(Get-ChildItem -LiteralPath (Join-Path $PackageRoot 'app') -Recurse -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match '^(avcodec|avformat|avutil|swresample|swscale)-\d+\.dll$|ffmpeg' })
-    if ($ffmpegDlls.Count -gt 0) {
-        $dllList = ($ffmpegDlls | ForEach-Object {
-            $relativePath = $_.FullName.Substring($PackageRoot.Length + 1)
-            $sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash
-            "$relativePath`n  SHA-256: $sha256"
-        } | Sort-Object) -join "`n"
-        $ffmpegNotice = @"
-FFmpeg as deployed by Qt Multimedia
-===================================
+UtauTTS does not bundle FFmpeg. Qt Multimedia uses its native backend when
+available. If an external Qt Multimedia FFmpeg backend is needed, set the path
+in Settings or one of these environment variables before the first launch:
 
-The GUI package contains the following FFmpeg-related files from the Qt
-Multimedia deployment for Qt ${qtVersion}. Each SHA-256 value identifies the
-exact binary covered by this notice:
+UTAUTTS_FFMPEG_PATH
+FFMPEG_PATH
+FFMPEG_DIR
+FFMPEG_ROOT
 
-$dllList
-
-Qt's prebuilt FFmpeg configuration and the applicable license/source guidance
-are documented by Qt here:
+The path should point to a directory containing the Qt Multimedia FFmpeg plugin
+and its codec libraries. A standalone ffmpeg command-line executable is not a
+replacement for that plugin. See the Qt Multimedia and FFmpeg documentation:
 https://doc.qt.io/qt-6.8/qtmultimedia-index.html
-https://doc.qt.io/qt-6.8/qtwebengine-3rdparty-ffmpeg.html
 https://ffmpeg.org/legal.html
-
-The corresponding Qt and FFmpeg source request procedure is identified in
-Qt-SOURCE-OFFER.txt. The FFmpeg source/build must correspond to the exact files
-listed above; a generic FFmpeg source tree is not a substitute for the matching
-source.
 "@
-        Write-ReleaseText (Join-Path $licenseRoot 'Qt/FFmpeg-SOURCE-AND-LICENSE.txt') $ffmpegNotice
-    }
+    Write-ReleaseText (Join-Path $licenseRoot 'Qt/FFmpeg-OPTIONAL.txt') $ffmpegOptional
 }
-
-function Copy-BreezeLicense {
-    Copy-Required (Join-Path $root 'licenses/breeze/COPYING-ICONS.txt') (Join-Path $licenseRoot 'Breeze/COPYING-ICONS.txt')
-}
-
 New-Item -ItemType Directory -Force -Path $licenseRoot | Out-Null
 Copy-GoLicenses
 Copy-OpenJTalkLicenses
@@ -258,19 +334,6 @@ Copy-WorldLicenses
 
 if ($Variant -eq 'windows-gui') {
     Copy-QtLicenses
-    Copy-BreezeLicense
 }
-
-$manifest = @(
-    'This directory contains license and notice files copied from the exact',
-    'SDK/package/toolchain versions used to assemble this release.',
-    '',
-    'The project-wide license scope summary is ../LICENSE-SCOPE.md.',
-    'The project-wide dependency summary is ../THIRD_PARTY_NOTICES.txt.'
-)
-$manifest += @(Get-ChildItem -LiteralPath $licenseRoot -Recurse -File | ForEach-Object {
-    $_.FullName.Substring($PackageRoot.Length + 1)
-} | Sort-Object)
-Write-ReleaseText (Join-Path $licenseRoot 'README.txt') ($manifest -join "`n")
 
 Write-Host "Collected third-party licenses for $Variant at $licenseRoot"

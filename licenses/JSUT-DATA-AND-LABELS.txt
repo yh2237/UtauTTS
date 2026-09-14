@@ -1,30 +1,37 @@
 JSUT and jsut-label provenance
-==============================
+=============================
 
-The official bundled learned prosody models were trained from the JSUT Japanese
-speech corpus and are distributed with this application as model files. The
-original JSUT recordings and the complete label repository are not bundled in
-UtauTTS.
+Scope
+-----
+
+This notice records the upstream data for the JSUT-derived model files
+`frame-intonation-v8` and `prosody-multitask-v1`. UtauTTS release contents are
+the model JSON files and license notices. Source data locations: the upstream
+JSUT and jsut-label repositories.
 
 JSUT corpus
 -----------
 
-JSUT (Japanese speech corpus of Saruwatari-lab., University of Tokyo) is used as
-the training corpus for the learned prosody models. The JSUT distribution
-identifies the component sources and licenses of its text data in its LICENCE
-file. BASIC5000 includes text from the sources listed below.
+JSUT is the Japanese speech corpus of the Saruwatari-lab., University of
+Tokyo. The [official JSUT page](https://sites.google.com/site/shinnosuketakamichi/publication/jsut)
+defines separate terms for text and audio:
 
-The JSUT official terms distinguish the text from the audio. The audio may be
-used for academic research, non-commercial research (including research within
-commercial organizations), and personal use. The audio may not be redistributed.
-Commercial use requires contacting the JSUT rights holders. This notice does
-not redistribute JSUT audio and does not grant commercial rights to the bundled
-prosody models; see the official JSUT page for the current terms and contacts:
-https://sites.google.com/site/shinnosuketakamichi/publication/jsut
+- Text: CC-BY-SA 4.0 and other source terms
+- Audio use: academic research, non-commercial research including research
+  within commercial organizations, and personal use
+- Audio publication: the limited website or blog publication described on the
+  official page, such as about 100 audio files
+- Commercial use: contact the JSUT rights holders listed on the official page
 
-Upstream information:
-https://sites.google.com/site/shinnosuketakamichi/publication/jsut
-https://creativecommons.org/licenses/by-sa/4.0/
+The BASIC5000 text sources and their conditions are listed in the upstream
+licence information:
+
+- Wikipedia text: CC-BY-SA 3.0
+  https://ja.wikipedia.org/
+- TANAKA corpus text: CC-BY 2.0
+  http://www.edrdg.org/wiki/index.php/Tanaka_Corpus
+- JSUT text: CC-BY-SA 4.0
+  https://sites.google.com/site/shinnosuketakamichi/publication/jsut
 
 Reference:
 Ryosuke Sonobe, Shinnosuke Takamichi, and Hiroshi Saruwatari,
@@ -34,29 +41,25 @@ synthesis," arXiv preprint 1711.00354, 2017.
 jsut-label BASIC5000 labels
 ---------------------------
 
-The optional BASIC5000 HTS-style labels are obtained from:
+The training tools use the BASIC5000 HTS-style labels from:
 https://github.com/sarulab-speech/jsut-label
 
-The repository credits Tomoki Koriyama as the main contributor and Shinnosuke
-Takamichi as a contributor. The label data is described there as CC BY-SA 4.0,
-with component text data carrying the following source terms:
+The upstream README describes:
 
-- Wikipedia text: CC BY-SA 3.0
-  https://ja.wikipedia.org/
-- TANAKA corpus text: CC BY 2.0
-  http://www.edrdg.org/wiki/index.php/Tanaka_Corpus
-- JSUT text: CC BY-SA 4.0
-  https://sites.google.com/site/shinnosuketakamichi/publication/jsut
+- manually annotated phonetic and prosodic information
+- time information estimated by Julius
+- Tomoki Koriyama as the main contributor and Shinnosuke Takamichi as a
+  contributor
+- label data under CC-BY-SA 4.0 and other source terms
 
-The labels also contain manual phonetic/prosodic annotation and time estimates
-made using Julius. Derived label data must preserve the applicable attribution
-and share-alike terms. See the upstream repository and its LICENCE.txt for the
-complete terms.
+The upstream [LICENCE.txt](https://github.com/sarulab-speech/jsut-label/blob/master/LICENCE.txt)
+lists the component text conditions. Attribution and share-alike conditions
+for jsut-label data and derivatives follow those upstream documents.
 
 Model-specific provenance
 -------------------------
 
-The self-describing model JSON files for the official JSUT-derived models
-identify their training provenance and point back to this notice. This notice
-is included in the release license bundle even though the original corpus and
-label files are not included.
+- `frame-intonation-v8`: Open JTalk provides accent and linguistic features
+- A candidate trained with `--jsut-context-labels`: jsut-label provides accent
+  contexts
+- Model distribution policy: `licenses/PROSODY-MODELS.txt`

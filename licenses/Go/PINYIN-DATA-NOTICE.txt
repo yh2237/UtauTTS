@@ -14,10 +14,10 @@ https://github.com/mozillazg/pinyin-data
 Upstream license:
 https://raw.githubusercontent.com/mozillazg/pinyin-data/master/LICENSE
 
-The upstream data project may itself incorporate information from external
-linguistic datasets. Their notices and terms remain applicable to the
-corresponding data, even though UtauTTS does not redistribute those datasets
-as separate source archives.
+The upstream data project incorporates information from external linguistic
+datasets. The corresponding data keeps the notices and terms of those
+datasets. UtauTTS distributes the generated tables through the go-pinyin
+package.
 
 MIT License for pinyin-data
 ===========================

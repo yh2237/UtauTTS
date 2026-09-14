@@ -1,14 +1,11 @@
 # WORLD
 
-This directory contains an unmodified source snapshot of the official WORLD
-vocoder repository.
+このディレクトリには、公式WORLDボコーダーの変更していないソーススナップショットを収録しています。
 
-- Upstream: https://github.com/mmorise/World
-- Commit: `d625e7608ca23a870018f01e7c562ac683d9847f`
-- License: modified BSD (`LICENSE.txt`)
+- 上流プロジェクト: https://github.com/mmorise/World
+- 取得コミット: `d625e7608ca23a870018f01e7c562ac683d9847f`
+- ライセンス: modified BSD（`LICENSE.txt`）
 
-`OOURA-NOTICE.txt` records the FFT implementation's upstream permission, and
-`MACRODEFINITIONS-LICENSE.txt` records the MIT notice carried by
-`src/world/macrodefinitions.h`.
+FFT実装の上流許諾は`OOURA-NOTICE.txt`に、`src/world/macrodefinitions.h`が含むMIT通知は`MACRODEFINITIONS-LICENSE.txt`に記載しています。
 
-UtauTTS builds these sources into its own small analysis/synthesis library.
+UtauTTSでは、このソースを独自の解析・合成ライブラリとしてビルドします。

@@ -64,15 +64,50 @@ for package_root in "${gui_root}" "${server_root}"; do
     "${package_root}/LICENSE" \
     "${package_root}/LICENSE-SCOPE.md" \
     "${package_root}/THIRD_PARTY_NOTICES.txt" \
-    "${package_root}/licenses/README.txt" \
     "${package_root}/licenses/Go/GO-LICENSE.txt" \
-    "${package_root}/licenses/Go/APACHE-2.0.txt" \
     "${package_root}/licenses/Go/CMUDICT-LICENSE.txt" \
     "${package_root}/licenses/Go/PINYIN-DATA-NOTICE.txt" \
-    "${package_root}/licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt"; do
+    "${package_root}/licenses/Go/github_com_ikawaha_kagome_v2-v2.11.0-LICENSE.txt" \
+    "${package_root}/licenses/Go/github_com_ikawaha_kagome-dict_ipa-v1.2.6-NOTICE.txt" \
+    "${package_root}/licenses/Go/github_com_mozillazg_go-pinyin-v0.21.0-LICENSE.txt" \
+    "${package_root}/licenses/Go/golang_org_x_text-v0.39.0-PATENTS.txt" \
+    "${package_root}/licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt" \
+    "${package_root}/licenses/OpenJTalk/MECAB_COPYING.txt" \
+    "${package_root}/licenses/OpenJTalk/MECAB_NAIST_JDIC_COPYING.txt" \
+    "${package_root}/licenses/OpenJTalk/OPENJTALK_COPYING.txt" \
+    "${package_root}/runtime/open_jtalk_dic_utf_8-1.11/COPYING" \
+    "${package_root}/runtime/licenses/PYTHON_LICENSE.txt" \
+    "${package_root}/runtime/licenses/PYINSTALLER_COPYING.txt"; do
     [[ -f "${required}" ]] || fail "required license file is missing: ${required}"
   done
 done
+for package_root in "${gui_root}" "${server_root}"; do
+  [[ ! -e "${package_root}/licenses/Go/APACHE-2.0.txt" ]] \
+    || fail "obsolete Apache license copy is present: ${package_root}"
+  [[ ! -e "${package_root}/licenses/Go/github_com_ikawaha_kagome-dict_ipa-v1.2.6-LICENSE.txt" ]] \
+    || fail "duplicate Kagome IPA license is present: ${package_root}"
+  [[ ! -e "${package_root}/licenses/Go/golang_org_x_text-v0.39.0-LICENSE.txt" ]] \
+    || fail "duplicate x/text license is present: ${package_root}"
+  [[ ! -e "${package_root}/licenses/OpenJTalk/DICTIONARY_COPYING.txt" ]] \
+    || fail "duplicate Open JTalk dictionary license is present: ${package_root}"
+  [[ ! -e "${package_root}/runtime/licenses/OPENSSL-NOTICE.txt" ]] \
+    || fail "obsolete OpenSSL notice is present: ${package_root}"
+  [[ ! -e "${package_root}/runtime/licenses/OPENSSL-LICENSE.txt" ]] \
+    || fail "obsolete OpenSSL license is present: ${package_root}"
+done
+voice_archives=()
+for candidate in "${root_dir}/voice"/*.zip; do
+  if [[ -f "${candidate}" ]]; then
+    voice_archives+=("${candidate}")
+  fi
+done
+[[ "${#voice_archives[@]}" -eq 1 ]] \
+  || fail "expected exactly one source voicebank archive, found ${#voice_archives[@]}"
+voice_archive="${voice_archives[0]}"
+expected_voicebank_sha256='B96D1B21145F22E573AFD9EC8AEAAD0EC9CBAEE581C2623C64ADDEB31DE46B3D'
+actual_voicebank_sha256="$(shasum -a 256 "${voice_archive}" | awk '{print toupper($1)}')"
+[[ "${actual_voicebank_sha256}" == "${expected_voicebank_sha256}" ]] \
+  || fail "source voicebank hash mismatch: expected ${expected_voicebank_sha256}, got ${actual_voicebank_sha256}"
 for package_root in "${gui_root}" "${server_root}"; do
   "${python_command}" "${root_dir}/tools/copy-model-license-notices.py" \
     --models "${package_root}/models" \
@@ -95,9 +130,38 @@ for required in \
   "${gui_root}/licenses/Qt/Qt-SOURCE-OFFER.txt" \
   "${gui_root}/licenses/Qt/Qt-RELINK-INSTRUCTIONS.txt" \
   "${gui_root}/licenses/Qt/Qt-THIRD-PARTY-ATTRIBUTIONS.txt" \
-  "${gui_root}/licenses/Qt/FFmpeg-SOURCE-AND-LICENSE.txt"; do
+  "${gui_root}/licenses/Qt/FFmpeg-OPTIONAL.txt" \
+  "${gui_root}/licenses/Qt/Qt-SBOM-MANIFEST.txt"; do
   [[ -f "${required}" ]] || fail "required macOS GUI license file is missing: ${required}"
 done
+[[ ! -e "${gui_root}/licenses/Qt/sbom" ]] \
+  || fail 'raw Qt SBOM JSON must remain outside the release package'
+[[ ! -e "${gui_root}/licenses/Qt/LGPL-2.1.txt" ]] \
+  || fail 'LGPL-2.1 text must not be shipped because FFmpeg is never bundled'
+for package_root in "${gui_root}" "${server_root}"; do
+  [[ ! -e "${package_root}/licenses/openjtalk" ]] \
+    || fail "Open JTalk licenses are duplicated under a lowercase directory: ${package_root}"
+done
+if find "${app}/Contents" -type f \( -iname '*ffmpeg*' -o -iname 'libavcodec*' \
+  -o -iname 'libavformat*' -o -iname 'libavutil*' -o -iname 'libswresample*' \
+  -o -iname 'libswscale*' \) -print -quit | grep -q .; then
+  fail 'macOS app bundle contains FFmpeg files'
+fi
+if find "${app}/Contents" -type d -path '*/Resources/translations' -print -quit | grep -q .; then
+  fail 'macOS app bundle contains Qt standard translations'
+fi
+for style_name in FluentWinUI3 Imagine Material Universal Windows; do
+  [[ ! -e "${app}/Contents/Resources/qml/QtQuick/Controls/${style_name}" ]] \
+    || fail "macOS app bundle contains unused Qt Quick Controls style: ${style_name}"
+done
+for style_name in +Imagine +Material +Universal; do
+  [[ ! -e "${app}/Contents/Resources/qml/QtQuick/Dialogs/quickimpl/qml/${style_name}" ]] \
+    || fail "macOS app bundle contains unused Qt Quick Dialogs style: ${style_name}"
+done
+if find "${app}/Contents" -type f \( -iname 'QtSvg' -o -iname 'QtQuickEffects' \
+  -o -iname 'qsvgicon.dylib' -o -iname 'qsvg.dylib' \) -print -quit | grep -q .; then
+  fail 'macOS app bundle contains unused Qt SVG/effects runtime'
+fi
 [[ ! -e "${server_root}/THIRD_PARTY_NOTICES-MACOS-GUI.txt" ]] \
   || fail 'server package must not contain the macOS GUI third-party addendum'
 for removed in \
@@ -112,7 +176,13 @@ for executable in \
   [[ -x "${executable}" ]] || fail "executable permission is missing: ${executable}"
 done
 
-voicebank="$(find "${gui_root}/voice" -mindepth 1 -maxdepth 1 -type d -print -quit)"
+voicebank=""
+for candidate in "${gui_root}/voice"/*; do
+  if [[ -d "${candidate}" ]]; then
+    voicebank="${candidate}"
+    break
+  fi
+done
 [[ -n "${voicebank}" ]] || fail 'GUI package contains no bundled voicebank'
 work_dir="${temporary_root}/work"
 mkdir -p "${work_dir}"

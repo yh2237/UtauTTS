@@ -5,6 +5,7 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 package_root="${1:?package root is required}"
 app_path="${2:?application bundle path is required}"
 qt_root="${3:?Qt root is required}"
+audit_root="${4:-${root_dir}/build/license-audit/Qt/macos}"
 license_root="${package_root}/licenses/Qt"
 
 copy_required() {
@@ -19,6 +20,11 @@ copy_required() {
 }
 
 mkdir -p "${license_root}"
+rm -f "${license_root}/LGPL-2.1.txt" \
+  "${license_root}/FFmpeg-SOURCE-AND-LICENSE.txt" \
+  "${license_root}/FFmpeg-SOURCE-OFFER.txt" \
+  "${license_root}/FFmpeg-OPTIONAL.txt"
+rm -rf "${license_root}/sbom"
 qt_config="$(find "${qt_root}" -path '*/lib/cmake/Qt6/Qt6Config.cmake' -type f -print -quit)"
 if [[ -z "${qt_config}" ]]; then
   echo "Qt6Config.cmake was not found below ${qt_root}" >&2
@@ -35,8 +41,59 @@ fi
 qt_version="${qt_major}.${qt_minor}.${qt_patch}"
 qt_doc_series="${qt_major}.${qt_minor}"
 
-lgpl_path=""
 qt_sdk_parent="$(cd "${qt_root}/../.." && pwd)"
+sbom_source_root=""
+for candidate in "${qt_root}/sbom" "${qt_sdk_parent}/sbom"; do
+  if [[ -d "${candidate}" ]]; then
+    sbom_source_root="${candidate}"
+    break
+  fi
+done
+[[ -n "${sbom_source_root}" ]] || {
+  echo "Qt SBOM directory was not found below ${qt_root}" >&2
+  exit 1
+}
+sbom_names=(
+  "qtbase-${qt_version}.spdx.json"
+  "qtdeclarative-${qt_version}.spdx.json"
+  "qtmultimedia-${qt_version}.spdx.json"
+)
+rm -rf "${audit_root}"
+mkdir -p "${audit_root}"
+{
+  echo "Qt SBOM files for Qt ${qt_version}"
+  echo '================================='
+  echo
+  echo 'Raw SPDX JSON files are kept in the build audit directory and are not included in the release package.'
+  echo 'Audit directory: build/license-audit/Qt/macos'
+  echo
+  for sbom_name in "${sbom_names[@]}"; do
+    sbom_source="${sbom_source_root}/${sbom_name}"
+    copy_required "${sbom_source}" "${audit_root}/${sbom_name}"
+    echo "${sbom_name}"
+    echo "  SHA-256: $(shasum -a 256 "${sbom_source}" | awk '{print $1}')"
+  done
+} > "${license_root}/Qt-SBOM-MANIFEST.txt"
+ffmpeg_files=()
+while IFS= read -r candidate; do
+  [[ -n "${candidate}" ]] && ffmpeg_files+=("${candidate}")
+done < <(find "${app_path}" -type f \( -iname '*ffmpeg*' \
+  -o -iname '*avcodec*.dylib' -o -iname '*avformat*.dylib' \
+  -o -iname '*avutil*.dylib' -o -iname '*swresample*.dylib' \
+  -o -iname '*swscale*.dylib' \) -print | sort)
+if [[ "${#ffmpeg_files[@]}" -gt 0 ]]; then
+  echo 'FFmpeg files must not be bundled in the macOS app' >&2
+  printf '  %s\n' "${ffmpeg_files[@]}" >&2
+  exit 1
+fi
+{
+  echo
+  echo 'Qt Multimedia FFmpeg status:'
+  echo 'FFmpeg is not bundled. The Qt Multimedia SBOM may list optional FFmpeg support from the Qt SDK.'
+  echo 'FFmpeg package files bundled: false'
+} >> "${license_root}/Qt-SBOM-MANIFEST.txt"
+
+lgpl_path=""
 for search_root in "${qt_root}" "${qt_sdk_parent}/Tools"; do
   if [[ ! -d "${search_root}" ]]; then
     continue
@@ -65,9 +122,8 @@ Source requests:
 https://github.com/yh2237/UtauTTS/issues/new?title=Qt%20source%20request
 
 Include the UtauTTS release version and Qt version ${qt_version} in a request.
-Identify whether the request concerns Qt itself, Qt Multimedia's FFmpeg
-deployment, or both. The repository and its build scripts provide the
-corresponding application source and relinking information.
+Identify the Qt modules concerned. The repository and its build scripts provide
+the corresponding application source and relinking information.
 
 Qt source locations:
 https://download.qt.io/official_releases/qt/${qt_major}.${qt_minor}/${qt_version}/submodules/
@@ -105,49 +161,34 @@ Qt ${qt_version} third-party attributions
 ======================================
 
 Qt modules contain third-party components with their own copyright and
-license terms. The authoritative attribution list for this Qt version is:
+license terms. Raw SPDX SBOM files used for this package are kept in the build
+audit directory, with SHA-256 values recorded in Qt-SBOM-MANIFEST.txt. The
+authoritative attribution list for this Qt version is:
 https://doc.qt.io/qt-${qt_doc_series}/licenses-used-in-qt.html
 
-Qt Multimedia documentation and licensing information:
-https://doc.qt.io/qt-${qt_doc_series}/qtmultimedia-index.html
+Qt Multimedia attribution and licensing information:
+https://doc.qt.io/qt-${qt_doc_series}/qtmultimedia-attribution-ffmpeg.html
 
-Qt Multimedia may deploy FFmpeg components. The exact files detected in this
-application bundle, together with their SHA-256 values and source guidance,
-are recorded in FFmpeg-SOURCE-AND-LICENSE.txt.
+Qt Multimedia uses a native backend in this package. An optional external
+FFmpeg backend is described in FFmpeg-OPTIONAL.txt.
 EOF
 
-ffmpeg_files=()
-while IFS= read -r candidate; do
-  [[ -n "${candidate}" ]] && ffmpeg_files+=("${candidate}")
-done < <(find "${app_path}" -type f \( -iname '*ffmpeg*' -o -iname 'libavcodec*.dylib' -o -iname 'libavformat*.dylib' -o -iname 'libavutil*.dylib' -o -iname 'libswresample*.dylib' -o -iname 'libswscale*.dylib' \) -print | sort)
+cat > "${license_root}/FFmpeg-OPTIONAL.txt" <<EOF
+Optional FFmpeg runtime
+=======================
 
-{
-  echo 'FFmpeg as deployed by Qt Multimedia'
-  echo '==================================='
-  echo
-  echo "This notice was generated for Qt ${qt_version}."
-  echo
-  if [[ "${#ffmpeg_files[@]}" -eq 0 ]]; then
-    echo 'No FFmpeg-named files were detected in the deployed app bundle.'
-    echo 'Review the Qt Multimedia backend before distributing a build that'
-    echo 'uses a differently named FFmpeg binary.'
-  else
-    echo 'The following FFmpeg-related files were detected:'
-    echo
-    for candidate in "${ffmpeg_files[@]}"; do
-      relative_path="${candidate#${package_root}/}"
-      sha256="$(shasum -a 256 "${candidate}" | awk '{print $1}')"
-      echo "${relative_path}"
-      echo "  SHA-256: ${sha256}"
-    done
-  fi
-  echo
-  echo 'Qt Multimedia documentation and source guidance:'
-  echo "https://doc.qt.io/qt-${qt_doc_series}/qtmultimedia-index.html"
-  echo 'https://ffmpeg.org/legal.html'
-  echo
-  echo 'The corresponding Qt and FFmpeg source request procedure is identified'
-  echo 'in Qt-SOURCE-OFFER.txt. The source must correspond to the exact files'
-  echo 'listed above; a generic FFmpeg source tree is not a substitute for the'
-  echo 'matching source.'
-} > "${license_root}/FFmpeg-SOURCE-AND-LICENSE.txt"
+UtauTTS does not bundle FFmpeg. Qt Multimedia uses its native backend when
+available. If an external Qt Multimedia FFmpeg backend is needed, set the path
+in Settings or one of these environment variables before the first launch:
+
+UTAUTTS_FFMPEG_PATH
+FFMPEG_PATH
+FFMPEG_DIR
+FFMPEG_ROOT
+
+The path should point to a directory containing the Qt Multimedia FFmpeg plugin
+and its codec libraries. A standalone ffmpeg command-line executable is not a
+replacement for that plugin. See the Qt Multimedia and FFmpeg documentation:
+https://doc.qt.io/qt-6.8/qtmultimedia-index.html
+https://ffmpeg.org/legal.html
+EOF

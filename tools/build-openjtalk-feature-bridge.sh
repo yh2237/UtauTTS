@@ -52,6 +52,7 @@ cp "${extension}" "${input_path}/openjtalk.so"
 
 PYTHONPATH="${pyinstaller_root}" "${python_bin}" -m PyInstaller --noconfirm --clean --onefile \
   --name utautts-openjtalk-features \
+  --exclude-module _hashlib \
   --paths "${input_path}" \
   --hidden-import openjtalk \
   --distpath "${dist_path}" \

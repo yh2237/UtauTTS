@@ -1,36 +1,42 @@
 # ライセンスの適用範囲
 
-UtauTTSのソースコードはMIT Licenseで公開しています。学習済みモデル、ボイスバンク、文章データ、アイコン、外部ライブラリなど、第三者が権利を持つ成果物には個別の利用条件が適用されます。
+UtauTTSのソースコードはMIT Licenseで公開しています。学習済みモデル、ボイスバンク、文章データ、外部ライブラリなど、第三者が権利を持つ成果物には個別の利用条件が適用されます。
+
 
 ## UtauTTSのソースコード
 
-UtauTTSのオリジナルコードは[`LICENSE`](./LICENSE)のMIT Licenseに従います。このライセンスは、第三者が権利を持つコード、データ、モデル、音源の利用条件を変更しません。
+UtauTTSのオリジナルコードは[`LICENSE`](./LICENSE)のMIT Licenseです。第三者のコード、データ、モデル、音源には、それぞれの配布条件を適用します。
 
 ## 学習済みモデル
 
-現在配布している`models/`の公式JSONモデルは、JSUT日本語音声コーパスの音声を使って学習しています。
+`frame-intonation-v8`と`prosody-multitask-v1`は、JSUT日本語音声コーパスの音声を使って学習したモデルです。
 
-- 利用、改変、再配布は、学術研究、非商用研究、個人利用に限られます。
-- 商用利用にはJSUT権利者の事前許諾が必要です。
-- モデル自体はCreative Commons Attribution-ShareAlike 4.0 Internationalとして配布していません。
-- 詳細な条件と出典は、[`models/README.md`](./models/README.md)、[`licenses/PROSODY-MODELS.txt`](./licenses/PROSODY-MODELS.txt)、[`licenses/JSUT-DATA-AND-LABELS.txt`](./licenses/JSUT-DATA-AND-LABELS.txt)を確認してください。
+- 利用、改変、再配布の範囲: 学術研究、非商用研究、個人利用
+- 商用利用: JSUT権利者の事前許諾
+- 配布方針の基準: [JSUT公式ページ](https://sites.google.com/site/shinnosuketakamichi/publication/jsut)の音声利用条件
+- 詳細な条件と出典: [`models/README.md`](./models/README.md)、[`licenses/PROSODY-MODELS.txt`](./licenses/PROSODY-MODELS.txt)、[`licenses/JSUT-DATA-AND-LABELS.txt`](./licenses/JSUT-DATA-AND-LABELS.txt)
 
-JSUTの元音声、BASIC5000全体、jsut-labelの全データは配布物に含まれません。モデルの利用条件は、これらの上流データの権利を移転するものではありません。
+配布物: モデルJSONとライセンス通知。学習入力: JSUT元音声、BASIC5000本文、jsut-labelデータ。出典: 各配布元。
+
+`english-intonation-v1`はUtauTTS用の係数モデルで、MIT Licenseで配布します。詳細: [`licenses/ENGLISH-INTONATION-V1.txt`](./licenses/ENGLISH-INTONATION-V1.txt)
 
 ## ボイスバンク
 
-GUI版には、メカニカルガール公式配布の「足立レイ UTAU音源 ver3.5.0」を同梱しています。この音源はUtauTTS本体のMIT Licenseの対象外です。利用条件は[同梱ボイスバンクの案内](./docs/voicebank.md)、音源に付属する文書、[公式ガイドライン](https://mechanicalgirl.jp/guidelines/)を確認してください。Server版にはこの音源を同梱していません。
+GUI版の初期音源: メカニカルガール公式配布「足立レイ UTAU音源 ver3.5.0」。音源の利用条件: [同梱ボイスバンクの案内](./docs/voicebank.md)、音源内の文書、[公式ガイドライン](https://mechanicalgirl.jp/guidelines/)。Server版の初期音源: なし。
 
 ## その他の第三者コンポーネント
 
-OpenUtau、WORLD、Qt、FFmpeg、Breeze Icons、Open JTalk、Go/Pythonの依存関係などには、それぞれのライセンスと通知が適用されます。詳細は[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、[Windows GUI通知](./THIRD_PARTY_NOTICES-WINDOWS-GUI.txt)、[macOS GUI通知](./THIRD_PARTY_NOTICES-MACOS-GUI.txt)、[`licenses/`](./licenses/)、各コンポーネントの同梱文書を確認してください。
+Qt、WORLD、Open JTalk、Go/Pythonの依存関係、外部FFmpegには、それぞれのライセンスと通知を適用します。詳細: [`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、各プラットフォームのGUI通知、[`licenses/`](./licenses/)、各コンポーネントの文書。
 
-アプリケーションアイコンとUIアイコンも、出典ごとに利用条件が異なります。`icons/`および`qt/assets/icons/`のアイコンを再配布・改変する場合は、対応する通知とライセンスを確認してください。
+アプリケーションアイコンと評価用ファイルは、本リポジトリのMIT Licenseで提供します。
 
 ## リリースパッケージ
 
-GUI版とServer版には、それぞれの実行に必要なモデル、Renderer、ランタイム、ライセンス文書を含めます。GUI版には初期ボイスバンクを同梱しますが、Server版には同梱しません。
+GUI版: 実行に必要なモデル、Renderer、ランタイム、ライセンス文書、初期ボイスバンク、対象プラットフォームの通知。
+Server版: 実行に必要なモデル、Renderer、ランタイム、ライセンス文書。
 
-各パッケージには、少なくとも[`LICENSE`](./LICENSE)、この文書、[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、`licenses/`、モデルの個別文書を含めます。GUI版には対象プラットフォームのGUI固有通知と、同梱ボイスバンクの公式文書も含めます。Server版にはGUI固有通知と同梱ボイスバンクを含めません。
+共通収録物: [`LICENSE`](./LICENSE)、`LICENSE-SCOPE.md`、[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、`licenses/`、モデルの個別文書。GUI版は同梱ボイスバンクの公式文書も収録します。
 
-具体的な利用条件に矛盾がある場合は、各権利者が公開する原文ライセンス、配布条件、同梱通知を優先してください。
+利用条件の優先順位: 各権利者が公開する原文ライセンス、配布条件、同梱通知。
+
+OpenUtau互換処理とWORLDの出典、各ライセンス本文は[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)に記載しています。
