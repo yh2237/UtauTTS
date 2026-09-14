@@ -1,6 +1,6 @@
-# DiffSinger（試験実装）
+# DiffSinger連携
 
-DiffSingerは専用の音源とRendererで合成する。`oto.ini`、resampler、wavtoolは使わない。
+DiffSingerは専用の音源とRendererで合成します。通常のUTAU音源とは異なり、`oto.ini`、resampler、wavtoolを使わない経路です。対応範囲と配置を次に示します。
 
 ## 対応範囲
 
@@ -15,18 +15,18 @@ DiffSingerは専用の音源とRendererで合成する。`oto.ini`、resampler�
 - 連続・離散diffusion
 - 日本語かな入力
 
-共有vocoderは`Dependencies/<名前>`に置く。名前は音源の指定と一致させる。UtauTTSの実行ファイルまたは作業ディレクトリにある`Dependencies`を探す。OpenUtauの標準`Dependencies`も利用できる。
+共有vocoderは`Dependencies/<名前>`に配置します。名前は音源の指定と一致させてください。UtauTTSの実行ファイルまたは作業ディレクトリにある`Dependencies`を検索します。OpenUtauの標準`Dependencies`も利用できます。
 
-## 未対応
+## 制限事項
 
 - 話者混合
-- GPUとWindows以外の実行環境
+- GPUを使った実行
+- Windows以外の実行環境
 
-GUIではDiffSinger音源を選ぶと、DiffSinger Rendererへ自動で切り替わる。
-音節の長さとピッチは、GUIのプレビューと同じUtauTTSの抑揚モデルから作る。手動の長さ・ピッチ編集にも対応する。抑揚を使う場合はピッチ処理を有効にし、抑揚の強さを0より大きく設定する。
+GUIでDiffSinger音源を選ぶと、DiffSinger Rendererへ自動で切り替わります。音節の長さとピッチは、GUIのプレビューと同じUtauTTSの抑揚モデルから作ります。手動の長さとピッチ編集にも対応します。抑揚の適用条件: ピッチ処理を有効化し、抑揚の強さを0より大きく設定します。
 
-`dsdur`は音節全体の長さを保ったまま子音・母音の配分へ弱く反映する。話声用のピッチ曲線がある場合は`dspitch`を使わず、その曲線を合成へ渡す。先頭の無音分はピッチ曲線の配置時に補正する。
+`dsdur`は音節全体の長さを保ったまま、子音と母音の配分へ弱く反映します。話声用のピッチ曲線がある場合は`dspitch`を使わず、その曲線を合成へ渡します。先頭の無音分はピッチ曲線の配置時に補正します。
 
-これらは話声のタイミングと抑揚を反映する処理であり、音響モデル自体を話声用に再学習するものではない。音源によっては歌唱由来の発声が残る。
+処理の役割: 話声のタイミングと抑揚の反映。音響モデル: 音源に含まれる学習済みモデル。音源によっては歌唱由来の発声が残ります。
 
-合成時は、対応するbridgeの`utautts-provider` sessionを同じプロセスで次の合成にも再利用する。C# bridgeはモデルpathごとにONNX Runtimeの推論sessionを保持するため、合成ごとのモデル初期化を避けられる。sessionを開始できない場合はエラーになります。
+合成時は、対応するbridgeの`utautts-provider` sessionを同じプロセスで次の合成にも再利用します。C# bridgeはモデルごとにONNX Runtimeの推論sessionを保持するため、合成ごとのモデル初期化を避けられます。sessionを開始できない場合はエラーになります。

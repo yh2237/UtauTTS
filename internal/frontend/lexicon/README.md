@@ -1,5 +1,7 @@
 # 同梱英語発音辞書
 
+実行時に使う辞書の出典と更新方法を記録しています。
+
 出典: https://github.com/cmusphinx/cmudict
 
 Revision: `74790861f652b15e4ac49015a90074ad62a27690`

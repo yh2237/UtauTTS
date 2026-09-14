@@ -22,7 +22,7 @@ runtime/open_jtalk_dic_utf_8-1.11/
 
 Linux版では`runtime/utautts-openjtalk-features`に実行権限があることも確認してください。
 
-ファイルがなければ配布ZIPを再展開してください。セキュリティソフトが実行ファイルを消しやがることもあります。除外設定は`utautts.exe`だけでなく展開先のフォルダへ指定します。
+ファイルがなければ配布ZIPを再展開してください。セキュリティソフトが実行ファイルを削除することがあります。除外設定は`utautts.exe`だけでなく展開先のフォルダへ指定します。
 
 ## `Open JTalk frontend failed` が表示される
 
@@ -39,7 +39,7 @@ UtauTTS側の読みとOpen JTalk側の解析結果が一致していない可能
 - 文章を変更して再解析し表示された読みとモーラ列を確認します。
 - それでも解決しない場合はエラーログと入力文章を添えて報告してください。
 
-## Rendererやruntime assetが見つからない
+## Rendererやruntimeのファイルが見つからない
 
 まず`waveform` Rendererで合成できるか確認してください。WORLD系Rendererに必要なファイルは[モデル／Rendererプラグイン](plugins.md)にあります。
 
@@ -49,7 +49,7 @@ UtauTTS側の読みとOpen JTalk側の解析結果が一致していない可能
 
 ### glibc 2.44以降でCOPY relocationのエラーが出る
 
-`COPY relocation against non-copyable protected symbol`や`GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`を含むエラーは、f5dcc81より前に作られたLinux GUIバイナリで起きることがあります。古いZIPを再展開しても直らないため、この修正を含む新しいリリースを使用してください。ソースからビルドする場合は`./build.sh linux`で、ビルド直後とパッケージ展開後のELF検査も実行されます。
+`COPY relocation against non-copyable protected symbol`や`GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`を含むエラーは、古いLinux GUIバイナリで起きることがあります。古いZIPを再展開しても直らないため、最新のリリースを使用してください。ソースからビルドする場合は`./build.sh linux`で、ビルド直後とパッケージ展開後のELF検査も実行されます。
 
 ### MangoHudを有効にすると音声初期化時に落ちる
 

@@ -1,6 +1,6 @@
 # インストール
 
-[GitHub Releases](https://github.com/yh2237/UtauTTS/releases)から環境と用途に合うZIPをダウンロードします。
+[GitHub Releases](https://github.com/yh2237/UtauTTS/releases)から、環境と用途に合うZIPをダウンロードします。
 
 | パッケージ | 用途 |
 | --- | --- |
@@ -17,13 +17,15 @@
 2. 展開先の`utautts.exe`を実行します。
 3. 左側へ文章を入力して再生ボタンで合成を確認します。
 
-ZIP内のファイルは同じ階層構造のまま使用してください。runtimeやモデルだけを移動すると合成できません。
+配置条件: ZIP内の階層構造を保持。runtimeやモデルを単独で移動した構成: 合成対象外。
+
+FFmpegの構成: WindowsとmacOSでは利用可能なネイティブのマルチメディアバックエンドを使います。外部のQt Multimedia用FFmpegバックエンドは設定画面でプラグインとコーデックのフォルダを指定します。初回起動時の環境変数: `UTAUTTS_FFMPEG_PATH`、`FFMPEG_PATH`、`FFMPEG_DIR`、`FFMPEG_ROOT` の順。
 
 ## macOS
 
 macOS版はApple Silicon（arm64）向けです。`UtauTTS-mac-arm64.zip`を展開し、展開先のフォルダ構成を変更せずに使用してください。
 
-現在のmacOS版はAppleの署名・公証を行っていないため初回起動時に警告が表示されることがあります。公式GitHub Releasesからダウンロードしたファイルであることを確認したうえで展開先へ移動し、隔離属性を解除して起動します。
+macOS版はAppleの署名・公証を行っていないため、初回起動時に警告が表示されることがあります。公式GitHub Releasesからダウンロードしたファイルであることを確認したうえで展開先へ移動し、隔離属性を解除して起動します。
 
 ```bash
 cd "/path/to/extracted-folder"
@@ -31,11 +33,11 @@ xattr -rc "utautts.app" tools runtime
 open "utautts.app"
 ```
 
-`/path/to/extracted-folder`は実際に展開したフォルダのパスへ置き換えてください。`xattr`はアプリ本体だけでなく、同梱のCLI・更新ツール・runtimeにも適用します。配布元が信頼できることを確認できないファイルでは、この操作を行わないでください。
+`/path/to/extracted-folder`は実際に展開したフォルダのパスへ置き換えてください。`xattr`はアプリ本体だけでなく、同梱のCLI、更新ツール、runtimeにも適用します。配布元が信頼できることを確認できないファイルでは、この操作を行わないでください。
 
 ## Linux
 
-Linux GUI版にはシステムにインストールしたQt 6.5以降（Qt Quick、Qt Quick Controls、Qt Multimedia）と日本語フォントが必要です。QtはLinux ZIPへ同梱されません。Debian 13では次のパッケージ構成で確認しています。
+Linux GUI版の実行環境: システムにインストールしたQt 6.5以降（Qt Quick、Qt Quick Controls、Qt Multimedia）と日本語フォント。Debian 13では次のパッケージ構成で確認しています。
 
 ```bash
 sudo apt-get update
@@ -59,7 +61,7 @@ GUI版のアプリ内アップデーターは、通常は安定版だけを更�
 
 更新では`voice/`、`Resamplers/`、`Wavtools/`、`config.ini`と、引き継ぎ可能なユーザーRenderer定義を保持します。Renderer定義は`renderer/<id>/renderer.json`へ配置してください。ZIPを手動で上書きせず、アプリ内アップデーターを使用してください。
 
-## ボイスバンクを追加する
+## ボイスバンクの追加
 
 実行ファイルと同じ階層の`voice`ディレクトリへ音源ごとにフォルダを分けて配置します。
 
@@ -67,9 +69,9 @@ GUI版のアプリ内アップデーターは、通常は安定版だけを更�
 
 配置したらUtauTTSを再起動するか「ファイル」→「音源を再読込」を選択して再読み込みしてください。
 
-GUI版には「足立レイ ver3.5.0」を初期音源として同梱しています。利用前に[ボイスバンクの利用条件](voicebank.md)と音源内の文書を確認してください。
+GUI版には「足立レイ ver3.5.0」を初期音源として同梱しています。同梱ボイスバンクの利用条件: [案内](voicebank.md)と音源内の文書。
 
-## Server版
+## Server版の起動
 
 Windows
 

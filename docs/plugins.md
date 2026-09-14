@@ -1,12 +1,14 @@
 # モデル／Rendererプラグイン
 
+Renderer、Classic UTAUツール、抑揚モデルを追加または配布するための仕様を説明します。
+
 モデルとRendererは安定したIDでGUI、CLI、Serverから共通に選びます。実行ファイルの隣にある`models/`と`renderer/`を自動検出し、CLIとServerでは`--model-dir`／`--renderer-dir`で探索先を追加できます。明示した探索先は同梱定義より優先されます。
 
-## Renderer manifest
+## Renderer manifest の仕様
 
-標準Rendererも外部Rendererも、`renderer/<id>/renderer.json`で定義します。Go側にRendererの表示情報、既定値、runtime pathをハードコードするレジストリはありません。`id`はプロジェクトやAPIに保存する公開IDです。`provider`が実装を選ぶID、`contract`が入力契約を表します。providerの内蔵実装はGo側のregistryで管理し、外部実装は`utautts-provider` protocolで接続します。JSONだけで新しい合成エンジンABIを追加する仕組みではありません。
+標準Rendererも外部Rendererも、`renderer/<id>/renderer.json`で定義します。表示情報、既定値、runtimeのパスはmanifestに記録します。`id`はプロジェクトやAPIに保存する公開IDです。`provider`は実装を選ぶID、`contract`は入力形式の契約を表します。内蔵ProviderはGo側のレジストリで管理し、外部実装は`utautts-provider`プロトコルで接続します。新しい合成エンジンABIはGo側へ実装します。
 
-完全な形式は[renderer.schema.json](renderer.schema.json)を参照してください。実行時に読み込むのは`manifest_version: 2`だけです。公開IDとprovider、入力contract、provider versionを分離し、runtimeをtyped resourceとして記述します。
+完全な形式は[renderer.schema.json](renderer.schema.json)を参照してください。実行時に読み込むのは`manifest_version: 2`だけです。公開ID、Provider、入力contract、Provider versionを分離し、runtimeを種別付きresourceとして記述します。
 
 ```json
 {
@@ -23,31 +25,31 @@
 }
 ```
 
-`resources`の`path`はRendererディレクトリ基準です。OSごとに異なる場合は`platform_resources`の`windows-amd64`／`linux-amd64`へ同じresource keyを記述できます。`required`と`executable`は宣言情報で、実行時の必須resourceとcapabilityはprovider registryとの整合性も検証されます。
+`resources`の`path`はRendererディレクトリ基準です。OSごとに異なる場合は`platform_resources`の`windows-amd64`／`linux-amd64`へ同じresource keyを記述できます。`required`と`executable`は宣言情報で、実行時の必須resourceと機能はProviderレジストリとの整合性も検証されます。
 
-`default_priority`が大きいRendererが既定値です。`capabilities`、`acceleration`、`experimental`、`resources`、`platform_resources`をmanifestに記述します。未知のproviderや壊れたmanifestは`problems`へ表示され、その定義だけが無効になります。未知のIDを別Rendererへ黙って切り替えることはありません。
+`default_priority`が大きいRendererが既定値です。`capabilities`、`acceleration`、`experimental`、`resources`、`platform_resources`をmanifestに記述します。未知のproviderや壊れたmanifestは`problems`へ表示し、その定義だけを無効にします。未知のIDはエラーとして扱います。
 
 配布側が更新・削除を管理する同梱定義には`update_managed: true`を付けます。ユーザーが追加する定義では省略してください。
 
-共有runtimeはパッケージ直下の`runtime/`に置き、manifestからはRendererディレクトリ基準の相対pathで参照します。WindowsとLinuxで名前が異なる場合は、`platform_resources`に`windows-amd64`／`linux-amd64`を記述します。
+共有runtimeはパッケージ直下の`runtime/`に置き、manifestからはRendererディレクトリを基準とする相対パスで参照します。WindowsとLinuxで名前が異なる場合は、`platform_resources`に`windows-amd64`／`linux-amd64`を記述します。
 
-対応する内蔵provider adapterは`waveform`、`utautts-world-phrase`、`utau-external-resampler`、`diffsinger`です。標準定義の追加やユーザー定義によって、既存adapterを別の公開IDで選べます。任意の新規engine ABIを動的ロードする機能はまだありません。
+対応する内蔵Providerアダプターは`waveform`、`utautts-world-phrase`、`utau-external-resampler`、`diffsinger`です。標準定義の追加やユーザー定義によって、既存アダプターを別の公開IDで選べます。新規エンジンABIの動的ロード: 未対応。
 
 配布プロファイルによって利用できるmanifestとruntimeが異なります。
 
 | 配布物 | 利用できるRenderer |
 | --- | --- |
-| Windows Full | `utautts-world-phrase`、`waveform`、`classic-utau`、`diffsinger`（試験実装） |
+| Windows Full | `utautts-world-phrase`、`waveform`、`classic-utau`、`diffsinger` |
 | Windows Japanese | `utautts-world-phrase`、`waveform`、`classic-utau` |
 | Linux x64 | `utautts-world-phrase`、`waveform`、`classic-utau` |
 
-WindowsのFullプロファイルだけがDiffSingerのruntimeを含みます。LinuxのDiffSinger manifestは対象プラットフォーム外なのでカタログから除外されます。
+WindowsのFullプロファイルだけがDiffSingerのruntimeを含みます。LinuxのDiffSinger manifestは対応OS外なのでカタログから除外されます。
 
 Rendererの追加・更新はZIPインストールでは行いません。`renderer/<id>/renderer.json`を探索先へ配置してからGUIを再起動（またはCLI／Serverを再起動）してください。既存IDを明示ディレクトリに置くと同梱定義を上書きできます。
 
 ## Classic UTAUツール
 
-resamplerは`Resamplers/`、wavtoolは`Wavtools/`へ配置します。Renderer manifestは不要です。サブディレクトリも探索するため、依存DLLを実行ファイルと同じディレクトリへ置けます。プロジェクトには各ディレクトリからの相対IDを保存します。
+resamplerは`Resamplers/`、wavtoolは`Wavtools/`へ配置します。Classic UTAUツールのmanifest: なし。サブディレクトリも探索するため、依存DLLを実行ファイルと同じディレクトリへ置けます。プロジェクトには各ディレクトリからの相対IDを保存します。
 
 ```text
 Resamplers/
@@ -78,7 +80,7 @@ resamplerの既定値はvelocity 100、空のflags、modulation 0、tempo 120で
 ]
 ```
 
-複数の実行ファイルを同じ条件で診断する場合は`resampler-compat`を使います。`--mode direct`は13引数の直接呼び出し、`--mode integration`はUtauTTSのPlanと内蔵接続処理まで含む試験です。結果は終了状態、WAV形式、長さ、peak、RMSを含むJSONで出力されます。
+複数の実行ファイルを同じ条件で診断する場合は`resampler-compat`を使います。`--mode direct`は13引数の直接呼び出し、`--mode integration`はUtauTTSのPlanと内蔵接続処理まで含む統合検査です。結果は終了状態、WAV形式、長さ、peak、RMSを含むJSONで出力されます。
 
 ```powershell
 go run ./cmd/tools/resampler-compat `
@@ -97,6 +99,12 @@ go run ./cmd/tools/resampler-compat `
 {
   "id": "my-model-v1",
   "display_name": "My intonation model",
+  "license": "MIT License",
+  "license_notice": "licenses/MY-MODEL.txt",
+  "provenance": {
+    "training_corpus": "Describe the training data",
+    "source_notice": "licenses/MY-MODEL-SOURCE.txt"
+  },
   "recommended_renderers": ["utautts-world-phrase"],
   "default_priority": 100,
   "version": 8,
@@ -107,9 +115,9 @@ go run ./cmd/tools/resampler-compat `
 
 `id`と`display_name`がないJSONはモデルとして扱いません。同じIDや壊れたJSONは診断へ表示します。CLIの`--prosody`にはファイルpathではなくIDを指定します。
 
-既存のJSONモデルを`models/`へ登録する場合は、必要なidentityを付けてから配置してください。
+既存のJSONモデルを`models/`へ登録する場合の必須情報: 識別情報とライセンス情報。`license_notice`と`provenance`には実際の配布条件と出典を記録します。
 
-identityのない学習結果には、登録前に次のscriptでIDと表示名を付けます。
+識別情報のない学習結果には、登録前に次のスクリプトでIDと表示名を付けます。
 
 ```powershell
 .\tools\install-prosody-model.ps1 `
@@ -119,7 +127,7 @@ identityのない学習結果には、登録前に次のscriptでIDと表示名�
   -DestinationDirectory .\models
 ```
 
-## 外部Provider protocol v1
+## 外部Providerプロトコル v1
 
 manifest v2の`protocol`に`utautts-provider`を指定すると、Rendererの実装を別プロセスとして導入できます。アプリはProviderをshell経由ではなく、`provider_executable`に指定された実行ファイルへ直接起動します。`provider_args`はそのまま引数として渡され、暗黙の`PATH`探索やshell展開は行いません。
 
@@ -146,13 +154,13 @@ manifest v2の`protocol`に`utautts-provider`を指定すると、Rendererの実
 }
 ```
 
-Providerは起動直後に`hello`を1行返し、protocol version、Provider ID/version、session対応、capability、実装するcontract/versionを宣言します。manifestが要求するcapabilityがhandshakeに含まれない場合は起動を受け付けません。`unit-renderer` v1では共通job envelopeを読む`unit_renderer_job_v2`も必須です。session対応Providerは同じプロセスで複数の`render` requestを順番に処理します。通常経路はこのsessionを再利用するため、モデルやruntimeの初期化を合成ごとに繰り返しません。`progress`、`diagnostic`、`result`、`error`、`cancel`、`shutdown`がv1の基本メッセージです。stdoutはNDJSON protocol専用、診断用の自由なログはstderrへ出してください。
+Providerは起動直後に`hello`を1行返し、protocol version、Provider ID/version、session対応、capability、実装するcontract/versionを宣言します。必須capability不足時: 起動拒否。`unit-renderer` v1の必須job envelope: `unit_renderer_job_v2`。session対応Providerは同じプロセスで複数の`render` requestを順番に処理します。通常経路はこのsessionを再利用するため、モデルやruntimeの初期化を合成ごとに繰り返しません。`progress`、`diagnostic`、`result`、`error`、`cancel`、`shutdown`がv1の基本メッセージです。stdout: NDJSON protocol専用。診断用の自由なログ: stderr。
 
-sessionはアプリケーションの合成単位ではなくProvider processの寿命に結び付きます。Provider processが落ちた場合はpoolから破棄して次回の合成で再起動し、アプリ終了時やvoicebank／model cacheの破棄時には明示的にshutdownします。WORLD bridgeとDiffSinger bridgeはsession経路だけを受け付けます。
+sessionの寿命: Provider process。Provider processが落ちた場合はpoolから破棄して次回の合成で再起動し、アプリ終了時やvoicebank／model cacheの破棄時には明示的にshutdownします。WORLD bridgeとDiffSinger bridgeの接続: session経路。
 
-`unit-renderer` v1の`render` requestはhostが作成したjob directory内の`input_path`と`output_path`を受け取ります。input JSONはjob version 2の`version`、`contract`、`contract_version`、選択済み`plan`、型付き`options`、宣言済み`resources`を持ちます。opaqueな`provider_payload`は存在せず、Providerは共通フィールドと自分の型付きoptionsを直接消費します。Providerはoutput pathへ16-bit PCM WAVを書き、`result.audio.path`でそのファイルを返します。job directory外の出力は受け付けません。
+`unit-renderer` v1の`render` requestはhostが作成したjob directory内の`input_path`と`output_path`を受け取ります。input JSONはjob version 2の`version`、`contract`、`contract_version`、選択済み`plan`、型付き`options`、宣言済み`resources`を持ちます。`provider_payload`: 使用しない。Providerは共通フィールドと自分の型付きoptionsを直接消費します。Providerはoutput pathへ16-bit PCM WAVを書き、`result.audio.path`でそのファイルを返します。出力先: job directory内。
 
-同梱WORLD bridgeは共通`unit-renderer` jobの`plan`／`options`／`resources`だけを受け取ります。WORLD固有の準備済み入力は`options.worldline`に型付きで格納されます。bridgeとhostは同じjob versionのリリースを組み合わせてください。
+同梱WORLD bridgeは共通`unit-renderer` jobの`plan`／`options`／`resources`を受け取ります。WORLD固有の準備済み入力は`options.worldline`に型付きで格納されます。bridgeとhostの組み合わせ: 同じjob versionのリリース。
 
 `neural-synthesizer` v1のjobは`version`、`contract`、`contract_version`、共通`score`、provider固有の`options`、宣言済み`resources`を持ちます。`score`は`symbols`、frame duration、F0、MIDI、word grouping、note rest、pitch predictor使用有無を表します。DiffSingerは現段階では`options`に既存のbridge Request形式を入れるadapterですが、モデルpathは`resources`へ分離し、transport上は共通NeuralScore jobとして検証できます。
 
@@ -180,4 +188,4 @@ sessionはアプリケーションの合成単位ではなくProvider processの
 
 ## 配布物
 
-リリースビルドでは`renderer/`と`models/`をGUI版・Server版へコピーします。モデルが一つもない場合はビルドに失敗します。`models/`へ登録するモデルJSONには`license`と`license_notice`を必ず記載してください。`license_notice`は配布物のルートからの相対パスで、リポジトリの`licenses/`以下に実在するファイルを指定します。各モデル、Renderer、外部アセットのライセンスは、[ライセンスの適用範囲](../LICENSE-SCOPE.md)、[第三者通知](../THIRD_PARTY_NOTICES.txt)、配布元の文書を確認してください。
+リリースビルドでは`renderer/`と`models/`をGUI版・Server版へコピーします。モデルが一つもない場合はビルドに失敗します。`models/`へ登録するモデルJSONの必須項目: `license`、`license_notice`。`license`: モデルの配布条件。`provenance`: 学習元と出典。上流データの条件: `license_notice`または`provenance`の通知へ記録。`license_notice`: 配布物のルートからの相対パスで、リポジトリの`licenses/`以下に実在するファイル。各モデル、Renderer、外部アセットの条件と出典: [ライセンスの適用範囲](../LICENSE-SCOPE.md)、[第三者通知](../THIRD_PARTY_NOTICES.txt)、配布元の文書。

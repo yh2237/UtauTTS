@@ -1,6 +1,6 @@
 # コマンドライン（CLI）
 
-`utautts-cli`はボイスバンク・モデル・Rendererを指定して一つのWAVを作るコマンドライン合成ツールです。GUIやHTTPサーバーと同じ合成処理を使います。
+`utautts-cli`はボイスバンク、モデル、Rendererを指定してWAVを作るコマンドライン合成ツールです。GUIやHTTP Serverと同じ合成処理を使います。
 
 配布物ではWindowsの`tools/utautts-cli.exe`、Linuxの`tools/utautts-cli`にあります。開発時は`go run ./cmd/utautts-cli`でも実行できます。
 
@@ -10,7 +10,7 @@
 - `--out <path>`: 出力WAVのパス
 - `--text <文>`または`--reading <読み>`: 合成する文章または読み
 
-`--text`は選択した言語とphonemizerで発音を生成します。`--reading`は読み・ARPAbet・Pinyinを直接指定します。`--kana`は`--reading`の旧名です。日本語以外を使う場合は`--language`も指定してください。
+`--text`は選択した言語と発音形式で読みを生成します。`--reading`は、かな、ARPAbet、Pinyinなどの読みを直接指定します。`--kana`は互換用の別名です。日本語以外を使う場合は`--language`も指定してください。
 
 ## 基本例
 
@@ -54,7 +54,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 
 ## オプション
 
-`--speech-timing`は[発話タイミングと音源校正](speech-quality-experiment.md)を有効にします。CLIでは既定で無効です。
+`--speech-timing`は[発話タイミング補正](speech-quality-experiment.md)を有効にします。CLIでは初期状態で無効です。
 
 | オプション | 既定値 | 説明 |
 |---|---|---|
@@ -62,7 +62,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--voicebank <dir>` | | ボイスバンクのディレクトリ（必須） |
 | `--text <文>` | | 合成する文章 |
 | `--reading <読み>` | | かな、ARPAbet、またはPinyinを直接指定 |
-| `--kana <読み>` | | `--reading`の旧名 |
+| `--kana <読み>` | | `--reading`と同じ入力を受け付ける互換用の別名 |
 | `--language <id>` | `ja` | 言語。`ja`、`en`、`zh` |
 | `--phonemizer <id>` | 言語から自動選択 | phonemizer。`ja-kana`、`en-arpasing`、`en-delta`、`en-vccv`、`zh-cvvc` |
 | `--tone` | `C4` | `prefix.map` 使用時に使う音階 |
@@ -74,11 +74,11 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--mora-ms` | `140` | 基本モーラ長（ms） |
 | `--pause-ms` | `180` | 句読点の休止長（ms） |
 | `--mora-durations <path>` | | モーラごとの長さを配列または`mora_durations_ms`で持つJSON |
-| `--target-prior <path>` | | JSUT音素時間事前分布JSON（日本語の実験用） |
+| `--target-prior <path>` | | JSUT音素時間事前分布JSON（開発者・評価用） |
 | `--target-prior-strength` | `1` | 事前分布によるモーラ内音素配分の強さ（0〜1） |
 | `--target-prior-min-context` | `5` | コンテキスト統計を使うための最小観測数 |
 | `--leading-preutterance-ms` | `0` | 文頭に確保する先行発声（ms）。0では`oto.ini`から自動決定 |
-| `--release-ms` | `20` | ユニット末尾のrelease envelope（ms） |
+| `--release-ms` | `20` | ユニット末尾のリリース包絡線（ms） |
 | `--prosody <id>` | | 抑揚モデルのplugin ID |
 | `--prosody-pitch-only` | `false` | 学習ピッチのみ適用し、モーラ長・音量は固定値を使う |
 | `--manual-pitch <path>` | | 手動ピッチ編集JSON（[manual-pitch.md](manual-pitch.md)） |
@@ -86,21 +86,21 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--prosody-feature-case <id>` | | `--prosody-features` 内のケースID |
 | `--pitch-contours <path>` | | ケース別ピッチ係数JSON（計画へ記録。波形処理には `--apply-pitch` が必要） |
 | `--pitch-case <id>` | | `--pitch-contours` 内のケースID |
-| `--apply-pitch` | `false` | 波形のピッチ再サンプリング（実験的） |
+| `--apply-pitch` | `false` | 波形のピッチ再サンプリング |
 | `--intonation-strength` | `0` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
 | `--renderer <id>` | 既定Renderer | Renderer ID（省略時は設定された優先度が最大のもの。未知の明示IDはエラー） |
 | `--resampler <id>` | 自動選択 | Classic UTAUで使う`Resamplers/`からの相対ID |
 | `--wavtool <id>` | `builtin` | Classic UTAUで使う`Wavtools/`からの相対ID |
 | `--resampler-expressions <path>` | | unit単位のresampler設定JSON |
 | `--worldline-bridge <path>` | | `utautts-worldline-bridge` 実行ファイル |
-| `--boundary-bridge-ms` | `0` | 位相を揃えた波形接続修復の最大幅（0で無効） |
-| `--boundary-bridge-threshold` | `0` | handcrafted join scoreがこの値以下のとき接続修復を適用 |
+| `--boundary-bridge-ms` | `0` | 位相を揃えた波形接続補修の最大幅（0で無効、開発者・評価用） |
+| `--boundary-bridge-threshold` | `0` | 標準の接続評価がこの値以下のとき接続補修を適用（開発者・評価用） |
 | `--alias-policy` | `auto` | 音源適応モード。`auto`はVC/VCV収録比から自動選択、`cvvc-enhanced`はCVVC優先・sequential timing・VC音量35%。詳細指定として`vcv-prefer`、`cvvc-prefer`、`cv-only`も利用可能 |
 | `--cvvc-timing` | `sequential` | CVVC遷移の配置方式。現在は`sequential`のみ |
 | `--cvvc-transition-gain` | `1` | CVVC遷移ユニットの音量（0〜1） |
 | `--cvvc-pre-boundary-fade` | `false` | 後続CVの子音より前でCVVC遷移をフェードアウト |
-| `--renderer-dir <dir>` | | Renderer pluginの検索directory（繰り返し指定可） |
-| `--model-dir <dir>` | | モデルJSONの検索directory（繰り返し指定可） |
+| `--renderer-dir <dir>` | | Rendererプラグインを探すディレクトリ（繰り返し指定可） |
+| `--model-dir <dir>` | | モデルJSONを探すディレクトリ（繰り返し指定可） |
 | `--openjtalk-features <path>` | runtime | Open JTalk feature helper（自動検出を上書き） |
 | `--openjtalk-dictionary <path>` | runtime | Open JTalk辞書ディレクトリ（自動検出を上書き） |
 | `--write-text` | `false` | WAVと同名のTXTを書き出す |
@@ -111,13 +111,13 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 
 `--prosody`と`--renderer`にはファイルパスではなくIDを指定します。Classic UTAUのツールも絶対パスではなく、`Resamplers/`または`Wavtools/`からの相対IDを指定します。一覧は[モデル／Rendererプラグイン](plugins.md)を参照してください。
 
-モデルやRendererは実行ファイルの隣にある`models/`と`renderer/`から自動検出します。別のdirectoryを追加するなら`--model-dir`または`--renderer-dir`で指定します。明示したRenderer定義は同梱定義より優先されます。
+モデルやRendererは実行ファイルの隣にある`models/`と`renderer/`から自動検出します。別の検索先を追加する場合は`--model-dir`または`--renderer-dir`で指定します。明示したRenderer定義は同梱定義より優先されます。
 
-`--renderer`を省略した場合はカタログの`default_priority`が最大のRendererを使います。存在しないIDを明示した場合はエラーになります。指定したRendererのassetが不足している場合もエラーになります。
+`--renderer`を省略した場合はカタログの`default_priority`が最大のRendererを使います。存在しないIDを明示した場合はエラーになります。指定したRendererの必要なファイルが不足している場合もエラーになります。
 
 `--resampler-expressions`のJSONは[Classic UTAU互換仕様](plugins.md#classic-utau互換仕様)を参照してください。
 
-`--apply-pitch`と`--intonation-strength`による直接的なピッチ加工は声質と明瞭度を損なう場合があります。
+`--apply-pitch`と`--intonation-strength`によるピッチ加工は、音源によって声質や明瞭度に影響する場合があります。
 
 ## 出力
 

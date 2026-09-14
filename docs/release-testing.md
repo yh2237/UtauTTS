@@ -1,5 +1,7 @@
 # リリーステスト
 
+リリース用パッケージを作成し、ソースコードだけでは確認できない配布後の動作を検査します。
+
 正式リリースではソース上の単体テストだけでなく配布ZIPを展開した状態でも機能を確認します。
 
 ## 一括実行
@@ -10,7 +12,7 @@ Windows版をWindows上でビルドして全テストを実行する場合は、
 .\build.bat win
 ```
 
-この処理はGoの全テスト、GUI・CLI・Serverのビルド、ライセンス収集、ZIP作成、配布物スモークテストを順番に実行します。途中で一つでも失敗すればリリースビルド全体が失敗します。
+この処理はGoの全テスト、GUI・CLI・Serverのビルド、ライセンス収集、ZIP作成、配布物の基本動作検査を順番に実行します。一つでも失敗するとリリースビルド全体が失敗します。
 
 作成済みのZIPだけを再検査する場合は次を実行します。
 
@@ -30,7 +32,7 @@ WindowsからLinux版を検査する場合は、WSL2側で一度セットアッ�
 .\build.bat linux
 ```
 
-`build.bat linux`はWSL側のLinuxビルドと同じパッケージ検査まで実行します。WSLの準備方法は[開発環境とビルド](building.md#windowsからlinux-x64をビルドwsl2)を確認してください。
+`build.bat linux`はWSL側のLinuxビルドと同じパッケージ検査まで実行します。WSLの準備方法は[開発環境とビルド](building.md#windowsからlinux-x64を作成する場合)を確認してください。
 
 作成済みのLinux ZIPだけを再検査する場合はLinux環境で次を実行します。
 
@@ -61,10 +63,10 @@ Windowsの標準ビルドは`Full`プロファイルです。作成済みの日�
 
 ## 更新経路とリリースメタデータ
 
-リリース前には、`appinfo.json`のversionと更新schemaが前リリースから後退していないことを確認します。v1.2.2から最初の更新を作る場合は、前バージョンだけを渡せば、v1.2.2の旧metadata baselineを検査側が補います。
+リリース前には、`appinfo.json`のversionと更新schemaが前回のリリースから後退していないことを確認します。更新用metadataを導入する前の`v1.2.2`を基準にする場合は、`-PreviousVersion v1.2.2`を指定すると検査スクリプトが当時の基準値を補います。その他のリリースでは、実際の前バージョンを指定してください。
 
 ```powershell
-$expected = 'v1.2.3'  # 実際に作成するタグへ置き換える
+$expected = 'v1.2.3'  # 作成するタグへ置き換える
 .\tools\check-release.ps1 `
   -ExpectedVersion $expected `
   -PreviousVersion v1.2.2

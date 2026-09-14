@@ -23,28 +23,28 @@ WAV / LAB
 
 ## Renderer
 
-RendererのID、機能、ランタイムは`renderer/<id>/renderer.json`で定義します。同梱とユーザー定義は同じ探索処理を使い、明示した探索先を優先します。JSONだけで任意の新規engine ABIを追加する機能はありません。追加方法は[モデル／Rendererプラグイン](plugins.md)、内部処理は[技術設計ガイド](technical-design.md)を参照してください。
+RendererのID、機能、ランタイムは`renderer/<id>/renderer.json`で定義します。同梱定義とユーザー定義は同じ探索処理を使い、明示した探索先を優先します。manifestは既存Providerへの接続定義です。新しいエンジンABIはGo側へ実装します。追加方法は[モデル／Rendererプラグイン](plugins.md)、内部処理は[技術設計ガイド](technical-design.md)に記載します。
 
 同梱Rendererはmanifest v2で定義します。実行時のcatalogも`manifest_version: 2`だけを読み込みます。
 
 | ID | 概要 |
 | --- | --- |
 | `utautts-world-phrase` | 既定。原音ごとのWORLD特徴を共通の時間軸へ配置し、フレーズ全体を合成 |
-| `waveform` | Go内で原音波形を伸縮・クロスフェードする比較用Renderer |
+| `waveform` | Go内で原音波形を伸縮・クロスフェードする確認用Renderer |
 | `classic-utau` | 選択したUTAU互換resamplerを実行し、wavtoolまたは内蔵処理で接続 |
-| `diffsinger` | DiffSinger音源とbridgeを使う試験的なRenderer（Windows x64のFull配布のみ） |
+| `diffsinger` | DiffSinger音源とbridgeを使うRenderer（Windows x64のFull配布のみ） |
 
-manifestの公開IDはプロジェクトやUIに保存する名前です。catalog解決時には、公開IDから`engine.ResolvedEngine`を作り、`contract`、`provider`、provider version、typed resource、platform、capabilityの整合性と実行可能性を検証します。`provider`は内蔵Provider registryの実装ID、または`utautts-provider` protocolで接続する外部ProviderのIDです。
+manifestの公開IDはプロジェクトやUIに保存する名前です。カタログの解決時には、公開IDから`engine.ResolvedEngine`を作り、`contract`、`provider`、Provider version、種別付きresource、対象OS、機能の整合性と実行可能性を検証します。`provider`は内蔵Providerレジストリの実装ID、または`utautts-provider`プロトコルで接続する外部ProviderのIDです。
 
-Rendererは選択計画のコピーを受け取り、音声と`RenderReport`を返します。Renderer由来の実効timingや境界補正をcanonicalな選択Planへ直接書き戻さないため、同じPlanを複数のRendererで比較できます。出力用のPlanが必要な場合だけ、`RenderedPlan()`でReportをコピーへ適用します。
+Rendererは選択計画のコピーを受け取り、音声と`RenderReport`を返します。Rendererが計算した実際の時刻や境界補正は`RenderReport`へ返し、選択用のPlanは入力値を保持します。そのため同じPlanを複数のRendererで比較できます。描画後のPlanが必要な場合だけ、`RenderedPlan()`でReportをコピーへ適用します。
 
-Renderer IDを省略した場合だけカタログの既定Rendererへ解決されます。未知のIDや、assetが不足しているRendererを明示した場合はエラーになります。
+Renderer IDを省略した場合だけカタログの既定Rendererへ解決されます。未知のIDや必要なファイルが不足しているRendererを明示した場合はエラーになります。
 
 ## 共通の入口
 
 GUI、CLI、HTTP Serverは別々の音声処理を持たず、同じ`synth.Service`を使います。モデル、Renderer、辞書、LAB書き出しも共通です。
 
-Open JTalk helper、WORLD bridge、DiffSinger bridge、外部Providerは、初回利用時に起動してsessionを再利用します。アプリ終了時や音源・モデルの再読み込み時にはsessionを閉じます。Classic UTAUのresamplerとwavtoolは、現在もunitごとの外部プロセスです。
+Open JTalk helper、WORLD bridge、DiffSinger bridge、外部Providerは、初回利用時に起動してsessionを再利用します。アプリ終了時や音源・モデルの再読み込み時にはsessionを閉じます。Classic UTAUのresamplerとwavtoolは、音声単位ごとに外部プロセスとして実行します。
 
 - GUI: Qt Quick/QMLからGo backendを呼び出します。
 - CLI: `utautts-cli`で一つのWAVを作ります。[CLI](cli.md)

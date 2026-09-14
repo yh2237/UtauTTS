@@ -1,19 +1,21 @@
 # 開発環境とビルド
 
-## ビルド方法の使い分け
+リポジトリを取得した後に、テスト、各OSのビルド、配布物の検査を行う手順を説明します。
 
-Linux版はLinux上で直接ビルドできます。Windows上でLinux版を作る場合はWSL2を使います。macOS版はApple Silicon MacまたはGitHub Actionsでビルドします。
+## ビルド方法
 
 | 実行環境 | Windows版 | Linux版 | macOS版 |
 | --- | --- | --- | --- |
 | Debian／UbuntuなどのLinux | — | `./build.sh linux`（ネイティブ） | — |
-| Windows PowerShell／コマンドプロンプト | .\build.bat win | .\build.bat linux（WSL2） | — |
+| Windows PowerShell／コマンドプロンプト | `./build.bat win` | `./build.bat linux`（WSL2） | — |
 | Windows Git Bash | `./build.bat win` | `./build.sh linux`（WSL2） | — |
 | Apple Silicon macOS | — | — | `./build.sh macos` |
 
-## 共通
+WindowsからLinux版を作成する場合はWSL2を使います。macOS版はApple Silicon MacまたはGitHub Actionsで作成します。
 
-UtauTTSのGoコードはGo 1.27.0を使用します。依存モジュールの取得とリリース用ファイルの取得にはインターネット接続が必要です。
+## 共通の準備とテスト
+
+Go 1.27.0以降が必要です。依存モジュールとリリース用ファイルを取得するため、ビルド時にインターネット接続が必要になる場合があります。
 
 通常のテストはリポジトリ直下で実行します。
 
@@ -28,94 +30,99 @@ go test ./...
 go vet ./...
 ```
 
-リリースビルドで使用するモデル、音源、依存物の条件は、[ライセンスの適用範囲](../LICENSE-SCOPE.md)、[第三者通知](../THIRD_PARTY_NOTICES.txt)、`THIRD_PARTY_NOTICES-*`、`../licenses/`、各コンポーネントの同梱文書を確認してください。
+## リリース用ファイルとライセンス
 
-Go依存のライセンス収集対象は[go-license-modules.txt](../tools/go-license-modules.txt)で管理します。WindowsとLinux/macOSの収集スクリプトで共用します。依存を追加・削除した場合はこの一覧と配布テストも更新してください。辞書などのデータ通知は収集スクリプトで別途指定します。
+リリースビルドの条件と出典: [ライセンスの適用範囲](../LICENSE-SCOPE.md)、[第三者通知](../THIRD_PARTY_NOTICES.txt)、`THIRD_PARTY_NOTICES-*`、`../licenses/`、各コンポーネントの同梱文書。
 
-## Linux x64（Linuxネイティブ／WSL共通）
+Go依存の収集対象は[go-license-modules.txt](../tools/go-license-modules.txt)で管理します。依存の追加・削除時は、この一覧と配布物の検査対象を更新します。辞書などのデータ通知は収集スクリプトで個別に指定します。
 
-Linuxネイティブ環境とWSL環境では同じLinuxセットアップスクリプトを使います。実行するLinux環境ごとに一度だけリポジトリ直下で実行してください。
+リリースビルドでは、Go依存のライセンス本文を`licenses/Go/`へ保存します。同じ本文は一度だけ収録します。Open JTalkヘルパーの通知は`runtime/licenses/`へ、辞書の`COPYING`は辞書ディレクトリ内へ保存します。QtのSPDX JSONは監査用に`build/license-audit/Qt/`へ保存し、配布物のQt通知は`licenses/Qt/`へ収録します。
+
+WindowsとmacOSのQt GUIのFFmpeg構成: 利用可能なネイティブバックエンド。外部のQt Multimedia用FFmpegバックエンドは、プラグインとコーデックのフォルダを設定画面で指定します。初回起動時の環境変数: 次の一覧を上から順に確認し、最初に見つかったパスを保存します。
+
+```text
+UTAUTTS_FFMPEG_PATH
+FFMPEG_PATH
+FFMPEG_DIR
+FFMPEG_ROOT
+```
+
+リリースアーカイブには`Qt-SBOM-MANIFEST.txt`と`FFmpeg-OPTIONAL.txt`を含めます。
+
+WindowsのOpen JTalkヘルパーのランタイムDLL検出元: 公式のVisual C++再頒布用ディレクトリとWindows SDKのUCRT再頒布用ディレクトリ。PyInstallerのPATHは検出対象外。検出できない場合の指定変数: x64用ディレクトリを次の変数へ設定します。
+
+```powershell
+$env:UTAUTTS_MSVC_REDIST_DIR = 'C:\path\to\Microsoft.VC143.CRT'
+$env:UTAUTTS_UCRT_REDIST_DIR = 'C:\path\to\Windows Kits\10\Redist\ucrt\DLLs\x64'
+```
+
+同梱DLLの取得元: 公式の再頒布用ディレクトリ。開発環境のPATHにあるDLL: 配布対象外。macOSの環境変数: 同じ名前を`export`で設定。値を特定できないQt GUIビルド: 失敗。
+
+## Linux x64
+
+Linuxネイティブ環境とWSL環境では、同じセットアップスクリプトを使います。実行するLinux環境ごとに一度だけ、リポジトリ直下で実行してください。
 
 ```bash
 ./tools/setup-linux.sh
 ```
 
-このスクリプトは次を行います。
-
-- Qt 6.5以降（Qt Quick、Qt Multimedia、Qt Concurrent）とCMake／Ninja、`readelf`（binutils）などのAPTパッケージを導入
-- Python仮想環境`.venv`を作成し、`pyopenjtalk==0.4.1`と`pyinstaller==6.16.0`を導入
-- Go 1.27.0以上を確認し、必要なら公式Linux x64アーカイブをユーザー領域へ導入
-- Go、Python、CMake、NinjaをPATHまたは標準のセットアップ先から自動検出
-
-APTパッケージがすでに揃っている環境や、パッケージを導入できないコンテナでは、次のようにAPT処理を省略できます。
+このスクリプトは、Qt 6.5以降（Qt Quick、Qt Multimedia、Qt Concurrent）、CMake、Ninja、`readelf`、Python仮想環境、pyopenjtalk 0.4.1、PyInstaller 6.16.0などを準備し、Go 1.27.0以降を確認します。APT処理を省略する場合は`UTAUTTS_SKIP_APT=1`を指定します。
 
 ```bash
 UTAUTTS_SKIP_APT=1 ./tools/setup-linux.sh
 ```
 
-Linux版のGUIとServerをビルドし、ZIPのスモークテストまで実行します。
+Linux版のGUIとServerをビルドし、ZIPの基本動作検査まで行います。
 
 ```bash
 ./build.sh linux
 ```
 
-ビルド中とZIP展開後に`readelf`でLinux GUIのELFを検査し、COPY relocationとTEXTRELがあれば失敗します。QtをロードするGUIテストが使えない環境でも、この検査とCLI／Serverの検査は実行されます。
+ビルド中とZIP展開後にLinux GUIのELFを検査し、COPY relocationとTEXTRELがあれば失敗します。GUIを起動できない環境でも、この検査とCLI／Serverの検査は実行されます。`bash tools/build-linux.sh`でも同じ処理を実行できます。出力は`release/`へ作成します。
 
-直接実行する場合は`bash tools/build-linux.sh`でも同じです。出力は`release/`に作成されます。
-
-開発サーバーを起動する場合は次を使います。
+開発用Serverは次で起動します。
 
 ```bash
 ./dev.sh
 ```
 
-## Windows x64（ネイティブビルド）
+## Windows x64
 
 次の開発環境が必要です。
 
-- Go 1.27.0以上
+- Go 1.27.0以降
 - Qt 6.5以降（Qt Quick、Qt Multimedia、Qt Concurrent）
 - CMakeとNinja
 - MSYS2 Clang
 - Python 3.12 x64（Open JTalkヘルパーのビルド用）
 
-Qt SDKを`.qt/<version>/mingw_64`へ置くと自動検出します。別の場所に置く場合はcompiler kitのパスを`QT_ROOT`に設定します。MSYS2やQt Toolsの場所が標準と異なる場合は`MSYS2_ROOT`、`QT_MINGW_ROOT`、`QT_TOOLS_ROOT`を設定できます。
+Qt SDKを`.qt/<version>/mingw_64`へ置くと自動検出します。別の場所に置く場合は`QT_ROOT`を設定します。MSYS2やQt Toolsの場所が標準と異なる場合は`MSYS2_ROOT`、`QT_MINGW_ROOT`、`QT_TOOLS_ROOT`を設定します。
 
 ```powershell
 .\build.bat win
 ```
 
-GUI版とServer版のZIPが`release/`へ作成され、そのまま配布物スモークテストまで実行されます。
-
-既定の`Full`プロファイルではDiffSingerのruntimeもビルドします。日本語向けの軽量な構成にする場合は、PowerShellから次を実行します。
+GUI版とServer版のZIPが`release/`へ作成され、配布物の基本動作検査まで実行されます。既定の`Full`プロファイルではDiffSingerのruntimeも作成します。日本語向けの軽量版は次のコマンドで作成します。
 
 ```powershell
 .\tools\build-release.ps1 -Profile Japanese
 ```
 
-`Japanese`では`diffsinger`のRendererおよび対応runtimeを除外します。`build.bat win`は`Full`プロファイルです。
-
-開発サーバーは次で起動します。
-
-```powershell
-.\dev.bat
-```
+`Japanese`では`diffsinger` Rendererと対応runtimeを除外します。開発用Serverは`.\dev.bat`で起動します。
 
 ## macOS arm64
 
-macOS版はApple Silicon（arm64）向けです。Go、Python 3.12以降、CMake、Ninja、Qt 6.5以降（Qt Quick、Qt Multimedia、Qt Concurrent）、`zip`、`unzip`、`curl`、`shasum`を用意してください。Qtを標準外の場所に置く場合は、Qt kitのルートを`QT_ROOT`に設定します。
+macOS版はApple Silicon（arm64）向けです。Go、Python 3.12以降、CMake、Ninja、Qt 6.5以降、`zip`、`unzip`、`curl`、`shasum`を用意してください。Qtを標準外の場所に置く場合は`QT_ROOT`を設定します。
 
 ```bash
 QT_ROOT=/path/to/Qt ./build.sh macos
 ```
 
-`tools/build-macos.sh`を直接実行しても同じ処理になります。GUI版とServer版のApple Silicon向けZIPを`release/`へ作成し、配布物のスモークテストまで実行します。Mac実機を使えない場合は、GitHub ActionsのmacOSワークフローで同じビルドを実行できます。
+`tools/build-macos.sh`を直接実行しても同じ処理になります。GUI版とServer版のZIPを`release/`へ作成し、配布物の基本動作検査まで実行します。Mac実機を使えない場合はGitHub ActionsのmacOSワークフローを利用できます。
 
-## WindowsからLinux x64をビルド（WSL2）
+## WindowsからLinux x64を作成する場合
 
-Windows上でLinux版を作成する場合は、WSL2にDebianまたはUbuntuを用意してください。`build.bat linux`はリポジトリのWindowsパスをWSLパスへ変換し、WSL側の`tools/build-linux.sh`を実行します。
-
-まずWSLターミナルで、Windows側のリポジトリを開いてLinux依存環境を構築します。
+WSL2にDebianまたはUbuntuを用意し、WSLターミナルで次を一度実行します。
 
 ```bash
 cd /mnt/c/path/to/UtauTTS
@@ -128,53 +135,32 @@ cd /mnt/c/path/to/UtauTTS
 .\build.bat linux
 ```
 
-Git Bashからは次でも同じWSLビルドを実行できます。
-
-```bash
-./build.sh linux
-```
-
-既定のWSLディストリビューション以外を使う場合だけ、Windows側で`UTAUTTS_WSL_DISTRO`を設定します。
+Git Bashからは`./build.sh linux`でも実行できます。既定のWSLディストリビューション以外を使う場合は、Windows側で`UTAUTTS_WSL_DISTRO`を設定します。
 
 ```powershell
 $env:UTAUTTS_WSL_DISTRO = 'Debian'
 .\build.bat linux
 ```
 
-Windows版とLinux版を続けて作成する場合は、Windows側で次を実行します。
-
-```powershell
-.\build.bat both
-```
-
-WSL側の`.env`はLinuxシェルから読み込まれます。Windows用のパスではなく、WSLから見えるLinuxパスを指定してください。
+Windows版とLinux版の連続ビルド: `.\build.bat both`。WSL側の`.env`: WSLから見えるLinuxパス。WSLのLinux版ビルドのGoキャッシュ: プロジェクト内の`build/go-mod-cache`。
 
 ## 環境変数
 
-通常は`.env`を作成する必要はありません。雛形は[`.env.example`](../.env.example)です。`.env`は環境ごとのローカル設定なので、Gitにはコミットしません。
+通常の設定: `.env`なし。雛形: [`.env.example`](../.env.example)。`.env`: 環境ごとの設定でGit管理対象外。
 
-LinuxでQtを標準外の場所に置いた場合、または開発サーバーの音源を変更する場合だけ、次の設定を`.env`に記述します。
+LinuxでQtを標準外の場所に置く場合、または開発用Serverの音源を変更する場合だけ、次の設定を`.env`へ記述します。
 
 ```text
-# Linux Qtを標準外の場所に置いた場合だけ
 QT_ROOT=/path/to/Qt
-
-# 開発サーバーで使う音源を変更する場合だけ
 UTAUTTS_VOICE_DIR=/path/to/voicebank
 ```
 
-GoやPythonを一時的に差し替える場合は、`.env`へ追加せずコマンド単位で指定できます。
+GoやPythonを一時的に差し替える場合は、コマンド単位で指定できます。
 
 ```bash
 GO_BIN=/path/to/go PYTHON=/path/to/python ./build.sh linux
 ```
 
-WindowsのPowerShellスクリプトでは、必要に応じて`PYTHON`、`QT_ROOT`、`MSYS2_ROOT`、`QT_MINGW_ROOT`、`QT_TOOLS_ROOT`を環境変数として設定できます。
-
-`WINDOWS_USERNAME`は使用しません。WSLのLinux版ビルドはWindows側ユーザーのGoキャッシュを参照せず、プロジェクト内の`build/go-mod-cache`を使います。
-
 ## `tools/`の役割
 
-`tools/`は通常の開発・ビルド・リリース・配布物検査と、現行モデルを再生成するための補助スクリプトを置く場所です。`build*.bat`／`build*.sh`や`tools/build-*`、`tools/test-*`から呼ばれるものはここに残します。
-
-ビルド後に行う配布物の検査は[リリーステスト](release-testing.md)にまとめています。
+`tools/`には、開発、ビルド、リリース、配布物検査、モデル再生成を補助するスクリプトを置きます。配布物の検査手順は[リリーステスト](release-testing.md)にまとめています。

@@ -1,8 +1,8 @@
 # UtauTTS Server
 
-Windows／Linux x64およびmacOS arm64向けHTTPサーバーです。
+UtauTTSの合成機能をHTTP APIから利用するためのサーバーです。Windows、Linux x64、macOS arm64に対応しています。
 
-サーバーは初期状態で`127.0.0.1:8080`を待ち受けます。LANや外部から接続できるアドレスで起動する場合は必ず`--auth-token`を設定してください。
+サーバーは初期状態で`127.0.0.1:8080`を待ち受けます。LANや外部から接続できるアドレスで起動する場合は、必ず`--auth-token`を設定してください。
 
 Windows
 
@@ -213,13 +213,13 @@ ID順にソートされた音源一覧です。
 
 レスポンスヘッダーの`X-UtauTTS-Reading`に使用した読み、`X-UtauTTS-Engine`にRenderer IDが入ります。
 
-リクエストフィールド：
+リクエスト項目：
 
-| field | 型 | 既定値 | 説明 |
+| 項目 | 型 | 既定値 | 説明 |
 |---|---|---|---|
 | `text` | string | | 合成する文章。`reading` とどちらか一方が必須 |
 | `reading` | string | | かな、ARPAbet、またはPinyinを直接指定 |
-| `kana` | string | | `reading`の旧名称 |
+| `kana` | string | | `reading`と同じ入力を受け付ける互換用の別名 |
 | `language` | string | `ja` | 言語。`ja`、`en`、`zh`。空欄なら日本語 |
 | `phonemizer` | string | 言語から自動選択 | `ja-kana`、`en-arpasing`、`en-delta`、`en-vccv`、`zh-cvvc`。言語に対応しない組み合わせはエラー |
 | `voicebank_id` | string | ID順先頭 | `GET /api/voicebanks` の `id` |
@@ -237,14 +237,14 @@ ID順にソートされた音源一覧です。
 | `mora_durations_ms` | number[] | | モーラごとの長さ。値は0〜1000 |
 | `intonation_strength` | number | `0` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
 | `apply_pitch` | boolean | `false` | 波形ピッチ再サンプリング |
-| `speech_timing` | boolean | `false` | [発話タイミングと音源校正](speech-quality-experiment.md)を有効にする |
+| `speech_timing` | boolean | `false` | [発話タイミング補正](speech-quality-experiment.md)を有効にする |
 | `manual_pitch` | object | なし | 手動ピッチ編集（[manual-pitch.md](manual-pitch.md) のJSON） |
 | `dictionary` | object[] | なし | ユーザー辞書。各項目は`surface`と`reading`を持つ |
 
 ステータスコード：
 
 - `200`: WAVバイナリ。`X-UtauTTS-Engine` / `X-UtauTTS-Reading` ヘッダー付き
-- `400`: `text`/`kana` の両方なし、範囲外のduration・`intonation_strength`、音源・モデルが未登録、指定Rendererのasset不足（`ErrUnavailable`）
+- `400`: `text`／`reading`（`kana`を含む）の両方なし、範囲外のduration・`intonation_strength`、音源・モデルが未登録、指定Rendererの必要なファイル不足（`ErrUnavailable`）
 - `413`: 文字数・`manual_pitch` points超過、JSON 1 MiB超過
 - `422`: 合成の失敗（読み変換失敗、モデル評価失敗、未知の`alias_policy`など）
 
@@ -281,8 +281,8 @@ ID順にソートされた音源一覧です。
 - `--version`: バージョンを表示して終了する
 - `--voice-dir`: ボイスバンクを格納したディレクトリ
 - `--renderer`: Renderer ID。省略時は設定された優先度が最も高いものを使う
-- `--renderer-dir`: Renderer pluginの検索directory。複数回指定できる
-- `--model-dir`: 自己記述モデルJSONの検索directory。複数回指定できてリクエストの`model_id`で選択する
+- `--renderer-dir`: Rendererプラグインの検索先。複数回指定できる
+- `--model-dir`: 自己記述モデルJSONの検索先。複数回指定でき、リクエストの`model_id`で選択する
 - `--host`: 待受アドレス。初期値は`127.0.0.1`
 - `--port`: ポート。初期値は`8080`
 - `--auth-token`: 認証トークン。設定すると`Authorization: Bearer <token>`が必須になる
