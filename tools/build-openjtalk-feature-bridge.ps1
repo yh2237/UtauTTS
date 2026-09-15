@@ -15,29 +15,56 @@ $microsoftRuntimeSourceManifest = Join-Path $microsoftRuntimeStage 'source-manif
 function Resolve-MsvcRedistDirectory {
     $candidates = @()
     if (-not [string]::IsNullOrWhiteSpace($env:UTAUTTS_MSVC_REDIST_DIR)) {
-        $candidates += [IO.Path]::GetFullPath($env:UTAUTTS_MSVC_REDIST_DIR)
+        $configuredRoot = [IO.Path]::GetFullPath($env:UTAUTTS_MSVC_REDIST_DIR)
+        $candidates += @(
+            $configuredRoot
+            (Join-Path $configuredRoot 'x64/Microsoft.VC143.CRT')
+            (Join-Path $configuredRoot 'Microsoft.VC143.CRT')
+        )
     }
     if (-not [string]::IsNullOrWhiteSpace($env:VCToolsRedistDir)) {
-        $candidates += Join-Path $env:VCToolsRedistDir 'x64/Microsoft.VC143.CRT'
+        $candidates += @(
+            $env:VCToolsRedistDir
+            (Join-Path $env:VCToolsRedistDir 'x64/Microsoft.VC143.CRT')
+        )
     }
-    $vsRoot = Join-Path ${env:ProgramFiles} 'Microsoft Visual Studio/2022'
-    if (Test-Path -LiteralPath $vsRoot -PathType Container) {
-        $autoCandidates = @(Get-ChildItem -LiteralPath $vsRoot -Directory -ErrorAction SilentlyContinue |
+
+    # VSの世代ごとの配置を探索する。
+    $visualStudioRoots = @(
+        @(${env:ProgramFiles}, ${env:ProgramFiles(x86)}) |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            ForEach-Object { Join-Path $_ 'Microsoft Visual Studio' }
+    ) | Select-Object -Unique
+    foreach ($visualStudioRoot in $visualStudioRoots) {
+        if (-not (Test-Path -LiteralPath $visualStudioRoot -PathType Container)) { continue }
+        $autoCandidates = @(Get-ChildItem -LiteralPath $visualStudioRoot -Directory -ErrorAction SilentlyContinue |
             ForEach-Object {
-                Get-ChildItem -LiteralPath (Join-Path $_.FullName 'VC/Redist/MSVC') -Directory -ErrorAction SilentlyContinue |
-                    ForEach-Object { Join-Path $_.FullName 'x64/Microsoft.VC143.CRT' }
+                Get-ChildItem -LiteralPath $_.FullName -Directory -ErrorAction SilentlyContinue |
+                    ForEach-Object {
+                        $redistRoot = Join-Path $_.FullName 'VC/Redist/MSVC'
+                        if (-not (Test-Path -LiteralPath $redistRoot -PathType Container)) { return }
+                        Get-ChildItem -LiteralPath $redistRoot -Directory -ErrorAction SilentlyContinue |
+                            ForEach-Object {
+                                $x64Root = Join-Path $_.FullName 'x64'
+                                if (-not (Test-Path -LiteralPath $x64Root -PathType Container)) { return }
+                                Get-ChildItem -LiteralPath $x64Root -Directory -ErrorAction SilentlyContinue |
+                                    Where-Object { $_.Name -match '^Microsoft\.VC\d+\.CRT$' } |
+                                    Select-Object -ExpandProperty FullName
+                            }
+                    }
             } | Sort-Object -Descending)
         $candidates += $autoCandidates
     }
     $resolved = @($candidates |
         Where-Object {
+            -not [string]::IsNullOrWhiteSpace($_) -and
             (Test-Path -LiteralPath (Join-Path $_ 'msvcp140.dll') -PathType Leaf) -and
             (Test-Path -LiteralPath (Join-Path $_ 'vcruntime140.dll') -PathType Leaf) -and
             (Test-Path -LiteralPath (Join-Path $_ 'vcruntime140_1.dll') -PathType Leaf)
         } |
         Select-Object -Unique)
     if ($resolved.Count -eq 0) {
-        throw 'Microsoft Visual C++ x64 redist directory was not found. Set UTAUTTS_MSVC_REDIST_DIR to Microsoft.VC143.CRT.'
+        throw 'Microsoft Visual C++ x64 redist directory was not found. Set UTAUTTS_MSVC_REDIST_DIR to a Microsoft.VC*.CRT directory.'
     }
     return $resolved[0]
 }
@@ -91,6 +118,7 @@ function Get-SourceFileRecord([IO.FileInfo]$File, [string]$Family, [string]$Pack
 
 $msvcRedistDirectory = Resolve-MsvcRedistDirectory
 $ucrtRedistDirectory = Resolve-UcrtRedistDirectory
+$msvcPackage = Split-Path -Leaf $msvcRedistDirectory
 $msvcVersion = Split-Path -Leaf (Split-Path -Parent (Split-Path -Parent $msvcRedistDirectory))
 $ucrtVersion = (Get-Item -LiteralPath (Join-Path $ucrtRedistDirectory 'ucrtbase.dll')).VersionInfo.FileVersion
 $microsoftRuntimeSourceFiles = @()
@@ -115,7 +143,7 @@ foreach ($file in $microsoftRuntimeFiles) {
         'Windows SDK UCRT Redist'
     }
     $package = if ($family -eq 'Microsoft Visual C++ Redistributable') {
-        'Microsoft.VC143.CRT'
+        $msvcPackage
     } else {
         'Windows Kits 10 UCRT/DLLs/x64'
     }
@@ -129,7 +157,7 @@ $microsoftRuntimeSourceManifestObject = [ordered]@{
     sources = [ordered]@{
         visual_cpp_redist = [ordered]@{
             family = 'Microsoft Visual C++ Redistributable'
-            package = 'Microsoft.VC143.CRT'
+            package = $msvcPackage
             version = $msvcVersion
             guidance = 'https://learn.microsoft.com/en-us/visualstudio/releases/2022/redistribution'
         }
