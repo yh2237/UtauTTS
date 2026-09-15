@@ -12,6 +12,7 @@ ApplicationWindow {
     required property var hostPalette
     required property var backend
     required property var translator
+    property var audioOutputDevices: []
     signal applyRequested(bool closeAfter)
 
     title: root.translator.tr("settings.title")
@@ -44,6 +45,7 @@ ApplicationWindow {
     property bool pendingDarkMode: false
     property string pendingLanguage: "auto"
     property string pendingFfmpegPath: ""
+    property string pendingAudioOutputDeviceId: ""
     property var languageCodes: root.backend.languageCodes()
     property bool pendingCloseLogOnSuccess: true
     property bool pendingUpdateCheckEnabled: true
@@ -111,6 +113,7 @@ ApplicationWindow {
         pendingDarkMode = root.backend.darkMode;
         pendingLanguage = root.backend.language;
         pendingFfmpegPath = root.backend.ffmpegPath;
+        pendingAudioOutputDeviceId = root.backend.audioOutputDeviceId;
         pendingCloseLogOnSuccess = root.backend.closeLogOnSuccess;
         pendingUpdateCheckEnabled = root.backend.updateCheckEnabled;
         pendingPreReleaseUpdateCheckEnabled = root.backend.preReleaseUpdateCheckEnabled;
@@ -187,6 +190,10 @@ ApplicationWindow {
 
     function resetFfmpegPath() {
         pendingFfmpegPath = "";
+    }
+
+    function resetAudioOutputDevice() {
+        pendingAudioOutputDeviceId = "";
     }
 
     function resetUpdateCheckEnabled() {
@@ -283,6 +290,48 @@ ApplicationWindow {
         for (let index = 0; index < root.backend.renderers.length; ++index)
             if (root.backend.renderers[index].id === root.pendingDefaultRendererId)
                 return index;
+        return 0;
+    }
+
+    function audioOutputDeviceKey(device) {
+        if (!device)
+            return "";
+        let key = "";
+        if (device.id !== undefined && device.id !== null)
+            key = String(root.backend.audioOutputDeviceKey(device.id) || "");
+        if (!key.length && device.description)
+            key = "description:" + String(device.description);
+        return key;
+    }
+
+    function audioOutputDeviceModel() {
+        const rows = [{
+            id: "",
+            name: root.translator.tr("settings.audioOutput.default")
+        }];
+        const devices = root.audioOutputDevices || [];
+        for (let index = 0; index < devices.length; ++index) {
+            const device = devices[index];
+            const id = root.audioOutputDeviceKey(device);
+            if (!id.length)
+                continue;
+            rows.push({
+                id: id,
+                name: String(device.description || id)
+            });
+        }
+        return rows;
+    }
+
+    function audioOutputDeviceIndex() {
+        const id = String(root.pendingAudioOutputDeviceId || "");
+        if (!id.length)
+            return 0;
+        const rows = root.audioOutputDeviceModel();
+        for (let index = 1; index < rows.length; ++index) {
+            if (rows[index].id === id)
+                return index;
+        }
         return 0;
     }
 
@@ -740,6 +789,27 @@ ApplicationWindow {
                             SettingsResetButton {
                                 translator: root.translator
                                 onResetRequested: root.resetLanguage()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.audioOutput")
+                            }
+                            ComboBox {
+                                id: audioOutputCombo
+                                Layout.preferredWidth: 300
+                                model: root.audioOutputDeviceModel()
+                                textRole: "name"
+                                valueRole: "id"
+                                currentIndex: root.audioOutputDeviceIndex()
+                                onActivated: root.pendingAudioOutputDeviceId = currentValue
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetAudioOutputDevice()
                             }
                         }
 

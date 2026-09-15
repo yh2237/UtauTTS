@@ -104,6 +104,33 @@ ApplicationWindow {
     property bool closeAfterProjectSave: false
     property bool closeBypass: false
 
+    function audioOutputDeviceKey(device) {
+        if (!device)
+            return "";
+        let key = "";
+        if (device.id !== undefined && device.id !== null)
+            key = String(window.appBackend.audioOutputDeviceKey(device.id) || "");
+        if (!key.length && device.description)
+            key = "description:" + String(device.description);
+        return key;
+    }
+
+    function applyAudioOutputDevice() {
+        const devices = mediaDevices.audioOutputs || [];
+        const requested = String(window.appBackend.audioOutputDeviceId || "");
+        let selected = mediaDevices.defaultAudioOutput;
+        if (requested.length) {
+            for (let index = 0; index < devices.length; ++index) {
+                if (window.audioOutputDeviceKey(devices[index]) === requested) {
+                    selected = devices[index];
+                    break;
+                }
+            }
+        }
+        if (selected !== undefined && selected !== null)
+            previewAudioOutput.device = selected;
+    }
+
     Shortcut {
         sequence: window.qtShortcutSequence(window.appBackend.synthesizeShortcut)
         enabled: !settingsWindow.visible && !window.appBackend.busy && !window.batchExportActive
@@ -173,6 +200,10 @@ ApplicationWindow {
                 window.analyzeUtterance(window.selectedIndex);
             }
         }
+    }
+
+    MediaDevices {
+        id: mediaDevices
     }
 
     AudioOutput {
@@ -293,6 +324,7 @@ ApplicationWindow {
         hostPalette: window.palette
         backend: window.appBackend
         translator: window.translator
+        audioOutputDevices: mediaDevices.audioOutputs
         onApplyRequested: closeAfter => window.saveSettings(closeAfter)
     }
 
@@ -839,10 +871,22 @@ ApplicationWindow {
                 window.pendingRevision = -1;
             }
         }
+
+        function onAudioOutputSettingsChanged() {
+            window.applyAudioOutputDevice();
+        }
+    }
+
+    Connections {
+        target: mediaDevices
+        function onAudioOutputsChanged() {
+            window.applyAudioOutputDevice();
+        }
     }
 
     Component.onCompleted: {
         window.translator.load(window.appBackend.resolvedLanguage());
+        window.applyAudioOutputDevice();
         addUtterance(false);
         window.resetHistory(false);
         if (!window.injectedSelfTest && window.appBackend.updateCheckEnabled)
@@ -1159,6 +1203,7 @@ ApplicationWindow {
         window.appBackend.setDarkMode(settingsWindow.pendingDarkMode);
         window.appBackend.setLanguage(settingsWindow.pendingLanguage);
         window.appBackend.setFfmpegPath(settingsWindow.pendingFfmpegPath);
+        window.appBackend.setAudioOutputDeviceId(settingsWindow.pendingAudioOutputDeviceId);
         window.appBackend.setCloseLogOnSuccess(settingsWindow.pendingCloseLogOnSuccess);
         window.appBackend.setUpdateCheckEnabled(settingsWindow.pendingUpdateCheckEnabled);
         window.appBackend.setPreReleaseUpdateCheckEnabled(

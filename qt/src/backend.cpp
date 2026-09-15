@@ -285,6 +285,8 @@ Backend::Backend(QObject *parent)
       m_developerMode(portableSettingValue("developer/enabled", false).toBool()),
       m_ffmpegPath(normalizeFfmpegPath(
           portableSettingValue("media/ffmpegPath", QString()).toString())),
+      m_audioOutputDeviceId(portableSettingValue(
+          "media/audioOutputDeviceId", QString()).toString().trimmed()),
       m_defaultRenderer(portableSettingValue("synthesis/defaultRendererId",
                                           QStringLiteral("utautts-world-phrase")).toString().trimmed()),
       m_defaultModelId(portableSettingValue("synthesis/defaultModelId",
@@ -630,6 +632,27 @@ void Backend::setFfmpegPath(const QString &value) {
     settings.sync();
     configureFfmpegPath(m_ffmpegPath);
     emit ffmpegSettingsChanged();
+}
+
+void Backend::setAudioOutputDeviceId(const QString &value) {
+    const QString normalized = value.trimmed();
+    if (m_audioOutputDeviceId == normalized)
+        return;
+    m_audioOutputDeviceId = normalized;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    if (m_audioOutputDeviceId.isEmpty())
+        settings.remove(QStringLiteral("media/audioOutputDeviceId"));
+    else
+        settings.setValue(QStringLiteral("media/audioOutputDeviceId"), m_audioOutputDeviceId);
+    settings.sync();
+    emit audioOutputSettingsChanged();
+}
+
+QString Backend::audioOutputDeviceKey(const QVariant &id) const {
+    QByteArray bytes = id.toByteArray();
+    if (bytes.isEmpty())
+        bytes = id.toString().toUtf8();
+    return QString::fromLatin1(bytes.toHex());
 }
 
 
