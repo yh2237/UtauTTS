@@ -54,13 +54,8 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	wordDiv := append(append([]int64{1}, phoneCounts...), 1)
+	wordDiv, noteRest := diffsingerWordGroups(morae, phoneCounts, preview.Features)
 	wordDur := groupedFrameDurations(frames, wordDiv)
-	noteRest := append([]bool{true}, make([]bool, len(morae))...)
-	for index, mora := range morae {
-		noteRest[index+1] = mora.Pause
-	}
-	noteRest = append(noteRest, true)
 	automaticPitch := cfg.PitchCurve != nil && cfg.ManualPitch == nil && cfg.ManualPitchPath == ""
 	score := engine.NeuralScore{
 		Symbols: symbols, Durations: frames, F0: f0, MIDI: midi,
@@ -274,6 +269,50 @@ func groupedFrameDurations(frames, groups []int64) []int64 {
 		}
 	}
 	return result
+}
+
+func diffsingerWordGroups(morae []frontend.Mora, phoneCounts []int64, features []prosody.FeatureFrame) ([]int64, []bool) {
+	groups := []int64{1}
+	rests := []bool{true}
+	hasWordBoundaries := false
+	for index, mora := range morae {
+		if mora.WordEnd || (index < len(features) && features[index]["word_end"] > 0) {
+			hasWordBoundaries = true
+			break
+		}
+	}
+	count := int64(0)
+	for index, mora := range morae {
+		phones := int64(1)
+		if index < len(phoneCounts) && phoneCounts[index] > 0 {
+			phones = phoneCounts[index]
+		}
+		if mora.Pause {
+			if count > 0 {
+				groups = append(groups, count)
+				rests = append(rests, false)
+				count = 0
+			}
+			groups = append(groups, phones)
+			rests = append(rests, true)
+			continue
+		}
+		count += phones
+		wordEnd := mora.WordEnd
+		if index < len(features) && features[index]["word_end"] > 0 {
+			wordEnd = true
+		}
+		if wordEnd || !hasWordBoundaries || index+1 == len(morae) || morae[index+1].Pause {
+			groups = append(groups, count)
+			rests = append(rests, false)
+			count = 0
+		}
+	}
+	if count > 0 {
+		groups = append(groups, count)
+		rests = append(rests, false)
+	}
+	return append(groups, 1), append(rests, true)
 }
 
 func firstSupported(singer *diffsinger.Singer, candidates ...string) string {

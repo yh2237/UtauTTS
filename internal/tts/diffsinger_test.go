@@ -172,3 +172,27 @@ func TestGroupedFrameDurations(t *testing.T) {
 		t.Fatalf("durations = %#v", got)
 	}
 }
+
+func TestDiffSingerWordGroupsUsesOpenJTalkWordEnd(t *testing.T) {
+	morae := []frontend.Mora{{Text: "こ"}, {Text: "ん"}, {Text: "に"}, {Text: "ち"}, {Text: "は"}, {Pause: true}, {Text: "せ"}, {Text: "か"}, {Text: "い"}}
+	counts := []int64{2, 1, 2, 2, 2, 1, 2, 2, 1}
+	features := []prosody.FeatureFrame{{}, {"word_end": 1}, {}, {}, {"word_end": 1}, {}, {}, {}, {"word_end": 1}}
+	groups, rests := diffsingerWordGroups(morae, counts, features)
+	if !reflect.DeepEqual(groups, []int64{1, 3, 6, 1, 5, 1}) {
+		t.Fatalf("groups = %v", groups)
+	}
+	if !reflect.DeepEqual(rests, []bool{true, false, false, true, false, true}) {
+		t.Fatalf("rests = %v", rests)
+	}
+}
+
+func TestDiffSingerWordGroupsKeepsMoraFallback(t *testing.T) {
+	morae := []frontend.Mora{{Text: "あ"}, {Text: "い"}}
+	groups, rests := diffsingerWordGroups(morae, []int64{1, 2}, nil)
+	if !reflect.DeepEqual(groups, []int64{1, 1, 2, 1}) {
+		t.Fatalf("groups = %v", groups)
+	}
+	if !reflect.DeepEqual(rests, []bool{true, false, false, true}) {
+		t.Fatalf("rests = %v", rests)
+	}
+}
