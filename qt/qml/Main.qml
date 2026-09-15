@@ -1744,7 +1744,6 @@ ApplicationWindow {
         error = check(window.current().speechTiming === false
                       && window.current().phonemizer === "auto"
                       && window.buildSynthesisRequest(window.current()).phonemizer !== "auto"
-                      && !editorContent.advancedSettingsButton.checked
                       && !window.appBackend.developerMode,
                       "normal GUI defaults are incorrect");
         if (error.length)

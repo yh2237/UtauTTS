@@ -12,7 +12,6 @@ import QtMultimedia
         property alias voiceCombo: voiceCombo
         property alias speechLanguageCombo: speechLanguageCombo
         property alias phonemizerCombo: phonemizerCombo
-        property alias advancedSettingsButton: advancedSettingsButton
         property alias aliasPolicyCombo: aliasPolicyCombo
         property alias modelCombo: modelCombo
         property alias rendererCombo: rendererCombo
@@ -554,17 +553,12 @@ import QtMultimedia
                             }
                         }
 
-                        Button {
-                            id: advancedSettingsButton
-                            objectName: "advancedSettingsButton"
+                        Item {
                             Layout.fillWidth: true
-                            checkable: true
-                            checked: false
-                            text: window.translator.tr("main.advancedSettings")
+                            Layout.preferredHeight: 24
                         }
                         ColumnLayout {
                             Layout.fillWidth: true
-                            visible: advancedSettingsButton.checked
                             spacing: 6
 
                         ColumnLayout {

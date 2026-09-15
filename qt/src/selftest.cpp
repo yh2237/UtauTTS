@@ -121,23 +121,18 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     const QString captureDirectory = qEnvironmentVariable("UTAUTTS_UI_CAPTURE_DIR");
     if (!captureDirectory.isEmpty()) {
         auto *window = qobject_cast<QQuickWindow *>(rootObject);
-        auto *advanced = rootObject->findChild<QObject *>(QStringLiteral("advancedSettingsButton"));
         auto *settings = rootObject->findChild<QQuickWindow *>(QStringLiteral("settingsWindow"));
-        if (!require(window && advanced && settings && QDir().mkpath(captureDirectory),
+        if (!require(window && settings && QDir().mkpath(captureDirectory),
                      QStringLiteral("UI capture could not be initialized")))
             return 1;
         window->show();
-        for (const bool expanded : {false, true}) {
-            advanced->setProperty("checked", expanded);
-            QEventLoop loop;
-            QTimer::singleShot(300, &loop, &QEventLoop::quit);
-            loop.exec();
-            const QString name = expanded ? QStringLiteral("advanced.png") : QStringLiteral("normal.png");
-            if (!require(window->grabWindow().save(QDir(captureDirectory).filePath(name)),
-                         QStringLiteral("UI capture failed")))
-                return 1;
-        }
-        advanced->setProperty("checked", false);
+        QEventLoop loop;
+        QTimer::singleShot(300, &loop, &QEventLoop::quit);
+        loop.exec();
+        const QString capturePath = QDir(captureDirectory).filePath(QStringLiteral("normal.png"));
+        if (!require(window->grabWindow().save(capturePath),
+                     QStringLiteral("UI capture failed")))
+            return 1;
         window->hide();
         settings->show();
         for (const auto &[page, name] : {
