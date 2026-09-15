@@ -1,4 +1,4 @@
-// tts-evalは日本語の聴取用音声と再現可能な計測結果を作る。
+// tts-evalは聴取用音声と計測結果を作る。
 package main
 
 import (
@@ -28,20 +28,26 @@ type prompt struct {
 	PitchCurve                                     *render.PitchCurve `json:"pitch_curve,omitempty"`
 }
 type measurement struct {
-	ID                 string  `json:"id"`
-	Text               string  `json:"text"`
-	Focus              string  `json:"focus"`
-	Renderer           string  `json:"renderer"`
-	Repetition         int     `json:"repetition"`
-	ElapsedMS          float64 `json:"elapsed_ms"`
-	AudioMS            float64 `json:"audio_ms"`
-	RTF                float64 `json:"rtf"`
-	Peak               float64 `json:"peak"`
-	RMS                float64 `json:"rms"`
-	SilentUnits        int     `json:"silent_units"`
-	MissingPhoneGroups int     `json:"missing_phone_groups"`
-	Error              string  `json:"error,omitempty"`
-	WAV                string  `json:"wav,omitempty"`
+	ID                       string  `json:"id"`
+	Text                     string  `json:"text"`
+	Focus                    string  `json:"focus"`
+	Renderer                 string  `json:"renderer"`
+	Repetition               int     `json:"repetition"`
+	ElapsedMS                float64 `json:"elapsed_ms"`
+	AudioMS                  float64 `json:"audio_ms"`
+	RTF                      float64 `json:"rtf"`
+	Peak                     float64 `json:"peak"`
+	RMS                      float64 `json:"rms"`
+	SilentUnits              int     `json:"silent_units"`
+	MissingPhoneGroups       int     `json:"missing_phone_groups"`
+	V13CompatibleUnits       int     `json:"v1_3_compatible_units"`
+	AdaptiveUnits            int     `json:"adaptive_units"`
+	GapRepairUnits           int     `json:"gap_repair_units"`
+	StopBurstUnits           int     `json:"stop_burst_units"`
+	UnreliableTransientUnits int     `json:"unreliable_transient_units"`
+	MeanStopBurstGain        float64 `json:"mean_stop_burst_gain,omitempty"`
+	Error                    string  `json:"error,omitempty"`
+	WAV                      string  `json:"wav,omitempty"`
 }
 
 func main() {
@@ -66,6 +72,8 @@ func run() error {
 	model := flag.String("model", "frame-intonation-v8", "prosody model ID")
 	modelFile := flag.String("model-file", "", "explicit experimental prosody model JSON (overrides model ID)")
 	bridge := flag.String("bridge", "", "override WORLD bridge executable")
+	worldMix := flag.String("world-mix", "auto", "WORLD feature mixing: auto, v1.3, adaptive")
+	worldGapRepair := flag.String("world-gap-repair", "auto", "WORLD gap repair: auto, on, off")
 	repeats := flag.Int("repeat", 2, "repetitions in the same process; first and warm runs are separate")
 	timeout := flag.Duration("timeout", 2*time.Minute, "timeout per synthesis")
 	flag.Parse()
@@ -77,6 +85,12 @@ func run() error {
 	}
 	if *bank == "" || *repeats < 1 || *timeout <= 0 {
 		return fmt.Errorf("voicebank, positive repeat and timeout are required")
+	}
+	if !oneOf(*worldMix, "auto", "v1.3", "adaptive") {
+		return fmt.Errorf("world-mix must be auto, v1.3 or adaptive")
+	}
+	if !oneOf(*worldGapRepair, "auto", "on", "off") {
+		return fmt.Errorf("world-gap-repair must be auto, on or off")
 	}
 	data, err := os.ReadFile(*corpus)
 	if err != nil {
@@ -162,13 +176,38 @@ func run() error {
 				started := time.Now()
 				var result *synth.Result
 				if callErr == nil {
-					result, callErr = synth.SynthesizeConfig(cfg, resolved)
+					providerOptions := render.ProviderOptions{Worldline: render.WorldlineProviderOptions{
+						MixMode: *worldMix, GapRepairMode: *worldGapRepair,
+					}}
+					result, callErr = synth.SynthesizeConfigWithOptions(cfg, resolved, providerOptions)
 				}
 				row.ElapsedMS = float64(time.Since(started).Microseconds()) / 1000
 				cancel()
 				if callErr == nil {
 					row.AudioMS = result.DurationMS
 					row.MissingPhoneGroups = len(result.Plan.MissingPhones)
+					renderedPlan := result.RenderedPlan()
+					for _, unit := range renderedPlan.Units {
+						switch unit.WorldRenderMode {
+						case "v1.3-compatible":
+							row.V13CompatibleUnits++
+						case "adaptive":
+							row.AdaptiveUnits++
+						}
+						if unit.WorldGapRepairEligible {
+							row.GapRepairUnits++
+						}
+						if unit.StopBurstApplied {
+							row.StopBurstUnits++
+							row.MeanStopBurstGain += unit.StopBurstGain
+						}
+						if unit.StopBurstReason == "transient-unreliable" {
+							row.UnreliableTransientUnits++
+						}
+					}
+					if row.StopBurstUnits > 0 {
+						row.MeanStopBurstGain /= float64(row.StopBurstUnits)
+					}
 					if row.AudioMS > 0 {
 						row.RTF = row.ElapsedMS / row.AudioMS
 					}
@@ -189,7 +228,7 @@ func run() error {
 					callErr = synth.WriteFiles(filepath.Join(*out, row.WAV), result, synth.ExportOptions{Text: p.Text, WriteText: true, WriteLab: true})
 					if callErr == nil {
 						var planData []byte
-						planData, callErr = json.MarshalIndent(result.RenderedPlan(), "", "  ")
+						planData, callErr = json.MarshalIndent(renderedPlan, "", "  ")
 						if callErr == nil {
 							callErr = atomicfile.WriteFile(filepath.Join(*out, strings.TrimSuffix(row.WAV, ".wav")+".plan.json"), planData)
 						}
@@ -213,11 +252,12 @@ func run() error {
 					MoraMS                         float64
 					ProsodyExperiment, Phonemizer  string
 					MeasurePitch, SpeechTiming     bool
+					WorldMix, WorldGapRepair       string
 					GOOS, GOARCH, Voicebank, Model string
 					CorpusSHA256, Bridge           string
 					Build                          *debug.BuildInfo
 					Measurements                   []measurement
-				}{*wordEnvelope, *moraMS, *experiment, *phonemizer, *measurePitch, *speechTiming, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, buildInfo, rows}
+				}{*wordEnvelope, *moraMS, *experiment, *phonemizer, *measurePitch, *speechTiming, *worldMix, *worldGapRepair, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, buildInfo, rows}
 				encoded, err := json.MarshalIndent(report, "", "  ")
 				if err != nil {
 					return err
@@ -232,4 +272,13 @@ func run() error {
 		return fmt.Errorf("some synthesis cases failed; see report.json")
 	}
 	return nil
+}
+
+func oneOf(value string, values ...string) bool {
+	for _, candidate := range values {
+		if value == candidate {
+			return true
+		}
+	}
+	return false
 }

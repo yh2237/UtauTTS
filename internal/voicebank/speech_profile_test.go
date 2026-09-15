@@ -49,6 +49,19 @@ func TestSpeechProfileBoundedAndInvalidated(t *testing.T) {
 	}
 }
 
+func TestMeasureSpeechTransientFindsLocalizedRelease(t *testing.T) {
+	const rate = 8000
+	samples := make([]float64, rate/5)
+	for index := range samples {
+		samples[index] = .02 * math.Sin(2*math.Pi*180*float64(index)/rate)
+	}
+	samples[rate*45/1000] = 1
+	position, duration, confidence := measureSpeechTransient(samples, rate, 60)
+	if math.Abs(position-45) > 3 || duration < 2 || duration > 8 || confidence < .5 {
+		t.Fatalf("transient position=%f duration=%f confidence=%f", position, duration, confidence)
+	}
+}
+
 func TestCoverageReportsRequiredCodaButNotOptionalRelease(t *testing.T) {
 	bank := &Bank{Entries: map[string][]oto.Entry{"a": {{Filename: "a.wav", Alias: "a"}}, "s t": {{Filename: "st.wav", Alias: "s t"}}}}
 	mora := frontend.Mora{Text: "a", Vowel: "a", Aliases: &frontend.AliasHints{Main: []string{"a"}, Endings: [][]string{{"a s"}, {"s t"}, {"a -"}}, EndingPhones: [][]string{{"s"}, {"t"}, nil}}}

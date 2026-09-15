@@ -8,22 +8,19 @@ import (
 	"utautts/internal/plan"
 )
 
-// UnitRenderer is the contract used by providers that consume a selected UTAU
-// Unit Plan. Implementations receive an isolated copy and report diagnostics
-// separately from the selection plan.
+// UnitRendererは選択済みUnit Planを描画する。
 type UnitRenderer interface {
 	ProviderID() engine.ProviderID
 	Render(*plan.Plan, Config) (*UnitRenderResult, error)
 }
 
-// UnitRenderResult is the immutable-plan rendering result.
+// UnitRenderResultは音声と描画結果を保持する。
 type UnitRenderResult struct {
 	Audio  *audio.PCM
 	Report RenderReport
 }
 
-// RenderReport contains values previously written back to plan.Plan by a
-// renderer. It can be applied to an export copy when diagnostics are needed.
+// RenderReportは描画時に得た診断情報を保持する。
 type RenderReport struct {
 	TargetF0                *F0Track `json:"target_f0,omitempty"`
 	Provider                engine.ProviderID
@@ -46,19 +43,24 @@ type F0Track struct {
 	Hz      []float64 `json:"hz"`
 }
 
-// RenderDiagnostic is a provider message retained separately from the
-// selection Plan. It is useful for UI logs without making provider-specific
-// fields part of the core Plan contract.
+// RenderDiagnosticはproviderからの診断情報を示す。
 type RenderDiagnostic struct {
 	Severity string `json:"severity,omitempty"`
 	Code     string `json:"code,omitempty"`
 	Message  string `json:"message"`
 }
 
-// UnitRenderReport contains renderer-derived diagnostics for one input unit.
+// UnitRenderReportはunitごとの描画結果を示す。
 type UnitRenderReport struct {
+	WorldRenderMode         string
+	WorldRenderReason       string
+	WorldGapRepairEligible  bool
+	WorldGapRepairReason    string
 	SpeechJoinApplied       bool
 	SpeechRetimeApplied     bool
+	StopBurstApplied        bool
+	StopBurstGain           float64
+	StopBurstReason         string
 	CVTimingApplied         bool
 	CVTimingWarnings        []string
 	BoundaryEnvelope        string
@@ -99,7 +101,7 @@ func (renderer builtinUnitRenderer) Render(synthesisPlan *plan.Plan, cfg Config)
 	return result, nil
 }
 
-// UnitRendererForProvider returns the current built-in adapter for a provider.
+// UnitRendererForProviderは組み込みrendererを返す。
 func UnitRendererForProvider(provider string) (UnitRenderer, error) {
 	if provider == "" {
 		provider = "waveform"
@@ -110,8 +112,7 @@ func UnitRendererForProvider(provider string) (UnitRenderer, error) {
 	return builtinUnitRenderer{provider: engine.ProviderID(provider)}, nil
 }
 
-// RenderWithReport renders an isolated copy of the input Plan. Unlike Render,
-// it never writes renderer diagnostics into the caller's Plan.
+// RenderWithReportはPlanのコピーを描画する。
 func RenderWithReport(synthesisPlan *plan.Plan, cfg Config) (*UnitRenderResult, error) {
 	renderer, err := UnitRendererForConfig(cfg)
 	if err != nil {
@@ -120,10 +121,7 @@ func RenderWithReport(synthesisPlan *plan.Plan, cfg Config) (*UnitRenderResult, 
 	return renderer.Render(synthesisPlan, cfg)
 }
 
-// UnitRendererForConfig selects a built-in adapter or a manifest-declared
-// external Provider. Keeping this decision at the UnitRenderer boundary lets
-// the rest of the TTS pipeline remain unaware of process transport details.
-
+// UnitRendererForConfigは設定に対応するrendererを返す。
 func UnitRendererForConfig(cfg Config) (UnitRenderer, error) {
 	definition := cfg.Engine.Definition
 	if definition.Protocol == "utautts-provider" {
@@ -151,8 +149,15 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 	report.Units = make([]UnitRenderReport, len(synthesisPlan.Units))
 	for index, unit := range synthesisPlan.Units {
 		report.Units[index] = UnitRenderReport{
+			WorldRenderMode:         unit.WorldRenderMode,
+			WorldRenderReason:       unit.WorldRenderReason,
+			WorldGapRepairEligible:  unit.WorldGapRepairEligible,
+			WorldGapRepairReason:    unit.WorldGapRepairReason,
 			SpeechJoinApplied:       unit.SpeechJoinApplied,
 			SpeechRetimeApplied:     unit.SpeechRetimeApplied,
+			StopBurstApplied:        unit.StopBurstApplied,
+			StopBurstGain:           unit.StopBurstGain,
+			StopBurstReason:         unit.StopBurstReason,
 			CVTimingApplied:         unit.CVTimingApplied,
 			CVTimingWarnings:        append([]string(nil), unit.CVTimingWarnings...),
 			BoundaryEnvelope:        unit.BoundaryEnvelope,
@@ -169,8 +174,7 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 	return report
 }
 
-// ApplyTo restores renderer diagnostics to an export copy of a Plan. It must
-// not be used on the canonical selection plan held by tts.Result.
+// ApplyToは診断情報を出力用Planへ反映する。
 func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 	if synthesisPlan == nil {
 		return
@@ -188,7 +192,14 @@ func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 			continue
 		}
 		unit := &synthesisPlan.Units[unitReport.Index]
+		unit.WorldRenderMode = unitReport.WorldRenderMode
+		unit.WorldRenderReason = unitReport.WorldRenderReason
+		unit.WorldGapRepairEligible = unitReport.WorldGapRepairEligible
+		unit.WorldGapRepairReason = unitReport.WorldGapRepairReason
 		unit.SpeechRetimeApplied = unitReport.SpeechRetimeApplied
+		unit.StopBurstApplied = unitReport.StopBurstApplied
+		unit.StopBurstGain = unitReport.StopBurstGain
+		unit.StopBurstReason = unitReport.StopBurstReason
 		unit.CVTimingApplied = unitReport.CVTimingApplied
 		unit.CVTimingWarnings = append([]string(nil), unitReport.CVTimingWarnings...)
 		unit.BoundaryEnvelope = unitReport.BoundaryEnvelope

@@ -25,12 +25,51 @@ func TestMixProtectedStopBurstAddsOnlyProtectedWindow(t *testing.T) {
 	sourceSamples[800] = 1
 	source := protectedStopSource{sampleRate: 16000, samples: sourceSamples, transient: highPass(sourceSamples, 16000, 280)}
 	wave := make([]float64, 1600)
-	mixProtectedStopBurst(wave, source, 42, 42, 8, 10, 100)
+	gain := mixProtectedStopBurst(wave, source, 42, 42, 8, 10, 100)
+	if gain < .7 {
+		t.Fatalf("localized burst gain = %f", gain)
+	}
 	if wave[800] == 0 {
 		t.Fatal("protected burst was not restored")
 	}
 	if wave[0] != 0 || wave[len(wave)-1] != 0 {
 		t.Fatal("protected burst leaked outside its window")
+	}
+}
+
+func TestStopBurstLocalitySuppressesPersistentHighFrequency(t *testing.T) {
+	localized := make([]float64, 1600)
+	localized[800] = 1
+	persistent := make([]float64, 1600)
+	for index := range persistent {
+		persistent[index] = .2 * math.Sin(2*math.Pi*2000*float64(index)/16000)
+	}
+	localScore := stopBurstLocality(localized, 16000, 42, 18)
+	persistentScore := stopBurstLocality(persistent, 16000, 42, 18)
+	if localScore <= persistentScore*3 || persistentScore < .8 || persistentScore > 1.2 {
+		t.Fatalf("locality: localized=%f persistent=%f", localScore, persistentScore)
+	}
+}
+
+func TestStopTransientPostMSUsesMeasuredDuration(t *testing.T) {
+	if got := stopTransientPostMS(4, 32); got != 10 {
+		t.Fatalf("short transient post = %f", got)
+	}
+	if got := stopTransientPostMS(40, 32); got != 24 {
+		t.Fatalf("long transient post = %f", got)
+	}
+	if got := stopTransientPostMS(0, 32); got != 32 {
+		t.Fatalf("missing transient post = %f", got)
+	}
+}
+
+func TestStopBurstOnsetsPreserveDetectedSourceOffset(t *testing.T) {
+	item := unit{OffsetMS: 3, PositionMS: 100, SkipMS: 5, Speech: &provider.WorldSpeechTiming{
+		SourceOnsetMS: 60, SourceTransientMS: 45, TargetOnsetMS: 50,
+	}}
+	source, target := stopBurstOnsets(item, 10, 63, 50)
+	if source != 48 || target != 130 {
+		t.Fatalf("source=%f target=%f", source, target)
 	}
 }
 

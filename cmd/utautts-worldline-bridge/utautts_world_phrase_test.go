@@ -166,7 +166,7 @@ func TestMapWorldSourceTimePreservesConsonantAndStretchesTail(t *testing.T) {
 func TestRepairWorldFeatureGapsFillsOnlyOverlappingLegacyBoundary(t *testing.T) {
 	input := manifest{F0Curve: make([]float64, 12), Units: []unit{
 		{LegacyMix: true, PositionMS: 0, LengthMS: 80, RequiredLengthMS: 80, ConsonantMS: 10, Volume: 100},
-		{LegacyMix: true, PositionMS: 50, LengthMS: 80, RequiredLengthMS: 80, ConsonantMS: 10, Volume: 101},
+		{LegacyMix: true, GapRepair: true, PositionMS: 50, LengthMS: 80, RequiredLengthMS: 80, ConsonantMS: 10, Volume: 101},
 	}}
 	for index := range input.F0Curve {
 		input.F0Curve[index] = 200
@@ -214,12 +214,18 @@ func TestRepairWorldFeatureGapsFillsOnlyOverlappingLegacyBoundary(t *testing.T) 
 	if got := repairWorldFeatureGaps(input, prepared, &features); got != 0 {
 		t.Fatalf("single-frame dip was repaired %d times", got)
 	}
+
+	input.Units[1].GapRepair = false
+	features.F0[5], features.F0[6], features.F0[7] = 0, 0, 0
+	if got := repairWorldFeatureGaps(input, prepared, &features); got != 0 {
+		t.Fatalf("disabled boundary was repaired %d times", got)
+	}
 }
 
 func TestRepairWorldFeatureGapsFillsSpectralDip(t *testing.T) {
 	input := manifest{F0Curve: make([]float64, 30), Units: []unit{
 		{LegacyMix: true, PositionMS: 0, LengthMS: 170, RequiredLengthMS: 170, ConsonantMS: 10, Volume: 100},
-		{LegacyMix: true, PositionMS: 100, LengthMS: 170, RequiredLengthMS: 170, ConsonantMS: 10, Volume: 100},
+		{LegacyMix: true, GapRepair: true, PositionMS: 100, LengthMS: 170, RequiredLengthMS: 170, ConsonantMS: 10, Volume: 100},
 	}}
 	prepared := make([]preparedWorldUnit, 2)
 	for index := range input.F0Curve {

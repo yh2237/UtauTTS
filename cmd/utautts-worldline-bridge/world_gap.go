@@ -154,7 +154,7 @@ func worldGapInsideLegacyBoundary(input manifest, prepared []preparedWorldUnit, 
 }
 
 func worldLegacyBoundaryEligible(previous, next unit) bool {
-	if !previous.LegacyMix || !next.LegacyMix {
+	if !previous.LegacyMix || !next.LegacyMix || !next.GapRepair {
 		return false
 	}
 	previousEnd := previous.PositionMS + previous.LengthMS

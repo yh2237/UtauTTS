@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"utautts/internal/provider"
 )
 
 type cachedWorldUnit struct {
@@ -56,8 +58,9 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 		repairWorldFeatureGaps(input, prepared, &result)
 	}
 	mixDone := time.Now()
+	report := make(map[int]provider.WorldSpeechResult)
 	if input.Engine == "utautts-world-phrase" {
-		report := applyWorldSpeechJoins(input, &result)
+		report = applyWorldSpeechJoins(input, &result)
 		for index, item := range input.Units {
 			if item.Speech == nil {
 				continue
@@ -66,17 +69,27 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 			entry := report[item.Speech.UnitIndex]
 			entry.UnitIndex = item.Speech.UnitIndex
 			entry.RetimeApplied, entry.TargetFixedMS = ok, anchors.targetFixed
-			if input.SpeechResults != nil {
-				*input.SpeechResults = append(*input.SpeechResults, entry)
-			}
+			report[item.Speech.UnitIndex] = entry
 		}
 	}
 	wave, err := engine.Synthesize(result, input.SampleRate)
 	if err != nil {
 		return nil, err
 	}
-	// WORLD分析で薄くなりやすい破裂音を補う。
-	mixProtectedStopBursts(input, prepared, wave, input.SampleRate)
+	stopBursts := mixProtectedStopBursts(input, prepared, wave, input.SampleRate)
+	if input.SpeechResults != nil {
+		for _, item := range input.Units {
+			if item.Speech == nil {
+				continue
+			}
+			entry := report[item.Speech.UnitIndex]
+			if gain := stopBursts[item.Speech.UnitIndex]; gain > 0 {
+				entry.StopBurstApplied = true
+				entry.StopBurstGain = gain
+			}
+			*input.SpeechResults = append(*input.SpeechResults, entry)
+		}
+	}
 	if path := os.Getenv("UTAUTTS_WORLD_PROFILE"); path != "" {
 		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {

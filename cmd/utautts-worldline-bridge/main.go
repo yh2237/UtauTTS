@@ -24,6 +24,7 @@ type manifest struct {
 type unit struct {
 	Speech            *provider.WorldSpeechTiming `json:"speech,omitempty"`
 	LegacyMix         bool                        `json:"legacy_mix,omitempty"`
+	GapRepair         bool                        `json:"gap_repair,omitempty"`
 	CacheKey          string                      `json:"cache_key"`
 	Source            string                      `json:"source"`
 	FrqPath           string                      `json:"frq_path"`
@@ -201,7 +202,7 @@ func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
 	}
 	for index, source := range options.Units {
 		target := unit{
-			Speech: source.Speech, LegacyMix: source.LegacyMix,
+			Speech: source.Speech, LegacyMix: source.LegacyMix, GapRepair: source.GapRepair,
 			CacheKey: source.CacheKey, Source: source.Source, FrqPath: source.FRQPath,
 			PositionMS: source.PositionMS, SkipMS: source.SkipMS, LengthMS: source.LengthMS,
 			FadeInMS: source.FadeInMS, FadeOutMS: source.FadeOutMS, OffsetMS: source.OffsetMS,

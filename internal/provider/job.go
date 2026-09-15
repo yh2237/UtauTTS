@@ -7,21 +7,16 @@ import (
 )
 
 const (
-	// CapabilityUnitRendererJobV2 marks the common unit-renderer job envelope.
+	// CapabilityUnitRendererJobV2は共通unit renderer入力を示す。
 	CapabilityUnitRendererJobV2 = "unit_renderer_job_v2"
-	// CapabilityNeuralScoreJobV1 marks the common neural-synthesizer job
-	// envelope.
+	// CapabilityNeuralScoreJobV1は共通ニューラル入力を示す。
 	CapabilityNeuralScoreJobV1 = "neural_score_job_v1"
 )
 
-// UnitRendererJobVersion is the version of the host-owned unit-renderer job
-// file. The transport request only carries paths to this file; the contract
-// payload stays language-neutral and can be consumed by a non-Go provider.
+// UnitRendererJobVersionはunit renderer入力の版を示す。
 const UnitRendererJobVersion = 2
 
-// UnitRendererJob is the common v2 payload for providers that render a
-// selected UTAU Unit Plan. Providers consume the logical Plan, typed Options,
-// and named Resources; there is no opaque provider payload escape hatch.
+// UnitRendererJobはunit rendererへ渡す共通入力を示す。
 type UnitRendererJob struct {
 	Version         int                 `json:"version"`
 	Contract        string              `json:"contract"`
@@ -31,27 +26,22 @@ type UnitRendererJob struct {
 	Resources       map[string]string   `json:"resources,omitempty"`
 }
 
-// UnitRendererOptions are renderer-independent controls shared by the
-// built-in and external unit-renderer adapters.
+// UnitRendererOptionsはrenderer間で共有する設定を示す。
 type UnitRendererOptions struct {
-	ReleaseMS               float64     `json:"release_ms"`
-	LeadingPreutteranceMS   float64     `json:"leading_preutterance_ms"`
-	IntonationStrength      float64     `json:"intonation_strength"`
-	ApplyPitch              bool        `json:"apply_pitch"`
-	BoundaryBridgeMS        float64     `json:"boundary_bridge_ms"`
-	BoundaryBridgeThreshold float64     `json:"boundary_bridge_threshold"`
-	CVVCTiming              string      `json:"cvvc_timing,omitempty"`
-	CVVCTransitionGain      float64     `json:"cvvc_transition_gain,omitempty"`
-	CVVCPreBoundaryFade     bool        `json:"cvvc_pre_boundary_fade,omitempty"`
-	PitchCurve              *PitchCurve `json:"pitch_curve,omitempty"`
-	// Worldline carries the prepared, typed input required by the bundled
-	// WORLD providers. It is part of Options so the bridge consumes the same
-	// common job envelope as every other unit renderer.
-	Worldline *WorldlineOptions `json:"worldline,omitempty"`
+	ReleaseMS               float64           `json:"release_ms"`
+	LeadingPreutteranceMS   float64           `json:"leading_preutterance_ms"`
+	IntonationStrength      float64           `json:"intonation_strength"`
+	ApplyPitch              bool              `json:"apply_pitch"`
+	BoundaryBridgeMS        float64           `json:"boundary_bridge_ms"`
+	BoundaryBridgeThreshold float64           `json:"boundary_bridge_threshold"`
+	CVVCTiming              string            `json:"cvvc_timing,omitempty"`
+	CVVCTransitionGain      float64           `json:"cvvc_transition_gain,omitempty"`
+	CVVCPreBoundaryFade     bool              `json:"cvvc_pre_boundary_fade,omitempty"`
+	PitchCurve              *PitchCurve       `json:"pitch_curve,omitempty"`
+	Worldline               *WorldlineOptions `json:"worldline,omitempty"`
 }
 
-// WorldlineOptions is the typed WORLD provider extension of a unit-renderer
-// job nested under the common Options object.
+// WorldlineOptionsはWORLD固有の入力を示す。
 type WorldlineOptions struct {
 	Engine      string          `json:"engine"`
 	SampleRate  int             `json:"sample_rate"`
@@ -61,10 +51,9 @@ type WorldlineOptions struct {
 }
 
 type WorldlineUnit struct {
-	Speech *WorldSpeechTiming `json:"speech,omitempty"`
-	// LegacyMix keeps ordinary Japanese continuous-bank units on the original
-	// WORLD feature mix. The host sets this when no speech-timing correction is used.
+	Speech            *WorldSpeechTiming       `json:"speech,omitempty"`
 	LegacyMix         bool                     `json:"legacy_mix,omitempty"`
+	GapRepair         bool                     `json:"gap_repair,omitempty"`
 	CacheKey          string                   `json:"cache_key,omitempty"`
 	Source            string                   `json:"source"`
 	FRQPath           string                   `json:"frq_path,omitempty"`
@@ -91,24 +80,28 @@ type WorldlineUnit struct {
 const CapabilityWorldSpeechV1 = "world_speech_v1"
 const CapabilityCodaReleaseV1 = "coda_release_v1"
 
-// WorldSpeechTiming contains request-local anchors relative to the trimmed source.
+// WorldSpeechTimingは切り出し後の音源を基準とする位置を示す。
 type WorldSpeechTiming struct {
-	CodaRelease      bool    `json:"coda_release,omitempty"`
-	PreserveStopOnly bool    `json:"preserve_stop_only,omitempty"`
-	UnitIndex        int     `json:"unit_index"`
-	SourceOnsetMS    float64 `json:"source_onset_ms"`
-	TargetOnsetMS    float64 `json:"target_onset_ms"`
-	ProtectStop      bool    `json:"protect_stop,omitempty"`
-	VowelJoin        bool    `json:"vowel_join,omitempty"`
-	TargetFixedMS    float64 `json:"target_fixed_ms,omitempty"`
-	TargetJoinMS     float64 `json:"target_join_ms,omitempty"`
+	CodaRelease               bool    `json:"coda_release,omitempty"`
+	PreserveStopOnly          bool    `json:"preserve_stop_only,omitempty"`
+	UnitIndex                 int     `json:"unit_index"`
+	SourceOnsetMS             float64 `json:"source_onset_ms"`
+	SourceTransientMS         float64 `json:"source_transient_ms,omitempty"`
+	SourceTransientDurationMS float64 `json:"source_transient_duration_ms,omitempty"`
+	TargetOnsetMS             float64 `json:"target_onset_ms"`
+	ProtectStop               bool    `json:"protect_stop,omitempty"`
+	VowelJoin                 bool    `json:"vowel_join,omitempty"`
+	TargetFixedMS             float64 `json:"target_fixed_ms,omitempty"`
+	TargetJoinMS              float64 `json:"target_join_ms,omitempty"`
 }
 
 type WorldSpeechResult struct {
-	UnitIndex     int     `json:"unit_index"`
-	RetimeApplied bool    `json:"retime_applied"`
-	TargetFixedMS float64 `json:"target_fixed_ms"`
-	JoinApplied   bool    `json:"join_applied"`
+	UnitIndex        int     `json:"unit_index"`
+	RetimeApplied    bool    `json:"retime_applied"`
+	TargetFixedMS    float64 `json:"target_fixed_ms"`
+	JoinApplied      bool    `json:"join_applied"`
+	StopBurstApplied bool    `json:"stop_burst_applied,omitempty"`
+	StopBurstGain    float64 `json:"stop_burst_gain,omitempty"`
 }
 
 type WorldlineEnvelopePoint struct {
@@ -116,19 +109,16 @@ type WorldlineEnvelopePoint struct {
 	Y   float64 `json:"y"`
 }
 
-// PitchCurve is the wire representation of a frame-level pitch contour.
+// PitchCurveはフレーム単位のピッチ曲線を示す。
 type PitchCurve struct {
 	FrameMS float64   `json:"frame_ms"`
 	Cents   []float64 `json:"cents"`
 }
 
-// NeuralSynthesizerJobVersion is the version of the common neural score job.
+// NeuralSynthesizerJobVersionは共通ニューラル入力の版を示す。
 const NeuralSynthesizerJobVersion = 1
 
-// NeuralSynthesizerJob is the common v1 payload for providers that synthesize
-// audio from a neural score. Options is provider-specific JSON by design: the
-// score and resource names are common, while model controls belong to the
-// selected provider implementation.
+// NeuralSynthesizerJobはニューラル音声合成へ渡す入力を示す。
 type NeuralSynthesizerJob struct {
 	Version         int                `json:"version"`
 	Contract        string             `json:"contract"`

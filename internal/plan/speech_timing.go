@@ -5,7 +5,7 @@ import (
 	"utautts/internal/frontend"
 )
 
-// PhoneTiming is a target, never an acoustic measurement or forced alignment.
+// PhoneTimingは合成目標であり音響解析の結果ではない。
 type PhoneTiming struct {
 	Position   int     `json:"position"`
 	Symbol     string  `json:"symbol"`
@@ -14,8 +14,10 @@ type PhoneTiming struct {
 	DurationMS float64 `json:"duration_ms"`
 }
 
-func speechEndingTiming(mora frontend.Mora, index int, start, duration float64) (float64, float64) {
-	spans := frontend.PhoneSpans(mora.Phones, duration)
+func speechEndingTiming(mora frontend.Mora, spans []float64, index int, start, duration float64) (float64, float64) {
+	if len(spans) != len(mora.Phones) {
+		spans = frontend.PhoneSpans(mora.Phones, duration)
+	}
 	codaStart := start
 	var codaSpans []float64
 	for i, p := range mora.Phones {

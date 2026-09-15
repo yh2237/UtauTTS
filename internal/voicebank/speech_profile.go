@@ -3,32 +3,39 @@ package voicebank
 import (
 	"math"
 	"os"
+	"sort"
 	"utautts/internal/acoustic"
 	"utautts/internal/audio"
 	"utautts/internal/oto"
 	"utautts/internal/pitch"
 )
 
-// SpeechProfile is a bounded acoustic search around oto, not forced alignment.
+// SpeechProfileはoto.ini付近の音響特徴を保持する。
 type SpeechProfile struct {
-	Version          int     `json:"version"`
-	SourceSize       int64   `json:"source_size"`
-	SourceModTime    int64   `json:"source_mod_time"`
-	TrimmedLengthMS  float64 `json:"trimmed_length_ms"`
-	VowelTailMS      float64 `json:"vowel_tail_ms"`
-	OriginalFixedMS  float64 `json:"original_fixed_ms"`
-	SuggestedFixedMS float64 `json:"suggested_fixed_ms"`
-	StableStartMS    float64 `json:"stable_start_ms"`
-	StableEndMS      float64 `json:"stable_end_ms"`
-	F0Hz             float64 `json:"f0_hz"`
-	RMSDB            float64 `json:"rms_db"`
-	VoicedRatio      float64 `json:"voiced_ratio"`
-	Confidence       float64 `json:"confidence"`
-	Applied          bool    `json:"applied"`
-	Reason           string  `json:"reason"`
+	Version                    int     `json:"version"`
+	SourceSize                 int64   `json:"source_size"`
+	SourceModTime              int64   `json:"source_mod_time"`
+	TrimmedLengthMS            float64 `json:"trimmed_length_ms"`
+	VowelTailMS                float64 `json:"vowel_tail_ms"`
+	OriginalFixedMS            float64 `json:"original_fixed_ms"`
+	SuggestedFixedMS           float64 `json:"suggested_fixed_ms"`
+	StableStartMS              float64 `json:"stable_start_ms"`
+	StableEndMS                float64 `json:"stable_end_ms"`
+	TransientMS                float64 `json:"transient_ms,omitempty"`
+	TransientConfidence        float64 `json:"transient_confidence,omitempty"`
+	TransientDurationMS        float64 `json:"transient_duration_ms,omitempty"`
+	ReleaseTransientMS         float64 `json:"release_transient_ms,omitempty"`
+	ReleaseTransientConfidence float64 `json:"release_transient_confidence,omitempty"`
+	ReleaseTransientDurationMS float64 `json:"release_transient_duration_ms,omitempty"`
+	F0Hz                       float64 `json:"f0_hz"`
+	RMSDB                      float64 `json:"rms_db"`
+	VoicedRatio                float64 `json:"voiced_ratio"`
+	Confidence                 float64 `json:"confidence"`
+	Applied                    bool    `json:"applied"`
+	Reason                     string  `json:"reason"`
 }
 
-// Reloading a bank also clears the cache. It holds at most 4096 scalar profiles.
+// ClearSpeechProfilesは解析キャッシュを消去する。
 func (b *Bank) ClearSpeechProfiles() {
 	b.validationMu.Lock()
 	defer b.validationMu.Unlock()
@@ -36,7 +43,7 @@ func (b *Bank) ClearSpeechProfiles() {
 }
 
 func (b *Bank) CalibrateSpeech(entry oto.Entry) SpeechProfile {
-	result := SpeechProfile{Version: 1, OriginalFixedMS: entry.Fixed, SuggestedFixedMS: entry.Fixed, Reason: "source-unavailable"}
+	result := SpeechProfile{Version: 2, OriginalFixedMS: entry.Fixed, SuggestedFixedMS: entry.Fixed, Reason: "source-unavailable"}
 	info, err := os.Stat(entry.Filename)
 	if err != nil {
 		return result
@@ -72,7 +79,7 @@ func measureSpeechProfile(wave []float64, rate int, entry oto.Entry, result Spee
 	}
 	result.TrimmedLengthMS = float64(len(wave)) * 1000 / float64(rate)
 	result.VowelTailMS = math.Max(0, result.TrimmedLengthMS-math.Max(0, entry.Fixed))
-	// Downsample for analysis only; the renderer retains the original samples.
+	// 解析時だけ8kHz付近まで間引く。
 	stride := max(1, rate/8000)
 	samples := make([]float64, 0, len(wave)/stride)
 	for i := 0; i+stride <= len(wave); i += stride {
@@ -83,6 +90,10 @@ func measureSpeechProfile(wave []float64, rate int, entry oto.Entry, result Spee
 		samples = append(samples, sum/float64(stride))
 	}
 	sampleRate := rate / stride
+	result.TransientMS, result.TransientDurationMS, result.TransientConfidence = measureSpeechTransient(samples, sampleRate, entry.Preutterance)
+	if entry.Fixed > entry.Preutterance+20 {
+		result.ReleaseTransientMS, result.ReleaseTransientDurationMS, result.ReleaseTransientConfidence = measureSpeechTransient(samples, sampleRate, entry.Fixed)
+	}
 	frame := max(16, sampleRate*40/1000)
 	hop := max(1, sampleRate*5/1000)
 	left := int(math.Max(entry.Preutterance, entry.Fixed-25) * float64(sampleRate) / 1000)
@@ -142,4 +153,54 @@ func measureSpeechProfile(wave []float64, rate int, entry oto.Entry, result Spee
 		result.Reason = "low-confidence"
 	}
 	return result
+}
+
+func measureSpeechTransient(samples []float64, sampleRate int, anchorMS float64) (float64, float64, float64) {
+	if sampleRate <= 0 || len(samples) < 32 || anchorMS <= 0 {
+		return 0, 0, 0
+	}
+	window := max(4, sampleRate*3/1000)
+	hop := max(1, sampleRate/1000)
+	center := int(anchorMS * float64(sampleRate) / 1000)
+	left := max(1, center-sampleRate*45/1000)
+	right := min(len(samples)-window, center+sampleRate*3/1000)
+	if right <= left {
+		return 0, 0, 0
+	}
+	values := make([]float64, 0, (right-left)/hop+1)
+	bestStart, best := left, 0.0
+	for start := left; start <= right; start += hop {
+		sum := 0.0
+		for index := start; index < start+window; index++ {
+			delta := samples[index] - samples[index-1]
+			sum += delta * delta
+		}
+		value := math.Sqrt(sum / float64(window))
+		values = append(values, value)
+		if value > best {
+			best, bestStart = value, start
+		}
+	}
+	if best <= 1e-8 || len(values) < 3 {
+		return 0, 0, 0
+	}
+	sorted := append([]float64(nil), values...)
+	sort.Float64s(sorted)
+	baseline := sorted[len(sorted)/2]
+	ratio := best / math.Max(1e-8, baseline)
+	confidence := math.Max(0, math.Min(1, (ratio-1)/4))
+	if confidence < .25 {
+		return 0, 0, confidence
+	}
+	threshold := baseline + (best-baseline)*.35
+	bestIndex := min(len(values)-1, max(0, (bestStart-left)/hop))
+	first, last := bestIndex, bestIndex
+	for first > 0 && values[first-1] >= threshold {
+		first--
+	}
+	for last+1 < len(values) && values[last+1] >= threshold {
+		last++
+	}
+	durationMS := float64((last-first)*hop+window) * 1000 / float64(sampleRate)
+	return float64(bestStart+window/2) * 1000 / float64(sampleRate), durationMS, confidence
 }

@@ -913,6 +913,20 @@ func TestStabilizeWorldlinePitchesKeepsOrdinaryMovement(t *testing.T) {
 	}
 }
 
+func TestStabilizeWorldlinePitchesCorrectsSubharmonicDrop(t *testing.T) {
+	got := stabilizeWorldlinePitches([]float64{207, 69, 205})
+	if math.Abs(got[1]-207) > 1 || got[0] != 207 || got[2] != 205 {
+		t.Fatalf("stabilized subharmonic pitches = %#v, want near [207, 207, 205]", got)
+	}
+}
+
+func TestStabilizeWorldlinePitchesCorrectsNearHalfPitch(t *testing.T) {
+	got := stabilizeWorldlinePitches([]float64{207, 115, 205})
+	if math.Abs(got[1]-230) > 1 || got[0] != 207 || got[2] != 205 {
+		t.Fatalf("stabilized near-half pitch = %#v, want near [207, 230, 205]", got)
+	}
+}
+
 func TestChooseBoundaryRepairKeepsNormalOrImprovesPeak(t *testing.T) {
 	const sampleRate = 1000
 	mix := make([]float64, 220)

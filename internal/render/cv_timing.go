@@ -212,15 +212,15 @@ func singleCVOnsetFadeInMS(synthesisPlan *plan.Plan, unit plan.Unit) float64 {
 	onset := singleCVOnset(synthesisPlan, unit)
 	switch strings.ToLower(strings.TrimSpace(onset)) {
 	case "p", "b", "t", "d", "k", "g", "q", "py", "by", "ty", "dy", "ky", "gy", "cl":
-		return 12
+		return 18
 	case "ch", "jh", "ts", "dz", "c", "j":
-		return 17
-	case "s", "sh", "f", "h", "z", "zh", "x", "v":
 		return 24
+	case "s", "sh", "f", "h", "z", "zh", "x", "v":
+		return 32
 	case "m", "n", "ny", "r", "l", "w", "y":
-		return 28
+		return 40
 	default:
-		return 20
+		return 36
 	}
 }
 

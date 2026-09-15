@@ -11,7 +11,7 @@ import (
 	"utautts/internal/voicebank"
 )
 
-const Version = 19
+const Version = 26
 
 type Config struct {
 	SpeechTiming    bool
@@ -155,9 +155,16 @@ type BoundaryRepairDecision struct {
 
 type Unit struct {
 	CodaPhones              []string                       `json:"coda_phones,omitempty"`
+	WorldRenderMode         string                         `json:"world_render_mode,omitempty"`
+	WorldRenderReason       string                         `json:"world_render_reason,omitempty"`
+	WorldGapRepairEligible  bool                           `json:"world_gap_repair_eligible,omitempty"`
+	WorldGapRepairReason    string                         `json:"world_gap_repair_reason,omitempty"`
 	BoundaryEnvelope        string                         `json:"boundary_envelope,omitempty"`
 	SpeechRetimeApplied     bool                           `json:"speech_retime_applied,omitempty"`
 	SpeechJoinApplied       bool                           `json:"speech_join_applied,omitempty"`
+	StopBurstApplied        bool                           `json:"stop_burst_applied,omitempty"`
+	StopBurstGain           float64                        `json:"stop_burst_gain,omitempty"`
+	StopBurstReason         string                         `json:"stop_burst_reason,omitempty"`
 	CVTimingApplied         bool                           `json:"cv_timing_applied,omitempty"`
 	CVTimingWarnings        []string                       `json:"cv_timing_warnings,omitempty"`
 	SpeechProfile           *voicebank.SpeechProfile       `json:"speech_profile,omitempty"`
@@ -307,7 +314,7 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		mainUnit := unitFromSelection(&selection, position, cursor, duration, prediction, "mora")
 		// VCVの境界は発話タイミング補正なしでも解析し、伸縮だけ設定に従う。
 		isVCV := aliasKind == voicebank.AliasVCV || voicebank.IsContextVCVAlias(selection.Alias)
-		if (cfg.SpeechTiming || result.SingleCV || isVCV) && mora.Vowel != "" && mora.Vowel != "cl" && !mainUnit.Silent {
+		if (cfg.SpeechTiming || result.SingleCV || isVCV || stopPhone(mora.Consonant)) && mora.Vowel != "" && mora.Vowel != "cl" && !mainUnit.Silent {
 			profile := bank.CalibrateSpeech(selection.Entry)
 			mainUnit.SpeechProfile = &profile
 			if profile.Applied && !result.SingleCV && cfg.SpeechTiming {
@@ -326,12 +333,16 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			for index := range selection.Endings {
 				start, span := endingStart+float64(index)*endingDuration, endingDuration
 				if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil && len(mora.Aliases.EndingPhones) > 0 {
-					start, span = speechEndingTiming(mora, selection.Endings[index].EndingIndex, cursor, duration)
+					start, span = speechEndingTiming(mora, phoneSpans, selection.Endings[index].EndingIndex, cursor, duration)
 				}
 				endingUnit := unitFromSelection(&selection.Endings[index], position, start, span, prediction, "ending")
 				endingIndex := selection.Endings[index].EndingIndex
 				if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil && endingIndex >= 0 && endingIndex < len(mora.Aliases.EndingPhones) {
 					endingUnit.CodaPhones = append([]string(nil), mora.Aliases.EndingPhones[endingIndex]...)
+				}
+				if containsStopPhone(endingUnit.CodaPhones) && !endingUnit.Silent {
+					profile := bank.CalibrateSpeech(selection.Endings[index].Entry)
+					endingUnit.SpeechProfile = &profile
 				}
 				result.Units = append(result.Units, endingUnit)
 			}
@@ -340,6 +351,24 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 	}
 	result.DurationMS = cursor
 	return result, nil
+}
+
+func containsStopPhone(phones []string) bool {
+	for _, phone := range phones {
+		if stopPhone(phone) {
+			return true
+		}
+	}
+	return false
+}
+
+func stopPhone(phone string) bool {
+	switch strings.ToLower(strings.TrimSpace(phone)) {
+	case "p", "b", "t", "d", "k", "g", "q", "cl", "py", "by", "ty", "dy", "ky", "gy":
+		return true
+	default:
+		return false
+	}
 }
 
 func phoneSpansForMora(mora frontend.Mora, duration float64, weights [][]float64, position int) ([]float64, error) {

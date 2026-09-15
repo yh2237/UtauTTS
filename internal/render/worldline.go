@@ -35,6 +35,7 @@ func renderUtauTTSWorldPhrase(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM,
 type worldlineManifestUnit struct {
 	Speech            *provider.WorldSpeechTiming `json:"speech,omitempty"`
 	LegacyMix         bool                        `json:"legacy_mix,omitempty"`
+	GapRepair         bool                        `json:"gap_repair,omitempty"`
 	CacheKey          string                      `json:"cache_key,omitempty"`
 	Source            string                      `json:"source"`
 	FRQPath           string                      `json:"frq_path,omitempty"`
@@ -95,7 +96,10 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	var phoneTimings []openUtauPhoneTiming
 	phraseStartMS := 0.0
 	phraseTiming := true
-	legacyMix := legacyJapaneseContinuousMix(synthesisPlan)
+	legacyMix, err := worldlineLegacyMix(synthesisPlan, cfg.ProviderOptions.Worldline.MixMode)
+	if err != nil {
+		return nil, err
+	}
 	if phraseTiming {
 		phoneUnits := worldlinePhoneTimingUnits(synthesisPlan, cfg.ReleaseMS)
 		if synthesisPlan.SingleCV {
@@ -115,6 +119,13 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		unit.SpeechRetimeApplied = false
 		unit.BoundaryEnvelope = ""
 		unit.SpeechJoinApplied = false
+		unit.StopBurstApplied = false
+		unit.StopBurstGain = 0
+		unit.StopBurstReason = "not-required"
+		unit.WorldRenderMode = "adaptive"
+		unit.WorldRenderReason = "adaptive-default"
+		unit.WorldGapRepairEligible = false
+		unit.WorldGapRepairReason = "not-required"
 		vcvUnit := unit.Role == "mora" && isVCVUnit(*unit)
 		vcvSpeech := vcvUnit && synthesisPlan.SpeechTiming
 		timings[i] = worldlineTiming(synthesisPlan, *unit, cfg.ReleaseMS)
@@ -306,6 +317,13 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		cacheKey += fmt.Sprintf("|fs=%d", sampleRate)
 		var speech *provider.WorldSpeechTiming
 		stopProtected := worldlineStopProtection(synthesisPlan, *unit)
+		if speechStop(synthesisPlan, *unit) {
+			if stopProtected {
+				unit.StopBurstReason = "transient-detected"
+			} else {
+				unit.StopBurstReason = "transient-unreliable"
+			}
+		}
 		protectStopOnly := providerID == "utautts-world-phrase" && !legacyMix && unit.Role == "mora" && !singleCVUnit && !vcvUnit && !vcvSpeech && stopProtected
 		if providerID == "utautts-world-phrase" && unit.Role == "mora" && (singleCVUnit || vcvSpeech || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied || protectStopOnly) {
 			targetOnset := skipMS + unit.NoteStartMS + leadingMS - positionMS
@@ -314,6 +332,10 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 			}
 			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS,
 				TargetOnsetMS: targetOnset, ProtectStop: stopProtected, PreserveStopOnly: protectStopOnly}
+			if unit.SpeechProfile != nil && unit.SpeechProfile.TransientConfidence >= .5 {
+				speech.SourceTransientMS = unit.SpeechProfile.TransientMS
+				speech.SourceTransientDurationMS = unit.SpeechProfile.TransientDurationMS
+			}
 			if singleCVUnit || vcvSpeech {
 				speech.TargetFixedMS = timing.consonantMS
 			}
@@ -328,12 +350,27 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 			}
 		}
 		if codaRelease {
-			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS, TargetOnsetMS: skipMS + unit.NoteStartMS + leadingMS - positionMS, CodaRelease: true, ProtectStop: codaReleaseStop(*unit)}
+			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS, TargetOnsetMS: skipMS + unit.NoteStartMS + leadingMS - positionMS, CodaRelease: true, ProtectStop: stopProtected}
+			if unit.SpeechProfile != nil && unit.SpeechProfile.ReleaseTransientConfidence >= .45 {
+				speech.SourceTransientMS = unit.SpeechProfile.ReleaseTransientMS
+				speech.SourceTransientDurationMS = unit.SpeechProfile.ReleaseTransientDurationMS
+			}
 		}
-		// 日本語の連続音はv1.3.0互換の混合を使い、単独音・発話タイミング補正・多言語は新補正を使う。
+		gapRepair, err := worldlineGapRepair(synthesisPlan, i, legacyMix, cfg.ProviderOptions.Worldline.GapRepairMode)
+		if err != nil {
+			return nil, err
+		}
+		if legacyMix {
+			unit.WorldRenderMode = "v1.3-compatible"
+			unit.WorldRenderReason = "japanese-continuous-low-processing"
+		}
+		unit.WorldGapRepairEligible = gapRepair
+		if gapRepair {
+			unit.WorldGapRepairReason = "same-vowel-voiced-boundary"
+		}
 		manifest.Units = append(manifest.Units, worldlineManifestUnit{
 
-			Speech: speech, LegacyMix: legacyMix,
+			Speech: speech, LegacyMix: legacyMix, GapRepair: gapRepair,
 			CacheKey: cacheKey,
 			Source:   source, FRQPath: frqPath, PositionMS: positionMS, SkipMS: skipMS,
 			LengthMS: lengthMS, FadeInMS: fadeInMS,
@@ -379,6 +416,13 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		unit := &synthesisPlan.Units[result.UnitIndex]
 		unit.SpeechRetimeApplied = result.RetimeApplied
 		unit.SpeechJoinApplied = result.JoinApplied
+		unit.StopBurstApplied = result.StopBurstApplied
+		unit.StopBurstGain = result.StopBurstGain
+		if result.StopBurstApplied {
+			unit.StopBurstReason = "transient-preserved"
+		} else if unit.StopBurstReason == "transient-detected" {
+			unit.StopBurstReason = "transient-outside-output"
+		}
 		if result.RetimeApplied {
 			unit.EffectiveConsonantMS = result.TargetFixedMS
 		}
@@ -403,12 +447,65 @@ func legacyJapaneseContinuousMix(synthesisPlan *plan.Plan) bool {
 	return language == "ja" || phonemizer == "ja" || strings.HasPrefix(phonemizer, "ja-")
 }
 
+func worldlineLegacyMix(synthesisPlan *plan.Plan, mode string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", "auto":
+		return legacyJapaneseContinuousMix(synthesisPlan), nil
+	case "v1.3", "legacy":
+		return true, nil
+	case "adaptive":
+		return false, nil
+	default:
+		return false, fmt.Errorf("unknown WORLD mix mode %q", mode)
+	}
+}
+
+func worldlineGapRepair(synthesisPlan *plan.Plan, unitIndex int, legacyMix bool, mode string) (bool, error) {
+	if !legacyMix {
+		return false, nil
+	}
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", "auto":
+		return worldlineGapRepairEligible(synthesisPlan, unitIndex), nil
+	case "on":
+		return unitIndex > 0, nil
+	case "off":
+		return false, nil
+	default:
+		return false, fmt.Errorf("unknown WORLD gap repair mode %q", mode)
+	}
+}
+
+// 低加工経路では同じ母音が直接続く境界だけを補間する。
+func worldlineGapRepairEligible(synthesisPlan *plan.Plan, unitIndex int) bool {
+	if synthesisPlan == nil || unitIndex <= 0 || unitIndex >= len(synthesisPlan.Units) {
+		return false
+	}
+	previous, current := synthesisPlan.Units[unitIndex-1], synthesisPlan.Units[unitIndex]
+	if previous.Silent || current.Silent || previous.Role != "mora" || current.Role != "mora" ||
+		previous.Position+1 != current.Position || previous.Position < 0 || current.Position >= len(synthesisPlan.Morae) {
+		return false
+	}
+	previousMora, currentMora := synthesisPlan.Morae[previous.Position], synthesisPlan.Morae[current.Position]
+	return !previousMora.Pause && !currentMora.Pause && currentMora.Consonant == "" &&
+		previousMora.Vowel != "" && previousMora.Vowel == currentMora.Vowel
+}
+
 // 生波形補強は英語の破裂音と単独音だけに使う。日本語VCVでは隣接音や録音ノイズを重ねない。
 func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit) bool {
 	if synthesisPlan == nil {
 		return false
 	}
 	if !speechStop(synthesisPlan, unit) {
+		return false
+	}
+	if unit.SpeechProfile == nil {
+		return false
+	}
+	if unit.Role == "ending" || len(unit.CodaPhones) > 0 {
+		return unit.SpeechProfile.ReleaseTransientConfidence >= .45 && unit.SpeechProfile.ReleaseTransientMS > 0
+	}
+	if unit.SpeechProfile.TransientConfidence < .5 || unit.SpeechProfile.TransientMS <= 0 {
 		return false
 	}
 	language := strings.ToLower(strings.TrimSpace(synthesisPlan.Language))
@@ -490,7 +587,7 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg Config, manifest worldli
 	}
 	for index, unit := range manifest.Units {
 		converted := provider.WorldlineUnit{
-			Speech: unit.Speech, LegacyMix: unit.LegacyMix,
+			Speech: unit.Speech, LegacyMix: unit.LegacyMix, GapRepair: unit.GapRepair,
 			CacheKey: unit.CacheKey, Source: unit.Source, FRQPath: unit.FRQPath,
 			PositionMS: unit.PositionMS, SkipMS: unit.SkipMS, LengthMS: unit.LengthMS,
 			FadeInMS: unit.FadeInMS, FadeOutMS: unit.FadeOutMS, OffsetMS: unit.OffsetMS,
@@ -712,14 +809,34 @@ func measureWorldlinePitches(synthesisPlan *plan.Plan, cache *sourceCache) ([]fl
 	return stabilizeWorldlinePitches(values), sampleRate, nil
 }
 
-// 短い有声録音の倍音誤検出を低域基準で補正する。
+// 短い有声録音の倍音と分周誤検出を近い原音の高さへ補正する。
 func stabilizeWorldlinePitches(values []float64) []float64 {
 	result := append([]float64(nil), values...)
+	reference := medianFloat(nonzeroFloats(values))
 	for index, value := range values {
 		if value <= 0 {
 			continue
 		}
-		neighbor := nearestWorldlinePitch(values, index)
+		if reference > 0 && value < reference*.67 {
+			best, bestDistance := value, math.Inf(1)
+			for _, factor := range []float64{2, 3, 4} {
+				candidate := value * factor
+				ratio := candidate / reference
+				if ratio < .87 || ratio > 1.15 {
+					continue
+				}
+				if distance := math.Abs(math.Log2(ratio)); distance < bestDistance {
+					best, bestDistance = candidate, distance
+				}
+			}
+			result[index] = best
+		}
+	}
+	for index, value := range values {
+		if value <= 0 || result[index] != value {
+			continue
+		}
+		neighbor := nearestWorldlinePitch(result, index)
 		if neighbor <= 0 {
 			continue
 		}

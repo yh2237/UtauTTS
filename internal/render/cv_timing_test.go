@@ -24,7 +24,7 @@ func TestNormalizeSingleCVTimingProtectsOnsetAndVowelTail(t *testing.T) {
 	if got.preutteranceMS > 85 || got.preutteranceMS < 80 {
 		t.Fatalf("preutterance = %.3f", got.preutteranceMS)
 	}
-	if got.overlapMS < got.preutteranceMS-13 || math.Abs(got.preutteranceMS-got.overlapMS-12) > 1 {
+	if got.overlapMS < got.preutteranceMS-19 || math.Abs(got.preutteranceMS-got.overlapMS-18) > 1 {
 		t.Fatalf("onset fade was not shortened: %+v", got)
 	}
 	minimumTail := math.Max(singleCVMinimumVowelTailMS, unit.DurationMS*singleCVVowelTailRatio)
@@ -113,11 +113,11 @@ func TestSingleCVBoundaryEligibilityProtectsStops(t *testing.T) {
 	}
 }
 
-func TestSingleCVWorldOverlapKeepsOnsetFadeShort(t *testing.T) {
+func TestSingleCVWorldOverlapKeepsOnsetFadeControlled(t *testing.T) {
 	p := &plan.Plan{SingleCV: true, Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
 	unit := plan.Unit{Position: 0, PreutteranceMS: 126, OverlapMS: 80}
-	if got := singleCVWorldOverlapMS(p, unit, 84); got != 12 {
-		t.Fatalf("world overlap = %.3f, want 12", got)
+	if got := singleCVWorldOverlapMS(p, unit, 84); got != 18 {
+		t.Fatalf("world overlap = %.3f, want 18", got)
 	}
 	unit.OverlapMS = 0
 	if got := singleCVWorldOverlapMS(p, unit, 84); got != 0 {

@@ -61,6 +61,8 @@ type ClassicOptions struct {
 type WorldlineProviderOptions struct {
 	SpeechPitchReference bool
 	ExactLength          bool
+	MixMode              string
+	GapRepairMode        string
 }
 
 func (cfg Config) resource(key engine.ResourceKey) string {
