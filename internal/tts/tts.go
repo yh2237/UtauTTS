@@ -330,27 +330,15 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
-	if language == frontend.LanguageJapanese {
-		japaneseSpeechPhones(morae)
-	}
 	targetPrior, err := resolveTargetPrior(cfg)
 	if err != nil {
 		return nil, err
 	}
-	phoneWeights := languagePhoneWeights(language, morae)
-	phoneTimingSource := "language-phone-v1"
 	if targetPrior != nil {
 		if language != frontend.LanguageJapanese {
 			return nil, fmt.Errorf("target prior supports Japanese only, got %q", language)
 		}
-		// PhoneSpansと同じ音素表現を作り、音源候補は変えない。
 		japaneseSpeechPhones(morae)
-		strength := cfg.TargetPriorStrength
-		if strength <= 0 {
-			strength = 1
-		}
-		phoneWeights = targetPriorPhoneWeights(targetPrior, morae, strength, cfg.TargetPriorMinContext)
-		phoneTimingSource = "jsut-target-prior"
 	}
 	applyLanguageSpeechProfile(language, &cfg)
 	loadedProsody, err := resolveProsodyModelForLanguage(cfg, language)
@@ -366,6 +354,23 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	})
 	if err != nil {
 		return nil, fmt.Errorf("resolve voicebank units: %w", err)
+	}
+	phoneWeights := [][]float64(nil)
+	phoneTimingSource := ""
+	if language == frontend.LanguageJapanese && !cfg.SpeechTiming && targetPrior == nil && voicebank.IsSingleCVSelections(selections) {
+		japaneseSpeechPhones(morae)
+	}
+	if shouldUseLanguagePhoneTiming(language, cfg.SpeechTiming, targetPrior != nil, voicebank.IsSingleCVSelections(selections)) {
+		phoneWeights = languagePhoneWeights(language, morae)
+		phoneTimingSource = "language-phone-v1"
+	}
+	if targetPrior != nil {
+		strength := cfg.TargetPriorStrength
+		if strength <= 0 {
+			strength = 1
+		}
+		phoneWeights = targetPriorPhoneWeights(targetPrior, morae, strength, cfg.TargetPriorMinContext)
+		phoneTimingSource = "jsut-target-prior"
 	}
 	var predictions []prosody.Prediction
 	if language == frontend.LanguageEnglish {
@@ -1071,9 +1076,15 @@ func effectiveIntonationStrength(cfg Config) float64 {
 	return cfg.IntonationStrength
 }
 
+// 自動曲線使用時も音源由来の補正を弱く残す。
+const automaticSourceIntonationBlend = 0.25
+
 func rendererIntonationStrength(cfg Config, automatic *render.PitchCurve) float64 {
 	if automatic != nil {
-		return 0
+		if !applyPitchEnabled(cfg) {
+			return 0
+		}
+		return automaticSourceIntonationBlend
 	}
 	return effectiveIntonationStrength(cfg)
 }

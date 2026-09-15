@@ -7,6 +7,13 @@ import (
 	"utautts/internal/frontend"
 )
 
+func shouldUseLanguagePhoneTiming(language string, speechTiming, targetPrior, singleCV bool) bool {
+	if language != frontend.LanguageJapanese {
+		return true
+	}
+	return speechTiming || targetPrior || singleCV
+}
+
 func languagePhoneWeights(language string, morae []frontend.Mora) [][]float64 {
 	result := make([][]float64, len(morae))
 	for i, mora := range morae {
