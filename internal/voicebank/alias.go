@@ -109,7 +109,7 @@ func IsSingleCVSelection(selection Selection) bool {
 func IsSingleCVSelections(selections []Selection) bool {
 	seen := false
 	for _, selection := range selections {
-		if selection.Mora.Pause {
+		if selection.Mora.Pause || isSyntheticClosure(selection) {
 			continue
 		}
 		seen = true
@@ -118,6 +118,10 @@ func IsSingleCVSelections(selections []Selection) bool {
 		}
 	}
 	return seen
+}
+
+func isSyntheticClosure(selection Selection) bool {
+	return selection.Alias == "<closure>" && selection.Kind == AliasOther && selection.Entry.Filename == ""
 }
 
 func isVowelContext(value string) bool {

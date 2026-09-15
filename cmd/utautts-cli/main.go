@@ -211,6 +211,11 @@ func main() {
 		log.Fatal(err)
 	}
 	tts.ApplyResolvedEngine(&synthConfig, resolvedEngine)
+	worldlineOptions, worldlineErr := synth.DefaultWorldlineProviderOptions(resolvedEngine)
+	if worldlineErr != nil {
+		log.Fatal(worldlineErr)
+	}
+	providerOptions.Worldline = worldlineOptions
 	if resolvedEngine.Provider.ID == "utau-external-resampler" {
 		classicTools, toolsErr := resolver.ResolveClassicTools(resampler, wavtool)
 		if toolsErr != nil {

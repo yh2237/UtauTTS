@@ -57,6 +57,7 @@ type UnitRenderReport struct {
 	WorldGapRepairEligible  bool
 	WorldGapRepairReason    string
 	SpeechJoinApplied       bool
+	SpeechTransitionApplied bool
 	SpeechRetimeApplied     bool
 	StopBurstApplied        bool
 	StopBurstGain           float64
@@ -154,6 +155,7 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 			WorldGapRepairEligible:  unit.WorldGapRepairEligible,
 			WorldGapRepairReason:    unit.WorldGapRepairReason,
 			SpeechJoinApplied:       unit.SpeechJoinApplied,
+			SpeechTransitionApplied: unit.SpeechTransitionApplied,
 			SpeechRetimeApplied:     unit.SpeechRetimeApplied,
 			StopBurstApplied:        unit.StopBurstApplied,
 			StopBurstGain:           unit.StopBurstGain,
@@ -204,6 +206,7 @@ func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 		unit.CVTimingWarnings = append([]string(nil), unitReport.CVTimingWarnings...)
 		unit.BoundaryEnvelope = unitReport.BoundaryEnvelope
 		unit.SpeechJoinApplied = unitReport.SpeechJoinApplied
+		unit.SpeechTransitionApplied = unitReport.SpeechTransitionApplied
 		unit.TimingScale = unitReport.TimingScale
 		unit.EffectivePreutteranceMS = unitReport.EffectivePreutteranceMS
 		unit.EffectiveConsonantMS = unitReport.EffectiveConsonantMS

@@ -5,8 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"utautts/internal/engine"
+	"utautts/internal/jsut"
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
@@ -186,6 +188,11 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		}
 	}
 	tts.ApplyResolvedEngine(&cfg, resolvedEngine)
+	worldlineOptions, worldlineErr := DefaultWorldlineProviderOptions(resolvedEngine)
+	if worldlineErr != nil {
+		return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: %v", ErrUnavailable, worldlineErr)
+	}
+	providerOptions.Worldline = worldlineOptions
 	// Classic UTAUは公開Renderer IDではなく解決済みproviderで判定する。
 	if requireVoicebank && resolvedEngine.Provider.ID == "utau-external-resampler" {
 		tools, toolsErr := s.ResolveClassicTools(request.Resampler, request.Wavtool)
@@ -196,6 +203,31 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		providerOptions.Classic.WavtoolPath = tools.Wavtool.Path
 	}
 	return cfg, string(resolvedEngine.PublicID()), providerOptions, nil
+}
+
+// DefaultWorldlineProviderOptionsは同梱の遷移モデルを各入口で共通に解決する。
+func DefaultWorldlineProviderOptions(resolved engine.ResolvedEngine) (render.WorldlineProviderOptions, error) {
+	if resolved.Provider.ID != "utautts-world-phrase" {
+		return render.WorldlineProviderOptions{}, nil
+	}
+	modelPath := resolved.Resource(engine.ResourceWorldTransitionModel)
+	if modelPath == "" {
+		return render.WorldlineProviderOptions{}, nil
+	}
+	info, err := os.Stat(modelPath)
+	if os.IsNotExist(err) {
+		return render.WorldlineProviderOptions{}, nil
+	}
+	if err != nil {
+		return render.WorldlineProviderOptions{}, fmt.Errorf("stat WORLD transition model: %w", err)
+	}
+	if info.IsDir() {
+		return render.WorldlineProviderOptions{}, fmt.Errorf("WORLD transition model must be a file")
+	}
+	if _, err := jsut.LoadTransitionTCN(modelPath); err != nil {
+		return render.WorldlineProviderOptions{}, fmt.Errorf("load WORLD transition model: %w", err)
+	}
+	return render.WorldlineProviderOptions{TransitionModelPath: modelPath, TransitionStrength: .20}, nil
 }
 
 // ResolveRenderer resolves the user-facing Renderer ID to its provider and

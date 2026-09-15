@@ -14,7 +14,7 @@ import (
 func TestSpeechProfileBoundedAndInvalidated(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "source.wav")
 	pcm := &audio.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 8000)}
-	for i := range pcm.Data {
+	for i := 800; i < 7200; i++ {
 		pcm.Data[i] = int16(8000 * math.Sin(2*math.Pi*200*float64(i)/16000))
 	}
 	if err := audio.WriteWav(path, pcm); err != nil {
@@ -28,6 +28,12 @@ func TestSpeechProfileBoundedAndInvalidated(t *testing.T) {
 	}
 	if math.Abs(profile.TrimmedLengthMS-500) > 0.01 || math.Abs(profile.VowelTailMS-400) > 0.01 {
 		t.Fatalf("source metrics: %+v", profile)
+	}
+	if profile.ActivityStartMS < 40 || profile.ActivityStartMS > 60 || profile.ActivityEndMS < 440 || profile.ActivityEndMS > 460 || profile.ActivityConfidence < .5 {
+		t.Fatalf("activity: %+v", profile)
+	}
+	if profile.VoicingStartMS <= 0 || profile.TransitionEndMS < profile.TransitionStartMS || profile.TransitionConfidence <= 0 {
+		t.Fatalf("voicing landmarks: %+v", profile)
 	}
 	for i := range pcm.Data {
 		pcm.Data[i] = 0

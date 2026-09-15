@@ -61,6 +61,9 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 	report := make(map[int]provider.WorldSpeechResult)
 	if input.Engine == "utautts-world-phrase" {
 		report = applyWorldSpeechJoins(input, &result)
+		if err := applyWorldTransitionModel(input, &result, report); err != nil {
+			return nil, err
+		}
 		for index, item := range input.Units {
 			if item.Speech == nil {
 				continue

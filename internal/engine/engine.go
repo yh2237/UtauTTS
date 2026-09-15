@@ -46,12 +46,13 @@ func (capabilities Capabilities) Supports(requested Capabilities) bool {
 type ResourceKey string
 
 const (
-	ResourceWorldlineBridge    ResourceKey = "worldline_bridge"
-	ResourceWorldEngine        ResourceKey = "world_engine"
-	ResourceDiffSingerBridge   ResourceKey = "diffsinger_bridge"
-	ResourceClassicResampler   ResourceKey = "classic_resampler"
-	ResourceClassicWavtool     ResourceKey = "classic_wavtool"
-	ResourceProviderExecutable ResourceKey = "provider_executable"
+	ResourceWorldlineBridge      ResourceKey = "worldline_bridge"
+	ResourceWorldEngine          ResourceKey = "world_engine"
+	ResourceWorldTransitionModel ResourceKey = "world_transition_model"
+	ResourceDiffSingerBridge     ResourceKey = "diffsinger_bridge"
+	ResourceClassicResampler     ResourceKey = "classic_resampler"
+	ResourceClassicWavtool       ResourceKey = "classic_wavtool"
+	ResourceProviderExecutable   ResourceKey = "provider_executable"
 )
 
 // ResourceRequirement declares a runtime dependency of a provider.

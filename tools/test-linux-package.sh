@@ -122,7 +122,8 @@ for required in \
   "${server_root}/runtime/licenses/PYTHON_LICENSE.txt" \
   "${server_root}/runtime/licenses/PYINSTALLER_COPYING.txt" \
   "${server_root}/runtime/utautts-worldline-bridge" \
-  "${server_root}/runtime/utautts-world-engine.so"; do
+  "${server_root}/runtime/utautts-world-engine.so" \
+  "${server_root}/renderer/utautts-world-phrase/models/jsut-cv-transition-tcn-v1.json"; do
   [ -f "${required}" ] || fail "required package file is missing: ${required}"
 done
 grep -q 'system Qt' "${gui_root}/THIRD_PARTY_NOTICES.txt" \

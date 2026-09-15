@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"utautts/internal/frontend"
 	"utautts/internal/oto"
 )
 
@@ -83,6 +84,21 @@ func TestInitialContextDoesNotCountAsRealVCV(t *testing.T) {
 	selections[1] = Selection{Alias: "a き", Kind: AliasVCV}
 	if IsSingleCVSelections(selections) {
 		t.Fatal("real VCV selection was treated as standalone CV")
+	}
+}
+
+func TestSyntheticClosureDoesNotDisableSingleCV(t *testing.T) {
+	selections := []Selection{
+		{Alias: "か", Kind: AliasCV},
+		{Alias: "<closure>", Kind: AliasOther, Mora: frontend.Mora{Vowel: "cl"}},
+		{Alias: "ぱ", Kind: AliasCV},
+	}
+	if !IsSingleCVSelections(selections) {
+		t.Fatal("synthetic closure disabled single CV processing")
+	}
+	selections[1].Entry.Filename = "closure.wav"
+	if IsSingleCVSelections(selections) {
+		t.Fatal("recorded non-CV unit was ignored")
 	}
 }
 

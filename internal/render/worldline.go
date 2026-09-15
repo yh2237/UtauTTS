@@ -119,6 +119,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		unit.SpeechRetimeApplied = false
 		unit.BoundaryEnvelope = ""
 		unit.SpeechJoinApplied = false
+		unit.SpeechTransitionApplied = false
 		unit.StopBurstApplied = false
 		unit.StopBurstGain = 0
 		unit.StopBurstReason = "not-required"
@@ -330,7 +331,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 			if singleCVUnit || vcvSpeech {
 				targetOnset = timing.preutteranceMS
 			}
-			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS,
+			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: speechSourceOnsetMS(*unit),
 				TargetOnsetMS: targetOnset, ProtectStop: stopProtected, PreserveStopOnly: protectStopOnly}
 			if unit.SpeechProfile != nil && unit.SpeechProfile.TransientConfidence >= .5 {
 				speech.SourceTransientMS = unit.SpeechProfile.TransientMS
@@ -340,9 +341,14 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 				speech.TargetFixedMS = timing.consonantMS
 			}
 			if i > 0 {
-				if singleCVUnit && singleCVMoraBoundaryEligible(synthesisPlan, i) && !singleCVProtectedOnset(synthesisPlan, *unit) {
-					speech.VowelJoin = true
+				if singleCVUnit && singleCVMoraBoundaryEligible(synthesisPlan, i) {
+					speech.VowelJoin = !singleCVProtectedOnset(synthesisPlan, *unit)
 					speech.TargetJoinMS = timing.preutteranceMS
+					speech.TransitionLeftPhone = synthesisPlan.Morae[i-1].Vowel
+					speech.TransitionRightPhone = singleCVOnset(synthesisPlan, *unit)
+					if speech.TransitionRightPhone == "" {
+						speech.TransitionRightPhone = synthesisPlan.Morae[i].Vowel
+					}
 				} else {
 					speech.VowelJoin = !synthesisPlan.Units[i-1].Silent && speechVowelJoin(synthesisPlan,
 						renderedUnit{index: i - 1, unit: synthesisPlan.Units[i-1]}, renderedUnit{index: i, unit: *unit})
@@ -416,6 +422,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		unit := &synthesisPlan.Units[result.UnitIndex]
 		unit.SpeechRetimeApplied = result.RetimeApplied
 		unit.SpeechJoinApplied = result.JoinApplied
+		unit.SpeechTransitionApplied = result.TransitionApplied
 		unit.StopBurstApplied = result.StopBurstApplied
 		unit.StopBurstGain = result.StopBurstGain
 		if result.StopBurstApplied {
@@ -436,6 +443,15 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		pcm.Data = append(pcm.Data, make([]int16, minimumFrames-len(pcm.Data))...)
 	}
 	return pcm, nil
+}
+
+func speechSourceOnsetMS(unit plan.Unit) float64 {
+	profile := unit.SpeechProfile
+	if profile == nil || profile.VoicingConfidence < .65 || profile.TransitionConfidence < .65 ||
+		profile.VoicingStartMS <= 0 || math.Abs(profile.VoicingStartMS-unit.PreutteranceMS) > 25 {
+		return unit.PreutteranceMS
+	}
+	return profile.VoicingStartMS
 }
 
 func legacyJapaneseContinuousMix(synthesisPlan *plan.Plan) bool {
@@ -582,6 +598,7 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg Config, manifest worldli
 	}
 	worldline := provider.WorldlineOptions{
 		Engine: manifest.Engine, SampleRate: manifest.SampleRate, ExactLength: cfg.ProviderOptions.Worldline.ExactLength,
+		TransitionModelPath: cfg.ProviderOptions.Worldline.TransitionModelPath, TransitionStrength: cfg.ProviderOptions.Worldline.TransitionStrength,
 		F0Curve: append([]float64(nil), manifest.F0Curve...),
 		Units:   make([]provider.WorldlineUnit, len(manifest.Units)),
 	}

@@ -1,12 +1,14 @@
 package synth
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"utautts/internal/engine"
+	"utautts/internal/jsut"
 	"utautts/internal/plugin"
 )
 
@@ -125,4 +127,57 @@ func TestSynthesisConfigRejectsUnavailableRendererRuntime(t *testing.T) {
 	if _, _, _, err := service.config(Request{Renderer: "world"}, true); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("unavailable runtime error = %v", err)
 	}
+}
+
+func TestWorldTransitionModelIsEnabledWhenDeclared(t *testing.T) {
+	directory := t.TempDir()
+	modelPath := filepath.Join(directory, "transition.json")
+	if err := os.WriteFile(modelPath, mustTransitionTCNJSON(t), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	bridgePath := filepath.Join(directory, "bridge")
+	enginePath := filepath.Join(directory, "world")
+	for _, path := range []string{bridgePath, enginePath} {
+		if err := os.WriteFile(path, []byte("runtime"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	renderer := testRenderer("world", "utautts-world-phrase")
+	renderer.Resources = map[string]plugin.RendererResource{
+		"world_engine":           {Path: enginePath, Required: true},
+		"worldline_bridge":       {Path: bridgePath, Required: true, Executable: true},
+		"world_transition_model": {Path: modelPath},
+	}
+	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{renderer}}, "world", "", "", "", testVoicebankResolver{path: "voicebank"})
+	_, _, options, err := service.config(Request{Renderer: "world"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options.Worldline.TransitionModelPath != modelPath || options.Worldline.TransitionStrength != .20 {
+		t.Fatalf("transition options = %#v", options.Worldline)
+	}
+}
+
+func mustTransitionTCNJSON(t *testing.T) []byte {
+	t.Helper()
+	layer := func(outputs, inputs, kernel int) jsut.TransitionLayer {
+		weight := make([][][]float64, outputs)
+		for output := range weight {
+			weight[output] = make([][]float64, inputs)
+			for input := range weight[output] {
+				weight[output][input] = make([]float64, kernel)
+			}
+		}
+		return jsut.TransitionLayer{Weight: weight, Bias: make([]float64, outputs)}
+	}
+	model := jsut.TransitionTCN{Version: 1, Kind: "jsut_cv_transition_tcn", ID: "test", PositionBins: 3,
+		Phones: []string{"a"}, InputSize: 11, HiddenSize: 1, OutputSize: 2, OutputScale: 20,
+		Layers: map[string]jsut.TransitionLayer{
+			"input": layer(1, 11, 1), "conv1": layer(1, 1, 3), "conv2": layer(1, 1, 3), "output": layer(2, 1, 1),
+		}}
+	data, err := json.Marshal(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
 }

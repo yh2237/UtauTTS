@@ -141,6 +141,7 @@ try {
         foreach ($rendererId in @('waveform', 'classic-utau', 'utautts-world-phrase')) {
             Assert-Path (Join-Path $packageRoot "renderer/$rendererId/renderer.json") "renderer manifest $rendererId"
         }
+		Assert-Path (Join-Path $packageRoot 'renderer/utautts-world-phrase/models/jsut-cv-transition-tcn-v1.json') 'WORLD transition model'
         if ($Profile -eq 'Full') {
             Assert-Path (Join-Path $packageRoot 'renderer/diffsinger/renderer.json') 'DiffSinger renderer manifest'
         } else {

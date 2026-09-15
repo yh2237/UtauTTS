@@ -56,7 +56,8 @@ for required in \
   "${server_root}/runtime/utautts-world-engine.dylib" \
   "${gui_root}/models/frame-intonation-v8.json" \
   "${gui_root}/renderer/waveform/renderer.json" \
-  "${gui_root}/renderer/utautts-world-phrase/renderer.json"; do
+  "${gui_root}/renderer/utautts-world-phrase/renderer.json" \
+  "${gui_root}/renderer/utautts-world-phrase/models/jsut-cv-transition-tcn-v1.json"; do
   [[ -f "${required}" ]] || fail "required package file is missing: ${required}"
 done
 for package_root in "${gui_root}" "${server_root}"; do

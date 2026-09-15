@@ -63,6 +63,8 @@ type WorldlineProviderOptions struct {
 	ExactLength          bool
 	MixMode              string
 	GapRepairMode        string
+	TransitionModelPath  string
+	TransitionStrength   float64
 }
 
 func (cfg Config) resource(key engine.ResourceKey) string {

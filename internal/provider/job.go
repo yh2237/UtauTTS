@@ -43,11 +43,13 @@ type UnitRendererOptions struct {
 
 // WorldlineOptionsはWORLD固有の入力を示す。
 type WorldlineOptions struct {
-	Engine      string          `json:"engine"`
-	SampleRate  int             `json:"sample_rate"`
-	ExactLength bool            `json:"exact_length,omitempty"`
-	F0Curve     []float64       `json:"f0_curve"`
-	Units       []WorldlineUnit `json:"units"`
+	Engine              string          `json:"engine"`
+	SampleRate          int             `json:"sample_rate"`
+	ExactLength         bool            `json:"exact_length,omitempty"`
+	TransitionModelPath string          `json:"transition_model_path,omitempty"`
+	TransitionStrength  float64         `json:"transition_strength,omitempty"`
+	F0Curve             []float64       `json:"f0_curve"`
+	Units               []WorldlineUnit `json:"units"`
 }
 
 type WorldlineUnit struct {
@@ -93,15 +95,18 @@ type WorldSpeechTiming struct {
 	VowelJoin                 bool    `json:"vowel_join,omitempty"`
 	TargetFixedMS             float64 `json:"target_fixed_ms,omitempty"`
 	TargetJoinMS              float64 `json:"target_join_ms,omitempty"`
+	TransitionLeftPhone       string  `json:"transition_left_phone,omitempty"`
+	TransitionRightPhone      string  `json:"transition_right_phone,omitempty"`
 }
 
 type WorldSpeechResult struct {
-	UnitIndex        int     `json:"unit_index"`
-	RetimeApplied    bool    `json:"retime_applied"`
-	TargetFixedMS    float64 `json:"target_fixed_ms"`
-	JoinApplied      bool    `json:"join_applied"`
-	StopBurstApplied bool    `json:"stop_burst_applied,omitempty"`
-	StopBurstGain    float64 `json:"stop_burst_gain,omitempty"`
+	UnitIndex         int     `json:"unit_index"`
+	RetimeApplied     bool    `json:"retime_applied"`
+	TargetFixedMS     float64 `json:"target_fixed_ms"`
+	JoinApplied       bool    `json:"join_applied"`
+	TransitionApplied bool    `json:"transition_applied,omitempty"`
+	StopBurstApplied  bool    `json:"stop_burst_applied,omitempty"`
+	StopBurstGain     float64 `json:"stop_burst_gain,omitempty"`
 }
 
 type WorldlineEnvelopePoint struct {

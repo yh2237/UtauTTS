@@ -47,6 +47,22 @@ func TestWorldlineStopProtectionKeepsJapaneseCVSupport(t *testing.T) {
 	}
 }
 
+func TestSpeechSourceOnsetUsesReliableNearbyLandmark(t *testing.T) {
+	unit := plan.Unit{PreutteranceMS: 60, SpeechProfile: &voicebank.SpeechProfile{VoicingStartMS: 68, VoicingConfidence: .9, TransitionConfidence: .8}}
+	if got := speechSourceOnsetMS(unit); got != 68 {
+		t.Fatalf("source onset=%v", got)
+	}
+	unit.SpeechProfile.VoicingStartMS = 100
+	if got := speechSourceOnsetMS(unit); got != 60 {
+		t.Fatalf("distant source onset=%v", got)
+	}
+	unit.SpeechProfile.VoicingStartMS = 65
+	unit.SpeechProfile.TransitionConfidence = .2
+	if got := speechSourceOnsetMS(unit); got != 60 {
+		t.Fatalf("uncertain source onset=%v", got)
+	}
+}
+
 func TestWorldlineGapRepairOnlyAcceptsRepeatedVowelWithoutOnset(t *testing.T) {
 	p := &plan.Plan{
 		Morae: []frontend.Mora{{Vowel: "a"}, {Vowel: "a"}, {Consonant: "k", Vowel: "a"}},

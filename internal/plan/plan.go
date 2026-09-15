@@ -162,6 +162,7 @@ type Unit struct {
 	BoundaryEnvelope        string                         `json:"boundary_envelope,omitempty"`
 	SpeechRetimeApplied     bool                           `json:"speech_retime_applied,omitempty"`
 	SpeechJoinApplied       bool                           `json:"speech_join_applied,omitempty"`
+	SpeechTransitionApplied bool                           `json:"speech_transition_applied,omitempty"`
 	StopBurstApplied        bool                           `json:"stop_burst_applied,omitempty"`
 	StopBurstGain           float64                        `json:"stop_burst_gain,omitempty"`
 	StopBurstReason         string                         `json:"stop_burst_reason,omitempty"`

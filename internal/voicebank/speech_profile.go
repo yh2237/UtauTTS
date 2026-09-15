@@ -21,6 +21,14 @@ type SpeechProfile struct {
 	SuggestedFixedMS           float64 `json:"suggested_fixed_ms"`
 	StableStartMS              float64 `json:"stable_start_ms"`
 	StableEndMS                float64 `json:"stable_end_ms"`
+	ActivityStartMS            float64 `json:"activity_start_ms,omitempty"`
+	ActivityEndMS              float64 `json:"activity_end_ms,omitempty"`
+	ActivityConfidence         float64 `json:"activity_confidence,omitempty"`
+	VoicingStartMS             float64 `json:"voicing_start_ms,omitempty"`
+	VoicingConfidence          float64 `json:"voicing_confidence,omitempty"`
+	TransitionStartMS          float64 `json:"transition_start_ms,omitempty"`
+	TransitionEndMS            float64 `json:"transition_end_ms,omitempty"`
+	TransitionConfidence       float64 `json:"transition_confidence,omitempty"`
 	TransientMS                float64 `json:"transient_ms,omitempty"`
 	TransientConfidence        float64 `json:"transient_confidence,omitempty"`
 	TransientDurationMS        float64 `json:"transient_duration_ms,omitempty"`
@@ -43,7 +51,7 @@ func (b *Bank) ClearSpeechProfiles() {
 }
 
 func (b *Bank) CalibrateSpeech(entry oto.Entry) SpeechProfile {
-	result := SpeechProfile{Version: 2, OriginalFixedMS: entry.Fixed, SuggestedFixedMS: entry.Fixed, Reason: "source-unavailable"}
+	result := SpeechProfile{Version: 3, OriginalFixedMS: entry.Fixed, SuggestedFixedMS: entry.Fixed, Reason: "source-unavailable"}
 	info, err := os.Stat(entry.Filename)
 	if err != nil {
 		return result
@@ -90,6 +98,7 @@ func measureSpeechProfile(wave []float64, rate int, entry oto.Entry, result Spee
 		samples = append(samples, sum/float64(stride))
 	}
 	sampleRate := rate / stride
+	result.ActivityStartMS, result.ActivityEndMS, result.ActivityConfidence = measureSpeechActivity(samples, sampleRate)
 	result.TransientMS, result.TransientDurationMS, result.TransientConfidence = measureSpeechTransient(samples, sampleRate, entry.Preutterance)
 	if entry.Fixed > entry.Preutterance+20 {
 		result.ReleaseTransientMS, result.ReleaseTransientDurationMS, result.ReleaseTransientConfidence = measureSpeechTransient(samples, sampleRate, entry.Fixed)
@@ -100,7 +109,7 @@ func measureSpeechProfile(wave []float64, rate int, entry oto.Entry, result Spee
 	right := min(len(samples)-frame, int((entry.Fixed+120)*float64(sampleRate)/1000))
 	count, voiced, run := 0, 0, 0
 	priorF0, priorDB := 0.0, 0.0
-	bestStart, bestEnd := -1, -1
+	bestStart, bestEnd, firstVoiced := -1, -1, -1
 	sumF0, sumDB := 0.0, 0.0
 	for start := max(0, left); start <= right; start += hop {
 		segment := samples[start : start+frame]
@@ -110,6 +119,9 @@ func measureSpeechProfile(wave []float64, rate int, entry oto.Entry, result Spee
 		stable := f0 > 0 && db > -50
 		if stable {
 			voiced++
+			if firstVoiced < 0 {
+				firstVoiced = start
+			}
 			sumF0 += f0
 			sumDB += db
 		}
@@ -144,6 +156,15 @@ func measureSpeechProfile(wave []float64, rate int, entry oto.Entry, result Spee
 	result.StableStartMS = float64(bestStart) * 1000 / float64(sampleRate)
 	result.StableEndMS = float64(bestEnd) * 1000 / float64(sampleRate)
 	result.Confidence = result.VoicedRatio * math.Min(1, (result.StableEndMS-result.StableStartMS)/60)
+	if firstVoiced >= 0 {
+		result.VoicingStartMS = float64(firstVoiced) * 1000 / float64(sampleRate)
+		result.VoicingConfidence = math.Min(1, float64(voiced)/3)
+		result.TransitionStartMS = result.VoicingStartMS
+		result.TransitionEndMS = result.StableStartMS
+		if result.TransitionEndMS >= result.TransitionStartMS {
+			result.TransitionConfidence = math.Min(result.VoicingConfidence, result.Confidence)
+		}
+	}
 	result.SuggestedFixedMS = math.Max(entry.Preutterance, math.Max(entry.Fixed-20, math.Min(entry.Fixed+20, result.StableStartMS+20)))
 	result.Applied = result.Confidence >= 0.8 && entry.Fixed >= entry.Preutterance && result.SuggestedFixedMS <= float64(len(wave))*1000/float64(rate)-30
 	if result.Applied {
@@ -153,6 +174,44 @@ func measureSpeechProfile(wave []float64, rate int, entry oto.Entry, result Spee
 		result.Reason = "low-confidence"
 	}
 	return result
+}
+
+func measureSpeechActivity(samples []float64, sampleRate int) (float64, float64, float64) {
+	if sampleRate <= 0 || len(samples) < sampleRate/50 {
+		return 0, 0, 0
+	}
+	window := max(8, sampleRate*5/1000)
+	hop := max(1, sampleRate*2/1000)
+	levels := make([]float64, 0, len(samples)/hop)
+	for start := 0; start+window <= len(samples); start += hop {
+		levels = append(levels, acoustic.DB(acoustic.RMS(samples[start:start+window])))
+	}
+	if len(levels) < 5 {
+		return 0, 0, 0
+	}
+	sorted := append([]float64(nil), levels...)
+	sort.Float64s(sorted)
+	noise := sorted[max(0, len(sorted)/10)]
+	peak := sorted[len(sorted)-1]
+	threshold := math.Min(-38, noise+10)
+	if peak-threshold < 6 {
+		return 0, 0, 0
+	}
+	first, last := -1, -1
+	for index := 1; index+1 < len(levels); index++ {
+		if levels[index-1] >= threshold && levels[index] >= threshold && levels[index+1] >= threshold {
+			if first < 0 {
+				first = index - 1
+			}
+			last = index + 1
+		}
+	}
+	if first < 0 {
+		return 0, 0, 0
+	}
+	confidence := math.Max(0, math.Min(1, (peak-threshold)/20))
+	return float64(first*hop) * 1000 / float64(sampleRate),
+		float64(last*hop+window) * 1000 / float64(sampleRate), confidence
 }
 
 func measureSpeechTransient(samples []float64, sampleRate int, anchorMS float64) (float64, float64, float64) {

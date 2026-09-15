@@ -9,7 +9,7 @@ UtauTTSのオリジナルコードは[`LICENSE`](./LICENSE)のMIT Licenseです�
 
 ## 学習済みモデル
 
-`frame-intonation-v8`と`prosody-multitask-v1`は、JSUT日本語音声コーパスの音声を使って学習したモデルです。
+`frame-intonation-v8`、`prosody-multitask-v1`、WORLD rendererの`jsut-cv-transition-tcn-v1`は、JSUT日本語音声コーパスの音声を使って学習したモデルです。
 
 - 利用、改変、再配布の範囲: 学術研究、非商用研究、個人利用
 - 商用利用: JSUT権利者の事前許諾
