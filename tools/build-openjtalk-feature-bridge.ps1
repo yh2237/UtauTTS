@@ -28,13 +28,12 @@ function Resolve-MsvcRedistDirectory {
             (Join-Path $env:VCToolsRedistDir 'x64/Microsoft.VC143.CRT')
         )
     }
-
-    # VSの世代ごとの配置を探索する。
     $visualStudioRoots = @(
         @(${env:ProgramFiles}, ${env:ProgramFiles(x86)}) |
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
             ForEach-Object { Join-Path $_ 'Microsoft Visual Studio' }
-    ) | Select-Object -Unique
+    )
+    $visualStudioRoots = @($visualStudioRoots | Select-Object -Unique)
     foreach ($visualStudioRoot in $visualStudioRoots) {
         if (-not (Test-Path -LiteralPath $visualStudioRoot -PathType Container)) { continue }
         $autoCandidates = @(Get-ChildItem -LiteralPath $visualStudioRoot -Directory -ErrorAction SilentlyContinue |
