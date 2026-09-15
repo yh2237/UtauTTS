@@ -30,7 +30,7 @@ ApplicationWindow {
         buttonText: window.darkMode ? "#e8eaed" : "#000000"
         highlight: window.darkMode ? "#e8837d" : "#d35f6b"
         highlightedText: window.darkMode ? "#202124" : "#ffffff"
-        placeholderText: window.darkMode ? "#e8eaed" : "#000000"
+        placeholderText: window.darkMode ? "#9aa0a6" : "#6b7075"
         mid: window.darkMode ? "#5f6368" : "#aeb4ba"
     }
 
