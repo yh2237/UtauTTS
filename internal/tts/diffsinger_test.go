@@ -98,7 +98,7 @@ func TestDiffSingerPhones(t *testing.T) {
 		{Text: "ん", Vowel: "n"},
 		{Pause: true},
 	}
-	phones, durations, counts, err := diffsingerPhones(singer, morae, []float64{100, 90, 180})
+	phones, durations, counts, err := diffsingerPhones(singer, morae, []float64{100, 90, 180}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,12 +128,26 @@ func TestDiffSingerPhonesUsesSingerDictionary(t *testing.T) {
 		JapaneseDictionary: map[string][]string{"こ": {"kx", "oo"}},
 	}
 	morae := []frontend.Mora{{Text: "こ", Consonant: "k", Vowel: "o"}}
-	phones, durations, counts, err := diffsingerPhones(singer, morae, []float64{100})
+	phones, durations, counts, err := diffsingerPhones(singer, morae, []float64{100}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(phones, []string{"kx", "oo"}) || !reflect.DeepEqual(durations, []float64{45, 55}) || !reflect.DeepEqual(counts, []int64{2}) {
 		t.Fatalf("phones = %#v, durations = %#v, counts = %#v", phones, durations, counts)
+	}
+}
+
+func TestDiffSingerPhonesUsesSharedPhoneTimeline(t *testing.T) {
+	singer := &diffsinger.Singer{Tokens: map[string]int64{"SP": 0, "k": 1, "a": 2}}
+	morae := []frontend.Mora{{Text: "か", Consonant: "k", Vowel: "a", Phones: []frontend.Phone{
+		{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"},
+	}}}
+	phones, durations, _, err := diffsingerPhones(singer, morae, []float64{135}, [][]float64{{.35, 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(phones, []string{"k", "a"}) || math.Abs(durations[0]-35) > .001 || math.Abs(durations[1]-100) > .001 {
+		t.Fatalf("phones=%v durations=%v", phones, durations)
 	}
 }
 

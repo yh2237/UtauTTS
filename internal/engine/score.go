@@ -1,8 +1,5 @@
 package engine
 
-// NeuralScore is the common input contract for providers that synthesize
-// singing from a neural model instead of a selected UTAU Unit Plan.
-// Provider-specific model tokens and bridge options are deliberately absent.
 type NeuralScore struct {
 	Symbols           []string  `json:"symbols"`
 	Durations         []int64   `json:"durations"`

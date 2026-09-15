@@ -26,12 +26,14 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 	if language != frontend.LanguageJapanese {
 		return nil, fmt.Errorf("DiffSinger MVP currently supports Japanese input only")
 	}
+	japaneseSpeechPhones(morae)
 	cfg, preview, err := prepareDiffSingerProsody(cfg, reading, morae, singer.FrameMS())
 	if err != nil {
 		return nil, err
 	}
 	durations := preview.MoraDurationsMS
-	phones, phoneDurations, phoneCounts, err := diffsingerPhones(singer, morae, durations)
+	phoneWeights := languagePhoneWeights(language, morae)
+	phones, phoneDurations, phoneCounts, err := diffsingerPhones(singer, morae, durations, phoneWeights)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +74,7 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	synthesisPlan := diffsingerPlan(cfg, reading, language, phonemizer, morae, durations, singer.FrameMS())
+	synthesisPlan := diffsingerPlan(cfg, reading, language, phonemizer, morae, durations, phones, phoneDurations[1:len(phoneDurations)-1], phoneCounts, singer.FrameMS())
 	positions := make([]float64, len(durations))
 	pitchPoints := make([]float64, len(durations))
 	cursor := synthesisPlan.LeadingMarginMS
@@ -86,8 +88,7 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 	return &Result{Plan: synthesisPlan, Audio: pcm, MoraDurationsMS: durations, MoraPositionsMS: positions, PitchPoints: pitchPoints}, nil
 }
 
-// 音響モデルを編集画面と同じ発話時間軸に置く。DiffSingerの先頭パディングは
-// 出力側に属し、プロソディモデルの入力には含めない。
+// 先頭パディングはプロソディモデルの入力に含めない。
 func prepareDiffSingerProsody(cfg Config, reading string, morae []frontend.Mora, frameMS float64) (Config, *ProsodyPreview, error) {
 	preview, err := PredictProsody(cfg)
 	if err != nil {
@@ -134,7 +135,7 @@ func prepareDiffSingerProsody(cfg Config, reading string, morae []frontend.Mora,
 	return cfg, preview, nil
 }
 
-func diffsingerPhones(singer *diffsinger.Singer, morae []frontend.Mora, durations []float64) ([]string, []float64, []int64, error) {
+func diffsingerPhones(singer *diffsinger.Singer, morae []frontend.Mora, durations []float64, weights [][]float64) ([]string, []float64, []int64, error) {
 	var phones []string
 	var phoneDurations []float64
 	var phoneCounts []int64
@@ -147,7 +148,7 @@ func diffsingerPhones(singer *diffsinger.Singer, morae []frontend.Mora, duration
 		}
 		if symbols := diffsingerDictionarySymbols(singer, mora); len(symbols) > 0 {
 			phones = append(phones, symbols...)
-			phoneDurations = append(phoneDurations, diffsingerDictionaryDurations(mora, symbols, durations[index])...)
+			phoneDurations = append(phoneDurations, diffsingerDictionaryDurations(mora, symbols, durations[index], phoneWeightsAt(weights, index))...)
 			phoneCounts = append(phoneCounts, int64(len(symbols)))
 			continue
 		}
@@ -181,6 +182,10 @@ func diffsingerPhones(singer *diffsinger.Singer, morae []frontend.Mora, duration
 			return nil, nil, nil, fmt.Errorf("DiffSinger singer has no consonant %q for %q", mora.Consonant, mora.Text)
 		}
 		consonantMS := diffsingerConsonantDuration(consonant, durations[index])
+		if index < len(weights) && len(weights[index]) == 2 {
+			spans := phoneSpansFromWeights(weights[index], durations[index])
+			consonantMS = spans[0]
+		}
 		phones = append(phones, consonant, vowel)
 		phoneDurations = append(phoneDurations, consonantMS, durations[index]-consonantMS)
 		phoneCounts = append(phoneCounts, 2)
@@ -203,9 +208,12 @@ func diffsingerDictionarySymbols(singer *diffsinger.Singer, mora frontend.Mora) 
 	return symbols[len(symbols)-1:]
 }
 
-func diffsingerDictionaryDurations(mora frontend.Mora, symbols []string, durationMS float64) []float64 {
+func diffsingerDictionaryDurations(mora frontend.Mora, symbols []string, durationMS float64, weights []float64) []float64 {
 	if len(symbols) <= 1 {
 		return []float64{durationMS}
+	}
+	if len(weights) == len(symbols) {
+		return phoneSpansFromWeights(weights, durationMS)
 	}
 	onset := diffsingerConsonantDuration(mora.Consonant, durationMS)
 	result := make([]float64, len(symbols))
@@ -214,6 +222,13 @@ func diffsingerDictionaryDurations(mora frontend.Mora, symbols []string, duratio
 	}
 	result[len(result)-1] = durationMS - onset
 	return result
+}
+
+func phoneWeightsAt(weights [][]float64, index int) []float64 {
+	if index >= 0 && index < len(weights) {
+		return weights[index]
+	}
+	return nil
 }
 
 func diffsingerConsonantDuration(consonant string, durationMS float64) float64 {
@@ -308,15 +323,34 @@ func diffsingerMIDI(tone string) (int, error) {
 	return midi, nil
 }
 
-func diffsingerPlan(cfg Config, reading, language, phonemizer string, morae []frontend.Mora, durations []float64, frameMS float64) *plan.Plan {
+func diffsingerPlan(cfg Config, reading, language, phonemizer string, morae []frontend.Mora, durations []float64, phones []string, phoneDurations []float64, phoneCounts []int64, frameMS float64) *plan.Plan {
 	result := &plan.Plan{
 		Version: plan.Version, Voicebank: cfg.VoicebankPath, Text: cfg.Text, Reading: reading,
 		Language: language, Phonemizer: phonemizer, Tone: cfg.Tone,
 		SelectionMode: "neural", AliasPolicy: "neural", JoinCostMode: "none",
 		LeadingMarginMS: diffsinger.HeadFrames * frameMS, Morae: append([]frontend.Mora(nil), morae...),
+		PhoneTimingSource: "language-phone-v1",
 	}
 	cursor := 0.0
+	phoneCursor := 0
 	for index, mora := range morae {
+		count := 0
+		if index < len(phoneCounts) {
+			count = int(phoneCounts[index])
+		}
+		localCursor := cursor
+		for offset := 0; offset < count && phoneCursor < len(phones) && phoneCursor < len(phoneDurations); offset++ {
+			role := "nucleus"
+			if offset+1 < count {
+				role = "onset"
+			}
+			if mora.Pause {
+				role = "pause"
+			}
+			result.PhoneTimings = append(result.PhoneTimings, plan.PhoneTiming{Position: index, Symbol: phones[phoneCursor], Role: role, StartMS: localCursor, DurationMS: phoneDurations[phoneCursor]})
+			localCursor += phoneDurations[phoneCursor]
+			phoneCursor++
+		}
 		if !mora.Pause {
 			result.Units = append(result.Units, plan.Unit{
 				Position: index, Role: "mora", Mora: mora.Text, Alias: mora.Text,

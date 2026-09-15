@@ -10,11 +10,8 @@ import (
 	"utautts/internal/engine"
 )
 
-// Score is the DiffSinger view of the shared neural synthesis contract.
 type Score = engine.NeuralScore
 
-// RenderScore renders a score using the selected singer and a resident bridge
-// session when the bridge supports the provider protocol.
 func RenderScore(ctx context.Context, bridgePath string, singer *Singer, score Score) (*audio.PCM, error) {
 	request, err := RequestFromScore(singer, score)
 	if err != nil {
@@ -23,9 +20,6 @@ func RenderScore(ctx context.Context, bridgePath string, singer *Singer, score S
 	return renderSession(ctx, bridgePath, score, request)
 }
 
-// RequestFromScore converts a score into the current bridge request format.
-// The conversion is intentionally kept inside the DiffSinger provider so the
-// tts package does not need to know about model-specific request fields.
 func RequestFromScore(singer *Singer, score Score) (Request, error) {
 	if singer == nil {
 		return Request{}, fmt.Errorf("DiffSinger singer is nil")
