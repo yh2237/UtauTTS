@@ -302,8 +302,9 @@ import QtMultimedia
                             Layout.fillWidth: true
                             spacing: 6
 
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
+                            spacing: 4
                             Label {
                                 text: window.translator.tr("main.param.voicebank")
                                 Layout.fillWidth: true
@@ -337,8 +338,9 @@ import QtMultimedia
                             }
                         }
 
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
+                            spacing: 4
                             Label {
                                 text: window.translator.tr("main.param.language")
                                 Layout.fillWidth: true
@@ -370,8 +372,9 @@ import QtMultimedia
                             font.pixelSize: 11
                         }
 
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
+                            spacing: 4
                             Label {
                                 text: window.translator.tr("main.param.voicebankType")
                                 Layout.fillWidth: true
@@ -564,8 +567,9 @@ import QtMultimedia
                             visible: advancedSettingsButton.checked
                             spacing: 6
 
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
+                            spacing: 4
                             Label {
                                 text: window.translator.tr("main.param.phonemizer")
                                 Layout.fillWidth: true
@@ -581,8 +585,9 @@ import QtMultimedia
                             }
                         }
 
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
+                            spacing: 4
                             Label {
                                 text: window.translator.tr("main.param.aliasPolicy")
                                 Layout.fillWidth: true
@@ -603,8 +608,9 @@ import QtMultimedia
                             }
                         }
 
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
+                            spacing: 4
                             visible: !window.utterancesModel.count || ["ja", "en"].indexOf(window.current().language || "ja") >= 0
                             Label {
                                 text: window.translator.tr("main.param.intonationModel")
@@ -631,8 +637,9 @@ import QtMultimedia
                             }
                         }
 
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
+                            spacing: 4
                             Label {
                                 text: window.translator.tr("main.param.renderer")
                                 Layout.fillWidth: true
@@ -663,8 +670,9 @@ import QtMultimedia
                             }
                         }
 
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
+                            spacing: 4
                             visible: classicRendererSelected()
                             Label {
                                 text: window.translator.tr("main.param.resampler")
@@ -679,8 +687,9 @@ import QtMultimedia
                                 onActivated: window.updateSetting("resampler", currentValue)
                             }
                         }
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
+                            spacing: 4
                             visible: classicRendererSelected()
                             Label {
                                 text: window.translator.tr("main.param.wavtool")
