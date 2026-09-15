@@ -30,7 +30,7 @@ UtauTTSの利用方法と開発資料を目的別にまとめています。利�
 - [読み上げ品質の評価](../tools/evaluation/README.md): 読み、原音候補、合成音声の比較
 - [接続品質の監査と学習](join-quality.md): 接続境界の診断と任意のモデル学習
 - [フレーム抑揚モデルの学習](frame-intonation-training.md): 抑揚モデルの学習と評価
-- [JSUT音素データと接続事前分布](jsut-target-prior.md): 学習用データの作成と評価
+- [JSUT音素データと接続補正](jsut-target-prior.md): 学習用データの作成と評価
 - [DiffSinger](diffsinger.md): DiffSinger連携の対応範囲
 - [第三者コードの出典](third-party-provenance.md): 互換処理で参照した公開実装
 - [ライセンスの適用範囲](../LICENSE-SCOPE.md): 本体、モデル、音源、第三者コンポーネントの条件

@@ -17,14 +17,16 @@ $migrateIdentity = -not [string]::IsNullOrWhiteSpace($Id) -or
     -not [string]::IsNullOrWhiteSpace($DisplayName) -or
     -not [string]::IsNullOrWhiteSpace($Description) -or
     $RecommendedRenderer.Count -gt 0
-if ($migrateIdentity -and (-not [string]::IsNullOrWhiteSpace([string]$model.id) -or -not [string]::IsNullOrWhiteSpace([string]$model.display_name))) {
+if ($migrateIdentity -and -not [string]::IsNullOrWhiteSpace([string]$model.id) -and -not [string]::IsNullOrWhiteSpace([string]$model.display_name)) {
     throw 'The source already has model identity; do not use migration metadata arguments.'
 }
 if ($migrateIdentity) {
     if ([string]::IsNullOrWhiteSpace($Id) -or [string]::IsNullOrWhiteSpace($DisplayName)) {
         throw 'Migration requires both Id and DisplayName.'
     }
-    $identity = [ordered]@{ id = $Id; display_name = $DisplayName }
+    $identity = [ordered]@{}
+    if ([string]::IsNullOrWhiteSpace([string]$model.id)) { $identity['id'] = $Id }
+    if ([string]::IsNullOrWhiteSpace([string]$model.display_name)) { $identity['display_name'] = $DisplayName }
     if (-not [string]::IsNullOrWhiteSpace($Description)) { $identity['description'] = $Description }
     if ($RecommendedRenderer.Count -gt 0) { $identity['recommended_renderers'] = @($RecommendedRenderer) }
     $metadata = ($identity | ConvertTo-Json -Compress).Trim('{', '}')

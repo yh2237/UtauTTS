@@ -1,6 +1,6 @@
-# JSUT音素データと接続事前分布
+# JSUT音素データと接続補正
 
-JSUT BASIC5000のラベルから音素単位の時間情報と音響観測値を作り、UTAU音源へ適応する前の事前分布を生成できます。用途: 開発・評価。GUIやRendererで使う場合は明示指定します。
+JSUT BASIC5000のラベルから音素単位の時間情報と音響観測値を作り、UTAU音源へ適応する前の事前分布を生成できます。用途: 開発・評価。時間事前分布は明示指定時だけ使います。
 
 ## データの準備
 
@@ -16,6 +16,32 @@ JSUT BASIC5000のラベルから音素単位の時間情報と音響観測値を
 ```powershell
 go run ./cmd/tools/jsut-join-dataset --labels "./data/jsut-label" --corpus "./data/jsut/basic5000" --out "./out/jsut-join.jsonl"
 ```
+
+## 単独音の遷移補完データを作る
+
+自然な母音境界と擬似単独音境界の差分をJSONLへ出力します。左右端の線形補間を基準にするため、話者の絶対的なスペクトルより境界内の変化を学習できます。
+
+```powershell
+go run ./cmd/tools/jsut-transition-dataset --input "./out/jsut-join.jsonl" --out "./out/jsut-transition.jsonl"
+```
+
+各記録には前後の音素、左右端の音響特徴、自然発話の特徴列、線形補間との差分が含まれます。`--window-ms`で境界の片側の最大長を指定し、`--step-ms`で特徴量の間隔を指定します。
+
+小型TCNの学習には次を使います。
+
+```powershell
+python tools/train-jsut-transition-tcn.py --input "./out/jsut-transition.jsonl" --out "./out/jsut-cv-transition-tcn-v1.json"
+```
+
+`jsut-cv-transition-tcn-v1`はWORLD rendererのリソースとして同梱します。単独音CVの境界だけに適用し、F0や元の子音波形は変更しません。数値異常は適用せず、補正値はレンダラー側で制限します。
+
+音素対と境界内の相対位置ごとに差分を集計し、発話単位で分けた評価結果を出力できます。
+
+```powershell
+go run ./cmd/tools/jsut-transition-prior --input "./out/jsut-transition.jsonl" --out "./out/jsut-transition-prior.json"
+```
+
+出力の`validation`には線形補間と事前分布の平均絶対誤差が記録されます。事前分布で誤差が下がらない場合は合成へ使用しません。
 
 出力は1行1発話のJSONLです。各発話に次の情報を保存します。
 

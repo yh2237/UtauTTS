@@ -20,6 +20,7 @@ import (
 	"utautts/internal/render"
 	"utautts/internal/synth"
 	"utautts/internal/tts"
+	"utautts/internal/voicebank"
 )
 
 type prompt struct {
@@ -64,6 +65,7 @@ func run() error {
 	measurePitch := flag.Bool("measure-pitch", false, "write WORLD target and measured output F0 traces")
 	phonemizer := flag.String("phonemizer", "", "override corpus phonemizer for the selected voicebank")
 	speechTiming := flag.Bool("speech-timing", false, "experimental speech timing and voicebank calibration")
+	aliasPolicy := flag.String("alias-policy", "auto", "voicebank mode: auto or cv-only")
 	bank := flag.String("voicebank", "", "voicebank directory (required)")
 	diagnose := flag.Bool("diagnose", false, "write frontend and candidate diagnostics without rendering")
 	corpus := flag.String("corpus", "tools/evaluation/japanese-v1.json", "JSON listening corpus")
@@ -74,6 +76,8 @@ func run() error {
 	bridge := flag.String("bridge", "", "override WORLD bridge executable")
 	worldMix := flag.String("world-mix", "auto", "WORLD feature mixing: auto, v1.3, adaptive")
 	worldGapRepair := flag.String("world-gap-repair", "auto", "WORLD gap repair: auto, on, off")
+	transitionModel := flag.String("transition-model", "", "single-CV transition TCN JSON")
+	transitionStrength := flag.Float64("transition-strength", .25, "transition model strength (0..0.35)")
 	repeats := flag.Int("repeat", 2, "repetitions in the same process; first and warm runs are separate")
 	timeout := flag.Duration("timeout", 2*time.Minute, "timeout per synthesis")
 	flag.Parse()
@@ -91,6 +95,9 @@ func run() error {
 	}
 	if !oneOf(*worldGapRepair, "auto", "on", "off") {
 		return fmt.Errorf("world-gap-repair must be auto, on or off")
+	}
+	if *transitionStrength < 0 || *transitionStrength > .35 {
+		return fmt.Errorf("transition-strength must be between 0 and 0.35")
 	}
 	data, err := os.ReadFile(*corpus)
 	if err != nil {
@@ -158,6 +165,7 @@ func run() error {
 			for repetition := 1; repetition <= *repeats; repetition++ {
 				row := measurement{ID: p.ID, Text: p.Text, Focus: p.Focus, Renderer: rendererID, Repetition: repetition}
 				cfg := tts.Config{VoicebankPath: *bank, Text: p.Text, Reading: p.Reading, Language: p.Language, Phonemizer: p.Phonemizer, Tone: "C4", MoraDurationMS: 120, PauseDurationMS: 180, ApplyPitch: true, IntonationStrength: 1}
+				cfg.AliasPolicy = voicebank.AliasPolicy(*aliasPolicy)
 				cfg.SpeechTiming = *speechTiming
 				cfg.SpeechProsodyExperiment = *experiment
 				cfg.WordBoundaryEnvelope = *wordEnvelope
@@ -178,6 +186,7 @@ func run() error {
 				if callErr == nil {
 					providerOptions := render.ProviderOptions{Worldline: render.WorldlineProviderOptions{
 						MixMode: *worldMix, GapRepairMode: *worldGapRepair,
+						TransitionModelPath: *transitionModel, TransitionStrength: *transitionStrength,
 					}}
 					result, callErr = synth.SynthesizeConfigWithOptions(cfg, resolved, providerOptions)
 				}
