@@ -35,6 +35,30 @@ for archive in "${gui_zip}" "${server_zip}"; do
   unzip -tq "${archive}" >/dev/null
 done
 
+archive_has_lowercase_openjtalk() {
+  "${python_command}" - "$1" <<'PY'
+import sys
+import zipfile
+
+prefix = "licenses/openjtalk"
+with zipfile.ZipFile(sys.argv[1]) as archive:
+    matches = [
+        name
+        for name in archive.namelist()
+        if name == prefix or name.startswith(prefix + "/")
+    ]
+if matches:
+    print("\n".join(matches), file=sys.stderr)
+    raise SystemExit(1)
+PY
+}
+
+for archive in "${gui_zip}" "${server_zip}"; do
+  if ! archive_has_lowercase_openjtalk "${archive}"; then
+    fail "Open JTalk licenses are duplicated under a lowercase directory in archive: ${archive}"
+  fi
+done
+
 gui_root="${temporary_root}/gui"
 server_root="${temporary_root}/server"
 mkdir -p "${gui_root}" "${server_root}"
@@ -142,10 +166,6 @@ done
   || fail 'raw Qt SBOM JSON must remain outside the release package'
 [[ ! -e "${gui_root}/licenses/Qt/LGPL-2.1.txt" ]] \
   || fail 'LGPL-2.1 text must not be shipped because FFmpeg is never bundled'
-for package_root in "${gui_root}" "${server_root}"; do
-  [[ ! -e "${package_root}/licenses/openjtalk" ]] \
-    || fail "Open JTalk licenses are duplicated under a lowercase directory: ${package_root}"
-done
 if find "${app}/Contents" -type f \( -iname '*ffmpeg*' -o -iname 'libavcodec*' \
   -o -iname 'libavformat*' -o -iname 'libavutil*' -o -iname 'libswresample*' \
   -o -iname 'libswscale*' \) -print -quit | grep -q .; then
