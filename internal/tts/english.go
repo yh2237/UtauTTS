@@ -15,15 +15,19 @@ func englishPredictions(morae []frontend.Mora) []prosody.Prediction {
 	result := make([]prosody.Prediction, len(morae))
 	for i, mora := range morae {
 		factor := 1.0
+		energy := 1.0
 		if mora.Vowel != "" && !mora.Pause {
 			switch mora.Stress {
 			case 1:
 				factor = 1.2
+				energy = 1.06
 			case 2:
 				factor = 1.1
+				energy = 1.03
 			case 0:
 				if mora.StressKnown {
 					factor = 0.85
+					energy = 0.92
 				}
 			}
 			// 音節単位の音素化では末子音の時間を確保する。
@@ -34,7 +38,7 @@ func englishPredictions(morae []frontend.Mora) []prosody.Prediction {
 		if !mora.Pause && (i+1 == len(morae) || morae[i+1].Pause) {
 			factor *= 1.12
 		}
-		result[i] = prosody.Prediction{DurationFactor: factor, EnergyFactor: 1, PitchFactor: 1}
+		result[i] = prosody.Prediction{DurationFactor: factor, EnergyFactor: energy, PitchFactor: 1}
 	}
 	return result
 }

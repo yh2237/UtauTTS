@@ -330,12 +330,15 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
+	if language == frontend.LanguageJapanese {
+		japaneseSpeechPhones(morae)
+	}
 	targetPrior, err := resolveTargetPrior(cfg)
 	if err != nil {
 		return nil, err
 	}
-	var phoneWeights [][]float64
-	phoneTimingSource := ""
+	phoneWeights := languagePhoneWeights(language, morae)
+	phoneTimingSource := "language-phone-v1"
 	if targetPrior != nil {
 		if language != frontend.LanguageJapanese {
 			return nil, fmt.Errorf("target prior supports Japanese only, got %q", language)
@@ -408,16 +411,16 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		}
 	}
 	synthesisPlan, err := plan.Build(bank, reading, morae, selections, plan.Config{
-		SpeechTiming:    cfg.SpeechTiming,
-		MoraDurationMS:  cfg.MoraDurationMS,
-		PauseDurationMS: cfg.PauseDurationMS,
-		MoraDurationsMS: cfg.MoraDurationsMS,
-		PhoneWeights:    phoneWeights,
+		SpeechTiming:       cfg.SpeechTiming,
+		MoraDurationMS:     cfg.MoraDurationMS,
+		PauseDurationMS:    cfg.PauseDurationMS,
+		MoraDurationsMS:    cfg.MoraDurationsMS,
+		PhoneWeights:       phoneWeights,
 		PhoneWeightsSource: phoneTimingSource,
-		Predictions: predictions,
-		AliasPolicy: cfg.AliasPolicy,
-		Tone:        cfg.Tone,
-		Color:       cfg.Color,
+		Predictions:        predictions,
+		AliasPolicy:        cfg.AliasPolicy,
+		Tone:               cfg.Tone,
+		Color:              cfg.Color,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build synthesis plan: %w", err)
@@ -480,7 +483,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		pitchCurve = mergeManualPitchCurve(pitchCurve, manualContour, manualPitch.Mode)
 		pitchCurve = render.ConstrainPitchCurve(pitchCurve, 20, 8)
 	}
-	intonationStrength := effectiveIntonationStrength(cfg)
+	intonationStrength := rendererIntonationStrength(cfg, automaticPitchCurve)
 	providerOptions.Worldline.SpeechPitchReference = experimentalSpeechPitch(cfg) && applyPitch
 	rendered, err := render.RenderWithReport(synthesisPlan, render.Config{
 		Context:                 cfg.Context,
@@ -1066,6 +1069,13 @@ func effectiveIntonationStrength(cfg Config) float64 {
 		return 0
 	}
 	return cfg.IntonationStrength
+}
+
+func rendererIntonationStrength(cfg Config, automatic *render.PitchCurve) float64 {
+	if automatic != nil {
+		return 0
+	}
+	return effectiveIntonationStrength(cfg)
 }
 
 // scaleAutomaticPitchCurveは自動輪郭だけに強度を適用し、手動補正は増幅しない。

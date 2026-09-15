@@ -14,8 +14,8 @@ func englishSyllablePhones(s englishSyllable) []Phone {
 	return phones
 }
 
-// PhoneWeight is a conservative duration prior, not an acoustic boundary estimate.
-// Keep it independent of CV/VCV/diphone aliases so all planners share the timing.
+// PhoneWeightは音素長の初期値を返す。
+// alias形式に依存させず全レンダラーで共有する。
 func PhoneWeight(symbol, role string) float64 {
 	if role == "nucleus" {
 		return 1
@@ -34,7 +34,7 @@ func PhoneWeight(symbol, role string) float64 {
 	}
 }
 
-// PhoneSpans divides a known duration; no source audio is inferred here.
+// PhoneSpansは既知の長さを音素へ配分する。
 func PhoneSpans(phones []Phone, duration float64) []float64 {
 	spans := make([]float64, len(phones))
 	sum := 0.0

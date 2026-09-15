@@ -185,7 +185,9 @@ func TestEnglishIntonationModelUsesStressAndPhraseBoundary(t *testing.T) {
 			QuestionRiseCents: 72, SmoothingMS: 18, LowCents: -180, HighCents: 180,
 			P99Cents: 90, MaxCents: 105, PrimaryDurationFactor: 1.18,
 			SecondaryDurationFactor: 1.08, UnstressedDurationFactor: 0.88,
-			PhraseFinalDurationFactor: 1.08,
+			PhraseFinalDurationFactor: 1.08, PrimaryEnergyFactor: 1.06,
+			SecondaryEnergyFactor: 1.03, UnstressedEnergyFactor: 0.92,
+			PhraseFinalEnergyFactor: 0.98,
 		},
 	}
 	morae := []frontend.Mora{
@@ -210,6 +212,9 @@ func TestEnglishIntonationModelUsesStressAndPhraseBoundary(t *testing.T) {
 	predictions := model.Predict(morae)
 	if predictions[1].DurationFactor <= predictions[0].DurationFactor {
 		t.Fatalf("stress duration did not exceed weak duration: %#v", predictions)
+	}
+	if predictions[1].EnergyFactor <= predictions[0].EnergyFactor {
+		t.Fatalf("stress energy did not exceed weak energy: %#v", predictions)
 	}
 	if !model.SupportsLanguage(frontend.LanguageEnglish) || model.SupportsLanguage(frontend.LanguageJapanese) {
 		t.Fatalf("language compatibility is wrong")

@@ -129,6 +129,10 @@ type EnglishIntonationModel struct {
 	SecondaryDurationFactor   float64 `json:"secondary_duration_factor"`
 	UnstressedDurationFactor  float64 `json:"unstressed_duration_factor"`
 	PhraseFinalDurationFactor float64 `json:"phrase_final_duration_factor"`
+	PrimaryEnergyFactor       float64 `json:"primary_energy_factor,omitempty"`
+	SecondaryEnergyFactor     float64 `json:"secondary_energy_factor,omitempty"`
+	UnstressedEnergyFactor    float64 `json:"unstressed_energy_factor,omitempty"`
+	PhraseFinalEnergyFactor   float64 `json:"phrase_final_energy_factor,omitempty"`
 }
 
 func (model *EnglishIntonationModel) predict(morae []frontend.Mora) []Prediction {
@@ -139,24 +143,37 @@ func (model *EnglishIntonationModel) predict(morae []frontend.Mora) []Prediction
 			continue
 		}
 		factor := 1.0
+		energy := 1.0
 		if mora.Vowel != "" {
 			switch mora.Stress {
 			case 1:
 				factor = model.PrimaryDurationFactor
+				energy = positiveFactor(model.PrimaryEnergyFactor)
 			case 2:
 				factor = model.SecondaryDurationFactor
+				energy = positiveFactor(model.SecondaryEnergyFactor)
 			case 0:
 				if mora.StressKnown {
 					factor = model.UnstressedDurationFactor
+					energy = positiveFactor(model.UnstressedEnergyFactor)
 				}
 			}
 		}
 		if mora.WordEnd && (index+1 == len(morae) || morae[index+1].Pause) {
 			factor *= model.PhraseFinalDurationFactor
+			energy *= positiveFactor(model.PhraseFinalEnergyFactor)
 		}
 		result[index].DurationFactor = factor
+		result[index].EnergyFactor = energy
 	}
 	return result
+}
+
+func positiveFactor(value float64) float64 {
+	if value > 0 {
+		return value
+	}
+	return 1
 }
 
 func (model *EnglishIntonationModel) predictContour(morae []frontend.Mora, timings []MoraTiming, durationMS float64, question bool) *PitchContour {

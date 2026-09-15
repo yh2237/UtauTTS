@@ -30,13 +30,13 @@ type AliasHints struct {
 	MainKinds  []string
 	Transition []string
 	Endings    [][]string
-	// EndingPhones identifies required speech phones, unlike optional releases.
+	// EndingPhonesは発音に必要な語末音素を示す。
 	EndingPhones [][]string `json:",omitempty"`
-	// Missing onset phones for phrase-initial shortened CV fallbacks.
+	// MainMissingは短縮CVで欠ける語頭子音を示す。
 	MainMissing map[string][]string `json:",omitempty"`
 }
 
-// Phone is independent of the voicebank alias alphabet. Role is onset, nucleus or coda.
+// Phoneはalias表記に依存しない音素を示す。
 type Phone struct {
 	Symbol string
 	Role   string

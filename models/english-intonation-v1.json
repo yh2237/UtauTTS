@@ -14,7 +14,8 @@
   "mode": "english_intonation_v1",
   "outputs": {
     "pitch": true,
-    "mora_duration": true
+    "mora_duration": true,
+    "energy": true
   },
   "duration_weights": {},
   "english_intonation": {
@@ -36,7 +37,11 @@
     "primary_duration_factor": 1.18,
     "secondary_duration_factor": 1.08,
     "unstressed_duration_factor": 0.88,
-    "phrase_final_duration_factor": 1.08
+    "phrase_final_duration_factor": 1.08,
+    "primary_energy_factor": 1.06,
+    "secondary_energy_factor": 1.03,
+    "unstressed_energy_factor": 0.92,
+    "phrase_final_energy_factor": 0.98
   },
   "metrics": {
     "records": 0,

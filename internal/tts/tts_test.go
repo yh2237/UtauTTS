@@ -192,6 +192,16 @@ func TestIntonationStrengthAcceptsAmplificationRange(t *testing.T) {
 	}
 }
 
+func TestAutomaticPitchCurveReplacesSourceIntonation(t *testing.T) {
+	cfg := Config{ApplyPitch: true, IntonationStrength: 1}
+	if got := rendererIntonationStrength(cfg, &render.PitchCurve{FrameMS: 10, Cents: []float64{0, 20}}); got != 0 {
+		t.Fatalf("renderer intonation strength = %.2f, want 0", got)
+	}
+	if got := rendererIntonationStrength(cfg, nil); got != 1 {
+		t.Fatalf("source intonation strength = %.2f, want 1", got)
+	}
+}
+
 func TestPredictProsodyDoesNotRenderAudio(t *testing.T) {
 	features := []prosody.FeatureFrame{{"marker": 1}, {"marker": 2}, {"marker": 3}}
 	preview, err := PredictProsody(Config{

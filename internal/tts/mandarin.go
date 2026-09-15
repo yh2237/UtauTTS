@@ -39,6 +39,7 @@ func mandarinToneCurveAligned(morae []frontend.Mora, timings []prosody.MoraTimin
 		FrameMS: mandarinPitchFrameMS,
 		Cents:   make([]float64, int(math.Ceil(durationMS/mandarinPitchFrameMS))+1),
 	}
+	phoneWeights := languagePhoneWeights(frontend.LanguageChinese, morae)
 	for i, timing := range timings {
 		if morae[i].Pause || timing.DurationMS <= 0 || tones[i] < 1 || tones[i] > 5 {
 			continue
@@ -49,9 +50,9 @@ func mandarinToneCurveAligned(morae []frontend.Mora, timings []prosody.MoraTimin
 			end := map[int]float64{1: -100, 2: -55, 3: 65, 4: -130}[tones[i-1]]
 			points = []tonePoint{{0, end + 25}, {1, end}}
 		}
-		// The lexical tone belongs to the syllable nucleus, not its unvoiced onset.
+		// 声調は無声の頭子音を除く音節核へ置く。
 		onset := 0.0
-		spans := frontend.PhoneSpans(morae[i].Phones, timing.DurationMS)
+		spans := phoneSpansFromWeights(phoneWeights[i], timing.DurationMS)
 		for j, p := range morae[i].Phones {
 			if p.Role == "onset" {
 				onset += spans[j]
@@ -70,8 +71,7 @@ func mandarinToneCurveAligned(morae []frontend.Mora, timings []prosody.MoraTimin
 	return curve
 }
 
-// Apply sandhi inside lexical words first, then across adjacent words. Lexical
-// tones remain in the frontend record so diagnostics can show both versions.
+// 語彙上の声調を残したまま連続変調を求める。
 func mandarinSurfaceTones(morae []frontend.Mora) []int {
 	tones := make([]int, len(morae))
 	for i, m := range morae {
@@ -86,7 +86,7 @@ func mandarinSurfaceTones(morae []frontend.Mora) []int {
 			tones[i] = 2
 		}
 		if m.SourceText == "一" && m.Tone == 1 && !(i > 0 && morae[i-1].SourceText == "第") {
-			// Counting sequences and years retain yi1.
+			// 数列と年号ではyi1を保つ。
 			if i+1 < len(morae) && strings.Contains("零一二三四五六七八九十", morae[i+1].SourceText) && morae[i+1].SourceText != "" {
 				continue
 			}
@@ -112,15 +112,21 @@ func mandarinSurfaceTones(morae []frontend.Mora) []int {
 
 func mandarinPredictions(morae []frontend.Mora) []prosody.Prediction {
 	result := make([]prosody.Prediction, len(morae))
+	tones := mandarinSurfaceTones(morae)
 	for i, m := range morae {
 		factor := 1.0
-		if m.Tone == 5 {
+		energy := 1.0
+		if tones[i] == 5 {
 			factor = 0.65
+			energy = 0.84
+		} else if tones[i] == 4 {
+			energy = 1.03
 		}
 		if !m.Pause && (i+1 == len(morae) || morae[i+1].Pause) {
 			factor *= 1.12
+			energy *= 0.97
 		}
-		result[i] = prosody.Prediction{DurationFactor: factor, PitchFactor: 1, EnergyFactor: 1}
+		result[i] = prosody.Prediction{DurationFactor: factor, PitchFactor: 1, EnergyFactor: energy}
 	}
 	return result
 }
