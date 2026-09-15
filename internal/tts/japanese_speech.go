@@ -25,6 +25,24 @@ func japaneseSpeechRhythm(cfg Config, model *prosody.Model, morae []frontend.Mor
 	if !cfg.SpeechTiming || cfg.ProsodyPitchOnly || (model != nil && (model.MoraDuration != nil || len(model.DurationWeights) > 0)) {
 		return predictions
 	}
+	return japaneseSpeechRhythmPredictions(morae, predictions)
+}
+
+func diffsingerSpeechRhythm(cfg Config, model *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction) []prosody.Prediction {
+	if cfg.ProsodyPitchOnly || (model != nil && (model.MoraDuration != nil || len(model.DurationWeights) > 0)) {
+		return predictions
+	}
+	return japaneseSpeechRhythmPredictions(morae, predictions)
+}
+
+func applyJapaneseSpeechRhythm(cfg Config, model *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction) []prosody.Prediction {
+	if cfg.Renderer == "diffsinger" {
+		return diffsingerSpeechRhythm(cfg, model, morae, predictions)
+	}
+	return japaneseSpeechRhythm(cfg, model, morae, predictions)
+}
+
+func japaneseSpeechRhythmPredictions(morae []frontend.Mora, predictions []prosody.Prediction) []prosody.Prediction {
 	if len(predictions) == 0 {
 		predictions = make([]prosody.Prediction, len(morae))
 		for i := range predictions {

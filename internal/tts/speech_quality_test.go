@@ -76,3 +76,22 @@ func TestJapaneseSpeechTimingIsOptInAndKeepsManualDurations(t *testing.T) {
 		t.Fatalf("pitch-only: %+v %v", speech, err)
 	}
 }
+
+func TestDiffSingerUsesJapaneseSpeechRhythmAndKeepsManualDurations(t *testing.T) {
+	baseline, err := PredictProsody(Config{Reading: "カサ", Renderer: "diffsinger", MoraDurationMS: 120})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, err := PredictProsody(Config{Reading: "カサ", MoraDurationMS: 120})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reflect.DeepEqual(baseline.MoraDurationsMS, plain.MoraDurationsMS) {
+		t.Fatalf("DiffSinger rhythm = %v", baseline.MoraDurationsMS)
+	}
+	manual := Config{Reading: "カサ", Renderer: "diffsinger", MoraDurationMS: 120, MoraDurationsMS: []float64{90, 100}}
+	preview, err := PredictProsody(manual)
+	if err != nil || !reflect.DeepEqual(preview.MoraDurationsMS, manual.MoraDurationsMS) {
+		t.Fatalf("manual: %+v %v", preview, err)
+	}
+}
