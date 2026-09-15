@@ -78,7 +78,6 @@ QT_PATH_MODULES = (
     ("/qml/qt/labs/", "qtdeclarative"),
     ("/multimedia/", "qtmultimedia"),
     ("/imageformats/", "qtbase"),
-    ("/iconengines/", "qtsvg"),
     ("/platforms/", "qtbase"),
     ("/generic/", "qtbase"),
     ("/networkinformation/", "qtbase"),
@@ -145,8 +144,10 @@ def normalized_binary_stem(path: Path) -> str:
 def qt_module_for_path(path: Path, root: Path) -> str | None:
     relative = "/" + path.relative_to(root).as_posix().lower() + "/"
     stem = normalized_binary_stem(path)
-    if "/imageformats/" in relative and stem.startswith("qsvg"):
+    if stem.startswith("qsvg") and ("/imageformats/" in relative or "/iconengines/" in relative):
         return "qtsvg"
+    if "/iconengines/" in relative:
+        return "qtbase"
     for marker, module in QT_PATH_MODULES:
         if marker in relative:
             return module

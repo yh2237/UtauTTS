@@ -109,8 +109,11 @@ dialog_style_dir="${app_path}/Contents/Resources/qml/QtQuick/Dialogs/quickimpl/q
 for style_name in +Imagine +Material +Universal; do
   rm -rf "${dialog_style_dir}/${style_name}"
 done
-find "${app_path}" -type f \( -iname 'QtSvg' -o -iname 'QtQuickEffects' \
-  -o -iname 'qsvgicon.dylib' -o -iname 'qsvg.dylib' \) -delete
+find "${app_path}" -type f \( -iname 'QtSvg' -o -iname 'Qt6Svg' \
+  -o -iname 'QtSvgWidgets' -o -iname 'qsvgicon*' -o -iname 'qsvg.*' \
+  -o -iname 'libqsvg*' \) -delete
+find "${app_path}" -type d \( -iname 'QtSvg.framework' -o -iname 'QtSvgWidgets.framework' \) \
+  -prune -exec rm -rf {} +
 find "${app_path}" -type f \( -iname '*FluentWinUI3*' -o -iname '*Imagine*' \
   -o -iname '*Material*' -o -iname '*Universal*' -o -iname '*WindowsStyleImpl*' \) -delete
 

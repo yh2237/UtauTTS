@@ -159,16 +159,11 @@ foreach ($styleName in @('+Imagine', '+Material', '+Universal')) {
         Remove-Item -LiteralPath $stylePath -Recurse -Force
     }
 }
-foreach ($unusedPlugin in @(
-        'iconengines/qsvgicon.dll',
-        'imageformats/qsvg.dll')) {
-    $unusedPluginPath = Join-Path $appDirectory $unusedPlugin
-    if (Test-Path -LiteralPath $unusedPluginPath -PathType Leaf) {
-        Remove-Item -LiteralPath $unusedPluginPath -Force
-    }
-}
+$unusedSvgPattern = '^(?:Qt6?Svg(?:Widgets)?|(?:lib)?qsvg(?:icon)?)\.(?:dll|dylib|so(?:\.\d+)*)$'
+Get-ChildItem -LiteralPath $appDirectory -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -match $unusedSvgPattern } |
+    Remove-Item -Force
 foreach ($styleLibrary in @(
-        'Qt6Svg.dll',
         'Qt6QuickEffects.dll',
         'Qt6QuickControls2FluentWinUI3StyleImpl.dll',
         'Qt6QuickControls2Imagine.dll',

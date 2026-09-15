@@ -162,9 +162,13 @@ for style_name in +Imagine +Material +Universal; do
   [[ ! -e "${app}/Contents/Resources/qml/QtQuick/Dialogs/quickimpl/qml/${style_name}" ]] \
     || fail "macOS app bundle contains unused Qt Quick Dialogs style: ${style_name}"
 done
-if find "${app}/Contents" -type f \( -iname 'QtSvg' -o -iname 'QtQuickEffects' \
-  -o -iname 'qsvgicon.dylib' -o -iname 'qsvg.dylib' \) -print -quit | grep -q .; then
+if find "${app}/Contents" -type f \( -iname 'QtSvg' -o -iname 'Qt6Svg' \
+  -o -iname 'QtSvgWidgets' -o -iname 'qsvgicon*' -o -iname 'qsvg.*' \
+  -o -iname 'libqsvg*' \) -print -quit | grep -q .; then
   fail 'macOS app bundle contains unused Qt SVG/effects runtime'
+fi
+if find "${app}/Contents" -type d \( -iname 'QtSvg.framework' -o -iname 'QtSvgWidgets.framework' \) -print -quit | grep -q .; then
+  fail 'macOS app bundle contains unused Qt SVG frameworks'
 fi
 [[ ! -e "${server_root}/THIRD_PARTY_NOTICES-MACOS-GUI.txt" ]] \
   || fail 'server package must not contain the macOS GUI third-party addendum'

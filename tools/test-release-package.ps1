@@ -246,11 +246,16 @@ try {
             throw "Release package contains an unused Qt Quick Dialogs style: $unusedQtDialogStyle"
         }
     }
-    foreach ($unusedQtLibrary in @('Qt6Svg.dll', 'Qt6QuickEffects.dll', 'Qt6QuickControls2Imagine.dll',
+    foreach ($unusedQtLibrary in @('Qt6QuickEffects.dll', 'Qt6QuickControls2Imagine.dll',
             'Qt6QuickControls2Material.dll', 'Qt6QuickControls2Universal.dll')) {
         if (Test-Path -LiteralPath (Join-Path $guiRoot "app/$unusedQtLibrary")) {
             throw "Release package contains an unused Qt library: $unusedQtLibrary"
         }
+    }
+    $unusedQtSvgFiles = @(Get-ChildItem -LiteralPath (Join-Path $guiRoot 'app') -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^(?:Qt6?Svg(?:Widgets)?|(?:lib)?qsvg(?:icon)?)\.(?:dll|dylib|so(?:\.\d+)*)$' })
+    if ($unusedQtSvgFiles.Count -ne 0) {
+        throw "Release package contains unused Qt SVG libraries: $($unusedQtSvgFiles.Name -join ', ')"
     }
 
     $voicebank = Get-ChildItem -LiteralPath (Join-Path $guiRoot 'voice') -Directory | Select-Object -First 1
