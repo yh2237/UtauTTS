@@ -219,7 +219,7 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 				var best *Selection
 				for _, endingSpec := range specs {
 					for _, validatedEnding := range validatedEntries(endingSpec.name, b.Entries[endingSpec.name]) {
-						score := candidateScore(endingSpec.tier, validatedEnding.entry)
+						score := validatedCandidateScore(endingSpec.tier, validatedEnding.entry, validatedEnding.validation)
 						if score <= bestScore {
 							continue
 						}
@@ -256,7 +256,7 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 				main := attachEndings(Selection{
 					Position: position, Mora: mora, Alias: candidate.name, Kind: candidate.kind,
 					FallbackTier: candidate.tier, Entry: entry, Candidates: candidates,
-					TargetScore: candidateScore(candidate.tier, entry),
+					TargetScore: validatedCandidateScore(candidate.tier, entry, validation),
 					SubbankID:   subbank.ID, Color: subbank.Color, RequestedTone: requestedTone,
 					ResolvedTone: resolvedTone, EntryStatus: validation.Status, EntryValidation: validation.Checks,
 				})
@@ -276,7 +276,7 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 						transition := Selection{
 							Position: position, Mora: mora, Alias: transitionSpec.name, Kind: AliasVC,
 							FallbackTier: transitionSpec.tier, Entry: transitionEntry, Candidates: candidates,
-							TargetScore: candidateScore(transitionSpec.tier, transitionEntry),
+							TargetScore: validatedCandidateScore(transitionSpec.tier, transitionEntry, transitionValidation),
 							SubbankID:   subbank.ID, Color: subbank.Color, RequestedTone: requestedTone,
 							ResolvedTone: resolvedTone, EntryStatus: transitionValidation.Status,
 							EntryValidation: transitionValidation.Checks,
@@ -386,6 +386,15 @@ func candidateScore(candidateTier int, entry oto.Entry) float64 {
 		score += 2
 	} else {
 		score -= 20
+	}
+	return score
+}
+
+// validatedCandidateScoreは同じ候補内で明確な録音劣化を弱く避ける。
+func validatedCandidateScore(candidateTier int, entry oto.Entry, validation EntryValidation) float64 {
+	score := candidateScore(candidateTier, entry)
+	if validation.Status == "degraded" {
+		score -= 3
 	}
 	return score
 }

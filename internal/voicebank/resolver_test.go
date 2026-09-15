@@ -494,6 +494,37 @@ func TestResolveScoresDuplicateEntriesByOtoConsistency(t *testing.T) {
 	}
 }
 
+func TestResolvePrefersHealthyDuplicateOverClippedRecording(t *testing.T) {
+	dir := t.TempDir()
+	clipped := filepath.Join(dir, "clipped.wav")
+	healthy := filepath.Join(dir, "healthy.wav")
+	clippedPCM := &audio.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 16000/3)}
+	for index := range clippedPCM.Data {
+		clippedPCM.Data[index] = 32767
+	}
+	if err := audio.WriteWav(clipped, clippedPCM); err != nil {
+		t.Fatal(err)
+	}
+	writeResolverTone(t, healthy, 220)
+	bank := &Bank{Root: dir, Entries: map[string][]oto.Entry{
+		"- あ": {
+			{Alias: "- あ", Filename: clipped, Fixed: 90, Preutterance: 50, Overlap: 20},
+			{Alias: "- あ", Filename: healthy, Fixed: 90, Preutterance: 50, Overlap: 20},
+		},
+	}}
+	morae, err := frontend.ParseKana("あ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := bank.Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Entry.Filename != healthy || got[0].EntryStatus != "usable" {
+		t.Fatalf("selection = %#v", got[0])
+	}
+}
+
 func TestResolveCanRejectBrokenVCVForCVFallback(t *testing.T) {
 	bank := &Bank{Entries: map[string][]oto.Entry{
 		"- あ": {{Alias: "- あ", Fixed: 100, Preutterance: 60, Overlap: 20}},
