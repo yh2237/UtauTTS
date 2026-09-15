@@ -99,6 +99,9 @@ func RequestFromScore(singer *Singer, score Score) (Request, error) {
 		request.PitchUseExpr = singer.Pitch.Config.UseExpr
 		request.PitchUseNoteRest = singer.Pitch.Config.UseNoteRest
 		request.PitchPredictorMix = 0.03
+		if score.PitchPredictorMix > 0 {
+			request.PitchPredictorMix = float32(math.Min(1, float64(score.PitchPredictorMix)))
+		}
 		request.NoteMIDI = repeatedMIDIFloat32(float32(score.MIDI), len(score.WordDiv))
 		request.NoteRest = append([]bool(nil), score.NoteRest...)
 		if singer.Pitch.Config.UseLangID {

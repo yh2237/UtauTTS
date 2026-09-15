@@ -108,6 +108,23 @@ func TestRequestFromScoreDoesNotEnablePitchPredictorForManualF0(t *testing.T) {
 	}
 }
 
+func TestRequestFromScoreUsesSpeechPitchMix(t *testing.T) {
+	singer := &Singer{
+		Config:  Config{Phonemes: "phonemes.txt", SampleRate: 44100, MelBase: "10"},
+		Vocoder: VocoderConfig{MelBase: "10"},
+		Tokens:  map[string]int64{"SP": 1},
+		Pitch:   &PitchModel{Tokens: map[string]int64{"SP": 2}},
+	}
+	request, err := RequestFromScore(singer, Score{Symbols: []string{"SP"}, Durations: []int64{8}, F0: []float32{440}, MIDI: 60,
+		WordDiv: []int64{1}, WordDur: []int64{8}, UsePitchPredictor: true, PitchPredictorMix: .10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.PitchPredictorMix != .10 {
+		t.Fatalf("pitch mix = %v", request.PitchPredictorMix)
+	}
+}
+
 func TestScoreMelScale(t *testing.T) {
 	if got := scoreMelScale("10", "e"); got < 2.3025 || got > 2.3026 {
 		t.Fatalf("scale = %v", got)

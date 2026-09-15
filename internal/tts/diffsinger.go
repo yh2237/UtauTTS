@@ -61,10 +61,15 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 		noteRest[index+1] = mora.Pause
 	}
 	noteRest = append(noteRest, true)
+	automaticPitch := cfg.PitchCurve != nil && cfg.ManualPitch == nil && cfg.ManualPitchPath == ""
 	score := engine.NeuralScore{
 		Symbols: symbols, Durations: frames, F0: f0, MIDI: midi,
 		WordDiv: wordDiv, WordDur: wordDur, NoteRest: noteRest,
-		UsePitchPredictor: singer.Pitch != nil && cfg.PitchCurve == nil,
+		UsePitchPredictor: singer.Pitch != nil && (cfg.PitchCurve == nil || automaticPitch),
+	}
+	if automaticPitch && singer.Pitch != nil {
+		// 話声用の輪郭を基準に、音源側の滑らかな微小変化だけを混ぜる。
+		score.PitchPredictorMix = .10
 	}
 	bridgePath := cfg.Engine.Resource(engine.ResourceDiffSingerBridge)
 	if bridgePath == "" {

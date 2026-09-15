@@ -9,4 +9,5 @@ type NeuralScore struct {
 	WordDur           []int64   `json:"word_dur,omitempty"`
 	NoteRest          []bool    `json:"note_rest,omitempty"`
 	UsePitchPredictor bool      `json:"use_pitch_predictor,omitempty"`
+	PitchPredictorMix float32   `json:"pitch_predictor_mix,omitempty"`
 }
