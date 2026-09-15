@@ -837,14 +837,6 @@ ApplicationWindow {
                             }
                         }
 
-                        Label {
-                            Layout.fillWidth: true
-                            text: root.translator.tr("settings.ffmpegPathHint")
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: 12
-                            opacity: 0.75
-                        }
-
                         RowLayout {
                             Layout.fillWidth: true
                             Label {

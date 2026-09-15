@@ -161,7 +161,6 @@
     "settings.ffmpegPath": "FFmpegのパス",
     "settings.ffmpegPath.placeholder": "Qt Multimedia用FFmpegフォルダ",
     "settings.ffmpegPath.choose": "参照…",
-    "settings.ffmpegPathHint": "外部のQt Multimedia用FFmpegを使う場合に指定します。変更後はUtauTTSを再起動してください。",
     "settings.theme": "テーマ",
     "settings.theme.dark": "ダーク",
     "settings.theme.light": "ライト",

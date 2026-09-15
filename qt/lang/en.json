@@ -161,7 +161,6 @@
     "settings.ffmpegPath": "FFmpeg path",
     "settings.ffmpegPath.placeholder": "Qt Multimedia FFmpeg directory",
     "settings.ffmpegPath.choose": "Browse…",
-    "settings.ffmpegPathHint": "Optional directory for an external Qt Multimedia FFmpeg backend. Restart UtauTTS after changing it.",
     "settings.theme": "Theme",
     "settings.theme.dark": "Dark",
     "settings.theme.light": "Light",

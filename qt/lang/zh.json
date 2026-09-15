@@ -161,7 +161,6 @@
     "settings.ffmpegPath": "FFmpeg 路径",
     "settings.ffmpegPath.placeholder": "Qt Multimedia FFmpeg 文件夹",
     "settings.ffmpegPath.choose": "浏览…",
-    "settings.ffmpegPathHint": "可选的外部 Qt Multimedia FFmpeg 后端目录。修改后请重启 UtauTTS。",
     "settings.theme": "主题",
     "settings.theme.dark": "深色",
     "settings.theme.light": "浅色",
