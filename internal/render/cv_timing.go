@@ -14,6 +14,8 @@ const (
 	singleCVMaximumPreutteranceMS = 110
 	singleCVMinimumVowelTailMS    = 35
 	singleCVVowelTailRatio        = 0.35
+	singleCVDefaultVowelOverlapMS = 18.0
+	singleCVSameVowelOverlapMS    = 24.0
 	vcvMinimumPreutteranceMS      = 48
 	vcvMaximumPreutteranceMS      = 150
 	vcvMinimumVowelTailMS         = 45
@@ -227,7 +229,31 @@ func singleCVOnsetFadeInMS(synthesisPlan *plan.Plan, unit plan.Unit) float64 {
 func singleCVWorldOverlapMS(synthesisPlan *plan.Plan, unit plan.Unit, preutteranceMS float64) float64 {
 	overlap := math.Max(0, unit.OverlapMS)
 	overlap = math.Min(overlap, singleCVOnsetFadeInMS(synthesisPlan, unit))
+	if singleCVVowelBoundaryWithoutOnset(synthesisPlan, unit) {
+		// 単独母音はotoのoverlap=0でも前の母音と短く重ねる。
+		if overlap <= 0 {
+			overlap = singleCVDefaultVowelOverlapMS
+			if sameSingleCVVowel(synthesisPlan, unit.Position) {
+				overlap = singleCVSameVowelOverlapMS
+			}
+		}
+		return math.Min(overlap, singleCVOnsetFadeInMS(synthesisPlan, unit))
+	}
 	return math.Min(overlap, math.Max(0, preutteranceMS))
+}
+
+func singleCVVowelBoundaryWithoutOnset(synthesisPlan *plan.Plan, unit plan.Unit) bool {
+	if synthesisPlan == nil || singleCVOnset(synthesisPlan, unit) != "" {
+		return false
+	}
+	return singleCVMoraBoundaryEligible(synthesisPlan, unit.Position)
+}
+
+func sameSingleCVVowel(synthesisPlan *plan.Plan, position int) bool {
+	if synthesisPlan == nil || position <= 0 || position >= len(synthesisPlan.Morae) {
+		return false
+	}
+	return synthesisPlan.Morae[position-1].Vowel == synthesisPlan.Morae[position].Vowel
 }
 
 func singleCVOnset(synthesisPlan *plan.Plan, unit plan.Unit) string {

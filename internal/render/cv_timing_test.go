@@ -124,3 +124,18 @@ func TestSingleCVWorldOverlapKeepsOnsetFadeControlled(t *testing.T) {
 		t.Fatalf("zero overlap changed to %.3f", got)
 	}
 }
+
+func TestSingleCVWorldOverlapAddsVowelBoundaryBlend(t *testing.T) {
+	p := &plan.Plan{SingleCV: true, Morae: []frontend.Mora{
+		{Vowel: "a"}, {Vowel: "a"}, {Vowel: "i"}, {Consonant: "k", Vowel: "a"},
+	}}
+	if got := singleCVWorldOverlapMS(p, plan.Unit{Position: 1}, 0); got != singleCVSameVowelOverlapMS {
+		t.Fatalf("same-vowel overlap = %.3f, want %.3f", got, singleCVSameVowelOverlapMS)
+	}
+	if got := singleCVWorldOverlapMS(p, plan.Unit{Position: 2}, 0); got != singleCVDefaultVowelOverlapMS {
+		t.Fatalf("vowel overlap = %.3f, want %.3f", got, singleCVDefaultVowelOverlapMS)
+	}
+	if got := singleCVWorldOverlapMS(p, plan.Unit{Position: 3}, 0); got != 0 {
+		t.Fatalf("consonant onset overlap = %.3f, want 0", got)
+	}
+}

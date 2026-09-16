@@ -702,7 +702,11 @@ func analyzeIntonationFromPitches(synthesisPlan *plan.Plan, timings []effectiveT
 	if strength == 0 {
 		return factors
 	}
-	pitches = stabilizeWorldlinePitches(pitches)
+	if synthesisPlan.SingleCV {
+		pitches = stabilizeSingleCVPitches(synthesisPlan, pitches)
+	} else {
+		pitches = stabilizeWorldlinePitches(pitches)
+	}
 	voiced := nonzeroFloats(pitches)
 	reference := medianFloat(voiced)
 	if reference <= 0 {

@@ -823,7 +823,87 @@ func measureWorldlinePitches(synthesisPlan *plan.Plan, cache *sourceCache) ([]fl
 			return nil, 0, err
 		}
 	}
+	if synthesisPlan.SingleCV {
+		return stabilizeSingleCVPitches(synthesisPlan, values), sampleRate, nil
+	}
 	return stabilizeWorldlinePitches(values), sampleRate, nil
+}
+
+func stabilizeSingleCVPitches(synthesisPlan *plan.Plan, values []float64) []float64 {
+	base := stabilizeWorldlinePitches(values)
+	result := append([]float64(nil), base...)
+	if synthesisPlan == nil || !synthesisPlan.SingleCV {
+		return result
+	}
+	for index, value := range result {
+		if value <= 0 || index >= len(synthesisPlan.Units) || synthesisPlan.Units[index].Silent || synthesisPlan.Units[index].Role == "transition" {
+			continue
+		}
+		context := singleCVPitchContext(synthesisPlan, base, index)
+		if len(context) < 2 {
+			continue
+		}
+		if !singleCVPitchContextReliable(context) {
+			continue
+		}
+		reference := medianFloat(context)
+		if reference <= 0 {
+			continue
+		}
+		ratio := value / reference
+		if ratio >= .84 && ratio <= 1.19 {
+			continue
+		}
+		best, bestDistance := value, math.Abs(math.Log2(ratio))
+		for _, factor := range []float64{4.0 / 3, 3.0 / 2, 2, 3, 4, 3.0 / 4, 2.0 / 3, 1.0 / 2, 1.0 / 3, 1.0 / 4} {
+			candidate := value * factor
+			candidateRatio := candidate / reference
+			if candidateRatio < .90 || candidateRatio > 1.10 {
+				continue
+			}
+			distance := math.Abs(math.Log2(candidateRatio))
+			if distance < bestDistance {
+				best, bestDistance = candidate, distance
+			}
+		}
+		if best == value {
+			best = reference
+		}
+		result[index] = best
+	}
+	return result
+}
+
+func singleCVPitchContextReliable(values []float64) bool {
+	if len(values) < 2 {
+		return false
+	}
+	minimum, maximum := values[0], values[0]
+	for _, value := range values[1:] {
+		minimum = math.Min(minimum, value)
+		maximum = math.Max(maximum, value)
+	}
+	return minimum > 0 && maximum/minimum <= 1.20
+}
+
+func singleCVPitchContext(synthesisPlan *plan.Plan, values []float64, index int) []float64 {
+	result := make([]float64, 0, 5)
+	for distance := 1; distance <= 2; distance++ {
+		for _, neighbor := range []int{index - distance, index + distance} {
+			if neighbor < 0 || neighbor >= len(values) || neighbor >= len(synthesisPlan.Units) {
+				continue
+			}
+			unit := synthesisPlan.Units[neighbor]
+			if unit.Silent || unit.Role == "transition" || unit.Position < 0 || unit.Position >= len(synthesisPlan.Morae) || values[neighbor] <= 0 {
+				continue
+			}
+			if neighbor != index && math.Abs(float64(unit.Position-synthesisPlan.Units[index].Position)) > float64(distance) {
+				continue
+			}
+			result = append(result, values[neighbor])
+		}
+	}
+	return result
 }
 
 // 短い有声録音の倍音と分周誤検出を近い原音の高さへ補正する。

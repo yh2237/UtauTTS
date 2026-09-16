@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"utautts/internal/audio"
+	"utautts/internal/frontend"
 	"utautts/internal/pitch"
 	"utautts/internal/plan"
 )
@@ -924,6 +925,36 @@ func TestStabilizeWorldlinePitchesCorrectsNearHalfPitch(t *testing.T) {
 	got := stabilizeWorldlinePitches([]float64{207, 115, 205})
 	if math.Abs(got[1]-230) > 1 || got[0] != 207 || got[2] != 205 {
 		t.Fatalf("stabilized near-half pitch = %#v, want near [207, 230, 205]", got)
+	}
+}
+
+func TestStabilizeSingleCVPitchesCorrectsModerateOutlier(t *testing.T) {
+	p := &plan.Plan{SingleCV: true, Units: []plan.Unit{
+		{Role: "mora", Position: 0}, {Role: "mora", Position: 1}, {Role: "mora", Position: 2},
+	}, Morae: []frontend.Mora{{Vowel: "a"}, {Vowel: "i"}, {Vowel: "u"}}}
+	got := stabilizeSingleCVPitches(p, []float64{207, 155, 208})
+	if math.Abs(got[1]-206.667) > 2 || got[0] != 207 || got[2] != 208 {
+		t.Fatalf("stabilized moderate outlier = %#v, want near [207, 207, 208]", got)
+	}
+}
+
+func TestStabilizeSingleCVPitchesCorrectsUntrackableLowOutlier(t *testing.T) {
+	p := &plan.Plan{SingleCV: true, Units: []plan.Unit{
+		{Role: "mora", Position: 0}, {Role: "mora", Position: 1}, {Role: "mora", Position: 2},
+	}, Morae: []frontend.Mora{{Vowel: "a"}, {Vowel: "a"}, {Vowel: "a"}}}
+	got := stabilizeSingleCVPitches(p, []float64{207, 86, 208})
+	if math.Abs(got[1]-207.5) > 2 || got[0] != 207 || got[2] != 208 {
+		t.Fatalf("stabilized low outlier = %#v, want near [207, 208, 208]", got)
+	}
+}
+
+func TestStabilizeSingleCVPitchesLeavesAmbiguousShortPhrase(t *testing.T) {
+	p := &plan.Plan{SingleCV: true, Units: []plan.Unit{
+		{Role: "mora", Position: 0}, {Role: "mora", Position: 1},
+	}, Morae: []frontend.Mora{{Vowel: "a"}, {Vowel: "i"}}}
+	got := stabilizeSingleCVPitches(p, []float64{207, 155})
+	if got[0] != 207 || got[1] != 155 {
+		t.Fatalf("ambiguous short phrase changed = %#v", got)
 	}
 }
 
