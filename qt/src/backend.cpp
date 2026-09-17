@@ -18,6 +18,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QPromise>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSaveFile>
@@ -233,6 +234,92 @@ QDir resourceRoot() {
     return application;
 }
 
+QByteArray nativeConfigJSON() {
+    const QDir root = resourceRoot();
+    QJsonObject config{{"voice_dir", root.filePath("voice")}};
+    config.insert("renderer_directories", QJsonArray{root.filePath("renderer")});
+    config.insert("model_directories", QJsonArray{root.filePath("models")});
+    const QString runtime = root.filePath("runtime");
+#ifdef Q_OS_WIN
+    const QString openJTalkName = QStringLiteral("utautts-openjtalk-features.exe");
+#else
+    const QString openJTalkName = QStringLiteral("utautts-openjtalk-features");
+#endif
+    const QString openJTalkPath = QDir(runtime).filePath(openJTalkName);
+    const QString openJTalkDictionary = QDir(runtime).filePath("open_jtalk_dic_utf_8-1.11");
+    if (QFileInfo(openJTalkPath).isFile()) {
+        config.insert("openjtalk_path", openJTalkPath);
+    }
+    if (QFileInfo(openJTalkDictionary).isDir()) {
+        config.insert("openjtalk_dictionary", openJTalkDictionary);
+    }
+    return QJsonDocument(config).toJson(QJsonDocument::Compact);
+}
+
+QVariantMap callNative(uintptr_t handle, const QByteArray &method,
+                       const QVariantMap &request = {}) {
+    if (!handle) {
+        throw std::runtime_error("native backend is not initialized");
+    }
+    QByteArray methodCopy = method;
+    QByteArray requestJSON = QJsonDocument::fromVariant(request).toJson(QJsonDocument::Compact);
+    std::unique_ptr<char, decltype(&UtauTTSFree)> response(
+        UtauTTSCall(handle, methodCopy.data(), requestJSON.data()), &UtauTTSFree);
+    if (!response) {
+        throw std::runtime_error("native backend returned no response");
+    }
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(response.get(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        throw std::runtime_error("native backend returned invalid JSON");
+    }
+    const QJsonObject object = document.object();
+    if (!object.value("ok").toBool()) {
+        throw std::runtime_error(object.value("error").toString().toStdString());
+    }
+    const QJsonValue result = object.value("result");
+    if (!result.isObject()) {
+        throw std::runtime_error("native backend returned no result");
+    }
+    return result.toObject().toVariantMap();
+}
+
+QVariantMap initializeNative(const QByteArray &encoded, QPromise<QVariantMap> &progress) {
+    QByteArray config = encoded;
+    const uintptr_t handle = UtauTTSCreate(config.data());
+    if (!handle) {
+        std::unique_ptr<char, decltype(&UtauTTSFree)> detail(
+            UtauTTSLastError(), &UtauTTSFree);
+        const QString message = detail ? QString::fromUtf8(detail.get()) : QString();
+        return {{"_error", message.isEmpty()
+                              ? QStringLiteral("could not initialize the native backend")
+                              : message}};
+    }
+    try {
+        progress.setProgressValue(0);
+        const QVariantMap voices = callNative(handle, "voicebanks");
+        progress.setProgressValue(1);
+        const QVariantMap models = callNative(handle, "models");
+        progress.setProgressValue(2);
+        const QVariantMap renderers = callNative(handle, "renderers");
+        progress.setProgressValue(3);
+        progress.setProgressValue(4);
+        return {
+            {"_handle", QVariant::fromValue<qulonglong>(static_cast<qulonglong>(handle))},
+            {"voicebanks", voices.value("voicebanks")},
+            {"models", models.value("models")},
+            {"renderers", renderers.value("renderers")},
+            {"problems", renderers.value("problems")},
+            {"resamplers", renderers.value("resamplers")},
+            {"wavtools", renderers.value("wavtools")},
+            {"default_renderer", renderers.value("default_renderer")},
+        };
+    } catch (const std::exception &exception) {
+        UtauTTSDestroy(handle);
+        return {{"_error", QString::fromUtf8(exception.what())}};
+    }
+}
+
 QString portableSettingsPath() {
     const QString selfTestDirectory = qEnvironmentVariable("UTAUTTS_SELF_TEST_DIRECTORY");
     if (!selfTestDirectory.isEmpty())
@@ -407,6 +494,18 @@ Backend::~Backend() {
         m_updateReply->abort();
     }
     m_activeCalls.waitForFinished();
+    if (m_initializationTask.isValid()) {
+        m_initializationTask.waitForFinished();
+    }
+    if (!m_handle && m_initializationFuture.isValid()
+            && m_initializationFuture.isFinished()) {
+        const QVariantMap result = m_initializationFuture.result();
+        const uintptr_t handle = static_cast<uintptr_t>(
+            result.value(QStringLiteral("_handle")).toULongLong());
+        if (handle) {
+            UtauTTSDestroy(handle);
+        }
+    }
     if (m_handle) {
         UtauTTSDestroy(m_handle);
     }
@@ -825,9 +924,8 @@ bool Backend::showNativeAboutDialog() {
     const QString text = QStringLiteral(
         "UtauTTS %1\n\n"
         "Developed by yh\n\n"
-        "Japanese TTS using UTAU voicebank concatenation and learning-based intonation.\n\n"
-        "FFmpeg is not bundled. Qt Multimedia uses an available backend. "
-        "See the license documents for details.").arg(QCoreApplication::applicationVersion());
+        "UTAUボイスバンクの原音接続に学習ベースのイントネーション調整を加えた日本語TTS"
+        ).arg(QCoreApplication::applicationVersion());
     MessageBoxW(GetActiveWindow(),
                 reinterpret_cast<LPCWSTR>(text.utf16()),
                 reinterpret_cast<LPCWSTR>(title.utf16()),
@@ -1045,25 +1143,7 @@ void Backend::initialize() {
         m_handle = 0;
         emit connectedChanged();
     }
-    const QDir root = resourceRoot();
-    QJsonObject config{{"voice_dir", root.filePath("voice")}};
-    config.insert("renderer_directories", QJsonArray{root.filePath("renderer")});
-    config.insert("model_directories", QJsonArray{root.filePath("models")});
-    const QString runtime = root.filePath("runtime");
-#ifdef Q_OS_WIN
-    const QString openJTalkName = QStringLiteral("utautts-openjtalk-features.exe");
-#else
-    const QString openJTalkName = QStringLiteral("utautts-openjtalk-features");
-#endif
-    const QString openJTalkPath = QDir(runtime).filePath(openJTalkName);
-    const QString openJTalkDictionary = QDir(runtime).filePath("open_jtalk_dic_utf_8-1.11");
-    if (QFileInfo(openJTalkPath).isFile()) {
-        config.insert("openjtalk_path", openJTalkPath);
-    }
-    if (QFileInfo(openJTalkDictionary).isDir()) {
-        config.insert("openjtalk_dictionary", openJTalkDictionary);
-    }
-    QByteArray encoded = QJsonDocument(config).toJson(QJsonDocument::Compact);
+    QByteArray encoded = nativeConfigJSON();
     m_handle = UtauTTSCreate(encoded.data());
     if (!m_handle) {
         std::unique_ptr<char, decltype(&UtauTTSFree)> detail(UtauTTSLastError(), &UtauTTSFree);
@@ -1083,6 +1163,78 @@ void Backend::initialize() {
     }
 }
 
+void Backend::initializeAsync() {
+    if (m_handle || m_busy || m_activeCallCount != 0) {
+        return;
+    }
+    setBusy(true);
+    setError({});
+    emit metadataReloadStarted();
+    emit metadataReloadStageChanged(QStringLiteral("voicebanks"));
+
+    const QByteArray encoded = nativeConfigJSON();
+    auto *watcher = new QFutureWatcher<QVariantMap>(this);
+    const QStringList stages{
+        QStringLiteral("voicebanks"), QStringLiteral("models"),
+        QStringLiteral("renderers"), QStringLiteral("resamplers"),
+        QStringLiteral("wavtools"),
+    };
+    connect(watcher, &QFutureWatcher<QVariantMap>::progressValueChanged, this,
+            [this, stages](int value) {
+                if (value >= 0 && value < stages.size()) {
+                    emit metadataReloadStageChanged(stages.at(value));
+                }
+            });
+    connect(watcher, &QFutureWatcher<QVariantMap>::finished, this, [this, watcher]() {
+        const QVariantMap result = watcher->result();
+        if (result.contains(QStringLiteral("_error"))) {
+            setError(result.value(QStringLiteral("_error")).toString());
+        } else {
+            m_handle = static_cast<uintptr_t>(
+                result.value(QStringLiteral("_handle")).toULongLong());
+            emit connectedChanged();
+            applyMetadata(
+                QVariantMap{{QStringLiteral("voicebanks"), result.value(QStringLiteral("voicebanks"))}},
+                QVariantMap{{QStringLiteral("models"), result.value(QStringLiteral("models"))}},
+                QVariantMap{
+                    {QStringLiteral("renderers"), result.value(QStringLiteral("renderers"))},
+                    {QStringLiteral("problems"), result.value(QStringLiteral("problems"))},
+                    {QStringLiteral("resamplers"), result.value(QStringLiteral("resamplers"))},
+                    {QStringLiteral("wavtools"), result.value(QStringLiteral("wavtools"))},
+                    {QStringLiteral("default_renderer"), result.value(QStringLiteral("default_renderer"))},
+                });
+            if (!m_startupMigrationError.isEmpty()) {
+                setError(m_startupMigrationError);
+            } else {
+                setError({});
+            }
+        }
+        setBusy(false);
+        watcher->deleteLater();
+        m_initializationFuture = {};
+        if (--m_activeCallCount == 0) {
+            m_activeCalls.clearFutures();
+        }
+    });
+    QPromise<QVariantMap> promise;
+    promise.start();
+    promise.setProgressRange(0, stages.size() - 1);
+    m_initializationFuture = promise.future();
+    m_initializationTask = QtConcurrent::run([encoded, promise = std::move(promise)]() mutable {
+        QVariantMap result;
+        try {
+            result = initializeNative(encoded, promise);
+        } catch (const std::exception &exception) {
+            result = {{"_error", QString::fromUtf8(exception.what())}};
+        }
+        promise.addResult(result);
+        promise.finish();
+    });
+    ++m_activeCallCount;
+    m_activeCalls.addFuture(m_initializationFuture);
+    watcher->setFuture(m_initializationFuture);
+}
+
 bool Backend::restartNativeBackend() {
     if (m_busy || m_activeCallCount != 0) {
         setError(tr("処理中はRendererを変更できません。"));
@@ -1094,36 +1246,11 @@ bool Backend::restartNativeBackend() {
 }
 
 QVariantMap Backend::call(const QByteArray &method, const QVariantMap &request) {
-    if (!m_handle) {
-        throw std::runtime_error("backend is not initialized");
-    }
-    QByteArray methodCopy = method;
-    QByteArray requestJSON = QJsonDocument::fromVariant(request).toJson(QJsonDocument::Compact);
-    std::unique_ptr<char, decltype(&UtauTTSFree)> response(
-        UtauTTSCall(m_handle, methodCopy.data(), requestJSON.data()), &UtauTTSFree);
-    if (!response) {
-        throw std::runtime_error("native backend returned no response");
-    }
-    QJsonParseError parseError;
-    const QJsonDocument document = QJsonDocument::fromJson(response.get(), &parseError);
-    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
-        throw std::runtime_error("native backend returned invalid JSON");
-    }
-    const QJsonObject object = document.object();
-    if (!object.value("ok").toBool()) {
-        throw std::runtime_error(object.value("error").toString().toStdString());
-    }
-    const QJsonValue result = object.value("result");
-    if (!result.isObject()) {
-        throw std::runtime_error("native backend returned no result");
-    }
-    return result.toObject().toVariantMap();
+    return callNative(m_handle, method, request);
 }
 
-void Backend::refreshMetadata() {
-    const QVariantMap voices = call("voicebanks");
-    const QVariantMap models = call("models");
-    const QVariantMap renderers = call("renderers");
+void Backend::applyMetadata(const QVariantMap &voices, const QVariantMap &models,
+                            const QVariantMap &renderers) {
     m_voicebanks = voices.value("voicebanks").toList();
     m_models = models.value("models").toList();
     m_renderers = renderers.value("renderers").toList();
@@ -1149,12 +1276,18 @@ void Backend::refreshMetadata() {
     emit metadataChanged();
 }
 
+void Backend::refreshMetadata() {
+    applyMetadata(call("voicebanks"), call("models"), call("renderers"));
+}
+
 void Backend::reloadVoicebanks() {
     if (m_busy) {
         return;
     }
     setBusy(true);
     setError({});
+    emit metadataReloadStarted();
+    emit metadataReloadStageChanged(QStringLiteral("voicebanks"));
     auto *watcher = new QFutureWatcher<QVariantMap>(this);
     connect(watcher, &QFutureWatcher<QVariantMap>::finished, this, [this, watcher]() {
         setBusy(false);

@@ -53,7 +53,8 @@ ApplicationWindow {
     property double updateDownloadReceived: 0
     property double updateDownloadTotal: 0
     property bool updateSuppressVersion: false
-    property bool voicebankReloadActive: false
+    property bool metadataReloadActive: false
+    property string metadataReloadStage: "voicebanks"
 
     property alias utterancesModel: utterances
     property alias playerMedia: player
@@ -659,8 +660,8 @@ ApplicationWindow {
     }
 
     Dialog {
-        id: voicebankReloadDialog
-        title: window.translator.tr("menu.file.reloadVoicebanks")
+        id: metadataReloadDialog
+        title: window.translator.tr("metadata.loading." + window.metadataReloadStage)
         modal: true
         width: Math.min(window.width - 40, 440)
         anchors.centerIn: Overlay.overlay
@@ -673,15 +674,6 @@ ApplicationWindow {
             ProgressBar {
                 Layout.fillWidth: true
                 indeterminate: true
-            }
-
-            Label {
-                Layout.fillWidth: true
-                text: window.translator.tr("voicebank.loadingDetail")
-                color: window.mutedText
-                font.pixelSize: 11
-                wrapMode: Text.WordWrap
-                horizontalAlignment: Text.AlignHCenter
             }
         }
     }
@@ -711,10 +703,20 @@ ApplicationWindow {
                 Qt.quit();
         }
 
+        function onMetadataReloadStarted() {
+            window.metadataReloadActive = true;
+            window.metadataReloadStage = "voicebanks";
+            metadataReloadDialog.open();
+        }
+
+        function onMetadataReloadStageChanged(stage) {
+            window.metadataReloadStage = stage;
+        }
+
         function onMetadataChanged() {
-            if (window.voicebankReloadActive) {
-                window.voicebankReloadActive = false;
-                voicebankReloadDialog.close();
+            if (window.metadataReloadActive) {
+                window.metadataReloadActive = false;
+                metadataReloadDialog.close();
             }
             const suppressDirty = !window.metadataInitialized;
             window.assignDefaultVoicebank(suppressDirty);
@@ -856,9 +858,9 @@ ApplicationWindow {
         }
 
         function onErrorChanged() {
-            if (window.voicebankReloadActive && window.appBackend.error.length) {
-                window.voicebankReloadActive = false;
-                voicebankReloadDialog.close();
+            if (window.metadataReloadActive && window.appBackend.error.length) {
+                window.metadataReloadActive = false;
+                metadataReloadDialog.close();
             }
             if (window.batchExportActive && !window.appBackend.busy
                     && window.pendingUtteranceId.length && window.appBackend.error.length)
@@ -1374,8 +1376,6 @@ ApplicationWindow {
         if (window.appBackend.busy || window.batchExportActive)
             return;
         window.clearPlayback();
-        window.voicebankReloadActive = true;
-        voicebankReloadDialog.open();
         window.appBackend.reloadVoicebanks();
     }
 

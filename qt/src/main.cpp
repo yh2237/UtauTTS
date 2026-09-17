@@ -136,7 +136,6 @@ bool updateInProgress() {
         root.cdUp();
 #ifdef Q_OS_MACOS
     if (root.dirName().compare(QLatin1String("MacOS"), Qt::CaseInsensitive) == 0) {
-        // package/UtauTTS.app/Contents/MacOS/utautts から配布packageのrootへ戻す。
         root.cdUp();
         root.cdUp();
         root.cdUp();
@@ -213,8 +212,10 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    backend.initialize();
-    if (selfTest)
+    if (selfTest) {
+        backend.initialize();
         return runSelfTest(backend, engine.rootObjects().constFirst());
+    }
+    backend.initializeAsync();
     return app.exec();
 }

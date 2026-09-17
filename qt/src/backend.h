@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QByteArray>
+#include <QFuture>
 #include <QFutureSynchronizer>
 #include <QHash>
 #include <QList>
@@ -119,6 +120,7 @@ public:
     QStringList logLines() const { return m_logLines; }
 
     Q_INVOKABLE void initialize();
+    void initializeAsync();
     Q_INVOKABLE void reloadVoicebanks();
     Q_INVOKABLE bool openVoiceDirectory();
     Q_INVOKABLE bool openClassicToolDirectory(const QString &kind);
@@ -183,6 +185,8 @@ signals:
     void connectedChanged();
     void busyChanged();
     void errorChanged();
+    void metadataReloadStarted();
+    void metadataReloadStageChanged(const QString &stage);
     void metadataChanged();
     void analysisChanged();
     void prosodyChanged();
@@ -216,6 +220,8 @@ private:
     };
 
     QVariantMap call(const QByteArray &method, const QVariantMap &request = {});
+    void applyMetadata(const QVariantMap &voices, const QVariantMap &models,
+                      const QVariantMap &renderers);
     void refreshMetadata();
     void setBusy(bool value);
     void setError(const QString &value);
@@ -236,6 +242,8 @@ private:
     QHash<QByteArray, PreviewCacheEntry> m_previewCache;
     QList<QByteArray> m_previewCacheOrder;
     QFutureSynchronizer<QVariantMap> m_activeCalls;
+    QFuture<QVariantMap> m_initializationFuture;
+    QFuture<void> m_initializationTask;
     int m_activeCallCount = 0;
     QVariantList m_voicebanks, m_models, m_renderers, m_resamplers, m_wavtools, m_dictionaryEntries;
     QStringList m_pluginProblems;
