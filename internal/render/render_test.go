@@ -815,6 +815,44 @@ func TestRenderPitchFactorRequiresExplicitMode(t *testing.T) {
 	}
 }
 
+func TestRenderResamplerVolumeOverrideScalesWaveform(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/tone.wav"
+	data := make([]int16, 8000)
+	for i := range data {
+		data[i] = int16(6000 * math.Sin(2*math.Pi*200*float64(i)/16000))
+	}
+	if err := audio.WriteWav(path, &audio.PCM{SampleRate: 16000, Channels: 1, Data: data}); err != nil {
+		t.Fatal(err)
+	}
+	render := func(volume int, override bool) float64 {
+		p := &plan.Plan{DurationMS: 300, Units: []plan.Unit{{
+			Position: 0, Source: path, DurationMS: 300,
+			PitchFactor: 1, EnergyFactor: 1,
+			ResamplerVolume: volume, ResamplerVolumeOverride: override,
+		}}}
+		pcm, err := Render(p, Config{ReleaseMS: 20})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var sum float64
+		for _, v := range pcm.Data {
+			f := float64(v) / 32768.0
+			sum += f * f
+		}
+		return math.Sqrt(sum / float64(len(pcm.Data)))
+	}
+	base := render(100, false)
+	half := render(50, true)
+	if math.Abs(half/base-0.5) > 0.01 {
+		t.Fatalf("volume 50 RMS ratio = %f, want 0.5", half/base)
+	}
+	ignored := render(50, false)
+	if math.Abs(ignored/base-1) > 0.000001 {
+		t.Fatalf("volume without override flag changed output: ratio = %f", ignored/base)
+	}
+}
+
 func TestStretchPreservesPrefixAndLength(t *testing.T) {
 	source := make([]float64, 200)
 	for i := range source {

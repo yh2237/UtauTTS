@@ -250,6 +250,9 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		if unit.Role == "transition" {
 			volume *= cfg.CVVCTransitionGain
 		}
+		if unit.ResamplerVolumeOverride {
+			volume = float64(unit.ResamplerVolume)
+		}
 		var envelopePoints []worldlineEnvelopePoint
 		pitchLengthMS := 0.0
 		if phraseTiming {

@@ -533,6 +533,12 @@ func renderWaveformWithStretch(synthesisPlan *plan.Plan, cfg Config, parallelRet
 				wave[frame] *= energy
 			}
 		}
+		if unit.ResamplerVolumeOverride && unit.ResamplerVolume >= 0 {
+			gain := float64(unit.ResamplerVolume) / 100.0
+			for frame := range wave {
+				wave[frame] *= gain
+			}
+		}
 		item.wave = wave
 		return nil
 	}

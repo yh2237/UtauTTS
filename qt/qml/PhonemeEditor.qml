@@ -57,11 +57,7 @@ Item {
             ? root.timingEditor.durationScale : 0.5
     readonly property var exprLanes: [
         {key: "pitch_factor", code: "PIT"},
-        {key: "energy_factor", code: "NRG"},
-        {key: "resampler_velocity", code: "VEL"},
-        {key: "resampler_volume", code: "VOL"},
-        {key: "resampler_modulation", code: "MOD"},
-        {key: "resampler_tempo", code: "TMP"}
+        {key: "resampler_volume", code: "VOL"}
     ]
     readonly property real exprLaneH: 22
     readonly property real exprAreaH: root.exprLanes.length * root.exprLaneH + 8
