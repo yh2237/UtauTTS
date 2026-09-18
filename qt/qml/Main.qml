@@ -63,6 +63,15 @@ ApplicationWindow {
     property string synthesisViewUtteranceId: ""
     property int synthesisViewRevision: -1
     property bool synthesisViewStale: false
+    property bool autoPreviewEnabled: true
+    property bool autoplayPreview: true
+
+    Timer {
+        id: autoPreviewTimer
+        interval: 700
+        repeat: false
+        onTriggered: window.refreshPreview()
+    }
 
     property alias utterancesModel: utterances
     property alias playerMedia: player
@@ -854,6 +863,8 @@ ApplicationWindow {
             if (index < 0 || index !== window.selectedIndex || utterances.get(index).revision !== window.pendingRevision) {
                 window.pendingUtteranceId = "";
                 window.pendingRevision = -1;
+                window.autoplayPreview = true;
+                window.scheduleAutoPreview();
                 return;
             }
             window.updateSynthesisViewFromBackend(window.pendingUtteranceId,
@@ -863,12 +874,17 @@ ApplicationWindow {
             window.pendingUtteranceId = "";
             window.pendingRevision = -1;
             window.playbackError = "";
-            window.playbackRequested = true;
-            if (window.appBackend.closeLogOnSuccess)
-                synthesisLogWindow.close();
             player.stop();
             player.source = audio;
-            player.play();
+            if (window.autoplayPreview !== false) {
+                window.playbackRequested = true;
+                if (window.appBackend.closeLogOnSuccess)
+                    synthesisLogWindow.close();
+                player.play();
+            } else {
+                window.playbackRequested = false;
+                window.autoplayPreview = true;
+            }
         }
 
         function onErrorChanged() {
@@ -2307,6 +2323,7 @@ ApplicationWindow {
             utterances.setProperty(selectedIndex, "applyPitch", true);
         }
         markUtteranceDirty(selectedIndex);
+        window.scheduleAutoPreview();
     }
 
     function updateMoraDurations(durations) {
@@ -2319,6 +2336,7 @@ ApplicationWindow {
         utterances.setProperty(selectedIndex, "moraDurationsJson", durationsJson);
         utterances.setProperty(selectedIndex, "manualMoraDurationEdited", true);
         markUtteranceDirty(selectedIndex);
+        window.scheduleAutoPreview();
     }
 
     function updateTimingAndPitch(durations, positions, points) {
@@ -2346,6 +2364,7 @@ ApplicationWindow {
                 utterances.setProperty(selectedIndex, "applyPitch", true);
         }
         markUtteranceDirty(selectedIndex);
+        window.scheduleAutoPreview();
     }
 
     function updateMoraPositions(positions) {
@@ -2358,6 +2377,7 @@ ApplicationWindow {
         utterances.setProperty(selectedIndex, "moraPositionsJson", positionsJson);
         utterances.setProperty(selectedIndex, "manualMoraDurationEdited", true);
         markUtteranceDirty(selectedIndex);
+        window.scheduleAutoPreview();
     }
 
     function updateMoraStart(position, startMs) {
@@ -2412,6 +2432,7 @@ ApplicationWindow {
         window.beginHistoryChange("unit:" + item.utteranceId + ":" + unitIndex + ":" + normalizedKey, true);
         utterances.setProperty(selectedIndex, "phonemeOverridesJson", encoded);
         markUtteranceDirty(selectedIndex);
+        window.scheduleAutoPreview();
     }
 
     function clearUnitOverride(unitIndex) {
@@ -2426,6 +2447,7 @@ ApplicationWindow {
         window.beginHistoryChange("unit:" + item.utteranceId + ":" + unitIndex + ":clear", true);
         utterances.setProperty(selectedIndex, "phonemeOverridesJson", encoded);
         markUtteranceDirty(selectedIndex);
+        window.scheduleAutoPreview();
     }
 
     function clearSynthesisView() {
@@ -2927,10 +2949,38 @@ ApplicationWindow {
         if (!item || !item.reading)
             return;
         clearPlayback();
+        window.autoplayPreview = true;
         window.pendingUtteranceId = item.utteranceId;
         window.pendingRevision = item.revision;
         window.appBackend.clearLogs();
         window.showAuxiliaryWindow(synthesisLogWindow);
+        window.appBackend.synthesize(window.buildSynthesisRequest(item));
+    }
+
+    function scheduleAutoPreview() {
+        if (!window.autoPreviewEnabled || window.batchExportActive
+                || window.saveRequestPending || window.playbackQueueActive || !utterances.count)
+            return;
+        const item = current();
+        if (!item || !item.reading)
+            return;
+        autoPreviewTimer.restart();
+    }
+
+    function refreshPreview() {
+        if (!window.autoPreviewEnabled || window.batchExportActive
+                || window.saveRequestPending || window.playbackQueueActive || !utterances.count)
+            return;
+        if (window.appBackend.busy) {
+            autoPreviewTimer.restart();
+            return;
+        }
+        const item = current();
+        if (!item || !item.reading)
+            return;
+        window.autoplayPreview = false;
+        window.pendingUtteranceId = item.utteranceId;
+        window.pendingRevision = item.revision;
         window.appBackend.synthesize(window.buildSynthesisRequest(item));
     }
 

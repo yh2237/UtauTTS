@@ -34,6 +34,19 @@ import QtMultimedia
             return renderer && renderer.provider === "utau-external-resampler";
         }
 
+        Keys.onPressed: event => {
+            if (event.key === Qt.Key_Shift && !event.isAutoRepeat) {
+                pitchEditor.setShiftPreview(true);
+                phonemeEditor.setShiftPreview(true);
+            }
+        }
+        Keys.onReleased: event => {
+            if (event.key === Qt.Key_Shift && !event.isAutoRepeat) {
+                pitchEditor.setShiftPreview(false);
+                phonemeEditor.setShiftPreview(false);
+            }
+        }
+
         anchors.fill: parent
         orientation: Qt.Vertical
 
@@ -789,7 +802,7 @@ import QtMultimedia
         }
 
         Pane {
-            SplitView.preferredHeight: 238
+            SplitView.preferredHeight: 330
             SplitView.minimumHeight: 150
             padding: 0
             background: Rectangle {

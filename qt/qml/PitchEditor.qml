@@ -1,10 +1,18 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 
 Item {
     id: root
     property var translator: ({})
+    property string hudText: ""
+    property real hudX: 0
+    property real hudY: 0
+    property int hoveredStrip: -1
+    property int hoveredPoint: -1
+    property bool hoveredFollowing: false
+    property bool hoveredEnd: false
     property var points: []
     property var autoPoints: []
     property var morae: []
@@ -331,6 +339,63 @@ Item {
         return best;
     }
 
+    function pitchTextAt(index) {
+        const value = Math.round(root.pitchAt(index));
+        return (value >= 0 ? "+" : "") + value + " cent";
+    }
+
+    function timingTextAt(index) {
+        return Math.round(root.positionAt(index)) + " ms / "
+                + Math.round(root.durationAt(index)) + " ms";
+    }
+
+    function showHud(graphX, graphY, text) {
+        root.hudText = text;
+        root.hudX = graphX;
+        root.hudY = graphY;
+    }
+
+    function hideHud() {
+        root.hudText = "";
+    }
+
+    function pointY(index) {
+        const scale = Math.max(.05, Math.min(.36, canvas.height / 760));
+        return canvas.height / 2 - root.pitchAt(index) * scale;
+    }
+
+    function grabbablePoint(x, y) {
+        const best = root.nearestEditablePoint(x);
+        if (best < 0)
+            return -1;
+        if (Math.abs(x - root.pointX(best)) > 16)
+            return -1;
+        if (Math.abs(y - root.pointY(best)) > 20)
+            return -1;
+        return best;
+    }
+
+    function hoverPointForStrip(index, canvasX, canvasY) {
+        if (!root.pointIsEditable(index))
+            return -1;
+        return root.grabbablePoint(canvasX, canvasY) === index ? index : -1;
+    }
+
+    function setShiftPreview(down) {
+        if (root.hudText.length > 0 || root.hoveredStrip < 0)
+            return;
+        root.hoveredFollowing = down;
+        canvas.requestPaint();
+    }
+
+    function syncHoverModifiers(mods) {
+        const shift = (mods & Qt.ShiftModifier) !== 0;
+        if (shift !== root.hoveredFollowing) {
+            root.hoveredFollowing = shift;
+            canvas.requestPaint();
+        }
+    }
+
     Flickable {
         id: viewport
         anchors.fill: parent
@@ -339,6 +404,7 @@ Item {
         contentHeight: height
         boundsBehavior: Flickable.StopAtBounds
         interactive: false
+        onContentXChanged: canvas.requestPaint()
 
         Item {
             id: graph
@@ -357,12 +423,15 @@ Item {
                     ctx.clearRect(0, 0, width, height);
                     const center = height / 2;
                     const scale = Math.max(.05, Math.min(.36, height / 760));
+                    const viewLeft = viewport.contentX - 40;
+                    const viewRight = viewport.contentX + viewport.width + 40;
+                    const inView = x => x >= viewLeft && x <= viewRight;
                     for (const cents of [-300, 0, 300]) {
                         ctx.strokeStyle = cents === 0 ? root.axisColor : root.gridColor;
                         ctx.setLineDash(cents === 0 ? [] : [4, 5]);
                         ctx.beginPath();
-                        ctx.moveTo(0, center - cents * scale);
-                        ctx.lineTo(width, center - cents * scale);
+                        ctx.moveTo(Math.max(0, viewLeft), center - cents * scale);
+                        ctx.lineTo(Math.min(width, viewRight), center - cents * scale);
                         ctx.stroke();
                     }
                     ctx.setLineDash([]);
@@ -372,7 +441,14 @@ Item {
                     for (let index = 0; index < root.morae.length; ++index) {
                         if (!root.durationIsEditable(index))
                             continue;
+                        const hot = index === root.hoveredStrip
+                                || (root.hoveredFollowing && index > root.hoveredStrip);
+                        ctx.strokeStyle = hot ? root.accentColor : root.axisColor;
+                        ctx.globalAlpha = hot ? 0.9 : 0.45;
+                        ctx.lineWidth = hot ? 2 : 1;
                         const x = root.pointX(index);
+                        if (!inView(x))
+                            continue;
                         ctx.beginPath();
                         ctx.moveTo(x, 0);
                         ctx.lineTo(x, height);
@@ -380,10 +456,15 @@ Item {
                     }
                     if (root.durationIsEditable(root.morae.length - 1)) {
                         const endX = root.sidePadding + root.endTime() * root.durationScale;
-                        ctx.beginPath();
-                        ctx.moveTo(endX, 0);
-                        ctx.lineTo(endX, height);
-                        ctx.stroke();
+                        if (inView(endX)) {
+                            ctx.strokeStyle = root.hoveredEnd ? root.accentColor : root.axisColor;
+                            ctx.lineWidth = root.hoveredEnd ? 2 : 1;
+                            ctx.beginPath();
+                            ctx.moveTo(endX, 0);
+                            ctx.lineTo(endX, height);
+                            ctx.stroke();
+                            ctx.lineWidth = 1;
+                        }
                     }
                     ctx.globalAlpha = 1;
                     if (!root.points.length)
@@ -397,6 +478,10 @@ Item {
                         if (!root.pointIsEditable(index))
                             continue;
                         const x = root.pointX(index);
+                        if (!inView(x)) {
+                            started = false;
+                            continue;
+                        }
                         const y = center - root.pitchAt(index) * scale;
                         if (started)
                             ctx.lineTo(x, y);
@@ -409,9 +494,22 @@ Item {
                     for (let index = 0; index < root.points.length; ++index) {
                         if (!root.pointIsEditable(index))
                             continue;
+                        const px = root.pointX(index);
+                        if (!inView(px))
+                            continue;
+                        const hot = index === root.hoveredPoint;
                         ctx.beginPath();
-                        ctx.arc(root.pointX(index), center - root.pitchAt(index) * scale, 6, 0, Math.PI * 2);
+                        ctx.arc(px, center - root.pitchAt(index) * scale,
+                                hot ? 9 : 6, 0, Math.PI * 2);
                         ctx.fill();
+                        if (hot) {
+                            ctx.globalAlpha = 0.25;
+                            ctx.beginPath();
+                            ctx.arc(px, center - root.pitchAt(index) * scale,
+                                    13, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.globalAlpha = 1;
+                        }
                     }
                 }
             }
@@ -499,49 +597,75 @@ Item {
                     z: 2
 
                     MouseArea {
+                        id: stripArea
                         anchors.fill: parent
                         property real pressX: 0
-                        property real pressY: 0
-                        property int dragMode: 0
+                        property bool dragging: false
                         property bool shiftFollowing: false
-                        cursorShape: dragMode === 2 ? Qt.SizeVerCursor : Qt.SizeHorCursor
+                        cursorShape: Qt.SizeHorCursor
+                        hoverEnabled: true
+                        onContainsMouseChanged: {
+                            if (!containsMouse) {
+                                if (root.hoveredStrip === index)
+                                    root.hoveredStrip = -1;
+                                root.hoveredFollowing = false;
+                                if (root.hoveredPoint === index)
+                                    root.hoveredPoint = -1;
+                                canvas.requestPaint();
+                            }
+                        }
                         onPressed: mouse => {
+                            const canvasPoint = mapToItem(canvas, mouse.x, mouse.y);
+                            if (root.hoverPointForStrip(index, canvasPoint.x, canvasPoint.y) === index) {
+                                mouse.accepted = false;
+                                return;
+                            }
                             const point = mapToItem(graph, mouse.x, mouse.y);
                             pressX = point.x;
-                            pressY = point.y;
-                            dragMode = 0;
+                            dragging = false;
                             shiftFollowing = false;
+                            root.hoveredStrip = index;
+                            root.syncHoverModifiers(mouse.modifiers);
+                            canvas.requestPaint();
                         }
                         onPositionChanged: mouse => {
-                            if (!pressed)
+                            if (!pressed) {
+                                root.hoveredStrip = index;
+                                root.syncHoverModifiers(mouse.modifiers);
+                                const canvasPoint = mapToItem(canvas, mouse.x, mouse.y);
+                                root.hoveredPoint = root.hoverPointForStrip(
+                                        index, canvasPoint.x, canvasPoint.y);
+                                canvas.requestPaint();
                                 return;
-                            const point = mapToItem(graph, mouse.x, mouse.y);
-                            const deltaX = point.x - pressX;
-                            const deltaY = point.y - pressY;
-                            if (dragMode === 0 && Math.max(Math.abs(deltaX), Math.abs(deltaY)) >= 3) {
-                                dragMode = Math.abs(deltaX) >= Math.abs(deltaY) ? 1 : 2;
-                                shiftFollowing = (mouse.modifiers & Qt.ShiftModifier) !== 0;
                             }
-                            if (dragMode === 1)
-                                root.updatePositionAt(index, point.x, shiftFollowing);
-                            else if (dragMode === 2)
-                                root.updatePitchAt(index, mapToItem(canvas, mouse.x, mouse.y).y);
+                            const point = mapToItem(graph, mouse.x, mouse.y);
+                            if (!dragging && Math.abs(point.x - pressX) < 3)
+                                return;
+                            if (!dragging) {
+                                dragging = true;
+                                shiftFollowing = (mouse.modifiers & Qt.ShiftModifier) !== 0;
+                                root.hoveredFollowing = shiftFollowing;
+                            }
+                            root.updatePositionAt(index, point.x, shiftFollowing);
+                            root.showHud(point.x + 14, point.y - 40,
+                                    root.timingTextAt(index)
+                                    + (shiftFollowing ? "  (Shift)" : ""));
                         }
-                        onReleased: {
-                            if (dragMode === 1) {
+                        onReleased: mouse => {
+                            if (dragging) {
                                 root.moraDurationsEdited(root.moraDurations.slice());
                                 root.moraPositionsEdited(root.moraPositions.slice());
-                            } else if (dragMode === 2) {
-                                root.pointsEdited(root.points.slice());
                             }
-                            dragMode = 0;
+                            dragging = false;
                             shiftFollowing = false;
+                            root.hideHud();
+                            root.syncHoverModifiers(mouse.modifiers);
                         }
                         onCanceled: {
-                            dragMode = 0;
+                            dragging = false;
                             shiftFollowing = false;
+                            root.hideHud();
                         }
-                        onDoubleClicked: root.resetPitchAt(index)
                     }
                 }
             }
@@ -554,13 +678,21 @@ Item {
                 z: 2
 
                 MouseArea {
+                    id: endArea
                     anchors.fill: parent
                     property real pressX: 0
                     property bool dragging: false
                     cursorShape: Qt.SizeHorCursor
+                    hoverEnabled: true
+                    onContainsMouseChanged: {
+                        root.hoveredEnd = containsMouse;
+                        canvas.requestPaint();
+                    }
                     onPressed: mouse => {
                         pressX = mapToItem(graph, mouse.x, mouse.y).x;
                         dragging = false;
+                        root.hoveredEnd = true;
+                        canvas.requestPaint();
                     }
                     onPositionChanged: mouse => {
                         if (!pressed)
@@ -570,6 +702,8 @@ Item {
                             return;
                         dragging = true;
                         root.updateEndPositionAt(point.x);
+                        root.showHud(point.x + 14, point.y - 40,
+                                Math.round(root.durationAt(root.morae.length - 1)) + " ms");
                     }
                     onReleased: {
                         if (dragging) {
@@ -577,30 +711,62 @@ Item {
                             root.moraPositionsEdited(root.moraPositions.slice());
                         }
                         dragging = false;
+                        root.hideHud();
+                        if (!containsMouse) {
+                            root.hoveredEnd = false;
+                            canvas.requestPaint();
+                        }
                     }
-                    onCanceled: dragging = false;
+                    onCanceled: {
+                        dragging = false;
+                        root.hideHud();
+                        root.hoveredEnd = false;
+                        canvas.requestPaint();
+                    }
+                    onDoubleClicked: root.resetDurationAt(root.morae.length - 1)
                 }
             }
 
             MouseArea {
+                id: pitchArea
                 anchors.fill: canvas
                 property int dragging: -1
+                hoverEnabled: true
+                onContainsMouseChanged: {
+                    if (!containsMouse && dragging < 0)
+                        root.hoveredPoint = -1;
+                    canvas.requestPaint();
+                }
                 onPressed: mouse => {
-                    dragging = root.nearestEditablePoint(mouse.x);
-                    if (dragging >= 0)
+                    dragging = root.grabbablePoint(mouse.x, mouse.y);
+                    if (dragging >= 0) {
+                        root.hoveredPoint = dragging;
                         update(mouse.y);
+                        const point = mapToItem(graph, mouse.x, mouse.y);
+                        root.showHud(point.x + 14, point.y - 40, root.pitchTextAt(dragging));
+                    }
                 }
                 onPositionChanged: mouse => {
-                    if (dragging >= 0)
+                    if (dragging >= 0) {
                         update(mouse.y);
+                        const point = mapToItem(graph, mouse.x, mouse.y);
+                        root.showHud(point.x + 14, point.y - 40, root.pitchTextAt(dragging));
+                    } else if (containsMouse) {
+                        const hovered = root.grabbablePoint(mouse.x, mouse.y);
+                        if (hovered !== root.hoveredPoint) {
+                            root.hoveredPoint = hovered;
+                            canvas.requestPaint();
+                        }
+                    }
                 }
                 onReleased: {
                     if (dragging >= 0)
                         root.pointsEdited(root.points.slice());
                     dragging = -1;
+                    root.hideHud();
                 }
                 onDoubleClicked: mouse => {
-                    const index = root.nearestEditablePoint(mouse.x);
+                    const index = root.grabbablePoint(mouse.x, mouse.y);
                     if (index < 0)
                         return;
                     const values = root.points.slice();
@@ -609,20 +775,36 @@ Item {
                     root.points = values;
                     root.pointsEdited(values.slice());
                     dragging = -1;
+                    root.hideHud();
                 }
-                onCanceled: dragging = -1
+                onCanceled: {
+                    dragging = -1;
+                    root.hideHud();
+                }
 
                 function update(y) {
                     root.updatePitchAt(dragging, y);
                 }
+            }
+
+            DragHud {
+                x: Math.max(4, Math.min(graph.width - width - 4, root.hudX))
+                y: Math.max(4, Math.min(graph.height - height - 4, root.hudY))
+                hudText: root.hudText
+                z: 10
             }
         }
 
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
             onWheel: event => {
-                const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x;
-                viewport.contentX = Math.max(0, Math.min(viewport.contentWidth - viewport.width, viewport.contentX - delta));
+                if ((event.modifiers & Qt.ControlModifier) !== 0) {
+                    const factor = event.angleDelta.y > 0 ? 1.15 : 1 / 1.15;
+                    root.moraWidth = Math.max(32, Math.min(192, root.moraWidth * factor));
+                } else {
+                    const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x;
+                    viewport.contentX = Math.max(0, Math.min(viewport.contentWidth - viewport.width, viewport.contentX - delta));
+                }
                 event.accepted = true;
             }
         }
