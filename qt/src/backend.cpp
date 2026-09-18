@@ -370,6 +370,7 @@ Backend::Backend(QObject *parent)
           "appearance/preReleaseUpdateCheckEnabled", false).toBool()),
       m_previewCacheFileCount(portableSettingValue("performance/previewCacheFileCount", 32).toInt()),
       m_autoPreviewEnabled(portableSettingValue("editor/autoPreview", true).toBool()),
+      m_extendedDetailsVisible(portableSettingValue("editor/extendedDetails", false).toBool()),
       m_ffmpegPath(normalizeFfmpegPath(
           portableSettingValue("media/ffmpegPath", QString()).toString())),
       m_audioOutputDeviceId(portableSettingValue(
@@ -714,6 +715,16 @@ void Backend::setAutoPreviewEnabled(bool value) {
     m_autoPreviewEnabled = value;
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue(QStringLiteral("editor/autoPreview"), value);
+    settings.sync();
+    emit editorSettingsChanged();
+}
+
+void Backend::setExtendedDetailsVisible(bool value) {
+    if (m_extendedDetailsVisible == value)
+        return;
+    m_extendedDetailsVisible = value;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    settings.setValue(QStringLiteral("editor/extendedDetails"), value);
     settings.sync();
     emit editorSettingsChanged();
 }

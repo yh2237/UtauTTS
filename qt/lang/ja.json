@@ -218,6 +218,7 @@
     "settings.updateCheckEnabled": "アップデートの確認と通知を行う",
     "settings.preReleaseUpdateCheckEnabled": "プレリリース版も確認する",
     "settings.autoPreview": "編集後に自動で再合成する",
+    "settings.extendedDetails": "拡張編集で数値設定を表示する",
     "usage.intro.description": "UTAUボイスバンクの原音接続に、学習ベースのイントネーション調整を加えた日本語TTS",
     "usage.page.dictionary": "辞書とボイスバンク",
     "usage.page.intro": "はじめに",

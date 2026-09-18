@@ -1242,6 +1242,7 @@ ApplicationWindow {
                     settingsWindow.pendingPreReleaseUpdateCheckEnabled);
         window.appBackend.setPreviewCacheFileCount(settingsWindow.pendingPreviewCacheFileCount);
         window.appBackend.setAutoPreviewEnabled(settingsWindow.pendingAutoPreviewEnabled);
+        window.appBackend.setExtendedDetailsVisible(settingsWindow.pendingExtendedDetailsVisible);
         window.appBackend.setDefaultVoicebank(settingsWindow.pendingDefaultVoicebankId);
         window.appBackend.setExportSettings(settingsWindow.pendingExportTextWithWav,
                                             settingsWindow.pendingExportLabWithWav,

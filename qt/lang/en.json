@@ -218,6 +218,7 @@
     "settings.updateCheckEnabled": "Check for Updates",
     "settings.preReleaseUpdateCheckEnabled": "Also check pre-releases",
     "settings.autoPreview": "Automatically re-synthesize after edits",
+    "settings.extendedDetails": "Show numeric settings in extended editing",
     "usage.intro.description": "A Japanese text-to-speech system that combines UTAU voicebank raw sound concatenation with machine learning-based intonation tuning",
     "usage.page.dictionary": "Dictionary & Voicebanks",
     "usage.page.intro": "Getting Started",

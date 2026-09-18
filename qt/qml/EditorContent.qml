@@ -904,6 +904,7 @@ import QtMultimedia
                         overrides: window.utterancesModel.count
                                    ? window.decodeSequence(window.current().phonemeOverridesJson) : []
                         playbackMs: window.hasCurrentAudio() ? window.playerMedia.position : -1
+                        showDetails: window.appBackend.extendedDetailsVisible
                         onUnitValueEdited: (unitIndex, key, value) =>
                                 window.updateUnitOverride(unitIndex, key, value)
                         onMoraStartEdited: (position, startMs) =>

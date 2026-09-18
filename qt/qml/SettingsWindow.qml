@@ -52,6 +52,7 @@ ApplicationWindow {
     property bool pendingPreReleaseUpdateCheckEnabled: false
     property int pendingPreviewCacheFileCount: 32
     property bool pendingAutoPreviewEnabled: true
+    property bool pendingExtendedDetailsVisible: false
     property string pendingSynthesizeShortcut: "Ctrl+Enter"
     property string pendingSaveProjectShortcut: "Ctrl+S"
     property string pendingReloadVoicebanksShortcut: "Ctrl+O"
@@ -108,6 +109,7 @@ ApplicationWindow {
         pendingPreReleaseUpdateCheckEnabled = root.backend.preReleaseUpdateCheckEnabled;
         pendingPreviewCacheFileCount = root.backend.previewCacheFileCount;
         pendingAutoPreviewEnabled = root.backend.autoPreviewEnabled;
+        pendingExtendedDetailsVisible = root.backend.extendedDetailsVisible;
         pendingSynthesizeShortcut = root.backend.synthesizeShortcut;
         pendingSaveProjectShortcut = root.backend.saveProjectShortcut;
         pendingReloadVoicebanksShortcut = root.backend.reloadVoicebanksShortcut;
@@ -195,6 +197,10 @@ ApplicationWindow {
 
     function resetAutoPreviewEnabled() {
         pendingAutoPreviewEnabled = true;
+    }
+
+    function resetExtendedDetailsVisible() {
+        pendingExtendedDetailsVisible = false;
     }
 
     function resetCloseLogOnSuccess() {
@@ -877,6 +883,24 @@ ApplicationWindow {
                             SettingsResetButton {
                                 translator: root.translator
                                 onResetRequested: root.resetAutoPreviewEnabled()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.extendedDetails")
+                            }
+                            Switch {
+                                id: extendedDetailsSwitch
+                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                checked: root.pendingExtendedDetailsVisible
+                                onToggled: root.pendingExtendedDetailsVisible = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetExtendedDetailsVisible()
                             }
                         }
 

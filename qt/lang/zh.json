@@ -218,6 +218,7 @@
     "settings.updateCheckEnabled": "检查更新并通知",
     "settings.preReleaseUpdateCheckEnabled": "同时检查预发布版",
     "settings.autoPreview": "编辑后自动重新合成",
+    "settings.extendedDetails": "在扩展编辑中显示数值设置",
     "usage.intro.description": "日语TTS，在UTAU语音库的原音连接基础上，加入了基于机器学习的语调调整",
     "usage.page.dictionary": "词典与音源库",
     "usage.page.intro": "入门",

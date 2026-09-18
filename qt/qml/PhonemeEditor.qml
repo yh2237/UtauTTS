@@ -45,6 +45,7 @@ Item {
     property var valueGesture: null
     property int selectedBoundary: -1
     property real playbackMs: -1
+    property bool showDetails: false
     property string hudText: ""
     property real hudX: 0
     property real hudY: 0
@@ -1157,8 +1158,9 @@ Item {
 
         ScrollView {
             id: detailsPanel
+            visible: root.showDetails
             Layout.fillWidth: true
-            Layout.preferredHeight: 190
+            Layout.preferredHeight: root.showDetails ? 190 : 0
             clip: true
             ScrollBar.vertical.policy: ScrollBar.AsNeeded
 

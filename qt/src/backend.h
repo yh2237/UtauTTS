@@ -48,6 +48,7 @@ class Backend final : public QObject {
     Q_PROPERTY(bool preReleaseUpdateCheckEnabled READ preReleaseUpdateCheckEnabled NOTIFY updateSettingsChanged)
     Q_PROPERTY(int previewCacheFileCount READ previewCacheFileCount NOTIFY cacheSettingsChanged)
     Q_PROPERTY(bool autoPreviewEnabled READ autoPreviewEnabled NOTIFY editorSettingsChanged)
+    Q_PROPERTY(bool extendedDetailsVisible READ extendedDetailsVisible NOTIFY editorSettingsChanged)
     Q_PROPERTY(QString ffmpegPath READ ffmpegPath NOTIFY ffmpegSettingsChanged)
     Q_PROPERTY(QString audioOutputDeviceId READ audioOutputDeviceId NOTIFY audioOutputSettingsChanged)
     Q_PROPERTY(int defaultMoraDuration READ defaultMoraDuration NOTIFY synthesisDefaultsChanged)
@@ -98,6 +99,7 @@ public:
     bool preReleaseUpdateCheckEnabled() const { return m_preReleaseUpdateCheckEnabled; }
     int previewCacheFileCount() const { return m_previewCacheFileCount; }
     bool autoPreviewEnabled() const { return m_autoPreviewEnabled; }
+    bool extendedDetailsVisible() const { return m_extendedDetailsVisible; }
     QString ffmpegPath() const { return m_ffmpegPath; }
     QString audioOutputDeviceId() const { return m_audioOutputDeviceId; }
     int defaultMoraDuration() const { return m_defaultMoraDuration; }
@@ -163,6 +165,7 @@ public:
     Q_INVOKABLE void setPreReleaseUpdateCheckEnabled(bool value);
     Q_INVOKABLE void setPreviewCacheFileCount(int value);
     Q_INVOKABLE void setAutoPreviewEnabled(bool value);
+    Q_INVOKABLE void setExtendedDetailsVisible(bool value);
     Q_INVOKABLE void setFfmpegPath(const QString &value);
     Q_INVOKABLE void setAudioOutputDeviceId(const QString &value);
     Q_INVOKABLE QString audioOutputDeviceKey(const QVariant &id) const;
@@ -265,6 +268,7 @@ private:
     QString m_startupMigrationError;
     int m_previewCacheFileCount = 32;
     bool m_autoPreviewEnabled = true;
+    bool m_extendedDetailsVisible = false;
     QString m_ffmpegPath;
     QString m_audioOutputDeviceId;
     int m_defaultMoraDuration = 120;
