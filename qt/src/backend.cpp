@@ -369,7 +369,7 @@ Backend::Backend(QObject *parent)
       m_preReleaseUpdateCheckEnabled(portableSettingValue(
           "appearance/preReleaseUpdateCheckEnabled", false).toBool()),
       m_previewCacheFileCount(portableSettingValue("performance/previewCacheFileCount", 32).toInt()),
-      m_developerMode(portableSettingValue("developer/enabled", false).toBool()),
+      m_autoPreviewEnabled(portableSettingValue("editor/autoPreview", true).toBool()),
       m_ffmpegPath(normalizeFfmpegPath(
           portableSettingValue("media/ffmpegPath", QString()).toString())),
       m_audioOutputDeviceId(portableSettingValue(
@@ -708,14 +708,14 @@ void Backend::setPreReleaseUpdateCheckEnabled(bool value) {
     emit updateSettingsChanged();
 }
 
-void Backend::setDeveloperMode(bool value) {
-    if (m_developerMode == value)
+void Backend::setAutoPreviewEnabled(bool value) {
+    if (m_autoPreviewEnabled == value)
         return;
-    m_developerMode = value;
+    m_autoPreviewEnabled = value;
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
-    settings.setValue(QStringLiteral("developer/enabled"), value);
+    settings.setValue(QStringLiteral("editor/autoPreview"), value);
     settings.sync();
-    emit developerModeChanged();
+    emit editorSettingsChanged();
 }
 
 void Backend::setFfmpegPath(const QString &value) {
@@ -1945,7 +1945,6 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
             {"close_log_on_success", m_closeLogOnSuccess},
             {"update_check_enabled", m_updateCheckEnabled},
             {"pre_release_update_check_enabled", m_preReleaseUpdateCheckEnabled},
-            {"developer_mode", m_developerMode},
             {"ffmpeg_path", m_ffmpegPath},
         }},
         {"current_selection", selection},

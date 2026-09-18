@@ -51,7 +51,7 @@ ApplicationWindow {
     property bool pendingUpdateCheckEnabled: true
     property bool pendingPreReleaseUpdateCheckEnabled: false
     property int pendingPreviewCacheFileCount: 32
-    property bool pendingDeveloperMode: false
+    property bool pendingAutoPreviewEnabled: true
     property string pendingSynthesizeShortcut: "Ctrl+Enter"
     property string pendingSaveProjectShortcut: "Ctrl+S"
     property string pendingReloadVoicebanksShortcut: "Ctrl+O"
@@ -70,21 +70,10 @@ ApplicationWindow {
     }
 
     function settingsPageLabels() {
-        const pages = [root.translator.tr("settings.page.synthesis"),
+        return [root.translator.tr("settings.page.synthesis"),
             root.translator.tr("settings.page.export"),
             root.translator.tr("settings.page.appearance"),
             root.translator.tr("settings.page.shortcuts")];
-        if (root.backend.developerMode)
-            pages.push(root.translator.tr("settings.page.developer"));
-        return pages;
-    }
-
-    Connections {
-        target: root.backend
-        function onDeveloperModeChanged() {
-            if (!root.backend.developerMode && root.currentPage >= 4)
-                root.currentPage = 2;
-        }
     }
 
     FolderDialog {
@@ -118,7 +107,7 @@ ApplicationWindow {
         pendingUpdateCheckEnabled = root.backend.updateCheckEnabled;
         pendingPreReleaseUpdateCheckEnabled = root.backend.preReleaseUpdateCheckEnabled;
         pendingPreviewCacheFileCount = root.backend.previewCacheFileCount;
-        pendingDeveloperMode = root.backend.developerMode;
+        pendingAutoPreviewEnabled = root.backend.autoPreviewEnabled;
         pendingSynthesizeShortcut = root.backend.synthesizeShortcut;
         pendingSaveProjectShortcut = root.backend.saveProjectShortcut;
         pendingReloadVoicebanksShortcut = root.backend.reloadVoicebanksShortcut;
@@ -204,8 +193,8 @@ ApplicationWindow {
         pendingPreReleaseUpdateCheckEnabled = false;
     }
 
-    function resetDeveloperMode() {
-        pendingDeveloperMode = false;
+    function resetAutoPreviewEnabled() {
+        pendingAutoPreviewEnabled = true;
     }
 
     function resetCloseLogOnSuccess() {
@@ -859,6 +848,42 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Label {
                                 Layout.fillWidth: true
+                                text: root.translator.tr("settings.preReleaseUpdateCheckEnabled")
+                            }
+                            Switch {
+                                id: preReleaseUpdateSwitch
+                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                checked: root.pendingPreReleaseUpdateCheckEnabled
+                                onToggled: root.pendingPreReleaseUpdateCheckEnabled = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetPreReleaseUpdateCheckEnabled()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.autoPreview")
+                            }
+                            Switch {
+                                id: autoPreviewSwitch
+                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                checked: root.pendingAutoPreviewEnabled
+                                onToggled: root.pendingAutoPreviewEnabled = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetAutoPreviewEnabled()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                Layout.fillWidth: true
                                 text: root.translator.tr("settings.closeLogOnSuccess")
                             }
                             Switch {
@@ -910,24 +935,6 @@ ApplicationWindow {
                             SettingsResetButton {
                                 translator: root.translator
                                 onResetRequested: root.resetPreviewCacheFileCount()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.developerMode")
-                            }
-                            Switch {
-                                id: developerModeSwitch
-                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                checked: root.pendingDeveloperMode
-                                onToggled: root.pendingDeveloperMode = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetDeveloperMode()
                             }
                         }
 
@@ -1174,35 +1181,6 @@ ApplicationWindow {
                     }
                 }
 
-                ScrollView {
-                    id: developerSettingsPage
-                    visible: root.backend.developerMode
-                    contentWidth: availableWidth
-
-                    ColumnLayout {
-                        width: developerSettingsPage.availableWidth
-                        spacing: 8
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.preReleaseUpdateCheckEnabled")
-                            }
-                            Switch {
-                                id: preReleaseUpdateSwitch
-                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                checked: root.pendingPreReleaseUpdateCheckEnabled
-                                onToggled: root.pendingPreReleaseUpdateCheckEnabled = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetPreReleaseUpdateCheckEnabled()
-                            }
-                        }
-
-                    }
-                }
             }
 
             RowLayout {

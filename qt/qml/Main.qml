@@ -63,7 +63,6 @@ ApplicationWindow {
     property string synthesisViewUtteranceId: ""
     property int synthesisViewRevision: -1
     property bool synthesisViewStale: false
-    property bool autoPreviewEnabled: true
     property bool autoplayPreview: true
 
     Timer {
@@ -1242,7 +1241,7 @@ ApplicationWindow {
         window.appBackend.setPreReleaseUpdateCheckEnabled(
                     settingsWindow.pendingPreReleaseUpdateCheckEnabled);
         window.appBackend.setPreviewCacheFileCount(settingsWindow.pendingPreviewCacheFileCount);
-        window.appBackend.setDeveloperMode(settingsWindow.pendingDeveloperMode);
+        window.appBackend.setAutoPreviewEnabled(settingsWindow.pendingAutoPreviewEnabled);
         window.appBackend.setDefaultVoicebank(settingsWindow.pendingDefaultVoicebankId);
         window.appBackend.setExportSettings(settingsWindow.pendingExportTextWithWav,
                                             settingsWindow.pendingExportLabWithWav,
@@ -1335,8 +1334,7 @@ ApplicationWindow {
     function checkForUpdates() {
         const request = new XMLHttpRequest();
         request.timeout = 10000;
-        const allowPreRelease = window.appBackend.developerMode
-                && window.appBackend.preReleaseUpdateCheckEnabled;
+        const allowPreRelease = window.appBackend.preReleaseUpdateCheckEnabled;
         const endpoint = allowPreRelease
                 ? "https://api.github.com/repos/yh2237/UtauTTS/releases?per_page=100"
                 : "https://api.github.com/repos/yh2237/UtauTTS/releases/latest";
@@ -1824,8 +1822,7 @@ ApplicationWindow {
             return error;
         error = check(window.current().speechTiming === false
                       && window.current().phonemizer === "auto"
-                      && window.buildSynthesisRequest(window.current()).phonemizer !== "auto"
-                      && !window.appBackend.developerMode,
+                      && window.buildSynthesisRequest(window.current()).phonemizer !== "auto",
                       "normal GUI defaults are incorrect");
         if (error.length)
             return error;
@@ -2958,7 +2955,7 @@ ApplicationWindow {
     }
 
     function scheduleAutoPreview() {
-        if (!window.autoPreviewEnabled || window.batchExportActive
+        if (!window.appBackend.autoPreviewEnabled || window.batchExportActive
                 || window.saveRequestPending || window.playbackQueueActive || !utterances.count)
             return;
         const item = current();
@@ -2968,7 +2965,7 @@ ApplicationWindow {
     }
 
     function refreshPreview() {
-        if (!window.autoPreviewEnabled || window.batchExportActive
+        if (!window.appBackend.autoPreviewEnabled || window.batchExportActive
                 || window.saveRequestPending || window.playbackQueueActive || !utterances.count)
             return;
         if (window.appBackend.busy) {

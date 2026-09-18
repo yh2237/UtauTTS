@@ -47,7 +47,7 @@ class Backend final : public QObject {
     Q_PROPERTY(bool updateCheckEnabled READ updateCheckEnabled NOTIFY updateSettingsChanged)
     Q_PROPERTY(bool preReleaseUpdateCheckEnabled READ preReleaseUpdateCheckEnabled NOTIFY updateSettingsChanged)
     Q_PROPERTY(int previewCacheFileCount READ previewCacheFileCount NOTIFY cacheSettingsChanged)
-    Q_PROPERTY(bool developerMode READ developerMode NOTIFY developerModeChanged)
+    Q_PROPERTY(bool autoPreviewEnabled READ autoPreviewEnabled NOTIFY editorSettingsChanged)
     Q_PROPERTY(QString ffmpegPath READ ffmpegPath NOTIFY ffmpegSettingsChanged)
     Q_PROPERTY(QString audioOutputDeviceId READ audioOutputDeviceId NOTIFY audioOutputSettingsChanged)
     Q_PROPERTY(int defaultMoraDuration READ defaultMoraDuration NOTIFY synthesisDefaultsChanged)
@@ -97,7 +97,7 @@ public:
     bool updateCheckEnabled() const { return m_updateCheckEnabled; }
     bool preReleaseUpdateCheckEnabled() const { return m_preReleaseUpdateCheckEnabled; }
     int previewCacheFileCount() const { return m_previewCacheFileCount; }
-    bool developerMode() const { return m_developerMode; }
+    bool autoPreviewEnabled() const { return m_autoPreviewEnabled; }
     QString ffmpegPath() const { return m_ffmpegPath; }
     QString audioOutputDeviceId() const { return m_audioOutputDeviceId; }
     int defaultMoraDuration() const { return m_defaultMoraDuration; }
@@ -162,7 +162,7 @@ public:
     Q_INVOKABLE void setUpdateCheckEnabled(bool value);
     Q_INVOKABLE void setPreReleaseUpdateCheckEnabled(bool value);
     Q_INVOKABLE void setPreviewCacheFileCount(int value);
-    Q_INVOKABLE void setDeveloperMode(bool value);
+    Q_INVOKABLE void setAutoPreviewEnabled(bool value);
     Q_INVOKABLE void setFfmpegPath(const QString &value);
     Q_INVOKABLE void setAudioOutputDeviceId(const QString &value);
     Q_INVOKABLE QString audioOutputDeviceKey(const QVariant &id) const;
@@ -197,7 +197,7 @@ signals:
     void logSettingsChanged();
     void updateSettingsChanged();
     void cacheSettingsChanged();
-    void developerModeChanged();
+    void editorSettingsChanged();
     void ffmpegSettingsChanged();
     void audioOutputSettingsChanged();
     void synthesisDefaultsChanged();
@@ -264,7 +264,7 @@ private:
     bool m_preReleaseUpdateCheckEnabled = false;
     QString m_startupMigrationError;
     int m_previewCacheFileCount = 32;
-    bool m_developerMode = false;
+    bool m_autoPreviewEnabled = true;
     QString m_ffmpegPath;
     QString m_audioOutputDeviceId;
     int m_defaultMoraDuration = 120;
