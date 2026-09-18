@@ -8,6 +8,7 @@ import QtMultimedia
         required property var window
 
         property alias pitchEditor: pitchEditor
+        property alias phonemeEditor: phonemeEditor
         property alias utteranceList: utteranceList
         property alias voiceCombo: voiceCombo
         property alias speechLanguageCombo: speechLanguageCombo
@@ -805,12 +806,17 @@ import QtMultimedia
                     Layout.preferredHeight: 38
                     Layout.leftMargin: 12
                     Layout.rightMargin: 10
-                    Label {
-                        text: window.translator.tr("main.pitch.title")
-                        font.pixelSize: 12
-                    }
-                    Item {
-                        Layout.fillWidth: true
+                    TabBar {
+                        id: pitchModeTabs
+                        Layout.alignment: Qt.AlignLeft
+                        Layout.fillWidth: false
+
+                        TabButton {
+                            text: window.translator.tr("main.pitch.basic")
+                        }
+                        TabButton {
+                            text: window.translator.tr("main.pitch.extended")
+                        }
                     }
                 }
                 Rectangle {
@@ -818,31 +824,86 @@ import QtMultimedia
                     Layout.preferredHeight: 1
                     color: window.borderColor
                 }
-                PitchEditor {
-                    id: pitchEditor
+                StackLayout {
+                    id: pitchModeStack
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    Layout.leftMargin: 12
-                    Layout.rightMargin: 12
-                    translator: window.translator
-                    accentColor: window.accent
-                    axisColor: window.palette.mid
-                    gridColor: window.palette.alternateBase
-                    labelColor: window.palette.text
-                    defaultMoraDuration: window.appBackend.defaultMoraDuration
-                    defaultPauseDuration: window.appBackend.defaultPauseDuration
-                    onPointsEdited: points => window.updatePitchPoints(points)
-                    onMoraDurationsEdited: durations => window.updateMoraDurations(durations)
-                    onMoraPositionsEdited: positions => window.updateMoraPositions(positions)
-                }
-                PitchHorizontalScrollBar {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 14
-                    Layout.leftMargin: 12
-                    Layout.rightMargin: 12
-                    editor: pitchEditor
-                    trackColor: window.palette.mid
-                    thumbColor: window.accent
+                    currentIndex: pitchModeTabs.currentIndex
+
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            spacing: 0
+
+                            PitchEditor {
+                                id: pitchEditor
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.leftMargin: 12
+                                Layout.rightMargin: 12
+                                translator: window.translator
+                                accentColor: window.accent
+                                axisColor: window.palette.mid
+                                gridColor: window.palette.alternateBase
+                                labelColor: window.palette.text
+                                defaultMoraDuration: window.appBackend.defaultMoraDuration
+                                defaultPauseDuration: window.appBackend.defaultPauseDuration
+                                onPointsEdited: points => window.updatePitchPoints(points)
+                                onMoraDurationsEdited: durations => window.updateMoraDurations(durations)
+                                onMoraPositionsEdited: positions => window.updateMoraPositions(positions)
+                            }
+                            PitchHorizontalScrollBar {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 14
+                                Layout.leftMargin: 12
+                                Layout.rightMargin: 12
+                                editor: pitchEditor
+                                trackColor: window.palette.mid
+                                thumbColor: window.accent
+                            }
+                        }
+                    }
+
+                    PhonemeEditor {
+                        id: phonemeEditor
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.leftMargin: 12
+                        Layout.rightMargin: 12
+                        translator: window.translator
+                        accentColor: window.accent
+                        axisColor: window.palette.mid
+                        gridColor: window.palette.alternateBase
+                        labelColor: window.palette.text
+                        mutedText: window.mutedText
+                        timingEditor: pitchEditor
+                        units: window.synthesisUnits
+                        waveformMin: window.synthesisWaveformMin
+                        waveformMax: window.synthesisWaveformMax
+                        waveformDuration: window.synthesisDurationMs
+                        leadingMargin: window.synthesisLeadingMarginMs
+                        morae: pitchEditor.morae
+                        moraDurations: pitchEditor.moraDurations
+                        moraPositions: pitchEditor.moraPositions
+                        overrides: window.utterancesModel.count
+                                   ? window.decodeSequence(window.current().phonemeOverridesJson) : []
+                        playbackMs: window.hasCurrentAudio() ? window.playerMedia.position : -1
+                        onUnitValueEdited: (unitIndex, key, value) =>
+                                window.updateUnitOverride(unitIndex, key, value)
+                        onMoraStartEdited: (position, startMs) =>
+                                window.updateMoraStart(position, startMs)
+                        onMoraDurationEdited: (position, durationMs) =>
+                                window.updateMoraDuration(position, durationMs)
+                        onNoteGestureEdited: (durations, positions, points) =>
+                                window.updateTimingAndPitch(durations, positions, points)
+                        onResetUnitRequested: (unitIndex) =>
+                                window.clearUnitOverride(unitIndex)
+                        onSeekRequested: positionMs =>
+                                window.seekPreview(positionMs)
+                    }
                 }
                 PlaybackControls {
                     Layout.fillWidth: true
@@ -876,4 +937,5 @@ import QtMultimedia
                 }
             }
         }
+
     }

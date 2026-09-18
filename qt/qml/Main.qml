@@ -55,6 +55,14 @@ ApplicationWindow {
     property bool updateSuppressVersion: false
     property bool metadataReloadActive: false
     property string metadataReloadStage: "voicebanks"
+    property var synthesisUnits: []
+    property var synthesisWaveformMin: []
+    property var synthesisWaveformMax: []
+    property real synthesisDurationMs: 0
+    property real synthesisLeadingMarginMs: 0
+    property string synthesisViewUtteranceId: ""
+    property int synthesisViewRevision: -1
+    property bool synthesisViewStale: false
 
     property alias utterancesModel: utterances
     property alias playerMedia: player
@@ -138,6 +146,8 @@ ApplicationWindow {
                  && utterances.count > 0 && window.current().reading.length > 0
         onActivated: window.synthesizeCurrent()
     }
+
+
 
     Shortcut {
         sequence: window.qtShortcutSequence(window.appBackend.saveProjectShortcut)
@@ -738,6 +748,8 @@ ApplicationWindow {
             const oldDurations = window.decodeSequence(old.moraDurationsJson);
             const oldPositions = window.decodeSequence(old.moraPositionsJson);
             const morae = window.copySequence(analysis.morae);
+            if (index === window.selectedIndex)
+                window.clearSynthesisView();
             const values = [];
             const durations = [];
             const positions = oldPositions.length === morae.length ? oldPositions.slice() : [];
@@ -844,6 +856,8 @@ ApplicationWindow {
                 window.pendingRevision = -1;
                 return;
             }
+            window.updateSynthesisViewFromBackend(window.pendingUtteranceId,
+                                                  window.pendingRevision);
             window.audioUtteranceId = window.pendingUtteranceId;
             window.audioRevision = window.pendingRevision;
             window.pendingUtteranceId = "";
@@ -1141,7 +1155,8 @@ ApplicationWindow {
             leading_preutterance_ms: item.leadingPreutterance,
             intonation_strength: item.intonation,
             apply_pitch: item.applyPitch,
-            resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson)
+            resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson),
+            unit_overrides: window.decodeSequence(item.phonemeOverridesJson)
         };
     }
 
@@ -1625,6 +1640,7 @@ ApplicationWindow {
             pointsJson: item.pointsJson,
             moraDurationsJson: item.moraDurationsJson,
             moraPositionsJson: item.moraPositionsJson,
+            phonemeOverridesJson: item.phonemeOverridesJson,
             manualPitchEdited: item.manualPitchEdited,
             manualMoraDurationEdited: item.manualMoraDurationEdited
         };
@@ -1658,6 +1674,7 @@ ApplicationWindow {
                 pointsJson: item.manualPitchEdited ? item.pointsJson : "[]",
                 moraDurationsJson: item.manualMoraDurationEdited ? item.moraDurationsJson : "[]",
                 moraPositionsJson: item.manualMoraDurationEdited ? item.moraPositionsJson : "[]",
+                phonemeOverridesJson: item.phonemeOverridesJson || "[]",
                 manualPitchEdited: item.manualPitchEdited,
                 manualMoraDurationEdited: item.manualMoraDurationEdited
             });
@@ -1733,12 +1750,15 @@ ApplicationWindow {
             if (item.pointsJson === saved.pointsJson
                     && item.moraDurationsJson === saved.moraDurationsJson
                     && item.moraPositionsJson === saved.moraPositionsJson
+                    && item.phonemeOverridesJson === saved.phonemeOverridesJson
                     && item.manualPitchEdited === !!saved.manualPitchEdited
                     && item.manualMoraDurationEdited === !!saved.manualMoraDurationEdited)
                 continue;
             utterances.setProperty(index, "pointsJson", String(saved.pointsJson || "[]"));
             utterances.setProperty(index, "moraDurationsJson", String(saved.moraDurationsJson || "[]"));
             utterances.setProperty(index, "moraPositionsJson", String(saved.moraPositionsJson || "[]"));
+            utterances.setProperty(index, "phonemeOverridesJson",
+                                   String(saved.phonemeOverridesJson || "[]"));
             utterances.setProperty(index, "manualPitchEdited", !!saved.manualPitchEdited);
             utterances.setProperty(index, "manualMoraDurationEdited", !!saved.manualMoraDurationEdited);
             window.markUtteranceDirty(index, false);
@@ -1902,7 +1922,7 @@ ApplicationWindow {
         if (error.length)
             return error;
         const project = window.projectData();
-        error = check(project.format === "utautts-project" && project.format_version === 6
+        error = check(project.format === "utautts-project" && project.format_version === 7
                       && project.utterances.length === 1
                       && project.utterances[0].speech_timing === true, "project data generation failed");
 
@@ -1945,6 +1965,7 @@ ApplicationWindow {
                 manual_pitch_edited: window.hasManualPitch(item),
                 manual_mora_duration_edited: window.hasManualMoraDurations(item),
                 resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson),
+                phoneme_overrides: window.decodeSequence(item.phonemeOverridesJson),
                 analysis_cache: {
                     reading: item.reading || "",
                     morae: window.decodeSequence(item.moraeJson)
@@ -1953,7 +1974,7 @@ ApplicationWindow {
         }
         return {
             format: "utautts-project",
-            format_version: 6,
+            format_version: 7,
             app_version: Qt.application.version,
             utterances: savedUtterances,
             selected_index: utterances.count ? selectedIndex : 0
@@ -1966,6 +1987,7 @@ ApplicationWindow {
             const item = utterances.get(index);
             utterances.setProperty(index, "reading", "");
             utterances.setProperty(index, "moraeJson", "[]");
+            utterances.setProperty(index, "phonemeOverridesJson", "[]");
             if (item.content.trim())
                 window.analyzeUtterance(index);
         }
@@ -2079,6 +2101,7 @@ ApplicationWindow {
                 autoMoraDurationsJson: JSON.stringify(automaticDurations),
                 autoMoraPositionsJson: JSON.stringify(automaticPositions),
                 resamplerExpressionsJson: JSON.stringify(window.copySequence(saved.resampler_expressions)),
+                phonemeOverridesJson: JSON.stringify(window.copySequence(saved.phoneme_overrides)),
                 manualPitchEdited: saved.manual_pitch_edited === undefined
                         ? points.some(value => Math.abs(Number(value)) > .1) : !!saved.manual_pitch_edited,
                 manualMoraDurationEdited: saved.manual_mora_duration_edited === undefined
@@ -2192,6 +2215,7 @@ ApplicationWindow {
         utterances.setProperty(selectedIndex, "modelId", window.defaultModelIdForLanguage(language));
         utterances.setProperty(selectedIndex, "reading", "");
         utterances.setProperty(selectedIndex, "moraeJson", "[]");
+        utterances.setProperty(selectedIndex, "phonemeOverridesJson", "[]");
         clearAutomaticProsody(selectedIndex);
         markUtteranceDirty(selectedIndex);
         selectCombo(editorContent.modelCombo, current().modelId);
@@ -2216,13 +2240,17 @@ ApplicationWindow {
         if (name === "phonemizer") {
             utterances.setProperty(selectedIndex, "reading", "");
             utterances.setProperty(selectedIndex, "moraeJson", "[]");
+            utterances.setProperty(selectedIndex, "phonemeOverridesJson", "[]");
             window.analyzeUtterance(selectedIndex);
         }
         if (name === "voicebankId") {
             utterances.setProperty(selectedIndex, "reading", "");
             utterances.setProperty(selectedIndex, "moraeJson", "[]");
+            utterances.setProperty(selectedIndex, "phonemeOverridesJson", "[]");
             window.analyzeUtterance(selectedIndex);
         }
+        if (["voicebankId", "modelId", "renderer", "resampler", "aliasPolicy", "phonemizer"].indexOf(name) >= 0)
+            utterances.setProperty(selectedIndex, "phonemeOverridesJson", "[]");
         if (name === "voicebankId") {
             const voice = window.voicebankById(value);
             if (voice && String(voice.kind || "") === "diffsinger") {
@@ -2247,6 +2275,8 @@ ApplicationWindow {
         if (item.content === text)
             return;
         window.clearEditHistory();
+        if (index === window.selectedIndex)
+            window.clearSynthesisView();
         utterances.setProperty(index, "content", text);
         utterances.setProperty(index, "reading", "");
         utterances.setProperty(index, "moraeJson", "[]");
@@ -2256,6 +2286,7 @@ ApplicationWindow {
         utterances.setProperty(index, "autoPointsJson", "[]");
         utterances.setProperty(index, "autoMoraDurationsJson", "[]");
         utterances.setProperty(index, "autoMoraPositionsJson", "[]");
+        utterances.setProperty(index, "phonemeOverridesJson", "[]");
         utterances.setProperty(index, "manualPitchEdited", false);
         utterances.setProperty(index, "manualMoraDurationEdited", false);
         markUtteranceDirty(index);
@@ -2290,6 +2321,33 @@ ApplicationWindow {
         markUtteranceDirty(selectedIndex);
     }
 
+    function updateTimingAndPitch(durations, positions, points) {
+        if (!utterances.count)
+            return;
+        const item = current();
+        const durationsJson = JSON.stringify(durations);
+        const positionsJson = JSON.stringify(positions);
+        const pointsJson = JSON.stringify(points);
+        const timingChanged = item.moraDurationsJson !== durationsJson
+                || item.moraPositionsJson !== positionsJson;
+        const pitchChanged = item.pointsJson !== pointsJson;
+        if (!timingChanged && !pitchChanged)
+            return;
+        window.beginHistoryChange("note:" + item.utteranceId, false);
+        if (timingChanged) {
+            utterances.setProperty(selectedIndex, "moraDurationsJson", durationsJson);
+            utterances.setProperty(selectedIndex, "moraPositionsJson", positionsJson);
+            utterances.setProperty(selectedIndex, "manualMoraDurationEdited", true);
+        }
+        if (pitchChanged) {
+            utterances.setProperty(selectedIndex, "pointsJson", pointsJson);
+            utterances.setProperty(selectedIndex, "manualPitchEdited", true);
+            if (!item.applyPitch)
+                utterances.setProperty(selectedIndex, "applyPitch", true);
+        }
+        markUtteranceDirty(selectedIndex);
+    }
+
     function updateMoraPositions(positions) {
         if (!utterances.count)
             return;
@@ -2302,6 +2360,107 @@ ApplicationWindow {
         markUtteranceDirty(selectedIndex);
     }
 
+    function updateMoraStart(position, startMs) {
+        if (!utterances.count || position < 0 || position >= editorContent.pitchEditor.morae.length)
+            return;
+        if (!Number.isFinite(Number(startMs)))
+            return;
+        editorContent.pitchEditor.setPositionAtMS(position, Number(startMs), false);
+    }
+
+    function updateMoraDuration(position, durationMs) {
+        if (!utterances.count || position < 0 || position >= editorContent.pitchEditor.morae.length)
+            return;
+        if (!Number.isFinite(Number(durationMs)))
+            return;
+        editorContent.pitchEditor.setDurationAtMS(position, Number(durationMs));
+    }
+
+    function updateUnitOverride(unitIndex, key, value) {
+        if (!utterances.count || unitIndex < 0 || !String(key || "").length)
+            return;
+        const item = current();
+        const overrides = decodeSequence(item.phonemeOverridesJson).map(value => {
+            const copy = {};
+            for (const name in value)
+                copy[name] = value[name];
+            return copy;
+        });
+        let override = null;
+        let overrideIndex = -1;
+        for (let index = 0; index < overrides.length; ++index) {
+            if (Number(overrides[index].unit_index) === Number(unitIndex)) {
+                override = overrides[index];
+                overrideIndex = index;
+                break;
+            }
+        }
+        if (!override) {
+            override = {unit_index: Number(unitIndex)};
+            overrides.push(override);
+            overrideIndex = overrides.length - 1;
+        }
+        const normalizedKey = String(key);
+        if (value === undefined || value === null || (typeof value === "number" && !Number.isFinite(value)))
+            return;
+        override[normalizedKey] = value;
+        if (Object.keys(override).length <= 1)
+            overrides.splice(overrideIndex, 1);
+        const encoded = JSON.stringify(overrides);
+        if (item.phonemeOverridesJson === encoded)
+            return;
+        window.beginHistoryChange("unit:" + item.utteranceId + ":" + unitIndex + ":" + normalizedKey, true);
+        utterances.setProperty(selectedIndex, "phonemeOverridesJson", encoded);
+        markUtteranceDirty(selectedIndex);
+    }
+
+    function clearUnitOverride(unitIndex) {
+        if (!utterances.count || unitIndex < 0)
+            return;
+        const item = current();
+        const overrides = decodeSequence(item.phonemeOverridesJson)
+                .filter(value => Number(value.unit_index) !== Number(unitIndex));
+        const encoded = JSON.stringify(overrides);
+        if (item.phonemeOverridesJson === encoded)
+            return;
+        window.beginHistoryChange("unit:" + item.utteranceId + ":" + unitIndex + ":clear", true);
+        utterances.setProperty(selectedIndex, "phonemeOverridesJson", encoded);
+        markUtteranceDirty(selectedIndex);
+    }
+
+    function clearSynthesisView() {
+        window.synthesisUnits = [];
+        window.synthesisWaveformMin = [];
+        window.synthesisWaveformMax = [];
+        window.synthesisDurationMs = 0;
+        window.synthesisLeadingMarginMs = 0;
+        window.synthesisViewUtteranceId = "";
+        window.synthesisViewRevision = -1;
+        window.synthesisViewStale = false;
+    }
+
+    function updateSynthesisViewFromBackend(utteranceId, revision) {
+        let result;
+        try {
+            result = JSON.parse(window.appBackend.synthesisJson || "{}");
+        } catch (error) {
+            window.clearSynthesisView();
+            return;
+        }
+        if (!result || !Array.isArray(result.units)) {
+            window.clearSynthesisView();
+            return;
+        }
+        window.synthesisUnits = window.copySequence(result.units);
+        window.synthesisWaveformMin = window.copySequence(result.waveform_min);
+        window.synthesisWaveformMax = window.copySequence(result.waveform_max);
+        window.synthesisDurationMs = Number(result.duration_ms) || 0;
+        window.synthesisLeadingMarginMs = Number(result.leading_margin_ms) || 0;
+        window.synthesisViewUtteranceId = String(utteranceId || "");
+        window.synthesisViewRevision = Number(revision);
+        window.synthesisViewStale = false;
+    }
+
     function markUtteranceDirty(index, markProject) {
         if (index < 0 || index >= utterances.count)
             return;
@@ -2309,6 +2468,9 @@ ApplicationWindow {
         utterances.setProperty(index, "revision", item.revision + 1);
         if (markProject !== false)
             window.projectDirty = true;
+        if (window.synthesisViewUtteranceId === item.utteranceId
+                && window.synthesisViewRevision >= 0)
+            window.synthesisViewStale = true;
         if (window.audioUtteranceId === item.utteranceId)
             clearPlayback();
     }
@@ -2430,6 +2592,7 @@ ApplicationWindow {
                 clearPlayback(false);
             else
                 clearPlayback();
+            window.clearSynthesisView();
         }
         selectedIndex = index;
         const item = current();
@@ -2635,6 +2798,7 @@ ApplicationWindow {
             autoMoraDurationsJson: "[]",
             autoMoraPositionsJson: "[]",
             resamplerExpressionsJson: "[]",
+            phonemeOverridesJson: "[]",
             manualPitchEdited: false,
             manualMoraDurationEdited: false,
             voicebankId: voice ? voice.id : "",
@@ -2770,6 +2934,14 @@ ApplicationWindow {
         window.appBackend.synthesize(window.buildSynthesisRequest(item));
     }
 
+    function seekPreview(positionMs) {
+        if (!window.hasCurrentAudio())
+            return;
+        const duration = window.playerMedia.duration;
+        const clamped = Math.max(0, Math.min(duration > 0 ? duration : positionMs, positionMs));
+        window.playerMedia.position = clamped;
+    }
+
     function quitWithoutWarning() {
         window.closeBypass = true;
         Qt.quit();
@@ -2802,7 +2974,8 @@ ApplicationWindow {
             mora_durations_ms: manualDurations,
             intonation_strength: item.intonation,
             apply_pitch: item.applyPitch,
-            resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson)
+            resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson),
+            unit_overrides: window.decodeSequence(item.phonemeOverridesJson)
         };
         if (item.applyPitch && item.reading && manualPitch && points.some(value => Math.abs(Number(value)) > .1)) {
             const manualPoints = [];

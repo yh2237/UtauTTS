@@ -177,6 +177,53 @@ Item {
         canvas.requestPaint();
     }
 
+    function setPositionAtMS(index, value, moveFollowing, preview) {
+        if (!Number.isFinite(Number(value)) || !root.durationIsEditable(index))
+            return;
+        root.updatePositionAt(index,
+                root.sidePadding + Math.max(0, Number(value)) * root.durationScale,
+                moveFollowing === true);
+        if (preview === true) {
+            canvas.requestPaint();
+            return;
+        }
+        root.moraDurationsEdited(root.moraDurations.slice());
+        root.moraPositionsEdited(root.moraPositions.slice());
+        canvas.requestPaint();
+    }
+
+    function setDurationAtMS(index, value, preview) {
+        if (!Number.isFinite(Number(value)) || !root.durationIsEditable(index))
+            return;
+        const count = root.morae.length;
+        const positions = (root.moraPositions || []).slice();
+        for (let position = 0; position < count; ++position)
+            positions[position] = root.positionAt(position);
+        const target = Math.max(root.minimumDurationAt(index),
+                                Math.min(root.maximumDurationAt(index), Number(value)));
+        const current = root.durationFromPositions(index);
+        const delta = target - current;
+        if (index + 1 < count) {
+            for (let position = index + 1; position < count; ++position)
+                positions[position] += delta;
+        }
+        root.moraPositions = positions;
+        if (index === count - 1) {
+            const durations = root.moraDurations.slice();
+            durations[index] = Math.round(target);
+            root.moraDurations = durations;
+        } else {
+            root.moraDurations = root.durationValuesFromPositions();
+        }
+        if (preview === true) {
+            canvas.requestPaint();
+            return;
+        }
+        root.moraDurationsEdited(root.moraDurations.slice());
+        root.moraPositionsEdited(root.moraPositions.slice());
+        canvas.requestPaint();
+    }
+
     function updateEndPositionAt(x) {
         const count = root.morae.length;
         if (!count || !root.durationIsEditable(count - 1))
