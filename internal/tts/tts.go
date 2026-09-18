@@ -40,6 +40,7 @@ type Config struct {
 	MoraDurationMS          float64
 	PauseDurationMS         float64
 	MoraDurationsMS         []float64
+	UnitOverrides           []plan.UnitOverride
 	ReleaseMS               float64
 	ReleaseSet              bool
 	LeadingPreutteranceMS   float64
@@ -429,6 +430,9 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build synthesis plan: %w", err)
+	}
+	if err := plan.ApplyUnitOverrides(synthesisPlan.Units, cfg.UnitOverrides); err != nil {
+		return nil, fmt.Errorf("apply unit overrides: %w", err)
 	}
 	synthesisPlan.WordBoundaryEnvelope = cfg.WordBoundaryEnvelope
 	synthesisPlan.Text = cfg.Text

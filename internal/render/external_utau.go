@@ -182,6 +182,22 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 			expressionPosition = unit.ParentPosition
 		}
 		expression := expressions.get(expressionPosition)
+		if unit.ResamplerVelocityOverride {
+			expression.velocity = unit.ResamplerVelocity
+		}
+		if unit.ResamplerVolumeOverride {
+			volume := unit.ResamplerVolume
+			expression.volume = &volume
+		}
+		if unit.ResamplerFlagsOverride {
+			expression.flags = unit.ResamplerFlags
+		}
+		if unit.ResamplerModulationOverride {
+			expression.modulation = unit.ResamplerModulation
+		}
+		if unit.ResamplerTempoOverride {
+			expression.tempo = unit.ResamplerTempo
+		}
 		unit.ResamplerVelocity = expression.velocity
 		unit.ResamplerFlags = expression.flags
 		unit.ResamplerModulation = expression.modulation

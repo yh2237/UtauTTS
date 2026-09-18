@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,6 +16,7 @@ import (
 	"utautts/internal/diffsinger"
 	"utautts/internal/frontend"
 	"utautts/internal/openutau"
+	"utautts/internal/plan"
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
@@ -299,6 +301,7 @@ type synthesizeRequest struct {
 	AliasPolicy                                                                                                      voicebank.AliasPolicy
 	MoraDurationMS, PauseDurationMS, LeadingPreutteranceMS, IntonationStrength                                       float64
 	MoraDurationsMS                                                                                                  []float64
+	UnitOverrides                                                                                                    []plan.UnitOverride
 	ApplyPitch                                                                                                       bool
 	ManualPitch                                                                                                      *prosody.ManualPitchFile
 	Dictionary                                                                                                       []synth.DictionaryEntry
@@ -326,6 +329,7 @@ func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
 		PauseDurationMS       float64                      `json:"pause_duration_ms"`
 		LeadingPreutteranceMS float64                      `json:"leading_preutterance_ms"`
 		MoraDurationsMS       []float64                    `json:"mora_durations_ms"`
+		UnitOverrides         []plan.UnitOverride          `json:"unit_overrides"`
 		IntonationStrength    float64                      `json:"intonation_strength"`
 		ApplyPitch            bool                         `json:"apply_pitch"`
 		ManualPitch           *prosody.ManualPitchFile     `json:"manual_pitch"`
@@ -340,9 +344,102 @@ func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
 	if reading == "" {
 		reading = value.Kana
 	}
-	*r = synthesizeRequest{Text: value.Text, Reading: reading, Language: value.Language, Phonemizer: value.Phonemizer, VoicebankID: value.VoicebankID, Tone: value.Tone, Color: value.Color, ModelID: value.ModelID, Renderer: value.Renderer, Resampler: value.Resampler, Wavtool: value.Wavtool, AliasPolicy: value.AliasPolicy, OutputPath: value.OutputPath, MoraDurationMS: value.MoraDurationMS, PauseDurationMS: value.PauseDurationMS, LeadingPreutteranceMS: value.LeadingPreutteranceMS, MoraDurationsMS: value.MoraDurationsMS, IntonationStrength: value.IntonationStrength, ApplyPitch: value.ApplyPitch, ManualPitch: value.ManualPitch, Dictionary: value.Dictionary, ResamplerExpressions: value.ResamplerExpressions}
+	*r = synthesizeRequest{Text: value.Text, Reading: reading, Language: value.Language, Phonemizer: value.Phonemizer, VoicebankID: value.VoicebankID, Tone: value.Tone, Color: value.Color, ModelID: value.ModelID, Renderer: value.Renderer, Resampler: value.Resampler, Wavtool: value.Wavtool, AliasPolicy: value.AliasPolicy, OutputPath: value.OutputPath, MoraDurationMS: value.MoraDurationMS, PauseDurationMS: value.PauseDurationMS, LeadingPreutteranceMS: value.LeadingPreutteranceMS, MoraDurationsMS: value.MoraDurationsMS, UnitOverrides: value.UnitOverrides, IntonationStrength: value.IntonationStrength, ApplyPitch: value.ApplyPitch, ManualPitch: value.ManualPitch, Dictionary: value.Dictionary, ResamplerExpressions: value.ResamplerExpressions}
 	r.SpeechTiming = value.SpeechTiming
 	return nil
+}
+
+func synthesisUnits(result *synth.Result) []map[string]any {
+	if result == nil {
+		return nil
+	}
+	synthesisPlan := result.RenderedPlan()
+	if synthesisPlan == nil {
+		return nil
+	}
+	units := make([]map[string]any, 0, len(synthesisPlan.Units))
+	for index, unit := range synthesisPlan.Units {
+		renderStart := unit.NoteStartMS - math.Max(0, unit.EffectivePreutteranceMS) + synthesisPlan.LeadingMarginMS
+		units = append(units, map[string]any{
+			"unit_index":                    index,
+			"position":                      unit.Position,
+			"role":                          unit.Role,
+			"mora":                          unit.Mora,
+			"alias":                         unit.Alias,
+			"source":                        unit.Source,
+			"source_name":                   filepath.Base(unit.Source),
+			"silent":                        unit.Silent,
+			"note_start_ms":                 unit.NoteStartMS,
+			"render_start_ms":               renderStart,
+			"duration_ms":                   unit.DurationMS,
+			"offset_ms":                     unit.OffsetMS,
+			"consonant_ms":                  unit.ConsonantMS,
+			"cutoff_ms":                     unit.CutoffMS,
+			"preutterance_ms":               unit.PreutteranceMS,
+			"overlap_ms":                    unit.OverlapMS,
+			"effective_preutterance_ms":     unit.EffectivePreutteranceMS,
+			"effective_consonant_ms":        unit.EffectiveConsonantMS,
+			"effective_overlap_ms":          unit.EffectiveOverlapMS,
+			"pitch_factor":                  unit.PitchFactor,
+			"energy_factor":                 unit.EnergyFactor,
+			"resampler_velocity":            unit.ResamplerVelocity,
+			"resampler_volume":              unit.ResamplerVolume,
+			"resampler_flags":               unit.ResamplerFlags,
+			"resampler_modulation":          unit.ResamplerModulation,
+			"resampler_tempo":               unit.ResamplerTempo,
+			"resampler_velocity_override":   unit.ResamplerVelocityOverride,
+			"resampler_volume_override":     unit.ResamplerVolumeOverride,
+			"resampler_flags_override":      unit.ResamplerFlagsOverride,
+			"resampler_modulation_override": unit.ResamplerModulationOverride,
+			"resampler_tempo_override":      unit.ResamplerTempoOverride,
+		})
+	}
+	return units
+}
+
+func pcmPeaks(data []int16, channels int, maximumPoints int) (mins, maxs []float64) {
+	if channels <= 0 || len(data) == 0 {
+		return nil, nil
+	}
+	frames := len(data) / channels
+	if frames <= 0 {
+		return nil, nil
+	}
+	points := frames
+	if maximumPoints > 0 && points > maximumPoints {
+		points = maximumPoints
+	}
+	mins = make([]float64, points)
+	maxs = make([]float64, points)
+	for point := 0; point < points; point++ {
+		start := point * frames / points
+		end := (point + 1) * frames / points
+		if end <= start {
+			end = start + 1
+		}
+		minimum, maximum := 1.0, -1.0
+		for frame := start; frame < end && frame < frames; frame++ {
+			for channel := 0; channel < channels; channel++ {
+				sample := float64(data[frame*channels+channel]) / 32768.0
+				if sample < minimum {
+					minimum = sample
+				}
+				if sample > maximum {
+					maximum = sample
+				}
+			}
+		}
+		mins[point] = minimum
+		maxs[point] = maximum
+	}
+	return mins, maxs
+}
+
+func waveformPeaks(result *synth.Result, maximumPoints int) (mins, maxs []float64) {
+	if result == nil || result.Audio == nil {
+		return nil, nil
+	}
+	return pcmPeaks(result.Audio.Data, result.Audio.Channels, maximumPoints)
 }
 
 func (e *Engine) synthesize(data []byte) (any, error) {
@@ -366,7 +463,8 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,
 		LeadingPreutteranceMS: request.LeadingPreutteranceMS,
 		MoraDurationsMS:       request.MoraDurationsMS, IntonationStrength: request.IntonationStrength,
-		ApplyPitch: request.ApplyPitch, ManualPitch: request.ManualPitch,
+		UnitOverrides: request.UnitOverrides,
+		ApplyPitch:    request.ApplyPitch, ManualPitch: request.ManualPitch,
 		ResamplerExpressions: request.ResamplerExpressions,
 	})
 	if err != nil {
@@ -387,6 +485,7 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 	if renderedPlan != nil {
 		leadingMarginMS = renderedPlan.LeadingMarginMS
 	}
+	waveformMin, waveformMax := waveformPeaks(result, 2400)
 	return map[string]any{
 		"output_path":           outputPath,
 		"reading":               result.Plan.Reading,
@@ -398,6 +497,10 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 		"mora_durations_ms":     result.MoraDurationsMS,
 		"mora_positions_ms":     result.MoraPositionsMS,
 		"pitch_points":          result.PitchPoints,
+		"units":                 synthesisUnits(result),
+		"waveform_min":          waveformMin,
+		"waveform_max":          waveformMax,
+		"waveform_sample_rate":  result.Audio.SampleRate,
 		"prosody_model_applied": e.synth.ModelAvailable(request.ModelID),
 	}, nil
 }

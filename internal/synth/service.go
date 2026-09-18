@@ -9,6 +9,7 @@ import (
 
 	"utautts/internal/engine"
 	"utautts/internal/jsut"
+	"utautts/internal/plan"
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
@@ -40,6 +41,7 @@ type Request struct {
 	PauseDurationMS       float64
 	LeadingPreutteranceMS float64
 	MoraDurationsMS       []float64
+	UnitOverrides         []plan.UnitOverride
 	IntonationStrength    float64
 	ApplyPitch            bool
 	ManualPitch           *prosody.ManualPitchFile
@@ -158,6 +160,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		PauseDurationMS:         request.PauseDurationMS,
 		LeadingPreutteranceMS:   request.LeadingPreutteranceMS,
 		MoraDurationsMS:         request.MoraDurationsMS,
+		UnitOverrides:           append([]plan.UnitOverride(nil), request.UnitOverrides...),
 		ProsodyModelPath:        modelPath,
 		ManualPitch:             request.ManualPitch,
 		IntonationStrength:      request.IntonationStrength,
