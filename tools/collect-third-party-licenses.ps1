@@ -140,6 +140,10 @@ function Copy-ProsodyDataProvenance {
     Copy-Required (Join-Path $root 'licenses/PROSODY-MODELS.txt') (Join-Path $licenseRoot 'PROSODY-MODELS.txt')
 }
 
+function Copy-IconFontLicenses {
+    Copy-Required (Join-Path $root 'licenses/MATERIAL-SYMBOLS.txt') (Join-Path $licenseRoot 'MATERIAL-SYMBOLS.txt')
+}
+
 function Copy-WorldLicenses {
     Copy-Required (Join-Path $root 'third_party/world/LICENSE.txt') (Join-Path $licenseRoot 'WORLD/WORLD-LICENSE.txt')
     Copy-Required (Join-Path $root 'third_party/world/OOURA-NOTICE.txt') (Join-Path $licenseRoot 'WORLD/OOURA-NOTICE.txt')
@@ -330,6 +334,7 @@ New-Item -ItemType Directory -Force -Path $licenseRoot | Out-Null
 Copy-GoLicenses
 Copy-OpenJTalkLicenses
 Copy-ProsodyDataProvenance
+Copy-IconFontLicenses
 Copy-WorldLicenses
 
 if ($Variant -eq 'windows-gui') {

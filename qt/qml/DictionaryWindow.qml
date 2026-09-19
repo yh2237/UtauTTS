@@ -25,6 +25,11 @@ ApplicationWindow {
     palette: hostPalette
     color: palette.window
 
+    FontLoader {
+        id: iconFont
+        source: "qrc:/fonts/MaterialSymbolsOutlined-subset.ttf"
+    }
+
     ListModel {
         id: dictionaryEntriesModel
     }
@@ -142,8 +147,9 @@ ApplicationWindow {
                         anchors.centerIn: parent
                         width: 18
                         height: 18
-                        text: "×"
+                        text: "\ue5cd"
                         color: dictionaryDeleteButton.palette.buttonText
+                        font.family: iconFont.name
                         font.pixelSize: 20
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter

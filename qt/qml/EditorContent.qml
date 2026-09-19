@@ -29,6 +29,11 @@ import QtMultimedia
         property alias leadingPreutteranceInput: leadingPreutteranceInput
         property alias leadingPreutteranceSlider: leadingPreutteranceSlider
 
+        FontLoader {
+            id: iconFont
+            source: "qrc:/fonts/MaterialSymbolsOutlined-subset.ttf"
+        }
+
         function classicRendererSelected() {
             const renderer = window.rendererById(rendererCombo.currentValue);
             return renderer && renderer.provider === "utau-external-resampler";
@@ -172,8 +177,9 @@ import QtMultimedia
                                     anchors.centerIn: parent
                                     width: 22
                                     height: 22
-                                    text: "⋮"
+                                    text: "\ue5d4"
                                     color: cardMenuButton.palette.buttonText
+                                    font.family: iconFont.name
                                     font.pixelSize: 20
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
@@ -267,23 +273,14 @@ import QtMultimedia
                     height: 48
                     highlighted: true
                     z: 2
-                    contentItem: Canvas {
-                        anchors.fill: parent
-                        property color iconColor: addButton.palette.buttonText
-                        onIconColorChanged: requestPaint()
-                        onPaint: {
-                            const context = getContext("2d");
-                            context.clearRect(0, 0, width, height);
-                            context.strokeStyle = iconColor;
-                            context.lineWidth = 2.4;
-                            context.lineCap = "round";
-                            context.beginPath();
-                            context.moveTo(width * 0.3, height * 0.5);
-                            context.lineTo(width * 0.7, height * 0.5);
-                            context.moveTo(width * 0.5, height * 0.3);
-                            context.lineTo(width * 0.5, height * 0.7);
-                            context.stroke();
-                        }
+                    contentItem: Text {
+                        anchors.centerIn: parent
+                        text: "\ue145"
+                        color: addButton.palette.buttonText
+                        font.family: iconFont.name
+                        font.pixelSize: 28
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
                     onClicked: window.addUtterance()
                     ToolTip.visible: hovered
@@ -836,10 +833,23 @@ import QtMultimedia
                         visible: pitchModeTabs.currentIndex === 1
                         checkable: true
                         checked: true
-                        text: window.translator.tr("tool.hand")
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
                         onClicked: {
                             handTool.checked = true;
                             penTool.checked = false;
+                        }
+                        ToolTip.visible: hovered
+                        ToolTip.text: window.translator.tr("tool.hand")
+
+                        contentItem: Text {
+                            anchors.centerIn: parent
+                            text: "\ue925"
+                            color: handTool.palette.buttonText
+                            font.family: iconFont.name
+                            font.pixelSize: 16
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
                         }
                     }
                     ToolButton {
@@ -847,22 +857,24 @@ import QtMultimedia
                         visible: pitchModeTabs.currentIndex === 1
                         checkable: true
                         checked: false
-                        text: window.translator.tr("tool.pen")
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
                         onClicked: {
                             penTool.checked = true;
                             handTool.checked = false;
                         }
-                    }
-                    Item {
-                        Layout.fillWidth: true
-                    }
-                    Label {
-                        Layout.alignment: Qt.AlignRight
-                        visible: pitchModeTabs.currentIndex === 1
-                        font.pixelSize: 11
-                        color: window.palette.placeholderText
-                        elide: Text.ElideRight
-                        text: window.translator.tr("frame.hint")
+                        ToolTip.visible: hovered
+                        ToolTip.text: window.translator.tr("tool.pen")
+
+                        contentItem: Text {
+                            anchors.centerIn: parent
+                            text: "\ue3c9"
+                            color: penTool.palette.buttonText
+                            font.family: iconFont.name
+                            font.pixelSize: 16
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
                     }
                 }
                 Rectangle {

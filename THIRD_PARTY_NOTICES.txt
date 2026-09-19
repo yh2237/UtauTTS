@@ -391,3 +391,14 @@ Upstream package pages:
 https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.DirectML/1.23.0
 https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.Managed/1.23.0
 https://www.nuget.org/packages/Microsoft.AI.DirectML/1.15.4
+
+
+Material Symbols (icon font subset)
+===================================
+
+The GUI embeds a subset of the Material Symbols Outlined variable font
+(glyphs pan_tool U+E925 and edit U+E3C9, used for the hand and pen tools).
+Upstream: https://github.com/google/material-design-icons
+(variant file variablefont/MaterialSymbolsOutlined[FILL,GRAD,opsz,wght].ttf).
+Licensed under the Apache License, Version 2.0. Its notice is
+licenses/MATERIAL-SYMBOLS.txt.

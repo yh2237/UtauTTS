@@ -173,6 +173,21 @@ qt_add_resources(utautts "lang"
         ${lang_files}
 )
 
+# UIアイコンフォント。FontLoaderがqrc:/fonts/<file>を読み込む。
+# licenses/MATERIAL-SYMBOLS.txtの帰属表示に従うこと。
+file(GLOB font_files CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/fonts/*.ttf"
+)
+foreach(font_file ${font_files})
+    get_filename_component(font_name "${font_file}" NAME)
+    set_source_files_properties("${font_file}" PROPERTIES QT_RESOURCE_ALIAS "${font_name}")
+endforeach()
+qt_add_resources(utautts "fonts"
+    PREFIX "/fonts"
+    FILES
+        ${font_files}
+)
+
 if(WIN32)
     target_link_libraries(utautts PRIVATE "${UTAUTTS_NATIVE_DIR}/utautts_native.dll.a")
 elseif(APPLE)

@@ -9,6 +9,11 @@ ToolButton {
     required property var translator
     signal resetRequested()
 
+    FontLoader {
+        id: iconFont
+        source: "qrc:/fonts/MaterialSymbolsOutlined-subset.ttf"
+    }
+
     Layout.preferredWidth: 24
     Layout.minimumWidth: 24
     Layout.maximumWidth: 24
@@ -18,8 +23,9 @@ ToolButton {
         anchors.centerIn: parent
         width: 18
         height: 18
-        text: "↻"
+        text: "\ue5d5"
         color: root.palette.buttonText
+        font.family: iconFont.name
         font.pixelSize: 17
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
