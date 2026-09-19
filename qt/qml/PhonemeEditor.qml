@@ -1285,14 +1285,6 @@ Item {
                     }
                 }
             }
-            Label {
-                anchors.centerIn: parent
-                visible: root.waveformMin.length === 0
-                text: root.translator.tr("main.pitch.noWaveform")
-                color: root.mutedText
-                font.pixelSize: 11
-            }
-
             DragHud {
                 x: Math.max(4, Math.min(parent.width - width - 4, root.hudX + 14))
                 y: Math.max(4, Math.min(parent.height - height - 4, root.hudY - 30))

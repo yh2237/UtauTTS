@@ -73,12 +73,6 @@ ApplicationWindow {
         anchors.margins: 12
         spacing: 10
 
-        Label {
-            Layout.fillWidth: true
-            text: root.translator.tr("dictionary.description")
-            wrapMode: Text.WordWrap
-        }
-
         RowLayout {
             Layout.fillWidth: true
             spacing: 8

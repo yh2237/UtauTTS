@@ -36,14 +36,6 @@ Window {
         anchors.margins: 16
         spacing: 12
 
-        Label {
-            Layout.fillWidth: true
-            text: root.exoDrag
-                  ? root.translator.tr("drag.aviutlHint")
-                  : root.translator.tr("drag.timelineHint")
-            wrapMode: Text.WordWrap
-        }
-
         Rectangle {
             id: dragSourceArea
             Layout.fillWidth: true

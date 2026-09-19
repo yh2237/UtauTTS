@@ -283,12 +283,6 @@ ApplicationWindow {
         contentItem: ColumnLayout {
             spacing: 12
 
-            Label {
-                Layout.fillWidth: true
-                text: window.translator.tr("main.exoFrameRateMessage")
-                wrapMode: Text.WordWrap
-            }
-
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
@@ -1489,20 +1483,6 @@ ApplicationWindow {
             if (window.appBackend.renderers[i].id === id)
                 return window.appBackend.renderers[i];
         return null;
-    }
-
-    function modelDescription(id) {
-        if (!id || id === "none")
-            return window.translator.tr("main.modelDescriptionNone");
-        const model = modelById(id);
-        return model ? model.description || "" : "";
-    }
-
-    function rendererDescription(id) {
-        if (!id)
-            return window.translator.tr("main.rendererDescriptionDefault");
-        const renderer = rendererById(id);
-        return renderer ? renderer.description || "" : "";
     }
 
     function defaultModelId() {
