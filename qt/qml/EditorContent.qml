@@ -831,6 +831,39 @@ import QtMultimedia
                             text: window.translator.tr("main.pitch.extended")
                         }
                     }
+                    ToolButton {
+                        id: handTool
+                        visible: pitchModeTabs.currentIndex === 1
+                        checkable: true
+                        checked: true
+                        text: window.translator.tr("tool.hand")
+                        onClicked: {
+                            handTool.checked = true;
+                            penTool.checked = false;
+                        }
+                    }
+                    ToolButton {
+                        id: penTool
+                        visible: pitchModeTabs.currentIndex === 1
+                        checkable: true
+                        checked: false
+                        text: window.translator.tr("tool.pen")
+                        onClicked: {
+                            penTool.checked = true;
+                            handTool.checked = false;
+                        }
+                    }
+                    Item {
+                        Layout.fillWidth: true
+                    }
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        visible: pitchModeTabs.currentIndex === 1
+                        font.pixelSize: 11
+                        color: window.palette.placeholderText
+                        elide: Text.ElideRight
+                        text: window.translator.tr("frame.hint")
+                    }
                 }
                 Rectangle {
                     Layout.fillWidth: true
@@ -880,43 +913,55 @@ import QtMultimedia
                         }
                     }
 
-                    PhonemeEditor {
-                        id: phonemeEditor
+                    Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        Layout.leftMargin: 12
-                        Layout.rightMargin: 12
-                        translator: window.translator
-                        accentColor: window.accent
-                        axisColor: window.palette.mid
-                        gridColor: window.palette.alternateBase
-                        labelColor: window.palette.text
-                        mutedText: window.mutedText
-                        timingEditor: pitchEditor
-                        units: window.synthesisUnits
-                        waveformMin: window.synthesisWaveformMin
-                        waveformMax: window.synthesisWaveformMax
-                        waveformDuration: window.synthesisDurationMs
-                        leadingMargin: window.synthesisLeadingMarginMs
-                        morae: pitchEditor.morae
-                        moraDurations: pitchEditor.moraDurations
-                        moraPositions: pitchEditor.moraPositions
-                        overrides: window.utterancesModel.count
-                                   ? window.decodeSequence(window.current().phonemeOverridesJson) : []
-                        playbackMs: window.hasCurrentAudio() ? window.playerMedia.position : -1
-                        showDetails: window.appBackend.extendedDetailsVisible
-                        onUnitValueEdited: (unitIndex, key, value) =>
-                                window.updateUnitOverride(unitIndex, key, value)
-                        onMoraStartEdited: (position, startMs) =>
-                                window.updateMoraStart(position, startMs)
-                        onMoraDurationEdited: (position, durationMs) =>
-                                window.updateMoraDuration(position, durationMs)
-                        onNoteGestureEdited: (durations, positions, points) =>
-                                window.updateTimingAndPitch(durations, positions, points)
-                        onResetUnitRequested: (unitIndex) =>
-                                window.clearUnitOverride(unitIndex)
-                        onSeekRequested: positionMs =>
-                                window.seekPreview(positionMs)
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            spacing: 0
+
+                            PhonemeEditor {
+                                id: phonemeEditor
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.leftMargin: 12
+                                Layout.rightMargin: 12
+                                translator: window.translator
+                                accentColor: window.accent
+                                axisColor: window.palette.mid
+                                gridColor: window.palette.alternateBase
+                                labelColor: window.palette.text
+                                mutedText: window.mutedText
+                                timingEditor: pitchEditor
+                                units: window.synthesisUnits
+                                waveformMin: window.synthesisWaveformMin
+                                waveformMax: window.synthesisWaveformMax
+                                waveformDuration: window.synthesisDurationMs
+                                leadingMargin: window.synthesisLeadingMarginMs
+                                morae: pitchEditor.morae
+                                moraDurations: pitchEditor.moraDurations
+                                moraPositions: pitchEditor.moraPositions
+                                overrides: window.utterancesModel.count
+                                           ? window.decodeSequence(window.current().phonemeOverridesJson) : []
+                                playbackMs: window.hasCurrentAudio() ? window.playerMedia.position : -1
+                                showDetails: window.appBackend.extendedDetailsVisible
+                                framePaintMode: penTool.checked && pitchModeTabs.currentIndex === 1
+                                onUnitValueEdited: (unitIndex, key, value) =>
+                                        window.updateUnitOverride(unitIndex, key, value)
+                                onMoraStartEdited: (position, startMs) =>
+                                        window.updateMoraStart(position, startMs)
+                                onMoraDurationEdited: (position, durationMs) =>
+                                        window.updateMoraDuration(position, durationMs)
+                                onNoteGestureEdited: (durations, positions, points) =>
+                                        window.updateTimingAndPitch(durations, positions, points)
+                                onResetUnitRequested: (unitIndex) =>
+                                        window.clearUnitOverride(unitIndex)
+                                onSeekRequested: positionMs =>
+                                        window.seekPreview(positionMs)
+                                onFramesEdited: frames => window.updatePitchFrames(frames)
+                            }
+                        }
                     }
                 }
                 PlaybackControls {

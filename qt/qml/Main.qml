@@ -798,6 +798,8 @@ ApplicationWindow {
             const automaticDurations = window.copySequence(result.mora_durations_ms);
             const automaticPositions = window.copySequence(result.mora_positions_ms);
             window.applyAutomaticProsody(index, automaticPoints, automaticDurations, automaticPositions);
+            window.applyAutomaticFramePitch(index, window.copySequence(result.frame_pitch_cents),
+                    Number(result.frame_ms) || 10);
         }
 
         function onPreviewReady() {
@@ -1653,6 +1655,7 @@ ApplicationWindow {
         return {
             utteranceId: item.utteranceId,
             pointsJson: item.pointsJson,
+            pitchFramesJson: item.pitchFramesJson,
             moraDurationsJson: item.moraDurationsJson,
             moraPositionsJson: item.moraPositionsJson,
             phonemeOverridesJson: item.phonemeOverridesJson,
@@ -1687,6 +1690,7 @@ ApplicationWindow {
                 intonation: item.intonation,
                 applyPitch: item.applyPitch,
                 pointsJson: item.manualPitchEdited ? item.pointsJson : "[]",
+                pitchFramesJson: item.manualPitchEdited ? item.pitchFramesJson : "[]",
                 moraDurationsJson: item.manualMoraDurationEdited ? item.moraDurationsJson : "[]",
                 moraPositionsJson: item.manualMoraDurationEdited ? item.moraPositionsJson : "[]",
                 phonemeOverridesJson: item.phonemeOverridesJson || "[]",
@@ -1763,6 +1767,7 @@ ApplicationWindow {
                 continue;
             const item = utterances.get(index);
             if (item.pointsJson === saved.pointsJson
+                    && item.pitchFramesJson === saved.pitchFramesJson
                     && item.moraDurationsJson === saved.moraDurationsJson
                     && item.moraPositionsJson === saved.moraPositionsJson
                     && item.phonemeOverridesJson === saved.phonemeOverridesJson
@@ -1770,6 +1775,7 @@ ApplicationWindow {
                     && item.manualMoraDurationEdited === !!saved.manualMoraDurationEdited)
                 continue;
             utterances.setProperty(index, "pointsJson", String(saved.pointsJson || "[]"));
+            utterances.setProperty(index, "pitchFramesJson", String(saved.pitchFramesJson || "[]"));
             utterances.setProperty(index, "moraDurationsJson", String(saved.moraDurationsJson || "[]"));
             utterances.setProperty(index, "moraPositionsJson", String(saved.moraPositionsJson || "[]"));
             utterances.setProperty(index, "phonemeOverridesJson",
@@ -1936,7 +1942,7 @@ ApplicationWindow {
         if (error.length)
             return error;
         const project = window.projectData();
-        error = check(project.format === "utautts-project" && project.format_version === 7
+        error = check(project.format === "utautts-project" && project.format_version === 8
                       && project.utterances.length === 1
                       && project.utterances[0].speech_timing === true, "project data generation failed");
 
@@ -1971,6 +1977,7 @@ ApplicationWindow {
                 intonation: item.intonation,
                 apply_pitch: !!item.applyPitch,
                 pitch_points: window.decodeSequence(item.pointsJson),
+                pitch_frames: window.decodeSequence(item.pitchFramesJson),
                 mora_durations_ms: window.decodeSequence(item.moraDurationsJson),
                 mora_positions_ms: window.decodeSequence(item.moraPositionsJson),
                 automatic_pitch_points: window.automaticSequence(item, "autoPointsJson"),
@@ -1988,7 +1995,7 @@ ApplicationWindow {
         }
         return {
             format: "utautts-project",
-            format_version: 7,
+            format_version: 8,
             app_version: Qt.application.version,
             utterances: savedUtterances,
             selected_index: utterances.count ? selectedIndex : 0
@@ -2087,6 +2094,7 @@ ApplicationWindow {
             const voicebankId = String(saved.voicebank_id || "");
             const voice = window.voicebankById(voicebankId);
             const points = window.copySequence(saved.pitch_points);
+            const pitchFrames = window.copySequence(saved.pitch_frames);
             const content = String(saved.text || "");
             let rendererId = window.normalizeRendererId(saved.renderer_id);
             let resamplerId = String(saved.resampler || "");
@@ -2109,6 +2117,7 @@ ApplicationWindow {
                 reading: "",
                 moraeJson: "[]",
                 pointsJson: JSON.stringify(points),
+                pitchFramesJson: JSON.stringify(pitchFrames),
                 moraDurationsJson: JSON.stringify(manualDurations),
                 moraPositionsJson: JSON.stringify(manualPositions),
                 autoPointsJson: JSON.stringify(window.copySequence(saved.automatic_pitch_points)),
@@ -2117,7 +2126,9 @@ ApplicationWindow {
                 resamplerExpressionsJson: JSON.stringify(window.copySequence(saved.resampler_expressions)),
                 phonemeOverridesJson: JSON.stringify(window.copySequence(saved.phoneme_overrides)),
                 manualPitchEdited: saved.manual_pitch_edited === undefined
-                        ? points.some(value => Math.abs(Number(value)) > .1) : !!saved.manual_pitch_edited,
+                        ? points.some(value => Math.abs(Number(value)) > .1)
+                          || pitchFrames.some(value => Math.abs(Number(value)) > .1)
+                        : !!saved.manual_pitch_edited,
                 manualMoraDurationEdited: saved.manual_mora_duration_edited === undefined
                         ? window.copySequence(saved.mora_durations_ms).some(value => Number(value) > 0)
                         : !!saved.manual_mora_duration_edited,
@@ -2151,6 +2162,8 @@ ApplicationWindow {
             editorContent.pitchEditor.morae = [];
             editorContent.pitchEditor.moraDurations = [];
             editorContent.pitchEditor.moraPositions = [];
+            editorContent.phonemeEditor.manualFrames = [];
+            editorContent.phonemeEditor.autoFrames = [];
             window.resetHistory(migratedRenderer);
             return;
         }
@@ -2295,11 +2308,13 @@ ApplicationWindow {
         utterances.setProperty(index, "reading", "");
         utterances.setProperty(index, "moraeJson", "[]");
         utterances.setProperty(index, "pointsJson", "[]");
+        utterances.setProperty(index, "pitchFramesJson", "[]");
         utterances.setProperty(index, "moraDurationsJson", "[]");
         utterances.setProperty(index, "moraPositionsJson", "[]");
         utterances.setProperty(index, "autoPointsJson", "[]");
         utterances.setProperty(index, "autoMoraDurationsJson", "[]");
         utterances.setProperty(index, "autoMoraPositionsJson", "[]");
+        utterances.setProperty(index, "autoPitchFramesJson", "[]");
         utterances.setProperty(index, "phonemeOverridesJson", "[]");
         utterances.setProperty(index, "manualPitchEdited", false);
         utterances.setProperty(index, "manualMoraDurationEdited", false);
@@ -2322,6 +2337,36 @@ ApplicationWindow {
         }
         markUtteranceDirty(selectedIndex);
         window.scheduleAutoPreview();
+    }
+
+    function hasManualPitchFrames(item) {
+        return window.decodeSequence(item ? item.pitchFramesJson : "")
+                .some(value => Math.abs(Number(value)) > .1);
+    }
+
+    function updatePitchFrames(frames) {
+        if (!utterances.count)
+            return;
+        const framesJson = JSON.stringify(frames);
+        if (current().pitchFramesJson === framesJson && current().manualPitchEdited)
+            return;
+        window.beginHistoryChange("pitchframes:" + current().utteranceId, false);
+        utterances.setProperty(selectedIndex, "pitchFramesJson", framesJson);
+        utterances.setProperty(selectedIndex, "manualPitchEdited", true);
+        if (!current().applyPitch) {
+            utterances.setProperty(selectedIndex, "applyPitch", true);
+        }
+        markUtteranceDirty(selectedIndex);
+        window.scheduleAutoPreview();
+    }
+
+    function applyAutomaticFramePitch(index, automaticFrames, frameMs) {
+        if (index < 0 || index >= utterances.count)
+            return;
+        utterances.setProperty(index, "autoPitchFramesJson", JSON.stringify(automaticFrames));
+        utterances.setProperty(index, "autoFrameMs", Number(frameMs) > 0 ? Number(frameMs) : 10);
+        if (index === window.selectedIndex && editorContent.phonemeEditor)
+            editorContent.phonemeEditor.autoFrames = automaticFrames.slice();
     }
 
     function updateMoraDurations(durations) {
@@ -2628,6 +2673,9 @@ ApplicationWindow {
         editorContent.pitchEditor.defaultPauseDuration = item.pauseDuration;
         editorContent.pitchEditor.moraDurations = window.displayedMoraDurations(item);
         editorContent.pitchEditor.moraPositions = window.displayedMoraPositions(item);
+        editorContent.phonemeEditor.manualFrames = window.decodeSequence(item.pitchFramesJson);
+        editorContent.phonemeEditor.autoFrames = window.automaticSequence(item, "autoPitchFramesJson");
+        editorContent.phonemeEditor.frameMs = Number(item.autoFrameMs) > 0 ? Number(item.autoFrameMs) : 10;
         selectCombo(editorContent.voiceCombo, item.voicebankId);
         selectCombo(editorContent.speechLanguageCombo, item.language || "ja");
         selectCombo(editorContent.phonemizerCombo,
@@ -2671,7 +2719,9 @@ ApplicationWindow {
     function hasManualPitch(item) {
         if (item && item.manualPitchEdited)
             return true;
-        return decodeSequence(item ? item.pointsJson : "").some(value => Math.abs(Number(value)) > .1);
+        if (decodeSequence(item ? item.pointsJson : "").some(value => Math.abs(Number(value)) > .1))
+            return true;
+        return window.hasManualPitchFrames(item);
     }
 
     function hasManualMoraDurations(item) {
@@ -2748,6 +2798,7 @@ ApplicationWindow {
         utterances.setProperty(index, "autoPointsJson", "[]");
         utterances.setProperty(index, "autoMoraDurationsJson", "[]");
         utterances.setProperty(index, "autoMoraPositionsJson", "[]");
+        utterances.setProperty(index, "autoPitchFramesJson", "[]");
     }
 
     function applyAutomaticProsody(index, automaticPoints, automaticDurations, automaticPositions) {
@@ -2812,9 +2863,12 @@ ApplicationWindow {
             reading: "",
             moraeJson: "[]",
             pointsJson: "[]",
+            pitchFramesJson: "[]",
             moraDurationsJson: "[]",
             moraPositionsJson: "[]",
             autoPointsJson: "[]",
+            autoPitchFramesJson: "[]",
+            autoFrameMs: 10,
             autoMoraDurationsJson: "[]",
             autoMoraPositionsJson: "[]",
             resamplerExpressionsJson: "[]",
@@ -2864,6 +2918,8 @@ ApplicationWindow {
             selectedIndex = 0;
             editorContent.pitchEditor.points = [];
             editorContent.pitchEditor.morae = [];
+            editorContent.phonemeEditor.manualFrames = [];
+            editorContent.phonemeEditor.autoFrames = [];
             return;
         }
         selectedIndex = Math.min(selectedIndex, utterances.count - 1);
@@ -3025,7 +3081,16 @@ ApplicationWindow {
             resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson),
             unit_overrides: window.decodeSequence(item.phonemeOverridesJson)
         };
-        if (item.applyPitch && item.reading && manualPitch && points.some(value => Math.abs(Number(value)) > .1)) {
+        const frameOffsets = window.decodeSequence(item.pitchFramesJson);
+        const hasFrameOffsets = frameOffsets.some(value => Math.abs(Number(value)) > .1);
+        if (item.applyPitch && item.reading && manualPitch && hasFrameOffsets) {
+            request.manual_pitch = {
+                version: 1,
+                reading: item.reading,
+                mode: "frames",
+                frames: frameOffsets.map(value => Math.max(-1200, Math.min(1200, Number(value) || 0)))
+            };
+        } else if (item.applyPitch && item.reading && manualPitch && points.some(value => Math.abs(Number(value)) > .1)) {
             const manualPoints = [];
             for (let index = 0; index < points.length; ++index) {
                 const mora = index < morae.length ? morae[index] : null;

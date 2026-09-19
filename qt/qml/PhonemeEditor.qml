@@ -16,6 +16,10 @@ Item {
     property var morae: []
     property var moraDurations: []
     property var moraPositions: []
+    property var autoFrames: []
+    property var manualFrames: []
+    property real frameMs: 10
+    property bool framePaintMode: false
     property var overrides: []
     property color accentColor: "#d35f6b"
     property color axisColor: "#c79298"
@@ -73,11 +77,96 @@ Item {
         return root.noteCenterY() - root.timingEditor.pitchAt(position) * root.noteLaneH / 600;
     }
 
+    readonly property int frameDisplayCount: Math.max(root.autoFrames.length,
+            root.manualFrames.length, root.frameCapacity(), 2)
+
+    function frameStepMs() {
+        const step = Number(root.frameMs);
+        return step > 0 ? step : 10;
+    }
+
+    function framePaintRequested(modifiers) {
+        return root.framePaintMode || (modifiers & Qt.ControlModifier) !== 0;
+    }
+
+    function frameCapacity() {
+        return Math.max(2, Math.ceil(root.contentDuration / root.frameStepMs()) + 1);
+    }
+
+    function trimmedFrames(values) {
+        const result = values.slice();
+        while (result.length > 0 && Number(result[result.length - 1]) === 0)
+            result.pop();
+        return result;
+    }
+
+    function frameAutoAt(index) {
+        const value = index < root.autoFrames.length ? Number(root.autoFrames[index]) : 0;
+        return Number.isFinite(value) ? value : 0;
+    }
+
+    function frameManualAt(index) {
+        const value = index < root.manualFrames.length ? Number(root.manualFrames[index]) : 0;
+        return Number.isFinite(value) ? value : 0;
+    }
+
+    function frameTotalAt(index) {
+        return root.frameAutoAt(index) + root.frameManualAt(index);
+    }
+
+    function frameTimeMs(index) {
+        return index * root.frameStepMs();
+    }
+
+    function frameY(cents) {
+        return root.noteCenterY() - cents * root.noteLaneH / 600;
+    }
+
+    function frameAtTime(timeMs) {
+        const target = Math.round(timeMs / root.frameStepMs());
+        return Math.max(0, Math.min(root.frameDisplayCount - 1, target));
+    }
+
+    function paddedFrameManual() {
+        const values = [];
+        for (let index = 0; index < root.frameDisplayCount; ++index)
+            values.push(root.frameManualAt(index));
+        return values;
+    }
+
+    function setFrameRange(from, to, cents) {
+        const values = root.paddedFrameManual();
+        const lo = Math.max(0, Math.min(from, to));
+        const hi = Math.min(root.frameDisplayCount - 1, Math.max(from, to));
+        for (let index = lo; index <= hi; ++index)
+            values[index] = cents;
+        root.manualFrames = values;
+        waveformCanvas.requestPaint();
+    }
+
+    function paintFrameTo(x, y, fromFrame) {
+        const target = root.frameAtTime(root.xToTime(x) - root.leadingMargin);
+        const desired = Math.max(-600, Math.min(600,
+                (root.noteCenterY() - y) / root.noteLaneH * 600));
+        const values = root.paddedFrameManual();
+        const lo = Math.max(0, fromFrame < 0 ? target : Math.min(fromFrame, target));
+        const hi = Math.min(root.frameDisplayCount - 1,
+                fromFrame < 0 ? target : Math.max(fromFrame, target));
+        for (let index = lo; index <= hi; ++index)
+            values[index] = Math.round((desired - root.frameAutoAt(index)) * 10) / 10;
+        root.manualFrames = values;
+        const total = root.frameTotalAt(target);
+        root.updateHud(x, y, (total >= 0 ? "+" : "") + Math.round(total) + " cent");
+        waveformCanvas.requestPaint();
+        return target;
+    }
+
     function exprLaneY(lane) {
         return root.exprTop + 6 + lane * root.exprLaneH;
     }
 
     signal unitValueEdited(int unitIndex, string key, var value)
+    signal framesEdited(var frames)
     signal moraStartEdited(int position, real startMs)
     signal moraDurationEdited(int position, real durationMs)
     signal noteGestureEdited(var durations, var positions, var points)
@@ -353,7 +442,9 @@ Item {
         }
         const e = (!n && b < 0) ? root.exprHit(canvasX, canvasY) : null;
         root.hoveredExpr = e ? {u: e.u, l: e.l} : {u: -1, l: -1};
-        if (e)
+        if (root.framePaintRequested(mods))
+            root.timelineCursor = Qt.SizeVerCursor;
+        else if (e)
             root.timelineCursor = Qt.SizeVerCursor;
         else if (n)
             root.timelineCursor = n.edge ? Qt.SizeHorCursor : Qt.SizeAllCursor;
@@ -761,7 +852,6 @@ Item {
                     }
                     ctx.font = "10px sans-serif";
                     if (root.timingEditor) {
-                        const editor = root.timingEditor;
                         const middle = root.noteCenterY();
                         for (const cents of [-300, 0, 300]) {
                             const y = middle - cents * root.noteLaneH / 600;
@@ -771,26 +861,49 @@ Item {
                             ctx.lineTo(Math.min(width, viewRight), y);
                             ctx.stroke();
                         }
+                        ctx.strokeStyle = root.axisColor;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        let autoStarted = false;
+                        for (let fi = 0; fi < root.autoFrames.length; ++fi) {
+                            const fx = root.timeToX(root.frameTimeMs(fi) + root.leadingMargin);
+                            if (!inView(fx)) {
+                                autoStarted = false;
+                                continue;
+                            }
+                            const fy = root.frameY(root.frameAutoAt(fi));
+                            if (autoStarted) ctx.lineTo(fx, fy);
+                            else ctx.moveTo(fx, fy);
+                            autoStarted = true;
+                        }
+                        ctx.stroke();
                         ctx.strokeStyle = root.accentColor;
                         ctx.lineWidth = 2;
                         ctx.beginPath();
-                        let started = false;
-                        for (let i = 0; i < editor.morae.length; ++i) {
-                            if (!editor.pointIsEditable(i)) {
-                                started = false;
+                        let frameStarted = false;
+                        for (let fj = 0; fj < root.frameDisplayCount; ++fj) {
+                            const fx = root.timeToX(root.frameTimeMs(fj) + root.leadingMargin);
+                            if (!inView(fx)) {
+                                frameStarted = false;
                                 continue;
                             }
-                            const x = root.timeToX(editor.positionAt(i) + root.leadingMargin);
-                            if (!inView(x)) {
-                                started = false;
-                                continue;
-                            }
-                            const y = root.noteY(i);
-                            if (started) ctx.lineTo(x, y);
-                            else ctx.moveTo(x, y);
-                            started = true;
+                            const fy = root.frameY(root.frameTotalAt(fj));
+                            if (frameStarted) ctx.lineTo(fx, fy);
+                            else ctx.moveTo(fx, fy);
+                            frameStarted = true;
                         }
                         ctx.stroke();
+                        ctx.fillStyle = root.accentColor;
+                        for (let fk = 0; fk < root.frameDisplayCount; ++fk) {
+                            if (Math.abs(root.frameManualAt(fk)) <= 0.5)
+                                continue;
+                            const fx = root.timeToX(root.frameTimeMs(fk) + root.leadingMargin);
+                            if (!inView(fx))
+                                continue;
+                            ctx.beginPath();
+                            ctx.arc(fx, root.frameY(root.frameTotalAt(fk)), 2.5, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
                     }
                     const minimums = root.waveformMin || [];
                     const maximums = root.waveformMax || [];
@@ -894,6 +1007,8 @@ Item {
                 property real lastPY: -1
                 property real pendingSeekX: 0
                 property int dragCursor: 0
+                property var frameBackup: []
+                property int frameLast: -1
                 cursorShape: dragCursor !== 0 ? dragCursor : root.timelineCursor
                 hoverEnabled: true
                 onPressed: mouse => {
@@ -918,6 +1033,14 @@ Item {
                     lastPY = p.y;
                     pressMoved = false;
                     pendingKind = "";
+                    frameLast = -1;
+                    if (root.framePaintRequested(mouse.modifiers)) {
+                        pendingKind = "frame";
+                        pressMoved = true;
+                        frameBackup = root.manualFrames.slice();
+                        dragCursor = Qt.SizeVerCursor;
+                        return;
+                    }
                     root.updateTimelineHover(p.x, p.y, mouse.modifiers);
                     const b = root.boundaryHit(p.x);
                     const n = root.noteHit(p.x, p.y);
@@ -972,6 +1095,12 @@ Item {
                         root.previewDrag(p.x, p.y, mouse.modifiers);
                         return;
                     }
+                    if (activeKind === "frame" || pendingKind === "frame") {
+                        activeKind = "frame";
+                        dragCursor = Qt.SizeVerCursor;
+                        frameLast = root.paintFrameTo(p.x, p.y, frameLast);
+                        return;
+                    }
                     if (!!root.gesture || !!root.valueGesture)
                         return;
                     if (Math.max(Math.abs(p.x - pressCX), Math.abs(p.y - pressCY)) < 3)
@@ -1014,6 +1143,20 @@ Item {
                 }
                 onReleased: {
                     ToolTip.hide();
+                    if (activeKind === "frame" || pendingKind === "frame") {
+                        const trimmed = root.trimmedFrames(root.manualFrames);
+                        if (JSON.stringify(trimmed) !== JSON.stringify(root.trimmedFrames(frameBackup)))
+                            root.framesEdited(trimmed);
+                        activeKind = "";
+                        pendingKind = "";
+                        dragCursor = 0;
+                        pressMoved = false;
+                        frameLast = -1;
+                        root.hudText = "";
+                        root.updateTimelineHover(lastPX, lastPY, 0);
+                        waveformCanvas.requestPaint();
+                        return;
+                    }
                     if (activeKind === "expr")
                         root.finishUnitValueDrag(true);
                     else if (activeKind === "note")
@@ -1031,6 +1174,17 @@ Item {
                 }
                 onCanceled: {
                     ToolTip.hide();
+                    if (activeKind === "frame" || pendingKind === "frame") {
+                        root.manualFrames = frameBackup.slice();
+                        activeKind = "";
+                        pendingKind = "";
+                        dragCursor = 0;
+                        pressMoved = false;
+                        frameLast = -1;
+                        root.hudText = "";
+                        waveformCanvas.requestPaint();
+                        return;
+                    }
                     if (activeKind === "expr")
                         root.finishUnitValueDrag(false);
                     else if (activeKind === "note")
@@ -1045,6 +1199,21 @@ Item {
                 onDoubleClicked: mouse => {
                     seekTimer.stop();
                     const p = mapToItem(waveformCanvas, mouse.x, mouse.y);
+                    if (root.framePaintRequested(mouse.modifiers)) {
+                        const target = root.frameAtTime(root.xToTime(p.x) - root.leadingMargin);
+                        let touched = false;
+                        for (let index = target - 2; index <= target + 2; ++index) {
+                            if (Math.abs(root.frameManualAt(index)) > 0.5) {
+                                touched = true;
+                                break;
+                            }
+                        }
+                        if (touched) {
+                            root.setFrameRange(target - 2, target + 2, 0);
+                            root.framesEdited(root.trimmedFrames(root.manualFrames));
+                        }
+                        return;
+                    }
                     const n = root.noteHit(p.x, p.y);
                     if (n) {
                         root.timingEditor.resetPitchAt(n.pos);
@@ -1411,6 +1580,9 @@ Item {
         waveformCanvas.requestPaint();
     }
     onPlaybackMsChanged: waveformCanvas.requestPaint()
+    onAutoFramesChanged: waveformCanvas.requestPaint()
+    onManualFramesChanged: waveformCanvas.requestPaint()
+    onFrameMsChanged: waveformCanvas.requestPaint()
     onUnitsChanged: {
         if (!!root.gesture && !root.gestureModelMatches()) {
             root.restoreDrag();
