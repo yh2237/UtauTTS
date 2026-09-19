@@ -799,13 +799,40 @@ import QtMultimedia
         }
 
         Pane {
+            id: pitchPane
+            z: 1
             SplitView.preferredHeight: 330
             SplitView.minimumHeight: 150
             padding: 0
+            clip: false
             background: Rectangle {
                 color: window.palette.window
                 border.color: window.borderColor
             }
+
+        Rectangle {
+            property var selectedTab: pitchModeTabs.currentIndex === 1
+                                      ? extendedPitchTab : basicPitchTab
+            x: selectedTab ? selectedTab.mapToItem(pitchPane, 0, 0).x : 0
+            y: -2
+            width: selectedTab ? selectedTab.width : 0
+            height: 2
+            color: window.palette.window
+            visible: pitchModeTabs.currentIndex >= 0
+            z: 1
+        }
+
+        Rectangle {
+            property var selectedTab: pitchModeTabs.currentIndex === 1
+                                      ? extendedPitchTab : basicPitchTab
+            x: selectedTab ? selectedTab.mapToItem(pitchPane, 0, 0).x : 0
+            y: -3
+            width: selectedTab ? selectedTab.width : 0
+            height: 4
+            color: window.accent
+            visible: pitchModeTabs.currentIndex >= 0
+            z: 2
+        }
 
             ColumnLayout {
                 anchors.fill: parent
@@ -813,19 +840,72 @@ import QtMultimedia
 
                 RowLayout {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 38
-                    Layout.leftMargin: 12
+                    Layout.preferredHeight: 40
+                    Layout.leftMargin: 0
                     Layout.rightMargin: 10
                     TabBar {
                         id: pitchModeTabs
-                        Layout.alignment: Qt.AlignLeft
+                        Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+                        Layout.preferredHeight: 40
                         Layout.fillWidth: false
+                        spacing: 0
+                        background: Item {}
 
                         TabButton {
+                            id: basicPitchTab
+                            width: Math.max(88, basicPitchLabel.implicitWidth + 20)
+                            height: pitchModeTabs.height
+                            padding: 0
+                            topPadding: 8
+                            bottomPadding: 0
                             text: window.translator.tr("main.pitch.basic")
+
+                            background: Rectangle {
+                                color: basicPitchTab.hovered
+                                       ? Qt.rgba(window.palette.alternateBase.r,
+                                                 window.palette.alternateBase.g,
+                                                 window.palette.alternateBase.b, 0.55)
+                                       : "transparent"
+
+                            }
+                            contentItem: Text {
+                                id: basicPitchLabel
+                                text: basicPitchTab.text
+                                color: basicPitchTab.checked
+                                       ? window.palette.text : window.palette.placeholderText
+                                font.pixelSize: 13
+                                font.bold: basicPitchTab.checked
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
                         }
                         TabButton {
+                            id: extendedPitchTab
+                            width: Math.max(104, extendedPitchLabel.implicitWidth + 20)
+                            height: pitchModeTabs.height
+                            padding: 0
+                            topPadding: 8
+                            bottomPadding: 0
                             text: window.translator.tr("main.pitch.extended")
+
+                            background: Rectangle {
+                                color: extendedPitchTab.hovered
+                                       ? Qt.rgba(window.palette.alternateBase.r,
+                                                 window.palette.alternateBase.g,
+                                                 window.palette.alternateBase.b, 0.55)
+                                       : "transparent"
+
+                            }
+                            contentItem: Text {
+                                id: extendedPitchLabel
+                                text: extendedPitchTab.text
+                                color: extendedPitchTab.checked
+                                       ? window.palette.text : window.palette.placeholderText
+                                font.pixelSize: 13
+                                font.bold: extendedPitchTab.checked
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
                         }
                     }
                     ToolButton {
