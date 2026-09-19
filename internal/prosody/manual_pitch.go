@@ -11,12 +11,14 @@ import (
 
 const ManualPitchVersion = 1
 
-// ManualPitchFileはモデル輪郭に対するモーラ単位の相対補正を保持する。
+// ManualPitchFileはモデル輪郭に対する相対補正を保持する。
+// mode=offset: モーラ単位の補正。mode=frames: 時刻基準の10ms単位フレーム補正。
 type ManualPitchFile struct {
 	Version int                `json:"version"`
 	Reading string             `json:"reading,omitempty"`
 	Mode    string             `json:"mode,omitempty"`
-	Points  []ManualPitchPoint `json:"points"`
+	Points  []ManualPitchPoint `json:"points,omitempty"`
+	Frames  []float64          `json:"frames,omitempty"`
 }
 
 type ManualPitchPoint struct {
@@ -53,7 +55,7 @@ func (file *ManualPitchFile) Validate() error {
 	if file.Mode == "" {
 		file.Mode = "offset"
 	}
-	if file.Mode != "offset" && file.Mode != "replace" {
+	if file.Mode != "offset" && file.Mode != "replace" && file.Mode != "frames" {
 		return fmt.Errorf("unsupported manual pitch mode %q", file.Mode)
 	}
 	for index, point := range file.Points {
@@ -64,12 +66,32 @@ func (file *ManualPitchFile) Validate() error {
 			return fmt.Errorf("manual pitch point %d is outside +/-1200 cents", index)
 		}
 	}
+	if file.Mode == "frames" {
+		if len(file.Points) > 0 {
+			return fmt.Errorf("manual pitch frames mode must not carry mora points")
+		}
+		if len(file.Frames) > 20000 {
+			return fmt.Errorf("manual pitch frames are limited to 20000 entries")
+		}
+		for index, cents := range file.Frames {
+			if math.IsNaN(cents) || math.IsInf(cents, 0) || math.Abs(cents) > 1200 {
+				return fmt.Errorf("manual pitch frame %d is outside +/-1200 cents", index)
+			}
+		}
+	}
 	return nil
 }
 
 // Curveは疎なモーラ補正を滑らかな10msフレーム輪郭へ変換する。
+// framesモードでは時刻基準の補正列を現在の長さへ伸縮して返す。
 func (file *ManualPitchFile) Curve(morae []frontend.Mora, timings []MoraTiming, durationMS float64) (*PitchContour, error) {
-	if file == nil || len(file.Points) == 0 {
+	if file == nil {
+		return nil, nil
+	}
+	if file.Mode == "frames" {
+		return file.frameCurve(durationMS)
+	}
+	if len(file.Points) == 0 {
 		return nil, nil
 	}
 	if len(timings) != len(morae) {
@@ -114,6 +136,36 @@ func (file *ManualPitchFile) Curve(morae []frontend.Mora, timings []MoraTiming, 
 	for frame := range curve {
 		timeMS := float64(frame) * frameMS
 		curve[frame] = interpolateManualPoint(centers, centerValues, timeMS)
+	}
+	return &PitchContour{FrameMS: frameMS, Cents: curve}, nil
+}
+
+func (file *ManualPitchFile) frameCurve(durationMS float64) (*PitchContour, error) {
+	frameMS := 10.0
+	if durationMS <= 0 {
+		return nil, fmt.Errorf("manual pitch duration must be positive")
+	}
+	length := max(2, int(math.Ceil(durationMS/frameMS))+1)
+	curve := make([]float64, length)
+	if len(file.Frames) == 0 {
+		return &PitchContour{FrameMS: frameMS, Cents: curve}, nil
+	}
+	if len(file.Frames) == 1 {
+		for index := range curve {
+			curve[index] = file.Frames[0]
+		}
+		return &PitchContour{FrameMS: frameMS, Cents: curve}, nil
+	}
+	scale := float64(len(file.Frames)-1) / float64(length-1)
+	for index := range curve {
+		position := float64(index) * scale
+		left := int(math.Floor(position))
+		if left >= len(file.Frames)-1 {
+			curve[index] = file.Frames[len(file.Frames)-1]
+			continue
+		}
+		progress := position - float64(left)
+		curve[index] = file.Frames[left]*(1-progress) + file.Frames[left+1]*progress
 	}
 	return &PitchContour{FrameMS: frameMS, Cents: curve}, nil
 }

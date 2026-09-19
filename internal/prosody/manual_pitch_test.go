@@ -70,6 +70,37 @@ func TestManualPitchValidateRejectsNegativePositionAndMissingVersion(t *testing.
 	}
 }
 
+func TestManualPitchFramesModeResamplesToDuration(t *testing.T) {
+	file := &ManualPitchFile{Version: 1, Mode: "frames", Frames: []float64{0, 100, 0}}
+	morae := []frontend.Mora{{Text: "あ"}, {Text: "い"}}
+	timings := []MoraTiming{{StartMS: 0, DurationMS: 100}, {StartMS: 100, DurationMS: 100}}
+	if err := file.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	curve, err := file.Curve(morae, timings, 200)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if curve.FrameMS != 10 || len(curve.Cents) != 21 {
+		t.Fatalf("frame curve metadata = %+v", curve)
+	}
+	if math.Abs(curve.Cents[0]) > 0.01 || math.Abs(curve.Cents[10]-100) > 0.01 || math.Abs(curve.Cents[20]) > 0.01 {
+		t.Fatalf("frame curve values = %.2f, %.2f, %.2f", curve.Cents[0], curve.Cents[10], curve.Cents[20])
+	}
+}
+
+func TestManualPitchFramesModeRejectsMixedPoints(t *testing.T) {
+	file := &ManualPitchFile{Version: 1, Mode: "frames",
+		Points: []ManualPitchPoint{{Position: 0, Cents: 10}}, Frames: []float64{0}}
+	if err := file.Validate(); err == nil {
+		t.Fatal("frames mode accepted mora points")
+	}
+	oversized := &ManualPitchFile{Version: 1, Mode: "frames", Frames: make([]float64, 20001)}
+	if err := oversized.Validate(); err == nil {
+		t.Fatal("oversized frames were accepted")
+	}
+}
+
 func TestManualPitchValidateDefaultsModeToOffset(t *testing.T) {
 	file := &ManualPitchFile{Version: 1, Points: []ManualPitchPoint{{Position: 0, Cents: 10}}}
 	if err := file.Validate(); err != nil {

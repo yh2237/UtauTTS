@@ -283,7 +283,7 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 	for index, mora := range preview.Morae {
 		morae[index] = map[string]any{"position": index, "mora": mora.Text, "pause": mora.Pause}
 	}
-	return map[string]any{
+	response := map[string]any{
 		"request_id":            request.RequestID,
 		"reading":               preview.Reading,
 		"morae":                 morae,
@@ -292,7 +292,12 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 		"mora_positions_ms":     preview.MoraPositionsMS,
 		"pitch_points":          preview.PitchPoints,
 		"prosody_model_applied": e.synth.ModelAvailable(request.ModelID),
-	}, nil
+	}
+	if preview.FramePitchCurve != nil && preview.FramePitchCurve.FrameMS > 0 {
+		response["frame_ms"] = preview.FramePitchCurve.FrameMS
+		response["frame_pitch_cents"] = append([]float64(nil), preview.FramePitchCurve.Cents...)
+	}
+	return response, nil
 }
 
 type synthesizeRequest struct {
