@@ -363,13 +363,6 @@ ApplicationWindow {
         documents: window.licenseDocuments
     }
 
-    UsageWindow {
-        id: usageWindow
-        hostWindow: window
-        hostPalette: window.palette
-        translator: window.translator
-    }
-
     VoicebankDetailsWindow {
         id: voicebankDetailsWindow
         hostWindow: window
@@ -1122,10 +1115,6 @@ ApplicationWindow {
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.help.license")
                 onTriggered: window.showAuxiliaryWindow(licenseWindow)
-            }
-            GrayscaleMenuItem {
-                text: window.translator.tr("menu.help.usage")
-                onTriggered: window.showAuxiliaryWindow(usageWindow)
             }
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.help.voicebankDetails")

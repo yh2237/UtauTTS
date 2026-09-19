@@ -77,7 +77,6 @@ qt_add_qml_module(utautts
         qml/GrayscaleMenuItem.qml
         qml/DictionaryWindow.qml
         qml/LicenseWindow.qml
-        qml/UsageWindow.qml
         qml/VoicebankDetailsWindow.qml
         qml/Translator.qml
 )
