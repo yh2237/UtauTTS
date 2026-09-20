@@ -74,6 +74,14 @@ $expected = 'v1.2.3'  # 作成するタグへ置き換える
 
 `build-release.ps1`と`test-release-package.ps1`もこの検査を呼び出します。`go test ./cmd/utautts-updater`では現行パッケージの導入と音源・設定の保持を確認します。Qtの配布物self-testでは、初回起動migration schemaの記録とpending update markerの消去も確認します。
 
+Windows版の更新互換性はGitHub Actionsの`Windows package`で確認します。手動実行では`upgrade_from`に更新元のタグを指定します。プルリクエストに`release-candidate`ラベルを付けた場合は、その時点と以後の更新ごとに`v1.3.0`からの更新を検査します。正式リリースのタグをpushした場合も、リリース作成前に同じ検査を実行します。
+
+互換性検査では、公開済みの更新元ZIPに含まれる旧アップデーターを使って候補ZIPを導入します。設定、音源、Resampler、Wavtool、ユーザー追加Rendererが保持されること、旧ファイルが残らないこと、実行ファイルが候補版へ置き換わること、更新後のCLIとGUIが起動できることを確認します。作成済みの候補ZIPをローカルで確認する場合は次を実行します。
+
+```powershell
+.	ools	est-update-compatibility.ps1 -PreviousVersion v1.3.0
+```
+
 GUIでは開発者モードが無効でも読み上げ言語を選べることを確認します。右側の設定メニューで発音形式と合成方式を変更できること、新規発話で発話タイミング補正が無効なことも確認します。開発者モードではプレリリース版の確認を切り替えます。同じ数値バージョンの安定版とプレリリース版がある場合は安定版を選びます。
 
 ## 自動確認する機能

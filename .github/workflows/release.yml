@@ -14,6 +14,7 @@ jobs:
     uses: ./.github/workflows/windows.yml
     with:
       expected_version: ${{ github.ref_name }}
+      upgrade_from: v1.3.0
     permissions:
       contents: read
 
