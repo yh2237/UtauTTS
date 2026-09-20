@@ -21,6 +21,23 @@ func TestUpdateBlockedWithoutLock(t *testing.T) {
 	}
 }
 
+func TestRemoveOldInstallBackup(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "UtauTTS")
+	old := root + ".old"
+	if err := os.MkdirAll(filepath.Join(old, "tools"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(old, "tools", "utautts-updater.exe"), []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeOldInstallBackup(root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(old); !os.IsNotExist(err) {
+		t.Fatalf("old install backup remains: %v", err)
+	}
+}
+
 func TestLockStateActive(t *testing.T) {
 	now := time.Now()
 	tests := []struct {

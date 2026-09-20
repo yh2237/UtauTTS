@@ -49,6 +49,15 @@ function Stop-InstalledProcesses([string]$InstallRoot) {
     }
 }
 
+function Wait-PathRemoved([string]$Path, [int]$TimeoutSeconds) {
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    while (Test-Path -LiteralPath $Path) {
+        if ([DateTime]::UtcNow -ge $deadline) { return $false }
+        Start-Sleep -Milliseconds 250
+    }
+    return $true
+}
+
 if (-not (Test-Path -LiteralPath $CandidateZip -PathType Leaf)) {
     throw ('Candidate archive was not found: {0}' -f $CandidateZip)
 }
@@ -122,14 +131,32 @@ try {
     [IO.File]::WriteAllText($obsoletePath, 'this file must disappear')
 
     Write-Host ('Applying {0} with the updater shipped in {1}' -f $candidateVersion, $PreviousVersion)
-    Push-Location $temporaryRoot
-    try {
-        & $oldUpdater -target $installRoot -zip $CandidateZip -version $candidateVersion -elevated
-        if ($LASTEXITCODE -ne 0) {
-            throw ('The {0} updater failed with exit code {1}' -f $PreviousVersion, $LASTEXITCODE)
-        }
-    } finally {
-        Pop-Location
+    $updaterStartInfo = [Diagnostics.ProcessStartInfo]::new()
+    $updaterStartInfo.FileName = $oldUpdater
+    $updaterStartInfo.WorkingDirectory = $temporaryRoot
+    $updaterStartInfo.UseShellExecute = $false
+    $quote = [char]34
+    $quotedInstallRoot = $quote + $installRoot + $quote
+    $quotedCandidateZip = $quote + $CandidateZip + $quote
+    $quotedCandidateVersion = $quote + $candidateVersion + $quote
+    $updaterStartInfo.Arguments = '-target {0} -zip {1} -version {2} -elevated' -f
+        $quotedInstallRoot, $quotedCandidateZip, $quotedCandidateVersion
+    $updaterProcess = [Diagnostics.Process]::new()
+    $updaterProcess.StartInfo = $updaterStartInfo
+    if (-not $updaterProcess.Start()) {
+        throw ('The {0} updater could not be started' -f $PreviousVersion)
+    }
+    if (-not $updaterProcess.WaitForExit(300000)) {
+        $updaterProcess.Kill()
+        throw ('The {0} updater timed out' -f $PreviousVersion)
+    }
+    if ($updaterProcess.ExitCode -ne 0) {
+        throw ('The {0} updater failed with exit code {1}' -f $PreviousVersion, $updaterProcess.ExitCode)
+    }
+
+    $oldInstall = $installRoot + '.old'
+    if (-not (Wait-PathRemoved $oldInstall 15)) {
+        throw ('Old install backup was not removed after relaunch: {0}' -f $oldInstall)
     }
 
     # A successful update starts the installed application. Stop only processes
@@ -165,19 +192,25 @@ try {
 
     $gui = Join-Path $installRoot 'app/utautts-gui.exe'
     Assert-Path $gui 'installed candidate GUI'
-    $stdout = Join-Path $temporaryRoot 'gui.stdout.log'
-    $stderr = Join-Path $temporaryRoot 'gui.stderr.log'
-    $guiProcess = Start-Process -FilePath $gui -ArgumentList '--self-test' -WorkingDirectory $installRoot -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+    $guiStartInfo = [Diagnostics.ProcessStartInfo]::new()
+    $guiStartInfo.FileName = $gui
+    $guiStartInfo.Arguments = '--self-test'
+    $guiStartInfo.WorkingDirectory = $installRoot
+    $guiStartInfo.UseShellExecute = $false
+    $guiStartInfo.CreateNoWindow = $true
+    $guiStartInfo.RedirectStandardError = $true
+    $guiProcess = [Diagnostics.Process]::new()
+    $guiProcess.StartInfo = $guiStartInfo
+    if (-not $guiProcess.Start()) {
+        throw 'Installed GUI self-test could not be started'
+    }
+    $guiErrorTask = $guiProcess.StandardError.ReadToEndAsync()
     if (-not $guiProcess.WaitForExit(120000)) {
         $guiProcess.Kill()
         throw 'Installed GUI self-test timed out'
     }
+    $guiError = $guiErrorTask.Result
     if ($guiProcess.ExitCode -ne 0) {
-        $guiError = if (Test-Path -LiteralPath $stderr) {
-            Get-Content -LiteralPath $stderr -Raw
-        } else {
-            ''
-        }
         throw ('Installed GUI self-test failed with exit code {0}: {1}' -f $guiProcess.ExitCode, $guiError)
     }
 

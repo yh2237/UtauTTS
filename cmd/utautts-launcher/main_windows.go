@@ -31,7 +31,30 @@ func main() {
 	command.Dir = root
 	if err := command.Start(); err != nil {
 		showError(fmt.Errorf("Qt GUIを起動できませんでした。\n%s\n\n%w", target, err))
+		return
 	}
+	if os.Getenv("UTAUTTS_UPDATE_RELAUNCH") == "1" {
+		_ = removeOldInstallBackup(root)
+	}
+}
+
+func removeOldInstallBackup(root string) error {
+	old := filepath.Clean(root) + ".old"
+	var lastErr error
+	for attempt := 0; attempt < 40; attempt++ {
+		if err := os.RemoveAll(old); err != nil {
+			lastErr = err
+		} else if _, err := os.Stat(old); os.IsNotExist(err) {
+			return nil
+		} else if err != nil {
+			lastErr = err
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("backup still exists")
+	}
+	return fmt.Errorf("remove old install backup %s: %w", old, lastErr)
 }
 
 func updateBlocked(root string) bool {
