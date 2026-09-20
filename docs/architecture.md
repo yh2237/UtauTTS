@@ -23,7 +23,7 @@ WAV / LAB
 
 ## Renderer
 
-RendererのID、機能、ランタイムは`renderer/<id>/renderer.json`で定義します。同梱定義とユーザー定義は同じ探索処理を使い、明示した探索先を優先します。manifestは既存Providerへの接続定義です。新しいエンジンABIはGo側へ実装します。追加方法は[モデル／Rendererプラグイン](plugins.md)、内部処理は[技術設計ガイド](technical-design.md)に記載します。
+RendererのID、機能、ランタイムは`renderer/<id>/renderer.json`で定義します。同梱定義とユーザー定義は同じ方法で検索し、明示した検索先を優先します。manifestは既存Providerへの接続を定義します。新しいエンジンABIはGo側へ実装します。追加方法は[モデル／Rendererプラグイン](plugins.md)、内部処理は[技術設計ガイド](technical-design.md)を参照してください。
 
 同梱Rendererはmanifest v2で定義します。実行時のcatalogも`manifest_version: 2`だけを読み込みます。
 
@@ -44,7 +44,7 @@ Renderer IDを省略した場合だけカタログの既定Rendererへ解決さ�
 
 GUI、CLI、HTTP Serverは別々の音声処理を持たず、同じ`synth.Service`を使います。モデル、Renderer、辞書、LAB書き出しも共通です。
 
-Open JTalk helper、WORLD bridge、DiffSinger bridge、外部Providerは、初回利用時に起動してsessionを再利用します。アプリ終了時や音源・モデルの再読み込み時にはsessionを閉じます。Classic UTAUのresamplerとwavtoolは、音声単位ごとに外部プロセスとして実行します。
+Open JTalk helper、WORLD bridge、DiffSinger bridge、外部Providerは初回利用時に起動し、同じセッションを再利用します。アプリの終了時や音源・モデルの再読み込み時にはセッションを閉じます。Classic UTAUのresamplerとwavtoolは、音声単位で外部プロセスとして実行します。
 
 - GUI: Qt Quick/QMLからGo backendを呼び出します。
 - CLI: `utautts-cli`で一つのWAVを作ります。[CLI](cli.md)

@@ -9,12 +9,12 @@ UtauTTSの利用方法と開発資料を目的別にまとめています。利�
 - [設定](settings.md): 新しい文章の初期値、書き出し、表示、ショートカット
 - [辞書設定](dictionary.md): 表記と読みの登録
 - [日本語・英語・中国語の読み上げ](multilingual.md): 言語、読み、発音形式の指定
-- [イントネーションとモーラ長の編集](manual-pitch.md): GUIとCLIでの手動調整
+- [イントネーションとモーラ長の編集](manual-pitch.md): 基本編集、拡張編集、CLIでの手動調整
 - [発話タイミング補正](speech-quality-experiment.md): 音源に合わせたタイミング補正
 - [コマンドライン](cli.md): CLIの使い方とUSTX変換
 - [UtauTTS Server](server.md): HTTP APIとサーバーの起動
 - [トラブルシューティング](troubleshooting.md): 起動、解析、音声合成の問題
-- [同梱ボイスバンク](voicebank.md): 同梱音源の出所と利用条件
+- [同梱音源](voicebank.md): 同梱音源の出所と利用条件
 
 ## 仕組み
 

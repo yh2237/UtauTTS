@@ -4,9 +4,9 @@
 
 ## 1. 中心となる考え方
 
-UtauTTSは、UTAUボイスバンクに収録された原音を`oto.ini`を基準に配置・時間伸縮・接続し、必要な場合だけ学習済みの韻律を加える連結型TTSです。音声生成方式: 原音の声質を保ったまま発話として並べ替えます。
+UtauTTSは、UTAU音源に収録された原音を`oto.ini`に基づいて配置、時間伸縮、接続し、必要に応じて学習済みの韻律を加える連結型TTSです。原音の声質を保ちながら、文章の発音順に並べて音声を生成します。
 
-品質の評価順: 明瞭度と子音の保持、接続の滑らかさと声質、リズムとイントネーション。採用条件: 抑揚の改善と発話内容の明瞭度を両立すること。
+品質は、明瞭度と子音の保持、接続の滑らかさと声質、リズムとイントネーションの順に評価します。新しい処理は、抑揚の改善と発話内容の明瞭度を両立できる場合に採用します。
 
 ## 2. システム全体
 
@@ -35,7 +35,7 @@ GUI / CLI / HTTP Server
        PCM + RenderReport
 ```
 
-GUI、CLI、Serverは別々の音声処理を持たず、最終的には同じ`synth.Service`と`tts.Synthesize`へ到達します。入口を追加・変更するときは設定の伝播だけを確認し、音声処理を重複実装しないようにします。各パッケージの担当範囲は[構成](architecture.md)にまとめています。
+GUI、CLI、HTTP Serverは別々の音声処理を持たず、最終的には同じ`synth.Service`と`tts.Synthesize`へ到達します。入口を追加・変更するときは設定の伝播だけを確認し、音声処理を重複実装しないようにします。各パッケージの担当範囲は[構成](architecture.md)にまとめています。
 
 ## 3. テキストからモーラまで
 
@@ -113,9 +113,9 @@ join scoreは隣接原音のenergy、スペクトル、F0などの境界特徴�
 - 候補の除外理由と音響score
 - Rendererへ渡す前のselection値。Renderer由来の実効値は`RenderReport`へ分離
 
-Planの役割: 候補選択、時間設計、Rendererの差分を切り分ける再現可能な記録。新しい自動補正の記録項目: 入力値、実効値、採用理由、fallback理由。最終WAVとPlanを組み合わせて退行原因を追跡します。
+Planは、候補選択、時間設計、Rendererの差を切り分けるための再現可能な記録です。新しい自動補正では、入力値、実際に使った値、採用理由、フォールバック理由を記録します。最終WAVとPlanを組み合わせることで、品質低下の原因を追跡できます。
 
-RendererのPlan入力: 共有Planを読み取り専用で扱います。`UnitRenderer`にはPlanのcloneを渡し、Rendererが計算したleading margin、boundary bridge、実効preutterance／consonant／overlap、source／target F0などを`RenderReport`として返します。CLIのPlan JSONやLABのように描画後の値が必要な出力だけが、`tts.Result.RenderedPlan()`でcloneへReportを適用します。
+共有Planは読み取り専用で扱います。`UnitRenderer`にはPlanのコピーを渡し、Rendererが計算したleading margin、boundary bridge、実効preutterance／consonant／overlap、source／target F0などを`RenderReport`として返します。CLIのPlan JSONやLABのように描画後の値が必要な出力だけが、`tts.Result.RenderedPlan()`でコピーへReportを適用します。
 
 ## 6. 韻律モデル
 
@@ -209,9 +209,9 @@ Rendererは選択済みunitのaliasを維持します。候補選択の改善: `
 
 ## 8. GUI、CLI、Serverとキャッシュ
 
-Qt GUIはQMLからC ABIで`internal/native.Engine`を呼びます。音源列挙、解析、韻律preview、合成、exo出力はmethod名とJSONでやり取りします。GUI内部の合成経路: HTTPとWebViewを使わないC ABI接続。
+Qt GUIはQMLからC ABIで`internal/native.Engine`を呼び出します。音源の列挙、解析、韻律プレビュー、合成、exo出力は、メソッド名とJSONでやり取りします。GUIはHTTPやWebViewを介さず、C ABIで合成処理へ接続します。
 
-CLIとHTTP Serverも同じRendererカタログと`synth.Service`を使います。モデルとRendererはファイル名ではなくIDで選択し、明示したディレクトリ、配布物内のディレクトリ、開発用ワークスペースの順に解決します。必要なファイルの相対pathはRendererディレクトリを基準に絶対pathへ変換します。
+CLIとHTTP Serverも同じRendererカタログと`synth.Service`を使います。モデルとRendererはファイル名ではなくIDで選択し、明示したディレクトリ、配布物内のディレクトリ、開発用ワークスペースの順に解決します。必要なファイルの相対パスは、Rendererディレクトリを基準に絶対パスへ変換します。
 
 反復編集を軽くするため次をプロセス内でcacheします。
 

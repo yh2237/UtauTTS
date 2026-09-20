@@ -1,6 +1,6 @@
 # UtauTTS
 
-UTAUボイスバンクの原音を接続し、学習ベースのイントネーション調整で文章を読み上げる日本語TTSです。
+UTAU音源の原音を接続し、イントネーションや発音の長さを調整して文章を読み上げるTTSです。
 
 > ボイスバンクを使う前に、各音源の利用規約を確認してください。UtauTTSはボイスバンクの利用で生じた問題について責任を負いません。
 
@@ -28,21 +28,21 @@ chmod +x utautts tools/* runtime/utautts-openjtalk-features runtime/utautts-worl
 
 macOS版はApple Silicon（arm64）向けです。署名・公証: 未実施。初回起動時: 隔離属性解除が必要になる場合があります。手順: [インストール](docs/installation.md)。
 
-GUI版には「足立レイ ver3.5.0」を同梱しています。同梱ボイスバンクの利用条件: [案内](docs/voicebank.md)と音源内の文書。
+GUI版には「足立レイ UTAU音源 ver3.5.0」を同梱しています。利用条件は[同梱音源](docs/voicebank.md)と音源内の文書を確認してください。
 
 ## 使い方
 
 次の順で操作します。
 
-1. 文章欄へ文を入力する
-2. `Ctrl+Enter`または再生を押す
-3. 下のグラフでイントネーションとモーラ長を確認する
-4. 必要に応じて点や境界線を動かす
+1. 文章欄へ読み上げる文を入力する
+2. 下部の「基本編集」でイントネーションと発音の長さを確認する
+3. 必要に応じて点や境界線を動かす
+4. `Ctrl+Enter`または再生ボタンで音声を確認する
 5. 「ファイル」→「WAVを保存...」で保存する
 
 文章は追加、削除、並べ替えできます。「WAVをすべて保存...」では、文章が入っているカードをまとめて合成します。
 
-### ボイスバンクを追加する
+### 音源を追加する
 
 実行ファイルと同じ階層にある`voice`へ音源のフォルダを置きます。
 
@@ -65,7 +65,7 @@ voice/
       *.wav
 ```
 
-配置後にUtauTTSを再起動するか「ファイル」→「音源を再読込」を選択することで再読み込みされます。
+配置後にUtauTTSを再起動するか、「ファイル」→「音源を再読込」を選択してください。
 
 ### 文章ごとの設定
 
@@ -170,7 +170,7 @@ Server版を起動すると`http://127.0.0.1:8080/`でコンソールUIを使え
 - [インストール](docs/installation.md)
 - [GUIの使い方](docs/gui.md)／[設定](docs/settings.md)
 - [日本語・英語・中国語の読み上げ](docs/multilingual.md)／[辞書設定](docs/dictionary.md)
-- [イントネーションとモーラ長の編集](docs/manual-pitch.md)／[同梱ボイスバンク](docs/voicebank.md)
+- [イントネーションとモーラ長の編集](docs/manual-pitch.md)／[同梱音源](docs/voicebank.md)
 - [コマンドライン](docs/cli.md)／[UtauTTS Server](docs/server.md)
 - [音声合成の仕組み](docs/how-utautts-speaks.md)
 - [ドキュメント一覧](docs/README.md)

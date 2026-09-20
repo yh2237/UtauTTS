@@ -1,6 +1,6 @@
 # JSUT音素データと接続補正
 
-JSUT BASIC5000のラベルから音素単位の時間情報と音響観測値を作り、UTAU音源へ適応する前の事前分布を生成できます。用途: 開発・評価。時間事前分布は明示指定時だけ使います。
+JSUT BASIC5000のラベルから音素単位の時間情報と音響観測値を作り、UTAU音源へ適応する前の事前分布を生成できます。この機能は開発と評価を目的としており、時間事前分布を明示した場合だけ使用します。
 
 ## データの準備
 
@@ -96,7 +96,7 @@ BASIC5000全5000発話を80%学習・20%評価に分けた実測値は次のと�
 go run ./cmd/utautts-cli --voicebank "./sample/uta" --text "これは実音源での評価です。" --renderer utautts-world-phrase --target-prior "./out/jsut-target-prior.json" --out "./out/target-prior.wav"
 ```
 
-`--target-prior`はモーラ長を変えず、音素の時間配分と子音境界を調整します。`--target-prior-strength 0.5`のように指定すると標準の固定配分と混ぜられます。連続音で試す場合は`--speech-timing`も指定します。用途: 検証。GUIやRendererの既定値: 維持。
+`--target-prior`はモーラ長を変えず、音素の時間配分と子音境界を調整します。`--target-prior-strength 0.5`のように指定すると、標準の固定配分と混ぜられます。連続音で試す場合は`--speech-timing`も指定します。この機能は検証用であり、GUIやRendererの既定値には影響しません。
 
 ## UTAUへ適応する流れ
 
@@ -108,6 +108,6 @@ go run ./cmd/tools/join-audit --plan "./out/audit.plan.json" --out "./out/audit.
 go run ./cmd/tools/join-ranker --input "./out/audit.json" --out "./out/utau-join-ranker.json"
 ```
 
-JSUTの自然境界は自動生成の正例です。UTAUの良否ラベルは、音源・文・候補の聴取結果から別途作成します。`join-ranker`の入力: UTAUの接続データ。構成: JSUT事前分布を候補の目標コスト、UTAUの接続モデルを境界コストに使用します。
+JSUTの自然境界は自動生成の正例です。UTAUの良否ラベルは、音源、文章、候補の聴取結果から別途作成します。`join-ranker`にはUTAUの接続データを入力し、JSUT事前分布を候補の目標コスト、UTAUの接続モデルを境界コストとして使用します。
 
 実行時の依存: Go標準ライブラリと既存の音響解析コード。
