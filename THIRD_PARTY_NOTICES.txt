@@ -383,14 +383,18 @@ runtime. The Microsoft.ML.OnnxRuntime.DirectML and
 Microsoft.ML.OnnxRuntime.Managed packages have identical license and
 third-party notice files. Those files are included once as
 ONNXRUNTIME-LICENSE.txt and ONNXRUNTIME-THIRD-PARTY-NOTICES.txt. The three
-Microsoft.AI.DirectML notices remain under runtime/licenses alongside the .NET
-runtime notices. Package profiles: Full Windows = bridge included; Japanese
-Windows, Linux, and macOS = bridge absent.
+Microsoft.AI.DirectML notices and the distinct System.Memory and
+System.Numerics.Tensors third-party notices remain under runtime/licenses
+alongside the .NET runtime notices. Their MIT license text is identical to
+DOTNET-RUNTIME-LICENSE.txt and is included once. Package profiles: Full
+Windows = bridge included; Japanese Windows, Linux, and macOS = bridge absent.
 
 Upstream package pages:
 https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.DirectML/1.23.0
 https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.Managed/1.23.0
 https://www.nuget.org/packages/Microsoft.AI.DirectML/1.15.4
+https://www.nuget.org/packages/System.Memory/4.5.5
+https://www.nuget.org/packages/System.Numerics.Tensors/9.0.0
 
 
 Material Symbols (icon font subset)

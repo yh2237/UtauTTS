@@ -106,11 +106,11 @@ try {
     Write-Host '=== Build GUI package ==='
     & (Join-Path $PSScriptRoot 'build-qt.ps1') -OutputDirectory $guiPath
     if ($LASTEXITCODE -ne 0) { throw "Qt GUI build failed with exit code $LASTEXITCODE" }
-    Invoke-Checked 'go' @('build', '-trimpath', '-o', (Join-Path $guiToolsPath 'utautts-cli.exe'), './cmd/utautts-cli')
-    Invoke-Checked 'go' @('build', '-trimpath', '-o', (Join-Path $guiToolsPath 'utautts-ustx.exe'), './cmd/tools/utautts-ustx')
+    Invoke-Checked 'go' @('build', '-trimpath', '-ldflags', '-s -w', '-o', (Join-Path $guiToolsPath 'utautts-cli.exe'), './cmd/utautts-cli')
+    Invoke-Checked 'go' @('build', '-trimpath', '-ldflags', '-s -w', '-o', (Join-Path $guiToolsPath 'utautts-ustx.exe'), './cmd/tools/utautts-ustx')
 
     Write-Host '=== Build server package ==='
-    Invoke-Checked 'go' @('build', '-trimpath', '-o', (Join-Path $serverPath 'utautts-server.exe'), './cmd/utautts-server')
+    Invoke-Checked 'go' @('build', '-trimpath', '-ldflags', '-s -w', '-o', (Join-Path $serverPath 'utautts-server.exe'), './cmd/utautts-server')
 
     Write-Host '=== Build Open JTalk frontend helper ==='
     & (Join-Path $PSScriptRoot 'build-openjtalk-feature-bridge.ps1') -Python $pythonCommand

@@ -71,15 +71,15 @@ echo '=== Test ==='
 "${go_command}" vet ./...
 
 echo '=== Build server ==='
-"${go_command}" build -trimpath -o "${server_dir}/utautts-server" ./cmd/utautts-server
+"${go_command}" build -trimpath -ldflags="-s -w" -o "${server_dir}/utautts-server" ./cmd/utautts-server
 
 echo '=== Build CLI ==='
-"${go_command}" build -trimpath -o "${gui_dir}/tools/utautts-cli" ./cmd/utautts-cli
-"${go_command}" build -trimpath -o "${gui_dir}/tools/utautts-ustx" ./cmd/tools/utautts-ustx
-"${go_command}" build -trimpath -o "${gui_dir}/tools/utautts-updater" ./cmd/utautts-updater
+"${go_command}" build -trimpath -ldflags="-s -w" -o "${gui_dir}/tools/utautts-cli" ./cmd/utautts-cli
+"${go_command}" build -trimpath -ldflags="-s -w" -o "${gui_dir}/tools/utautts-ustx" ./cmd/tools/utautts-ustx
+"${go_command}" build -trimpath -ldflags="-s -w" -o "${gui_dir}/tools/utautts-updater" ./cmd/utautts-updater
 
 echo '=== Build native library and Qt GUI ==='
-"${go_command}" build -trimpath -buildmode=c-shared -o "${root_dir}/build/native/libutautts_native.so" ./cmd/utautts-native
+"${go_command}" build -trimpath -buildmode=c-shared -ldflags="-s -w" -o "${root_dir}/build/native/libutautts_native.so" ./cmd/utautts-native
 "${cmake_command}" -S "${root_dir}/qt" -B "${root_dir}/build/qt-linux" \
   -DCMAKE_BUILD_TYPE=Release -G Ninja \
   "-DCMAKE_MAKE_PROGRAM=${ninja_command}" "${qt_cmake_args[@]}"
@@ -99,7 +99,7 @@ echo '=== Build native bridge and UtauTTS WORLD engine ==='
 staging_dir="${root_dir}/.tmp-worldline-linux"
 rm -rf "${staging_dir}"
 mkdir -p "${staging_dir}"
-CGO_ENABLED=1 "${go_command}" build -trimpath \
+CGO_ENABLED=1 "${go_command}" build -trimpath -ldflags="-s -w" \
   -o "${staging_dir}/utautts-worldline-bridge" \
   ./cmd/utautts-worldline-bridge
 bash "${root_dir}/tools/build-world-engine.sh" "${staging_dir}"

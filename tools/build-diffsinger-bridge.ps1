@@ -58,7 +58,9 @@ $packageFiles = @(
     @{ Package = 'microsoft.ml.onnxruntime.directml'; Version = '1.23.0'; Source = 'ThirdPartyNotices.txt'; Destination = 'ONNXRUNTIME-THIRD-PARTY-NOTICES.txt' },
     @{ Package = 'microsoft.ai.directml'; Version = '1.15.4'; Source = 'LICENSE.txt'; Destination = 'DIRECTML-LICENSE.txt' },
     @{ Package = 'microsoft.ai.directml'; Version = '1.15.4'; Source = 'LICENSE-CODE.txt'; Destination = 'DIRECTML-LICENSE-CODE.txt' },
-    @{ Package = 'microsoft.ai.directml'; Version = '1.15.4'; Source = 'ThirdPartyNotices.txt'; Destination = 'DIRECTML-THIRD-PARTY-NOTICES.txt' }
+    @{ Package = 'microsoft.ai.directml'; Version = '1.15.4'; Source = 'ThirdPartyNotices.txt'; Destination = 'DIRECTML-THIRD-PARTY-NOTICES.txt' },
+    @{ Package = 'system.memory'; Version = '4.5.5'; Source = 'THIRD-PARTY-NOTICES.TXT'; Destination = 'SYSTEM-MEMORY-THIRD-PARTY-NOTICES.txt' },
+    @{ Package = 'system.numerics.tensors'; Version = '9.0.0'; Source = 'THIRD-PARTY-NOTICES.TXT'; Destination = 'SYSTEM-NUMERICS-TENSORS-THIRD-PARTY-NOTICES.txt' }
 )
 foreach ($packageFile in $packageFiles) {
     $packageRoot = Join-Path (Join-Path $nugetRoot $packageFile.Package) $packageFile.Version

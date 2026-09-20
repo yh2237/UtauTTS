@@ -104,7 +104,9 @@ try {
                 'ONNXRUNTIME-THIRD-PARTY-NOTICES.txt',
                 'DIRECTML-LICENSE.txt',
                 'DIRECTML-LICENSE-CODE.txt',
-                'DIRECTML-THIRD-PARTY-NOTICES.txt'
+                'DIRECTML-THIRD-PARTY-NOTICES.txt',
+                'SYSTEM-MEMORY-THIRD-PARTY-NOTICES.txt',
+                'SYSTEM-NUMERICS-TENSORS-THIRD-PARTY-NOTICES.txt'
             )) {
                 Assert-Path (Join-Path $packageRoot "runtime/licenses/$diffSingerLicense") "DiffSinger dependency license: $diffSingerLicense"
             }

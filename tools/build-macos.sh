@@ -63,13 +63,13 @@ echo '=== Test ==='
 "${go_command}" vet ./...
 
 echo '=== Build CLI, updater, and server ==='
-"${go_command}" build -trimpath -o "${server_dir}/utautts-server" ./cmd/utautts-server
-"${go_command}" build -trimpath -o "${gui_dir}/tools/utautts-cli" ./cmd/utautts-cli
-"${go_command}" build -trimpath -o "${gui_dir}/tools/utautts-ustx" ./cmd/tools/utautts-ustx
-"${go_command}" build -trimpath -o "${gui_dir}/tools/utautts-updater" ./cmd/utautts-updater
+"${go_command}" build -trimpath -ldflags="-s -w" -o "${server_dir}/utautts-server" ./cmd/utautts-server
+"${go_command}" build -trimpath -ldflags="-s -w" -o "${gui_dir}/tools/utautts-cli" ./cmd/utautts-cli
+"${go_command}" build -trimpath -ldflags="-s -w" -o "${gui_dir}/tools/utautts-ustx" ./cmd/tools/utautts-ustx
+"${go_command}" build -trimpath -ldflags="-s -w" -o "${gui_dir}/tools/utautts-updater" ./cmd/utautts-updater
 
 echo '=== Build native library and Qt app ==='
-"${go_command}" build -trimpath -buildmode=c-shared \
+"${go_command}" build -trimpath -buildmode=c-shared -ldflags="-s -w" \
   -o "${root_dir}/build/native/libutautts_native.dylib" ./cmd/utautts-native
 qt_build_dir="${root_dir}/build/qt-macos"
 "${cmake_command}" -S "${root_dir}/qt" -B "${qt_build_dir}" \
@@ -130,7 +130,7 @@ echo '=== Build UtauTTS WORLD bridge and engine ==='
 staging_dir="${root_dir}/.tmp-worldline-macos"
 rm -rf "${staging_dir}"
 mkdir -p "${staging_dir}"
-"${go_command}" build -trimpath -o "${staging_dir}/utautts-worldline-bridge" ./cmd/utautts-worldline-bridge
+"${go_command}" build -trimpath -ldflags="-s -w" -o "${staging_dir}/utautts-worldline-bridge" ./cmd/utautts-worldline-bridge
 bash "${root_dir}/tools/build-world-engine-macos.sh" "${staging_dir}"
 cp -R "${staging_dir}/." "${gui_dir}/runtime/"
 cp -R "${staging_dir}/." "${server_dir}/runtime/"

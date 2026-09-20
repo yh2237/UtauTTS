@@ -106,7 +106,7 @@ $previousCgo = $env:CGO_ENABLED; $previousCC=$env:CC; $previousCXX=$env:CXX; $pr
 try {
     $env:CGO_ENABLED='1';$env:CC=$goCC;$env:CXX=$goCXX;$env:GOCACHE=Join-Path $root 'build\go-cache-qt-cgo';$env:Path=(Split-Path $goCC -Parent)+';'+$env:Path
     Push-Location $root
-    try { & go build -buildmode=c-shared -o (Join-Path $nativeDir 'utautts_native.dll') ./cmd/utautts-native; if ($LASTEXITCODE -ne 0) { throw 'Go native library build failed' } }
+    try { & go build -trimpath -buildmode=c-shared -ldflags '-s -w' -o (Join-Path $nativeDir 'utautts_native.dll') ./cmd/utautts-native; if ($LASTEXITCODE -ne 0) { throw 'Go native library build failed' } }
     finally { Pop-Location }
     Push-Location $nativeDir
     try {
@@ -195,9 +195,9 @@ $guiToolsDirectory = Join-Path $OutputDirectory 'tools'
 New-Item -ItemType Directory -Force -Path $guiToolsDirectory | Out-Null
 Push-Location $root
 try {
-    & go build -trimpath -ldflags '-H windowsgui' -o (Join-Path $OutputDirectory 'utautts.exe') ./cmd/utautts-launcher
+    & go build -trimpath -ldflags '-H windowsgui -s -w' -o (Join-Path $OutputDirectory 'utautts.exe') ./cmd/utautts-launcher
     if ($LASTEXITCODE -ne 0) { throw 'Qt launcher build failed' }
-    & go build -trimpath -ldflags '-H windowsgui' -o (Join-Path $guiToolsDirectory 'utautts-updater.exe') ./cmd/utautts-updater
+    & go build -trimpath -ldflags '-H windowsgui -s -w' -o (Join-Path $guiToolsDirectory 'utautts-updater.exe') ./cmd/utautts-updater
     if ($LASTEXITCODE -ne 0) { throw 'Qt updater build failed' }
 } finally {
     Pop-Location
@@ -247,7 +247,7 @@ $worldBridgeDirectory = [IO.Path]::Combine($OutputDirectory, 'runtime')
 New-Item -ItemType Directory -Force -Path $worldBridgeDirectory | Out-Null
 Push-Location $root
 try {
-    & go build -trimpath -o (Join-Path $worldBridgeDirectory 'utautts-worldline-bridge.exe') ./cmd/utautts-worldline-bridge
+    & go build -trimpath -ldflags '-s -w' -o (Join-Path $worldBridgeDirectory 'utautts-worldline-bridge.exe') ./cmd/utautts-worldline-bridge
     if ($LASTEXITCODE -ne 0) { throw 'WORLD bridge build failed' }
 } finally {
     Pop-Location
