@@ -1865,8 +1865,7 @@ ApplicationWindow {
         if (error.length)
             return error;
 
-        window.updateMoraDurations([110, 130]);
-        window.updateMoraPositions([0, 110]);
+        window.updateMoraTiming([110, 130], [0, 110]);
         error = check(window.current().manualMoraDurationEdited, "mora timing edit was not recorded");
         if (error.length)
             return error;
@@ -2351,14 +2350,19 @@ ApplicationWindow {
             editorContent.phonemeEditor.autoFrames = automaticFrames.slice();
     }
 
-    function updateMoraDurations(durations) {
+    function updateMoraTiming(durations, positions) {
         if (!utterances.count)
             return;
+        const item = current();
         const durationsJson = JSON.stringify(durations);
-        if (current().moraDurationsJson === durationsJson && current().manualMoraDurationEdited)
+        const positionsJson = JSON.stringify(window.normalizedMoraPositions(positions));
+        if (item.moraDurationsJson === durationsJson
+                && item.moraPositionsJson === positionsJson
+                && item.manualMoraDurationEdited)
             return;
-        window.beginHistoryChange("timing:" + current().utteranceId, true);
+        window.beginHistoryChange("timing:" + item.utteranceId, true);
         utterances.setProperty(selectedIndex, "moraDurationsJson", durationsJson);
+        utterances.setProperty(selectedIndex, "moraPositionsJson", positionsJson);
         utterances.setProperty(selectedIndex, "manualMoraDurationEdited", true);
         markUtteranceDirty(selectedIndex);
         window.scheduleTimingProsodyPreview(selectedIndex);
@@ -2392,20 +2396,6 @@ ApplicationWindow {
         markUtteranceDirty(selectedIndex);
         if (timingChanged)
             window.scheduleTimingProsodyPreview(selectedIndex);
-        window.scheduleAutoPreview();
-    }
-
-    function updateMoraPositions(positions) {
-        if (!utterances.count)
-            return;
-        const positionsJson = JSON.stringify(window.normalizedMoraPositions(positions));
-        if (current().moraPositionsJson === positionsJson && current().manualMoraDurationEdited)
-            return;
-        window.beginHistoryChange("timing:" + current().utteranceId, true);
-        utterances.setProperty(selectedIndex, "moraPositionsJson", positionsJson);
-        utterances.setProperty(selectedIndex, "manualMoraDurationEdited", true);
-        markUtteranceDirty(selectedIndex);
-        window.scheduleTimingProsodyPreview(selectedIndex);
         window.scheduleAutoPreview();
     }
 

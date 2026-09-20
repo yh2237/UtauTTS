@@ -405,6 +405,33 @@ type SynthesisRequest struct {
 	ResamplerExpressions  []render.ResamplerExpression `json:"resampler_expressions"`
 }
 
+func (request SynthesisRequest) synthRequest() synth.Request {
+	return synth.Request{
+		SpeechTiming:          request.SpeechTiming,
+		Text:                  request.Text,
+		Reading:               synthesisReading(request),
+		Language:              request.Language,
+		Phonemizer:            request.Phonemizer,
+		VoicebankID:           request.VoicebankID,
+		Tone:                  request.Tone,
+		Color:                 request.Color,
+		ModelID:               request.ModelID,
+		Renderer:              request.Renderer,
+		Resampler:             request.Resampler,
+		Wavtool:               request.Wavtool,
+		AliasPolicy:           request.AliasPolicy,
+		Dictionary:            request.Dictionary,
+		MoraDurationMS:        request.MoraDurationMS,
+		PauseDurationMS:       request.PauseDurationMS,
+		LeadingPreutteranceMS: request.LeadingPreutteranceMS,
+		MoraDurationsMS:       request.MoraDurationsMS,
+		IntonationStrength:    request.IntonationStrength,
+		ApplyPitch:            request.ApplyPitch,
+		ManualPitch:           request.ManualPitch,
+		ResamplerExpressions:  request.ResamplerExpressions,
+	}
+}
+
 func (s *Server) handleSynthesizeAudio(w http.ResponseWriter, r *http.Request) {
 	var request SynthesisRequest
 	if err := decodeJSONBody(w, r, &request); err != nil {
@@ -632,19 +659,7 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 	if len(request.ResamplerExpressions) > maxTextRunes {
 		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("resampler_expressions contains too many values")
 	}
-	result, err := s.synthesisService().SynthesizeContext(ctx, synth.Request{
-		Text: request.Text, Reading: synthesisReading(request), Language: request.Language, Phonemizer: request.Phonemizer, VoicebankID: request.VoicebankID,
-		Tone: request.Tone, Color: request.Color, ModelID: request.ModelID, Renderer: request.Renderer,
-		Resampler: request.Resampler, Wavtool: request.Wavtool,
-		AliasPolicy:    request.AliasPolicy,
-		Dictionary:     request.Dictionary,
-		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,
-		SpeechTiming:          request.SpeechTiming,
-		LeadingPreutteranceMS: request.LeadingPreutteranceMS,
-		MoraDurationsMS:       request.MoraDurationsMS, IntonationStrength: request.IntonationStrength,
-		ApplyPitch: request.ApplyPitch, ManualPitch: request.ManualPitch,
-		ResamplerExpressions: request.ResamplerExpressions,
-	})
+	result, err := s.synthesisService().SynthesizeContext(ctx, request.synthRequest())
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, http.StatusRequestTimeout, err

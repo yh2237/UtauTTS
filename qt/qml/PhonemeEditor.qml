@@ -27,8 +27,6 @@ Item {
     property color labelColor: "#66565a"
     property color mutedText: "#777777"
     property color dividerColor: "#c79298"
-    property color clipColor: "#a86f7c"
-    property color clipFillColor: "#f2dfe3"
     property bool showTimelineFrame: true
     property int selectedUnitIndex: -1
     property real zoomFactor: 1
@@ -268,10 +266,6 @@ Item {
         root.hudY = canvasY;
     }
 
-    function formatMs(value) {
-        return (Math.round(Number(value) * 10) / 10) + " ms";
-    }
-
     function formatParamValue(key, value) {
         const range = root.paramRange(key);
         if (range.isFloat)
@@ -343,11 +337,6 @@ Item {
             return;
         root.hoveredEdgeFollowing = down;
         waveformCanvas.requestPaint();
-    }
-
-    function noteAt(canvasX, canvasY) {
-        const hit = root.noteHit(canvasX, canvasY);
-        return hit ? hit.pos : -1;
     }
 
     function noteHit(canvasX, canvasY) {
@@ -513,11 +502,6 @@ Item {
         return root.moraDurationAt(Number(unit.position), unit.duration_ms);
     }
 
-    function unitRenderStart(unit) {
-        return root.unitNoteStart(unit) + root.leadingMargin
-                - Math.max(0, Number(unit.effective_preutterance_ms || 0));
-    }
-
     function zoomedWidth() {
         return Math.max(1, timelineViewport.width) * root.zoomFactor;
     }
@@ -547,17 +531,6 @@ Item {
         timelineViewport.contentX = Math.max(0,
                 Math.min(timelineViewport.contentWidth - timelineViewport.width,
                          root.timeToX(anchorTime) - anchorX));
-    }
-
-    function visibleDuration() {
-        return root.timelineDuration / root.zoomFactor;
-    }
-
-    function timeToScrollX(time, anchorX) {
-        const width = root.zoomedWidth();
-        if (width <= 0)
-            return 0;
-        return Math.max(0, Math.min(width, root.timeToX(time) - anchorX));
     }
 
     function xToScrollTime(anchorX) {        const total = root.zoomedWidth();
@@ -748,8 +721,7 @@ Item {
             root.restoreDrag();
         } else if (JSON.stringify(g.positions) !== JSON.stringify(editor.moraPositions)
                 || JSON.stringify(g.durations) !== JSON.stringify(editor.moraDurations)) {
-            editor.moraDurationsEdited(editor.moraDurations.slice());
-            editor.moraPositionsEdited(editor.moraPositions.slice());
+            editor.timingEdited(editor.moraDurations.slice(), editor.moraPositions.slice());
         }
         root.gesture = null;
         root.gesturePositions = [];

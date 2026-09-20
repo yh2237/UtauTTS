@@ -31,8 +31,7 @@ Item {
     property real sidePadding: 12
     signal pointsEdited(var points)
     signal pitchPointTouched(int index)
-    signal moraDurationsEdited(var durations)
-    signal moraPositionsEdited(var positions)
+    signal timingEdited(var durations, var positions)
     property alias horizontalOffset: viewport.contentX
     readonly property real contentWidth: viewport.contentWidth
     readonly property real horizontalMaximum: Math.max(0, viewport.contentWidth - viewport.width)
@@ -222,8 +221,7 @@ Item {
             canvas.requestPaint();
             return;
         }
-        root.moraDurationsEdited(root.moraDurations.slice());
-        root.moraPositionsEdited(root.moraPositions.slice());
+        root.timingEdited(root.moraDurations.slice(), root.moraPositions.slice());
         canvas.requestPaint();
     }
 
@@ -254,8 +252,7 @@ Item {
             canvas.requestPaint();
             return;
         }
-        root.moraDurationsEdited(root.moraDurations.slice());
-        root.moraPositionsEdited(root.moraPositions.slice());
+        root.timingEdited(root.moraDurations.slice(), root.moraPositions.slice());
         canvas.requestPaint();
     }
 
@@ -314,8 +311,7 @@ Item {
         if (!changed)
             return;
         root.moraDurations = root.durationValuesFromPositions();
-        root.moraDurationsEdited(root.moraDurations.slice());
-        root.moraPositionsEdited(root.moraPositions.slice());
+        root.timingEdited(root.moraDurations.slice(), root.moraPositions.slice());
         canvas.requestPaint();
     }
 
@@ -680,8 +676,8 @@ Item {
                         }
                         onReleased: mouse => {
                             if (dragging) {
-                                root.moraDurationsEdited(root.moraDurations.slice());
-                                root.moraPositionsEdited(root.moraPositions.slice());
+                                root.timingEdited(root.moraDurations.slice(),
+                                                  root.moraPositions.slice());
                             }
                             dragging = false;
                             shiftFollowing = false;
@@ -734,8 +730,8 @@ Item {
                     }
                     onReleased: {
                         if (dragging) {
-                            root.moraDurationsEdited(root.moraDurations.slice());
-                            root.moraPositionsEdited(root.moraPositions.slice());
+                            root.timingEdited(root.moraDurations.slice(),
+                                              root.moraPositions.slice());
                         }
                         dragging = false;
                         root.hideHud();

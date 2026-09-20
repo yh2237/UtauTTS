@@ -256,6 +256,25 @@ type prosodyPreviewRequest struct {
 	Dictionary         []synth.DictionaryEntry `json:"dictionary"`
 }
 
+func (request prosodyPreviewRequest) synthRequest() synth.Request {
+	return synth.Request{
+		SpeechTiming:       request.SpeechTiming,
+		Text:               request.Text,
+		Kana:               request.Kana,
+		Reading:            request.Reading,
+		Language:           request.Language,
+		Phonemizer:         request.Phonemizer,
+		ModelID:            request.ModelID,
+		Renderer:           request.Renderer,
+		MoraDurationMS:     request.MoraDurationMS,
+		PauseDurationMS:    request.PauseDurationMS,
+		MoraDurationsMS:    request.MoraDurationsMS,
+		IntonationStrength: request.IntonationStrength,
+		ApplyPitch:         request.ApplyPitch,
+		Dictionary:         request.Dictionary,
+	}
+}
+
 func (e *Engine) predictProsody(data []byte) (any, error) {
 	var request prosodyPreviewRequest
 	if err := json.Unmarshal(data, &request); err != nil {
@@ -264,18 +283,7 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 	if request.Text == "" && request.Reading == "" && request.Kana == "" {
 		return nil, fmt.Errorf("text or reading is required")
 	}
-	reading := request.Reading
-	if reading == "" {
-		reading = request.Kana
-	}
-	preview, _, err := e.synth.PredictProsodyContext(e.ctx, synth.Request{
-		SpeechTiming: request.SpeechTiming,
-		Text:         request.Text, Reading: reading, Language: request.Language, Phonemizer: request.Phonemizer, Dictionary: request.Dictionary,
-		ModelID: request.ModelID, Renderer: request.Renderer,
-		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,
-		MoraDurationsMS: request.MoraDurationsMS, IntonationStrength: request.IntonationStrength,
-		ApplyPitch: request.ApplyPitch,
-	})
+	preview, _, err := e.synth.PredictProsodyContext(e.ctx, request.synthRequest())
 	if err != nil {
 		return nil, err
 	}
@@ -301,57 +309,72 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 }
 
 type synthesizeRequest struct {
-	SpeechTiming                                                                                                     bool
-	Text, Reading, Language, Phonemizer, VoicebankID, Tone, Color, ModelID, Renderer, Resampler, Wavtool, OutputPath string
-	AliasPolicy                                                                                                      voicebank.AliasPolicy
-	MoraDurationMS, PauseDurationMS, LeadingPreutteranceMS, IntonationStrength                                       float64
-	MoraDurationsMS                                                                                                  []float64
-	UnitOverrides                                                                                                    []plan.UnitOverride
-	ApplyPitch                                                                                                       bool
-	ManualPitch                                                                                                      *prosody.ManualPitchFile
-	Dictionary                                                                                                       []synth.DictionaryEntry
-	ResamplerExpressions                                                                                             []render.ResamplerExpression
+	SpeechTiming          bool                         `json:"speech_timing"`
+	Text                  string                       `json:"text"`
+	Kana                  string                       `json:"kana"`
+	Reading               string                       `json:"reading"`
+	Language              string                       `json:"language"`
+	Phonemizer            string                       `json:"phonemizer"`
+	VoicebankID           string                       `json:"voicebank_id"`
+	Tone                  string                       `json:"tone"`
+	Color                 string                       `json:"color"`
+	ModelID               string                       `json:"model_id"`
+	Renderer              string                       `json:"renderer"`
+	Resampler             string                       `json:"resampler"`
+	Wavtool               string                       `json:"wavtool"`
+	AliasPolicy           voicebank.AliasPolicy        `json:"alias_policy"`
+	OutputPath            string                       `json:"output_path"`
+	MoraDurationMS        float64                      `json:"mora_duration_ms"`
+	PauseDurationMS       float64                      `json:"pause_duration_ms"`
+	LeadingPreutteranceMS float64                      `json:"leading_preutterance_ms"`
+	MoraDurationsMS       []float64                    `json:"mora_durations_ms"`
+	UnitOverrides         []plan.UnitOverride          `json:"unit_overrides"`
+	IntonationStrength    float64                      `json:"intonation_strength"`
+	ApplyPitch            bool                         `json:"apply_pitch"`
+	ManualPitch           *prosody.ManualPitchFile     `json:"manual_pitch"`
+	Dictionary            []synth.DictionaryEntry      `json:"dictionary"`
+	ResamplerExpressions  []render.ResamplerExpression `json:"resampler_expressions"`
 }
 
 func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
-	type wire struct {
-		SpeechTiming          bool                         `json:"speech_timing"`
-		Text                  string                       `json:"text"`
-		Kana                  string                       `json:"kana"`
-		Reading               string                       `json:"reading"`
-		Language              string                       `json:"language"`
-		Phonemizer            string                       `json:"phonemizer"`
-		VoicebankID           string                       `json:"voicebank_id"`
-		Tone                  string                       `json:"tone"`
-		Color                 string                       `json:"color"`
-		ModelID               string                       `json:"model_id"`
-		Renderer              string                       `json:"renderer"`
-		Resampler             string                       `json:"resampler"`
-		Wavtool               string                       `json:"wavtool"`
-		AliasPolicy           voicebank.AliasPolicy        `json:"alias_policy"`
-		OutputPath            string                       `json:"output_path"`
-		MoraDurationMS        float64                      `json:"mora_duration_ms"`
-		PauseDurationMS       float64                      `json:"pause_duration_ms"`
-		LeadingPreutteranceMS float64                      `json:"leading_preutterance_ms"`
-		MoraDurationsMS       []float64                    `json:"mora_durations_ms"`
-		UnitOverrides         []plan.UnitOverride          `json:"unit_overrides"`
-		IntonationStrength    float64                      `json:"intonation_strength"`
-		ApplyPitch            bool                         `json:"apply_pitch"`
-		ManualPitch           *prosody.ManualPitchFile     `json:"manual_pitch"`
-		Dictionary            []synth.DictionaryEntry      `json:"dictionary"`
-		ResamplerExpressions  []render.ResamplerExpression `json:"resampler_expressions"`
-	}
-	var value wire
+	type plain synthesizeRequest
+	var value plain
 	if err := json.Unmarshal(data, &value); err != nil {
 		return err
 	}
-	reading := value.Reading
-	if reading == "" {
-		reading = value.Kana
+	if value.Reading == "" {
+		value.Reading = value.Kana
 	}
-	*r = synthesizeRequest{Text: value.Text, Reading: reading, Language: value.Language, Phonemizer: value.Phonemizer, VoicebankID: value.VoicebankID, Tone: value.Tone, Color: value.Color, ModelID: value.ModelID, Renderer: value.Renderer, Resampler: value.Resampler, Wavtool: value.Wavtool, AliasPolicy: value.AliasPolicy, OutputPath: value.OutputPath, MoraDurationMS: value.MoraDurationMS, PauseDurationMS: value.PauseDurationMS, LeadingPreutteranceMS: value.LeadingPreutteranceMS, MoraDurationsMS: value.MoraDurationsMS, UnitOverrides: value.UnitOverrides, IntonationStrength: value.IntonationStrength, ApplyPitch: value.ApplyPitch, ManualPitch: value.ManualPitch, Dictionary: value.Dictionary, ResamplerExpressions: value.ResamplerExpressions}
-	r.SpeechTiming = value.SpeechTiming
+	*r = synthesizeRequest(value)
 	return nil
+}
+
+func (request synthesizeRequest) synthRequest() synth.Request {
+	return synth.Request{
+		SpeechTiming:          request.SpeechTiming,
+		Text:                  request.Text,
+		Reading:               request.Reading,
+		Language:              request.Language,
+		Phonemizer:            request.Phonemizer,
+		VoicebankID:           request.VoicebankID,
+		Tone:                  request.Tone,
+		Color:                 request.Color,
+		ModelID:               request.ModelID,
+		Renderer:              request.Renderer,
+		Resampler:             request.Resampler,
+		Wavtool:               request.Wavtool,
+		AliasPolicy:           request.AliasPolicy,
+		Dictionary:            request.Dictionary,
+		MoraDurationMS:        request.MoraDurationMS,
+		PauseDurationMS:       request.PauseDurationMS,
+		LeadingPreutteranceMS: request.LeadingPreutteranceMS,
+		MoraDurationsMS:       request.MoraDurationsMS,
+		UnitOverrides:         request.UnitOverrides,
+		IntonationStrength:    request.IntonationStrength,
+		ApplyPitch:            request.ApplyPitch,
+		ManualPitch:           request.ManualPitch,
+		ResamplerExpressions:  request.ResamplerExpressions,
+	}
 }
 
 func synthesisUnits(result *synth.Result) []map[string]any {
@@ -458,20 +481,7 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 	if request.OutputPath == "" {
 		return nil, fmt.Errorf("output_path is required")
 	}
-	result, err := e.synth.SynthesizeContext(e.ctx, synth.Request{
-		SpeechTiming: request.SpeechTiming,
-		Text:         request.Text, Reading: request.Reading, Language: request.Language, Phonemizer: request.Phonemizer, VoicebankID: request.VoicebankID,
-		Tone: request.Tone, Color: request.Color, ModelID: request.ModelID, Renderer: request.Renderer,
-		Resampler: request.Resampler, Wavtool: request.Wavtool,
-		AliasPolicy:    request.AliasPolicy,
-		Dictionary:     request.Dictionary,
-		MoraDurationMS: request.MoraDurationMS, PauseDurationMS: request.PauseDurationMS,
-		LeadingPreutteranceMS: request.LeadingPreutteranceMS,
-		MoraDurationsMS:       request.MoraDurationsMS, IntonationStrength: request.IntonationStrength,
-		UnitOverrides: request.UnitOverrides,
-		ApplyPitch:    request.ApplyPitch, ManualPitch: request.ManualPitch,
-		ResamplerExpressions: request.ResamplerExpressions,
-	})
+	result, err := e.synth.SynthesizeContext(e.ctx, request.synthRequest())
 	if err != nil {
 		return nil, err
 	}

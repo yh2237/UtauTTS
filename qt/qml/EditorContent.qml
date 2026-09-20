@@ -1104,8 +1104,8 @@ import QtMultimedia
                                 defaultMoraDuration: window.appBackend.defaultMoraDuration
                                 defaultPauseDuration: window.appBackend.defaultPauseDuration
                                 onPointsEdited: points => window.updatePitchPoints(points)
-                                onMoraDurationsEdited: durations => window.updateMoraDurations(durations)
-                                onMoraPositionsEdited: positions => window.updateMoraPositions(positions)
+                                onTimingEdited: (durations, positions) =>
+                                        window.updateMoraTiming(durations, positions)
                             }
                             Item {
                                 id: basicPitchScrollFooter
