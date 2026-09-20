@@ -53,6 +53,7 @@ type worldlineManifestUnit struct {
 	PitchStartMS      float64                     `json:"pitch_start_ms,omitempty"`
 	PitchLengthMS     float64                     `json:"pitch_length_ms,omitempty"`
 	Volume            float64                     `json:"volume,omitempty"`
+	VolumeSet         bool                        `json:"volume_set,omitempty"`
 	Modulation        float64                     `json:"modulation,omitempty"`
 	Tempo             float64                     `json:"tempo,omitempty"`
 	EnergyFactor      float64                     `json:"energy_factor,omitempty"`
@@ -386,7 +387,8 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 			FadeOutMS: fadeOutMS, OffsetMS: unit.OffsetMS, RequiredLengthMS: requiredLength,
 			ConsonantMS: unit.ConsonantMS, CutoffMS: unit.CutoffMS,
 			Tone: int(math.Round(69 + 12*math.Log2(unitPitch/440))), ConsonantVelocity: consonantVelocity,
-			PitchStartMS: pitchStartMS, Volume: volume, Modulation: modulation, Tempo: tempo,
+			PitchStartMS: pitchStartMS, Volume: volume, VolumeSet: unit.ResamplerVolumeOverride,
+			Modulation: modulation, Tempo: tempo,
 			EnergyFactor:  unit.EnergyFactor,
 			PitchLengthMS: pitchLengthMS, Envelope: envelopePoints,
 		})
@@ -614,7 +616,8 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg Config, manifest worldli
 			RequiredLengthMS: unit.RequiredLengthMS, ConsonantMS: unit.ConsonantMS,
 			CutoffMS: unit.CutoffMS, Tone: unit.Tone, ConsonantVelocity: unit.ConsonantVelocity,
 			PitchStartMS: unit.PitchStartMS, PitchLengthMS: unit.PitchLengthMS,
-			Volume: unit.Volume, Modulation: unit.Modulation, Tempo: unit.Tempo, EnergyFactor: unit.EnergyFactor,
+			Volume: unit.Volume, VolumeSet: unit.VolumeSet,
+			Modulation: unit.Modulation, Tempo: unit.Tempo, EnergyFactor: unit.EnergyFactor,
 			Envelope: make([]provider.WorldlineEnvelopePoint, len(unit.Envelope)),
 		}
 		for pointIndex, point := range unit.Envelope {

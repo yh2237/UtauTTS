@@ -73,6 +73,7 @@ type WorldlineUnit struct {
 	PitchStartMS      float64                  `json:"pitch_start_ms,omitempty"`
 	PitchLengthMS     float64                  `json:"pitch_length_ms,omitempty"`
 	Volume            float64                  `json:"volume,omitempty"`
+	VolumeSet         bool                     `json:"volume_set,omitempty"`
 	Modulation        float64                  `json:"modulation,omitempty"`
 	Tempo             float64                  `json:"tempo,omitempty"`
 	EnergyFactor      float64                  `json:"energy_factor,omitempty"`

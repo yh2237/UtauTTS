@@ -128,6 +128,9 @@ func TestWorldUnitAmplitudeGainRestoresNeutralDefaults(t *testing.T) {
 	if got := worldUnitAmplitudeGain(unit{}); math.Abs(got-1) > 1e-9 {
 		t.Fatalf("neutral gain = %f, want 1", got)
 	}
+	if got := worldUnitAmplitudeGain(unit{Volume: 0, VolumeSet: true}); got != 0 {
+		t.Fatalf("explicit zero gain = %f, want 0", got)
+	}
 	if got := worldUnitAmplitudeGain(unit{Volume: 50, EnergyFactor: .8}); math.Abs(got-.4) > 1e-9 {
 		t.Fatalf("combined gain = %f, want .4", got)
 	}

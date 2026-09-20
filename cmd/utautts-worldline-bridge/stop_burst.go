@@ -121,7 +121,7 @@ func mixProtectedStopBurst(wave []float64, source protectedStopSource, sourceSta
 	if source.sampleRate <= 0 || len(source.samples) == 0 || len(source.transient) != len(source.samples) || preMS < 0 || postMS <= 0 {
 		return 0
 	}
-	if volume <= 0 {
+	if volume < 0 {
 		volume = 100
 	}
 	volumeGain := math.Min(1.25, math.Max(0.25, volume/100))

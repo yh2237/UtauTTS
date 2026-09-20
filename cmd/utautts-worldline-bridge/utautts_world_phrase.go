@@ -265,7 +265,8 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 // WORLDのパワースペクトルへ波形版と同じ音量係数を適用する。
 func worldUnitAmplitudeGain(item unit) float64 {
 	volume := item.Volume
-	if volume <= 0 || math.IsNaN(volume) || math.IsInf(volume, 0) {
+	if (!item.VolumeSet && volume <= 0) || volume < 0 ||
+		math.IsNaN(volume) || math.IsInf(volume, 0) {
 		volume = 100
 	}
 	if item.LegacyMix {

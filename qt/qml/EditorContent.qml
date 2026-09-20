@@ -966,13 +966,6 @@ import QtMultimedia
                                     height: 1
                                     color: extendedPitchTab.checked ? window.palette.base : "transparent"
                                 }
-                                Rectangle {
-                                    anchors.right: parent.right
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 1
-                                    height: 18
-                                    color: window.borderColor
-                                }
                             }
                             contentItem: Text {
                                 id: extendedPitchLabel
@@ -994,7 +987,7 @@ import QtMultimedia
                         anchors.top: parent.top
                         anchors.leftMargin: 12
                         anchors.topMargin: 1
-                        width: visible ? 66 : 0
+                        width: visible ? 65 : 0
                         height: 35
                         z: 3
                         color: "transparent"
@@ -1003,12 +996,6 @@ import QtMultimedia
                             anchors.fill: parent
                             spacing: 0
 
-                            Rectangle {
-                                Layout.preferredWidth: 1
-                                Layout.preferredHeight: 18
-                                Layout.alignment: Qt.AlignVCenter
-                                color: window.borderColor
-                            }
                             ToolButton {
                                 id: handTool
                                 ButtonGroup.group: pitchToolMode

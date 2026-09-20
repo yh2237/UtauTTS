@@ -150,9 +150,9 @@ Item {
     }
 
     function pointIsEditable(index) {
-        if (index < 0 || index >= root.points.length)
+        if (index < 0 || index >= root.points.length || index >= root.morae.length)
             return false;
-        return index >= root.morae.length || !root.morae[index].pause;
+        return !root.morae[index].pause;
     }
 
     function pointX(index) {
@@ -498,8 +498,10 @@ Item {
                     ctx.beginPath();
                     let started = false;
                     for (let index = 0; index < root.points.length; ++index) {
-                        if (!root.pointIsEditable(index))
+                        if (!root.pointIsEditable(index)) {
+                            started = false;
                             continue;
+                        }
                         const x = root.pointX(index);
                         if (!inView(x)) {
                             started = false;

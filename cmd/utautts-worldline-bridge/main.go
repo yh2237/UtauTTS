@@ -44,6 +44,7 @@ type unit struct {
 	PitchStartMS      float64                     `json:"pitch_start_ms"`
 	PitchLengthMS     float64                     `json:"pitch_length_ms"`
 	Volume            float64                     `json:"volume"`
+	VolumeSet         bool                        `json:"volume_set"`
 	Modulation        float64                     `json:"modulation"`
 	Tempo             float64                     `json:"tempo"`
 	EnergyFactor      float64                     `json:"energy_factor"`

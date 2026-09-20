@@ -129,6 +129,24 @@ Item {
         return Math.max(0, Math.min(root.frameDisplayCount - 1, target));
     }
 
+    function frameHasPronunciation(index) {
+        if (index < 0 || index >= root.frameDisplayCount)
+            return false;
+        const time = root.frameTimeMs(index) + root.leadingMargin;
+        for (const unit of root.units || []) {
+            if (!unit || unit.silent)
+                continue;
+            const fallbackStart = root.unitNoteStart(unit) + root.leadingMargin;
+            const renderStart = Number(unit.render_start_ms);
+            const start = Number.isFinite(renderStart) ? renderStart : fallbackStart;
+            const end = root.unitNoteStart(unit) + root.leadingMargin
+                    + Math.max(1, root.unitDuration(unit));
+            if (time >= start && time <= end)
+                return true;
+        }
+        return false;
+    }
+
     function paddedFrameManual() {
         const values = [];
         for (let index = 0; index < root.frameDisplayCount; ++index)
@@ -140,22 +158,30 @@ Item {
         const values = root.paddedFrameManual();
         const lo = Math.max(0, Math.min(from, to));
         const hi = Math.min(root.frameDisplayCount - 1, Math.max(from, to));
-        for (let index = lo; index <= hi; ++index)
-            values[index] = cents;
+        for (let index = lo; index <= hi; ++index) {
+            if (root.frameHasPronunciation(index))
+                values[index] = cents;
+        }
         root.manualFrames = values;
         waveformCanvas.requestPaint();
     }
 
     function paintFrameTo(x, y, fromFrame) {
         const target = root.frameAtTime(root.xToTime(x) - root.leadingMargin);
+        if (!root.frameHasPronunciation(target)) {
+            root.hudText = "";
+            return -1;
+        }
         const desired = Math.max(-600, Math.min(600,
                 (root.noteCenterY() - y) / root.noteLaneH * 600));
         const values = root.paddedFrameManual();
         const lo = Math.max(0, fromFrame < 0 ? target : Math.min(fromFrame, target));
         const hi = Math.min(root.frameDisplayCount - 1,
                 fromFrame < 0 ? target : Math.max(fromFrame, target));
-        for (let index = lo; index <= hi; ++index)
-            values[index] = Math.round((desired - root.frameAutoAt(index)) * 10) / 10;
+        for (let index = lo; index <= hi; ++index) {
+            if (root.frameHasPronunciation(index))
+                values[index] = Math.round((desired - root.frameAutoAt(index)) * 10) / 10;
+        }
         root.manualFrames = values;
         const total = root.frameTotalAt(target);
         root.updateHud(x, y, (total >= 0 ? "+" : "") + Math.round(total) + " cent");
@@ -217,6 +243,10 @@ Item {
         if (override && override[key] !== undefined)
             return override[key];
         const unit = root.unitAt(index);
+        const overrideFlag = String(key) + "_override";
+        if (String(key).indexOf("resampler_") === 0 && unit
+                && unit[overrideFlag] !== true)
+            return root.paramRange(key).def;
         return unit && unit[key] !== undefined ? unit[key] : 0;
     }
 
@@ -890,6 +920,10 @@ Item {
                         ctx.beginPath();
                         let autoStarted = false;
                         for (let fi = 0; fi < root.autoFrames.length; ++fi) {
+                            if (!root.frameHasPronunciation(fi)) {
+                                autoStarted = false;
+                                continue;
+                            }
                             const fx = root.timeToX(root.frameTimeMs(fi) + root.leadingMargin);
                             if (!inView(fx)) {
                                 autoStarted = false;
@@ -906,6 +940,10 @@ Item {
                         ctx.beginPath();
                         let frameStarted = false;
                         for (let fj = 0; fj < root.frameDisplayCount; ++fj) {
+                            if (!root.frameHasPronunciation(fj)) {
+                                frameStarted = false;
+                                continue;
+                            }
                             const fx = root.timeToX(root.frameTimeMs(fj) + root.leadingMargin);
                             if (!inView(fx)) {
                                 frameStarted = false;
@@ -919,7 +957,8 @@ Item {
                         ctx.stroke();
                         ctx.fillStyle = root.accentColor;
                         for (let fk = 0; fk < root.frameDisplayCount; ++fk) {
-                            if (Math.abs(root.frameManualAt(fk)) <= 0.5)
+                            if (!root.frameHasPronunciation(fk)
+                                    || Math.abs(root.frameManualAt(fk)) <= 0.5)
                                 continue;
                             const fx = root.timeToX(root.frameTimeMs(fk) + root.leadingMargin);
                             if (!inView(fx))
@@ -1059,6 +1098,9 @@ Item {
                     pendingKind = "";
                     frameLast = -1;
                     if (root.framePaintRequested(mouse.modifiers)) {
+                        const target = root.frameAtTime(root.xToTime(p.x) - root.leadingMargin);
+                        if (!root.frameHasPronunciation(target))
+                            return;
                         pendingKind = "frame";
                         pressMoved = true;
                         frameBackup = root.manualFrames.slice();
@@ -1228,6 +1270,8 @@ Item {
                     const p = mapToItem(waveformCanvas, mouse.x, mouse.y);
                     if (root.framePaintRequested(mouse.modifiers)) {
                         const target = root.frameAtTime(root.xToTime(p.x) - root.leadingMargin);
+                        if (!root.frameHasPronunciation(target))
+                            return;
                         let touched = false;
                         for (let index = target - 2; index <= target + 2; ++index) {
                             if (Math.abs(root.frameManualAt(index)) > 0.5) {
