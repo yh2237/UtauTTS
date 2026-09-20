@@ -20,10 +20,7 @@ import (
 
 	"utautts/internal/audio"
 	"utautts/internal/diffsinger"
-	"utautts/internal/frontend"
-	"utautts/internal/openjtalk"
 	"utautts/internal/plugin"
-	"utautts/internal/prosody"
 	"utautts/internal/render"
 	"utautts/internal/sidecar"
 	"utautts/internal/synth"
@@ -90,6 +87,8 @@ type Server struct {
 	authToken           string
 	allowRegistration   bool
 	catalog             *plugin.Catalog
+	service             *synth.Service
+	voiceLibrary        *voicebank.Library
 }
 
 type apiVoicebankResolver struct {
@@ -97,28 +96,34 @@ type apiVoicebankResolver struct {
 }
 
 func (r apiVoicebankResolver) Resolve(id string) (string, bool) {
+	if r.server.voiceLibrary != nil {
+		summary, ok := r.server.voiceLibrary.Resolve(id)
+		return summary.Path, ok
+	}
 	voicebank, ok := r.server.resolveVoicebank(id)
 	return voicebank.Path, ok
 }
 
 func New(config Config) (*Server, error) {
 	voiceDir := voicebank.ResolveDirectory(config.VoiceDir)
-	catalog, err := plugin.DiscoverWithDefaults(config.RendererDirectories, config.ModelDirectories, render.IsKnownRenderer)
-	if err != nil {
-		return nil, fmt.Errorf("discover renderers: %w", err)
-	}
-	if renderer, ok := catalog.Renderer(config.Renderer); ok {
-		config.Renderer = renderer.ID
-	}
 	srv := &Server{
-		voicebanks:   map[string]Voicebank{},
-		synthesisSem: make(chan struct{}, maxConcurrentSynthesis),
-		batchSem:     make(chan struct{}, maxConcurrentBatches),
-		renderer:     config.Renderer, worldlineBridgePath: config.WorldlineBridgePath, voiceDir: voiceDir,
+		voicebanks:          map[string]Voicebank{},
+		synthesisSem:        make(chan struct{}, maxConcurrentSynthesis),
+		batchSem:            make(chan struct{}, maxConcurrentBatches),
+		worldlineBridgePath: config.WorldlineBridgePath, voiceDir: voiceDir,
 		openJTalkPath: config.OpenJTalkPath, openJTalkDictionary: config.OpenJTalkDictionary,
 		authToken: config.AuthToken, allowRegistration: config.AllowVoicebankRegistration,
-		catalog: catalog,
+		voiceLibrary: voicebank.NewLibrary(voiceDir),
 	}
+	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
+		Renderer: config.Renderer, WorldlineBridgePath: config.WorldlineBridgePath,
+		OpenJTalkPath: config.OpenJTalkPath, OpenJTalkDictionary: config.OpenJTalkDictionary,
+		RendererDirectories: config.RendererDirectories, ModelDirectories: config.ModelDirectories,
+	}, apiVoicebankResolver{server: srv})
+	if err != nil {
+		return nil, err
+	}
+	srv.renderer, srv.catalog, srv.service = runtime.Renderer, runtime.Catalog, runtime.Service
 	if err := srv.loadVoiceDirectory(); err != nil {
 		return nil, fmt.Errorf("load voicebanks from %s: %w", voiceDir, err)
 	}
@@ -179,16 +184,19 @@ func tokenEqual(left, right string) bool {
 }
 
 func (s *Server) loadVoiceDirectory() error {
-	summaries, err := voicebank.Discover(s.voiceDir)
-	if err != nil && !errors.Is(err, voicebank.ErrNoOto) && !os.IsNotExist(err) {
+	if s.voiceLibrary == nil {
+		s.voiceLibrary = voicebank.NewLibrary(s.voiceDir)
+	}
+	if err := s.voiceLibrary.Reload(); err != nil {
 		s.mu.Lock()
 		s.voicebanks = map[string]Voicebank{}
 		s.mu.Unlock()
 		return err
 	}
-	next := make(map[string]Voicebank, len(summaries))
-	for _, summary := range summaries {
-		id := voicebank.StableID(s.voiceDir, summary.Path)
+	items := s.voiceLibrary.List()
+	next := make(map[string]Voicebank, len(items))
+	for _, entry := range items {
+		id, summary := entry.ID, entry.Summary
 		item := Voicebank{ID: id, Name: summary.Name, Path: summary.Path, Kind: summary.Kind}
 		if inspected, inspectErr := inspectVoicebank(summary.Path); inspectErr != nil {
 			log.Printf("voicebank metadata: %s: %v", summary.Path, inspectErr)
@@ -280,23 +288,18 @@ func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{"error": fmt.Sprintf("text is limited to %d characters", maxTextRunes)})
 		return
 	}
-	reading, err := tts.ConvertToReadingContext(r.Context(), request.Text, synth.DictionaryMap(request.Dictionary), openjtalk.Config{
-		HelperPath: s.openJTalkPath, DictionaryPath: s.openJTalkDictionary,
+	preview, err := s.synthesisService().AnalyzeContext(r.Context(), synth.Request{
+		Text: request.Text, Dictionary: request.Dictionary,
 	})
 	if err != nil {
 		writeJSON(w, contextErrorStatus(err, http.StatusUnprocessableEntity), map[string]string{"error": err.Error()})
 		return
 	}
-	morae, err := frontend.ParseKana(reading)
-	if err != nil {
-		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
-		return
-	}
-	items := make([]map[string]any, 0, len(morae))
-	for index, mora := range morae {
+	items := make([]map[string]any, 0, len(preview.Morae))
+	for index, mora := range preview.Morae {
 		items = append(items, map[string]any{"position": index, "mora": mora.Text, "consonant": mora.Consonant, "vowel": mora.Vowel, "pause": mora.Pause})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"reading": reading, "morae": items})
+	writeJSON(w, http.StatusOK, map[string]any{"reading": preview.Reading, "morae": items})
 }
 
 func (s *Server) handleListVoicebanks(w http.ResponseWriter, _ *http.Request) {
@@ -348,10 +351,19 @@ func (s *Server) handleRegisterVoicebank(w http.ResponseWriter, r *http.Request)
 	if request.Name != "" {
 		vb.Name = request.Name
 	}
-	vb.ID = voicebank.StableID(s.voiceDir, path)
+	summary, err := voicebank.InspectSinger(path)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	if s.voiceLibrary == nil {
+		s.voiceLibrary = voicebank.NewLibrary(s.voiceDir)
+	}
+	vb.ID = s.voiceLibrary.Add(summary)
 	s.mu.Lock()
 	s.voicebanks[vb.ID] = vb
 	s.mu.Unlock()
+	tts.ClearCaches()
 	writeJSON(w, http.StatusOK, vb)
 }
 
@@ -379,57 +391,10 @@ func pathWithin(root, candidate string) (string, error) {
 	return candidate, nil
 }
 
-type SynthesisRequest struct {
-	SpeechTiming          bool                         `json:"speech_timing"`
-	Kana                  string                       `json:"kana"`
-	Reading               string                       `json:"reading"`
-	Text                  string                       `json:"text"`
-	Language              string                       `json:"language"`
-	Phonemizer            string                       `json:"phonemizer"`
-	VoicebankID           string                       `json:"voicebank_id"`
-	Tone                  string                       `json:"tone"`
-	Color                 string                       `json:"color"`
-	MoraDurationMS        float64                      `json:"mora_duration_ms"`
-	PauseDurationMS       float64                      `json:"pause_duration_ms"`
-	LeadingPreutteranceMS float64                      `json:"leading_preutterance_ms"`
-	MoraDurationsMS       []float64                    `json:"mora_durations_ms"`
-	IntonationStrength    float64                      `json:"intonation_strength"`
-	ApplyPitch            bool                         `json:"apply_pitch"`
-	ManualPitch           *prosody.ManualPitchFile     `json:"manual_pitch"`
-	ModelID               string                       `json:"model_id"`
-	Renderer              string                       `json:"renderer"`
-	Resampler             string                       `json:"resampler"`
-	Wavtool               string                       `json:"wavtool"`
-	AliasPolicy           voicebank.AliasPolicy        `json:"alias_policy"`
-	Dictionary            []synth.DictionaryEntry      `json:"dictionary"`
-	ResamplerExpressions  []render.ResamplerExpression `json:"resampler_expressions"`
-}
+type SynthesisRequest synth.Request
 
 func (request SynthesisRequest) synthRequest() synth.Request {
-	return synth.Request{
-		SpeechTiming:          request.SpeechTiming,
-		Text:                  request.Text,
-		Reading:               synthesisReading(request),
-		Language:              request.Language,
-		Phonemizer:            request.Phonemizer,
-		VoicebankID:           request.VoicebankID,
-		Tone:                  request.Tone,
-		Color:                 request.Color,
-		ModelID:               request.ModelID,
-		Renderer:              request.Renderer,
-		Resampler:             request.Resampler,
-		Wavtool:               request.Wavtool,
-		AliasPolicy:           request.AliasPolicy,
-		Dictionary:            request.Dictionary,
-		MoraDurationMS:        request.MoraDurationMS,
-		PauseDurationMS:       request.PauseDurationMS,
-		LeadingPreutteranceMS: request.LeadingPreutteranceMS,
-		MoraDurationsMS:       request.MoraDurationsMS,
-		IntonationStrength:    request.IntonationStrength,
-		ApplyPitch:            request.ApplyPitch,
-		ManualPitch:           request.ManualPitch,
-		ResamplerExpressions:  request.ResamplerExpressions,
-	}
+	return synth.Request(request).Normalized()
 }
 
 func (s *Server) handleSynthesizeAudio(w http.ResponseWriter, r *http.Request) {
@@ -673,10 +638,7 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 }
 
 func synthesisReading(request SynthesisRequest) string {
-	if request.Reading != "" {
-		return request.Reading
-	}
-	return request.Kana
+	return synth.Request(request).ReadingOrKana()
 }
 
 func contextErrorStatus(err error, fallback int) int {
@@ -687,6 +649,9 @@ func contextErrorStatus(err error, fallback int) int {
 }
 
 func (s *Server) synthesisService() *synth.Service {
+	if s.service != nil {
+		return s.service
+	}
 	return synth.NewService(s.pluginCatalog(), s.renderer, s.worldlineBridgePath,
 		s.openJTalkPath, s.openJTalkDictionary, apiVoicebankResolver{server: s})
 }

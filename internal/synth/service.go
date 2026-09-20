@@ -22,30 +22,71 @@ var ErrUnavailable = errors.New("unavailable")
 
 // Requestは合成とプレビューで共有する入力。
 type Request struct {
-	SpeechTiming          bool
-	Text                  string
-	Reading               string
-	Kana                  string
-	Language              string
-	Phonemizer            string
-	VoicebankID           string
-	Tone                  string
-	Color                 string
-	ModelID               string
-	Renderer              string
-	Resampler             string
-	Wavtool               string
-	AliasPolicy           voicebank.AliasPolicy
-	Dictionary            []DictionaryEntry
-	MoraDurationMS        float64
-	PauseDurationMS       float64
-	LeadingPreutteranceMS float64
-	MoraDurationsMS       []float64
-	UnitOverrides         []plan.UnitOverride
-	IntonationStrength    float64
-	ApplyPitch            bool
-	ManualPitch           *prosody.ManualPitchFile
-	ResamplerExpressions  []render.ResamplerExpression
+	SpeechTiming            bool                         `json:"speech_timing"`
+	Text                    string                       `json:"text"`
+	Reading                 string                       `json:"reading"`
+	Kana                    string                       `json:"kana"`
+	Language                string                       `json:"language"`
+	Phonemizer              string                       `json:"phonemizer"`
+	VoicebankID             string                       `json:"voicebank_id"`
+	VoicebankPath           string                       `json:"-"`
+	Tone                    string                       `json:"tone"`
+	Color                   string                       `json:"color"`
+	ModelID                 string                       `json:"model_id"`
+	Renderer                string                       `json:"renderer"`
+	Resampler               string                       `json:"resampler"`
+	Wavtool                 string                       `json:"wavtool"`
+	AliasPolicy             voicebank.AliasPolicy        `json:"alias_policy"`
+	Dictionary              []DictionaryEntry            `json:"dictionary"`
+	MoraDurationMS          float64                      `json:"mora_duration_ms"`
+	PauseDurationMS         float64                      `json:"pause_duration_ms"`
+	LeadingPreutteranceMS   float64                      `json:"leading_preutterance_ms"`
+	MoraDurationsMS         []float64                    `json:"mora_durations_ms"`
+	UnitOverrides           []plan.UnitOverride          `json:"unit_overrides"`
+	ReleaseMS               float64                      `json:"release_ms"`
+	ReleaseSet              bool                         `json:"release_set"`
+	ManualPitchPath         string                       `json:"-"`
+	ManualPitch             *prosody.ManualPitchFile     `json:"manual_pitch"`
+	ProsodyFeatures         []prosody.FeatureFrame       `json:"-"`
+	ProsodyPitchOnly        bool                         `json:"-"`
+	PitchFactors            []float64                    `json:"-"`
+	IntonationStrength      float64                      `json:"intonation_strength"`
+	ApplyPitch              bool                         `json:"apply_pitch"`
+	BoundaryBridgeMS        float64                      `json:"-"`
+	BoundaryBridgeThreshold float64                      `json:"-"`
+	CVVCTiming              string                       `json:"-"`
+	CVVCTransitionGain      float64                      `json:"-"`
+	CVVCPreBoundaryFade     bool                         `json:"-"`
+	JoinModelPath           string                       `json:"-"`
+	TargetPriorPath         string                       `json:"-"`
+	TargetPriorStrength     float64                      `json:"-"`
+	TargetPriorMinContext   int                          `json:"-"`
+	ResamplerExpressions    []render.ResamplerExpression `json:"resampler_expressions"`
+}
+
+// Normalized accepts the historical kana field while keeping the domain
+// representation on Reading.
+func (request Request) Normalized() Request {
+	if request.Reading == "" {
+		request.Reading = request.Kana
+	}
+	return request
+}
+
+// ReadingOrKana returns the effective reading without allocating a copy.
+func (request Request) ReadingOrKana() string {
+	if request.Reading != "" {
+		return request.Reading
+	}
+	return request.Kana
+}
+
+// ResolvedRequest is the shared, fully-resolved input passed to synthesis.
+// CLI uses Config for USTX export while GUI and HTTP normally call Synthesize.
+type ResolvedRequest struct {
+	Config          tts.Config
+	RendererID      string
+	ProviderOptions render.ProviderOptions
 }
 
 // DictionaryEntryは表記と読みの対応。
@@ -96,12 +137,27 @@ func (s *Service) Synthesize(request Request) (*Result, error) {
 }
 
 func (s *Service) SynthesizeContext(ctx context.Context, request Request) (*Result, error) {
-	cfg, rendererID, providerOptions, err := s.config(request, true)
+	resolved, err := s.ResolveSynthesis(request)
 	if err != nil {
 		return nil, err
 	}
-	cfg.Context = ctx
-	return SynthesizeConfigWithOptions(cfg, rendererID, providerOptions)
+	resolved.Config.Context = ctx
+	return SynthesizeResolved(resolved)
+}
+
+// ResolveSynthesis resolves voicebank, renderer, model, and provider options
+// once for every host. It is public for exports that need the resolved config.
+func (s *Service) ResolveSynthesis(request Request) (ResolvedRequest, error) {
+	cfg, rendererID, providerOptions, err := s.config(request, true)
+	if err != nil {
+		return ResolvedRequest{}, err
+	}
+	return ResolvedRequest{Config: cfg, RendererID: rendererID, ProviderOptions: providerOptions}, nil
+}
+
+// SynthesizeResolved synthesizes a config created by ResolveSynthesis.
+func SynthesizeResolved(resolved ResolvedRequest) (*Result, error) {
+	return SynthesizeConfigWithOptions(resolved.Config, resolved.RendererID, resolved.ProviderOptions)
 }
 
 // SynthesizeConfigは解決済み設定から共通の合成結果を作る。
@@ -137,7 +193,35 @@ func (s *Service) PredictProsodyContext(ctx context.Context, request Request) (*
 	return preview, rendererID, nil
 }
 
+// AnalyzeContext resolves reading and morae through the same language-aware
+// path used by prosody preview. Hosts can intentionally restrict which fields
+// they expose without reimplementing the analysis pipeline.
+func (s *Service) AnalyzeContext(ctx context.Context, request Request) (*tts.ProsodyPreview, error) {
+	request = request.Normalized()
+	dictionary := DictionaryMap(request.Dictionary)
+	if request.Language == "en" && request.VoicebankID != "" && s.voicebanks != nil {
+		if path, ok := s.voicebanks.Resolve(request.VoicebankID); ok {
+			arpasing, _, err := voicebank.LoadARPAsingDictionary(path)
+			if err != nil {
+				return nil, err
+			}
+			for surface, reading := range arpasing {
+				if dictionary[surface] == "" {
+					dictionary[surface] = reading
+				}
+			}
+		}
+	}
+	return tts.PredictProsody(tts.Config{
+		Context: ctx, Text: request.Text, Reading: request.Reading,
+		Language: request.Language, Phonemizer: request.Phonemizer,
+		Dictionary: dictionary, OpenJTalkPath: s.openJTalkPath,
+		OpenJTalkDictionaryPath: s.openJTalkDictionary,
+	})
+}
+
 func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, string, render.ProviderOptions, error) {
+	request = request.Normalized()
 	modelPath, err := s.ResolveModel(request.ModelID)
 	if err != nil {
 		return tts.Config{}, "", render.ProviderOptions{}, err
@@ -161,23 +245,42 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		LeadingPreutteranceMS:   request.LeadingPreutteranceMS,
 		MoraDurationsMS:         request.MoraDurationsMS,
 		UnitOverrides:           append([]plan.UnitOverride(nil), request.UnitOverrides...),
+		ReleaseMS:               request.ReleaseMS,
+		ReleaseSet:              request.ReleaseSet,
 		ProsodyModelPath:        modelPath,
+		ManualPitchPath:         request.ManualPitchPath,
 		ManualPitch:             request.ManualPitch,
+		ProsodyFeatures:         append([]prosody.FeatureFrame(nil), request.ProsodyFeatures...),
+		ProsodyPitchOnly:        request.ProsodyPitchOnly,
 		IntonationStrength:      request.IntonationStrength,
+		PitchFactors:            append([]float64(nil), request.PitchFactors...),
 		ApplyPitch:              request.ApplyPitch,
 		OpenJTalkPath:           s.openJTalkPath,
 		OpenJTalkDictionaryPath: s.openJTalkDictionary,
+		BoundaryBridgeMS:        request.BoundaryBridgeMS,
+		BoundaryBridgeThreshold: request.BoundaryBridgeThreshold,
+		CVVCTiming:              request.CVVCTiming,
+		CVVCTransitionGain:      request.CVVCTransitionGain,
+		CVVCPreBoundaryFade:     request.CVVCPreBoundaryFade,
+		JoinModelPath:           request.JoinModelPath,
+		TargetPriorPath:         request.TargetPriorPath,
+		TargetPriorStrength:     request.TargetPriorStrength,
+		TargetPriorMinContext:   request.TargetPriorMinContext,
 	}
 	providerOptions := render.ProviderOptions{Classic: render.ClassicOptions{
 		ResamplerExpressions: append([]render.ResamplerExpression(nil), request.ResamplerExpressions...),
 	}}
 	if requireVoicebank {
-		if s.voicebanks == nil {
-			return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: voicebank resolver is not configured", ErrUnavailable)
-		}
-		voicebankPath, ok := s.voicebanks.Resolve(request.VoicebankID)
-		if !ok {
-			return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: voicebank not found", ErrUnavailable)
+		voicebankPath := request.VoicebankPath
+		if voicebankPath == "" {
+			if s.voicebanks == nil {
+				return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: voicebank resolver is not configured", ErrUnavailable)
+			}
+			var ok bool
+			voicebankPath, ok = s.voicebanks.Resolve(request.VoicebankID)
+			if !ok {
+				return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: voicebank not found", ErrUnavailable)
+			}
 		}
 		cfg.VoicebankPath = voicebankPath
 	}

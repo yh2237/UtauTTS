@@ -10,12 +10,10 @@ import (
 
 	"utautts/internal/appinfo"
 	"utautts/internal/openutau"
-	"utautts/internal/plugin"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
 	"utautts/internal/sidecar"
 	"utautts/internal/synth"
-	"utautts/internal/tts"
 	"utautts/internal/voicebank"
 )
 
@@ -126,18 +124,15 @@ func main() {
 		fmt.Printf("%s %s\n", appinfo.Name(), appinfo.Version())
 		return
 	}
-	catalog, catalogErr := plugin.DiscoverWithDefaults(rendererDirectories, modelDirectories, render.IsKnownRenderer)
-	if catalogErr != nil {
-		log.Printf("plugin discovery warning: %v", catalogErr)
+	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
+		Renderer: renderer, WorldlineBridgePath: worldlineBridgePath,
+		OpenJTalkPath: openJTalkPath, OpenJTalkDictionary: openJTalkDictionaryPath,
+		RendererDirectories: rendererDirectories, ModelDirectories: modelDirectories,
+	}, nil)
+	if err != nil {
+		log.Fatal(err)
 	}
-	resolver := synth.NewService(catalog, "", worldlineBridgePath, openJTalkPath, openJTalkDictionaryPath, nil)
-	if prosodyPath != "" {
-		resolvedModelPath, resolveErr := resolver.ResolveModel(prosodyPath)
-		if resolveErr != nil {
-			log.Fatal(resolveErr)
-		}
-		prosodyPath = resolvedModelPath
-	}
+	resolver := runtime.Service
 
 	if voicebankPath == "" || (reading == "" && text == "") || outPath == "" {
 		flag.Usage()
@@ -164,13 +159,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	synthConfig := tts.Config{
+	synthesisRequest := synth.Request{
 		VoicebankPath:           voicebankPath,
 		Text:                    text,
 		Reading:                 reading,
 		Language:                language,
 		Phonemizer:              phonemizer,
-		Dictionary:              synth.DictionaryMap(dictionary),
+		Dictionary:              dictionary,
 		Tone:                    tone,
 		Color:                   color,
 		MoraDurationMS:          moraMS,
@@ -180,12 +175,10 @@ func main() {
 		LeadingPreutteranceMS:   leadingPreutteranceMS,
 		ReleaseMS:               releaseMS,
 		ReleaseSet:              true,
-		ProsodyModelPath:        prosodyPath,
+		ModelID:                 prosodyPath,
 		ManualPitchPath:         manualPitchPath,
 		ProsodyFeatures:         prosodyFeatures,
 		ProsodyPitchOnly:        prosodyPitchOnly,
-		OpenJTalkPath:           openJTalkPath,
-		OpenJTalkDictionaryPath: openJTalkDictionaryPath,
 		PitchFactors:            pitchFactors,
 		ApplyPitch:              applyPitch,
 		IntonationStrength:      intonationStrength,
@@ -199,32 +192,13 @@ func main() {
 		TargetPriorPath:         targetPriorPath,
 		TargetPriorStrength:     targetPriorStrength,
 		TargetPriorMinContext:   targetPriorMinContext,
+		ResamplerExpressions:    resamplerExpressions,
 	}
-	providerOptions := render.ProviderOptions{Classic: render.ClassicOptions{
-		ResamplerExpressions: resamplerExpressions,
-	}}
-	resolvedEngine, err := resolver.ResolveRenderer(renderer)
+	resolvedSynthesis, err := resolver.ResolveSynthesis(synthesisRequest)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := resolvedEngine.RequireAvailable(); err != nil {
-		log.Fatal(err)
-	}
-	tts.ApplyResolvedEngine(&synthConfig, resolvedEngine)
-	worldlineOptions, worldlineErr := synth.DefaultWorldlineProviderOptions(resolvedEngine)
-	if worldlineErr != nil {
-		log.Fatal(worldlineErr)
-	}
-	providerOptions.Worldline = worldlineOptions
-	if resolvedEngine.Provider.ID == "utau-external-resampler" {
-		classicTools, toolsErr := resolver.ResolveClassicTools(resampler, wavtool)
-		if toolsErr != nil {
-			log.Fatal(toolsErr)
-		}
-		providerOptions.Classic.ResamplerPath = classicTools.Resampler.Path
-		providerOptions.Classic.WavtoolPath = classicTools.Wavtool.Path
-	}
-	output, err := synth.SynthesizeConfigWithOptions(synthConfig, string(resolvedEngine.PublicID()), providerOptions)
+	output, err := synth.SynthesizeResolved(resolvedSynthesis)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -248,9 +222,9 @@ func main() {
 		}
 	}
 	if ustxOut != "" {
-		project := ustxProjectFromSynthesis(synthConfig, output.Plan, filepath.Base(filepath.Clean(voicebankPath)))
+		project := ustxProjectFromSynthesis(resolvedSynthesis.Config, output.Plan, filepath.Base(filepath.Clean(voicebankPath)))
 		data, err := openutau.ExportUSTX(project, openutau.ExportOptions{
-			Curves: ustxFrameCurves(synthConfig, 1),
+			Curves: ustxFrameCurves(resolvedSynthesis.Config, 1),
 		})
 		if err != nil {
 			log.Fatal(err)

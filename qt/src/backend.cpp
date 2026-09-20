@@ -1260,6 +1260,28 @@ QVariantMap Backend::call(const QByteArray &method, const QVariantMap &request) 
     return callNative(m_handle, method, request);
 }
 
+void Backend::runNativeAsync(std::function<QVariantMap()> work,
+                             std::function<void(const QVariantMap &)> completed) {
+    auto *watcher = new QFutureWatcher<QVariantMap>(this);
+    connect(watcher, &QFutureWatcher<QVariantMap>::finished, this,
+            [this, watcher, completed = std::move(completed)]() mutable {
+                completed(watcher->result());
+                watcher->deleteLater();
+                if (--m_activeCallCount == 0)
+                    m_activeCalls.clearFutures();
+            });
+    const auto future = QtConcurrent::run([work = std::move(work)]() mutable {
+        try {
+            return work();
+        } catch (const std::exception &exception) {
+            return QVariantMap{{"_error", QString::fromUtf8(exception.what())}};
+        }
+    });
+    ++m_activeCallCount;
+    m_activeCalls.addFuture(future);
+    watcher->setFuture(future);
+}
+
 void Backend::applyMetadata(const QVariantMap &voices, const QVariantMap &models,
                             const QVariantMap &renderers) {
     m_voicebanks = voices.value("voicebanks").toList();
@@ -1299,10 +1321,10 @@ void Backend::reloadVoicebanks() {
     setError({});
     emit metadataReloadStarted();
     emit metadataReloadStageChanged(QStringLiteral("voicebanks"));
-    auto *watcher = new QFutureWatcher<QVariantMap>(this);
-    connect(watcher, &QFutureWatcher<QVariantMap>::finished, this, [this, watcher]() {
+    runNativeAsync([this]() {
+        return call("reloadVoicebanks");
+    }, [this](const QVariantMap &result) {
         setBusy(false);
-        const QVariantMap result = watcher->result();
         if (result.contains("_error")) {
             setError(result.value("_error").toString());
         } else {
@@ -1310,21 +1332,7 @@ void Backend::reloadVoicebanks() {
             m_voicebanks = result.value("voicebanks").toList();
             emit metadataChanged();
         }
-        watcher->deleteLater();
-        if (--m_activeCallCount == 0) {
-            m_activeCalls.clearFutures();
-        }
     });
-    const auto future = QtConcurrent::run([this]() {
-        try {
-            return call("reloadVoicebanks");
-        } catch (const std::exception &exception) {
-            return QVariantMap{{"_error", QString::fromUtf8(exception.what())}};
-        }
-    });
-    ++m_activeCallCount;
-    m_activeCalls.addFuture(future);
-    watcher->setFuture(future);
 }
 
 bool Backend::openVoiceDirectory() {
@@ -1374,10 +1382,12 @@ void Backend::analyzeSpeech(const QString &text, const QString &requestId,
     }
     const quint64 generation = ++m_nextAnalysisGeneration;
     m_analysisGenerations.insert(requestId, generation);
-    auto *watcher = new QFutureWatcher<QVariantMap>(this);
-    connect(watcher, &QFutureWatcher<QVariantMap>::finished, this,
-            [this, watcher, generation, requestId, text]() {
-                const QVariantMap value = watcher->result();
+    const QVariantList dictionary = m_dictionaryEntries;
+    runNativeAsync([this, text, dictionary, language, phonemizer, voicebankId]() {
+        return call("analyze", {{"text", text}, {"language", language},
+                                {"phonemizer", phonemizer}, {"voicebank_id", voicebankId},
+                                {"dictionary", dictionary}});
+    }, [this, generation, requestId, text](const QVariantMap &value) {
                 if (m_analysisGenerations.value(requestId) == generation) {
                     m_analysisGenerations.remove(requestId);
                     if (value.contains("_error")) {
@@ -1391,24 +1401,7 @@ void Backend::analyzeSpeech(const QString &text, const QString &requestId,
                         setError({});
                     }
                 }
-                watcher->deleteLater();
-                if (--m_activeCallCount == 0) {
-                    m_activeCalls.clearFutures();
-                }
             });
-    const QVariantList dictionary = m_dictionaryEntries;
-    const auto future = QtConcurrent::run([this, text, dictionary, language, phonemizer, voicebankId]() {
-        try {
-            return call("analyze", {{"text", text}, {"language", language},
-                                    {"phonemizer", phonemizer}, {"voicebank_id", voicebankId},
-                                    {"dictionary", dictionary}});
-        } catch (const std::exception &exception) {
-            return QVariantMap{{"_error", QString::fromUtf8(exception.what())}};
-        }
-    });
-    ++m_activeCallCount;
-    m_activeCalls.addFuture(future);
-    watcher->setFuture(future);
 }
 
 void Backend::predictProsody(const QVariantMap &request) {
@@ -1420,10 +1413,11 @@ void Backend::predictProsody(const QVariantMap &request) {
         requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
     }
     const quint64 generation = ++m_nextProsodyGeneration;
-    auto *watcher = new QFutureWatcher<QVariantMap>(this);
-    connect(watcher, &QFutureWatcher<QVariantMap>::finished, this,
-            [this, watcher, generation, requestId]() {
-                const QVariantMap value = watcher->result();
+    QVariantMap callRequest = request;
+    callRequest.insert("request_id", requestId);
+    runNativeAsync([this, callRequest]() {
+        return call("predictProsody", callRequest);
+    }, [this, generation, requestId](const QVariantMap &value) {
                 if (generation == m_nextProsodyGeneration) {
                     if (value.contains("_error")) {
                         setError(value.value("_error").toString());
@@ -1435,23 +1429,7 @@ void Backend::predictProsody(const QVariantMap &request) {
                         setError({});
                     }
                 }
-                watcher->deleteLater();
-                if (--m_activeCallCount == 0) {
-                    m_activeCalls.clearFutures();
-                }
             });
-    QVariantMap callRequest = request;
-    callRequest.insert("request_id", requestId);
-    const auto future = QtConcurrent::run([this, callRequest]() {
-        try {
-            return call("predictProsody", callRequest);
-        } catch (const std::exception &exception) {
-            return QVariantMap{{"_error", QString::fromUtf8(exception.what())}};
-        }
-    });
-    ++m_activeCallCount;
-    m_activeCalls.addFuture(future);
-    watcher->setFuture(future);
 }
 
 void Backend::synthesize(const QVariantMap &input) {
@@ -1476,11 +1454,10 @@ void Backend::synthesize(const QVariantMap &input) {
     appendLog(tr("音声合成を開始しました: %1").arg(request.value("text").toString()));
     setBusy(true);
     setError({});
-    auto *watcher = new QFutureWatcher<QVariantMap>(this);
-    connect(watcher, &QFutureWatcher<QVariantMap>::finished, this,
-            [this, watcher, outputPath, previewText, cacheKey]() {
+    runNativeAsync([this, request]() {
+        return call("synthesize", request);
+    }, [this, outputPath, previewText, cacheKey](const QVariantMap &result) {
                 setBusy(false);
-                const QVariantMap result = watcher->result();
                 if (result.contains("_error")) {
                     const QString error = result.value("_error").toString();
                     appendLog(tr("音声合成に失敗しました: %1").arg(error));
@@ -1498,21 +1475,7 @@ void Backend::synthesize(const QVariantMap &input) {
                     appendLog(tr("音声合成が完了しました。"));
                     emit previewReady();
                 }
-                watcher->deleteLater();
-                if (--m_activeCallCount == 0) {
-                    m_activeCalls.clearFutures();
-                }
             });
-    const auto future = QtConcurrent::run([this, request]() {
-        try {
-            return call("synthesize", request);
-        } catch (const std::exception &exception) {
-            return QVariantMap{{"_error", QString::fromUtf8(exception.what())}};
-        }
-    });
-    ++m_activeCallCount;
-    m_activeCalls.addFuture(future);
-    watcher->setFuture(future);
 }
 
 QByteArray Backend::previewCacheKey(const QVariantMap &request) const {
@@ -1735,10 +1698,11 @@ void Backend::exportUstx(const QUrl &destination, const QVariantMap &project) {
     setError({});
     const QString outputPath = QDir::toNativeSeparators(destination.toLocalFile());
     const QVariantMap request{{"output_path", outputPath}, {"project", project}};
-    auto *watcher = new QFutureWatcher<QVariantMap>(this);
-    connect(watcher, &QFutureWatcher<QVariantMap>::finished, this, [this, watcher, outputPath]() {
+    runNativeAsync([this, request]() {
+        call("exportUstx", request);
+        return QVariantMap();
+    }, [this, outputPath](const QVariantMap &result) {
         setBusy(false);
-        const QVariantMap result = watcher->result();
         if (result.contains("_error")) {
             const QString error = result.value("_error").toString();
             setError(error);
@@ -1746,22 +1710,7 @@ void Backend::exportUstx(const QUrl &destination, const QVariantMap &project) {
         } else {
             emit ustxExportFinished(true, outputPath);
         }
-        watcher->deleteLater();
-        if (--m_activeCallCount == 0) {
-            m_activeCalls.clearFutures();
-        }
     });
-    const auto future = QtConcurrent::run([this, request]() {
-        try {
-            call("exportUstx", request);
-            return QVariantMap();
-        } catch (const std::exception &exception) {
-            return QVariantMap{{"_error", QString::fromUtf8(exception.what())}};
-        }
-    });
-    ++m_activeCallCount;
-    m_activeCalls.addFuture(future);
-    watcher->setFuture(future);
 }
 
 QVariantMap Backend::loadProject(const QUrl &source) {

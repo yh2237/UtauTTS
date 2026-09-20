@@ -2,7 +2,7 @@
 """Train a frame-level (10 ms) intonation TCN and export portable JSON.
 
 This script learns one value per token. It uses a small residual TCN and sparse
-linguistic feature representation, expands each JSUT token to a 10 ms frame grid and
+linguistic feature representation, expands each timed token to a 10 ms frame grid and
 uses an F0 track measured from the corresponding ``audio_path``. The target
 is a smoothed utterance-relative log-F0 command in cents. Pitch is interpolated
 across unvoiced consonants, while pause frames are excluded from the loss so
@@ -12,9 +12,9 @@ Training uses Harvest through the local ``utautts-world-engine`` library.
 Build that library before training; a missing library is an error rather than
 an implicit switch to a different F0 extraction algorithm.
 
-This trainer is for JSUT BASIC5000 JSONL.  The exported metadata contains the
-UtauTTS distribution policy for JSUT-derived models, so do not pass another
-corpus without changing the metadata and its license notice.
+JSUT remains the backward-compatible default dataset kind. Other corpora must
+use ``--dataset-kind generic`` and provide their corpus/license provenance; the
+values are copied into the portable model instead of silently claiming JSUT.
 
 The exported model is inference-oriented JSON; it does not contain a Python
 pickle or a torch checkpoint.  Its ``frame_pitch`` object mirrors the
@@ -453,6 +453,62 @@ def _autocorrelation_pitch(windowed: np.ndarray, sample_rate: int, fmin: float, 
     return float(sample_rate / max(1.0, lag))
 
 
+def _autocorrelation_pitch_batch(
+    windows: np.ndarray,
+    sample_rate: int,
+    fmin: float,
+    fmax: float,
+) -> np.ndarray:
+    """Extract autocorrelation F0 for all frames in one vectorized pass."""
+
+    windows = np.asarray(windows, dtype=np.float64)
+    result = np.zeros(len(windows), dtype=np.float64)
+    if not len(windows) or windows.ndim != 2 or windows.shape[1] < 4:
+        return result
+    length = windows.shape[1]
+    energy = np.sum(windows * windows, axis=1)
+    active = energy > 1e-10
+    minimum_lag = max(1, int(sample_rate / fmax))
+    maximum_lag = min(length - 2, int(sample_rate / fmin))
+    if maximum_lag <= minimum_lag:
+        return result
+
+    fft_size = 1 << (2 * length - 1).bit_length()
+    spectrum = np.fft.rfft(windows, fft_size, axis=1)
+    correlation = np.fft.irfft(spectrum * np.conj(spectrum), fft_size, axis=1)[:, :length]
+    squared = windows * windows
+    prefix = np.concatenate(
+        (np.zeros((len(windows), 1), dtype=np.float64), np.cumsum(squared, axis=1)),
+        axis=1,
+    )
+    lags = np.arange(minimum_lag, maximum_lag + 1, dtype=np.int64)
+    left_energy = prefix[:, length, None] - prefix[:, lags]
+    right_energy = prefix[:, length - lags]
+    denominator = np.sqrt(np.maximum(1e-20, left_energy * right_energy))
+    correlations = correlation[:, lags] / denominator
+    best_indices = np.argmax(correlations, axis=1)
+    best = correlations[np.arange(len(windows)), best_indices]
+    valid = active & (best >= 0.30)
+    if not valid.any():
+        return result
+
+    estimated_lags = lags[best_indices].astype(np.float64)
+    interior = valid & (best_indices > 0) & (best_indices < len(lags) - 1)
+    rows = np.flatnonzero(interior)
+    if len(rows):
+        indexes = best_indices[rows]
+        left = correlations[rows, indexes - 1]
+        middle = correlations[rows, indexes]
+        right = correlations[rows, indexes + 1]
+        curvature = left - 2.0 * middle + right
+        delta = np.zeros(len(rows), dtype=np.float64)
+        usable = np.abs(curvature) > 1e-9
+        delta[usable] = 0.5 * (left[usable] - right[usable]) / curvature[usable]
+        estimated_lags[rows] += delta
+    result[valid] = sample_rate / np.maximum(1.0, estimated_lags[valid])
+    return result
+
+
 def extract_f0_internal(
     samples: np.ndarray,
     sample_rate: int,
@@ -470,17 +526,12 @@ def extract_f0_internal(
     padded = np.pad(np.asarray(samples, dtype=np.float64), (half, half), mode="constant")
     hamming = np.hamming(window)
     frame_count = max(1, int(math.ceil(len(samples) / hop)))
-    result = np.zeros(frame_count, dtype=np.float64)
-    frame_energy = np.zeros(frame_count, dtype=np.float64)
-    for index in range(frame_count):
-        center = index * hop + half
-        segment = padded[center - half : center + half]
-        if len(segment) != window:
-            segment = np.pad(segment, (0, window - len(segment)))
-        segment = segment - float(np.mean(segment))
-        windowed = segment * hamming
-        frame_energy[index] = float(np.sqrt(np.mean(windowed * windowed)))
-        result[index] = _autocorrelation_pitch(windowed, sample_rate, fmin, fmax)
+    starts = np.arange(frame_count, dtype=np.int64) * hop
+    segments = np.lib.stride_tricks.sliding_window_view(padded, window_shape=window)[starts]
+    segments = segments - np.mean(segments, axis=1, keepdims=True)
+    windowed = segments * hamming[None, :]
+    frame_energy = np.sqrt(np.mean(windowed * windowed, axis=1))
+    result = _autocorrelation_pitch_batch(windowed, sample_rate, fmin, fmax)
     nonzero_energy = frame_energy[frame_energy > 1e-8]
     if len(nonzero_energy):
         threshold = max(1e-5, float(np.percentile(nonzero_energy, 15)) * 0.35)
@@ -953,12 +1004,12 @@ def export_model(
         "id": str(args.model_id or Path(args.out).stem),
         "display_name": str(args.display_name or Path(args.out).stem),
         "description": str(args.description or "Frame-level learned intonation model"),
-        "license": JSUT_MODEL_POLICY,
-        "license_notice": "licenses/PROSODY-MODELS.txt",
+        "license": str(args.model_license),
+        "license_notice": str(args.license_notice),
         "provenance": {
-            "training_corpus": "JSUT Japanese speech corpus",
-            "training_corpus_license": JSUT_CORPUS_TERMS,
-            "source_notice": "licenses/JSUT-DATA-AND-LABELS.txt",
+            "training_corpus": str(args.training_corpus),
+            "training_corpus_license": str(args.training_corpus_license),
+            "source_notice": str(args.source_notice),
         },
         "recommended_renderers": list(args.recommended_renderer or ["utautts-world-phrase"]),
         "version": 8,
@@ -1101,7 +1152,14 @@ def _write_json(path: str | Path, value: dict) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dataset", required=True, help="version-1 JSUT BASIC5000 JSONL with token boundaries and audio_path")
+    parser.add_argument("--dataset", required=True, help="version-1 JSONL with timed tokens and audio_path")
+    parser.add_argument("--dataset-kind", choices=["jsut", "generic"], default="jsut",
+                        help="validate JSUT IDs or accept a provenance-declared generic corpus")
+    parser.add_argument("--training-corpus", default="JSUT Japanese speech corpus")
+    parser.add_argument("--training-corpus-license", default=JSUT_CORPUS_TERMS)
+    parser.add_argument("--model-license", default=JSUT_MODEL_POLICY)
+    parser.add_argument("--license-notice", default="licenses/PROSODY-MODELS.txt")
+    parser.add_argument("--source-notice", default="licenses/JSUT-DATA-AND-LABELS.txt")
     parser.add_argument("--out", default="out/prosody/intonation-frame-tcn-v7.json")
     parser.add_argument("--model-id", default="", help="stable plugin ID stored in the model")
     parser.add_argument("--display-name", default="", help="user-facing model name")
@@ -1127,6 +1185,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--render-max-cents", type=float, default=90.0)
     parser.add_argument("--world-engine", dest="worldline", help="path to utautts-world-engine library")
     parser.add_argument("--f0-method", type=int, default=1, choices=[1], help="Harvest (1)")
+    parser.add_argument(
+        "--f0-source", choices=("world", "internal"), default="world",
+        help="F0 extractor: UtauTTS WORLD Harvest or the fast internal autocorrelation fallback",
+    )
     parser.add_argument("--audio-root", help="optional root used to resolve record audio_path")
     accent = parser.add_mutually_exclusive_group()
     accent.add_argument("--openjtalk-accent", dest="openjtalk_accent", action="store_true")
@@ -1145,6 +1207,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("invalid renderer smoothing/p99/maximum safety settings")
     if bool(args.predict_corpus) != bool(args.predict_out):
         parser.error("--predict-corpus and --predict-out must be used together")
+    if args.dataset_kind == "generic":
+        provenance = (
+            args.training_corpus,
+            args.training_corpus_license,
+            args.model_license,
+            args.license_notice,
+            args.source_notice,
+        )
+        if not all(str(value).strip() for value in provenance):
+            parser.error("generic datasets require nonempty corpus and license provenance")
+        jsut_defaults = {
+            "JSUT Japanese speech corpus",
+            JSUT_CORPUS_TERMS,
+            JSUT_MODEL_POLICY,
+            "licenses/PROSODY-MODELS.txt",
+            "licenses/JSUT-DATA-AND-LABELS.txt",
+        }
+        if any(str(value) in jsut_defaults for value in provenance):
+            parser.error("generic datasets must override every JSUT provenance option")
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -1157,7 +1238,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     args.resolved_device = str(device)
     print(f"training device: {device_description(device)}")
 
-    train_raw, validation_raw = load_records(args.dataset, args.limit, require_jsut=True)
+    train_raw, validation_raw = load_records(
+        args.dataset, args.limit, require_jsut=args.dataset_kind == "jsut"
+    )
+    if args.jsut_context_labels and args.dataset_kind != "jsut":
+        parser.error("--jsut-context-labels requires --dataset-kind jsut")
     if args.all_data_training:
         train_raw = sorted(train_raw + validation_raw, key=lambda r: str(r["id"]))
         args.holdout_test = False
@@ -1202,11 +1287,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             for record in train_raw + validation_raw
             if "?" in str(record.get("text", "")) or "？" in str(record.get("text", ""))
         ),
+        "timing_sources": sorted(
+            {
+                str(record.get("alignment_source", "unspecified"))
+                for record in train_raw + validation_raw
+            }
+        ),
     }
-    worldline = load_worldline(args.worldline, args.f0_method)
-    args.f0_source = "utautts_world_harvest"
+    worldline = None
+    f0_provider = None
+    if args.f0_source == "world":
+        worldline = load_worldline(args.worldline, args.f0_method)
+        args.f0_source = "utautts_world_harvest"
+        print(f"using UtauTTS WORLD Harvest: {worldline.path}")
+    else:
+        f0_provider = extract_f0_internal
+        args.f0_source = "internal_autocorrelation"
+        print("using internal autocorrelation F0 extractor")
     args.target_scale = max(1.0, abs(args.low_cents), abs(args.high_cents))
-    print(f"using UtauTTS WORLD Harvest: {worldline.path}")
 
     train, feature_index = prepare(
         train_raw,
@@ -1217,6 +1315,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         high_cents=args.high_cents,
         target_scale=args.target_scale,
         worldline=worldline,
+        f0_provider=f0_provider,
     )
     validation, _ = prepare(
         validation_raw,
@@ -1228,6 +1327,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         high_cents=args.high_cents,
         target_scale=args.target_scale,
         worldline=worldline,
+        f0_provider=f0_provider,
     )
     args.validation_records = len(validation)
     validation_frames = sum(len(item[1]) for item in validation)
@@ -1305,7 +1405,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         test, _ = prepare(test_raw, feature_index, dataset_path=args.dataset,
                           audio_root=args.audio_root, frame_ms=args.frame_ms,
                           low_cents=args.low_cents, high_cents=args.high_cents,
-                          target_scale=args.target_scale, worldline=worldline)
+                          target_scale=args.target_scale, worldline=worldline,
+                          f0_provider=f0_provider)
         exported["metrics"]["test_mae_cents"] = evaluate(
             model, test, len(feature_index), args.batch_size, args.low_cents,
             args.high_cents, args.target_scale, device)

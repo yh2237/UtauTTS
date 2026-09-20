@@ -12,6 +12,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <cstdint>
+#include <functional>
+#include <utility>
 
 class QFile;
 class QNetworkAccessManager;
@@ -223,6 +225,8 @@ private:
     };
 
     QVariantMap call(const QByteArray &method, const QVariantMap &request = {});
+    void runNativeAsync(std::function<QVariantMap()> work,
+                        std::function<void(const QVariantMap &)> completed);
     void applyMetadata(const QVariantMap &voices, const QVariantMap &models,
                       const QVariantMap &renderers);
     void refreshMetadata();

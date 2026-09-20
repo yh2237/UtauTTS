@@ -3,22 +3,18 @@ package native
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
 	"sort"
-	"sync"
 
 	"utautts/internal/appinfo"
 	"utautts/internal/aviutl"
 	"utautts/internal/diffsinger"
 	"utautts/internal/frontend"
 	"utautts/internal/openutau"
-	"utautts/internal/plan"
 	"utautts/internal/plugin"
-	"utautts/internal/prosody"
 	"utautts/internal/render"
 	"utautts/internal/synth"
 	"utautts/internal/tts"
@@ -39,24 +35,25 @@ type Engine struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	config     Config
-	mu         sync.RWMutex
-	voicebanks map[string]voicebank.Summary
+	voicebanks *voicebank.Library
 	catalog    *plugin.Catalog
 	synth      *synth.Service
 }
 
 func New(config Config) (*Engine, error) {
 	config.VoiceDir = voicebank.ResolveDirectory(config.VoiceDir)
-	catalog, err := plugin.DiscoverWithDefaults(config.RendererDirectories, config.ModelDirectories, render.IsKnownRenderer)
-	if err != nil {
-		return nil, fmt.Errorf("discover renderers: %w", err)
-	}
-	if renderer, ok := catalog.Renderer(config.Renderer); ok {
-		config.Renderer = renderer.ID
-	}
-	engine := &Engine{config: config, voicebanks: make(map[string]voicebank.Summary), catalog: catalog}
+	engine := &Engine{config: config, voicebanks: voicebank.NewLibrary(config.VoiceDir)}
 	engine.ctx, engine.cancel = context.WithCancel(context.Background())
-	engine.synth = synth.NewService(catalog, config.Renderer, config.WorldlineBridgePath, config.OpenJTalkPath, config.OpenJTalkDictionary, nativeVoicebankResolver{engine: engine})
+	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
+		Renderer: config.Renderer, WorldlineBridgePath: config.WorldlineBridgePath,
+		OpenJTalkPath: config.OpenJTalkPath, OpenJTalkDictionary: config.OpenJTalkDictionary,
+		RendererDirectories: config.RendererDirectories, ModelDirectories: config.ModelDirectories,
+	}, nativeVoicebankResolver{library: engine.voicebanks})
+	if err != nil {
+		engine.cancel()
+		return nil, err
+	}
+	engine.config.Renderer, engine.catalog, engine.synth = runtime.Renderer, runtime.Catalog, runtime.Service
 	if err := engine.reload(); err != nil {
 		engine.cancel()
 		return nil, fmt.Errorf("load voicebanks: %w", err)
@@ -121,41 +118,28 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 }
 
 type nativeVoicebankResolver struct {
-	engine *Engine
+	library *voicebank.Library
 }
 
 func (r nativeVoicebankResolver) Resolve(id string) (string, bool) {
-	r.engine.mu.RLock()
-	defer r.engine.mu.RUnlock()
-	if id != "" {
-		summary, ok := r.engine.voicebanks[id]
-		return summary.Path, ok
-	}
-	first := voicebank.DefaultSortedKey(r.engine.voicebanks)
-	summary, ok := r.engine.voicebanks[first]
+	summary, ok := r.library.Resolve(id)
 	return summary.Path, ok
 }
 
 func (e *Engine) reload() error {
-	summaries, err := voicebank.Discover(e.config.VoiceDir)
-	if err != nil && !errors.Is(err, voicebank.ErrNoOto) && !os.IsNotExist(err) {
+	if err := e.voicebanks.Reload(); err != nil {
 		return err
 	}
-	next := make(map[string]voicebank.Summary, len(summaries))
-	for _, summary := range summaries {
-		next[voicebank.StableID(e.config.VoiceDir, summary.Path)] = summary
-	}
-	e.mu.Lock()
-	e.voicebanks = next
-	e.mu.Unlock()
+	// A new source path can otherwise retain decoded WAV and Bank caches.
 	tts.ClearCaches()
 	return nil
 }
 
 func (e *Engine) voicebankList() []map[string]any {
-	e.mu.RLock()
-	list := make([]map[string]any, 0, len(e.voicebanks))
-	for id, item := range e.voicebanks {
+	items := e.voicebanks.List()
+	list := make([]map[string]any, 0, len(items))
+	for _, libraryItem := range items {
+		id, item := libraryItem.ID, libraryItem.Summary
 		presentation, _ := voicebank.LoadPresentation(item)
 		entry := map[string]any{
 			"id":          id,
@@ -184,7 +168,6 @@ func (e *Engine) voicebankList() []map[string]any {
 		}
 		list = append(list, entry)
 	}
-	e.mu.RUnlock()
 	sort.Slice(list, func(i, j int) bool { return list[i]["name"].(string) < list[j]["name"].(string) })
 	return list
 }
@@ -204,28 +187,9 @@ func (e *Engine) analyze(data []byte) (any, error) {
 	if err := json.Unmarshal(data, &request); err != nil || request.Text == "" {
 		return nil, fmt.Errorf("text is required")
 	}
-	dictionary := synth.DictionaryMap(request.Dictionary)
-	if request.Language == frontend.LanguageEnglish && request.VoicebankID != "" {
-		e.mu.RLock()
-		summary, found := e.voicebanks[request.VoicebankID]
-		e.mu.RUnlock()
-		if found {
-			bankDictionary, _, loadErr := voicebank.LoadARPAsingDictionary(summary.Path)
-			if loadErr != nil {
-				return nil, loadErr
-			}
-			for key, value := range bankDictionary {
-				if dictionary[key] == "" {
-					dictionary[key] = value
-				}
-			}
-		}
-	}
-	preview, err := tts.PredictProsody(tts.Config{
-		Context: e.ctx,
-		Text:    request.Text, Language: request.Language, Phonemizer: request.Phonemizer,
-		Dictionary: dictionary, OpenJTalkPath: e.config.OpenJTalkPath,
-		OpenJTalkDictionaryPath: e.config.OpenJTalkDictionary,
+	preview, err := e.synth.AnalyzeContext(e.ctx, synth.Request{
+		Text: request.Text, Language: request.Language, Phonemizer: request.Phonemizer,
+		VoicebankID: request.VoicebankID, Dictionary: request.Dictionary,
 	})
 	if err != nil {
 		return nil, err
@@ -238,41 +202,12 @@ func (e *Engine) analyze(data []byte) (any, error) {
 }
 
 type prosodyPreviewRequest struct {
-	SpeechTiming bool   `json:"speech_timing"`
-	RequestID    string `json:"request_id"`
-	Text         string `json:"text"`
-	Kana         string `json:"kana"`
-	Reading      string `json:"reading"`
-	Language     string `json:"language"`
-	Phonemizer   string `json:"phonemizer"`
-	ModelID      string `json:"model_id"`
-	Renderer     string `json:"renderer"`
-
-	MoraDurationMS     float64                 `json:"mora_duration_ms"`
-	PauseDurationMS    float64                 `json:"pause_duration_ms"`
-	MoraDurationsMS    []float64               `json:"mora_durations_ms"`
-	IntonationStrength float64                 `json:"intonation_strength"`
-	ApplyPitch         bool                    `json:"apply_pitch"`
-	Dictionary         []synth.DictionaryEntry `json:"dictionary"`
+	RequestID string `json:"request_id"`
+	synth.Request
 }
 
 func (request prosodyPreviewRequest) synthRequest() synth.Request {
-	return synth.Request{
-		SpeechTiming:       request.SpeechTiming,
-		Text:               request.Text,
-		Kana:               request.Kana,
-		Reading:            request.Reading,
-		Language:           request.Language,
-		Phonemizer:         request.Phonemizer,
-		ModelID:            request.ModelID,
-		Renderer:           request.Renderer,
-		MoraDurationMS:     request.MoraDurationMS,
-		PauseDurationMS:    request.PauseDurationMS,
-		MoraDurationsMS:    request.MoraDurationsMS,
-		IntonationStrength: request.IntonationStrength,
-		ApplyPitch:         request.ApplyPitch,
-		Dictionary:         request.Dictionary,
-	}
+	return request.Request.Normalized()
 }
 
 func (e *Engine) predictProsody(data []byte) (any, error) {
@@ -309,72 +244,8 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 }
 
 type synthesizeRequest struct {
-	SpeechTiming          bool                         `json:"speech_timing"`
-	Text                  string                       `json:"text"`
-	Kana                  string                       `json:"kana"`
-	Reading               string                       `json:"reading"`
-	Language              string                       `json:"language"`
-	Phonemizer            string                       `json:"phonemizer"`
-	VoicebankID           string                       `json:"voicebank_id"`
-	Tone                  string                       `json:"tone"`
-	Color                 string                       `json:"color"`
-	ModelID               string                       `json:"model_id"`
-	Renderer              string                       `json:"renderer"`
-	Resampler             string                       `json:"resampler"`
-	Wavtool               string                       `json:"wavtool"`
-	AliasPolicy           voicebank.AliasPolicy        `json:"alias_policy"`
-	OutputPath            string                       `json:"output_path"`
-	MoraDurationMS        float64                      `json:"mora_duration_ms"`
-	PauseDurationMS       float64                      `json:"pause_duration_ms"`
-	LeadingPreutteranceMS float64                      `json:"leading_preutterance_ms"`
-	MoraDurationsMS       []float64                    `json:"mora_durations_ms"`
-	UnitOverrides         []plan.UnitOverride          `json:"unit_overrides"`
-	IntonationStrength    float64                      `json:"intonation_strength"`
-	ApplyPitch            bool                         `json:"apply_pitch"`
-	ManualPitch           *prosody.ManualPitchFile     `json:"manual_pitch"`
-	Dictionary            []synth.DictionaryEntry      `json:"dictionary"`
-	ResamplerExpressions  []render.ResamplerExpression `json:"resampler_expressions"`
-}
-
-func (r *synthesizeRequest) UnmarshalJSON(data []byte) error {
-	type plain synthesizeRequest
-	var value plain
-	if err := json.Unmarshal(data, &value); err != nil {
-		return err
-	}
-	if value.Reading == "" {
-		value.Reading = value.Kana
-	}
-	*r = synthesizeRequest(value)
-	return nil
-}
-
-func (request synthesizeRequest) synthRequest() synth.Request {
-	return synth.Request{
-		SpeechTiming:          request.SpeechTiming,
-		Text:                  request.Text,
-		Reading:               request.Reading,
-		Language:              request.Language,
-		Phonemizer:            request.Phonemizer,
-		VoicebankID:           request.VoicebankID,
-		Tone:                  request.Tone,
-		Color:                 request.Color,
-		ModelID:               request.ModelID,
-		Renderer:              request.Renderer,
-		Resampler:             request.Resampler,
-		Wavtool:               request.Wavtool,
-		AliasPolicy:           request.AliasPolicy,
-		Dictionary:            request.Dictionary,
-		MoraDurationMS:        request.MoraDurationMS,
-		PauseDurationMS:       request.PauseDurationMS,
-		LeadingPreutteranceMS: request.LeadingPreutteranceMS,
-		MoraDurationsMS:       request.MoraDurationsMS,
-		UnitOverrides:         request.UnitOverrides,
-		IntonationStrength:    request.IntonationStrength,
-		ApplyPitch:            request.ApplyPitch,
-		ManualPitch:           request.ManualPitch,
-		ResamplerExpressions:  request.ResamplerExpressions,
-	}
+	synth.Request
+	OutputPath string `json:"output_path"`
 }
 
 func synthesisUnits(result *synth.Result) []map[string]any {
@@ -475,13 +346,13 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 	if err := json.Unmarshal(data, &request); err != nil {
 		return nil, fmt.Errorf("decode synthesis request: %w", err)
 	}
-	if request.Text == "" && request.Reading == "" {
+	if request.Text == "" && request.ReadingOrKana() == "" {
 		return nil, fmt.Errorf("text or reading is required")
 	}
 	if request.OutputPath == "" {
 		return nil, fmt.Errorf("output_path is required")
 	}
-	result, err := e.synth.SynthesizeContext(e.ctx, request.synthRequest())
+	result, err := e.synth.SynthesizeContext(e.ctx, request.Request.Normalized())
 	if err != nil {
 		return nil, err
 	}

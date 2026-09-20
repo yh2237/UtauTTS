@@ -51,6 +51,30 @@ func TestClassicUtauResolvesSelectedTools(t *testing.T) {
 	}
 }
 
+func TestResolveSynthesisUsesDirectVoicebankPathAndNormalizesKana(t *testing.T) {
+	service := NewService(&plugin.Catalog{
+		Renderers: []plugin.Renderer{testRenderer("waveform", "waveform")},
+	}, "waveform", "", "", "", nil)
+	resolved, err := service.ResolveSynthesis(Request{
+		VoicebankPath: "voicebank", Kana: "あ", Renderer: "waveform",
+		ReleaseMS: 20, ReleaseSet: true, BoundaryBridgeMS: 12,
+		CVVCTiming: "sequential", JoinModelPath: "join.json",
+		TargetPriorPath: "prior.json", TargetPriorStrength: .5,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.Config.VoicebankPath != "voicebank" || resolved.Config.Reading != "あ" {
+		t.Fatalf("resolved config = %#v", resolved.Config)
+	}
+	if !resolved.Config.ReleaseSet || resolved.Config.ReleaseMS != 20 ||
+		resolved.Config.BoundaryBridgeMS != 12 || resolved.Config.CVVCTiming != "sequential" ||
+		resolved.Config.JoinModelPath != "join.json" || resolved.Config.TargetPriorPath != "prior.json" ||
+		resolved.Config.TargetPriorStrength != .5 {
+		t.Fatalf("CLI settings were not preserved: %#v", resolved.Config)
+	}
+}
+
 func TestClassicUtauRejectsUnknownResampler(t *testing.T) {
 	catalog := &plugin.Catalog{
 		Renderers: []plugin.Renderer{testRenderer("classic-utau", "utau-external-resampler")},
