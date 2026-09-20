@@ -72,6 +72,18 @@ ApplicationWindow {
         onTriggered: window.refreshPreview()
     }
 
+    Timer {
+        id: timingProsodyTimer
+        interval: 120
+        repeat: false
+        property string utteranceId: ""
+        onTriggered: {
+            const index = window.utteranceIndex(utteranceId);
+            if (index === window.selectedIndex)
+                window.requestProsodyPreview(index);
+        }
+    }
+
     property alias utterancesModel: utterances
     property alias playerMedia: player
     property alias settingsWindowRef: settingsWindow
@@ -787,6 +799,7 @@ ApplicationWindow {
             window.applyAutomaticProsody(index, automaticPoints, automaticDurations, automaticPositions);
             window.applyAutomaticFramePitch(index, window.copySequence(result.frame_pitch_cents),
                     Number(result.frame_ms) || 10);
+            window.scheduleExtendedEditorWaveform();
         }
 
         function onPreviewReady() {
@@ -2348,6 +2361,7 @@ ApplicationWindow {
         utterances.setProperty(selectedIndex, "moraDurationsJson", durationsJson);
         utterances.setProperty(selectedIndex, "manualMoraDurationEdited", true);
         markUtteranceDirty(selectedIndex);
+        window.scheduleTimingProsodyPreview(selectedIndex);
         window.scheduleAutoPreview();
     }
 
@@ -2356,7 +2370,7 @@ ApplicationWindow {
             return;
         const item = current();
         const durationsJson = JSON.stringify(durations);
-        const positionsJson = JSON.stringify(positions);
+        const positionsJson = JSON.stringify(window.normalizedMoraPositions(positions));
         const pointsJson = JSON.stringify(points);
         const timingChanged = item.moraDurationsJson !== durationsJson
                 || item.moraPositionsJson !== positionsJson;
@@ -2376,24 +2390,29 @@ ApplicationWindow {
                 utterances.setProperty(selectedIndex, "applyPitch", true);
         }
         markUtteranceDirty(selectedIndex);
+        if (timingChanged)
+            window.scheduleTimingProsodyPreview(selectedIndex);
         window.scheduleAutoPreview();
     }
 
     function updateMoraPositions(positions) {
         if (!utterances.count)
             return;
-        const positionsJson = JSON.stringify(positions);
+        const positionsJson = JSON.stringify(window.normalizedMoraPositions(positions));
         if (current().moraPositionsJson === positionsJson && current().manualMoraDurationEdited)
             return;
         window.beginHistoryChange("timing:" + current().utteranceId, true);
         utterances.setProperty(selectedIndex, "moraPositionsJson", positionsJson);
         utterances.setProperty(selectedIndex, "manualMoraDurationEdited", true);
         markUtteranceDirty(selectedIndex);
+        window.scheduleTimingProsodyPreview(selectedIndex);
         window.scheduleAutoPreview();
     }
 
     function updateMoraStart(position, startMs) {
         if (!utterances.count || position < 0 || position >= editorContent.pitchEditor.morae.length)
+            return;
+        if (position === 0)
             return;
         if (!Number.isFinite(Number(startMs)))
             return;
@@ -2493,6 +2512,64 @@ ApplicationWindow {
         window.synthesisViewUtteranceId = String(utteranceId || "");
         window.synthesisViewRevision = Number(revision);
         window.synthesisViewStale = false;
+    }
+
+    function hasCurrentSynthesisView() {
+        if (!utterances.count || !window.synthesisUnits.length || window.synthesisViewStale)
+            return false;
+        const item = window.current();
+        return !!item
+                && window.synthesisViewUtteranceId === item.utteranceId
+                && window.synthesisViewRevision === item.revision;
+    }
+
+    function hasCurrentSynthesisLayout() {
+        if (!utterances.count || window.synthesisViewRevision < 0)
+            return false;
+        const item = window.current();
+        return !!item && window.synthesisViewUtteranceId === item.utteranceId;
+    }
+
+    function extendedEditorUnits(morae, durations, positions,
+                                 defaultMoraDuration, defaultPauseDuration) {
+        if (window.hasCurrentSynthesisView())
+            return window.synthesisUnits;
+
+        const source = window.copySequence(morae);
+        const durationValues = window.copySequence(durations);
+        const positionValues = window.copySequence(positions);
+        const hasPositions = positionValues.length >= source.length
+                && source.every((value, index) =>
+                                    Number.isFinite(Number(positionValues[index])));
+        const units = [];
+        let fallbackStart = 0;
+        for (let index = 0; index < source.length; ++index) {
+            const mora = source[index] || {};
+            const pause = !!mora.pause;
+            const defaultDuration = Math.max(20, Number(pause
+                    ? defaultPauseDuration : defaultMoraDuration) || 120);
+            const start = hasPositions
+                    ? Math.max(0, Number(positionValues[index]))
+                    : fallbackStart;
+            let duration = defaultDuration;
+            if (hasPositions && index + 1 < source.length)
+                duration = Math.max(20, Number(positionValues[index + 1]) - start);
+            else if (!hasPositions && Number.isFinite(Number(durationValues[index]))
+                     && Number(durationValues[index]) > 0)
+                duration = Math.max(20, Number(durationValues[index]));
+            const text = String(mora.mora || "");
+            units.push({
+                position: index,
+                role: pause ? "pause" : "mora",
+                mora: text,
+                alias: text,
+                note_start_ms: start,
+                duration_ms: duration,
+                silent: pause
+            });
+            fallbackStart = Math.max(fallbackStart, start + duration);
+        }
+        return units;
     }
 
     function markUtteranceDirty(index, markProject) {
@@ -2744,8 +2821,29 @@ ApplicationWindow {
 
     function displayedMoraPositions(item) {
         if (hasManualMoraDurations(item))
-            return decodeSequence(item.moraPositionsJson);
-        return automaticSequence(item, "autoMoraPositionsJson");
+            return window.normalizedMoraPositions(decodeSequence(item.moraPositionsJson));
+        return window.normalizedMoraPositions(automaticSequence(item, "autoMoraPositionsJson"));
+    }
+
+    function normalizedMoraPositions(positions) {
+        const normalized = window.copySequence(positions);
+        if (!normalized.length)
+            return normalized;
+        if (normalized[0] === null || normalized[0] === undefined)
+            return normalized;
+        const first = Number(normalized[0]);
+        if (!Number.isFinite(first))
+            return normalized;
+        const origin = Math.max(0, first);
+        for (let index = 0; index < normalized.length; ++index) {
+            if (normalized[index] === null || normalized[index] === undefined)
+                continue;
+            const value = Number(normalized[index]);
+            if (Number.isFinite(value))
+                normalized[index] = Math.max(0, value - origin);
+        }
+        normalized[0] = 0;
+        return normalized;
     }
 
     function moraStartsFromCenters(centers, durations) {
@@ -2758,7 +2856,7 @@ ApplicationWindow {
                     ? center - duration / 2 : null;
             starts.push(start !== null && start >= 0 ? start : null);
         }
-        return starts;
+        return window.normalizedMoraPositions(starts);
     }
 
     function clearAutomaticArrays(index) {
@@ -2782,8 +2880,7 @@ ApplicationWindow {
             editorContent.pitchEditor.autoPoints = automaticPoints.slice();
             editorContent.pitchEditor.moraDurations = hasManualMoraDurations(item)
                     ? decodeSequence(item.moraDurationsJson) : automaticDurations.slice();
-            editorContent.pitchEditor.moraPositions = hasManualMoraDurations(item)
-                    ? decodeSequence(item.moraPositionsJson) : automaticStarts.slice();
+            editorContent.pitchEditor.moraPositions = window.displayedMoraPositions(item);
         }
     }
 
@@ -2794,8 +2891,7 @@ ApplicationWindow {
             editorContent.pitchEditor.autoPoints = [];
             editorContent.pitchEditor.moraDurations = hasManualMoraDurations(item)
                     ? decodeSequence(item.moraDurationsJson) : [];
-            editorContent.pitchEditor.moraPositions = hasManualMoraDurations(item)
-                    ? decodeSequence(item.moraPositionsJson) : [];
+            editorContent.pitchEditor.moraPositions = window.displayedMoraPositions(item);
         }
     }
 
@@ -2988,6 +3084,19 @@ ApplicationWindow {
         if (!item || !item.reading)
             return;
         autoPreviewTimer.restart();
+    }
+
+    function scheduleExtendedEditorWaveform() {
+        if (!editorContent.extendedPitchEditorVisible || window.hasCurrentSynthesisView())
+            return;
+        window.scheduleAutoPreview();
+    }
+
+    function scheduleTimingProsodyPreview(index) {
+        if (window.batchExportActive || index < 0 || index >= utterances.count)
+            return;
+        timingProsodyTimer.utteranceId = utterances.get(index).utteranceId;
+        timingProsodyTimer.restart();
     }
 
     function refreshPreview() {

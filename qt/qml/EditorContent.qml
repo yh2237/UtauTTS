@@ -5,7 +5,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtMultimedia
     SplitView {
+        id: editorSplitView
         required property var window
+        readonly property bool extendedPitchEditorVisible: pitchModeTabs.currentIndex === 1
 
         property alias pitchEditor: pitchEditor
         property alias phonemeEditor: phonemeEditor
@@ -54,6 +56,18 @@ import QtMultimedia
 
         anchors.fill: parent
         orientation: Qt.Vertical
+        handle: Item {
+            implicitWidth: editorSplitView.width
+            implicitHeight: 10
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 1
+                color: window.borderColor
+            }
+        }
 
         SplitView {
             SplitView.fillHeight: true
@@ -800,188 +814,288 @@ import QtMultimedia
 
         Pane {
             id: pitchPane
-            z: 1
             SplitView.preferredHeight: 330
             SplitView.minimumHeight: 150
             padding: 0
-            clip: false
+            clip: true
             background: Rectangle {
                 color: window.palette.window
-                border.color: window.borderColor
             }
 
-        Rectangle {
-            property var selectedTab: pitchModeTabs.currentIndex === 1
-                                      ? extendedPitchTab : basicPitchTab
-            x: selectedTab ? selectedTab.mapToItem(pitchPane, 0, 0).x : 0
-            y: -2
-            width: selectedTab ? selectedTab.width : 0
-            height: 2
-            color: window.palette.window
-            visible: pitchModeTabs.currentIndex >= 0
-            z: 1
-        }
-
-        Rectangle {
-            property var selectedTab: pitchModeTabs.currentIndex === 1
-                                      ? extendedPitchTab : basicPitchTab
-            x: selectedTab ? selectedTab.mapToItem(pitchPane, 0, 0).x : 0
-            y: -3
-            width: selectedTab ? selectedTab.width : 0
-            height: 4
-            color: window.accent
-            visible: pitchModeTabs.currentIndex >= 0
-            z: 2
-        }
+            ButtonGroup {
+                id: pitchTabMode
+                exclusive: true
+            }
+            ButtonGroup {
+                id: pitchToolMode
+                exclusive: true
+            }
 
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 0
 
-                RowLayout {
+                Item {
+                    id: pitchEditorStage
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 40
-                    Layout.leftMargin: 0
-                    Layout.rightMargin: 10
-                    TabBar {
-                        id: pitchModeTabs
-                        Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
-                        Layout.preferredHeight: 40
-                        Layout.fillWidth: false
-                        spacing: 0
-                        background: Item {}
+                    Layout.leftMargin: 12
+                    Layout.rightMargin: 12
+                    Layout.fillHeight: true
+                    Layout.bottomMargin: 8
 
-                        TabButton {
+                    Rectangle {
+                        id: pitchEditorHeader
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.leftMargin: 1
+                        anchors.rightMargin: 1
+                        anchors.topMargin: 1
+                        height: 35
+                        radius: 3
+                        color: window.palette.alternateBase
+                        z: 1
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: 4
+                            color: parent.color
+                        }
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: 1
+                            color: window.borderColor
+                        }
+                        Rectangle {
+                            id: activePitchHeaderFill
+                            property var activeTab: pitchModeTabs.currentIndex === 1
+                                                    ? extendedPitchTab : basicPitchTab
+                            x: activeTab ? activeTab.mapToItem(pitchEditorHeader, 0, 0).x : 0
+                            width: activeTab ? activeTab.width : 0
+                            height: parent.height
+                            color: window.palette.base
+                        }
+                    }
+
+                    Item {
+                        id: pitchModeTabs
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.leftMargin: 1
+                        anchors.topMargin: 1
+                        width: basicPitchTab.width + extendedPitchTab.width
+                        height: pitchEditorHeader.height
+                        z: 3
+                        readonly property int currentIndex: extendedPitchTab.checked ? 1 : 0
+
+                        Row {
+                            anchors.fill: parent
+                            spacing: 0
+
+                        ToolButton {
                             id: basicPitchTab
-                            width: Math.max(88, basicPitchLabel.implicitWidth + 20)
-                            height: pitchModeTabs.height
-                            padding: 0
-                            topPadding: 8
-                            bottomPadding: 0
+                            width: Math.max(96, basicPitchLabel.implicitWidth + 24)
+                            height: parent.height
+                            ButtonGroup.group: pitchTabMode
+                            checkable: true
+                            checked: true
                             text: window.translator.tr("main.pitch.basic")
 
                             background: Rectangle {
-                                color: basicPitchTab.hovered
-                                       ? Qt.rgba(window.palette.alternateBase.r,
-                                                 window.palette.alternateBase.g,
-                                                 window.palette.alternateBase.b, 0.55)
-                                       : "transparent"
-
+                                color: basicPitchTab.checked
+                                       ? window.palette.base
+                                       : basicPitchTab.hovered
+                                         ? Qt.rgba(window.palette.alternateBase.r,
+                                                   window.palette.alternateBase.g,
+                                                   window.palette.alternateBase.b, 0.42)
+                                         : "transparent"
+                                Rectangle {
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    height: 1
+                                    color: basicPitchTab.checked ? window.palette.base : "transparent"
+                                }
+                                Rectangle {
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 1
+                                    height: 18
+                                    color: window.borderColor
+                                }
                             }
                             contentItem: Text {
                                 id: basicPitchLabel
+                                anchors.centerIn: parent
                                 text: basicPitchTab.text
                                 color: basicPitchTab.checked
                                        ? window.palette.text : window.palette.placeholderText
                                 font.pixelSize: 13
-                                font.bold: basicPitchTab.checked
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
                         }
-                        TabButton {
+                        ToolButton {
                             id: extendedPitchTab
-                            width: Math.max(104, extendedPitchLabel.implicitWidth + 20)
-                            height: pitchModeTabs.height
-                            padding: 0
-                            topPadding: 8
-                            bottomPadding: 0
+                            width: Math.max(96, extendedPitchLabel.implicitWidth + 24)
+                            height: parent.height
+                            ButtonGroup.group: pitchTabMode
+                            checkable: true
                             text: window.translator.tr("main.pitch.extended")
+                            onCheckedChanged: {
+                                if (checked)
+                                    window.scheduleExtendedEditorWaveform();
+                            }
 
                             background: Rectangle {
-                                color: extendedPitchTab.hovered
-                                       ? Qt.rgba(window.palette.alternateBase.r,
-                                                 window.palette.alternateBase.g,
-                                                 window.palette.alternateBase.b, 0.55)
-                                       : "transparent"
-
+                                color: extendedPitchTab.checked
+                                       ? window.palette.base
+                                       : extendedPitchTab.hovered
+                                         ? Qt.rgba(window.palette.alternateBase.r,
+                                                   window.palette.alternateBase.g,
+                                                   window.palette.alternateBase.b, 0.42)
+                                         : "transparent"
+                                Rectangle {
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    height: 1
+                                    color: extendedPitchTab.checked ? window.palette.base : "transparent"
+                                }
+                                Rectangle {
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 1
+                                    height: 18
+                                    color: window.borderColor
+                                }
                             }
                             contentItem: Text {
                                 id: extendedPitchLabel
+                                anchors.centerIn: parent
                                 text: extendedPitchTab.text
                                 color: extendedPitchTab.checked
                                        ? window.palette.text : window.palette.placeholderText
                                 font.pixelSize: 13
-                                font.bold: extendedPitchTab.checked
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
                         }
+                        }
                     }
-                    ToolButton {
-                        id: handTool
+                    Rectangle {
+                        id: pitchToolGroupFrame
                         visible: pitchModeTabs.currentIndex === 1
-                        checkable: true
-                        checked: true
-                        Layout.preferredWidth: 24
-                        Layout.preferredHeight: 24
-                        onClicked: {
-                            handTool.checked = true;
-                            penTool.checked = false;
-                        }
-                        ToolTip.visible: hovered
-                        ToolTip.text: window.translator.tr("tool.hand")
+                        anchors.left: pitchModeTabs.right
+                        anchors.top: parent.top
+                        anchors.leftMargin: 12
+                        anchors.topMargin: 1
+                        width: visible ? 66 : 0
+                        height: 35
+                        z: 3
+                        color: "transparent"
 
-                        contentItem: Text {
-                            anchors.centerIn: parent
-                            text: "\ue925"
-                            color: handTool.palette.buttonText
-                            font.family: iconFont.name
-                            font.pixelSize: 16
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                    }
-                    ToolButton {
-                        id: penTool
-                        visible: pitchModeTabs.currentIndex === 1
-                        checkable: true
-                        checked: false
-                        Layout.preferredWidth: 24
-                        Layout.preferredHeight: 24
-                        onClicked: {
-                            penTool.checked = true;
-                            handTool.checked = false;
-                        }
-                        ToolTip.visible: hovered
-                        ToolTip.text: window.translator.tr("tool.pen")
-
-                        contentItem: Text {
-                            anchors.centerIn: parent
-                            text: "\ue3c9"
-                            color: penTool.palette.buttonText
-                            font.family: iconFont.name
-                            font.pixelSize: 16
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                    }
-                }
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 1
-                    color: window.borderColor
-                }
-                StackLayout {
-                    id: pitchModeStack
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    currentIndex: pitchModeTabs.currentIndex
-
-                    Item {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-
-                        ColumnLayout {
+                        RowLayout {
                             anchors.fill: parent
                             spacing: 0
 
+                            Rectangle {
+                                Layout.preferredWidth: 1
+                                Layout.preferredHeight: 18
+                                Layout.alignment: Qt.AlignVCenter
+                                color: window.borderColor
+                            }
+                            ToolButton {
+                                id: handTool
+                                ButtonGroup.group: pitchToolMode
+                                checkable: true
+                                checked: true
+                                Layout.preferredWidth: 32
+                                Layout.fillHeight: true
+                                ToolTip.visible: hovered
+                                ToolTip.text: window.translator.tr("tool.hand")
+                                background: Rectangle {
+                                    radius: 3
+                                    color: handTool.checked
+                                           ? Qt.rgba(window.accent.r, window.accent.g,
+                                                     window.accent.b, 0.16)
+                                           : handTool.hovered
+                                             ? Qt.rgba(window.palette.mid.r, window.palette.mid.g,
+                                                       window.palette.mid.b, 0.18)
+                                             : "transparent"
+                                }
+
+                                contentItem: Text {
+                                    anchors.centerIn: parent
+                                    text: "\ue925"
+                                    color: handTool.checked ? window.accent : handTool.palette.buttonText
+                                    font.family: iconFont.name
+                                    font.pixelSize: 16
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
+                            Rectangle {
+                                Layout.preferredWidth: 1
+                                Layout.preferredHeight: 14
+                                Layout.alignment: Qt.AlignVCenter
+                                color: window.borderColor
+                            }
+                            ToolButton {
+                                id: penTool
+                                ButtonGroup.group: pitchToolMode
+                                checkable: true
+                                Layout.preferredWidth: 32
+                                Layout.fillHeight: true
+                                ToolTip.visible: hovered
+                                ToolTip.text: window.translator.tr("tool.pen")
+                                background: Rectangle {
+                                    radius: 3
+                                    color: penTool.checked
+                                           ? Qt.rgba(window.accent.r, window.accent.g,
+                                                     window.accent.b, 0.16)
+                                           : penTool.hovered
+                                             ? Qt.rgba(window.palette.mid.r, window.palette.mid.g,
+                                                       window.palette.mid.b, 0.18)
+                                             : "transparent"
+                                }
+
+                                contentItem: Text {
+                                    anchors.centerIn: parent
+                                    text: "\ue3c9"
+                                    color: penTool.checked ? window.accent : penTool.palette.buttonText
+                                    font.family: iconFont.name
+                                    font.pixelSize: 16
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
+                        }
+                    }
+                    IntonationEditorSurface {
+                        id: pitchEditorSurface
+                        anchors.fill: parent
+                        surfaceColor: window.palette.base
+                        borderColor: window.borderColor
+                        contentMargin: 8
+                        topContentMargin: 44
+                        showSideBorders: false
+
+                        StackLayout {
+                            id: pitchModeStack
+                            anchors.fill: parent
+                            currentIndex: pitchModeTabs.currentIndex
+
+                            ColumnLayout {
+                                spacing: 0
                             PitchEditor {
                                 id: pitchEditor
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
-                                Layout.leftMargin: 12
-                                Layout.rightMargin: 12
                                 translator: window.translator
                                 accentColor: window.accent
                                 axisColor: window.palette.mid
@@ -993,74 +1107,86 @@ import QtMultimedia
                                 onMoraDurationsEdited: durations => window.updateMoraDurations(durations)
                                 onMoraPositionsEdited: positions => window.updateMoraPositions(positions)
                             }
-                            PitchHorizontalScrollBar {
+                            Item {
+                                id: basicPitchScrollFooter
+                                visible: basicPitchScrollBar.visible
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 14
-                                Layout.leftMargin: 12
-                                Layout.rightMargin: 12
-                                editor: pitchEditor
-                                trackColor: window.palette.mid
-                                thumbColor: window.accent
+                                Layout.preferredHeight: visible ? 18 : 0
+                                Rectangle {
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    height: 1
+                                    color: window.borderColor
+                                }
+                                PitchHorizontalScrollBar {
+                                    id: basicPitchScrollBar
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    anchors.bottomMargin: 2
+                                    editor: pitchEditor
+                                    trackColor: window.palette.mid
+                                    thumbColor: window.accent
+                                }
                             }
                         }
-                    }
-
-                    Item {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-
-                        ColumnLayout {
-                            anchors.fill: parent
-                            spacing: 0
 
                             PhonemeEditor {
-                                id: phonemeEditor
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                Layout.leftMargin: 12
-                                Layout.rightMargin: 12
-                                translator: window.translator
-                                accentColor: window.accent
-                                axisColor: window.palette.mid
-                                gridColor: window.palette.alternateBase
-                                labelColor: window.palette.text
-                                mutedText: window.mutedText
-                                timingEditor: pitchEditor
-                                units: window.synthesisUnits
-                                waveformMin: window.synthesisWaveformMin
-                                waveformMax: window.synthesisWaveformMax
-                                waveformDuration: window.synthesisDurationMs
-                                leadingMargin: window.synthesisLeadingMarginMs
-                                morae: pitchEditor.morae
-                                moraDurations: pitchEditor.moraDurations
-                                moraPositions: pitchEditor.moraPositions
-                                overrides: window.utterancesModel.count
-                                           ? window.decodeSequence(window.current().phonemeOverridesJson) : []
-                                playbackMs: window.hasCurrentAudio() ? window.playerMedia.position : -1
-                                showDetails: window.appBackend.extendedDetailsVisible
-                                framePaintMode: penTool.checked && pitchModeTabs.currentIndex === 1
-                                onUnitValueEdited: (unitIndex, key, value) =>
-                                        window.updateUnitOverride(unitIndex, key, value)
-                                onMoraStartEdited: (position, startMs) =>
-                                        window.updateMoraStart(position, startMs)
-                                onMoraDurationEdited: (position, durationMs) =>
-                                        window.updateMoraDuration(position, durationMs)
-                                onNoteGestureEdited: (durations, positions, points) =>
-                                        window.updateTimingAndPitch(durations, positions, points)
-                                onResetUnitRequested: (unitIndex) =>
-                                        window.clearUnitOverride(unitIndex)
-                                onSeekRequested: positionMs =>
-                                        window.seekPreview(positionMs)
-                                onFramesEdited: frames => window.updatePitchFrames(frames)
-                            }
+                            id: phonemeEditor
+                            anchors.fill: parent
+                            translator: window.translator
+                            accentColor: window.accent
+                            axisColor: window.palette.mid
+                            gridColor: window.palette.alternateBase
+                            labelColor: window.palette.text
+                            mutedText: window.mutedText
+                            dividerColor: window.borderColor
+                            showTimelineFrame: false
+                            timingEditor: pitchEditor
+                            units: window.extendedEditorUnits(pitchEditor.morae,
+                                                              pitchEditor.moraDurations,
+                                                              pitchEditor.moraPositions,
+                                                              pitchEditor.defaultMoraDuration,
+                                                              pitchEditor.defaultPauseDuration)
+                            waveformMin: window.hasCurrentSynthesisView()
+                                         ? window.synthesisWaveformMin : []
+                            waveformMax: window.hasCurrentSynthesisView()
+                                         ? window.synthesisWaveformMax : []
+                            waveformDuration: window.hasCurrentSynthesisView()
+                                              ? window.synthesisDurationMs : 0
+                            leadingMargin: window.hasCurrentSynthesisLayout()
+                                           ? window.synthesisLeadingMarginMs : 0
+                            morae: pitchEditor.morae
+                            moraDurations: pitchEditor.moraDurations
+                            moraPositions: pitchEditor.moraPositions
+                            overrides: window.utterancesModel.count
+                                       ? window.decodeSequence(window.current().phonemeOverridesJson) : []
+                            playbackMs: window.hasCurrentAudio() ? window.playerMedia.position : -1
+                            showDetails: window.appBackend.extendedDetailsVisible
+                            framePaintMode: penTool.checked && pitchModeTabs.currentIndex === 1
+                            onUnitValueEdited: (unitIndex, key, value) =>
+                                    window.updateUnitOverride(unitIndex, key, value)
+                            onMoraStartEdited: (position, startMs) =>
+                                    window.updateMoraStart(position, startMs)
+                            onMoraDurationEdited: (position, durationMs) =>
+                                    window.updateMoraDuration(position, durationMs)
+                            onNoteGestureEdited: (durations, positions, points) =>
+                                    window.updateTimingAndPitch(durations, positions, points)
+                            onResetUnitRequested: (unitIndex) =>
+                                    window.clearUnitOverride(unitIndex)
+                            onSeekRequested: positionMs =>
+                                    window.seekPreview(positionMs)
+                            onFramesEdited: frames => window.updatePitchFrames(frames)
                         }
                     }
                 }
+            }
                 PlaybackControls {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 52
-                    Layout.leftMargin: 10
-                    Layout.rightMargin: 10
+                    Layout.preferredHeight: 48
+                    Layout.leftMargin: 12
+                    Layout.rightMargin: 12
                     translator: window.translator
                     mutedText: window.mutedText
                     busy: window.appBackend.busy

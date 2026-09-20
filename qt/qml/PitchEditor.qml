@@ -66,7 +66,30 @@ Item {
         return true;
     }
 
+    function normalizedPositions(values) {
+        const normalized = (values || []).slice();
+        if (!normalized.length)
+            return normalized;
+        if (normalized[0] === null || normalized[0] === undefined)
+            return normalized;
+        const first = Number(normalized[0]);
+        if (!Number.isFinite(first))
+            return normalized;
+        const origin = Math.max(0, first);
+        for (let index = 0; index < normalized.length; ++index) {
+            if (normalized[index] === null || normalized[index] === undefined)
+                continue;
+            const value = Number(normalized[index]);
+            if (Number.isFinite(value))
+                normalized[index] = Math.max(0, value - origin);
+        }
+        normalized[0] = 0;
+        return normalized;
+    }
+
     function positionAt(index) {
+        if (index === 0 && root.morae.length)
+            return 0;
         if (index >= 0 && index < root.moraPositions.length) {
             const value = Number(root.moraPositions[index]);
             if (Number.isFinite(value))
@@ -147,6 +170,8 @@ Item {
     function updatePositionAt(index, x, moveFollowing) {
         if (!root.durationIsEditable(index))
             return;
+        if (index === 0)
+            return;
         const count = root.morae.length;
         const positions = (root.moraPositions || []).slice();
         for (let position = 0; position < count; ++position)
@@ -180,7 +205,9 @@ Item {
                                    following - currentMinimum);
             positions[index] = Math.max(lower, Math.min(upper, cursor));
         }
-        root.moraPositions = positions;
+        // Synthesis has no independent initial-rest parameter. Keep the first
+        // mora at zero and express a dragged first boundary as timing instead.
+        root.moraPositions = root.normalizedPositions(positions);
         root.moraDurations = root.durationValuesFromPositions();
         canvas.requestPaint();
     }
@@ -215,7 +242,7 @@ Item {
             for (let position = index + 1; position < count; ++position)
                 positions[position] += delta;
         }
-        root.moraPositions = positions;
+        root.moraPositions = root.normalizedPositions(positions);
         if (index === count - 1) {
             const durations = root.moraDurations.slice();
             durations[index] = Math.round(target);
@@ -268,7 +295,7 @@ Item {
         } else {
             root.moraDurations[index] = targetDuration;
         }
-        root.moraPositions = positions;
+        root.moraPositions = root.normalizedPositions(positions);
         return true;
     }
 
@@ -438,7 +465,7 @@ Item {
                     ctx.strokeStyle = root.axisColor;
                     ctx.globalAlpha = 0.45;
                     ctx.lineWidth = 1;
-                    for (let index = 0; index < root.morae.length; ++index) {
+                    for (let index = 1; index < root.morae.length; ++index) {
                         if (!root.durationIsEditable(index))
                             continue;
                         const hot = index === root.hoveredStrip
@@ -590,7 +617,7 @@ Item {
                 delegate: Item {
                     required property var modelData
                     required property int index
-                    visible: root.durationIsEditable(index)
+                    visible: index > 0 && root.durationIsEditable(index)
                     x: root.pointX(index) - width / 2
                     width: 14
                     height: parent.height - 64

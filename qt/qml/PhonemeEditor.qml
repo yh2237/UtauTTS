@@ -26,8 +26,10 @@ Item {
     property color gridColor: "#eadcdf"
     property color labelColor: "#66565a"
     property color mutedText: "#777777"
+    property color dividerColor: "#c79298"
     property color clipColor: "#a86f7c"
     property color clipFillColor: "#f2dfe3"
+    property bool showTimelineFrame: true
     property int selectedUnitIndex: -1
     property real zoomFactor: 1
     property int hoveredBoundary: -1
@@ -45,6 +47,8 @@ Item {
     property var timingEditor: null
     property var gesture: null
     property real gestureDuration: 0
+    property var gesturePositions: []
+    property var gestureDurations: []
     property var previewUnit: null
     property var valueGesture: null
     property int selectedBoundary: -1
@@ -371,7 +375,8 @@ Item {
     function boundaryHit(canvasX) {
         let best = -1;
         let bestDistance = 7;
-        for (let i = 0; i < root.morae.length; ++i) {
+        // The first pronunciation always starts at audio time zero.
+        for (let i = 1; i < root.morae.length; ++i) {
             const distance = Math.abs(root.timeToX(root.boundaryTime(i)) - canvasX);
             if (distance <= bestDistance) {
                 bestDistance = distance;
@@ -447,7 +452,8 @@ Item {
         else if (e)
             root.timelineCursor = Qt.SizeVerCursor;
         else if (n)
-            root.timelineCursor = n.edge ? Qt.SizeHorCursor : Qt.SizeAllCursor;
+            root.timelineCursor = n.edge ? Qt.SizeHorCursor
+                                         : n.pos === 0 ? Qt.SizeVerCursor : Qt.SizeAllCursor;
         else if (b >= 0)
             root.timelineCursor = Qt.SizeHorCursor;
         else
@@ -476,8 +482,12 @@ Item {
     }
 
     function moraStartAt(position, fallback) {
-        if (position >= 0 && position < root.moraPositions.length) {
-            const value = Number(root.moraPositions[position]);
+        if (position === 0)
+            return 0;
+        const positions = root.gesture && root.gesture.mode === "note"
+                && root.gesturePositions.length ? root.gesturePositions : root.moraPositions;
+        if (position >= 0 && position < positions.length) {
+            const value = Number(positions[position]);
             if (Number.isFinite(value))
                 return Math.max(0, value);
         }
@@ -485,8 +495,10 @@ Item {
     }
 
     function moraDurationAt(position, fallback) {
-        if (position >= 0 && position < root.moraDurations.length) {
-            const value = Number(root.moraDurations[position]);
+        const durations = root.gesture && root.gesture.mode === "note"
+                && root.gestureDurations.length ? root.gestureDurations : root.moraDurations;
+        if (position >= 0 && position < durations.length) {
+            const value = Number(durations[position]);
             if (Number.isFinite(value) && value > 0)
                 return value;
         }
@@ -562,16 +574,25 @@ Item {
     function beginDrag(position, mode, x, y, following) {
         if (!root.timingEditor)
             return;
+        if (mode === "start" && position === 0)
+            return;
+        const positions = [];
+        const durations = [];
+        for (let index = 0; index < root.timingEditor.morae.length; ++index) {
+            positions.push(Number(root.timingEditor.positionAt(index)));
+            durations.push(Number(root.timingEditor.durationAt(index)));
+        }
         root.gestureDuration = root.contentDuration;
+        root.gesturePositions = positions.slice();
+        root.gestureDurations = durations.slice();
         root.gesture = {
             position: position, mode: mode, x: x, y: y, following: following,
-            positions: root.timingEditor.moraPositions.slice(),
-            durations: root.timingEditor.moraDurations.slice(),
+            positions: positions,
+            durations: durations,
             points: root.timingEditor.points.slice(),
             start: root.timingEditor.positionAt(position),
             duration: root.timingEditor.durationAt(position),
             pitch: root.timingEditor.pitchAt(position),
-            unitCount: root.units.length,
             moraCount: root.timingEditor.morae.length
         };
     }
@@ -580,8 +601,7 @@ Item {
         const g = root.gesture;
         if (!g || !root.timingEditor)
             return false;
-        return root.units.length === g.unitCount
-                && root.timingEditor.morae.length === g.moraCount;
+        return root.timingEditor.morae.length === g.moraCount;
     }
 
     function restoreDrag() {
@@ -593,11 +613,32 @@ Item {
         root.timingEditor.points = g.points.slice();
     }
 
+    function durationsForPositions(positions, fallbackDurations) {
+        const values = [];
+        const count = root.timingEditor ? root.timingEditor.morae.length : 0;
+        for (let index = 0; index < count; ++index) {
+            let duration = index + 1 < count
+                    ? Number(positions[index + 1]) - Number(positions[index])
+                    : Number(fallbackDurations[index]);
+            if (!Number.isFinite(duration) || duration <= 0)
+                duration = root.timingEditor.durationAt(index);
+            values.push(Math.round(Math.max(root.timingEditor.minimumDurationAt(index),
+                    Math.min(root.timingEditor.maximumDurationAt(index), duration))));
+        }
+        return values;
+    }
+
     function previewDrag(x, y, modifiers) {
         const g = root.gesture;
         if (!g)
             return;
-        root.restoreDrag();
+        if (g.mode === "note") {
+            root.timingEditor.points = g.points.slice();
+            root.gesturePositions = g.positions.slice();
+            root.gestureDurations = g.durations.slice();
+        } else {
+            root.restoreDrag();
+        }
         const snap = (modifiers & Qt.AltModifier) === 0;
         const pointerTime = root.xToTime(x) - root.leadingMargin;
         if (g.mode === "start") {
@@ -611,6 +652,8 @@ Item {
                 const count = root.timingEditor.morae.length;
                 const base = g.positions.slice();
                 let delta = root.xToTime(x) - root.xToTime(g.x);
+                if (!Number.isFinite(delta))
+                    return;
                 if (snap)
                     delta = Math.round(delta / root.dragSnapMs) * root.dragSnapMs;
                 const prevMin = g.position > 0
@@ -630,8 +673,8 @@ Item {
                 moved[g.position] += clamped;
                 if (g.position + 1 < count)
                     moved[g.position + 1] += clamped;
-                root.timingEditor.moraPositions = moved;
-                root.timingEditor.moraDurations = root.timingEditor.durationValuesFromPositions();
+                root.gesturePositions = moved;
+                root.gestureDurations = root.durationsForPositions(moved, g.durations);
             }
             if (g.lock !== "timing") {
                 const rate = (modifiers & Qt.ShiftModifier) !== 0 ? 0.15 : 0.5;
@@ -649,12 +692,12 @@ Item {
             if (g.lock === "pitch")
                 root.updateHud(x, y, centsText);
             else if (g.lock === "timing")
-                root.updateHud(x, y, Math.round(editor.positionAt(g.position)) + " ms / "
-                        + Math.round(editor.durationAt(g.position)) + " ms"
+                root.updateHud(x, y, Math.round(root.gesturePositions[g.position]) + " ms / "
+                        + Math.round(root.gestureDurations[g.position]) + " ms"
                         + (g.following ? "  (Shift)" : ""));
             else
-                root.updateHud(x, y, Math.round(editor.positionAt(g.position)) + " ms / "
-                        + Math.round(editor.durationAt(g.position)) + " ms / " + centsText
+                root.updateHud(x, y, Math.round(root.gesturePositions[g.position]) + " ms / "
+                        + Math.round(root.gestureDurations[g.position]) + " ms / " + centsText
                         + (g.following ? "  (Shift)" : ""));
         } else if (g.mode === "start") {
             root.updateHud(x, y, root.translator.tr("main.pitch.position") + "  "
@@ -680,12 +723,18 @@ Item {
         if (!g || g.mode !== "note")
             return;
         const editor = root.timingEditor;
-        if (cancel)
+        if (cancel) {
             root.restoreDrag();
-        else
-            root.noteGestureEdited(editor.moraDurations.slice(),
-                    editor.moraPositions.slice(), editor.points.slice());
+        } else {
+            const positions = root.gesturePositions.slice();
+            const durations = root.gestureDurations.slice();
+            editor.moraPositions = positions.slice();
+            editor.moraDurations = durations.slice();
+            root.noteGestureEdited(durations, positions, editor.points.slice());
+        }
         root.gesture = null;
+        root.gesturePositions = [];
+        root.gestureDurations = [];
         root.hudText = "";
         waveformCanvas.requestPaint();
     }
@@ -703,6 +752,8 @@ Item {
             editor.moraPositionsEdited(editor.moraPositions.slice());
         }
         root.gesture = null;
+        root.gesturePositions = [];
+        root.gestureDurations = [];
         root.hudText = "";
         waveformCanvas.requestPaint();
     }
@@ -771,7 +822,8 @@ Item {
             Layout.fillHeight: true
             Layout.minimumHeight: 150
             color: "transparent"
-            border.color: root.axisColor
+            border.width: root.showTimelineFrame ? 1 : 0
+            border.color: root.dividerColor
             clip: true
 
             Flickable {
@@ -928,7 +980,7 @@ Item {
                         ctx.globalAlpha = 1;
                     }
 
-                    for (let mi = 0; mi < root.morae.length; ++mi) {
+                    for (let mi = 1; mi < root.morae.length; ++mi) {
                         const hot = mi === root.selectedBoundary || mi === root.hoveredBoundary
                                 || (root.hoveredEdgeFollowing && root.hoveredBoundary >= 0
                                     && mi > root.hoveredBoundary);
@@ -1125,11 +1177,14 @@ Item {
                             activeKind = "timing";
                             dragCursor = Qt.SizeHorCursor;
                         } else {
+                            const firstNote = pendingPos === 0;
                             root.beginNoteDrag(pendingPos, p.x, p.y,
                                     (mouse.modifiers & Qt.ShiftModifier) !== 0,
-                                    dy >= 2 * dx ? "pitch" : dx > 2 * dy ? "timing" : "both");
+                                    firstNote ? "pitch"
+                                              : dy >= 2 * dx ? "pitch"
+                                              : dx > 2 * dy ? "timing" : "both");
                             activeKind = "note";
-                            dragCursor = Qt.SizeAllCursor;
+                            dragCursor = firstNote ? Qt.SizeVerCursor : Qt.SizeAllCursor;
                         }
                     }
                     if (activeKind === "expr") {
@@ -1313,12 +1368,20 @@ Item {
             }
         }
 
+        Rectangle {
+            visible: root.showDetails
+            Layout.fillWidth: true
+            Layout.preferredHeight: visible ? 1 : 0
+            color: root.dividerColor
+        }
+
         ScrollView {
             id: detailsPanel
             visible: root.showDetails
             Layout.fillWidth: true
             Layout.preferredHeight: root.showDetails ? 190 : 0
             clip: true
+            background: Rectangle { color: "transparent" }
             ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
             ColumnLayout {
@@ -1341,6 +1404,7 @@ Item {
                     to: 100000
                     editable: true
                     enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit
+                             && Number(root.selectedUnit.position) > 0
                     value: enabled
                            ? Math.round(root.moraStartAt(Number(root.selectedUnit.position),
                                                          root.selectedUnit.note_start_ms)) : 0
@@ -1579,6 +1643,8 @@ Item {
         if (!!root.gesture && !root.gestureModelMatches()) {
             root.restoreDrag();
             root.gesture = null;
+            root.gesturePositions = [];
+            root.gestureDurations = [];
             root.hudText = "";
         }
         if (!!root.valueGesture && root.units.length !== root.valueGesture.unitCount) {

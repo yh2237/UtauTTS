@@ -68,6 +68,7 @@ qt_add_qml_module(utautts
         qml/DragHud.qml
         qml/PitchEditor.qml
         qml/PhonemeEditor.qml
+        qml/IntonationEditorSurface.qml
         qml/PitchHorizontalScrollBar.qml
         qml/PlaybackControls.qml
         qml/DragSourceWindow.qml

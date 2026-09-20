@@ -23,7 +23,7 @@ RowLayout {
     signal primaryClicked()
     signal seekRequested(real position)
 
-    spacing: 10
+    spacing: 8
 
     function formatTime(milliseconds) {
         const seconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -33,8 +33,8 @@ RowLayout {
 
     RoundButton {
         id: playbackButton
-        Layout.preferredWidth: 42
-        Layout.preferredHeight: 42
+        Layout.preferredWidth: 40
+        Layout.preferredHeight: 40
         highlighted: true
         enabled: root.playing || root.hasAudio || (!root.busy && root.canGenerate)
         onClicked: root.primaryClicked()
@@ -48,7 +48,7 @@ RowLayout {
             text: root.busy ? "\ue5d3" : root.playing ? "\ue034" : "\ue037"
             color: playbackButton.palette.buttonText
             font.family: iconFont.name
-            font.pixelSize: 24
+            font.pixelSize: 22
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }
