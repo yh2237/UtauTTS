@@ -68,7 +68,7 @@ Kokoroは文単位の音声を提供しますが、モーラ単位の時刻ラ�
 
 ```powershell
 python tools/prepare-kokoro-frame-data.py --corpus ./data/kokoro --out ./out/kokoro-frame.jsonl
-python tools/train-frame-intonation-tcn.py --dataset ./out/kokoro-frame.jsonl --dataset-kind generic --world-engine ./runtime/utautts-world-engine.dll --holdout-test --model-id frame-intonation-v9 --display-name "Frame intonation v9" --training-corpus "Kokoro Speech Dataset 1.3" --training-corpus-license "Public-domain statement in the Kokoro Speech Dataset README" --model-license "MIT License" --license-notice licenses/KOKORO-SPEECH-DATASET.txt --source-notice licenses/KOKORO-SPEECH-DATASET.txt --out ./out/frame-intonation-v9.json
+python tools/train-frame-intonation-tcn.py --dataset ./out/kokoro-frame.jsonl --dataset-kind generic --world-engine ./runtime/utautts-world-engine.dll --holdout-test --model-id frame-intonation-v9 --display-name "Frame intonation v9" --training-corpus "Kokoro Speech Dataset 1.3" --training-corpus-license "Public-domain statement in the Kokoro Speech Dataset README; jurisdiction should be verified before redistribution" --model-license "MIT License" --license-notice licenses/KOKORO-SPEECH-DATASET.txt --source-notice licenses/KOKORO-SPEECH-DATASET.txt --out ./out/frame-intonation-v9.json
 ```
 
 入力音声はモノラル16ビットPCM WAVを使います。本文中の空白は単語境界であり、休止として扱いません。公式メタデータの読みとOpen JTalkの音素列が異なる発話は既定で除外します。`--allow-reading-mismatch`は原因調査専用です。モデルJSONにはコーパス名、利用条件、通知ファイルを必ず記録します。
