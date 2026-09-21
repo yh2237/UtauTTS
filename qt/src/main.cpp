@@ -178,6 +178,10 @@ int main(int argc, char *argv[]) {
     app.setOrganizationName(UTAUTTS_APP_ORGANIZATION);
 
     const bool selfTest = app.arguments().contains(QStringLiteral("--self-test"));
+    const bool intonationLab = app.arguments().contains(QStringLiteral("--intonation-lab"));
+    if (intonationLab) {
+        app.setApplicationDisplayName(QStringLiteral("UtauTTS Intonation Lab"));
+    }
     std::unique_ptr<QTemporaryDir> selfTestSettings;
     if (selfTest) {
         QStandardPaths::setTestModeEnabled(true);
@@ -200,13 +204,15 @@ int main(int argc, char *argv[]) {
 
     Backend backend;
     QQmlApplicationEngine engine;
-    engine.setInitialProperties({
+    QVariantMap initialProperties{
         {"injectedBackend", QVariant::fromValue(static_cast<QObject *>(&backend))},
         {"injectedLegalDocuments", legalDocuments()},
         {"injectedAppName", QStringLiteral(UTAUTTS_APP_NAME)},
         {"injectedRepositoryUrl", QUrl(QStringLiteral(UTAUTTS_APP_REPOSITORY))},
         {"injectedSelfTest", selfTest},
-    });
+        {"injectedIntonationLab", intonationLab},
+    };
+    engine.setInitialProperties(initialProperties);
     engine.loadFromModule("UtauTTS", "Main");
     if (engine.rootObjects().isEmpty()) {
         return -1;

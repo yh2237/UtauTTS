@@ -70,12 +70,15 @@ import QtMultimedia
         }
 
         SplitView {
-            SplitView.fillHeight: true
+            SplitView.fillHeight: !window.intonationLab
+            SplitView.preferredHeight: window.intonationLab ? 66 : -1
+            SplitView.minimumHeight: window.intonationLab ? 66 : 0
+            SplitView.maximumHeight: window.intonationLab ? 66 : 16777215
             orientation: Qt.Horizontal
 
             Pane {
                 SplitView.fillWidth: true
-                SplitView.minimumWidth: 560
+                SplitView.minimumWidth: window.intonationLab ? 0 : 560
                 padding: 10
                 background: Rectangle {
                     color: window.palette.window
@@ -88,10 +91,10 @@ import QtMultimedia
                     clip: true
                     spacing: 4
                     boundsBehavior: Flickable.StopAtBounds
-                    bottomMargin: 64
+                    bottomMargin: window.intonationLab ? 0 : 64
                     ScrollBar.vertical: ScrollBar {
                         id: utteranceScrollBar
-                        policy: ScrollBar.AlwaysOn
+                        policy: window.intonationLab ? ScrollBar.AlwaysOff : ScrollBar.AlwaysOn
                     }
 
                     delegate: Item {
@@ -102,8 +105,9 @@ import QtMultimedia
                         required property string imagePath
                         property alias textEditor: utteranceEditor
 
+                        visible: !window.intonationLab || card.index === window.selectedIndex
                         width: Math.max(0, utteranceList.width - 14 - 2)
-                        height: 46
+                        height: visible ? 46 : 0
 
                         RowLayout {
                             anchors.fill: parent
@@ -111,6 +115,7 @@ import QtMultimedia
 
                             Rectangle {
                                 id: imageHandle
+                                visible: !window.intonationLab
                                 Layout.preferredWidth: 42
                                 Layout.preferredHeight: 42
                                 radius: 2
@@ -154,6 +159,7 @@ import QtMultimedia
 
                             TextField {
                                 id: utteranceEditor
+                                readOnly: window.intonationLab
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 42
                                 text: card.content
@@ -198,7 +204,7 @@ import QtMultimedia
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
-                                visible: card.index === window.selectedIndex
+                                visible: !window.intonationLab && card.index === window.selectedIndex
                                 onClicked: cardMenu.open()
 
                                 Menu {
@@ -279,6 +285,7 @@ import QtMultimedia
 
                 RoundButton {
                     id: addButton
+                    visible: !window.intonationLab
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
                     anchors.rightMargin: 24
@@ -303,9 +310,10 @@ import QtMultimedia
             }
 
             Pane {
-                SplitView.preferredWidth: 268
-                SplitView.minimumWidth: 238
-                SplitView.maximumWidth: 340
+                visible: !window.intonationLab
+                SplitView.preferredWidth: visible ? 268 : 0
+                SplitView.minimumWidth: visible ? 238 : 0
+                SplitView.maximumWidth: visible ? 340 : 0
                 padding: 14
                 background: Rectangle {
                     color: window.palette.window
@@ -814,7 +822,8 @@ import QtMultimedia
 
         Pane {
             id: pitchPane
-            SplitView.preferredHeight: 330
+            SplitView.fillHeight: window.intonationLab
+            SplitView.preferredHeight: window.intonationLab ? 0 : 330
             SplitView.minimumHeight: 150
             padding: 0
             clip: true

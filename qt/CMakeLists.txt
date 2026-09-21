@@ -102,6 +102,15 @@ set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/../icons/icon512.png"
     PROPERTIES QT_RESOURCE_ALIAS "icon512.png"
 )
+set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../tools/intonation-lab/japanese-v1.json"
+    PROPERTIES QT_RESOURCE_ALIAS "japanese-v1.json"
+)
+qt_add_resources(utautts "intonationLabCorpus"
+    PREFIX "/training"
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/../tools/intonation-lab/japanese-v1.json"
+)
+
 qt_add_resources(utautts "appicon"
     PREFIX "/icons"
     FILES
@@ -116,6 +125,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     # PIEだけでは外部データ参照やCOPY再配置が残るため、Qtの要件に合わせる。
     target_compile_options(utautts PRIVATE -fPIC)
     target_link_options(utautts PRIVATE "LINKER:-z,nocopyreloc" "LINKER:-z,text")
+endif()
+
+# QML and Backend meta-object code can exceed the normal COFF section limit on Windows.
+if(MINGW)
+    target_compile_options(utautts PRIVATE -Wa,-mbig-obj)
 endif()
 
 set_source_files_properties(

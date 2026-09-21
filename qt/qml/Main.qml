@@ -13,12 +13,13 @@ ApplicationWindow {
     required property string injectedAppName
     required property url injectedRepositoryUrl
     required property bool injectedSelfTest
+    required property bool injectedIntonationLab
     width: 1240
     height: 850
     minimumWidth: 880
     minimumHeight: 600
     visible: !injectedSelfTest
-    title: injectedAppName
+    title: intonationLab ? "UtauTTS Intonation Lab" : injectedAppName
     color: palette.window
     palette: Palette {
         window: window.darkMode ? "#202124" : "#f6f6f6"
@@ -40,6 +41,7 @@ ApplicationWindow {
     readonly property url repositoryUrl: injectedRepositoryUrl
     readonly property var appBackend: injectedBackend
     readonly property bool darkMode: appBackend.darkMode
+    readonly property bool intonationLab: injectedIntonationLab
     readonly property var licenseDocuments: injectedLegalDocuments
     readonly property real defaultIntonationStrength: appBackend.defaultIntonationStrength
     readonly property real maxIntonationStrength: 4.0
@@ -132,6 +134,8 @@ ApplicationWindow {
     property bool metadataInitialized: false
     property bool closeAfterProjectSave: false
     property bool closeBypass: false
+    property bool intonationLabInitialized: false
+    property string intonationLabStatus: ""
 
     function audioOutputDeviceKey(device) {
         if (!device)
@@ -741,6 +745,8 @@ ApplicationWindow {
             window.metadataInitialized = true;
             if (suppressDirty)
                 window.resetHistory(false);
+            if (window.intonationLab && !window.intonationLabInitialized)
+                Qt.callLater(window.initializeIntonationLab);
         }
 
         function onAnalysisChanged() {
@@ -920,7 +926,8 @@ ApplicationWindow {
     Component.onCompleted: {
         window.translator.load(window.appBackend.resolvedLanguage());
         window.applyAudioOutputDevice();
-        addUtterance(false);
+        if (!window.intonationLab)
+            addUtterance(false);
         window.resetHistory(false);
         if (!window.injectedSelfTest && window.appBackend.updateCheckEnabled)
             window.checkForUpdates();
@@ -1135,6 +1142,49 @@ ApplicationWindow {
                             "utautts-diagnostics.json");
                     diagnosticSaveDialog.open();
                 }
+            }
+        }
+    }
+
+
+    header: ToolBar {
+        visible: window.intonationLab
+        height: visible ? 44 : 0
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 14
+            anchors.rightMargin: 10
+            spacing: 10
+
+            Label {
+                text: "イントネーション調整"
+                font.bold: true
+            }
+            Label {
+                text: {
+                    let completed = 0;
+                    for (let index = 0; index < window.utterancesModel.count; ++index) {
+                        if (window.utterancesModel.get(index).trainingAccepted)
+                            ++completed;
+                    }
+                    return completed + " / " + window.utterancesModel.count;
+                }
+                color: window.mutedText
+            }
+            Item { Layout.fillWidth: true }
+            Label {
+                Layout.maximumWidth: 360
+                visible: text.length > 0
+                text: window.intonationLabStatus
+                color: window.appBackend.error.length ? "#b42318" : window.mutedText
+                elide: Text.ElideRight
+            }
+            Button {
+                text: "完了して次へ"
+                enabled: !window.appBackend.busy && window.utterancesModel.count > 0
+                         && window.current().reading.length > 0
+                onClicked: window.completeIntonationLabEntry()
             }
         }
     }
@@ -1935,11 +1985,103 @@ ApplicationWindow {
         return error;
     }
 
+
+    function intonationLabDefaultFile() {
+        const stamp = new Date().toISOString().replace(/[-:.TZ]/g, "");
+        return window.appBackend.defaultSaveFile("intonation-lab-" + stamp + ".utautts");
+    }
+
+    function intonationLabBaseModelPath() {
+        return "out/frame-intonation-v9-ita-corpus-rion-female.json";
+    }
+
+    function intonationLabFirstIncomplete() {
+        for (let index = 0; index < utterances.count; ++index) {
+            if (!utterances.get(index).trainingAccepted)
+                return index;
+        }
+        return -1;
+    }
+
+    function prepareIntonationLabEntry(index) {
+        if (!window.intonationLab || index < 0 || index >= utterances.count)
+            return;
+        window.selectUtterance(index);
+        const item = window.current();
+        if (item.reading.length)
+            window.requestMissingProsodyPreview(index);
+        else
+            window.analyzeUtterance(index);
+    }
+
+    function initializeIntonationLab() {
+        if (!window.intonationLab || window.intonationLabInitialized)
+            return;
+        window.intonationLabInitialized = true;
+        window.projectFile = window.intonationLabDefaultFile();
+        utterances.clear();
+        window.nextUtteranceId = 1;
+
+        const request = new XMLHttpRequest();
+        request.open("GET", "qrc:/training/japanese-v1.json");
+        request.onreadystatechange = function() {
+            if (request.readyState !== XMLHttpRequest.DONE)
+                return;
+            try {
+                if (request.status !== 0 && request.status !== 200)
+                    throw new Error("例文を読み込めませんでした。");
+                const examples = JSON.parse(request.responseText);
+                if (!Array.isArray(examples) || !examples.length)
+                    throw new Error("例文がありません。");
+                for (const example of examples) {
+                    window.addUtterance(false);
+                    const index = utterances.count - 1;
+                    utterances.setProperty(index, "content", String(example.text || ""));
+                    utterances.setProperty(index, "labEntryId", String(example.id || "entry-" + (index + 1)));
+                    utterances.setProperty(index, "trainingAccepted", false);
+                }
+                window.selectedIndex = 0;
+                window.projectDirty = false;
+                window.resetHistory(false);
+                window.intonationLabStatus = "例文を準備しています。";
+                window.prepareIntonationLabEntry(0);
+            } catch (error) {
+                window.intonationLabStatus = String(error);
+            }
+        };
+        request.send();
+    }
+
+    function completeIntonationLabEntry() {
+        if (!window.intonationLab || window.appBackend.busy || !utterances.count)
+            return;
+        const item = window.current();
+        if (!item || !item.reading.length)
+            return;
+        utterances.setProperty(window.selectedIndex, "trainingAccepted", true);
+        window.projectDirty = true;
+        if (!window.projectFile.toString().length)
+            window.projectFile = window.intonationLabDefaultFile();
+        if (!window.appBackend.saveProject(window.projectFile, window.projectData())) {
+            window.intonationLabStatus = "書き出しに失敗しました。";
+            return;
+        }
+        window.appBackend.rememberRecentProject(window.projectFile);
+        window.projectDirty = false;
+        const next = window.intonationLabFirstIncomplete();
+        if (next < 0) {
+            window.intonationLabStatus = "全ての例文を書き出しました。";
+            return;
+        }
+        window.intonationLabStatus = "書き出しました。次の文を準備しています。";
+        Qt.callLater(function() { window.prepareIntonationLabEntry(next); });
+    }
+
     function projectData() {
         const savedUtterances = [];
         for (let index = 0; index < utterances.count; ++index) {
             const item = utterances.get(index);
-            savedUtterances.push({
+            const saved = {
                 text: item.content || "",
                 language: item.language || "ja",
                 phonemizer: item.phonemizer || window.defaultPhonemizer(item.language || "ja"),
@@ -1962,6 +2104,8 @@ ApplicationWindow {
                 mora_durations_ms: window.decodeSequence(item.moraDurationsJson),
                 mora_positions_ms: window.decodeSequence(item.moraPositionsJson),
                 automatic_pitch_points: window.automaticSequence(item, "autoPointsJson"),
+                automatic_frame_pitch: window.automaticSequence(item, "autoPitchFramesJson"),
+                automatic_frame_ms: Number(item.autoFrameMs) || 10,
                 automatic_mora_durations_ms: window.automaticSequence(item, "autoMoraDurationsJson"),
                 automatic_mora_positions_ms: window.automaticSequence(item, "autoMoraPositionsJson"),
                 manual_pitch_edited: window.hasManualPitch(item),
@@ -1972,15 +2116,29 @@ ApplicationWindow {
                     reading: item.reading || "",
                     morae: window.decodeSequence(item.moraeJson)
                 }
-            });
+            };
+            if (window.intonationLab) {
+                saved.training_accepted = !!item.trainingAccepted;
+                saved.lab_entry_id = item.labEntryId || "";
+            }
+            savedUtterances.push(saved);
         }
-        return {
+        const project = {
             format: "utautts-project",
             format_version: 8,
             app_version: Qt.application.version,
             utterances: savedUtterances,
             selected_index: utterances.count ? selectedIndex : 0
         };
+        if (window.intonationLab) {
+            project.intonation_lab = {
+                version: 2,
+                corpus: "japanese-v1",
+                base_model_path: window.intonationLabBaseModelPath(),
+                completed: window.intonationLabFirstIncomplete() < 0
+            };
+        }
+        return project;
     }
 
     function reanalyzeAll() {
@@ -2102,6 +2260,8 @@ ApplicationWindow {
                 moraDurationsJson: JSON.stringify(manualDurations),
                 moraPositionsJson: JSON.stringify(manualPositions),
                 autoPointsJson: JSON.stringify(window.copySequence(saved.automatic_pitch_points)),
+                autoPitchFramesJson: JSON.stringify(window.copySequence(saved.automatic_frame_pitch)),
+                autoFrameMs: Number(saved.automatic_frame_ms) || 10,
                 autoMoraDurationsJson: JSON.stringify(automaticDurations),
                 autoMoraPositionsJson: JSON.stringify(automaticPositions),
                 resamplerExpressionsJson: JSON.stringify(window.copySequence(saved.resampler_expressions)),
@@ -2113,6 +2273,8 @@ ApplicationWindow {
                 manualMoraDurationEdited: saved.manual_mora_duration_edited === undefined
                         ? window.copySequence(saved.mora_durations_ms).some(value => Number(value) > 0)
                         : !!saved.manual_mora_duration_edited,
+                trainingAccepted: !!saved.training_accepted,
+                labEntryId: String(saved.lab_entry_id || ""),
                 voicebankId: voicebankId,
                 imagePath: voice ? voice.image_path || "" : "",
                 modelId: String(saved.model_id || ""),
@@ -2150,10 +2312,20 @@ ApplicationWindow {
         }
         selectedIndex = Math.max(0, Math.min(Number(project.selected_index) || 0, utterances.count - 1));
         window.selectUtterance(selectedIndex);
-        for (let index = 0; index < utterances.count; ++index) {
-            const item = utterances.get(index);
-            if (item.content.trim())
-                window.analyzeUtterance(index);
+        if (window.intonationLab) {
+            const next = window.intonationLabFirstIncomplete();
+            if (next >= 0) {
+                window.selectedIndex = next;
+                window.prepareIntonationLabEntry(next);
+            } else {
+                window.intonationLabStatus = "全ての例文を書き出しました。";
+            }
+        } else {
+            for (let index = 0; index < utterances.count; ++index) {
+                const item = utterances.get(index);
+                if (item.content.trim())
+                    window.analyzeUtterance(index);
+            }
         }
         editorContent.utteranceList.positionViewAtIndex(selectedIndex, ListView.Contain);
         window.resetHistory(migratedRenderer);
@@ -2930,6 +3102,8 @@ ApplicationWindow {
             phonemeOverridesJson: "[]",
             manualPitchEdited: false,
             manualMoraDurationEdited: false,
+            trainingAccepted: false,
+            labEntryId: "",
             voicebankId: voice ? voice.id : "",
             imagePath: voice ? voice.image_path || "" : "",
             modelId: window.defaultModelIdForLanguage(language),
@@ -3177,6 +3351,8 @@ ApplicationWindow {
                 points: manualPoints
             };
         }
+        if (window.intonationLab)
+            request.model_path = window.intonationLabBaseModelPath();
         return request;
     }
 
@@ -3189,6 +3365,7 @@ ApplicationWindow {
             phonemizer: window.resolvedPhonemizer(item.language, item.phonemizer, item.voicebankId),
             dictionary: window.appBackend.dictionaryEntries,
             model_id: item.modelId,
+            model_path: window.intonationLab ? window.intonationLabBaseModelPath() : "",
             renderer: item.renderer,
             mora_duration_ms: item.moraDuration,
             speech_timing: !!item.speechTiming,
