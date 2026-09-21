@@ -1,10 +1,13 @@
 #include "backend.h"
 #include "selftest.h"
 #include <QDir>
+#include <QEventLoop>
+#include <QTimer>
 #include <QDateTime>
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QMetaObject>
 #include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -177,8 +180,12 @@ int main(int argc, char *argv[]) {
     app.setApplicationVersion(UTAUTTS_VERSION);
     app.setOrganizationName(UTAUTTS_APP_ORGANIZATION);
 
-    const bool selfTest = app.arguments().contains(QStringLiteral("--self-test"));
-    const bool intonationLab = app.arguments().contains(QStringLiteral("--intonation-lab"));
+    const bool intonationLabSmokeTest = app.arguments().contains(
+            QStringLiteral("--intonation-lab-smoke-test"));
+    const bool selfTest = app.arguments().contains(QStringLiteral("--self-test"))
+            || intonationLabSmokeTest;
+    const bool intonationLab = app.arguments().contains(QStringLiteral("--intonation-lab"))
+            || intonationLabSmokeTest;
     if (intonationLab) {
         app.setApplicationDisplayName(QStringLiteral("UtauTTS Intonation Lab"));
     }
@@ -211,6 +218,7 @@ int main(int argc, char *argv[]) {
         {"injectedRepositoryUrl", QUrl(QStringLiteral(UTAUTTS_APP_REPOSITORY))},
         {"injectedSelfTest", selfTest},
         {"injectedIntonationLab", intonationLab},
+        {"injectedIntonationLabExamples", readTextResource(":/training/japanese-v1.json")},
     };
     engine.setInitialProperties(initialProperties);
     engine.loadFromModule("UtauTTS", "Main");
@@ -218,8 +226,29 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    if (intonationLabSmokeTest) {
+        QEventLoop loop;
+        QTimer::singleShot(100, &loop, &QEventLoop::quit);
+        loop.exec();
+        QVariant interfaceResult;
+        const bool passed = QMetaObject::invokeMethod(engine.rootObjects().constFirst(),
+                                                       "runInterfaceSelfTest",
+                                                       Q_RETURN_ARG(QVariant, interfaceResult))
+                && interfaceResult.toString().isEmpty();
+        if (!passed) {
+            qCritical().noquote() << "Intonation Lab smoke test:" << interfaceResult.toString();
+            return 1;
+        }
+        return 0;
+    }
+
     if (selfTest) {
         backend.initialize();
+        if (intonationLab) {
+            QEventLoop loop;
+            QTimer::singleShot(50, &loop, &QEventLoop::quit);
+            loop.exec();
+        }
         return runSelfTest(backend, engine.rootObjects().constFirst());
     }
     backend.initializeAsync();

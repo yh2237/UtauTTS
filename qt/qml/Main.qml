@@ -14,6 +14,7 @@ ApplicationWindow {
     required property url injectedRepositoryUrl
     required property bool injectedSelfTest
     required property bool injectedIntonationLab
+    required property string injectedIntonationLabExamples
     width: 1240
     height: 850
     minimumWidth: 880
@@ -72,6 +73,23 @@ ApplicationWindow {
         interval: 350
         repeat: false
         onTriggered: window.refreshPreview()
+    }
+
+    Timer {
+        id: intonationLabPrepareTimer
+        interval: 100
+        repeat: false
+        onTriggered: {
+            if (!window.intonationLab || window.intonationLabPendingIndex < 0)
+                return;
+            if (window.appBackend.busy || !window.metadataInitialized) {
+                intonationLabPrepareTimer.restart();
+                return;
+            }
+            const index = window.intonationLabPendingIndex;
+            window.intonationLabPendingIndex = -1;
+            window.prepareIntonationLabEntry(index);
+        }
     }
 
     Timer {
@@ -136,6 +154,7 @@ ApplicationWindow {
     property bool closeBypass: false
     property bool intonationLabInitialized: false
     property string intonationLabStatus: ""
+    property int intonationLabPendingIndex: -1
 
     function audioOutputDeviceKey(device) {
         if (!device)
@@ -926,7 +945,9 @@ ApplicationWindow {
     Component.onCompleted: {
         window.translator.load(window.appBackend.resolvedLanguage());
         window.applyAudioOutputDevice();
-        if (!window.intonationLab)
+        if (window.intonationLab)
+            Qt.callLater(window.initializeIntonationLab);
+        else
             addUtterance(false);
         window.resetHistory(false);
         if (!window.injectedSelfTest && window.appBackend.updateCheckEnabled)
@@ -1856,6 +1877,17 @@ ApplicationWindow {
             return condition ? "" : message;
         }
 
+        if (window.intonationLab) {
+            let error = check(utterances.count === 50, "intonation lab examples were not loaded");
+            if (error.length)
+                return error;
+            error = check(window.selectedIndex === 0
+                          && window.current().content.length > 0
+                          && window.intonationLabFirstIncomplete() === 0,
+                          "intonation lab did not select the first example");
+            return error;
+        }
+
         let error = check(utterances.count === 1, "initial utterance is missing");
         if (error.length)
             return error;
@@ -2006,6 +2038,13 @@ ApplicationWindow {
     function prepareIntonationLabEntry(index) {
         if (!window.intonationLab || index < 0 || index >= utterances.count)
             return;
+        if (window.appBackend.busy || !window.metadataInitialized) {
+            window.intonationLabPendingIndex = index;
+            window.intonationLabStatus = "例文を準備しています。";
+            intonationLabPrepareTimer.restart();
+            return;
+        }
+        window.intonationLabPendingIndex = -1;
         window.selectUtterance(index);
         const item = window.current();
         if (item.reading.length)
@@ -2022,36 +2061,26 @@ ApplicationWindow {
         utterances.clear();
         window.nextUtteranceId = 1;
 
-        const request = new XMLHttpRequest();
-        request.open("GET", "qrc:/training/japanese-v1.json");
-        request.onreadystatechange = function() {
-            if (request.readyState !== XMLHttpRequest.DONE)
-                return;
-            try {
-                if (request.status !== 0 && request.status !== 200)
-                    throw new Error("例文を読み込めませんでした。");
-                const examples = JSON.parse(request.responseText);
-                if (!Array.isArray(examples) || !examples.length)
-                    throw new Error("例文がありません。");
-                for (const example of examples) {
-                    window.addUtterance(false);
-                    const index = utterances.count - 1;
-                    utterances.setProperty(index, "content", String(example.text || ""));
-                    utterances.setProperty(index, "labEntryId", String(example.id || "entry-" + (index + 1)));
-                    utterances.setProperty(index, "trainingAccepted", false);
-                }
-                window.selectedIndex = 0;
-                window.projectDirty = false;
-                window.resetHistory(false);
-                window.intonationLabStatus = "例文を準備しています。";
-                window.prepareIntonationLabEntry(0);
-            } catch (error) {
-                window.intonationLabStatus = String(error);
+        try {
+            const examples = JSON.parse(window.injectedIntonationLabExamples);
+            if (!Array.isArray(examples) || !examples.length)
+                throw new Error("例文がありません。");
+            for (const example of examples) {
+                window.addUtterance(false);
+                const index = utterances.count - 1;
+                utterances.setProperty(index, "content", String(example.text || ""));
+                utterances.setProperty(index, "labEntryId", String(example.id || "entry-" + (index + 1)));
+                utterances.setProperty(index, "trainingAccepted", false);
             }
-        };
-        request.send();
+            window.selectedIndex = 0;
+            window.projectDirty = false;
+            window.resetHistory(false);
+            window.intonationLabStatus = "例文を準備しています。";
+            window.prepareIntonationLabEntry(0);
+        } catch (error) {
+            window.intonationLabStatus = String(error);
+        }
     }
-
     function completeIntonationLabEntry() {
         if (!window.intonationLab || window.appBackend.busy || !utterances.count)
             return;
