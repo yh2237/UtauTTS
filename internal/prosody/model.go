@@ -340,7 +340,8 @@ func LoadModel(path string) (*Model, error) {
 	current := model.Version == ModelVersion && model.FeatureVersion == 1 && model.Mode == "speech_prosody_residual"
 	frame := model.FeatureVersion == 1 && model.Version == FramePitchModelVersion && model.Mode == "intonation_frame_tcn_accent_bounded"
 	multitask := model.FeatureVersion == 2 && model.Version == ProsodyMultitaskModelVersion && model.Mode == "prosody_multitask_tcn"
-	manualResidual := model.FeatureVersion == 2 && model.Version == ManualResidualModelVersion && model.Mode == "intonation_frame_v8_manual_residual"
+	manualResidual := model.FeatureVersion == 2 && model.Version == ManualResidualModelVersion &&
+		(model.Mode == "intonation_frame_v8_manual_residual" || model.Mode == "intonation_frame_manual_residual")
 	englishIntonation := model.FeatureVersion == 1 && model.Version == EnglishIntonationModelVersion && model.Mode == "english_intonation_v1"
 	if !current && !frame && !multitask && !manualResidual && !englishIntonation {
 		return nil, fmt.Errorf("unsupported prosody model version %d/feature %d mode %q", model.Version, model.FeatureVersion, model.Mode)

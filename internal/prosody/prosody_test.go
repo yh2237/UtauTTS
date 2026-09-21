@@ -111,6 +111,8 @@ func TestManualResidualModelAddsMoraCorrectionsWithoutCrossingPause(t *testing.T
 			t.Fatalf("residual crossed pause at frame %d: %.2f", index, curve.Cents[index])
 		}
 	}
+	model.Mode = "intonation_frame_manual_residual"
+	model.BaseModel.ID = "frame-intonation-v9-ita-corpus-rion-female"
 	path := filepath.Join(t.TempDir(), "manual-residual.json")
 	if err := model.Save(path); err != nil {
 		t.Fatal(err)

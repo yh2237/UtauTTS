@@ -205,3 +205,18 @@ func mustTransitionTCNJSON(t *testing.T) []byte {
 	}
 	return data
 }
+
+func TestConfigUsesExplicitModelPath(t *testing.T) {
+	service := NewService(&plugin.Catalog{
+		Renderers: []plugin.Renderer{testRenderer("waveform", "waveform")},
+	}, "waveform", "", "", "", nil)
+	cfg, renderer, _, err := service.config(Request{
+		ModelID: "not-in-catalog", ModelPath: "out/working-model.json", Renderer: "waveform",
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renderer != "waveform" || cfg.ProsodyModelPath != "out/working-model.json" {
+		t.Fatalf("explicit model path was not preserved: renderer=%q config=%#v", renderer, cfg)
+	}
+}

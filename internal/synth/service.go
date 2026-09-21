@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"utautts/internal/engine"
 	"utautts/internal/jsut"
@@ -33,6 +34,7 @@ type Request struct {
 	Tone                    string                       `json:"tone"`
 	Color                   string                       `json:"color"`
 	ModelID                 string                       `json:"model_id"`
+	ModelPath               string                       `json:"model_path"`
 	Renderer                string                       `json:"renderer"`
 	Resampler               string                       `json:"resampler"`
 	Wavtool                 string                       `json:"wavtool"`
@@ -221,9 +223,13 @@ func (s *Service) AnalyzeContext(ctx context.Context, request Request) (*tts.Pro
 
 func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, string, render.ProviderOptions, error) {
 	request = request.Normalized()
-	modelPath, err := s.ResolveModel(request.ModelID)
-	if err != nil {
-		return tts.Config{}, "", render.ProviderOptions{}, err
+	modelPath := strings.TrimSpace(request.ModelPath)
+	if modelPath == "" {
+		var err error
+		modelPath, err = s.ResolveModel(request.ModelID)
+		if err != nil {
+			return tts.Config{}, "", render.ProviderOptions{}, err
+		}
 	}
 	reading := request.Reading
 	if reading == "" {
