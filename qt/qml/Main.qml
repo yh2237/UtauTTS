@@ -67,7 +67,7 @@ ApplicationWindow {
 
     Timer {
         id: autoPreviewTimer
-        interval: 700
+        interval: 350
         repeat: false
         onTriggered: window.refreshPreview()
     }

@@ -139,6 +139,26 @@ func ResolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, 
 	return resolvePronunciation(cfg)
 }
 
+// Analyze resolves only the reading and morae needed to initialize an editor.
+// It intentionally skips prosody-model loading and prediction; callers that
+// need timings or pitch should use PredictProsody instead.
+func Analyze(cfg Config) (*ProsodyPreview, error) {
+	if err := synthesisContextError(cfg.Context); err != nil {
+		return nil, err
+	}
+	if err := validateConfig(cfg); err != nil {
+		return nil, err
+	}
+	_, _, reading, morae, err := resolvePronunciation(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("phonemize: %w", err)
+	}
+	return &ProsodyPreview{
+		Reading: reading,
+		Morae:   append([]frontend.Mora(nil), morae...),
+	}, nil
+}
+
 func resolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, error) {
 	language, phonemizer, err := frontend.ResolveLanguage(cfg.Language, cfg.Phonemizer)
 	if err != nil {

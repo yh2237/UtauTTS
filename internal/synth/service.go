@@ -193,9 +193,8 @@ func (s *Service) PredictProsodyContext(ctx context.Context, request Request) (*
 	return preview, rendererID, nil
 }
 
-// AnalyzeContext resolves reading and morae through the same language-aware
-// path used by prosody preview. Hosts can intentionally restrict which fields
-// they expose without reimplementing the analysis pipeline.
+// AnalyzeContext resolves only the reading and morae required to initialize an
+// editor. Prediction is intentionally deferred to PredictProsodyContext.
 func (s *Service) AnalyzeContext(ctx context.Context, request Request) (*tts.ProsodyPreview, error) {
 	request = request.Normalized()
 	dictionary := DictionaryMap(request.Dictionary)
@@ -212,7 +211,7 @@ func (s *Service) AnalyzeContext(ctx context.Context, request Request) (*tts.Pro
 			}
 		}
 	}
-	return tts.PredictProsody(tts.Config{
+	return tts.Analyze(tts.Config{
 		Context: ctx, Text: request.Text, Reading: request.Reading,
 		Language: request.Language, Phonemizer: request.Phonemizer,
 		Dictionary: dictionary, OpenJTalkPath: s.openJTalkPath,

@@ -51,6 +51,24 @@ func TestSynthesizeHonorsCanceledContextBeforeLoadingInputs(t *testing.T) {
 	}
 }
 
+func TestAnalyzeResolvesPronunciationWithoutLoadingProsodyModel(t *testing.T) {
+	preview, err := Analyze(Config{
+		Reading:          "コンニチハ",
+		Language:         frontend.LanguageJapanese,
+		Phonemizer:       frontend.PhonemizerJapanese,
+		ProsodyModelPath: filepath.Join(t.TempDir(), "missing-model.json"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.Reading != "コンニチハ" || len(preview.Morae) != 5 {
+		t.Fatalf("analysis = %#v", preview)
+	}
+	if len(preview.Features) != 0 || len(preview.MoraDurationsMS) != 0 || len(preview.PitchPoints) != 0 {
+		t.Fatalf("analysis unexpectedly predicted prosody: %#v", preview)
+	}
+}
+
 func TestAliasProfilesBundleSelectionAndRendererSettings(t *testing.T) {
 	automatic := Config{AliasPolicy: voicebank.AliasPolicyAuto}
 	applyAliasProfile(nil, &automatic)
