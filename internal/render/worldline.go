@@ -8,7 +8,9 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"utautts/internal/audio"
@@ -813,7 +815,13 @@ func worldlineAnalysisCacheKey(source, frqPath string, unit plan.Unit, volume fl
 func measureWorldlinePitches(synthesisPlan *plan.Plan, cache *sourceCache) ([]float64, int, error) {
 	values := make([]float64, len(synthesisPlan.Units))
 	sampleRate := 0
-	for i, unit := range synthesisPlan.Units {
+	type pitchJob struct {
+		index int
+		unit  plan.Unit
+		mono  *audio.PCM
+	}
+	jobs := make([]pitchJob, 0, len(synthesisPlan.Units))
+	for index, unit := range synthesisPlan.Units {
 		if unit.Silent || unit.Role == "transition" {
 			continue
 		}
@@ -824,7 +832,32 @@ func measureWorldlinePitches(synthesisPlan *plan.Plan, cache *sourceCache) ([]fl
 		if sampleRate == 0 {
 			sampleRate = mono.SampleRate
 		}
-		values[i], err = estimateUnitPitch(unit, mono)
+		jobs = append(jobs, pitchJob{index: index, unit: unit, mono: mono})
+	}
+	errs := make([]error, len(jobs))
+	measure := func(jobIndex int) {
+		job := jobs[jobIndex]
+		values[job.index], errs[jobIndex] = estimateUnitPitch(job.unit, job.mono)
+	}
+	workers := min(len(jobs), max(1, runtime.GOMAXPROCS(0)))
+	if workers <= 1 {
+		for jobIndex := range jobs {
+			measure(jobIndex)
+		}
+	} else {
+		var group sync.WaitGroup
+		group.Add(workers)
+		for worker := 0; worker < workers; worker++ {
+			go func(start int) {
+				defer group.Done()
+				for jobIndex := start; jobIndex < len(jobs); jobIndex += workers {
+					measure(jobIndex)
+				}
+			}(worker)
+		}
+		group.Wait()
+	}
+	for _, err := range errs {
 		if err != nil {
 			return nil, 0, err
 		}

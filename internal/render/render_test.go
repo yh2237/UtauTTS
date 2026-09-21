@@ -3,6 +3,7 @@ package render
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"path/filepath"
 	"reflect"
@@ -767,6 +768,36 @@ func TestUnitPitchCacheIsReusedAndClearedWithWAVCache(t *testing.T) {
 	ClearWAVCache()
 	if len(globalUnitPitchCache.entries) != 0 {
 		t.Fatal("pitch cache was not cleared with the WAV cache")
+	}
+}
+
+func TestMeasureWorldlinePitchesHandlesMultipleUnits(t *testing.T) {
+	ClearWAVCache()
+	defer ClearWAVCache()
+	directory := t.TempDir()
+	units := make([]plan.Unit, 4)
+	for index, hz := range []float64{180, 200, 220, 240} {
+		path := filepath.Join(directory, fmt.Sprintf("tone-%d.wav", index))
+		data := make([]int16, 6400)
+		for frame := range data {
+			data[frame] = int16(6000 * math.Sin(2*math.Pi*hz*float64(frame)/16000))
+		}
+		if err := audio.WriteWav(path, &audio.PCM{SampleRate: 16000, Channels: 1, Data: data}); err != nil {
+			t.Fatal(err)
+		}
+		units[index] = plan.Unit{Position: index, Source: path, DurationMS: 150}
+	}
+	values, sampleRate, err := measureWorldlinePitches(&plan.Plan{Units: units}, &sourceCache{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sampleRate != 16000 || len(values) != len(units) {
+		t.Fatalf("sample rate=%d pitches=%v", sampleRate, values)
+	}
+	for index, value := range values {
+		if value <= 0 {
+			t.Fatalf("pitch %d was not measured: %v", index, values)
+		}
 	}
 }
 
