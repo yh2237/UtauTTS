@@ -732,6 +732,23 @@ ApplicationWindow {
                                                         rendererSettingRow.actualValue(value));
                                                 }
                                                 function enumModel() {
+                                                    const source = String(rendererSettingRow.modelData.options_source || "");
+                                                    if (source === "resamplers" || source === "wavtools") {
+                                                        const tools = source === "resamplers"
+                                                                      ? root.backend.resamplers
+                                                                      : root.backend.wavtools;
+                                                        const rows = [];
+                                                        if (source === "resamplers")
+                                                            rows.push({ value: "", label: root.translator.tr("settings.resamplerAuto") });
+                                                        for (let index = 0; index < tools.length; ++index) {
+                                                            const tool = tools[index];
+                                                            rows.push({
+                                                                value: String(tool.id),
+                                                                label: String(tool.display_name || tool.id)
+                                                            });
+                                                        }
+                                                        return rows;
+                                                    }
                                                     const options = rendererSettingRow.modelData.options || [];
                                                     const rows = [];
                                                     for (let index = 0; index < options.length; ++index) {

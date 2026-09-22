@@ -133,6 +133,7 @@
     "menu.settings.settings": "설정...",
     "pitch.emptyMora": "・",
     "settings.defaultIntonation": "억양",
+    "settings.resamplerAuto": "자동",
     "settings.defaultDiffSingerSteps": "DiffSinger 확산 스텝",
     "settings.defaultDiffSingerExpr": "DiffSinger 표현력",
     "settings.defaultDiffSingerDurationMix": "DiffSinger 길이 예측 믹스",

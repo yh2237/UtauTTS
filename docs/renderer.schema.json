@@ -83,6 +83,7 @@
           "max": {"type": "number"},
           "step": {"type": "number"},
           "label": {"type": "string"},
+          "options_source": {"enum": ["resamplers", "wavtools"]},
           "options": {
             "type": "array",
             "items": {

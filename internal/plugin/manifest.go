@@ -145,8 +145,13 @@ func validateRendererSettings(settings []RendererSetting) error {
 		default:
 			return fmt.Errorf("renderer setting %q has unsupported type %q", id, setting.Type)
 		}
-		if setting.Type == "enum" && len(setting.Options) == 0 {
+		if setting.Type == "enum" && len(setting.Options) == 0 && setting.OptionsSource == "" {
 			return fmt.Errorf("renderer setting %q is enum without options", id)
+		}
+		switch setting.OptionsSource {
+		case "", "resamplers", "wavtools":
+		default:
+			return fmt.Errorf("renderer setting %q has unsupported options_source %q", id, setting.OptionsSource)
 		}
 		if setting.Min != nil && setting.Max != nil && *setting.Min > *setting.Max {
 			return fmt.Errorf("renderer setting %q has min greater than max", id)

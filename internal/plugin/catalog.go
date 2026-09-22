@@ -56,6 +56,8 @@ type RendererSetting struct {
 	Step    *float64               `json:"step,omitempty"`
 	Label   string                 `json:"label,omitempty"`
 	Options []RendererSettingValue `json:"options,omitempty"`
+	// OptionsSourceはenumの選択肢をカタログから供給する場合の名前（例: resamplers, wavtools）。
+	OptionsSource string `json:"options_source,omitempty"`
 }
 
 // RendererSettingValueはenum設定の選択肢。
