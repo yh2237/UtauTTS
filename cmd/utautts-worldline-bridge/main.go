@@ -84,8 +84,7 @@ func (state *bridgeState) close() {
 	}
 }
 
-// serveProvider is the v1 external-provider protocol adapter. It accepts only
-// the common unit-renderer job and its typed WORLD options.
+// serveProviderはv1外部プロバイダプロトコルのアダプタ。共通のunit-rendererジョブと型付きWORLDオプションのみ受け付ける。
 func serveProvider(input io.Reader, output io.Writer, providerID string) error {
 	state := newBridgeState()
 	defer state.close()
@@ -121,9 +120,7 @@ func serveProvider(input io.Reader, output io.Writer, providerID string) error {
 			return nil
 		}
 		if header.Type == provider.MessageCancel {
-			// Rendering is synchronous in the native adapter. The host will
-			// terminate the process after the protocol cancel grace period if
-			// the active render does not finish.
+			// ネイティブアダプタの描画は同期処理。実行中の描画が終わらない場合、ホストはキャンセル猶予期間後にプロセスを終了する。
 			continue
 		}
 		var request provider.RenderRequest

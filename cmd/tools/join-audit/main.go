@@ -1,5 +1,4 @@
-// join-audit exports acoustic features for the boundaries in a synthesis plan.
-// The output is intended for listening-label collection and model training.
+// join-auditは合成計画内の境界の音響特徴量を出力する。出力は聴取ラベル収集とモデル学習を目的とする。
 package main
 
 import (

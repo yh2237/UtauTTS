@@ -15,7 +15,7 @@ func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
 	if item.Speech == nil || item.Speech.PreserveStopOnly {
 		return worldSpeechMap{}, false
 	}
-	// Analysis starts at the preceding WORLD frame rather than exactly oto.offset.
+	// 解析はoto.offsetちょうどではなく直前のWORLDフレームから始まる。
 	shift := math.Max(0, item.OffsetMS) - math.Floor(math.Max(0, item.OffsetMS)/worldFramePeriodMS)*worldFramePeriodMS
 	a := worldSpeechMap{sourceOnset: item.Speech.SourceOnsetMS + shift, targetOnset: item.Speech.TargetOnsetMS,
 		sourceFixed: item.ConsonantMS + shift, sourceEnd: duration, targetEnd: item.RequiredLengthMS}
@@ -80,8 +80,7 @@ func (a worldSpeechMap) sourceTime(t float64) float64 {
 	}
 }
 
-// Smooth only a short, fully voiced repeated-vowel boundary in the mixed
-// features. Cached source features and the target F0 curve remain untouched.
+// 混合特徴量内の短い有声の連続母音境界だけを平滑化する。キャッシュ済み音源特徴量とターゲットF0曲線は変更しない。
 func applyWorldSpeechJoins(input manifest, features *worldFeatures) map[int]provider.WorldSpeechResult {
 	report := make(map[int]provider.WorldSpeechResult)
 	lastEnd := -1
@@ -144,7 +143,7 @@ func smoothWorldVowel(f *worldFeatures, start, end int) bool {
 		for bin := 0; bin < bins; bin++ {
 			i := frame*bins + bin
 			change := .2 * (logs[i-bins] + logs[i+bins] - 2*logs[i])
-			// Limit local spectral power changes to about 1.5 dB per bin.
+			// 局所的なスペクトルパワー変化を1ビンあたり約1.5 dBに制限する。
 			changeEnergy += change * change
 			candidate[i] += math.Max(-.35, math.Min(.35, change))
 		}

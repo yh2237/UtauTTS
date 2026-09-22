@@ -1,4 +1,4 @@
-// join-ranker trains the optional dependency-free join-quality model.
+// join-rankerは依存のない任意の接合品質モデルを学習する。
 package main
 
 import (

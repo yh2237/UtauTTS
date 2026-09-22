@@ -9,8 +9,7 @@ import (
 	"utautts/internal/tts"
 )
 
-// makeContourCandidates provides deliberately distinct but bounded contour hypotheses.
-// Candidate parameters are stored in the session manifest so results remain reproducible.
+// makeContourCandidatesは意図的に差をつけた範囲内の輪郭候補を返す。候補パラメータは再現性のためセッションマニフェストへ保存する。
 func makeContourCandidates() []candidate {
 	return []candidate{
 		{ID: "base-1_0", Strength: 1},
@@ -32,8 +31,7 @@ func formatCandidateIDs(candidates []candidate) string {
 	return strings.Join(values, ", ")
 }
 
-// transformContour changes a model contour only inside sounding morae.
-// It leaves pauses at zero so phrase-local adjustments cannot leak across silence.
+// transformContourは有声モーラ内だけモデル輪郭を変更する。ポーズは0のままにして、句内調整が無音をまたいで伝播しないようにする。
 func transformContour(preview *tts.ProsodyPreview, text string, profile candidate) (*render.PitchCurve, error) {
 	if preview == nil || preview.FramePitchCurve == nil || preview.FramePitchCurve.FrameMS <= 0 {
 		return nil, errors.New("prosody preview did not contain a frame pitch curve")

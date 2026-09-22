@@ -1,5 +1,4 @@
-// intonation-preference is a local A/B listening tool for tuning prosody
-// parameters from human preferences. It never uses an external teacher model.
+// intonation-preferenceは人の選好から韻律パラメータを調整するローカルA/B聴取ツール。外部教師モデルは使わない。
 package main
 
 import (
