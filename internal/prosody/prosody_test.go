@@ -86,7 +86,7 @@ func TestFramePitchModelSafetyLimitsEffectiveContour(t *testing.T) {
 func TestManualResidualModelAddsMoraCorrectionsWithoutCrossingPause(t *testing.T) {
 	model := &Model{
 		Version: ManualResidualModelVersion, FeatureVersion: 2, Mode: "intonation_frame_v8_manual_residual",
-		BaseModel: &BaseModelReference{ID: "frame-intonation-v8", SHA256: strings.Repeat("a", 64)},
+		BaseModel: &BaseModelReference{ID: "base-intonation", SHA256: strings.Repeat("a", 64)},
 		FramePitch: &FramePitchModel{
 			FeatureNames: []string{"bias"}, InputWeights: [][]float64{{0}}, InputBias: []float64{0},
 			OutputWeight: []float64{0}, FrameMS: 10, LowCents: -250, HighCents: 250,
@@ -146,7 +146,7 @@ func TestProsodyMultitaskModelPredictsMoraDurationAndLoads(t *testing.T) {
 	if !model.HasFrameContour() {
 		t.Fatal("multitask model did not report frame contour")
 	}
-	path := filepath.Join(t.TempDir(), "prosody-multitask-v1.json")
+	path := filepath.Join(t.TempDir(), "multitask.json")
 	if err := model.Save(path); err != nil {
 		t.Fatal(err)
 	}

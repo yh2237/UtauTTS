@@ -43,13 +43,11 @@ type UnitRendererOptions struct {
 
 // WorldlineOptionsはWORLD固有の入力を示す。
 type WorldlineOptions struct {
-	Engine              string          `json:"engine"`
-	SampleRate          int             `json:"sample_rate"`
-	ExactLength         bool            `json:"exact_length,omitempty"`
-	TransitionModelPath string          `json:"transition_model_path,omitempty"`
-	TransitionStrength  float64         `json:"transition_strength,omitempty"`
-	F0Curve             []float64       `json:"f0_curve"`
-	Units               []WorldlineUnit `json:"units"`
+	Engine      string          `json:"engine"`
+	SampleRate  int             `json:"sample_rate"`
+	ExactLength bool            `json:"exact_length,omitempty"`
+	F0Curve     []float64       `json:"f0_curve"`
+	Units       []WorldlineUnit `json:"units"`
 }
 
 type WorldlineUnit struct {

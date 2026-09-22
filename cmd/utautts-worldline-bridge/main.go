@@ -12,15 +12,13 @@ import (
 )
 
 type manifest struct {
-	SpeechResults       *[]provider.WorldSpeechResult `json:"-"`
-	Engine              string                        `json:"engine"`
-	WorldEnginePath     string                        `json:"world_engine_path"`
-	OutputPath          string                        `json:"output_path"`
-	SampleRate          int                           `json:"sample_rate"`
-	F0Curve             []float64                     `json:"f0_curve"`
-	Units               []unit                        `json:"units"`
-	TransitionModelPath string                        `json:"transition_model_path,omitempty"`
-	TransitionStrength  float64                       `json:"transition_strength,omitempty"`
+	SpeechResults   *[]provider.WorldSpeechResult `json:"-"`
+	Engine          string                        `json:"engine"`
+	WorldEnginePath string                        `json:"world_engine_path"`
+	OutputPath      string                        `json:"output_path"`
+	SampleRate      int                           `json:"sample_rate"`
+	F0Curve         []float64                     `json:"f0_curve"`
+	Units           []unit                        `json:"units"`
 }
 
 type unit struct {
@@ -201,8 +199,7 @@ func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
 	input := manifest{
 		Engine: options.Engine, OutputPath: outputPath, SampleRate: options.SampleRate,
 		F0Curve: append([]float64(nil), options.F0Curve...), Units: make([]unit, len(options.Units)),
-		WorldEnginePath: job.Resources["world_engine"], TransitionModelPath: options.TransitionModelPath,
-		TransitionStrength: options.TransitionStrength,
+		WorldEnginePath: job.Resources["world_engine"],
 	}
 	for index, source := range options.Units {
 		target := unit{

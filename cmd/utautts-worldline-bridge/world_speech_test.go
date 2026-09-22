@@ -5,7 +5,6 @@ import (
 	"math"
 	"reflect"
 	"testing"
-	"utautts/internal/jsut"
 	"utautts/internal/provider"
 )
 
@@ -175,26 +174,5 @@ func TestWorldSpeechMixDoesNotChangeCachedFeatures(t *testing.T) {
 	baseline := mixWorldFeatures(in, prepared, 2, 1)
 	if !reflect.DeepEqual(baseline.F0, in.F0Curve) {
 		t.Fatal("target F0 changed")
-	}
-}
-
-func TestTransitionPredictionSafetyRejectsInvalidValues(t *testing.T) {
-	safe := []jsut.TransitionPrediction{
-		{RMSResidualDB: -.3, SpectrumResidualDB: []float64{.2, -.1}},
-		{RMSResidualDB: .1, SpectrumResidualDB: []float64{.4, .2}},
-		{RMSResidualDB: .2, SpectrumResidualDB: []float64{.1, .3}},
-	}
-	if !transitionPredictionSafe(safe) {
-		t.Fatal("safe transition rejected")
-	}
-	unsafe := append([]jsut.TransitionPrediction(nil), safe...)
-	unsafe[1].RMSResidualDB = math.NaN()
-	if transitionPredictionSafe(unsafe) {
-		t.Fatal("invalid transition accepted")
-	}
-	unsafe = append([]jsut.TransitionPrediction(nil), safe...)
-	unsafe[2].SpectrumResidualDB = []float64{math.Inf(1)}
-	if transitionPredictionSafe(unsafe) {
-		t.Fatal("invalid spectrum accepted")
 	}
 }

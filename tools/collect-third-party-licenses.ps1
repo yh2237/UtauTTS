@@ -135,11 +135,6 @@ function Copy-OpenJTalkLicenses {
     }
 }
 
-function Copy-ProsodyDataProvenance {
-    Copy-Required (Join-Path $root 'licenses/JSUT-DATA-AND-LABELS.txt') (Join-Path $licenseRoot 'JSUT-DATA-AND-LABELS.txt')
-    Copy-Required (Join-Path $root 'licenses/PROSODY-MODELS.txt') (Join-Path $licenseRoot 'PROSODY-MODELS.txt')
-}
-
 function Copy-IconFontLicenses {
     Copy-Required (Join-Path $root 'licenses/MATERIAL-SYMBOLS.txt') (Join-Path $licenseRoot 'MATERIAL-SYMBOLS.txt')
 }
@@ -333,7 +328,6 @@ https://ffmpeg.org/legal.html
 New-Item -ItemType Directory -Force -Path $licenseRoot | Out-Null
 Copy-GoLicenses
 Copy-OpenJTalkLicenses
-Copy-ProsodyDataProvenance
 Copy-IconFontLicenses
 Copy-WorldLicenses
 

@@ -108,7 +108,7 @@ func TestEnglishSpeechProfileKeepsCVVCTransitionsAudible(t *testing.T) {
 
 func TestResolveProsodyModelForLanguageUsesBundledEnglishFallback(t *testing.T) {
 	directory := t.TempDir()
-	japanesePath := filepath.Join(directory, "frame-intonation-v8.json")
+	japanesePath := filepath.Join(directory, "japanese-intonation.json")
 	englishPath := filepath.Join(directory, "english-intonation-v1.json")
 	japanese := &prosody.Model{
 		Version: prosody.FramePitchModelVersion, FeatureVersion: 1, Mode: "intonation_frame_tcn_accent_bounded",

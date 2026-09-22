@@ -13,7 +13,6 @@ import (
 	"utautts/internal/connection"
 	"utautts/internal/engine"
 	"utautts/internal/frontend"
-	"utautts/internal/jsut"
 	"utautts/internal/openjtalk"
 	"utautts/internal/plan"
 	"utautts/internal/plugin"
@@ -66,10 +65,6 @@ type Config struct {
 	AliasPolicy             voicebank.AliasPolicy
 	JoinModelPath           string
 	JoinModel               *connection.JoinModel
-	TargetPriorPath         string
-	TargetPrior             *jsut.Prior
-	TargetPriorStrength     float64
-	TargetPriorMinContext   int
 }
 
 type Result struct {
@@ -351,16 +346,6 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
-	targetPrior, err := resolveTargetPrior(cfg)
-	if err != nil {
-		return nil, err
-	}
-	if targetPrior != nil {
-		if language != frontend.LanguageJapanese {
-			return nil, fmt.Errorf("target prior supports Japanese only, got %q", language)
-		}
-		japaneseSpeechPhones(morae)
-	}
 	applyLanguageSpeechProfile(language, &cfg)
 	loadedProsody, err := resolveProsodyModelForLanguage(cfg, language)
 	if err != nil {
@@ -378,20 +363,12 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	}
 	phoneWeights := [][]float64(nil)
 	phoneTimingSource := ""
-	if language == frontend.LanguageJapanese && !cfg.SpeechTiming && targetPrior == nil && voicebank.IsSingleCVSelections(selections) {
+	if language == frontend.LanguageJapanese && !cfg.SpeechTiming && voicebank.IsSingleCVSelections(selections) {
 		japaneseSpeechPhones(morae)
 	}
-	if shouldUseLanguagePhoneTiming(language, cfg.SpeechTiming, targetPrior != nil, voicebank.IsSingleCVSelections(selections)) {
+	if shouldUseLanguagePhoneTiming(language, cfg.SpeechTiming, voicebank.IsSingleCVSelections(selections)) {
 		phoneWeights = languagePhoneWeights(language, morae)
 		phoneTimingSource = "language-phone-v1"
-	}
-	if targetPrior != nil {
-		strength := cfg.TargetPriorStrength
-		if strength <= 0 {
-			strength = 1
-		}
-		phoneWeights = targetPriorPhoneWeights(targetPrior, morae, strength, cfg.TargetPriorMinContext)
-		phoneTimingSource = "jsut-target-prior"
 	}
 	var predictions []prosody.Prediction
 	if language == frontend.LanguageEnglish {
@@ -768,7 +745,6 @@ func validateConfig(cfg Config) error {
 		"intonation_strength":       cfg.IntonationStrength,
 		"boundary_bridge_ms":        cfg.BoundaryBridgeMS,
 		"boundary_bridge_threshold": cfg.BoundaryBridgeThreshold,
-		"target_prior_strength":     cfg.TargetPriorStrength,
 	}
 	for name, value := range finite {
 		if math.IsNaN(value) || math.IsInf(value, 0) {
@@ -790,12 +766,6 @@ func validateConfig(cfg Config) error {
 	}
 	if cfg.ReleaseMS < 0 {
 		return fmt.Errorf("release_ms must be non-negative, got %v", cfg.ReleaseMS)
-	}
-	if cfg.TargetPriorStrength < 0 || cfg.TargetPriorStrength > 1 {
-		return fmt.Errorf("target_prior_strength must be between 0 and 1, got %v", cfg.TargetPriorStrength)
-	}
-	if cfg.TargetPriorMinContext < 0 {
-		return fmt.Errorf("target_prior_min_context must be non-negative, got %v", cfg.TargetPriorMinContext)
 	}
 	return nil
 }

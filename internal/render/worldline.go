@@ -605,7 +605,6 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg Config, manifest worldli
 	}
 	worldline := provider.WorldlineOptions{
 		Engine: manifest.Engine, SampleRate: manifest.SampleRate, ExactLength: cfg.ProviderOptions.Worldline.ExactLength,
-		TransitionModelPath: cfg.ProviderOptions.Worldline.TransitionModelPath, TransitionStrength: cfg.ProviderOptions.Worldline.TransitionStrength,
 		F0Curve: append([]float64(nil), manifest.F0Curve...),
 		Units:   make([]provider.WorldlineUnit, len(manifest.Units)),
 	}

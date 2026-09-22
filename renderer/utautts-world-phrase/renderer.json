@@ -11,9 +11,6 @@
   "acceleration": "cpu",
   "default_priority": 300,
   "capabilities": { "frame_pitch": true },
-  "resources": {
-    "world_transition_model": { "path": "models/jsut-cv-transition-tcn-v1.json" }
-  },
   "platforms": ["windows-amd64", "linux-amd64", "darwin-amd64", "darwin-arm64"],
   "platform_resources": {
     "windows-amd64": {

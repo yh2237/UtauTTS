@@ -9,14 +9,11 @@ UtauTTSのオリジナルコードは[`LICENSE`](./LICENSE)のMIT Licenseです�
 
 ## 学習済みモデル
 
-`frame-intonation-v8`、`prosody-multitask-v1`、WORLD rendererの`jsut-cv-transition-tcn-v1`は、JSUT日本語音声コーパスの音声を使って学習したモデルです。
+同梱する日本語モデル: `frame-intonation-v9-t`は[つくよみちゃんコーパス Vol.1](https://tyc.rei-yumesaki.net/material/corpus/)、`frame-intonation-v9-k`は[Kokoro Speech Dataset](https://github.com/kaiidams/Kokoro-Speech-Dataset)で学習した単一話者モデルです。
 
-- 利用、改変、再配布の範囲: 学術研究、非商用研究、個人利用
-- 商用利用: JSUT権利者の事前許諾
-- 配布方針の基準: [JSUT公式ページ](https://sites.google.com/site/shinnosuketakamichi/publication/jsut)の音声利用条件
-- 詳細な条件と出典: [`models/README.md`](./models/README.md)、[`licenses/PROSODY-MODELS.txt`](./licenses/PROSODY-MODELS.txt)、[`licenses/JSUT-DATA-AND-LABELS.txt`](./licenses/JSUT-DATA-AND-LABELS.txt)
-
-配布物: モデルJSONとライセンス通知。学習入力: JSUT元音声、BASIC5000本文、jsut-labelデータ。出典: 各配布元。
+- `frame-intonation-v9-t`: 音声は商用・非商用可、クレジット必須。音声そのものの再配布は不可。詳細: [`licenses/TSUKUYOMI-CORPUS.txt`](./licenses/TSUKUYOMI-CORPUS.txt)
+- `frame-intonation-v9-k`: 音声はパブリックドメイン。詳細: [`licenses/KOKORO-SPEECH-DATASET.txt`](./licenses/KOKORO-SPEECH-DATASET.txt)
+- モデル重みはMIT Licenseで配布しますが、利用時は学習元コーパスの条件にも従ってください。
 
 `english-intonation-v1`はUtauTTS用の係数モデルで、MIT Licenseで配布します。詳細: [`licenses/ENGLISH-INTONATION-V1.txt`](./licenses/ENGLISH-INTONATION-V1.txt)
 

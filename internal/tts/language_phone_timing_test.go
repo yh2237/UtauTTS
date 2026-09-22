@@ -47,23 +47,21 @@ func TestJapaneseLanguagePhoneTimingIsGated(t *testing.T) {
 	tests := []struct {
 		name         string
 		speechTiming bool
-		targetPrior  bool
 		singleCV     bool
 		want         bool
 	}{
 		{name: "ordinary continuous speech", want: false},
 		{name: "explicit speech timing", speechTiming: true, want: true},
-		{name: "target prior", targetPrior: true, want: true},
 		{name: "single cv bank", singleCV: true, want: true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := shouldUseLanguagePhoneTiming(frontend.LanguageJapanese, test.speechTiming, test.targetPrior, test.singleCV); got != test.want {
+			if got := shouldUseLanguagePhoneTiming(frontend.LanguageJapanese, test.speechTiming, test.singleCV); got != test.want {
 				t.Fatalf("use phone timing = %v, want %v", got, test.want)
 			}
 		})
 	}
-	if !shouldUseLanguagePhoneTiming(frontend.LanguageEnglish, false, false, false) {
+	if !shouldUseLanguagePhoneTiming(frontend.LanguageEnglish, false, false) {
 		t.Fatal("English phone timing was disabled")
 	}
 }

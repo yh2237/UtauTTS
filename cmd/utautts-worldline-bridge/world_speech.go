@@ -2,9 +2,7 @@ package main
 
 import (
 	"math"
-	"strings"
 
-	"utautts/internal/jsut"
 	"utautts/internal/provider"
 )
 
@@ -175,105 +173,4 @@ func smoothWorldVowel(f *worldFeatures, start, end int) bool {
 		}
 	}
 	return true
-}
-
-func applyWorldTransitionModel(input manifest, features *worldFeatures, report map[int]provider.WorldSpeechResult) error {
-	if strings.TrimSpace(input.TransitionModelPath) == "" || input.TransitionStrength <= 0 {
-		return nil
-	}
-	strength := math.Min(.35, input.TransitionStrength)
-	model, err := jsut.LoadTransitionTCN(input.TransitionModelPath)
-	if err != nil {
-		return err
-	}
-	for _, item := range input.Units {
-		if item.Speech == nil || item.Speech.TransitionLeftPhone == "" || item.Speech.TransitionRightPhone == "" {
-			continue
-		}
-		center := int(math.Round((item.PositionMS + item.Speech.TargetJoinMS - item.SkipMS) / worldFramePeriodMS))
-		half := model.PositionBins / 2
-		start, end := center-half, center+(model.PositionBins-half-1)
-		if start < 0 || end >= features.Frames {
-			continue
-		}
-		left := worldTransitionFrame(features, start, input.SampleRate)
-		right := worldTransitionFrame(features, end, input.SampleRate)
-		predictions, ok := model.Predict(item.Speech.TransitionLeftPhone, item.Speech.TransitionRightPhone, left, right)
-		if !ok || len(predictions) != model.PositionBins || !transitionPredictionSafe(predictions) {
-			continue
-		}
-		bins := features.FFTSize/2 + 1
-		for position, prediction := range predictions {
-			frame := start + position
-			envelope := math.Sin(math.Pi * float64(position) / float64(model.PositionBins-1))
-			rms := math.Max(-4, math.Min(4, prediction.RMSResidualDB))
-			for bin := 0; bin < bins; bin++ {
-				frequency := float64(bin) * float64(input.SampleRate) / float64(features.FFTSize)
-				shape := transitionBandValue(prediction.SpectrumResidualDB, frequency, input.SampleRate)
-				shape = math.Max(-6, math.Min(6, shape))
-				features.Spectrum[frame*bins+bin] *= math.Pow(10, strength*envelope*(rms+shape)/10)
-			}
-		}
-		entry := report[item.Speech.UnitIndex]
-		entry.UnitIndex = item.Speech.UnitIndex
-		entry.TransitionApplied = true
-		report[item.Speech.UnitIndex] = entry
-	}
-	return nil
-}
-
-// transitionPredictionSafe は数値異常の推定を除外する。
-func transitionPredictionSafe(predictions []jsut.TransitionPrediction) bool {
-	if len(predictions) < 3 {
-		return false
-	}
-	for _, prediction := range predictions {
-		if math.IsNaN(prediction.RMSResidualDB) || math.IsInf(prediction.RMSResidualDB, 0) {
-			return false
-		}
-		for _, value := range prediction.SpectrumResidualDB {
-			if math.IsNaN(value) || math.IsInf(value, 0) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func worldTransitionFrame(features *worldFeatures, frame, sampleRate int) jsut.Frame {
-	bins := features.FFTSize/2 + 1
-	values := make([]float64, 10)
-	mean := 0.0
-	for band := range values {
-		frequency := 100 * math.Pow(math.Min(8000, float64(sampleRate)*.45)/100, float64(band)/9)
-		bin := max(0, min(bins-1, int(math.Round(frequency*float64(features.FFTSize)/float64(sampleRate)))))
-		values[band] = 10 * math.Log10(math.Max(1e-12, features.Spectrum[frame*bins+bin]))
-		mean += values[band]
-	}
-	mean /= float64(len(values))
-	for band := range values {
-		values[band] -= mean
-	}
-	energy := 0.0
-	for bin := 0; bin < bins; bin++ {
-		energy += features.Spectrum[frame*bins+bin]
-	}
-	return jsut.Frame{Valid: true, RMSDB: 10 * math.Log10(math.Max(1e-12, energy/float64(bins))), F0Hz: features.F0[frame], SpectrumDB: values}
-}
-
-func transitionBandValue(values []float64, frequency float64, sampleRate int) float64 {
-	if len(values) == 0 {
-		return 0
-	}
-	minimum, maximum := 100.0, math.Min(8000, float64(sampleRate)*.45)
-	if frequency <= minimum {
-		return values[0]
-	}
-	if frequency >= maximum {
-		return values[len(values)-1]
-	}
-	position := math.Log(frequency/minimum) / math.Log(maximum/minimum) * float64(len(values)-1)
-	left := int(math.Floor(position))
-	ratio := position - float64(left)
-	return values[left] + ratio*(values[left+1]-values[left])
 }
