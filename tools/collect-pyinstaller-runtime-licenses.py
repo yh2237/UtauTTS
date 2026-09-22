@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inspect a PyInstaller archive and collect its runtime license notices."""
+"""PyInstallerアーカイブを検査し、ランタイムライセンス表記を収集する。"""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ MICROSOFT_RUNTIME_PATTERNS = (
 
 
 def stdlib_native_names() -> set[str]:
-    """Return native extension names shipped by the active interpreter."""
+    """実行中のインタプリタが同梱するネイティブ拡張名を返す。"""
     roots: set[Path] = set()
     for key in ("platstdlib", "stdlib"):
         value = sysconfig.get_path(key)
@@ -48,8 +48,8 @@ def stdlib_native_names() -> set[str]:
         roots.add(Path(shared))
     for root in tuple(roots):
         roots.add(root / "lib-dynload")
-    # Windows stores the standard-library extensions beside the interpreter
-    # in DLLs rather than under the Lib directory.
+    # Windowsは標準ライブラリ拡張をLib配下でなく
+    # DLLsディレクトリへ置く。
     executable_dir = Path(sys.executable).resolve().parent
     roots.update({executable_dir, executable_dir / "DLLs"})
     bindir = sysconfig.get_config_var("BINDIR")
@@ -81,8 +81,8 @@ def classify_entry(name: str, native_names: set[str]) -> tuple[str, list[str]]:
         ]
     if re.fullmatch(r"python\d+\.dll", basename):
         return "CPython", ["runtime/licenses/PYTHON_LICENSE.txt"]
-    # Linux and macOS builds usually carry the shared interpreter under a
-    # libpython*.so/.dylib name instead of pythonXY.dll.
+    # Linux/macOSの共有インタプリタはpythonXY.dllでなく
+    # libpython*.so/.dylib名で入る。
     if re.fullmatch(r"libpython\d+(?:\.\d+)+.*", basename):
         return "CPython", ["runtime/licenses/PYTHON_LICENSE.txt"]
     if basename in {"pyz.pyz", "base_library.zip"} or basename.startswith(

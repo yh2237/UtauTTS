@@ -1,8 +1,8 @@
-"""Open JTalk (pyopenjtalk) to mora-level linguistic feature conversion.
+"""Open JTalk（pyopenjtalk）からモーラ単位の言語特徴への変換。
 
-The shared conversion lives in :mod:`openjtalk_feature_common`.  This module only
-binds the pyopenjtalk frontend so training and preparation scripts keep using
-``analyze(text)``.
+共通変換は :mod:`openjtalk_feature_common` にある。本モジュールは
+pyopenjtalkフロントエンドを束ね、学習・準備スクリプトが ``analyze(text)`` を
+使い続けられるようにするだけ。
 """
 
 import pyopenjtalk
@@ -20,6 +20,6 @@ from openjtalk_feature_common import analyze as _analyze
 
 
 def analyze(text):
-    """Return ``(reading, tokens)`` for ``text`` using the pyopenjtalk frontend."""
+    """pyopenjtalkフロントエンドで ``text`` の ``(reading, tokens)`` を返す。"""
 
     return _analyze(pyopenjtalk, text)

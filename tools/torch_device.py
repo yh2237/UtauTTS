@@ -1,4 +1,4 @@
-"""Shared PyTorch accelerator selection for the intonation trainers."""
+"""抑揚学習器共通のPyTorchアクセラレータ選択。"""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import torch
 
 
 def resolve_device(requested: str) -> torch.device:
-    """Resolve ``auto`` or validate an explicitly requested torch device."""
+    """``auto`` を解決するか、明示指定のtorchデバイスを検証する。"""
 
     name = requested.strip().lower()
     if name == "auto":
@@ -38,7 +38,7 @@ def resolve_device(requested: str) -> torch.device:
 
 
 def device_description(device: torch.device) -> str:
-    """Return a useful, stable label for logs and exported metadata."""
+    """ログと出力メタデータ用の安定した有用ラベルを返す。"""
 
     if device.type == "cuda":
         index = device.index if device.index is not None else torch.cuda.current_device()
@@ -51,7 +51,7 @@ def device_description(device: torch.device) -> str:
 
 
 def move_batch(device: torch.device, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
-    """Move one fully assembled CPU batch to the accelerator in one operation."""
+    """組み立て済みのCPUバッチを1回の操作でアクセラレータへ移動する。"""
 
     if device.type == "cpu":
         return tensors

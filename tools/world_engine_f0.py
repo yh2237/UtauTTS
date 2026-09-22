@@ -1,4 +1,4 @@
-"""F0 extraction through UtauTTS's native WORLD engine (Harvest)."""
+"""UtauTTSネイティブWORLDエンジン（Harvest）によるF0抽出。"""
 import ctypes
 from pathlib import Path
 import numpy as np

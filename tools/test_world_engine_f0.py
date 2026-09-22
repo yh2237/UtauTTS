@@ -1,4 +1,4 @@
-"""Integration checks for the native Harvest adapter (build WORLD first)."""
+"""ネイティブHarvestアダプタの結合テスト（先にWORLDをビルドする）。"""
 import os
 import sys
 import unittest

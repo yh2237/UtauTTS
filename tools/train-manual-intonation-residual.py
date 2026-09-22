@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fit a compact V9 residual model from accepted Intonation Lab .utautts sessions."""
+"""承認済みIntonation Lab .utauttsセッションから小型V9残差モデルを学習する。"""
 from __future__ import annotations
 import argparse,copy,hashlib,importlib.util,json,math,random,sys
 from pathlib import Path

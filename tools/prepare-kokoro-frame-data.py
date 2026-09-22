@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Create frame-intonation JSONL from Kokoro Speech Dataset WAV files.
+"""Kokoro Speech DatasetのWAVからフレーム抑揚JSONLを作成する。
 
-Kokoro provides utterance clips but no phone timestamps. This trial preparer
-detects active audio bounds and distributes Open JTalk morae uniformly inside
-them. Every record identifies this approximation; it is not forced alignment.
+Kokoroは発話クリップを提供するが音素タイムスタンプは無い。本試作準備器は
+有効音声区間を検出し、その中へOpen JTalkモーラを均等配置する。各レコードは
+この近似を明示するもので、強制整列ではない。
 """
 
 from __future__ import annotations
@@ -65,7 +65,7 @@ def active_bounds(samples: list[int], rate: int) -> tuple[float, float]:
 
 
 def timed_tokens(text: str, start_ms: float, end_ms: float) -> tuple[str, list[dict]]:
-    # Kokoro uses spaces as morphological separators, not audible pauses.
+    # Kokoroの空白は形態素区切りであり、無音ではない。
     normalized_text = "".join(text.split())
     reading, linguistic = analyze(normalized_text)
     spoken = [token for token in linguistic if not token.get("pause", False)]

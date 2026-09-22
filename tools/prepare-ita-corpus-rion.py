@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Prepare ITA-Corpus-Rion Emotion recordings for frame-intonation training.
+"""ITA-Corpus-Rion Emotion録音をフレーム抑揚学習用に準備する。
 
-The corpus has no phone timings. Active speech bounds and Open JTalk morae are
-used as an explicitly approximate alignment. Same-text speakers share an ID,
-so a sentence never occurs in both training and validation.
+コーパスに音素タイミングは無い。有効音声区間とOpen JTalkモーラを明示的な
+近似整列として使う。同一テキスト話者は同じIDを共有し、同一文が学習と
+検証の両方に現れないようにする。
 """
 import argparse
 import importlib.util
@@ -71,7 +71,7 @@ def timed_tokens(text, start, end):
 
 
 def count_morae(reading):
-    """Count spoken morae in a kana reading using the shared splitter."""
+    """共通分割器を使い、かな読みの有声モーラ数を数える。"""
 
     return sum(1 for token in split_morae(reading) if not token.get("pause", False))
 
@@ -92,11 +92,10 @@ def _energy_envelope(samples, rate, start_ms, end_ms, frame_ms=10.0):
 
 
 def refine_alignment(tokens, samples, rate, start, end, frame_ms=10.0, strength=0.4):
-    """Move uniform mora boundaries to nearby energy valleys.
+    """均等モーラ境界を近傍のエネルギー谷へ移動する。
 
-    The corpus has no phone timings, so this only refines the uniform estimate;
-    it never reorders morae and keeps each segment within ``strength`` of the
-    uniform boundary.
+    コーパスに音素タイミングは無いため、均等推定の精緻化のみを行う。
+    モーラ順は変えず、各区間を均等境界から ``strength`` 以内に保つ。
     """
 
     result = [dict(token) for token in tokens]

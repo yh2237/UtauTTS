@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the standalone frontend against exported pyopenjtalk features."""
+"""単体フロントエンドを出力済みpyopenjtalk特徴と照合する。"""
 
 import argparse
 import json

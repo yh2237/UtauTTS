@@ -1,4 +1,4 @@
-"""Import a pinned CMUdict checkout without adding a runtime dependency."""
+"""実行時依存を増やさずに固定版CMUdictチェックアウトを取り込む。"""
 import gzip
 import hashlib
 from pathlib import Path
@@ -11,7 +11,7 @@ revision = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD
 raw = (source / "cmudict.dict").read_bytes()
 target = root / "internal/frontend/lexicon"
 target.mkdir(parents=True, exist_ok=True)
-# Keep the original bytes, including alternative pronunciations and stress.
+# 代替発音と強勢を含む元のバイト列を保持する。
 (target / "cmudict.dict.gz").write_bytes(gzip.compress(raw, mtime=0))
 (target / "LICENSE").write_bytes((source / "LICENSE").read_bytes())
 (target / "README.md").write_text(

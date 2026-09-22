@@ -1,7 +1,7 @@
-"""Render-space contour metric; mirrors the Go frame-head postprocessing.
+"""レンダリング空間の輪郭指標。Goのフレームヘッド後処理を反映する。
 
-Both prediction and teacher are transformed. This measures bounded contour
-agreement, not perceived naturalness or synthesized audio F0.
+予測と教師の両方を変換する。これは有界輪郭の一致度を測るもので、
+知覚的な自然さや合成音声のF0ではない。
 """
 import math
 import numpy as np

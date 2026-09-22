@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Extract Kokoro metadata clips as mono 22.05 kHz PCM WAV files.
+"""Kokoroのメタデータクリップをモノラル22.05 kHz PCM WAVとして抽出する。
 
-The upstream metadata stores source-audio sample offsets. Source MP3 files are
-decoded once per chapter with ffmpeg and the published offsets are then used
-without re-segmenting the recordings.
+上流メタデータは元音声のサンプルオフセットを保持する。元MP3は章ごとに
+ffmpegで1回だけデコードし、公開オフセットをそのまま使って再分割しない。
 """
 
 from __future__ import annotations

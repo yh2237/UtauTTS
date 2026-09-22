@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Validate model license metadata and copy the referenced notices.
+"""モデルのライセンスメタデータを検証し、参照された表記をコピーする。
 
-Model metadata uses a package-root-relative POSIX path for ``license_notice``.
-Only files below the repository's ``licenses/`` directory may be referenced.
+``license_notice`` はパッケージルート相対のPOSIXパスを使う。
+参照できるのはリポジトリの ``licenses/`` 配下のファイルだけ。
 """
 
 from __future__ import annotations

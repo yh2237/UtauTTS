@@ -1,11 +1,10 @@
-"""Accent-guided, duration-constrained Viterbi mora alignment.
+"""アクセント誘導・時間長制約付きViterbiモーラ整列。
 
-Corpora without phone timings (ITA Corpus Rion, Kokoro Speech Dataset) still
-need a mora time span per token.  This module places boundaries by treating the
-Open JTalk accent annotation as a weak acoustic model: voiced frames should sit
-near the expected high/low pitch of their mora.  Hard duration bounds keep every
-mora a plausible length, which prevents the degenerate paths a plain DTW makes on
-a step contour.
+音素タイミングの無いコーパス（ITA Corpus Rion、Kokoro Speech Dataset）でも
+トークンごとのモーラ時間幅が必要。本モジュールはOpen JTalkのアクセント注釈を
+弱い音響モデルとして境界を置く。有声フレームはモーラの高低ピッチ付近に来る
+べきという前提。ハードな時間長制約が各モーラを妥当な長さに保ち、単純DTWが
+階段状輪郭で作る退化パスを防ぐ。
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ _TRAINER = None
 
 
 def load_trainer():
-    """Load the shared frame trainer for F0 extraction and interpolation."""
+    """F0抽出と補間のため共通フレーム学習器を読み込む。"""
 
     global _TRAINER
     if _TRAINER is None:
@@ -45,7 +44,7 @@ def viterbi_mora_bounds(
     min_ms: float = 60.0,
     max_ms: float = 300.0,
 ):
-    """Return per-token frame bounds (length ``len(tokens) + 1``)."""
+    """トークンごとのフレーム境界を返す（長さ ``len(tokens) + 1``）。"""
 
     voiced = f0 > 0
     base = float(np.median(f0[voiced])) if voiced.any() else 200.0
@@ -106,7 +105,7 @@ def align_accent_viterbi(
     min_ms: float = 60.0,
     max_ms: float = 300.0,
 ):
-    """Refine uniform mora timing with accent-guided, duration-constrained Viterbi."""
+    """アクセント誘導・時間長制約付きViterbiで均等モーラタイミングを精緻化する。"""
 
     trainer = load_trainer()
     frame_count = max(1, int(math.ceil((end - start) / frame_ms)))

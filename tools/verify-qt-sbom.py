@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify Qt SBOM files and reject bundled FFmpeg in a GUI package."""
+"""Qt SBOMファイルを検証し、GUIパッケージ内の同梱FFmpegを拒否する。"""
 
 from __future__ import annotations
 
@@ -132,7 +132,7 @@ def qt_module_for_stem(stem: str) -> str | None:
 
 
 def normalized_binary_stem(path: Path) -> str:
-    """Normalize Qt DLL, shared-object, dylib, and framework filenames."""
+    """QtのDLL・共有オブジェクト・dylib・frameworkのファイル名を正規化する。"""
     name = path.name.lower()
     name = re.sub(r"\.(?:dll|dylib)(?:\.\d+)*$", "", name)
     name = re.sub(r"\.so(?:\.\d+)*$", "", name)

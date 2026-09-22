@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
-"""Train a frame-level (10 ms) intonation TCN and export portable JSON.
+"""フレーム単位（10 ms）の抑揚TCNを学習し、ポータブルJSONを出力する。
 
-This script learns one value per token. It uses a small residual TCN and sparse
-linguistic feature representation, expands each timed token to a 10 ms frame grid and
-uses an F0 track measured from the corresponding ``audio_path``. The target
-is a smoothed utterance-relative log-F0 command in cents. Pitch is interpolated
-across unvoiced consonants, while pause frames are excluded from the loss so
-training and text-only inference share the same mask.
+本スクリプトはトークンごとに1値を学習する。小型残差TCNとスパース言語特徴を
+用い、各トークンを10 msフレーム格子へ展開し、対応する ``audio_path`` から
+測定したF0トラックを使う。目標は発話相対の平滑化log-F0コマンド（セント）。
+ピッチは無声子音をまたいで補間し、ポーズフレームは損失から除外するため、
+学習とテキストのみの推論が同じマスクを共有する。
 
-Training uses Harvest through the local ``utautts-world-engine`` library, or the
-built-in autocorrelation extractor with ``--f0-source internal``. A missing
-world-engine library is an error rather than an implicit switch.
+学習はローカル ``utautts-world-engine`` ライブラリ経由のHarvest、または
+``--f0-source internal`` の内蔵自己相関抽出器を使う。world-engineライブラリが
+無い場合は暗黙に切り替えずエラーとする。
 
-Datasets must provide their corpus and license provenance; the values are copied
-into the portable model so the training source is recorded.
+データセットはコーパスとライセンスの出所を提示する必要があり、その値は
+学習元の記録としてポータブルモデルへコピーされる。
 
-The exported model is inference-oriented JSON; it does not contain a Python
-pickle or a torch checkpoint.  Its ``frame_pitch`` object mirrors the
-``sequence_pitch`` object produced by the older trainer and adds the frame
-period and cent bounds needed by a Go implementation.
+出力モデルは推論向けJSONで、Python pickleやtorchチェックポイントを含まない。
+その ``frame_pitch`` オブジェクトは旧学習器が生成する ``sequence_pitch`` を
+踏襲し、Go実装に必要なフレーム周期とセント範囲を追加する。
 """
 
 from __future__ import annotations
@@ -53,7 +51,7 @@ DEFAULT_FMAX_HZ = 600.0
 
 
 def fnv1a(text: str) -> int:
-    """Return the stable FNV-1a hash used for all utterance splits."""
+    """全発話分割で使う安定したFNV-1aハッシュを返す。"""
 
     value = 2166136261
     for byte in text.encode("utf-8"):
@@ -63,11 +61,10 @@ def fnv1a(text: str) -> int:
 
 
 def deterministic_split(records: Sequence[dict]) -> tuple[list[dict], list[dict]]:
-    """Split utterances by id, keeping the split independent of file order.
+    """idで発話を分割し、ファイル順に依存しない分割にする。
 
-    ``hash(id) % 10 == 0`` is validation.  The fallback for a tiny corpus keeps
-    the command useful in smoke tests while remaining deterministic and disjoint
-    whenever there are at least two records.
+    ``hash(id) % 10 == 0`` を検証用とする。小規模コーパスではスモークテストで
+    使えるようフォールバックし、レコードが2件以上あれば決定的かつ重複なしを保つ。
     """
 
     train = [record for record in records if fnv1a(str(record["id"])) % 10 != 0]
@@ -93,7 +90,7 @@ def deterministic_split(records: Sequence[dict]) -> tuple[list[dict], list[dict]
 def load_records(
     path: str | Path, limit: int = 0
 ) -> tuple[list[dict], list[dict]]:
-    """Read version-1 JSONL and return deterministic train/validation."""
+    """version-1 JSONLを読み、決定的な学習/検証分割を返す。"""
 
     records: list[dict] = []
     source_path = Path(path)
@@ -130,11 +127,11 @@ def _add_categorical(result: dict[str, float], prefix: str, token: dict) -> None
 
 
 def token_features(tokens: Sequence[dict], position: int) -> dict[str, float]:
-    """Build the reproducible categorical/accent features shared with Go.
+    """Goと共有する再現可能なカテゴリ/アクセント特徴を構築する。
 
-    A frame receives the features of the mora containing its midpoint.  The
-    feature names intentionally match the older trainer: a Go inference path
-    can generate the same sparse vector without importing this script.
+    フレームは中点を含むモーラの特徴を受け取る。特徴名は旧学習器と意図的に
+    合わせており、Go推論経路が本スクリプトを読み込まずに同じスパースベクトルを
+    生成できる。
     """
 
     current = tokens[position]
@@ -188,7 +185,7 @@ def token_features(tokens: Sequence[dict], position: int) -> dict[str, float]:
 
 
 def _fallback_accent(tokens: Sequence[dict]) -> list[dict]:
-    """Fill stable accent fields when pyopenjtalk is not installed/aligned."""
+    """pyopenjtalkが無い/整列不能な場合に安定したアクセント項目を補う。"""
 
     result: list[dict] = []
     phrase: list[dict] = []
@@ -227,7 +224,7 @@ def _fallback_accent(tokens: Sequence[dict]) -> list[dict]:
 
 
 def _ensure_accent_fields(tokens: Sequence[dict]) -> list[dict]:
-    """Fill only absent accent fields, preserving an Open JTalk analysis."""
+    """Open JTalk解析を保ちつつ、欠けているアクセント項目のみ補う。"""
 
     fallback = _fallback_accent(tokens)
     result = []
@@ -245,12 +242,11 @@ def add_openjtalk_features(
     stats: dict | None = None,
     min_alignment_rate: float = 0.60,
 ) -> list[dict]:
-    """Annotate records with Open JTalk accent features when available.
+    """利用可能ならレコードへOpen JTalkアクセント特徴を注釈する。
 
-    Some corpora already contain mora boundaries.  Open JTalk is only accepted
-    when its mora and pause sequence aligns exactly.  Mismatched records are
-    skipped (never silently replaced by fallback accents); the aggregate
-    alignment rate must clear the configured minimum.
+    一部コーパスは既にモーラ境界を持つ。Open JTalkはそのモーラとポーズ列が
+    完全一致する場合のみ採用する。不一致レコードはスキップし（フォールバック
+    アクセントで黙って置換しない）、集計整列率が設定下限を満たす必要がある。
     """
 
     if not enabled:
@@ -352,7 +348,7 @@ def _resolve_audio_path(path: str | Path, dataset_path: str | Path | None = None
 
 
 def read_wav(path: str | Path) -> tuple[np.ndarray, int]:
-    """Read PCM WAV into mono float32 samples in [-1, 1]."""
+    """PCM WAVを [-1, 1] のモノラルfloat32サンプルへ読み込む。"""
 
     with wave.open(str(path), "rb") as source:
         channels = source.getnchannels()
@@ -386,7 +382,7 @@ def read_wav(path: str | Path) -> tuple[np.ndarray, int]:
     return np.asarray(values, dtype=np.float32), sample_rate
 
 
-# Internal names are retained for the shared multitask trainer API.
+# 共通マルチタスク学習APIのため内部名を維持する。
 from world_engine_f0 import WorldEngineF0 as WorldlineF0
 
 
@@ -439,7 +435,7 @@ def _autocorrelation_pitch_batch(
     fmin: float,
     fmax: float,
 ) -> np.ndarray:
-    """Extract autocorrelation F0 for all frames in one vectorized pass."""
+    """全フレームの自己相関F0を1回のベクトル化処理で抽出する。"""
 
     windows = np.asarray(windows, dtype=np.float64)
     result = np.zeros(len(windows), dtype=np.float64)
@@ -496,7 +492,7 @@ def extract_f0_internal(
     fmin: float = DEFAULT_FMIN_HZ,
     fmax: float = DEFAULT_FMAX_HZ,
 ) -> np.ndarray:
-    """Extract a conservative 10 ms F0 track using windowed autocorrelation."""
+    """窓付き自己相関で保守的な10 ms F0トラックを抽出する。"""
 
     hop = max(1, int(round(sample_rate * frame_ms / 1000.0)))
     window = max(hop * 4, int(round(sample_rate * 0.040)))
@@ -525,13 +521,11 @@ def _interpolate_track(
     query_ms: np.ndarray,
     frame_ms: float,
 ) -> np.ndarray:
-    """Interpolate log-F0 only inside explicitly voiced islands.
+    """明示的な有声島の内部だけlog-F0を補間する。
 
-    WORLD's exported array has no timestamp side channel, so its timestamps
-    are constructed explicitly from the requested frame period.  Sampling by
-    rounded indices can duplicate or skip frames when periods differ; this
-    routine uses the actual source/query times and never bridges an unvoiced
-    island.
+    WORLDの出力配列にタイムスタンプは無いため、要求フレーム周期から明示的に
+    構築する。丸めた添字のサンプリングは周期が異なると重複や欠落を生むが、
+    本処理は実際の元/問い合わせ時刻を使い、無声島を決して橋渡ししない。
     """
 
     values = np.asarray(values, dtype=np.float64)
@@ -599,11 +593,11 @@ def extract_record_f0(
     cache_dir: str | Path | None = None,
     cache_tag: str = "default",
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return frame times, F0 Hz, and frame token indices for one record.
+    """1レコードのフレーム時刻、F0 Hz、フレームトークン添字を返す。
 
-    ``cache_dir`` stores the measured F0 track per record so repeated training
-    runs skip the expensive extraction step.  The key includes the frame period
-    and ``cache_tag`` (normally the extractor), so caches never mix sources.
+    ``cache_dir`` はレコードごとの測定F0トラックを保存し、再学習時に高コストな
+    抽出を省略する。キーにはフレーム周期と ``cache_tag``（通常は抽出器）を
+    含め、キャッシュがソースを混在させないようにする。
     """
 
     frame_times = utterance_frame_times(record, frame_ms)
@@ -651,7 +645,7 @@ def frame_features(
     utterance_end_ms: float,
     question: bool = False,
 ) -> dict[str, float]:
-    """Expand token features with normalized frame/mora progress."""
+    """トークン特徴を正規化したフレーム/モーラ進捗で拡張する。"""
 
     if token_index < 0 or token_index >= len(tokens):
         token_index = max(0, min(len(tokens) - 1, token_index))
@@ -673,7 +667,7 @@ def frame_features(
 
 
 def build_feature_index(records: Sequence[dict], frame_ms: float = FRAME_MS) -> dict[str, int]:
-    """Collect and lexicographically index every frame feature name."""
+    """全フレーム特徴名を収集し辞書順に索引化する。"""
 
     names: set[str] = set()
     for record in records:
@@ -692,13 +686,12 @@ def build_feature_index(records: Sequence[dict], frame_ms: float = FRAME_MS) -> 
 
 
 def mora_feature_index(records: Sequence[dict]) -> dict[str, int]:
-    """Index only the mora-level token features (no frame/mora-progress names).
+    """モーラ単位トークン特徴のみを索引化する（フレーム/モーラ進捗名なし）。
 
-    ``build_feature_index`` additionally collects the frame-only columns that
-    ``frame_features`` appends (mora_progress, frame_position, ...).  Those are
-    never produced by ``token_features`` and are always zero for a mora-level
-    head, so heads like the prosody multitask duration predictor should train
-    and export against this smaller index instead.
+    ``build_feature_index`` は ``frame_features`` が追加するフレーム専用列
+    （mora_progress、frame_position など）も収集する。これらは ``token_features``
+    からは生成されずモーラ単位ヘッドでは常に0なので、韻律マルチタスクの時間長
+    予測器のようなヘッドはこの小さい索引で学習・出力すべき。
     """
 
     names: set[str] = set()
@@ -728,11 +721,11 @@ def macro_log_f0(
     max_gap_ms: float = 30.0,
     smooth_ms: float = 40.0,
 ) -> np.ndarray:
-    """Interpolate a pitch command over speech and smooth each phrase.
+    """発話区間でピッチコマンドを補間し、各句を平滑化する。
 
-    At inference there is no acoustic voiced mask.  Supplying ``speech_mask``
-    therefore fills every non-pause island from its measured voiced frames,
-    making training, evaluation and the Go runtime use the same mask.
+    推論時には音響的な有声マスクが無い。そこで ``speech_mask`` を渡すと、
+    非ポーズ島を測定済み有声フレームから埋め、学習・評価・Goランタイムが
+    同じマスクを使えるようにする。
     """
 
     values = np.asarray(f0, dtype=np.float64)
@@ -784,7 +777,7 @@ def prepare(
     cache_tag: str = "default",
     target_smooth_ms: float = 40.0,
 ) -> tuple[list[tuple[list[list[tuple[int, float]]], list[float], list[bool], list[float]]], dict[str, int]]:
-    """Materialize sparse frame sequences and voiced-mask targets."""
+    """スパースフレーム列と有声マスク目標を実体化する。"""
 
     if low_cents >= high_cents:
         raise ValueError("low_cents must be smaller than high_cents")
@@ -850,7 +843,7 @@ def prepare(
 
 
 class FrameIntonationTCN(nn.Module):
-    """Compact residual dilated TCN operating on (batch, frame, feature)."""
+    """(batch, frame, feature) で動作する小型残差拡張TCN。"""
 
     def __init__(self, inputs: int, hidden: int, dilations: Sequence[int] = (1, 2, 4, 8)):
         super().__init__()
@@ -909,7 +902,7 @@ def sequence_loss(
     delta_weight: float = 0.35,
     target_scale: float = 1.0,
 ) -> torch.Tensor:
-    """Speech-frame robust loss plus adjacent speech-frame delta loss."""
+    """発話フレームのロバスト損失と隣接発話フレーム差分損失。"""
 
     if not bool(mask.any()):
         return predicted.sum() * 0.0
@@ -1063,7 +1056,7 @@ def export_model(
 
 
 def _simple_tokens(text: str) -> list[dict]:
-    """Minimal deterministic fallback for prediction-only text corpora."""
+    """予測専用テキストコーパス向けの最小限で決定的なフォールバック。"""
 
     letters = [char for char in str(text) if not char.isspace()]
     return [
@@ -1120,7 +1113,7 @@ def predict_corpus(
     high_cents: float,
     target_scale: float = 1.0,
 ) -> dict:
-    """Predict frame curves for ``{"cases": [...]}`` or dataset JSONL."""
+    """``{"cases": [...]}`` またはデータセットJSONLのフレーム曲線を予測する。"""
 
     path = Path(corpus_path)
     if path.suffix.lower() == ".jsonl":

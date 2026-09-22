@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Open JTalk frontend bridge for the portable UtauTTS runtime.
+"""ポータブルUtauTTSランタイム向けOpen JTalkフロントエンドブリッジ。
 
-The executable accepts one request or a newline-delimited persistent stream.
+実行ファイルは単発リクエストまたは改行区切りの永続ストリームを受け付ける。
 """
 
 import argparse
