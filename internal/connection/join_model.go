@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-// JoinModelVersion is the on-disk format version for the optional join model.
+// JoinModelVersionは任意のjoin modelのオンディスク形式バージョン。
 const JoinModelVersion = 1
 
 var joinFeatureNames = []string{
@@ -25,20 +25,18 @@ var joinFeatureNames = []string{
 	"current_valid",
 }
 
-// JoinFeatureNames returns the stable feature order used by the JSON model.
+// JoinFeatureNamesはJSONモデルが使う固定の特徴量順序を返す。
 func JoinFeatureNames() []string {
 	return append([]string(nil), joinFeatureNames...)
 }
 
-// JoinFeatureVector converts the acoustic measurements into the stable model
-// input order. Boolean values are represented as 0 or 1. Missing measurements
-// remain zero while the validity features tell the model that they are absent.
+// JoinFeatureVectorは音響測定値をモデル入力の固定順序へ変換する。真偽値は0/1で表し、欠落した測定値は0のままにして有効性フラグで欠落を伝える。
 func JoinFeatureVector(features PairFeatures) []float64 {
 	distance := features.SourceAnchorDistanceMS
 	if !isFinite(distance) || distance < 0 {
 		distance = 0
 	}
-	// A very distant same-file jump should not dominate normalization.
+	// 同一ファイル内の遠すぎるジャンプが正規化を支配しないようにする。
 	distance = math.Min(distance, 3000)
 	return []float64{
 		finiteOrZero(features.SpectrumDelta),
@@ -55,9 +53,7 @@ func JoinFeatureVector(features PairFeatures) []float64 {
 	}
 }
 
-// JoinModel is a small logistic ranker exported as JSON. It is intentionally
-// evaluated in Go so the optional feature does not add a neural runtime or a
-// platform-specific dependency to the application.
+// JoinModelはJSONでエクスポートされる小さなロジスティックランカー。ニューラルランタイムやプラットフォーム依存を追加しないため、意図的にGoで評価する。
 type JoinModel struct {
 	Version       int       `json:"version"`
 	Kind          string    `json:"kind"`
@@ -75,8 +71,7 @@ type JoinModel struct {
 	Provenance    string    `json:"provenance,omitempty"`
 }
 
-// JoinPrediction contains both the baseline and optional learned decision.
-// It is useful to explain an audit result without changing the renderer.
+// JoinPredictionはベースラインと任意の学習判定の両方を持つ。レンダラーを変えずにaudit結果を説明するのに役立つ。
 type JoinPrediction struct {
 	Baseline    float64
 	Probability float64
@@ -86,7 +81,7 @@ type JoinPrediction struct {
 	Applied     bool
 }
 
-// LoadJoinModel reads and validates a model exported by join-ranker.
+// LoadJoinModelはjoin-rankerがエクスポートしたモデルを読み込み検証する。
 func LoadJoinModel(path string) (*JoinModel, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -103,8 +98,7 @@ func LoadJoinModel(path string) (*JoinModel, error) {
 	return &model, nil
 }
 
-// Validate checks the model contract before it can affect candidate
-// selection. An invalid model must never silently alter synthesis.
+// Validateは候補選択に影響する前にモデル契約を検査する。不正なモデルが合成を黙って変えてはならない。
 func (model *JoinModel) Validate() error {
 	if model == nil {
 		return fmt.Errorf("model is nil")
@@ -146,17 +140,14 @@ func (model *JoinModel) Validate() error {
 	return nil
 }
 
-// Predict applies the model conservatively. The learned value is a bounded
-// correction to HandcraftedScore, so a model cannot replace the existing
-// safeguards or create an unbounded path preference.
+// Predictはモデルを保守的に適用する。学習値はHandcraftedScoreへの有界な補正であり、既存の安全策を置き換えたり、無制限な経路優先を生み出したりしない。
 func (model *JoinModel) Predict(features PairFeatures) JoinPrediction {
 	baseline := HandcraftedScore(features)
 	result := JoinPrediction{Baseline: baseline, Score: baseline}
 	if model == nil || model.Validate() != nil {
 		return result
 	}
-	// A learned ranker cannot recover a missing acoustic frame. Keep the
-	// existing fallback for malformed or too-short source material.
+	// 学習ランカーは欠落した音響フレームを復元できないため、不正または短すぎる原音は既存のフォールバックを維持する。
 	if !features.PreviousOutgoing.Valid || !features.CurrentIncoming.Valid {
 		return result
 	}
@@ -179,7 +170,7 @@ func (model *JoinModel) Predict(features PairFeatures) JoinPrediction {
 	return result
 }
 
-// Score evaluates a pair and returns whether the learned correction was used.
+// Scoreはペアを評価し、学習補正が使われたかを返す。
 func (model *JoinModel) Score(features PairFeatures) (float64, bool) {
 	prediction := model.Predict(features)
 	return prediction.Score, prediction.Applied

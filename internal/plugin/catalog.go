@@ -44,10 +44,7 @@ type Renderer struct {
 	Directory         string                                 `json:"-"`
 }
 
-// RendererResource is a typed runtime declaration used by manifest v2.
-// Path is relative to the renderer directory unless it is absolute. Required
-// and Executable describe the declaration; the provider remains responsible
-// for validating that the resource is actually needed and usable.
+// RendererResourceはmanifest v2の型付き実行時リソース宣言。Pathは絶対パス以外はrendererディレクトリ基準。実際の要否検証はproviderが行う。
 type RendererResource struct {
 	Path       string `json:"path,omitempty"`
 	Required   bool   `json:"required,omitempty"`
@@ -350,8 +347,7 @@ func (catalog *Catalog) Renderer(id string) (Renderer, bool) {
 	return Renderer{}, false
 }
 
-// Resource returns the selected manifest v2 resource with its path resolved
-// against the renderer directory.
+// Resourceは選択済みのmanifest v2リソースを、rendererディレクトリ基準で解決したパス付きで返す。
 func (renderer Renderer) Resource(name string) RendererResource {
 	resource := renderer.Resources[name]
 	for _, platform := range []string{runtime.GOOS + "-" + runtime.GOARCH, "any"} {

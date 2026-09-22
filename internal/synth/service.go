@@ -61,8 +61,7 @@ type Request struct {
 	ResamplerExpressions    []render.ResamplerExpression `json:"resampler_expressions"`
 }
 
-// Normalized accepts the historical kana field while keeping the domain
-// representation on Reading.
+// Normalizedは互換用のkanaをReadingへ正規化する。
 func (request Request) Normalized() Request {
 	if request.Reading == "" {
 		request.Reading = request.Kana
@@ -70,7 +69,7 @@ func (request Request) Normalized() Request {
 	return request
 }
 
-// ReadingOrKana returns the effective reading without allocating a copy.
+// ReadingOrKanaはコピーせずに有効な読みを返す。
 func (request Request) ReadingOrKana() string {
 	if request.Reading != "" {
 		return request.Reading
@@ -78,8 +77,7 @@ func (request Request) ReadingOrKana() string {
 	return request.Kana
 }
 
-// ResolvedRequest is the shared, fully-resolved input passed to synthesis.
-// CLI uses Config for USTX export while GUI and HTTP normally call Synthesize.
+// ResolvedRequestは合成へ渡す解決済み入力。CLIはUSTX出力にConfigを、GUI/HTTPは通常Synthesizeを使う。
 type ResolvedRequest struct {
 	Config          tts.Config
 	RendererID      string
@@ -142,8 +140,7 @@ func (s *Service) SynthesizeContext(ctx context.Context, request Request) (*Resu
 	return SynthesizeResolved(resolved)
 }
 
-// ResolveSynthesis resolves voicebank, renderer, model, and provider options
-// once for every host. It is public for exports that need the resolved config.
+// ResolveSynthesisは音源・レンダラー・モデル・provider設定を一括解決する。解決済み設定が必要な出力向けに公開。
 func (s *Service) ResolveSynthesis(request Request) (ResolvedRequest, error) {
 	cfg, rendererID, providerOptions, err := s.config(request, true)
 	if err != nil {
@@ -152,7 +149,7 @@ func (s *Service) ResolveSynthesis(request Request) (ResolvedRequest, error) {
 	return ResolvedRequest{Config: cfg, RendererID: rendererID, ProviderOptions: providerOptions}, nil
 }
 
-// SynthesizeResolved synthesizes a config created by ResolveSynthesis.
+// SynthesizeResolvedはResolveSynthesisが作った設定で合成する。
 func SynthesizeResolved(resolved ResolvedRequest) (*Result, error) {
 	return SynthesizeConfigWithOptions(resolved.Config, resolved.RendererID, resolved.ProviderOptions)
 }
@@ -162,8 +159,7 @@ func SynthesizeConfig(cfg tts.Config, rendererID string) (*Result, error) {
 	return SynthesizeConfigWithOptions(cfg, rendererID, render.ProviderOptions{})
 }
 
-// SynthesizeConfigWithOptions runs a resolved config with provider-owned
-// options kept outside tts.Config.
+// SynthesizeConfigWithOptionsはtts.Config外のprovider固有設定と共に解決済み設定を実行する。
 func SynthesizeConfigWithOptions(cfg tts.Config, rendererID string, providerOptions render.ProviderOptions) (*Result, error) {
 	result, err := tts.SynthesizeWithOptions(cfg, providerOptions)
 	if err != nil {
@@ -190,8 +186,7 @@ func (s *Service) PredictProsodyContext(ctx context.Context, request Request) (*
 	return preview, rendererID, nil
 }
 
-// AnalyzeContext resolves only the reading and morae required to initialize an
-// editor. Prediction is intentionally deferred to PredictProsodyContext.
+// AnalyzeContextはエディタ初期化に必要な読みとモーラのみ解決し、予測はPredictProsodyContextに委ねる。
 func (s *Service) AnalyzeContext(ctx context.Context, request Request) (*tts.ProsodyPreview, error) {
 	request = request.Normalized()
 	dictionary := DictionaryMap(request.Dictionary)
@@ -303,9 +298,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	return cfg, string(resolvedEngine.PublicID()), providerOptions, nil
 }
 
-// ResolveRenderer resolves the user-facing Renderer ID to its provider and
-// manifest resources. GUI, HTTP, and CLI use this method so they cannot
-// diverge on default or missing-ID behavior.
+// ResolveRendererは表示用Renderer IDをproviderとmanifest資源へ解決する。GUI/HTTP/CLIで既定・未指定時の挙動を揃える。
 func (s *Service) ResolveRenderer(requested string) (engine.ResolvedEngine, error) {
 	resolved, err := tts.ResolveRendererWithOptions(s.catalog, s.rendererID(requested), engine.ResolveOptions{
 		ResourceOverrides: map[engine.ResourceKey]string{
@@ -318,9 +311,7 @@ func (s *Service) ResolveRenderer(requested string) (engine.ResolvedEngine, erro
 	return resolved, nil
 }
 
-// RendererAvailability returns preflight information for every discovered
-// renderer. It is intentionally non-fatal so listing endpoints can explain
-// missing runtimes before a user starts synthesis.
+// RendererAvailabilityは検出済みRendererの事前確認情報を返す。致命的にせず、一覧で不足ランタイムを提示できるようにする。
 func (s *Service) RendererAvailability() map[string]engine.Availability {
 	result := make(map[string]engine.Availability)
 	if s.catalog == nil {
@@ -349,15 +340,14 @@ func (s *Service) RendererAvailability() map[string]engine.Availability {
 	return result
 }
 
-// ClassicTools are the resolved external tools selected for Classic UTAU.
+// ClassicToolsはClassic UTAU向けに解決された外部ツール。
 type ClassicTools struct {
 	Resampler plugin.ClassicTool
 	Wavtool   plugin.ClassicTool
 	Resources map[engine.ResourceKey]string
 }
 
-// ResolveClassicTools resolves Classic UTAU tool IDs with the same catalog
-// used by every entry point.
+// ResolveClassicToolsは全入口で共有するカタログからClassic UTAUツールIDを解決する。
 func (s *Service) ResolveClassicTools(resamplerID, wavtoolID string) (ClassicTools, error) {
 	if s.catalog == nil {
 		return ClassicTools{}, fmt.Errorf("%w: renderer catalog is not initialized", ErrUnavailable)
@@ -396,7 +386,7 @@ func (s *Service) rendererID(requested string) string {
 	return s.renderer
 }
 
-// ResolveModel resolves a model ID or catalogued path to a runtime path.
+// ResolveModelはモデルIDまたは登録済みパスを実行時パスへ解決する。
 func (s *Service) ResolveModel(id string) (string, error) {
 	if id == "" || id == "none" {
 		return "", nil

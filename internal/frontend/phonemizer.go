@@ -302,7 +302,7 @@ func englishTerminalConsonants(vowels, coda []string, symbols map[string][]strin
 				endings = append(endings, vowel+separator+value+"-", vowel+value+"-")
 			}
 		}
-		// A missing release marker must not make an available VC disappear.
+		// 解放マーカーが欠けても利用可能なVCを候補から消さない。
 		for _, vowel := range vowels {
 			for _, value := range cluster {
 				endings = append(endings, vowel+separator+value, vowel+value)
@@ -638,8 +638,8 @@ func ParseChineseCVVCWithConfig(text, reading string, dictionary map[string]stri
 	}
 	var morae []Mora
 	previousFinal := ""
-	// GUI previews send the generated reading back. Recover lexical metadata
-	// only for an exact match; never reinterpret an explicitly edited reading.
+	// GUIプレビューは生成した読みを返す。完全一致のときだけ字句情報を復元し、
+	// 明示的に編集された読みは再解釈しない。
 	if len(tokens) == 0 && text != "" {
 		if inferred, err := chineseReadingTokens(text, dictionary); err == nil {
 			var values []string

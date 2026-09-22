@@ -130,7 +130,7 @@ func (e *Engine) reload() error {
 	if err := e.voicebanks.Reload(); err != nil {
 		return err
 	}
-	// A new source path can otherwise retain decoded WAV and Bank caches.
+	// 音源パス変更時にデコード済みWAVやBankキャッシュが残るのを防ぐ。
 	tts.ClearCaches()
 	return nil
 }

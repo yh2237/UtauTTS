@@ -1,7 +1,4 @@
-// Package provider contains the process boundary used by external synthesis
-// providers. The wire format is deliberately small; contract-specific input
-// is passed as a host-owned job file rather than embedded as large JSON or
-// binary data in the protocol stream.
+// Package providerは外部合成providerとのプロセス境界を提供する。契約固有の入力はプロトコルに埋め込まず、ホスト管理のjobファイルで渡す。
 package provider
 
 import (
@@ -25,14 +22,13 @@ const (
 	MessageShutdown   = "shutdown"
 )
 
-// ContractSupport declares one contract version implemented by a provider.
-// A provider may advertise more than one contract in its handshake.
+// ContractSupportはproviderが実装する1つの契約バージョンを示す。ハンドシェイクで複数契約を通知できる。
 type ContractSupport struct {
 	Name    string `json:"name"`
 	Version int    `json:"version"`
 }
 
-// Hello is the first message emitted by a provider session.
+// Helloはproviderセッションが最初に送るメッセージ。
 type Hello struct {
 	Type            string            `json:"type"`
 	Protocol        string            `json:"protocol"`
@@ -44,9 +40,7 @@ type Hello struct {
 	Contracts       []ContractSupport `json:"contracts"`
 }
 
-// RenderRequest starts one render job. InputPath and OutputPath are paths in
-// a host-owned job directory. Their file format is defined by the selected
-// contract version, not by the transport itself.
+// RenderRequestは1つの描画ジョブを開始する。InputPath/OutputPathはホスト管理のjobディレクトリ内パスで、形式は選択した契約バージョンが定める。
 type RenderRequest struct {
 	Type            string `json:"type"`
 	RequestID       string `json:"request_id"`
@@ -56,7 +50,7 @@ type RenderRequest struct {
 	OutputPath      string `json:"output_path"`
 }
 
-// Progress reports best-effort progress for the active request.
+// Progressは実行中リクエストの進捗をbest-effortで報告する。
 type Progress struct {
 	Type      string  `json:"type"`
 	RequestID string  `json:"request_id"`
@@ -65,8 +59,7 @@ type Progress struct {
 	Message   string  `json:"message,omitempty"`
 }
 
-// Diagnostic is a structured provider log intended for the host's report or
-// log view. It is not a terminal response.
+// Diagnosticはホストのレポート/ログ向けの構造化ログで、終端応答ではない。
 type Diagnostic struct {
 	Type      string `json:"type"`
 	RequestID string `json:"request_id,omitempty"`
@@ -75,10 +68,7 @@ type Diagnostic struct {
 	Message   string `json:"message"`
 }
 
-// AudioArtifact describes the result written by a provider. Path is normally
-// absolute because the host sends an absolute job path; a relative path is
-// interpreted relative to that same host-owned job directory by the contract
-// adapter.
+// AudioArtifactはproviderが書き出した結果を示す。Pathは通常絶対パスで、相対パスは同じjobディレクトリ基準で解釈される。
 type AudioArtifact struct {
 	Path       string `json:"path"`
 	Format     string `json:"format"`
@@ -86,7 +76,7 @@ type AudioArtifact struct {
 	Channels   int    `json:"channels"`
 }
 
-// Result completes one render request.
+// Resultは1つの描画リクエストを完了させる。
 type Result struct {
 	Type      string         `json:"type"`
 	RequestID string         `json:"request_id"`
@@ -94,8 +84,7 @@ type Result struct {
 	Report    map[string]any `json:"report,omitempty"`
 }
 
-// ErrorMessage is a terminal provider error for one request or for the
-// session handshake.
+// ErrorMessageは1リクエストまたはセッションハンドシェイクの終端エラー。
 type ErrorMessage struct {
 	Type      string `json:"type"`
 	RequestID string `json:"request_id,omitempty"`
@@ -104,15 +93,13 @@ type ErrorMessage struct {
 	Retryable bool   `json:"retryable,omitempty"`
 }
 
-// Cancel asks the provider to stop one active request. A provider may return
-// an error with code "canceled" and keep the session alive.
+// Cancelは実行中リクエストの停止を求める。providerはcode "canceled"を返しセッションを維持してよい。
 type Cancel struct {
 	Type      string `json:"type"`
 	RequestID string `json:"request_id"`
 }
 
-// Shutdown asks a session to exit cleanly after all already-written output
-// has been flushed.
+// Shutdownは書き出し済み出力をフラッシュ後、セッションの正常終了を求める。
 type Shutdown struct {
 	Type string `json:"type"`
 }
@@ -121,8 +108,7 @@ type messageHeader struct {
 	Type string `json:"type"`
 }
 
-// decodeMessage decodes exactly one protocol line. Unknown message types are
-// rejected so a provider cannot silently downgrade the host's expectations.
+// decodeMessageはプロトコル1行をデコードする。未知の型は拒否し、providerによる暗黙のダウングレードを防ぐ。
 func decodeMessage(data []byte) (any, error) {
 	var header messageHeader
 	if err := json.Unmarshal(data, &header); err != nil {

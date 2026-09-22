@@ -230,10 +230,7 @@ func (pool *externalProviderSessionPool) get(ctx context.Context, definition eng
 }
 
 func providerCapabilities(capabilities engine.Capabilities) []string {
-	// The host always sends the shared unit-renderer job envelope. Feature
-	// capabilities below describe optional behavior inside that envelope; the
-	// envelope capability itself is therefore required for every external unit
-	// renderer session.
+	// 共通のunit-renderer jobは常に送るため、このenvelope capabilityは全外部rendererで必須。
 	result := []string{provider.CapabilityUnitRendererJobV2}
 	if capabilities.FramePitch {
 		result = append(result, "frame_pitch")

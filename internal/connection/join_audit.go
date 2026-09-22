@@ -8,9 +8,7 @@ import (
 	"os"
 )
 
-// JoinAuditUnit identifies one selected unit without depending on plan.Plan.
-// Keeping this DTO in connection lets both the audit command and the trainer
-// use the same file format without creating an import cycle.
+// JoinAuditUnitはplan.Planに依存せずに選択ユニットを識別する。このDTOをconnectionに置くことで、import cycleを避けつつauditコマンドとtrainerが同じファイル形式を共有できる。
 type JoinAuditUnit struct {
 	Index          int     `json:"index"`
 	Position       int     `json:"position"`
@@ -32,9 +30,7 @@ type JoinAuditUnit struct {
 	CandidateCount int     `json:"candidate_count,omitempty"`
 }
 
-// JoinAuditRow is one adjacent boundary from a rendered plan. Label is nil
-// until a listener marks the join, 1 means preferred/continuous and 0 means
-// rejected/discontinuous.
+// JoinAuditRowはレンダリング済みプランの1つの隣接境界。Labelがnilの場合は未ラベルで、1は優先/連続、0は却下/不連続を表す。
 type JoinAuditRow struct {
 	SchemaVersion    int           `json:"schema_version"`
 	GroupID          string        `json:"group_id"`
@@ -57,9 +53,7 @@ type JoinAuditRow struct {
 
 const JoinAuditSchemaVersion = 1
 
-// JoinRiskFlags are triage hints for listening and are deliberately not used
-// as training labels. Thresholds are conservative and can be changed without
-// changing the stored feature format.
+// JoinRiskFlagsは試聴トリアージ用のヒントで、学習ラベルには意図的に使わない。しきい値は保守的で、保存済み特徴形式を変えずに変更できる。
 func JoinRiskFlags(features PairFeatures) []string {
 	flags := make([]string, 0, 5)
 	if !features.PreviousOutgoing.Valid || !features.CurrentIncoming.Valid {
@@ -89,8 +83,7 @@ func JoinRiskFlags(features PairFeatures) []string {
 	return flags
 }
 
-// ReadJoinAuditRows reads the JSON array emitted by join-audit or one row per
-// line JSONL files, which makes it easy to merge several listening sessions.
+// ReadJoinAuditRowsはjoin-auditが出力するJSON配列、または1行1レコードのJSONLを読む。複数の試聴セッションを統合しやすい。
 func ReadJoinAuditRows(path string) ([]JoinAuditRow, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

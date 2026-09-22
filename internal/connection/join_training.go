@@ -5,7 +5,7 @@ import (
 	"math"
 )
 
-// JoinTrainingOptions controls the dependency-free offline ranker trainer.
+// JoinTrainingOptionsは依存ライブラリ不要のオフラインランカー学習器の設定。
 type JoinTrainingOptions struct {
 	ID            string
 	Description   string
@@ -17,7 +17,7 @@ type JoinTrainingOptions struct {
 	MinConfidence float64
 }
 
-// JoinTrainingReport contains only diagnostics, not model parameters.
+// JoinTrainingReportは診断情報のみを保持し、モデルパラメータは含まない。
 type JoinTrainingReport struct {
 	Examples int
 	Positive int
@@ -31,10 +31,7 @@ type joinTrainingExample struct {
 	label  float64
 }
 
-// TrainJoinModel fits a small standardized logistic ranker from listener
-// labels in JoinAuditRow. Rows without labels are skipped. The trainer is
-// intentionally simple and deterministic so it can run without Python or a
-// machine-learning runtime.
+// TrainJoinModelはJoinAuditRowの試聴ラベルから標準化した小さなロジスティックランカーを学習する。ラベル無し行はスキップする。Pythonや機械学習ランタイム無しで動かせるよう、意図的に単純で決定的にしている。
 func TrainJoinModel(rows []JoinAuditRow, options JoinTrainingOptions) (*JoinModel, JoinTrainingReport, error) {
 	options = normalizeTrainingOptions(options)
 	examples := make([]joinTrainingExample, 0, len(rows))

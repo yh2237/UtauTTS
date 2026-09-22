@@ -15,8 +15,7 @@ import (
 	"utautts/internal/provider"
 )
 
-// RenderSession uses the provider protocol and keeps the bridge process alive
-// between calls so ONNX Runtime sessions can remain resident.
+// RenderSessionはproviderプロトコルを使い、bridgeプロセスを維持してONNX Runtimeセッションを常駐させる。
 func RenderSession(ctx context.Context, bridgePath string, request Request) (*audio.PCM, error) {
 	return renderSession(ctx, bridgePath, engine.NeuralScore{}, request)
 }
@@ -233,7 +232,7 @@ func (pool *diffSingerProviderSessionPool) closeAll() error {
 	return closeErr
 }
 
-// CloseProviderSessions releases the resident DiffSinger bridge process.
+// CloseProviderSessionsは常駐するDiffSinger bridgeプロセスを解放する。
 func CloseProviderSessions() error {
 	return diffSingerProviderSessions.closeAll()
 }

@@ -48,13 +48,12 @@ func NewExtractor() *Extractor {
 	return &Extractor{cache: map[oto.Entry]Boundary{}}
 }
 
-// NewExtractorWithModel creates an extractor that applies an optional learned
-// join correction while retaining the same acoustic boundary cache.
+// NewExtractorWithModelは同じ境界キャッシュを保ちつつ、任意の学習済み接合補正を適用するExtractorを生成する。
 func NewExtractorWithModel(model *JoinModel) *Extractor {
 	return &Extractor{cache: map[oto.Entry]Boundary{}, model: model}
 }
 
-// JoinModel reports the immutable model used by this extractor.
+// JoinModelはこのExtractorが使う不変のモデルを返す。
 func (e *Extractor) JoinModel() *JoinModel {
 	if e == nil {
 		return nil
@@ -102,16 +101,13 @@ func (e *Extractor) Pair(previous, current oto.Entry) PairFeatures {
 	return result
 }
 
-// ScoreEntries evaluates one transition with the configured model. The
-// handcrafted score remains the fallback for missing or low-confidence model
-// decisions.
+// ScoreEntriesは設定済みモデルで1つの遷移を評価する。判定が欠落または低信頼の場合は手作りscoreをフォールバックに使う。
 func (e *Extractor) ScoreEntries(previous, current oto.Entry) float64 {
 	features := e.Pair(previous, current)
 	return e.ScoreFeatures(features)
 }
 
-// ScoreFeatures evaluates already extracted features without touching the
-// boundary cache.
+// ScoreFeaturesは境界キャッシュに触れず、抽出済みの特徴量を評価する。
 func (e *Extractor) ScoreFeatures(features PairFeatures) float64 {
 	if e != nil && e.model != nil {
 		return e.model.Predict(features).Score

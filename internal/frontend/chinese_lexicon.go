@@ -9,8 +9,7 @@ import (
 	"unicode/utf8"
 )
 
-// A deliberately small, independently written seed lexicon. User entries win.
-// This is not a statistical polyphone disambiguator; unknown words use go-pinyin.
+// 独立に用意した小さな種辞書。ユーザー辞書を優先し、未知語はgo-pinyinで処理する。
 var chineseWords = map[string]string{
 	"银行": "yin2 hang2", "銀行": "yin2 hang2", "行长": "hang2 zhang3", "行長": "hang2 zhang3",
 	"行业": "hang2 ye4", "行業": "hang2 ye4", "行为": "xing2 wei2", "行为人": "xing2 wei2 ren2",

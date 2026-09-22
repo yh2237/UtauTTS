@@ -35,15 +35,13 @@ type Config struct {
 	PitchCurve              *PitchCurve
 }
 
-// ProviderOptions contains settings that belong to a concrete provider.
-// Keeping these out of the top-level render Config prevents unrelated
-// providers from accumulating one another's executable paths and switches.
+// ProviderOptionsは特定provider固有の設定を保持する。無関係なproviderの実行パスやスイッチが混ざるのを防ぐ。
 type ProviderOptions struct {
 	Classic   ClassicOptions
 	Worldline WorldlineProviderOptions
 }
 
-// ClassicOptions contains the external UTAU resampler/wavtool settings.
+// ClassicOptionsは外部UTAUのresampler/wavtool設定。
 type ClassicOptions struct {
 	ResamplerPath        string
 	WavtoolPath          string
@@ -56,8 +54,7 @@ type ClassicOptions struct {
 	ResamplerExpressions []ResamplerExpression
 }
 
-// WorldlineProviderOptions contains WORLD-only host controls. The prepared
-// WORLD job carries the rest of its provider input in provider options.
+// WorldlineProviderOptionsはWORLD専用のホスト制御。残りのprovider入力はWORLD jobが持つ。
 type WorldlineProviderOptions struct {
 	SpeechPitchReference bool
 	ExactLength          bool

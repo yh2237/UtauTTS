@@ -122,7 +122,7 @@ func normalizeChineseText(text string) string {
 	return numberPattern.ReplaceAllStringFunc(text, func(s string) string {
 		integer, fraction, decimal := strings.Cut(s, ".")
 		n, err := strconv.ParseUint(integer, 10, 64)
-		// Years and long identifiers are read digit by digit.
+		// 年や長い識別子は1桁ずつ読む。
 		digitwise := err != nil || len(integer) > 8 || (len(integer) > 1 && integer[0] == '0') || strings.Contains(text, s+"年")
 		value := ""
 		if digitwise {

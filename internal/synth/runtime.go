@@ -7,8 +7,7 @@ import (
 	"utautts/internal/render"
 )
 
-// RuntimeConfig contains the process-level dependencies shared by every
-// synthesis entry point.
+// RuntimeConfigは全合成の入口で共有するプロセス依存設定。
 type RuntimeConfig struct {
 	Renderer                              string
 	WorldlineBridgePath                   string
@@ -17,15 +16,14 @@ type RuntimeConfig struct {
 	RendererDirectories, ModelDirectories []string
 }
 
-// Runtime owns the discovered plugin catalog and the service built from it.
+// Runtimeは検出済みプラグインカタログと、それから構築したServiceを保持する。
 type Runtime struct {
 	Catalog  *plugin.Catalog
 	Renderer string
 	Service  *Service
 }
 
-// NewRuntime centralizes plugin discovery and default-renderer normalization
-// for GUI, HTTP, and command-line hosts.
+// NewRuntimeはGUI・HTTP・CLIで共有するプラグイン検出と既定Renderer補正を行う。
 func NewRuntime(config RuntimeConfig, voicebanks VoicebankResolver) (*Runtime, error) {
 	catalog, err := plugin.DiscoverWithDefaults(config.RendererDirectories, config.ModelDirectories, render.IsKnownRenderer)
 	if err != nil {

@@ -1,12 +1,8 @@
 package render
 
-// CloseProviderSessions releases long-lived external Provider processes. It
-// is intended for application shutdown; normal synthesis keeps sessions
-// resident so model and native runtime initialization is not repeated.
+// CloseProviderSessionsはアプリ終了時に常駐する外部Providerプロセスを解放する。
 func CloseProviderSessions() error {
-	// Serialize with the WORLD bridge client before replacing its shared
-	// session. Session.Close itself waits for an in-flight render to finish or
-	// reach its cancellation/termination grace period.
+	// WORLD bridge clientと直列化してから共有セッションを置き換える。Close自体は実行中renderの完了を待つ。
 	worldlineBridgeGate <- struct{}{}
 	sharedWorldlineBridge.stop()
 	<-worldlineBridgeGate

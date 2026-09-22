@@ -18,8 +18,7 @@ func TestSpeechRetimePreservesStopReleaseAndLength(t *testing.T) {
 	for i := onset; i < len(source); i++ {
 		source[i] = 0.2 * math.Sin(2*math.Pi*180*float64(i-onset)/rate)
 	}
-	// An isolated burst five milliseconds before vowel onset must survive
-	// compression at the same offset from the target onset.
+	// 母音開始5ms前の孤立した破裂音は、目標開始からの同じオフセットで圧縮後も残る。
 	source[onset-msToFrames(5, rate)] = 0.9
 	targetOnset := msToFrames(35, rate)
 	got, targetFixed, applied := speechRetime(source, msToFrames(240, rate), onset, fixed, targetOnset, msToFrames(60, rate), rate, true)

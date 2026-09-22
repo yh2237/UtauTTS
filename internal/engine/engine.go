@@ -1,5 +1,4 @@
-// Package engine defines the boundary between a user-facing synthesis engine
-// definition and the implementation that provides it.
+// Package engineは、ユーザーに見える合成エンジン定義と実装の境界を定義する。
 package engine
 
 import (
@@ -13,15 +12,13 @@ import (
 	"utautts/internal/plugin"
 )
 
-// PublicID is the stable identifier stored by projects, exposed in the UI,
-// and accepted by the CLI and HTTP API.
+// PublicIDはプロジェクト保存・UI表示・CLI／HTTP APIで使う安定識別子。
 type PublicID string
 
-// ProviderID identifies an implementation. It is intentionally distinct from
-// PublicID: several definitions may select the same implementation.
+// ProviderIDは実装を識別する。複数の定義が同じ実装を選べるためPublicIDとは分ける。
 type ProviderID string
 
-// Contract describes the input a provider accepts.
+// Contractはproviderが受け取る入力の種類。
 type Contract string
 
 const (
@@ -30,8 +27,7 @@ const (
 	ContractNeuralSynthesizer Contract = "neural-synthesizer"
 )
 
-// Capabilities are the features exposed by an engine definition or provider.
-// A definition may advertise only a subset of its provider's capabilities.
+// Capabilitiesはエンジン定義やproviderが公開する機能。定義はproviderの一部だけを公開してもよい。
 type Capabilities struct {
 	FramePitch     bool
 	BoundaryBridge bool
@@ -42,7 +38,7 @@ func (capabilities Capabilities) Supports(requested Capabilities) bool {
 		(!requested.BoundaryBridge || capabilities.BoundaryBridge)
 }
 
-// ResourceKey is the name of an engine runtime resource.
+// ResourceKeyはエンジン実行時資源の名前。
 type ResourceKey string
 
 const (
@@ -54,15 +50,14 @@ const (
 	ResourceProviderExecutable ResourceKey = "provider_executable"
 )
 
-// ResourceRequirement declares a runtime dependency of a provider.
+// ResourceRequirementはproviderの実行時依存。
 type ResourceRequirement struct {
 	Key        ResourceKey
 	Required   bool
 	Executable bool
 }
 
-// Definition is the user-visible declaration of a synthesis engine.
-// Resources are resolved absolute paths when loaded from a renderer manifest.
+// Definitionはユーザーに見える合成エンジン宣言。renderer manifestから読む場合、Resourcesは解決済み絶対パスになる。
 type Definition struct {
 	ID              PublicID
 	DisplayName     string
@@ -82,12 +77,12 @@ type Definition struct {
 	Resources       map[ResourceKey]string
 }
 
-// Resource returns the resolved path for a declared resource.
+// Resourceは宣言済み資源の解決済みパスを返す。
 func (definition Definition) Resource(key ResourceKey) string {
 	return definition.Resources[key]
 }
 
-// Provider describes an available implementation and its typed resources.
+// Providerは利用可能な実装と型付き資源を表す。
 type Provider struct {
 	ID           ProviderID
 	Contract     Contract
@@ -96,7 +91,7 @@ type Provider struct {
 	Requirements []ResourceRequirement
 }
 
-// Registry contains the implementations available in this binary.
+// Registryはこのバイナリで利用可能な実装を保持する。
 type Registry struct {
 	providers map[ProviderID]Provider
 }
@@ -110,7 +105,7 @@ var (
 	ErrResourcesUnavailable    = errors.New("synthesis engine resources are unavailable")
 )
 
-// NewRegistry constructs an immutable provider registry.
+// NewRegistryは不変のproviderレジストリを作る。
 func NewRegistry(providers ...Provider) (Registry, error) {
 	result := Registry{providers: make(map[ProviderID]Provider, len(providers))}
 	for _, provider := range providers {
@@ -166,18 +161,18 @@ var builtinRegistry = mustRegistry(
 	},
 )
 
-// BuiltinRegistry returns the providers bundled with the current binary.
+// BuiltinRegistryは同梱providerを返す。
 func BuiltinRegistry() Registry {
 	return builtinRegistry
 }
 
-// Provider returns a provider by implementation ID.
+// Providerは実装IDでproviderを返す。
 func (registry Registry) Provider(id ProviderID) (Provider, bool) {
 	provider, found := registry.providers[id]
 	return cloneProvider(provider), found
 }
 
-// Providers returns a stable copy suitable for diagnostics and tests.
+// Providersは診断・テスト用の安定したコピーを返す。
 func (registry Registry) Providers() []Provider {
 	result := make([]Provider, 0, len(registry.providers))
 	for _, provider := range registry.providers {
@@ -194,36 +189,36 @@ func cloneProvider(provider Provider) Provider {
 	return provider
 }
 
-// Supports reports whether the implementation is available in this binary.
+// Supportsは実装がこのバイナリで利用可能かを返す。
 func (registry Registry) Supports(id ProviderID) bool {
 	_, found := registry.Provider(id)
 	return found
 }
 
-// ResolvedEngine binds a user-visible definition to an available provider.
+// ResolvedEngineはユーザーに見える定義と利用可能なproviderを結びつける。
 type ResolvedEngine struct {
 	Definition   Definition
 	Provider     Provider
 	Availability Availability
 }
 
-// PublicID returns the stable ID selected by the caller.
+// PublicIDは呼び出し元が選んだ安定IDを返す。
 func (resolved ResolvedEngine) PublicID() PublicID {
 	return resolved.Definition.ID
 }
 
-// Resource returns a resolved runtime resource path.
+// Resourceは解決済みの実行時資源パスを返す。
 func (resolved ResolvedEngine) Resource(key ResourceKey) string {
 	return resolved.Definition.Resource(key)
 }
 
-// Availability is the preflight state of resources required by a provider.
+// Availabilityはproviderが必要とする資源の事前検査結果。
 type Availability struct {
 	Available bool                `json:"available"`
 	Issues    []AvailabilityIssue `json:"issues,omitempty"`
 }
 
-// AvailabilityIssue explains one unavailable resource.
+// AvailabilityIssueは利用できない資源の理由。
 type AvailabilityIssue struct {
 	Resource ResourceKey `json:"resource,omitempty"`
 	Message  string      `json:"message"`
@@ -243,8 +238,7 @@ func (availability Availability) Error() string {
 	return strings.Join(messages, "; ")
 }
 
-// RequireAvailable returns a user-facing error when the selected definition
-// cannot run with its current resources.
+// RequireAvailableは選択定義が現在の資源で動けない場合にユーザー向けエラーを返す。
 func (resolved ResolvedEngine) RequireAvailable() error {
 	if resolved.Availability.Available {
 		return nil
@@ -252,32 +246,27 @@ func (resolved ResolvedEngine) RequireAvailable() error {
 	return fmt.Errorf("%w: renderer %q: %s", ErrResourcesUnavailable, resolved.Definition.ID, resolved.Availability.Error())
 }
 
-// ResolveOptions applies explicit application-level resource paths over
-// manifest-derived paths so configured runtime assets participate in the same
-// preflight as packaged resources.
+// ResolveOptionsはアプリ指定の資源パスをmanifest由来より優先し、同梱資源と同じ事前検査に載せる。
 type ResolveOptions struct {
 	ResourceOverrides map[ResourceKey]string
 }
 
-// Resolver resolves definitions against a registry of installed providers.
+// Resolverはインストール済みproviderのレジストリに対して定義を解決する。
 type Resolver struct {
 	registry Registry
 }
 
-// NewResolver creates a resolver for one registry.
+// NewResolverは1つのレジストリ用のresolverを作る。
 func NewResolver(registry Registry) Resolver {
 	return Resolver{registry: registry}
 }
 
-// Resolve selects the requested definition. Only an empty requested ID may
-// select the catalog default; a missing explicit ID remains an error.
+// Resolveは要求された定義を選ぶ。空のIDだけがカタログ既定を選べ、明示IDが見つからない場合はエラー。
 func (resolver Resolver) Resolve(definitions []Definition, requested string) (ResolvedEngine, error) {
 	return resolver.ResolveWithOptions(definitions, requested, ResolveOptions{})
 }
 
-// ResolveWithOptions resolves a definition and evaluates its required runtime
-// resources. A definition may resolve successfully while Availability is false
-// so UI callers can display the reason before synthesis is attempted.
+// ResolveWithOptionsは定義を解決し必要資源を評価する。Availabilityがfalseでも解決は成功し、UIが合成前に理由を表示できる。
 func (resolver Resolver) ResolveWithOptions(definitions []Definition, requested string, options ResolveOptions) (ResolvedEngine, error) {
 	requestedID := PublicID(strings.TrimSpace(requested))
 	var definition *Definition
@@ -324,10 +313,7 @@ func (resolver Resolver) ResolveWithOptions(definitions []Definition, requested 
 	}, nil
 }
 
-// externalProviderForDefinition creates the small provider descriptor needed
-// to resolve a manifest-declared process provider. Unlike built-in providers,
-// its implementation is identified by the manifest and validated by the
-// provider handshake when the session starts.
+// externalProviderForDefinitionはmanifest宣言のプロセスprovider解決に必要な記述子を作る。実装はmanifestが指定し、セッション開始時のhandshakeで検証する。
 func externalProviderForDefinition(definition Definition) Provider {
 	return Provider{
 		ID:           definition.Provider,
@@ -371,8 +357,7 @@ func evaluateAvailability(definition Definition, provider Provider) Availability
 	return CheckResources(definition.Resources, provider.Requirements...)
 }
 
-// CheckResources evaluates a resolved resource set. It is also used by
-// provider-specific options such as Classic UTAU tool selection.
+// CheckResourcesは解決済み資源を評価する。Classic UTAUのツール選択などprovider固有オプションでも使う。
 func CheckResources(resources map[ResourceKey]string, requirements ...ResourceRequirement) Availability {
 	issues := make([]AvailabilityIssue, 0, len(requirements))
 	for _, requirement := range requirements {
@@ -413,9 +398,7 @@ func CheckResources(resources map[ResourceKey]string, requirements ...ResourceRe
 	return Availability{Available: len(issues) == 0, Issues: issues}
 }
 
-// DefinitionsFromCatalog adapts all currently discovered renderer manifests.
-// Catalog order is preserved so its first definition remains the default when
-// the caller does not provide an ID.
+// DefinitionsFromCatalogは発見済みrenderer manifestを定義へ変換する。ID未指定時に先頭が既定となるようカタログ順を保つ。
 func DefinitionsFromCatalog(catalog *plugin.Catalog) []Definition {
 	if catalog == nil {
 		return nil
@@ -427,9 +410,7 @@ func DefinitionsFromCatalog(catalog *plugin.Catalog) []Definition {
 	return result
 }
 
-// DefinitionFromV2 adapts the explicit contract/provider manifest shape.
-// Resource paths remain relative to the manifest directory until plugin's
-// resource resolver turns them into absolute paths.
+// DefinitionFromV2はcontract/provider明示形式のmanifestを定義へ変換する。資源パスはpluginが絶対パス化するまでmanifestディレクトリ相対のまま。
 func DefinitionFromV2(renderer plugin.Renderer) Definition {
 	resourceNames := make(map[string]struct{}, len(renderer.Resources)+len(renderer.PlatformResources))
 	for name := range renderer.Resources {

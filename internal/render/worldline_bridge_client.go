@@ -10,10 +10,7 @@ import (
 	"utautts/internal/provider"
 )
 
-// worldlineBridgeProcess owns the long-lived provider session used by the
-// built-in WORLD adapters. The gate keeps the protocol v1 single in-flight
-// request guarantee simple while allowing the native library/model state to
-// stay resident across syntheses.
+// worldlineBridgeProcessは組み込みWORLDアダプタの常駐セッションを保持する。gateでprotocol v1の単一実行を保証し、ネイティブ状態を合成間で維持する。
 type worldlineBridgeProcess struct {
 	path     string
 	provider string

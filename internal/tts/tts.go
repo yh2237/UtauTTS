@@ -134,9 +134,7 @@ func ResolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, 
 	return resolvePronunciation(cfg)
 }
 
-// Analyze resolves only the reading and morae needed to initialize an editor.
-// It intentionally skips prosody-model loading and prediction; callers that
-// need timings or pitch should use PredictProsody instead.
+// Analyzeはエディタ初期化に必要な読みとモーラのみ解決する。プロソディモデルの読込と予測は行わず、時間やピッチが必要ならPredictProsodyを使う。
 func Analyze(cfg Config) (*ProsodyPreview, error) {
 	if err := synthesisContextError(cfg.Context); err != nil {
 		return nil, err

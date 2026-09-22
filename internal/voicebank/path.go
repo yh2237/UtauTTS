@@ -13,7 +13,7 @@ type pathState struct {
 	joinScore float64
 }
 
-// selectBestPaths finds the highest scoring path for each phrase.
+// selectBestPathsはフレーズごとに最高スコアのパスを求める。
 func selectBestPaths(layers [][]Selection, extractor *connection.Extractor) []Selection {
 	result := make([]Selection, 0, len(layers))
 	cache := extractor

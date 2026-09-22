@@ -2,8 +2,7 @@ package frontend
 
 import "strings"
 
-// Only use dictionary-backed stems. Exact entries are resolved by the caller
-// first so irregular forms and lexical stress take precedence over these rules.
+// 辞書にある語幹だけを使う。呼び出し側が先に完全一致を解決するため、不規則形と語彙アクセントが優先される。
 func englishInflectedPronunciation(word string) (string, error) {
 	word = strings.ToLower(word)
 	type candidate struct{ stem, ending string }
@@ -75,8 +74,7 @@ func englishInflectedPronunciation(word string) (string, error) {
 			suffix = "IH0 NG"
 		}
 		inferred := strings.TrimSpace(reading + " " + suffix)
-		// CMUdict also contains names. A short spelling such as "mak" may
-		// match alongside "make"; leave ambiguous recovery to the fallback.
+		// CMUdictには固有名詞も含む。"mak"が"make"と並んで一致しうる曖昧な回復はフォールバックに委ねる。
 		if result != "" && result != inferred {
 			return "", nil
 		}

@@ -21,8 +21,7 @@ const (
 	defaultMaxLineBytes  = 16 * 1024 * 1024
 )
 
-// SessionOptions describes the executable and the handshake expected by the
-// host. Args are passed directly to exec.Command; no shell expansion occurs.
+// SessionOptionsは実行ファイルとホストが期待するハンドシェイクを示す。Argsはexec.Commandへ直接渡しシェル展開は行わない。
 type SessionOptions struct {
 	Executable      string
 	Args            []string
@@ -94,13 +93,13 @@ func (options *SessionOptions) normalize() error {
 	return nil
 }
 
-// RenderOptions receives best-effort non-terminal messages from the provider.
+// RenderOptionsはproviderからの非終端メッセージをbest-effortで受け取る。
 type RenderOptions struct {
 	OnProgress   func(Progress)
 	OnDiagnostic func(Diagnostic)
 }
 
-// RemoteError is an error reported by the provider process.
+// RemoteErrorはproviderプロセスが報告したエラー。
 type RemoteError struct {
 	Code      string
 	Message   string
@@ -114,9 +113,7 @@ func (err *RemoteError) Error() string {
 	return fmt.Sprintf("provider error %s: %s", err.Code, err.Message)
 }
 
-// Session is a single long-lived provider process. Only one render request is
-// in flight at a time in protocol v1, but the same process may handle many
-// sequential requests and keep its model/runtime state resident.
+// Sessionは常駐する単一のproviderプロセス。protocol v1では同時1リクエストだが、同一プロセスで逐次処理しモデル/ランタイム状態を維持できる。
 type Session struct {
 	options SessionOptions
 	hello   Hello
@@ -139,7 +136,7 @@ type Session struct {
 
 var requestSequence atomic.Uint64
 
-// StartSession starts a provider and waits for its hello message.
+// StartSessionはproviderを起動しhelloメッセージを待つ。
 func StartSession(ctx context.Context, options SessionOptions) (*Session, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -233,19 +230,17 @@ func validateHello(hello Hello, options SessionOptions) error {
 	return fmt.Errorf("provider does not support contract %q version %d", options.Contract, options.ContractVersion)
 }
 
-// Hello returns the validated provider handshake.
+// Helloは検証済みのproviderハンドシェイクを返す。
 func (session *Session) Hello() Hello {
 	return session.hello
 }
 
-// IsAlive reports whether the provider process is still running. A session
-// that has exited cannot be reused; the caller should create a new session.
+// IsAliveはproviderプロセスが稼働中か返す。終了したセッションは再利用できないため、呼び出し側が再作成する。
 func (session *Session) IsAlive() bool {
 	return session != nil && !session.isExited()
 }
 
-// Render sends one request and waits for its result. The session remains alive
-// after a successful result and can be reused for the next request.
+// Renderは1リクエストを送信して結果を待つ。成功後もセッションは有効で次のリクエストに再利用できる。
 func (session *Session) Render(ctx context.Context, request RenderRequest, options RenderOptions) (Result, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -349,8 +344,7 @@ func (session *Session) cancelRequest(requestID string) {
 	}
 }
 
-// Close asks the provider to exit and kills it if it does not comply within
-// the shutdown grace period. It is safe to call more than once.
+// Closeはproviderへ終了を要求し、猶予内に応じなければkillする。複数回呼んで安全。
 func (session *Session) Close() error {
 	session.renderMu.Lock()
 	defer session.renderMu.Unlock()

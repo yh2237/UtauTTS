@@ -40,7 +40,7 @@ func testEnglishInflectionFallsBackOnlyForDictionaryBackedStems(t *testing.T) {
 			t.Fatalf("%s: got %q, %v", word, got, err)
 		}
 	}
-	// A possessive of a technical word should retain its dictionary stress.
+	// 専門語の所有格は辞書の強勢を保つ。
 	word := "internationalization's"
 	if direct, err := lookupEnglishDictionary(word); err != nil || direct != "" {
 		t.Fatalf("test requires a missing inflected entry: %q, %v", direct, err)

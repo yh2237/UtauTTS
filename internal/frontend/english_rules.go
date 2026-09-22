@@ -5,9 +5,8 @@ import (
 	"strings"
 )
 
-// These are deliberately small, locally maintained spelling rules. They do not
-// infer lexical stress: vowels without a stress digit remain StressKnown=false.
-// Exact dictionary entries and unambiguous dictionary-backed inflections win.
+// 意図的に小さく保った綴り規則。強勢記号のない母音はStressKnown=falseのまま。
+// 辞書の完全一致と曖昧さのない辞書由来の屈折を優先する。
 func englishRulePronunciation(word string) (string, error) {
 	word = strings.ToLower(strings.ReplaceAll(word, "’", "'"))
 	if word == "" || strings.Trim(word, "abcdefghijklmnopqrstuvwxyz'") != "" || strings.Trim(word, "'") == "" {
@@ -19,8 +18,7 @@ func englishRulePronunciation(word string) (string, error) {
 
 type englishSpellingRule struct{ spelling, phones string }
 
-// Longest groups precede their prefixes. All phonemes use the existing ARPAbet
-// inventory, so this fallback works with ARPAsing, Delta and VCCV alike.
+// 長い綴りを前に置く。音素は既存のARPAbet体系のみを使うため、ARPAsing・Delta・VCCVで共通に動作する。
 var englishSpellingGroups = []englishSpellingRule{
 	{"eigh", "EY"}, {"igh", "AY"}, {"tion", "SH AH N"}, {"sion", "ZH AH N"},
 	{"tch", "CH"}, {"dge", "JH"}, {"air", "EH R"},
@@ -81,7 +79,7 @@ func englishSpellingPhones(word string) []string {
 		switch c {
 		case 'a', 'e', 'i', 'o', 'u':
 			p = map[byte]string{'a': "AE", 'e': "EH", 'i': "IH", 'o': "AA", 'u': "AH"}[c]
-			// A final silent e lengthens a preceding vowel across one consonant.
+			// 語末の無音eは子音1つを挟んで直前の母音を長音化する。
 			if len(rest) == 3 && rest[2] == 'e' && !vowel(rest[1]) && !strings.ContainsRune("rvw", rune(rest[1])) {
 				p = map[byte]string{'a': "EY", 'e': "IY", 'i': "AY", 'o': "OW", 'u': "UW"}[c]
 			}
@@ -128,8 +126,7 @@ func englishSpellingPhones(word string) []string {
 	return phones
 }
 
-// A single productive prefix may be attached to a known stem or inflection.
-// This is bounded (no recursive stripping) and does not split arbitrary words.
+// 生産的な接頭辞1つだけを既知の語幹や屈折に付ける。再帰的な除去はせず、任意の語を分割しない。
 func englishPrefixedPronunciation(word string) (string, error) {
 	word = strings.ToLower(word)
 	for _, prefix := range []englishSpellingRule{

@@ -7,10 +7,7 @@ import (
 	"utautts/internal/plan"
 )
 
-// speechRetime keeps the vowel onset at targetOnset. The old two-part mapping
-// treats everything before oto.fixed as one interval, so compression can move
-// a release burst within that interval. Here onset and stable vowel are separate
-// anchors. A short release region is copied for stops, not time-stretched.
+// speechRetimeは母音開始をtargetOnsetに合わせ、onsetと安定母音を別アンカーにする。破裂音の短い解放区間は伸縮せずコピーする。
 func speechRetime(source []float64, targetFrames, sourceOnset, sourceFixed, targetOnset, targetFixed, rate int, stop bool) ([]float64, int, bool) {
 	minimum := msToFrames(4, rate)
 	if rate <= 0 || minimum < 2 || sourceOnset < minimum || targetOnset < minimum ||
@@ -18,8 +15,7 @@ func speechRetime(source []float64, targetFrames, sourceOnset, sourceFixed, targ
 		len(source)-sourceFixed < msToFrames(20, rate) || targetFrames-targetFixed < msToFrames(20, rate) {
 		return nil, targetFixed, false
 	}
-	// Let stable-vowel stretching carry most of the duration change. The
-	// consonant-to-stable-vowel transition may change by at most 25 percent.
+	// 時間変化は安定母音側で吸収し、子音から安定母音への遷移変化は最大25%までにする。
 	ratio := float64(targetFrames-targetOnset) / float64(len(source)-sourceOnset)
 	transition := int(math.Round(float64(targetFixed-targetOnset) * math.Max(0.75, math.Min(1.25, math.Sqrt(ratio)))))
 	targetFixed = min(targetFrames-msToFrames(20, rate), targetOnset+max(minimum, transition))
@@ -30,7 +26,7 @@ func speechRetime(source []float64, targetFrames, sourceOnset, sourceFixed, targ
 	} else if stop {
 		protected := min(msToFrames(8, rate), sourceOnset-minimum, targetOnset-minimum)
 		if protected > bridge {
-			// Keep the waveform immediately before the vowel onset intact.
+			// 母音開始直前の波形を保つ。
 			for i := 0; i < protected+bridge; i++ {
 				alpha := 1.0
 				if i < bridge {
@@ -41,7 +37,7 @@ func speechRetime(source []float64, targetFrames, sourceOnset, sourceFixed, targ
 			}
 		}
 	}
-	// Reuse the standard overlap-aware stretcher for the transition and vowel.
+	// 遷移と母音は標準のoverlap対応ストレッチャを再利用する。
 	tail, err := retimeWithCompressedPrefixUsing(source[sourceOnset-bridge:], targetFrames-targetOnset+bridge,
 		sourceFixed-sourceOnset+bridge, targetFixed-targetOnset+bridge, rate, wsolaStretch)
 	if err != nil {
@@ -76,8 +72,7 @@ func isStopPhone(phone string) bool {
 	return strings.Contains(" p py b by t d k ky g gy ", " "+strings.ToLower(strings.TrimSpace(phone))+" ")
 }
 
-// Use the same source-to-output integral as resampleForPitchCurve. Scaling by
-// only the first F0 value is insufficient when pitch changes inside the onset.
+// resampleForPitchCurveと同じ積分を使う。開始区内で音高が変わると先頭F0だけでは不足する。
 func speechPitchAnchor(sourceFrames, anchor int, base float64, curve *PitchCurve, startMS, spanMS float64) int {
 	if anchor < 0 || anchor > sourceFrames {
 		return -1
@@ -96,9 +91,7 @@ func speechPitchAnchor(sourceFrames, anchor int, base float64, curve *PitchCurve
 	return int(math.Round(position))
 }
 
-// Automatic repair is restricted to a repeated vowel with no intervening
-// consonant, coda, pause or transition unit. Explicit boundary-bridge settings
-// still use their existing policy. Each renderer evaluates its own repair.
+// 自動補正は子音・coda・休止・遷移を挟まない同母音の連続だけに限る。明示的な境界ブリッジ設定は既存方針のまま。
 func speechVowelJoin(p *plan.Plan, previous, current renderedUnit) bool {
 	if previous.index+1 != current.index || previous.unit.Role != "mora" || current.unit.Role != "mora" || previous.unit.Position+1 != current.unit.Position {
 		return false
