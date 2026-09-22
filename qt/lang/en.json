@@ -160,6 +160,7 @@
     "settings.page.export": "Export",
     "settings.page.shortcuts": "Shortcuts",
     "settings.page.synthesis": "Synthesis",
+    "settings.synthesisGeneral": "General",
     "settings.exportTextWithWav": "Save a text file alongside each WAV",
     "settings.exportTextEncoding": "Text file encoding",
     "settings.exportLabWithWav": "Save a .lab file alongside each WAV",

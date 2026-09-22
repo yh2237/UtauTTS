@@ -57,10 +57,7 @@ class Backend final : public QObject {
     Q_PROPERTY(int defaultPauseDuration READ defaultPauseDuration NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(int defaultLeadingPreutterance READ defaultLeadingPreutterance NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(double defaultIntonationStrength READ defaultIntonationStrength NOTIFY synthesisDefaultsChanged)
-    Q_PROPERTY(int defaultDiffSingerSteps READ defaultDiffSingerSteps NOTIFY synthesisDefaultsChanged)
-    Q_PROPERTY(double defaultDiffSingerExpr READ defaultDiffSingerExpr NOTIFY synthesisDefaultsChanged)
-    Q_PROPERTY(double defaultDiffSingerDurationMix READ defaultDiffSingerDurationMix NOTIFY synthesisDefaultsChanged)
-    Q_PROPERTY(double defaultDiffSingerPitchMix READ defaultDiffSingerPitchMix NOTIFY synthesisDefaultsChanged)
+    Q_PROPERTY(QVariantMap rendererSettings READ rendererSettings NOTIFY rendererSettingsChanged)
     Q_PROPERTY(QString defaultTone READ defaultTone NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(QString defaultAliasPolicy READ defaultAliasPolicy NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(bool exportTextWithWav READ exportTextWithWav NOTIFY exportSettingsChanged)
@@ -112,10 +109,7 @@ public:
     int defaultPauseDuration() const { return m_defaultPauseDuration; }
     int defaultLeadingPreutterance() const { return m_defaultLeadingPreutterance; }
     double defaultIntonationStrength() const { return m_defaultIntonationStrength; }
-    int defaultDiffSingerSteps() const { return m_defaultDiffSingerSteps; }
-    double defaultDiffSingerExpr() const { return m_defaultDiffSingerExpr; }
-    double defaultDiffSingerDurationMix() const { return m_defaultDiffSingerDurationMix; }
-    double defaultDiffSingerPitchMix() const { return m_defaultDiffSingerPitchMix; }
+    QVariantMap rendererSettings() const { return m_rendererSettings; }
     QString defaultTone() const { return m_defaultTone; }
     QString defaultAliasPolicy() const { return m_defaultAliasPolicy; }
     bool exportTextWithWav() const { return m_exportTextWithWav; }
@@ -182,10 +176,11 @@ public:
     Q_INVOKABLE void setSynthesisDefaults(int moraDuration, int pauseDuration,
                                           int leadingPreutterance, double intonationStrength,
                                           const QString &modelId, const QString &rendererId,
-                                          const QString &tone, const QString &aliasPolicy,
-                                          int diffSingerSteps, double diffSingerExpr,
-                                          double diffSingerDurationMix,
-                                          double diffSingerPitchMix);
+                                          const QString &tone, const QString &aliasPolicy);
+    Q_INVOKABLE QVariant rendererSetting(const QString &rendererId, const QString &settingId,
+                                         const QVariant &fallback = {}) const;
+    Q_INVOKABLE void setRendererSetting(const QString &rendererId, const QString &settingId,
+                                        const QVariant &value);
     Q_INVOKABLE void setDefaultVoicebank(const QString &value);
     Q_INVOKABLE void setExportSettings(bool writeText, bool writeLab, const QString &textEncoding);
     Q_INVOKABLE void setShortcutSequences(const QString &synthesize,
@@ -217,6 +212,7 @@ signals:
     void ffmpegSettingsChanged();
     void audioOutputSettingsChanged();
     void synthesisDefaultsChanged();
+    void rendererSettingsChanged();
     void exportSettingsChanged();
     void voicebankSettingsChanged();
     void ustxExportFinished(bool success, const QString &detail);
@@ -290,10 +286,7 @@ private:
     int m_defaultPauseDuration = 180;
     int m_defaultLeadingPreutterance = 0;
     double m_defaultIntonationStrength = 2.0;
-    int m_defaultDiffSingerSteps = 0;
-    double m_defaultDiffSingerExpr = 0.0;
-    double m_defaultDiffSingerDurationMix = 0.0;
-    double m_defaultDiffSingerPitchMix = 0.0;
+    QVariantMap m_rendererSettings;
     QString m_defaultTone = QStringLiteral("C4");
     QString m_defaultAliasPolicy = QStringLiteral("auto");
     bool m_exportTextWithWav = false;

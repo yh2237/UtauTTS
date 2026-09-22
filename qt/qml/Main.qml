@@ -1220,11 +1220,36 @@ ApplicationWindow {
         return utterances.get(selectedIndex);
     }
 
+    function rendererSettingContext(rendererId) {
+        const context = {};
+        const renderers = window.appBackend.renderers;
+        for (let index = 0; index < renderers.length; ++index) {
+            const renderer = renderers[index];
+            if (String(renderer.id) !== String(rendererId || ""))
+                continue;
+            const settings = renderer.settings || [];
+            for (let settingIndex = 0; settingIndex < settings.length; ++settingIndex) {
+                const setting = settings[settingIndex];
+                context[String(setting.id)] = window.appBackend.rendererSetting(
+                        renderer.id, setting.id, setting.default);
+            }
+            break;
+        }
+        return context;
+    }
+
+    function addRendererSettings(request, rendererId) {
+        const settings = window.rendererSettingContext(rendererId);
+        for (const key in settings)
+            request[key] = settings[key];
+        return request;
+    }
+
     function diagnosticContext() {
         if (!utterances.count)
             return {};
         const item = window.current();
-        return {
+        const context = {
             voicebank_id: item.voicebankId || "",
             model_id: item.modelId || "",
             renderer: item.renderer || "",
@@ -1239,13 +1264,11 @@ ApplicationWindow {
             leading_preutterance_ms: item.leadingPreutterance,
             intonation_strength: item.intonation,
             apply_pitch: item.applyPitch,
-            diffsinger_steps: window.appBackend.defaultDiffSingerSteps,
-            diffsinger_expr: window.appBackend.defaultDiffSingerExpr,
-            diffsinger_duration_mix: window.appBackend.defaultDiffSingerDurationMix,
-            diffsinger_pitch_mix: window.appBackend.defaultDiffSingerPitchMix,
             resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson),
             unit_overrides: window.decodeSequence(item.phonemeOverridesJson)
         };
+        window.addRendererSettings(context, item.renderer);
+        return context;
     }
 
     function qtShortcutSequence(sequence) {
@@ -1304,11 +1327,7 @@ ApplicationWindow {
                                                settingsWindow.pendingDefaultModelId,
                                                settingsWindow.pendingDefaultRendererId,
                                                settingsWindow.pendingDefaultTone,
-                                               settingsWindow.pendingDefaultAliasPolicy,
-                                               settingsWindow.pendingDefaultDiffSingerSteps,
-                                               settingsWindow.pendingDefaultDiffSingerExpr,
-                                               settingsWindow.pendingDefaultDiffSingerDurationMix,
-                                               settingsWindow.pendingDefaultDiffSingerPitchMix);
+                                               settingsWindow.pendingDefaultAliasPolicy);
         window.appBackend.setDarkMode(settingsWindow.pendingDarkMode);
         window.appBackend.setLanguage(settingsWindow.pendingLanguage);
         window.appBackend.setFfmpegPath(settingsWindow.pendingFfmpegPath);
@@ -3358,13 +3377,10 @@ ApplicationWindow {
             mora_durations_ms: manualDurations,
             intonation_strength: item.intonation,
             apply_pitch: item.applyPitch,
-            diffsinger_steps: window.appBackend.defaultDiffSingerSteps,
-            diffsinger_expr: window.appBackend.defaultDiffSingerExpr,
-            diffsinger_duration_mix: window.appBackend.defaultDiffSingerDurationMix,
-            diffsinger_pitch_mix: window.appBackend.defaultDiffSingerPitchMix,
             resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson),
             unit_overrides: window.decodeSequence(item.phonemeOverridesJson)
         };
+        window.addRendererSettings(request, item.renderer);
         const frameOffsets = window.decodeSequence(item.pitchFramesJson);
         const hasFrameOffsets = frameOffsets.some(value => Math.abs(Number(value)) > .1);
         if (item.applyPitch && item.reading && manualPitch && hasFrameOffsets) {
@@ -3399,7 +3415,7 @@ ApplicationWindow {
     }
 
     function buildProsodyRequest(item, requestId) {
-        return {
+        const request = {
             request_id: requestId,
             text: item.content,
             reading: item.reading || "",
@@ -3415,12 +3431,10 @@ ApplicationWindow {
             mora_durations_ms: window.hasManualMoraDurations(item)
                     ? window.decodeSequence(item.moraDurationsJson) : [],
             intonation_strength: item.intonation,
-            apply_pitch: item.applyPitch,
-            diffsinger_steps: window.appBackend.defaultDiffSingerSteps,
-            diffsinger_expr: window.appBackend.defaultDiffSingerExpr,
-            diffsinger_duration_mix: window.appBackend.defaultDiffSingerDurationMix,
-            diffsinger_pitch_mix: window.appBackend.defaultDiffSingerPitchMix
+            apply_pitch: item.applyPitch
         };
+        window.addRendererSettings(request, item.renderer);
+        return request;
     }
 
     function requestProsodyPreview(index) {

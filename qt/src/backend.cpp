@@ -384,10 +384,6 @@ Backend::Backend(QObject *parent)
       m_defaultPauseDuration(portableSettingValue("synthesis/defaultPauseDuration", 180).toInt()),
       m_defaultLeadingPreutterance(portableSettingValue("synthesis/defaultLeadingPreutterance", 0).toInt()),
       m_defaultIntonationStrength(portableSettingValue("synthesis/defaultIntonationStrength", 2.0).toDouble()),
-      m_defaultDiffSingerSteps(portableSettingValue("synthesis/defaultDiffSingerSteps", 0).toInt()),
-      m_defaultDiffSingerExpr(portableSettingValue("synthesis/defaultDiffSingerExpr", 0.0).toDouble()),
-      m_defaultDiffSingerDurationMix(portableSettingValue("synthesis/defaultDiffSingerDurationMix", 0.0).toDouble()),
-      m_defaultDiffSingerPitchMix(portableSettingValue("synthesis/defaultDiffSingerPitchMix", 0.0).toDouble()),
       m_defaultTone(portableSettingValue("synthesis/defaultTone", QStringLiteral("C4")).toString().trimmed()),
       m_defaultAliasPolicy(normalizeAliasPolicySetting(
           portableSettingValue("synthesis/defaultAliasPolicy", QStringLiteral("auto")).toString())),
@@ -407,10 +403,6 @@ Backend::Backend(QObject *parent)
     m_defaultPauseDuration = qBound(0, m_defaultPauseDuration, 3000);
     m_defaultLeadingPreutterance = qBound(0, m_defaultLeadingPreutterance, 300);
     m_defaultIntonationStrength = qBound(0.0, m_defaultIntonationStrength, 4.0);
-    m_defaultDiffSingerSteps = qBound(0, m_defaultDiffSingerSteps, 100);
-    m_defaultDiffSingerExpr = qBound(0.0, m_defaultDiffSingerExpr, 2.0);
-    m_defaultDiffSingerDurationMix = qBound(0.0, m_defaultDiffSingerDurationMix, 1.0);
-    m_defaultDiffSingerPitchMix = qBound(0.0, m_defaultDiffSingerPitchMix, 1.0);
     if (m_defaultTone.isEmpty())
         m_defaultTone = QStringLiteral("C4");
     m_previewCacheFileCount = qBound(1, m_previewCacheFileCount, 256);
@@ -441,6 +433,17 @@ Backend::Backend(QObject *parent)
             if (!surface.isEmpty() && !reading.isEmpty()) {
                 m_dictionaryEntries.append(QVariantMap{{"surface", surface}, {"reading", reading}});
             }
+        }
+    }
+    const QByteArray rendererSettingsJSON = portableSettingValue(
+            "synthesis/rendererSettings").toByteArray();
+    if (!rendererSettingsJSON.isEmpty()) {
+        QJsonParseError rendererSettingsError;
+        const QJsonDocument rendererSettingsDocument = QJsonDocument::fromJson(
+                rendererSettingsJSON, &rendererSettingsError);
+        if (rendererSettingsError.error == QJsonParseError::NoError
+                && rendererSettingsDocument.isObject()) {
+            m_rendererSettings = rendererSettingsDocument.object().toVariantMap();
         }
     }
     runStartupMigrations();
@@ -820,18 +823,11 @@ void Backend::setExportSettings(bool writeText, bool writeLab, const QString &te
 void Backend::setSynthesisDefaults(int moraDuration, int pauseDuration,
                                    int leadingPreutterance, double intonationStrength,
                                    const QString &modelId, const QString &rendererId,
-                                   const QString &tone, const QString &aliasPolicy,
-                                   int diffSingerSteps, double diffSingerExpr,
-                                   double diffSingerDurationMix,
-                                   double diffSingerPitchMix) {
+                                   const QString &tone, const QString &aliasPolicy) {
     const int boundedMoraDuration = qBound(20, moraDuration, 1000);
     const int boundedPauseDuration = qBound(0, pauseDuration, 3000);
     const int boundedLeadingPreutterance = qBound(0, leadingPreutterance, 300);
     const double boundedIntonationStrength = qBound(0.0, intonationStrength, 4.0);
-    const int boundedDiffSingerSteps = qBound(0, diffSingerSteps, 100);
-    const double boundedDiffSingerExpr = qBound(0.0, diffSingerExpr, 2.0);
-    const double boundedDiffSingerDurationMix = qBound(0.0, diffSingerDurationMix, 1.0);
-    const double boundedDiffSingerPitchMix = qBound(0.0, diffSingerPitchMix, 1.0);
     const QString normalizedModelId = modelId.trimmed();
     const QString normalizedRendererId = rendererId.trimmed();
     const QString normalizedTone = tone.trimmed().isEmpty() ? QStringLiteral("C4") : tone.trimmed();
@@ -840,10 +836,6 @@ void Backend::setSynthesisDefaults(int moraDuration, int pauseDuration,
             && m_defaultPauseDuration == boundedPauseDuration
             && m_defaultLeadingPreutterance == boundedLeadingPreutterance
             && qFuzzyCompare(m_defaultIntonationStrength, boundedIntonationStrength)
-            && m_defaultDiffSingerSteps == boundedDiffSingerSteps
-            && qFuzzyCompare(m_defaultDiffSingerExpr, boundedDiffSingerExpr)
-            && qFuzzyCompare(m_defaultDiffSingerDurationMix, boundedDiffSingerDurationMix)
-            && qFuzzyCompare(m_defaultDiffSingerPitchMix, boundedDiffSingerPitchMix)
             && m_defaultModelId == normalizedModelId
             && m_defaultRenderer == normalizedRendererId
             && m_defaultTone == normalizedTone
@@ -854,10 +846,6 @@ void Backend::setSynthesisDefaults(int moraDuration, int pauseDuration,
     m_defaultPauseDuration = boundedPauseDuration;
     m_defaultLeadingPreutterance = boundedLeadingPreutterance;
     m_defaultIntonationStrength = boundedIntonationStrength;
-    m_defaultDiffSingerSteps = boundedDiffSingerSteps;
-    m_defaultDiffSingerExpr = boundedDiffSingerExpr;
-    m_defaultDiffSingerDurationMix = boundedDiffSingerDurationMix;
-    m_defaultDiffSingerPitchMix = boundedDiffSingerPitchMix;
     m_defaultModelId = normalizedModelId;
     m_defaultRenderer = normalizedRendererId;
     m_defaultTone = normalizedTone;
@@ -867,10 +855,6 @@ void Backend::setSynthesisDefaults(int moraDuration, int pauseDuration,
     settings.setValue("synthesis/defaultPauseDuration", m_defaultPauseDuration);
     settings.setValue("synthesis/defaultLeadingPreutterance", m_defaultLeadingPreutterance);
     settings.setValue("synthesis/defaultIntonationStrength", m_defaultIntonationStrength);
-    settings.setValue("synthesis/defaultDiffSingerSteps", m_defaultDiffSingerSteps);
-    settings.setValue("synthesis/defaultDiffSingerExpr", m_defaultDiffSingerExpr);
-    settings.setValue("synthesis/defaultDiffSingerDurationMix", m_defaultDiffSingerDurationMix);
-    settings.setValue("synthesis/defaultDiffSingerPitchMix", m_defaultDiffSingerPitchMix);
     settings.remove("synthesis/defaultApplyPitch");
     settings.setValue("synthesis/defaultModelId", m_defaultModelId);
     settings.setValue("synthesis/defaultRendererId", m_defaultRenderer);
@@ -878,6 +862,30 @@ void Backend::setSynthesisDefaults(int moraDuration, int pauseDuration,
     settings.setValue("synthesis/defaultAliasPolicy", m_defaultAliasPolicy);
     settings.sync();
     emit synthesisDefaultsChanged();
+}
+
+QVariant Backend::rendererSetting(const QString &rendererId, const QString &settingId,
+                                  const QVariant &fallback) const {
+    const QString key = rendererId.trimmed() + QLatin1Char('/') + settingId.trimmed();
+    return m_rendererSettings.value(key, fallback);
+}
+
+void Backend::setRendererSetting(const QString &rendererId, const QString &settingId,
+                                 const QVariant &value) {
+    const QString cleanedRendererId = rendererId.trimmed();
+    const QString cleanedSettingId = settingId.trimmed();
+    if (cleanedRendererId.isEmpty() || cleanedSettingId.isEmpty())
+        return;
+    const QString key = cleanedRendererId + QLatin1Char('/') + cleanedSettingId;
+    if (m_rendererSettings.value(key) == value)
+        return;
+    m_rendererSettings.insert(key, value);
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    settings.setValue("synthesis/rendererSettings",
+                      QJsonDocument(QJsonObject::fromVariantMap(m_rendererSettings))
+                          .toJson(QJsonDocument::Compact));
+    settings.sync();
+    emit rendererSettingsChanged();
 }
 
 void Backend::setShortcutSequences(const QString &synthesize,
@@ -1924,10 +1932,7 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
             {"default_pause_duration_ms", m_defaultPauseDuration},
             {"default_leading_preutterance_ms", m_defaultLeadingPreutterance},
             {"default_intonation_strength", m_defaultIntonationStrength},
-            {"default_diffsinger_steps", m_defaultDiffSingerSteps},
-            {"default_diffsinger_expr", m_defaultDiffSingerExpr},
-            {"default_diffsinger_duration_mix", m_defaultDiffSingerDurationMix},
-            {"default_diffsinger_pitch_mix", m_defaultDiffSingerPitchMix},
+            {"renderer_settings", m_rendererSettings},
             {"default_tone", m_defaultTone},
             {"default_alias_policy", m_defaultAliasPolicy},
             {"export_text_with_wav", m_exportTextWithWav},

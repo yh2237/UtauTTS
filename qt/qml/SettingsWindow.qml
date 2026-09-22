@@ -39,10 +39,6 @@ ApplicationWindow {
     property int pendingPauseDuration: 180
     property int pendingLeadingPreutterance: 0
     property real pendingDefaultIntonationStrength: 2.0
-    property int pendingDefaultDiffSingerSteps: 0
-    property real pendingDefaultDiffSingerExpr: 0.0
-    property real pendingDefaultDiffSingerDurationMix: 0.0
-    property real pendingDefaultDiffSingerPitchMix: 0.0
     property bool pendingExportTextWithWav: false
     property bool pendingExportLabWithWav: false
     property string pendingExportTextEncoding: "utf-8"
@@ -81,6 +77,17 @@ ApplicationWindow {
             root.translator.tr("settings.page.shortcuts")];
     }
 
+    function renderersWithSettings() {
+        const rows = [];
+        const renderers = root.backend.renderers;
+        for (let index = 0; index < renderers.length; ++index) {
+            const renderer = renderers[index];
+            if (renderer.settings && renderer.settings.length)
+                rows.push(renderer);
+        }
+        return rows;
+    }
+
     FolderDialog {
         id: ffmpegFolderDialog
         title: root.translator.tr("settings.ffmpegPath.choose")
@@ -101,10 +108,6 @@ ApplicationWindow {
         pendingPauseDuration = root.backend.defaultPauseDuration;
         pendingLeadingPreutterance = root.backend.defaultLeadingPreutterance;
         pendingDefaultIntonationStrength = root.backend.defaultIntonationStrength;
-        pendingDefaultDiffSingerSteps = root.backend.defaultDiffSingerSteps;
-        pendingDefaultDiffSingerExpr = root.backend.defaultDiffSingerExpr;
-        pendingDefaultDiffSingerDurationMix = root.backend.defaultDiffSingerDurationMix;
-        pendingDefaultDiffSingerPitchMix = root.backend.defaultDiffSingerPitchMix;
         pendingExportTextWithWav = root.backend.exportTextWithWav;
         pendingExportLabWithWav = root.backend.exportLabWithWav;
         pendingExportTextEncoding = root.backend.exportTextEncoding;
@@ -149,22 +152,6 @@ ApplicationWindow {
 
     function resetDefaultIntonation() {
         pendingDefaultIntonationStrength = 2.0;
-    }
-
-    function resetDefaultDiffSingerSteps() {
-        pendingDefaultDiffSingerSteps = 0;
-    }
-
-    function resetDefaultDiffSingerExpr() {
-        pendingDefaultDiffSingerExpr = 0.0;
-    }
-
-    function resetDefaultDiffSingerDurationMix() {
-        pendingDefaultDiffSingerDurationMix = 0.0;
-    }
-
-    function resetDefaultDiffSingerPitchMix() {
-        pendingDefaultDiffSingerPitchMix = 0.0;
     }
 
     function resetDefaultMoraDuration() {
@@ -442,375 +429,426 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 currentIndex: root.currentPage
 
-                ScrollView {
+                Item {
                     id: timingSettingsPage
-                    contentWidth: availableWidth
+                    property var settingsRenderers: root.renderersWithSettings()
 
                     ColumnLayout {
-                        width: timingSettingsPage.availableWidth
-                        spacing: 14
+                        anchors.fill: parent
+                        spacing: 8
 
-                        ColumnLayout {
+                        TabBar {
+                            id: synthesisTabBar
                             Layout.fillWidth: true
-                            spacing: 8
 
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultVoicebank")
-                                    Layout.fillWidth: true
-                                }
-                                ComboBox {
-                                    id: defaultVoicebankCombo
-                                    Layout.preferredWidth: 240
-                                    model: [{
-                                        id: "",
-                                        name: root.translator.tr("settings.defaultVoicebank.auto")
-                                    }].concat(root.backend.voicebanks)
-                                    textRole: "name"
-                                    valueRole: "id"
-                                    currentIndex: root.defaultVoicebankIndex()
-                                    onActivated: root.pendingDefaultVoicebankId = currentValue
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultVoicebank()
+                            TabButton {
+                                text: root.translator.tr("settings.synthesisGeneral")
+                            }
+                            Repeater {
+                                model: timingSettingsPage.settingsRenderers
+                                TabButton {
+                                    required property var modelData
+                                    text: String(modelData.display_name || modelData.id)
                                 }
                             }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultIntonation")
-                                    Layout.fillWidth: true
-                                }
-                                SpinBox {
-                                    id: defaultIntonationSpin
-                                    Layout.preferredWidth: 180
-                                    from: 0
-                                    to: 400
-                                    stepSize: 5
-                                    value: Math.round(root.pendingDefaultIntonationStrength * 100)
-                                    editable: true
-                                    textFromValue: value => (value / 100).toFixed(2)
-                                    valueFromText: text => Math.round(parseFloat(text) * 100)
-                                    onValueModified: root.pendingDefaultIntonationStrength = value / 100
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                        onDoubleTapped: root.pendingDefaultIntonationStrength = 2.0
-                                    }
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultIntonation()
-                                }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultDiffSingerSteps")
-                                    Layout.fillWidth: true
-                                }
-                                SpinBox {
-                                    id: defaultDiffSingerStepsSpin
-                                    Layout.preferredWidth: 180
-                                    Layout.alignment: Qt.AlignVCenter
-                                    from: 0
-                                    to: 100
-                                    stepSize: 1
-                                    value: root.pendingDefaultDiffSingerSteps
-                                    editable: true
-                                    textFromValue: value => value + " steps"
-                                    valueFromText: text => parseInt(text)
-                                    onValueModified: root.pendingDefaultDiffSingerSteps = value
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                        onDoubleTapped: root.pendingDefaultDiffSingerSteps = 0
-                                    }
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultDiffSingerSteps()
-                                }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultDiffSingerExpr")
-                                    Layout.fillWidth: true
-                                }
-                                SpinBox {
-                                    id: defaultDiffSingerExprSpin
-                                    Layout.preferredWidth: 180
-                                    Layout.alignment: Qt.AlignVCenter
-                                    from: 0
-                                    to: 200
-                                    stepSize: 1
-                                    value: Math.round(root.pendingDefaultDiffSingerExpr * 100)
-                                    editable: true
-                                    textFromValue: value => (value / 100).toFixed(2)
-                                    valueFromText: text => Math.round(parseFloat(text) * 100)
-                                    onValueModified: root.pendingDefaultDiffSingerExpr = value / 100
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                        onDoubleTapped: root.pendingDefaultDiffSingerExpr = 0.0
-                                    }
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultDiffSingerExpr()
-                                }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultDiffSingerDurationMix")
-                                    Layout.fillWidth: true
-                                }
-                                SpinBox {
-                                    id: defaultDiffSingerDurationMixSpin
-                                    Layout.preferredWidth: 180
-                                    Layout.alignment: Qt.AlignVCenter
-                                    from: 0
-                                    to: 100
-                                    stepSize: 1
-                                    value: Math.round(root.pendingDefaultDiffSingerDurationMix * 100)
-                                    editable: true
-                                    textFromValue: value => (value / 100).toFixed(2)
-                                    valueFromText: text => Math.round(parseFloat(text) * 100)
-                                    onValueModified: root.pendingDefaultDiffSingerDurationMix = value / 100
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                        onDoubleTapped: root.pendingDefaultDiffSingerDurationMix = 0.0
-                                    }
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultDiffSingerDurationMix()
-                                }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultDiffSingerPitchMix")
-                                    Layout.fillWidth: true
-                                }
-                                SpinBox {
-                                    id: defaultDiffSingerPitchMixSpin
-                                    Layout.preferredWidth: 180
-                                    Layout.alignment: Qt.AlignVCenter
-                                    from: 0
-                                    to: 100
-                                    stepSize: 1
-                                    value: Math.round(root.pendingDefaultDiffSingerPitchMix * 100)
-                                    editable: true
-                                    textFromValue: value => (value / 100).toFixed(2)
-                                    valueFromText: text => Math.round(parseFloat(text) * 100)
-                                    onValueModified: root.pendingDefaultDiffSingerPitchMix = value / 100
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                        onDoubleTapped: root.pendingDefaultDiffSingerPitchMix = 0.0
-                                    }
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultDiffSingerPitchMix()
-                                }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultMoraDuration")
-                                    Layout.fillWidth: true
-                                }
-                                SpinBox {
-                                    id: moraSpin
-                                    Layout.preferredWidth: 180
-                                    Layout.alignment: Qt.AlignVCenter
-                                    from: 20
-                                    to: 1000
-                                    value: root.pendingMoraDuration
-                                    editable: true
-                                    textFromValue: value => value + " ms"
-                                    valueFromText: text => parseInt(text)
-                                    onValueModified: root.pendingMoraDuration = value
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                        onDoubleTapped: root.pendingMoraDuration = 120
-                                    }
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultMoraDuration()
-                                }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultPauseDuration")
-                                    Layout.fillWidth: true
-                                }
-                                SpinBox {
-                                    id: pauseSpin
-                                    Layout.preferredWidth: 180
-                                    Layout.alignment: Qt.AlignVCenter
-                                    from: 0
-                                    to: 3000
-                                    value: root.pendingPauseDuration
-                                    editable: true
-                                    textFromValue: value => value + " ms"
-                                    valueFromText: text => parseInt(text)
-                                    onValueModified: root.pendingPauseDuration = value
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                        onDoubleTapped: root.pendingPauseDuration = 180
-                                    }
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultPauseDuration()
-                                }
-                            }
+                        }
 
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultAliasPolicy")
-                                    Layout.fillWidth: true
-                                }
-                                ComboBox {
-                                    id: defaultAliasPolicyCombo
-                                    Layout.preferredWidth: 240
-                                    model: [
-                                        { id: "auto", display_name: root.translator.tr("main.aliasPolicy.auto") },
-                                        { id: "cvvc-enhanced", display_name: root.translator.tr("main.aliasPolicy.cvvcEnhanced") },
-                                        { id: "vcv-prefer", display_name: root.translator.tr("main.aliasPolicy.vcvPrefer") },
-                                        { id: "cvvc-prefer", display_name: root.translator.tr("main.aliasPolicy.cvvcPrefer") },
-                                        { id: "cv-only", display_name: root.translator.tr("main.aliasPolicy.cvOnly") }
-                                    ]
-                                    textRole: "display_name"
-                                    valueRole: "id"
-                                    currentIndex: indexOfValue(root.pendingDefaultAliasPolicy)
-                                    onActivated: root.pendingDefaultAliasPolicy = currentValue
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultAliasPolicy()
-                                }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultModel")
-                                    Layout.fillWidth: true
-                                }
-                                ComboBox {
-                                    id: defaultModelCombo
-                                    Layout.preferredWidth: 240
-                                    model: [{
-                                        id: "none",
-                                        display_name: root.translator.tr("main.modelNone")
-                                    }].concat(root.backend.models)
-                                    textRole: "display_name"
-                                    valueRole: "id"
-                                    currentIndex: root.defaultModelIndex()
-                                    onActivated: root.pendingDefaultModelId = currentValue
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultModel()
-                                }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultRenderer")
-                                    Layout.fillWidth: true
-                                }
-                                ComboBox {
-                                    id: defaultRendererCombo
-                                    Layout.preferredWidth: 240
-                                    model: root.backend.renderers
-                                    textRole: "display_name"
-                                    valueRole: "id"
-                                    currentIndex: root.defaultRendererIndex()
-                                    onActivated: root.pendingDefaultRendererId = currentValue
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultRenderer()
-                                }
-                            }
+                        StackLayout {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            currentIndex: synthesisTabBar.currentIndex
 
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultTone")
-                                    Layout.fillWidth: true
-                                }
-                                TextField {
-                                    id: defaultToneField
-                                    Layout.preferredWidth: 180
-                                    horizontalAlignment: TextInput.AlignRight
-                                    text: root.pendingDefaultTone
-                                    onEditingFinished: root.pendingDefaultTone = text.trim().length ? text.trim() : "C4"
-                                }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultTone()
-                                }
-                            }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Label {
-                                    text: root.translator.tr("settings.defaultLeadingPreutterance")
-                                    Layout.fillWidth: true
-                                }
-                                SpinBox {
-                                    id: leadingPreutteranceSpin
-                                    Layout.preferredWidth: 180
-                                    Layout.alignment: Qt.AlignVCenter
-                                    from: 0
-                                    to: 300
-                                    stepSize: 5
-                                    value: root.pendingLeadingPreutterance
-                                    editable: true
-                                    property string automaticText: ""
-                                    textFromValue: value => value === 0
-                                            ? leadingPreutteranceSpin.automaticText : value + " ms"
-                                    function refreshText() {
-                                        automaticText = root.translator.tr("main.aliasPolicy.auto");
-                                        Qt.callLater(() => contentItem.text = textFromValue(value, locale));
-                                    }
-                                    Component.onCompleted: refreshText()
-                                    valueFromText: text => {
-                                        const parsed = parseInt(text);
-                                        return isNaN(parsed) ? 0 : parsed;
-                                    }
-                                    onValueModified: root.pendingLeadingPreutterance = value
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                        onDoubleTapped: {
-                                            root.pendingLeadingPreutterance = 0;
+                            ScrollView {
+                                id: generalSynthesisPage
+                                contentWidth: availableWidth
+
+                                ColumnLayout {
+                                    width: generalSynthesisPage.availableWidth
+                                    spacing: 14
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultVoicebank")
+                                                Layout.fillWidth: true
+                                            }
+                                            ComboBox {
+                                                id: defaultVoicebankCombo
+                                                Layout.preferredWidth: 240
+                                                model: [{
+                                                    id: "",
+                                                    name: root.translator.tr("settings.defaultVoicebank.auto")
+                                                }].concat(root.backend.voicebanks)
+                                                textRole: "name"
+                                                valueRole: "id"
+                                                currentIndex: root.defaultVoicebankIndex()
+                                                onActivated: root.pendingDefaultVoicebankId = currentValue
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultVoicebank()
+                                            }
                                         }
-                                    }
-                                    Connections {
-                                        target: root.translator
-                                        function onTranslationsChanged() {
-                                            leadingPreutteranceSpin.refreshText();
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultIntonation")
+                                                Layout.fillWidth: true
+                                            }
+                                            SpinBox {
+                                                id: defaultIntonationSpin
+                                                Layout.preferredWidth: 180
+                                                from: 0
+                                                to: 400
+                                                stepSize: 5
+                                                value: Math.round(root.pendingDefaultIntonationStrength * 100)
+                                                editable: true
+                                                textFromValue: value => (value / 100).toFixed(2)
+                                                valueFromText: text => Math.round(parseFloat(text) * 100)
+                                                onValueModified: root.pendingDefaultIntonationStrength = value / 100
+                                                TapHandler {
+                                                    acceptedButtons: Qt.LeftButton
+                                                    grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                                    onDoubleTapped: root.pendingDefaultIntonationStrength = 2.0
+                                                }
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultIntonation()
+                                            }
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultMoraDuration")
+                                                Layout.fillWidth: true
+                                            }
+                                            SpinBox {
+                                                id: moraSpin
+                                                Layout.preferredWidth: 180
+                                                Layout.alignment: Qt.AlignVCenter
+                                                from: 20
+                                                to: 1000
+                                                value: root.pendingMoraDuration
+                                                editable: true
+                                                textFromValue: value => value + " ms"
+                                                valueFromText: text => parseInt(text)
+                                                onValueModified: root.pendingMoraDuration = value
+                                                TapHandler {
+                                                    acceptedButtons: Qt.LeftButton
+                                                    grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                                    onDoubleTapped: root.pendingMoraDuration = 120
+                                                }
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultMoraDuration()
+                                            }
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultPauseDuration")
+                                                Layout.fillWidth: true
+                                            }
+                                            SpinBox {
+                                                id: pauseSpin
+                                                Layout.preferredWidth: 180
+                                                Layout.alignment: Qt.AlignVCenter
+                                                from: 0
+                                                to: 3000
+                                                value: root.pendingPauseDuration
+                                                editable: true
+                                                textFromValue: value => value + " ms"
+                                                valueFromText: text => parseInt(text)
+                                                onValueModified: root.pendingPauseDuration = value
+                                                TapHandler {
+                                                    acceptedButtons: Qt.LeftButton
+                                                    grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                                    onDoubleTapped: root.pendingPauseDuration = 180
+                                                }
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultPauseDuration()
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultAliasPolicy")
+                                                Layout.fillWidth: true
+                                            }
+                                            ComboBox {
+                                                id: defaultAliasPolicyCombo
+                                                Layout.preferredWidth: 240
+                                                model: [
+                                                    { id: "auto", display_name: root.translator.tr("main.aliasPolicy.auto") },
+                                                    { id: "cvvc-enhanced", display_name: root.translator.tr("main.aliasPolicy.cvvcEnhanced") },
+                                                    { id: "vcv-prefer", display_name: root.translator.tr("main.aliasPolicy.vcvPrefer") },
+                                                    { id: "cvvc-prefer", display_name: root.translator.tr("main.aliasPolicy.cvvcPrefer") },
+                                                    { id: "cv-only", display_name: root.translator.tr("main.aliasPolicy.cvOnly") }
+                                                ]
+                                                textRole: "display_name"
+                                                valueRole: "id"
+                                                currentIndex: indexOfValue(root.pendingDefaultAliasPolicy)
+                                                onActivated: root.pendingDefaultAliasPolicy = currentValue
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultAliasPolicy()
+                                            }
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultModel")
+                                                Layout.fillWidth: true
+                                            }
+                                            ComboBox {
+                                                id: defaultModelCombo
+                                                Layout.preferredWidth: 240
+                                                model: [{
+                                                    id: "none",
+                                                    display_name: root.translator.tr("main.modelNone")
+                                                }].concat(root.backend.models)
+                                                textRole: "display_name"
+                                                valueRole: "id"
+                                                currentIndex: root.defaultModelIndex()
+                                                onActivated: root.pendingDefaultModelId = currentValue
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultModel()
+                                            }
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultRenderer")
+                                                Layout.fillWidth: true
+                                            }
+                                            ComboBox {
+                                                id: defaultRendererCombo
+                                                Layout.preferredWidth: 240
+                                                model: root.backend.renderers
+                                                textRole: "display_name"
+                                                valueRole: "id"
+                                                currentIndex: root.defaultRendererIndex()
+                                                onActivated: root.pendingDefaultRendererId = currentValue
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultRenderer()
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultTone")
+                                                Layout.fillWidth: true
+                                            }
+                                            TextField {
+                                                id: defaultToneField
+                                                Layout.preferredWidth: 180
+                                                horizontalAlignment: TextInput.AlignRight
+                                                text: root.pendingDefaultTone
+                                                onEditingFinished: root.pendingDefaultTone = text.trim().length ? text.trim() : "C4"
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultTone()
+                                            }
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultLeadingPreutterance")
+                                                Layout.fillWidth: true
+                                            }
+                                            SpinBox {
+                                                id: leadingPreutteranceSpin
+                                                Layout.preferredWidth: 180
+                                                Layout.alignment: Qt.AlignVCenter
+                                                from: 0
+                                                to: 300
+                                                stepSize: 5
+                                                value: root.pendingLeadingPreutterance
+                                                editable: true
+                                                property string automaticText: ""
+                                                textFromValue: value => value === 0
+                                                        ? leadingPreutteranceSpin.automaticText : value + " ms"
+                                                function refreshText() {
+                                                    automaticText = root.translator.tr("main.aliasPolicy.auto");
+                                                    Qt.callLater(() => contentItem.text = textFromValue(value, locale));
+                                                }
+                                                Component.onCompleted: refreshText()
+                                                valueFromText: text => {
+                                                    const parsed = parseInt(text);
+                                                    return isNaN(parsed) ? 0 : parsed;
+                                                }
+                                                onValueModified: root.pendingLeadingPreutterance = value
+                                                TapHandler {
+                                                    acceptedButtons: Qt.LeftButton
+                                                    grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                                    onDoubleTapped: {
+                                                        root.pendingLeadingPreutterance = 0;
+                                                    }
+                                                }
+                                                Connections {
+                                                    target: root.translator
+                                                    function onTranslationsChanged() {
+                                                        leadingPreutteranceSpin.refreshText();
+                                                    }
+                                                }
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultLeadingPreutterance()
+                                            }
                                         }
                                     }
                                 }
-                                SettingsResetButton {
-                                    translator: root.translator
-                                    onResetRequested: root.resetDefaultLeadingPreutterance()
+                            }
+
+                            Repeater {
+                                model: timingSettingsPage.settingsRenderers
+                                ScrollView {
+                                    id: rendererSettingsPage
+                                    required property var modelData
+                                    contentWidth: availableWidth
+                                    property string rendererId: String(rendererSettingsPage.modelData.id)
+
+                                    ColumnLayout {
+                                        width: rendererSettingsPage.availableWidth
+                                        spacing: 14
+
+                                        Repeater {
+                                            model: rendererSettingsPage.modelData.settings
+                                            RowLayout {
+                                                id: rendererSettingRow
+                                                required property var modelData
+                                                Layout.fillWidth: true
+                                                property string rendererId: rendererSettingsPage.rendererId
+                                                property string settingType: String(rendererSettingRow.modelData.type || "integer")
+                                                property bool scaled: rendererSettingRow.settingType === "number"
+                                                property real factor: rendererSettingRow.scaled ? 100 : 1
+
+                                                function settingFallback() {
+                                                    return rendererSettingRow.modelData.default;
+                                                }
+                                                function storedValue() {
+                                                    return root.backend.rendererSetting(
+                                                        rendererSettingRow.rendererId,
+                                                        String(rendererSettingRow.modelData.id),
+                                                        rendererSettingRow.settingFallback());
+                                                }
+                                                function minimum() {
+                                                    return rendererSettingRow.modelData.min !== undefined
+                                                            ? Number(rendererSettingRow.modelData.min) : 0;
+                                                }
+                                                function maximum() {
+                                                    if (rendererSettingRow.modelData.max !== undefined)
+                                                        return Number(rendererSettingRow.modelData.max);
+                                                    return rendererSettingRow.scaled ? 1 : 100;
+                                                }
+                                                function stepSize() {
+                                                    const step = rendererSettingRow.modelData.step !== undefined
+                                                            ? Number(rendererSettingRow.modelData.step) : 1;
+                                                    const scaledStep = step * rendererSettingRow.factor;
+                                                    return scaledStep > 0 ? scaledStep : 1;
+                                                }
+                                                function scaledValue() {
+                                                    return Math.round(Number(rendererSettingRow.storedValue())
+                                                                      * rendererSettingRow.factor);
+                                                }
+                                                function actualValue(value) {
+                                                    return rendererSettingRow.scaled
+                                                            ? value / rendererSettingRow.factor : value;
+                                                }
+                                                function textValue(value) {
+                                                    return rendererSettingRow.scaled
+                                                            ? (value / rendererSettingRow.factor).toFixed(2)
+                                                            : String(value);
+                                                }
+                                                function parsedValue(text) {
+                                                    const parsed = rendererSettingRow.scaled
+                                                            ? parseFloat(text) : parseInt(text);
+                                                    return isNaN(parsed)
+                                                            ? 0
+                                                            : Math.round(parsed * rendererSettingRow.factor);
+                                                }
+                                                function applyValue(value) {
+                                                    root.backend.setRendererSetting(
+                                                        rendererSettingRow.rendererId,
+                                                        String(rendererSettingRow.modelData.id),
+                                                        rendererSettingRow.actualValue(value));
+                                                }
+                                                function enumModel() {
+                                                    const options = rendererSettingRow.modelData.options || [];
+                                                    const rows = [];
+                                                    for (let index = 0; index < options.length; ++index) {
+                                                        const option = options[index];
+                                                        rows.push({
+                                                            value: String(option.value),
+                                                            label: root.translator.tr(option.label || option.value)
+                                                        });
+                                                    }
+                                                    return rows;
+                                                }
+
+                                                Label {
+                                                    Layout.fillWidth: true
+                                                    text: root.translator.tr(
+                                                              rendererSettingRow.modelData.label
+                                                              || rendererSettingRow.modelData.id)
+                                                }
+                                                SpinBox {
+                                                    visible: rendererSettingRow.settingType === "integer"
+                                                             || rendererSettingRow.settingType === "number"
+                                                    Layout.preferredWidth: 180
+                                                    Layout.alignment: Qt.AlignVCenter
+                                                    from: Math.round(rendererSettingRow.minimum()
+                                                                     * rendererSettingRow.factor)
+                                                    to: Math.round(rendererSettingRow.maximum()
+                                                                   * rendererSettingRow.factor)
+                                                    stepSize: rendererSettingRow.stepSize()
+                                                    value: rendererSettingRow.scaledValue()
+                                                    editable: true
+                                                    textFromValue: value => rendererSettingRow.textValue(value)
+                                                    valueFromText: text => rendererSettingRow.parsedValue(text)
+                                                    onValueModified: rendererSettingRow.applyValue(value)
+                                                }
+                                                Switch {
+                                                    visible: rendererSettingRow.settingType === "boolean"
+                                                    Layout.alignment: Qt.AlignVCenter
+                                                    checked: !!rendererSettingRow.storedValue()
+                                                    onToggled: root.backend.setRendererSetting(
+                                                        rendererSettingRow.rendererId,
+                                                        String(rendererSettingRow.modelData.id),
+                                                        checked)
+                                                }
+                                                ComboBox {
+                                                    visible: rendererSettingRow.settingType === "enum"
+                                                    Layout.preferredWidth: 240
+                                                    model: rendererSettingRow.enumModel()
+                                                    textRole: "label"
+                                                    valueRole: "value"
+                                                    currentIndex: indexOfValue(String(rendererSettingRow.storedValue()))
+                                                    onActivated: root.backend.setRendererSetting(
+                                                        rendererSettingRow.rendererId,
+                                                        String(rendererSettingRow.modelData.id),
+                                                        currentValue)
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

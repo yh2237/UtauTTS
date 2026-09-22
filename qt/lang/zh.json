@@ -160,6 +160,7 @@
     "settings.page.export": "导出",
     "settings.page.shortcuts": "快捷键",
     "settings.page.synthesis": "语音合成",
+    "settings.synthesisGeneral": "常规",
     "settings.exportTextWithWav": "在每个WAV旁保存文本文件",
     "settings.exportTextEncoding": "文本文件编码",
     "settings.exportLabWithWav": "在每个WAV旁保存.lab文件",

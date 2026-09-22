@@ -160,6 +160,7 @@
     "settings.page.export": "書き出し",
     "settings.page.shortcuts": "ショートカット",
     "settings.page.synthesis": "音声合成",
+    "settings.synthesisGeneral": "一般",
     "settings.exportTextWithWav": "WAVと一緒にテキストファイルを保存する",
     "settings.exportTextEncoding": "テキストファイルの文字コード",
     "settings.exportLabWithWav": "WAVと一緒に.labファイルを保存する",
