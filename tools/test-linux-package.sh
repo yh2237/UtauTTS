@@ -122,8 +122,7 @@ for required in \
   "${server_root}/runtime/licenses/PYTHON_LICENSE.txt" \
   "${server_root}/runtime/licenses/PYINSTALLER_COPYING.txt" \
   "${server_root}/runtime/utautts-worldline-bridge" \
-  "${server_root}/runtime/utautts-world-engine.so" \
-  "${server_root}/renderer/utautts-world-phrase/models/jsut-cv-transition-tcn-v1.json"; do
+  "${server_root}/runtime/utautts-world-engine.so"; do
   [ -f "${required}" ] || fail "required package file is missing: ${required}"
 done
 grep -q 'system Qt' "${gui_root}/THIRD_PARTY_NOTICES.txt" \
@@ -223,7 +222,7 @@ smoke_text='こんにちは'
 "${gui_root}/tools/utautts-cli" --renderer waveform --voicebank "${voicebank}" \
   --text "${smoke_text}" --out "${work_dir}/waveform.wav"
 "${gui_root}/tools/utautts-cli" --voicebank "${voicebank}" --text "${smoke_text}" \
-  --prosody frame-intonation-v8 --renderer utautts-world-phrase \
+  --prosody frame-intonation-v9-t --renderer utautts-world-phrase \
   --apply-pitch --intonation-strength 1 --out "${work_dir}/utautts-world.wav"
 for wav in "${work_dir}/waveform.wav" "${work_dir}/utautts-world.wav"; do
   [ "$(stat -c %s "${wav}")" -gt 44 ] || fail "synthesis output is empty: ${wav}"
@@ -282,7 +281,7 @@ voice = voices[0]["id"]
 }, ensure_ascii=False), encoding="utf-8")
 (root / "world-pitch.json").write_text(json.dumps({
     "text": "こんにちは", "voicebank_id": voice,
-    "model_id": "frame-intonation-v8",
+    "model_id": "frame-intonation-v9-t",
     "renderer": "utautts-world-phrase",
     "intonation_strength": 1, "apply_pitch": True,
 }, ensure_ascii=False), encoding="utf-8")

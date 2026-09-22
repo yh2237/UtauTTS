@@ -2024,7 +2024,7 @@ ApplicationWindow {
     }
 
     function intonationLabBaseModelPath() {
-        return "out/frame-intonation-v9-ita-corpus-rion-female.json";
+        return "models/frame-intonation-v9-t.json";
     }
 
     function intonationLabFirstIncomplete() {

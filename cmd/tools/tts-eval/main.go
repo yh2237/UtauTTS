@@ -71,13 +71,11 @@ func run() error {
 	corpus := flag.String("corpus", "tools/evaluation/japanese-v1.json", "JSON listening corpus")
 	out := flag.String("out", "out/tts-eval", "new output directory")
 	renderers := flag.String("renderers", "utautts-world-phrase", "comma-separated renderer IDs")
-	model := flag.String("model", "frame-intonation-v8", "prosody model ID")
+	model := flag.String("model", "frame-intonation-v9-t", "prosody model ID")
 	modelFile := flag.String("model-file", "", "explicit experimental prosody model JSON (overrides model ID)")
 	bridge := flag.String("bridge", "", "override WORLD bridge executable")
 	worldMix := flag.String("world-mix", "auto", "WORLD feature mixing: auto, v1.3, adaptive")
 	worldGapRepair := flag.String("world-gap-repair", "auto", "WORLD gap repair: auto, on, off")
-	transitionModel := flag.String("transition-model", "", "single-CV transition TCN JSON")
-	transitionStrength := flag.Float64("transition-strength", .25, "transition model strength (0..0.35)")
 	repeats := flag.Int("repeat", 2, "repetitions in the same process; first and warm runs are separate")
 	timeout := flag.Duration("timeout", 2*time.Minute, "timeout per synthesis")
 	flag.Parse()
@@ -95,9 +93,6 @@ func run() error {
 	}
 	if !oneOf(*worldGapRepair, "auto", "on", "off") {
 		return fmt.Errorf("world-gap-repair must be auto, on or off")
-	}
-	if *transitionStrength < 0 || *transitionStrength > .35 {
-		return fmt.Errorf("transition-strength must be between 0 and 0.35")
 	}
 	data, err := os.ReadFile(*corpus)
 	if err != nil {
@@ -186,7 +181,6 @@ func run() error {
 				if callErr == nil {
 					providerOptions := render.ProviderOptions{Worldline: render.WorldlineProviderOptions{
 						MixMode: *worldMix, GapRepairMode: *worldGapRepair,
-						TransitionModelPath: *transitionModel, TransitionStrength: *transitionStrength,
 					}}
 					result, callErr = synth.SynthesizeConfigWithOptions(cfg, resolved, providerOptions)
 				}

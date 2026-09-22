@@ -378,7 +378,7 @@ Backend::Backend(QObject *parent)
       m_defaultRenderer(portableSettingValue("synthesis/defaultRendererId",
                                           QStringLiteral("utautts-world-phrase")).toString().trimmed()),
       m_defaultModelId(portableSettingValue("synthesis/defaultModelId",
-                                         QStringLiteral("frame-intonation-v8")).toString().trimmed()),
+                                         QStringLiteral("frame-intonation-v9-t")).toString().trimmed()),
       m_defaultVoicebankId(portableSettingValue("voicebank/defaultId", QString()).toString().trimmed()),
       m_defaultMoraDuration(portableSettingValue("synthesis/defaultMoraDuration", 120).toInt()),
       m_defaultPauseDuration(portableSettingValue("synthesis/defaultPauseDuration", 180).toInt()),

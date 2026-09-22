@@ -31,7 +31,7 @@ ApplicationWindow {
 
     property int currentPage: 0
     property string pendingDefaultVoicebankId: ""
-    property string pendingDefaultModelId: "frame-intonation-v8"
+    property string pendingDefaultModelId: "frame-intonation-v9-t"
     property string pendingDefaultRendererId: "utautts-world-phrase"
     property string pendingDefaultAliasPolicy: "auto"
     property string pendingDefaultTone: "C4"
@@ -128,7 +128,7 @@ ApplicationWindow {
     }
 
     function resetDefaultModel() {
-        pendingDefaultModelId = root.validDefaultModelId("frame-intonation-v8");
+        pendingDefaultModelId = root.validDefaultModelId("frame-intonation-v9-t");
     }
 
     function resetDefaultRenderer() {

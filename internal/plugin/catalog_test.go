@@ -112,8 +112,8 @@ func TestRepositoryBundlesSelfDescribingModels(t *testing.T) {
 	if len(models) == 0 {
 		t.Fatal("no bundled self-describing models found")
 	}
-	if models[0].ID != "frame-intonation-v8" {
-		t.Fatalf("default model = %q, want metadata-priority frame-intonation-v8", models[0].ID)
+	if models[0].ID != "frame-intonation-v9-t" {
+		t.Fatalf("default model = %q, want metadata-priority frame-intonation-v9-t", models[0].ID)
 	}
 	for _, model := range models {
 		if model.ID == "" || model.DisplayName == "" {

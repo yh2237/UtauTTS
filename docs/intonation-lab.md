@@ -6,7 +6,7 @@ Intonation Lab は、通常の UtauTTS の編集画面を使って手動調整�
 .\build\qt\utautts.exe --intonation-lab
 ```
 
-起動すると、50 文の例文が順に表示されます。上段には現在の文だけが表示され、右側の音源・速度などの設定欄や発話追加は隠れます。自動予測と合成には、`out/frame-intonation-v9-ita-corpus-rion-female.json` を基準モデルとして使用します。
+起動すると、50 文の例文が順に表示されます。上段には現在の文だけが表示され、右側の音源・速度などの設定欄や発話追加は隠れます。自動予測と合成には、`models/frame-intonation-v9-t.json` を基準モデルとして使用します。
 
 ## 操作
 
@@ -24,7 +24,7 @@ Intonation Lab は、通常の UtauTTS の編集画面を使って手動調整�
 
 ```powershell
 python tools\train-manual-intonation-residual.py <lab-session.utautts> `
-  --base-model out\frame-intonation-v9-ita-corpus-rion-female.json `
+  --base-model models\frame-intonation-v9-t.json `
   --out out\frame-intonation-v9-lab.json `
   --model-id frame-intonation-v9-lab `
   --display-name "Frame intonation TCN v9 Lab"

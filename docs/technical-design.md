@@ -49,7 +49,7 @@ GUI、CLI、HTTP Serverは別々の音声処理を持たず、最終的には同
 
 ### Open JTalk特徴
 
-`frame-intonation-v8`などのモデルは読みだけでは得られない次の特徴を使います。
+`frame-intonation-v9-t`などのモデルは読みだけでは得られない次の特徴を使います。
 
 - アクセント句内の位置と残り長
 - アクセント核との位置関係
@@ -127,11 +127,11 @@ Planは、候補選択、時間設計、Rendererの差を切り分けるため�
 
 | モデル | 形式 | 出力 |
 | --- | --- | --- |
-| `frame-intonation-v8` | version 8 / feature 1 | 10ms単位の相対ピッチ |
-| `prosody-multitask-v1` | version 10 / feature 2 | v8系ピッチとモーラ長倍率 |
+| `frame-intonation-v9-t` | version 8 / feature 1 | 10ms単位の相対ピッチ |
+| `frame-intonation-v9-k` | version 8 / feature 1 | 10ms単位の相対ピッチ |
 | `english-intonation-v1` | version 12 / feature 1 | 英語の強勢と句末境界の10ms単位ピッチおよび長さ倍率 |
 
-v8のframe headはモーラとOpen JTalk由来特徴をフレームへ展開してdilationを持つ小型TCNで相対pitchを予測します。同梱モデルは406特徴、10ms間隔、学習出力範囲±250 centです。推論後の処理: モデル内のrender strength、平滑化、percentile／最大値制約。学習音声に由来する細かなF0揺れは、この処理で強度を調整します。
+frame headはモーラとOpen JTalk由来特徴をフレームへ展開してdilationを持つ小型TCNで相対pitchを予測します。`frame-intonation-v9-*`は440〜455特徴、10ms間隔、学習出力範囲±250 centです。推論後の処理: モデル内のrender strength、平滑化、percentile／最大値制約。学習音声に由来する細かなF0揺れは、この処理で強度を調整します。
 
 multitaskモデルは同じframe headへ423特徴からモーラ長倍率を出すduration headを加えたものです。絶対msではなく基準モーラ長に対する倍率なのでGUIの話速設定や音源差と共存できます。
 

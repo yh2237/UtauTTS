@@ -143,7 +143,6 @@ try {
         foreach ($rendererId in @('waveform', 'classic-utau', 'utautts-world-phrase')) {
             Assert-Path (Join-Path $packageRoot "renderer/$rendererId/renderer.json") "renderer manifest $rendererId"
         }
-		Assert-Path (Join-Path $packageRoot 'renderer/utautts-world-phrase/models/jsut-cv-transition-tcn-v1.json') 'WORLD transition model'
         if ($Profile -eq 'Full') {
             Assert-Path (Join-Path $packageRoot 'renderer/diffsinger/renderer.json') 'DiffSinger renderer manifest'
         } else {
@@ -186,7 +185,6 @@ try {
         'licenses/Qt/Qt-THIRD-PARTY-ATTRIBUTIONS.txt',
         'licenses/Qt/FFmpeg-OPTIONAL.txt',
         'licenses/Qt/Qt-SBOM-MANIFEST.txt',
-        'licenses/JSUT-DATA-AND-LABELS.txt',
         'licenses/MinGW/gcc-COPYING',
         'licenses/MinGW/gcc-COPYING.LIB',
         'licenses/MinGW/gcc-COPYING.RUNTIME',
@@ -324,7 +322,7 @@ try {
     $utauTTSWorldWav = Join-Path $workingDirectory 'package-utautts-world-smoke.wav'
     Push-Location $workingDirectory
     try {
-        & $cli --voicebank $voicebank.FullName --text $smokeText --prosody frame-intonation-v8 `
+        & $cli --voicebank $voicebank.FullName --text $smokeText --prosody frame-intonation-v9-t `
             --renderer utautts-world-phrase --apply-pitch --intonation-strength 1 --out $utauTTSWorldWav
         if ($LASTEXITCODE -ne 0) {
             throw "Packaged UtauTTS WORLD synthesis failed with exit code $LASTEXITCODE"
@@ -414,7 +412,7 @@ try {
         $worldPitchBody = @{
             text = $smokeText
             voicebank_id = $voicebankId
-            model_id = 'frame-intonation-v8'
+            model_id = 'frame-intonation-v9-t'
             renderer = 'utautts-world-phrase'
             intonation_strength = 1
             apply_pitch = $true

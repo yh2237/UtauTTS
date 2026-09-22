@@ -86,7 +86,7 @@ voice/
 | 休止長 | 句読点などの休止時間 |
 | 文頭の長さ | 最初の原音に確保する先行発声。既定値は`自動` |
 
-文頭が欠ける音源では「文頭の長さ」を長くし、余計なノイズを拾う音源では短くしてください。新規作成したカードに使う既定値は「設定」→「設定...」から変更できます。初期状態では原音形式が自動、音高が`C4`、抑揚が2、モーラ長が120 ms、休止長が180 ms、抑揚モデルが`frame-intonation-v8`、Rendererが`utautts-world-phrase`です。
+文頭が欠ける音源では「文頭の長さ」を長くし、余計なノイズを拾う音源では短くしてください。新規作成したカードに使う既定値は「設定」→「設定...」から変更できます。初期状態では原音形式が自動、音高が`C4`、抑揚が2、モーラ長が120 ms、休止長が180 ms、抑揚モデルが`frame-intonation-v9-t`、Rendererが`utautts-world-phrase`です。
 
 英語のカードでは、抑揚モデルが日本語用のままでも同梱の`english-intonation-v1`へ自動で切り替わります。
 
@@ -128,11 +128,11 @@ Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置�
 
 | モデル | 内容 |
 | --- | --- |
-| `frame-intonation-v8` | Open JTalkのアクセント特徴からフレーム単位のイントネーションを予測 |
-| `prosody-multitask-v1` | v8系のイントネーションに加えてモーラ長も予測 |
+| `frame-intonation-v9-t` | 既定。つくよみちゃんコーパスで学習。日常文を中立に読むスタイル |
+| `frame-intonation-v9-k` | Kokoro Speech Datasetで学習。朗読（語り）寄りのスタイル |
 | `english-intonation-v1` | 英語の強勢と句末境界を軽量に予測 |
 
-モデルやRendererはGUI、CLI、Serverで共通です。追加方法は[モデル／Rendererプラグイン](docs/plugins.md)にあります。
+`frame-intonation-v9-*`はOpen JTalkのアクセント特徴からフレーム単位の相対ピッチを予測します。モデルやRendererはGUI、CLI、Serverで共通です。学習元のライセンスは[抑揚モデル](models/README.md)、追加方法は[モデル／Rendererプラグイン](docs/plugins.md)にあります。
 
 ## CLI
 
@@ -143,7 +143,7 @@ CLIはGUI版の`tools/utautts-cli.exe`または`tools/utautts-cli`に入って�
   --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
   --text "こんにちは、今日はいい天気です。" `
   --renderer utautts-world-phrase `
-  --prosody frame-intonation-v8 `
+  --prosody frame-intonation-v9-t `
   --prosody-pitch-only `
   --apply-pitch `
   --out ".\out.wav"

@@ -292,14 +292,14 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  QStringLiteral("dictionary settings failed")))
         return 1;
     backend.setSynthesisDefaults(130, 190, 45, 2.5,
-                                 QStringLiteral("frame-intonation-v8"),
+                                 QStringLiteral("frame-intonation-v9-t"),
                                  QStringLiteral("utautts-world-phrase"),
                                  QStringLiteral("D4"), QStringLiteral("cv-only"));
     backend.setPreviewCacheFileCount(7);
     backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y");
     if (!require(backend.defaultMoraDuration() == 130 && backend.defaultPauseDuration() == 190
                  && backend.defaultLeadingPreutterance() == 45
-                 && backend.defaultModelId() == QStringLiteral("frame-intonation-v8")
+                 && backend.defaultModelId() == QStringLiteral("frame-intonation-v9-t")
                  && backend.defaultRenderer() == QStringLiteral("utautts-world-phrase")
                  && backend.previewCacheFileCount() == 7
                  && backend.defaultIntonationStrength() == 2.5

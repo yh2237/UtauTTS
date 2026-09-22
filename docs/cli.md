@@ -31,13 +31,13 @@
   --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
   --text "あらゆる現実をすべて自分のほうへねじ曲げたのだ。" `
   --renderer utautts-world-phrase `
-  --prosody frame-intonation-v8 `
+  --prosody frame-intonation-v9-t `
   --prosody-pitch-only `
   --apply-pitch `
   --out ".\out.wav"
 ```
 
-モーラ長も予測する場合は`--prosody prosody-multitask-v1`を使います。`--plan-out`を指定すると原音の配置とタイミングをJSONへ保存できます。
+`--prosody`へモデルIDを指定すると別の抑揚モデルを使えます。`--plan-out`を指定すると原音の配置とタイミングをJSONへ保存できます。
 
 英語では`--prosody english-intonation-v1`を指定します。英語用モデルはOpen JTalkを使わず、`utautts-world-phrase`のようなframe pitch対応Rendererで強勢と句末境界を適用します。
 
@@ -74,9 +74,6 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--mora-ms` | `140` | 基本モーラ長（ms） |
 | `--pause-ms` | `180` | 句読点の休止長（ms） |
 | `--mora-durations <path>` | | モーラごとの長さを配列または`mora_durations_ms`で持つJSON |
-| `--target-prior <path>` | | JSUT音素時間事前分布JSON（開発者・評価用） |
-| `--target-prior-strength` | `1` | 事前分布によるモーラ内音素配分の強さ（0〜1） |
-| `--target-prior-min-context` | `5` | コンテキスト統計を使うための最小観測数 |
 | `--leading-preutterance-ms` | `0` | 文頭に確保する先行発声（ms）。0では`oto.ini`から自動決定 |
 | `--release-ms` | `20` | ユニット末尾のリリース包絡線（ms） |
 | `--prosody <id>` | | 抑揚モデルのplugin ID |
