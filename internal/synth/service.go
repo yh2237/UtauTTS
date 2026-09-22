@@ -262,14 +262,16 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		CVVCTransitionGain:      request.CVVCTransitionGain,
 		CVVCPreBoundaryFade:     request.CVVCPreBoundaryFade,
 		JoinModelPath:           request.JoinModelPath,
-		DiffSingerSteps:         request.DiffSingerSteps,
-		DiffSingerDurationMix:   request.DiffSingerDurationMix,
-		DiffSingerPitchMix:      request.DiffSingerPitchMix,
-		DiffSingerExpr:          request.DiffSingerExpr,
 	}
-	providerOptions := render.ProviderOptions{Classic: render.ClassicOptions{
-		ResamplerExpressions: append([]render.ResamplerExpression(nil), request.ResamplerExpressions...),
-	}}
+	providerOptions := render.ProviderOptions{
+		Classic: render.ClassicOptions{
+			ResamplerExpressions: append([]render.ResamplerExpression(nil), request.ResamplerExpressions...),
+		},
+		DiffSinger: render.DiffSingerOptions{
+			Steps: request.DiffSingerSteps, DurationMix: request.DiffSingerDurationMix,
+			PitchMix: request.DiffSingerPitchMix, Expr: request.DiffSingerExpr,
+		},
+	}
 	if requireVoicebank {
 		voicebankPath := request.VoicebankPath
 		if voicebankPath == "" {

@@ -62,12 +62,12 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 		Symbols: symbols, Durations: frames, F0: f0, MIDI: midi,
 		NoteMIDI: noteMIDI, PhMIDI: phMIDI,
 		WordDiv: wordDiv, WordDur: wordDur, NoteRest: noteRest,
-		Steps: cfg.DiffSingerSteps, DurationPredictorMix: float32(cfg.DiffSingerDurationMix),
-		Expr:              float32(cfg.DiffSingerExpr),
+		Steps: cfg.ProviderOptions.DiffSinger.Steps, DurationPredictorMix: float32(cfg.ProviderOptions.DiffSinger.DurationMix),
+		Expr:              float32(cfg.ProviderOptions.DiffSinger.Expr),
 		UsePitchPredictor: singer.Pitch != nil && (cfg.PitchCurve == nil || automaticPitch),
 	}
-	if cfg.DiffSingerPitchMix > 0 {
-		score.PitchPredictorMix = float32(cfg.DiffSingerPitchMix)
+	if cfg.ProviderOptions.DiffSinger.PitchMix > 0 {
+		score.PitchPredictorMix = float32(cfg.ProviderOptions.DiffSinger.PitchMix)
 	} else if automaticPitch && singer.Pitch != nil {
 		// 話声用の輪郭を基準に、音源側の滑らかな微小変化だけを混ぜる。
 		score.PitchPredictorMix = .10

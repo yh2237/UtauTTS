@@ -65,11 +65,8 @@ type Config struct {
 	AliasPolicy             voicebank.AliasPolicy
 	JoinModelPath           string
 	JoinModel               *connection.JoinModel
-	// DiffSingerの任意調整。0は既定値を使う。
-	DiffSingerSteps       int64
-	DiffSingerDurationMix float64
-	DiffSingerPitchMix    float64
-	DiffSingerExpr        float64
+	// ProviderOptionsは選択したprovider固有の設定。
+	ProviderOptions render.ProviderOptions
 }
 
 type Result struct {
@@ -307,6 +304,7 @@ func Synthesize(cfg Config) (*Result, error) {
 
 // SynthesizeWithOptionsは選択したproviderの設定で共通TTS処理を実行する。
 func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (*Result, error) {
+	cfg.ProviderOptions = providerOptions
 	if err := synthesisContextError(cfg.Context); err != nil {
 		return nil, err
 	}

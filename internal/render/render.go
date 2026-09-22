@@ -37,8 +37,17 @@ type Config struct {
 
 // ProviderOptionsは特定provider固有の設定を保持する。無関係なproviderの実行パスやスイッチが混ざるのを防ぐ。
 type ProviderOptions struct {
-	Classic   ClassicOptions
-	Worldline WorldlineProviderOptions
+	Classic    ClassicOptions
+	Worldline  WorldlineProviderOptions
+	DiffSinger DiffSingerOptions
+}
+
+// DiffSingerOptionsはDiffSinger推論の任意調整。0は既定値を使う。
+type DiffSingerOptions struct {
+	Steps       int64
+	DurationMix float64
+	PitchMix    float64
+	Expr        float64
 }
 
 // ClassicOptionsは外部UTAUのresampler/wavtool設定。
