@@ -59,6 +59,7 @@
     "main.phonemizer.enArpasing": "English ARPAsing",
     "main.phonemizer.enDelta": "English Delta CVVC",
     "main.phonemizer.enVccv": "English Cz VCCV",
+    "main.phonemizer.enCv": "English C+V",
     "main.phonemizer.zhCvvc": "Chinese CVVC",
     "main.param.aliasPolicy": "Voicebank Format",
     "main.aliasPolicy.auto": "Automatic",

@@ -2379,10 +2379,11 @@ ApplicationWindow {
             "en-arpasing": window.translator.tr("main.phonemizer.enArpasing"),
             "en-delta": window.translator.tr("main.phonemizer.enDelta"),
             "en-vccv": window.translator.tr("main.phonemizer.enVccv"),
+            "en-cv": window.translator.tr("main.phonemizer.enCv"),
             "zh-cvvc": window.translator.tr("main.phonemizer.zhCvvc")
         };
         if (language === "en")
-            return ["auto", "en-arpasing", "en-delta", "en-vccv"].map(
+            return ["auto", "en-arpasing", "en-delta", "en-vccv", "en-cv"].map(
                         id => ({id: id, display_name: labels[id]}));
         const id = window.defaultPhonemizer(language);
         return ["auto", id].map(value => ({id: value, display_name: labels[value]}));

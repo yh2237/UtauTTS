@@ -221,7 +221,7 @@ ID順にソートされた音源一覧です。
 | `reading` | string | | かな、ARPAbet、またはPinyinを直接指定 |
 | `kana` | string | | `reading`と同じ入力を受け付ける互換用の別名 |
 | `language` | string | `ja` | 言語。`ja`、`en`、`zh`。空欄なら日本語 |
-| `phonemizer` | string | 言語から自動選択 | `ja-kana`、`en-arpasing`、`en-delta`、`en-vccv`、`zh-cvvc`。言語に対応しない組み合わせはエラー |
+| `phonemizer` | string | 言語から自動選択 | `ja-kana`、`en-arpasing`、`en-delta`、`en-vccv`、`en-cv`、`zh-cvvc`。言語に対応しない組み合わせはエラー |
 | `voicebank_id` | string | ID順先頭 | `GET /api/voicebanks` の `id` |
 | `tone` | string | `C4` | `prefix.map` 使用時の音階 |
 | `color` | string | なし | `character.yaml`で定義された音源タイプ／サブバンク |

@@ -11,7 +11,7 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/english-bank" --corpus tools/ev
 go run ./cmd/tools/tts-eval --voicebank "./voice/chinese-bank" --corpus tools/evaluation/chinese-v1.json --diagnose --out out/chinese-diagnosis
 ```
 
-英語と中国語のコーパスには自動読みと明示読みのケースがあります。数字や多音字を含む評価セットです。評価範囲: 各ケースの`language`と`phonemizer`を音源に合わせた比較。発音全体の網羅性: 対象外。英語の既定値は`en-arpasing`です。Delta/VCCV音源では`en-delta`または`en-vccv`を指定します。
+英語と中国語のコーパスには自動読みと明示読みのケースがあります。数字や多音字を含む評価セットです。評価範囲: 各ケースの`language`と`phonemizer`を音源に合わせた比較。発音全体の網羅性: 対象外。英語の既定値は`en-arpasing`です。Delta/VCCV音源では`en-delta`または`en-vccv`、C+V音源では`en-cv`を指定します。
 
 `english-v2.json`は無強勢母音と単語をまたぐ子音群を含む8ケースです。`chinese-v2.json`は鼻音韻尾・üの表記差・変調を含む9ケースです。`--corpus`で指定します。v1は過去の比較用に残しています。中国語v2の鼻音ケースは`ban/bang`などの完全な音節を使います。v1の単独韻母不足: v2とは別の結果として扱います。
 

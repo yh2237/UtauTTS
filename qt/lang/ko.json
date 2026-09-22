@@ -59,6 +59,7 @@
     "main.phonemizer.enArpasing": "영어 ARPAsing",
     "main.phonemizer.enDelta": "영어 Delta CVVC",
     "main.phonemizer.enVccv": "영어 Cz VCCV",
+    "main.phonemizer.enCv": "영어 C+V",
     "main.phonemizer.zhCvvc": "중국어 CVVC",
     "main.param.aliasPolicy": "원음 형식",
     "main.aliasPolicy.auto": "자동",

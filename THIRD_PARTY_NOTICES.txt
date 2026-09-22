@@ -164,9 +164,10 @@ https://github.com/r9y9/open_jtalk
 OpenUtau-derived code
 =====================
 
-UtauTTS includes timing and renderer compatibility code informed by OpenUtau.
-This notice covers the compatibility code and its MIT license. The upstream
-source is the OpenUtau repository listed below.
+UtauTTS includes timing, renderer, and phonemizer compatibility code informed
+by OpenUtau. This notice covers the compatibility code and its MIT license. The
+upstream source is the OpenUtau repository listed below. The English C+V alias
+ordering follows the OpenUtau English C+V phonemizer (author: Cadlaxa).
 
 The MIT License (MIT)
 

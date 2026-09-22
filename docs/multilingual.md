@@ -10,6 +10,7 @@ UtauTTSは日本語、英語、中国語に対応しています。音源の収�
 | 英語 | `en` | `en-arpasing`（既定） | 英文またはARPAbet読み |
 | 英語 | `en` | `en-delta` | 英文またはARPAbet読み |
 | 英語 | `en` | `en-vccv` | 英文またはARPAbet読み |
+| 英語 | `en` | `en-cv` | 英文またはARPAbet読み（C+V音源） |
 | 中国語 | `zh` | `zh-cvvc`（既定） | 中国語文章または声調付きPinyin |
 
 GUIでは音源と言語を選びます。発音形式の`自動`は音源のメタデータと原音名から収録形式を判定します。手動で固定する場合は発音形式のプルダウンから選びます。DiffSinger音源については[DiffSinger](diffsinger.md)を参照してください。
@@ -45,6 +46,8 @@ HTTP APIでは`language`と`phonemizer`を指定します。詳細は[Serverの�
 
 Delta・VCCV音源では無強勢の`AH0`に弱母音の原音を優先します。対応する原音がない場合は通常の`AH`を候補に残します。強勢が未指定の`AH`は自動で弱母音に変えません。語末と次の語頭をまとめた接続音がない場合は語末子音群の録音も探します。
 
+C+V音源ではARPAbetの各音素を1つの原音へ割り当てます。aliasは文頭の母音が`-V`→`- V`→`V`、文中の母音が`-V`→`V`→`- V`、文頭の子音が`- C`→`-C`→`C`、文中の子音が`C`→`-C`→`- C`の順で探します（`-V`・`-C`は空白なし表記）。語末は母音に`V -`／`V-`、子音に`C -`を使います。この優先順はOpenUtauのEnglish C+V Phonemizer（Cadlaxa）に準拠します。
+
 英語のテキスト入力では同じ句の途中にある`of`を無強勢の`AH0 V`で読みます。単独・句の先頭・末尾の`of`: 入力どおり。文脈上の強調: 自動判定なし。強く読む場合の読み指定: `AH1 V`。ユーザー辞書と音源辞書の指定も優先します。大文字表記: 強勢指定なし。
 
 中国語は小規模な内蔵語辞書で「银行」「重庆」「音乐」などを読み分けます。未登録語は文字単位で読みを推定します。数値と小数は読みへ展開し年の数字は一桁ずつ読みます。「一」「不」と第三声の変調に加えて軽声の長さと音高を調整します。複雑な文脈での多音字や第三声連続は正しく処理できない場合があります。
@@ -61,4 +64,4 @@ CPU版WORLDは、Delta・VCCV英語の必須語末子音について、原音後
 
 原音の接続位置の補正は[発話タイミング補正](speech-quality-experiment.md)を参照してください。[選択した原音の確認](../tools/evaluation/README.md#選択した原音を確認する)では切り出し範囲と合成結果を比較できます。
 
-音素表記の参考は[OpenUtauのVCCV対応表](https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Plugin.Builtin/EnglishVCCVPhonemizer.cs)と[香港理工大学のPinyin綴り規則](https://www.polyu.edu.hk/bepth/introduction-to-phonetics/spelling-rules-in-pinyin/?sc_lang=en)を参照してください。
+音素表記の参考は[OpenUtauのVCCV対応表](https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Plugin.Builtin/EnglishVCCVPhonemizer.cs)、[OpenUtauのC+V対応表](https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Plugin.Builtin/EnglishCpVPhonemizer.cs)と[香港理工大学のPinyin綴り規則](https://www.polyu.edu.hk/bepth/introduction-to-phonetics/spelling-rules-in-pinyin/?sc_lang=en)を参照してください。

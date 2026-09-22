@@ -64,7 +64,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--reading <読み>` | | かな、ARPAbet、またはPinyinを直接指定 |
 | `--kana <読み>` | | `--reading`と同じ入力を受け付ける互換用の別名 |
 | `--language <id>` | `ja` | 言語。`ja`、`en`、`zh` |
-| `--phonemizer <id>` | 言語から自動選択 | phonemizer。`ja-kana`、`en-arpasing`、`en-delta`、`en-vccv`、`zh-cvvc` |
+| `--phonemizer <id>` | 言語から自動選択 | phonemizer。`ja-kana`、`en-arpasing`、`en-delta`、`en-vccv`、`en-cv`、`zh-cvvc` |
 | `--tone` | `C4` | `prefix.map` 使用時に使う音階 |
 | `--color <name>` | | `character.yaml`で定義された音源タイプ／サブバンク |
 | `--out <path>` | | 出力WAVのパス（必須） |

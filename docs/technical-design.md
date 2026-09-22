@@ -43,7 +43,7 @@ GUI、CLI、HTTP Serverは別々の音声処理を持たず、最終的には同
 
 読みが明示されていない場合は最初にユーザー辞書を長い表記から順に適用してKagomeとIPA辞書で読みへ変換します。数字やラテン文字など内蔵経路で発音を得られないトークンがあればOpen JTalk frontendへフォールバックします。
 
-日本語は`ja-kana`、英語は`en-arpasing`／`en-delta`／`en-vccv`、中国語は`zh-cvvc`のphonemizerへ分岐します。英語と中国語では日本語用のOpen JTalk抑揚モデルを使わず、英語は規則的な強勢・句曲線、中国語はPinyinの声調曲線を使います。入力形式と制約は[多言語TTS](multilingual.md)にまとめています。
+日本語は`ja-kana`、英語は`en-arpasing`／`en-delta`／`en-vccv`／`en-cv`、中国語は`zh-cvvc`のphonemizerへ分岐します。英語と中国語では日本語用のOpen JTalk抑揚モデルを使わず、英語は規則的な強勢・句曲線、中国語はPinyinの声調曲線を使います。入力形式と制約は[多言語TTS](multilingual.md)にまとめています。
 
 かな入力は`frontend.ParseKana`でモーラ列へ分解されます。各モーラが持つのは少なくとも表記、子音、母音、休止かどうかです。促音、撥音、長音、拗音を文字単位ではなく合成単位として扱います。この段階以降の処理はモーラ列を参照します。
 
