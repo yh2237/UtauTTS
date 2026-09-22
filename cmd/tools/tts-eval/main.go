@@ -2,7 +2,6 @@
 package main
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"flag"
@@ -19,8 +18,6 @@ import (
 	"utautts/internal/plugin"
 	"utautts/internal/render"
 	"utautts/internal/synth"
-	"utautts/internal/tts"
-	"utautts/internal/voicebank"
 )
 
 type prompt struct {
@@ -51,6 +48,19 @@ type measurement struct {
 	WAV                      string  `json:"wav,omitempty"`
 }
 
+// evalReportは単一モードと掃引モードで共有するreport.jsonのスキーマ。
+type evalReport struct {
+	WordBoundaryEnvelope           bool
+	MoraMS                         float64
+	ProsodyExperiment, Phonemizer  string
+	MeasurePitch, SpeechTiming     bool
+	WorldMix, WorldGapRepair       string
+	GOOS, GOARCH, Voicebank, Model string
+	CorpusSHA256, Bridge           string
+	Build                          *debug.BuildInfo
+	Measurements                   []measurement
+}
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -76,16 +86,21 @@ func run() error {
 	bridge := flag.String("bridge", "", "override WORLD bridge executable")
 	worldMix := flag.String("world-mix", "auto", "WORLD feature mixing: auto, v1.3, adaptive")
 	worldGapRepair := flag.String("world-gap-repair", "auto", "WORLD gap repair: auto, on, off")
-	repeats := flag.Int("repeat", 2, "repetitions in the same process; first and warm runs are separate")
+	repeats := flag.Int("repeat", 2, "repetitions in the same process; first and warm runs are separate (ignored with --sweep)")
+	sweep := flag.Bool("sweep", false, "sweep correction presets across the corpus; each case runs exactly once and --repeat is ignored")
+	presets := flag.String("presets", defaultPresets, "comma-separated sweep preset names (only with --sweep)")
 	timeout := flag.Duration("timeout", 2*time.Minute, "timeout per synthesis")
 	flag.Parse()
+	if *sweep && *diagnose {
+		return fmt.Errorf("sweep and diagnose cannot be combined")
+	}
 	if *wordEnvelope && *diagnose {
 		return fmt.Errorf("word-boundary-envelope requires synthesis")
 	}
 	if *moraMS <= 0 || math.IsNaN(*moraMS) || math.IsInf(*moraMS, 0) {
 		return fmt.Errorf("mora-ms must be positive and finite")
 	}
-	if *bank == "" || *repeats < 1 || *timeout <= 0 {
+	if *bank == "" || *timeout <= 0 || (!*sweep && *repeats < 1) {
 		return fmt.Errorf("voicebank, positive repeat and timeout are required")
 	}
 	if !oneOf(*worldMix, "auto", "v1.3", "adaptive") {
@@ -116,6 +131,13 @@ func run() error {
 	if err := validateProsodyExperiment(*experiment, *renderers, *model, *modelFile, *diagnose, prompts); err != nil {
 		return err
 	}
+	if *sweep {
+		return runSweep(sweepRequest{
+			bank: *bank, out: *out, presets: *presets, aliasPolicy: *aliasPolicy, bridge: *bridge,
+			model: *model, modelFile: *modelFile, experiment: *experiment, phonemizer: *phonemizer,
+			corpusData: data, prompts: prompts, moraMS: *moraMS, wordEnvelope: *wordEnvelope, timeout: *timeout,
+		})
+	}
 	if *measurePitch && (*diagnose || *renderers != "utautts-world-phrase") {
 		return fmt.Errorf("pitch measurement requires CPU WORLD synthesis")
 	}
@@ -136,6 +158,13 @@ func run() error {
 	}
 	if !ok && *model != "none" && *modelFile == "" {
 		return fmt.Errorf("unknown model %q", *model)
+	}
+	prosodyPath := ""
+	if *model != "none" {
+		prosodyPath = prosody.Path
+	}
+	if *modelFile != "" {
+		prosodyPath = *modelFile
 	}
 	// 既存の基準音声は上書きしない。
 	if err := os.MkdirAll(filepath.Dir(*out), 0755); err != nil {
@@ -159,74 +188,16 @@ func run() error {
 		for index, p := range prompts {
 			for repetition := 1; repetition <= *repeats; repetition++ {
 				row := measurement{ID: p.ID, Text: p.Text, Focus: p.Focus, Renderer: rendererID, Repetition: repetition}
-				cfg := tts.Config{VoicebankPath: *bank, Text: p.Text, Reading: p.Reading, Language: p.Language, Phonemizer: p.Phonemizer, Tone: "C4", MoraDurationMS: 120, PauseDurationMS: 180, ApplyPitch: true, IntonationStrength: 1}
-				cfg.AliasPolicy = voicebank.AliasPolicy(*aliasPolicy)
-				cfg.SpeechTiming = *speechTiming
-				cfg.SpeechProsodyExperiment = *experiment
-				cfg.WordBoundaryEnvelope = *wordEnvelope
-				cfg.MoraDurationMS = *moraMS
-				cfg.MoraDurationsMS = p.MoraDurationsMS
-				cfg.PitchCurve = p.PitchCurve
-				if *model != "none" {
-					cfg.ProsodyModelPath = prosody.Path
-				}
-				if *modelFile != "" {
-					cfg.ProsodyModelPath = *modelFile
-				}
-				resolved, callErr := tts.ApplyRenderer(&cfg, catalog, rendererID, *bridge)
-				ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-				cfg.Context = ctx
-				started := time.Now()
-				var result *synth.Result
+				result, elapsed, callErr := synthesizeCase(p, caseOptions{
+					bank: *bank, aliasPolicy: *aliasPolicy, bridge: *bridge,
+					model: *model, modelFile: *modelFile, prosodyModelPath: prosodyPath,
+					moraMS: *moraMS, experiment: *experiment, wordEnvelope: *wordEnvelope,
+					rendererID: rendererID, mix: *worldMix, gapRepair: *worldGapRepair,
+					speechTiming: *speechTiming, applyPitch: true, timeout: *timeout,
+				}, catalog)
+				row.ElapsedMS = elapsed
 				if callErr == nil {
-					providerOptions := render.ProviderOptions{Worldline: render.WorldlineProviderOptions{
-						MixMode: *worldMix, GapRepairMode: *worldGapRepair,
-					}}
-					result, callErr = synth.SynthesizeConfigWithOptions(cfg, resolved, providerOptions)
-				}
-				row.ElapsedMS = float64(time.Since(started).Microseconds()) / 1000
-				cancel()
-				if callErr == nil {
-					row.AudioMS = result.DurationMS
-					row.MissingPhoneGroups = len(result.Plan.MissingPhones)
-					renderedPlan := result.RenderedPlan()
-					for _, unit := range renderedPlan.Units {
-						switch unit.WorldRenderMode {
-						case "v1.3-compatible":
-							row.V13CompatibleUnits++
-						case "adaptive":
-							row.AdaptiveUnits++
-						}
-						if unit.WorldGapRepairEligible {
-							row.GapRepairUnits++
-						}
-						if unit.StopBurstApplied {
-							row.StopBurstUnits++
-							row.MeanStopBurstGain += unit.StopBurstGain
-						}
-						if unit.StopBurstReason == "transient-unreliable" {
-							row.UnreliableTransientUnits++
-						}
-					}
-					if row.StopBurstUnits > 0 {
-						row.MeanStopBurstGain /= float64(row.StopBurstUnits)
-					}
-					if row.AudioMS > 0 {
-						row.RTF = row.ElapsedMS / row.AudioMS
-					}
-					for _, s := range result.Audio.Data {
-						x := float64(s) / 32768
-						row.Peak = math.Max(row.Peak, math.Abs(x))
-						row.RMS += x * x
-					}
-					if len(result.Audio.Data) > 0 {
-						row.RMS = math.Sqrt(row.RMS / float64(len(result.Audio.Data)))
-					}
-					for _, u := range result.Plan.Units {
-						if u.Silent {
-							row.SilentUnits++
-						}
-					}
+					renderedPlan := fillMeasurement(&row, result)
 					row.WAV = fmt.Sprintf("%02d-renderer%02d-%d.wav", index+1, rendererIndex+1, repetition)
 					callErr = synth.WriteFiles(filepath.Join(*out, row.WAV), result, synth.ExportOptions{Text: p.Text, WriteText: true, WriteLab: true})
 					if callErr == nil {
@@ -250,17 +221,7 @@ func run() error {
 				rows = append(rows, row)
 				fmt.Printf("%s %s #%d: %.0f ms, RTF %.3f %s\n", rendererID, p.ID, repetition, row.ElapsedMS, row.RTF, row.Error)
 				// 後続ケースが失敗しても途中結果を保存する。
-				report := struct {
-					WordBoundaryEnvelope           bool
-					MoraMS                         float64
-					ProsodyExperiment, Phonemizer  string
-					MeasurePitch, SpeechTiming     bool
-					WorldMix, WorldGapRepair       string
-					GOOS, GOARCH, Voicebank, Model string
-					CorpusSHA256, Bridge           string
-					Build                          *debug.BuildInfo
-					Measurements                   []measurement
-				}{*wordEnvelope, *moraMS, *experiment, *phonemizer, *measurePitch, *speechTiming, *worldMix, *worldGapRepair, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, buildInfo, rows}
+				report := evalReport{*wordEnvelope, *moraMS, *experiment, *phonemizer, *measurePitch, *speechTiming, *worldMix, *worldGapRepair, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, buildInfo, rows}
 				encoded, err := json.MarshalIndent(report, "", "  ")
 				if err != nil {
 					return err
