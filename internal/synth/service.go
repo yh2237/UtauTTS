@@ -59,6 +59,10 @@ type Request struct {
 	CVVCPreBoundaryFade     bool                         `json:"-"`
 	JoinModelPath           string                       `json:"-"`
 	ResamplerExpressions    []render.ResamplerExpression `json:"resampler_expressions"`
+	DiffSingerSteps         int64                        `json:"diffsinger_steps"`
+	DiffSingerDurationMix   float64                      `json:"diffsinger_duration_mix"`
+	DiffSingerPitchMix      float64                      `json:"diffsinger_pitch_mix"`
+	DiffSingerExpr          float64                      `json:"diffsinger_expr"`
 }
 
 // Normalizedは互換用のkanaをReadingへ正規化する。
@@ -258,6 +262,10 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		CVVCTransitionGain:      request.CVVCTransitionGain,
 		CVVCPreBoundaryFade:     request.CVVCPreBoundaryFade,
 		JoinModelPath:           request.JoinModelPath,
+		DiffSingerSteps:         request.DiffSingerSteps,
+		DiffSingerDurationMix:   request.DiffSingerDurationMix,
+		DiffSingerPitchMix:      request.DiffSingerPitchMix,
+		DiffSingerExpr:          request.DiffSingerExpr,
 	}
 	providerOptions := render.ProviderOptions{Classic: render.ClassicOptions{
 		ResamplerExpressions: append([]render.ResamplerExpression(nil), request.ResamplerExpressions...),

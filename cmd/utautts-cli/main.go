@@ -59,6 +59,10 @@ func main() {
 		phonemizer               string
 		aliasPolicy              string
 		joinModelPath            string
+		diffSingerSteps          int64
+		diffSingerDurationMix    float64
+		diffSingerPitchMix       float64
+		diffSingerExpr           float64
 		rendererDirectories      []string
 		modelDirectories         []string
 		writeText                bool
@@ -108,6 +112,10 @@ func main() {
 	flag.BoolVar(&cvvcPreBoundaryFade, "cvvc-pre-boundary-fade", false, "fade CVVC transitions out before the following CV consonant")
 	flag.StringVar(&aliasPolicy, "alias-policy", string(voicebank.AliasPolicyAuto), "voicebank mode: auto, cvvc-enhanced, vcv-prefer, cvvc-prefer, or cv-only")
 	flag.StringVar(&joinModelPath, "join-model", "", "optional learned join-quality model JSON")
+	flag.Int64Var(&diffSingerSteps, "diffsinger-steps", 0, "DiffSinger diffusion steps (0 uses the default)")
+	flag.Float64Var(&diffSingerDurationMix, "diffsinger-duration-mix", 0, "DiffSinger duration predictor mix 0..1 (0 uses the default)")
+	flag.Float64Var(&diffSingerPitchMix, "diffsinger-pitch-mix", 0, "DiffSinger pitch predictor mix 0..1 (0 uses the default)")
+	flag.Float64Var(&diffSingerExpr, "diffsinger-expr", 0, "DiffSinger expressiveness 0..2 (0 uses the default 1.0)")
 	flag.BoolVar(&writeText, "write-text", false, "write a text file next to the WAV")
 	flag.BoolVar(&writeLab, "write-lab", false, "write an HTK label file next to the WAV")
 	flag.StringVar(&textEncoding, "text-encoding", sidecar.EncodingUTF8, "text sidecar encoding: utf-8 or shift_jis")
@@ -183,6 +191,10 @@ func main() {
 		CVVCPreBoundaryFade:     cvvcPreBoundaryFade,
 		AliasPolicy:             voicebank.AliasPolicy(aliasPolicy),
 		JoinModelPath:           joinModelPath,
+		DiffSingerSteps:         diffSingerSteps,
+		DiffSingerDurationMix:   diffSingerDurationMix,
+		DiffSingerPitchMix:      diffSingerPitchMix,
+		DiffSingerExpr:          diffSingerExpr,
 		ResamplerExpressions:    resamplerExpressions,
 	}
 	resolvedSynthesis, err := resolver.ResolveSynthesis(synthesisRequest)

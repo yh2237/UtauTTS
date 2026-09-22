@@ -95,6 +95,10 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--alias-policy` | `auto` | 音源適応モード。`auto`はVC/VCV収録比から自動選択、`cvvc-enhanced`はCVVC優先・sequential timing・VC音量35%。詳細指定として`vcv-prefer`、`cvvc-prefer`、`cv-only`も利用可能 |
 | `--cvvc-timing` | `sequential` | CVVC遷移の配置方式。現在は`sequential`のみ |
 | `--cvvc-transition-gain` | `1` | CVVC遷移ユニットの音量（0〜1） |
+| `--diffsinger-steps` | `0`（既定値） | DiffSingerの拡散ステップ数。0で既定値 |
+| `--diffsinger-duration-mix` | `0`（既定値） | DiffSingerの長さ予測の混合率（0〜1）。0で既定値 |
+| `--diffsinger-pitch-mix` | `0`（既定値） | DiffSingerのピッチ予測の混合率（0〜1）。0で既定値 |
+| `--diffsinger-expr` | `0`（既定値） | DiffSingerの表現力（0〜2）。0で既定値1.0。下げると話声寄り |
 | `--cvvc-pre-boundary-fade` | `false` | 後続CVの子音より前でCVVC遷移をフェードアウト |
 | `--renderer-dir <dir>` | | Rendererプラグインを探すディレクトリ（繰り返し指定可） |
 | `--model-dir <dir>` | | モデルJSONを探すディレクトリ（繰り返し指定可） |

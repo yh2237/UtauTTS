@@ -65,6 +65,11 @@ type Config struct {
 	AliasPolicy             voicebank.AliasPolicy
 	JoinModelPath           string
 	JoinModel               *connection.JoinModel
+	// DiffSingerの任意調整。0は既定値を使う。
+	DiffSingerSteps       int64
+	DiffSingerDurationMix float64
+	DiffSingerPitchMix    float64
+	DiffSingerExpr        float64
 }
 
 type Result struct {

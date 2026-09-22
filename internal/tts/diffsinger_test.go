@@ -137,17 +137,26 @@ func TestDiffSingerPhonesUsesSingerDictionary(t *testing.T) {
 	}
 }
 
-func TestDiffSingerPhonesUsesSharedPhoneTimeline(t *testing.T) {
+func TestDiffSingerConsonantDurationUsesLongerOfTimelineAndRatio(t *testing.T) {
 	singer := &diffsinger.Singer{Tokens: map[string]int64{"SP": 0, "k": 1, "a": 2}}
 	morae := []frontend.Mora{{Text: "か", Consonant: "k", Vowel: "a", Phones: []frontend.Phone{
 		{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"},
 	}}}
+	// 共有重み(35ms)より話声向け比率(60.75ms)が長いので比率を採る。
 	phones, durations, _, err := diffsingerPhones(singer, morae, []float64{135}, [][]float64{{.35, 1}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(phones, []string{"k", "a"}) || math.Abs(durations[0]-35) > .001 || math.Abs(durations[1]-100) > .001 {
+	if !reflect.DeepEqual(phones, []string{"k", "a"}) || math.Abs(durations[0]-60.75) > .001 || math.Abs(durations[1]-74.25) > .001 {
 		t.Fatalf("phones=%v durations=%v", phones, durations)
+	}
+	// 共有重みのほうが長い場合は重みを採る。
+	_, durations, _, err = diffsingerPhones(singer, morae, []float64{135}, [][]float64{{1.2, 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if math.Abs(durations[0]-135*1.2/2.2) > .001 {
+		t.Fatalf("durations=%v", durations)
 	}
 }
 

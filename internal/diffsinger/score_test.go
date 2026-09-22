@@ -85,7 +85,7 @@ func TestRequestFromScoreBuildsProviderRequest(t *testing.T) {
 	if !reflect.DeepEqual(request.WordDiv, score.WordDiv) || !reflect.DeepEqual(request.WordDur, score.WordDur) || !reflect.DeepEqual(request.PhMIDI, []int64{60, 60}) || !reflect.DeepEqual(request.NoteMIDI, []float32{60, 60}) || !reflect.DeepEqual(request.NoteRest, score.NoteRest) {
 		t.Fatalf("note metadata = %#v", request)
 	}
-	if request.DurationPredictorMix != 0.2 || request.PitchPredictorMix != 0.03 || request.PitchPredictsDur {
+	if request.DurationPredictorMix != 0.2 || request.PitchPredictorMix != 0.03 || request.PitchPredictsDur || request.PitchExpr != 1 {
 		t.Fatalf("predictor options = %#v", request)
 	}
 }
@@ -117,6 +117,28 @@ func TestRequestFromScoreUsesProvidedMIDI(t *testing.T) {
 	}
 	if !reflect.DeepEqual(request.PhMIDI, []int64{60, 67}) || !reflect.DeepEqual(request.NoteMIDI, []float32{60, 64}) {
 		t.Fatalf("provided midi was not used: ph=%v note=%v", request.PhMIDI, request.NoteMIDI)
+	}
+}
+
+func TestRequestFromScoreAppliesTuning(t *testing.T) {
+	singer := &Singer{
+		Config:   Config{Phonemes: "phonemes.txt", SampleRate: 44100, MelBase: "10"},
+		Vocoder:  VocoderConfig{MelBase: "10"},
+		Tokens:   map[string]int64{"SP": 1},
+		Duration: &DurationModel{Tokens: map[string]int64{"SP": 11}},
+		Pitch:    &PitchModel{Tokens: map[string]int64{"SP": 21}},
+	}
+	score := Score{
+		Symbols: []string{"SP"}, Durations: []int64{8}, F0: []float32{440}, MIDI: 60,
+		WordDiv: []int64{1}, WordDur: []int64{8}, UsePitchPredictor: true,
+		Steps: 50, DurationPredictorMix: .5, PitchPredictorMix: .3, Expr: .5,
+	}
+	request, err := RequestFromScore(singer, score)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.Steps != 50 || request.Speedup != 20 || request.DurationPredictorMix != .5 || request.PitchPredictorMix != .3 || request.PitchExpr != .5 {
+		t.Fatalf("tuning = %#v", request)
 	}
 }
 

@@ -37,7 +37,10 @@ func RequestFromScore(singer *Singer, score Score) (Request, error) {
 		tokens = append(tokens, token)
 	}
 
-	const steps = int64(20)
+	steps := score.Steps
+	if steps <= 0 {
+		steps = 20
+	}
 	depth, err := scoreDepth(singer.Config)
 	if err != nil {
 		return Request{}, err
@@ -83,6 +86,9 @@ func RequestFromScore(singer *Singer, score Score) (Request, error) {
 		}
 		request.DurationSpeakerEmbed = singer.Duration.SpeakerEmbed
 		request.DurationPredictorMix = 0.2
+		if score.DurationPredictorMix > 0 {
+			request.DurationPredictorMix = float32(math.Min(1, float64(score.DurationPredictorMix)))
+		}
 		if singer.Duration.Config.UseLangID {
 			request.DurationLanguages = scoreLanguages(score.Symbols, singer.Duration.LanguageIDs)
 		}
@@ -101,6 +107,10 @@ func RequestFromScore(singer *Singer, score Score) (Request, error) {
 		request.PitchContinuous = singer.Pitch.Config.UseContinuousAcceleration
 		request.PitchUseExpr = singer.Pitch.Config.UseExpr
 		request.PitchUseNoteRest = singer.Pitch.Config.UseNoteRest
+		request.PitchExpr = 1
+		if score.Expr > 0 {
+			request.PitchExpr = float32(math.Min(2, float64(score.Expr)))
+		}
 		request.PitchPredictorMix = 0.03
 		if score.PitchPredictorMix > 0 {
 			request.PitchPredictorMix = float32(math.Min(1, float64(score.PitchPredictorMix)))

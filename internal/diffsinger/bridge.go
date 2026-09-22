@@ -42,6 +42,7 @@ type Request struct {
 	PitchUseExpr              bool      `json:"pitch_use_expr,omitempty"`
 	PitchUseNoteRest          bool      `json:"pitch_use_note_rest,omitempty"`
 	PitchPredictorMix         float32   `json:"pitch_predictor_mix,omitempty"`
+	PitchExpr                 float32   `json:"pitch_expr,omitempty"`
 	NoteMIDI                  []float32 `json:"note_midi,omitempty"`
 	NoteRest                  []bool    `json:"note_rest,omitempty"`
 	VarianceLinguisticPath    string    `json:"variance_linguistic_path,omitempty"`

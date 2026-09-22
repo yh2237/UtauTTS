@@ -376,7 +376,8 @@ static float[] PredictPitch(Request request, long[] durations, InferenceRuntime 
         predictorInputs.Add(Tensor("speedup", new[] { request.Speedup }, 1));
     }
     if (request.PitchUseExpr) {
-        predictorInputs.Add(Tensor("expr", Enumerable.Repeat(1f, totalFrames).ToArray(), 1, totalFrames));
+        var expr = request.PitchExpr > 0 ? request.PitchExpr : 1f;
+        predictorInputs.Add(Tensor("expr", Enumerable.Repeat(expr, totalFrames).ToArray(), 1, totalFrames));
     }
     if (request.PitchUseNoteRest) {
         predictorInputs.Add(Tensor("note_rest", request.NoteRest!, 1, request.NoteRest!.Length));
@@ -720,6 +721,7 @@ sealed class Request {
     [JsonPropertyName("pitch_use_expr")] public bool PitchUseExpr { get; set; }
     [JsonPropertyName("pitch_use_note_rest")] public bool PitchUseNoteRest { get; set; }
     [JsonPropertyName("pitch_predictor_mix")] public float PitchPredictorMix { get; set; }
+    [JsonPropertyName("pitch_expr")] public float PitchExpr { get; set; }
     [JsonPropertyName("note_midi")] public float[]? NoteMIDI { get; set; }
     [JsonPropertyName("note_rest")] public bool[]? NoteRest { get; set; }
     [JsonPropertyName("variance_linguistic_path")] public string VarianceLinguisticPath { get; set; } = "";

@@ -62,9 +62,13 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 		Symbols: symbols, Durations: frames, F0: f0, MIDI: midi,
 		NoteMIDI: noteMIDI, PhMIDI: phMIDI,
 		WordDiv: wordDiv, WordDur: wordDur, NoteRest: noteRest,
+		Steps: cfg.DiffSingerSteps, DurationPredictorMix: float32(cfg.DiffSingerDurationMix),
+		Expr:              float32(cfg.DiffSingerExpr),
 		UsePitchPredictor: singer.Pitch != nil && (cfg.PitchCurve == nil || automaticPitch),
 	}
-	if automaticPitch && singer.Pitch != nil {
+	if cfg.DiffSingerPitchMix > 0 {
+		score.PitchPredictorMix = float32(cfg.DiffSingerPitchMix)
+	} else if automaticPitch && singer.Pitch != nil {
 		// 話声用の輪郭を基準に、音源側の滑らかな微小変化だけを混ぜる。
 		score.PitchPredictorMix = .10
 	}
@@ -183,10 +187,12 @@ func diffsingerPhones(singer *diffsinger.Singer, morae []frontend.Mora, duration
 		if consonant == "" {
 			return nil, nil, nil, fmt.Errorf("DiffSinger singer has no consonant %q for %q", mora.Consonant, mora.Text)
 		}
+		// 話声では子音を短くしすぎると潰れる。共有重みと話声向け比率の長い方を採る。
 		consonantMS := diffsingerConsonantDuration(consonant, durations[index])
 		if index < len(weights) && len(weights[index]) == 2 {
-			spans := phoneSpansFromWeights(weights[index], durations[index])
-			consonantMS = spans[0]
+			if spans := phoneSpansFromWeights(weights[index], durations[index]); spans[0] > consonantMS {
+				consonantMS = spans[0]
+			}
 		}
 		phones = append(phones, consonant, vowel)
 		phoneDurations = append(phoneDurations, consonantMS, durations[index]-consonantMS)
