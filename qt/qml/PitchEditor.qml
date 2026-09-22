@@ -204,8 +204,8 @@ Item {
                                    following - currentMinimum);
             positions[index] = Math.max(lower, Math.min(upper, cursor));
         }
-        // Synthesis has no independent initial-rest parameter. Keep the first
-        // mora at zero and express a dragged first boundary as timing instead.
+        // 合成に語頭休止の独立パラメータは無い。先頭モーラは0に保ち、
+        // ドラッグされた先頭境界はタイミングとして表す。
         root.moraPositions = root.normalizedPositions(positions);
         root.moraDurations = root.durationValuesFromPositions();
         canvas.requestPaint();

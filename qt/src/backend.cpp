@@ -455,8 +455,8 @@ void Backend::runStartupMigrations() {
     const QString pendingTo = settings.value(QStringLiteral("migration/pending_to")).toString().trimmed();
     const QString currentVersion = QCoreApplication::applicationVersion();
 
-    // v1.2.2 and earlier do not have this key. Treat that installation as a
-    // legacy install and run every idempotent bootstrap step below.
+    // v1.2.2以前はこのキーが無い。従来インストールとみなし、
+    // 以下の冪等な初期化を全て実行する。
     if (previousSchema < 1) {
         settings.setValue(QStringLiteral("migration/legacy_install"), true);
         settings.setValue(QStringLiteral("migration/schema"), currentMigrationSchema);
@@ -465,12 +465,12 @@ void Backend::runStartupMigrations() {
         settings.setValue(QStringLiteral("appearance/preReleaseUpdateCheckEnabled"), false);
     }
 
-    // These values are intentionally kept in config.ini. The v1.2.2 updater
-    // already preserves that file, so a newer application can finish a
-    // migration even when an older updater performed the package swap.
-    // Only complete the marker after the process has actually started with the
-    // target version. If an update launch fails and the old process starts
-    // again, the marker must remain pending for diagnostics/recovery.
+    // これらの値は意図的にconfig.iniへ保持する。
+    // v1.2.2の更新処理が同ファイルを保持するため、旧更新処理が
+    // パッケージを差し替えても新アプリが移行を完了できる。
+    // markerは目標バージョンでの起動後にのみ完了させる。
+    // 更新起動が失敗して旧プロセスが再起動した場合は、
+    // 診断・復旧のためpendingのまま残す。
     if (!pendingTo.isEmpty() && pendingTo == currentVersion) {
         settings.setValue(QStringLiteral("migration/last_from"), pendingFrom);
         settings.setValue(QStringLiteral("migration/last_to"), pendingTo);

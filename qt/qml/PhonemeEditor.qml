@@ -394,7 +394,7 @@ Item {
     function boundaryHit(canvasX) {
         let best = -1;
         let bestDistance = 7;
-        // The first pronunciation always starts at audio time zero.
+        // 最初の発音は常に音声時刻0から始まる。
         for (let i = 1; i < root.morae.length; ++i) {
             const distance = Math.abs(root.timeToX(root.boundaryTime(i)) - canvasX);
             if (distance <= bestDistance) {
