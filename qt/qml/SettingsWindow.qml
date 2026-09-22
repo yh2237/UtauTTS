@@ -433,27 +433,38 @@ ApplicationWindow {
                         Item {
                             id: rendererTabsHeader
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 35
+                            Layout.preferredHeight: 44
 
                             Rectangle {
                                 anchors.left: parent.left
                                 anchors.right: parent.right
-                                anchors.bottom: parent.bottom
+                                anchors.top: rendererTabFlick.bottom
                                 height: 1
                                 color: root.hostWindow.borderColor
                             }
 
-                            ScrollView {
-                                id: rendererTabScroll
-                                anchors.fill: parent
-                                clip: true
+                            Flickable {
+                                id: rendererTabFlick
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                height: 35
                                 contentWidth: rendererTabRow.width
-                                ScrollBar.horizontal.policy: ScrollBar.AsNeeded
-                                ScrollBar.vertical.policy: ScrollBar.AlwaysOff
+                                contentHeight: height
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+
+                                WheelHandler {
+                                    onWheel: event => {
+                                        const maximum = Math.max(0, rendererTabFlick.contentWidth - rendererTabFlick.width);
+                                        rendererTabFlick.contentX = Math.max(0, Math.min(maximum, rendererTabFlick.contentX - event.angleDelta.y));
+                                        event.accepted = true;
+                                    }
+                                }
 
                                 Row {
                                     id: rendererTabRow
-                                    height: rendererTabScroll.availableHeight
+                                    height: rendererTabFlick.height
                                     spacing: 0
 
                                     Repeater {
@@ -509,6 +520,21 @@ ApplicationWindow {
                                         }
                                     }
                                 }
+                            }
+
+                            ScrollBar {
+                                id: rendererTabBar
+                                orientation: Qt.Horizontal
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: rendererTabFlick.bottom
+                                anchors.topMargin: 2
+                                height: 7
+                                policy: ScrollBar.AsNeeded
+                                size: rendererTabFlick.visibleArea.widthRatio
+                                position: rendererTabFlick.visibleArea.xPosition
+                                active: rendererTabFlick.movingHorizontally || hovered
+                                onPositionChanged: rendererTabFlick.contentX = position * Math.max(0, rendererTabFlick.contentWidth - rendererTabFlick.width)
                             }
 
                             ButtonGroup {
