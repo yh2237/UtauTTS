@@ -494,6 +494,24 @@ func TestResolveScoresDuplicateEntriesByOtoConsistency(t *testing.T) {
 	}
 }
 
+func TestResolvePrefersMedialEnglishAliasOverStartingForm(t *testing.T) {
+	bank := &Bank{Entries: map[string][]oto.Entry{
+		"ah":   {{Alias: "ah", Filename: "ah.wav", Preutterance: 30, Fixed: 150, Overlap: 60}},
+		"- ah": {{Alias: "- ah", Filename: "ah.wav", Preutterance: 90, Fixed: 207, Overlap: 26}},
+	}}
+	morae := []frontend.Mora{{
+		Language: frontend.LanguageEnglish, Text: "ah", Vowel: "ah",
+		Aliases: &frontend.AliasHints{Main: []string{"ah", "- ah"}, MainKinds: []string{"cv", "cv"}},
+	}}
+	got, err := bank.Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Alias != "ah" {
+		t.Fatalf("alias = %q, want the medial form: %#v", got[0].Alias, got[0])
+	}
+}
+
 func TestResolvePrefersHealthyDuplicateOverClippedRecording(t *testing.T) {
 	dir := t.TempDir()
 	clipped := filepath.Join(dir, "clipped.wav")

@@ -16,6 +16,9 @@ func (b *Bank) SuggestedLanguage() (string, string) {
 	if strings.Contains(configured, "englishvccv") {
 		return LanguageEnglish, "en-vccv"
 	}
+	if strings.Contains(configured, "cpv") || strings.Contains(configured, "c+v") {
+		return LanguageEnglish, "en-cv"
+	}
 	if strings.Contains(configured, "arpasing") {
 		return LanguageEnglish, "en-arpasing"
 	}
@@ -32,6 +35,11 @@ func (b *Bank) SuggestedLanguage() (string, string) {
 	}
 	if has("- hV", "- h@", "V l", "@ l") && has("h{", "- h{") {
 		return LanguageEnglish, "en-delta"
+	}
+	// C+VはARPAbetの子音・母音を単音で録音し、-C/-V, C/V, C-/V- を持つ。
+	// 子音文脈のCV/VCを含むARPAsingとは「V -」終端と単音母音の有無で区別する。
+	if has("- aa", "- ah", "- ao") && has("aa -", "ah -", "ao -") && !has("hh ah", "ah l") {
+		return LanguageEnglish, "en-cv"
 	}
 	if has("- hh", "hh ah", "ah l") || len(b.ARPAsing) > 0 {
 		return LanguageEnglish, "en-arpasing"

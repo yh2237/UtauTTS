@@ -15,6 +15,7 @@ const (
 	PhonemizerEnglish      = "en-arpasing"
 	PhonemizerEnglishDelta = "en-delta"
 	PhonemizerEnglishVCCV  = "en-vccv"
+	PhonemizerEnglishCV    = "en-cv"
 	PhonemizerChinese      = "zh-cvvc"
 )
 
@@ -23,7 +24,7 @@ func ResolveLanguage(language, phonemizer string) (string, string, error) {
 	phonemizer = strings.ToLower(strings.TrimSpace(phonemizer))
 	if language == "" {
 		switch phonemizer {
-		case PhonemizerEnglish, PhonemizerEnglishDelta, PhonemizerEnglishVCCV:
+		case PhonemizerEnglish, PhonemizerEnglishDelta, PhonemizerEnglishVCCV, PhonemizerEnglishCV:
 			language = LanguageEnglish
 		case PhonemizerChinese:
 			language = LanguageChinese
@@ -40,7 +41,7 @@ func ResolveLanguage(language, phonemizer string) (string, string, error) {
 	}
 	valid := map[string]map[string]bool{
 		LanguageJapanese: {PhonemizerJapanese: true},
-		LanguageEnglish:  {PhonemizerEnglish: true, PhonemizerEnglishDelta: true, PhonemizerEnglishVCCV: true},
+		LanguageEnglish:  {PhonemizerEnglish: true, PhonemizerEnglishDelta: true, PhonemizerEnglishVCCV: true, PhonemizerEnglishCV: true},
 		LanguageChinese:  {PhonemizerChinese: true},
 	}[language]
 	if valid == nil {
@@ -538,6 +539,82 @@ func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (s
 	return pronunciation, morae, nil
 }
 
+// ParseEnglishCVはARPAbet読みをC+V形式（子音と母音を別々に録音した英語音源）へ変換する。
+//
+// 1音素=1 Moraとし、aliasの優先順序はOpenUtauのEnglish C+V Phonemizer
+// （Cadlaxa, MIT）に準拠する。母音は文頭が"-V","- V","V"、文中が"-V","V","- V"、
+// 子音は文頭が"- C","-C","C"、文中が"C","-C","- C"の順に試す。
+func ParseEnglishCV(text, reading string, dictionary map[string]string) (string, []Mora, error) {
+	pronunciation, words, err := englishPronunciation(text, reading, dictionary)
+	if err != nil {
+		return "", nil, err
+	}
+	var morae []Mora
+	phraseStart := true
+	for wordIndex, word := range words {
+		if len(word) == 1 && word[0] == "SP" {
+			if len(morae) > 0 && !morae[len(morae)-1].Pause {
+				setEnglishCVEnding(&morae[len(morae)-1])
+				morae = append(morae, Mora{Pause: true})
+			}
+			phraseStart = true
+			continue
+		}
+		for phoneIndex, raw := range word {
+			symbol := normalizeARPAbet(raw)
+			if symbol == "" {
+				continue
+			}
+			if !englishVowels[symbol] && !cvEnglishConsonants[symbol] {
+				return "", nil, fmt.Errorf("unsupported ARPAbet phoneme %q", raw)
+			}
+			mora := Mora{Language: LanguageEnglish, WordIndex: wordIndex, WordEnd: phoneIndex+1 == len(word), Text: symbol, Stress: arpabetStress(raw)}
+			mora.StressKnown = arpabetHasStress(raw)
+			var candidates []string
+			if englishVowels[symbol] {
+				mora.Vowel = symbol
+				mora.DurationScale = 1
+				mora.Phones = []Phone{{Symbol: symbol, Role: "nucleus"}}
+				candidates = cvVowelAliases(symbol, phraseStart)
+			} else {
+				mora.Consonant = symbol
+				mora.DurationScale = PhoneWeight(symbol, "onset")
+				mora.Phones = []Phone{{Symbol: symbol, Role: "onset"}}
+				candidates = cvConsonantAliases(symbol, phraseStart)
+			}
+			mora.Aliases = &AliasHints{Main: candidates, MainKinds: repeatAliasKind("cv", len(candidates))}
+			morae = append(morae, mora)
+			phraseStart = false
+		}
+	}
+	if len(morae) > 0 && !morae[len(morae)-1].Pause {
+		setEnglishCVEnding(&morae[len(morae)-1])
+	}
+	return pronunciation, morae, nil
+}
+
+func cvVowelAliases(vowel string, phraseStart bool) []string {
+	if phraseStart {
+		return uniqueStrings([]string{"-" + vowel, "- " + vowel, vowel})
+	}
+	return uniqueStrings([]string{"-" + vowel, vowel, "- " + vowel})
+}
+
+func cvConsonantAliases(consonant string, phraseStart bool) []string {
+	if phraseStart {
+		return uniqueStrings([]string{"- " + consonant, "-" + consonant, consonant})
+	}
+	return uniqueStrings([]string{consonant, "-" + consonant, "- " + consonant})
+}
+
+func setEnglishCVEnding(mora *Mora) {
+	if mora.Aliases == nil {
+		return
+	}
+	endings := []string{mora.Text + " -", mora.Text + "-"}
+	mora.Aliases.Endings = [][]string{uniqueStrings(endings)}
+}
+
 func ParseChineseCVVC(text, reading string, dictionary map[string]string) (string, []Mora, error) {
 	return ParseChineseCVVCWithConfig(text, reading, dictionary, PresampConfig{})
 }
@@ -687,6 +764,14 @@ var englishVowels = map[string]bool{
 	"aa": true, "ae": true, "ah": true, "ao": true, "aw": true, "ax": true, "ay": true,
 	"eh": true, "er": true, "ey": true, "ih": true, "iy": true, "ow": true,
 	"oy": true, "uh": true, "uw": true,
+}
+
+// cvEnglishConsonantsはC+V音源が別録音を持つ子音。q(声門閉鎖)も含む。
+var cvEnglishConsonants = map[string]bool{
+	"b": true, "ch": true, "d": true, "dh": true, "dx": true, "f": true, "g": true,
+	"hh": true, "jh": true, "k": true, "l": true, "m": true, "n": true, "ng": true,
+	"p": true, "q": true, "r": true, "s": true, "sh": true, "t": true, "th": true,
+	"v": true, "w": true, "y": true, "z": true, "zh": true,
 }
 
 var deltaEnglishSymbols = map[string][]string{

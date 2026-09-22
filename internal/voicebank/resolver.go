@@ -219,7 +219,7 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 				var best *Selection
 				for _, endingSpec := range specs {
 					for _, validatedEnding := range validatedEntries(endingSpec.name, b.Entries[endingSpec.name]) {
-						score := validatedCandidateScore(endingSpec.tier, validatedEnding.entry, validatedEnding.validation)
+						score := validatedCandidateScore(mora.Language, endingSpec.tier, validatedEnding.entry, validatedEnding.validation)
 						if score <= bestScore {
 							continue
 						}
@@ -256,7 +256,7 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 				main := attachEndings(Selection{
 					Position: position, Mora: mora, Alias: candidate.name, Kind: candidate.kind,
 					FallbackTier: candidate.tier, Entry: entry, Candidates: candidates,
-					TargetScore: validatedCandidateScore(candidate.tier, entry, validation),
+					TargetScore: validatedCandidateScore(mora.Language, candidate.tier, entry, validation),
 					SubbankID:   subbank.ID, Color: subbank.Color, RequestedTone: requestedTone,
 					ResolvedTone: resolvedTone, EntryStatus: validation.Status, EntryValidation: validation.Checks,
 				})
@@ -276,7 +276,7 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 						transition := Selection{
 							Position: position, Mora: mora, Alias: transitionSpec.name, Kind: AliasVC,
 							FallbackTier: transitionSpec.tier, Entry: transitionEntry, Candidates: candidates,
-							TargetScore: validatedCandidateScore(transitionSpec.tier, transitionEntry, transitionValidation),
+							TargetScore: validatedCandidateScore(mora.Language, transitionSpec.tier, transitionEntry, transitionValidation),
 							SubbankID:   subbank.ID, Color: subbank.Color, RequestedTone: requestedTone,
 							ResolvedTone: resolvedTone, EntryStatus: transitionValidation.Status,
 							EntryValidation: transitionValidation.Checks,
@@ -365,7 +365,7 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 }
 
 // candidateScoreはalias優先度とoto.iniの整合性から重複候補を選ぶ。
-func candidateScore(candidateTier int, entry oto.Entry) float64 {
+func candidateScore(language string, candidateTier int, entry oto.Entry) float64 {
 	score := 100 - float64(candidateTier)*10
 	if entry.Preutterance >= 0 {
 		score += 4
@@ -377,7 +377,10 @@ func candidateScore(candidateTier int, entry oto.Entry) float64 {
 	} else {
 		score -= 20 + math.Abs(entry.Preutterance-entry.Fixed)
 	}
-	if entry.Overlap <= entry.Preutterance {
+	if entry.Overlap <= entry.Preutterance || language == frontend.LanguageEnglish {
+		// 英語のC+V/VCCVは子音と母音を分けて録音するため、母音のoverlapが
+		// preutteranceを超えるのが仕様。慣習違反として減点すると、tier差を
+		// 食って中間母音(ah)より文頭形(- ah)が選ばれてしまう。
 		score += 4
 	} else {
 		score -= 20 + math.Abs(entry.Overlap-entry.Preutterance)
@@ -391,8 +394,8 @@ func candidateScore(candidateTier int, entry oto.Entry) float64 {
 }
 
 // validatedCandidateScoreは同じ候補内で明確な録音劣化を弱く避ける。
-func validatedCandidateScore(candidateTier int, entry oto.Entry, validation EntryValidation) float64 {
-	score := candidateScore(candidateTier, entry)
+func validatedCandidateScore(language string, candidateTier int, entry oto.Entry, validation EntryValidation) float64 {
+	score := candidateScore(language, candidateTier, entry)
 	if validation.Status == "degraded" {
 		score -= 3
 	}

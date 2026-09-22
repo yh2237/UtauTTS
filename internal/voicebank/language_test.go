@@ -19,6 +19,7 @@ func testSuggestedLanguage(t *testing.T) {
 		{"delta", "en", "en-delta", []string{"- h@", "h{", "@ l"}},
 		{"vccv", "en", "en-vccv", []string{"-h@", "-b&"}},
 		{"arpasing", "en", "en-arpasing", []string{"- hh", "hh ah"}},
+		{"cv", "en", "en-cv", []string{"- aa", "aa", "aa -"}},
 		{"chinese", "zh", "zh-cvvc", []string{"- ni", "hao"}},
 		{"japanese", "ja", "ja-kana", []string{"- あ", "あ"}},
 	}
@@ -40,6 +41,11 @@ func testSuggestedLanguageUsesOpenUtauPhonemizer(t *testing.T) {
 	bank := &Bank{DefaultPhonemizer: "OpenUtau.Plugin.Builtin.ChineseCVVCPhonemizer"}
 	language, phonemizer := bank.SuggestedLanguage()
 	if language != "zh" || phonemizer != "zh-cvvc" {
+		t.Fatalf("got %s/%s", language, phonemizer)
+	}
+	cpv := &Bank{DefaultPhonemizer: "OpenUtau.Plugin.Builtin.EnglishCpVPhonemizerBeta"}
+	language, phonemizer = cpv.SuggestedLanguage()
+	if language != "en" || phonemizer != "en-cv" {
 		t.Fatalf("got %s/%s", language, phonemizer)
 	}
 }

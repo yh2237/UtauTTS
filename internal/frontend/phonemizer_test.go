@@ -3,7 +3,7 @@ package frontend
 import "testing"
 
 func TestEnglishPunctuationPreservesPhrasePauses(t *testing.T) {
-	for _, parser := range []func(string, string, map[string]string) (string, []Mora, error){ParseEnglishARPAsing, ParseEnglishDelta, ParseEnglishVCCV} {
+	for _, parser := range []func(string, string, map[string]string) (string, []Mora, error){ParseEnglishARPAsing, ParseEnglishDelta, ParseEnglishVCCV, ParseEnglishCV} {
 		reading, units, err := parser("Cat, is!", "", map[string]string{"cat": "K AE1 T", "is": "IH0 Z"})
 		if err != nil {
 			t.Fatal(err)
@@ -40,6 +40,41 @@ func TestParseEnglishARPAsingReading(t *testing.T) {
 	}
 	if units[0].DurationScale != 0.45 || units[1].DurationScale != 1 || units[1].Stress != 0 {
 		t.Fatalf("timing metadata = %#v", units[:2])
+	}
+}
+
+func TestParseEnglishCV(t *testing.T) {
+	_, units, err := ParseEnglishCV("", "HH AH0 L OW1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(units) != 4 {
+		t.Fatalf("units=%#v", units)
+	}
+	if units[0].Text != "hh" || units[0].Aliases.Main[0] != "- hh" {
+		t.Fatalf("phrase-initial consonant = %#v", units[0].Aliases)
+	}
+	if units[1].Text != "ah" || units[1].Aliases.Main[0] != "-ah" {
+		t.Fatalf("medial vowel = %#v", units[1].Aliases)
+	}
+	if units[2].Text != "l" || units[2].Aliases.Main[0] != "l" {
+		t.Fatalf("medial consonant = %#v", units[2].Aliases)
+	}
+	if got := units[3].Aliases.Endings; len(got) != 1 || got[0][0] != "ow -" || got[0][1] != "ow-" {
+		t.Fatalf("ending = %#v", got)
+	}
+	if units[0].DurationScale != 0.45 || units[1].DurationScale != 1 {
+		t.Fatalf("timing metadata = %#v", units[:2])
+	}
+	_, vowelInitial, err := ParseEnglishCV("", "AA1 R", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if vowelInitial[0].Text != "aa" || vowelInitial[0].Aliases.Main[0] != "-aa" {
+		t.Fatalf("phrase-initial vowel = %#v", vowelInitial[0].Aliases)
+	}
+	if _, _, err := ParseEnglishCV("", "K INVALID AE1", nil); err == nil {
+		t.Fatal("invalid phone accepted")
 	}
 }
 
@@ -239,7 +274,7 @@ func TestResolveLanguageDefaults(t *testing.T) {
 }
 
 func TestResolveLanguageAcceptsEnglishPhonemizers(t *testing.T) {
-	for _, phonemizer := range []string{PhonemizerEnglish, PhonemizerEnglishDelta, PhonemizerEnglishVCCV} {
+	for _, phonemizer := range []string{PhonemizerEnglish, PhonemizerEnglishDelta, PhonemizerEnglishVCCV, PhonemizerEnglishCV} {
 		language, resolved, err := ResolveLanguage("en", phonemizer)
 		if err != nil || language != LanguageEnglish || resolved != phonemizer {
 			t.Fatalf("phonemizer=%q language=%q resolved=%q err=%v", phonemizer, language, resolved, err)

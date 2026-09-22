@@ -71,7 +71,7 @@ func testEnglishPrefixPreservesStemPronunciation(t *testing.T) {
 }
 
 func testEnglishOOVAcrossPhonemizersAndDictionaryOverride(t *testing.T) {
-	for _, parse := range []func(string, string, map[string]string) (string, []Mora, error){ParseEnglishARPAsing, ParseEnglishDelta, ParseEnglishVCCV} {
+	for _, parse := range []func(string, string, map[string]string) (string, []Mora, error){ParseEnglishARPAsing, ParseEnglishDelta, ParseEnglishVCCV, ParseEnglishCV} {
 		reading, units, err := parse("phlame", "", nil)
 		if err != nil || reading != "F L EY M" || len(units) == 0 {
 			t.Fatalf("%q %v", reading, err)

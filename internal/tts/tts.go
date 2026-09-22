@@ -183,6 +183,9 @@ func resolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, 
 	case frontend.PhonemizerEnglishVCCV:
 		reading, morae, err := frontend.ParseEnglishVCCV(cfg.Text, cfg.Reading, cfg.Dictionary)
 		return language, phonemizer, reading, morae, err
+	case frontend.PhonemizerEnglishCV:
+		reading, morae, err := frontend.ParseEnglishCV(cfg.Text, cfg.Reading, cfg.Dictionary)
+		return language, phonemizer, reading, morae, err
 	case frontend.PhonemizerChinese:
 		var presamp frontend.PresampConfig
 		if cfg.Voicebank != nil {
