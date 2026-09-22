@@ -294,7 +294,8 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     backend.setSynthesisDefaults(130, 190, 45, 2.5,
                                  QStringLiteral("frame-intonation-v9-t"),
                                  QStringLiteral("utautts-world-phrase"),
-                                 QStringLiteral("D4"), QStringLiteral("cv-only"));
+                                 QStringLiteral("D4"), QStringLiteral("cv-only"),
+                                 35, 1.5, 0.75, 0.25);
     backend.setPreviewCacheFileCount(7);
     backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y");
     if (!require(backend.defaultMoraDuration() == 130 && backend.defaultPauseDuration() == 190
@@ -303,6 +304,10 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  && backend.defaultRenderer() == QStringLiteral("utautts-world-phrase")
                  && backend.previewCacheFileCount() == 7
                  && backend.defaultIntonationStrength() == 2.5
+                 && backend.defaultDiffSingerSteps() == 35
+                 && backend.defaultDiffSingerExpr() == 1.5
+                 && backend.defaultDiffSingerDurationMix() == 0.75
+                 && backend.defaultDiffSingerPitchMix() == 0.25
                  && backend.defaultTone() == QStringLiteral("D4")
                  && backend.defaultAliasPolicy() == QStringLiteral("cv-only")
                  && backend.undoShortcut() == QStringLiteral("Ctrl+Z"),

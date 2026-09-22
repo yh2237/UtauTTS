@@ -1239,6 +1239,10 @@ ApplicationWindow {
             leading_preutterance_ms: item.leadingPreutterance,
             intonation_strength: item.intonation,
             apply_pitch: item.applyPitch,
+            diffsinger_steps: window.appBackend.defaultDiffSingerSteps,
+            diffsinger_expr: window.appBackend.defaultDiffSingerExpr,
+            diffsinger_duration_mix: window.appBackend.defaultDiffSingerDurationMix,
+            diffsinger_pitch_mix: window.appBackend.defaultDiffSingerPitchMix,
             resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson),
             unit_overrides: window.decodeSequence(item.phonemeOverridesJson)
         };
@@ -1300,7 +1304,11 @@ ApplicationWindow {
                                                settingsWindow.pendingDefaultModelId,
                                                settingsWindow.pendingDefaultRendererId,
                                                settingsWindow.pendingDefaultTone,
-                                               settingsWindow.pendingDefaultAliasPolicy);
+                                               settingsWindow.pendingDefaultAliasPolicy,
+                                               settingsWindow.pendingDefaultDiffSingerSteps,
+                                               settingsWindow.pendingDefaultDiffSingerExpr,
+                                               settingsWindow.pendingDefaultDiffSingerDurationMix,
+                                               settingsWindow.pendingDefaultDiffSingerPitchMix);
         window.appBackend.setDarkMode(settingsWindow.pendingDarkMode);
         window.appBackend.setLanguage(settingsWindow.pendingLanguage);
         window.appBackend.setFfmpegPath(settingsWindow.pendingFfmpegPath);
@@ -3350,6 +3358,10 @@ ApplicationWindow {
             mora_durations_ms: manualDurations,
             intonation_strength: item.intonation,
             apply_pitch: item.applyPitch,
+            diffsinger_steps: window.appBackend.defaultDiffSingerSteps,
+            diffsinger_expr: window.appBackend.defaultDiffSingerExpr,
+            diffsinger_duration_mix: window.appBackend.defaultDiffSingerDurationMix,
+            diffsinger_pitch_mix: window.appBackend.defaultDiffSingerPitchMix,
             resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson),
             unit_overrides: window.decodeSequence(item.phonemeOverridesJson)
         };
@@ -3403,7 +3415,11 @@ ApplicationWindow {
             mora_durations_ms: window.hasManualMoraDurations(item)
                     ? window.decodeSequence(item.moraDurationsJson) : [],
             intonation_strength: item.intonation,
-            apply_pitch: item.applyPitch
+            apply_pitch: item.applyPitch,
+            diffsinger_steps: window.appBackend.defaultDiffSingerSteps,
+            diffsinger_expr: window.appBackend.defaultDiffSingerExpr,
+            diffsinger_duration_mix: window.appBackend.defaultDiffSingerDurationMix,
+            diffsinger_pitch_mix: window.appBackend.defaultDiffSingerPitchMix
         };
     }
 

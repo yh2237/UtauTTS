@@ -39,6 +39,10 @@ ApplicationWindow {
     property int pendingPauseDuration: 180
     property int pendingLeadingPreutterance: 0
     property real pendingDefaultIntonationStrength: 2.0
+    property int pendingDefaultDiffSingerSteps: 0
+    property real pendingDefaultDiffSingerExpr: 0.0
+    property real pendingDefaultDiffSingerDurationMix: 0.0
+    property real pendingDefaultDiffSingerPitchMix: 0.0
     property bool pendingExportTextWithWav: false
     property bool pendingExportLabWithWav: false
     property string pendingExportTextEncoding: "utf-8"
@@ -97,6 +101,10 @@ ApplicationWindow {
         pendingPauseDuration = root.backend.defaultPauseDuration;
         pendingLeadingPreutterance = root.backend.defaultLeadingPreutterance;
         pendingDefaultIntonationStrength = root.backend.defaultIntonationStrength;
+        pendingDefaultDiffSingerSteps = root.backend.defaultDiffSingerSteps;
+        pendingDefaultDiffSingerExpr = root.backend.defaultDiffSingerExpr;
+        pendingDefaultDiffSingerDurationMix = root.backend.defaultDiffSingerDurationMix;
+        pendingDefaultDiffSingerPitchMix = root.backend.defaultDiffSingerPitchMix;
         pendingExportTextWithWav = root.backend.exportTextWithWav;
         pendingExportLabWithWav = root.backend.exportLabWithWav;
         pendingExportTextEncoding = root.backend.exportTextEncoding;
@@ -141,6 +149,22 @@ ApplicationWindow {
 
     function resetDefaultIntonation() {
         pendingDefaultIntonationStrength = 2.0;
+    }
+
+    function resetDefaultDiffSingerSteps() {
+        pendingDefaultDiffSingerSteps = 0;
+    }
+
+    function resetDefaultDiffSingerExpr() {
+        pendingDefaultDiffSingerExpr = 0.0;
+    }
+
+    function resetDefaultDiffSingerDurationMix() {
+        pendingDefaultDiffSingerDurationMix = 0.0;
+    }
+
+    function resetDefaultDiffSingerPitchMix() {
+        pendingDefaultDiffSingerPitchMix = 0.0;
     }
 
     function resetDefaultMoraDuration() {
@@ -479,6 +503,122 @@ ApplicationWindow {
                                 SettingsResetButton {
                                     translator: root.translator
                                     onResetRequested: root.resetDefaultIntonation()
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: root.translator.tr("settings.defaultDiffSingerSteps")
+                                    Layout.fillWidth: true
+                                }
+                                SpinBox {
+                                    id: defaultDiffSingerStepsSpin
+                                    Layout.preferredWidth: 180
+                                    Layout.alignment: Qt.AlignVCenter
+                                    from: 0
+                                    to: 100
+                                    stepSize: 1
+                                    value: root.pendingDefaultDiffSingerSteps
+                                    editable: true
+                                    textFromValue: value => value + " steps"
+                                    valueFromText: text => parseInt(text)
+                                    onValueModified: root.pendingDefaultDiffSingerSteps = value
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton
+                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                        onDoubleTapped: root.pendingDefaultDiffSingerSteps = 0
+                                    }
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultDiffSingerSteps()
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: root.translator.tr("settings.defaultDiffSingerExpr")
+                                    Layout.fillWidth: true
+                                }
+                                SpinBox {
+                                    id: defaultDiffSingerExprSpin
+                                    Layout.preferredWidth: 180
+                                    Layout.alignment: Qt.AlignVCenter
+                                    from: 0
+                                    to: 200
+                                    stepSize: 1
+                                    value: Math.round(root.pendingDefaultDiffSingerExpr * 100)
+                                    editable: true
+                                    textFromValue: value => (value / 100).toFixed(2)
+                                    valueFromText: text => Math.round(parseFloat(text) * 100)
+                                    onValueModified: root.pendingDefaultDiffSingerExpr = value / 100
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton
+                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                        onDoubleTapped: root.pendingDefaultDiffSingerExpr = 0.0
+                                    }
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultDiffSingerExpr()
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: root.translator.tr("settings.defaultDiffSingerDurationMix")
+                                    Layout.fillWidth: true
+                                }
+                                SpinBox {
+                                    id: defaultDiffSingerDurationMixSpin
+                                    Layout.preferredWidth: 180
+                                    Layout.alignment: Qt.AlignVCenter
+                                    from: 0
+                                    to: 100
+                                    stepSize: 1
+                                    value: Math.round(root.pendingDefaultDiffSingerDurationMix * 100)
+                                    editable: true
+                                    textFromValue: value => (value / 100).toFixed(2)
+                                    valueFromText: text => Math.round(parseFloat(text) * 100)
+                                    onValueModified: root.pendingDefaultDiffSingerDurationMix = value / 100
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton
+                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                        onDoubleTapped: root.pendingDefaultDiffSingerDurationMix = 0.0
+                                    }
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultDiffSingerDurationMix()
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: root.translator.tr("settings.defaultDiffSingerPitchMix")
+                                    Layout.fillWidth: true
+                                }
+                                SpinBox {
+                                    id: defaultDiffSingerPitchMixSpin
+                                    Layout.preferredWidth: 180
+                                    Layout.alignment: Qt.AlignVCenter
+                                    from: 0
+                                    to: 100
+                                    stepSize: 1
+                                    value: Math.round(root.pendingDefaultDiffSingerPitchMix * 100)
+                                    editable: true
+                                    textFromValue: value => (value / 100).toFixed(2)
+                                    valueFromText: text => Math.round(parseFloat(text) * 100)
+                                    onValueModified: root.pendingDefaultDiffSingerPitchMix = value / 100
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton
+                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                        onDoubleTapped: root.pendingDefaultDiffSingerPitchMix = 0.0
+                                    }
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetDefaultDiffSingerPitchMix()
                                 }
                             }
                             RowLayout {
