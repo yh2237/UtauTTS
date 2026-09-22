@@ -1,0 +1,24 @@
+Kokoro Speech Dataset provenance
+================================
+
+Project: https://github.com/kaiidams/Kokoro-Speech-Dataset
+Dataset release used by UtauTTS training: 1.3
+Repository revision inspected: 88377525a85728c79cf78f6bfcb81396f9c23827
+
+Kokoro Speech Dataset contains Japanese audiobook clips read by ekzemplaro.
+The recordings originate from LibriVox, and the texts originate from Aozora
+Bunko. Alignment and annotation were created by Katsuya Iida.
+
+The upstream README states that the dataset is in the public domain in the
+United States and most likely in other countries, with no use restrictions.
+That statement and the upstream source records remain the authority for the
+source material. Preserve this notice and the model metadata so recipients can
+identify the exact training source. UtauTTS does not redistribute the source
+recordings.
+
+Sources
+-------
+
+- Dataset and metadata: https://github.com/kaiidams/Kokoro-Speech-Dataset
+- Recordings: https://librivox.org/reader/7044
+- Texts: https://www.aozora.gr.jp/

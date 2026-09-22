@@ -1,0 +1,26 @@
+Tsukuyomi-chan Corpus provenance
+================================
+
+Corpus: Tsukuyomi-chan Corpus Vol.1 "Voice Actress Statistics Corpus"
+        (JVS-corpus compatible), spoken by Rei Yumesaki.
+Source:  https://tyc.rei-yumesaki.net/material/corpus/
+Download: https://tyc.rei-yumesaki.net/files/voice/tyc-corpus1.zip
+Script:  Voice Actress Statistics corpus / JVS corpus phoneme-balanced
+         sentences, text under CC BY-SA 4.0.
+
+The corpus publisher, Rei Yumesaki, permits personal and corporate,
+commercial and non-commercial use, including distributing and selling
+speech-synthesis software and models that reproduce the voice, provided the
+required credit is shown.  Redistribution of the corpus audio itself is not
+permitted.  Because the audio distribution relies on Article 30-4 of the
+Japanese Copyright Act, CC BY-SA copyleft is not inherited for the audio.
+
+Required credit (from the publisher's terms):
+
+  本ソフトウェアの音声合成には、フリー素材キャラクター「つくよみちゃん」
+  （© Rei Yumesaki）が無料公開している音声データを使用しています。
+  ■つくよみちゃんコーパス（CV.夢前黎）
+  https://tyc.rei-yumesaki.net/material/corpus/
+
+UtauTTS does not redistribute the corpus audio.  The frame-intonation model
+trained from it records this provenance so recipients can identify the source.

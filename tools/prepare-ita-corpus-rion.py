@@ -6,17 +6,20 @@ used as an explicitly approximate alignment. Same-text speakers share an ID,
 so a sentence never occurs in both training and validation.
 """
 import argparse
+import importlib.util
 import json
 import math
 import re
 import sys
 import wave
+from collections import deque
 from pathlib import Path
 
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from openjtalk_features import analyze
+from openjtalk_features import analyze, split_morae
+from mora_alignment import align_accent_viterbi
 
 
 def read_wav(path):
@@ -67,6 +70,67 @@ def timed_tokens(text, start, end):
     return reading, result
 
 
+def count_morae(reading):
+    """Count spoken morae in a kana reading using the shared splitter."""
+
+    return sum(1 for token in split_morae(reading) if not token.get("pause", False))
+
+
+def _energy_envelope(samples, rate, start_ms, end_ms, frame_ms=10.0):
+    hop = max(1, int(round(rate * frame_ms / 1000.0)))
+    window = hop * 2
+    count = max(1, int(math.ceil((end_ms - start_ms) / frame_ms)))
+    envelope = np.zeros(count, dtype=np.float64)
+    for index in range(count):
+        begin = int((start_ms + index * frame_ms) / 1000.0 * rate)
+        block = samples[begin:begin + window]
+        if len(block):
+            envelope[index] = math.sqrt(sum(value * value for value in block) / len(block))
+    if len(envelope) > 3:
+        envelope = np.convolve(envelope, np.ones(3, dtype=np.float64) / 3.0, mode="same")
+    return envelope
+
+
+def refine_alignment(tokens, samples, rate, start, end, frame_ms=10.0, strength=0.4):
+    """Move uniform mora boundaries to nearby energy valleys.
+
+    The corpus has no phone timings, so this only refines the uniform estimate;
+    it never reorders morae and keeps each segment within ``strength`` of the
+    uniform boundary.
+    """
+
+    result = [dict(token) for token in tokens]
+    spoken = [index for index, token in enumerate(result) if not token.get("pause", False)]
+    if len(spoken) < 2:
+        return result
+    envelope = _energy_envelope(samples, rate, start, end, frame_ms)
+    step = (end - start) / len(spoken)
+    bounds = [start + index * step for index in range(len(spoken) + 1)]
+    bounds[-1] = end
+    refined = [bounds[0]]
+    for index in range(1, len(bounds) - 1):
+        center = bounds[index]
+        radius = step * strength
+        low = max(refined[-1] + step * 0.3, center - radius)
+        high = min(bounds[index + 1] - step * 0.3, center + radius)
+        if high <= low:
+            refined.append(center)
+            continue
+        first = max(0, int((low - start) / frame_ms))
+        last = min(len(envelope), int((high - start) / frame_ms))
+        if last <= first:
+            refined.append(center)
+            continue
+        offset = first + int(np.argmin(envelope[first:last]))
+        refined.append(start + offset * frame_ms)
+    refined.append(bounds[-1])
+    for position, token_index in enumerate(spoken):
+        result[token_index]["start_ms"] = refined[position]
+        result[token_index]["end_ms"] = refined[position + 1]
+        result[token_index]["duration_ms"] = refined[position + 1] - refined[position]
+    return result
+
+
 def load_transcript(path):
     rows = {}
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -88,12 +152,23 @@ def main():
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--lower-duration-factor", type=float, default=0.45)
     parser.add_argument("--upper-duration-factor", type=float, default=2.20)
+    parser.add_argument("--alignment", choices=("uniform", "energy", "viterbi"), default="uniform",
+                        help="uniform mora placement, energy-valley refinement, or accent-guided Viterbi")
+    parser.add_argument("--require-reading-match", action="store_true",
+                        help="skip recordings whose Open JTalk mora count differs from the official reading")
+    parser.add_argument("--world-engine", help="UtauTTS WORLD engine used for Viterbi F0 (default: internal)")
     args = parser.parse_args()
     if args.limit < 0 or not 0 < args.lower_duration_factor <= 1 <= args.upper_duration_factor:
         parser.error("invalid limit or duration factors")
+    worldline = None
+    if args.alignment == "viterbi" and args.world_engine:
+        from world_engine_f0 import WorldEngineF0
+
+        worldline = WorldEngineF0(args.world_engine, 1)
     root = Path(args.corpus).resolve()
     texts = load_transcript(root / "emotion_transcript_utf8.txt")
     candidates = []
+    reading_mismatches = 0
     for speaker in sorted(path for path in root.iterdir() if path.is_dir()):
         for audio in sorted(speaker.glob("*.wav")):
             if args.limit and len(candidates) >= args.limit:
@@ -106,11 +181,22 @@ def main():
             start, end = bounds(samples, rate)
             text, source_reading = texts[number]
             reading, tokens = timed_tokens(text, start, end)
+            if count_morae(reading) != count_morae(source_reading):
+                reading_mismatches += 1
+                if args.require_reading_match:
+                    continue
+            alignment_source = "uniform_mora_with_energy_bounds"
+            if args.alignment == "energy":
+                tokens = refine_alignment(tokens, samples, rate, start, end)
+                alignment_source = "energy_valley_refined_mora"
+            elif args.alignment == "viterbi":
+                tokens = align_accent_viterbi(tokens, samples, rate, start, end, worldline=worldline)
+                alignment_source = "accent_viterbi_duration_constrained"
             candidates.append({"version": 1, "id": f"EMOTION100_{number:03d}",
                 "record_id": f"{speaker.name}_EMOTION100_{number:03d}", "speaker": speaker.name,
                 "text": text, "audio_path": str(audio.resolve()), "tokens": tokens,
                 "start_ms": start, "end_ms": end, "accent_source": "openjtalk",
-                "alignment_source": "uniform_mora_with_energy_bounds",
+                "alignment_source": alignment_source,
                 "source_reading": source_reading, "openjtalk_reading": reading})
         if args.limit and len(candidates) >= args.limit:
             break
@@ -126,7 +212,8 @@ def main():
     with output.open("x", encoding="utf-8") as stream:
         for record in records:
             stream.write(json.dumps(record, ensure_ascii=False) + "\n")
-    print(f"wrote {len(records)} records from {len(candidates)} candidates ({len(candidates) - len(records)} duration-filtered): {output}")
+    print(f"wrote {len(records)} records from {len(candidates)} candidates "
+          f"({len(candidates) - len(records)} duration-filtered, {reading_mismatches} reading-mismatched): {output}")
 
 
 if __name__ == "__main__":

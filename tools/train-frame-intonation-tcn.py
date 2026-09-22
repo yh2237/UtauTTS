@@ -8,13 +8,12 @@ is a smoothed utterance-relative log-F0 command in cents. Pitch is interpolated
 across unvoiced consonants, while pause frames are excluded from the loss so
 training and text-only inference share the same mask.
 
-Training uses Harvest through the local ``utautts-world-engine`` library.
-Build that library before training; a missing library is an error rather than
-an implicit switch to a different F0 extraction algorithm.
+Training uses Harvest through the local ``utautts-world-engine`` library, or the
+built-in autocorrelation extractor with ``--f0-source internal``. A missing
+world-engine library is an error rather than an implicit switch.
 
-JSUT remains the backward-compatible default dataset kind. Other corpora must
-use ``--dataset-kind generic`` and provide their corpus/license provenance; the
-values are copied into the portable model instead of silently claiming JSUT.
+Datasets must provide their corpus and license provenance; the values are copied
+into the portable model so the training source is recorded.
 
 The exported model is inference-oriented JSON; it does not contain a Python
 pickle or a torch checkpoint.  Its ``frame_pitch`` object mirrors the
@@ -26,10 +25,10 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import math
 import random
-import re
 import struct
 import sys
 import wave
@@ -52,16 +51,6 @@ DEFAULT_HIGH_CENTS = 250.0
 DEFAULT_FMIN_HZ = 50.0
 DEFAULT_FMAX_HZ = 600.0
 
-JSUT_MODEL_POLICY = (
-    "UtauTTS project policy: academic research, non-commercial research, and "
-    "personal use only; commercial use requires prior permission from the JSUT rights holders"
-)
-JSUT_CORPUS_TERMS = (
-    "JSUT official terms: text CC BY-SA 4.0 and other source terms; audio "
-    "academic/non-commercial research and personal use; general redistribution not permitted"
-)
-JSUT_BASIC5000_ID = re.compile(r"^BASIC5000_\d{4}$")
-
 
 def fnv1a(text: str) -> int:
     """Return the stable FNV-1a hash used for all utterance splits."""
@@ -76,10 +65,9 @@ def fnv1a(text: str) -> int:
 def deterministic_split(records: Sequence[dict]) -> tuple[list[dict], list[dict]]:
     """Split utterances by id, keeping the split independent of file order.
 
-    Normal JSUT corpora use ``hash(id) % 10 == 0`` as validation.  The small
-    fallback for a tiny synthetic corpus keeps the command useful in smoke
-    tests while remaining deterministic and disjoint whenever there are at
-    least two records.
+    ``hash(id) % 10 == 0`` is validation.  The fallback for a tiny corpus keeps
+    the command useful in smoke tests while remaining deterministic and disjoint
+    whenever there are at least two records.
     """
 
     train = [record for record in records if fnv1a(str(record["id"])) % 10 != 0]
@@ -103,7 +91,7 @@ def deterministic_split(records: Sequence[dict]) -> tuple[list[dict], list[dict]
 
 
 def load_records(
-    path: str | Path, limit: int = 0, *, require_jsut: bool = False
+    path: str | Path, limit: int = 0
 ) -> tuple[list[dict], list[dict]]:
     """Read version-1 JSONL and return deterministic train/validation."""
 
@@ -128,18 +116,6 @@ def load_records(
             records.append(record)
     if not records:
         raise ValueError(f"{path}: dataset is empty")
-    if require_jsut:
-        invalid_ids = [
-            str(record.get("id", ""))
-            for record in records
-            if not JSUT_BASIC5000_ID.fullmatch(str(record.get("id", "")))
-        ]
-        if invalid_ids:
-            sample = ", ".join(invalid_ids[:3])
-            raise ValueError(
-                "dataset must be JSUT BASIC5000 JSONL with IDs such as "
-                f"BASIC5000_0001 (invalid: {sample})"
-            )
     if limit > 0:
         records = records[:limit]
     return deterministic_split(records)
@@ -271,7 +247,7 @@ def add_openjtalk_features(
 ) -> list[dict]:
     """Annotate records with Open JTalk accent features when available.
 
-    JSUT files already contain mora boundaries.  Open JTalk is only accepted
+    Some corpora already contain mora boundaries.  Open JTalk is only accepted
     when its mora and pause sequence aligns exactly.  Mismatched records are
     skipped (never silently replaced by fallback accents); the aggregate
     alignment rate must clear the configured minimum.
@@ -313,8 +289,12 @@ def add_openjtalk_features(
         for source, linguistic in zip(source_tokens, annotated):
             copied = dict(source)
             for name, value in linguistic.items():
-                if name not in {"mora", "pause"}:
-                    copied[name] = value
+                if name in {"mora", "pause"}:
+                    continue
+                # 既存の母音ラベル（コーパス付属の音素ラベルなど）を上書きしない。
+                if name == "vowel" and copied.get("vowel"):
+                    continue
+                copied[name] = value
             annotated_tokens.append(copied)
             if not copied.get("pause", False):
                 aligned_moras += 1
@@ -428,7 +408,7 @@ def _autocorrelation_pitch(windowed: np.ndarray, sample_rate: int, fmin: float, 
     maximum_lag = min(len(windowed) - 2, int(sample_rate / fmin))
     if maximum_lag <= minimum_lag:
         return 0.0
-    # ネイティブ処理失敗時も全JSUTを処理できるようFFT自己相関を使う。
+    # ネイティブ処理が無くても処理できるようFFT自己相關を使う。
     fft_size = 1 << (2 * len(windowed) - 1).bit_length()
     spectrum = np.fft.rfft(windowed, fft_size)
     correlation = np.fft.irfft(spectrum * np.conj(spectrum), fft_size)[: len(windowed)]
@@ -604,6 +584,11 @@ def utterance_frame_times(record: dict, frame_ms: float = FRAME_MS) -> np.ndarra
     return start + np.arange(count, dtype=np.float64) * frame_ms + frame_ms * 0.5
 
 
+def _f0_cache_path(cache_dir: str | Path, record: dict, frame_ms: float, tag: str) -> Path:
+    key = f"{record.get('record_id') or record.get('id')}|{frame_ms:g}|{tag}"
+    return Path(cache_dir) / (hashlib.sha1(key.encode("utf-8")).hexdigest() + ".npy")
+
+
 def extract_record_f0(
     record: dict,
     dataset_path: str | Path | None = None,
@@ -611,14 +596,30 @@ def extract_record_f0(
     frame_ms: float = FRAME_MS,
     worldline: WorldlineF0 | None = None,
     f0_provider: Callable[[np.ndarray, int, float], np.ndarray] | None = None,
+    cache_dir: str | Path | None = None,
+    cache_tag: str = "default",
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return frame times, F0 Hz, and frame token indices for one record."""
+    """Return frame times, F0 Hz, and frame token indices for one record.
+
+    ``cache_dir`` stores the measured F0 track per record so repeated training
+    runs skip the expensive extraction step.  The key includes the frame period
+    and ``cache_tag`` (normally the extractor), so caches never mix sources.
+    """
+
+    frame_times = utterance_frame_times(record, frame_ms)
+    token_indices = np.array([_frame_token_index(record["tokens"], time) for time in frame_times], dtype=np.int64)
+    cache_path = None
+    if cache_dir is not None:
+        cache_path = _f0_cache_path(cache_dir, record, frame_ms, cache_tag)
+        if cache_path.exists():
+            cached = np.load(cache_path)
+            if len(cached) == len(frame_times):
+                return frame_times, np.maximum(cached, 0.0), token_indices
 
     audio_path = _resolve_audio_path(record["audio_path"], dataset_path, audio_root)
     if not audio_path.exists():
         raise FileNotFoundError(f"audio file not found: {audio_path} (from {record['audio_path']})")
     samples, sample_rate = read_wav(audio_path)
-    frame_times = utterance_frame_times(record, frame_ms)
     if f0_provider is not None:
         track = np.asarray(f0_provider(samples, sample_rate, frame_ms), dtype=np.float64)
         # 注入providerは要求グリッドまたは音声全体の系列を返せる。
@@ -632,11 +633,14 @@ def extract_record_f0(
     else:
         track = extract_f0_internal(samples, sample_rate, frame_ms)
         f0 = _interpolate_track(track, np.arange(len(track), dtype=np.float64) * frame_ms, frame_times, frame_ms)
-    token_indices = np.array([_frame_token_index(record["tokens"], time) for time in frame_times], dtype=np.int64)
     for index, token_index in enumerate(token_indices):
         if token_index < 0 or record["tokens"][int(token_index)].get("pause", False):
             f0[index] = 0.0
-    return frame_times, np.maximum(f0, 0.0), token_indices
+    f0 = np.maximum(f0, 0.0)
+    if cache_path is not None:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        np.save(cache_path, f0)
+    return frame_times, f0, token_indices
 
 
 def frame_features(
@@ -776,6 +780,9 @@ def prepare(
     target_scale: float = 1.0,
     worldline: WorldlineF0 | None = None,
     f0_provider: Callable[[np.ndarray, int, float], np.ndarray] | None = None,
+    cache_dir: str | Path | None = None,
+    cache_tag: str = "default",
+    target_smooth_ms: float = 40.0,
 ) -> tuple[list[tuple[list[list[tuple[int, float]]], list[float], list[bool], list[float]]], dict[str, int]]:
     """Materialize sparse frame sequences and voiced-mask targets."""
 
@@ -792,6 +799,8 @@ def prepare(
             frame_ms=frame_ms,
             worldline=worldline,
             f0_provider=f0_provider,
+            cache_dir=cache_dir,
+            cache_tag=cache_tag,
         )
         start = float(frame_times[0] - frame_ms * 0.5)
         end = float(frame_times[-1] + frame_ms * 0.5)
@@ -803,7 +812,7 @@ def prepare(
             ],
             dtype=bool,
         )
-        macro_f0 = macro_log_f0(f0, frame_ms, speech_mask=speech_mask)
+        macro_f0 = macro_log_f0(f0, frame_ms, speech_mask=speech_mask, smooth_ms=target_smooth_ms)
         mask = speech_mask & (macro_f0 > 0)
         targets = _record_target_cents(
             macro_f0,
@@ -812,18 +821,29 @@ def prepare(
             high_cents,
             fallback=float(record.get("median_f0_hz", 200.0) or 200.0),
         )
-        sequence: list[list[tuple[int, float]]] = []
-        for time, token_index in zip(frame_times, token_indices):
-            sparse = [
-                (feature_index[name], float(value))
-                for name, value in frame_features(
-                    record["tokens"], int(token_index), float(time), start, end,
-                    question=("?" in str(record.get("text", "")) or "？" in str(record.get("text", ""))),
-                ).items()
-                if name in feature_index and math.isfinite(float(value))
-            ]
-            sequence.append(sparse)
-        prepared.append((sequence, (targets / max(1.0, target_scale)).astype(float).tolist(), mask.tolist(), frame_times.tolist()))
+        frame_indices: list[int] = []
+        feature_columns: list[int] = []
+        feature_values: list[float] = []
+        question = "?" in str(record.get("text", "")) or "？" in str(record.get("text", ""))
+        for position, (time, token_index) in enumerate(zip(frame_times, token_indices)):
+            for name, value in frame_features(
+                record["tokens"], int(token_index), float(time), start, end, question=question
+            ).items():
+                column = feature_index.get(name)
+                if column is None:
+                    continue
+                value = float(value)
+                if math.isfinite(value):
+                    frame_indices.append(position)
+                    feature_columns.append(column)
+                    feature_values.append(value)
+        # スパース特徴を平坦なnumpy配列で保持し、バッチ生成をベクトル化する。
+        sparse = (
+            np.asarray(frame_indices, dtype=np.int64),
+            np.asarray(feature_columns, dtype=np.int64),
+            np.asarray(feature_values, dtype=np.float32),
+        )
+        prepared.append((sparse, (targets / max(1.0, target_scale)).astype(float).tolist(), mask.tolist(), frame_times.tolist()))
         if len(prepared) % 100 == 0:
             print(f"prepared {len(prepared)}/{len(records)} utterances", flush=True)
     return prepared, feature_index
@@ -850,7 +870,7 @@ class FrameIntonationTCN(nn.Module):
 
 
 def batches(
-    records: Sequence[tuple[list[list[tuple[int, float]]], list[float], list[bool], list[float]]],
+    records: Sequence[tuple[tuple[np.ndarray, np.ndarray, np.ndarray], list[float], list[bool], list[float]]],
     feature_count: int,
     batch_size: int,
     rng: random.Random,
@@ -859,14 +879,14 @@ def batches(
     rng.shuffle(order)
     for offset in range(0, len(order), batch_size):
         selected = [records[index] for index in order[offset : offset + batch_size]]
-        length = max(len(item[0]) for item in selected)
+        length = max(len(item[3]) for item in selected)
         values = torch.zeros((len(selected), length, feature_count), dtype=torch.float32)
         targets = torch.zeros((len(selected), length), dtype=torch.float32)
         mask = torch.zeros((len(selected), length), dtype=torch.bool)
-        for row, (sequence, expected, valid, _times) in enumerate(selected):
-            for position, sparse in enumerate(sequence):
-                for column, value in sparse:
-                    values[row, position, column] = value
+        for row, (sparse, expected, valid, _times) in enumerate(selected):
+            frames, columns, amounts = sparse
+            if len(frames):
+                values[row, torch.from_numpy(frames), torch.from_numpy(columns)] = torch.from_numpy(amounts)
             targets[row, : len(expected)] = torch.tensor(expected, dtype=torch.float32)
             mask[row, : len(valid)] = torch.tensor(valid, dtype=torch.bool)
         yield values, targets, mask
@@ -1035,6 +1055,8 @@ def export_model(
             "device": str(getattr(args, "resolved_device", "cpu")),
             "openjtalk_accent": bool(args.openjtalk_accent),
             "f0_source": str(getattr(args, "f0_source", "auto")),
+            "target_smooth_ms": float(getattr(args, "target_smooth_ms", 40.0)),
+            "delta_weight": float(getattr(args, "delta_weight", 0.35)),
             "alignment": alignment_metadata or {},
         },
     }
@@ -1098,7 +1120,7 @@ def predict_corpus(
     high_cents: float,
     target_scale: float = 1.0,
 ) -> dict:
-    """Predict frame curves for ``{"cases": [...]}`` or JSUT JSONL."""
+    """Predict frame curves for ``{"cases": [...]}`` or dataset JSONL."""
 
     path = Path(corpus_path)
     if path.suffix.lower() == ".jsonl":
@@ -1153,19 +1175,21 @@ def _write_json(path: str | Path, value: dict) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", required=True, help="version-1 JSONL with timed tokens and audio_path")
-    parser.add_argument("--dataset-kind", choices=["jsut", "generic"], default="jsut",
-                        help="validate JSUT IDs or accept a provenance-declared generic corpus")
-    parser.add_argument("--training-corpus", default="JSUT Japanese speech corpus")
-    parser.add_argument("--training-corpus-license", default=JSUT_CORPUS_TERMS)
-    parser.add_argument("--model-license", default=JSUT_MODEL_POLICY)
-    parser.add_argument("--license-notice", default="licenses/PROSODY-MODELS.txt")
-    parser.add_argument("--source-notice", default="licenses/JSUT-DATA-AND-LABELS.txt")
+    parser.add_argument("--training-corpus", default="", help="training corpus name recorded in the model")
+    parser.add_argument("--training-corpus-license", default="", help="training corpus license recorded in the model")
+    parser.add_argument("--model-license", default="MIT License")
+    parser.add_argument("--license-notice", default="", help="license notice path recorded in the model")
+    parser.add_argument("--source-notice", default="", help="source notice path recorded in the model")
     parser.add_argument("--out", default="out/prosody/intonation-frame-tcn-v7.json")
     parser.add_argument("--model-id", default="", help="stable plugin ID stored in the model")
     parser.add_argument("--display-name", default="", help="user-facing model name")
     parser.add_argument("--description", default="", help="user-facing model description")
     parser.add_argument("--recommended-renderer", action="append", default=[], help="compatible renderer ID; repeatable")
     parser.add_argument("--epochs", type=int, default=24)
+    parser.add_argument("--target-smooth-ms", type=float, default=40.0,
+                        help="Gaussian smoothing of the voiced F0 target (larger = smoother contours)")
+    parser.add_argument("--delta-weight", type=float, default=0.35,
+                        help="weight of the adjacent-frame delta loss (larger = smoother output)")
     parser.add_argument("--learning-rate", type=float, default=0.002)
     parser.add_argument("--hidden", type=int, default=24)
     parser.add_argument("--batch-size", type=int, default=16)
@@ -1175,7 +1199,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     parser.add_argument("--holdout-test", action="store_true", help="reserve hash(id) modulo 10 == 1 from training for final test")
     parser.add_argument("--all-data-training", action="store_true", help="include validation/test IDs in training; metrics become in-sample only")
-    parser.add_argument("--jsut-context-labels", action="store_true", help="use jsut-label accent contexts instead of Open JTalk features")
     parser.add_argument("--frame-ms", type=float, default=FRAME_MS)
     parser.add_argument("--low-cents", type=float, default=DEFAULT_LOW_CENTS)
     parser.add_argument("--high-cents", type=float, default=DEFAULT_HIGH_CENTS)
@@ -1190,6 +1213,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="F0 extractor: UtauTTS WORLD Harvest or the fast internal autocorrelation fallback",
     )
     parser.add_argument("--audio-root", help="optional root used to resolve record audio_path")
+    parser.add_argument("--f0-cache", help="directory for cached per-record F0 tracks (speeds up repeated runs)")
     accent = parser.add_mutually_exclusive_group()
     accent.add_argument("--openjtalk-accent", dest="openjtalk_accent", action="store_true")
     accent.add_argument("--no-openjtalk-accent", dest="openjtalk_accent", action="store_false")
@@ -1199,6 +1223,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.frame_ms <= 0 or args.epochs < 0 or args.batch_size <= 0:
         parser.error("frame-ms, batch-size must be positive and epochs must be non-negative")
+    if args.target_smooth_ms < 0 or args.delta_weight < 0:
+        parser.error("target-smooth-ms and delta-weight must be non-negative")
     if args.low_cents >= args.high_cents:
         parser.error("--low-cents must be smaller than --high-cents")
     if not 0 < args.render_strength <= 1:
@@ -1207,25 +1233,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("invalid renderer smoothing/p99/maximum safety settings")
     if bool(args.predict_corpus) != bool(args.predict_out):
         parser.error("--predict-corpus and --predict-out must be used together")
-    if args.dataset_kind == "generic":
-        provenance = (
-            args.training_corpus,
-            args.training_corpus_license,
-            args.model_license,
-            args.license_notice,
-            args.source_notice,
-        )
-        if not all(str(value).strip() for value in provenance):
-            parser.error("generic datasets require nonempty corpus and license provenance")
-        jsut_defaults = {
-            "JSUT Japanese speech corpus",
-            JSUT_CORPUS_TERMS,
-            JSUT_MODEL_POLICY,
-            "licenses/PROSODY-MODELS.txt",
-            "licenses/JSUT-DATA-AND-LABELS.txt",
-        }
-        if any(str(value) in jsut_defaults for value in provenance):
-            parser.error("generic datasets must override every JSUT provenance option")
+    provenance = (
+        args.training_corpus,
+        args.training_corpus_license,
+        args.model_license,
+        args.license_notice,
+        args.source_notice,
+    )
+    if not all(str(value).strip() for value in provenance):
+        parser.error("datasets require nonempty corpus and license provenance")
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -1238,18 +1254,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     args.resolved_device = str(device)
     print(f"training device: {device_description(device)}")
 
-    train_raw, validation_raw = load_records(
-        args.dataset, args.limit, require_jsut=args.dataset_kind == "jsut"
-    )
-    if args.jsut_context_labels and args.dataset_kind != "jsut":
-        parser.error("--jsut-context-labels requires --dataset-kind jsut")
+    train_raw, validation_raw = load_records(args.dataset, args.limit)
     if args.all_data_training:
         train_raw = sorted(train_raw + validation_raw, key=lambda r: str(r["id"]))
         args.holdout_test = False
-    if args.jsut_context_labels:
-        for record in train_raw + validation_raw:
-            if record.get("accent_source") != "jsut_context_labels":
-                raise ValueError("expected explicitly annotated JSUT context records")
     test_raw = []
     if args.holdout_test:
         test_raw = [r for r in train_raw if fnv1a(str(r["id"])) % 10 == 1]
@@ -1258,13 +1266,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise ValueError("holdout split requires nonempty train and test")
     train_alignment: dict = {}
     validation_alignment: dict = {}
-    if not args.jsut_context_labels:
-        train_raw = add_openjtalk_features(train_raw, args.openjtalk_accent, train_alignment, min_alignment_rate=0.0)
-        validation_raw = add_openjtalk_features(validation_raw, args.openjtalk_accent, validation_alignment, min_alignment_rate=0.0)
+    train_raw = add_openjtalk_features(train_raw, args.openjtalk_accent, train_alignment, min_alignment_rate=0.0)
+    validation_raw = add_openjtalk_features(validation_raw, args.openjtalk_accent, validation_alignment, min_alignment_rate=0.0)
     test_alignment = {}
     if args.holdout_test:
-        if not args.jsut_context_labels:
-            test_raw = add_openjtalk_features(test_raw, args.openjtalk_accent, test_alignment, min_alignment_rate=0.0)
+        test_raw = add_openjtalk_features(test_raw, args.openjtalk_accent, test_alignment, min_alignment_rate=0.0)
         if not test_raw:
             raise ValueError("alignment removed every test utterance")
     if not train_raw or not validation_raw:
@@ -1305,6 +1311,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.f0_source = "internal_autocorrelation"
         print("using internal autocorrelation F0 extractor")
     args.target_scale = max(1.0, abs(args.low_cents), abs(args.high_cents))
+    if args.f0_cache:
+        print(f"using F0 cache: {args.f0_cache}")
 
     train, feature_index = prepare(
         train_raw,
@@ -1316,6 +1324,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         target_scale=args.target_scale,
         worldline=worldline,
         f0_provider=f0_provider,
+        cache_dir=args.f0_cache,
+        cache_tag=args.f0_source,
+        target_smooth_ms=args.target_smooth_ms,
     )
     validation, _ = prepare(
         validation_raw,
@@ -1328,6 +1339,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         target_scale=args.target_scale,
         worldline=worldline,
         f0_provider=f0_provider,
+        cache_dir=args.f0_cache,
+        cache_tag=args.f0_source,
+        target_smooth_ms=args.target_smooth_ms,
     )
     args.validation_records = len(validation)
     validation_frames = sum(len(item[1]) for item in validation)
@@ -1349,7 +1363,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 continue
             optimizer.zero_grad()
             loss = sequence_loss(
-                model(values), targets, mask, (args.low_cents, args.high_cents), target_scale=args.target_scale
+                model(values), targets, mask, (args.low_cents, args.high_cents), target_scale=args.target_scale,
+                delta_weight=args.delta_weight,
             )
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -1390,9 +1405,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     exported["training"]["best_epoch"] = best_epoch
     exported["training"]["evaluation_is_in_sample"] = args.all_data_training
-    exported["training"]["accent_source"] = "jsut_context_labels" if args.jsut_context_labels else "openjtalk"
-    if args.jsut_context_labels:
-        exported["training"]["openjtalk_accent"] = False
+    exported["training"]["accent_source"] = "openjtalk"
     exported["training"]["selection_metric"] = "validation_rendered_contour_mae"
     exported["metrics"]["validation_rendered_mae_cents"] = best_mae
     exported["training"]["history"] = history
@@ -1406,7 +1419,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                           audio_root=args.audio_root, frame_ms=args.frame_ms,
                           low_cents=args.low_cents, high_cents=args.high_cents,
                           target_scale=args.target_scale, worldline=worldline,
-                          f0_provider=f0_provider)
+                          f0_provider=f0_provider, cache_dir=args.f0_cache,
+                          cache_tag=args.f0_source, target_smooth_ms=args.target_smooth_ms)
         exported["metrics"]["test_mae_cents"] = evaluate(
             model, test, len(feature_index), args.batch_size, args.low_cents,
             args.high_cents, args.target_scale, device)
