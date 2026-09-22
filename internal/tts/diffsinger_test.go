@@ -186,6 +186,36 @@ func TestDiffSingerWordGroupsUsesOpenJTalkWordEnd(t *testing.T) {
 	}
 }
 
+func TestDiffSingerMIDICurvesFollowPitch(t *testing.T) {
+	f0 := make([]float32, 0, 30)
+	for i := 0; i < 10; i++ {
+		f0 = append(f0, 440)
+	}
+	for i := 0; i < 10; i++ {
+		f0 = append(f0, 880)
+	}
+	for i := 0; i < 10; i++ {
+		f0 = append(f0, 0)
+	}
+	notes, phones := diffsingerMIDICurves(f0, []int64{10, 20}, []int64{10, 10, 10}, 60)
+	if len(notes) != 2 || len(phones) != 3 {
+		t.Fatalf("lengths = %d %d", len(notes), len(phones))
+	}
+	if math.Abs(float64(notes[0])-69) > 0.01 || math.Abs(float64(notes[1])-81) > 0.01 {
+		t.Fatalf("notes = %v", notes)
+	}
+	if phones[0] != 69 || phones[1] != 81 || phones[2] != 81 {
+		t.Fatalf("phones = %v", phones)
+	}
+}
+
+func TestDiffSingerMIDICurvesFallsBackWhenUnvoiced(t *testing.T) {
+	notes, phones := diffsingerMIDICurves([]float32{0, 0}, []int64{2}, []int64{2}, 60)
+	if notes[0] != 60 || phones[0] != 60 {
+		t.Fatalf("notes=%v phones=%v", notes, phones)
+	}
+}
+
 func TestDiffSingerWordGroupsKeepsMoraFallback(t *testing.T) {
 	morae := []frontend.Mora{{Text: "あ"}, {Text: "い"}}
 	groups, rests := diffsingerWordGroups(morae, []int64{1, 2}, nil)

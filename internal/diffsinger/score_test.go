@@ -90,6 +90,36 @@ func TestRequestFromScoreBuildsProviderRequest(t *testing.T) {
 	}
 }
 
+func TestRequestFromScoreUsesProvidedMIDI(t *testing.T) {
+	singer := &Singer{
+		Config:  Config{Phonemes: "phonemes.txt", SampleRate: 44100, MelBase: "10"},
+		Vocoder: VocoderConfig{MelBase: "10"},
+		Tokens:  map[string]int64{"SP": 1, "ja/a": 2},
+		Duration: &DurationModel{
+			Tokens:         map[string]int64{"SP": 11, "ja/a": 12},
+			LinguisticPath: "duration-linguistic.onnx",
+			PredictorPath:  "duration.onnx",
+		},
+		Pitch: &PitchModel{
+			Tokens:         map[string]int64{"SP": 21, "ja/a": 22},
+			LinguisticPath: "pitch-linguistic.onnx",
+			PredictorPath:  "pitch.onnx",
+		},
+	}
+	score := Score{
+		Symbols: []string{"SP", "ja/a"}, Durations: []int64{8, 10}, F0: []float32{440, 441}, MIDI: 60,
+		PhMIDI: []int64{60, 67}, NoteMIDI: []float32{60, 64},
+		WordDiv: []int64{1, 1}, WordDur: []int64{8, 10}, NoteRest: []bool{true, false}, UsePitchPredictor: true,
+	}
+	request, err := RequestFromScore(singer, score)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(request.PhMIDI, []int64{60, 67}) || !reflect.DeepEqual(request.NoteMIDI, []float32{60, 64}) {
+		t.Fatalf("provided midi was not used: ph=%v note=%v", request.PhMIDI, request.NoteMIDI)
+	}
+}
+
 func TestRequestFromScoreDoesNotEnablePitchPredictorForManualF0(t *testing.T) {
 	singer := &Singer{
 		Config:  Config{Phonemes: "phonemes.txt", SampleRate: 44100, MelBase: "10"},

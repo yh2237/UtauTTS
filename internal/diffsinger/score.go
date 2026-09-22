@@ -77,7 +77,10 @@ func RequestFromScore(singer *Singer, score Score) (Request, error) {
 		}
 		request.WordDiv = score.WordDiv
 		request.WordDur = score.WordDur
-		request.PhMIDI = repeatedMIDI(score.MIDI, len(score.Symbols))
+		request.PhMIDI = score.PhMIDI
+		if len(request.PhMIDI) != len(score.Symbols) {
+			request.PhMIDI = repeatedMIDI(score.MIDI, len(score.Symbols))
+		}
 		request.DurationSpeakerEmbed = singer.Duration.SpeakerEmbed
 		request.DurationPredictorMix = 0.2
 		if singer.Duration.Config.UseLangID {
@@ -102,7 +105,10 @@ func RequestFromScore(singer *Singer, score Score) (Request, error) {
 		if score.PitchPredictorMix > 0 {
 			request.PitchPredictorMix = float32(math.Min(1, float64(score.PitchPredictorMix)))
 		}
-		request.NoteMIDI = repeatedMIDIFloat32(float32(score.MIDI), len(score.WordDiv))
+		request.NoteMIDI = score.NoteMIDI
+		if len(request.NoteMIDI) != len(score.WordDiv) {
+			request.NoteMIDI = repeatedMIDIFloat32(float32(score.MIDI), len(score.WordDiv))
+		}
 		request.NoteRest = append([]bool(nil), score.NoteRest...)
 		if singer.Pitch.Config.UseLangID {
 			request.PitchLanguages = scoreLanguages(score.Symbols, singer.Pitch.LanguageIDs)

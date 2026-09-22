@@ -57,8 +57,10 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 	wordDiv, noteRest := diffsingerWordGroups(morae, phoneCounts, preview.Features)
 	wordDur := groupedFrameDurations(frames, wordDiv)
 	automaticPitch := cfg.PitchCurve != nil && cfg.ManualPitch == nil && cfg.ManualPitchPath == ""
+	noteMIDI, phMIDI := diffsingerMIDICurves(f0, wordDur, frames, midi)
 	score := engine.NeuralScore{
 		Symbols: symbols, Durations: frames, F0: f0, MIDI: midi,
+		NoteMIDI: noteMIDI, PhMIDI: phMIDI,
 		WordDiv: wordDiv, WordDur: wordDur, NoteRest: noteRest,
 		UsePitchPredictor: singer.Pitch != nil && (cfg.PitchCurve == nil || automaticPitch),
 	}
@@ -365,6 +367,53 @@ func diffsingerMIDI(tone string) (int, error) {
 		return 0, fmt.Errorf("DiffSinger tone: %w", err)
 	}
 	return midi, nil
+}
+
+// diffsingerMIDICurvesは話声向けに、音符(単語)ごとと音素ごとのMIDIをF0から求める。
+// 定数のMIDIではDiffSingerのピッチ・長さ予測器の基準が実際の高さとずれる。
+func diffsingerMIDICurves(f0 []float32, noteFrames, phoneFrames []int64, fallback int) ([]float32, []int64) {
+	values := make([]float64, len(f0))
+	for index, hz := range f0 {
+		if hz > 0 {
+			values[index] = 69 + 12*math.Log2(float64(hz)/440)
+			continue
+		}
+		values[index] = math.NaN()
+	}
+	base := float64(fallback)
+	notes := midiGroupAverages(values, noteFrames, base)
+	phones := midiGroupAverages(values, phoneFrames, base)
+	noteMIDI := make([]float32, len(notes))
+	for index, value := range notes {
+		noteMIDI[index] = float32(value)
+	}
+	phMIDI := make([]int64, len(phones))
+	for index, value := range phones {
+		phMIDI[index] = int64(math.Round(value))
+	}
+	return noteMIDI, phMIDI
+}
+
+// midiGroupAveragesはフレームごとのMIDIを連続した区間へ平均する。無声区間は直前の値を保つ。
+func midiGroupAverages(values []float64, counts []int64, fallback float64) []float64 {
+	result := make([]float64, len(counts))
+	cursor := 0
+	last := fallback
+	for group, count := range counts {
+		sum, voiced := 0.0, 0
+		for offset := int64(0); offset < count && cursor < len(values); offset++ {
+			if value := values[cursor]; !math.IsNaN(value) {
+				sum += value
+				voiced++
+			}
+			cursor++
+		}
+		if voiced > 0 {
+			last = sum / float64(voiced)
+		}
+		result[group] = last
+	}
+	return result
 }
 
 func diffsingerPlan(cfg Config, reading, language, phonemizer string, morae []frontend.Mora, durations []float64, phones []string, phoneDurations []float64, phoneCounts []int64, frameMS float64) *plan.Plan {

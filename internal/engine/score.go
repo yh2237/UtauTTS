@@ -1,10 +1,13 @@
 package engine
 
 type NeuralScore struct {
-	Symbols           []string  `json:"symbols"`
-	Durations         []int64   `json:"durations"`
-	F0                []float32 `json:"f0"`
-	MIDI              int       `json:"midi"`
+	Symbols   []string  `json:"symbols"`
+	Durations []int64   `json:"durations"`
+	F0        []float32 `json:"f0"`
+	MIDI      int       `json:"midi"`
+	// NoteMIDIは音符(単語)ごとのMIDI、PhMIDIは音素ごとのMIDI。話声向けにF0から求める。
+	NoteMIDI          []float32 `json:"note_midi,omitempty"`
+	PhMIDI            []int64   `json:"ph_midi,omitempty"`
 	WordDiv           []int64   `json:"word_div,omitempty"`
 	WordDur           []int64   `json:"word_dur,omitempty"`
 	NoteRest          []bool    `json:"note_rest,omitempty"`
