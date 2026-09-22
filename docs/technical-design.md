@@ -81,7 +81,7 @@ Kagome側とOpen JTalk側でモーラ分割が一致しない場合は完全一�
 
 CVVCのVCは一つのモーラではなく次のCVへ入る`transition` unitです。Plan上では主unitと分けて保持し、モーラ全体の時間は主unitで管理します。
 
-`AliasPolicy=auto`は音源内のVC／VCV収録比を見て標準プロファイルかCVVC向けプロファイルを選びます。CVVC向けプロファイルではCVVC候補を優先してtransitionをsequential timingで置き、VC音量を35%にします。明示指定されたpolicyは自動判定より優先です。
+`AliasPolicy=auto`は音源内のVC／VCV収録比を見て標準プロファイルかCVVC向けプロファイルを選びます。CVVC向けプロファイルではCVVC候補を優先してtransitionをsequential timingで置き、VC音量を35%にします。英語では語境界の遷移を強めるため55%に上げます。明示指定されたpolicyは自動判定より優先です。
 
 候補WAVは選択前に構造検証されます。存在しないWAV、読めない形式、成立しない切り出し範囲などは候補から外して理由をPlanへ残します。候補数は各位置で最大32件に制限して組合せ爆発を防ぎます。
 
@@ -93,11 +93,11 @@ CVVCのVCは一つのモーラではなく次のCVへ入る`transition` unitで�
 path score = Σ local candidate score + Σ adjacent join score
 ```
 
-local scoreにはaliasのfallback段階、`oto.ini`値の整合性、subbankや形式の優先度が入ります。
+local scoreにはaliasのfallback段階、`oto.ini`値の整合性、subbankや形式の優先度が入ります。`oto.ini`値の整合性評価は言語にも依存します。英語のC+VやVCCVのように子音と母音を分けて録音する音源では、母音のoverlapがpreutteranceを超える設定が仕様であるため、慣習違反としての減点を行いません。
 
-join scoreは隣接原音のenergy、スペクトル、F0などの境界特徴と同じ録音groupかどうかを評価します。同じWAV内の前向きなanchorには加点しますが、560 msを超える離れた移動は加点を減らします。VCVのincoming側が閉鎖区間になる場合は減点を弱め、母音側の候補scoreを優先します。手設計scoreを使うViterbi探索で経路を決めます。
+join scoreは隣接原音のenergy、スペクトル、F0などの境界特徴と同じ録音groupかどうかを評価します。同じWAV内の前向きなanchorには加点します。加点はアンカー間の距離に依存させません。複数モーラを一つのファイルへ収録するVCVやVCの音源では、距離で加点を減らすと遷移音を選び損ねるためです。VCVのincoming側が閉鎖区間になる場合は減点を弱め、母音側の候補scoreを優先します。手設計scoreを使うViterbi探索で経路を決めます。
 
-候補が疎なUTAU音源では、境界の連続性を優先すると音素文脈や声質が変わることがあります。そのためjoin scoreは候補の言語的な適合性を置き換えず、保守的な補助値として扱います。
+候補が疎なUTAU音源では、境界の連続性だけを優先すると音素文脈や声質が変わることがあります。そのため候補はphonemizerと音源側の指定から音素文脈に合うものだけを作り、join scoreはその候補集合を変えずに並べ替えへ使います。同じ音素文脈の表記違い（例: 英語C+Vの文中で試す`- V`と`V`）では、前後の音響に応じて順位が入れ替わることがあります。
 
 ## 5. Planは段階間の契約
 
@@ -133,7 +133,7 @@ Planは、候補選択、時間設計、Rendererの差を切り分けるため�
 
 frame headはモーラとOpen JTalk由来特徴をフレームへ展開してdilationを持つ小型TCNで相対pitchを予測します。`frame-intonation-v9-*`は440〜455特徴、10ms間隔、学習出力範囲±250 centです。推論後の処理: モデル内のrender strength、平滑化、percentile／最大値制約。学習音声に由来する細かなF0揺れは、この処理で強度を調整します。
 
-multitaskモデルは同じframe headへ423特徴からモーラ長倍率を出すduration headを加えたものです。絶対msではなく基準モーラ長に対する倍率なのでGUIの話速設定や音源差と共存できます。
+multitaskモデル（version 10 / feature 2 / mode `prosody_multitask_tcn`）は、frame headに加えてモーラ長倍率を出す`mora_duration` headを持ちます。絶対msではなく基準モーラ長に対する倍率なのでGUIの話速設定や音源差と共存できます。標準配布: version 10モデルなし。
 
 英語モデルは外部特徴を要求せず、ARPAbetから得た強勢、語境界、句境界を決定論的な軽量ヘッドへ入力します。英語のカードで日本語モデルが選択されている場合は同じフォルダの英語モデルへ切り替えます。
 
