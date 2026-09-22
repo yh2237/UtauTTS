@@ -77,6 +77,7 @@
         "properties": {
           "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_]*$"},
           "type": {"enum": ["integer", "number", "boolean", "enum", "string"]},
+          "group": {"type": "string"},
           "default": {},
           "min": {"type": "number"},
           "max": {"type": "number"},

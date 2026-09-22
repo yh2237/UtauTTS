@@ -49,6 +49,7 @@ type Renderer struct {
 type RendererSetting struct {
 	ID      string                 `json:"id"`
 	Type    string                 `json:"type"`
+	Group   string                 `json:"group,omitempty"`
 	Default any                    `json:"default,omitempty"`
 	Min     *float64               `json:"min,omitempty"`
 	Max     *float64               `json:"max,omitempty"`
