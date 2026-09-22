@@ -18,8 +18,6 @@ import QtMultimedia
         property alias aliasPolicyCombo: aliasPolicyCombo
         property alias modelCombo: modelCombo
         property alias rendererCombo: rendererCombo
-        property alias resamplerCombo: resamplerCombo
-        property alias wavtoolCombo: wavtoolCombo
         property alias toneField: toneField
         property alias colorCombo: colorCombo
         property alias intonationInput: intonationInput
@@ -34,11 +32,6 @@ import QtMultimedia
         FontLoader {
             id: iconFont
             source: "qrc:/fonts/MaterialSymbolsOutlined-subset.ttf"
-        }
-
-        function classicRendererSelected() {
-            const renderer = window.rendererById(rendererCombo.currentValue);
-            return renderer && renderer.provider === "utau-external-resampler";
         }
 
         Keys.onPressed: event => {
@@ -694,41 +687,6 @@ import QtMultimedia
                                 horizontalAlignment: TextInput.AlignRight
                                 text: "C4"
                                 onEditingFinished: window.updateSetting("tone", text)
-                            }
-                        }
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 4
-                            visible: classicRendererSelected()
-                            Label {
-                                text: window.translator.tr("main.param.resampler")
-                                Layout.fillWidth: true
-                            }
-                            ComboBox {
-                                id: resamplerCombo
-                                Layout.fillWidth: true
-                                model: window.appBackend.resamplers
-                                textRole: "display_name"
-                                valueRole: "id"
-                                onActivated: window.updateSetting("resampler", currentValue)
-                            }
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 4
-                            visible: classicRendererSelected()
-                            Label {
-                                text: window.translator.tr("main.param.wavtool")
-                                Layout.fillWidth: true
-                            }
-                            ComboBox {
-                                id: wavtoolCombo
-                                Layout.fillWidth: true
-                                model: window.appBackend.wavtools
-                                textRole: "display_name"
-                                valueRole: "id"
-                                onActivated: window.updateSetting("wavtool", currentValue)
                             }
                         }
 

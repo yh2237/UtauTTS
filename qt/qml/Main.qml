@@ -1253,8 +1253,6 @@ ApplicationWindow {
             voicebank_id: item.voicebankId || "",
             model_id: item.modelId || "",
             renderer: item.renderer || "",
-            resampler: item.resampler || "",
-            wavtool: item.wavtool || "builtin",
             alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
             tone: item.tone || "C4",
             color: item.color || "",
@@ -2139,8 +2137,6 @@ ApplicationWindow {
                 voicebank_id: item.voicebankId || "",
                 model_id: item.modelId || "",
                 renderer_id: item.renderer || "",
-                resampler: item.resampler || "",
-                wavtool: item.wavtool || "builtin",
                 alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
                 tone: item.tone || "C4",
                 color: item.color || "",
@@ -2287,8 +2283,6 @@ ApplicationWindow {
             const pitchFrames = window.copySequence(saved.pitch_frames);
             const content = String(saved.text || "");
             let rendererId = window.normalizeRendererId(saved.renderer_id);
-            let resamplerId = String(saved.resampler || "");
-            let wavtoolId = String(saved.wavtool || "builtin");
             if (String(saved.renderer_id || "") !== rendererId)
                 migratedRenderer = true;
             const manualDurations = window.copySequence(saved.mora_durations_ms);
@@ -2330,8 +2324,6 @@ ApplicationWindow {
                 imagePath: voice ? voice.image_path || "" : "",
                 modelId: String(saved.model_id || ""),
                 renderer: rendererId,
-                resampler: resamplerId,
-                wavtool: wavtoolId,
                 aliasPolicy: saved.alias_policy === undefined
                         ? window.appBackend.defaultAliasPolicy : window.normalizeAliasPolicy(saved.alias_policy),
                 tone: String(saved.tone || window.appBackend.defaultTone),
@@ -2481,7 +2473,7 @@ ApplicationWindow {
             utterances.setProperty(selectedIndex, "phonemeOverridesJson", "[]");
             window.analyzeUtterance(selectedIndex);
         }
-        if (["voicebankId", "modelId", "renderer", "resampler", "aliasPolicy", "phonemizer"].indexOf(name) >= 0)
+        if (["voicebankId", "modelId", "renderer", "aliasPolicy", "phonemizer"].indexOf(name) >= 0)
             utterances.setProperty(selectedIndex, "phonemeOverridesJson", "[]");
         if (name === "voicebankId") {
             const voice = window.voicebankById(value);
@@ -2950,8 +2942,6 @@ ApplicationWindow {
         selectCombo(editorContent.aliasPolicyCombo, window.normalizeAliasPolicy(item.aliasPolicy));
         selectCombo(editorContent.modelCombo, item.modelId);
         selectCombo(editorContent.rendererCombo, item.renderer);
-        selectCombo(editorContent.resamplerCombo, item.resampler || "");
-        selectCombo(editorContent.wavtoolCombo, item.wavtool || "builtin");
         window.requestMissingProsodyPreview(index);
     }
 
@@ -3161,8 +3151,6 @@ ApplicationWindow {
             modelId: window.defaultModelIdForLanguage(language),
             renderer: voice && String(voice.kind || "") === "diffsinger"
                     ? "diffsinger" : (window.appBackend.renderers.length ? window.defaultRendererId() : ""),
-            resampler: window.appBackend.resamplers.length ? window.appBackend.resamplers[0].id : "",
-            wavtool: "builtin",
             aliasPolicy: window.appBackend.defaultAliasPolicy,
             tone: window.appBackend.defaultTone,
             color: "",
@@ -3360,8 +3348,6 @@ ApplicationWindow {
             voicebank_id: item.voicebankId || editorContent.voiceCombo.currentValue,
             model_id: item.modelId,
             renderer: item.renderer,
-            resampler: item.resampler || "",
-            wavtool: item.wavtool || "builtin",
             alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
             tone: item.tone,
             color: item.color || "",
