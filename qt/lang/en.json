@@ -161,6 +161,8 @@
     "settings.page.shortcuts": "Shortcuts",
     "settings.page.synthesis": "Synthesis",
     "settings.synthesisGeneral": "General",
+    "settings.group.diffsinger": "DiffSinger",
+    "settings.group.timing": "Timing",
     "settings.exportTextWithWav": "Save a text file alongside each WAV",
     "settings.exportTextEncoding": "Text file encoding",
     "settings.exportLabWithWav": "Save a .lab file alongside each WAV",

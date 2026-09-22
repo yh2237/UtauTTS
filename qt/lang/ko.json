@@ -161,6 +161,8 @@
     "settings.page.shortcuts": "단축키",
     "settings.page.synthesis": "음성 합성",
     "settings.synthesisGeneral": "일반",
+    "settings.group.diffsinger": "DiffSinger",
+    "settings.group.timing": "타이밍",
     "settings.exportTextWithWav": "WAV와 함께 텍스트 파일 저장",
     "settings.exportTextEncoding": "텍스트 파일 인코딩",
     "settings.exportLabWithWav": "WAV와 함께 .lab 파일 저장",

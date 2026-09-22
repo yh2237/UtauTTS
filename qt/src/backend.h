@@ -105,10 +105,10 @@ public:
     bool extendedDetailsVisible() const { return m_extendedDetailsVisible; }
     QString ffmpegPath() const { return m_ffmpegPath; }
     QString audioOutputDeviceId() const { return m_audioOutputDeviceId; }
-    int defaultMoraDuration() const { return m_defaultMoraDuration; }
-    int defaultPauseDuration() const { return m_defaultPauseDuration; }
-    int defaultLeadingPreutterance() const { return m_defaultLeadingPreutterance; }
-    double defaultIntonationStrength() const { return m_defaultIntonationStrength; }
+    int defaultMoraDuration() const;
+    int defaultPauseDuration() const;
+    int defaultLeadingPreutterance() const;
+    double defaultIntonationStrength() const;
     QVariantMap rendererSettings() const { return m_rendererSettings; }
     QString defaultTone() const { return m_defaultTone; }
     QString defaultAliasPolicy() const { return m_defaultAliasPolicy; }
@@ -173,9 +173,7 @@ public:
     Q_INVOKABLE void setFfmpegPath(const QString &value);
     Q_INVOKABLE void setAudioOutputDeviceId(const QString &value);
     Q_INVOKABLE QString audioOutputDeviceKey(const QVariant &id) const;
-    Q_INVOKABLE void setSynthesisDefaults(int moraDuration, int pauseDuration,
-                                          int leadingPreutterance, double intonationStrength,
-                                          const QString &modelId, const QString &rendererId,
+    Q_INVOKABLE void setSynthesisDefaults(const QString &modelId, const QString &rendererId,
                                           const QString &tone, const QString &aliasPolicy);
     Q_INVOKABLE QVariant rendererSetting(const QString &rendererId, const QString &settingId,
                                          const QVariant &fallback = {}) const;
@@ -241,6 +239,8 @@ private:
     void setError(const QString &value);
     void runStartupMigrations();
     QByteArray previewCacheKey(const QVariantMap &request) const;
+    QVariant rendererSettingOrManifest(const QString &rendererId, const QString &settingId,
+                                       const QVariant &fallback) const;
     bool restorePreviewCache(const QByteArray &key);
     void storePreviewCache(const QByteArray &key, const PreviewCacheEntry &entry);
     void trimPreviewCache();
@@ -282,10 +282,6 @@ private:
     bool m_extendedDetailsVisible = false;
     QString m_ffmpegPath;
     QString m_audioOutputDeviceId;
-    int m_defaultMoraDuration = 120;
-    int m_defaultPauseDuration = 180;
-    int m_defaultLeadingPreutterance = 0;
-    double m_defaultIntonationStrength = 2.0;
     QVariantMap m_rendererSettings;
     QString m_defaultTone = QStringLiteral("C4");
     QString m_defaultAliasPolicy = QStringLiteral("auto");

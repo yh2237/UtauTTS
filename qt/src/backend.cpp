@@ -37,6 +37,10 @@
 
 namespace {
 constexpr int maxRecentProjects = 10;
+constexpr int fallbackMoraDurationMS = 140;
+constexpr int fallbackPauseDurationMS = 180;
+constexpr int fallbackLeadingPreutteranceMS = 0;
+constexpr double fallbackIntonationStrength = 2.0;
 
 QDir resourceRoot();
 
@@ -380,10 +384,6 @@ Backend::Backend(QObject *parent)
       m_defaultModelId(portableSettingValue("synthesis/defaultModelId",
                                          QStringLiteral("frame-intonation-v9-t")).toString().trimmed()),
       m_defaultVoicebankId(portableSettingValue("voicebank/defaultId", QString()).toString().trimmed()),
-      m_defaultMoraDuration(portableSettingValue("synthesis/defaultMoraDuration", 120).toInt()),
-      m_defaultPauseDuration(portableSettingValue("synthesis/defaultPauseDuration", 180).toInt()),
-      m_defaultLeadingPreutterance(portableSettingValue("synthesis/defaultLeadingPreutterance", 0).toInt()),
-      m_defaultIntonationStrength(portableSettingValue("synthesis/defaultIntonationStrength", 2.0).toDouble()),
       m_defaultTone(portableSettingValue("synthesis/defaultTone", QStringLiteral("C4")).toString().trimmed()),
       m_defaultAliasPolicy(normalizeAliasPolicySetting(
           portableSettingValue("synthesis/defaultAliasPolicy", QStringLiteral("auto")).toString())),
@@ -399,10 +399,6 @@ Backend::Backend(QObject *parent)
       m_redoShortcut(portableSettingValue("shortcuts/redo", QStringLiteral("Ctrl+Y")).toString()),
       m_recentProjects(portableSettingValue("projects/recent", QStringList()).toStringList()),
       m_updateNetwork(new QNetworkAccessManager(this)) {
-    m_defaultMoraDuration = qBound(20, m_defaultMoraDuration, 1000);
-    m_defaultPauseDuration = qBound(0, m_defaultPauseDuration, 3000);
-    m_defaultLeadingPreutterance = qBound(0, m_defaultLeadingPreutterance, 300);
-    m_defaultIntonationStrength = qBound(0.0, m_defaultIntonationStrength, 4.0);
     if (m_defaultTone.isEmpty())
         m_defaultTone = QStringLiteral("C4");
     m_previewCacheFileCount = qBound(1, m_previewCacheFileCount, 256);
@@ -820,41 +816,27 @@ void Backend::setExportSettings(bool writeText, bool writeLab, const QString &te
     emit exportSettingsChanged();
 }
 
-void Backend::setSynthesisDefaults(int moraDuration, int pauseDuration,
-                                   int leadingPreutterance, double intonationStrength,
-                                   const QString &modelId, const QString &rendererId,
+void Backend::setSynthesisDefaults(const QString &modelId, const QString &rendererId,
                                    const QString &tone, const QString &aliasPolicy) {
-    const int boundedMoraDuration = qBound(20, moraDuration, 1000);
-    const int boundedPauseDuration = qBound(0, pauseDuration, 3000);
-    const int boundedLeadingPreutterance = qBound(0, leadingPreutterance, 300);
-    const double boundedIntonationStrength = qBound(0.0, intonationStrength, 4.0);
     const QString normalizedModelId = modelId.trimmed();
     const QString normalizedRendererId = rendererId.trimmed();
     const QString normalizedTone = tone.trimmed().isEmpty() ? QStringLiteral("C4") : tone.trimmed();
     const QString normalizedAliasPolicy = normalizeAliasPolicySetting(aliasPolicy);
-    if (m_defaultMoraDuration == boundedMoraDuration
-            && m_defaultPauseDuration == boundedPauseDuration
-            && m_defaultLeadingPreutterance == boundedLeadingPreutterance
-            && qFuzzyCompare(m_defaultIntonationStrength, boundedIntonationStrength)
-            && m_defaultModelId == normalizedModelId
+    if (m_defaultModelId == normalizedModelId
             && m_defaultRenderer == normalizedRendererId
             && m_defaultTone == normalizedTone
             && m_defaultAliasPolicy == normalizedAliasPolicy) {
         return;
     }
-    m_defaultMoraDuration = boundedMoraDuration;
-    m_defaultPauseDuration = boundedPauseDuration;
-    m_defaultLeadingPreutterance = boundedLeadingPreutterance;
-    m_defaultIntonationStrength = boundedIntonationStrength;
     m_defaultModelId = normalizedModelId;
     m_defaultRenderer = normalizedRendererId;
     m_defaultTone = normalizedTone;
     m_defaultAliasPolicy = normalizedAliasPolicy;
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
-    settings.setValue("synthesis/defaultMoraDuration", m_defaultMoraDuration);
-    settings.setValue("synthesis/defaultPauseDuration", m_defaultPauseDuration);
-    settings.setValue("synthesis/defaultLeadingPreutterance", m_defaultLeadingPreutterance);
-    settings.setValue("synthesis/defaultIntonationStrength", m_defaultIntonationStrength);
+    settings.remove("synthesis/defaultMoraDuration");
+    settings.remove("synthesis/defaultPauseDuration");
+    settings.remove("synthesis/defaultLeadingPreutterance");
+    settings.remove("synthesis/defaultIntonationStrength");
     settings.remove("synthesis/defaultApplyPitch");
     settings.setValue("synthesis/defaultModelId", m_defaultModelId);
     settings.setValue("synthesis/defaultRendererId", m_defaultRenderer);
@@ -862,6 +844,47 @@ void Backend::setSynthesisDefaults(int moraDuration, int pauseDuration,
     settings.setValue("synthesis/defaultAliasPolicy", m_defaultAliasPolicy);
     settings.sync();
     emit synthesisDefaultsChanged();
+}
+
+int Backend::defaultMoraDuration() const {
+    return qBound(20, rendererSettingOrManifest(m_defaultRenderer, QStringLiteral("mora_duration_ms"),
+                                                fallbackMoraDurationMS).toInt(), 1000);
+}
+
+int Backend::defaultPauseDuration() const {
+    return qBound(0, rendererSettingOrManifest(m_defaultRenderer, QStringLiteral("pause_duration_ms"),
+                                               fallbackPauseDurationMS).toInt(), 3000);
+}
+
+int Backend::defaultLeadingPreutterance() const {
+    return qBound(0, rendererSettingOrManifest(m_defaultRenderer, QStringLiteral("leading_preutterance_ms"),
+                                               fallbackLeadingPreutteranceMS).toInt(), 300);
+}
+
+double Backend::defaultIntonationStrength() const {
+    return qBound(0.0, rendererSettingOrManifest(m_defaultRenderer, QStringLiteral("intonation_strength"),
+                                                 fallbackIntonationStrength).toDouble(), 4.0);
+}
+
+QVariant Backend::rendererSettingOrManifest(const QString &rendererId, const QString &settingId,
+                                            const QVariant &fallback) const {
+    const QString cleanedRendererId = rendererId.trimmed();
+    const QString cleanedSettingId = settingId.trimmed();
+    const QString key = cleanedRendererId + QLatin1Char('/') + cleanedSettingId;
+    if (m_rendererSettings.contains(key))
+        return m_rendererSettings.value(key);
+    for (const QVariant &value : m_renderers) {
+        const QVariantMap renderer = value.toMap();
+        if (renderer.value(QStringLiteral("id")).toString() != cleanedRendererId)
+            continue;
+        for (const QVariant &settingValue : renderer.value(QStringLiteral("settings")).toList()) {
+            const QVariantMap setting = settingValue.toMap();
+            if (setting.value(QStringLiteral("id")).toString() == cleanedSettingId)
+                return setting.value(QStringLiteral("default"));
+        }
+        break;
+    }
+    return fallback;
 }
 
 QVariant Backend::rendererSetting(const QString &rendererId, const QString &settingId,
@@ -886,6 +909,7 @@ void Backend::setRendererSetting(const QString &rendererId, const QString &setti
                           .toJson(QJsonDocument::Compact));
     settings.sync();
     emit rendererSettingsChanged();
+    emit synthesisDefaultsChanged();
 }
 
 void Backend::setShortcutSequences(const QString &synthesize,
@@ -1928,10 +1952,6 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
             {"default_voicebank_id", m_defaultVoicebankId},
             {"default_model_id", m_defaultModelId},
             {"default_renderer_id", m_defaultRenderer},
-            {"default_mora_duration_ms", m_defaultMoraDuration},
-            {"default_pause_duration_ms", m_defaultPauseDuration},
-            {"default_leading_preutterance_ms", m_defaultLeadingPreutterance},
-            {"default_intonation_strength", m_defaultIntonationStrength},
             {"renderer_settings", m_rendererSettings},
             {"default_tone", m_defaultTone},
             {"default_alias_policy", m_defaultAliasPolicy},

@@ -1320,11 +1320,7 @@ ApplicationWindow {
             }
             usedShortcuts.push(normalized);
         }
-        window.appBackend.setSynthesisDefaults(settingsWindow.pendingMoraDuration,
-                                               settingsWindow.pendingPauseDuration,
-                                               settingsWindow.pendingLeadingPreutterance,
-                                               settingsWindow.pendingDefaultIntonationStrength,
-                                               settingsWindow.pendingDefaultModelId,
+        window.appBackend.setSynthesisDefaults(settingsWindow.pendingDefaultModelId,
                                                settingsWindow.pendingDefaultRendererId,
                                                settingsWindow.pendingDefaultTone,
                                                settingsWindow.pendingDefaultAliasPolicy);
@@ -1934,23 +1930,22 @@ ApplicationWindow {
             if (error.length)
                 return error;
         }
+        const rendererId = window.defaultRendererId();
         const originalDefaultMoraDuration = window.appBackend.defaultMoraDuration;
-        settingsWindow.loadCurrent();
-        settingsWindow.pendingMoraDuration = originalDefaultMoraDuration + 5;
-        window.saveSettings(false);
+        window.appBackend.setRendererSetting(rendererId, "mora_duration_ms",
+                                             originalDefaultMoraDuration + 5);
         error = check(window.current().moraDuration === originalDefaultMoraDuration,
-                      "saving defaults changed the current utterance");
+                      "changing renderer settings changed the current utterance");
         if (error.length)
             return error;
         window.addUtterance(false);
         error = check(window.current().moraDuration === originalDefaultMoraDuration + 5,
-                      "new utterance did not use the saved defaults");
+                      "new utterance did not use the renderer setting default");
         if (error.length)
             return error;
         window.removeUtterance();
-        settingsWindow.loadCurrent();
-        settingsWindow.pendingMoraDuration = originalDefaultMoraDuration;
-        window.saveSettings(false);
+        window.appBackend.setRendererSetting(rendererId, "mora_duration_ms",
+                                             originalDefaultMoraDuration);
         window.resetHistory(false);
         error = check(utterances.get(0).intonation === window.defaultIntonationStrength,
                       "initial intonation strength is incorrect");
