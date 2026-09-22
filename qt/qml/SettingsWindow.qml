@@ -443,62 +443,69 @@ ApplicationWindow {
                                 color: root.hostWindow.borderColor
                             }
 
-                            Row {
-                                id: rendererTabRow
-                                anchors.left: parent.left
-                                anchors.top: parent.top
-                                anchors.bottom: parent.bottom
-                                spacing: 0
+                            ScrollView {
+                                id: rendererTabScroll
+                                anchors.fill: parent
+                                clip: true
+                                contentWidth: rendererTabRow.width
+                                ScrollBar.horizontal.policy: ScrollBar.AsNeeded
+                                ScrollBar.vertical.policy: ScrollBar.AlwaysOff
 
-                                Repeater {
-                                    id: rendererTabRepeater
-                                    model: root.backend.renderers
+                                Row {
+                                    id: rendererTabRow
+                                    height: rendererTabScroll.availableHeight
+                                    spacing: 0
 
-                                    ToolButton {
-                                        id: rendererTab
-                                        required property int index
-                                        required property var modelData
-                                        width: Math.max(96, rendererTabLabel.implicitWidth + 24)
-                                        height: rendererTabRow.height
-                                        ButtonGroup.group: rendererTabGroup
-                                        checkable: true
-                                        checked: String(modelData.id) === String(root.pendingDefaultRendererId)
-                                        text: String(modelData.display_name || modelData.id)
-                                        onClicked: root.pendingDefaultRendererId = String(modelData.id)
+                                    Repeater {
+                                        id: rendererTabRepeater
+                                        model: root.backend.renderers
 
-                                        background: Rectangle {
-                                            color: rendererTab.checked
-                                                   ? root.palette.base
-                                                   : rendererTab.hovered
-                                                     ? Qt.rgba(root.palette.alternateBase.r,
-                                                               root.palette.alternateBase.g,
-                                                               root.palette.alternateBase.b, 0.42)
-                                                     : "transparent"
-                                            Rectangle {
-                                                anchors.left: parent.left
-                                                anchors.right: parent.right
-                                                anchors.bottom: parent.bottom
-                                                height: 1
-                                                color: rendererTab.checked ? root.palette.base : "transparent"
+                                        ToolButton {
+                                            id: rendererTab
+                                            required property int index
+                                            required property var modelData
+                                            width: Math.max(96, rendererTabLabel.implicitWidth + 24)
+                                            height: rendererTabRow.height
+                                            ButtonGroup.group: rendererTabGroup
+                                            checkable: true
+                                            checked: String(modelData.id) === String(root.pendingDefaultRendererId)
+                                            text: String(modelData.display_name || modelData.id)
+                                            onClicked: root.pendingDefaultRendererId = String(modelData.id)
+
+                                            background: Rectangle {
+                                                color: rendererTab.checked
+                                                       ? root.palette.base
+                                                       : rendererTab.hovered
+                                                         ? Qt.rgba(root.palette.alternateBase.r,
+                                                                   root.palette.alternateBase.g,
+                                                                   root.palette.alternateBase.b, 0.42)
+                                                         : "transparent"
+                                                Rectangle {
+                                                    anchors.left: parent.left
+                                                    anchors.right: parent.right
+                                                    anchors.bottom: parent.bottom
+                                                    height: 1
+                                                    color: rendererTab.checked ? root.palette.base : "transparent"
+                                                }
+                                                Rectangle {
+                                                    visible: rendererTab.index < rendererTabRepeater.count - 1
+                                                    anchors.right: parent.right
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    width: 1
+                                                    height: 18
+                                                    color: root.hostWindow.borderColor
+                                                }
                                             }
-                                            Rectangle {
-                                                visible: rendererTab.index < rendererTabRepeater.count - 1
-                                                anchors.right: parent.right
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                width: 1
-                                                height: 18
-                                                color: root.hostWindow.borderColor
+                                            contentItem: Text {
+                                                id: rendererTabLabel
+                                                anchors.centerIn: parent
+                                                text: rendererTab.text
+                                                color: rendererTab.checked
+                                                       ? root.palette.text : root.palette.placeholderText
+                                                font.pixelSize: 13
+                                                horizontalAlignment: Text.AlignHCenter
+                                                verticalAlignment: Text.AlignVCenter
                                             }
-                                        }
-                                        contentItem: Text {
-                                            id: rendererTabLabel
-                                            anchors.centerIn: parent
-                                            text: rendererTab.text
-                                            color: rendererTab.checked
-                                                   ? root.palette.text : root.palette.placeholderText
-                                            font.pixelSize: 13
-                                            horizontalAlignment: Text.AlignHCenter
-                                            verticalAlignment: Text.AlignVCenter
                                         }
                                     }
                                 }
