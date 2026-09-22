@@ -8,6 +8,15 @@ import unicodedata
 PUNCTUATION = {"、", "。", "？", "！", ",", ".", "?", "!"}
 SMALL_KANA = set("ぁぃぅぇぉゃゅょゎゕゖ")
 
+# frontend.ParseKanaのvowelOfと同じ母音対応。学習特徴をGo推論と揃える。
+VOWEL_GROUPS = (
+    ("あかがさざただなはばぱまやらわぁゃゎ", "a"),
+    ("いきぎしじちぢにひびぴみりゐぃ", "i"),
+    ("うくぐすずつづぬふぶぷむゆるゔぅゅ", "u"),
+    ("えけげせぜてでねへべぺめれゑぇ", "e"),
+    ("おこごそぞとどのほぼぽもよろをぉょ", "o"),
+)
+
 
 def to_hiragana(character):
     code = ord(character)
@@ -16,19 +25,35 @@ def to_hiragana(character):
     return character
 
 
+def vowel_of(character, fallback=""):
+    for characters, vowel in VOWEL_GROUPS:
+        if character in characters:
+            return vowel
+    if character == "ん":
+        return "n"
+    if character == "っ":
+        return "cl"
+    return fallback
+
+
 def split_morae(reading):
     result = []
     normalized = unicodedata.normalize("NFC", reading.replace("'", "").replace("’", ""))
     for character in normalized:
         if character.isspace() or character in PUNCTUATION:
             if result and not result[-1]["pause"]:
-                result.append({"mora": "", "pause": True})
+                result.append({"mora": "", "vowel": "", "pause": True})
             continue
         mora = to_hiragana(character)
         if mora in SMALL_KANA and result and not result[-1]["pause"]:
             result[-1]["mora"] += mora
-        else:
-            result.append({"mora": mora, "pause": False})
+            result[-1]["vowel"] = vowel_of(mora, result[-1]["vowel"])
+            continue
+        if mora == "ー":
+            previous = result[-1]["vowel"] if result and not result[-1]["pause"] else ""
+            result.append({"mora": "ー", "vowel": previous, "pause": False})
+            continue
+        result.append({"mora": mora, "vowel": vowel_of(mora), "pause": False})
     return result
 
 
@@ -105,6 +130,7 @@ def analyze(frontend, text):
                 result.append(
                     {
                         "mora": mora["mora"],
+                        "vowel": mora["vowel"],
                         "pause": False,
                         "accent_phrase_position": phrase_position,
                         "accent_phrase_length": phrase_length,
