@@ -32,7 +32,7 @@ type caseOptions struct {
 
 // synthesizeCaseはConfigを組み立ててApplyRendererから描画までを行う。
 func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Result, float64, error) {
-	cfg := tts.Config{VoicebankPath: o.bank, Text: p.Text, Reading: p.Reading, Language: p.Language, Phonemizer: p.Phonemizer, Tone: "C4", MoraDurationMS: 120, PauseDurationMS: 180, ApplyPitch: o.applyPitch, IntonationStrength: 1}
+	cfg := tts.Config{VoicebankPath: o.bank, Text: p.Text, Reading: p.Reading, Language: p.Language, Phonemizer: p.Phonemizer, Tone: "C4", MoraDurationMS: 120, PauseDurationMS: 180, ApplyPitch: o.applyPitch, IntonationStrength: synth.DefaultIntonationStrength}
 	cfg.AliasPolicy = voicebank.AliasPolicy(o.aliasPolicy)
 	cfg.SpeechTiming = o.speechTiming
 	cfg.SpeechProsodyExperiment = o.experiment

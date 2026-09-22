@@ -19,6 +19,12 @@ import (
 // ErrUnavailableは音源・モデル・レンダラープラグインの解決失敗を表す。
 var ErrUnavailable = errors.New("unavailable")
 
+// DefaultApplyPitchとDefaultIntonationStrengthは合成の既定の抑揚設定。renderer manifestの既定に合わせる。
+const (
+	DefaultApplyPitch         = true
+	DefaultIntonationStrength = 2.0
+)
+
 // Requestは合成とプレビューで共有する入力。
 type Request struct {
 	SpeechTiming            bool                         `json:"speech_timing"`

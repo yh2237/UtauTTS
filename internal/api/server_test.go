@@ -14,6 +14,7 @@ import (
 
 	"utautts/internal/audio"
 	"utautts/internal/plugin"
+	"utautts/internal/synth"
 	"utautts/internal/voicebank"
 )
 
@@ -437,5 +438,32 @@ func TestVoicebankEndpointsDiscoverAndReloadDirectory(t *testing.T) {
 	}
 	if len(second.Voicebanks) != 2 || second.Voicebanks[1].ID != "beta" {
 		t.Fatalf("reloaded voicebanks = %#v", second.Voicebanks)
+	}
+}
+
+func TestSynthesisRequestAppliesIntonationDefaults(t *testing.T) {
+	var request SynthesisRequest
+	if err := json.Unmarshal([]byte(`{"text":"あ"}`), &request); err != nil {
+		t.Fatal(err)
+	}
+	if !request.ApplyPitch || request.IntonationStrength != synth.DefaultIntonationStrength {
+		t.Fatalf("defaults = apply_pitch:%t intonation_strength:%v", request.ApplyPitch, request.IntonationStrength)
+	}
+}
+
+func TestSynthesisRequestRespectsExplicitIntonation(t *testing.T) {
+	var request SynthesisRequest
+	if err := json.Unmarshal([]byte(`{"text":"あ","apply_pitch":false,"intonation_strength":0}`), &request); err != nil {
+		t.Fatal(err)
+	}
+	if request.ApplyPitch || request.IntonationStrength != 0 {
+		t.Fatalf("explicit values = apply_pitch:%t intonation_strength:%v", request.ApplyPitch, request.IntonationStrength)
+	}
+}
+
+func TestSynthesisRequestRejectsUnknownFields(t *testing.T) {
+	var request SynthesisRequest
+	if err := json.Unmarshal([]byte(`{"text":"あ","unknown_field":true}`), &request); err == nil {
+		t.Fatal("unknown field was accepted")
 	}
 }

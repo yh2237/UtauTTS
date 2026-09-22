@@ -83,8 +83,8 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--prosody-feature-case <id>` | | `--prosody-features` 内のケースID |
 | `--pitch-contours <path>` | | ケース別ピッチ係数JSON（計画へ記録。波形処理には `--apply-pitch` が必要） |
 | `--pitch-case <id>` | | `--pitch-contours` 内のケースID |
-| `--apply-pitch` | `false` | 波形のピッチ再サンプリング |
-| `--intonation-strength` | `0` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
+| `--apply-pitch` | `true` | 波形のピッチ再サンプリング |
+| `--intonation-strength` | `2` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
 | `--renderer <id>` | 既定Renderer | Renderer ID（省略時は設定された優先度が最大のもの。未知の明示IDはエラー） |
 | `--resampler <id>` | 自動選択 | Classic UTAUで使う`Resamplers/`からの相対ID |
 | `--wavtool <id>` | `builtin` | Classic UTAUで使う`Wavtools/`からの相対ID |

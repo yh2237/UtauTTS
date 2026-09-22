@@ -2,6 +2,7 @@ package api
 
 import (
 	"archive/zip"
+	"bytes"
 	"context"
 	"crypto/subtle"
 	"embed"
@@ -392,6 +393,24 @@ func pathWithin(root, candidate string) (string, error) {
 }
 
 type SynthesisRequest synth.Request
+
+// synthesisRequestAliasはUnmarshalJSONの再帰を避けるための別名型。
+type synthesisRequestAlias SynthesisRequest
+
+// UnmarshalJSONはJSONで省略されたapply_pitch/intonation_strengthに既定値を適用する。
+func (request *SynthesisRequest) UnmarshalJSON(data []byte) error {
+	decoded := synthesisRequestAlias{
+		ApplyPitch:         synth.DefaultApplyPitch,
+		IntonationStrength: synth.DefaultIntonationStrength,
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&decoded); err != nil {
+		return err
+	}
+	*request = SynthesisRequest(decoded)
+	return nil
+}
 
 func (request SynthesisRequest) synthRequest() synth.Request {
 	return synth.Request(request).Normalized()

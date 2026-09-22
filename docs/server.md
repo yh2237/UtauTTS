@@ -235,8 +235,8 @@ ID順にソートされた音源一覧です。
 | `pause_duration_ms` | number | `180` | 句読点の休止長（0〜3000） |
 | `leading_preutterance_ms` | number | `0`（自動） | 文頭に確保する先行発声（0〜1000）。0では先頭原音の`oto.ini`から決定 |
 | `mora_durations_ms` | number[] | | モーラごとの長さ。値は0〜1000 |
-| `intonation_strength` | number | `0` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
-| `apply_pitch` | boolean | `false` | 波形ピッチ再サンプリング |
+| `intonation_strength` | number | `2` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
+| `apply_pitch` | boolean | `true` | 波形ピッチ再サンプリング |
 | `speech_timing` | boolean | `false` | [発話タイミング補正](speech-quality-experiment.md)を有効にする |
 | `manual_pitch` | object | なし | 手動ピッチ編集（[manual-pitch.md](manual-pitch.md) のJSON） |
 | `dictionary` | object[] | なし | ユーザー辞書。各項目は`surface`と`reading`を持つ |
