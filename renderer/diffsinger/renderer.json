@@ -12,6 +12,12 @@
   "acceleration": "cpu",
   "default_priority": -50,
   "capabilities": { "frame_pitch": true },
+  "settings": [
+    { "id": "diffsinger_steps", "type": "integer", "default": 0, "min": 0, "max": 100, "label": "settings.defaultDiffSingerSteps" },
+    { "id": "diffsinger_expr", "type": "number", "default": 0, "min": 0, "max": 2, "step": 0.01, "label": "settings.defaultDiffSingerExpr" },
+    { "id": "diffsinger_duration_mix", "type": "number", "default": 0, "min": 0, "max": 1, "step": 0.01, "label": "settings.defaultDiffSingerDurationMix" },
+    { "id": "diffsinger_pitch_mix", "type": "number", "default": 0, "min": 0, "max": 1, "step": 0.01, "label": "settings.defaultDiffSingerPitchMix" }
+  ],
   "platforms": ["windows-amd64"],
   "platform_resources": {
     "windows-amd64": {

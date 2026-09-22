@@ -41,7 +41,26 @@ type Renderer struct {
 	Resources         map[string]RendererResource            `json:"resources,omitempty"`
 	PlatformResources map[string]map[string]RendererResource `json:"platform_resources,omitempty"`
 	Platforms         []string                               `json:"platforms,omitempty"`
+	Settings          []RendererSetting                      `json:"settings,omitempty"`
 	Directory         string                                 `json:"-"`
+}
+
+// RendererSettingはrendererが公開する設定項目。GUIがtypeに応じてフォームを作る。
+type RendererSetting struct {
+	ID      string                 `json:"id"`
+	Type    string                 `json:"type"`
+	Default any                    `json:"default,omitempty"`
+	Min     *float64               `json:"min,omitempty"`
+	Max     *float64               `json:"max,omitempty"`
+	Step    *float64               `json:"step,omitempty"`
+	Label   string                 `json:"label,omitempty"`
+	Options []RendererSettingValue `json:"options,omitempty"`
+}
+
+// RendererSettingValueはenum設定の選択肢。
+type RendererSettingValue struct {
+	Value string `json:"value"`
+	Label string `json:"label,omitempty"`
 }
 
 // RendererResourceはmanifest v2の型付き実行時リソース宣言。Pathは絶対パス以外はrendererディレクトリ基準。実際の要否検証はproviderが行う。
