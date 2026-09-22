@@ -329,8 +329,6 @@ func findVocoderRoot(singerRoot, name string) (string, bool, error) {
 		}
 		roots = append(roots, path)
 	}
-	add(filepath.Join(singerRoot, "Dependencies"))
-	add(filepath.Join(filepath.Dir(singerRoot), "Dependencies"))
 	if current, err := os.Getwd(); err == nil {
 		add(filepath.Join(current, "Dependencies"))
 	}

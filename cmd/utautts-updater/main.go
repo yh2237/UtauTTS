@@ -38,7 +38,7 @@ func main() {
 	pid := flag.Int("pid", 0, "PID of the running GUI to wait for before replacing files")
 	version := flag.String("version", "", "incoming release tag (diagnostics)")
 	lockToken := flag.String("lock-token", "", "internal: token of the pending update lock")
-	preserveFlag := flag.String("preserve", "voice,Resamplers,Wavtools,config.ini", "comma-separated relative paths kept from the old install")
+	preserveFlag := flag.String("preserve", "voice,Resamplers,Wavtools,Dependencies,config.ini", "comma-separated relative paths kept from the old install")
 	elevated := flag.Bool("elevated", false, "internal: updater was relaunched with administrator privileges")
 	flag.Parse()
 

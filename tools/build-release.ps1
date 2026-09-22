@@ -209,7 +209,7 @@ try {
     }
     Copy-Item -Path (Join-Path $root 'renderer/*') -Destination $guiRendererPath -Recurse
     Copy-Item -Path (Join-Path $root 'renderer/*') -Destination $serverRendererPath -Recurse
-    foreach ($directoryName in @('Resamplers', 'Wavtools')) {
+    foreach ($directoryName in @('Resamplers', 'Wavtools', 'Dependencies')) {
         Copy-Item -LiteralPath (Join-Path $root $directoryName) -Destination $guiPath -Recurse
         Copy-Item -LiteralPath (Join-Path $root $directoryName) -Destination $serverPath -Recurse
     }

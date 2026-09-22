@@ -111,6 +111,7 @@ try {
         'voice/update-compatibility/marker.txt' = 'voice marker'
         'Resamplers/update-compatibility/marker.txt' = 'resampler marker'
         'Wavtools/update-compatibility/marker.txt' = 'wavtool marker'
+        'Dependencies/update-compatibility/marker.txt' = 'vocoder dependency marker'
         'renderer/update-compatibility/marker.txt' = 'renderer marker'
     }
     foreach ($relative in $preservedFiles.Keys) {

@@ -15,7 +15,7 @@ DiffSingerは専用の音源とRendererで合成します。通常のUTAU音源�
 - 連続・離散diffusion
 - 日本語かな入力
 
-共有vocoderは`Dependencies/<名前>`に配置します。名前は音源の指定と一致させてください。UtauTTSの実行ファイルまたは作業ディレクトリにある`Dependencies`を検索します。OpenUtauの標準`Dependencies`も利用できます。
+共有vocoderは`Dependencies/<名前>`に配置します。名前は音源の指定と一致させてください。配布物の`Dependencies/`（`Resamplers/`や`Wavtools/`と同じ場所）に置くか、UtauTTSの実行ファイルまたは作業ディレクトリの`Dependencies`を使います。OpenUtauの標準`Dependencies`も利用できます。
 
 ## 制限事項
 

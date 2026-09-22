@@ -110,6 +110,7 @@ func TestLoadSingerUsesNamedDependency(t *testing.T) {
 	mustWrite(t, filepath.Join(root, "phonemes.txt"), "SP\na\n")
 	mustWrite(t, filepath.Join(base, "Dependencies", "nsf_hifigan", "vocoder.yaml"), "model: model.onnx\n")
 	mustWrite(t, filepath.Join(base, "Dependencies", "nsf_hifigan", "model.onnx"), "model")
+	t.Chdir(base)
 
 	singer, err := Load(root)
 	if err != nil {
@@ -128,6 +129,7 @@ func TestLoadSingerUsesExactDependencyName(t *testing.T) {
 	mustWrite(t, filepath.Join(root, "phonemes.txt"), "SP\na\n")
 	mustWrite(t, filepath.Join(base, "Dependencies", "nsf_hifigan", "vocoder.yaml"), "model: model.onnx\n")
 	mustWrite(t, filepath.Join(base, "Dependencies", "nsf_hifigan", "model.onnx"), "model")
+	t.Chdir(base)
 
 	if _, err := Load(root); err == nil {
 		t.Fatal("別名のvocoderを使用した")
