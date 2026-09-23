@@ -6,6 +6,7 @@ import (
 	"utautts/internal/audio"
 	"utautts/internal/engine"
 	"utautts/internal/plan"
+	"utautts/internal/render/base"
 )
 
 // UnitRendererは選択済みUnit Planを描画する。
@@ -34,13 +35,6 @@ type RenderReport struct {
 	CVVCPreBoundaryFade     bool
 	Diagnostics             []RenderDiagnostic `json:"diagnostics,omitempty"`
 	Units                   []UnitRenderReport
-}
-
-// F0Trackは有声判定前のWORLD用目標値。StartMSはPlan基準で負値は文頭余白を表す。0は無声。
-type F0Track struct {
-	StartMS float64   `json:"start_ms"`
-	FrameMS float64   `json:"frame_ms"`
-	Hz      []float64 `json:"hz"`
 }
 
 // RenderDiagnosticはproviderからの診断情報を示す。
@@ -98,7 +92,7 @@ func (renderer builtinUnitRenderer) Render(synthesisPlan *plan.Plan, cfg Config)
 	workingPlan := plan.Clone(synthesisPlan)
 	cfg.Backend = string(renderer.provider)
 	targetF0 := &F0Track{}
-	cfg.targetF0 = targetF0
+	cfg.TargetF0 = targetF0
 	pcm, err := renderMutable(workingPlan, cfg)
 	if err != nil {
 		return nil, err
@@ -118,7 +112,7 @@ func UnitRendererForProvider(provider string) (UnitRenderer, error) {
 	if provider == "" {
 		provider = "waveform"
 	}
-	if _, found := rendererImplementations[provider]; !found {
+	if _, found := base.RendererImplementation(provider); !found {
 		return nil, fmt.Errorf("unknown unit renderer provider %q", provider)
 	}
 	return builtinUnitRenderer{provider: engine.ProviderID(provider)}, nil

@@ -1,10 +1,11 @@
-package render
+package worldline
 
 import (
 	"testing"
 
 	"utautts/internal/frontend"
 	"utautts/internal/plan"
+	"utautts/internal/render/base"
 	"utautts/internal/voicebank"
 )
 
@@ -14,7 +15,7 @@ func TestWorldlineStopProtectionSkipsJapaneseVCV(t *testing.T) {
 		Phonemizer: "ja-kana",
 		Morae:      []frontend.Mora{{Consonant: "k", Vowel: "a"}},
 	}
-	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "mora", AliasKind: "VCV"}, WorldlineProviderOptions{}) {
+	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "mora", AliasKind: "VCV"}, base.WorldlineProviderOptions{}) {
 		t.Fatal("Japanese VCV must not receive a raw stop burst")
 	}
 }
@@ -26,7 +27,7 @@ func TestWorldlineStopProtectionKeepsEnglishPlosiveSupport(t *testing.T) {
 		Morae:      []frontend.Mora{{Consonant: "k", Vowel: "ae"}},
 	}
 	profile := &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}
-	if !worldlineStopProtection(p, plan.Unit{Position: 0, Role: "mora", AliasKind: "VCV", SpeechProfile: profile}, WorldlineProviderOptions{}) {
+	if !worldlineStopProtection(p, plan.Unit{Position: 0, Role: "mora", AliasKind: "VCV", SpeechProfile: profile}, base.WorldlineProviderOptions{}) {
 		t.Fatal("English VCV plosive must remain protected")
 	}
 }
@@ -38,11 +39,11 @@ func TestWorldlineStopProtectionKeepsJapaneseCVSupport(t *testing.T) {
 		Morae:      []frontend.Mora{{Consonant: "k", Vowel: "a"}},
 	}
 	profile := &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}
-	if !worldlineStopProtection(p, plan.Unit{Position: 0, Role: "mora", AliasKind: "CV", SpeechProfile: profile}, WorldlineProviderOptions{}) {
+	if !worldlineStopProtection(p, plan.Unit{Position: 0, Role: "mora", AliasKind: "CV", SpeechProfile: profile}, base.WorldlineProviderOptions{}) {
 		t.Fatal("Japanese CV onset should keep the short stop protection")
 	}
 	profile.TransientConfidence = .2
-	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "mora", AliasKind: "CV", SpeechProfile: profile}, WorldlineProviderOptions{}) {
+	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "mora", AliasKind: "CV", SpeechProfile: profile}, base.WorldlineProviderOptions{}) {
 		t.Fatal("uncertain transient must not be mixed")
 	}
 }
@@ -56,19 +57,19 @@ func TestWorldlineStopProtectionE2BGeneralizesJapanesePlosives(t *testing.T) {
 	vcv := plan.Unit{Position: 0, Role: "mora", AliasKind: "VCV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}}
 	cv := plan.Unit{Position: 0, Role: "mora", AliasKind: "CV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .7}}
 	on, off := true, false
-	if !worldlineStopProtection(p, vcv, WorldlineProviderOptions{E2B: &on}) || !worldlineStopProtection(p, cv, WorldlineProviderOptions{E2B: &on}) {
+	if !worldlineStopProtection(p, vcv, base.WorldlineProviderOptions{E2B: &on}) || !worldlineStopProtection(p, cv, base.WorldlineProviderOptions{E2B: &on}) {
 		t.Fatal("E2b on should protect reliable Japanese VCV and CV")
 	}
 	// 信頼度が下限未満のVCVは保護しない。
 	vcv.SpeechProfile.TransientConfidence = .6
-	if worldlineStopProtection(p, vcv, WorldlineProviderOptions{E2B: &on}) {
+	if worldlineStopProtection(p, vcv, base.WorldlineProviderOptions{E2B: &on}) {
 		t.Fatal("E2b must gate Japanese VCV on high confidence")
 	}
-	if worldlineStopProtection(p, vcv, WorldlineProviderOptions{E2B: &off}) || worldlineStopProtection(p, cv, WorldlineProviderOptions{E2B: &off}) {
+	if worldlineStopProtection(p, vcv, base.WorldlineProviderOptions{E2B: &off}) || worldlineStopProtection(p, cv, base.WorldlineProviderOptions{E2B: &off}) {
 		t.Fatal("E2b off must not protect Japanese plosives")
 	}
 	// 未指定は既定ON。
-	if !worldlineStopProtection(p, cv, WorldlineProviderOptions{}) {
+	if !worldlineStopProtection(p, cv, base.WorldlineProviderOptions{}) {
 		t.Fatal("E2b default should be on")
 	}
 }
@@ -81,18 +82,18 @@ func TestE2BLegacyStopPreserveOnlyForReliableJapanese(t *testing.T) {
 	}
 	unit := plan.Unit{Position: 0, Role: "mora", AliasKind: "VCV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}}
 	on, off := true, false
-	if !e2bLegacyStopPreserve(p, unit, true, WorldlineProviderOptions{E2B: &on}) {
+	if !e2bLegacyStopPreserve(p, unit, true, base.WorldlineProviderOptions{E2B: &on}) {
 		t.Fatal("E2b should add a preserve-only burst in legacy Japanese mix")
 	}
-	if e2bLegacyStopPreserve(p, unit, false, WorldlineProviderOptions{E2B: &on}) {
+	if e2bLegacyStopPreserve(p, unit, false, base.WorldlineProviderOptions{E2B: &on}) {
 		t.Fatal("preserve-only burst is limited to legacy mix")
 	}
 	unit.SpeechProfile.TransientConfidence = .6
-	if e2bLegacyStopPreserve(p, unit, true, WorldlineProviderOptions{E2B: &on}) {
+	if e2bLegacyStopPreserve(p, unit, true, base.WorldlineProviderOptions{E2B: &on}) {
 		t.Fatal("unreliable transient must not be preserved")
 	}
 	unit.SpeechProfile.TransientConfidence = .8
-	if e2bLegacyStopPreserve(p, unit, true, WorldlineProviderOptions{E2B: &off}) {
+	if e2bLegacyStopPreserve(p, unit, true, base.WorldlineProviderOptions{E2B: &off}) {
 		t.Fatal("E2b off must not add legacy burst")
 	}
 }
@@ -104,16 +105,16 @@ func TestWorldlineStopProtectionProtectsEnglishCodaPlosive(t *testing.T) {
 		Morae:      []frontend.Mora{{Consonant: "m", Vowel: "iy"}},
 	}
 	profile := &voicebank.SpeechProfile{ReleaseTransientMS: 12, ReleaseTransientConfidence: .27}
-	if !worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: profile}, WorldlineProviderOptions{}) {
+	if !worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: profile}, base.WorldlineProviderOptions{}) {
 		t.Fatal("word-final plosive must be protected")
 	}
 	// codaが破裂音でなければ対象外。
-	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"s"}, SpeechProfile: profile}, WorldlineProviderOptions{}) {
+	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"s"}, SpeechProfile: profile}, base.WorldlineProviderOptions{}) {
 		t.Fatal("fricative coda must not be protected")
 	}
 	// 解放過渡が測れなければ対象外。
 	silent := &voicebank.SpeechProfile{}
-	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: silent}, WorldlineProviderOptions{}) {
+	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: silent}, base.WorldlineProviderOptions{}) {
 		t.Fatal("unmeasured release must not be protected")
 	}
 }

@@ -1,4 +1,4 @@
-package render
+package base
 
 import (
 	"math"
@@ -7,8 +7,8 @@ import (
 	"utautts/internal/plan"
 )
 
-// speechRetimeは母音開始をtargetOnsetに合わせ、onsetと安定母音を別アンカーにする。破裂音の短い解放区間は伸縮せずコピーする。
-func speechRetime(source []float64, targetFrames, sourceOnset, sourceFixed, targetOnset, targetFixed, rate int, stop bool) ([]float64, int, bool) {
+// SpeechRetimeは母音開始をtargetOnsetに合わせ、onsetと安定母音を別アンカーにする。破裂音の短い解放区間は伸縮せずコピーする。
+func SpeechRetime(source []float64, targetFrames, sourceOnset, sourceFixed, targetOnset, targetFixed, rate int, stop bool) ([]float64, int, bool) {
 	minimum := msToFrames(4, rate)
 	if rate <= 0 || minimum < 2 || sourceOnset < minimum || targetOnset < minimum ||
 		sourceFixed-sourceOnset < minimum || targetFixed-targetOnset < minimum ||
@@ -38,8 +38,8 @@ func speechRetime(source []float64, targetFrames, sourceOnset, sourceFixed, targ
 		}
 	}
 	// 遷移と母音は標準のoverlap対応ストレッチャを再利用する。
-	tail, err := retimeWithCompressedPrefixUsing(source[sourceOnset-bridge:], targetFrames-targetOnset+bridge,
-		sourceFixed-sourceOnset+bridge, targetFixed-targetOnset+bridge, rate, wsolaStretch)
+	tail, err := RetimeWithCompressedPrefixUsing(source[sourceOnset-bridge:], targetFrames-targetOnset+bridge,
+		sourceFixed-sourceOnset+bridge, targetFixed-targetOnset+bridge, rate, WSOLAStretch)
 	if err != nil {
 		return nil, targetFixed, false
 	}
@@ -53,9 +53,10 @@ func speechRetime(source []float64, targetFrames, sourceOnset, sourceFixed, targ
 	return result, targetFixed, true
 }
 
-func speechStop(p *plan.Plan, unit plan.Unit) bool {
+// SpeechStopはユニットのonset/語末が破裂音かを返す。
+func SpeechStop(p *plan.Plan, unit plan.Unit) bool {
 	// 語末の破裂音は親モーラのonsetとは独立に保護対象にする。
-	if codaReleaseStop(unit) {
+	if CodaReleaseStop(unit) {
 		return true
 	}
 	if unit.Position < 0 || unit.Position >= len(p.Morae) {
@@ -76,8 +77,8 @@ func isStopPhone(phone string) bool {
 	return strings.Contains(" p py b by t d k ky g gy ", " "+strings.ToLower(strings.TrimSpace(phone))+" ")
 }
 
-// resampleForPitchCurveと同じ積分を使う。開始区内で音高が変わると先頭F0だけでは不足する。
-func speechPitchAnchor(sourceFrames, anchor int, base float64, curve *PitchCurve, startMS, spanMS float64) int {
+// SpeechPitchAnchorは時間変化するピッチでアンカー位置を写す。ResampleForPitchCurveと同じ積分を使う。
+func SpeechPitchAnchor(sourceFrames, anchor int, base float64, curve *PitchCurve, startMS, spanMS float64) int {
 	if anchor < 0 || anchor > sourceFrames {
 		return -1
 	}
@@ -90,20 +91,20 @@ func speechPitchAnchor(sourceFrames, anchor int, base float64, curve *PitchCurve
 	position := 0.0
 	for i := 0; i < anchor; i++ {
 		t := startMS + math.Max(1e-3, spanMS)*float64(i)/float64(sourceFrames-1)
-		position += 1 / clampPitchFactor(base*pitchCurveFactorAt(curve, t))
+		position += 1 / clampPitchFactor(base*PitchCurveFactorAt(curve, t))
 	}
 	return int(math.Round(position))
 }
 
-// 自動補正は子音・coda・休止・遷移を挟まない同母音の連続だけに限る。明示的な境界ブリッジ設定は既存方針のまま。
-func speechVowelJoin(p *plan.Plan, previous, current renderedUnit) bool {
-	if previous.index+1 != current.index || previous.unit.Role != "mora" || current.unit.Role != "mora" || previous.unit.Position+1 != current.unit.Position {
+// SpeechVowelJoinは自動補正が同母音の連続だけに限られるかを返す。
+func SpeechVowelJoin(p *plan.Plan, previous, current RenderedUnit) bool {
+	if previous.Index+1 != current.Index || previous.Unit.Role != "mora" || current.Unit.Role != "mora" || previous.Unit.Position+1 != current.Unit.Position {
 		return false
 	}
-	if previous.unit.Position < 0 || current.unit.Position >= len(p.Morae) {
+	if previous.Unit.Position < 0 || current.Unit.Position >= len(p.Morae) {
 		return false
 	}
-	a, b := p.Morae[previous.unit.Position], p.Morae[current.unit.Position]
+	a, b := p.Morae[previous.Unit.Position], p.Morae[current.Unit.Position]
 	if a.Pause || b.Pause || a.Vowel == "" || a.Vowel != b.Vowel || a.Vowel == "cl" || a.Vowel == "n" || b.Consonant != "" {
 		return false
 	}
@@ -117,10 +118,20 @@ func speechVowelJoin(p *plan.Plan, previous, current renderedUnit) bool {
 			return false
 		}
 	}
-	for _, unit := range []plan.Unit{previous.unit, current.unit} {
+	for _, unit := range []plan.Unit{previous.Unit, current.Unit} {
 		if unit.SpeechProfile == nil || !unit.SpeechProfile.Applied {
 			return false
 		}
 	}
 	return true
+}
+
+// CodaReleaseStopは語末子音に破裂音を含むかを返す。
+func CodaReleaseStop(u plan.Unit) bool {
+	for _, phone := range u.CodaPhones {
+		if strings.Contains(" p b t d k g ch jh ", " "+strings.ToLower(phone)+" ") {
+			return true
+		}
+	}
+	return false
 }

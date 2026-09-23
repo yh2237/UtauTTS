@@ -98,8 +98,8 @@ func TestSpeechAnchorFollowsChangingPitch(t *testing.T) {
 
 func TestSpeechJoinProtectsConsonantsAndUnknownProfiles(t *testing.T) {
 	p := &plan.Plan{Morae: []frontend.Mora{{Vowel: "a"}, {Vowel: "a"}}}
-	left := renderedUnit{index: 0, unit: plan.Unit{Role: "mora", Position: 0, SpeechProfile: &voicebank.SpeechProfile{Applied: true}}}
-	right := renderedUnit{index: 1, unit: plan.Unit{Role: "mora", Position: 1, SpeechProfile: &voicebank.SpeechProfile{Applied: true}}}
+	left := renderedUnit{Index: 0, Unit: plan.Unit{Role: "mora", Position: 0, SpeechProfile: &voicebank.SpeechProfile{Applied: true}}}
+	right := renderedUnit{Index: 1, Unit: plan.Unit{Role: "mora", Position: 1, SpeechProfile: &voicebank.SpeechProfile{Applied: true}}}
 	if !speechVowelJoin(p, left, right) {
 		t.Fatal("repeated vowel rejected")
 	}
@@ -118,7 +118,7 @@ func TestSpeechJoinProtectsConsonantsAndUnknownProfiles(t *testing.T) {
 		t.Fatal("different vowel accepted")
 	}
 	p.Morae[1].Vowel = "a"
-	right.unit.SpeechProfile.Applied = false
+	right.Unit.SpeechProfile.Applied = false
 	if speechVowelJoin(p, left, right) {
 		t.Fatal("uncertain profile accepted")
 	}

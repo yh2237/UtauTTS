@@ -19,7 +19,7 @@ func TestSingleCVBoundaryProfilesProtectOnset(t *testing.T) {
 		t.Fatalf("vowel profile = %+v", got)
 	}
 
-	current := renderedUnit{startFrame: 100, fadeInFrames: 20}
+	current := renderedUnit{StartFrame: 100, FadeInFrames: 20}
 	start, end := singleCVBoundaryWindow(current, 8, 200, 1000)
 	if start != 112 || end != 120 {
 		t.Fatalf("fricative window = [%d, %d), want [112, 120)", start, end)
@@ -49,8 +49,8 @@ func TestSingleCVBoundaryBridgeOnlyAppliesWhenItImproves(t *testing.T) {
 	mix[115] += 0.7
 	untouched := append([]float64(nil), mix[:104]...)
 	rendered := []renderedUnit{
-		{index: 0, unit: plan.Unit{Role: "mora", Position: 0, DurationMS: 80}, timing: effectiveTiming{preutteranceMS: 20, consonantMS: 30}, wave: previousWave},
-		{index: 1, unit: plan.Unit{Role: "mora", Position: 1}, startFrame: 100, fadeInFrames: 20},
+		{Index: 0, Unit: plan.Unit{Role: "mora", Position: 0, DurationMS: 80}, Timing: effectiveTiming{PreutteranceMS: 20, ConsonantMS: 30}, Wave: previousWave},
+		{Index: 1, Unit: plan.Unit{Role: "mora", Position: 1}, StartFrame: 100, FadeInFrames: 20},
 	}
 	applySingleCVBoundaryBridges(mix, weights, rendered, p, sampleRate, 0)
 	if len(p.BoundaryBridges) != 1 || !p.Units[1].SpeechJoinApplied {

@@ -11,8 +11,8 @@ func TestCodaOverlapReservesAudibleTail(t *testing.T) {
 		{Role: "ending", NoteStartMS: 41.263, DurationMS: 118, PreutteranceMS: 74.324, CodaPhones: []string{"s", "t"}}}
 	before, _ := openUtauPhoneTimings(units, "")
 	after, _ := openUtauPhoneTimingsWithCoda(units, "", true)
-	oldTail := units[0].DurationMS - before[0].tailIntrude + before[0].tailOverlap
-	tail := units[0].DurationMS - after[0].tailIntrude + after[0].tailOverlap
+	oldTail := units[0].DurationMS - before[0].TailIntrude + before[0].TailOverlap
+	tail := units[0].DurationMS - after[0].TailIntrude + after[0].TailOverlap
 	if oldTail >= 10 || tail < 19.99 {
 		t.Fatal(oldTail, tail)
 	}
@@ -29,17 +29,17 @@ func TestCodaBoundaryLimitsNextOnsetIntrusion(t *testing.T) {
 		{Role: "mora", NoteStartMS: 65, DurationMS: 100, PreutteranceMS: 74.324, OverlapMS: 30},
 	}
 	timings, _ := openUtauPhoneTimingsWithCoda(units, "", true)
-	if !timings[1].codaLimited {
+	if !timings[1].CodaLimited {
 		t.Fatal("coda boundary not limited")
 	}
-	tail := units[0].DurationMS - timings[0].tailIntrude + timings[0].tailOverlap
+	tail := units[0].DurationMS - timings[0].TailIntrude + timings[0].TailOverlap
 	if tail < codaBoundaryMinTailMS-1e-9 {
 		t.Fatalf("audible coda tail = %v", tail)
 	}
 	// codaがなければ制限しない。
 	units[0].CodaPhones = nil
 	plain, _ := openUtauPhoneTimingsWithCoda(units, "", true)
-	if plain[1].codaLimited || plain[1] == timings[1] {
+	if plain[1].CodaLimited || plain[1] == timings[1] {
 		t.Fatalf("non-coda boundary changed: %+v", plain[1])
 	}
 }

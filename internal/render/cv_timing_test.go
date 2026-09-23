@@ -2,7 +2,6 @@ package render
 
 import (
 	"math"
-	"reflect"
 	"testing"
 
 	"utautts/internal/frontend"
@@ -26,8 +25,8 @@ func TestNormalizePlanTimingAppliesOnsetOverlap(t *testing.T) {
 	p := &plan.Plan{Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
 	unit := plan.Unit{Role: "mora", Position: 0, AliasKind: "CV", DurationMS: 140,
 		PreutteranceMS: 100, OverlapMS: 60, ConsonantMS: 120}
-	if got := normalizePlanTiming(p, unit, 20); got.overlapMS != 10 {
-		t.Fatalf("stop overlap = %.3f, want 10", got.overlapMS)
+	if got := normalizePlanTiming(p, unit, 20); got.OverlapMS != 10 {
+		t.Fatalf("stop overlap = %.3f, want 10", got.OverlapMS)
 	}
 }
 
@@ -39,17 +38,17 @@ func TestNormalizeSingleCVTimingProtectsOnsetAndVowelTail(t *testing.T) {
 		SpeechProfile: &voicebank.SpeechProfile{TrimmedLengthMS: 266, VowelTailMS: 82},
 	}
 	got := normalizePlanTiming(p, unit, 20)
-	if !got.cvApplied || got.preutteranceMS >= unit.PreutteranceMS || got.consonantMS >= unit.ConsonantMS {
+	if !got.CVApplied || got.PreutteranceMS >= unit.PreutteranceMS || got.ConsonantMS >= unit.ConsonantMS {
 		t.Fatalf("timing was not bounded: %+v", got)
 	}
-	if got.preutteranceMS > 85 || got.preutteranceMS < 80 {
-		t.Fatalf("preutterance = %.3f", got.preutteranceMS)
+	if got.PreutteranceMS > 85 || got.PreutteranceMS < 80 {
+		t.Fatalf("preutterance = %.3f", got.PreutteranceMS)
 	}
-	if got.overlapMS < got.preutteranceMS-19 || math.Abs(got.preutteranceMS-got.overlapMS-18) > 1 {
+	if got.OverlapMS < got.PreutteranceMS-19 || math.Abs(got.PreutteranceMS-got.OverlapMS-18) > 1 {
 		t.Fatalf("onset fade was not shortened: %+v", got)
 	}
 	minimumTail := math.Max(singleCVMinimumVowelTailMS, unit.DurationMS*singleCVVowelTailRatio)
-	if got.preutteranceMS+unit.DurationMS+20-got.consonantMS < minimumTail-1e-9 {
+	if got.PreutteranceMS+unit.DurationMS+20-got.ConsonantMS < minimumTail-1e-9 {
 		t.Fatalf("vowel tail was not preserved: %+v", got)
 	}
 }
@@ -63,10 +62,10 @@ func TestNormalizeVCVTimingKeepsValidOTOAnchors(t *testing.T) {
 		},
 	}
 	got := normalizePlanTiming(&plan.Plan{}, unit, 20)
-	if got.preutteranceMS != 210 || got.consonantMS != 360 || got.overlapMS != 70 || got.scale != 1 {
+	if got.PreutteranceMS != 210 || got.ConsonantMS != 360 || got.OverlapMS != 70 || got.Scale != 1 {
 		t.Fatalf("valid VCV anchors changed: %+v", got)
 	}
-	if got.cvApplied {
+	if got.CVApplied {
 		t.Fatalf("valid VCV was reported as corrected: %+v", got)
 	}
 }
@@ -81,10 +80,10 @@ func TestNormalizeVCVTimingRepairsBrokenBoundaries(t *testing.T) {
 	}
 	for _, unit := range cases {
 		got := normalizePlanTiming(&plan.Plan{}, unit, 20)
-		if !got.cvApplied {
+		if !got.CVApplied {
 			t.Fatalf("broken VCV was not corrected: %+v", unit)
 		}
-		if got.overlapMS > got.preutteranceMS || got.consonantMS < got.preutteranceMS {
+		if got.OverlapMS > got.PreutteranceMS || got.ConsonantMS < got.PreutteranceMS {
 			t.Fatalf("broken VCV was not repaired: %+v", got)
 		}
 	}
@@ -102,47 +101,18 @@ func TestNormalizedPhoneTimingUnitsKeepValidVCVAnchors(t *testing.T) {
 	}
 }
 
-func TestWorldlineVCVTimingKeepsValidOTOAnchors(t *testing.T) {
-	unit := plan.Unit{Role: "mora", AliasKind: "VCV", DurationMS: 140,
-		PreutteranceMS: 210, OverlapMS: 70, ConsonantMS: 360,
-		SpeechProfile: &voicebank.SpeechProfile{Applied: true, TrimmedLengthMS: 560, StableStartMS: 335}}
-	plain := worldlineTiming(&plan.Plan{}, unit, 20)
-	if plain.preutteranceMS != 210 || plain.consonantMS != 360 || plain.overlapMS != 70 {
-		t.Fatalf("WORLD changed valid oto anchors: %+v", plain)
-	}
-	broken := unit
-	broken.OverlapMS = 400
-	got := worldlineTiming(&plan.Plan{}, broken, 20)
-	if !got.cvApplied || got.overlapMS > got.preutteranceMS {
-		t.Fatalf("WORLD did not repair a broken VCV boundary: %+v", got)
-	}
-}
-
-func TestWorldlinePhoneTimingUnitsDoesNotMutatePlan(t *testing.T) {
-	unit := plan.Unit{Role: "mora", AliasKind: "VCV", DurationMS: 140,
-		PreutteranceMS: 210, OverlapMS: 70, ConsonantMS: 360}
-	p := &plan.Plan{Units: []plan.Unit{unit}}
-	got := worldlinePhoneTimingUnits(p, 20)
-	if len(got) != 1 || !reflect.DeepEqual(got[0], unit) {
-		t.Fatalf("WORLD default phone timing changed: %+v", got)
-	}
-	if !reflect.DeepEqual(p.Units[0], unit) {
-		t.Fatalf("source plan was mutated: %+v", p.Units[0])
-	}
-}
-
 func TestSingleCVBoundaryEligibilityProtectsStops(t *testing.T) {
 	p := &plan.Plan{SingleCV: true, Morae: []frontend.Mora{
 		{Consonant: "a", Vowel: "a"},
 		{Consonant: "s", Vowel: "i"},
 	}}
-	previous := renderedUnit{index: 0, unit: plan.Unit{Role: "mora", Position: 0}}
-	current := renderedUnit{index: 1, unit: plan.Unit{Role: "mora", Position: 1}}
-	if !singleCVBoundaryEligible(p, previous, current) || singleCVProtectedOnset(p, current.unit) {
+	previous := renderedUnit{Index: 0, Unit: plan.Unit{Role: "mora", Position: 0}}
+	current := renderedUnit{Index: 1, Unit: plan.Unit{Role: "mora", Position: 1}}
+	if !singleCVBoundaryEligible(p, previous, current) || singleCVProtectedOnset(p, current.Unit) {
 		t.Fatal("fricative boundary was rejected")
 	}
 	p.Morae[1].Consonant = "k"
-	if !singleCVProtectedOnset(p, current.unit) {
+	if !singleCVProtectedOnset(p, current.Unit) {
 		t.Fatal("stop boundary was not protected")
 	}
 }

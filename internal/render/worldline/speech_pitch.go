@@ -1,6 +1,9 @@
-package render
+package worldline
 
-import "utautts/internal/plan"
+import (
+	"utautts/internal/plan"
+	"utautts/internal/render/base"
+)
 
 // 主母音の音高を基準にし VCや語末子音による輪郭の重複を防ぐ。
 func speechReferencePitchFactors(p *plan.Plan, pitches []float64, fallback float64) ([]float64, float64) {
@@ -10,7 +13,7 @@ func speechReferencePitchFactors(p *plan.Plan, pitches []float64, fallback float
 			mains = append(mains, pitches[i])
 		}
 	}
-	reference := medianFloat(mains)
+	reference := base.MedianFloat(mains)
 	if reference <= 0 {
 		reference = fallback
 	}
@@ -22,7 +25,7 @@ func speechReferencePitchFactors(p *plan.Plan, pitches []float64, fallback float
 		if source <= 0 {
 			source = reference
 		}
-		factors[i] = reference / source * effectiveUnitPitchFactor(p.Units[i], true)
+		factors[i] = reference / source * base.EffectiveUnitPitchFactor(p.Units[i], true)
 	}
 	return factors, reference
 }

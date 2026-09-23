@@ -1,4 +1,4 @@
-package render
+package worldline
 
 import (
 	"encoding/json"
@@ -8,12 +8,12 @@ import (
 
 	"utautts/internal/plan"
 	"utautts/internal/provider"
-	"utautts/internal/render/worldline"
+	"utautts/internal/render/base"
 )
 
 func TestWorldlineProviderJobCarriesCommonPlanAndResources(t *testing.T) {
 	synthesisPlan := &plan.Plan{Version: plan.Version, Voicebank: "bank", Units: []plan.Unit{{Source: "voice.wav", DurationMS: 100}}}
-	job, err := worldlineProviderJob(synthesisPlan, Config{ApplyPitch: true}, worldlineManifest{
+	job, err := worldlineProviderJob(synthesisPlan, base.Config{ApplyPitch: true}, worldlineManifest{
 		Engine: "utautts-world-phrase", OutputPath: "output.wav",
 		SampleRate: 44100, F0Curve: []float64{220, 220},
 	}, "bridge.exe")
@@ -32,7 +32,7 @@ func TestWorldlineProviderJobCarriesCommonPlanAndResources(t *testing.T) {
 }
 
 func TestWorldlineProviderJobCarriesEnergyFactor(t *testing.T) {
-	job, err := worldlineProviderJob(&plan.Plan{Version: plan.Version}, Config{}, worldlineManifest{
+	job, err := worldlineProviderJob(&plan.Plan{Version: plan.Version}, base.Config{}, worldlineManifest{
 		Engine: "utautts-world-phrase", SampleRate: 44100,
 		Units: []worldlineManifestUnit{{Source: "voice.wav", EnergyFactor: .65, LegacyMix: true}},
 	}, "bridge.exe")
@@ -67,10 +67,10 @@ func TestLegacyJapaneseContinuousMixOnlyUsesOrdinaryJapanesePlans(t *testing.T) 
 	}
 }
 
-func TestWorldSpeechJobAndExportReport(t *testing.T) {
+func TestWorldSpeechJobCarriesSpeechRequirement(t *testing.T) {
 	speech := &provider.WorldSpeechTiming{UnitIndex: 0, SourceOnsetMS: 60, TargetOnsetMS: 40, ProtectStop: true}
 	p := &plan.Plan{Units: []plan.Unit{{DurationMS: 120}}}
-	job, err := worldlineProviderJob(p, Config{}, worldlineManifest{Engine: "utautts-world-phrase", Units: []worldlineManifestUnit{{Speech: speech}}}, "bridge.exe")
+	job, err := worldlineProviderJob(p, base.Config{}, worldlineManifest{Engine: "utautts-world-phrase", Units: []worldlineManifestUnit{{Speech: speech}}}, "bridge.exe")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,21 +85,8 @@ func TestWorldSpeechJobAndExportReport(t *testing.T) {
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
-	decoded, err := worldline.ReadBridgeJob(path)
+	decoded, err := ReadBridgeJob(path)
 	if err != nil || !decoded.Speech {
 		t.Fatal("missing speech requirement", decoded, err)
-	}
-	working := plan.Clone(p)
-	working.Units[0].SpeechRetimeApplied = true
-	working.Units[0].SpeechJoinApplied = true
-	working.Units[0].EffectiveConsonantMS = 80
-	report := reportFromPlan("utautts-world-phrase", working)
-	exported := plan.Clone(p)
-	report.ApplyTo(exported)
-	if p.Units[0].SpeechRetimeApplied || p.Units[0].SpeechJoinApplied {
-		t.Fatal("canonical plan mutated")
-	}
-	if !exported.Units[0].SpeechRetimeApplied || !exported.Units[0].SpeechJoinApplied || exported.Units[0].EffectiveConsonantMS != 80 {
-		t.Fatal("lost applied diagnostics")
 	}
 }

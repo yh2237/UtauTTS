@@ -25,15 +25,6 @@ const (
 	singleCVBoundaryDeltaRMSRatio  = 1.04
 )
 
-type renderedUnit struct {
-	index        int
-	unit         plan.Unit
-	timing       effectiveTiming
-	wave         []float64
-	startFrame   int
-	fadeInFrames int
-}
-
 type transitionMeasure struct {
 	peak     float64
 	deltaRMS float64
@@ -71,10 +62,10 @@ func applyBoundaryBridges(mix, mixWeights []float64, rendered []renderedUnit, sy
 		if automaticSpeech && !speechVowelJoin(synthesisPlan, previous, current) {
 			continue
 		}
-		if previous.index+1 != current.index || previous.unit.Role == "transition" || current.unit.Role == "transition" || previous.unit.Position+1 != current.unit.Position {
+		if previous.Index+1 != current.Index || previous.Unit.Role == "transition" || current.Unit.Role == "transition" || previous.Unit.Position+1 != current.Unit.Position {
 			continue
 		}
-		features := extractor.Pair(asOtoEntry(previous.unit), asOtoEntry(current.unit))
+		features := extractor.Pair(asOtoEntry(previous.Unit), asOtoEntry(current.Unit))
 		if !features.PreviousOutgoing.Valid || !features.CurrentIncoming.Valid {
 			continue
 		}
@@ -97,21 +88,21 @@ func applyBoundaryBridges(mix, mixWeights []float64, rendered []renderedUnit, sy
 				mixWeights[position] = 1
 			}
 			synthesisPlan.BoundaryBridges = append(synthesisPlan.BoundaryBridges, plan.BoundaryBridge{
-				UnitIndex:   current.index,
-				Position:    current.unit.Position,
+				UnitIndex:   current.Index,
+				Position:    current.Unit.Position,
 				StartMS:     framesToMS(choice.startFrame, sampleRate),
 				EndMS:       framesToMS(choice.endFrame, sampleRate),
 				DurationMS:  framesToMS(choice.endFrame-choice.startFrame, sampleRate),
 				LagMS:       framesToMS(choice.lagFrames, sampleRate),
 				JoinScore:   joinScore,
 				Correlation: choice.correlation,
-				Source:      previous.unit.Source,
+				Source:      previous.Unit.Source,
 				Kind:        selectedKind,
 			})
 		}
 		synthesisPlan.BoundaryRepairDecisions = append(synthesisPlan.BoundaryRepairDecisions, plan.BoundaryRepairDecision{
-			UnitIndex:        current.index,
-			Position:         current.unit.Position,
+			UnitIndex:        current.Index,
+			Position:         current.Unit.Position,
 			CandidateCount:   choice.candidateCount,
 			SelectedKind:     selectedKind,
 			Applied:          choice.applied,
@@ -138,11 +129,11 @@ func applySingleCVBoundaryBridges(mix, mixWeights []float64, rendered []rendered
 		if !singleCVBoundaryEligible(synthesisPlan, previous, current) {
 			continue
 		}
-		if singleCVProtectedOnset(synthesisPlan, current.unit) {
+		if singleCVProtectedOnset(synthesisPlan, current.Unit) {
 			// 破裂音と破擦音の閉鎖や破裂を残す
 			continue
 		}
-		profile := singleCVBoundaryProfileForOnset(singleCVOnset(synthesisPlan, current.unit))
+		profile := singleCVBoundaryProfileForOnset(singleCVOnset(synthesisPlan, current.Unit))
 		if maximumMS > 0 {
 			profile.widthMS = math.Min(profile.widthMS, maximumMS)
 		}
@@ -180,15 +171,15 @@ func applySingleCVBoundaryBridges(mix, mixWeights []float64, rendered []rendered
 			mix[start+frame] = candidateWindow[windowOffset+frame]
 			mixWeights[start+frame] = 1
 		}
-		synthesisPlan.Units[current.index].SpeechJoinApplied = true
+		synthesisPlan.Units[current.Index].SpeechJoinApplied = true
 		synthesisPlan.BoundaryBridges = append(synthesisPlan.BoundaryBridges, plan.BoundaryBridge{
-			UnitIndex: current.index, Position: current.unit.Position,
+			UnitIndex: current.Index, Position: current.Unit.Position,
 			StartMS: framesToMS(start, sampleRate), EndMS: framesToMS(end, sampleRate),
 			DurationMS: framesToMS(widthFrames, sampleRate), LagMS: framesToMS(lagFrames, sampleRate),
-			Correlation: correlation, Source: previous.unit.Source, Kind: "single-cv-vowel-tail",
+			Correlation: correlation, Source: previous.Unit.Source, Kind: "single-cv-vowel-tail",
 		})
 		synthesisPlan.BoundaryRepairDecisions = append(synthesisPlan.BoundaryRepairDecisions, plan.BoundaryRepairDecision{
-			UnitIndex: current.index, Position: current.unit.Position, CandidateCount: 1,
+			UnitIndex: current.Index, Position: current.Unit.Position, CandidateCount: 1,
 			SelectedKind: "single-cv-vowel-tail", Applied: true, DurationMS: framesToMS(widthFrames, sampleRate),
 			LagMS: framesToMS(lagFrames, sampleRate), Correlation: correlation,
 			BaselinePeak: baseline.peak, SelectedPeak: selected.peak,
@@ -215,11 +206,11 @@ func singleCVBoundaryProfileForOnset(onset string) singleCVBoundaryProfile {
 }
 
 func singleCVBoundaryWindow(current renderedUnit, widthMS float64, mixLength, sampleRate int) (int, int) {
-	if sampleRate <= 0 || mixLength <= 0 || current.fadeInFrames <= 0 {
+	if sampleRate <= 0 || mixLength <= 0 || current.FadeInFrames <= 0 {
 		return 0, 0
 	}
-	handoffStart := max(1, current.startFrame)
-	handoffEnd := min(mixLength, current.startFrame+current.fadeInFrames)
+	handoffStart := max(1, current.StartFrame)
+	handoffEnd := min(mixLength, current.StartFrame+current.FadeInFrames)
 	if handoffEnd <= handoffStart {
 		return 0, 0
 	}
@@ -257,8 +248,8 @@ func chooseBoundaryRepair(mix, mixWeights []float64, previous, current renderedU
 	if sampleRate <= 0 || len(mix) == 0 || len(mixWeights) != len(mix) {
 		return choice
 	}
-	handoffStart := max(1, current.startFrame)
-	handoffEnd := min(len(mix), current.startFrame+current.fadeInFrames)
+	handoffStart := max(1, current.StartFrame)
+	handoffEnd := min(len(mix), current.StartFrame+current.FadeInFrames)
 	if handoffEnd-handoffStart < msToFrames(minimumBoundaryBridgeMS, sampleRate) {
 		return choice
 	}
@@ -368,17 +359,17 @@ func boundaryBridgeWidths(maximumMS float64) []float64 {
 }
 
 func bestAlignedVowelSegment(unit renderedUnit, target []float64, frames, sampleRate int) ([]float64, int, float64) {
-	if frames <= 1 || len(target) != frames || len(unit.wave) < frames {
+	if frames <= 1 || len(target) != frames || len(unit.Wave) < frames {
 		return nil, 0, 0
 	}
-	vowelStart := msToFrames(unit.timing.consonantMS, sampleRate)
-	vowelEnd := msToFrames(unit.timing.preutteranceMS+unit.unit.DurationMS, sampleRate)
-	vowelStart = max(0, min(vowelStart, len(unit.wave)))
-	vowelEnd = max(vowelStart, min(vowelEnd, len(unit.wave)))
+	vowelStart := msToFrames(unit.Timing.ConsonantMS, sampleRate)
+	vowelEnd := msToFrames(unit.Timing.PreutteranceMS+unit.Unit.DurationMS, sampleRate)
+	vowelStart = max(0, min(vowelStart, len(unit.Wave)))
+	vowelEnd = max(vowelStart, min(vowelEnd, len(unit.Wave)))
 	nominalStart := vowelEnd - frames
 	searchFrames := msToFrames(boundaryBridgeSearchMS, sampleRate)
 	low := max(vowelStart, nominalStart-searchFrames)
-	high := min(len(unit.wave)-frames, nominalStart+searchFrames)
+	high := min(len(unit.Wave)-frames, nominalStart+searchFrames)
 	if low > high {
 		return nil, 0, 0
 	}
@@ -386,17 +377,17 @@ func bestAlignedVowelSegment(unit renderedUnit, target []float64, frames, sample
 	bestStart := low
 	bestCorrelation := math.Inf(-1)
 	for start := low; start <= high; start += step {
-		correlation := normalizedCorrelation(unit.wave[start:start+frames], target)
+		correlation := normalizedCorrelation(unit.Wave[start:start+frames], target)
 		if correlation > bestCorrelation {
 			bestStart = start
 			bestCorrelation = correlation
 		}
 	}
-	if correlation := normalizedCorrelation(unit.wave[high:high+frames], target); correlation > bestCorrelation {
+	if correlation := normalizedCorrelation(unit.Wave[high:high+frames], target); correlation > bestCorrelation {
 		bestStart = high
 		bestCorrelation = correlation
 	}
-	return append([]float64(nil), unit.wave[bestStart:bestStart+frames]...), bestStart - nominalStart, bestCorrelation
+	return append([]float64(nil), unit.Wave[bestStart:bestStart+frames]...), bestStart - nominalStart, bestCorrelation
 }
 
 func normalizedMix(mix, weights []float64, start, end int) []float64 {
@@ -515,11 +506,4 @@ func bridgeEnvelope(frame, total int) float64 {
 	}
 	progress := float64(frame) / float64(total-1)
 	return math.Min(1, 4*smoothstep(progress)*smoothstep(1-progress))
-}
-
-func framesToMS(frames, sampleRate int) float64 {
-	if sampleRate <= 0 {
-		return 0
-	}
-	return float64(frames) * 1000 / float64(sampleRate)
 }

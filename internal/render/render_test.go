@@ -7,7 +7,6 @@ import (
 	"math"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 
 	"utautts/internal/audio"
@@ -68,7 +67,7 @@ func TestRenderIsDeterministicAndUsesAbsolutePlacement(t *testing.T) {
 }
 
 func TestMinimumHandoffIsComplementaryWhenPreutteranceEqualsOverlap(t *testing.T) {
-	timings := []effectiveTiming{{}, {preutteranceMS: 8, overlapMS: 8}}
+	timings := []effectiveTiming{{}, {PreutteranceMS: 8, OverlapMS: 8}}
 	p := &plan.Plan{Units: []plan.Unit{{Position: 0}, {Position: 1, NoteStartMS: 100}}}
 	const sampleRate = 1000
 	start := 92
@@ -120,7 +119,7 @@ func TestRenderCVVCPlanWithTransitionUnit(t *testing.T) {
 }
 
 func TestFadeInDurationKeepsConfiguredLongCrossfade(t *testing.T) {
-	if got := fadeInDurationMS(effectiveTiming{preutteranceMS: 60, overlapMS: 20}); got != 40 {
+	if got := fadeInDurationMS(effectiveTiming{PreutteranceMS: 60, OverlapMS: 20}); got != 40 {
 		t.Fatalf("fade-in duration=%f, want 40", got)
 	}
 }
@@ -179,7 +178,7 @@ func TestOpenUtauEnvelopeUsesNextPhoneTailTiming(t *testing.T) {
 		{NoteStartMS: 100, DurationMS: 100, PreutteranceMS: 40, OverlapMS: 10},
 	}
 	timings, phraseStart := openUtauPhoneTimings(units, CVVCTimingSequential)
-	if timings[0].tailIntrude != 40 || timings[0].tailOverlap != 10 || !timings[1].overlapped || phraseStart != -30 {
+	if timings[0].TailIntrude != 40 || timings[0].TailOverlap != 10 || !timings[1].Overlapped || phraseStart != -30 {
 		t.Fatalf("timing = %+v %+v phraseStart=%.1f", timings[0], timings[1], phraseStart)
 	}
 	envelope := openUtauEnvelopeFromTiming(units[0], timings[0])
@@ -210,24 +209,17 @@ func TestOpenUtauSequentialCVVCTimingChainsTransitionAndMainPhone(t *testing.T) 
 		{Position: 1, Role: "mora", NoteStartMS: 100, DurationMS: 100, PreutteranceMS: 40, OverlapMS: 10},
 	}
 	timings, phraseStart := openUtauPhoneTimings(units, CVVCTimingSequential)
-	if timings[0].tailIntrude != 50 || timings[0].tailOverlap != 20 {
+	if timings[0].TailIntrude != 50 || timings[0].TailOverlap != 20 {
 		t.Fatalf("previous mora tail timing = %+v", timings[0])
 	}
-	if timings[1].tailIntrude != 20 || timings[1].tailOverlap != 5 {
+	if timings[1].TailIntrude != 20 || timings[1].TailOverlap != 5 {
 		t.Fatalf("transition tail timing = %+v", timings[1])
 	}
-	if timings[2].preutter != 20 || timings[2].overlap != 5 || !timings[2].overlapped {
+	if timings[2].Preutter != 20 || timings[2].Overlap != 5 || !timings[2].Overlapped {
 		t.Fatalf("main timing = %+v", timings[2])
 	}
 	if phraseStart != -30 {
 		t.Fatalf("phrase start = %.1f", phraseStart)
-	}
-}
-
-func TestWorldlineRejectsUnknownCVVCTimingBeforeResolvingAssets(t *testing.T) {
-	_, err := renderWorldlineEngine(&plan.Plan{Units: []plan.Unit{{Role: "mora"}}}, Config{CVVCTiming: "unknown"}, "utautts-world-phrase")
-	if err == nil || !strings.Contains(err.Error(), "unknown CVVC timing mode") {
-		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -236,7 +228,7 @@ func TestCVVCPreBoundaryEnvelopeEndsAtFollowingMoraBoundary(t *testing.T) {
 		{XMS: -80, Y: 0}, {XMS: -50, Y: 1}, {XMS: 0, Y: 1},
 		{XMS: 10, Y: 1}, {XMS: 30, Y: 0},
 	}
-	got := cvvcPreBoundaryEnvelope(points, openUtauPhoneTiming{tailOverlap: 20})
+	got := cvvcPreBoundaryEnvelope(points, openUtauPhoneTiming{TailOverlap: 20})
 	if got[2].XMS != -20 || got[3].XMS != -20 || got[4].XMS != 0 {
 		t.Fatalf("unexpected pre-boundary envelope: %+v", got)
 	}
@@ -445,54 +437,24 @@ func TestRenderAllowsSilentClosureUnit(t *testing.T) {
 	}
 }
 
-func TestWorldlineF0CurveInterpolatesInLogFrequency(t *testing.T) {
-	p := &plan.Plan{Units: []plan.Unit{{NoteStartMS: 0}, {NoteStartMS: 100}}}
-	curve := worldlineF0Curve(p, []float64{200, 400}, []float64{1, 1}, 220, 11)
-	if math.Abs(curve[0]-200) > 0.01 || math.Abs(curve[10]-400) > 0.01 {
-		t.Fatalf("curve endpoints = %.2f..%.2f", curve[0], curve[10])
-	}
-	if math.Abs(curve[5]-math.Sqrt(200*400)) > 0.1 {
-		t.Fatalf("log midpoint = %.2f", curve[5])
-	}
-}
-
-func TestWorldlineF0CurveOffsetIncludesPhraseLeading(t *testing.T) {
-	p := &plan.Plan{Units: []plan.Unit{{NoteStartMS: 0}, {NoteStartMS: 100}}}
-	curve := worldlineF0CurveAtOffset(p, []float64{200, 400}, []float64{1, 1}, 220, 13, 10, -20)
-	if math.Abs(curve[0]-200) > 0.01 || math.Abs(curve[2]-200) > 0.01 {
-		t.Fatalf("leading frames = %.2f, %.2f; want 200Hz", curve[0], curve[2])
-	}
-	if math.Abs(curve[12]-400) > 0.01 {
-		t.Fatalf("second unit at shifted frame = %.2f, want 400Hz", curve[12])
-	}
-}
-
-func TestWorldlineF0CurveAppliesLearnedPitchFactors(t *testing.T) {
-	p := &plan.Plan{Units: []plan.Unit{{NoteStartMS: 0}, {NoteStartMS: 100}}}
-	curve := worldlineF0Curve(p, []float64{200, 200}, []float64{1.03, 0.97}, 200, 11)
-	if math.Abs(curve[0]-206) > 0.01 || math.Abs(curve[10]-194) > 0.01 {
-		t.Fatalf("factored curve endpoints = %.2f..%.2f", curve[0], curve[10])
-	}
-}
-
 func TestNormalizeTimingCompressesLongVCVAndKeepsVowelTail(t *testing.T) {
 	unit := plan.Unit{DurationMS: 140, PreutteranceMS: 360, OverlapMS: 120, ConsonantMS: 439}
 	got := normalizeTiming(unit, 20)
-	if math.Abs(got.preutteranceMS-105) > 0.001 {
-		t.Fatalf("preutterance = %.3f, want 105", got.preutteranceMS)
+	if math.Abs(got.PreutteranceMS-105) > 0.001 {
+		t.Fatalf("preutterance = %.3f, want 105", got.PreutteranceMS)
 	}
-	if math.Abs(got.overlapMS-35) > 0.001 {
-		t.Fatalf("overlap = %.3f, want 35", got.overlapMS)
+	if math.Abs(got.OverlapMS-35) > 0.001 {
+		t.Fatalf("overlap = %.3f, want 35", got.OverlapMS)
 	}
-	if got.consonantMS >= got.preutteranceMS+unit.DurationMS+20-(20+49) {
-		t.Fatalf("consonant %.3f leaves no guaranteed vowel tail", got.consonantMS)
+	if got.ConsonantMS >= got.PreutteranceMS+unit.DurationMS+20-(20+49) {
+		t.Fatalf("consonant %.3f leaves no guaranteed vowel tail", got.ConsonantMS)
 	}
 }
 
 func TestNormalizeTimingLeavesOrdinaryBankAlone(t *testing.T) {
 	unit := plan.Unit{DurationMS: 140, PreutteranceMS: 60, OverlapMS: 20, ConsonantMS: 100}
 	got := normalizeTiming(unit, 20)
-	if got.preutteranceMS != 60 || got.overlapMS != 20 || got.consonantMS != 100 || got.scale != 1 {
+	if got.PreutteranceMS != 60 || got.OverlapMS != 20 || got.ConsonantMS != 100 || got.Scale != 1 {
 		t.Fatalf("ordinary timing changed: %#v", got)
 	}
 }
@@ -645,7 +607,7 @@ func TestAnalyzeIntonationMeasuresAndLimitsCorrection(t *testing.T) {
 	p := &plan.Plan{Units: []plan.Unit{
 		{Position: 0, Source: paths[0]}, {Position: 1, Source: paths[1]}, {Position: 2, Source: paths[2]},
 	}}
-	timings := []effectiveTiming{{scale: 1}, {scale: 1}, {scale: 1}}
+	timings := []effectiveTiming{{Scale: 1}, {Scale: 1}, {Scale: 1}}
 	factors := analyzeIntonation(p, timings, &sourceCache{}, 1)
 	if len(factors) != 3 {
 		t.Fatalf("factor count = %d", len(factors))
@@ -687,7 +649,7 @@ func TestAnalyzeIntonationSkipsCVVCTransitionInMoraContour(t *testing.T) {
 		t.Fatalf("transition received intonation: factor=%v unit=%#v", factors[1], p.Units[1])
 	}
 	if p.Units[2].SourceF0Hz == 0 || p.Units[2].TargetF0Hz == 0 || p.Units[3].TargetF0Hz == 0 {
-		t.Fatalf("mora contour omitted a main unit: %#v", p.Units)
+		t.Fatalf("mora contour omitted a main Unit: %#v", p.Units)
 	}
 }
 
@@ -699,11 +661,11 @@ func TestSourceCacheReusesMonoAndNormalizedAudio(t *testing.T) {
 	}
 
 	cache := sourceCache{}
-	first, err := cache.loadMono(path)
+	first, err := cache.LoadMono(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := cache.loadMono(path)
+	second, err := cache.LoadMono(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -714,15 +676,15 @@ func TestSourceCacheReusesMonoAndNormalizedAudio(t *testing.T) {
 		t.Fatalf("unexpected mono source: %#v", first)
 	}
 
-	native, err := cache.loadNormalized(path, 16000)
+	native, err := cache.LoadNormalized(path, 16000)
 	if err != nil {
 		t.Fatal(err)
 	}
-	resampled, err := cache.loadNormalized(path, 8000)
+	resampled, err := cache.LoadNormalized(path, 8000)
 	if err != nil {
 		t.Fatal(err)
 	}
-	resampledAgain, err := cache.loadNormalized(path, 8000)
+	resampledAgain, err := cache.LoadNormalized(path, 8000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -731,43 +693,6 @@ func TestSourceCacheReusesMonoAndNormalizedAudio(t *testing.T) {
 	}
 	if resampled.SampleRate != 8000 || len(resampled.Data) != len(first.Data)/2 {
 		t.Fatalf("unexpected resampled source: %#v", resampled)
-	}
-}
-
-func TestUnitPitchCacheIsReusedAndClearedWithWAVCache(t *testing.T) {
-	ClearWAVCache()
-	defer ClearWAVCache()
-	path := t.TempDir() + "/tone.wav"
-	data := make([]int16, 4000)
-	for index := range data {
-		data[index] = int16(6000 * math.Sin(2*math.Pi*220*float64(index)/16000))
-	}
-	if err := audio.WriteWav(path, &audio.PCM{SampleRate: 16000, Channels: 1, Data: data}); err != nil {
-		t.Fatal(err)
-	}
-	cache := newSourceCache()
-	mono, err := cache.loadMono(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	unit := plan.Unit{Source: path}
-	first, err := estimateUnitPitch(unit, mono)
-	if err != nil {
-		t.Fatal(err)
-	}
-	second, err := estimateUnitPitch(unit, mono)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if first != second || first <= 0 {
-		t.Fatalf("cached pitch = %.3f, first = %.3f", second, first)
-	}
-	if len(globalUnitPitchCache.entries) != 1 {
-		t.Fatalf("pitch cache entries = %d, want 1", len(globalUnitPitchCache.entries))
-	}
-	ClearWAVCache()
-	if len(globalUnitPitchCache.entries) != 0 {
-		t.Fatal("pitch cache was not cleared with the WAV cache")
 	}
 }
 
@@ -811,7 +736,7 @@ func TestAnalyzeIntonationAuditIncludesLearnedPitchFactor(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := &plan.Plan{Units: []plan.Unit{{Position: 0, Source: path, PitchFactor: 1.03}}}
-	factors := analyzeIntonation(p, []effectiveTiming{{scale: 1}}, &sourceCache{}, 1)
+	factors := analyzeIntonation(p, []effectiveTiming{{Scale: 1}}, &sourceCache{}, 1)
 	if math.Abs(p.Units[0].TargetF0Hz-p.Units[0].SourceF0Hz*factors[0]*1.03) > 0.1 {
 		t.Fatalf("target F0=%f source=%f", p.Units[0].TargetF0Hz, p.Units[0].SourceF0Hz)
 	}
@@ -945,14 +870,14 @@ func TestBridgeEnvelopeIsBoundedAndFadesAtEdges(t *testing.T) {
 
 func TestBestAlignedVowelSegmentFindsPhaseShift(t *testing.T) {
 	unit := renderedUnit{
-		unit:   plan.Unit{DurationMS: 80},
-		timing: effectiveTiming{preutteranceMS: 20, consonantMS: 40},
-		wave:   make([]float64, 120),
+		Unit:   plan.Unit{DurationMS: 80},
+		Timing: effectiveTiming{PreutteranceMS: 20, ConsonantMS: 40},
+		Wave:   make([]float64, 120),
 	}
-	for index := range unit.wave {
-		unit.wave[index] = math.Sin(0.013 * float64(index*index))
+	for index := range unit.Wave {
+		unit.Wave[index] = math.Sin(0.013 * float64(index*index))
 	}
-	target := append([]float64(nil), unit.wave[75:95]...)
+	target := append([]float64(nil), unit.Wave[75:95]...)
 	got, lag, correlation := bestAlignedVowelSegment(unit, target, 20, 1000)
 	if len(got) != 20 || lag != -5 || correlation < 0.999 {
 		t.Fatalf("aligned segment len=%d lag=%d correlation=%f", len(got), lag, correlation)
@@ -1042,9 +967,9 @@ func TestChooseBoundaryRepairKeepsNormalOrImprovesPeak(t *testing.T) {
 	// 境界のインパルスが減らなければ通常接続へ戻ることを確認する。
 	mix[110] += 0.8
 	previous := renderedUnit{
-		unit: plan.Unit{DurationMS: 80}, timing: effectiveTiming{preutteranceMS: 20}, wave: previousWave,
+		Unit: plan.Unit{DurationMS: 80}, Timing: effectiveTiming{PreutteranceMS: 20}, Wave: previousWave,
 	}
-	current := renderedUnit{startFrame: 100, fadeInFrames: 20}
+	current := renderedUnit{StartFrame: 100, FadeInFrames: 20}
 	choice := chooseBoundaryRepair(mix, weights, previous, current, 20, sampleRate)
 	if !choice.applied {
 		t.Fatal("clear transient did not select an improving repair")
@@ -1090,5 +1015,22 @@ func TestWaveformBoundaryBridgeIsOptionalAndAudited(t *testing.T) {
 	}
 	if decision.Applied && len(experiment.BoundaryBridges) != 1 {
 		t.Fatalf("applied decision has %d bridge records", len(experiment.BoundaryBridges))
+	}
+}
+
+func TestReportFromPlanExportsSpeechDiagnostics(t *testing.T) {
+	p := &plan.Plan{Units: []plan.Unit{{DurationMS: 120}}}
+	working := plan.Clone(p)
+	working.Units[0].SpeechRetimeApplied = true
+	working.Units[0].SpeechJoinApplied = true
+	working.Units[0].EffectiveConsonantMS = 80
+	report := reportFromPlan("utautts-world-phrase", working)
+	exported := plan.Clone(p)
+	report.ApplyTo(exported)
+	if p.Units[0].SpeechRetimeApplied || p.Units[0].SpeechJoinApplied {
+		t.Fatal("canonical plan mutated")
+	}
+	if !exported.Units[0].SpeechRetimeApplied || !exported.Units[0].SpeechJoinApplied || exported.Units[0].EffectiveConsonantMS != 80 {
+		t.Fatal("lost applied diagnostics")
 	}
 }

@@ -140,13 +140,6 @@ func definitionResources(definition engine.Definition) map[string]string {
 	return result
 }
 
-func providerPitchCurve(curve *PitchCurve) *provider.PitchCurve {
-	if curve == nil {
-		return nil
-	}
-	return &provider.PitchCurve{FrameMS: curve.FrameMS, Cents: append([]float64(nil), curve.Cents...)}
-}
-
 func ensureJobPath(directory, path string) error {
 	root, err := filepath.Abs(directory)
 	if err != nil {

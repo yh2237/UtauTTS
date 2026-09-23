@@ -1,9 +1,9 @@
-package render
+package base
 
 import "math"
 
-// wsolaStretchはWSOLAを共通のストレッチ関数型で呼び出す。
-func wsolaStretch(source []float64, targetFrames, sampleRate int) ([]float64, error) {
+// WSOLAStretchはWSOLAを共通のストレッチ関数型で呼び出す。
+func WSOLAStretch(source []float64, targetFrames, sampleRate int) ([]float64, error) {
 	return wsola(source, targetFrames, sampleRate), nil
 }
 
@@ -34,7 +34,8 @@ func StretchWSOLAAnchored(source []float64, targetFrames, sampleRate int, source
 	})
 }
 
-func retimeWithCompressedPrefixUsing(source []float64, targetFrames, sourcePrefixFrames, targetPrefixFrames, sampleRate int, stretch func([]float64, int, int) ([]float64, error)) ([]float64, error) {
+// RetimeWithCompressedPrefixUsingは先頭区間と残りを別々に伸縮して接合する。
+func RetimeWithCompressedPrefixUsing(source []float64, targetFrames, sourcePrefixFrames, targetPrefixFrames, sampleRate int, stretch func([]float64, int, int) ([]float64, error)) ([]float64, error) {
 	if targetFrames <= 0 || len(source) == 0 {
 		return nil, nil
 	}
@@ -81,6 +82,11 @@ func retimeWithCompressedPrefixUsing(source []float64, targetFrames, sourcePrefi
 	copy(result[targetPrefixFrames+crossfade:], tail[overlap:])
 	declickJoin(result, targetPrefixFrames, msToFrames(2, sampleRate))
 	return result, nil
+}
+
+// StretchPreservingPrefixUsingは先頭区間を保ったまま残りを伸縮する。
+func StretchPreservingPrefixUsing(source []float64, targetFrames, prefixFrames, sampleRate int, stretch func([]float64, int, int) ([]float64, error)) ([]float64, error) {
+	return stretchPreservingPrefixUsing(source, targetFrames, prefixFrames, sampleRate, stretch)
 }
 
 func stretchPreservingPrefixUsing(source []float64, targetFrames, prefixFrames, sampleRate int, stretch func([]float64, int, int) ([]float64, error)) ([]float64, error) {

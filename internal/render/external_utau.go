@@ -129,17 +129,17 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 		unit := &synthesisPlan.Units[index]
 		timings[index] = normalizePlanTiming(synthesisPlan, *unit, cfg.ReleaseMS)
 		if !unit.Silent {
-			timings[index].preutteranceMS = phoneTimings[index].preutter
-			timings[index].overlapMS = phoneTimings[index].overlap
+			timings[index].PreutteranceMS = phoneTimings[index].Preutter
+			timings[index].OverlapMS = phoneTimings[index].Overlap
 			if unit.Role != "mora" || !isVCVUnit(*unit) {
-				timings[index].consonantMS = unit.ConsonantMS
-				timings[index].scale = 1
+				timings[index].ConsonantMS = unit.ConsonantMS
+				timings[index].Scale = 1
 			}
 		}
-		unit.TimingScale = timings[index].scale
-		unit.EffectivePreutteranceMS = timings[index].preutteranceMS
-		unit.EffectiveConsonantMS = timings[index].consonantMS
-		unit.EffectiveOverlapMS = timings[index].overlapMS
+		unit.TimingScale = timings[index].Scale
+		unit.EffectivePreutteranceMS = timings[index].PreutteranceMS
+		unit.EffectiveConsonantMS = timings[index].ConsonantMS
+		unit.EffectiveOverlapMS = timings[index].OverlapMS
 		unit.IntonationFactor = 1
 	}
 	intonation := identityFactors(len(synthesisPlan.Units))
@@ -210,12 +210,12 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 		stretchRatio := math.Pow(2, 1-float64(expression.velocity)*0.01)
 		pitchLeadingMS := unit.PreutteranceMS * stretchRatio
 		if isVCVUnit(*unit) {
-			pitchLeadingMS = effectiveTiming.preutteranceMS * stretchRatio
+			pitchLeadingMS = effectiveTiming.PreutteranceMS * stretchRatio
 		}
-		skipOverMS := pitchLeadingMS - phoneTiming.preutter
+		skipOverMS := pitchLeadingMS - phoneTiming.Preutter
 		skipMS := math.Max(0, skipOverMS)
-		durationCorrection := phoneTiming.preutter - phoneTiming.tailIntrude + phoneTiming.tailOverlap
-		requiredMS := math.Max(unit.DurationMS+durationCorrection+skipOverMS, effectiveTiming.consonantMS)
+		durationCorrection := phoneTiming.Preutter - phoneTiming.TailIntrude + phoneTiming.TailOverlap
+		requiredMS := math.Max(unit.DurationMS+durationCorrection+skipOverMS, effectiveTiming.ConsonantMS)
 		requiredMS = math.Ceil(requiredMS/50+0.5) * 50
 		unitPitch := sourcePitches[index]
 		if unitPitch <= 0 {
@@ -247,7 +247,7 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 		arguments := (utauResamplerArguments{
 			input: unit.Source, output: outputPath, tone: tone,
 			velocity: expression.velocity, flags: expression.flags, offsetMS: unit.OffsetMS, requiredMS: requiredMS,
-			consonantMS: effectiveTiming.consonantMS, cutoffMS: unit.CutoffMS,
+			consonantMS: effectiveTiming.ConsonantMS, cutoffMS: unit.CutoffMS,
 			volume: volume, modulation: expression.modulation, tempo: expression.tempo, pitches: pitchValues,
 		}).commandLine()
 		ctx := cfg.Context
@@ -279,7 +279,7 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 			}
 			duration += formatUtauNumber(durationCorrection)
 			if err := runExternalWavtool(cfg.Context, classic.WavtoolPath, wavtoolOutput, outputPath,
-				skipOverMS, duration, envelopePoints, phoneTiming.overlap); err != nil {
+				skipOverMS, duration, envelopePoints, phoneTiming.Overlap); err != nil {
 				return nil, fmt.Errorf("wavtool unit %q: %w", unit.Alias, err)
 			}
 			continue
@@ -296,7 +296,7 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 			pcm = resampleRate(pcm, sampleRate)
 		}
 		segments = append(segments, externalUtauSegment{
-			positionMS: unit.NoteStartMS - phoneTiming.preutter + leadingMS,
+			positionMS: unit.NoteStartMS - phoneTiming.Preutter + leadingMS,
 			skipMS:     skipMS, wave: pcmFloats(pcm.Data), envelope: envelopePoints,
 		})
 	}

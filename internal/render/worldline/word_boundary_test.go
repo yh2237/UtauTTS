@@ -1,15 +1,17 @@
-package render
+package worldline
 
 import (
 	"reflect"
 	"testing"
+
 	"utautts/internal/frontend"
 	"utautts/internal/plan"
+	"utautts/internal/render/base"
 )
 
 func TestWordEnvelopePreservesSupportAndSkipsPauses(t *testing.T) {
 	p := &plan.Plan{Morae: []frontend.Mora{{WordIndex: 0}, {WordIndex: 1}, {WordIndex: 1}, {Pause: true}, {WordIndex: 2}}}
-	points := []worldlineEnvelopePoint{{-40, 0}, {-20, 1}, {0, 1}, {100, 1}, {140, 0}}
+	points := []base.WorldlineEnvelopePoint{{XMS: -40, Y: 0}, {XMS: -20, Y: 1}, {XMS: 0, Y: 1}, {XMS: 100, Y: 1}, {XMS: 140, Y: 0}}
 	got, mark := wordBoundaryEnvelope(p, plan.Unit{Position: 1, Role: "mora"}, points)
 	if mark == "" || got[1].XMS != -30 || got[3] != points[3] {
 		t.Fatal(got, mark)

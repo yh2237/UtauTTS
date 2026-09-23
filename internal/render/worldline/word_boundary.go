@@ -1,13 +1,15 @@
-package render
+package worldline
 
 import (
 	"fmt"
 	"math"
+
 	"utautts/internal/plan"
+	"utautts/internal/render/base"
 )
 
 // 原音範囲とF0を変えずフェード時間だけを調整する。
-func wordBoundaryEnvelope(p *plan.Plan, u plan.Unit, points []worldlineEnvelopePoint) ([]worldlineEnvelopePoint, string) {
+func wordBoundaryEnvelope(p *plan.Plan, u plan.Unit, points []base.WorldlineEnvelopePoint) ([]base.WorldlineEnvelopePoint, string) {
 	if len(points) != 5 || u.Position < 0 || u.Position >= len(p.Morae) {
 		return points, ""
 	}
@@ -29,7 +31,7 @@ func wordBoundaryEnvelope(p *plan.Plan, u plan.Unit, points []worldlineEnvelopeP
 	if !incoming && !outgoing {
 		return points, ""
 	}
-	r := append([]worldlineEnvelopePoint(nil), points...)
+	r := append([]base.WorldlineEnvelopePoint(nil), points...)
 	beforeIn, beforeOut := r[1].XMS-r[0].XMS, r[4].XMS-r[3].XMS
 	if incoming {
 		r[1].XMS = r[0].XMS + math.Min(beforeIn, math.Max(5, beforeIn*.5))
