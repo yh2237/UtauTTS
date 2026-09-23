@@ -72,9 +72,41 @@ func isVCVUnit(unit plan.Unit) bool {
 	return strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV")
 }
 
-// normalizeVCVTimingは長い録音のVCV境界を短いモーラへ収める。
-// fixedをそのまま使うと対象モーラの母音がほとんど残らないことがある。
+// brokenVCVTimingはoto.iniの位置が境界として成立しないVCVを判定する。
+func brokenVCVTiming(unit plan.Unit) bool {
+	if unit.PreutteranceMS < 0 || unit.ConsonantMS < 0 || unit.OverlapMS < 0 {
+		return true
+	}
+	if unit.OverlapMS > unit.PreutteranceMS || unit.ConsonantMS < unit.PreutteranceMS {
+		return true
+	}
+	if profile := unit.SpeechProfile; profile != nil && profile.Applied && profile.TrimmedLengthMS > 0 &&
+		unit.PreutteranceMS > profile.TrimmedLengthMS {
+		return true
+	}
+	return false
+}
+
+// preservedVCVTimingはoto.iniの位置をそのまま使う。
+func preservedVCVTiming(unit plan.Unit) effectiveTiming {
+	preutterance := math.Max(0, unit.PreutteranceMS)
+	overlap := math.Max(0, unit.OverlapMS)
+	if overlap > preutterance {
+		overlap = preutterance
+	}
+	return effectiveTiming{
+		preutteranceMS: preutterance,
+		consonantMS:    math.Max(0, unit.ConsonantMS),
+		overlapMS:      overlap,
+		scale:          1,
+	}
+}
+
+// normalizeVCVTimingは壊れたVCV境界だけを補正する。正常なoto.iniの位置はそのまま使う。
 func normalizeVCVTiming(unit plan.Unit, timing effectiveTiming, releaseMS float64) effectiveTiming {
+	if !brokenVCVTiming(unit) {
+		return preservedVCVTiming(unit)
+	}
 	duration := math.Max(1, unit.DurationMS)
 	releaseMS = math.Max(0, releaseMS)
 	rawPreutterance := math.Max(0, unit.PreutteranceMS)

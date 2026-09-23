@@ -33,7 +33,7 @@ func TestNormalizeSingleCVTimingProtectsOnsetAndVowelTail(t *testing.T) {
 	}
 }
 
-func TestNormalizeVCVTimingBoundsLongContextAndKeepsVowelTail(t *testing.T) {
+func TestNormalizeVCVTimingKeepsValidOTOAnchors(t *testing.T) {
 	unit := plan.Unit{
 		Role: "mora", AliasKind: "VCV", DurationMS: 140,
 		PreutteranceMS: 210, OverlapMS: 70, ConsonantMS: 360,
@@ -42,27 +42,38 @@ func TestNormalizeVCVTimingBoundsLongContextAndKeepsVowelTail(t *testing.T) {
 		},
 	}
 	got := normalizePlanTiming(&plan.Plan{}, unit, 20)
-	if got.preutteranceMS > 106 || got.preutteranceMS < 100 {
-		t.Fatalf("VCV preutterance = %.3f, want about 105", got.preutteranceMS)
+	if got.preutteranceMS != 210 || got.consonantMS != 360 || got.overlapMS != 70 || got.scale != 1 {
+		t.Fatalf("valid VCV anchors changed: %+v", got)
 	}
-	if got.consonantMS <= got.preutteranceMS {
-		t.Fatalf("VCV fixed did not retain a transition: %+v", got)
-	}
-	tail := got.preutteranceMS + unit.DurationMS + 20 - got.consonantMS
-	minimumTail := math.Max(vcvMinimumVowelTailMS, unit.DurationMS*vcvVowelTailRatio)
-	if tail < minimumTail-1e-9 {
-		t.Fatalf("VCV vowel tail = %.3f, want at least %.3f", tail, minimumTail)
-	}
-	if !got.cvApplied || got.scale >= 1 {
-		t.Fatalf("VCV timing was not audited and compressed: %+v", got)
+	if got.cvApplied {
+		t.Fatalf("valid VCV was reported as corrected: %+v", got)
 	}
 }
 
-func TestNormalizedPhoneTimingUnitsApplyVCVAnchors(t *testing.T) {
+func TestNormalizeVCVTimingRepairsBrokenBoundaries(t *testing.T) {
+	cases := []plan.Unit{
+		{Role: "mora", AliasKind: "VCV", DurationMS: 140, PreutteranceMS: 210, OverlapMS: 260, ConsonantMS: 360},
+		{Role: "mora", AliasKind: "VCV", DurationMS: 140, PreutteranceMS: 210, OverlapMS: 70, ConsonantMS: 120},
+		{Role: "mora", AliasKind: "VCV", DurationMS: 140, PreutteranceMS: -10, OverlapMS: 0, ConsonantMS: 360},
+		{Role: "mora", AliasKind: "VCV", DurationMS: 140, PreutteranceMS: 620, OverlapMS: 70, ConsonantMS: 700,
+			SpeechProfile: &voicebank.SpeechProfile{Applied: true, TrimmedLengthMS: 560}},
+	}
+	for _, unit := range cases {
+		got := normalizePlanTiming(&plan.Plan{}, unit, 20)
+		if !got.cvApplied {
+			t.Fatalf("broken VCV was not corrected: %+v", unit)
+		}
+		if got.overlapMS > got.preutteranceMS || got.consonantMS < got.preutteranceMS {
+			t.Fatalf("broken VCV was not repaired: %+v", got)
+		}
+	}
+}
+
+func TestNormalizedPhoneTimingUnitsKeepValidVCVAnchors(t *testing.T) {
 	p := &plan.Plan{Units: []plan.Unit{{Role: "mora", AliasKind: "VCV", DurationMS: 140,
 		PreutteranceMS: 210, OverlapMS: 70, ConsonantMS: 360}}}
 	units := normalizedPhoneTimingUnits(p, 20)
-	if len(units) != 1 || units[0].PreutteranceMS >= p.Units[0].PreutteranceMS || units[0].ConsonantMS >= p.Units[0].ConsonantMS {
+	if len(units) != 1 || units[0].PreutteranceMS != 210 || units[0].ConsonantMS != 360 {
 		t.Fatalf("normalized phone units = %+v", units)
 	}
 	if p.Units[0].PreutteranceMS != 210 || p.Units[0].ConsonantMS != 360 {
@@ -70,17 +81,19 @@ func TestNormalizedPhoneTimingUnitsApplyVCVAnchors(t *testing.T) {
 	}
 }
 
-func TestWorldlineVCVTimingKeepsOTOAnchorsUnlessSpeechTimingIsEnabled(t *testing.T) {
+func TestWorldlineVCVTimingKeepsValidOTOAnchors(t *testing.T) {
 	unit := plan.Unit{Role: "mora", AliasKind: "VCV", DurationMS: 140,
 		PreutteranceMS: 210, OverlapMS: 70, ConsonantMS: 360,
 		SpeechProfile: &voicebank.SpeechProfile{Applied: true, TrimmedLengthMS: 560, StableStartMS: 335}}
 	plain := worldlineTiming(&plan.Plan{}, unit, 20)
 	if plain.preutteranceMS != 210 || plain.consonantMS != 360 || plain.overlapMS != 70 {
-		t.Fatalf("WORLD default changed oto anchors: %+v", plain)
+		t.Fatalf("WORLD changed valid oto anchors: %+v", plain)
 	}
-	optIn := worldlineTiming(&plan.Plan{SpeechTiming: true}, unit, 20)
-	if optIn.preutteranceMS >= unit.PreutteranceMS || optIn.consonantMS >= unit.ConsonantMS || !optIn.cvApplied {
-		t.Fatalf("WORLD speech timing did not apply VCV normalization: %+v", optIn)
+	broken := unit
+	broken.OverlapMS = 400
+	got := worldlineTiming(&plan.Plan{}, broken, 20)
+	if !got.cvApplied || got.overlapMS > got.preutteranceMS {
+		t.Fatalf("WORLD did not repair a broken VCV boundary: %+v", got)
 	}
 }
 

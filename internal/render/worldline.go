@@ -540,7 +540,7 @@ func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit) bool {
 	return true
 }
 
-// VCVはoto.iniの境界を使い、発話タイミング補正を明示した場合だけ伸縮する。
+// VCVはoto.iniの境界を使い、壊れた境界だけを補正する。
 func worldlineTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64) effectiveTiming {
 	timing := normalizeTiming(unit, releaseMS)
 	if synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
@@ -549,19 +549,19 @@ func worldlineTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64
 	if synthesisPlan.SingleCV {
 		return normalizeSingleCVTiming(synthesisPlan, unit, timing, releaseMS)
 	}
-	if synthesisPlan.SpeechTiming && isVCVUnit(unit) {
+	if isVCVUnit(unit) {
 		return normalizeVCVTiming(unit, timing, releaseMS)
 	}
 	return timing
 }
 
-// bridgeへ渡す音素時間を作る。VCVの正規化はphrase rendererだけで行う。
+// bridgeへ渡す音素時間を作る。
 func worldlinePhoneTimingUnits(synthesisPlan *plan.Plan, releaseMS float64) []plan.Unit {
 	if synthesisPlan == nil {
 		return nil
 	}
 	needsCopy := synthesisPlan.SingleCV
-	if !needsCopy && synthesisPlan.SpeechTiming {
+	if !needsCopy {
 		for _, unit := range synthesisPlan.Units {
 			if isVCVUnit(unit) {
 				needsCopy = true
