@@ -62,3 +62,46 @@ func TestCodaReleasePreservesStopTransient(t *testing.T) {
 		t.Fatalf("anchors=%+v ok=%v", a, ok)
 	}
 }
+
+func TestCodaReleaseSeparateReleaseMapsTailOneToOne(t *testing.T) {
+	u := unit{SkipMS: 0, LengthMS: 100, Speech: &provider.WorldSpeechTiming{
+		SourceOnsetMS: 20, TargetOnsetMS: 20, CodaRelease: true, ProtectStop: true,
+		SeparateRelease: true, ReleaseMS: 20,
+	}}
+	a, ok := worldSpeechAnchors(u, 200)
+	if !ok || !a.separateRelease {
+		t.Fatalf("anchors=%+v ok=%v", a, ok)
+	}
+	if a.releaseStart != 80 || a.sourceReleaseStart != 180 {
+		t.Fatalf("releaseStart=%v sourceReleaseStart=%v", a.releaseStart, a.sourceReleaseStart)
+	}
+	// 末尾の解放区間は原音と1:1、手前の閉鎖/母音は伸縮される。
+	if a.sourceTime(80) != 180 || a.sourceTime(100) != 200 {
+		t.Fatalf("release mapping: %v %v", a.sourceTime(80), a.sourceTime(100))
+	}
+	if got, want := a.sourceTime(50), 20.0+(50-20)*(180-20)/60; math.Abs(got-want) > 1e-9 {
+		t.Fatalf("closure mapping: got %v want %v", got, want)
+	}
+	// 分離指定が無いときは従来の保護区間を使う。
+	plain := u
+	plain.Speech = &provider.WorldSpeechTiming{SourceOnsetMS: 20, TargetOnsetMS: 20, CodaRelease: true, ProtectStop: true}
+	b, ok := worldSpeechAnchors(plain, 200)
+	if !ok || b.separateRelease {
+		t.Fatalf("default coda mapping changed: %+v", b)
+	}
+}
+
+func TestCodaReleaseSeparateReleaseUsesMeasuredTransient(t *testing.T) {
+	u := unit{SkipMS: 0, LengthMS: 100, Speech: &provider.WorldSpeechTiming{
+		SourceOnsetMS: 20, TargetOnsetMS: 20, SourceTransientMS: 120, CodaRelease: true,
+		ProtectStop: true, SeparateRelease: true, ReleaseMS: 20,
+	}}
+	a, ok := worldSpeechAnchors(u, 200)
+	if !ok || !a.separateRelease || a.sourceReleaseStart != 116 {
+		t.Fatalf("anchors=%+v ok=%v", a, ok)
+	}
+	// 解放区間の直前から原音へ1:1で入る。
+	if got, want := a.sourceTime(a.releaseStart-5), a.sourceOnset+(a.releaseStart-5-a.targetOnset)*(116-a.sourceOnset)/(a.releaseStart-a.targetOnset); math.Abs(got-want) > 1e-9 {
+		t.Fatalf("closure mapping: got %v want %v", got, want)
+	}
+}

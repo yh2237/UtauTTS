@@ -38,6 +38,20 @@ func mixProtectedStopBursts(input manifest, prepared []preparedWorldUnit, wave [
 			continue
 		}
 		if item.Speech.CodaRelease {
+			if item.Speech.SeparateRelease && item.Speech.ReleaseMS > 0 {
+				// E2a: 解放は末尾の短い非伸縮区間に置き、原音の高域をそこへ加算する。
+				releaseMS := item.Speech.ReleaseMS
+				targetStart := item.PositionMS + item.LengthMS - releaseMS
+				sourceStart := worldSourceExactBaseMS(item.OffsetMS) + math.Max(0, prepared[index].cached.duration-releaseMS-6)
+				if item.Speech.SourceTransientMS > 0 {
+					// 測定した解放過渡を優先し、末尾の減衰へずれないようにする。
+					sourceStart = worldSourceExactBaseMS(item.OffsetMS) + item.Speech.SourceTransientMS - 8
+				}
+				preMS, postMS := releaseMS*0.25, releaseMS*0.75
+				result[item.Speech.UnitIndex] = mixProtectedStopBurst(wave, source, sourceStart,
+					targetStart, preMS, postMS, item.Volume*worldUnitEnergy(item))
+				continue
+			}
 			sourceStart := worldSourceFrameBaseMS(item.OffsetMS) + prepared[index].cached.duration - 22
 			targetEnd := item.PositionMS + item.LengthMS
 			preMS, postMS := 22.0, 4.0

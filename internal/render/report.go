@@ -67,6 +67,9 @@ type UnitRenderReport struct {
 	StretchAdapted          bool
 	StretchLimitReason      string
 	CodaBoundaryLimited     bool
+	CodaClosureMS           float64
+	CodaReleaseMS           float64
+	CodaReleaseSeparated    bool
 	BoundaryEnvelope        string
 	Index                   int
 	TimingScale             float64
@@ -173,6 +176,9 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 			StretchAdapted:          unit.StretchAdapted,
 			StretchLimitReason:      unit.StretchLimitReason,
 			CodaBoundaryLimited:     unit.CodaBoundaryLimited,
+			CodaClosureMS:           unit.CodaClosureMS,
+			CodaReleaseMS:           unit.CodaReleaseMS,
+			CodaReleaseSeparated:    unit.CodaReleaseSeparated,
 			BoundaryEnvelope:        unit.BoundaryEnvelope,
 			Index:                   index,
 			TimingScale:             unit.TimingScale,
@@ -223,6 +229,9 @@ func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 		unit.StretchAdapted = unitReport.StretchAdapted
 		unit.StretchLimitReason = unitReport.StretchLimitReason
 		unit.CodaBoundaryLimited = unitReport.CodaBoundaryLimited
+		unit.CodaClosureMS = unitReport.CodaClosureMS
+		unit.CodaReleaseMS = unitReport.CodaReleaseMS
+		unit.CodaReleaseSeparated = unitReport.CodaReleaseSeparated
 		unit.BoundaryEnvelope = unitReport.BoundaryEnvelope
 		unit.SpeechJoinApplied = unitReport.SpeechJoinApplied
 		unit.SpeechTransitionApplied = unitReport.SpeechTransitionApplied

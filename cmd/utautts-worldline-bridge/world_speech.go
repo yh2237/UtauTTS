@@ -8,7 +8,9 @@ import (
 
 type worldSpeechMap struct {
 	coda                                                                                bool
+	separateRelease                                                                     bool
 	sourceOnset, targetOnset, sourceFixed, targetFixed, sourceEnd, targetEnd, protected float64
+	releaseStart, sourceReleaseStart                                                    float64
 }
 
 func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
@@ -31,6 +33,29 @@ func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
 			a.targetFixed = a.targetEnd
 			if item.Speech.ProtectStop {
 				a.protected = math.Min(30, math.Min(a.sourceEnd-a.sourceOnset-4, a.targetEnd-a.targetOnset-4))
+			}
+			// E2a: 末尾の短い解放区間だけを原音と1:1で写し、閉鎖/母音は手前で伸縮する。
+			if item.Speech.SeparateRelease && item.Speech.ReleaseMS > 0 {
+				releaseMS := item.Speech.ReleaseMS
+				if maxLen := a.targetEnd - a.targetOnset - 4; releaseMS > maxLen {
+					releaseMS = maxLen
+				}
+				if releaseMS >= 4 && a.sourceEnd-releaseMS > a.sourceOnset {
+					sourceStart := a.sourceEnd - releaseMS
+					if item.Speech.SourceTransientMS > 0 {
+						// 測定した解放過渡を中心に、その前後を非伸縮で写す。
+						sourceStart = item.Speech.SourceTransientMS + shift - 4
+					}
+					if sourceStart < a.sourceOnset {
+						sourceStart = a.sourceOnset
+					}
+					if sourceStart > a.sourceEnd-releaseMS {
+						sourceStart = a.sourceEnd - releaseMS
+					}
+					a.separateRelease = true
+					a.releaseStart = a.targetEnd - releaseMS
+					a.sourceReleaseStart = sourceStart
+				}
 			}
 			return a, true
 		}
@@ -60,6 +85,22 @@ func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
 func (a worldSpeechMap) sourceTime(t float64) float64 {
 	t = math.Max(0, math.Min(a.targetEnd, t))
 	if a.coda {
+		if a.separateRelease {
+			if t < a.targetOnset {
+				if a.targetOnset <= 0 {
+					return 0
+				}
+				return t * a.sourceOnset / a.targetOnset
+			}
+			if t < a.releaseStart {
+				span := a.releaseStart - a.targetOnset
+				if span <= 0 {
+					return a.sourceOnset
+				}
+				return a.sourceOnset + (t-a.targetOnset)*(a.sourceReleaseStart-a.sourceOnset)/span
+			}
+			return math.Min(a.sourceEnd, a.sourceReleaseStart+(t-a.releaseStart))
+		}
 		if t < a.targetOnset {
 			return t * a.sourceOnset / a.targetOnset
 		}

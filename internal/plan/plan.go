@@ -163,6 +163,9 @@ type Unit struct {
 	CodaPhones                  []string                       `json:"coda_phones,omitempty"`
 	CodaFloorMS                 float64                        `json:"coda_floor_ms,omitempty"`
 	CodaBoundaryLimited         bool                           `json:"coda_boundary_limited,omitempty"`
+	CodaClosureMS               float64                        `json:"coda_closure_ms,omitempty"`
+	CodaReleaseMS               float64                        `json:"coda_release_ms,omitempty"`
+	CodaReleaseSeparated        bool                           `json:"coda_release_separated,omitempty"`
 	WorldRenderMode             string                         `json:"world_render_mode,omitempty"`
 	WorldRenderReason           string                         `json:"world_render_reason,omitempty"`
 	WorldGapRepairEligible      bool                           `json:"world_gap_repair_eligible,omitempty"`

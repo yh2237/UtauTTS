@@ -84,12 +84,14 @@ const CapabilityCodaReleaseV1 = "coda_release_v1"
 // WorldSpeechTimingは切り出し後の音源を基準とする位置を示す。
 type WorldSpeechTiming struct {
 	CodaRelease               bool    `json:"coda_release,omitempty"`
+	SeparateRelease           bool    `json:"separate_release,omitempty"`
 	PreserveStopOnly          bool    `json:"preserve_stop_only,omitempty"`
 	UnitIndex                 int     `json:"unit_index"`
 	SourceOnsetMS             float64 `json:"source_onset_ms"`
 	SourceTransientMS         float64 `json:"source_transient_ms,omitempty"`
 	SourceTransientDurationMS float64 `json:"source_transient_duration_ms,omitempty"`
 	TargetOnsetMS             float64 `json:"target_onset_ms"`
+	ReleaseMS                 float64 `json:"release_ms,omitempty"`
 	ProtectStop               bool    `json:"protect_stop,omitempty"`
 	VowelJoin                 bool    `json:"vowel_join,omitempty"`
 	TargetFixedMS             float64 `json:"target_fixed_ms,omitempty"`

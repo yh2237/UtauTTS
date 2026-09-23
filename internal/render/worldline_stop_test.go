@@ -47,6 +47,56 @@ func TestWorldlineStopProtectionKeepsJapaneseCVSupport(t *testing.T) {
 	}
 }
 
+func TestWorldlineStopProtectionE2BGeneralizesJapanesePlosives(t *testing.T) {
+	defer SetE2B(true)
+	p := &plan.Plan{
+		Language:   "ja",
+		Phonemizer: "ja-kana",
+		Morae:      []frontend.Mora{{Consonant: "k", Vowel: "a"}},
+	}
+	vcv := plan.Unit{Position: 0, Role: "mora", AliasKind: "VCV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}}
+	cv := plan.Unit{Position: 0, Role: "mora", AliasKind: "CV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .7}}
+	SetE2B(true)
+	if !worldlineStopProtection(p, vcv) || !worldlineStopProtection(p, cv) {
+		t.Fatal("E2b on should protect reliable Japanese VCV and CV")
+	}
+	// 信頼度が下限未満のVCVは保護しない。
+	vcv.SpeechProfile.TransientConfidence = .6
+	if worldlineStopProtection(p, vcv) {
+		t.Fatal("E2b must gate Japanese VCV on high confidence")
+	}
+	SetE2B(false)
+	if worldlineStopProtection(p, vcv) || worldlineStopProtection(p, cv) {
+		t.Fatal("E2b off must not protect Japanese plosives")
+	}
+}
+
+func TestE2BLegacyStopPreserveOnlyForReliableJapanese(t *testing.T) {
+	defer SetE2B(true)
+	p := &plan.Plan{
+		Language:   "ja",
+		Phonemizer: "ja-kana",
+		Morae:      []frontend.Mora{{Consonant: "k", Vowel: "a"}},
+	}
+	unit := plan.Unit{Position: 0, Role: "mora", AliasKind: "VCV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}}
+	SetE2B(true)
+	if !e2bLegacyStopPreserve(p, unit, true) {
+		t.Fatal("E2b should add a preserve-only burst in legacy Japanese mix")
+	}
+	if e2bLegacyStopPreserve(p, unit, false) {
+		t.Fatal("preserve-only burst is limited to legacy mix")
+	}
+	unit.SpeechProfile.TransientConfidence = .6
+	if e2bLegacyStopPreserve(p, unit, true) {
+		t.Fatal("unreliable transient must not be preserved")
+	}
+	SetE2B(false)
+	unit.SpeechProfile.TransientConfidence = .8
+	if e2bLegacyStopPreserve(p, unit, true) {
+		t.Fatal("E2b off must not add legacy burst")
+	}
+}
+
 func TestWorldlineStopProtectionProtectsEnglishCodaPlosive(t *testing.T) {
 	p := &plan.Plan{
 		Language:   "en",
