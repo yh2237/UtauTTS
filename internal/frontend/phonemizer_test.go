@@ -114,6 +114,66 @@ func TestParseEnglishVCCV(t *testing.T) {
 	}
 }
 
+func TestEnglishVowelInitialSyllableGeneratesVVTransition(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		parser    func(string, string, map[string]string) (string, []Mora, error)
+		reading   string
+		previous  string
+		next      []string
+		mainFirst string
+	}{
+		{"delta", ParseEnglishDelta, "M IY1 | AH0 T", "i", []string{"@", "V"}, "@"},
+		{"vccv", ParseEnglishVCCV, "M IY1 | AE1 T", "E", []string{"@"}, "@"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, units, err := tc.parser("", tc.reading, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(units) != 2 || units[1].Aliases.Main[0] != tc.mainFirst {
+				t.Fatalf("units=%#v", units)
+			}
+			transition := units[1].Aliases.Transition
+			// 母音始まりはVCではなくVV候補になる。
+			for _, next := range tc.next {
+				if !containsString(transition, tc.previous+" "+next) {
+					t.Fatalf("missing VV %q: %#v", tc.previous+" "+next, transition)
+				}
+				if !containsString(transition, tc.previous+next) {
+					t.Fatalf("missing compact VV %q: %#v", tc.previous+next, transition)
+				}
+			}
+		})
+	}
+}
+
+func TestEnglishOnsetSyllableKeepsVCTransition(t *testing.T) {
+	_, units, err := ParseEnglishDelta("", "M IY1 | T AE1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(units) != 2 {
+		t.Fatalf("units=%#v", units)
+	}
+	if got := units[1].Aliases.Transition; len(got) != 1 || got[0] != "i t" {
+		t.Fatalf("onset must keep VC transition: %#v", got)
+	}
+}
+
+func TestEnglishVowelTransitionPrefersDashThenFallback(t *testing.T) {
+	got := combineEnglishVowelTransitionAliases([]string{"i"}, []string{"@"}, " ")
+	want := []string{"i @-", "i@-", "i @", "i@"}
+	if len(got) != len(want) {
+		t.Fatalf("candidates=%#v", got)
+	}
+	for index, alias := range want {
+		if got[index] != alias {
+			t.Fatalf("dash release must lead then fall back: %#v", got)
+		}
+	}
+}
+
 func TestEnglishCVVCKeepsFinalConsonant(t *testing.T) {
 	_, delta, err := ParseEnglishDelta("", "K AE1 T", nil)
 	if err != nil || len(delta) != 1 || delta[0].Aliases.Endings[0][0] != "{ t-" {

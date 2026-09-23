@@ -156,7 +156,7 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 			phraseStart = false
 			var transitions []string
 			if syllableIndex == 0 || len(syllables[syllableIndex-1].coda) == 0 {
-				transitions = combineEnglishTransitionAliases(previousVowels, syllable.onset, symbols, separator)
+				transitions = combineEnglishTransitionAliases(previousVowels, syllable.onset, vowels, symbols, separator)
 			}
 			if len(syllable.onset) > 1 {
 				transitions = append(transitions, englishOnsetClusterAliases(syllable.onset, symbols, separator, atPhraseStart)...)
@@ -491,9 +491,14 @@ func englishOnsetClusterAliases(onset []string, symbols map[string][]string, sep
 	return uniqueStrings(result)
 }
 
-func combineEnglishTransitionAliases(previous []string, onset []string, symbols map[string][]string, separator string) []string {
-	if len(previous) == 0 || len(onset) == 0 {
+// combineEnglishTransitionAliasesは前音節の母音から遷移するalias候補を作る。
+// 子音始まりの音節はVC、母音始まりの音節はVVとして扱う。
+func combineEnglishTransitionAliases(previous []string, onset []string, vowels []string, symbols map[string][]string, separator string) []string {
+	if len(previous) == 0 {
 		return nil
+	}
+	if len(onset) == 0 {
+		return combineEnglishVowelTransitionAliases(previous, vowels, separator)
 	}
 	cluster := combineEnglishAliases(onset, []string{""}, symbols)
 	var result []string
@@ -503,6 +508,23 @@ func combineEnglishTransitionAliases(previous []string, onset []string, symbols 
 		}
 	}
 	return result
+}
+
+// combineEnglishVowelTransitionAliasesは母音連続のVV aliasを控えめに生成する。
+// 音源の在庫に合わせ、区切りあり・なしと解放マーカー付きを候補にする。
+func combineEnglishVowelTransitionAliases(previous, vowels []string, separator string) []string {
+	var result []string
+	for _, left := range previous {
+		for _, right := range vowels {
+			result = append(result,
+				left+separator+right+"-",
+				left+right+"-",
+				left+separator+right,
+				left+right,
+			)
+		}
+	}
+	return uniqueStrings(result)
 }
 
 func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (string, []Mora, error) {
