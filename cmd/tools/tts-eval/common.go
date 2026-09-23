@@ -29,6 +29,8 @@ type caseOptions struct {
 	speechTiming, applyPitch  bool
 	contextDuration           bool
 	contextDurationStrength   float64
+	boundaryTone              bool
+	boundaryToneStrength      float64
 	timeout                   time.Duration
 }
 
@@ -46,6 +48,9 @@ func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Re
 	contextDuration := o.contextDuration
 	cfg.ContextDuration = &contextDuration
 	cfg.ContextDurationStrength = o.contextDurationStrength
+	boundaryTone := o.boundaryTone
+	cfg.BoundaryTone = &boundaryTone
+	cfg.BoundaryToneStrength = o.boundaryToneStrength
 	resolved, err := tts.ApplyRenderer(&cfg, catalog, o.rendererID, o.bridge)
 	ctx, cancel := context.WithTimeout(context.Background(), o.timeout)
 	cfg.Context = ctx

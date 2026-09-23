@@ -48,6 +48,8 @@ func main() {
 		intonationStrength       float64
 		contextDuration          bool
 		contextDurationStrength  float64
+		boundaryTone             bool
+		boundaryToneStrength     float64
 		renderer                 string
 		resampler                string
 		wavtool                  string
@@ -105,6 +107,8 @@ func main() {
 	flag.Float64Var(&intonationStrength, "intonation-strength", synth.DefaultIntonationStrength, "source-pitch stabilization and phrase contour strength (0..4)")
 	flag.BoolVar(&contextDuration, "context-duration", synth.DefaultContextDuration, "context-aware Japanese mora duration (C1)")
 	flag.Float64Var(&contextDurationStrength, "context-duration-strength", synth.DefaultContextDurationStrength, "context-aware duration strength (0 uses the default 1.0)")
+	flag.BoolVar(&boundaryTone, "boundary-tone", synth.DefaultBoundaryTone, "Japanese phrase-final boundary tone (C2)")
+	flag.Float64Var(&boundaryToneStrength, "boundary-tone-strength", synth.DefaultBoundaryToneStrength, "boundary tone strength (0 uses the default 1.0)")
 	flag.StringVar(&renderer, "renderer", "", "renderer ID (default: highest configured priority)")
 	flag.StringVar(&resampler, "resampler", "", "Classic UTAU resampler ID from Resamplers")
 	flag.StringVar(&wavtool, "wavtool", "builtin", "Classic UTAU wavtool ID from Wavtools")
@@ -190,6 +194,8 @@ func main() {
 		IntonationStrength:      intonationStrength,
 		ContextDuration:         contextDuration,
 		ContextDurationStrength: contextDurationStrength,
+		BoundaryTone:            boundaryTone,
+		BoundaryToneStrength:    boundaryToneStrength,
 		BoundaryBridgeMS:        boundaryBridgeMS,
 		BoundaryBridgeThreshold: boundaryBridgeThreshold,
 		CVVCTiming:              cvvcTiming,

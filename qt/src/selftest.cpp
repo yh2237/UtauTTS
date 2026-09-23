@@ -306,6 +306,10 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                                QStringLiteral("context_duration"), false);
     backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
                                QStringLiteral("context_duration_strength"), 0.5);
+    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
+                               QStringLiteral("boundary_tone"), false);
+    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
+                               QStringLiteral("boundary_tone_strength"), 0.5);
     backend.setPreviewCacheFileCount(7);
     backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y");
     if (!require(backend.defaultMoraDuration() == 130 && backend.defaultPauseDuration() == 190
@@ -320,6 +324,10 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                                             QStringLiteral("context_duration"), true).toBool() == false
                  && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
                                             QStringLiteral("context_duration_strength"), 1.0).toDouble() == 0.5
+                 && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
+                                            QStringLiteral("boundary_tone"), true).toBool() == false
+                 && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
+                                            QStringLiteral("boundary_tone_strength"), 1.0).toDouble() == 0.5
                  && backend.undoShortcut() == QStringLiteral("Ctrl+Z"),
                  QStringLiteral("application settings failed")))
         return 1;

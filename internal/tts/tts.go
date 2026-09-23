@@ -29,6 +29,10 @@ type Config struct {
 	ContextDuration *bool
 	// ContextDurationStrengthは文脈連動の強度。0は既定1.0。
 	ContextDurationStrength float64
+	// BoundaryToneは日本語の句末境界音調(C2)を有効にする。nilは既定ON。
+	BoundaryTone *bool
+	// BoundaryToneStrengthは境界音調の強度。0は既定1.0。
+	BoundaryToneStrength    float64
 	Context                 context.Context
 	Engine                  engine.ResolvedEngine
 	VoicebankPath           string
@@ -474,6 +478,11 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if cfg.PitchCurve == nil && experimentalSpeechPitch(cfg) && applyPitch {
 		pitchCurve = speechPitchExperiment(language, morae, moraTimings(morae, synthesisPlan), synthesisPlan.DurationMS+cfg.ReleaseMS, cfg.Text, cfg.IntonationStrength)
 	}
+	// 日本語の自動輪郭だけに句末境界音調(C2)を加える。手動ピッチは後段でマージする。
+	if cfg.PitchCurve == nil && language == frontend.LanguageJapanese && boundaryToneEnabled(cfg) {
+		timings := moraTimings(morae, synthesisPlan)
+		pitchCurve = applyBoundaryTone(pitchCurve, finalPhraseEndMS(morae, timings), finalPhraseIsQuestion(cfg.Text), boundaryToneStrength(cfg))
+	}
 	automaticPitchCurve := pitchCurve
 	manualPitch := cfg.ManualPitch
 	if manualPitch == nil && cfg.ManualPitchPath != "" {
@@ -752,6 +761,7 @@ func validateConfig(cfg Config) error {
 		"release_ms":                cfg.ReleaseMS,
 		"intonation_strength":       cfg.IntonationStrength,
 		"context_duration_strength": cfg.ContextDurationStrength,
+		"boundary_tone_strength":    cfg.BoundaryToneStrength,
 		"boundary_bridge_ms":        cfg.BoundaryBridgeMS,
 		"boundary_bridge_threshold": cfg.BoundaryBridgeThreshold,
 	}

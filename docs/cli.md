@@ -87,6 +87,8 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--intonation-strength` | `2` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
 | `--context-duration` | `true` | 日本語モーラ長の文脈連動（C1）を有効にする |
 | `--context-duration-strength` | `1` | 文脈連動の強度（0〜2）。0は既定1.0として扱う |
+| `--boundary-tone` | `true` | 日本語の句末境界音調（C2）を有効にする |
+| `--boundary-tone-strength` | `1` | 境界音調の強度（0〜2）。0は既定1.0として扱う |
 | `--renderer <id>` | 既定Renderer | Renderer ID（省略時は設定された優先度が最大のもの。未知の明示IDはエラー） |
 | `--resampler <id>` | 自動選択 | Classic UTAUで使う`Resamplers/`からの相対ID |
 | `--wavtool <id>` | `builtin` | Classic UTAUで使う`Wavtools/`からの相対ID |

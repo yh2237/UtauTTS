@@ -135,6 +135,8 @@
     "settings.defaultIntonation": "억양",
     "settings.contextDuration": "문맥 기반 길이",
     "settings.contextDurationStrength": "강도",
+    "settings.boundaryTone": "문말 억양",
+    "settings.boundaryToneStrength": "강도",
     "settings.resamplerAuto": "자동",
     "settings.defaultDiffSingerSteps": "DiffSinger 확산 스텝",
     "settings.defaultDiffSingerExpr": "DiffSinger 표현력",

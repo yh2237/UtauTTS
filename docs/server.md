@@ -240,6 +240,8 @@ ID順にソートされた音源一覧です。
 | `speech_timing` | boolean | `false` | [発話タイミング補正](speech-quality-experiment.md)を有効にする |
 | `context_duration` | boolean | `true` | 日本語モーラ長の文脈連動（C1）を有効にする |
 | `context_duration_strength` | number | `1` | 文脈連動の強度（0〜2）。0は既定1.0として扱う |
+| `boundary_tone` | boolean | `true` | 日本語の句末境界音調（C2）を有効にする |
+| `boundary_tone_strength` | number | `1` | 境界音調の強度（0〜2）。0は既定1.0として扱う |
 | `manual_pitch` | object | なし | 手動ピッチ編集（[manual-pitch.md](manual-pitch.md) のJSON） |
 | `dictionary` | object[] | なし | ユーザー辞書。各項目は`surface`と`reading`を持つ |
 | `diffsinger_steps` | number | `0`（既定値） | DiffSingerの拡散ステップ数。0で既定値 |

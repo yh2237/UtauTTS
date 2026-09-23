@@ -92,6 +92,8 @@ type sweepRequest struct {
 	wordEnvelope                             bool
 	contextDuration                          bool
 	contextDurationStrength                  float64
+	boundaryTone                             bool
+	boundaryToneStrength                     float64
 	timeout                                  time.Duration
 }
 
@@ -191,6 +193,7 @@ func runSweep(req sweepRequest) error {
 				rendererID: ps.Renderer, mix: ps.Mix, gapRepair: ps.GapRepair,
 				speechTiming: ps.SpeechTiming, applyPitch: ps.ApplyPitch, timeout: req.timeout,
 				contextDuration: req.contextDuration, contextDurationStrength: req.contextDurationStrength,
+				boundaryTone: req.boundaryTone, boundaryToneStrength: req.boundaryToneStrength,
 			}, catalog)
 			row.ElapsedMS = elapsed
 			if callErr == nil {
