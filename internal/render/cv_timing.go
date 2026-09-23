@@ -22,6 +22,34 @@ const (
 	vcvVowelTailRatio             = 0.30
 )
 
+// onsetOverlapClassはoverlap調整のための子音クラスを返す。
+func onsetOverlapClass(onset string) string {
+	switch strings.ToLower(strings.TrimSpace(onset)) {
+	case "p", "b", "t", "d", "k", "g", "q", "py", "by", "ty", "dy", "ky", "gy",
+		"ch", "jh", "ts", "dz", "c", "j":
+		return "stop"
+	case "m", "n", "ny", "r", "l", "w", "y":
+		return "sonorant"
+	}
+	return ""
+}
+
+// onsetOverlapMSは子音クラスに応じてoverlapを調整する。
+// 破裂・破擦音は重ねを小さくし、鼻音・流音は前の母音を重ねる。
+func onsetOverlapMS(onset string, preutterance, overlap float64) float64 {
+	switch onsetOverlapClass(onset) {
+	case "stop":
+		if limit := preutterance * 0.1; overlap > limit {
+			overlap = limit
+		}
+	case "sonorant":
+		if target := preutterance * 0.5; overlap < target {
+			overlap = target
+		}
+	}
+	return math.Max(0, math.Min(overlap, preutterance))
+}
+
 func normalizePlanTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64) effectiveTiming {
 	timing := normalizeTiming(unit, releaseMS)
 	if synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
@@ -31,8 +59,9 @@ func normalizePlanTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS flo
 		return normalizeSingleCVTiming(synthesisPlan, unit, timing, releaseMS)
 	}
 	if strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV") {
-		return normalizeVCVTiming(unit, timing, releaseMS)
+		timing = normalizeVCVTiming(unit, timing, releaseMS)
 	}
+	timing.overlapMS = onsetOverlapMS(singleCVOnset(synthesisPlan, unit), timing.preutteranceMS, timing.overlapMS)
 	return timing
 }
 

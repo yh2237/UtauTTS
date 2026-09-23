@@ -550,8 +550,9 @@ func worldlineTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64
 		return normalizeSingleCVTiming(synthesisPlan, unit, timing, releaseMS)
 	}
 	if isVCVUnit(unit) {
-		return normalizeVCVTiming(unit, timing, releaseMS)
+		timing = normalizeVCVTiming(unit, timing, releaseMS)
 	}
+	timing.overlapMS = onsetOverlapMS(singleCVOnset(synthesisPlan, unit), timing.preutteranceMS, timing.overlapMS)
 	return timing
 }
 

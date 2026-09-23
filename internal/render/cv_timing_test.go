@@ -10,6 +10,27 @@ import (
 	"utautts/internal/voicebank"
 )
 
+func TestOnsetOverlapMSAdjustsByClass(t *testing.T) {
+	if got := onsetOverlapMS("k", 100, 60); got != 10 {
+		t.Fatalf("stop overlap = %.3f, want 10", got)
+	}
+	if got := onsetOverlapMS("m", 100, 10); got != 50 {
+		t.Fatalf("sonorant overlap = %.3f, want 50", got)
+	}
+	if got := onsetOverlapMS("s", 100, 30); got != 30 {
+		t.Fatalf("fricative overlap = %.3f, want 30", got)
+	}
+}
+
+func TestNormalizePlanTimingAppliesOnsetOverlap(t *testing.T) {
+	p := &plan.Plan{Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
+	unit := plan.Unit{Role: "mora", Position: 0, AliasKind: "CV", DurationMS: 140,
+		PreutteranceMS: 100, OverlapMS: 60, ConsonantMS: 120}
+	if got := normalizePlanTiming(p, unit, 20); got.overlapMS != 10 {
+		t.Fatalf("stop overlap = %.3f, want 10", got.overlapMS)
+	}
+}
+
 func TestNormalizeSingleCVTimingProtectsOnsetAndVowelTail(t *testing.T) {
 	p := &plan.Plan{SingleCV: true, Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
 	unit := plan.Unit{
