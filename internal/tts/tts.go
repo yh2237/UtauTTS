@@ -172,8 +172,34 @@ func Analyze(cfg Config) (*ProsodyPreview, error) {
 	}, nil
 }
 
+// resolveLanguagePhonemizerは言語とphonemizerを決める。優先順位は
+// 明示phonemizer > 音源の推定 > 言語既定。言語が明示されていても推定phonemizerが
+// その言語で有効なら採用し、無効なら言語既定へ戻す。
+func resolveLanguagePhonemizer(cfg Config) (string, string, error) {
+	if strings.TrimSpace(cfg.Phonemizer) != "" {
+		return frontend.ResolveLanguage(cfg.Language, cfg.Phonemizer)
+	}
+	bank := cfg.Voicebank
+	if bank == nil && strings.TrimSpace(cfg.VoicebankPath) != "" {
+		// 読込失敗時は推定を諦め、言語既定へ委ねる。
+		if loaded, err := loadVoicebankCached(cfg.VoicebankPath); err == nil {
+			bank = loaded
+		}
+	}
+	if bank != nil {
+		suggestedLanguage, suggestedPhonemizer := bank.SuggestedLanguage()
+		if strings.TrimSpace(cfg.Language) == "" {
+			return frontend.ResolveLanguage(suggestedLanguage, suggestedPhonemizer)
+		}
+		if language, phonemizer, err := frontend.ResolveLanguage(cfg.Language, suggestedPhonemizer); err == nil {
+			return language, phonemizer, nil
+		}
+	}
+	return frontend.ResolveLanguage(cfg.Language, "")
+}
+
 func resolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, error) {
-	language, phonemizer, err := frontend.ResolveLanguage(cfg.Language, cfg.Phonemizer)
+	language, phonemizer, err := resolveLanguagePhonemizer(cfg)
 	if err != nil {
 		return "", "", "", nil, err
 	}

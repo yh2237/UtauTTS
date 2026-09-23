@@ -218,23 +218,28 @@ func (s *Service) PredictProsodyContext(ctx context.Context, request Request) (*
 func (s *Service) AnalyzeContext(ctx context.Context, request Request) (*tts.ProsodyPreview, error) {
 	request = request.Normalized()
 	dictionary := DictionaryMap(request.Dictionary)
-	if request.Language == "en" && request.VoicebankID != "" && s.voicebanks != nil {
+	voicebankPath := request.VoicebankPath
+	if voicebankPath == "" && s.voicebanks != nil && request.VoicebankID != "" {
 		if path, ok := s.voicebanks.Resolve(request.VoicebankID); ok {
-			arpasing, _, err := voicebank.LoadARPAsingDictionary(path)
-			if err != nil {
-				return nil, err
-			}
-			for surface, reading := range arpasing {
-				if dictionary[surface] == "" {
-					dictionary[surface] = reading
-				}
+			voicebankPath = path
+		}
+	}
+	if request.Language == "en" && voicebankPath != "" {
+		arpasing, _, err := voicebank.LoadARPAsingDictionary(voicebankPath)
+		if err != nil {
+			return nil, err
+		}
+		for surface, reading := range arpasing {
+			if dictionary[surface] == "" {
+				dictionary[surface] = reading
 			}
 		}
 	}
 	return tts.Analyze(tts.Config{
 		Context: ctx, Text: request.Text, Reading: request.Reading,
 		Language: request.Language, Phonemizer: request.Phonemizer,
-		Dictionary: dictionary, OpenJTalkPath: s.openJTalkPath,
+		VoicebankPath: voicebankPath,
+		Dictionary:    dictionary, OpenJTalkPath: s.openJTalkPath,
 		OpenJTalkDictionaryPath: s.openJTalkDictionary,
 	})
 }
@@ -310,20 +315,21 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 			PitchMix: request.DiffSingerPitchMix, Expr: request.DiffSingerExpr,
 		},
 	}
+	voicebankPath := request.VoicebankPath
+	if voicebankPath == "" && s.voicebanks != nil && (requireVoicebank || request.VoicebankID != "") {
+		if path, ok := s.voicebanks.Resolve(request.VoicebankID); ok {
+			voicebankPath = path
+		}
+	}
 	if requireVoicebank {
-		voicebankPath := request.VoicebankPath
 		if voicebankPath == "" {
 			if s.voicebanks == nil {
 				return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: voicebank resolver is not configured", ErrUnavailable)
 			}
-			var ok bool
-			voicebankPath, ok = s.voicebanks.Resolve(request.VoicebankID)
-			if !ok {
-				return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: voicebank not found", ErrUnavailable)
-			}
+			return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: voicebank not found", ErrUnavailable)
 		}
-		cfg.VoicebankPath = voicebankPath
 	}
+	cfg.VoicebankPath = voicebankPath
 	resolvedEngine, err := s.ResolveRenderer(request.Renderer)
 	if err != nil {
 		return tts.Config{}, "", render.ProviderOptions{}, err

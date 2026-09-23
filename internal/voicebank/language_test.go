@@ -17,9 +17,13 @@ func testSuggestedLanguage(t *testing.T) {
 		aliases                    []string
 	}{
 		{"delta", "en", "en-delta", []string{"- h@", "h{", "@ l"}},
+		{"teto delta", "en", "en-delta", []string{"- hV", "- h@", "V l", "@ l", "h{", "- h{"}},
+		{"nui neo delta", "en", "en-delta", []string{"- h@", "@ l", "h{", "- h{"}},
 		{"vccv", "en", "en-vccv", []string{"-h@", "-b&"}},
+		{"nui vccv", "en", "en-vccv", []string{"-h@", "-hA", "-b&"}},
 		{"arpasing", "en", "en-arpasing", []string{"- hh", "hh ah"}},
 		{"cv", "en", "en-cv", []string{"- aa", "aa", "aa -"}},
+		{"veriacveng cv", "en", "en-cv", []string{"- aa", "- ah", "- ao", "aa -", "ah -", "ao -"}},
 		{"chinese", "zh", "zh-cvvc", []string{"- ni", "hao"}},
 		{"japanese", "ja", "ja-kana", []string{"- あ", "あ"}},
 	}
