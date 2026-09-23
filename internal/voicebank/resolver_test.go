@@ -2,6 +2,7 @@ package voicebank
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"path/filepath"
 	"testing"
@@ -646,5 +647,89 @@ func writeResolverTone(t *testing.T, path string, hz float64) {
 	}
 	if err := audio.WriteWav(path, &audio.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestPruneCandidatesKeepsAllWithinLimit(t *testing.T) {
+	candidates := []Selection{
+		{Alias: "first", TargetScore: 10, Entry: oto.Entry{Filename: "a.wav"}},
+		{Alias: "second", TargetScore: 20, Entry: oto.Entry{Filename: "b.wav"}},
+	}
+	got := pruneCandidates(candidates)
+	if len(got) != 2 || got[0].Alias != "first" || got[1].Alias != "second" {
+		t.Fatalf("prune changed candidates within limit: %#v", got)
+	}
+}
+
+func TestPruneCandidatesReservesDistinctSources(t *testing.T) {
+	candidates := make([]Selection, 0, maxCandidatesPerPosition+4)
+	for index := 0; index < maxCandidatesPerPosition+4; index++ {
+		candidates = append(candidates, Selection{Alias: "main", TargetScore: 114, Entry: oto.Entry{Filename: "main.wav"}})
+	}
+	for index := 0; index < 4; index++ {
+		candidates = append(candidates, Selection{Alias: "alt", TargetScore: 90, Entry: oto.Entry{Filename: fmt.Sprintf("alt-%d.wav", index)}})
+	}
+	got := pruneCandidates(candidates)
+	if len(got) != maxCandidatesPerPosition {
+		t.Fatalf("len=%d want %d", len(got), maxCandidatesPerPosition)
+	}
+	if localCandidateScore(got[0]) != 114 {
+		t.Fatalf("top local score not retained: %#v", got[0])
+	}
+	sources := map[string]bool{}
+	for _, candidate := range got {
+		sources[candidate.Entry.Filename] = true
+	}
+	if len(sources) < minDistinctSourceCandidates {
+		t.Fatalf("distinct sources=%d want >=%d", len(sources), minDistinctSourceCandidates)
+	}
+}
+
+func TestPruneCandidatesFillsToLimitWhenDiversityUnavailable(t *testing.T) {
+	candidates := make([]Selection, 0, maxCandidatesPerPosition+8)
+	for index := 0; index < maxCandidatesPerPosition+8; index++ {
+		candidates = append(candidates, Selection{Alias: "only", TargetScore: float64(100 - index), Entry: oto.Entry{Filename: "only.wav"}})
+	}
+	got := pruneCandidates(candidates)
+	if len(got) != maxCandidatesPerPosition {
+		t.Fatalf("len=%d want %d", len(got), maxCandidatesPerPosition)
+	}
+	for _, candidate := range got {
+		if candidate.Entry.Filename != "only.wav" {
+			t.Fatalf("unexpected source %q", candidate.Entry.Filename)
+		}
+	}
+}
+
+func TestResolvePrunesLargeCandidateSetWithSourceDiversity(t *testing.T) {
+	mainEntries := make([]oto.Entry, 0, 40)
+	for index := 0; index < 40; index++ {
+		mainEntries = append(mainEntries, oto.Entry{Alias: "- あ", Filename: "main.wav", Offset: 10, Fixed: 100, Preutterance: 60, Overlap: 20})
+	}
+	altEntries := make([]oto.Entry, 0, 6)
+	for index := 0; index < 6; index++ {
+		altEntries = append(altEntries, oto.Entry{Alias: "あ", Filename: fmt.Sprintf("alt-%d.wav", index), Offset: 10, Fixed: 100, Preutterance: 60, Overlap: 20})
+	}
+	bank := &Bank{Entries: map[string][]oto.Entry{"- あ": mainEntries, "あ": altEntries}}
+	morae, err := frontend.ParseKana("あ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	layers, err := bank.candidateLayers(morae, "C4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(layers) != 1 || len(layers[0]) != maxCandidatesPerPosition {
+		t.Fatalf("layer sizes=%v want one layer of %d", len(layers), maxCandidatesPerPosition)
+	}
+	sources := map[string]bool{}
+	for _, candidate := range layers[0] {
+		sources[candidate.Entry.Filename] = true
+	}
+	if len(sources) < minDistinctSourceCandidates {
+		t.Fatalf("distinct sources=%d want >=%d", len(sources), minDistinctSourceCandidates)
+	}
+	if layers[0][0].Entry.Filename != "main.wav" {
+		t.Fatalf("best candidate=%q want main.wav", layers[0][0].Entry.Filename)
 	}
 }

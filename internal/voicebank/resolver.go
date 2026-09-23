@@ -46,7 +46,12 @@ type CandidateRejection struct {
 	Reason string
 }
 
-const maxCandidatesPerPosition = 32
+const (
+	maxCandidatesPerPosition = 32
+	// 上限で切る際、同一ソースへの偏りを避けてViterbiの選択肢を残すため、
+	// ソースファイルが異なる候補を最低これだけ確保する。
+	minDistinctSourceCandidates = 4
+)
 
 type SpeechGap struct {
 	Position int      `json:"position"`
@@ -339,14 +344,7 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 		}
 		applyCompositePreferences(candidatesAtPosition, policy)
 		applyEnglishCandidatePreferences(candidatesAtPosition, previousLayer)
-		if len(candidatesAtPosition) > maxCandidatesPerPosition {
-			sort.SliceStable(candidatesAtPosition, func(i, j int) bool {
-				left := localCandidateScore(candidatesAtPosition[i])
-				right := localCandidateScore(candidatesAtPosition[j])
-				return left > right
-			})
-			candidatesAtPosition = candidatesAtPosition[:maxCandidatesPerPosition]
-		}
+		candidatesAtPosition = pruneCandidates(candidatesAtPosition)
 		for index := range candidatesAtPosition {
 			candidatesAtPosition[index].CandidateCount = len(candidatesAtPosition)
 			if candidatesAtPosition[index].Transition != nil {
@@ -404,6 +402,60 @@ func validatedCandidateScore(language string, candidateTier int, entry oto.Entry
 
 func localCandidateScore(candidate Selection) float64 {
 	return candidate.TargetScore + candidate.PreferenceScore
+}
+
+// pruneCandidatesは候補が上限を超えたときだけ切り詰める。
+// 局所スコア上位を基本にしつつ、ソースファイルが異なる候補を
+// minDistinctSourceCandidates件まで確保し、同一ソースへの偏りを防ぐ。
+// 上限以下では並び替えず、既存の選択を変えない。
+func pruneCandidates(candidates []Selection) []Selection {
+	if len(candidates) <= maxCandidatesPerPosition {
+		return candidates
+	}
+	ranked := make([]Selection, len(candidates))
+	copy(ranked, candidates)
+	sort.SliceStable(ranked, func(i, j int) bool {
+		return localCandidateScore(ranked[i]) > localCandidateScore(ranked[j])
+	})
+
+	limit := maxCandidatesPerPosition
+	reserve := min(minDistinctSourceCandidates, limit)
+	selected := make([]Selection, 0, limit)
+	chosen := make([]bool, len(ranked))
+
+	// 多様性の枠を残して局所スコア上位を採用する。
+	for index := 0; index < len(ranked) && len(selected) < limit-reserve; index++ {
+		selected = append(selected, ranked[index])
+		chosen[index] = true
+	}
+
+	// 未採用の候補から、まだ出ていないソースファイルのものをスコア順に補充する。
+	sources := make(map[string]bool, limit)
+	for _, candidate := range selected {
+		sources[candidate.Entry.Filename] = true
+	}
+	for index := 0; index < len(ranked) && len(selected) < limit; index++ {
+		if chosen[index] {
+			continue
+		}
+		filename := ranked[index].Entry.Filename
+		if filename == "" || sources[filename] {
+			continue
+		}
+		sources[filename] = true
+		selected = append(selected, ranked[index])
+		chosen[index] = true
+	}
+
+	// 多様性の枠が埋まらない分はスコア順で上限まで埋める。
+	for index := 0; index < len(ranked) && len(selected) < limit; index++ {
+		if chosen[index] {
+			continue
+		}
+		selected = append(selected, ranked[index])
+		chosen[index] = true
+	}
+	return selected
 }
 
 func hasUsableCandidateEntries(bank *Bank, candidates []aliasCandidate) bool {
