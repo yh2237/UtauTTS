@@ -1,4 +1,6 @@
-package tts
+// Package adapterはDiffSinger実装をprovider非依存のニューラル契約へ適合させる。
+// このパッケージはinternal/ttsをimportせず、低層のneural.Inputだけを入力に取る。
+package adapter
 
 import (
 	"fmt"
@@ -8,52 +10,42 @@ import (
 	"utautts/internal/diffsinger"
 	"utautts/internal/engine"
 	"utautts/internal/frontend"
+	"utautts/internal/neural"
 	"utautts/internal/openutau"
 	"utautts/internal/plan"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
 )
 
-// diffSingerNeuralSynthesizerはDiffSinger実装をニューラルprovider契約へ適合させる。
-type diffSingerNeuralSynthesizer struct{}
+// SynthesizerはDiffSinger実装をニューラルprovider契約へ適合させる。
+type Synthesizer struct{}
 
-func (diffSingerNeuralSynthesizer) ProviderID() engine.ProviderID { return diffsinger.ProviderID }
-
-func (diffSingerNeuralSynthesizer) Synthesize(cfg Config) (*Result, error) {
-	return synthesizeDiffSinger(cfg)
-}
+func (Synthesizer) ProviderID() engine.ProviderID { return diffsinger.ProviderID }
 
 // DiffSinger実装はprovider IDでレジストリへ登録し、tts側にprovider名の分岐を持たせない。
 func init() {
-	RegisterNeuralSynthesizer(diffsinger.ProviderID, func() NeuralSynthesizer {
-		return diffSingerNeuralSynthesizer{}
+	neural.Register(diffsinger.ProviderID, func() neural.Synthesizer {
+		return Synthesizer{}
 	})
 }
 
-func synthesizeDiffSinger(cfg Config) (*Result, error) {
-	singer, err := diffsinger.Load(cfg.VoicebankPath)
+func (Synthesizer) Synthesize(in neural.Input) (*neural.Output, error) {
+	singer, err := diffsinger.Load(in.VoicebankPath)
 	if err != nil {
 		return nil, fmt.Errorf("load DiffSinger singer: %w", err)
 	}
-	language, phonemizer, reading, morae, err := resolvePronunciation(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("phonemize DiffSinger input: %w", err)
-	}
-	if language != frontend.LanguageJapanese {
+	if in.Language != frontend.LanguageJapanese {
 		return nil, fmt.Errorf("DiffSinger MVP currently supports Japanese input only")
 	}
-	japaneseSpeechPhones(morae)
-	cfg, preview, err := prepareDiffSingerProsody(cfg, reading, morae, singer.FrameMS())
-	if err != nil {
-		return nil, err
-	}
-	durations := preview.MoraDurationsMS
-	phoneWeights := languagePhoneWeights(language, morae)
-	phones, phoneDurations, phoneCounts, err := diffsingerPhones(singer, morae, durations, phoneWeights)
-	if err != nil {
-		return nil, err
-	}
+	morae := in.Morae
+	durations := in.MoraDurationsMS
 	frameMS := singer.FrameMS()
+	// 先頭パディングはプロソディモデルの入力に含めない。provider側で曲線をずらす。
+	curve := shiftPitchCurve(in.PitchCurve, frameMS, totalDurationMS(durations))
+	phones, phoneDurations, phoneCounts, err := diffsingerPhones(singer, morae, durations, in.PhoneWeights)
+	if err != nil {
+		return nil, err
+	}
 	phoneDurations = append([]float64{diffsinger.HeadFrames * frameMS}, phoneDurations...)
 	phoneDurations = append(phoneDurations, diffsinger.TailFrames*frameMS)
 	frames := durationsMSToFrames(phoneDurations, frameMS)
@@ -62,99 +54,73 @@ func synthesizeDiffSinger(cfg Config) (*Result, error) {
 	for _, duration := range frames {
 		totalFrames += int(duration)
 	}
-	f0, err := diffsingerF0(cfg, totalFrames, frameMS)
+	f0, err := diffsingerF0(in.Tone, curve, totalFrames, frameMS)
 	if err != nil {
 		return nil, err
 	}
-	midi, err := diffsingerMIDI(cfg.Tone)
+	midi, err := diffsingerMIDI(in.Tone)
 	if err != nil {
 		return nil, err
 	}
-	wordDiv, noteRest := diffsingerWordGroups(morae, phoneCounts, preview.Features)
+	wordDiv, noteRest := diffsingerWordGroups(morae, phoneCounts, in.Features)
 	wordDur := groupedFrameDurations(frames, wordDiv)
-	automaticPitch := cfg.PitchCurve != nil && cfg.ManualPitch == nil && cfg.ManualPitchPath == ""
+	automaticPitch := in.AutomaticPitch
 	noteMIDI, phMIDI := diffsingerMIDICurves(f0, wordDur, frames, midi)
 	score := engine.NeuralScore{
 		Symbols: symbols, Durations: frames, F0: f0, MIDI: midi,
 		NoteMIDI: noteMIDI, PhMIDI: phMIDI,
 		WordDiv: wordDiv, WordDur: wordDur, NoteRest: noteRest,
-		Steps: cfg.ProviderOptions.DiffSinger.Steps, DurationPredictorMix: float32(cfg.ProviderOptions.DiffSinger.DurationMix),
-		Expr:              float32(cfg.ProviderOptions.DiffSinger.Expr),
-		UsePitchPredictor: singer.Pitch != nil && (cfg.PitchCurve == nil || automaticPitch),
+		Steps: in.ProviderOptions.DiffSinger.Steps, DurationPredictorMix: float32(in.ProviderOptions.DiffSinger.DurationMix),
+		Expr:              float32(in.ProviderOptions.DiffSinger.Expr),
+		UsePitchPredictor: singer.Pitch != nil && (in.PitchCurve == nil || automaticPitch),
 	}
-	if cfg.ProviderOptions.DiffSinger.PitchMix > 0 {
-		score.PitchPredictorMix = float32(cfg.ProviderOptions.DiffSinger.PitchMix)
+	if in.ProviderOptions.DiffSinger.PitchMix > 0 {
+		score.PitchPredictorMix = float32(in.ProviderOptions.DiffSinger.PitchMix)
 	} else if automaticPitch && singer.Pitch != nil {
 		// 話声用の輪郭を基準に、音源側の滑らかな微小変化だけを混ぜる。
 		score.PitchPredictorMix = .10
 	}
-	bridgePath := cfg.Engine.Resource(engine.ResourceDiffSingerBridge)
+	bridgePath := in.Engine.Resource(engine.ResourceDiffSingerBridge)
 	if bridgePath == "" {
 		return nil, fmt.Errorf("DiffSinger bridge is not configured by the renderer plugin")
 	}
-	pcm, err := diffsinger.RenderScore(cfg.Context, bridgePath, singer, score)
+	pcm, err := diffsinger.RenderScore(in.Context, bridgePath, singer, score)
 	if err != nil {
 		return nil, err
 	}
-	synthesisPlan := diffsingerPlan(cfg, reading, language, phonemizer, morae, durations, phones, phoneDurations[1:len(phoneDurations)-1], phoneCounts, singer.FrameMS())
+	synthesisPlan := diffsingerPlan(in, morae, durations, phones, phoneDurations[1:len(phoneDurations)-1], phoneCounts, frameMS)
 	positions := make([]float64, len(durations))
 	pitchPoints := make([]float64, len(durations))
 	cursor := synthesisPlan.LeadingMarginMS
 	for index, duration := range durations {
 		positions[index] = cursor + duration/2
 		if !morae[index].Pause {
-			pitchPoints[index] = preview.PitchPoints[index]
+			pitchPoints[index] = in.PitchPoints[index]
 		}
 		cursor += duration
 	}
-	return &Result{Plan: synthesisPlan, Audio: pcm, MoraDurationsMS: durations, MoraPositionsMS: positions, PitchPoints: pitchPoints}, nil
+	return &neural.Output{Plan: synthesisPlan, Audio: pcm, MoraDurationsMS: durations, MoraPositionsMS: positions, PitchPoints: pitchPoints}, nil
 }
 
-// 先頭パディングはプロソディモデルの入力に含めない。
-func prepareDiffSingerProsody(cfg Config, reading string, morae []frontend.Mora, frameMS float64) (Config, *ProsodyPreview, error) {
-	preview, err := PredictProsody(cfg)
-	if err != nil {
-		return cfg, nil, fmt.Errorf("predict DiffSinger speech prosody: %w", err)
+func totalDurationMS(durations []float64) float64 {
+	total := 0.0
+	for _, duration := range durations {
+		total += duration
 	}
-	curve := cfg.PitchCurve
+	return total
+}
+
+// shiftPitchCurveは先頭パディングぶん曲線を後ろへずらし、フレーム長を音源に合わせる。
+func shiftPitchCurve(curve *render.PitchCurve, frameMS, durationMS float64) *render.PitchCurve {
 	if curve == nil {
-		curve = preview.FramePitchCurve
+		return nil
 	}
-	timings := make([]prosody.MoraTiming, len(morae))
-	cursor := 0.0
-	for i, duration := range preview.MoraDurationsMS {
-		timings[i] = prosody.MoraTiming{StartMS: cursor, DurationMS: duration}
-		cursor += duration
+	padding := diffsinger.HeadFrames * frameMS
+	shifted := &render.PitchCurve{FrameMS: frameMS, Cents: make([]float64, int(math.Ceil((durationMS+padding+diffsinger.TailFrames*frameMS)/frameMS))+1)}
+	for i := range shifted.Cents {
+		shifted.Cents[i] = curve.CentsAt(math.Max(0, float64(i)*frameMS-padding))
 	}
-	manual := cfg.ManualPitch
-	if manual == nil && cfg.ManualPitchPath != "" {
-		manual, err = prosody.LoadManualPitch(cfg.ManualPitchPath)
-		if err != nil {
-			return cfg, nil, err
-		}
-	}
-	if manual != nil {
-		if err := manual.Validate(); err != nil {
-			return cfg, nil, err
-		}
-		if manual.Reading != "" && manual.Reading != reading {
-			return cfg, nil, fmt.Errorf("manual pitch reading does not match synthesis reading")
-		}
-		contour, err := manual.Curve(morae, timings, cursor)
-		if err != nil {
-			return cfg, nil, err
-		}
-		curve = render.ConstrainPitchCurve(mergeManualPitchCurve(curve, contour, manual.Mode), 20, 8)
-	}
-	if curve != nil {
-		padding := diffsinger.HeadFrames * frameMS
-		shifted := &render.PitchCurve{FrameMS: frameMS, Cents: make([]float64, int(math.Ceil((cursor+padding+diffsinger.TailFrames*frameMS)/frameMS))+1)}
-		for i := range shifted.Cents {
-			shifted.Cents[i] = pitchCurveCentsAt(curve, math.Max(0, float64(i)*frameMS-padding))
-		}
-		cfg.PitchCurve = shifted
-	}
-	return cfg, preview, nil
+	return shifted
 }
 
 func diffsingerPhones(singer *diffsinger.Singer, morae []frontend.Mora, durations []float64, weights [][]float64) ([]string, []float64, []int64, error) {
@@ -253,6 +219,24 @@ func phoneWeightsAt(weights [][]float64, index int) []float64 {
 		return weights[index]
 	}
 	return nil
+}
+
+// phoneSpansFromWeightsは重みの比率でモーラ長を音素へ配分する。
+func phoneSpansFromWeights(weights []float64, duration float64) []float64 {
+	result := make([]float64, len(weights))
+	total := 0.0
+	for _, weight := range weights {
+		if weight > 0 && !math.IsNaN(weight) && !math.IsInf(weight, 0) {
+			total += weight
+		}
+	}
+	if total <= 0 {
+		return result
+	}
+	for i, weight := range weights {
+		result[i] = duration * weight / total
+	}
+	return result
 }
 
 func diffsingerConsonantDuration(consonant string, durationMS float64) float64 {
@@ -363,8 +347,8 @@ func durationsMSToFrames(durations []float64, frameMS float64) []int64 {
 	return result
 }
 
-func diffsingerF0(cfg Config, frames int, frameMS float64) ([]float32, error) {
-	midi, err := diffsingerMIDI(cfg.Tone)
+func diffsingerF0(tone string, curve *render.PitchCurve, frames int, frameMS float64) ([]float32, error) {
+	midi, err := diffsingerMIDI(tone)
 	if err != nil {
 		return nil, err
 	}
@@ -372,8 +356,8 @@ func diffsingerF0(cfg Config, frames int, frameMS float64) ([]float32, error) {
 	result := make([]float32, frames)
 	for frame := range result {
 		cents := 0.0
-		if cfg.PitchCurve != nil {
-			cents = pitchCurveCentsAt(cfg.PitchCurve, float64(frame)*frameMS)
+		if curve != nil {
+			cents = curve.CentsAt(float64(frame) * frameMS)
 		}
 		result[frame] = float32(base * math.Pow(2, cents/1200))
 	}
@@ -438,10 +422,10 @@ func midiGroupAverages(values []float64, counts []int64, fallback float64) []flo
 	return result
 }
 
-func diffsingerPlan(cfg Config, reading, language, phonemizer string, morae []frontend.Mora, durations []float64, phones []string, phoneDurations []float64, phoneCounts []int64, frameMS float64) *plan.Plan {
+func diffsingerPlan(in neural.Input, morae []frontend.Mora, durations []float64, phones []string, phoneDurations []float64, phoneCounts []int64, frameMS float64) *plan.Plan {
 	result := &plan.Plan{
-		Version: plan.Version, Voicebank: cfg.VoicebankPath, Text: cfg.Text, Reading: reading,
-		Language: language, Phonemizer: phonemizer, Tone: cfg.Tone,
+		Version: plan.Version, Voicebank: in.VoicebankPath, Text: in.Text, Reading: in.Reading,
+		Language: in.Language, Phonemizer: in.Phonemizer, Tone: in.Tone,
 		SelectionMode: "neural", AliasPolicy: "neural", JoinCostMode: "none",
 		LeadingMarginMS: diffsinger.HeadFrames * frameMS, Morae: append([]frontend.Mora(nil), morae...),
 		PhoneTimingSource: "language-phone-v1",

@@ -752,16 +752,7 @@ func mergeManualPitchCurve(base *render.PitchCurve, manual *prosody.PitchContour
 }
 
 func pitchCurveCentsAt(curve *render.PitchCurve, timeMS float64) float64 {
-	if curve == nil || curve.FrameMS <= 0 || len(curve.Cents) == 0 {
-		return 0
-	}
-	position := math.Max(0, timeMS) / curve.FrameMS
-	left := int(math.Floor(position))
-	if left >= len(curve.Cents)-1 {
-		return curve.Cents[len(curve.Cents)-1]
-	}
-	progress := position - float64(left)
-	return curve.Cents[left]*(1-progress) + curve.Cents[left+1]*progress
+	return curve.CentsAt(timeMS)
 }
 
 func alignRuntimeProsodyFeatures(morae []frontend.Mora, analysis *openjtalk.Analysis) ([]prosody.FeatureFrame, error) {

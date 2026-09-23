@@ -1,4 +1,4 @@
-package tts
+package adapter
 
 import (
 	"math"
@@ -6,115 +6,10 @@ import (
 	"testing"
 
 	"utautts/internal/diffsinger"
-	"utautts/internal/engine"
 	"utautts/internal/frontend"
-	"utautts/internal/plugin"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
 )
-
-func TestDiffSingerIsRegisteredAsNeuralSynthesizer(t *testing.T) {
-	synthesizer, found := neuralSynthesizerForProvider(diffsinger.ProviderID)
-	if !found || synthesizer.ProviderID() != diffsinger.ProviderID {
-		t.Fatalf("DiffSinger neural provider = %#v, found=%v", synthesizer, found)
-	}
-	if _, found := neuralSynthesizerForProvider("waveform"); found {
-		t.Fatal("unit renderer was registered as a neural synthesizer")
-	}
-}
-
-// 未登録providerは解決されず、登録済みproviderはfactory経由で解決される。
-func TestNeuralSynthesizerRegistryResolvesRegisteredFactory(t *testing.T) {
-	const id engine.ProviderID = "test-neural-provider"
-	RegisterNeuralSynthesizer(id, func() NeuralSynthesizer { return stubNeuralSynthesizer{id: id} })
-	defer func() {
-		neuralSynthesizersMu.Lock()
-		delete(neuralSynthesizers, id)
-		neuralSynthesizersMu.Unlock()
-	}()
-	synthesizer, found := neuralSynthesizerForProvider(id)
-	if !found || synthesizer.ProviderID() != id {
-		t.Fatalf("registered provider = %#v, found=%v", synthesizer, found)
-	}
-	if _, found := neuralSynthesizerForProvider("unregistered-neural-provider"); found {
-		t.Fatal("unregistered provider must not resolve")
-	}
-}
-
-type stubNeuralSynthesizer struct{ id engine.ProviderID }
-
-func (s stubNeuralSynthesizer) ProviderID() engine.ProviderID { return s.id }
-
-func (stubNeuralSynthesizer) Synthesize(Config) (*Result, error) { return nil, nil }
-
-func TestDiffSingerUsesSelectedSpeechModel(t *testing.T) {
-	morae, _ := frontend.ParseKana("あい")
-	model := &prosody.Model{Version: prosody.FramePitchModelVersion, FeatureVersion: 1, Mode: "intonation_frame_tcn_accent_bounded",
-		FramePitch: &prosody.FramePitchModel{FeatureNames: []string{"mora_progress"}, InputWeights: [][]float64{{2}}, InputBias: []float64{0}, OutputWeight: []float64{100}, FrameMS: 10, LowCents: -60, HighCents: 60},
-	}
-	cfg, _, err := prepareDiffSingerProsody(Config{Reading: "あい", ProsodyModel: model, ApplyPitch: true, IntonationStrength: 1, RendererCapabilities: &plugin.Capabilities{FramePitch: true}}, "あい", morae, 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.PitchCurve == nil {
-		t.Fatal("selected model did not reach DiffSinger")
-	}
-	low, high := math.Inf(1), math.Inf(-1)
-	for _, value := range cfg.PitchCurve.Cents {
-		low = math.Min(low, value)
-		high = math.Max(high, value)
-	}
-	if high-low < 1 {
-		t.Fatal("speech model contour was flattened")
-	}
-}
-
-func TestDiffSingerSpeechProsodyPreservesManualTimingAndPitch(t *testing.T) {
-	morae, err := frontend.ParseKana("あい")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg := Config{Reading: "あい", Renderer: "diffsinger", MoraDurationMS: 120,
-		MoraDurationsMS: []float64{90, 150},
-		ManualPitch: &prosody.ManualPitchFile{Version: 1, Reading: "あい", Mode: "replace",
-			Points: []prosody.ManualPitchPoint{{Position: 0, Cents: 120}, {Position: 1, Cents: -120}}},
-	}
-	prepared, preview, err := prepareDiffSingerProsody(cfg, "あい", morae, 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(preview.MoraDurationsMS, cfg.MoraDurationsMS) {
-		t.Fatalf("durations = %v", preview.MoraDurationsMS)
-	}
-	for _, point := range preview.PitchPoints {
-		if point != 0 {
-			t.Fatal("manual pitch leaked into automatic preview")
-		}
-	}
-	padding := diffsinger.HeadFrames * 10.0
-	if prepared.PitchCurve == nil || pitchCurveCentsAt(prepared.PitchCurve, padding+45) <= pitchCurveCentsAt(prepared.PitchCurve, padding+165) || pitchCurveCentsAt(prepared.PitchCurve, padding+240) >= 0 {
-		t.Fatalf("manual speech curve not reflected at padded mora positions: %#v", prepared.PitchCurve)
-	}
-	cfg.ManualPitch.Reading = "う"
-	if _, _, err := prepareDiffSingerProsody(cfg, "あい", morae, 10); err == nil {
-		t.Fatal("accepted mismatched manual reading")
-	}
-}
-
-func TestDiffSingerSpeechCurveStartsAfterHeadPadding(t *testing.T) {
-	morae, _ := frontend.ParseKana("あ")
-	curve := &render.PitchCurve{FrameMS: 10, Cents: []float64{0, 100, 200, 300}}
-	cfg, _, err := prepareDiffSingerProsody(Config{Reading: "あ", Renderer: "diffsinger", PitchCurve: curve}, "あ", morae, 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := pitchCurveCentsAt(cfg.PitchCurve, diffsinger.HeadFrames*10+10); got != 100 {
-		t.Fatalf("shifted pitch = %v", got)
-	}
-	if curve.Cents[1] != 100 {
-		t.Fatal("input curve mutated")
-	}
-}
 
 func TestDiffSingerPhones(t *testing.T) {
 	singer := &diffsinger.Singer{Tokens: map[string]int64{"SP": 0, "k": 1, "a": 2, "N": 3}}
@@ -258,5 +153,16 @@ func TestDiffSingerWordGroupsKeepsMoraFallback(t *testing.T) {
 	}
 	if !reflect.DeepEqual(rests, []bool{true, false, false, true}) {
 		t.Fatalf("rests = %v", rests)
+	}
+}
+
+func TestShiftPitchCurveStartsAfterHeadPadding(t *testing.T) {
+	curve := &render.PitchCurve{FrameMS: 10, Cents: []float64{0, 100, 200, 300}}
+	shifted := shiftPitchCurve(curve, 10, 30)
+	if got := shifted.CentsAt(diffsinger.HeadFrames*10 + 10); got != 100 {
+		t.Fatalf("shifted pitch = %v", got)
+	}
+	if curve.Cents[1] != 100 {
+		t.Fatal("input curve mutated")
 	}
 }
