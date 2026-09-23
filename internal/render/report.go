@@ -66,6 +66,7 @@ type UnitRenderReport struct {
 	CVTimingWarnings        []string
 	StretchAdapted          bool
 	StretchLimitReason      string
+	CodaBoundaryLimited     bool
 	BoundaryEnvelope        string
 	Index                   int
 	TimingScale             float64
@@ -171,6 +172,7 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 			CVTimingWarnings:        append([]string(nil), unit.CVTimingWarnings...),
 			StretchAdapted:          unit.StretchAdapted,
 			StretchLimitReason:      unit.StretchLimitReason,
+			CodaBoundaryLimited:     unit.CodaBoundaryLimited,
 			BoundaryEnvelope:        unit.BoundaryEnvelope,
 			Index:                   index,
 			TimingScale:             unit.TimingScale,
@@ -220,6 +222,7 @@ func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 		unit.CVTimingWarnings = append([]string(nil), unitReport.CVTimingWarnings...)
 		unit.StretchAdapted = unitReport.StretchAdapted
 		unit.StretchLimitReason = unitReport.StretchLimitReason
+		unit.CodaBoundaryLimited = unitReport.CodaBoundaryLimited
 		unit.BoundaryEnvelope = unitReport.BoundaryEnvelope
 		unit.SpeechJoinApplied = unitReport.SpeechJoinApplied
 		unit.SpeechTransitionApplied = unitReport.SpeechTransitionApplied

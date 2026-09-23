@@ -116,6 +116,34 @@ func onsetOverlapMS(onset string, preutterance, overlap float64) float64 {
 	return math.Max(0, math.Min(overlap, preutterance))
 }
 
+const (
+	// coda境界で語末子音の末尾に残す最低長。
+	codaBoundaryMinTailMS = 30.0
+	// coda境界で次onsetが重ねる上限。
+	codaBoundaryMaxOverlapMS = 15.0
+)
+
+// codaBoundaryOverlapMSは語末子音を持つユニット境界で、次onsetの食い込みと
+// 重なりを制限して語末子音の末尾を残す。onsetOverlapMSと同じく有界にクランプする。
+// 適用したかどうかも返す。
+func codaBoundaryOverlapMS(previousDuration, preutterance, overlap float64) (float64, float64, bool) {
+	limited := false
+	if previousDuration > codaBoundaryMinTailMS {
+		if limit := previousDuration - codaBoundaryMinTailMS; preutterance > limit {
+			preutterance = limit
+			limited = true
+		}
+	}
+	if overlap > codaBoundaryMaxOverlapMS {
+		overlap = codaBoundaryMaxOverlapMS
+		limited = true
+	}
+	if overlap > preutterance {
+		overlap = preutterance
+	}
+	return math.Max(0, preutterance), math.Max(0, overlap), limited
+}
+
 func normalizePlanTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64) effectiveTiming {
 	timing := normalizeTiming(unit, releaseMS)
 	if synthesisPlan == nil || unit.Silent || unit.Role != "mora" {

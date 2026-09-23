@@ -137,6 +137,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		if len(phoneTimings) == len(synthesisPlan.Units) && !unit.Silent {
 			timings[i].preutteranceMS = phoneTimings[i].preutter
 			timings[i].overlapMS = phoneTimings[i].overlap
+			unit.CodaBoundaryLimited = phoneTimings[i].codaLimited
 			// C3aでfixed境界をずらしたユニットはotoの値を上書きしない。
 			if (unit.Role != "mora" || (!synthesisPlan.SingleCV && (!vcvUnit || !vcvSpeech))) && !timings[i].stretchAdapted {
 				timings[i].consonantMS = unit.ConsonantMS
@@ -677,6 +678,7 @@ type openUtauPhoneTiming struct {
 	tailIntrude float64
 	tailOverlap float64
 	overlapped  bool
+	codaLimited bool
 }
 
 func openUtauPhoneTimings(units []plan.Unit, cvvcTiming string) ([]openUtauPhoneTiming, float64) {
@@ -697,6 +699,7 @@ func openUtauPhoneTimingsWithCoda(units []plan.Unit, cvvcTiming string, protectC
 		autoPreutter := unit.PreutteranceMS
 		autoOverlap := unit.OverlapMS
 		adjacent := false
+		codaLimited := false
 		if previous >= 0 {
 			previousUnit := units[previous]
 			gapMS := unit.NoteStartMS - (previousUnit.NoteStartMS + previousUnit.DurationMS)
@@ -717,12 +720,6 @@ func openUtauPhoneTimingsWithCoda(units []plan.Unit, cvvcTiming string, protectC
 				maxPreutter = gapMS
 			}
 			if autoPreutter > maxPreutter && autoPreutter > 0 {
-				if protectCoda && adjacent && len(previousUnit.CodaPhones) > 0 && previousDuration >= 20 {
-					remaining := previousDuration - maxPreutter + autoOverlap*maxPreutter/autoPreutter
-					if remaining < 10 {
-						maxPreutter = math.Min(maxPreutter, previousDuration-math.Min(20, previousDuration*.5))
-					}
-				}
 				ratio := maxPreutter / autoPreutter
 				autoPreutter = maxPreutter
 				autoOverlap *= ratio
@@ -730,11 +727,16 @@ func openUtauPhoneTimingsWithCoda(units []plan.Unit, cvvcTiming string, protectC
 			if autoOverlap < 0 {
 				autoOverlap = math.Max(autoOverlap, math.Min(0, 35-previousDuration+autoPreutter))
 			}
+			// 語末子音を持つ境界では次onsetの食い込みを制限し、coda末尾を残す。
+			if protectCoda && adjacent && len(previousUnit.CodaPhones) > 0 {
+				autoPreutter, autoOverlap, codaLimited = codaBoundaryOverlapMS(previousDuration, autoPreutter, autoOverlap)
+			}
 		}
 		autoPreutter = math.Max(0, autoPreutter)
 		result[index].preutter = autoPreutter
 		result[index].overlap = autoOverlap
 		result[index].overlapped = previous >= 0 && adjacent && autoOverlap > 0
+		result[index].codaLimited = codaLimited
 		if previous >= 0 {
 			if adjacent {
 				result[previous].tailIntrude = math.Max(result[previous].tailIntrude, math.Max(autoPreutter, autoPreutter-autoOverlap))

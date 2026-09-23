@@ -161,6 +161,8 @@ type BoundaryRepairDecision struct {
 
 type Unit struct {
 	CodaPhones                  []string                       `json:"coda_phones,omitempty"`
+	CodaFloorMS                 float64                        `json:"coda_floor_ms,omitempty"`
+	CodaBoundaryLimited         bool                           `json:"coda_boundary_limited,omitempty"`
 	WorldRenderMode             string                         `json:"world_render_mode,omitempty"`
 	WorldRenderReason           string                         `json:"world_render_reason,omitempty"`
 	WorldGapRepairEligible      bool                           `json:"world_gap_repair_eligible,omitempty"`
@@ -349,13 +351,17 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			endingStart := cursor + duration - endingDuration*float64(len(selection.Endings))
 			for index := range selection.Endings {
 				start, span := endingStart+float64(index)*endingDuration, endingDuration
+				codaFloorMS := 0.0
 				if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil && len(mora.Aliases.EndingPhones) > 0 {
-					start, span = speechEndingTiming(mora, phoneSpans, selection.Endings[index].EndingIndex, cursor, duration)
+					start, span, codaFloorMS = speechEndingTiming(mora, phoneSpans, selection.Endings[index].EndingIndex, cursor, duration)
 				}
 				endingUnit := unitFromSelection(&selection.Endings[index], position, start, span, prediction, "ending")
 				endingIndex := selection.Endings[index].EndingIndex
 				if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil && endingIndex >= 0 && endingIndex < len(mora.Aliases.EndingPhones) {
 					endingUnit.CodaPhones = append([]string(nil), mora.Aliases.EndingPhones[endingIndex]...)
+				}
+				if len(endingUnit.CodaPhones) > 0 {
+					endingUnit.CodaFloorMS = codaFloorMS
 				}
 				if containsStopPhone(endingUnit.CodaPhones) && !endingUnit.Silent {
 					profile := bank.CalibrateSpeech(selection.Endings[index].Entry)
