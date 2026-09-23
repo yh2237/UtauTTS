@@ -44,35 +44,38 @@ const (
 
 // Requestは合成とプレビューで共有する入力。
 type Request struct {
-	SpeechTiming            bool                         `json:"speech_timing"`
-	Text                    string                       `json:"text"`
-	Reading                 string                       `json:"reading"`
-	Kana                    string                       `json:"kana"`
-	Language                string                       `json:"language"`
-	Phonemizer              string                       `json:"phonemizer"`
-	VoicebankID             string                       `json:"voicebank_id"`
-	VoicebankPath           string                       `json:"-"`
-	Tone                    string                       `json:"tone"`
-	Color                   string                       `json:"color"`
-	ModelID                 string                       `json:"model_id"`
-	ModelPath               string                       `json:"model_path"`
-	Renderer                string                       `json:"renderer"`
-	Resampler               string                       `json:"resampler"`
-	Wavtool                 string                       `json:"wavtool"`
-	AliasPolicy             voicebank.AliasPolicy        `json:"alias_policy"`
-	Dictionary              []DictionaryEntry            `json:"dictionary"`
-	MoraDurationMS          float64                      `json:"mora_duration_ms"`
-	PauseDurationMS         float64                      `json:"pause_duration_ms"`
-	LeadingPreutteranceMS   float64                      `json:"leading_preutterance_ms"`
-	MoraDurationsMS         []float64                    `json:"mora_durations_ms"`
-	UnitOverrides           []plan.UnitOverride          `json:"unit_overrides"`
-	ReleaseMS               float64                      `json:"release_ms"`
-	ReleaseSet              bool                         `json:"release_set"`
-	ManualPitchPath         string                       `json:"-"`
-	ManualPitch             *prosody.ManualPitchFile     `json:"manual_pitch"`
-	ProsodyFeatures         []prosody.FeatureFrame       `json:"-"`
-	ProsodyPitchOnly        bool                         `json:"-"`
-	PitchFactors            []float64                    `json:"-"`
+	SpeechTiming  bool                  `json:"speech_timing"`
+	Text          string                `json:"text"`
+	Reading       string                `json:"reading"`
+	Kana          string                `json:"kana"`
+	Language      string                `json:"language"`
+	Phonemizer    string                `json:"phonemizer"`
+	VoicebankID   string                `json:"voicebank_id"`
+	VoicebankPath string                `json:"-"`
+	Tone          string                `json:"tone"`
+	Color         string                `json:"color"`
+	ModelID       string                `json:"model_id"`
+	ModelPath     string                `json:"model_path"`
+	Renderer      string                `json:"renderer"`
+	Resampler     string                `json:"resampler"`
+	Wavtool       string                `json:"wavtool"`
+	AliasPolicy   voicebank.AliasPolicy `json:"alias_policy"`
+	Dictionary    []DictionaryEntry     `json:"dictionary"`
+	// 以下はmanifest設定の互換用typedフィールド。deprecated: renderer_settingsを優先する
+	// （同じidがmapにあればmapが勝つ）。外部送信がmapへ移行したら順次削除できる。
+	MoraDurationMS        float64                  `json:"mora_duration_ms"`
+	PauseDurationMS       float64                  `json:"pause_duration_ms"`
+	LeadingPreutteranceMS float64                  `json:"leading_preutterance_ms"`
+	MoraDurationsMS       []float64                `json:"mora_durations_ms"`
+	UnitOverrides         []plan.UnitOverride      `json:"unit_overrides"`
+	ReleaseMS             float64                  `json:"release_ms"`
+	ReleaseSet            bool                     `json:"release_set"`
+	ManualPitchPath       string                   `json:"-"`
+	ManualPitch           *prosody.ManualPitchFile `json:"manual_pitch"`
+	ProsodyFeatures       []prosody.FeatureFrame   `json:"-"`
+	ProsodyPitchOnly      bool                     `json:"-"`
+	PitchFactors          []float64                `json:"-"`
+	// 品質系も互換用typedフィールド。deprecated: renderer_settingsを優先する。
 	IntonationStrength      float64                      `json:"intonation_strength"`
 	ContextDuration         bool                         `json:"context_duration"`
 	ContextDurationStrength float64                      `json:"context_duration_strength"`
@@ -91,10 +94,11 @@ type Request struct {
 	CVVCPreBoundaryFade     bool                         `json:"-"`
 	JoinModelPath           string                       `json:"-"`
 	ResamplerExpressions    []render.ResamplerExpression `json:"resampler_expressions"`
-	DiffSingerSteps         int64                        `json:"diffsinger_steps"`
-	DiffSingerDurationMix   float64                      `json:"diffsinger_duration_mix"`
-	DiffSingerPitchMix      float64                      `json:"diffsinger_pitch_mix"`
-	DiffSingerExpr          float64                      `json:"diffsinger_expr"`
+	// DiffSinger系も互換用typedフィールド。deprecated: renderer_settingsを優先する。
+	DiffSingerSteps       int64   `json:"diffsinger_steps"`
+	DiffSingerDurationMix float64 `json:"diffsinger_duration_mix"`
+	DiffSingerPitchMix    float64 `json:"diffsinger_pitch_mix"`
+	DiffSingerExpr        float64 `json:"diffsinger_expr"`
 	// RendererSettingsはrenderer manifestが宣言した設定値を1つのmapで受ける。
 	// 既知idはConfig/ProviderOptionsへ反映し、未知idはエラーにせずprovider固有値として渡す。
 	RendererSettings map[string]json.RawMessage `json:"renderer_settings,omitempty"`
@@ -269,11 +273,6 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	if reading == "" {
 		reading = request.Kana
 	}
-	contextDuration := request.ContextDuration
-	boundaryTone := request.BoundaryTone
-	stretchAdapt := request.StretchAdapt
-	pauseContext := request.PauseContext
-	englishWeakForm := request.EnglishWeakForm
 	cfg := tts.Config{
 		SpeechTiming:            request.SpeechTiming,
 		Text:                    request.Text,
@@ -284,9 +283,6 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		Tone:                    request.Tone,
 		Color:                   request.Color,
 		AliasPolicy:             request.AliasPolicy,
-		MoraDurationMS:          request.MoraDurationMS,
-		PauseDurationMS:         request.PauseDurationMS,
-		LeadingPreutteranceMS:   request.LeadingPreutteranceMS,
 		MoraDurationsMS:         request.MoraDurationsMS,
 		UnitOverrides:           append([]plan.UnitOverride(nil), request.UnitOverrides...),
 		ReleaseMS:               request.ReleaseMS,
@@ -296,16 +292,6 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		ManualPitch:             request.ManualPitch,
 		ProsodyFeatures:         append([]prosody.FeatureFrame(nil), request.ProsodyFeatures...),
 		ProsodyPitchOnly:        request.ProsodyPitchOnly,
-		IntonationStrength:      request.IntonationStrength,
-		ContextDuration:         &contextDuration,
-		ContextDurationStrength: request.ContextDurationStrength,
-		BoundaryTone:            &boundaryTone,
-		BoundaryToneStrength:    request.BoundaryToneStrength,
-		StretchAdapt:            &stretchAdapt,
-		StretchAdaptStrength:    request.StretchAdaptStrength,
-		PauseContext:            &pauseContext,
-		PauseContextStrength:    request.PauseContextStrength,
-		EnglishWeakForm:         &englishWeakForm,
 		PitchFactors:            append([]float64(nil), request.PitchFactors...),
 		ApplyPitch:              request.ApplyPitch,
 		OpenJTalkPath:           s.openJTalkPath,
@@ -321,13 +307,9 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		Classic: render.ClassicOptions{
 			ResamplerExpressions: append([]render.ResamplerExpression(nil), request.ResamplerExpressions...),
 		},
-		DiffSinger: render.DiffSingerOptions{
-			Steps: request.DiffSingerSteps, DurationMix: request.DiffSingerDurationMix,
-			PitchMix: request.DiffSingerPitchMix, Expr: request.DiffSingerExpr,
-		},
 	}
-	// renderer_settingsは固定フィールドより優先し、未知idや型不一致はエラーにしない。
-	rendererSettings := applyRendererSettings(request.RendererSettings, &cfg, &providerOptions)
+	// renderer設定はspecテーブル経由で解決する。typedよりrenderer_settingsを優先し、未知idや型不一致はエラーにしない。
+	resolution := resolveRendererSettings(request, &cfg, &providerOptions)
 	voicebankPath := request.VoicebankPath
 	if voicebankPath == "" && s.voicebanks != nil && (requireVoicebank || request.VoicebankID != "") {
 		if path, ok := s.voicebanks.Resolve(request.VoicebankID); ok {
@@ -356,8 +338,8 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	// Classic UTAUは公開Renderer IDではなく解決済みproviderで判定する。
 	if requireVoicebank && resolvedEngine.Provider.ID == "utau-external-resampler" {
 		tools, toolsErr := s.ResolveClassicTools(
-			firstNonEmpty(rendererSettings.Resampler, request.Resampler),
-			firstNonEmpty(rendererSettings.Wavtool, request.Wavtool),
+			firstNonEmpty(resolution.Resampler, request.Resampler),
+			firstNonEmpty(resolution.Wavtool, request.Wavtool),
 		)
 		if toolsErr != nil {
 			return tts.Config{}, "", render.ProviderOptions{}, toolsErr
@@ -366,148 +348,6 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		providerOptions.Classic.WavtoolPath = tools.Wavtool.Path
 	}
 	return cfg, string(resolvedEngine.PublicID()), providerOptions, nil
-}
-
-// rendererSettingsResolutionはrenderer_settingsのうちClassicツール選択だけを別に保持する。
-type rendererSettingsResolution struct {
-	Resampler string
-	Wavtool   string
-}
-
-// applyRendererSettingsはmanifest由来の設定mapをConfigとprovider固有オプションへ振り分ける。
-// 既知idは対応フィールドへ反映し、未知idはProviderOptions.Rendererへ、型不一致は診断へ回す。
-// いずれもエラーにせず安全側（無視）で扱う。
-func applyRendererSettings(settings map[string]json.RawMessage, cfg *tts.Config, options *render.ProviderOptions) rendererSettingsResolution {
-	resolution := rendererSettingsResolution{}
-	if len(settings) == 0 {
-		return resolution
-	}
-	unknown := make(map[string]any, len(settings))
-	for id, raw := range settings {
-		switch id {
-		case "mora_duration_ms":
-			if value, ok := rendererSettingNumber(id, raw, options); ok {
-				cfg.MoraDurationMS = value
-			}
-		case "pause_duration_ms":
-			if value, ok := rendererSettingNumber(id, raw, options); ok {
-				cfg.PauseDurationMS = value
-			}
-		case "leading_preutterance_ms":
-			if value, ok := rendererSettingNumber(id, raw, options); ok {
-				cfg.LeadingPreutteranceMS = value
-			}
-		case "intonation_strength":
-			if value, ok := rendererSettingNumber(id, raw, options); ok {
-				cfg.IntonationStrength = value
-			}
-		case "context_duration":
-			if value, ok := rendererSettingBool(id, raw, options); ok {
-				cfg.ContextDuration = &value
-			}
-		case "context_duration_strength":
-			if value, ok := rendererSettingNumber(id, raw, options); ok {
-				cfg.ContextDurationStrength = value
-			}
-		case "boundary_tone":
-			if value, ok := rendererSettingBool(id, raw, options); ok {
-				cfg.BoundaryTone = &value
-			}
-		case "boundary_tone_strength":
-			if value, ok := rendererSettingNumber(id, raw, options); ok {
-				cfg.BoundaryToneStrength = value
-			}
-		case "stretch_adapt":
-			if value, ok := rendererSettingBool(id, raw, options); ok {
-				cfg.StretchAdapt = &value
-			}
-		case "stretch_adapt_strength":
-			if value, ok := rendererSettingNumber(id, raw, options); ok {
-				cfg.StretchAdaptStrength = value
-			}
-		case "pause_context":
-			if value, ok := rendererSettingBool(id, raw, options); ok {
-				cfg.PauseContext = &value
-			}
-		case "pause_context_strength":
-			if value, ok := rendererSettingNumber(id, raw, options); ok {
-				cfg.PauseContextStrength = value
-			}
-		case "english_weak_form":
-			if value, ok := rendererSettingBool(id, raw, options); ok {
-				cfg.EnglishWeakForm = &value
-			}
-		case "diffsinger_steps":
-			if value, ok := rendererSettingNumber(id, raw, options); ok {
-				options.DiffSinger.Steps = int64(value)
-			}
-		case "diffsinger_expr":
-			if value, ok := rendererSettingNumber(id, raw, options); ok {
-				options.DiffSinger.Expr = value
-			}
-		case "diffsinger_duration_mix":
-			if value, ok := rendererSettingNumber(id, raw, options); ok {
-				options.DiffSinger.DurationMix = value
-			}
-		case "diffsinger_pitch_mix":
-			if value, ok := rendererSettingNumber(id, raw, options); ok {
-				options.DiffSinger.PitchMix = value
-			}
-		case "resampler":
-			if value, ok := rendererSettingString(id, raw, options); ok {
-				resolution.Resampler = value
-			}
-		case "wavtool":
-			if value, ok := rendererSettingString(id, raw, options); ok {
-				resolution.Wavtool = value
-			}
-		default:
-			var value any
-			if err := json.Unmarshal(raw, &value); err != nil {
-				options.RendererDiagnostics = append(options.RendererDiagnostics,
-					fmt.Sprintf("renderer setting %q was ignored: %v", id, err))
-				continue
-			}
-			unknown[id] = value
-		}
-	}
-	if len(unknown) > 0 {
-		options.Renderer = unknown
-	}
-	return resolution
-}
-
-// rendererSettingNumberはJSON数値をfloat64で取り出す。型不一致は診断のみで失敗させない。
-func rendererSettingNumber(id string, raw json.RawMessage, options *render.ProviderOptions) (float64, bool) {
-	var value float64
-	if err := json.Unmarshal(raw, &value); err != nil {
-		options.RendererDiagnostics = append(options.RendererDiagnostics,
-			fmt.Sprintf("renderer setting %q expects a number: %v", id, err))
-		return 0, false
-	}
-	return value, true
-}
-
-// rendererSettingBoolはJSON真偽値を取り出す。型不一致は診断のみで失敗させない。
-func rendererSettingBool(id string, raw json.RawMessage, options *render.ProviderOptions) (bool, bool) {
-	var value bool
-	if err := json.Unmarshal(raw, &value); err != nil {
-		options.RendererDiagnostics = append(options.RendererDiagnostics,
-			fmt.Sprintf("renderer setting %q expects a boolean: %v", id, err))
-		return false, false
-	}
-	return value, true
-}
-
-// rendererSettingStringはJSON文字列を取り出す。型不一致は診断のみで失敗させない。
-func rendererSettingString(id string, raw json.RawMessage, options *render.ProviderOptions) (string, bool) {
-	var value string
-	if err := json.Unmarshal(raw, &value); err != nil {
-		options.RendererDiagnostics = append(options.RendererDiagnostics,
-			fmt.Sprintf("renderer setting %q expects a string: %v", id, err))
-		return "", false
-	}
-	return value, true
 }
 
 // firstNonEmptyは上書き値があればそれを使い、空なら元の値を保つ。
