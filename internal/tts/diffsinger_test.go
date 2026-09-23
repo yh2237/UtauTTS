@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"utautts/internal/diffsinger"
+	"utautts/internal/engine"
 	"utautts/internal/frontend"
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
@@ -13,14 +14,38 @@ import (
 )
 
 func TestDiffSingerIsRegisteredAsNeuralSynthesizer(t *testing.T) {
-	synthesizer, found := neuralSynthesizerForProvider("diffsinger")
-	if !found || synthesizer.ProviderID() != "diffsinger" {
+	synthesizer, found := neuralSynthesizerForProvider(diffsinger.ProviderID)
+	if !found || synthesizer.ProviderID() != diffsinger.ProviderID {
 		t.Fatalf("DiffSinger neural provider = %#v, found=%v", synthesizer, found)
 	}
 	if _, found := neuralSynthesizerForProvider("waveform"); found {
 		t.Fatal("unit renderer was registered as a neural synthesizer")
 	}
 }
+
+// 未登録providerは解決されず、登録済みproviderはfactory経由で解決される。
+func TestNeuralSynthesizerRegistryResolvesRegisteredFactory(t *testing.T) {
+	const id engine.ProviderID = "test-neural-provider"
+	RegisterNeuralSynthesizer(id, func() NeuralSynthesizer { return stubNeuralSynthesizer{id: id} })
+	defer func() {
+		neuralSynthesizersMu.Lock()
+		delete(neuralSynthesizers, id)
+		neuralSynthesizersMu.Unlock()
+	}()
+	synthesizer, found := neuralSynthesizerForProvider(id)
+	if !found || synthesizer.ProviderID() != id {
+		t.Fatalf("registered provider = %#v, found=%v", synthesizer, found)
+	}
+	if _, found := neuralSynthesizerForProvider("unregistered-neural-provider"); found {
+		t.Fatal("unregistered provider must not resolve")
+	}
+}
+
+type stubNeuralSynthesizer struct{ id engine.ProviderID }
+
+func (s stubNeuralSynthesizer) ProviderID() engine.ProviderID { return s.id }
+
+func (stubNeuralSynthesizer) Synthesize(Config) (*Result, error) { return nil, nil }
 
 func TestDiffSingerUsesSelectedSpeechModel(t *testing.T) {
 	morae, _ := frontend.ParseKana("あい")

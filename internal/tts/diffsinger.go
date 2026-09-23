@@ -14,6 +14,22 @@ import (
 	"utautts/internal/render"
 )
 
+// diffSingerNeuralSynthesizerはDiffSinger実装をニューラルprovider契約へ適合させる。
+type diffSingerNeuralSynthesizer struct{}
+
+func (diffSingerNeuralSynthesizer) ProviderID() engine.ProviderID { return diffsinger.ProviderID }
+
+func (diffSingerNeuralSynthesizer) Synthesize(cfg Config) (*Result, error) {
+	return synthesizeDiffSinger(cfg)
+}
+
+// DiffSinger実装はprovider IDでレジストリへ登録し、tts側にprovider名の分岐を持たせない。
+func init() {
+	RegisterNeuralSynthesizer(diffsinger.ProviderID, func() NeuralSynthesizer {
+		return diffSingerNeuralSynthesizer{}
+	})
+}
+
 func synthesizeDiffSinger(cfg Config) (*Result, error) {
 	singer, err := diffsinger.Load(cfg.VoicebankPath)
 	if err != nil {
