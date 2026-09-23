@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 	"utautts/internal/frontend"
+	"utautts/internal/plugin"
 )
 
 func TestChineseSandhiUsesWordsAndCharacters(t *testing.T) {
@@ -78,7 +79,9 @@ func TestJapaneseSpeechTimingIsOptInAndKeepsManualDurations(t *testing.T) {
 }
 
 func TestDiffSingerUsesJapaneseSpeechRhythmAndKeepsManualDurations(t *testing.T) {
-	baseline, err := PredictProsody(Config{Reading: "カサ", Renderer: "diffsinger", MoraDurationMS: 120})
+	// DiffSinger manifestはWindows限定のため、capabilityは明示して検証する。
+	internalTiming := &plugin.Capabilities{InternalTiming: true}
+	baseline, err := PredictProsody(Config{Reading: "カサ", Renderer: "diffsinger", RendererCapabilities: internalTiming, MoraDurationMS: 120})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +92,7 @@ func TestDiffSingerUsesJapaneseSpeechRhythmAndKeepsManualDurations(t *testing.T)
 	if reflect.DeepEqual(baseline.MoraDurationsMS, plain.MoraDurationsMS) {
 		t.Fatalf("DiffSinger rhythm = %v", baseline.MoraDurationsMS)
 	}
-	manual := Config{Reading: "カサ", Renderer: "diffsinger", MoraDurationMS: 120, MoraDurationsMS: []float64{90, 100}}
+	manual := Config{Reading: "カサ", Renderer: "diffsinger", RendererCapabilities: internalTiming, MoraDurationMS: 120, MoraDurationsMS: []float64{90, 100}}
 	preview, err := PredictProsody(manual)
 	if err != nil || !reflect.DeepEqual(preview.MoraDurationsMS, manual.MoraDurationsMS) {
 		t.Fatalf("manual: %+v %v", preview, err)

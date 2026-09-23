@@ -83,8 +83,9 @@ func TestBundledRendererManifestsUseCanonicalTimingDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(catalog.Renderers) < 4 {
-		t.Fatalf("renderers = %d, want at least 4", len(catalog.Renderers))
+	// DiffSinger manifestはWindows限定のため、非Windowsでは3件になる。
+	if len(catalog.Renderers) < 3 {
+		t.Fatalf("renderers = %d, want at least 3", len(catalog.Renderers))
 	}
 	want := map[string]float64{
 		"mora_duration_ms":  plan.DefaultMoraDurationMS,
