@@ -1,4 +1,4 @@
-package render
+package worldline
 
 import (
 	"context"
@@ -10,44 +10,45 @@ import (
 	"utautts/internal/provider"
 )
 
-// worldlineBridgeProcessは組み込みWORLDアダプタの常駐セッションを保持する。gateでprotocol v1の単一実行を保証し、ネイティブ状態を合成間で維持する。
-type worldlineBridgeProcess struct {
+// bridgeProcessは組み込みWORLDアダプタの常駐セッションを保持する。gateでprotocol v1の単一実行を保証し、ネイティブ状態を合成間で維持する。
+type bridgeProcess struct {
 	path     string
 	provider string
 	session  *provider.Session
 }
 
-var sharedWorldlineBridge worldlineBridgeProcess
-var worldlineBridgeGate = make(chan struct{}, 1)
+var sharedBridge bridgeProcess
+var bridgeGate = make(chan struct{}, 1)
 
-func invokeWorldlineBridge(ctx context.Context, bridge, jobPath, outputPath string) error {
-	return invokeWorldlineBridgeReport(ctx, bridge, jobPath, outputPath, nil)
+func invokeBridge(ctx context.Context, bridge, jobPath, outputPath string) error {
+	return InvokeReport(ctx, bridge, jobPath, outputPath, nil)
 }
 
-func invokeWorldlineBridgeReport(ctx context.Context, bridge, jobPath, outputPath string, report *[]provider.WorldSpeechResult) error {
+// InvokeReportはWORLDブリッジを実行し、任意でspeechタイミング報告を受け取る。
+func InvokeReport(ctx context.Context, bridge, jobPath, outputPath string, report *[]provider.WorldSpeechResult) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	select {
-	case worldlineBridgeGate <- struct{}{}:
+	case bridgeGate <- struct{}{}:
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	defer func() { <-worldlineBridgeGate }()
+	defer func() { <-bridgeGate }()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 
-	job, err := readWorldlineBridgeJob(jobPath)
+	job, err := ReadBridgeJob(jobPath)
 	if err != nil {
 		return err
 	}
-	providerID, err := worldlineProviderID(job.Engine)
+	providerID, err := providerIDForEngine(job.Engine)
 	if err != nil {
 		return err
 	}
 
-	client := &sharedWorldlineBridge
+	client := &sharedBridge
 	if client.session == nil || client.path != bridge || client.provider != providerID || !client.session.IsAlive() {
 		client.stop()
 		session, startErr := provider.StartSession(ctx, provider.SessionOptions{
@@ -98,44 +99,46 @@ func invokeWorldlineBridgeReport(ctx context.Context, bridge, jobPath, outputPat
 	return err
 }
 
-type worldlineBridgeJob struct {
+// BridgeJobはブリッジjobの検証済み要約。テストと診断で参照する。
+type BridgeJob struct {
 	CodaRelease bool
 	Speech      bool
 	Engine      string `json:"engine"`
 }
 
-func readWorldlineBridgeJob(path string) (worldlineBridgeJob, error) {
+// ReadBridgeJobはjobファイルのcontractを検証して要約を返す。
+func ReadBridgeJob(path string) (BridgeJob, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return worldlineBridgeJob{}, fmt.Errorf("read worldline job: %w", err)
+		return BridgeJob{}, fmt.Errorf("read worldline job: %w", err)
 	}
 	var commonJob provider.UnitRendererJob
 	if err := json.Unmarshal(data, &commonJob); err != nil {
-		return worldlineBridgeJob{}, fmt.Errorf("decode worldline job: %w", err)
+		return BridgeJob{}, fmt.Errorf("decode worldline job: %w", err)
 	}
 	if commonJob.Version != provider.UnitRendererJobVersion ||
 		commonJob.Contract != "unit-renderer" || commonJob.ContractVersion != 1 {
-		return worldlineBridgeJob{}, fmt.Errorf("unsupported worldline job contract")
+		return BridgeJob{}, fmt.Errorf("unsupported worldline job contract")
 	}
 	if commonJob.Options.Worldline == nil {
-		return worldlineBridgeJob{}, fmt.Errorf("worldline job has no typed worldline options")
+		return BridgeJob{}, fmt.Errorf("worldline job has no typed worldline options")
 	}
-	job := worldlineBridgeJob{Engine: commonJob.Options.Worldline.Engine}
+	job := BridgeJob{Engine: commonJob.Options.Worldline.Engine}
 	for _, unit := range commonJob.Options.Worldline.Units {
 		job.Speech = job.Speech || unit.Speech != nil
 		job.CodaRelease = job.CodaRelease || unit.Speech != nil && unit.Speech.CodaRelease
 	}
-	return validateWorldlineBridgeJob(job)
+	return validateBridgeJob(job)
 }
 
-func validateWorldlineBridgeJob(job worldlineBridgeJob) (worldlineBridgeJob, error) {
+func validateBridgeJob(job BridgeJob) (BridgeJob, error) {
 	if job.Engine == "" {
-		return worldlineBridgeJob{}, fmt.Errorf("worldline job has no engine")
+		return BridgeJob{}, fmt.Errorf("worldline job has no engine")
 	}
 	return job, nil
 }
 
-func worldlineProviderID(engineID string) (string, error) {
+func providerIDForEngine(engineID string) (string, error) {
 	switch engineID {
 	case "utautts-world-phrase":
 		return engineID, nil
@@ -144,7 +147,14 @@ func worldlineProviderID(engineID string) (string, error) {
 	}
 }
 
-func (client *worldlineBridgeProcess) stop() {
+// Closeは常駐bridgeセッションを解放する。gateを取るため実行中renderの完了を待つ。
+func Close() {
+	bridgeGate <- struct{}{}
+	sharedBridge.stop()
+	<-bridgeGate
+}
+
+func (client *bridgeProcess) stop() {
 	if client.session != nil {
 		_ = client.session.Close()
 	}

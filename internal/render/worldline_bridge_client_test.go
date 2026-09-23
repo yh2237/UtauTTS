@@ -8,42 +8,8 @@ import (
 
 	"utautts/internal/plan"
 	"utautts/internal/provider"
+	"utautts/internal/render/worldline"
 )
-
-func TestReadWorldlineBridgeJobReadsCommonUnitJob(t *testing.T) {
-	data, err := json.Marshal(provider.UnitRendererJob{
-		Version:         provider.UnitRendererJobVersion,
-		Contract:        "unit-renderer",
-		ContractVersion: 1,
-		Plan:            json.RawMessage(`{"version":19}`),
-		Options:         provider.UnitRendererOptions{Worldline: &provider.WorldlineOptions{Engine: "utautts-world-phrase"}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(t.TempDir(), "job.json")
-	if err := os.WriteFile(path, data, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	got, err := readWorldlineBridgeJob(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Engine != "utautts-world-phrase" {
-		t.Fatalf("job = %#v", got)
-	}
-}
-
-func TestReadWorldlineBridgeJobRejectsOldJobShape(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "manifest.json")
-	data := []byte(`{"engine":"utautts-world-phrase","output_path":"output.wav"}`)
-	if err := os.WriteFile(path, data, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := readWorldlineBridgeJob(path); err == nil {
-		t.Fatal("old job shape was accepted")
-	}
-}
 
 func TestWorldlineProviderJobCarriesCommonPlanAndResources(t *testing.T) {
 	synthesisPlan := &plan.Plan{Version: plan.Version, Voicebank: "bank", Units: []plan.Unit{{Source: "voice.wav", DurationMS: 100}}}
@@ -119,7 +85,7 @@ func TestWorldSpeechJobAndExportReport(t *testing.T) {
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
-	decoded, err := readWorldlineBridgeJob(path)
+	decoded, err := worldline.ReadBridgeJob(path)
 	if err != nil || !decoded.Speech {
 		t.Fatal("missing speech requirement", decoded, err)
 	}

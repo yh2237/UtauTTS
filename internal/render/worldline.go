@@ -17,6 +17,7 @@ import (
 	"utautts/internal/engine"
 	"utautts/internal/plan"
 	"utautts/internal/provider"
+	"utautts/internal/render/worldline"
 )
 
 const worldlineFrameMS = 10.0
@@ -317,7 +318,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 			fadeInMS = envelopePoints[1].XMS - envelopePoints[0].XMS
 			fadeOutMS = envelopePoints[4].XMS - envelopePoints[3].XMS
 		}
-		codaRelease := providerID == "utautts-world-phrase" && worldCodaReleaseEligible(synthesisPlan, *unit)
+		codaRelease := worldCodaReleaseEligible(synthesisPlan, *unit)
 		if codaRelease {
 			envelopePoints, fadeOutMS = codaReleaseEnvelope(*unit, envelopePoints, fadeOutMS)
 			if closure, release, ok := worldCodaReleaseSplit(synthesisPlan, *unit, cfg.ProviderOptions.Worldline); ok {
@@ -342,12 +343,12 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 			}
 		}
 		// E2bは日本語VCVにも原波形バーストを広げるが、再伸縮はせずpreserve-onlyに留める。
-		protectStopOnly := providerID == "utautts-world-phrase" && !legacyMix && unit.Role == "mora" && !singleCVUnit && !vcvSpeech &&
+		protectStopOnly := !legacyMix && unit.Role == "mora" && !singleCVUnit && !vcvSpeech &&
 			(!vcvUnit || e2bStopGeneralization(synthesisPlan, *unit, cfg.ProviderOptions.Worldline)) && stopProtected
-		legacyE2BStop := providerID == "utautts-world-phrase" && e2bLegacyStopPreserve(synthesisPlan, *unit, legacyMix, cfg.ProviderOptions.Worldline) && !singleCVUnit && !vcvSpeech
+		legacyE2BStop := e2bLegacyStopPreserve(synthesisPlan, *unit, legacyMix, cfg.ProviderOptions.Worldline) && !singleCVUnit && !vcvSpeech
 		// C3aで伸縮を有界にしたユニットは、bridge側でもfixed境界を後ろへずらして母音の伸びを抑える。
-		stretchSpeech := providerID == "utautts-world-phrase" && unit.Role == "mora" && unit.StretchAdapted && !codaRelease
-		if providerID == "utautts-world-phrase" && unit.Role == "mora" && (singleCVUnit || vcvSpeech || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied || protectStopOnly || legacyE2BStop || stretchSpeech) {
+		stretchSpeech := unit.Role == "mora" && unit.StretchAdapted && !codaRelease
+		if unit.Role == "mora" && (singleCVUnit || vcvSpeech || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied || protectStopOnly || legacyE2BStop || stretchSpeech) {
 			targetOnset := skipMS + unit.NoteStartMS + leadingMS - positionMS
 			if singleCVUnit || vcvSpeech {
 				targetOnset = timing.preutteranceMS
@@ -435,7 +436,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 	var speechResults []provider.WorldSpeechResult
-	if commandErr := invokeWorldlineBridgeReport(ctx, bridge, jobPath, manifest.OutputPath, &speechResults); commandErr != nil {
+	if commandErr := worldline.InvokeReport(ctx, bridge, jobPath, manifest.OutputPath, &speechResults); commandErr != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, fmt.Errorf("worldline bridge canceled: %w", ctxErr)
 		}
