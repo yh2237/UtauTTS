@@ -201,3 +201,25 @@ func TestBuildAttachesProfilesForStretchAdapt(t *testing.T) {
 		t.Fatal("StretchAdapt did not attach a speech profile")
 	}
 }
+
+// 未指定のモーラ長・ポーズ長はcanonicalな既定値へ揃う。
+func TestBuildUsesCanonicalDurationDefaults(t *testing.T) {
+	morae, err := frontend.ParseKana("あ、")
+	if err != nil {
+		t.Fatal(err)
+	}
+	selections := []voicebank.Selection{{
+		Position: 0, Mora: morae[0], Alias: "あ", Kind: voicebank.AliasCV,
+		Entry: oto.Entry{Filename: "a.wav"},
+	}}
+	got, err := Build(&voicebank.Bank{Root: "bank"}, "あ、", morae, selections, Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mora := got.Units[0]; mora.DurationMS != DefaultMoraDurationMS {
+		t.Fatalf("mora duration = %v, want %v", mora.DurationMS, DefaultMoraDurationMS)
+	}
+	if got.DurationMS != DefaultMoraDurationMS+DefaultPauseDurationMS {
+		t.Fatalf("plan duration = %v, want %v", got.DurationMS, DefaultMoraDurationMS+DefaultPauseDurationMS)
+	}
+}

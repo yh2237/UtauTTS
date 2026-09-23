@@ -102,8 +102,8 @@ const (
 // MaxIntonationStrengthはユーザー向けイントネーション制御の上限値。
 const MaxIntonationStrength = 4.0
 
-// defaultReleaseMSは未指定時のリリース長。明示的な0にはReleaseSetを使う。
-const defaultReleaseMS = 20.0
+// DefaultReleaseMSは未指定時のリリース長。明示的な0にはReleaseSetを使う。
+const DefaultReleaseMS = 20.0
 
 // rendererImplementationsは実行可能なbackendの一覧。表示情報はrenderer.jsonに置く。
 var rendererImplementations = map[string]func(*plan.Plan, Config) (*audio.PCM, error){
@@ -330,7 +330,7 @@ func renderMutable(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
 		return nil, fmt.Errorf("leading_preutterance_ms must be non-negative, got %v", cfg.LeadingPreutteranceMS)
 	}
 	if !cfg.ReleaseSet && cfg.ReleaseMS == 0 {
-		cfg.ReleaseMS = defaultReleaseMS
+		cfg.ReleaseMS = DefaultReleaseMS
 	}
 	if cfg.IntonationStrength < 0 || cfg.IntonationStrength > MaxIntonationStrength {
 		return nil, fmt.Errorf("intonation_strength must be between 0 and %.0f, got %v", MaxIntonationStrength, cfg.IntonationStrength)

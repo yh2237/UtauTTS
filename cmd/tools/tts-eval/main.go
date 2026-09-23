@@ -71,7 +71,7 @@ func main() {
 func run() error {
 	wordEnvelope := flag.Bool("word-boundary-envelope", false, "halve fades at word boundaries without changing source or pitch (CPU WORLD)")
 	exportSources := flag.Bool("export-sources", false, "export original, selected and mixed-output source audit clips")
-	moraMS := flag.Float64("mora-ms", 120, "base syllable duration in milliseconds")
+	moraMS := flag.Float64("mora-ms", synth.DefaultMoraDurationMS, "base syllable duration in milliseconds")
 	experiment := flag.String("prosody-experiment", "baseline", "speech prosody comparison: baseline, timing, pitch, both (CPU WORLD only)")
 	measurePitch := flag.Bool("measure-pitch", false, "write WORLD target and measured output F0 traces")
 	phonemizer := flag.String("phonemizer", "", "override corpus phonemizer for the selected voicebank")

@@ -252,6 +252,67 @@ func TestPredictProsodyDoesNotRenderAudio(t *testing.T) {
 	}
 }
 
+// プレビューの既定はplanのcanonical値をそのまま使う。
+func TestPredictProsodyUsesCanonicalDurationDefaults(t *testing.T) {
+	preview, err := PredictProsody(Config{Reading: "あいう"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []float64{plan.DefaultMoraDurationMS, plan.DefaultMoraDurationMS, plan.DefaultMoraDurationMS}
+	if !reflect.DeepEqual(preview.MoraDurationsMS, want) {
+		t.Fatalf("mora durations = %v, want %v", preview.MoraDurationsMS, want)
+	}
+	pause, err := PredictProsody(Config{Reading: "あ・い"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for index, mora := range pause.Morae {
+		if !mora.Pause {
+			continue
+		}
+		found = true
+		if pause.MoraDurationsMS[index] != plan.DefaultPauseDurationMS {
+			t.Fatalf("pause duration = %v, want %v", pause.MoraDurationsMS[index], plan.DefaultPauseDurationMS)
+		}
+	}
+	if !found {
+		t.Fatal("no pause mora in preview")
+	}
+}
+
+// プレビューと本合成が同じcanonicalな既定モーラ長を使う。
+func TestPreviewAndSynthesisShareCanonicalMoraDefault(t *testing.T) {
+	root := t.TempDir()
+	samples := make([]int16, 8000)
+	for index := range samples {
+		samples[index] = int16(3000 * math.Sin(2*math.Pi*220*float64(index)/16000))
+	}
+	if err := audio.WriteWav(filepath.Join(root, "source.wav"), &audio.PCM{SampleRate: 16000, Channels: 1, Data: samples}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "oto.ini"), []byte(
+		"source.wav=あ,0,100,0,50,10\n"+"source.wav=か,0,100,0,50,10\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	preview, err := PredictProsody(Config{VoicebankPath: root, Reading: "あか"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := Synthesize(Config{VoicebankPath: root, Reading: "あか"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(preview.MoraDurationsMS, result.MoraDurationsMS) {
+		t.Fatalf("preview %v != synthesis %v", preview.MoraDurationsMS, result.MoraDurationsMS)
+	}
+	for index, duration := range result.MoraDurationsMS {
+		if duration != plan.DefaultMoraDurationMS {
+			t.Fatalf("mora %d = %v, want %v", index, duration, plan.DefaultMoraDurationMS)
+		}
+	}
+}
+
 func testMoraTimingsDistributeConsecutiveTrailingPauses(t *testing.T) {
 	morae := []frontend.Mora{{Text: "a"}, {Pause: true}, {Pause: true}}
 	p := &plan.Plan{DurationMS: 300, Units: []plan.Unit{{Position: 0, NoteStartMS: 0, DurationMS: 100}}}

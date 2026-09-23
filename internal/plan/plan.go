@@ -13,6 +13,12 @@ import (
 
 const Version = 26
 
+// DefaultMoraDurationMSとDefaultPauseDurationMSは未指定時の長さ。合成・プレビュー・manifestが共有するcanonical値。
+const (
+	DefaultMoraDurationMS  = 140.0
+	DefaultPauseDurationMS = 180.0
+)
+
 type Config struct {
 	SpeechTiming    bool
 	MoraDurationMS  float64
@@ -245,10 +251,10 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		return nil, fmt.Errorf("pause duration must be finite, got %v", cfg.PauseDurationMS)
 	}
 	if cfg.MoraDurationMS <= 0 {
-		cfg.MoraDurationMS = 140
+		cfg.MoraDurationMS = DefaultMoraDurationMS
 	}
 	if cfg.PauseDurationMS <= 0 {
-		cfg.PauseDurationMS = 180
+		cfg.PauseDurationMS = DefaultPauseDurationMS
 	}
 	for index, duration := range cfg.MoraDurationsMS {
 		if math.IsNaN(duration) || math.IsInf(duration, 0) {

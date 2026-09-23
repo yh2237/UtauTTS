@@ -34,6 +34,13 @@ const (
 	DefaultEnglishWeakForm         = true
 )
 
+// DefaultMoraDurationMSなどはplan/renderのcanonicalな既定値の再輸出。外部から見た既定を単一ソースに保つ。
+const (
+	DefaultMoraDurationMS  = plan.DefaultMoraDurationMS
+	DefaultPauseDurationMS = plan.DefaultPauseDurationMS
+	DefaultReleaseMS       = render.DefaultReleaseMS
+)
+
 // Requestは合成とプレビューで共有する入力。
 type Request struct {
 	SpeechTiming            bool                         `json:"speech_timing"`

@@ -654,13 +654,13 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		return nil, err
 	}
 	if cfg.MoraDurationMS <= 0 {
-		cfg.MoraDurationMS = 120
+		cfg.MoraDurationMS = plan.DefaultMoraDurationMS
 	}
-	if cfg.PauseDurationMS < 0 {
-		cfg.PauseDurationMS = 180
+	if cfg.PauseDurationMS <= 0 {
+		cfg.PauseDurationMS = plan.DefaultPauseDurationMS
 	}
 	if cfg.ReleaseMS <= 0 && !cfg.ReleaseSet {
-		cfg.ReleaseMS = 20
+		cfg.ReleaseMS = render.DefaultReleaseMS
 	}
 
 	language, _, reading, morae, err := resolvePronunciation(cfg)

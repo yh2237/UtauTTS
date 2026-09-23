@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"utautts/internal/engine"
+	"utautts/internal/plan"
 	"utautts/internal/plugin"
 )
 
@@ -68,6 +69,32 @@ func TestResolveSynthesisUsesDirectVoicebankPathAndNormalizesKana(t *testing.T) 
 		resolved.Config.BoundaryBridgeMS != 12 || resolved.Config.CVVCTiming != "sequential" ||
 		resolved.Config.JoinModelPath != "join.json" {
 		t.Fatalf("CLI settings were not preserved: %#v", resolved.Config)
+	}
+}
+
+// 同梱manifestのtiming既定はGoのcanonical値と一致させる。
+func TestBundledRendererManifestsUseCanonicalTimingDefaults(t *testing.T) {
+	catalog, err := plugin.DiscoverWithDefaults(nil, nil, func(string) bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(catalog.Renderers) < 4 {
+		t.Fatalf("renderers = %d, want at least 4", len(catalog.Renderers))
+	}
+	want := map[string]float64{
+		"mora_duration_ms":  plan.DefaultMoraDurationMS,
+		"pause_duration_ms": plan.DefaultPauseDurationMS,
+	}
+	for _, renderer := range catalog.Renderers {
+		for _, setting := range renderer.Settings {
+			expected, ok := want[setting.ID]
+			if !ok {
+				continue
+			}
+			if got, ok := setting.Default.(float64); !ok || got != expected {
+				t.Errorf("%s %s default = %v, want %v", renderer.ID, setting.ID, setting.Default, expected)
+			}
+		}
 	}
 }
 
