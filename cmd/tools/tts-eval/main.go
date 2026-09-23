@@ -85,8 +85,8 @@ func run() error {
 	pauseContext := flag.Bool("pause-context", true, "context-aware punctuation pause length (B5)")
 	pauseContextStrength := flag.Float64("pause-context-strength", 1.0, "pause context strength (0 uses the default 1.0)")
 	englishWeakForm := flag.Bool("english-weak-form", true, "weak forms for English function words (E1)")
-	e2a := flag.Bool("e2a", render.E2AEnabled(), "separate English stop coda closure and release (E2a)")
-	e2b := flag.Bool("e2b", render.E2BEnabled(), "generalize stop-burst gate to Japanese plosives (E2b)")
+	e2a := flag.Bool("e2a", render.WorldlineProviderOptions{}.E2AEnabled(), "separate English stop coda closure and release (E2a)")
+	e2b := flag.Bool("e2b", render.WorldlineProviderOptions{}.E2BEnabled(), "generalize stop-burst gate to Japanese plosives (E2b)")
 	aliasPolicy := flag.String("alias-policy", "auto", "voicebank mode: auto or cv-only")
 	bank := flag.String("voicebank", "", "voicebank directory (required)")
 	diagnose := flag.Bool("diagnose", false, "write frontend and candidate diagnostics without rendering")
@@ -105,8 +105,6 @@ func run() error {
 	timeout := flag.Duration("timeout", 2*time.Minute, "timeout per synthesis")
 	flag.Parse()
 	connection.SetLegacyJoinCost(*joinCostLegacy)
-	render.SetE2A(*e2a)
-	render.SetE2B(*e2b)
 	if *sweep && *diagnose {
 		return fmt.Errorf("sweep and diagnose cannot be combined")
 	}
@@ -156,7 +154,7 @@ func run() error {
 			boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
 			stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
 			pauseContext: *pauseContext, pauseContextStrength: *pauseContextStrength,
-			englishWeakForm: *englishWeakForm,
+			englishWeakForm: *englishWeakForm, e2a: *e2a, e2b: *e2b,
 		})
 	}
 	if *measurePitch && (*diagnose || *renderers != "utautts-world-phrase") {
@@ -219,7 +217,7 @@ func run() error {
 					boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
 					stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
 					pauseContext: *pauseContext, pauseContextStrength: *pauseContextStrength,
-					englishWeakForm: *englishWeakForm,
+					englishWeakForm: *englishWeakForm, e2a: *e2a, e2b: *e2b,
 				}, catalog)
 				row.ElapsedMS = elapsed
 				if callErr == nil {

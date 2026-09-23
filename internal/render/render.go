@@ -78,6 +78,20 @@ type WorldlineProviderOptions struct {
 	ExactLength          bool
 	MixMode              string
 	GapRepairMode        string
+	// E2Aは英語停止codaの閉鎖/解放分離(E2a)を有効にする。nilは既定ON。
+	E2A *bool
+	// E2Bは日本語破裂音の過渡音ゲート一般化(E2b)を有効にする。nilは既定ON。
+	E2B *bool
+}
+
+// E2AEnabledはE2aの実効値を返す。未指定は既定ON。
+func (options WorldlineProviderOptions) E2AEnabled() bool {
+	return options.E2A == nil || *options.E2A
+}
+
+// E2BEnabledはE2bの実効値を返す。未指定は既定ON。
+func (options WorldlineProviderOptions) E2BEnabled() bool {
+	return options.E2B == nil || *options.E2B
 }
 
 func (cfg Config) resource(key engine.ResourceKey) string {

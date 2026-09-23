@@ -320,7 +320,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		codaRelease := providerID == "utautts-world-phrase" && worldCodaReleaseEligible(synthesisPlan, *unit)
 		if codaRelease {
 			envelopePoints, fadeOutMS = codaReleaseEnvelope(*unit, envelopePoints, fadeOutMS)
-			if closure, release, ok := worldCodaReleaseSplit(synthesisPlan, *unit); ok {
+			if closure, release, ok := worldCodaReleaseSplit(synthesisPlan, *unit, cfg.ProviderOptions.Worldline); ok {
 				unit.CodaClosureMS = closure
 				unit.CodaReleaseMS = release
 				unit.CodaReleaseSeparated = true
@@ -333,7 +333,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		cacheKey := worldlineAnalysisCacheKey(cacheSource, frqPath, *unit, cacheVolume)
 		cacheKey += fmt.Sprintf("|fs=%d", sampleRate)
 		var speech *provider.WorldSpeechTiming
-		stopProtected := worldlineStopProtection(synthesisPlan, *unit)
+		stopProtected := worldlineStopProtection(synthesisPlan, *unit, cfg.ProviderOptions.Worldline)
 		if speechStop(synthesisPlan, *unit) {
 			if stopProtected {
 				unit.StopBurstReason = "transient-detected"
@@ -343,8 +343,8 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		}
 		// E2bは日本語VCVにも原波形バーストを広げるが、再伸縮はせずpreserve-onlyに留める。
 		protectStopOnly := providerID == "utautts-world-phrase" && !legacyMix && unit.Role == "mora" && !singleCVUnit && !vcvSpeech &&
-			(!vcvUnit || e2bStopGeneralization(synthesisPlan, *unit)) && stopProtected
-		legacyE2BStop := providerID == "utautts-world-phrase" && e2bLegacyStopPreserve(synthesisPlan, *unit, legacyMix) && !singleCVUnit && !vcvSpeech
+			(!vcvUnit || e2bStopGeneralization(synthesisPlan, *unit, cfg.ProviderOptions.Worldline)) && stopProtected
+		legacyE2BStop := providerID == "utautts-world-phrase" && e2bLegacyStopPreserve(synthesisPlan, *unit, legacyMix, cfg.ProviderOptions.Worldline) && !singleCVUnit && !vcvSpeech
 		// C3aで伸縮を有界にしたユニットは、bridge側でもfixed境界を後ろへずらして母音の伸びを抑える。
 		stretchSpeech := providerID == "utautts-world-phrase" && unit.Role == "mora" && unit.StretchAdapted && !codaRelease
 		if providerID == "utautts-world-phrase" && unit.Role == "mora" && (singleCVUnit || vcvSpeech || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied || protectStopOnly || legacyE2BStop || stretchSpeech) {
@@ -534,7 +534,7 @@ func worldlineGapRepairEligible(synthesisPlan *plan.Plan, unitIndex int) bool {
 }
 
 // 生波形補強は英語の破裂音と単独音に加え、E2bで日本語の破裂音にも広げる。
-func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit) bool {
+func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options WorldlineProviderOptions) bool {
 	if synthesisPlan == nil {
 		return false
 	}
@@ -557,18 +557,18 @@ func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit) bool {
 	japanese := language == "ja" || phonemizer == "ja" || strings.HasPrefix(phonemizer, "ja-")
 	if japanese && strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV") {
 		// E2b: 日本語VCVは信頼度が高い過渡だけ保護する。
-		return e2bEnabled && unit.SpeechProfile.TransientConfidence >= stopTransientVCVFloor
+		return options.E2BEnabled() && unit.SpeechProfile.TransientConfidence >= stopTransientVCVFloor
 	}
 	if japanese {
 		// E2b: 日本語CVも既定では無効。信頼度が高いときだけ保護する。
-		return e2bEnabled && unit.SpeechProfile.TransientConfidence >= stopTransientJapaneseFloor
+		return options.E2BEnabled() && unit.SpeechProfile.TransientConfidence >= stopTransientJapaneseFloor
 	}
 	return true
 }
 
 // e2bStopGeneralizationはE2bが対象とする日本語の破裂音モーラかを返す。
-func e2bStopGeneralization(synthesisPlan *plan.Plan, unit plan.Unit) bool {
-	if !e2bEnabled || synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
+func e2bStopGeneralization(synthesisPlan *plan.Plan, unit plan.Unit, options WorldlineProviderOptions) bool {
+	if !options.E2BEnabled() || synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
 		return false
 	}
 	language := strings.ToLower(strings.TrimSpace(synthesisPlan.Language))
@@ -578,11 +578,11 @@ func e2bStopGeneralization(synthesisPlan *plan.Plan, unit plan.Unit) bool {
 
 // e2bLegacyStopPreserveはレガシー日本語連続混合でも原波形バーストだけを重ねるかを返す。
 // E2b無効時や信頼度が低いときは発動しない。
-func e2bLegacyStopPreserve(synthesisPlan *plan.Plan, unit plan.Unit, legacyMix bool) bool {
-	if !legacyMix || !e2bStopGeneralization(synthesisPlan, unit) {
+func e2bLegacyStopPreserve(synthesisPlan *plan.Plan, unit plan.Unit, legacyMix bool, options WorldlineProviderOptions) bool {
+	if !legacyMix || !e2bStopGeneralization(synthesisPlan, unit, options) {
 		return false
 	}
-	return worldlineStopProtection(synthesisPlan, unit)
+	return worldlineStopProtection(synthesisPlan, unit, options)
 }
 
 // VCVはoto.iniの境界を使い、壊れた境界だけを補正する。

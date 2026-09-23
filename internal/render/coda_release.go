@@ -71,8 +71,8 @@ func codaClosureReleaseSplit(u plan.Unit) (float64, float64, bool) {
 }
 
 // worldCodaReleaseSplitはE2aが有効で、かつ解放過渡を保護できる停止codaだけ分離を返す。
-func worldCodaReleaseSplit(p *plan.Plan, u plan.Unit) (float64, float64, bool) {
-	if !e2aEnabled || !worldCodaReleaseEligible(p, u) || !worldlineStopProtection(p, u) {
+func worldCodaReleaseSplit(p *plan.Plan, u plan.Unit, options WorldlineProviderOptions) (float64, float64, bool) {
+	if !options.E2AEnabled() || !worldCodaReleaseEligible(p, u) || !worldlineStopProtection(p, u, options) {
 		return 0, 0, false
 	}
 	return codaClosureReleaseSplit(u)

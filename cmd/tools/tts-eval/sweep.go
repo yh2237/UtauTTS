@@ -99,6 +99,7 @@ type sweepRequest struct {
 	pauseContext                             bool
 	pauseContextStrength                     float64
 	englishWeakForm                          bool
+	e2a, e2b                                 bool
 	timeout                                  time.Duration
 }
 
@@ -201,7 +202,7 @@ func runSweep(req sweepRequest) error {
 				boundaryTone: req.boundaryTone, boundaryToneStrength: req.boundaryToneStrength,
 				stretchAdapt: req.stretchAdapt, stretchAdaptStrength: req.stretchAdaptStrength,
 				pauseContext: req.pauseContext, pauseContextStrength: req.pauseContextStrength,
-				englishWeakForm: req.englishWeakForm,
+				englishWeakForm: req.englishWeakForm, e2a: req.e2a, e2b: req.e2b,
 			}, catalog)
 			row.ElapsedMS = elapsed
 			if callErr == nil {

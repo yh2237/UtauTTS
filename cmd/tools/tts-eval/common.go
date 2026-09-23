@@ -36,6 +36,7 @@ type caseOptions struct {
 	pauseContext              bool
 	pauseContextStrength      float64
 	englishWeakForm           bool
+	e2a, e2b                  bool
 	timeout                   time.Duration
 }
 
@@ -70,7 +71,7 @@ func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Re
 	started := time.Now()
 	var result *synth.Result
 	if err == nil {
-		providerOptions := render.ProviderOptions{Worldline: render.WorldlineProviderOptions{MixMode: o.mix, GapRepairMode: o.gapRepair}}
+		providerOptions := render.ProviderOptions{Worldline: render.WorldlineProviderOptions{MixMode: o.mix, GapRepairMode: o.gapRepair, E2A: &o.e2a, E2B: &o.e2b}}
 		result, err = synth.SynthesizeConfigWithOptions(cfg, resolved, providerOptions)
 	}
 	elapsed := float64(time.Since(started).Microseconds()) / 1000
