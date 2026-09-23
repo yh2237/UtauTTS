@@ -81,6 +81,8 @@ func run() error {
 	boundaryToneStrength := flag.Float64("boundary-tone-strength", 1.0, "boundary tone strength (0 uses the default 1.0)")
 	stretchAdapt := flag.Bool("stretch-adapt", true, "adapt Japanese mora stretching to voicebank measurements (C3a)")
 	stretchAdaptStrength := flag.Float64("stretch-adapt-strength", 1.0, "stretch adaptation strength (0 uses the default 1.0)")
+	pauseContext := flag.Bool("pause-context", true, "context-aware punctuation pause length (B5)")
+	pauseContextStrength := flag.Float64("pause-context-strength", 1.0, "pause context strength (0 uses the default 1.0)")
 	aliasPolicy := flag.String("alias-policy", "auto", "voicebank mode: auto or cv-only")
 	bank := flag.String("voicebank", "", "voicebank directory (required)")
 	diagnose := flag.Bool("diagnose", false, "write frontend and candidate diagnostics without rendering")
@@ -145,6 +147,7 @@ func run() error {
 			contextDuration: *contextDuration, contextDurationStrength: *contextDurationStrength,
 			boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
 			stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
+			pauseContext: *pauseContext, pauseContextStrength: *pauseContextStrength,
 		})
 	}
 	if *measurePitch && (*diagnose || *renderers != "utautts-world-phrase") {
@@ -206,6 +209,7 @@ func run() error {
 					contextDuration: *contextDuration, contextDurationStrength: *contextDurationStrength,
 					boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
 					stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
+					pauseContext: *pauseContext, pauseContextStrength: *pauseContextStrength,
 				}, catalog)
 				row.ElapsedMS = elapsed
 				if callErr == nil {

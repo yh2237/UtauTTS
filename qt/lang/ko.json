@@ -139,6 +139,8 @@
     "settings.boundaryToneStrength": "강도",
     "settings.stretchAdapt": "음원에 맞춘 신축",
     "settings.stretchAdaptStrength": "강도",
+    "settings.pauseContext": "문맥 기반 휴지 길이",
+    "settings.pauseContextStrength": "강도",
     "settings.resamplerAuto": "자동",
     "settings.defaultDiffSingerSteps": "DiffSinger 확산 스텝",
     "settings.defaultDiffSingerExpr": "DiffSinger 표현력",

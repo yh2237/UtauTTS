@@ -21,7 +21,9 @@
     { "id": "boundary_tone", "type": "boolean", "group": "timing", "default": true, "label": "settings.boundaryTone" },
     { "id": "boundary_tone_strength", "type": "number", "group": "timing", "default": 1.0, "min": 0, "max": 2, "step": 0.01, "label": "settings.boundaryToneStrength" },
     { "id": "stretch_adapt", "type": "boolean", "group": "timing", "default": true, "label": "settings.stretchAdapt" },
-    { "id": "stretch_adapt_strength", "type": "number", "group": "timing", "default": 1.0, "min": 0, "max": 2, "step": 0.01, "label": "settings.stretchAdaptStrength" }
+    { "id": "stretch_adapt_strength", "type": "number", "group": "timing", "default": 1.0, "min": 0, "max": 2, "step": 0.01, "label": "settings.stretchAdaptStrength" },
+    { "id": "pause_context", "type": "boolean", "group": "timing", "default": true, "label": "settings.pauseContext" },
+    { "id": "pause_context_strength", "type": "number", "group": "timing", "default": 1.0, "min": 0, "max": 2, "step": 0.01, "label": "settings.pauseContextStrength" }
   ],
   "platforms": ["windows-amd64", "linux-amd64", "darwin-amd64", "darwin-arm64"],
   "platform_resources": {

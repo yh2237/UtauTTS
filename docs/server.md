@@ -244,6 +244,8 @@ ID順にソートされた音源一覧です。
 | `boundary_tone_strength` | number | `1` | 境界音調の強度（0〜2）。0は既定1.0として扱う |
 | `stretch_adapt` | boolean | `true` | 音源実測に基づき日本語モーラの過度な伸縮を有界にする（C3a）。長いモーラ長（例: 200ms以上）のときのみ有効。既定の短い設定では無効（解析コスト回避） |
 | `stretch_adapt_strength` | number | `1` | 伸縮補正の強度（0〜2）。0は既定1.0として扱う |
+| `pause_context` | boolean | `true` | 句読点の種類と発話末で休止長を変える（B5） |
+| `pause_context_strength` | number | `1` | 休止長補正の強度（0〜2）。0は既定1.0として扱う |
 | `manual_pitch` | object | なし | 手動ピッチ編集（[manual-pitch.md](manual-pitch.md) のJSON） |
 | `dictionary` | object[] | なし | ユーザー辞書。各項目は`surface`と`reading`を持つ |
 | `diffsinger_steps` | number | `0`（既定値） | DiffSingerの拡散ステップ数。0で既定値 |

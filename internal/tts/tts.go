@@ -36,7 +36,11 @@ type Config struct {
 	// StretchAdaptは日本語の伸縮を音源実測へ適応(C3a)する。nilは既定ON。
 	StretchAdapt *bool
 	// StretchAdaptStrengthは伸縮補正の強度。0は既定1.0。
-	StretchAdaptStrength    float64
+	StretchAdaptStrength float64
+	// PauseContextはポーズ長の文脈化(B5)を有効にする。nilは既定ON。
+	PauseContext *bool
+	// PauseContextStrengthはポーズ長補正の強度。0は既定1.0。
+	PauseContextStrength    float64
 	Context                 context.Context
 	Engine                  engine.ResolvedEngine
 	VoicebankPath           string
@@ -432,17 +436,19 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	// C3aは日本語のモーラだけを対象にし、長いモーラ長で効果があるときだけ有効化する。
 	stretchAdapt := stretchAdaptEnabled(cfg) && language == frontend.LanguageJapanese
 	synthesisPlan, err := plan.Build(bank, reading, morae, selections, plan.Config{
-		SpeechTiming:       cfg.SpeechTiming,
-		MoraDurationMS:     cfg.MoraDurationMS,
-		PauseDurationMS:    cfg.PauseDurationMS,
-		MoraDurationsMS:    cfg.MoraDurationsMS,
-		PhoneWeights:       phoneWeights,
-		PhoneWeightsSource: phoneTimingSource,
-		Predictions:        predictions,
-		AliasPolicy:        cfg.AliasPolicy,
-		Tone:               cfg.Tone,
-		Color:              cfg.Color,
-		StretchAdapt:       stretchAdapt,
+		SpeechTiming:         cfg.SpeechTiming,
+		MoraDurationMS:       cfg.MoraDurationMS,
+		PauseDurationMS:      cfg.PauseDurationMS,
+		PauseContext:         pauseContextEnabled(cfg),
+		PauseContextStrength: pauseContextStrength(cfg),
+		MoraDurationsMS:      cfg.MoraDurationsMS,
+		PhoneWeights:         phoneWeights,
+		PhoneWeightsSource:   phoneTimingSource,
+		Predictions:          predictions,
+		AliasPolicy:          cfg.AliasPolicy,
+		Tone:                 cfg.Tone,
+		Color:                cfg.Color,
+		StretchAdapt:         stretchAdapt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build synthesis plan: %w", err)
@@ -773,6 +779,7 @@ func validateConfig(cfg Config) error {
 		"context_duration_strength": cfg.ContextDurationStrength,
 		"boundary_tone_strength":    cfg.BoundaryToneStrength,
 		"stretch_adapt_strength":    cfg.StretchAdaptStrength,
+		"pause_context_strength":    cfg.PauseContextStrength,
 		"boundary_bridge_ms":        cfg.BoundaryBridgeMS,
 		"boundary_bridge_threshold": cfg.BoundaryBridgeThreshold,
 	}

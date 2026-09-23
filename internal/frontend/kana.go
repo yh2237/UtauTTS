@@ -9,20 +9,44 @@ import (
 )
 
 type Mora struct {
-	Language      string  `json:",omitempty"`
-	WordIndex     int     `json:",omitempty"`
-	WordEnd       bool    `json:",omitempty"`
-	SourceText    string  `json:",omitempty"`
-	Phones        []Phone `json:",omitempty"`
-	Text          string
-	Consonant     string
-	Vowel         string
-	Pause         bool
+	Language   string  `json:",omitempty"`
+	WordIndex  int     `json:",omitempty"`
+	WordEnd    bool    `json:",omitempty"`
+	SourceText string  `json:",omitempty"`
+	Phones     []Phone `json:",omitempty"`
+	Text       string
+	Consonant  string
+	Vowel      string
+	Pause      bool
+	// PauseKindはポーズの種類（comma, period, question, ellipsis, space, bracket, other）。
+	PauseKind     string `json:",omitempty"`
 	Stress        int
 	StressKnown   bool `json:",omitempty"`
 	Tone          int
 	DurationScale float64
 	Aliases       *AliasHints
+}
+
+// ポーズの種類。句読点の種類ごとに休止長を変えるために保持する。
+const (
+	PauseKindComma    = "comma"
+	PauseKindPeriod   = "period"
+	PauseKindQuestion = "question"
+	PauseKindEllipsis = "ellipsis"
+	PauseKindSpace    = "space"
+	PauseKindBracket  = "bracket"
+	PauseKindOther    = "other"
+)
+
+// pauseKindRanksは連続する句読点を1つにまとめるときの優先度。値が大きいほど強い。
+var pauseKindRanks = map[string]int{
+	PauseKindOther:    1,
+	PauseKindBracket:  1,
+	PauseKindSpace:    2,
+	PauseKindComma:    3,
+	PauseKindPeriod:   4,
+	PauseKindEllipsis: 5,
+	PauseKindQuestion: 6,
 }
 
 type AliasHints struct {
@@ -47,8 +71,12 @@ func ParseKana(reading string) ([]Mora, error) {
 	var result []Mora
 	for _, r := range reading {
 		if unicode.IsSpace(r) || strings.ContainsRune("、。，．,.!?！？・…‥〜～（）「」『』", r) {
+			kind := pauseKindOf(r)
 			if len(result) > 0 && !result[len(result)-1].Pause {
-				result = append(result, Mora{Pause: true})
+				result = append(result, Mora{Pause: true, PauseKind: kind})
+			} else if len(result) > 0 {
+				// 連続する句読点は1つのポーズにまとめ、強い方の種類を採用する。
+				result[len(result)-1].PauseKind = strongerPauseKind(result[len(result)-1].PauseKind, kind)
 			}
 			continue
 		}
@@ -81,6 +109,34 @@ func ParseKana(reading string) ([]Mora, error) {
 
 func isKana(r rune) bool {
 	return unicode.Is(unicode.Hiragana, r) || unicode.Is(unicode.Katakana, r) || r == 'ー'
+}
+
+// pauseKindOfは句読点・空白・括弧をポーズ種別へ分類する。
+func pauseKindOf(r rune) string {
+	switch {
+	case strings.ContainsRune("、，,", r):
+		return PauseKindComma
+	case strings.ContainsRune("。．.", r):
+		return PauseKindPeriod
+	case strings.ContainsRune("？?！!", r):
+		return PauseKindQuestion
+	case strings.ContainsRune("…‥〜～", r):
+		return PauseKindEllipsis
+	case unicode.IsSpace(r):
+		return PauseKindSpace
+	case strings.ContainsRune("（）「」『』", r):
+		return PauseKindBracket
+	default:
+		return PauseKindOther
+	}
+}
+
+// strongerPauseKindは2つのポーズ種別のうち優先度が高い方を返す。
+func strongerPauseKind(current, candidate string) string {
+	if pauseKindRanks[candidate] > pauseKindRanks[current] {
+		return candidate
+	}
+	return current
 }
 
 func toHiragana(r rune) rune {

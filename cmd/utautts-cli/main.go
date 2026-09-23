@@ -52,6 +52,8 @@ func main() {
 		boundaryToneStrength     float64
 		stretchAdapt             bool
 		stretchAdaptStrength     float64
+		pauseContext             bool
+		pauseContextStrength     float64
 		renderer                 string
 		resampler                string
 		wavtool                  string
@@ -113,6 +115,8 @@ func main() {
 	flag.Float64Var(&boundaryToneStrength, "boundary-tone-strength", synth.DefaultBoundaryToneStrength, "boundary tone strength (0 uses the default 1.0)")
 	flag.BoolVar(&stretchAdapt, "stretch-adapt", synth.DefaultStretchAdapt, "adapt Japanese mora stretching to voicebank measurements (C3a)")
 	flag.Float64Var(&stretchAdaptStrength, "stretch-adapt-strength", synth.DefaultStretchAdaptStrength, "stretch adaptation strength (0 uses the default 1.0)")
+	flag.BoolVar(&pauseContext, "pause-context", synth.DefaultPauseContext, "context-aware punctuation pause length (B5)")
+	flag.Float64Var(&pauseContextStrength, "pause-context-strength", synth.DefaultPauseContextStrength, "pause context strength (0 uses the default 1.0)")
 	flag.StringVar(&renderer, "renderer", "", "renderer ID (default: highest configured priority)")
 	flag.StringVar(&resampler, "resampler", "", "Classic UTAU resampler ID from Resamplers")
 	flag.StringVar(&wavtool, "wavtool", "builtin", "Classic UTAU wavtool ID from Wavtools")
@@ -202,6 +206,8 @@ func main() {
 		BoundaryToneStrength:    boundaryToneStrength,
 		StretchAdapt:            stretchAdapt,
 		StretchAdaptStrength:    stretchAdaptStrength,
+		PauseContext:            pauseContext,
+		PauseContextStrength:    pauseContextStrength,
 		BoundaryBridgeMS:        boundaryBridgeMS,
 		BoundaryBridgeThreshold: boundaryBridgeThreshold,
 		CVVCTiming:              cvvcTiming,

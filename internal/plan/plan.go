@@ -17,7 +17,11 @@ type Config struct {
 	SpeechTiming    bool
 	MoraDurationMS  float64
 	PauseDurationMS float64
-	MoraDurationsMS []float64
+	// PauseContextはポーズ長の文脈化(B5)を有効にする。
+	PauseContext bool
+	// PauseContextStrengthはポーズ長補正の強度。0は既定1.0、負値は恒等。
+	PauseContextStrength float64
+	MoraDurationsMS      []float64
 	// PhoneWeightsはモーラ内の音素時間比。nilなら既存の固定重みを使う。
 	PhoneWeights       [][]float64
 	PhoneWeightsSource string
@@ -279,7 +283,7 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		if mora.Pause {
 			duration, manuallySet := configuredMoraDuration(position, cfg)
 			if !manuallySet {
-				duration = cfg.PauseDurationMS
+				duration = cfg.PauseDurationMS * pauseContextFactor(morae, position, cfg)
 				if prediction.DurationMS > 0 {
 					duration = prediction.DurationMS
 				} else if prediction.DurationFactor > 0 {

@@ -139,6 +139,8 @@
     "settings.boundaryToneStrength": "同 強度",
     "settings.stretchAdapt": "音源に合わせた伸縮",
     "settings.stretchAdaptStrength": "同 強度",
+    "settings.pauseContext": "句読点の休止長を文脈化",
+    "settings.pauseContextStrength": "同 強度",
     "settings.resamplerAuto": "自動",
     "settings.defaultDiffSingerSteps": "DiffSinger 拡散ステップ",
     "settings.defaultDiffSingerExpr": "DiffSinger 表現力",

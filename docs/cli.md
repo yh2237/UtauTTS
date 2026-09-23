@@ -91,6 +91,8 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--boundary-tone-strength` | `1` | 境界音調の強度（0〜2）。0は既定1.0として扱う |
 | `--stretch-adapt` | `true` | 音源実測に基づき日本語モーラの過度な伸縮を有界にする（C3a）。長いモーラ長（例: 200ms以上）のときのみ有効。既定の短い設定では無効（解析コスト回避） |
 | `--stretch-adapt-strength` | `1` | 伸縮補正の強度（0〜2）。0は既定1.0として扱う |
+| `--pause-context` | `true` | 句読点の種類と発話末で休止長を変える（B5） |
+| `--pause-context-strength` | `1` | 休止長補正の強度（0〜2）。0は既定1.0として扱う |
 | `--renderer <id>` | 既定Renderer | Renderer ID（省略時は設定された優先度が最大のもの。未知の明示IDはエラー） |
 | `--resampler <id>` | 自動選択 | Classic UTAUで使う`Resamplers/`からの相対ID |
 | `--wavtool <id>` | `builtin` | Classic UTAUで使う`Wavtools/`からの相対ID |

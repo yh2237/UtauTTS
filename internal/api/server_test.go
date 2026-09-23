@@ -458,11 +458,14 @@ func TestSynthesisRequestAppliesIntonationDefaults(t *testing.T) {
 	if !request.StretchAdapt || request.StretchAdaptStrength != synth.DefaultStretchAdaptStrength {
 		t.Fatalf("stretch defaults = stretch_adapt:%t stretch_adapt_strength:%v", request.StretchAdapt, request.StretchAdaptStrength)
 	}
+	if !request.PauseContext || request.PauseContextStrength != synth.DefaultPauseContextStrength {
+		t.Fatalf("pause defaults = pause_context:%t pause_context_strength:%v", request.PauseContext, request.PauseContextStrength)
+	}
 }
 
 func TestSynthesisRequestRespectsExplicitIntonation(t *testing.T) {
 	var request SynthesisRequest
-	if err := json.Unmarshal([]byte(`{"text":"あ","apply_pitch":false,"intonation_strength":0,"context_duration":false,"context_duration_strength":0.5,"boundary_tone":false,"boundary_tone_strength":0.5,"stretch_adapt":false,"stretch_adapt_strength":0.5}`), &request); err != nil {
+	if err := json.Unmarshal([]byte(`{"text":"あ","apply_pitch":false,"intonation_strength":0,"context_duration":false,"context_duration_strength":0.5,"boundary_tone":false,"boundary_tone_strength":0.5,"stretch_adapt":false,"stretch_adapt_strength":0.5,"pause_context":false,"pause_context_strength":0.5}`), &request); err != nil {
 		t.Fatal(err)
 	}
 	if request.ApplyPitch || request.IntonationStrength != 0 {
@@ -476,6 +479,9 @@ func TestSynthesisRequestRespectsExplicitIntonation(t *testing.T) {
 	}
 	if request.StretchAdapt || request.StretchAdaptStrength != 0.5 {
 		t.Fatalf("explicit stretch values = stretch_adapt:%t stretch_adapt_strength:%v", request.StretchAdapt, request.StretchAdaptStrength)
+	}
+	if request.PauseContext || request.PauseContextStrength != 0.5 {
+		t.Fatalf("explicit pause values = pause_context:%t pause_context_strength:%v", request.PauseContext, request.PauseContextStrength)
 	}
 }
 

@@ -29,6 +29,8 @@ const (
 	DefaultBoundaryToneStrength    = 1.0
 	DefaultStretchAdapt            = true
 	DefaultStretchAdaptStrength    = 1.0
+	DefaultPauseContext            = true
+	DefaultPauseContextStrength    = 1.0
 )
 
 // Requestは合成とプレビューで共有する入力。
@@ -69,6 +71,8 @@ type Request struct {
 	BoundaryToneStrength    float64                      `json:"boundary_tone_strength"`
 	StretchAdapt            bool                         `json:"stretch_adapt"`
 	StretchAdaptStrength    float64                      `json:"stretch_adapt_strength"`
+	PauseContext            bool                         `json:"pause_context"`
+	PauseContextStrength    float64                      `json:"pause_context_strength"`
 	ApplyPitch              bool                         `json:"apply_pitch"`
 	BoundaryBridgeMS        float64                      `json:"-"`
 	BoundaryBridgeThreshold float64                      `json:"-"`
@@ -250,6 +254,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	contextDuration := request.ContextDuration
 	boundaryTone := request.BoundaryTone
 	stretchAdapt := request.StretchAdapt
+	pauseContext := request.PauseContext
 	cfg := tts.Config{
 		SpeechTiming:            request.SpeechTiming,
 		Text:                    request.Text,
@@ -279,6 +284,8 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		BoundaryToneStrength:    request.BoundaryToneStrength,
 		StretchAdapt:            &stretchAdapt,
 		StretchAdaptStrength:    request.StretchAdaptStrength,
+		PauseContext:            &pauseContext,
+		PauseContextStrength:    request.PauseContextStrength,
 		PitchFactors:            append([]float64(nil), request.PitchFactors...),
 		ApplyPitch:              request.ApplyPitch,
 		OpenJTalkPath:           s.openJTalkPath,
