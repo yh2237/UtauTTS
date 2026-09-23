@@ -11,7 +11,8 @@ import (
 // JoinModelVersionは任意のjoin modelのオンディスク形式バージョン。
 const JoinModelVersion = 1
 
-var joinFeatureNames = []string{
+// legacyJoinFeatureNamesはD1以前の11次元モデルが保存した特徴順序。後方互換のため残す。
+var legacyJoinFeatureNames = []string{
 	"spectrum_delta_db",
 	"rms_delta_db",
 	"f0_delta_cents",
@@ -24,6 +25,9 @@ var joinFeatureNames = []string{
 	"previous_valid",
 	"current_valid",
 }
+
+// joinFeatureNamesは現行の特徴順序。D1の新特徴は既存モデルを壊さないよう末尾に追加する。
+var joinFeatureNames = append(append([]string(nil), legacyJoinFeatureNames...), "spectral_tilt_delta_db")
 
 // JoinFeatureNamesはJSONモデルが使う固定の特徴量順序を返す。
 func JoinFeatureNames() []string {
@@ -50,6 +54,7 @@ func JoinFeatureVector(features PairFeatures) []float64 {
 		boolFloat(features.CurrentVCV),
 		boolFloat(features.PreviousOutgoing.Valid),
 		boolFloat(features.CurrentIncoming.Valid),
+		finiteOrZero(features.SpectralTiltDelta),
 	}
 }
 
@@ -95,7 +100,23 @@ func LoadJoinModel(path string) (*JoinModel, error) {
 	if err := model.Validate(); err != nil {
 		return nil, fmt.Errorf("validate join model %s: %w", path, err)
 	}
+	// 旧11次元モデルは新特徴の重みを0として読み込む。
+	model.padFeatureSpace()
 	return &model, nil
+}
+
+// padFeatureSpaceは旧次元のモデルへ欠落した新特徴を重み0・scale 1で補う。既に現行次元なら何もしない。
+func (model *JoinModel) padFeatureSpace() {
+	missing := len(joinFeatureNames) - len(model.FeatureNames)
+	if missing <= 0 {
+		return
+	}
+	model.FeatureNames = JoinFeatureNames()
+	model.Mean = append(model.Mean, make([]float64, missing)...)
+	for index := 0; index < missing; index++ {
+		model.Scale = append(model.Scale, 1)
+	}
+	model.Weights = append(model.Weights, make([]float64, missing)...)
 }
 
 // Validateは候補選択に影響する前にモデル契約を検査する。不正なモデルが合成を黙って変えてはならない。
@@ -109,18 +130,23 @@ func (model *JoinModel) Validate() error {
 	if model.Kind != "" && model.Kind != "logistic_join_ranker" {
 		return fmt.Errorf("unsupported kind %q", model.Kind)
 	}
-	if len(model.FeatureNames) != len(joinFeatureNames) {
+	expected := joinFeatureNames
+	if len(model.FeatureNames) == len(legacyJoinFeatureNames) {
+		// 旧11次元モデルも受理し、読み込み時に新特徴を0重みで補う。
+		expected = legacyJoinFeatureNames
+	} else if len(model.FeatureNames) != len(joinFeatureNames) {
 		return fmt.Errorf("feature count %d, want %d", len(model.FeatureNames), len(joinFeatureNames))
 	}
-	for index, name := range joinFeatureNames {
+	for index, name := range expected {
 		if model.FeatureNames[index] != name {
 			return fmt.Errorf("feature %d is %q, want %q", index, model.FeatureNames[index], name)
 		}
 	}
-	if len(model.Mean) != len(joinFeatureNames) || len(model.Scale) != len(joinFeatureNames) || len(model.Weights) != len(joinFeatureNames) {
-		return fmt.Errorf("mean, scale, and weights must contain %d values", len(joinFeatureNames))
+	count := len(expected)
+	if len(model.Mean) != count || len(model.Scale) != count || len(model.Weights) != count {
+		return fmt.Errorf("mean, scale, and weights must contain %d values", count)
 	}
-	for index := range joinFeatureNames {
+	for index := range expected {
 		if !isFinite(model.Mean[index]) || !isFinite(model.Scale[index]) || !isFinite(model.Weights[index]) || model.Scale[index] <= 0 {
 			return fmt.Errorf("invalid normalization or weight at feature %d", index)
 		}
@@ -154,6 +180,10 @@ func (model *JoinModel) Predict(features PairFeatures) JoinPrediction {
 	values := JoinFeatureVector(features)
 	logit := model.Bias
 	for index, value := range values {
+		if index >= len(model.Weights) {
+			// 未補正の旧次元モデルは新特徴を無視する。
+			break
+		}
 		logit += model.Weights[index] * (value - model.Mean[index]) / model.Scale[index]
 	}
 	probability := sigmoid(logit)

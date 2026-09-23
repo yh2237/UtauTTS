@@ -76,13 +76,59 @@ func TestIsContextVCVAliasOnlyRecognizesKanaContexts(t *testing.T) {
 	}
 }
 
-func TestSourceContinuityScoreKeepsForwardRecordingBonus(t *testing.T) {
-	near := PairFeatures{ForwardInSource: true, SourceAnchorDistanceMS: 500}
-	far := PairFeatures{ForwardInSource: true, SourceAnchorDistanceMS: 1120}
-	if HandcraftedScore(near) != HandcraftedScore(far) {
-		t.Fatalf("near=%f far=%f", HandcraftedScore(near), HandcraftedScore(far))
+func TestSourceContinuityScoreConsidersAnchorDistance(t *testing.T) {
+	near := PairFeatures{ForwardInSource: true, SourceAnchorDistanceMS: 100}
+	far := PairFeatures{ForwardInSource: true, SourceAnchorDistanceMS: 2500}
+	nearScore, farScore := HandcraftedScore(near), HandcraftedScore(far)
+	if nearScore <= farScore {
+		t.Fatalf("near=%f far=%f, want near > far", nearScore, farScore)
 	}
-	if HandcraftedScore(far) != 8 {
-		t.Fatalf("forward continuity score = %f, want 8", HandcraftedScore(far))
+	// 距離考慮でも連続性ボーナスは常に正の6〜9点に収める。
+	if nearScore > 9 || farScore < 6 {
+		t.Fatalf("forward continuity out of range: near=%f far=%f", nearScore, farScore)
+	}
+}
+
+func TestHandcraftedScoreRewardsWaveformCorrelation(t *testing.T) {
+	frame := acoustic.Frame{Valid: true, F0Hz: 220, RMSDB: -18}
+	high := PairFeatures{PreviousOutgoing: frame, CurrentIncoming: frame, WaveformCorrelation: 1}
+	low := PairFeatures{PreviousOutgoing: frame, CurrentIncoming: frame, WaveformCorrelation: 0}
+	if HandcraftedScore(high) <= HandcraftedScore(low) {
+		t.Fatalf("high=%f low=%f, want high > low", HandcraftedScore(high), HandcraftedScore(low))
+	}
+	if HandcraftedScore(high)-HandcraftedScore(low) > 4+1e-9 {
+		t.Fatalf("correlation bonus exceeded bound: %f", HandcraftedScore(high)-HandcraftedScore(low))
+	}
+}
+
+func TestHandcraftedScorePenalizesSpectralTiltDelta(t *testing.T) {
+	frame := acoustic.Frame{Valid: true, F0Hz: 220, RMSDB: -18}
+	small := PairFeatures{PreviousOutgoing: frame, CurrentIncoming: frame, SpectralTiltDelta: 1}
+	large := PairFeatures{PreviousOutgoing: frame, CurrentIncoming: frame, SpectralTiltDelta: 100}
+	if HandcraftedScore(large) >= HandcraftedScore(small) {
+		t.Fatalf("small=%f large=%f, want small > large", HandcraftedScore(small), HandcraftedScore(large))
+	}
+	if HandcraftedScore(small)-HandcraftedScore(large) > 4+1e-9 {
+		t.Fatalf("tilt penalty exceeded bound: %f", HandcraftedScore(small)-HandcraftedScore(large))
+	}
+}
+
+func TestLegacyJoinCostIgnoresD1Features(t *testing.T) {
+	features := PairFeatures{
+		PreviousOutgoing:    acoustic.Frame{Valid: true, F0Hz: 220, RMSDB: -18},
+		CurrentIncoming:     acoustic.Frame{Valid: true, F0Hz: 220, RMSDB: -18},
+		WaveformCorrelation: 0, SpectralTiltDelta: 30,
+	}
+	previous := legacyJoinCost
+	SetLegacyJoinCost(true)
+	legacyScore := HandcraftedScore(features)
+	if forward := HandcraftedScore(PairFeatures{ForwardInSource: true, SourceAnchorDistanceMS: 100}); forward != 8 {
+		t.Fatalf("legacy forward score=%f, want 8", forward)
+	}
+	SetLegacyJoinCost(false)
+	newScore := HandcraftedScore(features)
+	SetLegacyJoinCost(previous)
+	if newScore >= legacyScore {
+		t.Fatalf("new=%f legacy=%f, want new < legacy", newScore, legacyScore)
 	}
 }

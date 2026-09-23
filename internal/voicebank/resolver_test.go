@@ -578,7 +578,8 @@ func TestResolveUsesPhrasePathInsteadOfGreedyDuplicateChoice(t *testing.T) {
 	if got[0].CandidateCount != 2 || got[0].TargetScore != 114 || got[0].JoinScore != 0 || got[0].PathScore != 114 {
 		t.Fatalf("first score audit = %#v", got[0])
 	}
-	if got[1].JoinScore != 8 || got[1].TargetScore+got[1].JoinScore != 122 || got[1].PathScore != 236 {
+	// 同一録音内で近接した前向き境界なので、距離考慮により連続性ボーナスは9になる。
+	if got[1].JoinScore != 9 || got[1].TargetScore+got[1].JoinScore != 123 || got[1].PathScore != 237 {
 		t.Fatalf("second score audit = %#v", got[1])
 	}
 }

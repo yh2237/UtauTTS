@@ -69,6 +69,36 @@ func TestJoinModelRoundTripsJSON(t *testing.T) {
 	}
 }
 
+func TestLoadJoinModelAcceptsLegacyFeatureSpace(t *testing.T) {
+	model := testJoinModel()
+	model.FeatureNames = append([]string(nil), legacyJoinFeatureNames...)
+	model.Mean = model.Mean[:len(legacyJoinFeatureNames)]
+	model.Scale = model.Scale[:len(legacyJoinFeatureNames)]
+	model.Weights = model.Weights[:len(legacyJoinFeatureNames)]
+	path := filepath.Join(t.TempDir(), "legacy.json")
+	data, err := json.Marshal(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadJoinModel(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Weights) != len(joinFeatureNames) || loaded.Weights[len(joinFeatureNames)-1] != 0 {
+		t.Fatalf("legacy model was not padded: %#v", loaded)
+	}
+	if err := loaded.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	prediction := loaded.Predict(PairFeatures{PreviousOutgoing: validFrame(), CurrentIncoming: validFrame()})
+	if !prediction.Applied || prediction.Score == prediction.Baseline {
+		t.Fatalf("prediction = %#v", prediction)
+	}
+}
+
 func TestTrainJoinModelUsesOnlyLabeledRows(t *testing.T) {
 	rows := make([]JoinAuditRow, 0, 6)
 	for index := 0; index < 6; index++ {

@@ -3,6 +3,7 @@ package connection
 
 import (
 	"math"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -26,6 +27,7 @@ type PairFeatures struct {
 	PreviousOutgoing       acoustic.Frame `json:"previous_outgoing"`
 	CurrentIncoming        acoustic.Frame `json:"current_incoming"`
 	SpectrumDelta          float64        `json:"spectrum_delta_db"`
+	SpectralTiltDelta      float64        `json:"spectral_tilt_delta_db"`
 	RMSDelta               float64        `json:"rms_delta_db"`
 	F0DeltaCents           float64        `json:"f0_delta_cents"`
 	VoicingMismatch        bool           `json:"voicing_mismatch"`
@@ -37,20 +39,35 @@ type PairFeatures struct {
 	CurrentVCV bool `json:"current_vcv,omitempty"`
 }
 
+// legacyJoinCostはD1の追加特徴（tilt差・相関・距離考慮）を無効化し、Phase 2までの接合costへ戻す開発用スイッチ。
+var legacyJoinCost = legacyJoinCostFromEnv()
+
+func legacyJoinCostFromEnv() bool {
+	value := strings.TrimSpace(os.Getenv("UTAUTTS_JOIN_COST_LEGACY"))
+	return value == "1" || strings.EqualFold(value, "true")
+}
+
+// LegacyJoinCostEnabledはD1の追加特徴が無効化されているかを返す。
+func LegacyJoinCostEnabled() bool { return legacyJoinCost }
+
+// SetLegacyJoinCostはD1特徴の無効化を切り替える。聴取A/B用で、既定は新特徴ON（false）。
+func SetLegacyJoinCost(enabled bool) { legacyJoinCost = enabled }
+
 // Extractorは複数ペアで使うWAV分析結果をキャッシュする。
 type Extractor struct {
-	mutex sync.Mutex
-	cache map[oto.Entry]Boundary
-	model *JoinModel
+	mutex  sync.Mutex
+	cache  map[oto.Entry]Boundary
+	model  *JoinModel
+	legacy bool
 }
 
 func NewExtractor() *Extractor {
-	return &Extractor{cache: map[oto.Entry]Boundary{}}
+	return &Extractor{cache: map[oto.Entry]Boundary{}, legacy: legacyJoinCost}
 }
 
 // NewExtractorWithModelは同じ境界キャッシュを保ちつつ、任意の学習済み接合補正を適用するExtractorを生成する。
 func NewExtractorWithModel(model *JoinModel) *Extractor {
-	return &Extractor{cache: map[oto.Entry]Boundary{}, model: model}
+	return &Extractor{cache: map[oto.Entry]Boundary{}, model: model, legacy: legacyJoinCost}
 }
 
 // JoinModelはこのExtractorが使う不変のモデルを返す。
@@ -92,6 +109,7 @@ func (e *Extractor) Pair(previous, current oto.Entry) PairFeatures {
 		return result
 	}
 	result.SpectrumDelta = acoustic.MeanSpectrumDelta(left.Outgoing.SpectrumDB, right.Incoming.SpectrumDB)
+	result.SpectralTiltDelta = acoustic.SpectralTiltDelta(left.Outgoing.SpectrumDB, right.Incoming.SpectrumDB)
 	result.RMSDelta = math.Abs(left.Outgoing.RMSDB - right.Incoming.RMSDB)
 	leftVoiced, rightVoiced := left.Outgoing.F0Hz > 0, right.Incoming.F0Hz > 0
 	result.VoicingMismatch = leftVoiced != rightVoiced
@@ -112,12 +130,20 @@ func (e *Extractor) ScoreFeatures(features PairFeatures) float64 {
 	if e != nil && e.model != nil {
 		return e.model.Predict(features).Score
 	}
-	return HandcraftedScore(features)
+	legacy := legacyJoinCost
+	if e != nil {
+		legacy = e.legacy
+	}
+	return handcraftedScore(features, legacy)
 }
 
-// HandcraftedScoreは学習モデルとの比較基準となる。
+// HandcraftedScoreは学習モデルとの比較基準となる。既定はD1の追加特徴ON。
 func HandcraftedScore(features PairFeatures) float64 {
-	score := sourceContinuityScore(features)
+	return handcraftedScore(features, legacyJoinCost)
+}
+
+func handcraftedScore(features PairFeatures, legacy bool) float64 {
+	score := sourceContinuityScore(features, legacy)
 	if !features.PreviousOutgoing.Valid || !features.CurrentIncoming.Valid {
 		return score
 	}
@@ -134,17 +160,36 @@ func HandcraftedScore(features PairFeatures) float64 {
 	} else if features.VoicingMismatch && !features.CurrentVCV {
 		score -= 4
 	}
+	if !legacy {
+		// 波形相関は0.5を中立として±2点の控えめな補正にする。
+		score += 4 * (features.WaveformCorrelation - 0.5)
+		// スペクトル傾斜の差は最大4点まで減点する。
+		score -= math.Min(4, features.SpectralTiltDelta*0.15)
+	}
 	return score
 }
 
-func sourceContinuityScore(features PairFeatures) float64 {
+func sourceContinuityScore(features PairFeatures, legacy bool) float64 {
 	if !features.ForwardInSource {
 		return 0
 	}
-	// 同じ録音内の前向きの境界は、距離に関係なく連続性を優先する。
-	// VCVやVCの録音では一つのファイルに複数モーラが収録されるため、
-	// アンカー間の距離だけでこの利点を減らすと遷移音が外れやすい。
-	return 8
+	if legacy {
+		// Phase 2までと同じく、距離に関係なく一定の連続性ボーナス。
+		return 8
+	}
+	// 同じ録音内の前向きの境界を、アンカーが近いほど僅かに優先する。
+	// VCVやVCの連続性を壊さないよう、ボーナスは常に正の6〜9点に収める。
+	distance := features.SourceAnchorDistanceMS
+	if !isFinite(distance) || distance < 0 {
+		distance = 0
+	}
+	if distance <= 500 {
+		return 9
+	}
+	if distance >= 2000 {
+		return 6
+	}
+	return 9 - 3*(distance-500)/1500
 }
 
 // IsContextVCVAliasは英語のVCCVやVCと区別して日本語VCV表記を判定する。

@@ -76,6 +76,30 @@ func LogSpectrum(values []float64, sampleRate, bands int, minimumHz, maximumHz f
 	return result
 }
 
+// SpectralTiltDBはスペクトルの低域平均に対する高域平均の比(dB)を返す。
+// SpectrumDBは対数間隔のバンドなので、両者の平均差は10*log10(高域/低域のエネルギー比)に相当する。
+func SpectralTiltDB(spectrumDB []float64) float64 {
+	if len(spectrumDB) < 2 {
+		return 0
+	}
+	middle := len(spectrumDB) / 2
+	low, high := 0.0, 0.0
+	for _, value := range spectrumDB[:middle] {
+		low += value
+	}
+	for _, value := range spectrumDB[middle:] {
+		high += value
+	}
+	low /= float64(middle)
+	high /= float64(len(spectrumDB) - middle)
+	return high - low
+}
+
+// SpectralTiltDeltaは2フレームのスペクトル傾斜の差の絶対値を返す。傾斜が近いほど接合が自然になりやすい。
+func SpectralTiltDelta(left, right []float64) float64 {
+	return math.Abs(SpectralTiltDB(left) - SpectralTiltDB(right))
+}
+
 func MeanSpectrumDelta(left, right []float64) float64 {
 	length := min(len(left), len(right))
 	if length == 0 {
