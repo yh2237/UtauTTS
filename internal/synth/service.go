@@ -3,6 +3,7 @@ package synth
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -94,6 +95,9 @@ type Request struct {
 	DiffSingerDurationMix   float64                      `json:"diffsinger_duration_mix"`
 	DiffSingerPitchMix      float64                      `json:"diffsinger_pitch_mix"`
 	DiffSingerExpr          float64                      `json:"diffsinger_expr"`
+	// RendererSettingsはrenderer manifestが宣言した設定値を1つのmapで受ける。
+	// 既知idはConfig/ProviderOptionsへ反映し、未知idはエラーにせずprovider固有値として渡す。
+	RendererSettings map[string]json.RawMessage `json:"renderer_settings,omitempty"`
 }
 
 // Normalizedは互換用のkanaをReadingへ正規化する。
@@ -322,6 +326,8 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 			PitchMix: request.DiffSingerPitchMix, Expr: request.DiffSingerExpr,
 		},
 	}
+	// renderer_settingsは固定フィールドより優先し、未知idや型不一致はエラーにしない。
+	rendererSettings := applyRendererSettings(request.RendererSettings, &cfg, &providerOptions)
 	voicebankPath := request.VoicebankPath
 	if voicebankPath == "" && s.voicebanks != nil && (requireVoicebank || request.VoicebankID != "") {
 		if path, ok := s.voicebanks.Resolve(request.VoicebankID); ok {
@@ -349,7 +355,10 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	tts.ApplyResolvedEngine(&cfg, resolvedEngine)
 	// Classic UTAUは公開Renderer IDではなく解決済みproviderで判定する。
 	if requireVoicebank && resolvedEngine.Provider.ID == "utau-external-resampler" {
-		tools, toolsErr := s.ResolveClassicTools(request.Resampler, request.Wavtool)
+		tools, toolsErr := s.ResolveClassicTools(
+			firstNonEmpty(rendererSettings.Resampler, request.Resampler),
+			firstNonEmpty(rendererSettings.Wavtool, request.Wavtool),
+		)
 		if toolsErr != nil {
 			return tts.Config{}, "", render.ProviderOptions{}, toolsErr
 		}
@@ -357,6 +366,156 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		providerOptions.Classic.WavtoolPath = tools.Wavtool.Path
 	}
 	return cfg, string(resolvedEngine.PublicID()), providerOptions, nil
+}
+
+// rendererSettingsResolutionはrenderer_settingsのうちClassicツール選択だけを別に保持する。
+type rendererSettingsResolution struct {
+	Resampler string
+	Wavtool   string
+}
+
+// applyRendererSettingsはmanifest由来の設定mapをConfigとprovider固有オプションへ振り分ける。
+// 既知idは対応フィールドへ反映し、未知idはProviderOptions.Rendererへ、型不一致は診断へ回す。
+// いずれもエラーにせず安全側（無視）で扱う。
+func applyRendererSettings(settings map[string]json.RawMessage, cfg *tts.Config, options *render.ProviderOptions) rendererSettingsResolution {
+	resolution := rendererSettingsResolution{}
+	if len(settings) == 0 {
+		return resolution
+	}
+	unknown := make(map[string]any, len(settings))
+	for id, raw := range settings {
+		switch id {
+		case "mora_duration_ms":
+			if value, ok := rendererSettingNumber(id, raw, options); ok {
+				cfg.MoraDurationMS = value
+			}
+		case "pause_duration_ms":
+			if value, ok := rendererSettingNumber(id, raw, options); ok {
+				cfg.PauseDurationMS = value
+			}
+		case "leading_preutterance_ms":
+			if value, ok := rendererSettingNumber(id, raw, options); ok {
+				cfg.LeadingPreutteranceMS = value
+			}
+		case "intonation_strength":
+			if value, ok := rendererSettingNumber(id, raw, options); ok {
+				cfg.IntonationStrength = value
+			}
+		case "context_duration":
+			if value, ok := rendererSettingBool(id, raw, options); ok {
+				cfg.ContextDuration = &value
+			}
+		case "context_duration_strength":
+			if value, ok := rendererSettingNumber(id, raw, options); ok {
+				cfg.ContextDurationStrength = value
+			}
+		case "boundary_tone":
+			if value, ok := rendererSettingBool(id, raw, options); ok {
+				cfg.BoundaryTone = &value
+			}
+		case "boundary_tone_strength":
+			if value, ok := rendererSettingNumber(id, raw, options); ok {
+				cfg.BoundaryToneStrength = value
+			}
+		case "stretch_adapt":
+			if value, ok := rendererSettingBool(id, raw, options); ok {
+				cfg.StretchAdapt = &value
+			}
+		case "stretch_adapt_strength":
+			if value, ok := rendererSettingNumber(id, raw, options); ok {
+				cfg.StretchAdaptStrength = value
+			}
+		case "pause_context":
+			if value, ok := rendererSettingBool(id, raw, options); ok {
+				cfg.PauseContext = &value
+			}
+		case "pause_context_strength":
+			if value, ok := rendererSettingNumber(id, raw, options); ok {
+				cfg.PauseContextStrength = value
+			}
+		case "english_weak_form":
+			if value, ok := rendererSettingBool(id, raw, options); ok {
+				cfg.EnglishWeakForm = &value
+			}
+		case "diffsinger_steps":
+			if value, ok := rendererSettingNumber(id, raw, options); ok {
+				options.DiffSinger.Steps = int64(value)
+			}
+		case "diffsinger_expr":
+			if value, ok := rendererSettingNumber(id, raw, options); ok {
+				options.DiffSinger.Expr = value
+			}
+		case "diffsinger_duration_mix":
+			if value, ok := rendererSettingNumber(id, raw, options); ok {
+				options.DiffSinger.DurationMix = value
+			}
+		case "diffsinger_pitch_mix":
+			if value, ok := rendererSettingNumber(id, raw, options); ok {
+				options.DiffSinger.PitchMix = value
+			}
+		case "resampler":
+			if value, ok := rendererSettingString(id, raw, options); ok {
+				resolution.Resampler = value
+			}
+		case "wavtool":
+			if value, ok := rendererSettingString(id, raw, options); ok {
+				resolution.Wavtool = value
+			}
+		default:
+			var value any
+			if err := json.Unmarshal(raw, &value); err != nil {
+				options.RendererDiagnostics = append(options.RendererDiagnostics,
+					fmt.Sprintf("renderer setting %q was ignored: %v", id, err))
+				continue
+			}
+			unknown[id] = value
+		}
+	}
+	if len(unknown) > 0 {
+		options.Renderer = unknown
+	}
+	return resolution
+}
+
+// rendererSettingNumberはJSON数値をfloat64で取り出す。型不一致は診断のみで失敗させない。
+func rendererSettingNumber(id string, raw json.RawMessage, options *render.ProviderOptions) (float64, bool) {
+	var value float64
+	if err := json.Unmarshal(raw, &value); err != nil {
+		options.RendererDiagnostics = append(options.RendererDiagnostics,
+			fmt.Sprintf("renderer setting %q expects a number: %v", id, err))
+		return 0, false
+	}
+	return value, true
+}
+
+// rendererSettingBoolはJSON真偽値を取り出す。型不一致は診断のみで失敗させない。
+func rendererSettingBool(id string, raw json.RawMessage, options *render.ProviderOptions) (bool, bool) {
+	var value bool
+	if err := json.Unmarshal(raw, &value); err != nil {
+		options.RendererDiagnostics = append(options.RendererDiagnostics,
+			fmt.Sprintf("renderer setting %q expects a boolean: %v", id, err))
+		return false, false
+	}
+	return value, true
+}
+
+// rendererSettingStringはJSON文字列を取り出す。型不一致は診断のみで失敗させない。
+func rendererSettingString(id string, raw json.RawMessage, options *render.ProviderOptions) (string, bool) {
+	var value string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		options.RendererDiagnostics = append(options.RendererDiagnostics,
+			fmt.Sprintf("renderer setting %q expects a string: %v", id, err))
+		return "", false
+	}
+	return value, true
+}
+
+// firstNonEmptyは上書き値があればそれを使い、空なら元の値を保つ。
+func firstNonEmpty(override, fallback string) string {
+	if strings.TrimSpace(override) != "" {
+		return override
+	}
+	return fallback
 }
 
 // ResolveRendererは表示用Renderer IDをproviderとmanifest資源へ解決する。GUI/HTTP/CLIで既定・未指定時の挙動を揃える。

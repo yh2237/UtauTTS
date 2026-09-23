@@ -44,6 +44,11 @@ type ProviderOptions struct {
 	Classic    ClassicOptions
 	Worldline  WorldlineProviderOptions
 	DiffSinger DiffSingerOptions
+	// Rendererはmanifestのrenderer_settingsのうちGoが既知でないprovider固有値を保持する。
+	// providerが使わなくても無害で、診断としてそのまま参照できる。
+	Renderer map[string]any
+	// RendererDiagnosticsはrenderer_settingsの型不一致などの非致命的な問題を記録する。
+	RendererDiagnostics []string
 }
 
 // DiffSingerOptionsはDiffSinger推論の任意調整。0は既定値を使う。

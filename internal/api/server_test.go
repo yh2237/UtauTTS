@@ -497,3 +497,21 @@ func TestSynthesisRequestRejectsUnknownFields(t *testing.T) {
 		t.Fatal("unknown field was accepted")
 	}
 }
+
+// renderer_settingsはmapなのでDisallowUnknownFieldsと両立し、未知の設定idも受け取れる。
+func TestSynthesisRequestDecodesRendererSettings(t *testing.T) {
+	var request SynthesisRequest
+	data := `{"text":"あ","renderer_settings":{"context_duration":false,"mora_duration_ms":123,"custom_option":"value"}}`
+	if err := json.Unmarshal([]byte(data), &request); err != nil {
+		t.Fatal(err)
+	}
+	if len(request.RendererSettings) != 3 {
+		t.Fatalf("renderer settings = %#v", request.RendererSettings)
+	}
+	if string(request.RendererSettings["custom_option"]) != `"value"` {
+		t.Fatalf("unknown renderer setting = %s", request.RendererSettings["custom_option"])
+	}
+	if !request.ContextDuration {
+		t.Fatalf("default was not applied before the map override: %#v", request)
+	}
+}

@@ -1240,8 +1240,8 @@ ApplicationWindow {
 
     function addRendererSettings(request, rendererId) {
         const settings = window.rendererSettingContext(rendererId);
-        for (const key in settings)
-            request[key] = settings[key];
+        if (Object.keys(settings).length)
+            request.renderer_settings = settings;
         return request;
     }
 
@@ -1919,22 +1919,23 @@ ApplicationWindow {
         if (error.length)
             return error;
         const contextRequest = window.buildSynthesisRequest(window.current());
-        error = check(contextRequest.context_duration === true
-                      && contextRequest.context_duration_strength === 1.0,
+        const contextSettings = contextRequest.renderer_settings || {};
+        error = check(contextSettings.context_duration === true
+                      && contextSettings.context_duration_strength === 1.0,
                       "context duration settings were not injected into the request");
         if (error.length)
             return error;
-        error = check(contextRequest.boundary_tone === true
-                      && contextRequest.boundary_tone_strength === 1.0,
+        error = check(contextSettings.boundary_tone === true
+                      && contextSettings.boundary_tone_strength === 1.0,
                       "boundary tone settings were not injected into the request");
         if (error.length)
             return error;
-        error = check(contextRequest.stretch_adapt === true
-                      && contextRequest.stretch_adapt_strength === 1.0,
+        error = check(contextSettings.stretch_adapt === true
+                      && contextSettings.stretch_adapt_strength === 1.0,
                       "stretch adaptation settings were not injected into the request");
         if (error.length)
             return error;
-        error = check(contextRequest.english_weak_form === true,
+        error = check(contextSettings.english_weak_form === true,
                       "English weak form setting was not injected into the request");
         if (error.length)
             return error;
@@ -1964,6 +1965,13 @@ ApplicationWindow {
         window.removeUtterance();
         window.appBackend.setRendererSetting(rendererId, "mora_duration_ms",
                                              originalDefaultMoraDuration);
+        const originalContextDuration = window.appBackend.rendererSetting(rendererId, "context_duration", true);
+        window.appBackend.setRendererSetting(rendererId, "context_duration", false);
+        error = check(window.buildSynthesisRequest(window.current()).renderer_settings.context_duration === false,
+                      "context duration override was not injected into the request");
+        if (error.length)
+            return error;
+        window.appBackend.setRendererSetting(rendererId, "context_duration", originalContextDuration);
         window.resetHistory(false);
         error = check(utterances.get(0).intonation === window.defaultIntonationStrength,
                       "initial intonation strength is incorrect");
