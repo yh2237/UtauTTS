@@ -16,11 +16,8 @@ type tonePoint struct {
 	cents    float64
 }
 
+// mandarinToneCurveは各音節の声調を母音核の区間へ置く。
 func mandarinToneCurve(morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) *render.PitchCurve {
-	return mandarinToneCurveAligned(morae, timings, durationMS, false)
-}
-
-func mandarinToneCurveAligned(morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64, vowelAligned bool) *render.PitchCurve {
 	if len(morae) == 0 || len(timings) != len(morae) || durationMS <= 0 {
 		return nil
 	}
@@ -46,29 +43,69 @@ func mandarinToneCurveAligned(morae []frontend.Mora, timings []prosody.MoraTimin
 		}
 		phraseFinal := i+1 == len(morae) || morae[i+1].Pause
 		points := mandarinTonePoints(tones[i], phraseFinal)
-		if tones[i] == 5 && i > 0 && !morae[i-1].Pause {
-			end := map[int]float64{1: -100, 2: -55, 3: 65, 4: -130}[tones[i-1]]
-			points = []tonePoint{{0, end + 25}, {1, end}}
-		}
-		// 声調は無声の頭子音を除く音節核へ置く。
-		onset := 0.0
-		spans := phoneSpansFromWeights(phoneWeights[i], timing.DurationMS)
-		for j, p := range morae[i].Phones {
-			if p.Role == "onset" {
-				onset += spans[j]
+		if tones[i] == 5 {
+			previous := 0
+			if i > 0 && !morae[i-1].Pause {
+				previous = tones[i-1]
 			}
+			points = mandarinNeutralTonePoints(previous)
 		}
-		if vowelAligned {
-			onset = 0
-		}
-		start := max(0, int(math.Ceil(timing.StartMS/mandarinPitchFrameMS)))
-		end := min(len(curve.Cents)-1, int(math.Floor((timing.StartMS+timing.DurationMS)/mandarinPitchFrameMS)))
-		for frame := start; frame <= end; frame++ {
-			position := (float64(frame)*mandarinPitchFrameMS - timing.StartMS - onset) / math.Max(1, timing.DurationMS-onset)
+		// 声調は無声の頭子音を除く母音核へ置く。
+		startOffset, span := mandarinToneWindow(morae[i], phoneWeights[i], timing.DurationMS)
+		first := max(0, int(math.Ceil(timing.StartMS/mandarinPitchFrameMS)))
+		last := min(len(curve.Cents)-1, int(math.Floor((timing.StartMS+timing.DurationMS)/mandarinPitchFrameMS)))
+		for frame := first; frame <= last; frame++ {
+			position := (float64(frame)*mandarinPitchFrameMS - timing.StartMS - startOffset) / span
 			curve.Cents[frame] = interpolateTone(points, max(0, min(1, position)))
 		}
 	}
 	return curve
+}
+
+// mandarinToneWindowは声調を置く母音核区間の開始位置と長さを返す。
+// 母音核が不明なときは頭子音の合計長でずらす従来動作へ戻す。
+func mandarinToneWindow(mora frontend.Mora, weights []float64, durationMS float64) (float64, float64) {
+	spans := phoneSpansFromWeights(weights, durationMS)
+	nucleusStart, nucleusEnd := -1, -1
+	for j, p := range mora.Phones {
+		if p.Role == "nucleus" {
+			if nucleusStart < 0 {
+				nucleusStart = j
+			}
+			nucleusEnd = j
+		}
+	}
+	if nucleusStart < 0 {
+		onset := 0.0
+		for j, p := range mora.Phones {
+			if p.Role == "onset" {
+				onset += spans[j]
+			}
+		}
+		return onset, math.Max(1, durationMS-onset)
+	}
+	start := 0.0
+	for j := 0; j < nucleusStart; j++ {
+		start += spans[j]
+	}
+	end := 0.0
+	for j := 0; j <= nucleusEnd; j++ {
+		end += spans[j]
+	}
+	return start, math.Max(1, end-start)
+}
+
+// mandarinNeutralTonePointsは軽声(5)のF0を前の声調から求める。
+// 前声調が高いほど軽声も高く、いずれも語尾へ向けてわずかに下降する。
+func mandarinNeutralTonePoints(previous int) []tonePoint {
+	switch previous {
+	case 1, 2, 3, 4:
+	default:
+		// 前が軽声または不明のときは中低で短く保つ。
+		previous = 5
+	}
+	end := map[int]float64{1: -100, 2: -55, 3: 65, 4: -130, 5: -35}[previous]
+	return []tonePoint{{0, end + 25}, {1, end}}
 }
 
 // 語彙上の声調を残したまま連続変調を求める。
@@ -117,8 +154,9 @@ func mandarinPredictions(morae []frontend.Mora) []prosody.Prediction {
 		factor := 1.0
 		energy := 1.0
 		if tones[i] == 5 {
-			factor = 0.65
-			energy = 0.84
+			// 軽声は短く弱く、前の声調の高さを保つ。
+			factor = 0.62
+			energy = 0.80
 		} else if tones[i] == 4 {
 			energy = 1.03
 		}

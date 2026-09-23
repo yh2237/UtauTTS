@@ -61,3 +61,37 @@ func TestPredictProsodyReturnsMandarinToneCurveWithoutModel(t *testing.T) {
 		t.Fatalf("三声変調がプレビューへ反映されていない: %#v", preview.FramePitchCurve.Cents)
 	}
 }
+
+// E3: 母音核が無い音節は音節全体へ置く従来動作へ戻す。
+func TestMandarinToneCurveFallsBackWithoutNucleus(t *testing.T) {
+	morae := []frontend.Mora{{Tone: 2}}
+	timings := []prosody.MoraTiming{{StartMS: 0, DurationMS: 120}}
+	curve := mandarinToneCurve(morae, timings, 120)
+	if curve == nil || curve.Cents[0] != -20 {
+		t.Fatalf("母音核不明時のフォールバックが開始点へ置かれていない: %#v", curve)
+	}
+	if curve.Cents[10] <= curve.Cents[0] {
+		t.Fatalf("フォールバック曲線が上昇していない: %.1f", curve.Cents[10])
+	}
+}
+
+// E3: 軽声(5)のF0は前の声調に追従する。
+func TestMandarinNeutralToneDependsOnPreviousTone(t *testing.T) {
+	high := mandarinNeutralTonePoints(3)
+	low := mandarinNeutralTonePoints(1)
+	if high[len(high)-1].cents <= low[len(low)-1].cents {
+		t.Fatalf("軽声のF0が前声調を反映していない: 3声後=%.0f 1声後=%.0f", high[len(high)-1].cents, low[len(low)-1].cents)
+	}
+	if got := mandarinNeutralTonePoints(5); len(got) == 0 || got[len(got)-1].cents >= high[len(high)-1].cents {
+		t.Fatalf("軽声連続のF0が高すぎる: %#v", got)
+	}
+
+	morae := []frontend.Mora{{Tone: 3}, {Tone: 5}}
+	timings := []prosody.MoraTiming{{StartMS: 0, DurationMS: 100}, {StartMS: 100, DurationMS: 100}}
+	afterThird := mandarinToneCurve(morae, timings, 200)
+	morae[0].Tone = 1
+	afterFirst := mandarinToneCurve(morae, timings, 200)
+	if afterThird.Cents[19] <= afterFirst.Cents[19] {
+		t.Fatalf("曲線上の軽声が前声調を反映していない: %.1f <= %.1f", afterThird.Cents[19], afterFirst.Cents[19])
+	}
+}

@@ -9,10 +9,15 @@ import (
 )
 
 func TestSpeechExperimentSeparatesTimingAndPitch(t *testing.T) {
-	for _, cfg := range []Config{
-		{Language: "en", Phonemizer: "en-delta", Reading: "AH0 N AH1 DH ER0 | K AH1 P | SP", ApplyPitch: true, IntonationStrength: 1, Renderer: "utautts-world-phrase"},
-		{Language: "zh", Reading: "ni3 hao3 | ma1 ma2 ma3 ma4 ma5", Renderer: "utautts-world-phrase"},
+	// E3で中国語の基線も母音核へ整列するため、中国語の抑揚案は基線と一致する。
+	for _, tc := range []struct {
+		cfg          Config
+		pitchDiffers bool
+	}{
+		{Config{Language: "en", Phonemizer: "en-delta", Reading: "AH0 N AH1 DH ER0 | K AH1 P | SP", ApplyPitch: true, IntonationStrength: 1, Renderer: "utautts-world-phrase"}, true},
+		{Config{Language: "zh", Reading: "ni3 hao3 | ma1 ma2 ma3 ma4 ma5", Renderer: "utautts-world-phrase"}, false},
 	} {
+		cfg := tc.cfg
 		base, err := PredictProsody(cfg)
 		if err != nil {
 			t.Fatal(err)
@@ -25,8 +30,11 @@ func TestSpeechExperimentSeparatesTimingAndPitch(t *testing.T) {
 		if !reflect.DeepEqual(base.MoraDurationsMS, changed.MoraDurationsMS) {
 			t.Fatal("pitch experiment changed durations")
 		}
-		if reflect.DeepEqual(base.FramePitchCurve, changed.FramePitchCurve) {
+		if tc.pitchDiffers && reflect.DeepEqual(base.FramePitchCurve, changed.FramePitchCurve) {
 			t.Fatal("pitch experiment did not change contour")
+		}
+		if !tc.pitchDiffers && !reflect.DeepEqual(base.FramePitchCurve, changed.FramePitchCurve) {
+			t.Fatal("中国語の抑揚案が母音核整列の基線と一致しない")
 		}
 		cfg.SpeechProsodyExperiment = "timing"
 		changed, err = PredictProsody(cfg)
@@ -81,15 +89,20 @@ func TestSpeechExperimentPartialManualBudgetAndValidation(t *testing.T) {
 	}
 }
 
-func TestMandarinExperimentalCurveAnchorsAtVowelStart(t *testing.T) {
-	morae := []frontend.Mora{{Tone: 2, Phones: []frontend.Phone{{Symbol: "n", Role: "onset"}, {Symbol: "i", Role: "nucleus"}}}}
-	timings := []prosody.MoraTiming{{StartMS: 0, DurationMS: 120}}
-	legacy := mandarinToneCurve(morae, timings, 120)
-	aligned := mandarinToneCurveAligned(morae, timings, 120, true)
-	if legacy.Cents[3] != legacy.Cents[0] || aligned.Cents[3] >= aligned.Cents[0] {
-		t.Fatal("onset alignment not applied")
+// E3: 声調を頭子音と語尾子音ではなく母音核の区間へ置く。
+func TestMandarinToneCurveAlignsToNucleus(t *testing.T) {
+	morae := []frontend.Mora{{Tone: 4, Phones: []frontend.Phone{
+		{Symbol: "n", Role: "onset"}, {Symbol: "a", Role: "nucleus"}, {Symbol: "n", Role: "coda"},
+	}}}
+	timings := []prosody.MoraTiming{{StartMS: 0, DurationMS: 200}}
+	curve := mandarinToneCurve(morae, timings, 200)
+	if curve.Cents[2] != 145 {
+		t.Fatalf("頭子音区間で声調が動いた: %.1f", curve.Cents[2])
 	}
-	if aligned.Cents[12] != 145 || aligned.Cents[12] <= aligned.Cents[3] {
-		t.Fatal("tone endpoint/direction lost")
+	if curve.Cents[17] != -145 {
+		t.Fatalf("語尾子音区間で声調が動いた: %.1f", curve.Cents[17])
+	}
+	if curve.Cents[10] == 145 || curve.Cents[10] == -145 {
+		t.Fatalf("母音核で声調が動いていない: %.1f", curve.Cents[10])
 	}
 }

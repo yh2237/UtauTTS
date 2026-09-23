@@ -106,7 +106,7 @@ func speechRhythmExperiment(morae []frontend.Mora, base []prosody.Prediction, ma
 
 func speechPitchExperiment(language string, morae []frontend.Mora, timings []prosody.MoraTiming, duration float64, text string, strength float64) *render.PitchCurve {
 	if language == frontend.LanguageChinese {
-		return mandarinToneCurveAligned(morae, timings, duration, true)
+		return mandarinToneCurve(morae, timings, duration)
 	}
 	if len(morae) == 0 || len(morae) != len(timings) || duration <= 0 {
 		return nil
