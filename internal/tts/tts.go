@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"utautts/internal/audio"
@@ -203,43 +201,11 @@ func resolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, 
 	if err != nil {
 		return "", "", "", nil, err
 	}
-	switch phonemizer {
-	case frontend.PhonemizerJapanese:
-		reading, err := resolveReading(cfg)
-		if err != nil {
-			return "", "", "", nil, err
-		}
-		morae, err := frontend.ParseKana(reading)
-		if cfg.SpeechTiming {
-			japaneseSpeechPhones(morae)
-		}
-		return language, phonemizer, reading, morae, err
-	case frontend.PhonemizerEnglish:
-		reading, morae, err := frontend.ParseEnglishARPAsingWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, englishOptions(cfg))
-		return language, phonemizer, reading, morae, err
-	case frontend.PhonemizerEnglishDelta:
-		var presamp frontend.PresampConfig
-		if cfg.Voicebank != nil {
-			presamp = cfg.Voicebank.Presamp.FrontendConfig()
-		}
-		reading, morae, err := frontend.ParseEnglishDeltaWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, presamp, englishOptions(cfg))
-		return language, phonemizer, reading, morae, err
-	case frontend.PhonemizerEnglishVCCV:
-		reading, morae, err := frontend.ParseEnglishVCCVWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, englishOptions(cfg))
-		return language, phonemizer, reading, morae, err
-	case frontend.PhonemizerEnglishCV:
-		reading, morae, err := frontend.ParseEnglishCVWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, englishOptions(cfg))
-		return language, phonemizer, reading, morae, err
-	case frontend.PhonemizerChinese:
-		var presamp frontend.PresampConfig
-		if cfg.Voicebank != nil {
-			presamp = cfg.Voicebank.Presamp.FrontendConfig()
-		}
-		reading, morae, err := frontend.ParseChineseCVVCWithConfig(cfg.Text, cfg.Reading, cfg.Dictionary, presamp)
-		return language, phonemizer, reading, morae, err
-	default:
-		return "", "", "", nil, fmt.Errorf("unsupported phonemizer %q", phonemizer)
+	reading, morae, err := languageProfileFor(language).ParsePronunciation(cfg, phonemizer)
+	if err != nil {
+		return "", "", "", nil, err
 	}
+	return language, phonemizer, reading, morae, nil
 }
 
 func resolveProsodyModel(cfg Config) (*prosody.Model, error) {
@@ -253,22 +219,7 @@ func resolveProsodyModel(cfg Config) (*prosody.Model, error) {
 }
 
 func resolveProsodyModelForLanguage(cfg Config, language string) (*prosody.Model, error) {
-	model, err := resolveProsodyModel(cfg)
-	if err != nil || model == nil || model.SupportsLanguage(language) {
-		return model, err
-	}
-	if language != frontend.LanguageEnglish || cfg.ProsodyModel != nil || cfg.ProsodyModelPath == "" {
-		return nil, nil
-	}
-	// 既定の日本語モデルが選ばれていても同じ models ディレクトリの英語モデルを使う
-	path := filepath.Join(filepath.Dir(cfg.ProsodyModelPath), "english-intonation-v1.json")
-	if _, statErr := os.Stat(path); statErr != nil {
-		if os.IsNotExist(statErr) {
-			return nil, nil
-		}
-		return nil, statErr
-	}
-	return loadProsodyModelCached(path)
+	return resolveProsodyModelForProfile(cfg, languageProfileFor(language))
 }
 
 // resolveProsodyFeaturesは未指定のアクセント特徴をOpen JTalkで補う。
@@ -396,8 +347,9 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
-	applyLanguageSpeechProfile(language, &cfg)
-	loadedProsody, err := resolveProsodyModelForLanguage(cfg, language)
+	profile := languageProfileFor(language)
+	profile.ApplySpeechProfile(&cfg)
+	loadedProsody, err := resolveProsodyModelForProfile(cfg, profile)
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)
 	}
@@ -411,39 +363,10 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, fmt.Errorf("resolve voicebank units: %w", err)
 	}
-	phoneWeights := [][]float64(nil)
-	phoneTimingSource := ""
-	if language == frontend.LanguageJapanese && !cfg.SpeechTiming && voicebank.IsSingleCVSelections(selections) {
-		japaneseSpeechPhones(morae)
-	}
-	if shouldUseLanguagePhoneTiming(language, cfg.SpeechTiming, voicebank.IsSingleCVSelections(selections)) {
-		phoneWeights = languagePhoneWeights(language, morae)
-		phoneTimingSource = "language-phone-v1"
-	}
-	var predictions []prosody.Prediction
-	if language == frontend.LanguageEnglish {
-		predictions = englishPredictions(morae)
-	} else if language == frontend.LanguageChinese {
-		predictions = mandarinPredictions(morae)
-	}
-	if experimentalSpeechTiming(cfg) {
-		predictions = speechRhythmExperiment(morae, predictions, cfg.MoraDurationsMS)
-	}
-	if loadedProsody != nil {
-		if loadedProsody.RequiresExternalFeatures() && len(prosodyFeatures) != len(morae) {
-			return nil, fmt.Errorf("prosody model %d/%s requires %d mora-level accent feature frames, got %d", loadedProsody.Version, loadedProsody.Mode, len(morae), len(prosodyFeatures))
-		}
-		predictions = loadedProsody.PredictWithFeatures(morae, prosodyFeatures)
-		if cfg.ProsodyPitchOnly {
-			for i := range predictions {
-				predictions[i].DurationMS = 0
-				predictions[i].DurationFactor = 1
-				predictions[i].EnergyFactor = 1
-			}
-		}
-	}
-	if language == frontend.LanguageJapanese {
-		predictions = applyJapaneseSpeechRhythm(cfg, loadedProsody, morae, predictions, prosodyFeatures)
+	phoneWeights, phoneTimingSource := profile.PhoneTiming(cfg, morae, voicebank.IsSingleCVSelections(selections))
+	predictions, err := predictMorae(cfg, profile, loadedProsody, morae, prosodyFeatures)
+	if err != nil {
+		return nil, err
 	}
 	if len(cfg.PitchFactors) > 0 {
 		if len(cfg.PitchFactors) != len(morae) {
@@ -464,7 +387,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		}
 	}
 	// C3aは日本語のモーラだけを対象にし、長いモーラ長で効果があるときだけ有効化する。
-	stretchAdapt := stretchAdaptEnabled(cfg) && language == frontend.LanguageJapanese
+	stretchAdapt := stretchAdaptEnabled(cfg) && profile.SupportsStretchAdapt()
 	synthesisPlan, err := plan.Build(bank, reading, morae, selections, plan.Config{
 		SpeechTiming:         cfg.SpeechTiming,
 		MoraDurationMS:       cfg.MoraDurationMS,
@@ -501,31 +424,29 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	pitchCurve := cfg.PitchCurve
 	applyPitch := applyPitchEnabled(cfg)
 	stretchAdaptStrength := stretchAdaptStrength(cfg)
-	if pitchCurve == nil && language == frontend.LanguageEnglish && applyPitch && !shouldPredictFrameContour(cfg, loadedProsody) {
-		pitchCurve = scaleAutomaticPitchCurve(englishSpeechCurve(morae, moraTimings(morae, synthesisPlan), synthesisPlan.DurationMS+cfg.ReleaseMS, cfg.Text), cfg.IntonationStrength)
-	}
-	if pitchCurve == nil && language == frontend.LanguageChinese {
-		timings := moraTimings(morae, synthesisPlan)
-		pitchCurve = mandarinToneCurve(morae, timings, synthesisPlan.DurationMS+cfg.ReleaseMS)
-		if pitchCurve != nil {
-			applyPitch = true
+	curveTimings := moraTimings(morae, synthesisPlan)
+	curveDurationMS := synthesisPlan.DurationMS + cfg.ReleaseMS
+	if pitchCurve == nil {
+		if curve, enablePitch := profile.AutomaticPitchCurve(cfg, loadedProsody, morae, curveTimings, curveDurationMS); curve != nil {
+			pitchCurve = curve
+			if enablePitch {
+				applyPitch = true
+			}
 		}
 	}
 	if pitchCurve == nil && shouldPredictFrameContour(cfg, loadedProsody) {
-		timings := moraTimings(morae, synthesisPlan)
 		question := finalPhraseIsQuestion(cfg.Text)
-		if contour := loadedProsody.PredictFrameContour(morae, prosodyFeatures, timings, synthesisPlan.DurationMS+cfg.ReleaseMS, question); contour != nil {
+		if contour := loadedProsody.PredictFrameContour(morae, prosodyFeatures, curveTimings, curveDurationMS, question); contour != nil {
 			pitchCurve = &render.PitchCurve{FrameMS: contour.FrameMS, Cents: contour.Cents}
 			pitchCurve = scaleAutomaticPitchCurve(pitchCurve, cfg.IntonationStrength)
 		}
 	}
 	if cfg.PitchCurve == nil && experimentalSpeechPitch(cfg) && applyPitch {
-		pitchCurve = speechPitchExperiment(language, morae, moraTimings(morae, synthesisPlan), synthesisPlan.DurationMS+cfg.ReleaseMS, cfg.Text, cfg.IntonationStrength)
+		pitchCurve = speechPitchExperiment(language, morae, curveTimings, curveDurationMS, cfg.Text, cfg.IntonationStrength)
 	}
 	// 日本語の自動輪郭だけに句末境界音調(C2)を加える。手動ピッチは後段でマージする。
-	if cfg.PitchCurve == nil && language == frontend.LanguageJapanese && boundaryToneEnabled(cfg) {
-		timings := moraTimings(morae, synthesisPlan)
-		pitchCurve = applyBoundaryTone(pitchCurve, finalPhraseEndMS(morae, timings), finalPhraseIsQuestion(cfg.Text), boundaryToneStrength(cfg))
+	if cfg.PitchCurve == nil {
+		pitchCurve = profile.ApplyBoundaryTone(cfg, pitchCurve, finalPhraseEndMS(morae, curveTimings), finalPhraseIsQuestion(cfg.Text))
 	}
 	automaticPitchCurve := pitchCurve
 	manualPitch := cfg.ManualPitch
@@ -636,13 +557,7 @@ func applyCVVCEnhancedProfile(cfg *Config) {
 }
 
 func applyLanguageSpeechProfile(language string, cfg *Config) {
-	if cfg == nil || language != frontend.LanguageEnglish {
-		return
-	}
-	// 英語の語境界では遷移音を少し強める
-	if cfg.AliasPolicy == voicebank.AliasPolicyCVVCPrefer && cfg.CVVCTransitionGain == 0.35 {
-		cfg.CVVCTransitionGain = 0.55
-	}
+	languageProfileFor(language).ApplySpeechProfile(cfg)
 }
 
 // PredictProsodyは音声合成せずに選択されたプロソディモデルを評価する。手動のモーラ長を尊重するため、プレビューはGUIで編集中の値に従う。
@@ -667,7 +582,8 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
-	loadedProsody, err := resolveProsodyModelForLanguage(cfg, language)
+	profile := languageProfileFor(language)
+	loadedProsody, err := resolveProsodyModelForProfile(cfg, profile)
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)
 	}
@@ -677,31 +593,11 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		return nil, err
 	}
 
-	var predictions []prosody.Prediction
-	if language == frontend.LanguageEnglish {
-		predictions = englishPredictions(morae)
-	} else if language == frontend.LanguageChinese {
-		predictions = mandarinPredictions(morae)
-	}
-	if experimentalSpeechTiming(cfg) {
-		predictions = speechRhythmExperiment(morae, predictions, cfg.MoraDurationsMS)
-	}
-	if loadedProsody != nil {
-		if loadedProsody.RequiresExternalFeatures() && len(prosodyFeatures) != len(morae) {
-			return nil, fmt.Errorf("prosody model %d/%s requires %d mora-level accent feature frames, got %d", loadedProsody.Version, loadedProsody.Mode, len(morae), len(prosodyFeatures))
-		}
-		predictions = loadedProsody.PredictWithFeatures(morae, prosodyFeatures)
-	}
-
-	if language == frontend.LanguageJapanese {
-		predictions = applyJapaneseSpeechRhythm(cfg, loadedProsody, morae, predictions, prosodyFeatures)
+	predictions, err := predictMorae(cfg, profile, loadedProsody, morae, prosodyFeatures)
+	if err != nil {
+		return nil, err
 	}
 	timings := make([]prosody.MoraTiming, len(morae))
-	if loadedProsody != nil && cfg.ProsodyPitchOnly {
-		for i := range predictions {
-			predictions[i].DurationFactor = 1
-		}
-	}
 	result := &ProsodyPreview{
 		Reading: reading, Morae: append([]frontend.Mora(nil), morae...),
 		Features:        append([]prosody.FeatureFrame(nil), prosodyFeatures...),
@@ -729,18 +625,16 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		cursor += duration
 	}
 
-	if language == frontend.LanguageChinese {
-		result.FramePitchCurve = mandarinToneCurve(morae, timings, cursor+cfg.ReleaseMS)
+	totalDurationMS := cursor + cfg.ReleaseMS
+	if curve, _ := profile.AutomaticPitchCurve(cfg, loadedProsody, morae, timings, totalDurationMS); curve != nil {
+		result.FramePitchCurve = curve
 	}
-	if language == frontend.LanguageEnglish && applyPitchEnabled(cfg) && !shouldPredictFrameContour(cfg, loadedProsody) {
-		result.FramePitchCurve = scaleAutomaticPitchCurve(englishSpeechCurve(morae, timings, cursor+cfg.ReleaseMS, cfg.Text), cfg.IntonationStrength)
-	}
-	if experimentalSpeechPitch(cfg) && (language == frontend.LanguageChinese || applyPitchEnabled(cfg)) {
-		result.FramePitchCurve = speechPitchExperiment(language, morae, timings, cursor+cfg.ReleaseMS, cfg.Text, cfg.IntonationStrength)
+	if experimentalSpeechPitch(cfg) && (profile.ExperimentalPitchAllowed() || applyPitchEnabled(cfg)) {
+		result.FramePitchCurve = speechPitchExperiment(language, morae, timings, totalDurationMS, cfg.Text, cfg.IntonationStrength)
 	}
 	if result.FramePitchCurve == nil && shouldPredictFrameContour(cfg, loadedProsody) {
 		question := finalPhraseIsQuestion(cfg.Text)
-		if contour := loadedProsody.PredictFrameContour(morae, prosodyFeatures, timings, cursor+cfg.ReleaseMS, question); contour != nil {
+		if contour := loadedProsody.PredictFrameContour(morae, prosodyFeatures, timings, totalDurationMS, question); contour != nil {
 			curve := scaleAutomaticPitchCurve(&render.PitchCurve{FrameMS: contour.FrameMS, Cents: contour.Cents}, cfg.IntonationStrength)
 			result.FramePitchCurve = curve
 		}

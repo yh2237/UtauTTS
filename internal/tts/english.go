@@ -1,13 +1,80 @@
 package tts
 
 import (
+	"fmt"
 	"math"
 	"strings"
 
 	"utautts/internal/frontend"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
+	"utautts/internal/voicebank"
 )
+
+// englishProfileは英語のphonemizer呼び分けと規則ベースの抑揚をまとめる。
+type englishProfile struct{}
+
+func (englishProfile) Language() string { return frontend.LanguageEnglish }
+
+func (englishProfile) ParsePronunciation(cfg Config, phonemizer string) (string, []frontend.Mora, error) {
+	switch phonemizer {
+	case frontend.PhonemizerEnglish:
+		return frontend.ParseEnglishARPAsingWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, englishOptions(cfg))
+	case frontend.PhonemizerEnglishDelta:
+		var presamp frontend.PresampConfig
+		if cfg.Voicebank != nil {
+			presamp = cfg.Voicebank.Presamp.FrontendConfig()
+		}
+		return frontend.ParseEnglishDeltaWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, presamp, englishOptions(cfg))
+	case frontend.PhonemizerEnglishVCCV:
+		return frontend.ParseEnglishVCCVWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, englishOptions(cfg))
+	case frontend.PhonemizerEnglishCV:
+		return frontend.ParseEnglishCVWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, englishOptions(cfg))
+	default:
+		return "", nil, fmt.Errorf("unsupported phonemizer %q for language %q", phonemizer, frontend.LanguageEnglish)
+	}
+}
+
+func (englishProfile) ApplySpeechProfile(cfg *Config) {
+	if cfg == nil {
+		return
+	}
+	// 英語の語境界では遷移音を少し強める
+	if cfg.AliasPolicy == voicebank.AliasPolicyCVVCPrefer && cfg.CVVCTransitionGain == 0.35 {
+		cfg.CVVCTransitionGain = 0.55
+	}
+}
+
+func (englishProfile) ProsodyModelFallback(configuredPath string) string {
+	return englishFallbackProsodyModelPath(configuredPath)
+}
+
+func (englishProfile) SupportsStretchAdapt() bool { return false }
+
+func (englishProfile) PhoneTiming(_ Config, morae []frontend.Mora, _ bool) ([][]float64, string) {
+	return languagePhoneWeights(frontend.LanguageEnglish, morae), "language-phone-v1"
+}
+
+func (englishProfile) Predict(morae []frontend.Mora) []prosody.Prediction {
+	return englishPredictions(morae)
+}
+
+func (englishProfile) AdjustPredictions(_ Config, _ *prosody.Model, _ []frontend.Mora, predictions []prosody.Prediction, _ []prosody.FeatureFrame) []prosody.Prediction {
+	return predictions
+}
+
+func (englishProfile) AutomaticPitchCurve(cfg Config, model *prosody.Model, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*render.PitchCurve, bool) {
+	if !applyPitchEnabled(cfg) || shouldPredictFrameContour(cfg, model) {
+		return nil, false
+	}
+	return scaleAutomaticPitchCurve(englishSpeechCurve(morae, timings, durationMS, cfg.Text), cfg.IntonationStrength), false
+}
+
+func (englishProfile) ApplyBoundaryTone(_ Config, curve *render.PitchCurve, _ float64, _ bool) *render.PitchCurve {
+	return curve
+}
+
+func (englishProfile) ExperimentalPitchAllowed() bool { return false }
 
 // englishOptionsは英語phonemizerの前処理オプションを組み立てる。
 // E1の弱形は未指定(nil)で既定ON。

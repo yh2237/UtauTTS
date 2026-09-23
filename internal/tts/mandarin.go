@@ -1,6 +1,7 @@
 package tts
 
 import (
+	"fmt"
 	"math"
 	"strings"
 
@@ -8,6 +9,51 @@ import (
 	"utautts/internal/prosody"
 	"utautts/internal/render"
 )
+
+// chineseProfileは中国語のPinyin解析と声調曲線をまとめる。
+type chineseProfile struct{}
+
+func (chineseProfile) Language() string { return frontend.LanguageChinese }
+
+func (chineseProfile) ParsePronunciation(cfg Config, phonemizer string) (string, []frontend.Mora, error) {
+	if phonemizer != frontend.PhonemizerChinese {
+		return "", nil, fmt.Errorf("unsupported phonemizer %q for language %q", phonemizer, frontend.LanguageChinese)
+	}
+	var presamp frontend.PresampConfig
+	if cfg.Voicebank != nil {
+		presamp = cfg.Voicebank.Presamp.FrontendConfig()
+	}
+	return frontend.ParseChineseCVVCWithConfig(cfg.Text, cfg.Reading, cfg.Dictionary, presamp)
+}
+
+func (chineseProfile) ApplySpeechProfile(*Config) {}
+
+func (chineseProfile) ProsodyModelFallback(string) string { return "" }
+
+func (chineseProfile) SupportsStretchAdapt() bool { return false }
+
+func (chineseProfile) PhoneTiming(_ Config, morae []frontend.Mora, _ bool) ([][]float64, string) {
+	return languagePhoneWeights(frontend.LanguageChinese, morae), "language-phone-v1"
+}
+
+func (chineseProfile) Predict(morae []frontend.Mora) []prosody.Prediction {
+	return mandarinPredictions(morae)
+}
+
+func (chineseProfile) AdjustPredictions(_ Config, _ *prosody.Model, _ []frontend.Mora, predictions []prosody.Prediction, _ []prosody.FeatureFrame) []prosody.Prediction {
+	return predictions
+}
+
+func (chineseProfile) AutomaticPitchCurve(_ Config, _ *prosody.Model, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*render.PitchCurve, bool) {
+	curve := mandarinToneCurve(morae, timings, durationMS)
+	return curve, curve != nil
+}
+
+func (chineseProfile) ApplyBoundaryTone(_ Config, curve *render.PitchCurve, _ float64, _ bool) *render.PitchCurve {
+	return curve
+}
+
+func (chineseProfile) ExperimentalPitchAllowed() bool { return true }
 
 const mandarinPitchFrameMS = 10
 
