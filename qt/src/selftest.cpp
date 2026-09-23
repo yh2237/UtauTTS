@@ -314,6 +314,8 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                                QStringLiteral("stretch_adapt"), false);
     backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
                                QStringLiteral("stretch_adapt_strength"), 0.5);
+    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
+                               QStringLiteral("english_weak_form"), false);
     backend.setPreviewCacheFileCount(7);
     backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y");
     if (!require(backend.defaultMoraDuration() == 130 && backend.defaultPauseDuration() == 190
@@ -336,6 +338,8 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                                             QStringLiteral("stretch_adapt"), true).toBool() == false
                  && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
                                             QStringLiteral("stretch_adapt_strength"), 1.0).toDouble() == 0.5
+                 && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
+                                            QStringLiteral("english_weak_form"), true).toBool() == false
                  && backend.undoShortcut() == QStringLiteral("Ctrl+Z"),
                  QStringLiteral("application settings failed")))
         return 1;

@@ -23,7 +23,8 @@
     { "id": "stretch_adapt", "type": "boolean", "group": "timing", "default": true, "label": "settings.stretchAdapt" },
     { "id": "stretch_adapt_strength", "type": "number", "group": "timing", "default": 1.0, "min": 0, "max": 2, "step": 0.01, "label": "settings.stretchAdaptStrength" },
     { "id": "pause_context", "type": "boolean", "group": "timing", "default": true, "label": "settings.pauseContext" },
-    { "id": "pause_context_strength", "type": "number", "group": "timing", "default": 1.0, "min": 0, "max": 2, "step": 0.01, "label": "settings.pauseContextStrength" }
+    { "id": "pause_context_strength", "type": "number", "group": "timing", "default": 1.0, "min": 0, "max": 2, "step": 0.01, "label": "settings.pauseContextStrength" },
+    { "id": "english_weak_form", "type": "boolean", "group": "timing", "default": true, "label": "settings.englishWeakForm" }
   ],
   "platforms": ["windows-amd64", "linux-amd64", "darwin-amd64", "darwin-arm64"],
   "platform_resources": {

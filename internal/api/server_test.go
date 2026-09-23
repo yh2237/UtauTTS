@@ -461,11 +461,14 @@ func TestSynthesisRequestAppliesIntonationDefaults(t *testing.T) {
 	if !request.PauseContext || request.PauseContextStrength != synth.DefaultPauseContextStrength {
 		t.Fatalf("pause defaults = pause_context:%t pause_context_strength:%v", request.PauseContext, request.PauseContextStrength)
 	}
+	if !request.EnglishWeakForm {
+		t.Fatalf("weak form default = english_weak_form:%t", request.EnglishWeakForm)
+	}
 }
 
 func TestSynthesisRequestRespectsExplicitIntonation(t *testing.T) {
 	var request SynthesisRequest
-	if err := json.Unmarshal([]byte(`{"text":"あ","apply_pitch":false,"intonation_strength":0,"context_duration":false,"context_duration_strength":0.5,"boundary_tone":false,"boundary_tone_strength":0.5,"stretch_adapt":false,"stretch_adapt_strength":0.5,"pause_context":false,"pause_context_strength":0.5}`), &request); err != nil {
+	if err := json.Unmarshal([]byte(`{"text":"あ","apply_pitch":false,"intonation_strength":0,"context_duration":false,"context_duration_strength":0.5,"boundary_tone":false,"boundary_tone_strength":0.5,"stretch_adapt":false,"stretch_adapt_strength":0.5,"pause_context":false,"pause_context_strength":0.5,"english_weak_form":false}`), &request); err != nil {
 		t.Fatal(err)
 	}
 	if request.ApplyPitch || request.IntonationStrength != 0 {
@@ -482,6 +485,9 @@ func TestSynthesisRequestRespectsExplicitIntonation(t *testing.T) {
 	}
 	if request.PauseContext || request.PauseContextStrength != 0.5 {
 		t.Fatalf("explicit pause values = pause_context:%t pause_context_strength:%v", request.PauseContext, request.PauseContextStrength)
+	}
+	if request.EnglishWeakForm {
+		t.Fatalf("explicit weak form = english_weak_form:%t", request.EnglishWeakForm)
 	}
 }
 

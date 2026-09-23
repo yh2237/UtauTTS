@@ -54,6 +54,7 @@ func main() {
 		stretchAdaptStrength     float64
 		pauseContext             bool
 		pauseContextStrength     float64
+		englishWeakForm          bool
 		renderer                 string
 		resampler                string
 		wavtool                  string
@@ -117,6 +118,7 @@ func main() {
 	flag.Float64Var(&stretchAdaptStrength, "stretch-adapt-strength", synth.DefaultStretchAdaptStrength, "stretch adaptation strength (0 uses the default 1.0)")
 	flag.BoolVar(&pauseContext, "pause-context", synth.DefaultPauseContext, "context-aware punctuation pause length (B5)")
 	flag.Float64Var(&pauseContextStrength, "pause-context-strength", synth.DefaultPauseContextStrength, "pause context strength (0 uses the default 1.0)")
+	flag.BoolVar(&englishWeakForm, "english-weak-form", synth.DefaultEnglishWeakForm, "weak forms for English function words (E1)")
 	flag.StringVar(&renderer, "renderer", "", "renderer ID (default: highest configured priority)")
 	flag.StringVar(&resampler, "resampler", "", "Classic UTAU resampler ID from Resamplers")
 	flag.StringVar(&wavtool, "wavtool", "builtin", "Classic UTAU wavtool ID from Wavtools")
@@ -208,6 +210,7 @@ func main() {
 		StretchAdaptStrength:    stretchAdaptStrength,
 		PauseContext:            pauseContext,
 		PauseContextStrength:    pauseContextStrength,
+		EnglishWeakForm:         englishWeakForm,
 		BoundaryBridgeMS:        boundaryBridgeMS,
 		BoundaryBridgeThreshold: boundaryBridgeThreshold,
 		CVVCTiming:              cvvcTiming,

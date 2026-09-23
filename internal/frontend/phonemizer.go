@@ -59,12 +59,22 @@ func ParseEnglishDelta(text, reading string, dictionary map[string]string) (stri
 }
 
 func ParseEnglishDeltaWithConfig(text, reading string, dictionary map[string]string, config PresampConfig) (string, []Mora, error) {
-	return parseEnglishSyllables(text, reading, dictionary, deltaEnglishSymbols, " ", true, config)
+	return ParseEnglishDeltaWithOptions(text, reading, dictionary, config, DefaultEnglishOptions())
+}
+
+// ParseEnglishDeltaWithOptionsはデルタ式CVVCで英語オプションを適用する。
+func ParseEnglishDeltaWithOptions(text, reading string, dictionary map[string]string, config PresampConfig, options EnglishOptions) (string, []Mora, error) {
+	return parseEnglishSyllables(text, reading, dictionary, deltaEnglishSymbols, " ", true, config, options)
 }
 
 // ParseEnglishVCCVはARPAbet読みをCz式VCCVへ変換する。
 func ParseEnglishVCCV(text, reading string, dictionary map[string]string) (string, []Mora, error) {
-	return parseEnglishSyllables(text, reading, dictionary, vccvEnglishSymbols, " ", false, PresampConfig{})
+	return ParseEnglishVCCVWithOptions(text, reading, dictionary, DefaultEnglishOptions())
+}
+
+// ParseEnglishVCCVWithOptionsはCz式VCCVで英語オプションを適用する。
+func ParseEnglishVCCVWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, []Mora, error) {
+	return parseEnglishSyllables(text, reading, dictionary, vccvEnglishSymbols, " ", false, PresampConfig{}, options)
 }
 
 type PresampConfig struct {
@@ -74,8 +84,8 @@ type PresampConfig struct {
 	Endings      []string
 }
 
-func parseEnglishSyllables(text, reading string, dictionary map[string]string, symbols map[string][]string, separator string, spacedStart bool, config PresampConfig) (string, []Mora, error) {
-	pronunciation, words, err := englishPronunciation(text, reading, dictionary)
+func parseEnglishSyllables(text, reading string, dictionary map[string]string, symbols map[string][]string, separator string, spacedStart bool, config PresampConfig, options EnglishOptions) (string, []Mora, error) {
+	pronunciation, words, err := englishPronunciationWithOptions(text, reading, dictionary, options)
 	if err != nil {
 		return "", nil, err
 	}
@@ -376,6 +386,12 @@ func sameStrings(left, right []string) bool {
 }
 
 func englishPronunciation(text, reading string, dictionary map[string]string) (string, [][]string, error) {
+	return englishPronunciationWithOptions(text, reading, dictionary, DefaultEnglishOptions())
+}
+
+// englishPronunciationWithOptionsは読みを解決する。辞書と明示の読みを優先し、
+// 生成した発音にだけ弱形(E1)を適用する。
+func englishPronunciationWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, [][]string, error) {
 	pronunciation := strings.TrimSpace(reading)
 	var result [][]string
 	if pronunciation != "" {
@@ -407,9 +423,9 @@ func englishPronunciation(text, reading string, dictionary map[string]string) (s
 				if err != nil {
 					return "", nil, err
 				}
-				// ofの弱形は句中だけ補い 明示した読みと辞書を優先する。
-				if strings.EqualFold(word, "of") && index > 0 && index+1 < len(words) && words[index-1] != "<pause>" && words[index+1] != "<pause>" {
-					value = "AH0 V"
+				// 機能語の弱形は句中だけ補い 明示した読みと辞書を優先する。
+				if weak, ok := englishWeakForm(word, words, index, options); ok {
+					value = weak
 				}
 			}
 			fields := strings.Fields(value)
@@ -489,7 +505,12 @@ func combineEnglishTransitionAliases(previous []string, onset []string, symbols 
 }
 
 func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (string, []Mora, error) {
-	pronunciation, words, err := englishPronunciation(text, reading, dictionary)
+	return ParseEnglishARPAsingWithOptions(text, reading, dictionary, DefaultEnglishOptions())
+}
+
+// ParseEnglishARPAsingWithOptionsはARPAsingで英語オプションを適用する。
+func ParseEnglishARPAsingWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, []Mora, error) {
+	pronunciation, words, err := englishPronunciationWithOptions(text, reading, dictionary, options)
 	if err != nil {
 		return "", nil, err
 	}
@@ -545,7 +566,12 @@ func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (s
 // （Cadlaxa, MIT）に準拠する。母音は文頭が"-V","- V","V"、文中が"-V","V","- V"、
 // 子音は文頭が"- C","-C","C"、文中が"C","-C","- C"の順に試す。
 func ParseEnglishCV(text, reading string, dictionary map[string]string) (string, []Mora, error) {
-	pronunciation, words, err := englishPronunciation(text, reading, dictionary)
+	return ParseEnglishCVWithOptions(text, reading, dictionary, DefaultEnglishOptions())
+}
+
+// ParseEnglishCVWithOptionsはC+V形式で英語オプションを適用する。
+func ParseEnglishCVWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, []Mora, error) {
+	pronunciation, words, err := englishPronunciationWithOptions(text, reading, dictionary, options)
 	if err != nil {
 		return "", nil, err
 	}

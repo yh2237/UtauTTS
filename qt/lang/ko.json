@@ -141,6 +141,7 @@
     "settings.stretchAdaptStrength": "강도",
     "settings.pauseContext": "문맥 기반 휴지 길이",
     "settings.pauseContextStrength": "강도",
+    "settings.englishWeakForm": "영어 기능어 약형",
     "settings.resamplerAuto": "자동",
     "settings.defaultDiffSingerSteps": "DiffSinger 확산 스텝",
     "settings.defaultDiffSingerExpr": "DiffSinger 표현력",

@@ -1934,6 +1934,10 @@ ApplicationWindow {
                       "stretch adaptation settings were not injected into the request");
         if (error.length)
             return error;
+        error = check(contextRequest.english_weak_form === true,
+                      "English weak form setting was not injected into the request");
+        if (error.length)
+            return error;
         for (let voiceIndex = 0; voiceIndex < window.appBackend.voicebanks.length; ++voiceIndex) {
             const voice = window.appBackend.voicebanks[voiceIndex];
             if (!voice.suggested_language || !voice.suggested_phonemizer)

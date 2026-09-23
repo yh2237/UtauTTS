@@ -9,6 +9,12 @@ import (
 	"utautts/internal/render"
 )
 
+// englishOptionsは英語phonemizerの前処理オプションを組み立てる。
+// E1の弱形は未指定(nil)で既定ON。
+func englishOptions(cfg Config) frontend.EnglishOptions {
+	return frontend.EnglishOptions{WeakForms: cfg.EnglishWeakForm == nil || *cfg.EnglishWeakForm}
+}
+
 // 日本語アクセントモデルを使えない英語向けの保守的なフォールバック。
 // 辞書に強勢があればそれを使う。学習済みモデルではなく規則ベースの基準実装。
 func englishPredictions(morae []frontend.Mora) []prosody.Prediction {

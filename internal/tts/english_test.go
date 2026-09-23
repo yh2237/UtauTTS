@@ -30,3 +30,25 @@ func TestEnglishStressAccentHasAContinuousRiseAndFall(t *testing.T) {
 		t.Fatal("secondary stress is not weaker than primary stress")
 	}
 }
+
+// E1の弱形はConfigの*boolで切り替わり、未指定は既定ON。
+func TestEnglishWeakFormConfigControlsReading(t *testing.T) {
+	enabled := true
+	cfg := Config{Language: "en", Phonemizer: "en-arpasing", Text: "bread and butter", EnglishWeakForm: &enabled}
+	preview, err := Analyze(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.Reading != "B R EH1 D | AH0 N | B AH1 T ER0" {
+		t.Fatalf("enabled reading = %s", preview.Reading)
+	}
+	disabled := false
+	cfg.EnglishWeakForm = &disabled
+	preview, err = Analyze(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.Reading != "B R EH1 D | AH0 N D | B AH1 T ER0" {
+		t.Fatalf("disabled reading = %s", preview.Reading)
+	}
+}

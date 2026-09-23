@@ -141,6 +141,7 @@
     "settings.stretchAdaptStrength": "强度",
     "settings.pauseContext": "上下文停顿时长",
     "settings.pauseContextStrength": "强度",
+    "settings.englishWeakForm": "英语功能词弱读",
     "settings.resamplerAuto": "自动",
     "settings.defaultDiffSingerSteps": "DiffSinger 扩散步数",
     "settings.defaultDiffSingerExpr": "DiffSinger 表现力",

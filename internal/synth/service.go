@@ -31,6 +31,7 @@ const (
 	DefaultStretchAdaptStrength    = 1.0
 	DefaultPauseContext            = true
 	DefaultPauseContextStrength    = 1.0
+	DefaultEnglishWeakForm         = true
 )
 
 // Requestは合成とプレビューで共有する入力。
@@ -73,6 +74,7 @@ type Request struct {
 	StretchAdaptStrength    float64                      `json:"stretch_adapt_strength"`
 	PauseContext            bool                         `json:"pause_context"`
 	PauseContextStrength    float64                      `json:"pause_context_strength"`
+	EnglishWeakForm         bool                         `json:"english_weak_form"`
 	ApplyPitch              bool                         `json:"apply_pitch"`
 	BoundaryBridgeMS        float64                      `json:"-"`
 	BoundaryBridgeThreshold float64                      `json:"-"`
@@ -255,6 +257,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	boundaryTone := request.BoundaryTone
 	stretchAdapt := request.StretchAdapt
 	pauseContext := request.PauseContext
+	englishWeakForm := request.EnglishWeakForm
 	cfg := tts.Config{
 		SpeechTiming:            request.SpeechTiming,
 		Text:                    request.Text,
@@ -286,6 +289,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		StretchAdaptStrength:    request.StretchAdaptStrength,
 		PauseContext:            &pauseContext,
 		PauseContextStrength:    request.PauseContextStrength,
+		EnglishWeakForm:         &englishWeakForm,
 		PitchFactors:            append([]float64(nil), request.PitchFactors...),
 		ApplyPitch:              request.ApplyPitch,
 		OpenJTalkPath:           s.openJTalkPath,

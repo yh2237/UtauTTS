@@ -40,7 +40,9 @@ type Config struct {
 	// PauseContextはポーズ長の文脈化(B5)を有効にする。nilは既定ON。
 	PauseContext *bool
 	// PauseContextStrengthはポーズ長補正の強度。0は既定1.0。
-	PauseContextStrength    float64
+	PauseContextStrength float64
+	// EnglishWeakFormは英語機能語の弱形(E1)を有効にする。nilは既定ON。
+	EnglishWeakForm         *bool
 	Context                 context.Context
 	Engine                  engine.ResolvedEngine
 	VoicebankPath           string
@@ -187,20 +189,20 @@ func resolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, 
 		}
 		return language, phonemizer, reading, morae, err
 	case frontend.PhonemizerEnglish:
-		reading, morae, err := frontend.ParseEnglishARPAsing(cfg.Text, cfg.Reading, cfg.Dictionary)
+		reading, morae, err := frontend.ParseEnglishARPAsingWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, englishOptions(cfg))
 		return language, phonemizer, reading, morae, err
 	case frontend.PhonemizerEnglishDelta:
 		var presamp frontend.PresampConfig
 		if cfg.Voicebank != nil {
 			presamp = cfg.Voicebank.Presamp.FrontendConfig()
 		}
-		reading, morae, err := frontend.ParseEnglishDeltaWithConfig(cfg.Text, cfg.Reading, cfg.Dictionary, presamp)
+		reading, morae, err := frontend.ParseEnglishDeltaWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, presamp, englishOptions(cfg))
 		return language, phonemizer, reading, morae, err
 	case frontend.PhonemizerEnglishVCCV:
-		reading, morae, err := frontend.ParseEnglishVCCV(cfg.Text, cfg.Reading, cfg.Dictionary)
+		reading, morae, err := frontend.ParseEnglishVCCVWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, englishOptions(cfg))
 		return language, phonemizer, reading, morae, err
 	case frontend.PhonemizerEnglishCV:
-		reading, morae, err := frontend.ParseEnglishCV(cfg.Text, cfg.Reading, cfg.Dictionary)
+		reading, morae, err := frontend.ParseEnglishCVWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, englishOptions(cfg))
 		return language, phonemizer, reading, morae, err
 	case frontend.PhonemizerChinese:
 		var presamp frontend.PresampConfig

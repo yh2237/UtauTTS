@@ -25,6 +25,7 @@
     { "id": "stretch_adapt_strength", "type": "number", "group": "timing", "default": 1.0, "min": 0, "max": 2, "step": 0.01, "label": "settings.stretchAdaptStrength" },
     { "id": "pause_context", "type": "boolean", "group": "timing", "default": true, "label": "settings.pauseContext" },
     { "id": "pause_context_strength", "type": "number", "group": "timing", "default": 1.0, "min": 0, "max": 2, "step": 0.01, "label": "settings.pauseContextStrength" },
+    { "id": "english_weak_form", "type": "boolean", "group": "timing", "default": true, "label": "settings.englishWeakForm" },
     { "id": "diffsinger_steps", "type": "integer", "group": "diffsinger", "default": 0, "min": 0, "max": 100, "label": "settings.defaultDiffSingerSteps" },
     { "id": "diffsinger_expr", "type": "number", "group": "diffsinger", "default": 0, "min": 0, "max": 2, "step": 0.01, "label": "settings.defaultDiffSingerExpr" },
     { "id": "diffsinger_duration_mix", "type": "number", "group": "diffsinger", "default": 0, "min": 0, "max": 1, "step": 0.01, "label": "settings.defaultDiffSingerDurationMix" },
