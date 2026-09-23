@@ -358,7 +358,8 @@ func englishSyllableBridge(vowels, coda, nextOnset []string, symbols map[string]
 	var bridge []string
 	for _, left := range first {
 		for _, right := range rest {
-			bridge = append(bridge, left+separator+right, left+right)
+			// 語境界のCCは解放マーカー付きを優先し、非マーカー形は後段に残す。
+			bridge = append(bridge, left+separator+right+"-", left+right+"-", left+separator+right, left+right)
 		}
 	}
 	// 語境界の子音連続がなくても語末子音全体を選べるようにする。

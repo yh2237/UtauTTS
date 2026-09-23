@@ -47,6 +47,27 @@ func TestWorldlineStopProtectionKeepsJapaneseCVSupport(t *testing.T) {
 	}
 }
 
+func TestWorldlineStopProtectionProtectsEnglishCodaPlosive(t *testing.T) {
+	p := &plan.Plan{
+		Language:   "en",
+		Phonemizer: "en-delta",
+		Morae:      []frontend.Mora{{Consonant: "m", Vowel: "iy"}},
+	}
+	profile := &voicebank.SpeechProfile{ReleaseTransientMS: 12, ReleaseTransientConfidence: .27}
+	if !worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: profile}) {
+		t.Fatal("word-final plosive must be protected")
+	}
+	// codaが破裂音でなければ対象外。
+	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"s"}, SpeechProfile: profile}) {
+		t.Fatal("fricative coda must not be protected")
+	}
+	// 解放過渡が測れなければ対象外。
+	silent := &voicebank.SpeechProfile{}
+	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: silent}) {
+		t.Fatal("unmeasured release must not be protected")
+	}
+}
+
 func TestSpeechSourceOnsetUsesReliableNearbyLandmark(t *testing.T) {
 	unit := plan.Unit{PreutteranceMS: 60, SpeechProfile: &voicebank.SpeechProfile{VoicingStartMS: 68, VoicingConfidence: .9, TransitionConfidence: .8}}
 	if got := speechSourceOnsetMS(unit); got != 68 {

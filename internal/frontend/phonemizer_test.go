@@ -158,8 +158,33 @@ func TestEnglishSyllabificationSplitsIllegalOnset(t *testing.T) {
 	if len(units) != 2 || units[1].Consonant != "l" {
 		t.Fatalf("units=%#v", units)
 	}
-	if len(units[0].Aliases.Endings) != 2 || units[0].Aliases.Endings[0][0] != "{ t" || units[0].Aliases.Endings[1][0] != "t l" {
+	if len(units[0].Aliases.Endings) != 2 || units[0].Aliases.Endings[0][0] != "{ t" || units[0].Aliases.Endings[1][0] != "t l-" {
 		t.Fatalf("bridge=%#v", units[0].Aliases.Endings)
+	}
+	// 語境界のCCは解放マーカー付きを優先し、非マーカー形も候補に残す。
+	for _, alias := range []string{"tl-", "t l", "tl"} {
+		if !containsString(units[0].Aliases.Endings[1], alias) {
+			t.Fatalf("missing bridge fallback %q: %#v", alias, units[0].Aliases.Endings[1])
+		}
+	}
+}
+
+func TestEnglishSyllableBridgeIncludesDashReleaseCandidates(t *testing.T) {
+	got := englishSyllableBridge([]string{"@"}, []string{"t"}, []string{"m"}, deltaEnglishSymbols, " ")
+	if len(got) != 2 {
+		t.Fatalf("groups=%#v", got)
+	}
+	if got[0][0] != "@ t" || got[1][0] != "t m-" {
+		t.Fatalf("dash release must lead: %#v", got)
+	}
+	for _, alias := range []string{"tm-", "t m", "tm"} {
+		if !containsString(got[1], alias) {
+			t.Fatalf("missing bridge candidate %q: %#v", alias, got[1])
+		}
+	}
+	cluster := englishSyllableBridge([]string{"{"}, []string{"k"}, []string{"s", "t", "r"}, deltaEnglishSymbols, " ")
+	if cluster[1][0] != "k str-" || !containsString(cluster[1], "k str") || !containsString(cluster[1], "kstr-") {
+		t.Fatalf("cluster bridge=%#v", cluster[1])
 	}
 }
 
@@ -171,7 +196,7 @@ func TestEnglishSyllabificationKeepsValidThreePhoneOnset(t *testing.T) {
 	if len(units) != 2 || units[1].Consonant != "s t r" {
 		t.Fatalf("units=%#v", units)
 	}
-	if units[0].Aliases.Endings[0][0] != "E k" || units[0].Aliases.Endings[1][0] != "k str" {
+	if units[0].Aliases.Endings[0][0] != "E k" || units[0].Aliases.Endings[1][0] != "k str-" {
 		t.Fatalf("bridge=%#v", units[0].Aliases.Endings)
 	}
 	if !containsString(units[1].Aliases.Main, "rV") || !containsString(units[1].Aliases.Transition, "str") {

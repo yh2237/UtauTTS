@@ -49,6 +49,16 @@ func TestSpeechStopUsesMoraConsonantWithoutPhoneMetadata(t *testing.T) {
 	}
 }
 
+func TestSpeechStopIncludesCodaPlosive(t *testing.T) {
+	p := &plan.Plan{Morae: []frontend.Mora{{Consonant: "m", Vowel: "iy"}}}
+	if !speechStop(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}}) {
+		t.Fatal("coda plosive was not detected")
+	}
+	if speechStop(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"s"}}) {
+		t.Fatal("coda fricative was classified as a stop")
+	}
+}
+
 func TestSpeechRetimeIdentityAndUncertainBoundaries(t *testing.T) {
 	const rate = 16000
 	source := make([]float64, 3200)

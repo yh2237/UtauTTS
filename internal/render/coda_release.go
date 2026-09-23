@@ -33,3 +33,6 @@ func codaReleaseStop(u plan.Unit) bool {
 	}
 	return false
 }
+
+// 解放過渡の測定は信頼度0.25未満で時間を返さないため、保護判定の下限をそれに合わせる。
+const stopReleaseTransientFloor = .25

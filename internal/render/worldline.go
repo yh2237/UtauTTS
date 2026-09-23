@@ -369,7 +369,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		}
 		if codaRelease {
 			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS, TargetOnsetMS: skipMS + unit.NoteStartMS + leadingMS - positionMS, CodaRelease: true, ProtectStop: stopProtected}
-			if unit.SpeechProfile != nil && unit.SpeechProfile.ReleaseTransientConfidence >= .45 {
+			if unit.SpeechProfile != nil && unit.SpeechProfile.ReleaseTransientConfidence >= stopReleaseTransientFloor {
 				speech.SourceTransientMS = unit.SpeechProfile.ReleaseTransientMS
 				speech.SourceTransientDurationMS = unit.SpeechProfile.ReleaseTransientDurationMS
 			}
@@ -532,7 +532,9 @@ func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit) bool {
 		return false
 	}
 	if unit.Role == "ending" || len(unit.CodaPhones) > 0 {
-		return unit.SpeechProfile.ReleaseTransientConfidence >= .45 && unit.SpeechProfile.ReleaseTransientMS > 0
+		// 語末破裂音だけを、測定できた解放過渡の範囲で保護する。
+		return codaReleaseStop(unit) && unit.SpeechProfile.ReleaseTransientMS > 0 &&
+			unit.SpeechProfile.ReleaseTransientConfidence >= stopReleaseTransientFloor
 	}
 	if unit.SpeechProfile.TransientConfidence < .5 || unit.SpeechProfile.TransientMS <= 0 {
 		return false

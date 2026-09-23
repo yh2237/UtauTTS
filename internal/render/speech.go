@@ -54,6 +54,10 @@ func speechRetime(source []float64, targetFrames, sourceOnset, sourceFixed, targ
 }
 
 func speechStop(p *plan.Plan, unit plan.Unit) bool {
+	// 語末の破裂音は親モーラのonsetとは独立に保護対象にする。
+	if codaReleaseStop(unit) {
+		return true
+	}
 	if unit.Position < 0 || unit.Position >= len(p.Morae) {
 		return false
 	}
