@@ -133,6 +133,8 @@
     "menu.settings.settings": "設定...",
     "pitch.emptyMora": "・",
     "settings.defaultIntonation": "抑揚",
+    "settings.contextDuration": "文脈に応じた長さ",
+    "settings.contextDurationStrength": "同 強度",
     "settings.resamplerAuto": "自動",
     "settings.defaultDiffSingerSteps": "DiffSinger 拡散ステップ",
     "settings.defaultDiffSingerExpr": "DiffSinger 表現力",

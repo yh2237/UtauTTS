@@ -21,8 +21,10 @@ var ErrUnavailable = errors.New("unavailable")
 
 // DefaultApplyPitchとDefaultIntonationStrengthは合成の既定の抑揚設定。renderer manifestの既定に合わせる。
 const (
-	DefaultApplyPitch         = true
-	DefaultIntonationStrength = 2.0
+	DefaultApplyPitch              = true
+	DefaultIntonationStrength      = 2.0
+	DefaultContextDuration         = true
+	DefaultContextDurationStrength = 1.0
 )
 
 // Requestは合成とプレビューで共有する入力。
@@ -57,6 +59,8 @@ type Request struct {
 	ProsodyPitchOnly        bool                         `json:"-"`
 	PitchFactors            []float64                    `json:"-"`
 	IntonationStrength      float64                      `json:"intonation_strength"`
+	ContextDuration         bool                         `json:"context_duration"`
+	ContextDurationStrength float64                      `json:"context_duration_strength"`
 	ApplyPitch              bool                         `json:"apply_pitch"`
 	BoundaryBridgeMS        float64                      `json:"-"`
 	BoundaryBridgeThreshold float64                      `json:"-"`
@@ -235,6 +239,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	if reading == "" {
 		reading = request.Kana
 	}
+	contextDuration := request.ContextDuration
 	cfg := tts.Config{
 		SpeechTiming:            request.SpeechTiming,
 		Text:                    request.Text,
@@ -258,6 +263,8 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		ProsodyFeatures:         append([]prosody.FeatureFrame(nil), request.ProsodyFeatures...),
 		ProsodyPitchOnly:        request.ProsodyPitchOnly,
 		IntonationStrength:      request.IntonationStrength,
+		ContextDuration:         &contextDuration,
+		ContextDurationStrength: request.ContextDurationStrength,
 		PitchFactors:            append([]float64(nil), request.PitchFactors...),
 		ApplyPitch:              request.ApplyPitch,
 		OpenJTalkPath:           s.openJTalkPath,

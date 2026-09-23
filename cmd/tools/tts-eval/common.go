@@ -27,6 +27,8 @@ type caseOptions struct {
 	rendererID                string
 	mix, gapRepair            string
 	speechTiming, applyPitch  bool
+	contextDuration           bool
+	contextDurationStrength   float64
 	timeout                   time.Duration
 }
 
@@ -41,6 +43,9 @@ func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Re
 	cfg.MoraDurationsMS = p.MoraDurationsMS
 	cfg.PitchCurve = p.PitchCurve
 	cfg.ProsodyModelPath = o.prosodyModelPath
+	contextDuration := o.contextDuration
+	cfg.ContextDuration = &contextDuration
+	cfg.ContextDurationStrength = o.contextDurationStrength
 	resolved, err := tts.ApplyRenderer(&cfg, catalog, o.rendererID, o.bridge)
 	ctx, cancel := context.WithTimeout(context.Background(), o.timeout)
 	cfg.Context = ctx

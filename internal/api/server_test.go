@@ -449,15 +449,21 @@ func TestSynthesisRequestAppliesIntonationDefaults(t *testing.T) {
 	if !request.ApplyPitch || request.IntonationStrength != synth.DefaultIntonationStrength {
 		t.Fatalf("defaults = apply_pitch:%t intonation_strength:%v", request.ApplyPitch, request.IntonationStrength)
 	}
+	if !request.ContextDuration || request.ContextDurationStrength != synth.DefaultContextDurationStrength {
+		t.Fatalf("context defaults = context_duration:%t context_duration_strength:%v", request.ContextDuration, request.ContextDurationStrength)
+	}
 }
 
 func TestSynthesisRequestRespectsExplicitIntonation(t *testing.T) {
 	var request SynthesisRequest
-	if err := json.Unmarshal([]byte(`{"text":"あ","apply_pitch":false,"intonation_strength":0}`), &request); err != nil {
+	if err := json.Unmarshal([]byte(`{"text":"あ","apply_pitch":false,"intonation_strength":0,"context_duration":false,"context_duration_strength":0.5}`), &request); err != nil {
 		t.Fatal(err)
 	}
 	if request.ApplyPitch || request.IntonationStrength != 0 {
 		t.Fatalf("explicit values = apply_pitch:%t intonation_strength:%v", request.ApplyPitch, request.IntonationStrength)
+	}
+	if request.ContextDuration || request.ContextDurationStrength != 0.5 {
+		t.Fatalf("explicit context values = context_duration:%t context_duration_strength:%v", request.ContextDuration, request.ContextDurationStrength)
 	}
 }
 

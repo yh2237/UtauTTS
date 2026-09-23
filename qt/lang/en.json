@@ -133,6 +133,8 @@
     "menu.settings.settings": "Settings...",
     "pitch.emptyMora": "・",
     "settings.defaultIntonation": "Intonation",
+    "settings.contextDuration": "Context-aware duration",
+    "settings.contextDurationStrength": "Strength",
     "settings.resamplerAuto": "Automatic",
     "settings.defaultDiffSingerSteps": "DiffSinger Steps",
     "settings.defaultDiffSingerExpr": "DiffSinger Expression",

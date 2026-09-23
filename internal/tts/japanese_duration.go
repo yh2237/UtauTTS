@@ -60,8 +60,15 @@ func japaneseContextDurationFactors(morae []frontend.Mora, features []prosody.Fe
 }
 
 // applyJapaneseContextDurationは既存の予測へ文脈係数を乗算する。
-// 予測が無い場合は1埋めの配列を用意する。
-func applyJapaneseContextDuration(morae []frontend.Mora, features []prosody.FeatureFrame, predictions []prosody.Prediction, question bool) []prosody.Prediction {
+// 予測が無い場合は1埋めの配列を用意する。無効時は恒等。強度0は既定1.0、負値は恒等。
+func applyJapaneseContextDuration(cfg Config, morae []frontend.Mora, features []prosody.FeatureFrame, predictions []prosody.Prediction, question bool) []prosody.Prediction {
+	if !contextDurationEnabled(cfg) {
+		return predictions
+	}
+	strength := contextDurationStrength(cfg)
+	if strength <= 0 {
+		return predictions
+	}
 	if len(morae) == 0 {
 		return predictions
 	}
@@ -76,11 +83,26 @@ func applyJapaneseContextDuration(morae []frontend.Mora, features []prosody.Feat
 		if i >= len(predictions) {
 			break
 		}
-		if factors[i] > 0 {
-			predictions[i].DurationFactor *= factors[i]
+		if factors[i] <= 0 {
+			continue
 		}
+		// 強度は中立1.0からの偏差へ掛け、クランプ済みの0.8〜1.3を保つ。
+		predictions[i].DurationFactor *= 1 + (factors[i]-1)*strength
 	}
 	return predictions
+}
+
+// contextDurationEnabledはC1が有効かを返す。未指定(nil)は既定ON。
+func contextDurationEnabled(cfg Config) bool {
+	return cfg.ContextDuration == nil || *cfg.ContextDuration
+}
+
+// contextDurationStrengthは適用強度を返す。0は既定1.0、負値はそのまま返す。
+func contextDurationStrength(cfg Config) float64 {
+	if cfg.ContextDurationStrength == 0 {
+		return 1
+	}
+	return cfg.ContextDurationStrength
 }
 
 // hasJapaneseContextFeaturesは長さ制御に使える韻律特徴が含まれるかを返す。

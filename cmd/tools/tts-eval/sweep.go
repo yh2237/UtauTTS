@@ -90,6 +90,8 @@ type sweepRequest struct {
 	prompts                                  []prompt
 	moraMS                                   float64
 	wordEnvelope                             bool
+	contextDuration                          bool
+	contextDurationStrength                  float64
 	timeout                                  time.Duration
 }
 
@@ -188,6 +190,7 @@ func runSweep(req sweepRequest) error {
 				moraMS: req.moraMS, experiment: req.experiment, wordEnvelope: req.wordEnvelope,
 				rendererID: ps.Renderer, mix: ps.Mix, gapRepair: ps.GapRepair,
 				speechTiming: ps.SpeechTiming, applyPitch: ps.ApplyPitch, timeout: req.timeout,
+				contextDuration: req.contextDuration, contextDurationStrength: req.contextDurationStrength,
 			}, catalog)
 			row.ElapsedMS = elapsed
 			if callErr == nil {

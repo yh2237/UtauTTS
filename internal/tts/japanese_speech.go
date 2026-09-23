@@ -45,7 +45,7 @@ func applyJapaneseSpeechRhythm(cfg Config, model *prosody.Model, morae []fronten
 		predictions = japaneseSpeechRhythm(cfg, model, morae, predictions)
 	}
 	// 韻律特徴に基づく文脈連動のモーラ長は既定で適用する。
-	return applyJapaneseContextDuration(morae, features, predictions, finalPhraseIsQuestion(cfg.Text))
+	return applyJapaneseContextDuration(cfg, morae, features, predictions, finalPhraseIsQuestion(cfg.Text))
 }
 
 func japaneseSpeechRhythmPredictions(morae []frontend.Mora, predictions []prosody.Prediction) []prosody.Prediction {

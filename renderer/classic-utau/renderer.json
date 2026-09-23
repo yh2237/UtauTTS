@@ -16,6 +16,8 @@
     { "id": "pause_duration_ms", "type": "integer", "group": "timing", "default": 180, "min": 0, "max": 3000, "label": "settings.defaultPauseDuration" },
     { "id": "leading_preutterance_ms", "type": "integer", "group": "timing", "default": 0, "min": 0, "max": 300, "label": "settings.defaultLeadingPreutterance" },
     { "id": "intonation_strength", "type": "number", "group": "timing", "default": 2.0, "min": 0, "max": 4, "step": 0.01, "label": "settings.defaultIntonation" },
+    { "id": "context_duration", "type": "boolean", "group": "timing", "default": true, "label": "settings.contextDuration" },
+    { "id": "context_duration_strength", "type": "number", "group": "timing", "default": 1.0, "min": 0, "max": 2, "step": 0.01, "label": "settings.contextDurationStrength" },
     { "id": "resampler", "type": "enum", "group": "classic", "options_source": "resamplers", "default": "", "label": "main.param.resampler" },
     { "id": "wavtool", "type": "enum", "group": "classic", "options_source": "wavtools", "default": "builtin", "label": "main.param.wavtool" }
   ]

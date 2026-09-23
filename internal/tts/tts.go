@@ -25,6 +25,10 @@ type Config struct {
 	WordBoundaryEnvelope    bool
 	SpeechProsodyExperiment string
 	SpeechTiming            bool
+	// ContextDurationは日本語モーラ長の文脈連動(C1)を有効にする。nilは既定ON。
+	ContextDuration *bool
+	// ContextDurationStrengthは文脈連動の強度。0は既定1.0。
+	ContextDurationStrength float64
 	Context                 context.Context
 	Engine                  engine.ResolvedEngine
 	VoicebankPath           string
@@ -747,6 +751,7 @@ func validateConfig(cfg Config) error {
 		"pause_duration_ms":         cfg.PauseDurationMS,
 		"release_ms":                cfg.ReleaseMS,
 		"intonation_strength":       cfg.IntonationStrength,
+		"context_duration_strength": cfg.ContextDurationStrength,
 		"boundary_bridge_ms":        cfg.BoundaryBridgeMS,
 		"boundary_bridge_threshold": cfg.BoundaryBridgeThreshold,
 	}

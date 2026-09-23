@@ -46,6 +46,8 @@ func main() {
 		pitchContourCase         string
 		applyPitch               bool
 		intonationStrength       float64
+		contextDuration          bool
+		contextDurationStrength  float64
 		renderer                 string
 		resampler                string
 		wavtool                  string
@@ -101,6 +103,8 @@ func main() {
 	flag.StringVar(&pitchContourCase, "pitch-case", "", "case ID in --pitch-contours")
 	flag.BoolVar(&applyPitch, "apply-pitch", synth.DefaultApplyPitch, "waveform pitch resampling")
 	flag.Float64Var(&intonationStrength, "intonation-strength", synth.DefaultIntonationStrength, "source-pitch stabilization and phrase contour strength (0..4)")
+	flag.BoolVar(&contextDuration, "context-duration", synth.DefaultContextDuration, "context-aware Japanese mora duration (C1)")
+	flag.Float64Var(&contextDurationStrength, "context-duration-strength", synth.DefaultContextDurationStrength, "context-aware duration strength (0 uses the default 1.0)")
 	flag.StringVar(&renderer, "renderer", "", "renderer ID (default: highest configured priority)")
 	flag.StringVar(&resampler, "resampler", "", "Classic UTAU resampler ID from Resamplers")
 	flag.StringVar(&wavtool, "wavtool", "builtin", "Classic UTAU wavtool ID from Wavtools")
@@ -184,6 +188,8 @@ func main() {
 		PitchFactors:            pitchFactors,
 		ApplyPitch:              applyPitch,
 		IntonationStrength:      intonationStrength,
+		ContextDuration:         contextDuration,
+		ContextDurationStrength: contextDurationStrength,
 		BoundaryBridgeMS:        boundaryBridgeMS,
 		BoundaryBridgeThreshold: boundaryBridgeThreshold,
 		CVVCTiming:              cvvcTiming,

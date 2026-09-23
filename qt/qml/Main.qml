@@ -1918,6 +1918,12 @@ ApplicationWindow {
                       "normal GUI defaults are incorrect");
         if (error.length)
             return error;
+        const contextRequest = window.buildSynthesisRequest(window.current());
+        error = check(contextRequest.context_duration === true
+                      && contextRequest.context_duration_strength === 1.0,
+                      "context duration settings were not injected into the request");
+        if (error.length)
+            return error;
         for (let voiceIndex = 0; voiceIndex < window.appBackend.voicebanks.length; ++voiceIndex) {
             const voice = window.appBackend.voicebanks[voiceIndex];
             if (!voice.suggested_language || !voice.suggested_phonemizer)
