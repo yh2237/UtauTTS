@@ -12,7 +12,6 @@ import (
 	"utautts/internal/plugin"
 	"utautts/internal/render"
 	"utautts/internal/synth"
-	"utautts/internal/tts"
 	"utautts/internal/voicebank"
 )
 
@@ -40,42 +39,45 @@ type caseOptions struct {
 	timeout                   time.Duration
 }
 
-// synthesizeCaseはConfigを組み立ててApplyRendererから描画までを行う。
+// synthesizeCaseはsynth.Requestを組み立ててService経由で描画する。
+// 既定値はrenderer_settingsのcanonicalなspecテーブル（synth側）が解決する。
 func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Result, float64, error) {
-	cfg := tts.Config{VoicebankPath: o.bank, Text: p.Text, Reading: p.Reading, Language: p.Language, Phonemizer: p.Phonemizer, Tone: "C4", MoraDurationMS: plan.DefaultMoraDurationMS, PauseDurationMS: plan.DefaultPauseDurationMS, ApplyPitch: o.applyPitch, IntonationStrength: synth.DefaultIntonationStrength}
-	cfg.AliasPolicy = voicebank.AliasPolicy(o.aliasPolicy)
-	cfg.SpeechTiming = o.speechTiming
-	cfg.SpeechProsodyExperiment = o.experiment
-	cfg.WordBoundaryEnvelope = o.wordEnvelope
-	cfg.MoraDurationMS = o.moraMS
-	cfg.MoraDurationsMS = p.MoraDurationsMS
-	cfg.PitchCurve = p.PitchCurve
-	cfg.ProsodyModelPath = o.prosodyModelPath
-	contextDuration := o.contextDuration
-	cfg.ContextDuration = &contextDuration
-	cfg.ContextDurationStrength = o.contextDurationStrength
-	boundaryTone := o.boundaryTone
-	cfg.BoundaryTone = &boundaryTone
-	cfg.BoundaryToneStrength = o.boundaryToneStrength
-	stretchAdapt := o.stretchAdapt
-	cfg.StretchAdapt = &stretchAdapt
-	cfg.StretchAdaptStrength = o.stretchAdaptStrength
-	pauseContext := o.pauseContext
-	cfg.PauseContext = &pauseContext
-	cfg.PauseContextStrength = o.pauseContextStrength
-	englishWeakForm := o.englishWeakForm
-	cfg.EnglishWeakForm = &englishWeakForm
-	resolved, err := tts.ApplyRenderer(&cfg, catalog, o.rendererID, o.bridge)
-	ctx, cancel := context.WithTimeout(context.Background(), o.timeout)
-	cfg.Context = ctx
-	started := time.Now()
-	var result *synth.Result
-	if err == nil {
-		providerOptions := render.ProviderOptions{Worldline: render.WorldlineProviderOptions{MixMode: o.mix, GapRepairMode: o.gapRepair, E2A: &o.e2a, E2B: &o.e2b}}
-		result, err = synth.SynthesizeConfigWithOptions(cfg, resolved, providerOptions)
+	request := synth.Request{
+		SpeechTiming:            o.speechTiming,
+		Text:                    p.Text,
+		Reading:                 p.Reading,
+		Language:                p.Language,
+		Phonemizer:              p.Phonemizer,
+		VoicebankPath:           o.bank,
+		Tone:                    "C4",
+		AliasPolicy:             voicebank.AliasPolicy(o.aliasPolicy),
+		Renderer:                o.rendererID,
+		WordBoundaryEnvelope:    o.wordEnvelope,
+		SpeechProsodyExperiment: o.experiment,
+		MoraDurationMS:          o.moraMS,
+		PauseDurationMS:         plan.DefaultPauseDurationMS,
+		MoraDurationsMS:         p.MoraDurationsMS,
+		PitchCurve:              p.PitchCurve,
+		ModelPath:               o.prosodyModelPath,
+		ApplyPitch:              o.applyPitch,
+		IntonationStrength:      synth.DefaultIntonationStrength,
+		ContextDuration:         o.contextDuration,
+		ContextDurationStrength: o.contextDurationStrength,
+		BoundaryTone:            o.boundaryTone,
+		BoundaryToneStrength:    o.boundaryToneStrength,
+		StretchAdapt:            o.stretchAdapt,
+		StretchAdaptStrength:    o.stretchAdaptStrength,
+		PauseContext:            o.pauseContext,
+		PauseContextStrength:    o.pauseContextStrength,
+		EnglishWeakForm:         o.englishWeakForm,
+		Worldline:               render.WorldlineProviderOptions{MixMode: o.mix, GapRepairMode: o.gapRepair, E2A: &o.e2a, E2B: &o.e2b},
 	}
+	service := synth.NewService(catalog, o.rendererID, o.bridge, "", "", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), o.timeout)
+	defer cancel()
+	started := time.Now()
+	result, err := service.SynthesizeContext(ctx, request)
 	elapsed := float64(time.Since(started).Microseconds()) / 1000
-	cancel()
 	return result, elapsed, err
 }
 

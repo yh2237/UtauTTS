@@ -18,7 +18,8 @@ Item {
     property var morae: []
     property var moraDurations: []
     property var moraPositions: []
-    property int defaultMoraDuration: 120
+    // 表示用フォールバックはGo側canonical（plan.DefaultMoraDurationMS/pause=140/180）に揃える。
+    property int defaultMoraDuration: 140
     property int defaultPauseDuration: 180
     property int minimumMoraDuration: 20
     property int maximumMoraDuration: 1000

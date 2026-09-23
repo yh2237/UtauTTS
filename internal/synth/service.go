@@ -61,6 +61,9 @@ type Request struct {
 	Wavtool       string                `json:"wavtool"`
 	AliasPolicy   voicebank.AliasPolicy `json:"alias_policy"`
 	Dictionary    []DictionaryEntry     `json:"dictionary"`
+	// WordBoundaryEnvelopeとSpeechProsodyExperimentは音声実験の切り替えで、tts.Configへそのまま渡す。
+	WordBoundaryEnvelope    bool   `json:"word_boundary_envelope"`
+	SpeechProsodyExperiment string `json:"prosody_experiment"`
 	// 以下はmanifest設定の互換用typedフィールド。deprecated: renderer_settingsを優先する
 	// （同じidがmapにあればmapが勝つ）。外部送信がmapへ移行したら順次削除できる。
 	MoraDurationMS        float64                  `json:"mora_duration_ms"`
@@ -72,9 +75,11 @@ type Request struct {
 	ReleaseSet            bool                     `json:"release_set"`
 	ManualPitchPath       string                   `json:"-"`
 	ManualPitch           *prosody.ManualPitchFile `json:"manual_pitch"`
-	ProsodyFeatures       []prosody.FeatureFrame   `json:"-"`
-	ProsodyPitchOnly      bool                     `json:"-"`
-	PitchFactors          []float64                `json:"-"`
+	// PitchCurveはコーパス指定の固定ピッチ曲線。指定時は自動輪郭より優先される。
+	PitchCurve       *render.PitchCurve     `json:"pitch_curve,omitempty"`
+	ProsodyFeatures  []prosody.FeatureFrame `json:"-"`
+	ProsodyPitchOnly bool                   `json:"-"`
+	PitchFactors     []float64              `json:"-"`
 	// 品質系も互換用typedフィールド。deprecated: renderer_settingsを優先する。
 	IntonationStrength      float64                      `json:"intonation_strength"`
 	ContextDuration         bool                         `json:"context_duration"`
@@ -99,6 +104,8 @@ type Request struct {
 	DiffSingerDurationMix float64 `json:"diffsinger_duration_mix"`
 	DiffSingerPitchMix    float64 `json:"diffsinger_pitch_mix"`
 	DiffSingerExpr        float64 `json:"diffsinger_expr"`
+	// WorldlineはWORLD providerのホスト制御（mix/gap repair/E2a/E2b）。空文字とnilは既定（auto/ON）を意味する。
+	Worldline render.WorldlineProviderOptions `json:"worldline,omitempty"`
 	// RendererSettingsはrenderer manifestが宣言した設定値を1つのmapで受ける。
 	// 既知idはConfig/ProviderOptionsへ反映し、未知idはエラーにせずprovider固有値として渡す。
 	RendererSettings map[string]json.RawMessage `json:"renderer_settings,omitempty"`
@@ -275,6 +282,8 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	}
 	cfg := tts.Config{
 		SpeechTiming:            request.SpeechTiming,
+		WordBoundaryEnvelope:    request.WordBoundaryEnvelope,
+		SpeechProsodyExperiment: request.SpeechProsodyExperiment,
 		Text:                    request.Text,
 		Reading:                 reading,
 		Language:                request.Language,
@@ -290,6 +299,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		ProsodyModelPath:        modelPath,
 		ManualPitchPath:         request.ManualPitchPath,
 		ManualPitch:             request.ManualPitch,
+		PitchCurve:              request.PitchCurve,
 		ProsodyFeatures:         append([]prosody.FeatureFrame(nil), request.ProsodyFeatures...),
 		ProsodyPitchOnly:        request.ProsodyPitchOnly,
 		PitchFactors:            append([]float64(nil), request.PitchFactors...),
@@ -310,6 +320,8 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	}
 	// renderer設定はspecテーブル経由で解決する。typedよりrenderer_settingsを優先し、未知idや型不一致はエラーにしない。
 	resolution := resolveRendererSettings(request, &cfg, &providerOptions)
+	// WORLD固有のホスト制御はrenderer_settingsとは別のtypedフィールドで受ける。
+	providerOptions.Worldline = request.Worldline
 	voicebankPath := request.VoicebankPath
 	if voicebankPath == "" && s.voicebanks != nil && (requireVoicebank || request.VoicebankID != "") {
 		if path, ok := s.voicebanks.Resolve(request.VoicebankID); ok {
