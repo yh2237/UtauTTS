@@ -397,7 +397,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		}
 	}
 	if language == frontend.LanguageJapanese {
-		predictions = applyJapaneseSpeechRhythm(cfg, loadedProsody, morae, predictions)
+		predictions = applyJapaneseSpeechRhythm(cfg, loadedProsody, morae, predictions, prosodyFeatures)
 	}
 	if len(cfg.PitchFactors) > 0 {
 		if len(cfg.PitchFactors) != len(morae) {
@@ -635,7 +635,7 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	}
 
 	if language == frontend.LanguageJapanese {
-		predictions = applyJapaneseSpeechRhythm(cfg, loadedProsody, morae, predictions)
+		predictions = applyJapaneseSpeechRhythm(cfg, loadedProsody, morae, predictions, prosodyFeatures)
 	}
 	timings := make([]prosody.MoraTiming, len(morae))
 	if loadedProsody != nil && cfg.ProsodyPitchOnly {

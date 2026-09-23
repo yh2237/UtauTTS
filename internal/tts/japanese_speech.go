@@ -35,11 +35,17 @@ func diffsingerSpeechRhythm(cfg Config, model *prosody.Model, morae []frontend.M
 	return japaneseSpeechRhythmPredictions(morae, predictions)
 }
 
-func applyJapaneseSpeechRhythm(cfg Config, model *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction) []prosody.Prediction {
-	if cfg.Renderer == "diffsinger" {
-		return diffsingerSpeechRhythm(cfg, model, morae, predictions)
+func applyJapaneseSpeechRhythm(cfg Config, model *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction, features []prosody.FeatureFrame) []prosody.Prediction {
+	if cfg.ProsodyPitchOnly {
+		return predictions
 	}
-	return japaneseSpeechRhythm(cfg, model, morae, predictions)
+	if cfg.Renderer == "diffsinger" {
+		predictions = diffsingerSpeechRhythm(cfg, model, morae, predictions)
+	} else {
+		predictions = japaneseSpeechRhythm(cfg, model, morae, predictions)
+	}
+	// 韻律特徴に基づく文脈連動のモーラ長は既定で適用する。
+	return applyJapaneseContextDuration(morae, features, predictions, finalPhraseIsQuestion(cfg.Text))
 }
 
 func japaneseSpeechRhythmPredictions(morae []frontend.Mora, predictions []prosody.Prediction) []prosody.Prediction {
