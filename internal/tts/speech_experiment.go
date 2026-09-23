@@ -35,8 +35,8 @@ func validateMultilingualWorldExperiment(cfg Config) error {
 	if phonemizer != frontend.PhonemizerEnglishDelta && phonemizer != frontend.PhonemizerEnglishVCCV && phonemizer != frontend.PhonemizerChinese {
 		return fmt.Errorf("experiment requires en-delta, en-vccv or zh-cvvc")
 	}
-	if cfg.Renderer != "utautts-world-phrase" {
-		return fmt.Errorf("experiment requires utautts-world-phrase")
+	if !rendererSupportsSpeechExperiment(cfg.Renderer, cfg.RendererCapabilities) {
+		return fmt.Errorf("experiment requires a renderer with the speech prosody experiment capability")
 	}
 	return nil
 }

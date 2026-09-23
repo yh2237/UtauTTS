@@ -335,8 +335,10 @@ func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlineBr
 func ApplyResolvedEngine(cfg *Config, resolved engine.ResolvedEngine) {
 	cfg.Engine = resolved
 	capabilities := plugin.Capabilities{
-		FramePitch:     resolved.Definition.Capabilities.FramePitch,
-		BoundaryBridge: resolved.Definition.Capabilities.BoundaryBridge,
+		FramePitch:              resolved.Definition.Capabilities.FramePitch,
+		BoundaryBridge:          resolved.Definition.Capabilities.BoundaryBridge,
+		InternalTiming:          resolved.Definition.Capabilities.InternalTiming,
+		SpeechProsodyExperiment: resolved.Definition.Capabilities.SpeechProsodyExperiment,
 	}
 	cfg.Renderer = string(resolved.Provider.ID)
 	cfg.RendererCapabilities = &capabilities
@@ -1105,15 +1107,27 @@ func moraTimings(morae []frontend.Mora, synthesisPlan *plan.Plan) []prosody.Mora
 }
 
 func rendererSupportsFramePitch(renderer string, capabilities *plugin.Capabilities) bool {
+	return rendererCapability(renderer, capabilities, func(c plugin.Capabilities) bool { return c.FramePitch })
+}
+
+func rendererInternalTiming(renderer string, capabilities *plugin.Capabilities) bool {
+	return rendererCapability(renderer, capabilities, func(c plugin.Capabilities) bool { return c.InternalTiming })
+}
+
+func rendererSupportsSpeechExperiment(renderer string, capabilities *plugin.Capabilities) bool {
+	return rendererCapability(renderer, capabilities, func(c plugin.Capabilities) bool { return c.SpeechProsodyExperiment })
+}
+
+// rendererCapabilityは解決済みcapabilityを優先し、未解決時は外部manifestだけを参照する。Go側の既定値は持たない。
+func rendererCapability(renderer string, capabilities *plugin.Capabilities, selectCapability func(plugin.Capabilities) bool) bool {
 	if capabilities != nil {
-		return capabilities.FramePitch
+		return selectCapability(*capabilities)
 	}
-	// 直接呼出し時も外部manifestだけを参照し、Go側の既定値は持たない。
 	directories, _ := plugin.DefaultDirectories()
 	items, _ := plugin.DiscoverRenderers(directories, nil)
 	for _, item := range items {
 		if item.ID == renderer || item.Provider == renderer {
-			return item.Capabilities.FramePitch
+			return selectCapability(item.Capabilities)
 		}
 	}
 	return false

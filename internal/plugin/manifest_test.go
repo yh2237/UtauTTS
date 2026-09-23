@@ -3,6 +3,7 @@ package plugin
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -17,6 +18,42 @@ func TestRendererManifestUsesDeclaredMetadata(t *testing.T) {
 	}
 	if item.Resources["engine"].Path != "../../runtime/engine" {
 		t.Fatalf("manifest resources = %#v", item.Resources)
+	}
+}
+
+func TestRendererManifestDecodesExtendedCapabilities(t *testing.T) {
+	const document = `{"manifest_version":2,"kind":"synthesis-engine","id":"example.wave","display_name":"Example","contract":"unit-renderer","provider":"waveform","provider_version":"1","capabilities":{"frame_pitch":true,"internal_timing":true,"speech_prosody_experiment":true}}`
+	item, err := decodeRenderer([]byte(document), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !item.Capabilities.FramePitch || !item.Capabilities.InternalTiming || !item.Capabilities.SpeechProsodyExperiment {
+		t.Fatalf("capabilities = %#v", item.Capabilities)
+	}
+}
+
+// 新capabilityは省略可能で、既存manifestがそのまま読めることを確認する。
+func TestBundledRendererManifestsRemainDecodable(t *testing.T) {
+	directories, _ := DefaultDirectories()
+	found := 0
+	for _, root := range directories {
+		_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+			if err != nil || entry.IsDir() || !strings.EqualFold(entry.Name(), "renderer.json") {
+				return nil
+			}
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if _, decodeErr := decodeRenderer(data, filepath.Dir(path)); decodeErr != nil {
+				t.Fatalf("decode %s: %v", path, decodeErr)
+			}
+			found++
+			return nil
+		})
+	}
+	if found < 4 {
+		t.Fatalf("bundled renderer manifests = %d, want at least 4", found)
 	}
 }
 

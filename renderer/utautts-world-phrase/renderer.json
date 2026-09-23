@@ -10,7 +10,7 @@
   "update_managed": true,
   "acceleration": "cpu",
   "default_priority": 300,
-  "capabilities": { "frame_pitch": true },
+  "capabilities": { "frame_pitch": true, "speech_prosody_experiment": true },
   "settings": [
     { "id": "mora_duration_ms", "type": "integer", "group": "timing", "default": 140, "min": 20, "max": 1000, "label": "settings.defaultMoraDuration" },
     { "id": "pause_duration_ms", "type": "integer", "group": "timing", "default": 180, "min": 0, "max": 3000, "label": "settings.defaultPauseDuration" },

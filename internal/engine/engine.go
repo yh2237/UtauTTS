@@ -29,13 +29,17 @@ const (
 
 // Capabilitiesはエンジン定義やproviderが公開する機能。定義はproviderの一部だけを公開してもよい。
 type Capabilities struct {
-	FramePitch     bool
-	BoundaryBridge bool
+	FramePitch              bool
+	BoundaryBridge          bool
+	InternalTiming          bool
+	SpeechProsodyExperiment bool
 }
 
 func (capabilities Capabilities) Supports(requested Capabilities) bool {
 	return (!requested.FramePitch || capabilities.FramePitch) &&
-		(!requested.BoundaryBridge || capabilities.BoundaryBridge)
+		(!requested.BoundaryBridge || capabilities.BoundaryBridge) &&
+		(!requested.InternalTiming || capabilities.InternalTiming) &&
+		(!requested.SpeechProsodyExperiment || capabilities.SpeechProsodyExperiment)
 }
 
 // ResourceKeyはエンジン実行時資源の名前。
@@ -146,7 +150,7 @@ func mustRegistry(providers ...Provider) Registry {
 var builtinRegistry = mustRegistry(
 	Provider{ID: "waveform", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true, BoundaryBridge: true}},
 	Provider{
-		ID: "utautts-world-phrase", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true},
+		ID: "utautts-world-phrase", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true, SpeechProsodyExperiment: true},
 		Requirements: []ResourceRequirement{
 			{Key: ResourceWorldEngine, Required: true},
 			{Key: ResourceWorldlineBridge, Required: true, Executable: true},
@@ -154,7 +158,7 @@ var builtinRegistry = mustRegistry(
 	},
 	Provider{ID: "utau-external-resampler", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true}},
 	Provider{
-		ID: "diffsinger", Contract: ContractNeuralSynthesizer, Version: "1", Capabilities: Capabilities{FramePitch: true},
+		ID: "diffsinger", Contract: ContractNeuralSynthesizer, Version: "1", Capabilities: Capabilities{FramePitch: true, InternalTiming: true},
 		Requirements: []ResourceRequirement{
 			{Key: ResourceDiffSingerBridge, Required: true, Executable: true},
 		},
@@ -446,8 +450,10 @@ func DefinitionFromV2(renderer plugin.Renderer) Definition {
 		Acceleration:    renderer.Acceleration,
 		DefaultPriority: renderer.DefaultPriority,
 		Capabilities: Capabilities{
-			FramePitch:     renderer.Capabilities.FramePitch,
-			BoundaryBridge: renderer.Capabilities.BoundaryBridge,
+			FramePitch:              renderer.Capabilities.FramePitch,
+			BoundaryBridge:          renderer.Capabilities.BoundaryBridge,
+			InternalTiming:          renderer.Capabilities.InternalTiming,
+			SpeechProsodyExperiment: renderer.Capabilities.SpeechProsodyExperiment,
 		},
 		Resources: resources,
 	}

@@ -19,6 +19,10 @@ const ManifestVersion = 2
 type Capabilities struct {
 	FramePitch     bool `json:"frame_pitch,omitempty"`
 	BoundaryBridge bool `json:"boundary_bridge,omitempty"`
+	// InternalTimingはrendererが時間・韻律を内部で扱うことを示す。日本語リズム補正をSpeechTimingに関係なく常に適用する。
+	InternalTiming bool `json:"internal_timing,omitempty"`
+	// SpeechProsodyExperimentは多言語スピーチ韻律の実験機能に対応することを示す。
+	SpeechProsodyExperiment bool `json:"speech_prosody_experiment,omitempty"`
 }
 
 type Renderer struct {

@@ -30,7 +30,9 @@
       "additionalProperties": false,
       "properties": {
         "frame_pitch": {"type": "boolean"},
-        "boundary_bridge": {"type": "boolean"}
+        "boundary_bridge": {"type": "boolean"},
+        "internal_timing": {"type": "boolean"},
+        "speech_prosody_experiment": {"type": "boolean"}
       }
     },
     "resources": {
