@@ -1929,6 +1929,11 @@ ApplicationWindow {
                       "boundary tone settings were not injected into the request");
         if (error.length)
             return error;
+        error = check(contextRequest.stretch_adapt === true
+                      && contextRequest.stretch_adapt_strength === 1.0,
+                      "stretch adaptation settings were not injected into the request");
+        if (error.length)
+            return error;
         for (let voiceIndex = 0; voiceIndex < window.appBackend.voicebanks.length; ++voiceIndex) {
             const voice = window.appBackend.voicebanks[voiceIndex];
             if (!voice.suggested_language || !voice.suggested_phonemizer)

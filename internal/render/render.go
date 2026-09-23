@@ -33,6 +33,10 @@ type Config struct {
 	CVVCTransitionGain      float64
 	CVVCPreBoundaryFade     bool
 	PitchCurve              *PitchCurve
+	// StretchAdaptは伸縮の音源適応(C3a)を有効にする。日本語のモーラだけを対象にする。
+	StretchAdapt bool
+	// StretchAdaptStrengthは伸縮補正の強度。0は既定1.0、負値は恒等。
+	StretchAdaptStrength float64
 }
 
 // ProviderOptionsは特定provider固有の設定を保持する。無関係なproviderの実行パスやスイッチが混ざるのを防ぐ。
@@ -295,6 +299,9 @@ type effectiveTiming struct {
 	scale          float64
 	cvApplied      bool
 	cvWarnings     []string
+	// stretchAdaptedはC3aの伸縮上限を適用したことを示す。
+	stretchAdapted     bool
+	stretchLimitReason string
 }
 
 func Render(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
@@ -426,12 +433,15 @@ func renderWaveformWithStretch(synthesisPlan *plan.Plan, cfg Config, parallelRet
 		unit.SpeechRetimeApplied = false
 		unit.SpeechJoinApplied = false
 		timings[i] = normalizePlanTiming(synthesisPlan, *unit, cfg.ReleaseMS)
+		timings[i] = adaptStretchTiming(*unit, timings[i], cfg.ReleaseMS, cfg.StretchAdapt, cfg.StretchAdaptStrength)
 		unit.TimingScale = timings[i].scale
 		unit.EffectivePreutteranceMS = timings[i].preutteranceMS
 		unit.EffectiveConsonantMS = timings[i].consonantMS
 		unit.EffectiveOverlapMS = timings[i].preutteranceMS - fadeInDurationMS(timings[i])
 		unit.CVTimingApplied = timings[i].cvApplied
 		unit.CVTimingWarnings = append([]string(nil), timings[i].cvWarnings...)
+		unit.StretchAdapted = timings[i].stretchAdapted
+		unit.StretchLimitReason = timings[i].stretchLimitReason
 		unit.IntonationFactor = 1
 	}
 	leadingMS := limitLeadingPreutterance(leadingPreutteranceMS(synthesisPlan.Units, timings), cfg.LeadingPreutteranceMS)

@@ -176,3 +176,28 @@ func TestBuildPlacesEndingInsideLastMora(t *testing.T) {
 		t.Fatalf("timing=%#v duration=%v", got.Units[1], got.DurationMS)
 	}
 }
+
+func TestBuildAttachesProfilesForStretchAdapt(t *testing.T) {
+	morae, err := frontend.ParseKana("あ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	selections := []voicebank.Selection{{
+		Position: 0, Mora: morae[0], Alias: "あ",
+		Entry: oto.Entry{Filename: "missing.wav"}, Kind: voicebank.AliasCV, Composite: true,
+	}}
+	plain, err := Build(&voicebank.Bank{Root: "bank"}, "あ", morae, selections, Config{MoraDurationMS: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain.Units[0].SpeechProfile != nil {
+		t.Fatalf("profile was attached without StretchAdapt: %+v", plain.Units[0].SpeechProfile)
+	}
+	adapted, err := Build(&voicebank.Bank{Root: "bank"}, "あ", morae, selections, Config{MoraDurationMS: 100, StretchAdapt: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if adapted.Units[0].SpeechProfile == nil {
+		t.Fatal("StretchAdapt did not attach a speech profile")
+	}
+}

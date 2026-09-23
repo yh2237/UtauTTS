@@ -137,6 +137,8 @@
     "settings.contextDurationStrength": "强度",
     "settings.boundaryTone": "句末语调",
     "settings.boundaryToneStrength": "强度",
+    "settings.stretchAdapt": "音源自适应伸缩",
+    "settings.stretchAdaptStrength": "强度",
     "settings.resamplerAuto": "自动",
     "settings.defaultDiffSingerSteps": "DiffSinger 扩散步数",
     "settings.defaultDiffSingerExpr": "DiffSinger 表现力",

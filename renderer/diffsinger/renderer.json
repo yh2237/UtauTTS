@@ -21,6 +21,8 @@
     { "id": "context_duration_strength", "type": "number", "group": "timing", "default": 1.0, "min": 0, "max": 2, "step": 0.01, "label": "settings.contextDurationStrength" },
     { "id": "boundary_tone", "type": "boolean", "group": "timing", "default": true, "label": "settings.boundaryTone" },
     { "id": "boundary_tone_strength", "type": "number", "group": "timing", "default": 1.0, "min": 0, "max": 2, "step": 0.01, "label": "settings.boundaryToneStrength" },
+    { "id": "stretch_adapt", "type": "boolean", "group": "timing", "default": true, "label": "settings.stretchAdapt" },
+    { "id": "stretch_adapt_strength", "type": "number", "group": "timing", "default": 1.0, "min": 0, "max": 2, "step": 0.01, "label": "settings.stretchAdaptStrength" },
     { "id": "diffsinger_steps", "type": "integer", "group": "diffsinger", "default": 0, "min": 0, "max": 100, "label": "settings.defaultDiffSingerSteps" },
     { "id": "diffsinger_expr", "type": "number", "group": "diffsinger", "default": 0, "min": 0, "max": 2, "step": 0.01, "label": "settings.defaultDiffSingerExpr" },
     { "id": "diffsinger_duration_mix", "type": "number", "group": "diffsinger", "default": 0, "min": 0, "max": 1, "step": 0.01, "label": "settings.defaultDiffSingerDurationMix" },

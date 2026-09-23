@@ -22,6 +22,72 @@ const (
 	vcvVowelTailRatio             = 0.30
 )
 
+// C3a: 音源実測に対する過度な伸縮をモーラ内で有界にする。
+const (
+	// stretchAdaptMaxRatioは母音側（fixed以降）の許容伸縮上限。
+	stretchAdaptMaxRatio = 1.3
+	// stretchAdaptMinTailRatioは母音側に残す最小比率。子音側を伸ばしすぎない。
+	stretchAdaptMinTailRatio = 0.35
+	// stretchAdaptMinTailMSは母音側に残す最小長。
+	stretchAdaptMinTailMS = 40.0
+	// stretchAdaptStrengthLimitは補正強度の上限。
+	stretchAdaptStrengthLimit = 2.0
+)
+
+// adaptStretchTimingはSpeechProfileの実測長に対し母音側の伸縮が過大なとき、
+// 総長を変えずにfixed境界を後ろへずらして母音の伸びを抑える。無効時と負値強度は恒等。
+func adaptStretchTiming(unit plan.Unit, timing effectiveTiming, releaseMS float64, enabled bool, strength float64) effectiveTiming {
+	if !enabled || unit.Silent || unit.Role != "mora" || unit.DurationMS <= 0 {
+		return timing
+	}
+	profile := unit.SpeechProfile
+	if profile == nil || !profile.Applied || profile.TrimmedLengthMS <= 0 {
+		return timing
+	}
+	if strength < 0 {
+		return timing
+	}
+	if strength == 0 {
+		strength = 1
+	}
+	if strength > stretchAdaptStrengthLimit {
+		strength = stretchAdaptStrengthLimit
+	}
+	// 総長(preutterance + duration + release)は変えない。
+	targetTotal := timing.preutteranceMS + unit.DurationMS + releaseMS
+	sourceFixed := math.Max(0, unit.ConsonantMS)
+	if sourceFixed > profile.TrimmedLengthMS {
+		sourceFixed = profile.TrimmedLengthMS
+	}
+	sourceTail := profile.TrimmedLengthMS - sourceFixed
+	if sourceTail <= 0 {
+		return timing
+	}
+	targetTail := targetTotal - timing.consonantMS
+	if targetTail <= 0 {
+		return timing
+	}
+	if targetTail/sourceTail <= stretchAdaptMaxRatio {
+		return timing
+	}
+	// 超過分をfixed側へ移し、母音側の伸びを上限へ近づける。
+	allowedTail := sourceTail * stretchAdaptMaxRatio
+	targetFixed := targetTotal - allowedTail
+	targetFixed = timing.consonantMS + (targetFixed-timing.consonantMS)*strength
+	// 母音側の最小長を確保して子音の過度な伸長を防ぐ。
+	minimumTail := math.Max(stretchAdaptMinTailMS, targetTotal*stretchAdaptMinTailRatio)
+	if maximumFixed := targetTotal - minimumTail; targetFixed > maximumFixed {
+		targetFixed = maximumFixed
+	}
+	if targetFixed <= timing.consonantMS {
+		return timing
+	}
+	timing.consonantMS = targetFixed
+	timing.stretchAdapted = true
+	timing.stretchLimitReason = "source-length-bound"
+	return timing
+}
+
 // onsetOverlapClassはoverlap調整のための子音クラスを返す。
 func onsetOverlapClass(onset string) string {
 	switch strings.ToLower(strings.TrimSpace(onset)) {

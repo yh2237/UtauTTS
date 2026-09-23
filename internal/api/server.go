@@ -397,7 +397,7 @@ type SynthesisRequest synth.Request
 // synthesisRequestAliasはUnmarshalJSONの再帰を避けるための別名型。
 type synthesisRequestAlias SynthesisRequest
 
-// UnmarshalJSONはJSONで省略されたapply_pitch/intonation_strength/context_duration/boundary_toneに既定値を適用する。
+// UnmarshalJSONはJSONで省略されたapply_pitch/intonation_strength/context_duration/boundary_tone/stretch_adaptに既定値を適用する。
 func (request *SynthesisRequest) UnmarshalJSON(data []byte) error {
 	decoded := synthesisRequestAlias{
 		ApplyPitch:              synth.DefaultApplyPitch,
@@ -406,6 +406,8 @@ func (request *SynthesisRequest) UnmarshalJSON(data []byte) error {
 		ContextDurationStrength: synth.DefaultContextDurationStrength,
 		BoundaryTone:            synth.DefaultBoundaryTone,
 		BoundaryToneStrength:    synth.DefaultBoundaryToneStrength,
+		StretchAdapt:            synth.DefaultStretchAdapt,
+		StretchAdaptStrength:    synth.DefaultStretchAdaptStrength,
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()

@@ -133,10 +133,12 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		vcvUnit := unit.Role == "mora" && isVCVUnit(*unit)
 		vcvSpeech := vcvUnit && synthesisPlan.SpeechTiming
 		timings[i] = worldlineTiming(synthesisPlan, *unit, cfg.ReleaseMS)
+		timings[i] = adaptStretchTiming(*unit, timings[i], cfg.ReleaseMS, cfg.StretchAdapt, cfg.StretchAdaptStrength)
 		if len(phoneTimings) == len(synthesisPlan.Units) && !unit.Silent {
 			timings[i].preutteranceMS = phoneTimings[i].preutter
 			timings[i].overlapMS = phoneTimings[i].overlap
-			if unit.Role != "mora" || (!synthesisPlan.SingleCV && (!vcvUnit || !vcvSpeech)) {
+			// C3aでfixed境界をずらしたユニットはotoの値を上書きしない。
+			if (unit.Role != "mora" || (!synthesisPlan.SingleCV && (!vcvUnit || !vcvSpeech))) && !timings[i].stretchAdapted {
 				timings[i].consonantMS = unit.ConsonantMS
 				timings[i].scale = 1
 			}
@@ -147,6 +149,8 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 		unit.EffectiveOverlapMS = timings[i].overlapMS
 		unit.CVTimingApplied = timings[i].cvApplied
 		unit.CVTimingWarnings = append([]string(nil), timings[i].cvWarnings...)
+		unit.StretchAdapted = timings[i].stretchAdapted
+		unit.StretchLimitReason = timings[i].stretchLimitReason
 		unit.IntonationFactor = 1
 	}
 	intonation := identityFactors(len(synthesisPlan.Units))
@@ -332,7 +336,9 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 			}
 		}
 		protectStopOnly := providerID == "utautts-world-phrase" && !legacyMix && unit.Role == "mora" && !singleCVUnit && !vcvUnit && !vcvSpeech && stopProtected
-		if providerID == "utautts-world-phrase" && unit.Role == "mora" && (singleCVUnit || vcvSpeech || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied || protectStopOnly) {
+		// C3aで伸縮を有界にしたユニットは、bridge側でもfixed境界を後ろへずらして母音の伸びを抑える。
+		stretchSpeech := providerID == "utautts-world-phrase" && unit.Role == "mora" && unit.StretchAdapted && !codaRelease
+		if providerID == "utautts-world-phrase" && unit.Role == "mora" && (singleCVUnit || vcvSpeech || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied || protectStopOnly || stretchSpeech) {
 			targetOnset := skipMS + unit.NoteStartMS + leadingMS - positionMS
 			if singleCVUnit || vcvSpeech {
 				targetOnset = timing.preutteranceMS
@@ -343,7 +349,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg Config, providerID stri
 				speech.SourceTransientMS = unit.SpeechProfile.TransientMS
 				speech.SourceTransientDurationMS = unit.SpeechProfile.TransientDurationMS
 			}
-			if singleCVUnit || vcvSpeech {
+			if singleCVUnit || vcvSpeech || stretchSpeech {
 				speech.TargetFixedMS = timing.consonantMS
 			}
 			if i > 0 {

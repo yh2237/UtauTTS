@@ -94,6 +94,8 @@ type sweepRequest struct {
 	contextDurationStrength                  float64
 	boundaryTone                             bool
 	boundaryToneStrength                     float64
+	stretchAdapt                             bool
+	stretchAdaptStrength                     float64
 	timeout                                  time.Duration
 }
 
@@ -194,6 +196,7 @@ func runSweep(req sweepRequest) error {
 				speechTiming: ps.SpeechTiming, applyPitch: ps.ApplyPitch, timeout: req.timeout,
 				contextDuration: req.contextDuration, contextDurationStrength: req.contextDurationStrength,
 				boundaryTone: req.boundaryTone, boundaryToneStrength: req.boundaryToneStrength,
+				stretchAdapt: req.stretchAdapt, stretchAdaptStrength: req.stretchAdaptStrength,
 			}, catalog)
 			row.ElapsedMS = elapsed
 			if callErr == nil {

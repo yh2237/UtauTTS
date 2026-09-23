@@ -31,6 +31,8 @@ type caseOptions struct {
 	contextDurationStrength   float64
 	boundaryTone              bool
 	boundaryToneStrength      float64
+	stretchAdapt              bool
+	stretchAdaptStrength      float64
 	timeout                   time.Duration
 }
 
@@ -51,6 +53,9 @@ func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Re
 	boundaryTone := o.boundaryTone
 	cfg.BoundaryTone = &boundaryTone
 	cfg.BoundaryToneStrength = o.boundaryToneStrength
+	stretchAdapt := o.stretchAdapt
+	cfg.StretchAdapt = &stretchAdapt
+	cfg.StretchAdaptStrength = o.stretchAdaptStrength
 	resolved, err := tts.ApplyRenderer(&cfg, catalog, o.rendererID, o.bridge)
 	ctx, cancel := context.WithTimeout(context.Background(), o.timeout)
 	cfg.Context = ctx

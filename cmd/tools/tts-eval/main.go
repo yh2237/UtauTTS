@@ -79,6 +79,8 @@ func run() error {
 	contextDurationStrength := flag.Float64("context-duration-strength", 1.0, "context-aware duration strength (0 uses the default 1.0)")
 	boundaryTone := flag.Bool("boundary-tone", true, "Japanese phrase-final boundary tone (C2)")
 	boundaryToneStrength := flag.Float64("boundary-tone-strength", 1.0, "boundary tone strength (0 uses the default 1.0)")
+	stretchAdapt := flag.Bool("stretch-adapt", true, "adapt Japanese mora stretching to voicebank measurements (C3a)")
+	stretchAdaptStrength := flag.Float64("stretch-adapt-strength", 1.0, "stretch adaptation strength (0 uses the default 1.0)")
 	aliasPolicy := flag.String("alias-policy", "auto", "voicebank mode: auto or cv-only")
 	bank := flag.String("voicebank", "", "voicebank directory (required)")
 	diagnose := flag.Bool("diagnose", false, "write frontend and candidate diagnostics without rendering")
@@ -142,6 +144,7 @@ func run() error {
 			corpusData: data, prompts: prompts, moraMS: *moraMS, wordEnvelope: *wordEnvelope, timeout: *timeout,
 			contextDuration: *contextDuration, contextDurationStrength: *contextDurationStrength,
 			boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
+			stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
 		})
 	}
 	if *measurePitch && (*diagnose || *renderers != "utautts-world-phrase") {
@@ -202,6 +205,7 @@ func run() error {
 					speechTiming: *speechTiming, applyPitch: true, timeout: *timeout,
 					contextDuration: *contextDuration, contextDurationStrength: *contextDurationStrength,
 					boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
+					stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
 				}, catalog)
 				row.ElapsedMS = elapsed
 				if callErr == nil {

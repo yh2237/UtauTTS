@@ -137,6 +137,8 @@
     "settings.contextDurationStrength": "Strength",
     "settings.boundaryTone": "Phrase-final tone",
     "settings.boundaryToneStrength": "Strength",
+    "settings.stretchAdapt": "Voicebank-aware stretching",
+    "settings.stretchAdaptStrength": "Strength",
     "settings.resamplerAuto": "Automatic",
     "settings.defaultDiffSingerSteps": "DiffSinger Steps",
     "settings.defaultDiffSingerExpr": "DiffSinger Expression",

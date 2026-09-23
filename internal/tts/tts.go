@@ -32,7 +32,11 @@ type Config struct {
 	// BoundaryToneは日本語の句末境界音調(C2)を有効にする。nilは既定ON。
 	BoundaryTone *bool
 	// BoundaryToneStrengthは境界音調の強度。0は既定1.0。
-	BoundaryToneStrength    float64
+	BoundaryToneStrength float64
+	// StretchAdaptは日本語の伸縮を音源実測へ適応(C3a)する。nilは既定ON。
+	StretchAdapt *bool
+	// StretchAdaptStrengthは伸縮補正の強度。0は既定1.0。
+	StretchAdaptStrength    float64
 	Context                 context.Context
 	Engine                  engine.ResolvedEngine
 	VoicebankPath           string
@@ -425,6 +429,8 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 			predictions[i].PitchFactor = factor
 		}
 	}
+	// C3aは日本語のモーラだけを対象にし、長いモーラ長で効果があるときだけ有効化する。
+	stretchAdapt := stretchAdaptEnabled(cfg) && language == frontend.LanguageJapanese
 	synthesisPlan, err := plan.Build(bank, reading, morae, selections, plan.Config{
 		SpeechTiming:       cfg.SpeechTiming,
 		MoraDurationMS:     cfg.MoraDurationMS,
@@ -436,6 +442,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		AliasPolicy:        cfg.AliasPolicy,
 		Tone:               cfg.Tone,
 		Color:              cfg.Color,
+		StretchAdapt:       stretchAdapt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build synthesis plan: %w", err)
@@ -457,6 +464,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	synthesisPlan.CVVCPreBoundaryFade = cfg.CVVCPreBoundaryFade
 	pitchCurve := cfg.PitchCurve
 	applyPitch := applyPitchEnabled(cfg)
+	stretchAdaptStrength := stretchAdaptStrength(cfg)
 	if pitchCurve == nil && language == frontend.LanguageEnglish && applyPitch && !shouldPredictFrameContour(cfg, loadedProsody) {
 		pitchCurve = scaleAutomaticPitchCurve(englishSpeechCurve(morae, moraTimings(morae, synthesisPlan), synthesisPlan.DurationMS+cfg.ReleaseMS, cfg.Text), cfg.IntonationStrength)
 	}
@@ -524,6 +532,8 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		CVVCTransitionGain:      cfg.CVVCTransitionGain,
 		CVVCPreBoundaryFade:     cfg.CVVCPreBoundaryFade,
 		PitchCurve:              pitchCurve,
+		StretchAdapt:            stretchAdapt,
+		StretchAdaptStrength:    stretchAdaptStrength,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("render: %w", err)
@@ -762,6 +772,7 @@ func validateConfig(cfg Config) error {
 		"intonation_strength":       cfg.IntonationStrength,
 		"context_duration_strength": cfg.ContextDurationStrength,
 		"boundary_tone_strength":    cfg.BoundaryToneStrength,
+		"stretch_adapt_strength":    cfg.StretchAdaptStrength,
 		"boundary_bridge_ms":        cfg.BoundaryBridgeMS,
 		"boundary_bridge_threshold": cfg.BoundaryBridgeThreshold,
 	}

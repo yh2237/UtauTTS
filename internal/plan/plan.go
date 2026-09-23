@@ -25,6 +25,8 @@ type Config struct {
 	Tone               string
 	Color              string
 	AliasPolicy        voicebank.AliasPolicy
+	// StretchAdaptは伸縮の音源適応(C3a)で全モーラのSpeechProfileを取得する。日本語のみ有効化する。
+	StretchAdapt bool
 }
 
 type Plan struct {
@@ -168,6 +170,8 @@ type Unit struct {
 	StopBurstReason             string                         `json:"stop_burst_reason,omitempty"`
 	CVTimingApplied             bool                           `json:"cv_timing_applied,omitempty"`
 	CVTimingWarnings            []string                       `json:"cv_timing_warnings,omitempty"`
+	StretchAdapted              bool                           `json:"stretch_adapted,omitempty"`
+	StretchLimitReason          string                         `json:"stretch_limit_reason,omitempty"`
 	SpeechProfile               *voicebank.SpeechProfile       `json:"speech_profile,omitempty"`
 	Position                    int                            `json:"position"`
 	Role                        string                         `json:"role"`
@@ -320,7 +324,10 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		mainUnit := unitFromSelection(&selection, position, cursor, duration, prediction, "mora")
 		// VCVの境界は発話タイミング補正なしでも解析し、伸縮だけ設定に従う。
 		isVCV := aliasKind == voicebank.AliasVCV || voicebank.IsContextVCVAlias(selection.Alias)
-		if (cfg.SpeechTiming || result.SingleCV || isVCV || stopPhone(mora.Consonant)) && mora.Vowel != "" && mora.Vowel != "cl" && !mainUnit.Silent {
+		// C3aでは日本語の全モーラを対象にするため、必要な音源だけプロファイルを取る（キャッシュ前提）。
+		needsProfile := cfg.SpeechTiming || result.SingleCV || isVCV || stopPhone(mora.Consonant) ||
+			(cfg.StretchAdapt && japaneseSpeechMora(mora))
+		if needsProfile && mora.Vowel != "" && mora.Vowel != "cl" && !mainUnit.Silent {
 			profile := bank.CalibrateSpeech(selection.Entry)
 			mainUnit.SpeechProfile = &profile
 			if profile.Applied && !result.SingleCV && cfg.SpeechTiming {
@@ -375,6 +382,11 @@ func stopPhone(phone string) bool {
 	default:
 		return false
 	}
+}
+
+// japaneseSpeechMoraはかな入力（言語未指定）または日本語のモーラかを返す。
+func japaneseSpeechMora(mora frontend.Mora) bool {
+	return mora.Language == "" || mora.Language == frontend.LanguageJapanese
 }
 
 func phoneSpansForMora(mora frontend.Mora, duration float64, weights [][]float64, position int) ([]float64, error) {
