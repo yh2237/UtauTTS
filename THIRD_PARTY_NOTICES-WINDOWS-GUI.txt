@@ -22,8 +22,9 @@ License and source information:
 https://www.qt.io/licensing/
 https://code.qt.io/cgit/qt/
 
-The LGPLv3 text, written source offer, replacement/relinking instructions, and
-Qt SBOM manifest are included under licenses/Qt. Raw SBOM JSON location: build
+The LGPLv3 text, the GNU GPLv3 text it incorporates, written source offer,
+replacement/relinking instructions, and Qt SBOM manifest are included under
+licenses/Qt. Raw SBOM JSON location: build
 audit output.
 
 

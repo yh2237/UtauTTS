@@ -154,6 +154,7 @@ done
 for required in \
   "${gui_root}/THIRD_PARTY_NOTICES-MACOS-GUI.txt" \
   "${gui_root}/licenses/Qt/LGPL-3.0.txt" \
+  "${gui_root}/licenses/Qt/GPL-3.0.txt" \
   "${gui_root}/licenses/Qt/Qt-SOURCE-OFFER.txt" \
   "${gui_root}/licenses/Qt/Qt-RELINK-INSTRUCTIONS.txt" \
   "${gui_root}/licenses/Qt/Qt-THIRD-PARTY-ATTRIBUTIONS.txt" \

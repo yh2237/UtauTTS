@@ -180,6 +180,7 @@ try {
     Assert-Path (Join-Path $guiRoot 'docs/technical-design.md') 'technical design documentation'
     foreach ($asset in @(
         'licenses/Qt/LGPL-3.0.txt',
+        'licenses/Qt/GPL-3.0.txt',
         'licenses/Qt/Qt-SOURCE-OFFER.txt',
         'licenses/Qt/Qt-RELINK-INSTRUCTIONS.txt',
         'licenses/Qt/Qt-THIRD-PARTY-ATTRIBUTIONS.txt',

@@ -107,6 +107,7 @@ if [[ -z "${lgpl_path}" ]]; then
   lgpl_path="${root_dir}/licenses/Qt/LGPL-3.0.txt"
 fi
 copy_required "${lgpl_path}" "${license_root}/LGPL-3.0.txt"
+copy_required "${root_dir}/licenses/Qt/GPL-3.0.txt" "${license_root}/GPL-3.0.txt"
 
 cat > "${license_root}/Qt-SOURCE-OFFER.txt" <<EOF
 Qt source offer
@@ -151,7 +152,7 @@ To rebuild the application against a modified Qt build:
 4. Replace the frameworks inside the resulting app bundle with compatible
    modified Qt frameworks and verify their install names and rpaths.
 
-The corresponding Qt source offer, LGPLv3 text, and third-party attribution
+The corresponding Qt source offer, LGPLv3 and GPLv3 texts, and third-party attribution
 information are included beside this file. The source request procedure is in
 Qt-SOURCE-OFFER.txt.
 EOF

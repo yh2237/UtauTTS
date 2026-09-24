@@ -214,6 +214,7 @@ function Copy-QtLicenses {
     } else {
         Copy-Required (Join-Path $root 'licenses/Qt/LGPL-3.0.txt') (Join-Path $licenseRoot 'Qt/LGPL-3.0.txt')
     }
+    Copy-Required (Join-Path $root 'licenses/Qt/GPL-3.0.txt') (Join-Path $licenseRoot 'Qt/GPL-3.0.txt')
     $qtSourceOffer = @"
 Qt source offer
 ===============
@@ -258,7 +259,7 @@ To rebuild the application against a modified Qt build:
    tools/build-release.ps1 as described in README.md.
 4. Deploy the resulting application with the compatible modified Qt DLLs.
 
-The corresponding Qt source offer, LGPLv3 text, and third-party attribution
+The corresponding Qt source offer, LGPLv3 and GPLv3 texts, and third-party attribution
 information are included beside this file. Raw Qt SBOM JSON files are kept in
 build/license-audit/Qt/windows during the build.
 "@
@@ -279,7 +280,7 @@ Qt Multimedia attribution and optional FFmpeg guidance:
 https://doc.qt.io/qt-$qtDocSeries/qtmultimedia-attribution-ffmpeg.html
 https://ffmpeg.org/legal.html
 
-The LGPLv3 text is included beside this file.
+The LGPLv3 and GPLv3 texts are included beside this file.
 "@
     Write-ReleaseText (Join-Path $licenseRoot 'Qt/Qt-THIRD-PARTY-ATTRIBUTIONS.txt') $qtAttributions
 
