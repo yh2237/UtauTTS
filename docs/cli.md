@@ -14,7 +14,7 @@
 
 ## 基本例
 
-同梱音源と原音の明瞭度を確認しやすい`waveform` Rendererを使う最小例です。
+`waveform` Rendererを使う最小例です。
 
 ```powershell
 .\UtauTTS\tools\utautts-cli.exe `
@@ -126,8 +126,6 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 `--renderer`を省略した場合はカタログの`default_priority`が最大のRendererを使います。存在しないIDを明示した場合はエラーになります。指定したRendererの必要なファイルが不足している場合もエラーになります。
 
 `--resampler-expressions`のJSONは[Classic UTAU互換仕様](plugins.md#classic-utau互換仕様)を参照してください。
-
-`--apply-pitch`と`--intonation-strength`によるピッチ加工は、音源によって声質や明瞭度に影響する場合があります。
 
 ## 出力
 

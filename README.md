@@ -116,7 +116,7 @@ exo出力後に表示される領域をAviUtlの拡張編集へドラッグす�
 | Renderer | 特徴 |
 | --- | --- |
 | `utautts-world-phrase` | 既定。公式WORLDで解析し、UtauTTS独自の特徴配置でフレーズ全体を合成 |
-| `waveform` | Go内で原音波形を伸縮して接続。原音の明瞭度を確認しやすい |
+| `waveform` | Go内で原音波形を伸縮して接続 |
 | `classic-utau` | UTAU互換resamplerで原音を処理し、wavtoolまたは内蔵処理で接続 |
 | `diffsinger` | DiffSinger音源とbridgeを使う連携機能。対応条件は[DiffSinger](docs/diffsinger.md)を参照 |
 
@@ -128,8 +128,8 @@ Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置�
 
 | モデル | 内容 |
 | --- | --- |
-| `frame-intonation-v9-t` | 既定。つくよみちゃんコーパスで学習。日常文を中立に読むスタイル |
-| `frame-intonation-v9-k` | Kokoro Speech Datasetで学習。朗読（語り）寄りのスタイル |
+| `frame-intonation-v9-t` | 既定。つくよみちゃんコーパスで学習 |
+| `frame-intonation-v9-k` | Kokoro Speech Datasetで学習 |
 | `english-intonation-v1` | 英語の強勢と句末境界を軽量に予測 |
 
 `frame-intonation-v9-*`はOpen JTalkのアクセント特徴からフレーム単位の相対ピッチを予測します。モデルやRendererはGUI、CLI、Serverで共通です。学習元のライセンスは[抑揚モデル](models/README.md)、追加方法は[モデル／Rendererプラグイン](docs/plugins.md)にあります。

@@ -4,7 +4,23 @@
 
 Python環境にはPyTorch、NumPy、pyopenjtalkが必要です。`--f0-source internal`では追加の実行ファイルは不要です。`--f0-source world`を使う場合は独自WORLDエンジンが必要です。ビルドスクリプトは、Windowsが`tools/build-world-engine.ps1`、Linuxが`tools/build-world-engine.sh`、macOSが`tools/build-world-engine-macos.sh`です。
 
-学習データは`version: 1`のJSONLです。レコードは`id`、`audio_path`、`tokens`、`text`を持ちます。学習元コーパスの`--training-corpus`、`--training-corpus-license`、`--model-license`、`--license-notice`、`--source-notice`は必須です。
+学習データは`version: 1`のJSONLです。レコードは`id`、`audio_path`、`tokens`、`text`を持ちます。学習元コーパスの`--training-corpus`、`--training-corpus-license`、`--model-license`、`--license-notice`、`--source-notice`は必須です。コーパスの音声と台本を用意し、配布条件と出典を記録してください。
+
+## 学習の流れ
+
+1. コーパスの音声と台本を学習用JSONLへ変換します。
+2. `train-frame-intonation-tcn.py`で学習します。
+3. 候補モデルを聴取で比較し、採用を判断します。
+
+```powershell
+python tools/train-frame-intonation-tcn.py --dataset out/frame.jsonl `
+  --f0-source internal --device cuda --holdout-test --epochs 24 --hidden 32 --batch-size 64 `
+  --target-smooth-ms 80 --delta-weight 0.6 --f0-cache out/f0-cache `
+  --model-id my-model-v1 --display-name "My intonation model" `
+  --training-corpus "<学習元コーパス>" --training-corpus-license "<コーパスの配布条件>" `
+  --model-license "MIT License" --license-notice licenses/MY-CORPUS.txt --source-notice licenses/MY-CORPUS.txt `
+  --out out/my-model.json
+```
 
 ## 学習オプション
 
@@ -12,75 +28,11 @@ Python環境にはPyTorch、NumPy、pyopenjtalkが必要です。`--f0-source in
 
 各epochで生のピッチ誤差と再生時の処理を反映した誤差を記録します。後者は予測と教師の両方に平滑化・強度・振幅制限を適用した値です。この値が最小の重みを保存します。音声の自然さは別途聴取で評価します。
 
-## ITA Corpus Rionでの学習
+## 音素時刻のないコーパス
 
-ITA Corpus Rionは、50話者がITA Corpus Emotionの同じ100文を読んだ48 kHz/24 bitの音声コーパスです。音声と同じフォルダーに、公式ITA Corpusから取得した emotion_transcript_utf8.txt を配置します。同じ文を読む全話者は、学習・検証のどちらか片方にだけ入れます。
+コーパスに音素時刻がない場合は`--alignment viterbi`を使います。これはOpen JTalkのアクセント注釈を弱い音響モデルとして、有声フレームがそのモーラの高低に近づくよう、モーラ長の上下限付きViterbiで境界を推定します。単純なDTWと違い、各モーラが妥当な長さに収まるため退化した経路になりません。
 
-コーパスには音素時刻がないため、まず`--alignment viterbi`を使います。これはOpen JTalkのアクセント注釈を弱い音響モデルとして、有声フレームがそのモーラの高低に近づくよう、モーラ長の上下限付きViterbiで境界を推定します。単純なDTWと違い、各モーラが妥当な長さに収まるため退化した経路になりません。
-
-~~~powershell
-python tools/prepare-ita-corpus-rion.py --corpus data/ita-corpus-rion --out out/ita-corpus-rion-frame.jsonl `
-  --alignment viterbi --world-engine runtime/utautts-world-engine.dll --require-reading-match `
-  --lower-duration-factor 0.45 --upper-duration-factor 2.20
-python tools/train-frame-intonation-tcn.py --dataset out/ita-corpus-rion-frame.jsonl `
-  --f0-source world --world-engine runtime/utautts-world-engine.dll `
-  --f0-cache out/f0-cache-world --device cuda --holdout-test --epochs 24 --hidden 32 --batch-size 64 `
-  --model-id frame-intonation-v9-ita-corpus-rion --display-name "Frame intonation TCN v9 ITA Corpus Rion" `
-  --description "ITA Corpus RionのEmotion音声で学習したフレーム抑揚モデル" `
-  --training-corpus "ITA Corpus Rion (Emotion)" `
-  --training-corpus-license "CC BY 4.0; source page additionally prohibits resale of the audio dataset" `
-  --model-license "MIT License" --license-notice licenses/ITA-CORPUS-RION.txt --source-notice licenses/ITA-CORPUS-RION.txt `
-  --out out/frame-intonation-v9-ita-corpus-rion.json
-~~~
-
-`--alignment viterbi`はアクセント注釈を使った強制アラインメントです。`--world-engine`を付けるとWORLD Harvestで推定し、省略すると高速な内蔵自己相関F0を使います。`--require-reading-match`は公式読みとモーラ数が一致しない誤読を除外します。`--alignment energy`は均等配置の境界を近傍のエネルギー谷へ寄せるだけで、効果は限定的です。`--f0-source world`はv8と同じWORLD HarvestでF0教師を作り、`--f0-cache`は抽出したF0を記録して再実行を高速化します。
-
-### ITA Corpus Rionでの結果（2026-09-22）
-
-女性25話者（F1-F25）で、アラインメント手法による差を比較しました。
-
-| 手法 | 検証raw MAE | 検証rendered MAE | test raw | test rendered | 採用epoch |
-| --- | --- | --- | --- | --- | --- |
-| 均等配置 + internal F0 | 151.7 | 42.1 | 151.0 | 42.4 | 3 |
-| 均等配置 + WORLD F0 + 母音特徴 | 153.0 | 43.1 | 154.8 | 43.6 | 3 |
-| **アクセントViterbi + WORLD F0** | **113.6** | **31.4** | **108.2** | **29.7** | **13** |
-
-均等配置では採用epochが3で早期に頭打ちになり、未学習文へ汎化しませんでした。アクセントViterbiでは採用epochが13まで伸び、rendered MAEは26〜31程度になりました。アクセント注釈を使うため教師信号は完全な自然発話の記録ではありませんが、音素時刻のないコーパスでモーラ境界を妥当に推定し、未学習文への汎化を改善します。
-
-## Kokoro Speech Datasetでの学習
-
-Kokoro Speech Datasetは、単一話者が青空文庫の小説を朗読したパブリックドメインの音声です。`metadata.csv`と`wavs/`を用意し、コーパスと同じViterbiアラインメントで学習します。
-
-~~~powershell
-python tools/prepare-kokoro-frame-data.py --corpus data/kokoro --out out/kokoro-frame.jsonl `
-  --alignment viterbi --allow-reading-mismatch
-python tools/train-frame-intonation-tcn.py --dataset out/kokoro-frame.jsonl `
-  --f0-source internal --device cuda --holdout-test --epochs 24 --hidden 32 --batch-size 64 `
-  --target-smooth-ms 80 --delta-weight 0.6 `
-  --training-corpus "Kokoro Speech Dataset v1.3" --training-corpus-license "Public domain" `
-  --model-license "MIT License" --license-notice licenses/KOKORO-SPEECH-DATASET.txt --source-notice licenses/KOKORO-SPEECH-DATASET.txt `
-  --out out/frame-intonation-v9-k.json
-~~~
-
-`--allow-reading-mismatch`は、コーパスのローマ字読みとOpen JTalkの読みが促音・長音の表記で異なるクリップも残します。読み検証を厳しくしたい場合は外してください。同梱の`frame-intonation-v9-k`はKokoro speech small（3冊、9,199文、単一話者）で学習し、検証rendered MAE 29.2でした。
-
-## つくよみちゃんコーパスでの学習
-
-つくよみちゃんコーパス Vol.1は、単一話者が声優統計／JVSコーパスの100文を読んだ96 kHz float WAVです。PCM（16 bit、48 kHzなど）へ変換し、`metadata.csv`と`wavs/`を用意します。前処理は`prepare-kokoro-frame-data.py`を共用します。ライセンスは[つくよみちゃんコーパスの通知](../licenses/TSUKUYOMI-CORPUS.txt)を確認してください。
-
-~~~powershell
-python tools/prepare-kokoro-frame-data.py --corpus data/tsukuyomi --out out/tsukuyomi-frame.jsonl `
-  --alignment viterbi --allow-reading-mismatch
-python tools/train-frame-intonation-tcn.py --dataset out/tsukuyomi-frame.jsonl `
-  --f0-source internal --device cuda --holdout-test --epochs 24 --hidden 32 --batch-size 32 `
-  --target-smooth-ms 80 --delta-weight 0.6 `
-  --training-corpus "Tsukuyomi-chan Corpus Vol.1 (Voice Actress 100)" `
-  --training-corpus-license "Commercial use permitted with credit" `
-  --model-license "MIT License" --license-notice licenses/TSUKUYOMI-CORPUS.txt --source-notice licenses/TSUKUYOMI-CORPUS.txt `
-  --out out/frame-intonation-v9-t.json
-~~~
-
-`prepare-kokoro-frame-data.py`は`id|text|reading`の`metadata.csv`と`wavs/<id>.wav`を読みます。つくよみちゃんコーパスは100文と少ないため、同梱モデルは同じ話者の追加データ（夢前黎の音声寄せ集めなど）で安定します。
+`--world-engine`を付けるとWORLD HarvestでF0を推定し、省略すると高速な内蔵自己相関F0を使います。`--require-reading-match`は公式読みとモーラ数が一致しない誤読を除外します。`--allow-reading-mismatch`は促音・長音の表記差で読みが異なるクリップも残します。`--alignment energy`は均等配置の境界を近傍のエネルギー谷へ寄せるだけで、効果は限定的です。`--f0-source world`はWORLD HarvestでF0教師を作り、`--f0-cache`は抽出したF0を記録して再実行を高速化します。
 
 ## Intonation Labで教師データを作る
 
@@ -90,7 +42,7 @@ Intonation Labは、通常のUtauTTSの編集画面を使って手動調整の�
 .\build\qt\utautts.exe --intonation-lab
 ```
 
-起動すると50文の例文が順に表示されます。上段には現在の文だけが表示され、右側の音源・速度などの設定欄や発話追加は隠れます。自動予測と合成には`models/frame-intonation-v9-t.json`を基準モデルとして使用します。
+起動すると例文が順に表示されます。上段には現在の文だけが表示され、右側の音源・速度などの設定欄や発話追加は隠れます。自動予測と合成には基準モデルを使用します。
 
 1. 基本編集または拡張編集で、音の高さ・タイミング・発音設定を調整します。
 2. 必要に応じて再生して確認します。
@@ -108,7 +60,7 @@ python tools\train-manual-intonation-residual.py <lab-session.utautts> `
   --display-name "Frame intonation TCN v9 Lab"
 ```
 
-複数のセッションファイルを並べて指定することもできます。学習結果は、V9Fの自動抑揚へ手動調整の傾向を加える残差モデルです。
+複数のセッションファイルを並べて指定することもできます。学習結果は、基準モデルの自動抑揚へ手動調整の傾向を加える残差モデルです。
 
 ## 聴取比較
 
@@ -116,14 +68,13 @@ python tools\train-manual-intonation-residual.py <lab-session.utautts> `
 go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utautts-world-phrase --model-file out/frame-intonation-candidate.json --repeat 1 --out out/candidate-listening
 ```
 
-比較条件は既定の`frame-intonation-v9-t`と同じ文章・音源・Renderer・設定です。合成計画の原音選択と時間配置を確認し、学習にない文章の試聴で採用を判断します。評価項目は[読み上げ品質の評価](../tools/evaluation/README.md)を参照してください。
+比較条件は既定モデルと同じ文章・音源・Renderer・設定にします。合成計画の原音選択と時間配置を確認し、学習にない文章の試聴で採用を判断します。評価項目は[読み上げ品質の評価](../tools/evaluation/README.md)を参照してください。
 
 ## ツールの役割
 
 | ツール | 用途 |
 | --- | --- |
-| `prepare-ita-corpus-rion.py` | ITA Corpus Rionを学習用JSONLへまとめる |
-| `prepare-kokoro-frame-data.py` | Kokoro／つくよみちゃんコーパスのクリップを学習用JSONLへまとめる |
+| `prepare-kokoro-frame-data.py` | `metadata.csv`と`wavs/<id>.wav`を学習用JSONLへまとめる（`id`・`text`・`reading`列） |
 | `mora_alignment.py` | 音素時刻のないコーパス向けアクセントViterbiアラインメント |
 | `train-frame-intonation-tcn.py` | フレーム抑揚モデルの学習と予測 |
 | `train-manual-intonation-residual.py` | Intonation Labの手動調整から残差モデルを学習する |

@@ -37,7 +37,7 @@ open "utautts.app"
 
 ## Linux
 
-Linux GUI版の実行環境: システムにインストールしたQt 6.5以降（Qt Quick、Qt Quick Controls、Qt Multimedia）と日本語フォント。Debian 13では次のパッケージ構成で確認しています。
+Linux GUI版には、システムにインストールしたQt 6.5以降（Qt Quick、Qt Quick Controls、Qt Multimedia）と日本語フォントが必要です。Debian 13では次のパッケージを導入します。
 
 ```bash
 sudo apt-get update

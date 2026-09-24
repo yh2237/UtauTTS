@@ -8,7 +8,7 @@
 
 ## v9 Tsukuyomi（既定）
 
-`frame-intonation-v9-t`は、[つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）](https://tyc.rei-yumesaki.net/material/corpus/)で学習した単一話者モデルです。日常・解説文を中立に読むスタイルです。
+`frame-intonation-v9-t`は、[つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）](https://tyc.rei-yumesaki.net/material/corpus/)で学習した単一話者モデルです。
 
 - 音声: 商用・非商用可。クレジット必須。音声そのものの再配布は不可
 - 台本: 声優統計／JVSコーパスの音素バランス文（CC BY-SA 4.0）。音声の配布は著作権法第30条の4によるためコピーレフトは継承しません
@@ -16,7 +16,7 @@
 
 ## v9 Kokoro（代替）
 
-`frame-intonation-v9-k`は、[Kokoro Speech Dataset](https://github.com/kaiidams/Kokoro-Speech-Dataset)（青空文庫の小説をLibriVox話者が朗読）で学習した単一話者モデルです。文数が多く（9,199文）安定していますが、朗読（語り）寄りのスタイルです。
+`frame-intonation-v9-k`は、[Kokoro Speech Dataset](https://github.com/kaiidams/Kokoro-Speech-Dataset)で学習した単一話者モデルです。
 
 - 音声: パブリックドメイン（米国、他国も概ねPD）
 - 出典: [Kokoro Speech Datasetの通知](../licenses/KOKORO-SPEECH-DATASET.txt)
@@ -27,4 +27,4 @@
 
 ## モデルの記録
 
-モデルJSONの`id`、`display_name`、`license`、`license_notice`、`provenance`、`training`、`metrics`に、学習元コーパス、ライセンス、F0抽出、アラインメント、採用epoch、指標を記録します。コーパスやモデルごとに条件を記録し、配布物にはモデルJSONと通知を含めます。
+モデルJSONの`id`、`display_name`、`license`、`license_notice`、`provenance`、`training`、`metrics`に、学習元コーパス、ライセンス、学習条件、評価指標を記録します。コーパスやモデルごとに条件を記録し、配布物にはモデルJSONと通知を含めます。
