@@ -776,7 +776,7 @@ def prepare(
     cache_dir: str | Path | None = None,
     cache_tag: str = "default",
     target_smooth_ms: float = 40.0,
-) -> tuple[list[tuple[list[list[tuple[int, float]]], list[float], list[bool], list[float]]], dict[str, int]]:
+) -> tuple[list[tuple[tuple[np.ndarray, np.ndarray, np.ndarray], np.ndarray, np.ndarray, np.ndarray]], dict[str, int]]:
     """スパースフレーム列と有声マスク目標を実体化する。"""
 
     if low_cents >= high_cents:
@@ -836,7 +836,8 @@ def prepare(
             np.asarray(feature_columns, dtype=np.int64),
             np.asarray(feature_values, dtype=np.float32),
         )
-        prepared.append((sparse, (targets / max(1.0, target_scale)).astype(float).tolist(), mask.tolist(), frame_times.tolist()))
+        # 発話ごとの目標とマスクはnumpyのまま保持し、バッチ生成時のlist→tensor変換を避ける。
+        prepared.append((sparse, (targets / max(1.0, target_scale)).astype(np.float32), np.asarray(mask, dtype=bool), frame_times))
         if len(prepared) % 100 == 0:
             print(f"prepared {len(prepared)}/{len(records)} utterances", flush=True)
     return prepared, feature_index
@@ -863,7 +864,7 @@ class FrameIntonationTCN(nn.Module):
 
 
 def batches(
-    records: Sequence[tuple[tuple[np.ndarray, np.ndarray, np.ndarray], list[float], list[bool], list[float]]],
+    records: Sequence[tuple[tuple[np.ndarray, np.ndarray, np.ndarray], np.ndarray, np.ndarray, np.ndarray]],
     feature_count: int,
     batch_size: int,
     rng: random.Random,
@@ -880,8 +881,8 @@ def batches(
             frames, columns, amounts = sparse
             if len(frames):
                 values[row, torch.from_numpy(frames), torch.from_numpy(columns)] = torch.from_numpy(amounts)
-            targets[row, : len(expected)] = torch.tensor(expected, dtype=torch.float32)
-            mask[row, : len(valid)] = torch.tensor(valid, dtype=torch.bool)
+            targets[row, : expected.shape[0]] = torch.from_numpy(expected)
+            mask[row, : valid.shape[0]] = torch.from_numpy(valid)
         yield values, targets, mask
 
 
@@ -930,7 +931,7 @@ def sequence_loss(
 @torch.no_grad()
 def evaluate(
     model: nn.Module,
-    records: Sequence[tuple[list[list[tuple[int, float]]], list[float], list[bool], list[float]]],
+    records: Sequence[tuple[tuple[np.ndarray, np.ndarray, np.ndarray], np.ndarray, np.ndarray, np.ndarray]],
     feature_count: int,
     batch_size: int,
     low_cents: float,
@@ -938,30 +939,41 @@ def evaluate(
     target_scale: float = 1.0,
     device: torch.device = torch.device("cpu"),
     render_args=None,
-) -> float:
+) -> tuple[float, float]:
+    """raw MAEと、再生処理を通したrendered MAEを1パスで返す。"""
+
     model.eval()
-    errors: list[float] = []
+    scale = max(1.0, target_scale)
+    raw_sum = 0.0
+    raw_count = 0
+    rendered_sum = 0.0
+    rendered_count = 0
+    options = None
+    if render_args is not None:
+        options = dict(frame_ms=render_args.frame_ms, strength=render_args.render_strength,
+                       smoothing_ms=render_args.render_smoothing_ms, p99=render_args.render_p99_cents,
+                       maximum=render_args.render_max_cents, low=low_cents, high=high_cents)
     for values, targets, mask in batches(records, feature_count, batch_size, random.Random(0)):
         values, targets, mask = move_batch(device, values, targets, mask)
         raw_predicted = model(values)
-        predicted = centered(raw_predicted, mask).clamp(
-            low_cents / max(1.0, target_scale), high_cents / max(1.0, target_scale)
-        ) * max(1.0, target_scale)
-        expected = targets * max(1.0, target_scale)
+        predicted = centered(raw_predicted, mask).clamp(low_cents / scale, high_cents / scale) * scale
+        expected = targets * scale
+        raw_sum += float(((predicted - expected).abs() * mask).sum())
+        raw_count += int(mask.sum())
+        if options is None:
+            continue
         for row in range(values.shape[0]):
             valid = mask[row]
-            if bool(valid.any()):
-                if render_args is None:
-                    errors.extend((predicted[row][valid] - expected[row][valid]).abs().detach().cpu().tolist())
-                else:
-                    selected = valid.cpu().numpy()
-                    options = dict(frame_ms=render_args.frame_ms, strength=render_args.render_strength,
-                                   smoothing_ms=render_args.render_smoothing_ms, p99=render_args.render_p99_cents,
-                                   maximum=render_args.render_max_cents, low=low_cents, high=high_cents)
-                    actual = render_contour(raw_predicted[row].cpu().numpy() * target_scale, selected, **options)
-                    reference = render_contour(expected[row].cpu().numpy(), selected, **options)
-                    errors.extend(np.abs(actual[selected] - reference[selected]).tolist())
-    return float(sum(errors) / len(errors)) if errors else 0.0
+            if not bool(valid.any()):
+                continue
+            selected = valid.cpu().numpy()
+            actual = render_contour(raw_predicted[row].cpu().numpy() * scale, selected, **options)
+            reference = render_contour(expected[row].cpu().numpy(), selected, **options)
+            rendered_sum += float(np.abs(actual[selected] - reference[selected]).sum())
+            rendered_count += int(selected.sum())
+    raw_mae = raw_sum / raw_count if raw_count else 0.0
+    rendered_mae = rendered_sum / rendered_count if rendered_count else 0.0
+    return raw_mae, rendered_mae
 
 
 def _layers_for_export(model: FrameIntonationTCN) -> list[dict]:
@@ -1185,8 +1197,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="weight of the adjacent-frame delta loss (larger = smoother output)")
     parser.add_argument("--learning-rate", type=float, default=0.002)
     parser.add_argument("--hidden", type=int, default=24)
-    parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--device", default="auto", help="PyTorch device: auto, cpu, cuda, cuda:N, xpu, or mps")
+    parser.add_argument("--compile", action="store_true", help="wrap the TCN in torch.compile to cut per-step overhead (may slightly change numerics)")
     parser.add_argument("--limit", type=int, default=0, help="maximum utterances before deterministic split (0=all)")
     parser.add_argument("--seed", type=int, default=1)
 
@@ -1340,6 +1353,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     validation_frames = sum(len(item[1]) for item in validation)
     validation_voiced_frames = sum(sum(item[2]) for item in validation)
     model = FrameIntonationTCN(len(feature_index), args.hidden).to(device)
+    train_model = torch.compile(model, dynamic=True) if args.compile else model
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=1e-5)
     rng = random.Random(args.seed)
     best_state = None
@@ -1356,7 +1370,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 continue
             optimizer.zero_grad()
             loss = sequence_loss(
-                model(values), targets, mask, (args.low_cents, args.high_cents), target_scale=args.target_scale,
+                train_model(values), targets, mask, (args.low_cents, args.high_cents), target_scale=args.target_scale,
                 delta_weight=args.delta_weight,
             )
             loss.backward()
@@ -1365,10 +1379,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             total += loss.detach()
             count += 1
         print(f"epoch {epoch + 1:02d}/{args.epochs}: loss={float(total.cpu()) / max(1, count):.6f}")
-        epoch_mae = evaluate(model, validation, len(feature_index), args.batch_size,
-                             args.low_cents, args.high_cents, args.target_scale, device)
-        rendered_mae = evaluate(model, validation, len(feature_index), args.batch_size,
-                               args.low_cents, args.high_cents, args.target_scale, device, args)
+        epoch_mae, rendered_mae = evaluate(train_model, validation, len(feature_index), args.batch_size,
+                                           args.low_cents, args.high_cents, args.target_scale, device, args)
         history.append({"epoch": epoch + 1, "validation_mae_cents": epoch_mae, "rendered_mae_cents": rendered_mae})
         if rendered_mae < best_mae:
             best_mae, best_epoch = rendered_mae, epoch + 1
@@ -1379,8 +1391,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise ValueError("training produced no valid checkpoint")
     model.load_state_dict(best_state)
 
-    validation_mae = evaluate(
-        model, validation, len(feature_index), args.batch_size, args.low_cents, args.high_cents,
+    validation_mae, _ = evaluate(
+        train_model, validation, len(feature_index), args.batch_size, args.low_cents, args.high_cents,
         args.target_scale, device
     )
     train_frames = sum(len(item[1]) for item in train)
@@ -1414,12 +1426,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                           target_scale=args.target_scale, worldline=worldline,
                           f0_provider=f0_provider, cache_dir=args.f0_cache,
                           cache_tag=args.f0_source, target_smooth_ms=args.target_smooth_ms)
-        exported["metrics"]["test_mae_cents"] = evaluate(
-            model, test, len(feature_index), args.batch_size, args.low_cents,
-            args.high_cents, args.target_scale, device)
-        exported["metrics"]["test_rendered_mae_cents"] = evaluate(
-            model, test, len(feature_index), args.batch_size, args.low_cents,
+        test_mae, test_rendered_mae = evaluate(
+            train_model, test, len(feature_index), args.batch_size, args.low_cents,
             args.high_cents, args.target_scale, device, args)
+        exported["metrics"]["test_mae_cents"] = test_mae
+        exported["metrics"]["test_rendered_mae_cents"] = test_rendered_mae
         exported["training"]["test_alignment"] = test_alignment
     _write_json(args.out, exported)
     print(
