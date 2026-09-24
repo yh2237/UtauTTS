@@ -51,6 +51,17 @@ func TestDiagnosticsPreserveFrontendWhenCandidatesMissing(t *testing.T) {
 			t.Fatalf("lost diagnosis: %+v", row)
 		}
 	}
+	summaryData, err := os.ReadFile(filepath.Join(out, "coverage_summary.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var summaries []coverageSummary
+	if err = json.Unmarshal(summaryData, &summaries); err != nil {
+		t.Fatal(err)
+	}
+	if len(summaries) != 2 || summaries[0].Language != "en" || summaries[1].Language != "zh" {
+		t.Fatalf("coverage summary = %+v", summaries)
+	}
 	if err = diagnoseCorpus(bank, out, nil); err == nil {
 		t.Fatal("existing output accepted")
 	}

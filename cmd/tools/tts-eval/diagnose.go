@@ -104,6 +104,9 @@ func diagnoseCorpus(bankPath, out string, prompts []prompt) error {
 	if err = atomicfile.WriteFile(filepath.Join(out, "diagnostics.json"), data); err != nil {
 		return err
 	}
+	if err = writeCoverageSummary(out, rows); err != nil {
+		return err
+	}
 	if failed {
 		return fmt.Errorf("some diagnostic cases failed; see diagnostics.json")
 	}

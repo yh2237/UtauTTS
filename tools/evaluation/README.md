@@ -28,6 +28,8 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/chinese-bank" --corpus tools/ev
 
 促音の無音区間も有効候補に含みます。候補数と発音の正しさは別指標です。原音の収録内容と接続は聴取で評価します。
 
+`coverage_summary.json`には言語別の集計を保存します。`coverage_rate`は有効な主候補がある位置の割合、`missing_phone_rate`は必須音が欠けた位置の割合、`missing_phones`は欠けた必須音の頻度、`missing_morae`は主候補が無かったモーラの頻度です。音源と言語の組み合わせの網羅性を比べる目安にします。
+
 ## 音声を比較する
 
 ```powershell
