@@ -128,7 +128,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		unit.StopBurstApplied = false
 		unit.StopBurstGain = 0
 		unit.StopBurstReason = "not-required"
-		unit.WorldRenderMode = "adaptive"
+		unit.WorldRenderMode = plan.WorldRenderModeAdaptive
 		unit.WorldRenderReason = "adaptive-default"
 		unit.WorldGapRepairEligible = false
 		unit.WorldGapRepairReason = "not-required"
@@ -394,7 +394,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 			return nil, err
 		}
 		if legacyMix {
-			unit.WorldRenderMode = "v1.3-compatible"
+			unit.WorldRenderMode = plan.WorldRenderModeV13Compatible
 			unit.WorldRenderReason = "japanese-continuous-low-processing"
 		}
 		unit.WorldGapRepairEligible = gapRepair

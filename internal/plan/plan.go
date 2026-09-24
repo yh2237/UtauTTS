@@ -165,6 +165,14 @@ type BoundaryRepairDecision struct {
 	SelectedDeltaRMS float64 `json:"selected_delta_rms"`
 }
 
+// WorldRenderModeはWORLD系Rendererがunitごとに選んだ描画方式。
+type WorldRenderMode string
+
+const (
+	WorldRenderModeAdaptive      WorldRenderMode = "adaptive"
+	WorldRenderModeV13Compatible WorldRenderMode = "v1.3-compatible"
+)
+
 type Unit struct {
 	CodaPhones                  []string                       `json:"coda_phones,omitempty"`
 	CodaFloorMS                 float64                        `json:"coda_floor_ms,omitempty"`
@@ -172,7 +180,7 @@ type Unit struct {
 	CodaClosureMS               float64                        `json:"coda_closure_ms,omitempty"`
 	CodaReleaseMS               float64                        `json:"coda_release_ms,omitempty"`
 	CodaReleaseSeparated        bool                           `json:"coda_release_separated,omitempty"`
-	WorldRenderMode             string                         `json:"world_render_mode,omitempty"`
+	WorldRenderMode             WorldRenderMode                `json:"world_render_mode,omitempty"`
 	WorldRenderReason           string                         `json:"world_render_reason,omitempty"`
 	WorldGapRepairEligible      bool                           `json:"world_gap_repair_eligible,omitempty"`
 	WorldGapRepairReason        string                         `json:"world_gap_repair_reason,omitempty"`

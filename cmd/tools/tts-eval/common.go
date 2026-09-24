@@ -137,9 +137,9 @@ func fillMeasurement(row *measurement, result *synth.Result) *plan.Plan {
 	renderedPlan := result.RenderedPlan()
 	for _, unit := range renderedPlan.Units {
 		switch unit.WorldRenderMode {
-		case "v1.3-compatible":
+		case plan.WorldRenderModeV13Compatible:
 			row.V13CompatibleUnits++
-		case "adaptive":
+		case plan.WorldRenderModeAdaptive:
 			row.AdaptiveUnits++
 		}
 		if unit.WorldGapRepairEligible {

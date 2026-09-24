@@ -46,7 +46,7 @@ type RenderDiagnostic struct {
 
 // UnitRenderReportはunitごとの描画結果を示す。
 type UnitRenderReport struct {
-	WorldRenderMode         string
+	WorldRenderMode         plan.WorldRenderMode
 	WorldRenderReason       string
 	WorldGapRepairEligible  bool
 	WorldGapRepairReason    string
