@@ -1240,6 +1240,11 @@ ApplicationWindow {
 
     function addRendererSettings(request, rendererId) {
         const settings = window.rendererSettingContext(rendererId);
+        const keys = Object.keys(settings);
+        for (let index = 0; index < keys.length; ++index) {
+            if (Object.prototype.hasOwnProperty.call(request, keys[index]))
+                delete settings[keys[index]];
+        }
         if (Object.keys(settings).length)
             request.renderer_settings = settings;
         return request;
@@ -1972,6 +1977,12 @@ ApplicationWindow {
         if (error.length)
             return error;
         window.appBackend.setRendererSetting(rendererId, "context_duration", originalContextDuration);
+        error = check(
+            (window.buildSynthesisRequest(window.current()).renderer_settings || {}).mora_duration_ms
+                === undefined,
+            "per-card mora duration was injected as a renderer setting override");
+        if (error.length)
+            return error;
         window.resetHistory(false);
         error = check(utterances.get(0).intonation === window.defaultIntonationStrength,
                       "initial intonation strength is incorrect");
