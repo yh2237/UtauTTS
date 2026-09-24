@@ -27,6 +27,7 @@ func init() {
 	neural.Register(diffsinger.ProviderID, func() neural.Synthesizer {
 		return Synthesizer{}
 	})
+	neural.RegisterCloser(diffsinger.CloseProviderSessions)
 }
 
 func (Synthesizer) Synthesize(in neural.Input) (*neural.Output, error) {

@@ -11,8 +11,8 @@ import (
 
 	"utautts/internal/appinfo"
 	"utautts/internal/aviutl"
-	"utautts/internal/diffsinger"
 	"utautts/internal/frontend"
+	"utautts/internal/neural"
 	"utautts/internal/openutau"
 	"utautts/internal/plugin"
 	"utautts/internal/render"
@@ -78,7 +78,7 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 	case "shutdown":
 		e.cancel()
 		_ = render.CloseProviderSessions()
-		_ = diffsinger.CloseProviderSessions()
+		_ = neural.CloseSessions()
 		result = map[string]bool{"ok": true}
 	case "health":
 		result = map[string]any{"status": "ok", "engine": e.config.Renderer, "version": appinfo.Version()}

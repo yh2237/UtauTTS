@@ -3,6 +3,7 @@ package neural
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"utautts/internal/audio"
@@ -85,4 +86,31 @@ func ForProvider(id engine.ProviderID) (Synthesizer, bool) {
 		return nil, false
 	}
 	return factory(), true
+}
+
+var (
+	closerMu sync.Mutex
+	closers  []func() error
+)
+
+// RegisterCloserは常駐するproviderセッションの解放関数を登録する。providerアダプターのinitから呼ぶ。
+func RegisterCloser(fn func() error) {
+	if fn == nil {
+		return
+	}
+	closerMu.Lock()
+	closers = append(closers, fn)
+	closerMu.Unlock()
+}
+
+// CloseSessionsは登録済みの常駐providerセッションを登録と逆順に解放する。
+func CloseSessions() error {
+	closerMu.Lock()
+	registered := append([]func() error(nil), closers...)
+	closerMu.Unlock()
+	var err error
+	for index := len(registered) - 1; index >= 0; index-- {
+		err = errors.Join(err, registered[index]())
+	}
+	return err
 }

@@ -13,6 +13,7 @@ import (
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
+	_ "utautts/internal/render/worldline" // 同梱の既定Rendererをinitで登録する。
 	"utautts/internal/tts"
 	"utautts/internal/voicebank"
 )

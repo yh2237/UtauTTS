@@ -20,6 +20,10 @@ import (
 
 func init() {
 	base.RegisterRenderer("utautts-world-phrase", renderUtauTTSWorldPhrase)
+	base.RegisterCloser(func() error {
+		Close()
+		return nil
+	})
 }
 
 const worldlineFrameMS = 10.0

@@ -1,10 +1,13 @@
 package render
 
-import "utautts/internal/render/worldline"
+import (
+	"errors"
+
+	"utautts/internal/render/base"
+)
 
 // CloseProviderSessionsはアプリ終了時に常駐する外部Providerプロセスを解放する。
 func CloseProviderSessions() error {
-	// WORLD bridge clientと直列化してから共有セッションを置き換える。Close自体は実行中renderの完了を待つ。
-	worldline.Close()
-	return externalProviderSessions.closeAll()
+	// 登録済みの常駐リソース（WORLD bridge clientなど）を解放してから、外部Providerセッションを閉じる。
+	return errors.Join(base.CloseRegistered(), externalProviderSessions.closeAll())
 }
