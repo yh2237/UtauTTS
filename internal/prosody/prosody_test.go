@@ -112,7 +112,7 @@ func TestManualResidualModelAddsMoraCorrectionsWithoutCrossingPause(t *testing.T
 		}
 	}
 	model.Mode = "intonation_frame_manual_residual"
-	model.BaseModel.ID = "frame-intonation-v9-ita-corpus-rion-female"
+	model.BaseModel.ID = "frame-intonation-v9-base"
 	path := filepath.Join(t.TempDir(), "manual-residual.json")
 	if err := model.Save(path); err != nil {
 		t.Fatal(err)
