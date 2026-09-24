@@ -4,7 +4,7 @@
 
 Python環境にはPyTorch、NumPy、pyopenjtalkが必要です。`--f0-source internal`では追加の実行ファイルは不要です。`--f0-source world`を使う場合は独自WORLDエンジンが必要です。ビルドスクリプトは、Windowsが`tools/build-world-engine.ps1`、Linuxが`tools/build-world-engine.sh`、macOSが`tools/build-world-engine-macos.sh`です。
 
-学習データは`version: 1`のJSONLです。レコードは`id`、`audio_path`、`tokens`、`text`を持ちます。学習元コーパスの`--training-corpus`、`--training-corpus-license`、`--model-license`、`--license-notice`、`--source-notice`は必須です。スキーマは[技術設計ガイド](technical-design.md)を参照してください。
+学習データは`version: 1`のJSONLです。レコードは`id`、`audio_path`、`tokens`、`text`を持ちます。学習元コーパスの`--training-corpus`、`--training-corpus-license`、`--model-license`、`--license-notice`、`--source-notice`は必須です。
 
 ## 学習オプション
 
@@ -14,7 +14,7 @@ Python環境にはPyTorch、NumPy、pyopenjtalkが必要です。`--f0-source in
 
 ## ITA Corpus Rionでの学習
 
-ITA Corpus Rionは、50話者がITA Corpus Emotionの同じ100文を読んだ48 kHz/24 bitの音声コーパスです。音声と同じフォルダーに、公式ITA Corpusから取得した emotion_transcript_utf8.txt を配置します。同じ文を読む全話者は、学習・検証のどちらか片方にだけ入ります。
+ITA Corpus Rionは、50話者がITA Corpus Emotionの同じ100文を読んだ48 kHz/24 bitの音声コーパスです。音声と同じフォルダーに、公式ITA Corpusから取得した emotion_transcript_utf8.txt を配置します。同じ文を読む全話者は、学習・検証のどちらか片方にだけ入れます。
 
 コーパスには音素時刻がないため、まず`--alignment viterbi`を使います。これはOpen JTalkのアクセント注釈を弱い音響モデルとして、有声フレームがそのモーラの高低に近づくよう、モーラ長の上下限付きViterbiで境界を推定します。単純なDTWと違い、各モーラが妥当な長さに収まるため退化した経路になりません。
 
@@ -82,13 +82,41 @@ python tools/train-frame-intonation-tcn.py --dataset out/tsukuyomi-frame.jsonl `
 
 `prepare-kokoro-frame-data.py`は`id|text|reading`の`metadata.csv`と`wavs/<id>.wav`を読みます。つくよみちゃんコーパスは100文と少ないため、同梱モデルは同じ話者の追加データ（夢前黎の音声寄せ集めなど）で安定します。
 
+## Intonation Labで教師データを作る
+
+Intonation Labは、通常のUtauTTSの編集画面を使って手動調整の教師データを作るためのモードです。基本編集と拡張編集をそのまま使い、専用画面は起動しません。
+
+```powershell
+.\build\qt\utautts.exe --intonation-lab
+```
+
+起動すると50文の例文が順に表示されます。上段には現在の文だけが表示され、右側の音源・速度などの設定欄や発話追加は隠れます。自動予測と合成には`models/frame-intonation-v9-t.json`を基準モデルとして使用します。
+
+1. 基本編集または拡張編集で、音の高さ・タイミング・発音設定を調整します。
+2. 必要に応じて再生して確認します。
+3. 右上の「完了して次へ」を押します。
+
+完了時には調整結果がDocumentsフォルダーの`intonation-lab-<日時>.utautts`に自動保存され、次の文の解析と抑揚予測が始まります。完了済みの文だけが`training_accepted: true`として保存されるため、途中で終えても保存済みの文だけを学習に使えます。保存済みのセッションを再開したい場合は、Labモードの「ファイル」→「開く」から対象の`.utautts`を開いてください。
+
+少なくとも8文を完了した後、保存されたセッションを指定して残差モデルを学習します。
+
+```powershell
+python tools\train-manual-intonation-residual.py <lab-session.utautts> `
+  --base-model models\frame-intonation-v9-t.json `
+  --out out\frame-intonation-v9-lab.json `
+  --model-id frame-intonation-v9-lab `
+  --display-name "Frame intonation TCN v9 Lab"
+```
+
+複数のセッションファイルを並べて指定することもできます。学習結果は、V9Fの自動抑揚へ手動調整の傾向を加える残差モデルです。
+
 ## 聴取比較
 
 ```powershell
 go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utautts-world-phrase --model-file out/frame-intonation-candidate.json --repeat 1 --out out/candidate-listening
 ```
 
-比較条件: 既定の`frame-intonation-v9-t`と同じ文章・音源・Renderer・設定。確認項目: 合成計画の原音選択と時間配置。採用判断: 学習にない文章の試聴。評価項目: [読み上げ品質の評価](../tools/evaluation/README.md)。
+比較条件は既定の`frame-intonation-v9-t`と同じ文章・音源・Renderer・設定です。合成計画の原音選択と時間配置を確認し、学習にない文章の試聴で採用を判断します。評価項目は[読み上げ品質の評価](../tools/evaluation/README.md)を参照してください。
 
 ## ツールの役割
 
@@ -98,6 +126,7 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utau
 | `prepare-kokoro-frame-data.py` | Kokoro／つくよみちゃんコーパスのクリップを学習用JSONLへまとめる |
 | `mora_alignment.py` | 音素時刻のないコーパス向けアクセントViterbiアラインメント |
 | `train-frame-intonation-tcn.py` | フレーム抑揚モデルの学習と予測 |
+| `train-manual-intonation-residual.py` | Intonation Labの手動調整から残差モデルを学習する |
 | `frame_render_metrics.py` | 再生時のピッチ処理を反映した評価 |
 | `cmd/tools/tts-eval` | 合成音声と原音選択の比較 |
 

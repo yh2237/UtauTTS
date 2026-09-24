@@ -18,7 +18,7 @@ go run ./cmd/utautts-cli --voicebank "./sample/重音テト OU用日本語統合
 go run ./cmd/tools/join-audit --plan out/join-audit.plan.json --out out/join-audit.json
 ```
 
-`risk_flags`: 聴取する境界を絞るための目印。`label`: 学習ラベル。入力値:
+`risk_flags`は聴取する境界を絞るための目印、`label`は学習ラベルです。`label`の入力値は次の通りです。
 
 * `1` 接続が自然で、境界を採用したい
 * `0` 段差、ノイズ、切り落としなどがあり採用したくない
@@ -27,13 +27,13 @@ go run ./cmd/tools/join-audit --plan out/join-audit.plan.json --out out/join-aud
 
 ## モデルを学習する
 
-学習器の実行環境: Go標準ライブラリと既存の音響解析コード。
+学習器はGo標準ライブラリと既存の音響解析コードだけで動きます。
 
 ```powershell
 go run ./cmd/tools/join-ranker --input out/join-audit.json --out out/join-ranker.json
 ```
 
-複数ファイルは`--input`を繰り返して指定します。出力JSONには特徴量の順序、正規化値、学習条件、ラベルの意味を保存します。ボイスバンク録音の共有モデル利用条件: 各ライセンスと作者の許諾。
+複数ファイルは`--input`を繰り返して指定します。出力JSONには特徴量の順序、正規化値、学習条件、ラベルの意味を保存します。ボイスバンク録音から作ったモデルを共有する場合は、各ライセンスと作者の許諾に従ってください。
 
 ## 合成で使う
 

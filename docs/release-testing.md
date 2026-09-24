@@ -79,7 +79,7 @@ Windows版の更新互換性はGitHub Actionsの`Windows package`で確認しま
 互換性検査では、公開済みの更新元ZIPに含まれる旧アップデーターを使って候補ZIPを導入します。設定、音源、Resampler、Wavtool、ユーザー追加Rendererが保持されること、旧ファイルが残らないこと、実行ファイルが候補版へ置き換わること、更新後のCLIとGUIが起動できることを確認します。作成済みの候補ZIPをローカルで確認する場合は次を実行します。
 
 ```powershell
-.	ools	est-update-compatibility.ps1 -PreviousVersion v1.3.0
+.\tools\test-update-compatibility.ps1 -PreviousVersion v1.3.0
 ```
 
 GUIでは開発者モードが無効でも読み上げ言語を選べることを確認します。右側の設定メニューで発音形式と合成方式を変更できること、新規発話で発話タイミング補正が無効なことも確認します。開発者モードではプレリリース版の確認を切り替えます。同じ数値バージョンの安定版とプレリリース版がある場合は安定版を選びます。

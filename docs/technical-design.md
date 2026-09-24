@@ -1,6 +1,6 @@
 # UtauTTS 技術設計ガイド
 
-コマンドの使い方は[CLI](cli.md)、外部から見える構成は[構成](architecture.md)、拡張形式は[モデル／Rendererプラグイン](plugins.md)にあります。
+コマンドの使い方は[CLI](cli.md)、拡張形式は[モデル／Rendererプラグイン](plugins.md)にあります。概念から順に読みたい場合は[音声合成の仕組み](how-utautts-speaks.md)を参照してください。
 
 ## 1. 中心となる考え方
 
@@ -17,7 +17,7 @@ GUI / CLI / HTTP Server
       synth.Service
           │ 共通入力、音源、モデル、公開Renderer IDを解決
           ▼
-       Catalog / engine resolver
+        Catalog / engine resolver
           │ Public ID → Definition → Contract / Provider / resources
           ▼
     ┌─ Language frontends ── 読み・音素・モーラ
@@ -27,15 +27,31 @@ GUI / CLI / HTTP Server
     └─ Plan builder ─────── 時刻付きの原音unit列
           │
           ▼
-       render.Config
+        render.Config
     ├─ UnitRenderer ─────── waveform / WORLD / Classic / external Provider
     └─ NeuralSynthesizer ── DiffSinger score + Provider session
           │
           ▼
-       PCM + RenderReport
+        PCM + RenderReport
 ```
 
-GUI、CLI、HTTP Serverは別々の音声処理を持たず、最終的には同じ`synth.Service`と`tts.Synthesize`へ到達します。入口を追加・変更するときは設定の伝播だけを確認し、音声処理を重複実装しないようにします。各パッケージの担当範囲は[構成](architecture.md)にまとめています。
+合成は次の順に進みます。
+
+1. `frontend`が言語とphonemizerに応じて文章または読みを音素・モーラへ変換します。日本語の抑揚モデルを使う場合は、必要に応じてOpen JTalk frontendからアクセント句や品詞などを受け取ります。
+2. `voicebank`が`oto.ini`、`prefix.map`、subbankから原音候補を作り、隣り合う原音のつながりも考えてフレーズ全体の経路を選びます。
+3. `prosody`がモーラ長、音量、ピッチを決めます。GUIで手動編集した値は自動予測より優先されます。
+4. `render`が合成計画に従って原音を配置し、Rendererごとの方法でWAVへ変換します。
+
+GUI、CLI、HTTP Serverは別々の音声処理を持たず、最終的には同じ`synth.Service`と`tts.Synthesize`へ到達します。入口を追加・変更するときは設定の伝播だけを確認し、音声処理を重複実装しないようにします。
+
+同梱Rendererは次の4つです。
+
+| ID | 概要 |
+| --- | --- |
+| `utautts-world-phrase` | 既定。原音ごとのWORLD特徴を共通の時間軸へ配置し、フレーズ全体を合成 |
+| `waveform` | Go内で原音波形を伸縮・クロスフェードする確認用Renderer |
+| `classic-utau` | 選択したUTAU互換resamplerを実行し、wavtoolまたは内蔵処理で接続 |
+| `diffsinger` | DiffSinger音源とbridgeを使うRenderer（Windows x64のFull配布のみ） |
 
 ## 3. テキストからモーラまで
 
@@ -131,13 +147,13 @@ Planは、候補選択、時間設計、Rendererの差を切り分けるため�
 | `frame-intonation-v9-k` | version 8 / feature 1 | 10ms単位の相対ピッチ |
 | `english-intonation-v1` | version 12 / feature 1 | 英語の強勢と句末境界の10ms単位ピッチおよび長さ倍率 |
 
-frame headはモーラとOpen JTalk由来特徴をフレームへ展開してdilationを持つ小型TCNで相対pitchを予測します。`frame-intonation-v9-*`は440〜455特徴、10ms間隔、学習出力範囲±250 centです。推論後の処理: モデル内のrender strength、平滑化、percentile／最大値制約。学習音声に由来する細かなF0揺れは、この処理で強度を調整します。
+frame headはモーラとOpen JTalk由来特徴をフレームへ展開してdilationを持つ小型TCNで相対pitchを予測します。`frame-intonation-v9-*`は440〜455特徴、10ms間隔、学習出力範囲±250 centです。推論後はモデル内のrender strength、平滑化、percentile／最大値制約を適用し、学習音声に由来する細かなF0揺れをこの処理で調整します。
 
-multitaskモデル（version 10 / feature 2 / mode `prosody_multitask_tcn`）は、frame headに加えてモーラ長倍率を出す`mora_duration` headを持ちます。絶対msではなく基準モーラ長に対する倍率なのでGUIの話速設定や音源差と共存できます。標準配布: version 10モデルなし。
+multitaskモデル（version 10 / feature 2 / mode `prosody_multitask_tcn`）は、frame headに加えてモーラ長倍率を出す`mora_duration` headを持ちます。絶対msではなく基準モーラ長に対する倍率なのでGUIの話速設定や音源差と共存できます。標準配布にはversion 10モデルを含みません。
 
 英語モデルは外部特徴を要求せず、ARPAbetから得た強勢、語境界、句境界を決定論的な軽量ヘッドへ入力します。英語のカードで日本語モデルが選択されている場合は同じフォルダの英語モデルへ切り替えます。
 
-version 11のmanual residual形式もruntimeが解釈できます。これはv8を基準にGUIで行った人手修正の傾向だけを小さなcent補正として学習する形式です。元モデルのSHA-256と補正範囲を持ち、基準モデルへ残差を加えます。標準配布: version 11モデルなし。
+version 11のmanual residual形式もruntimeが解釈できます。これはv8を基準にGUIで行った人手修正の傾向だけを小さなcent補正として学習する形式です。元モデルのSHA-256と補正範囲を持ち、基準モデルへ残差を加えます。標準配布にはversion 11モデルを含みません。
 
 ### 推論順序
 
@@ -153,7 +169,7 @@ GUIの解析プレビューも同じ順序を使います。自動値を0など�
 
 ### 相対ピッチ
 
-モデルの出力: 話者の絶対F0ではなく、発話内基準に対するcent値。
+モデルが出力するのは話者の絶対F0ではなく、発話内基準に対するcent値です。
 
 ```text
 cents = 1200 × log2(F0 / reference F0)
@@ -163,9 +179,11 @@ Rendererは各原音のF0を測ってこの相対曲線を音源側の声域へ�
 
 ## 7. Renderer
 
-Renderer manifestの`id`は保存データやUIで使う公開識別子です。catalogはこの公開IDを`engine.ResolvedEngine`へ解決し、`contract`、`provider`、provider version、typed resource、platform、capabilityを検証します。manifestは表示情報とruntime resourceを宣言します。native codeや新しいengine ABIの追加: Go実装。標準Rendererも`renderer/<id>/renderer.json`から読み込みます。`utau-external-resampler` providerは`Resamplers/`と`Wavtools/`の実行ファイルを組み合わせます。
+Renderer manifestの`id`は保存データやUIで使う公開識別子です。catalogはこの公開IDを`engine.ResolvedEngine`へ解決し、`contract`、`provider`、provider version、typed resource、platform、capabilityを検証します。manifestは表示情報とruntime resourceを宣言し、native codeや新しいengine ABIはGo側へ実装します。標準Rendererも`renderer/<id>/renderer.json`から読み込み、`manifest_version: 2`だけを実行時に読み込みます。`utau-external-resampler` providerは`Resamplers/`と`Wavtools/`の実行ファイルを組み合わせます。
 
-設定の境界もRenderer単位で分けます。`tts.Config`はテキスト、音源、モデル、Plan作成に必要な共通入力と解決済み`engine.ResolvedEngine`を持ちます。Classicの実行ファイルやWORLDの専用スイッチは`render.Config`の`render.ProviderOptions`へ分離し、Classicは`ClassicOptions`、WORLDは`WorldlineProviderOptions`へ固有設定を閉じ込めます。
+Renderer IDを省略した場合だけカタログの既定Rendererへ解決されます。未知のIDや必要なファイルが不足しているRendererを明示した場合はエラーになります。
+
+設定の境界もRenderer単位で分けます。`tts.Config`はテキスト、音源、モデル、Plan作成に必要な共通入力と解決済み`engine.ResolvedEngine`を持ちます。Classicの実行ファイルやWORLDの専用スイッチは`render.Config`の`render.ProviderOptions`へ分離し、Classicは`ClassicOptions`、WORLDは`WorldlineProviderOptions`へ固有設定を閉じ込めます。manifestの`settings`で宣言した項目は`synth`のspecテーブル経由でこれらへ振り分けます。
 
 ### waveform
 
@@ -203,7 +221,7 @@ resamplerとwavtoolは独立したプロセスです。終了コード、出力W
 
 ### Rendererを変更するときの境界
 
-Rendererは選択済みunitのaliasを維持します。候補選択の改善: `voicebank`。時間付きunit列の変更: `plan`。波形処理の変更: `render`。この境界により同じPlanを複数Rendererへ渡して比較できます。
+Rendererは選択済みunitのaliasを維持します。候補選択の改善は`voicebank`、時間付きunit列の変更は`plan`、波形処理の変更は`render`で行います。この境界により同じPlanを複数Rendererへ渡して比較できます。
 
 内蔵Providerと外部Providerは同じ`UnitRenderer`境界で扱います。内蔵側もcloneしたPlanへ処理を行い、外部側は`utautts-provider`のhandshakeと共通jobを通じて音声と診断を返します。DiffSingerはUTAUのUnit Planを入力にするRendererではなく、`neural-synthesizer` contractの`NeuralScore`経路を使います。
 
@@ -240,14 +258,14 @@ CLIとHTTP Serverも同じRendererカタログと`synth.Service`を使います�
 
 ### 波形補修と候補選択には上限がある
 
-波形補修の入力: 波形に残っている情報。候補選択の対象: 収録済みの音素文脈。補修やscoreの追加条件: 候補密度、原音の文脈、適用位置。
+波形補修は波形に残っている情報だけを入力にでき、候補選択は収録済みの音素文脈だけを対象にできます。補修やscoreの追加条件は、候補密度、原音の文脈、適用位置に依存します。
 
 ## 10. 変更時の方針
 
 ### 公開IDと既存経路を維持する
 
-既存Rendererの互換性: ID、意味、出力を維持します。新方式は別のRenderer IDまたは初期無効の明示オプションとして追加します。評価が不十分な段階でも、同じ入力で標準の出力を再現できる状態を保ちます。
+既存RendererのID、意味、出力は維持します。新方式は別のRenderer IDまたは初期無効の明示オプションとして追加します。評価が不十分な段階でも、同じ入力で標準の出力を再現できる状態を保ちます。
 
 ### fallbackの扱いを統一する
 
-新しい制御値には範囲制限を設けます。入力検証のエラー条件: NaN、非単調なtime anchor、過大なcrop、必要なファイルの不足。Renderer IDを省略した場合はカタログの既定Rendererへ解決し、未知の明示IDはエラーにします。低信頼度のunitや境界だけをfallbackする場合は、その位置と理由をPlanへ残します。
+新しい制御値には範囲制限を設けます。入力検証ではNaN、非単調なtime anchor、過大なcrop、必要なファイルの不足をエラーにします。Renderer IDを省略した場合はカタログの既定Rendererへ解決し、未知の明示IDはエラーにします。低信頼度のunitや境界だけをfallbackする場合は、その位置と理由をPlanへ残します。

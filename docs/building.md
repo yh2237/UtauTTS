@@ -32,7 +32,7 @@ go vet ./...
 
 ## リリース用ファイルとライセンス
 
-リリースビルドの条件と出典: [ライセンスの適用範囲](../LICENSE-SCOPE.md)、[第三者通知](../THIRD_PARTY_NOTICES.txt)、`THIRD_PARTY_NOTICES-*`、`../licenses/`、各コンポーネントの同梱文書。
+リリースビルドの条件と出典は、[ライセンスの適用範囲](../LICENSE-SCOPE.md)、[第三者通知](../THIRD_PARTY_NOTICES.txt)、`THIRD_PARTY_NOTICES-*`、`../licenses/`、各コンポーネントの同梱文書を参照してください。
 
 Go依存の収集対象は[go-license-modules.txt](../tools/go-license-modules.txt)で管理します。依存の追加・削除時は、この一覧と配布物の検査対象を更新します。辞書などのデータ通知は収集スクリプトで個別に指定します。
 
@@ -56,7 +56,7 @@ $env:UTAUTTS_MSVC_REDIST_DIR = 'C:\path\to\Microsoft.VC143.CRT'
 $env:UTAUTTS_UCRT_REDIST_DIR = 'C:\path\to\Windows Kits\10\Redist\ucrt\DLLs\x64'
 ```
 
-同梱DLLの取得元: 公式の再頒布用ディレクトリ。開発環境のPATHにあるDLL: 配布対象外。macOSの環境変数: 同じ名前を`export`で設定。値を特定できないQt GUIビルド: 失敗。
+同梱DLLは公式の再頒布用ディレクトリから取得し、開発環境のPATHにあるDLLは配布対象外です。macOSでは同じ名前の環境変数を`export`で設定します。値を特定できないQt GUIビルドは失敗させます。
 
 ## Linux x64
 
@@ -142,11 +142,11 @@ $env:UTAUTTS_WSL_DISTRO = 'Debian'
 .\build.bat linux
 ```
 
-Windows版とLinux版の連続ビルド: `.\build.bat both`。WSL側の`.env`: WSLから見えるLinuxパス。WSLのLinux版ビルドのGoキャッシュ: プロジェクト内の`build/go-mod-cache`。
+Windows版とLinux版は`.\build.bat both`で連続してビルドできます。WSL側の`.env`にはWSLから見えるLinuxパスを書きます。WSLのLinux版ビルドではGoキャッシュをプロジェクト内の`build/go-mod-cache`に置きます。
 
 ## 環境変数
 
-通常の設定: `.env`なし。雛形: [`.env.example`](../.env.example)。`.env`: 環境ごとの設定でGit管理対象外。
+通常は`.env`なしで動きます。雛形は[`.env.example`](../.env.example)を参照してください。`.env`は環境ごとの設定を書くファイルで、Git管理対象外です。
 
 LinuxでQtを標準外の場所に置く場合、または開発用Serverの音源を変更する場合だけ、次の設定を`.env`へ記述します。
 

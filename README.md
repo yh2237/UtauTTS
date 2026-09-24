@@ -28,7 +28,7 @@ chmod +x utautts tools/* runtime/utautts-openjtalk-features runtime/utautts-worl
 ./utautts
 ```
 
-macOS版はApple Silicon（arm64）向けです。署名・公証: 未実施。初回起動時: 隔離属性解除が必要になる場合があります。手順: [インストール](docs/installation.md)。
+macOS版はApple Silicon（arm64）向けです。署名・公証は行っていません。初回起動時に隔離属性の解除が必要になる場合があります。手順は[インストール](docs/installation.md)を参照してください。
 
 GUI版には「足立レイ UTAU音源 ver3.5.0」を同梱しています。利用条件は[同梱音源](docs/voicebank.md)と音源内の文書を確認してください。
 
@@ -86,7 +86,7 @@ voice/
 | 休止長 | 句読点などの休止時間 |
 | 文頭の長さ | 最初の原音に確保する先行発声。既定値は`自動` |
 
-文頭が欠ける音源では「文頭の長さ」を長くし、余計なノイズを拾う音源では短くしてください。新規作成したカードに使う既定値は「設定」→「設定...」から変更できます。初期状態では原音形式が自動、音高が`C4`、抑揚が2、モーラ長が120 ms、休止長が180 ms、抑揚モデルが`frame-intonation-v9-t`、Rendererが`utautts-world-phrase`です。
+文頭が欠ける音源では「文頭の長さ」を長くし、余計なノイズを拾う音源では短くしてください。新規作成したカードに使う既定値は「設定」→「設定...」から変更できます。初期状態では原音形式が自動、音高が`C4`、抑揚が2、モーラ長が140 ms、休止長が180 ms、抑揚モデルが`frame-intonation-v9-t`、Rendererが`utautts-world-phrase`です。
 
 英語のカードでは、抑揚モデルが日本語用のままでも同梱の`english-intonation-v1`へ自動で切り替わります。
 
@@ -171,7 +171,7 @@ Server版を起動すると`http://127.0.0.1:8080/`でコンソールUIを使え
 
 - [インストール](docs/installation.md)
 - [GUIの使い方](docs/gui.md)／[設定](docs/settings.md)
-- [日本語・英語・中国語の読み上げ](docs/multilingual.md)／[辞書設定](docs/dictionary.md)
+- [日本語・英語・中国語の読み上げ](docs/multilingual.md)／[辞書設定](docs/settings.md#辞書設定)
 - [イントネーションとモーラ長の編集](docs/manual-pitch.md)／[同梱音源](docs/voicebank.md)
 - [コマンドライン](docs/cli.md)／[UtauTTS Server](docs/server.md)
 - [音声合成の仕組み](docs/how-utautts-speaks.md)
