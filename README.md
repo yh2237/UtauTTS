@@ -77,10 +77,10 @@ voice/
 | --- | --- |
 | 音源 | 使用するボイスバンク |
 | 原音形式 | CV、VCV、CVVCの選び方。既定値は`自動` |
-| 抑揚モデル | 自動イントネーションやモーラ長の予測に使うモデル |
+| 抑揚モデル | 自動イントネーションの予測に使うモデル |
 | Renderer | 原音の長さと高さを変え、接続してWAVにする方式 |
 | 言語／phonemizer | 言語別の読み上げ方式。日本語は`ja-kana`、英語は`en-arpasing`／`en-delta`／`en-vccv`／`en-cv`、中国語は`zh-cvvc` |
-| 音高 | `prefix.map`から選ぶ音階 |
+| 音高 | `prefix.map`で使用する音階。自由入力で既定は`C4` |
 | 抑揚 | 自動イントネーションの強さ |
 | モーラ長 | 自動値がない場合に使う基本長 |
 | 休止長 | 句読点などの休止時間 |
@@ -120,7 +120,7 @@ exo出力後に表示される領域をAviUtlの拡張編集へドラッグす�
 | `classic-utau` | UTAU互換resamplerで原音を処理し、wavtoolまたは内蔵処理で接続 |
 | `diffsinger` | DiffSinger音源とbridgeを使う連携機能。対応条件は[DiffSinger](docs/diffsinger.md)を参照 |
 
-Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置きます。各フォルダは「ファイル」メニューから開けます。配置後は同じメニューの「Classic UTAUツールを再読み込み」を選びます。
+Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置きます。各フォルダは「ファイル」メニューから開けます。配置後は同じメニューの「Classic UTAUを再読み込み」を選びます。
 
 追加のRendererやモデル、Classic UTAUツールを登録する場合は、[モデル／Rendererプラグイン](docs/plugins.md)を参照してください。
 

@@ -9,7 +9,7 @@
 
 ## resamplerやwavtoolが一覧に表示されない
 
-実行ファイルを`Resamplers/`または`Wavtools/`へ置き、「ファイル」→「Classic UTAUツールを再読み込み」を実行します。DLLは実行ファイルと同じサブフォルダへ置けます。
+実行ファイルを`Resamplers/`または`Wavtools/`へ置き、「ファイル」→「Classic UTAUを再読み込み」を実行します。DLLは実行ファイルと同じサブフォルダへ置けます。
 
 ## `utautts-openjtalk-features not found` と表示される
 

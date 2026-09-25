@@ -146,7 +146,7 @@ Planは、候補選択、時間設計、Rendererの差を切り分けるため�
 | `frame-intonation-tcn-v9-k` | version 8 / feature 1 | 10ms単位の相対ピッチ |
 | `english-intonation-v1` | version 12 / feature 1 | 英語の強勢と句末境界の10ms単位ピッチおよび長さ倍率 |
 
-frame headはモーラとOpen JTalk由来特徴をフレームへ展開してdilationを持つ小型TCNで相対pitchを予測します。`frame-intonation-tcn-v9-*`は440〜455特徴、10ms間隔、学習出力範囲±250 centです。推論後はモデル内のrender strength、平滑化、percentile／最大値制約を適用し、学習音声に由来する細かなF0揺れをこの処理で調整します。
+frame headはモーラとOpen JTalk由来特徴をフレームへ展開してdilationを持つ小型TCNで相対pitchを予測します。`frame-intonation-tcn-v9-*`は440〜457特徴、10ms間隔、学習出力範囲±250 centです。推論後はモデル内のrender strength、平滑化、percentile／最大値制約を適用し、学習音声に由来する細かなF0揺れをこの処理で調整します。
 
 multitaskモデル（version 10 / feature 2 / mode `prosody_multitask_tcn`）は、frame headに加えてモーラ長倍率を出す`mora_duration` headを持ちます。絶対msではなく基準モーラ長に対する倍率なのでGUIの話速設定や音源差と共存できます。標準配布にはversion 10モデルを含みません。
 

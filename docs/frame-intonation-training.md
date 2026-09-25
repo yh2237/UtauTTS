@@ -32,7 +32,9 @@ python tools/train-frame-intonation-tcn.py --dataset out/frame.jsonl `
 
 コーパスに音素時刻がない場合は`--alignment viterbi`を使います。これはOpen JTalkのアクセント注釈を弱い音響モデルとして、有声フレームがそのモーラの高低に近づくよう、モーラ長の上下限付きViterbiで境界を推定します。単純なDTWと違い、各モーラが妥当な長さに収まるため退化した経路になりません。
 
-`--world-engine`を付けるとWORLD HarvestでF0を推定し、省略すると高速な内蔵自己相関F0を使います。`--require-reading-match`は公式読みとモーラ数が一致しない誤読を除外します。`--allow-reading-mismatch`は促音・長音の表記差で読みが異なるクリップも残します。`--alignment energy`は均等配置の境界を近傍のエネルギー谷へ寄せるだけで、効果は限定的です。`--f0-source world`はWORLD HarvestでF0教師を作り、`--f0-cache`は抽出したF0を記録して再実行を高速化します。
+`prepare-kokoro-frame-data.py`では、`--world-engine`を付けるとWORLD HarvestでF0を推定し、省略すると高速な内蔵自己相関F0を使います。既定ではOpen JTalkの読みと一致するクリップだけを採用し、促音・長音の表記差で読みが異なるクリップも残す場合は`--allow-reading-mismatch`を指定します。`--alignment uniform`は均等配置、`--alignment viterbi`はアクセント注釈を使った整列です。
+
+学習（`train-frame-intonation-tcn.py`）では、`--f0-source world`がWORLD HarvestでF0教師を作り、`--f0-cache`が抽出したF0を記録して再実行を高速化します。
 
 ## Intonation Labで教師データを作る
 

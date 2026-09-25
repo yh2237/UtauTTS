@@ -67,7 +67,7 @@ xattr -rc "utautts-server" runtime
 
 `--auth-token`を設定すると`/api/*`の全エンドポイントで`Authorization: Bearer <token>`ヘッダーが必要になります。無い場合は401です。コンソールUI（`/`と`/ui`）自体は公開されます。
 
-GET以外のリクエストに`Origin`ヘッダーがあり待受ホストのorigin（`http://<host>` / `https://<host>`）と一致しない場合は403で拒否します。
+GET以外のリクエストの`Origin`検査は`--auth-token`を設定した場合に有効になります。`Origin`ヘッダーがあり待受ホストのorigin（`http://<host>` / `https://<host>`）と一致しないときは403で拒否します。
 
 ## 各エンドポイント
 
@@ -230,7 +230,7 @@ ID順にソートされた音源一覧です。
 | `resampler` | string | 自動選択 | Classic UTAUで使うresamplerの相対ID |
 | `wavtool` | string | `builtin` | Classic UTAUで使うwavtoolの相対ID |
 | `resampler_expressions` | object[] | なし | unit単位のresampler設定。形式は[Classic UTAU互換仕様](plugins.md#classic-utau互換仕様)を参照 |
-| `alias_policy` | string | `auto` | `auto`（VC/VCV収録比から自動選択）、`cvvc-enhanced`（CVVC優先・sequential timing・VC音量35%）、`vcv-prefer`、`cvvc-prefer`、`cv-only` |
+| `alias_policy` | string | `auto` | `auto`（VC/VCV収録比から自動選択）、`cvvc-enhanced`（CVVC優先・sequential timing・VC音量35%、英語では55%）、`vcv-prefer`、`cvvc-prefer`、`cv-only` |
 | `mora_duration_ms` | number | `140` | 基本モーラ長（0〜1000） |
 | `pause_duration_ms` | number | `180` | 句読点の休止長（0〜3000） |
 | `leading_preutterance_ms` | number | `0`（自動） | 文頭に確保する先行発声（0〜1000）。0では先頭原音の`oto.ini`から決定 |

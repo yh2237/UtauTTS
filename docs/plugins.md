@@ -25,13 +25,13 @@ Renderer、Classic UTAUツール、抑揚モデルを追加または配布する
 }
 ```
 
-`resources`の`path`はRendererディレクトリ基準です。OSごとに異なる場合は`platform_resources`の`windows-amd64`／`linux-amd64`へ同じresource keyを記述できます。`required`と`executable`は宣言情報で、実行時の必須resourceと機能はProviderレジストリとの整合性も検証されます。
+`resources`の`path`はRendererディレクトリ基準です。OSごとに異なる場合は`platform_resources`の`windows-amd64`／`linux-amd64`／`darwin-arm64`などへ同じresource keyを記述できます。`required`と`executable`は宣言情報で、実行時の必須resourceと機能はProviderレジストリとの整合性も検証されます。
 
 `default_priority`が大きいRendererが既定値です。未知のproviderや壊れたmanifestは`problems`へ表示し、その定義だけを無効にします。未知のIDはエラーとして扱います。
 
 配布側が更新・削除を管理する同梱定義には`update_managed: true`を付けます。ユーザーが追加する定義では省略してください。
 
-共有runtimeはパッケージ直下の`runtime/`に置き、manifestからはRendererディレクトリを基準とする相対パスで参照します。WindowsとLinuxで名前が異なる場合は、`platform_resources`に`windows-amd64`／`linux-amd64`を記述します。
+共有runtimeはパッケージ直下の`runtime/`に置き、manifestからはRendererディレクトリを基準とする相対パスで参照します。OSごとに名前が異なる場合は、`platform_resources`に`windows-amd64`／`darwin-arm64`などを記述します。
 
 対応する内蔵Providerアダプターは`waveform`、`utautts-world-phrase`、`utau-external-resampler`、`diffsinger`です。標準定義の追加やユーザー定義によって、既存アダプターを別の公開IDで選べます。新規エンジンABIの動的ロードには対応していません。
 
@@ -42,8 +42,9 @@ Renderer、Classic UTAUツール、抑揚モデルを追加または配布する
 | Windows Full | `utautts-world-phrase`、`waveform`、`classic-utau`、`diffsinger` |
 | Windows Japanese | `utautts-world-phrase`、`waveform`、`classic-utau` |
 | Linux x64 | `utautts-world-phrase`、`waveform`、`classic-utau` |
+| macOS arm64 | `utautts-world-phrase`、`waveform`、`classic-utau` |
 
-WindowsのFullプロファイルだけがDiffSingerのruntimeを含みます。LinuxのDiffSinger manifestは対応OS外なのでカタログから除外されます。
+WindowsのFullプロファイルだけがDiffSingerのruntimeを含みます。LinuxとmacOSのDiffSinger manifestは対応OS外なのでカタログから除外されます。
 
 Rendererの追加・更新はZIPインストールでは行いません。`renderer/<id>/renderer.json`を探索先へ配置してからGUIを再起動（またはCLI／Serverを再起動）してください。既存IDを明示ディレクトリに置くと同梱定義を上書きできます。
 
@@ -72,7 +73,7 @@ manifestの`settings`には、そのRendererが受け付ける設定項目を宣
 | `frame_pitch` | 10 ms単位のフレームピッチ曲線を受け付ける |
 | `boundary_bridge` | 境界補修（boundary bridge）に対応する |
 | `internal_timing` | 内部でタイミングを調整する（日本語のリズム補正を常時適用する） |
-| `speech_prosody_experiment` | 発話タイミング補正の実験機能に対応する |
+| `speech_prosody_experiment` | 多言語のスピーチ韻律実験（timing/pitch）に対応する |
 
 ## Classic UTAUツール
 
@@ -88,7 +89,7 @@ Wavtools/
   wavtool.exe
 ```
 
-GUIではbackend／providerが`utau-external-resampler`のRendererを選択した場合だけ、ResamplerとWavtoolの欄を表示します。したがって`classic-utau`以外の公開IDでもClassic UTAUを利用できます。外部wavtoolを使わない場合は`builtin`を選びます。配置後は「Classic UTAUツールを再読み込み」を選びます。
+GUIではbackend／providerが`utau-external-resampler`のRendererを選択した場合だけ、ResamplerとWavtoolの欄を表示します。したがって`classic-utau`以外の公開IDでもClassic UTAUを利用できます。外部wavtoolを使わない場合は`builtin`を選びます。配置後は「Classic UTAUを再読み込み」を選びます。
 
 UTAU互換のresampler呼び出しは、入力WAV、出力WAV、音高、velocity、flags、offset、必要長、consonant、cutoff、volume、modulation、tempo、12bit Base64ピッチ列の13引数です。ノート単位の設定はAPIの`resampler_expressions`またはCLIの`--resampler-expressions`で指定できます。
 
