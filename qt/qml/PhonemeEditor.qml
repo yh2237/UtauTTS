@@ -1331,8 +1331,8 @@ Item {
                                    index === root.selectedUnitIndex ? 0.45
                                    : index === root.hoveredUnit ? 0.32 : 0.2)
                     border.color: index === root.selectedUnitIndex || index === root.hoveredUnit
-                                  ? root.accentColor : root.axisColor
-                    border.width: index === root.selectedUnitIndex || index === root.hoveredUnit ? 2 : 1
+                                  ? root.accentColor : "transparent"
+                    border.width: index === root.selectedUnitIndex || index === root.hoveredUnit ? 2 : 0
                     z: index === root.selectedUnitIndex ? 2 : 1
 
                     Text {
