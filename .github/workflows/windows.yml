@@ -27,6 +27,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   package:
     if: github.event.action != 'labeled' || github.event.label.name == 'release-candidate'
@@ -52,7 +56,15 @@ jobs:
           cache: pip
           cache-dependency-path: tools/requirements-build.txt
 
+      - name: Cache Qt
+        id: qt-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/qt
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-aqt3.3.0
+
       - name: Install Qt and MinGW
+        if: steps.qt-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -69,6 +81,11 @@ jobs:
           python -m aqt install-tool --outputdir $qtRoot windows desktop tools_cmake
           python -m aqt install-tool --outputdir $qtRoot windows desktop tools_ninja
 
+      - name: Configure Qt environment
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $qtRoot = Join-Path $env:RUNNER_TEMP 'qt'
           $qtKit = Join-Path $qtRoot "$env:QT_VERSION\mingw_64"
           $qtTools = Join-Path $qtRoot 'Tools'
           $qtMinGW = Join-Path $qtTools 'mingw1310_64'

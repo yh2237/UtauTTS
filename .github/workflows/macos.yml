@@ -69,6 +69,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   package:
     runs-on: macos-15
@@ -99,7 +103,15 @@ jobs:
       - name: Verify runner architecture
         run: test "$(uname -m)" = arm64
 
+      - name: Cache Qt
+        id: qt-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/qt
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-aqt3.3.0
+
       - name: Install Qt
+        if: steps.qt-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           python -m pip install --disable-pip-version-check 'aqtinstall==3.3.0'
@@ -107,6 +119,10 @@ jobs:
             --outputdir "$RUNNER_TEMP/qt" \
             mac desktop "$QT_VERSION" clang_64 \
             --modules qtmultimedia
+
+      - name: Configure Qt environment
+        shell: bash
+        run: |
           echo "QT_ROOT=$RUNNER_TEMP/qt/$QT_VERSION/macos" >> "$GITHUB_ENV"
           echo "$RUNNER_TEMP/qt/$QT_VERSION/macos/bin" >> "$GITHUB_PATH"
 

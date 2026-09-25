@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   package:
     runs-on: ubuntu-latest
@@ -46,7 +50,15 @@ jobs:
             qml6-module-qtquick-controls qml6-module-qtmultimedia \
             fontconfig fonts-noto-cjk
 
+      - name: Cache Qt
+        id: qt-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/qt
+          key: qt-${{ runner.os }}-${{ env.QT_VERSION }}-aqt3.3.0
+
       - name: Install Qt SDK
+        if: steps.qt-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           python -m pip install --disable-pip-version-check 'aqtinstall==3.3.0'
@@ -54,6 +66,10 @@ jobs:
             --outputdir "$RUNNER_TEMP/qt" \
             linux desktop "$QT_VERSION" linux_gcc_64 \
             --modules qtmultimedia
+
+      - name: Configure Qt environment
+        shell: bash
+        run: |
           qt_config="$(find "$RUNNER_TEMP/qt/$QT_VERSION" -type f -name Qt6Config.cmake -print -quit)"
           if [ -z "$qt_config" ]; then
             echo 'Qt6Config.cmake was not found after the Qt SDK installation.' >&2
