@@ -198,44 +198,75 @@ $inputPath = Join-Path $root '.tmp-openjtalk-bridge-input'
 $workPath = Join-Path $root '.tmp-openjtalk-bridge-build'
 $specPath = Join-Path $root '.tmp-openjtalk-bridge-spec'
 $distPath = Join-Path $root 'tools/openjtalk-feature-bridge/bin'
-foreach ($path in @($inputPath, $workPath, $specPath, $distPath)) {
-    if (-not $path.StartsWith($root + [IO.Path]::DirectorySeparatorChar)) {
-        throw "Unsafe bridge output path: $path"
-    }
-    if (Test-Path -LiteralPath $path) {
-        Remove-Item -Recurse -Force -LiteralPath $path
-    }
-    New-Item -ItemType Directory -Force -Path $path | Out-Null
-}
-Copy-Item -LiteralPath $extension[0].FullName -Destination (Join-Path $inputPath 'openjtalk.pyd')
-$runtimeBinaryArguments = @()
-foreach ($runtimeFile in Get-ChildItem -LiteralPath $microsoftRuntimeStage -File |
-    Where-Object { $_.Name -match '^msvcp140(?:_\d+)?\.dll$|^vcruntime140(?:_\d+)?\.dll$|^ucrtbase\.dll$|^api-ms-win-(?:core|crt)-[a-z0-9-]+\.dll$' }) {
-    $runtimeBinaryArguments += @('--add-binary', "$($runtimeFile.FullName);.")
-}
-$previousPythonPath = $env:PYTHONPATH
-$previousPath = $env:Path
-try {
-    $env:PYTHONPATH = $pyInstallerRoot
-    $env:Path = $microsoftRuntimeStage + [IO.Path]::PathSeparator + $previousPath
-    & $pythonCommand -m PyInstaller --noconfirm --clean --onefile `
-        --name utautts-openjtalk-features `
-        --exclude-module _hashlib `
-        --paths $inputPath `
-        --hidden-import openjtalk `
-        @runtimeBinaryArguments `
-        --distpath $distPath `
-        --workpath $workPath `
-        --specpath $specPath `
-        (Join-Path $root 'tools/openjtalk-feature-bridge.py')
-    if ($LASTEXITCODE -ne 0) {
-        throw "PyInstaller failed with exit code $LASTEXITCODE"
-    }
-} finally {
-    $env:PYTHONPATH = $previousPythonPath
-    $env:Path = $previousPath
-}
 $helperPath = Join-Path $distPath 'utautts-openjtalk-features.exe'
+$stampPath = Join-Path $distPath '.utautts-openjtalk-stamp'
+
+# PyInstaller is slow, so rebuild only when its inputs are unchanged.
+$stampParts = @()
+foreach ($source in @(
+        (Join-Path $root 'tools/openjtalk-feature-bridge.py'),
+        (Join-Path $root 'tools/openjtalk_features.py'),
+        (Join-Path $root 'tools/openjtalk_feature_common.py'))) {
+    if (Test-Path -LiteralPath $source -PathType Leaf) {
+        $stampParts += "source:${source}:$(Get-FileHash -Algorithm SHA256 -LiteralPath $source | Select-Object -ExpandProperty Hash)"
+    }
+}
+$stampParts += "extension:$(Get-FileHash -Algorithm SHA256 -LiteralPath $extension[0].FullName | Select-Object -ExpandProperty Hash)"
+foreach ($runtimeFile in Get-ChildItem -LiteralPath $microsoftRuntimeStage -File) {
+    $stampParts += "runtime:$($runtimeFile.Name):$(Get-FileHash -Algorithm SHA256 -LiteralPath $runtimeFile.FullName | Select-Object -ExpandProperty Hash)"
+}
+$stampParts += "python:$(& $pythonCommand -c 'import sys; print(sys.version.split()[0])')"
+$stampParts += 'pyinstaller:6.16.0'
+$stampText = $stampParts -join "`n"
+$stampHasher = [System.Security.Cryptography.SHA256]::Create()
+$bridgeStamp = [System.BitConverter]::ToString(
+        $stampHasher.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($stampText))).Replace('-', '').ToLowerInvariant()
+
+$helperUpToDate = (Test-Path -LiteralPath $helperPath -PathType Leaf) -and
+        (Test-Path -LiteralPath $stampPath -PathType Leaf) -and
+        ((Get-Content -LiteralPath $stampPath -Raw).Trim() -eq $bridgeStamp)
+if ($helperUpToDate) {
+    Write-Host 'Open JTalk frontend helper is up to date.'
+} else {
+    foreach ($path in @($inputPath, $workPath, $specPath, $distPath)) {
+        if (-not $path.StartsWith($root + [IO.Path]::DirectorySeparatorChar)) {
+            throw "Unsafe bridge output path: $path"
+        }
+        if (Test-Path -LiteralPath $path) {
+            Remove-Item -Recurse -Force -LiteralPath $path
+        }
+        New-Item -ItemType Directory -Force -Path $path | Out-Null
+    }
+    Copy-Item -LiteralPath $extension[0].FullName -Destination (Join-Path $inputPath 'openjtalk.pyd')
+    $runtimeBinaryArguments = @()
+    foreach ($runtimeFile in Get-ChildItem -LiteralPath $microsoftRuntimeStage -File |
+        Where-Object { $_.Name -match '^msvcp140(?:_\d+)?\.dll$|^vcruntime140(?:_\d+)?\.dll$|^ucrtbase\.dll$|^api-ms-win-(?:core|crt)-[a-z0-9-]+\.dll$' }) {
+        $runtimeBinaryArguments += @('--add-binary', "$($runtimeFile.FullName);.")
+    }
+    $previousPythonPath = $env:PYTHONPATH
+    $previousPath = $env:Path
+    try {
+        $env:PYTHONPATH = $pyInstallerRoot
+        $env:Path = $microsoftRuntimeStage + [IO.Path]::PathSeparator + $previousPath
+        & $pythonCommand -m PyInstaller --noconfirm --clean --onefile `
+            --name utautts-openjtalk-features `
+            --exclude-module _hashlib `
+            --paths $inputPath `
+            --hidden-import openjtalk `
+            @runtimeBinaryArguments `
+            --distpath $distPath `
+            --workpath $workPath `
+            --specpath $specPath `
+            (Join-Path $root 'tools/openjtalk-feature-bridge.py')
+        if ($LASTEXITCODE -ne 0) {
+            throw "PyInstaller failed with exit code $LASTEXITCODE"
+        }
+    } finally {
+        $env:PYTHONPATH = $previousPythonPath
+        $env:Path = $previousPath
+    }
+    Set-Content -LiteralPath $stampPath -Value $bridgeStamp -Encoding Ascii
+}
 $verificationCorpus = Join-Path $root 'out/prosody/openjtalk-accent-features-v1.json'
 & $pythonCommand (Join-Path $root 'tools/verify-openjtalk-feature-bridge.py') `
     --helper $helperPath --dictionary $dictionaryPath --corpus $verificationCorpus

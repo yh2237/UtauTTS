@@ -22,14 +22,40 @@ function Copy-RequiredLicense([string]$Source, [string]$Destination) {
     Copy-Item -LiteralPath $Source -Destination $Destination -Force
 }
 
-dotnet publish $project -c Release -r win-x64 --self-contained true `
-    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:PublishTrimmed=false -o $publish
-if ($LASTEXITCODE -ne 0) {
-    throw "DiffSinger bridge build failed with exit code $LASTEXITCODE"
+$outputExe = Join-Path $OutputDirectory 'utautts-diffsinger-bridge.exe'
+$stampPath = Join-Path $OutputDirectory '.utautts-diffsinger-stamp'
+$sourceRoot = Join-Path $PSScriptRoot 'diffsinger-bridge'
+$sourceFiles = @(Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' } | Sort-Object FullName)
+$stampParts = @()
+foreach ($sourceFile in $sourceFiles) {
+    $relativeName = $sourceFile.FullName.Substring($sourceRoot.Length)
+    $sourceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $sourceFile.FullName).Hash
+    $stampParts += ('source:{0}:{1}' -f $relativeName, $sourceHash)
 }
+$stampParts += 'packages:onnxruntime.DirectML=1.23.0,DirectML=1.15.4,System.Memory=4.5.5,System.Numerics.Tensors=9.0.0'
+$stampParts += 'configuration:Release,win-x64,self-contained,singlefile'
+$stampText = $stampParts -join "`n"
+$stampHasher = [System.Security.Cryptography.SHA256]::Create()
+$bridgeStamp = [System.BitConverter]::ToString(
+        $stampHasher.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($stampText))).Replace('-', '').ToLowerInvariant()
+$bridgeUpToDate = (Test-Path -LiteralPath $outputExe -PathType Leaf) -and
+        (Test-Path -LiteralPath $stampPath -PathType Leaf) -and
+        ((Get-Content -LiteralPath $stampPath -Raw).Trim() -eq $bridgeStamp)
 
-Copy-Item -LiteralPath (Join-Path $publish 'utautts-diffsinger-bridge.exe') -Destination $OutputDirectory -Force
+# dotnet publish is slow, so rebuild only when the sources changed.
+if ($bridgeUpToDate) {
+    Write-Host 'DiffSinger bridge is up to date.'
+} else {
+    dotnet publish $project -c Release -r win-x64 --self-contained true `
+        -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+        -p:PublishTrimmed=false -o $publish
+    if ($LASTEXITCODE -ne 0) {
+        throw "DiffSinger bridge build failed with exit code $LASTEXITCODE"
+    }
+    Copy-Item -LiteralPath (Join-Path $publish 'utautts-diffsinger-bridge.exe') -Destination $OutputDirectory -Force
+    Set-Content -LiteralPath $stampPath -Value $bridgeStamp -Encoding Ascii
+}
 $licenses = Join-Path $OutputDirectory 'licenses'
 New-Item -ItemType Directory -Force -Path $licenses | Out-Null
 foreach ($staleLicense in @(

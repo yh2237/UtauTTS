@@ -7,10 +7,18 @@ param(
     [string]$PreviousVersion = $env:UTAUTTS_PREVIOUS_VERSION,
     [int]$PreviousUpdateSchema = 0,
     [int]$PreviousInstallLayout = 0,
-    [int]$PreviousMigrationSchema = 0
+    [int]$PreviousMigrationSchema = 0,
+    [switch]$SkipTests
 )
 
 $ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+$stepStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+function Write-Step([string]$Name) {
+    Write-Host ("=== {0} === (+{1:N1}s)" -f $Name, $stepStopwatch.Elapsed.TotalSeconds)
+    $stepStopwatch.Restart()
+}
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $pythonCommand = $Python
 if ([string]::IsNullOrWhiteSpace($pythonCommand)) { $pythonCommand = 'python' }
@@ -59,6 +67,17 @@ function Reset-Directory([string]$Path) {
     New-Item -ItemType Directory -Force -Path $Path | Out-Null
 }
 
+function Compress-Package([string]$SourceDirectory, [string]$DestinationZip) {
+    if (Test-Path -LiteralPath $DestinationZip) {
+        Remove-Item -Force -LiteralPath $DestinationZip
+    }
+    # ZipFile.CreateFromDirectory is markedly faster than Compress-Archive for
+    # the large GUI tree and produces the same archive layout.
+    [System.IO.Compression.ZipFile]::CreateFromDirectory(
+        $SourceDirectory, $DestinationZip,
+        [System.IO.Compression.CompressionLevel]::Optimal, $false)
+}
+
 function Expand-BundledVoicebank([string]$Destination) {
     $archives = @(Get-ChildItem -LiteralPath $bundledVoicebankDirectory -Filter '*.zip' -File)
     if ($archives.Count -ne 1) {
@@ -100,25 +119,29 @@ foreach ($zip in @($guiZip, $serverZip)) {
 $env:GOCACHE = Join-Path $root 'build\go-cache'
 Push-Location $root
 try {
-    Write-Host '=== Test ==='
-    Invoke-Checked 'go' @('test', './...')
+    if ($SkipTests) {
+        Write-Step 'Test (skipped)'
+    } else {
+        Write-Step 'Test'
+        Invoke-Checked 'go' @('test', './...')
+    }
 
-    Write-Host '=== Build GUI package ==='
+    Write-Step 'Build GUI package'
     & (Join-Path $PSScriptRoot 'build-qt.ps1') -OutputDirectory $guiPath
     if ($LASTEXITCODE -ne 0) { throw "Qt GUI build failed with exit code $LASTEXITCODE" }
     Invoke-Checked 'go' @('build', '-trimpath', '-ldflags', '-s -w', '-o', (Join-Path $guiToolsPath 'utautts-cli.exe'), './cmd/utautts-cli')
     Invoke-Checked 'go' @('build', '-trimpath', '-ldflags', '-s -w', '-o', (Join-Path $guiToolsPath 'utautts-ustx.exe'), './cmd/tools/utautts-ustx')
 
-    Write-Host '=== Build server package ==='
+    Write-Step 'Build server package'
     Invoke-Checked 'go' @('build', '-trimpath', '-ldflags', '-s -w', '-o', (Join-Path $serverPath 'utautts-server.exe'), './cmd/utautts-server')
 
-    Write-Host '=== Build Open JTalk frontend helper ==='
+    Write-Step 'Build Open JTalk frontend helper'
     & (Join-Path $PSScriptRoot 'build-openjtalk-feature-bridge.ps1') -Python $pythonCommand
     if ($LASTEXITCODE -ne 0) {
         throw "Open JTalk frontend helper build failed with exit code $LASTEXITCODE"
     }
 
-    Write-Host '=== Build native worldline bridge ==='
+    Write-Step 'Build native worldline bridge'
     Invoke-Checked 'go' @(
         'build', '-trimpath', '-o', (Join-Path $guiRuntimePath 'utautts-worldline-bridge.exe'),
         './cmd/utautts-worldline-bridge'
@@ -126,7 +149,7 @@ try {
     & (Join-Path $PSScriptRoot 'build-world-engine.ps1') -OutputDirectory $guiRuntimePath
     if ($LASTEXITCODE -ne 0) { throw "UtauTTS WORLD engine build failed with exit code $LASTEXITCODE" }
     if ($Profile -eq 'Full') {
-        Write-Host '=== Build DiffSinger bridge ==='
+        Write-Step 'Build DiffSinger bridge'
         & (Join-Path $PSScriptRoot 'build-diffsinger-bridge.ps1') -OutputDirectory $guiRuntimePath
         if ($LASTEXITCODE -ne 0) { throw "DiffSinger bridge build failed with exit code $LASTEXITCODE" }
     }
@@ -239,7 +262,7 @@ try {
     Copy-Item -LiteralPath 'docs/manual-pitch.md' -Destination $serverPath
     Copy-Item -LiteralPath 'LICENSE', 'LICENSE-SCOPE.md', 'THIRD_PARTY_NOTICES.txt' -Destination $serverPath
 
-    Write-Host '=== Collect exact third-party licenses ==='
+    Write-Step 'Collect exact third-party licenses'
     $qtAuditRoot = Join-Path $root 'build/license-audit/Qt/windows'
     & (Join-Path $PSScriptRoot 'collect-third-party-licenses.ps1') -PackageRoot $guiPath -Variant windows-gui -AuditDirectory $qtAuditRoot
     if ($LASTEXITCODE -ne 0) { throw 'GUI third-party license collection failed' }
@@ -264,9 +287,9 @@ try {
         Remove-Item -LiteralPath $qmlToolingPath -Recurse -Force
     }
 
-    Write-Host '=== Package ==='
-    Compress-Archive -Path (Join-Path $guiPath '*') -DestinationPath $guiZip -CompressionLevel Optimal
-    Compress-Archive -Path (Join-Path $serverPath '*') -DestinationPath $serverZip -CompressionLevel Optimal
+    Write-Step 'Package'
+    Compress-Package $guiPath $guiZip
+    Compress-Package $serverPath $serverZip
 
     & (Join-Path $PSScriptRoot 'test-release-package.ps1') -ReleaseRoot $releaseRoot -Profile $Profile
     if ($LASTEXITCODE -ne 0) { throw "Release package smoke test failed with exit code $LASTEXITCODE" }
