@@ -704,15 +704,17 @@ import QtMultimedia
                                 to: 300
                                 stepSize: 5
                                 editable: true
-                                property string automaticText: ""
+                                property string automaticText: window.translator.tr("main.aliasPolicy.auto")
                                 value: Math.round(leadingPreutteranceSlider.value)
                                 textFromValue: value => value === 0
                                         ? leadingPreutteranceInput.automaticText : value + " ms"
-                                function refreshText() {
-                                    automaticText = window.translator.tr("main.aliasPolicy.auto");
-                                    Qt.callLater(() => contentItem.text = textFromValue(value, locale));
+                                Binding {
+                                    target: leadingPreutteranceInput.contentItem
+                                    property: "text"
+                                    value: leadingPreutteranceInput.textFromValue(
+                                               leadingPreutteranceInput.value,
+                                               leadingPreutteranceInput.locale)
                                 }
-                                Component.onCompleted: refreshText()
                                 valueFromText: text => {
                                     const parsed = parseInt(text);
                                     return isNaN(parsed) ? 0 : parsed;
@@ -720,12 +722,6 @@ import QtMultimedia
                                 onValueModified: {
                                     leadingPreutteranceSlider.value = value;
                                     window.updateSetting("leadingPreutterance", value);
-                                }
-                                Connections {
-                                    target: window.translator
-                                    function onTranslationsChanged() {
-                                        leadingPreutteranceInput.refreshText();
-                                    }
                                 }
                             }
                         }

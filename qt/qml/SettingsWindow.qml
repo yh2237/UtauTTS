@@ -1074,25 +1074,21 @@ ApplicationWindow {
                                 to: 256
                                 value: root.pendingPreviewCacheFileCount
                                 editable: true
-                                property string unitText: ""
+                                property string unitText: root.translator.tr("settings.previewCacheFileCount.unit")
                                 textFromValue: value => value + " " + previewCacheSpin.unitText
-                                function refreshText() {
-                                    unitText = root.translator.tr("settings.previewCacheFileCount.unit");
-                                    Qt.callLater(() => contentItem.text = textFromValue(value, locale));
+                                Binding {
+                                    target: previewCacheSpin.contentItem
+                                    property: "text"
+                                    value: previewCacheSpin.textFromValue(
+                                               previewCacheSpin.value,
+                                               previewCacheSpin.locale)
                                 }
-                                Component.onCompleted: refreshText()
                                 valueFromText: text => parseInt(text)
                                 onValueModified: root.pendingPreviewCacheFileCount = value
                                 TapHandler {
                                     acceptedButtons: Qt.LeftButton
                                     grabPermissions: PointerHandler.CanTakeOverFromAnything
                                     onDoubleTapped: root.pendingPreviewCacheFileCount = 32
-                                }
-                                Connections {
-                                    target: root.translator
-                                    function onTranslationsChanged() {
-                                        previewCacheSpin.refreshText();
-                                    }
                                 }
                             }
                             SettingsResetButton {
