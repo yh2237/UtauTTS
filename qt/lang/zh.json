@@ -190,6 +190,8 @@
     "settings.theme": "主题",
     "settings.theme.dark": "深色",
     "settings.theme.light": "浅色",
+    "onboarding.title": "欢迎使用 UtauTTS",
+    "onboarding.start": "开始使用",
     "settings.title": "设置",
     "settings.updateCheckEnabled": "检查更新并通知",
     "settings.preReleaseUpdateCheckEnabled": "同时检查预发布版",

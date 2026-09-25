@@ -43,6 +43,8 @@ ApplicationWindow {
     readonly property var appBackend: injectedBackend
     readonly property bool darkMode: appBackend.darkMode
     readonly property bool intonationLab: injectedIntonationLab
+    readonly property bool showOnboarding: !window.injectedSelfTest && !window.intonationLab
+                                             && !window.appBackend.onboardingCompleted
     readonly property var licenseDocuments: injectedLegalDocuments
     readonly property real defaultIntonationStrength: appBackend.defaultIntonationStrength
     readonly property real maxIntonationStrength: 4.0
@@ -398,6 +400,15 @@ ApplicationWindow {
         hostPalette: window.palette
         backend: window.appBackend
         translator: window.translator
+    }
+
+    OnboardingWindow {
+        id: onboardingWindow
+        hostWindow: window
+        hostPalette: window.palette
+        backend: window.appBackend
+        translator: window.translator
+        visible: window.showOnboarding
     }
 
     Timer {

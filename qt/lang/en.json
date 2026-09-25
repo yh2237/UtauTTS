@@ -190,6 +190,8 @@
     "settings.theme": "Theme",
     "settings.theme.dark": "Dark",
     "settings.theme.light": "Light",
+    "onboarding.title": "Welcome to UtauTTS",
+    "onboarding.start": "Get started",
     "settings.title": "Settings",
     "settings.updateCheckEnabled": "Check for Updates",
     "settings.preReleaseUpdateCheckEnabled": "Also check pre-releases",

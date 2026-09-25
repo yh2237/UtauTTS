@@ -368,6 +368,7 @@ QStringList updateLockPaths(const QString &target) {
 Backend::Backend(QObject *parent)
     : QObject(parent),
       m_darkMode(portableSettingValue("appearance/darkMode", false).toBool()),
+      m_onboardingCompleted(portableSettingValue("appearance/onboardingCompleted", false).toBool()),
       m_language(portableSettingValue("appearance/language", QStringLiteral("auto")).toString()),
       m_closeLogOnSuccess(portableSettingValue("logging/closeOnSuccess", true).toBool()),
       m_updateCheckEnabled(portableSettingValue("appearance/updateCheckEnabled", true).toBool()),
@@ -610,6 +611,17 @@ void Backend::setLanguage(const QString &value) {
     settings.setValue("appearance/language", normalized);
     settings.sync();
     emit languageChanged();
+}
+
+void Backend::setOnboardingCompleted(bool value) {
+    if (m_onboardingCompleted == value) {
+        return;
+    }
+    m_onboardingCompleted = value;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    settings.setValue("appearance/onboardingCompleted", value);
+    settings.sync();
+    emit onboardingChanged();
 }
 
 QString Backend::loadLanguageFile(const QString &code) const {

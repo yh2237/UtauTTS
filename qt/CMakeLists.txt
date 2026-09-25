@@ -79,6 +79,7 @@ qt_add_qml_module(utautts
         qml/DictionaryWindow.qml
         qml/LicenseWindow.qml
         qml/VoicebankDetailsWindow.qml
+        qml/OnboardingWindow.qml
         qml/Translator.qml
 )
 

@@ -108,6 +108,14 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                         QStringLiteral("automatic language file could not be loaded")))
         return 1;
 
+    if (!require(!backend.onboardingCompleted(),
+                 QStringLiteral("onboarding should be pending on first run")))
+        return 1;
+    backend.setOnboardingCompleted(true);
+    if (!require(backend.onboardingCompleted(),
+                 QStringLiteral("onboarding completion was not recorded")))
+        return 1;
+
     QVariant interfaceResult;
     if (!require(rootObject != nullptr
                  && QMetaObject::invokeMethod(rootObject, "runInterfaceSelfTest",

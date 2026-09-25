@@ -190,6 +190,8 @@
     "settings.theme": "テーマ",
     "settings.theme.dark": "ダーク",
     "settings.theme.light": "ライト",
+    "onboarding.title": "UtauTTSへようこそ",
+    "onboarding.start": "はじめる",
     "settings.title": "設定",
     "settings.updateCheckEnabled": "アップデートの確認と通知を行う",
     "settings.preReleaseUpdateCheckEnabled": "プレリリース版も確認する",

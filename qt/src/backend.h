@@ -45,6 +45,7 @@ class Backend final : public QObject {
     Q_PROPERTY(QUrl previewUrl READ previewUrl NOTIFY previewReady)
     Q_PROPERTY(bool darkMode READ darkMode NOTIFY themeChanged)
     Q_PROPERTY(QString language READ language NOTIFY languageChanged)
+    Q_PROPERTY(bool onboardingCompleted READ onboardingCompleted NOTIFY onboardingChanged)
     Q_PROPERTY(bool closeLogOnSuccess READ closeLogOnSuccess NOTIFY logSettingsChanged)
     Q_PROPERTY(bool updateCheckEnabled READ updateCheckEnabled NOTIFY updateSettingsChanged)
     Q_PROPERTY(bool preReleaseUpdateCheckEnabled READ preReleaseUpdateCheckEnabled NOTIFY updateSettingsChanged)
@@ -97,6 +98,7 @@ public:
     QUrl previewUrl() const { return m_previewUrl; }
     bool darkMode() const { return m_darkMode; }
     QString language() const { return m_language; }
+    bool onboardingCompleted() const { return m_onboardingCompleted; }
     bool closeLogOnSuccess() const { return m_closeLogOnSuccess; }
     bool updateCheckEnabled() const { return m_updateCheckEnabled; }
     bool preReleaseUpdateCheckEnabled() const { return m_preReleaseUpdateCheckEnabled; }
@@ -152,6 +154,7 @@ public:
     Q_INVOKABLE QString dictionaryFingerprint() const;
     Q_INVOKABLE void setDarkMode(bool value);
     Q_INVOKABLE void setLanguage(const QString &value);
+    Q_INVOKABLE void setOnboardingCompleted(bool value);
     Q_INVOKABLE QString resolvedLanguage() const;
     Q_INVOKABLE QString loadLanguageFile(const QString &code) const;
     Q_INVOKABLE QStringList languageCodes() const;
@@ -203,6 +206,7 @@ signals:
     void previewReady();
     void themeChanged();
     void languageChanged();
+    void onboardingChanged();
     void logSettingsChanged();
     void updateSettingsChanged();
     void cacheSettingsChanged();
@@ -270,6 +274,7 @@ private:
     QString m_synthesisJson;
     QUrl m_previewUrl;
     bool m_darkMode = false;
+    bool m_onboardingCompleted = false;
     QString m_language;
     mutable QHash<QString, QString> m_languageNames;
     mutable bool m_languageNamesLoaded = false;

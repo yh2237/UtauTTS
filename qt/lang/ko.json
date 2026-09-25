@@ -190,6 +190,8 @@
     "settings.theme": "테마",
     "settings.theme.dark": "다크",
     "settings.theme.light": "라이트",
+    "onboarding.title": "UtauTTS에 오신 것을 환영합니다",
+    "onboarding.start": "시작하기",
     "settings.title": "설정",
     "settings.updateCheckEnabled": "업데이트 확인 및 알림",
     "settings.preReleaseUpdateCheckEnabled": "프리릴리스 버전도 확인",
