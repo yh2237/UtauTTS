@@ -548,6 +548,7 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             contentWidth: availableWidth
+                            rightPadding: 12
 
                             ColumnLayout {
                                 width: synthesisSettingsPage.availableWidth
@@ -816,6 +817,7 @@ ApplicationWindow {
                 ScrollView {
                     id: exportSettingsPage
                     contentWidth: availableWidth
+                    rightPadding: 12
 
                     ColumnLayout {
                         width: exportSettingsPage.availableWidth
@@ -880,6 +882,7 @@ ApplicationWindow {
                 ScrollView {
                     id: appearanceSettingsPage
                     contentWidth: availableWidth
+                    rightPadding: 12
 
                     ColumnLayout {
                         width: appearanceSettingsPage.availableWidth
@@ -1104,6 +1107,7 @@ ApplicationWindow {
                 ScrollView {
                     id: shortcutSettingsPage
                     contentWidth: availableWidth
+                    rightPadding: 12
 
                     ColumnLayout {
                         width: shortcutSettingsPage.availableWidth
