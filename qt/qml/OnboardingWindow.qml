@@ -45,6 +45,7 @@ ApplicationWindow {
 
         Label {
             Layout.fillWidth: true
+            Layout.bottomMargin: 16
             text: root.translator.tr("onboarding.title")
             font.pixelSize: 20
             font.bold: true
