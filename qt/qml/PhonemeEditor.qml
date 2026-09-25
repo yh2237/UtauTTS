@@ -312,8 +312,6 @@ Item {
         };
     }
 
-    readonly property real exprBarMaxPx: 160
-
     function previewUnitValueDrag(x, y, modifiers) {
         const vg = root.valueGesture;
         if (!vg)
@@ -325,7 +323,7 @@ Item {
             value = vg.start + (x - vg.x) / root.pixelsPerMs;
             value = root.snapTime(value, useSnap);
         } else {
-            const pxPerUnit = root.exprBarMaxPx / Math.max(1e-9, range.max - range.min);
+            const pxPerUnit = root.exprSpanPx(vg.index) / Math.max(1e-9, range.max - range.min);
             value = vg.start + (x - vg.x) / pxPerUnit;
         }
         value = Math.max(range.min, Math.min(range.max, value));
@@ -405,26 +403,28 @@ Item {
         return best;
     }
 
-    function exprBarEnd(unitIndex, lane) {
-        const range = root.paramRange(root.exprLanes[lane].key);
-        const raw = root.unitNumber(unitIndex, root.exprLanes[lane].key, range.def);
-        const norm = Math.max(0, Math.min(1,
-                (Number(raw) - range.min) / Math.max(1e-9, range.max - range.min)));
-        return Math.max(3, norm * root.exprBarMaxPx);
+    function exprSpanPx(unitIndex) {
+        const unit = root.unitAt(unitIndex);
+        if (!unit)
+            return 2;
+        const start = root.unitNoteStart(unit) + root.leadingMargin;
+        return Math.max(2, root.timeToX(start + Math.max(1, root.unitDuration(unit)))
+                - root.timeToX(start) - 2);
     }
 
     function exprHit(canvasX, canvasY) {
-        for (let u = 0; u < root.units.length; ++u) {
-            const unit = root.units[u];
-            if (!unit || unit.silent)
+        for (let l = 0; l < root.exprLanes.length; ++l) {
+            const laneTop = root.exprLaneY(l);
+            if (canvasY < laneTop || canvasY > laneTop + root.exprLaneH - 2)
                 continue;
-            const cx = root.timeToX(root.unitNoteStart(unit) + root.leadingMargin);
-            for (let l = 0; l < root.exprLanes.length; ++l) {
-                const top = root.exprLaneY(l);
-                if (canvasY < top || canvasY > top + root.exprLaneH - 2)
+            for (let u = 0; u < root.units.length; ++u) {
+                const unit = root.units[u];
+                if (!unit || unit.silent)
                     continue;
-                const endX = cx + root.exprBarEnd(u, l) + 6;
-                if (canvasX >= cx - 6 && canvasX <= endX)
+                const start = root.unitNoteStart(unit) + root.leadingMargin;
+                const x0 = root.timeToX(start);
+                const x1 = root.timeToX(start + Math.max(1, root.unitDuration(unit)));
+                if (canvasX >= x0 && canvasX <= x1)
                     return {u: u, l: l, key: String(root.exprLanes[l].key)};
             }
         }
@@ -870,13 +870,11 @@ Item {
                     }
                     for (let li = 0; li < root.exprLanes.length; ++li) {
                         const laneKey = root.exprLanes[li].key;
+                        const code = String(root.exprLanes[li].code);
                         const range = root.paramRange(laneKey);
                         const laneTop = root.exprLaneY(li);
                         const laneH = root.exprLaneH - 2;
-                        ctx.fillStyle = root.mutedText;
-                        ctx.font = "9px sans-serif";
-                        ctx.fillText(root.exprLanes[li].code,
-                                timelineViewport.contentX + 4, laneTop + 12);
+                        const barY = laneTop + (laneH - 10) / 2;
                         ctx.strokeStyle = root.gridColor;
                         ctx.beginPath();
                         ctx.moveTo(0, laneTop + laneH);
@@ -887,22 +885,26 @@ Item {
                             if (!eunit || eunit.silent)
                                 continue;
                             const cx = root.timeToX(root.unitNoteStart(eunit) + root.leadingMargin);
-                            if (!inView(cx) && !inView(cx + root.exprBarMaxPx))
+                            const span = root.exprSpanPx(ei);
+                            if (!inView(cx) && !inView(cx + span))
                                 continue;
                             const raw = root.unitNumber(ei, laneKey, range.def);
                             const norm = Math.max(0, Math.min(1,
                                     (Number(raw) - range.min) / Math.max(1e-9, range.max - range.min)));
-                            const bl = Math.max(3, norm * root.exprBarMaxPx);
+                            const bl = Math.max(2, Math.min(span, norm * span));
                             const eHot = ei === root.selectedUnitIndex
                                     || (root.hoveredExpr.u === ei && root.hoveredExpr.l === li);
                             ctx.fillStyle = Qt.rgba(root.accentColor.r, root.accentColor.g,
                                                     root.accentColor.b, eHot ? 0.6 : 0.3);
-                            ctx.fillRect(cx, laneTop + (laneH - 10) / 2, bl, 10);
+                            ctx.fillRect(cx, barY, bl, 10);
                             if (eHot) {
                                 ctx.fillStyle = root.accentColor;
                                 ctx.fillRect(cx + bl - 2, laneTop + (laneH - 14) / 2, 4, 14);
                             }
                         }
+                        ctx.fillStyle = root.mutedText;
+                        ctx.font = "9px sans-serif";
+                        ctx.fillText(code, timelineViewport.contentX + 4, laneTop + 12);
                     }
                     ctx.font = "10px sans-serif";
                     if (root.timingEditor) {
