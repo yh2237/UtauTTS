@@ -1,7 +1,7 @@
 {
-  "id": "frame-intonation-v9-k",
+  "id": "frame-intonation-tcn-v9-k",
   "display_name": "Frame Intonation TCN v9K",
-  "description": "Kokoro Speech Dataset small (3 books, single speaker) で学習。朗読スタイル。",
+  "description": "Kokoro Speech Dataset small (3 books, single speaker) で学習した日本語フレーム抑揚モデル",
   "license": "MIT License (model weights); Kokoro Speech Dataset is public domain",
   "license_notice": "licenses/KOKORO-SPEECH-DATASET.txt",
   "provenance": {

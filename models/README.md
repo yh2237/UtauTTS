@@ -1,25 +1,36 @@
 # 抑揚モデルのライセンス
 
+この文書は同梱モデルの条件の一次情報です。全体の入口は[ライセンスの適用範囲](../LICENSE-SCOPE.md)です。
+
 ## 同梱モデル
 
-日本語の既定モデル: `frame-intonation-v9-t`。代替: `frame-intonation-v9-k`。英語モデル: `english-intonation-v1`。学習と評価: [フレーム抑揚モデルの学習](../docs/frame-intonation-training.md)
+日本語の既定モデル: `frame-intonation-tcn-v9.1-t`。代替: `frame-intonation-tcn-v9-t`、`frame-intonation-tcn-v9-k`。英語モデル: `english-intonation-v1`。学習と評価: [フレーム抑揚モデルの学習](../docs/frame-intonation-training.md)
 
-`frame-intonation-v9-*`は10ms単位の相対ピッチだけを予測します。モーラ長はGUIで指定した基準値と、言語別の時間規則（「ん」0.9倍、「ー」1.2倍など）で決めます。
+`frame-intonation-tcn-v9-*`は10ms単位の相対ピッチだけを予測します。モーラ長はGUIで指定した基準値と、言語別の時間規則（「ん」0.9倍、「ー」1.2倍など）で決めます。
 
-## v9 Tsukuyomi（既定）
+## v9.1 Tsukuyomi + JSUT（既定）
 
-`frame-intonation-v9-t`は、[つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）](https://tyc.rei-yumesaki.net/material/corpus/)で学習した単一話者モデルです。
+`frame-intonation-tcn-v9.1-t`は、[つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）](https://tyc.rei-yumesaki.net/material/corpus/)と[みんなで作るJSUTコーパスbasic5000](https://tyc.rei-yumesaki.net/material/minnade-jsut/)の夢前黎さん担当分（BASIC5000_0001-0600）で学習した単一話者モデルです。
 
-- 音声: 商用・非商用可。クレジット必須。音声そのものの再配布は不可
-- 台本: 声優統計／JVSコーパスの音素バランス文（CC BY-SA 4.0）。音声の配布は著作権法第30条の4によるためコピーレフトは継承しません
-- 条件: [つくよみちゃんコーパスの通知](../licenses/TSUKUYOMI-CORPUS.txt)
+- 本モデルはフレーム単位の相対ピッチ（抑揚）のみを学習し、話者の声質を再現しません
+- 重みはMIT Licenseで配布します。学習元コーパスの利用規約は、配布元が公開する原文に従います
+- 通知: [licenses/FRAME-INTONATION-V9.1-T.txt](../licenses/FRAME-INTONATION-V9.1-T.txt)
+
+## v9 Tsukuyomi（代替）
+
+`frame-intonation-tcn-v9-t`は、[つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）](https://tyc.rei-yumesaki.net/material/corpus/)で学習した単一話者モデルです。
+
+- 本モデルはフレーム単位の相対ピッチ（抑揚）のみを学習し、話者の声質を再現しません
+- 重みはMIT Licenseで配布します。学習元コーパスの利用規約は、配布元が公開する原文に従います
+- 通知: [licenses/TSUKUYOMI-CORPUS.txt](../licenses/TSUKUYOMI-CORPUS.txt)
 
 ## v9 Kokoro（代替）
 
-`frame-intonation-v9-k`は、[Kokoro Speech Dataset](https://github.com/kaiidams/Kokoro-Speech-Dataset)で学習した単一話者モデルです。
+`frame-intonation-tcn-v9-k`は、[Kokoro Speech Dataset](https://github.com/kaiidams/Kokoro-Speech-Dataset)で学習した単一話者モデルです。
 
-- 音声: パブリックドメイン（米国、他国も概ねPD）
-- 出典: [Kokoro Speech Datasetの通知](../licenses/KOKORO-SPEECH-DATASET.txt)
+- 本モデルはフレーム単位の相対ピッチ（抑揚）のみを学習し、話者の声質を再現しません
+- 重みはMIT Licenseで配布します
+- 通知: [licenses/KOKORO-SPEECH-DATASET.txt](../licenses/KOKORO-SPEECH-DATASET.txt)
 
 ## English
 

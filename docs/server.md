@@ -131,10 +131,10 @@ ID順にソートされた音源一覧です。
 {
   "models": [
     {
-      "id": "frame-intonation-v9-t",
+      "id": "frame-intonation-tcn-v9.1-t",
       "display_name": "Frame Intonation TCN v9T",
       "description": "Tsukuyomi-chan Corpus frame-level intonation model",
-      "path": "C:\\...\\models\\frame-intonation-v9-t.json",
+      "path": "C:\\...\\models\\frame-intonation-tcn-v9.1-t.json",
       "version": 8,
       "mode": "intonation_frame_tcn_accent_bounded",
       "outputs": {"pitch": true},
@@ -203,7 +203,7 @@ ID順にソートされた音源一覧です。
 {
   "text": "こんにちは、今日はいい天気です。",
   "voicebank_id": "足立レイver3.5.0",
-  "model_id": "frame-intonation-v9-t",
+  "model_id": "frame-intonation-tcn-v9.1-t",
   "renderer": "utautts-world-phrase",
   "alias_policy": "auto",
   "intonation_strength": 1,

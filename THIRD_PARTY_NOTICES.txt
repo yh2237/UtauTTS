@@ -253,9 +253,9 @@ version 3.5.0. The voicebank was designed and created by みさいる / Mechanic
 Girl. Voicebank terms: the Mechanical Girl guidelines linked below.
 
 Bundled documents: the original readme, usage guidelines, history, and related
-documents in the voicebank directory. UTAU audio redistribution and modification
-are permitted under the current guidelines. Commercial or for-profit use:
-contact Mechanical Girl before use.
+documents in the voicebank directory. The Mechanical Girl guidelines govern the
+voicebank; see the official pages below for the current terms. UtauTTS bundles
+the documents unchanged.
 
 Official distribution:
 https://mechanicalgirl.jp/adachi-rei/
@@ -345,11 +345,19 @@ https://github.com/cmusphinx/cmudict
 Bundled prosody models
 ======================
 
-The bundled frame-intonation-v9-t model is trained from the
+The bundled frame-intonation-tcn-v9.1-t model is trained from the Tsukuyomi-chan
+Corpus Vol.1 and みんなで作るJSUTコーパスbasic5000 (both spoken by Rei Yumesaki).
+Its notice is licenses/FRAME-INTONATION-V9.1-T.txt. The bundled
+frame-intonation-tcn-v9-t model is trained from the
 Tsukuyomi-chan Corpus Vol.1 (spoken by Rei Yumesaki). Its notice is
-licenses/TSUKUYOMI-CORPUS.txt. The bundled frame-intonation-v9-k model is
+licenses/TSUKUYOMI-CORPUS.txt. The bundled frame-intonation-tcn-v9-k model is
 trained from the Kokoro Speech Dataset (public domain). Its notice is
 licenses/KOKORO-SPEECH-DATASET.txt.
+
+The frame-intonation models learn only relative pitch (intonation) and do not
+reproduce voice quality. Their weights are distributed under the MIT License.
+Each model's notice under licenses/ records its training source and reproduces
+the source's required credit.
 
 The english-intonation-v1 model contains original UtauTTS coefficients and is
 distributed under the MIT License. Its notice is

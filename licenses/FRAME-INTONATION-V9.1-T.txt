@@ -1,0 +1,32 @@
+Frame intonation v9.1T
+======================
+
+Model id: frame-intonation-tcn-v9.1-t
+
+This model predicts frame-level relative pitch (intonation) for Japanese
+text-to-speech. It learns only relative pitch and does not reproduce the voice
+quality of its training speakers. Its weights are distributed under the MIT
+License (see LICENSE).
+
+Training corpora (both spoken by Rei Yumesaki):
+
+1. Tsukuyomi-chan Corpus Vol.1 "Voice Actress Statistics Corpus"
+   (JVS-corpus compatible).
+   Source: https://tyc.rei-yumesaki.net/material/corpus/
+
+2. みんなで作るJSUTコーパスbasic5000, BASIC5000_0001-0600.
+   Source: https://tyc.rei-yumesaki.net/material/minnade-jsut/
+
+The terms of use for each corpus are published at the source URLs above. Their
+wording governs; this notice does not replace or reinterpret it. UtauTTS does
+not redistribute the corpus audio.
+
+Attribution reproduced from the publishers' credit templates:
+
+    本ソフトウェアの音声合成には、フリー素材キャラクター「つくよみちゃん」
+    （© Rei Yumesaki）が無料公開している音声データを使用しています。
+    ■つくよみちゃんコーパス（CV.夢前黎）
+    https://tyc.rei-yumesaki.net/material/corpus/
+
+    みんなで作るJSUTコーパスbasic5000
+    https://tyc.rei-yumesaki.net/material/minnade-jsut/

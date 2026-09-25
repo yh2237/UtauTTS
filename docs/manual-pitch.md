@@ -35,7 +35,7 @@ go run ./cmd/utautts-cli `
   --voicebank "voice/ボイスバンク" `
   --text "こんにちは" `
   --renderer utautts-world-phrase `
-  --prosody frame-intonation-v9-t `
+  --prosody frame-intonation-tcn-v9.1-t `
   --prosody-pitch-only `
   --apply-pitch `
   --manual-pitch "out/manual-pitch.json" `

@@ -222,7 +222,7 @@ smoke_text='こんにちは'
 "${gui_root}/tools/utautts-cli" --renderer waveform --voicebank "${voicebank}" \
   --text "${smoke_text}" --out "${work_dir}/waveform.wav"
 "${gui_root}/tools/utautts-cli" --voicebank "${voicebank}" --text "${smoke_text}" \
-  --prosody frame-intonation-v9-t --renderer utautts-world-phrase \
+  --prosody frame-intonation-tcn-v9.1-t --renderer utautts-world-phrase \
   --apply-pitch --intonation-strength 1 --out "${work_dir}/utautts-world.wav"
 for wav in "${work_dir}/waveform.wav" "${work_dir}/utautts-world.wav"; do
   [ "$(stat -c %s "${wav}")" -gt 44 ] || fail "synthesis output is empty: ${wav}"
@@ -281,7 +281,7 @@ voice = voices[0]["id"]
 }, ensure_ascii=False), encoding="utf-8")
 (root / "world-pitch.json").write_text(json.dumps({
     "text": "こんにちは", "voicebank_id": voice,
-    "model_id": "frame-intonation-v9-t",
+    "model_id": "frame-intonation-tcn-v9.1-t",
     "renderer": "utautts-world-phrase",
     "intonation_strength": 1, "apply_pitch": True,
 }, ensure_ascii=False), encoding="utf-8")

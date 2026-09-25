@@ -93,7 +93,7 @@ func run() error {
 	corpus := flag.String("corpus", "tools/evaluation/japanese-v1.json", "JSON listening corpus")
 	out := flag.String("out", "out/tts-eval", "new output directory")
 	renderers := flag.String("renderers", "utautts-world-phrase", "comma-separated renderer IDs")
-	model := flag.String("model", "frame-intonation-v9-t", "prosody model ID")
+	model := flag.String("model", "frame-intonation-tcn-v9.1-t", "prosody model ID")
 	modelFile := flag.String("model-file", "", "explicit experimental prosody model JSON (overrides model ID)")
 	bridge := flag.String("bridge", "", "override WORLD bridge executable")
 	worldMix := flag.String("world-mix", "auto", "WORLD feature mixing: auto, v1.3, adaptive")

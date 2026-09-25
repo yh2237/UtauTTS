@@ -2083,7 +2083,7 @@ ApplicationWindow {
     }
 
     function intonationLabBaseModelPath() {
-        return "models/frame-intonation-v9-t.json";
+        return "models/frame-intonation-tcn-v9.1-t.json";
     }
 
     function intonationLabFirstIncomplete() {

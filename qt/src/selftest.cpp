@@ -291,7 +291,7 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     if (!require(backend.dictionaryEntries().size() == 1 && !backend.dictionaryFingerprint().isEmpty(),
                  QStringLiteral("dictionary settings failed")))
         return 1;
-    backend.setSynthesisDefaults(QStringLiteral("frame-intonation-v9-t"),
+    backend.setSynthesisDefaults(QStringLiteral("frame-intonation-tcn-v9-t"),
                                  QStringLiteral("utautts-world-phrase"),
                                  QStringLiteral("D4"), QStringLiteral("cv-only"));
     backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
@@ -320,7 +320,7 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y");
     if (!require(backend.defaultMoraDuration() == 130 && backend.defaultPauseDuration() == 190
                  && backend.defaultLeadingPreutterance() == 45
-                 && backend.defaultModelId() == QStringLiteral("frame-intonation-v9-t")
+                 && backend.defaultModelId() == QStringLiteral("frame-intonation-tcn-v9-t")
                  && backend.defaultRenderer() == QStringLiteral("utautts-world-phrase")
                  && backend.previewCacheFileCount() == 7
                  && backend.defaultIntonationStrength() == 2.5

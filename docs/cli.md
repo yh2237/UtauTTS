@@ -31,7 +31,7 @@
   --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
   --text "あらゆる現実をすべて自分のほうへねじ曲げたのだ。" `
   --renderer utautts-world-phrase `
-  --prosody frame-intonation-v9-t `
+  --prosody frame-intonation-tcn-v9.1-t `
   --prosody-pitch-only `
   --apply-pitch `
   --out ".\out.wav"

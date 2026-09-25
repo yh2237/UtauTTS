@@ -1,39 +1,37 @@
 # ライセンスの適用範囲
 
-UtauTTSのソースコードはMIT Licenseで公開しています。学習済みモデル、ボイスバンク、文章データ、外部ライブラリなど、第三者が権利を持つ成果物には個別の利用条件が適用されます。
+UtauTTSのソースコードはMIT Licenseです。UtauTTSが配布する成果物のうち、第三者が権利を持つ部分には個別のライセンスと通知が適用されます。この文書は、どの部分にどのライセンス・通知が適用されるかの入口です。各ライセンスの条件本文は`licenses/`と[第三者通知](./THIRD_PARTY_NOTICES.txt)に収録します。
 
+## 本体
 
-## UtauTTSのソースコード
+UtauTTSのオリジナルコードは[`LICENSE`](./LICENSE)のMIT Licenseです。
 
-UtauTTSのオリジナルコードは[`LICENSE`](./LICENSE)のMIT Licenseです。第三者のコード、データ、モデル、音源には、それぞれの配布条件を適用します。
+## 同梱モデル
 
-## 学習済みモデル
+同梱する抑揚モデルの重みはMIT Licenseで配布します。モデルごとに適用される通知は次の通りで、全文を`licenses/`へ収録します。
 
-同梱する日本語モデル: `frame-intonation-v9-t`は[つくよみちゃんコーパス Vol.1](https://tyc.rei-yumesaki.net/material/corpus/)、`frame-intonation-v9-k`は[Kokoro Speech Dataset](https://github.com/kaiidams/Kokoro-Speech-Dataset)で学習した単一話者モデルです。
+| モデル | 通知 |
+| --- | --- |
+| `frame-intonation-tcn-v9.1-t` | `licenses/FRAME-INTONATION-V9.1-T.txt` |
+| `frame-intonation-tcn-v9-t` | `licenses/TSUKUYOMI-CORPUS.txt` |
+| `frame-intonation-tcn-v9-k` | `licenses/KOKORO-SPEECH-DATASET.txt` |
+| `english-intonation-v1` | `licenses/ENGLISH-INTONATION-V1.txt` |
 
-- `frame-intonation-v9-t`: 音声は商用・非商用可、クレジット必須。音声そのものの再配布は不可。詳細: [`licenses/TSUKUYOMI-CORPUS.txt`](./licenses/TSUKUYOMI-CORPUS.txt)
-- `frame-intonation-v9-k`: 音声はパブリックドメイン。詳細: [`licenses/KOKORO-SPEECH-DATASET.txt`](./licenses/KOKORO-SPEECH-DATASET.txt)
-- モデル重みはMIT Licenseで配布しますが、利用時は学習元コーパスの条件にも従ってください。
+モデルの利用時は、重みのMIT Licenseに加えて各通知の条件にも従ってください。モデルごとの出典と条件の要約は[抑揚モデルのライセンス](./models/README.md)にあります。
 
-`english-intonation-v1`はUtauTTS用の係数モデルで、MIT Licenseで配布します。詳細: [`licenses/ENGLISH-INTONATION-V1.txt`](./licenses/ENGLISH-INTONATION-V1.txt)
+## 同梱ボイスバンク
 
-## ボイスバンク
+GUI版の初期音源「足立レイ UTAU音源 ver3.5.0」はUtauTTS本体とは別の条件で配布します。出典と条件は[同梱音源](./docs/voicebank.md)を参照してください。Server版に初期音源はありません。
 
-GUI版の初期音源: メカニカルガール公式配布「足立レイ UTAU音源 ver3.5.0」。音源の利用条件: [同梱ボイスバンクの案内](./docs/voicebank.md)、音源内の文書、[公式ガイドライン](https://mechanicalgirl.jp/guidelines/)。Server版の初期音源: なし。
+## 第三者コンポーネント
 
-## その他の第三者コンポーネント
-
-Qt、WORLD、Open JTalk、Go/Pythonの依存関係、外部FFmpegには、それぞれのライセンスと通知を適用します。詳細: [`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、各プラットフォームのGUI通知、[`licenses/`](./licenses/)、各コンポーネントの文書。
-
-アプリケーションアイコンと評価用ファイルは、本リポジトリのMIT Licenseで提供します。
+Qt、WORLD、Open JTalk、Go/Pythonの依存関係、外部FFmpegなどには、それぞれのライセンスと通知が適用されます。全文は[`licenses/`](./licenses/)、概要は[第三者通知](./THIRD_PARTY_NOTICES.txt)に収録します。互換処理で参照した公開実装は[第三者コードの出典](./docs/third-party-provenance.md)に記載しています。
 
 ## リリースパッケージ
 
-GUI版: 実行に必要なモデル、Renderer、ランタイム、ライセンス文書、初期ボイスバンク、対象プラットフォームの通知。
-Server版: 実行に必要なモデル、Renderer、ランタイム、ライセンス文書。
+- GUI版: モデル、Renderer、ランタイム、ライセンス文書、初期ボイスバンク、対象プラットフォームのGUI通知。
+- Server版: モデル、Renderer、ランタイム、ライセンス文書。
 
-共通収録物: [`LICENSE`](./LICENSE)、`LICENSE-SCOPE.md`、[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、`licenses/`、モデルの個別文書。GUI版は同梱ボイスバンクの公式文書も収録します。
+共通収録物: [`LICENSE`](./LICENSE)、`LICENSE-SCOPE.md`、[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、[`licenses/`](./licenses/)、モデルの通知。GUI版は同梱ボイスバンクの文書も収録します。
 
-利用条件の優先順位: 各権利者が公開する原文ライセンス、配布条件、同梱通知。
-
-OpenUtau互換処理とWORLDの出典、各ライセンス本文は[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)に記載しています。
+利用条件が競合する場合は、各権利者が公開する原文ライセンスと配布条件を優先します。

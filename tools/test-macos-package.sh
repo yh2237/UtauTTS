@@ -78,7 +78,8 @@ for required in \
   "${gui_root}/runtime/utautts-world-engine.dylib" \
   "${server_root}/utautts-server" \
   "${server_root}/runtime/utautts-world-engine.dylib" \
-  "${gui_root}/models/frame-intonation-v9-t.json" \
+  "${gui_root}/models/frame-intonation-tcn-v9-t.json" \
+  "${gui_root}/models/frame-intonation-tcn-v9.1-t.json" \
   "${gui_root}/renderer/waveform/renderer.json" \
   "${gui_root}/renderer/utautts-world-phrase/renderer.json"; do
   [[ -f "${required}" ]] || fail "required package file is missing: ${required}"
@@ -229,7 +230,7 @@ smoke_text='こんにちは'
 "${cli}" --renderer waveform --voicebank "${voicebank}" \
   --text "${smoke_text}" --out "${work_dir}/waveform.wav"
 "${cli}" --voicebank "${voicebank}" --text "${smoke_text}" \
-  --prosody frame-intonation-v9-t --renderer utautts-world-phrase \
+  --prosody frame-intonation-tcn-v9.1-t --renderer utautts-world-phrase \
   --apply-pitch --intonation-strength 1 --out "${work_dir}/utautts-world.wav"
 for wav in "${work_dir}/waveform.wav" "${work_dir}/utautts-world.wav"; do
   [[ "$(file_size "${wav}")" -gt 44 ]] || fail "synthesis output is empty: ${wav}"

@@ -1,12 +1,12 @@
 {
-  "id": "frame-intonation-v9-t",
+  "id": "frame-intonation-tcn-v9-t",
   "display_name": "Frame Intonation TCN v9T",
-  "description": "Tsukuyomi-chan Corpus Vol.1 で学習。日常文を中立に読むスタイル。",
+  "description": "Tsukuyomi-chan Corpus Vol.1 で学習した日本語フレーム抑揚モデル",
   "license": "MIT License (model weights); Tsukuyomi-chan Corpus terms apply to the training audio",
   "license_notice": "licenses/TSUKUYOMI-CORPUS.txt",
   "provenance": {
     "training_corpus": "Tsukuyomi-chan Corpus Vol.1 (Voice Actress 100)",
-    "training_corpus_license": "Commercial use permitted with credit",
+    "training_corpus_license": "See licenses/TSUKUYOMI-CORPUS.txt",
     "source_notice": "licenses/TSUKUYOMI-CORPUS.txt"
   },
   "recommended_renderers": [
