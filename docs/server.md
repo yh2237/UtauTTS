@@ -231,7 +231,7 @@ ID順にソートされた音源一覧です。
 | `wavtool` | string | `builtin` | Classic UTAUで使うwavtoolの相対ID |
 | `resampler_expressions` | object[] | なし | unit単位のresampler設定。形式は[Classic UTAU互換仕様](plugins.md#classic-utau互換仕様)を参照 |
 | `alias_policy` | string | `auto` | `auto`（VC/VCV収録比から自動選択）、`cvvc-enhanced`（CVVC優先・sequential timing・VC音量35%、英語では55%）、`vcv-prefer`、`cvvc-prefer`、`cv-only` |
-| `mora_duration_ms` | number | `140` | 基本モーラ長（0〜1000） |
+| `mora_duration_ms` | number | `120` | 基本モーラ長（0〜1000） |
 | `pause_duration_ms` | number | `180` | 句読点の休止長（0〜3000） |
 | `leading_preutterance_ms` | number | `0`（自動） | 文頭に確保する先行発声（0〜1000）。0では先頭原音の`oto.ini`から決定 |
 | `mora_durations_ms` | number[] | | モーラごとの長さ。値は0〜1000 |

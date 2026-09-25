@@ -15,7 +15,7 @@ const Version = 26
 
 // DefaultMoraDurationMSとDefaultPauseDurationMSは未指定時の長さ。合成・プレビュー・manifestが共有するcanonical値。
 const (
-	DefaultMoraDurationMS  = 140.0
+	DefaultMoraDurationMS  = 120.0
 	DefaultPauseDurationMS = 180.0
 )
 

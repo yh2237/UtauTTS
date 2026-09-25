@@ -38,7 +38,7 @@
 namespace {
 constexpr int maxRecentProjects = 10;
 // Go側のcanonical既定（internal/planのDefaultMoraDurationMS/DefaultPauseDurationMS）と揃える。
-constexpr int fallbackMoraDurationMS = 140;
+constexpr int fallbackMoraDurationMS = 120;
 constexpr int fallbackPauseDurationMS = 180;
 constexpr int fallbackLeadingPreutteranceMS = 0;
 constexpr double fallbackIntonationStrength = 2.0;

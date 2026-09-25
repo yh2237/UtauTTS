@@ -71,7 +71,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--plan-out <path>` | | 合成計画JSONを保存するパス |
 | `--ustx-out <path>` | | 合成パラメータをOpenUtauのUSTXプロジェクトへ保存するパス |
 | `--dictionary <path>` | | 表記と読みを定義したユーザー辞書JSON |
-| `--mora-ms` | `140` | 基本モーラ長（ms） |
+| `--mora-ms` | `120` | 基本モーラ長（ms） |
 | `--pause-ms` | `180` | 句読点の休止長（ms） |
 | `--mora-durations <path>` | | モーラごとの長さを配列または`mora_durations_ms`で持つJSON |
 | `--leading-preutterance-ms` | `0` | 文頭に確保する先行発声（ms）。0では`oto.ini`から自動決定 |

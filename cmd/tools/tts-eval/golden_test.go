@@ -15,7 +15,7 @@ import (
 
 // goldenSelectionDigestは固定した音源・読みに対する選択計画の指紋。
 // 原音選択や時間配分を意図的に変えた場合だけ更新する。
-const goldenSelectionDigest = "7644099acab9a37dfa93826696f2abe0bc25b293eab3bf21eadaa5e020205fdd"
+const goldenSelectionDigest = "27e3bdd6b804802f0771254f407d36acd86eaefae2b8f5b8aa1c6dcfb67c9947"
 
 // TestSelectionPlanGoldenは選択計画の決定性と内容の変化を検出する。
 // 音源はテスト内で生成するため、配布アセットやruntimeなしで実行できる。
