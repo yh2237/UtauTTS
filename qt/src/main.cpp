@@ -6,6 +6,8 @@
 #include <QDateTime>
 #include <QFile>
 #include <QFileInfo>
+#include <QFont>
+#include <QFontDatabase>
 #include <QGuiApplication>
 #include <QMetaObject>
 #include <QIcon>
@@ -179,6 +181,15 @@ int main(int argc, char *argv[]) {
     app.setApplicationDisplayName(UTAUTTS_APP_NAME);
     app.setApplicationVersion(UTAUTTS_VERSION);
     app.setOrganizationName(UTAUTTS_APP_ORGANIZATION);
+
+    const QStringList uiFontFamilies = QFontDatabase::applicationFontFamilies(
+            QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/LINESeedJP-Regular.ttf")));
+    QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/LINESeedJP-Bold.ttf"));
+    if (!uiFontFamilies.isEmpty()) {
+        QFont uiFont = app.font();
+        uiFont.setFamily(uiFontFamilies.first());
+        app.setFont(uiFont);
+    }
 
     const bool intonationLabSmokeTest = app.arguments().contains(
             QStringLiteral("--intonation-lab-smoke-test"));

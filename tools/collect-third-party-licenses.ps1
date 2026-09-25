@@ -135,8 +135,9 @@ function Copy-OpenJTalkLicenses {
     }
 }
 
-function Copy-IconFontLicenses {
+function Copy-FontLicenses {
     Copy-Required (Join-Path $root 'licenses/MATERIAL-SYMBOLS.txt') (Join-Path $licenseRoot 'MATERIAL-SYMBOLS.txt')
+    Copy-Required (Join-Path $root 'licenses/LINE-SEED-JP.txt') (Join-Path $licenseRoot 'LINE-SEED-JP.txt')
 }
 
 function Copy-WorldLicenses {
@@ -329,7 +330,7 @@ https://ffmpeg.org/legal.html
 New-Item -ItemType Directory -Force -Path $licenseRoot | Out-Null
 Copy-GoLicenses
 Copy-OpenJTalkLicenses
-Copy-IconFontLicenses
+Copy-FontLicenses
 Copy-WorldLicenses
 
 if ($Variant -eq 'windows-gui') {

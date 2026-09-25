@@ -398,3 +398,14 @@ Upstream: https://github.com/google/material-design-icons
 (variant file variablefont/MaterialSymbolsOutlined[FILL,GRAD,opsz,wght].ttf).
 Licensed under the Apache License, Version 2.0. Its notice is
 licenses/MATERIAL-SYMBOLS.txt.
+
+
+LINE Seed JP (UI font)
+======================
+
+The GUI bundles the LINE Seed JP font (Regular and Bold weights) and uses it
+for the application text. LINE Seed JP is copyright (c) LY Corporation, designed
+by LY Corporation, RixFont, and Fontworks. Upstream: https://github.com/line/seed
+(Google Fonts source: https://github.com/google/fonts/tree/main/ofl/lineseedjp).
+Licensed under the SIL Open Font License, Version 1.1. Its notice is
+licenses/LINE-SEED-JP.txt.

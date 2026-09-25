@@ -164,6 +164,8 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
   cp "${root_dir}/third_party/world/LICENSE.txt" "${license_root}/WORLD/WORLD-LICENSE.txt"
   cp "${root_dir}/third_party/world/OOURA-NOTICE.txt" "${license_root}/WORLD/OOURA-NOTICE.txt"
   cp "${root_dir}/third_party/world/MACRODEFINITIONS-LICENSE.txt" "${license_root}/WORLD/MACRODEFINITIONS-LICENSE.txt"
+  cp "${root_dir}/licenses/MATERIAL-SYMBOLS.txt" "${license_root}/MATERIAL-SYMBOLS.txt"
+  cp "${root_dir}/licenses/LINE-SEED-JP.txt" "${license_root}/LINE-SEED-JP.txt"
   dict_copying="${package_dir}/runtime/open_jtalk_dic_utf_8-1.11/COPYING"
   [[ -f "${dict_copying}" ]] || {
     echo "Open JTalk dictionary license was not found: ${dict_copying}" >&2
