@@ -111,8 +111,13 @@ try {
         'voice/update-compatibility/marker.txt' = 'voice marker'
         'Resamplers/update-compatibility/marker.txt' = 'resampler marker'
         'Wavtools/update-compatibility/marker.txt' = 'wavtool marker'
-        'Dependencies/update-compatibility/marker.txt' = 'vocoder dependency marker'
         'renderer/update-compatibility/marker.txt' = 'renderer marker'
+    }
+    # Dependencies/ was added in a later version. The updater shipped in earlier
+    # versions does not preserve it, so only verify it when the previous package
+    # already contains the directory.
+    if (Test-Path -LiteralPath (Join-Path $installRoot 'Dependencies')) {
+        $preservedFiles['Dependencies/update-compatibility/marker.txt'] = 'vocoder dependency marker'
     }
     foreach ($relative in $preservedFiles.Keys) {
         $path = Join-Path $installRoot $relative
