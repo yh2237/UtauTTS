@@ -25,6 +25,7 @@ type Model struct {
 	ID                   string             `json:"id,omitempty"`
 	DisplayName          string             `json:"display_name,omitempty"`
 	Description          string             `json:"description,omitempty"`
+	LicenseNotices       []string           `json:"license_notices,omitempty"`
 	Language             string             `json:"language,omitempty"`
 	Provenance           *ModelProvenance   `json:"provenance,omitempty"`
 	RecommendedRenderers []string           `json:"recommended_renderers,omitempty"`
@@ -48,9 +49,7 @@ type Model struct {
 }
 
 type ModelProvenance struct {
-	TrainingCorpus        string `json:"training_corpus,omitempty"`
-	TrainingCorpusLicense string `json:"training_corpus_license,omitempty"`
-	SourceNotice          string `json:"source_notice,omitempty"`
+	TrainingCorpus string `json:"training_corpus,omitempty"`
 }
 
 type BaseModelReference struct {

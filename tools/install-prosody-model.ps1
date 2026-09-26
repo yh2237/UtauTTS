@@ -47,15 +47,23 @@ if ([string]$model.id -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
 if ([string]::IsNullOrWhiteSpace([string]$model.license)) {
     throw 'The model must contain a license description.'
 }
-if ([string]::IsNullOrWhiteSpace([string]$model.license_notice)) {
-    throw 'The model must contain a license_notice path.'
+$notices = @()
+if ($null -ne $model.license_notices) {
+    $notices = @($model.license_notices)
+} elseif (-not [string]::IsNullOrWhiteSpace([string]$model.license_notice)) {
+    $notices = @([string]$model.license_notice)
 }
-$licenseNotice = ([string]$model.license_notice).Trim()
-if ($licenseNotice -ne [string]$model.license_notice -or
-    $licenseNotice -notmatch '^licenses/[^/\\]+(?:/[^/\\]+)*$' -or
-    $licenseNotice -match '(^|/)\.\.?(/|$)' -or
-    $licenseNotice.Contains(':')) {
-    throw 'The model license_notice must be a normalized path below licenses/.'
+if ($notices.Count -eq 0) {
+    throw 'The model must contain a license_notices array.'
+}
+foreach ($rawNotice in $notices) {
+    $licenseNotice = ([string]$rawNotice).Trim()
+    if ($licenseNotice -ne [string]$rawNotice -or
+        $licenseNotice -notmatch '^licenses/[^/\\]+(?:/[^/\\]+)*$' -or
+        $licenseNotice -match '(^|/)\.\.?(/|$)' -or
+        $licenseNotice.Contains(':')) {
+        throw 'The model license_notices must be normalized paths below licenses/.'
+    }
 }
 New-Item -ItemType Directory -Force -Path $destinationRoot | Out-Null
 $destination = Join-Path $destinationRoot ($model.id + '.json')

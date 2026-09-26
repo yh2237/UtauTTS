@@ -40,18 +40,29 @@ function Assert-PackagedModelLicenseNotices([string]$PackageRoot) {
         if ([string]::IsNullOrWhiteSpace([string]$metadata.license)) {
             throw "Packaged model has no license description: $($modelFile.Name)"
         }
-        $notice = ([string]$metadata.license_notice).Trim()
-        if ($notice -notmatch '^licenses/[^/\\]+(?:/[^/\\]+)*$' -or
-            $notice -match '(^|/)\.\.?(/|$)' -or
-            $notice.Contains(':')) {
-            throw "Packaged model has an invalid license_notice path: $($modelFile.Name)"
+        $notices = @()
+        if ($null -ne $metadata.license_notices) {
+            $notices = @($metadata.license_notices)
+        } elseif (-not [string]::IsNullOrWhiteSpace([string]$metadata.license_notice)) {
+            $notices = @([string]$metadata.license_notice)
         }
-        $noticePath = Join-Path $PackageRoot ($notice.Replace('/', '\'))
-        Assert-Path $noticePath "model license notice for $($modelFile.Name)"
-        $sourceNoticePath = Join-Path $projectRoot ($notice.Replace('/', '\'))
-        Assert-Path $sourceNoticePath "source model license notice for $($modelFile.Name)"
-        if ([IO.File]::ReadAllText($noticePath) -ne [IO.File]::ReadAllText($sourceNoticePath)) {
-            throw "Package contains a stale model license notice: $noticePath"
+        if ($notices.Count -eq 0) {
+            throw "Packaged model has no license_notices: $($modelFile.Name)"
+        }
+        foreach ($rawNotice in $notices) {
+            $notice = ([string]$rawNotice).Trim()
+            if ($notice -notmatch '^licenses/[^/\\]+(?:/[^/\\]+)*$' -or
+                $notice -match '(^|/)\.\.?(/|$)' -or
+                $notice.Contains(':')) {
+                throw "Packaged model has an invalid license_notices path: $($modelFile.Name)"
+            }
+            $noticePath = Join-Path $PackageRoot ($notice.Replace('/', '\'))
+            Assert-Path $noticePath "model license notice for $($modelFile.Name)"
+            $sourceNoticePath = Join-Path $projectRoot ($notice.Replace('/', '\'))
+            Assert-Path $sourceNoticePath "source model license notice for $($modelFile.Name)"
+            if ([IO.File]::ReadAllText($noticePath) -ne [IO.File]::ReadAllText($sourceNoticePath)) {
+                throw "Package contains a stale model license notice: $noticePath"
+            }
         }
     }
 }

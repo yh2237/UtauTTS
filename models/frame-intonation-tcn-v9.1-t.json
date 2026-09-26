@@ -2,12 +2,13 @@
   "id": "frame-intonation-tcn-v9.1-t",
   "display_name": "Frame Intonation TCN v9.1T",
   "description": "Tsukuyomi-chan Corpus Vol.1 と みんなで作るJSUTコーパスbasic5000 で学習した日本語フレーム抑揚モデル",
-  "license": "MIT License (model weights); Tsukuyomi-chan Corpus and みんなで作るJSUTコーパスbasic5000 terms apply to the training audio",
-  "license_notice": "licenses/FRAME-INTONATION-V9.1-T.txt",
+  "license": "MIT License (model weights)",
+  "license_notices": [
+    "licenses/TSUKUYOMI-CORPUS.txt",
+    "licenses/MINNADE-JSUT-CORPUS.txt"
+  ],
   "provenance": {
-    "training_corpus": "Tsukuyomi-chan Corpus Vol.1 + みんなで作るJSUTコーパスbasic5000 (Rei Yumesaki)",
-    "training_corpus_license": "See licenses/FRAME-INTONATION-V9.1-T.txt",
-    "source_notice": "licenses/FRAME-INTONATION-V9.1-T.txt"
+    "training_corpus": "Tsukuyomi-chan Corpus Vol.1 (CV.夢前黎) + みんなで作るJSUTコーパスbasic5000 BASIC5000_0001-0600"
   },
   "recommended_renderers": [
     "utautts-world-phrase"

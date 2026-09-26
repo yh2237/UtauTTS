@@ -4,7 +4,9 @@
   "description": "Compact English stress and phrase-boundary intonation model",
   "language": "en",
   "license": "MIT License",
-  "license_notice": "licenses/ENGLISH-INTONATION-V1.txt",
+  "license_notices": [
+    "licenses/ENGLISH-INTONATION-V1.txt"
+  ],
   "recommended_renderers": [
     "utautts-world-phrase"
   ],

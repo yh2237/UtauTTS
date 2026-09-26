@@ -128,10 +128,9 @@ go run ./cmd/tools/resampler-compat `
   "id": "my-model-v1",
   "display_name": "My intonation model",
   "license": "MIT License",
-  "license_notice": "licenses/MY-MODEL.txt",
+  "license_notices": ["licenses/MY-CORPUS-NOTICE.txt"],
   "provenance": {
-    "training_corpus": "Describe the training data",
-    "source_notice": "licenses/MY-MODEL-SOURCE.txt"
+    "training_corpus": "Describe the training data"
   },
   "recommended_renderers": ["utautts-world-phrase"],
   "default_priority": 100,
@@ -143,7 +142,7 @@ go run ./cmd/tools/resampler-compat `
 
 `id`と`display_name`がないJSONはモデルとして扱いません。同じIDや壊れたJSONは診断へ表示します。CLIの`--prosody`にはファイルpathではなくIDを指定します。
 
-既存のJSONモデルを`models/`へ登録する場合は、識別情報とライセンス情報が必須です。`license_notice`と`provenance`には実際の配布条件と出典を記録します。
+既存のJSONモデルを`models/`へ登録する場合は、識別情報とライセンス情報が必須です。`license_notices`（使用した各データの通知の配列）と`provenance`には実際の配布条件と出典を記録します。
 
 識別情報のない学習結果には、登録前に次のスクリプトでIDと表示名を付けます。
 
@@ -216,4 +215,4 @@ sessionの寿命はProvider processと同じです。Provider processが落ち�
 
 ## 配布物
 
-リリースビルドでは`renderer/`と`models/`をGUI版・Server版へコピーします。モデルが一つもない場合はビルドに失敗します。`models/`へ登録するモデルJSONには`license`と`license_notice`が必須です。`license`はモデルの配布条件、`provenance`は学習元と出典を表します。上流データの条件は`license_notice`または`provenance`の通知へ記録します。`license_notice`は配布物のルートからの相対パスで、リポジトリの`licenses/`以下に実在するファイルを指定します。各モデル、Renderer、外部アセットの条件と出典は[ライセンスの適用範囲](../LICENSE-SCOPE.md)、[第三者通知](../THIRD_PARTY_NOTICES.txt)、配布元の文書を参照してください。
+リリースビルドでは`renderer/`と`models/`をGUI版・Server版へコピーします。モデルが一つもない場合はビルドに失敗します。`models/`へ登録するモデルJSONには`license`と`license_notices`が必須です。`license`はモデルの配布条件、`provenance`は学習元と出典を表します。`license_notices`は使用した各データ（コーパスなど）の通知を列挙します。各通知は配布物のルートからの相対パスで、リポジトリの`licenses/`以下に実在するファイルを指定します。各モデル、Renderer、外部アセットの条件と出典は[ライセンスの適用範囲](../LICENSE-SCOPE.md)、[第三者通知](../THIRD_PARTY_NOTICES.txt)、配布元の文書を参照してください。

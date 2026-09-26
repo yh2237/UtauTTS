@@ -1030,11 +1030,9 @@ def export_model(
         "display_name": str(args.display_name or Path(args.out).stem),
         "description": str(args.description or "Frame-level learned intonation model"),
         "license": str(args.model_license),
-        "license_notice": str(args.license_notice),
+        "license_notices": [str(value) for value in args.license_notice],
         "provenance": {
             "training_corpus": str(args.training_corpus),
-            "training_corpus_license": str(args.training_corpus_license),
-            "source_notice": str(args.source_notice),
         },
         "recommended_renderers": list(args.recommended_renderer or ["utautts-world-phrase"]),
         "version": 8,
@@ -1181,10 +1179,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", required=True, help="version-1 JSONL with timed tokens and audio_path")
     parser.add_argument("--training-corpus", default="", help="training corpus name recorded in the model")
-    parser.add_argument("--training-corpus-license", default="", help="training corpus license recorded in the model")
     parser.add_argument("--model-license", default="MIT License")
-    parser.add_argument("--license-notice", default="", help="license notice path recorded in the model")
-    parser.add_argument("--source-notice", default="", help="source notice path recorded in the model")
+    parser.add_argument("--license-notice", action="append", default=[], help="license notice path recorded in the model; repeatable")
     parser.add_argument("--out", default="out/prosody/intonation-frame-tcn-v7.json")
     parser.add_argument("--model-id", default="", help="stable plugin ID stored in the model")
     parser.add_argument("--display-name", default="", help="user-facing model name")
@@ -1239,14 +1235,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("invalid renderer smoothing/p99/maximum safety settings")
     if bool(args.predict_corpus) != bool(args.predict_out):
         parser.error("--predict-corpus and --predict-out must be used together")
-    provenance = (
-        args.training_corpus,
-        args.training_corpus_license,
-        args.model_license,
-        args.license_notice,
-        args.source_notice,
-    )
-    if not all(str(value).strip() for value in provenance):
+    if not str(args.training_corpus).strip() or not str(args.model_license).strip() or not args.license_notice:
         parser.error("datasets require nonempty corpus and license provenance")
 
     random.seed(args.seed)
