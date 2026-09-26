@@ -192,6 +192,7 @@
     "settings.theme.light": "浅色",
     "onboarding.title": "欢迎使用 UtauTTS",
     "onboarding.start": "开始使用",
+    "onboarding.translationNotice": "日语以外的语言为自动翻译。如发现翻译问题，请提交 Issue 或 Pull Request。",
     "settings.title": "设置",
     "settings.updateCheckEnabled": "检查更新并通知",
     "settings.preReleaseUpdateCheckEnabled": "同时检查预发布版",

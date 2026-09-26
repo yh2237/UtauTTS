@@ -192,6 +192,7 @@
     "settings.theme.light": "Light",
     "onboarding.title": "Welcome to UtauTTS",
     "onboarding.start": "Get started",
+    "onboarding.translationNotice": "Languages other than Japanese are machine-translated. If you notice translation issues, please send an Issue or Pull Request.",
     "settings.title": "Settings",
     "settings.updateCheckEnabled": "Check for Updates",
     "settings.preReleaseUpdateCheckEnabled": "Also check pre-releases",

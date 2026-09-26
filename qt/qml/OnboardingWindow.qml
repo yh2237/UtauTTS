@@ -25,11 +25,11 @@ ApplicationWindow {
     title: root.translator.tr("onboarding.title")
     visible: false
     width: 460
-    height: 290
+    height: 350
     minimumWidth: 460
     maximumWidth: 460
-    minimumHeight: 290
-    maximumHeight: 290
+    minimumHeight: 350
+    maximumHeight: 350
     x: root.hostWindow.x + (root.hostWindow.width - width) / 2
     y: root.hostWindow.y + (root.hostWindow.height - height) / 2
     transientParent: hostWindow
@@ -81,6 +81,14 @@ ApplicationWindow {
                 currentIndex: root.backend.darkMode ? 1 : 0
                 onActivated: root.backend.setDarkMode(currentIndex === 1)
             }
+        }
+
+        Label {
+            Layout.fillWidth: true
+            text: root.translator.tr("onboarding.translationNotice")
+            color: root.palette.placeholderText
+            font.pixelSize: 12
+            wrapMode: Text.WordWrap
         }
 
         Item { Layout.fillHeight: true }

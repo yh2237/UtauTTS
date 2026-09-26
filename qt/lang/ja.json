@@ -192,6 +192,7 @@
     "settings.theme.light": "ライト",
     "onboarding.title": "UtauTTSへようこそ",
     "onboarding.start": "はじめる",
+    "onboarding.translationNotice": "日本語以外の言語は自動翻訳です。翻訳に問題がある場合は、IssueまたはPull Requestをお送りください。",
     "settings.title": "設定",
     "settings.updateCheckEnabled": "アップデートの確認と通知を行う",
     "settings.preReleaseUpdateCheckEnabled": "プレリリース版も確認する",
