@@ -787,35 +787,6 @@ ApplicationWindow {
                 Qt.callLater(window.initializeIntonationLab);
         }
 
-        function applyPronunciation(index, reading, morae) {
-            const old = utterances.get(index);
-            const oldPoints = window.decodeSequence(old.pointsJson);
-            const oldDurations = window.decodeSequence(old.moraDurationsJson);
-            const oldPositions = window.decodeSequence(old.moraPositionsJson);
-            if (index === window.selectedIndex)
-                window.clearSynthesisView();
-            const values = [];
-            const durations = [];
-            const positions = oldPositions.length === morae.length ? oldPositions.slice() : [];
-            for (let i = 0; i < morae.length; ++i)
-                values.push(i < oldPoints.length ? oldPoints[i] : 0);
-            for (let i = 0; i < morae.length; ++i)
-                durations.push(i < oldDurations.length ? oldDurations[i] : 0);
-            utterances.setProperty(index, "reading", reading);
-            utterances.setProperty(index, "moraeJson", JSON.stringify(morae));
-            utterances.setProperty(index, "pointsJson", JSON.stringify(values));
-            utterances.setProperty(index, "moraDurationsJson", JSON.stringify(durations));
-            utterances.setProperty(index, "moraPositionsJson", JSON.stringify(positions));
-            window.clearAutomaticArrays(index);
-            if (index === window.selectedIndex) {
-                editorContent.pitchEditor.points = values.slice();
-                editorContent.pitchEditor.autoPoints = [];
-                editorContent.pitchEditor.morae = morae.slice();
-                editorContent.pitchEditor.moraDurations = durations.slice();
-                editorContent.pitchEditor.moraPositions = positions.slice();
-            }
-        }
-
         function onAnalysisChanged() {
             const requestId = window.appBackend.analysisRequestId;
             const sourceText = window.appBackend.analysisSourceText;
@@ -3135,6 +3106,35 @@ ApplicationWindow {
             starts.push(start !== null && start >= 0 ? start : null);
         }
         return window.normalizedMoraPositions(starts);
+    }
+
+    function applyPronunciation(index, reading, morae) {
+        const old = utterances.get(index);
+        const oldPoints = window.decodeSequence(old.pointsJson);
+        const oldDurations = window.decodeSequence(old.moraDurationsJson);
+        const oldPositions = window.decodeSequence(old.moraPositionsJson);
+        if (index === window.selectedIndex)
+            window.clearSynthesisView();
+        const values = [];
+        const durations = [];
+        const positions = oldPositions.length === morae.length ? oldPositions.slice() : [];
+        for (let i = 0; i < morae.length; ++i)
+            values.push(i < oldPoints.length ? oldPoints[i] : 0);
+        for (let i = 0; i < morae.length; ++i)
+            durations.push(i < oldDurations.length ? oldDurations[i] : 0);
+        utterances.setProperty(index, "reading", reading);
+        utterances.setProperty(index, "moraeJson", JSON.stringify(morae));
+        utterances.setProperty(index, "pointsJson", JSON.stringify(values));
+        utterances.setProperty(index, "moraDurationsJson", JSON.stringify(durations));
+        utterances.setProperty(index, "moraPositionsJson", JSON.stringify(positions));
+        window.clearAutomaticArrays(index);
+        if (index === window.selectedIndex) {
+            editorContent.pitchEditor.points = values.slice();
+            editorContent.pitchEditor.autoPoints = [];
+            editorContent.pitchEditor.morae = morae.slice();
+            editorContent.pitchEditor.moraDurations = durations.slice();
+            editorContent.pitchEditor.moraPositions = positions.slice();
+        }
     }
 
     function clearAutomaticArrays(index) {
