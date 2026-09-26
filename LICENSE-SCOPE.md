@@ -20,7 +20,7 @@ UtauTTSのオリジナルコードは[`LICENSE`](./LICENSE)のMIT Licenseです�
 
 ## 同梱ボイスバンク
 
-GUI版の初期音源「足立レイ UTAU音源 ver3.5.0」はUtauTTS本体とは別の条件で配布します。出典と条件は[同梱音源](./docs/voicebank.md)を参照してください。Server版に初期音源はありません。
+GUI版の初期音源「足立レイ ver3.5.0」はUtauTTS本体とは別の条件で配布します。出典と条件は[同梱音源](./docs/voicebank.md)を参照してください。Server版に初期音源はありません。
 
 ## 第三者コンポーネント
 

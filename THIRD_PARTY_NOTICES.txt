@@ -245,7 +245,7 @@ The complete notice is included as
 licenses/WORLD/MACRODEFINITIONS-LICENSE.txt.
 
 
-足立レイ UTAU音源 ver3.5.0
+足立レイ ver3.5.0
 ==========================
 
 The UtauTTS GUI distribution bundles the official 足立レイ UTAU voicebank

@@ -30,7 +30,7 @@ chmod +x utautts tools/* runtime/utautts-openjtalk-features runtime/utautts-worl
 
 macOS版はApple Silicon（arm64）向けです。署名・公証は行っていません。初回起動時に隔離属性の解除が必要になる場合があります。手順は[インストール](docs/installation.md)を参照してください。
 
-GUI版には「足立レイ UTAU音源 ver3.5.0」を同梱しています。利用条件は[同梱音源](docs/voicebank.md)と音源内の文書を確認してください。
+GUI版には「足立レイ ver3.5.0」を同梱しています。利用条件は[同梱音源](docs/voicebank.md)と音源内の文書を確認してください。
 
 ## 使い方
 
