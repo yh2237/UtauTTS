@@ -10,9 +10,39 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 )
+
+// singerCacheは読み込み済みSingerをパスとdsconfig.yamlのサイズ・mtimeで再利用する。
+// ファイルが変わればmtimeが変わるため自己無効化される。
+var (
+	singerCacheMu sync.RWMutex
+	singerCache   = map[string]cachedSinger{}
+)
+
+type cachedSinger struct {
+	singer    *Singer
+	size      int64
+	modTimeNS int64
+}
+
+func cachedSingerFor(root string, size, modTimeNS int64) *Singer {
+	singerCacheMu.RLock()
+	defer singerCacheMu.RUnlock()
+	entry, ok := singerCache[root]
+	if ok && entry.size == size && entry.modTimeNS == modTimeNS {
+		return entry.singer
+	}
+	return nil
+}
+
+func storeCachedSinger(root string, size, modTimeNS int64, singer *Singer) {
+	singerCacheMu.Lock()
+	singerCache[root] = cachedSinger{singer: singer, size: size, modTimeNS: modTimeNS}
+	singerCacheMu.Unlock()
+}
 
 const (
 	SingerKind = "diffsinger"
@@ -162,8 +192,15 @@ func Load(root string) (*Singer, error) {
 	if err != nil {
 		return nil, err
 	}
+	configPath := filepath.Join(absRoot, "dsconfig.yaml")
+	configStat, configStatErr := os.Stat(configPath)
+	if configStatErr == nil {
+		if cached := cachedSingerFor(absRoot, configStat.Size(), configStat.ModTime().UnixNano()); cached != nil {
+			return cached, nil
+		}
+	}
 	var cfg Config
-	if err := readYAML(filepath.Join(absRoot, "dsconfig.yaml"), &cfg); err != nil {
+	if err := readYAML(configPath, &cfg); err != nil {
 		return nil, fmt.Errorf("read dsconfig.yaml: %w", err)
 	}
 	applyConfigDefaults(&cfg)
@@ -265,7 +302,11 @@ func Load(root string) (*Singer, error) {
 	if variance != nil && (variance.Config.SampleRate != cfg.SampleRate || variance.Config.HopSize != cfg.HopSize) {
 		return nil, fmt.Errorf("acoustic model and variance model frame settings do not match")
 	}
-	return &Singer{Root: absRoot, Config: cfg, Vocoder: vocoder, Tokens: tokens, LanguageIDs: languageIDs, AcousticPath: acousticPath, VocoderPath: vocoderPath, SpeakerEmbed: speakerEmbed, JapaneseDictionary: japaneseDictionary, Duration: duration, Pitch: pitch, Variance: variance}, nil
+	singer := &Singer{Root: absRoot, Config: cfg, Vocoder: vocoder, Tokens: tokens, LanguageIDs: languageIDs, AcousticPath: acousticPath, VocoderPath: vocoderPath, SpeakerEmbed: speakerEmbed, JapaneseDictionary: japaneseDictionary, Duration: duration, Pitch: pitch, Variance: variance}
+	if configStatErr == nil {
+		storeCachedSinger(absRoot, configStat.Size(), configStat.ModTime().UnixNano(), singer)
+	}
+	return singer, nil
 }
 
 func (s *Singer) Token(symbol string) (int64, error) {
