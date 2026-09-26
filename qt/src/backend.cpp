@@ -1505,9 +1505,6 @@ void Backend::predictProsody(const QVariantMap &request) {
 }
 
 void Backend::synthesize(const QVariantMap &input) {
-    if (m_busy) {
-        return;
-    }
     if (!m_previewDirectory.isValid()) {
         setError(tr("プレビュー用の一時ディレクトリを作成できませんでした"));
         return;
@@ -1516,6 +1513,9 @@ void Backend::synthesize(const QVariantMap &input) {
     request.remove(QStringLiteral("output_path"));
     const QByteArray cacheKey = previewCacheKey(request);
     if (restorePreviewCache(cacheKey)) {
+        return;
+    }
+    if (m_busy) {
         return;
     }
     const QString previewText = request.value("text").toString().isEmpty()

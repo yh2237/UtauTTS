@@ -72,7 +72,7 @@ ApplicationWindow {
 
     Timer {
         id: autoPreviewTimer
-        interval: 350
+        interval: 260
         repeat: false
         onTriggered: window.refreshPreview()
     }
@@ -106,6 +106,13 @@ ApplicationWindow {
         }
     }
 
+    Timer {
+        id: prosodyPreviewTimer
+        interval: 90
+        repeat: false
+        onTriggered: window.flushProsodyPreviewRequest()
+    }
+
     property alias utterancesModel: utterances
     property alias playerMedia: player
     property alias settingsWindowRef: settingsWindow
@@ -125,6 +132,7 @@ ApplicationWindow {
     property string pendingProsodyRequestId: ""
     property string pendingProsodyUtteranceId: ""
     property int pendingProsodyRevision: -1
+    property int pendingProsodyPreviewIndex: -1
     property bool saveRequestPending: false
     property bool playbackRequested: false
     property string playbackError: ""
@@ -245,7 +253,7 @@ ApplicationWindow {
 
     Timer {
         id: analyzeTimer
-        interval: 250
+        interval: 180
         onTriggered: {
             if (utterances.count && window.current().content.trim()) {
                 if (window.appBackend.busy) {
@@ -779,18 +787,11 @@ ApplicationWindow {
                 Qt.callLater(window.initializeIntonationLab);
         }
 
-        function onAnalysisChanged() {
-            const requestId = window.appBackend.analysisRequestId;
-            const sourceText = window.appBackend.analysisSourceText;
-            const index = window.utteranceIndex(requestId);
-            if (index < 0 || utterances.get(index).content !== sourceText)
-                return;
-            const analysis = JSON.parse(window.appBackend.analysisJson);
+        function applyPronunciation(index, reading, morae) {
             const old = utterances.get(index);
             const oldPoints = window.decodeSequence(old.pointsJson);
             const oldDurations = window.decodeSequence(old.moraDurationsJson);
             const oldPositions = window.decodeSequence(old.moraPositionsJson);
-            const morae = window.copySequence(analysis.morae);
             if (index === window.selectedIndex)
                 window.clearSynthesisView();
             const values = [];
@@ -800,7 +801,7 @@ ApplicationWindow {
                 values.push(i < oldPoints.length ? oldPoints[i] : 0);
             for (let i = 0; i < morae.length; ++i)
                 durations.push(i < oldDurations.length ? oldDurations[i] : 0);
-            utterances.setProperty(index, "reading", analysis.reading);
+            utterances.setProperty(index, "reading", reading);
             utterances.setProperty(index, "moraeJson", JSON.stringify(morae));
             utterances.setProperty(index, "pointsJson", JSON.stringify(values));
             utterances.setProperty(index, "moraDurationsJson", JSON.stringify(durations));
@@ -813,6 +814,16 @@ ApplicationWindow {
                 editorContent.pitchEditor.moraDurations = durations.slice();
                 editorContent.pitchEditor.moraPositions = positions.slice();
             }
+        }
+
+        function onAnalysisChanged() {
+            const requestId = window.appBackend.analysisRequestId;
+            const sourceText = window.appBackend.analysisSourceText;
+            const index = window.utteranceIndex(requestId);
+            if (index < 0 || utterances.get(index).content !== sourceText)
+                return;
+            const analysis = JSON.parse(window.appBackend.analysisJson);
+            window.applyPronunciation(index, analysis.reading, window.copySequence(analysis.morae));
             if (!window.batchExportActive && index === window.selectedIndex)
                 window.requestProsodyPreview(index);
         }
@@ -828,6 +839,10 @@ ApplicationWindow {
                 result = JSON.parse(window.appBackend.prosodyJson);
             } catch (error) {
                 return;
+            }
+            // analyze往復を省いた場合、読み・モーラはプロソディ結果から適用する。
+            if (!utterances.get(index).reading && result.reading) {
+                window.applyPronunciation(index, result.reading, window.copySequence(result.morae));
             }
             const automaticPoints = window.copySequence(result.pitch_points);
             const automaticDurations = window.copySequence(result.mora_durations_ms);
@@ -2567,7 +2582,7 @@ ApplicationWindow {
         utterances.setProperty(index, "manualMoraDurationEdited", false);
         markUtteranceDirty(index);
         selectUtterance(index);
-        analyzeTimer.restart();
+        window.requestMissingProsodyPreview(index);
     }
 
     function updatePitchPoints(points) {
@@ -3044,10 +3059,18 @@ ApplicationWindow {
     }
 
     function requestMissingProsodyPreview(index) {
+        if (index < 0 || index >= utterances.count)
+            return;
+        window.pendingProsodyPreviewIndex = index;
+        prosodyPreviewTimer.restart();
+    }
+
+    function flushProsodyPreviewRequest() {
+        const index = window.pendingProsodyPreviewIndex;
         if (window.batchExportActive || index < 0 || index >= utterances.count)
             return;
         const item = utterances.get(index);
-        if (!item.content.trim() || !item.reading || window.automaticProsodyReady(item))
+        if (!item.content.trim() || window.automaticProsodyReady(item))
             return;
         if (window.pendingProsodyUtteranceId === item.utteranceId
                 && window.pendingProsodyRevision === item.revision)
@@ -3474,8 +3497,14 @@ ApplicationWindow {
         if (window.batchExportActive || index < 0 || index >= utterances.count)
             return;
         const item = utterances.get(index);
-        if (!item.content.trim() || !item.reading)
+        if (!item.content.trim())
             return;
+        if (window.appBackend.busy) {
+            // 合成中はpredictProsodyが破棄されるため、空いたら再試行する。
+            window.pendingProsodyPreviewIndex = index;
+            prosodyPreviewTimer.restart();
+            return;
+        }
         const requestId = item.utteranceId + ":" + item.revision + ":" + Date.now();
         window.pendingProsodyRequestId = requestId;
         window.pendingProsodyUtteranceId = item.utteranceId;
