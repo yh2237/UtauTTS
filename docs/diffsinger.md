@@ -31,4 +31,4 @@ UtauTTSは話声のタイミングと抑揚を反映し、音源に含まれる�
 
 合成時は、対応するbridgeの`utautts-provider` sessionを同じプロセスで次の合成にも再利用します。C# bridgeはモデルごとにONNX Runtimeの推論sessionを保持するため、合成ごとのモデル初期化を避けられます。sessionを開始できない場合はエラーになります。
 
-推論は`--diffsinger-steps`、`--diffsinger-duration-mix`、`--diffsinger-pitch-mix`、`--diffsinger-expr`（HTTPは`diffsinger_steps`など）で調整できます。いずれも0で既定値を使います。混合率を上げると音源側の予測が強くなり、下げるとUtauTTSの話声韻律を優先します。`--diffsinger-expr`は表現力（既定1.0）で、下げるとビブラートや息遣いが弱まり話声寄りになります。
+推論は`--diffsinger-steps`、`--diffsinger-duration-mix`、`--diffsinger-pitch-mix`、`--diffsinger-expr`（HTTPは`diffsinger_steps`など）で調整できます。いずれも0で既定値を使います。混合率を上げると音源側の予測が強くなり、下げるとUtauTTSの話声韻律を優先します。`--diffsinger-expr`はフラグの既定`0`がbridgeの既定値1.0を意味する表現力で、下げるとビブラートや息遣いが弱まり話声寄りになります。

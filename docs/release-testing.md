@@ -40,7 +40,7 @@ WindowsからLinux版を検査する場合は、WSL2側で一度セットアッ�
 ./tools/test-linux-package.sh
 ```
 
-Linux検査ではZIPを一時ディレクトリへ展開して日本語フォント、共有ライブラリ解決、実行権限、GUI ELFのCOPY relocation／TEXTREL、QtオフスクリーンGUI自己診断、CLI合成、Serverの解析・合成・batch APIを確認します。PipeWire／PulseAudioのセッションがない完全なヘッドレス環境ではGUI自己診断だけを自動的にスキップし、CLIとServerの検査を続行します。GUI自己診断を必須にする場合は`UTAUTTS_REQUIRE_GUI_SELF_TEST=1`を設定してください。
+Linux検査ではZIPを一時ディレクトリへ展開して日本語フォント、共有ライブラリ解決、実行権限、GUI ELFのCOPY relocation／TEXTREL、QtオフスクリーンGUI自己診断、CLI合成、Serverの解析・合成・batch APIを確認します。PipeWire／PulseAudioのセッションがない完全なヘッドレス環境ではGUI自己診断だけを自動的にスキップし、CLIとServerの検査を続行します。GUI自己診断を必須にする場合は`UTAUTTS_REQUIRE_GUI_SELF_TEST=1`、明示的にスキップする場合は`UTAUTTS_SKIP_GUI_SELF_TEST=1`を設定してください。
 
 macOS版はApple Silicon Mac、またはGitHub ActionsのmacOSワークフローで一括実行します。
 
@@ -63,7 +63,7 @@ Windowsの標準ビルドは`Full`プロファイルです。作成済みの日�
 
 ## 更新経路とリリースメタデータ
 
-リリース前には、`appinfo.json`のversionと更新schemaが前回のリリースから後退していないことを確認します。更新用metadataを導入する前の`v1.2.2`を基準にする場合は、`-PreviousVersion v1.2.2`を指定すると検査スクリプトが当時の基準値を補います。その他のリリースでは、実際の前バージョンを指定してください。
+リリース前には、`appinfo.json`のversionと更新・移行schema、install layoutが前回のリリースから後退していないことを確認します。更新用metadataを導入する前の`v1.2.2`を基準にする場合は、`-PreviousVersion v1.2.2`を指定すると検査スクリプトが当時の基準値を補います。その他のリリースでは、実際の前バージョンを指定してください。
 
 ```powershell
 $expected = 'v1.2.3'  # 作成するタグへ置き換える

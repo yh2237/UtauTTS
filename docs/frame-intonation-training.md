@@ -76,7 +76,7 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utau
 
 | ツール | 用途 |
 | --- | --- |
-| `prepare-intonation-frame-data.py` | `metadata.csv`と`wavs/<id>.wav`を学習用JSONLへまとめる（`id`・`text`・`reading`列） |
+| `prepare-intonation-frame-data.py` | `metadata.csv`（`id`・`text`・`reading`列）と`wavs/<id>.wav`を学習用JSONL（`id`・`text`・`source_reading`・`openjtalk_reading`など）へまとめる |
 | `mora_alignment.py` | 音素時刻のないコーパス向けアクセントViterbiアラインメント |
 | `train-frame-intonation-tcn.py` | フレーム抑揚モデルの学習と予測 |
 | `train-manual-intonation-residual.py` | Intonation Labの手動調整から残差モデルを学習する |

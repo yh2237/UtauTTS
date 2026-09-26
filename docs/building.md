@@ -49,7 +49,7 @@ FFMPEG_ROOT
 
 リリースアーカイブには`Qt-SBOM-MANIFEST.txt`と`FFmpeg-OPTIONAL.txt`を含めます。
 
-WindowsのOpen JTalkヘルパーのランタイムDLL検出元: 公式のVisual C++再頒布用ディレクトリとWindows SDKのUCRT再頒布用ディレクトリ。PyInstallerのPATHは検出対象外。検出できない場合の指定変数: x64用ディレクトリを次の変数へ設定します。
+WindowsのOpen JTalkヘルパーのランタイムDLL検出元: 公式のVisual C++再頒布用ディレクトリとWindows SDKのUCRT再頒布用ディレクトリ。PyInstallerのPATHは検出対象外。検出できない場合の指定変数: x64用ディレクトリを次の変数へ設定します（`UTAUTTS_MSVC_REDIST_DIR`は`Microsoft.VC143.CRT`ディレクトリ自体か、その親ルートを指定できます）。
 
 ```powershell
 $env:UTAUTTS_MSVC_REDIST_DIR = 'C:\path\to\Microsoft.VC143.CRT'

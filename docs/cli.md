@@ -79,6 +79,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--prosody <id>` | | 抑揚モデルのplugin ID |
 | `--prosody-pitch-only` | `false` | 学習ピッチのみ適用し、モーラ長・音量は固定値を使う |
 | `--manual-pitch <path>` | | 手動ピッチ編集JSON（[manual-pitch.md](manual-pitch.md)） |
+| `--join-model <path>` | | 学習済みjoin-qualityモデルのJSON（[join-quality.md](join-quality.md)） |
 | `--prosody-features <path>` | | ケース別のモーラ単位アクセント特徴JSON |
 | `--prosody-feature-case <id>` | | `--prosody-features` 内のケースID |
 | `--pitch-contours <path>` | | ケース別ピッチ係数JSON（計画へ記録。波形処理には `--apply-pitch` が必要） |

@@ -2,7 +2,7 @@
 
 UtauTTSの合成機能をHTTP APIから利用するためのサーバーです。Windows、Linux x64、macOS arm64に対応しています。
 
-サーバーは初期状態で`127.0.0.1:8080`を待ち受けます。LANや外部から接続できるアドレスで起動する場合は、必ず`--auth-token`を設定してください。
+サーバーは初期状態で`127.0.0.1:8080`を待ち受けます。LANや外部から接続できるアドレスで起動する場合は、必ず`--auth-token`を設定してください（未設定でも起動は継続し、警告ログのみを出します）。
 
 Windows
 
@@ -36,7 +36,7 @@ xattr -rc "utautts-server" runtime
 - 文章・音源・モデル・Rendererなどを指定した合成とWAVダウンロード
 - `--auth-token`使用時はページ内のトークン入力へ保存すると以降のAPI呼び出しに`Authorization: Bearer <token>`を付加します
 
-コンソールUI（`/`と`/ui`）は公開されます。認証・Origin検査は`/api/*`にのみ適用されます。
+コンソールUIは`/`で提供されます（`/ui`は`/`への307リダイレクトです）。認証・Origin検査は`/api/*`にのみ適用されます。
 
 ## エンドポイント一覧
 
@@ -58,16 +58,17 @@ xattr -rc "utautts-server" runtime
 - エラーは`{"error":"説明"}`のJSONと対応するHTTPステータスコードで返ります。
 - JSON本文は1 MiBまでです。未知のJSON fieldは入力ミスとして拒否されます（400）。
 - ボディは単一のJSONオブジェクトでなければなりません。
-- 1発話の `text` と `kana` はそれぞれ500文字までです（413）。
+- 1発話の `text` と有効な読み（`reading`、無ければ`kana`）はそれぞれ500文字までです（413）。
 - `manual_pitch` のpointsは最大1000個です（413）。
+- `mora_durations_ms` と `resampler_expressions` は最大500要素です（413）。
 - batchは16発話、展開前WAV合計256 MiBまでです（413）。
-- 合成は最大4並行に制限されます。超過分は空きを待って順に処理されます。
+- 合成は最大4並行に制限されます。batchの同時実行はさらに最大2並行で、超過分は空きを待って順に処理されます。
 
 ### 認証
 
 `--auth-token`を設定すると`/api/*`の全エンドポイントで`Authorization: Bearer <token>`ヘッダーが必要になります。無い場合は401です。コンソールUI（`/`と`/ui`）自体は公開されます。
 
-GET以外のリクエストの`Origin`検査は`--auth-token`を設定した場合に有効になります。`Origin`ヘッダーがあり待受ホストのorigin（`http://<host>` / `https://<host>`）と一致しないときは403で拒否します。
+GET・HEAD以外のリクエストの`Origin`検査は`--auth-token`を設定した場合に有効になります。`Origin`ヘッダーがあり、リクエストの`Host`ヘッダーから見たorigin（`http://<host>` / `https://<host>`）と一致しないときは403で拒否します。
 
 ## 各エンドポイント
 
@@ -104,7 +105,7 @@ ID順にソートされた音源一覧です。
 }
 ```
 
-`id`は`voicebank_id`に指定する値で音源フォルダ名です。`phoneme_count`は全`oto.ini`のエントリ数、`diagnostic_count`はoto.iniの診断で問題があるエントリ数です。
+`id`は`voicebank_id`に指定する値で、`--voice-dir`からの相対パスです（入れ子の音源では`a/b`のようにスラッシュ区切りになります）。`phoneme_count`は全`oto.ini`のエントリ数、`diagnostic_count`はoto.iniの診断で問題があるエントリ数です。
 `alias_counts`、`vcv_contexts`、`vc_contexts`は音源のalias能力を表す診断情報です。実際の各モーラではaliasの存在と`oto.ini`設定が最終的な選択を決めます。
 
 `types`には`character.yaml`の全サブバンク（カラー、接頭辞・接尾辞、音域）が宣言順で入ります。合成するときはその`color`をリクエストの`color`へ指定できます。
@@ -132,14 +133,15 @@ ID順にソートされた音源一覧です。
   "models": [
     {
       "id": "frame-intonation-tcn-v9.1-t",
-      "display_name": "Frame Intonation TCN v9T",
-      "description": "Tsukuyomi-chan Corpus frame-level intonation model",
+      "display_name": "Frame Intonation TCN v9.1T",
+      "description": "Tsukuyomi-chan Corpus Vol.1 と みんなで作るJSUTコーパスbasic5000 で学習した日本語フレーム抑揚モデル",
       "path": "C:\\...\\models\\frame-intonation-tcn-v9.1-t.json",
       "version": 8,
+      "feature_version": 1,
       "mode": "intonation_frame_tcn_accent_bounded",
-      "outputs": {"pitch": true},
+      "sha256": "<モデルファイルのSHA-256>",
       "recommended_renderers": ["utautts-world-phrase"],
-      "default_priority": 100,
+      "default_priority": 110,
       "requires_features": true,
       "frame_contour": true
     }
@@ -147,7 +149,7 @@ ID順にソートされた音源一覧です。
 }
 ```
 
-`model_id` には `id` を指定します。
+`model_id` には `id` を指定します。`outputs`（`english-intonation-v1`などの係数モデルが持つ出力フラグ）は値が無いモデルでは省略されます。
 
 ### `GET /api/renderers`
 
@@ -157,13 +159,14 @@ ID順にソートされた音源一覧です。
   "renderers": [
     {"manifest_version": 2, "kind": "synthesis-engine", "id": "utautts-world-phrase", "display_name": "UtauTTS WORLD phrase", "description": "...", "contract": "unit-renderer", "provider": "utautts-world-phrase", "provider_version": "1", "capabilities": {"frame_pitch": true}, "default_priority": 300}
   ],
-  "problems": [],
-  "resamplers": [],
+  "availability": {"utautts-world-phrase": {"available": true}},
+  "problems": null,
+  "resamplers": null,
   "wavtools": [{"id": "builtin", "display_name": "UtauTTS built-in", "built_in": true}]
 }
 ```
 
-`default_renderer`はサーバー起動時の既定Rendererです。`problems`には読み込めなかったmanifestなどの診断が入ります。`resamplers`と`wavtools`にはClassic UTAUで選択できるツールが含まれ、`wavtools`には常に`builtin`が含まれます。リクエストで未知のRenderer IDを明示すると、既定Rendererへ切り替えずエラーになります。
+`default_renderer`はサーバー起動時の既定Rendererです。`availability`は各Rendererの実行時資源の事前検査結果（`available`と、不足時の`issues`）です。`problems`には読み込めなかったmanifestなどの診断が入ります。`resamplers`と`wavtools`にはClassic UTAUで選択できるツールが含まれ、`wavtools`には常に`builtin`が含まれます。要素が無い配列は`null`として返ります。リクエストで未知のRenderer IDを明示すると、既定Rendererへ切り替えずエラーになります。
 
 ### `POST /api/analyze`
 
@@ -226,6 +229,7 @@ ID順にソートされた音源一覧です。
 | `tone` | string | `C4` | `prefix.map` 使用時の音階 |
 | `color` | string | なし | `character.yaml`で定義された音源タイプ／サブバンク |
 | `model_id` | string | なし | `GET /api/models` の `id` |
+| `model_path` | string | なし | モデルJSONのローカルパス。指定時は`model_id`より優先し、`--model-dir`を探索せず直接読み込みます |
 | `renderer` | string | 既定Renderer | `GET /api/renderers` の `id`。省略時だけ既定Rendererを使い、未知の明示IDはエラーになります |
 | `resampler` | string | 自動選択 | Classic UTAUで使うresamplerの相対ID |
 | `wavtool` | string | `builtin` | Classic UTAUで使うwavtoolの相対ID |
@@ -234,7 +238,10 @@ ID順にソートされた音源一覧です。
 | `mora_duration_ms` | number | `120` | 基本モーラ長（0〜1000） |
 | `pause_duration_ms` | number | `180` | 句読点の休止長（0〜3000） |
 | `leading_preutterance_ms` | number | `0`（自動） | 文頭に確保する先行発声（0〜1000）。0では先頭原音の`oto.ini`から決定 |
+| `release_ms` | number | `20` | 原音のリリース（余韻）長（ms）。`release_set`が真のときだけ明示値として適用 |
+| `release_set` | boolean | `false` | `release_ms`を明示指定として適用する |
 | `mora_durations_ms` | number[] | | モーラごとの長さ。値は0〜1000 |
+| `unit_overrides` | object[] | なし | unit単位の候補・原音の明示指定（計画の上書き） |
 | `intonation_strength` | number | `2` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
 | `apply_pitch` | boolean | `true` | 波形ピッチ再サンプリング |
 | `speech_timing` | boolean | `false` | [発話タイミング補正](speech-quality-experiment.md)を有効にする |
@@ -248,11 +255,16 @@ ID順にソートされた音源一覧です。
 | `pause_context_strength` | number | `1` | 休止長補正の強度（0〜2）。0は既定1.0として扱う |
 | `english_weak_form` | boolean | `true` | 英語機能語の弱形（E1）を有効にする。句中で前後がポーズでない非強調の機能語だけ弱形にし、明示の読みと辞書を優先する |
 | `manual_pitch` | object | なし | 手動ピッチ編集（[manual-pitch.md](manual-pitch.md) のJSON） |
+| `pitch_curve` | object | なし | コーパス指定の固定ピッチ曲線。指定時は自動予測の輪郭より優先 |
 | `dictionary` | object[] | なし | ユーザー辞書。各項目は`surface`と`reading`を持つ |
+| `word_boundary_envelope` | boolean | `false` | 単語境界でフェードを強める音声実験（[発話タイミング補正](speech-quality-experiment.md)） |
+| `prosody_experiment` | string | 未指定 | 韻律実験の条件名（開発者・評価用） |
 | `diffsinger_steps` | number | `0`（既定値） | DiffSingerの拡散ステップ数。0で既定値 |
 | `diffsinger_duration_mix` | number | `0`（既定値） | DiffSingerの長さ予測の混合率（0〜1）。0で既定値 |
 | `diffsinger_pitch_mix` | number | `0`（既定値） | DiffSingerのピッチ予測の混合率（0〜1）。0で既定値 |
 | `diffsinger_expr` | number | `0`（既定値） | DiffSingerの表現力（0〜2）。0で既定値1.0 |
+| `worldline` | object | なし | WORLD providerのホスト制御（mix／gap repair／E2a／E2b）。空で既定（auto／ON） |
+| `renderer_settings` | object | なし | Renderer manifestが宣言した設定値をまとめて渡すmap。未知のidもエラーにせずprovider固有値として渡します |
 
 ステータスコード：
 
