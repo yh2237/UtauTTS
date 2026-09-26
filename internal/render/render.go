@@ -94,7 +94,7 @@ func rendererSupportsBoundaryBridge(renderer string) bool {
 }
 
 func renderWaveform(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
-	return renderWaveformWithStretch(synthesisPlan, cfg, false, func(source []float64, targetFrames, sourcePrefixFrames, targetPrefixFrames, sampleRate int) ([]float64, error) {
+	return renderWaveformWithStretch(synthesisPlan, cfg, true, func(source []float64, targetFrames, sourcePrefixFrames, targetPrefixFrames, sampleRate int) ([]float64, error) {
 		return retimeWithCompressedPrefixUsing(source, targetFrames, sourcePrefixFrames, targetPrefixFrames, sampleRate, wsolaStretch)
 	})
 }
@@ -228,7 +228,7 @@ func renderWaveformWithStretch(synthesisPlan *plan.Plan, cfg Config, parallelRet
 		unit := &synthesisPlan.Units[item.unitIndex]
 		var wave []float64
 		var err error
-		if synthesisPlan.SpeechTiming && !parallelRetime && unit.Role == "mora" && unit.SpeechProfile != nil && unit.SpeechProfile.Applied {
+		if synthesisPlan.SpeechTiming && unit.Role == "mora" && unit.SpeechProfile != nil && unit.SpeechProfile.Applied {
 			var targetFixed int
 			wave, targetFixed, unit.SpeechRetimeApplied = speechRetime(item.wave, item.targetFrames, item.sourcePreutteranceFrames,
 				item.speechSourceConsonantFrames, msToFrames(item.timing.PreutteranceMS, sampleRate), item.effectiveConsonantFrames, sampleRate, speechStop(synthesisPlan, *unit))
