@@ -1377,12 +1377,22 @@ Item {
                                 Math.max(0, Math.min(timelineViewport.width, anchor)));
                     } else {
                         const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x;
-                        timelineViewport.contentX = Math.max(
-                                    0, Math.min(timelineViewport.contentWidth - timelineViewport.width,
-                                                timelineViewport.contentX - delta));
+                        const maximum = Math.max(0, timelineViewport.contentWidth - timelineViewport.width);
+                        timelineScrollAnimation.stop();
+                        timelineScrollAnimation.from = timelineViewport.contentX;
+                        timelineScrollAnimation.to = Math.max(0, Math.min(maximum, timelineViewport.contentX - delta));
+                        timelineScrollAnimation.restart();
                     }
                     event.accepted = true;
                 }
+            }
+
+            NumberAnimation {
+                id: timelineScrollAnimation
+                target: timelineViewport
+                property: "contentX"
+                duration: 130
+                easing.type: Easing.OutCubic
             }
         }
 

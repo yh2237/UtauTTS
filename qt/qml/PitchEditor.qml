@@ -29,6 +29,9 @@ Item {
     property color gridColor: "#eadcdf"
     property color labelColor: "#66565a"
     property real moraWidth: 64
+    Behavior on moraWidth {
+        NumberAnimation { duration: 90; easing.type: Easing.OutCubic }
+    }
     property real sidePadding: 12
     signal pointsEdited(var points)
     signal pitchPointTouched(int index)
@@ -829,10 +832,22 @@ Item {
                     root.moraWidth = Math.max(32, Math.min(192, root.moraWidth * factor));
                 } else {
                     const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x;
-                    viewport.contentX = Math.max(0, Math.min(viewport.contentWidth - viewport.width, viewport.contentX - delta));
+                    const maximum = Math.max(0, viewport.contentWidth - viewport.width);
+                    scrollAnimation.stop();
+                    scrollAnimation.from = viewport.contentX;
+                    scrollAnimation.to = Math.max(0, Math.min(maximum, viewport.contentX - delta));
+                    scrollAnimation.restart();
                 }
                 event.accepted = true;
             }
+        }
+
+        NumberAnimation {
+            id: scrollAnimation
+            target: viewport
+            property: "contentX"
+            duration: 130
+            easing.type: Easing.OutCubic
         }
     }
 
@@ -841,4 +856,10 @@ Item {
     onAccentColorChanged: canvas.requestPaint()
     onAxisColorChanged: canvas.requestPaint()
     onGridColorChanged: canvas.requestPaint()
+    onMoraeChanged: canvas.requestPaint()
+    onMoraDurationsChanged: canvas.requestPaint()
+    onMoraPositionsChanged: canvas.requestPaint()
+    onMoraWidthChanged: canvas.requestPaint()
+    onDefaultMoraDurationChanged: canvas.requestPaint()
+    onDefaultPauseDurationChanged: canvas.requestPaint()
 }

@@ -458,6 +458,7 @@ import QtMultimedia
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
+                                preventStealing: true
                                 onPressed: mouse => updateAt(mouse.x)
                                 onPositionChanged: mouse => {
                                     if (pressed)
@@ -511,6 +512,7 @@ import QtMultimedia
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
+                                preventStealing: true
                                 onPressed: mouse => updateAt(mouse.x)
                                 onPositionChanged: mouse => {
                                     if (pressed)
@@ -564,6 +566,7 @@ import QtMultimedia
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
+                                preventStealing: true
                                 onPressed: mouse => updateAt(mouse.x)
                                 onPositionChanged: mouse => {
                                     if (pressed)
@@ -741,6 +744,7 @@ import QtMultimedia
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
+                                preventStealing: true
                                 onPressed: mouse => updateAt(mouse.x)
                                 onPositionChanged: mouse => {
                                     if (pressed)

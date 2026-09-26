@@ -99,7 +99,7 @@ ApplicationWindow {
                 }
             }
             if (!entry) {
-                entry = { id: group, settings: [] };
+                entry = { id: group, rendererId: String(renderer.id), settings: [] };
                 groups.push(entry);
             }
             entry.settings.push(setting);
@@ -675,7 +675,7 @@ ApplicationWindow {
                                                     id: rendererSettingRow
                                                     required property var modelData
                                                     Layout.fillWidth: true
-                                                    property string rendererId: String(rendererGroup.modelData.id)
+                                                    property string rendererId: String(rendererGroup.modelData.rendererId)
                                                     property string settingType: String(rendererSettingRow.modelData.type || "integer")
                                                     property bool scaled: rendererSettingRow.settingType === "number"
                                                     property real factor: rendererSettingRow.scaled ? 100 : 1
