@@ -86,7 +86,6 @@ ApplicationWindow {
         Label {
             Layout.fillWidth: true
             text: root.translator.tr("onboarding.translationNotice")
-            color: root.palette.placeholderText
             font.pixelSize: 12
             wrapMode: Text.WordWrap
         }
