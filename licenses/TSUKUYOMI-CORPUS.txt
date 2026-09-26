@@ -1,21 +1,30 @@
 Tsukuyomi-chan Corpus Vol.1
 ===========================
 
-Corpus: Tsukuyomi-chan Corpus Vol.1 "Voice Actress Statistics Corpus"
-        (JVS-corpus compatible), spoken by Rei Yumesaki.
+Corpus: つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）
+        (Tsukuyomi-chan Corpus Vol.1, a "voice-actress statistics" corpus,
+        JVS compatible), spoken by 夢前黎 / Rei Yumesaki.
 Source: https://tyc.rei-yumesaki.net/material/corpus/
 
 UtauTTS uses this corpus to train frame-intonation models. Those models learn
-only relative pitch (intonation) from the corpus and do not reproduce the
-speaker's voice quality. UtauTTS does not redistribute the corpus audio. The
-model weights are distributed under the MIT License (see LICENSE).
+relative pitch (intonation) only and do not intentionally model the speaker's
+voice quality. UtauTTS redistributes only the trained weights, not the corpus
+audio or scripts. The model weights are distributed under the MIT License
+(see LICENSE).
 
-The publisher's terms of use are published at the source URL above. Their
-wording governs; this notice does not replace or reinterpret it.
+The publisher publishes the terms of use at the source URL above. Those terms
+and the publisher's source records govern use of the corpus and remain the
+authority. This notice is informational; it does not restate, interpret, or
+represent the rights holder.
 
-Attribution reproduced from the publisher's credit template:
+Voluntary credit
+----------------
 
-    本ソフトウェアの音声合成には、フリー素材キャラクター「つくよみちゃん」
-    （© Rei Yumesaki）が無料公開している音声データを使用しています。
+Provided by UtauTTS on its own initiative, using the publisher's credit format.
+It is not a condition of use.
+
+    本ソフトウェアの抑揚（フレーム相対ピッチ）モデルの学習には、フリー素材
+    キャラクター「つくよみちゃん」（© Rei Yumesaki）が無料公開している音声
+    データを使用しています。音声そのものは出力に使用していません。
     ■つくよみちゃんコーパス（CV.夢前黎）
     https://tyc.rei-yumesaki.net/material/corpus/

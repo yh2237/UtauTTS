@@ -345,25 +345,18 @@ https://github.com/cmusphinx/cmudict
 Bundled prosody models
 ======================
 
-The bundled frame-intonation-tcn-v9.1-t model is trained from the Tsukuyomi-chan
-Corpus Vol.1 and みんなで作るJSUTコーパスbasic5000 (both spoken by Rei Yumesaki).
-Its notice is licenses/FRAME-INTONATION-V9.1-T.txt. The bundled
-frame-intonation-tcn-v9-t model is trained from the
-Tsukuyomi-chan Corpus Vol.1 (spoken by Rei Yumesaki). Its notice is
-licenses/TSUKUYOMI-CORPUS.txt. The bundled frame-intonation-tcn-v9-k model is
-trained from the Kokoro Speech Dataset (public domain). Its notice is
-licenses/KOKORO-SPEECH-DATASET.txt.
-
-The frame-intonation models learn only relative pitch (intonation) and do not
-reproduce voice quality. Their weights are distributed under the MIT License.
-Each model's notice under licenses/ records its training source and reproduces
-the source's required credit.
+The bundled frame-intonation models are UtauTTS weights distributed under the
+MIT License. They were trained on third-party corpora, and UtauTTS does not
+bundle or redistribute the corpus audio or scripts. The applicable notices are
+included in the package under licenses/ (model-to-notice mapping:
+models/README.md): licenses/TSUKUYOMI-CORPUS.txt and
+licenses/MINNADE-JSUT-CORPUS.txt.
 
 The english-intonation-v1 model contains original UtauTTS coefficients and is
-distributed under the MIT License. Its notice is
-licenses/ENGLISH-INTONATION-V1.txt. UtauTTS source code uses the repository MIT
-License; models, prompts, voicebanks, and other third-party assets use their
-respective notices.
+distributed under the MIT License; see licenses/ENGLISH-INTONATION-V1.txt.
+
+UtauTTS source code uses the repository MIT License; models, prompts,
+voicebanks, and other third-party assets use their respective notices.
 
 
 DiffSinger ONNX Runtime and DirectML bridge

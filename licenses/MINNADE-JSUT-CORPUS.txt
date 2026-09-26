@@ -1,0 +1,26 @@
+みんなで作るJSUTコーパスbasic5000
+==================================
+
+Corpus: みんなで作るJSUTコーパスbasic5000, BASIC5000_0001-0600
+        (a multi-speaker compilation)
+Source: https://tyc.rei-yumesaki.net/material/minnade-jsut/
+
+UtauTTS uses this corpus to train frame-intonation models. Those models learn
+relative pitch (intonation) only and do not intentionally model the speaker's
+voice quality. UtauTTS redistributes only the trained weights, not the corpus
+audio or scripts. The model weights are distributed under the MIT License
+(see LICENSE).
+
+The publisher publishes the terms of use at the source URL above. Those terms
+and the publisher's source records govern use of the corpus and remain the
+authority. This notice is informational; it does not restate, interpret, or
+represent the rights holders.
+
+Voluntary credit
+----------------
+
+Provided by UtauTTS on its own initiative, using the publishers' credit
+formats. It is not a condition of use.
+
+    みんなで作るJSUTコーパスbasic5000
+    https://tyc.rei-yumesaki.net/material/minnade-jsut/
