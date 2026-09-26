@@ -2907,12 +2907,13 @@ ApplicationWindow {
         for (let index = 0; index < utterances.count; ++index) {
             const item = utterances.get(index);
             let changed = false;
-            if (!item.modelId) {
+            const modelId = String(item.modelId || "");
+            if (modelId !== "none" && !window.modelById(modelId)) {
                 utterances.setProperty(index, "modelId",
                                        window.defaultModelIdForLanguage(item.language || "ja"));
                 changed = true;
             }
-            if (!item.renderer) {
+            if (!window.rendererById(String(item.renderer || ""))) {
                 utterances.setProperty(index, "renderer", rendererId);
                 changed = true;
             }
