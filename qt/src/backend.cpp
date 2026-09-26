@@ -474,6 +474,19 @@ void Backend::runStartupMigrations() {
         settings.setValue(QStringLiteral("appearance/preReleaseUpdateCheckEnabled"), false);
     }
 
+    // 既存インストールからの更新では、初回起動ウィンドウを再表示しない。
+    // 新規インストール（last_app_versionが無い）では従来どおり表示する。
+    const QString lastAppVersion =
+            settings.value(QStringLiteral("migration/last_app_version")).toString().trimmed();
+    if (!lastAppVersion.isEmpty() && lastAppVersion != currentVersion
+            && !settings.contains(QStringLiteral("appearance/onboardingCompleted"))) {
+        settings.setValue(QStringLiteral("appearance/onboardingCompleted"), true);
+        if (!m_onboardingCompleted) {
+            m_onboardingCompleted = true;
+            emit onboardingChanged();
+        }
+    }
+
     // これらの値は意図的にconfig.iniへ保持する。
     // v1.2.2の更新処理が同ファイルを保持するため、旧更新処理が
     // パッケージを差し替えても新アプリが移行を完了できる。
