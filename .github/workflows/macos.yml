@@ -70,7 +70,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: macos-package-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

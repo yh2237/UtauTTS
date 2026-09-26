@@ -28,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: windows-package-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
