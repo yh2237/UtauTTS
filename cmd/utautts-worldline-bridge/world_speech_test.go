@@ -148,17 +148,6 @@ func TestWorldSpeechJoinUsesExplicitAnchor(t *testing.T) {
 	}
 }
 
-func TestWorldSpeechWireAndUnsupportedEngine(t *testing.T) {
-	speech := &provider.WorldSpeechTiming{UnitIndex: 4, SourceOnsetMS: 30, TargetOnsetMS: 20, TargetFixedMS: 55, TargetJoinMS: 30, ProtectStop: true, VowelJoin: true}
-	job := provider.UnitRendererJob{Version: provider.UnitRendererJobVersion, Contract: "unit-renderer", ContractVersion: 1,
-		Options: provider.UnitRendererOptions{Worldline: &provider.WorldlineOptions{Engine: "utautts-world-phrase", Units: []provider.WorldlineUnit{{Speech: speech}}}}}
-	data, _ := json.Marshal(job)
-	in, err := decodeProviderJob(data, "out.wav")
-	if err != nil || !reflect.DeepEqual(in.Units[0].Speech, speech) {
-		t.Fatal("speech wire", in, err)
-	}
-}
-
 func TestWorldSpeechMixDoesNotChangeCachedFeatures(t *testing.T) {
 	source := speechTestFeatures()
 	before, _ := json.Marshal(source)

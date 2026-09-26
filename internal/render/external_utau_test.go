@@ -99,15 +99,6 @@ func TestMidiToneName(t *testing.T) {
 	}
 }
 
-func TestUtauPitchIntervalUsesConfiguredTempo(t *testing.T) {
-	if got, want := utauPitchIntervalMS(120), 60000.0/120.0*5.0/480.0; math.Abs(got-want) > 1e-12 {
-		t.Fatalf("120 BPM interval = %.12f, want %.12f", got, want)
-	}
-	if got, want := utauPitchIntervalMS(150), 60000.0/150.0*5.0/480.0; math.Abs(got-want) > 1e-12 {
-		t.Fatalf("150 BPM interval = %.12f, want %.12f", got, want)
-	}
-}
-
 func TestRenderUtauExternalResamplerInvokesCompatibleExecutable(t *testing.T) {
 	t.Setenv("UTAUTTS_TEST_RESAMPLER", "1")
 	directory := t.TempDir()

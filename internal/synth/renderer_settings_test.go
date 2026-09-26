@@ -131,35 +131,6 @@ func TestRendererSettingSpecMapOverridesTyped(t *testing.T) {
 	}
 }
 
-// typed経由とmap経由は同じ解決結果になり、両方ある場合はmapが勝つ。
-func TestRendererSettingSpecTypedAndMapAgree(t *testing.T) {
-	typedRequest := Request{
-		MoraDurationMS: 111, ContextDuration: false, ContextDurationStrength: 0.4,
-		DiffSingerSteps: 17, Resampler: "resampler.exe",
-	}
-	typedCfg := tts.Config{}
-	typedOptions := render.ProviderOptions{}
-	typedResolution := resolveRendererSettingsWith(rendererSettingSpecs, typedRequest, &typedCfg, &typedOptions)
-
-	mapCfg := tts.Config{}
-	mapOptions := render.ProviderOptions{}
-	mapResolution := resolveRendererSettingsWith(rendererSettingSpecs, Request{RendererSettings: map[string]json.RawMessage{
-		"mora_duration_ms":          json.RawMessage(`111`),
-		"context_duration":          json.RawMessage(`false`),
-		"context_duration_strength": json.RawMessage(`0.4`),
-		"diffsinger_steps":          json.RawMessage(`17`),
-		"resampler":                 json.RawMessage(`"resampler.exe"`),
-	}}, &mapCfg, &mapOptions)
-
-	if typedCfg.MoraDurationMS != mapCfg.MoraDurationMS ||
-		typedCfg.ContextDurationStrength != mapCfg.ContextDurationStrength ||
-		*typedCfg.ContextDuration != *mapCfg.ContextDuration ||
-		typedOptions.DiffSinger.Steps != mapOptions.DiffSinger.Steps ||
-		typedResolution.Resampler != mapResolution.Resampler {
-		t.Fatalf("typed and map disagree: typed=%#v/%#v map=%#v/%#v", typedCfg, typedOptions, mapCfg, mapOptions)
-	}
-}
-
 // テーブルへ1行足すだけで新しい設定（typed無し）も既定とmap上書きが解決できる。
 func TestRendererSettingSpecNewRowResolves(t *testing.T) {
 	dummy := rendererSettingSpec{

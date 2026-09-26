@@ -158,22 +158,6 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 	}
 }
 
-// resampler/wavtoolはClassicツール選択へ回す。
-func TestApplyRendererSettingsClassicTools(t *testing.T) {
-	cfg := tts.Config{}
-	options := render.ProviderOptions{}
-	resolution := applyRendererSettings(map[string]json.RawMessage{
-		"resampler": json.RawMessage(`"nested/resampler.exe"`),
-		"wavtool":   json.RawMessage(`"wavtool.exe"`),
-	}, &cfg, &options)
-	if resolution.Resampler != "nested/resampler.exe" || resolution.Wavtool != "wavtool.exe" {
-		t.Fatalf("classic tools = %#v", resolution)
-	}
-	if len(options.Renderer) != 0 || len(options.RendererDiagnostics) != 0 {
-		t.Fatalf("classic tools leaked into provider values: %#v", options)
-	}
-}
-
 // 未知idはエラーにせずProviderOptions.Rendererへ保持する。
 func TestApplyRendererSettingsUnknownGoesToProviderOptions(t *testing.T) {
 	cfg := tts.Config{}

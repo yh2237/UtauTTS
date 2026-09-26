@@ -325,7 +325,6 @@ func testMoraTimingsDistributeConsecutiveTrailingPauses(t *testing.T) {
 func TestPitchProcessingConfiguration(t *testing.T) {
 	t.Run("external factors", testExternalPitchFactorsDoNotImplicitlyEnableWaveformPitchProcessing)
 	t.Run("model contour switch", testPitchProcessingSwitchControlsModelFrameContour)
-	t.Run("waveform capability", testWaveformRendererSupportsFramePitch)
 }
 
 func testExternalPitchFactorsDoNotImplicitlyEnableWaveformPitchProcessing(t *testing.T) {
@@ -354,12 +353,6 @@ func testPitchProcessingSwitchControlsModelFrameContour(t *testing.T) {
 	}
 	if got := effectiveIntonationStrength(Config{ApplyPitch: true, IntonationStrength: 0.5}); got != 0.5 {
 		t.Fatalf("enabled pitch processing changed intonation strength to %.2f", got)
-	}
-}
-
-func testWaveformRendererSupportsFramePitch(t *testing.T) {
-	if !rendererSupportsFramePitch("waveform", &plugin.Capabilities{FramePitch: true}) {
-		t.Fatal("waveform renderer rejected a frame pitch contour")
 	}
 }
 

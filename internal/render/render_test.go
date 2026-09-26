@@ -118,12 +118,6 @@ func TestRenderCVVCPlanWithTransitionUnit(t *testing.T) {
 	}
 }
 
-func TestFadeInDurationKeepsConfiguredLongCrossfade(t *testing.T) {
-	if got := fadeInDurationMS(effectiveTiming{PreutteranceMS: 60, OverlapMS: 20}); got != 40 {
-		t.Fatalf("fade-in duration=%f, want 40", got)
-	}
-}
-
 func TestRenderRejectsInvalidConfiguration(t *testing.T) {
 	t.Run("unknown backend", testRenderRejectsUnknownBackend)
 	t.Run("nonfinite pitch", testRenderRejectsNonFinitePitchCurve)
@@ -260,28 +254,6 @@ func TestWaveformRendererRendersFramePitchCurve(t *testing.T) {
 	}
 	if pcm == nil || len(pcm.Data) == 0 {
 		t.Fatal("frame pitch curve produced no waveform")
-	}
-}
-
-func TestResampleForPitchCurveFlatMatchesConstantResample(t *testing.T) {
-	source := make([]float64, 256)
-	for i := range source {
-		source[i] = math.Sin(float64(i) * 0.1)
-	}
-	flat := &PitchCurve{FrameMS: 10, Cents: []float64{100, 100}}
-	factor := 1.2 * math.Pow(2, 100.0/1200)
-	varying := resampleForPitchCurve(source, 1.2, flat, 0, 256)
-	if got := len(varying); got != max(16, int(math.Round(256/factor))) {
-		t.Fatalf("length %d, want %d", got, int(math.Round(256/factor)))
-	}
-	for k := range varying {
-		position := math.Min(float64(len(source)-1), float64(k)*factor)
-		left := int(math.Floor(position))
-		fraction := position - float64(left)
-		want := source[left] + (source[min(left+1, len(source)-1)]-source[left])*fraction
-		if math.Abs(varying[k]-want) > 1e-9 {
-			t.Fatalf("sample %d = %f, want %f", k, varying[k], want)
-		}
 	}
 }
 

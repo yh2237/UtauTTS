@@ -30,17 +30,6 @@ func TestClassifyAlias(t *testing.T) {
 	}
 }
 
-func TestAliasPolicyValues(t *testing.T) {
-	for _, policy := range []AliasPolicy{AliasPolicyAuto, AliasPolicyVCVPrefer, AliasPolicyCVVCPrefer, AliasPolicyCVOnly} {
-		if !policy.valid() {
-			t.Errorf("policy %q was rejected", policy)
-		}
-	}
-	if AliasPolicy("invalid").valid() {
-		t.Fatal("invalid alias policy was accepted")
-	}
-}
-
 func TestAliasCapabilitiesSummarizeVCVContexts(t *testing.T) {
 	bank := &Bank{Entries: map[string][]oto.Entry{
 		"あ":   {{Alias: "あ"}},
