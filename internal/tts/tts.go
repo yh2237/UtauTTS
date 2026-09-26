@@ -353,7 +353,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)
 	}
-	prosodyFeatures, err := resolveProsodyFeatures(cfg, loadedProsody, morae, reading)
+	prosodyFeatures, predictions, err := resolveProsodyComputation(cfg, profile, loadedProsody, morae, reading)
 	if err != nil {
 		return nil, err
 	}
@@ -364,10 +364,6 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		return nil, fmt.Errorf("resolve voicebank units: %w", err)
 	}
 	phoneWeights, phoneTimingSource := profile.PhoneTiming(cfg, morae, voicebank.IsSingleCVSelections(selections))
-	predictions, err := predictMorae(cfg, profile, loadedProsody, morae, prosodyFeatures)
-	if err != nil {
-		return nil, err
-	}
 	if len(cfg.PitchFactors) > 0 {
 		if len(cfg.PitchFactors) != len(morae) {
 			return nil, fmt.Errorf("pitch factors: got %d values for %d morae", len(cfg.PitchFactors), len(morae))
@@ -588,12 +584,7 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		return nil, fmt.Errorf("load prosody model: %w", err)
 	}
 
-	prosodyFeatures, err := resolveProsodyFeatures(cfg, loadedProsody, morae, reading)
-	if err != nil {
-		return nil, err
-	}
-
-	predictions, err := predictMorae(cfg, profile, loadedProsody, morae, prosodyFeatures)
+	prosodyFeatures, predictions, err := resolveProsodyComputation(cfg, profile, loadedProsody, morae, reading)
 	if err != nil {
 		return nil, err
 	}

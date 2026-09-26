@@ -75,6 +75,8 @@ type SequencePitchModel struct {
 	OutputBias   float64              `json:"output_bias"`
 	Low          float64              `json:"low"`
 	High         float64              `json:"high"`
+
+	validated bool
 }
 
 type SequencePitchLayer struct {
@@ -106,6 +108,8 @@ type FramePitchModel struct {
 	RenderSmoothingMS float64              `json:"render_smoothing_ms,omitempty"`
 	RenderP99Cents    float64              `json:"render_p99_cents,omitempty"`
 	RenderMaxCents    float64              `json:"render_max_cents,omitempty"`
+
+	validated bool
 }
 
 // 英語の強勢と句境界を予測する軽量モデル。
@@ -377,19 +381,23 @@ func LoadModel(path string) (*Model, error) {
 		if err := validateFramePitch(model.FramePitch); err != nil {
 			return nil, fmt.Errorf("invalid frame pitch model: %w", err)
 		}
+		model.FramePitch.validated = true
 	}
 	if multitask {
 		if err := validateSequencePitch(model.MoraDuration); err != nil {
 			return nil, fmt.Errorf("invalid mora duration model: %w", err)
 		}
+		model.MoraDuration.validated = true
 		if err := validateFramePitch(model.FramePitch); err != nil {
 			return nil, fmt.Errorf("invalid multitask frame pitch model: %w", err)
 		}
+		model.FramePitch.validated = true
 	}
 	if manualResidual {
 		if err := validateFramePitch(model.FramePitch); err != nil {
 			return nil, fmt.Errorf("invalid manual residual frame pitch model: %w", err)
 		}
+		model.FramePitch.validated = true
 		if err := validateMoraPitchResidual(model.MoraPitchResidual, model.ResidualLimits); err != nil {
 			return nil, fmt.Errorf("invalid mora pitch residual model: %w", err)
 		}
@@ -573,7 +581,7 @@ func (m *Model) PredictFrameContour(morae []frontend.Mora, frames []FeatureFrame
 		return m.EnglishIntonation.predictContour(morae, timings, durationMS, question)
 	}
 	model := m.FramePitch
-	if model == nil || len(morae) == 0 || len(timings) != len(morae) || validateFramePitch(model) != nil {
+	if model == nil || len(morae) == 0 || len(timings) != len(morae) || (!model.validated && validateFramePitch(model) != nil) {
 		return nil
 	}
 	count := max(2, int(math.Ceil(durationMS/model.FrameMS))+1)
@@ -793,7 +801,7 @@ func (m *SequencePitchModel) predict(morae []frontend.Mora, frames []FeatureFram
 	for i := range result {
 		result[i] = 1
 	}
-	if len(morae) == 0 || validateSequencePitch(m) != nil {
+	if len(morae) == 0 || (!m.validated && validateSequencePitch(m) != nil) {
 		return result
 	}
 	featureIndex := make(map[string]int, len(m.FeatureNames))

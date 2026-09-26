@@ -2,12 +2,17 @@ package tts
 
 import (
 	"context"
+	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 
+	"utautts/internal/frontend"
 	"utautts/internal/neural"
 	"utautts/internal/openjtalk"
+	"utautts/internal/plugin"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
 	"utautts/internal/voicebank"
@@ -16,17 +21,21 @@ import (
 // GUIの反復合成で変わらない高コストな入力をプロセス内に保持する。
 
 const maxAnalysisCacheEntries = 512
+const maxProsodyCacheEntries = 128
 
 var synthesisCache = struct {
 	sync.RWMutex
-	banks         map[string]*voicebank.Bank
-	models        map[string]modelCacheEntry
-	analyses      map[analysisCacheKey]*openjtalk.Analysis
-	analysisOrder []analysisCacheKey
+	banks            map[string]*voicebank.Bank
+	models           map[string]modelCacheEntry
+	analyses         map[analysisCacheKey]*openjtalk.Analysis
+	analysisOrder    []analysisCacheKey
+	computations     map[prosodyComputationKey]prosodyComputation
+	computationOrder []prosodyComputationKey
 }{
-	banks:    make(map[string]*voicebank.Bank),
-	models:   make(map[string]modelCacheEntry),
-	analyses: make(map[analysisCacheKey]*openjtalk.Analysis),
+	banks:        make(map[string]*voicebank.Bank),
+	models:       make(map[string]modelCacheEntry),
+	analyses:     make(map[analysisCacheKey]*openjtalk.Analysis),
+	computations: make(map[prosodyComputationKey]prosodyComputation),
 }
 
 type modelCacheEntry struct {
@@ -39,6 +48,137 @@ type analysisCacheKey struct {
 	text       string
 	helper     string
 	dictionary string
+}
+
+// prosodyComputationはプレビューと本合成で共有できるプロソディ入力。
+type prosodyComputation struct {
+	morae       []frontend.Mora
+	features    []prosody.FeatureFrame
+	predictions []prosody.Prediction
+}
+
+type prosodyComputationKey struct {
+	text, reading, language, phonemizer string
+	modelPath, renderer, voicebankPath  string
+	openJTalkPath, openJTalkDictionary  string
+	settings                            string
+	dictionaryHash, moraDurationsHash   string
+}
+
+func optionalBoolKey(value *bool) string {
+	if value == nil {
+		return "nil"
+	}
+	if *value {
+		return "true"
+	}
+	return "false"
+}
+
+func rendererCapabilityKey(caps *plugin.Capabilities) string {
+	if caps == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("it=%v sp=%v", caps.InternalTiming, caps.SpeechProsodyExperiment)
+}
+
+func hashStringMap(values map[string]string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	hasher := fnv.New64a()
+	for _, key := range keys {
+		_, _ = hasher.Write([]byte(key))
+		_, _ = hasher.Write([]byte{0})
+		_, _ = hasher.Write([]byte(values[key]))
+		_, _ = hasher.Write([]byte{0})
+	}
+	return fmt.Sprintf("%x", hasher.Sum64())
+}
+
+func hashFloatSlice(values []float64) string {
+	if len(values) == 0 {
+		return ""
+	}
+	hasher := fnv.New64a()
+	for _, value := range values {
+		_, _ = fmt.Fprintf(hasher, "%v,", value)
+	}
+	return fmt.Sprintf("%x", hasher.Sum64())
+}
+
+func prosodyComputationKeyFor(cfg Config) prosodyComputationKey {
+	settings := fmt.Sprintf(
+		"mora=%v pause=%v pitchonly=%v apply=%v strength=%v release=%v speech=%v cap=%v wbe=%v spx=%q "+
+			"cd=%v cds=%v bt=%v bts=%v sa=%v sas=%v pc=%v pcs=%v ewf=%v tone=%v color=%v",
+		cfg.MoraDurationMS, cfg.PauseDurationMS, cfg.ProsodyPitchOnly, cfg.ApplyPitch,
+		cfg.IntonationStrength, cfg.ReleaseMS, cfg.SpeechTiming, rendererCapabilityKey(cfg.RendererCapabilities),
+		cfg.WordBoundaryEnvelope, cfg.SpeechProsodyExperiment,
+		cfg.ContextDuration, cfg.ContextDurationStrength, cfg.BoundaryTone, cfg.BoundaryToneStrength,
+		cfg.StretchAdapt, cfg.StretchAdaptStrength, cfg.PauseContext, cfg.PauseContextStrength,
+		optionalBoolKey(cfg.EnglishWeakForm), cfg.Tone, cfg.Color)
+	return prosodyComputationKey{
+		text: cfg.Text, reading: cfg.Reading, language: cfg.Language, phonemizer: cfg.Phonemizer,
+		modelPath: cfg.ProsodyModelPath, renderer: cfg.Renderer, voicebankPath: cfg.VoicebankPath,
+		openJTalkPath: cfg.OpenJTalkPath, openJTalkDictionary: cfg.OpenJTalkDictionaryPath,
+		settings:          settings,
+		dictionaryHash:    hashStringMap(cfg.Dictionary),
+		moraDurationsHash: hashFloatSlice(cfg.MoraDurationsMS),
+	}
+}
+
+func moraeEqual(a, b []frontend.Mora) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for index := range a {
+		if a[index].Text != b[index].Text || a[index].Pause != b[index].Pause ||
+			a[index].Vowel != b[index].Vowel || a[index].DurationScale != b[index].DurationScale {
+			return false
+		}
+	}
+	return true
+}
+
+// resolveProsodyComputationは特徴量と予測をまとめて解決し、プレビューと本合成で再利用する。
+func resolveProsodyComputation(cfg Config, profile languageProfile, model *prosody.Model, morae []frontend.Mora, reading string) ([]prosody.FeatureFrame, []prosody.Prediction, error) {
+	if len(cfg.ProsodyFeatures) > 0 {
+		features := cfg.ProsodyFeatures
+		predictions, err := predictMorae(cfg, profile, model, morae, features)
+		return features, predictions, err
+	}
+	key := prosodyComputationKeyFor(cfg)
+	synthesisCache.RLock()
+	entry, ok := synthesisCache.computations[key]
+	synthesisCache.RUnlock()
+	if ok && moraeEqual(entry.morae, morae) {
+		return entry.features, entry.predictions, nil
+	}
+	features, err := resolveProsodyFeatures(cfg, model, morae, reading)
+	if err != nil {
+		return nil, nil, err
+	}
+	predictions, err := predictMorae(cfg, profile, model, morae, features)
+	if err != nil {
+		return nil, nil, err
+	}
+	synthesisCache.Lock()
+	synthesisCache.computations[key] = prosodyComputation{
+		morae: append([]frontend.Mora(nil), morae...), features: features, predictions: predictions,
+	}
+	synthesisCache.computationOrder = append(synthesisCache.computationOrder, key)
+	if len(synthesisCache.computationOrder) > maxProsodyCacheEntries {
+		oldest := synthesisCache.computationOrder[0]
+		synthesisCache.computationOrder = synthesisCache.computationOrder[1:]
+		delete(synthesisCache.computations, oldest)
+	}
+	synthesisCache.Unlock()
+	return features, predictions, nil
 }
 
 func loadVoicebankCached(path string) (*voicebank.Bank, error) {
@@ -129,6 +269,8 @@ func ClearCaches() {
 	synthesisCache.models = make(map[string]modelCacheEntry)
 	synthesisCache.analyses = make(map[analysisCacheKey]*openjtalk.Analysis)
 	synthesisCache.analysisOrder = nil
+	synthesisCache.computations = make(map[prosodyComputationKey]prosodyComputation)
+	synthesisCache.computationOrder = nil
 	synthesisCache.Unlock()
 	render.ClearWAVCache()
 }
