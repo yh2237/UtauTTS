@@ -95,7 +95,7 @@ func main() {
 	flag.StringVar(&dictionaryPath, "dictionary", "", "optional user dictionary JSON path")
 	flag.StringVar(&moraDurationsPath, "mora-durations", "", "optional mora duration JSON path")
 	flag.StringVar(&resamplerExpressionsPath, "resampler-expressions", "", "optional per-mora resampler expression JSON path")
-	flag.Float64Var(&moraMS, "mora-ms", 140, "base mora duration in milliseconds")
+	flag.Float64Var(&moraMS, "mora-ms", synth.DefaultMoraDurationMS, "base mora duration in milliseconds")
 	flag.Float64Var(&pauseMS, "pause-ms", 180, "punctuation pause in milliseconds")
 	flag.Float64Var(&leadingPreutteranceMS, "leading-preutterance-ms", 0, "leading preutterance in milliseconds (0 uses oto.ini)")
 	flag.Float64Var(&releaseMS, "release-ms", 20, "unit release envelope in milliseconds")
