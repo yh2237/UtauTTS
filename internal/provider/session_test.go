@@ -23,19 +23,20 @@ func TestProviderHelperProcess(t *testing.T) {
 	}
 	encoder := json.NewEncoder(os.Stdout)
 	mode := os.Getenv(helperMode)
-	if mode == "bad-provider" {
+	// ハンドシェイク応答を書いた直後に終了すると、親がプロセス終了を先に検知して応答を
+	// 読めない競合があるため、応答後はstdinを読み続けて生存させる。
+	switch mode {
+	case "bad-provider":
 		_ = encoder.Encode(Hello{Type: MessageHello, Protocol: ProtocolName, ProtocolVersion: ProtocolVersion, Provider: "wrong", ProviderVersion: "1", Session: true, Contracts: []ContractSupport{{Name: "unit-renderer", Version: 1}}})
-		return
-	}
-	if mode == "bad-line" {
+	case "bad-line":
 		_, _ = fmt.Fprintln(os.Stdout, "not json")
-		return
+	default:
+		_ = encoder.Encode(Hello{
+			Type: MessageHello, Protocol: ProtocolName, ProtocolVersion: ProtocolVersion,
+			Provider: "test-provider", ProviderVersion: "1", Session: true,
+			Contracts: []ContractSupport{{Name: "unit-renderer", Version: 1}},
+		})
 	}
-	_ = encoder.Encode(Hello{
-		Type: MessageHello, Protocol: ProtocolName, ProtocolVersion: ProtocolVersion,
-		Provider: "test-provider", ProviderVersion: "1", Session: true,
-		Contracts: []ContractSupport{{Name: "unit-renderer", Version: 1}},
-	})
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		var header struct {
