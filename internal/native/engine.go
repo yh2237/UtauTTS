@@ -58,7 +58,20 @@ func New(config Config) (*Engine, error) {
 		engine.cancel()
 		return nil, fmt.Errorf("load voicebanks: %w", err)
 	}
+	go engine.warmUp()
 	return engine, nil
+}
+
+// warmUpは初回操作の待ち時間を減らすため、既定モデルの推論とOpen JTalkヘルパー・辞書を
+// バックグラウンドで事前に用意する。失敗しても無視する。
+func (e *Engine) warmUp() {
+	modelID := ""
+	if e.catalog != nil && len(e.catalog.Models) > 0 {
+		modelID = e.catalog.Models[0].ID
+	}
+	_, _, _ = e.synth.PredictProsodyContext(e.ctx, synth.Request{
+		Text: "あ", Language: "ja", ModelID: modelID,
+	})
 }
 
 func NewJSON(data []byte) (*Engine, error) {
