@@ -94,7 +94,7 @@ GUIでは読み上げ言語を選べることを確認します。右側の設�
 | GUI編集基盤 | プロジェクト保存・読込、辞書と設定の保存 |
 | GUI音声処理 | 文章解析、抑揚予測、実運用Rendererでの合成、WAV保存 |
 | GUI出力 | exo出力、設定とWAVの保存・読込 |
-| CLI | `waveform`による最小合成、v8モデルと既定Rendererによる実運用合成、不正数値の拒否 |
+| CLI | `waveform`による最小合成、version 8形式の既定モデルと既定Rendererによる実運用合成、不正数値の拒否 |
 | HTTP server | コンソール、health、音源・モデル・Renderer一覧、解析、`waveform`／既定Renderer合成、batch ZIP、音源再読込 |
 
 GUIの検査には、Windowsなら配布された`app/utautts-gui.exe --self-test`、Linuxなら`QT_QPA_PLATFORM=offscreen ./utautts --self-test`、macOSなら`QT_QPA_PLATFORM=cocoa QT_QUICK_BACKEND=software`を設定したアプリバンドル内の実行ファイルを使います。画面や更新確認は開かずテスト専用の一時設定と一時ファイルだけを使うようになっています。
