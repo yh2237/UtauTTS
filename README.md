@@ -130,7 +130,6 @@ Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置�
 | --- | --- |
 | `frame-intonation-tcn-v9.1-t` | 既定。つくよみちゃんコーパスとみんなで作るJSUTコーパスbasic5000で学習 |
 | `frame-intonation-tcn-v9-t` | つくよみちゃんコーパスで学習 |
-| `frame-intonation-tcn-v9-k` | Kokoro Speech Datasetで学習 |
 | `english-intonation-v1` | 英語の強勢と句末境界を軽量に予測 |
 
 `frame-intonation-tcn-v9-*`はOpen JTalkのアクセント特徴からフレーム単位の相対ピッチを予測します。モデルやRendererはGUI、CLI、Serverで共通です。学習元のライセンスは[抑揚モデル](models/README.md)、追加方法は[モデル／Rendererプラグイン](docs/plugins.md)にあります。

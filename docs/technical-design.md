@@ -137,13 +137,12 @@ Planは、候補選択、時間設計、Rendererの差を切り分けるため�
 
 モデルは任意コードではなく重みとメタデータを持つ自己記述JSONです。`id`、`version`、`feature_version`、`mode`からGo側の決定論的な推論器を選びます。未知形式、壊れたshape、ID重複は読み飛ばさずカタログ構築時のエラーにします。
 
-同梱モデルは次の4つです。
+同梱モデルは次の3つです。
 
 | モデル | 形式 | 出力 |
 | --- | --- | --- |
 | `frame-intonation-tcn-v9.1-t` | version 8 / feature 1 | 10ms単位の相対ピッチ |
 | `frame-intonation-tcn-v9-t` | version 8 / feature 1 | 10ms単位の相対ピッチ |
-| `frame-intonation-tcn-v9-k` | version 8 / feature 1 | 10ms単位の相対ピッチ |
 | `english-intonation-v1` | version 12 / feature 1 | 英語の強勢と句末境界の10ms単位ピッチおよび長さ倍率 |
 
 frame headはモーラとOpen JTalk由来特徴をフレームへ展開してdilationを持つ小型TCNで相対pitchを予測します。`frame-intonation-tcn-v9-*`は440〜457特徴、10ms間隔、学習出力範囲±250 centです。推論後はモデル内のrender strength、平滑化、percentile／最大値制約を適用し、学習音声に由来する細かなF0揺れをこの処理で調整します。

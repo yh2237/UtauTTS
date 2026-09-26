@@ -3,7 +3,7 @@
 
 配布ZIPの「02 台本テキスト」と「01 音声データ」を使い、指定したID範囲について
 ``metadata.csv``（``id|text|reading``）と``wavs/<id>.wav``（元WAVへのハードリンク、
-不可ならコピー）を出力する。学習用JSONLは ``prepare-kokoro-frame-data.py`` が作る。
+不可ならコピー）を出力する。学習用JSONLは ``prepare-intonation-frame-data.py`` が作る。
 
 ID範囲は ``BASIC5000_0001`` 形式の連番。夢前黎さんの担当は既定の0001-0600。
 """

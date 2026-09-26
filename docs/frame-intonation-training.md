@@ -4,7 +4,7 @@
 
 Python環境にはPyTorch、NumPy、pyopenjtalkが必要です。`--f0-source internal`では追加の実行ファイルは不要です。`--f0-source world`を使う場合は独自WORLDエンジンが必要です。ビルドスクリプトは、Windowsが`tools/build-world-engine.ps1`、Linuxが`tools/build-world-engine.sh`、macOSが`tools/build-world-engine-macos.sh`です。
 
-学習データは`version: 1`のJSONLです。レコードは`id`、`audio_path`、`tokens`、`text`を持ちます。学習元コーパスの`--training-corpus`、`--training-corpus-license`、`--model-license`、`--license-notice`、`--source-notice`は必須です。コーパスの音声と台本を用意し、配布条件と出典を記録してください。
+学習データは`version: 1`のJSONLです。レコードは`id`、`audio_path`、`tokens`、`text`を持ちます。`--training-corpus`、`--model-license`、`--license-notice`（複数指定可）は必須です。コーパスの音声と台本を用意し、出典と、使用した各データの通知を記録してください。
 
 ## 学習の流れ
 
@@ -17,8 +17,8 @@ python tools/train-frame-intonation-tcn.py --dataset out/frame.jsonl `
   --f0-source internal --device cuda --holdout-test --epochs 24 --hidden 32 --batch-size 64 `
   --target-smooth-ms 80 --delta-weight 0.6 --f0-cache out/f0-cache `
   --model-id my-model-v1 --display-name "My intonation model" `
-  --training-corpus "<学習元コーパス>" --training-corpus-license "<コーパスの配布条件>" `
-  --model-license "MIT License" --license-notice licenses/MY-CORPUS.txt --source-notice licenses/MY-CORPUS.txt `
+  --training-corpus "<学習元コーパス>" `
+  --model-license "MIT License" --license-notice licenses/MY-CORPUS.txt `
   --out out/my-model.json
 ```
 
@@ -32,7 +32,7 @@ python tools/train-frame-intonation-tcn.py --dataset out/frame.jsonl `
 
 コーパスに音素時刻がない場合は`--alignment viterbi`を使います。これはOpen JTalkのアクセント注釈を弱い音響モデルとして、有声フレームがそのモーラの高低に近づくよう、モーラ長の上下限付きViterbiで境界を推定します。単純なDTWと違い、各モーラが妥当な長さに収まるため退化した経路になりません。
 
-`prepare-kokoro-frame-data.py`では、`--world-engine`を付けるとWORLD HarvestでF0を推定し、省略すると高速な内蔵自己相関F0を使います。既定ではOpen JTalkの読みと一致するクリップだけを採用し、促音・長音の表記差で読みが異なるクリップも残す場合は`--allow-reading-mismatch`を指定します。`--alignment uniform`は均等配置、`--alignment viterbi`はアクセント注釈を使った整列です。
+`prepare-intonation-frame-data.py`では、`--world-engine`を付けるとWORLD HarvestでF0を推定し、省略すると高速な内蔵自己相関F0を使います。既定ではOpen JTalkの読みと一致するクリップだけを採用し、促音・長音の表記差で読みが異なるクリップも残す場合は`--allow-reading-mismatch`を指定します。`--alignment uniform`は均等配置、`--alignment viterbi`はアクセント注釈を使った整列です。
 
 学習（`train-frame-intonation-tcn.py`）では、`--f0-source world`がWORLD HarvestでF0教師を作り、`--f0-cache`が抽出したF0を記録して再実行を高速化します。
 
@@ -76,7 +76,7 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utau
 
 | ツール | 用途 |
 | --- | --- |
-| `prepare-kokoro-frame-data.py` | `metadata.csv`と`wavs/<id>.wav`を学習用JSONLへまとめる（`id`・`text`・`reading`列） |
+| `prepare-intonation-frame-data.py` | `metadata.csv`と`wavs/<id>.wav`を学習用JSONLへまとめる（`id`・`text`・`reading`列） |
 | `mora_alignment.py` | 音素時刻のないコーパス向けアクセントViterbiアラインメント |
 | `train-frame-intonation-tcn.py` | フレーム抑揚モデルの学習と予測 |
 | `train-manual-intonation-residual.py` | Intonation Labの手動調整から残差モデルを学習する |

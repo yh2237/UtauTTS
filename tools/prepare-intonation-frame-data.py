@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Kokoro Speech DatasetのWAVからフレーム抑揚JSONLを作成する。
+"""音声クリップのWAVからフレーム抑揚JSONLを作成する。
 
-Kokoroは発話クリップを提供するが音素タイムスタンプは無い。本試作準備器は
-有効音声区間を検出し、その中へOpen JTalkモーラを均等配置する。各レコードは
-この近似を明示するもので、強制整列ではない。
+入力はmetadata.csv（``id|text|reading``）と``wavs/<id>.wav``。発話クリップは
+音素タイムスタンプを持たないため、有効音声区間を検出し、その中へOpen JTalk
+モーラを均等配置する。各レコードはこの近似を明示するもので、強制整列では
+ない。
 """
 
 from __future__ import annotations
@@ -65,7 +66,7 @@ def active_bounds(samples: list[int], rate: int) -> tuple[float, float]:
 
 
 def timed_tokens(text: str, start_ms: float, end_ms: float) -> tuple[str, list[dict]]:
-    # Kokoroの空白は形態素区切りであり、無音ではない。
+    # 入力テキストの空白は形態素区切りであり、無音ではない。
     normalized_text = "".join(text.split())
     reading, linguistic = analyze(normalized_text)
     spoken = [token for token in linguistic if not token.get("pause", False)]
@@ -156,7 +157,7 @@ def main() -> int:
         except Exception as error:
             skipped.append((utterance_id, str(error)))
     if not records:
-        raise ValueError("no usable Kokoro records")
+        raise ValueError("no usable records")
     output = Path(args.out)
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("x", encoding="utf-8") as stream:
