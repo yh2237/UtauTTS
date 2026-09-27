@@ -53,6 +53,16 @@ func speechRhythmExperiment(morae []frontend.Mora, base []prosody.Prediction, ma
 		for end < len(morae) && !morae[end].Pause {
 			end++
 		}
+		free := 0
+		for i := start; i < end; i++ {
+			if i >= len(manual) || manual[i] <= 0 {
+				free++
+			}
+		}
+		if free < 2 {
+			start = end
+			continue
+		}
 		oldSum, newSum := 0.0, 0.0
 		for i := start; i < end; i++ {
 			if i < len(manual) && manual[i] > 0 {
@@ -88,7 +98,13 @@ func speechRhythmExperiment(morae []frontend.Mora, base []prosody.Prediction, ma
 				factor *= 1.15
 			}
 			scale := previewDurationFor(m, 1)
-			oldSum += base[i].DurationFactor * scale
+			if base[i].DurationMS > 0 {
+				scale = base[i].DurationMS
+				oldSum += scale
+				result[i].DurationMS = factor * scale
+			} else {
+				oldSum += base[i].DurationFactor * scale
+			}
 			newSum += factor * scale
 			result[i].DurationFactor = factor
 		}
@@ -96,6 +112,9 @@ func speechRhythmExperiment(morae []frontend.Mora, base []prosody.Prediction, ma
 			for i := start; i < end; i++ {
 				if i >= len(manual) || manual[i] <= 0 {
 					result[i].DurationFactor *= oldSum / newSum
+					if result[i].DurationMS > 0 {
+						result[i].DurationMS *= oldSum / newSum
+					}
 				}
 			}
 		}

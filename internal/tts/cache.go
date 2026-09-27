@@ -147,7 +147,7 @@ func moraeEqual(a, b []frontend.Mora) bool {
 
 // resolveProsodyComputationは特徴量と予測をまとめて解決し、プレビューと本合成で再利用する。
 func resolveProsodyComputation(cfg Config, profile languageProfile, model *prosody.Model, morae []frontend.Mora, reading string) ([]prosody.FeatureFrame, []prosody.Prediction, error) {
-	if len(cfg.ProsodyFeatures) > 0 {
+	if len(cfg.ProsodyFeatures) > 0 || cfg.SpeechModel != nil || cfg.SpeechModelPath != "" {
 		features := cfg.ProsodyFeatures
 		predictions, err := predictMorae(cfg, profile, model, morae, features)
 		return features, predictions, err

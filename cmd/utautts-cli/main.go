@@ -35,6 +35,7 @@ func main() {
 		leadingPreutteranceMS    float64
 		releaseMS                float64
 		prosodyPath              string
+		speechModelPath          string
 		manualPitchPath          string
 		prosodyFeaturesPath      string
 		prosodyFeaturesCase      string
@@ -100,6 +101,7 @@ func main() {
 	flag.Float64Var(&leadingPreutteranceMS, "leading-preutterance-ms", 0, "leading preutterance in milliseconds (0 uses oto.ini)")
 	flag.Float64Var(&releaseMS, "release-ms", 20, "unit release envelope in milliseconds")
 	flag.StringVar(&prosodyPath, "prosody", "", "optional prosody model plugin ID")
+	flag.StringVar(&speechModelPath, "speech-model", "", "optional aligned-natural-speech residual model JSON (en/zh)")
 	flag.StringVar(&manualPitchPath, "manual-pitch", "", "optional mora pitch edit JSON")
 	flag.StringVar(&prosodyFeaturesPath, "prosody-features", "", "optional per-case mora-level accent feature JSON")
 	flag.StringVar(&prosodyFeaturesCase, "prosody-feature-case", "", "case ID in --prosody-features")
@@ -218,6 +220,7 @@ func main() {
 		CVVCPreBoundaryFade:     cvvcPreBoundaryFade,
 		AliasPolicy:             voicebank.AliasPolicy(aliasPolicy),
 		JoinModelPath:           joinModelPath,
+		SpeechModelPath:         speechModelPath,
 		DiffSingerSteps:         diffSingerSteps,
 		DiffSingerDurationMix:   diffSingerDurationMix,
 		DiffSingerPitchMix:      diffSingerPitchMix,

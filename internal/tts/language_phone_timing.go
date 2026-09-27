@@ -21,6 +21,7 @@ func languagePhoneWeights(language string, morae []frontend.Mora) [][]float64 {
 			continue
 		}
 		weights := make([]float64, len(mora.Phones))
+		rhymeShares := frontend.MandarinRhymeShares(mora.Phones)
 		for j, phone := range mora.Phones {
 			weight := frontend.PhoneWeight(phone.Symbol, phone.Role)
 			switch language {
@@ -28,6 +29,9 @@ func languagePhoneWeights(language string, morae []frontend.Mora) [][]float64 {
 				weight = englishPhoneWeight(mora, phone, weight)
 			case frontend.LanguageChinese:
 				weight = mandarinPhoneWeight(mora, phone, weight)
+				if rhymeShares[j] > 0 {
+					weight = mandarinPhoneWeight(mora, frontend.Phone{Role: "nucleus"}, 1) * rhymeShares[j]
+				}
 			}
 			weights[j] = weight
 		}

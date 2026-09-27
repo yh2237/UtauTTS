@@ -91,7 +91,7 @@ func TestLanguageProfilePhoneTimingSelection(t *testing.T) {
 		t.Fatalf("Japanese single-CV phone timing = %#v phones=%#v", weights, single[0].Phones)
 	}
 	englishMora := []frontend.Mora{{Phones: []frontend.Phone{{Symbol: "k", Role: "onset"}}}}
-	if weights, source := languageProfileFor(frontend.LanguageEnglish).PhoneTiming(Config{}, englishMora, false); len(weights) != 1 || source != "language-phone-v1" {
+	if weights, source := languageProfileFor(frontend.LanguageEnglish).PhoneTiming(Config{}, englishMora, false); len(weights) != 1 || source != "multilingual-speech-score-v1" {
 		t.Fatalf("English phone timing = %#v/%q", weights, source)
 	}
 }

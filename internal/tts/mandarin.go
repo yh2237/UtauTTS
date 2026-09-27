@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"utautts/internal/frontend"
+	"utautts/internal/plan"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
 )
@@ -32,20 +33,21 @@ func (chineseProfile) ProsodyModelFallback(string) string { return "" }
 
 func (chineseProfile) SupportsStretchAdapt() bool { return false }
 
-func (chineseProfile) PhoneTiming(_ Config, morae []frontend.Mora, _ bool) ([][]float64, string) {
-	return languagePhoneWeights(frontend.LanguageChinese, morae), "language-phone-v1"
+func (chineseProfile) PhoneTiming(cfg Config, morae []frontend.Mora, _ bool) ([][]float64, string) {
+	return speechDurationsForConfig(cfg, morae), "multilingual-speech-score-v1"
 }
 
 func (chineseProfile) Predict(morae []frontend.Mora) []prosody.Prediction {
 	return mandarinPredictions(morae)
 }
 
-func (chineseProfile) AdjustPredictions(_ Config, _ *prosody.Model, _ []frontend.Mora, predictions []prosody.Prediction, _ []prosody.FeatureFrame) []prosody.Prediction {
-	return predictions
+func (chineseProfile) AdjustPredictions(cfg Config, _ *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction, _ []prosody.FeatureFrame) []prosody.Prediction {
+	return applySpeechScore(cfg, morae, predictions)
 }
 
-func (chineseProfile) AutomaticPitchCurve(_ Config, _ *prosody.Model, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*render.PitchCurve, bool) {
+func (chineseProfile) AutomaticPitchCurve(cfg Config, _ *prosody.Model, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*render.PitchCurve, bool) {
 	curve := mandarinToneCurve(morae, timings, durationMS)
+	curve = learnedSpeechCurve(cfg, morae, timings, curve)
 	return curve, curve != nil
 }
 
@@ -62,7 +64,7 @@ type tonePoint struct {
 	cents    float64
 }
 
-// mandarinToneCurveは各音節の声調を母音核の区間へ置く。
+// mandarinToneCurveは各音節の声調を母音核と鼻音韻尾の区間へ置く。
 func mandarinToneCurve(morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) *render.PitchCurve {
 	if len(morae) == 0 || len(timings) != len(morae) || durationMS <= 0 {
 		return nil
@@ -82,7 +84,7 @@ func mandarinToneCurve(morae []frontend.Mora, timings []prosody.MoraTiming, dura
 		FrameMS: mandarinPitchFrameMS,
 		Cents:   make([]float64, int(math.Ceil(durationMS/mandarinPitchFrameMS))+1),
 	}
-	phoneWeights := languagePhoneWeights(frontend.LanguageChinese, morae)
+	phoneWeights := speechPhoneDurations(morae, plan.DefaultMoraDurationMS)
 	for i, timing := range timings {
 		if morae[i].Pause || timing.DurationMS <= 0 || tones[i] < 1 || tones[i] > 5 {
 			continue
@@ -96,7 +98,7 @@ func mandarinToneCurve(morae []frontend.Mora, timings []prosody.MoraTiming, dura
 			}
 			points = mandarinNeutralTonePoints(previous)
 		}
-		// 声調は無声の頭子音を除く母音核へ置く。
+		// 声調は頭子音を除く母音核と鼻音韻尾へ置く。
 		startOffset, span := mandarinToneWindow(morae[i], phoneWeights[i], timing.DurationMS)
 		first := max(0, int(math.Ceil(timing.StartMS/mandarinPitchFrameMS)))
 		last := min(len(curve.Cents)-1, int(math.Floor((timing.StartMS+timing.DurationMS)/mandarinPitchFrameMS)))
@@ -108,13 +110,14 @@ func mandarinToneCurve(morae []frontend.Mora, timings []prosody.MoraTiming, dura
 	return curve
 }
 
-// mandarinToneWindowは声調を置く母音核区間の開始位置と長さを返す。
+// mandarinToneWindowは声調を置く韻区間の開始位置と長さを返す。
 // 母音核が不明なときは頭子音の合計長でずらす従来動作へ戻す。
 func mandarinToneWindow(mora frontend.Mora, weights []float64, durationMS float64) (float64, float64) {
 	spans := phoneSpansFromWeights(weights, durationMS)
 	nucleusStart, nucleusEnd := -1, -1
 	for j, p := range mora.Phones {
-		if p.Role == "nucleus" {
+		// 鼻音韻尾も有声の韻に含め、声調が母音の途中で終わらないようにする。
+		if p.Role == "nucleus" || p.Role == "coda" || p.Role == "medial" || p.Role == "offglide" {
 			if nucleusStart < 0 {
 				nucleusStart = j
 			}

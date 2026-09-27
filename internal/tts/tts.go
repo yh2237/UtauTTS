@@ -61,6 +61,8 @@ type Config struct {
 	LeadingPreutteranceMS   float64
 	ProsodyModelPath        string
 	ProsodyModel            *prosody.Model
+	SpeechModelPath         string
+	SpeechModel             *prosody.SpeechModel
 	ManualPitchPath         string
 	ManualPitch             *prosody.ManualPitchFile
 	ProsodyFeatures         []prosody.FeatureFrame
@@ -349,6 +351,9 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	}
 	profile := languageProfileFor(language)
 	profile.ApplySpeechProfile(&cfg)
+	if err := configureSpeechModel(&cfg, language); err != nil {
+		return nil, err
+	}
 	loadedProsody, err := resolveProsodyModelForProfile(cfg, profile)
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)
@@ -404,6 +409,9 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	}
 	if err := plan.ApplyUnitOverrides(synthesisPlan.Units, cfg.UnitOverrides); err != nil {
 		return nil, fmt.Errorf("apply unit overrides: %w", err)
+	}
+	if cfg.SpeechModel != nil {
+		synthesisPlan.SpeechModelID = cfg.SpeechModel.ID
 	}
 	synthesisPlan.WordBoundaryEnvelope = cfg.WordBoundaryEnvelope
 	synthesisPlan.Text = cfg.Text
@@ -579,6 +587,9 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
 	profile := languageProfileFor(language)
+	if err := configureSpeechModel(&cfg, language); err != nil {
+		return nil, err
+	}
 	loadedProsody, err := resolveProsodyModelForProfile(cfg, profile)
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)
@@ -606,6 +617,9 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 				duration = previewDurationFor(mora, cfg.MoraDurationMS)
 				if index < len(predictions) && predictions[index].DurationFactor > 0 {
 					duration *= predictions[index].DurationFactor
+				}
+				if index < len(predictions) && predictions[index].DurationMS > 0 && (language == frontend.LanguageEnglish || language == frontend.LanguageChinese) {
+					duration = predictions[index].DurationMS
 				}
 			}
 		}

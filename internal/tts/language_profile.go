@@ -53,9 +53,6 @@ func languageProfileFor(language string) languageProfile {
 // predictMoraeは言語profileに沿って予測を組み立てる。SynthesizeとPredictProsodyで共有する。
 func predictMorae(cfg Config, profile languageProfile, model *prosody.Model, morae []frontend.Mora, features []prosody.FeatureFrame) ([]prosody.Prediction, error) {
 	predictions := profile.Predict(morae)
-	if experimentalSpeechTiming(cfg) {
-		predictions = speechRhythmExperiment(morae, predictions, cfg.MoraDurationsMS)
-	}
 	if model != nil {
 		if model.RequiresExternalFeatures() && len(features) != len(morae) {
 			return nil, fmt.Errorf("prosody model %d/%s requires %d mora-level accent feature frames, got %d", model.Version, model.Mode, len(morae), len(features))
@@ -69,7 +66,11 @@ func predictMorae(cfg Config, profile languageProfile, model *prosody.Model, mor
 			}
 		}
 	}
-	return profile.AdjustPredictions(cfg, model, morae, predictions, features), nil
+	predictions = profile.AdjustPredictions(cfg, model, morae, predictions, features)
+	if experimentalSpeechTiming(cfg) {
+		predictions = speechRhythmExperiment(morae, predictions, cfg.MoraDurationsMS)
+	}
+	return predictions, nil
 }
 
 // resolveProsodyModelForProfileは言語profileに応じて代替モデルを探す。

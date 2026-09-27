@@ -89,7 +89,7 @@ func TestSpeechExperimentPartialManualBudgetAndValidation(t *testing.T) {
 	}
 }
 
-// E3: 声調を頭子音と語尾子音ではなく母音核の区間へ置く。
+// 鼻音韻尾を含む有声の韻に声調を置き、頭子音では動かさない。
 func TestMandarinToneCurveAlignsToNucleus(t *testing.T) {
 	morae := []frontend.Mora{{Tone: 4, Phones: []frontend.Phone{
 		{Symbol: "n", Role: "onset"}, {Symbol: "a", Role: "nucleus"}, {Symbol: "n", Role: "coda"},
@@ -99,8 +99,8 @@ func TestMandarinToneCurveAlignsToNucleus(t *testing.T) {
 	if curve.Cents[2] != 145 {
 		t.Fatalf("頭子音区間で声調が動いた: %.1f", curve.Cents[2])
 	}
-	if curve.Cents[17] != -145 {
-		t.Fatalf("語尾子音区間で声調が動いた: %.1f", curve.Cents[17])
+	if curve.Cents[17] <= -145 || curve.Cents[20] != -145 {
+		t.Fatalf("鼻音韻尾まで声調が続かない: %.1f -> %.1f", curve.Cents[17], curve.Cents[20])
 	}
 	if curve.Cents[10] == 145 || curve.Cents[10] == -145 {
 		t.Fatalf("母音核で声調が動いていない: %.1f", curve.Cents[10])

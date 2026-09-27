@@ -51,23 +51,24 @@ func (englishProfile) ProsodyModelFallback(configuredPath string) string {
 
 func (englishProfile) SupportsStretchAdapt() bool { return false }
 
-func (englishProfile) PhoneTiming(_ Config, morae []frontend.Mora, _ bool) ([][]float64, string) {
-	return languagePhoneWeights(frontend.LanguageEnglish, morae), "language-phone-v1"
+func (englishProfile) PhoneTiming(cfg Config, morae []frontend.Mora, _ bool) ([][]float64, string) {
+	return speechDurationsForConfig(cfg, morae), "multilingual-speech-score-v1"
 }
 
 func (englishProfile) Predict(morae []frontend.Mora) []prosody.Prediction {
 	return englishPredictions(morae)
 }
 
-func (englishProfile) AdjustPredictions(_ Config, _ *prosody.Model, _ []frontend.Mora, predictions []prosody.Prediction, _ []prosody.FeatureFrame) []prosody.Prediction {
-	return predictions
+func (englishProfile) AdjustPredictions(cfg Config, _ *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction, _ []prosody.FeatureFrame) []prosody.Prediction {
+	return applySpeechScore(cfg, morae, predictions)
 }
 
 func (englishProfile) AutomaticPitchCurve(cfg Config, model *prosody.Model, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*render.PitchCurve, bool) {
-	if !applyPitchEnabled(cfg) || shouldPredictFrameContour(cfg, model) {
+	if !applyPitchEnabled(cfg) || (shouldPredictFrameContour(cfg, model) && (cfg.SpeechModel == nil || len(cfg.SpeechModel.Pitch) == 0)) {
 		return nil, false
 	}
-	return scaleAutomaticPitchCurve(englishSpeechCurve(morae, timings, durationMS, cfg.Text), cfg.IntonationStrength), false
+	curve := learnedSpeechCurve(cfg, morae, timings, englishSpeechCurve(morae, timings, durationMS, cfg.Text))
+	return scaleAutomaticPitchCurve(curve, cfg.IntonationStrength), false
 }
 
 func (englishProfile) ApplyBoundaryTone(_ Config, curve *render.PitchCurve, _ float64, _ bool) *render.PitchCurve {
