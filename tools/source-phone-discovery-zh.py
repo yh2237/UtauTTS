@@ -1,12 +1,11 @@
 """中国語の単母音＋鼻音韻尾の原音をMFAで整列する。"""
 import argparse
-import copy
 import re
-import importlib.util
 from pathlib import Path
 
-spec=importlib.util.spec_from_file_location('source_auto',Path(__file__).with_name('source-span-auto.py'))
-auto=importlib.util.module_from_spec(spec);spec.loader.exec_module(auto)
+from source_phone_common import load_tool, observed_source
+
+auto = load_tool('source-span-auto.py')
 alignment=auto.alignment
 INITIALS={'b':'p','p':'pʰ','m':'m','f':'f','d':'t','t':'tʰ','n':'n','l':'l','g':'k','k':'kʰ','h':'x','j':'tɕ','q':'tɕʰ','x':'ɕ','s':'s','z':'ts','c':'tsʰ'}
 VOWELS={'a':'a','e':'ə','i':'i','u':'u','v':'y'}
@@ -44,7 +43,7 @@ def prepare(report_path,out):
         if pair is None:
             if unit.get('assigned_coda_phones'):rejected.append(dict(unit_index=unit['unit_index'],reason='unsupported-compound-or-alias'))
             continue
-        unit=copy.deepcopy(unit);unit['source_clip']=str((report_path.parent/unit['source_clip']).resolve());selected.append(unit)
+        unit=observed_source(unit, report_path);selected.append(unit)
         requests.append(dict(unit_index=unit['unit_index'],phones=pair[0],canonical_phones=pair[1]))
     if not selected:raise ValueError('no supported nasal syllables')
     out.mkdir(parents=True)

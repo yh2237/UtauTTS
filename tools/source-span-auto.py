@@ -1,27 +1,15 @@
 """原音の区間ライブラリを別の文の音素時刻へ自動で対応付ける。"""
 import argparse
 import copy
-import importlib.util
-import math
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location('source_spans', Path(__file__).with_name('source-span-mapping.py'))
-spans = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(spans)
+from source_phone_common import load_tool
+
+spans = load_tool('source-span-mapping.py')
 alignment = spans.alignment
 
 
-def checked_phones(phones, duration):
-    if not phones:
-        raise ValueError('empty source phone sequence')
-    previous = 0.0
-    for phone in phones:
-        start, end = phone['start_ms'], phone['end_ms']
-        if not all(isinstance(v, (int, float)) and math.isfinite(v) for v in (start, end)) or start < previous-.001 or end <= start or end > duration+1:
-            raise ValueError('invalid source phone intervals')
-        if not isinstance(phone['symbol'], str) or not phone['symbol']:
-            raise ValueError('invalid source phone symbol')
-        previous = end
+from source_phone_common import checked_phones
 
 
 def build_library(paths, out, prefer_last=False):

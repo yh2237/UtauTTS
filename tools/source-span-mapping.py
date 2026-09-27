@@ -1,22 +1,15 @@
 """録音の音素列から合成対象の区間候補と確認用WAVを作る。"""
 import argparse
-import hashlib
-import importlib.util
 import math
 from pathlib import Path
 import wave
 
-spec = importlib.util.spec_from_file_location('source_alignment', Path(__file__).with_name('source-phone-alignment.py'))
-alignment = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(alignment)
+from source_phone_common import load_tool
+
+alignment = load_tool('source-phone-alignment.py')
 
 
-def file_hash(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-
-
-def sequence_matches(sequence, wanted):
-    return [i for i in range(len(sequence)-len(wanted)+1) if sequence[i:i+len(wanted)] == wanted] if wanted else []
+from source_phone_common import file_hash, sequence_matches
 
 
 def propose(report_path, out):

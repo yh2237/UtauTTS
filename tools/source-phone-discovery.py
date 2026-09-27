@@ -1,14 +1,12 @@
 """未知の英語VC原音に音素列の仮説を作り、整列結果から区間候補を選ぶ。"""
 import argparse
-import copy
-import importlib.util
 import math
 from pathlib import Path
 import re
 
-spec = importlib.util.spec_from_file_location('source_auto', Path(__file__).with_name('source-span-auto.py'))
-auto = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(auto)
+from source_phone_common import load_tool, observed_source
+
+auto = load_tool('source-span-auto.py')
 alignment = auto.alignment
 VOWELS = set('aa ae ah ao ax aw ay eh er ey ih iy ow oy uh uw'.split())
 
@@ -71,8 +69,7 @@ def prepare(reports, libraries, out):
             seen.add(digest)
             for hypothesis in hypotheses:
                 index=len(units)
-                row=copy.deepcopy(unit);row['unit_index']=index
-                row['source_clip']=str((Path(path).parent/unit['source_clip']).resolve())
+                row=observed_source(unit, path);row['unit_index']=index
                 units.append(row)
                 requests.append(dict(unit_index=index,phones=[acoustic_label(p) for p in hypothesis['phones']]))
                 provenance.append(dict(candidate_index=index,source_sha256=digest,source_report=str(Path(path).resolve()),
