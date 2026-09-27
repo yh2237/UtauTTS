@@ -1,5 +1,7 @@
 # フレーム抑揚モデルの学習
 
+この文書は日本語モデルの学習手順です。英語モデルは[英語フレーム抑揚モデルの学習](english-frame-intonation-training.md)を参照してください。
+
 ## 準備
 
 Python環境にはPyTorch、NumPy、pyopenjtalkが必要です。`--f0-source internal`では追加の実行ファイルは不要です。`--f0-source world`を使う場合は独自WORLDエンジンが必要です。ビルドスクリプトは、Windowsが`tools/build-world-engine.ps1`、Linuxが`tools/build-world-engine.sh`、macOSが`tools/build-world-engine-macos.sh`です。

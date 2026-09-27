@@ -54,14 +54,26 @@ C+V音源ではARPAbetの各音素を1つの原音へ割り当てます。alias�
 
 中国語の`ü`は読みで`v`または`u:`と書けます。`nüe/lüe`の原音名には`nve/lve`と`nue/lue`の両表記を探し、`presamp.ini`の母音・子音分類もこの表記差を吸収します。`nu/lu`と`nv/lv`は別の母音として扱います。
 
-英語・中国語の抑揚には日本語用モデルを適用せず、規則に基づいて処理します。
+英語の既定抑揚モデルはEnglish Frame Intonation TCN v1です。中国語は声調に基づく規則を使います。日本語用の抑揚モデルは適用しません。
 
 ## 音が欠ける場合
 
 UtauTTSで生成できるのは、基本的に音源へ収録されている子音と接続音です。音が欠ける場合は、音源と発音形式の組み合わせを確認してください。[読み上げ品質の評価](../tools/evaluation/README.md)では、原音候補と必須音の不足を調べられます。
 
-CPU版WORLDは、Delta・VCCV英語の必須語末子音について、原音後半が再生時間内に収まるよう補正します。対象は発音データから判定するため、音高などの接尾辞が付いたaliasにも対応します。子音群では、次の原音との重なりで子音が消えないように再生時間を確保します。この処理には本体とWORLDブリッジの両方が必要です。任意のrelease音とARPAsing音源は対象外です。
+CPU版WORLDは、英語の語末子音と中国語の母音・鼻音韻尾に合わせて原音の区間を伸縮します。英語の短い破裂音は元の速度で保持し、子音群では後続原音との重なりで音が消えないよう配置します。本体とWORLDブリッジは同じバージョンを使用してください。
 
 原音の接続位置の補正は[発話タイミング補正](speech-quality-experiment.md)を参照してください。[選択した原音の確認](../tools/evaluation/README.md#選択した原音を確認する)では切り出し範囲と合成結果を比較できます。
 
 音素表記の参考は[OpenUtauのVCCV対応表](https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Plugin.Builtin/EnglishVCCVPhonemizer.cs)、[OpenUtauのC+V対応表](https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Plugin.Builtin/EnglishCpVPhonemizer.cs)と[香港理工大学のPinyin綴り規則](https://www.polyu.edu.hk/bepth/introduction-to-phonetics/spelling-rules-in-pinyin/?sc_lang=en)を参照してください。
+
+## 原音区間の自動適用
+
+CPU版WORLDの英語・中国語では、原音区間ライブラリに登録された区間を自動で適用します。原音のハッシュと音素列が一致する場合だけ適用し、未登録の原音や対応が曖昧な区間はotoに基づく処理を使います。通常の利用で事前解析や追加モデルの取得は不要です。
+
+同梱データの対象は[原音区間ライブラリの収録範囲](../models/source-phones/README.md)を参照してください。別のボイスバンクに区間を登録する手順は[原音区間ライブラリ](source-understanding.md)にあります。
+
+## 長さと合成計画
+
+英語・中国語は子音・母音・韻尾の長さを合計して発話時間を決めます。CLIの`--mora-ms`は音素時間配分の基準値です。手動で指定した各単位の長さを優先します。
+
+開発者向けの目標音素時刻と原音の対応は、`--plan-out`で保存した合成計画から確認できます。診断項目は[読み上げ品質の評価](../tools/evaluation/README.md)を参照してください。時間長・ピッチ・音量を学習する実験用の手順は[英語・中国語の発話モデルの学習](multilingual-learning.md)にあります。
