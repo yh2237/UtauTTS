@@ -20,6 +20,7 @@ type Selection struct {
 	Transition          *Selection
 	Endings             []Selection
 	EndingCandidates    [][]Selection
+	EndingAlternatives  []Selection
 	EndingIndex         int
 	CodaPhones          []string
 	CodaStart           int
@@ -208,6 +209,7 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 				codaStart += len(endingPhones[i])
 			}
 		}
+		originalSpecs, originalPhones, originalStarts := endingSpecs, endingPhones, endingStarts
 		// 複合原音がない部分だけ分割し、不足音素と後続子音を残す。
 		if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil {
 			var expanded [][]aliasCandidate
@@ -259,7 +261,7 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 			}
 			return valid
 		}
-		attachEndings := func(main Selection) Selection {
+		attachEndings := func(main Selection, endingSpecs [][]aliasCandidate, endingPhones [][]string, endingStarts []int) Selection {
 			var endingLayers [][]Selection
 			for endingIndex, specs := range endingSpecs {
 				var choices []Selection
@@ -305,11 +307,51 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 			}
 			return main
 		}
+		attachVariants := func(main Selection) Selection {
+			base := attachEndings(main, endingSpecs, endingPhones, endingStarts)
+			if mora.Language != frontend.LanguageEnglish || mora.Aliases == nil {
+				return base
+			}
+			for group, edges := range mora.Aliases.EndingFallbacks {
+				if group >= len(originalSpecs) {
+					continue
+				}
+				for _, chain := range selectCodaChains(b, edges, affix, hasAffix) {
+					specs := append([][]aliasCandidate(nil), originalSpecs[:group]...)
+					phones := append([][]string(nil), originalPhones[:group]...)
+					starts := append([]int(nil), originalStarts[:group]...)
+					for _, edge := range chain {
+						names := explicitAliasCandidates(edge.Aliases, AliasOther)
+						if hasAffix {
+							names = affixCandidatesWithFallback(names, affix, true)
+						}
+						specs = append(specs, names)
+						phones = append(phones, edge.Phones)
+						starts = append(starts, edge.CodaStart)
+					}
+					specs = append(specs, originalSpecs[group+1:]...)
+					phones = append(phones, originalPhones[group+1:]...)
+					starts = append(starts, originalStarts[group+1:]...)
+					variant := attachEndings(main, specs, phones, starts)
+					missingCount := func(gaps []SpeechGap) int {
+						count := 0
+						for _, gap := range gaps {
+							count += len(gap.Phones)
+						}
+						return count
+					}
+					if missingCount(variant.MissingPhones) <= missingCount(base.MissingPhones) {
+						base.EndingAlternatives = append(base.EndingAlternatives, variant)
+					}
+				}
+			}
+			return base
+		}
 		for _, candidate := range candidateSpecs {
 			entries := validatedEntries(candidate.name, b.Entries[candidate.name])
 			for _, validated := range entries {
 				entry, validation := validated.entry, validated.validation
-				main := attachEndings(Selection{
+				main := attachVariants(Selection{
 					Position: position, Mora: mora, Alias: candidate.name, Kind: candidate.kind,
 					FallbackTier: candidate.tier, Entry: entry, Candidates: candidates,
 					TargetScore: validatedCandidateScore(mora.Language, candidate.tier, entry, validation),

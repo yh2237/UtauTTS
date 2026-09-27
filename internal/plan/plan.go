@@ -11,7 +11,7 @@ import (
 	"utautts/internal/voicebank"
 )
 
-const Version = 32
+const Version = 33
 
 // DefaultMoraDurationMSとDefaultPauseDurationMSは未指定時の長さ。合成・プレビュー・manifestが共有するcanonical値。
 const (

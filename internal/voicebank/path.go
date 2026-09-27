@@ -24,15 +24,21 @@ func selectBestPaths(layers [][]Selection, extractor *connection.Extractor) []Se
 	for i := range layers {
 		var expanded []Selection
 		for _, candidate := range layers[i] {
-			if len(candidate.EndingCandidates) > 0 && cache.JoinModel() == nil {
-				paths, _ := endingRecordingPathsFrom(&candidate, candidate.EndingCandidates, cache)
-				for _, path := range paths {
-					variant := candidate
-					variant.Endings = path
-					expanded = append(expanded, variant)
+			alternatives := []Selection{candidate}
+			if cache.JoinModel() == nil {
+				alternatives = append(alternatives, candidate.EndingAlternatives...)
+			}
+			for _, candidate := range alternatives {
+				if len(candidate.EndingCandidates) > 0 && cache.JoinModel() == nil {
+					paths, _ := endingRecordingPathsFrom(&candidate, candidate.EndingCandidates, cache)
+					for _, path := range paths {
+						variant := candidate
+						variant.Endings = path
+						expanded = append(expanded, variant)
+					}
+				} else {
+					expanded = append(expanded, candidate)
 				}
-			} else {
-				expanded = append(expanded, candidate)
 			}
 		}
 		layers[i] = expanded
