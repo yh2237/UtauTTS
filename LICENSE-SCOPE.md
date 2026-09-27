@@ -8,15 +8,16 @@ UtauTTSのオリジナルコードは[`LICENSE`](./LICENSE)のMIT Licenseです�
 
 ## 同梱モデル
 
-同梱する抑揚モデルの重みはMIT Licenseで配布します。各モデルが参照する通知は学習元データ単位で`licenses/`へ収録し、全文を次の通り対応させます。
+同梱する抑揚モデルの重みは、英語TCNを除きMIT Licenseで配布します。`frame-intonation-tcn-en-v1`の重みはCC BY 4.0です。各モデルが参照する通知を`licenses/`へ収録し、次の通り対応させます。
 
 | モデル | 通知 |
 | --- | --- |
 | `frame-intonation-tcn-v9.1-t` | `licenses/TSUKUYOMI-CORPUS.txt`, `licenses/MINNADE-JSUT-CORPUS.txt` |
 | `frame-intonation-tcn-v9-t` | `licenses/TSUKUYOMI-CORPUS.txt` |
 | `english-intonation-v1` | `licenses/ENGLISH-INTONATION-V1.txt` |
+| `frame-intonation-tcn-en-v1`（CC BY 4.0） | `licenses/ENGLISH-FRAME-INTONATION-TCN-V1.txt`, `licenses/LibriTTS-R-NOTICE.txt`, `licenses/MFA-English-ARPA-NOTICE.txt`, `licenses/CC-BY-4.0.txt` |
 
-モデルの利用時は重みのMIT Licenseに従ってください。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本を再配布しません。各通知は出典の情報提供であり、規約の解釈や権利者の代弁は行いません。モデルごとの出典は[抑揚モデルのライセンス](./models/README.md)にあります。
+モデルの利用時は各モデルJSONに記載した重みのライセンスに従ってください。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本を再配布しません。各通知は出典の情報提供であり、規約の解釈や権利者の代弁は行いません。モデルごとの出典は[抑揚モデルのライセンス](./models/README.md)にあります。
 
 ## 同梱ボイスバンク
 

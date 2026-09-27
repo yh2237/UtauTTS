@@ -1,0 +1,10 @@
+Montreal Forced Aligner English (US) ARPA acoustic model and dictionary
+Authors/maintainers: Michael McAuliffe and Morgan Sonderegger / Montreal Corpus Tools
+License: Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+https://mfa-models.readthedocs.io/en/latest/acoustic/English/English%20%28US%29%20ARPA%20acoustic%20model%20v2_0_0a.html
+https://github.com/MontrealCorpusTools/mfa-models
+
+Used locally to estimate phoneme boundaries for LibriTTS-R preprocessing.
+Acoustic model weights and pronunciation dictionary are not bundled with the
+UtauTTS intonation model. Alignment results are grouped into UtauTTS syllables.

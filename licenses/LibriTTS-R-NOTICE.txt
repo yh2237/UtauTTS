@@ -1,0 +1,15 @@
+LibriTTS-R: A Restored Multi-Speaker Text-to-Speech Corpus
+Made available by Google LLC under Creative Commons Attribution 4.0 International.
+Source: https://www.openslr.org/141/
+License: https://creativecommons.org/licenses/by/4.0/
+
+Yuma Koizumi, Heiga Zen, Shigeki Karita, Yifan Ding, Kohei Yatabe,
+Nobuyuki Morioka, Michiel Bacchiani, Yu Zhang, Wei Han, and Ankur Bapna.
+LibriTTS-R: A Restored Multi-Speaker Text-to-Speech Corpus, INTERSPEECH 2023.
+https://doi.org/10.21437/Interspeech.2023-1584
+
+UtauTTS training preprocessing selects utterances, aligns speech to phonemes,
+and extracts normalized pitch contours. Corpus audio is not bundled with the model.
+The supplied corpus LICENSE.txt states:
+"The LibriTTS-R corpus is made available by Google LLC under a Creative Commons
+Attribution 4.0 International License."

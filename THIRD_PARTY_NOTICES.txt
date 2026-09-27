@@ -345,7 +345,7 @@ https://github.com/cmusphinx/cmudict
 Bundled prosody models
 ======================
 
-The bundled frame-intonation models are UtauTTS weights distributed under the
+The bundled Japanese frame-intonation models are UtauTTS weights distributed under the
 MIT License. They were trained on third-party corpora, and UtauTTS does not
 bundle or redistribute the corpus audio or scripts. The applicable notices are
 included in the package under licenses/ (model-to-notice mapping:
@@ -354,6 +354,10 @@ licenses/MINNADE-JSUT-CORPUS.txt.
 
 The english-intonation-v1 model contains original UtauTTS coefficients and is
 distributed under the MIT License; see licenses/ENGLISH-INTONATION-V1.txt.
+
+The frame-intonation-tcn-en-v1 weights are distributed under CC BY 4.0;
+see licenses/ENGLISH-FRAME-INTONATION-TCN-V1.txt. Training source notices:
+licenses/LibriTTS-R-NOTICE.txt and licenses/MFA-English-ARPA-NOTICE.txt.
 
 UtauTTS source code uses the repository MIT License; models, prompts,
 voicebanks, and other third-party assets use their respective notices.
@@ -391,6 +395,18 @@ Upstream: https://github.com/google/material-design-icons
 (variant file variablefont/MaterialSymbolsOutlined[FILL,GRAD,opsz,wght].ttf).
 Licensed under the Apache License, Version 2.0. Its notice is
 licenses/MATERIAL-SYMBOLS.txt.
+
+
+LibriTTS-R and MFA English ARPA (English frame-intonation model)
+=====================================================================
+
+English Frame Intonation TCN v1 is trained on selected LibriTTS-R utterances
+released by Google LLC under CC BY 4.0. Local phoneme alignment uses the
+Montreal Forced Aligner English ARPA acoustic model and dictionary.
+Corpus audio and alignment model weights are not bundled. The intonation
+weights are distributed under CC BY 4.0. Attribution and changes:
+licenses/LibriTTS-R-NOTICE.txt and licenses/MFA-English-ARPA-NOTICE.txt.
+License text: licenses/CC-BY-4.0.txt.
 
 
 LINE Seed JP (UI font)
