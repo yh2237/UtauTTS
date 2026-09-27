@@ -24,10 +24,6 @@
 - 重みはMIT Licenseで配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本を再配布しません
 - 通知: [licenses/TSUKUYOMI-CORPUS.txt](../licenses/TSUKUYOMI-CORPUS.txt)
 
-## English
-
-`english-intonation-v1`はUtauTTS用の係数モデルで、ARPAbetの強勢、語境界、句境界から相対ピッチを予測します。配布条件: [ライセンス](../licenses/ENGLISH-INTONATION-V1.txt)のMIT License。
-
 ## English Frame Intonation TCN v1（英語の既定）
 
 `frame-intonation-tcn-en-v1`は、[LibriTTS-R](https://www.openslr.org/141/)のtrain-clean-100から選んだ発話で学習した英語モデルです。
@@ -37,7 +33,7 @@
 - 重みの通知: [licenses/ENGLISH-FRAME-INTONATION-TCN-V1.txt](../licenses/ENGLISH-FRAME-INTONATION-TCN-V1.txt)、ライセンス本文: [licenses/CC-BY-4.0.txt](../licenses/CC-BY-4.0.txt)
 - 学習元の通知: [licenses/LibriTTS-R-NOTICE.txt](../licenses/LibriTTS-R-NOTICE.txt)、[licenses/MFA-English-ARPA-NOTICE.txt](../licenses/MFA-English-ARPA-NOTICE.txt)
 
-Delta/VCCVの音節構成を対象とし、en-cv/en-arpasingへの適用は未評価です。学習条件と評価は[英語フレーム抑揚モデルの学習](../docs/english-frame-intonation-training.md)を参照してください。従来の`english-intonation-v1`も選択できます。
+Delta/VCCVの音節構成を対象とし、en-cv/en-arpasingへの適用は未評価です。学習条件と評価はモデルJSONの`training`と`metrics`を参照してください。旧`english-intonation-v1`の選択設定はこのモデルへ移行します。
 
 ## モデルの記録
 

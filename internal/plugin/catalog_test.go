@@ -131,6 +131,9 @@ func TestRepositoryBundlesSelfDescribingModels(t *testing.T) {
 	}
 	for index := range models {
 		if models[index].ID == "english-intonation-v1" {
+			t.Fatal("removed English model is still bundled")
+		}
+		if models[index].ID == "frame-intonation-tcn-en-v1" {
 			english = &models[index]
 			break
 		}
@@ -288,5 +291,16 @@ func TestDirectoryWithoutManifestHasNoRenderers(t *testing.T) {
 	}
 	if len(items) != 0 {
 		t.Fatalf("manifest-free directory yielded renderers: %#v", items)
+	}
+}
+
+func TestLegacyEnglishModelSelectionMigratesToTCN(t *testing.T) {
+	catalog := &Catalog{Models: []Model{{ID: "frame-intonation-tcn-en-v1"}}}
+	model, ok := catalog.Model("english-intonation-v1")
+	if !ok || model.ID != "frame-intonation-tcn-en-v1" {
+		t.Fatalf("legacy English selection = %#v, ok=%v", model, ok)
+	}
+	if _, ok := (&Catalog{}).Model("english-intonation-v1"); ok {
+		t.Fatal("missing replacement model was accepted")
 	}
 }

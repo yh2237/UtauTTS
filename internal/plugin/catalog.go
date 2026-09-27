@@ -397,6 +397,10 @@ func resolveRendererPath(directory, value string) string {
 }
 
 func (catalog *Catalog) Model(id string) (Model, bool) {
+	// 旧英語モデルの保存設定を移行する。
+	if id == "english-intonation-v1" {
+		id = "frame-intonation-tcn-en-v1"
+	}
 	for _, item := range catalog.Models {
 		if item.ID == id || item.Path == id {
 			return item, true

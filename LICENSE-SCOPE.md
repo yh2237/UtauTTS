@@ -14,7 +14,6 @@ UtauTTSのオリジナルコードは[`LICENSE`](./LICENSE)のMIT Licenseです�
 | --- | --- |
 | `frame-intonation-tcn-v9.1-t` | `licenses/TSUKUYOMI-CORPUS.txt`, `licenses/MINNADE-JSUT-CORPUS.txt` |
 | `frame-intonation-tcn-v9-t` | `licenses/TSUKUYOMI-CORPUS.txt` |
-| `english-intonation-v1` | `licenses/ENGLISH-INTONATION-V1.txt` |
 | `frame-intonation-tcn-en-v1`（CC BY 4.0） | `licenses/ENGLISH-FRAME-INTONATION-TCN-V1.txt`, `licenses/LibriTTS-R-NOTICE.txt`, `licenses/MFA-English-ARPA-NOTICE.txt`, `licenses/CC-BY-4.0.txt` |
 
 モデルの利用時は各モデルJSONに記載した重みのライセンスに従ってください。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本を再配布しません。各通知は出典の情報提供であり、規約の解釈や権利者の代弁は行いません。モデルごとの出典は[抑揚モデルのライセンス](./models/README.md)にあります。
