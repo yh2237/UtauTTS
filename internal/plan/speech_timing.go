@@ -16,6 +16,24 @@ type PhoneTiming struct {
 	DurationMS float64 `json:"duration_ms"`
 }
 
+func speechCodaGroupTiming(mora frontend.Mora, spans []float64, offset, count int, start float64) (float64, float64) {
+	codaIndex := 0
+	length := 0.0
+	for i, p := range mora.Phones {
+		if p.Role != "coda" {
+			start += spans[i]
+			continue
+		}
+		if codaIndex < offset {
+			start += spans[i]
+		} else if codaIndex < offset+count {
+			length += spans[i]
+		}
+		codaIndex++
+	}
+	return start, length
+}
+
 // 英語codaの最低長。破裂音は閉鎖+解放を知覚できる長さを確保する。
 const (
 	englishCodaMinStopMS       = 65.0
@@ -26,7 +44,7 @@ const (
 	englishCodaMaxMS = 85.0
 )
 
-func speechEndingTiming(mora frontend.Mora, spans []float64, index int, start, duration float64) (float64, float64, float64) {
+func speechEndingTiming(mora frontend.Mora, spans []float64, index int, start, duration float64, canonical ...bool) (float64, float64, float64) {
 	if len(spans) != len(mora.Phones) {
 		spans = frontend.PhoneSpans(mora.Phones, duration)
 	}
@@ -44,7 +62,10 @@ func speechEndingTiming(mora frontend.Mora, spans []float64, index int, start, d
 	if len(codaSpans) == 0 {
 		return start + duration - endingDurationFor(duration, 1), endingDurationFor(duration, 1), 0
 	}
-	codaStart, codaSpans, floorMS := englishCodaFloor(mora, codaPhones, codaStart, codaSpans, start, duration)
+	floorMS := 0.0
+	if len(canonical) == 0 || !canonical[0] {
+		codaStart, codaSpans, floorMS = englishCodaFloor(mora, codaPhones, codaStart, codaSpans, start, duration)
+	}
 	if index == 0 {
 		return codaStart, codaSpans[0], floorMS
 	}

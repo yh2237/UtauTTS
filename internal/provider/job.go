@@ -80,24 +80,32 @@ type WorldlineUnit struct {
 
 const CapabilityWorldSpeechV1 = "world_speech_v1"
 const CapabilityCodaReleaseV1 = "coda_release_v1"
+const CapabilitySpeechAnchorsV1 = "speech_anchors_v1"
+
+// SpeechAnchorは切り出し原音の時刻を出力内の時刻へ対応付ける。
+type SpeechAnchor struct {
+	SourceMS float64 `json:"source_ms"`
+	TargetMS float64 `json:"target_ms"`
+}
 
 // WorldSpeechTimingは切り出し後の音源を基準とする位置を示す。
 type WorldSpeechTiming struct {
-	CodaRelease               bool    `json:"coda_release,omitempty"`
-	SeparateRelease           bool    `json:"separate_release,omitempty"`
-	PreserveStopOnly          bool    `json:"preserve_stop_only,omitempty"`
-	UnitIndex                 int     `json:"unit_index"`
-	SourceOnsetMS             float64 `json:"source_onset_ms"`
-	SourceTransientMS         float64 `json:"source_transient_ms,omitempty"`
-	SourceTransientDurationMS float64 `json:"source_transient_duration_ms,omitempty"`
-	TargetOnsetMS             float64 `json:"target_onset_ms"`
-	ReleaseMS                 float64 `json:"release_ms,omitempty"`
-	ProtectStop               bool    `json:"protect_stop,omitempty"`
-	VowelJoin                 bool    `json:"vowel_join,omitempty"`
-	TargetFixedMS             float64 `json:"target_fixed_ms,omitempty"`
-	TargetJoinMS              float64 `json:"target_join_ms,omitempty"`
-	TransitionLeftPhone       string  `json:"transition_left_phone,omitempty"`
-	TransitionRightPhone      string  `json:"transition_right_phone,omitempty"`
+	Anchors                   []SpeechAnchor `json:"anchors,omitempty"`
+	CodaRelease               bool           `json:"coda_release,omitempty"`
+	SeparateRelease           bool           `json:"separate_release,omitempty"`
+	PreserveStopOnly          bool           `json:"preserve_stop_only,omitempty"`
+	UnitIndex                 int            `json:"unit_index"`
+	SourceOnsetMS             float64        `json:"source_onset_ms"`
+	SourceTransientMS         float64        `json:"source_transient_ms,omitempty"`
+	SourceTransientDurationMS float64        `json:"source_transient_duration_ms,omitempty"`
+	TargetOnsetMS             float64        `json:"target_onset_ms"`
+	ReleaseMS                 float64        `json:"release_ms,omitempty"`
+	ProtectStop               bool           `json:"protect_stop,omitempty"`
+	VowelJoin                 bool           `json:"vowel_join,omitempty"`
+	TargetFixedMS             float64        `json:"target_fixed_ms,omitempty"`
+	TargetJoinMS              float64        `json:"target_join_ms,omitempty"`
+	TransitionLeftPhone       string         `json:"transition_left_phone,omitempty"`
+	TransitionRightPhone      string         `json:"transition_right_phone,omitempty"`
 }
 
 type WorldSpeechResult struct {

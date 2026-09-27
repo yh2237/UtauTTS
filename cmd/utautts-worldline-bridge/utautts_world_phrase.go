@@ -53,6 +53,13 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 			return nil, fmt.Errorf("WORLD units have inconsistent FFT sizes")
 		}
 	}
+	for index, item := range input.Units {
+		if item.Speech != nil && len(item.Speech.Anchors) > 0 {
+			if _, ok := worldSpeechAnchors(item, prepared[index].cached.duration); !ok {
+				return nil, fmt.Errorf("invalid multilingual anchors for unit %d", index)
+			}
+		}
+	}
 	result := mixWorldFeatures(input, prepared, fftSize, worldCPUWorkers(frames))
 	if input.Engine == "utautts-world-phrase" {
 		repairWorldFeatureGaps(input, prepared, &result)

@@ -43,6 +43,24 @@ func TestCodaReleaseScope(t *testing.T) {
 	}
 }
 
+func TestMainCodaFadeScope(t *testing.T) {
+	for _, phonemizer := range []string{frontend.PhonemizerEnglish, frontend.PhonemizerEnglishCV, frontend.PhonemizerChinese} {
+		p := &plan.Plan{Phonemizer: phonemizer}
+		u := plan.Unit{Role: "mora", CodaPhones: []string{"n"}, DurationMS: 60}
+		if !worldCodaReleaseEligible(p, u) {
+			t.Fatal(phonemizer)
+		}
+		_, fade := codaReleaseEnvelope(u, nil, 20)
+		if fade > 5 {
+			t.Fatal("coda faded away", fade)
+		}
+		u.Role = "ending"
+		if worldCodaReleaseEligible(p, u) {
+			t.Fatal("optional ending protected", phonemizer)
+		}
+	}
+}
+
 func TestCodaReleaseEnvelopeKeepsConsonantAudible(t *testing.T) {
 	u := plan.Unit{DurationMS: 30, CodaPhones: []string{"d"}}
 	points := []base.WorldlineEnvelopePoint{{XMS: -30}, {XMS: -20}, {XMS: 0}, {XMS: 0}, {XMS: 30}}

@@ -8,6 +8,31 @@ import (
 	"utautts/internal/provider"
 )
 
+func TestExplicitSpeechAnchorsInterpolationAndValidation(t *testing.T) {
+	u := unit{OffsetMS: 13, RequiredLengthMS: 999, ConsonantMS: 999, Speech: &provider.WorldSpeechTiming{Anchors: []provider.SpeechAnchor{{SourceMS: 10, TargetMS: 0}, {SourceMS: 100, TargetMS: 40}, {SourceMS: 300, TargetMS: 200}}}}
+	a, ok := worldSpeechAnchors(u, 400)
+	if !ok {
+		t.Fatal("valid piecewise mapping rejected")
+	}
+	for _, pair := range [][2]float64{{0, 13}, {20, 58}, {40, 103}, {120, 203}, {200, 303}} {
+		if got := a.sourceTime(pair[0]); math.Abs(got-pair[1]) > .001 {
+			t.Fatalf("%v: %g", pair, got)
+		}
+	}
+	for _, invalid := range [][]provider.SpeechAnchor{
+		{{SourceMS: 0, TargetMS: 0}},
+		{{SourceMS: 0, TargetMS: 0}, {SourceMS: 100, TargetMS: 0}},
+		{{SourceMS: 100, TargetMS: 0}, {SourceMS: 10, TargetMS: 40}},
+		{{SourceMS: 0, TargetMS: 0}, {SourceMS: 500, TargetMS: 40}},
+		{{SourceMS: 0, TargetMS: 0}, {SourceMS: 100, TargetMS: math.NaN()}},
+	} {
+		u.Speech.Anchors = invalid
+		if _, ok := worldSpeechAnchors(u, 400); ok {
+			t.Fatal("invalid mapping accepted", invalid)
+		}
+	}
+}
+
 func TestWorldSpeechMappingAnchorsAndStop(t *testing.T) {
 	u := unit{OffsetMS: 13, ConsonantMS: 100, RequiredLengthMS: 240, ConsonantVelocity: 100,
 		Speech: &provider.WorldSpeechTiming{SourceOnsetMS: 60, TargetOnsetMS: 40, ProtectStop: true}}

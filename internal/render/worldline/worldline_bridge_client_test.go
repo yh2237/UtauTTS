@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"utautts/internal/plan"
@@ -74,7 +75,7 @@ func TestWorldSpeechJobCarriesSpeechRequirement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := job.Options.Worldline.Units[0].Speech; got == nil || *got != *speech {
+	if got := job.Options.Worldline.Units[0].Speech; got == nil || !reflect.DeepEqual(got, speech) {
 		t.Fatal("lost speech controls", got)
 	}
 	data, err := json.Marshal(job)

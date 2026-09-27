@@ -30,6 +30,26 @@ func mixProtectedStopBursts(input manifest, prepared []preparedWorldUnit, wave [
 				transient: highPass(samples, actualRate, 280)}
 			sources[item.Source] = source
 		}
+		if len(item.Speech.Anchors) > 0 {
+			anchors, ok := worldSpeechAnchors(item, prepared[index].cached.duration)
+			if !ok || item.Speech.SourceTransientMS <= 0 {
+				continue
+			}
+			shift := worldSourceExactBaseMS(item.OffsetMS) - worldSourceFrameBaseMS(item.OffsetMS)
+			target, ok := anchors.targetTime(item.Speech.SourceTransientMS + shift)
+			if !ok {
+				continue
+			}
+			post := stopTransientPostMS(item.Speech.SourceTransientDurationMS, 14)
+			sourceStart := worldSourceExactBaseMS(item.OffsetMS) + item.Speech.SourceTransientMS - 4
+			targetStart := item.PositionMS + target - item.SkipMS - 4
+			// フェードを含む保護区間が隣の音素へはみ出す場合は加算しない。
+			if target-4 < item.SkipMS || target+post > item.SkipMS+item.LengthMS {
+				continue
+			}
+			result[item.Speech.UnitIndex] = mixProtectedStopBurst(wave, source, sourceStart, targetStart, 4, post, item.Volume*worldUnitEnergy(item))
+			continue
+		}
 		if item.Speech.PreserveStopOnly {
 			sourceOnset, targetOnset := stopBurstOnsets(item, worldSourceExactBaseMS(item.OffsetMS), item.Speech.SourceOnsetMS, item.Speech.TargetOnsetMS)
 			postMS := stopTransientPostMS(item.Speech.SourceTransientDurationMS, 32)

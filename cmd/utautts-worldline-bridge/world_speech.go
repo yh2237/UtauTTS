@@ -7,10 +7,24 @@ import (
 )
 
 type worldSpeechMap struct {
+	anchors                                                                             []provider.SpeechAnchor
 	coda                                                                                bool
 	separateRelease                                                                     bool
 	sourceOnset, targetOnset, sourceFixed, targetFixed, sourceEnd, targetEnd, protected float64
 	releaseStart, sourceReleaseStart                                                    float64
+}
+
+func (a worldSpeechMap) targetTime(source float64) (float64, bool) {
+	if len(a.anchors) < 2 || math.IsNaN(source) || math.IsInf(source, 0) || source < a.anchors[0].SourceMS || source > a.anchors[len(a.anchors)-1].SourceMS {
+		return 0, false
+	}
+	for i := 1; i < len(a.anchors); i++ {
+		left, right := a.anchors[i-1], a.anchors[i]
+		if source <= right.SourceMS {
+			return left.TargetMS + (source-left.SourceMS)*(right.TargetMS-left.TargetMS)/(right.SourceMS-left.SourceMS), true
+		}
+	}
+	return 0, false
 }
 
 func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
@@ -19,6 +33,36 @@ func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
 	}
 	// 解析はoto.offsetちょうどではなく直前のWORLDフレームから始まる。
 	shift := math.Max(0, item.OffsetMS) - math.Floor(math.Max(0, item.OffsetMS)/worldFramePeriodMS)*worldFramePeriodMS
+	if len(item.Speech.Anchors) > 0 {
+		anchors := append([]provider.SpeechAnchor(nil), item.Speech.Anchors...)
+		if len(anchors) < 2 {
+			return worldSpeechMap{}, false
+		}
+		for i := range anchors {
+			anchors[i].SourceMS += shift
+			a := anchors[i]
+			if math.IsNaN(a.SourceMS) || math.IsInf(a.SourceMS, 0) || math.IsNaN(a.TargetMS) || math.IsInf(a.TargetMS, 0) || a.SourceMS < 0 || a.SourceMS > duration+.01 || a.TargetMS < 0 {
+				return worldSpeechMap{}, false
+			}
+			if i > 0 && (a.SourceMS <= anchors[i-1].SourceMS || a.TargetMS <= anchors[i-1].TargetMS) {
+				return worldSpeechMap{}, false
+			}
+		}
+		targetFixed := anchors[len(anchors)-1].TargetMS
+		fixed := item.ConsonantMS + shift
+		if fixed <= anchors[0].SourceMS {
+			targetFixed = anchors[0].TargetMS
+		} else {
+			for i := 1; i < len(anchors); i++ {
+				left, right := anchors[i-1], anchors[i]
+				if fixed <= right.SourceMS {
+					targetFixed = left.TargetMS + (fixed-left.SourceMS)*(right.TargetMS-left.TargetMS)/(right.SourceMS-left.SourceMS)
+					break
+				}
+			}
+		}
+		return worldSpeechMap{anchors: anchors, targetFixed: targetFixed, targetEnd: anchors[len(anchors)-1].TargetMS}, true
+	}
 	a := worldSpeechMap{sourceOnset: item.Speech.SourceOnsetMS + shift, targetOnset: item.Speech.TargetOnsetMS,
 		sourceFixed: item.ConsonantMS + shift, sourceEnd: duration, targetEnd: item.RequiredLengthMS}
 	for _, v := range []float64{a.sourceOnset, a.targetOnset, a.sourceEnd, item.OffsetMS, item.Speech.TargetFixedMS} {
@@ -84,6 +128,18 @@ func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
 
 func (a worldSpeechMap) sourceTime(t float64) float64 {
 	t = math.Max(0, math.Min(a.targetEnd, t))
+	if len(a.anchors) > 0 {
+		if t <= a.anchors[0].TargetMS {
+			return a.anchors[0].SourceMS
+		}
+		for i := 1; i < len(a.anchors); i++ {
+			left, right := a.anchors[i-1], a.anchors[i]
+			if t <= right.TargetMS {
+				return left.SourceMS + (t-left.TargetMS)*(right.SourceMS-left.SourceMS)/(right.TargetMS-left.TargetMS)
+			}
+		}
+		return a.anchors[len(a.anchors)-1].SourceMS
+	}
 	if a.coda {
 		if a.separateRelease {
 			if t < a.targetOnset {

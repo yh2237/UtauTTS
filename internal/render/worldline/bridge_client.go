@@ -75,6 +75,9 @@ func InvokeReport(ctx context.Context, bridge, jobPath, outputPath string, repor
 	if job.CodaRelease && !slices.Contains(client.session.Hello().Capabilities, provider.CapabilityCodaReleaseV1) {
 		return fmt.Errorf("WORLD bridge does not support coda release timing; rebuild utautts-worldline-bridge")
 	}
+	if job.Anchors && !slices.Contains(client.session.Hello().Capabilities, provider.CapabilitySpeechAnchorsV1) {
+		return fmt.Errorf("WORLD bridge does not support multilingual speech anchors; rebuild utautts-worldline-bridge")
+	}
 	result, err := client.session.Render(ctx, provider.RenderRequest{
 		Contract:        "unit-renderer",
 		ContractVersion: 1,
@@ -101,6 +104,7 @@ func InvokeReport(ctx context.Context, bridge, jobPath, outputPath string, repor
 
 // BridgeJobはブリッジjobの検証済み要約。テストと診断で参照する。
 type BridgeJob struct {
+	Anchors     bool
 	CodaRelease bool
 	Speech      bool
 	Engine      string `json:"engine"`
@@ -127,6 +131,7 @@ func ReadBridgeJob(path string) (BridgeJob, error) {
 	for _, unit := range commonJob.Options.Worldline.Units {
 		job.Speech = job.Speech || unit.Speech != nil
 		job.CodaRelease = job.CodaRelease || unit.Speech != nil && unit.Speech.CodaRelease
+		job.Anchors = job.Anchors || unit.Speech != nil && len(unit.Speech.Anchors) > 0
 	}
 	return validateBridgeJob(job)
 }

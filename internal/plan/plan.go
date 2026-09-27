@@ -11,7 +11,7 @@ import (
 	"utautts/internal/voicebank"
 )
 
-const Version = 26
+const Version = 32
 
 // DefaultMoraDurationMSとDefaultPauseDurationMSは未指定時の長さ。合成・プレビュー・manifestが共有するcanonical値。
 const (
@@ -40,6 +40,7 @@ type Config struct {
 }
 
 type Plan struct {
+	SpeechModelID           string                   `json:"speech_model_id,omitempty"`
 	WordBoundaryEnvelope    bool                     `json:"word_boundary_envelope,omitempty"`
 	SingleCV                bool                     `json:"single_cv,omitempty"`
 	SpeechTiming            bool                     `json:"speech_timing,omitempty"`
@@ -69,7 +70,7 @@ type Plan struct {
 	LeadingMarginMS         float64                  `json:"leading_margin_ms,omitempty"`
 	DurationMS              float64                  `json:"duration_ms"`
 	Units                   []Unit                   `json:"units"`
-	Morae                   []frontend.Mora          `json:"-"`
+	Morae                   []frontend.Mora          `json:"linguistic_units,omitempty"`
 }
 
 // Cloneはレンダラー用の独立したコピーを返す。診断結果を選択計画へ戻さない。
@@ -87,6 +88,12 @@ func Clone(source *Plan) *Plan {
 	}
 	result.Units = append([]Unit(nil), source.Units...)
 	for index := range result.Units {
+		result.Units[index].SpeechSourceAnchorsMS = append([]float64(nil), source.Units[index].SpeechSourceAnchorsMS...)
+		result.Units[index].SpeechTargetAnchorsMS = append([]float64(nil), source.Units[index].SpeechTargetAnchorsMS...)
+		if source.Units[index].SourceFixedMS != nil {
+			fixed := *source.Units[index].SourceFixedMS
+			result.Units[index].SourceFixedMS = &fixed
+		}
 		result.Units[index].CodaPhones = append([]string(nil), source.Units[index].CodaPhones...)
 		result.Units[index].CVTimingWarnings = append([]string(nil), source.Units[index].CVTimingWarnings...)
 		if source.Units[index].SpeechProfile != nil {
@@ -122,6 +129,14 @@ func cloneMora(mora frontend.Mora) frontend.Mora {
 	hints.EndingPhones = make([][]string, len(mora.Aliases.EndingPhones))
 	for i, phones := range mora.Aliases.EndingPhones {
 		hints.EndingPhones[i] = append([]string(nil), phones...)
+	}
+	hints.EndingFallbacks = make([][]frontend.CodaAlias, len(mora.Aliases.EndingFallbacks))
+	for i, edges := range mora.Aliases.EndingFallbacks {
+		hints.EndingFallbacks[i] = append([]frontend.CodaAlias(nil), edges...)
+		for j := range edges {
+			hints.EndingFallbacks[i][j].Aliases = append([]string(nil), edges[j].Aliases...)
+			hints.EndingFallbacks[i][j].Phones = append([]string(nil), edges[j].Phones...)
+		}
 	}
 	hints.Main = append([]string(nil), mora.Aliases.Main...)
 	hints.MainKinds = append([]string(nil), mora.Aliases.MainKinds...)
@@ -174,6 +189,12 @@ const (
 )
 
 type Unit struct {
+	// 原音の固定部と単位開始からの目標母音時刻を分ける。
+	SourceFixedMS               *float64                       `json:"source_fixed_ms,omitempty"`
+	TargetOnsetMS               float64                        `json:"target_onset_ms,omitempty"`
+	SpeechMapping               string                         `json:"speech_mapping,omitempty"`
+	SpeechSourceAnchorsMS       []float64                      `json:"speech_source_anchors_ms,omitempty"`
+	SpeechTargetAnchorsMS       []float64                      `json:"speech_target_anchors_ms,omitempty"`
 	CodaPhones                  []string                       `json:"coda_phones,omitempty"`
 	CodaFloorMS                 float64                        `json:"coda_floor_ms,omitempty"`
 	CodaBoundaryLimited         bool                           `json:"coda_boundary_limited,omitempty"`
@@ -345,6 +366,14 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			aliasKind = voicebank.ClassifyAlias(selection.Alias)
 		}
 		mainUnit := unitFromSelection(&selection, position, cursor, duration, prediction, "mora")
+		// 音素単位英語と中国語の鼻音は主原音内にある。終了音として重複させない。
+		if mora.Language == frontend.LanguageChinese || (mora.Language == frontend.LanguageEnglish && len(mora.Phones) == 1) {
+			for _, phone := range mora.Phones {
+				if phone.Role == "coda" {
+					mainUnit.CodaPhones = append(mainUnit.CodaPhones, phone.Symbol)
+				}
+			}
+		}
 		// VCVの境界は発話タイミング補正なしでも解析し、伸縮だけ設定に従う。
 		isVCV := aliasKind == voicebank.AliasVCV || voicebank.IsContextVCVAlias(selection.Alias)
 		// C3aでは日本語の全モーラを対象にするため、必要な音源だけプロファイルを取る（キャッシュ前提）。
@@ -356,6 +385,10 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			if profile.Applied && !result.SingleCV && cfg.SpeechTiming {
 				mainUnit.ConsonantMS = profile.SuggestedFixedMS
 			}
+		}
+		if mora.Language == frontend.LanguageEnglish && containsStopPhone(mainUnit.CodaPhones) && !mainUnit.Silent && mainUnit.SpeechProfile == nil {
+			profile := bank.CalibrateSpeech(selection.Entry)
+			mainUnit.SpeechProfile = &profile
 		}
 		if position < len(cfg.PhoneWeights) && cfg.PhoneWeights[position] != nil {
 			applyPhoneTimingAnchor(&mainUnit, mora, phoneSpans)
@@ -370,12 +403,19 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 				start, span := endingStart+float64(index)*endingDuration, endingDuration
 				codaFloorMS := 0.0
 				if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil && len(mora.Aliases.EndingPhones) > 0 {
-					start, span, codaFloorMS = speechEndingTiming(mora, phoneSpans, selection.Endings[index].EndingIndex, cursor, duration)
+					start, span, codaFloorMS = speechEndingTiming(mora, phoneSpans, selection.Endings[index].EndingIndex, cursor, duration, cfg.PhoneWeightsSource == "multilingual-speech-score-v1")
+				}
+				selectedEnding := selection.Endings[index]
+				if mora.Language == frontend.LanguageEnglish && len(selectedEnding.CodaPhones) > 0 && cfg.PhoneWeightsSource == "multilingual-speech-score-v1" {
+					start, span = speechCodaGroupTiming(mora, phoneSpans, selectedEnding.CodaStart, len(selectedEnding.CodaPhones), cursor)
 				}
 				endingUnit := unitFromSelection(&selection.Endings[index], position, start, span, prediction, "ending")
 				endingIndex := selection.Endings[index].EndingIndex
 				if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil && endingIndex >= 0 && endingIndex < len(mora.Aliases.EndingPhones) {
 					endingUnit.CodaPhones = append([]string(nil), mora.Aliases.EndingPhones[endingIndex]...)
+				}
+				if len(selectedEnding.CodaPhones) > 0 {
+					endingUnit.CodaPhones = append([]string(nil), selectedEnding.CodaPhones...)
 				}
 				if len(endingUnit.CodaPhones) > 0 {
 					endingUnit.CodaFloorMS = codaFloorMS
@@ -441,7 +481,7 @@ func phoneSpansForMora(mora frontend.Mora, duration float64, weights [][]float64
 }
 
 func applyPhoneTimingAnchor(unit *Unit, mora frontend.Mora, spans []float64) {
-	if unit == nil || len(spans) != len(mora.Phones) || unit.PreutteranceMS <= 0 {
+	if unit == nil || len(spans) != len(mora.Phones) {
 		return
 	}
 	onsetMS := 0.0
@@ -450,10 +490,16 @@ func applyPhoneTimingAnchor(unit *Unit, mora frontend.Mora, spans []float64) {
 			onsetMS += spans[index]
 		}
 	}
-	if onsetMS <= 0 || math.IsNaN(onsetMS) || math.IsInf(onsetMS, 0) {
+	if math.IsNaN(onsetMS) || math.IsInf(onsetMS, 0) {
 		return
 	}
-	unit.ConsonantMS = unit.PreutteranceMS + onsetMS
+	if mora.Language == frontend.LanguageEnglish || mora.Language == frontend.LanguageChinese {
+		unit.TargetOnsetMS = onsetMS
+	} else {
+		if onsetMS > 0 && unit.PreutteranceMS > 0 {
+			unit.ConsonantMS = unit.PreutteranceMS + onsetMS
+		}
+	}
 }
 
 func unitFromSelection(selection *voicebank.Selection, position int, noteStart, duration float64, prediction prosody.Prediction, role string) Unit {
@@ -494,6 +540,10 @@ func unitFromSelection(selection *voicebank.Selection, position int, noteStart, 
 		JoinScore:           selection.JoinScore,
 		PathScore:           selection.PathScore,
 	}
+	if selection.Mora.Language == frontend.LanguageEnglish || selection.Mora.Language == frontend.LanguageChinese {
+		fixed := entry.Fixed
+		unit.SourceFixedMS = &fixed
+	}
 	if role == "transition" {
 		unit.ParentPosition = position
 		unit.TransitionFrom = transitionContext(selection.Alias)
@@ -501,7 +551,9 @@ func unitFromSelection(selection *voicebank.Selection, position int, noteStart, 
 		unit.PitchFactor = 1
 		unit.EnergyFactor = 1
 		unit.PreutteranceMS, unit.OverlapMS = transitionTiming(entry, duration)
-		unit.ConsonantMS = math.Min(math.Max(0, entry.Fixed), duration)
+		if unit.SourceFixedMS == nil {
+			unit.ConsonantMS = math.Min(math.Max(0, entry.Fixed), duration)
+		}
 	} else if role == "ending" {
 		unit.ParentPosition = position
 	}

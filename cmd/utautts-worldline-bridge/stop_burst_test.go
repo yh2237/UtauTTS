@@ -20,6 +20,29 @@ func TestHighPassKeepsStopTransient(t *testing.T) {
 	}
 }
 
+func TestExplicitAnchorBurstUsesMappedTimeAndExactSourceOffset(t *testing.T) {
+	const rate = 16000
+	samples := make([]float32, rate/4)
+	samples[rate*123/1000] = 1 // oto offset 13 ms + measured transient 110 ms
+	path := filepath.Join(t.TempDir(), "anchored-stop.wav")
+	if err := writePCM16(path, rate, samples); err != nil {
+		t.Fatal(err)
+	}
+	item := unit{Source: path, OffsetMS: 13, PositionMS: 50, LengthMS: 100, RequiredLengthMS: 100, Volume: 100, Speech: &provider.WorldSpeechTiming{UnitIndex: 0, ProtectStop: true, SourceTransientMS: 110, SourceTransientDurationMS: 8, Anchors: []provider.SpeechAnchor{{SourceMS: 50, TargetMS: 0}, {SourceMS: 106, TargetMS: 40}, {SourceMS: 124, TargetMS: 58}, {SourceMS: 180, TargetMS: 100}}}}
+	wave := make([]float64, len(samples))
+	result := mixProtectedStopBursts(manifest{Units: []unit{item}}, []preparedWorldUnit{{cached: cachedWorldUnit{duration: 240}}}, wave, rate)
+	if result[0] <= 0 || wave[rate*94/1000] <= .1 {
+		t.Fatal("burst missing at mapped time", result, wave[rate*94/1000])
+	}
+	if wave[rate*110/1000] != 0 {
+		t.Fatal("burst used raw source time as target")
+	}
+	item.Speech.SourceTransientMS = 200 // outside explicit retained source
+	if got := mixProtectedStopBursts(manifest{Units: []unit{item}}, []preparedWorldUnit{{cached: cachedWorldUnit{duration: 240}}}, make([]float64, len(samples)), rate); len(got) != 0 {
+		t.Fatal("out-of-range peak restored", got)
+	}
+}
+
 func TestMixProtectedStopBurstAddsOnlyProtectedWindow(t *testing.T) {
 	sourceSamples := make([]float64, 1600)
 	sourceSamples[800] = 1

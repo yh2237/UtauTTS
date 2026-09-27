@@ -46,6 +46,9 @@ type RenderDiagnostic struct {
 
 // UnitRenderReportはunitごとの描画結果を示す。
 type UnitRenderReport struct {
+	SpeechMapping           string
+	SpeechSourceAnchorsMS   []float64
+	SpeechTargetAnchorsMS   []float64
 	WorldRenderMode         plan.WorldRenderMode
 	WorldRenderReason       string
 	WorldGapRepairEligible  bool
@@ -155,6 +158,9 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 	report.Units = make([]UnitRenderReport, len(synthesisPlan.Units))
 	for index, unit := range synthesisPlan.Units {
 		report.Units[index] = UnitRenderReport{
+			SpeechMapping:           unit.SpeechMapping,
+			SpeechSourceAnchorsMS:   append([]float64(nil), unit.SpeechSourceAnchorsMS...),
+			SpeechTargetAnchorsMS:   append([]float64(nil), unit.SpeechTargetAnchorsMS...),
 			WorldRenderMode:         unit.WorldRenderMode,
 			WorldRenderReason:       unit.WorldRenderReason,
 			WorldGapRepairEligible:  unit.WorldGapRepairEligible,
@@ -210,6 +216,9 @@ func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 			continue
 		}
 		unit := &synthesisPlan.Units[unitReport.Index]
+		unit.SpeechMapping = unitReport.SpeechMapping
+		unit.SpeechSourceAnchorsMS = append([]float64(nil), unitReport.SpeechSourceAnchorsMS...)
+		unit.SpeechTargetAnchorsMS = append([]float64(nil), unitReport.SpeechTargetAnchorsMS...)
 		unit.WorldRenderMode = unitReport.WorldRenderMode
 		unit.WorldRenderReason = unitReport.WorldRenderReason
 		unit.WorldGapRepairEligible = unitReport.WorldGapRepairEligible

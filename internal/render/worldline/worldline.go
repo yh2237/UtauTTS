@@ -174,7 +174,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		pitchFactors[i] = intonation[i]
 		pitchFactors[i] *= base.EffectiveUnitPitchFactor(unit, cfg.ApplyPitch)
 	}
-	if cfg.ProviderOptions.Worldline.SpeechPitchReference && cfg.ApplyPitch {
+	if (cfg.ProviderOptions.Worldline.SpeechPitchReference || multilingualScore(synthesisPlan)) && cfg.ApplyPitch {
 		pitchFactors, reference = speechReferencePitchFactors(synthesisPlan, pitches, reference)
 		for i, unit := range synthesisPlan.Units {
 			intonation[i] = pitchFactors[i] / base.EffectiveUnitPitchFactor(unit, true)
@@ -421,6 +421,21 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 			EnergyFactor:  unit.EnergyFactor,
 			PitchLengthMS: pitchLengthMS, Envelope: envelopePoints,
 		})
+		if multilingualScore(synthesisPlan) {
+			mono, loadErr := cache.LoadMono(unit.Source)
+			if loadErr != nil {
+				return nil, loadErr
+			}
+			end := float64(len(mono.Data)/mono.Channels)*1000/float64(mono.SampleRate) - unit.CutoffMS
+			if unit.CutoffMS < 0 {
+				end = unit.OffsetMS - unit.CutoffMS
+			}
+			mapped, mapErr := placeSpeechUnit(synthesisPlan, i, manifest.Units[len(manifest.Units)-1], end-unit.OffsetMS, leadingMS)
+			if mapErr != nil {
+				return nil, mapErr
+			}
+			manifest.Units[len(manifest.Units)-1] = mapped
+		}
 	}
 
 	manifest.OutputPath = filepath.Join(tempDir, "output.wav")
