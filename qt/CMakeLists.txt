@@ -100,6 +100,10 @@ set_source_files_properties(
     PROPERTIES QT_RESOURCE_ALIAS "icon128.png"
 )
 set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../icons/icon256.png"
+    PROPERTIES QT_RESOURCE_ALIAS "icon256.png"
+)
+set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/../icons/icon512.png"
     PROPERTIES QT_RESOURCE_ALIAS "icon512.png"
 )
@@ -119,6 +123,7 @@ qt_add_resources(utautts "appicon"
         "${CMAKE_CURRENT_SOURCE_DIR}/../icons/icon32.png"
         "${CMAKE_CURRENT_SOURCE_DIR}/../icons/icon64.png"
         "${CMAKE_CURRENT_SOURCE_DIR}/../icons/icon128.png"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../icons/icon256.png"
         "${CMAKE_CURRENT_SOURCE_DIR}/../icons/icon512.png"
 )
 

@@ -217,6 +217,7 @@ int main(int argc, char *argv[]) {
     appIcon.addFile(QStringLiteral(":/icons/icon32.png"));
     appIcon.addFile(QStringLiteral(":/icons/icon64.png"));
     appIcon.addFile(QStringLiteral(":/icons/icon128.png"));
+    appIcon.addFile(QStringLiteral(":/icons/icon256.png"));
     appIcon.addFile(QStringLiteral(":/icons/icon512.png"));
     app.setWindowIcon(appIcon);
 
