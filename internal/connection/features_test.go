@@ -10,6 +10,92 @@ import (
 	"utautts/internal/oto"
 )
 
+func TestSpeechTailUsesActivityWithinOtoTrim(t *testing.T) {
+	const rate = 16000
+	wave := make([]int16, rate)
+	for i := range wave {
+		ms := float64(i) * 1000 / rate
+		frequency := 220.0
+		if ms >= 250 {
+			frequency = 330
+		}
+		if ms >= 500 {
+			frequency = 440
+		}
+		if ms >= 400 && ms < 500 {
+			continue
+		}
+		wave[i] = int16(8000 * math.Sin(2*math.Pi*frequency*float64(i)/rate))
+	}
+	path := filepath.Join(t.TempDir(), "tail.wav")
+	if err := audio.WriteWav(path, &audio.PCM{SampleRate: rate, Channels: 1, Data: wave}); err != nil {
+		t.Fatal(err)
+	}
+	cache := NewExtractor()
+	entry := oto.Entry{Filename: path, Offset: 50, Preutterance: 30, Fixed: 60, Blank: -450}
+	boundary := cache.speechTail(entry)
+	if !boundary.Outgoing.Valid || boundary.Outgoing.F0Hz < 300 || boundary.Outgoing.F0Hz > 360 {
+		t.Fatalf("tail should be 330 Hz before silence and excluded next recording, got %+v", boundary.Outgoing)
+	}
+	positiveBlank := entry
+	positiveBlank.Blank = 500
+	other := cache.speechTail(positiveBlank)
+	if math.Abs(other.Outgoing.F0Hz-boundary.Outgoing.F0Hz) > .1 {
+		t.Fatal("positive and negative trim disagree")
+	}
+	if cache.speechTail(entry).Outgoing.F0Hz != boundary.Outgoing.F0Hz {
+		t.Fatal("cached tail changed")
+	}
+}
+
+func TestActiveTailRejectsSilenceAndShortSource(t *testing.T) {
+	if _, ok := activeTailCenter(make([]float64, 1600), 16000); ok {
+		t.Fatal("silence accepted")
+	}
+	if _, ok := activeTailCenter([]float64{1, 1}, 16000); ok {
+		t.Fatal("short source accepted")
+	}
+}
+
+func TestSpeechContextUsesRetainedRegionInsteadOfOtoOverlap(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "context.wav")
+	const rate = 16000
+	data := make([]int16, rate/2)
+	for i := range data {
+		frequency := 220.0
+		if i > rate/4 {
+			frequency = 330
+		}
+		data[i] = int16(8000 * math.Sin(2*math.Pi*frequency*float64(i)/rate))
+	}
+	if err := audio.WriteWav(path, &audio.PCM{SampleRate: rate, Channels: 1, Data: data}); err != nil {
+		t.Fatal(err)
+	}
+	cache := NewExtractor()
+	previous := oto.Entry{Filename: path, Fixed: 60, Preutterance: 30}
+	current := oto.Entry{Filename: path, Offset: 180, Preutterance: 100, Overlap: 90}
+	wantEntry := current
+	wantEntry.Overlap = 20
+	want := cache.ScoreEntries(previous, wantEntry)
+	got := cache.ScoreSpeechContext(previous, current)
+	if math.Abs(got-want) > 1e-9 {
+		t.Fatalf("got %g, want %g", got, want)
+	}
+	if math.Abs(got-cache.ScoreEntries(previous, current)) < .1 {
+		t.Fatal("fixture did not distinguish retained context from legacy overlap")
+	}
+	current.Overlap = 0
+	if other := cache.ScoreSpeechContext(previous, current); math.Abs(got-other) > 1e-9 {
+		t.Fatalf("speech score depends on unused overlap: %g vs %g", got, other)
+	}
+	current.Preutterance = 10
+	wantEntry = current
+	wantEntry.Overlap = 5
+	if got, want := cache.ScoreSpeechContext(previous, current), cache.ScoreEntries(previous, wantEntry); math.Abs(got-want) > 1e-9 {
+		t.Fatalf("short context: %g vs %g", got, want)
+	}
+}
+
 func TestBoundaryClampsFrameAtStartOfWAV(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "start.wav")
 	const sampleRate = 16000

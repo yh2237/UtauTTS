@@ -19,7 +19,10 @@ type Selection struct {
 	Composite           bool
 	Transition          *Selection
 	Endings             []Selection
+	EndingCandidates    [][]Selection
 	EndingIndex         int
+	CodaPhones          []string
+	CodaStart           int
 	MissingPhones       []SpeechGap
 	FallbackTier        int
 	Entry               oto.Entry
@@ -195,6 +198,44 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 		if !explicitCandidates {
 			candidateSpecs = preferOriginalKanaCandidates(b, candidateSpecs)
 		}
+		endingPhones := make([][]string, len(endingSpecs))
+		endingStarts := make([]int, len(endingSpecs))
+		codaStart := 0
+		for i := range endingSpecs {
+			endingStarts[i] = codaStart
+			if mora.Aliases != nil && i < len(mora.Aliases.EndingPhones) {
+				endingPhones[i] = mora.Aliases.EndingPhones[i]
+				codaStart += len(endingPhones[i])
+			}
+		}
+		// 複合原音がない部分だけ分割し、不足音素と後続子音を残す。
+		if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil {
+			var expanded [][]aliasCandidate
+			var phones [][]string
+			var starts []int
+			for i, specs := range endingSpecs {
+				var chain []frontend.CodaAlias
+				if i < len(mora.Aliases.EndingFallbacks) && !hasUsableCandidateEntries(b, specs) {
+					chain = selectCodaChain(b, mora.Aliases.EndingFallbacks[i], affix, hasAffix)
+				}
+				if len(chain) > 0 {
+					for _, edge := range chain {
+						names := explicitAliasCandidates(edge.Aliases, AliasOther)
+						if hasAffix {
+							names = affixCandidatesWithFallback(names, affix, true)
+						}
+						expanded = append(expanded, names)
+						phones = append(phones, edge.Phones)
+						starts = append(starts, edge.CodaStart)
+					}
+				} else {
+					expanded = append(expanded, specs)
+					phones = append(phones, endingPhones[i])
+					starts = append(starts, endingStarts[i])
+				}
+			}
+			endingSpecs, endingPhones, endingStarts = expanded, phones, starts
+		}
 		allSpecs := append(append([]aliasCandidate{}, candidateSpecs...), transitionSpecs...)
 		for _, specs := range endingSpecs {
 			allSpecs = append(allSpecs, specs...)
@@ -219,16 +260,14 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 			return valid
 		}
 		attachEndings := func(main Selection) Selection {
+			var endingLayers [][]Selection
 			for endingIndex, specs := range endingSpecs {
-				bestScore := math.Inf(-1)
-				var best *Selection
+				var choices []Selection
 				for _, endingSpec := range specs {
 					for _, validatedEnding := range validatedEntries(endingSpec.name, b.Entries[endingSpec.name]) {
 						score := validatedCandidateScore(mora.Language, endingSpec.tier, validatedEnding.entry, validatedEnding.validation)
-						if score <= bestScore {
-							continue
-						}
 						ending := Selection{
+							CodaPhones: append([]string(nil), endingPhones[endingIndex]...), CodaStart: endingStarts[endingIndex],
 							EndingIndex: endingIndex,
 							Position:    position, Mora: mora, Alias: endingSpec.name, Kind: AliasOther,
 							FallbackTier: endingSpec.tier, Entry: validatedEnding.entry, Candidates: candidates,
@@ -236,12 +275,12 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 							RequestedTone: requestedTone, ResolvedTone: resolvedTone,
 							EntryStatus: validatedEnding.validation.Status, EntryValidation: validatedEnding.validation.Checks,
 						}
-						best, bestScore = &ending, score
+						choices = append(choices, ending)
 					}
 				}
-				if best == nil {
-					if mora.Aliases != nil && endingIndex < len(mora.Aliases.EndingPhones) && len(mora.Aliases.EndingPhones[endingIndex]) > 0 {
-						gap := SpeechGap{Position: position, Role: "coda", Phones: append([]string(nil), mora.Aliases.EndingPhones[endingIndex]...)}
+				if len(choices) == 0 {
+					if len(endingPhones[endingIndex]) > 0 {
+						gap := SpeechGap{Position: position, Role: "coda", Phones: append([]string(nil), endingPhones[endingIndex]...)}
 						for _, spec := range specs {
 							gap.Aliases = append(gap.Aliases, spec.name)
 						}
@@ -250,7 +289,19 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 					// 録音のない末子音で、後続の録音可能な子音を隠さない。
 					continue
 				}
-				main.Endings = append(main.Endings, *best)
+				endingLayers = append(endingLayers, choices)
+			}
+			for _, choices := range endingLayers {
+				best := choices[0]
+				for _, choice := range choices[1:] {
+					if choice.TargetScore > best.TargetScore {
+						best = choice
+					}
+				}
+				main.Endings = append(main.Endings, best)
+			}
+			if mora.Language == frontend.LanguageEnglish {
+				main.EndingCandidates = endingLayers
 			}
 			return main
 		}

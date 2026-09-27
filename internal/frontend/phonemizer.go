@@ -197,6 +197,10 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 				current.Aliases.EndingPhones = [][]string{append([]string(nil), syllable.coda[:1]...)}
 				if len(current.Aliases.Endings) > 1 {
 					current.Aliases.EndingPhones = append(current.Aliases.EndingPhones, append([]string(nil), syllable.coda[1:]...))
+					if len(syllable.coda) > 2 {
+						current.Aliases.EndingFallbacks = make([][]CodaAlias, len(current.Aliases.Endings))
+						current.Aliases.EndingFallbacks[1] = englishCodaChain(syllable.coda, symbols, separator, lastSyllable && lastWord)
+					}
 				}
 			} else if lastSyllable && lastWord {
 				current.Aliases.Endings = [][]string{englishEndingAliases(previousVowels, config)}
@@ -204,6 +208,33 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 		}
 	}
 	return pronunciation, units, nil
+}
+
+func englishCodaChain(coda []string, symbols map[string][]string, separator string, terminal bool) []CodaAlias {
+	var result []CodaAlias
+	for i := 1; i < len(coda); i++ {
+		for end := i + 1; end <= len(coda); end++ {
+			var aliases []string
+			for _, left := range symbols[coda[i-1]] {
+				for _, right := range combineEnglishAliases(coda[i:end], []string{""}, symbols) {
+					pair := []string{left + separator + right, left + right}
+					if terminal && end == len(coda) {
+						for _, name := range pair {
+							aliases = append(aliases, name+"-")
+						}
+					}
+					aliases = append(aliases, pair...)
+					if !terminal || end != len(coda) {
+						for _, name := range pair {
+							aliases = append(aliases, name+"-")
+						}
+					}
+				}
+			}
+			result = append(result, CodaAlias{Aliases: uniqueStrings(aliases), Phones: append([]string(nil), coda[i:end]...), CodaStart: i})
+		}
+	}
+	return result
 }
 
 type englishSyllable struct {
@@ -580,6 +611,7 @@ func ParseEnglishARPAsingWithOptions(text, reading string, dictionary map[string
 		last := morae[len(morae)-1].Text
 		morae[len(morae)-1].Aliases.Endings = [][]string{{last + " -", last + "-"}}
 	}
+	markEnglishPhoneCodas(morae)
 	return pronunciation, morae, nil
 }
 
@@ -639,6 +671,7 @@ func ParseEnglishCVWithOptions(text, reading string, dictionary map[string]strin
 	if len(morae) > 0 && !morae[len(morae)-1].Pause {
 		setEnglishCVEnding(&morae[len(morae)-1])
 	}
+	markEnglishPhoneCodas(morae)
 	return pronunciation, morae, nil
 }
 
@@ -662,6 +695,29 @@ func setEnglishCVEnding(mora *Mora) {
 	}
 	endings := []string{mora.Text + " -", mora.Text + "-"}
 	mora.Aliases.Endings = [][]string{uniqueStrings(endings)}
+}
+
+// 音素単位の音源でも、単語の最後の母音より後ろは語末子音として保持する。
+// 原音候補と任意の終了音は変更しない。
+func markEnglishPhoneCodas(morae []Mora) {
+	for i := len(morae) - 1; i >= 0; {
+		if morae[i].Pause {
+			i--
+			continue
+		}
+		word := morae[i].WordIndex
+		trailing := true
+		for i >= 0 && !morae[i].Pause && morae[i].WordIndex == word {
+			m := &morae[i]
+			if m.Vowel != "" {
+				trailing = false
+			} else if trailing && len(m.Phones) == 1 {
+				m.Phones[0].Role = "coda"
+				m.DurationScale = PhoneWeight(m.Phones[0].Symbol, "coda")
+			}
+			i--
+		}
+	}
 }
 
 func ParseChineseCVVC(text, reading string, dictionary map[string]string) (string, []Mora, error) {
@@ -760,10 +816,33 @@ func ParseChineseCVVCWithConfig(text, reading string, dictionary map[string]stri
 			mora.WordEnd = tokens[syllableIndex].end
 		}
 		phoneInitial, phoneFinal := splitPinyin(normalizePinyin(raw))
+		// 縮約表記の展開は発話計画だけに適用する。
+		if expanded := map[string]string{"iu": "iou", "ui": "uei", "un": "uen"}[phoneFinal]; expanded != "" {
+			phoneFinal = expanded
+		}
+		if phoneFinal == "uen" && (phoneInitial == "j" || phoneInitial == "q" || phoneInitial == "x" || phoneInitial == "y") {
+			phoneFinal = "vn"
+		}
+		if phoneFinal == "ue" && (phoneInitial == "j" || phoneInitial == "q" || phoneInitial == "x" || phoneInitial == "y" || normalizePinyin(raw) == "nue" || normalizePinyin(raw) == "lue") {
+			phoneFinal = "ve"
+		}
 		if phoneInitial != "" {
 			mora.Phones = append(mora.Phones, Phone{phoneInitial, "onset"})
 		}
-		mora.Phones = append(mora.Phones, Phone{phoneFinal, "nucleus"})
+		// alias用の韻母は保ち、目標時刻では鼻音韻尾を分離する。
+		nucleus, coda := phoneFinal, ""
+		if strings.HasSuffix(phoneFinal, "ng") {
+			nucleus, coda = strings.TrimSuffix(phoneFinal, "ng"), "ng"
+		} else if strings.HasSuffix(phoneFinal, "n") {
+			nucleus, coda = strings.TrimSuffix(phoneFinal, "n"), "n"
+		}
+		if nucleus == "" {
+			nucleus, coda = phoneFinal, ""
+		}
+		mora.Phones = append(mora.Phones, mandarinRhymeParts(nucleus)...)
+		if coda != "" {
+			mora.Phones = append(mora.Phones, Phone{coda, "coda"})
+		}
 		if previousFinal != "" && initial != "" {
 			mora.Aliases.Transition = []string{previousFinal + " " + initial}
 		}

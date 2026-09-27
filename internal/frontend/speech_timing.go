@@ -37,9 +37,13 @@ func PhoneWeight(symbol, role string) float64 {
 // PhoneSpansは既知の長さを音素へ配分する。
 func PhoneSpans(phones []Phone, duration float64) []float64 {
 	spans := make([]float64, len(phones))
+	rhymeShares := MandarinRhymeShares(phones)
 	sum := 0.0
 	for i, p := range phones {
 		spans[i] = PhoneWeight(p.Symbol, p.Role)
+		if rhymeShares[i] > 0 {
+			spans[i] = rhymeShares[i]
+		}
 		sum += spans[i]
 	}
 	if sum > 0 {

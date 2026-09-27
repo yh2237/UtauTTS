@@ -57,6 +57,7 @@ func SetLegacyJoinCost(enabled bool) { legacyJoinCost = enabled }
 type Extractor struct {
 	mutex  sync.Mutex
 	cache  map[oto.Entry]Boundary
+	tails  map[oto.Entry]Boundary
 	model  *JoinModel
 	legacy bool
 }
@@ -94,6 +95,10 @@ func (e *Extractor) Boundary(entry oto.Entry) Boundary {
 
 func (e *Extractor) Pair(previous, current oto.Entry) PairFeatures {
 	left, right := e.Boundary(previous), e.Boundary(current)
+	return pairFeatures(previous, current, left, right)
+}
+
+func pairFeatures(previous, current oto.Entry, left, right Boundary) PairFeatures {
 	result := PairFeatures{
 		PreviousOutgoing: left.Outgoing,
 		CurrentIncoming:  right.Incoming,
@@ -119,10 +124,95 @@ func (e *Extractor) Pair(previous, current oto.Entry) PairFeatures {
 	return result
 }
 
+// ScoreSpeechTailContextは連続する語末音の発声末尾と接続区間を比較する。
+// 呼び出し側で音素の連続性を確認する。末尾検出は音素認識ではない。
+func (e *Extractor) ScoreSpeechTailContext(previous, current oto.Entry) float64 {
+	if e.model != nil {
+		return e.ScoreEntries(previous, current)
+	}
+	current.Overlap = math.Min(20, math.Max(0, current.Preutterance)*.5)
+	left := e.speechTail(previous)
+	return e.ScoreFeatures(pairFeatures(previous, current, left, e.Boundary(current)))
+}
+
+func (e *Extractor) speechTail(entry oto.Entry) Boundary {
+	fallback := e.Boundary(entry)
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if e.tails == nil {
+		e.tails = make(map[oto.Entry]Boundary)
+	}
+	if value, ok := e.tails[entry]; ok {
+		return value
+	}
+	value := fallback
+	pcm, err := audio.ReadWav(entry.Filename)
+	if err == nil && pcm.SampleRate > 0 && pcm.Channels > 0 {
+		wave := acoustic.Mono(pcm)
+		endMS := float64(len(wave)) * 1000 / float64(pcm.SampleRate)
+		if entry.Blank < 0 {
+			endMS = entry.Offset - entry.Blank
+		} else {
+			endMS -= entry.Blank
+		}
+		start := max(0, min(len(wave), int(math.Ceil(entry.Offset*float64(pcm.SampleRate)/1000))))
+		end := max(start, min(len(wave), int(math.Floor(endMS*float64(pcm.SampleRate)/1000))))
+		if tail, ok := activeTailCenter(wave[start:end], pcm.SampleRate); ok {
+			// 切り出し外の録音を分析に含めない。
+			value.Outgoing, value.outgoingWave = frameFeatures(wave[start:end], pcm.SampleRate, tail)
+		}
+	}
+	e.tails[entry] = value
+	return value
+}
+
+func activeTailCenter(wave []float64, rate int) (float64, bool) {
+	if rate <= 0 || len(wave) < int(.03*float64(rate)) {
+		return 0, false
+	}
+	step := max(1, rate/200) // 5msごとのエネルギー。
+	energy := make([]float64, 0, (len(wave)+step-1)/step)
+	peak := 0.0
+	for start := 0; start < len(wave); start += step {
+		end := min(len(wave), start+step)
+		sum := 0.0
+		for _, v := range wave[start:end] {
+			sum += v * v
+		}
+		rms := math.Sqrt(sum / float64(end-start))
+		energy = append(energy, rms)
+		peak = math.Max(peak, rms)
+	}
+	if peak < 1e-5 {
+		return 0, false
+	}
+	for i := len(energy) - 1; i >= 0; i-- {
+		if energy[i] >= peak*.02 {
+			end := min(len(wave), (i+1)*step)
+			if end < int(.03*float64(rate)) {
+				return 0, false
+			}
+			return float64(end)*1000/float64(rate) - 15, true
+		}
+	}
+	return 0, false
+}
+
 // ScoreEntriesは設定済みモデルで1つの遷移を評価する。判定が欠落または低信頼の場合は手作りscoreをフォールバックに使う。
 func (e *Extractor) ScoreEntries(previous, current oto.Entry) float64 {
 	features := e.Pair(previous, current)
 	return e.ScoreFeatures(features)
+}
+
+// ScoreSpeechContextは描画で保持する接続区間の中央を評価する。
+// 入口はpreutterance前の最大40ms、出口は従来の推定位置を使う。
+func (e *Extractor) ScoreSpeechContext(previous, current oto.Entry) float64 {
+	// 学習時の境界定義を保つ。
+	if e != nil && e.model != nil {
+		return e.ScoreEntries(previous, current)
+	}
+	current.Overlap = math.Min(20, math.Max(0, current.Preutterance)*.5)
+	return e.ScoreEntries(previous, current)
 }
 
 // ScoreFeaturesは境界キャッシュに触れず、抽出済みの特徴量を評価する。

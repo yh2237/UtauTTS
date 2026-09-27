@@ -55,9 +55,16 @@ type AliasHints struct {
 	Transition []string
 	Endings    [][]string
 	// EndingPhonesは発音に必要な語末音素を示す。
-	EndingPhones [][]string `json:",omitempty"`
+	EndingPhones    [][]string    `json:",omitempty"`
+	EndingFallbacks [][]CodaAlias `json:",omitempty"`
 	// MainMissingは短縮CVで欠ける語頭子音を示す。
 	MainMissing map[string][]string `json:",omitempty"`
+}
+
+type CodaAlias struct {
+	Aliases   []string
+	Phones    []string
+	CodaStart int
 }
 
 // Phoneはalias表記に依存しない音素を示す。
