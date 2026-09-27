@@ -455,6 +455,9 @@ func englishPronunciationWithOptions(text, reading string, dictionary map[string
 				if err != nil {
 					return "", nil, err
 				}
+				if strings.EqualFold(word, "read") && englishReadIsBaseForm(words, index) {
+					value = "R IY1 D"
+				}
 				// 機能語の弱形は句中だけ補い 明示した読みと辞書を優先する。
 				if weak, ok := englishWeakForm(word, words, index, options); ok {
 					value = weak
