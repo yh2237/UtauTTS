@@ -121,6 +121,14 @@ func TestRepositoryBundlesSelfDescribingModels(t *testing.T) {
 		}
 	}
 	var english *Model
+	for _, model := range models {
+		if model.Language == "en" {
+			if model.ID != "frame-intonation-tcn-en-v1" {
+				t.Fatalf("default English model = %q", model.ID)
+			}
+			break
+		}
+	}
 	for index := range models {
 		if models[index].ID == "english-intonation-v1" {
 			english = &models[index]

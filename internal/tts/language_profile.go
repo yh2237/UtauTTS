@@ -97,5 +97,9 @@ func resolveProsodyModelForProfile(cfg Config, profile languageProfile) (*prosod
 
 // englishFallbackProsodyModelPathは同じmodelsディレクトリの英語モデルを返す。
 func englishFallbackProsodyModelPath(configuredPath string) string {
+	path := filepath.Join(filepath.Dir(configuredPath), "frame-intonation-tcn-en-v1.json")
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		return path
+	}
 	return filepath.Join(filepath.Dir(configuredPath), "english-intonation-v1.json")
 }

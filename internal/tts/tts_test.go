@@ -144,6 +144,17 @@ func TestResolveProsodyModelForLanguageUsesBundledEnglishFallback(t *testing.T) 
 	if err != nil || got == nil || got.Language != "" {
 		t.Fatalf("Japanese model = %#v err=%v", got, err)
 	}
+	english.Version = prosody.FramePitchModelVersion
+	english.Mode = "intonation_frame_tcn_english_bounded"
+	english.EnglishIntonation = nil
+	english.FramePitch = japanese.FramePitch
+	if err := english.Save(filepath.Join(directory, "frame-intonation-tcn-en-v1.json")); err != nil {
+		t.Fatal(err)
+	}
+	got, err = resolveProsodyModelForLanguage(Config{ProsodyModelPath: japanesePath}, frontend.LanguageEnglish)
+	if err != nil || got == nil || got.Mode != english.Mode {
+		t.Fatalf("English TCN fallback = %#v err=%v", got, err)
+	}
 }
 
 func testMoraTimingsIncludePausesMissingFromPlanUnits(t *testing.T) {
