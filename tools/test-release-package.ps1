@@ -27,6 +27,16 @@ function Assert-Path([string]$Path, [string]$Description) {
 function Assert-PackagedModelLicenseNotices([string]$PackageRoot) {
     $modelsPath = Join-Path $PackageRoot 'models'
     Assert-Path $modelsPath 'packaged models directory'
+	$sourcePhoneRoot = Join-Path $projectRoot 'models/source-phones'
+	if (Test-Path -LiteralPath $sourcePhoneRoot -PathType Container) {
+		foreach ($sourceFile in Get-ChildItem -LiteralPath $sourcePhoneRoot -File) {
+			$packagedFile = Join-Path (Join-Path $modelsPath 'source-phones') $sourceFile.Name
+			Assert-Path $packagedFile 'source phone library'
+			if ((Get-FileHash -LiteralPath $sourceFile.FullName).Hash -ne (Get-FileHash -LiteralPath $packagedFile).Hash) {
+				throw "Package contains a stale source phone library: $packagedFile"
+			}
+		}
+	}
     $modelFiles = @(Get-ChildItem -LiteralPath $modelsPath -Filter '*.json' -File)
     if ($modelFiles.Count -eq 0) {
         throw "No packaged model JSON files found: $modelsPath"

@@ -1,0 +1,10 @@
+Montreal Forced Aligner Mandarin MFA acoustic model
+Authors/maintainers: Michael McAuliffe and Morgan Sonderegger / Montreal Corpus Tools
+License: Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+https://mfa-models.readthedocs.io/en/latest/acoustic/Mandarin/Mandarin%20MFA%20acoustic%20model%20v3_0_0.html
+https://github.com/MontrealCorpusTools/mfa-models
+
+Used locally to estimate phoneme boundaries in Mandarin UTAU source recordings.
+Acoustic model weights are not bundled with UtauTTS. Alignment results are
+mapped to UtauTTS syllables and remain unverified source interval candidates.

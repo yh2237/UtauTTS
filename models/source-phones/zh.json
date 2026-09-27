@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "language": "zh",
+  "time_origin": "oto-offset",
+  "status": "unverified-acoustically-screened",
+  "training_eligible": false,
+  "entries": [
+    {
+      "source_sha256": "0cee66df3a8b42e7968c6f432a356214bdb28b9dceaa11eb67ad44e0b8b92c86",
+      "duration_ms": 180.58956916099774,
+      "phones": [
+        {
+          "symbol": "j",
+          "acoustic_label": "tɕ",
+          "start_ms": 0.0,
+          "end_ms": 39.99999910593033
+        },
+        {
+          "symbol": "i",
+          "acoustic_label": "i",
+          "start_ms": 39.99999910593033,
+          "end_ms": 150.00000596046448
+        },
+        {
+          "symbol": "n",
+          "acoustic_label": "n",
+          "start_ms": 150.00000596046448,
+          "end_ms": 180.59
+        }
+      ]
+    },
+    {
+      "source_sha256": "1588b060dd446c97890452b9687d63b7ac1d28425b197b1f260bcaba4dbaa1c7",
+      "duration_ms": 332.3809523809524,
+      "phones": [
+        {
+          "symbol": "h",
+          "acoustic_label": "x",
+          "start_ms": 0.0,
+          "end_ms": 39.99999910593033
+        },
+        {
+          "symbol": "e",
+          "acoustic_label": "ə",
+          "start_ms": 39.99999910593033,
+          "end_ms": 209.99999344348907
+        },
+        {
+          "symbol": "n",
+          "acoustic_label": "n",
+          "start_ms": 209.99999344348907,
+          "end_ms": 332.381
+        }
+      ]
+    },
+    {
+      "source_sha256": "7920da47c13834d49c466a180a5108e5228ff42b1785b5381720b9f60cc28275",
+      "duration_ms": 300.0,
+      "phones": [
+        {
+          "symbol": "h",
+          "acoustic_label": "x",
+          "start_ms": 0.0,
+          "end_ms": 79.99999821186066
+        },
+        {
+          "symbol": "e",
+          "acoustic_label": "ə",
+          "start_ms": 79.99999821186066,
+          "end_ms": 270.00001072883606
+        },
+        {
+          "symbol": "n",
+          "acoustic_label": "n",
+          "start_ms": 270.00001072883606,
+          "end_ms": 300.0
+        }
+      ]
+    }
+  ]
+}

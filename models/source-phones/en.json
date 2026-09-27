@@ -1,0 +1,333 @@
+{
+  "version": 1,
+  "language": "en",
+  "time_origin": "oto-offset",
+  "status": "unverified-listening-tested",
+  "training_eligible": false,
+  "entries": [
+    {
+      "source_sha256": "834293198b50df0b229b86db905aa2bdad8295ad3172e1a87f1f16e4d5ead122",
+      "duration_ms": 316.53061224489795,
+      "phones": [
+        {
+          "symbol": "l",
+          "acoustic_label": "L",
+          "start_ms": 0.0,
+          "end_ms": 70.00000029802322
+        },
+        {
+          "symbol": "d",
+          "acoustic_label": "D",
+          "start_ms": 70.00000029802322,
+          "end_ms": 180.00000715255737
+        }
+      ]
+    },
+    {
+      "source_sha256": "034d990d030427c4691778657e4e06739e247b09ef0372991e698e4f250e53e9",
+      "duration_ms": 459.5238095238095,
+      "phones": [
+        {
+          "symbol": "iy",
+          "acoustic_label": "IY1",
+          "start_ms": 0.0,
+          "end_ms": 170.00000178813934
+        },
+        {
+          "symbol": "d",
+          "acoustic_label": "D",
+          "start_ms": 170.00000178813934,
+          "end_ms": 430.0000071525574
+        }
+      ]
+    },
+    {
+      "source_sha256": "8d3731fa7f175b70d6c81e590be053416b0819f955a56a9841ccc02060bf22a5",
+      "duration_ms": 559.4104308390023,
+      "phones": [
+        {
+          "symbol": "eh",
+          "acoustic_label": "EH1",
+          "start_ms": 0.0,
+          "end_ms": 209.99999344348907
+        },
+        {
+          "symbol": "k",
+          "acoustic_label": "K",
+          "start_ms": 209.99999344348907,
+          "end_ms": 340.0000035762787
+        },
+        {
+          "symbol": "eh",
+          "acoustic_label": "EH1",
+          "start_ms": 340.0000035762787,
+          "end_ms": 529.9999713897705
+        }
+      ]
+    },
+    {
+      "source_sha256": "2d386239202b46795a982e577b8c1cb3eb4af85170eda40f7449c3082bf7e9b7",
+      "duration_ms": 802.358276643991,
+      "phones": [
+        {
+          "symbol": "k",
+          "acoustic_label": "K",
+          "start_ms": 0.0,
+          "end_ms": 79.99999821186066
+        },
+        {
+          "symbol": "s",
+          "acoustic_label": "S",
+          "start_ms": 79.99999821186066,
+          "end_ms": 200.00000298023224
+        },
+        {
+          "symbol": "t",
+          "acoustic_label": "T",
+          "start_ms": 200.00000298023224,
+          "end_ms": 319.9999928474426
+        }
+      ]
+    },
+    {
+      "source_sha256": "e4997663d6bded214c699c72d5709911e51002d499dfb9154c5719c1389aa250",
+      "duration_ms": 690.0907029478458,
+      "phones": [
+        {
+          "symbol": "aw",
+          "acoustic_label": "AW1",
+          "start_ms": 0.0,
+          "end_ms": 239.99999463558197
+        },
+        {
+          "symbol": "d",
+          "acoustic_label": "D",
+          "start_ms": 239.99999463558197,
+          "end_ms": 370.0000047683716
+        }
+      ]
+    },
+    {
+      "source_sha256": "b07e77103f769f798d14c404a160aaca3c8c7ac208875161a0674e06db2edf30",
+      "duration_ms": 333.6734693877551,
+      "phones": [
+        {
+          "symbol": "l",
+          "acoustic_label": "L",
+          "start_ms": 0.0,
+          "end_ms": 50.00000074505806
+        },
+        {
+          "symbol": "d",
+          "acoustic_label": "D",
+          "start_ms": 50.00000074505806,
+          "end_ms": 209.99999344348907
+        }
+      ]
+    },
+    {
+      "source_sha256": "dc75ab869a6b6a35efacc9b7f2ad430a075dc4df518b8c926310b5ccf10fdf33",
+      "duration_ms": 301.3378684807256,
+      "phones": [
+        {
+          "symbol": "iy",
+          "acoustic_label": "IY1",
+          "start_ms": 0.0,
+          "end_ms": 259.99999046325684
+        },
+        {
+          "symbol": "d",
+          "acoustic_label": "D",
+          "start_ms": 259.99999046325684,
+          "end_ms": 301.338
+        }
+      ]
+    },
+    {
+      "source_sha256": "2b410802bf44f4a4eba3d858949fde837f90bddf247490a10796b6dc3d6afd3f",
+      "duration_ms": 325.0113378684807,
+      "phones": [
+        {
+          "symbol": "eh",
+          "acoustic_label": "EH1",
+          "start_ms": 0.0,
+          "end_ms": 270.00001072883606
+        },
+        {
+          "symbol": "k",
+          "acoustic_label": "K",
+          "start_ms": 270.00001072883606,
+          "end_ms": 300.00001192092896
+        }
+      ]
+    },
+    {
+      "source_sha256": "564e891759b7104aa1ac73854caebb19cb70e03ae14a70e782b1fb5d5b14dc7c",
+      "duration_ms": 613.1746031746031,
+      "phones": [
+        {
+          "symbol": "k",
+          "acoustic_label": "K",
+          "start_ms": 0.0,
+          "end_ms": 79.99999821186066
+        },
+        {
+          "symbol": "s",
+          "acoustic_label": "S",
+          "start_ms": 79.99999821186066,
+          "end_ms": 200.00000298023224
+        },
+        {
+          "symbol": "t",
+          "acoustic_label": "T",
+          "start_ms": 200.00000298023224,
+          "end_ms": 270.00001072883606
+        }
+      ]
+    },
+    {
+      "source_sha256": "a6596db58595b4e23bf66e23c561a985c523736418f8cb3fa9de2d156db17bf0",
+      "duration_ms": 539.0022675736961,
+      "phones": [
+        {
+          "symbol": "aw",
+          "acoustic_label": "AW1",
+          "start_ms": 0.0,
+          "end_ms": 209.99999344348907
+        },
+        {
+          "symbol": "d",
+          "acoustic_label": "D",
+          "start_ms": 209.99999344348907,
+          "end_ms": 430.0000071525574
+        }
+      ]
+    },
+    {
+      "source_sha256": "7a0877ed1cbd2211838925be5deca64c2c65b4afb1d706820b732d0137132e3a",
+      "duration_ms": 567.3922902494331,
+      "phones": [
+        {
+          "symbol": "uh",
+          "acoustic_label": "UH0",
+          "start_ms": 0.0,
+          "end_ms": 200.00000298023224
+        },
+        {
+          "symbol": "k",
+          "acoustic_label": "K",
+          "start_ms": 200.00000298023224,
+          "end_ms": 340.0000035762787
+        },
+        {
+          "symbol": "uh",
+          "acoustic_label": "UH0",
+          "start_ms": 340.0000035762787,
+          "end_ms": 567.392
+        }
+      ]
+    },
+    {
+      "source_sha256": "2897ffcff17b09b9499bef6c205860ea6ad353e1f63ba3f91a40edfe8252eba1",
+      "duration_ms": 350.34013605442175,
+      "phones": [
+        {
+          "symbol": "uh",
+          "acoustic_label": "UH0",
+          "start_ms": 0.0,
+          "end_ms": 259.99999046325684
+        },
+        {
+          "symbol": "k",
+          "acoustic_label": "K",
+          "start_ms": 259.99999046325684,
+          "end_ms": 289.99999165534973
+        }
+      ]
+    },
+    {
+      "source_sha256": "4f4b0d8506075ba75a69ea76e70ed26d930e7d85462f035e4dd3668a39358625",
+      "duration_ms": 591.1337868480725,
+      "phones": [
+        {
+          "symbol": "ih",
+          "acoustic_label": "IH0",
+          "start_ms": 0.0,
+          "end_ms": 200.00000298023224
+        },
+        {
+          "symbol": "s",
+          "acoustic_label": "S",
+          "start_ms": 200.00000298023224,
+          "end_ms": 340.0000035762787
+        },
+        {
+          "symbol": "ih",
+          "acoustic_label": "IH0",
+          "start_ms": 340.0000035762787,
+          "end_ms": 560.0000023841858
+        }
+      ]
+    },
+    {
+      "source_sha256": "ccdf978e4b9f576727c9e08542486d6c848b395d92d8456e40d082f9ff50cf6d",
+      "duration_ms": 517.8231292517007,
+      "phones": [
+        {
+          "symbol": "uh",
+          "acoustic_label": "UH0",
+          "start_ms": 0.0,
+          "end_ms": 180.00000715255737
+        },
+        {
+          "symbol": "d",
+          "acoustic_label": "D",
+          "start_ms": 180.00000715255737,
+          "end_ms": 289.99999165534973
+        },
+        {
+          "symbol": "uh",
+          "acoustic_label": "UH0",
+          "start_ms": 289.99999165534973,
+          "end_ms": 517.823
+        }
+      ]
+    },
+    {
+      "source_sha256": "b1e49e4d9d1d37f0d4b771db8092b1e101b590d6ca23e9b780e6e996a1e1ad7e",
+      "duration_ms": 297.66439909297054,
+      "phones": [
+        {
+          "symbol": "uh",
+          "acoustic_label": "UH0",
+          "start_ms": 0.0,
+          "end_ms": 259.99999046325684
+        },
+        {
+          "symbol": "d",
+          "acoustic_label": "D",
+          "start_ms": 259.99999046325684,
+          "end_ms": 297.664
+        }
+      ]
+    },
+    {
+      "source_sha256": "7c99733035ca89785655217fb9580e71bffa272c0932de667973fb10ed34025c",
+      "duration_ms": 376.0090702947846,
+      "phones": [
+        {
+          "symbol": "ih",
+          "acoustic_label": "IH0",
+          "start_ms": 0.0,
+          "end_ms": 270.00001072883606
+        },
+        {
+          "symbol": "s",
+          "acoustic_label": "S",
+          "start_ms": 270.00001072883606,
+          "end_ms": 376.00899999999996
+        }
+      ]
+    }
+  ]
+}

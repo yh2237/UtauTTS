@@ -220,6 +220,11 @@ try {
     }
     $bundledModels | Copy-Item -Destination $guiModelsPath
     $bundledModels | Copy-Item -Destination $serverModelsPath
+	$sourcePhonePath = Join-Path $sourceModels 'source-phones'
+	if (Test-Path -LiteralPath $sourcePhonePath -PathType Container) {
+		Copy-Item -LiteralPath $sourcePhonePath -Destination $guiModelsPath -Recurse
+		Copy-Item -LiteralPath $sourcePhonePath -Destination $serverModelsPath -Recurse
+	}
     Copy-Item -LiteralPath $modelReadmePath -Destination $guiModelsPath
     Copy-Item -LiteralPath $modelReadmePath -Destination $serverModelsPath
     foreach ($packagePath in @($guiPath, $serverPath)) {
