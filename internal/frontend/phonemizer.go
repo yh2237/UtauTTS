@@ -956,6 +956,24 @@ var vccvEnglishSymbols = map[string][]string{
 	"w": {"w"}, "y": {"y"}, "z": {"z"}, "zh": {"zh"},
 }
 
+// 原音解析用に既存の英語記号表を返す。
+func EnglishSourceSymbols(phonemizer string) map[string][]string {
+	var source map[string][]string
+	switch phonemizer {
+	case PhonemizerEnglishDelta:
+		source = deltaEnglishSymbols
+	case PhonemizerEnglishVCCV:
+		source = vccvEnglishSymbols
+	default:
+		return nil
+	}
+	result := make(map[string][]string, len(source))
+	for phone, symbols := range source {
+		result[phone] = append([]string(nil), symbols...)
+	}
+	return result
+}
+
 func normalizeARPAbet(value string) string {
 	return strings.TrimRight(strings.ToLower(strings.TrimSpace(value)), "0123456789")
 }
