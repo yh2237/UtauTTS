@@ -202,6 +202,28 @@ func parseEnglishSyllables(text, reading string, dictionary map[string]string, s
 						current.Aliases.EndingFallbacks[1] = englishCodaChain(syllable.coda, symbols, separator, lastSyllable && lastWord)
 					}
 				}
+				if !spacedStart {
+					// VCCVのIH+NGは専用の韻名を使う。
+					if syllable.vowel == "ih" && syllable.coda[0] == "ng" {
+						current.Aliases.Endings[0] = append([]string{"1 ng", "1ng"}, current.Aliases.Endings[0]...)
+					}
+					if sameStrings(syllable.coda, []string{"s", "p"}) {
+						var cluster []string
+						for _, vowel := range vowels {
+							cluster = append(cluster, vowel+" sp", vowel+"sp")
+						}
+						// VC連続録音と分割経路を比較する。
+						first := current.Aliases.Endings[0]
+						second := current.Aliases.Endings[1]
+						current.Aliases.Endings = [][]string{cluster}
+						current.Aliases.EndingPhones = [][]string{{"s", "p"}}
+						current.Aliases.EndingFallbacks = [][]CodaAlias{{
+							{Aliases: cluster, Phones: []string{"s", "p"}, CodaStart: 0},
+							{Aliases: first, Phones: []string{"s"}, CodaStart: 0},
+							{Aliases: second, Phones: []string{"p"}, CodaStart: 1},
+						}}
+					}
+				}
 			} else if lastSyllable && lastWord {
 				current.Aliases.Endings = [][]string{englishEndingAliases(previousVowels, config)}
 			}
@@ -215,7 +237,12 @@ func englishCodaChain(coda []string, symbols map[string][]string, separator stri
 	for i := 1; i < len(coda); i++ {
 		for end := i + 1; end <= len(coda); end++ {
 			var aliases []string
-			for _, left := range symbols[coda[i-1]] {
+			leftSymbols := symbols[coda[i-1]]
+			if coda[i-1] == "ng" && (coda[i] == "k" || coda[i] == "g") && symbols["ng"][0] == "N" {
+				// Delta音源の軟口蓋音前の鼻音表記を補う。
+				leftSymbols = append(append([]string(nil), leftSymbols...), "n")
+			}
+			for _, left := range leftSymbols {
 				for _, right := range combineEnglishAliases(coda[i:end], []string{""}, symbols) {
 					pair := []string{left + separator + right, left + right}
 					if terminal && end == len(coda) {

@@ -7,6 +7,55 @@ import (
 	"utautts/internal/oto"
 )
 
+func TestVCCVUsesRecordedNasalAndSPCluster(t *testing.T) {
+	for _, tc := range []struct {
+		reading        string
+		aliases, codas []string
+	}{
+		{"K R IH1 S P", []string{"kri", "i sp"}, []string{"s", "p"}},
+		{"K R IH1 S P", []string{"kri", "i s", "s p-"}, []string{"s", "p"}},
+		{"D R IH1 NG K S", []string{"dri", "1ng", "ng k", "k s-"}, []string{"ng", "k", "s"}},
+	} {
+		_, morae, err := frontend.ParseEnglishVCCV("", tc.reading, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bank := &Bank{Entries: map[string][]oto.Entry{}}
+		for _, alias := range tc.aliases {
+			bank.Entries[alias] = []oto.Entry{{Alias: alias, Filename: "fixture.wav"}}
+		}
+		selected, err := bank.Resolve(morae)
+		if err != nil || len(selected[0].MissingPhones) != 0 {
+			t.Fatalf("%s: %v, %v", tc.reading, selected, err)
+		}
+		var got []string
+		for _, unit := range selected[0].Endings {
+			got = append(got, unit.CodaPhones...)
+		}
+		if !reflect.DeepEqual(got, tc.codas) {
+			t.Fatalf("coda omitted or duplicated: %v, want %v", got, tc.codas)
+		}
+	}
+}
+
+func TestDeltaVelarNasalConnectionKeepsAllPhones(t *testing.T) {
+	_, morae, err := frontend.ParseEnglishDelta("", "D R IH1 NG K S", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bank := &Bank{Entries: map[string][]oto.Entry{}}
+	for _, alias := range []string{"drI", "I N", "n ks-"} {
+		bank.Entries[alias] = []oto.Entry{{Alias: alias, Filename: "fixture.wav"}}
+	}
+	selected, err := bank.Resolve(morae)
+	if err != nil || len(selected[0].MissingPhones) != 0 || len(selected[0].Endings) != 2 {
+		t.Fatalf("velar coda coverage: %v, %v", selected, err)
+	}
+	if !reflect.DeepEqual(selected[0].Endings[1].CodaPhones, []string{"k", "s"}) {
+		t.Fatal(selected[0].Endings)
+	}
+}
+
 func TestEnglishMissingCompoundCodaUsesRecordedChain(t *testing.T) {
 	_, m, err := frontend.ParseEnglishDelta("", "T EH1 K S T S", nil)
 	if err != nil {
