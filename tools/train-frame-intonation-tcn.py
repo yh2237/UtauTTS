@@ -115,6 +115,15 @@ def load_records(
         raise ValueError(f"{path}: dataset is empty")
     if limit > 0:
         records = records[:limit]
+    if any(r.get("language") == "en" for r in records):
+        if not all(r.get("language") == "en" and r.get("speaker") and r.get("split") in ("train", "validation", "test") for r in records):
+            raise ValueError("English data requires explicit speaker splits")
+        seen = {}
+        for r in records:
+            for key in (("speaker", r["speaker"]), ("text", r.get("text", ""))):
+                if key in seen and seen[key] != r["split"]: raise ValueError("English train/held-out leakage")
+                seen[key] = r["split"]
+        return [r for r in records if r["split"] == "train"], [r for r in records if r["split"] == "validation"]
     return deterministic_split(records)
 
 
@@ -135,6 +144,7 @@ def token_features(tokens: Sequence[dict], position: int) -> dict[str, float]:
     """
 
     current = tokens[position]
+    if current.get("language") == "en": return english_token_features(tokens, position)
     denominator = max(1, len(tokens) - 1)
     token_position = position / denominator
     result: dict[str, float] = {
@@ -181,6 +191,31 @@ def token_features(tokens: Sequence[dict], position: int) -> dict[str, float]:
         result["accent_type=nucleus"] = 1.0
     else:
         result["accent_type=after"] = 1.0
+    return result
+
+
+def english_token_features(tokens, position):
+    current = tokens[position]
+    pos = position / max(1, len(tokens)-1)
+    result = {"bias": 1., "position": pos, "position2": pos*pos, "from_end": 1-pos}
+    def add(prefix, token):
+        if token.get("pause"):
+            result[prefix+"=<PAUSE>"] = 1.
+            return
+        phones = token["phones"]
+        result[prefix+"="+" ".join(p["symbol"] for p in phones)] = 1.
+        for phone in phones: result[prefix+"_"+phone["role"]+"="+phone["symbol"]] = 1.
+        if token.get("stress_known"): result[f"{prefix}_stress={token['stress']}"] = 1.
+    add("syllable", current)
+    if position: add("prev", tokens[position-1])
+    else: result["prev=<BOS>"] = 1.
+    if position+1 < len(tokens): add("next", tokens[position+1])
+    else: result["next=<EOS>"] = 1.
+    if position == 0 or tokens[position-1].get("pause"): result["phrase_start"] = 1.
+    if position+1 == len(tokens) or tokens[position+1].get("pause"): result["phrase_end"] = 1.
+    if not current.get("pause"):
+        if position == 0 or tokens[position-1].get("pause") or tokens[position-1]["word_index"] != current["word_index"]: result["en_word_start"] = 1.
+        if current.get("word_end"): result["en_word_end"] = 1.
     return result
 
 
@@ -252,7 +287,7 @@ def add_openjtalk_features(
     if not enabled:
         if stats is not None:
             stats.update({"alignment_records": 0, "alignment_moras": 0, "skipped_records": 0, "alignment_rate": 0.0, "fallback_records": len(records)})
-        return [dict(record, tokens=_fallback_accent(record["tokens"])) for record in records]
+        return [dict(record, tokens=record["tokens"] if record.get("language") == "en" else _fallback_accent(record["tokens"])) for record in records]
     try:
         from openjtalk_features import analyze
     except Exception as error:
@@ -976,6 +1011,20 @@ def evaluate(
     return raw_mae, rendered_mae
 
 
+def flat_baseline_metrics(records, args):
+    total, rendered, count = 0., 0., 0
+    for _, targets, mask, _ in records:
+        expected = targets * args.target_scale
+        total += float(np.abs(expected[mask]).sum())
+        reference = render_contour(expected, mask, frame_ms=args.frame_ms, strength=args.render_strength,
+                                   smoothing_ms=args.render_smoothing_ms, p99=args.render_p99_cents,
+                                   maximum=args.render_max_cents, low=args.low_cents, high=args.high_cents)
+        rendered += float(np.abs(reference[mask]).sum())
+        count += int(mask.sum())
+    if not count: raise ValueError("no voiced teacher frames for evaluation")
+    return {"raw_mae_cents": total/count, "rendered_mae_cents": rendered/count}
+
+
 def _layers_for_export(model: FrameIntonationTCN) -> list[dict]:
     result = []
     for dilation, layer in zip(model.dilations, model.layers):
@@ -1037,7 +1086,8 @@ def export_model(
         "recommended_renderers": list(args.recommended_renderer or ["utautts-world-phrase"]),
         "version": 8,
         "feature_version": 1,
-        "mode": "intonation_frame_tcn_accent_bounded",
+        "mode": "intonation_frame_tcn_english_bounded" if getattr(args, "language", "ja") == "en" else "intonation_frame_tcn_accent_bounded",
+        "language": str(getattr(args, "language", "ja")),
         "duration_weights": {},
         "frame_pitch": frame_pitch,
         "metrics": {
@@ -1178,6 +1228,7 @@ def _write_json(path: str | Path, value: dict) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", required=True, help="version-1 JSONL with timed tokens and audio_path")
+    parser.add_argument("--language", choices=("ja", "en"), default="ja")
     parser.add_argument("--training-corpus", default="", help="training corpus name recorded in the model")
     parser.add_argument("--model-license", default="MIT License")
     parser.add_argument("--license-notice", action="append", default=[], help="license notice path recorded in the model; repeatable")
@@ -1223,6 +1274,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--predict-corpus", help="JSON/JSONL corpus for optional frame-curve export")
     parser.add_argument("--predict-out", help="output JSON for --predict-corpus")
     args = parser.parse_args(argv)
+    if args.language == "en":
+        args.openjtalk_accent = False
+        if args.holdout_test or args.all_data_training or args.limit:
+            parser.error("English uses explicit speaker splits; holdout-test/all-data-training/limit are unsupported")
     if args.frame_ms <= 0 or args.epochs < 0 or args.batch_size <= 0:
         parser.error("frame-ms, batch-size must be positive and epochs must be non-negative")
     if args.target_smooth_ms < 0 or args.delta_weight < 0:
@@ -1250,10 +1305,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"training device: {device_description(device)}")
 
     train_raw, validation_raw = load_records(args.dataset, args.limit)
+    if not train_raw or not validation_raw: parser.error("nonempty training and validation data required")
+    if any(r.get("language", "ja") != args.language for r in train_raw+validation_raw): parser.error("dataset language does not match --language")
     if args.all_data_training:
         train_raw = sorted(train_raw + validation_raw, key=lambda r: str(r["id"]))
         args.holdout_test = False
     test_raw = []
+    if args.language == "en":
+        test_raw = [r for line in Path(args.dataset).read_text(encoding="utf-8").splitlines() if line.strip() for r in [json.loads(line)] if r.get("split") == "test"]
     if args.holdout_test:
         test_raw = [r for r in train_raw if fnv1a(str(r["id"])) % 10 == 1]
         train_raw = [r for r in train_raw if fnv1a(str(r["id"])) % 10 != 1]
@@ -1399,16 +1458,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     exported["training"]["best_epoch"] = best_epoch
     exported["training"]["evaluation_is_in_sample"] = args.all_data_training
-    exported["training"]["accent_source"] = "openjtalk"
+    exported["training"]["accent_source"] = "aligned-arpabet-stress" if args.language == "en" else "openjtalk"
+    exported["training"]["dataset_sha256"] = hashlib.sha256(Path(args.dataset).read_bytes()).hexdigest()
+    if args.language == "en":
+        exported["training"]["split_unit"] = "speaker"
+        exported["training"]["speaker_splits"] = {split: sorted({r["speaker"] for r in rows}) for split,rows in (("train",train_raw),("validation",validation_raw),("test",test_raw))}
+        exported["status"] = "experimental-requires-listening"
     exported["training"]["selection_metric"] = "validation_rendered_contour_mae"
     exported["metrics"]["validation_rendered_mae_cents"] = best_mae
+    if args.language == "en": exported["metrics"]["validation_flat_baseline"] = flat_baseline_metrics(validation,args)
     exported["training"]["history"] = history
     exported["training"]["split_ids"] = {
         "train": [r["id"] for r in train_raw],
         "validation": [r["id"] for r in validation_raw],
         "test": [r["id"] for r in test_raw],
     }
-    if args.holdout_test:
+    if args.holdout_test or (args.language == "en" and test_raw):
         test, _ = prepare(test_raw, feature_index, dataset_path=args.dataset,
                           audio_root=args.audio_root, frame_ms=args.frame_ms,
                           low_cents=args.low_cents, high_cents=args.high_cents,
@@ -1420,6 +1485,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.high_cents, args.target_scale, device, args)
         exported["metrics"]["test_mae_cents"] = test_mae
         exported["metrics"]["test_rendered_mae_cents"] = test_rendered_mae
+        if args.language == "en": exported["metrics"]["test_flat_baseline"] = flat_baseline_metrics(test,args)
         exported["training"]["test_alignment"] = test_alignment
     _write_json(args.out, exported)
     print(
