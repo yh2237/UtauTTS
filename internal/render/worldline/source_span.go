@@ -10,8 +10,8 @@ import (
 	"utautts/internal/voicebank"
 )
 
-// 未検証の音素区間を試聴用の時間写像へ反映する。
-func placeExperimentalSourceSpan(p *plan.Plan, index int, item worldlineManifestUnit, span base.ExperimentalSourceSpan, duration, leading float64) (worldlineManifestUnit, error) {
+// 音素区間を検証し、時間写像と過渡音保護を確定する。
+func placeSourceSpan(p *plan.Plan, index int, item worldlineManifestUnit, span base.SourceSpan, duration, leading float64) (worldlineManifestUnit, error) {
 	u := &p.Units[index]
 	fail := func() (worldlineManifestUnit, error) {
 		return item, fmt.Errorf("invalid experimental source span: unit %d %q", index, u.Alias)
@@ -142,4 +142,22 @@ func placeExperimentalSourceSpan(p *plan.Plan, index int, item worldlineManifest
 		u.SpeechTargetAnchorsMS = append(u.SpeechTargetAnchorsMS, a.TargetMS)
 	}
 	return item, nil
+}
+
+// oto推定、手動指定、ライブラリの順に処理し、手動指定を優先する。
+func mapSpeechSource(p *plan.Plan, index int, item worldlineManifestUnit, options base.WorldlineProviderOptions, libraries []*voicebank.SourcePhoneLibrary, duration, leading float64) (worldlineManifestUnit, error) {
+	mapped, err := placeSpeechUnit(p, index, item, duration, leading)
+	if err != nil {
+		return item, err
+	}
+	if span, ok := options.ExperimentalSourceSpans[index]; ok {
+		return placeSourceSpan(p, index, mapped, span, duration, leading)
+	}
+	if span, ok := librarySpeechSpan(p, index, libraries); ok {
+		if candidate, err := placeSourceSpan(p, index, mapped, span, duration, leading); err == nil {
+			p.Units[index].SpeechMapping = "source-phone-library-v1"
+			return candidate, nil
+		}
+	}
+	return mapped, nil
 }

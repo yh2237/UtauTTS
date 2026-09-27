@@ -68,7 +68,7 @@ type WorldlineProviderOptions struct {
 	// 原音区間ライブラリを使う。未指定は有効。
 	SourcePhoneMapping *bool `json:"source_phone_mapping,omitempty"`
 	// 試聴用の原音区間指定。通常の合成では未指定。
-	ExperimentalSourceSpans map[int]ExperimentalSourceSpan `json:"-"`
+	ExperimentalSourceSpans map[int]SourceSpan `json:"-"`
 	SpeechPitchReference    bool
 	ExactLength             bool
 	MixMode                 string
@@ -79,40 +79,24 @@ type WorldlineProviderOptions struct {
 	E2B *bool
 }
 
-type ExperimentalSourceSpan struct {
-	Alias          string                     `json:"alias"`
-	SourceSHA256   string                     `json:"source_sha256"`
-	CoreStartMS    float64                    `json:"core_start_ms"`
-	CoreEndMS      float64                    `json:"core_end_ms"`
-	ContextStartMS float64                    `json:"context_start_ms"`
-	Mappings       []ExperimentalPhoneMapping `json:"mappings"`
-	Landmarks      []ExperimentalLandmark     `json:"landmark_candidates"`
-}
-
-type ExperimentalLandmark struct {
-	Kind       string  `json:"kind"`
-	SourceMS   float64 `json:"source_ms"`
-	DurationMS float64 `json:"duration_ms"`
-	Score      float64 `json:"heuristic_score"`
-	RelativeDB float64 `json:"relative_to_peak_db"`
-}
-
-type ExperimentalPhoneMapping struct {
-	Symbol           string  `json:"symbol"`
-	SourceStartMS    float64 `json:"source_start_ms"`
-	SourceEndMS      float64 `json:"source_end_ms"`
-	RequestedStartMS float64 `json:"requested_start_ms"`
-	RequestedEndMS   float64 `json:"requested_end_ms"`
-}
-
-// E2AEnabledはE2aの実効値を返す。未指定は既定ON。
-func (options WorldlineProviderOptions) E2AEnabled() bool {
+// SeparateCodaReleaseEnabledは英語語末の閉鎖・解放分離の実効値を返す。
+func (options WorldlineProviderOptions) SeparateCodaReleaseEnabled() bool {
 	return options.E2A == nil || *options.E2A
 }
 
-// E2BEnabledはE2bの実効値を返す。未指定は既定ON。
-func (options WorldlineProviderOptions) E2BEnabled() bool {
+// JapaneseStopProtectionEnabledは日本語の破裂音保護の実効値を返す。
+func (options WorldlineProviderOptions) JapaneseStopProtectionEnabled() bool {
 	return options.E2B == nil || *options.E2B
+}
+
+// E2AEnabledは既存ツールとの互換用。
+func (options WorldlineProviderOptions) E2AEnabled() bool {
+	return options.SeparateCodaReleaseEnabled()
+}
+
+// E2BEnabledは既存ツールとの互換用。
+func (options WorldlineProviderOptions) E2BEnabled() bool {
+	return options.JapaneseStopProtectionEnabled()
 }
 
 // Resourceは解決済みengineからresourceを引く。

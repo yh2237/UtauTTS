@@ -32,15 +32,15 @@ func sourceLibraries(p *plan.Plan, cfg base.Config) []*voicebank.SourcePhoneLibr
 	return result
 }
 
-func librarySpeechSpan(p *plan.Plan, index int, libraries []*voicebank.SourcePhoneLibrary) (base.ExperimentalSourceSpan, bool) {
+func librarySpeechSpan(p *plan.Plan, index int, libraries []*voicebank.SourcePhoneLibrary) (base.SourceSpan, bool) {
 	u := p.Units[index]
 	if (u.Role != "ending" && !(p.Language == "zh" && u.Role == "mora")) || len(u.CodaPhones) == 0 || len(libraries) == 0 {
-		return base.ExperimentalSourceSpan{}, false
+		return base.SourceSpan{}, false
 	}
 	bank := &voicebank.Bank{}
 	a, err := bank.AnalyzeSpeechSource(oto.Entry{Filename: u.Source, Offset: u.OffsetMS, Blank: u.CutoffMS, Fixed: u.ConsonantMS, Preutterance: u.PreutteranceMS, Overlap: u.OverlapMS})
 	if err != nil {
-		return base.ExperimentalSourceSpan{}, false
+		return base.SourceSpan{}, false
 	}
 	for _, library := range libraries {
 		for _, record := range library.Entries {
@@ -50,10 +50,10 @@ func librarySpeechSpan(p *plan.Plan, index int, libraries []*voicebank.SourcePho
 			return sourceRecordSpan(p, index, record, a)
 		}
 	}
-	return base.ExperimentalSourceSpan{}, false
+	return base.SourceSpan{}, false
 }
 
-func sourceRecordSpan(p *plan.Plan, index int, record voicebank.SourcePhoneRecord, a voicebank.SourceAnalysis) (base.ExperimentalSourceSpan, bool) {
+func sourceRecordSpan(p *plan.Plan, index int, record voicebank.SourcePhoneRecord, a voicebank.SourceAnalysis) (base.SourceSpan, bool) {
 	u := p.Units[index]
 	var targets []plan.PhoneTiming
 	for _, t := range p.PhoneTimings {
@@ -92,23 +92,23 @@ func sourceRecordSpan(p *plan.Plan, index int, record voicebank.SourcePhoneRecor
 		wanted = targetSymbols
 	}
 	if len(wanted) == 0 || len(record.Phones) == 0 {
-		return base.ExperimentalSourceSpan{}, false
+		return base.SourceSpan{}, false
 	}
 	sourceStart, targetStart := find(sourceSymbols, wanted), find(targetSymbols, wanted)
 	if sourceStart < 0 || targetStart < 0 {
-		return base.ExperimentalSourceSpan{}, false
+		return base.SourceSpan{}, false
 	}
-	span := base.ExperimentalSourceSpan{Alias: u.Alias, SourceSHA256: record.SourceSHA256, CoreStartMS: record.Phones[sourceStart].StartMS, CoreEndMS: record.Phones[sourceStart+len(wanted)-1].EndMS}
+	span := base.SourceSpan{Alias: u.Alias, SourceSHA256: record.SourceSHA256, CoreStartMS: record.Phones[sourceStart].StartMS, CoreEndMS: record.Phones[sourceStart+len(wanted)-1].EndMS}
 	span.ContextStartMS = span.CoreStartMS
 	if sourceStart > 0 {
 		span.ContextStartMS = record.Phones[sourceStart-1].StartMS
 	}
 	for j, s := range wanted {
 		src, target := record.Phones[sourceStart+j], targets[targetStart+j]
-		span.Mappings = append(span.Mappings, base.ExperimentalPhoneMapping{Symbol: s, SourceStartMS: src.StartMS, SourceEndMS: src.EndMS, RequestedStartMS: target.StartMS, RequestedEndMS: target.StartMS + target.DurationMS})
+		span.Mappings = append(span.Mappings, base.SourcePhoneMapping{Symbol: s, SourceStartMS: src.StartMS, SourceEndMS: src.EndMS, RequestedStartMS: target.StartMS, RequestedEndMS: target.StartMS + target.DurationMS})
 	}
 	for _, l := range a.Landmarks {
-		span.Landmarks = append(span.Landmarks, base.ExperimentalLandmark{Kind: l.Kind, SourceMS: l.SourceMS, DurationMS: l.DurationMS, Score: l.HeuristicScore, RelativeDB: l.RelativeToPeakDB})
+		span.Landmarks = append(span.Landmarks, base.SourceLandmark{Kind: l.Kind, SourceMS: l.SourceMS, DurationMS: l.DurationMS, Score: l.HeuristicScore, RelativeDB: l.RelativeToPeakDB})
 	}
 	return span, true
 }

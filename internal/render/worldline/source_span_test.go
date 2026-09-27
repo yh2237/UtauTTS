@@ -3,6 +3,7 @@ package worldline
 import (
 	"math"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"utautts/internal/audio"
 	"utautts/internal/oto"
@@ -33,7 +34,7 @@ func TestExperimentalSpanExcludesFollowingVowelAndKeepsBurst(t *testing.T) {
 	}
 	item := worldlineManifestUnit{PositionMS: 80, LengthMS: 90}
 	p := makePlan()
-	got, err := placeExperimentalSourceSpan(p, 0, item, span, 500, 0)
+	got, err := placeSourceSpan(p, 0, item, span, 500, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,6 +54,34 @@ func TestExperimentalSpanExcludesFollowingVowelAndKeepsBurst(t *testing.T) {
 	if !protected {
 		t.Fatal("missing burst anchors")
 	}
+	t.Run("mapping precedence and fallback", func(t *testing.T) {
+		newPlan := func() *plan.Plan {
+			p := makePlan()
+			p.Language = "en"
+			p.PhoneTimings = []plan.PhoneTiming{{Position: 0, Role: "coda", Symbol: "k", StartMS: 100, DurationMS: 70}}
+			return p
+		}
+		record := voicebank.SourcePhoneRecord{SourceSHA256: analysis.SourceSHA256, DurationMS: analysis.DurationMS, Phones: []voicebank.SourcePhoneInterval{{Symbol: "eh", StartMS: 0, EndMS: 210}, {Symbol: "k", StartMS: 210, EndMS: 340}, {Symbol: "eh", StartMS: 340, EndMS: 500}}}
+		libraries := []*voicebank.SourcePhoneLibrary{{Entries: []voicebank.SourcePhoneRecord{record}}}
+		p := newPlan()
+		manual, err := mapSpeechSource(p, 0, item, base.WorldlineProviderOptions{ExperimentalSourceSpans: map[int]base.SourceSpan{0: span}}, libraries, 500, 0)
+		if err != nil || p.Units[0].SpeechMapping != "experimental-aligned-source-span-v1" || !reflect.DeepEqual(manual.Speech, got.Speech) {
+			t.Fatalf("manual mapping lost priority: %v %+v", err, manual.Speech)
+		}
+		p = newPlan()
+		if _, err := mapSpeechSource(p, 0, item, base.WorldlineProviderOptions{}, libraries, 500, 0); err != nil || p.Units[0].SpeechMapping != "source-phone-library-v1" {
+			t.Fatalf("library not applied: %v", err)
+		}
+		// ハッシュが一致しても不正な区間はoto推定へ戻す。
+		libraries[0].Entries[0].Phones[1].EndMS = 600
+		fallbackPlan := newPlan()
+		fallback, err := mapSpeechSource(fallbackPlan, 0, item, base.WorldlineProviderOptions{}, libraries, 500, 0)
+		baselinePlan := newPlan()
+		baseline, baselineErr := placeSpeechUnit(baselinePlan, 0, item, 500, 0)
+		if err != nil || baselineErr != nil || !reflect.DeepEqual(fallback, baseline) || !reflect.DeepEqual(fallbackPlan, baselinePlan) {
+			t.Fatalf("invalid library changed fallback: %v %v", err, baselineErr)
+		}
+	})
 	for _, kind := range []string{"hash", "alias", "timing", "bounds", "nan"} {
 		t.Run(kind, func(t *testing.T) {
 			s := span
@@ -69,7 +98,7 @@ func TestExperimentalSpanExcludesFollowingVowelAndKeepsBurst(t *testing.T) {
 			case "nan":
 				s.Mappings[0].SourceStartMS = math.NaN()
 			}
-			if _, err := placeExperimentalSourceSpan(makePlan(), 0, item, s, 500, 0); err == nil {
+			if _, err := placeSourceSpan(makePlan(), 0, item, s, 500, 0); err == nil {
 				t.Fatal("invalid span accepted")
 			}
 		})

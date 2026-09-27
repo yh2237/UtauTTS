@@ -431,20 +431,9 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 			if unit.CutoffMS < 0 {
 				end = unit.OffsetMS - unit.CutoffMS
 			}
-			mapped, mapErr := placeSpeechUnit(synthesisPlan, i, manifest.Units[len(manifest.Units)-1], end-unit.OffsetMS, leadingMS)
+			mapped, mapErr := mapSpeechSource(synthesisPlan, i, manifest.Units[len(manifest.Units)-1], cfg.ProviderOptions.Worldline, libraries, end-unit.OffsetMS, leadingMS)
 			if mapErr != nil {
 				return nil, mapErr
-			}
-			if span, ok := cfg.ProviderOptions.Worldline.ExperimentalSourceSpans[i]; ok {
-				mapped, mapErr = placeExperimentalSourceSpan(synthesisPlan, i, mapped, span, end-unit.OffsetMS, leadingMS)
-				if mapErr != nil {
-					return nil, mapErr
-				}
-			} else if span, ok := librarySpeechSpan(synthesisPlan, i, libraries); ok {
-				if candidate, err := placeExperimentalSourceSpan(synthesisPlan, i, mapped, span, end-unit.OffsetMS, leadingMS); err == nil {
-					mapped = candidate
-					synthesisPlan.Units[i].SpeechMapping = "source-phone-library-v1"
-				}
 			}
 			manifest.Units[len(manifest.Units)-1] = mapped
 		}
@@ -592,18 +581,18 @@ func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options b
 	japanese := language == "ja" || phonemizer == "ja" || strings.HasPrefix(phonemizer, "ja-")
 	if japanese && strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV") {
 		// E2b: 日本語VCVは信頼度が高い過渡だけ保護する。
-		return options.E2BEnabled() && unit.SpeechProfile.TransientConfidence >= stopTransientVCVFloor
+		return options.JapaneseStopProtectionEnabled() && unit.SpeechProfile.TransientConfidence >= stopTransientVCVFloor
 	}
 	if japanese {
 		// E2b: 日本語CVも既定では無効。信頼度が高いときだけ保護する。
-		return options.E2BEnabled() && unit.SpeechProfile.TransientConfidence >= stopTransientJapaneseFloor
+		return options.JapaneseStopProtectionEnabled() && unit.SpeechProfile.TransientConfidence >= stopTransientJapaneseFloor
 	}
 	return true
 }
 
 // e2bStopGeneralizationはE2bが対象とする日本語の破裂音モーラかを返す。
 func e2bStopGeneralization(synthesisPlan *plan.Plan, unit plan.Unit, options base.WorldlineProviderOptions) bool {
-	if !options.E2BEnabled() || synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
+	if !options.JapaneseStopProtectionEnabled() || synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
 		return false
 	}
 	language := strings.ToLower(strings.TrimSpace(synthesisPlan.Language))
