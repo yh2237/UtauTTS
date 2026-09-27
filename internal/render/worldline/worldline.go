@@ -73,6 +73,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 	if synthesisPlan == nil || len(synthesisPlan.Units) == 0 {
 		return nil, errors.New("empty synthesis plan")
 	}
+	libraries := sourceLibraries(synthesisPlan, cfg)
 	if cfg.CVVCTiming == "" {
 		cfg.CVVCTiming = base.CVVCTimingSequential
 	}
@@ -433,6 +434,17 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 			mapped, mapErr := placeSpeechUnit(synthesisPlan, i, manifest.Units[len(manifest.Units)-1], end-unit.OffsetMS, leadingMS)
 			if mapErr != nil {
 				return nil, mapErr
+			}
+			if span, ok := cfg.ProviderOptions.Worldline.ExperimentalSourceSpans[i]; ok {
+				mapped, mapErr = placeExperimentalSourceSpan(synthesisPlan, i, mapped, span, end-unit.OffsetMS, leadingMS)
+				if mapErr != nil {
+					return nil, mapErr
+				}
+			} else if span, ok := librarySpeechSpan(synthesisPlan, i, libraries); ok {
+				if candidate, err := placeExperimentalSourceSpan(synthesisPlan, i, mapped, span, end-unit.OffsetMS, leadingMS); err == nil {
+					mapped = candidate
+					synthesisPlan.Units[i].SpeechMapping = "source-phone-library-v1"
+				}
 			}
 			manifest.Units[len(manifest.Units)-1] = mapped
 		}
