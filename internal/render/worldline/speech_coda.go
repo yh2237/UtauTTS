@@ -9,14 +9,17 @@ import (
 	"utautts/internal/render/base"
 )
 
-// 固定部付近の解放を優先し、なければpreutterance付近を使う。
+// 固定部の候補が弱ければ、信頼度の高い立ち上がりを保護する。
 func speechCodaTransient(p *plan.Plan, u plan.Unit, sourceEnd float64) (float64, float64, bool) {
 	if p.Language != frontend.LanguageEnglish || !base.CodaReleaseStop(u) || u.SpeechProfile == nil {
 		return 0, 0, false
 	}
 	profile := u.SpeechProfile
 	position, duration, confidence := profile.ReleaseTransientMS, profile.ReleaseTransientDurationMS, profile.ReleaseTransientConfidence
-	if confidence < stopReleaseTransientFloor || position <= 0 {
+	onsetReliable := profile.TransientConfidence >= stopTransientFloor &&
+		profile.TransientMS > 0 && profile.TransientMS < sourceEnd && profile.TransientDurationMS > 0
+	if confidence < stopReleaseTransientFloor || position <= 0 ||
+		onsetReliable && profile.TransientConfidence >= .65 && profile.TransientConfidence > confidence+.25 {
 		position, duration, confidence = profile.TransientMS, profile.TransientDurationMS, profile.TransientConfidence
 		if confidence < stopTransientFloor {
 			return 0, 0, false
