@@ -88,6 +88,7 @@ func Load(root string) (*Bank, error) {
 	bank.loadMetadata()
 	bank.loadARPAsing()
 	bank.loadPresamp()
+	pathValidator := newSourcePathValidator(absRoot)
 	for _, path := range otoFiles {
 		ini, err := oto.ReadIni(path)
 		if err != nil {
@@ -95,7 +96,7 @@ func Load(root string) (*Bank, error) {
 		}
 		for alias, entries := range ini.Entries {
 			for _, entry := range entries {
-				if !sourcePathWithin(absRoot, entry.Filename) {
+				if !pathValidator.within(entry.Filename) {
 					return nil, fmt.Errorf("oto entry %q in %s points outside voicebank root", entry.Filename, path)
 				}
 				entry.SourceGroup = sourceGroupForOto(absRoot, path)
@@ -124,22 +125,60 @@ func sourceGroupForOto(root, otoPath string) string {
 }
 
 func sourcePathWithin(root, candidate string) bool {
+	return newSourcePathValidator(root).within(candidate)
+}
+
+type resolvedSourceParent struct {
+	path string
+	err  error
+}
+
+type sourcePathValidator struct {
+	root         string
+	resolvedRoot string
+	rootErr      error
+	parents      map[string]resolvedSourceParent
+	checked      map[string]bool
+}
+
+func newSourcePathValidator(root string) *sourcePathValidator {
 	root = filepath.Clean(root)
+	resolvedRoot, rootErr := filepath.EvalSymlinks(root)
+	return &sourcePathValidator{
+		root: root, resolvedRoot: resolvedRoot, rootErr: rootErr,
+		parents: make(map[string]resolvedSourceParent), checked: make(map[string]bool),
+	}
+}
+
+func (v *sourcePathValidator) within(candidate string) bool {
 	candidate = filepath.Clean(candidate)
-	relative, err := filepath.Rel(root, candidate)
+	if allowed, ok := v.checked[candidate]; ok {
+		return allowed
+	}
+	allowed := v.check(candidate)
+	v.checked[candidate] = allowed
+	return allowed
+}
+
+func (v *sourcePathValidator) check(candidate string) bool {
+	relative, err := filepath.Rel(v.root, candidate)
 	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
 		return false
 	}
 
-	resolvedRoot, err := filepath.EvalSymlinks(root)
-	if err != nil {
+	if v.rootErr != nil {
 		return true
 	}
-	resolvedParent, err := filepath.EvalSymlinks(filepath.Dir(candidate))
-	if err != nil {
+	parent := filepath.Dir(candidate)
+	resolved, ok := v.parents[parent]
+	if !ok {
+		resolved.path, resolved.err = filepath.EvalSymlinks(parent)
+		v.parents[parent] = resolved
+	}
+	if resolved.err != nil {
 		return true
 	}
-	resolvedCandidate := filepath.Join(resolvedParent, filepath.Base(candidate))
+	resolvedCandidate := filepath.Join(resolved.path, filepath.Base(candidate))
 	if info, err := os.Lstat(candidate); err == nil {
 		if info.Mode()&os.ModeSymlink != 0 {
 			resolvedCandidate, err = filepath.EvalSymlinks(candidate)
@@ -150,7 +189,7 @@ func sourcePathWithin(root, candidate string) bool {
 	} else if !os.IsNotExist(err) {
 		return false
 	}
-	resolvedRelative, err := filepath.Rel(resolvedRoot, resolvedCandidate)
+	resolvedRelative, err := filepath.Rel(v.resolvedRoot, resolvedCandidate)
 	return err == nil && resolvedRelative != ".." && !strings.HasPrefix(resolvedRelative, ".."+string(filepath.Separator)) && !filepath.IsAbs(resolvedRelative)
 }
 
