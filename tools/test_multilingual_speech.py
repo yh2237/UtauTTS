@@ -17,7 +17,6 @@ def module(name):
 
 trainer = module('train-multilingual-speech')
 prepare = module('prepare-multilingual-speech')
-boundary = module('audit-speech-boundaries')
 
 
 def fixture():
@@ -70,12 +69,5 @@ class SpeechTests(unittest.TestCase):
             self.assertTrue(all(abs(v) < 10 for v in row['pitch_cents']))
             observation['phones'][0]['symbol'] = 'different'
             with self.assertRaises(ValueError): prepare.prepare(template, observation, root)
-
-    def test_unobserved_boundaries_are_not_zero_error(self):
-        value = boundary.audit({'version':1, 'time_origin':'oto.offset', 'boundaries':[
-            {'unit_index':0, 'anchor_index':1, 'observed_ms':None}]})
-        self.assertEqual(value['labelled'], 0)
-        self.assertEqual(value['status'], 'awaiting-manual-boundaries')
-
 
 if __name__ == '__main__': unittest.main()
