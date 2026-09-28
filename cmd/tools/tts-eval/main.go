@@ -76,7 +76,7 @@ func run() error {
 	measurePitch := flag.Bool("measure-pitch", false, "write WORLD target and measured output F0 traces")
 	phonemizer := flag.String("phonemizer", "", "override corpus phonemizer for the selected voicebank")
 	speechTiming := flag.Bool("speech-timing", false, "experimental speech timing and voicebank calibration")
-	contextDuration := flag.Bool("context-duration", true, "context-aware Japanese mora duration (C1)")
+	contextDuration := flag.Bool("context-duration", synth.DefaultContextDuration, "context-aware Japanese mora duration (C1)")
 	contextDurationStrength := flag.Float64("context-duration-strength", 1.0, "context-aware duration strength (0 uses the default 1.0)")
 	boundaryTone := flag.Bool("boundary-tone", true, "Japanese phrase-final boundary tone (C2)")
 	boundaryToneStrength := flag.Float64("boundary-tone-strength", 1.0, "boundary tone strength (0 uses the default 1.0)")

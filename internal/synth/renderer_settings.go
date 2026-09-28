@@ -37,7 +37,7 @@ type rendererSettingSpec struct {
 	typed func(request Request) any
 }
 
-// rendererSettingSpecsはGoが既知のrenderer設定の単一ソース。idはmanifestのsettingsと揃える。
+// rendererSettingSpecsはGoが既知の設定を定義する。manifestにない項目もAPI互換用に残す。
 var rendererSettingSpecs = []rendererSettingSpec{
 	numberSetting("mora_duration_ms", DefaultMoraDurationMS,
 		func(r Request) any { return r.MoraDurationMS },

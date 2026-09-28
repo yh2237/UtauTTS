@@ -92,9 +92,9 @@ func applyJapaneseContextDuration(cfg Config, morae []frontend.Mora, features []
 	return predictions
 }
 
-// contextDurationEnabledはC1が有効かを返す。未指定(nil)は既定ON。
+// contextDurationEnabledはC1が有効かを返す。未指定(nil)は無効。
 func contextDurationEnabled(cfg Config) bool {
-	return cfg.ContextDuration == nil || *cfg.ContextDuration
+	return cfg.ContextDuration != nil && *cfg.ContextDuration
 }
 
 // contextDurationStrengthは適用強度を返す。0は既定1.0、負値はそのまま返す。

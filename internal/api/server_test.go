@@ -449,7 +449,7 @@ func TestSynthesisRequestAppliesIntonationDefaults(t *testing.T) {
 	if !request.ApplyPitch || request.IntonationStrength != synth.DefaultIntonationStrength {
 		t.Fatalf("defaults = apply_pitch:%t intonation_strength:%v", request.ApplyPitch, request.IntonationStrength)
 	}
-	if !request.ContextDuration || request.ContextDurationStrength != synth.DefaultContextDurationStrength {
+	if request.ContextDuration != synth.DefaultContextDuration || request.ContextDurationStrength != synth.DefaultContextDurationStrength {
 		t.Fatalf("context defaults = context_duration:%t context_duration_strength:%v", request.ContextDuration, request.ContextDurationStrength)
 	}
 	if !request.BoundaryTone || request.BoundaryToneStrength != synth.DefaultBoundaryToneStrength {
@@ -511,7 +511,7 @@ func TestSynthesisRequestDecodesRendererSettings(t *testing.T) {
 	if string(request.RendererSettings["custom_option"]) != `"value"` {
 		t.Fatalf("unknown renderer setting = %s", request.RendererSettings["custom_option"])
 	}
-	if !request.ContextDuration {
+	if request.ContextDuration != synth.DefaultContextDuration {
 		t.Fatalf("default was not applied before the map override: %#v", request)
 	}
 }

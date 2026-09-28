@@ -1600,12 +1600,12 @@ ApplicationWindow {
 
     function defaultModelIdForLanguage(language) {
         const normalized = String(language || "ja").toLowerCase();
-        if (normalized === "en") {
+        if (normalized === "en" || normalized === "zh") {
             if (String(window.appBackend.defaultModelId || "none") === "none")
                 return "none";
             for (let index = 0; index < window.appBackend.models.length; ++index) {
                 const model = window.appBackend.models[index];
-                if (String(model.language || "").toLowerCase() === "en")
+                if (String(model.language || "").toLowerCase() === normalized)
                     return model.id;
             }
             return "none";
@@ -1922,18 +1922,16 @@ ApplicationWindow {
             return error;
         const contextRequest = window.buildSynthesisRequest(window.current());
         const contextSettings = contextRequest.renderer_settings || {};
-        error = check(contextSettings.context_duration === true
-                      && contextSettings.context_duration_strength === 1.0,
-                      "context duration settings were not injected into the request");
+        error = check(contextSettings.context_duration === undefined
+                      && contextSettings.context_duration_strength === undefined,
+                      "context duration was injected into the normal request");
         if (error.length)
             return error;
-        error = check(contextSettings.boundary_tone === true
-                      && contextSettings.boundary_tone_strength === 1.0,
+        error = check(contextSettings.boundary_tone === true,
                       "boundary tone settings were not injected into the request");
         if (error.length)
             return error;
-        error = check(contextSettings.stretch_adapt === true
-                      && contextSettings.stretch_adapt_strength === 1.0,
+        error = check(contextSettings.stretch_adapt === true,
                       "stretch adaptation settings were not injected into the request");
         if (error.length)
             return error;
@@ -1967,13 +1965,6 @@ ApplicationWindow {
         window.removeUtterance();
         window.appBackend.setRendererSetting(rendererId, "mora_duration_ms",
                                              originalDefaultMoraDuration);
-        const originalContextDuration = window.appBackend.rendererSetting(rendererId, "context_duration", true);
-        window.appBackend.setRendererSetting(rendererId, "context_duration", false);
-        error = check(window.buildSynthesisRequest(window.current()).renderer_settings.context_duration === false,
-                      "context duration override was not injected into the request");
-        if (error.length)
-            return error;
-        window.appBackend.setRendererSetting(rendererId, "context_duration", originalContextDuration);
         error = check(
             (window.buildSynthesisRequest(window.current()).renderer_settings || {}).mora_duration_ms
                 === undefined,

@@ -103,7 +103,8 @@ func TestApplyJapaneseContextDurationMultipliesExistingFactor(t *testing.T) {
 		{DurationFactor: 2, PitchFactor: 1, EnergyFactor: 1},
 		{DurationFactor: 2, PitchFactor: 1, EnergyFactor: 1},
 	}
-	result := applyJapaneseContextDuration(Config{}, morae, features, predictions, false)
+	enabled := true
+	result := applyJapaneseContextDuration(Config{ContextDuration: &enabled}, morae, features, predictions, false)
 	if result[1].DurationFactor != 2*japaneseParticleFactor {
 		t.Fatalf("particle factor = %.4f, want %.4f", result[1].DurationFactor, 2*japaneseParticleFactor)
 	}
@@ -126,6 +127,22 @@ func TestApplyJapaneseContextDurationDisabledIsIdentity(t *testing.T) {
 	}
 }
 
+func TestApplyJapaneseContextDurationDefaultIsIdentity(t *testing.T) {
+	morae := testMorae("き", "は", "な")
+	features := []prosody.FeatureFrame{{}, {"pos=助詞": 1}, {}}
+	predictions := []prosody.Prediction{
+		{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1},
+		{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1},
+		{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1},
+	}
+	result := applyJapaneseContextDuration(Config{}, morae, features, predictions, false)
+	for i, prediction := range result {
+		if prediction.DurationFactor != 1 {
+			t.Fatalf("default factor[%d] = %.4f, want 1", i, prediction.DurationFactor)
+		}
+	}
+}
+
 func TestApplyJapaneseContextDurationScalesDeviationByStrength(t *testing.T) {
 	morae := testMorae("き", "は", "な")
 	features := []prosody.FeatureFrame{{}, {"pos=助詞": 1}, {}}
@@ -134,7 +151,8 @@ func TestApplyJapaneseContextDurationScalesDeviationByStrength(t *testing.T) {
 		{DurationFactor: 2, PitchFactor: 1, EnergyFactor: 1},
 		{DurationFactor: 2, PitchFactor: 1, EnergyFactor: 1},
 	}
-	half := applyJapaneseContextDuration(Config{ContextDurationStrength: 0.5}, morae, features, predictions, false)
+	enabled := true
+	half := applyJapaneseContextDuration(Config{ContextDuration: &enabled, ContextDurationStrength: 0.5}, morae, features, predictions, false)
 	want := 2 * (1 + (japaneseParticleFactor-1)*0.5)
 	if half[1].DurationFactor != want {
 		t.Fatalf("half strength factor = %.4f, want %.4f", half[1].DurationFactor, want)
@@ -153,7 +171,8 @@ func TestApplyJapaneseContextDurationZeroStrengthUsesDefault(t *testing.T) {
 		{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1},
 		{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1},
 	}
-	result := applyJapaneseContextDuration(Config{ContextDurationStrength: 0}, morae, features, predictions, false)
+	enabled := true
+	result := applyJapaneseContextDuration(Config{ContextDuration: &enabled, ContextDurationStrength: 0}, morae, features, predictions, false)
 	if result[1].DurationFactor != japaneseParticleFactor {
 		t.Fatalf("zero strength factor = %.4f, want default %.4f", result[1].DurationFactor, japaneseParticleFactor)
 	}
@@ -162,7 +181,8 @@ func TestApplyJapaneseContextDurationZeroStrengthUsesDefault(t *testing.T) {
 func TestApplyJapaneseContextDurationInitializesMissingPredictions(t *testing.T) {
 	morae := testMorae("き", "は", "な")
 	features := []prosody.FeatureFrame{{}, {"pos=助詞": 1}, {}}
-	result := applyJapaneseContextDuration(Config{}, morae, features, nil, false)
+	enabled := true
+	result := applyJapaneseContextDuration(Config{ContextDuration: &enabled}, morae, features, nil, false)
 	if len(result) != len(morae) {
 		t.Fatalf("predictions length = %d, want %d", len(result), len(morae))
 	}

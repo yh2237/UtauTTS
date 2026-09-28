@@ -23,7 +23,7 @@ type Config struct {
 	WordBoundaryEnvelope    bool
 	SpeechProsodyExperiment string
 	SpeechTiming            bool
-	// ContextDurationは日本語モーラ長の文脈連動(C1)を有効にする。nilは既定ON。
+	// ContextDurationは日本語モーラ長の文脈連動(C1)を有効にする。nilは無効。
 	ContextDuration *bool
 	// ContextDurationStrengthは文脈連動の強度。0は既定1.0。
 	ContextDurationStrength float64

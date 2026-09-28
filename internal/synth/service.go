@@ -25,7 +25,7 @@ var ErrUnavailable = errors.New("unavailable")
 const (
 	DefaultApplyPitch              = true
 	DefaultIntonationStrength      = 2.0
-	DefaultContextDuration         = true
+	DefaultContextDuration         = false
 	DefaultContextDurationStrength = 1.0
 	DefaultBoundaryTone            = true
 	DefaultBoundaryToneStrength    = 1.0
