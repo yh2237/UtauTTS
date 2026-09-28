@@ -54,7 +54,7 @@ C+V音源ではARPAbetの各音素を1つの原音へ割り当てます。alias�
 
 中国語の`ü`は読みで`v`または`u:`と書けます。`nüe/lüe`の原音名には`nve/lve`と`nue/lue`の両表記を探し、`presamp.ini`の母音・子音分類もこの表記差を吸収します。`nu/lu`と`nv/lv`は別の母音として扱います。
 
-英語の既定抑揚モデルはEnglish Frame Intonation TCN v1です。中国語は声調に基づく規則を使います。日本語用の抑揚モデルは適用しません。
+英語の既定抑揚モデルはEnglish Frame Intonation TCN v1、中国語はMandarin Tone Intonation v1です。中国語モデルは声調規則の音高曲線を補正します。
 
 ## 音が欠ける場合
 

@@ -58,7 +58,7 @@ manifestの`settings`には、そのRendererが受け付ける設定項目を宣
 {
   "settings": [
     { "id": "mora_duration_ms", "type": "number", "group": "timing", "default": 120, "min": 0, "max": 1000, "label": "モーラ長" },
-    { "id": "context_duration", "type": "boolean", "group": "quality", "default": true, "label": "文脈に応じたモーラ長" },
+    { "id": "boundary_tone", "type": "boolean", "group": "correction", "default": true, "label": "文末の音調" },
     { "id": "resampler", "type": "enum", "group": "classic", "options_source": "resamplers", "label": "Resampler" }
   ]
 }

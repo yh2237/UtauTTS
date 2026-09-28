@@ -245,7 +245,7 @@ ID順にソートされた音源一覧です。
 | `intonation_strength` | number | `2` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
 | `apply_pitch` | boolean | `true` | 波形ピッチ再サンプリング |
 | `speech_timing` | boolean | `false` | [発話タイミング補正](speech-quality-experiment.md)を有効にする |
-| `context_duration` | boolean | `true` | 日本語モーラ長の文脈連動（C1）を有効にする |
+| `context_duration` | boolean | `false` | 日本語モーラ長の文脈連動（C1）を有効にする |
 | `context_duration_strength` | number | `1` | 文脈連動の強度（0〜2）。0は既定1.0として扱う |
 | `boundary_tone` | boolean | `true` | 日本語の句末境界音調（C2）を有効にする |
 | `boundary_tone_strength` | number | `1` | 境界音調の強度（0〜2）。0は既定1.0として扱う |
