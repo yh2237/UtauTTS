@@ -9,7 +9,7 @@ import (
 )
 
 func notifyUpdateFailure(err error) {
-	message := "更新を適用できませんでした。旧バージョンを起動します。\n\nUtauTTS のほかの画面や関連プロセスを閉じてから再試行してください。C: ドライブ直下への変更権限も確認してください。"
+	message := "更新を適用できませんでした。旧バージョンを起動します。\n\nUtauTTS のほかの画面や関連プロセスを閉じてから再試行してください。インストール先の変更権限も確認してください。"
 	if err != nil {
 		message += fmt.Sprintf("\n\n詳細: %v", err)
 	}

@@ -283,6 +283,7 @@ func TestRunSwapsPackagePreservingVoice(t *testing.T) {
 	writeTestFile(t, filepath.Join(target, "app", "utautts-gui.exe"), "old-gui")
 	writeTestFile(t, filepath.Join(target, "utautts.exe"), "old-launcher")
 	writeTestFile(t, filepath.Join(target, "voice", "bank-a", "oto.ini"), "voice-data")
+	writeTestFile(t, filepath.Join(target, "Dependencies", "custom.bin"), "custom-dependency")
 
 	zipPath := filepath.Join(root, "update.zip")
 	archive, err := os.Create(zipPath)
@@ -297,6 +298,7 @@ func TestRunSwapsPackagePreservingVoice(t *testing.T) {
 		{"app/qml/Main.qml", "new-main"},
 		{"models/prosody.json", "new-model"},
 		{"voice/bundle/oto.ini", "bundled-voice"},
+		{"Dependencies/bundled.bin", "bundled-dependency"},
 	} {
 		file, err := writer.Create(entry.name)
 		if err != nil {
@@ -313,7 +315,7 @@ func TestRunSwapsPackagePreservingVoice(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := run(target, "", zipPath, 0, "v0.0.6", []string{"voice"}, false); err != nil {
+	if err := run(target, "", zipPath, 0, "v0.0.6", []string{"voice", "Dependencies"}, false); err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
 	for _, path := range []string{"utautts.exe", "app/utautts-gui.exe", "app/qml/Main.qml", "models/prosody.json"} {
@@ -324,11 +326,25 @@ func TestRunSwapsPackagePreservingVoice(t *testing.T) {
 	if content, err := os.ReadFile(filepath.Join(target, "voice", "bank-a", "oto.ini")); err != nil || string(content) != "voice-data" {
 		t.Errorf("user voice data was not preserved: %q, %v", content, err)
 	}
+	if content, err := os.ReadFile(filepath.Join(target, "voice", "bundle", "oto.ini")); err != nil || string(content) != "bundled-voice" {
+		t.Errorf("new bundled voice was lost: %q, %v", content, err)
+	}
+	for path, want := range map[string]string{
+		"Dependencies/custom.bin":  "custom-dependency",
+		"Dependencies/bundled.bin": "bundled-dependency",
+	} {
+		data, err := os.ReadFile(filepath.Join(target, filepath.FromSlash(path)))
+		if err != nil || string(data) != want {
+			t.Errorf("%s = %q, %v; want %q", path, data, err, want)
+		}
+	}
 	if _, err := os.Stat(target + ".stage"); !os.IsNotExist(err) {
 		t.Error("staging directory should be removed after a successful update")
 	}
-	if _, err := os.Stat(target + ".old"); !os.IsNotExist(err) {
-		t.Error("backup directory should be removed after a successful update")
+	if _, err := os.Stat(target + ".old"); runtime.GOOS == "windows" && err != nil {
+		t.Errorf("Windows launcher backup should remain until relaunch: %v", err)
+	} else if runtime.GOOS != "windows" && !os.IsNotExist(err) {
+		t.Errorf("backup directory should be removed after a successful update: %v", err)
 	}
 	if _, err := os.Stat(zipPath); err != nil {
 		t.Errorf("caller-owned local archive should be retained: %v", err)

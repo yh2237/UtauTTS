@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -157,10 +158,12 @@ func runPackage(target, url, zipPath string, pid int, version string, preserve [
 
 	downloaded := zipPath == ""
 	if downloaded {
+		started := time.Now()
 		zipPath = filepath.Join(os.TempDir(), "utautts-update-"+sanitizeToken(version)+".zip")
 		if err := download(url, zipPath); err != nil {
 			return err
 		}
+		logf("download completed in %s", time.Since(started).Round(time.Millisecond))
 	} else {
 		logf("using local archive: %s", zipPath)
 		if info, err := os.Stat(zipPath); err != nil || info.IsDir() {
@@ -168,20 +171,22 @@ func runPackage(target, url, zipPath string, pid int, version string, preserve [
 		}
 	}
 
+	started := time.Now()
 	if err := os.RemoveAll(stage); err != nil {
 		return err
 	}
 	if err := extractZip(zipPath, stage); err != nil {
 		return err
 	}
-	if downloaded || deleteLocalZip {
-		if err := os.Remove(zipPath); err != nil && !os.IsNotExist(err) {
-			logf("removing temporary archive failed: %v", err)
-		}
-	}
 	if err := normalizeStage(stage); err != nil {
 		return err
 	}
+	logf("archive staged in %s", time.Since(started).Round(time.Millisecond))
+	if !waitForExit(pid, 5*time.Minute) {
+		_ = os.RemoveAll(stage)
+		return fmt.Errorf("parent process %d did not exit within timeout", pid)
+	}
+	started = time.Now()
 	if err := carryCurrentRenderers(target, stage); err != nil {
 		_ = os.RemoveAll(stage)
 		return fmt.Errorf("carry renderer definitions: %w", err)
@@ -193,31 +198,105 @@ func runPackage(target, url, zipPath string, pid int, version string, preserve [
 			return fmt.Errorf("preserve %s: %w", rel, err)
 		}
 	}
-	if !waitForExit(pid, 5*time.Minute) {
-		_ = os.RemoveAll(stage)
-		return fmt.Errorf("parent process %d did not exit within timeout", pid)
-	}
-
+	logf("user files preserved in %s", time.Since(started).Round(time.Millisecond))
 	if err := os.RemoveAll(old); err != nil {
 		return err
 	}
-	if err := retry(20, 500*time.Millisecond, func() error {
-		return os.Rename(target, old)
-	}); err != nil {
-		return fmt.Errorf("move current install aside: %w", err)
+	started = time.Now()
+	if err := replaceInstall(target, stage, old); err != nil {
+		return err
 	}
-	if err := retry(20, 500*time.Millisecond, func() error {
-		return os.Rename(stage, target)
-	}); err != nil {
-		_ = os.Rename(old, target)
-		return fmt.Errorf("move new install into place: %w", err)
+	logf("install replaced in %s", time.Since(started).Round(time.Millisecond))
+	if runtime.GOOS != "windows" || !fileExists(filepath.Join(target, "utautts.exe")) {
+		if err := retry(20, 500*time.Millisecond, func() error {
+			return os.RemoveAll(old)
+		}); err != nil {
+			logf("removing old install backup failed (left at %s): %v", old, err)
+		}
+	} else {
+		logf("old install cleanup deferred until launcher starts: %s", old)
 	}
-	if err := retry(20, 500*time.Millisecond, func() error {
-		return os.RemoveAll(old)
-	}); err != nil {
-		logf("removing old install backup failed (left at %s): %v", old, err)
+	if downloaded || deleteLocalZip {
+		if err := os.Remove(zipPath); err != nil && !os.IsNotExist(err) {
+			logf("removing temporary archive failed: %v", err)
+		}
 	}
 	logf("update applied to %s", target)
+	return nil
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+func replaceInstall(target, stage, old string) error {
+	if err := os.Rename(target, old); err == nil {
+		if err := os.Rename(stage, target); err != nil {
+			if restoreErr := os.Rename(old, target); restoreErr != nil {
+				return errors.Join(fmt.Errorf("move new install into place: %w", err), fmt.Errorf("restore old install: %w", restoreErr))
+			}
+			return fmt.Errorf("move new install into place: %w", err)
+		}
+		return nil
+	} else if runtime.GOOS != "windows" {
+		return fmt.Errorf("move current install aside: %w", err)
+	} else {
+		logf("install directory cannot be renamed (%v); replacing its contents", err)
+	}
+	return replaceInstallContents(target, stage, old)
+}
+
+func replaceInstallContents(target, stage, old string) error {
+	if err := os.Mkdir(old, 0o755); err != nil {
+		return fmt.Errorf("create install backup: %w", err)
+	}
+	current, err := os.ReadDir(target)
+	if err != nil {
+		return err
+	}
+	staged, err := os.ReadDir(stage)
+	if err != nil {
+		return err
+	}
+	movedOld := make([]string, 0, len(current))
+	movedNew := make([]string, 0, len(staged))
+	rollback := func(cause error) error {
+		var failures []error
+		for index := len(movedNew) - 1; index >= 0; index-- {
+			name := movedNew[index]
+			if err := os.Rename(filepath.Join(target, name), filepath.Join(stage, name)); err != nil {
+				failures = append(failures, fmt.Errorf("restore staged %s: %w", name, err))
+			}
+		}
+		for index := len(movedOld) - 1; index >= 0; index-- {
+			name := movedOld[index]
+			if err := os.Rename(filepath.Join(old, name), filepath.Join(target, name)); err != nil {
+				failures = append(failures, fmt.Errorf("restore installed %s: %w", name, err))
+			}
+		}
+		if len(failures) == 0 {
+			_ = os.Remove(old)
+		}
+		return errors.Join(append([]error{cause}, failures...)...)
+	}
+	for _, entry := range current {
+		name := entry.Name()
+		if err := os.Rename(filepath.Join(target, name), filepath.Join(old, name)); err != nil {
+			return rollback(fmt.Errorf("move installed %s aside: %w", name, err))
+		}
+		movedOld = append(movedOld, name)
+	}
+	for _, entry := range staged {
+		name := entry.Name()
+		if err := os.Rename(filepath.Join(stage, name), filepath.Join(target, name)); err != nil {
+			return rollback(fmt.Errorf("install %s: %w", name, err))
+		}
+		movedNew = append(movedNew, name)
+	}
+	if err := os.Remove(stage); err != nil {
+		logf("removing empty stage failed: %v", err)
+	}
 	return nil
 }
 
@@ -462,10 +541,42 @@ func preservePath(target, stage, rel string) error {
 		}
 		return fmt.Errorf("inspect source %s: %w", source, err)
 	}
-	if err := os.RemoveAll(destination); err != nil {
-		return err
-	}
-	return copyTree(source, destination)
+	return linkTree(source, destination)
+}
+
+func linkTree(source, destination string) error {
+	return filepath.WalkDir(source, func(sourcePath string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, err := filepath.Rel(source, sourcePath)
+		if err != nil {
+			return err
+		}
+		destinationPath := filepath.Join(destination, relative)
+		if entry.IsDir() {
+			if info, err := os.Lstat(destinationPath); err == nil && !info.IsDir() {
+				if err := os.Remove(destinationPath); err != nil {
+					return err
+				}
+			}
+			return os.MkdirAll(destinationPath, 0o755)
+		}
+		if err := os.MkdirAll(filepath.Dir(destinationPath), 0o755); err != nil {
+			return err
+		}
+		if err := os.RemoveAll(destinationPath); err != nil {
+			return err
+		}
+		if err := os.Link(sourcePath, destinationPath); err == nil {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		return copyFile(sourcePath, destinationPath, info.Mode().Perm())
+	})
 }
 
 func safePreservePath(value string) (string, error) {
