@@ -4,7 +4,7 @@
 
 ## 同梱モデル
 
-日本語の既定モデル: `frame-intonation-tcn-v9.1-t`。代替: `frame-intonation-tcn-v9-t`。英語の既定モデル: `frame-intonation-tcn-en-v1`。学習と評価: [フレーム抑揚モデルの学習](../docs/frame-intonation-training.md)
+日本語の既定モデル: `frame-intonation-tcn-v9.1-t`。代替: `frame-intonation-tcn-v9-t`。英語の既定モデル: `frame-intonation-tcn-en-v1`。中国語の既定モデル: `tone-intonation-zh-v1`。日本語・英語の学習と評価: [フレーム抑揚モデルの学習](../docs/frame-intonation-training.md)
 
 `frame-intonation-tcn-v9-*`は10ms単位の相対ピッチだけを予測します。モーラ長はGUIで指定した基準値と、言語別の時間規則（「ん」0.9倍、「ー」1.2倍など）で決めます。
 
@@ -34,6 +34,17 @@
 - 学習元の通知: [licenses/LibriTTS-R-NOTICE.txt](../licenses/LibriTTS-R-NOTICE.txt)、[licenses/MFA-English-ARPA-NOTICE.txt](../licenses/MFA-English-ARPA-NOTICE.txt)
 
 Delta/VCCVの音節構成を対象とし、en-cv/en-arpasingへの適用は未評価です。学習条件と評価はモデルJSONの`training`と`metrics`を参照してください。旧`english-intonation-v1`の選択設定はこのモデルへ移行します。
+
+## Mandarin Tone Intonation v1（中国語の既定）
+
+`tone-intonation-zh-v1`は、[AISHELL-3](https://www.openslr.org/93/)の2話者の発話で学習し、別の1話者で検証した中国語モデルです。声調規則による音高曲線へ、有界な補正だけを加えます。
+
+- 本モデルは相対ピッチ（抑揚）の補正のみを学習し、話者の声質を意図的に再現しません
+- 重みはApache License 2.0で配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本と整列データを再配布しません
+- 重みの通知: [licenses/TONE-INTONATION-ZH-V1.txt](../licenses/TONE-INTONATION-ZH-V1.txt)、ライセンス本文: [licenses/APACHE-2.0.txt](../licenses/APACHE-2.0.txt)
+- 学習元の通知: [licenses/AISHELL-3-NOTICE.txt](../licenses/AISHELL-3-NOTICE.txt)、[licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt](../licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt)
+
+`zh-cvvc`を対象とします。学習条件と評価はモデルJSONの`training`・`metrics`に記録しています。
 
 ## モデルの記録
 

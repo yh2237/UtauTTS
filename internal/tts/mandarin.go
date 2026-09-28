@@ -29,7 +29,9 @@ func (chineseProfile) ParsePronunciation(cfg Config, phonemizer string) (string,
 
 func (chineseProfile) ApplySpeechProfile(*Config) {}
 
-func (chineseProfile) ProsodyModelFallback(string) string { return "" }
+func (chineseProfile) ProsodyModelFallback(configuredPath string) string {
+	return mandarinFallbackProsodyModelPath(configuredPath)
+}
 
 func (chineseProfile) SupportsStretchAdapt() bool { return false }
 
@@ -45,10 +47,75 @@ func (chineseProfile) AdjustPredictions(cfg Config, _ *prosody.Model, morae []fr
 	return applySpeechScore(cfg, morae, predictions)
 }
 
-func (chineseProfile) AutomaticPitchCurve(cfg Config, _ *prosody.Model, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*render.PitchCurve, bool) {
+func (chineseProfile) AutomaticPitchCurve(cfg Config, model *prosody.Model, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*render.PitchCurve, bool) {
 	curve := mandarinToneCurve(morae, timings, durationMS)
+	if model != nil && model.MandarinIntonation != nil {
+		curve = applyMandarinIntonation(curve, model.MandarinIntonation, morae, timings)
+	}
 	curve = learnedSpeechCurve(cfg, morae, timings, curve)
 	return curve, curve != nil
+}
+
+func applyMandarinIntonation(curve *render.PitchCurve, model *prosody.MandarinIntonationModel, morae []frontend.Mora, timings []prosody.MoraTiming) *render.PitchCurve {
+	if curve == nil || model == nil || len(morae) != len(timings) {
+		return curve
+	}
+	result := &render.PitchCurve{FrameMS: curve.FrameMS, Cents: append([]float64(nil), curve.Cents...)}
+	tones := mandarinSurfaceTones(morae)
+	count := 0
+	for _, mora := range morae {
+		if !mora.Pause {
+			count++
+		}
+	}
+	position := 0
+	for index, mora := range morae {
+		if mora.Pause || timings[index].DurationMS <= 0 || tones[index] < 1 || tones[index] > 5 {
+			continue
+		}
+		start := index == 0 || morae[index-1].Pause
+		end := index+1 == len(morae) || morae[index+1].Pause
+		progress := float64(position) / float64(max(1, count-1))
+		features := map[string]float64{
+			"bias": 1, "position": progress, "position2": progress * progress,
+			"tone_" + fmt.Sprint(tones[index]): 1,
+		}
+		if start {
+			features["phrase_start"] = 1
+		} else if tones[index-1] >= 1 && tones[index-1] <= 5 {
+			features["prev_tone_"+fmt.Sprint(tones[index-1])] = 1
+		}
+		if end {
+			features["phrase_end"] = 1
+		} else if tones[index+1] >= 1 && tones[index+1] <= 5 {
+			features["next_tone_"+fmt.Sprint(tones[index+1])] = 1
+		}
+		correction := model.MandarinCorrection(features)
+		if len(correction) != len(model.Knots) {
+			return curve
+		}
+		first := max(0, int(math.Ceil(timings[index].StartMS/curve.FrameMS)))
+		last := min(len(result.Cents)-1, int(math.Floor((timings[index].StartMS+timings[index].DurationMS)/curve.FrameMS)))
+		for frame := first; frame <= last; frame++ {
+			unit := (float64(frame)*curve.FrameMS - timings[index].StartMS) / timings[index].DurationMS
+			result.Cents[frame] += interpolateMandarinCorrection(model.Knots, correction, unit)
+		}
+		position++
+	}
+	return result
+}
+
+func interpolateMandarinCorrection(knots, values []float64, position float64) float64 {
+	if position <= knots[0] {
+		return values[0]
+	}
+	for index := 1; index < len(knots); index++ {
+		if position <= knots[index] {
+			ratio := (position - knots[index-1]) / (knots[index] - knots[index-1])
+			return values[index-1]*(1-ratio) + values[index]*ratio
+		}
+	}
+	return values[len(values)-1]
 }
 
 func (chineseProfile) ApplyBoundaryTone(_ Config, curve *render.PitchCurve, _ float64, _ bool) *render.PitchCurve {

@@ -1,0 +1,11 @@
+AISHELL-3: A Multi-speaker Mandarin TTS Corpus and the Baselines
+Made available by Beijing Shell Shell Technology Co., Ltd. under Apache License 2.0.
+Source: https://www.openslr.org/93/
+License: https://www.apache.org/licenses/LICENSE-2.0
+
+Yao Shi, Hui Bu, Xin Xu, Shaoji Zhang, and Ming Li.
+AISHELL-3: A Multi-speaker Mandarin TTS Corpus and the Baselines.
+https://arxiv.org/abs/2010.11567
+
+UtauTTS uses selected utterances to train relative-pitch corrections.
+Corpus audio and transcripts are not bundled with the model.

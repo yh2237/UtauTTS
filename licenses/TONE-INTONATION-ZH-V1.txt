@@ -1,0 +1,22 @@
+UtauTTS Mandarin Tone Intonation v1
+====================================
+
+Model: tone-intonation-zh-v1
+Copyright (c) 2026 yh
+
+The model weights are distributed under Apache License, Version 2.0.
+The complete license text is included in
+licenses/APACHE-2.0.txt and is available at:
+https://www.apache.org/licenses/LICENSE-2.0
+
+UtauTTS uses selected AISHELL-3 utterances to train bounded relative-pitch
+corrections to Mandarin tone curves. The model does not intentionally model
+the speakers' voice quality. Preprocessing aligns syllables and extracts
+normalized pitch contours. Corpus audio, transcripts, and alignment files
+are not redistributed.
+
+Training sources and attribution:
+licenses/AISHELL-3-NOTICE.txt
+licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt
+
+UtauTTS code is separately distributed under the repository MIT License.

@@ -1,0 +1,12 @@
+PaddleSpeech AISHELL-3 MFA2.x tone alignment
+Source: https://github.com/PaddlePaddle/PaddleSpeech/tree/develop/examples/aishell3/tts3
+Archive: https://paddlespeech.cdn.bcebos.com/MFA/AISHELL-3/with_tone/aishell3_alignment_tone.tar.gz
+
+PaddleSpeech publishes the alignment link in its AISHELL-3 training example.
+The PaddleSpeech project is distributed under Apache License 2.0:
+https://github.com/PaddlePaddle/PaddleSpeech/blob/develop/LICENSE
+
+The downloaded alignment archive does not include a separate license file.
+UtauTTS uses syllable times during model training and does not redistribute
+the alignment files. The underlying AISHELL-3 corpus is described in
+licenses/AISHELL-3-NOTICE.txt.

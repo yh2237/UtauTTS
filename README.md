@@ -88,7 +88,7 @@ voice/
 
 文頭が欠ける音源では「文頭の長さ」を長くし、余計なノイズを拾う音源では短くしてください。新規作成したカードに使う既定値は「設定」→「設定...」から変更できます。初期状態では原音形式が自動、音高が`C4`、抑揚が2、モーラ長が120 ms、休止長が180 ms、抑揚モデルが`frame-intonation-tcn-v9.1-t`、Rendererが`utautts-world-phrase`です。
 
-英語のカードでは、抑揚モデルが日本語用のままでも同梱の`frame-intonation-tcn-en-v1`へ自動で切り替わります。
+英語・中国語のカードでは、抑揚モデルが日本語用のままでも同梱の各言語のモデルへ自動で切り替わります。
 
 ### イントネーションと長さを直す
 
@@ -131,6 +131,7 @@ Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置�
 | `frame-intonation-tcn-v9.1-t` | 既定。つくよみちゃんコーパスとみんなで作るJSUTコーパスbasic5000で学習 |
 | `frame-intonation-tcn-v9-t` | つくよみちゃんコーパスで学習 |
 | `frame-intonation-tcn-en-v1` | LibriTTS-Rで学習した英語のフレーム抑揚 |
+| `tone-intonation-zh-v1` | AISHELL-3で学習した中国語の声調曲線の補正 |
 
 `frame-intonation-tcn-v9-*`はOpen JTalkのアクセント特徴からフレーム単位の相対ピッチを予測します。モデルやRendererはGUI、CLI、Serverで共通です。学習元のライセンスは[抑揚モデル](models/README.md)、追加方法は[モデル／Rendererプラグイン](docs/plugins.md)にあります。
 

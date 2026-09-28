@@ -1,11 +1,48 @@
 package tts
 
 import (
+	"path/filepath"
 	"testing"
 
 	"utautts/internal/frontend"
 	"utautts/internal/prosody"
 )
+
+func TestBundledMandarinModelIsUsedForJapaneseDefault(t *testing.T) {
+	defaultPath := filepath.Join("..", "..", "models", "frame-intonation-tcn-v9.1-t.json")
+	model, err := resolveProsodyModelForLanguage(Config{ProsodyModelPath: defaultPath}, frontend.LanguageChinese)
+	if err != nil || model == nil || model.ID != "tone-intonation-zh-v1" {
+		t.Fatalf("Mandarin fallback = %#v, %v", model, err)
+	}
+	base := Config{Language: frontend.LanguageChinese, Reading: "ni3 hao3 jin1 tian1 hen3 hao3", MoraDurationMS: 120}
+	rule, err := PredictProsody(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base.ProsodyModelPath = defaultPath
+	learned, err := PredictProsody(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rule.MoraDurationsMS) != len(learned.MoraDurationsMS) || rule.FramePitchCurve == nil || learned.FramePitchCurve == nil {
+		t.Fatal("Mandarin preview is incomplete")
+	}
+	changed := false
+	for index := range rule.MoraDurationsMS {
+		if rule.MoraDurationsMS[index] != learned.MoraDurationsMS[index] {
+			t.Fatalf("Mandarin model changed duration at %d", index)
+		}
+	}
+	for index := range rule.FramePitchCurve.Cents {
+		if rule.FramePitchCurve.Cents[index] != learned.FramePitchCurve.Cents[index] {
+			changed = true
+			break
+		}
+	}
+	if !changed {
+		t.Fatal("bundled Mandarin model did not change the pitch contour")
+	}
+}
 
 func TestMandarinToneCurveUsesCanonicalDirections(t *testing.T) {
 	morae := []frontend.Mora{{Tone: 1}, {Tone: 2}, {Tone: 3}, {Tone: 4}}
@@ -30,6 +67,23 @@ func TestMandarinToneCurveUsesCanonicalDirections(t *testing.T) {
 	}
 	if curve.Cents[31] <= curve.Cents[39] {
 		t.Fatal("四声が下降していない")
+	}
+}
+
+func TestMandarinLearnedCorrectionChangesOnlySelectedTone(t *testing.T) {
+	morae := []frontend.Mora{{Tone: 1}, {Tone: 2}}
+	timings := []prosody.MoraTiming{{StartMS: 0, DurationMS: 100}, {StartMS: 100, DurationMS: 100}}
+	base := mandarinToneCurve(morae, timings, 200)
+	model := &prosody.MandarinIntonationModel{
+		FeatureNames: []string{"tone_1"}, Knots: []float64{0.25, 0.75},
+		Weights: [][]float64{{80}, {80}}, Strength: 0.5, MaxCents: 100,
+	}
+	got := applyMandarinIntonation(base, model, morae, timings)
+	if got.Cents[5] != base.Cents[5]+40 || got.Cents[15] != base.Cents[15] {
+		t.Fatalf("learned correction affected wrong frames: got=%v base=%v", got.Cents, base.Cents)
+	}
+	if base.Cents[5] == got.Cents[5] {
+		t.Fatal("base tone curve was changed in place")
 	}
 }
 

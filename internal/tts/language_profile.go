@@ -57,7 +57,9 @@ func predictMorae(cfg Config, profile languageProfile, model *prosody.Model, mor
 		if model.RequiresExternalFeatures() && len(features) != len(morae) {
 			return nil, fmt.Errorf("prosody model %d/%s requires %d mora-level accent feature frames, got %d", model.Version, model.Mode, len(morae), len(features))
 		}
-		predictions = model.PredictWithFeatures(morae, features)
+		if model.MandarinIntonation == nil {
+			predictions = model.PredictWithFeatures(morae, features)
+		}
 		if cfg.ProsodyPitchOnly {
 			for i := range predictions {
 				predictions[i].DurationMS = 0
@@ -98,4 +100,8 @@ func resolveProsodyModelForProfile(cfg Config, profile languageProfile) (*prosod
 // englishFallbackProsodyModelPathは同じmodelsディレクトリの英語モデルを返す。
 func englishFallbackProsodyModelPath(configuredPath string) string {
 	return filepath.Join(filepath.Dir(configuredPath), "frame-intonation-tcn-en-v1.json")
+}
+
+func mandarinFallbackProsodyModelPath(configuredPath string) string {
+	return filepath.Join(filepath.Dir(configuredPath), "tone-intonation-zh-v1.json")
 }

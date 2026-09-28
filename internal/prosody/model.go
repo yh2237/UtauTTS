@@ -15,16 +15,18 @@ import (
 const ModelVersion = 3
 
 const (
-	FramePitchModelVersion        = 8
-	ProsodyMultitaskModelVersion  = 10
-	ManualResidualModelVersion    = 11
-	EnglishIntonationModelVersion = 12
+	FramePitchModelVersion         = 8
+	ProsodyMultitaskModelVersion   = 10
+	ManualResidualModelVersion     = 11
+	EnglishIntonationModelVersion  = 12
+	MandarinIntonationModelVersion = 13
 )
 
 type Model struct {
 	ID                   string             `json:"id,omitempty"`
 	DisplayName          string             `json:"display_name,omitempty"`
 	Description          string             `json:"description,omitempty"`
+	License              string             `json:"license,omitempty"`
 	LicenseNotices       []string           `json:"license_notices,omitempty"`
 	Language             string             `json:"language,omitempty"`
 	Provenance           *ModelProvenance   `json:"provenance,omitempty"`
@@ -38,14 +40,15 @@ type Model struct {
 	PitchWeights         map[string]float64 `json:"pitch_weights,omitempty"`
 	EnergyWeights        map[string]float64 `json:"energy_weights,omitempty"`
 	// MoraDurationはモーラ長の倍率を出すマルチタスクモデルの継続時間ヘッド。
-	MoraDuration      *SequencePitchModel     `json:"mora_duration,omitempty"`
-	FramePitch        *FramePitchModel        `json:"frame_pitch,omitempty"`
-	MoraPitchResidual *MoraPitchResidualModel `json:"mora_pitch_residual,omitempty"`
-	EnglishIntonation *EnglishIntonationModel `json:"english_intonation,omitempty"`
-	BaseModel         *BaseModelReference     `json:"base_model,omitempty"`
-	ResidualLimits    *ResidualLimits         `json:"residual_limits,omitempty"`
-	Metrics           Metrics                 `json:"metrics"`
-	Training          TrainingInfo            `json:"training"`
+	MoraDuration       *SequencePitchModel      `json:"mora_duration,omitempty"`
+	FramePitch         *FramePitchModel         `json:"frame_pitch,omitempty"`
+	MoraPitchResidual  *MoraPitchResidualModel  `json:"mora_pitch_residual,omitempty"`
+	EnglishIntonation  *EnglishIntonationModel  `json:"english_intonation,omitempty"`
+	MandarinIntonation *MandarinIntonationModel `json:"mandarin_intonation,omitempty"`
+	BaseModel          *BaseModelReference      `json:"base_model,omitempty"`
+	ResidualLimits     *ResidualLimits          `json:"residual_limits,omitempty"`
+	Metrics            Metrics                  `json:"metrics"`
+	Training           TrainingInfo             `json:"training"`
 }
 
 type ModelProvenance struct {
@@ -109,6 +112,15 @@ type FramePitchModel struct {
 	RenderMaxCents    float64              `json:"render_max_cents,omitempty"`
 
 	validated bool
+}
+
+// MandarinIntonationModelは既存の声調曲線に加える有界な補正を保持する。
+type MandarinIntonationModel struct {
+	FeatureNames []string    `json:"feature_names"`
+	Knots        []float64   `json:"knots"`
+	Weights      [][]float64 `json:"weights"`
+	Strength     float64     `json:"strength"`
+	MaxCents     float64     `json:"max_cents"`
 }
 
 // 英語の強勢と句境界を予測する軽量モデル。
@@ -349,7 +361,8 @@ func LoadModel(path string) (*Model, error) {
 	manualResidual := model.FeatureVersion == 2 && model.Version == ManualResidualModelVersion &&
 		(model.Mode == "intonation_frame_v8_manual_residual" || model.Mode == "intonation_frame_manual_residual")
 	englishIntonation := model.FeatureVersion == 1 && model.Version == EnglishIntonationModelVersion && model.Mode == "english_intonation_v1"
-	if !current && !frame && !multitask && !manualResidual && !englishIntonation {
+	mandarinIntonation := model.FeatureVersion == 1 && model.Version == MandarinIntonationModelVersion && model.Mode == "mandarin_intonation_v1"
+	if !current && !frame && !multitask && !manualResidual && !englishIntonation && !mandarinIntonation {
 		return nil, fmt.Errorf("unsupported prosody model version %d/feature %d mode %q", model.Version, model.FeatureVersion, model.Mode)
 	}
 	var allowedHeads []string
@@ -373,6 +386,8 @@ func LoadModel(path string) (*Model, error) {
 		allowedHeads = []string{"frame_pitch", "mora_pitch_residual"}
 	case englishIntonation:
 		allowedHeads = []string{"english_intonation"}
+	case mandarinIntonation:
+		allowedHeads = []string{"mandarin_intonation"}
 	}
 	for _, head := range model.heads() {
 		if head.present && !containsString(allowedHeads, head.name) {
@@ -415,6 +430,11 @@ func LoadModel(path string) (*Model, error) {
 			return nil, fmt.Errorf("English intonation model must declare language en")
 		}
 	}
+	if mandarinIntonation {
+		if model.Language != "zh" || validateMandarinIntonation(model.MandarinIntonation) != nil {
+			return nil, fmt.Errorf("invalid Mandarin intonation model")
+		}
+	}
 	return &model, nil
 }
 
@@ -443,6 +463,7 @@ func (m *Model) heads() []modelHead {
 		{"frame_pitch", m.FramePitch != nil},
 		{"mora_pitch_residual", m.MoraPitchResidual != nil},
 		{"english_intonation", m.EnglishIntonation != nil},
+		{"mandarin_intonation", m.MandarinIntonation != nil},
 	}
 }
 
