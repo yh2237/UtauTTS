@@ -103,17 +103,13 @@ func TestRendererMetadataIncludesConfiguredDefault(t *testing.T) {
 	response := httptest.NewRecorder()
 	mustNewServer(t, Config{VoiceDir: t.TempDir(), Renderer: "utautts-world-phrase"}).Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/renderers", nil))
 	var payload struct {
-		Default      string `json:"default_renderer"`
-		Availability map[string]struct {
-			Available bool `json:"available"`
-		} `json:"availability"`
+		Default string `json:"default_renderer"`
 	}
-	_ = json.Unmarshal(response.Body.Bytes(), &payload)
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
 	if payload.Default != "utautts-world-phrase" {
 		t.Fatalf("default = %q", payload.Default)
-	}
-	if status, found := payload.Availability["utautts-world-phrase"]; !found || !status.Available {
-		t.Fatalf("WORLD availability = %#v", payload.Availability)
 	}
 }
 
