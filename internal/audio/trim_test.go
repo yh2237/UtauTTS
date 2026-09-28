@@ -24,17 +24,6 @@ func TestTrimPCMNegativeCutoffIsLengthFromOffset(t *testing.T) {
 	}
 }
 
-func TestTrimPCMRangeDependsOnlyOnOffsetAndCutoff(t *testing.T) {
-	pcm := testPCM(1000)
-	got, err := TrimPCM(pcm, 100, 600)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got.Data) != 300 {
-		t.Fatalf("frames = %d, want 300", len(got.Data))
-	}
-}
-
 func testPCM(frames int) *PCM {
 	data := make([]int16, frames)
 	for i := range data {

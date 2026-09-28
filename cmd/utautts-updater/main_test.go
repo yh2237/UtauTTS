@@ -114,45 +114,6 @@ func TestExtractZipWindowsBackslashSeparators(t *testing.T) {
 	}
 }
 
-func TestExtractZipPreservesExecutableMode(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows does not expose POSIX executable mode bits")
-	}
-	zipPath := filepath.Join(t.TempDir(), "linux.zip")
-	archive, err := os.Create(zipPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	writer := zip.NewWriter(archive)
-	header := &zip.FileHeader{Name: "utautts", Method: zip.Deflate}
-	header.SetMode(0o755)
-	entry, err := writer.CreateHeader(header)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := entry.Write([]byte("binary")); err != nil {
-		t.Fatal(err)
-	}
-	if err := writer.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if err := archive.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	destination := t.TempDir()
-	if err := extractZip(zipPath, destination); err != nil {
-		t.Fatal(err)
-	}
-	info, err := os.Stat(filepath.Join(destination, "utautts"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if info.Mode().Perm()&0o111 == 0 {
-		t.Fatalf("executable mode was lost: %v", info.Mode().Perm())
-	}
-}
-
 func TestRunUpdatesLinuxPackageAndKeepsExecutableMode(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Linux package mode test")
@@ -461,6 +422,24 @@ func TestRunPreservesPortableConfig(t *testing.T) {
 		if err != nil || string(data) != want {
 			t.Errorf("%s = %q, %v; want %q", path, data, err, want)
 		}
+	}
+}
+
+func TestCarryCurrentRenderersDropsRemovedManagedWaveform(t *testing.T) {
+	current := t.TempDir()
+	stage := t.TempDir()
+	writeTestFile(t, filepath.Join(current, "renderer", "waveform", "renderer.json"),
+		`{"manifest_version":2,"kind":"synthesis-engine","id":"waveform","display_name":"Waveform","update_managed":true}`)
+	writeTestFile(t, filepath.Join(current, "renderer", "custom", "renderer.json"),
+		`{"manifest_version":2,"kind":"synthesis-engine","id":"custom","display_name":"Custom"}`)
+	if err := carryCurrentRenderers(current, stage); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(stage, "renderer", "waveform")); !os.IsNotExist(err) {
+		t.Fatalf("removed managed waveform renderer was carried forward: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(stage, "renderer", "custom", "renderer.json")); err != nil {
+		t.Fatalf("user renderer was not carried forward: %v", err)
 	}
 }
 

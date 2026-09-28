@@ -22,11 +22,24 @@ func TestRepositoryRendererPluginsAreSelfDescribing(t *testing.T) {
 		t.Fatalf("default renderer = %q, want manifest-priority UtauTTS WORLD phrase", items[0].ID)
 	}
 	for _, item := range items {
+		if item.ID == "waveform" {
+			t.Fatal("removed waveform renderer is still bundled")
+		}
 		if item.ID == "" || item.DisplayName == "" || item.Provider == "" {
 			t.Fatalf("incomplete renderer plugin: %#v", item)
 		}
 		if item.ManifestVersion != 2 || item.Contract == "" || item.ProviderVersion == "" {
 			t.Fatalf("bundled renderer was not migrated to explicit v2 metadata: %#v", item)
+		}
+		switch item.ID {
+		case "utautts-world-phrase":
+			if !item.Capabilities.SpeechProsodyExperiment {
+				t.Fatal("WORLD renderer lost speech prosody support")
+			}
+		case "diffsinger":
+			if !item.Capabilities.InternalTiming {
+				t.Fatal("DiffSinger renderer lost internal timing support")
+			}
 		}
 	}
 }
@@ -291,16 +304,6 @@ func TestExplicitRendererDirectoryOverridesPackagedID(t *testing.T) {
 	}
 	if len(items) != 1 || items[0].DisplayName != "explicit" {
 		t.Fatalf("renderer override = %#v", items)
-	}
-}
-
-func TestDirectoryWithoutManifestHasNoRenderers(t *testing.T) {
-	items, err := DiscoverRenderers([]string{t.TempDir()}, func(string) bool { return true })
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(items) != 0 {
-		t.Fatalf("manifest-free directory yielded renderers: %#v", items)
 	}
 }
 

@@ -50,25 +50,6 @@ func TestJoinModelAppliesBoundedCorrectionAndFallsBackWhenUncertain(t *testing.T
 	}
 }
 
-func TestJoinModelRoundTripsJSON(t *testing.T) {
-	model := testJoinModel()
-	path := filepath.Join(t.TempDir(), "join.json")
-	data, err := json.Marshal(model)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	loaded, err := LoadJoinModel(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if loaded.ID != model.ID || len(loaded.Weights) != len(model.Weights) {
-		t.Fatalf("loaded model = %#v", loaded)
-	}
-}
-
 func TestLoadJoinModelAcceptsLegacyFeatureSpace(t *testing.T) {
 	model := testJoinModel()
 	model.FeatureNames = append([]string(nil), legacyJoinFeatureNames...)

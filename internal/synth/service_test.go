@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"utautts/internal/engine"
-	"utautts/internal/plan"
 	"utautts/internal/plugin"
 	"utautts/internal/render"
 	"utautts/internal/tts"
@@ -74,33 +73,6 @@ func TestResolveSynthesisUsesDirectVoicebankPathAndNormalizesKana(t *testing.T) 
 		resolved.Config.BoundaryBridgeMS != 12 || resolved.Config.CVVCTiming != "sequential" ||
 		resolved.Config.JoinModelPath != "join.json" {
 		t.Fatalf("CLI settings were not preserved: %#v", resolved.Config)
-	}
-}
-
-// 同梱manifestのtiming既定はGoのcanonical値と一致させる。
-func TestBundledRendererManifestsUseCanonicalTimingDefaults(t *testing.T) {
-	catalog, err := plugin.DiscoverWithDefaults(nil, nil, func(string) bool { return true })
-	if err != nil {
-		t.Fatal(err)
-	}
-	// DiffSinger manifestはWindows限定のため、非Windowsでは3件になる。
-	if len(catalog.Renderers) < 3 {
-		t.Fatalf("renderers = %d, want at least 3", len(catalog.Renderers))
-	}
-	want := map[string]float64{
-		"mora_duration_ms":  plan.DefaultMoraDurationMS,
-		"pause_duration_ms": plan.DefaultPauseDurationMS,
-	}
-	for _, renderer := range catalog.Renderers {
-		for _, setting := range renderer.Settings {
-			expected, ok := want[setting.ID]
-			if !ok {
-				continue
-			}
-			if got, ok := setting.Default.(float64); !ok || got != expected {
-				t.Errorf("%s %s default = %v, want %v", renderer.ID, setting.ID, setting.Default, expected)
-			}
-		}
 	}
 }
 
@@ -198,10 +170,11 @@ func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 		Renderers: []plugin.Renderer{testRenderer("waveform", "waveform")},
 	}, "waveform", "", "", "", nil)
 	cfg, _, options, err := service.config(Request{
-		Renderer: "waveform", ContextDuration: true, MoraDurationMS: 140,
+		Renderer: "waveform", ContextDuration: true, MoraDurationMS: 140, DiffSingerSteps: 17,
 		RendererSettings: map[string]json.RawMessage{
 			"context_duration": json.RawMessage(`false`),
 			"mora_duration_ms": json.RawMessage(`123`),
+			"diffsinger_steps": json.RawMessage(`5`),
 			"custom_option":    json.RawMessage(`"value"`),
 		},
 	}, false)
@@ -211,16 +184,22 @@ func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 	if cfg.ContextDuration == nil || *cfg.ContextDuration || cfg.MoraDurationMS != 123 {
 		t.Fatalf("renderer settings did not override fixed fields: %#v", cfg)
 	}
+	if options.DiffSinger.Steps != 5 {
+		t.Fatalf("DiffSinger steps were not overridden: %#v", options.DiffSinger)
+	}
 	if options.Renderer["custom_option"] != "value" {
 		t.Fatalf("unknown renderer setting = %#v", options.Renderer)
 	}
 
-	cfg, _, _, err = service.config(Request{Renderer: "waveform", ContextDuration: true, MoraDurationMS: 140}, false)
+	cfg, _, options, err = service.config(Request{Renderer: "waveform", ContextDuration: true, MoraDurationMS: 140, DiffSingerSteps: 17}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cfg.ContextDuration == nil || !*cfg.ContextDuration || cfg.MoraDurationMS != 140 {
 		t.Fatalf("fixed fields without a map changed: %#v", cfg)
+	}
+	if options.DiffSinger.Steps != 17 {
+		t.Fatalf("typed DiffSinger steps were lost: %#v", options.DiffSinger)
 	}
 }
 

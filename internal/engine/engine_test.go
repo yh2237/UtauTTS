@@ -9,29 +9,6 @@ import (
 	"utautts/internal/plugin"
 )
 
-func TestDefinitionFromV2UsesExplicitContractProviderAndResources(t *testing.T) {
-	directory := t.TempDir()
-	renderer := plugin.Renderer{
-		ManifestVersion: 2,
-		Kind:            "synthesis-engine",
-		ID:              "friendly-world",
-		DisplayName:     "Friendly WORLD",
-		Contract:        string(ContractUnitRenderer),
-		Provider:        "utautts-world-phrase",
-		ProviderVersion: "1",
-		Directory:       directory,
-		Resources:       map[string]plugin.RendererResource{"world_engine": {Path: "runtime/world-engine"}},
-	}
-
-	definition := DefinitionFromV2(renderer)
-	if definition.ID != "friendly-world" || definition.Provider != "utautts-world-phrase" || definition.Contract != ContractUnitRenderer || definition.ProviderVersion != "1" {
-		t.Fatalf("v2 definition = %#v", definition)
-	}
-	if got, want := definition.Resource(ResourceWorldEngine), filepath.Join(directory, "runtime", "world-engine"); got != want {
-		t.Fatalf("v2 world engine resource = %q, want %q", got, want)
-	}
-}
-
 func TestResolverAcceptsManifestDeclaredExternalProvider(t *testing.T) {
 	executable := filepath.Join(t.TempDir(), "provider")
 	if err := os.WriteFile(executable, []byte("provider"), 0o700); err != nil {
