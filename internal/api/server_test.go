@@ -101,7 +101,7 @@ func TestVoicebankRegistrationDisabledByDefault(t *testing.T) {
 
 func TestRendererMetadataIncludesConfiguredDefault(t *testing.T) {
 	response := httptest.NewRecorder()
-	mustNewServer(t, Config{VoiceDir: t.TempDir(), Renderer: "waveform"}).Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/renderers", nil))
+	mustNewServer(t, Config{VoiceDir: t.TempDir(), Renderer: "utautts-world-phrase"}).Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/renderers", nil))
 	var payload struct {
 		Default      string `json:"default_renderer"`
 		Availability map[string]struct {
@@ -109,11 +109,11 @@ func TestRendererMetadataIncludesConfiguredDefault(t *testing.T) {
 		} `json:"availability"`
 	}
 	_ = json.Unmarshal(response.Body.Bytes(), &payload)
-	if payload.Default != "waveform" {
+	if payload.Default != "utautts-world-phrase" {
 		t.Fatalf("default = %q", payload.Default)
 	}
-	if status, found := payload.Availability["waveform"]; !found || !status.Available {
-		t.Fatalf("waveform availability = %#v", payload.Availability)
+	if status, found := payload.Availability["utautts-world-phrase"]; !found || !status.Available {
+		t.Fatalf("WORLD availability = %#v", payload.Availability)
 	}
 }
 
@@ -311,7 +311,7 @@ func TestHealthReportsConfiguredRenderer(t *testing.T) {
 }
 
 func TestAPIMetadata(t *testing.T) {
-	server := mustNewServer(t, Config{Renderer: "waveform", VoiceDir: t.TempDir()})
+	server := mustNewServer(t, Config{Renderer: "utautts-world-phrase", VoiceDir: t.TempDir()})
 	request := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)

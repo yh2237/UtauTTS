@@ -15,6 +15,16 @@ import (
 
 const openJTalkHelperEnvironment = "UTAUTTS_TEST_OPENJTALK_HELPER"
 
+func waveformTestRendererDirectory(t *testing.T) string {
+	t.Helper()
+	directory := t.TempDir()
+	manifest := []byte(`{"manifest_version":2,"kind":"synthesis-engine","id":"waveform","display_name":"Test waveform","contract":"unit-renderer","provider":"waveform","provider_version":"1"}`)
+	if err := os.WriteFile(filepath.Join(directory, "renderer.json"), manifest, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return directory
+}
+
 func TestMain(m *testing.M) {
 	if os.Getenv(openJTalkHelperEnvironment) == "1" {
 		for _, argument := range os.Args {
@@ -49,7 +59,7 @@ func TestEngineListsAnalyzesAndSynthesizes(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\na.wav=a k,0,0,0,0,0\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	engine, err := New(Config{VoiceDir: root, Renderer: "waveform"})
+	engine, err := New(Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +229,7 @@ func TestEngineFallsBackToOpenJTalkForEnglish(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv(openJTalkHelperEnvironment, "1")
-	engine, err := New(Config{VoiceDir: root, Renderer: "waveform", OpenJTalkPath: helper, OpenJTalkDictionary: root})
+	engine, err := New(Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}, OpenJTalkPath: helper, OpenJTalkDictionary: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +262,7 @@ func TestEngineFallsBackToOpenJTalkForEnglish(t *testing.T) {
 }
 
 func TestEngineAnalyzesChinese(t *testing.T) {
-	engine, err := New(Config{VoiceDir: t.TempDir(), Renderer: "waveform"})
+	engine, err := New(Config{VoiceDir: t.TempDir(), Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
 	if err != nil {
 		t.Fatal(err)
 	}

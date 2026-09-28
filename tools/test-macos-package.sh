@@ -80,7 +80,6 @@ for required in \
   "${server_root}/runtime/utautts-world-engine.dylib" \
   "${gui_root}/models/frame-intonation-tcn-v9-t.json" \
   "${gui_root}/models/frame-intonation-tcn-v9.1-t.json" \
-  "${gui_root}/renderer/waveform/renderer.json" \
   "${gui_root}/renderer/utautts-world-phrase/renderer.json"; do
   [[ -f "${required}" ]] || fail "required package file is missing: ${required}"
 done
@@ -194,6 +193,7 @@ fi
 [[ ! -e "${server_root}/THIRD_PARTY_NOTICES-MACOS-GUI.txt" ]] \
   || fail 'server package must not contain the macOS GUI third-party addendum'
 for removed in \
+  "${gui_root}/renderer/waveform" \
   "${gui_root}/renderer/diffsinger"; do
   [[ ! -e "${removed}" ]] || fail "initial macOS package contains an excluded renderer: ${removed}"
 done
@@ -227,20 +227,16 @@ app_binary="${app}/Contents/MacOS/utautts"
 }
 
 smoke_text='こんにちは'
-"${cli}" --renderer waveform --voicebank "${voicebank}" \
-  --text "${smoke_text}" --out "${work_dir}/waveform.wav"
 "${cli}" --voicebank "${voicebank}" --text "${smoke_text}" \
   --prosody frame-intonation-tcn-v9.1-t --renderer utautts-world-phrase \
   --apply-pitch --intonation-strength 1 --out "${work_dir}/utautts-world.wav"
-for wav in "${work_dir}/waveform.wav" "${work_dir}/utautts-world.wav"; do
-  [[ "$(file_size "${wav}")" -gt 44 ]] || fail "synthesis output is empty: ${wav}"
-done
+[[ "$(file_size "${work_dir}/utautts-world.wav")" -gt 44 ]] || fail 'synthesis output is empty'
 
 port="$("${python_command}" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')"
 (
   cd "${server_root}"
   exec ./utautts-server --host 127.0.0.1 --port "${port}" \
-    --voice-dir "${gui_root}/voice" --renderer waveform
+    --voice-dir "${gui_root}/voice" --renderer utautts-world-phrase
 ) >"${work_dir}/server.stdout.log" 2>"${work_dir}/server.stderr.log" &
 server_pid=$!
 base_url="http://127.0.0.1:${port}"
@@ -263,7 +259,7 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as stream:
     renderers = json.load(stream).get("renderers", [])
 ids = {item.get("id") for item in renderers}
-for required in ("waveform", "utautts-world-phrase"):
+for required in ("utautts-world-phrase", "classic-utau"):
     if required not in ids:
         raise SystemExit(f"server did not expose renderer: {required}")
 PY

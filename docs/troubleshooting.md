@@ -41,7 +41,7 @@ UtauTTS側の読みとOpen JTalk側の解析結果が一致していない可能
 
 ## Rendererやruntimeのファイルが見つからない
 
-まず`waveform` Rendererで合成できるか確認してください。WORLD系Rendererに必要なファイルは[モデル／Rendererプラグイン](plugins.md)にあります。
+Rendererとruntimeの組み合わせを確認してください。既定Rendererに必要なファイルは[モデル／Rendererプラグイン](plugins.md)にあります。
 
 ## LinuxでGUIが起動しない
 
@@ -67,7 +67,7 @@ MangoHud側の互換性問題を解消するまでの回避策です。
 
 ## 音声が生成されない、または合成が遅い
 
-合成中はログウィンドウに処理内容が表示されます。入力文章、音源、Renderer、モデル、runtimeの組み合わせを確認してください。まずは`waveform`、抑揚モデルなし、短い文章で試すと原因を切り分けやすいです。
+合成中はログウィンドウに処理内容が表示されます。入力文章、音源、Renderer、モデル、runtimeの組み合わせを確認してください。まずは既定Renderer、抑揚モデルなし、短い文章で試すと原因を切り分けやすいです。
 
 ## 問題を報告する
 

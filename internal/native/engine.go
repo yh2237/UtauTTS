@@ -523,7 +523,7 @@ func (e *Engine) enrichAndCurves(project *openutau.UtauTTSProject) []openutau.Fr
 		}
 		renderer := utterance.RendererID
 		if renderer == "" {
-			renderer = "waveform"
+			renderer = "utautts-world-phrase"
 		}
 		preview, _, err := e.synth.PredictProsody(synth.Request{
 			Text:               utterance.Text,

@@ -161,8 +161,11 @@ try {
         if ($forbiddenBundledData.Count -ne 0) {
             throw "Release package contains ignored training/build data: $($forbiddenBundledData -join ', ')"
         }
-        foreach ($rendererId in @('waveform', 'classic-utau', 'utautts-world-phrase')) {
+        foreach ($rendererId in @('utautts-world-phrase', 'classic-utau')) {
             Assert-Path (Join-Path $packageRoot "renderer/$rendererId/renderer.json") "renderer manifest $rendererId"
+        }
+        if (Test-Path -LiteralPath (Join-Path $packageRoot 'renderer/waveform')) {
+            throw "Removed waveform renderer is still packaged: $packageRoot"
         }
         if ($Profile -eq 'Full') {
             Assert-Path (Join-Path $packageRoot 'renderer/diffsinger/renderer.json') 'DiffSinger renderer manifest'
@@ -332,7 +335,7 @@ try {
     $smokeText = -join @([char]0x3053, [char]0x3093, [char]0x306B, [char]0x3061, [char]0x306F)
     Push-Location $workingDirectory
     try {
-        & $cli --renderer waveform --voicebank $voicebank.FullName --text $smokeText --out $outputWav
+        & $cli --renderer utautts-world-phrase --voicebank $voicebank.FullName --text $smokeText --out $outputWav
         if ($LASTEXITCODE -ne 0) {
             throw "Packaged CLI failed with exit code $LASTEXITCODE"
         }
@@ -357,7 +360,7 @@ try {
     $savedErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
-        $nanOutput = & $cli --renderer waveform --voicebank $voicebank.FullName --text $smokeText --mora-ms NaN --out (Join-Path $workingDirectory 'nan.wav') 2>&1
+        $nanOutput = & $cli --renderer utautts-world-phrase --voicebank $voicebank.FullName --text $smokeText --mora-ms NaN --out (Join-Path $workingDirectory 'nan.wav') 2>&1
     } finally {
         $ErrorActionPreference = $savedErrorActionPreference
     }
@@ -375,7 +378,7 @@ try {
     Remove-Item Env:PATH -ErrorAction SilentlyContinue
     try {
         $process = Start-Process -FilePath $server -ArgumentList @(
-            '--host', '127.0.0.1', '--port', $port.ToString(), '--voice-dir', $voicebank.FullName, '--renderer', 'waveform'
+            '--host', '127.0.0.1', '--port', $port.ToString(), '--voice-dir', $voicebank.FullName, '--renderer', 'utautts-world-phrase'
         ) -WorkingDirectory $workingDirectory -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
     } finally {
         $env:Path = $savedPath
@@ -419,7 +422,7 @@ try {
         $synthesisBody = @{
             text = $smokeText
             voicebank_id = $voicebankId
-            renderer = 'waveform'
+            renderer = 'utautts-world-phrase'
             mora_duration_ms = 120
         } | ConvertTo-Json -Compress
         $serverWav = Join-Path $workingDirectory 'server-smoke.wav'
@@ -449,9 +452,9 @@ try {
         }
         }
         $batchItems = @()
-        $batchItems += @{ name = 'first.wav'; request = @{ text = $smokeText; voicebank_id = $voicebankId; renderer = 'waveform' } }
+        $batchItems += @{ name = 'first.wav'; request = @{ text = $smokeText; voicebank_id = $voicebankId; renderer = 'utautts-world-phrase' } }
         $singleMora = [string][char]0x3042
-        $batchItems += @{ name = 'second.wav'; request = @{ kana = $singleMora; voicebank_id = $voicebankId; renderer = 'waveform' } }
+        $batchItems += @{ name = 'second.wav'; request = @{ kana = $singleMora; voicebank_id = $voicebankId; renderer = 'utautts-world-phrase' } }
         $batchBody = @{ items = $batchItems } | ConvertTo-Json -Depth 6 -Compress
         $batchZip = Join-Path $workingDirectory 'server-batch.zip'
         Invoke-WebRequest -UseBasicParsing -Method Post -Uri "$baseUrl/api/synthesize/batch" `

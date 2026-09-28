@@ -33,8 +33,8 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/chinese-bank" --corpus tools/ev
 ## 音声を比較する
 
 ```powershell
-go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers waveform --model none --repeat 1 --out out/ja-base
-go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers waveform --model none --repeat 1 --speech-timing --out out/ja-speech
+go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utautts-world-phrase --model none --repeat 1 --out out/ja-base
+go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utautts-world-phrase --model none --repeat 1 --speech-timing --out out/ja-speech
 ```
 
 コーパスの既定値は`tools/evaluation/japanese-v1.json`の8文です。`--model none`: 学習済み抑揚モデルなし。任意のモデルは`--model-file`でJSONのパスを指定できます。発話タイミング補正の効果と制約は[発話タイミング補正](../../docs/speech-quality-experiment.md)に記載します。
@@ -48,10 +48,10 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers wave
 | Planの`phone_timings` | 発音単位ごとの目標時刻 |
 | Planの`missing_phones` | 選択した経路で不足した必須語尾や検出可能な句頭子音群 |
 | unitの`speech_profile` | 固定部の元の値と提案値。安定区間・F0・音量・有声率・信頼度・採否の理由 |
-| unitの`speech_retime_applied` | waveformまたはCPU版WORLDの区間別伸縮を適用したか |
+| unitの`speech_retime_applied` | CPU版WORLDの区間別伸縮を適用したか |
 | unitの`speech_join_applied` | CPU版WORLDの母音接続補修を適用したか |
 | unitの`effective_consonant_ms` | 伸縮後の固定部の位置 |
-| Planの`boundary_repair_decisions` | waveformの接続補修の候補数と採否。補修前後の波形差分指標 |
+| Planの`boundary_repair_decisions` | 接続補修の候補数と採否。補修前後の波形差分指標 |
 | reportの`missing_phone_groups` | 必須音が不足したグループの件数 |
 
 任意のリリース音は必須音の不足と区別します。検出範囲: 語中の複雑な子音群と原音の発音誤りの一部。音声生成では代替候補を使うため、生成成功と音の欠落は別に評価します。

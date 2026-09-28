@@ -9,20 +9,20 @@ Windows
 ```powershell
 .\utautts-server.exe `
   --voice-dir "voice" `
-  --renderer waveform
+  --renderer utautts-world-phrase
 ```
 
 Linux
 
 ```bash
-./utautts-server --voice-dir voice --renderer waveform
+./utautts-server --voice-dir voice --renderer utautts-world-phrase
 ```
 
 macOS
 
 ```bash
 xattr -rc "utautts-server" runtime
-./utautts-server --voice-dir voice --renderer waveform
+./utautts-server --voice-dir voice --renderer utautts-world-phrase
 ```
 
 標準では実行ファイルと同じ場所の`voice`ディレクトリを読み込みます。音源はフォルダごとに配置して`voicebank_id`には`/api/voicebanks`で取得したIDを指定します。省略するとID順で最初の音源が使われます。

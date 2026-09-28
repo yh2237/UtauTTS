@@ -33,16 +33,16 @@ Renderer、Classic UTAUツール、抑揚モデルを追加または配布する
 
 共有runtimeはパッケージ直下の`runtime/`に置き、manifestからはRendererディレクトリを基準とする相対パスで参照します。OSごとに名前が異なる場合は、`platform_resources`に`windows-amd64`／`darwin-arm64`などを記述します。
 
-対応する内蔵Providerアダプターは`waveform`、`utautts-world-phrase`、`utau-external-resampler`、`diffsinger`です。標準定義の追加やユーザー定義によって、既存アダプターを別の公開IDで選べます。新規エンジンABIの動的ロードには対応していません。
+同梱RendererのProviderは`utautts-world-phrase`、`utau-external-resampler`、`diffsinger`です。標準定義の追加やユーザー定義によって、既存アダプターを別の公開IDで選べます。新規エンジンABIの動的ロードには対応していません。
 
 配布プロファイルによって利用できるmanifestとruntimeが異なります。
 
 | 配布物 | 利用できるRenderer |
 | --- | --- |
-| Windows Full | `utautts-world-phrase`、`waveform`、`classic-utau`、`diffsinger` |
-| Windows Japanese | `utautts-world-phrase`、`waveform`、`classic-utau` |
-| Linux x64 | `utautts-world-phrase`、`waveform`、`classic-utau` |
-| macOS arm64 | `utautts-world-phrase`、`waveform`、`classic-utau` |
+| Windows Full | `utautts-world-phrase`、`classic-utau`、`diffsinger` |
+| Windows Japanese | `utautts-world-phrase`、`classic-utau` |
+| Linux x64 | `utautts-world-phrase`、`classic-utau` |
+| macOS arm64 | `utautts-world-phrase`、`classic-utau` |
 
 WindowsのFullプロファイルだけがDiffSingerのruntimeを含みます。LinuxとmacOSのDiffSinger manifestは対応OS外なのでカタログから除外されます。
 

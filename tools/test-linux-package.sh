@@ -219,15 +219,11 @@ else
 fi
 
 smoke_text='こんにちは'
-"${gui_root}/tools/utautts-cli" --renderer waveform --voicebank "${voicebank}" \
-  --text "${smoke_text}" --out "${work_dir}/waveform.wav"
 "${gui_root}/tools/utautts-cli" --voicebank "${voicebank}" --text "${smoke_text}" \
   --prosody frame-intonation-tcn-v9.1-t --renderer utautts-world-phrase \
   --apply-pitch --intonation-strength 1 --out "${work_dir}/utautts-world.wav"
-for wav in "${work_dir}/waveform.wav" "${work_dir}/utautts-world.wav"; do
-  [ "$(stat -c %s "${wav}")" -gt 44 ] || fail "synthesis output is empty: ${wav}"
-done
-if "${gui_root}/tools/utautts-cli" --renderer waveform --voicebank "${voicebank}" \
+[ "$(stat -c %s "${work_dir}/utautts-world.wav")" -gt 44 ] || fail 'synthesis output is empty'
+if "${gui_root}/tools/utautts-cli" --renderer utautts-world-phrase --voicebank "${voicebank}" \
     --text "${smoke_text}" --mora-ms NaN --out "${work_dir}/nan.wav" \
     >"${work_dir}/nan.stdout.log" 2>"${work_dir}/nan.stderr.log"; then
   fail 'packaged CLI accepted NaN input'
@@ -240,7 +236,7 @@ port="$("${python_command}" -c 'import socket; s=socket.socket(); s.bind(("127.0
 (
   cd "${server_root}"
   exec ./utautts-server --host 127.0.0.1 --port "${port}" \
-    --voice-dir "${gui_root}/voice" --renderer waveform
+    --voice-dir "${gui_root}/voice" --renderer utautts-world-phrase
 ) >"${work_dir}/server.stdout.log" 2>"${work_dir}/server.stderr.log" &
 server_pid=$!
 base_url="http://127.0.0.1:${port}"
@@ -260,10 +256,11 @@ curl -fsS "${base_url}/api/voicebanks" >"${work_dir}/voicebanks.json"
 curl -fsS "${base_url}/api/models" >"${work_dir}/models.json"
 curl -fsS "${base_url}/api/renderers" >"${work_dir}/renderers.json"
 
-for renderer_id in waveform classic-utau utautts-world-phrase; do
+for renderer_id in classic-utau utautts-world-phrase; do
   test -f "${gui_root}/renderer/${renderer_id}/renderer.json" \
     || fail "missing renderer manifest: ${renderer_id}"
 done
+test ! -e "${gui_root}/renderer/waveform" || fail 'removed waveform renderer is still packaged'
 VOICEBANK_JSON="${work_dir}/voicebanks.json" REQUEST_DIR="${work_dir}" "${python_command}" - <<'PY'
 import json
 import os
@@ -277,7 +274,7 @@ if not voices:
 voice = voices[0]["id"]
 (root / "analyze.json").write_text(json.dumps({"text": "こんにちは"}, ensure_ascii=False), encoding="utf-8")
 (root / "synthesize.json").write_text(json.dumps({
-    "text": "こんにちは", "voicebank_id": voice, "renderer": "waveform", "mora_duration_ms": 120
+    "text": "こんにちは", "voicebank_id": voice, "renderer": "utautts-world-phrase", "mora_duration_ms": 120
 }, ensure_ascii=False), encoding="utf-8")
 (root / "world-pitch.json").write_text(json.dumps({
     "text": "こんにちは", "voicebank_id": voice,
@@ -286,8 +283,8 @@ voice = voices[0]["id"]
     "intonation_strength": 1, "apply_pitch": True,
 }, ensure_ascii=False), encoding="utf-8")
 (root / "batch.json").write_text(json.dumps({"items": [
-    {"name": "first.wav", "request": {"text": "こんにちは", "voicebank_id": voice, "renderer": "waveform"}},
-    {"name": "second.wav", "request": {"kana": "あ", "voicebank_id": voice, "renderer": "waveform"}}
+    {"name": "first.wav", "request": {"text": "こんにちは", "voicebank_id": voice, "renderer": "utautts-world-phrase"}},
+    {"name": "second.wav", "request": {"kana": "あ", "voicebank_id": voice, "renderer": "utautts-world-phrase"}}
 ]}, ensure_ascii=False), encoding="utf-8")
 PY
 

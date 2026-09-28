@@ -19,7 +19,7 @@ GUIの設定は発話ごとにプロジェクトへ保存され、プレビュ�
 CLIの例です。音源のパスは使用するボイスバンクに置き換えてください。開発環境では`utautts-cli`の代わりに`go run ./cmd/utautts-cli`を使えます。
 
 ```powershell
-utautts-cli --voicebank "./voice/japanese-bank" --reading "カサ、キク。" --speech-timing --renderer waveform --out speech.wav --plan-out speech.plan.json
+utautts-cli --voicebank "./voice/japanese-bank" --reading "カサ、キク。" --speech-timing --renderer utautts-world-phrase --out speech.wav --plan-out speech.plan.json
 ```
 
 ## 補正する内容
@@ -29,8 +29,6 @@ utautts-cli --voicebank "./voice/japanese-bank" --reading "カサ、キク。" -
 手動指定したモーラ長を優先します。長さを予測する抑揚モデルを使う場合や`--prosody-pitch-only`を指定した場合は、規則による長さ変更を行いません。
 
 音源校正では、`oto.ini`の固定部付近にある安定した有声区間を探し、合成時の補正値を決めます。CVは固定部を元の値から最大±20 msの範囲で補正します。VCVは先行発声と固定部をモーラ長に合わせて補正し、母音末尾を確保します。信頼度が低い原音は元の値を使います。
-
-`waveform`では校正できた原音の子音側と母音側を分けて伸縮します。`oto.ini`の先行発声位置を母音開始の目安にし、破裂音の短い立ち上がりを残します。指定した発話の長さとモーラの開始時刻は保ちます。十分な区間を確保できない原音は通常の伸縮処理を使います。
 
 子音を挟まない同じ母音の連続では接続補修を試します。合成後の波形の相関と接続の不連続を確認し、条件を満たした場合だけ補修を採用します。異なる母音、子音、休止をまたぐ箇所は対象外です。
 

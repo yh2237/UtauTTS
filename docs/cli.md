@@ -14,13 +14,13 @@
 
 ## 基本例
 
-`waveform` Rendererを使う最小例です。
+既定の`utautts-world-phrase` Rendererを使う最小例です。
 
 ```powershell
 .\UtauTTS\tools\utautts-cli.exe `
   --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
   --text "あらゆる現実をすべて自分のほうへねじ曲げたのだ。" `
-  --renderer waveform `
+  --renderer utautts-world-phrase `
   --out ".\out.wav"
 ```
 
@@ -100,8 +100,6 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--wavtool <id>` | `builtin` | Classic UTAUで使う`Wavtools/`からの相対ID |
 | `--resampler-expressions <path>` | | unit単位のresampler設定JSON |
 | `--worldline-bridge <path>` | | `utautts-worldline-bridge` 実行ファイル |
-| `--boundary-bridge-ms` | `0` | 位相を揃えた波形接続補修の最大幅（0で無効、開発者・評価用） |
-| `--boundary-bridge-threshold` | `0` | 標準の接続評価がこの値以下のとき接続補修を適用（開発者・評価用） |
 | `--alias-policy` | `auto` | 音源適応モード。`auto`はVC/VCV収録比から自動選択、`cvvc-enhanced`はCVVC優先・sequential timing・VC音量35%（英語では55%）。詳細指定として`vcv-prefer`、`cvvc-prefer`、`cv-only`も利用可能 |
 | `--cvvc-timing` | `sequential` | CVVC遷移の配置方式。現在は`sequential`のみ |
 | `--cvvc-transition-gain` | `1` | CVVC遷移ユニットの音量（0〜1） |
@@ -136,7 +134,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 wrote out.wav (4.81s, 44100 Hz, 34 units)
 ```
 
-合成の失敗や引数エラーは終了コード1を返します。原音の明瞭度を確認するなら`--renderer waveform`を使います。
+合成の失敗や引数エラーは終了コード1を返します。原音の選択と配置は`--plan-out`で確認できます。
 
 ## USTXへの一括変換
 

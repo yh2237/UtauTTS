@@ -18,7 +18,7 @@ import (
 )
 
 // defaultPresetsは--presetsの既定値。
-const defaultPresets = "default,legacy,legacy-gap,adaptive,timing,no-pitch,waveform"
+const defaultPresets = "default,legacy,legacy-gap,adaptive,timing,no-pitch"
 
 // baseRenderer, baseMix, baseGapはプリセット表の基準値。
 const (
@@ -44,7 +44,6 @@ var presetTable = []preset{
 	{Name: "adaptive", Renderer: baseRenderer, Mix: "adaptive", GapRepair: "off", ApplyPitch: true},
 	{Name: "timing", Renderer: baseRenderer, Mix: baseMix, GapRepair: baseGap, SpeechTiming: true, ApplyPitch: true},
 	{Name: "no-pitch", Renderer: baseRenderer, Mix: baseMix, GapRepair: baseGap, ApplyPitch: false},
-	{Name: "waveform", Renderer: "waveform", Mix: baseMix, GapRepair: baseGap, ApplyPitch: true},
 }
 
 func presetNames() []string {

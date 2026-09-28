@@ -60,8 +60,6 @@ func main() {
 		resampler                string
 		wavtool                  string
 		worldlineBridgePath      string
-		boundaryBridgeMS         float64
-		boundaryBridgeThreshold  float64
 		cvvcTiming               string
 		cvvcTransitionGain       float64
 		cvvcPreBoundaryFade      bool
@@ -108,9 +106,9 @@ func main() {
 	flag.BoolVar(&prosodyPitchOnly, "prosody-pitch-only", false, "apply only learned pitch and keep fixed duration/energy")
 	flag.StringVar(&openJTalkPath, "openjtalk-features", "", "path to the Open JTalk feature helper (default: runtime directory)")
 	flag.StringVar(&openJTalkDictionaryPath, "openjtalk-dictionary", "", "path to the Open JTalk dictionary (default: runtime directory)")
-	flag.StringVar(&pitchContourPath, "pitch-contours", "", "optional per-case pitch contour JSON (recorded in the plan; use --apply-pitch for direct waveform processing)")
+	flag.StringVar(&pitchContourPath, "pitch-contours", "", "optional per-case pitch contour JSON (recorded in the plan; use --apply-pitch to render it)")
 	flag.StringVar(&pitchContourCase, "pitch-case", "", "case ID in --pitch-contours")
-	flag.BoolVar(&applyPitch, "apply-pitch", synth.DefaultApplyPitch, "waveform pitch resampling")
+	flag.BoolVar(&applyPitch, "apply-pitch", synth.DefaultApplyPitch, "apply the pitch curve")
 	flag.Float64Var(&intonationStrength, "intonation-strength", synth.DefaultIntonationStrength, "source-pitch stabilization and phrase contour strength (0..4)")
 	flag.BoolVar(&contextDuration, "context-duration", synth.DefaultContextDuration, "context-aware Japanese mora duration (C1)")
 	flag.Float64Var(&contextDurationStrength, "context-duration-strength", synth.DefaultContextDurationStrength, "context-aware duration strength (0 uses the default 1.0)")
@@ -125,8 +123,6 @@ func main() {
 	flag.StringVar(&resampler, "resampler", "", "Classic UTAU resampler ID from Resamplers")
 	flag.StringVar(&wavtool, "wavtool", "builtin", "Classic UTAU wavtool ID from Wavtools")
 	flag.StringVar(&worldlineBridgePath, "worldline-bridge", "", "path to utautts-worldline-bridge executable")
-	flag.Float64Var(&boundaryBridgeMS, "boundary-bridge-ms", 0, "maximum width for phase-aligned waveform boundary repair candidates (0 disables)")
-	flag.Float64Var(&boundaryBridgeThreshold, "boundary-bridge-threshold", 0, "apply boundary repair when handcrafted join score is at or below this value")
 	flag.StringVar(&cvvcTiming, "cvvc-timing", render.CVVCTimingSequential, "CVVC timing: sequential")
 	flag.Float64Var(&cvvcTransitionGain, "cvvc-transition-gain", 1, "CVVC transition volume multiplier (0..1)")
 	flag.BoolVar(&cvvcPreBoundaryFade, "cvvc-pre-boundary-fade", false, "fade CVVC transitions out before the following CV consonant")
@@ -213,8 +209,6 @@ func main() {
 		PauseContext:            pauseContext,
 		PauseContextStrength:    pauseContextStrength,
 		EnglishWeakForm:         englishWeakForm,
-		BoundaryBridgeMS:        boundaryBridgeMS,
-		BoundaryBridgeThreshold: boundaryBridgeThreshold,
 		CVVCTiming:              cvvcTiming,
 		CVVCTransitionGain:      cvvcTransitionGain,
 		CVVCPreBoundaryFade:     cvvcPreBoundaryFade,

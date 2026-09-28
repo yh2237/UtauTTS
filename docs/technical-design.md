@@ -26,7 +26,7 @@ GUI / CLI / HTTP Server
           │
           ▼
         render.Config
-    ├─ UnitRenderer ─────── waveform / WORLD / Classic / external Provider
+    ├─ UnitRenderer ─────── WORLD / Classic / external Provider
     └─ NeuralSynthesizer ── DiffSinger score + Provider session
           │
           ▼
@@ -42,12 +42,11 @@ GUI / CLI / HTTP Server
 
 GUI、CLI、HTTP Serverは別々の音声処理を持たず、最終的には同じ`synth.Service`と`tts.Synthesize`へ到達します。入口を追加・変更するときは設定の伝播だけを確認し、音声処理を重複実装しないようにします。
 
-同梱Rendererは次の4つです。
+同梱Rendererは次の3つです。配布プロファイルによって利用できるものは異なります。
 
 | ID | 概要 |
 | --- | --- |
 | `utautts-world-phrase` | 既定。原音ごとのWORLD特徴を共通の時間軸へ配置し、フレーズ全体を合成 |
-| `waveform` | Go内で原音波形を伸縮・クロスフェードする確認用Renderer |
 | `classic-utau` | 選択したUTAU互換resamplerを実行し、wavtoolまたは内蔵処理で接続 |
 | `diffsinger` | DiffSinger音源とbridgeを使うRenderer（Windows x64のFull配布のみ） |
 
@@ -182,24 +181,6 @@ Renderer manifestの`id`は保存データやUIで使う公開識別子です。
 Renderer IDを省略した場合だけカタログの既定Rendererへ解決されます。未知のIDや必要なファイルが不足しているRendererを明示した場合はエラーになります。
 
 設定の境界もRenderer単位で分けます。`tts.Config`はテキスト、音源、モデル、Plan作成に必要な共通入力と解決済み`engine.ResolvedEngine`を持ちます。Classicの実行ファイルやWORLDの専用スイッチは`render.Config`の`render.ProviderOptions`へ分離し、Classicは`ClassicOptions`、WORLDは`WorldlineProviderOptions`へ固有設定を閉じ込めます。manifestの`settings`で宣言した項目は`synth`のspecテーブル経由でこれらへ振り分けます。
-
-### waveform
-
-`waveform`はGoだけで動く原波形を確認しやすい基準Rendererです。
-
-1. WAVをmonoへ変換し、発話内のsample rateを統一します。
-2. `oto.ini`のoffsetとcutoffで原音を切り出します。
-3. pitchが有効なら、固定係数またはframe曲線を可変レートresamplingで適用します。
-4. 子音側の長さを保護しながらWSOLAで目標長へ合わせます。
-5. `NoteStart - preutterance`の絶対時刻へ配置します。
-6. 最低6msを確保した相補的なsmoothstep包絡で受け渡します。
-7. 重なりgainを正規化し、最後にpeakだけを安全範囲へ収めます。
-
-発話先頭では負のpreutterance分を捨てず出力全体へleading marginを加えます。これがないと最初の子音が半分ほど失われる音源があります。
-
-`waveform`はframe pitchに対応しますが直接resamplingとWSOLAを組み合わせると曲線や圧縮条件によって周期的な震えやケロケロ感が出ることがあります。
-
-位相を合わせた短い境界bridgeも診断機能として実装していますが標準では無効です。
 
 ### Classic UTAU Renderer
 

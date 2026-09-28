@@ -18,7 +18,7 @@ GUIでは音源と言語を選びます。発音形式の`自動`は音源のメ
 CLIでは次のように指定します。音源パスとphonemizerは使用する音源に合わせて変更してください。
 
 ```powershell
-utautts-cli --voicebank "./voice/english-bank" --language en --phonemizer en-arpasing --text "Hello world." --renderer waveform --out hello.wav
+utautts-cli --voicebank "./voice/english-bank" --language en --phonemizer en-arpasing --text "Hello world." --renderer utautts-world-phrase --out hello.wav
 ```
 
 HTTP APIでは`language`と`phonemizer`を指定します。詳細は[Serverの合成API](server.md)を参照してください。
