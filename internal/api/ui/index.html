@@ -24,8 +24,8 @@
   .row > div { flex: 1 1 240px; }
   .row > div.auto { flex: 0 0 auto; }
   pre { background: #f5f5f5; border: 1px solid #ccc; padding: 8px; overflow-x: auto; font-size: 12px; }
-  .error { color: #b91c1c; }
-  .ok { color: #166534; }
+  .error { color: #ff0000; }
+  .ok { color: #00ff62; }
   .muted { color: #777; font-size: 12px; }
   code { background: #f0f0f0; padding: 1px 4px; font-size: 12px; }
   audio { width: 100%; margin-top: 8px; }
@@ -40,7 +40,6 @@
 <main>
   <section id="auth">
     <h2>認証トークン（任意）</h2>
-    <p class="muted">サーバーが <code>--auth-token</code> で起動されている場合、ここにトークンを入れて保存してください。このブラウザへ保存され、以降のAPI呼び出しに <code>Authorization: Bearer &lt;token&gt;</code> を付加します。</p>
     <div class="row">
       <div><input type="text" id="token" placeholder="auth token" autocomplete="off"></div>
       <div class="auto"><button id="token-save">保存</button></div>
@@ -53,6 +52,13 @@
       <thead><tr><th>id（voicebank_id）</th><th>name</th><th>otoファイル</th><th>エントリ</th><th>診断</th></tr></thead>
       <tbody id="vb-body"><tr><td colspan="5" class="muted">読み込み中...</td></tr></tbody>
     </table>
+    <div id="vb-refresh-result" class="result"></div>
+    <details>
+      <summary>音源を登録</summary>
+      <label for="vb-path">音源ディレクトリ（--voice-dir 以下）</label><input type="text" id="vb-path">
+      <label for="vb-name">表示名（任意）</label><input type="text" id="vb-name">
+      <button id="vb-register">登録</button><div id="vb-register-result" class="result"></div>
+    </details>
   </section>
 
   <section id="models">
@@ -69,14 +75,22 @@
     <h2>解析 <span class="muted">POST /api/analyze</span></h2>
     <label for="ana-text">文章（500文字まで）</label>
     <textarea id="ana-text">こんにちは、今日はいい天気です。</textarea>
+    <label for="ana-dictionary">ユーザー辞書（任意、JSON配列）</label>
+    <textarea id="ana-dictionary" placeholder='[{"surface":"UtauTTS","reading":"うたうてぃーてぃーえす"}]'></textarea>
     <button id="ana-run">解析する</button>
     <div id="ana-result" class="result"></div>
   </section>
 
   <section id="synthesize">
     <h2>合成 <span class="muted">POST /api/synthesize/audio</span></h2>
-    <label for="syn-text">文章（<code>text</code> または <code>kana</code>）</label>
+    <label for="syn-text">文章</label>
     <textarea id="syn-text">こんにちは、今日はいい天気です。</textarea>
+    <div class="row">
+      <div><label for="syn-reading">読み（任意：かな／ARPAbet／Pinyin）</label><input type="text" id="syn-reading"></div>
+      <div><label for="syn-language">言語</label><select id="syn-language"><option value="ja">日本語</option><option value="en">英語</option><option value="zh">中国語</option></select></div>
+      <div><label for="syn-phonemizer">発音形式</label><select id="syn-phonemizer"></select></div>
+      <div><label for="syn-tone">音高</label><input type="text" id="syn-tone" value="C4"></div>
+    </div>
     <div class="row">
       <div>
         <label for="syn-vb">voicebank_id</label>
@@ -112,10 +126,27 @@
       <div><label for="syn-strength">intonation_strength（0〜4）</label><input type="number" id="syn-strength" value="2" min="0" max="4" step="0.1"></div>
       <div><label class="check"><input type="checkbox" id="syn-pitch" checked> apply_pitch</label></div>
     </div>
+    <details>
+      <summary>詳細設定（合成リクエストのJSON）</summary>
+      <p class="muted">基本項目に追加・上書きするJSONオブジェクトを入力します。例：<code>{"boundary_tone":false,"english_weak_form":false}</code>。項目は<a href="https://github.com/yh2237/UtauTTS/blob/main/docs/server.md">API仕様</a>を参照してください。</p>
+      <textarea id="syn-extra" placeholder='{"renderer_settings":{}}'></textarea>
+    </details>
     <button id="syn-run">合成する</button>
+    <button id="syn-label">音素ラベルを取得</button>
     <div id="syn-result" class="result"></div>
     <audio id="syn-audio" controls></audio>
     <a id="syn-download" style="display:none" class="muted">WAVをダウンロード</a>
+    <pre id="syn-lab" style="display:none"></pre>
+    <a id="syn-lab-download" style="display:none" class="muted">LABをダウンロード</a>
+  </section>
+
+  <section id="batch">
+    <h2>一括合成 <span class="muted">POST /api/synthesize/batch</span></h2>
+    <label for="batch-json">一括合成リクエスト（JSON）</label>
+    <textarea id="batch-json">{"write_text":true,"write_lab":true,"items":[{"name":"001.wav","request":{"text":"こんにちは"}}]}</textarea>
+    <button id="batch-run">ZIPを生成</button>
+    <div id="batch-result" class="result"></div>
+    <a id="batch-download" style="display:none" class="muted">ZIPをダウンロード</a>
   </section>
 
   <section id="doc">
@@ -147,14 +178,6 @@
   "apply_pitch": true
 }</pre>
 
-    <h3>制限</h3>
-    <ul class="muted">
-      <li>JSON本文は1 MiB。未知のJSON fieldは400で拒否</li>
-      <li>1発話の <code>text</code> / <code>kana</code> はそれぞれ500文字（413）</li>
-      <li><code>manual_pitch</code> は最大1000 points（413）</li>
-      <li>batchは16発話・展開前WAV合計256 MiB（413）</li>
-      <li>合成は最大4並行</li>
-    </ul>
   </section>
 </main>
 
@@ -163,6 +186,22 @@
 const TOKEN_KEY = "utautts_auth_token";
 let token = "";
 let voicebankList = [];
+let modelList = [];
+const languageOptions = {
+  ja: ["ja-kana"],
+  en: ["en-arpasing", "en-delta", "en-vccv", "en-cv"],
+  zh: ["zh-cvvc"],
+};
+const languageModels = {
+  ja: "frame-intonation-tcn-v9.1-t",
+  en: "frame-intonation-tcn-en-v1",
+  zh: "tone-intonation-zh-v1",
+};
+const exampleTexts = {
+  ja: "こんにちは、今日はいい天気です。",
+  en: "Hello world.",
+  zh: "你好，今天天气很好。",
+};
 try { token = localStorage.getItem(TOKEN_KEY) || ""; } catch (_) {}
 document.getElementById("token").value = token;
 
@@ -200,6 +239,31 @@ function escapeHtml(value) {
     {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]
   ));
 }
+
+function parseJSONInput(id, expected) {
+  const value = document.getElementById(id).value.trim();
+  if (!value) return null;
+  let parsed;
+  try { parsed = JSON.parse(value); } catch (error) { throw new Error(id + ": " + error.message); }
+  if (expected === "array" ? !Array.isArray(parsed) : !parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(id + " はJSONの" + (expected === "array" ? "配列" : "オブジェクト") + "で指定してください");
+  }
+  return parsed;
+}
+
+function updateLanguage() {
+  const language = document.getElementById("syn-language").value;
+  const text = document.getElementById("syn-text");
+  if (Object.values(exampleTexts).includes(text.value)) text.value = exampleTexts[language];
+  const select = document.getElementById("syn-phonemizer");
+  select.innerHTML = '<option value="">自動</option>' + languageOptions[language].map((id) =>
+    '<option value="' + id + '">' + id + '</option>'
+  ).join("");
+  const model = document.getElementById("syn-model");
+  model.value = modelList.some((item) => item.id === languageModels[language]) ? languageModels[language] : "";
+}
+document.getElementById("syn-language").addEventListener("change", updateLanguage);
+updateLanguage();
 
 document.getElementById("token-save").addEventListener("click", () => {
   token = document.getElementById("token").value.trim();
@@ -267,18 +331,33 @@ document.getElementById("syn-vb").addEventListener("change", () => {
   fillVoicebankTypeSelect(voicebank || null);
 });
 
+document.getElementById("vb-register").addEventListener("click", async () => {
+  const path = document.getElementById("vb-path").value.trim();
+  const name = document.getElementById("vb-name").value.trim();
+  if (!path) { setResult("vb-register-result", "音源ディレクトリを入力してください", "error"); return; }
+  try {
+    await api("/api/voicebanks", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ path, name }) });
+    setResult("vb-register-result", "登録しました", "ok");
+    await loadVoicebanks();
+  } catch (error) {
+    setResult("vb-register-result", "エラー (" + error.status + "): " + escapeHtml(error.message), "error");
+  }
+});
+
 async function loadModels() {
   const el = document.getElementById("model-list");
   el.textContent = "読み込み中...";
   try {
     const { data } = await api("/api/models");
     const list = data.models || [];
+    modelList = list;
     const select = document.getElementById("syn-model");
     const previous = select.value;
     select.innerHTML = '<option value="">（モデルなし）</option>' + list.map((model) => (
       '<option value="' + escapeHtml(model.id) + '">' + escapeHtml(model.display_name || model.id) + "</option>"
     )).join("");
     if (previous && list.some((m) => m.id === previous)) select.value = previous;
+    else updateLanguage();
     if (list.length === 0) {
       el.textContent = "モデルが見つかりません";
     } else {
@@ -305,7 +384,7 @@ async function loadRenderers() {
       '<option value="' + escapeHtml(renderer.id) + '">' + escapeHtml(renderer.display_name || renderer.id) + "</option>"
     )).join("");
     if (previous && list.some((r) => r.id === previous)) select.value = previous;
-    if (data.default_renderer && list.some((r) => r.id === data.default_renderer)) select.value = data.default_renderer;
+    else if (data.default_renderer && list.some((r) => r.id === data.default_renderer)) select.value = data.default_renderer;
     if (list.length === 0) {
       el.textContent = "Rendererが見つかりません";
     } else {
@@ -325,16 +404,21 @@ async function loadRenderers() {
 document.getElementById("vb-refresh").addEventListener("click", async () => {
   try {
     await api("/api/voicebanks/reload", { method: "POST", headers: authHeaders(true), body: "{}" });
-  } catch (error) { /* reload reports its own voicebanks list; refresh below */ }
-  loadVoicebanks();
+    setResult("vb-refresh-result", "音源を再読込しました", "ok");
+    await loadVoicebanks();
+  } catch (error) {
+    setResult("vb-refresh-result", errorText(error), "error");
+  }
 });
 
 document.getElementById("ana-run").addEventListener("click", async () => {
   const text = document.getElementById("ana-text").value;
   setResult("ana-result", "", "");
   try {
+    const dictionary = parseJSONInput("ana-dictionary", "array");
+    const payload = dictionary ? { text, dictionary } : { text };
     const { data } = await api("/api/analyze", {
-      method: "POST", headers: authHeaders(true), body: JSON.stringify({ text }),
+      method: "POST", headers: authHeaders(true), body: JSON.stringify(payload),
     });
     const morae = (data.morae || []).map((m) => (
       "<tr><td>" + m.position + "</td><td>" + escapeHtml(m.mora) +
@@ -351,12 +435,20 @@ document.getElementById("ana-run").addEventListener("click", async () => {
 
 function buildSynthesisPayload() {
   const payload = { text: document.getElementById("syn-text").value };
+  const reading = document.getElementById("syn-reading").value.trim();
+  const language = document.getElementById("syn-language").value;
+  const phonemizer = document.getElementById("syn-phonemizer").value;
+  const tone = document.getElementById("syn-tone").value.trim();
   const voicebank = document.getElementById("syn-vb").value;
   const color = document.getElementById("syn-color").value;
   const model = document.getElementById("syn-model").value;
   const renderer = document.getElementById("syn-renderer").value;
   const aliasPolicy = document.getElementById("syn-alias-policy").value;
   if (voicebank) payload.voicebank_id = voicebank;
+  if (reading) payload.reading = reading;
+  payload.language = language;
+  if (phonemizer) payload.phonemizer = phonemizer;
+  if (tone) payload.tone = tone;
   if (color) payload.color = color;
   if (model) payload.model_id = model;
   if (renderer) payload.renderer = renderer;
@@ -366,7 +458,26 @@ function buildSynthesisPayload() {
   payload.leading_preutterance_ms = Number(document.getElementById("syn-leading").value);
   payload.intonation_strength = Number(document.getElementById("syn-strength").value);
   payload.apply_pitch = document.getElementById("syn-pitch").checked;
+  const extra = parseJSONInput("syn-extra", "object");
+  if (extra) Object.assign(payload, extra);
   return payload;
+}
+
+async function postFile(path, payload) {
+  const response = await fetch(path, {
+    method: "POST", headers: authHeaders(true), body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const body = await response.text();
+    let message = response.statusText;
+    try { message = JSON.parse(body).error || message; } catch (_) { if (body) message = body; }
+    throw { status: response.status, message };
+  }
+  return response;
+}
+
+function errorText(error) {
+  return "エラー" + (error.status ? " (" + error.status + ")" : "") + ": " + escapeHtml(error.message);
 }
 
 document.getElementById("syn-run").addEventListener("click", async () => {
@@ -379,17 +490,9 @@ document.getElementById("syn-run").addEventListener("click", async () => {
   setResult("syn-result", "合成中...", "");
 
   try {
-    const response = await fetch("/api/synthesize/audio", {
-      method: "POST", headers: authHeaders(true), body: JSON.stringify(buildSynthesisPayload()),
-    });
+    const response = await postFile("/api/synthesize/audio", buildSynthesisPayload());
     const engine = response.headers.get("X-UtauTTS-Engine");
     const reading = response.headers.get("X-UtauTTS-Reading");
-    if (!response.ok) {
-      const text = await response.text();
-      let message = response.statusText;
-      try { message = JSON.parse(text).error || message; } catch (_) {}
-      throw { status: response.status, message };
-    }
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     audio.src = url;
@@ -402,7 +505,45 @@ document.getElementById("syn-run").addEventListener("click", async () => {
     if (reading) info += "<br>reading: <code>" + escapeHtml(reading) + "</code>";
     setResult("syn-result", info, "");
   } catch (error) {
-    setResult("syn-result", "エラー (" + error.status + "): " + escapeHtml(error.message), "error");
+    setResult("syn-result", errorText(error), "error");
+  }
+});
+
+document.getElementById("syn-label").addEventListener("click", async () => {
+  const output = document.getElementById("syn-lab");
+  const download = document.getElementById("syn-lab-download");
+  output.style.display = "none";
+  download.style.display = "none";
+  setResult("syn-result", "音素ラベルを生成中...", "");
+  try {
+    const response = await postFile("/api/synthesize/label", buildSynthesisPayload());
+    const lab = await response.text();
+    output.textContent = lab;
+    output.style.display = "block";
+    download.href = URL.createObjectURL(new Blob([lab], { type: "text/plain;charset=utf-8" }));
+    download.download = "utautts-synthesize.lab";
+    download.style.display = "inline";
+    setResult("syn-result", '<span class="ok">音素ラベルを生成しました</span>', "");
+  } catch (error) {
+    setResult("syn-result", errorText(error), "error");
+  }
+});
+
+document.getElementById("batch-run").addEventListener("click", async () => {
+  const download = document.getElementById("batch-download");
+  download.style.display = "none";
+  setResult("batch-result", "一括合成中...", "");
+  try {
+    const request = parseJSONInput("batch-json", "object");
+    if (!request) throw new Error("一括合成リクエストを入力してください");
+    const response = await postFile("/api/synthesize/batch", request);
+    const blob = await response.blob();
+    download.href = URL.createObjectURL(blob);
+    download.download = "utautts-audio.zip";
+    download.style.display = "inline";
+    setResult("batch-result", '<span class="ok">ZIPを生成しました</span> (' + (blob.size / 1024).toFixed(1) + " KiB)", "");
+  } catch (error) {
+    setResult("batch-result", errorText(error), "error");
   }
 });
 

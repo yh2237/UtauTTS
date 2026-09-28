@@ -60,13 +60,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	url := "http://" + listener.Addr().String()
-	fmt.Printf("UTAUTTS_READY=%s\n", url)
-	log.Printf("listening on %s", url)
 	apiServer, err := api.New(config)
 	if err != nil {
 		log.Fatal(err)
 	}
+	url := "http://" + listener.Addr().String()
+	fmt.Printf("UTAUTTS_READY=%s\n", url)
+	log.Printf("listening on %s", url)
 	server := &http.Server{Handler: apiServer.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 10 * time.Minute, IdleTimeout: 60 * time.Second}
 	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
