@@ -136,19 +136,20 @@ Planは、候補選択、時間設計、Rendererの差を切り分けるため�
 
 モデルは任意コードではなく重みとメタデータを持つ自己記述JSONです。`id`、`version`、`feature_version`、`mode`からGo側の決定論的な推論器を選びます。未知形式、壊れたshape、ID重複は読み飛ばさずカタログ構築時のエラーにします。
 
-同梱モデルは次の3つです。
+同梱モデルは次の4つです。
 
 | モデル | 形式 | 出力 |
 | --- | --- | --- |
 | `frame-intonation-tcn-v9.1-t` | version 8 / feature 1 | 10ms単位の相対ピッチ |
 | `frame-intonation-tcn-v9-t` | version 8 / feature 1 | 10ms単位の相対ピッチ |
-| `english-intonation-v1` | version 12 / feature 1 | 英語の強勢と句末境界の10ms単位ピッチおよび長さ倍率 |
+| `frame-intonation-tcn-en-v1` | version 8 / feature 1 | 英語の10ms単位の相対ピッチ |
+| `tone-intonation-zh-v1` | version 13 / feature 1 | 中国語の声調曲線への有界なピッチ補正 |
 
 frame headはモーラとOpen JTalk由来特徴をフレームへ展開してdilationを持つ小型TCNで相対pitchを予測します。`frame-intonation-tcn-v9-*`は440〜457特徴、10ms間隔、学習出力範囲±250 centです。推論後はモデル内のrender strength、平滑化、percentile／最大値制約を適用し、学習音声に由来する細かなF0揺れをこの処理で調整します。
 
 multitaskモデル（version 10 / feature 2 / mode `prosody_multitask_tcn`）は、frame headに加えてモーラ長倍率を出す`mora_duration` headを持ちます。絶対msではなく基準モーラ長に対する倍率なのでGUIの話速設定や音源差と共存できます。標準配布にはversion 10モデルを含みません。
 
-英語モデルは外部特徴を要求せず、ARPAbetから得た強勢、語境界、句境界を決定論的な軽量ヘッドへ入力します。英語のカードで日本語モデルが選択されている場合は同じフォルダの英語モデルへ切り替えます。
+英語モデルはARPAbetから得た強勢、語境界、句境界を特徴として使います。中国語モデルはPinyinの声調に基づく曲線を補正します。カードの言語を変えた場合は、対応するモデルがあれば切り替えます。
 
 version 11のmanual residual形式もruntimeが解釈できます。これはv8を基準にGUIで行った人手修正の傾向だけを小さなcent補正として学習する形式です。元モデルのSHA-256と補正範囲を持ち、基準モデルへ残差を加えます。標準配布にはversion 11モデルを含みません。
 

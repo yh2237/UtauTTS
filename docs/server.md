@@ -34,6 +34,8 @@ xattr -rc "utautts-server" runtime
 - 稼働状況・音源・モデル・Rendererの一覧表示
 - 文章の解析（`/api/analyze`）と読み・モーラ列の表示
 - 文章・音源・モデル・Rendererなどを指定した合成とWAVダウンロード
+- 言語・発音形式・読みの指定、音素ラベルの表示・ダウンロード、一括合成ZIPのダウンロード
+- 合成リクエストの詳細JSON指定、許可されたサーバーでの音源登録
 - `--auth-token`使用時はページ内のトークン入力へ保存すると以降のAPI呼び出しに`Authorization: Bearer <token>`を付加します
 
 コンソールUIは`/`で提供されます（`/ui`は`/`への307リダイレクトです）。認証・Origin検査は`/api/*`にのみ適用されます。
@@ -149,7 +151,7 @@ ID順にソートされた音源一覧です。
 }
 ```
 
-`model_id` には `id` を指定します。`outputs`（`english-intonation-v1`などの係数モデルが持つ出力フラグ）は値が無いモデルでは省略されます。
+`model_id` には `id` を指定します。モデル固有の`outputs`は、値が無い場合に省略されます。
 
 ### `GET /api/renderers`
 

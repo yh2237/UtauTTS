@@ -39,7 +39,7 @@
 
 `--prosody`へモデルIDを指定すると別の抑揚モデルを使えます。`--plan-out`を指定すると原音の配置とタイミングをJSONへ保存できます。
 
-英語では`--prosody english-intonation-v1`を指定します。英語用モデルはOpen JTalkを使わず、`utautts-world-phrase`のようなframe pitch対応Rendererで強勢と句末境界を適用します。
+英語では`--language en --prosody frame-intonation-tcn-en-v1`、中国語では`--language zh --prosody tone-intonation-zh-v1`を指定します。各言語のモデルは`utautts-world-phrase`で抑揚に反映されます。
 
 GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`で渡します。
 
@@ -80,13 +80,14 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--prosody-pitch-only` | `false` | 学習ピッチのみ適用し、モーラ長・音量は固定値を使う |
 | `--manual-pitch <path>` | | 手動ピッチ編集JSON（[manual-pitch.md](manual-pitch.md)） |
 | `--join-model <path>` | | 学習済みjoin-qualityモデルのJSON（[join-quality.md](join-quality.md)） |
+| `--speech-model <path>` | | 英語・中国語の整列音声から学習した発話補正モデルJSON（[多言語の学習](multilingual-learning.md)） |
 | `--prosody-features <path>` | | ケース別のモーラ単位アクセント特徴JSON |
 | `--prosody-feature-case <id>` | | `--prosody-features` 内のケースID |
 | `--pitch-contours <path>` | | ケース別ピッチ係数JSON（計画へ記録。波形処理には `--apply-pitch` が必要） |
 | `--pitch-case <id>` | | `--pitch-contours` 内のケースID |
 | `--apply-pitch` | `true` | 波形のピッチ再サンプリング |
 | `--intonation-strength` | `2` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
-| `--context-duration` | `true` | 日本語モーラ長の文脈連動（C1）を有効にする |
+| `--context-duration` | `false` | 日本語モーラ長の文脈連動（C1）を有効にする |
 | `--context-duration-strength` | `1` | 文脈連動の強度（0〜2）。0は既定1.0として扱う |
 | `--boundary-tone` | `true` | 日本語の句末境界音調（C2）を有効にする |
 | `--boundary-tone-strength` | `1` | 境界音調の強度（0〜2）。0は既定1.0として扱う |
