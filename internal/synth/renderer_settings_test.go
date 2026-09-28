@@ -28,11 +28,11 @@ func TestRendererManifestSettingDefaultsMatchResolver(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, setting := range manifest.Settings {
-			switch setting.ID {
-			case "context_duration", "context_duration_strength",
-				"boundary_tone_strength", "stretch_adapt_strength", "pause_context_strength":
-				t.Errorf("internal setting %q is exposed in the renderer UI", setting.ID)
-			}
+				switch setting.ID {
+				case "context_duration", "context_duration_strength",
+					"boundary_tone_strength", "stretch_adapt_strength", "pause_context_strength":
+					t.Errorf("internal setting %q is exposed in the renderer UI", setting.ID)
+				}
 				spec, ok := rendererSettingSpecFor(rendererSettingSpecs, setting.ID)
 				if !ok {
 					continue
