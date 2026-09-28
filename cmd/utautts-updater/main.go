@@ -54,6 +54,7 @@ func main() {
 	}
 
 	ok := true
+	var updateErr error
 	lockOwned := false
 	claimedToken := strings.TrimSpace(*lockToken)
 	var lockErr error
@@ -64,6 +65,7 @@ func main() {
 	}
 	if lockErr != nil {
 		ok = false
+		updateErr = lockErr
 		logf("update lock failed: %v", lockErr)
 	} else {
 		lockOwned = true
@@ -76,6 +78,7 @@ func main() {
 			relaunched, err := relaunchElevatedIfNeeded(*target, args)
 			if err != nil {
 				ok = false
+				updateErr = err
 				logf("administrator elevation failed: %v", err)
 			} else if relaunched {
 				return
@@ -85,6 +88,7 @@ func main() {
 	if ok {
 		if err := run(*target, *downloadURL, *zipFlag, *pid, *version, preserve, *deleteZip); err != nil {
 			ok = false
+			updateErr = err
 			logf("update failed: %v", err)
 		}
 	}
@@ -92,7 +96,13 @@ func main() {
 		_ = updatelock.Remove(*target)
 	}
 	if !lockOwned {
+		if *pid > 0 {
+			notifyUpdateFailure(updateErr)
+		}
 		os.Exit(1)
+	}
+	if !ok && *pid > 0 {
+		notifyUpdateFailure(updateErr)
 	}
 	launchApp(*target)
 	if err := updatelock.Remove(*target); err != nil {
