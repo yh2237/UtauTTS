@@ -2,12 +2,12 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, height=device-height, user-scalable=0" />
+<meta name="viewport" content="width=device-width, height=device-height, user-scalable=0, viewport-fit=cover" />
 <title>UtauTTS (wasm)</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #f6f6f6; font-family: system-ui, sans-serif; color: #000; }
-  #screen { width: 100%; height: 100%; display: none; }
-  #loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #f6f6f6; font-family: system-ui, sans-serif; color: #000; }
+  #screen { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #f6f6f6; z-index: 10; }
   #loading.hidden { display: none; }
   .spinner { width: 28px; height: 28px; border: 3px solid #aeb4ba; border-top-color: #d35f6b; border-radius: 50%; animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -36,18 +36,25 @@
     const loading = document.getElementById("loading");
     const screen = document.getElementById("screen");
     const status = document.getElementById("status");
+    const statusTimer = setInterval(() => {
+      if (window.utauttsEngineStatus)
+        status.textContent = window.utauttsEngineStatus;
+    }, 200);
     try {
       status.textContent = "エンジンを読み込み中…";
-      await window.utauttsEngineReady;
+      await Promise.race([
+        window.utauttsEngineReady,
+        new Promise((_, reject) => setTimeout(() => reject(new Error("engine load timeout")), 180000)),
+      ]);
+      clearInterval(statusTimer);
       status.textContent = "UIを起動中…";
       const qtInstance = await qtLoad({
         qt: {
           fontDpi: 96,
-          onLoaded: () => { loading.classList.add("hidden"); screen.style.display = "block"; },
+          onLoaded: () => { loading.classList.add("hidden"); },
           onExit: (data) => {
             status.textContent = "終了" + (data && data.code !== undefined ? " (code " + data.code + ")" : "");
             loading.classList.remove("hidden");
-            screen.style.display = "none";
           },
           entryFunction: window.utautts_entry,
           containerElements: [screen],
@@ -64,6 +71,7 @@
         window.utauttsFlushPendingResults();
       }
     } catch (error) {
+      clearInterval(statusTimer);
       status.textContent = "エラー: " + error;
       console.error(error);
     }

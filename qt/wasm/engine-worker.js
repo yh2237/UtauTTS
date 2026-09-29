@@ -26,6 +26,10 @@ const MIRROR_EXTENSIONS = new Set([
 
 let virtualFs = null;
 
+function status(text) {
+  self.postMessage({ type: "status", text });
+}
+
 function waitFor(predicate, timeoutMS) {
   return new Promise((resolve, reject) => {
     const deadline = Date.now() + timeoutMS;
@@ -65,6 +69,7 @@ function changedFiles(before) {
 }
 
 async function loadOpenJTalk() {
+  status("辞書を読み込み中…");
   const openjtalk = await createUtauTTSOpenJTalk({
     locateFile: (file) => ENGINE_BASE + "openjtalk/" + file,
   });
@@ -74,11 +79,14 @@ async function loadOpenJTalk() {
   const dictBase = new URL(config.dictBaseURL || "openjtalk/dict/", engineBase).toString();
   const dictManifestURL = new URL(config.dictManifestURL || "openjtalk/dict-manifest.json", engineBase).toString();
   const manifest = await (await fetch(dictManifestURL)).json();
+  let loaded = 0;
   for (const name of manifest.files) {
     openjtalk.FS.writeFile(
       DICT_PATH + "/" + name,
       new Uint8Array(await (await fetch(dictBase + encodeURIComponent(name))).arrayBuffer())
     );
+    loaded++;
+    status("辞書を読み込み中… (" + loaded + "/" + manifest.files.length + ")");
   }
   const bridge = createOpenJTalkBridge(openjtalk);
   bridge.init(DICT_PATH);
@@ -86,6 +94,7 @@ async function loadOpenJTalk() {
 }
 
 async function loadWorld() {
+  status("WORLDを読み込み中…");
   const world = await createUtauTTSWorld({
     locateFile: (file) => ENGINE_BASE + "world/" + file,
   });
@@ -93,6 +102,7 @@ async function loadWorld() {
 }
 
 async function loadModels() {
+  status("モデルを読み込み中…");
   const manifest = await (await fetch(ENGINE_BASE + "models/manifest.json")).json();
   for (const name of manifest.models || []) {
     virtualFs.mountFile(
@@ -107,9 +117,16 @@ async function loadModels() {
 }
 
 async function init() {
+  status("エンジンを初期化中…");
   virtualFs = installVirtualFs({ cwd: "/" });
   const go = new Go();
-  const bytes = await (await fetch(ENGINE_BASE + "utautts.wasm")).arrayBuffer();
+  status("エンジンWASMを取得中…");
+  const response = await fetch(ENGINE_BASE + "utautts.wasm");
+  if (!response.ok) {
+    throw new Error("utautts.wasm HTTP " + response.status);
+  }
+  const bytes = await response.arrayBuffer();
+  status("WASMを初期化中…");
   const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
   go.run(instance);
   await waitFor(() => globalThis.utauttsWasm && globalThis.utauttsWasm.call, 30000);

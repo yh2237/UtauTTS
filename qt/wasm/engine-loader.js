@@ -103,6 +103,10 @@
         rejectReady(new Error(data.message));
         return;
       }
+      if (data.type === "status") {
+        window.utauttsEngineStatus = data.text;
+        return;
+      }
       if (data.type === "callResult") {
         for (const file of data.files || []) {
           setMirror(file.path, new Uint8Array(file.bytes));
@@ -121,7 +125,11 @@
         }
       }
     };
-    worker.onerror = (event) => console.error("engine worker error:", (event && event.message) || event);
+    worker.onerror = (event) => {
+      const message = (event && (event.message || event.filename)) || "engine worker error";
+      console.error("engine worker error:", event);
+      rejectReady(new Error(String(message)));
+    };
 
     window.utauttsCallAsync = function (method, requestJSON, id) {
       worker.postMessage({ type: "call", id, method, request: requestJSON });
