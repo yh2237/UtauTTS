@@ -124,6 +124,12 @@ ApplicationWindow {
         backend: window.appBackend
     }
 
+    AppCore {
+        id: core
+        backend: window.appBackend
+        translator: window.translator
+    }
+
     property int selectedIndex: 0
     property int nextUtteranceId: 1
     property int draggedUtteranceIndex: -1
@@ -1659,12 +1665,7 @@ ApplicationWindow {
         }
     }
 
-    function voicebankById(id) {
-        for (let i = 0; i < window.appBackend.voicebanks.length; ++i)
-            if (window.appBackend.voicebanks[i].id === id)
-                return window.appBackend.voicebanks[i];
-        return null;
-    }
+    function voicebankById(id) { return core.voicebankById(id); }
 
     function reloadVoicebanks() {
         if (window.appBackend.busy || window.batchExportActive)
@@ -1673,162 +1674,31 @@ ApplicationWindow {
         window.appBackend.reloadVoicebanks();
     }
 
-    function voicebankTypeOptions(id, selectedColor) {
-        const voice = window.voicebankById(id);
-        const raw = voice && voice.types ? voice.types : [];
-        const options = [];
-        for (let index = 0; index < raw.length; ++index) {
-            const source = raw[index] || {};
-            const color = String(source.color || "");
-            const optionId = String(source.id || ("subbank-" + index));
-            options.push({
-                id: optionId,
-                color: color,
-                display_name: color.length ? color : window.translator.tr("main.color.default")
-            });
-        }
-        if (!options.length) {
-            options.push({
-                id: "__default__",
-                color: "",
-                display_name: window.translator.tr("main.color.default")
-            });
-        }
+    function voicebankTypeOptions(id, selectedColor) { return core.voicebankTypeOptions(id, selectedColor); }
 
-        // 現メタデータにない旧プロジェクトの音源タイプも復元できるよう残す。
-        if (selectedColor !== undefined && selectedColor !== null) {
-            const selected = String(selectedColor || "");
-            let found = false;
-            for (let index = 0; index < options.length; ++index) {
-                if (options[index].color === selected) {
-                    found = true;
-                    break;
-                }
-            }
-            if (selected.length && !found) {
-                options.push({
-                    id: "__custom__:" + selected,
-                    color: selected,
-                    display_name: selected
-                });
-            }
-        }
-        return options;
-    }
+    function voicebankTypeOptionAt(id, index, selectedColor) { return core.voicebankTypeOptionAt(id, index, selectedColor); }
 
-    function voicebankTypeOptionAt(id, index, selectedColor) {
-        const options = window.voicebankTypeOptions(id, selectedColor);
-        return index >= 0 && index < options.length ? options[index] : null;
-    }
+    function voicebankHasColor(id, color) { return core.voicebankHasColor(id, color); }
 
-    function voicebankHasColor(id, color) {
-        const target = String(color || "");
-        const voice = window.voicebankById(id);
-        const raw = voice && voice.types ? voice.types : [];
-        if (!raw.length)
-            return target === "";
-        for (let index = 0; index < raw.length; ++index) {
-            if (String((raw[index] || {}).color || "") === target)
-                return true;
-        }
-        return false;
-    }
+    function typeIdForColor(id, color) { return core.typeIdForColor(id, color); }
 
-    function typeIdForColor(id, color) {
-        const target = String(color || "");
-        const options = window.voicebankTypeOptions(id, target);
-        for (let index = 0; index < options.length; ++index) {
-            if (options[index].color === target)
-                return options[index].id;
-        }
-        return options.length ? options[0].id : "";
-    }
+    function defaultVoicebank() { return core.defaultVoicebank(); }
 
-    function defaultVoicebank() {
-        const configured = String(window.appBackend.defaultVoicebankId || "");
-        const selected = configured.length ? window.voicebankById(configured) : null;
-        return selected || (window.appBackend.voicebanks.length ? window.appBackend.voicebanks[0] : null);
-    }
+    function modelById(id) { return core.modelById(id); }
 
-    function modelById(id) {
-        for (let i = 0; i < window.appBackend.models.length; ++i)
-            if (window.appBackend.models[i].id === id)
-                return window.appBackend.models[i];
-        return null;
-    }
+    function rendererById(id) { return core.rendererById(id); }
 
-    function rendererById(id) {
-        for (let i = 0; i < window.appBackend.renderers.length; ++i)
-            if (window.appBackend.renderers[i].id === id)
-                return window.appBackend.renderers[i];
-        return null;
-    }
+    function defaultModelId() { return core.defaultModelId(); }
 
-    function defaultModelId() {
-        const configured = String(window.appBackend.defaultModelId || "none");
-        return configured === "none" || window.modelById(configured)
-                ? configured : (window.appBackend.models.length ? window.appBackend.models[0].id : "none");
-    }
+    function defaultModelIdForLanguage(language) { return core.defaultModelIdForLanguage(language); }
 
-    function defaultModelIdForLanguage(language) {
-        const normalized = String(language || "ja").toLowerCase();
-        if (normalized === "en" || normalized === "zh") {
-            if (String(window.appBackend.defaultModelId || "none") === "none")
-                return "none";
-            for (let index = 0; index < window.appBackend.models.length; ++index) {
-                const model = window.appBackend.models[index];
-                if (String(model.language || "").toLowerCase() === normalized)
-                    return model.id;
-            }
-            return "none";
-        }
-        if (normalized !== "ja")
-            return "none";
-        const selected = window.defaultModelId();
-        if (selected === "none")
-            return "none";
-        const configured = window.modelById(selected);
-        if (!configured || !String(configured.language || "").trim()
-                || String(configured.language).toLowerCase() === "ja")
-            return configured ? configured.id : "none";
-        for (let index = 0; index < window.appBackend.models.length; ++index) {
-            const model = window.appBackend.models[index];
-            if (!String(model.language || "").trim()
-                    || String(model.language).toLowerCase() === "ja")
-                return model.id;
-        }
-        return "none";
-    }
+    function preferredRendererForModel(model) { return core.preferredRendererForModel(model); }
 
-    function preferredRendererForModel(model) {
-        const recommended = model && model.recommended_renderers ? model.recommended_renderers : [];
-        for (let index = 0; index < recommended.length; ++index) {
-            const renderer = window.rendererById(recommended[index]);
-            if (renderer)
-                return renderer.id;
-        }
-        return window.defaultRendererId();
-    }
+    function defaultRendererId() { return core.defaultRendererId(); }
 
-    function defaultRendererId() {
-        const configured = String(window.appBackend.defaultRenderer || "");
-        if (window.rendererById(configured))
-            return configured;
-        const available = window.appBackend.renderers;
-        return available.length ? available[0].id : "";
-    }
+    function normalizeRendererId(id) { return core.normalizeRendererId(id); }
 
-    function normalizeRendererId(id) {
-        const rendererId = String(id || "");
-        if (rendererId && window.rendererById(rendererId))
-            return rendererId;
-        return window.defaultRendererId();
-    }
-
-    function normalizeAliasPolicy(value) {
-        const policy = String(value || "auto");
-        return ["auto", "cvvc-enhanced", "vcv-prefer", "cvvc-prefer", "cv-only"].indexOf(policy) >= 0 ? policy : "auto";
-    }
+    function normalizeAliasPolicy(value) { return core.normalizeAliasPolicy(value); }
 
     function utteranceIndex(id) {
         for (let i = 0; i < utterances.count; ++i)
@@ -1837,31 +1707,13 @@ ApplicationWindow {
         return -1;
     }
 
-    function voicebankName(id) {
-        const voice = voicebankById(id);
-        return voice ? voice.name : window.translator.tr("main.voicebankNone");
-    }
+    function voicebankName(id) { return core.voicebankName(id); }
 
-    function fileNamePart(value, fallback) {
-        let result = String(value === undefined || value === null ? "" : value)
-                .replace(/[<>:"\/\\|?*\x00-\x1F]/g, " ")
-                .replace(/\s+/g, " ")
-                .trim();
-        while (result.endsWith(".") || result.endsWith(" "))
-            result = result.slice(0, -1).trim();
-        return result || fallback;
-    }
+    function fileNamePart(value, fallback) { return core.fileNamePart(value, fallback); }
 
-    function audioFileName(item) {
-        const voice = fileNamePart(window.voicebankName(item.voicebankId), "voicebank");
-        const text = fileNamePart(item.content, "utterance-" + item.utteranceId);
-        return voice + "_" + text + ".wav";
-    }
+    function audioFileName(item) { return core.audioFileName(item); }
 
-    function dragAudioFileName(item, index) {
-        const number = ("000" + String(index + 1)).slice(-3);
-        return number + "_" + window.audioFileName(item);
-    }
+    function dragAudioFileName(item, index) { return core.dragAudioFileName(item, index); }
 
     function saveCurrentAudio() {
         if (!utterances.count || window.appBackend.busy || window.batchExportActive || !window.current().reading.length)
@@ -2617,42 +2469,11 @@ ApplicationWindow {
         return path ? window.appBackend.localFileUrl(path) : "";
     }
 
-    function defaultPhonemizer(language) {
-        if (language === "en")
-            return "en-arpasing";
-        if (language === "zh")
-            return "zh-cvvc";
-        return "ja-kana";
-    }
+    function defaultPhonemizer(language) { return core.defaultPhonemizer(language); }
 
-    function phonemizerOptions(language) {
-        const labels = {
-            "auto": window.translator.tr("main.phonemizer.auto"),
-            "ja-kana": window.translator.tr("main.phonemizer.jaKana"),
-            "en-arpasing": window.translator.tr("main.phonemizer.enArpasing"),
-            "en-delta": window.translator.tr("main.phonemizer.enDelta"),
-            "en-vccv": window.translator.tr("main.phonemizer.enVccv"),
-            "en-cv": window.translator.tr("main.phonemizer.enCv"),
-            "zh-cvvc": window.translator.tr("main.phonemizer.zhCvvc")
-        };
-        if (language === "en")
-            return ["auto", "en-arpasing", "en-delta", "en-vccv", "en-cv"].map(
-                        id => ({id: id, display_name: labels[id]}));
-        const id = window.defaultPhonemizer(language);
-        return ["auto", id].map(value => ({id: value, display_name: labels[value]}));
-    }
+    function phonemizerOptions(language) { return core.phonemizerOptions(language); }
 
-    function resolvedPhonemizer(language, phonemizer, voicebankId) {
-        language = language || "ja";
-        phonemizer = phonemizer || "auto";
-        if (phonemizer !== "auto")
-            return phonemizer;
-        const voice = window.voicebankById(voicebankId || "");
-        if (voice && String(voice.suggested_language || "") === language
-                && voice.suggested_phonemizer)
-            return String(voice.suggested_phonemizer);
-        return window.defaultPhonemizer(language);
-    }
+    function resolvedPhonemizer(language, phonemizer, voicebankId) { return core.resolvedPhonemizer(language, phonemizer, voicebankId); }
 
     function analyzeUtterance(index) {
         if (index < 0 || index >= utterances.count)

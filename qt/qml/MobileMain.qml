@@ -43,6 +43,12 @@ ApplicationWindow {
         backend: window.appBackend
     }
 
+    AppCore {
+        id: core
+        backend: window.appBackend
+        translator: window.translator
+    }
+
     MediaDevices {
         id: mediaDevices
     }
@@ -181,14 +187,16 @@ ApplicationWindow {
         if (!text.length || window.appBackend.busy)
             return;
         player.stop();
+        const language = "ja";
+        const voicebank = core.defaultVoicebank();
         window.appBackend.synthesize({
             text: text,
-            language: "ja",
-            phonemizer: "ja-kana",
-            voicebank_id: window.appBackend.defaultVoicebankId,
-            model_id: window.appBackend.defaultModelId,
-            renderer: window.appBackend.defaultRenderer,
-            alias_policy: window.appBackend.defaultAliasPolicy,
+            language: language,
+            phonemizer: core.defaultPhonemizer(language),
+            voicebank_id: voicebank ? voicebank.id : "",
+            model_id: core.defaultModelIdForLanguage(language),
+            renderer: core.defaultRendererId(),
+            alias_policy: core.normalizeAliasPolicy(window.appBackend.defaultAliasPolicy),
             tone: window.appBackend.defaultTone,
             color: "",
             mora_duration_ms: window.appBackend.defaultMoraDuration,
