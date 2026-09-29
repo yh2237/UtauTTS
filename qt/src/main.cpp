@@ -242,7 +242,8 @@ int main(int argc, char *argv[]) {
         {"injectedIntonationLabExamples", readTextResource(":/training/japanese-v1.json")},
     };
     engine.setInitialProperties(initialProperties);
-    engine.loadFromModule("UtauTTS", "Main");
+    Platform platform;
+    engine.loadFromModule("UtauTTS", platform.isMobile() ? "MobileMain" : "Main");
     if (engine.rootObjects().isEmpty()) {
         return -1;
     }

@@ -95,6 +95,7 @@ qt_add_qml_module(utautts
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/MobileMain.qml
         qml/Translator.qml
         qml/shell/SettingsWindow.qml
         qml/shell/DictionaryWindow.qml

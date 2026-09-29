@@ -24,12 +24,21 @@ bool Platform::isDesktop() const {
 
 bool Platform::isMobile() const {
 #ifdef UTAUTTS_WASM
+    // 検証用にURLで上書きできる（?mobile=1 / ?mobile=0）。
+    const emscripten::val window = emscripten::val::global("window");
+    if (!window["location"].isUndefined()) {
+        const std::string search = window["location"]["search"].as<std::string>();
+        if (search.find("mobile=1") != std::string::npos) {
+            return true;
+        }
+        if (search.find("mobile=0") != std::string::npos) {
+            return false;
+        }
+    }
     // スマホ/タブレット判定はタッチ対応かつ小さいビューポートを目安にする。
-    // 将来 MobileShell を作る際にここを調整する。
     const emscripten::val navigator = emscripten::val::global("navigator");
     const int touchPoints = navigator["maxTouchPoints"].isUndefined()
             ? 0 : navigator["maxTouchPoints"].as<int>();
-    const emscripten::val window = emscripten::val::global("window");
     const double width = window["innerWidth"].isUndefined()
             ? 0.0 : window["innerWidth"].as<double>();
     return touchPoints > 0 && width > 0.0 && width < 768.0;
