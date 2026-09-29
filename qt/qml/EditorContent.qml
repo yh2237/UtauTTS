@@ -169,7 +169,7 @@ import UtauTTS.Media
                                     if (event.key === Qt.Key_Delete
                                             && event.modifiers === Qt.NoModifier
                                             && window.qtShortcutSequence(window.appBackend.removeUtteranceShortcut).toLowerCase() === "delete"
-                                            && !window.settingsWindowRef.visible
+                                            && !window.settingsWindowVisible
                                             && !window.appBackend.busy
                                             && !window.batchExportActive
                                             && !window.playbackQueueActive) {

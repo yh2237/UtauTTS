@@ -10,6 +10,7 @@ ApplicationWindow {
     required property var hostPalette
     required property var backend
     required property var translator
+    signal closed()
 
     function languageLabels() {
         const labels = [];
@@ -37,6 +38,15 @@ ApplicationWindow {
     flags: Qt.Dialog
     palette: hostPalette
     color: palette.window
+
+    onClosing: root.closed()
+
+    header: WindowHeader {
+        heading: root.title
+        visible: root.hostWindow.appBackend.wasmPlatform
+        height: root.hostWindow.appBackend.wasmPlatform ? implicitHeight : 0
+        onCloseClicked: root.close()
+    }
 
     ColumnLayout {
         anchors.fill: parent

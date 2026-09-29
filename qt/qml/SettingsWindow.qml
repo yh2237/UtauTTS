@@ -14,6 +14,7 @@ ApplicationWindow {
     required property var translator
     property var audioOutputDevices: []
     signal applyRequested(bool closeAfter)
+    signal closed()
 
     title: root.translator.tr("settings.title")
     visible: false
@@ -23,11 +24,22 @@ ApplicationWindow {
     maximumWidth: 720
     minimumHeight: 540
     maximumHeight: 540
+    x: root.hostWindow.x + (root.hostWindow.width - width) / 2
+    y: root.hostWindow.y + (root.hostWindow.height - height) / 2
     transientParent: hostWindow
     modality: Qt.ApplicationModal
     flags: Qt.Dialog
     palette: hostPalette
     color: palette.window
+
+    onClosing: root.closed()
+
+    header: WindowHeader {
+        heading: root.title
+        visible: root.hostWindow.appBackend.wasmPlatform
+        height: root.hostWindow.appBackend.wasmPlatform ? implicitHeight : 0
+        onCloseClicked: root.close()
+    }
 
     property int currentPage: 0
     property string pendingDefaultVoicebankId: ""

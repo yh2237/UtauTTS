@@ -10,6 +10,7 @@ ApplicationWindow {
     required property var hostPalette
     required property var translator
     property var documents: []
+    signal closed()
 
     title: root.translator.tr("license.title")
     visible: false
@@ -24,6 +25,15 @@ ApplicationWindow {
     flags: Qt.Dialog
     palette: hostPalette
     color: palette.window
+
+    onClosing: root.closed()
+
+    header: WindowHeader {
+        heading: root.title
+        visible: root.hostWindow.appBackend.wasmPlatform
+        height: root.hostWindow.appBackend.wasmPlatform ? implicitHeight : 0
+        onCloseClicked: root.close()
+    }
 
     RowLayout {
         anchors.fill: parent

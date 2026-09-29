@@ -87,7 +87,9 @@ qt_add_qml_module(utautts
         qml/PitchHorizontalScrollBar.qml
         qml/PlaybackControls.qml
         qml/DragSourceWindow.qml
-        qml/SynthesisLogWindow.qml
+qml/SynthesisLogWindow.qml
+qml/SynthesisLogContent.qml
+qml/WindowHeader.qml
         qml/SettingsWindow.qml
         qml/SettingsResetButton.qml
         qml/GrayscaleMenuItem.qml

@@ -115,7 +115,8 @@ ApplicationWindow {
 
     property alias utterancesModel: utterances
     property alias playerMedia: player
-    property alias settingsWindowRef: settingsWindow
+    readonly property var settingsWindowRef: settingsWindowLoader.item
+    readonly property bool settingsWindowVisible: settingsWindowRef !== null && settingsWindowRef.visible
 
     Translator {
         id: translatorInstance
@@ -195,7 +196,7 @@ ApplicationWindow {
 
     Shortcut {
         sequence: window.qtShortcutSequence(window.appBackend.synthesizeShortcut)
-        enabled: !settingsWindow.visible && !window.appBackend.busy && !window.batchExportActive
+        enabled: !window.settingsWindowVisible && !window.appBackend.busy && !window.batchExportActive
                  && utterances.count > 0 && window.current().reading.length > 0
         onActivated: window.synthesizeCurrent()
     }
@@ -204,26 +205,26 @@ ApplicationWindow {
 
     Shortcut {
         sequence: window.qtShortcutSequence(window.appBackend.saveProjectShortcut)
-        enabled: !settingsWindow.visible && !window.appBackend.busy && !window.batchExportActive
+        enabled: !window.settingsWindowVisible && !window.appBackend.busy && !window.batchExportActive
         onActivated: window.saveCurrentProject()
     }
 
     Shortcut {
         sequence: window.qtShortcutSequence(window.appBackend.reloadVoicebanksShortcut)
-        enabled: !settingsWindow.visible && !window.appBackend.busy && !window.batchExportActive
+        enabled: !window.settingsWindowVisible && !window.appBackend.busy && !window.batchExportActive
         onActivated: window.reloadVoicebanks()
     }
 
     Shortcut {
         sequence: window.qtShortcutSequence(window.appBackend.addUtteranceShortcut)
-        enabled: !settingsWindow.visible && !window.appBackend.busy && !window.batchExportActive
+        enabled: !window.settingsWindowVisible && !window.appBackend.busy && !window.batchExportActive
                  && !window.playbackQueueActive
         onActivated: window.addUtterance()
     }
 
     Shortcut {
         sequence: window.qtShortcutSequence(window.appBackend.removeUtteranceShortcut)
-        enabled: !settingsWindow.visible && !window.appBackend.busy && !window.batchExportActive
+        enabled: !window.settingsWindowVisible && !window.appBackend.busy && !window.batchExportActive
                  && !window.playbackQueueActive
                  && utterances.count > 0
         onActivated: window.removeUtterance()
@@ -232,7 +233,7 @@ ApplicationWindow {
     Shortcut {
         sequence: window.qtShortcutSequence(window.appBackend.undoShortcut)
         context: Qt.ApplicationShortcut
-        enabled: !settingsWindow.visible && !window.appBackend.busy && !window.batchExportActive
+        enabled: !window.settingsWindowVisible && !window.appBackend.busy && !window.batchExportActive
                  && !window.playbackQueueActive
         onActivated: window.undo()
         onActivatedAmbiguously: window.undo()
@@ -241,7 +242,7 @@ ApplicationWindow {
     Shortcut {
         sequence: window.qtShortcutSequence(window.appBackend.redoShortcut)
         context: Qt.ApplicationShortcut
-        enabled: !settingsWindow.visible && !window.appBackend.busy && !window.batchExportActive
+        enabled: !window.settingsWindowVisible && !window.appBackend.busy && !window.batchExportActive
                  && !window.playbackQueueActive
         onActivated: window.redo()
         onActivatedAmbiguously: window.redo()
@@ -365,49 +366,108 @@ ApplicationWindow {
         ready: window.dragExportReady
         accent: window.accent
         mutedText: window.mutedText
-        onDragError: window.showAuxiliaryWindow(synthesisLogWindow)
+        onDragError: window.showLogWindow()
     }
 
-    SynthesisLogWindow {
-        id: synthesisLogWindow
-        hostWindow: window
-        hostPalette: window.palette
-        backend: window.appBackend
-        translator: window.translator
+    Loader {
+        id: synthesisLogWindowLoader
+        active: false
+        sourceComponent: SynthesisLogWindow {
+            hostWindow: window
+            hostPalette: window.palette
+            backend: window.appBackend
+            translator: window.translator
+            onClosed: {
+                if (window.appBackend.wasmPlatform)
+                    synthesisLogWindowLoader.active = false;
+            }
+        }
+        onLoaded: {
+            if (item)
+                window.showAuxiliaryWindow(item);
+        }
     }
 
-    SettingsWindow {
-        id: settingsWindow
-        hostWindow: window
-        hostPalette: window.palette
-        backend: window.appBackend
-        translator: window.translator
-        audioOutputDevices: mediaDevices.audioOutputs
-        onApplyRequested: closeAfter => window.saveSettings(closeAfter)
+    Loader {
+        id: settingsWindowLoader
+        active: false
+        sourceComponent: SettingsWindow {
+            hostWindow: window
+            hostPalette: window.palette
+            backend: window.appBackend
+            translator: window.translator
+            audioOutputDevices: mediaDevices.audioOutputs
+            onApplyRequested: closeAfter => window.saveSettings(closeAfter)
+            onClosed: window.settingsWindowClosed()
+        }
+        onLoaded: {
+            if (item) {
+                item.loadCurrent();
+                window.showAuxiliaryWindow(item);
+            }
+        }
     }
 
-    DictionaryWindow {
-        id: dictionaryWindow
-        hostWindow: window
-        hostPalette: window.palette
-        backend: window.appBackend
-        translator: window.translator
+    Loader {
+        id: dictionaryWindowLoader
+        active: false
+        sourceComponent: DictionaryWindow {
+            hostWindow: window
+            hostPalette: window.palette
+            backend: window.appBackend
+            translator: window.translator
+            onClosed: {
+                if (window.appBackend.wasmPlatform)
+                    dictionaryWindowLoader.active = false;
+            }
+        }
+        onLoaded: {
+            if (item) {
+                item.loadCurrent();
+                window.showAuxiliaryWindow(item);
+            }
+        }
     }
 
-    LicenseWindow {
-        id: licenseWindow
-        hostWindow: window
-        hostPalette: window.palette
-        translator: window.translator
-        documents: window.licenseDocuments
+    Loader {
+        id: licenseWindowLoader
+        active: false
+        sourceComponent: LicenseWindow {
+            hostWindow: window
+            hostPalette: window.palette
+            translator: window.translator
+            documents: window.licenseDocuments
+            onClosed: {
+                if (window.appBackend.wasmPlatform)
+                    licenseWindowLoader.active = false;
+            }
+        }
+        onLoaded: {
+            if (item)
+                window.showAuxiliaryWindow(item);
+        }
     }
 
-    VoicebankDetailsWindow {
-        id: voicebankDetailsWindow
-        hostWindow: window
-        hostPalette: window.palette
-        backend: window.appBackend
-        translator: window.translator
+    Loader {
+        id: voicebankDetailsWindowLoader
+        active: false
+        sourceComponent: VoicebankDetailsWindow {
+            hostWindow: window
+            hostPalette: window.palette
+            backend: window.appBackend
+            translator: window.translator
+            onClosed: {
+                if (window.appBackend.wasmPlatform)
+                    voicebankDetailsWindowLoader.active = false;
+            }
+        }
+        onLoaded: {
+            if (item) {
+                item.currentIndex = Math.max(0, Math.min(item.currentIndex,
+                                                          window.appBackend.voicebanks.length - 1));
+                window.showAuxiliaryWindow(item);
+            }
+        }
     }
 
     OnboardingWindow {
@@ -584,12 +644,29 @@ ApplicationWindow {
         buttons: MessageDialog.Ok
     }
 
-    MessageDialog {
+    Dialog {
         id: aboutDialog
         title: window.translator.tr("main.aboutTitle")
-        text: window.translator.tr("main.aboutText", Qt.application.version)
-        informativeText: window.translator.tr("main.aboutInformative")
-        buttons: MessageDialog.Ok
+        modal: true
+        anchors.centerIn: Overlay.overlay
+        width: Math.min(window.width - 40, 440)
+        closePolicy: Popup.CloseOnEscape
+        standardButtons: Dialog.Ok
+
+        contentItem: ColumnLayout {
+            spacing: 8
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: window.translator.tr("main.aboutText", Qt.application.version)
+            }
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: window.mutedText
+                text: window.translator.tr("main.aboutInformative")
+            }
+        }
     }
 
     Dialog {
@@ -863,7 +940,7 @@ ApplicationWindow {
                 window.pendingRevision = -1;
                 saveDialog.currentFile = window.appBackend.defaultSaveFile(window.audioFileName(utterances.get(index)));
                 if (window.appBackend.closeLogOnSuccess)
-                    synthesisLogWindow.close();
+                    window.closeLogWindow();
                 saveDialog.open();
                 return;
             }
@@ -902,7 +979,7 @@ ApplicationWindow {
             if (window.autoplayPreview !== false) {
                 window.playbackRequested = true;
                 if (window.appBackend.closeLogOnSuccess)
-                    synthesisLogWindow.close();
+                    window.closeLogWindow();
                 player.play();
             } else {
                 window.playbackRequested = false;
@@ -1121,10 +1198,7 @@ ApplicationWindow {
             title: window.translator.tr("menu.settings")
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.settings.settings")
-                onTriggered: {
-                    window.showAuxiliaryWindow(settingsWindow);
-                    settingsWindow.loadCurrent();
-                }
+                onTriggered: window.openSettings()
             }
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.settings.dictionary")
@@ -1146,7 +1220,7 @@ ApplicationWindow {
             }
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.help.license")
-                onTriggered: window.showAuxiliaryWindow(licenseWindow)
+                onTriggered: window.openLicense()
             }
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.help.voicebankDetails")
@@ -1296,18 +1370,31 @@ ApplicationWindow {
     function showVoicebankDetails() {
         if (!window.appBackend.voicebanks.length)
             return;
-        voicebankDetailsWindow.currentIndex = Math.max(0, Math.min(voicebankDetailsWindow.currentIndex, window.appBackend.voicebanks.length - 1));
-        window.showAuxiliaryWindow(voicebankDetailsWindow);
+        if (voicebankDetailsWindowLoader.item) {
+            const details = voicebankDetailsWindowLoader.item;
+            details.currentIndex = Math.max(0, Math.min(details.currentIndex,
+                                                        window.appBackend.voicebanks.length - 1));
+            window.showAuxiliaryWindow(details);
+        } else {
+            voicebankDetailsWindowLoader.active = true;
+        }
+    }
+
+    function openLicense() {
+        if (licenseWindowLoader.item)
+            window.showAuxiliaryWindow(licenseWindowLoader.item);
+        else
+            licenseWindowLoader.active = true;
     }
 
     function saveSettings(closeAfter) {
-        const shortcuts = [settingsWindow.pendingSynthesizeShortcut,
-                           settingsWindow.pendingSaveProjectShortcut,
-                           settingsWindow.pendingReloadVoicebanksShortcut,
-                           settingsWindow.pendingAddUtteranceShortcut,
-                           settingsWindow.pendingRemoveUtteranceShortcut,
-                           settingsWindow.pendingUndoShortcut,
-                           settingsWindow.pendingRedoShortcut];
+        const shortcuts = [settingsWindowRef.pendingSynthesizeShortcut,
+                           settingsWindowRef.pendingSaveProjectShortcut,
+                           settingsWindowRef.pendingReloadVoicebanksShortcut,
+                           settingsWindowRef.pendingAddUtteranceShortcut,
+                           settingsWindowRef.pendingRemoveUtteranceShortcut,
+                           settingsWindowRef.pendingUndoShortcut,
+                           settingsWindowRef.pendingRedoShortcut];
         const usedShortcuts = [];
         for (let index = 0; index < shortcuts.length; ++index) {
             const shortcut = String(shortcuts[index] || "").trim();
@@ -1320,42 +1407,61 @@ ApplicationWindow {
             }
             usedShortcuts.push(normalized);
         }
-        window.appBackend.setSynthesisDefaults(settingsWindow.pendingDefaultModelId,
-                                               settingsWindow.pendingDefaultRendererId,
-                                               settingsWindow.pendingDefaultTone,
-                                               settingsWindow.pendingDefaultAliasPolicy);
-        window.appBackend.setDarkMode(settingsWindow.pendingDarkMode);
-        window.appBackend.setLanguage(settingsWindow.pendingLanguage);
-        window.appBackend.setFfmpegPath(settingsWindow.pendingFfmpegPath);
-        window.appBackend.setAudioOutputDeviceId(settingsWindow.pendingAudioOutputDeviceId);
-        window.appBackend.setCloseLogOnSuccess(settingsWindow.pendingCloseLogOnSuccess);
-        window.appBackend.setUpdateCheckEnabled(settingsWindow.pendingUpdateCheckEnabled);
+        window.appBackend.setSynthesisDefaults(settingsWindowRef.pendingDefaultModelId,
+                                               settingsWindowRef.pendingDefaultRendererId,
+                                               settingsWindowRef.pendingDefaultTone,
+                                               settingsWindowRef.pendingDefaultAliasPolicy);
+        window.appBackend.setDarkMode(settingsWindowRef.pendingDarkMode);
+        window.appBackend.setLanguage(settingsWindowRef.pendingLanguage);
+        window.appBackend.setFfmpegPath(settingsWindowRef.pendingFfmpegPath);
+        window.appBackend.setAudioOutputDeviceId(settingsWindowRef.pendingAudioOutputDeviceId);
+        window.appBackend.setCloseLogOnSuccess(settingsWindowRef.pendingCloseLogOnSuccess);
+        window.appBackend.setUpdateCheckEnabled(settingsWindowRef.pendingUpdateCheckEnabled);
         window.appBackend.setPreReleaseUpdateCheckEnabled(
-                    settingsWindow.pendingPreReleaseUpdateCheckEnabled);
-        window.appBackend.setPreviewCacheFileCount(settingsWindow.pendingPreviewCacheFileCount);
-        window.appBackend.setAutoPreviewEnabled(settingsWindow.pendingAutoPreviewEnabled);
-        window.appBackend.setExtendedDetailsVisible(settingsWindow.pendingExtendedDetailsVisible);
-        window.appBackend.setDefaultVoicebank(settingsWindow.pendingDefaultVoicebankId);
-        window.appBackend.setExportSettings(settingsWindow.pendingExportTextWithWav,
-                                            settingsWindow.pendingExportLabWithWav,
-                                            settingsWindow.pendingExportTextEncoding);
-        window.appBackend.setShortcutSequences(settingsWindow.pendingSynthesizeShortcut,
-                                               settingsWindow.pendingSaveProjectShortcut,
-                                               settingsWindow.pendingReloadVoicebanksShortcut,
-                                               settingsWindow.pendingAddUtteranceShortcut,
-                                               settingsWindow.pendingRemoveUtteranceShortcut,
-                                               settingsWindow.pendingUndoShortcut,
-                                               settingsWindow.pendingRedoShortcut);
+                    settingsWindowRef.pendingPreReleaseUpdateCheckEnabled);
+        window.appBackend.setPreviewCacheFileCount(settingsWindowRef.pendingPreviewCacheFileCount);
+        window.appBackend.setAutoPreviewEnabled(settingsWindowRef.pendingAutoPreviewEnabled);
+        window.appBackend.setExtendedDetailsVisible(settingsWindowRef.pendingExtendedDetailsVisible);
+        window.appBackend.setDefaultVoicebank(settingsWindowRef.pendingDefaultVoicebankId);
+        window.appBackend.setExportSettings(settingsWindowRef.pendingExportTextWithWav,
+                                            settingsWindowRef.pendingExportLabWithWav,
+                                            settingsWindowRef.pendingExportTextEncoding);
+        window.appBackend.setShortcutSequences(settingsWindowRef.pendingSynthesizeShortcut,
+                                               settingsWindowRef.pendingSaveProjectShortcut,
+                                               settingsWindowRef.pendingReloadVoicebanksShortcut,
+                                               settingsWindowRef.pendingAddUtteranceShortcut,
+                                               settingsWindowRef.pendingRemoveUtteranceShortcut,
+                                               settingsWindowRef.pendingUndoShortcut,
+                                               settingsWindowRef.pendingRedoShortcut);
         if (closeAfter) {
-            settingsWindow.close();
-            settingsWindow.visible = false;
+            const settingsWindow = window.settingsWindowRef;
+            if (settingsWindow) {
+                settingsWindow.close();
+                settingsWindow.visible = false;
+            }
         }
     }
 
     function showAuxiliaryWindow(auxiliaryWindow) {
+        if (auxiliaryWindow.open !== undefined) {
+            auxiliaryWindow.open();
+            return;
+        }
         auxiliaryWindow.visible = true;
         auxiliaryWindow.raise();
         auxiliaryWindow.requestActivate();
+    }
+
+    function showLogWindow() {
+        if (synthesisLogWindowLoader.item)
+            window.showAuxiliaryWindow(synthesisLogWindowLoader.item);
+        else
+            synthesisLogWindowLoader.active = true;
+    }
+
+    function closeLogWindow() {
+        if (synthesisLogWindowLoader.item)
+            synthesisLogWindowLoader.item.close();
     }
 
     function versionParts(version) {
@@ -1478,13 +1584,26 @@ ApplicationWindow {
     }
 
     function openSettings() {
-        settingsWindow.loadCurrent();
-        showAuxiliaryWindow(settingsWindow);
+        if (window.settingsWindowRef) {
+            window.settingsWindowRef.loadCurrent();
+            window.showAuxiliaryWindow(window.settingsWindowRef);
+        } else {
+            settingsWindowLoader.active = true;
+        }
+    }
+
+    function settingsWindowClosed() {
+        if (window.appBackend.wasmPlatform)
+            settingsWindowLoader.active = false;
     }
 
     function openDictionarySettings() {
-        dictionaryWindow.loadCurrent();
-        showAuxiliaryWindow(dictionaryWindow);
+        if (dictionaryWindowLoader.item) {
+            dictionaryWindowLoader.item.loadCurrent();
+            window.showAuxiliaryWindow(dictionaryWindowLoader.item);
+        } else {
+            dictionaryWindowLoader.active = true;
+        }
     }
 
     function voicebankById(id) {
@@ -1700,7 +1819,7 @@ ApplicationWindow {
         window.pendingUtteranceId = item.utteranceId;
         window.pendingRevision = item.revision;
         window.appBackend.clearLogs();
-        window.showAuxiliaryWindow(synthesisLogWindow);
+        window.showLogWindow();
         window.appBackend.synthesize(window.buildSynthesisRequest(item));
     }
 
@@ -2402,7 +2521,7 @@ ApplicationWindow {
     }
 
     function localImageUrl(path) {
-        return path ? encodeURI("file:///" + path.replace(/\\/g, "/")) : "";
+        return path ? window.appBackend.localFileUrl(path) : "";
     }
 
     function defaultPhonemizer(language) {
@@ -3300,7 +3419,7 @@ ApplicationWindow {
         window.playbackQueueIndex = 0;
         window.playbackQueueActive = true;
         window.appBackend.clearLogs();
-        window.showAuxiliaryWindow(synthesisLogWindow);
+        window.showLogWindow();
         window.playNextPlaybackItem();
     }
 
@@ -3331,7 +3450,7 @@ ApplicationWindow {
         const closeLog = window.appBackend.closeLogOnSuccess;
         window.stopPlaybackQueue();
         if (closeLog)
-            synthesisLogWindow.close();
+            window.closeLogWindow();
     }
 
     function synthesizeCurrent() {
@@ -3343,7 +3462,7 @@ ApplicationWindow {
         window.pendingUtteranceId = item.utteranceId;
         window.pendingRevision = item.revision;
         window.appBackend.clearLogs();
-        window.showAuxiliaryWindow(synthesisLogWindow);
+        window.showLogWindow();
         window.appBackend.synthesize(window.buildSynthesisRequest(item));
     }
 
@@ -3536,7 +3655,7 @@ ApplicationWindow {
         window.pendingProsodyUtteranceId = "";
         window.pendingProsodyRevision = -1;
         window.appBackend.clearLogs();
-        window.showAuxiliaryWindow(synthesisLogWindow);
+        window.showLogWindow();
         Qt.callLater(function() { window.synthesizeBatchItem(); });
     }
 
@@ -3589,7 +3708,7 @@ ApplicationWindow {
         if (utterances.count)
             window.selectUtterance(Math.min(window.batchExportOriginalIndex, utterances.count - 1));
         if (success && (window.appBackend.closeLogOnSuccess || wasDragExport))
-            synthesisLogWindow.close();
+            window.closeLogWindow();
         if (dragExportSucceeded && files.length) {
             window.dragExportFiles = window.dragFilesWithExo(files);
             window.dragExportReady = true;

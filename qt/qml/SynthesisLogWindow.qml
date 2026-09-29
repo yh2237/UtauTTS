@@ -4,12 +4,13 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-Window {
+ApplicationWindow {
     id: root
     required property var hostWindow
     required property var hostPalette
     required property var backend
     required property var translator
+    signal closed()
 
     title: root.translator.tr("log.title")
     visible: false
@@ -20,43 +21,25 @@ Window {
     maximumWidth: 720
     minimumHeight: 420
     maximumHeight: 420
+    modality: Qt.ApplicationModal
+    flags: Qt.Dialog
     palette: hostPalette
     color: palette.window
 
-    ColumnLayout {
+    onClosing: root.closed()
+
+    header: WindowHeader {
+        heading: root.title
+        visible: root.hostWindow.appBackend.wasmPlatform
+        height: root.hostWindow.appBackend.wasmPlatform ? implicitHeight : 0
+        onCloseClicked: root.close()
+    }
+
+    SynthesisLogContent {
         anchors.fill: parent
         anchors.margins: 12
-        spacing: 8
-
-        Label {
-            Layout.fillWidth: true
-            text: root.backend.busy ? root.translator.tr("log.synthesizing") : root.translator.tr("log.title")
-            font.bold: true
-        }
-
-        ScrollView {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            TextArea {
-                id: synthesisLogText
-                width: root.width - 36
-                text: root.backend.logLines.join("\n")
-                readOnly: true
-                selectByMouse: true
-                wrapMode: TextEdit.Wrap
-                onTextChanged: cursorPosition = length
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            Item {
-                Layout.fillWidth: true
-            }
-            Button {
-                text: root.translator.tr("common.close")
-                onClicked: root.close()
-            }
-        }
+        backend: root.backend
+        translator: root.translator
+        onCloseRequested: root.close()
     }
 }
