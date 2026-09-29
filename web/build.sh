@@ -21,6 +21,7 @@ cp "${script_dir}/index.html" "${dist}/index.html"
 cp "${script_dir}/main.js" "${dist}/main.js"
 cp "${script_dir}/fs-shim.js" "${dist}/fs-shim.js"
 cp "${script_dir}/openjtalk-bridge.js" "${dist}/openjtalk-bridge.js"
+cp "${script_dir}/world-bridge.js" "${dist}/world-bridge.js"
 cp "${root_dir}/models/${model_name}" "${dist}/models/${model_name}"
 
 echo "Built ${dist}"

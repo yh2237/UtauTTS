@@ -2,11 +2,16 @@
 
 const MODEL_PATH = "/models/frame-intonation-tcn-v9.1-t.json";
 const DICT_PATH = "/dict";
+const VOICE_ROOT = "/voice";
+const OUTPUT_PATH = "/out/utautts.wav";
 
 const $ = (id) => document.getElementById(id);
 const status = (text) => {
   $("status").textContent = text;
 };
+
+let virtualFs = null;
+let voicebankPath = "";
 
 function waitFor(predicate, timeoutMS) {
   return new Promise((resolve, reject) => {
@@ -26,10 +31,10 @@ async function loadGoWasm() {
   if (!response.ok) throw new Error("failed to load utautts.wasm: " + response.status);
   const { instance } = await WebAssembly.instantiate(await response.arrayBuffer(), go.importObject);
   go.run(instance);
-  await waitFor(() => globalThis.utauttsWasm && globalThis.utauttsWasm.predictProsody, 30000);
+  await waitFor(() => globalThis.utauttsWasm && globalThis.utauttsWasm.synthesize, 30000);
 }
 
-async function mountModel(virtualFs) {
+async function mountModel() {
   const response = await fetch("./models/frame-intonation-tcn-v9.1-t.json");
   if (!response.ok) throw new Error("failed to load model: " + response.status);
   virtualFs.mountFile(MODEL_PATH, new Uint8Array(await response.arrayBuffer()));
@@ -52,21 +57,38 @@ async function loadOpenJTalk() {
   globalThis.utauttsOpenJTalk = bridge;
 }
 
-async function predict() {
-  const text = $("text").value.trim();
-  if (!text) return;
-  const strength = Number($("strength").value) || 1;
-  const started = performance.now();
-  const raw = globalThis.utauttsWasm.predictProsody({ text, modelPath: MODEL_PATH, strength });
-  const elapsed = performance.now() - started;
-  const data = JSON.parse(raw);
-  if (data.error) {
-    $("out").textContent = "error: " + data.error;
-    return;
+async function loadWorld() {
+  const Module = await createUtauTTSWorld();
+  globalThis.utauttsWorld = createWorldBridge(Module);
+}
+
+async function mountVoicebank(fileList) {
+  const files = Array.from(fileList);
+  if (files.length === 0) return;
+  let root = "";
+  let mounted = 0;
+  for (const file of files) {
+    const relative = file.webkitRelativePath || file.name;
+    if (root === "") root = relative.split("/")[0];
+    virtualFs.mountFile(VOICE_ROOT + "/" + relative, new Uint8Array(await file.arrayBuffer()));
+    mounted++;
+    if (mounted % 100 === 0) {
+      $("voice-status").textContent = "読み込み中… (" + mounted + "/" + files.length + ")";
+    }
   }
-  $("out").textContent = JSON.stringify(data, null, 2);
-  status("ready (" + elapsed.toFixed(1) + " ms)");
-  drawCurve(data);
+  voicebankPath = VOICE_ROOT + "/" + root;
+  $("voice-status").textContent = mounted + " ファイル (" + root + ")";
+  $("run").disabled = false;
+}
+
+function playWav(bytes) {
+  const blob = new Blob([bytes], { type: "audio/wav" });
+  const player = $("player");
+  if (player.dataset.url) URL.revokeObjectURL(player.dataset.url);
+  const url = URL.createObjectURL(blob);
+  player.dataset.url = url;
+  player.src = url;
+  player.play().catch(() => {});
 }
 
 function drawCurve(data) {
@@ -96,18 +118,50 @@ function drawCurve(data) {
   ctx.stroke();
 }
 
+async function run() {
+  const text = $("text").value.trim();
+  if (!text || !voicebankPath) return;
+  const strength = Number($("strength").value) || 1;
+
+  status("抑揚を予測中…");
+  const preview = JSON.parse(globalThis.utauttsWasm.predictProsody({ text, modelPath: MODEL_PATH, strength }));
+  if (!preview.error) drawCurve(preview);
+
+  status("合成中…");
+  const started = performance.now();
+  const raw = globalThis.utauttsWasm.synthesize({
+    text,
+    modelPath: MODEL_PATH,
+    voicebankPath,
+    outputPath: OUTPUT_PATH,
+    strength,
+  });
+  const elapsed = performance.now() - started;
+  const result = JSON.parse(raw);
+  if (result.error) {
+    status("error: " + result.error);
+    return;
+  }
+  const wav = virtualFs.readFile(OUTPUT_PATH);
+  if (wav) playWav(wav);
+  $("out").textContent = JSON.stringify(result, null, 2);
+  status("完了 (" + elapsed.toFixed(0) + " ms)");
+}
+
 async function boot() {
   try {
     status("installing virtual fs…");
-    const virtualFs = installVirtualFs({ cwd: "/" });
+    virtualFs = installVirtualFs({ cwd: "/" });
     status("loading Go wasm…");
     await loadGoWasm();
     status("loading model…");
-    await mountModel(virtualFs);
+    await mountModel();
     await loadOpenJTalk();
-    $("run").addEventListener("click", predict);
+    status("loading WORLD…");
+    await loadWorld();
     status("ready");
-    await predict();
+    $("voice").addEventListener("change", (event) => mountVoicebank(event.target.files));
+    $("run").addEventListener("click", run);
   } catch (error) {
     status("error: " + error.message);
     console.error(error);

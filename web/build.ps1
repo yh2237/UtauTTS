@@ -26,6 +26,7 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'index.html') -Destination $dist
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'main.js') -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'fs-shim.js') -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'openjtalk-bridge.js') -Destination $dist -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'world-bridge.js') -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $root "models/$modelName") -Destination (Join-Path $dist "models/$modelName") -Force
 
 Write-Host "Built $dist"
