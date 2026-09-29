@@ -193,6 +193,9 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                      QStringLiteral("QML project migration could not be invoked")))
             return 1;
         const QVariantList rows = savedState.toMap().value("utterances").toList();
+        if (!require(rootObject->property("projectFile").toUrl() == projectURL,
+                     QStringLiteral("QML project load did not preserve the source URL")))
+            return 1;
         if (!require(rows.size() == 1
                      && rows.first().toMap().value("speech_timing").toBool() == (timingSetting == 1),
                      QStringLiteral("saved speech timing setting was not preserved")))

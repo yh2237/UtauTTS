@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "UnitOverrides.js" as UnitOverrides
 import QtQuick.Controls
 import QtQuick.Layouts
 import UtauTTS.Media
@@ -24,17 +25,28 @@ ApplicationWindow {
     property var translator: translatorInstance
 
     property int selectedIndex: 0
-    onSelectedIndexChanged: window.refreshEditorInputs()
+    onSelectedIndexChanged: {
+        player.stop();
+        window.synthesisUnits = [];
+        window.playAfterSynthesize = false;
+        window.queuedPlaybackId = "";
+        window.refreshEditorInputs();
+    }
     property string language: "auto"
     property bool exportTextWithWav: false
     property bool exportLabWithWav: false
     property string exportTextEncoding: "utf-8"
     property bool playAfterSynthesize: false
-    property string lastRequestKey: ""
+    property int nextUtteranceId: 0
+    property string pendingSynthesisId: ""
+    property int pendingSynthesisRevision: -1
+    property string queuedPlaybackId: ""
+    property int queuedPlaybackRevision: -1
     property var synthesisUnits: []
-    property int editorRevision: 0
     property string pendingProsodyRequestId: ""
-    property int pendingProsodyIndex: -1
+    property string pendingProsodyUtteranceId: ""
+    property int pendingProsodyRevision: -1
+    property string pendingProsodyKey: ""
 
     visible: !injectedSelfTest
     title: injectedAppName
@@ -100,6 +112,12 @@ ApplicationWindow {
     Connections {
         target: window.appBackend
         function onPreviewReady() {
+            const item = window.currentUtterance();
+            if (!item || item.utteranceId !== window.pendingSynthesisId
+                    || item.revision !== window.pendingSynthesisRevision) {
+                window.playAfterSynthesize = false;
+                return;
+            }
             player.stop();
             player.source = window.appBackend.previewUrl;
             try {
@@ -126,6 +144,17 @@ ApplicationWindow {
         }
         function onExportSettingsChanged() {
             window.loadExportSettings();
+        }
+        function onBusyChanged() {
+            if (!window.appBackend.busy)
+                analysisTimer.restart();
+        }
+        function onErrorChanged() {
+            if (window.appBackend.error) {
+                window.pendingProsodyKey = "";
+                window.queuedPlaybackId = "";
+                window.playAfterSynthesize = false;
+            }
         }
     }
 
@@ -881,7 +910,11 @@ ApplicationWindow {
     // --- ヘルパー ---
 
     function reanalyzeAll() {
-        // モバイルは発話単位の解析UIを持たないため何もしない。
+        for (let index = 0; index < utterances.count; ++index)
+            window.resetAnalysis(index);
+        window.invalidateAudio();
+        window.refreshEditorInputs();
+        analysisTimer.restart();
     }
 
     function currentUtterance() {
@@ -914,17 +947,12 @@ ApplicationWindow {
         mPitchEditor.moraDurations = window.decode(window.selectedRole("durationsJson"));
         mPitchEditor.moraPositions = window.decode(window.selectedRole("positionsJson"));
         mPitchEditor.autoPoints = window.decode(window.selectedRole("autoPointsJson"));
-        mPhonemeEditor.overrides = window.decode(window.selectedRole("phonemeOverridesJson"));
+        mPhonemeEditor.overrides = UnitOverrides.normalize(window.decode(window.selectedRole("phonemeOverridesJson")));
         mPhonemeEditor.units = window.editorUnits();
         mPhonemeEditor.manualFrames = window.decode(window.selectedRole("framePitchJson"));
         mPhonemeEditor.autoFrames = window.decode(window.selectedRole("autoFramePitchJson"));
         mPhonemeEditor.frameMs = Number(window.selectedRole("frameMs")) || 10;
         mPitchEditor.refresh();
-        // wasm ではシグナル処理中の Canvas 再描画が反映されないことがあるため、
-        // 次のイベントループでもう一度描画する。
-        Qt.callLater(function() {
-            mPitchEditor.refresh();
-        });
     }
 
     function voicebankImage(voicebankId) {
@@ -1012,6 +1040,8 @@ ApplicationWindow {
         const voice = core.defaultVoicebank();
         const language = window.selectedLanguage();
         return {
+            utteranceId: "mobile-" + (++window.nextUtteranceId),
+            revision: 0,
             content: "",
             voicebankId: voice ? voice.id : "",
             imagePath: voice ? (voice.image_path || "") : "",
@@ -1040,7 +1070,6 @@ ApplicationWindow {
     function addUtterance() {
         utterances.append(window.defaultUtterance());
         window.selectedIndex = utterances.count - 1;
-        window.editorRevision += 1;
     }
 
     function resetAnalysis(index) {
@@ -1053,6 +1082,9 @@ ApplicationWindow {
             utterances.setProperty(index, fields[i], fields[i] === "reading" ? "" : "[]");
         utterances.setProperty(index, "manualPitchEdited", false);
         utterances.setProperty(index, "manualTimingEdited", false);
+        utterances.setProperty(index, "revision", utterances.get(index).revision + 1);
+        if (index === window.selectedIndex)
+            window.synthesisUnits = [];
     }
 
     function updateUtteranceText(index, text) {
@@ -1071,9 +1103,14 @@ ApplicationWindow {
         if (index < 0 || index >= utterances.count)
             return;
         utterances.remove(index);
+        window.synthesisUnits = [];
+        window.queuedPlaybackId = "";
+        window.playAfterSynthesize = false;
+        player.stop();
         if (utterances.count === 0)
             window.addUtterance();
         window.selectedIndex = Math.max(0, Math.min(window.selectedIndex, utterances.count - 1));
+        window.refreshEditorInputs();
     }
 
     function moveUtterance(index, delta) {
@@ -1081,6 +1118,7 @@ ApplicationWindow {
         if (index < 0 || index >= utterances.count || target < 0 || target >= utterances.count)
             return;
         utterances.move(index, target, 1);
+        utteranceSheet.editIndex = target;
         window.selectedIndex = target;
     }
 
@@ -1100,15 +1138,19 @@ ApplicationWindow {
     function setUtteranceSetting(index, role, value) {
         if (index < 0 || index >= utterances.count)
             return;
+        if (utterances.get(index)[role] === value)
+            return;
         utterances.setProperty(index, role, value);
         if (role === "voicebankId") {
             const voice = core.voicebankById(value);
             utterances.setProperty(index, "imagePath", voice ? (voice.image_path || "") : "");
         }
-        if (role === "voicebankId" || role === "modelId" || role === "aliasPolicy")
+        if (role === "voicebankId" || role === "modelId" || role === "aliasPolicy"
+                || role === "rendererId" || role === "intonation")
             window.resetAnalysis(index);
         window.refreshEditorInputs();
         window.invalidateAudio();
+        analysisTimer.restart();
     }
 
     function togglePlayback() {
@@ -1123,9 +1165,13 @@ ApplicationWindow {
             return;
         // 音声キャッシュは Backend 側がリクエスト単位で判定する。
         // ここでは常に合成を要求する（内容が同じなら Backend がキャッシュを返す）。
-        window.ensureSelectionAnalyzed();
-        window.playAfterSynthesize = true;
-        window.appBackend.synthesize(window.buildRequest(item));
+        if (!window.decode(item.moraeJson).length) {
+            window.queuedPlaybackId = item.utteranceId;
+            window.queuedPlaybackRevision = item.revision;
+            window.ensureSelectionAnalyzed();
+            return;
+        }
+        window.synthesizeSelected();
     }
 
     function decode(value) {
@@ -1145,9 +1191,12 @@ ApplicationWindow {
     }
 
     function invalidateAudio() {
-        window.lastRequestKey = "";
-        window.synthesisUnits = [];
-        window.editorRevision += 1;
+        const item = window.currentUtterance();
+        if (item)
+            utterances.setProperty(window.selectedIndex, "revision", item.revision + 1);
+        window.queuedPlaybackId = "";
+        window.playAfterSynthesize = false;
+        player.stop();
     }
 
     function buildRequest(item) {
@@ -1174,7 +1223,7 @@ ApplicationWindow {
         };
         if (item.manualTimingEdited && durations.length)
             request.mora_durations_ms = durations;
-        const overrides = window.decode(item.phonemeOverridesJson);
+        const overrides = UnitOverrides.normalize(window.decode(item.phonemeOverridesJson));
         if (overrides.length && overrides.some(value => value && Object.keys(value).length))
             request.unit_overrides = overrides;
         const frames = window.decode(item.framePitchJson);
@@ -1232,21 +1281,38 @@ ApplicationWindow {
             return;
         if (!String(item.content).trim().length)
             return;
+        if (window.appBackend.busy)
+            return; // onBusyChanged schedules the retry; Backend otherwise drops the request.
         if (window.decode(item.moraeJson).length)
             return;
-        const requestId = "mobile-prosody-" + index + "-" + Date.now();
+        const key = item.utteranceId + ":" + item.revision;
+        if (key === window.pendingProsodyKey)
+            return;
+        const requestId = "mobile-prosody-" + key + "-" + Date.now();
         window.pendingProsodyRequestId = requestId;
-        window.pendingProsodyIndex = index;
+        window.pendingProsodyUtteranceId = item.utteranceId;
+        window.pendingProsodyRevision = item.revision;
+        window.pendingProsodyKey = key;
         window.appBackend.predictProsody(window.buildProsodyRequest(item, requestId));
     }
 
     function applyProsodyResult() {
         if (window.appBackend.prosodyRequestId !== window.pendingProsodyRequestId)
             return;
-        const index = window.pendingProsodyIndex;
-        window.pendingProsodyIndex = -1;
+        let index = -1;
+        for (let i = 0; i < utterances.count; ++i) {
+            if (utterances.get(i).utteranceId === window.pendingProsodyUtteranceId) {
+                index = i;
+                break;
+            }
+        }
+        window.pendingProsodyKey = "";
         if (index < 0 || index >= utterances.count)
             return;
+        if (utterances.get(index).revision !== window.pendingProsodyRevision) {
+            analysisTimer.restart();
+            return;
+        }
         let result;
         try {
             result = JSON.parse(window.appBackend.prosodyJson);
@@ -1274,7 +1340,12 @@ ApplicationWindow {
         utterances.setProperty(index, "manualPitchEdited", false);
         utterances.setProperty(index, "manualTimingEdited", false);
         window.refreshEditorInputs();
-        window.invalidateAudio();
+        const item = window.currentUtterance();
+        if (item && item.utteranceId === window.queuedPlaybackId
+                && item.revision === window.queuedPlaybackRevision) {
+            window.queuedPlaybackId = "";
+            window.synthesizeSelected();
+        }
     }
 
     function updateIntonationPoints(points) {
@@ -1284,6 +1355,7 @@ ApplicationWindow {
         utterances.setProperty(index, "pointsJson", window.encode(points));
         utterances.setProperty(index, "manualPitchEdited", true);
         window.invalidateAudio();
+        mPitchEditor.points = points;
     }
 
     function updateIntonationTiming(durations, positions) {
@@ -1294,6 +1366,7 @@ ApplicationWindow {
         utterances.setProperty(index, "positionsJson", window.encode(positions));
         utterances.setProperty(index, "manualTimingEdited", true);
         window.invalidateAudio();
+        window.refreshEditorInputs();
     }
 
     function intonationUnits(morae, durations, positions) {
@@ -1315,7 +1388,7 @@ ApplicationWindow {
             let duration = defaultDuration;
             if (hasPositions && index + 1 < source.length)
                 duration = Math.max(20, Number(positionValues[index + 1]) - start);
-            else if (!hasPositions && Number.isFinite(Number(durationValues[index]))
+            else if (Number.isFinite(Number(durationValues[index]))
                      && Number(durationValues[index]) > 0)
                 duration = Math.max(20, Number(durationValues[index]));
             const text = String(mora.mora || "");
@@ -1337,9 +1410,8 @@ ApplicationWindow {
         const index = window.selectedIndex;
         if (index < 0 || index >= utterances.count)
             return;
-        const overrides = window.decode(utterances.get(index).phonemeOverridesJson);
-        overrides[unitIndex] = overrides[unitIndex] || {};
-        overrides[unitIndex][key] = value;
+        const overrides = UnitOverrides.update(window.decode(utterances.get(index).phonemeOverridesJson),
+                                               unitIndex, key, value);
         utterances.setProperty(index, "phonemeOverridesJson", window.encode(overrides));
         window.invalidateAudio();
         // バー表示へ即時反映する（overrides 代入で再描画される）。
@@ -1351,10 +1423,10 @@ ApplicationWindow {
         const index = window.selectedIndex;
         if (index < 0 || index >= utterances.count)
             return;
-        const overrides = window.decode(utterances.get(index).phonemeOverridesJson);
-        delete overrides[unitIndex];
+        const overrides = UnitOverrides.remove(window.decode(utterances.get(index).phonemeOverridesJson), unitIndex);
         utterances.setProperty(index, "phonemeOverridesJson", window.encode(overrides));
         window.invalidateAudio();
+        mPhonemeEditor.overrides = overrides;
     }
 
     function updateIntonationMoraStart(position, startMs) {
@@ -1370,6 +1442,7 @@ ApplicationWindow {
         utterances.setProperty(index, "durationsJson", window.encode(durations));
         utterances.setProperty(index, "manualTimingEdited", true);
         window.invalidateAudio();
+        window.refreshEditorInputs();
     }
 
     function updateIntonationMoraDuration(position, durationMs) {
@@ -1385,6 +1458,7 @@ ApplicationWindow {
         utterances.setProperty(index, "durationsJson", window.encode(durations));
         utterances.setProperty(index, "manualTimingEdited", true);
         window.invalidateAudio();
+        window.refreshEditorInputs();
     }
 
     function updateIntonationGesture(durations, positions, points) {
@@ -1397,6 +1471,7 @@ ApplicationWindow {
         utterances.setProperty(index, "manualTimingEdited", true);
         utterances.setProperty(index, "manualPitchEdited", true);
         window.invalidateAudio();
+        window.refreshEditorInputs();
     }
 
     function updateIntonationFrames(frames) {
@@ -1406,15 +1481,19 @@ ApplicationWindow {
         utterances.setProperty(index, "framePitchJson", window.encode(frames));
         utterances.setProperty(index, "manualPitchEdited", true);
         window.invalidateAudio();
+        mPhonemeEditor.manualFrames = frames;
     }
 
     function synthesizeSelected() {
+        if (window.appBackend.busy)
+            return;
         const item = window.currentUtterance();
         if (!item || !String(item.content).trim().length)
             return;
         const request = window.buildRequest(item);
         window.playAfterSynthesize = true;
-        window.lastRequestKey = JSON.stringify(request);
+        window.pendingSynthesisId = item.utteranceId;
+        window.pendingSynthesisRevision = item.revision;
         window.appBackend.synthesize(request);
     }
 }

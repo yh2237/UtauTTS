@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "UnitOverrides.js" as UnitOverrides
 import QtQuick.Controls
 import QtQuick.Layouts
 import UtauTTS.Platform 1.0
@@ -1338,7 +1339,8 @@ ApplicationWindow {
     }
 
     function current() {
-        return utterances.get(selectedIndex);
+        return utterances.count
+                ? utterances.get(Math.max(0, Math.min(selectedIndex, utterances.count - 1))) : null;
     }
 
     function rendererSettingContext(rendererId) {
@@ -2340,7 +2342,7 @@ ApplicationWindow {
             projectLoadErrorDialog.open();
             return;
         }
-        window.applyLoadedProject(project);
+        window.applyLoadedProject(project, source);
     }
 
     function openProject() {
@@ -2352,7 +2354,7 @@ ApplicationWindow {
             window.appBackend.beginOpenProject();
     }
 
-    function applyLoadedProject(project) {
+    function applyLoadedProject(project, source) {
         if (!project || project.utterances === undefined || project.utterances === null) {
             projectLoadErrorDialog.text = window.translator.tr("main.projectNoUtterances");
             projectLoadErrorDialog.open();
@@ -2430,8 +2432,9 @@ ApplicationWindow {
         }
 
         window.projectDirty = migratedRenderer;
-        window.projectFile = source;
-        window.appBackend.rememberRecentProject(source);
+        window.projectFile = source || "";
+        if (source && source.toString().length)
+            window.appBackend.rememberRecentProject(source);
 
         if (!utterances.count) {
             selectedIndex = 0;
@@ -2697,32 +2700,11 @@ ApplicationWindow {
         if (!utterances.count || unitIndex < 0 || !String(key || "").length)
             return;
         const item = current();
-        const overrides = decodeSequence(item.phonemeOverridesJson).map(value => {
-            const copy = {};
-            for (const name in value)
-                copy[name] = value[name];
-            return copy;
-        });
-        let override = null;
-        let overrideIndex = -1;
-        for (let index = 0; index < overrides.length; ++index) {
-            if (Number(overrides[index].unit_index) === Number(unitIndex)) {
-                override = overrides[index];
-                overrideIndex = index;
-                break;
-            }
-        }
-        if (!override) {
-            override = {unit_index: Number(unitIndex)};
-            overrides.push(override);
-            overrideIndex = overrides.length - 1;
-        }
         const normalizedKey = String(key);
         if (value === undefined || value === null || (typeof value === "number" && !Number.isFinite(value)))
             return;
-        override[normalizedKey] = value;
-        if (Object.keys(override).length <= 1)
-            overrides.splice(overrideIndex, 1);
+        const overrides = UnitOverrides.update(decodeSequence(item.phonemeOverridesJson),
+                                              unitIndex, normalizedKey, value);
         const encoded = JSON.stringify(overrides);
         if (item.phonemeOverridesJson === encoded)
             return;
@@ -2736,8 +2718,7 @@ ApplicationWindow {
         if (!utterances.count || unitIndex < 0)
             return;
         const item = current();
-        const overrides = decodeSequence(item.phonemeOverridesJson)
-                .filter(value => Number(value.unit_index) !== Number(unitIndex));
+        const overrides = UnitOverrides.remove(decodeSequence(item.phonemeOverridesJson), unitIndex);
         const encoded = JSON.stringify(overrides);
         if (item.phonemeOverridesJson === encoded)
             return;

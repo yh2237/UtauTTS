@@ -230,7 +230,7 @@ Item {
 
     function overrideAt(index) {
         for (const value of root.overrides || []) {
-            if (Number(value.unit_index) === Number(index))
+            if (value && Number(value.unit_index) === Number(index))
                 return value;
         }
         return null;
@@ -248,7 +248,7 @@ Item {
         if (String(key).indexOf("resampler_") === 0 && unit
                 && unit[overrideFlag] !== true)
             return root.paramRange(key).def;
-        return unit && unit[key] !== undefined ? unit[key] : 0;
+        return unit && unit[key] !== undefined ? unit[key] : root.paramRange(key).def;
     }
 
     function paramRange(key) {

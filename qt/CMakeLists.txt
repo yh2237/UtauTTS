@@ -90,6 +90,7 @@ else()
     set_target_properties(utautts PROPERTIES BUILD_RPATH "$ORIGIN;${UTAUTTS_NATIVE_DIR}" INSTALL_RPATH "$ORIGIN")
 endif()
 
+set_source_files_properties(qml/UnitOverrides.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 qt_add_qml_module(utautts
     URI UtauTTS
     VERSION 1.0
@@ -97,6 +98,7 @@ qt_add_qml_module(utautts
         qml/Main.qml
         qml/MobileMain.qml
         qml/AppCore.qml
+        qml/UnitOverrides.js
         qml/Translator.qml
         qml/shell/SettingsWindow.qml
         qml/shell/DictionaryWindow.qml

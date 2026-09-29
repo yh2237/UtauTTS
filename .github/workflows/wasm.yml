@@ -46,6 +46,14 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Set up Node for regression checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check wasm state and transport regressions
+        run: node --test web/test-wasm-regressions.cjs
+
       - name: Install cmake and ninja
         run: |
           sudo apt-get update

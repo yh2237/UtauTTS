@@ -43,6 +43,12 @@ function createVirtualFs(options) {
   const handles = new Map();
   const EMPTY_BYTES = new Uint8Array(0);
   let nextFd = 3;
+  let nextVersion = 0;
+
+  function changed(node) {
+    node.__stats = null;
+    node.version = ++nextVersion;
+  }
 
   // リモート裏付け: 指定プレフィックス配下のファイルは、初回アクセス時に
   // 同期XHRで取得してFSへ載せる（Worker内のみ）。音源WAVを合成時にだけ取得する用途。
@@ -252,7 +258,9 @@ function createVirtualFs(options) {
     mountFile(path, data) {
       const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
       const parent = ensureDir(parentPath(path));
-      parent.children.set(basePath(path), { type: "file", data: bytes });
+      const node = { type: "file", data: bytes };
+      changed(node);
+      parent.children.set(basePath(path), node);
       invalidateLookup();
     },
     mountText(path, text) {
@@ -281,6 +289,9 @@ function createVirtualFs(options) {
       walk(root, "");
       return result;
     },
+    fileVersions() {
+      return new Map(fs.listFiles().map(path => [path, lookup(path).version]));
+    },
     exists(path) {
       if (lookup(path) !== null) return true;
       const rel = remoteRelative(path);
@@ -290,8 +301,10 @@ function createVirtualFs(options) {
       const normalized = normalizePath(path);
       let node = lookup(normalized);
       const create = (flags & constants.O_CREAT) !== 0;
-      if (!node && !create) {
-        const rel = remoteRelative(normalized);
+      const rel = remoteRelative(normalized);
+      if (create && (flags & constants.O_EXCL)
+          && (node || remoteIsFile(rel) || remoteIsDir(rel))) throw makeError("EEXIST");
+      if (!node && (!(flags & constants.O_TRUNC) || !create)) {
         if (rel !== null) {
           if (remoteIsFile(rel) && remoteFetch(rel)) {
             node = lookup(normalized);
@@ -305,14 +318,15 @@ function createVirtualFs(options) {
         if (!create) throw makeError("ENOENT");
         ensureDir(parentPath(normalized));
         node = { type: "file", data: new Uint8Array(0) };
+        changed(node);
         ensureDir(parentPath(normalized)).children.set(basePath(normalized), node);
         invalidateLookup();
       }
       if (flags & constants.O_DIRECTORY && node.type !== "dir") throw makeError("ENOTDIR");
       if (node.type === "dir" && flags & (constants.O_WRONLY | constants.O_RDWR)) throw makeError("EISDIR");
-      if (flags & constants.O_TRUNC && node.type === "file") { node.data = new Uint8Array(0); node.__stats = null; }
+      if (flags & constants.O_TRUNC && node.type === "file") { node.data = new Uint8Array(0); changed(node); }
       const fd = nextFd++;
-      handles.set(fd, { path: normalized, pos: 0, node });
+      handles.set(fd, { path: normalized, pos: 0, node, flags });
       return fd;
     },
     open(path, flags, mode, callback) {
@@ -382,7 +396,8 @@ function createVirtualFs(options) {
         const handle = handles.get(fd);
         if (!handle) throw makeError("EBADF");
         if (handle.node.type !== "file") throw makeError("EISDIR");
-        const start = position === null || position === undefined ? handle.pos : Number(position);
+        const start = (handle.flags & constants.O_APPEND) ? handle.node.data.length
+          : position === null || position === undefined ? handle.pos : Number(position);
         const end = start + length;
         if (handle.node.data.length < end) {
           const grown = new Uint8Array(end);
@@ -390,7 +405,7 @@ function createVirtualFs(options) {
           handle.node.data = grown;
         }
         handle.node.data.set(buffer.subarray(offset, offset + length), start);
-        handle.node.__stats = null;
+        changed(handle.node);
         if (position === null || position === undefined) handle.pos = end;
         callback(null, length);
       } catch (error) {
@@ -426,11 +441,20 @@ function createVirtualFs(options) {
       call("_rmdir", path, callback);
     },
     _rename(from, to) {
+      from = normalizePath(from);
+      to = normalizePath(to);
       const node = lookup(from);
       if (!node) throw makeError("ENOENT");
+      if (from === to) return;
+      if (from === "/" || to === "/" || to.startsWith(from + "/")) throw makeError("EINVAL");
+      const targetParent = lookup(parentPath(to));
+      if (!targetParent) throw makeError("ENOENT");
+      if (targetParent.type !== "dir") throw makeError("ENOTDIR");
+      const target = lookup(to);
+      if (target && target.type !== node.type) throw makeError(target.type === "dir" ? "EISDIR" : "ENOTDIR");
+      if (target && target.type === "dir" && target.children.size) throw makeError("ENOTEMPTY");
       lookup(parentPath(from)).children.delete(basePath(from));
-      ensureDir(parentPath(to));
-      lookup(parentPath(to)).children.set(basePath(to), node);
+      targetParent.children.set(basePath(to), node);
       invalidateLookup();
     },
     rename(from, to, callback) {
@@ -442,6 +466,7 @@ function createVirtualFs(options) {
       const next = new Uint8Array(Number(length));
       next.set(node.data.subarray(0, Math.min(node.data.length, next.length)));
       node.data = next;
+      changed(node);
     },
     truncate(path, length, callback) {
       call("_truncate", path, length, callback);
@@ -450,9 +475,11 @@ function createVirtualFs(options) {
       try {
         const handle = handles.get(fd);
         if (!handle) throw makeError("EBADF");
+        if (handle.node.type !== "file") throw makeError("EISDIR");
         const next = new Uint8Array(Number(length));
         next.set(handle.node.data.subarray(0, Math.min(handle.node.data.length, next.length)));
         handle.node.data = next;
+        changed(handle.node);
         callback(null);
       } catch (error) {
         callback(error);

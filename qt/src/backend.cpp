@@ -15,9 +15,7 @@
 #include <QFileInfo>
 #include <QMimeData>
 #ifndef UTAUTTS_WASM
-#ifndef UTAUTTS_WASM
 #include <QFutureWatcher>
-#endif
 #endif
 #include <QJsonDocument>
 #include <QJsonArray>
@@ -27,9 +25,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #ifndef UTAUTTS_WASM
-#ifndef UTAUTTS_WASM
 #include <QPromise>
-#endif
 #endif
 #ifndef UTAUTTS_WASM
 #include <QProcess>
@@ -43,7 +39,6 @@
 #include <QTimer>
 #ifndef UTAUTTS_WASM
 #include <QtConcurrent>
-#include <windows.h>
 #endif
 #include <algorithm>
 #include <memory>
@@ -63,6 +58,26 @@ constexpr int fallbackLeadingPreutteranceMS = 0;
 constexpr double fallbackIntonationStrength = 2.0;
 
 QDir resourceRoot();
+
+// Preview files live in Go's FS on wasm, and the native FS on desktop.
+bool previewFileExists(const QString &path) {
+#ifdef UTAUTTS_WASM
+    const auto fs = emscripten::val::global("utauttsFs");
+    return !fs.isUndefined() && fs.call<bool>("exists", path.toStdString());
+#else
+    return QFileInfo::exists(path);
+#endif
+}
+
+void removePreviewFile(const QString &path) {
+#ifdef UTAUTTS_WASM
+    const auto remove = emscripten::val::global("utauttsRemoveFile");
+    if (!remove.isUndefined())
+        remove(path.toStdString());
+#else
+    QFile::remove(path);
+#endif
+}
 
 QString sanitizeLanguageCode(const QString &code) {
     const QString lower = code.trimmed().toLower();
@@ -1782,6 +1797,8 @@ void Backend::predictProsody(const QVariantMap &request) {
 }
 
 void Backend::synthesize(const QVariantMap &input) {
+    if (m_busy)
+        return;
     if (!m_previewDirectory.isValid()) {
         setError(tr("プレビュー用の一時ディレクトリを作成できませんでした"));
         return;
@@ -1836,7 +1853,7 @@ bool Backend::restorePreviewCache(const QByteArray &key) {
     if (found == m_previewCache.cend())
         return false;
     const PreviewCacheEntry entry = found.value();
-    if (!QFileInfo::exists(entry.path)) {
+    if (!previewFileExists(entry.path)) {
         m_previewCache.remove(key);
         m_previewCacheOrder.removeAll(key);
         return false;
@@ -1858,7 +1875,7 @@ bool Backend::restorePreviewCache(const QByteArray &key) {
 void Backend::storePreviewCache(const QByteArray &key, const PreviewCacheEntry &entry) {
     const auto existing = m_previewCache.constFind(key);
     if (existing != m_previewCache.cend() && existing->path != entry.path)
-        QFile::remove(existing->path);
+        removePreviewFile(existing->path);
     m_previewCache.insert(key, entry);
     m_previewCacheOrder.removeAll(key);
     m_previewCacheOrder.append(key);
@@ -1870,7 +1887,7 @@ void Backend::trimPreviewCache() {
         const QByteArray oldest = m_previewCacheOrder.takeFirst();
         const PreviewCacheEntry entry = m_previewCache.take(oldest);
         if (!entry.path.isEmpty() && entry.path != m_previewPath)
-            QFile::remove(entry.path);
+            removePreviewFile(entry.path);
     }
 }
 
@@ -1878,7 +1895,7 @@ void Backend::clearPreviewCache() {
     for (auto iterator = m_previewCache.cbegin(); iterator != m_previewCache.cend(); ++iterator) {
         const PreviewCacheEntry &entry = iterator.value();
         if (!entry.path.isEmpty())
-            QFile::remove(entry.path);
+            removePreviewFile(entry.path);
     }
     m_previewCache.clear();
     m_previewCacheOrder.clear();

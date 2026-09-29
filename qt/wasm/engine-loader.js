@@ -32,7 +32,7 @@
     window.utauttsFs.mountFile(path, data);
   }
 
-  // --- 同期モード（既定） ---
+  // --- 同期モード（互換用フォールバック） ---
 
   async function initSync() {
     const virtualFs = installVirtualFs({ cwd: "/" });
@@ -91,6 +91,29 @@
       resolveReady = resolve;
       rejectReady = reject;
     });
+    const pendingCalls = new Set();
+    let workerError = null;
+
+    function complete(id, response) {
+      pendingCalls.delete(id);
+      const json = JSON.stringify(response);
+      const module = qtModule();
+      if (module && typeof module._utauttsCallCompleted === "function") {
+        window.utauttsPendingResultId = id;
+        window.utauttsPendingResultJson = json;
+        module._utauttsCallCompleted();
+      } else {
+        window.utauttsPendingResults = window.utauttsPendingResults || [];
+        window.utauttsPendingResults.push({ id, json });
+      }
+    }
+
+    function failWorker(message) {
+      workerError = String(message);
+      rejectReady(new Error(workerError));
+      for (const id of Array.from(pendingCalls))
+        complete(id, { ok: false, error: workerError });
+    }
 
     worker.onmessage = (event) => {
       const data = event.data || {};
@@ -100,7 +123,7 @@
       }
       if (data.type === "error") {
         console.error("engine worker:", data.message);
-        rejectReady(new Error(data.message));
+        failWorker(data.message);
         return;
       }
       if (data.type === "status") {
@@ -108,31 +131,37 @@
         return;
       }
       if (data.type === "callResult") {
+        for (const path of data.removed || []) {
+          if (window.utauttsFs.readFile(path)) window.utauttsFs._unlink(path);
+          if (window.utauttsFileUrlCache) delete window.utauttsFileUrlCache[path];
+        }
         for (const file of data.files || []) {
           setMirror(file.path, new Uint8Array(file.bytes));
           if (window.utauttsFileUrlCache) {
             delete window.utauttsFileUrlCache[file.path];
           }
         }
-        window.utauttsPendingResultId = data.id;
-        window.utauttsPendingResultJson = JSON.stringify(data.response);
-        const module = qtModule();
-        if (module && typeof module._utauttsCallCompleted === "function") {
-          module._utauttsCallCompleted();
-        } else {
-          window.utauttsPendingResults = window.utauttsPendingResults || [];
-          window.utauttsPendingResults.push({ id: data.id, json: window.utauttsPendingResultJson });
-        }
+        complete(data.id, data.response);
       }
     };
     worker.onerror = (event) => {
       const message = (event && (event.message || event.filename)) || "engine worker error";
       console.error("engine worker error:", event);
-      rejectReady(new Error(String(message)));
+      failWorker(message);
     };
+    worker.onmessageerror = () => failWorker("engine worker message could not be decoded");
 
     window.utauttsCallAsync = function (method, requestJSON, id) {
-      worker.postMessage({ type: "call", id, method, request: requestJSON });
+      if (workerError) {
+        complete(id, { ok: false, error: workerError });
+        return;
+      }
+      pendingCalls.add(id);
+      try {
+        worker.postMessage({ type: "call", id, method, request: requestJSON });
+      } catch (error) {
+        complete(id, { ok: false, error: String(error) });
+      }
     };
     window.utauttsMountFile = function (path, bytes) {
       const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
@@ -140,8 +169,14 @@
       const copy = data.slice();
       worker.postMessage({ type: "mountFile", path, bytes: copy.buffer }, [copy.buffer]);
     };
+    window.utauttsRemoveFile = function (path) {
+      if (window.utauttsFs.readFile(path)) window.utauttsFs._unlink(path);
+      if (window.utauttsFileUrlCache) delete window.utauttsFileUrlCache[path];
+      worker.postMessage({ type: "removeFile", path });
+    };
     window.utauttsFlushPendingResults = function () {
       const module = qtModule();
+      if (!module || typeof module._utauttsCallCompleted !== "function") return;
       const pending = window.utauttsPendingResults || [];
       window.utauttsPendingResults = [];
       for (const item of pending) {
@@ -357,6 +392,10 @@
     };
     window.utauttsEngineReady = initAsync();
   } else {
+    window.utauttsRemoveFile = function (path) {
+      if (window.utauttsFs.readFile(path)) window.utauttsFs._unlink(path);
+      if (window.utauttsFileUrlCache) delete window.utauttsFileUrlCache[path];
+    };
     window.utauttsMountFile = function (path, bytes) {
       setMirror(path, bytes);
     };

@@ -1088,7 +1088,6 @@ import UtauTTS.Media
 
                             PhonemeEditor {
                             id: phonemeEditor
-                            anchors.fill: parent
                             translator: window.translator
                             accentColor: window.accent
                             axisColor: window.palette.mid
