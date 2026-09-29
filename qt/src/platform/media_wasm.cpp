@@ -1,6 +1,7 @@
 #include "platform/media.h"
 
 #include <QString>
+#include <QTimer>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/val.h>
@@ -70,6 +71,20 @@ void callJs(const char *name) {
     }
 #endif
 }
+
+#ifdef __EMSCRIPTEN__
+qreal callJsNumber(const char *name) {
+    emscripten::val function = emscripten::val::global(name);
+    return function.isUndefined() ? 0 : function().as<double>();
+}
+bool callJsBool(const char *name) {
+    emscripten::val function = emscripten::val::global(name);
+    return function.isUndefined() ? false : function().as<bool>();
+}
+#else
+qreal callJsNumber(const char *) { return 0; }
+bool callJsBool(const char *) { return false; }
+#endif
 }  // namespace
 
 struct MediaPlayer::Impl {
@@ -80,9 +95,35 @@ struct MediaPlayer::Impl {
     qreal position = 0;
     qreal duration = 0;
     QString error;
+    QTimer *timer = nullptr;
 };
 
-MediaPlayer::MediaPlayer(QObject *parent) : QObject(parent), m_impl(std::make_unique<Impl>()) {}
+MediaPlayer::MediaPlayer(QObject *parent) : QObject(parent), m_impl(std::make_unique<Impl>()) {
+    m_impl->timer = new QTimer(this);
+    m_impl->timer->setInterval(80);
+    connect(m_impl->timer, &QTimer::timeout, this, [this]() {
+        if (m_impl->playbackState != PlayingState) {
+            return;
+        }
+        const qreal position = callJsNumber("utauttsMediaPosition");
+        const qreal duration = callJsNumber("utauttsMediaDuration");
+        if (position != m_impl->position) {
+            m_impl->position = position;
+            emit positionChanged();
+        }
+        if (duration != m_impl->duration) {
+            m_impl->duration = duration;
+            emit durationChanged();
+        }
+        if (callJsBool("utauttsMediaEnded")) {
+            m_impl->timer->stop();
+            m_impl->playbackState = StoppedState;
+            m_impl->mediaStatus = EndOfMedia;
+            emit playbackStateChanged();
+            emit mediaStatusChanged();
+        }
+    });
+}
 MediaPlayer::~MediaPlayer() = default;
 QUrl MediaPlayer::source() const { return m_impl->source; }
 void MediaPlayer::setSource(const QUrl &value) {
@@ -124,16 +165,27 @@ void MediaPlayer::play() {
 #endif
     m_impl->playbackState = PlayingState;
     m_impl->mediaStatus = BufferedMedia;
+    m_impl->position = 0;
+    if (m_impl->timer) {
+        m_impl->timer->start();
+    }
     emit playbackStateChanged();
     emit mediaStatusChanged();
+    emit positionChanged();
 }
 void MediaPlayer::pause() {
     callJs("utauttsMediaPause");
+    if (m_impl->timer) {
+        m_impl->timer->stop();
+    }
     m_impl->playbackState = PausedState;
     emit playbackStateChanged();
 }
 void MediaPlayer::stop() {
     callJs("utauttsMediaStop");
+    if (m_impl->timer) {
+        m_impl->timer->stop();
+    }
     m_impl->playbackState = StoppedState;
     m_impl->mediaStatus = m_impl->source.isEmpty() ? NoMedia : LoadedMedia;
     emit playbackStateChanged();

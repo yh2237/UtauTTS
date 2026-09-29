@@ -40,6 +40,7 @@
 #include <QSettings>
 #include <QSysInfo>
 #include <QUuid>
+#include <QTimer>
 #ifndef UTAUTTS_WASM
 #include <QtConcurrent>
 #include <windows.h>
@@ -1335,17 +1336,21 @@ QVariantMap Backend::call(const QByteArray &method, const QVariantMap &request) 
 void Backend::runNativeAsync(std::function<QVariantMap()> work,
                              std::function<void(const QVariantMap &)> completed) {
 #ifdef UTAUTTS_WASM
-    QVariantMap result;
-    try {
-        result = work();
-    } catch (const std::exception &exception) {
-        result = {{"_error", QString::fromUtf8(exception.what())}};
-    }
-    try {
-        completed(result);
-    } catch (...) {
-        // コールバックの例外で wasm を abort させない。
-    }
+    // 合成はメインスレッドで同期実行されるため、いったん遅延して
+    // ウィンドウ（ログ等）を描画させてから実行する。
+    QTimer::singleShot(30, this, [this, work = std::move(work), completed = std::move(completed)]() mutable {
+        QVariantMap result;
+        try {
+            result = work();
+        } catch (const std::exception &exception) {
+            result = {{"_error", QString::fromUtf8(exception.what())}};
+        }
+        try {
+            completed(result);
+        } catch (...) {
+            // コールバックの例外で wasm を abort させない。
+        }
+    });
 #else
     auto *watcher = new QFutureWatcher<QVariantMap>(this);
     connect(watcher, &QFutureWatcher<QVariantMap>::finished, this,
@@ -1406,6 +1411,29 @@ void Backend::refreshMetadataFromWasm() {
     } catch (const std::exception &exception) {
         setError(QString::fromUtf8(exception.what()));
     }
+}
+
+bool Backend::wasmPlatform() const {
+#ifdef UTAUTTS_WASM
+    return true;
+#else
+    return false;
+#endif
+}
+
+QString Backend::localFileUrl(const QString &path) const {
+    if (path.isEmpty()) {
+        return QString();
+    }
+#ifdef UTAUTTS_WASM
+    emscripten::val function = emscripten::val::global("utauttsFileUrl");
+    if (function.isUndefined()) {
+        return QString();
+    }
+    return QString::fromStdString(function(path.toStdString()).as<std::string>());
+#else
+    return QUrl::fromLocalFile(path).toString();
+#endif
 }
 
 void Backend::reloadVoicebanks() {

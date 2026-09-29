@@ -46,6 +46,7 @@ class Backend final : public QObject {
     Q_PROPERTY(QString synthesisJson READ synthesisJson NOTIFY synthesisChanged)
     Q_PROPERTY(QUrl previewUrl READ previewUrl NOTIFY previewReady)
     Q_PROPERTY(bool darkMode READ darkMode NOTIFY themeChanged)
+    Q_PROPERTY(bool wasmPlatform READ wasmPlatform CONSTANT)
     Q_PROPERTY(QString language READ language NOTIFY languageChanged)
     Q_PROPERTY(bool onboardingCompleted READ onboardingCompleted NOTIFY onboardingChanged)
     Q_PROPERTY(bool closeLogOnSuccess READ closeLogOnSuccess NOTIFY logSettingsChanged)
@@ -99,6 +100,7 @@ public:
     QString synthesisJson() const { return m_synthesisJson; }
     QUrl previewUrl() const { return m_previewUrl; }
     bool darkMode() const { return m_darkMode; }
+    bool wasmPlatform() const;
     QString language() const { return m_language; }
     bool onboardingCompleted() const { return m_onboardingCompleted; }
     bool closeLogOnSuccess() const { return m_closeLogOnSuccess; }
@@ -148,6 +150,8 @@ public:
     Q_INVOKABLE QUrl writeDragExo(const QUrl &directory, const QVariantList &files, int frameRate);
     Q_INVOKABLE QUrl defaultSaveFile(const QString &fileName) const;
     Q_INVOKABLE QUrl fileInDirectory(const QUrl &directory, const QString &fileName) const;
+    // ローカル/仮想FSのファイルを画像等で使えるURLへ変換する。
+    Q_INVOKABLE QString localFileUrl(const QString &path) const;
     Q_INVOKABLE bool saveProject(const QUrl &destination, const QVariantMap &project);
     Q_INVOKABLE void exportUstx(const QUrl &destination, const QVariantMap &project);
     Q_INVOKABLE QVariantMap loadProject(const QUrl &source);
