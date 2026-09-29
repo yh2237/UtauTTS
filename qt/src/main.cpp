@@ -190,6 +190,11 @@ int main(int argc, char *argv[]) {
     if (!uiFontFamilies.isEmpty()) {
         QFont uiFont = app.font();
         uiFont.setFamily(uiFontFamilies.first());
+#ifdef UTAUTTS_WASM
+        // wasm の既定フォントサイズはプラットフォーム依存で大きくなりやすい。
+        // pixelSize 未指定のコントロールをデスクトップと揃える。
+        uiFont.setPixelSize(12);
+#endif
         app.setFont(uiFont);
     }
 

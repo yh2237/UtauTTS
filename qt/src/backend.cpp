@@ -1,5 +1,9 @@
 #include "backend.h"
 #include "platform/engine.h"
+#ifdef UTAUTTS_WASM
+#include <emscripten.h>
+#include <emscripten/val.h>
+#endif
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -314,6 +318,16 @@ QStringList updateLockPaths(const QString &target) {
     return {absolute + QStringLiteral(".update-lock.json"), fallback};
 }
 
+#ifdef UTAUTTS_WASM
+// JS から音源マウント後に呼ばれ、メタデータを再取得して QML を更新する。
+static Backend *g_wasmBackend = nullptr;
+extern "C" EMSCRIPTEN_KEEPALIVE void utauttsRefreshMetadata() {
+    if (g_wasmBackend) {
+        g_wasmBackend->refreshMetadataFromWasm();
+    }
+}
+#endif
+
 Backend::Backend(QObject *parent)
     : QObject(parent),
       m_darkMode(portableSettingValue("appearance/darkMode", false).toBool()),
@@ -350,6 +364,9 @@ Backend::Backend(QObject *parent)
       m_redoShortcut(portableSettingValue("shortcuts/redo", QStringLiteral("Ctrl+Y")).toString()),
       m_recentProjects(portableSettingValue("projects/recent", QStringList()).toStringList()),
       m_updateNetwork(new QNetworkAccessManager(this)) {
+#ifdef UTAUTTS_WASM
+    g_wasmBackend = this;
+#endif
     if (m_defaultTone.isEmpty())
         m_defaultTone = QStringLiteral("C4");
     m_previewCacheFileCount = qBound(1, m_previewCacheFileCount, 256);
@@ -1378,6 +1395,15 @@ void Backend::refreshMetadata() {
     applyMetadata(call("voicebanks"), call("models"), call("renderers"));
 }
 
+void Backend::refreshMetadataFromWasm() {
+    try {
+        refreshMetadata();
+        emit metadataChanged();
+    } catch (const std::exception &exception) {
+        setError(QString::fromUtf8(exception.what()));
+    }
+}
+
 void Backend::reloadVoicebanks() {
     if (m_busy) {
         return;
@@ -1401,6 +1427,13 @@ void Backend::reloadVoicebanks() {
 }
 
 bool Backend::openVoiceDirectory() {
+#ifdef UTAUTTS_WASM
+    emscripten::val function = emscripten::val::global("utauttsPickVoiceDirectory");
+    if (!function.isUndefined()) {
+        function();
+    }
+    return true;
+#else
     const QDir voiceDirectory(resourceRoot().filePath(QStringLiteral("voice")));
     if (!voiceDirectory.exists() && !QDir().mkpath(voiceDirectory.absolutePath())) {
         setError(QStringLiteral("Failed to create the voice directory."));
@@ -1413,6 +1446,7 @@ bool Backend::openVoiceDirectory() {
     }
     setError({});
     return true;
+#endif
 }
 
 bool Backend::openClassicToolDirectory(const QString &kind) {

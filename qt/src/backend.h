@@ -132,6 +132,8 @@ public:
     Q_INVOKABLE void initialize();
     void initializeAsync();
     Q_INVOKABLE void reloadVoicebanks();
+    // wasmで外部（JS）から音源マウント後にメタデータを再取得する。
+    void refreshMetadataFromWasm();
     Q_INVOKABLE bool openVoiceDirectory();
     Q_INVOKABLE bool openClassicToolDirectory(const QString &kind);
     Q_INVOKABLE bool reloadClassicTools();
