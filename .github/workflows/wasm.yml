@@ -7,6 +7,8 @@ on:
       - main
     paths:
       - "web/**"
+      - "qt/**"
+      - "renderer/utautts-world-phrase/**"
       - "cmd/utautts-wasm/**"
       - "cmd/utautts-worldline-bridge/**"
       - "internal/**"
@@ -22,12 +24,18 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  EMSDK_DIR: ${{ github.workspace }}/.emsdk
+  QT_VERSION: 6.8.3
+  EMSDK_BRIDGE_VERSION: 6.0.10
+  EMSDK_QT_VERSION: 3.1.56
+  EMSDK_DIR: ${{ github.workspace }}/.emsdk-bridge
+  EMSDK_QT_DIR: ${{ github.workspace }}/.emsdk-qt
+  QT_HOST_DIR: ${{ github.workspace }}/.qt-host
+  QT_WASM_ROOT: ${{ github.workspace }}/.qt-wasm
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -38,16 +46,16 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Set up Emscripten
-        run: |
-          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$EMSDK_DIR"
-          "$EMSDK_DIR/emsdk" install latest
-          "$EMSDK_DIR/emsdk" activate latest
-
       - name: Install cmake and ninja
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build
+
+      - name: Set up Emscripten (bridges)
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$EMSDK_DIR"
+          "$EMSDK_DIR/emsdk" install "$EMSDK_BRIDGE_VERSION"
+          "$EMSDK_DIR/emsdk" activate "$EMSDK_BRIDGE_VERSION"
 
       - name: Fetch Open JTalk dictionary
         run: |
@@ -74,13 +82,34 @@ jobs:
           source "$EMSDK_DIR/emsdk_env.sh"
           bash web/build-openjtalk.sh
 
+      - name: Install Qt (desktop host and wasm kit)
+        run: |
+          python3 -m pip install --quiet aqtinstall
+          aqt install-qt linux desktop "$QT_VERSION" gcc_64 -O "$QT_HOST_DIR"
+          aqt install-qt linux desktop "$QT_VERSION" wasm_singlethread -O "$QT_WASM_ROOT"
+
+      - name: Set up Emscripten (Qt)
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$EMSDK_QT_DIR"
+          "$EMSDK_QT_DIR/emsdk" install "$EMSDK_QT_VERSION"
+          "$EMSDK_QT_DIR/emsdk" activate "$EMSDK_QT_VERSION"
+
+      - name: Build Qt wasm app
+        shell: bash
+        env:
+          QT_WASM_DIR: ${{ env.QT_WASM_ROOT }}/${{ env.QT_VERSION }}/wasm_singlethread
+          QT_HOST_PATH: ${{ env.QT_HOST_DIR }}/${{ env.QT_VERSION }}/gcc_64
+        run: |
+          source "$EMSDK_QT_DIR/emsdk_env.sh"
+          bash qt/wasm/build.sh
+
       - name: Point dictionary to external storage
         if: ${{ vars.DICT_BASE_URL != '' }}
         env:
           DICT_BASE_URL: ${{ vars.DICT_BASE_URL }}
           DICT_MANIFEST_URL: ${{ vars.DICT_MANIFEST_URL }}
         run: |
-          cat > web/dist/config.js <<EOF
+          cat > build/web-release/web/dist/config.js <<EOF
           globalThis.UtauTTSConfig = { dictBaseURL: "${DICT_BASE_URL}", dictManifestURL: "${DICT_MANIFEST_URL}" };
           EOF
 
@@ -88,7 +117,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: utautts-wasm
-          path: web/dist
+          path: build/web-release
 
   deploy:
     needs: build
@@ -99,11 +128,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: utautts-wasm
-          path: web/dist
+          path: build/web-release
 
       - name: Publish to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy web/dist --project-name=${{ vars.CF_PAGES_PROJECT }}
+          command: pages deploy build/web-release --project-name=${{ vars.CF_PAGES_PROJECT }}

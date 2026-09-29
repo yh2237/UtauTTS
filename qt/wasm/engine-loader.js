@@ -59,11 +59,15 @@
       locateFile: (file) => ENGINE_BASE + "openjtalk/" + file,
     });
     openjtalk.FS.mkdir(DICT_PATH);
-    const manifest = await (await fetch(ENGINE_BASE + "openjtalk/dict-manifest.json")).json();
+    const config = globalThis.UtauTTSConfig || {};
+    const engineBase = new URL(ENGINE_BASE, location.href).toString();
+    const dictBase = new URL(config.dictBaseURL || "openjtalk/dict/", engineBase).toString();
+    const dictManifestURL = new URL(config.dictManifestURL || "openjtalk/dict-manifest.json", engineBase).toString();
+    const manifest = await (await fetch(dictManifestURL)).json();
     for (const name of manifest.files) {
       openjtalk.FS.writeFile(
         DICT_PATH + "/" + name,
-        new Uint8Array(await (await fetch(ENGINE_BASE + "openjtalk/dict/" + encodeURIComponent(name))).arrayBuffer())
+        new Uint8Array(await (await fetch(dictBase + encodeURIComponent(name))).arrayBuffer())
       );
     }
     const jtalkBridge = createOpenJTalkBridge(openjtalk);
