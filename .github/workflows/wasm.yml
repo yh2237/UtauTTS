@@ -1,0 +1,109 @@
+name: wasm
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "web/**"
+      - "cmd/utautts-wasm/**"
+      - "cmd/utautts-worldline-bridge/**"
+      - "internal/**"
+      - "native/**"
+      - "third_party/open_jtalk/**"
+      - ".github/workflows/wasm.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wasm-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EMSDK_DIR: ${{ github.workspace }}/.emsdk
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Emscripten
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$EMSDK_DIR"
+          "$EMSDK_DIR/emsdk" install latest
+          "$EMSDK_DIR/emsdk" activate latest
+
+      - name: Install cmake and ninja
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+
+      - name: Fetch Open JTalk dictionary
+        run: |
+          python3 -m pip install --quiet pyopenjtalk==0.4.1
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import os
+          import pyopenjtalk
+          pyopenjtalk.run_frontend("テスト")
+          print("OPENJTALK_DICT=" + os.path.join(os.path.dirname(pyopenjtalk.__file__), "open_jtalk_dic_utf_8-1.11"))
+          PY
+
+      - name: Build Go wasm
+        run: bash web/build.sh
+
+      - name: Build WORLD wasm
+        shell: bash
+        run: |
+          source "$EMSDK_DIR/emsdk_env.sh"
+          bash web/build-world.sh
+
+      - name: Build Open JTalk wasm
+        shell: bash
+        run: |
+          source "$EMSDK_DIR/emsdk_env.sh"
+          bash web/build-openjtalk.sh
+
+      - name: Point dictionary to external storage
+        if: ${{ vars.DICT_BASE_URL != '' }}
+        env:
+          DICT_BASE_URL: ${{ vars.DICT_BASE_URL }}
+          DICT_MANIFEST_URL: ${{ vars.DICT_MANIFEST_URL }}
+        run: |
+          cat > web/dist/config.js <<EOF
+          globalThis.UtauTTSConfig = { dictBaseURL: "${DICT_BASE_URL}", dictManifestURL: "${DICT_MANIFEST_URL}" };
+          EOF
+
+      - name: Upload web assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: utautts-wasm
+          path: web/dist
+
+  deploy:
+    needs: build
+    if: ${{ vars.DICT_BASE_URL != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download web assets
+        uses: actions/download-artifact@v4
+        with:
+          name: utautts-wasm
+          path: web/dist
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy web/dist --project-name=${{ vars.CF_PAGES_PROJECT }}

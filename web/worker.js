@@ -2,6 +2,7 @@
 
 // 音声合成エンジン一式（fsシム・Go wasm・Open JTalk・WORLD・音源）をWorker内に閉じ込める。
 importScripts(
+  "./config.js",
   "./wasm_exec.js",
   "./fs-shim.js",
   "./openjtalk-bridge.js",
@@ -42,10 +43,13 @@ async function loadOpenJTalk() {
   // Worker内ではEmscriptenのスクリプト位置検出が当てにならないため、wasmの場所を明示する。
   const Module = await createUtauTTSOpenJTalk({ locateFile: (file) => "./openjtalk/" + file });
   Module.FS.mkdir(DICT_PATH);
-  const manifest = await (await fetch("./openjtalk/dict-manifest.json")).json();
+  const config = globalThis.UtauTTSConfig || {};
+  const dictBase = config.dictBaseURL || "./openjtalk/dict/";
+  const manifestURL = config.dictManifestURL || "./openjtalk/dict-manifest.json";
+  const manifest = await (await fetch(manifestURL)).json();
   let loaded = 0;
   for (const name of manifest.files) {
-    const response = await fetch("./openjtalk/dict/" + encodeURIComponent(name));
+    const response = await fetch(dictBase + encodeURIComponent(name));
     if (!response.ok) throw new Error("failed to load dictionary file: " + name);
     Module.FS.writeFile(DICT_PATH + "/" + name, new Uint8Array(await response.arrayBuffer()));
     loaded++;
