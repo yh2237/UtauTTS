@@ -24,6 +24,8 @@ $goroot = (& go env GOROOT).Trim()
 Copy-Item -LiteralPath (Join-Path $goroot 'lib/wasm/wasm_exec.js') -Destination (Join-Path $dist 'wasm_exec.js') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'index.html') -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'main.js') -Destination $dist -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'client.js') -Destination $dist -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'worker.js') -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'fs-shim.js') -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'openjtalk-bridge.js') -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'world-bridge.js') -Destination $dist -Force

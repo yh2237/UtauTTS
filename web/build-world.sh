@@ -24,7 +24,7 @@ exported='_UtauTTSWorldF0,_UtauTTSWorldAnalysisShape,_UtauTTSWorldAnalyze,_UtauT
   -fexceptions \
   -sMODULARIZE=1 \
   -sEXPORT_NAME=createUtauTTSWorld \
-  -sENVIRONMENT=node,web \
+  -sENVIRONMENT=web,worker,node \
   -sALLOW_MEMORY_GROWTH=1 \
   -sSTACK_SIZE=16MB \
   -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,UTF8ToString,HEAPF64,HEAP32,HEAPU8 \

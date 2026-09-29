@@ -51,7 +51,7 @@ $arguments += @(
     '-fexceptions',
     '-sMODULARIZE=1',
     '-sEXPORT_NAME=createUtauTTSOpenJTalk',
-    '-sENVIRONMENT=node,web',
+    '-sENVIRONMENT=web,worker,node',
     '-sFORCE_FILESYSTEM=1',
     '-sALLOW_MEMORY_GROWTH=1',
     '-sSTACK_SIZE=8MB',
