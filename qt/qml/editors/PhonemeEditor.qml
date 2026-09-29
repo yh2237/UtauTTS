@@ -1073,6 +1073,8 @@ Item {
                 property real lastPY: -1
                 property real pendingSeekX: 0
                 property int dragCursor: 0
+                property real panStartContentX: 0
+                property real panStartFingerX: 0
                 property var frameBackup: []
                 property int frameLast: -1
                 cursorShape: dragCursor !== 0 ? dragCursor : root.timelineCursor
@@ -1141,6 +1143,10 @@ Item {
                             pendingKind = "background";
                         }
                     }
+                    if (pendingKind === "background") {
+                        panStartContentX = timelineViewport.contentX;
+                        panStartFingerX = mapToItem(timelineViewport, mouse.x, mouse.y).x;
+                    }
                 }
                 onPositionChanged: mouse => {
                     const p = mapToItem(waveformCanvas, mouse.x, mouse.y);
@@ -1203,6 +1209,13 @@ Item {
                             activeKind = "note";
                             dragCursor = firstNote ? Qt.SizeVerCursor : Qt.SizeAllCursor;
                         }
+                    } else if (pendingKind === "background") {
+                        const maximum = Math.max(0, timelineViewport.contentWidth - timelineViewport.width);
+                        const fingerX = mapToItem(timelineViewport, mouse.x, mouse.y).x;
+                        timelineViewport.contentX = Math.max(0, Math.min(maximum,
+                                panStartContentX - (fingerX - panStartFingerX)));
+                        activeKind = "background";
+                        dragCursor = Qt.OpenHandCursor;
                     }
                     if (activeKind === "expr") {
                         const v = root.previewUnitValueDrag(p.x, p.y, mouse.modifiers);

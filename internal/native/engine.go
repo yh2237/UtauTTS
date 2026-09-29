@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"sort"
 	"strings"
 
@@ -64,7 +65,10 @@ func New(config Config) (*Engine, error) {
 		engine.cancel()
 		return nil, fmt.Errorf("load voicebanks: %w", err)
 	}
-	go engine.warmUp()
+	// wasm では初回推論が重く起動を遅らせるため、warmUp は行わない。
+	if goruntime.GOOS != "js" {
+		go engine.warmUp()
+	}
 	return engine, nil
 }
 

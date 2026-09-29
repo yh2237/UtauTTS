@@ -36,5 +36,11 @@ cp "${root_dir}/models/"*.json "${dist}/models/"
     printf ']}'
 } > "${dist}/models/manifest.json"
 
+# 同梱音源を展開し、遅延配信用の manifest を作る。
+voice_zip="$(ls "${root_dir}/voice/"*.zip 2>/dev/null | head -n1 || true)"
+if [ -n "${voice_zip}" ]; then
+    python3 "${script_dir}/build-voice.py" "${voice_zip}" "${dist}/voice"
+fi
+
 echo "Built ${dist}"
 echo "Serve it with:  python -m http.server --directory \"${dist}\""

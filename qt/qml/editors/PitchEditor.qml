@@ -543,6 +543,34 @@ Item {
                 }
             }
 
+            // 背景ドラッグで横スクロール（タッチ/マウス）。編集ハンドル(z:2)より下に置く。
+            MouseArea {
+                id: backgroundPan
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 64
+                z: 1
+                cursorShape: Qt.OpenHandCursor
+                property real startContentX: 0
+                property real startFingerX: 0
+                onPressed: mouse => {
+                    startContentX = viewport.contentX;
+                    startFingerX = mapToItem(viewport, mouse.x, mouse.y).x;
+                }
+                onPositionChanged: mouse => {
+                    if (!pressed)
+                        return;
+                    const maximum = Math.max(0, viewport.contentWidth - viewport.width);
+                    if (maximum <= 0)
+                        return;
+                    const fingerX = mapToItem(viewport, mouse.x, mouse.y).x;
+                    viewport.contentX = Math.max(0, Math.min(maximum,
+                            startContentX - (fingerX - startFingerX)));
+                }
+            }
+
             Item {
                 width: root.graphWidth
                 height: 64
@@ -862,4 +890,9 @@ Item {
     onMoraWidthChanged: canvas.requestPaint()
     onDefaultMoraDurationChanged: canvas.requestPaint()
     onDefaultPauseDurationChanged: canvas.requestPaint()
+
+    // 外部からデータを差し替えた後に明示的に再描画する。
+    function refresh() {
+        canvas.requestPaint();
+    }
 }

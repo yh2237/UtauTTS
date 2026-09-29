@@ -13,7 +13,7 @@ ToolBar {
         anchors.fill: parent
         Label {
             Layout.fillWidth: true
-            Layout.leftMargin: 8
+            Layout.leftMargin: 12
             text: root.heading
             font.bold: true
             elide: Text.ElideRight

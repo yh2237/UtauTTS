@@ -7,14 +7,14 @@ Item {
     required property var editor
     property color trackColor
     property color thumbColor
-    implicitHeight: 14
+    implicitHeight: 18
     visible: root.editor.horizontalMaximum > 0
 
     Rectangle {
         id: track
         anchors.verticalCenter: parent.verticalCenter
         width: parent.width
-        height: 4
+        height: 5
         radius: height / 2
         color: root.trackColor
     }
@@ -23,7 +23,7 @@ Item {
         id: thumb
         readonly property real minimumWidth: 28
         width: Math.max(minimumWidth, track.width * root.editor.horizontalVisibleRatio)
-        height: 10
+        height: 12
         radius: height / 2
         y: (parent.height - height) / 2
         x: (track.width - width) * root.editor.horizontalPosition

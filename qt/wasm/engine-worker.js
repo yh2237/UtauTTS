@@ -118,7 +118,20 @@ async function loadModels() {
 
 async function init() {
   status("エンジンを初期化中…");
-  virtualFs = installVirtualFs({ cwd: "/" });
+  let voiceManifest = null;
+  try {
+    voiceManifest = await (await fetch(ENGINE_BASE + "voice/manifest.json?t=" + Date.now())).json();
+  } catch (error) {
+    voiceManifest = null;
+  }
+  virtualFs = installVirtualFs({
+    cwd: "/",
+    remote: voiceManifest && voiceManifest.files ? {
+      prefix: "/voice",
+      baseURL: ENGINE_BASE + "voice/",
+      files: voiceManifest.files,
+    } : null,
+  });
   const go = new Go();
   status("エンジンWASMを取得中…");
   const response = await fetch(ENGINE_BASE + "utautts.wasm");
@@ -132,17 +145,39 @@ async function init() {
   await waitFor(() => globalThis.utauttsWasm && globalThis.utauttsWasm.call, 30000);
 
   await loadModels();
-  await loadOpenJTalk();
-  await loadWorld();
 
   self.postMessage({ type: "ready" });
+}
+
+let runtimePromise = null;
+let runtimeKicked = false;
+function ensureRuntime() {
+  if (!runtimePromise) {
+    runtimePromise = (async () => {
+      await loadOpenJTalk();
+      await loadWorld();
+    })();
+  }
+  return runtimePromise;
 }
 
 function handleMountFile(path, buffer) {
   virtualFs.mountFile(path, new Uint8Array(buffer));
 }
 
-function handleCall(id, method, requestJSON) {
+async function handleCall(id, method, requestJSON) {
+  if (method === "synthesize" || method === "analyze" || method === "predictProsody") {
+    try {
+      await ensureRuntime();
+    } catch (error) {
+      self.postMessage({
+        type: "callResult", id,
+        response: { ok: false, error: String((error && error.message) || error) },
+        files: [],
+      });
+      return;
+    }
+  }
   const before = snapshot();
   let response;
   try {
@@ -151,12 +186,29 @@ function handleCall(id, method, requestJSON) {
   } catch (error) {
     response = { ok: false, error: String((error && error.message) || error) };
   }
+  // 音源一覧を返すときは、画像を先読みしてメインのミラーへ渡せるようにする。
+  if (method === "voicebanks" && response && response.ok && response.result) {
+    const banks = response.result.voicebanks || [];
+    for (const bank of banks) {
+      if (bank && bank.image_path) {
+        try { virtualFs.readFile(bank.image_path); } catch (error) { /* optional */ }
+      }
+    }
+  }
   const files = changedFiles(before);
   self.postMessage(
     { type: "callResult", id, response, files },
     files.map((file) => file.bytes)
   );
+  // 初期メタデータ取得が終わってから、辞書/WORLDをバックグラウンドで読み込む。
+  // （起動直後に読み込むと単一スレッドを占有し、音源一覧の取得が待たされる）
+  if (!runtimeKicked && method === "renderers") {
+    runtimeKicked = true;
+    ensureRuntime().catch((error) => console.error("runtime preload failed", error));
+  }
 }
+
+let callChain = Promise.resolve();
 
 self.onmessage = (event) => {
   const data = event.data || {};
@@ -164,7 +216,16 @@ self.onmessage = (event) => {
     if (data.type === "mountFile") {
       handleMountFile(data.path, data.bytes);
     } else if (data.type === "call") {
-      handleCall(data.id, data.method, data.request);
+      // 非同期のランタイム読み込みを含むため直列化する。
+      callChain = callChain
+        .then(() => handleCall(data.id, data.method, data.request))
+        .catch((error) => {
+          self.postMessage({
+            type: "callResult", id: data.id,
+            response: { ok: false, error: String((error && error.message) || error) },
+            files: [],
+          });
+        });
     }
   } catch (error) {
     const message = String((error && error.message) || error);

@@ -37,5 +37,14 @@ $modelManifest = @{ models = @($modelFiles | ForEach-Object { $_.Name }) } | Con
 Set-Content -LiteralPath (Join-Path $dist 'models/manifest.json') -Value $modelManifest -Encoding utf8
 Write-Host ("Bundled models: " + (($modelFiles | ForEach-Object { $_.Name }) -join ', '))
 
+# 同梱音源を展開し、遅延配信用の manifest を作る。
+$voiceZip = Get-ChildItem -Path (Join-Path $root 'voice') -Filter *.zip -File -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($voiceZip) {
+    & python (Join-Path $PSScriptRoot 'build-voice.py') $voiceZip.FullName (Join-Path $dist 'voice')
+    if ($LASTEXITCODE -ne 0) { throw "voice bank packaging failed" }
+} else {
+    Write-Host "No bundled voicebank zip found under voice/"
+}
+
 Write-Host "Built $dist"
 Write-Host "Serve it with:  python -m http.server --directory `"$dist`""
