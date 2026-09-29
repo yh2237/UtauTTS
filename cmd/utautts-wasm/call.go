@@ -20,8 +20,10 @@ var (
 func sharedEngine() (*native.Engine, error) {
 	engineOnce.Do(func() {
 		engine, engineErr = native.New(native.Config{
-			VoiceDir: "/voice",
-			Renderer: "utautts-world-phrase",
+			VoiceDir:            "/voice",
+			Renderer:            "utautts-world-phrase",
+			ModelDirectories:    []string{"/models"},
+			RendererDirectories: []string{"/renderer"},
 		})
 	})
 	return engine, engineErr

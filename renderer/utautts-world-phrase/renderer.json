@@ -21,7 +21,7 @@
     { "id": "pause_context", "type": "boolean", "group": "correction", "default": true, "label": "settings.pauseContext" },
     { "id": "english_weak_form", "type": "boolean", "group": "pronunciation", "default": true, "label": "settings.englishWeakForm" }
   ],
-  "platforms": ["windows-amd64", "linux-amd64", "darwin-amd64", "darwin-arm64"],
+  "platforms": ["windows-amd64", "linux-amd64", "darwin-amd64", "darwin-arm64", "js-wasm"],
   "platform_resources": {
     "windows-amd64": {
       "world_engine": { "path": "../../runtime/utautts-world-engine.dll", "required": true },
@@ -38,6 +38,10 @@
     "darwin-arm64": {
       "world_engine": { "path": "../../runtime/utautts-world-engine.dylib", "required": true },
       "worldline_bridge": { "path": "../../runtime/utautts-worldline-bridge", "required": true, "executable": true }
+    },
+    "js-wasm": {
+      "world_engine": { "path": "wasm", "required": false },
+      "worldline_bridge": { "path": "wasm", "required": false }
     }
   }
 }

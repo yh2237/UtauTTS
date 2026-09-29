@@ -77,6 +77,8 @@ struct MediaPlayer::Impl {
     QObject *audioOutputObject = nullptr;
     int playbackState = MediaPlayer::StoppedState;
     int mediaStatus = MediaPlayer::NoMedia;
+    qreal position = 0;
+    qreal duration = 0;
     QString error;
 };
 
@@ -100,6 +102,18 @@ void MediaPlayer::setAudioOutput(QObject *value) {
 int MediaPlayer::playbackState() const { return m_impl->playbackState; }
 int MediaPlayer::mediaStatus() const { return m_impl->mediaStatus; }
 QString MediaPlayer::errorString() const { return m_impl->error; }
+qreal MediaPlayer::position() const { return m_impl->position; }
+void MediaPlayer::setPosition(qreal value) {
+    m_impl->position = value;
+    emit positionChanged();
+#ifdef __EMSCRIPTEN__
+    emscripten::val function = emscripten::val::global("utauttsMediaSeek");
+    if (!function.isUndefined()) {
+        function(static_cast<double>(value));
+    }
+#endif
+}
+qreal MediaPlayer::duration() const { return m_impl->duration; }
 void MediaPlayer::play() {
 #ifdef __EMSCRIPTEN__
     emscripten::val function = emscripten::val::global("utauttsMediaPlay");

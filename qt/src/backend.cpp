@@ -1341,7 +1341,11 @@ void Backend::runNativeAsync(std::function<QVariantMap()> work,
     } catch (const std::exception &exception) {
         result = {{"_error", QString::fromUtf8(exception.what())}};
     }
-    completed(result);
+    try {
+        completed(result);
+    } catch (...) {
+        // コールバックの例外で wasm を abort させない。
+    }
 #else
     auto *watcher = new QFutureWatcher<QVariantMap>(this);
     connect(watcher, &QFutureWatcher<QVariantMap>::finished, this,

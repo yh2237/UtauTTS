@@ -62,6 +62,10 @@ MediaPlayer::MediaPlayer(QObject *parent) : QObject(parent), m_impl(std::make_un
             [this](QMediaPlayer::PlaybackState) { emit playbackStateChanged(); });
     connect(&m_impl->player, &QMediaPlayer::mediaStatusChanged, this,
             [this](QMediaPlayer::MediaStatus) { emit mediaStatusChanged(); });
+    connect(&m_impl->player, &QMediaPlayer::positionChanged, this,
+            [this](qint64) { emit positionChanged(); });
+    connect(&m_impl->player, &QMediaPlayer::durationChanged, this,
+            [this](qint64) { emit durationChanged(); });
     connect(&m_impl->player, &QMediaPlayer::errorOccurred, this,
             [this](QMediaPlayer::Error error, const QString &message) {
                 emit errorOccurred(static_cast<int>(error), message);
@@ -87,6 +91,11 @@ void MediaPlayer::setAudioOutput(QObject *value) {
 int MediaPlayer::playbackState() const { return static_cast<int>(m_impl->player.playbackState()); }
 int MediaPlayer::mediaStatus() const { return static_cast<int>(m_impl->player.mediaStatus()); }
 QString MediaPlayer::errorString() const { return m_impl->player.errorString(); }
+qreal MediaPlayer::position() const { return static_cast<qreal>(m_impl->player.position()); }
+void MediaPlayer::setPosition(qreal value) {
+    m_impl->player.setPosition(static_cast<qint64>(value));
+}
+qreal MediaPlayer::duration() const { return static_cast<qreal>(m_impl->player.duration()); }
 void MediaPlayer::play() { m_impl->player.play(); }
 void MediaPlayer::pause() { m_impl->player.pause(); }
 void MediaPlayer::stop() { m_impl->player.stop(); }

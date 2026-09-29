@@ -363,6 +363,10 @@ func evaluateAvailability(definition Definition, provider Provider) Availability
 
 // CheckResourcesは解決済み資源を評価する。Classic UTAUのツール選択などprovider固有オプションでも使う。
 func CheckResources(resources map[ResourceKey]string, requirements ...ResourceRequirement) Availability {
+	// wasm では WORLD エンジン等をインプロセスで持つため、外部資源の存在チェックを行わない。
+	if runtime.GOOS == "js" {
+		return Availability{Available: true}
+	}
 	issues := make([]AvailabilityIssue, 0, len(requirements))
 	for _, requirement := range requirements {
 		path := strings.TrimSpace(resources[requirement.Key])

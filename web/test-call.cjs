@@ -15,7 +15,15 @@ if (!globalThis.crypto) {
 const DIST = path.join(__dirname, "dist");
 require(path.join(DIST, "wasm_exec.js"));
 const { installVirtualFs } = require(path.join(__dirname, "fs-shim.js"));
-installVirtualFs({ cwd: "/" });
+const virtualFs = installVirtualFs({ cwd: "/" });
+virtualFs.mountFile(
+  "/models/frame-intonation-tcn-v9.1-t.json",
+  new Uint8Array(fs.readFileSync(path.join(__dirname, "..", "models", "frame-intonation-tcn-v9.1-t.json")))
+);
+virtualFs.mountFile(
+  "/renderer/utautts-world-phrase/renderer.json",
+  new Uint8Array(fs.readFileSync(path.join(__dirname, "..", "renderer", "utautts-world-phrase", "renderer.json")))
+);
 
 function waitFor(predicate, timeoutMS) {
   return new Promise((resolve, reject) => {

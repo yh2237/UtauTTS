@@ -4,29 +4,20 @@
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QString>
-#include <stdexcept>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/val.h>
 #endif
 
 // wasm 実装: メインスレッドに読み込んだ Go エンジン（globalThis.utauttsWasm）を
-// emscripten::val 経由で同期的に呼ぶ。Go 側の call は同一スレッドで完結するため
-// backend.cpp の同期モデルをそのまま使える。
-
-#ifdef __EMSCRIPTEN__
-namespace {
-emscripten::val engineApi() {
-    return emscripten::val::global("utauttsWasm");
-}
-}  // namespace
-#endif
+// emscripten::val 経由で同期的に呼ぶ。C++ 例外が Qt のイベントループへ漏れて
+// abort しないよう、失敗は throw せず {"_error": ...} を返す。
 
 QVariantMap callNative(uintptr_t, const QByteArray &method, const QVariantMap &request) {
 #ifdef __EMSCRIPTEN__
-    emscripten::val api = engineApi();
+    emscripten::val api = emscripten::val::global("utauttsWasm");
     if (api.isUndefined()) {
-        throw std::runtime_error("wasm engine (utauttsWasm) is not loaded");
+        return {{QStringLiteral("_error"), QStringLiteral("wasm engine (utauttsWasm) is not loaded")}};
     }
     const QByteArray requestJSON =
         QJsonDocument::fromVariant(request).toJson(QJsonDocument::Compact);
@@ -36,17 +27,17 @@ QVariantMap callNative(uintptr_t, const QByteArray &method, const QVariantMap &r
     QJsonParseError parseError;
     const QJsonDocument document = QJsonDocument::fromJson(text.toUtf8(), &parseError);
     if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
-        throw std::runtime_error("wasm engine returned invalid JSON");
+        return {{QStringLiteral("_error"), QStringLiteral("wasm engine returned invalid JSON")}};
     }
     const QJsonObject object = document.object();
     if (!object.value(QStringLiteral("ok")).toBool()) {
-        throw std::runtime_error(object.value(QStringLiteral("error")).toString().toStdString());
+        return {{QStringLiteral("_error"), object.value(QStringLiteral("error")).toString()}};
     }
     return object.value(QStringLiteral("result")).toObject().toVariantMap();
 #else
     (void)method;
     (void)request;
-    throw std::runtime_error("wasm engine is unavailable in this build");
+    return {{QStringLiteral("_error"), QStringLiteral("wasm engine is unavailable in this build")}};
 #endif
 }
 
@@ -55,6 +46,9 @@ QVariantMap initializeNative(const QByteArray &, const std::function<void(int)> 
         progress(0);
     }
     const QVariantMap voices = callNative(0, "voicebanks");
+    if (voices.contains(QStringLiteral("_error"))) {
+        return voices;
+    }
     if (progress) {
         progress(1);
     }

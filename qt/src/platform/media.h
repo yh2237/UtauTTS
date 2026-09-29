@@ -64,6 +64,8 @@ class MediaPlayer : public QObject {
     Q_PROPERTY(QObject *audioOutput READ audioOutput WRITE setAudioOutput NOTIFY audioOutputChanged)
     Q_PROPERTY(int playbackState READ playbackState NOTIFY playbackStateChanged)
     Q_PROPERTY(int mediaStatus READ mediaStatus NOTIFY mediaStatusChanged)
+    Q_PROPERTY(qreal position READ position WRITE setPosition NOTIFY positionChanged)
+    Q_PROPERTY(qreal duration READ duration NOTIFY durationChanged)
     Q_PROPERTY(QString errorString READ errorString NOTIFY errorOccurred)
 public:
     enum PlaybackState { StoppedState = 0, PlayingState = 1, PausedState = 2 };
@@ -88,6 +90,9 @@ public:
     void setAudioOutput(QObject *value);
     int playbackState() const;
     int mediaStatus() const;
+    qreal position() const;
+    void setPosition(qreal value);
+    qreal duration() const;
     QString errorString() const;
 
     Q_INVOKABLE void play();
@@ -99,6 +104,8 @@ signals:
     void audioOutputChanged();
     void playbackStateChanged();
     void mediaStatusChanged();
+    void positionChanged();
+    void durationChanged();
     void errorOccurred(int error, const QString &errorString);
 
 private:
