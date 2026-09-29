@@ -338,6 +338,11 @@ extern "C" EMSCRIPTEN_KEEPALIVE void utauttsVoicebankArchivesPicked() {
         g_wasmBackend->handlePickedVoicebankArchives();
     }
 }
+extern "C" EMSCRIPTEN_KEEPALIVE void utauttsCallCompleted() {
+    if (g_wasmBackend) {
+        g_wasmBackend->handleWasmCallCompleted();
+    }
+}
 
 // 生成したバイト列をブラウザのダウンロードとして保存させる。
 // wasm にはユーザーが選べるローカルパスが無いため、保存先はブラウザに委ねる。
@@ -420,6 +425,8 @@ Backend::Backend(QObject *parent)
       m_updateNetwork(new QNetworkAccessManager(this)) {
 #ifdef UTAUTTS_WASM
     g_wasmBackend = this;
+    emscripten::val asyncFlag = emscripten::val::global("utauttsAsyncMode");
+    m_wasmAsync = !asyncFlag.isUndefined() && asyncFlag.as<bool>();
 #endif
     if (m_defaultTone.isEmpty())
         m_defaultTone = QStringLiteral("C4");
@@ -1296,6 +1303,28 @@ void Backend::initializeAsync() {
     setBusy(true);
     setError({});
     emit metadataReloadStarted();
+    emit metadataReloadStageChanged(QStringLiteral("voicebanks"));
+    if (m_wasmAsync) {
+        m_handle = 1;
+        emit connectedChanged();
+        callAsync("voicebanks", {}, [this](const QVariantMap &voices) {
+            callAsync("models", {}, [this, voices](const QVariantMap &models) {
+                callAsync("renderers", {}, [this, voices, models](const QVariantMap &renderers) {
+                    setBusy(false);
+                    if (voices.contains("_error") || models.contains("_error") || renderers.contains("_error")) {
+                        setError(voices.value("_error",
+                                              models.value("_error",
+                                                           renderers.value("_error"))).toString());
+                    } else {
+                        applyMetadata(voices, models, renderers);
+                        setError({});
+                    }
+                    emit metadataChanged();
+                });
+            });
+        });
+        return;
+    }
     initialize();
     setBusy(false);
     emit metadataChanged();
@@ -1426,6 +1455,61 @@ void Backend::runNativeAsync(std::function<QVariantMap()> work,
 #endif
 }
 
+void Backend::callAsync(const QByteArray &method, const QVariantMap &request,
+                        std::function<void(const QVariantMap &)> completed) {
+#ifdef UTAUTTS_WASM
+    if (m_wasmAsync) {
+        emscripten::val function = emscripten::val::global("utauttsCallAsync");
+        if (function.isUndefined()) {
+            if (completed) {
+                completed(QVariantMap{{QStringLiteral("_error"),
+                                       QStringLiteral("async engine unavailable")}});
+            }
+            return;
+        }
+        const qulonglong id = ++m_wasmCallSerial;
+        m_wasmCallbacks.insert(id, std::move(completed));
+        const QByteArray requestJSON =
+            QJsonDocument::fromVariant(request).toJson(QJsonDocument::Compact);
+        function(std::string(method.constData()), std::string(requestJSON.constData()),
+                 static_cast<double>(id));
+        return;
+    }
+#endif
+    runNativeAsync([this, method, request]() { return call(method, request); },
+                   std::move(completed));
+}
+
+void Backend::handleWasmCallCompleted() {
+#ifdef UTAUTTS_WASM
+    emscripten::val idValue = emscripten::val::global("utauttsPendingResultId");
+    if (idValue.isUndefined()) {
+        return;
+    }
+    emscripten::val jsonValue = emscripten::val::global("utauttsPendingResultJson");
+    const qulonglong id = static_cast<qulonglong>(idValue.as<double>());
+    const QString json = jsonValue.isUndefined()
+            ? QString() : QString::fromStdString(jsonValue.as<std::string>());
+    auto callback = m_wasmCallbacks.take(id);
+    if (!callback) {
+        return;
+    }
+    QVariantMap result;
+    const QJsonDocument document = QJsonDocument::fromJson(json.toUtf8());
+    if (!document.isObject()) {
+        result = {{QStringLiteral("_error"), QStringLiteral("invalid async engine response")}};
+    } else {
+        const QJsonObject object = document.object();
+        if (!object.value(QStringLiteral("ok")).toBool()) {
+            result = {{QStringLiteral("_error"), object.value(QStringLiteral("error")).toString()}};
+        } else {
+            result = object.value(QStringLiteral("result")).toObject().toVariantMap();
+        }
+    }
+    callback(result);
+#endif
+}
+
 void Backend::applyMetadata(const QVariantMap &voices, const QVariantMap &models,
                             const QVariantMap &renderers) {
     m_voicebanks = voices.value("voicebanks").toList();
@@ -1458,6 +1542,19 @@ void Backend::refreshMetadata() {
 }
 
 void Backend::refreshMetadataFromWasm() {
+#ifdef UTAUTTS_WASM
+    if (m_wasmAsync) {
+        callAsync("voicebanks", {}, [this](const QVariantMap &voices) {
+            callAsync("models", {}, [this, voices](const QVariantMap &models) {
+                callAsync("renderers", {}, [this, voices, models](const QVariantMap &renderers) {
+                    applyMetadata(voices, models, renderers);
+                    emit metadataChanged();
+                });
+            });
+        });
+        return;
+    }
+#endif
     try {
         refreshMetadata();
         emit metadataChanged();
@@ -1489,9 +1586,7 @@ void Backend::reloadVoicebanks() {
     setError({});
     emit metadataReloadStarted();
     emit metadataReloadStageChanged(QStringLiteral("voicebanks"));
-    runNativeAsync([this]() {
-        return call("reloadVoicebanks");
-    }, [this](const QVariantMap &result) {
+    callAsync("reloadVoicebanks", {}, [this](const QVariantMap &result) {
         setBusy(false);
         if (result.contains("_error")) {
             setError(result.value("_error").toString());
@@ -1575,30 +1670,34 @@ void Backend::installVoicebankArchives(const QVariantList &archives) {
     emit metadataReloadStarted();
     emit metadataReloadStageChanged(QStringLiteral("voicebanks"));
     appendLog(tr("音源を追加しています..."));
-    runNativeAsync([this, paths]() {
-        QVariantMap last;
-        for (const QString &path : paths) {
-            last = call("installVoicebank", QVariantMap{{"zip_path", path}});
-            if (last.contains("_error")) {
-                return last;
+    auto completed = std::make_shared<std::function<void(const QVariantMap &)>>(
+        [this](const QVariantMap &result) {
+            setBusy(false);
+            if (result.contains("_error")) {
+                const QString error = result.value("_error").toString();
+                appendLog(tr("音源を追加できませんでした: %1").arg(error));
+                setError(error);
+                return;
             }
-        }
-        return last;
-    }, [this](const QVariantMap &result) {
-        setBusy(false);
-        if (result.contains("_error")) {
-            const QString error = result.value("_error").toString();
-            appendLog(tr("音源を追加できませんでした: %1").arg(error));
-            setError(error);
+            m_voicebanks = result.value("voicebanks").toList();
+            emit metadataChanged();
+            appendLog(tr("音源を追加しました。"));
+#ifdef UTAUTTS_WASM
+            refreshMetadataFromWasm();
+#endif
+        });
+    auto index = std::make_shared<int>(0);
+    auto step = std::make_shared<std::function<void(const QVariantMap &)>>();
+    *step = [this, paths, index, step, completed](const QVariantMap &previous) {
+        if (previous.contains("_error") || *index >= paths.size()) {
+            (*completed)(previous);
             return;
         }
-        m_voicebanks = result.value("voicebanks").toList();
-        emit metadataChanged();
-        appendLog(tr("音源を追加しました。"));
-#ifdef UTAUTTS_WASM
-        refreshMetadataFromWasm();
-#endif
-    });
+        const QString path = paths.at((*index)++);
+        callAsync("installVoicebank", QVariantMap{{"zip_path", path}},
+                  [step](const QVariantMap &result) { (*step)(result); });
+    };
+    (*step)(QVariantMap{});
 }
 
 bool Backend::openClassicToolDirectory(const QString &kind) {
@@ -1634,11 +1733,10 @@ void Backend::analyzeSpeech(const QString &text, const QString &requestId,
     const quint64 generation = ++m_nextAnalysisGeneration;
     m_analysisGenerations.insert(requestId, generation);
     const QVariantList dictionary = m_dictionaryEntries;
-    runNativeAsync([this, text, dictionary, language, phonemizer, voicebankId]() {
-        return call("analyze", {{"text", text}, {"language", language},
-                                {"phonemizer", phonemizer}, {"voicebank_id", voicebankId},
-                                {"dictionary", dictionary}});
-    }, [this, generation, requestId, text](const QVariantMap &value) {
+    const QVariantMap analyzeRequest{{"text", text}, {"language", language},
+                                     {"phonemizer", phonemizer}, {"voicebank_id", voicebankId},
+                                     {"dictionary", dictionary}};
+    callAsync("analyze", analyzeRequest, [this, generation, requestId, text](const QVariantMap &value) {
                 if (m_analysisGenerations.value(requestId) == generation) {
                     m_analysisGenerations.remove(requestId);
                     if (value.contains("_error")) {
@@ -1666,9 +1764,7 @@ void Backend::predictProsody(const QVariantMap &request) {
     const quint64 generation = ++m_nextProsodyGeneration;
     QVariantMap callRequest = request;
     callRequest.insert("request_id", requestId);
-    runNativeAsync([this, callRequest]() {
-        return call("predictProsody", callRequest);
-    }, [this, generation, requestId](const QVariantMap &value) {
+    callAsync("predictProsody", callRequest, [this, generation, requestId](const QVariantMap &value) {
                 if (generation == m_nextProsodyGeneration) {
                     if (value.contains("_error")) {
                         setError(value.value("_error").toString());
@@ -1705,9 +1801,7 @@ void Backend::synthesize(const QVariantMap &input) {
     appendLog(tr("音声合成を開始しました: %1").arg(request.value("text").toString()));
     setBusy(true);
     setError({});
-    runNativeAsync([this, request]() {
-        return call("synthesize", request);
-    }, [this, outputPath, previewText, cacheKey](const QVariantMap &result) {
+    callAsync("synthesize", request, [this, outputPath, previewText, cacheKey](const QVariantMap &result) {
                 setBusy(false);
                 if (result.contains("_error")) {
                     const QString error = result.value("_error").toString();
@@ -1812,32 +1906,31 @@ bool Backend::savePreview(const QUrl &destination) {
         wasmDownloadBytes(name, data);
     }
     if (m_exportTextWithWav || m_exportLabWithWav) {
-        try {
-            call("writeSidecars", QVariantMap{
-                {"wav_path", m_previewPath},
-                {"text", m_previewText},
-                {"lab", m_previewLab},
-                {"encoding", m_exportTextEncoding},
-                {"write_text", m_exportTextWithWav},
-                {"write_lab", m_exportLabWithWav},
-            });
-        } catch (const std::exception &exception) {
-            setError(tr("付随するTXT／LABファイルを保存できませんでした: %1")
-                         .arg(QString::fromUtf8(exception.what())));
-            return false;
-        }
-        const QString base = m_previewPath.left(m_previewPath.lastIndexOf('.'));
+        const QString sidecarBase = m_previewPath.left(m_previewPath.lastIndexOf('.'));
         const QString downloadBase = name.left(name.lastIndexOf('.'));
-        if (m_exportTextWithWav) {
-            const QByteArray text = readGoFsBytes(base + QStringLiteral(".txt"));
-            if (!text.isEmpty())
-                wasmDownloadBytes(downloadBase + QStringLiteral(".txt"), text);
-        }
-        if (m_exportLabWithWav) {
-            const QByteArray lab = readGoFsBytes(base + QStringLiteral(".lab"));
-            if (!lab.isEmpty())
-                wasmDownloadBytes(downloadBase + QStringLiteral(".lab"), lab);
-        }
+        const bool writeText = m_exportTextWithWav;
+        const bool writeLab = m_exportLabWithWav;
+        callAsync("writeSidecars", QVariantMap{
+            {"wav_path", m_previewPath},
+            {"text", m_previewText},
+            {"lab", m_previewLab},
+            {"encoding", m_exportTextEncoding},
+            {"write_text", writeText},
+            {"write_lab", writeLab},
+        }, [writeText, writeLab, sidecarBase, downloadBase](const QVariantMap &result) {
+            if (result.contains("_error"))
+                return;
+            if (writeText) {
+                const QByteArray text = readGoFsBytes(sidecarBase + QStringLiteral(".txt"));
+                if (!text.isEmpty())
+                    wasmDownloadBytes(downloadBase + QStringLiteral(".txt"), text);
+            }
+            if (writeLab) {
+                const QByteArray lab = readGoFsBytes(sidecarBase + QStringLiteral(".lab"));
+                if (!lab.isEmpty())
+                    wasmDownloadBytes(downloadBase + QStringLiteral(".lab"), lab);
+            }
+        });
     }
     setError({});
     return true;
@@ -2009,10 +2102,7 @@ void Backend::exportUstx(const QUrl &destination, const QVariantMap &project) {
     setError({});
     const QString outputPath = QDir::toNativeSeparators(destination.toLocalFile());
     const QVariantMap request{{"output_path", outputPath}, {"project", project}};
-    runNativeAsync([this, request]() {
-        call("exportUstx", request);
-        return QVariantMap();
-    }, [this, outputPath](const QVariantMap &result) {
+    callAsync("exportUstx", request, [this, outputPath](const QVariantMap &result) {
         setBusy(false);
         if (result.contains("_error")) {
             const QString error = result.value("_error").toString();

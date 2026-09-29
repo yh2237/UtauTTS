@@ -69,13 +69,22 @@ elseif(APPLE)
         INSTALL_RPATH "@loader_path/../Frameworks"
     )
 elseif(EMSCRIPTEN)
-    # wasmホストページ（index.html / engine-loader.js）を出力ディレクトリへコピーする。
-    add_custom_command(TARGET utautts POST_BUILD
+    # wasmホストページ（index.html / engine-loader.js / engine-worker.js）を出力へコピーする。
+    # 対象ファイルが変わったときだけ実行される（毎回のターゲット再リンク不要）。
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/wasm-host.stamp"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/wasm/index.html"
             "${CMAKE_CURRENT_SOURCE_DIR}/wasm/engine-loader.js"
+            "${CMAKE_CURRENT_SOURCE_DIR}/wasm/engine-worker.js"
             "$<TARGET_FILE_DIR:utautts>"
+        COMMAND ${CMAKE_COMMAND} -E touch "${CMAKE_CURRENT_BINARY_DIR}/wasm-host.stamp"
+        DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/wasm/index.html"
+            "${CMAKE_CURRENT_SOURCE_DIR}/wasm/engine-loader.js"
+            "${CMAKE_CURRENT_SOURCE_DIR}/wasm/engine-worker.js"
         VERBATIM)
+    add_custom_target(copy_wasm_host ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/wasm-host.stamp")
+    add_dependencies(utautts copy_wasm_host)
 else()
     set_target_properties(utautts PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/app")
     set_target_properties(utautts PROPERTIES BUILD_RPATH "$ORIGIN;${UTAUTTS_NATIVE_DIR}" INSTALL_RPATH "$ORIGIN")

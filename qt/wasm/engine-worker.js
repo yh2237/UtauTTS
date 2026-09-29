@@ -1,0 +1,154 @@
+"use strict";
+
+// Go エンジン一式（Go wasm・Open JTalk・WORLD・モデル・音源）を Worker 内で動かし、
+// メインスレッドからは postMessage で非同期に呼び出す。
+// 生成されたファイルはメインのFSミラーへ転送し、同期読み出し（再生・保存・画像）を成立させる。
+importScripts(
+  "/web/dist/wasm_exec.js",
+  "/web/dist/fs-shim.js",
+  "/web/dist/openjtalk-bridge.js",
+  "/web/dist/world-bridge.js",
+  "/web/dist/openjtalk/utautts-openjtalk.js",
+  "/web/dist/world/utautts-world.js"
+);
+
+const ENGINE_BASE = "/web/dist/";
+const DICT_PATH = "/dict";
+const MIRROR_EXTENSIONS = new Set([
+  "wav", "txt", "lab", "ustx", "exo", "png", "jpg", "jpeg", "bmp", "gif",
+]);
+
+let virtualFs = null;
+
+function waitFor(predicate, timeoutMS) {
+  return new Promise((resolve, reject) => {
+    const deadline = Date.now() + timeoutMS;
+    const tick = () => {
+      if (predicate()) return resolve();
+      if (Date.now() > deadline) return reject(new Error("timeout"));
+      setTimeout(tick, 20);
+    };
+    tick();
+  });
+}
+
+function snapshot() {
+  const map = new Map();
+  for (const path of virtualFs.listFiles()) {
+    const data = virtualFs.readFile(path);
+    map.set(path, data ? data.length : -1);
+  }
+  return map;
+}
+
+function changedFiles(before) {
+  const files = [];
+  for (const path of virtualFs.listFiles()) {
+    const data = virtualFs.readFile(path);
+    if (!data || before.get(path) === data.length) {
+      continue;
+    }
+    const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+    if (!MIRROR_EXTENSIONS.has(ext)) {
+      continue;
+    }
+    const copy = data.slice();
+    files.push({ path, bytes: copy.buffer });
+  }
+  return files;
+}
+
+async function loadOpenJTalk() {
+  const openjtalk = await createUtauTTSOpenJTalk({
+    locateFile: (file) => ENGINE_BASE + "openjtalk/" + file,
+  });
+  openjtalk.FS.mkdir(DICT_PATH);
+  const manifest = await (await fetch(ENGINE_BASE + "openjtalk/dict-manifest.json")).json();
+  for (const name of manifest.files) {
+    openjtalk.FS.writeFile(
+      DICT_PATH + "/" + name,
+      new Uint8Array(await (await fetch(ENGINE_BASE + "openjtalk/dict/" + encodeURIComponent(name))).arrayBuffer())
+    );
+  }
+  const bridge = createOpenJTalkBridge(openjtalk);
+  bridge.init(DICT_PATH);
+  globalThis.utauttsOpenJTalk = bridge;
+}
+
+async function loadWorld() {
+  const world = await createUtauTTSWorld({
+    locateFile: (file) => ENGINE_BASE + "world/" + file,
+  });
+  globalThis.utauttsWorld = createWorldBridge(world);
+}
+
+async function loadModels() {
+  const manifest = await (await fetch(ENGINE_BASE + "models/manifest.json")).json();
+  for (const name of manifest.models || []) {
+    virtualFs.mountFile(
+      "/models/" + name,
+      new Uint8Array(await (await fetch(ENGINE_BASE + "models/" + encodeURIComponent(name))).arrayBuffer())
+    );
+  }
+  virtualFs.mountFile(
+    "/renderer/utautts-world-phrase/renderer.json",
+    new Uint8Array(await (await fetch("/renderer/utautts-world-phrase/renderer.json")).arrayBuffer())
+  );
+}
+
+async function init() {
+  virtualFs = installVirtualFs({ cwd: "/" });
+  const go = new Go();
+  const bytes = await (await fetch(ENGINE_BASE + "utautts.wasm")).arrayBuffer();
+  const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
+  go.run(instance);
+  await waitFor(() => globalThis.utauttsWasm && globalThis.utauttsWasm.call, 30000);
+
+  await loadModels();
+  await loadOpenJTalk();
+  await loadWorld();
+
+  self.postMessage({ type: "ready" });
+}
+
+function handleMountFile(path, buffer) {
+  virtualFs.mountFile(path, new Uint8Array(buffer));
+}
+
+function handleCall(id, method, requestJSON) {
+  const before = snapshot();
+  let response;
+  try {
+    const raw = globalThis.utauttsWasm.call(method, requestJSON || "{}");
+    response = JSON.parse(raw);
+  } catch (error) {
+    response = { ok: false, error: String((error && error.message) || error) };
+  }
+  const files = changedFiles(before);
+  self.postMessage(
+    { type: "callResult", id, response, files },
+    files.map((file) => file.bytes)
+  );
+}
+
+self.onmessage = (event) => {
+  const data = event.data || {};
+  try {
+    if (data.type === "mountFile") {
+      handleMountFile(data.path, data.bytes);
+    } else if (data.type === "call") {
+      handleCall(data.id, data.method, data.request);
+    }
+  } catch (error) {
+    const message = String((error && error.message) || error);
+    if (data.id !== undefined) {
+      self.postMessage({ type: "callResult", id: data.id, response: { ok: false, error: message }, files: [] });
+    } else {
+      self.postMessage({ type: "error", message });
+    }
+  }
+};
+
+init().catch((error) => {
+  self.postMessage({ type: "error", message: String((error && error.message) || error) });
+});

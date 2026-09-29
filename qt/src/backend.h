@@ -139,6 +139,8 @@ public:
     Q_INVOKABLE void beginAddVoicebanks();
     Q_INVOKABLE void installVoicebankArchives(const QVariantList &archives);
     void handlePickedVoicebankArchives();
+    // wasm の Worker から呼び出し結果を受け取り、待機中のコールバックへ渡す。
+    void handleWasmCallCompleted();
     Q_INVOKABLE bool openClassicToolDirectory(const QString &kind);
     Q_INVOKABLE bool reloadClassicTools();
     Q_INVOKABLE void analyze(const QString &text, const QString &requestId);
@@ -253,6 +255,10 @@ private:
     QVariantMap call(const QByteArray &method, const QVariantMap &request = {});
     void runNativeAsync(std::function<QVariantMap()> work,
                         std::function<void(const QVariantMap &)> completed);
+    // wasm の Worker モードではエンジン呼び出しが非同期になる。
+    // それ以外（desktop / wasm同期モード）は別スレッドまたは遅延で実行する。
+    void callAsync(const QByteArray &method, const QVariantMap &request,
+                   std::function<void(const QVariantMap &)> completed);
     void applyMetadata(const QVariantMap &voices, const QVariantMap &models,
                       const QVariantMap &renderers);
     void refreshMetadata();
@@ -280,6 +286,11 @@ private:
     QFutureSynchronizer<QVariantMap> m_activeCalls;
     QFuture<QVariantMap> m_initializationFuture;
     QFuture<void> m_initializationTask;
+#endif
+#ifdef UTAUTTS_WASM
+    bool m_wasmAsync = false;
+    qulonglong m_wasmCallSerial = 0;
+    QHash<qulonglong, std::function<void(const QVariantMap &)>> m_wasmCallbacks;
 #endif
     int m_activeCallCount = 0;
     QVariantList m_voicebanks, m_models, m_renderers, m_resamplers, m_wavtools, m_dictionaryEntries;

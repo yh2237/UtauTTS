@@ -137,6 +137,19 @@ function createVirtualFs() {
       if (!node || node.type !== "file") return null;
       return node.data;
     },
+    // 仮想FS内の全ファイルパスを返す（Workerのミラー同期用）。
+    listFiles() {
+      const result = [];
+      const walk = (node, prefix) => {
+        for (const [name, child] of node.children) {
+          const childPath = prefix + "/" + name;
+          if (child.type === "dir") walk(child, childPath);
+          else result.push(childPath);
+        }
+      };
+      walk(root, "");
+      return result;
+    },
     exists(path) {
       return lookup(path) !== null;
     },

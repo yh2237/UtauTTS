@@ -59,6 +59,9 @@
           module._utauttsRefreshMetadata();
         }
       };
+      if (typeof window.utauttsFlushPendingResults === "function") {
+        window.utauttsFlushPendingResults();
+      }
     } catch (error) {
       status.textContent = "エラー: " + error;
       console.error(error);

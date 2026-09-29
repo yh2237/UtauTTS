@@ -1,11 +1,15 @@
 "use strict";
 
-// Qt wasm アプリのページで Go エンジン一式（fsシム・Open JTalk・WORLD・モデル）を
-// メインスレッドに読み込み、globalThis.utauttsWasm.call を C++ から同期的に使えるようにする。
+// Qt wasm アプリのページで Go エンジン一式を用意する。
+// 既定は Worker（engine-worker.js）でエンジンを動かし、メインスレッドは
+// 非同期呼び出しとFSミラーだけを持つ（UIが固まらない）。
+// URL に ?async=0 を付けると従来のメインスレッド同期方式へフォールバックする。
 (() => {
   const ENGINE_BASE = "/web/dist/";
   const DICT_PATH = "/dict";
   const OPEN_PROJECT_PATH = "/tmp/utautts-open-project.utautts";
+  const ASYNC = new URLSearchParams(location.search).get("async") !== "0";
+  window.utauttsAsyncMode = ASYNC;
 
   function waitFor(predicate, timeoutMS) {
     return new Promise((resolve, reject) => {
@@ -19,7 +23,18 @@
     });
   }
 
-  async function loadEngine() {
+  function qtModule() {
+    return window.utauttsQtModule || window.Module;
+  }
+
+  function setMirror(path, bytes) {
+    const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    window.utauttsFs.mountFile(path, data);
+  }
+
+  // --- 同期モード（既定） ---
+
+  async function initSync() {
     const virtualFs = installVirtualFs({ cwd: "/" });
     window.utauttsFs = virtualFs;
     const go = new Go();
@@ -35,7 +50,6 @@
         new Uint8Array(await (await fetch(ENGINE_BASE + "models/" + encodeURIComponent(modelName))).arrayBuffer())
       );
     }
-
     virtualFs.mountFile(
       "/renderer/utautts-world-phrase/renderer.json",
       new Uint8Array(await (await fetch("/renderer/utautts-world-phrase/renderer.json")).arrayBuffer())
@@ -62,9 +76,75 @@
     globalThis.utauttsWorld = createWorldBridge(world);
   }
 
-  function qtModule() {
-    return window.utauttsQtModule || window.Module;
+  // --- 非同期モード（Worker） ---
+
+  function initAsync() {
+    window.utauttsFs = createVirtualFs();
+    const worker = new Worker(new URL("./engine-worker.js", location.href));
+    let resolveReady;
+    let rejectReady;
+    const ready = new Promise((resolve, reject) => {
+      resolveReady = resolve;
+      rejectReady = reject;
+    });
+
+    worker.onmessage = (event) => {
+      const data = event.data || {};
+      if (data.type === "ready") {
+        resolveReady();
+        return;
+      }
+      if (data.type === "error") {
+        console.error("engine worker:", data.message);
+        rejectReady(new Error(data.message));
+        return;
+      }
+      if (data.type === "callResult") {
+        for (const file of data.files || []) {
+          setMirror(file.path, new Uint8Array(file.bytes));
+          if (window.utauttsFileUrlCache) {
+            delete window.utauttsFileUrlCache[file.path];
+          }
+        }
+        window.utauttsPendingResultId = data.id;
+        window.utauttsPendingResultJson = JSON.stringify(data.response);
+        const module = qtModule();
+        if (module && typeof module._utauttsCallCompleted === "function") {
+          module._utauttsCallCompleted();
+        } else {
+          window.utauttsPendingResults = window.utauttsPendingResults || [];
+          window.utauttsPendingResults.push({ id: data.id, json: window.utauttsPendingResultJson });
+        }
+      }
+    };
+    worker.onerror = (event) => console.error("engine worker error:", (event && event.message) || event);
+
+    window.utauttsCallAsync = function (method, requestJSON, id) {
+      worker.postMessage({ type: "call", id, method, request: requestJSON });
+    };
+    window.utauttsMountFile = function (path, bytes) {
+      const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      window.utauttsFs.mountFile(path, data);
+      const copy = data.slice();
+      worker.postMessage({ type: "mountFile", path, bytes: copy.buffer }, [copy.buffer]);
+    };
+    window.utauttsFlushPendingResults = function () {
+      const module = qtModule();
+      const pending = window.utauttsPendingResults || [];
+      window.utauttsPendingResults = [];
+      for (const item of pending) {
+        if (module && typeof module._utauttsCallCompleted === "function") {
+          window.utauttsPendingResultId = item.id;
+          window.utauttsPendingResultJson = item.json;
+          module._utauttsCallCompleted();
+        }
+      }
+    };
+
+    return ready;
   }
+
+  // --- ファイル選択・メディア（両モード共通） ---
 
   window.utauttsPickVoiceDirectory = function () {
     return new Promise((resolve, reject) => {
@@ -87,11 +167,17 @@
             if (root === "") {
               root = relative.split("/")[0];
             }
-            window.utauttsFs.mountFile("/voice/" + relative, new Uint8Array(await file.arrayBuffer()));
+            window.utauttsMountFile("/voice/" + relative, new Uint8Array(await file.arrayBuffer()));
           }
-          globalThis.utauttsWasm.call("reloadVoicebanks", "{}");
-          if (typeof globalThis.utauttsRefreshMetadata === "function") {
-            globalThis.utauttsRefreshMetadata();
+          if (ASYNC) {
+            if (typeof globalThis.utauttsRefreshMetadata === "function") {
+              globalThis.utauttsRefreshMetadata();
+            }
+          } else {
+            globalThis.utauttsWasm.call("reloadVoicebanks", "{}");
+            if (typeof globalThis.utauttsRefreshMetadata === "function") {
+              globalThis.utauttsRefreshMetadata();
+            }
           }
           resolve(root);
         } catch (error) {
@@ -104,7 +190,7 @@
     });
   };
 
-  // プロジェクトファイルを選ばせ、Go エンジンの仮想FSへ載せてから C++ へ通知する。
+  // プロジェクトファイルを選ばせ、FSへ載せてから C++ へ通知する。
   window.utauttsPickProjectFile = function () {
     const input = document.createElement("input");
     input.type = "file";
@@ -117,7 +203,7 @@
         if (!file) {
           return;
         }
-        window.utauttsFs.mountFile(OPEN_PROJECT_PATH, new Uint8Array(await file.arrayBuffer()));
+        window.utauttsMountFile(OPEN_PROJECT_PATH, new Uint8Array(await file.arrayBuffer()));
         const module = qtModule();
         if (module && typeof module._utauttsProjectFilePicked === "function") {
           module._utauttsProjectFilePicked();
@@ -131,7 +217,7 @@
     input.click();
   };
 
-  // 音源ZIPを複数選ばせ、Goエンジンの仮想FSへ載せてから C++ へ通知する。
+  // 音源ZIPを複数選ばせ、FSへ載せてから C++ へ通知する。
   window.utauttsPickVoicebankArchives = function () {
     const input = document.createElement("input");
     input.type = "file";
@@ -145,7 +231,7 @@
         const paths = [];
         for (let index = 0; index < files.length; ++index) {
           const path = "/tmp/voicebank-" + index + ".zip";
-          window.utauttsFs.mountFile(path, new Uint8Array(await files[index].arrayBuffer()));
+          window.utauttsMountFile(path, new Uint8Array(await files[index].arrayBuffer()));
           paths.push(path);
         }
         window.utauttsVoicebankZipPaths = paths;
@@ -253,5 +339,15 @@
     }
   };
 
-  window.utauttsEngineReady = loadEngine();
+  if (ASYNC) {
+    window.utauttsMountFile = function (path, bytes) {
+      setMirror(path, bytes);
+    };
+    window.utauttsEngineReady = initAsync();
+  } else {
+    window.utauttsMountFile = function (path, bytes) {
+      setMirror(path, bytes);
+    };
+    window.utauttsEngineReady = initSync();
+  }
 })();
