@@ -23,6 +23,26 @@
 #include <QTemporaryDir>
 #include <memory>
 
+#ifdef UTAUTTS_WASM
+#include <emscripten.h>
+
+// Qt's native wasm decorations live in a shadow root, outside QML's font
+// system. Reuse the embedded font instead of downloading a second font asset.
+EM_JS(void, installWasmWindowTitleFont, (const char *data, int size), {
+    const font = new FontFace("LINE Seed JP", HEAPU8.slice(data, data + size));
+    document.fonts.add(font);
+    font.load().catch(error => console.warn("window title font could not be loaded", error));
+    for (const container of document.querySelectorAll("#qt-shadow-container")) {
+        const root = container.shadowRoot;
+        if (!root || root.querySelector("#utautts-window-title-font")) continue;
+        const style = document.createElement("style");
+        style.id = "utautts-window-title-font";
+        style.textContent = '.qt-window .title-bar .window-name { font-family: "LINE Seed JP", sans-serif; font-size: 14px; }';
+        root.appendChild(style);
+    }
+});
+#endif
+
 #ifdef Q_OS_WIN
 #include <windows.h>
 #else
@@ -198,6 +218,13 @@ int main(int argc, char *argv[]) {
         uiFont.setPixelSize(12);
 #endif
         app.setFont(uiFont);
+#ifdef UTAUTTS_WASM
+        QFile titleFont(QStringLiteral(":/fonts/LINESeedJP-Regular.ttf"));
+        if (titleFont.open(QIODevice::ReadOnly)) {
+            const QByteArray bytes = titleFont.readAll();
+            installWasmWindowTitleFont(bytes.constData(), static_cast<int>(bytes.size()));
+        }
+#endif
     }
 
     const bool intonationLabSmokeTest = app.arguments().contains(

@@ -109,6 +109,11 @@ async function installTestCalls(page) {
       }
       await page.waitForFunction(() => window.utauttsQtModule && window.utauttsQtModule._utauttsCallCompleted);
       assert.deepEqual(errors, [], "startup JavaScript errors");
+      await page.waitForFunction(() => Array.from(document.fonts).some(font =>
+        font.family === "LINE Seed JP" && font.status === "loaded"));
+      const titleFont = await page.locator("#qt-shadow-container .window-name").first()
+        .evaluate(element => getComputedStyle(element).fontFamily);
+      assert.ok(titleFont.includes("LINE Seed JP"), "Qt's shadow-root window title must use LINE Seed JP");
       console.log("Qt booted:", mobile ? "mobile" : "desktop");
       if (mobile) {
         await installTestCalls(page);
