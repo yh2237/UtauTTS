@@ -1,27 +1,35 @@
 name: wasm
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
     paths:
-      - "web/**"
-      - "qt/**"
-      - "renderer/utautts-world-phrase/**"
-      - "cmd/utautts-wasm/**"
-      - "cmd/utautts-worldline-bridge/**"
-      - "internal/**"
-      - "native/**"
-      - "third_party/open_jtalk/**"
-      - ".github/workflows/wasm.yml"
+      - 'web/**'
+      - 'qt/**'
+      - 'renderer/utautts-world-phrase/**'
+      - 'cmd/utautts-wasm/**'
+      - 'cmd/utautts-worldline-bridge/**'
+      - 'internal/**'
+      - 'native/**'
+      - 'third_party/open_jtalk/**'
+      - '.github/workflows/wasm.yml'
+  pull_request:
+    paths: ['web/**', 'qt/**', '.github/workflows/wasm.yml']
+  workflow_dispatch:
+    inputs:
+      preview_name:
+        description: 'Preview name (lowercase letters, digits, hyphens). Production requires a vX.X.X tag.'
+        type: string
+        default: dev
+        required: true
 
 permissions:
   contents: read
 
 concurrency:
-  group: wasm-${{ github.ref }}
-  cancel-in-progress: true
+  group: wasm-${{ startsWith(github.ref, 'refs/tags/') && 'releases' || github.event_name == 'workflow_dispatch' && format('preview-{0}', inputs.preview_name) || github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') && github.event_name != 'workflow_dispatch' }}
 
 env:
   QT_VERSION: 6.8.3
@@ -33,114 +41,172 @@ env:
   QT_WASM_ROOT: ${{ github.workspace }}/.qt-wasm
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check wasm regressions and deployment packaging
+        run: |
+          node --test web/test-wasm-regressions.cjs web/test-asset-paths.cjs
+          python -m unittest discover -s qt/wasm -p 'test_cloudflare.py' -v
+
   build:
+    needs: check
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    outputs:
+      branch: ${{ steps.plan.outputs.branch }}
+      channel: ${{ steps.plan.outputs.channel }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up Go
-        uses: actions/setup-go@v7
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check deployment settings
+        env:
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+          CF_R2_BUCKET: ${{ vars.CF_R2_BUCKET }}
+          R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          names = ('CF_PAGES_PROJECT', 'CF_R2_BUCKET', 'R2_PUBLIC_BASE_URL',
+                   'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY')
+          missing = [name for name in names if not os.environ.get(name)]
+          if missing:
+              raise SystemExit('Missing GitHub Variables/Secrets: ' + ', '.join(missing) + '. See docs/wasm-deployment.md')
+          PY
+      - name: Select release or preview
+        id: plan
+        env:
+          PREVIEW_NAME: ${{ inputs.preview_name }}
+        run: |
+          python qt/wasm/cloudflare.py plan \
+            --event "$GITHUB_EVENT_NAME" --ref "$GITHUB_REF" \
+            --preview-name "${PREVIEW_NAME:-dev}" --revision "$GITHUB_SHA" \
+            --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
-
-      - name: Set up Node for regression checks
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Check wasm state and transport regressions
-        run: node --test web/test-wasm-regressions.cjs
-
       - name: Install cmake and ninja
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build
-
       - name: Set up Emscripten (bridges)
         run: |
           git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$EMSDK_DIR"
           "$EMSDK_DIR/emsdk" install "$EMSDK_BRIDGE_VERSION"
           "$EMSDK_DIR/emsdk" activate "$EMSDK_BRIDGE_VERSION"
-
       - name: Fetch Open JTalk dictionary
         run: |
-          python3 -m pip install --quiet pyopenjtalk==0.4.1
-          python3 - <<'PY' >> "$GITHUB_ENV"
+          python -m pip install --quiet pyopenjtalk==0.4.1
+          python - <<'PY' >> "$GITHUB_ENV"
           import os
           import pyopenjtalk
-          pyopenjtalk.run_frontend("テスト")
-          print("OPENJTALK_DICT=" + os.path.join(os.path.dirname(pyopenjtalk.__file__), "open_jtalk_dic_utf_8-1.11"))
+          pyopenjtalk.run_frontend('テスト')
+          print('OPENJTALK_DICT=' + os.path.join(os.path.dirname(pyopenjtalk.__file__), 'open_jtalk_dic_utf_8-1.11'))
           PY
-
       - name: Build Go wasm
         run: bash web/build.sh
-
-      - name: Build WORLD wasm
-        shell: bash
+      - name: Build WORLD and Open JTalk wasm
         run: |
           source "$EMSDK_DIR/emsdk_env.sh"
           bash web/build-world.sh
-
-      - name: Build Open JTalk wasm
-        shell: bash
-        run: |
-          source "$EMSDK_DIR/emsdk_env.sh"
           bash web/build-openjtalk.sh
-
       - name: Install Qt (desktop host and wasm kit)
         run: |
-          python3 -m pip install --quiet aqtinstall
+          python -m pip install --quiet aqtinstall
           aqt install-qt linux desktop "$QT_VERSION" gcc_64 -O "$QT_HOST_DIR"
           aqt install-qt linux desktop "$QT_VERSION" wasm_singlethread -O "$QT_WASM_ROOT"
-
       - name: Set up Emscripten (Qt)
         run: |
           git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$EMSDK_QT_DIR"
           "$EMSDK_QT_DIR/emsdk" install "$EMSDK_QT_VERSION"
           "$EMSDK_QT_DIR/emsdk" activate "$EMSDK_QT_VERSION"
-
       - name: Build Qt wasm app
-        shell: bash
         env:
           QT_WASM_DIR: ${{ env.QT_WASM_ROOT }}/${{ env.QT_VERSION }}/wasm_singlethread
           QT_HOST_PATH: ${{ env.QT_HOST_DIR }}/${{ env.QT_VERSION }}/gcc_64
         run: |
           source "$EMSDK_QT_DIR/emsdk_env.sh"
           bash qt/wasm/build.sh
-
-      - name: Point dictionary to external storage
-        if: ${{ vars.DICT_BASE_URL != '' }}
-        env:
-          DICT_BASE_URL: ${{ vars.DICT_BASE_URL }}
-          DICT_MANIFEST_URL: ${{ vars.DICT_MANIFEST_URL }}
-        run: |
-          cat > build/web-release/web/dist/config.js <<EOF
-          globalThis.UtauTTSConfig = { dictBaseURL: "${DICT_BASE_URL}", dictManifestURL: "${DICT_MANIFEST_URL}" };
-          EOF
-
-      - name: Upload web assets
-        uses: actions/upload-artifact@v4
+      - uses: actions/setup-node@v4
         with:
-          name: utautts-wasm
-          path: build/web-release
+          node-version: 22
+      - name: Check real browser startup and synthesis with split origins
+        run: |
+          npm install --prefix "$RUNNER_TEMP/wasm-browser" --no-package-lock --no-save playwright@1.51.1
+          "$RUNNER_TEMP/wasm-browser/node_modules/.bin/playwright" install --with-deps chromium
+          NODE_PATH="$RUNNER_TEMP/wasm-browser/node_modules" node web/test-cloudflare-browser.cjs
+      - name: Split Pages and R2 assets
+        env:
+          R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+          DEPLOYMENT_ID: ${{ steps.plan.outputs.deployment_id }}
+          VERSION: ${{ steps.plan.outputs.version }}
+          CHANNEL: ${{ steps.plan.outputs.channel }}
+        run: |
+          python qt/wasm/cloudflare.py package --public-url "$R2_PUBLIC_BASE_URL" \
+            --deployment-id "$DEPLOYMENT_ID" --version "$VERSION" --revision "$GITHUB_SHA" --channel "$CHANNEL"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: utautts-cloudflare
+          path: build/cloudflare
+          retention-days: 7
+          if-no-files-found: error
 
   deploy:
     needs: build
-    if: ${{ vars.DICT_BASE_URL != '' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - name: Download web assets
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
         with:
-          name: utautts-wasm
-          path: build/web-release
-
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: utautts-cloudflare
+          path: build/cloudflare
+      - name: Upload and verify R2 assets
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_R2_BUCKET: ${{ vars.CF_R2_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          python -m pip install -r qt/wasm/requirements-deploy.txt
+          python qt/wasm/cloudflare.py upload
+      - name: Check R2 public access before publishing Pages
+        env:
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+        run: python qt/wasm/cloudflare.py verify-assets --origin "https://${CF_PAGES_PROJECT}.pages.dev"
       - name: Publish to Cloudflare Pages
+        id: pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy build/web-release --project-name=${{ vars.CF_PAGES_PROJECT }}
+          wranglerVersion: '4'
+          command: pages deploy build/cloudflare/pages --project-name=${{ vars.CF_PAGES_PROJECT }} --branch=${{ needs.build.outputs.branch }}
+      - name: Verify deployed entry point and R2 assets
+        env:
+          DEPLOYMENT_URL: ${{ steps.pages.outputs.deployment-url }}
+        run: |
+          python qt/wasm/cloudflare.py verify --pages-url "$DEPLOYMENT_URL"
+          echo "### wasm deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "$DEPLOYMENT_URL" >> "$GITHUB_STEP_SUMMARY"

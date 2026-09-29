@@ -3,22 +3,14 @@
 // Go エンジン一式（Go wasm・Open JTalk・WORLD・モデル・音源）を Worker 内で動かし、
 // メインスレッドからは postMessage で非同期に呼び出す。
 // 生成されたファイルはメインのFSミラーへ転送し、同期読み出し（再生・保存・画像）を成立させる。
-importScripts(
-  "/web/dist/wasm_exec.js",
-  "/web/dist/fs-shim.js",
-  "/web/dist/openjtalk-bridge.js",
-  "/web/dist/world-bridge.js",
-  "/web/dist/openjtalk/utautts-openjtalk.js",
-  "/web/dist/world/utautts-world.js"
-);
-try {
-  // 辞書URL等の任意設定。無くても動く。
-  importScripts("/web/dist/config.js");
-} catch (error) {
-  console.warn("engine-worker: config.js not loaded");
-}
-
-const ENGINE_BASE = "/web/dist/";
+importScripts("./asset-paths.js");
+const config = JSON.parse(new URL(location.href).searchParams.get("config") || "{}");
+const paths = createUtauTTSAssetPaths(location.href, config);
+const ENGINE_BASE = paths.engineBaseURL;
+importScripts(...[
+  "wasm_exec.js", "fs-shim.js", "openjtalk-bridge.js", "world-bridge.js",
+  "openjtalk/utautts-openjtalk.js", "world/utautts-world.js",
+].map(file => paths.engine(file)));
 const DICT_PATH = "/dict";
 const MIRROR_EXTENSIONS = new Set([
   "wav", "txt", "lab", "ustx", "exo", "png", "jpg", "jpeg", "bmp", "gif",
@@ -77,10 +69,8 @@ async function loadOpenJTalk() {
     locateFile: (file) => ENGINE_BASE + "openjtalk/" + file,
   });
   openjtalk.FS.mkdir(DICT_PATH);
-  const config = globalThis.UtauTTSConfig || {};
-  const engineBase = new URL(ENGINE_BASE, location.href).toString();
-  const dictBase = new URL(config.dictBaseURL || "openjtalk/dict/", engineBase).toString();
-  const dictManifestURL = new URL(config.dictManifestURL || "openjtalk/dict-manifest.json", engineBase).toString();
+  const dictBase = paths.dictBaseURL;
+  const dictManifestURL = paths.dictManifestURL;
   const manifest = await (await fetchAsset(dictManifestURL)).json();
   let loaded = 0;
   for (const name of manifest.files) {
@@ -115,7 +105,7 @@ async function loadModels() {
   }
   virtualFs.mountFile(
     "/renderer/utautts-world-phrase/renderer.json",
-    new Uint8Array(await (await fetchAsset("/renderer/utautts-world-phrase/renderer.json")).arrayBuffer())
+    new Uint8Array(await (await fetchAsset(paths.renderer("utautts-world-phrase/renderer.json"))).arrayBuffer())
   );
 }
 

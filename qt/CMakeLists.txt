@@ -76,12 +76,18 @@ elseif(EMSCRIPTEN)
             "${CMAKE_CURRENT_SOURCE_DIR}/wasm/index.html"
             "${CMAKE_CURRENT_SOURCE_DIR}/wasm/engine-loader.js"
             "${CMAKE_CURRENT_SOURCE_DIR}/wasm/engine-worker.js"
+            "${CMAKE_CURRENT_SOURCE_DIR}/wasm/config.js"
+            "${CMAKE_CURRENT_SOURCE_DIR}/wasm/asset-paths.js"
+            "${CMAKE_CURRENT_SOURCE_DIR}/wasm/bootstrap.js"
             "$<TARGET_FILE_DIR:utautts>"
         COMMAND ${CMAKE_COMMAND} -E touch "${CMAKE_CURRENT_BINARY_DIR}/wasm-host.stamp"
         DEPENDS
             "${CMAKE_CURRENT_SOURCE_DIR}/wasm/index.html"
             "${CMAKE_CURRENT_SOURCE_DIR}/wasm/engine-loader.js"
             "${CMAKE_CURRENT_SOURCE_DIR}/wasm/engine-worker.js"
+            "${CMAKE_CURRENT_SOURCE_DIR}/wasm/config.js"
+            "${CMAKE_CURRENT_SOURCE_DIR}/wasm/asset-paths.js"
+            "${CMAKE_CURRENT_SOURCE_DIR}/wasm/bootstrap.js"
         VERBATIM)
     add_custom_target(copy_wasm_host ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/wasm-host.stamp")
     add_dependencies(utautts copy_wasm_host)

@@ -5,7 +5,8 @@
 // 非同期呼び出しとFSミラーだけを持つ（UIが固まらない）。
 // URL に ?async=0 を付けると従来のメインスレッド同期方式へフォールバックする。
 (() => {
-  const ENGINE_BASE = "/web/dist/";
+  const paths = window.utauttsAssetPaths;
+  const ENGINE_BASE = paths.engineBaseURL;
   const DICT_PATH = "/dict";
   const OPEN_PROJECT_PATH = "/tmp/utautts-open-project.utautts";
   const ASYNC = new URLSearchParams(location.search).get("async") !== "0";
@@ -52,17 +53,15 @@
     }
     virtualFs.mountFile(
       "/renderer/utautts-world-phrase/renderer.json",
-      new Uint8Array(await (await fetch("/renderer/utautts-world-phrase/renderer.json")).arrayBuffer())
+      new Uint8Array(await (await fetch(paths.renderer("utautts-world-phrase/renderer.json"))).arrayBuffer())
     );
 
     const openjtalk = await createUtauTTSOpenJTalk({
       locateFile: (file) => ENGINE_BASE + "openjtalk/" + file,
     });
     openjtalk.FS.mkdir(DICT_PATH);
-    const config = globalThis.UtauTTSConfig || {};
-    const engineBase = new URL(ENGINE_BASE, location.href).toString();
-    const dictBase = new URL(config.dictBaseURL || "openjtalk/dict/", engineBase).toString();
-    const dictManifestURL = new URL(config.dictManifestURL || "openjtalk/dict-manifest.json", engineBase).toString();
+    const dictBase = paths.dictBaseURL;
+    const dictManifestURL = paths.dictManifestURL;
     const manifest = await (await fetch(dictManifestURL)).json();
     for (const name of manifest.files) {
       openjtalk.FS.writeFile(
@@ -84,7 +83,11 @@
 
   function initAsync() {
     window.utauttsFs = createVirtualFs();
-    const worker = new Worker(new URL("./engine-worker.js", location.href));
+    const workerURL = new URL(paths.app("engine-worker.js"));
+    // Capture this page's exact deployment config instead of fetching a mutable
+    // config again in the Worker after another deployment has gone live.
+    workerURL.searchParams.set("config", JSON.stringify(globalThis.UtauTTSConfig || {}));
+    const worker = new Worker(workerURL);
     let resolveReady;
     let rejectReady;
     const ready = new Promise((resolve, reject) => {

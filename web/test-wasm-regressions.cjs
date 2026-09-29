@@ -6,6 +6,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const { createVirtualFs } = require("./fs-shim.js");
+const { createUtauTTSAssetPaths } = require("../qt/wasm/asset-paths.js");
 const root = path.join(__dirname, "..");
 const source = name => fs.readFileSync(path.join(root, name), "utf8");
 
@@ -89,6 +90,7 @@ test("Worker mirrors same-size output rewrites, excludes source WAVs and reports
   const messages = [];
   const context = vm.createContext({
     importScripts() {}, console, Uint8Array, URL, testFs: vfs,
+    location: { href: "https://example.test/app/engine-worker.js" }, createUtauTTSAssetPaths,
     self: { postMessage(message) { messages.push(message); } },
     utauttsWasm: { call() {
       vfs.mountText("/tmp/out.txt", "new");
@@ -116,6 +118,7 @@ test("Worker failure after ready completes pending calls and preserves queued re
     Worker: class { constructor() { worker = this; } postMessage() {} },
   });
   context.window = context;
+  context.utauttsAssetPaths = createUtauTTSAssetPaths(context.location.href);
   vm.runInContext(source("qt/wasm/engine-loader.js"), context);
   worker.onmessage({ data: { type: "ready" } });
   await context.utauttsEngineReady;

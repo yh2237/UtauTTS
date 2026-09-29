@@ -19,70 +19,8 @@
 <div id="loading"><div class="spinner"></div><div id="status">エンジンを読み込み中…</div></div>
 <div id="screen"></div>
 
-<script src="/web/dist/config.js"></script>
-<script src="/web/dist/wasm_exec.js"></script>
-<script src="/web/dist/fs-shim.js"></script>
-<script src="/web/dist/openjtalk-bridge.js"></script>
-<script src="/web/dist/world-bridge.js"></script>
-<script src="/web/dist/openjtalk/utautts-openjtalk.js"></script>
-<script src="/web/dist/world/utautts-world.js"></script>
-<script src="./engine-loader.js"></script>
-
-<script src="./utautts.js"></script>
-<script src="./qtloader.js"></script>
-<script>
-  window.addEventListener("wheel", (event) => {
-    if (event.ctrlKey) event.preventDefault();
-  }, { passive: false, capture: true });
-  window.addEventListener("touchmove", (event) => {
-    event.preventDefault();
-  }, { passive: false, capture: true });
-
-  async function init() {
-    const loading = document.getElementById("loading");
-    const screen = document.getElementById("screen");
-    const status = document.getElementById("status");
-    const statusTimer = setInterval(() => {
-      if (window.utauttsEngineStatus)
-        status.textContent = window.utauttsEngineStatus;
-    }, 200);
-    try {
-      status.textContent = "エンジンを読み込み中…";
-      await Promise.race([
-        window.utauttsEngineReady,
-        new Promise((_, reject) => setTimeout(() => reject(new Error("engine load timeout")), 180000)),
-      ]);
-      clearInterval(statusTimer);
-      status.textContent = "UIを起動中…";
-      const qtInstance = await qtLoad({
-        qt: {
-          fontDpi: 96,
-          onLoaded: () => { loading.classList.add("hidden"); },
-          onExit: (data) => {
-            status.textContent = "終了" + (data && data.code !== undefined ? " (code " + data.code + ")" : "");
-            loading.classList.remove("hidden");
-          },
-          entryFunction: window.utautts_entry,
-          containerElements: [screen],
-        },
-      });
-      window.utauttsQtModule = qtInstance || window.Module;
-      window.utauttsRefreshMetadata = () => {
-        const module = window.utauttsQtModule;
-        if (module && typeof module._utauttsRefreshMetadata === "function") {
-          module._utauttsRefreshMetadata();
-        }
-      };
-      if (typeof window.utauttsFlushPendingResults === "function") {
-        window.utauttsFlushPendingResults();
-      }
-    } catch (error) {
-      clearInterval(statusTimer);
-      status.textContent = "エラー: " + error;
-      console.error(error);
-    }
-  }
-  window.addEventListener("load", init);
-</script>
+<script src="./config.js"></script>
+<script src="./asset-paths.js"></script>
+<script src="./bootstrap.js"></script>
 </body>
 </html>
