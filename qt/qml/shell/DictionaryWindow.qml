@@ -23,18 +23,11 @@ ApplicationWindow {
     maximumHeight: 560
     transientParent: hostWindow
     modality: Qt.ApplicationModal
-    flags: Qt.Dialog
+    flags: Platform.isWeb ? Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint : Qt.Dialog
     palette: hostPalette
     color: palette.window
 
     onClosing: root.closed()
-
-    header: WindowHeader {
-        heading: root.title
-        visible: Platform.isWeb
-        height: Platform.isWeb ? implicitHeight : 0
-        onCloseClicked: root.close()
-    }
 
     function loadCurrent() {
         content.loadCurrent();

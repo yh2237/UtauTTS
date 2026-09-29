@@ -284,8 +284,8 @@ ApplicationWindow {
             id: addButton
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            anchors.rightMargin: 24
-            anchors.bottomMargin: 88
+            anchors.rightMargin: 12
+            anchors.bottomMargin: 12
             width: 52
             height: 52
             highlighted: true
@@ -605,8 +605,11 @@ ApplicationWindow {
 
     Drawer {
         id: menuDrawer
+        parent: Overlay.overlay
         edge: Qt.LeftEdge
         width: Math.min(window.width * 0.85, 360)
+        height: parent.height
+        y: 0
         modal: true
         background: Rectangle {
             color: window.palette.window
