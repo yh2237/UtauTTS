@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import UtauTTS.Platform 1.0
 import QtQuick.Dialogs
 import UtauTTS.Media
 
@@ -378,7 +379,7 @@ ApplicationWindow {
             backend: window.appBackend
             translator: window.translator
             onClosed: {
-                if (window.appBackend.wasmPlatform)
+                if (Platform.isWeb)
                     synthesisLogWindowLoader.active = false;
             }
         }
@@ -417,7 +418,7 @@ ApplicationWindow {
             backend: window.appBackend
             translator: window.translator
             onClosed: {
-                if (window.appBackend.wasmPlatform)
+                if (Platform.isWeb)
                     dictionaryWindowLoader.active = false;
             }
         }
@@ -438,7 +439,7 @@ ApplicationWindow {
             translator: window.translator
             documents: window.licenseDocuments
             onClosed: {
-                if (window.appBackend.wasmPlatform)
+                if (Platform.isWeb)
                     licenseWindowLoader.active = false;
             }
         }
@@ -457,7 +458,7 @@ ApplicationWindow {
             backend: window.appBackend
             translator: window.translator
             onClosed: {
-                if (window.appBackend.wasmPlatform)
+                if (Platform.isWeb)
                     voicebankDetailsWindowLoader.active = false;
             }
         }
@@ -555,16 +556,7 @@ ApplicationWindow {
         fileMode: FileDialog.SaveFile
         nameFilters: [window.translator.tr("diagnostics.filter")]
         defaultSuffix: "json"
-        onAccepted: {
-            const success = window.appBackend.exportDiagnosticReport(
-                    selectedFile, window.diagnosticContext());
-            diagnosticResultDialog.title = window.translator.tr(
-                    success ? "diagnostics.successTitle" : "diagnostics.errorTitle");
-            diagnosticResultDialog.text = success
-                    ? window.translator.tr("diagnostics.success")
-                    : window.appBackend.error;
-            diagnosticResultDialog.open();
-        }
+        onAccepted: window.exportDiagnosticsTo(selectedFile)
     }
 
     MessageDialog {
@@ -817,6 +809,10 @@ ApplicationWindow {
     Connections {
         target: window.appBackend
 
+        function onProjectPicked(project) {
+            window.applyLoadedProject(project);
+        }
+
         function onLanguageChanged() {
             window.translator.load(window.appBackend.resolvedLanguage());
         }
@@ -914,8 +910,9 @@ ApplicationWindow {
                 const fileName = window.batchExportMode === "drag"
                         ? window.dragAudioFileName(utterances.get(index), index)
                         : window.audioFileName(utterances.get(index));
-                const destination = window.appBackend.fileInDirectory(
-                            window.batchExportDirectory, fileName);
+                const destination = Platform.hasNativeFileDialog
+                        ? window.appBackend.fileInDirectory(window.batchExportDirectory, fileName)
+                        : window.appBackend.defaultSaveFile(fileName);
                 window.pendingUtteranceId = "";
                 window.pendingRevision = -1;
                 if (!destination.toString().length || !window.appBackend.savePreview(destination)) {
@@ -938,10 +935,15 @@ ApplicationWindow {
                 window.saveRequestPending = false;
                 window.pendingUtteranceId = "";
                 window.pendingRevision = -1;
-                saveDialog.currentFile = window.appBackend.defaultSaveFile(window.audioFileName(utterances.get(index)));
+                const audioDestination = window.appBackend.defaultSaveFile(window.audioFileName(utterances.get(index)));
                 if (window.appBackend.closeLogOnSuccess)
                     window.closeLogWindow();
-                saveDialog.open();
+                if (Platform.hasNativeFileDialog) {
+                    saveDialog.currentFile = audioDestination;
+                    saveDialog.open();
+                } else {
+                    window.appBackend.savePreview(audioDestination);
+                }
                 return;
             }
             if (window.playbackQueueActive) {
@@ -1045,7 +1047,7 @@ ApplicationWindow {
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.open")
                 enabled: !window.appBackend.busy && !window.batchExportActive
-                onTriggered: projectOpenDialog.open()
+                onTriggered: window.openProject()
             }
             Menu {
                 id: recentProjectsMenu
@@ -1137,11 +1139,13 @@ ApplicationWindow {
             MenuSeparator {}
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.exportExo")
+                visible: Platform.hasNativeFileDialog
                 enabled: utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive && window.current().reading.length > 0
                 onTriggered: window.openDragExportDialog(true)
             }
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.exportAllExo")
+                visible: Platform.hasNativeFileDialog
                 enabled: !window.appBackend.busy && !window.batchExportActive && window.hasPlayableTextFrom(0)
                 onTriggered: window.openDragExportDialog(false)
             }
@@ -1230,9 +1234,13 @@ ApplicationWindow {
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.help.exportDiagnostics")
                 onTriggered: {
-                    diagnosticSaveDialog.currentFile = window.appBackend.defaultSaveFile(
-                            "utautts-diagnostics.json");
-                    diagnosticSaveDialog.open();
+                    const destination = window.appBackend.defaultSaveFile("utautts-diagnostics.json");
+                    if (Platform.hasNativeFileDialog) {
+                        diagnosticSaveDialog.currentFile = destination;
+                        diagnosticSaveDialog.open();
+                    } else {
+                        window.exportDiagnosticsTo(destination);
+                    }
                 }
             }
         }
@@ -1593,7 +1601,7 @@ ApplicationWindow {
     }
 
     function settingsWindowClosed() {
-        if (window.appBackend.wasmPlatform)
+        if (Platform.isWeb)
             settingsWindowLoader.active = false;
     }
 
@@ -1826,7 +1834,11 @@ ApplicationWindow {
     function openSaveAllDialog() {
         if (!utterances.count || window.appBackend.busy || window.batchExportActive)
             return;
-        saveAllDialog.open();
+        if (Platform.hasNativeFileDialog) {
+            saveAllDialog.open();
+        } else {
+            window.startBatchExport(window.appBackend.defaultSaveFile("utautts.wav"));
+        }
     }
 
     function openDragExportDialog(selectedOnly) {
@@ -2351,9 +2363,14 @@ ApplicationWindow {
     function openProjectSaveDialog() {
         if (window.appBackend.busy || window.batchExportActive)
             return;
-        projectSaveDialog.currentFile = window.projectFile.toString().length
+        const destination = window.projectFile.toString().length
                 ? window.projectFile : window.appBackend.defaultSaveFile("untitled.utautts");
-        projectSaveDialog.open();
+        if (Platform.hasNativeFileDialog) {
+            projectSaveDialog.currentFile = destination;
+            projectSaveDialog.open();
+        } else {
+            window.saveProjectTo(destination);
+        }
     }
 
     function saveCurrentProject() {
@@ -2369,14 +2386,32 @@ ApplicationWindow {
     function openUstxExportDialog() {
         if (window.appBackend.busy || window.batchExportActive)
             return;
-        ustxExportFileDialog.currentFile = window.appBackend.defaultSaveFile("untitled.ustx");
-        ustxExportFileDialog.open();
+        const destination = window.appBackend.defaultSaveFile("untitled.ustx");
+        if (Platform.hasNativeFileDialog) {
+            ustxExportFileDialog.currentFile = destination;
+            ustxExportFileDialog.open();
+        } else {
+            window.exportUstxTo(destination);
+        }
     }
 
     function exportUstxTo(destination) {
         if (!destination || !destination.toString().length)
             return;
         window.appBackend.exportUstx(destination, window.projectData());
+    }
+
+    function exportDiagnosticsTo(destination) {
+        if (!destination || !destination.toString().length)
+            return;
+        const success = window.appBackend.exportDiagnosticReport(
+                destination, window.diagnosticContext());
+        diagnosticResultDialog.title = window.translator.tr(
+                success ? "diagnostics.successTitle" : "diagnostics.errorTitle");
+        diagnosticResultDialog.text = success
+                ? window.translator.tr("diagnostics.success")
+                : window.appBackend.error;
+        diagnosticResultDialog.open();
     }
 
     function saveProjectTo(destination) {
@@ -2408,7 +2443,20 @@ ApplicationWindow {
             projectLoadErrorDialog.open();
             return;
         }
-        if (project.utterances === undefined || project.utterances === null) {
+        window.applyLoadedProject(project);
+    }
+
+    function openProject() {
+        if (window.appBackend.busy || window.batchExportActive)
+            return;
+        if (Platform.hasNativeFileDialog)
+            projectOpenDialog.open();
+        else
+            window.appBackend.beginOpenProject();
+    }
+
+    function applyLoadedProject(project) {
+        if (!project || project.utterances === undefined || project.utterances === null) {
             projectLoadErrorDialog.text = window.translator.tr("main.projectNoUtterances");
             projectLoadErrorDialog.open();
             return;

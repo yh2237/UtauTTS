@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import UtauTTS.Platform 1.0
 
 ApplicationWindow {
     id: root
@@ -43,8 +44,8 @@ ApplicationWindow {
 
     header: WindowHeader {
         heading: root.title
-        visible: root.hostWindow.appBackend.wasmPlatform
-        height: root.hostWindow.appBackend.wasmPlatform ? implicitHeight : 0
+        visible: Platform.isWeb
+        height: Platform.isWeb ? implicitHeight : 0
         onCloseClicked: root.close()
     }
 

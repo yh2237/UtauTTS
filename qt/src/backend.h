@@ -46,7 +46,6 @@ class Backend final : public QObject {
     Q_PROPERTY(QString synthesisJson READ synthesisJson NOTIFY synthesisChanged)
     Q_PROPERTY(QUrl previewUrl READ previewUrl NOTIFY previewReady)
     Q_PROPERTY(bool darkMode READ darkMode NOTIFY themeChanged)
-    Q_PROPERTY(bool wasmPlatform READ wasmPlatform CONSTANT)
     Q_PROPERTY(QString language READ language NOTIFY languageChanged)
     Q_PROPERTY(bool onboardingCompleted READ onboardingCompleted NOTIFY onboardingChanged)
     Q_PROPERTY(bool closeLogOnSuccess READ closeLogOnSuccess NOTIFY logSettingsChanged)
@@ -100,7 +99,6 @@ public:
     QString synthesisJson() const { return m_synthesisJson; }
     QUrl previewUrl() const { return m_previewUrl; }
     bool darkMode() const { return m_darkMode; }
-    bool wasmPlatform() const;
     QString language() const { return m_language; }
     bool onboardingCompleted() const { return m_onboardingCompleted; }
     bool closeLogOnSuccess() const { return m_closeLogOnSuccess; }
@@ -155,6 +153,10 @@ public:
     Q_INVOKABLE bool saveProject(const QUrl &destination, const QVariantMap &project);
     Q_INVOKABLE void exportUstx(const QUrl &destination, const QVariantMap &project);
     Q_INVOKABLE QVariantMap loadProject(const QUrl &source);
+    // wasm はファイル選択（<input type=file>）でプロジェクトを開く。
+    // 選択後に projectPicked シグナルで内容を返す。
+    Q_INVOKABLE void beginOpenProject();
+    void handlePickedProject();
     Q_INVOKABLE void rememberRecentProject(const QUrl &source);
     Q_INVOKABLE void removeRecentProject(const QString &path);
     Q_INVOKABLE void clearRecentProjects();
@@ -228,12 +230,15 @@ signals:
     void ustxExportFinished(bool success, const QString &detail);
     void shortcutSettingsChanged();
     void recentProjectsChanged();
+    void projectPicked(const QVariantMap &project);
     void dictionaryChanged();
     void logsChanged();
     void updateDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
     void updateDownloadFinished(bool success, const QString &localZip);
 
 private:
+    bool validateProject(const QByteArray &data, QVariantMap *project);
+
     struct PreviewCacheEntry {
         QString path;
         QString text;

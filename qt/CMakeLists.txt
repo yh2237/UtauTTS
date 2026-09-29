@@ -46,6 +46,7 @@ qt_add_executable(utautts
     src/utautts_abi.h
     src/platform/engine.h
     src/platform/media.h
+    src/platform/platform.h
 )
 
 if(EMSCRIPTEN)
@@ -53,7 +54,7 @@ if(EMSCRIPTEN)
 else()
     target_sources(utautts PRIVATE src/platform/engine_native.cpp src/platform/media_native.cpp)
 endif()
-target_sources(utautts PRIVATE src/platform/media_register.cpp)
+target_sources(utautts PRIVATE src/platform/media_register.cpp src/platform/platform.cpp)
 
 if(WIN32)
     target_sources(utautts PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/utautts.rc")
@@ -68,7 +69,13 @@ elseif(APPLE)
         INSTALL_RPATH "@loader_path/../Frameworks"
     )
 elseif(EMSCRIPTEN)
-    # wasmは追加の出力設定を必要としない。
+    # wasmホストページ（index.html / engine-loader.js）を出力ディレクトリへコピーする。
+    add_custom_command(TARGET utautts POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/wasm/index.html"
+            "${CMAKE_CURRENT_SOURCE_DIR}/wasm/engine-loader.js"
+            "$<TARGET_FILE_DIR:utautts>"
+        VERBATIM)
 else()
     set_target_properties(utautts PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/app")
     set_target_properties(utautts PROPERTIES BUILD_RPATH "$ORIGIN;${UTAUTTS_NATIVE_DIR}" INSTALL_RPATH "$ORIGIN")

@@ -48,6 +48,7 @@
 #include <algorithm>
 #include <memory>
 #include <stdexcept>
+#include <string>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -326,6 +327,53 @@ extern "C" EMSCRIPTEN_KEEPALIVE void utauttsRefreshMetadata() {
     if (g_wasmBackend) {
         g_wasmBackend->refreshMetadataFromWasm();
     }
+}
+extern "C" EMSCRIPTEN_KEEPALIVE void utauttsProjectFilePicked() {
+    if (g_wasmBackend) {
+        g_wasmBackend->handlePickedProject();
+    }
+}
+
+// 生成したバイト列をブラウザのダウンロードとして保存させる。
+// wasm にはユーザーが選べるローカルパスが無いため、保存先はブラウザに委ねる。
+static void wasmDownloadBytes(const QString &fileName, const QByteArray &data) {
+    emscripten::val view = emscripten::val(emscripten::typed_memory_view(
+            data.size(), reinterpret_cast<const unsigned char *>(data.constData())));
+    emscripten::val bytes = emscripten::val::global("Uint8Array").new_(view);
+    emscripten::val parts = emscripten::val::array();
+    parts.call<void>("push", bytes);
+    emscripten::val blob = emscripten::val::global("Blob").new_(parts);
+    emscripten::val document = emscripten::val::global("document");
+    emscripten::val url = emscripten::val::global("URL").call<emscripten::val>(
+            "createObjectURL", blob);
+    emscripten::val anchor = document.call<emscripten::val>(
+            "createElement", std::string("a"));
+    anchor.set("href", url);
+    anchor.set("download", fileName.toStdString());
+    emscripten::val body = document["body"];
+    body.call<void>("appendChild", anchor);
+    anchor.call<void>("click");
+    body.call<void>("removeChild", anchor);
+    emscripten::val::global("URL").call<void>("revokeObjectURL", url);
+}
+
+// Go エンジン側の仮想FSから読み出す。wasm のプレビューWAV等は Qt の QFile では読めない。
+static QByteArray readGoFsBytes(const QString &path) {
+    emscripten::val fs = emscripten::val::global("utauttsFs");
+    if (fs.isUndefined() || path.isEmpty()) {
+        return {};
+    }
+    emscripten::val bytes = fs.call<emscripten::val>("readFile", path.toStdString());
+    if (bytes.isUndefined() || bytes.isNull()) {
+        return {};
+    }
+    const unsigned length = bytes["length"].as<unsigned>();
+    QByteArray data;
+    data.resize(static_cast<int>(length));
+    emscripten::val view = emscripten::val(emscripten::typed_memory_view(
+            length, reinterpret_cast<unsigned char *>(data.data())));
+    view.call<void>("set", bytes);
+    return data;
 }
 #endif
 
@@ -1413,14 +1461,6 @@ void Backend::refreshMetadataFromWasm() {
     }
 }
 
-bool Backend::wasmPlatform() const {
-#ifdef UTAUTTS_WASM
-    return true;
-#else
-    return false;
-#endif
-}
-
 QString Backend::localFileUrl(const QString &path) const {
     if (path.isEmpty()) {
         return QString();
@@ -1675,6 +1715,53 @@ void Backend::clearPreviewCache() {
 }
 
 bool Backend::savePreview(const QUrl &destination) {
+#ifdef UTAUTTS_WASM
+    if (m_previewPath.isEmpty()) {
+        setError(tr("保存できるプレビュー音声がありません"));
+        return false;
+    }
+    QString name = destination.fileName();
+    if (name.isEmpty())
+        name = QStringLiteral("utautts.wav");
+    {
+        const QByteArray data = readGoFsBytes(m_previewPath);
+        if (data.isEmpty()) {
+            setError(tr("プレビューWAVを読み込めませんでした"));
+            return false;
+        }
+        wasmDownloadBytes(name, data);
+    }
+    if (m_exportTextWithWav || m_exportLabWithWav) {
+        try {
+            call("writeSidecars", QVariantMap{
+                {"wav_path", m_previewPath},
+                {"text", m_previewText},
+                {"lab", m_previewLab},
+                {"encoding", m_exportTextEncoding},
+                {"write_text", m_exportTextWithWav},
+                {"write_lab", m_exportLabWithWav},
+            });
+        } catch (const std::exception &exception) {
+            setError(tr("付随するTXT／LABファイルを保存できませんでした: %1")
+                         .arg(QString::fromUtf8(exception.what())));
+            return false;
+        }
+        const QString base = m_previewPath.left(m_previewPath.lastIndexOf('.'));
+        const QString downloadBase = name.left(name.lastIndexOf('.'));
+        if (m_exportTextWithWav) {
+            const QByteArray text = readGoFsBytes(base + QStringLiteral(".txt"));
+            if (!text.isEmpty())
+                wasmDownloadBytes(downloadBase + QStringLiteral(".txt"), text);
+        }
+        if (m_exportLabWithWav) {
+            const QByteArray lab = readGoFsBytes(base + QStringLiteral(".lab"));
+            if (!lab.isEmpty())
+                wasmDownloadBytes(downloadBase + QStringLiteral(".lab"), lab);
+        }
+    }
+    setError({});
+    return true;
+#endif
     if (m_previewPath.isEmpty() || !destination.isLocalFile()) {
         setError(tr("保存できるプレビュー音声がありません"));
         return false;
@@ -1797,6 +1884,19 @@ QUrl Backend::fileInDirectory(const QUrl &directory, const QString &fileName) co
 }
 
 bool Backend::saveProject(const QUrl &destination, const QVariantMap &project) {
+#ifdef UTAUTTS_WASM
+    const QJsonDocument wasmDocument = QJsonDocument::fromVariant(project);
+    if (!wasmDocument.isObject()) {
+        setError(tr("プロジェクトのデータが無効です"));
+        return false;
+    }
+    QString wasmName = destination.fileName();
+    if (wasmName.isEmpty())
+        wasmName = QStringLiteral("untitled.utautts");
+    wasmDownloadBytes(wasmName, wasmDocument.toJson(QJsonDocument::Indented));
+    setError({});
+    return true;
+#endif
     if (!destination.isLocalFile()) {
         setError(tr("プロジェクトの保存先が無効です"));
         return false;
@@ -1839,9 +1939,32 @@ void Backend::exportUstx(const QUrl &destination, const QVariantMap &project) {
             setError(error);
             emit ustxExportFinished(false, error);
         } else {
+#ifdef UTAUTTS_WASM
+            const QByteArray data = readGoFsBytes(outputPath);
+            if (!data.isEmpty())
+                wasmDownloadBytes(QFileInfo(outputPath).fileName(), data);
+#endif
             emit ustxExportFinished(true, outputPath);
         }
     });
+}
+
+bool Backend::validateProject(const QByteArray &data, QVariantMap *project) {
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(data, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        setError(tr("プロジェクトファイルの形式が正しくありません"));
+        return false;
+    }
+    const QVariantMap parsed = document.toVariant().toMap();
+    if (parsed.value("format").toString() != "utautts-project"
+            || parsed.value("format_version").toInt() < 1 || !parsed.contains("utterances")) {
+        setError(tr("対応していないプロジェクト形式です"));
+        return false;
+    }
+    *project = parsed;
+    setError({});
+    return true;
 }
 
 QVariantMap Backend::loadProject(const QUrl &source) {
@@ -1854,22 +1977,33 @@ QVariantMap Backend::loadProject(const QUrl &source) {
         setError(tr("プロジェクトファイルを開けませんでした"));
         return {{"_error", error()}};
     }
-    QJsonParseError parseError;
-    const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
-    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
-        setError(tr("プロジェクトファイルの形式が正しくありません"));
+    QVariantMap project;
+    if (!validateProject(file.readAll(), &project))
         return {{"_error", error()}};
-    }
-    const QVariantMap project = document.toVariant().toMap();
-    const QVariantList utterances = project.value("utterances").toList();
-    if (project.value("format").toString() != "utautts-project"
-            || project.value("format_version").toInt() < 1 || !project.contains("utterances")) {
-        setError(tr("対応していないプロジェクト形式です"));
-        return {{"_error", error()}};
-    }
-    Q_UNUSED(utterances)
-    setError({});
     return project;
+}
+
+void Backend::beginOpenProject() {
+#ifdef UTAUTTS_WASM
+    emscripten::val pick = emscripten::val::global("utauttsPickProjectFile");
+    if (pick.isUndefined()) {
+        setError(tr("プロジェクトを開けませんでした"));
+        return;
+    }
+    pick();
+#else
+    setError(tr("プロジェクトを開けませんでした"));
+#endif
+}
+
+void Backend::handlePickedProject() {
+#ifdef UTAUTTS_WASM
+    const QByteArray data = readGoFsBytes(QStringLiteral("/tmp/utautts-open-project.utautts"));
+    QVariantMap project;
+    if (!validateProject(data, &project))
+        return;
+    emit projectPicked(project);
+#endif
 }
 
 void Backend::rememberRecentProject(const QUrl &source) {
@@ -2051,10 +2185,17 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
     };
 
     QString writeError;
+#ifdef UTAUTTS_WASM
+    QString diagnosticName = destination.fileName();
+    if (diagnosticName.isEmpty())
+        diagnosticName = QStringLiteral("utautts-diagnostics.json");
+    wasmDownloadBytes(diagnosticName, QJsonDocument::fromVariant(report).toJson(QJsonDocument::Indented));
+#else
     if (!writeJSONFile(destination.toLocalFile(), report, &writeError)) {
         setError(tr("診断情報を書き出せませんでした: %1").arg(writeError));
         return false;
     }
+#endif
     setError({});
     return true;
 }
