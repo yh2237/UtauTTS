@@ -29,7 +29,7 @@ for dir in "${include_dirs[@]}"; do includes+=("-I${jtalk}/${dir}"); done
 
 exported='_UtauTTSOpenJTalkInit,_UtauTTSOpenJTalkRun,_UtauTTSOpenJTalkError,_malloc,_free'
 
-em++ -O3 -std=c++17 \
+em++ -O3 -msimd128 -std=c++17 \
   "${root_dir}/native/openjtalk-engine/openjtalk_engine.cpp" \
   "${library}" \
   "${includes[@]}" \

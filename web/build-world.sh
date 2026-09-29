@@ -12,7 +12,7 @@ emcc="${EMXX:-em++}"
 world_src="${root_dir}/third_party/world/src"
 exported='_UtauTTSWorldF0,_UtauTTSWorldAnalysisShape,_UtauTTSWorldAnalyze,_UtauTTSWorldSynthesize,_UtauTTSWorldAnalyzeFlat,_UtauTTSWorldSynthesizeFlat,_malloc,_free'
 
-"${emcc}" -O3 -std=c++17 "-I${world_src}" \
+"${emcc}" -O3 -msimd128 -std=c++17 "-I${world_src}" \
   "${root_dir}/native/world-engine/world_engine.cpp" \
   "${world_src}/cheaptrick.cpp" \
   "${world_src}/common.cpp" \

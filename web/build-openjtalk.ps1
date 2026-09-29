@@ -41,7 +41,7 @@ $defines = @(
 $exported = '_UtauTTSOpenJTalkInit,_UtauTTSOpenJTalkRun,_UtauTTSOpenJTalkError,_malloc,_free'
 
 $arguments = @(
-    '-O3', '-std=c++17',
+    '-O3', '-msimd128', '-std=c++17',
     (Join-Path $root 'native/openjtalk-engine/openjtalk_engine.cpp'),
     $library
 )

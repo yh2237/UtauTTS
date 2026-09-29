@@ -21,7 +21,7 @@ $sources = @(
 $exported = '_UtauTTSWorldF0,_UtauTTSWorldAnalysisShape,_UtauTTSWorldAnalyze,_UtauTTSWorldSynthesize,_UtauTTSWorldAnalyzeFlat,_UtauTTSWorldSynthesizeFlat,_malloc,_free'
 
 $arguments = @(
-    '-O3', '-std=c++17', "-I$worldSrc"
+    '-O3', '-msimd128', '-std=c++17', "-I$worldSrc"
 ) + $sources + @(
     '-fexceptions',
     '-sMODULARIZE=1',
