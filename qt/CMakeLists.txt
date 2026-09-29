@@ -86,25 +86,29 @@ qt_add_qml_module(utautts
     VERSION 1.0
     QML_FILES
         qml/Main.qml
-        qml/EditorContent.qml
-        qml/DragHud.qml
-        qml/PitchEditor.qml
-        qml/PhonemeEditor.qml
-        qml/IntonationEditorSurface.qml
-        qml/PitchHorizontalScrollBar.qml
-        qml/PlaybackControls.qml
-        qml/DragSourceWindow.qml
-qml/SynthesisLogWindow.qml
-qml/SynthesisLogContent.qml
-qml/WindowHeader.qml
-        qml/SettingsWindow.qml
-        qml/SettingsResetButton.qml
-        qml/GrayscaleMenuItem.qml
-        qml/DictionaryWindow.qml
-        qml/LicenseWindow.qml
-        qml/VoicebankDetailsWindow.qml
-        qml/OnboardingWindow.qml
         qml/Translator.qml
+        qml/shell/SettingsWindow.qml
+        qml/shell/DictionaryWindow.qml
+        qml/shell/LicenseWindow.qml
+        qml/shell/VoicebankDetailsWindow.qml
+        qml/shell/OnboardingWindow.qml
+        qml/shell/SynthesisLogWindow.qml
+        qml/shell/DragSourceWindow.qml
+        qml/views/EditorContent.qml
+        qml/views/SynthesisLogContent.qml
+        qml/views/LicenseContent.qml
+        qml/views/OnboardingContent.qml
+        qml/views/DictionaryContent.qml
+        qml/views/VoicebankDetailsContent.qml
+        qml/controls/WindowHeader.qml
+        qml/controls/SettingsResetButton.qml
+        qml/controls/GrayscaleMenuItem.qml
+        qml/controls/PlaybackControls.qml
+        qml/controls/DragHud.qml
+        qml/editors/PitchEditor.qml
+        qml/editors/PhonemeEditor.qml
+        qml/editors/IntonationEditorSurface.qml
+        qml/editors/PitchHorizontalScrollBar.qml
 )
 
 set_source_files_properties(
