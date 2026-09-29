@@ -83,31 +83,32 @@ func writePCM16(path string, sampleRate int, samples []float32) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	file, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+	// 1サンプルずつ書くとサンプル数ぶんの書き込みが発生するため、1つのバッファにまとめて書く。
+	const headerSize = 44
 	dataSize := len(samples) * 2
-	if _, err := file.Write([]byte("RIFF")); err != nil {
-		return err
-	}
-	for _, value := range []any{uint32(36 + dataSize), [4]byte{'W', 'A', 'V', 'E'}, [4]byte{'f', 'm', 't', ' '}, uint32(16), uint16(1), uint16(1), uint32(sampleRate), uint32(sampleRate * 2), uint16(2), uint16(16), [4]byte{'d', 'a', 't', 'a'}, uint32(dataSize)} {
-		if err := binary.Write(file, binary.LittleEndian, value); err != nil {
-			return err
-		}
-	}
-	for _, sample := range samples {
+	buffer := make([]byte, headerSize+dataSize)
+	copy(buffer[0:], "RIFF")
+	binary.LittleEndian.PutUint32(buffer[4:], uint32(36+dataSize))
+	copy(buffer[8:], "WAVE")
+	copy(buffer[12:], "fmt ")
+	binary.LittleEndian.PutUint32(buffer[16:], 16)
+	binary.LittleEndian.PutUint16(buffer[20:], 1)
+	binary.LittleEndian.PutUint16(buffer[22:], 1)
+	binary.LittleEndian.PutUint32(buffer[24:], uint32(sampleRate))
+	binary.LittleEndian.PutUint32(buffer[28:], uint32(sampleRate*2))
+	binary.LittleEndian.PutUint16(buffer[32:], 2)
+	binary.LittleEndian.PutUint16(buffer[34:], 16)
+	copy(buffer[36:], "data")
+	binary.LittleEndian.PutUint32(buffer[40:], uint32(dataSize))
+	for index, sample := range samples {
 		if !isFinite32(sample) {
 			sample = 0
 		}
 		sample = max(-1, min(1, sample*scale))
 		value := int16(math.RoundToEven(float64(sample * 32767)))
-		if err := binary.Write(file, binary.LittleEndian, value); err != nil {
-			return err
-		}
+		binary.LittleEndian.PutUint16(buffer[headerSize+index*2:], uint16(value))
 	}
-	return nil
+	return os.WriteFile(path, buffer, 0o644)
 }
 
 func isFinite32(value float32) bool {
