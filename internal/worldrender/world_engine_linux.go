@@ -1,8 +1,9 @@
-//go:build darwin && cgo
+//go:build linux && cgo
 
-package main
+package worldrender
 
 /*
+#cgo LDFLAGS: -ldl
 #include <dlfcn.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -40,7 +41,7 @@ import (
 	"unsafe"
 )
 
-type darwinWorldEngine struct{ pointer *C.WorldEngine }
+type linuxWorldEngine struct{ pointer *C.WorldEngine }
 
 func openWorldEngine(path string) (worldEngine, error) {
 	cPath := C.CString(path)
@@ -50,16 +51,16 @@ func openWorldEngine(path string) (worldEngine, error) {
 	if pointer == nil {
 		return nil, fmt.Errorf("load UtauTTS WORLD engine: %s", cString(errorBuffer))
 	}
-	return &darwinWorldEngine{pointer: pointer}, nil
+	return &linuxWorldEngine{pointer: pointer}, nil
 }
 
-func (engine *darwinWorldEngine) Close() error {
+func (engine *linuxWorldEngine) Close() error {
 	C.world_close(engine.pointer)
 	engine.pointer = nil
 	return nil
 }
 
-func (engine *darwinWorldEngine) Analyze(samples []float64, sampleRate int, inputF0 []float64) (worldFeatures, error) {
+func (engine *linuxWorldEngine) Analyze(samples []float64, sampleRate int, inputF0 []float64) (worldFeatures, error) {
 	errorBuffer := make([]byte, 512)
 	shape := C.WorldShape{sample_count: C.int(len(samples)), sample_rate: C.int(sampleRate), frame_period_ms: C.double(worldFramePeriodMS)}
 	if C.world_shape(engine.pointer, &shape, (*C.char)(unsafe.Pointer(&errorBuffer[0])), C.int(len(errorBuffer))) == 0 {
@@ -91,7 +92,7 @@ func (engine *darwinWorldEngine) Analyze(samples []float64, sampleRate int, inpu
 	return features, nil
 }
 
-func (engine *darwinWorldEngine) Synthesize(features worldFeatures, sampleRate int) ([]float64, error) {
+func (engine *linuxWorldEngine) Synthesize(features worldFeatures, sampleRate int) ([]float64, error) {
 	if err := validateWorldFeatures(features); err != nil {
 		return nil, err
 	}

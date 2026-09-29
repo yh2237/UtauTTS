@@ -51,4 +51,16 @@ UTAUTTS_WORLD_API int UtauTTSWorldAnalyze(
     const UtauTTSWorldAnalysisRequest* request, char* error, int error_capacity);
 UTAUTTS_WORLD_API int UtauTTSWorldSynthesize(
     const UtauTTSWorldSynthesisRequest* request, char* error, int error_capacity);
+
+// WebAssemblyなど構造体の受け渡しが面倒な環境向けのフラットな入口。
+UTAUTTS_WORLD_API int UtauTTSWorldAnalyzeFlat(
+    const double* samples, int sample_count, int sample_rate,
+    double frame_period_ms, const double* input_f0, int input_f0_count,
+    double* f0, double* spectrum, double* aperiodicity, char* error,
+    int error_capacity);
+UTAUTTS_WORLD_API int UtauTTSWorldSynthesizeFlat(
+    const double* f0, int frame_count, const double* spectrum,
+    const double* aperiodicity, int fft_size, double frame_period_ms,
+    int sample_rate, double* output, int output_count, char* error,
+    int error_capacity);
 }

@@ -1,0 +1,281 @@
+package worldrender
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+
+	"utautts/internal/provider"
+)
+
+type manifest struct {
+	SpeechResults   *[]provider.WorldSpeechResult `json:"-"`
+	Engine          string                        `json:"engine"`
+	WorldEnginePath string                        `json:"world_engine_path"`
+	OutputPath      string                        `json:"output_path"`
+	SampleRate      int                           `json:"sample_rate"`
+	F0Curve         []float64                     `json:"f0_curve"`
+	Units           []unit                        `json:"units"`
+}
+
+type unit struct {
+	Speech            *provider.WorldSpeechTiming `json:"speech,omitempty"`
+	LegacyMix         bool                        `json:"legacy_mix,omitempty"`
+	GapRepair         bool                        `json:"gap_repair,omitempty"`
+	CacheKey          string                      `json:"cache_key"`
+	Source            string                      `json:"source"`
+	FrqPath           string                      `json:"frq_path"`
+	PositionMS        float64                     `json:"position_ms"`
+	SkipMS            float64                     `json:"skip_ms"`
+	LengthMS          float64                     `json:"length_ms"`
+	FadeInMS          float64                     `json:"fade_in_ms"`
+	FadeOutMS         float64                     `json:"fade_out_ms"`
+	OffsetMS          float64                     `json:"offset_ms"`
+	RequiredLengthMS  float64                     `json:"required_length_ms"`
+	ConsonantMS       float64                     `json:"consonant_ms"`
+	CutoffMS          float64                     `json:"cutoff_ms"`
+	Tone              int                         `json:"tone"`
+	ConsonantVelocity float64                     `json:"consonant_velocity"`
+	PitchStartMS      float64                     `json:"pitch_start_ms"`
+	PitchLengthMS     float64                     `json:"pitch_length_ms"`
+	Volume            float64                     `json:"volume"`
+	VolumeSet         bool                        `json:"volume_set"`
+	Modulation        float64                     `json:"modulation"`
+	Tempo             float64                     `json:"tempo"`
+	EnergyFactor      float64                     `json:"energy_factor"`
+	Envelope          []envelopePoint             `json:"envelope"`
+}
+
+type envelopePoint struct {
+	XMS float64 `json:"x_ms"`
+	Y   float64 `json:"y"`
+}
+
+func newBridgeState() *bridgeState {
+	return &bridgeState{
+		worldEngines: make(map[string]worldEngine),
+		worldUnits:   newWorldFeatureCache(128),
+	}
+}
+
+func (state *bridgeState) close() {
+	for _, engine := range state.worldEngines {
+		_ = engine.Close()
+	}
+}
+
+// Rendererはジョブ単位のレンダリング状態（WORLDエンジンと特徴量キャッシュ）を保持する。
+// wasmではプロセスを介さずRenderJobを直接呼ぶ。
+type Renderer struct {
+	state *bridgeState
+}
+
+// NewRendererは常駐WORLDエンジン用のRendererを作る。
+func NewRenderer() *Renderer {
+	return &Renderer{state: newBridgeState()}
+}
+
+// Closeは保持しているWORLDエンジンを解放する。
+func (renderer *Renderer) Close() {
+	if renderer != nil && renderer.state != nil {
+		renderer.state.close()
+	}
+}
+
+// RenderJobはunit-rendererジョブのJSONをその場でレンダリングしWAVを書き出す。
+func (renderer *Renderer) RenderJob(jobJSON []byte, outputPath string) ([]provider.WorldSpeechResult, error) {
+	input, err := decodeProviderJob(jobJSON, outputPath)
+	if err != nil {
+		return nil, err
+	}
+	result, err := renderManifestValue(input, outputPath, renderer.state)
+	if err != nil {
+		return nil, err
+	}
+	if result.SpeechResults != nil {
+		return *result.SpeechResults, nil
+	}
+	return nil, nil
+}
+
+// ServeProviderはv1外部プロバイダプロトコルのアダプタ。
+func ServeProvider(input io.Reader, output io.Writer, providerID string) error {
+	return serveProvider(input, output, providerID)
+}
+
+// serveProviderはv1外部プロバイダプロトコルのアダプタ。共通のunit-rendererジョブと型付きWORLDオプションのみ受け付ける。
+func serveProvider(input io.Reader, output io.Writer, providerID string) error {
+	state := newBridgeState()
+	defer state.close()
+	writer := bufio.NewWriter(output)
+	encoder := json.NewEncoder(writer)
+	if err := encoder.Encode(provider.Hello{
+		Type: provider.MessageHello, Protocol: provider.ProtocolName, ProtocolVersion: provider.ProtocolVersion,
+		Provider: providerID, ProviderVersion: "1", Session: true,
+		Capabilities: []string{"frame_pitch", provider.CapabilityUnitRendererJobV2, provider.CapabilityWorldSpeechV1, provider.CapabilityCodaReleaseV1, provider.CapabilitySpeechAnchorsV1},
+		Contracts:    []provider.ContractSupport{{Name: "unit-renderer", Version: 1}},
+	}); err != nil {
+		return err
+	}
+	if err := writer.Flush(); err != nil {
+		return err
+	}
+	scanner := bufio.NewScanner(input)
+	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
+	for scanner.Scan() {
+		var header struct {
+			Type string `json:"type"`
+		}
+		if err := json.Unmarshal(scanner.Bytes(), &header); err != nil {
+			if writeErr := encoder.Encode(provider.ErrorMessage{Type: provider.MessageError, Code: "invalid_request", Message: err.Error()}); writeErr != nil {
+				return writeErr
+			}
+			if err := writer.Flush(); err != nil {
+				return err
+			}
+			continue
+		}
+		if header.Type == provider.MessageShutdown {
+			return nil
+		}
+		if header.Type == provider.MessageCancel {
+			// ネイティブアダプタの描画は同期処理。実行中の描画が終わらない場合、ホストはキャンセル猶予期間後にプロセスを終了する。
+			continue
+		}
+		var request provider.RenderRequest
+		if err := json.Unmarshal(scanner.Bytes(), &request); err != nil {
+			if writeErr := encoder.Encode(provider.ErrorMessage{Type: provider.MessageError, Code: "invalid_request", Message: err.Error()}); writeErr != nil {
+				return writeErr
+			}
+			if err := writer.Flush(); err != nil {
+				return err
+			}
+			continue
+		}
+		if request.Type != provider.MessageRender || request.Contract != "unit-renderer" || request.ContractVersion != 1 {
+			if err := encoder.Encode(provider.ErrorMessage{Type: provider.MessageError, RequestID: request.RequestID, Code: "unsupported_request", Message: "worldline bridge accepts unit-renderer contract version 1"}); err != nil {
+				return err
+			}
+			if err := writer.Flush(); err != nil {
+				return err
+			}
+			continue
+		}
+		result, err := renderProviderInputAt(request.InputPath, request.OutputPath, state)
+		if err != nil {
+			if encodeErr := encoder.Encode(provider.ErrorMessage{Type: provider.MessageError, RequestID: request.RequestID, Code: "render_failed", Message: err.Error()}); encodeErr != nil {
+				return encodeErr
+			}
+		} else if err := encoder.Encode(provider.Result{
+			Report: map[string]any{"world_speech": result.SpeechResults},
+			Type:   provider.MessageResult, RequestID: request.RequestID,
+			Audio: provider.AudioArtifact{Path: result.OutputPath, Format: "wav_pcm_s16le", SampleRate: result.SampleRate, Channels: 1},
+		}); err != nil {
+			return err
+		}
+		if err := writer.Flush(); err != nil {
+			return err
+		}
+	}
+	return scanner.Err()
+}
+
+type bridgeState struct {
+	worldEngines map[string]worldEngine
+	worldUnits   *worldFeatureCache
+}
+
+func renderProviderInputAt(path, outputPath string, state *bridgeState) (manifest, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return manifest{}, err
+	}
+	input, err := decodeProviderJob(data, outputPath)
+	if err != nil {
+		return manifest{}, err
+	}
+	return renderManifestValue(input, outputPath, state)
+}
+
+func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
+	var job provider.UnitRendererJob
+	if err := json.Unmarshal(data, &job); err != nil {
+		return manifest{}, fmt.Errorf("decode worldline job: %w", err)
+	}
+	if job.Version != provider.UnitRendererJobVersion || job.Contract != "unit-renderer" || job.ContractVersion != 1 {
+		return manifest{}, fmt.Errorf("unsupported worldline job contract")
+	}
+	if job.Options.Worldline == nil {
+		return manifest{}, fmt.Errorf("worldline job has no typed worldline options")
+	}
+	options := job.Options.Worldline
+	if options.Engine != "utautts-world-phrase" {
+		return manifest{}, fmt.Errorf("unsupported worldline engine %q", options.Engine)
+	}
+	input := manifest{
+		Engine: options.Engine, OutputPath: outputPath, SampleRate: options.SampleRate,
+		F0Curve: append([]float64(nil), options.F0Curve...), Units: make([]unit, len(options.Units)),
+		WorldEnginePath: job.Resources["world_engine"],
+	}
+	for index, source := range options.Units {
+		target := unit{
+			Speech: source.Speech, LegacyMix: source.LegacyMix, GapRepair: source.GapRepair,
+			CacheKey: source.CacheKey, Source: source.Source, FrqPath: source.FRQPath,
+			PositionMS: source.PositionMS, SkipMS: source.SkipMS, LengthMS: source.LengthMS,
+			FadeInMS: source.FadeInMS, FadeOutMS: source.FadeOutMS, OffsetMS: source.OffsetMS,
+			RequiredLengthMS: source.RequiredLengthMS, ConsonantMS: source.ConsonantMS,
+			CutoffMS: source.CutoffMS, Tone: source.Tone, ConsonantVelocity: source.ConsonantVelocity,
+			PitchStartMS: source.PitchStartMS, PitchLengthMS: source.PitchLengthMS,
+			Volume: source.Volume, Modulation: source.Modulation, Tempo: source.Tempo, EnergyFactor: source.EnergyFactor,
+			Envelope: make([]envelopePoint, len(source.Envelope)),
+		}
+		for pointIndex, point := range source.Envelope {
+			target.Envelope[pointIndex] = envelopePoint{XMS: point.XMS, Y: point.Y}
+		}
+		input.Units[index] = target
+		if source.Speech != nil && input.Engine != "utautts-world-phrase" {
+			return manifest{}, fmt.Errorf("speech feature processing requires utautts-world-phrase")
+		}
+	}
+	return input, nil
+}
+
+func renderManifestValue(input manifest, outputPath string, state *bridgeState) (manifest, error) {
+	input.SpeechResults = new([]provider.WorldSpeechResult)
+	var err error
+	if outputPath != "" {
+		input.OutputPath = outputPath
+	}
+	if len(input.Units) == 0 || len(input.F0Curve) < 2 {
+		return manifest{}, fmt.Errorf("manifest has no synthesis data")
+	}
+	if input.Engine == "utautts-world-phrase" {
+		var engine worldEngine
+		if state != nil {
+			engine = state.worldEngines[input.WorldEnginePath]
+		}
+		if engine == nil {
+			engine, err = openWorldEngine(input.WorldEnginePath)
+			if err != nil {
+				return manifest{}, err
+			}
+			if state != nil {
+				state.worldEngines[input.WorldEnginePath] = engine
+			} else {
+				defer engine.Close()
+			}
+		}
+		var cache *worldFeatureCache
+		if state != nil {
+			cache = state.worldUnits
+		}
+		samples, renderErr := renderUtauTTSWorldPhrase(engine, input, cache)
+		if renderErr != nil {
+			return manifest{}, renderErr
+		}
+		return input, writePCM16(input.OutputPath, input.SampleRate, samples)
+	}
+	return manifest{}, fmt.Errorf("unknown engine: %s", input.Engine)
+}

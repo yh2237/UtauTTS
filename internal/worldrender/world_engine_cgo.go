@@ -1,6 +1,6 @@
 //go:build (linux || darwin) && cgo
 
-package main
+package worldrender
 
 /*
 #include <stdlib.h>

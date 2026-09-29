@@ -1,6 +1,6 @@
-//go:build !windows && ((!linux && !darwin) || !cgo)
+//go:build !js && !windows && ((!linux && !darwin) || !cgo)
 
-package main
+package worldrender
 
 import "fmt"
 

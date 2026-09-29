@@ -722,6 +722,9 @@ func findFRQPath(wavPath string) string {
 }
 
 func resolveWorldlineBridge(configured string) (string, error) {
+	if isWasm() {
+		return configured, nil
+	}
 	if configured == "" {
 		return "", errors.New("worldline bridge is not configured by the renderer plugin")
 	}
@@ -732,6 +735,9 @@ func resolveWorldlineBridge(configured string) (string, error) {
 }
 
 func resolveWorldEngine(configured string) (string, error) {
+	if isWasm() {
+		return configured, nil
+	}
 	if configured == "" {
 		return "", errors.New("UtauTTS WORLD engine is not configured by the renderer plugin")
 	}
