@@ -348,6 +348,12 @@ func LoadModel(path string) (*Model, error) {
 	if err != nil {
 		return nil, err
 	}
+	return ParseModel(data)
+}
+
+// ParseModelはJSONバイト列からモデルを検証つきで読む。
+// ファイルシステムを持たないwasm等でパスを経由せず読むために公開している。
+func ParseModel(data []byte) (*Model, error) {
 	var model Model
 	if err := json.Unmarshal(data, &model); err != nil {
 		return nil, err
