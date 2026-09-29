@@ -18,6 +18,18 @@ import (
 	"utautts/internal/render/base"
 )
 
+// Traceはworldlineバックエンドの計測ログ出力。nilなら無効。
+var Trace func(message string)
+
+func traceMark(start *time.Time, label string) {
+	if Trace == nil {
+		return
+	}
+	now := time.Now()
+	Trace(fmt.Sprintf("%s: %.1fms", label, float64(now.Sub(*start).Microseconds())/1000))
+	*start = now
+}
+
 func init() {
 	base.RegisterRenderer("utautts-world-phrase", renderUtauTTSWorldPhrase)
 	base.RegisterCloser(func() error {
@@ -73,6 +85,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 	if synthesisPlan == nil || len(synthesisPlan.Units) == 0 {
 		return nil, errors.New("empty synthesis plan")
 	}
+	started := time.Now()
 	libraries := sourceLibraries(synthesisPlan, cfg)
 	if cfg.CVVCTiming == "" {
 		cfg.CVVCTiming = base.CVVCTimingSequential
@@ -158,10 +171,12 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		unit.IntonationFactor = 1
 	}
 	intonation := base.IdentityFactors(len(synthesisPlan.Units))
+	traceMark(&started, "timing")
 	pitches, sampleRate, err := base.MeasureWorldlinePitches(synthesisPlan, &cache)
 	if err != nil {
 		return nil, err
 	}
+	traceMark(&started, "pitches")
 	if cfg.ApplyPitch {
 		intonation = base.AnalyzeIntonationFromPitches(synthesisPlan, timings, pitches, cfg.IntonationStrength)
 	}
@@ -439,6 +454,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		}
 	}
 
+	traceMark(&started, "units")
 	manifest.OutputPath = filepath.Join(tempDir, "output.wav")
 	job, err := worldlineProviderJob(synthesisPlan, cfg, manifest, bridge)
 	if err != nil {
@@ -452,6 +468,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 	if err := os.WriteFile(jobPath, jobData, 0o600); err != nil {
 		return nil, err
 	}
+	traceMark(&started, "job")
 	ctx := cfg.Context
 	if ctx == nil {
 		ctx = context.Background()
@@ -465,6 +482,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		}
 		return nil, fmt.Errorf("worldline bridge failed: %w", commandErr)
 	}
+	traceMark(&started, "bridge")
 	for _, result := range speechResults {
 		if result.UnitIndex < 0 || result.UnitIndex >= len(synthesisPlan.Units) {
 			return nil, fmt.Errorf("invalid WORLD speech report unit %d", result.UnitIndex)
@@ -488,6 +506,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 	if err != nil {
 		return nil, fmt.Errorf("read worldline output: %w", err)
 	}
+	traceMark(&started, "output")
 	minimumFrames := base.MsToFrames(synthesisPlan.DurationMS+cfg.ReleaseMS+leadingMS, pcm.SampleRate)
 	if len(pcm.Data) < minimumFrames {
 		pcm.Data = append(pcm.Data, make([]int16, minimumFrames-len(pcm.Data))...)

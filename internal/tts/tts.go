@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"utautts/internal/audio"
 	"utautts/internal/connection"
@@ -18,6 +19,19 @@ import (
 	"utautts/internal/render"
 	"utautts/internal/voicebank"
 )
+
+// Traceは合成フェーズの所要時間を出力する任意フック。nilなら無効。
+var Trace func(message string)
+
+// traceMarkは前回のmarkからの経過時間をTraceへ渡し、起点を更新する。
+func traceMark(start *time.Time, label string) {
+	if Trace == nil {
+		return
+	}
+	now := time.Now()
+	Trace(fmt.Sprintf("%s: %.1fms", label, float64(now.Sub(*start).Microseconds())/1000))
+	*start = now
+}
 
 type Config struct {
 	WordBoundaryEnvelope    bool
@@ -310,6 +324,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err := validateConfig(cfg); err != nil {
 		return nil, err
 	}
+	start := time.Now()
 	providerID := engine.ProviderID(cfg.Renderer)
 	if cfg.Engine.Provider.ID != "" {
 		providerID = cfg.Engine.Provider.ID
@@ -345,6 +360,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		}
 		cfg.Dictionary = dictionary
 	}
+	traceMark(&start, "setup")
 	language, phonemizer, reading, morae, err := resolvePronunciation(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
@@ -354,28 +370,34 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err := configureSpeechModel(&cfg, language); err != nil {
 		return nil, err
 	}
+	traceMark(&start, "phonemize")
 	loadedProsody, err := resolveProsodyModelForProfile(cfg, profile)
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)
 	}
+	traceMark(&start, "speechModel")
 	prosodyFeatures, predictions, err := resolveProsodyComputation(cfg, profile, loadedProsody, morae, reading)
 	if err != nil {
 		return nil, err
 	}
+	traceMark(&start, "prosody")
 	selections, err := bank.ResolveWithConfig(morae, voicebank.ResolveConfig{
 		Tone: cfg.Tone, Color: cfg.Color, AliasPolicy: cfg.AliasPolicy, JoinModel: joinModel,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("resolve voicebank units: %w", err)
 	}
+	traceMark(&start, "select")
 	synthesisPlan, stretchAdapt, err := buildSynthesisPlan(cfg, profile, bank, reading, language, phonemizer, morae, selections, predictions, requestedAliasPolicy, joinModel)
 	if err != nil {
 		return nil, err
 	}
+	traceMark(&start, "plan")
 	pitch, err := resolveSynthesisPitch(cfg, profile, loadedProsody, morae, prosodyFeatures, reading, language, synthesisPlan)
 	if err != nil {
 		return nil, err
 	}
+	traceMark(&start, "pitch")
 	providerOptions.Worldline.SpeechPitchReference = experimentalSpeechPitch(cfg) && pitch.Apply
 	rendered, err := render.RenderWithReport(synthesisPlan, render.Config{
 		Context:                 cfg.Context,
@@ -399,6 +421,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, fmt.Errorf("render: %w", err)
 	}
+	traceMark(&start, "render")
 	pcm := rendered.Audio
 	timings := moraTimings(morae, synthesisPlan)
 	moraDurations := make([]float64, len(timings))

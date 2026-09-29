@@ -5,11 +5,13 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"syscall/js"
 
 	"utautts/internal/frontend"
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
+	"utautts/internal/render/worldline"
 	"utautts/internal/tts"
 )
 
@@ -45,6 +47,13 @@ func main() {
 		"synthesize":     js.FuncOf(synthesize),
 	}
 	js.Global().Set("utauttsWasm", js.ValueOf(api))
+	if os.Getenv("UTAUTTS_TTS_PROFILE") != "" {
+		log := func(message string) {
+			js.Global().Get("console").Call("log", "utautts "+message)
+		}
+		tts.Trace = log
+		worldline.Trace = log
+	}
 	// wasmのランタイムを生かしたままJSからの呼び出しを待つ。
 	keepAlive := make(chan struct{})
 	<-keepAlive

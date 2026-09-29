@@ -84,20 +84,32 @@ async function loadWorld() {
 
   const bytes = fs.readFileSync(path.join(DIST, "utautts.wasm"));
   const go = new Go();
+  go.env = { TMPDIR: "/tmp", UTAUTTS_WORLD_PROFILE: "/out/profile.jsonl", UTAUTTS_TTS_PROFILE: "1" };
   const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
   go.run(instance);
   await waitFor(() => globalThis.utauttsWasm && globalThis.utauttsWasm.synthesize, 10000);
 
   const text = process.argv[2] || "こんにちは、今日はいい天気です。";
-  const started = Date.now();
-  const raw = globalThis.utauttsWasm.synthesize({ text, modelPath: MODEL_PATH, voicebankPath: VOICE_PATH, outputPath: OUTPUT_PATH, strength: 1 });
-  const elapsed = Date.now() - started;
-  const data = JSON.parse(raw);
+  for (const label of ["predict", "predict2"]) {
+    const started = Date.now();
+    globalThis.utauttsWasm.predictProsody({ text, modelPath: MODEL_PATH, strength: 1 });
+    console.log(label + " elapsed=" + (Date.now() - started) + "ms");
+  }
+  let data = null;
+  let raw = "";
+  for (let run = 1; run <= 2; run++) {
+    const started = Date.now();
+    raw = globalThis.utauttsWasm.synthesize({ text, modelPath: MODEL_PATH, voicebankPath: VOICE_PATH, outputPath: OUTPUT_PATH, strength: 1 });
+    console.log("run " + run + " elapsed=" + (Date.now() - started) + "ms");
+    const profile = virtualFs.readFile("/out/profile.jsonl");
+    if (profile) console.log("profile " + run + ":", Buffer.from(profile).toString("utf8").trim());
+  }
+  data = JSON.parse(raw);
   if (data.error) {
     console.error("ERROR:", data.error);
     process.exit(1);
   }
-  console.log("synthesize:", JSON.stringify(data), "elapsed=" + elapsed + "ms");
+  console.log("synthesize:", JSON.stringify(data));
 
   const wav = virtualFs.readFile(OUTPUT_PATH);
   if (!wav) throw new Error("output WAV not found in virtual fs");
