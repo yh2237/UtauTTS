@@ -4,7 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
-import QtMultimedia
+import UtauTTS.Media
 
 ApplicationWindow {
     id: window

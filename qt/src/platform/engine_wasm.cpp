@@ -1,0 +1,88 @@
+#include "platform/engine.h"
+
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
+#include <QString>
+#include <stdexcept>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten/val.h>
+#endif
+
+// wasm 実装: メインスレッドに読み込んだ Go エンジン（globalThis.utauttsWasm）を
+// emscripten::val 経由で同期的に呼ぶ。Go 側の call は同一スレッドで完結するため
+// backend.cpp の同期モデルをそのまま使える。
+
+#ifdef __EMSCRIPTEN__
+namespace {
+emscripten::val engineApi() {
+    return emscripten::val::global("utauttsWasm");
+}
+}  // namespace
+#endif
+
+QVariantMap callNative(uintptr_t, const QByteArray &method, const QVariantMap &request) {
+#ifdef __EMSCRIPTEN__
+    emscripten::val api = engineApi();
+    if (api.isUndefined()) {
+        throw std::runtime_error("wasm engine (utauttsWasm) is not loaded");
+    }
+    const QByteArray requestJSON =
+        QJsonDocument::fromVariant(request).toJson(QJsonDocument::Compact);
+    emscripten::val response = api.call<emscripten::val>(
+        "call", std::string(method.constData()), std::string(requestJSON.constData()));
+    const QString text = QString::fromStdString(response.as<std::string>());
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(text.toUtf8(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        throw std::runtime_error("wasm engine returned invalid JSON");
+    }
+    const QJsonObject object = document.object();
+    if (!object.value(QStringLiteral("ok")).toBool()) {
+        throw std::runtime_error(object.value(QStringLiteral("error")).toString().toStdString());
+    }
+    return object.value(QStringLiteral("result")).toObject().toVariantMap();
+#else
+    (void)method;
+    (void)request;
+    throw std::runtime_error("wasm engine is unavailable in this build");
+#endif
+}
+
+QVariantMap initializeNative(const QByteArray &, const std::function<void(int)> &progress) {
+    if (progress) {
+        progress(0);
+    }
+    const QVariantMap voices = callNative(0, "voicebanks");
+    if (progress) {
+        progress(1);
+    }
+    const QVariantMap models = callNative(0, "models");
+    if (progress) {
+        progress(2);
+    }
+    const QVariantMap renderers = callNative(0, "renderers");
+    if (progress) {
+        progress(3);
+        progress(4);
+    }
+    return {
+        {"_handle", QVariant::fromValue<qulonglong>(1)},
+        {"voicebanks", voices.value("voicebanks")},
+        {"models", models.value("models")},
+        {"renderers", renderers.value("renderers")},
+        {"problems", renderers.value("problems")},
+        {"resamplers", renderers.value("resamplers")},
+        {"wavtools", renderers.value("wavtools")},
+        {"default_renderer", renderers.value("default_renderer")},
+    };
+}
+
+void destroyNative(uintptr_t) {}
+
+QString lastNativeError() { return QString(); }
+
+bool startDetachedProcess(const QString &, const QStringList &, const QString &, qint64 *) {
+    return false;
+}

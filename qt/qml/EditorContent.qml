@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtMultimedia
+import UtauTTS.Media
     SplitView {
         id: editorSplitView
         required property var window

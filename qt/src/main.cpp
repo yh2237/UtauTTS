@@ -1,4 +1,5 @@
 #include "backend.h"
+#include "platform/media.h"
 #include "selftest.h"
 #include <QDir>
 #include <QEventLoop>
@@ -176,6 +177,7 @@ bool updateInProgress() {
 
 int main(int argc, char *argv[]) {
     QQuickStyle::setStyle("Fusion");
+    registerMediaTypes();
     QGuiApplication app(argc, argv);
     app.setApplicationName(UTAUTTS_APP_NAME);
     app.setApplicationDisplayName(UTAUTTS_APP_NAME);

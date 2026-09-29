@@ -1,5 +1,5 @@
 #include "backend.h"
-#include "utautts_abi.h"
+#include "platform/engine.h"
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -10,7 +10,11 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QMimeData>
+#ifndef UTAUTTS_WASM
+#ifndef UTAUTTS_WASM
 #include <QFutureWatcher>
+#endif
+#endif
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -18,15 +22,24 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#ifndef UTAUTTS_WASM
+#ifndef UTAUTTS_WASM
 #include <QPromise>
+#endif
+#endif
+#ifndef UTAUTTS_WASM
 #include <QProcess>
+#endif
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QSettings>
 #include <QSysInfo>
 #include <QUuid>
+#ifndef UTAUTTS_WASM
 #include <QtConcurrent>
+#include <windows.h>
+#endif
 #include <algorithm>
 #include <memory>
 #include <stdexcept>
@@ -261,70 +274,6 @@ QByteArray nativeConfigJSON() {
     return QJsonDocument(config).toJson(QJsonDocument::Compact);
 }
 
-QVariantMap callNative(uintptr_t handle, const QByteArray &method,
-                       const QVariantMap &request = {}) {
-    if (!handle) {
-        throw std::runtime_error("native backend is not initialized");
-    }
-    QByteArray methodCopy = method;
-    QByteArray requestJSON = QJsonDocument::fromVariant(request).toJson(QJsonDocument::Compact);
-    std::unique_ptr<char, decltype(&UtauTTSFree)> response(
-        UtauTTSCall(handle, methodCopy.data(), requestJSON.data()), &UtauTTSFree);
-    if (!response) {
-        throw std::runtime_error("native backend returned no response");
-    }
-    QJsonParseError parseError;
-    const QJsonDocument document = QJsonDocument::fromJson(response.get(), &parseError);
-    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
-        throw std::runtime_error("native backend returned invalid JSON");
-    }
-    const QJsonObject object = document.object();
-    if (!object.value("ok").toBool()) {
-        throw std::runtime_error(object.value("error").toString().toStdString());
-    }
-    const QJsonValue result = object.value("result");
-    if (!result.isObject()) {
-        throw std::runtime_error("native backend returned no result");
-    }
-    return result.toObject().toVariantMap();
-}
-
-QVariantMap initializeNative(const QByteArray &encoded, QPromise<QVariantMap> &progress) {
-    QByteArray config = encoded;
-    const uintptr_t handle = UtauTTSCreate(config.data());
-    if (!handle) {
-        std::unique_ptr<char, decltype(&UtauTTSFree)> detail(
-            UtauTTSLastError(), &UtauTTSFree);
-        const QString message = detail ? QString::fromUtf8(detail.get()) : QString();
-        return {{"_error", message.isEmpty()
-                              ? QStringLiteral("could not initialize the native backend")
-                              : message}};
-    }
-    try {
-        progress.setProgressValue(0);
-        const QVariantMap voices = callNative(handle, "voicebanks");
-        progress.setProgressValue(1);
-        const QVariantMap models = callNative(handle, "models");
-        progress.setProgressValue(2);
-        const QVariantMap renderers = callNative(handle, "renderers");
-        progress.setProgressValue(3);
-        progress.setProgressValue(4);
-        return {
-            {"_handle", QVariant::fromValue<qulonglong>(static_cast<qulonglong>(handle))},
-            {"voicebanks", voices.value("voicebanks")},
-            {"models", models.value("models")},
-            {"renderers", renderers.value("renderers")},
-            {"problems", renderers.value("problems")},
-            {"resamplers", renderers.value("resamplers")},
-            {"wavtools", renderers.value("wavtools")},
-            {"default_renderer", renderers.value("default_renderer")},
-        };
-    } catch (const std::exception &exception) {
-        UtauTTSDestroy(handle);
-        return {{"_error", QString::fromUtf8(exception.what())}};
-    }
-}
-
 QString portableSettingsPath() {
     const QString selfTestDirectory = qEnvironmentVariable("UTAUTTS_SELF_TEST_DIRECTORY");
     if (!selfTestDirectory.isEmpty())
@@ -516,6 +465,7 @@ Backend::~Backend() {
     if (m_updateReply) {
         m_updateReply->abort();
     }
+#ifndef UTAUTTS_WASM
     m_activeCalls.waitForFinished();
     if (m_initializationTask.isValid()) {
         m_initializationTask.waitForFinished();
@@ -526,11 +476,12 @@ Backend::~Backend() {
         const uintptr_t handle = static_cast<uintptr_t>(
             result.value(QStringLiteral("_handle")).toULongLong());
         if (handle) {
-            UtauTTSDestroy(handle);
+            destroyNative(handle);
         }
     }
+#endif
     if (m_handle) {
-        UtauTTSDestroy(m_handle);
+        destroyNative(m_handle);
     }
 }
 
@@ -1201,7 +1152,7 @@ bool Backend::installUpdate(const QString &localZip, const QString &version) {
     arguments.append(QStringLiteral("-lock-token"));
     arguments.append(lockToken);
     qint64 updaterPid = 0;
-    if (!QProcess::startDetached(tempUpdater, arguments, QDir::tempPath(), &updaterPid)) {
+    if (!startDetachedProcess(tempUpdater, arguments, QDir::tempPath(), &updaterPid)) {
         removePendingUpdateLock(root, lockToken);
         QSettings failedMigrationSettings(portableSettingsPath(), QSettings::IniFormat);
         failedMigrationSettings.remove(QStringLiteral("migration/pending_from"));
@@ -1235,21 +1186,29 @@ void Backend::showUpdateError(const QString &title, const QString &text) {
 
 void Backend::initialize() {
     if (m_handle) {
-        UtauTTSDestroy(m_handle);
+        destroyNative(m_handle);
         m_handle = 0;
         emit connectedChanged();
     }
-    QByteArray encoded = nativeConfigJSON();
-    m_handle = UtauTTSCreate(encoded.data());
-    if (!m_handle) {
-        std::unique_ptr<char, decltype(&UtauTTSFree)> detail(UtauTTSLastError(), &UtauTTSFree);
-        const QString message = detail ? QString::fromUtf8(detail.get()) : QString();
-        setError(message.isEmpty() ? tr("Goバックエンドを初期化できませんでした") : message);
-        return;
-    }
-    emit connectedChanged();
     try {
-        refreshMetadata();
+        const QVariantMap result = initializeNative(nativeConfigJSON(), nullptr);
+        if (result.contains(QStringLiteral("_error"))) {
+            setError(result.value(QStringLiteral("_error")).toString());
+            return;
+        }
+        m_handle = static_cast<uintptr_t>(
+            result.value(QStringLiteral("_handle")).toULongLong());
+        emit connectedChanged();
+        applyMetadata(
+            QVariantMap{{QStringLiteral("voicebanks"), result.value(QStringLiteral("voicebanks"))}},
+            QVariantMap{{QStringLiteral("models"), result.value(QStringLiteral("models"))}},
+            QVariantMap{
+                {QStringLiteral("renderers"), result.value(QStringLiteral("renderers"))},
+                {QStringLiteral("problems"), result.value(QStringLiteral("problems"))},
+                {QStringLiteral("resamplers"), result.value(QStringLiteral("resamplers"))},
+                {QStringLiteral("wavtools"), result.value(QStringLiteral("wavtools"))},
+                {QStringLiteral("default_renderer"), result.value(QStringLiteral("default_renderer"))},
+            });
         if (!m_startupMigrationError.isEmpty())
             setError(m_startupMigrationError);
         else
@@ -1258,8 +1217,18 @@ void Backend::initialize() {
         setError(QString::fromUtf8(exception.what()));
     }
 }
-
 void Backend::initializeAsync() {
+#ifdef UTAUTTS_WASM
+    if (m_handle || m_busy || m_activeCallCount != 0) {
+        return;
+    }
+    setBusy(true);
+    setError({});
+    emit metadataReloadStarted();
+    initialize();
+    setBusy(false);
+    emit metadataChanged();
+#else
     if (m_handle || m_busy || m_activeCallCount != 0) {
         return;
     }
@@ -1329,6 +1298,7 @@ void Backend::initializeAsync() {
     ++m_activeCallCount;
     m_activeCalls.addFuture(m_initializationFuture);
     watcher->setFuture(m_initializationFuture);
+#endif
 }
 
 bool Backend::restartNativeBackend() {
@@ -1347,6 +1317,15 @@ QVariantMap Backend::call(const QByteArray &method, const QVariantMap &request) 
 
 void Backend::runNativeAsync(std::function<QVariantMap()> work,
                              std::function<void(const QVariantMap &)> completed) {
+#ifdef UTAUTTS_WASM
+    QVariantMap result;
+    try {
+        result = work();
+    } catch (const std::exception &exception) {
+        result = {{"_error", QString::fromUtf8(exception.what())}};
+    }
+    completed(result);
+#else
     auto *watcher = new QFutureWatcher<QVariantMap>(this);
     connect(watcher, &QFutureWatcher<QVariantMap>::finished, this,
             [this, watcher, completed = std::move(completed)]() mutable {
@@ -1365,6 +1344,7 @@ void Backend::runNativeAsync(std::function<QVariantMap()> work,
     ++m_activeCallCount;
     m_activeCalls.addFuture(future);
     watcher->setFuture(future);
+#endif
 }
 
 void Backend::applyMetadata(const QVariantMap &voices, const QVariantMap &models,

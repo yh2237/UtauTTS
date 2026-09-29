@@ -2,8 +2,10 @@
 
 #include <QObject>
 #include <QByteArray>
+#ifndef UTAUTTS_WASM
 #include <QFuture>
 #include <QFutureSynchronizer>
+#endif
 #include <QHash>
 #include <QList>
 #include <QTemporaryDir>
@@ -259,9 +261,11 @@ private:
     QTemporaryDir m_previewDirectory;
     QHash<QByteArray, PreviewCacheEntry> m_previewCache;
     QList<QByteArray> m_previewCacheOrder;
+#ifndef UTAUTTS_WASM
     QFutureSynchronizer<QVariantMap> m_activeCalls;
     QFuture<QVariantMap> m_initializationFuture;
     QFuture<void> m_initializationTask;
+#endif
     int m_activeCallCount = 0;
     QVariantList m_voicebanks, m_models, m_renderers, m_resamplers, m_wavtools, m_dictionaryEntries;
     QStringList m_pluginProblems;

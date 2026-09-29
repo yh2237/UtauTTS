@@ -15,7 +15,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Concurrent)
+if(EMSCRIPTEN)
+    find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 QuickControls2Fusion)
+else()
+    find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Concurrent)
+endif()
 qt_standard_project_setup(REQUIRES 6.5)
 qt_policy(SET QTP0004 NEW)
 
@@ -40,20 +44,31 @@ qt_add_executable(utautts
     src/selftest.cpp
     src/selftest.h
     src/utautts_abi.h
+    src/platform/engine.h
+    src/platform/media.h
 )
+
+if(EMSCRIPTEN)
+    target_sources(utautts PRIVATE src/platform/engine_wasm.cpp src/platform/media_wasm.cpp)
+else()
+    target_sources(utautts PRIVATE src/platform/engine_native.cpp src/platform/media_native.cpp)
+endif()
+target_sources(utautts PRIVATE src/platform/media_register.cpp)
 
 if(WIN32)
     target_sources(utautts PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/utautts.rc")
     set_target_properties(utautts PROPERTIES WIN32_EXECUTABLE TRUE)
 elseif(APPLE)
-    # macOSはQtの標準的な.app bundleとして配布する。アプリ本体の外側に
-    # runtime、models、renderer、voiceを置く構成はresourceRoot()で解決する。
+    # macOSはQtの標準的な.app bundleとして配布する。アプリ本体の外にある
+    # runtime、models、renderer、voiceをmain実行ファイルからresourceRoot()で解決する。
     set_target_properties(utautts PROPERTIES
         MACOSX_BUNDLE TRUE
         MACOSX_RPATH TRUE
         BUILD_RPATH "${UTAUTTS_NATIVE_DIR}"
         INSTALL_RPATH "@loader_path/../Frameworks"
     )
+elseif(EMSCRIPTEN)
+    # wasmは追加の出力設定を必要としない。
 else()
     set_target_properties(utautts PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/app")
     set_target_properties(utautts PROPERTIES BUILD_RPATH "$ORIGIN;${UTAUTTS_NATIVE_DIR}" INSTALL_RPATH "$ORIGIN")
@@ -208,12 +223,14 @@ qt_add_resources(utautts "fonts"
         ${font_files}
 )
 
-if(WIN32)
-    target_link_libraries(utautts PRIVATE "${UTAUTTS_NATIVE_DIR}/utautts_native.dll.a")
-elseif(APPLE)
-    target_link_libraries(utautts PRIVATE "${UTAUTTS_NATIVE_DIR}/libutautts_native.dylib")
-else()
-    target_link_libraries(utautts PRIVATE "${UTAUTTS_NATIVE_DIR}/libutautts_native.so")
+if(NOT EMSCRIPTEN)
+    if(WIN32)
+        target_link_libraries(utautts PRIVATE "${UTAUTTS_NATIVE_DIR}/utautts_native.dll.a")
+    elseif(APPLE)
+        target_link_libraries(utautts PRIVATE "${UTAUTTS_NATIVE_DIR}/libutautts_native.dylib")
+    else()
+        target_link_libraries(utautts PRIVATE "${UTAUTTS_NATIVE_DIR}/libutautts_native.so")
+    endif()
 endif()
 
 target_include_directories(utautts PRIVATE src)
@@ -225,6 +242,12 @@ target_compile_definitions(utautts PRIVATE
     UTAUTTS_APP_ORGANIZATION="${UTAUTTS_APP_ORGANIZATION}"
     UTAUTTS_APP_REPOSITORY="${UTAUTTS_APP_REPOSITORY}"
 )
-target_link_libraries(utautts PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia Qt6::Concurrent)
+target_link_libraries(utautts PRIVATE Qt6::Quick Qt6::QuickControls2)
+if(EMSCRIPTEN)
+    target_link_libraries(utautts PRIVATE Qt6::QuickControls2Fusion)
+    target_compile_definitions(utautts PRIVATE UTAUTTS_WASM)
+else()
+    target_link_libraries(utautts PRIVATE Qt6::Multimedia Qt6::Concurrent)
+endif()
 
 install(TARGETS utautts RUNTIME DESTINATION . BUNDLE DESTINATION .)
