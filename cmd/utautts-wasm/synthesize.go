@@ -46,6 +46,8 @@ func synthesize(this js.Value, args []js.Value) (result any) {
 	voicebankPath := optionString(options, "voicebankPath")
 	outputPath := optionString(options, "outputPath")
 	strength := optionNumber(options, "strength", 1)
+	moraDurationMS := optionNumber(options, "moraDurationMS", 0)
+	pauseDurationMS := optionNumber(options, "pauseDurationMS", 0)
 	if voicebankPath == "" {
 		return errorJSON("voicebankPath is required")
 	}
@@ -77,6 +79,8 @@ func synthesize(this js.Value, args []js.Value) (result any) {
 		Phonemizer:           frontend.PhonemizerJapanese,
 		ProsodyModel:         model,
 		IntonationStrength:   strength,
+		MoraDurationMS:       moraDurationMS,
+		PauseDurationMS:      pauseDurationMS,
 		ApplyPitch:           true,
 		Renderer:             "utautts-world-phrase",
 		RendererCapabilities: &plugin.Capabilities{FramePitch: true},

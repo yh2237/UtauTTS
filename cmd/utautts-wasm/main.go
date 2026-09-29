@@ -45,6 +45,7 @@ func main() {
 		"version":        version,
 		"predictProsody": js.FuncOf(predictProsody),
 		"synthesize":     js.FuncOf(synthesize),
+		"call":           js.FuncOf(engineCall),
 	}
 	js.Global().Set("utauttsWasm", js.ValueOf(api))
 	if os.Getenv("UTAUTTS_TTS_PROFILE") != "" {
@@ -77,6 +78,8 @@ func predictProsody(this js.Value, args []js.Value) (result any) {
 	modelJSON := optionString(options, "modelJSON")
 	modelPath := optionString(options, "modelPath")
 	strength := optionNumber(options, "strength", 1)
+	moraDurationMS := optionNumber(options, "moraDurationMS", 0)
+	pauseDurationMS := optionNumber(options, "pauseDurationMS", 0)
 	if modelJSON == "" && modelPath == "" {
 		return errorJSON("modelJSON or modelPath is required")
 	}
@@ -103,6 +106,8 @@ func predictProsody(this js.Value, args []js.Value) (result any) {
 		Phonemizer:           frontend.PhonemizerJapanese,
 		ProsodyModel:         model,
 		IntonationStrength:   strength,
+		MoraDurationMS:       moraDurationMS,
+		PauseDurationMS:      pauseDurationMS,
 		ApplyPitch:           true,
 		Renderer:             "utautts-world-phrase",
 		RendererCapabilities: &plugin.Capabilities{FramePitch: true},
