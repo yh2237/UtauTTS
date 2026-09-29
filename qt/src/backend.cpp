@@ -1388,7 +1388,9 @@ void Backend::initializeAsync() {
     m_initializationTask = QtConcurrent::run([encoded, promise = std::move(promise)]() mutable {
         QVariantMap result;
         try {
-            result = initializeNative(encoded, promise);
+            result = initializeNative(encoded, [&promise](int value) {
+                promise.setProgressValue(value);
+            });
         } catch (const std::exception &exception) {
             result = {{"_error", QString::fromUtf8(exception.what())}};
         }
