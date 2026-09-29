@@ -314,6 +314,14 @@ ApplicationWindow {
         onAccepted: window.startDragExport(selectedFolder)
     }
 
+    FileDialog {
+        id: voicebankAddDialog
+        title: window.translator.tr("menu.file.addVoicebank")
+        fileMode: FileDialog.OpenFiles
+        nameFilters: [window.translator.tr("main.zipFilter")]
+        onAccepted: window.appBackend.installVoicebankArchives(selectedFiles)
+    }
+
     Dialog {
         id: frameRateDialog
         title: window.translator.tr("main.exoFrameRateTitle")
@@ -1043,6 +1051,7 @@ ApplicationWindow {
 
     menuBar: MenuBar {
         Menu {
+            id: fileMenu
             title: window.translator.tr("menu.file")
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.open")
@@ -1096,18 +1105,32 @@ ApplicationWindow {
                 onTriggered: window.openUstxExportDialog()
             }
             MenuSeparator {}
+            Instantiator {
+                model: Platform.isWeb ? 0 : 1
+                delegate: GrayscaleMenuItem {
+                    text: window.translator.tr("menu.file.openVoiceDirectory")
+                    enabled: !window.appBackend.busy && !window.batchExportActive
+                    onTriggered: window.appBackend.openVoiceDirectory()
+                }
+                onObjectAdded: (index, object) => fileMenu.insertItem(index, object)
+                onObjectRemoved: (index, object) => fileMenu.removeItem(object)
+            }
             GrayscaleMenuItem {
-                text: window.translator.tr("menu.file.openVoiceDirectory")
+                text: window.translator.tr("menu.file.addVoicebank")
                 enabled: !window.appBackend.busy && !window.batchExportActive
-                onTriggered: window.appBackend.openVoiceDirectory()
+                onTriggered: window.addVoicebanks()
             }
-            GrayscaleMenuItem {
-                text: window.translator.tr("menu.file.openResamplersDirectory")
-                onTriggered: window.appBackend.openClassicToolDirectory("resampler")
-            }
-            GrayscaleMenuItem {
-                text: window.translator.tr("menu.file.openWavtoolsDirectory")
-                onTriggered: window.appBackend.openClassicToolDirectory("wavtool")
+            Instantiator {
+                model: Platform.hasExternalTools ? ["resampler", "wavtool"] : []
+                delegate: GrayscaleMenuItem {
+                    required property string modelData
+                    text: modelData === "resampler"
+                          ? window.translator.tr("menu.file.openResamplersDirectory")
+                          : window.translator.tr("menu.file.openWavtoolsDirectory")
+                    onTriggered: window.appBackend.openClassicToolDirectory(modelData)
+                }
+                onObjectAdded: (index, object) => fileMenu.insertItem(index, object)
+                onObjectRemoved: (index, object) => fileMenu.removeItem(object)
             }
             MenuSeparator {}
             GrayscaleMenuItem {
@@ -1115,10 +1138,15 @@ ApplicationWindow {
                 enabled: !window.appBackend.busy
                 onTriggered: window.reloadVoicebanks()
             }
-            GrayscaleMenuItem {
-                text: window.translator.tr("menu.file.reloadClassicTools")
-                enabled: !window.appBackend.busy
-                onTriggered: window.appBackend.reloadClassicTools()
+            Instantiator {
+                model: Platform.hasExternalTools ? 1 : 0
+                delegate: GrayscaleMenuItem {
+                    text: window.translator.tr("menu.file.reloadClassicTools")
+                    enabled: !window.appBackend.busy
+                    onTriggered: window.appBackend.reloadClassicTools()
+                }
+                onObjectAdded: (index, object) => fileMenu.insertItem(index, object)
+                onObjectRemoved: (index, object) => fileMenu.removeItem(object)
             }
             GrayscaleMenuItem {
                 text: window.translator.tr("plugins.title")
@@ -1137,19 +1165,27 @@ ApplicationWindow {
                 onTriggered: window.openSaveAllDialog()
             }
             MenuSeparator {}
-            GrayscaleMenuItem {
-                text: window.translator.tr("menu.file.exportExo")
-                visible: Platform.hasNativeFileDialog
-                enabled: utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive && window.current().reading.length > 0
-                onTriggered: window.openDragExportDialog(true)
+            Instantiator {
+                model: Platform.hasNativeFileDialog ? ["selected", "all"] : []
+                delegate: GrayscaleMenuItem {
+                    required property string modelData
+                    text: modelData === "selected"
+                          ? window.translator.tr("menu.file.exportExo")
+                          : window.translator.tr("menu.file.exportAllExo")
+                    enabled: modelData === "selected"
+                             ? (utterances.count > 0 && !window.appBackend.busy && !window.batchExportActive && window.current().reading.length > 0)
+                             : (!window.appBackend.busy && !window.batchExportActive && window.hasPlayableTextFrom(0))
+                    onTriggered: window.openDragExportDialog(modelData === "selected")
+                }
+                onObjectAdded: (index, object) => fileMenu.insertItem(index, object)
+                onObjectRemoved: (index, object) => fileMenu.removeItem(object)
             }
-            GrayscaleMenuItem {
-                text: window.translator.tr("menu.file.exportAllExo")
-                visible: Platform.hasNativeFileDialog
-                enabled: !window.appBackend.busy && !window.batchExportActive && window.hasPlayableTextFrom(0)
-                onTriggered: window.openDragExportDialog(false)
+            Instantiator {
+                model: Platform.hasNativeFileDialog ? 1 : 0
+                delegate: MenuSeparator {}
+                onObjectAdded: (index, object) => fileMenu.insertItem(index, object)
+                onObjectRemoved: (index, object) => fileMenu.removeItem(object)
             }
-            MenuSeparator {}
             GrayscaleMenuItem {
                 text: window.translator.tr("menu.file.quit")
                 onTriggered: Qt.quit()
@@ -1393,6 +1429,15 @@ ApplicationWindow {
             window.showAuxiliaryWindow(licenseWindowLoader.item);
         else
             licenseWindowLoader.active = true;
+    }
+
+    function addVoicebanks() {
+        if (window.appBackend.busy || window.batchExportActive)
+            return;
+        if (Platform.hasNativeFileDialog)
+            voicebankAddDialog.open();
+        else
+            window.appBackend.beginAddVoicebanks();
     }
 
     function saveSettings(closeAfter) {
@@ -2671,7 +2716,7 @@ ApplicationWindow {
             utterances.setProperty(selectedIndex, "phonemeOverridesJson", "[]");
         if (name === "voicebankId") {
             const voice = window.voicebankById(value);
-            if (voice && String(voice.kind || "") === "diffsinger") {
+            if (Platform.hasDiffsinger && voice && String(voice.kind || "") === "diffsinger") {
                 utterances.setProperty(selectedIndex, "renderer", "diffsinger");
                 selectCombo(editorContent.rendererCombo, "diffsinger");
             } else if (item.renderer === "diffsinger") {
@@ -3383,7 +3428,7 @@ ApplicationWindow {
             voicebankId: voice ? voice.id : "",
             imagePath: voice ? voice.image_path || "" : "",
             modelId: window.defaultModelIdForLanguage(language),
-            renderer: voice && String(voice.kind || "") === "diffsinger"
+            renderer: Platform.hasDiffsinger && voice && String(voice.kind || "") === "diffsinger"
                     ? "diffsinger" : (window.appBackend.renderers.length ? window.defaultRendererId() : ""),
             aliasPolicy: window.appBackend.defaultAliasPolicy,
             tone: window.appBackend.defaultTone,

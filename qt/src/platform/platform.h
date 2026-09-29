@@ -12,6 +12,8 @@ class Platform : public QObject {
     Q_PROPERTY(bool isWeb READ isWeb CONSTANT)
     Q_PROPERTY(bool isMobile READ isMobile CONSTANT)
     Q_PROPERTY(bool hasNativeFileDialog READ hasNativeFileDialog CONSTANT)
+    Q_PROPERTY(bool hasExternalTools READ hasExternalTools CONSTANT)
+    Q_PROPERTY(bool hasDiffsinger READ hasDiffsinger CONSTANT)
     Q_PROPERTY(QString name READ name CONSTANT)
 public:
     explicit Platform(QObject *parent = nullptr);
@@ -20,6 +22,8 @@ public:
     bool isWeb() const;
     bool isMobile() const;
     bool hasNativeFileDialog() const;
+    bool hasExternalTools() const;
+    bool hasDiffsinger() const;
     QString name() const;
 };
 

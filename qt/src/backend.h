@@ -135,6 +135,10 @@ public:
     // wasmで外部（JS）から音源マウント後にメタデータを再取得する。
     void refreshMetadataFromWasm();
     Q_INVOKABLE bool openVoiceDirectory();
+    // 音源ZIPを追加する。wasmではJSのファイル選択、デスクトップではQMLのFileDialogから呼ぶ。
+    Q_INVOKABLE void beginAddVoicebanks();
+    Q_INVOKABLE void installVoicebankArchives(const QVariantList &archives);
+    void handlePickedVoicebankArchives();
     Q_INVOKABLE bool openClassicToolDirectory(const QString &kind);
     Q_INVOKABLE bool reloadClassicTools();
     Q_INVOKABLE void analyze(const QString &text, const QString &requestId);

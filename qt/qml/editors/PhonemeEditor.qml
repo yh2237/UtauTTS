@@ -1,8 +1,9 @@
-﻿pragma ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import UtauTTS.Platform 1.0
 
 Item {
     id: root
@@ -1550,9 +1551,10 @@ Item {
                     onEditingFinished: root.commitNumber(root.selectedUnitIndex, "energy_factor", text, 1)
                 }
 
-                Label { text: root.translator.tr("main.pitch.velocity") }
+                Label { text: root.translator.tr("main.pitch.velocity"); visible: Platform.hasExternalTools }
                 SpinBox {
                     id: velocitySpin
+                    visible: Platform.hasExternalTools
                     Layout.preferredWidth: 108
                     from: 0
                     to: 200
@@ -1560,9 +1562,10 @@ Item {
                     value: enabled ? Math.round(root.unitNumber(root.selectedUnitIndex, "resampler_velocity", 100)) : 100
                     onValueModified: root.unitValueEdited(root.selectedUnitIndex, "resampler_velocity", value)
                 }
-                Label { text: root.translator.tr("main.pitch.volume") }
+                Label { text: root.translator.tr("main.pitch.volume"); visible: Platform.hasExternalTools }
                 SpinBox {
                     id: volumeSpin
+                    visible: Platform.hasExternalTools
                     Layout.preferredWidth: 108
                     from: 0
                     to: 200
@@ -1571,9 +1574,10 @@ Item {
                     onValueModified: root.unitValueEdited(root.selectedUnitIndex, "resampler_volume", value)
                 }
 
-                Label { text: root.translator.tr("main.pitch.modulation") }
+                Label { text: root.translator.tr("main.pitch.modulation"); visible: Platform.hasExternalTools }
                 SpinBox {
                     id: modulationSpin
+                    visible: Platform.hasExternalTools
                     Layout.preferredWidth: 108
                     from: 0
                     to: 100
@@ -1581,9 +1585,10 @@ Item {
                     value: enabled ? Math.round(root.unitNumber(root.selectedUnitIndex, "resampler_modulation", 0)) : 0
                     onValueModified: root.unitValueEdited(root.selectedUnitIndex, "resampler_modulation", value)
                 }
-                Label { text: root.translator.tr("main.pitch.tempo") }
+                Label { text: root.translator.tr("main.pitch.tempo"); visible: Platform.hasExternalTools }
                 TextField {
                     id: tempoField
+                    visible: Platform.hasExternalTools
                     Layout.preferredWidth: 108
                     enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit
                     text: enabled ? root.unitNumber(root.selectedUnitIndex, "resampler_tempo", 120).toFixed(2) : ""
@@ -1591,9 +1596,10 @@ Item {
                     onEditingFinished: root.commitNumber(root.selectedUnitIndex, "resampler_tempo", text, 120)
                 }
 
-                Label { text: root.translator.tr("main.pitch.flags") }
+                Label { text: root.translator.tr("main.pitch.flags"); visible: Platform.hasExternalTools }
                 TextField {
                     id: flagsField
+                    visible: Platform.hasExternalTools
                     Layout.columnSpan: 3
                     Layout.fillWidth: true
                     enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit
@@ -1601,11 +1607,12 @@ Item {
                     onEditingFinished: root.unitValueEdited(root.selectedUnitIndex, "resampler_flags", text.trim())
                 }
 
-                Label { text: root.translator.tr("main.pitch.flagsPreset") }
+                Label { text: root.translator.tr("main.pitch.flagsPreset"); visible: Platform.hasExternalTools }
                 RowLayout {
                     Layout.columnSpan: 3
                     Layout.fillWidth: true
                     spacing: 6
+                    visible: Platform.hasExternalTools
                     Button {
                         text: "g-3"
                         enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit

@@ -333,6 +333,11 @@ extern "C" EMSCRIPTEN_KEEPALIVE void utauttsProjectFilePicked() {
         g_wasmBackend->handlePickedProject();
     }
 }
+extern "C" EMSCRIPTEN_KEEPALIVE void utauttsVoicebankArchivesPicked() {
+    if (g_wasmBackend) {
+        g_wasmBackend->handlePickedVoicebankArchives();
+    }
+}
 
 // 生成したバイト列をブラウザのダウンロードとして保存させる。
 // wasm にはユーザーが選べるローカルパスが無いため、保存先はブラウザに委ねる。
@@ -1519,6 +1524,81 @@ bool Backend::openVoiceDirectory() {
     setError({});
     return true;
 #endif
+}
+
+void Backend::beginAddVoicebanks() {
+#ifdef UTAUTTS_WASM
+    emscripten::val function = emscripten::val::global("utauttsPickVoicebankArchives");
+    if (!function.isUndefined()) {
+        function();
+    } else {
+        setError(tr("音源のZIPを選択できませんでした"));
+    }
+#else
+    setError(tr("音源のZIPを選択できませんでした"));
+#endif
+}
+
+void Backend::handlePickedVoicebankArchives() {
+#ifdef UTAUTTS_WASM
+    emscripten::val paths = emscripten::val::global("utauttsVoicebankZipPaths");
+    if (paths.isUndefined()) {
+        return;
+    }
+    QVariantList archives;
+    const unsigned length = paths["length"].as<unsigned>();
+    for (unsigned index = 0; index < length; ++index) {
+        archives.append(QString::fromStdString(paths[index].as<std::string>()));
+    }
+    installVoicebankArchives(archives);
+#endif
+}
+
+void Backend::installVoicebankArchives(const QVariantList &archives) {
+    if (m_busy) {
+        return;
+    }
+    QStringList paths;
+    for (const QVariant &value : archives) {
+        const QUrl url = value.canConvert<QUrl>() ? value.toUrl() : QUrl(value.toString());
+        const QString path = url.isLocalFile() ? url.toLocalFile() : value.toString();
+        if (!path.isEmpty() && !paths.contains(path)) {
+            paths.append(path);
+        }
+    }
+    if (paths.isEmpty()) {
+        setError(tr("音源のZIPが選択されていません"));
+        return;
+    }
+    setBusy(true);
+    setError({});
+    emit metadataReloadStarted();
+    emit metadataReloadStageChanged(QStringLiteral("voicebanks"));
+    appendLog(tr("音源を追加しています..."));
+    runNativeAsync([this, paths]() {
+        QVariantMap last;
+        for (const QString &path : paths) {
+            last = call("installVoicebank", QVariantMap{{"zip_path", path}});
+            if (last.contains("_error")) {
+                return last;
+            }
+        }
+        return last;
+    }, [this](const QVariantMap &result) {
+        setBusy(false);
+        if (result.contains("_error")) {
+            const QString error = result.value("_error").toString();
+            appendLog(tr("音源を追加できませんでした: %1").arg(error));
+            setError(error);
+            return;
+        }
+        m_voicebanks = result.value("voicebanks").toList();
+        emit metadataChanged();
+        appendLog(tr("音源を追加しました。"));
+#ifdef UTAUTTS_WASM
+        refreshMetadataFromWasm();
+#endif
+    });
 }
 
 bool Backend::openClassicToolDirectory(const QString &kind) {

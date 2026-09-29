@@ -44,6 +44,17 @@ bool Platform::hasNativeFileDialog() const {
     return isDesktop();
 }
 
+bool Platform::hasExternalTools() const {
+    // 外部プロセス（classic UTAUのresampler/wavtool、ffmpeg等）は
+    // ネイティブ環境のみ。wasmでは無効。
+    return isDesktop();
+}
+
+bool Platform::hasDiffsinger() const {
+    // DiffSingerブリッジはネイティブ(Windows)専用。
+    return isDesktop();
+}
+
 QString Platform::name() const {
     if (!isWeb())
         return QStringLiteral("desktop");

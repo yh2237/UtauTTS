@@ -938,6 +938,7 @@ Item {
 
                         RowLayout {
                             Layout.fillWidth: true
+                            visible: Platform.hasExternalTools
                             Label {
                                 Layout.fillWidth: true
                                 text: root.translator.tr("settings.ffmpegPath")

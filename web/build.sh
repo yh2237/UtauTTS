@@ -5,7 +5,6 @@ set -euo pipefail
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 dist="${script_dir}/dist"
-model_name="frame-intonation-tcn-v9.1-t.json"
 
 mkdir -p "${dist}/models"
 
@@ -25,7 +24,17 @@ cp "${script_dir}/worker.js" "${dist}/worker.js"
 cp "${script_dir}/fs-shim.js" "${dist}/fs-shim.js"
 cp "${script_dir}/openjtalk-bridge.js" "${dist}/openjtalk-bridge.js"
 cp "${script_dir}/world-bridge.js" "${dist}/world-bridge.js"
-cp "${root_dir}/models/${model_name}" "${dist}/models/${model_name}"
+cp "${root_dir}/models/"*.json "${dist}/models/"
+{
+    printf '{"models":['
+    first=1
+    for model in "${root_dir}/models/"*.json; do
+        name="$(basename "${model}")"
+        if [ "${first}" -eq 1 ]; then first=0; else printf ','; fi
+        printf '"%s"' "${name}"
+    done
+    printf ']}'
+} > "${dist}/models/manifest.json"
 
 echo "Built ${dist}"
 echo "Serve it with:  python -m http.server --directory \"${dist}\""

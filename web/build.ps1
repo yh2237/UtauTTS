@@ -3,7 +3,6 @@ $ErrorActionPreference = 'Stop'
 
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $dist = Join-Path $PSScriptRoot 'dist'
-$modelName = 'frame-intonation-tcn-v9.1-t.json'
 
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $dist 'models') | Out-Null
@@ -30,7 +29,13 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'worker.js') -Destination $dist 
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'fs-shim.js') -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'openjtalk-bridge.js') -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'world-bridge.js') -Destination $dist -Force
-Copy-Item -LiteralPath (Join-Path $root "models/$modelName") -Destination (Join-Path $dist "models/$modelName") -Force
+$modelFiles = Get-ChildItem -Path (Join-Path $root 'models') -Filter *.json -File
+foreach ($modelFile in $modelFiles) {
+    Copy-Item -LiteralPath $modelFile.FullName -Destination (Join-Path $dist 'models') -Force
+}
+$modelManifest = @{ models = @($modelFiles | ForEach-Object { $_.Name }) } | ConvertTo-Json -Compress
+Set-Content -LiteralPath (Join-Path $dist 'models/manifest.json') -Value $modelManifest -Encoding utf8
+Write-Host ("Bundled models: " + (($modelFiles | ForEach-Object { $_.Name }) -join ', '))
 
 Write-Host "Built $dist"
 Write-Host "Serve it with:  python -m http.server --directory `"$dist`""

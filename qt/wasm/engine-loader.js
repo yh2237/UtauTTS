@@ -4,7 +4,6 @@
 // メインスレッドに読み込み、globalThis.utauttsWasm.call を C++ から同期的に使えるようにする。
 (() => {
   const ENGINE_BASE = "/web/dist/";
-  const MODEL_PATH = "/models/frame-intonation-tcn-v9.1-t.json";
   const DICT_PATH = "/dict";
   const OPEN_PROJECT_PATH = "/tmp/utautts-open-project.utautts";
 
@@ -29,10 +28,13 @@
     go.run(instance);
     await waitFor(() => globalThis.utauttsWasm && globalThis.utauttsWasm.call, 30000);
 
-    virtualFs.mountFile(
-      MODEL_PATH,
-      new Uint8Array(await (await fetch(ENGINE_BASE + "models/frame-intonation-tcn-v9.1-t.json")).arrayBuffer())
-    );
+    const modelManifest = await (await fetch(ENGINE_BASE + "models/manifest.json")).json();
+    for (const modelName of modelManifest.models || []) {
+      virtualFs.mountFile(
+        "/models/" + modelName,
+        new Uint8Array(await (await fetch(ENGINE_BASE + "models/" + encodeURIComponent(modelName))).arrayBuffer())
+      );
+    }
 
     virtualFs.mountFile(
       "/renderer/utautts-world-phrase/renderer.json",
@@ -122,6 +124,37 @@
         }
       } catch (error) {
         console.error("utauttsPickProjectFile", error);
+      } finally {
+        input.remove();
+      }
+    });
+    input.click();
+  };
+
+  // 音源ZIPを複数選ばせ、Goエンジンの仮想FSへ載せてから C++ へ通知する。
+  window.utauttsPickVoicebankArchives = function () {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".zip";
+    input.multiple = true;
+    input.style.display = "none";
+    document.body.appendChild(input);
+    input.addEventListener("change", async () => {
+      try {
+        const files = Array.from(input.files || []);
+        const paths = [];
+        for (let index = 0; index < files.length; ++index) {
+          const path = "/tmp/voicebank-" + index + ".zip";
+          window.utauttsFs.mountFile(path, new Uint8Array(await files[index].arrayBuffer()));
+          paths.push(path);
+        }
+        window.utauttsVoicebankZipPaths = paths;
+        const module = qtModule();
+        if (module && typeof module._utauttsVoicebankArchivesPicked === "function") {
+          module._utauttsVoicebankArchivesPicked();
+        }
+      } catch (error) {
+        console.error("utauttsPickVoicebankArchives", error);
       } finally {
         input.remove();
       }
