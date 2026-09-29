@@ -100,6 +100,7 @@ qt_add_qml_module(utautts
         qml/views/OnboardingContent.qml
         qml/views/DictionaryContent.qml
         qml/views/VoicebankDetailsContent.qml
+        qml/views/SettingsContent.qml
         qml/controls/WindowHeader.qml
         qml/controls/SettingsResetButton.qml
         qml/controls/GrayscaleMenuItem.qml

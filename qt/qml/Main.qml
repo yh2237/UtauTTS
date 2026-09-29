@@ -1396,13 +1396,13 @@ ApplicationWindow {
     }
 
     function saveSettings(closeAfter) {
-        const shortcuts = [settingsWindowRef.pendingSynthesizeShortcut,
-                           settingsWindowRef.pendingSaveProjectShortcut,
-                           settingsWindowRef.pendingReloadVoicebanksShortcut,
-                           settingsWindowRef.pendingAddUtteranceShortcut,
-                           settingsWindowRef.pendingRemoveUtteranceShortcut,
-                           settingsWindowRef.pendingUndoShortcut,
-                           settingsWindowRef.pendingRedoShortcut];
+        const shortcuts = [settingsWindowRef.view.pendingSynthesizeShortcut,
+                           settingsWindowRef.view.pendingSaveProjectShortcut,
+                           settingsWindowRef.view.pendingReloadVoicebanksShortcut,
+                           settingsWindowRef.view.pendingAddUtteranceShortcut,
+                           settingsWindowRef.view.pendingRemoveUtteranceShortcut,
+                           settingsWindowRef.view.pendingUndoShortcut,
+                           settingsWindowRef.view.pendingRedoShortcut];
         const usedShortcuts = [];
         for (let index = 0; index < shortcuts.length; ++index) {
             const shortcut = String(shortcuts[index] || "").trim();
@@ -1415,32 +1415,32 @@ ApplicationWindow {
             }
             usedShortcuts.push(normalized);
         }
-        window.appBackend.setSynthesisDefaults(settingsWindowRef.pendingDefaultModelId,
-                                               settingsWindowRef.pendingDefaultRendererId,
-                                               settingsWindowRef.pendingDefaultTone,
-                                               settingsWindowRef.pendingDefaultAliasPolicy);
-        window.appBackend.setDarkMode(settingsWindowRef.pendingDarkMode);
-        window.appBackend.setLanguage(settingsWindowRef.pendingLanguage);
-        window.appBackend.setFfmpegPath(settingsWindowRef.pendingFfmpegPath);
-        window.appBackend.setAudioOutputDeviceId(settingsWindowRef.pendingAudioOutputDeviceId);
-        window.appBackend.setCloseLogOnSuccess(settingsWindowRef.pendingCloseLogOnSuccess);
-        window.appBackend.setUpdateCheckEnabled(settingsWindowRef.pendingUpdateCheckEnabled);
+        window.appBackend.setSynthesisDefaults(settingsWindowRef.view.pendingDefaultModelId,
+                                               settingsWindowRef.view.pendingDefaultRendererId,
+                                               settingsWindowRef.view.pendingDefaultTone,
+                                               settingsWindowRef.view.pendingDefaultAliasPolicy);
+        window.appBackend.setDarkMode(settingsWindowRef.view.pendingDarkMode);
+        window.appBackend.setLanguage(settingsWindowRef.view.pendingLanguage);
+        window.appBackend.setFfmpegPath(settingsWindowRef.view.pendingFfmpegPath);
+        window.appBackend.setAudioOutputDeviceId(settingsWindowRef.view.pendingAudioOutputDeviceId);
+        window.appBackend.setCloseLogOnSuccess(settingsWindowRef.view.pendingCloseLogOnSuccess);
+        window.appBackend.setUpdateCheckEnabled(settingsWindowRef.view.pendingUpdateCheckEnabled);
         window.appBackend.setPreReleaseUpdateCheckEnabled(
-                    settingsWindowRef.pendingPreReleaseUpdateCheckEnabled);
-        window.appBackend.setPreviewCacheFileCount(settingsWindowRef.pendingPreviewCacheFileCount);
-        window.appBackend.setAutoPreviewEnabled(settingsWindowRef.pendingAutoPreviewEnabled);
-        window.appBackend.setExtendedDetailsVisible(settingsWindowRef.pendingExtendedDetailsVisible);
-        window.appBackend.setDefaultVoicebank(settingsWindowRef.pendingDefaultVoicebankId);
-        window.appBackend.setExportSettings(settingsWindowRef.pendingExportTextWithWav,
-                                            settingsWindowRef.pendingExportLabWithWav,
-                                            settingsWindowRef.pendingExportTextEncoding);
-        window.appBackend.setShortcutSequences(settingsWindowRef.pendingSynthesizeShortcut,
-                                               settingsWindowRef.pendingSaveProjectShortcut,
-                                               settingsWindowRef.pendingReloadVoicebanksShortcut,
-                                               settingsWindowRef.pendingAddUtteranceShortcut,
-                                               settingsWindowRef.pendingRemoveUtteranceShortcut,
-                                               settingsWindowRef.pendingUndoShortcut,
-                                               settingsWindowRef.pendingRedoShortcut);
+                    settingsWindowRef.view.pendingPreReleaseUpdateCheckEnabled);
+        window.appBackend.setPreviewCacheFileCount(settingsWindowRef.view.pendingPreviewCacheFileCount);
+        window.appBackend.setAutoPreviewEnabled(settingsWindowRef.view.pendingAutoPreviewEnabled);
+        window.appBackend.setExtendedDetailsVisible(settingsWindowRef.view.pendingExtendedDetailsVisible);
+        window.appBackend.setDefaultVoicebank(settingsWindowRef.view.pendingDefaultVoicebankId);
+        window.appBackend.setExportSettings(settingsWindowRef.view.pendingExportTextWithWav,
+                                            settingsWindowRef.view.pendingExportLabWithWav,
+                                            settingsWindowRef.view.pendingExportTextEncoding);
+        window.appBackend.setShortcutSequences(settingsWindowRef.view.pendingSynthesizeShortcut,
+                                               settingsWindowRef.view.pendingSaveProjectShortcut,
+                                               settingsWindowRef.view.pendingReloadVoicebanksShortcut,
+                                               settingsWindowRef.view.pendingAddUtteranceShortcut,
+                                               settingsWindowRef.view.pendingRemoveUtteranceShortcut,
+                                               settingsWindowRef.view.pendingUndoShortcut,
+                                               settingsWindowRef.view.pendingRedoShortcut);
         if (closeAfter) {
             const settingsWindow = window.settingsWindowRef;
             if (settingsWindow) {
