@@ -1,22 +1,9 @@
 #!/usr/bin/env python3
-"""フレーム単位（10 ms）の抑揚TCNを学習し、ポータブルJSONを出力する。
+"""10ms単位の抑揚TCNを学習し、Go推論用JSONを出力する。
 
-本スクリプトはトークンごとに1値を学習する。小型残差TCNとスパース言語特徴を
-用い、各トークンを10 msフレーム格子へ展開し、対応する ``audio_path`` から
-測定したF0トラックを使う。目標は発話相対の平滑化log-F0コマンド（セント）。
-ピッチは無声子音をまたいで補間し、ポーズフレームは損失から除外するため、
-学習とテキストのみの推論が同じマスクを共有する。
-
-学習はローカル ``utautts-world-engine`` ライブラリ経由のHarvest、または
-``--f0-source internal`` の内蔵自己相関抽出器を使う。world-engineライブラリが
-無い場合は暗黙に切り替えずエラーとする。
-
-データセットはコーパスとライセンスの出所を提示する必要があり、その値は
-学習元の記録としてポータブルモデルへコピーされる。
-
-出力モデルは推論向けJSONで、Python pickleやtorchチェックポイントを含まない。
-その ``frame_pitch`` オブジェクトは旧学習器が生成する ``sequence_pitch`` を
-踏襲し、Go実装に必要なフレーム周期とセント範囲を追加する。
+目標は発話相対の平滑化log-F0。学習と推論で非ポーズのマスクを共有する。
+F0抽出はHarvestまたは明示指定の内蔵自己相関を使い、暗黙には切り替えない。
+コーパスとライセンスの出所は出力モデルにも記録する。
 """
 
 from __future__ import annotations
@@ -51,7 +38,6 @@ DEFAULT_FMAX_HZ = 600.0
 
 
 def fnv1a(text: str) -> int:
-    """全発話分割で使う安定したFNV-1aハッシュを返す。"""
 
     value = 2166136261
     for byte in text.encode("utf-8"):
@@ -61,11 +47,7 @@ def fnv1a(text: str) -> int:
 
 
 def deterministic_split(records: Sequence[dict]) -> tuple[list[dict], list[dict]]:
-    """idで発話を分割し、ファイル順に依存しない分割にする。
-
-    ``hash(id) % 10 == 0`` を検証用とする。小規模コーパスではスモークテストで
-    使えるようフォールバックし、レコードが2件以上あれば決定的かつ重複なしを保つ。
-    """
+    """ファイル順に依存しないID分割。2件以上なら学習と検証を重複させない。"""
 
     train = [record for record in records if fnv1a(str(record["id"])) % 10 != 0]
     validation = [record for record in records if fnv1a(str(record["id"])) % 10 == 0]
@@ -136,12 +118,7 @@ def _add_categorical(result: dict[str, float], prefix: str, token: dict) -> None
 
 
 def token_features(tokens: Sequence[dict], position: int) -> dict[str, float]:
-    """Goと共有する再現可能なカテゴリ/アクセント特徴を構築する。
-
-    フレームは中点を含むモーラの特徴を受け取る。特徴名は旧学習器と意図的に
-    合わせており、Go推論経路が本スクリプトを読み込まずに同じスパースベクトルを
-    生成できる。
-    """
+    """Go推論と特徴名を揃え、同じカテゴリ・アクセント特徴を生成する。"""
 
     current = tokens[position]
     if current.get("language") == "en": return english_token_features(tokens, position)
@@ -277,11 +254,9 @@ def add_openjtalk_features(
     stats: dict | None = None,
     min_alignment_rate: float = 0.60,
 ) -> list[dict]:
-    """利用可能ならレコードへOpen JTalkアクセント特徴を注釈する。
+    """モーラ・ポーズ列が一致するレコードにOpen JTalk特徴を付ける。
 
-    一部コーパスは既にモーラ境界を持つ。Open JTalkはそのモーラとポーズ列が
-    完全一致する場合のみ採用する。不一致レコードはスキップし（フォールバック
-    アクセントで黙って置換しない）、集計整列率が設定下限を満たす必要がある。
+    不一致は代替注釈で埋めずに除外し、全体の整列率も検査する。
     """
 
     if not enabled:
@@ -439,7 +414,7 @@ def _autocorrelation_pitch(windowed: np.ndarray, sample_rate: int, fmin: float, 
     maximum_lag = min(len(windowed) - 2, int(sample_rate / fmin))
     if maximum_lag <= minimum_lag:
         return 0.0
-    # ネイティブ処理が無くても処理できるようFFT自己相關を使う。
+    # ネイティブ処理に依存しないFFT自己相関を使う。
     fft_size = 1 << (2 * len(windowed) - 1).bit_length()
     spectrum = np.fft.rfft(windowed, fft_size)
     correlation = np.fft.irfft(spectrum * np.conj(spectrum), fft_size)[: len(windowed)]
@@ -556,12 +531,7 @@ def _interpolate_track(
     query_ms: np.ndarray,
     frame_ms: float,
 ) -> np.ndarray:
-    """明示的な有声島の内部だけlog-F0を補間する。
-
-    WORLDの出力配列にタイムスタンプは無いため、要求フレーム周期から明示的に
-    構築する。丸めた添字のサンプリングは周期が異なると重複や欠落を生むが、
-    本処理は実際の元/問い合わせ時刻を使い、無声島を決して橋渡ししない。
-    """
+    """添字ではなく時刻でlog-F0を補間する。無声区間はまたがない。"""
 
     values = np.asarray(values, dtype=np.float64)
     source_times_ms = np.asarray(source_times_ms, dtype=np.float64)
@@ -628,11 +598,9 @@ def extract_record_f0(
     cache_dir: str | Path | None = None,
     cache_tag: str = "default",
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """1レコードのフレーム時刻、F0 Hz、フレームトークン添字を返す。
+    """フレーム時刻・F0・トークン番号を返す。
 
-    ``cache_dir`` はレコードごとの測定F0トラックを保存し、再学習時に高コストな
-    抽出を省略する。キーにはフレーム周期と ``cache_tag``（通常は抽出器）を
-    含め、キャッシュがソースを混在させないようにする。
+    キャッシュはフレーム周期とcache_tagで区別し、抽出条件の混在を防ぐ。
     """
 
     frame_times = utterance_frame_times(record, frame_ms)
@@ -721,13 +689,7 @@ def build_feature_index(records: Sequence[dict], frame_ms: float = FRAME_MS) -> 
 
 
 def mora_feature_index(records: Sequence[dict]) -> dict[str, int]:
-    """モーラ単位トークン特徴のみを索引化する（フレーム/モーラ進捗名なし）。
-
-    ``build_feature_index`` は ``frame_features`` が追加するフレーム専用列
-    （mora_progress、frame_position など）も収集する。これらは ``token_features``
-    からは生成されずモーラ単位ヘッドでは常に0なので、韻律マルチタスクの時間長
-    予測器のようなヘッドはこの小さい索引で学習・出力すべき。
-    """
+    """モーラ単位では常に0になるフレーム専用特徴を、索引から除く。"""
 
     names: set[str] = set()
     for record in records:
@@ -756,12 +718,7 @@ def macro_log_f0(
     max_gap_ms: float = 30.0,
     smooth_ms: float = 40.0,
 ) -> np.ndarray:
-    """発話区間でピッチコマンドを補間し、各句を平滑化する。
-
-    推論時には音響的な有声マスクが無い。そこで ``speech_mask`` を渡すと、
-    非ポーズ島を測定済み有声フレームから埋め、学習・評価・Goランタイムが
-    同じマスクを使えるようにする。
-    """
+    """学習とGo推論でマスクを揃えるため、非ポーズ区間を有声F0で補間・平滑化する。"""
 
     values = np.asarray(f0, dtype=np.float64)
     result = np.zeros(len(values), dtype=np.float64)
@@ -865,13 +822,12 @@ def prepare(
                     frame_indices.append(position)
                     feature_columns.append(column)
                     feature_values.append(value)
-        # スパース特徴を平坦なnumpy配列で保持し、バッチ生成をベクトル化する。
         sparse = (
             np.asarray(frame_indices, dtype=np.int64),
             np.asarray(feature_columns, dtype=np.int64),
             np.asarray(feature_values, dtype=np.float32),
         )
-        # 発話ごとの目標とマスクはnumpyのまま保持し、バッチ生成時のlist→tensor変換を避ける。
+        # バッチごとの変換を避け、目標とマスクをnumpyのまま保持する。
         prepared.append((sparse, (targets / max(1.0, target_scale)).astype(np.float32), np.asarray(mask, dtype=bool), frame_times))
         if len(prepared) % 100 == 0:
             print(f"prepared {len(prepared)}/{len(records)} utterances", flush=True)

@@ -48,8 +48,7 @@ def stdlib_native_names() -> set[str]:
         roots.add(Path(shared))
     for root in tuple(roots):
         roots.add(root / "lib-dynload")
-    # Windowsは標準ライブラリ拡張をLib配下でなく
-    # DLLsディレクトリへ置く。
+    # Windowsの標準拡張はDLLs配下にある。
     executable_dir = Path(sys.executable).resolve().parent
     roots.update({executable_dir, executable_dir / "DLLs"})
     bindir = sysconfig.get_config_var("BINDIR")
@@ -81,8 +80,7 @@ def classify_entry(name: str, native_names: set[str]) -> tuple[str, list[str]]:
         ]
     if re.fullmatch(r"python\d+\.dll", basename):
         return "CPython", ["runtime/licenses/PYTHON_LICENSE.txt"]
-    # Linux/macOSの共有インタプリタはpythonXY.dllでなく
-    # libpython*.so/.dylib名で入る。
+    # Linux/macOSの共有インタプリタはlibpython*.so/.dylibを探す。
     if re.fullmatch(r"libpython\d+(?:\.\d+)+.*", basename):
         return "CPython", ["runtime/licenses/PYTHON_LICENSE.txt"]
     if basename in {"pyz.pyz", "base_library.zip"} or basename.startswith(

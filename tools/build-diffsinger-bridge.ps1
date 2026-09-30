@@ -43,7 +43,6 @@ $bridgeUpToDate = (Test-Path -LiteralPath $outputExe -PathType Leaf) -and
         (Test-Path -LiteralPath $stampPath -PathType Leaf) -and
         ((Get-Content -LiteralPath $stampPath -Raw).Trim() -eq $bridgeStamp)
 
-# dotnet publish is slow, so rebuild only when the sources changed.
 if ($bridgeUpToDate) {
     Write-Host 'DiffSinger bridge is up to date.'
 } else {

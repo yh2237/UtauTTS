@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$PackageRoot = (Join-Path $PSScriptRoot '..\.tmp-openjtalk'),
     [string]$PyInstallerRoot = (Join-Path $PSScriptRoot '..\.tmp-pyinstaller'),
     [string]$Python = $env:PYTHON
@@ -201,7 +201,6 @@ $distPath = Join-Path $root 'tools/openjtalk-feature-bridge/bin'
 $helperPath = Join-Path $distPath 'utautts-openjtalk-features.exe'
 $stampPath = Join-Path $distPath '.utautts-openjtalk-stamp'
 
-# PyInstaller is slow, so rebuild only when its inputs are unchanged.
 $stampParts = @()
 foreach ($source in @(
         (Join-Path $root 'tools/openjtalk-feature-bridge.py'),

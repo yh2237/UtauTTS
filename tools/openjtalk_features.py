@@ -1,9 +1,4 @@
-"""Open JTalk（pyopenjtalk）からモーラ単位の言語特徴への変換。
-
-共通変換は :mod:`openjtalk_feature_common` にある。本モジュールは
-pyopenjtalkフロントエンドを束ね、学習・準備スクリプトが ``analyze(text)`` を
-使い続けられるようにするだけ。
-"""
+"""pyopenjtalkを共通変換へ渡し、既存のanalyze(text)の入口を保つ。"""
 
 import pyopenjtalk
 

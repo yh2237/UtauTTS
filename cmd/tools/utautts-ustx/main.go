@@ -10,13 +10,6 @@ import (
 	"utautts/internal/openutau"
 )
 
-// utautts-ustxはUtauTTSプロジェクト(.utautts)をOpenUtauのUSTXへ変換する。
-//
-// 使い方:
-//
-//	utautts-ustx <project.utautts> [output.ustx]
-//
-// 出力先を省略するとプロジェクトと同じ場所へ保存する。
 func main() {
 	log.SetFlags(0)
 	if len(os.Args) < 2 || os.Args[1] == "-h" || os.Args[1] == "--help" {

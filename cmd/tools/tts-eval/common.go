@@ -39,8 +39,6 @@ type caseOptions struct {
 	timeout                   time.Duration
 }
 
-// synthesizeCaseはsynth.Requestを組み立ててService経由で描画する。
-// 既定値はrenderer_settingsのcanonicalなspecテーブル（synth側）が解決する。
 func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Result, float64, error) {
 	request := synth.Request{
 		SpeechTiming:            o.speechTiming,
@@ -130,7 +128,6 @@ func selectionPlanDigest(p *plan.Plan) string {
 	return fmt.Sprintf("%x", sha256.Sum256(encoded))
 }
 
-// fillMeasurementは結果から計測値を埋め、描画済みPlanを返す。
 func fillMeasurement(row *measurement, result *synth.Result) *plan.Plan {
 	row.AudioMS = result.DurationMS
 	row.MissingPhoneGroups = len(result.Plan.MissingPhones)

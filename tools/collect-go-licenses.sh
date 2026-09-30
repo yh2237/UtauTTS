@@ -44,7 +44,7 @@ while IFS= read -r module || [[ -n "${module}" ]]; do
   while IFS= read -r source; do
     relative="${source#"${module_dir}/"}"
     basename="${source##*/}"
-    # macOS ships Bash 3.2, which does not support ${parameter^^}.
+    # macOS標準のBash 3.2では${parameter^^}を使えない。
     basename_upper="$(printf '%s' "${basename}" | tr '[:lower:]' '[:upper:]')"
     case "${basename_upper}" in
       LICENSE|LICENSE.*|COPYING|COPYING.*|PATENTS|PATENTS.*|NOTICE|NOTICE.*|THIRD_PARTY_NOTICES*|DATA_LICENSES*) ;;

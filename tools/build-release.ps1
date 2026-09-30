@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Python = $env:PYTHON,
     [ValidateSet('Full', 'Japanese')]
     [string]$Profile = 'Full',
@@ -71,8 +71,7 @@ function Compress-Package([string]$SourceDirectory, [string]$DestinationZip) {
     if (Test-Path -LiteralPath $DestinationZip) {
         Remove-Item -Force -LiteralPath $DestinationZip
     }
-    # ZipFile.CreateFromDirectory is markedly faster than Compress-Archive for
-    # the large GUI tree and produces the same archive layout.
+    # 大きなGUI配布物ではCompress-Archiveより速い。
     [System.IO.Compression.ZipFile]::CreateFromDirectory(
         $SourceDirectory, $DestinationZip,
         [System.IO.Compression.CompressionLevel]::Optimal, $false)
@@ -88,9 +87,7 @@ function Expand-BundledVoicebank([string]$Destination) {
     if ($actualHash -ne $bundledVoicebankSHA256) {
         throw "Bundled voicebank hash mismatch: expected $bundledVoicebankSHA256, got $actualHash"
     }
-    # The official voicebank archive contains CP932-encoded Japanese entry
-    # names. Expand-Archive decodes those names incorrectly on the hosted
-    # Windows runner, so use Python's explicit metadata_encoding support.
+    # 同梱音源のZIP名はCP932。Expand-Archiveの誤復号を避け、Pythonで文字コードを指定する。
     $extractScript = @'
 import os
 import sys

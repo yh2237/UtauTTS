@@ -9,7 +9,7 @@ import (
 	"utautts/internal/tts"
 )
 
-// makeContourCandidatesは意図的に差をつけた範囲内の輪郭候補を返す。候補パラメータは再現性のためセッションマニフェストへ保存する。
+// 比較できる差を付け、再現用のパラメータをセッションへ保存する。
 func makeContourCandidates() []candidate {
 	return []candidate{
 		{ID: "base-1_0", Strength: 1},
@@ -31,7 +31,7 @@ func formatCandidateIDs(candidates []candidate) string {
 	return strings.Join(values, ", ")
 }
 
-// transformContourは有声モーラ内だけモデル輪郭を変更する。ポーズは0のままにして、句内調整が無音をまたいで伝播しないようにする。
+// 有声モーラ内だけ輪郭を変え、調整がポーズをまたぐのを防ぐ。
 func transformContour(preview *tts.ProsodyPreview, text string, profile candidate) (*render.PitchCurve, error) {
 	if preview == nil || preview.FramePitchCurve == nil || preview.FramePitchCurve.FrameMS <= 0 {
 		return nil, errors.New("prosody preview did not contain a frame pitch curve")

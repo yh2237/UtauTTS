@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$ExpectedVersion = $env:UTAUTTS_RELEASE_VERSION,
     [string]$PreviousVersion = $env:UTAUTTS_PREVIOUS_VERSION,
     [int]$PreviousUpdateSchema = 0,
@@ -49,9 +49,7 @@ if (-not [string]::IsNullOrWhiteSpace($PreviousVersion) -and
     throw "release version $currentVersion must be newer than $($PreviousVersion.Trim())"
 }
 
-# v1.2.2 predates the release metadata fields. Keep its known on-disk
-# baseline here so the first release after v1.2.2 gets the migration check even
-# when the caller only supplies -PreviousVersion.
+# v1.2.2には版情報がないため、既知の構成で移行を検査する。
 if (-not [string]::IsNullOrWhiteSpace($PreviousVersion) -and
     $PreviousVersion.Trim() -eq 'v1.2.2') {
     if ($PreviousUpdateSchema -eq 0) { $PreviousUpdateSchema = 1 }

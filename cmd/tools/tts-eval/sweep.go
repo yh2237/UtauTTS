@@ -17,10 +17,8 @@ import (
 	"utautts/internal/synth"
 )
 
-// defaultPresetsは--presetsの既定値。
 const defaultPresets = "default,legacy,legacy-gap,adaptive,timing,no-pitch"
 
-// baseRenderer, baseMix, baseGapはプリセット表の基準値。
 const (
 	baseRenderer = "utautts-world-phrase"
 	baseMix      = "auto"
@@ -36,7 +34,6 @@ type preset struct {
 	ApplyPitch   bool
 }
 
-// presetTableは補正プリセットの定義。各フィールドは基準値か上書き値を持つ。
 var presetTable = []preset{
 	{Name: "default", Renderer: baseRenderer, Mix: baseMix, GapRepair: baseGap, ApplyPitch: true},
 	{Name: "legacy", Renderer: baseRenderer, Mix: "v1.3", GapRepair: "off", ApplyPitch: true},
@@ -168,7 +165,6 @@ func runSweep(req sweepRequest) error {
 	if req.modelFile != "" {
 		prosodyPath = req.modelFile
 	}
-	// 出力先は存在してはならない。
 	if err := os.MkdirAll(filepath.Dir(req.out), 0755); err != nil {
 		return err
 	}

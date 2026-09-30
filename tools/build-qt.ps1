@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$QtRoot = $env:QT_ROOT,
     [string]$OutputDirectory = "",
     [string]$Msys2Root = $env:MSYS2_ROOT,
@@ -136,7 +136,6 @@ Copy-Item -LiteralPath (Join-Path $nativeDir 'utautts_native.dll') -Destination 
     (Join-Path $appDirectory 'utautts-gui.exe')
 if ($LASTEXITCODE -ne 0) { throw 'windeployqt failed' }
 
-# Remove optional Qt Multimedia, translation, and style files from the package.
 $ffmpegNamePattern = '^(ffmpeg.*|avcodec.*|avformat.*|avutil.*|swresample.*|swscale.*)$'
 Get-ChildItem -LiteralPath $appDirectory -Recurse -File -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -match $ffmpegNamePattern -or $_.Name -match 'ffmpegmediaplugin' } |

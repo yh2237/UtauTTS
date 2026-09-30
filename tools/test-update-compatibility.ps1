@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$PreviousVersion = 'v1.3.0',
     [string]$CandidateZip = '',
     [string]$PreviousZip = '',
@@ -38,7 +38,7 @@ function Stop-InstalledProcesses([string]$InstallRoot) {
                     $matched += $process
                 }
             } catch {
-                # Some system processes do not expose their executable path.
+                # システムプロセスは実行パスを取得できない場合がある。
             }
         }
         foreach ($process in $matched) {
@@ -113,9 +113,7 @@ try {
         'Wavtools/update-compatibility/marker.txt' = 'wavtool marker'
         'renderer/update-compatibility/marker.txt' = 'renderer marker'
     }
-    # Dependencies/ was added in a later version. The updater shipped in earlier
-    # versions does not preserve it, so only verify it when the previous package
-    # already contains the directory.
+    # 旧更新処理はDependenciesを保持しないため、旧版に存在する場合だけ検査する。
     if (Test-Path -LiteralPath (Join-Path $installRoot 'Dependencies')) {
         $preservedFiles['Dependencies/update-compatibility/marker.txt'] = 'vocoder dependency marker'
     }
@@ -165,8 +163,7 @@ try {
         throw ('Old install backup was not removed after relaunch: {0}' -f $oldInstall)
     }
 
-    # A successful update starts the installed application. Stop only processes
-    # whose executable belongs to this disposable test installation.
+    # 更新で起動したアプリのうち、テスト用インストールのプロセスだけを停止する。
     Stop-InstalledProcesses $installRoot
 
     $installedConfig = Join-Path $installRoot 'config.ini'

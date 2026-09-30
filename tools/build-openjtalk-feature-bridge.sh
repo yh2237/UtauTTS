@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Linux向けutautts-openjtalk-featuresをPyInstallerで単一ファイル化する。
-#
-# PYTHON: pipを利用できるPython（既定: リポジトリ/.venv/bin/python または python3）
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=linux-environment.sh

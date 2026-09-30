@@ -24,7 +24,6 @@ type coverageSummary struct {
 	MissingMorae       map[string]int `json:"missing_morae,omitempty"`
 }
 
-// summarizeCoverageは診断行を言語別にまとめる。
 func summarizeCoverage(rows []diagnostic) []coverageSummary {
 	byLanguage := map[string]*coverageSummary{}
 	order := []string{}

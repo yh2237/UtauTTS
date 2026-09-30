@@ -96,7 +96,6 @@ install_name_tool -change 'libutautts_native.dylib' \
   '@rpath/libutautts_native.dylib' "${app_path}/Contents/MacOS/utautts" || true
 "${macdeployqt}" "${app_path}" "-qmldir=${root_dir}/qt/qml"
 
-# Remove optional Qt Multimedia, translation, and style files from the package.
 find "${app_path}" -type f \( -iname '*ffmpeg*' -o -iname 'libavcodec*' \
   -o -iname 'libavformat*' -o -iname 'libavutil*' -o -iname 'libswresample*' \
   -o -iname 'libswscale*' \) -delete

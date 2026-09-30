@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
-"""みんなで作るJSUTコーパスbasic5000を学習入力のmetadata.csv+wavs/へ整える。
+"""みんなで作るJSUTのbasic5000をmetadata.csvとwavs/へ整える。
 
-配布ZIPの「02 台本テキスト」と「01 音声データ」を使い、指定したID範囲について
-``metadata.csv``（``id|text|reading``）と``wavs/<id>.wav``（元WAVへのハードリンク、
-不可ならコピー）を出力する。学習用JSONLは ``prepare-intonation-frame-data.py`` が作る。
-
-ID範囲は ``BASIC5000_0001`` 形式の連番。夢前黎さんの担当は既定の0001-0600。
+既定の0001〜0600は夢前黎さんの担当分。WAVはハードリンクし、不可ならコピーする。
 """
 
 from __future__ import annotations

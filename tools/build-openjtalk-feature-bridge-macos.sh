@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# macOS向けutautts-openjtalk-featuresをPyInstallerで単一ファイル化する。
-# PythonとpyopenjtalkはmacOS runner上でネイティブarm64として構築する。
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 python_bin="${PYTHON:-python3}"

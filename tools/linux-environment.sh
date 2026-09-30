@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 
-# Linux用開発スクリプトで共有する補助関数。
-#
-# 通常の環境では.envは不要。GoはPATHまたはsetup-linux.shの配置先、Pythonは.venv、
-# CMake/Ninja/Qtはシステムから解決する。.envはQT_ROOTなどの例外的な上書きに使う。
+# 通常はPATHと.venvから解決し、.envはQT_ROOTなどの上書きに使う。
 
 utautts_load_linux_env() {
   local root_dir="$1"

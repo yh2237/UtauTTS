@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""音声クリップのWAVからフレーム抑揚JSONLを作成する。
+"""metadata.csv（id|text|reading）とwavs/<id>.wavから学習用JSONLを作る。
 
-入力はmetadata.csv（``id|text|reading``）と``wavs/<id>.wav``。発話クリップは
-音素タイムスタンプを持たないため、有効音声区間を検出し、その中へOpen JTalk
-モーラを均等配置する。各レコードはこの近似を明示するもので、強制整列では
-ない。
+音素時刻がないため、検出した発話区間へモーラを均等配置する。強制整列ではない。
 """
 
 from __future__ import annotations

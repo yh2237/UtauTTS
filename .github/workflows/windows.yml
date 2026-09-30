@@ -75,8 +75,7 @@ jobs:
             windows desktop $env:QT_VERSION win64_mingw `
             --modules qtmultimedia
 
-          # Qt publishes the MinGW 13.1 compiler as its own tool name rather
-          # than as a variant of the older tools_mingw catalog.
+          # MinGW 13.1は旧tools_mingwの亜種ではなく、独立したツール名で公開されている。
           python -m aqt install-tool --outputdir $qtRoot windows desktop tools_mingw1310
           python -m aqt install-tool --outputdir $qtRoot windows desktop tools_cmake
           python -m aqt install-tool --outputdir $qtRoot windows desktop tools_ninja
