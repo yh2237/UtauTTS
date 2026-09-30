@@ -76,21 +76,18 @@ func containsKana(value string) bool {
 	return false
 }
 
-// IsInitialContextAlias は日本語VCVの語頭形式を判定する
-// 先行母音を持たないため実VCV数には含めない
+// 語頭形式は先行母音を持たないため、実VCV数には含めない。
 func IsInitialContextAlias(alias string) bool {
 	parts := strings.Fields(strings.TrimSpace(alias))
 	return len(parts) >= 2 && parts[0] == "-" && containsKana(parts[1])
 }
 
-// IsContextVCVAlias は先行母音を持つVCVだけを判定する
 func IsContextVCVAlias(alias string) bool {
 	parts := strings.Fields(strings.TrimSpace(alias))
 	return len(parts) >= 2 && isVowelContext(parts[0]) && containsKana(parts[1])
 }
 
-// IsSingleCVSelection は選択された主ユニットが単独音かを判定する
-// 語頭の「- CV」は先行母音を持たないため単独音として扱う
+// 語頭の「- CV」は先行母音を持たないため、単独音として扱う。
 func IsSingleCVSelection(selection Selection) bool {
 	kind := selection.Kind
 	if kind == "" {
@@ -105,7 +102,6 @@ func IsSingleCVSelection(selection Selection) bool {
 	return (kind == AliasVCV || kind == AliasOther) && IsInitialContextAlias(selection.Alias)
 }
 
-// IsSingleCVSelections は主ユニット全体を単独音として扱えるか判定する
 func IsSingleCVSelections(selections []Selection) bool {
 	seen := false
 	for _, selection := range selections {

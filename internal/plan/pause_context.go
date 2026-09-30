@@ -2,17 +2,12 @@ package plan
 
 import "utautts/internal/frontend"
 
-// B5: ポーズ長の文脈化。句読点の種類と発話末かどうかで休止長を変える。
-// 補正は控えめにし、強度で中立1.0から調整できるようにする。
+// 句読点の種類と発話末の位置に応じて休止長を調整する。
 const (
-	// pauseContextMinFactorとpauseContextMaxFactorは補正後の倍率のクランプ範囲。
-	pauseContextMinFactor = 0.4
-	pauseContextMaxFactor = 2.5
-	// pauseContextMaxStrengthは補正強度の上限。
-	pauseContextMaxStrength = 2.0
-	// pauseContextFinalFactorは発話末ポーズへ掛ける追加倍率。
-	pauseContextFinalFactor = 1.1
-	// 句読点種別ごとの基準倍率。中立は1.0。
+	pauseContextMinFactor      = 0.4
+	pauseContextMaxFactor      = 2.5
+	pauseContextMaxStrength    = 2.0
+	pauseContextFinalFactor    = 1.1
 	pauseContextCommaFactor    = 0.7
 	pauseContextPeriodFactor   = 1.0
 	pauseContextQuestionFactor = 1.15
@@ -48,7 +43,6 @@ func pauseContextFactor(morae []frontend.Mora, position int, cfg Config) float64
 	return clampPauseContextFactor(factor)
 }
 
-// pauseKindFactorはポーズ種別の基準倍率を返す。
 func pauseKindFactor(kind string) float64 {
 	switch kind {
 	case frontend.PauseKindComma:
@@ -64,7 +58,6 @@ func pauseKindFactor(kind string) float64 {
 	}
 }
 
-// isUtteranceFinalPauseは後続に発話モーラが無いポーズかを返す。
 func isUtteranceFinalPause(morae []frontend.Mora, position int) bool {
 	for index := position + 1; index < len(morae); index++ {
 		if !morae[index].Pause {

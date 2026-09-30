@@ -11,7 +11,6 @@ func flatPitchCurve(frames int) *render.PitchCurve {
 	return &render.PitchCurve{FrameMS: 10, Cents: make([]float64, frames)}
 }
 
-// curveEndMSは曲線の最終フレーム時刻を返す。
 func curveEndMS(curve *render.PitchCurve) float64 {
 	return float64(len(curve.Cents)-1) * curve.FrameMS
 }

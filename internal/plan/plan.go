@@ -13,7 +13,7 @@ import (
 
 const Version = 33
 
-// DefaultMoraDurationMSとDefaultPauseDurationMSは未指定時の長さ。合成・プレビュー・manifestが共有するcanonical値。
+// 合成・プレビュー・manifestで共有する長さの既定値。
 const (
 	DefaultMoraDurationMS  = 120.0
 	DefaultPauseDurationMS = 180.0
@@ -451,7 +451,6 @@ func stopPhone(phone string) bool {
 	}
 }
 
-// japaneseSpeechMoraはかな入力（言語未指定）または日本語のモーラかを返す。
 func japaneseSpeechMora(mora frontend.Mora) bool {
 	return mora.Language == "" || mora.Language == frontend.LanguageJapanese
 }

@@ -8,16 +8,12 @@ type EnglishOptions struct {
 	WeakForms bool
 }
 
-// DefaultEnglishOptionsは弱形を有効にした既定値を返す。
 func DefaultEnglishOptions() EnglishOptions {
 	return EnglishOptions{WeakForms: true}
 }
 
-// englishWeakFormsは英語の機能語に対する弱形（非強調形）。
-// 出典はCMUdictの機能語の発音と一般的な英語音声学の記述
-// （例: Ladefoged, "A Course in Phonetics"）を参考にした控えめな一覧。
-// ARPAbetは本プロジェクトの音素体系に合わせ、AH0は
-// englishSyllableVowelsで曖昧母音AXのエイリアスへ展開される。
+// CMUdictとLadefoged「A Course in Phonetics」を参考にした機能語の弱形。
+// AH0はenglishSyllableVowelsで曖昧母音AXへ展開する。
 var englishWeakForms = map[string]string{
 	"of":    "AH0 V",
 	"and":   "AH0 N",
@@ -52,11 +48,7 @@ var englishWeakForms = map[string]string{
 	"been":  "B IH0 N",
 }
 
-// englishWeakFormは非強調位置の機能語に弱形を返す。
-//
-// 適用条件は既存のofと同じで、句中（前後がポーズでない）かつ発話末でないこと。
-// 明示の読みや辞書がある語は呼び出し側で除外される。大文字小文字は区別しない
-// （大文字表記の機能語も弱形にし、固有名詞はテーブル外なので影響しない）。
+// 句中の機能語だけを弱形にする。明示の読みと辞書は呼び出し側で除外する。
 func englishWeakForm(word string, words []string, index int, options EnglishOptions) (string, bool) {
 	if !options.WeakForms {
 		return "", false

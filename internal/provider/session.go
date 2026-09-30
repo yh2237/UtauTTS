@@ -93,13 +93,12 @@ func (options *SessionOptions) normalize() error {
 	return nil
 }
 
-// RenderOptionsはproviderからの非終端メッセージをbest-effortで受け取る。
+// 応答待ちを妨げず、進捗と診断を受け取る。
 type RenderOptions struct {
 	OnProgress   func(Progress)
 	OnDiagnostic func(Diagnostic)
 }
 
-// RemoteErrorはproviderプロセスが報告したエラー。
 type RemoteError struct {
 	Code      string
 	Message   string
@@ -113,7 +112,7 @@ func (err *RemoteError) Error() string {
 	return fmt.Sprintf("provider error %s: %s", err.Code, err.Message)
 }
 
-// Sessionは常駐する単一のproviderプロセス。protocol v1では同時1リクエストだが、同一プロセスで逐次処理しモデル/ランタイム状態を維持できる。
+// 常駐プロセスへ逐次要求を送り、合成間でモデルとランタイムを維持する。
 type Session struct {
 	options SessionOptions
 	hello   Hello
@@ -230,17 +229,15 @@ func validateHello(hello Hello, options SessionOptions) error {
 	return fmt.Errorf("provider does not support contract %q version %d", options.Contract, options.ContractVersion)
 }
 
-// Helloは検証済みのproviderハンドシェイクを返す。
 func (session *Session) Hello() Hello {
 	return session.hello
 }
 
-// IsAliveはproviderプロセスが稼働中か返す。終了したセッションは再利用できないため、呼び出し側が再作成する。
+// 終了したセッションは再利用せず、呼び出し側で作り直す。
 func (session *Session) IsAlive() bool {
 	return session != nil && !session.isExited()
 }
 
-// Renderは1リクエストを送信して結果を待つ。成功後もセッションは有効で次のリクエストに再利用できる。
 func (session *Session) Render(ctx context.Context, request RenderRequest, options RenderOptions) (Result, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -344,7 +341,7 @@ func (session *Session) cancelRequest(requestID string) {
 	}
 }
 
-// Closeはproviderへ終了を要求し、猶予内に応じなければkillする。複数回呼んで安全。
+// 終了要求に猶予内に応じなければ強制終了する。繰り返し呼んでも安全。
 func (session *Session) Close() error {
 	session.renderMu.Lock()
 	defer session.renderMu.Unlock()

@@ -1,4 +1,4 @@
-// Package engineは、ユーザーに見える合成エンジン定義と実装の境界を定義する。
+// engineパッケージは公開エンジン定義と実装を結びつける。
 package engine
 
 import (
@@ -42,7 +42,6 @@ func (capabilities Capabilities) Supports(requested Capabilities) bool {
 		(!requested.SpeechProsodyExperiment || capabilities.SpeechProsodyExperiment)
 }
 
-// ResourceKeyはエンジン実行時資源の名前。
 type ResourceKey string
 
 const (
@@ -54,7 +53,6 @@ const (
 	ResourceProviderExecutable ResourceKey = "provider_executable"
 )
 
-// ResourceRequirementはproviderの実行時依存。
 type ResourceRequirement struct {
 	Key        ResourceKey
 	Required   bool
@@ -81,7 +79,6 @@ type Definition struct {
 	Resources       map[ResourceKey]string
 }
 
-// Resourceは宣言済み資源の解決済みパスを返す。
 func (definition Definition) Resource(key ResourceKey) string {
 	return definition.Resources[key]
 }
@@ -95,7 +92,6 @@ type Provider struct {
 	Requirements []ResourceRequirement
 }
 
-// Registryはこのバイナリで利用可能な実装を保持する。
 type Registry struct {
 	providers map[ProviderID]Provider
 }
@@ -109,7 +105,7 @@ var (
 	ErrResourcesUnavailable    = errors.New("synthesis engine resources are unavailable")
 )
 
-// NewRegistryは不変のproviderレジストリを作る。
+// 登録後のレジストリは変更しない。
 func NewRegistry(providers ...Provider) (Registry, error) {
 	result := Registry{providers: make(map[ProviderID]Provider, len(providers))}
 	for _, provider := range providers {
@@ -165,12 +161,10 @@ var builtinRegistry = mustRegistry(
 	},
 )
 
-// BuiltinRegistryは同梱providerを返す。
 func BuiltinRegistry() Registry {
 	return builtinRegistry
 }
 
-// Providerは実装IDでproviderを返す。
 func (registry Registry) Provider(id ProviderID) (Provider, bool) {
 	provider, found := registry.providers[id]
 	return cloneProvider(provider), found
@@ -193,7 +187,6 @@ func cloneProvider(provider Provider) Provider {
 	return provider
 }
 
-// Supportsは実装がこのバイナリで利用可能かを返す。
 func (registry Registry) Supports(id ProviderID) bool {
 	_, found := registry.Provider(id)
 	return found
@@ -206,12 +199,10 @@ type ResolvedEngine struct {
 	Availability Availability
 }
 
-// PublicIDは呼び出し元が選んだ安定IDを返す。
 func (resolved ResolvedEngine) PublicID() PublicID {
 	return resolved.Definition.ID
 }
 
-// Resourceは解決済みの実行時資源パスを返す。
 func (resolved ResolvedEngine) Resource(key ResourceKey) string {
 	return resolved.Definition.Resource(key)
 }
@@ -260,7 +251,6 @@ type Resolver struct {
 	registry Registry
 }
 
-// NewResolverは1つのレジストリ用のresolverを作る。
 func NewResolver(registry Registry) Resolver {
 	return Resolver{registry: registry}
 }
@@ -317,7 +307,7 @@ func (resolver Resolver) ResolveWithOptions(definitions []Definition, requested 
 	}, nil
 }
 
-// externalProviderForDefinitionはmanifest宣言のプロセスprovider解決に必要な記述子を作る。実装はmanifestが指定し、セッション開始時のhandshakeで検証する。
+// 外部実装はmanifestで指定し、セッション開始時のハンドシェイクで検証する。
 func externalProviderForDefinition(definition Definition) Provider {
 	return Provider{
 		ID:           definition.Provider,
@@ -363,7 +353,7 @@ func evaluateAvailability(definition Definition, provider Provider) Availability
 
 // CheckResourcesは解決済み資源を評価する。Classic UTAUのツール選択などprovider固有オプションでも使う。
 func CheckResources(resources map[ResourceKey]string, requirements ...ResourceRequirement) Availability {
-	// wasm では WORLD エンジン等をインプロセスで持つため、外部資源の存在チェックを行わない。
+	// wasmはエンジンをプロセス内に持つため、外部資源を検査しない。
 	if runtime.GOOS == "js" {
 		return Availability{Available: true}
 	}

@@ -9,7 +9,6 @@ import (
 	"utautts/internal/tts"
 )
 
-// Resultは各フロントエンドで共有する合成結果。
 type Result struct {
 	*tts.Result
 	RendererID string
@@ -17,7 +16,6 @@ type Result struct {
 	Lab        string
 }
 
-// NewResultは音声と合成計画から付随情報を生成する。
 func NewResult(result *tts.Result, rendererID string) (*Result, error) {
 	if result == nil || result.Audio == nil {
 		return nil, fmt.Errorf("synthesis result contains no audio")
@@ -30,7 +28,6 @@ func NewResult(result *tts.Result, rendererID string) (*Result, error) {
 	return &Result{Result: result, RendererID: rendererID, DurationMS: durationMS, Lab: lab}, nil
 }
 
-// ExportOptionsはWAVに付随して保存するファイルを指定する。
 type ExportOptions struct {
 	Text         string
 	WriteText    bool

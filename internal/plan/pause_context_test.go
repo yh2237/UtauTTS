@@ -69,20 +69,16 @@ func TestPauseContextStrengthAndDisable(t *testing.T) {
 	if got := pauseContextFactor(morae, 1, Config{PauseContext: false, PauseContextStrength: 1}); got != 1 {
 		t.Fatalf("disabled factor = %v, want 1", got)
 	}
-	// strength 0は既定1.0として扱う。
 	if got := pauseContextFactor(morae, 1, Config{PauseContext: true, PauseContextStrength: 0}); math.Abs(got-pauseContextCommaFactor) > 1e-9 {
 		t.Fatalf("zero strength factor = %v, want %v", got, pauseContextCommaFactor)
 	}
-	// 負値は恒等。
 	if got := pauseContextFactor(morae, 1, Config{PauseContext: true, PauseContextStrength: -1}); got != 1 {
 		t.Fatalf("negative strength factor = %v, want 1", got)
 	}
-	// 強度は中立1.0からの偏差へ掛かる。
 	half := pauseContextFactor(morae, 1, Config{PauseContext: true, PauseContextStrength: 0.5})
 	if math.Abs(half-0.85) > 1e-9 {
 		t.Fatalf("half strength factor = %v, want 0.85", half)
 	}
-	// 上限を超える強度は2.0へクランプする。
 	capped := pauseContextFactor(pauseMorae(frontend.PauseKindEllipsis, false), 1, Config{PauseContext: true, PauseContextStrength: 5})
 	limit := pauseContextFactor(pauseMorae(frontend.PauseKindEllipsis, false), 1, Config{PauseContext: true, PauseContextStrength: pauseContextMaxStrength})
 	if math.Abs(capped-limit) > 1e-9 {

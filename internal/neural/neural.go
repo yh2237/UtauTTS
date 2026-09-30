@@ -1,4 +1,4 @@
-// Package neural は特定providerに依存しないニューラル合成の入力DTOと契約を定義する。
+// neuralパッケージは実装に依存しないニューラル合成の入出力と契約を定義する。
 package neural
 
 import (
@@ -17,27 +17,21 @@ import (
 // Inputはニューラル合成providerが共通して必要とする解決済み入力。
 // tts側がConfigから変換し、provider実装はこのDTOだけを参照する。
 type Input struct {
-	Context context.Context
-	// VoicebankPathは音源ディレクトリ。
-	VoicebankPath string
-	// TextとToneは計画へ記録する元入力。
-	Text string
-	Tone string
-	// Language/Phonemizer/Reading/Moraeは発音解析の結果。
-	Language   string
-	Phonemizer string
-	Reading    string
-	Morae      []frontend.Mora
-	// Features/MoraDurationsMS/PitchPointsはプロソディ予測の結果。
+	Context         context.Context
+	VoicebankPath   string
+	Text            string
+	Tone            string
+	Language        string
+	Phonemizer      string
+	Reading         string
+	Morae           []frontend.Mora
 	Features        []prosody.FeatureFrame
 	MoraDurationsMS []float64
 	PitchPoints     []float64
 	// PitchCurveはprovider向けのピッチ曲線。自動生成か手動かをAutomaticPitchで示す。
-	PitchCurve     *render.PitchCurve
-	AutomaticPitch bool
-	// PhoneWeightsはモーラごとの音素時間配分の重み。
-	PhoneWeights [][]float64
-	// ProviderOptionsは選択provider固有の設定。
+	PitchCurve      *render.PitchCurve
+	AutomaticPitch  bool
+	PhoneWeights    [][]float64
 	ProviderOptions render.ProviderOptions
 	// Engineは解決済みrenderer。provider resourceの参照に使う。
 	Engine engine.ResolvedEngine
@@ -61,7 +55,6 @@ type Synthesizer interface {
 // Factoryはprovider実装を組み立てる。登録側が実装型に依存せずに済む。
 type Factory func() Synthesizer
 
-// レジストリはprovider IDから実装を引く。登録はinitや起動時にRegisterで行う。
 var (
 	mu           sync.RWMutex
 	synthesizers = map[engine.ProviderID]Factory{}
@@ -77,7 +70,6 @@ func Register(id engine.ProviderID, factory Factory) {
 	synthesizers[id] = factory
 }
 
-// ForProviderは登録済みproviderを解決する。未登録はfound=falseを返す。
 func ForProvider(id engine.ProviderID) (Synthesizer, bool) {
 	mu.RLock()
 	factory, found := synthesizers[id]

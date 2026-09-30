@@ -37,8 +37,6 @@ type exportRequest struct {
 	Project    json.RawMessage `json:"project"`
 }
 
-// exportProjectToは要求を実行し、出力されたUSTXを返す。
-// パスはencoding/jsonで直列化し、Windowsの区切り文字も安全に扱う。
 func exportProjectTo(t *testing.T, engine *Engine, outputPath string, projectData []byte) string {
 	t.Helper()
 	request, err := json.Marshal(exportRequest{OutputPath: outputPath, Project: projectData})

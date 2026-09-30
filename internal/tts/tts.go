@@ -23,7 +23,6 @@ import (
 // Traceは合成フェーズの所要時間を出力する任意フック。nilなら無効。
 var Trace func(message string)
 
-// traceMarkは前回のmarkからの経過時間をTraceへ渡し、起点を更新する。
 func traceMark(start *time.Time, label string) {
 	if Trace == nil {
 		return
@@ -97,8 +96,7 @@ type Config struct {
 	AliasPolicy             voicebank.AliasPolicy
 	JoinModelPath           string
 	JoinModel               *connection.JoinModel
-	// ProviderOptionsは選択したprovider固有の設定。
-	ProviderOptions render.ProviderOptions
+	ProviderOptions         render.ProviderOptions
 }
 
 type Result struct {
@@ -168,7 +166,7 @@ func ResolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, 
 	return resolvePronunciation(cfg)
 }
 
-// Analyzeはエディタ初期化に必要な読みとモーラのみ解決する。プロソディモデルの読込と予測は行わず、時間やピッチが必要ならPredictProsodyを使う。
+// 読みとモーラだけを解析する。時間やピッチの予測にはPredictProsodyを使う。
 func Analyze(cfg Config) (*ProsodyPreview, error) {
 	if err := synthesisContextError(cfg.Context); err != nil {
 		return nil, err
@@ -186,9 +184,7 @@ func Analyze(cfg Config) (*ProsodyPreview, error) {
 	}, nil
 }
 
-// resolveLanguagePhonemizerは言語とphonemizerを決める。優先順位は
-// 明示phonemizer > 音源の推定 > 言語既定。言語が明示されていても推定phonemizerが
-// その言語で有効なら採用し、無効なら言語既定へ戻す。
+// 明示指定、音源の推定、言語既定の順に選ぶ。言語に合わない推定は使わない。
 func resolveLanguagePhonemizer(cfg Config) (string, string, error) {
 	if strings.TrimSpace(cfg.Phonemizer) != "" {
 		return frontend.ResolveLanguage(cfg.Language, cfg.Phonemizer)
@@ -270,7 +266,6 @@ func analyzeAndAlignRuntimeFeatures(ctx context.Context, morae []frontend.Mora, 
 	return alignRuntimeProsodyFeatures(morae, analysis)
 }
 
-// ResolveRendererはrendererIDを解決する。
 func ResolveRenderer(catalog *plugin.Catalog, rendererID string) (engine.ResolvedEngine, error) {
 	return ResolveRendererWithOptions(catalog, rendererID, engine.ResolveOptions{})
 }
@@ -298,7 +293,6 @@ func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlineBr
 	return string(resolved.PublicID()), nil
 }
 
-// ApplyResolvedEngineは解決済みEngineをprovider境界として保存する。
 func ApplyResolvedEngine(cfg *Config, resolved engine.ResolvedEngine) {
 	cfg.Engine = resolved
 	capabilities := plugin.Capabilities{
@@ -487,7 +481,7 @@ func applyLanguageSpeechProfile(language string, cfg *Config) {
 	languageProfileFor(language).ApplySpeechProfile(cfg)
 }
 
-// PredictProsodyは音声合成せずに選択されたプロソディモデルを評価する。手動のモーラ長を尊重するため、プレビューはGUIで編集中の値に従う。
+// 音声を合成せず韻律を予測する。プレビューでも手動のモーラ長を尊重する。
 func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	if err := synthesisContextError(cfg.Context); err != nil {
 		return nil, err

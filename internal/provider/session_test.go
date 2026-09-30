@@ -23,8 +23,7 @@ func TestProviderHelperProcess(t *testing.T) {
 	}
 	encoder := json.NewEncoder(os.Stdout)
 	mode := os.Getenv(helperMode)
-	// ハンドシェイク応答を書いた直後に終了すると、親がプロセス終了を先に検知して応答を
-	// 読めない競合があるため、応答後はstdinを読み続けて生存させる。
+	// 終了検知が応答読み込みを追い越さないよう、応答後もstdinを待つ。
 	switch mode {
 	case "bad-provider":
 		_ = encoder.Encode(Hello{Type: MessageHello, Protocol: ProtocolName, ProtocolVersion: ProtocolVersion, Provider: "wrong", ProviderVersion: "1", Session: true, Contracts: []ContractSupport{{Name: "unit-renderer", Version: 1}}})

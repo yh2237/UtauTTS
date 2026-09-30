@@ -8,7 +8,6 @@ import (
 	"utautts/internal/tts"
 )
 
-// rendererSettingsResolutionはrenderer_settingsのうちClassicツール選択だけを別に保持する。
 type rendererSettingsResolution struct {
 	Resampler string
 	Wavtool   string
@@ -24,15 +23,13 @@ const (
 	rendererSettingKindString
 )
 
-// rendererSettingSpecはmanifestが宣言する設定1件をConfig/ProviderOptionsへ解決する単一の定義。
-// 新しい設定はmanifestへ追記し、このテーブルへ1行足すだけでよい（Requestのtypedフィールド追加は不要）。
+// 新しい設定はmanifestとこのテーブルへ追加する。Requestの固定フィールドは増やさない。
 type rendererSettingSpec struct {
 	id   string
 	kind rendererSettingKind
 	// defaultValueはcanonicalな既定値。typedフィールドやrenderer_settingsが無い設定の土台になる。
 	defaultValue any
-	// applyは正規化済みの値（float64/bool/string）を設定先へ書き込む。
-	apply func(value any, cfg *tts.Config, options *render.ProviderOptions, resolution *rendererSettingsResolution)
+	apply        func(value any, cfg *tts.Config, options *render.ProviderOptions, resolution *rendererSettingsResolution)
 	// typedは互換用のtypedフィールドから値を取り出す。nilならmap経路のみ（新設定向け）。
 	typed func(request Request) any
 }
@@ -166,9 +163,7 @@ func applyRendererSettings(settings map[string]json.RawMessage, cfg *tts.Config,
 	return resolution
 }
 
-// applyRendererSettingsMapはmanifest由来の設定mapをConfigとprovider固有オプションへ振り分ける。
-// 既知idはテーブル経由で反映し、未知idはProviderOptions.Rendererへ、型不一致は診断へ回す。
-// いずれもエラーにせず安全側（無視）で扱う。
+// 既知IDは設定へ、未知IDは実装固有値へ渡す。型不一致は診断を残して無視する。
 func applyRendererSettingsMap(specs []rendererSettingSpec, settings map[string]json.RawMessage, cfg *tts.Config, options *render.ProviderOptions, resolution *rendererSettingsResolution) {
 	if len(settings) == 0 {
 		return
@@ -217,7 +212,6 @@ func (spec rendererSettingSpec) decode(id string, raw json.RawMessage, options *
 	}
 }
 
-// rendererSettingNumberはJSON数値をfloat64で取り出す。型不一致は診断のみで失敗させない。
 func rendererSettingNumber(id string, raw json.RawMessage, options *render.ProviderOptions) (float64, bool) {
 	var value float64
 	if err := json.Unmarshal(raw, &value); err != nil {
@@ -228,7 +222,6 @@ func rendererSettingNumber(id string, raw json.RawMessage, options *render.Provi
 	return value, true
 }
 
-// rendererSettingBoolはJSON真偽値を取り出す。型不一致は診断のみで失敗させない。
 func rendererSettingBool(id string, raw json.RawMessage, options *render.ProviderOptions) (bool, bool) {
 	var value bool
 	if err := json.Unmarshal(raw, &value); err != nil {
@@ -239,7 +232,6 @@ func rendererSettingBool(id string, raw json.RawMessage, options *render.Provide
 	return value, true
 }
 
-// rendererSettingStringはJSON文字列を取り出す。型不一致は診断のみで失敗させない。
 func rendererSettingString(id string, raw json.RawMessage, options *render.ProviderOptions) (string, bool) {
 	var value string
 	if err := json.Unmarshal(raw, &value); err != nil {

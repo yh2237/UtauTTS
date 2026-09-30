@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// ToneRangeはMIDIノート番号の範囲を表す。
 type ToneRange struct {
 	Low  int `json:"low"`
 	High int `json:"high"`
@@ -24,7 +23,6 @@ type Subbank struct {
 	Tone       string
 }
 
-// SubbankOptionはUIとAPIへ公開するサブバンク情報。
 type SubbankOption struct {
 	ID         string      `json:"id"`
 	Color      string      `json:"color"`
@@ -165,7 +163,6 @@ func assignSubbankField(subbank *Subbank, line string) error {
 	case "suffix":
 		subbank.Suffix = value
 	case "tone_ranges":
-		// リスト要素は呼び出し側で解析済み。
 	default:
 		// 未知フィールドは互換性のため無視する。
 	}

@@ -8,7 +8,6 @@ import (
 	"utautts/internal/render"
 )
 
-// japaneseProfileは日本語のかな読みと文脈連動・境界音調をまとめる。
 type japaneseProfile struct{}
 
 func (japaneseProfile) Language() string { return frontend.LanguageJapanese }

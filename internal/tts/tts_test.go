@@ -248,7 +248,6 @@ func TestPredictProsodyDoesNotRenderAudio(t *testing.T) {
 	}
 }
 
-// プレビューの既定はplanのcanonical値をそのまま使う。
 func TestPredictProsodyUsesCanonicalDurationDefaults(t *testing.T) {
 	preview, err := PredictProsody(Config{Reading: "あいう"})
 	if err != nil {
@@ -277,7 +276,6 @@ func TestPredictProsodyUsesCanonicalDurationDefaults(t *testing.T) {
 	}
 }
 
-// プレビューと本合成が同じcanonicalな既定モーラ長を使う。
 func TestPreviewAndSynthesisShareCanonicalMoraDefault(t *testing.T) {
 	root := t.TempDir()
 	samples := make([]int16, 8000)

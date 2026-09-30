@@ -9,8 +9,7 @@ import (
 	"utautts/internal/render"
 )
 
-// neuralInputFromConfigは共通Configをprovider非依存のニューラル入力へ変換する。
-// 発音解析とプロソディ予測はtts側で行い、provider実装はスコア構築とbridge呼び出しだけを担う。
+// 発音と韻律はtts側で解決し、実装側にはスコア構築とブリッジ呼び出しを委ねる。
 func neuralInputFromConfig(cfg Config) (neural.Input, error) {
 	language, phonemizer, reading, morae, err := resolvePronunciation(cfg)
 	if err != nil {

@@ -64,13 +64,12 @@ type RendererSetting struct {
 	OptionsSource string `json:"options_source,omitempty"`
 }
 
-// RendererSettingValueはenum設定の選択肢。
 type RendererSettingValue struct {
 	Value string `json:"value"`
 	Label string `json:"label,omitempty"`
 }
 
-// RendererResourceはmanifest v2の型付き実行時リソース宣言。Pathは絶対パス以外はrendererディレクトリ基準。実際の要否検証はproviderが行う。
+// 相対パスはrendererディレクトリ基準。資源の要否は実装側で検査する。
 type RendererResource struct {
 	Path       string `json:"path,omitempty"`
 	Required   bool   `json:"required,omitempty"`

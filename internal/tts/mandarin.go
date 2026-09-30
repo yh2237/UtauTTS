@@ -11,7 +11,6 @@ import (
 	"utautts/internal/render"
 )
 
-// chineseProfileは中国語のPinyin解析と声調曲線をまとめる。
 type chineseProfile struct{}
 
 func (chineseProfile) Language() string { return frontend.LanguageChinese }

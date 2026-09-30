@@ -351,8 +351,7 @@ func LoadModel(path string) (*Model, error) {
 	return ParseModel(data)
 }
 
-// ParseModelはJSONバイト列からモデルを検証つきで読む。
-// ファイルシステムを持たないwasm等でパスを経由せず読むために公開している。
+// パスを経由せず、JSONからモデルを検証して読み込む。
 func ParseModel(data []byte) (*Model, error) {
 	var model Model
 	if err := json.Unmarshal(data, &model); err != nil {
@@ -554,7 +553,6 @@ func (m *Model) RequiresExternalFeatures() bool {
 	return false
 }
 
-// HasFrameContourはモデルがフレームピッチ曲線を生成するかを返す。
 func (m *Model) HasFrameContour() bool {
 	return m != nil && (m.FramePitch != nil || m.EnglishIntonation != nil)
 }

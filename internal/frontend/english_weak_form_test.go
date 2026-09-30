@@ -51,7 +51,6 @@ func testAutomaticOfMatchesAcceptedManualReading(t *testing.T) {
 	}
 }
 
-// 句中の代表的な機能語が弱形になり、引用形は残らないことを確認する。
 func testEnglishWeakFormsPhraseInterior(t *testing.T) {
 	for _, tc := range []struct{ text, weak, citation string }{
 		{text: "bread and butter", weak: "AH0 N", citation: "AH0 N D"},
@@ -77,7 +76,6 @@ func testEnglishWeakFormsPhraseInterior(t *testing.T) {
 	}
 }
 
-// 文頭・文末・ポーズ隣接では弱形にしない。
 func testEnglishWeakFormsRequirePhraseInterior(t *testing.T) {
 	for _, tc := range []struct{ text, citation string }{
 		{text: "of", citation: "AH1 V"},
@@ -99,7 +97,6 @@ func testEnglishWeakFormsRequirePhraseInterior(t *testing.T) {
 	}
 }
 
-// ユーザー辞書と明示の読みは弱形より優先する。
 func testEnglishWeakFormsPrecedence(t *testing.T) {
 	got, _, err := englishPronunciation("the cat and the dog", "", map[string]string{"the": "DH IY1"})
 	if err != nil {
@@ -118,8 +115,6 @@ func testEnglishWeakFormsPrecedence(t *testing.T) {
 	}
 }
 
-// 大文字小文字は区別しない。既存のofと同じく大文字表記の機能語も弱形にし、
-// テーブル外の語（固有名詞など）は引用形のまま。
 func testEnglishWeakFormsCapitalization(t *testing.T) {
 	got, _, err := englishPronunciation("A cup OF coffee.", "", nil)
 	if err != nil {
@@ -137,7 +132,6 @@ func testEnglishWeakFormsCapitalization(t *testing.T) {
 	}
 }
 
-// 弱形を無効にすると引用形へ戻る。
 func testEnglishWeakFormsDisabled(t *testing.T) {
 	options := EnglishOptions{WeakForms: false}
 	got, _, err := englishPronunciationWithOptions("bread and butter", "", nil, options)

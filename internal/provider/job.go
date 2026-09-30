@@ -7,16 +7,12 @@ import (
 )
 
 const (
-	// CapabilityUnitRendererJobV2は共通unit renderer入力を示す。
 	CapabilityUnitRendererJobV2 = "unit_renderer_job_v2"
-	// CapabilityNeuralScoreJobV1は共通ニューラル入力を示す。
-	CapabilityNeuralScoreJobV1 = "neural_score_job_v1"
+	CapabilityNeuralScoreJobV1  = "neural_score_job_v1"
 )
 
-// UnitRendererJobVersionはunit renderer入力の版を示す。
 const UnitRendererJobVersion = 2
 
-// UnitRendererJobはunit rendererへ渡す共通入力を示す。
 type UnitRendererJob struct {
 	Version         int                 `json:"version"`
 	Contract        string              `json:"contract"`
@@ -26,7 +22,6 @@ type UnitRendererJob struct {
 	Resources       map[string]string   `json:"resources,omitempty"`
 }
 
-// UnitRendererOptionsはrenderer間で共有する設定を示す。
 type UnitRendererOptions struct {
 	ReleaseMS               float64           `json:"release_ms"`
 	LeadingPreutteranceMS   float64           `json:"leading_preutterance_ms"`
@@ -41,7 +36,6 @@ type UnitRendererOptions struct {
 	Worldline               *WorldlineOptions `json:"worldline,omitempty"`
 }
 
-// WorldlineOptionsはWORLD固有の入力を示す。
 type WorldlineOptions struct {
 	Engine      string          `json:"engine"`
 	SampleRate  int             `json:"sample_rate"`
@@ -123,16 +117,13 @@ type WorldlineEnvelopePoint struct {
 	Y   float64 `json:"y"`
 }
 
-// PitchCurveはフレーム単位のピッチ曲線を示す。
 type PitchCurve struct {
 	FrameMS float64   `json:"frame_ms"`
 	Cents   []float64 `json:"cents"`
 }
 
-// NeuralSynthesizerJobVersionは共通ニューラル入力の版を示す。
 const NeuralSynthesizerJobVersion = 1
 
-// NeuralSynthesizerJobはニューラル音声合成へ渡す入力を示す。
 type NeuralSynthesizerJob struct {
 	Version         int                `json:"version"`
 	Contract        string             `json:"contract"`

@@ -27,7 +27,6 @@ type Mora struct {
 	Aliases       *AliasHints
 }
 
-// ポーズの種類。句読点の種類ごとに休止長を変えるために保持する。
 const (
 	PauseKindComma    = "comma"
 	PauseKindPeriod   = "period"
@@ -118,7 +117,6 @@ func isKana(r rune) bool {
 	return unicode.Is(unicode.Hiragana, r) || unicode.Is(unicode.Katakana, r) || r == 'ー'
 }
 
-// pauseKindOfは句読点・空白・括弧をポーズ種別へ分類する。
 func pauseKindOf(r rune) string {
 	switch {
 	case strings.ContainsRune("、，,", r):
@@ -138,7 +136,6 @@ func pauseKindOf(r rune) string {
 	}
 }
 
-// strongerPauseKindは2つのポーズ種別のうち優先度が高い方を返す。
 func strongerPauseKind(current, candidate string) string {
 	if pauseKindRanks[candidate] > pauseKindRanks[current] {
 		return candidate

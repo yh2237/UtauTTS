@@ -8,7 +8,6 @@ import (
 	"utautts/internal/render"
 )
 
-// 言語ごとに対応するprofileが選ばれ、基本予測の有無も切り替わる。
 func TestLanguageProfile(t *testing.T) {
 	t.Run("selects by language", func(t *testing.T) {
 		tests := []struct {
@@ -40,7 +39,6 @@ func TestLanguageProfile(t *testing.T) {
 	})
 }
 
-// 言語ごとに規則ベースのF0曲線が選ばれ、日本語は自動曲線を持たない。
 func TestLanguageProfilePitchCurveSelection(t *testing.T) {
 	timings := []prosody.MoraTiming{{StartMS: 0, DurationMS: 120}, {StartMS: 120, DurationMS: 120}}
 
@@ -63,7 +61,6 @@ func TestLanguageProfilePitchCurveSelection(t *testing.T) {
 	}
 }
 
-// 日本語の境界音調はprofile経由で適用され、他言語は曲線を変えない。
 func TestLanguageProfileBoundaryToneSelection(t *testing.T) {
 	base := &render.PitchCurve{FrameMS: 10, Cents: []float64{0, 0, 0, 0, 0, 0}}
 	japanese := languageProfileFor(frontend.LanguageJapanese).ApplyBoundaryTone(Config{}, base, 50, false)
@@ -76,7 +73,6 @@ func TestLanguageProfileBoundaryToneSelection(t *testing.T) {
 	}
 }
 
-// phone timingの有効条件が言語ごとに異なる。
 func TestLanguageProfilePhoneTimingSelection(t *testing.T) {
 	morae := []frontend.Mora{{Text: "か", Consonant: "k", Vowel: "a"}}
 	japanese := languageProfileFor(frontend.LanguageJapanese)

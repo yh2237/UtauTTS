@@ -21,7 +21,6 @@ func TestDiffSingerIsRegisteredAsNeuralSynthesizer(t *testing.T) {
 	}
 }
 
-// 未登録providerは解決されず、登録済みproviderはfactory経由で解決される。
 func TestNeuralSynthesizerRegistryResolvesRegisteredFactory(t *testing.T) {
 	const id engine.ProviderID = "test-neural-provider"
 	RegisterNeuralSynthesizer(id, func() NeuralSynthesizer { return stubNeuralSynthesizer{id: id} })

@@ -15,8 +15,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// singerCacheは読み込み済みSingerをパスとdsconfig.yamlのサイズ・mtimeで再利用する。
-// ファイルが変わればmtimeが変わるため自己無効化される。
+// dsconfig.yamlのサイズと更新時刻でSingerキャッシュを無効化する。
 var (
 	singerCacheMu sync.RWMutex
 	singerCache   = map[string]cachedSinger{}

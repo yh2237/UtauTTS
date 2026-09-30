@@ -80,8 +80,7 @@ func speechEndingTiming(mora frontend.Mora, spans []float64, index int, start, d
 	return codaStart + codaSpans[0], rest, floorMS
 }
 
-// englishCodaFloorは英語の語末子音が短すぎるとき、先行母音から再配分して
-// 最低長を確保する。モーラ総長は変えない。適用したcoda長を返す。
+// モーラ総長を変えずに先行母音から再配分し、語末子音の最低長を確保する。
 func englishCodaFloor(mora frontend.Mora, codaPhones []frontend.Phone, codaStart float64, codaSpans []float64, start, duration float64) (float64, []float64, float64) {
 	if mora.Language != frontend.LanguageEnglish {
 		return codaStart, codaSpans, 0
@@ -107,7 +106,6 @@ func englishCodaFloor(mora frontend.Mora, codaPhones []frontend.Phone, codaStart
 	return start + duration - target, scaled, target
 }
 
-// englishCodaFloorMSはcoda音素クラスごとの最低長を返す。対象外は0。
 func englishCodaFloorMS(phones []frontend.Phone) float64 {
 	stop, continuant := false, false
 	for _, phone := range phones {

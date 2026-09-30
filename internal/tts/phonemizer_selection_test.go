@@ -18,7 +18,6 @@ func bankWithAliases(aliases ...string) *voicebank.Bank {
 	return bank
 }
 
-// phonemizer未指定のとき、音源のalias在庫から推定したphonemizerを使う。
 func TestResolvePronunciationUsesVoicebankSuggestedPhonemizer(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -47,7 +46,6 @@ func TestResolvePronunciationUsesVoicebankSuggestedPhonemizer(t *testing.T) {
 	}
 }
 
-// 明示phonemizerは音源推定より優先する。
 func TestResolvePronunciationPrefersExplicitPhonemizer(t *testing.T) {
 	cfg := Config{
 		Text: "Hello", Language: "en", Reading: "HH AH0 L OW1",
@@ -63,7 +61,6 @@ func TestResolvePronunciationPrefersExplicitPhonemizer(t *testing.T) {
 	}
 }
 
-// 明示言語が推定言語と食い違うときは明示言語の既定へ戻す。
 func TestResolvePronunciationFallsBackWhenLanguageDiffers(t *testing.T) {
 	cfg := Config{
 		Reading:   "アカ",
@@ -79,7 +76,6 @@ func TestResolvePronunciationFallsBackWhenLanguageDiffers(t *testing.T) {
 	}
 }
 
-// VoicebankPathしか無い経路でも音源を読み込んで推定する。
 func TestResolvePronunciationUsesVoicebankPath(t *testing.T) {
 	root := t.TempDir()
 	otoData := "a.wav=- hV,0,0,0,0,0\n" +

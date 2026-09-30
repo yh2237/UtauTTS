@@ -157,7 +157,6 @@ func TestExportUSTX(t *testing.T) {
 		}
 	}
 
-	// YAMLとして再解析できることを確認する。
 	var parsed map[string]any
 	if err := yaml.Unmarshal(data, &parsed); err != nil {
 		t.Fatalf("exported YAML does not parse: %v", err)
@@ -194,7 +193,6 @@ func TestExportUSTX(t *testing.T) {
 		t.Errorf("second note pitch y = %v, want 5 (50 cents / 10)", y)
 	}
 
-	// 休止前後のトラック位置を確認する。
 	if pos := firstPart["track_no"]; pos != 0 {
 		t.Errorf("first part track_no = %v, want 0", pos)
 	}
@@ -202,7 +200,7 @@ func TestExportUSTX(t *testing.T) {
 	if secondPart["track_no"] != 1 {
 		t.Errorf("second part track_no = %v, want 1", secondPart["track_no"])
 	}
-	// Direct exports cannot analyze text: all-unanalyzed input must fail.
+	// 直接出力ではテキストを解析できないため、全件未解析なら失敗する。
 	unparsed := &UtauTTSProject{Format: utauTTSProjectFormat, FormatVersion: 5,
 		Utterances: []UtauTTSUtterance{{Text: "未解析カード", VoicebankID: "vb", Tone: "C4"}}}
 	if _, err := ExportUSTX(unparsed, ExportOptions{}); err == nil {
@@ -224,13 +222,13 @@ func TestExportUSTXFrameCurveSampling(t *testing.T) {
 			},
 		}},
 	}
-	// 10ms contour: あ spans 0-100ms (cents 0..50), い spans 100-200ms (50..0).
+	// 10ms刻みで「あ」は0〜100msに0→50cent、「い」は100〜200msに50→0cent。
 	cents := make([]float64, 21)
 	for i := range cents {
 		if i <= 10 {
-			cents[i] = float64(i) * 5 // 0..50
+			cents[i] = float64(i) * 5
 		} else {
-			cents[i] = float64(20-i) * 5 // 50..0
+			cents[i] = float64(20-i) * 5
 		}
 	}
 	data, err := ExportUSTX(project, ExportOptions{Curves: []FrameCurve{{FrameMS: 10, Cents: cents}}})
@@ -250,7 +248,6 @@ func TestExportUSTXFrameCurveSampling(t *testing.T) {
 	if len(first) < 10 {
 		t.Fatalf("first note pitch points = %d, want ~10 (10ms sampling over 100ms)", len(first))
 	}
-	// 輪郭の先頭と末尾が正しく変換されることを確認する。
 	firstPoint := first[0].(map[string]any)
 	if x := firstPoint["x"]; x != 0 && x != float64(0) {
 		t.Errorf("first point x = %v, want 0", x)
@@ -258,7 +255,6 @@ func TestExportUSTXFrameCurveSampling(t *testing.T) {
 	if y := firstPoint["y"]; y != 0 && y != float64(0) {
 		t.Errorf("first point y = %v, want 0", y)
 	}
-	// ノート中央の値が補間されることを確認する。
 	found := false
 	for _, p := range first {
 		pt := p.(map[string]any)

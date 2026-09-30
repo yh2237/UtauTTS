@@ -21,7 +21,6 @@ func TestEnglishCodaFloorReservesStopClosure(t *testing.T) {
 		if math.Abs(span-englishCodaMinStopMS) > 1e-9 || math.Abs(floor-englishCodaMinStopMS) > 1e-9 {
 			t.Fatalf("span=%v floor=%v", span, floor)
 		}
-		// モーラ総長は変えず、先行母音から再配分する。
 		if math.Abs(start+span-141.6) > 1e-9 {
 			t.Fatalf("coda must end at mora end: start=%v span=%v", start, span)
 		}
@@ -52,7 +51,6 @@ func TestEnglishCodaFloorClampsToVowelMinimum(t *testing.T) {
 	if math.Abs(span-55) > 1e-9 || math.Abs(start-45) > 1e-9 || math.Abs(floor-55) > 1e-9 {
 		t.Fatalf("clamp failed: start=%v span=%v floor=%v", start, span, floor)
 	}
-	// 上限がcoda長を下回る場合は何もしない。
 	shortStart, shortSpan, shortFloor := speechEndingTiming(mora, []float64{20, 25, 30}, 0, 0, 75)
 	if math.Abs(shortStart-45) > 1e-9 || math.Abs(shortSpan-30) > 1e-9 || shortFloor != 0 {
 		t.Fatalf("short mora changed: start=%v span=%v floor=%v", shortStart, shortSpan, shortFloor)

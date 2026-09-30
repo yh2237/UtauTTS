@@ -1,4 +1,4 @@
-// Package providerは外部合成providerとのプロセス境界を提供する。契約固有の入力はプロトコルに埋め込まず、ホスト管理のjobファイルで渡す。
+// providerパッケージは外部合成プロセスとの通信を扱う。入力はホスト管理のjobファイルで渡す。
 package provider
 
 import (
@@ -22,13 +22,12 @@ const (
 	MessageShutdown   = "shutdown"
 )
 
-// ContractSupportはproviderが実装する1つの契約バージョンを示す。ハンドシェイクで複数契約を通知できる。
+// ハンドシェイクで対応する契約とバージョンを通知する。
 type ContractSupport struct {
 	Name    string `json:"name"`
 	Version int    `json:"version"`
 }
 
-// Helloはproviderセッションが最初に送るメッセージ。
 type Hello struct {
 	Type            string            `json:"type"`
 	Protocol        string            `json:"protocol"`
@@ -50,7 +49,6 @@ type RenderRequest struct {
 	OutputPath      string `json:"output_path"`
 }
 
-// Progressは実行中リクエストの進捗をbest-effortで報告する。
 type Progress struct {
 	Type      string  `json:"type"`
 	RequestID string  `json:"request_id"`
@@ -76,7 +74,6 @@ type AudioArtifact struct {
 	Channels   int    `json:"channels"`
 }
 
-// Resultは1つの描画リクエストを完了させる。
 type Result struct {
 	Type      string         `json:"type"`
 	RequestID string         `json:"request_id"`
@@ -108,7 +105,7 @@ type messageHeader struct {
 	Type string `json:"type"`
 }
 
-// decodeMessageはプロトコル1行をデコードする。未知の型は拒否し、providerによる暗黙のダウングレードを防ぐ。
+// 未知の型を拒否し、暗黙のプロトコル変更を防ぐ。
 func decodeMessage(data []byte) (any, error) {
 	var header messageHeader
 	if err := json.Unmarshal(data, &header); err != nil {

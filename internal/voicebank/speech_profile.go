@@ -43,7 +43,6 @@ type SpeechProfile struct {
 	Reason                     string  `json:"reason"`
 }
 
-// ClearSpeechProfilesは解析キャッシュを消去する。
 func (b *Bank) ClearSpeechProfiles() {
 	b.validationMu.Lock()
 	defer b.validationMu.Unlock()

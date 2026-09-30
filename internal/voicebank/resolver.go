@@ -469,9 +469,7 @@ func candidateScore(language string, candidateTier int, entry oto.Entry) float64
 		score -= 20 + math.Abs(entry.Preutterance-entry.Fixed)
 	}
 	if entry.Overlap <= entry.Preutterance || language == frontend.LanguageEnglish {
-		// 英語のC+V/VCCVは子音と母音を分けて録音するため、母音のoverlapが
-		// preutteranceを超えるのが仕様。慣習違反として減点すると、tier差を
-		// 食って中間母音(ah)より文頭形(- ah)が選ばれてしまう。
+		// C+V/VCCVの母音はoverlapがpreutteranceを超えても正常。減点すると文頭形が優先される。
 		score += 4
 	} else {
 		score -= 20 + math.Abs(entry.Overlap-entry.Preutterance)
@@ -497,10 +495,7 @@ func localCandidateScore(candidate Selection) float64 {
 	return candidate.TargetScore + candidate.PreferenceScore
 }
 
-// pruneCandidatesは候補が上限を超えたときだけ切り詰める。
-// 局所スコア上位を基本にしつつ、ソースファイルが異なる候補を
-// minDistinctSourceCandidates件まで確保し、同一ソースへの偏りを防ぐ。
-// 上限以下では並び替えず、既存の選択を変えない。
+// 上限超過時だけ絞り込み、別録音の候補も残す。上限以下では順序を変えない。
 func pruneCandidates(candidates []Selection) []Selection {
 	if len(candidates) <= maxCandidatesPerPosition {
 		return candidates
@@ -516,13 +511,11 @@ func pruneCandidates(candidates []Selection) []Selection {
 	selected := make([]Selection, 0, limit)
 	chosen := make([]bool, len(ranked))
 
-	// 多様性の枠を残して局所スコア上位を採用する。
 	for index := 0; index < len(ranked) && len(selected) < limit-reserve; index++ {
 		selected = append(selected, ranked[index])
 		chosen[index] = true
 	}
 
-	// 未採用の候補から、まだ出ていないソースファイルのものをスコア順に補充する。
 	sources := make(map[string]bool, limit)
 	for _, candidate := range selected {
 		sources[candidate.Entry.Filename] = true
@@ -540,7 +533,6 @@ func pruneCandidates(candidates []Selection) []Selection {
 		chosen[index] = true
 	}
 
-	// 多様性の枠が埋まらない分はスコア順で上限まで埋める。
 	for index := 0; index < len(ranked) && len(selected) < limit; index++ {
 		if chosen[index] {
 			continue
@@ -638,11 +630,7 @@ func aliasCandidates(mora, previousVowel string, phraseStart bool) []aliasCandid
 	return aliasCandidatesWithPolicy(mora, previousVowel, phraseStart, AliasPolicyAuto)
 }
 
-// equivalentKanaFormsは、専用録音がない場合に使える同音の仮名を返す。
-//
-//	を = お、ぢ = じ、づ = ず、ゐ = い、ゑ = え
-//
-// 小書き仮名の組み合わせは別の音なので含めない。
+// 専用録音がない場合の同音候補。小書き仮名の組み合わせは別音なので含めない。
 func equivalentKanaForms(mora string) []string {
 	switch mora {
 	case "を":

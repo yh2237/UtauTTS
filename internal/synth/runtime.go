@@ -7,7 +7,6 @@ import (
 	"utautts/internal/render"
 )
 
-// RuntimeConfigは全合成の入口で共有するプロセス依存設定。
 type RuntimeConfig struct {
 	Renderer                              string
 	WorldlineBridgePath                   string
@@ -16,7 +15,6 @@ type RuntimeConfig struct {
 	RendererDirectories, ModelDirectories []string
 }
 
-// Runtimeは検出済みプラグインカタログと、それから構築したServiceを保持する。
 type Runtime struct {
 	Catalog  *plugin.Catalog
 	Renderer string

@@ -6,17 +6,16 @@ import (
 	"utautts/internal/prosody"
 )
 
-// 日本語のモーラ長を韻律特徴へ控えめに連動させる係数。
-// 話し言葉寄りの強い短縮は避け、読み上げとして自然な範囲に留める。
+// 読み上げ向けに、文脈による伸縮を控えめにする。
 const (
 	japaneseContextMinFactor        = 0.8
 	japaneseContextMaxFactor        = 1.3
-	japaneseAccentPhraseEndFactor   = 1.15 // アクセント句末はやや伸ばす
-	japanesePhraseFinalFactor       = 1.2  // 文末・ポーズ前は伸ばす
-	japaneseQuestionFinalFactor     = 1.25 // 疑問文の文末はさらに伸ばす
-	japaneseParticleFactor          = 0.85 // 助詞・助動詞は短め
-	japaneseContentWordStartFactor  = 1.05 // 自立語の語頭をごく僅かに伸ばす
-	japaneseContextBoundaryPresence = 0.5  // 0/1特徴の真偽判定しきい値
+	japaneseAccentPhraseEndFactor   = 1.15
+	japanesePhraseFinalFactor       = 1.2
+	japaneseQuestionFinalFactor     = 1.25
+	japaneseParticleFactor          = 0.85
+	japaneseContentWordStartFactor  = 1.05
+	japaneseContextBoundaryPresence = 0.5 // 0/1特徴の真偽判定しきい値
 )
 
 // japaneseContextDurationFactorsは各モーラの長さ倍率を韻律特徴から求める。
@@ -92,12 +91,10 @@ func applyJapaneseContextDuration(cfg Config, morae []frontend.Mora, features []
 	return predictions
 }
 
-// contextDurationEnabledはC1が有効かを返す。未指定(nil)は無効。
 func contextDurationEnabled(cfg Config) bool {
 	return cfg.ContextDuration != nil && *cfg.ContextDuration
 }
 
-// contextDurationStrengthは適用強度を返す。0は既定1.0、負値はそのまま返す。
 func contextDurationStrength(cfg Config) float64 {
 	if cfg.ContextDurationStrength == 0 {
 		return 1
@@ -105,7 +102,6 @@ func contextDurationStrength(cfg Config) float64 {
 	return cfg.ContextDurationStrength
 }
 
-// hasJapaneseContextFeaturesは長さ制御に使える韻律特徴が含まれるかを返す。
 func hasJapaneseContextFeatures(features []prosody.FeatureFrame) bool {
 	for _, feature := range features {
 		for key, value := range feature {
@@ -121,7 +117,6 @@ func hasJapaneseContextFeatures(features []prosody.FeatureFrame) bool {
 	return false
 }
 
-// isParticleLikeFeatureはpos/pos_group1特徴から助詞・助動詞を判定する。
 func isParticleLikeFeature(feature prosody.FeatureFrame) bool {
 	for key, value := range feature {
 		if value < japaneseContextBoundaryPresence {
@@ -141,7 +136,6 @@ func isParticleLikeFeature(feature prosody.FeatureFrame) bool {
 	return false
 }
 
-// isPhraseFinalMoraは文末またはポーズ前のモーラかを返す。
 func isPhraseFinalMora(morae []frontend.Mora, index int) bool {
 	if index+1 >= len(morae) {
 		return true
@@ -149,7 +143,6 @@ func isPhraseFinalMora(morae []frontend.Mora, index int) bool {
 	return morae[index+1].Pause
 }
 
-// isUtteranceFinalMoraは後続がポーズだけの最終発話モーラかを返す。
 func isUtteranceFinalMora(morae []frontend.Mora, index int) bool {
 	for i := index + 1; i < len(morae); i++ {
 		if !morae[i].Pause {

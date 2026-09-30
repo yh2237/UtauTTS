@@ -12,8 +12,7 @@ import (
 	"utautts/internal/oto"
 )
 
-// SingleCVAudit はボイスバンクの単独音向けタイミング情報を表す
-// trim後の音声とoto.iniだけを使うためRenderer選択前にも利用できる
+// 切り出した音声とoto.iniだけを使うため、レンダラー選択前にも利用できる。
 type SingleCVAudit struct {
 	Voicebank             string         `json:"voicebank"`
 	EntryCount            int            `json:"entry_count"`

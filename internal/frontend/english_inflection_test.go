@@ -18,10 +18,10 @@ func testEnglishInflectionAllomorphs(t *testing.T) {
 		{"cats'", "K AE1 T S"},
 		{"walked", "W AO1 K T"},
 		{"played", "P L EY1 D"},
-		{"wanted", ""}, // "want" and the name "wante" are ambiguous.
+		{"wanted", ""}, // wantと固有名詞wanteの両方に一致する。
 		{"lifted", "L IH1 F T IH0 D"},
 		{"running", "R AH1 N IH0 NG"},
-		{"making", ""}, // Both "mak" and "make" occur in CMUdict.
+		{"making", ""}, // CMUdictにmakとmakeの両方がある。
 		{"tried", "T R AY1 D"},
 		{"babies", "B EY1 B IY0 Z"},
 	} {

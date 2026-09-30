@@ -28,7 +28,6 @@ type UtauTTSProject struct {
 	SelectedIndex int                `json:"selected_index,omitempty"`
 }
 
-// UtauTTSUtteranceは1枚の合成カード。
 type UtauTTSUtterance struct {
 	Text                 string                       `json:"text"`
 	VoicebankID          string                       `json:"voicebank_id"`
@@ -55,13 +54,11 @@ type UtauTTSUtterance struct {
 	AnalysisCache        UtauTTSAnalysisCache         `json:"analysis_cache"`
 }
 
-// UtauTTSAnalysisCacheはカードの読みとモーラ解析結果を保持する。
 type UtauTTSAnalysisCache struct {
 	Reading string        `json:"reading"`
 	Morae   []UtauTTSMora `json:"morae"`
 }
 
-// UtauTTSMoraは解析済み読みの1モーラ。
 type UtauTTSMora struct {
 	Position  int    `json:"position"`
 	Mora      string `json:"mora"`
@@ -70,7 +67,6 @@ type UtauTTSMora struct {
 	Vowel     string `json:"vowel,omitempty"`
 }
 
-// LoadUtauTTSProjectは.utauttsを読み込み、検証する。
 func LoadUtauTTSProject(path string) (*UtauTTSProject, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -79,7 +75,6 @@ func LoadUtauTTSProject(path string) (*UtauTTSProject, error) {
 	return ParseUtauTTSProject(data)
 }
 
-// ParseUtauTTSProjectは.utauttsのJSONを解析し、検証する。
 func ParseUtauTTSProject(data []byte) (*UtauTTSProject, error) {
 	var project UtauTTSProject
 	if err := json.Unmarshal(data, &project); err != nil {
@@ -106,7 +101,6 @@ func ParseUtauTTSProject(data []byte) (*UtauTTSProject, error) {
 	return &project, nil
 }
 
-// ExportOptionsはUSTX出力を制御する。
 type ExportOptions struct {
 	// ProjectNameはUSTXのプロジェクト名(既定値はUtauTTS Project)。
 	ProjectName string
@@ -122,7 +116,6 @@ type FrameCurve struct {
 	Cents   []float64
 }
 
-// curveCentsAtは時刻tMSの輪郭値を線形補間する。
 func curveCentsAt(curve *FrameCurve, tMS float64) float64 {
 	if curve == nil || curve.FrameMS <= 0 || len(curve.Cents) == 0 {
 		return 0
@@ -139,7 +132,6 @@ func curveCentsAt(curve *FrameCurve, tMS float64) float64 {
 	return curve.Cents[left]*(1-progress) + curve.Cents[left+1]*progress
 }
 
-// ExportUSTXはUtauTTSプロジェクトをUSTXのYAMLへ変換する。
 func ExportUSTX(project *UtauTTSProject, opts ExportOptions) ([]byte, error) {
 	if opts.ProjectName == "" {
 		opts.ProjectName = "UtauTTS Project"
@@ -219,7 +211,6 @@ func ExportUSTX(project *UtauTTSProject, opts ExportOptions) ([]byte, error) {
 	return data, nil
 }
 
-// hasVoicedMoraは休止以外のモーラがあるか返す。
 func hasVoicedMora(utterance UtauTTSUtterance) bool {
 	for _, mora := range utterance.AnalysisCache.Morae {
 		if !mora.Pause && mora.Mora != "" {

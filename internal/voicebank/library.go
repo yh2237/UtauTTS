@@ -7,26 +7,22 @@ import (
 	"sync"
 )
 
-// Libraryは発見済み音源と安定IDをまとめて保持する。
-// 責務は発見と選択のみで、表示用メタデータの導出は呼び出し側に委ねる。
+// 表示用メタデータの導出は呼び出し側に委ね、音源の発見と選択だけを扱う。
 type Library struct {
 	root  string
 	mu    sync.RWMutex
 	items map[string]Summary
 }
 
-// LibraryItemは発見済み音源と安定IDの組。
 type LibraryItem struct {
 	ID      string
 	Summary Summary
 }
 
-// NewLibraryはconfiguredをルートとする空のライブラリを生成する。
 func NewLibrary(configured string) *Library {
 	return &Library{root: ResolveDirectory(configured), items: make(map[string]Summary)}
 }
 
-// Rootは発見と安定IDに使う解決済みディレクトリを返す。
 func (l *Library) Root() string {
 	if l == nil {
 		return ""

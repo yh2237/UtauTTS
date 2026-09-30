@@ -76,7 +76,6 @@ func TestResolveSynthesisUsesDirectVoicebankPathAndNormalizesKana(t *testing.T) 
 	}
 }
 
-// renderer_settingsの既知idが型ごとにConfig/ProviderOptionsへ反映される。
 func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 	cfg := tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)}
 	options := render.ProviderOptions{}
@@ -130,7 +129,6 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 	}
 }
 
-// 未知idはエラーにせずProviderOptions.Rendererへ保持する。
 func TestApplyRendererSettingsUnknownGoesToProviderOptions(t *testing.T) {
 	cfg := tts.Config{}
 	options := render.ProviderOptions{}
@@ -147,7 +145,6 @@ func TestApplyRendererSettingsUnknownGoesToProviderOptions(t *testing.T) {
 	}
 }
 
-// 型不一致はエラーではなく無視し、診断だけ残す。
 func TestApplyRendererSettingsTypeMismatchIsIgnored(t *testing.T) {
 	cfg := tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)}
 	options := render.ProviderOptions{}
@@ -164,7 +161,6 @@ func TestApplyRendererSettingsTypeMismatchIsIgnored(t *testing.T) {
 	}
 }
 
-// mapが与えられたら固定フィールドより優先し、無ければ固定フィールドを保つ。
 func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 	service := NewService(&plugin.Catalog{
 		Renderers: []plugin.Renderer{testRenderer("waveform", "waveform")},
@@ -203,7 +199,6 @@ func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 	}
 }
 
-// renderer_settings経由でもClassicツール選択が効く。
 func TestRendererSettingsRouteClassicTools(t *testing.T) {
 	directory := t.TempDir()
 	resamplerPath := filepath.Join(directory, "resampler")

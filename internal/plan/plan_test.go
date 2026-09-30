@@ -202,7 +202,6 @@ func TestBuildAttachesProfilesForStretchAdapt(t *testing.T) {
 	}
 }
 
-// 未指定のモーラ長・ポーズ長はcanonicalな既定値へ揃う。
 func TestBuildUsesCanonicalDurationDefaults(t *testing.T) {
 	morae, err := frontend.ParseKana("あ、")
 	if err != nil {

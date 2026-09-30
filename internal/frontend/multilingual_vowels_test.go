@@ -79,7 +79,7 @@ func TestChineseUmlautUsesPresampClassesAcrossSpellings(t *testing.T) {
 			t.Fatal("explicit class overwritten")
 		}
 	}
-	// These vowels must stay distinct; only ue/ve spellings are interchangeable.
+	// u/v表記を相互補完するのはüeだけ。他の母音は区別する。
 	for _, spelling := range []string{"nu", "lu", "nv", "lv", "ju", "qu", "xu"} {
 		if got := chineseAliasSpellings(spelling); !reflect.DeepEqual(got, []string{spelling}) {
 			t.Fatal("different vowels conflated", spelling, got)

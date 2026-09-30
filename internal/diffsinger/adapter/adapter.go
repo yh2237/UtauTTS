@@ -1,5 +1,4 @@
-// Package adapterはDiffSinger実装をprovider非依存のニューラル契約へ適合させる。
-// このパッケージはinternal/ttsをimportせず、低層のneural.Inputだけを入力に取る。
+// adapterパッケージはDiffSingerを共通のニューラル合成契約へ適合させる。
 package adapter
 
 import (
@@ -17,7 +16,6 @@ import (
 	"utautts/internal/render"
 )
 
-// SynthesizerはDiffSinger実装をニューラルprovider契約へ適合させる。
 type Synthesizer struct{}
 
 func (Synthesizer) ProviderID() engine.ProviderID { return diffsinger.ProviderID }
@@ -222,7 +220,6 @@ func phoneWeightsAt(weights [][]float64, index int) []float64 {
 	return nil
 }
 
-// phoneSpansFromWeightsは重みの比率でモーラ長を音素へ配分する。
 func phoneSpansFromWeights(weights []float64, duration float64) []float64 {
 	result := make([]float64, len(weights))
 	total := 0.0

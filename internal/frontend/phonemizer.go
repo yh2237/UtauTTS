@@ -62,7 +62,6 @@ func ParseEnglishDeltaWithConfig(text, reading string, dictionary map[string]str
 	return ParseEnglishDeltaWithOptions(text, reading, dictionary, config, DefaultEnglishOptions())
 }
 
-// ParseEnglishDeltaWithOptionsはデルタ式CVVCで英語オプションを適用する。
 func ParseEnglishDeltaWithOptions(text, reading string, dictionary map[string]string, config PresampConfig, options EnglishOptions) (string, []Mora, error) {
 	return parseEnglishSyllables(text, reading, dictionary, deltaEnglishSymbols, " ", true, config, options)
 }
@@ -72,7 +71,6 @@ func ParseEnglishVCCV(text, reading string, dictionary map[string]string) (strin
 	return ParseEnglishVCCVWithOptions(text, reading, dictionary, DefaultEnglishOptions())
 }
 
-// ParseEnglishVCCVWithOptionsはCz式VCCVで英語オプションを適用する。
 func ParseEnglishVCCVWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, []Mora, error) {
 	return parseEnglishSyllables(text, reading, dictionary, vccvEnglishSymbols, " ", false, PresampConfig{}, options)
 }
@@ -592,7 +590,6 @@ func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (s
 	return ParseEnglishARPAsingWithOptions(text, reading, dictionary, DefaultEnglishOptions())
 }
 
-// ParseEnglishARPAsingWithOptionsはARPAsingで英語オプションを適用する。
 func ParseEnglishARPAsingWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, []Mora, error) {
 	pronunciation, words, err := englishPronunciationWithOptions(text, reading, dictionary, options)
 	if err != nil {
@@ -654,7 +651,6 @@ func ParseEnglishCV(text, reading string, dictionary map[string]string) (string,
 	return ParseEnglishCVWithOptions(text, reading, dictionary, DefaultEnglishOptions())
 }
 
-// ParseEnglishCVWithOptionsはC+V形式で英語オプションを適用する。
 func ParseEnglishCVWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, []Mora, error) {
 	pronunciation, words, err := englishPronunciationWithOptions(text, reading, dictionary, options)
 	if err != nil {

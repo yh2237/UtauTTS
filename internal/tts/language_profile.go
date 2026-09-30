@@ -10,29 +10,21 @@ import (
 	"utautts/internal/render"
 )
 
-// languageProfileは言語ごとの振る舞いをまとめる。オーケストレーターは
-// profileの選択と共通処理の実行だけを行い、言語分岐を持たない。
-// renderer固有の判定は持たず、capability経由の共通処理へ委ねる。
+// 言語固有処理をまとめる。レンダラーの判定は共通処理のcapabilityへ委ねる。
 type languageProfile interface {
-	// Languageは言語コードを返す。
 	Language() string
-	// ParsePronunciationはphonemizerごとの発音解析を行う。
 	ParsePronunciation(cfg Config, phonemizer string) (string, []frontend.Mora, error)
-	// ApplySpeechProfileは言語固有の描画設定をConfigへ反映する。
 	ApplySpeechProfile(cfg *Config)
 	// ProsodyModelFallbackは指定モデルが言語非対応のときの代替パスを返す。無ければ空。
 	ProsodyModelFallback(configuredPath string) string
-	// SupportsStretchAdaptは伸縮の音源適応(C3a)の対象かを返す。
 	SupportsStretchAdapt() bool
 	// PhoneTimingは言語phone weightsとその出所を返す。無効時はnil。
 	PhoneTiming(cfg Config, morae []frontend.Mora, singleCV bool) ([][]float64, string)
 	// Predictは言語規則による基本予測を返す。無ければnil。
 	Predict(morae []frontend.Mora) []prosody.Prediction
-	// AdjustPredictionsは予測へ言語固有の後処理を加える。
 	AdjustPredictions(cfg Config, model *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction, features []prosody.FeatureFrame) []prosody.Prediction
 	// AutomaticPitchCurveは規則ベースの自動F0曲線を返す。enablePitchは描画を強制するか。
 	AutomaticPitchCurve(cfg Config, model *prosody.Model, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*render.PitchCurve, bool)
-	// ApplyBoundaryToneは自動曲線へ言語固有の境界音調を加える。
 	ApplyBoundaryTone(cfg Config, curve *render.PitchCurve, durationMS float64, question bool) *render.PitchCurve
 	// ExperimentalPitchAllowedはapplyPitch無効でもpitch実験を適用するか（声調言語）。
 	ExperimentalPitchAllowed() bool
@@ -97,7 +89,6 @@ func resolveProsodyModelForProfile(cfg Config, profile languageProfile) (*prosod
 	return loadProsodyModelCached(path)
 }
 
-// englishFallbackProsodyModelPathは同じmodelsディレクトリの英語モデルを返す。
 func englishFallbackProsodyModelPath(configuredPath string) string {
 	return filepath.Join(filepath.Dir(configuredPath), "frame-intonation-tcn-en-v1.json")
 }

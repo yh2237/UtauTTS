@@ -72,8 +72,7 @@ func New(config Config) (*Engine, error) {
 	return engine, nil
 }
 
-// warmUpは初回操作の待ち時間を減らすため、既定モデルの推論とOpen JTalkヘルパー・辞書を
-// バックグラウンドで事前に用意する。失敗しても無視する。
+// 初回操作の待ち時間を減らすため、モデルと辞書を事前に準備する。失敗しても起動は続ける。
 func (e *Engine) warmUp() {
 	modelID := ""
 	if e.catalog != nil && len(e.catalog.Models) > 0 {
@@ -165,8 +164,7 @@ type installVoicebankRequest struct {
 	Name    string `json:"name,omitempty"`
 }
 
-// installVoicebankは音源ZIPをvoiceディレクトリへ展開し、音源一覧を再読込する。
-// ZIP内に単一のトップディレクトリがあればそれを音源フォルダ名として採用する。
+// ZIPの最上位ディレクトリが1つなら、その名前を音源フォルダ名に使う。
 func (e *Engine) installVoicebank(data []byte) (any, error) {
 	var request installVoicebankRequest
 	if len(data) != 0 {
@@ -279,8 +277,7 @@ func findVoicebankRoot(root string) string {
 	return best
 }
 
-// zipEntryNameはZIPエントリ名を返す。UTF-8フラグが無い場合はShift_JISとして復号する。
-// UTAU音源ZIPはWindowsで作られ、ファイル名がCP932のことが多い。
+// UTAU音源ZIPの慣習に合わせ、UTF-8フラグがなければShift_JISとして復号する。
 func zipEntryName(file *zip.File) string {
 	name := file.Name
 	if file.NonUTF8 {
@@ -666,7 +663,6 @@ func (e *Engine) writeExo(data []byte) (any, error) {
 	return map[string]any{"exo_path": outputPath}, nil
 }
 
-// exportUstxは現在のプロジェクト設定をOpenUtauのUSTXへ書き出す。
 func (e *Engine) exportUstx(data []byte) (any, error) {
 	var request struct {
 		OutputPath string          `json:"output_path"`
@@ -754,7 +750,6 @@ func (e *Engine) enrichAndCurves(project *openutau.UtauTTSProject) []openutau.Fr
 	return curves
 }
 
-// previewMoraeはプロソディプレビューのモーラ列をプロジェクト形式へ変換する。
 func previewMorae(morae []frontend.Mora) []openutau.UtauTTSMora {
 	result := make([]openutau.UtauTTSMora, len(morae))
 	for index, mora := range morae {

@@ -262,7 +262,7 @@ func analyzeOpenJTalkCached(ctx context.Context, text string, cfg openjtalk.Conf
 
 // ClearCachesは音源やランタイム資源の更新後に合成入力を破棄する。
 func ClearCaches() {
-	// DiffSinger bridgeはモデルパス単位でONNXセッションを保持するため、音源/モデル再読込後に同一パスの旧モデルが子プロセスに残らないようここで閉じる。
+	// 同じパスの旧モデルが子プロセスに残らないよう、ONNXセッションも閉じる。
 	_ = neural.CloseSessions()
 	synthesisCache.Lock()
 	synthesisCache.banks = make(map[string]*voicebank.Bank)

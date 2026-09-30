@@ -95,7 +95,7 @@ func SpectralTiltDB(spectrumDB []float64) float64 {
 	return high - low
 }
 
-// SpectralTiltDeltaは2フレームのスペクトル傾斜の差の絶対値を返す。傾斜が近いほど接合が自然になりやすい。
+// 傾斜差が小さいほど自然な接合とみなす。
 func SpectralTiltDelta(left, right []float64) float64 {
 	return math.Abs(SpectralTiltDB(left) - SpectralTiltDB(right))
 }

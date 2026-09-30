@@ -108,7 +108,6 @@ func testParseKanaPauseKinds(t *testing.T) {
 	}
 }
 
-// 連続する句読点は1つのポーズにまとめ、優先度が高い種類を採用する。
 func testParseKanaConsecutivePauseKinds(t *testing.T) {
 	cases := []struct {
 		reading string
