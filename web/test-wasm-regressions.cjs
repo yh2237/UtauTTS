@@ -138,13 +138,13 @@ test("Worker failure after ready completes pending calls and preserves queued re
   assert.equal(completed[1].result.ok, false);
 });
 
-function mobileState(items) {
+function sharedState(items) {
   const context = vm.createContext({
     console, UnitOverrides: {},
     utterances: { get count() { return items.length; }, get(i) { return items[i]; },
       setProperty(i, key, value) { items[i][key] = value; } },
-    analysisTimer: { restart() {} },
-    mPitchEditor: { refresh() {} }, mPhonemeEditor: {}, player: { stop() {} },
+    prosodyPreviewTimer: { restart() {} },
+    player: { stop() {} },
   });
   const overrides = vm.createContext({});
   vm.runInContext(source("qt/qml/UnitOverrides.js"), overrides);
@@ -152,23 +152,24 @@ function mobileState(items) {
   context.window = context;
   context.selectedIndex = 0;
   context.appBackend = { busy: false, error: "", predictProsody() {} };
-  context.editorRevision = 0;
+  context.pendingProsodyInFlight = false;
   context.synthesisUnits = [];
-  const qml = source("qt/qml/MobileMain.qml");
+  const qml = source("qt/qml/Main.qml");
   for (const match of qml.matchAll(/^    function [\s\S]*?^    }/gm))
     vm.runInContext(match[0], context);
+  context.beginHistoryChange = () => {};
+  context.markUtteranceDirty = () => {};
+  context.scheduleAutoPreview = () => {};
   return context;
 }
 
-test("mobile PIT edits and reset immediately use the shared canonical override format", () => {
+test("both layouts update and reset the same canonical unit overrides", () => {
   const item = { utteranceId: "a", revision: 0, phonemeOverridesJson: "[]" };
-  const context = mobileState([item]);
-  context.updateIntonationUnitOverride(2, "pitch_factor", 1.7);
+  const context = sharedState([item]);
+  context.updateUnitOverride(2, "pitch_factor", 1.7);
   assert.deepEqual(JSON.parse(item.phonemeOverridesJson), [{ unit_index: 2, pitch_factor: 1.7 }]);
-  assert.equal(context.mPhonemeEditor.overrides[0].unit_index, 2);
-  context.clearIntonationUnitOverride(2);
+  context.clearUnitOverride(2);
   assert.deepEqual(JSON.parse(item.phonemeOverridesJson), []);
-  assert.equal(context.mPhonemeEditor.overrides.length, 0);
 });
 
 test("shared PhonemeEditor reads canonical overrides and live preview before synthesis values", () => {
@@ -190,66 +191,70 @@ test("shared PhonemeEditor reads canonical overrides and live preview before syn
   assert.equal(context.unitValue(2, "pitch_factor"), 1.7);
 });
 
-test("mobile rejects outdated prosody and resolves moved utterances by identity", () => {
+test("shared controller rejects outdated prosody and resolves moved utterances by identity", () => {
   const items = [ { utteranceId: "a", revision: 2 }, { utteranceId: "b", revision: 0 } ];
-  const context = mobileState(items);
+  const context = sharedState(items);
+  vm.runInContext(source("qt/qml/Main.qml").match(/^        function onProsodyChanged\([\s\S]*?^        }/m)[0], context);
   context.pendingProsodyRequestId = "request";
   context.pendingProsodyUtteranceId = "a";
   context.pendingProsodyRevision = 1;
   context.appBackend.prosodyRequestId = "request";
   context.appBackend.prosodyJson = '{"reading":"old","morae":[]}';
-  context.refreshEditorInputs = () => {};
-  context.core = { moraStartsFromCenters() { return []; } };
-  context.applyProsodyResult();
+  context.applyPronunciation = (index, reading) => { items[index].reading = reading; };
+  context.applyAutomaticProsody = () => {};
+  context.applyAutomaticFramePitch = () => {};
+  context.scheduleExtendedEditorWaveform = () => {};
+  context.onProsodyChanged();
   assert.equal(items[0].reading, undefined);
   context.pendingProsodyRevision = 2;
   items.reverse();
-  context.applyProsodyResult();
+  context.onProsodyChanged();
   assert.equal(items[1].reading, "old");
   assert.equal(items[0].reading, undefined);
 });
 
-test("mobile coalesces identical prosody requests and waits for busy Backend", () => {
-  const context = mobileState([{ utteranceId: "a", revision: 1, content: "hello", moraeJson: "[]" }]);
+test("shared controller coalesces identical prosody requests and retries busy Backend", () => {
+  const context = sharedState([{ utteranceId: "a", revision: 1, content: "hello", moraeJson: "[]" }]);
   let requests = 0;
   context.buildProsodyRequest = () => ({});
   context.appBackend.predictProsody = () => requests++;
-  context.ensureSelectionAnalyzed();
-  context.ensureSelectionAnalyzed();
+  context.requestProsodyPreview(0);
+  context.requestProsodyPreview(0);
   assert.equal(requests, 1);
   context.utterances.get(0).revision++;
   context.appBackend.busy = true;
-  context.ensureSelectionAnalyzed();
+  context.requestProsodyPreview(0);
   assert.equal(requests, 1);
   context.appBackend.busy = false;
-  context.ensureSelectionAnalyzed();
+  context.requestProsodyPreview(0);
   assert.equal(requests, 2);
 });
 
-test("mobile does not display or play synthesis from an older revision or another utterance", () => {
+test("shared controller does not display or play synthesis from an older revision or another utterance", () => {
   const item = { utteranceId: "a", revision: 2 };
-  const context = mobileState([item]);
-  const handler = source("qt/qml/MobileMain.qml")
+  const context = sharedState([item]);
+  const handler = source("qt/qml/Main.qml")
     .match(/^        function onPreviewReady\([\s\S]*?^        }/m)[0];
   vm.runInContext(handler, context);
   let plays = 0;
   context.player.source = "previous";
   context.player.play = () => plays++;
-  context.refreshEditorInputs = () => {};
+  context.updateSynthesisViewFromBackend = () => {
+    context.synthesisUnits = JSON.parse(context.appBackend.synthesisJson).units;
+  };
   context.appBackend.previewUrl = "generated";
   context.appBackend.synthesisJson = '{"units":[{"pitch_factor":1.4}]}';
-  context.pendingSynthesisId = "a";
-  context.pendingSynthesisRevision = 1;
-  context.playAfterSynthesize = true;
+  context.pendingUtteranceId = "a";
+  context.pendingRevision = 1;
   context.onPreviewReady();
   assert.equal(context.player.source, "previous");
   assert.equal(plays, 0);
-  context.pendingSynthesisRevision = 2;
-  context.pendingSynthesisId = "b";
+  context.pendingRevision = 2;
+  context.pendingUtteranceId = "b";
   context.onPreviewReady();
   assert.equal(context.synthesisUnits.length, 0);
-  context.pendingSynthesisId = "a";
-  context.playAfterSynthesize = true;
+  context.pendingUtteranceId = "a";
+  context.pendingRevision = 2;
   context.onPreviewReady();
   assert.equal(context.player.source, "generated");
   assert.equal(context.synthesisUnits[0].pitch_factor, 1.4);

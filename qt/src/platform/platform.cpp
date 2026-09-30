@@ -1,6 +1,7 @@
 #include "platform/platform.h"
 
 #include <QtQml>
+#include <QUrlQuery>
 
 #ifdef UTAUTTS_WASM
 #include <emscripten/val.h>
@@ -8,6 +9,18 @@
 
 Platform::Platform(QObject *parent)
     : QObject(parent) {
+#ifdef UTAUTTS_WASM
+    const auto window = emscripten::val::global("window");
+    const QString search = QString::fromStdString(window["location"]["search"].as<std::string>());
+    const QString override = QUrlQuery(search.startsWith('?') ? search.mid(1) : search)
+            .queryItemValue(QStringLiteral("mobile"));
+    if (override == QLatin1String("1"))
+        m_mobileOverride = 1;
+    else if (override == QLatin1String("0"))
+        m_mobileOverride = 0;
+    if (!window["innerWidth"].isUndefined())
+        updateViewportWidth(window["innerWidth"].as<double>());
+#endif
 }
 
 bool Platform::isWeb() const {
@@ -23,28 +36,31 @@ bool Platform::isDesktop() const {
 }
 
 bool Platform::isMobile() const {
+    return m_mobile;
+}
+
+void Platform::updateViewportWidth(qreal width) {
 #ifdef UTAUTTS_WASM
-    // 検証用にURLで上書きできる（?mobile=1 / ?mobile=0）。
-    const emscripten::val window = emscripten::val::global("window");
-    if (!window["location"].isUndefined()) {
-        const std::string search = window["location"]["search"].as<std::string>();
-        if (search.find("mobile=1") != std::string::npos) {
-            return true;
-        }
-        if (search.find("mobile=0") != std::string::npos) {
-            return false;
-        }
-    }
-    // スマホ/タブレット判定はタッチ対応かつ小さいビューポートを目安にする。
-    const emscripten::val navigator = emscripten::val::global("navigator");
-    const int touchPoints = navigator["maxTouchPoints"].isUndefined()
-            ? 0 : navigator["maxTouchPoints"].as<int>();
-    const double width = window["innerWidth"].isUndefined()
-            ? 0.0 : window["innerWidth"].as<double>();
-    return touchPoints > 0 && width > 0.0 && width < 768.0;
-#else
-    return false;
+    // Use the browser viewport rather than a transient QML initial size or
+    // the client area reduced by Qt's window decorations.
+    const auto viewport = emscripten::val::global("window")["innerWidth"];
+    if (!viewport.isUndefined())
+        width = viewport.as<double>();
 #endif
+    const bool mobile = isWeb() && (m_mobileOverride >= 0
+            ? m_mobileOverride == 1 : width > 0 && width < 768);
+#ifdef UTAUTTS_WASM
+    // Expose the active layout to the HTML host as well as QML.
+    const auto screen = emscripten::val::global("document")
+            .call<emscripten::val>("getElementById", std::string("screen"));
+    if (!screen.isNull() && !screen.isUndefined())
+        screen.call<void>("setAttribute", std::string("data-layout"),
+                          std::string(mobile ? "mobile" : "desktop"));
+#endif
+    if (mobile == m_mobile)
+        return;
+    m_mobile = mobile;
+    emit layoutChanged();
 }
 
 bool Platform::hasNativeFileDialog() const {

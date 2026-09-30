@@ -19,8 +19,8 @@ ApplicationWindow {
     required property string injectedIntonationLabExamples
     width: 1240
     height: 850
-    minimumWidth: 880
-    minimumHeight: 600
+    minimumWidth: Platform.isWeb ? 0 : 880
+    minimumHeight: Platform.isWeb ? 0 : 600
     visible: !injectedSelfTest
     title: intonationLab ? "UtauTTS Intonation Lab" : injectedAppName
     color: palette.window
@@ -45,6 +45,16 @@ ApplicationWindow {
     readonly property var appBackend: injectedBackend
     readonly property bool darkMode: appBackend.darkMode
     readonly property bool intonationLab: injectedIntonationLab
+    readonly property bool mobileLayout: Platform.isMobile && !window.intonationLab
+    onWidthChanged: Platform.updateViewportWidth(width)
+    onMobileLayoutChanged: {
+        if (!mobileLayout && window.showOnboarding && onboardingWindowLoader)
+            onboardingWindowLoader.active = true;
+        if (mobileLayout && window.menuBar) {
+            for (const menu of window.menuBar.menus)
+                menu.close();
+        }
+    }
     readonly property bool showOnboarding: !window.injectedSelfTest && !window.intonationLab
                                              && !window.appBackend.onboardingCompleted
     readonly property var licenseDocuments: injectedLegalDocuments
@@ -139,6 +149,7 @@ ApplicationWindow {
     property string pendingUtteranceId: ""
     property int pendingRevision: -1
     property string pendingProsodyRequestId: ""
+    property bool pendingProsodyInFlight: false
     property string pendingProsodyUtteranceId: ""
     property int pendingProsodyRevision: -1
     property int pendingProsodyPreviewIndex: -1
@@ -372,17 +383,21 @@ ApplicationWindow {
         }
     }
 
-    DragSourceWindow {
-        id: dragTargetWindow
-        hostPalette: window.palette
-        backend: window.appBackend
-        translator: window.translator
-        files: window.dragExportFiles
-        exportDirectory: window.batchExportDirectory
-        ready: window.dragExportReady
-        accent: window.accent
-        mutedText: window.mutedText
-        onDragError: window.showLogWindow()
+    readonly property var dragTargetWindow: dragTargetWindowLoader.item
+    Loader {
+        id: dragTargetWindowLoader
+        active: Platform.hasNativeFileDialog
+        sourceComponent: DragSourceWindow {
+            hostPalette: window.palette
+            backend: window.appBackend
+            translator: window.translator
+            files: window.dragExportFiles
+            exportDirectory: window.batchExportDirectory
+            ready: window.dragExportReady
+            accent: window.accent
+            mutedText: window.mutedText
+            onDragError: window.showLogWindow()
+        }
     }
 
     Loader {
@@ -486,13 +501,16 @@ ApplicationWindow {
         }
     }
 
-    OnboardingWindow {
-        id: onboardingWindow
-        hostWindow: window
-        hostPalette: window.palette
-        backend: window.appBackend
-        translator: window.translator
-        visible: window.showOnboarding
+    Loader {
+        id: onboardingWindowLoader
+        active: !Platform.isWeb
+        sourceComponent: OnboardingWindow {
+            hostWindow: window
+            hostPalette: window.palette
+            backend: window.appBackend
+            translator: window.translator
+            visible: window.showOnboarding && !window.mobileLayout
+        }
     }
 
     Timer {
@@ -870,7 +888,7 @@ ApplicationWindow {
             window.assignDefaultSynthesisSettings(suppressDirty);
             window.metadataInitialized = true;
             if (suppressDirty)
-                window.resetHistory(false);
+                window.resetHistory(window.projectDirty);
             if (window.intonationLab && !window.intonationLabInitialized)
                 Qt.callLater(window.initializeIntonationLab);
         }
@@ -890,6 +908,7 @@ ApplicationWindow {
         function onProsodyChanged() {
             if (window.appBackend.prosodyRequestId !== window.pendingProsodyRequestId)
                 return;
+            window.pendingProsodyInFlight = false;
             const index = window.utteranceIndex(window.pendingProsodyUtteranceId);
             if (index < 0 || utterances.get(index).revision !== window.pendingProsodyRevision)
                 return;
@@ -1005,6 +1024,10 @@ ApplicationWindow {
         }
 
         function onErrorChanged() {
+            if (window.appBackend.error.length) {
+                window.pendingProsodyInFlight = false;
+                window.pendingProsodyUtteranceId = "";
+            }
             if (window.metadataReloadActive && window.appBackend.error.length) {
                 window.metadataReloadActive = false;
                 metadataReloadDialog.close();
@@ -1034,6 +1057,9 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
+        Platform.updateViewportWidth(width);
+        if (!window.mobileLayout && window.showOnboarding)
+            onboardingWindowLoader.active = true;
         window.translator.load(window.appBackend.resolvedLanguage());
         window.applyAudioOutputDevice();
         if (window.intonationLab)
@@ -1057,6 +1083,8 @@ ApplicationWindow {
     }
 
     menuBar: MenuBar {
+        visible: !window.mobileLayout
+        height: visible ? implicitHeight : 0
         Menu {
             id: fileMenu
             title: window.translator.tr("menu.file")
@@ -1291,10 +1319,24 @@ ApplicationWindow {
 
 
     header: ToolBar {
-        visible: window.intonationLab
-        height: visible ? 44 : 0
+        visible: window.intonationLab || window.mobileLayout
+        height: window.mobileLayout ? 56 : window.intonationLab ? 44 : 0
 
         RowLayout {
+            anchors.fill: parent
+            visible: window.mobileLayout
+            Item { Layout.fillWidth: true }
+            ToolButton {
+                text: "☰"
+                font.pixelSize: 30
+                Layout.preferredWidth: 64
+                Layout.preferredHeight: 56
+                onClicked: mobileChrome.openMenu()
+            }
+        }
+
+        RowLayout {
+            visible: window.intonationLab
             anchors.fill: parent
             anchors.leftMargin: 14
             anchors.rightMargin: 10
@@ -1336,6 +1378,13 @@ ApplicationWindow {
         id: editorContent
         window: window
         anchors.fill: parent
+    }
+
+    MobileChrome {
+        id: mobileChrome
+        anchors.fill: parent
+        window: window
+        visible: window.mobileLayout
     }
 
     function current() {
@@ -1514,6 +1563,8 @@ ApplicationWindow {
     }
 
     function showLogWindow() {
+        if (window.mobileLayout)
+            return;
         if (synthesisLogWindowLoader.item)
             window.showAuxiliaryWindow(synthesisLogWindowLoader.item);
         else
@@ -3229,7 +3280,7 @@ ApplicationWindow {
             labEntryId: "",
             voicebankId: voice ? voice.id : "",
             imagePath: voice ? voice.image_path || "" : "",
-            modelId: window.defaultModelIdForLanguage(language),
+            modelId: window.metadataInitialized ? window.defaultModelIdForLanguage(language) : "",
             renderer: Platform.hasDiffsinger && voice && String(voice.kind || "") === "diffsinger"
                     ? "diffsinger" : (window.appBackend.renderers.length ? window.defaultRendererId() : ""),
             aliasPolicy: window.appBackend.defaultAliasPolicy,
@@ -3511,10 +3562,14 @@ ApplicationWindow {
             prosodyPreviewTimer.restart();
             return;
         }
+        if (window.pendingProsodyInFlight && window.pendingProsodyUtteranceId === item.utteranceId
+                && window.pendingProsodyRevision === item.revision)
+            return;
         const requestId = item.utteranceId + ":" + item.revision + ":" + Date.now();
         window.pendingProsodyRequestId = requestId;
         window.pendingProsodyUtteranceId = item.utteranceId;
         window.pendingProsodyRevision = item.revision;
+        window.pendingProsodyInFlight = true;
         window.appBackend.predictProsody(window.buildProsodyRequest(item, requestId));
     }
 
@@ -3607,7 +3662,8 @@ ApplicationWindow {
         if (dragExportSucceeded && files.length) {
             window.dragExportFiles = window.dragFilesWithExo(files);
             window.dragExportReady = true;
-            window.showAuxiliaryWindow(dragTargetWindow);
+            if (dragTargetWindow)
+                window.showAuxiliaryWindow(dragTargetWindow);
         } else if (!success && wasDragExport) {
             window.dragExportReady = false;
         }

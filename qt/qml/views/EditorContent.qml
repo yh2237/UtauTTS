@@ -7,6 +7,7 @@ import UtauTTS.Media
     SplitView {
         id: editorSplitView
         required property var window
+        readonly property bool mobileLayout: window.mobileLayout
         readonly property bool extendedPitchEditorVisible: pitchModeTabs.currentIndex === 1
 
         property alias pitchEditor: pitchEditor
@@ -51,7 +52,7 @@ import UtauTTS.Media
         orientation: Qt.Vertical
         handle: Item {
             implicitWidth: editorSplitView.width
-            implicitHeight: 10
+            implicitHeight: editorSplitView.mobileLayout ? 0 : 10
 
             Rectangle {
                 anchors.left: parent.left
@@ -63,6 +64,7 @@ import UtauTTS.Media
         }
 
         SplitView {
+            id: utteranceSplitView
             SplitView.fillHeight: !window.intonationLab
             SplitView.preferredHeight: window.intonationLab ? 66 : -1
             SplitView.minimumHeight: window.intonationLab ? 66 : 0
@@ -71,8 +73,9 @@ import UtauTTS.Media
 
             Pane {
                 SplitView.fillWidth: true
-                SplitView.minimumWidth: window.intonationLab ? 0 : 560
-                padding: 10
+                SplitView.minimumWidth: window.intonationLab || editorSplitView.mobileLayout
+                        ? 0 : Math.min(560, Math.max(0, editorSplitView.width - 280))
+                padding: editorSplitView.mobileLayout ? 12 : 10
                 background: Rectangle {
                     color: window.palette.window
                 }
@@ -99,7 +102,7 @@ import UtauTTS.Media
                         property alias textEditor: utteranceEditor
 
                         visible: !window.intonationLab || card.index === window.selectedIndex
-                        width: Math.max(0, utteranceList.width - 14 - 2)
+                        width: Math.max(0, utteranceList.width - (editorSplitView.mobileLayout ? 0 : 16))
                         height: visible ? 46 : 0
 
                         RowLayout {
@@ -152,6 +155,8 @@ import UtauTTS.Media
 
                             TextField {
                                 id: utteranceEditor
+                                objectName: "utteranceText" + card.index
+                                Accessible.name: window.translator.tr("main.textPlaceholder")
                                 readOnly: window.intonationLab
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 42
@@ -190,15 +195,22 @@ import UtauTTS.Media
                                     anchors.centerIn: parent
                                     width: 22
                                     height: 22
-                                    text: "\ue5d4"
+                                    text: editorSplitView.mobileLayout ? "\ue3c9" : "\ue5d4"
                                     color: cardMenuButton.palette.buttonText
                                     font.family: iconFont.name
                                     font.pixelSize: 20
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
-                                visible: !window.intonationLab && card.index === window.selectedIndex
-                                onClicked: cardMenu.open()
+                                visible: !window.intonationLab && (editorSplitView.mobileLayout || card.index === window.selectedIndex)
+                                onClicked: {
+                                    if (editorSplitView.mobileLayout) {
+                                        window.selectUtterance(card.index);
+                                        utteranceSettingsDialog.open();
+                                    } else {
+                                        cardMenu.open();
+                                    }
+                                }
 
                                 Menu {
                                     id: cardMenu
@@ -281,10 +293,10 @@ import UtauTTS.Media
                     visible: !window.intonationLab
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    anchors.rightMargin: 24
-                    anchors.bottomMargin: 8
-                    width: 48
-                    height: 48
+                    anchors.rightMargin: editorSplitView.mobileLayout ? 0 : 24
+                    anchors.bottomMargin: editorSplitView.mobileLayout ? 0 : 8
+                    width: editorSplitView.mobileLayout ? 52 : 48
+                    height: width
                     highlighted: true
                     z: 2
                     contentItem: Text {
@@ -303,7 +315,10 @@ import UtauTTS.Media
             }
 
             Pane {
-                visible: !window.intonationLab
+                id: parameterPane
+                parent: editorSplitView.mobileLayout ? utteranceSettingsDialog.contentItem : utteranceSplitView
+                anchors.fill: editorSplitView.mobileLayout ? parent : undefined
+                visible: !window.intonationLab && (!editorSplitView.mobileLayout || utteranceSettingsDialog.opened)
                 SplitView.preferredWidth: visible ? 268 : 0
                 SplitView.minimumWidth: visible ? 238 : 0
                 SplitView.maximumWidth: visible ? 340 : 0
@@ -781,7 +796,8 @@ import UtauTTS.Media
         Pane {
             id: pitchPane
             SplitView.fillHeight: window.intonationLab
-            SplitView.preferredHeight: window.intonationLab ? 0 : 330
+            SplitView.preferredHeight: window.intonationLab ? 0 : editorSplitView.mobileLayout
+                    ? Math.min(352, Math.max(150, editorSplitView.height - 96)) : 330
             SplitView.minimumHeight: 150
             padding: 0
             clip: true
@@ -820,7 +836,7 @@ import UtauTTS.Media
                         anchors.topMargin: 1
                         height: 35
                         radius: 3
-                        color: window.palette.alternateBase
+                        color: editorSplitView.mobileLayout ? "transparent" : window.palette.alternateBase
                         z: 1
 
                         Rectangle {
@@ -1168,4 +1184,45 @@ import UtauTTS.Media
             }
         }
 
+        Dialog {
+            id: utteranceSettingsDialog
+            exit: Transition {}
+            parent: Overlay.overlay
+            modal: true
+            width: parent ? parent.width : 0
+            height: parent ? parent.height : 0
+            padding: 0
+            header: WindowHeader {
+                heading: window.translator.tr("menu.settings")
+                onCloseClicked: utteranceSettingsDialog.close()
+            }
+            contentItem: Item {}
+            footer: RowLayout {
+                visible: editorSplitView.mobileLayout
+                Button {
+                    Layout.fillWidth: true
+                    text: window.translator.tr("main.card.moveUp")
+                    enabled: window.selectedIndex > 0
+                    onClicked: window.moveUtterance(-1)
+                }
+                Button {
+                    Layout.fillWidth: true
+                    text: window.translator.tr("main.card.moveDown")
+                    enabled: window.selectedIndex + 1 < window.utterancesModel.count
+                    onClicked: window.moveUtterance(1)
+                }
+                Button {
+                    text: window.translator.tr("main.card.delete")
+                    onClicked: {
+                        window.removeUtterance();
+                        utteranceSettingsDialog.close();
+                    }
+                }
+            }
+        }
+
+        onMobileLayoutChanged: {
+            if (!mobileLayout)
+                utteranceSettingsDialog.close();
+        }
     }
