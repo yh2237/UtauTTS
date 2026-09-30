@@ -7,7 +7,7 @@ require (
 	github.com/ikawaha/kagome/v2 v2.11.0
 	github.com/mozillazg/go-pinyin v0.21.0
 	github.com/yh2237/audiodsp v0.3.0
-	github.com/yh2237/utauio v0.1.0
+	github.com/yh2237/utauio v0.2.0
 	golang.org/x/text v0.39.0
 	gopkg.in/yaml.v3 v3.0.1
 )

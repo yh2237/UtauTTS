@@ -75,11 +75,11 @@ notices remain under licenses/Go in the release package.
 utauio
 ======
 
-UtauTTS uses github.com/yh2237/utauio v0.1.0 for oto.ini parsing and
+UtauTTS uses github.com/yh2237/utauio v0.2.0 for oto.ini/presamp.ini parsing and
 Japanese text decoding. The library was extracted from UtauTTS and is
 distributed under the MIT License, Copyright (c) 2026 yh.
 Its license is included as
-licenses/Go/github_com_yh2237_utauio-v0.1.0-LICENSE.txt.
+licenses/Go/github_com_yh2237_utauio-v0.2.0-LICENSE.txt.
 
 Source: https://github.com/yh2237/utauio
 
@@ -92,7 +92,7 @@ WSOLA time stretching, linear interpolation and log-frequency amplitudes.
 The library was extracted from UtauTTS and is distributed under the
 MIT License, Copyright (c) 2026 yh. It has no external module dependencies.
 Its license text is identical to utauio's and is included once as
-licenses/Go/github_com_yh2237_utauio-v0.1.0-LICENSE.txt.
+licenses/Go/github_com_yh2237_utauio-v0.2.0-LICENSE.txt.
 
 Source: https://github.com/yh2237/audiodsp
 
