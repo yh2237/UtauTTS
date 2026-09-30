@@ -16,11 +16,6 @@ export GOARCH=wasm
 
 goroot="$(go env GOROOT)"
 cp "${goroot}/lib/wasm/wasm_exec.js" "${dist}/wasm_exec.js"
-cp "${script_dir}/index.html" "${dist}/index.html"
-cp "${script_dir}/main.js" "${dist}/main.js"
-cp "${script_dir}/config.js" "${dist}/config.js"
-cp "${script_dir}/client.js" "${dist}/client.js"
-cp "${script_dir}/worker.js" "${dist}/worker.js"
 cp "${script_dir}/fs-shim.js" "${dist}/fs-shim.js"
 cp "${script_dir}/openjtalk-bridge.js" "${dist}/openjtalk-bridge.js"
 cp "${script_dir}/world-bridge.js" "${dist}/world-bridge.js"
@@ -43,4 +38,4 @@ if [ -n "${voice_zip}" ]; then
 fi
 
 echo "Built ${dist}"
-echo "Serve it with:  python -m http.server --directory \"${dist}\""
+echo "Build the browser UI next with qt/wasm/build.sh"

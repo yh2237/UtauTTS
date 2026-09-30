@@ -1,7 +1,9 @@
-// ブラウザと同じ web/dist レイアウト（fsシム + manifest経由の辞書 + modelPath）で通し検証する。
+// ブラウザと同じ web/dist レイアウト（fsシム + manifest経由の辞書 + モデル/辞書カタログ）で
+// native.Engine.call 経由の解析・抑揚プレビューを通し検証する。
 "use strict";
 
 const fs = require("fs");
+const assert = require("node:assert/strict");
 const path = require("path");
 const { TextEncoder, TextDecoder } = require("util");
 
@@ -13,6 +15,7 @@ if (!globalThis.crypto) {
 }
 
 const DIST = path.join(__dirname, "dist");
+const ROOT = path.join(__dirname, "..");
 require(path.join(DIST, "wasm_exec.js"));
 const { installVirtualFs } = require(path.join(__dirname, "fs-shim.js"));
 const { createOpenJTalkBridge } = require(path.join(__dirname, "openjtalk-bridge.js"));
@@ -32,11 +35,23 @@ function waitFor(predicate, timeoutMS) {
 const MODEL_PATH = "/models/frame-intonation-tcn-v9.1-t.json";
 const DICT_PATH = "/dict";
 
+function call(method, request) {
+  const raw = globalThis.utauttsWasm.call(method, JSON.stringify(request || {}));
+  const parsed = JSON.parse(String(raw));
+  if (!parsed || parsed.ok !== true)
+    throw new Error(method + ": " + ((parsed && parsed.error) || raw));
+  return parsed.result;
+}
+
 (async () => {
   const virtualFs = installVirtualFs({ cwd: "/" });
   virtualFs.mountFile(
     MODEL_PATH,
     new Uint8Array(fs.readFileSync(path.join(DIST, "models", "frame-intonation-tcn-v9.1-t.json")))
+  );
+  virtualFs.mountFile(
+    "/renderer/utautts-world-phrase/renderer.json",
+    new Uint8Array(fs.readFileSync(path.join(ROOT, "renderer", "utautts-world-phrase", "renderer.json")))
   );
 
   const Module = await require(path.join(DIST, "openjtalk", "utautts-openjtalk.js"))();
@@ -59,23 +74,26 @@ const DICT_PATH = "/dict";
   const go = new Go();
   const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
   go.run(instance);
-  await waitFor(() => globalThis.utauttsWasm && globalThis.utauttsWasm.predictProsody, 10000);
+  await waitFor(() => globalThis.utauttsWasm && globalThis.utauttsWasm.call, 10000);
 
-  const raw = globalThis.utauttsWasm.predictProsody({
+  const modelID = call("models").models[0].id;
+  const data = call("predictProsody", {
     text: "こんにちは、今日はいい天気です。",
-    modelPath: MODEL_PATH,
-    strength: 1,
+    language: "ja",
+    phonemizer: "ja-kana",
+    model_id: modelID,
+    renderer: "utautts-world-phrase",
+    intonation_strength: 1,
+    apply_pitch: true,
   });
-  const data = JSON.parse(raw);
-  if (data.error) {
-    console.error("ERROR:", data.error);
-    process.exit(1);
-  }
+  assert.equal(data.reading, "コンニチワ、キョーワイイテンキデス。");
+  assert.equal(data.morae.length, 17);
+  assert.equal(data.prosody_model_applied, true);
+  assert.ok(data.frame_pitch_cents.length > 0);
   console.log(
     "ok: reading=" + data.reading,
     "morae=" + data.morae.length,
-    "frames=" + (data.framePitchCents || []).length,
-    "total=" + data.totalDurationMS.toFixed(1)
+    "frames=" + (data.frame_pitch_cents || []).length
   );
   process.exit(0);
 })().catch((error) => {

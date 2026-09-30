@@ -1,8 +1,10 @@
-// Node上でGo wasm + OpenJTalk wasm + WORLD wasm を統合し、テキストからWAVまで合成する。
+// Node上でGo wasm + OpenJTalk wasm + WORLD wasm を統合し、native.Engine.call 経由で
+// テキストからWAVまで合成する。
 // 事前に web/build.ps1 と web/build-openjtalk.ps1 と web/build-world.ps1 を実行しておく。
 "use strict";
 
 const fs = require("fs");
+const assert = require("node:assert/strict");
 const path = require("path");
 const { TextEncoder, TextDecoder } = require("util");
 
@@ -72,9 +74,21 @@ async function loadWorld() {
   globalThis.utauttsWorld = createWorldBridge(Module);
 }
 
+function call(method, request) {
+  const raw = globalThis.utauttsWasm.call(method, JSON.stringify(request || {}));
+  const parsed = JSON.parse(String(raw));
+  if (!parsed || parsed.ok !== true)
+    throw new Error(method + ": " + ((parsed && parsed.error) || raw));
+  return parsed.result;
+}
+
 (async () => {
   const virtualFs = installVirtualFs({ cwd: "/" });
   virtualFs.mountFile(MODEL_PATH, new Uint8Array(fs.readFileSync(path.join(ROOT, "models", "frame-intonation-tcn-v9.1-t.json"))));
+  virtualFs.mountFile(
+    "/renderer/utautts-world-phrase/renderer.json",
+    new Uint8Array(fs.readFileSync(path.join(ROOT, "renderer", "utautts-world-phrase", "renderer.json")))
+  );
   console.log("voicebank files:", mountTree(virtualFs, VOICE_DIR, VOICE_PATH));
 
   await loadWorld();
@@ -87,32 +101,45 @@ async function loadWorld() {
   go.env = { TMPDIR: "/tmp", UTAUTTS_WORLD_PROFILE: "/out/profile.jsonl", UTAUTTS_TTS_PROFILE: "1" };
   const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
   go.run(instance);
-  await waitFor(() => globalThis.utauttsWasm && globalThis.utauttsWasm.synthesize, 10000);
+  await waitFor(() => globalThis.utauttsWasm && globalThis.utauttsWasm.call, 10000);
 
   const text = process.argv[2] || "こんにちは、今日はいい天気です。";
+  const modelID = call("models").models[0].id;
+  const voicebankID = call("voicebanks").voicebanks[0].id;
+  const base = {
+    text,
+    language: "ja",
+    phonemizer: "ja-kana",
+    model_id: modelID,
+    voicebank_id: voicebankID,
+    renderer: "utautts-world-phrase",
+    tone: "C4",
+    intonation_strength: 1,
+    apply_pitch: true,
+  };
+
   for (const label of ["predict", "predict2"]) {
     const started = Date.now();
-    globalThis.utauttsWasm.predictProsody({ text, modelPath: MODEL_PATH, strength: 1 });
+    call("predictProsody", base);
     console.log(label + " elapsed=" + (Date.now() - started) + "ms");
   }
   let data = null;
-  let raw = "";
   for (let run = 1; run <= 2; run++) {
     const started = Date.now();
-    raw = globalThis.utauttsWasm.synthesize({ text, modelPath: MODEL_PATH, voicebankPath: VOICE_PATH, outputPath: OUTPUT_PATH, strength: 1 });
+    data = call("synthesize", { ...base, output_path: OUTPUT_PATH });
     console.log("run " + run + " elapsed=" + (Date.now() - started) + "ms");
     const profile = virtualFs.readFile("/out/profile.jsonl");
     if (profile) console.log("profile " + run + ":", Buffer.from(profile).toString("utf8").trim());
   }
-  data = JSON.parse(raw);
-  if (data.error) {
-    console.error("ERROR:", data.error);
-    process.exit(1);
-  }
-  console.log("synthesize:", JSON.stringify(data));
+  assert.equal(data.engine, "utautts-world-phrase");
+  assert.ok(data.reading.length > 0 && data.duration_ms > 0 && data.units.length > 0);
+  console.log("synthesize:", data.engine, data.reading, data.duration_ms.toFixed(1) + "ms");
 
   const wav = virtualFs.readFile(OUTPUT_PATH);
   if (!wav) throw new Error("output WAV not found in virtual fs");
+  assert.ok(wav.length > 44);
+  assert.equal(Buffer.from(wav.subarray(0, 4)).toString("ascii"), "RIFF");
+  assert.equal(Buffer.from(wav.subarray(8, 12)).toString("ascii"), "WAVE");
   const outDir = path.join(DIST, "out");
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, "utautts.wav"), Buffer.from(wav));
