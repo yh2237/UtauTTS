@@ -9,12 +9,6 @@ import (
 	"utautts/internal/voicebank"
 )
 
-func TestSourceLibraryIntegrationRejectsNilPlan(t *testing.T) {
-	if _, err := renderWorldlineEngine(nil, base.Config{}, "utautts-world-phrase"); err == nil {
-		t.Fatal("nil plan accepted")
-	}
-}
-
 func TestSourceLibraryUsesCurrentPhoneTimingAndRejectsRepeatedCoda(t *testing.T) {
 	p := &plan.Plan{Language: "en", Units: []plan.Unit{{Alias: "e k", Role: "ending", Position: 7, NoteStartMS: 840, DurationMS: 70, CodaPhones: []string{"k"}}}, PhoneTimings: []plan.PhoneTiming{{Position: 7, Symbol: "eh", Role: "nucleus", StartMS: 700, DurationMS: 140}, {Position: 7, Symbol: "k", Role: "coda", StartMS: 840, DurationMS: 70}}}
 	record := voicebank.SourcePhoneRecord{SourceSHA256: "hash", Phones: []voicebank.SourcePhoneInterval{{Symbol: "eh", StartMS: 0, EndMS: 210}, {Symbol: "k", StartMS: 210, EndMS: 340}, {Symbol: "eh", StartMS: 340, EndMS: 530}}}

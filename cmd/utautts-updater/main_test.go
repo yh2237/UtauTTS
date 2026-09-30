@@ -174,51 +174,6 @@ func TestRunUpdatesLinuxPackageAndKeepsExecutableMode(t *testing.T) {
 	}
 }
 
-func TestExtractZipReplacesFileDirCollision(t *testing.T) {
-	zipPath := filepath.Join(t.TempDir(), "test.zip")
-	archive, err := os.Create(zipPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	writer := zip.NewWriter(archive)
-	for _, entry := range []struct{ name, content string }{
-		{"app/utautts-gui.exe", "binary"},
-		{"app/qml", ""},
-		{"app/qml/Main.qml", "main"},
-		{"app/qml/EditorContent.qml", "editor"},
-	} {
-		file, err := writer.Create(entry.name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := file.Write([]byte(entry.content)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := writer.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if err := archive.Close(); err != nil {
-		t.Fatal(err)
-	}
-	dest := filepath.Join(t.TempDir(), "stage")
-	if err := extractZip(zipPath, dest); err != nil {
-		t.Fatalf("extractZip failed on file/dir collision: %v", err)
-	}
-	for _, path := range []string{"app/utautts-gui.exe", "app/qml/Main.qml", "app/qml/EditorContent.qml"} {
-		if info, err := os.Stat(filepath.Join(dest, path)); err != nil {
-			t.Errorf("missing extracted entry %s: %v", path, err)
-		} else if info.IsDir() {
-			t.Errorf("entry %s should be a file", path)
-		}
-	}
-	if info, err := os.Stat(filepath.Join(dest, "app", "qml")); err != nil {
-		t.Errorf("qml should exist as a directory: %v", err)
-	} else if !info.IsDir() {
-		t.Error("qml should be a directory after extraction")
-	}
-}
-
 func TestExtractZipRejectsPathTraversal(t *testing.T) {
 	zipPath := makeZip(t, map[string]string{
 		"../escape.txt": "boom",

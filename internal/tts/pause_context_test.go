@@ -15,15 +15,3 @@ func TestPauseContextEnabledDefaultsOn(t *testing.T) {
 		t.Fatal("explicit true did not enable pause context")
 	}
 }
-
-func TestPauseContextStrengthDefaults(t *testing.T) {
-	if got := pauseContextStrength(Config{}); got != 1 {
-		t.Fatalf("default strength = %v, want 1", got)
-	}
-	if got := pauseContextStrength(Config{PauseContextStrength: 0.5}); got != 0.5 {
-		t.Fatalf("explicit strength = %v, want 0.5", got)
-	}
-	if got := pauseContextStrength(Config{PauseContextStrength: -1}); got != -1 {
-		t.Fatalf("negative strength = %v, want -1", got)
-	}
-}

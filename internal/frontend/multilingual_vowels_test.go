@@ -12,7 +12,15 @@ func TestEnglishSchwaAliasesPreserveLexicalPhones(t *testing.T) {
 		weak, strong string
 	}{{"delta", ParseEnglishDelta, "@", "V"}, {"vccv", ParseEnglishVCCV, "x", "u"}} {
 		t.Run(tc.name, func(t *testing.T) {
-			for _, vowel := range []string{"AH0", "AH1", "AH2", "AH", "AX"} {
+			for _, phone := range []struct {
+				vowel, symbol string
+				stress        int
+				stressKnown   bool
+			}{
+				{"AH0", "ah", 0, true}, {"AH1", "ah", 1, true}, {"AH2", "ah", 2, true},
+				{"AH", "ah", 0, false}, {"AX", "ax", 0, false},
+			} {
+				vowel := phone.vowel
 				reading, units, err := tc.parse("", "HH "+vowel+" N | SP", nil)
 				if err != nil {
 					t.Fatal(err)
@@ -24,8 +32,8 @@ func TestEnglishSchwaAliasesPreserveLexicalPhones(t *testing.T) {
 				if units[0].Vowel != want || reading != "HH "+vowel+" N | SP" {
 					t.Fatal(vowel, reading, units)
 				}
-				if units[0].Phones[1].Symbol != normalizeARPAbet(vowel) || units[0].Stress != arpabetStress(vowel) || units[0].StressKnown != arpabetHasStress(vowel) {
-					t.Fatal("lexical metadata changed", units[0])
+				if units[0].Phones[1].Symbol != phone.symbol || units[0].Stress != phone.stress || units[0].StressKnown != phone.stressKnown {
+					t.Fatal("lexical stress/phone metadata changed", vowel, units[0])
 				}
 				if units[0].Aliases.Endings[0][0] != want+" n-" {
 					t.Fatal("coda used wrong vowel", units[0].Aliases)
@@ -71,6 +79,7 @@ func TestChineseUmlautUsesPresampClassesAcrossSpellings(t *testing.T) {
 			t.Fatal("explicit class overwritten")
 		}
 	}
+	// These vowels must stay distinct; only ue/ve spellings are interchangeable.
 	for _, spelling := range []string{"nu", "lu", "nv", "lv", "ju", "qu", "xu"} {
 		if got := chineseAliasSpellings(spelling); !reflect.DeepEqual(got, []string{spelling}) {
 			t.Fatal("different vowels conflated", spelling, got)

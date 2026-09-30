@@ -88,6 +88,7 @@ func TestExportUSTX(t *testing.T) {
 		Format:        utauTTSProjectFormat,
 		FormatVersion: 5,
 		Utterances: []UtauTTSUtterance{
+			{Text: "未解析カード", VoicebankID: "unused-bank", Tone: "C4"},
 			{
 				Text:              "みなさん、こんにちは",
 				VoicebankID:       "熵尾音-真声",
@@ -201,39 +202,11 @@ func TestExportUSTX(t *testing.T) {
 	if secondPart["track_no"] != 1 {
 		t.Errorf("second part track_no = %v, want 1", secondPart["track_no"])
 	}
-}
-
-func TestExportUSTXSkipsEmptyUtterances(t *testing.T) {
-	project := &UtauTTSProject{
-		Format: utauTTSProjectFormat, FormatVersion: 5,
-		Utterances: []UtauTTSUtterance{
-			{Text: "未解析卡片", VoicebankID: "vb", Tone: "C4", AnalysisCache: UtauTTSAnalysisCache{}}, // no morae
-			{
-				Text: "こんにちは", VoicebankID: "vb", Tone: "C4",
-				MoraDurationMS: 140, PauseDurationMS: 180,
-				AnalysisCache: UtauTTSAnalysisCache{
-					Morae: []UtauTTSMora{{Position: 0, Mora: "こ", Vowel: "o"}},
-				},
-			},
-		},
-	}
-	data, err := ExportUSTX(project, ExportOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var parsed map[string]any
-	if err := yaml.Unmarshal(data, &parsed); err != nil {
-		t.Fatal(err)
-	}
-	parts := parsed["voice_parts"].([]any)
-	if len(parts) != 1 {
-		t.Fatalf("voice_parts = %d, want 1 (empty card skipped)", len(parts))
-	}
-
-	allEmpty := &UtauTTSProject{Format: utauTTSProjectFormat, FormatVersion: 5,
-		Utterances: []UtauTTSUtterance{{Text: "空", VoicebankID: "vb", Tone: "C4", AnalysisCache: UtauTTSAnalysisCache{}}}}
-	if _, err := ExportUSTX(allEmpty, ExportOptions{}); err == nil {
-		t.Error("expected error when no utterance has notes")
+	// Direct exports cannot analyze text: all-unanalyzed input must fail.
+	unparsed := &UtauTTSProject{Format: utauTTSProjectFormat, FormatVersion: 5,
+		Utterances: []UtauTTSUtterance{{Text: "未解析カード", VoicebankID: "vb", Tone: "C4"}}}
+	if _, err := ExportUSTX(unparsed, ExportOptions{}); err == nil {
+		t.Fatal("expected error when no utterance has notes")
 	}
 }
 

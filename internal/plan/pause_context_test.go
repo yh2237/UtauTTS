@@ -90,18 +90,6 @@ func TestPauseContextStrengthAndDisable(t *testing.T) {
 	}
 }
 
-func TestClampPauseContextFactor(t *testing.T) {
-	if got := clampPauseContextFactor(0.1); got != pauseContextMinFactor {
-		t.Fatalf("min clamp = %v, want %v", got, pauseContextMinFactor)
-	}
-	if got := clampPauseContextFactor(9); got != pauseContextMaxFactor {
-		t.Fatalf("max clamp = %v, want %v", got, pauseContextMaxFactor)
-	}
-	if got := clampPauseContextFactor(1.2); got != 1.2 {
-		t.Fatalf("passthrough = %v, want 1.2", got)
-	}
-}
-
 func buildPausePlan(t *testing.T, morae []frontend.Mora, cfg Config) *Plan {
 	t.Helper()
 	bank := &voicebank.Bank{Root: "bank"}

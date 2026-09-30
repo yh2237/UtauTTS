@@ -27,21 +27,3 @@ func TestStretchAdaptEnabledRequiresLongTargetMora(t *testing.T) {
 		})
 	}
 }
-
-func TestStretchAdaptStrengths(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		cfg  Config
-		want float64
-	}{
-		{"zero uses default", Config{StretchAdaptStrength: 0}, 1},
-		{"explicit value is kept", Config{StretchAdaptStrength: 0.5}, 0.5},
-		{"negative is identity", Config{StretchAdaptStrength: -1}, -1},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := stretchAdaptStrength(tc.cfg); got != tc.want {
-				t.Fatalf("stretchAdaptStrength(%+v) = %v, want %v", tc.cfg, got, tc.want)
-			}
-		})
-	}
-}

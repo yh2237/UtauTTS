@@ -1,6 +1,7 @@
 package tts
 
 import (
+	"math"
 	"testing"
 	"utautts/internal/frontend"
 	"utautts/internal/prosody"
@@ -104,9 +105,14 @@ func TestApplyJapaneseContextDurationMultipliesExistingFactor(t *testing.T) {
 		{DurationFactor: 2, PitchFactor: 1, EnergyFactor: 1},
 	}
 	enabled := true
-	result := applyJapaneseContextDuration(Config{ContextDuration: &enabled}, morae, features, predictions, false)
-	if result[1].DurationFactor != 2*japaneseParticleFactor {
-		t.Fatalf("particle factor = %.4f, want %.4f", result[1].DurationFactor, 2*japaneseParticleFactor)
+	for _, tc := range []struct {
+		strength, want float64
+	}{{0, 1.7}, {0.5, 1.85}, {1, 1.7}} {
+		input := append([]prosody.Prediction(nil), predictions...)
+		result := applyJapaneseContextDuration(Config{ContextDuration: &enabled, ContextDurationStrength: tc.strength}, morae, features, input, false)
+		if math.Abs(result[1].DurationFactor-tc.want) > 1e-9 {
+			t.Fatalf("strength %v: particle factor = %.4f, want %.4f", tc.strength, result[1].DurationFactor, tc.want)
+		}
 	}
 }
 
@@ -140,26 +146,6 @@ func TestApplyJapaneseContextDurationDefaultIsIdentity(t *testing.T) {
 		if prediction.DurationFactor != 1 {
 			t.Fatalf("default factor[%d] = %.4f, want 1", i, prediction.DurationFactor)
 		}
-	}
-}
-
-func TestApplyJapaneseContextDurationScalesDeviationByStrength(t *testing.T) {
-	morae := testMorae("き", "は", "な")
-	features := []prosody.FeatureFrame{{}, {"pos=助詞": 1}, {}}
-	predictions := []prosody.Prediction{
-		{DurationFactor: 2, PitchFactor: 1, EnergyFactor: 1},
-		{DurationFactor: 2, PitchFactor: 1, EnergyFactor: 1},
-		{DurationFactor: 2, PitchFactor: 1, EnergyFactor: 1},
-	}
-	enabled := true
-	half := applyJapaneseContextDuration(Config{ContextDuration: &enabled, ContextDurationStrength: 0.5}, morae, features, predictions, false)
-	want := 2 * (1 + (japaneseParticleFactor-1)*0.5)
-	if half[1].DurationFactor != want {
-		t.Fatalf("half strength factor = %.4f, want %.4f", half[1].DurationFactor, want)
-	}
-	// 強度0.5では助詞の短縮偏差が半分になり、係数は中立へ近づく。
-	if half[1].DurationFactor <= 2*japaneseParticleFactor {
-		t.Fatalf("half strength %.4f should be closer to the base 2 than full %.4f", half[1].DurationFactor, 2*japaneseParticleFactor)
 	}
 }
 
