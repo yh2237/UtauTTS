@@ -4,11 +4,42 @@ import (
 	"encoding/binary"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"unicode/utf16"
 
 	"golang.org/x/text/encoding/japanese"
 )
+
+func TestParseBytesMatchesFileEntryPoint(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "oto.ini")
+	data := []byte("\ufeffa.wav=あ,1,2,-3,4,5\na.wav=あ,6,7,-8,9,10\nbroken\n")
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	file, err := ReadIni(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	memory, err := ParseBytes(data, path, filepath.Dir(path))
+	if err != nil || !reflect.DeepEqual(file, memory) {
+		t.Fatalf("file and byte APIs differ: %v, %v", memory, err)
+	}
+}
+
+func TestParseBytesUTF16BEAndOddLength(t *testing.T) {
+	data := []byte{0xfe, 0xff}
+	for _, unit := range utf16.Encode([]rune("a.wav=あ,0,0,0,0,0\n")) {
+		data = binary.BigEndian.AppendUint16(data, unit)
+	}
+	ini, err := ParseBytes(data, "memory.ini", "relative")
+	if err != nil || ini.Encoding != "UTF-16BE" || ini.Entries["あ"][0].OtoPath != "memory.ini" {
+		t.Fatalf("BE parse: %v, %v", ini, err)
+	}
+	if _, err := ParseBytes(append(data, 0), "memory.ini", "relative"); err == nil {
+		t.Fatal("odd UTF-16 data accepted")
+	}
+}
 
 func TestDecodeUTF16LEWithBOM(t *testing.T) {
 	units := utf16.Encode([]rune("音源の説明です。\r\n"))
