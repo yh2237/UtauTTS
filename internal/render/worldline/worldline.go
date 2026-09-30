@@ -217,13 +217,12 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 	if cfg.TargetF0 != nil {
 		*cfg.TargetF0 = base.F0Track{StartMS: curveStartMS, FrameMS: frameMS, Hz: append([]float64(nil), manifest.F0Curve...)}
 	}
-	// bridgeへ渡す前にサンプルレートを揃える。一時ディレクトリはリサンプルが必要なときだけ作る。
-	var tempDir string
-	defer func() {
-		if tempDir != "" {
-			_ = os.RemoveAll(tempDir)
-		}
-	}()
+	// ジョブと出力は合成ごとに隔離し、リサンプル原音も同じ場所へ置く。
+	tempDir, err := os.MkdirTemp("", "utautts-worldline-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(tempDir)
 	normalizedSources := make(map[string]string)
 	for index := range synthesisPlan.Units {
 		unit := &synthesisPlan.Units[index]
@@ -236,12 +235,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		}
 		if mono.SampleRate == sampleRate {
 			continue
-		}
-		if tempDir == "" {
-			tempDir, err = os.MkdirTemp("", "utautts-worldline-")
-			if err != nil {
-				return nil, err
-			}
 		}
 		resampled, err := cache.LoadNormalized(unit.Source, sampleRate)
 		if err != nil {
