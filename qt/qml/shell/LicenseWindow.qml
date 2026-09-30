@@ -5,9 +5,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import UtauTTS.Platform 1.0
 
-ApplicationWindow {
+AdaptiveDialogWindow {
     id: root
-    required property var hostWindow
     required property var hostPalette
     required property var translator
     property alias documents: content.documents
@@ -15,15 +14,8 @@ ApplicationWindow {
 
     title: root.translator.tr("license.title")
     visible: false
-    width: 860
-    height: 620
-    minimumWidth: 860
-    maximumWidth: 860
-    minimumHeight: 620
-    maximumHeight: 620
-    transientParent: hostWindow
-    modality: Qt.ApplicationModal
-    flags: Platform.isWeb ? Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint : Qt.Dialog
+    dialogWidth: 860
+    dialogHeight: 620
     palette: hostPalette
     color: palette.window
 

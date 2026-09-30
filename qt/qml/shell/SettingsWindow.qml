@@ -5,9 +5,8 @@ import QtQuick.Controls
 import UtauTTS.Platform 1.0
 
 // 設定ウィンドウのホスト。中身は views/SettingsContent.qml が担当する。
-ApplicationWindow {
+AdaptiveDialogWindow {
     id: root
-    required property var hostWindow
     required property var hostPalette
     required property var backend
     required property var translator
@@ -18,17 +17,9 @@ ApplicationWindow {
 
     title: root.translator.tr("settings.title")
     visible: false
-    width: 720
-    height: 540
-    minimumWidth: 720
-    maximumWidth: 720
-    minimumHeight: 540
-    maximumHeight: 540
-    x: root.hostWindow.x + (root.hostWindow.width - width) / 2
-    y: root.hostWindow.y + (root.hostWindow.height - height) / 2
-    transientParent: hostWindow
-    modality: Qt.ApplicationModal
-    flags: Platform.isWeb ? Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint : Qt.Dialog
+    dialogWidth: 720
+    dialogHeight: 540
+    centerInHost: true
     palette: hostPalette
     color: palette.window
 

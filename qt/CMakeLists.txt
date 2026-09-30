@@ -106,6 +106,7 @@ qt_add_qml_module(utautts
         qml/AppCore.qml
         qml/UnitOverrides.js
         qml/Translator.qml
+        qml/shell/AdaptiveDialogWindow.qml
         qml/shell/SettingsWindow.qml
         qml/shell/DictionaryWindow.qml
         qml/shell/LicenseWindow.qml

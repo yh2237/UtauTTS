@@ -5,17 +5,23 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 // ライセンス表示の共有ビュー。ウィンドウ装飾は shell 側が担当する。
-RowLayout {
+GridLayout {
     id: content
     property var documents: []
+    readonly property bool compact: width < 600
 
     anchors.margins: 10
-    spacing: 8
+    columns: compact ? 1 : 2
+    columnSpacing: 8
+    rowSpacing: 8
 
     ListView {
         id: licenseList
-        Layout.preferredWidth: 210
-        Layout.fillHeight: true
+        Layout.preferredWidth: content.compact ? -1 : 210
+        Layout.preferredHeight: content.compact ? 48 : -1
+        Layout.fillWidth: content.compact
+        Layout.fillHeight: !content.compact
+        orientation: content.compact ? ListView.Horizontal : ListView.Vertical
         clip: true
         model: content.documents
         currentIndex: 0
@@ -23,7 +29,7 @@ RowLayout {
         delegate: ItemDelegate {
             required property int index
             required property var modelData
-            width: ListView.view.width
+            width: content.compact ? Math.max(120, implicitWidth) : ListView.view.width
             text: modelData.name
             highlighted: ListView.isCurrentItem
             onClicked: licenseList.currentIndex = index

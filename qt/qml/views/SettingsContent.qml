@@ -12,6 +12,7 @@ Item {
     required property var hostPalette
     required property var backend
     required property var translator
+    readonly property bool compact: width < 600
     property var audioOutputDevices: []
     signal applyRequested(bool closeAfter)
     signal closeRequested()
@@ -373,15 +374,20 @@ Item {
         return keyName ? parts.concat([keyName]).join("+") : "";
     }
 
-    RowLayout {
+    GridLayout {
         anchors.fill: parent
         anchors.margins: 12
-        spacing: 12
+        columns: root.compact ? 1 : 3
+        columnSpacing: 12
+        rowSpacing: 12
 
         ListView {
             id: settingsNavigation
-            Layout.preferredWidth: 170
-            Layout.fillHeight: true
+            Layout.preferredWidth: root.compact ? -1 : 170
+            Layout.preferredHeight: root.compact ? 48 : -1
+            Layout.fillWidth: root.compact
+            Layout.fillHeight: !root.compact
+            orientation: root.compact ? ListView.Horizontal : ListView.Vertical
             clip: true
             model: root.settingsPageLabels()
             currentIndex: root.currentPage
@@ -389,7 +395,7 @@ Item {
             delegate: ItemDelegate {
                 required property int index
                 required property string modelData
-                width: ListView.view.width
+                width: root.compact ? Math.max(96, implicitWidth) : ListView.view.width
                 text: modelData
                 highlighted: ListView.isCurrentItem
                 onClicked: root.currentPage = index
@@ -397,6 +403,7 @@ Item {
         }
 
         Rectangle {
+            visible: !root.compact
             Layout.preferredWidth: 1
             Layout.fillHeight: true
             color: root.hostWindow.borderColor
