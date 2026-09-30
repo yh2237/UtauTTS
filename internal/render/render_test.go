@@ -24,15 +24,6 @@ func TestRenderHonorsCanceledContext(t *testing.T) {
 	}
 }
 
-func containsString(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
-}
-
 func TestRenderIsDeterministicAndUsesAbsolutePlacement(t *testing.T) {
 	dir := t.TempDir()
 	path := dir + "/unit.wav"
@@ -856,71 +847,65 @@ func TestBestAlignedVowelSegmentFindsPhaseShift(t *testing.T) {
 	}
 }
 
-func TestStabilizeWorldlinePitchesCorrectsHarmonicJump(t *testing.T) {
-	got := stabilizeWorldlinePitches([]float64{296, 446, 298})
-	if math.Abs(got[1]-297.333333) > 2 {
-		t.Fatalf("stabilized harmonic pitch = %.2f, want near 297", got[1])
+func TestStabilizeWorldlinePitches(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		input []float64
+		want  []float64
+		tol   []float64
+	}{
+		{"corrects harmonic jump", []float64{296, 446, 298}, []float64{296, 297.333333, 298}, []float64{2, 2, 2}},
+		{"keeps lower short phrase anchor", []float64{296, 446}, []float64{296, 297.333333}, []float64{0.01, 2}},
+		{"keeps ordinary movement", []float64{280, 296, 315}, []float64{280, 296, 315}, []float64{0, 0, 0}},
+		{"corrects subharmonic drop", []float64{207, 69, 205}, []float64{207, 207, 205}, []float64{0, 1, 0}},
+		{"corrects near half pitch", []float64{207, 115, 205}, []float64{207, 230, 205}, []float64{0, 1, 0}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := stabilizeWorldlinePitches(tc.input)
+			if len(got) != len(tc.want) {
+				t.Fatalf("pitches = %v, want %d values", got, len(tc.want))
+			}
+			for index, want := range tc.want {
+				if math.IsNaN(got[index]) || math.Abs(got[index]-want) > tc.tol[index] {
+					t.Fatalf("pitch[%d] = %.3f, want %.3f (±%g) in %#v", index, got[index], want, tc.tol[index], got)
+				}
+			}
+		})
 	}
 }
 
-func TestStabilizeWorldlinePitchesKeepsLowerShortPhraseAnchor(t *testing.T) {
-	got := stabilizeWorldlinePitches([]float64{296, 446})
-	if math.Abs(got[0]-296) > 0.01 || math.Abs(got[1]-297.333333) > 2 {
-		t.Fatalf("short phrase pitches = %#v, want near [296, 297]", got)
-	}
-}
-
-func TestStabilizeWorldlinePitchesKeepsOrdinaryMovement(t *testing.T) {
-	input := []float64{280, 296, 315}
-	got := stabilizeWorldlinePitches(input)
-	for index := range input {
-		if got[index] != input[index] {
-			t.Fatalf("ordinary pitch[%d] changed from %.2f to %.2f", index, input[index], got[index])
+func TestStabilizeSingleCVPitches(t *testing.T) {
+	planFor := func(vowels ...string) *plan.Plan {
+		units := make([]plan.Unit, len(vowels))
+		morae := make([]frontend.Mora, len(vowels))
+		for index, vowel := range vowels {
+			units[index] = plan.Unit{Role: "mora", Position: index}
+			morae[index] = frontend.Mora{Vowel: vowel}
 		}
+		return &plan.Plan{SingleCV: true, Units: units, Morae: morae}
 	}
-}
-
-func TestStabilizeWorldlinePitchesCorrectsSubharmonicDrop(t *testing.T) {
-	got := stabilizeWorldlinePitches([]float64{207, 69, 205})
-	if math.Abs(got[1]-207) > 1 || got[0] != 207 || got[2] != 205 {
-		t.Fatalf("stabilized subharmonic pitches = %#v, want near [207, 207, 205]", got)
-	}
-}
-
-func TestStabilizeWorldlinePitchesCorrectsNearHalfPitch(t *testing.T) {
-	got := stabilizeWorldlinePitches([]float64{207, 115, 205})
-	if math.Abs(got[1]-230) > 1 || got[0] != 207 || got[2] != 205 {
-		t.Fatalf("stabilized near-half pitch = %#v, want near [207, 230, 205]", got)
-	}
-}
-
-func TestStabilizeSingleCVPitchesCorrectsModerateOutlier(t *testing.T) {
-	p := &plan.Plan{SingleCV: true, Units: []plan.Unit{
-		{Role: "mora", Position: 0}, {Role: "mora", Position: 1}, {Role: "mora", Position: 2},
-	}, Morae: []frontend.Mora{{Vowel: "a"}, {Vowel: "i"}, {Vowel: "u"}}}
-	got := stabilizeSingleCVPitches(p, []float64{207, 155, 208})
-	if math.Abs(got[1]-206.667) > 2 || got[0] != 207 || got[2] != 208 {
-		t.Fatalf("stabilized moderate outlier = %#v, want near [207, 207, 208]", got)
-	}
-}
-
-func TestStabilizeSingleCVPitchesCorrectsUntrackableLowOutlier(t *testing.T) {
-	p := &plan.Plan{SingleCV: true, Units: []plan.Unit{
-		{Role: "mora", Position: 0}, {Role: "mora", Position: 1}, {Role: "mora", Position: 2},
-	}, Morae: []frontend.Mora{{Vowel: "a"}, {Vowel: "a"}, {Vowel: "a"}}}
-	got := stabilizeSingleCVPitches(p, []float64{207, 86, 208})
-	if math.Abs(got[1]-207.5) > 2 || got[0] != 207 || got[2] != 208 {
-		t.Fatalf("stabilized low outlier = %#v, want near [207, 208, 208]", got)
-	}
-}
-
-func TestStabilizeSingleCVPitchesLeavesAmbiguousShortPhrase(t *testing.T) {
-	p := &plan.Plan{SingleCV: true, Units: []plan.Unit{
-		{Role: "mora", Position: 0}, {Role: "mora", Position: 1},
-	}, Morae: []frontend.Mora{{Vowel: "a"}, {Vowel: "i"}}}
-	got := stabilizeSingleCVPitches(p, []float64{207, 155})
-	if got[0] != 207 || got[1] != 155 {
-		t.Fatalf("ambiguous short phrase changed = %#v", got)
+	for _, tc := range []struct {
+		name   string
+		vowels []string
+		input  []float64
+		want   []float64
+		tol    []float64
+	}{
+		{"corrects moderate outlier", []string{"a", "i", "u"}, []float64{207, 155, 208}, []float64{207, 206.667, 208}, []float64{0, 2, 0}},
+		{"corrects untrackable low outlier", []string{"a", "a", "a"}, []float64{207, 86, 208}, []float64{207, 207.5, 208}, []float64{0, 2, 0}},
+		{"leaves ambiguous short phrase", []string{"a", "i"}, []float64{207, 155}, []float64{207, 155}, []float64{0, 0}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := stabilizeSingleCVPitches(planFor(tc.vowels...), tc.input)
+			if len(got) != len(tc.want) {
+				t.Fatalf("pitches = %v, want %d values", got, len(tc.want))
+			}
+			for index, want := range tc.want {
+				if math.IsNaN(got[index]) || math.Abs(got[index]-want) > tc.tol[index] {
+					t.Fatalf("pitch[%d] = %.3f, want %.3f (±%g) in %#v", index, got[index], want, tc.tol[index], got)
+				}
+			}
+		})
 	}
 }
 

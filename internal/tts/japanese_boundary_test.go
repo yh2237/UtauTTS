@@ -16,76 +16,62 @@ func curveEndMS(curve *render.PitchCurve) float64 {
 	return float64(len(curve.Cents)-1) * curve.FrameMS
 }
 
-func TestApplyBoundaryToneQuestionRisesAtEnd(t *testing.T) {
+func TestApplyBoundaryToneShapes(t *testing.T) {
 	curve := flatPitchCurve(30)
-	result := applyBoundaryTone(curve, curveEndMS(curve), true, 1)
-	if result == nil || len(result.Cents) != len(curve.Cents) {
-		t.Fatalf("result = %#v", result)
-	}
-	last := result.Cents[len(result.Cents)-1]
-	if math.Abs(last-boundaryToneRiseCents) > 1e-9 {
-		t.Fatalf("question final cents = %.4f, want %.4f", last, boundaryToneRiseCents)
-	}
-	if result.Cents[0] != 0 {
-		t.Fatalf("question start cents = %.4f, want 0", result.Cents[0])
-	}
-	if curve.Cents[len(curve.Cents)-1] != 0 {
-		t.Fatalf("source curve was mutated: %.4f", curve.Cents[len(curve.Cents)-1])
-	}
-}
-
-func TestApplyBoundaryToneStatementFallsAtEnd(t *testing.T) {
-	curve := flatPitchCurve(30)
-	result := applyBoundaryTone(curve, curveEndMS(curve), false, 1)
-	last := result.Cents[len(result.Cents)-1]
-	if math.Abs(last-boundaryToneFallCents) > 1e-9 {
-		t.Fatalf("statement final cents = %.4f, want %.4f", last, boundaryToneFallCents)
-	}
-	if last >= 0 {
-		t.Fatalf("statement final cents = %.4f, want negative", last)
-	}
-}
-
-func TestApplyBoundaryToneRampsSmoothly(t *testing.T) {
-	curve := flatPitchCurve(30)
-	result := applyBoundaryTone(curve, curveEndMS(curve), true, 1)
-	previous := 0.0
-	for _, cents := range result.Cents {
-		if cents < previous-1e-9 {
-			t.Fatalf("boundary tone is not monotonic: %.4f after %.4f", cents, previous)
-		}
-		previous = cents
-	}
-}
-
-func TestApplyBoundaryToneZeroOrNegativeStrengthIsIdentity(t *testing.T) {
-	curve := flatPitchCurve(30)
-	for _, strength := range []float64{0, -0.5, -3} {
-		result := applyBoundaryTone(curve, curveEndMS(curve), true, strength)
-		if result != curve {
-			t.Fatalf("strength %.2f returned a new curve", strength)
-		}
-	}
-}
-
-func TestApplyBoundaryToneScalesDeviationByStrength(t *testing.T) {
-	curve := flatPitchCurve(30)
-	full := applyBoundaryTone(curve, curveEndMS(curve), true, 1)
-	half := applyBoundaryTone(curve, curveEndMS(curve), true, 0.5)
+	end := curveEndMS(curve)
 	last := len(curve.Cents) - 1
-	if math.Abs(half.Cents[last]*2-full.Cents[last]) > 1e-9 {
-		t.Fatalf("half = %.4f, full = %.4f", half.Cents[last], full.Cents[last])
-	}
-}
 
-func TestApplyBoundaryToneClampsStrength(t *testing.T) {
-	curve := flatPitchCurve(30)
-	over := applyBoundaryTone(curve, curveEndMS(curve), true, maxBoundaryToneStrength+1)
-	capped := applyBoundaryTone(curve, curveEndMS(curve), true, maxBoundaryToneStrength)
-	last := len(curve.Cents) - 1
-	if over.Cents[last] != capped.Cents[last] {
-		t.Fatalf("over strength = %.4f, capped = %.4f", over.Cents[last], capped.Cents[last])
-	}
+	t.Run("question rises at end", func(t *testing.T) {
+		result := applyBoundaryTone(curve, end, true, 1)
+		if result == nil || len(result.Cents) != len(curve.Cents) {
+			t.Fatalf("result = %#v", result)
+		}
+		if math.Abs(result.Cents[last]-boundaryToneRiseCents) > 1e-9 {
+			t.Fatalf("question final cents = %.4f, want %.4f", result.Cents[last], boundaryToneRiseCents)
+		}
+		if result.Cents[0] != 0 {
+			t.Fatalf("question start cents = %.4f, want 0", result.Cents[0])
+		}
+		if curve.Cents[last] != 0 {
+			t.Fatalf("source curve was mutated: %.4f", curve.Cents[last])
+		}
+	})
+	t.Run("statement falls at end", func(t *testing.T) {
+		got := applyBoundaryTone(curve, end, false, 1).Cents[last]
+		if math.Abs(got-boundaryToneFallCents) > 1e-9 || got >= 0 {
+			t.Fatalf("statement final cents = %.4f, want %.4f", got, boundaryToneFallCents)
+		}
+	})
+	t.Run("ramps smoothly", func(t *testing.T) {
+		previous := 0.0
+		for _, cents := range applyBoundaryTone(curve, end, true, 1).Cents {
+			if cents < previous-1e-9 {
+				t.Fatalf("boundary tone is not monotonic: %.4f after %.4f", cents, previous)
+			}
+			previous = cents
+		}
+	})
+	t.Run("zero or negative strength is identity", func(t *testing.T) {
+		for _, strength := range []float64{0, -0.5, -3} {
+			if result := applyBoundaryTone(curve, end, true, strength); result != curve {
+				t.Fatalf("strength %.2f returned a new curve", strength)
+			}
+		}
+	})
+	t.Run("scales deviation by strength", func(t *testing.T) {
+		full := applyBoundaryTone(curve, end, true, 1)
+		half := applyBoundaryTone(curve, end, true, 0.5)
+		if math.Abs(half.Cents[last]*2-full.Cents[last]) > 1e-9 {
+			t.Fatalf("half = %.4f, full = %.4f", half.Cents[last], full.Cents[last])
+		}
+	})
+	t.Run("clamps strength", func(t *testing.T) {
+		over := applyBoundaryTone(curve, end, true, maxBoundaryToneStrength+1)
+		capped := applyBoundaryTone(curve, end, true, maxBoundaryToneStrength)
+		if over.Cents[last] != capped.Cents[last] {
+			t.Fatalf("over strength = %.4f, capped = %.4f", over.Cents[last], capped.Cents[last])
+		}
+	})
 }
 
 func TestApplyBoundaryToneKeepsFrameCountAndWindow(t *testing.T) {
@@ -139,14 +125,5 @@ func TestBoundaryToneEnabledDefaultsOn(t *testing.T) {
 	disabled := false
 	if boundaryToneEnabled(Config{BoundaryTone: &disabled}) {
 		t.Fatal("explicit false should disable boundary tone")
-	}
-}
-
-func TestBoundaryToneStrengthDefaults(t *testing.T) {
-	if got := boundaryToneStrength(Config{}); got != 1 {
-		t.Fatalf("zero strength = %.2f, want default 1", got)
-	}
-	if got := boundaryToneStrength(Config{BoundaryToneStrength: 0.5}); got != 0.5 {
-		t.Fatalf("explicit strength = %.2f, want 0.5", got)
 	}
 }

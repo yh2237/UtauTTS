@@ -16,37 +16,33 @@ func englishCodaMora() frontend.Mora {
 }
 
 func TestEnglishCodaFloorReservesStopClosure(t *testing.T) {
-	mora := englishCodaMora()
-	spans := []float64{32.2, 72.2, 37.2}
-	start, span, floor := speechEndingTiming(mora, spans, 0, 0, 141.6)
-	if math.Abs(span-englishCodaMinStopMS) > 1e-9 || math.Abs(floor-englishCodaMinStopMS) > 1e-9 {
-		t.Fatalf("span=%v floor=%v", span, floor)
-	}
-	// モーラ総長は変えず、先行母音から再配分する。
-	if math.Abs(start+span-141.6) > 1e-9 {
-		t.Fatalf("coda must end at mora end: start=%v span=%v", start, span)
-	}
-	if start < englishCodaMinVowelMS {
-		t.Fatalf("vowel floor violated: start=%v", start)
-	}
-}
-
-func TestEnglishCodaFloorLeavesLongCodaUnchanged(t *testing.T) {
-	mora := englishCodaMora()
-	spans := []float64{30, 60, 90}
-	start, span, floor := speechEndingTiming(mora, spans, 0, 0, 180)
-	if start != 90 || span != 90 || floor != 0 {
-		t.Fatalf("long coda changed: start=%v span=%v floor=%v", start, span, floor)
-	}
-}
-
-func TestEnglishCodaFloorSkipsOtherLanguages(t *testing.T) {
-	mora := englishCodaMora()
-	mora.Language = frontend.LanguageJapanese
-	start, span, floor := speechEndingTiming(mora, []float64{32.2, 72.2, 37.2}, 0, 0, 141.6)
-	if math.Abs(start-104.4) > 1e-9 || math.Abs(span-37.2) > 1e-9 || floor != 0 {
-		t.Fatalf("non-English changed: start=%v span=%v floor=%v", start, span, floor)
-	}
+	t.Run("stop closure floor", func(t *testing.T) {
+		start, span, floor := speechEndingTiming(englishCodaMora(), []float64{32.2, 72.2, 37.2}, 0, 0, 141.6)
+		if math.Abs(span-englishCodaMinStopMS) > 1e-9 || math.Abs(floor-englishCodaMinStopMS) > 1e-9 {
+			t.Fatalf("span=%v floor=%v", span, floor)
+		}
+		// モーラ総長は変えず、先行母音から再配分する。
+		if math.Abs(start+span-141.6) > 1e-9 {
+			t.Fatalf("coda must end at mora end: start=%v span=%v", start, span)
+		}
+		if start < englishCodaMinVowelMS {
+			t.Fatalf("vowel floor violated: start=%v", start)
+		}
+	})
+	t.Run("long coda unchanged", func(t *testing.T) {
+		start, span, floor := speechEndingTiming(englishCodaMora(), []float64{30, 60, 90}, 0, 0, 180)
+		if start != 90 || span != 90 || floor != 0 {
+			t.Fatalf("long coda changed: start=%v span=%v floor=%v", start, span, floor)
+		}
+	})
+	t.Run("other languages skipped", func(t *testing.T) {
+		mora := englishCodaMora()
+		mora.Language = frontend.LanguageJapanese
+		start, span, floor := speechEndingTiming(mora, []float64{32.2, 72.2, 37.2}, 0, 0, 141.6)
+		if math.Abs(start-104.4) > 1e-9 || math.Abs(span-37.2) > 1e-9 || floor != 0 {
+			t.Fatalf("non-English changed: start=%v span=%v floor=%v", start, span, floor)
+		}
+	})
 }
 
 func TestEnglishCodaFloorClampsToVowelMinimum(t *testing.T) {

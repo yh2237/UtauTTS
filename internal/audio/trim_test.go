@@ -2,25 +2,24 @@ package audio
 
 import "testing"
 
-func TestTrimPCMPositiveCutoff(t *testing.T) {
-	pcm := testPCM(1000)
-	got, err := TrimPCM(pcm, 100, 200)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got.Data) != 700 {
-		t.Fatalf("frames = %d, want 700", len(got.Data))
-	}
-}
-
-func TestTrimPCMNegativeCutoffIsLengthFromOffset(t *testing.T) {
-	pcm := testPCM(1000)
-	got, err := TrimPCM(pcm, 100, -300)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got.Data) != 300 {
-		t.Fatalf("frames = %d, want 300", len(got.Data))
+func TestTrimPCM(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		offset, cutoff float64
+		wantFrames     int
+	}{
+		{"positive cutoff", 100, 200, 700},
+		{"negative cutoff is length from offset", 100, -300, 300},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := TrimPCM(testPCM(1000), tc.offset, tc.cutoff)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got.Data) != tc.wantFrames {
+				t.Fatalf("frames = %d, want %d", len(got.Data), tc.wantFrames)
+			}
+		})
 	}
 }
 

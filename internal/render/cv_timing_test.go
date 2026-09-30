@@ -9,25 +9,26 @@ import (
 	"utautts/internal/voicebank"
 )
 
-func TestOnsetOverlapMSAdjustsByClass(t *testing.T) {
-	if got := onsetOverlapMS("k", 100, 60); got != 10 {
-		t.Fatalf("stop overlap = %.3f, want 10", got)
-	}
-	if got := onsetOverlapMS("m", 100, 10); got != 50 {
-		t.Fatalf("sonorant overlap = %.3f, want 50", got)
-	}
-	if got := onsetOverlapMS("s", 100, 30); got != 30 {
-		t.Fatalf("fricative overlap = %.3f, want 30", got)
-	}
-}
-
-func TestNormalizePlanTimingAppliesOnsetOverlap(t *testing.T) {
-	p := &plan.Plan{Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
-	unit := plan.Unit{Role: "mora", Position: 0, AliasKind: "CV", DurationMS: 140,
-		PreutteranceMS: 100, OverlapMS: 60, ConsonantMS: 120}
-	if got := normalizePlanTiming(p, unit, 20); got.OverlapMS != 10 {
-		t.Fatalf("stop overlap = %.3f, want 10", got.OverlapMS)
-	}
+func TestNormalizePlanTiming(t *testing.T) {
+	t.Run("onset overlap adjusts by class", func(t *testing.T) {
+		if got := onsetOverlapMS("k", 100, 60); got != 10 {
+			t.Fatalf("stop overlap = %.3f, want 10", got)
+		}
+		if got := onsetOverlapMS("m", 100, 10); got != 50 {
+			t.Fatalf("sonorant overlap = %.3f, want 50", got)
+		}
+		if got := onsetOverlapMS("s", 100, 30); got != 30 {
+			t.Fatalf("fricative overlap = %.3f, want 30", got)
+		}
+	})
+	t.Run("applies onset overlap", func(t *testing.T) {
+		p := &plan.Plan{Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
+		unit := plan.Unit{Role: "mora", Position: 0, AliasKind: "CV", DurationMS: 140,
+			PreutteranceMS: 100, OverlapMS: 60, ConsonantMS: 120}
+		if got := normalizePlanTiming(p, unit, 20); got.OverlapMS != 10 {
+			t.Fatalf("stop overlap = %.3f, want 10", got.OverlapMS)
+		}
+	})
 }
 
 func TestNormalizeSingleCVTimingProtectsOnsetAndVowelTail(t *testing.T) {
@@ -117,29 +118,30 @@ func TestSingleCVBoundaryEligibilityProtectsStops(t *testing.T) {
 	}
 }
 
-func TestSingleCVWorldOverlapKeepsOnsetFadeControlled(t *testing.T) {
-	p := &plan.Plan{SingleCV: true, Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
-	unit := plan.Unit{Position: 0, PreutteranceMS: 126, OverlapMS: 80}
-	if got := singleCVWorldOverlapMS(p, unit, 84); got != 18 {
-		t.Fatalf("world overlap = %.3f, want 18", got)
-	}
-	unit.OverlapMS = 0
-	if got := singleCVWorldOverlapMS(p, unit, 84); got != 0 {
-		t.Fatalf("zero overlap changed to %.3f", got)
-	}
-}
-
-func TestSingleCVWorldOverlapAddsVowelBoundaryBlend(t *testing.T) {
-	p := &plan.Plan{SingleCV: true, Morae: []frontend.Mora{
-		{Vowel: "a"}, {Vowel: "a"}, {Vowel: "i"}, {Consonant: "k", Vowel: "a"},
-	}}
-	if got := singleCVWorldOverlapMS(p, plan.Unit{Position: 1}, 0); got != singleCVSameVowelOverlapMS {
-		t.Fatalf("same-vowel overlap = %.3f, want %.3f", got, singleCVSameVowelOverlapMS)
-	}
-	if got := singleCVWorldOverlapMS(p, plan.Unit{Position: 2}, 0); got != singleCVDefaultVowelOverlapMS {
-		t.Fatalf("vowel overlap = %.3f, want %.3f", got, singleCVDefaultVowelOverlapMS)
-	}
-	if got := singleCVWorldOverlapMS(p, plan.Unit{Position: 3}, 0); got != 0 {
-		t.Fatalf("consonant onset overlap = %.3f, want 0", got)
-	}
+func TestSingleCVWorldOverlap(t *testing.T) {
+	t.Run("keeps onset fade controlled", func(t *testing.T) {
+		p := &plan.Plan{SingleCV: true, Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
+		unit := plan.Unit{Position: 0, PreutteranceMS: 126, OverlapMS: 80}
+		if got := singleCVWorldOverlapMS(p, unit, 84); got != 18 {
+			t.Fatalf("world overlap = %.3f, want 18", got)
+		}
+		unit.OverlapMS = 0
+		if got := singleCVWorldOverlapMS(p, unit, 84); got != 0 {
+			t.Fatalf("zero overlap changed to %.3f", got)
+		}
+	})
+	t.Run("adds vowel boundary blend", func(t *testing.T) {
+		p := &plan.Plan{SingleCV: true, Morae: []frontend.Mora{
+			{Vowel: "a"}, {Vowel: "a"}, {Vowel: "i"}, {Consonant: "k", Vowel: "a"},
+		}}
+		if got := singleCVWorldOverlapMS(p, plan.Unit{Position: 1}, 0); got != singleCVSameVowelOverlapMS {
+			t.Fatalf("same-vowel overlap = %.3f, want %.3f", got, singleCVSameVowelOverlapMS)
+		}
+		if got := singleCVWorldOverlapMS(p, plan.Unit{Position: 2}, 0); got != singleCVDefaultVowelOverlapMS {
+			t.Fatalf("vowel overlap = %.3f, want %.3f", got, singleCVDefaultVowelOverlapMS)
+		}
+		if got := singleCVWorldOverlapMS(p, plan.Unit{Position: 3}, 0); got != 0 {
+			t.Fatalf("consonant onset overlap = %.3f, want 0", got)
+		}
+	})
 }

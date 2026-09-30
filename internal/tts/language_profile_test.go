@@ -8,36 +8,36 @@ import (
 	"utautts/internal/render"
 )
 
-// 言語ごとに対応するprofileが選ばれる。
-func TestLanguageProfileForSelectsByLanguage(t *testing.T) {
-	tests := []struct {
-		language string
-		want     string
-	}{
-		{frontend.LanguageJapanese, frontend.LanguageJapanese},
-		{frontend.LanguageEnglish, frontend.LanguageEnglish},
-		{frontend.LanguageChinese, frontend.LanguageChinese},
-		{"", frontend.LanguageJapanese},
-	}
-	for _, test := range tests {
-		if got := languageProfileFor(test.language).Language(); got != test.want {
-			t.Fatalf("languageProfileFor(%q).Language() = %q, want %q", test.language, got, test.want)
+// 言語ごとに対応するprofileが選ばれ、基本予測の有無も切り替わる。
+func TestLanguageProfile(t *testing.T) {
+	t.Run("selects by language", func(t *testing.T) {
+		tests := []struct {
+			language string
+			want     string
+		}{
+			{frontend.LanguageJapanese, frontend.LanguageJapanese},
+			{frontend.LanguageEnglish, frontend.LanguageEnglish},
+			{frontend.LanguageChinese, frontend.LanguageChinese},
+			{"", frontend.LanguageJapanese},
 		}
-	}
-}
-
-// profileごとに基本予測の有無が切り替わる。
-func TestLanguageProfilePredictSelection(t *testing.T) {
-	morae := []frontend.Mora{{Vowel: "a", Stress: 1, StressKnown: true, Tone: 4}}
-	if predictions := languageProfileFor(frontend.LanguageEnglish).Predict(morae); len(predictions) != len(morae) {
-		t.Fatalf("English predictions = %#v", predictions)
-	}
-	if predictions := languageProfileFor(frontend.LanguageChinese).Predict(morae); len(predictions) != len(morae) {
-		t.Fatalf("Chinese predictions = %#v", predictions)
-	}
-	if predictions := languageProfileFor(frontend.LanguageJapanese).Predict(morae); predictions != nil {
-		t.Fatalf("Japanese predictions = %#v, want nil", predictions)
-	}
+		for _, test := range tests {
+			if got := languageProfileFor(test.language).Language(); got != test.want {
+				t.Fatalf("languageProfileFor(%q).Language() = %q, want %q", test.language, got, test.want)
+			}
+		}
+	})
+	t.Run("predict selection", func(t *testing.T) {
+		morae := []frontend.Mora{{Vowel: "a", Stress: 1, StressKnown: true, Tone: 4}}
+		if predictions := languageProfileFor(frontend.LanguageEnglish).Predict(morae); len(predictions) != len(morae) {
+			t.Fatalf("English predictions = %#v", predictions)
+		}
+		if predictions := languageProfileFor(frontend.LanguageChinese).Predict(morae); len(predictions) != len(morae) {
+			t.Fatalf("Chinese predictions = %#v", predictions)
+		}
+		if predictions := languageProfileFor(frontend.LanguageJapanese).Predict(morae); predictions != nil {
+			t.Fatalf("Japanese predictions = %#v, want nil", predictions)
+		}
+	})
 }
 
 // 言語ごとに規則ベースのF0曲線が選ばれ、日本語は自動曲線を持たない。

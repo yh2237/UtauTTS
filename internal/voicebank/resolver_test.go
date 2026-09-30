@@ -180,26 +180,50 @@ func TestResolveVCVBeatsCVVCInAutoButCVVCPreferCanOverride(t *testing.T) {
 	}
 }
 
-func TestAuditLatticeReportsCVVCSelection(t *testing.T) {
-	bank := &Bank{Root: "bank", Entries: map[string][]oto.Entry{
-		"あ":   {{Alias: "あ", Filename: "a.wav"}},
-		"か":   {{Alias: "か", Filename: "ka.wav"}},
-		"a k": {{Alias: "a k", Filename: "ak.wav"}},
-	}}
-	morae, err := frontend.ParseKana("あか")
-	if err != nil {
-		t.Fatal(err)
-	}
-	audit, err := bank.AuditLattice(morae, "C4")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if audit.CVVCSelectedPositions != 1 || audit.CVSelectedPositions != 1 {
-		t.Fatalf("selection counts = %+v", audit)
-	}
-	if audit.Positions[1].CVVCCandidateCount == 0 || !audit.Positions[1].SelectedComposite || audit.Positions[1].SelectedTransition != "a k" {
-		t.Fatalf("position audit = %#v", audit.Positions[1])
-	}
+func TestAuditLattice(t *testing.T) {
+	t.Run("reports CVVC selection", func(t *testing.T) {
+		bank := &Bank{Root: "bank", Entries: map[string][]oto.Entry{
+			"あ":   {{Alias: "あ", Filename: "a.wav"}},
+			"か":   {{Alias: "か", Filename: "ka.wav"}},
+			"a k": {{Alias: "a k", Filename: "ak.wav"}},
+		}}
+		morae, err := frontend.ParseKana("あか")
+		if err != nil {
+			t.Fatal(err)
+		}
+		audit, err := bank.AuditLattice(morae, "C4")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if audit.CVVCSelectedPositions != 1 || audit.CVSelectedPositions != 1 {
+			t.Fatalf("selection counts = %+v", audit)
+		}
+		if audit.Positions[1].CVVCCandidateCount == 0 || !audit.Positions[1].SelectedComposite || audit.Positions[1].SelectedTransition != "a k" {
+			t.Fatalf("position audit = %#v", audit.Positions[1])
+		}
+	})
+	t.Run("reports alias kinds and selection", func(t *testing.T) {
+		bank := &Bank{Root: "bank", Entries: map[string][]oto.Entry{
+			"- あ": {{Alias: "- あ", Filename: "vcv-start.wav"}},
+			"a か": {{Alias: "a か", Filename: "vcv.wav"}},
+			"あ":   {{Alias: "あ", Filename: "cv.wav"}},
+			"か":   {{Alias: "か", Filename: "cv.wav"}},
+		}}
+		morae, err := frontend.ParseKana("あか")
+		if err != nil {
+			t.Fatal(err)
+		}
+		audit, err := bank.AuditLattice(morae, "C4")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if audit.VCVSelectedPositions != 2 || audit.CVSelectedPositions != 0 {
+			t.Fatalf("selection counts = %+v", audit)
+		}
+		if len(audit.Positions) != 2 || audit.Positions[0].SelectedAliasKind != string(AliasVCV) || audit.Positions[1].VCVCandidateCount == 0 || audit.Positions[1].CVCandidateCount == 0 {
+			t.Fatalf("position audit = %#v", audit.Positions)
+		}
+	})
 }
 
 func TestResolveCVOnlySuppressesVCVCandidates(t *testing.T) {
@@ -409,29 +433,6 @@ func TestResolvePrefersOriginalCVOverEquivalentVCV(t *testing.T) {
 	}
 	if fallback[1].Alias != "a お" {
 		t.Fatalf("alias = %q, want the equivalent VCV fallback when を is unusable: %#v", fallback[1].Alias, fallback[1])
-	}
-}
-
-func TestAuditLatticeReportsAliasKindsAndSelection(t *testing.T) {
-	bank := &Bank{Root: "bank", Entries: map[string][]oto.Entry{
-		"- あ": {{Alias: "- あ", Filename: "vcv-start.wav"}},
-		"a か": {{Alias: "a か", Filename: "vcv.wav"}},
-		"あ":   {{Alias: "あ", Filename: "cv.wav"}},
-		"か":   {{Alias: "か", Filename: "cv.wav"}},
-	}}
-	morae, err := frontend.ParseKana("あか")
-	if err != nil {
-		t.Fatal(err)
-	}
-	audit, err := bank.AuditLattice(morae, "C4")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if audit.VCVSelectedPositions != 2 || audit.CVSelectedPositions != 0 {
-		t.Fatalf("selection counts = %+v", audit)
-	}
-	if len(audit.Positions) != 2 || audit.Positions[0].SelectedAliasKind != string(AliasVCV) || audit.Positions[1].VCVCandidateCount == 0 || audit.Positions[1].CVCandidateCount == 0 {
-		t.Fatalf("position audit = %#v", audit.Positions)
 	}
 }
 
@@ -650,86 +651,75 @@ func writeResolverTone(t *testing.T, path string, hz float64) {
 	}
 }
 
-func TestPruneCandidatesKeepsAllWithinLimit(t *testing.T) {
-	candidates := []Selection{
-		{Alias: "first", TargetScore: 10, Entry: oto.Entry{Filename: "a.wav"}},
-		{Alias: "second", TargetScore: 20, Entry: oto.Entry{Filename: "b.wav"}},
-	}
-	got := pruneCandidates(candidates)
-	if len(got) != 2 || got[0].Alias != "first" || got[1].Alias != "second" {
-		t.Fatalf("prune changed candidates within limit: %#v", got)
-	}
-}
-
-func TestPruneCandidatesReservesDistinctSources(t *testing.T) {
-	candidates := make([]Selection, 0, maxCandidatesPerPosition+4)
-	for index := 0; index < maxCandidatesPerPosition+4; index++ {
-		candidates = append(candidates, Selection{Alias: "main", TargetScore: 114, Entry: oto.Entry{Filename: "main.wav"}})
-	}
-	for index := 0; index < 4; index++ {
-		candidates = append(candidates, Selection{Alias: "alt", TargetScore: 90, Entry: oto.Entry{Filename: fmt.Sprintf("alt-%d.wav", index)}})
-	}
-	got := pruneCandidates(candidates)
-	if len(got) != maxCandidatesPerPosition {
-		t.Fatalf("len=%d want %d", len(got), maxCandidatesPerPosition)
-	}
-	if localCandidateScore(got[0]) != 114 {
-		t.Fatalf("top local score not retained: %#v", got[0])
-	}
-	sources := map[string]bool{}
-	for _, candidate := range got {
-		sources[candidate.Entry.Filename] = true
-	}
-	if len(sources) < minDistinctSourceCandidates {
-		t.Fatalf("distinct sources=%d want >=%d", len(sources), minDistinctSourceCandidates)
-	}
-}
-
-func TestPruneCandidatesFillsToLimitWhenDiversityUnavailable(t *testing.T) {
-	candidates := make([]Selection, 0, maxCandidatesPerPosition+8)
-	for index := 0; index < maxCandidatesPerPosition+8; index++ {
-		candidates = append(candidates, Selection{Alias: "only", TargetScore: float64(100 - index), Entry: oto.Entry{Filename: "only.wav"}})
-	}
-	got := pruneCandidates(candidates)
-	if len(got) != maxCandidatesPerPosition {
-		t.Fatalf("len=%d want %d", len(got), maxCandidatesPerPosition)
-	}
-	for _, candidate := range got {
-		if candidate.Entry.Filename != "only.wav" {
-			t.Fatalf("unexpected source %q", candidate.Entry.Filename)
+func TestPruneCandidates(t *testing.T) {
+	t.Run("reserves distinct sources", func(t *testing.T) {
+		candidates := make([]Selection, 0, maxCandidatesPerPosition+4)
+		for index := 0; index < maxCandidatesPerPosition+4; index++ {
+			candidates = append(candidates, Selection{Alias: "main", TargetScore: 114, Entry: oto.Entry{Filename: "main.wav"}})
 		}
-	}
-}
-
-func TestResolvePrunesLargeCandidateSetWithSourceDiversity(t *testing.T) {
-	mainEntries := make([]oto.Entry, 0, 40)
-	for index := 0; index < 40; index++ {
-		mainEntries = append(mainEntries, oto.Entry{Alias: "- あ", Filename: "main.wav", Offset: 10, Fixed: 100, Preutterance: 60, Overlap: 20})
-	}
-	altEntries := make([]oto.Entry, 0, 6)
-	for index := 0; index < 6; index++ {
-		altEntries = append(altEntries, oto.Entry{Alias: "あ", Filename: fmt.Sprintf("alt-%d.wav", index), Offset: 10, Fixed: 100, Preutterance: 60, Overlap: 20})
-	}
-	bank := &Bank{Entries: map[string][]oto.Entry{"- あ": mainEntries, "あ": altEntries}}
-	morae, err := frontend.ParseKana("あ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	layers, err := bank.candidateLayers(morae, "C4")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(layers) != 1 || len(layers[0]) != maxCandidatesPerPosition {
-		t.Fatalf("layer sizes=%v want one layer of %d", len(layers), maxCandidatesPerPosition)
-	}
-	sources := map[string]bool{}
-	for _, candidate := range layers[0] {
-		sources[candidate.Entry.Filename] = true
-	}
-	if len(sources) < minDistinctSourceCandidates {
-		t.Fatalf("distinct sources=%d want >=%d", len(sources), minDistinctSourceCandidates)
-	}
-	if layers[0][0].Entry.Filename != "main.wav" {
-		t.Fatalf("best candidate=%q want main.wav", layers[0][0].Entry.Filename)
-	}
+		for index := 0; index < 4; index++ {
+			candidates = append(candidates, Selection{Alias: "alt", TargetScore: 90, Entry: oto.Entry{Filename: fmt.Sprintf("alt-%d.wav", index)}})
+		}
+		got := pruneCandidates(candidates)
+		if len(got) != maxCandidatesPerPosition {
+			t.Fatalf("len=%d want %d", len(got), maxCandidatesPerPosition)
+		}
+		if localCandidateScore(got[0]) != 114 {
+			t.Fatalf("top local score not retained: %#v", got[0])
+		}
+		sources := map[string]bool{}
+		for _, candidate := range got {
+			sources[candidate.Entry.Filename] = true
+		}
+		if len(sources) < minDistinctSourceCandidates {
+			t.Fatalf("distinct sources=%d want >=%d", len(sources), minDistinctSourceCandidates)
+		}
+	})
+	t.Run("fills to limit when diversity unavailable", func(t *testing.T) {
+		candidates := make([]Selection, 0, maxCandidatesPerPosition+8)
+		for index := 0; index < maxCandidatesPerPosition+8; index++ {
+			candidates = append(candidates, Selection{Alias: "only", TargetScore: float64(100 - index), Entry: oto.Entry{Filename: "only.wav"}})
+		}
+		got := pruneCandidates(candidates)
+		if len(got) != maxCandidatesPerPosition {
+			t.Fatalf("len=%d want %d", len(got), maxCandidatesPerPosition)
+		}
+		for _, candidate := range got {
+			if candidate.Entry.Filename != "only.wav" {
+				t.Fatalf("unexpected source %q", candidate.Entry.Filename)
+			}
+		}
+	})
+	t.Run("resolve keeps source diversity", func(t *testing.T) {
+		mainEntries := make([]oto.Entry, 0, 40)
+		for index := 0; index < 40; index++ {
+			mainEntries = append(mainEntries, oto.Entry{Alias: "- あ", Filename: "main.wav", Offset: 10, Fixed: 100, Preutterance: 60, Overlap: 20})
+		}
+		altEntries := make([]oto.Entry, 0, 6)
+		for index := 0; index < 6; index++ {
+			altEntries = append(altEntries, oto.Entry{Alias: "あ", Filename: fmt.Sprintf("alt-%d.wav", index), Offset: 10, Fixed: 100, Preutterance: 60, Overlap: 20})
+		}
+		bank := &Bank{Entries: map[string][]oto.Entry{"- あ": mainEntries, "あ": altEntries}}
+		morae, err := frontend.ParseKana("あ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		layers, err := bank.candidateLayers(morae, "C4")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(layers) != 1 || len(layers[0]) != maxCandidatesPerPosition {
+			t.Fatalf("layer sizes=%v want one layer of %d", len(layers), maxCandidatesPerPosition)
+		}
+		sources := map[string]bool{}
+		for _, candidate := range layers[0] {
+			sources[candidate.Entry.Filename] = true
+		}
+		if len(sources) < minDistinctSourceCandidates {
+			t.Fatalf("distinct sources=%d want >=%d", len(sources), minDistinctSourceCandidates)
+		}
+		if layers[0][0].Entry.Filename != "main.wav" {
+			t.Fatalf("best candidate=%q want main.wav", layers[0][0].Entry.Filename)
+		}
+	})
 }
