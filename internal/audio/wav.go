@@ -22,7 +22,11 @@ func ReadWav(path string) (*PCM, error) {
 	}
 	defer file.Close()
 
-	reader := bufio.NewReader(file)
+	return DecodeWav(file)
+}
+
+func DecodeWav(input io.Reader) (*PCM, error) {
+	reader := bufio.NewReader(input)
 	if err := readString(reader, 4, "RIFF"); err != nil {
 		return nil, err
 	}
@@ -107,10 +111,28 @@ func ReadWav(path string) (*PCM, error) {
 			if bitsPerSample != 16 {
 				return nil, errors.New("only 16-bit PCM supported")
 			}
+			if chunkSize%2 != 0 {
+				return nil, errors.New("invalid 16-bit PCM data size")
+			}
 			samples := int(chunkSize / 2)
 			pcmData = make([]int16, samples)
-			if err := binary.Read(reader, binary.LittleEndian, pcmData); err != nil {
-				return nil, err
+			// 読込バッファから直接復号し、data全体の一時バイト列を作らない。
+			for offset := 0; offset < samples; {
+				count := min(samples-offset, reader.Size()/2)
+				data, err := reader.Peek(count * 2)
+				if err != nil {
+					if err == io.EOF && len(data) > 0 {
+						err = io.ErrUnexpectedEOF
+					}
+					return nil, err
+				}
+				for i := 0; i < count; i++ {
+					pcmData[offset+i] = int16(binary.LittleEndian.Uint16(data[i*2:]))
+				}
+				if _, err := reader.Discard(count * 2); err != nil {
+					return nil, err
+				}
+				offset += count
 			}
 			dataFound = true
 		default:
