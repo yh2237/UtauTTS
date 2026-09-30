@@ -1,7 +1,6 @@
 "use strict";
 
-// Shared by the host page and the classic Worker. The app scripts stay on
-// Pages; assetBaseURL can point at an immutable deployment prefix on R2.
+// ページとWorkerでURL解決を共有する。スクリプトはPages、資産はR2にも配置できる。
 function createUtauTTSAssetPaths(scriptURL, config = {}) {
   const directory = (value, base) => {
     const url = new URL(value, base);

@@ -31,8 +31,7 @@
     }, 200);
     let timeout;
     try {
-      // The main thread only needs the FS mirror in Worker mode. Keep Go and
-      // both native bridges out of the UI thread unless fallback is requested.
+      // WorkerモードではUI側にFSミラーだけを置き、エンジンの読み込みを避ける。
       await loadScript(paths.engine("fs-shim.js"));
       if (new URLSearchParams(location.search).get("async") === "0") {
         for (const file of ["wasm_exec.js", "openjtalk-bridge.js", "world-bridge.js",

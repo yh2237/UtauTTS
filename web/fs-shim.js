@@ -1,8 +1,6 @@
 "use strict";
 
-// Go js/wasm の globalThis.fs をインメモリ仮想FSで置き換える。
-// Goの fsCall はコールバックを待って goroutine を止めるため、コールバックは同期で呼ぶ。
-// 非同期にすると、JSからGo関数を同期的に呼んだ時にイベントループが回らずデッドロックする。
+// Go用のインメモリFS。JSからGoを同期呼び出しした際のデッドロックを避け、FSも同期で応答する。
 
 const normalizeCache = new Map();
 
@@ -50,14 +48,12 @@ function createVirtualFs(options) {
     node.version = ++nextVersion;
   }
 
-  // リモート裏付け: 指定プレフィックス配下のファイルは、初回アクセス時に
-  // 同期XHRで取得してFSへ載せる（Worker内のみ）。音源WAVを合成時にだけ取得する用途。
+  // リモート音源は初回アクセス時に同期XHRで取得する。Worker内専用。
   const remote = options && options.remote ? options.remote : null;
   const remotePrefix = remote ? normalizePath(remote.prefix || "/voice") : "";
   const remoteBase = remote ? (remote.baseURL || "") : "";
   const remoteFiles = remote ? (remote.files || {}) : {};
 
-  // 事前索引: ファイル/ディレクトリ/子要素を O(1) で引けるようにする。
   const remoteFileSizes = new Map();
   const remoteDirs = new Set();
   const remoteChildMap = new Map();
@@ -254,7 +250,6 @@ function createVirtualFs(options) {
 
   const fs = {
     constants,
-    // テスト・アプリ側から仮想FSへファイルを置くための拡張。
     mountFile(path, data) {
       const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
       const parent = ensureDir(parentPath(path));
@@ -266,7 +261,6 @@ function createVirtualFs(options) {
     mountText(path, text) {
       fs.mountFile(path, new TextEncoder().encode(text));
     },
-    // テスト・アプリ側から仮想FSの内容を読むための拡張。
     readFile(path) {
       let node = lookup(path);
       if (!node) {
@@ -276,7 +270,6 @@ function createVirtualFs(options) {
       if (!node || node.type !== "file") return null;
       return node.data;
     },
-    // 仮想FS内の全ファイルパスを返す（Workerのミラー同期用）。
     listFiles() {
       const result = [];
       const walk = (node, prefix) => {

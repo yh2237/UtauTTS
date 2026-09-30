@@ -10,7 +10,6 @@ import (
 	"utautts/internal/native"
 )
 
-// nativeEngine はデスクトップと共通のエンジン本体。wasm では call 経由で使う。
 var (
 	engineOnce sync.Once
 	engine     *native.Engine

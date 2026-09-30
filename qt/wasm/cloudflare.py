@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble, upload and check the Pages + R2 distribution (no build toolchain)."""
+"""PagesとR2の配布資産を組み立て、アップロードと公開検証を行う。"""
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -74,8 +74,7 @@ def deployment_plan(event, ref, preview_name, revision, run_id, attempt, version
 
 
 def asset_files(source):
-    # An allowlist excludes local test output, uploaded ZIPs and the standalone
-    # web demo. Only the Qt runtime's actual dependency graph is published.
+    # テスト出力や追加ZIPが混入しないよう、配布対象を明示する。
     files = {
         "utautts.wasm",
         "renderer/utautts-world-phrase/renderer.json",
@@ -129,7 +128,7 @@ def assemble(source, output, public_url, deployment_id, version, revision, chann
             raise ValueError(f"index.html is missing {old}")
         html = html.replace(old, f'src="./app/{deployment_id}/{name}"')
     (pages / "index.html").write_text(html, encoding="utf-8")
-    # A real 404 disables Pages' implicit SPA fallback for missing assets.
+    # 404ページを置き、欠落資産へのSPAフォールバックを防ぐ。
     (pages / "404.html").write_text("<!doctype html><meta charset=utf-8><title>404</title>Not found\n", encoding="utf-8")
     (pages / "_headers").write_text(
         "/*\n  X-Content-Type-Options: nosniff\n"
@@ -160,8 +159,7 @@ def assemble(source, output, public_url, deployment_id, version, revision, chann
 
 
 def upload(output, bucket, account_id):
-    # boto3 uses AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY. Credentials are never
-    # written into generated files, passed on the command line or printed.
+    # boto3用の認証情報は環境変数で渡す。
     import boto3
     from botocore.config import Config
 
@@ -238,7 +236,6 @@ def check_public(output, pages_url):
     _, html = request_public(base)
     if f"app/{metadata['deployment_id']}/bootstrap.js".encode() not in html:
         raise ValueError("Pages entry point does not reference the packaged runtime")
-    # Check all same-origin host scripts and representative cross-origin assets.
     for name in HOST_FILES:
         request_public(base + f"app/{metadata['deployment_id']}/{name}", "HEAD")
     check_assets(output, origin)

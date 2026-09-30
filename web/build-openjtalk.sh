@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Build Open JTalk (third_party/open_jtalk) to WebAssembly and link the C ABI wrapper.
-# Requires: activated Emscripten SDK, cmake and ninja on PATH.
+# Emscriptenを有効化し、CMakeとNinjaをPATHに通しておく。
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,7 +10,6 @@ out_dir="${script_dir}/dist/openjtalk"
 dict_src="${OPENJTALK_DICT:-${root_dir}/.tmp-openjtalk/pyopenjtalk/open_jtalk_dic_utf_8-1.11}"
 mkdir -p "${out_dir}"
 
-# 1) cmake: build the wasm static library and generate config.h.
 if [ ! -f "${build_dir}/build.ninja" ]; then
   emcmake cmake -G Ninja -S "${jtalk}" -B "${build_dir}" \
     -DBUILD_SHARED_LIBS=OFF -DBUILD_PROGRAMS=OFF \
@@ -20,7 +18,6 @@ fi
 cmake --build "${build_dir}" --target openjtalk
 library="${build_dir}/libopenjtalk.a"
 
-# 2) Compile the wrapper and link it into JS + wasm.
 include_dirs=(jpcommon mecab/src mecab2njd njd njd2jpcommon njd_set_accent_phrase \
   njd_set_accent_type njd_set_digit njd_set_long_vowel njd_set_pronunciation \
   njd_set_unvoiced_vowel text2mecab)
@@ -45,7 +42,6 @@ em++ -O3 -msimd128 -std=c++17 \
   -sEXPORTED_FUNCTIONS="${exported}" \
   -o "${out_dir}/utautts-openjtalk.js"
 
-# 3) Stage the dictionary for the browser and write a manifest listing its files.
 dict_out="${out_dir}/dict"
 if [ ! -d "${dict_src}" ]; then
   echo "dictionary not found, skipping staging: ${dict_src}" >&2

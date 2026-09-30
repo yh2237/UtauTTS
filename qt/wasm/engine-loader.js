@@ -1,9 +1,6 @@
 "use strict";
 
-// Qt wasm アプリのページで Go エンジン一式を用意する。
-// 既定は Worker（engine-worker.js）でエンジンを動かし、メインスレッドは
-// 非同期呼び出しとFSミラーだけを持つ（UIが固まらない）。
-// URL に ?async=0 を付けると従来のメインスレッド同期方式へフォールバックする。
+// エンジンはWorkerで動かし、UI側にはFSミラーを置く。?async=0は互換用の同期モード。
 (() => {
   const paths = window.utauttsAssetPaths;
   const ENGINE_BASE = paths.engineBaseURL;
@@ -33,7 +30,6 @@
     window.utauttsFs.mountFile(path, data);
   }
 
-  // --- 同期モード（互換用フォールバック） ---
 
   async function initSync() {
     const virtualFs = installVirtualFs({ cwd: "/" });
@@ -79,13 +75,11 @@
     globalThis.utauttsWorld = createWorldBridge(world);
   }
 
-  // --- 非同期モード（Worker） ---
 
   function initAsync() {
     window.utauttsFs = createVirtualFs();
     const workerURL = new URL(paths.app("engine-worker.js"));
-    // Capture this page's exact deployment config instead of fetching a mutable
-    // config again in the Worker after another deployment has gone live.
+    // 配布更新をまたいでもページとWorkerが同じ世代の資産を使うよう、設定を渡す。
     workerURL.searchParams.set("config", JSON.stringify(globalThis.UtauTTSConfig || {}));
     const worker = new Worker(workerURL);
     let resolveReady;
@@ -194,7 +188,6 @@
     return ready;
   }
 
-  // --- ファイル選択・メディア（両モード共通） ---
 
   window.utauttsPickVoiceDirectory = function () {
     return new Promise((resolve, reject) => {
@@ -240,7 +233,6 @@
     });
   };
 
-  // プロジェクトファイルを選ばせ、FSへ載せてから C++ へ通知する。
   window.utauttsPickProjectFile = function () {
     const input = document.createElement("input");
     input.type = "file";
@@ -267,7 +259,6 @@
     input.click();
   };
 
-  // 音源ZIPを複数選ばせ、FSへ載せてから C++ へ通知する。
   window.utauttsPickVoicebankArchives = function () {
     const input = document.createElement("input");
     input.type = "file";

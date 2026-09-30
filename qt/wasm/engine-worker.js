@@ -1,8 +1,6 @@
 "use strict";
 
-// Go エンジン一式（Go wasm・Open JTalk・WORLD・モデル・音源）を Worker 内で動かし、
-// メインスレッドからは postMessage で非同期に呼び出す。
-// 生成されたファイルはメインのFSミラーへ転送し、同期読み出し（再生・保存・画像）を成立させる。
+// エンジンと資産をWorkerで保持し、生成ファイルをUI側のFSミラーへ渡す。
 importScripts("./asset-paths.js");
 const config = JSON.parse(new URL(location.href).searchParams.get("config") || "{}");
 const paths = createUtauTTSAssetPaths(location.href, config);
@@ -183,12 +181,12 @@ async function handleCall(id, method, requestJSON) {
   } catch (error) {
     response = { ok: false, error: String((error && error.message) || error) };
   }
-  // 音源一覧を返すときは、画像を先読みしてメインのミラーへ渡せるようにする。
+  // 一覧画像は先読みしてUI側のFSミラーへ渡す。
   if (method === "voicebanks" && response && response.ok && response.result) {
     const banks = response.result.voicebanks || [];
     for (const bank of banks) {
       if (bank && bank.image_path) {
-        try { virtualFs.readFile(bank.image_path); } catch (error) { /* optional */ }
+        try { virtualFs.readFile(bank.image_path); } catch (error) { /* 画像なしでも一覧を返す。 */ }
       }
     }
   }
@@ -199,8 +197,7 @@ async function handleCall(id, method, requestJSON) {
     { type: "callResult", id, response, files, removed },
     files.map((file) => file.bytes)
   );
-  // 初期メタデータ取得が終わってから、辞書/WORLDをバックグラウンドで読み込む。
-  // （起動直後に読み込むと単一スレッドを占有し、音源一覧の取得が待たされる）
+  // 音源一覧を待たせないよう、辞書とWORLDはメタデータ取得後に読み込む。
   if (!runtimeKicked && method === "renderers") {
     runtimeKicked = true;
     ensureRuntime().catch((error) => console.error("runtime preload failed", error));

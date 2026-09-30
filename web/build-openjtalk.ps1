@@ -1,5 +1,4 @@
-# Build Open JTalk (third_party/open_jtalk) to WebAssembly and link the C ABI wrapper.
-# Requires: activated Emscripten SDK, cmake and ninja on PATH.
+﻿# Emscriptenを有効化し、CMakeとNinjaをPATHに通しておく。
 param([string]$DictionaryPath = '')
 
 $ErrorActionPreference = 'Stop'
@@ -10,7 +9,6 @@ $buildDir = Join-Path $root 'build/openjtalk-wasm'
 $outDir = Join-Path $PSScriptRoot 'dist/openjtalk'
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
-# 1) cmake: build the wasm static library and generate config.h.
 if (-not (Test-Path (Join-Path $buildDir 'build.ninja'))) {
     $configure = @(
         'cmake', '-G', 'Ninja', '-S', $jtalk, '-B', $buildDir,
@@ -25,7 +23,6 @@ if ($LASTEXITCODE -ne 0) { throw "openjtalk build failed with exit code $LASTEXI
 $library = Join-Path $buildDir 'libopenjtalk.a'
 if (-not (Test-Path $library)) { throw "libopenjtalk.a was not produced" }
 
-# 2) Compile the wrapper and link it into JS + wasm.
 $includeDirs = @(
     'jpcommon', 'mecab/src', 'mecab2njd', 'njd', 'njd2jpcommon',
     'njd_set_accent_phrase', 'njd_set_accent_type', 'njd_set_digit',
@@ -63,7 +60,6 @@ $arguments += @(
 & em++ @arguments
 if ($LASTEXITCODE -ne 0) { throw "em++ link failed with exit code $LASTEXITCODE" }
 
-# 3) Stage the dictionary for the browser and write a manifest listing its files.
 if ([string]::IsNullOrWhiteSpace($DictionaryPath)) {
     $DictionaryPath = Join-Path $root '.tmp-openjtalk/pyopenjtalk/open_jtalk_dic_utf_8-1.11'
 }

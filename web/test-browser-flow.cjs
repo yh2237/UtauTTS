@@ -1,5 +1,4 @@
-// ブラウザと同じ web/dist レイアウト（fsシム + manifest経由の辞書 + モデル/辞書カタログ）で
-// native.Engine.call 経由の解析・抑揚プレビューを通し検証する。
+// ブラウザと同じ資産配置で、共通Engineによる解析と抑揚予測を検証する。
 "use strict";
 
 const fs = require("fs");

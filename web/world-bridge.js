@@ -1,11 +1,6 @@
 "use strict";
 
-// 読み込み済みのWORLD Emscriptenモジュールを、Go wasmが使う契約へ包む。
-// globalThis.utauttsWorld = {
-//   ready,
-//   analyze(samples: Float64Array, sampleRate, inputF0: Float64Array|null) -> { ok, frames, fftSize, f0, spectrum, aperiodicity, error },
-//   synthesize(f0, spectrum, aperiodicity, frames, fftSize, sampleRate) -> { ok, samples, error }
-// }
+// WORLDのEmscriptenモジュールをGo wasm向けのAPIへ変換する。
 function createWorldBridge(Module) {
   const FRAME_MS = 10.0;
   const ERROR_SIZE = 512;

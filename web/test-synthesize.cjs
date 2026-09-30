@@ -1,5 +1,4 @@
-// Node上でGo wasm + OpenJTalk wasm + WORLD wasm を統合し、native.Engine.call 経由で
-// テキストからWAVまで合成する。
+// 共通EngineとOpen JTalk・WORLDのwasmで、テキストからWAVまでを検証する。
 // 事前に web/build.ps1 と web/build-openjtalk.ps1 と web/build-world.ps1 を実行しておく。
 "use strict";
 

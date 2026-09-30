@@ -1,6 +1,4 @@
-// UtauTTS Open JTalk WebAssemblyアダプタ。
-// Open JTalkフロントエンド（text2mecab→MeCab→NJD）を実行し、NJDノード列をTSVで返す。
-// 特徴量への変換はGo側で行うため、ここでは生のノードフィールドだけを出す。
+// NJDノードをTSVで返す。特徴量への変換はGo側で行う。
 
 #include <cstdio>
 #include <cstring>
@@ -32,7 +30,6 @@ void set_error(const char* message) {
 
 const char* safe(const char* value) { return value != nullptr ? value : ""; }
 
-// TSVのフィールドを壊す文字だけをバックスラッシュで退避する。
 void append_escaped(std::string& out, const char* value) {
   for (const char* p = safe(value); *p != '\0'; ++p) {
     switch (*p) {

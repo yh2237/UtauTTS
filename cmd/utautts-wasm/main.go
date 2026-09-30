@@ -1,7 +1,6 @@
 //go:build js && wasm
 
-// Command utautts-wasm はUtauTTSのGoエンジンをWebAssemblyとして公開する。
-// 公開する入口は call のみ。デスクトップと共通の native.Engine を呼ぶ。
+// Goエンジンをwasmへ公開する。callはデスクトップと共通のnative.Engineを使う。
 package main
 
 import (

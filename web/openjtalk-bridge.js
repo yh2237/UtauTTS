@@ -1,7 +1,6 @@
 "use strict";
 
-// 読み込み済みのOpen JTalk Emscriptenモジュールを、Go wasmが使う契約へ包む。
-// globalThis.utauttsOpenJTalk = { ready, run(text) -> { ok, tsv, error } }
+// Open JTalkのEmscriptenモジュールをGo wasm向けのAPIへ変換する。
 function createOpenJTalkBridge(Module) {
   const init = Module.cwrap("UtauTTSOpenJTalkInit", "number", ["string"]);
   const runNative = Module.cwrap("UtauTTSOpenJTalkRun", "number", ["string", "number", "number"]);

@@ -1,7 +1,6 @@
 "use strict";
 
-// Exercise the real packaged Qt + Worker + Go + bridges using separate local
-// origins for Pages and R2. Requires build/web-release and Playwright Chromium.
+// PagesとR2を別オリジンで再現する。build/web-releaseとPlaywright Chromiumが必要。
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -47,8 +46,7 @@ async function installTestCalls(page) {
   await page.evaluate(() => {
     const pending = new Map();
     let serial = 1000000;
-    // Subscribe after the loader so its file mirror is updated first. Observing
-    // real Worker messages does not replace an Emscripten-exported function.
+    // FSミラー更新後に結果を見るため、ローダーの後でWorkerを監視する。
     window.utauttsTestWorker.addEventListener("message", event => {
       const data = event.data;
       if (data.type !== "callResult") return;
@@ -156,7 +154,7 @@ async function checkMobileSaveAll(page) {
   await page.mouse.click(354, 28); // Mobile navigation.
   await page.waitForTimeout(250);
   await page.mouse.click(140, 264); // Save all WAV.
-  // One utterance has no reading yet; batch export must analyze it before saving.
+  // 未解析の発話も一括保存時に解析されることを検証する。
   for (let i = 0; i < 360 && downloads.length < 2; ++i) await page.waitForTimeout(500);
   if (downloads.length < 2) {
     console.error("save-all trace:", await page.evaluate(() => window.utauttsCallTrace));
