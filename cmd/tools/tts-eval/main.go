@@ -4,6 +4,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -68,7 +69,7 @@ func main() {
 		os.Exit(1)
 	}
 }
-func run() error {
+func run() (runErr error) {
 	wordEnvelope := flag.Bool("word-boundary-envelope", false, "halve fades at word boundaries without changing source or pitch (CPU WORLD)")
 	exportSources := flag.Bool("export-sources", false, "export original, selected and mixed-output source audit clips")
 	moraMS := flag.Float64("mora-ms", synth.DefaultMoraDurationMS, "base syllable duration in milliseconds")
@@ -103,10 +104,14 @@ func run() error {
 	presets := flag.String("presets", defaultPresets, "comma-separated sweep preset names (only with --sweep)")
 	joinCostLegacy := flag.Bool("join-cost-legacy", false, "disable D1 join-cost features (spectral tilt, correlation, anchor distance) for listening A/B")
 	timeout := flag.Duration("timeout", 2*time.Minute, "timeout per synthesis")
+	profileEnabled := flag.Bool("profile", false, "record host Go CPU, allocations and synthesis phases in the output directory")
 	flag.Parse()
 	connection.SetLegacyJoinCost(*joinCostLegacy)
 	if *sweep && *diagnose {
 		return fmt.Errorf("sweep and diagnose cannot be combined")
+	}
+	if *profileEnabled && (*sweep || *diagnose) {
+		return fmt.Errorf("profile requires non-sweep synthesis")
 	}
 	if *wordEnvelope && *diagnose {
 		return fmt.Errorf("word-boundary-envelope requires synthesis")
@@ -199,6 +204,14 @@ func run() error {
 	if err := os.Setenv("UTAUTTS_WORLD_PROFILE", profilePath); err != nil {
 		return err
 	}
+	var profile *evaluationProfile
+	if *profileEnabled {
+		profile, err = startEvaluationProfile(*out)
+		if err != nil {
+			return err
+		}
+		defer func() { runErr = errors.Join(runErr, profile.Close()) }()
+	}
 	var rows []measurement
 	failed := false
 	buildInfo, _ := debug.ReadBuildInfo()
@@ -207,6 +220,9 @@ func run() error {
 		for index, p := range prompts {
 			for repetition := 1; repetition <= *repeats; repetition++ {
 				row := measurement{ID: p.ID, Text: p.Text, Focus: p.Focus, Renderer: rendererID, Repetition: repetition}
+				if profile != nil {
+					profile.SetCase(p.ID, rendererID, repetition)
+				}
 				result, elapsed, callErr := synthesizeCase(p, caseOptions{
 					bank: *bank, aliasPolicy: *aliasPolicy, bridge: *bridge,
 					model: *model, modelFile: *modelFile, prosodyModelPath: prosodyPath,
