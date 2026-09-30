@@ -122,6 +122,7 @@ qt_add_qml_module(utautts
         qml/views/VoicebankDetailsContent.qml
         qml/views/SettingsContent.qml
         qml/controls/WindowHeader.qml
+        qml/controls/MobilePageDialog.qml
         qml/controls/SettingsResetButton.qml
         qml/controls/GrayscaleMenuItem.qml
         qml/controls/PlaybackControls.qml

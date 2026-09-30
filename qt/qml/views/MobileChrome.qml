@@ -35,10 +35,10 @@ Item {
         y: 0
         modal: root.window.mobileLayout
         interactive: root.window.mobileLayout
-        leftPadding: 12
-        rightPadding: 12
-        topPadding: 12
-        bottomPadding: 12
+        leftPadding: 16
+        rightPadding: 16
+        topPadding: 16
+        bottomPadding: 16
         exit: Transition {
             NumberAnimation {
                 property: "position"
@@ -116,13 +116,9 @@ Item {
         }
     }
 
-    Dialog {
+    MobilePageDialog {
         id: settingsDialog
-        exit: Transition {}
-        parent: Overlay.overlay
-        modal: true
-        width: parent ? parent.width : 0
-        height: parent ? parent.height : 0
+        title: root.window.translator.tr("menu.settings")
         property bool exportText: false
         property bool exportLab: false
         property string exportEncoding: "utf-8"
@@ -132,10 +128,6 @@ Item {
             exportEncoding = root.backend.exportTextEncoding;
         }
         onClosed: root.backend.setExportSettings(exportText, exportLab, exportEncoding)
-        header: WindowHeader {
-            heading: root.window.translator.tr("menu.settings")
-            onCloseClicked: settingsDialog.close()
-        }
         contentItem: ScrollView {
             id: settingsScroll
             implicitWidth: 0
@@ -180,17 +172,9 @@ Item {
         }
     }
 
-    Dialog {
+    MobilePageDialog {
         id: dictionaryDialog
-        exit: Transition {}
-        parent: Overlay.overlay
-        modal: true
-        width: parent ? parent.width : 0
-        height: parent ? parent.height : 0
-        header: WindowHeader {
-            heading: root.window.translator.tr("dictionary.title")
-            onCloseClicked: dictionaryDialog.close()
-        }
+        title: root.window.translator.tr("dictionary.title")
         contentItem: DictionaryContent {
             id: dictionaryContent
             backend: root.backend
@@ -200,31 +184,15 @@ Item {
         }
     }
 
-    Dialog {
+    MobilePageDialog {
         id: licenseDialog
-        exit: Transition {}
-        parent: Overlay.overlay
-        modal: true
-        width: parent ? parent.width : 0
-        height: parent ? parent.height : 0
-        header: WindowHeader {
-            heading: root.window.translator.tr("menu.help.license")
-            onCloseClicked: licenseDialog.close()
-        }
+        title: root.window.translator.tr("menu.help.license")
         contentItem: LicenseContent { documents: root.window.licenseDocuments }
     }
 
-    Dialog {
+    MobilePageDialog {
         id: onboardingDialog
-        exit: Transition {}
-        parent: Overlay.overlay
-        modal: true
-        width: parent ? parent.width : 0
-        height: parent ? parent.height : 0
-        header: WindowHeader {
-            heading: root.window.translator.tr("onboarding.title")
-            onCloseClicked: onboardingDialog.close()
-        }
+        title: root.window.translator.tr("onboarding.title")
         contentItem: OnboardingContent {
             backend: root.backend
             translator: root.window.translator

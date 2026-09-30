@@ -90,6 +90,12 @@ import UtauTTS.Media
                     bottomMargin: window.intonationLab ? 0 : 64
                     ScrollBar.vertical: ScrollBar {
                         id: utteranceScrollBar
+                        parent: editorSplitView.mobileLayout ? utteranceList.parent : utteranceList
+                        width: editorSplitView.mobileLayout ? 8 : implicitWidth
+                        anchors.right: parent.right
+                        anchors.rightMargin: editorSplitView.mobileLayout ? -10 : 0
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
                         policy: window.intonationLab ? ScrollBar.AlwaysOff : ScrollBar.AlwaysOn
                     }
 
@@ -322,10 +328,11 @@ import UtauTTS.Media
                 SplitView.preferredWidth: visible ? 268 : 0
                 SplitView.minimumWidth: visible ? 238 : 0
                 SplitView.maximumWidth: visible ? 340 : 0
-                padding: 14
+                padding: editorSplitView.mobileLayout ? 0 : 14
                 background: Rectangle {
                     color: window.palette.window
                     border.color: window.borderColor
+                    border.width: editorSplitView.mobileLayout ? 0 : 1
                 }
 
                 ScrollView {
@@ -335,7 +342,7 @@ import UtauTTS.Media
                     ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
                     ColumnLayout {
-                        width: Math.max(0, parameterScroll.availableWidth - 14)
+                        width: Math.max(0, parameterScroll.availableWidth - (editorSplitView.mobileLayout ? 0 : 14))
                         spacing: 12
 
                         ColumnLayout {
@@ -1184,34 +1191,18 @@ import UtauTTS.Media
             }
         }
 
-        Dialog {
+        MobilePageDialog {
             id: utteranceSettingsDialog
-            exit: Transition {}
-            parent: Overlay.overlay
-            modal: true
-            width: parent ? parent.width : 0
-            height: parent ? parent.height : 0
-            padding: 0
-            header: WindowHeader {
-                heading: window.translator.tr("menu.settings")
-                onCloseClicked: utteranceSettingsDialog.close()
-            }
+            title: window.translator.tr("menu.settings")
             contentItem: Item {}
-            footer: RowLayout {
+            footer: Pane {
                 visible: editorSplitView.mobileLayout
-                Button {
-                    Layout.fillWidth: true
-                    text: window.translator.tr("main.card.moveUp")
-                    enabled: window.selectedIndex > 0
-                    onClicked: window.moveUtterance(-1)
-                }
-                Button {
-                    Layout.fillWidth: true
-                    text: window.translator.tr("main.card.moveDown")
-                    enabled: window.selectedIndex + 1 < window.utterancesModel.count
-                    onClicked: window.moveUtterance(1)
-                }
-                Button {
+                leftPadding: utteranceSettingsDialog.pageMargin
+                rightPadding: utteranceSettingsDialog.pageMargin
+                topPadding: 0
+                bottomPadding: utteranceSettingsDialog.pageMargin
+                background: Item {}
+                contentItem: Button {
                     text: window.translator.tr("main.card.delete")
                     onClicked: {
                         window.removeUtterance();

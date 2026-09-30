@@ -10,6 +10,8 @@ ColumnLayout {
     required property var backend
     required property var translator
     required property var hostWindow
+    readonly property bool compact: !!hostWindow && hostWindow.mobileLayout === true
+    readonly property real surfaceWidth: compact ? Math.max(0, (width - 40 - 16) / 2) : 280
     signal closeRequested()
 
     anchors.margins: 12
@@ -62,7 +64,7 @@ ColumnLayout {
         spacing: 8
 
         Label {
-            Layout.preferredWidth: 280
+            Layout.preferredWidth: content.surfaceWidth
             text: content.translator.tr("dictionary.surface")
             font.bold: true
         }
@@ -72,7 +74,7 @@ ColumnLayout {
             font.bold: true
         }
         Item {
-            Layout.preferredWidth: 32
+            Layout.preferredWidth: content.compact ? 40 : 32
         }
     }
 
@@ -85,21 +87,21 @@ ColumnLayout {
         model: dictionaryEntriesModel
         ScrollBar.vertical: ScrollBar {
             id: dictionaryScrollBar
-            policy: ScrollBar.AlwaysOn
+            policy: content.compact ? ScrollBar.AlwaysOff : ScrollBar.AlwaysOn
         }
 
         delegate: RowLayout {
             id: dictionaryEntryRow
-            width: Math.max(0, dictionaryList.width - 14 - 2)
-            height: 36
-            spacing: 4
+            width: Math.max(0, dictionaryList.width - (content.compact ? 0 : 16))
+            height: content.compact ? 48 : 36
+            spacing: content.compact ? 8 : 4
 
             required property int index
             required property string surface
             required property string reading
 
             TextField {
-                Layout.preferredWidth: 280
+                Layout.preferredWidth: content.surfaceWidth
                 placeholderText: content.translator.tr("dictionary.surfaceExample")
                 text: dictionaryEntryRow.surface
                 selectByMouse: true
@@ -116,10 +118,10 @@ ColumnLayout {
 
             ToolButton {
                 id: dictionaryDeleteButton
-                Layout.preferredWidth: 24
-                Layout.minimumWidth: 24
-                Layout.maximumWidth: 24
-                Layout.preferredHeight: 24
+                Layout.preferredWidth: content.compact ? 40 : 24
+                Layout.minimumWidth: content.compact ? 40 : 24
+                Layout.maximumWidth: content.compact ? 40 : 24
+                Layout.preferredHeight: content.compact ? 40 : 24
                 Layout.alignment: Qt.AlignVCenter
                 contentItem: Text {
                     anchors.centerIn: parent
@@ -139,25 +141,35 @@ ColumnLayout {
         }
     }
 
-    RowLayout {
+    GridLayout {
         Layout.fillWidth: true
+        columns: content.compact ? 2 : 5
+        columnSpacing: content.compact ? 8 : 5
+        rowSpacing: 8
 
         Button {
+            Layout.fillWidth: content.compact
+            Layout.preferredHeight: content.compact ? 48 : implicitHeight
             text: content.translator.tr("dictionary.addEntry")
             onClicked: content.addEntry()
         }
 
         Item {
+            visible: !content.compact
             Layout.fillWidth: true
         }
 
         Button {
+            Layout.fillWidth: content.compact
+            Layout.preferredHeight: content.compact ? 48 : implicitHeight
             text: content.translator.tr("common.ok")
             highlighted: true
             onClicked: content.saveCurrent(true)
         }
 
         Button {
+            Layout.fillWidth: content.compact
+            Layout.preferredHeight: content.compact ? 48 : implicitHeight
             text: content.translator.tr("common.cancel")
             onClicked: {
                 content.loadCurrent();
@@ -166,6 +178,8 @@ ColumnLayout {
         }
 
         Button {
+            Layout.fillWidth: content.compact
+            Layout.preferredHeight: content.compact ? 48 : implicitHeight
             text: content.translator.tr("common.apply")
             onClicked: content.saveCurrent(false)
         }

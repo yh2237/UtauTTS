@@ -106,6 +106,41 @@ async function projectSnapshot(page) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
+async function checkMobilePagesAndDrag(page) {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectMobileLayout(page, true);
+  await page.mouse.click(354, 28);
+  await page.waitForTimeout(250);
+  await page.mouse.click(140, 264); // Settings in the 16px-inset Drawer.
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: path.join(output, "mobile-settings-insets.png") });
+  await page.mouse.click(348, 24); // Common page header's close button.
+  await page.mouse.click(354, 28);
+  await page.waitForTimeout(250);
+  await page.mouse.click(140, 320); // Dictionary settings.
+  await page.waitForTimeout(250);
+  await page.mouse.click(100, 748); // Add an entry in the compact action grid.
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: path.join(output, "mobile-dictionary-insets.png") });
+  await page.mouse.click(348, 24);
+  const before = await projectSnapshot(page);
+  const session = await page.context().newCDPSession(page);
+  await session.send("Input.dispatchTouchEvent", {
+    type: "touchStart", touchPoints: [{ x: 33, y: 91 }],
+  });
+  for (const y of [101, 111, 121, 131, 141]) {
+    await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 33, y }] });
+    await page.waitForTimeout(40);
+  }
+  await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await session.detach();
+  const after = await projectSnapshot(page);
+  assert.deepEqual(after.utterances.map(row => row.text), before.utterances.map(row => row.text).reverse(),
+    "mobile touch drag must reorder utterances through their voicebank images");
+  await page.screenshot({ path: path.join(output, "mobile-scrollbar-position.png") });
+  console.log("Mobile settings/dictionary pages and touch-only reordering verified");
+}
+
 async function checkResponsiveState(page) {
   await installTestCalls(page);
   const voices = await page.evaluate(() => window.utauttsTestCall("voicebanks"));
@@ -190,6 +225,7 @@ async function checkResponsiveState(page) {
   assert.equal(await page.evaluate(() => window.utauttsTestWorkerCount), 1);
   console.log("Responsive state preserved across 767 / 768 / 390 / 1024 px");
   console.log("Qt synthesis/playback preserved while switching layouts");
+  await checkMobilePagesAndDrag(page);
 }
 
 (async () => {
