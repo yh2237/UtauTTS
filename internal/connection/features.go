@@ -10,8 +10,8 @@ import (
 	"unicode"
 
 	"utautts/internal/acoustic"
-	"utautts/internal/audio"
 	"utautts/internal/oto"
+	"utautts/internal/sourceaudio"
 )
 
 // Boundaryはユニット接合部のフレーム群を保持する。
@@ -144,9 +144,8 @@ func (e *Extractor) speechTail(entry oto.Entry) Boundary {
 		return value
 	}
 	value := fallback
-	pcm, err := audio.ReadWav(entry.Filename)
+	pcm, wave, err := sourceaudio.ReadMono(entry.Filename)
 	if err == nil && pcm.SampleRate > 0 && pcm.Channels > 0 {
-		wave := acoustic.Mono(pcm)
 		endMS := float64(len(wave)) * 1000 / float64(pcm.SampleRate)
 		if entry.Blank < 0 {
 			endMS = entry.Offset - entry.Blank
@@ -303,11 +302,10 @@ func isVowelContext(value string) bool {
 }
 
 func measureBoundary(entry oto.Entry) Boundary {
-	pcm, err := audio.ReadWav(entry.Filename)
+	pcm, wave, err := sourceaudio.ReadMono(entry.Filename)
 	if err != nil || pcm.SampleRate <= 0 || pcm.Channels <= 0 {
 		return Boundary{}
 	}
-	wave := acoustic.Mono(pcm)
 	trimEndMS := float64(len(wave)) * 1000 / float64(pcm.SampleRate)
 	if entry.Blank < 0 {
 		trimEndMS = entry.Offset - entry.Blank

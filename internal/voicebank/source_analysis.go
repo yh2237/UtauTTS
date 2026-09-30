@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"math"
 	"utautts/internal/acoustic"
-	"utautts/internal/audio"
 	"utautts/internal/oto"
+	"utautts/internal/sourceaudio"
 )
 
 // SourceFrameは音素名を断定しない原音の音響観測。
@@ -56,15 +56,10 @@ type SourceAnalysis struct {
 
 // AnalyzeSpeechSourceは既存の描画設定を変更せず原音を観測する。
 func (b *Bank) AnalyzeSpeechSource(entry oto.Entry) (SourceAnalysis, error) {
-	pcm, err := audio.ReadWav(entry.Filename)
+	pcm, x, err := sourceaudio.TrimmedMono(entry.Filename, entry.Offset, entry.Blank)
 	if err != nil {
 		return SourceAnalysis{}, err
 	}
-	pcm, err = audio.TrimPCM(pcm, entry.Offset, entry.Blank)
-	if err != nil {
-		return SourceAnalysis{}, err
-	}
-	x := acoustic.Mono(pcm)
 	if len(x) < 32 || pcm.SampleRate <= 0 {
 		return SourceAnalysis{}, fmt.Errorf("source too short for acoustic analysis")
 	}

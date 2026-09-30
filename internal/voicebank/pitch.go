@@ -3,10 +3,9 @@ package voicebank
 import (
 	"math"
 
-	"utautts/internal/acoustic"
-	"utautts/internal/audio"
 	"utautts/internal/oto"
 	"utautts/internal/pitch"
+	"utautts/internal/sourceaudio"
 )
 
 const (
@@ -37,17 +36,11 @@ func measureCandidateF0(entry oto.Entry, cache map[candidatePitchKey]candidatePi
 		return result
 	}
 	result := candidatePitch{}
-	pcm, err := audio.ReadWav(entry.Filename)
-	if err != nil || pcm.SampleRate <= 0 || pcm.Channels <= 0 {
+	trimmed, values, err := sourceaudio.TrimmedMono(entry.Filename, entry.Offset, entry.Blank)
+	if err != nil || trimmed.SampleRate <= 0 || trimmed.Channels <= 0 {
 		cache[key] = result
 		return result
 	}
-	trimmed, err := audio.TrimPCM(pcm, entry.Offset, entry.Blank)
-	if err != nil {
-		cache[key] = result
-		return result
-	}
-	values := acoustic.Mono(trimmed)
 	start := pitchFrames(math.Max(0, entry.Fixed)+candidatePitchGuardMS, trimmed.SampleRate)
 	end := min(len(values), start+pitchFrames(candidatePitchWindowMS, trimmed.SampleRate))
 	if start < 0 || start >= end || end-start < pitchFrames(candidatePitchMinimumMS, trimmed.SampleRate) {

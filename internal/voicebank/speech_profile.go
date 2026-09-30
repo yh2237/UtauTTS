@@ -5,9 +5,9 @@ import (
 	"os"
 	"sort"
 	"utautts/internal/acoustic"
-	"utautts/internal/audio"
 	"utautts/internal/oto"
 	"utautts/internal/pitch"
+	"utautts/internal/sourceaudio"
 )
 
 // SpeechProfileはoto.ini付近の音響特徴を保持する。
@@ -63,12 +63,9 @@ func (b *Bank) CalibrateSpeech(entry oto.Entry) SpeechProfile {
 	if ok && cached.SourceSize == result.SourceSize && cached.SourceModTime == result.SourceModTime {
 		return cached
 	}
-	pcm, err := audio.ReadWav(entry.Filename)
+	pcm, wave, err := sourceaudio.TrimmedMono(entry.Filename, entry.Offset, entry.Blank)
 	if err == nil {
-		pcm, err = audio.TrimPCM(pcm, entry.Offset, entry.Blank)
-	}
-	if err == nil {
-		result = measureSpeechProfile(acoustic.Mono(pcm), pcm.SampleRate, entry, result)
+		result = measureSpeechProfile(wave, pcm.SampleRate, entry, result)
 	}
 	b.validationMu.Lock()
 	defer b.validationMu.Unlock()

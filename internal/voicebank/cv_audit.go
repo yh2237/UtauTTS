@@ -10,6 +10,7 @@ import (
 	"utautts/internal/acoustic"
 	"utautts/internal/audio"
 	"utautts/internal/oto"
+	"utautts/internal/sourceaudio"
 )
 
 // 切り出した音声とoto.iniだけを使うため、レンダラー選択前にも利用できる。
@@ -89,7 +90,7 @@ func (b *Bank) AuditSingleCV() (*SingleCVAudit, error) {
 			row.Warnings = append(row.Warnings, auditTimingWarnings(entry, contextVCV)...)
 			if entry.Filename == "" {
 				row.Warnings = append(row.Warnings, "missing-source")
-			} else if pcm, err := audio.ReadWav(filepath.Clean(entry.Filename)); err != nil {
+			} else if pcm, err := sourceaudio.ReadWav(filepath.Clean(entry.Filename)); err != nil {
 				row.Warnings = append(row.Warnings, "wav-read")
 			} else if trimmed, err := audio.TrimPCM(pcm, entry.Offset, entry.Blank); err != nil {
 				row.Warnings = append(row.Warnings, "trim-range")

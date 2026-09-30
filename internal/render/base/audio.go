@@ -5,10 +5,10 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"os"
 	"sync"
 
 	"utautts/internal/audio"
+	"utautts/internal/sourceaudio"
 )
 
 // SourceCacheは音源録音のデコード結果をレンダリング中に再利用する。
@@ -31,28 +31,6 @@ func NewSourceCache() SourceCache {
 	}
 }
 
-// 音源録音は候補探索とレンダリングで再利用されるため、デコード結果を保持する。
-const maxWAVCacheBytes = 256 << 20 // デコード済み音源 256 MiB
-
-type wavCacheEntry struct {
-	path    string
-	size    int64
-	modTime int64
-	pcm     *audio.PCM
-}
-
-type wavCache struct {
-	mu     sync.Mutex
-	byPath map[string]*list.Element
-	order  *list.List
-	bytes  int64
-}
-
-var globalWAVCache = wavCache{
-	byPath: make(map[string]*list.Element),
-	order:  list.New(),
-}
-
 const maxUnitPitchCacheEntries = 4096
 
 type unitPitchCacheKey struct {
@@ -72,56 +50,12 @@ var globalUnitPitchCache = struct {
 	order   *list.List
 }{entries: make(map[unitPitchCacheKey]*list.Element), order: list.New()}
 
-func (c *wavCache) remove(element *list.Element) {
-	entry := element.Value.(*wavCacheEntry)
-	c.bytes -= int64(len(entry.pcm.Data)) * 2
-	delete(c.byPath, entry.path)
-	c.order.Remove(element)
-}
-
-func (c *wavCache) evict() {
-	for c.bytes > maxWAVCacheBytes && c.order.Len() > 0 {
-		c.remove(c.order.Back())
-	}
-}
-
-// loadWAVCachedはサイズと更新時刻で変更を検知し、古いWAVから追い出す。
 func loadWAVCached(path string) (*audio.PCM, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, err
-	}
-	modTime := info.ModTime().UnixNano()
-	globalWAVCache.mu.Lock()
-	defer globalWAVCache.mu.Unlock()
-	if element, ok := globalWAVCache.byPath[path]; ok {
-		entry := element.Value.(*wavCacheEntry)
-		if entry.size == info.Size() && entry.modTime == modTime {
-			globalWAVCache.order.MoveToFront(element)
-			return entry.pcm, nil
-		}
-		globalWAVCache.remove(element)
-	}
-	pcm, err := audio.ReadWav(path)
-	if err != nil {
-		return nil, err
-	}
-	entry := &wavCacheEntry{path: path, size: info.Size(), modTime: modTime, pcm: pcm}
-	element := globalWAVCache.order.PushFront(entry)
-	globalWAVCache.byPath[path] = element
-	globalWAVCache.bytes += int64(len(pcm.Data)) * 2
-	globalWAVCache.evict()
-	return pcm, nil
+	return sourceaudio.ReadWav(path)
 }
 
 func ClearWAVCache() {
-	globalWAVCache.mu.Lock()
-	defer globalWAVCache.mu.Unlock()
-	for element := globalWAVCache.order.Front(); element != nil; {
-		next := element.Next()
-		globalWAVCache.remove(element)
-		element = next
-	}
+	sourceaudio.Clear()
 	globalUnitPitchCache.Lock()
 	globalUnitPitchCache.entries = make(map[unitPitchCacheKey]*list.Element)
 	globalUnitPitchCache.order.Init()

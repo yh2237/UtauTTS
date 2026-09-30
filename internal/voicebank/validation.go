@@ -10,6 +10,7 @@ import (
 	"utautts/internal/acoustic"
 	"utautts/internal/audio"
 	"utautts/internal/oto"
+	"utautts/internal/sourceaudio"
 )
 
 // EntryValidationは原音候補へ追加する前の検査結果。
@@ -74,19 +75,19 @@ func inspectEntryWAV(entry oto.Entry) EntryValidation {
 			return EntryValidation{Status: "unusable", Reason: "oto-non-finite-" + name}
 		}
 	}
-	pcm, err := audio.ReadWav(filepath.Clean(entry.Filename))
+	pcm, mono, err := sourceaudio.ReadMono(filepath.Clean(entry.Filename))
 	if err != nil {
 		return EntryValidation{Status: "unusable", Reason: fmt.Sprintf("wav-read: %v", err)}
 	}
-	trimmed, err := audio.TrimPCM(pcm, entry.Offset, entry.Blank)
+	start, end, err := audio.TrimFrames(pcm, entry.Offset, entry.Blank)
 	if err != nil {
 		return EntryValidation{Status: "unusable", Reason: fmt.Sprintf("trim-range: %v", err)}
 	}
-	frames := len(trimmed.Data) / trimmed.Channels
+	frames := end - start
 	if frames < 32 {
 		return EntryValidation{Status: "unusable", Reason: fmt.Sprintf("trim-too-short: %d frames", frames)}
 	}
-	mono := acoustic.Mono(trimmed)
+	mono = mono[start:end]
 	rms := acoustic.RMS(mono)
 	if rms < 1e-5 {
 		return EntryValidation{Status: "unusable", Reason: "trim-silent"}
