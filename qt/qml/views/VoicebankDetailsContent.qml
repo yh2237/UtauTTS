@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// 音源の詳細表示の共有ビュー。ウィンドウ装飾は shell 側が担当する。
 GridLayout {
     id: content
     required property var backend

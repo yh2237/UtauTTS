@@ -2856,7 +2856,7 @@ ApplicationWindow {
         for (let index = 0; index < source.length; ++index) {
             const mora = source[index] || {};
             const pause = !!mora.pause;
-            // 表示用フォールバックはGo側canonical（mora=120, pause=180）に揃える。
+            // 長さの既定値はGoのplanと揃える。
             const defaultDuration = Math.max(20, Number(pause
                     ? defaultPauseDuration : defaultMoraDuration) || 120);
             const start = hasPositions
@@ -3243,7 +3243,7 @@ ApplicationWindow {
     }
 
     function resetMoraDuration() {
-        // リセット値はGo側canonical（plan.DefaultMoraDurationMS=120）に揃える。
+        // リセット値もGoのplanと揃える。
         editorContent.moraSlider.value = 120;
         window.updateSetting("moraDuration", 120);
     }

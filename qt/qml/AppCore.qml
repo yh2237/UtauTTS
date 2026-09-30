@@ -2,9 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 
-// デスクトップ/Web/モバイルの各シェルで共有する UI 非依存のロジック。
-// backend と translator を受け取り、音源/モデル/Renderer の解決や
-// ファイル名生成、音素ラベラの解決などを提供する。
+// 各レイアウトで音源・モデルの解決など、表示に依存しない処理を共有する。
 QtObject {
     id: core
     required property var backend

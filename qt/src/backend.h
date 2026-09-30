@@ -132,14 +132,11 @@ public:
     Q_INVOKABLE void initialize();
     void initializeAsync();
     Q_INVOKABLE void reloadVoicebanks();
-    // wasmで外部（JS）から音源マウント後にメタデータを再取得する。
     void refreshMetadataFromWasm();
     Q_INVOKABLE bool openVoiceDirectory();
-    // 音源ZIPを追加する。wasmではJSのファイル選択、デスクトップではQMLのFileDialogから呼ぶ。
     Q_INVOKABLE void beginAddVoicebanks();
     Q_INVOKABLE void installVoicebankArchives(const QVariantList &archives);
     void handlePickedVoicebankArchives();
-    // wasm の Worker から呼び出し結果を受け取り、待機中のコールバックへ渡す。
     void handleWasmCallCompleted();
     Q_INVOKABLE bool openClassicToolDirectory(const QString &kind);
     Q_INVOKABLE bool reloadClassicTools();
@@ -154,13 +151,10 @@ public:
     Q_INVOKABLE QUrl writeDragExo(const QUrl &directory, const QVariantList &files, int frameRate);
     Q_INVOKABLE QUrl defaultSaveFile(const QString &fileName) const;
     Q_INVOKABLE QUrl fileInDirectory(const QUrl &directory, const QString &fileName) const;
-    // ローカル/仮想FSのファイルを画像等で使えるURLへ変換する。
     Q_INVOKABLE QString localFileUrl(const QString &path) const;
     Q_INVOKABLE bool saveProject(const QUrl &destination, const QVariantMap &project);
     Q_INVOKABLE void exportUstx(const QUrl &destination, const QVariantMap &project);
     Q_INVOKABLE QVariantMap loadProject(const QUrl &source);
-    // wasm はファイル選択（<input type=file>）でプロジェクトを開く。
-    // 選択後に projectPicked シグナルで内容を返す。
     Q_INVOKABLE void beginOpenProject();
     void handlePickedProject();
     Q_INVOKABLE void rememberRecentProject(const QUrl &source);
@@ -255,8 +249,6 @@ private:
     QVariantMap call(const QByteArray &method, const QVariantMap &request = {});
     void runNativeAsync(std::function<QVariantMap()> work,
                         std::function<void(const QVariantMap &)> completed);
-    // wasm の Worker モードではエンジン呼び出しが非同期になる。
-    // それ以外（desktop / wasm同期モード）は別スレッドまたは遅延で実行する。
     void callAsync(const QByteArray &method, const QVariantMap &request,
                    std::function<void(const QVariantMap &)> completed);
     void applyMetadata(const QVariantMap &voices, const QVariantMap &models,

@@ -18,7 +18,7 @@ Item {
     property var morae: []
     property var moraDurations: []
     property var moraPositions: []
-    // 表示用フォールバックはGo側canonical（plan.DefaultMoraDurationMS/pause=120/180）に揃える。
+    // 長さの既定値はGoのplanと揃える。
     property int defaultMoraDuration: 120
     property int defaultPauseDuration: 180
     property int minimumMoraDuration: 20
@@ -208,8 +208,7 @@ Item {
                                    following - currentMinimum);
             positions[index] = Math.max(lower, Math.min(upper, cursor));
         }
-        // 合成に語頭休止の独立パラメータは無い。先頭モーラは0に保ち、
-        // ドラッグされた先頭境界はタイミングとして表す。
+        // 語頭休止の独立パラメータはないため、先頭モーラは0に保ち、境界をタイミングで表す。
         root.moraPositions = root.normalizedPositions(positions);
         root.moraDurations = root.durationValuesFromPositions();
         canvas.requestPaint();
@@ -891,7 +890,6 @@ Item {
     onDefaultMoraDurationChanged: canvas.requestPaint()
     onDefaultPauseDurationChanged: canvas.requestPaint()
 
-    // 外部からデータを差し替えた後に明示的に再描画する。
     function refresh() {
         canvas.requestPaint();
     }

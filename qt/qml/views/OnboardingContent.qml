@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// 初回起動オンボーディングの共有ビュー。ウィンドウ装飾は shell 側が担当する。
 ColumnLayout {
     id: content
     required property var backend

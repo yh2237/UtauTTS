@@ -60,8 +60,7 @@ if(WIN32)
     target_sources(utautts PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/utautts.rc")
     set_target_properties(utautts PROPERTIES WIN32_EXECUTABLE TRUE)
 elseif(APPLE)
-    # macOSはQtの標準的な.app bundleとして配布する。アプリ本体の外にある
-    # runtime、models、renderer、voiceをmain実行ファイルからresourceRoot()で解決する。
+    # 同梱資源は.appの外に置き、resourceRoot()で解決する。
     set_target_properties(utautts PROPERTIES
         MACOSX_BUNDLE TRUE
         MACOSX_RPATH TRUE
@@ -69,8 +68,7 @@ elseif(APPLE)
         INSTALL_RPATH "@loader_path/../Frameworks"
     )
 elseif(EMSCRIPTEN)
-    # wasmホストページ（index.html / engine-loader.js / engine-worker.js）を出力へコピーする。
-    # 対象ファイルが変わったときだけ実行される（毎回のターゲット再リンク不要）。
+    # ホスト資産だけの変更でQt本体を再リンクしないよう、コピーを別ターゲットにする。
     add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/wasm-host.stamp"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/wasm/index.html"
@@ -183,7 +181,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_options(utautts PRIVATE "LINKER:-z,nocopyreloc" "LINKER:-z,text")
 endif()
 
-# QML and Backend meta-object code can exceed the normal COFF section limit on Windows.
+# QMLとメタオブジェクトの生成コードがWindowsのCOFFセクション上限を超えるため。
 if(MINGW)
     target_compile_options(utautts PRIVATE -Wa,-mbig-obj)
 endif()
@@ -228,8 +226,6 @@ qt_add_resources(utautts "legal"
     FILES ${legal_files}
 )
 
-# UI言語ファイル(JSON)。Translator.qmlがqrc:/lang/<code>.jsonを読み込む。
-# ファイルを追加すると選択可能な言語にも追加される。
 file(GLOB lang_files CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/lang/*.json"
 )
@@ -243,7 +239,6 @@ qt_add_resources(utautts "lang"
         ${lang_files}
 )
 
-# UIアイコンフォント。FontLoaderがqrc:/fonts/<file>を読み込む。
 # licenses/MATERIAL-SYMBOLS.txtの帰属表示に従うこと。
 file(GLOB font_files CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/fonts/*.ttf"

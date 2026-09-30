@@ -51,7 +51,7 @@
 
 namespace {
 constexpr int maxRecentProjects = 10;
-// Go側のcanonical既定（internal/planのDefaultMoraDurationMS/DefaultPauseDurationMS）と揃える。
+// 長さの既定値はGoのinternal/planと揃える。
 constexpr int fallbackMoraDurationMS = 120;
 constexpr int fallbackPauseDurationMS = 180;
 constexpr int fallbackLeadingPreutteranceMS = 0;
@@ -59,7 +59,7 @@ constexpr double fallbackIntonationStrength = 2.0;
 
 QDir resourceRoot();
 
-// Preview files live in Go's FS on wasm, and the native FS on desktop.
+// wasmのプレビューはGoの仮想FSにあり、QtのQFileでは読めない。
 bool previewFileExists(const QString &path) {
 #ifdef UTAUTTS_WASM
     const auto fs = emscripten::val::global("utauttsFs");
@@ -246,9 +246,7 @@ QDir resourceRoot() {
         application.cdUp();
     }
 #ifdef Q_OS_MACOS
-    // macOS bundleの実行ファイルは package/UtauTTS.app/Contents/MacOS に
-    // 置かれる。runtime等はbundleの外側へ置くため、配布packageのrootまで
-    // 上がってから同梱資源を探す。
+    // macOSの同梱資源は.appの外にあるため、配布ルートまで上がる。
     if (application.dirName().compare("MacOS", Qt::CaseInsensitive) == 0) {
         QDir packageRoot(application);
         if (packageRoot.cdUp() && packageRoot.cdUp() && packageRoot.cdUp()
@@ -336,7 +334,6 @@ QStringList updateLockPaths(const QString &target) {
 }
 
 #ifdef UTAUTTS_WASM
-// JS から音源マウント後に呼ばれ、メタデータを再取得して QML を更新する。
 static Backend *g_wasmBackend = nullptr;
 extern "C" EMSCRIPTEN_KEEPALIVE void utauttsRefreshMetadata() {
     if (g_wasmBackend) {
@@ -359,8 +356,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE void utauttsCallCompleted() {
     }
 }
 
-// 生成したバイト列をブラウザのダウンロードとして保存させる。
-// wasm にはユーザーが選べるローカルパスが無いため、保存先はブラウザに委ねる。
+// wasmの保存先はブラウザに委ねる。
 static void wasmDownloadBytes(const QString &fileName, const QByteArray &data) {
     emscripten::val view = emscripten::val(emscripten::typed_memory_view(
             data.size(), reinterpret_cast<const unsigned char *>(data.constData())));
@@ -382,7 +378,6 @@ static void wasmDownloadBytes(const QString &fileName, const QByteArray &data) {
     emscripten::val::global("URL").call<void>("revokeObjectURL", url);
 }
 
-// Go エンジン側の仮想FSから読み出す。wasm のプレビューWAV等は Qt の QFile では読めない。
 static QByteArray readGoFsBytes(const QString &path) {
     emscripten::val fs = emscripten::val::global("utauttsFs");
     if (fs.isUndefined() || path.isEmpty()) {
@@ -506,8 +501,7 @@ void Backend::runStartupMigrations() {
     const QString pendingTo = settings.value(QStringLiteral("migration/pending_to")).toString().trimmed();
     const QString currentVersion = QCoreApplication::applicationVersion();
 
-    // v1.2.2以前はこのキーが無い。従来インストールとみなし、
-    // 以下の冪等な初期化を全て実行する。
+    // v1.2.2以前には移行履歴がないため、未実施の初期化を全て適用する。
     if (previousSchema < 1) {
         settings.setValue(QStringLiteral("migration/legacy_install"), true);
         settings.setValue(QStringLiteral("migration/schema"), currentMigrationSchema);
@@ -516,8 +510,7 @@ void Backend::runStartupMigrations() {
         settings.setValue(QStringLiteral("appearance/preReleaseUpdateCheckEnabled"), false);
     }
 
-    // 既存インストールからの更新では、初回起動ウィンドウを再表示しない。
-    // 新規インストール（last_app_versionが無い）では従来どおり表示する。
+    // 更新時は初回起動ウィンドウを再表示しない。
     const QString lastAppVersion =
             settings.value(QStringLiteral("migration/last_app_version")).toString().trimmed();
     if (!lastAppVersion.isEmpty() && lastAppVersion != currentVersion
@@ -529,12 +522,8 @@ void Backend::runStartupMigrations() {
         }
     }
 
-    // これらの値は意図的にconfig.iniへ保持する。
-    // v1.2.2の更新処理が同ファイルを保持するため、旧更新処理が
-    // パッケージを差し替えても新アプリが移行を完了できる。
-    // markerは目標バージョンでの起動後にのみ完了させる。
-    // 更新起動が失敗して旧プロセスが再起動した場合は、
-    // 診断・復旧のためpendingのまま残す。
+    // 旧更新処理も保持するconfig.iniに移行状態を残す。
+    // 目標版で起動したときだけ完了にし、起動失敗時は復旧用にpendingを残す。
     if (!pendingTo.isEmpty() && pendingTo == currentVersion) {
         settings.setValue(QStringLiteral("migration/last_from"), pendingFrom);
         settings.setValue(QStringLiteral("migration/last_to"), pendingTo);
@@ -1435,8 +1424,7 @@ QVariantMap Backend::call(const QByteArray &method, const QVariantMap &request) 
 void Backend::runNativeAsync(std::function<QVariantMap()> work,
                              std::function<void(const QVariantMap &)> completed) {
 #ifdef UTAUTTS_WASM
-    // 合成はメインスレッドで同期実行されるため、いったん遅延して
-    // ウィンドウ（ログ等）を描画させてから実行する。
+    // 同期処理でUIを塞ぐ前に、ログ窓などを描画させる。
     QTimer::singleShot(30, this, [this, work = std::move(work), completed = std::move(completed)]() mutable {
         QVariantMap result;
         try {

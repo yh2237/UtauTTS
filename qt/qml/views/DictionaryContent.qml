@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// ユーザー辞書編集の共有ビュー。ウィンドウ装飾は shell 側が担当する。
 ColumnLayout {
     id: content
     required property var backend

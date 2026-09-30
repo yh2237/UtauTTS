@@ -41,8 +41,7 @@ bool Platform::isMobile() const {
 
 void Platform::updateViewportWidth(qreal width) {
 #ifdef UTAUTTS_WASM
-    // Use the browser viewport rather than a transient QML initial size or
-    // the client area reduced by Qt's window decorations.
+    // QMLの初期サイズや窓装飾に左右されないブラウザの表示幅を使う。
     const auto viewport = emscripten::val::global("window")["innerWidth"];
     if (!viewport.isUndefined())
         width = viewport.as<double>();
@@ -50,7 +49,6 @@ void Platform::updateViewportWidth(qreal width) {
     const bool mobile = isWeb() && (m_mobileOverride >= 0
             ? m_mobileOverride == 1 : width > 0 && width < 768);
 #ifdef UTAUTTS_WASM
-    // Expose the active layout to the HTML host as well as QML.
     const auto screen = emscripten::val::global("document")
             .call<emscripten::val>("getElementById", std::string("screen"));
     if (!screen.isNull() && !screen.isUndefined())
@@ -64,19 +62,14 @@ void Platform::updateViewportWidth(qreal width) {
 }
 
 bool Platform::hasNativeFileDialog() const {
-    // wasm はネイティブのファイルダイアログを持たない。保存はブラウザダウンロード、
-    // 読み込みはファイル選択（<input type=file>）で代替する。
     return isDesktop();
 }
 
 bool Platform::hasExternalTools() const {
-    // 外部プロセス（classic UTAUのresampler/wavtool、ffmpeg等）は
-    // ネイティブ環境のみ。wasmでは無効。
     return isDesktop();
 }
 
 bool Platform::hasDiffsinger() const {
-    // DiffSingerブリッジはネイティブ(Windows)専用。
     return isDesktop();
 }
 

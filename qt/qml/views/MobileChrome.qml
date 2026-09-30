@@ -4,8 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// Mobile navigation and preference dialogs. Utterances, editing, analysis and
-// playback belong to Main; resizing never creates a second application state.
+// 発話・編集・再生の状態はMainで共有し、ここではモバイルの操作部だけを持つ。
 Item {
     id: root
     required property var window

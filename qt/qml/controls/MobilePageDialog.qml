@@ -3,8 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 
-// Shared full-screen mobile page. Fusion sets directional paddings on some
-// controls, so specify every edge rather than relying on the generic padding.
+// Fusionの辺別余白が優先されるため、paddingだけでなく各辺を指定する。
 Dialog {
     id: root
     readonly property int pageMargin: 16

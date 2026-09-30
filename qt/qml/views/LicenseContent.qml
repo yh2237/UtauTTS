@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// ライセンス表示の共有ビュー。ウィンドウ装飾は shell 側が担当する。
 GridLayout {
     id: content
     property var documents: []

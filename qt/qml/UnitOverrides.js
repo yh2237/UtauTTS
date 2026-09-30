@@ -1,5 +1,4 @@
-// Canonical wire format shared by the editor and the Go engine:
-// [{unit_index: 0, pitch_factor: 1.2}, ...], not an index-addressed array.
+// Goとの受け渡しは [{unit_index: 0, pitch_factor: 1.2}, ...]。配列位置を音素番号にしない。
 function normalize(values) {
     const result = [];
     for (let index = 0; index < (values || []).length; ++index) {

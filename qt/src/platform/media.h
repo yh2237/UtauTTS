@@ -6,9 +6,7 @@
 #include <QVariantList>
 #include <memory>
 
-// QtMultimedia が使えない環境（wasm）でも同じ QML が動くよう、
-// QML が使う範囲の API だけを持つメディア型を提供する。
-// デスクトップ実装は QMediaPlayer/QAudioOutput、wasm 実装は Web Audio を使う。
+// 共通QML向けのメディアAPI。デスクトップはQtMultimedia、wasmはHTML Audioを使う。
 
 class MediaOutput : public QObject {
     Q_OBJECT
@@ -113,5 +111,4 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
-// QML の "UtauTTS.Media" モジュールへ型を登録する。
 void registerMediaTypes();

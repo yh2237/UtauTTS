@@ -3,9 +3,7 @@
 #include <QObject>
 #include <QString>
 
-// プラットフォーム能力を QML へ公開するシングルトン。
-// QML 側に wasm/desktop 判定を散在させず、ここへ一本化する。
-// QML: import UtauTTS.Platform 1.0 -> Platform.isWeb / isDesktop / isMobile
+// 環境とレイアウトの判定を共通QMLへ公開する。
 class Platform : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool isDesktop READ isDesktop CONSTANT)
@@ -35,5 +33,4 @@ private:
     bool m_mobile = false;
 };
 
-// QML の "UtauTTS.Platform" モジュールへ Platform シングルトンを登録する。
 void registerPlatformSingleton();

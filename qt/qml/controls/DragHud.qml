@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 
-// ドラッグ中の値をカーソル横に出す共通部品。位置は使う側が指定する。
 Rectangle {
     id: root
     property string hudText: ""

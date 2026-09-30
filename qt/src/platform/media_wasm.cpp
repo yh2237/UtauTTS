@@ -7,7 +7,6 @@
 #include <emscripten/val.h>
 #endif
 
-// wasm 実装: QML の API を満たしつつ、実際の再生は Web Audio（JS ヘルパ）へ委譲する。
 
 struct MediaOutput::Impl {
     qreal volume = 1.0;

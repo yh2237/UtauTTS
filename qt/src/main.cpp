@@ -26,8 +26,7 @@
 #ifdef UTAUTTS_WASM
 #include <emscripten.h>
 
-// Qt's native wasm decorations live in a shadow root, outside QML's font
-// system. Reuse the embedded font instead of downloading a second font asset.
+// wasmの窓装飾はQMLの外にあるため、Shadow DOMにも同梱フォントを適用する。
 EM_JS(void, installWasmWindowTitleFont, (const char *data, int size), {
     const font = new FontFace("LINE Seed JP", HEAPU8.slice(data, data + size));
     document.fonts.add(font);
@@ -269,7 +268,7 @@ int main(int argc, char *argv[]) {
         {"injectedIntonationLabExamples", readTextResource(":/training/japanese-v1.json")},
     };
     engine.setInitialProperties(initialProperties);
-    // One controller and one set of editors; layout changes never reload QML.
+    // レイアウト切替で編集状態を失わないよう、QMLは一度だけ読み込む。
     engine.loadFromModule("UtauTTS", "Main");
     if (engine.rootObjects().isEmpty()) {
         return -1;

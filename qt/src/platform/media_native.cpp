@@ -5,7 +5,6 @@
 #include <QMediaDevices>
 #include <QMediaPlayer>
 
-// デスクトップ実装: QtMultimedia へ委譲する。
 
 struct MediaOutput::Impl {
     QAudioOutput output;

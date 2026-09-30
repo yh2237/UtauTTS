@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Controls
 import UtauTTS.Platform 1.0
 
-// 設定ウィンドウのホスト。中身は views/SettingsContent.qml が担当する。
 AdaptiveDialogWindow {
     id: root
     required property var hostPalette

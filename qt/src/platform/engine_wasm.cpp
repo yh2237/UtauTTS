@@ -9,9 +9,7 @@
 #include <emscripten/val.h>
 #endif
 
-// wasm 実装: メインスレッドに読み込んだ Go エンジン（globalThis.utauttsWasm）を
-// emscripten::val 経由で同期的に呼ぶ。C++ 例外が Qt のイベントループへ漏れて
-// abort しないよう、失敗は throw せず {"_error": ...} を返す。
+// 同期モード用。Qtのイベントループを中断しないよう、失敗は_errorで返す。
 
 QVariantMap callNative(uintptr_t, const QByteArray &method, const QVariantMap &request) {
 #ifdef __EMSCRIPTEN__

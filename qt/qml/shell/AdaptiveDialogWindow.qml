@@ -4,8 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import UtauTTS.Platform 1.0
 
-// Keep the same window/content while the host switches layouts. Pending form
-// values survive a resize; native desktop geometry is unchanged.
+// レイアウト切替でも内容を再生成せず、入力中の値を保持する。
 ApplicationWindow {
     id: root
     required property var hostWindow
@@ -23,8 +22,7 @@ ApplicationWindow {
     modality: Qt.ApplicationModal
     flags: Platform.isWeb ? Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint : Qt.Dialog
 
-    // Hidden wasm windows have no platform handle. Updating their geometry can
-    // leave Qt's accessibility bridge referring to a deleted DOM container.
+    // 非表示のwasm窓にはハンドルがなく、サイズ更新で削除済みDOMへの参照が残りうる。
     Binding {
         target: root
         property: "minimumWidth"
