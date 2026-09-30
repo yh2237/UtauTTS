@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"utautts/internal/otofile"
+	otofile "github.com/yh2237/utauio/oto"
 )
 
 type Entry struct {

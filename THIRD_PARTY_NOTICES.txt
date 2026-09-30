@@ -72,6 +72,18 @@ kagome-dict/ipa NOTICE, kagome-dict v1.1.7 license, and other module-specific
 notices remain under licenses/Go in the release package.
 
 
+utauio
+======
+
+UtauTTS uses github.com/yh2237/utauio v0.1.0 for oto.ini parsing and
+Japanese text decoding. The library was extracted from UtauTTS and is
+distributed under the MIT License, Copyright (c) 2026 yh.
+Its license is included as
+licenses/Go/github_com_yh2237_utauio-v0.1.0-LICENSE.txt.
+
+Source: https://github.com/yh2237/utauio
+
+
 go-pinyin
 =========
 

@@ -89,6 +89,7 @@ for package_root in "${gui_root}" "${server_root}"; do
     "${package_root}/LICENSE-SCOPE.md" \
     "${package_root}/THIRD_PARTY_NOTICES.txt" \
     "${package_root}/licenses/Go/GO-LICENSE.txt" \
+    "${package_root}/licenses/Go/github_com_yh2237_utauio-v0.1.0-LICENSE.txt" \
     "${package_root}/licenses/Go/CMUDICT-LICENSE.txt" \
     "${package_root}/licenses/Go/PINYIN-DATA-NOTICE.txt" \
     "${package_root}/licenses/Go/github_com_ikawaha_kagome_v2-v2.11.0-LICENSE.txt" \
