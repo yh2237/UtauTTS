@@ -3,6 +3,8 @@ package acoustic
 import (
 	"math"
 
+	"github.com/yh2237/audiodsp/spectrum"
+
 	"utautts/internal/audio"
 	"utautts/internal/pitch"
 )
@@ -65,15 +67,7 @@ func DB(value float64) float64 {
 }
 
 func LogSpectrum(values []float64, sampleRate, bands int, minimumHz, maximumHz float64) []float64 {
-	if len(values) < 2 || sampleRate <= 0 || bands < 2 || minimumHz <= 0 || maximumHz <= minimumHz {
-		return nil
-	}
-	result := make([]float64, bands)
-	for band := range result {
-		frequency := minimumHz * math.Pow(maximumHz/minimumHz, float64(band)/float64(bands-1))
-		result[band] = DB(magnitude(values, sampleRate, frequency))
-	}
-	return result
+	return spectrum.Log(values, sampleRate, bands, minimumHz, maximumHz)
 }
 
 // SpectralTiltDBはスペクトルの低域平均に対する高域平均の比(dB)を返す。
@@ -110,15 +104,4 @@ func MeanSpectrumDelta(left, right []float64) float64 {
 		total += math.Abs(left[index] - right[index])
 	}
 	return total / float64(length)
-}
-
-func magnitude(values []float64, sampleRate int, frequency float64) float64 {
-	var real, imaginary float64
-	for i, value := range values {
-		window := 0.5 - 0.5*math.Cos(2*math.Pi*float64(i)/float64(len(values)-1))
-		angle := 2 * math.Pi * frequency * float64(i) / float64(sampleRate)
-		real += value * window * math.Cos(angle)
-		imaginary -= value * window * math.Sin(angle)
-	}
-	return math.Hypot(real, imaginary) / float64(len(values))
 }

@@ -87,8 +87,8 @@ Source: https://github.com/yh2237/utauio
 audiodsp
 ========
 
-UtauTTS uses github.com/yh2237/audiodsp v0.2.0 for pitch estimation,
-WSOLA time stretching and linear interpolation.
+UtauTTS uses github.com/yh2237/audiodsp v0.3.0 for pitch estimation,
+WSOLA time stretching, linear interpolation and log-frequency amplitudes.
 The library was extracted from UtauTTS and is distributed under the
 MIT License, Copyright (c) 2026 yh. It has no external module dependencies.
 Its license text is identical to utauio's and is included once as

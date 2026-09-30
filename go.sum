@@ -6,8 +6,8 @@ github.com/ikawaha/kagome/v2 v2.11.0 h1:R914EkRzay9qtUbsFzEbcdZ3wHwwSPvbPkuBI1oI
 github.com/ikawaha/kagome/v2 v2.11.0/go.mod h1:6mYPezBou+iNVnX9uNa00Sfu6S6t2zcM8Nv1EW9Y9so=
 github.com/mozillazg/go-pinyin v0.21.0 h1:Wo8/NT45z7P3er/9YSLHA3/kjZzbLz5hR7i+jGeIGao=
 github.com/mozillazg/go-pinyin v0.21.0/go.mod h1:iR4EnMMRXkfpFVV5FMi4FNB6wGq9NV6uDWbUuPhP4Yc=
-github.com/yh2237/audiodsp v0.2.0 h1:obmErhEMyBDH3R/CDoeSm3lS8glVS/v0ZQGhj/h/Vvg=
-github.com/yh2237/audiodsp v0.2.0/go.mod h1:Cv0D5PXZpjZW/Ty+326DBv2JmdZfu4d6zMhlNOfpWF8=
+github.com/yh2237/audiodsp v0.3.0 h1:DSS1LVrLYfQV8JeHLjmzx5aOyE8Pam8oCAeo74IHnF8=
+github.com/yh2237/audiodsp v0.3.0/go.mod h1:Cv0D5PXZpjZW/Ty+326DBv2JmdZfu4d6zMhlNOfpWF8=
 github.com/yh2237/utauio v0.1.0 h1:tJgm4aFQI7DGBugDycYLipmp0wA00yxRR8RdiidtPQo=
 github.com/yh2237/utauio v0.1.0/go.mod h1:I+illiKoP6S8iUC4iF15Y6ynXUbBTquYEPW3S8jDpZY=
 golang.org/x/text v0.39.0 h1:UbZz4pLOvn600D6Oh6GGEI6VAmndrEBLv8/6BEXzyus=
