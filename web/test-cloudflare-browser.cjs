@@ -69,6 +69,129 @@ async function installTestCalls(page) {
   });
 }
 
+async function closeStartupWindow(page) {
+  await page.locator("#qt-shadow-container .qt-window").evaluateAll(windows => {
+    for (const window of windows) {
+      if (window.querySelector(".window-name")?.textContent === "UtauTTS") continue;
+      if (getComputedStyle(window).display === "none") continue;
+      const buttons = window.querySelectorAll(".title-bar .action-button");
+      buttons[buttons.length - 1]?.click();
+    }
+  });
+}
+
+async function expectMobileLayout(page, mobile) {
+  try {
+    await page.waitForSelector('#screen[data-layout="' + (mobile ? "mobile" : "desktop") + '"]');
+  } catch (error) {
+    console.error("layout marker:", await page.locator("#screen").getAttribute("data-layout"));
+    await page.screenshot({ path: path.join(output, "layout-failure.png") });
+    throw error;
+  }
+}
+
+async function projectSnapshot(page) {
+  await closeStartupWindow(page);
+  await page.evaluate(() => {
+    const shadow = document.querySelector("#qt-shadow-container").shadowRoot;
+    const main = Array.from(shadow.querySelectorAll(".qt-window"))
+      .find(value => value.querySelector(".window-name")?.textContent === "UtauTTS");
+    main.querySelector("canvas").focus();
+  });
+  const download = page.waitForEvent("download", { timeout: 30000 });
+  await page.keyboard.press("Control+s");
+  const stream = await (await download).createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
+async function checkResponsiveState(page) {
+  await installTestCalls(page);
+  const voices = await page.evaluate(() => window.utauttsTestCall("voicebanks"));
+  assert.ok(voices.ok && voices.result.voicebanks.length);
+  const utterance = {
+    text: "こんにちは。", language: "ja", phonemizer: "ja-kana",
+    voicebank_id: voices.result.voicebanks[0].id, model_id: "none", renderer_id: "utautts-world-phrase",
+    alias_policy: "cv-only", tone: "D4", color: "", mora_duration_ms: 120, pause_duration_ms: 180,
+    intonation: 1.4, apply_pitch: true, speech_timing: false,
+    pitch_points: [75, -40, 20, 0, 0, 0], pitch_frames: [40, -60, 15],
+    mora_durations_ms: [120, 130, 110, 140, 150, 180],
+    mora_positions_ms: [0, 120, 250, 360, 500, 650],
+    manual_pitch_edited: true, manual_mora_duration_edited: true,
+    phoneme_overrides: [{ unit_index: 2, pitch_factor: 1.7, resampler_volume: 80 }],
+  };
+  const project = { format: "utautts-project", format_version: 5, selected_index: 1,
+    utterances: [{ ...utterance, text: "最初の発話です。" }, utterance] };
+  await page.evaluate(value => {
+    window.utauttsMountFile("/tmp/utautts-open-project.utautts", new TextEncoder().encode(JSON.stringify(value)));
+    window.utauttsQtModule._utauttsProjectFilePicked();
+    const shadow = document.querySelector("#qt-shadow-container").shadowRoot;
+    window.utauttsOriginalCanvas = Array.from(shadow.querySelectorAll(".qt-window"))
+      .find(value => value.querySelector(".window-name")?.textContent === "UtauTTS").querySelector("canvas");
+  }, project);
+  await page.evaluate(() => window.utauttsTestCall("models"));
+  await page.waitForFunction(() => window.utauttsCallTrace.some(call =>
+    call.method === "predictProsody" && call.ok && call.reading), null, { timeout: 120000 });
+  const before = await projectSnapshot(page);
+  assert.equal(before.utterances.length, 2);
+  assert.equal(before.selected_index, 1);
+  assert.ok(before.utterances[1].analysis_cache.reading, "selected utterance must be analyzed before playback");
+  assert.deepEqual(before.utterances[1].phoneme_overrides, utterance.phoneme_overrides);
+  const fields = ["text", "language", "phonemizer", "voicebank_id", "model_id", "renderer_id", "tone",
+    "intonation", "alias_policy", "pitch_points", "pitch_frames", "mora_durations_ms", "mora_positions_ms",
+    "manual_pitch_edited", "manual_mora_duration_edited", "phoneme_overrides"];
+  function editable(value) {
+    return { selected_index: value.selected_index,
+      utterances: value.utterances.map(row => Object.fromEntries(fields.map(key => [key, row[key]]))) };
+  }
+  for (const width of [767, 768, 390, 1024]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expectMobileLayout(page, width < 768);
+    const after = await projectSnapshot(page);
+    assert.deepEqual(editable(after), editable(before), "resize must preserve utterances and manual edits at " + width);
+    assert.equal(await page.evaluate(() => window.utauttsOriginalCanvas.isConnected), true);
+    assert.equal(await page.evaluate(() => window.utauttsTestWorkerCount), 1);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectMobileLayout(page, true);
+  await page.mouse.click(362, 141); // Second utterance's edit button.
+  await page.waitForTimeout(250); // Qt popup entrance animation.
+  await page.screenshot({ path: path.join(output, "responsive-sheet.png") });
+  await page.setViewportSize({ width: 1024, height: 844 });
+  await expectMobileLayout(page, false);
+  assert.deepEqual(editable(await projectSnapshot(page)), editable(before));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectMobileLayout(page, true);
+  await page.mouse.click(354, 28); // Mobile navigation.
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: path.join(output, "responsive-drawer.png") });
+  await page.setViewportSize({ width: 1024, height: 844 });
+  await expectMobileLayout(page, false);
+  assert.deepEqual(editable(await projectSnapshot(page)), editable(before));
+  const previousCalls = await page.evaluate(() => window.utauttsSynthesisCallCount || 0);
+  const previousAudio = await page.evaluate(() => window.utauttsAudioUrl || "");
+  await page.mouse.click(32, 820, { delay: 80 }); // Actual Qt playback control.
+  try {
+    await page.waitForFunction(count => (window.utauttsSynthesisCallCount || 0) > count, previousCalls);
+  } catch (error) {
+    console.error("Qt call trace:", await page.evaluate(() => window.utauttsCallTrace));
+    await page.screenshot({ path: path.join(output, "synthesis-failure.png") });
+    throw error;
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectMobileLayout(page, true);
+  await page.setViewportSize({ width: 1024, height: 844 });
+  await expectMobileLayout(page, false);
+  await page.waitForFunction(previous => window.utauttsAudio && window.utauttsAudioUrl !== previous
+    && window.utauttsAudio.readyState >= 1 && window.utauttsAudio.duration > 0, previousAudio, { timeout: 120000 });
+  await page.waitForFunction(() => window.utauttsPlaybackEnded === true, null, { timeout: 30000 });
+  assert.deepEqual(editable(await projectSnapshot(page)), editable(before));
+  assert.equal(await page.evaluate(() => window.utauttsTestWorkerCount), 1);
+  console.log("Responsive state preserved across 767 / 768 / 390 / 1024 px");
+  console.log("Qt synthesis/playback preserved while switching layouts");
+}
+
 (async () => {
   const assets = staticServer(path.join(output, "r2"), true);
   const pages = staticServer(path.join(output, "pages"), false);
@@ -85,23 +208,53 @@ async function installTestCalls(page) {
     browser = await chromium.launch({ headless: true, args: [
       "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader",
     ] });
-    for (const mobile of [false, true]) {
-      const page = await browser.newPage({ viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 } });
+    for (const mode of ["desktop", "mobile", "responsive", "automatic-mobile"]) {
+      const mobile = mode === "mobile" || mode === "automatic-mobile";
+      const page = await browser.newPage({ locale: "ja-JP",
+        viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 } });
       const errors = [];
-      page.on("pageerror", error => errors.push(error.message));
+      page.on("pageerror", error => { errors.push(error.message); console.error("browser exception:", error.stack); });
       page.on("console", message => {
         if (message.type() === "error") console.error("browser:", message.text());
+        if (/ReferenceError|TypeError|Binding loop detected|Detected anchors/.test(message.text()))
+          errors.push(message.text());
       });
       await page.addInitScript(() => {
         const NativeWorker = window.Worker;
+        let audio;
+        Object.defineProperty(window, "utauttsAudio", {
+          configurable: true,
+          get: () => audio,
+          set: value => {
+            audio = value;
+            value.addEventListener("ended", () => { window.utauttsPlaybackEnded = true; });
+          },
+        });
+        const methods = new Map();
+        window.utauttsCallTrace = [];
         window.Worker = class extends NativeWorker {
           constructor(url, options) {
             super(url, options);
-            if (String(url).includes("engine-worker.js")) window.utauttsTestWorker = this;
+            if (String(url).includes("engine-worker.js")) {
+              window.utauttsTestWorker = this;
+              window.utauttsTestWorkerCount = (window.utauttsTestWorkerCount || 0) + 1;
+              this.addEventListener("message", event => {
+                if (event.data.type !== "callResult") return;
+                const response = event.data.response;
+                window.utauttsCallTrace.push({ method: methods.get(event.data.id), ok: response.ok,
+                  error: response.error, reading: response.result?.reading });
+              });
+            }
+          }
+          postMessage(message, ...options) {
+            if (message.type === "call") methods.set(message.id, message.method);
+            if (message.type === "call" && message.method === "synthesize")
+              window.utauttsSynthesisCallCount = (window.utauttsSynthesisCallCount || 0) + 1;
+            return super.postMessage(message, ...options);
           }
         };
       });
-      await page.goto(pagesURL + (mobile ? "/?mobile=1" : "/?mobile=0"));
+      await page.goto(pagesURL + (mode === "responsive" || mode === "automatic-mobile" ? "/" : mobile ? "/?mobile=1" : "/?mobile=0"));
       try {
         await page.waitForSelector("#loading.hidden", { state: "attached", timeout: 180000 });
       } catch (error) {
@@ -114,8 +267,21 @@ async function installTestCalls(page) {
       const titleFont = await page.locator("#qt-shadow-container .window-name").first()
         .evaluate(element => getComputedStyle(element).fontFamily);
       assert.ok(titleFont.includes("LINE Seed JP"), "Qt's shadow-root window title must use LINE Seed JP");
-      console.log("Qt booted:", mobile ? "mobile" : "desktop");
-      if (mobile) {
+      console.log("Qt booted:", mode);
+      await closeStartupWindow(page);
+      await expectMobileLayout(page, mobile);
+      if (mode === "responsive") await checkResponsiveState(page);
+      else if (mode === "automatic-mobile") {
+        await page.setViewportSize({ width: 1024, height: 844 });
+        await expectMobileLayout(page, false);
+        await closeStartupWindow(page);
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expectMobileLayout(page, true);
+      } else {
+        await page.setViewportSize({ width: mobile ? 1024 : 390, height: 844 });
+        await expectMobileLayout(page, mobile); // URL overrides remain fixed while resizing.
+      }
+      if (mode === "mobile") {
         await installTestCalls(page);
         const result = await page.evaluate(async () => {
           const voices = await window.utauttsTestCall("voicebanks");
@@ -142,6 +308,7 @@ async function installTestCalls(page) {
         assert.deepEqual(errors, [], "synthesis JavaScript errors");
         console.log("Worker prosody and synthesis:", result);
       }
+      assert.deepEqual(errors, [], "layout JavaScript/QML errors");
       await page.close();
     }
     assert.ok(requests.includes("utautts.wasm"), "Qt wasm must load from the asset origin");
