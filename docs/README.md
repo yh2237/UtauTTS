@@ -23,6 +23,7 @@ UtauTTSの利用方法と開発資料を目的別にまとめています。利�
 ## 開発者向け
 
 - [開発環境とビルド](building.md): Windows、Linux、macOS版の作成
+- [Qt WebAssembly版の構成](wasm-architecture.md): Worker、状態管理、仮想ファイルシステム
 - [モデル／Rendererプラグイン](plugins.md): Renderer、Classic UTAUツール、モデルの追加
 - [リリーステスト](release-testing.md): 配布物の自動検査と手動確認
 - [読み上げ品質の評価](../tools/evaluation/README.md): 読み、原音候補、合成音声の比較

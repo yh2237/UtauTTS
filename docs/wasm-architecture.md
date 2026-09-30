@@ -56,7 +56,7 @@ FSの変更番号はmount、write、truncateで更新します。同じバイト
 リポジトリ直下で次を実行します。
 
 ```sh
-node --test web/test-wasm-regressions.cjs
+node --test web/test-wasm-regressions.cjs web/test-asset-paths.cjs
 ```
 
 このテストは実装のFS、Worker通信・ミラー処理、共通の上書き処理、QMLから取り出した状態管理関数を検査します。QtのバインディングやCanvasは再現しません。同じテストをwasmのCIでも実行します。
