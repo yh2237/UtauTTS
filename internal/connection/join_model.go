@@ -8,7 +8,6 @@ import (
 	"os"
 )
 
-// JoinModelVersionは任意のjoin modelのオンディスク形式バージョン。
 const JoinModelVersion = 1
 
 // legacyJoinFeatureNamesはD1以前の11次元モデルが保存した特徴順序。後方互換のため残す。
@@ -29,12 +28,11 @@ var legacyJoinFeatureNames = []string{
 // joinFeatureNamesは現行の特徴順序。D1の新特徴は既存モデルを壊さないよう末尾に追加する。
 var joinFeatureNames = append(append([]string(nil), legacyJoinFeatureNames...), "spectral_tilt_delta_db")
 
-// JoinFeatureNamesはJSONモデルが使う固定の特徴量順序を返す。
 func JoinFeatureNames() []string {
 	return append([]string(nil), joinFeatureNames...)
 }
 
-// JoinFeatureVectorは音響測定値をモデル入力の固定順序へ変換する。真偽値は0/1で表し、欠落した測定値は0のままにして有効性フラグで欠落を伝える。
+// 特徴順序を固定し、欠測は値0と有効性フラグで伝える。
 func JoinFeatureVector(features PairFeatures) []float64 {
 	distance := features.SourceAnchorDistanceMS
 	if !isFinite(distance) || distance < 0 {
@@ -58,7 +56,7 @@ func JoinFeatureVector(features PairFeatures) []float64 {
 	}
 }
 
-// JoinModelはJSONでエクスポートされる小さなロジスティックランカー。ニューラルランタイムやプラットフォーム依存を追加しないため、意図的にGoで評価する。
+// 外部ランタイムを増やさず、Goで評価するロジスティックランカー。
 type JoinModel struct {
 	Version       int       `json:"version"`
 	Kind          string    `json:"kind"`
@@ -76,7 +74,7 @@ type JoinModel struct {
 	Provenance    string    `json:"provenance,omitempty"`
 }
 
-// JoinPredictionはベースラインと任意の学習判定の両方を持つ。レンダラーを変えずにaudit結果を説明するのに役立つ。
+// 診断用に基準スコアと学習判定を両方残す。
 type JoinPrediction struct {
 	Baseline    float64
 	Probability float64
@@ -86,7 +84,6 @@ type JoinPrediction struct {
 	Applied     bool
 }
 
-// LoadJoinModelはjoin-rankerがエクスポートしたモデルを読み込み検証する。
 func LoadJoinModel(path string) (*JoinModel, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -105,7 +102,7 @@ func LoadJoinModel(path string) (*JoinModel, error) {
 	return &model, nil
 }
 
-// padFeatureSpaceは旧次元のモデルへ欠落した新特徴を重み0・scale 1で補う。既に現行次元なら何もしない。
+// 旧モデルの予測を変えないよう、新特徴を重み0・尺度1で補う。
 func (model *JoinModel) padFeatureSpace() {
 	missing := len(joinFeatureNames) - len(model.FeatureNames)
 	if missing <= 0 {
@@ -119,7 +116,6 @@ func (model *JoinModel) padFeatureSpace() {
 	model.Weights = append(model.Weights, make([]float64, missing)...)
 }
 
-// Validateは候補選択に影響する前にモデル契約を検査する。不正なモデルが合成を黙って変えてはならない。
 func (model *JoinModel) Validate() error {
 	if model == nil {
 		return fmt.Errorf("model is nil")
@@ -166,14 +162,14 @@ func (model *JoinModel) Validate() error {
 	return nil
 }
 
-// Predictはモデルを保守的に適用する。学習値はHandcraftedScoreへの有界な補正であり、既存の安全策を置き換えたり、無制限な経路優先を生み出したりしない。
+// 学習値は規則スコアへの有界な補正に留め、既存の安全策を保つ。
 func (model *JoinModel) Predict(features PairFeatures) JoinPrediction {
 	baseline := HandcraftedScore(features)
 	result := JoinPrediction{Baseline: baseline, Score: baseline}
 	if model == nil || model.Validate() != nil {
 		return result
 	}
-	// 学習ランカーは欠落した音響フレームを復元できないため、不正または短すぎる原音は既存のフォールバックを維持する。
+	// 不正・短すぎる原音は、学習値ではなく既存の代替スコアを使う。
 	if !features.PreviousOutgoing.Valid || !features.CurrentIncoming.Valid {
 		return result
 	}

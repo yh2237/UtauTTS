@@ -87,10 +87,8 @@ func clampPitchFactor(factor float64) float64 {
 	return math.Max(0.75, math.Min(1.35, factor))
 }
 
-// ClampPitchFactorはピッチ倍率を有界にする。
 func ClampPitchFactor(factor float64) float64 { return clampPitchFactor(factor) }
 
-// ResampleForPitchは一定倍率でsourceを伸縮する。
 func ResampleForPitch(source []float64, factor float64) []float64 {
 	if len(source) < 16 || factor <= 0 || math.Abs(factor-1) < 0.001 {
 		return append([]float64(nil), source...)
@@ -155,7 +153,6 @@ func MedianFloat(values []float64) float64 {
 	return (values[middle-1] + values[middle]) / 2
 }
 
-// IdentityFactorsは全要素1の係数配列を作る。
 func IdentityFactors(size int) []float64 {
 	result := make([]float64, size)
 	for index := range result {
@@ -164,7 +161,6 @@ func IdentityFactors(size int) []float64 {
 	return result
 }
 
-// NonzeroFloatsは正の要素だけを返す。
 func NonzeroFloats(values []float64) []float64 {
 	result := make([]float64, 0, len(values))
 	for _, value := range values {

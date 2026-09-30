@@ -11,7 +11,7 @@ import (
 	"utautts/internal/provider"
 )
 
-// bridgeProcessは組み込みWORLDアダプタの常駐セッションを保持する。gateでprotocol v1の単一実行を保証し、ネイティブ状態を合成間で維持する。
+// gateで同時実行を防ぎ、合成間でWORLDの常駐状態を維持する。
 type bridgeProcess struct {
 	path     string
 	provider string

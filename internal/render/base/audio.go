@@ -23,7 +23,6 @@ type sourceCacheKey struct {
 	sampleRate int
 }
 
-// NewSourceCacheは空のSourceCacheを作る。
 func NewSourceCache() SourceCache {
 	return SourceCache{
 		raw:        make(map[string]*audio.PCM),
@@ -115,7 +114,6 @@ func loadWAVCached(path string) (*audio.PCM, error) {
 	return pcm, nil
 }
 
-// ClearWAVCacheは音源更新後にキャッシュ済み録音を破棄する。
 func ClearWAVCache() {
 	globalWAVCache.mu.Lock()
 	defer globalWAVCache.mu.Unlock()
@@ -155,7 +153,6 @@ func (c *SourceCache) load(path string) (*audio.PCM, error) {
 	return pcm, nil
 }
 
-// LoadMonoは音源をモノラルで読み込む。
 func (c *SourceCache) LoadMono(path string) (*audio.PCM, error) {
 	c.ensureMaps()
 	if pcm, ok := c.mono[path]; ok {
@@ -255,31 +252,22 @@ func smoothstep(value float64) float64 {
 	return value * value * (3 - 2*value)
 }
 
-// Smoothstepは0..1へクランプした滑らかな補間値を返す。
 func Smoothstep(value float64) float64 { return smoothstep(value) }
 
-// MsToFramesはミリ秒をフレーム数へ丸める。
 func MsToFrames(ms float64, sampleRate int) int { return msToFrames(ms, sampleRate) }
 
-// MsToFramesSignedは符号付きミリ秒をフレーム数へ丸める。
 func MsToFramesSigned(ms float64, sampleRate int) int { return msToFramesSigned(ms, sampleRate) }
 
-// FramesToMSはフレーム数をミリ秒へ変換する。
 func FramesToMS(frames, sampleRate int) float64 { return framesToMS(frames, sampleRate) }
 
-// PcmFloatsはint16 PCMを-1..1のfloatへ変換する。
 func PcmFloats(data []int16) []float64 { return pcmFloats(data) }
 
-// FloatPCMは-1..1のfloatをint16 PCMへ変換する。
 func FloatPCM(data []float64) []int16 { return floatPCM(data) }
 
-// ToMonoは多チャンネルPCMをモノラルへ変換する。
 func ToMono(pcm *audio.PCM) *audio.PCM { return toMono(pcm) }
 
-// ResampleRateはPCMを指定サンプルレートへ変換する。
 func ResampleRate(pcm *audio.PCM, targetRate int) *audio.PCM { return resampleRate(pcm, targetRate) }
 
-// ContextErrorはコンテキストのキャンセルをrenderer共通のエラーへ変換する。
 func ContextError(ctx context.Context) error {
 	if ctx == nil {
 		return nil

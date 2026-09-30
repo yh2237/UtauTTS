@@ -21,7 +21,6 @@ type (
 	F0Track                  = base.F0Track
 )
 
-// 内部処理で使う共有型の別名。
 type (
 	effectiveTiming        = base.EffectiveTiming
 	renderedUnit           = base.RenderedUnit
@@ -36,7 +35,6 @@ const (
 	DefaultReleaseMS      = base.DefaultReleaseMS
 )
 
-// テストが参照する共有定数。
 const (
 	singleCVMinimumVowelTailMS    = base.SingleCVMinimumVowelTailMS
 	singleCVVowelTailRatio        = base.SingleCVVowelTailRatio
@@ -52,7 +50,6 @@ const (
 
 func newSourceCache() sourceCache { return base.NewSourceCache() }
 
-// ClearWAVCacheは音源更新後にキャッシュ済み録音を破棄する。
 func ClearWAVCache() { base.ClearWAVCache() }
 
 func estimateUnitPitch(unit plan.Unit, mono *audio.PCM) (float64, error) {
@@ -203,7 +200,6 @@ func wsolaStretch(source []float64, targetFrames, sampleRate int) ([]float64, er
 	return base.WSOLAStretch(source, targetFrames, sampleRate)
 }
 
-// StretchWSOLAは実験・診断処理から標準WSOLAを再利用する。
 func StretchWSOLA(source []float64, targetFrames, sampleRate int) []float64 {
 	return base.StretchWSOLA(source, targetFrames, sampleRate)
 }

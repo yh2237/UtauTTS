@@ -39,7 +39,7 @@ type PairFeatures struct {
 	CurrentVCV bool `json:"current_vcv,omitempty"`
 }
 
-// legacyJoinCostはD1の追加特徴（tilt差・相関・距離考慮）を無効化し、Phase 2までの接合costへ戻す開発用スイッチ。
+// 聴取比較用に傾斜差・相関・距離の補正を無効化し、旧スコアへ戻す。
 var legacyJoinCost = legacyJoinCostFromEnv()
 
 func legacyJoinCostFromEnv() bool {
@@ -47,7 +47,6 @@ func legacyJoinCostFromEnv() bool {
 	return value == "1" || strings.EqualFold(value, "true")
 }
 
-// LegacyJoinCostEnabledはD1の追加特徴が無効化されているかを返す。
 func LegacyJoinCostEnabled() bool { return legacyJoinCost }
 
 // SetLegacyJoinCostはD1特徴の無効化を切り替える。聴取A/B用で、既定は新特徴ON（false）。
@@ -71,7 +70,6 @@ func NewExtractorWithModel(model *JoinModel) *Extractor {
 	return &Extractor{cache: map[oto.Entry]Boundary{}, model: model, legacy: legacyJoinCost}
 }
 
-// JoinModelはこのExtractorが使う不変のモデルを返す。
 func (e *Extractor) JoinModel() *JoinModel {
 	if e == nil {
 		return nil
@@ -253,7 +251,6 @@ func handcraftedScore(features PairFeatures, legacy bool) float64 {
 	if !legacy {
 		// 波形相関は0.5を中立として±2点の控えめな補正にする。
 		score += 4 * (features.WaveformCorrelation - 0.5)
-		// スペクトル傾斜の差は最大4点まで減点する。
 		score -= math.Min(4, features.SpectralTiltDelta*0.15)
 	}
 	return score

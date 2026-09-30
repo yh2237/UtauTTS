@@ -633,7 +633,6 @@ func worldlineTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64
 	return base.NormalizePlanTiming(synthesisPlan, unit, releaseMS)
 }
 
-// bridgeへ渡す音素時間を作る。
 func worldlinePhoneTimingUnits(synthesisPlan *plan.Plan, releaseMS float64) []plan.Unit {
 	if synthesisPlan == nil {
 		return nil

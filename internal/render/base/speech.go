@@ -7,7 +7,7 @@ import (
 	"utautts/internal/plan"
 )
 
-// SpeechRetimeは母音開始をtargetOnsetに合わせ、onsetと安定母音を別アンカーにする。破裂音の短い解放区間は伸縮せずコピーする。
+// 母音開始と安定母音を別々に合わせ、破裂音の解放区間は元の速度で写す。
 func SpeechRetime(source []float64, targetFrames, sourceOnset, sourceFixed, targetOnset, targetFixed, rate int, stop bool) ([]float64, int, bool) {
 	minimum := msToFrames(4, rate)
 	if rate <= 0 || minimum < 2 || sourceOnset < minimum || targetOnset < minimum ||
@@ -37,7 +37,6 @@ func SpeechRetime(source []float64, targetFrames, sourceOnset, sourceFixed, targ
 			}
 		}
 	}
-	// 遷移と母音は標準のoverlap対応ストレッチャを再利用する。
 	tail, err := RetimeWithCompressedPrefixUsing(source[sourceOnset-bridge:], targetFrames-targetOnset+bridge,
 		sourceFixed-sourceOnset+bridge, targetFixed-targetOnset+bridge, rate, WSOLAStretch)
 	if err != nil {
@@ -53,7 +52,6 @@ func SpeechRetime(source []float64, targetFrames, sourceOnset, sourceFixed, targ
 	return result, targetFixed, true
 }
 
-// SpeechStopはユニットのonset/語末が破裂音かを返す。
 func SpeechStop(p *plan.Plan, unit plan.Unit) bool {
 	// 語末の破裂音は親モーラのonsetとは独立に保護対象にする。
 	if CodaReleaseStop(unit) {
@@ -126,7 +124,6 @@ func SpeechVowelJoin(p *plan.Plan, previous, current RenderedUnit) bool {
 	return true
 }
 
-// CodaReleaseStopは語末子音に破裂音を含むかを返す。
 func CodaReleaseStop(u plan.Unit) bool {
 	for _, phone := range u.CodaPhones {
 		if strings.Contains(" p b t d k g ch jh ", " "+strings.ToLower(phone)+" ") {

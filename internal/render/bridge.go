@@ -118,8 +118,7 @@ func applyBoundaryBridges(mix, mixWeights []float64, rendered []renderedUnit, sy
 	}
 }
 
-// applySingleCVBoundaryBridges はCV境界へ短い母音末尾だけを補う
-// 次の子音を主信号として残し子音の欠落を防ぐ
+// CV境界に母音末尾を補い、次の子音は主信号として残す。
 func applySingleCVBoundaryBridges(mix, mixWeights []float64, rendered []renderedUnit, synthesisPlan *plan.Plan, sampleRate int, maximumMS float64) {
 	if sampleRate <= 0 || len(mix) == 0 || len(mixWeights) != len(mix) {
 		return

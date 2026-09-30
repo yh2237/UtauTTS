@@ -22,7 +22,6 @@ const (
 	VCVVowelTailRatio             = 0.30
 )
 
-// C3a: 音源実測に対する過度な伸縮をモーラ内で有界にする。
 const (
 	// StretchAdaptMaxRatioは母音側（fixed以降）の許容伸縮上限。
 	StretchAdaptMaxRatio = 1.3
@@ -34,8 +33,7 @@ const (
 	StretchAdaptStrengthLimit = 2.0
 )
 
-// AdaptStretchTimingはSpeechProfileの実測長に対し母音側の伸縮が過大なとき、
-// 総長を変えずにfixed境界を後ろへずらして母音の伸びを抑える。無効時と負値強度は恒等。
+// 総長を保ったまま固定部を広げ、実測長に対する母音の過度な伸びを抑える。
 func AdaptStretchTiming(unit plan.Unit, timing EffectiveTiming, releaseMS float64, enabled bool, strength float64) EffectiveTiming {
 	if !enabled || unit.Silent || unit.Role != "mora" || unit.DurationMS <= 0 {
 		return timing
@@ -88,7 +86,6 @@ func AdaptStretchTiming(unit plan.Unit, timing EffectiveTiming, releaseMS float6
 	return timing
 }
 
-// onsetOverlapClassはoverlap調整のための子音クラスを返す。
 func onsetOverlapClass(onset string) string {
 	switch strings.ToLower(strings.TrimSpace(onset)) {
 	case "p", "b", "t", "d", "k", "g", "q", "py", "by", "ty", "dy", "ky", "gy",
@@ -123,9 +120,7 @@ const (
 	CodaBoundaryMaxOverlapMS = 15.0
 )
 
-// CodaBoundaryOverlapMSは語末子音を持つユニット境界で、次onsetの食い込みと
-// 重なりを制限して語末子音の末尾を残す。OnsetOverlapMSと同じく有界にクランプする。
-// 適用したかどうかも返す。
+// 次の語頭子音の食い込みを制限し、語末子音の末尾を残す。第3戻り値は適用の有無。
 func CodaBoundaryOverlapMS(previousDuration, preutterance, overlap float64) (float64, float64, bool) {
 	limited := false
 	if previousDuration > CodaBoundaryMinTailMS {
@@ -144,7 +139,6 @@ func CodaBoundaryOverlapMS(previousDuration, preutterance, overlap float64) (flo
 	return math.Max(0, preutterance), math.Max(0, overlap), limited
 }
 
-// NormalizePlanTimingはPlan形式に応じて実効タイミングを補正する。
 func NormalizePlanTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64) EffectiveTiming {
 	timing := NormalizeTiming(unit, releaseMS)
 	if synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
@@ -192,7 +186,6 @@ func NormalizedPhoneTimingUnits(synthesisPlan *plan.Plan, releaseMS float64) []p
 	return result
 }
 
-// IsVCVUnitはoto.iniのVCV形式かを返す。
 func IsVCVUnit(unit plan.Unit) bool {
 	return strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV")
 }
@@ -212,7 +205,6 @@ func brokenVCVTiming(unit plan.Unit) bool {
 	return false
 }
 
-// preservedVCVTimingはoto.iniの位置をそのまま使う。
 func preservedVCVTiming(unit plan.Unit) EffectiveTiming {
 	preutterance := math.Max(0, unit.PreutteranceMS)
 	overlap := math.Max(0, unit.OverlapMS)
@@ -383,7 +375,6 @@ func singleCVOnsetFadeInMS(synthesisPlan *plan.Plan, unit plan.Unit) float64 {
 	}
 }
 
-// SingleCVWorldOverlapMSは単独音のWORLD向けoverlapを返す。
 func SingleCVWorldOverlapMS(synthesisPlan *plan.Plan, unit plan.Unit, preutteranceMS float64) float64 {
 	overlap := math.Max(0, unit.OverlapMS)
 	overlap = math.Min(overlap, singleCVOnsetFadeInMS(synthesisPlan, unit))
@@ -414,7 +405,6 @@ func sameSingleCVVowel(synthesisPlan *plan.Plan, position int) bool {
 	return synthesisPlan.Morae[position-1].Vowel == synthesisPlan.Morae[position].Vowel
 }
 
-// SingleCVOnsetはモーラの子音onsetを返す。
 func SingleCVOnset(synthesisPlan *plan.Plan, unit plan.Unit) string {
 	if synthesisPlan == nil || unit.Position < 0 || unit.Position >= len(synthesisPlan.Morae) {
 		return ""
@@ -431,7 +421,6 @@ func SingleCVOnset(synthesisPlan *plan.Plan, unit plan.Unit) string {
 	return ""
 }
 
-// SingleCVBoundaryEligibleは単独音の境界補正対象かを返す。
 func SingleCVBoundaryEligible(synthesisPlan *plan.Plan, previous, current RenderedUnit) bool {
 	if synthesisPlan == nil || !synthesisPlan.SingleCV || previous.Index+1 != current.Index {
 		return false
@@ -448,7 +437,6 @@ func SingleCVBoundaryEligible(synthesisPlan *plan.Plan, previous, current Render
 	return SingleCVMoraBoundaryEligible(synthesisPlan, current.Unit.Position)
 }
 
-// SingleCVMoraBoundaryEligibleは単独音のモーラ境界が補正対象かを返す。
 func SingleCVMoraBoundaryEligible(synthesisPlan *plan.Plan, position int) bool {
 	if synthesisPlan == nil || position <= 0 || position >= len(synthesisPlan.Morae) {
 		return false
@@ -467,7 +455,6 @@ func SingleCVMoraBoundaryEligible(synthesisPlan *plan.Plan, position int) bool {
 	return true
 }
 
-// SingleCVProtectedOnsetは破裂・破擦音のonsetかを返す。
 func SingleCVProtectedOnset(synthesisPlan *plan.Plan, unit plan.Unit) bool {
 	symbol := strings.ToLower(strings.TrimSpace(SingleCVOnset(synthesisPlan, unit)))
 	switch symbol {
@@ -527,6 +514,5 @@ func LimitLeadingPreutterance(required, maximum float64) float64 {
 
 // FadeInDurationMSは前後のゲインが同時に0にならない重なりを返す。
 func FadeInDurationMS(timing EffectiveTiming) float64 {
-	// 特殊なoto設定でも前後のゲインが同時に0にならないよう重なりを確保する。
 	return math.Max(6, timing.PreutteranceMS-timing.OverlapMS)
 }

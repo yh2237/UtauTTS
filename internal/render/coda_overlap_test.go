@@ -36,7 +36,6 @@ func TestCodaBoundaryLimitsNextOnsetIntrusion(t *testing.T) {
 	if tail < codaBoundaryMinTailMS-1e-9 {
 		t.Fatalf("audible coda tail = %v", tail)
 	}
-	// codaがなければ制限しない。
 	units[0].CodaPhones = nil
 	plain, _ := openUtauPhoneTimingsWithCoda(units, "", true)
 	if plain[1].CodaLimited || plain[1] == timings[1] {
@@ -45,20 +44,16 @@ func TestCodaBoundaryLimitsNextOnsetIntrusion(t *testing.T) {
 }
 
 func TestCodaBoundaryOverlapClampsAndSkipsShortCoda(t *testing.T) {
-	// 語末子音が短すぎるときは何もしない。
 	if _, _, limited := codaBoundaryOverlapMS(20, 100, 10); limited {
 		t.Fatal("short coda must not be limited")
 	}
-	// 食い込みを末尾30msまでに抑え、overlapは上限へクランプする。
 	preutterance, overlap, limited := codaBoundaryOverlapMS(65, 100, 40)
 	if !limited || math.Abs(preutterance-35) > 1e-9 || math.Abs(overlap-codaBoundaryMaxOverlapMS) > 1e-9 {
 		t.Fatalf("preutterance=%v overlap=%v limited=%v", preutterance, overlap, limited)
 	}
-	// 短いcodaでも重なり上限だけは守る。
 	if _, overlap, limited := codaBoundaryOverlapMS(20, 100, 40); !limited || math.Abs(overlap-codaBoundaryMaxOverlapMS) > 1e-9 {
 		t.Fatalf("short coda overlap=%v limited=%v", overlap, limited)
 	}
-	// すでに十分短い食い込みは変えない。
 	if p, _, limited := codaBoundaryOverlapMS(65, 10, 5); limited || p != 10 {
 		t.Fatalf("small intrusion changed: p=%v limited=%v", p, limited)
 	}

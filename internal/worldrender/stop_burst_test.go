@@ -23,7 +23,7 @@ func TestHighPassKeepsStopTransient(t *testing.T) {
 func TestExplicitAnchorBurstUsesMappedTimeAndExactSourceOffset(t *testing.T) {
 	const rate = 16000
 	samples := make([]float32, rate/4)
-	samples[rate*123/1000] = 1 // oto offset 13 ms + measured transient 110 ms
+	samples[rate*123/1000] = 1 // otoの13msに切り出し後の過渡位置110msを足す。
 	path := filepath.Join(t.TempDir(), "anchored-stop.wav")
 	if err := writePCM16(path, rate, samples); err != nil {
 		t.Fatal(err)
@@ -37,7 +37,7 @@ func TestExplicitAnchorBurstUsesMappedTimeAndExactSourceOffset(t *testing.T) {
 	if wave[rate*110/1000] != 0 {
 		t.Fatal("burst used raw source time as target")
 	}
-	item.Speech.SourceTransientMS = 200 // outside explicit retained source
+	item.Speech.SourceTransientMS = 200 // 明示した保持区間の外。
 	if got := mixProtectedStopBursts(manifest{Units: []unit{item}}, []preparedWorldUnit{{cached: cachedWorldUnit{duration: 240}}}, make([]float64, len(samples)), rate); len(got) != 0 {
 		t.Fatal("out-of-range peak restored", got)
 	}

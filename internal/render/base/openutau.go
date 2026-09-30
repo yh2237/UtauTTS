@@ -7,7 +7,6 @@ import (
 	"utautts/internal/provider"
 )
 
-// OpenUtauPhoneTimingsはOpenUTAU互換の音素時間を作る。
 func OpenUtauPhoneTimings(units []plan.Unit, cvvcTiming string) ([]OpenUtauPhoneTiming, float64) {
 	return OpenUtauPhoneTimingsWithCoda(units, cvvcTiming, false)
 }
@@ -117,7 +116,6 @@ func CVVCPreBoundaryEnvelope(points []WorldlineEnvelopePoint, timing OpenUtauPho
 	return result
 }
 
-// ProviderPitchCurveはprovider用のピッチカーブへ複製する。
 func ProviderPitchCurve(curve *PitchCurve) *provider.PitchCurve {
 	if curve == nil {
 		return nil

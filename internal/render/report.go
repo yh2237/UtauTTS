@@ -9,19 +9,16 @@ import (
 	"utautts/internal/render/base"
 )
 
-// UnitRendererは選択済みUnit Planを描画する。
 type UnitRenderer interface {
 	ProviderID() engine.ProviderID
 	Render(*plan.Plan, Config) (*UnitRenderResult, error)
 }
 
-// UnitRenderResultは音声と描画結果を保持する。
 type UnitRenderResult struct {
 	Audio  *audio.PCM
 	Report RenderReport
 }
 
-// RenderReportは描画時に得た診断情報を保持する。
 type RenderReport struct {
 	TargetF0                *F0Track `json:"target_f0,omitempty"`
 	Provider                engine.ProviderID
@@ -37,14 +34,12 @@ type RenderReport struct {
 	Units                   []UnitRenderReport
 }
 
-// RenderDiagnosticはproviderからの診断情報を示す。
 type RenderDiagnostic struct {
 	Severity string `json:"severity,omitempty"`
 	Code     string `json:"code,omitempty"`
 	Message  string `json:"message"`
 }
 
-// UnitRenderReportはunitごとの描画結果を示す。
 type UnitRenderReport struct {
 	SpeechMapping           string
 	SpeechSourceAnchorsMS   []float64
@@ -110,7 +105,6 @@ func (renderer builtinUnitRenderer) Render(synthesisPlan *plan.Plan, cfg Config)
 	return result, nil
 }
 
-// UnitRendererForProviderは組み込みrendererを返す。
 func UnitRendererForProvider(provider string) (UnitRenderer, error) {
 	if provider == "" {
 		provider = "waveform"
@@ -130,7 +124,6 @@ func RenderWithReport(synthesisPlan *plan.Plan, cfg Config) (*UnitRenderResult, 
 	return renderer.Render(synthesisPlan, cfg)
 }
 
-// UnitRendererForConfigは設定に対応するrendererを返す。
 func UnitRendererForConfig(cfg Config) (UnitRenderer, error) {
 	definition := cfg.Engine.Definition
 	if definition.Protocol == "utautts-provider" {
@@ -198,7 +191,6 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 	return report
 }
 
-// ApplyToは診断情報を出力用Planへ反映する。
 func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 	if synthesisPlan == nil {
 		return

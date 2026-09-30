@@ -83,11 +83,9 @@ func TestCodaClosureReleaseSplitSeparatesEnglishStop(t *testing.T) {
 	if release < codaReleaseMinMS || release > codaReleaseMaxMS || closure < codaClosureMinMS {
 		t.Fatalf("unbounded split: closure=%v release=%v", closure, release)
 	}
-	// 破裂音でないcodaは対象外。
 	if _, _, ok := codaClosureReleaseSplit(plan.Unit{CodaPhones: []string{"s"}, DurationMS: 70}); ok {
 		t.Fatal("fricative coda must not split")
 	}
-	// 短すぎるcodaは対象外。
 	if _, _, ok := codaClosureReleaseSplit(plan.Unit{CodaPhones: []string{"t"}, DurationMS: 20}); ok {
 		t.Fatal("short coda must not split")
 	}
@@ -104,7 +102,6 @@ func TestE2ACodaReleaseSplitRespectsToggle(t *testing.T) {
 	if _, _, ok := worldCodaReleaseSplit(p, u, base.WorldlineProviderOptions{E2A: &off}); ok {
 		t.Fatal("E2a off must not split")
 	}
-	// 未指定は既定ON。
 	if _, _, ok := worldCodaReleaseSplit(p, u, base.WorldlineProviderOptions{}); !ok {
 		t.Fatal("E2a default should be on")
 	}

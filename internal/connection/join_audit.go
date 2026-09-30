@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-// JoinAuditUnitはplan.Planに依存せずに選択ユニットを識別する。このDTOをconnectionに置くことで、import cycleを避けつつauditコマンドとtrainerが同じファイル形式を共有できる。
+// planへの循環依存を避け、診断と学習で選択ユニットの形式を共有する。
 type JoinAuditUnit struct {
 	Index          int     `json:"index"`
 	Position       int     `json:"position"`
@@ -53,7 +53,7 @@ type JoinAuditRow struct {
 
 const JoinAuditSchemaVersion = 1
 
-// JoinRiskFlagsは試聴トリアージ用のヒントで、学習ラベルには意図的に使わない。しきい値は保守的で、保存済み特徴形式を変えずに変更できる。
+// 試聴の優先付け用。学習ラベルには使わない。
 func JoinRiskFlags(features PairFeatures) []string {
 	flags := make([]string, 0, 5)
 	if !features.PreviousOutgoing.Valid || !features.CurrentIncoming.Valid {
@@ -83,7 +83,7 @@ func JoinRiskFlags(features PairFeatures) []string {
 	return flags
 }
 
-// ReadJoinAuditRowsはjoin-auditが出力するJSON配列、または1行1レコードのJSONLを読む。複数の試聴セッションを統合しやすい。
+// JSON配列とJSONLの両方を受け付ける。
 func ReadJoinAuditRows(path string) ([]JoinAuditRow, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

@@ -83,7 +83,6 @@ func writePCM16(path string, sampleRate int, samples []float32) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	// 1サンプルずつ書くとサンプル数ぶんの書き込みが発生するため、1つのバッファにまとめて書く。
 	const headerSize = 44
 	dataSize := len(samples) * 2
 	buffer := make([]byte, headerSize+dataSize)

@@ -31,7 +31,6 @@ func TestAdaptStretchTimingBoundsExcessiveStretch(t *testing.T) {
 	if targetTail/sourceTail > stretchAdaptMaxRatio+1e-9 {
 		t.Fatalf("tail stretch %.3f exceeded the limit", targetTail/sourceTail)
 	}
-	// 総長は変えない。
 	if got.PreutteranceMS != before.PreutteranceMS || got.Scale != before.Scale {
 		t.Fatalf("total length changed: %+v", got)
 	}

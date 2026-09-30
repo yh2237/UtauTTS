@@ -60,7 +60,6 @@ func TestWorldlineStopProtectionE2BGeneralizesJapanesePlosives(t *testing.T) {
 	if !worldlineStopProtection(p, vcv, base.WorldlineProviderOptions{E2B: &on}) || !worldlineStopProtection(p, cv, base.WorldlineProviderOptions{E2B: &on}) {
 		t.Fatal("E2b on should protect reliable Japanese VCV and CV")
 	}
-	// 信頼度が下限未満のVCVは保護しない。
 	vcv.SpeechProfile.TransientConfidence = .6
 	if worldlineStopProtection(p, vcv, base.WorldlineProviderOptions{E2B: &on}) {
 		t.Fatal("E2b must gate Japanese VCV on high confidence")
@@ -68,7 +67,6 @@ func TestWorldlineStopProtectionE2BGeneralizesJapanesePlosives(t *testing.T) {
 	if worldlineStopProtection(p, vcv, base.WorldlineProviderOptions{E2B: &off}) || worldlineStopProtection(p, cv, base.WorldlineProviderOptions{E2B: &off}) {
 		t.Fatal("E2b off must not protect Japanese plosives")
 	}
-	// 未指定は既定ON。
 	if !worldlineStopProtection(p, cv, base.WorldlineProviderOptions{}) {
 		t.Fatal("E2b default should be on")
 	}
@@ -108,11 +106,9 @@ func TestWorldlineStopProtectionProtectsEnglishCodaPlosive(t *testing.T) {
 	if !worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: profile}, base.WorldlineProviderOptions{}) {
 		t.Fatal("word-final plosive must be protected")
 	}
-	// codaが破裂音でなければ対象外。
 	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"s"}, SpeechProfile: profile}, base.WorldlineProviderOptions{}) {
 		t.Fatal("fricative coda must not be protected")
 	}
-	// 解放過渡が測れなければ対象外。
 	silent := &voicebank.SpeechProfile{}
 	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: silent}, base.WorldlineProviderOptions{}) {
 		t.Fatal("unmeasured release must not be protected")

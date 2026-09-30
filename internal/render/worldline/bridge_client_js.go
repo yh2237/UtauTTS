@@ -22,8 +22,7 @@ func sharedRenderer() *worldrender.Renderer {
 	return wasmRenderer
 }
 
-// InvokeReportはwasmではブリッジプロセスを起動せず、同一プロセス内でWORLDレンダリングする。
-// WORLD自体はJSブリッジ（globalThis.utauttsWorld）経由で呼ばれる。
+// wasmは外部プロセスを起動せず、JSブリッジ経由でWORLDを呼ぶ。
 func InvokeReport(ctx context.Context, bridge, jobPath, outputPath string, report *[]provider.WorldSpeechResult) error {
 	_ = bridge
 	if ctx == nil {
@@ -46,7 +45,6 @@ func InvokeReport(ctx context.Context, bridge, jobPath, outputPath string, repor
 	return nil
 }
 
-// Closeはwasmレンダラを解放する。
 func Close() {
 	if wasmRenderer != nil {
 		wasmRenderer.Close()

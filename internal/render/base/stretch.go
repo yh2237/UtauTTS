@@ -2,12 +2,10 @@ package base
 
 import "math"
 
-// WSOLAStretchはWSOLAを共通のストレッチ関数型で呼び出す。
 func WSOLAStretch(source []float64, targetFrames, sampleRate int) ([]float64, error) {
 	return wsola(source, targetFrames, sampleRate), nil
 }
 
-// StretchWSOLAは実験・診断処理から標準WSOLAを再利用する。
 func StretchWSOLA(source []float64, targetFrames, sampleRate int) []float64 {
 	return wsola(source, targetFrames, sampleRate)
 }

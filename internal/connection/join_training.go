@@ -5,7 +5,6 @@ import (
 	"math"
 )
 
-// JoinTrainingOptionsは依存ライブラリ不要のオフラインランカー学習器の設定。
 type JoinTrainingOptions struct {
 	ID            string
 	Description   string
@@ -31,7 +30,7 @@ type joinTrainingExample struct {
 	label  float64
 }
 
-// TrainJoinModelはJoinAuditRowの試聴ラベルから標準化した小さなロジスティックランカーを学習する。ラベル無し行はスキップする。Pythonや機械学習ランタイム無しで動かせるよう、意図的に単純で決定的にしている。
+// 試聴ラベルからロジスティックランカーを学習する。外部ランタイムに依存せず、結果は決定的。
 func TrainJoinModel(rows []JoinAuditRow, options JoinTrainingOptions) (*JoinModel, JoinTrainingReport, error) {
 	options = normalizeTrainingOptions(options)
 	examples := make([]joinTrainingExample, 0, len(rows))

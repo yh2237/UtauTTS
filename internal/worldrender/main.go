@@ -72,12 +72,10 @@ type Renderer struct {
 	state *bridgeState
 }
 
-// NewRendererは常駐WORLDエンジン用のRendererを作る。
 func NewRenderer() *Renderer {
 	return &Renderer{state: newBridgeState()}
 }
 
-// Closeは保持しているWORLDエンジンを解放する。
 func (renderer *Renderer) Close() {
 	if renderer != nil && renderer.state != nil {
 		renderer.state.close()
@@ -100,12 +98,11 @@ func (renderer *Renderer) RenderJob(jobJSON []byte, outputPath string) ([]provid
 	return nil, nil
 }
 
-// ServeProviderはv1外部プロバイダプロトコルのアダプタ。
 func ServeProvider(input io.Reader, output io.Writer, providerID string) error {
 	return serveProvider(input, output, providerID)
 }
 
-// serveProviderはv1外部プロバイダプロトコルのアダプタ。共通のunit-rendererジョブと型付きWORLDオプションのみ受け付ける。
+// 共通のunit-rendererジョブとWORLDオプションだけを受け付ける。
 func serveProvider(input io.Reader, output io.Writer, providerID string) error {
 	state := newBridgeState()
 	defer state.close()

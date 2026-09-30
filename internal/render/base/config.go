@@ -6,7 +6,6 @@ import (
 	"utautts/internal/engine"
 )
 
-// Configはrenderer実行に必要な設定を保持する。共有層の型。
 type Config struct {
 	TargetF0                *F0Track
 	Context                 context.Context
@@ -30,13 +29,11 @@ type Config struct {
 	StretchAdaptStrength float64
 }
 
-// ProviderOptionsは特定provider固有の設定を保持する。無関係なproviderの実行パスやスイッチが混ざるのを防ぐ。
 type ProviderOptions struct {
 	Classic    ClassicOptions
 	Worldline  WorldlineProviderOptions
 	DiffSinger DiffSingerOptions
-	// Rendererはmanifestのrenderer_settingsのうちGoが既知でないprovider固有値を保持する。
-	// providerが使わなくても無害で、診断としてそのまま参照できる。
+	// Goが知らないrenderer_settingsも、実装固有の値として保持する。
 	Renderer map[string]any
 	// RendererDiagnosticsはrenderer_settingsの型不一致などの非致命的な問題を記録する。
 	RendererDiagnostics []string
@@ -79,12 +76,10 @@ type WorldlineProviderOptions struct {
 	E2B *bool
 }
 
-// SeparateCodaReleaseEnabledは英語語末の閉鎖・解放分離の実効値を返す。
 func (options WorldlineProviderOptions) SeparateCodaReleaseEnabled() bool {
 	return options.E2A == nil || *options.E2A
 }
 
-// JapaneseStopProtectionEnabledは日本語の破裂音保護の実効値を返す。
 func (options WorldlineProviderOptions) JapaneseStopProtectionEnabled() bool {
 	return options.E2B == nil || *options.E2B
 }
@@ -99,12 +94,10 @@ func (options WorldlineProviderOptions) E2BEnabled() bool {
 	return options.JapaneseStopProtectionEnabled()
 }
 
-// Resourceは解決済みengineからresourceを引く。
 func (cfg Config) Resource(key engine.ResourceKey) string {
 	return cfg.Engine.Resource(key)
 }
 
-// ProviderIDは実行providerを返す。
 func (cfg Config) ProviderID() engine.ProviderID {
 	if cfg.Engine.Provider.ID != "" {
 		return cfg.Engine.Provider.ID
@@ -126,7 +119,6 @@ const (
 	CVVCTimingSequential = "sequential"
 )
 
-// MaxIntonationStrengthはユーザー向けイントネーション制御の上限値。
 const MaxIntonationStrength = 4.0
 
 // DefaultReleaseMSは未指定時のリリース長。明示的な0にはReleaseSetを使う。

@@ -33,7 +33,6 @@ type F0Track struct {
 	Hz      []float64 `json:"hz"`
 }
 
-// EffectiveTimingは補正後の実効タイミング。renderer非依存の共有型。
 type EffectiveTiming struct {
 	PreutteranceMS float64
 	ConsonantMS    float64
@@ -56,13 +55,11 @@ type RenderedUnit struct {
 	FadeInFrames int
 }
 
-// WorldlineEnvelopePointはWORLDのエンベロープ点。
 type WorldlineEnvelopePoint struct {
 	XMS float64 `json:"x_ms"`
 	Y   float64 `json:"y"`
 }
 
-// OpenUtauPhoneTimingはOpenUTAU互換の音素時間。
 type OpenUtauPhoneTiming struct {
 	Preutter    float64
 	Overlap     float64
