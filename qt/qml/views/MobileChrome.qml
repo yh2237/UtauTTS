@@ -59,41 +59,50 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 48
                     text: root.window.translator.tr("menu.file.addVoicebank")
-                    enabled: !root.backend.busy
+                    enabled: !root.backend.busy && !root.window.batchExportActive
                     onClicked: { menuDrawer.close(); root.backend.beginAddVoicebanks(); }
                 }
                 Button {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 48
                     text: root.window.translator.tr("menu.file.open")
-                    enabled: !root.backend.busy
+                    enabled: !root.backend.busy && !root.window.batchExportActive
                     onClicked: { menuDrawer.close(); root.window.openProject(); }
                 }
                 Button {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 48
                     text: root.window.translator.tr("menu.file.save")
-                    enabled: !root.backend.busy
+                    enabled: !root.backend.busy && !root.window.batchExportActive
                     onClicked: { menuDrawer.close(); root.window.saveCurrentProject(); }
                 }
                 Button {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 48
                     text: root.window.translator.tr("menu.file.saveWav")
-                    enabled: !root.backend.busy && root.window.utterancesModel.count > 0
+                    enabled: !root.backend.busy && !root.window.batchExportActive && root.window.utterancesModel.count > 0
                              && root.window.current().reading.length > 0
                     onClicked: { menuDrawer.close(); root.window.saveCurrentAudio(); }
                 }
                 Button {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 48
+                    text: root.window.translator.tr("menu.file.saveAllWav")
+                    enabled: !root.backend.busy && !root.window.batchExportActive && root.window.hasExportableText()
+                    onClicked: { menuDrawer.close(); root.window.openSaveAllDialog(); }
+                }
+                Button {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 48
                     text: root.window.translator.tr("menu.settings")
+                    enabled: !root.window.batchExportActive
                     onClicked: { menuDrawer.close(); settingsDialog.open(); }
                 }
                 Button {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 48
                     text: root.window.translator.tr("dictionary.title")
+                    enabled: !root.window.batchExportActive
                     onClicked: {
                         menuDrawer.close();
                         dictionaryContent.loadCurrent();
@@ -186,7 +195,7 @@ Item {
 
     MobilePageDialog {
         id: licenseDialog
-        title: root.window.translator.tr("menu.help.license")
+        title: root.window.translator.tr("license.title")
         contentItem: LicenseContent { documents: root.window.licenseDocuments }
     }
 

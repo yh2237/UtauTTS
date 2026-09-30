@@ -157,6 +157,7 @@ ApplicationWindow {
     property bool playbackRequested: false
     property string playbackError: ""
     property bool batchExportActive: false
+    property string batchAnalysisUtteranceId: ""
     property int batchExportIndex: -1
     property int batchExportOriginalIndex: 0
     property int batchExportCompleted: 0
@@ -901,6 +902,16 @@ ApplicationWindow {
                 return;
             const analysis = JSON.parse(window.appBackend.analysisJson);
             window.applyPronunciation(index, analysis.reading, window.copySequence(analysis.morae));
+            if (window.batchExportActive && requestId === window.batchAnalysisUtteranceId) {
+                window.batchAnalysisUtteranceId = "";
+                if (!analysis.reading) {
+                    window.playbackError = window.translator.tr("diagnostics.errorTitle");
+                    window.finishBatchExport(false);
+                    return;
+                }
+                Qt.callLater(window.synthesizeBatchItem);
+                return;
+            }
             if (!window.batchExportActive && index === window.selectedIndex)
                 window.requestProsodyPreview(index);
         }
@@ -1033,7 +1044,8 @@ ApplicationWindow {
                 metadataReloadDialog.close();
             }
             if (window.batchExportActive && !window.appBackend.busy
-                    && window.pendingUtteranceId.length && window.appBackend.error.length)
+                    && (window.pendingUtteranceId.length || window.batchAnalysisUtteranceId.length)
+                    && window.appBackend.error.length)
                 window.finishBatchExport(false);
             else if (window.playbackQueueActive && window.pendingUtteranceId.length && window.appBackend.error.length)
                 window.stopPlaybackQueue();
@@ -3347,6 +3359,15 @@ ApplicationWindow {
         return false;
     }
 
+    function hasExportableText() {
+        for (let index = 0; index < utterances.count; ++index) {
+            const item = utterances.get(index);
+            if (item.reading.length || item.content.trim().length)
+                return true;
+        }
+        return false;
+    }
+
     function startPlaybackQueue(startIndex) {
         if (window.appBackend.busy || window.batchExportActive || window.playbackQueueActive)
             return;
@@ -3598,10 +3619,12 @@ ApplicationWindow {
         window.batchExportCompleted = 0;
         window.dragExportFiles = [];
         window.batchExportActive = true;
+        window.batchAnalysisUtteranceId = "";
         window.clearPlayback();
         window.pendingUtteranceId = "";
         window.pendingRevision = -1;
         window.pendingProsodyRequestId = "";
+        window.pendingProsodyInFlight = false;
         window.pendingProsodyUtteranceId = "";
         window.pendingProsodyRevision = -1;
         window.appBackend.clearLogs();
@@ -3610,7 +3633,13 @@ ApplicationWindow {
     }
 
     function startBatchExport(directory) {
-        window.beginBatchExport(directory, "save", window.buildExportQueue(false));
+        const queue = [];
+        for (let index = 0; index < utterances.count; ++index) {
+            const item = utterances.get(index);
+            if (item.reading.length || item.content.trim().length)
+                queue.push(index);
+        }
+        window.beginBatchExport(directory, "save", queue);
     }
 
     function startDragExport(directory) {
@@ -3627,13 +3656,21 @@ ApplicationWindow {
     function synthesizeBatchItem() {
         if (!window.batchExportActive)
             return;
+        if (window.batchAnalysisUtteranceId.length)
+            return;
         if (window.appBackend.busy) {
             Qt.callLater(function() { window.synthesizeBatchItem(); });
             return;
         }
         while (window.batchExportIndex < window.batchExportQueue.length) {
-            const index = window.batchExportQueue[window.batchExportIndex++];
+            const index = window.batchExportQueue[window.batchExportIndex];
             const item = utterances.get(index);
+            if (!item.reading.length) {
+                window.batchAnalysisUtteranceId = item.utteranceId;
+                window.analyzeUtterance(index);
+                return;
+            }
+            ++window.batchExportIndex;
             window.selectUtterance(index);
             const requestItem = utterances.get(index);
             window.pendingUtteranceId = requestItem.utteranceId;
@@ -3651,6 +3688,7 @@ ApplicationWindow {
         const dragExportSucceeded = success && wasDragExport;
         const files = window.dragExportFiles.slice();
         window.batchExportActive = false;
+        window.batchAnalysisUtteranceId = "";
         window.batchExportMode = "";
         window.batchExportQueue = [];
         window.pendingUtteranceId = "";

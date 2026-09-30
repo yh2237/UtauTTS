@@ -141,6 +141,7 @@ import UtauTTS.Media
 
                                 DragHandler {
                                     id: imageDrag
+                                    enabled: !window.batchExportActive
                                     target: dragProxy
                                     onActiveChanged: {
                                         if (active) {
@@ -163,7 +164,7 @@ import UtauTTS.Media
                                 id: utteranceEditor
                                 objectName: "utteranceText" + card.index
                                 Accessible.name: window.translator.tr("main.textPlaceholder")
-                                readOnly: window.intonationLab
+                                readOnly: window.intonationLab || window.batchExportActive
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 42
                                 text: card.content
@@ -197,6 +198,7 @@ import UtauTTS.Media
 
                             ToolButton {
                                 id: cardMenuButton
+                                enabled: !window.batchExportActive
                                 contentItem: Text {
                                     anchors.centerIn: parent
                                     width: 22
@@ -296,6 +298,7 @@ import UtauTTS.Media
 
                 RoundButton {
                     id: addButton
+                    enabled: !window.batchExportActive
                     visible: !window.intonationLab
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
@@ -322,6 +325,7 @@ import UtauTTS.Media
 
             Pane {
                 id: parameterPane
+                enabled: !window.batchExportActive
                 parent: editorSplitView.mobileLayout ? utteranceSettingsDialog.contentItem : utteranceSplitView
                 anchors.fill: editorSplitView.mobileLayout ? parent : undefined
                 visible: !window.intonationLab && (!editorSplitView.mobileLayout || utteranceSettingsDialog.opened)

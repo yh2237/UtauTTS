@@ -111,17 +111,25 @@ async function checkMobilePagesAndDrag(page) {
   await expectMobileLayout(page, true);
   await page.mouse.click(354, 28);
   await page.waitForTimeout(250);
-  await page.mouse.click(140, 264); // Settings in the 16px-inset Drawer.
+  await page.mouse.click(140, 320); // Settings in the 16px-inset Drawer.
   await page.waitForTimeout(250);
   await page.screenshot({ path: path.join(output, "mobile-settings-insets.png") });
   await page.mouse.click(348, 24); // Common page header's close button.
   await page.mouse.click(354, 28);
   await page.waitForTimeout(250);
-  await page.mouse.click(140, 320); // Dictionary settings.
+  await page.mouse.click(140, 376); // Dictionary settings.
   await page.waitForTimeout(250);
   await page.mouse.click(100, 748); // Add an entry in the compact action grid.
   await page.waitForTimeout(100);
   await page.screenshot({ path: path.join(output, "mobile-dictionary-insets.png") });
+  await page.mouse.click(348, 24);
+  await page.mouse.click(354, 28);
+  await page.waitForTimeout(250);
+  await page.mouse.click(140, 432); // License page.
+  await page.waitForTimeout(250);
+  const license = await page.locator("#qt-shadow-container").screenshot();
+  await page.screenshot({ path: path.join(output, "mobile-license.png") });
+  assert.ok(license.length > 0);
   await page.mouse.click(348, 24);
   const before = await projectSnapshot(page);
   const session = await page.context().newCDPSession(page);
@@ -139,6 +147,24 @@ async function checkMobilePagesAndDrag(page) {
     "mobile touch drag must reorder utterances through their voicebank images");
   await page.screenshot({ path: path.join(output, "mobile-scrollbar-position.png") });
   console.log("Mobile settings/dictionary pages and touch-only reordering verified");
+  await checkMobileSaveAll(page);
+}
+
+async function checkMobileSaveAll(page) {
+  const downloads = [];
+  page.on("download", download => downloads.push(download.suggestedFilename()));
+  await page.mouse.click(354, 28); // Mobile navigation.
+  await page.waitForTimeout(250);
+  await page.mouse.click(140, 264); // Save all WAV.
+  // One utterance has no reading yet; batch export must analyze it before saving.
+  for (let i = 0; i < 360 && downloads.length < 2; ++i) await page.waitForTimeout(500);
+  if (downloads.length < 2) {
+    console.error("save-all trace:", await page.evaluate(() => window.utauttsCallTrace));
+    await page.screenshot({ path: path.join(output, "mobile-save-all-failure.png") });
+  }
+  assert.equal(downloads.length, 2, "save all must download one WAV per utterance and analyze text first");
+  assert.ok(downloads.every(name => name.endsWith(".wav")), "save all must produce WAV files");
+  console.log("Mobile save-all-WAV analyzed text and downloaded:", downloads.join(", "));
 }
 
 async function checkResponsiveState(page) {
