@@ -1,5 +1,6 @@
 golang.org/x/text
 github.com/yh2237/utauio
+github.com/yh2237/audiodsp
 github.com/ikawaha/kagome/v2
 github.com/ikawaha/kagome-dict
 github.com/ikawaha/kagome-dict/ipa

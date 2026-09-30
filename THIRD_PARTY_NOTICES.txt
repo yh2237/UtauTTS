@@ -84,6 +84,18 @@ licenses/Go/github_com_yh2237_utauio-v0.1.0-LICENSE.txt.
 Source: https://github.com/yh2237/utauio
 
 
+audiodsp
+========
+
+UtauTTS uses github.com/yh2237/audiodsp v0.1.0 for pitch estimation.
+The library was extracted from UtauTTS and is distributed under the
+MIT License, Copyright (c) 2026 yh. It has no external module dependencies.
+Its license text is identical to utauio's and is included once as
+licenses/Go/github_com_yh2237_utauio-v0.1.0-LICENSE.txt.
+
+Source: https://github.com/yh2237/audiodsp
+
+
 go-pinyin
 =========
 

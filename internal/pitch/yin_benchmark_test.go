@@ -41,3 +41,15 @@ func BenchmarkPitchEstimateMedian(b *testing.B) {
 		benchmarkHz = EstimateMedian(wave, 16000)
 	}
 }
+
+func BenchmarkPitchFrames(b *testing.B) {
+	wave := benchmarkPitchWave(16000, 200)
+	var detector Detector
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for start := 0; start+640 <= len(wave); start += 80 {
+			benchmarkHz = detector.Estimate(wave[start:start+640], 16000)
+		}
+	}
+}

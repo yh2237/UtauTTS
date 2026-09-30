@@ -107,9 +107,10 @@ func measureSpeechProfile(wave []float64, rate int, entry oto.Entry, result Spee
 	priorF0, priorDB := 0.0, 0.0
 	bestStart, bestEnd, firstVoiced := -1, -1, -1
 	sumF0, sumDB := 0.0, 0.0
+	var detector pitch.Detector
 	for start := max(0, left); start <= right; start += hop {
 		segment := samples[start : start+frame]
-		f0 := pitch.Estimate(segment, sampleRate)
+		f0 := detector.Estimate(segment, sampleRate)
 		db := acoustic.DB(acoustic.RMS(segment))
 		count++
 		stable := f0 > 0 && db > -50
