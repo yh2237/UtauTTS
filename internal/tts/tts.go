@@ -655,11 +655,13 @@ func validateConfig(cfg Config) error {
 
 // constrainManualPitchContourは手動で加えた分の輪郭だけを平滑化し、傾きを制限する。
 // 結合後の曲線全体へかけると、編集していない箇所の自動輪郭（アクセント核の下降など）まで鈍る。
+// 傾きの上限は10msあたり50セント。モーラ中心（約120ms間隔）を直線でつなぐ編集は+300セントで25セントを要し、
+// 8セントでは「+150→-150」の下降が+100→+20のように逆向きになっていた。
 func constrainManualPitchContour(manual *prosody.PitchContour) *prosody.PitchContour {
 	if manual == nil || manual.FrameMS <= 0 || len(manual.Cents) == 0 {
 		return manual
 	}
-	constrained := render.ConstrainPitchCurve(&render.PitchCurve{FrameMS: manual.FrameMS, Cents: manual.Cents}, 20, 8)
+	constrained := render.ConstrainPitchCurve(&render.PitchCurve{FrameMS: manual.FrameMS, Cents: manual.Cents}, 20, 50)
 	return &prosody.PitchContour{FrameMS: constrained.FrameMS, Cents: constrained.Cents}
 }
 

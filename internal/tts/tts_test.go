@@ -158,6 +158,7 @@ func TestMergeManualPitchCurve(t *testing.T) {
 	t.Run("adds to learned curve", testMergeManualPitchCurveAddsToLearnedCurve)
 	t.Run("replaces learned curve", testMergeManualPitchCurveCanReplaceLearnedCurve)
 	t.Run("constrains only the manual edit", testManualPitchConstraintKeepsLearnedFall)
+	t.Run("keeps a mora-level fall edit", testManualPitchConstraintKeepsMoraFall)
 }
 
 func testManualPitchConstraintKeepsLearnedFall(t *testing.T) {
@@ -172,8 +173,28 @@ func testManualPitchConstraintKeepsLearnedFall(t *testing.T) {
 	if drop := got.Cents[14] - got.Cents[15]; math.Abs(drop-200) > 1e-6 {
 		t.Fatalf("learned fall = %.2f cents, want 200", drop)
 	}
-	if step := got.Cents[0] - got.Cents[1]; step > 8+1e-9 {
-		t.Fatalf("manual edit step = %.2f cents per 10ms, want at most 8", step)
+	manual.Cents[0] = 400
+	if got := constrainManualPitchContour(manual); got.Cents[0]-got.Cents[1] > 50+1e-9 {
+		t.Fatalf("manual edit step = %.2f cents per 10ms, want at most 50", got.Cents[0]-got.Cents[1])
+	}
+}
+
+func testManualPitchConstraintKeepsMoraFall(t *testing.T) {
+	// GUIのモーラ編集（中心間120msを直線補間）で+150→-150と下げた場合、下げた側が逆向きにならない。
+	manual := &prosody.PitchContour{FrameMS: 10, Cents: make([]float64, 49)}
+	for index := range manual.Cents {
+		switch {
+		case index <= 12:
+			manual.Cents[index] = 150 * float64(index) / 12
+		case index <= 24:
+			manual.Cents[index] = 150 - 300*float64(index-12)/12
+		default:
+			manual.Cents[index] = -150 + 150*float64(index-24)/24
+		}
+	}
+	got := constrainManualPitchContour(manual)
+	if got.Cents[12] < 120 || got.Cents[24] > -120 {
+		t.Fatalf("fall edit = %+.0f → %+.0f cents, want about +150 → -150", got.Cents[12], got.Cents[24])
 	}
 }
 
