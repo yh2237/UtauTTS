@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"utautts/internal/audio"
-	"utautts/internal/engine"
 	"utautts/internal/provider"
 )
 
@@ -78,7 +77,7 @@ func TestDiffSingerProviderSessionKeepsBridgeResident(t *testing.T) {
 }
 
 func TestWriteProviderRequestUsesCommonNeuralScoreJob(t *testing.T) {
-	score := engine.NeuralScore{
+	score := provider.NeuralScore{
 		Symbols: []string{"SP", "a"}, Durations: []int64{2, 4}, F0: []float32{220, 220, 220, 220, 220, 220},
 		MIDI: 60, WordDiv: []int64{2}, WordDur: []int64{6}, UsePitchPredictor: true,
 	}

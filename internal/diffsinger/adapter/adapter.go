@@ -13,6 +13,7 @@ import (
 	"utautts/internal/openutau"
 	"utautts/internal/plan"
 	"utautts/internal/prosody"
+	"utautts/internal/provider"
 	"utautts/internal/render"
 )
 
@@ -65,7 +66,7 @@ func (Synthesizer) Synthesize(in neural.Input) (*neural.Output, error) {
 	wordDur := groupedFrameDurations(frames, wordDiv)
 	automaticPitch := in.AutomaticPitch
 	noteMIDI, phMIDI := diffsingerMIDICurves(f0, wordDur, frames, midi)
-	score := engine.NeuralScore{
+	score := provider.NeuralScore{
 		Symbols: symbols, Durations: frames, F0: f0, MIDI: midi,
 		NoteMIDI: noteMIDI, PhMIDI: phMIDI,
 		WordDiv: wordDiv, WordDur: wordDur, NoteRest: noteRest,

@@ -11,16 +11,15 @@ import (
 	"sync"
 
 	"utautts/internal/audio"
-	"utautts/internal/engine"
 	"utautts/internal/provider"
 )
 
 // RenderSessionはproviderプロトコルを使い、bridgeプロセスを維持してONNX Runtimeセッションを常駐させる。
 func RenderSession(ctx context.Context, bridgePath string, request Request) (*audio.PCM, error) {
-	return renderSession(ctx, bridgePath, engine.NeuralScore{}, request)
+	return renderSession(ctx, bridgePath, provider.NeuralScore{}, request)
 }
 
-func renderSession(ctx context.Context, bridgePath string, score engine.NeuralScore, request Request) (*audio.PCM, error) {
+func renderSession(ctx context.Context, bridgePath string, score provider.NeuralScore, request Request) (*audio.PCM, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -80,7 +79,7 @@ func diffSingerBridgeExecutable(path string) (string, error) {
 	return abs, nil
 }
 
-func writeProviderRequest(score engine.NeuralScore, request Request) (directory, manifestPath, outputPath string, err error) {
+func writeProviderRequest(score provider.NeuralScore, request Request) (directory, manifestPath, outputPath string, err error) {
 	directory, err = os.MkdirTemp("", "utautts-diffsinger-")
 	if err != nil {
 		return "", "", "", err

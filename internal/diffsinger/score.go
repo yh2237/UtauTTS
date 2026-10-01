@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"utautts/internal/audio"
-	"utautts/internal/engine"
+	"utautts/internal/provider"
 )
 
-type Score = engine.NeuralScore
+type Score = provider.NeuralScore
 
 func RenderScore(ctx context.Context, bridgePath string, singer *Singer, score Score) (*audio.PCM, error) {
 	request, err := RequestFromScore(singer, score)
