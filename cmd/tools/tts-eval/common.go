@@ -24,6 +24,7 @@ type caseOptions struct {
 	experiment                string
 	wordEnvelope              bool
 	rendererID                string
+	resampler, wavtool        string
 	mix, gapRepair            string
 	speechTiming, applyPitch  bool
 	contextDuration           bool
@@ -50,6 +51,8 @@ func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Re
 		Tone:                    "C4",
 		AliasPolicy:             voicebank.AliasPolicy(o.aliasPolicy),
 		Renderer:                o.rendererID,
+		Resampler:               o.resampler,
+		Wavtool:                 o.wavtool,
 		WordBoundaryEnvelope:    o.wordEnvelope,
 		SpeechProsodyExperiment: o.experiment,
 		MoraDurationMS:          o.moraMS,
