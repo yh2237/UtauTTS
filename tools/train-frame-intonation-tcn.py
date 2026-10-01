@@ -584,7 +584,11 @@ def utterance_frame_times(record: dict, frame_ms: float = FRAME_MS) -> np.ndarra
 
 
 def _f0_cache_path(cache_dir: str | Path, record: dict, frame_ms: float, tag: str) -> Path:
-    key = f"{record.get('record_id') or record.get('id')}|{frame_ms:g}|{tag}"
+    # キャッシュには休止区間を0にしたF0を保存するため、トークンの時刻と休止も鍵に含める。
+    # 整列し直した同じIDの発話で、時刻のずれた古いF0を使わないようにする。
+    timeline = json.dumps([[round(float(token.get("start_ms", 0.0)), 3), round(float(token.get("end_ms", 0.0)), 3),
+                            bool(token.get("pause", False))] for token in record["tokens"]])
+    key = f"{record.get('record_id') or record.get('id')}|{frame_ms:g}|{tag}|{timeline}"
     return Path(cache_dir) / (hashlib.sha1(key.encode("utf-8")).hexdigest() + ".npy")
 
 
