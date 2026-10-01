@@ -77,7 +77,7 @@ func neuralPitchCurve(cfg Config, reading string, preview *ProsodyPreview, morae
 		if err != nil {
 			return nil, err
 		}
-		curve = render.ConstrainPitchCurve(mergeManualPitchCurve(curve, contour, manual.Mode), 20, 8)
+		curve = mergeManualPitchCurve(curve, constrainManualPitchContour(contour), manual.Mode)
 	}
 	return curve, nil
 }

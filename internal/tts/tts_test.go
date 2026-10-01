@@ -157,6 +157,24 @@ func testMoraTimingsIncludePausesMissingFromPlanUnits(t *testing.T) {
 func TestMergeManualPitchCurve(t *testing.T) {
 	t.Run("adds to learned curve", testMergeManualPitchCurveAddsToLearnedCurve)
 	t.Run("replaces learned curve", testMergeManualPitchCurveCanReplaceLearnedCurve)
+	t.Run("constrains only the manual edit", testManualPitchConstraintKeepsLearnedFall)
+}
+
+func testManualPitchConstraintKeepsLearnedFall(t *testing.T) {
+	// 学習輪郭の急な下降（10msで200セント）は、離れた箇所の手動編集で鈍らない。
+	base := &render.PitchCurve{FrameMS: 10, Cents: make([]float64, 20)}
+	for index := 15; index < len(base.Cents); index++ {
+		base.Cents[index] = -200
+	}
+	manual := &prosody.PitchContour{FrameMS: 10, Cents: make([]float64, 20)}
+	manual.Cents[0] = 40
+	got := mergeManualPitchCurve(base, constrainManualPitchContour(manual), "offset")
+	if drop := got.Cents[14] - got.Cents[15]; math.Abs(drop-200) > 1e-6 {
+		t.Fatalf("learned fall = %.2f cents, want 200", drop)
+	}
+	if step := got.Cents[0] - got.Cents[1]; step > 8+1e-9 {
+		t.Fatalf("manual edit step = %.2f cents per 10ms, want at most 8", step)
+	}
 }
 
 func testMergeManualPitchCurveAddsToLearnedCurve(t *testing.T) {

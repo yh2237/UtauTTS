@@ -64,8 +64,7 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 		if curveErr != nil {
 			return synthesisPitch{}, fmt.Errorf("build manual pitch curve: %w", curveErr)
 		}
-		pitchCurve = mergeManualPitchCurve(pitchCurve, manualContour, manualPitch.Mode)
-		pitchCurve = render.ConstrainPitchCurve(pitchCurve, 20, 8)
+		pitchCurve = mergeManualPitchCurve(pitchCurve, constrainManualPitchContour(manualContour), manualPitch.Mode)
 	}
 	intonationStrength := rendererIntonationStrength(cfg, automaticPitchCurve)
 	return synthesisPitch{Curve: pitchCurve, Automatic: automaticPitchCurve, Apply: applyPitch, RendererStrength: intonationStrength}, nil
