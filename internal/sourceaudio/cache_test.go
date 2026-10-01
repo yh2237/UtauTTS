@@ -112,3 +112,139 @@ func TestCacheCountsMonoMemoryAndSerializesConcurrentLoads(t *testing.T) {
 		t.Fatal("mono memory was not included in eviction")
 	}
 }
+
+// 読込を止めた状態で、同じ原音の共有・他の原音の取得・消去を確認する。
+func blockReads(t *testing.T) (started chan string, release chan struct{}, calls *int, mu *sync.Mutex) {
+	t.Helper()
+	started = make(chan string, 16)
+	release = make(chan struct{})
+	calls = new(int)
+	mu = new(sync.Mutex)
+	original := readWavFile
+	readWavFile = func(path string) (*audio.PCM, error) {
+		mu.Lock()
+		*calls++
+		mu.Unlock()
+		started <- path
+		<-release
+		return original(path)
+	}
+	t.Cleanup(func() { readWavFile = original })
+	return
+}
+
+func TestCacheSharesInFlightLoadOfSameSource(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "source.wav")
+	writeFixture(t, path, 100)
+	c := newCache(1 << 20)
+	started, release, calls, mu := blockReads(t)
+	results := make(chan *audio.PCM, 4)
+	for i := 0; i < 4; i++ {
+		go func() {
+			pcm, _, err := c.readMono(path)
+			if err != nil {
+				t.Error(err)
+			}
+			results <- pcm
+		}()
+	}
+	<-started
+	time.Sleep(20 * time.Millisecond)
+	close(release)
+	first := <-results
+	for i := 1; i < 4; i++ {
+		if <-results != first {
+			t.Fatal("concurrent loads returned different arrays")
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if *calls != 1 || c.bytes != 400+800 {
+		t.Fatalf("calls=%d bytes=%d", *calls, c.bytes)
+	}
+}
+
+func TestCacheHitDoesNotWaitForOtherLoad(t *testing.T) {
+	dir := t.TempDir()
+	cached, slow := filepath.Join(dir, "cached.wav"), filepath.Join(dir, "slow.wav")
+	writeFixture(t, cached, 100)
+	writeFixture(t, slow, 200)
+	c := newCache(1 << 20)
+	if _, err := c.load(cached); err != nil {
+		t.Fatal(err)
+	}
+	started, release, _, _ := blockReads(t)
+	done := make(chan error, 1)
+	go func() {
+		_, err := c.load(slow)
+		done <- err
+	}()
+	<-started
+	hit := make(chan error, 1)
+	go func() {
+		_, err := c.load(cached)
+		hit <- err
+	}()
+	select {
+	case err := <-hit:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("cached source waited for another file")
+	}
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if c.order.Len() != 2 {
+		t.Fatalf("entries=%d", c.order.Len())
+	}
+}
+
+func TestClearDropsLoadStartedBeforeClear(t *testing.T) {
+	Clear()
+	t.Cleanup(Clear)
+	path := filepath.Join(t.TempDir(), "source.wav")
+	writeFixture(t, path, 100)
+	started, release, _, _ := blockReads(t)
+	done := make(chan error, 1)
+	go func() {
+		_, err := ReadWav(path)
+		done <- err
+	}()
+	<-started
+	Clear()
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	shared.mu.Lock()
+	entries, bytes := shared.order.Len(), shared.bytes
+	shared.mu.Unlock()
+	if entries != 0 || bytes != 0 {
+		t.Fatalf("load from before Clear was retained: entries=%d bytes=%d", entries, bytes)
+	}
+}
+
+func TestFailedLoadIsNotCachedAndIsRetried(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "broken.wav")
+	if err := os.WriteFile(path, []byte("not a wav"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := newCache(1 << 20)
+	if _, err := c.load(path); err == nil {
+		t.Fatal("broken file was decoded")
+	}
+	if c.order.Len() != 0 || len(c.loading) != 0 {
+		t.Fatal("failed load left cache state")
+	}
+	writeFixture(t, path, 100)
+	stamp := time.Now().Add(2 * time.Second)
+	if err := os.Chtimes(path, stamp, stamp); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.load(path); err != nil {
+		t.Fatal(err)
+	}
+}

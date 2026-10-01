@@ -14,20 +14,35 @@ type cachedSource struct {
 	path          string
 	size, modTime int64
 	pcm           *audio.PCM
+	monoOnce      sync.Once
 	mono          []float64
 }
 
+// 同じ原音・同じ更新状態の初回読込を1回にまとめる。
+type pendingLoad struct {
+	size, modTime int64
+	done          chan struct{}
+	entry         *cachedSource
+	err           error
+}
+
 type cache struct {
-	mu       sync.Mutex
-	byPath   map[string]*list.Element
-	order    *list.List
-	bytes    int64
-	maxBytes int64
+	mu         sync.Mutex
+	byPath     map[string]*list.Element
+	loading    map[string]*pendingLoad
+	order      *list.List
+	bytes      int64
+	maxBytes   int64
+	generation uint64
 }
 
 func newCache(limit int64) *cache {
-	return &cache{byPath: make(map[string]*list.Element), order: list.New(), maxBytes: limit}
+	return &cache{byPath: make(map[string]*list.Element), loading: make(map[string]*pendingLoad),
+		order: list.New(), maxBytes: limit}
 }
+
+// 試験で読込の開始・完了を制御するために差し替える。
+var readWavFile = audio.ReadWav
 
 // アプリ内の原音専用。生PCMと解析用モノラルを合わせて256MiBまで保持する。
 var shared = newCache(256 << 20)
@@ -64,6 +79,8 @@ func Clear() {
 	shared.byPath = make(map[string]*list.Element)
 	shared.order.Init()
 	shared.bytes = 0
+	// 消去前に始まった読込の結果は保持しない。
+	shared.generation++
 }
 
 func (c *cache) remove(element *list.Element) {
@@ -79,31 +96,56 @@ func (c *cache) evict() {
 	}
 }
 
+// ファイルの読込・復号はロックの外で行い、他の原音の取得を待たせない。
 func (c *cache) load(path string) (*cachedSource, error) {
 	path = filepath.Clean(path)
 	info, err := os.Stat(path)
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if element, ok := c.byPath[path]; ok {
 		entry := element.Value.(*cachedSource)
 		if err == nil && entry.size == info.Size() && entry.modTime == info.ModTime().UnixNano() {
 			c.order.MoveToFront(element)
+			c.mu.Unlock()
 			return entry, nil
 		}
 		c.remove(element)
 	}
 	if err != nil {
+		c.mu.Unlock()
 		return nil, err
 	}
-	pcm, err := audio.ReadWav(path)
-	if err != nil {
-		return nil, err
+	size, modTime := info.Size(), info.ModTime().UnixNano()
+	if pending := c.loading[path]; pending != nil && pending.size == size && pending.modTime == modTime {
+		c.mu.Unlock()
+		<-pending.done
+		return pending.entry, pending.err
 	}
-	entry := &cachedSource{path: path, size: info.Size(), modTime: info.ModTime().UnixNano(), pcm: pcm}
-	c.byPath[path] = c.order.PushFront(entry)
-	c.bytes += int64(len(pcm.Data)) * 2
-	c.evict()
-	return entry, nil
+	pending := &pendingLoad{size: size, modTime: modTime, done: make(chan struct{})}
+	c.loading[path] = pending
+	generation := c.generation
+	c.mu.Unlock()
+
+	pcm, err := readWavFile(path)
+	if err == nil {
+		pending.entry = &cachedSource{path: path, size: size, modTime: modTime, pcm: pcm}
+	}
+	pending.err = err
+
+	c.mu.Lock()
+	if c.loading[path] == pending {
+		delete(c.loading, path)
+	}
+	if err == nil && generation == c.generation {
+		if element, ok := c.byPath[path]; ok {
+			c.remove(element)
+		}
+		c.byPath[path] = c.order.PushFront(pending.entry)
+		c.bytes += int64(len(pcm.Data)) * 2
+		c.evict()
+	}
+	c.mu.Unlock()
+	close(pending.done)
+	return pending.entry, pending.err
 }
 
 func (c *cache) readMono(path string) (*audio.PCM, []float64, error) {
@@ -111,14 +153,15 @@ func (c *cache) readMono(path string) (*audio.PCM, []float64, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if entry.mono == nil {
-		entry.mono = acoustic.Mono(entry.pcm)
+	entry.monoOnce.Do(func() {
+		mono := acoustic.Mono(entry.pcm)
+		c.mu.Lock()
+		entry.mono = mono
 		if element := c.byPath[entry.path]; element != nil && element.Value.(*cachedSource) == entry {
-			c.bytes += int64(len(entry.mono)) * 8
+			c.bytes += int64(len(mono)) * 8
 			c.evict()
 		}
-	}
+		c.mu.Unlock()
+	})
 	return entry.pcm, entry.mono, nil
 }
