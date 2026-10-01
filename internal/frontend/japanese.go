@@ -10,13 +10,35 @@ import (
 
 	"github.com/ikawaha/kagome-dict/ipa"
 	"github.com/ikawaha/kagome/v2/tokenizer"
+
+	"utautts/internal/frontend/ipapron"
 )
 
 var (
-	japaneseOnce      sync.Once
-	japaneseTokenizer *tokenizer.Tokenizer
-	japaneseError     error
+	japaneseOnce           sync.Once
+	japaneseTokenizer      *tokenizer.Tokenizer
+	japanesePronunciations *ipapron.Table
+	japaneseError          error
 )
+
+// 既知語の発音は小さな表から引き、IPA辞書の全素性を読み込まない。
+// 表が辞書と一致しない場合だけ全素性を持つ辞書へ戻す。
+func loadJapaneseTokenizer() {
+	dictionary := ipa.DictShrink()
+	table, err := ipapron.Load(dictionary)
+	if err != nil {
+		dictionary, table = ipa.Dict(), nil
+	}
+	japanesePronunciations = table
+	japaneseTokenizer, japaneseError = tokenizer.New(dictionary, tokenizer.OmitBosEos())
+}
+
+func tokenPronunciation(token tokenizer.Token, table *ipapron.Table) (string, bool) {
+	if token.Class == tokenizer.KNOWN && table != nil {
+		return table.Pronunciation(token.ID)
+	}
+	return token.Pronunciation()
+}
 
 func ToKana(text string) (string, error) {
 	return ToKanaWithDictionary(text, nil)
@@ -163,16 +185,17 @@ func toKana(text string) (string, error) {
 	if text == "" {
 		return "", fmt.Errorf("empty text")
 	}
-	japaneseOnce.Do(func() {
-		japaneseTokenizer, japaneseError = tokenizer.New(ipa.Dict(), tokenizer.OmitBosEos())
-	})
+	japaneseOnce.Do(loadJapaneseTokenizer)
 	if japaneseError != nil {
 		return "", japaneseError
 	}
+	return readTokens(japaneseTokenizer.Tokenize(text), japanesePronunciations)
+}
 
+func readTokens(tokens []tokenizer.Token, table *ipapron.Table) (string, error) {
 	var reading strings.Builder
-	for _, token := range japaneseTokenizer.Tokenize(text) {
-		if pronunciation, ok := token.Pronunciation(); ok && pronunciation != "" && pronunciation != "*" {
+	for _, token := range tokens {
+		if pronunciation, ok := tokenPronunciation(token, table); ok && pronunciation != "" && pronunciation != "*" {
 			reading.WriteString(pronunciation)
 			continue
 		}
