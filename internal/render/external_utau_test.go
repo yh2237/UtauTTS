@@ -71,8 +71,8 @@ func TestUtauResamplerArgumentsMatchOpenUtauClassicContract(t *testing.T) {
 		volume: 73, modulation: 4, tempo: 120, pitches: []int{0, 0, 1, -1},
 	}).commandLine()
 	want := []string{
-		"in.wav", "out.wav", "C#4", "86", "g-3Mt10", "12.500000", "250.000000",
-		"80.250000", "-120.000000", "73", "4", "!120.000000", "AA#1#AB//",
+		"in.wav", "out.wav", "C#4", "86", "g-3Mt10", "12.5", "250",
+		"80.25", "-120", "73", "4", "!120", "AA#1#AB//",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("classic resampler arguments = %#v, want %#v", got, want)
@@ -155,7 +155,7 @@ func TestRenderUtauExternalResamplerInvokesCompatibleExecutable(t *testing.T) {
 	if arguments[0] != source || arguments[2] != "A3" || arguments[3] != "100" || arguments[4] != "" {
 		t.Fatalf("unexpected OpenUtau-compatible leading arguments: %#v", arguments[:5])
 	}
-	if arguments[5] != "0.000000" || arguments[7] != "40.000000" || arguments[9] != "100" || arguments[10] != "0" || arguments[11] != "!120.000000" {
+	if arguments[5] != "0" || arguments[7] != "40" || arguments[9] != "100" || arguments[10] != "0" || arguments[11] != "!120" {
 		t.Fatalf("unexpected OpenUtau-compatible timing arguments: %#v", arguments[5:12])
 	}
 	if arguments[12] == "" {
@@ -203,7 +203,7 @@ func TestRenderUtauExternalResamplerUsesExternalWavtool(t *testing.T) {
 	if err := json.Unmarshal(encoded, &arguments); err != nil {
 		t.Fatal(err)
 	}
-	if len(arguments) != 15 || arguments[3] != "115.200000@120.000000+60.000000" || arguments[4] != "0.000000" {
+	if len(arguments) != 15 || arguments[3] != "115.2@120+60" || arguments[4] != "0" {
 		t.Fatalf("wavtool arguments = %#v", arguments)
 	}
 }

@@ -396,11 +396,11 @@ func runExternalWavtool(ctx context.Context, executable, output, input string, s
 	percent := func(value float64) string { return formatUtauNumber(value * 100) }
 	arguments := []string{
 		output, input, formatUtauNumber(skipMS), duration,
-		"0.000000",
+		"0",
 		formatUtauNumber(points[1].XMS - points[0].XMS),
 		formatUtauNumber(points[4].XMS - points[3].XMS),
 		percent(points[0].Y), percent(points[1].Y), percent(points[3].Y), percent(points[4].Y),
-		formatUtauNumber(overlapMS), "0.000000",
+		formatUtauNumber(overlapMS), "0",
 		formatUtauNumber(points[2].XMS - points[1].XMS), percent(points[2].Y),
 	}
 	if ctx == nil {
@@ -486,8 +486,10 @@ func externalEnvelopeGain(sample, sampleRate int, skipMS float64, points []world
 	return points[len(points)-1].Y
 }
 
+// OpenUtauはFormattableString.Invariantの既定書式で数値を渡す。250.000000のような固定桁は
+// 整数を期待するresampler(hifisampler等)で解釈できないため、最短の10進表記にする。
 func formatUtauNumber(value float64) string {
-	return strconv.FormatFloat(value, 'f', 6, 64)
+	return strconv.FormatFloat(value, 'f', -1, 64)
 }
 
 func midiFrequency(tone int) float64 {
