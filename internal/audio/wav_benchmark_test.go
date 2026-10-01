@@ -51,3 +51,16 @@ func BenchmarkPCMToWavBytes(b *testing.B) {
 		benchmarkWAV = PCMToWavBytes(pcm)
 	}
 }
+
+func BenchmarkWriteWav(b *testing.B) {
+	pcm := benchmarkAudio(48000, 1)
+	path := filepath.Join(b.TempDir(), "output.wav")
+	b.ReportAllocs()
+	b.SetBytes(int64(44 + len(pcm.Data)*2))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := WriteWav(path, pcm); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
