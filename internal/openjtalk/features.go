@@ -136,7 +136,7 @@ func unescapeNJD(value string) string {
 }
 
 func buildAnalysis(nodes []njdNode) *Analysis {
-	chainAuxiliaryVerbs(nodes)
+	chainAccentPhrases(nodes)
 	reading, tokens := analyzeNJD(nodes)
 	analysis := &Analysis{
 		Version:  1,
@@ -151,10 +151,19 @@ func buildAnalysis(nodes []njdNode) *Analysis {
 	return analysis
 }
 
-// chainAuxiliaryVerbsはPython版 chain_auxiliary_verbs の移植。
-// Open JTalkはテ形の後の補助動詞（動詞・非自立）で句を切り、「降って/きた」の「き」を句頭の核にする。
-// 前の句に核があれば補助動詞の核を消して1句にし（フ＼ッテキタ）、前が平板なら補助動詞の核を残す（アソンデキ＼タ）。
-func chainAuxiliaryVerbs(nodes []njdNode) {
+// chainAccentPhrasesはPython版 chain_accent_phrases の移植。Open JTalkが切りすぎる句を前の句へつなぐ。
+//   - テ形の後の補助動詞（動詞・非自立）: 「降って/きた」→ フ＼ッテキタ、「遊んで/きた」→ アソンデキ＼タ。
+//   - サ変名詞の後の「する」: 句頭の下がりを入れずに「運転していま＼す」と1句にする。
+//     するの句が平板（「服従/するより」）なら、長い平板句で単調になるためつながない。
+//
+// 前の句に核があれば後ろの核を消し、前が平板なら後ろの核を句内の位置へずらして残す。
+// サ変はするの句の核で判断するため、補助動詞をつないだ後に処理する（して/います → していま＼す）。
+func chainAccentPhrases(nodes []njdNode) {
+	chainPhrases(nodes, isAuxiliaryAfterTe)
+	chainPhrases(nodes, isAccentedSahenVerb)
+}
+
+func chainPhrases(nodes []njdNode, joins func(previous, node njdNode) bool) {
 	head, length := -1, 0
 	for index := range nodes {
 		node := &nodes[index]
@@ -163,7 +172,7 @@ func chainAuxiliaryVerbs(nodes []njdNode) {
 			continue
 		}
 		switch {
-		case head >= 0 && node.ChainFlag != 1 && isAuxiliaryAfterTe(nodes[index-1], *node):
+		case head >= 0 && node.ChainFlag != 1 && joins(nodes[index-1], *node):
 			node.ChainFlag = 1
 			if nodes[head].Acc == 0 && node.Acc > 0 {
 				nodes[head].Acc = length + node.Acc
@@ -179,6 +188,12 @@ func isAuxiliaryAfterTe(previous, node njdNode) bool {
 	return previous.Pos == "助詞" && previous.PosGroup1 == "接続助詞" &&
 		(previous.String == "て" || previous.String == "で") &&
 		node.Pos == "動詞" && node.PosGroup1 == "非自立"
+}
+
+// isAccentedSahenVerbは、句頭の「する」の句に核がある場合だけ真。nodeの核は句全体の核（補助動詞をつないだ後の値）。
+func isAccentedSahenVerb(previous, node njdNode) bool {
+	return previous.Pos == "名詞" && previous.PosGroup1 == "サ変接続" &&
+		node.Pos == "動詞" && node.Orig == "する" && node.Acc > 0
 }
 
 func pronunciationMorae(pron string) []kanaMora {

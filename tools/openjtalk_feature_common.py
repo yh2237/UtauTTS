@@ -104,31 +104,50 @@ def is_auxiliary_after_te(previous, node):
     )
 
 
-def chain_auxiliary_verbs(nodes):
-    """テ形の後の補助動詞（動詞・非自立）を前のアクセント句へつなぐ。
+def is_accented_sahen_verb(previous, node):
+    """句頭の「する」の句に核がある場合だけ真。nodeのaccは句全体の核（補助動詞をつないだ後の値）。"""
+    return (
+        previous.get("pos") == "名詞"
+        and previous.get("pos_group1") == "サ変接続"
+        and node.get("pos") == "動詞"
+        and node.get("orig") == "する"
+        and int(node.get("acc", 0)) > 0
+    )
 
-    Open JTalkは「降って/きた」のように句を切り、補助動詞を句頭の核にする。
-    前の句に核があれば補助動詞の核を消し（フ＼ッテキタ）、前が平板なら補助動詞の核を残す（アソンデキ＼タ）。
-    """
-    nodes = [dict(node) for node in nodes]
+
+def _chain_phrases(nodes, joins):
     head, length = None, 0
     for index, node in enumerate(nodes):
         if int(node.get("mora_size", 0)) == 0 or node.get("string") in PUNCTUATION:
             head, length = None, 0
             continue
         chain_flag = int(node.get("chain_flag", 0))
-        if head is not None and chain_flag != 1 and is_auxiliary_after_te(nodes[index - 1], node):
+        if head is not None and chain_flag != 1 and joins(nodes[index - 1], node):
             node["chain_flag"] = 1
             if int(head.get("acc", 0)) == 0 and int(node.get("acc", 0)) > 0:
                 head["acc"] = length + int(node["acc"])
         elif head is None or chain_flag != 1:
             head, length = node, 0
         length += sum(1 for item in split_morae(node.get("pron", "")) if not item["pause"])
+
+
+def chain_accent_phrases(nodes):
+    """Open JTalkが切りすぎる句を前の句へつなぐ。
+
+    - テ形の後の補助動詞（動詞・非自立）: 「降って/きた」→ フ＼ッテキタ、「遊んで/きた」→ アソンデキ＼タ。
+    - サ変名詞の後の「する」: 句頭の下がりを入れずに「運転していま＼す」と1句にする。
+      するの句が平板（「服従/するより」）なら、長い平板句で単調になるためつながない。
+    前の句に核があれば後ろの核を消し、前が平板なら後ろの核を句内の位置へずらして残す。
+    サ変はするの句の核で判断するため、補助動詞をつないだ後に処理する（して/います → していま＼す）。
+    """
+    nodes = [dict(node) for node in nodes]
+    _chain_phrases(nodes, is_auxiliary_after_te)
+    _chain_phrases(nodes, is_accented_sahen_verb)
     return nodes
 
 
 def analyze(frontend, text):
-    nodes = chain_auxiliary_verbs(frontend.run_frontend(text))
+    nodes = chain_accent_phrases(frontend.run_frontend(text))
     reading_parts = []
     result = []
     index = 0

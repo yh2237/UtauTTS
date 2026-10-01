@@ -124,6 +124,30 @@ var auxiliaryFixtures = []struct {
 		},
 		phrases: "おしえ|て/いただけ|ま＼す|か",
 	},
+	{
+		// サ変名詞＋する: 補助動詞をつないだ後のするの句（していま＼す）に核があるのでつなぐ。
+		text: "運転しています。",
+		rows: []string{
+			"運転	名詞	サ変接続	*	*	運転	ウンテン	ウンテン	0	4	C2	-1",
+			"し	動詞	自立	サ変・スル	連用形	する	シ	シ’	0	1	*	0",
+			"て	助詞	接続助詞	*	*	て	テ	テ	0	1	動詞%F1/形容詞%F1/名詞%F5	1",
+			"い	動詞	非自立	一段	連用形	いる	イ	イ	2	1	*	0",
+			"ます	助動詞	*	特殊・マス	基本形	ます	マス	マス’	1	2	動詞%F4@1/助詞%F2@1	1",
+			"。	記号	句点	*	*	。	、	、	0	0	*	0",
+		},
+		phrases: "うんてん|し|て|い|ま＼す",
+	},
+	{
+		// するの句が平板ならつながない。
+		text: "服従するより。",
+		rows: []string{
+			"服従	名詞	サ変接続	*	*	服従	フクジュウ	フ’クジュー	0	4	C2	-1",
+			"する	動詞	自立	サ変・スル	基本形	する	スル	スル	0	2	*	0",
+			"より	助詞	格助詞	*	*	より	ヨリ	ヨリ	1	2	名詞%F2@1	1",
+			"。	記号	句点	*	*	。	、	、	0	0	*	0",
+		},
+		phrases: "ふくじゅー/する|より",
+	},
 }
 
 // renderPhrasesはアクセント句を'/'、語を'|'で区切り、核の直後に'＼'を置く。
@@ -146,13 +170,13 @@ func renderPhrases(tokens []moraToken) string {
 	return builder.String()
 }
 
-func TestChainAuxiliaryVerbsAfterTeForm(t *testing.T) {
+func TestChainAccentPhrases(t *testing.T) {
 	for _, fixture := range auxiliaryFixtures {
 		nodes, err := parseNJD(strings.Join(fixture.rows, "\n") + "\n")
 		if err != nil {
 			t.Fatalf("%s: parseNJD: %v", fixture.text, err)
 		}
-		chainAuxiliaryVerbs(nodes)
+		chainAccentPhrases(nodes)
 		_, tokens := analyzeNJD(nodes)
 		if got := renderPhrases(tokens); got != fixture.phrases {
 			t.Errorf("%s: phrases = %s, want %s", fixture.text, got, fixture.phrases)
