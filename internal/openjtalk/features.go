@@ -136,7 +136,7 @@ func unescapeNJD(value string) string {
 }
 
 func buildAnalysis(nodes []njdNode) *Analysis {
-	chainAccentPhrases(nodes)
+	refineAccentPhrases(nodes)
 	reading, tokens := analyzeNJD(nodes)
 	analysis := &Analysis{
 		Version:  1,
@@ -149,6 +149,13 @@ func buildAnalysis(nodes []njdNode) *Analysis {
 		analysis.Features[index] = token.sparseFeatures()
 	}
 	return analysis
+}
+
+// refineAccentPhrasesはPython版 refine_accent_phrases の移植。Open JTalkの句と核を、
+// 聴取とjsut-label（人手のアクセント）で確かめた規則で直す。
+func refineAccentPhrases(nodes []njdNode) {
+	chainAccentPhrases(nodes)
+	accentBeforeTopicParticles(nodes)
 }
 
 // chainAccentPhrasesはPython版 chain_accent_phrases の移植。Open JTalkが切りすぎる句を前の句へつなぐ。
@@ -194,6 +201,45 @@ func isAuxiliaryAfterTe(previous, node njdNode) bool {
 func isAccentedSahenVerb(previous, node njdNode) bool {
 	return previous.Pos == "名詞" && previous.PosGroup1 == "サ変接続" &&
 		node.Pos == "動詞" && node.Orig == "する" && node.Acc > 0
+}
+
+// accentBeforeTopicParticlesは、平板の句で格助詞・接続助詞「て」の後に係助詞「は・も」が続くとき、
+// 直前の助詞へ核を置く（せーしつに＼わ、あそんで＼も）。東京式では平板の語に「には」「ても」が付くとこうなる。
+func accentBeforeTopicParticles(nodes []njdNode) {
+	head, length := -1, 0
+	for index := range nodes {
+		node := &nodes[index]
+		if node.MoraSize == 0 || isPunctuationString(node.String) {
+			head, length = -1, 0
+			continue
+		}
+		if head < 0 || node.ChainFlag != 1 {
+			head, length = index, 0
+		} else if nodes[head].Acc == 0 && length > 1 && isTopicParticle(*node) && takesAccentBeforeTopic(nodes[index-1]) {
+			nodes[head].Acc = length
+		}
+		length += len(pronunciationMorae(node.Pron))
+	}
+}
+
+func isTopicParticle(node njdNode) bool {
+	return node.Pos == "助詞" && node.PosGroup1 == "係助詞" && (node.String == "は" || node.String == "も")
+}
+
+func takesAccentBeforeTopic(previous njdNode) bool {
+	if previous.Pos != "助詞" {
+		return false
+	}
+	switch previous.PosGroup1 {
+	case "格助詞":
+		switch previous.String {
+		case "に", "で", "と", "へ", "から", "まで", "より":
+			return true
+		}
+	case "接続助詞":
+		return previous.String == "て" || previous.String == "で"
+	}
+	return false
 }
 
 func pronunciationMorae(pron string) []kanaMora {

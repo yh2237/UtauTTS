@@ -148,6 +148,41 @@ var auxiliaryFixtures = []struct {
 		},
 		phrases: "ふくじゅー/する|より",
 	},
+	{
+		// 平板の句の「には」: 格助詞「に」へ核を置く。
+		text: "性質には。",
+		rows: []string{
+			"性質	名詞	一般	*	*	性質	セイシツ	セーシ’ツ	0	4	C2	-1",
+			"に	助詞	格助詞	*	*	に	ニ	ニ	0	1	動詞%F5/形容詞%F1/名詞%F1	1",
+			"は	助詞	係助詞	*	*	は	ハ	ワ	0	1	名詞%F1/動詞%F2@0/形容詞%F2@0	1",
+			"。	記号	句点	*	*	。	、	、	0	0	*	0",
+		},
+		phrases: "せーしつ|に＼|わ",
+	},
+	{
+		// 平板の句の「ても」: 接続助詞「で」へ核を置く。
+		text: "遊んでも。",
+		rows: []string{
+			"遊ん	動詞	自立	五段・バ行	連用タ接続	遊ぶ	アソン	アソン	0	3	*	-1",
+			"で	助詞	接続助詞	*	*	で	デ	デ	1	1	動詞%F1	1",
+			"も	助詞	係助詞	*	*	も	モ	モ	0	1	名詞%F1/動詞%F2@0/形容詞%F2@0	1",
+			"。	記号	句点	*	*	。	、	、	0	0	*	0",
+		},
+		phrases: "あそん|で＼|も",
+	},
+	{
+		// 核のある句は変えない。
+		text: "雨が降っても。",
+		rows: []string{
+			"雨	名詞	一般	*	*	雨	アメ	アメ	1	2	C3	-1",
+			"が	助詞	格助詞	*	*	が	ガ	ガ	0	1	名詞%F1	1",
+			"降っ	動詞	自立	五段・ラ行	連用タ接続	降る	フッ	フッ	1	2	*	0",
+			"て	助詞	接続助詞	*	*	て	テ	テ	0	1	動詞%F1/形容詞%F1/名詞%F5	1",
+			"も	助詞	係助詞	*	*	も	モ	モ	0	1	名詞%F1/動詞%F2@0/形容詞%F2@0	1",
+			"。	記号	句点	*	*	。	、	、	0	0	*	0",
+		},
+		phrases: "あ＼め|が/ふ＼っ|て|も",
+	},
 }
 
 // renderPhrasesはアクセント句を'/'、語を'|'で区切り、核の直後に'＼'を置く。
@@ -170,13 +205,13 @@ func renderPhrases(tokens []moraToken) string {
 	return builder.String()
 }
 
-func TestChainAccentPhrases(t *testing.T) {
+func TestRefineAccentPhrases(t *testing.T) {
 	for _, fixture := range auxiliaryFixtures {
 		nodes, err := parseNJD(strings.Join(fixture.rows, "\n") + "\n")
 		if err != nil {
 			t.Fatalf("%s: parseNJD: %v", fixture.text, err)
 		}
-		chainAccentPhrases(nodes)
+		refineAccentPhrases(nodes)
 		_, tokens := analyzeNJD(nodes)
 		if got := renderPhrases(tokens); got != fixture.phrases {
 			t.Errorf("%s: phrases = %s, want %s", fixture.text, got, fixture.phrases)

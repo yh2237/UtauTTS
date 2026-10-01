@@ -146,8 +146,50 @@ def chain_accent_phrases(nodes):
     return nodes
 
 
+CASE_PARTICLES_BEFORE_TOPIC = ("に", "で", "と", "へ", "から", "まで", "より")
+
+
+def is_topic_particle(node):
+    return node.get("pos") == "助詞" and node.get("pos_group1") == "係助詞" and node.get("string") in ("は", "も")
+
+
+def takes_accent_before_topic(previous):
+    if previous.get("pos") != "助詞":
+        return False
+    if previous.get("pos_group1") == "格助詞":
+        return previous.get("string") in CASE_PARTICLES_BEFORE_TOPIC
+    if previous.get("pos_group1") == "接続助詞":
+        return previous.get("string") in ("て", "で")
+    return False
+
+
+def accent_before_topic_particles(nodes):
+    """平板の句で格助詞・接続助詞「て」の後に係助詞「は・も」が続くとき、直前の助詞へ核を置く。
+
+    東京式では平板の語に「には」「ても」が付くと「せーしつに＼わ」「あそんで＼も」となる。
+    """
+    head, length = None, 0
+    for index, node in enumerate(nodes):
+        if int(node.get("mora_size", 0)) == 0 or node.get("string") in PUNCTUATION:
+            head, length = None, 0
+            continue
+        if head is None or int(node.get("chain_flag", 0)) != 1:
+            head, length = node, 0
+        elif (int(head.get("acc", 0)) == 0 and length > 1 and is_topic_particle(node)
+              and takes_accent_before_topic(nodes[index - 1])):
+            head["acc"] = length
+        length += sum(1 for item in split_morae(node.get("pron", "")) if not item["pause"])
+
+
+def refine_accent_phrases(nodes):
+    """Open JTalkの句と核を、聴取とjsut-label（人手のアクセント）で確かめた規則で直す。"""
+    nodes = chain_accent_phrases(nodes)
+    accent_before_topic_particles(nodes)
+    return nodes
+
+
 def analyze(frontend, text):
-    nodes = chain_accent_phrases(frontend.run_frontend(text))
+    nodes = refine_accent_phrases(frontend.run_frontend(text))
     reading_parts = []
     result = []
     index = 0
