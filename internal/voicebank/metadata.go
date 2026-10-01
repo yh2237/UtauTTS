@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/yh2237/utauio/prefixmap"
+
 	"utautts/internal/oto"
 )
 
@@ -14,12 +16,16 @@ type Affix struct {
 	Suffix string
 }
 
-func (b *Bank) loadMetadata() {
-	if subbanks, path, diagnostics := loadCharacterYAML(b.Root); path != "" {
+func (b *Bank) loadMetadata(rootEntries ...[]os.DirEntry) {
+	if len(rootEntries) == 0 {
+		entries, _ := os.ReadDir(b.Root)
+		rootEntries = [][]os.DirEntry{entries}
+	}
+	if subbanks, path, diagnostics, text := loadCharacterYAMLData(b.Root, rootEntries...); path != "" {
 		b.CharacterYAML = path
 		b.Subbanks = subbanks
 		b.Diagnostics = append(b.Diagnostics, diagnostics...)
-		if text, err := readMetadata(path); err == nil {
+		if text != "" {
 			for _, line := range strings.Split(text, "\n") {
 				key, value, ok := splitYAMLField(strings.TrimSpace(line))
 				if ok && strings.EqualFold(key, "default_phonemizer") {
@@ -29,7 +35,7 @@ func (b *Bank) loadMetadata() {
 			}
 		}
 	}
-	if path := findRootFile(b.Root, "character.txt"); path != "" {
+	if path := findRootFile(b.Root, "character.txt", rootEntries...); path != "" {
 		if text, err := readMetadata(path); err == nil {
 			for _, line := range strings.Split(text, "\n") {
 				parts := strings.SplitN(strings.TrimSpace(line), "=", 2)
@@ -41,7 +47,7 @@ func (b *Bank) loadMetadata() {
 			}
 		}
 	}
-	path := findRootFile(b.Root, "prefix.map")
+	path := findRootFile(b.Root, "prefix.map", rootEntries...)
 	if path == "" {
 		return
 	}
@@ -50,23 +56,14 @@ func (b *Bank) loadMetadata() {
 		b.Diagnostics = append(b.Diagnostics, Diagnostic{Path: path, Message: err.Error()})
 		return
 	}
-	for index, line := range strings.Split(text, "\n") {
-		line = strings.TrimSuffix(line, "\r")
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, ";") {
-			continue
-		}
-		fields := strings.Split(line, "\t")
-		if len(fields) < 2 {
-			b.Diagnostics = append(b.Diagnostics, Diagnostic{Path: path, Line: index + 1, Message: "invalid prefix.map line"})
-			continue
-		}
-		tone := strings.ToUpper(strings.TrimSpace(fields[0]))
-		affix := Affix{Prefix: fields[1]}
-		if len(fields) >= 3 {
-			affix.Suffix = fields[2]
-		}
-		b.PrefixMap[tone] = affix
+	diagnostics, err := prefixmap.Scan(text, func(entry prefixmap.Entry) {
+		b.PrefixMap[entry.Tone] = Affix{Prefix: entry.Prefix, Suffix: entry.Suffix}
+	})
+	if err != nil {
+		b.Diagnostics = append(b.Diagnostics, Diagnostic{Path: path, Message: err.Error()})
+	}
+	for _, diagnostic := range diagnostics {
+		b.Diagnostics = append(b.Diagnostics, Diagnostic{Path: path, Line: diagnostic.Line, Message: diagnostic.Message})
 	}
 }
 
@@ -79,10 +76,17 @@ func readMetadata(path string) (string, error) {
 	return text, err
 }
 
-func findRootFile(root, name string) string {
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return ""
+// 一覧の共有は読込呼出し内だけ。次回読込では新しい一覧を取得する。
+func findRootFile(root, name string, snapshot ...[]os.DirEntry) string {
+	var entries []os.DirEntry
+	if len(snapshot) > 0 {
+		entries = snapshot[0]
+	} else {
+		var err error
+		entries, err = os.ReadDir(root)
+		if err != nil {
+			return ""
+		}
 	}
 	for _, entry := range entries {
 		if !entry.IsDir() && strings.EqualFold(entry.Name(), name) {

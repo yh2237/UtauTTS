@@ -84,7 +84,7 @@ for required in \
   "${gui_root}/docs/building.md" \
   "${gui_root}/docs/technical-design.md" \
   "${gui_root}/licenses/Go/GO-LICENSE.txt" \
-  "${gui_root}/licenses/Go/github_com_yh2237_utauio-v0.2.0-LICENSE.txt" \
+  "${gui_root}/licenses/Go/github_com_yh2237_utauio-v0.3.0-LICENSE.txt" \
   "${gui_root}/licenses/Go/CMUDICT-LICENSE.txt" \
   "${gui_root}/licenses/Go/PINYIN-DATA-NOTICE.txt" \
   "${gui_root}/licenses/Go/github_com_ikawaha_kagome_v2-v2.11.0-LICENSE.txt" \
@@ -95,7 +95,7 @@ for required in \
   "${gui_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \
   "${gui_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt" \
   "${server_root}/licenses/Go/GO-LICENSE.txt" \
-  "${server_root}/licenses/Go/github_com_yh2237_utauio-v0.2.0-LICENSE.txt" \
+  "${server_root}/licenses/Go/github_com_yh2237_utauio-v0.3.0-LICENSE.txt" \
   "${server_root}/licenses/Go/CMUDICT-LICENSE.txt" \
   "${server_root}/licenses/Go/PINYIN-DATA-NOTICE.txt" \
   "${server_root}/licenses/Go/github_com_ikawaha_kagome_v2-v2.11.0-LICENSE.txt" \

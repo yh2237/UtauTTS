@@ -40,6 +40,27 @@ func TestLoadCharacterNameAndPrefixMap(t *testing.T) {
 	}
 }
 
+func TestMetadataSnapshotPreservesCaseAndRefreshesOnReload(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "oto.ini"), "a.wav=あ,0,0,0,0,0\n")
+	write(t, filepath.Join(root, "CHARACTER.YML"), "default_phonemizer: ja-kana\nsubbanks:\n- color: \"\"\n  suffix: \" C4\"\n  tone_ranges: [C3-C5]\n")
+	write(t, filepath.Join(root, "CHARACTER.TXT"), "name=最初\n")
+	write(t, filepath.Join(root, "PREFIX.MAP"), "C4\t\t_C4\n")
+	first, err := Load(root)
+	if err != nil || first.Name != "最初" || first.DefaultPhonemizer != "ja-kana" || len(first.Subbanks) != 1 || first.PrefixMap["C4"].Suffix != "_C4" {
+		t.Fatalf("first=%+v err=%v", first, err)
+	}
+	write(t, filepath.Join(root, "CHARACTER.TXT"), "name=更新\n")
+	if err := os.Remove(filepath.Join(root, "PREFIX.MAP")); err != nil {
+		t.Fatal(err)
+	}
+	write(t, filepath.Join(root, "PRESAMP.INI"), "[VOWEL]\na=a=あ=100\n")
+	second, err := Load(root)
+	if err != nil || second.Name != "更新" || len(second.PrefixMap) != 0 || second.Presamp == nil || second.Presamp.Vowels["あ"] != "a" {
+		t.Fatalf("second=%+v err=%v", second, err)
+	}
+}
+
 func TestResolveAtToneUsesAffixedAlias(t *testing.T) {
 	bank := &Bank{
 		Entries:   map[string][]oto.Entry{"あ_C4": {{Alias: "あ_C4"}}},

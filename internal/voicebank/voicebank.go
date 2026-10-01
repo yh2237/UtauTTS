@@ -85,9 +85,10 @@ func Load(root string) (*Bank, error) {
 		PrefixMap: map[string]Affix{},
 		extractor: connection.NewExtractor(),
 	}
-	bank.loadMetadata()
-	bank.loadARPAsing()
-	bank.loadPresamp()
+	rootEntries, _ := os.ReadDir(absRoot)
+	bank.loadMetadata(rootEntries)
+	bank.loadARPAsing(rootEntries)
+	bank.loadPresamp(rootEntries)
 	pathValidator := newSourcePathValidator(absRoot)
 	for _, path := range otoFiles {
 		ini, err := oto.ReadIni(path)

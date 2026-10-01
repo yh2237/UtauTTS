@@ -1,6 +1,8 @@
 package voicebank
 
 import (
+	"os"
+
 	presampfile "github.com/yh2237/utauio/presamp"
 
 	"utautts/internal/frontend"
@@ -24,8 +26,8 @@ func (p *Presamp) FrontendConfig() frontend.PresampConfig {
 	}
 }
 
-func (b *Bank) loadPresamp() {
-	path := findRootFile(b.Root, "presamp.ini")
+func (b *Bank) loadPresamp(rootEntries ...[]os.DirEntry) {
+	path := findRootFile(b.Root, "presamp.ini", rootEntries...)
 	if path == "" {
 		return
 	}

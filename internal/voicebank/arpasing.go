@@ -14,8 +14,8 @@ type arpasingDictionary struct {
 	} `yaml:"entries"`
 }
 
-func (b *Bank) loadARPAsing() {
-	dictionary, path, err := LoadARPAsingDictionary(b.Root)
+func (b *Bank) loadARPAsing(rootEntries ...[]os.DirEntry) {
+	dictionary, path, err := loadARPAsingDictionary(b.Root, rootEntries...)
 	if path == "" {
 		return
 	}
@@ -27,7 +27,11 @@ func (b *Bank) loadARPAsing() {
 }
 
 func LoadARPAsingDictionary(root string) (map[string]string, string, error) {
-	path := findRootFile(root, "arpasing.yaml")
+	return loadARPAsingDictionary(root)
+}
+
+func loadARPAsingDictionary(root string, rootEntries ...[]os.DirEntry) (map[string]string, string, error) {
+	path := findRootFile(root, "arpasing.yaml", rootEntries...)
 	if path == "" {
 		return nil, "", nil
 	}

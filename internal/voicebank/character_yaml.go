@@ -2,6 +2,7 @@ package voicebank
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -55,16 +56,21 @@ func (b *Bank) SubbankOptions() []SubbankOption {
 }
 
 func loadCharacterYAML(root string) ([]Subbank, string, []Diagnostic) {
-	path := findRootFile(root, "character.yaml")
+	subbanks, path, diagnostics, _ := loadCharacterYAMLData(root)
+	return subbanks, path, diagnostics
+}
+
+func loadCharacterYAMLData(root string, rootEntries ...[]os.DirEntry) ([]Subbank, string, []Diagnostic, string) {
+	path := findRootFile(root, "character.yaml", rootEntries...)
 	if path == "" {
-		path = findRootFile(root, "character.yml")
+		path = findRootFile(root, "character.yml", rootEntries...)
 	}
 	if path == "" {
-		return nil, "", nil
+		return nil, "", nil, ""
 	}
 	text, err := readMetadata(path)
 	if err != nil {
-		return nil, path, []Diagnostic{{Path: path, Message: fmt.Sprintf("read character.yaml: %v", err)}}
+		return nil, path, []Diagnostic{{Path: path, Message: fmt.Sprintf("read character.yaml: %v", err)}}, ""
 	}
 
 	var (
@@ -146,7 +152,7 @@ func loadCharacterYAML(root string) ([]Subbank, string, []Diagnostic) {
 		}
 	}
 	finish()
-	return subbanks, path, diags
+	return subbanks, path, diags, text
 }
 
 func assignSubbankField(subbank *Subbank, line string) error {
