@@ -2,6 +2,7 @@ package openjtalk
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -60,6 +61,102 @@ func TestBuildAnalysisFromNJD(t *testing.T) {
 	// ポーズは空フレーム。
 	if len(analysis.Features[5]) != 0 {
 		t.Errorf("pause features = %v, want empty", analysis.Features[5])
+	}
+}
+
+// 実際のOpen JTalk出力（pyopenjtalk 0.4.1）。
+var auxiliaryFixtures = []struct {
+	text    string
+	rows    []string
+	phrases string
+}{
+	{
+		// 前の句に核がある: 補助動詞の核は消える。
+		text: "雨が降ってきた。",
+		rows: []string{
+			"雨\t名詞\t一般\t*\t*\t雨\tアメ\tアメ\t1\t2\tC3\t-1",
+			"が\t助詞\t格助詞\t*\t*\tが\tガ\tガ\t0\t1\t名詞%F1\t1",
+			"降っ\t動詞\t自立\t五段・ラ行\t連用タ接続\t降る\tフッ\tフッ\t1\t2\t*\t0",
+			"て\t助詞\t接続助詞\t*\t*\tて\tテ\tテ\t0\t1\t動詞%F1/形容詞%F1/名詞%F5\t1",
+			"き\t動詞\t非自立\tカ変・クル\t連用形\tくる\tキ\tキ\t1\t1\t*\t0",
+			"た\t助動詞\t*\t特殊・タ\t基本形\tた\tタ\tタ\t0\t1\t動詞%F2@1/形容詞%F4@-2\t1",
+			"。\t記号\t句点\t*\t*\t。\t、\t、\t0\t0\t*\t0",
+		},
+		phrases: "あ＼め|が/ふ＼っ|て|き|た",
+	},
+	{
+		// 前の句が平板: 補助動詞の核を句内の位置へずらして残す。
+		text: "遊んできた。",
+		rows: []string{
+			"遊ん\t動詞\t自立\t五段・バ行\t連用タ接続\t遊ぶ\tアソン\tアソン\t0\t3\t*\t-1",
+			"で\t助詞\t接続助詞\t*\t*\tで\tデ\tデ\t1\t1\t動詞%F1\t1",
+			"き\t動詞\t非自立\tカ変・クル\t連用形\tくる\tキ\tキ\t1\t1\t*\t0",
+			"た\t助動詞\t*\t特殊・タ\t基本形\tた\tタ\tタ\t0\t1\t動詞%F2@1/形容詞%F4@-2\t1",
+			"。\t記号\t句点\t*\t*\t。\t、\t、\t0\t0\t*\t0",
+		},
+		phrases: "あそん|で|き＼|た",
+	},
+	{
+		// 補助動詞の後に助動詞が続く。
+		text: "だんだん寒くなってきました。",
+		rows: []string{
+			"だんだん\t副詞\t一般\t*\t*\tだんだん\tダンダン\tダンダン\t0\t4\t*\t-1",
+			"寒く\t形容詞\t自立\t形容詞・アウオ段\t連用テ接続\t寒い\tサムク\tサムク\t2\t3\t*\t0",
+			"なっ\t動詞\t自立\t五段・ラ行\t連用タ接続\tなる\tナッ\tナッ\t1\t2\t*\t1",
+			"て\t助詞\t接続助詞\t*\t*\tて\tテ\tテ\t0\t1\t動詞%F1/形容詞%F1/名詞%F5\t1",
+			"き\t動詞\t非自立\tカ変・クル\t連用形\tくる\tキ\tキ\t2\t1\t*\t0",
+			"まし\t助動詞\t*\t特殊・マス\t連用形\tます\tマシ\tマシ’\t1\t2\t動詞%F4@1/助詞%F2@1\t1",
+			"た\t助動詞\t*\t特殊・タ\t基本形\tた\tタ\tタ\t0\t1\t動詞%F2@1/形容詞%F4@-2\t1",
+			"。\t記号\t句点\t*\t*\t。\t、\t、\t0\t0\t*\t0",
+		},
+		phrases: "だんだん/さむ＼く|なっ|て|き|まし|た",
+	},
+	{
+		// 自立動詞（いただける）はつなげない。
+		text: "教えていただけますか。",
+		rows: []string{
+			"教え\t動詞\t自立\t一段\t連用形\t教える\tオシエ\tオシエ\t0\t3\t*\t-1",
+			"て\t助詞\t接続助詞\t*\t*\tて\tテ\tテ\t0\t1\t動詞%F1/形容詞%F1/名詞%F5\t1",
+			"いただけ\t動詞\t自立\t一段\t連用形\tいただける\tイタダケ\tイタダケ\t5\t4\t*\t0",
+			"ます\t助動詞\t*\t特殊・マス\t基本形\tます\tマス\tマス’\t1\t2\t動詞%F4@1/助詞%F2@1\t1",
+			"か\t助詞\t副助詞／並立助詞／終助詞\t*\t*\tか\tカ\tカ\t0\t1\t名詞%F1/動詞%F2@0/形容詞%F2@0\t1",
+			"。\t記号\t句点\t*\t*\t。\t、\t、\t0\t0\t*\t0",
+		},
+		phrases: "おしえ|て/いただけ|ま＼す|か",
+	},
+}
+
+// renderPhrasesはアクセント句を'/'、語を'|'で区切り、核の直後に'＼'を置く。
+func renderPhrases(tokens []moraToken) string {
+	var builder strings.Builder
+	for index, token := range tokens {
+		if token.Pause {
+			continue
+		}
+		if index > 0 && token.AccentPhraseStart {
+			builder.WriteString("/")
+		} else if index > 0 && token.WordStart {
+			builder.WriteString("|")
+		}
+		builder.WriteString(token.Mora)
+		if token.AccentPhrasePosition == token.AccentNucleus {
+			builder.WriteString("＼")
+		}
+	}
+	return builder.String()
+}
+
+func TestChainAuxiliaryVerbsAfterTeForm(t *testing.T) {
+	for _, fixture := range auxiliaryFixtures {
+		nodes, err := parseNJD(strings.Join(fixture.rows, "\n") + "\n")
+		if err != nil {
+			t.Fatalf("%s: parseNJD: %v", fixture.text, err)
+		}
+		chainAuxiliaryVerbs(nodes)
+		_, tokens := analyzeNJD(nodes)
+		if got := renderPhrases(tokens); got != fixture.phrases {
+			t.Errorf("%s: phrases = %s, want %s", fixture.text, got, fixture.phrases)
+		}
 	}
 }
 

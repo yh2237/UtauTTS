@@ -136,6 +136,7 @@ func unescapeNJD(value string) string {
 }
 
 func buildAnalysis(nodes []njdNode) *Analysis {
+	chainAuxiliaryVerbs(nodes)
 	reading, tokens := analyzeNJD(nodes)
 	analysis := &Analysis{
 		Version:  1,
@@ -148,6 +149,46 @@ func buildAnalysis(nodes []njdNode) *Analysis {
 		analysis.Features[index] = token.sparseFeatures()
 	}
 	return analysis
+}
+
+// chainAuxiliaryVerbsはPython版 chain_auxiliary_verbs の移植。
+// Open JTalkはテ形の後の補助動詞（動詞・非自立）で句を切り、「降って/きた」の「き」を句頭の核にする。
+// 前の句に核があれば補助動詞の核を消して1句にし（フ＼ッテキタ）、前が平板なら補助動詞の核を残す（アソンデキ＼タ）。
+func chainAuxiliaryVerbs(nodes []njdNode) {
+	head, length := -1, 0
+	for index := range nodes {
+		node := &nodes[index]
+		if node.MoraSize == 0 || isPunctuationString(node.String) {
+			head, length = -1, 0
+			continue
+		}
+		switch {
+		case head >= 0 && node.ChainFlag != 1 && isAuxiliaryAfterTe(nodes[index-1], *node):
+			node.ChainFlag = 1
+			if nodes[head].Acc == 0 && node.Acc > 0 {
+				nodes[head].Acc = length + node.Acc
+			}
+		case head < 0 || node.ChainFlag != 1:
+			head, length = index, 0
+		}
+		length += len(pronunciationMorae(node.Pron))
+	}
+}
+
+func isAuxiliaryAfterTe(previous, node njdNode) bool {
+	return previous.Pos == "助詞" && previous.PosGroup1 == "接続助詞" &&
+		(previous.String == "て" || previous.String == "で") &&
+		node.Pos == "動詞" && node.PosGroup1 == "非自立"
+}
+
+func pronunciationMorae(pron string) []kanaMora {
+	var morae []kanaMora
+	for _, mora := range splitMorae(pron) {
+		if !mora.pause {
+			morae = append(morae, mora)
+		}
+	}
+	return morae
 }
 
 // analyzeNJDはPython版 analyze の移植。
@@ -184,13 +225,7 @@ func analyzeNJD(nodes []njdNode) (string, []moraToken) {
 				break
 			}
 			pronunciation := strings.NewReplacer("'", "", "’", "").Replace(current.Pron)
-			var morae []kanaMora
-			for _, mora := range splitMorae(pronunciation) {
-				if !mora.pause {
-					morae = append(morae, mora)
-				}
-			}
-			phraseNodes = append(phraseNodes, phraseNode{node: current, morae: morae})
+			phraseNodes = append(phraseNodes, phraseNode{node: current, morae: pronunciationMorae(pronunciation)})
 			readingParts = append(readingParts, pronunciation)
 			index++
 		}

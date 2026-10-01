@@ -94,8 +94,41 @@ def sparse_features(token):
     return result
 
 
+def is_auxiliary_after_te(previous, node):
+    return (
+        previous.get("pos") == "助詞"
+        and previous.get("pos_group1") == "接続助詞"
+        and previous.get("string") in ("て", "で")
+        and node.get("pos") == "動詞"
+        and node.get("pos_group1") == "非自立"
+    )
+
+
+def chain_auxiliary_verbs(nodes):
+    """テ形の後の補助動詞（動詞・非自立）を前のアクセント句へつなぐ。
+
+    Open JTalkは「降って/きた」のように句を切り、補助動詞を句頭の核にする。
+    前の句に核があれば補助動詞の核を消し（フ＼ッテキタ）、前が平板なら補助動詞の核を残す（アソンデキ＼タ）。
+    """
+    nodes = [dict(node) for node in nodes]
+    head, length = None, 0
+    for index, node in enumerate(nodes):
+        if int(node.get("mora_size", 0)) == 0 or node.get("string") in PUNCTUATION:
+            head, length = None, 0
+            continue
+        chain_flag = int(node.get("chain_flag", 0))
+        if head is not None and chain_flag != 1 and is_auxiliary_after_te(nodes[index - 1], node):
+            node["chain_flag"] = 1
+            if int(head.get("acc", 0)) == 0 and int(node.get("acc", 0)) > 0:
+                head["acc"] = length + int(node["acc"])
+        elif head is None or chain_flag != 1:
+            head, length = node, 0
+        length += sum(1 for item in split_morae(node.get("pron", "")) if not item["pause"])
+    return nodes
+
+
 def analyze(frontend, text):
-    nodes = frontend.run_frontend(text)
+    nodes = chain_auxiliary_verbs(frontend.run_frontend(text))
     reading_parts = []
     result = []
     index = 0
