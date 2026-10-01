@@ -1200,6 +1200,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="weight of the adjacent-frame delta loss (larger = smoother output)")
     parser.add_argument("--learning-rate", type=float, default=0.002)
     parser.add_argument("--hidden", type=int, default=24)
+    parser.add_argument("--dilations", default="1,2,4,8",
+                        help="comma-separated TCN dilations; the receptive field is 1+2*sum(dilations) frames")
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--device", default="auto", help="PyTorch device: auto, cpu, cuda, cuda:N, xpu, or mps")
     parser.add_argument("--compile", action="store_true", help="wrap the TCN in torch.compile to cut per-step overhead (may slightly change numerics)")
@@ -1356,7 +1358,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     args.validation_records = len(validation)
     validation_frames = sum(len(item[1]) for item in validation)
     validation_voiced_frames = sum(sum(item[2]) for item in validation)
-    model = FrameIntonationTCN(len(feature_index), args.hidden).to(device)
+    dilations = [int(value) for value in str(args.dilations).split(",") if value.strip()]
+    if not dilations or any(value <= 0 for value in dilations):
+        parser.error("--dilations must list positive integers")
+    model = FrameIntonationTCN(len(feature_index), args.hidden, dilations).to(device)
     train_model = torch.compile(model, dynamic=True) if args.compile else model
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=1e-5)
     rng = random.Random(args.seed)
