@@ -719,3 +719,34 @@ func TestPruneCandidates(t *testing.T) {
 		}
 	})
 }
+
+func TestResolveUsesHeadVCVAfterClosureOnlyWhenNoCVExists(t *testing.T) {
+	morae, err := frontend.ParseKana("かって")
+	if err != nil {
+		t.Fatal(err)
+	}
+	vcvOnly := &Bank{Entries: map[string][]oto.Entry{
+		"- か": {{Alias: "- か", Filename: "ka.wav"}},
+		"- て": {{Alias: "- て", Filename: "te.wav"}},
+		"e て": {{Alias: "e て", Filename: "ete.wav"}},
+	}}
+	got, err := vcvOnly.Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[2].Alias != "- て" {
+		t.Fatalf("VCV-only bank after closure = %q", got[2].Alias)
+	}
+	withCV := &Bank{Entries: map[string][]oto.Entry{
+		"- か": {{Alias: "- か", Filename: "ka.wav"}},
+		"- て": {{Alias: "- て", Filename: "te.wav"}},
+		"て":   {{Alias: "て", Filename: "cv-te.wav"}},
+	}}
+	got, err = withCV.Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[2].Alias != "て" {
+		t.Fatalf("bank with CV after closure = %q, want unchanged CV", got[2].Alias)
+	}
+}

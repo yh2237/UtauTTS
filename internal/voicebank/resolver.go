@@ -196,6 +196,14 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 				endingSpecs[index] = affixCandidatesWithFallback(endingSpecs[index], affix, true)
 			}
 		}
+		if !explicitCandidates && previousVowel == "cl" && !hasUsableCandidateEntries(b, candidateSpecs) {
+			// 促音の閉鎖後は無音からの立ち上がり。単独音を持たない連続音音源では語頭形(- て)を使う。
+			headSpecs := aliasCandidatesWithPolicy(mora.Text, "", true, policy)
+			if hasAffix {
+				headSpecs = affixCandidatesWithFallback(headSpecs, affix, true)
+			}
+			candidateSpecs = headSpecs
+		}
 		if !explicitCandidates {
 			candidateSpecs = preferOriginalKanaCandidates(b, candidateSpecs)
 		}
