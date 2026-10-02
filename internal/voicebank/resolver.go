@@ -679,6 +679,10 @@ func aliasCandidatesWithPolicy(mora, previousVowel string, phraseStart bool, pol
 		if katakana := toKatakana(form.text); katakana != form.text {
 			forms = append(forms, aliasForm{text: katakana, fallback: form.fallback, equivalent: form.equivalent})
 		}
+		// ヴ行は「ヴぁ」のように、ヴだけ片仮名で小書きは平仮名の表記の音源が多い。
+		if rest, ok := strings.CutPrefix(form.text, "ゔ"); ok && rest != "" {
+			forms = append(forms, aliasForm{text: "ヴ" + rest, fallback: form.fallback, equivalent: form.equivalent})
+		}
 	}
 
 	var candidates []aliasCandidate
