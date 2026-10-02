@@ -6,7 +6,15 @@
 
 日本語の既定モデル: `frame-intonation-tcn-v9.1-t`。代替: `frame-intonation-tcn-v9-t`。英語の既定モデル: `frame-intonation-tcn-en-v1`。中国語の既定モデル: `tone-intonation-zh-v1`。日本語・英語の学習と評価: [フレーム抑揚モデルの学習](../docs/frame-intonation-training.md)
 
-`frame-intonation-tcn-v9-*`は10ms単位の相対ピッチだけを予測します。モーラ長はGUIで指定した基準値と、言語別の時間規則（「ん」0.9倍、「ー」1.2倍など）で決めます。
+`frame-intonation-tcn-v10`と`frame-intonation-tcn-v9-*`は10ms単位の相対ピッチだけを予測します。モーラ長はGUIで指定した基準値と、言語別の時間規則（「ん」0.9倍、「ー」1.2倍など）で決めます。
+
+## v10 Tsukuyomi + JSUT（MFA整列）
+
+`frame-intonation-tcn-v10`は、v9.1と同じ[つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）](https://tyc.rei-yumesaki.net/material/corpus/)（CV.夢前黎）と[みんなで作るJSUTコーパスbasic5000](https://tyc.rei-yumesaki.net/material/minnade-jsut/)のBASIC5000_0001-0600を、Montreal Forced Aligner（`japanese_mfa`）で合成時と同じモーラ区間に整列して学習したモデルです。v9.1のアクセントViterbi整列ではモーラ境界が大きくずれており、合成時の抑揚が約90ms早くなっていました。
+
+- 本モデルはフレーム単位の相対ピッチ（抑揚）のみを学習し、話者の声質を意図的に再現しません
+- 重みはMIT Licenseで配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本とMFA整列モデルを再配布しません
+- 通知: [licenses/TSUKUYOMI-CORPUS.txt](../licenses/TSUKUYOMI-CORPUS.txt)、[licenses/MINNADE-JSUT-CORPUS.txt](../licenses/MINNADE-JSUT-CORPUS.txt)、[licenses/MFA-Japanese-NOTICE.txt](../licenses/MFA-Japanese-NOTICE.txt)
 
 ## v9.1 Tsukuyomi + JSUT（既定）
 
