@@ -98,6 +98,11 @@ func Load(root string) (*Bank, error) {
 		for alias, entries := range ini.Entries {
 			for _, entry := range entries {
 				if !pathValidator.within(entry.Filename) {
+					// 文字化けした未設定の行（Windowsで使えない「?」を含むファイル名など）は、音源全体を拒否せずに飛ばす。
+					if lexicallyWithin(absRoot, entry.Filename) && unusablePath(entry.Filename) {
+						bank.Diagnostics = append(bank.Diagnostics, Diagnostic{Path: path, Message: fmt.Sprintf("skipped oto entry %q with an unusable source path", entry.Filename)})
+						continue
+					}
 					return nil, fmt.Errorf("oto entry %q in %s points outside voicebank root", entry.Filename, path)
 				}
 				entry.SourceGroup = sourceGroupForOto(absRoot, path)
@@ -161,9 +166,19 @@ func (v *sourcePathValidator) within(candidate string) bool {
 	return allowed
 }
 
+func lexicallyWithin(root, candidate string) bool {
+	relative, err := filepath.Rel(filepath.Clean(root), filepath.Clean(candidate))
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !filepath.IsAbs(relative)
+}
+
+// unusablePathは、存在しないのではなく、パスとして開けない（不正な文字を含む等）ことを表す。
+func unusablePath(candidate string) bool {
+	_, err := os.Lstat(candidate)
+	return err != nil && !os.IsNotExist(err) && !os.IsPermission(err)
+}
+
 func (v *sourcePathValidator) check(candidate string) bool {
-	relative, err := filepath.Rel(v.root, candidate)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+	if !lexicallyWithin(v.root, candidate) {
 		return false
 	}
 

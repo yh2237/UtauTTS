@@ -94,6 +94,19 @@ func TestLoadRejectsOtoSourceOutsideVoicebank(t *testing.T) {
 	}
 }
 
+func TestLoadSkipsGarbledOtoSource(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "a.wav"), "")
+	write(t, filepath.Join(root, "oto.ini"), "a.wav=- a,0,0,0,0,0\n_\x00b.wav=_b,0,0,0,0,0\n")
+	bank, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bank.Entries["- a"]) != 1 {
+		t.Fatalf("entries = %+v", bank.Entries)
+	}
+}
+
 func write(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
