@@ -159,6 +159,39 @@ func TestProsodyMultitaskModelPredictsMoraDurationAndLoads(t *testing.T) {
 	}
 }
 
+func TestMoraDurationPhraseFinalLowerBound(t *testing.T) {
+	head := &SequencePitchModel{
+		FeatureNames: []string{"position"},
+		InputWeights: [][]float64{{1}}, InputBias: []float64{0},
+		OutputWeight: []float64{-2}, Low: 0.5, High: 2,
+	}
+	morae := []frontend.Mora{
+		{Text: "a", Vowel: "a"}, {Text: "i", Vowel: "i"}, {Text: "、", Pause: true}, {Text: "u", Vowel: "u"}, {Text: "e", Vowel: "e"},
+	}
+	plain := head.predict(morae, nil)
+	if plain[4] >= 1 {
+		t.Fatalf("test head should shorten the last mora: %v", plain)
+	}
+	head.PhraseFinalLow = 1
+	floored := head.predict(morae, nil)
+	for _, position := range []int{1, 4} {
+		if floored[position] < 1 || floored[position] < plain[position] {
+			t.Fatalf("phrase-final mora %d was not raised to the bound: %v", position, floored)
+		}
+	}
+	if floored[0] != plain[0] || floored[3] != plain[3] {
+		t.Fatalf("non-final morae changed: %v -> %v", plain, floored)
+	}
+	head.PhraseFinalLow = 0
+	head.OutputWeight = []float64{2}
+	rising := head.predict(morae, nil)
+	head.PhraseStartHigh = 1
+	capped := head.predict(morae, nil)
+	if rising[3] <= 1 || capped[3] > 1 || capped[0] > 1 || capped[4] != rising[4] {
+		t.Fatalf("phrase-start morae were not capped: %v -> %v", rising, capped)
+	}
+}
+
 func TestProsodyMultitaskModelReportsExternalFeaturesFromEitherHead(t *testing.T) {
 	model := &Model{
 		Version: ProsodyMultitaskModelVersion, FeatureVersion: 2, Mode: "prosody_multitask_tcn",

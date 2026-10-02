@@ -77,6 +77,12 @@ type SequencePitchModel struct {
 	OutputBias   float64              `json:"output_bias"`
 	Low          float64              `json:"low"`
 	High         float64              `json:"high"`
+	// PhraseFinalLowは休止・文末の直前のモーラの倍率の下限。0なら使わない。
+	// 自然音声の句末の母音は短いが、原音接続ではその長さで切ると語尾が欠ける。
+	PhraseFinalLow float64 `json:"phrase_final_low,omitempty"`
+	// PhraseStartHighは文頭・休止の直後のモーラの倍率の上限。0なら使わない。
+	// 強制アラインメントでは文頭の母音に直前の無音や息が入り、長く学習されやすい。
+	PhraseStartHigh float64 `json:"phrase_start_high,omitempty"`
 
 	validated bool
 }
@@ -820,6 +826,12 @@ func validateSequencePitch(model *SequencePitchModel) error {
 	if model.Low <= 0 || model.High < model.Low {
 		return fmt.Errorf("invalid output bounds %.4f..%.4f", model.Low, model.High)
 	}
+	if model.PhraseFinalLow < 0 || model.PhraseFinalLow > model.High || math.IsNaN(model.PhraseFinalLow) {
+		return fmt.Errorf("invalid phrase-final lower bound %.4f", model.PhraseFinalLow)
+	}
+	if model.PhraseStartHigh != 0 && (model.PhraseStartHigh < model.Low || math.IsNaN(model.PhraseStartHigh)) {
+		return fmt.Errorf("invalid phrase-start upper bound %.4f", model.PhraseStartHigh)
+	}
 	return nil
 }
 
@@ -888,6 +900,12 @@ func (m *SequencePitchModel) predict(morae []frontend.Mora, frames []FeatureFram
 	for position := range morae {
 		if !morae[position].Pause {
 			result[position] = clamp(math.Exp(logs[position]-center), m.Low, m.High)
+			if m.PhraseStartHigh > 0 && (position == 0 || morae[position-1].Pause) {
+				result[position] = math.Min(result[position], m.PhraseStartHigh)
+			}
+			if m.PhraseFinalLow > 0 && (position+1 == len(morae) || morae[position+1].Pause) {
+				result[position] = math.Max(result[position], m.PhraseFinalLow)
+			}
 		}
 	}
 	return result
