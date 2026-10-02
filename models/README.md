@@ -4,7 +4,7 @@
 
 ## 同梱モデル
 
-日本語の既定モデル: `frame-intonation-tcn-v10`。試用: `frame-intonation-tcn-v10-mora-duration-v1`（モーラ長も予測）。代替: `frame-intonation-tcn-v9.1-t`、`frame-intonation-tcn-v9-t`。英語の既定モデル: `frame-intonation-tcn-en-v1`。中国語の既定モデル: `tone-intonation-zh-v1`。日本語・英語の学習と評価: [フレーム抑揚モデルの学習](../docs/frame-intonation-training.md)
+日本語の既定モデル: `frame-intonation-tcn-v10`。代替: `frame-intonation-tcn-v9.1-t`、`frame-intonation-tcn-v9-t`。英語の既定モデル: `frame-intonation-tcn-en-v1`。中国語の既定モデル: `tone-intonation-zh-v1`。日本語・英語の学習と評価: [フレーム抑揚モデルの学習](../docs/frame-intonation-training.md)
 
 `frame-intonation-tcn-v10`と`frame-intonation-tcn-v9-*`は10ms単位の相対ピッチだけを予測します。モーラ長はGUIで指定した基準値と、言語別の時間規則（「ん」0.9倍、「ー」1.2倍など）で決めます。
 
@@ -14,15 +14,6 @@
 
 - 本モデルはフレーム単位の相対ピッチ（抑揚）のみを学習し、話者の声質を意図的に再現しません
 - 重みはMIT Licenseで配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本とMFA整列モデルを再配布しません
-- 通知: [licenses/TSUKUYOMI-CORPUS.txt](../licenses/TSUKUYOMI-CORPUS.txt)、[licenses/MINNADE-JSUT-CORPUS.txt](../licenses/MINNADE-JSUT-CORPUS.txt)、[licenses/MFA-Japanese-NOTICE.txt](../licenses/MFA-Japanese-NOTICE.txt)
-
-## v10 + モーラ長 v1（試用）
-
-`frame-intonation-tcn-v10-mora-duration-v1`は、v10と同じ抑揚に、モーラ長を予測するheadを加えたモデルです。モーラ長は、v10と同じコーパス（夢前黎さんの読み上げ）をMontreal Forced Alignerで整列した、合成時と同じモーラ区間（母音の始まり〜次の母音の始まり）の長さを、発話ごとの中央値に対する倍率として学習しました。休止の長さは予測せず、GUIの設定のままです。
-
-- 倍率は0.5〜2.0倍に制限し、句末（休止・文末の直前）のモーラは1.0倍以上、文頭・休止の直後のモーラは1.25倍以下にします。自然音声の句末の母音は短く、そのまま使うと語尾が欠けるためです
-- 同じ文の自然音声のモーラ長を使うと現行より自然になりましたが、予測では文や音源によって間延び・詰まりが出ることがあります。既定はv10のままです
-- 学習: `tools/train-mora-duration-tcn.py`。重みはMIT Licenseで配布します
 - 通知: [licenses/TSUKUYOMI-CORPUS.txt](../licenses/TSUKUYOMI-CORPUS.txt)、[licenses/MINNADE-JSUT-CORPUS.txt](../licenses/MINNADE-JSUT-CORPUS.txt)、[licenses/MFA-Japanese-NOTICE.txt](../licenses/MFA-Japanese-NOTICE.txt)
 
 ## v9.1 Tsukuyomi + JSUT（代替）

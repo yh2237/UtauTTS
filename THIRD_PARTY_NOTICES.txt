@@ -378,8 +378,8 @@ MIT License. They were trained on third-party corpora, and UtauTTS does not
 bundle or redistribute the corpus audio or scripts. The applicable notices are
 included in the package under licenses/ (model-to-notice mapping:
 models/README.md): licenses/TSUKUYOMI-CORPUS.txt and
-licenses/MINNADE-JSUT-CORPUS.txt. The frame-intonation-tcn-v10 and
-frame-intonation-tcn-v10-mora-duration-v1 training data was aligned locally with the Montreal Forced Aligner Japanese MFA acoustic
+licenses/MINNADE-JSUT-CORPUS.txt. The frame-intonation-tcn-v10 training data
+was aligned locally with the Montreal Forced Aligner Japanese MFA acoustic
 model (CC BY 4.0), which is not bundled; see licenses/MFA-Japanese-NOTICE.txt.
 
 The frame-intonation-tcn-en-v1 weights are distributed under CC BY 4.0;
