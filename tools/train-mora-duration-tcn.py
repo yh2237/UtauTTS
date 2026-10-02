@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """モーラ長のTCNを学習し、既存の抑揚モデル（frame_pitch）と組み合わせたGo推論用JSONを出力する。
 
-教師は合成時と同じノート区間（母音の始まり〜次の母音の始まり）のモーラ長。強制アラインメント
+教師は合成時と同じノート区間（母音の始まり〜次の母音の始まり）のモーラ長（同じ母音が続く区間は
+合計を基準の比率で分け直す）。強制アラインメント
 （tools/align-intonation-mfa.py）で作ったJSONLを使う。出力は発話ごとの中央値に対する倍率で、
 基準長は合成（plan.durationFor）と同じく撥音0.9倍・長音1.2倍・それ以外1.0倍。
 推論時の倍率はlow〜highに制限し、句末（休止・文末の直前）はphrase_final_low以上、
@@ -38,15 +39,38 @@ def baseline_factor(token: dict) -> float:
     return 1.0
 
 
+VOWEL_ONLY = set("あいうえおをー")
+
+
+def note_durations(tokens) -> list[float]:
+    """ノート区間の長さ。同じ母音が続く区間（「そーを」のように後ろが母音だけのモーラ）は
+    強制アラインメントの境目があいまいなので、合計を基準の比率（長音1.2、他1.0）で分け直す。"""
+    durations = [float(t.get("end_ms", 0)) - float(t.get("start_ms", 0)) for t in tokens]
+    position = 0
+    while position < len(tokens):
+        end = position + 1
+        while (end < len(tokens) and not tokens[position].get("pause") and not tokens[end].get("pause")
+               and str(tokens[end].get("mora", "")) in VOWEL_ONLY and tokens[end].get("vowel") == tokens[end - 1].get("vowel")):
+            end += 1
+        if end - position > 1:
+            weights = [baseline_factor(tokens[k]) for k in range(position, end)]
+            total = sum(durations[position:end])
+            for k, weight in zip(range(position, end), weights):
+                durations[k] = total * weight / sum(weights)
+        position = end
+    return durations
+
+
 def prepare(records, feature_index):
     prepared = []
     for record in records:
         tokens = record["tokens"]
+        notes = note_durations(tokens)
         sequence, logs, mask = [], [], []
         for position, token in enumerate(tokens):
             sequence.append([(feature_index[name], float(value)) for name, value in trainer.token_features(tokens, position).items()
                              if name in feature_index and math.isfinite(float(value))])
-            duration = float(token.get("end_ms", 0)) - float(token.get("start_ms", 0))
+            duration = notes[position]
             valid = not token.get("pause") and duration > 0
             logs.append(math.log(duration / (120.0 * baseline_factor(token))) if valid else 0.0)
             mask.append(valid)
