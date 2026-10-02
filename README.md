@@ -128,6 +128,7 @@ Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置�
 | モデル | 内容 |
 | --- | --- |
 | `frame-intonation-tcn-v10` | 既定。つくよみちゃんコーパスとみんなで作るJSUTコーパスbasic5000を、MFAで合成時と同じモーラ区間に整列して学習 |
+| `frame-intonation-tcn-v10-mora-duration-v1` | 試用。v10の抑揚に、同じコーパスで学習したモーラ長の予測を加えたもの（休止長は設定のまま） |
 | `frame-intonation-tcn-v9.1-t` | 旧既定。同じコーパスを、アクセント情報による整列で学習 |
 | `frame-intonation-tcn-v9-t` | つくよみちゃんコーパスで学習 |
 | `frame-intonation-tcn-en-v1` | LibriTTS-Rで学習した英語のフレーム抑揚 |

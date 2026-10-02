@@ -136,11 +136,12 @@ Planは、候補選択、時間設計、Rendererの差を切り分けるため�
 
 モデルは任意コードではなく重みとメタデータを持つ自己記述JSONです。`id`、`version`、`feature_version`、`mode`からGo側の決定論的な推論器を選びます。未知形式、壊れたshape、ID重複は読み飛ばさずカタログ構築時のエラーにします。
 
-同梱モデルは次の4つです。
+同梱モデルは次のとおりです。
 
 | モデル | 形式 | 出力 |
 | --- | --- | --- |
 | `frame-intonation-tcn-v10` | version 8 / feature 1 | 10ms単位の相対ピッチ（既定） |
+| `frame-intonation-tcn-v10-mora-duration-v1` | version 10 / feature 2 | 10ms単位の相対ピッチ（v10と同じ）とモーラ長の倍率 |
 | `frame-intonation-tcn-v9.1-t` | version 8 / feature 1 | 10ms単位の相対ピッチ |
 | `frame-intonation-tcn-v9-t` | version 8 / feature 1 | 10ms単位の相対ピッチ |
 | `frame-intonation-tcn-en-v1` | version 8 / feature 1 | 英語の10ms単位の相対ピッチ |
