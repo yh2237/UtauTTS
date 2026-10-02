@@ -32,9 +32,20 @@ python tools/train-frame-intonation-tcn.py --dataset out/frame.jsonl `
 
 ## 音素時刻のないコーパス
 
-コーパスに音素時刻がない場合は`--alignment viterbi`を使います。これはOpen JTalkのアクセント注釈を弱い音響モデルとして、有声フレームがそのモーラの高低に近づくよう、モーラ長の上下限付きViterbiで境界を推定します。単純なDTWと違い、各モーラが妥当な長さに収まるため退化した経路になりません。
+コーパスに音素時刻がない場合は、Montreal Forced Aligner（MFA）の日本語音響モデル（`japanese_mfa`）で整列します。`prepare-intonation-frame-data.py`で作ったJSONLを、`align-intonation-mfa.py`で整列し直します。
 
-`prepare-intonation-frame-data.py`では、`--world-engine`を付けるとWORLD HarvestでF0を推定し、省略すると高速な内蔵自己相関F0を使います。既定ではOpen JTalkの読みと一致するクリップだけを採用し、促音・長音の表記差で読みが異なるクリップも残す場合は`--allow-reading-mismatch`を指定します。`--alignment uniform`は均等配置、`--alignment viterbi`はアクセント注釈を使った整列です。
+```powershell
+python tools/align-intonation-mfa.py prepare --out out/mfa out/frame.jsonl
+mfa align out/mfa/corpus out/mfa/dictionary.dict japanese_mfa out/mfa/alignments `
+  --output_format json --single_speaker --config_path out/mfa/config.yaml
+python tools/align-intonation-mfa.py import --alignments out/mfa/alignments --out out/frame-mfa.jsonl out/frame.jsonl
+```
+
+`prepare`は各モーラを1語とし、モーラごとの音素列を明示した辞書を作ります。`import`はモーラ区間を合成時と同じ定義（UTAUのノート: 母音の始まりから次のモーラの母音の始まりまで）にします。学習と合成でモーラ区間の定義がずれると、予測する抑揚が時間的にずれます。
+
+`prepare-intonation-frame-data.py`の`--alignment viterbi`は、Open JTalkのアクセント注釈を弱い音響モデルとして境界を推定します。アクセントの高低だけでは境界が決まりにくく、多くのモーラが長さの上下限（60msと300ms）に張り付くため、学習には使いません。MFAで整列し直すと、テスト文の自然音声F0との相関は0.34から0.67に上がりました（合成時と同じモーラ区間で評価）。`--alignment uniform`は均等配置です。
+
+`prepare-intonation-frame-data.py`では、`--world-engine`を付けるとWORLD HarvestでF0を推定し、省略すると高速な内蔵自己相関F0を使います。既定では`metadata.csv`の読み列（音素列）がOpen JTalkの音素と一致するクリップだけを採用します。読み列が仮名の場合（`prepare-minnade-jsut.py`の出力など）は照合できず全件が除外されるため、`--allow-reading-mismatch`を指定します。
 
 学習（`train-frame-intonation-tcn.py`）では、`--f0-source world`がWORLD HarvestでF0教師を作り、`--f0-cache`が抽出したF0を記録して再実行を高速化します。
 
@@ -79,7 +90,8 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utau
 | ツール | 用途 |
 | --- | --- |
 | `prepare-intonation-frame-data.py` | `metadata.csv`（`id`・`text`・`reading`列）と`wavs/<id>.wav`を学習用JSONL（`id`・`text`・`source_reading`・`openjtalk_reading`など）へまとめる |
-| `mora_alignment.py` | 音素時刻のないコーパス向けアクセントViterbiアラインメント |
+| `align-intonation-mfa.py` | 学習用JSONLのモーラ時刻をMFAの強制整列で作り直す |
+| `mora_alignment.py` | アクセントViterbiアラインメント（境界が上下限に張り付くため学習には使わない） |
 | `train-frame-intonation-tcn.py` | フレーム抑揚モデルの学習と予測 |
 | `train-manual-intonation-residual.py` | Intonation Labの手動調整から残差モデルを学習する |
 | `frame_render_metrics.py` | 再生時のピッチ処理を反映した評価 |
