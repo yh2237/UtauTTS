@@ -29,7 +29,7 @@ def main():
     parser.add_argument("--out", required=True)
     parser.add_argument("--voicebank", required=True)
     parser.add_argument("--corpus", default="tools/evaluation/japanese-v1.json")
-    parser.add_argument("--model", default="models/frame-intonation-tcn-v9.1-t.json")
+    parser.add_argument("--model", default="models/frame-intonation-tcn-v10.json")
     parser.add_argument("--count", type=int, default=5)
     parser.add_argument("--repeat", type=int, default=3)
     parser.add_argument("--benchtime", default="200ms")

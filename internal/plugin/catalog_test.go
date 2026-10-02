@@ -125,8 +125,8 @@ func TestRepositoryBundlesSelfDescribingModels(t *testing.T) {
 	if len(models) == 0 {
 		t.Fatal("no bundled self-describing models found")
 	}
-	if models[0].ID != "frame-intonation-tcn-v9.1-t" {
-		t.Fatalf("default model = %q, want metadata-priority frame-intonation-tcn-v9.1-t", models[0].ID)
+	if models[0].ID != "frame-intonation-tcn-v10" {
+		t.Fatalf("default model = %q, want metadata-priority frame-intonation-tcn-v10", models[0].ID)
 	}
 	for _, model := range models {
 		if model.ID == "" || model.DisplayName == "" {

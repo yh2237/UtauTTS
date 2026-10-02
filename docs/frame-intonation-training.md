@@ -69,7 +69,7 @@ Intonation Labは、通常のUtauTTSの編集画面を使って手動調整の�
 
 ```powershell
 python tools\train-manual-intonation-residual.py <lab-session.utautts> `
-  --base-model models\frame-intonation-tcn-v9.1-t.json `
+  --base-model models\frame-intonation-tcn-v10.json `
   --out out\frame-intonation-tcn-v9-lab.json `
   --model-id frame-intonation-tcn-v9-lab `
   --display-name "Frame intonation TCN v9 Lab"

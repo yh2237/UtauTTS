@@ -416,7 +416,7 @@ Backend::Backend(QObject *parent)
       m_defaultRenderer(portableSettingValue("synthesis/defaultRendererId",
                                           QStringLiteral("utautts-world-phrase")).toString().trimmed()),
       m_defaultModelId(portableSettingValue("synthesis/defaultModelId",
-                                         QStringLiteral("frame-intonation-tcn-v9.1-t")).toString().trimmed()),
+                                         QStringLiteral("frame-intonation-tcn-v10")).toString().trimmed()),
       m_defaultVoicebankId(portableSettingValue("voicebank/defaultId", QString()).toString().trimmed()),
       m_defaultTone(portableSettingValue("synthesis/defaultTone", QStringLiteral("C4")).toString().trimmed()),
       m_defaultAliasPolicy(normalizeAliasPolicySetting(

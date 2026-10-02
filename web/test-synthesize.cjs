@@ -24,7 +24,7 @@ const { createWorldBridge } = require(path.join(__dirname, "world-bridge.js"));
 const VOICE_NAME = "足立レイver3.5.0";
 const VOICE_DIR = path.join(ROOT, "voice", VOICE_NAME);
 const VOICE_PATH = "/voice/" + VOICE_NAME;
-const MODEL_PATH = "/models/frame-intonation-tcn-v9.1-t.json";
+const MODEL_PATH = "/models/frame-intonation-tcn-v10.json";
 const DICT_PATH = "/dict";
 const OUTPUT_PATH = "/out/utautts.wav";
 
@@ -83,7 +83,7 @@ function call(method, request) {
 
 (async () => {
   const virtualFs = installVirtualFs({ cwd: "/" });
-  virtualFs.mountFile(MODEL_PATH, new Uint8Array(fs.readFileSync(path.join(ROOT, "models", "frame-intonation-tcn-v9.1-t.json"))));
+  virtualFs.mountFile(MODEL_PATH, new Uint8Array(fs.readFileSync(path.join(ROOT, "models", "frame-intonation-tcn-v10.json"))));
   virtualFs.mountFile(
     "/renderer/utautts-world-phrase/renderer.json",
     new Uint8Array(fs.readFileSync(path.join(ROOT, "renderer", "utautts-world-phrase", "renderer.json")))

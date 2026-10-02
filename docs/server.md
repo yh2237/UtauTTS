@@ -134,16 +134,16 @@ ID順にソートされた音源一覧です。
 {
   "models": [
     {
-      "id": "frame-intonation-tcn-v9.1-t",
-      "display_name": "Frame Intonation TCN v9.1T",
-      "description": "Tsukuyomi-chan Corpus Vol.1 と みんなで作るJSUTコーパスbasic5000 で学習した日本語フレーム抑揚モデル",
-      "path": "C:\\...\\models\\frame-intonation-tcn-v9.1-t.json",
+      "id": "frame-intonation-tcn-v10",
+      "display_name": "Frame Intonation TCN v10",
+      "description": "Tsukuyomi-chan Corpus Vol.1 と みんなで作るJSUTコーパスbasic5000 を、Montreal Forced Aligner で合成時と同じモーラ区間に整列して学習した日本語フレーム抑揚モデル",
+      "path": "C:\\...\\models\\frame-intonation-tcn-v10.json",
       "version": 8,
       "feature_version": 1,
       "mode": "intonation_frame_tcn_accent_bounded",
       "sha256": "<モデルファイルのSHA-256>",
       "recommended_renderers": ["utautts-world-phrase"],
-      "default_priority": 110,
+      "default_priority": 120,
       "requires_features": true,
       "frame_contour": true
     }
@@ -208,7 +208,7 @@ ID順にソートされた音源一覧です。
 {
   "text": "こんにちは、今日はいい天気です。",
   "voicebank_id": "足立レイver3.5.0",
-  "model_id": "frame-intonation-tcn-v9.1-t",
+  "model_id": "frame-intonation-tcn-v10",
   "renderer": "utautts-world-phrase",
   "alias_policy": "auto",
   "intonation_strength": 1,

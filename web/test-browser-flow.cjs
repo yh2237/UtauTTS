@@ -31,7 +31,7 @@ function waitFor(predicate, timeoutMS) {
   });
 }
 
-const MODEL_PATH = "/models/frame-intonation-tcn-v9.1-t.json";
+const MODEL_PATH = "/models/frame-intonation-tcn-v10.json";
 const DICT_PATH = "/dict";
 
 function call(method, request) {
@@ -46,7 +46,7 @@ function call(method, request) {
   const virtualFs = installVirtualFs({ cwd: "/" });
   virtualFs.mountFile(
     MODEL_PATH,
-    new Uint8Array(fs.readFileSync(path.join(DIST, "models", "frame-intonation-tcn-v9.1-t.json")))
+    new Uint8Array(fs.readFileSync(path.join(DIST, "models", "frame-intonation-tcn-v10.json")))
   );
   virtualFs.mountFile(
     "/renderer/utautts-world-phrase/renderer.json",

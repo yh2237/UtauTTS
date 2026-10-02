@@ -13,7 +13,7 @@
 | モーラ長 | 120 ms | モーラの基本の長さ |
 | 休止長 | 180 ms | 句読点などの休止時間 |
 | 原音形式 | 自動 | 原音の選択方式 |
-| 抑揚モデル | `frame-intonation-tcn-v9.1-t` | 自動イントネーションのモデル。英語では`frame-intonation-tcn-en-v1`、中国語では`tone-intonation-zh-v1`へ自動で切り替わります。`なし`では予測しません |
+| 抑揚モデル | `frame-intonation-tcn-v10` | 自動イントネーションのモデル。英語では`frame-intonation-tcn-en-v1`、中国語では`tone-intonation-zh-v1`へ自動で切り替わります。`なし`では予測しません |
 | Renderer | `utautts-world-phrase` | 原音を接続してWAVにする方式 |
 | 音高 | `C4` | 新しいカードの基準音高 |
 | 文頭の長さ | 自動 | 最初の原音に確保する先行発声 |

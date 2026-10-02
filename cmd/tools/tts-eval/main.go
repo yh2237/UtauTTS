@@ -96,7 +96,7 @@ func run() (runErr error) {
 	renderers := flag.String("renderers", "utautts-world-phrase", "comma-separated renderer IDs")
 	resampler := flag.String("resampler", "", "Classic UTAU resampler ID from Resamplers (classic-utau renderer)")
 	wavtool := flag.String("wavtool", "builtin", "Classic UTAU wavtool ID from Wavtools (classic-utau renderer)")
-	model := flag.String("model", "frame-intonation-tcn-v9.1-t", "prosody model ID")
+	model := flag.String("model", "frame-intonation-tcn-v10", "prosody model ID")
 	modelFile := flag.String("model-file", "", "explicit experimental prosody model JSON (overrides model ID)")
 	bridge := flag.String("bridge", "", "override WORLD bridge executable")
 	worldMix := flag.String("world-mix", "auto", "WORLD feature mixing: auto, v1.3, adaptive")
