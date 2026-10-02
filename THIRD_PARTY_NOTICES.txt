@@ -89,7 +89,7 @@ Source: https://github.com/yh2237/utauio
 audiodsp
 ========
 
-UtauTTS uses github.com/yh2237/audiodsp v0.4.0 for pitch estimation,
+UtauTTS uses github.com/yh2237/audiodsp v0.4.1 for pitch estimation,
 WSOLA time stretching, linear interpolation, log-frequency amplitudes and
 16-bit PCM WAV reading and writing.
 The library was extracted from UtauTTS and is distributed under the
