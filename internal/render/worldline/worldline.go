@@ -127,6 +127,11 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 					continue
 				}
 				phoneUnits[index].OverlapMS = base.SingleCVWorldOverlapMS(synthesisPlan, phoneUnits[index], phoneUnits[index].PreutteranceMS)
+				if singleCVLegato(synthesisPlan, phoneUnits[index]) {
+					legato := math.Min(singleCVLegatoMS, phoneUnits[index].PreutteranceMS)
+					phoneUnits[index].PreutteranceMS = legato
+					phoneUnits[index].OverlapMS = legato
+				}
 			}
 		}
 		phoneTimings, phraseStartMS = base.OpenUtauPhoneTimingsWithCoda(phoneUnits, cfg.CVVCTiming, true)
@@ -430,6 +435,17 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 			EnergyFactor:  unit.EnergyFactor,
 			PitchLengthMS: pitchLengthMS, Envelope: envelopePoints,
 		})
+		if speech != nil && singleCVLegato(synthesisPlan, *unit) {
+			mono, loadErr := cache.LoadMono(unit.Source)
+			if loadErr != nil {
+				return nil, loadErr
+			}
+			end := float64(len(mono.Data)/mono.Channels)*1000/float64(mono.SampleRate) - unit.CutoffMS
+			if unit.CutoffMS < 0 {
+				end = unit.OffsetMS - unit.CutoffMS
+			}
+			speech.Anchors = singleCVLegatoAnchors(speech.SourceOnsetMS, speech.TargetOnsetMS, requiredLength, end-unit.OffsetMS)
+		}
 		if multilingualScore(synthesisPlan) {
 			mono, loadErr := cache.LoadMono(unit.Source)
 			if loadErr != nil {
