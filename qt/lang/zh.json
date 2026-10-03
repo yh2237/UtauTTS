@@ -141,6 +141,7 @@
     "settings.boundaryToneStrength": "强度",
     "settings.stretchAdapt": "音源自适应伸缩",
     "settings.stretchAdaptStrength": "强度",
+    "settings.timingWarp": "贴合朗读节奏的伸缩",
     "settings.pauseContext": "上下文停顿时长",
     "settings.pauseContextStrength": "强度",
     "settings.englishWeakForm": "英语功能词弱读",

@@ -141,6 +141,7 @@
     "settings.boundaryToneStrength": "강도",
     "settings.stretchAdapt": "음원에 맞춘 신축",
     "settings.stretchAdaptStrength": "강도",
+    "settings.timingWarp": "낭독 움직임에 맞춘 신축",
     "settings.pauseContext": "문맥 기반 휴지 길이",
     "settings.pauseContextStrength": "강도",
     "settings.englishWeakForm": "영어 기능어 약형",

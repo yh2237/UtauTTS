@@ -91,6 +91,15 @@ var rendererSettingSpecs = []rendererSettingSpec{
 		func(value float64, _ *tts.Config, options *render.ProviderOptions) {
 			options.DiffSinger.PitchMix = value
 		}),
+	{
+		// typedはWORLDのホスト制御（Worldline.TimingWarp、nilは既定ON）。renderer_settingsが優先する。
+		id: "timing_warp", kind: rendererSettingKindBoolean, defaultValue: render.WorldlineProviderOptions{}.TimingWarpEnabled(),
+		typed: func(r Request) any { return r.Worldline.TimingWarpEnabled() },
+		apply: func(value any, _ *tts.Config, options *render.ProviderOptions, _ *rendererSettingsResolution) {
+			enabled := value.(bool)
+			options.Worldline.TimingWarp = &enabled
+		},
+	},
 	stringSetting("resampler", "",
 		func(r Request) any { return r.Resampler },
 		func(value string, resolution *rendererSettingsResolution) { resolution.Resampler = value }),

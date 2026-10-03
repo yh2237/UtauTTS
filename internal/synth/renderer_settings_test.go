@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"utautts/internal/render"
+	"utautts/internal/tts"
 )
 
 func TestRendererManifestSettingDefaultsMatchResolver(t *testing.T) {
@@ -43,5 +46,29 @@ func TestRendererManifestSettingDefaultsMatchResolver(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestTimingWarpSettingPrecedence(t *testing.T) {
+	resolve := func(request Request) bool {
+		var cfg tts.Config
+		options := render.ProviderOptions{Worldline: request.Worldline}
+		resolveRendererSettings(request, &cfg, &options)
+		return options.Worldline.TimingWarpEnabled()
+	}
+	off := false
+	if !resolve(Request{}) {
+		t.Fatal("timing warp should default to on")
+	}
+	if resolve(Request{Worldline: render.WorldlineProviderOptions{TimingWarp: &off}}) {
+		t.Fatal("typed Worldline.TimingWarp=false should disable timing warp")
+	}
+	settings := map[string]json.RawMessage{"timing_warp": json.RawMessage("true")}
+	if !resolve(Request{Worldline: render.WorldlineProviderOptions{TimingWarp: &off}, RendererSettings: settings}) {
+		t.Fatal("renderer_settings should override the typed field")
+	}
+	settings = map[string]json.RawMessage{"timing_warp": json.RawMessage("false")}
+	if resolve(Request{RendererSettings: settings}) {
+		t.Fatal("renderer_settings false should disable timing warp")
 	}
 }

@@ -310,9 +310,9 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 			ResamplerExpressions: append([]render.ResamplerExpression(nil), request.ResamplerExpressions...),
 		},
 	}
-	resolution := resolveRendererSettings(request, &cfg, &providerOptions)
-	// WORLD固有のホスト制御はrenderer_settingsとは別のtypedフィールドで受ける。
+	// WORLD固有のホスト制御はrenderer_settingsとは別のtypedフィールドで受ける（timing_warpはrenderer_settingsが優先）。
 	providerOptions.Worldline = request.Worldline
+	resolution := resolveRendererSettings(request, &cfg, &providerOptions)
 	voicebankPath := request.VoicebankPath
 	if voicebankPath == "" && s.voicebanks != nil && (requireVoicebank || request.VoicebankID != "") {
 		if path, ok := s.voicebanks.Resolve(request.VoicebankID); ok {

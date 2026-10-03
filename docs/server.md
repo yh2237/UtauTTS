@@ -253,6 +253,7 @@ ID順にソートされた音源一覧です。
 | `boundary_tone_strength` | number | `1` | 境界音調の強度（0〜2）。0は既定1.0として扱う |
 | `stretch_adapt` | boolean | `true` | 音源実測に基づき日本語モーラの過度な伸縮を有界にする（C3a）。長いモーラ長（例: 200ms以上）のときのみ有効。既定の短い設定では無効（解析コスト回避） |
 | `stretch_adapt_strength` | number | `1` | 伸縮補正の強度（0〜2）。0は既定1.0として扱う |
+| `timing_warp` | boolean | `true` | `utautts-world-phrase`のみ。日本語の出力を、学習した読み上げの動きに合わせてモーラの中だけ時間伸縮する（包絡・モーラの開始・長さ・音高は不変、句の最後のモーラは伸縮しない）。`false`で従来と同じ出力 |
 | `pause_context` | boolean | `true` | 句読点の種類と発話末で休止長を変える（B5） |
 | `pause_context_strength` | number | `1` | 休止長補正の強度（0〜2）。0は既定1.0として扱う |
 | `english_weak_form` | boolean | `true` | 英語機能語の弱形（E1）を有効にする。句中で前後がポーズでない非強調の機能語だけ弱形にし、明示の読みと辞書を優先する |

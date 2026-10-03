@@ -19,6 +19,7 @@
     { "id": "boundary_tone", "type": "boolean", "group": "correction", "default": true, "label": "settings.boundaryTone" },
     { "id": "stretch_adapt", "type": "boolean", "group": "correction", "default": true, "label": "settings.stretchAdapt" },
     { "id": "pause_context", "type": "boolean", "group": "correction", "default": true, "label": "settings.pauseContext" },
+    { "id": "timing_warp", "type": "boolean", "group": "correction", "default": true, "label": "settings.timingWarp" },
     { "id": "english_weak_form", "type": "boolean", "group": "pronunciation", "default": true, "label": "settings.englishWeakForm" }
   ],
   "platforms": ["windows-amd64", "linux-amd64", "darwin-amd64", "darwin-arm64", "js-wasm"],
