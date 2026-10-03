@@ -8,6 +8,8 @@ github.com/mozillazg/go-pinyin v0.21.0 h1:Wo8/NT45z7P3er/9YSLHA3/kjZzbLz5hR7i+jG
 github.com/mozillazg/go-pinyin v0.21.0/go.mod h1:iR4EnMMRXkfpFVV5FMi4FNB6wGq9NV6uDWbUuPhP4Yc=
 github.com/yh2237/audiodsp v0.4.1 h1:v6/ApQyZvOzKIySpLrglM/fBvh2rmX1oraJVmf0S/M4=
 github.com/yh2237/audiodsp v0.4.1/go.mod h1:Cv0D5PXZpjZW/Ty+326DBv2JmdZfu4d6zMhlNOfpWF8=
+github.com/yh2237/gograd v0.1.0 h1:4BaUyH1vmDHVtWpqoD4lQJPGG9I82JO0h6E6cqa9Pfo=
+github.com/yh2237/gograd v0.1.0/go.mod h1:42B/uxczsSbUy/n+SAYj1Wuk0xeo+VqFnvKL6MGVkRw=
 github.com/yh2237/utauio v0.3.0 h1:xqJ8mTmFt9+IYc71EgW/kUN3w35QBOipxiY9ZDEg2ts=
 github.com/yh2237/utauio v0.3.0/go.mod h1:I+illiKoP6S8iUC4iF15Y6ynXUbBTquYEPW3S8jDpZY=
 golang.org/x/text v0.39.0 h1:UbZz4pLOvn600D6Oh6GGEI6VAmndrEBLv8/6BEXzyus=

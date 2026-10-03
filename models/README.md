@@ -61,7 +61,7 @@ Delta/VCCVの音節構成を対象とし、en-cv/en-arpasingへの適用は未�
 - 本モデルは発話ごとに正規化した包絡の動き（音の移り方の時間配分）だけを合成に使い、予測した包絡そのものや話者の声質は出力に含めません
 - 重みはMIT Licenseで配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本とMFA整列モデルを再配布しません
 - 通知: [licenses/TSUKUYOMI-CORPUS.txt](../licenses/TSUKUYOMI-CORPUS.txt)、[licenses/MINNADE-JSUT-CORPUS.txt](../licenses/MINNADE-JSUT-CORPUS.txt)、[licenses/MFA-Japanese-NOTICE.txt](../licenses/MFA-Japanese-NOTICE.txt)
-- 学習: `tools/train-speech-timing-target.py`。学習条件と検証の誤差はsafetensorsの`__metadata__`に記録しています
+- 学習: `cmd/tools/train-speech-timing`（gograd、[手順](../docs/speech-timing-go-training.md)）。同梱のv1は同じ特徴量・構成のPyTorch版で学習し、Go版は特徴量が一致し同等の検証誤差になることを確かめています。学習条件と検証の誤差はsafetensorsの`__metadata__`に記録しています
 
 ## モデルの記録
 
