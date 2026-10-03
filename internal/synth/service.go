@@ -24,7 +24,7 @@ var ErrUnavailable = errors.New("unavailable")
 // DefaultApplyPitchとDefaultIntonationStrengthは合成の既定の抑揚設定。renderer manifestの既定に合わせる。
 const (
 	DefaultApplyPitch              = true
-	DefaultIntonationStrength      = 2.0
+	DefaultIntonationStrength      = 4.0
 	DefaultContextDuration         = false
 	DefaultContextDurationStrength = 1.0
 	DefaultBoundaryTone            = true

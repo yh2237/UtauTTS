@@ -236,11 +236,30 @@ func TestScaleAutomaticPitchCurveUsesTheConfiguredStrength(t *testing.T) {
 	}
 }
 
+func TestScaleAutomaticPitchCurveExpandsLargeMovementsAboveTwo(t *testing.T) {
+	base := &render.PitchCurve{FrameMS: 10, Cents: []float64{2, -2, 150, -150}}
+	two := scaleAutomaticPitchCurve(base, 2)
+	four := scaleAutomaticPitchCurve(base, 4)
+	if math.Abs(four.Cents[0]-two.Cents[0]) > 0.01 || math.Abs(four.Cents[1]-two.Cents[1]) > 0.01 {
+		t.Fatalf("small movements changed above strength 2: %v -> %v", two.Cents, four.Cents)
+	}
+	for _, index := range []int{2, 3} {
+		ratio := four.Cents[index] / two.Cents[index]
+		if ratio < 1.9 || ratio > 2 {
+			t.Fatalf("large movement %d was not expanded toward strength 4: ratio %.3f", index, ratio)
+		}
+	}
+	eight := scaleAutomaticPitchCurve(base, MaxIntonationStrength)
+	if eight.Cents[2] <= four.Cents[2] || eight.Cents[2] > two.Cents[2]*MaxIntonationStrength/2 {
+		t.Fatalf("maximum strength expansion = %v", eight.Cents)
+	}
+}
+
 func TestIntonationStrengthAcceptsAmplificationRange(t *testing.T) {
-	if err := validateConfig(Config{IntonationStrength: render.MaxIntonationStrength}); err != nil {
+	if err := validateConfig(Config{IntonationStrength: MaxIntonationStrength}); err != nil {
 		t.Fatalf("maximum intonation strength rejected: %v", err)
 	}
-	if err := validateConfig(Config{IntonationStrength: render.MaxIntonationStrength + 0.01}); err == nil {
+	if err := validateConfig(Config{IntonationStrength: MaxIntonationStrength + 0.01}); err == nil {
 		t.Fatal("intonation strength above the maximum was accepted")
 	}
 }

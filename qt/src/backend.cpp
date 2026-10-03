@@ -55,7 +55,7 @@ constexpr int maxRecentProjects = 10;
 constexpr int fallbackMoraDurationMS = 120;
 constexpr int fallbackPauseDurationMS = 180;
 constexpr int fallbackLeadingPreutteranceMS = 0;
-constexpr double fallbackIntonationStrength = 2.0;
+constexpr double fallbackIntonationStrength = 4.0;
 
 QDir resourceRoot();
 
@@ -922,7 +922,7 @@ int Backend::defaultLeadingPreutterance() const {
 
 double Backend::defaultIntonationStrength() const {
     return qBound(0.0, rendererSettingOrManifest(m_defaultRenderer, QStringLiteral("intonation_strength"),
-                                                 fallbackIntonationStrength).toDouble(), 4.0);
+                                                 fallbackIntonationStrength).toDouble(), 8.0);
 }
 
 QVariant Backend::rendererSettingOrManifest(const QString &rendererId, const QString &settingId,

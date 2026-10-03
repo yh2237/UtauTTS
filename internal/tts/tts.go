@@ -644,8 +644,8 @@ func validateConfig(cfg Config) error {
 			return fmt.Errorf("mora durations: value %d must be finite, got %v", index, duration)
 		}
 	}
-	if cfg.IntonationStrength < 0 || cfg.IntonationStrength > render.MaxIntonationStrength {
-		return fmt.Errorf("intonation_strength must be between 0 and %.0f, got %v", render.MaxIntonationStrength, cfg.IntonationStrength)
+	if cfg.IntonationStrength < 0 || cfg.IntonationStrength > MaxIntonationStrength {
+		return fmt.Errorf("intonation_strength must be between 0 and %.0f, got %v", MaxIntonationStrength, cfg.IntonationStrength)
 	}
 	if cfg.ReleaseMS < 0 {
 		return fmt.Errorf("release_ms must be non-negative, got %v", cfg.ReleaseMS)
@@ -965,7 +965,8 @@ func effectiveIntonationStrength(cfg Config) float64 {
 	if !applyPitchEnabled(cfg) {
 		return 0
 	}
-	return cfg.IntonationStrength
+	// 自動輪郭が無いときは、強さが音源ピッチ安定化の指数になるため、レンダラーの上限で止める。
+	return math.Min(cfg.IntonationStrength, render.MaxIntonationStrength)
 }
 
 // 自動曲線使用時も音源由来の補正を弱く残す。
@@ -981,7 +982,20 @@ func rendererIntonationStrength(cfg Config, automatic *render.PitchCurve) float6
 	return effectiveIntonationStrength(cfg)
 }
 
+// MaxIntonationStrengthは利用者が指定できる抑揚の強さの上限。
+// 2を超える分は大きな動きだけを広げるため、レンダラーの音源ピッチ安定化の上限（render.MaxIntonationStrength）より大きい。
+const MaxIntonationStrength = 8.0
+
+const (
+	// intonationExpandBaseは一律に倍率を掛ける強さの上限。これを超える分は大きな動きだけを広げる。
+	intonationExpandBase = 2.0
+	// intonationExpandCentsは、強さ2の曲線で広げ始める動きの大きさの目安（セント）。
+	intonationExpandCents = 100.0
+)
+
 // scaleAutomaticPitchCurveは自動輪郭だけに強度を適用し、手動補正は増幅しない。
+// 強さ2までは一律の倍率。2を超えると、強さ2の曲線の値が0から遠いほど倍率を上げる。
+// 0付近（平らであるべき部分）は強さ2のまま、大きな動き（アクセントや句の上がり下がり）ほど指定の強さへ近づく。
 func scaleAutomaticPitchCurve(curve *render.PitchCurve, strength float64) *render.PitchCurve {
 	if curve == nil || len(curve.Cents) == 0 {
 		return curve
@@ -994,7 +1008,13 @@ func scaleAutomaticPitchCurve(curve *render.PitchCurve, strength float64) *rende
 	}
 	result := &render.PitchCurve{FrameMS: curve.FrameMS, Cents: make([]float64, len(curve.Cents))}
 	for index, cents := range curve.Cents {
-		result.Cents[index] = cents * strength
+		if strength <= intonationExpandBase {
+			result.Cents[index] = cents * strength
+			continue
+		}
+		base := cents * intonationExpandBase
+		ratio := base / intonationExpandCents
+		result.Cents[index] = base * (1 + (strength/intonationExpandBase-1)*(1-math.Exp(-ratio*ratio)))
 	}
 	return result
 }

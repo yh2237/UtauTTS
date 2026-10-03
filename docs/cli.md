@@ -86,7 +86,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--pitch-contours <path>` | | ケース別ピッチ係数JSON（計画へ記録。波形処理には `--apply-pitch` が必要） |
 | `--pitch-case <id>` | | `--pitch-contours` 内のケースID |
 | `--apply-pitch` | `true` | 波形のピッチ再サンプリング |
-| `--intonation-strength` | `2` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
+| `--intonation-strength` | `4` | 抑揚の強さ（0〜8）。2までは抑揚の曲線に一律の倍率を掛け、2を超えると大きな動きほど広げる（平らな部分は強さ2のまま） |
 | `--context-duration` | `false` | 日本語モーラ長の文脈連動（C1）を有効にする |
 | `--context-duration-strength` | `1` | 文脈連動の強度（0〜2）。0は既定1.0として扱う |
 | `--boundary-tone` | `true` | 日本語の句末境界音調（C2）を有効にする |

@@ -22,7 +22,6 @@ import (
 	"utautts/internal/audio"
 	"utautts/internal/diffsinger"
 	"utautts/internal/plugin"
-	"utautts/internal/render"
 	"utautts/internal/sidecar"
 	"utautts/internal/synth"
 	"utautts/internal/tts"
@@ -643,8 +642,8 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 			return nil, http.StatusBadRequest, fmt.Errorf("mora duration settings are outside the supported range")
 		}
 	}
-	if request.IntonationStrength < 0 || request.IntonationStrength > render.MaxIntonationStrength {
-		return nil, http.StatusBadRequest, fmt.Errorf("intonation_strength must be between 0 and %.0f", render.MaxIntonationStrength)
+	if request.IntonationStrength < 0 || request.IntonationStrength > tts.MaxIntonationStrength {
+		return nil, http.StatusBadRequest, fmt.Errorf("intonation_strength must be between 0 and %.0f", tts.MaxIntonationStrength)
 	}
 	if request.ManualPitch != nil && len(request.ManualPitch.Points) > maxManualPitchPoints {
 		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("manual pitch supports at most %d points", maxManualPitchPoints)

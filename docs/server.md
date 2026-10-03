@@ -244,7 +244,7 @@ ID順にソートされた音源一覧です。
 | `release_set` | boolean | `false` | `release_ms`を明示指定として適用する |
 | `mora_durations_ms` | number[] | | モーラごとの長さ。値は0〜1000 |
 | `unit_overrides` | object[] | なし | unit単位の候補・原音の明示指定（計画の上書き） |
-| `intonation_strength` | number | `2` | 音源ピッチ安定化と句曲線の強さ（0〜4） |
+| `intonation_strength` | number | `4` | 抑揚の強さ（0〜8）。2までは一律、2を超えると大きな動きほど広げる |
 | `apply_pitch` | boolean | `true` | 波形ピッチ再サンプリング |
 | `speech_timing` | boolean | `false` | [発話タイミング補正](speech-quality-experiment.md)を有効にする |
 | `context_duration` | boolean | `false` | 日本語モーラ長の文脈連動（C1）を有効にする |

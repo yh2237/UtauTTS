@@ -59,7 +59,7 @@ ApplicationWindow {
                                              && !window.appBackend.onboardingCompleted
     readonly property var licenseDocuments: injectedLegalDocuments
     readonly property real defaultIntonationStrength: appBackend.defaultIntonationStrength
-    readonly property real maxIntonationStrength: 4.0
+    readonly property real maxIntonationStrength: 8.0
 
     property var translator: translatorInstance
     property string updateAvailableVersion: ""
