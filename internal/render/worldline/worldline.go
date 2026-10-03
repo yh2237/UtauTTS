@@ -691,8 +691,9 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg base.Config, manifest wo
 	}
 	worldline := provider.WorldlineOptions{
 		Engine: manifest.Engine, SampleRate: manifest.SampleRate, ExactLength: cfg.ProviderOptions.Worldline.ExactLength,
-		F0Curve: append([]float64(nil), manifest.F0Curve...),
-		Units:   make([]provider.WorldlineUnit, len(manifest.Units)),
+		TimingWarp: timingWarpStrength(synthesisPlan, cfg),
+		F0Curve:    append([]float64(nil), manifest.F0Curve...),
+		Units:      make([]provider.WorldlineUnit, len(manifest.Units)),
 	}
 	for index, unit := range manifest.Units {
 		converted := provider.WorldlineUnit{
@@ -732,6 +733,19 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg base.Config, manifest wo
 		},
 		Resources: resources,
 	}, nil
+}
+
+// timingWarpStrengthは、日本語の合成計画に時間伸縮を適用する強さ（無効なら0）。
+func timingWarpStrength(synthesisPlan *plan.Plan, cfg base.Config) float64 {
+	if synthesisPlan == nil || !cfg.ProviderOptions.Worldline.TimingWarpEnabled() || !isJapanesePlan(synthesisPlan) {
+		return 0
+	}
+	return 1
+}
+
+func isJapanesePlan(synthesisPlan *plan.Plan) bool {
+	language := strings.ToLower(synthesisPlan.Language)
+	return language == "" || language == "ja" || strings.HasPrefix(language, "ja-")
 }
 
 func findFRQPath(wavPath string) string {

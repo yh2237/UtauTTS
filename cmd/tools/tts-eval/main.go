@@ -88,6 +88,7 @@ func run() (runErr error) {
 	englishWeakForm := flag.Bool("english-weak-form", true, "weak forms for English function words (E1)")
 	e2a := flag.Bool("e2a", render.WorldlineProviderOptions{}.E2AEnabled(), "separate English stop coda closure and release (E2a)")
 	e2b := flag.Bool("e2b", render.WorldlineProviderOptions{}.E2BEnabled(), "generalize stop-burst gate to Japanese plosives (E2b)")
+	timingWarp := flag.Bool("timing-warp", render.WorldlineProviderOptions{}.TimingWarpEnabled(), "warp Japanese WORLD output timing toward learned speech movement")
 	aliasPolicy := flag.String("alias-policy", "auto", "voicebank mode: auto or cv-only")
 	bank := flag.String("voicebank", "", "voicebank directory (required)")
 	diagnose := flag.Bool("diagnose", false, "write frontend and candidate diagnostics without rendering")
@@ -161,7 +162,7 @@ func run() (runErr error) {
 			boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
 			stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
 			pauseContext: *pauseContext, pauseContextStrength: *pauseContextStrength,
-			englishWeakForm: *englishWeakForm, e2a: *e2a, e2b: *e2b,
+			englishWeakForm: *englishWeakForm, e2a: *e2a, e2b: *e2b, noTimingWarp: !*timingWarp,
 		})
 	}
 	if *measurePitch && (*diagnose || *renderers != "utautts-world-phrase") {
@@ -235,7 +236,7 @@ func run() (runErr error) {
 					boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
 					stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
 					pauseContext: *pauseContext, pauseContextStrength: *pauseContextStrength,
-					englishWeakForm: *englishWeakForm, e2a: *e2a, e2b: *e2b,
+					englishWeakForm: *englishWeakForm, e2a: *e2a, e2b: *e2b, noTimingWarp: !*timingWarp,
 				}, catalog)
 				row.ElapsedMS = elapsed
 				if callErr == nil {

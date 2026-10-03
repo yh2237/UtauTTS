@@ -18,6 +18,7 @@ type manifest struct {
 	SampleRate      int                           `json:"sample_rate"`
 	F0Curve         []float64                     `json:"f0_curve"`
 	Units           []unit                        `json:"units"`
+	timingWarp      *timingWarp
 }
 
 type unit struct {
@@ -216,6 +217,11 @@ func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
 		F0Curve: append([]float64(nil), options.F0Curve...), Units: make([]unit, len(options.Units)),
 		WorldEnginePath: job.Resources["world_engine"],
 	}
+	warp, err := decodeTimingWarp(job.Plan, options.TimingWarp)
+	if err != nil {
+		return manifest{}, err
+	}
+	input.timingWarp = warp
 	for index, source := range options.Units {
 		target := unit{
 			Speech: source.Speech, LegacyMix: source.LegacyMix, GapRepair: source.GapRepair,

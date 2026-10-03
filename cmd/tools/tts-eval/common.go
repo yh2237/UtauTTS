@@ -37,6 +37,7 @@ type caseOptions struct {
 	pauseContextStrength      float64
 	englishWeakForm           bool
 	e2a, e2b                  bool
+	noTimingWarp              bool
 	timeout                   time.Duration
 }
 
@@ -71,7 +72,7 @@ func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Re
 		PauseContext:            o.pauseContext,
 		PauseContextStrength:    o.pauseContextStrength,
 		EnglishWeakForm:         o.englishWeakForm,
-		Worldline:               render.WorldlineProviderOptions{MixMode: o.mix, GapRepairMode: o.gapRepair, E2A: &o.e2a, E2B: &o.e2b},
+		Worldline:               render.WorldlineProviderOptions{MixMode: o.mix, GapRepairMode: o.gapRepair, E2A: &o.e2a, E2B: &o.e2b, TimingWarp: new(!o.noTimingWarp)},
 	}
 	service := synth.NewService(catalog, o.rendererID, o.bridge, "", "", nil)
 	ctx, cancel := context.WithTimeout(context.Background(), o.timeout)

@@ -196,6 +196,8 @@ resamplerとwavtoolは独立したプロセスです。終了コード、出力W
 
 原音ごとのF0、スペクトル包絡、非周期性指標はbridge内にキャッシュします。再生時はこれらをフレーズの10 ms時間軸へ置き直し、隣接する分析frameを補間してから一度だけWORLD合成します。
 
+日本語では合成の直前に時間伸縮（`internal/speechtiming`）を行います。同梱の目標モデル`speech-timing-target-v1`が、合成計画の音素・長さと相対F0から、話者ごとに正規化した対数メル包絡の軌跡（読み上げの音の移り方）を予測します。出力の包絡も同じ80帯域へ変換して正規化し、モーラの開始と発声区間の終わりを固定点に区間ごとのDTWで対応を求め、伸縮を0.5〜2倍に制限して平滑化します。特徴量は対応に沿って並べ直すだけで、包絡の形は変えません。句の最後のモーラは子音を含めて伸縮せず、その手前60 msでなだらかに戻します。推論は純GoのTCNで、`Predictor`インターフェースの後ろにあるため、gogradなど別の推論系へ差し替えられます。重みはsafetensors（F32）でbridgeに埋め込みます。学習は`tools/train-speech-timing-target.py`です。
+
 ### DiffSinger
 
 `diffsinger`は専用のDiffSinger音源を`dsconfig.yaml`から読み込み、Windows x64のbridgeを通じて音響モデルとvocoderを実行します。通常のUTAU音源の`oto.ini`、resampler、wavtoolを使う経路とは異なります。対応範囲と配置は[DiffSinger](diffsinger.md)を参照してください。

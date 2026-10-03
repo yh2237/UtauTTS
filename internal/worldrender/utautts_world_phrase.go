@@ -79,6 +79,9 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 			report[item.Speech.UnitIndex] = entry
 		}
 	}
+	if err := applyTimingWarp(input.timingWarp, input.SampleRate, &result); err != nil {
+		return nil, err
+	}
 	wave, err := engine.Synthesize(result, input.SampleRate)
 	if err != nil {
 		return nil, err

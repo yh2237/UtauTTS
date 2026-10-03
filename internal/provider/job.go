@@ -33,11 +33,13 @@ type UnitRendererOptions struct {
 }
 
 type WorldlineOptions struct {
-	Engine      string          `json:"engine"`
-	SampleRate  int             `json:"sample_rate"`
-	ExactLength bool            `json:"exact_length,omitempty"`
-	F0Curve     []float64       `json:"f0_curve"`
-	Units       []WorldlineUnit `json:"units"`
+	Engine      string `json:"engine"`
+	SampleRate  int    `json:"sample_rate"`
+	ExactLength bool   `json:"exact_length,omitempty"`
+	// TimingWarpは時間伸縮の強さ（0は無効）。合成計画の日本語のモーラに対して適用する。
+	TimingWarp float64         `json:"timing_warp,omitempty"`
+	F0Curve    []float64       `json:"f0_curve"`
+	Units      []WorldlineUnit `json:"units"`
 }
 
 type WorldlineUnit struct {

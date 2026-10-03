@@ -382,6 +382,14 @@ licenses/MINNADE-JSUT-CORPUS.txt. The frame-intonation-tcn-v10 training data
 was aligned locally with the Montreal Forced Aligner Japanese MFA acoustic
 model (CC BY 4.0), which is not bundled; see licenses/MFA-Japanese-NOTICE.txt.
 
+The speech-timing-target-v1 weights (internal/speechtiming, embedded in the
+WORLD bridge) are UtauTTS weights distributed under the MIT License. They were
+trained on the same Tsukuyomi-chan Corpus Vol.1 and Minnade JSUT basic5000
+BASIC5000_0001-0600 data as frame-intonation-tcn-v10 with the same notices
+(licenses/TSUKUYOMI-CORPUS.txt, licenses/MINNADE-JSUT-CORPUS.txt and
+licenses/MFA-Japanese-NOTICE.txt). Only normalized envelope movement is used to
+retime the voicebank output; no corpus audio or predicted envelope is rendered.
+
 The frame-intonation-tcn-en-v1 weights are distributed under CC BY 4.0;
 see licenses/ENGLISH-FRAME-INTONATION-TCN-V1.txt. Training source notices:
 licenses/LibriTTS-R-NOTICE.txt and licenses/MFA-English-ARPA-NOTICE.txt.

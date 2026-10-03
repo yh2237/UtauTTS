@@ -74,6 +74,13 @@ type WorldlineProviderOptions struct {
 	E2A *bool
 	// E2Bは日本語破裂音の過渡音ゲート一般化(E2b)を有効にする。nilは既定ON。
 	E2B *bool
+	// TimingWarpは日本語の出力を、学習した読み上げの動きに合わせてモーラの中だけ時間伸縮する。nilは既定ON。
+	TimingWarp *bool `json:"timing_warp,omitempty"`
+}
+
+// TimingWarpEnabledは時間伸縮が有効か。
+func (options WorldlineProviderOptions) TimingWarpEnabled() bool {
+	return options.TimingWarp == nil || *options.TimingWarp
 }
 
 func (options WorldlineProviderOptions) SeparateCodaReleaseEnabled() bool {

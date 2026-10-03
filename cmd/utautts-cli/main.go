@@ -56,6 +56,7 @@ func main() {
 		pauseContext             bool
 		pauseContextStrength     float64
 		englishWeakForm          bool
+		timingWarp               bool
 		renderer                 string
 		resampler                string
 		wavtool                  string
@@ -119,6 +120,7 @@ func main() {
 	flag.BoolVar(&pauseContext, "pause-context", synth.DefaultPauseContext, "context-aware punctuation pause length (B5)")
 	flag.Float64Var(&pauseContextStrength, "pause-context-strength", synth.DefaultPauseContextStrength, "pause context strength (0 uses the default 1.0)")
 	flag.BoolVar(&englishWeakForm, "english-weak-form", synth.DefaultEnglishWeakForm, "weak forms for English function words (E1)")
+	flag.BoolVar(&timingWarp, "timing-warp", render.WorldlineProviderOptions{}.TimingWarpEnabled(), "warp Japanese WORLD output timing toward learned speech movement (utautts-world-phrase)")
 	flag.StringVar(&renderer, "renderer", "", "renderer ID (default: highest configured priority)")
 	flag.StringVar(&resampler, "resampler", "", "Classic UTAU resampler ID from Resamplers")
 	flag.StringVar(&wavtool, "wavtool", "builtin", "Classic UTAU wavtool ID from Wavtools")
@@ -213,6 +215,7 @@ func main() {
 		CVVCTransitionGain:      cvvcTransitionGain,
 		CVVCPreBoundaryFade:     cvvcPreBoundaryFade,
 		AliasPolicy:             voicebank.AliasPolicy(aliasPolicy),
+		Worldline:               render.WorldlineProviderOptions{TimingWarp: &timingWarp},
 		JoinModelPath:           joinModelPath,
 		SpeechModelPath:         speechModelPath,
 		DiffSingerSteps:         diffSingerSteps,
