@@ -328,6 +328,9 @@ func TestAliasCandidatesHandleSpecialMoraContexts(t *testing.T) {
 	if candidates := aliasCandidatesWithPolicy("ゔぉ", "i", false, AliasPolicyAuto); !contains(candidates, "i ぼ") || !contains(candidates, "ぼ") {
 		t.Fatal("ヴ row did not fall back to the バ row")
 	}
+	if !contains(aliasCandidatesWithPolicy("でゅ", "", true, AliasPolicyAuto), "じゅ") {
+		t.Fatal("でゅ did not fall back to じゅ")
+	}
 	wo := aliasCandidatesWithPolicy("を", "", true, AliasPolicyAuto)
 	originalIndex, fallbackIndex := -1, -1
 	for index, candidate := range wo {

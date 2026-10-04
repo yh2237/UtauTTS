@@ -664,6 +664,11 @@ func equivalentKanaForms(mora string) []string {
 		return []string{"ぼ"}
 	case "ゔゅ":
 		return []string{"びゅ"}
+	// 「デュ」「テュ」の録音が無い音源では、古い外来語の読みと同じジュ・チュで合成する。
+	case "でゅ":
+		return []string{"じゅ"}
+	case "てゅ":
+		return []string{"ちゅ"}
 	}
 	return nil
 }
