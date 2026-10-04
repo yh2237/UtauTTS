@@ -651,6 +651,19 @@ func equivalentKanaForms(mora string) []string {
 		return []string{"い"}
 	case "ゑ":
 		return []string{"え"}
+	// ヴ行の録音が無い音源では、日本語で普通に置き換えるバ行で合成する（無ければ合成自体が失敗する）。
+	case "ゔ":
+		return []string{"ぶ"}
+	case "ゔぁ":
+		return []string{"ば"}
+	case "ゔぃ":
+		return []string{"び"}
+	case "ゔぇ":
+		return []string{"べ"}
+	case "ゔぉ":
+		return []string{"ぼ"}
+	case "ゔゅ":
+		return []string{"びゅ"}
 	}
 	return nil
 }

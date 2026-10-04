@@ -325,6 +325,9 @@ func TestAliasCandidatesHandleSpecialMoraContexts(t *testing.T) {
 	if !contains(aliasCandidatesWithPolicy("ゔぁ", "a", false, AliasPolicyAuto), "a ヴぁ") {
 		t.Fatal("mixed-script ヴ candidate was not generated")
 	}
+	if candidates := aliasCandidatesWithPolicy("ゔぉ", "i", false, AliasPolicyAuto); !contains(candidates, "i ぼ") || !contains(candidates, "ぼ") {
+		t.Fatal("ヴ row did not fall back to the バ row")
+	}
 	wo := aliasCandidatesWithPolicy("を", "", true, AliasPolicyAuto)
 	originalIndex, fallbackIndex := -1, -1
 	for index, candidate := range wo {
