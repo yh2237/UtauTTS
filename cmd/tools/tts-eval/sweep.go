@@ -26,12 +26,11 @@ const (
 )
 
 type preset struct {
-	Name         string
-	Renderer     string
-	Mix          string
-	GapRepair    string
-	SpeechTiming bool
-	ApplyPitch   bool
+	Name       string
+	Renderer   string
+	Mix        string
+	GapRepair  string
+	ApplyPitch bool
 }
 
 var presetTable = []preset{
@@ -39,7 +38,6 @@ var presetTable = []preset{
 	{Name: "legacy", Renderer: baseRenderer, Mix: "v1.3", GapRepair: "off", ApplyPitch: true},
 	{Name: "legacy-gap", Renderer: baseRenderer, Mix: "v1.3", GapRepair: "auto", ApplyPitch: true},
 	{Name: "adaptive", Renderer: baseRenderer, Mix: "adaptive", GapRepair: "off", ApplyPitch: true},
-	{Name: "timing", Renderer: baseRenderer, Mix: baseMix, GapRepair: baseGap, SpeechTiming: true, ApplyPitch: true},
 	{Name: "no-pitch", Renderer: baseRenderer, Mix: baseMix, GapRepair: baseGap, ApplyPitch: false},
 }
 
@@ -80,33 +78,31 @@ func resolvePresets(names string) ([]preset, error) {
 }
 
 type sweepRequest struct {
-	bank, out, presets, aliasPolicy, bridge  string
-	model, modelFile, experiment, phonemizer string
-	corpusData                               []byte
-	prompts                                  []prompt
-	moraMS                                   float64
-	wordEnvelope                             bool
-	contextDuration                          bool
-	contextDurationStrength                  float64
-	boundaryTone                             bool
-	boundaryToneStrength                     float64
-	stretchAdapt                             bool
-	stretchAdaptStrength                     float64
-	pauseContext                             bool
-	pauseContextStrength                     float64
-	englishWeakForm                          bool
-	e2a, e2b                                 bool
-	noTimingWarp                             bool
-	timeout                                  time.Duration
+	bank, out, presets, aliasPolicy, bridge string
+	model, modelFile, phonemizer            string
+	corpusData                              []byte
+	prompts                                 []prompt
+	moraMS                                  float64
+	contextDuration                         bool
+	contextDurationStrength                 float64
+	boundaryTone                            bool
+	boundaryToneStrength                    float64
+	stretchAdapt                            bool
+	stretchAdaptStrength                    float64
+	pauseContext                            bool
+	pauseContextStrength                    float64
+	englishWeakForm                         bool
+	e2a, e2b                                bool
+	noTimingWarp                            bool
+	timeout                                 time.Duration
 }
 
 type sweepPresetJSON struct {
-	Name         string `json:"name"`
-	Renderer     string `json:"renderer"`
-	Mix          string `json:"mix"`
-	GapRepair    string `json:"gap_repair"`
-	SpeechTiming bool   `json:"speech_timing"`
-	ApplyPitch   bool   `json:"apply_pitch"`
+	Name       string `json:"name"`
+	Renderer   string `json:"renderer"`
+	Mix        string `json:"mix"`
+	GapRepair  string `json:"gap_repair"`
+	ApplyPitch bool   `json:"apply_pitch"`
 }
 
 type sweepUnits struct {
@@ -184,16 +180,16 @@ func runSweep(req sweepRequest) error {
 		if err := os.Mkdir(dir, 0755); err != nil {
 			return err
 		}
-		fmt.Printf("sweep %s: renderer=%s mix=%s gap=%s speech-timing=%t apply-pitch=%t\n", ps.Name, ps.Renderer, ps.Mix, ps.GapRepair, ps.SpeechTiming, ps.ApplyPitch)
+		fmt.Printf("sweep %s: renderer=%s mix=%s gap=%s apply-pitch=%t\n", ps.Name, ps.Renderer, ps.Mix, ps.GapRepair, ps.ApplyPitch)
 		var rows []measurement
 		for index, p := range req.prompts {
 			row := measurement{ID: p.ID, Text: p.Text, Focus: p.Focus, Renderer: ps.Renderer, Repetition: 1}
 			result, elapsed, callErr := synthesizeCase(p, caseOptions{
 				bank: req.bank, aliasPolicy: req.aliasPolicy, bridge: req.bridge,
 				model: req.model, modelFile: req.modelFile, prosodyModelPath: prosodyPath,
-				moraMS: req.moraMS, experiment: req.experiment, wordEnvelope: req.wordEnvelope,
+				moraMS:     req.moraMS,
 				rendererID: ps.Renderer, mix: ps.Mix, gapRepair: ps.GapRepair,
-				speechTiming: ps.SpeechTiming, applyPitch: ps.ApplyPitch, timeout: req.timeout,
+				applyPitch: ps.ApplyPitch, timeout: req.timeout,
 				contextDuration: req.contextDuration, contextDurationStrength: req.contextDurationStrength,
 				boundaryTone: req.boundaryTone, boundaryToneStrength: req.boundaryToneStrength,
 				stretchAdapt: req.stretchAdapt, stretchAdaptStrength: req.stretchAdaptStrength,
@@ -225,7 +221,7 @@ func runSweep(req sweepRequest) error {
 			}
 			rows = append(rows, row)
 			fmt.Printf("%s %s: %.0f ms, RTF %.3f %s\n", ps.Name, p.ID, row.ElapsedMS, row.RTF, row.Error)
-			report := evalReport{req.wordEnvelope, req.moraMS, req.experiment, req.phonemizer, false, ps.SpeechTiming, ps.Mix, ps.GapRepair, runtime.GOOS, runtime.GOARCH, req.bank, modelIdentity, corpusSHA, req.bridge, buildInfo, rows}
+			report := evalReport{req.moraMS, req.phonemizer, false, ps.Mix, ps.GapRepair, runtime.GOOS, runtime.GOARCH, req.bank, modelIdentity, corpusSHA, req.bridge, buildInfo, rows}
 			encoded, err := json.MarshalIndent(report, "", "  ")
 			if err != nil {
 				return err
@@ -271,7 +267,7 @@ func buildSweepJSON(req sweepRequest, selected []preset, promptData []sweepPromp
 			seen[ps.Renderer] = true
 			report.Renderers = append(report.Renderers, ps.Renderer)
 		}
-		report.Presets = append(report.Presets, sweepPresetJSON{ps.Name, ps.Renderer, ps.Mix, ps.GapRepair, ps.SpeechTiming, ps.ApplyPitch})
+		report.Presets = append(report.Presets, sweepPresetJSON{ps.Name, ps.Renderer, ps.Mix, ps.GapRepair, ps.ApplyPitch})
 	}
 	for index, p := range req.prompts {
 		out := sweepPromptJSON{ID: p.ID, Text: p.Text, SelectionSHA256: promptData[index].selectionSHA, AudioMS: promptData[index].audioMS, Units: promptData[index].units}
@@ -284,7 +280,7 @@ func writeSweepIndex(path string, selected []preset, prompts []prompt, promptDat
 	var b strings.Builder
 	b.WriteString("# Sweep\n\n")
 	for _, ps := range selected {
-		fmt.Fprintf(&b, "- **%s**: renderer=%s, mix=%s, gap_repair=%s, speech_timing=%t, apply_pitch=%t\n", ps.Name, ps.Renderer, ps.Mix, ps.GapRepair, ps.SpeechTiming, ps.ApplyPitch)
+		fmt.Fprintf(&b, "- **%s**: renderer=%s, mix=%s, gap_repair=%s, apply_pitch=%t\n", ps.Name, ps.Renderer, ps.Mix, ps.GapRepair, ps.ApplyPitch)
 	}
 	b.WriteString("\n| prompt |")
 	for _, ps := range selected {

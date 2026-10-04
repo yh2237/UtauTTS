@@ -121,7 +121,6 @@ func (chineseProfile) ApplyBoundaryTone(_ Config, curve *render.PitchCurve, _ fl
 	return curve
 }
 
-func (chineseProfile) ExperimentalPitchAllowed() bool { return true }
 
 const mandarinPitchFrameMS = 10
 

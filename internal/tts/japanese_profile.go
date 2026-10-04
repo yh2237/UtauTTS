@@ -21,9 +21,6 @@ func (japaneseProfile) ParsePronunciation(cfg Config, phonemizer string) (string
 		return "", nil, err
 	}
 	morae, err := frontend.ParseKana(reading)
-	if cfg.SpeechTiming {
-		japaneseSpeechPhones(morae)
-	}
 	return reading, morae, err
 }
 
@@ -34,10 +31,10 @@ func (japaneseProfile) ProsodyModelFallback(string) string { return "" }
 func (japaneseProfile) SupportsStretchAdapt() bool { return true }
 
 func (japaneseProfile) PhoneTiming(cfg Config, morae []frontend.Mora, singleCV bool) ([][]float64, string) {
-	if !cfg.SpeechTiming && singleCV {
+	if singleCV {
 		japaneseSpeechPhones(morae)
 	}
-	if !shouldUseLanguagePhoneTiming(frontend.LanguageJapanese, cfg.SpeechTiming, singleCV) {
+	if !shouldUseLanguagePhoneTiming(frontend.LanguageJapanese, singleCV) {
 		return nil, ""
 	}
 	return languagePhoneWeights(frontend.LanguageJapanese, morae), "language-phone-v1"
@@ -60,4 +57,3 @@ func (japaneseProfile) ApplyBoundaryTone(cfg Config, curve *render.PitchCurve, d
 	return applyBoundaryTone(curve, durationMS, question, boundaryToneStrength(cfg))
 }
 
-func (japaneseProfile) ExperimentalPitchAllowed() bool { return false }

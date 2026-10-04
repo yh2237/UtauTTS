@@ -21,13 +21,6 @@ func japaneseSpeechPhones(morae []frontend.Mora) {
 	}
 }
 
-func japaneseSpeechRhythm(cfg Config, model *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction) []prosody.Prediction {
-	if !cfg.SpeechTiming || cfg.ProsodyPitchOnly || (model != nil && (model.MoraDuration != nil || len(model.DurationWeights) > 0)) {
-		return predictions
-	}
-	return japaneseSpeechRhythmPredictions(morae, predictions)
-}
-
 func internalTimingSpeechRhythm(cfg Config, model *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction) []prosody.Prediction {
 	if cfg.ProsodyPitchOnly || (model != nil && (model.MoraDuration != nil || len(model.DurationWeights) > 0)) {
 		return predictions
@@ -41,8 +34,6 @@ func applyJapaneseSpeechRhythm(cfg Config, model *prosody.Model, morae []fronten
 	}
 	if rendererInternalTiming(cfg.Renderer, cfg.RendererCapabilities) {
 		predictions = internalTimingSpeechRhythm(cfg, model, morae, predictions)
-	} else {
-		predictions = japaneseSpeechRhythm(cfg, model, morae, predictions)
 	}
 	// 明示的に有効化した場合だけ文脈連動のモーラ長を適用する。
 	return applyJapaneseContextDuration(cfg, morae, features, predictions, finalPhraseIsQuestion(cfg.Text))

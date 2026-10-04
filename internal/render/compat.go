@@ -172,15 +172,7 @@ func providerPitchCurve(curve *PitchCurve) *provider.PitchCurve {
 	return base.ProviderPitchCurve(curve)
 }
 
-func speechRetime(source []float64, targetFrames, sourceOnset, sourceFixed, targetOnset, targetFixed, rate int, stop bool) ([]float64, int, bool) {
-	return base.SpeechRetime(source, targetFrames, sourceOnset, sourceFixed, targetOnset, targetFixed, rate, stop)
-}
-
 func speechStop(p *plan.Plan, unit plan.Unit) bool { return base.SpeechStop(p, unit) }
-
-func speechPitchAnchor(sourceFrames, anchor int, basePitch float64, curve *PitchCurve, startMS, spanMS float64) int {
-	return base.SpeechPitchAnchor(sourceFrames, anchor, basePitch, curve, startMS, spanMS)
-}
 
 func speechVowelJoin(p *plan.Plan, previous, current renderedUnit) bool {
 	return base.SpeechVowelJoin(p, previous, current)

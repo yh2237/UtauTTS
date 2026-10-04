@@ -30,29 +30,14 @@ func TestJapaneseSpeechRhythmUsesInternalTimingCapability(t *testing.T) {
 	}
 	gated := Config{}
 	if got := applyJapaneseSpeechRhythm(gated, nil, morae, japaneseSpeechTestPredictions(len(morae)), nil); !reflect.DeepEqual(got, japaneseSpeechTestPredictions(len(morae))) {
-		t.Fatalf("rhythm applied without SpeechTiming: %#v", got)
+		t.Fatalf("rhythm applied without internal timing: %#v", got)
 	}
-	timed := Config{SpeechTiming: true}
-	if got := applyJapaneseSpeechRhythm(timed, nil, morae, japaneseSpeechTestPredictions(len(morae)), nil); !reflect.DeepEqual(got, want) {
-		t.Fatalf("SpeechTiming did not apply rhythm: %#v", got)
-	}
-	pitchOnly := Config{SpeechTiming: true, ProsodyPitchOnly: true, RendererCapabilities: &plugin.Capabilities{InternalTiming: true}}
+	pitchOnly := Config{ProsodyPitchOnly: true, RendererCapabilities: &plugin.Capabilities{InternalTiming: true}}
 	if got := applyJapaneseSpeechRhythm(pitchOnly, nil, morae, japaneseSpeechTestPredictions(len(morae)), nil); !reflect.DeepEqual(got, japaneseSpeechTestPredictions(len(morae))) {
 		t.Fatalf("ProsodyPitchOnly was not identity: %#v", got)
 	}
 	model := &prosody.Model{DurationWeights: map[string]float64{"a": 1}}
 	if got := applyJapaneseSpeechRhythm(internal, model, morae, japaneseSpeechTestPredictions(len(morae)), nil); !reflect.DeepEqual(got, japaneseSpeechTestPredictions(len(morae))) {
 		t.Fatalf("duration head model was not identity: %#v", got)
-	}
-}
-
-func TestSpeechExperimentRequiresRendererCapability(t *testing.T) {
-	cfg := Config{Language: "en", Phonemizer: "en-delta", Renderer: "custom", SpeechProsodyExperiment: "pitch"}
-	if validateSpeechExperiment(cfg) == nil {
-		t.Fatal("experiment accepted without renderer capability")
-	}
-	cfg.RendererCapabilities = &plugin.Capabilities{SpeechProsodyExperiment: true}
-	if err := validateSpeechExperiment(cfg); err != nil {
-		t.Fatalf("experiment rejected with renderer capability: %v", err)
 	}
 }

@@ -26,8 +26,6 @@ type languageProfile interface {
 	// AutomaticPitchCurveは規則ベースの自動F0曲線を返す。enablePitchは描画を強制するか。
 	AutomaticPitchCurve(cfg Config, model *prosody.Model, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*render.PitchCurve, bool)
 	ApplyBoundaryTone(cfg Config, curve *render.PitchCurve, durationMS float64, question bool) *render.PitchCurve
-	// ExperimentalPitchAllowedはapplyPitch無効でもpitch実験を適用するか（声調言語）。
-	ExperimentalPitchAllowed() bool
 }
 
 // languageProfileForは言語コードに対応するprofileを返す。未知は日本語として扱う。
@@ -61,9 +59,6 @@ func predictMorae(cfg Config, profile languageProfile, model *prosody.Model, mor
 		}
 	}
 	predictions = profile.AdjustPredictions(cfg, model, morae, predictions, features)
-	if experimentalSpeechTiming(cfg) {
-		predictions = speechRhythmExperiment(morae, predictions, cfg.MoraDurationsMS)
-	}
 	return predictions, nil
 }
 

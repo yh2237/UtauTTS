@@ -786,13 +786,6 @@ import UtauTTS.Media
                             }
                         }
 
-                        CheckBox {
-                            Layout.fillWidth: true
-                            Layout.topMargin: 8
-                            text: window.translator.tr("main.speechTiming")
-                            checked: window.utterancesModel.count > 0 && !!window.current().speechTiming
-                            onClicked: window.updateSetting("speechTiming", checked)
-                        }
                         }
 
                         Item {

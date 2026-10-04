@@ -1,5 +1,4 @@
 {
-    "main.speechTiming": "タイミング補正",
     "plugins.title": "Rendererプラグイン",
     "plugins.disabled": "読み込めなかったプラグインと理由：",
     "common.cancel": "キャンセル",

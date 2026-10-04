@@ -51,10 +51,9 @@ type measurement struct {
 
 // evalReportは単一モードと掃引モードで共有するreport.jsonのスキーマ。
 type evalReport struct {
-	WordBoundaryEnvelope           bool
 	MoraMS                         float64
-	ProsodyExperiment, Phonemizer  string
-	MeasurePitch, SpeechTiming     bool
+	Phonemizer                     string
+	MeasurePitch                   bool
 	WorldMix, WorldGapRepair       string
 	GOOS, GOARCH, Voicebank, Model string
 	CorpusSHA256, Bridge           string
@@ -69,13 +68,10 @@ func main() {
 	}
 }
 func run() (runErr error) {
-	wordEnvelope := flag.Bool("word-boundary-envelope", false, "halve fades at word boundaries without changing source or pitch (CPU WORLD)")
 	exportSources := flag.Bool("export-sources", false, "export original, selected and mixed-output source audit clips")
 	moraMS := flag.Float64("mora-ms", synth.DefaultMoraDurationMS, "base syllable duration in milliseconds")
-	experiment := flag.String("prosody-experiment", "baseline", "speech prosody comparison: baseline, timing, pitch, both (CPU WORLD only)")
 	measurePitch := flag.Bool("measure-pitch", false, "write WORLD target and measured output F0 traces")
 	phonemizer := flag.String("phonemizer", "", "override corpus phonemizer for the selected voicebank")
-	speechTiming := flag.Bool("speech-timing", false, "experimental speech timing and voicebank calibration")
 	contextDuration := flag.Bool("context-duration", synth.DefaultContextDuration, "context-aware Japanese mora duration (C1)")
 	contextDurationStrength := flag.Float64("context-duration-strength", 1.0, "context-aware duration strength (0 uses the default 1.0)")
 	boundaryTone := flag.Bool("boundary-tone", true, "Japanese phrase-final boundary tone (C2)")
@@ -113,9 +109,6 @@ func run() (runErr error) {
 	if *profileEnabled && (*sweep || *diagnose) {
 		return fmt.Errorf("profile requires non-sweep synthesis")
 	}
-	if *wordEnvelope && *diagnose {
-		return fmt.Errorf("word-boundary-envelope requires synthesis")
-	}
 	if *moraMS <= 0 || math.IsNaN(*moraMS) || math.IsInf(*moraMS, 0) {
 		return fmt.Errorf("mora-ms must be positive and finite")
 	}
@@ -147,14 +140,11 @@ func run() (runErr error) {
 	if err := validatePrompts(prompts); err != nil {
 		return err
 	}
-	if err := validateProsodyExperiment(*experiment, *renderers, *model, *modelFile, *diagnose, prompts); err != nil {
-		return err
-	}
 	if *sweep {
 		return runSweep(sweepRequest{
 			bank: *bank, out: *out, presets: *presets, aliasPolicy: *aliasPolicy, bridge: *bridge,
-			model: *model, modelFile: *modelFile, experiment: *experiment, phonemizer: *phonemizer,
-			corpusData: data, prompts: prompts, moraMS: *moraMS, wordEnvelope: *wordEnvelope, timeout: *timeout,
+			model: *model, modelFile: *modelFile, phonemizer: *phonemizer,
+			corpusData: data, prompts: prompts, moraMS: *moraMS, timeout: *timeout,
 			contextDuration: *contextDuration, contextDurationStrength: *contextDurationStrength,
 			boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
 			stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
@@ -226,9 +216,9 @@ func run() (runErr error) {
 				result, elapsed, callErr := synthesizeCase(p, caseOptions{
 					bank: *bank, aliasPolicy: *aliasPolicy, bridge: *bridge,
 					model: *model, modelFile: *modelFile, prosodyModelPath: prosodyPath,
-					moraMS: *moraMS, experiment: *experiment, wordEnvelope: *wordEnvelope,
+					moraMS:     *moraMS,
 					rendererID: rendererID, resampler: *resampler, wavtool: *wavtool, mix: *worldMix, gapRepair: *worldGapRepair,
-					speechTiming: *speechTiming, applyPitch: true, timeout: *timeout,
+					applyPitch: true, timeout: *timeout,
 					contextDuration: *contextDuration, contextDurationStrength: *contextDurationStrength,
 					boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
 					stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
@@ -261,7 +251,7 @@ func run() (runErr error) {
 				rows = append(rows, row)
 				fmt.Printf("%s %s #%d: %.0f ms, RTF %.3f %s\n", rendererID, p.ID, repetition, row.ElapsedMS, row.RTF, row.Error)
 				// 後続ケースが失敗しても途中結果を保存する。
-				report := evalReport{*wordEnvelope, *moraMS, *experiment, *phonemizer, *measurePitch, *speechTiming, *worldMix, *worldGapRepair, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, buildInfo, rows}
+				report := evalReport{*moraMS, *phonemizer, *measurePitch, *worldMix, *worldGapRepair, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, buildInfo, rows}
 				encoded, err := json.MarshalIndent(report, "", "  ")
 				if err != nil {
 					return err

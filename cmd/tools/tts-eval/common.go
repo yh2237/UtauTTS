@@ -21,12 +21,10 @@ type caseOptions struct {
 	model, modelFile          string
 	prosodyModelPath          string
 	moraMS                    float64
-	experiment                string
-	wordEnvelope              bool
 	rendererID                string
 	resampler, wavtool        string
 	mix, gapRepair            string
-	speechTiming, applyPitch  bool
+	applyPitch                bool
 	contextDuration           bool
 	contextDurationStrength   float64
 	boundaryTone              bool
@@ -43,7 +41,6 @@ type caseOptions struct {
 
 func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Result, float64, error) {
 	request := synth.Request{
-		SpeechTiming:            o.speechTiming,
 		Text:                    p.Text,
 		Reading:                 p.Reading,
 		Language:                p.Language,
@@ -54,8 +51,6 @@ func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Re
 		Renderer:                o.rendererID,
 		Resampler:               o.resampler,
 		Wavtool:                 o.wavtool,
-		WordBoundaryEnvelope:    o.wordEnvelope,
-		SpeechProsodyExperiment: o.experiment,
 		MoraDurationMS:          o.moraMS,
 		PauseDurationMS:         plan.DefaultPauseDurationMS,
 		MoraDurationsMS:         p.MoraDurationsMS,

@@ -1,5 +1,4 @@
 {
-    "main.speechTiming": "时序校正",
     "plugins.title": "渲染器插件",
     "plugins.disabled": "无法加载的插件及原因：",
     "common.cancel": "取消",

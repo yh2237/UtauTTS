@@ -1,5 +1,4 @@
 {
-    "main.speechTiming": "타이밍 보정",
     "plugins.title": "렌더러 플러그인",
     "plugins.disabled": "로드할 수 없는 플러그인 및 사유:",
     "common.cancel": "취소",

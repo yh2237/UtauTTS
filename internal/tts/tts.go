@@ -33,9 +33,6 @@ func traceMark(start *time.Time, label string) {
 }
 
 type Config struct {
-	WordBoundaryEnvelope    bool
-	SpeechProsodyExperiment string
-	SpeechTiming            bool
 	// ContextDurationは日本語モーラ長の文脈連動(C1)を有効にする。nilは無効。
 	ContextDuration *bool
 	// ContextDurationStrengthは文脈連動の強度。0は既定1.0。
@@ -296,10 +293,9 @@ func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlineBr
 func ApplyResolvedEngine(cfg *Config, resolved engine.ResolvedEngine) {
 	cfg.Engine = resolved
 	capabilities := plugin.Capabilities{
-		FramePitch:              resolved.Definition.Capabilities.FramePitch,
-		BoundaryBridge:          resolved.Definition.Capabilities.BoundaryBridge,
-		InternalTiming:          resolved.Definition.Capabilities.InternalTiming,
-		SpeechProsodyExperiment: resolved.Definition.Capabilities.SpeechProsodyExperiment,
+		FramePitch:     resolved.Definition.Capabilities.FramePitch,
+		BoundaryBridge: resolved.Definition.Capabilities.BoundaryBridge,
+		InternalTiming: resolved.Definition.Capabilities.InternalTiming,
 	}
 	cfg.Renderer = string(resolved.Provider.ID)
 	cfg.RendererCapabilities = &capabilities
@@ -392,7 +388,6 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		return nil, err
 	}
 	traceMark(&start, "pitch")
-	providerOptions.Worldline.SpeechPitchReference = experimentalSpeechPitch(cfg) && pitch.Apply
 	rendered, err := render.RenderWithReport(synthesisPlan, render.Config{
 		Context:                 cfg.Context,
 		Engine:                  cfg.Engine,
@@ -551,9 +546,6 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	if curve, _ := profile.AutomaticPitchCurve(cfg, loadedProsody, morae, timings, totalDurationMS); curve != nil {
 		result.FramePitchCurve = curve
 	}
-	if experimentalSpeechPitch(cfg) && (profile.ExperimentalPitchAllowed() || applyPitchEnabled(cfg)) {
-		result.FramePitchCurve = speechPitchExperiment(language, morae, timings, totalDurationMS, cfg.Text, cfg.IntonationStrength)
-	}
 	if result.FramePitchCurve == nil && shouldPredictFrameContour(cfg, loadedProsody) {
 		question := finalPhraseIsQuestion(cfg.Text)
 		if contour := loadedProsody.PredictFrameContour(morae, prosodyFeatures, timings, totalDurationMS, question); contour != nil {
@@ -609,14 +601,6 @@ func previewConfiguredMoraDuration(position int, cfg Config) (float64, bool) {
 }
 
 func validateConfig(cfg Config) error {
-	if cfg.WordBoundaryEnvelope {
-		if err := validateMultilingualWorldExperiment(cfg); err != nil {
-			return err
-		}
-	}
-	if err := validateSpeechExperiment(cfg); err != nil {
-		return err
-	}
 	finite := map[string]float64{
 		"mora_duration_ms":          cfg.MoraDurationMS,
 		"pause_duration_ms":         cfg.PauseDurationMS,

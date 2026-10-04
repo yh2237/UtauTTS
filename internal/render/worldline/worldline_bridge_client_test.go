@@ -56,7 +56,6 @@ func TestLegacyJapaneseContinuousMixOnlyUsesOrdinaryJapanesePlans(t *testing.T) 
 	}{
 		{name: "japanese", plan: &plan.Plan{Language: "ja", Phonemizer: "ja-kana"}, want: true},
 		{name: "single-cv", plan: &plan.Plan{Language: "ja", SingleCV: true}, want: false},
-		{name: "speech-timing", plan: &plan.Plan{Language: "ja", SpeechTiming: true}, want: false},
 		{name: "english", plan: &plan.Plan{Language: "en", Phonemizer: "en-vccv"}, want: false},
 	}
 	for _, test := range cases {

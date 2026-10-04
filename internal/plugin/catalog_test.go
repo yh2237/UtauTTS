@@ -32,10 +32,6 @@ func TestRepositoryRendererPluginsAreSelfDescribing(t *testing.T) {
 			t.Fatalf("bundled renderer was not migrated to explicit v2 metadata: %#v", item)
 		}
 		switch item.ID {
-		case "utautts-world-phrase":
-			if !item.Capabilities.SpeechProsodyExperiment {
-				t.Fatal("WORLD renderer lost speech prosody support")
-			}
 		case "diffsinger":
 			if !item.Capabilities.InternalTiming {
 				t.Fatal("DiffSinger renderer lost internal timing support")

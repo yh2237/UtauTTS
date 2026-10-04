@@ -40,7 +40,6 @@ func main() {
 		prosodyFeaturesPath      string
 		prosodyFeaturesCase      string
 		prosodyPitchOnly         bool
-		speechTiming             bool
 		openJTalkPath            string
 		openJTalkDictionaryPath  string
 		pitchContourPath         string
@@ -81,7 +80,6 @@ func main() {
 		showVersion              bool
 	)
 	flag.BoolVar(&showVersion, "version", false, "print application version")
-	flag.BoolVar(&speechTiming, "speech-timing", false, "experimental speech timing and bounded voicebank calibration")
 	flag.StringVar(&voicebankPath, "voicebank", "", "path to a UTAU voicebank directory")
 	flag.StringVar(&reading, "kana", "", "kana reading to synthesize")
 	flag.StringVar(&reading, "reading", "", "pronunciation to synthesize (kana, ARPAbet, or Pinyin)")
@@ -191,7 +189,6 @@ func main() {
 		Tone:                    tone,
 		Color:                   color,
 		MoraDurationMS:          moraMS,
-		SpeechTiming:            speechTiming,
 		PauseDurationMS:         pauseMS,
 		MoraDurationsMS:         moraDurations,
 		LeadingPreutteranceMS:   leadingPreutteranceMS,

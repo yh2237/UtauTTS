@@ -6,33 +6,9 @@ import (
 	"math"
 	"sort"
 	"utautts/internal/atomicfile"
-	"utautts/internal/frontend"
 	"utautts/internal/pitch"
 	"utautts/internal/synth"
 )
-
-func validateProsodyExperiment(mode, renderer, model, modelFile string, diagnose bool, prompts []prompt) error {
-	switch mode {
-	case "baseline":
-		return nil
-	case "timing", "pitch", "both":
-	default:
-		return fmt.Errorf("unknown prosody experiment %q", mode)
-	}
-	if renderer != "utautts-world-phrase" || model != "none" || modelFile != "" || diagnose {
-		return fmt.Errorf("prosody experiment requires --renderers utautts-world-phrase --model none and synthesis")
-	}
-	for _, p := range prompts {
-		_, ph, err := frontend.ResolveLanguage(p.Language, p.Phonemizer)
-		if err != nil {
-			return err
-		}
-		if ph != frontend.PhonemizerEnglishDelta && ph != frontend.PhonemizerEnglishVCCV && ph != frontend.PhonemizerChinese {
-			return fmt.Errorf("case %s: experiment requires en-delta, en-vccv or zh-cvvc", p.ID)
-		}
-	}
-	return nil
-}
 
 type pitchFrame struct {
 	AudioMS    float64  `json:"audio_ms"`

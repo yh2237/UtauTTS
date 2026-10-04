@@ -33,7 +33,6 @@ func buildSynthesisPlan(cfg Config, profile languageProfile, bank *voicebank.Ban
 	// C3aは日本語のモーラだけを対象にし、長いモーラ長で効果があるときだけ有効化する。
 	stretchAdapt := stretchAdaptEnabled(cfg) && profile.SupportsStretchAdapt()
 	synthesisPlan, err := plan.Build(bank, reading, morae, selections, plan.Config{
-		SpeechTiming:         cfg.SpeechTiming,
 		MoraDurationMS:       cfg.MoraDurationMS,
 		PauseDurationMS:      cfg.PauseDurationMS,
 		PauseContext:         pauseContextEnabled(cfg),
@@ -56,7 +55,6 @@ func buildSynthesisPlan(cfg Config, profile languageProfile, bank *voicebank.Ban
 	if cfg.SpeechModel != nil {
 		synthesisPlan.SpeechModelID = cfg.SpeechModel.ID
 	}
-	synthesisPlan.WordBoundaryEnvelope = cfg.WordBoundaryEnvelope
 	synthesisPlan.Text = cfg.Text
 	synthesisPlan.Language = language
 	synthesisPlan.Phonemizer = phonemizer

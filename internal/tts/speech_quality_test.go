@@ -51,33 +51,6 @@ func TestChineseNeutralDurationAndManualTiming(t *testing.T) {
 	}
 }
 
-func TestJapaneseSpeechTimingIsOptInAndKeepsManualDurations(t *testing.T) {
-	cfg := Config{Reading: "カサ", MoraDurationMS: 120}
-	old, err := PredictProsody(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg.SpeechTiming = true
-	speech, err := PredictProsody(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if speech.MoraDurationsMS[0] >= speech.MoraDurationsMS[1] || reflect.DeepEqual(old.MoraDurationsMS, speech.MoraDurationsMS) {
-		t.Fatalf("speech: %+v", speech)
-	}
-	cfg.MoraDurationsMS = []float64{90, 100}
-	speech, err = PredictProsody(cfg)
-	if err != nil || !reflect.DeepEqual(speech.MoraDurationsMS, cfg.MoraDurationsMS) {
-		t.Fatalf("manual: %+v %v", speech, err)
-	}
-	cfg.MoraDurationsMS = nil
-	cfg.ProsodyPitchOnly = true
-	speech, err = PredictProsody(cfg)
-	if err != nil || !reflect.DeepEqual(speech.MoraDurationsMS, old.MoraDurationsMS) {
-		t.Fatalf("pitch-only: %+v %v", speech, err)
-	}
-}
-
 func TestDiffSingerUsesJapaneseSpeechRhythmAndKeepsManualDurations(t *testing.T) {
 	// DiffSinger manifestはWindows限定のため、capabilityは明示して検証する。
 	internalTiming := &plugin.Capabilities{InternalTiming: true}

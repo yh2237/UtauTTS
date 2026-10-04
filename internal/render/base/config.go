@@ -66,7 +66,6 @@ type WorldlineProviderOptions struct {
 	SourcePhoneMapping *bool `json:"source_phone_mapping,omitempty"`
 	// 試聴用の原音区間指定。通常の合成では未指定。
 	ExperimentalSourceSpans map[int]SourceSpan `json:"-"`
-	SpeechPitchReference    bool
 	ExactLength             bool
 	MixMode                 string
 	GapRepairMode           string

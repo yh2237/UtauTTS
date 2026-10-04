@@ -20,7 +20,6 @@ const (
 )
 
 type Config struct {
-	SpeechTiming    bool
 	MoraDurationMS  float64
 	PauseDurationMS float64
 	// PauseContextはポーズ長の文脈化(B5)を有効にする。
@@ -41,9 +40,7 @@ type Config struct {
 
 type Plan struct {
 	SpeechModelID           string                   `json:"speech_model_id,omitempty"`
-	WordBoundaryEnvelope    bool                     `json:"word_boundary_envelope,omitempty"`
 	SingleCV                bool                     `json:"single_cv,omitempty"`
-	SpeechTiming            bool                     `json:"speech_timing,omitempty"`
 	PhoneTimings            []PhoneTiming            `json:"phone_timings,omitempty"`
 	PhoneTimingSource       string                   `json:"phone_timing_source,omitempty"`
 	MissingPhones           []voicebank.SpeechGap    `json:"missing_phones,omitempty"`
@@ -300,7 +297,6 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		aliasPolicy = voicebank.AliasPolicyAuto
 	}
 	result := &Plan{
-		SpeechTiming: cfg.SpeechTiming,
 		SingleCV:     voicebank.IsSingleCVSelections(selections),
 		Version:      Version, Voicebank: bank.Root, Reading: reading,
 		Morae: append([]frontend.Mora(nil), morae...),
@@ -377,14 +373,11 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		// VCVの境界は発話タイミング補正なしでも解析し、伸縮だけ設定に従う。
 		isVCV := aliasKind == voicebank.AliasVCV || voicebank.IsContextVCVAlias(selection.Alias)
 		// C3aでは日本語の全モーラを対象にするため、必要な音源だけプロファイルを取る（キャッシュ前提）。
-		needsProfile := cfg.SpeechTiming || result.SingleCV || isVCV || stopPhone(mora.Consonant) ||
+		needsProfile := result.SingleCV || isVCV || stopPhone(mora.Consonant) ||
 			(cfg.StretchAdapt && japaneseSpeechMora(mora))
 		if needsProfile && mora.Vowel != "" && mora.Vowel != "cl" && !mainUnit.Silent {
 			profile := bank.CalibrateSpeech(selection.Entry)
 			mainUnit.SpeechProfile = &profile
-			if profile.Applied && !result.SingleCV && cfg.SpeechTiming {
-				mainUnit.ConsonantMS = profile.SuggestedFixedMS
-			}
 		}
 		if mora.Language == frontend.LanguageEnglish && containsStopPhone(mainUnit.CodaPhones) && !mainUnit.Silent && mainUnit.SpeechProfile == nil {
 			profile := bank.CalibrateSpeech(selection.Entry)

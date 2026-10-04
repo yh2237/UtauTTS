@@ -79,7 +79,7 @@ func rendererCapabilityKey(caps *plugin.Capabilities) string {
 	if caps == nil {
 		return "nil"
 	}
-	return fmt.Sprintf("it=%v sp=%v", caps.InternalTiming, caps.SpeechProsodyExperiment)
+	return fmt.Sprintf("it=%v", caps.InternalTiming)
 }
 
 func hashStringMap(values map[string]string) string {
@@ -114,11 +114,10 @@ func hashFloatSlice(values []float64) string {
 
 func prosodyComputationKeyFor(cfg Config) prosodyComputationKey {
 	settings := fmt.Sprintf(
-		"mora=%v pause=%v pitchonly=%v apply=%v strength=%v release=%v speech=%v cap=%v wbe=%v spx=%q "+
+		"mora=%v pause=%v pitchonly=%v apply=%v strength=%v release=%v cap=%v "+
 			"cd=%v cds=%v bt=%v bts=%v sa=%v sas=%v pc=%v pcs=%v ewf=%v tone=%v color=%v",
 		cfg.MoraDurationMS, cfg.PauseDurationMS, cfg.ProsodyPitchOnly, cfg.ApplyPitch,
-		cfg.IntonationStrength, cfg.ReleaseMS, cfg.SpeechTiming, rendererCapabilityKey(cfg.RendererCapabilities),
-		cfg.WordBoundaryEnvelope, cfg.SpeechProsodyExperiment,
+		cfg.IntonationStrength, cfg.ReleaseMS, rendererCapabilityKey(cfg.RendererCapabilities),
 		cfg.ContextDuration, cfg.ContextDurationStrength, cfg.BoundaryTone, cfg.BoundaryToneStrength,
 		cfg.StretchAdapt, cfg.StretchAdaptStrength, cfg.PauseContext, cfg.PauseContextStrength,
 		optionalBoolKey(cfg.EnglishWeakForm), cfg.Tone, cfg.Color)

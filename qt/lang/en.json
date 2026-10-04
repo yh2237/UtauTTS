@@ -1,5 +1,4 @@
 {
-    "main.speechTiming": "Timing correction",
     "plugins.title": "Renderer plugins",
     "plugins.disabled": "Unavailable plugins and reasons:",
     "common.cancel": "Cancel",

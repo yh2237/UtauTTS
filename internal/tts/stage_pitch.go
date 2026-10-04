@@ -36,9 +36,6 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 			pitchCurve = scaleAutomaticPitchCurve(pitchCurve, cfg.IntonationStrength)
 		}
 	}
-	if cfg.PitchCurve == nil && experimentalSpeechPitch(cfg) && applyPitch {
-		pitchCurve = speechPitchExperiment(language, morae, curveTimings, curveDurationMS, cfg.Text, cfg.IntonationStrength)
-	}
 	// 日本語の自動輪郭だけに句末境界音調(C2)を加える。手動ピッチは後段でマージする。
 	if cfg.PitchCurve == nil {
 		pitchCurve = profile.ApplyBoundaryTone(cfg, pitchCurve, finalPhraseEndMS(morae, curveTimings), finalPhraseIsQuestion(cfg.Text))

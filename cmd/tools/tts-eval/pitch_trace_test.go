@@ -41,21 +41,3 @@ func TestPitchTraceUsesAudioMarginAndMeasuresKnownTone(t *testing.T) {
 		t.Fatal("edge window falsely measured")
 	}
 }
-
-func TestProsodyExperimentRejectsUnsupportedInputs(t *testing.T) {
-	good := []prompt{{ID: "x", Language: "en", Phonemizer: "en-delta", Reading: "AH0"}}
-	if err := validateProsodyExperiment("both", "utautts-world-phrase", "none", "", false, good); err != nil {
-		t.Fatal(err)
-	}
-	for _, mode := range []string{"invalid", "Both"} {
-		if validateProsodyExperiment(mode, "utautts-world-phrase", "none", "", false, good) == nil {
-			t.Fatal("invalid mode accepted")
-		}
-	}
-	if validateProsodyExperiment("both", "waveform", "none", "", false, good) == nil {
-		t.Fatal("unsupported renderer accepted")
-	}
-	if validateProsodyExperiment("pitch", "utautts-world-phrase", "none", "", false, []prompt{{ID: "ja", Language: "ja", Text: "あ"}}) == nil {
-		t.Fatal("Japanese experiment accepted")
-	}
-}

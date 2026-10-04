@@ -151,8 +151,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		unit.WorldRenderReason = "adaptive-default"
 		unit.WorldGapRepairEligible = false
 		unit.WorldGapRepairReason = "not-required"
-		vcvUnit := unit.Role == "mora" && base.IsVCVUnit(*unit)
-		vcvSpeech := vcvUnit && synthesisPlan.SpeechTiming
 		timings[i] = worldlineTiming(synthesisPlan, *unit, cfg.ReleaseMS)
 		timings[i] = base.AdaptStretchTiming(*unit, timings[i], cfg.ReleaseMS, cfg.StretchAdapt, cfg.StretchAdaptStrength)
 		if len(phoneTimings) == len(synthesisPlan.Units) && !unit.Silent {
@@ -160,7 +158,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 			timings[i].OverlapMS = phoneTimings[i].Overlap
 			unit.CodaBoundaryLimited = phoneTimings[i].CodaLimited
 			// C3aでfixed境界をずらしたユニットはotoの値を上書きしない。
-			if (unit.Role != "mora" || (!synthesisPlan.SingleCV && (!vcvUnit || !vcvSpeech))) && !timings[i].StretchAdapted {
+			if (unit.Role != "mora" || !synthesisPlan.SingleCV) && !timings[i].StretchAdapted {
 				timings[i].ConsonantMS = unit.ConsonantMS
 				timings[i].Scale = 1
 			}
@@ -195,7 +193,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		pitchFactors[i] = intonation[i]
 		pitchFactors[i] *= base.EffectiveUnitPitchFactor(unit, cfg.ApplyPitch)
 	}
-	if (cfg.ProviderOptions.Worldline.SpeechPitchReference || multilingualScore(synthesisPlan)) && cfg.ApplyPitch {
+	if multilingualScore(synthesisPlan) && cfg.ApplyPitch {
 		pitchFactors, reference = speechReferencePitchFactors(synthesisPlan, pitches, reference)
 		for i, unit := range synthesisPlan.Units {
 			intonation[i] = pitchFactors[i] / base.EffectiveUnitPitchFactor(unit, true)
@@ -278,7 +276,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		pitchStartMS := positionMS
 		singleCVUnit := synthesisPlan.SingleCV && unit.Role == "mora"
 		vcvUnit := unit.Role == "mora" && base.IsVCVUnit(*unit)
-		vcvSpeech := vcvUnit && synthesisPlan.SpeechTiming
 		volume, modulation, tempo := 100.0, 0.0, 120.0
 		if unit.Role == "transition" {
 			volume *= cfg.CVVCTransitionGain
@@ -291,7 +288,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		if phraseTiming {
 			// OpenUTAUと同じ位置からbendを始め、先頭の余剰をskipする。
 			pitchLeadingMS := unit.PreutteranceMS
-			if singleCVUnit || vcvSpeech {
+			if singleCVUnit {
 				pitchLeadingMS = phoneTimings[i].Preutter
 			}
 			skipMS = math.Max(0, pitchLeadingMS-timing.PreutteranceMS)
@@ -306,13 +303,10 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 					envelopePoints = base.CVVCPreBoundaryEnvelope(envelopePoints, phoneTiming)
 				}
 				pitchLengthMS = envelopePoints[4].XMS + pitchLeadingMS
-				if synthesisPlan.WordBoundaryEnvelope {
-					envelopePoints, unit.BoundaryEnvelope = wordBoundaryEnvelope(synthesisPlan, *unit, envelopePoints)
-				}
 				positionMS = unit.NoteStartMS - phoneTiming.Preutter + leadingMS
 			}
 			consonantLength := unit.ConsonantMS
-			if singleCVUnit || vcvSpeech {
+			if singleCVUnit {
 				consonantLength = timing.ConsonantMS
 			}
 			requiredLength = math.Max(unit.DurationMS+durCorrection+skipMS, consonantLength)
@@ -367,14 +361,14 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 			}
 		}
 		// E2bは日本語VCVにも原波形バーストを広げるが、再伸縮はせずpreserve-onlyに留める。
-		protectStopOnly := !legacyMix && unit.Role == "mora" && !singleCVUnit && !vcvSpeech &&
+		protectStopOnly := !legacyMix && unit.Role == "mora" && !singleCVUnit &&
 			(!vcvUnit || e2bStopGeneralization(synthesisPlan, *unit, cfg.ProviderOptions.Worldline)) && stopProtected
-		legacyE2BStop := e2bLegacyStopPreserve(synthesisPlan, *unit, legacyMix, cfg.ProviderOptions.Worldline) && !singleCVUnit && !vcvSpeech
+		legacyE2BStop := e2bLegacyStopPreserve(synthesisPlan, *unit, legacyMix, cfg.ProviderOptions.Worldline) && !singleCVUnit
 		// C3aで伸縮を有界にしたユニットは、bridge側でもfixed境界を後ろへずらして母音の伸びを抑える。
 		stretchSpeech := unit.Role == "mora" && unit.StretchAdapted && !codaRelease
-		if unit.Role == "mora" && (singleCVUnit || vcvSpeech || synthesisPlan.SpeechTiming && unit.SpeechProfile != nil && unit.SpeechProfile.Applied || protectStopOnly || legacyE2BStop || stretchSpeech) {
+		if unit.Role == "mora" && (singleCVUnit || protectStopOnly || legacyE2BStop || stretchSpeech) {
 			targetOnset := skipMS + unit.NoteStartMS + leadingMS - positionMS
-			if singleCVUnit || vcvSpeech {
+			if singleCVUnit {
 				targetOnset = timing.PreutteranceMS
 			}
 			speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: speechSourceOnsetMS(*unit),
@@ -383,7 +377,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 				speech.SourceTransientMS = unit.SpeechProfile.TransientMS
 				speech.SourceTransientDurationMS = unit.SpeechProfile.TransientDurationMS
 			}
-			if singleCVUnit || vcvSpeech || stretchSpeech {
+			if singleCVUnit || stretchSpeech {
 				speech.TargetFixedMS = timing.ConsonantMS
 			}
 			if i > 0 {
@@ -536,7 +530,7 @@ func speechSourceOnsetMS(unit plan.Unit) float64 {
 }
 
 func legacyJapaneseContinuousMix(synthesisPlan *plan.Plan) bool {
-	if synthesisPlan == nil || synthesisPlan.SingleCV || synthesisPlan.SpeechTiming {
+	if synthesisPlan == nil || synthesisPlan.SingleCV {
 		return false
 	}
 	language := strings.ToLower(strings.TrimSpace(synthesisPlan.Language))

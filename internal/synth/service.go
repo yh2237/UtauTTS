@@ -44,25 +44,26 @@ const (
 )
 
 type Request struct {
-	SpeechTiming            bool                  `json:"speech_timing"`
-	Text                    string                `json:"text"`
-	Reading                 string                `json:"reading"`
-	Kana                    string                `json:"kana"`
-	Language                string                `json:"language"`
-	Phonemizer              string                `json:"phonemizer"`
-	VoicebankID             string                `json:"voicebank_id"`
-	VoicebankPath           string                `json:"-"`
-	Tone                    string                `json:"tone"`
-	Color                   string                `json:"color"`
-	ModelID                 string                `json:"model_id"`
-	ModelPath               string                `json:"model_path"`
-	Renderer                string                `json:"renderer"`
-	Resampler               string                `json:"resampler"`
-	Wavtool                 string                `json:"wavtool"`
-	AliasPolicy             voicebank.AliasPolicy `json:"alias_policy"`
-	Dictionary              []DictionaryEntry     `json:"dictionary"`
-	WordBoundaryEnvelope    bool                  `json:"word_boundary_envelope"`
-	SpeechProsodyExperiment string                `json:"prosody_experiment"`
+	SpeechTiming  bool                  `json:"speech_timing"`
+	Text          string                `json:"text"`
+	Reading       string                `json:"reading"`
+	Kana          string                `json:"kana"`
+	Language      string                `json:"language"`
+	Phonemizer    string                `json:"phonemizer"`
+	VoicebankID   string                `json:"voicebank_id"`
+	VoicebankPath string                `json:"-"`
+	Tone          string                `json:"tone"`
+	Color         string                `json:"color"`
+	ModelID       string                `json:"model_id"`
+	ModelPath     string                `json:"model_path"`
+	Renderer      string                `json:"renderer"`
+	Resampler     string                `json:"resampler"`
+	Wavtool       string                `json:"wavtool"`
+	AliasPolicy   voicebank.AliasPolicy `json:"alias_policy"`
+	Dictionary    []DictionaryEntry     `json:"dictionary"`
+	// WordBoundaryEnvelopeとSpeechProsodyExperimentは廃止した実験。既存のクライアントのため受け取り、使わない。
+	WordBoundaryEnvelope    bool   `json:"word_boundary_envelope"`
+	SpeechProsodyExperiment string `json:"prosody_experiment"`
 	// 互換用の固定フィールド。同じIDがrenderer_settingsにあればそちらを優先する。
 	MoraDurationMS        float64                  `json:"mora_duration_ms"`
 	PauseDurationMS       float64                  `json:"pause_duration_ms"`
@@ -272,9 +273,6 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		reading = request.Kana
 	}
 	cfg := tts.Config{
-		SpeechTiming:            request.SpeechTiming,
-		WordBoundaryEnvelope:    request.WordBoundaryEnvelope,
-		SpeechProsodyExperiment: request.SpeechProsodyExperiment,
 		Text:                    request.Text,
 		Reading:                 reading,
 		Language:                request.Language,

@@ -196,9 +196,9 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
         if (!require(rootObject->property("projectFile").toUrl() == projectURL,
                      QStringLiteral("QML project load did not preserve the source URL")))
             return 1;
-        if (!require(rows.size() == 1
-                     && rows.first().toMap().value("speech_timing").toBool() == (timingSetting == 1),
-                     QStringLiteral("saved speech timing setting was not preserved")))
+        // 廃止したspeech_timingを含む旧プロジェクトも読み込め、保存し直すと項目は消える。
+        if (!require(rows.size() == 1 && !rows.first().toMap().contains("speech_timing"),
+                     QStringLiteral("legacy speech timing setting was not dropped")))
             return 1;
     }
     backend.rememberRecentProject(projectURL);

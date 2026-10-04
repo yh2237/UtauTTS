@@ -43,7 +43,7 @@ type boundaryRepairChoice struct {
 }
 
 func applyBoundaryBridges(mix, mixWeights []float64, rendered []renderedUnit, synthesisPlan *plan.Plan, cfg Config, sampleRate int) {
-	if (cfg.BoundaryBridgeMS <= 0 && !synthesisPlan.SpeechTiming && !synthesisPlan.SingleCV) || sampleRate <= 0 || len(rendered) < 2 {
+	if (cfg.BoundaryBridgeMS <= 0 && !synthesisPlan.SingleCV) || sampleRate <= 0 || len(rendered) < 2 {
 		return
 	}
 	if synthesisPlan.SingleCV {
