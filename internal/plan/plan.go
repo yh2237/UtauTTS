@@ -202,7 +202,6 @@ type Unit struct {
 	WorldRenderReason           string                         `json:"world_render_reason,omitempty"`
 	WorldGapRepairEligible      bool                           `json:"world_gap_repair_eligible,omitempty"`
 	WorldGapRepairReason        string                         `json:"world_gap_repair_reason,omitempty"`
-	BoundaryEnvelope            string                         `json:"boundary_envelope,omitempty"`
 	SpeechRetimeApplied         bool                           `json:"speech_retime_applied,omitempty"`
 	SpeechJoinApplied           bool                           `json:"speech_join_applied,omitempty"`
 	SpeechTransitionApplied     bool                           `json:"speech_transition_applied,omitempty"`
@@ -297,8 +296,8 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		aliasPolicy = voicebank.AliasPolicyAuto
 	}
 	result := &Plan{
-		SingleCV:     voicebank.IsSingleCVSelections(selections),
-		Version:      Version, Voicebank: bank.Root, Reading: reading,
+		SingleCV: voicebank.IsSingleCVSelections(selections),
+		Version:  Version, Voicebank: bank.Root, Reading: reading,
 		Morae: append([]frontend.Mora(nil), morae...),
 		Tone:  cfg.Tone, Color: cfg.Color,
 		SelectionMode: "viterbi", AliasPolicy: string(aliasPolicy), JoinCostMode: "handcrafted",

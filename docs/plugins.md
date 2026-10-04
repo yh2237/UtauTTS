@@ -73,7 +73,7 @@ manifestの`settings`には、そのRendererが受け付ける設定項目を宣
 | `frame_pitch` | 10 ms単位のフレームピッチ曲線を受け付ける |
 | `boundary_bridge` | 境界補修（boundary bridge）に対応する |
 | `internal_timing` | 内部でタイミングを調整する（日本語のリズム補正を常時適用する） |
-| `speech_prosody_experiment` | 多言語のスピーチ韻律実験（timing/pitch）に対応する |
+| `speech_prosody_experiment` | 廃止。既存のmanifestのため受け取り、使わない |
 
 ## Classic UTAUツール
 

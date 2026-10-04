@@ -246,7 +246,7 @@ ID順にソートされた音源一覧です。
 | `unit_overrides` | object[] | なし | unit単位の候補・原音の明示指定（計画の上書き） |
 | `intonation_strength` | number | `4` | 抑揚の強さ（0〜8）。2までは一律、2を超えると大きな動きほど広げる |
 | `apply_pitch` | boolean | `true` | 波形ピッチ再サンプリング |
-| `speech_timing` | boolean | `false` | [発話タイミング補正](speech-quality-experiment.md)を有効にする |
+| `speech_timing` | boolean | `false` | 廃止。受け取って無視する |
 | `context_duration` | boolean | `false` | 日本語モーラ長の文脈連動（C1）を有効にする |
 | `context_duration_strength` | number | `1` | 文脈連動の強度（0〜2）。0は既定1.0として扱う |
 | `boundary_tone` | boolean | `true` | 日本語の句末境界音調（C2）を有効にする |
@@ -261,8 +261,8 @@ ID順にソートされた音源一覧です。
 | `manual_pitch` | object | なし | 手動ピッチ編集（[manual-pitch.md](manual-pitch.md) のJSON） |
 | `pitch_curve` | object | なし | コーパス指定の固定ピッチ曲線。指定時は自動予測の輪郭より優先 |
 | `dictionary` | object[] | なし | ユーザー辞書。各項目は`surface`と`reading`を持つ |
-| `word_boundary_envelope` | boolean | `false` | 単語境界でフェードを強める音声実験（[発話タイミング補正](speech-quality-experiment.md)） |
-| `prosody_experiment` | string | 未指定 | 韻律実験の条件名（開発者・評価用） |
+| `word_boundary_envelope` | boolean | `false` | 廃止。受け取って無視する |
+| `prosody_experiment` | string | 未指定 | 廃止。受け取って無視する |
 | `diffsinger_steps` | number | `0`（既定値） | DiffSingerの拡散ステップ数。0で既定値 |
 | `diffsinger_duration_mix` | number | `0`（既定値） | DiffSingerの長さ予測の混合率（0〜1）。0で既定値 |
 | `diffsinger_pitch_mix` | number | `0`（既定値） | DiffSingerのピッチ予測の混合率（0〜1）。0で既定値 |

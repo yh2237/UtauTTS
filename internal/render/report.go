@@ -62,7 +62,6 @@ type UnitRenderReport struct {
 	CodaClosureMS           float64
 	CodaReleaseMS           float64
 	CodaReleaseSeparated    bool
-	BoundaryEnvelope        string
 	Index                   int
 	TimingScale             float64
 	EffectivePreutteranceMS float64
@@ -172,7 +171,6 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 			CodaClosureMS:           unit.CodaClosureMS,
 			CodaReleaseMS:           unit.CodaReleaseMS,
 			CodaReleaseSeparated:    unit.CodaReleaseSeparated,
-			BoundaryEnvelope:        unit.BoundaryEnvelope,
 			Index:                   index,
 			TimingScale:             unit.TimingScale,
 			EffectivePreutteranceMS: unit.EffectivePreutteranceMS,
@@ -227,7 +225,6 @@ func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 		unit.CodaClosureMS = unitReport.CodaClosureMS
 		unit.CodaReleaseMS = unitReport.CodaReleaseMS
 		unit.CodaReleaseSeparated = unitReport.CodaReleaseSeparated
-		unit.BoundaryEnvelope = unitReport.BoundaryEnvelope
 		unit.SpeechJoinApplied = unitReport.SpeechJoinApplied
 		unit.SpeechTransitionApplied = unitReport.SpeechTransitionApplied
 		unit.TimingScale = unitReport.TimingScale

@@ -141,7 +141,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 	for i := range synthesisPlan.Units {
 		unit := &synthesisPlan.Units[i]
 		unit.SpeechRetimeApplied = false
-		unit.BoundaryEnvelope = ""
 		unit.SpeechJoinApplied = false
 		unit.SpeechTransitionApplied = false
 		unit.StopBurstApplied = false
