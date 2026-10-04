@@ -358,7 +358,7 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		}
 		if selection.Transition != nil {
 			transition := selection.Transition
-			transitionDuration := transitionDurationFor(transition.Entry, duration)
+			transitionDuration := cvvcTransitionDuration(transition.Entry, selection.Entry, duration)
 			result.Units = append(result.Units, unitFromSelection(transition, position, cursor, transitionDuration, prediction, "transition"))
 		}
 		aliasKind := selection.Kind
@@ -565,6 +565,15 @@ func endingDurationFor(moraDuration float64, count int) float64 {
 	}
 	target := math.Max(12, math.Min(60, moraDuration/6))
 	return math.Min(target, moraDuration*0.5/float64(count))
+}
+
+// cvvcTransitionDurationはCVVCのVCの長さ。続くCVの子音（先行発声−オーバーラップ）が長いときは、
+// VCをその長さまで（モーラの3/4まで）延ばす。VCが短いと、CVの先行発声は前の素片（VC）の半分に縮められ、
+// 摩擦音などの子音が詰め込まれて、遅れて詰まったように聞こえる。
+func cvvcTransitionDuration(vc, cv oto.Entry, moraDuration float64) float64 {
+	duration := transitionDurationFor(vc, moraDuration)
+	consonant := cv.Preutterance - math.Min(math.Max(0, cv.Overlap), math.Max(0, cv.Preutterance))
+	return math.Max(duration, math.Min(consonant, moraDuration*0.75))
 }
 
 func transitionDurationFor(entry oto.Entry, moraDuration float64) float64 {

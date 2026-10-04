@@ -222,3 +222,15 @@ func TestBuildUsesCanonicalDurationDefaults(t *testing.T) {
 		t.Fatalf("plan duration = %v, want %v", got.DurationMS, DefaultMoraDurationMS+DefaultPauseDurationMS)
 	}
 }
+
+func TestCVVCTransitionDurationCoversLongConsonants(t *testing.T) {
+	vc := oto.Entry{Preutterance: 250, Overlap: 83}
+	// 摩擦音（す: 先行発声152、オーバーラップ57 → 子音95ms）はVCを子音の長さまで延ばし、モーラの3/4で止める。
+	if got := cvvcTransitionDuration(vc, oto.Entry{Preutterance: 152, Overlap: 57}, 120); got != 90 {
+		t.Fatalf("fricative transition = %v, want 90", got)
+	}
+	// 短い子音（び: 子音11ms）は従来の長さ（モーラの0.45倍）のまま。
+	if got := cvvcTransitionDuration(vc, oto.Entry{Preutterance: 19, Overlap: 8}, 120); got != 54 {
+		t.Fatalf("short consonant transition = %v, want 54", got)
+	}
+}
