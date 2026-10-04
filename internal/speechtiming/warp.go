@@ -111,7 +111,13 @@ func phoneTimeline(morae []Mora, marginMS float64, frames int) ([]phoneSpan, []f
 		if len(consonants) > 0 {
 			onset = note - mora.EffectivePreutteranceMS/1000
 		}
-		onset = math.Max(onset, cursor)
+		// 子音は前のモーラの母音の終わりに食い込む。前の母音をそこで切る（前の音素の始まりより前には出さない）。
+		if onset < cursor && len(phones) > 0 {
+			last := &phones[len(phones)-1]
+			onset = math.Max(onset, last.start+FrameMS/1000)
+			last.end = math.Min(last.end, onset)
+		}
+		onset = math.Max(onset, 0)
 		if onset > cursor+1e-3 {
 			label := "sil"
 			if len(phones) > 0 && onset-cursor <= longPauseSec {

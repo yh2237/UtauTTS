@@ -110,3 +110,27 @@ func TestWarpKeepsIdenticalTargetAndProtectsEnds(t *testing.T) {
 		t.Fatalf("ramp weight = %v", weight[35])
 	}
 }
+
+func TestPhoneTimelineKeepsConsonantsInContinuousSpeech(t *testing.T) {
+	// 続けて話すと前のモーラの終わり＝次のノートの開始なので、子音は前の母音に食い込む。
+	morae := []Mora{
+		{Text: "あ", NoteStartMS: 0, DurationMS: 120},
+		{Text: "さ", NoteStartMS: 120, DurationMS: 120, EffectivePreutteranceMS: 70},
+	}
+	phones, _, _ := phoneTimeline(morae, 100, 60)
+	var found bool
+	for i, phone := range phones {
+		if phone.label == "s" {
+			found = true
+			if math.Abs(phone.start-0.15) > 1e-9 || math.Abs(phone.end-0.22) > 1e-9 {
+				t.Fatalf("s span = %v..%v, want 0.15..0.22", phone.start, phone.end)
+			}
+			if previous := phones[i-1]; previous.label != "a" || math.Abs(previous.end-0.15) > 1e-9 {
+				t.Fatalf("previous vowel = %+v, want a ending at 0.15", previous)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("consonant missing: %+v", phones)
+	}
+}

@@ -3,6 +3,7 @@ package worldrender
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 
 	"utautts/internal/speechtiming"
 )
@@ -22,6 +23,7 @@ func decodeTimingWarp(planData []byte, strength float64) (*timingWarp, error) {
 	var synthesisPlan struct {
 		LeadingMarginMS float64 `json:"leading_margin_ms"`
 		Units           []struct {
+			Position                int     `json:"position"`
 			Role                    string  `json:"role"`
 			Mora                    string  `json:"mora"`
 			Silent                  bool    `json:"silent"`
@@ -34,13 +36,20 @@ func decodeTimingWarp(planData []byte, strength float64) (*timingWarp, error) {
 		return nil, fmt.Errorf("decode timing warp plan: %w", err)
 	}
 	result := &timingWarp{Strength: strength, LeadingMarginMS: synthesisPlan.LeadingMarginMS}
+	// CVVCでは子音がVC（transition）から始まるので、子音の長さはVCの長さまで含める。
+	transition := map[int]float64{}
+	for _, item := range synthesisPlan.Units {
+		if item.Role == "transition" && !item.Silent {
+			transition[item.Position] = item.DurationMS
+		}
+	}
 	for _, item := range synthesisPlan.Units {
 		if item.Role != "mora" || item.Silent || item.Mora == "" {
 			continue
 		}
 		result.Morae = append(result.Morae, speechtiming.Mora{
 			Text: item.Mora, NoteStartMS: item.NoteStartMS, DurationMS: item.DurationMS,
-			EffectivePreutteranceMS: item.EffectivePreutteranceMS,
+			EffectivePreutteranceMS: math.Max(item.EffectivePreutteranceMS, transition[item.Position]),
 		})
 	}
 	return result, nil
