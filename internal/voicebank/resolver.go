@@ -143,6 +143,10 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 	if strings.TrimSpace(color) != "" && len(b.Subbanks) > 0 && !hasAffix {
 		return nil, fmt.Errorf("voicebank color %q has no subbank for tone %q", color, tone)
 	}
+	search := candidateContext{
+		bank: b, policy: policy, affix: affix, hasAffix: hasAffix, subbank: subbank,
+		requestedTone: requestedTone, resolvedTone: resolvedTone,
+	}
 	previousVowel := ""
 	phraseStart := true
 	var previousLayer []Selection
@@ -154,313 +158,349 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 			previousLayer = nil
 			continue
 		}
-
-		candidateSpecs := aliasCandidatesWithPolicy(mora.Text, previousVowel, phraseStart, policy)
-		consonant := mora.Consonant
-		if consonant == "" {
-			consonant = frontend.ConsonantOf(mora.Text)
-		}
-		transitionSpecs := vcAliasCandidates(previousVowel, consonant, policy)
-		explicitCandidates := mora.Aliases != nil && len(mora.Aliases.Main) > 0
-		if explicitCandidates {
-			candidateSpecs = explicitMainAliasCandidates(mora.Aliases.Main, mora.Aliases.MainKinds, mora.Text)
-			transitionSpecs = explicitAliasCandidates(mora.Aliases.Transition, AliasVC)
-		}
-		var endingSpecs [][]aliasCandidate
-		if mora.Aliases != nil {
-			for _, aliases := range mora.Aliases.Endings {
-				endingSpecs = append(endingSpecs, explicitAliasCandidates(aliases, AliasOther))
-			}
-		}
-		if hasAffix {
-			strictSubbank := subbank.ID != "" && subbank.ID != "prefix.map"
-			if strictSubbank {
-				affixedCandidates := affixCandidatesWithFallback(candidateSpecs, affix, false)
-				affixedTransitions := affixCandidatesWithFallback(transitionSpecs, affix, false)
-				if hasUsableCandidateEntries(b, affixedCandidates) {
-					candidateSpecs = affixedCandidates
-				} else {
-					// 専用oto配下に接辞なしaliasを置くOpenUtau音源へフォールバックする。
-					candidateSpecs = affixCandidatesWithFallback(candidateSpecs, affix, true)
-				}
-				if hasUsableCandidateEntries(b, affixedTransitions) {
-					transitionSpecs = affixedTransitions
-				} else {
-					transitionSpecs = affixCandidatesWithFallback(transitionSpecs, affix, true)
-				}
-			} else {
-				candidateSpecs = affixCandidatesWithFallback(candidateSpecs, affix, true)
-				transitionSpecs = affixCandidatesWithFallback(transitionSpecs, affix, true)
-			}
-			for index := range endingSpecs {
-				endingSpecs[index] = affixCandidatesWithFallback(endingSpecs[index], affix, true)
-			}
-		}
-		if !explicitCandidates && previousVowel == "cl" && !hasUsableCandidateEntries(b, candidateSpecs) {
-			// 促音の閉鎖後は無音からの立ち上がり。単独音を持たない連続音音源では語頭形(- て)を使う。
-			headSpecs := aliasCandidatesWithPolicy(mora.Text, "", true, policy)
-			if hasAffix {
-				headSpecs = affixCandidatesWithFallback(headSpecs, affix, true)
-			}
-			candidateSpecs = headSpecs
-		}
-		if !explicitCandidates {
-			candidateSpecs = preferOriginalKanaCandidates(b, candidateSpecs)
-		}
-		endingPhones := make([][]string, len(endingSpecs))
-		endingStarts := make([]int, len(endingSpecs))
-		codaStart := 0
-		for i := range endingSpecs {
-			endingStarts[i] = codaStart
-			if mora.Aliases != nil && i < len(mora.Aliases.EndingPhones) {
-				endingPhones[i] = mora.Aliases.EndingPhones[i]
-				codaStart += len(endingPhones[i])
-			}
-		}
-		originalSpecs, originalPhones, originalStarts := endingSpecs, endingPhones, endingStarts
-		// 複合原音がない部分だけ分割し、不足音素と後続子音を残す。
-		if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil {
-			var expanded [][]aliasCandidate
-			var phones [][]string
-			var starts []int
-			for i, specs := range endingSpecs {
-				var chain []frontend.CodaAlias
-				if i < len(mora.Aliases.EndingFallbacks) && !hasUsableCandidateEntries(b, specs) {
-					chain = selectCodaChain(b, mora.Aliases.EndingFallbacks[i], affix, hasAffix)
-				}
-				if len(chain) > 0 {
-					for _, edge := range chain {
-						names := explicitAliasCandidates(edge.Aliases, AliasOther)
-						if hasAffix {
-							names = affixCandidatesWithFallback(names, affix, true)
-						}
-						expanded = append(expanded, names)
-						phones = append(phones, edge.Phones)
-						starts = append(starts, edge.CodaStart)
-					}
-				} else {
-					expanded = append(expanded, specs)
-					phones = append(phones, endingPhones[i])
-					starts = append(starts, endingStarts[i])
-				}
-			}
-			endingSpecs, endingPhones, endingStarts = expanded, phones, starts
-		}
-		allSpecs := append(append([]aliasCandidate{}, candidateSpecs...), transitionSpecs...)
-		for _, specs := range endingSpecs {
-			allSpecs = append(allSpecs, specs...)
-		}
-		candidates := candidateNames(allSpecs)
-		var candidatesAtPosition []Selection
-		var rejections []CandidateRejection
-		type validatedEntry struct {
-			entry      oto.Entry
-			validation EntryValidation
-		}
-		validatedEntries := func(alias string, entries []oto.Entry) []validatedEntry {
-			valid := make([]validatedEntry, 0, len(entries))
-			for _, entry := range entries {
-				validation := b.validateEntry(entry)
-				if validation.Status == "unusable" {
-					rejections = append(rejections, CandidateRejection{Alias: alias, Source: entry.Filename, Reason: validation.Reason})
-					continue
-				}
-				valid = append(valid, validatedEntry{entry: entry, validation: validation})
-			}
-			return valid
-		}
-		attachEndings := func(main Selection, endingSpecs [][]aliasCandidate, endingPhones [][]string, endingStarts []int) Selection {
-			var endingLayers [][]Selection
-			for endingIndex, specs := range endingSpecs {
-				var choices []Selection
-				for _, endingSpec := range specs {
-					for _, validatedEnding := range validatedEntries(endingSpec.name, b.Entries[endingSpec.name]) {
-						score := validatedCandidateScore(mora.Language, endingSpec.tier, validatedEnding.entry, validatedEnding.validation)
-						ending := Selection{
-							CodaPhones: append([]string(nil), endingPhones[endingIndex]...), CodaStart: endingStarts[endingIndex],
-							EndingIndex: endingIndex,
-							Position:    position, Mora: mora, Alias: endingSpec.name, Kind: AliasOther,
-							FallbackTier: endingSpec.tier, Entry: validatedEnding.entry, Candidates: candidates,
-							TargetScore: score, SubbankID: subbank.ID, Color: subbank.Color,
-							RequestedTone: requestedTone, ResolvedTone: resolvedTone,
-							EntryStatus: validatedEnding.validation.Status, EntryValidation: validatedEnding.validation.Checks,
-						}
-						choices = append(choices, ending)
-					}
-				}
-				if len(choices) == 0 {
-					if len(endingPhones[endingIndex]) > 0 {
-						gap := SpeechGap{Position: position, Role: "coda", Phones: append([]string(nil), endingPhones[endingIndex]...)}
-						for _, spec := range specs {
-							gap.Aliases = append(gap.Aliases, spec.name)
-						}
-						main.MissingPhones = append(main.MissingPhones, gap)
-					}
-					// 録音のない末子音で、後続の録音可能な子音を隠さない。
-					continue
-				}
-				endingLayers = append(endingLayers, choices)
-			}
-			for _, choices := range endingLayers {
-				best := choices[0]
-				for _, choice := range choices[1:] {
-					if choice.TargetScore > best.TargetScore {
-						best = choice
-					}
-				}
-				main.Endings = append(main.Endings, best)
-			}
-			if mora.Language == frontend.LanguageEnglish {
-				main.EndingCandidates = endingLayers
-			}
-			return main
-		}
-		attachVariants := func(main Selection) Selection {
-			base := attachEndings(main, endingSpecs, endingPhones, endingStarts)
-			if mora.Language != frontend.LanguageEnglish || mora.Aliases == nil {
-				return base
-			}
-			for group, edges := range mora.Aliases.EndingFallbacks {
-				if group >= len(originalSpecs) {
-					continue
-				}
-				for _, chain := range selectCodaChains(b, edges, affix, hasAffix) {
-					specs := append([][]aliasCandidate(nil), originalSpecs[:group]...)
-					phones := append([][]string(nil), originalPhones[:group]...)
-					starts := append([]int(nil), originalStarts[:group]...)
-					for _, edge := range chain {
-						names := explicitAliasCandidates(edge.Aliases, AliasOther)
-						if hasAffix {
-							names = affixCandidatesWithFallback(names, affix, true)
-						}
-						specs = append(specs, names)
-						phones = append(phones, edge.Phones)
-						starts = append(starts, edge.CodaStart)
-					}
-					specs = append(specs, originalSpecs[group+1:]...)
-					phones = append(phones, originalPhones[group+1:]...)
-					starts = append(starts, originalStarts[group+1:]...)
-					variant := attachEndings(main, specs, phones, starts)
-					missingCount := func(gaps []SpeechGap) int {
-						count := 0
-						for _, gap := range gaps {
-							count += len(gap.Phones)
-						}
-						return count
-					}
-					if missingCount(variant.MissingPhones) <= missingCount(base.MissingPhones) {
-						base.EndingAlternatives = append(base.EndingAlternatives, variant)
-					}
-				}
-			}
-			return base
-		}
-		for _, candidate := range candidateSpecs {
-			entries := validatedEntries(candidate.name, b.Entries[candidate.name])
-			for _, validated := range entries {
-				entry, validation := validated.entry, validated.validation
-				main := attachVariants(Selection{
-					Position: position, Mora: mora, Alias: candidate.name, Kind: candidate.kind,
-					FallbackTier: candidate.tier, Entry: entry, Candidates: candidates,
-					TargetScore: validatedCandidateScore(mora.Language, candidate.tier, entry, validation),
-					SubbankID:   subbank.ID, Color: subbank.Color, RequestedTone: requestedTone,
-					ResolvedTone: resolvedTone, EntryStatus: validation.Status, EntryValidation: validation.Checks,
-				})
-				if !explicitCandidates {
-					candidatesAtPosition = append(candidatesAtPosition, main)
-				}
-				if candidate.kind != AliasCV || isWildcardAlias(candidate.name) || len(transitionSpecs) == 0 {
-					if explicitCandidates {
-						candidatesAtPosition = append(candidatesAtPosition, main)
-					}
-					continue
-				}
-				compositeAdded := false
-				for _, transitionSpec := range transitionSpecs {
-					for _, validatedTransition := range validatedEntries(transitionSpec.name, b.Entries[transitionSpec.name]) {
-						transitionEntry, transitionValidation := validatedTransition.entry, validatedTransition.validation
-						transition := Selection{
-							Position: position, Mora: mora, Alias: transitionSpec.name, Kind: AliasVC,
-							FallbackTier: transitionSpec.tier, Entry: transitionEntry, Candidates: candidates,
-							TargetScore: validatedCandidateScore(mora.Language, transitionSpec.tier, transitionEntry, transitionValidation),
-							SubbankID:   subbank.ID, Color: subbank.Color, RequestedTone: requestedTone,
-							ResolvedTone: resolvedTone, EntryStatus: transitionValidation.Status,
-							EntryValidation: transitionValidation.Checks,
-						}
-						composite := main
-						composite.Composite = true
-						composite.Transition = &transition
-						composite.TransitionScore = transition.TargetScore
-						candidatesAtPosition = append(candidatesAtPosition, composite)
-						compositeAdded = true
-					}
-				}
-				if explicitCandidates && !compositeAdded {
-					candidatesAtPosition = append(candidatesAtPosition, main)
-				}
-			}
-		}
-		for index := range candidatesAtPosition {
-			selected := &candidatesAtPosition[index]
-			if mora.Aliases != nil && selected.Transition == nil {
-				for alias, phones := range mora.Aliases.MainMissing {
-					if selected.Alias == alias || (hasAffix && selected.Alias == affix.Prefix+alias+affix.Suffix) {
-						selected.MissingPhones = append(append([]SpeechGap(nil), selected.MissingPhones...), SpeechGap{Position: position, Role: "onset", Phones: append([]string(nil), phones...), Aliases: append([]string(nil), mora.Aliases.Transition...)})
-						break
-					}
-				}
-			}
-			candidatesAtPosition[index].CandidateRejections = append([]CandidateRejection(nil), rejections...)
-			if candidatesAtPosition[index].Transition != nil {
-				candidatesAtPosition[index].Transition.CandidateRejections = append([]CandidateRejection(nil), rejections...)
-			}
-			for endingIndex := range candidatesAtPosition[index].Endings {
-				candidatesAtPosition[index].Endings[endingIndex].CandidateRejections = append([]CandidateRejection(nil), rejections...)
-			}
-		}
-		if len(candidatesAtPosition) == 0 {
-			if mora.Vowel == "cl" {
-				candidatesAtPosition = []Selection{{
-					Position: position, Mora: mora, Alias: "<closure>",
-					Kind: AliasOther, FallbackTier: 0,
-					Candidates: candidates, CandidateCount: 1,
-					TargetScore: 100,
-				}}
-				layers = append(layers, candidatesAtPosition)
-				previousLayer = candidatesAtPosition
-				previousVowel = mora.Vowel
-				phraseStart = false
-				continue
-			}
-			failure := MissingAliasError{Position: position, Mora: mora.Text, Candidates: candidates, CandidateRejections: rejections}
+		candidates, failure := search.positionCandidates(position, mora, previousVowel, phraseStart, previousLayer)
+		if failure != nil {
 			if missing == nil {
-				return nil, &failure
+				return nil, failure
 			}
-			*missing = append(*missing, failure)
-			layers = append(layers, nil)
-			previousLayer = nil
-			previousVowel = mora.Vowel
-			phraseStart = false
-			continue
+			*missing = append(*missing, *failure)
 		}
-		applyCompositePreferences(candidatesAtPosition, policy)
-		applyEnglishCandidatePreferences(candidatesAtPosition, previousLayer)
-		candidatesAtPosition = pruneCandidates(candidatesAtPosition)
-		for index := range candidatesAtPosition {
-			candidatesAtPosition[index].CandidateCount = len(candidatesAtPosition)
-			if candidatesAtPosition[index].Transition != nil {
-				candidatesAtPosition[index].Transition.CandidateCount = len(candidatesAtPosition)
-			}
-			for endingIndex := range candidatesAtPosition[index].Endings {
-				candidatesAtPosition[index].Endings[endingIndex].CandidateCount = len(candidatesAtPosition)
-			}
-		}
-		layers = append(layers, candidatesAtPosition)
-		previousLayer = candidatesAtPosition
+		layers = append(layers, candidates)
+		previousLayer = candidates
 		previousVowel = mora.Vowel
 		phraseStart = false
 	}
 	return layers, nil
+}
+
+// candidateContextは、1つの合成で全モーラに共通する候補探索の条件（音源・方式・接辞・音階）。
+type candidateContext struct {
+	bank          *Bank
+	policy        AliasPolicy
+	affix         Affix
+	hasAffix      bool
+	subbank       Subbank
+	requestedTone string
+	resolvedTone  string
+}
+
+// positionCandidatesは1モーラの候補（主原音、CVVCの遷移、語末子音）を作る。
+// 候補が無く促音でもなければ、空の候補と欠落の情報を返す。
+func (c candidateContext) positionCandidates(position int, mora frontend.Mora, previousVowel string, phraseStart bool, previousLayer []Selection) ([]Selection, *MissingAliasError) {
+	b, policy, affix, hasAffix := c.bank, c.policy, c.affix, c.hasAffix
+	candidateSpecs := aliasCandidatesWithPolicy(mora.Text, previousVowel, phraseStart, policy)
+	consonant := mora.Consonant
+	if consonant == "" {
+		consonant = frontend.ConsonantOf(mora.Text)
+	}
+	transitionSpecs := vcAliasCandidates(previousVowel, consonant, policy)
+	explicitCandidates := mora.Aliases != nil && len(mora.Aliases.Main) > 0
+	if explicitCandidates {
+		candidateSpecs = explicitMainAliasCandidates(mora.Aliases.Main, mora.Aliases.MainKinds, mora.Text)
+		transitionSpecs = explicitAliasCandidates(mora.Aliases.Transition, AliasVC)
+	}
+	var endingSpecs [][]aliasCandidate
+	if mora.Aliases != nil {
+		for _, aliases := range mora.Aliases.Endings {
+			endingSpecs = append(endingSpecs, explicitAliasCandidates(aliases, AliasOther))
+		}
+	}
+	if hasAffix {
+		strictSubbank := c.subbank.ID != "" && c.subbank.ID != "prefix.map"
+		if strictSubbank {
+			affixedCandidates := affixCandidatesWithFallback(candidateSpecs, affix, false)
+			affixedTransitions := affixCandidatesWithFallback(transitionSpecs, affix, false)
+			if hasUsableCandidateEntries(b, affixedCandidates) {
+				candidateSpecs = affixedCandidates
+			} else {
+				// 専用oto配下に接辞なしaliasを置くOpenUtau音源へフォールバックする。
+				candidateSpecs = affixCandidatesWithFallback(candidateSpecs, affix, true)
+			}
+			if hasUsableCandidateEntries(b, affixedTransitions) {
+				transitionSpecs = affixedTransitions
+			} else {
+				transitionSpecs = affixCandidatesWithFallback(transitionSpecs, affix, true)
+			}
+		} else {
+			candidateSpecs = affixCandidatesWithFallback(candidateSpecs, affix, true)
+			transitionSpecs = affixCandidatesWithFallback(transitionSpecs, affix, true)
+		}
+		for index := range endingSpecs {
+			endingSpecs[index] = affixCandidatesWithFallback(endingSpecs[index], affix, true)
+		}
+	}
+	if !explicitCandidates && previousVowel == "cl" && !hasUsableCandidateEntries(b, candidateSpecs) {
+		// 促音の閉鎖後は無音からの立ち上がり。単独音を持たない連続音音源では語頭形(- て)を使う。
+		headSpecs := aliasCandidatesWithPolicy(mora.Text, "", true, policy)
+		if hasAffix {
+			headSpecs = affixCandidatesWithFallback(headSpecs, affix, true)
+		}
+		candidateSpecs = headSpecs
+	}
+	if !explicitCandidates {
+		candidateSpecs = preferOriginalKanaCandidates(b, candidateSpecs)
+	}
+	endings := c.endingPlan(mora, endingSpecs)
+	allSpecs := append(append([]aliasCandidate{}, candidateSpecs...), transitionSpecs...)
+	for _, specs := range endings.specs {
+		allSpecs = append(allSpecs, specs...)
+	}
+	builder := &positionBuilder{context: c, position: position, mora: mora, candidates: candidateNames(allSpecs), endings: endings}
+	var candidatesAtPosition []Selection
+	for _, candidate := range candidateSpecs {
+		for _, validated := range builder.validatedEntries(candidate.name, b.Entries[candidate.name]) {
+			main := builder.attachVariants(builder.selection(candidate, AliasKind(candidate.kind), validated))
+			if !explicitCandidates {
+				candidatesAtPosition = append(candidatesAtPosition, main)
+			}
+			if candidate.kind != AliasCV || isWildcardAlias(candidate.name) || len(transitionSpecs) == 0 {
+				if explicitCandidates {
+					candidatesAtPosition = append(candidatesAtPosition, main)
+				}
+				continue
+			}
+			compositeAdded := false
+			for _, transitionSpec := range transitionSpecs {
+				for _, validatedTransition := range builder.validatedEntries(transitionSpec.name, b.Entries[transitionSpec.name]) {
+					transition := builder.selection(transitionSpec, AliasVC, validatedTransition)
+					composite := main
+					composite.Composite = true
+					composite.Transition = &transition
+					composite.TransitionScore = transition.TargetScore
+					candidatesAtPosition = append(candidatesAtPosition, composite)
+					compositeAdded = true
+				}
+			}
+			if explicitCandidates && !compositeAdded {
+				candidatesAtPosition = append(candidatesAtPosition, main)
+			}
+		}
+	}
+	rejections := builder.rejections
+	for index := range candidatesAtPosition {
+		selected := &candidatesAtPosition[index]
+		if mora.Aliases != nil && selected.Transition == nil {
+			for alias, phones := range mora.Aliases.MainMissing {
+				if selected.Alias == alias || (hasAffix && selected.Alias == affix.Prefix+alias+affix.Suffix) {
+					selected.MissingPhones = append(append([]SpeechGap(nil), selected.MissingPhones...), SpeechGap{Position: position, Role: "onset", Phones: append([]string(nil), phones...), Aliases: append([]string(nil), mora.Aliases.Transition...)})
+					break
+				}
+			}
+		}
+		selected.CandidateRejections = append([]CandidateRejection(nil), rejections...)
+		if selected.Transition != nil {
+			selected.Transition.CandidateRejections = append([]CandidateRejection(nil), rejections...)
+		}
+		for endingIndex := range selected.Endings {
+			selected.Endings[endingIndex].CandidateRejections = append([]CandidateRejection(nil), rejections...)
+		}
+	}
+	if len(candidatesAtPosition) == 0 {
+		if mora.Vowel == "cl" {
+			return []Selection{{
+				Position: position, Mora: mora, Alias: "<closure>",
+				Kind: AliasOther, FallbackTier: 0,
+				Candidates: builder.candidates, CandidateCount: 1,
+				TargetScore: 100,
+			}}, nil
+		}
+		return nil, &MissingAliasError{Position: position, Mora: mora.Text, Candidates: builder.candidates, CandidateRejections: rejections}
+	}
+	applyCompositePreferences(candidatesAtPosition, policy)
+	applyEnglishCandidatePreferences(candidatesAtPosition, previousLayer)
+	candidatesAtPosition = pruneCandidates(candidatesAtPosition)
+	for index := range candidatesAtPosition {
+		candidatesAtPosition[index].CandidateCount = len(candidatesAtPosition)
+		if candidatesAtPosition[index].Transition != nil {
+			candidatesAtPosition[index].Transition.CandidateCount = len(candidatesAtPosition)
+		}
+		for endingIndex := range candidatesAtPosition[index].Endings {
+			candidatesAtPosition[index].Endings[endingIndex].CandidateCount = len(candidatesAtPosition)
+		}
+	}
+	return candidatesAtPosition, nil
+}
+
+// endingPlanは語末子音の候補。englishFallbackで分割した後の並びと、分割前の並び（変種を作る元）を持つ。
+type endingPlan struct {
+	specs, originalSpecs   [][]aliasCandidate
+	phones, originalPhones [][]string
+	starts, originalStarts []int
+}
+
+// endingPlanは語末子音の候補を組み、英語では複合原音がない部分だけ分割して不足音素と後続子音を残す。
+func (c candidateContext) endingPlan(mora frontend.Mora, endingSpecs [][]aliasCandidate) endingPlan {
+	endingPhones := make([][]string, len(endingSpecs))
+	endingStarts := make([]int, len(endingSpecs))
+	codaStart := 0
+	for i := range endingSpecs {
+		endingStarts[i] = codaStart
+		if mora.Aliases != nil && i < len(mora.Aliases.EndingPhones) {
+			endingPhones[i] = mora.Aliases.EndingPhones[i]
+			codaStart += len(endingPhones[i])
+		}
+	}
+	plan := endingPlan{
+		specs: endingSpecs, originalSpecs: endingSpecs,
+		phones: endingPhones, originalPhones: endingPhones,
+		starts: endingStarts, originalStarts: endingStarts,
+	}
+	if mora.Language != frontend.LanguageEnglish || mora.Aliases == nil {
+		return plan
+	}
+	var expanded [][]aliasCandidate
+	var phones [][]string
+	var starts []int
+	for i, specs := range endingSpecs {
+		var chain []frontend.CodaAlias
+		if i < len(mora.Aliases.EndingFallbacks) && !hasUsableCandidateEntries(c.bank, specs) {
+			chain = selectCodaChain(c.bank, mora.Aliases.EndingFallbacks[i], c.affix, c.hasAffix)
+		}
+		if len(chain) > 0 {
+			for _, edge := range chain {
+				expanded = append(expanded, c.edgeCandidates(edge))
+				phones = append(phones, edge.Phones)
+				starts = append(starts, edge.CodaStart)
+			}
+		} else {
+			expanded = append(expanded, specs)
+			phones = append(phones, endingPhones[i])
+			starts = append(starts, endingStarts[i])
+		}
+	}
+	plan.specs, plan.phones, plan.starts = expanded, phones, starts
+	return plan
+}
+
+func (c candidateContext) edgeCandidates(edge frontend.CodaAlias) []aliasCandidate {
+	names := explicitAliasCandidates(edge.Aliases, AliasOther)
+	if c.hasAffix {
+		names = affixCandidatesWithFallback(names, c.affix, true)
+	}
+	return names
+}
+
+type validatedEntry struct {
+	entry      oto.Entry
+	validation EntryValidation
+}
+
+// positionBuilderは1モーラの候補づくりの途中状態（候補名の一覧、使えない原音の理由）を持つ。
+type positionBuilder struct {
+	context    candidateContext
+	position   int
+	mora       frontend.Mora
+	candidates []string
+	endings    endingPlan
+	rejections []CandidateRejection
+}
+
+// validatedEntriesは使える原音だけを返し、使えない原音の理由を記録する。
+func (p *positionBuilder) validatedEntries(alias string, entries []oto.Entry) []validatedEntry {
+	valid := make([]validatedEntry, 0, len(entries))
+	for _, entry := range entries {
+		validation := p.context.bank.validateEntry(entry)
+		if validation.Status == "unusable" {
+			p.rejections = append(p.rejections, CandidateRejection{Alias: alias, Source: entry.Filename, Reason: validation.Reason})
+			continue
+		}
+		valid = append(valid, validatedEntry{entry: entry, validation: validation})
+	}
+	return valid
+}
+
+func (p *positionBuilder) selection(spec aliasCandidate, kind AliasKind, validated validatedEntry) Selection {
+	c := p.context
+	return Selection{
+		Position: p.position, Mora: p.mora, Alias: spec.name, Kind: kind,
+		FallbackTier: spec.tier, Entry: validated.entry, Candidates: p.candidates,
+		TargetScore: validatedCandidateScore(p.mora.Language, spec.tier, validated.entry, validated.validation),
+		SubbankID:   c.subbank.ID, Color: c.subbank.Color, RequestedTone: c.requestedTone,
+		ResolvedTone: c.resolvedTone, EntryStatus: validated.validation.Status, EntryValidation: validated.validation.Checks,
+	}
+}
+
+// attachEndingsは語末子音ごとに最良の原音を付ける。録音のない語末子音は欠落として記録する。
+func (p *positionBuilder) attachEndings(main Selection, endingSpecs [][]aliasCandidate, endingPhones [][]string, endingStarts []int) Selection {
+	var endingLayers [][]Selection
+	for endingIndex, specs := range endingSpecs {
+		var choices []Selection
+		for _, endingSpec := range specs {
+			for _, validatedEnding := range p.validatedEntries(endingSpec.name, p.context.bank.Entries[endingSpec.name]) {
+				ending := p.selection(endingSpec, AliasOther, validatedEnding)
+				ending.CodaPhones = append([]string(nil), endingPhones[endingIndex]...)
+				ending.CodaStart = endingStarts[endingIndex]
+				ending.EndingIndex = endingIndex
+				choices = append(choices, ending)
+			}
+		}
+		if len(choices) == 0 {
+			if len(endingPhones[endingIndex]) > 0 {
+				gap := SpeechGap{Position: p.position, Role: "coda", Phones: append([]string(nil), endingPhones[endingIndex]...)}
+				for _, spec := range specs {
+					gap.Aliases = append(gap.Aliases, spec.name)
+				}
+				main.MissingPhones = append(main.MissingPhones, gap)
+			}
+			// 録音のない末子音で、後続の録音可能な子音を隠さない。
+			continue
+		}
+		endingLayers = append(endingLayers, choices)
+	}
+	for _, choices := range endingLayers {
+		best := choices[0]
+		for _, choice := range choices[1:] {
+			if choice.TargetScore > best.TargetScore {
+				best = choice
+			}
+		}
+		main.Endings = append(main.Endings, best)
+	}
+	if p.mora.Language == frontend.LanguageEnglish {
+		main.EndingCandidates = endingLayers
+	}
+	return main
+}
+
+// attachVariantsは語末子音を付け、英語では分割の仕方を変えた語末の変種も候補として残す。
+func (p *positionBuilder) attachVariants(main Selection) Selection {
+	e := p.endings
+	base := p.attachEndings(main, e.specs, e.phones, e.starts)
+	if p.mora.Language != frontend.LanguageEnglish || p.mora.Aliases == nil {
+		return base
+	}
+	c := p.context
+	for group, edges := range p.mora.Aliases.EndingFallbacks {
+		if group >= len(e.originalSpecs) {
+			continue
+		}
+		for _, chain := range selectCodaChains(c.bank, edges, c.affix, c.hasAffix) {
+			specs := append([][]aliasCandidate(nil), e.originalSpecs[:group]...)
+			phones := append([][]string(nil), e.originalPhones[:group]...)
+			starts := append([]int(nil), e.originalStarts[:group]...)
+			for _, edge := range chain {
+				specs = append(specs, c.edgeCandidates(edge))
+				phones = append(phones, edge.Phones)
+				starts = append(starts, edge.CodaStart)
+			}
+			specs = append(specs, e.originalSpecs[group+1:]...)
+			phones = append(phones, e.originalPhones[group+1:]...)
+			starts = append(starts, e.originalStarts[group+1:]...)
+			variant := p.attachEndings(main, specs, phones, starts)
+			if missingPhoneCount(variant.MissingPhones) <= missingPhoneCount(base.MissingPhones) {
+				base.EndingAlternatives = append(base.EndingAlternatives, variant)
+			}
+		}
+	}
+	return base
+}
+
+func missingPhoneCount(gaps []SpeechGap) int {
+	count := 0
+	for _, gap := range gaps {
+		count += len(gap.Phones)
+	}
+	return count
 }
 
 // candidateScoreはalias優先度とoto.iniの整合性から重複候補を選ぶ。
