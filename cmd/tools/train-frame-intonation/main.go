@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -21,12 +22,16 @@ import (
 
 type config struct {
 	Dataset, Output, Cache, Language, ID, Name, Corpus, License, Device, F0Source, WorldEngine string
+	PredictCorpus, PredictOut, OpenJTalkHelper, OpenJTalkDictionary                            string
+	Description, AudioRoot                                                                     string
 	Notices                                                                                    []string
+	RecommendedRenderers                                                                       []string
 	Epochs, Hidden, Batch, Seed, Limit                                                         int
 	LR, Delta, Smooth, Frame, Low, High                                                        float64
 	RenderStrength, RenderSmoothing, RenderP99, RenderMax                                      float64
 	Dilations                                                                                  []int
-	Holdout, FeaturesOnly, IndexOnly                                                           bool
+	F0Method                                                                                   int
+	Holdout, FeaturesOnly, IndexOnly, AllDataTraining, OpenJTalkAccent                         bool
 }
 type notices []string
 
@@ -35,15 +40,25 @@ func (n *notices) Set(v string) error { *n = append(*n, v); return nil }
 func parseFlags() config {
 	var c config
 	var nn notices
+	var renderers notices
 	var dil string
+	var noOpenJTalk bool
 	flag.StringVar(&c.Dataset, "dataset", "", "version-1 JSONL")
 	flag.StringVar(&c.Output, "out", filepath.Join("out", "frame-intonation-go", fmt.Sprintf("model-%d.json", time.Now().UnixNano())), "new model JSON under out/")
 	flag.StringVar(&c.Cache, "f0-cache", "", "F0 .npy cache under out/")
 	flag.StringVar(&c.F0Source, "f0-source", "auto", "internal or world")
 	flag.StringVar(&c.WorldEngine, "world-engine", "runtime/utautts-world-engine.dll", "WORLD engine DLL for English Harvest")
+	flag.StringVar(&c.PredictCorpus, "predict-corpus", "", "JSON or JSONL cases for contour prediction")
+	flag.StringVar(&c.PredictOut, "predict-out", "", "prediction JSON under out/")
+	flag.StringVar(&c.OpenJTalkHelper, "openjtalk-features", "", "Open JTalk feature helper executable")
+	flag.StringVar(&c.OpenJTalkDictionary, "openjtalk-dictionary", "", "Open JTalk dictionary directory")
 	flag.StringVar(&c.Language, "language", "ja", "ja or en")
 	flag.StringVar(&c.ID, "model-id", "", "model ID")
 	flag.StringVar(&c.Name, "display-name", "", "display name")
+	flag.StringVar(&c.Description, "description", "", "model description")
+	flag.Var(&renderers, "recommended-renderer", "compatible renderer ID, repeatable")
+	flag.StringVar(&c.AudioRoot, "audio-root", "", "root for relative audio paths")
+	flag.IntVar(&c.F0Method, "f0-method", 1, "WORLD Harvest method (1)")
 	flag.StringVar(&c.Corpus, "training-corpus", "", "training corpus provenance")
 	flag.StringVar(&c.License, "model-license", "MIT License", "model license")
 	flag.StringVar(&c.Device, "device", "auto", "auto, cuda or cpu")
@@ -65,9 +80,23 @@ func parseFlags() config {
 	flag.Float64Var(&c.RenderMax, "render-max-cents", 90, "runtime contour maximum")
 	flag.StringVar(&dil, "dilations", "1,2,4,8,16,32", "comma-separated TCN dilations")
 	flag.BoolVar(&c.Holdout, "holdout-test", true, "reserve hash(id) modulo 10 == 1 for test")
+	flag.BoolVar(&c.AllDataTraining, "all-data-training", false, "include validation IDs in training; metrics become in-sample")
+	flag.BoolVar(&c.OpenJTalkAccent, "openjtalk-accent", false, "reanalyze Japanese raw text with Open JTalk")
+	flag.BoolVar(&noOpenJTalk, "no-openjtalk-accent", false, "use timed-token accent fields without raw-text reanalysis")
 	flag.BoolVar(&c.FeaturesOnly, "features-only", false, "prepare data and print counts without training")
 	flag.BoolVar(&c.IndexOnly, "index-only", false, "build the sorted feature dictionary without F0 extraction")
 	flag.Parse()
+	if c.Language == "ja" {
+		c.OpenJTalkAccent = true
+		flag.Visit(func(f *flag.Flag) {
+			if f.Name == "openjtalk-accent" {
+				c.OpenJTalkAccent = f.Value.String() == "true"
+			}
+		})
+		if noOpenJTalk {
+			c.OpenJTalkAccent = false
+		}
+	}
 	visited := map[string]bool{}
 	flag.Visit(func(f *flag.Flag) { visited[f.Name] = true })
 	if c.Language == "en" {
@@ -100,6 +129,7 @@ func parseFlags() config {
 		}
 	}
 	c.Notices = nn
+	c.RecommendedRenderers = renderers
 	if c.F0Source == "auto" {
 		if c.Language == "en" {
 			c.F0Source = "world"
@@ -132,11 +162,28 @@ func main() {
 	if c.Language != "ja" && c.Language != "en" {
 		fatal("language must be ja or en")
 	}
+	if c.Language == "en" && c.AllDataTraining {
+		fatal("English explicit speaker splits do not support --all-data-training")
+	}
+	if (c.PredictCorpus == "") != (c.PredictOut == "") {
+		fatal("--predict-corpus and --predict-out must be used together")
+	}
+	if c.PredictOut != "" && !strings.HasPrefix(filepath.Clean(c.PredictOut), "out"+string(filepath.Separator)) {
+		fatal("prediction output must be under out/")
+	}
+	if c.PredictOut != "" {
+		if _, e := os.Stat(c.PredictOut); e == nil {
+			fatal("refusing to overwrite %s", c.PredictOut)
+		}
+	}
 	if c.RenderStrength <= 0 || c.RenderStrength > 1 || c.RenderSmoothing < 0 || c.RenderP99 <= 0 || c.RenderMax < c.RenderP99 {
 		fatal("invalid renderer settings")
 	}
 	if c.F0Source != "internal" && c.F0Source != "world" {
 		fatal("f0-source must be internal or world")
+	}
+	if c.F0Method != 1 {
+		fatal("--f0-method supports Harvest (1) only")
 	}
 	if !strings.HasPrefix(filepath.Clean(c.Cache), "out"+string(filepath.Separator)) {
 		fatal("F0 cache must be under out/")
@@ -162,6 +209,9 @@ func main() {
 	if c.Limit > 0 && c.Limit < len(rows) {
 		rows = rows[:c.Limit]
 	}
+	for i := range rows {
+		rows[i].AudioPath = resolveAudioPath(rows[i].AudioPath, c.Dataset, c.AudioRoot)
+	}
 	for _, r := range rows {
 		language := r.Language
 		if language == "" {
@@ -170,7 +220,7 @@ func main() {
 		if language != c.Language {
 			fatal("language mismatch: %s", r.ID)
 		}
-		if c.Language == "ja" {
+		if c.Language == "ja" && !c.OpenJTalkAccent {
 			for _, t := range r.Tokens {
 				if !t.Pause && t.AccentLength == 0 {
 					fatal("%s lacks Open JTalk annotations; prepare the JSONL with Open JTalk first", r.ID)
@@ -183,7 +233,14 @@ func main() {
 			fatal("dataset: %v", e)
 		}
 	}
-	trainRows, validRows, testRows := splitRecords(rows, c.Holdout)
+	trainRows, validRows, testRows := splitForTraining(rows, c.Holdout, c.AllDataTraining)
+	inputTrain, inputValid, inputTest := len(trainRows), len(validRows), len(testRows)
+	if c.OpenJTalkAccent {
+		trainRows, validRows, testRows, e = reanalyzeSplits(trainRows, validRows, testRows, c)
+		if e != nil {
+			fatal("Open JTalk: %v", e)
+		}
+	}
 	if len(trainRows) == 0 || len(validRows) == 0 {
 		fatal("empty train or validation split")
 	}
@@ -290,6 +347,7 @@ func main() {
 			bestState = model.Module.StateDict()
 		}
 		fmt.Printf("epoch %02d/%d loss=%.6f validation=%.3f rendered=%.3f best=%d elapsed=%s\n", epoch+1, c.Epochs, lossSum/float64(max(1, steps)), raw, rendered, bestEpoch, time.Since(trainingStart).Round(time.Second))
+		logDeviceMemory(epoch + 1)
 	}
 	if bestState == nil {
 		fatal("training produced no checkpoint")
@@ -309,6 +367,24 @@ func main() {
 		}
 	}
 	payload := export(model, names, c, sha, trainRows, validRows, testRows, train, valid, validation, best, bestEpoch, testRaw, testRendered, history)
+	if c.OpenJTalkAccent {
+		training := payload["training"].(map[string]any)
+		alignment := training["alignment"].(map[string]any)
+		setAlignmentCounts(alignment["train"].(map[string]any), inputTrain, len(trainRows))
+		setAlignmentCounts(alignment["validation"].(map[string]any), inputValid, len(validRows))
+		alignment["skipped_records"] = inputTrain + inputValid - len(trainRows) - len(validRows)
+		alignment["alignment_rate"] = float64(len(trainRows)+len(validRows)) / float64(max(1, inputTrain+inputValid))
+		if len(testRows) > 0 {
+			setAlignmentCounts(training["test_alignment"].(map[string]any), inputTest, len(testRows))
+		}
+	}
+	if c.Language == "en" {
+		metrics := payload["metrics"].(map[string]any)
+		metrics["validation_flat_baseline"] = flatBaselineMetrics(valid, c)
+		if len(test) > 0 {
+			metrics["test_flat_baseline"] = flatBaselineMetrics(test, c)
+		}
+	}
 	data, e := json.MarshalIndent(payload, "", "  ")
 	if e != nil {
 		fatal("export: %v", e)
@@ -320,4 +396,37 @@ func main() {
 		fatal("write: %v", e)
 	}
 	fmt.Printf("wrote %s total=%s\n", c.Output, time.Since(start).Round(time.Second))
+	logDeviceMemory(0)
+	if c.PredictCorpus != "" {
+		prediction, e := predictCorpus(model, c.PredictCorpus, index, c)
+		if e != nil {
+			fatal("predict corpus: %v", e)
+		}
+		data, e := json.MarshalIndent(prediction, "", "  ")
+		if e != nil {
+			fatal("prediction JSON: %v", e)
+		}
+		if e = os.MkdirAll(filepath.Dir(c.PredictOut), 0755); e != nil {
+			fatal("prediction directory: %v", e)
+		}
+		if e = os.WriteFile(c.PredictOut, append(data, '\n'), 0644); e != nil {
+			fatal("prediction output: %v", e)
+		}
+	}
+}
+
+func splitForTraining(rows []record, holdout, allData bool) (train, valid, test []record) {
+	train, valid, test = splitRecords(rows, holdout)
+	if allData {
+		train = append(train, valid...)
+		train = append(train, test...)
+		sort.Slice(train, func(i, j int) bool { return train[i].ID < train[j].ID })
+		test = nil
+	}
+	return
+}
+
+func setAlignmentCounts(stats map[string]any, input, aligned int) {
+	stats["skipped_records"] = input - aligned
+	stats["alignment_rate"] = float64(aligned) / float64(max(1, input))
 }
