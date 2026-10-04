@@ -4,7 +4,9 @@
 
 ## 準備
 
-Python環境にはPyTorch、NumPy、pyopenjtalkが必要です。`--f0-source internal`では追加の実行ファイルは不要です。`--f0-source world`を使う場合は独自WORLDエンジンが必要です。ビルドスクリプトは、Windowsが`tools/build-world-engine.ps1`、Linuxが`tools/build-world-engine.sh`、macOSが`tools/build-world-engine-macos.sh`です。
+学習はgogradを使うGoのコマンド`cmd/tools/train-frame-intonation`で行えます（[手順](go-frame-intonation-training.md)）。v10・en-v1と同じ特徴量・損失で同等の検証誤差になり、CUDAでも学習できます。以下のPython版（`train-frame-intonation-tcn.py`）は、データ準備の補助スクリプトが一部を共有しているため当面残します。
+
+Python版を使う場合、Python環境にはPyTorch、NumPy、pyopenjtalkが必要です。`--f0-source internal`では追加の実行ファイルは不要です。`--f0-source world`を使う場合は独自WORLDエンジンが必要です。ビルドスクリプトは、Windowsが`tools/build-world-engine.ps1`、Linuxが`tools/build-world-engine.sh`、macOSが`tools/build-world-engine-macos.sh`です。
 
 学習データは`version: 1`のJSONLです。レコードは`id`、`audio_path`、`tokens`、`text`を持ちます。`--training-corpus`、`--model-license`、`--license-notice`（複数指定可）は必須です。コーパスの音声と台本を用意し、出典と、使用した各データの通知を記録してください。
 
