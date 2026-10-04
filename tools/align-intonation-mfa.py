@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """抑揚学習用JSONLのモーラ時刻を、Montreal Forced Aligner（MFA）の強制整列で作り直す。
 
-`prepare-intonation-frame-data.py --alignment viterbi`の整列は、アクセントの高低だけを手がかりにするため、
+`go run ./cmd/tools/prepare-intonation-frame-data`で廃止した旧Viterbi整列は、アクセントの高低だけを手がかりにするため、
 多くのモーラが長さの上下限に張り付く。音素の音響モデルで整列し直したデータで学習する。
 
   prepare  JSONLからMFA用のコーパスと辞書を作る。各モーラを1語とし、モーラごとの音素列を明示する。
@@ -160,7 +160,7 @@ def main() -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     prepare_parser = commands.add_parser("prepare", help="build an MFA corpus and per-mora dictionary")
     prepare_parser.add_argument("--out", required=True, help="output directory (corpus/, dictionary.dict, config.yaml)")
-    prepare_parser.add_argument("dataset", nargs="+", help="intonation JSONL from prepare-intonation-frame-data.py")
+    prepare_parser.add_argument("dataset", nargs="+", help="intonation JSONL from go run ./cmd/tools/prepare-intonation-frame-data")
     import_parser = commands.add_parser("import", help="write MFA timings back into the JSONL")
     import_parser.add_argument("--alignments", required=True, help="MFA output directory (--output_format json)")
     import_parser.add_argument("--out", required=True, help="output JSONL")

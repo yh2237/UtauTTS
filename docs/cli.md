@@ -54,7 +54,6 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 
 ## オプション
 
-`--speech-timing`は[発話タイミング補正](speech-quality-experiment.md)を有効にします。CLIでは初期状態で無効です。
 
 | オプション | 既定値 | 説明 |
 |---|---|---|
@@ -80,7 +79,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--prosody-pitch-only` | `false` | 学習ピッチのみ適用し、モーラ長・音量は固定値を使う |
 | `--manual-pitch <path>` | | 手動ピッチ編集JSON（[manual-pitch.md](manual-pitch.md)） |
 | `--join-model <path>` | | 学習済みjoin-qualityモデルのJSON（[join-quality.md](join-quality.md)） |
-| `--speech-model <path>` | | 英語・中国語の整列音声から学習した発話補正モデルJSON（[多言語の学習](multilingual-learning.md)） |
+| `--speech-model <path>` | | 英語・中国語の整列音声から学習した発話補正モデルJSON（[モデルの学習](model-training.md)） |
 | `--prosody-features <path>` | | ケース別のモーラ単位アクセント特徴JSON |
 | `--prosody-feature-case <id>` | | `--prosody-features` 内のケースID |
 | `--pitch-contours <path>` | | ケース別ピッチ係数JSON（計画へ記録。波形処理には `--apply-pitch` が必要） |

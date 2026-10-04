@@ -78,12 +78,12 @@ python tools/source-phone-alignment.py evaluate --report out/source-alignment/al
 ```powershell
 python tools/source-span-mapping.py propose --report out/source-alignment/aligned-observations.json --out out/span-requests.json
 python tools/source-span-mapping.py select --report out/source-alignment/aligned-observations.json --requests out/span-requests.json --out out/source-spans
-python tools/source-span-auto.py build --spans out/source-spans/spans.json --out out/source-phone-library.json
+go run ./cmd/tools/source-span-auto build --spans out/source-spans/spans.json --out out/source-phone-library.json
 ```
 
 英語は担当する語末音素、中国語は鼻音韻尾を含む音節全体を対応付けます。対応が一意でない区間は候補から除外します。`select`は`spans.json`と対象区間・隣接区間の確認用WAVを出力します。既存結果を上書きしないため、新しい出力ディレクトリを使ってください。
 
-複数の区間ファイルは`build`へ`--spans`を繰り返し指定できます。同じ原音に異なる仮説がある場合はエラーになります。`--prefer-last`を明示した場合のみ後の候補を優先し、置換内容を記録します。
+複数の区間ファイルは`build`へ`--spans`を繰り返し指定できます。同じ原音に異なる仮説がある場合はエラーになります。`--prefer-last`を明示した場合のみ後の候補を優先し、置換内容を記録します。`source-span-auto.py map`はMFA監査とPythonの`source-span-mapping.py`を呼ぶため、整列ワークフローに残します。
 
 確認したライブラリをボイスバンク直下の`source-phone-library.json`へ配置します。原音WAVはライブラリに含まれません。強制整列の結果を、そのまま人手確認済みの教師データとして使用しないでください。
 

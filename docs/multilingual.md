@@ -62,7 +62,7 @@ UtauTTSで生成できるのは、基本的に音源へ収録されている子�
 
 CPU版WORLDは、英語の語末子音と中国語の母音・鼻音韻尾に合わせて原音の区間を伸縮します。英語の短い破裂音は元の速度で保持し、子音群では後続原音との重なりで音が消えないよう配置します。本体とWORLDブリッジは同じバージョンを使用してください。
 
-原音の接続位置の補正は[発話タイミング補正](speech-quality-experiment.md)を参照してください。[選択した原音の確認](../tools/evaluation/README.md#選択した原音を確認する)では切り出し範囲と合成結果を比較できます。
+[選択した原音の確認](../tools/evaluation/README.md#選択した原音を確認する)では切り出し範囲と合成結果を比較できます。
 
 音素表記の参考は[OpenUtauのVCCV対応表](https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Plugin.Builtin/EnglishVCCVPhonemizer.cs)、[OpenUtauのC+V対応表](https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Plugin.Builtin/EnglishCpVPhonemizer.cs)と[香港理工大学のPinyin綴り規則](https://www.polyu.edu.hk/bepth/introduction-to-phonetics/spelling-rules-in-pinyin/?sc_lang=en)を参照してください。
 
@@ -76,4 +76,4 @@ CPU版WORLDの英語・中国語では、原音区間ライブラリに登録さ
 
 英語・中国語は子音・母音・韻尾の長さを合計して発話時間を決めます。CLIの`--mora-ms`は音素時間配分の基準値です。手動で指定した各単位の長さを優先します。
 
-開発者向けの目標音素時刻と原音の対応は、`--plan-out`で保存した合成計画から確認できます。診断項目は[読み上げ品質の評価](../tools/evaluation/README.md)を参照してください。時間長・ピッチ・音量を学習する実験用の手順は[英語・中国語の発話モデルの学習](multilingual-learning.md)にあります。
+開発者向けの目標音素時刻と原音の対応は、`--plan-out`で保存した合成計画から確認できます。診断項目は[読み上げ品質の評価](../tools/evaluation/README.md)を参照してください。時間長・ピッチ・音量を学習する実験用の手順は[モデルの学習](model-training.md)にあります。

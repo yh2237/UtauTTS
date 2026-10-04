@@ -121,10 +121,79 @@ func tokensFor(a *openjtalk.Analysis, start, end float64) ([]map[string]any, err
 	return tokens, nil
 }
 
-func run(corpus, out string, limit int, allowMismatch bool, cfg openjtalk.Config) (int, int, error) {
-	if !allowMismatch {
-		return 0, 0, fmt.Errorf("native Open JTalk helper does not expose the g2p phone stream; use --allow-reading-mismatch for kana-reading corpora")
+// phonesFor reconstructs the phone stream from the native Open JTalk reading.
+// The Python provenance check lowercases devoiced vowels before comparison.
+func phonesFor(a *openjtalk.Analysis) (string, error) {
+	morae, err := frontend.ParseKana(a.Reading)
+	if err != nil {
+		return "", err
 	}
+	var phones []string
+	foreignConsonants := map[string]string{"しぇ": "sh", "てぃ": "t", "ふぁ": "f", "ふぃ": "f", "ふぇ": "f", "ふぉ": "f"}
+	for i, mora := range morae {
+		if mora.Pause {
+			if i > 0 && i < len(morae)-1 {
+				phones = append(phones, "pau")
+			}
+			continue
+		}
+		if mora.Vowel == "n" || mora.Vowel == "cl" {
+			phones = append(phones, map[string]string{"n": "N", "cl": "cl"}[mora.Vowel])
+			continue
+		}
+		if mora.Vowel == "" {
+			return "", fmt.Errorf("unknown Open JTalk mora %q", mora.Text)
+		}
+		consonant := mora.Consonant
+		if replacement, ok := foreignConsonants[mora.Text]; ok {
+			consonant = replacement
+		}
+		if mora.Text == "を" {
+			consonant = ""
+		}
+		if consonant != "" {
+			phones = append(phones, consonant)
+		}
+		phones = append(phones, mora.Vowel)
+	}
+	return strings.Join(phones, " "), nil
+}
+func normalizedPhones(value string) []string {
+	var out []string
+	for _, phone := range strings.Fields(value) {
+		switch phone {
+		case "_", "pau", ".", ",", "?", "!":
+			continue
+		case "q":
+			out = append(out, "cl")
+			continue
+		}
+		if strings.HasSuffix(phone, ":") {
+			vowel := strings.ToLower(strings.TrimSuffix(phone, ":"))
+			out = append(out, vowel, vowel)
+			continue
+		}
+		if strings.Contains("AIUEO", phone) && len(phone) == 1 {
+			phone = strings.ToLower(phone)
+		}
+		out = append(out, phone)
+	}
+	return out
+}
+func samePhones(a, b string) bool {
+	x, y := normalizedPhones(a), normalizedPhones(b)
+	if len(x) != len(y) {
+		return false
+	}
+	for i := range x {
+		if x[i] != y[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func run(corpus, out string, limit int, allowMismatch bool, cfg openjtalk.Config) (int, int, error) {
 	clean := filepath.Clean(out)
 	if !strings.HasPrefix(clean, "out"+string(filepath.Separator)) {
 		return 0, 0, fmt.Errorf("output must be under out/")
@@ -166,7 +235,15 @@ func run(corpus, out string, limit int, allowMismatch bool, cfg openjtalk.Config
 			skipped++
 			continue
 		}
-		// The native helper exposes mora features but not pyopenjtalk.g2p's phone stream.
+		openjtalkPhones, e := phonesFor(a)
+		if e != nil {
+			skipped++
+			continue
+		}
+		if !allowMismatch && !samePhones(supplied, openjtalkPhones) {
+			skipped++
+			continue
+		}
 		wav, e := audio.ReadWav(wavPath)
 		if e != nil || wav.Channels != 1 {
 			skipped++
@@ -186,7 +263,7 @@ func run(corpus, out string, limit int, allowMismatch bool, cfg openjtalk.Config
 		if e != nil {
 			return 0, 0, e
 		}
-		records = append(records, map[string]any{"version": 1, "id": id, "text": text, "source_text": sourceText, "audio_path": abs, "tokens": tokens, "accent_source": "openjtalk", "alignment_source": "uniform_mora_with_energy_bounds", "source_reading": supplied, "openjtalk_reading": a.Reading})
+		records = append(records, map[string]any{"version": 1, "id": id, "text": text, "source_text": sourceText, "audio_path": abs, "tokens": tokens, "accent_source": "openjtalk", "alignment_source": "uniform_mora_with_energy_bounds", "source_reading": supplied, "openjtalk_reading": a.Reading, "openjtalk_phones": openjtalkPhones})
 	}
 	if len(records) == 0 {
 		return 0, skipped, fmt.Errorf("no usable records")
@@ -215,12 +292,11 @@ func main() {
 	out := flag.String("out", "", "new JSONL under out/")
 	limit := flag.Int("limit", 0, "row limit")
 	allow := flag.Bool("allow-reading-mismatch", false, "permit missing G2P phone validation")
-	alignment := flag.String("alignment", "uniform", "uniform mora timing (Viterbi retired)")
 	helper := flag.String("openjtalk-helper", "", "native helper path")
 	dictionary := flag.String("openjtalk-dictionary", "", "dictionary path")
 	flag.Parse()
-	if *corpus == "" || *out == "" || *alignment != "uniform" {
-		fmt.Fprintln(os.Stderr, "corpus, out, and --alignment uniform are required")
+	if *corpus == "" || *out == "" {
+		fmt.Fprintln(os.Stderr, "corpus and out are required")
 		os.Exit(2)
 	}
 	n, skip, err := run(*corpus, *out, *limit, *allow, openjtalk.Config{HelperPath: *helper, DictionaryPath: *dictionary})

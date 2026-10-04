@@ -34,10 +34,9 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/chinese-bank" --corpus tools/ev
 
 ```powershell
 go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utautts-world-phrase --model none --repeat 1 --out out/ja-base
-go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utautts-world-phrase --model none --repeat 1 --speech-timing --out out/ja-speech
 ```
 
-コーパスの既定値は`tools/evaluation/japanese-v1.json`の8文です。`--model none`: 学習済み抑揚モデルなし。任意のモデルは`--model-file`でJSONのパスを指定できます。発話タイミング補正の効果と制約は[発話タイミング補正](../../docs/speech-quality-experiment.md)に記載します。
+コーパスの既定値は`tools/evaluation/japanese-v1.json`の8文です。`--model none`: 学習済み抑揚モデルなし。任意のモデルは`--model-file`でJSONのパスを指定できます。
 
 英語・中国語でも`--corpus`を指定して比較できます。診断モード: `--diagnose`。音声比較: `--diagnose`なし。WORLDの指定: `--renderers utautts-world-phrase`。対応ランタイムをビルドし、ブリッジのパスを`--bridge`で指定できます。
 
@@ -60,7 +59,7 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utau
 
 出力するPlan JSONには合成後の診断情報を含みます。区間別伸縮を適用しても指定したモーラ長は変えません。`boundary_repair_decisions`の指標: 補修箇所の評価。自然さ: 補修箇所の試聴で評価します。
 
-CPU版WORLDは音響特徴の時間軸と母音接続を調整します。`--renderers utautts-world-phrase --speech-timing`で比較できます。ビルド対象: 本体とブリッジ。解析キャッシュを使う2回目の合成: `--repeat 2`。
+解析キャッシュを使う2回目の合成は`--repeat 2`で比較できます。
 
 ## 読み・長さ・ピッチを固定する
 
@@ -76,26 +75,7 @@ CPU版WORLDは音響特徴の時間軸と母音接続を調整します。`--ren
 
 評価項目: 単語の聞き取り、音の欠落、接続、リズム、声質。性能指標: peak、RMS、RTF、合成成功率。自然さ: 聴取評価。
 
-## 英語・中国語の時間配分と抑揚を比較する
-
-`--prosody-experiment`はCPU版WORLD専用の比較用オプションです。用途: 比較。標準合成: 使用しない。`--model none`を指定し、Delta・VCCV英語音源または中国語CVVC音源で比較します。
-
-| 指定値 | 内容 |
-| --- | --- |
-| `baseline` | 従来の時間配分と抑揚。既定値 |
-| `timing` | 句の合計時間を保って音節の時間を再配分 |
-| `pitch` | 主音の原音から基準音高を決めて言語別の曲線を適用 |
-| `both` | 時間配分と抑揚を両方変更 |
-
-時間配分案は英語の強勢・弱母音・子音数と中国語の声調・軽声を使います。手動指定した長さ: 維持。抑揚案: 原音ごとの音高差と共通の抑揚補正を外した曲線。英語は最後の第一強勢を中心に音高を変えます。中国語はWORLDの母音開始時刻から声調を配置します。自動曲線: 比較用の値。自然さ: 聴取評価。
-
-`english-prosody-v1.json`と`chinese-prosody-v1.json`は各3ケースです。英語では`--phonemizer en-delta`または`--phonemizer en-vccv`でコーパスの指定を上書きできます。
-
-```powershell
-go run ./cmd/tools/tts-eval --voicebank "./voice/english-bank" --corpus tools/evaluation/english-prosody-v1.json --phonemizer en-delta --renderers utautts-world-phrase --model none --prosody-experiment timing --measure-pitch --out out/en-timing
-```
-
-4条件で同じコーパスと音源を使います。`report.json`に比較条件を保存します。音節長の配分を変えると先行発声や休止側へのはみ出しも変わるためWAV全体の長さがわずかに変わる場合があります。
+## 目標F0と出力F0を比べる
 
 `--measure-pitch`を付けると`*.pitch.json`へWORLDの目標F0と出力音声の推定F0を保存します。音声時刻の0 msはWAVの先頭です。Plan時刻には先行発声の余白を差し引きます。推定には既存のピッチ検出器を使い40 ms窓を10 msずつ動かします。
 
@@ -113,24 +93,6 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/english-bank" --corpus tools/ev
 | `sources.json` | 原音のパス・切り出し範囲・母音開始の推定位置・出力時刻 |
 
 原音の時刻は元WAVの先頭から測ります。出力時刻は先行発声の余白を含む合成WAVの先頭から測ります。これらの音声にはボイスバンクの原音が含まれます。共有する場合は音源の利用条件に従ってください。
-
-### 単語境界のフェードを比較する
-
-`--word-boundary-envelope`はCPU版WORLDで単語境界付近のフェード時間を半分にする比較用オプションです。5 ms以下のフェード: 変更なし。原音・切り出し範囲・音の配置・目標ピッチ: 維持。調整対象: 音量の立ち上がりと減衰。境界付近で複数の音が強く重なる場合は自然さと音量を聴取評価します。
-
-`english-word-boundary-v1.json`と`chinese-word-boundary-v1.json`でフラグの有無を比較できます。`--measure-pitch`で目標F0の一致を確認できます。Planのunitにある`boundary_envelope`は変更前後のフェード時間です。境界はfrontendの`WordIndex`に従います。中国語の自動分割: 言語学的な単語境界の推定値。休止をまたぐ箇所: 変更なし。
-
-### 英語の語末子音と次の母音を調べる
-
-`english-cup-v1.json`はcup単体・cup of・Another cup of coffee.の比較です。ofの強勢ありとなしを読みで指定しています。無強勢化は原音候補に加えて規則による時間配分と抑揚にも影響します。弱母音の原音選択: Planで確認します。
-
-### 英語の語末子音の再生範囲を確認する
-
-CPU版WORLDではDelta・VCCV英語音源の必須語末子音について先行発声より後ろの原音を実際の再生終了までに収めます。固定部が長い原音で子音の後半より前に再生が終わる問題を補正します。元のoto値と音節長は変えません。補正は通常の合成で有効です。
-
-実行構成: 新しい本体とWORLDブリッジ。`english-cup-v1.json`を`--mora-ms 160`・`200`・`240`で比較できます。語末unitの`coda_phones`が必須の語末子音を示し`speech_retime_applied`で補正の適用を確認できます。対象外: 任意のリリース、次の語頭だけを補う接続。原音の後半には無音も含まれるため破裂部分が短くなる場合があります。
-
-`english-coda-coverage-v1.json`は破裂音・摩擦音・鼻音・子音群と短文の20ケースです。`--phonemizer en-delta`または`en-vccv`で音源に合わせます。次の原音が必須語末子音の再生時間を10 ms未満まで削る場合は重なりを抑えます。この調整はCPU版WORLDに限定しています。音源に含まれない音: 生成対象外。音源や文章による聞き取りやすさ: 個別評価。
 
 ## 合成速度を比較する
 

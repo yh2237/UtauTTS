@@ -72,8 +72,75 @@ func TestUniformPythonParity(t *testing.T) {
 	}
 }
 
-func TestRequiresExplicitReadingMismatch(t *testing.T) {
-	if _, _, e := run("unused", "out/unused.jsonl", 0, false, openjtalk.Config{}); e == nil {
-		t.Fatal("missing G2P validation was silently accepted")
+func TestStrictG2PProvenance(t *testing.T) {
+	if samePhones("m i z u", "m i z o") {
+		t.Fatal("mismatched phones accepted")
+	}
+	if !samePhones("m i z U q a:", "m i z u cl a a") {
+		t.Fatal("Python normalization differs")
+	}
+	raw, e := os.ReadFile("../../../out/training-cleanup/jsut-phones-py.jsonl")
+	if e != nil {
+		t.Skip("optional phonemic JSUT fixture absent")
+	}
+	cfg := openjtalk.Config{HelperPath: "../../../tools/openjtalk-feature-bridge/bin/utautts-openjtalk-features.exe", DictionaryPath: "../../../.tmp-openjtalk/pyopenjtalk/open_jtalk_dic_utf_8-1.11"}
+	for _, line := range bytes.Split(raw, []byte{'\n'}) {
+		if len(line) == 0 {
+			continue
+		}
+		var row struct {
+			Text   string `json:"text"`
+			Phones string `json:"openjtalk_phones"`
+		}
+		if e = json.Unmarshal(line, &row); e != nil {
+			t.Fatal(e)
+		}
+		a, e := openjtalk.Analyze(row.Text, cfg)
+		if e != nil {
+			t.Fatal(e)
+		}
+		got, e := phonesFor(a)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if !samePhones(got, row.Phones) {
+			t.Fatalf("phone provenance differs for %q: %q vs %q", row.Text, got, row.Phones)
+		}
+	}
+}
+
+func TestHundredJSUTPhoneParity(t *testing.T) {
+	raw, e := os.ReadFile("../../../out/training-cleanup/jsut-100-py.jsonl")
+	if e != nil {
+		t.Skip("optional 100-utterance JSUT fixture absent")
+	}
+	cfg := openjtalk.Config{HelperPath: "../../../tools/openjtalk-feature-bridge/bin/utautts-openjtalk-features.exe", DictionaryPath: "../../../.tmp-openjtalk/pyopenjtalk/open_jtalk_dic_utf_8-1.11"}
+	count := 0
+	for _, line := range bytes.Split(raw, []byte{'\n'}) {
+		if len(line) == 0 {
+			continue
+		}
+		var row struct {
+			Text   string `json:"text"`
+			Phones string `json:"openjtalk_phones"`
+		}
+		if e = json.Unmarshal(line, &row); e != nil {
+			t.Fatal(e)
+		}
+		a, e := openjtalk.Analyze(row.Text, cfg)
+		if e != nil {
+			t.Fatal(e)
+		}
+		got, e := phonesFor(a)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if !samePhones(got, row.Phones) {
+			t.Fatalf("phones differ for %q", row.Text)
+		}
+		count++
+	}
+	if count != 100 {
+		t.Fatalf("checked %d utterances, want 100", count)
 	}
 }
