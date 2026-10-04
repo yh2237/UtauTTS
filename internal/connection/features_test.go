@@ -199,22 +199,3 @@ func TestHandcraftedScorePenalizesSpectralTiltDelta(t *testing.T) {
 	}
 }
 
-func TestLegacyJoinCostIgnoresD1Features(t *testing.T) {
-	features := PairFeatures{
-		PreviousOutgoing:    acoustic.Frame{Valid: true, F0Hz: 220, RMSDB: -18},
-		CurrentIncoming:     acoustic.Frame{Valid: true, F0Hz: 220, RMSDB: -18},
-		WaveformCorrelation: 0, SpectralTiltDelta: 30,
-	}
-	previous := legacyJoinCost
-	SetLegacyJoinCost(true)
-	legacyScore := HandcraftedScore(features)
-	if forward := HandcraftedScore(PairFeatures{ForwardInSource: true, SourceAnchorDistanceMS: 100}); forward != 8 {
-		t.Fatalf("legacy forward score=%f, want 8", forward)
-	}
-	SetLegacyJoinCost(false)
-	newScore := HandcraftedScore(features)
-	SetLegacyJoinCost(previous)
-	if newScore >= legacyScore {
-		t.Fatalf("new=%f legacy=%f, want new < legacy", newScore, legacyScore)
-	}
-}

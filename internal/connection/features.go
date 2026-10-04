@@ -3,7 +3,6 @@ package connection
 
 import (
 	"math"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -39,35 +38,21 @@ type PairFeatures struct {
 	CurrentVCV bool `json:"current_vcv,omitempty"`
 }
 
-// 聴取比較用に傾斜差・相関・距離の補正を無効化し、旧スコアへ戻す。
-var legacyJoinCost = legacyJoinCostFromEnv()
-
-func legacyJoinCostFromEnv() bool {
-	value := strings.TrimSpace(os.Getenv("UTAUTTS_JOIN_COST_LEGACY"))
-	return value == "1" || strings.EqualFold(value, "true")
-}
-
-func LegacyJoinCostEnabled() bool { return legacyJoinCost }
-
-// SetLegacyJoinCostはD1特徴の無効化を切り替える。聴取A/B用で、既定は新特徴ON（false）。
-func SetLegacyJoinCost(enabled bool) { legacyJoinCost = enabled }
-
 // Extractorは複数ペアで使うWAV分析結果をキャッシュする。
 type Extractor struct {
 	mutex  sync.Mutex
 	cache  map[oto.Entry]Boundary
 	tails  map[oto.Entry]Boundary
-	model  *JoinModel
-	legacy bool
+	model *JoinModel
 }
 
 func NewExtractor() *Extractor {
-	return &Extractor{cache: map[oto.Entry]Boundary{}, legacy: legacyJoinCost}
+	return &Extractor{cache: map[oto.Entry]Boundary{}}
 }
 
 // NewExtractorWithModelは同じ境界キャッシュを保ちつつ、任意の学習済み接合補正を適用するExtractorを生成する。
 func NewExtractorWithModel(model *JoinModel) *Extractor {
-	return &Extractor{cache: map[oto.Entry]Boundary{}, model: model, legacy: legacyJoinCost}
+	return &Extractor{cache: map[oto.Entry]Boundary{}, model: model}
 }
 
 func (e *Extractor) JoinModel() *JoinModel {
@@ -217,20 +202,12 @@ func (e *Extractor) ScoreFeatures(features PairFeatures) float64 {
 	if e != nil && e.model != nil {
 		return e.model.Predict(features).Score
 	}
-	legacy := legacyJoinCost
-	if e != nil {
-		legacy = e.legacy
-	}
-	return handcraftedScore(features, legacy)
+	return HandcraftedScore(features)
 }
 
-// HandcraftedScoreは学習モデルとの比較基準となる。既定はD1の追加特徴ON。
+// HandcraftedScoreは学習モデルとの比較基準となる手作りの接続スコア。
 func HandcraftedScore(features PairFeatures) float64 {
-	return handcraftedScore(features, legacyJoinCost)
-}
-
-func handcraftedScore(features PairFeatures, legacy bool) float64 {
-	score := sourceContinuityScore(features, legacy)
+	score := sourceContinuityScore(features)
 	if !features.PreviousOutgoing.Valid || !features.CurrentIncoming.Valid {
 		return score
 	}
@@ -247,21 +224,15 @@ func handcraftedScore(features PairFeatures, legacy bool) float64 {
 	} else if features.VoicingMismatch && !features.CurrentVCV {
 		score -= 4
 	}
-	if !legacy {
-		// 波形相関は0.5を中立として±2点の控えめな補正にする。
-		score += 4 * (features.WaveformCorrelation - 0.5)
-		score -= math.Min(4, features.SpectralTiltDelta*0.15)
-	}
+	// 波形相関は0.5を中立として±2点の控えめな補正にする。
+	score += 4 * (features.WaveformCorrelation - 0.5)
+	score -= math.Min(4, features.SpectralTiltDelta*0.15)
 	return score
 }
 
-func sourceContinuityScore(features PairFeatures, legacy bool) float64 {
+func sourceContinuityScore(features PairFeatures) float64 {
 	if !features.ForwardInSource {
 		return 0
-	}
-	if legacy {
-		// Phase 2までと同じく、距離に関係なく一定の連続性ボーナス。
-		return 8
 	}
 	// 同じ録音内の前向きの境界を、アンカーが近いほど僅かに優先する。
 	// VCVやVCの連続性を壊さないよう、ボーナスは常に正の6〜9点に収める。

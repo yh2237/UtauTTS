@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"utautts/internal/atomicfile"
-	"utautts/internal/connection"
 	"utautts/internal/plugin"
 	"utautts/internal/render"
 	"utautts/internal/synth"
@@ -105,11 +104,9 @@ func run() (runErr error) {
 	repeats := flag.Int("repeat", 2, "repetitions in the same process; first and warm runs are separate (ignored with --sweep)")
 	sweep := flag.Bool("sweep", false, "sweep correction presets across the corpus; each case runs exactly once and --repeat is ignored")
 	presets := flag.String("presets", defaultPresets, "comma-separated sweep preset names (only with --sweep)")
-	joinCostLegacy := flag.Bool("join-cost-legacy", false, "disable D1 join-cost features (spectral tilt, correlation, anchor distance) for listening A/B")
 	timeout := flag.Duration("timeout", 2*time.Minute, "timeout per synthesis")
 	profileEnabled := flag.Bool("profile", false, "record host Go CPU, allocations and synthesis phases in the output directory")
 	flag.Parse()
-	connection.SetLegacyJoinCost(*joinCostLegacy)
 	if *sweep && *diagnose {
 		return fmt.Errorf("sweep and diagnose cannot be combined")
 	}
