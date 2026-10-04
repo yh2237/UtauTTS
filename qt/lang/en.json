@@ -141,6 +141,7 @@
     "settings.boundaryToneStrength": "Strength",
     "settings.stretchAdapt": "Voicebank-aware stretching",
     "settings.stretchAdaptStrength": "Strength",
+    "settings.microprosody": "Consonant microprosody",
     "settings.timingWarp": "Speech-like timing",
     "settings.pauseContext": "Context-aware pause length",
     "settings.pauseContextStrength": "Strength",

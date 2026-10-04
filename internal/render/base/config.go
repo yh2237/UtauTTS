@@ -76,6 +76,13 @@ type WorldlineProviderOptions struct {
 	E2B *bool
 	// TimingWarpは日本語の出力を、学習した読み上げの動きに合わせてモーラの中だけ時間伸縮する。nilは既定ON。
 	TimingWarp *bool `json:"timing_warp,omitempty"`
+	// Microprosodyは日本語のF0曲線へ、子音の直後の小さな上下（自然な読み上げで測った値）を足す。nilは既定ON。
+	Microprosody *bool `json:"microprosody,omitempty"`
+}
+
+// MicroprosodyEnabledは子音の前後の微細韻律が有効か。
+func (options WorldlineProviderOptions) MicroprosodyEnabled() bool {
+	return options.Microprosody == nil || *options.Microprosody
 }
 
 // TimingWarpEnabledは時間伸縮が有効か。

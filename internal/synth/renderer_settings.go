@@ -100,6 +100,15 @@ var rendererSettingSpecs = []rendererSettingSpec{
 			options.Worldline.TimingWarp = &enabled
 		},
 	},
+	{
+		// typedはWORLDのホスト制御（Worldline.Microprosody、nilは既定ON）。renderer_settingsが優先する。
+		id: "microprosody", kind: rendererSettingKindBoolean, defaultValue: render.WorldlineProviderOptions{}.MicroprosodyEnabled(),
+		typed: func(r Request) any { return r.Worldline.MicroprosodyEnabled() },
+		apply: func(value any, _ *tts.Config, options *render.ProviderOptions, _ *rendererSettingsResolution) {
+			enabled := value.(bool)
+			options.Worldline.Microprosody = &enabled
+		},
+	},
 	stringSetting("resampler", "",
 		func(r Request) any { return r.Resampler },
 		func(value string, resolution *rendererSettingsResolution) { resolution.Resampler = value }),

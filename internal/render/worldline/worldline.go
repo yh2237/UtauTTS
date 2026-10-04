@@ -219,6 +219,9 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 	for frame := range manifest.F0Curve {
 		manifest.F0Curve[frame] *= base.PitchCurveFactorAt(cfg.PitchCurve, curveStartMS+float64(frame)*frameMS)
 	}
+	if cfg.ApplyPitch && cfg.ProviderOptions.Worldline.MicroprosodyEnabled() && isJapanesePlan(synthesisPlan) {
+		applyMicroprosody(synthesisPlan, manifest.F0Curve, curveStartMS, frameMS)
+	}
 	if cfg.TargetF0 != nil {
 		*cfg.TargetF0 = base.F0Track{StartMS: curveStartMS, FrameMS: frameMS, Hz: append([]float64(nil), manifest.F0Curve...)}
 	}

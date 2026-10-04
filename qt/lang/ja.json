@@ -141,6 +141,7 @@
     "settings.boundaryToneStrength": "同 強度",
     "settings.stretchAdapt": "音源に合わせた伸縮",
     "settings.stretchAdaptStrength": "同 強度",
+    "settings.microprosody": "子音の前後の小さな音高の動き",
     "settings.timingWarp": "読み上げの動きに合わせた伸縮",
     "settings.pauseContext": "句読点の休止長を文脈化",
     "settings.pauseContextStrength": "同 強度",

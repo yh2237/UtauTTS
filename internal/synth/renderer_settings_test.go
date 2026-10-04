@@ -72,3 +72,23 @@ func TestTimingWarpSettingPrecedence(t *testing.T) {
 		t.Fatal("renderer_settings false should disable timing warp")
 	}
 }
+
+func TestMicroprosodySettingPrecedence(t *testing.T) {
+	resolve := func(request Request) bool {
+		var cfg tts.Config
+		options := render.ProviderOptions{Worldline: request.Worldline}
+		resolveRendererSettings(request, &cfg, &options)
+		return options.Worldline.MicroprosodyEnabled()
+	}
+	off := false
+	if !resolve(Request{}) {
+		t.Fatal("microprosody should default to on")
+	}
+	if resolve(Request{Worldline: render.WorldlineProviderOptions{Microprosody: &off}}) {
+		t.Fatal("typed Worldline.Microprosody=false should disable microprosody")
+	}
+	settings := map[string]json.RawMessage{"microprosody": json.RawMessage("true")}
+	if !resolve(Request{Worldline: render.WorldlineProviderOptions{Microprosody: &off}, RendererSettings: settings}) {
+		t.Fatal("renderer_settings should override the typed field")
+	}
+}
