@@ -687,7 +687,7 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg base.Config, manifest wo
 	}
 	worldline := provider.WorldlineOptions{
 		Engine: manifest.Engine, SampleRate: manifest.SampleRate, ExactLength: cfg.ProviderOptions.Worldline.ExactLength,
-		TimingWarp: timingWarpStrength(synthesisPlan, cfg),
+		TimingWarp: timingWarpJob(synthesisPlan, cfg),
 		F0Curve:    append([]float64(nil), manifest.F0Curve...),
 		Units:      make([]provider.WorldlineUnit, len(manifest.Units)),
 	}
@@ -731,12 +731,29 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg base.Config, manifest wo
 	}, nil
 }
 
-// timingWarpStrengthは、日本語の合成計画に時間伸縮を適用する強さ（無効なら0）。
-func timingWarpStrength(synthesisPlan *plan.Plan, cfg base.Config) float64 {
+// timingWarpJobは日本語の合成計画から、時間伸縮に使うモーラを作る（無効ならnil）。
+// CVVCでは子音がVC（transition）から始まるので、子音の長さはVCの長さまで含める。
+func timingWarpJob(synthesisPlan *plan.Plan, cfg base.Config) *provider.TimingWarp {
 	if synthesisPlan == nil || !cfg.ProviderOptions.Worldline.TimingWarpEnabled() || !isJapanesePlan(synthesisPlan) {
-		return 0
+		return nil
 	}
-	return 1
+	transition := map[int]float64{}
+	for _, unit := range synthesisPlan.Units {
+		if unit.Role == "transition" && !unit.Silent {
+			transition[unit.Position] = unit.DurationMS
+		}
+	}
+	warp := &provider.TimingWarp{Strength: 1, LeadingMarginMS: synthesisPlan.LeadingMarginMS}
+	for _, unit := range synthesisPlan.Units {
+		if unit.Role != "mora" || unit.Silent || unit.Mora == "" {
+			continue
+		}
+		warp.Morae = append(warp.Morae, provider.TimingWarpMora{
+			Text: unit.Mora, NoteStartMS: unit.NoteStartMS, DurationMS: unit.DurationMS,
+			ConsonantMS: math.Max(unit.EffectivePreutteranceMS, transition[unit.Position]),
+		})
+	}
+	return warp
 }
 
 func isJapanesePlan(synthesisPlan *plan.Plan) bool {

@@ -36,8 +36,8 @@ type WorldlineOptions struct {
 	Engine      string `json:"engine"`
 	SampleRate  int    `json:"sample_rate"`
 	ExactLength bool   `json:"exact_length,omitempty"`
-	// TimingWarpは時間伸縮の強さ（0は無効）。合成計画の日本語のモーラに対して適用する。
-	TimingWarp float64         `json:"timing_warp,omitempty"`
+	// TimingWarpは日本語の時間伸縮の入力。nilは無効。
+	TimingWarp *TimingWarp      `json:"timing_warp,omitempty"`
 	F0Curve    []float64       `json:"f0_curve"`
 	Units      []WorldlineUnit `json:"units"`
 }
@@ -150,4 +150,19 @@ type NeuralScore struct {
 	NoteRest          []bool  `json:"note_rest,omitempty"`
 	UsePitchPredictor bool    `json:"use_pitch_predictor,omitempty"`
 	PitchPredictorMix float32 `json:"pitch_predictor_mix,omitempty"`
+}
+
+// TimingWarpはWORLD特徴量をモーラの中だけ時間伸縮するための入力。時刻は合成計画の時間軸（ミリ秒）。
+type TimingWarp struct {
+	Strength        float64          `json:"strength"`
+	LeadingMarginMS float64          `json:"leading_margin_ms"`
+	Morae           []TimingWarpMora `json:"morae"`
+}
+
+// TimingWarpMoraは1モーラ。ConsonantMSはノートの開始より前に鳴る子音の長さ（CVVCではVCを含む）。
+type TimingWarpMora struct {
+	Text        string  `json:"text"`
+	NoteStartMS float64 `json:"note_start_ms"`
+	DurationMS  float64 `json:"duration_ms"`
+	ConsonantMS float64 `json:"consonant_ms"`
 }

@@ -1,10 +1,9 @@
 package worldrender
 
 import (
-	"encoding/json"
 	"fmt"
-	"math"
 
+	"utautts/internal/provider"
 	"utautts/internal/speechtiming"
 )
 
@@ -15,44 +14,19 @@ type timingWarp struct {
 	Morae           []speechtiming.Mora
 }
 
-// decodeTimingWarpは合成計画から、時間伸縮に使うモーラだけを読む。
-func decodeTimingWarp(planData []byte, strength float64) (*timingWarp, error) {
-	if strength <= 0 {
-		return nil, nil
+// timingWarpFromJobはjobの時間伸縮の入力を、speechtimingのモーラへ移す。
+func timingWarpFromJob(job *provider.TimingWarp) *timingWarp {
+	if job == nil || job.Strength <= 0 {
+		return nil
 	}
-	var synthesisPlan struct {
-		LeadingMarginMS float64 `json:"leading_margin_ms"`
-		Units           []struct {
-			Position                int     `json:"position"`
-			Role                    string  `json:"role"`
-			Mora                    string  `json:"mora"`
-			Silent                  bool    `json:"silent"`
-			NoteStartMS             float64 `json:"note_start_ms"`
-			DurationMS              float64 `json:"duration_ms"`
-			EffectivePreutteranceMS float64 `json:"effective_preutterance_ms"`
-		} `json:"units"`
-	}
-	if err := json.Unmarshal(planData, &synthesisPlan); err != nil {
-		return nil, fmt.Errorf("decode timing warp plan: %w", err)
-	}
-	result := &timingWarp{Strength: strength, LeadingMarginMS: synthesisPlan.LeadingMarginMS}
-	// CVVCでは子音がVC（transition）から始まるので、子音の長さはVCの長さまで含める。
-	transition := map[int]float64{}
-	for _, item := range synthesisPlan.Units {
-		if item.Role == "transition" && !item.Silent {
-			transition[item.Position] = item.DurationMS
-		}
-	}
-	for _, item := range synthesisPlan.Units {
-		if item.Role != "mora" || item.Silent || item.Mora == "" {
-			continue
-		}
+	result := &timingWarp{Strength: job.Strength, LeadingMarginMS: job.LeadingMarginMS}
+	for _, mora := range job.Morae {
 		result.Morae = append(result.Morae, speechtiming.Mora{
-			Text: item.Mora, NoteStartMS: item.NoteStartMS, DurationMS: item.DurationMS,
-			EffectivePreutteranceMS: math.Max(item.EffectivePreutteranceMS, transition[item.Position]),
+			Text: mora.Text, NoteStartMS: mora.NoteStartMS, DurationMS: mora.DurationMS,
+			EffectivePreutteranceMS: mora.ConsonantMS,
 		})
 	}
-	return result, nil
+	return result
 }
 
 // applyTimingWarpは合成直前の特徴量を、学習した読み上げの動きに合わせて時間方向だけ伸縮する。
