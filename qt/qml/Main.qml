@@ -6,6 +6,7 @@ import "MoraPositions.js" as MoraPositions
 import "QmlCore.js" as QmlCore
 import "UtteranceCore.js" as UtteranceCore
 import "HistoryCore.js" as HistoryCore
+import "IntonationLab.js" as IntonationLab
 import QtQuick.Controls
 import QtQuick.Layouts
 import UtauTTS.Platform 1.0
@@ -1693,93 +1694,28 @@ ApplicationWindow {
 
 
     function intonationLabDefaultFile() {
-        const stamp = new Date().toISOString().replace(/[-:.TZ]/g, "");
-        return window.appBackend.defaultSaveFile("intonation-lab-" + stamp + ".utautts");
+        return IntonationLab.defaultFile(window.intonationLabContext);
     }
 
     function intonationLabBaseModelPath() {
-        return "models/frame-intonation-tcn-v10.json";
+        return IntonationLab.baseModelPath();
     }
 
     function intonationLabFirstIncomplete() {
-        for (let index = 0; index < utterances.count; ++index) {
-            if (!utterances.get(index).trainingAccepted)
-                return index;
-        }
-        return -1;
+        return IntonationLab.firstIncomplete(window.intonationLabContext);
     }
 
     function prepareIntonationLabEntry(index) {
-        if (!window.intonationLab || index < 0 || index >= utterances.count)
-            return;
-        if (window.appBackend.busy || !window.metadataInitialized) {
-            window.intonationLabPendingIndex = index;
-            window.intonationLabStatus = "例文を準備しています。";
-            intonationLabPrepareTimer.restart();
-            return;
-        }
-        window.intonationLabPendingIndex = -1;
-        window.selectUtterance(index);
-        const item = window.current();
-        if (item.reading.length)
-            window.requestMissingProsodyPreview(index);
-        else
-            window.analyzeUtterance(index);
+        IntonationLab.prepareEntry(window.intonationLabContext, index);
     }
 
     function initializeIntonationLab() {
-        if (!window.intonationLab || window.intonationLabInitialized)
-            return;
-        window.intonationLabInitialized = true;
-        window.projectFile = window.intonationLabDefaultFile();
-        utterances.clear();
-        window.nextUtteranceId = 1;
-
-        try {
-            const examples = JSON.parse(window.injectedIntonationLabExamples);
-            if (!Array.isArray(examples) || !examples.length)
-                throw new Error("例文がありません。");
-            for (const example of examples) {
-                window.addUtterance(false);
-                const index = utterances.count - 1;
-                utterances.setProperty(index, "content", String(example.text || ""));
-                utterances.setProperty(index, "labEntryId", String(example.id || "entry-" + (index + 1)));
-                utterances.setProperty(index, "trainingAccepted", false);
-            }
-            window.selectedIndex = 0;
-            window.projectDirty = false;
-            window.resetHistory(false);
-            window.intonationLabStatus = "例文を準備しています。";
-            window.prepareIntonationLabEntry(0);
-        } catch (error) {
-            window.intonationLabStatus = String(error);
-        }
+        IntonationLab.initialize(window.intonationLabContext);
     }
+
     function completeIntonationLabEntry() {
-        if (!window.intonationLab || window.appBackend.busy || !utterances.count)
-            return;
-        const item = window.current();
-        if (!item || !item.reading.length)
-            return;
-        utterances.setProperty(window.selectedIndex, "trainingAccepted", true);
-        window.projectDirty = true;
-        if (!window.projectFile.toString().length)
-            window.projectFile = window.intonationLabDefaultFile();
-        if (!window.appBackend.saveProject(window.projectFile, window.projectData())) {
-            window.intonationLabStatus = "書き出しに失敗しました。";
-            return;
-        }
-        window.appBackend.rememberRecentProject(window.projectFile);
-        window.projectDirty = false;
-        const next = window.intonationLabFirstIncomplete();
-        if (next < 0) {
-            window.intonationLabStatus = "全ての例文を書き出しました。";
-            return;
-        }
-        window.intonationLabStatus = "書き出しました。次の文を準備しています。";
-        Qt.callLater(function() { window.prepareIntonationLabEntry(next); });
+        IntonationLab.completeEntry(window.intonationLabContext);
     }
-
     function projectData() {
         const savedUtterances = [];
         for (let index = 0; index < utterances.count; ++index) {
@@ -2292,6 +2228,8 @@ ApplicationWindow {
     }
 
     readonly property var menuDialogs: ({about: aboutDialog, rendererPackages: rendererPackagesDialog})
+
+    readonly property var intonationLabContext: ({window: window, utterances: utterances, prepareTimer: intonationLabPrepareTimer, qt: Qt})
 
     readonly property var historyCoreContext: ({window: window, utterances: utterances, mergeTimer: historyMergeTimer})
 

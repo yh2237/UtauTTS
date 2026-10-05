@@ -100,6 +100,7 @@ set_source_files_properties(qml/QmlCore.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY T
 set_source_files_properties(qml/UtteranceCore.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/EditorValues.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/HistoryCore.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
+set_source_files_properties(qml/IntonationLab.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 qt_add_qml_module(utautts
     URI UtauTTS
     VERSION 1.0
@@ -114,6 +115,7 @@ qt_add_qml_module(utautts
         qml/UtteranceCore.js
         qml/EditorValues.js
         qml/HistoryCore.js
+        qml/IntonationLab.js
         qml/Translator.qml
         qml/shell/AdaptiveDialogWindow.qml
         qml/shell/SettingsWindow.qml
