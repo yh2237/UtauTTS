@@ -12,6 +12,37 @@ import (
 	"utautts/internal/plan"
 )
 
+// F0AtTimeは時刻に対応する目標F0を返す。原音ピッチへ係数を掛け、境界の間は対数線形でつなぐ。
+func F0AtTime(synthesisPlan *plan.Plan, pitches, factors []float64, reference, timeMS float64) float64 {
+	if synthesisPlan == nil || len(pitches) == 0 || len(factors) == 0 {
+		return reference
+	}
+	index := 0
+	for index+1 < len(synthesisPlan.Units) && synthesisPlan.Units[index+1].NoteStartMS <= timeMS {
+		index++
+	}
+	if index >= len(pitches) {
+		index = len(pitches) - 1
+	}
+	target := func(position int) float64 {
+		value := pitches[position]
+		if value <= 0 {
+			value = reference
+		}
+		return value * factors[position]
+	}
+	value := target(index)
+	if index+1 < len(pitches) && index+1 < len(synthesisPlan.Units) {
+		left := synthesisPlan.Units[index].NoteStartMS
+		right := synthesisPlan.Units[index+1].NoteStartMS
+		if right > left {
+			progress := math.Max(0, math.Min(1, (timeMS-left)/(right-left)))
+			value = math.Exp(math.Log(value)*(1-progress) + math.Log(target(index+1))*progress)
+		}
+	}
+	return value
+}
+
 func EstimateUnitPitch(unit plan.Unit, mono *audio.PCM) (float64, error) {
 	key := unitPitchCacheKey{
 		path: unit.Source, offset: math.Float64bits(unit.OffsetMS), cutoff: math.Float64bits(unit.CutoffMS),

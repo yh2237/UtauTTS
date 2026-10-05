@@ -1,7 +1,6 @@
 package tts
 
 import (
-	"math"
 	"strings"
 
 	"utautts/internal/frontend"
@@ -36,23 +35,6 @@ func languagePhoneWeights(language string, morae []frontend.Mora) [][]float64 {
 			weights[j] = weight
 		}
 		result[i] = weights
-	}
-	return result
-}
-
-func phoneSpansFromWeights(weights []float64, duration float64) []float64 {
-	result := make([]float64, len(weights))
-	total := 0.0
-	for _, weight := range weights {
-		if weight > 0 && !math.IsNaN(weight) && !math.IsInf(weight, 0) {
-			total += weight
-		}
-	}
-	if total <= 0 {
-		return result
-	}
-	for i, weight := range weights {
-		result[i] = duration * weight / total
 	}
 	return result
 }

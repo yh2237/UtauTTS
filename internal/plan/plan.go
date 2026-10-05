@@ -312,7 +312,7 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			}
 		}
 		if mora.Pause {
-			duration, manuallySet := configuredMoraDuration(position, cfg)
+			duration, manuallySet := ConfiguredMoraDuration(position, cfg.MoraDurationsMS)
 			if !manuallySet {
 				duration = cfg.PauseDurationMS * pauseContextFactor(morae, position, cfg)
 				if prediction.DurationMS > 0 {
@@ -329,9 +329,9 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			return nil, fmt.Errorf("selection missing for mora %q at position %d", mora.Text, position)
 		}
 		result.MissingPhones = append(result.MissingPhones, selection.MissingPhones...)
-		duration, manuallySet := configuredMoraDuration(position, cfg)
+		duration, manuallySet := ConfiguredMoraDuration(position, cfg.MoraDurationsMS)
 		if !manuallySet {
-			duration = durationFor(mora, cfg.MoraDurationMS)
+			duration = DurationFor(mora, cfg.MoraDurationMS)
 			if prediction.DurationMS > 0 {
 				duration = prediction.DurationMS
 			} else if prediction.DurationFactor > 0 {
@@ -459,11 +459,7 @@ func phoneSpansForMora(mora frontend.Mora, duration float64, weights [][]float64
 	if len(weights[position]) > 0 && (sum <= 0 || math.IsNaN(sum) || math.IsInf(sum, 0)) {
 		return nil, fmt.Errorf("phone weights at position %d have no positive value", position)
 	}
-	spans := make([]float64, len(weights[position]))
-	for index, weight := range weights[position] {
-		spans[index] = duration * weight / sum
-	}
-	return spans, nil
+	return frontend.PhoneSpansFromWeights(weights[position], duration), nil
 }
 
 func applyPhoneTimingAnchor(unit *Unit, mora frontend.Mora, spans []float64) {
@@ -595,18 +591,20 @@ func transitionTarget(alias string) string {
 	return ""
 }
 
-func configuredMoraDuration(position int, cfg Config) (float64, bool) {
-	if position < 0 || position >= len(cfg.MoraDurationsMS) {
+// ConfiguredMoraDurationは手動指定のモーラ長を返す。
+func ConfiguredMoraDuration(position int, durations []float64) (float64, bool) {
+	if position < 0 || position >= len(durations) {
 		return 0, false
 	}
-	duration := cfg.MoraDurationsMS[position]
+	duration := durations[position]
 	if duration <= 0 {
 		return 0, false
 	}
 	return duration, true
 }
 
-func durationFor(mora frontend.Mora, base float64) float64 {
+// DurationForは基準モーラ長へ言語別の長さ規則を適用する。
+func DurationFor(mora frontend.Mora, base float64) float64 {
 	if mora.DurationScale > 0 {
 		return base * mora.DurationScale
 	}

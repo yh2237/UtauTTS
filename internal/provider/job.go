@@ -9,6 +9,17 @@ const (
 
 const UnitRendererJobVersion = 2
 
+// FramePeriodMSはF0曲線とWORLD解析のフレーム間隔。
+const FramePeriodMS = 10.0
+
+// SourceEndMSは切り出し範囲の終端時刻を返す。cutoffが負ならoffsetからの長さ指定。
+func SourceEndMS(sourceDurationMS, offsetMS, cutoffMS float64) float64 {
+	if cutoffMS < 0 {
+		return offsetMS - cutoffMS
+	}
+	return sourceDurationMS - cutoffMS
+}
+
 type UnitRendererJob struct {
 	Version         int                 `json:"version"`
 	Contract        string              `json:"contract"`

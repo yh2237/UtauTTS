@@ -3,9 +3,11 @@ package worldrender
 import (
 	"container/list"
 	"fmt"
+
+	"utautts/internal/provider"
 )
 
-const worldFramePeriodMS = 10.0
+const worldFramePeriodMS = provider.FramePeriodMS
 
 type worldFeatures struct {
 	Frames       int

@@ -39,7 +39,7 @@ func init() {
 	})
 }
 
-const worldlineFrameMS = 10.0
+const worldlineFrameMS = provider.FramePeriodMS
 
 type worldlineManifest struct {
 	Engine          string                  `json:"engine,omitempty"`
@@ -184,7 +184,7 @@ type worldlineTimingResult struct {
 }
 
 func prepareWorldlineTiming(synthesisPlan *plan.Plan, cfg base.Config) worldlineTimingResult {
-	phoneUnits := worldlinePhoneTimingUnits(synthesisPlan, cfg.ReleaseMS)
+	phoneUnits := base.NormalizedPhoneTimingUnits(synthesisPlan, cfg.ReleaseMS)
 	if synthesisPlan.SingleCV {
 		for index := range phoneUnits {
 			if phoneUnits[index].Silent || phoneUnits[index].Role != "mora" {
@@ -523,11 +523,8 @@ func (b worldlineUnitBuilder) sourceDurationMS(unit plan.Unit) (float64, error) 
 	if err != nil {
 		return 0, err
 	}
-	end := float64(len(mono.Data)/mono.Channels)*1000/float64(mono.SampleRate) - unit.CutoffMS
-	if unit.CutoffMS < 0 {
-		end = unit.OffsetMS - unit.CutoffMS
-	}
-	return end - unit.OffsetMS, nil
+	sourceDuration := float64(len(mono.Data)/mono.Channels) * 1000 / float64(mono.SampleRate)
+	return provider.SourceEndMS(sourceDuration, unit.OffsetMS, unit.CutoffMS) - unit.OffsetMS, nil
 }
 
 func runWorldlineBridge(synthesisPlan *plan.Plan, cfg base.Config, manifest worldlineManifest, bridge, tempDir string, started *time.Time) error {
@@ -696,36 +693,6 @@ func worldlineTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64
 	return base.NormalizePlanTiming(synthesisPlan, unit, releaseMS)
 }
 
-func worldlinePhoneTimingUnits(synthesisPlan *plan.Plan, releaseMS float64) []plan.Unit {
-	if synthesisPlan == nil {
-		return nil
-	}
-	needsCopy := synthesisPlan.SingleCV
-	if !needsCopy {
-		for _, unit := range synthesisPlan.Units {
-			if base.IsVCVUnit(unit) {
-				needsCopy = true
-				break
-			}
-		}
-	}
-	if !needsCopy {
-		return synthesisPlan.Units
-	}
-	result := append([]plan.Unit(nil), synthesisPlan.Units...)
-	for index := range result {
-		unit := result[index]
-		if unit.Silent || unit.Role != "mora" || (!synthesisPlan.SingleCV && !base.IsVCVUnit(unit)) {
-			continue
-		}
-		timing := worldlineTiming(synthesisPlan, unit, releaseMS)
-		result[index].PreutteranceMS = timing.PreutteranceMS
-		result[index].OverlapMS = timing.OverlapMS
-		result[index].ConsonantMS = timing.ConsonantMS
-	}
-	return result
-}
-
 func worldlineProviderJob(synthesisPlan *plan.Plan, cfg base.Config, manifest worldlineManifest, bridge string) (provider.UnitRendererJob, error) {
 	planData, err := json.Marshal(plan.Clone(synthesisPlan))
 	if err != nil {
@@ -882,30 +849,10 @@ func worldlineF0CurveAt(synthesisPlan *plan.Plan, pitches, factors []float64, re
 }
 
 func worldlineF0CurveAtOffset(synthesisPlan *plan.Plan, pitches, factors []float64, reference float64, length int, frameMS, startMS float64) []float64 {
-	targets := make([]float64, len(pitches))
-	for i, value := range pitches {
-		if value <= 0 {
-			value = reference
-		}
-		targets[i] = value * factors[i]
-	}
 	curve := make([]float64, length)
-	unitIndex := 0
 	for frame := range curve {
 		timeMS := startMS + float64(frame)*frameMS
-		for unitIndex+1 < len(synthesisPlan.Units) && synthesisPlan.Units[unitIndex+1].NoteStartMS <= timeMS {
-			unitIndex++
-		}
-		value := targets[unitIndex]
-		if unitIndex+1 < len(targets) {
-			left := synthesisPlan.Units[unitIndex].NoteStartMS
-			right := synthesisPlan.Units[unitIndex+1].NoteStartMS
-			if right > left {
-				progress := math.Max(0, math.Min(1, (timeMS-left)/(right-left)))
-				value = math.Exp(math.Log(targets[unitIndex])*(1-progress) + math.Log(targets[unitIndex+1])*progress)
-			}
-		}
-		curve[frame] = value
+		curve[frame] = base.F0AtTime(synthesisPlan, pitches, factors, reference, timeMS)
 	}
 	return curve
 }

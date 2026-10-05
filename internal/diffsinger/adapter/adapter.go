@@ -170,7 +170,7 @@ func diffsingerPhones(singer *diffsinger.Singer, morae []frontend.Mora, duration
 		// 話声では子音を短くしすぎると潰れる。共有重みと話声向け比率の長い方を採る。
 		consonantMS := diffsingerConsonantDuration(consonant, durations[index])
 		if index < len(weights) && len(weights[index]) == 2 {
-			if spans := phoneSpansFromWeights(weights[index], durations[index]); spans[0] > consonantMS {
+			if spans := frontend.PhoneSpansFromWeights(weights[index], durations[index]); spans[0] > consonantMS {
 				consonantMS = spans[0]
 			}
 		}
@@ -201,7 +201,7 @@ func diffsingerDictionaryDurations(mora frontend.Mora, symbols []string, duratio
 		return []float64{durationMS}
 	}
 	if len(weights) == len(symbols) {
-		return phoneSpansFromWeights(weights, durationMS)
+		return frontend.PhoneSpansFromWeights(weights, durationMS)
 	}
 	onset := diffsingerConsonantDuration(mora.Consonant, durationMS)
 	result := make([]float64, len(symbols))
@@ -217,23 +217,6 @@ func phoneWeightsAt(weights [][]float64, index int) []float64 {
 		return weights[index]
 	}
 	return nil
-}
-
-func phoneSpansFromWeights(weights []float64, duration float64) []float64 {
-	result := make([]float64, len(weights))
-	total := 0.0
-	for _, weight := range weights {
-		if weight > 0 && !math.IsNaN(weight) && !math.IsInf(weight, 0) {
-			total += weight
-		}
-	}
-	if total <= 0 {
-		return result
-	}
-	for i, weight := range weights {
-		result[i] = duration * weight / total
-	}
-	return result
 }
 
 func diffsingerConsonantDuration(consonant string, durationMS float64) float64 {

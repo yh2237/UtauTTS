@@ -14,7 +14,7 @@ func TestEnglishPhoneTimingPreservesFinalStop(t *testing.T) {
 	if len(weights) != 3 || weights[2] <= frontend.PhoneWeight("p", "coda") {
 		t.Fatalf("English phone weights = %v", weights)
 	}
-	spans := phoneSpansFromWeights(weights, 180)
+	spans := frontend.PhoneSpansFromWeights(weights, 180)
 	if spans[2] < 35 {
 		t.Fatalf("final p duration = %.1f ms, want at least 35 ms", spans[2])
 	}

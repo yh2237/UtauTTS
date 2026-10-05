@@ -35,7 +35,7 @@ func pauseContextFactor(morae []frontend.Mora, position int, cfg Config) float64
 		kind = morae[position].PauseKind
 	}
 	factor := pauseKindFactor(kind)
-	if isUtteranceFinalPause(morae, position) {
+	if IsUtteranceFinalMora(morae, position) {
 		factor *= pauseContextFinalFactor
 	}
 	factor = 1 + (factor-1)*strength
@@ -57,7 +57,8 @@ func pauseKindFactor(kind string) float64 {
 	}
 }
 
-func isUtteranceFinalPause(morae []frontend.Mora, position int) bool {
+// IsUtteranceFinalMoraは指定位置より後ろが休止だけかを返す。
+func IsUtteranceFinalMora(morae []frontend.Mora, position int) bool {
 	for index := position + 1; index < len(morae); index++ {
 		if !morae[index].Pause {
 			return false

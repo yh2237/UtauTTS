@@ -7,6 +7,7 @@ import (
 	"utautts/internal/plan"
 	"utautts/internal/provider"
 	"utautts/internal/render/base"
+	"utautts/internal/speechwindow"
 	"utautts/internal/voicebank"
 )
 
@@ -116,7 +117,7 @@ func placeSourceSpan(p *plan.Plan, index int, item worldlineManifestUnit, span b
 			profile := bank.CalibrateSpeech(e)
 			pos, dur, score = profile.TransientMS, profile.TransientDurationMS, profile.TransientConfidence
 		}
-		if score >= .65 && score > bestScore && pos-4 > span.CoreStartMS && pos+math.Max(10, math.Min(24, dur+6)) < span.CoreEndMS {
+		if score >= .65 && score > bestScore && pos-speechwindow.TransientLeadMS > span.CoreStartMS && pos+speechwindow.TransientTailMS(dur, 10) < span.CoreEndMS {
 			bestScore = score
 			transient = pos
 			transientDuration = dur
@@ -131,7 +132,7 @@ func placeSourceSpan(p *plan.Plan, index int, item worldlineManifestUnit, span b
 			item.Speech.SourceTransientMS = transient
 			item.Speech.SourceTransientDurationMS = transientDuration
 			u.CodaReleaseSeparated = true
-			u.CodaReleaseMS = math.Max(10, math.Min(24, transientDuration+6)) + 4
+			u.CodaReleaseMS = speechwindow.TransientTailMS(transientDuration, 10) + speechwindow.TransientLeadMS
 			u.CodaClosureMS = math.Max(0, u.DurationMS-u.CodaReleaseMS)
 		}
 	}

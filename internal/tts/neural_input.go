@@ -57,26 +57,12 @@ func neuralPitchCurve(cfg Config, reading string, preview *ProsodyPreview, morae
 		timings[i] = prosody.MoraTiming{StartMS: cursor, DurationMS: duration}
 		cursor += duration
 	}
-	manual := cfg.ManualPitch
-	if manual == nil && cfg.ManualPitchPath != "" {
-		loaded, err := prosody.LoadManualPitch(cfg.ManualPitchPath)
-		if err != nil {
-			return nil, err
-		}
-		manual = loaded
+	manualContour, manualMode, err := resolveManualPitchCurve(cfg, reading, morae, timings, cursor)
+	if err != nil {
+		return nil, err
 	}
-	if manual != nil {
-		if err := manual.Validate(); err != nil {
-			return nil, err
-		}
-		if manual.Reading != "" && manual.Reading != reading {
-			return nil, fmt.Errorf("manual pitch reading does not match synthesis reading")
-		}
-		contour, err := manual.Curve(morae, timings, cursor)
-		if err != nil {
-			return nil, err
-		}
-		curve = mergeManualPitchCurve(curve, constrainManualPitchContour(contour), manual.Mode)
+	if manualContour != nil {
+		curve = mergeManualPitchCurve(curve, manualContour, manualMode)
 	}
 	return curve, nil
 }

@@ -1,6 +1,9 @@
 package frontend
 
-import "strings"
+import (
+	"math"
+	"strings"
+)
 
 func englishSyllablePhones(s englishSyllable) []Phone {
 	var phones []Phone
@@ -34,20 +37,31 @@ func PhoneWeight(symbol, role string) float64 {
 }
 
 func PhoneSpans(phones []Phone, duration float64) []float64 {
-	spans := make([]float64, len(phones))
+	weights := make([]float64, len(phones))
 	rhymeShares := MandarinRhymeShares(phones)
-	sum := 0.0
 	for i, p := range phones {
-		spans[i] = PhoneWeight(p.Symbol, p.Role)
+		weights[i] = PhoneWeight(p.Symbol, p.Role)
 		if rhymeShares[i] > 0 {
-			spans[i] = rhymeShares[i]
+			weights[i] = rhymeShares[i]
 		}
-		sum += spans[i]
 	}
-	if sum > 0 {
-		for i := range spans {
-			spans[i] *= duration / sum
+	return PhoneSpansFromWeights(weights, duration)
+}
+
+// PhoneSpansFromWeightsは正の重みだけを合計して時間へ按分する。無効値は0として扱う。
+func PhoneSpansFromWeights(weights []float64, duration float64) []float64 {
+	spans := make([]float64, len(weights))
+	total := 0.0
+	for _, weight := range weights {
+		if weight > 0 && !math.IsNaN(weight) && !math.IsInf(weight, 0) {
+			total += weight
 		}
+	}
+	if total <= 0 {
+		return spans
+	}
+	for i, weight := range weights {
+		spans[i] = duration * weight / total
 	}
 	return spans
 }

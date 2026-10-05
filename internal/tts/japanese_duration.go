@@ -2,7 +2,9 @@ package tts
 
 import (
 	"strings"
+
 	"utautts/internal/frontend"
+	"utautts/internal/plan"
 	"utautts/internal/prosody"
 )
 
@@ -38,7 +40,7 @@ func japaneseContextDurationFactors(morae []frontend.Mora, features []prosody.Fe
 			factor *= japaneseParticleFactor
 		}
 		switch {
-		case isUtteranceFinalMora(morae, i):
+		case plan.IsUtteranceFinalMora(morae, i):
 			if question {
 				factor *= japaneseQuestionFinalFactor
 			} else {
@@ -138,15 +140,6 @@ func isPhraseFinalMora(morae []frontend.Mora, index int) bool {
 		return true
 	}
 	return morae[index+1].Pause
-}
-
-func isUtteranceFinalMora(morae []frontend.Mora, index int) bool {
-	for i := index + 1; i < len(morae); i++ {
-		if !morae[i].Pause {
-			return false
-		}
-	}
-	return true
 }
 
 func clampJapaneseContextFactor(factor float64) float64 {

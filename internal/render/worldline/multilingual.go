@@ -7,6 +7,7 @@ import (
 	"utautts/internal/plan"
 	"utautts/internal/provider"
 	"utautts/internal/render/base"
+	"utautts/internal/speechwindow"
 )
 
 func multilingualScore(p *plan.Plan) bool {
@@ -22,7 +23,7 @@ func placeSpeechUnit(p *plan.Plan, index int, item worldlineManifestUnit, source
 	transient, transientDuration, hasTransient := speechCodaTransient(p, *u, sourceDuration)
 	if hasTransient && u.SpeechProfile.ActivityConfidence >= .65 {
 		// 破裂音の後ろに余白を残し、長い末尾無音を除く。
-		activeEnd := math.Max(u.SpeechProfile.ActivityEndMS+8, transient+math.Max(10, math.Min(24, transientDuration+6))+8)
+		activeEnd := math.Max(u.SpeechProfile.ActivityEndMS+8, transient+speechwindow.TransientTailMS(transientDuration, 10)+8)
 		if activeEnd > u.PreutteranceMS+4 {
 			sourceDuration = math.Min(sourceDuration, activeEnd)
 		}
@@ -138,7 +139,7 @@ func placeSpeechUnit(p *plan.Plan, index int, item worldlineManifestUnit, source
 	if protected {
 		u.SpeechMapping = "oto-landmark-transient-v2"
 		u.CodaReleaseSeparated = true
-		u.CodaReleaseMS = math.Max(10, math.Min(24, transientDuration+6)) + 4
+		u.CodaReleaseMS = speechwindow.TransientTailMS(transientDuration, 10) + speechwindow.TransientLeadMS
 		u.CodaClosureMS = math.Max(0, u.DurationMS-u.CodaReleaseMS)
 	}
 	u.SpeechSourceAnchorsMS = nil

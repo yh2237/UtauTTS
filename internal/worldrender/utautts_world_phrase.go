@@ -332,10 +332,7 @@ func analyzeWorldUnit(engine worldEngine, item unit, samples []float64, sampleRa
 	hopSize := int(math.Round(worldFramePeriodMS * float64(sampleRate) / 1000))
 	fullFrames := len(samples)/hopSize + 1
 	startFrame := max(0, int(item.OffsetMS/worldFramePeriodMS))
-	endMS := float64(len(samples))*1000/float64(sampleRate) - item.CutoffMS
-	if item.CutoffMS < 0 {
-		endMS = item.OffsetMS - item.CutoffMS
-	}
+	endMS := provider.SourceEndMS(float64(len(samples))*1000/float64(sampleRate), item.OffsetMS, item.CutoffMS)
 	endFrame := min(fullFrames, int(math.Ceil(endMS/worldFramePeriodMS)))
 	if endFrame <= startFrame || endFrame-startFrame < 2 {
 		return worldFeatures{}, 0, fmt.Errorf("usable source region is too short")

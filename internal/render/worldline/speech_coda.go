@@ -7,6 +7,7 @@ import (
 	"utautts/internal/plan"
 	"utautts/internal/provider"
 	"utautts/internal/render/base"
+	"utautts/internal/speechwindow"
 )
 
 // 固定部の候補が弱ければ、信頼度の高い立ち上がりを保護する。
@@ -37,8 +38,8 @@ func protectSpeechTransient(anchors []provider.SpeechAnchor, position, duration 
 		return anchors, false
 	}
 	first, last := anchors[0], anchors[len(anchors)-1]
-	left := position - 4
-	right := position + math.Max(10, math.Min(24, duration+6))
+	left := position - speechwindow.TransientLeadMS
+	right := position + speechwindow.TransientTailMS(duration, 10)
 	if left <= first.SourceMS+.01 || right >= last.SourceMS-.01 || last.TargetMS-first.TargetMS <= right-left+4 {
 		return anchors, false
 	}

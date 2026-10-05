@@ -175,7 +175,7 @@ func mandarinToneCurve(morae []frontend.Mora, timings []prosody.MoraTiming, dura
 
 // 母音核が不明なら、語頭子音の合計長を使う。
 func mandarinToneWindow(mora frontend.Mora, weights []float64, durationMS float64) (float64, float64) {
-	spans := phoneSpansFromWeights(weights, durationMS)
+	spans := frontend.PhoneSpansFromWeights(weights, durationMS)
 	nucleusStart, nucleusEnd := -1, -1
 	for j, p := range mora.Phones {
 		// 鼻音韻尾も有声の韻に含め、声調が母音の途中で終わらないようにする。

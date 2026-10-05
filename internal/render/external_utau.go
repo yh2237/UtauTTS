@@ -16,6 +16,7 @@ import (
 	"utautts/internal/audio"
 	"utautts/internal/plan"
 	"utautts/internal/processutil"
+	"utautts/internal/render/base"
 )
 
 func utauPitchIntervalMS(tempo float64) float64 {
@@ -441,26 +442,7 @@ func finalizeExternalWavtoolOutput(output string) error {
 }
 
 func externalTargetF0At(synthesisPlan *plan.Plan, pitches, factors []float64, reference, timeMS float64) float64 {
-	index := 0
-	for index+1 < len(synthesisPlan.Units) && synthesisPlan.Units[index+1].NoteStartMS <= timeMS {
-		index++
-	}
-	target := func(position int) float64 {
-		value := pitches[position]
-		if value <= 0 {
-			value = reference
-		}
-		return value * factors[position]
-	}
-	value := target(index)
-	if index+1 < len(pitches) {
-		left, right := synthesisPlan.Units[index].NoteStartMS, synthesisPlan.Units[index+1].NoteStartMS
-		if right > left {
-			progress := math.Max(0, math.Min(1, (timeMS-left)/(right-left)))
-			value = math.Exp(math.Log(value)*(1-progress) + math.Log(target(index+1))*progress)
-		}
-	}
-	return value
+	return base.F0AtTime(synthesisPlan, pitches, factors, reference, timeMS)
 }
 
 func externalEnvelopeGain(sample, sampleRate int, skipMS float64, points []worldlineEnvelopePoint) float64 {

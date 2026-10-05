@@ -41,28 +41,39 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 		pitchCurve = profile.ApplyBoundaryTone(cfg, pitchCurve, finalPhraseEndMS(morae, curveTimings), finalPhraseIsQuestion(cfg.Text))
 	}
 	automaticPitchCurve := pitchCurve
-	manualPitch := cfg.ManualPitch
-	if manualPitch == nil && cfg.ManualPitchPath != "" {
-		var err error
-		manualPitch, err = prosody.LoadManualPitch(cfg.ManualPitchPath)
-		if err != nil {
-			return synthesisPitch{}, fmt.Errorf("load manual pitch: %w", err)
-		}
+	manualContour, manualMode, err := resolveManualPitchCurve(cfg, reading, morae, curveTimings, curveDurationMS)
+	if err != nil {
+		return synthesisPitch{}, err
 	}
-	if manualPitch != nil {
-		if err := manualPitch.Validate(); err != nil {
-			return synthesisPitch{}, fmt.Errorf("validate manual pitch: %w", err)
-		}
-		if manualPitch.Reading != "" && manualPitch.Reading != reading {
-			return synthesisPitch{}, fmt.Errorf("manual pitch reading does not match synthesis reading")
-		}
-		timings := moraTimings(morae, synthesisPlan)
-		manualContour, curveErr := manualPitch.Curve(morae, timings, synthesisPlan.DurationMS+cfg.ReleaseMS)
-		if curveErr != nil {
-			return synthesisPitch{}, fmt.Errorf("build manual pitch curve: %w", curveErr)
-		}
-		pitchCurve = mergeManualPitchCurve(pitchCurve, constrainManualPitchContour(manualContour), manualPitch.Mode)
+	if manualContour != nil {
+		pitchCurve = mergeManualPitchCurve(pitchCurve, manualContour, manualMode)
 	}
 	intonationStrength := rendererIntonationStrength(cfg, automaticPitchCurve)
 	return synthesisPitch{Curve: pitchCurve, Automatic: automaticPitchCurve, Apply: applyPitch, RendererStrength: intonationStrength}, nil
+}
+
+// resolveManualPitchCurveは手動ピッチを読み込み、検証して制限済みの補正曲線を返す。
+func resolveManualPitchCurve(cfg Config, reading string, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*prosody.PitchContour, string, error) {
+	manual := cfg.ManualPitch
+	if manual == nil && cfg.ManualPitchPath != "" {
+		loaded, err := prosody.LoadManualPitch(cfg.ManualPitchPath)
+		if err != nil {
+			return nil, "", fmt.Errorf("load manual pitch: %w", err)
+		}
+		manual = loaded
+	}
+	if manual == nil {
+		return nil, "", nil
+	}
+	if err := manual.Validate(); err != nil {
+		return nil, "", fmt.Errorf("validate manual pitch: %w", err)
+	}
+	if manual.Reading != "" && manual.Reading != reading {
+		return nil, "", fmt.Errorf("manual pitch reading does not match synthesis reading")
+	}
+	contour, err := manual.Curve(morae, timings, durationMS)
+	if err != nil {
+		return nil, "", fmt.Errorf("build manual pitch curve: %w", err)
+	}
+	return constrainManualPitchContour(contour), manual.Mode, nil
 }

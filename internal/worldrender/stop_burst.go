@@ -1,6 +1,10 @@
 package worldrender
 
-import "math"
+import (
+	"math"
+
+	"utautts/internal/speechwindow"
+)
 
 type protectedStopSource struct {
 	sampleRate int
@@ -100,10 +104,7 @@ func mixProtectedStopBursts(input manifest, prepared []preparedWorldUnit, wave [
 }
 
 func stopTransientPostMS(durationMS, fallback float64) float64 {
-	if durationMS <= 0 || math.IsNaN(durationMS) || math.IsInf(durationMS, 0) {
-		return fallback
-	}
-	return math.Max(10, math.Min(24, durationMS+6))
+	return speechwindow.TransientTailMS(durationMS, fallback)
 }
 
 func stopBurstOnsets(item unit, sourceBaseMS, sourceAnchorMS, targetAnchorMS float64) (float64, float64) {

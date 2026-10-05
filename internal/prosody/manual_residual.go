@@ -69,25 +69,9 @@ func (m *MoraPitchResidualModel) predict(morae []frontend.Mora, frames []Feature
 			state[position][output] = math.Tanh(state[position][output])
 		}
 	}
-	for _, layer := range m.Layers {
-		next := make([][]float64, len(state))
-		for position := range state {
-			next[position] = make([]float64, hidden)
-			for output := 0; output < hidden; output++ {
-				value := state[position][output] + layer.Bias[output]
-				for input := 0; input < hidden; input++ {
-					for kernel := 0; kernel < 3; kernel++ {
-						source := position + (kernel-1)*layer.Dilation
-						if source >= 0 && source < len(state) && phraseIDs[source] == phraseIDs[position] {
-							value += layer.Weights[output][input][kernel] * state[source][input]
-						}
-					}
-				}
-				next[position][output] = math.Tanh(value)
-			}
-		}
-		state = next
-	}
+	state = tcnForward(state, m.Layers, func(source, position int) bool {
+		return phraseIDs[source] == phraseIDs[position]
+	})
 	result := make([]float64, len(morae))
 	for position := range result {
 		if morae[position].Pause {
