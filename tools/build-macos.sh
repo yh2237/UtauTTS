@@ -146,10 +146,10 @@ cp -R "${root_dir}/renderer/." "${server_dir}/renderer/"
 for package_dir in "${gui_dir}" "${server_dir}"; do
   rm -rf \
     "${package_dir}/renderer/diffsinger"
-  "${python_command}" "${root_dir}/tools/copy-model-license-notices.py" \
+  (cd "${root_dir}" && "${go_command}" run ./cmd/tools/copy-model-license-notices \
     --models "${package_dir}/models" \
     --repository-root "${root_dir}" \
-    --package-root "${package_dir}"
+    --package-root "${package_dir}")
 done
 
 echo '=== Voicebanks ==='
@@ -213,8 +213,8 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
   if [[ "${package_dir}" == "${gui_dir}" ]]; then
     qt_audit_root="${root_dir}/build/license-audit/Qt/macos"
     bash "${root_dir}/tools/collect-macos-qt-licenses.sh" "${package_dir}" "${app_path}" "${qt_root}" "${qt_audit_root}"
-    "${python_command}" "${root_dir}/tools/verify-qt-sbom.py" \
-      --package-root "${package_dir}" --sbom-root "${qt_audit_root}"
+    (cd "${root_dir}" && "${go_command}" run ./cmd/tools/verify-qt-sbom \
+      --package-root "${package_dir}" --sbom-root "${qt_audit_root}")
   fi
 
   python_license="$("${python_command}" - <<'PY'

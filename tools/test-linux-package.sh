@@ -8,6 +8,7 @@ utautts_load_linux_env "${root_dir}"
 utautts_configure_qt_environment
 
 python_command="$(utautts_resolve_python "${root_dir}" || true)"
+go_command="$(utautts_resolve_go "${root_dir}" || true)"
 release_root="${1:-${root_dir}/release}"
 gui_zip="${release_root}/UtauTTS-linux-x64.zip"
 server_zip="${release_root}/UtauTTS-Server-linux-x64.zip"
@@ -51,6 +52,7 @@ for command_name in curl fc-list timeout unzip readelf; do
   command -v "${command_name}" >/dev/null 2>&1 || fail "${command_name} is required"
 done
 [ -n "${python_command}" ] || fail 'python3 is required'
+[ -n "${go_command}" ] || fail 'go is required'
 japanese_fonts="$(fc-list :lang=ja 2>/dev/null)"
 [ -n "${japanese_fonts}" ] || fail 'a Japanese font is required; install fonts-noto-cjk'
 for archive in "${gui_zip}" "${server_zip}"; do
@@ -154,10 +156,10 @@ actual_voicebank_sha256="$(sha256sum "${voice_archive}" | awk '{print toupper($1
 [[ "${actual_voicebank_sha256}" == "${expected_voicebank_sha256}" ]] \
   || fail "source voicebank hash mismatch: expected ${expected_voicebank_sha256}, got ${actual_voicebank_sha256}"
 for package_root in "${gui_root}" "${server_root}"; do
-  "${python_command}" "${root_dir}/tools/copy-model-license-notices.py" \
+  (cd "${root_dir}" && "${go_command}" run ./cmd/tools/copy-model-license-notices \
     --models "${package_root}/models" \
     --package-root "${package_root}" \
-    --check-only \
+    --check-only) \
     || fail "packaged model license metadata is invalid: ${package_root}"
   cmp -s "${root_dir}/LICENSE-SCOPE.md" "${package_root}/LICENSE-SCOPE.md" \
     || fail "package contains a stale LICENSE-SCOPE.md: ${package_root}"

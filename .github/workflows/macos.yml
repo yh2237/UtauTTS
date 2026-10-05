@@ -26,11 +26,9 @@ on:
       - 'tools/collect-go-licenses.sh'
       - 'tools/collect-macos-qt-licenses.sh'
       - 'tools/collect-pyinstaller-runtime-licenses.py'
-      - 'tools/verify-qt-sbom.py'
       - 'tools/build-openjtalk-feature-bridge-macos.sh'
       - 'tools/build-world-engine-macos.sh'
       - 'tools/test-macos-package.sh'
-      - 'tools/copy-model-license-notices.py'
       - 'go.mod'
       - 'go.sum'
   push:
@@ -58,11 +56,9 @@ on:
       - 'tools/collect-go-licenses.sh'
       - 'tools/collect-macos-qt-licenses.sh'
       - 'tools/collect-pyinstaller-runtime-licenses.py'
-      - 'tools/verify-qt-sbom.py'
       - 'tools/build-openjtalk-feature-bridge-macos.sh'
       - 'tools/build-world-engine-macos.sh'
       - 'tools/test-macos-package.sh'
-      - 'tools/copy-model-license-notices.py'
       - 'go.mod'
       - 'go.sum'
 

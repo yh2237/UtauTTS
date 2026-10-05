@@ -12,4 +12,4 @@ Revision: `74790861f652b15e4ac49015a90074ad62a27690`
 
 利用条件は[LICENSE](LICENSE)と配布物の`licenses/Go/CMUDICT-LICENSE.txt`を参照してください。
 
-更新時はCMUdictのリポジトリを取得して使用するrevisionへ切り替えます。UtauTTSのルートから`python tools/import-cmudict.py <checkout>`を実行してください。`<checkout>`はCMUdictの作業ディレクトリです。辞書とライセンスに加えてこの出典情報も更新します。
+更新時はCMUdictのリポジトリを取得して使用するrevisionへ切り替えます。UtauTTSのルートから`go run ./cmd/tools/import-cmudict <checkout>`を実行してください。`<checkout>`はCMUdictの作業ディレクトリです。辞書とライセンスに加えてこの出典情報も更新します。

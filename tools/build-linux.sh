@@ -175,10 +175,10 @@ done
 
 echo '=== Model license notices ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
-  "${python_command}" "${root_dir}/tools/copy-model-license-notices.py" \
+  (cd "${root_dir}" && "${go_command}" run ./cmd/tools/copy-model-license-notices \
     --models "${root_dir}/models" \
     --repository-root "${root_dir}" \
-    --package-root "${package_dir}"
+    --package-root "${package_dir}")
 done
 
 echo '=== Models and renderers ==='

@@ -6,6 +6,7 @@ release_root="${1:-${root_dir}/release}"
 gui_zip="${release_root}/UtauTTS-mac-arm64.zip"
 server_zip="${release_root}/UtauTTS-Server-mac-arm64.zip"
 python_command="${PYTHON:-python3}"
+go_command="${GO_BIN:-go}"
 temporary_root="$(mktemp -d -t utautts-macos-release-test.XXXXXX)"
 server_pid=""
 
@@ -27,7 +28,7 @@ file_size() {
   wc -c < "$1" | tr -d ' '
 }
 
-for command_name in unzip curl "${python_command}"; do
+for command_name in unzip curl "${python_command}" "${go_command}"; do
   command -v "${command_name}" >/dev/null 2>&1 || fail "${command_name} is required"
 done
 for archive in "${gui_zip}" "${server_zip}"; do
@@ -137,10 +138,10 @@ actual_voicebank_sha256="$(shasum -a 256 "${voice_archive}" | awk '{print touppe
 [[ "${actual_voicebank_sha256}" == "${expected_voicebank_sha256}" ]] \
   || fail "source voicebank hash mismatch: expected ${expected_voicebank_sha256}, got ${actual_voicebank_sha256}"
 for package_root in "${gui_root}" "${server_root}"; do
-  "${python_command}" "${root_dir}/tools/copy-model-license-notices.py" \
+  (cd "${root_dir}" && "${go_command}" run ./cmd/tools/copy-model-license-notices \
     --models "${package_root}/models" \
     --package-root "${package_root}" \
-    --check-only \
+    --check-only) \
     || fail "packaged model license metadata is invalid: ${package_root}"
   cmp -s "${root_dir}/LICENSE-SCOPE.md" "${package_root}/LICENSE-SCOPE.md" \
     || fail "package contains a stale LICENSE-SCOPE.md: ${package_root}"

@@ -225,8 +225,8 @@ try {
     Copy-Item -LiteralPath $modelReadmePath -Destination $guiModelsPath
     Copy-Item -LiteralPath $modelReadmePath -Destination $serverModelsPath
     foreach ($packagePath in @($guiPath, $serverPath)) {
-        Invoke-Checked $pythonCommand @(
-            (Join-Path $root 'tools/copy-model-license-notices.py'),
+        Invoke-Checked 'go' @(
+            'run', './cmd/tools/copy-model-license-notices',
             '--models', (Join-Path $packagePath 'models'),
             '--repository-root', $root,
             '--package-root', $packagePath
@@ -268,8 +268,8 @@ try {
     $qtAuditRoot = Join-Path $root 'build/license-audit/Qt/windows'
     & (Join-Path $PSScriptRoot 'collect-third-party-licenses.ps1') -PackageRoot $guiPath -Variant windows-gui -AuditDirectory $qtAuditRoot
     if ($LASTEXITCODE -ne 0) { throw 'GUI third-party license collection failed' }
-    Invoke-Checked $pythonCommand @(
-        (Join-Path $root 'tools/verify-qt-sbom.py'),
+    Invoke-Checked 'go' @(
+        'run', './cmd/tools/verify-qt-sbom',
         '--package-root', $guiPath,
         '--sbom-root', $qtAuditRoot
     )
