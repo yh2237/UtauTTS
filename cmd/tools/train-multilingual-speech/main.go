@@ -1,4 +1,3 @@
-// train-multilingual-speech fits aligned natural-speech phone corrections.
 package main
 
 import (
@@ -181,7 +180,7 @@ func solveRidge(rows []phone, names []string, target func(phone) (float64, bool)
 			}
 		}
 	}
-	// Positive ridge makes A positive definite. Cholesky avoids a new module dependency.
+	// リッジ項で正定値になるため、コレスキー分解を使う。
 	l := make([][]float64, n)
 	for i := range l {
 		l[i] = make([]float64, n)

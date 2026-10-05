@@ -52,7 +52,6 @@ def checked_phones(phones, duration):
 
 
 def load_tool(filename):
-    """既存のCLIファイル名を保ち、共通の入口から読み込む。"""
     import importlib.util
     import sys
     path = Path(__file__).with_name(filename)
@@ -70,7 +69,7 @@ def load_tool(filename):
 
 
 def observed_source(unit, report_path):
-    """観測を変更せず、原音パスをレポート基準で解決する。"""
+    """原音パスはレポート基準。元の観測は変更しない。"""
     import copy
     result = copy.deepcopy(unit)
     result['source_clip'] = str((Path(report_path).parent / unit['source_clip']).resolve())

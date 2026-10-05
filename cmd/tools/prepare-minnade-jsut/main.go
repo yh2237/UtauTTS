@@ -1,4 +1,3 @@
-// prepare-minnade-jsut organizes the distributed basic5000 scripts and WAVs.
 package main
 
 import (

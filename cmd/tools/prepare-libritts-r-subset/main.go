@@ -1,4 +1,3 @@
-// prepare-libritts-r-subset extracts a bounded pilot corpus from LibriTTS-R.
 package main
 
 import (

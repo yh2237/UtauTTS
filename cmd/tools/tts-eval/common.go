@@ -15,7 +15,6 @@ import (
 	"utautts/internal/voicebank"
 )
 
-// caseOptionsは1ケースの合成条件。単一モードと掃引モードで共有する。
 type caseOptions struct {
 	bank, aliasPolicy, bridge string
 	model, modelFile          string
@@ -78,7 +77,7 @@ func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Re
 	return result, elapsed, err
 }
 
-// selectionPlanUnitは選択と時間だけを抜き出した比較用の単位。描画メタや測定F0を含めない。
+// 選択の比較には描画メタデータと測定F0を含めない。
 type selectionPlanUnit struct {
 	Position       int     `json:"position"`
 	Role           string  `json:"role"`
@@ -100,7 +99,6 @@ type selectionPlanUnit struct {
 	ResolvedTone   string  `json:"resolved_tone,omitempty"`
 }
 
-// selectionPlanDigestは描画メタと測定F0を除いた選択計画の指紋。同じ選択なら同じ値になる。
 func selectionPlanDigest(p *plan.Plan) string {
 	if p == nil {
 		return ""

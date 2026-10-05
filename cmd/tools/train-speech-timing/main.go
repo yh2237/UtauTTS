@@ -1,4 +1,3 @@
-// speech-timing-train trains UtauTTS's speech timing Target from an exported cache.
 package main
 
 import (

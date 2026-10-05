@@ -1,4 +1,3 @@
-// tts-evalは聴取用音声と計測結果を作る。
 package main
 
 import (
@@ -49,7 +48,6 @@ type measurement struct {
 	WAV                      string  `json:"wav,omitempty"`
 }
 
-// evalReportは単一モードと掃引モードで共有するreport.jsonのスキーマ。
 type evalReport struct {
 	MoraMS                         float64
 	Phonemizer                     string
@@ -180,7 +178,6 @@ func run() (runErr error) {
 	if *modelFile != "" {
 		prosodyPath = *modelFile
 	}
-	// 既存の基準音声は上書きしない。
 	if err := os.MkdirAll(filepath.Dir(*out), 0755); err != nil {
 		return err
 	}
@@ -250,7 +247,7 @@ func run() (runErr error) {
 				}
 				rows = append(rows, row)
 				fmt.Printf("%s %s #%d: %.0f ms, RTF %.3f %s\n", rendererID, p.ID, repetition, row.ElapsedMS, row.RTF, row.Error)
-				// 後続ケースが失敗しても途中結果を保存する。
+				// 失敗に備え、ケースごとに保存する。
 				report := evalReport{*moraMS, *phonemizer, *measurePitch, *worldMix, *worldGapRepair, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, buildInfo, rows}
 				encoded, err := json.MarshalIndent(report, "", "  ")
 				if err != nil {

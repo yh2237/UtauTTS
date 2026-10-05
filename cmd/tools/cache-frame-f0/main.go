@@ -1,4 +1,3 @@
-// cache-frame-f0 precomputes the Python trainer's WORLD Harvest F0 cache.
 package main
 
 import (

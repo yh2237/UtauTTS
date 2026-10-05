@@ -105,7 +105,7 @@ def is_auxiliary_after_te(previous, node):
 
 
 def is_accented_sahen_verb(previous, node):
-    """句頭の「する」の句に核がある場合だけ真。nodeのaccは句全体の核（補助動詞をつないだ後の値）。"""
+    """accは補助動詞を連結した後の句全体の核。"""
     return (
         previous.get("pos") == "名詞"
         and previous.get("pos_group1") == "サ変接続"
@@ -132,13 +132,9 @@ def _chain_phrases(nodes, joins):
 
 
 def chain_accent_phrases(nodes):
-    """Open JTalkが切りすぎる句を前の句へつなぐ。
-
-    - テ形の後の補助動詞（動詞・非自立）: 「降って/きた」→ フ＼ッテキタ、「遊んで/きた」→ アソンデキ＼タ。
-    - サ変名詞の後の「する」: 句頭の下がりを入れずに「運転していま＼す」と1句にする。
-      するの句が平板（「服従/するより」）なら、長い平板句で単調になるためつながない。
-    前の句に核があれば後ろの核を消し、前が平板なら後ろの核を句内の位置へずらして残す。
-    サ変はするの句の核で判断するため、補助動詞をつないだ後に処理する（して/います → していま＼す）。
+    """分けすぎた補助動詞・サ変の句をつなぐ。
+    前句に核があれば後句の核を消し、なければ後句の核を残す。
+    サ変の判定には連結後の核が必要なため、最後に処理する。
     """
     nodes = [dict(node) for node in nodes]
     _chain_phrases(nodes, is_auxiliary_after_te)
@@ -164,10 +160,7 @@ def takes_accent_before_topic(previous):
 
 
 def accent_before_topic_particles(nodes):
-    """平板の句で格助詞・接続助詞「て」の後に係助詞「は・も」が続くとき、直前の助詞へ核を置く。
-
-    東京式では平板の語に「には」「ても」が付くと「せーしつに＼わ」「あそんで＼も」となる。
-    """
+    """平板句の「には」「ても」などは、係助詞の直前に核を置く。"""
     head, length = None, 0
     for index, node in enumerate(nodes):
         if int(node.get("mora_size", 0)) == 0 or node.get("string") in PUNCTUATION:

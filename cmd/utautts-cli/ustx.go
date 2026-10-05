@@ -9,7 +9,6 @@ import (
 	"utautts/internal/tts"
 )
 
-// ustxFrameCurvesはUSTX出力用の10msピッチ輪郭を再計算する。
 func ustxFrameCurves(cfg tts.Config, count int) []openutau.FrameCurve {
 	curves := make([]openutau.FrameCurve, count)
 	if cfg.ProsodyModelPath == "" {
@@ -34,7 +33,6 @@ func ustxFrameCurves(cfg tts.Config, count int) []openutau.FrameCurve {
 	return curves
 }
 
-// ustxProjectFromSynthesisは合成結果からUSTX出力用の1発話プロジェクトを作る。
 func ustxProjectFromSynthesis(cfg tts.Config, p *plan.Plan, voicebankID string) *openutau.UtauTTSProject {
 	utterance := openutau.UtauTTSUtterance{
 		Text:            cfg.Text,
@@ -65,7 +63,6 @@ func ustxProjectFromSynthesis(cfg tts.Config, p *plan.Plan, voicebankID string) 
 		cents[unit.Position] = 1200 * math.Log2(factor)
 	}
 	utterance.AutomaticPitchPoints = cents
-	// プロソディ予測後の実際の配置と長さをUSTXへ反映する。
 	morae := utterance.AnalysisCache.Morae
 	durationsMS := make([]float64, len(morae))
 	positionsMS := make([]float64, len(morae))
@@ -90,7 +87,7 @@ func ustxProjectFromSynthesis(cfg tts.Config, p *plan.Plan, voicebankID string) 
 	}
 }
 
-// planMoraeは計画と同じ解析でモーラ列を復元し、長音の母音も保持する。
+// 長音の母音を保つため、計画と同じ方法で再解析する。
 func planMorae(p *plan.Plan) []openutau.UtauTTSMora {
 	morae, err := frontend.ParseKana(p.Reading)
 	if err == nil && len(morae) > 0 {

@@ -13,8 +13,7 @@ import (
 	"utautts/internal/synth"
 )
 
-// goldenSelectionDigestは固定した音源・読みに対する選択計画の指紋。
-// 原音選択や時間配分を意図的に変えた場合だけ更新する。
+// 原音選択・時間配分を意図的に変えた場合だけ更新する。
 const goldenSelectionDigest = "27e3bdd6b804802f0771254f407d36acd86eaefae2b8f5b8aa1c6dcfb67c9947"
 
 func TestSelectionPlanGolden(t *testing.T) {
@@ -61,7 +60,6 @@ func TestSelectionPlanGolden(t *testing.T) {
 	}
 }
 
-// normalizedSelectionDigestは原音パスの絶対パス差を除いて指紋を取る。
 func normalizedSelectionDigest(p *plan.Plan) string {
 	if p == nil {
 		return ""

@@ -9,8 +9,7 @@ import (
 	"utautts/internal/openjtalk"
 )
 
-// reanalyzeRecords uses the same native Open JTalk bridge as internal/openjtalk.
-// Timings and aligned vowels remain from the corpus, as in the Python trainer.
+// 再解析しても、コーパスの時刻と母音は保持する。
 func reanalyzeRecords(rows []record, cfg openjtalk.Config) ([]record, error) {
 	out := make([]record, 0, len(rows))
 	for _, row := range rows {
@@ -61,7 +60,7 @@ func applyAnalysis(row *record, a *openjtalk.Analysis) {
 			}
 		}
 	}
-	// Recover integer phrase metadata from the helper's exact sparse ratios.
+	// 比率で返るアクセント句情報を整数へ戻す。
 	start := 0
 	for start < len(row.Tokens) {
 		if row.Tokens[start].Pause {

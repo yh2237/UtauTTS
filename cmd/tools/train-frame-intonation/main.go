@@ -1,4 +1,3 @@
-// train-frame-intonation trains a frame TCN and exports UtauTTS prosody JSON.
 package main
 
 import (

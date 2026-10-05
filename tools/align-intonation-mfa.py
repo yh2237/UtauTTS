@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
-"""抑揚学習用JSONLのモーラ時刻を、Montreal Forced Aligner（MFA）の強制整列で作り直す。
+"""MFAで抑揚学習用JSONLを整列する。
 
-`go run ./cmd/tools/prepare-intonation-frame-data`で廃止した旧Viterbi整列は、アクセントの高低だけを手がかりにするため、
-多くのモーラが長さの上下限に張り付く。音素の音響モデルで整列し直したデータで学習する。
+  prepare  各モーラを1語として、MFA用コーパスと辞書を作る。
+  import   整列結果をJSONLへ戻す。
 
-  prepare  JSONLからMFA用のコーパスと辞書を作る。各モーラを1語とし、モーラごとの音素列を明示する。
-  import   MFAの整列結果（JSON）をJSONLのモーラ時刻へ戻す。
-
-モーラ区間は合成時（UTAUのノート）と同じく、母音の始まり〜次のモーラの母音の始まりにする。
-休止の直前のモーラはそのモーラの終わりまで、休止は前のモーラの終わり〜次のモーラの母音の始まり。
+区間はUTAUのノートと同じ「母音開始〜次の母音開始」。休止前はモーラ末で区切る。
 """
 
 from __future__ import annotations
@@ -38,7 +34,6 @@ def to_katakana(text: str) -> str:
 
 
 def mora_phones(mora: str, previous_vowel: str) -> list[str] | None:
-    """モーラ（ひらがな）をMFAの日本語モデルの音素列へ変換する。長音は直前の母音、促音はʔ、撥音はɴ。"""
     if mora == "ー":
         return [previous_vowel] if previous_vowel else None
     if mora == "っ":

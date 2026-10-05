@@ -1,4 +1,3 @@
-// source-span-auto builds an unverified source-phone library from selected spans.
 package main
 
 import (

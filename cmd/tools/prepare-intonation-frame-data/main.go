@@ -1,4 +1,3 @@
-// prepare-intonation-frame-data creates uniformly timed Japanese mora records.
 package main
 
 import (
@@ -121,8 +120,7 @@ func tokensFor(a *openjtalk.Analysis, start, end float64) ([]map[string]any, err
 	return tokens, nil
 }
 
-// phonesFor reconstructs the phone stream from the native Open JTalk reading.
-// The Python provenance check lowercases devoiced vowels before comparison.
+// 無声化母音も小文字に揃え、元データと比較する。
 func phonesFor(a *openjtalk.Analysis) (string, error) {
 	morae, err := frontend.ParseKana(a.Reading)
 	if err != nil {

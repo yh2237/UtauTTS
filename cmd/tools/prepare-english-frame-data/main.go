@@ -1,4 +1,3 @@
-// prepare-english-frame-data maps MFA phone intervals to UtauTTS syllables.
 package main
 
 import (

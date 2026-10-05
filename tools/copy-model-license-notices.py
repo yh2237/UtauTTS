@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-"""モデルのライセンスメタデータを検証し、参照された表記をコピーする。
-
-``license_notices`` はパッケージルート相対のPOSIXパス配列を使う。
-参照できるのはリポジトリの ``licenses/`` 配下のファイルだけ。
+"""モデルが参照するライセンス表記をコピーする。
+license_noticesはパッケージ基準のPOSIXパス。参照先はlicenses/内に限る。
 """
 
 from __future__ import annotations

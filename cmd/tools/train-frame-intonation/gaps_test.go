@@ -153,7 +153,6 @@ func TestOpenJTalkReanalysis(t *testing.T) {
 	if before.ID == "" {
 		t.Fatal("missing fixture")
 	}
-	// The helper result must remain usable by the frame feature builder.
 	f := frameFeatures(got[0], 0, got[0].Tokens[0].Start+5, got[0].Start, got[0].End)
 	if f["bias"] != 1 {
 		t.Fatalf("features=%v", f)

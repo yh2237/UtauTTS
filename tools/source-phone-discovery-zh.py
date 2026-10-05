@@ -18,7 +18,6 @@ def phones_for_unit(unit):
     canonical=[p['symbol'] for p in context]
     vowel=next(p['symbol'] for p in context if p['role']=='nucleus')
     if vowel not in VOWELS:return None
-    # 単純な音節名に一致する原音だけを対象にする。
     expected=''.join(canonical)
     alias=re.sub(r'[A-G][#b]?-?\d+$','',unit['alias']).strip('- ')
     if alias!=expected:return None

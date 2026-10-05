@@ -8,8 +8,7 @@ import (
 	"utautts/internal/atomicfile"
 )
 
-// coverageSummaryは言語ごとに音源の原音網羅性を集計する。
-// missing_phone_rateは必須音が欠けた位置の割合で、0に近いほど音源が発音を網羅している。
+// missing_phone_rateは、必須音が欠けた位置の割合。
 type coverageSummary struct {
 	Language           string         `json:"language"`
 	Cases              int            `json:"cases"`

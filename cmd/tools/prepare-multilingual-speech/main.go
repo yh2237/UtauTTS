@@ -1,4 +1,3 @@
-// prepare-multilingual-speech measures aligned natural speech against templates.
 package main
 
 import (

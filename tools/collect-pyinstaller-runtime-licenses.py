@@ -37,7 +37,6 @@ MICROSOFT_RUNTIME_PATTERNS = (
 
 
 def stdlib_native_names() -> set[str]:
-    """実行中のインタプリタが同梱するネイティブ拡張名を返す。"""
     roots: set[Path] = set()
     for key in ("platstdlib", "stdlib"):
         value = sysconfig.get_path(key)

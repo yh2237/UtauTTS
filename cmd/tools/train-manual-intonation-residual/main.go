@@ -1,4 +1,3 @@
-// train-manual-intonation-residual fits a version-11 Intonation Lab residual TCN.
 package main
 
 import (

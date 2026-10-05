@@ -156,7 +156,6 @@ def acoustic_audit(unit, language):
         return dict(status='not-aligned', training_eligible=False, warnings=[], phones=[])
     if analysis.get('periodicity_method') != 'normalized-autocorrelation-local-peak-80-500hz-v2':
         raise ValueError('regenerate source observations with local-peak periodicity v2')
-    # 整列区間を再検証し、未被覆区間を求める。
     previous, gaps = 0.0, []
     for phone in phones:
         start, end = phone['start_ms'], phone['end_ms']

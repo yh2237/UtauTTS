@@ -1,4 +1,3 @@
-// train-mandarin-intonation fits the AISHELL-3 tone residual regression.
 package main
 
 import (

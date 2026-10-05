@@ -274,7 +274,7 @@ func loadPhrases(paths []string, limit float64, cfg openjtalk.Config) ([]phrase,
 				continue
 			}
 			for q := 0; q < len(ids); q++ {
-				if ids[q] != q { /* phrase IDs need not equal indices */
+				if ids[q] != q { /* 句IDは配列位置と一致しない。 */
 				}
 			}
 			groups := map[int]*phrase{}
