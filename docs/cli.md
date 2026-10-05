@@ -90,7 +90,7 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--context-duration-strength` | `1` | 文脈連動の強度（0〜2）。0は既定1.0として扱う |
 | `--boundary-tone` | `true` | 日本語の句末境界音調（C2）を有効にする |
 | `--boundary-tone-strength` | `1` | 境界音調の強度（0〜2）。0は既定1.0として扱う |
-| `--stretch-adapt` | `true` | 音源実測に基づき日本語モーラの過度な伸縮を有界にする（C3a）。長いモーラ長（例: 200ms以上）のときのみ有効。既定の短い設定では無効（解析コスト回避） |
+| `--stretch-adapt` | `true` | 音源実測に基づき、原音より大きく伸ばす日本語モーラの母音側の伸びを有界にする（C3a）。結果が変わるのは大きな伸張が必要な長いモーラのときだけ |
 | `--stretch-adapt-strength` | `1` | 伸縮補正の強度（0〜2）。0は既定1.0として扱う |
 | `--pause-context` | `true` | 句読点の種類と発話末で休止長を変える（B5） |
 | `--pause-context-strength` | `1` | 休止長補正の強度（0〜2）。0は既定1.0として扱う |

@@ -62,7 +62,7 @@ GUI、CLI、HTTP Serverは別々の音声処理を持たず、最終的には同
 
 ### Open JTalk特徴
 
-`frame-intonation-tcn-v9-t`などのモデルは読みだけでは得られない次の特徴を使います。
+`frame-intonation-tcn-v10`などのモデルは読みだけでは得られない次の特徴を使います。
 
 - アクセント句内の位置と残り長
 - アクセント核との位置関係
@@ -108,7 +108,7 @@ path score = Σ local candidate score + Σ adjacent join score
 
 local scoreにはaliasのfallback段階、`oto.ini`値の整合性、subbankや形式の優先度が入ります。`oto.ini`値の整合性評価は言語にも依存します。英語のC+VやVCCVのように子音と母音を分けて録音する音源では、母音のoverlapがpreutteranceを超える設定が仕様であるため、慣習違反としての減点を行いません。
 
-join scoreは隣接原音のenergy、スペクトル、F0などの境界特徴と同じ録音groupかどうかを評価します。同じWAV内の前向きなanchorには加点します。加点はアンカー間の距離に依存させません。複数モーラを一つのファイルへ収録するVCVやVCの音源では、距離で加点を減らすと遷移音を選び損ねるためです。VCVのincoming側が閉鎖区間になる場合は減点を弱め、母音側の候補scoreを優先します。手設計scoreを使うViterbi探索で経路を決めます。
+join scoreは隣接原音のenergy、スペクトル、F0などの境界特徴と同じ録音groupかどうかを評価します。同じWAV内の前向きなanchorには距離が近いほど大きい6〜9点を加点し、複数モーラを一つのファイルへ収録するVCVやVCの音源でも遷移音を選び損ねないよう下限の6点を確保します。VCVのincoming側が閉鎖区間になる場合は減点を弱め、母音側の候補scoreを優先します。手設計scoreを使うViterbi探索で経路を決めます。
 
 候補が疎なUTAU音源では、境界の連続性だけを優先すると音素文脈や声質が変わることがあります。そのため候補はphonemizerと音源側の指定から音素文脈に合うものだけを作り、join scoreはその候補集合を変えずに並べ替えへ使います。同じ音素文脈の表記違い（例: 英語C+Vの文中で試す`- V`と`V`）では、前後の音響に応じて順位が入れ替わることがあります。
 

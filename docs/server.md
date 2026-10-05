@@ -251,7 +251,7 @@ ID順にソートされた音源一覧です。
 | `context_duration_strength` | number | `1` | 文脈連動の強度（0〜2）。0は既定1.0として扱う |
 | `boundary_tone` | boolean | `true` | 日本語の句末境界音調（C2）を有効にする |
 | `boundary_tone_strength` | number | `1` | 境界音調の強度（0〜2）。0は既定1.0として扱う |
-| `stretch_adapt` | boolean | `true` | 音源実測に基づき日本語モーラの過度な伸縮を有界にする（C3a）。長いモーラ長（例: 200ms以上）のときのみ有効。既定の短い設定では無効（解析コスト回避） |
+| `stretch_adapt` | boolean | `true` | 音源実測に基づき、原音より大きく伸ばす日本語モーラの母音側の伸びを有界にする（C3a）。結果が変わるのは大きな伸張が必要な長いモーラのときだけ |
 | `stretch_adapt_strength` | number | `1` | 伸縮補正の強度（0〜2）。0は既定1.0として扱う |
 | `microprosody` | boolean | `true` | `utautts-world-phrase`のみ。日本語のF0曲線へ、子音の直後の小さな音高の上下（自然な読み上げで測った値）を足す。`false`で従来と同じ音高 |
 | `timing_warp` | boolean | `true` | `utautts-world-phrase`のみ。日本語の出力を、学習した読み上げの動きに合わせてモーラの中だけ時間伸縮する（包絡・モーラの開始・長さ・音高は不変、句の最後のモーラは伸縮しない）。`false`で従来と同じ出力 |

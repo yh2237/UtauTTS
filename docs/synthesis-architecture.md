@@ -40,7 +40,7 @@ WORLDの英語・中国語では、まずotoと音響的な推定から原音の
 | 発話計画 | 句読点の休止長 | `plan/pause_context.go` | `pause_context` |
 | 発話計画 | CVVCで続く子音が長いときにVCを延ばす | `plan/plan.go`（`cvvcTransitionDuration`） | なし |
 | 発話計画 | 原音の校正（固定部・有声開始・破裂の過渡） | `voicebank/speech_profile.go` | なし |
-| 描画（本体） | 伸縮の有界化（長いモーラ長のとき） | `render/base/timing.go`（`AdaptStretchTiming`） | `stretch_adapt` |
+| 描画（本体） | 伸縮の有界化（原音より大きく伸ばすとき） | `render/base/timing.go`（`AdaptStretchTiming`） | `stretch_adapt` |
 | 描画（本体） | 単独音の母音だけのモーラを前の母音から滑らかにつなぐ | `render/worldline/singlecv_legato.go` | なし |
 | 描画（本体） | 子音の前後の小さな音高の動き | `render/worldline/microprosody.go` | `microprosody` |
 | 描画（本体） | 時間伸縮の入力（モーラ、CVVCではVCを含む子音の長さ） | `render/worldline/worldline.go`（`timingWarpJob`） | `timing_warp` |

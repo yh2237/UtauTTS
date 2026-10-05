@@ -8,11 +8,12 @@ UtauTTSのオリジナルコードは[`LICENSE`](./LICENSE)のMIT Licenseです�
 
 ## 同梱モデル
 
-同梱する日本語抑揚モデルの重みはMIT Licenseで配布します。`frame-intonation-tcn-en-v1`の重みはCC BY 4.0、`tone-intonation-zh-v1`の重みはApache License 2.0です。各モデルが参照する通知を`licenses/`へ収録し、次の通り対応させます。
+同梱する日本語の抑揚モデルと時間伸縮の目標モデルの重みはMIT Licenseで配布します。`frame-intonation-tcn-en-v1`の重みはCC BY 4.0、`tone-intonation-zh-v1`の重みはApache License 2.0です。各モデルが参照する通知を`licenses/`へ収録し、次の通り対応させます。
 
 | モデル | 通知 |
 | --- | --- |
 | `frame-intonation-tcn-v10` | `licenses/TSUKUYOMI-CORPUS.txt`, `licenses/MINNADE-JSUT-CORPUS.txt`, `licenses/MFA-Japanese-NOTICE.txt` |
+| `speech-timing-target-v1`（bridgeへ埋め込み） | `licenses/TSUKUYOMI-CORPUS.txt`, `licenses/MINNADE-JSUT-CORPUS.txt`, `licenses/MFA-Japanese-NOTICE.txt` |
 | `frame-intonation-tcn-v9.1-t` | `licenses/TSUKUYOMI-CORPUS.txt`, `licenses/MINNADE-JSUT-CORPUS.txt` |
 | `frame-intonation-tcn-v9-t` | `licenses/TSUKUYOMI-CORPUS.txt` |
 | `frame-intonation-tcn-en-v1`（CC BY 4.0） | `licenses/ENGLISH-FRAME-INTONATION-TCN-V1.txt`, `licenses/LibriTTS-R-NOTICE.txt`, `licenses/MFA-English-ARPA-NOTICE.txt`, `licenses/CC-BY-4.0.txt` |

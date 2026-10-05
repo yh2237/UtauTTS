@@ -21,7 +21,7 @@ mfa align out/mfa/corpus out/mfa/dictionary.dict japanese_mfa out/mfa/alignments
 python tools/align-intonation-mfa.py import --alignments out/mfa/alignments --out out/frame-mfa.jsonl out/frame.jsonl
 ```
 
-旧 Viterbi 整列はアクセントの高低だけを根拠に境界を選び、学習に不適切だったため削除しました。v10 の元データは `out/mfa-align-20261002/base-mfa.jsonl`（SHA-256 `12218686bb4ce92f51dca69b31df0ed850e78075fef3c2f015e8aba1ea7397a3`）です。ID の FNV-1a 分割で学習 458、検証 72、試験 70 文とし、内部 F0、10 ms フレーム、70 ms 教師平滑化、差分損失重み 0.35、AdamW 0.002、幅 32・dilation 1,2,4,8,16,32 の TCN で 24 epoch 学習しました。
+旧 Viterbi 整列はアクセントの高低だけを根拠に境界を選び、学習に不適切だったため削除しました。v10 の元データは `out/mfa-align-20261002/base-mfa.jsonl`（SHA-256 `12218686bb4ce92f51dca69b31df0ed850e78075fef3c2f015e8aba1ea7397a3`）です。ID の FNV-1a 分割で学習 458、検証 72、試験 70 文とし、内部 F0、10 ms フレーム、40 ms 教師平滑化、差分損失重み 0.35、AdamW 0.002、幅 32・dilation 1,2,4,8,16,32 の TCN で 24 epoch 学習しました。
 
 ```powershell
 go run ./cmd/tools/train-frame-intonation `

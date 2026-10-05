@@ -43,6 +43,6 @@ go run ./cmd/utautts-cli `
   --out "out/manual-pitch.wav"
 ```
 
-手動ピッチを波形へ反映するには`--apply-pitch`が必要です。手動カーブは10 ms間隔へ補間され、急激な変化は安全な範囲に抑えられます。
+手動ピッチを波形へ反映するには`--apply-pitch`が有効（既定）である必要があります。手動カーブは10 ms間隔へ補間され、急激な変化は安全な範囲に抑えられます。
 
 モーラごとの長さは、読みの順に並べた配列、または`{"mora_durations_ms": [...]}`形式のJSONを`--mora-durations`へ指定します。`mora_positions_ms`はプレビューや合成結果に含まれる出力値です。
