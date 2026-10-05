@@ -30,8 +30,7 @@ func (l *Library) Root() string {
 	return l.root
 }
 
-// Reloadはライブラリをアトミックに置き換える。ディレクトリの欠落・空は
-// アプリ起動時と同様に有効な空ライブラリとして扱う。
+// ディレクトリの欠落・空は、空ライブラリとして扱う。
 func (l *Library) Reload() error {
 	if l == nil {
 		return errors.New("voicebank library is not configured")
@@ -49,7 +48,6 @@ func (l *Library) Reload() error {
 	return nil
 }
 
-// Addはディレクトリ全体を走査せず、検査済みの音源を登録する。
 func (l *Library) Add(summary Summary) string {
 	if l == nil || summary.Path == "" {
 		return ""
@@ -64,7 +62,7 @@ func (l *Library) Add(summary Summary) string {
 	return id
 }
 
-// Resolveは明示選択された音源を返す。idが空なら安定順で先頭の項目を返す。
+// 空IDは安定順の先頭を選ぶ。
 func (l *Library) Resolve(id string) (Summary, bool) {
 	if l == nil {
 		return Summary{}, false
@@ -87,7 +85,6 @@ func (l *Library) Resolve(id string) (Summary, bool) {
 	return item, ok
 }
 
-// ListはID順の安定したスナップショットを返す。
 func (l *Library) List() []LibraryItem {
 	if l == nil {
 		return nil

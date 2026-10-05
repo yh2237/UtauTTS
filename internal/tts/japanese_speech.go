@@ -35,7 +35,6 @@ func applyJapaneseSpeechRhythm(cfg Config, model *prosody.Model, morae []fronten
 	if rendererInternalTiming(cfg.Renderer, cfg.RendererCapabilities) {
 		predictions = internalTimingSpeechRhythm(cfg, model, morae, predictions)
 	}
-	// 明示的に有効化した場合だけ文脈連動のモーラ長を適用する。
 	return applyJapaneseContextDuration(cfg, morae, features, predictions, finalPhraseIsQuestion(cfg.Text))
 }
 

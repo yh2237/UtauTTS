@@ -45,8 +45,7 @@ func neuralInputFromConfig(cfg Config) (neural.Input, error) {
 	}, nil
 }
 
-// neuralPitchCurveは自動輪郭へ手動ピッチをマージしたprovider向けのピッチ曲線を返す。
-// 先頭パディングの移動はprovider側で行う。
+// 文頭余白への移動はprovider側で行う。
 func neuralPitchCurve(cfg Config, reading string, preview *ProsodyPreview, morae []frontend.Mora) (*render.PitchCurve, error) {
 	curve := cfg.PitchCurve
 	if curve == nil {

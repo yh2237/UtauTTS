@@ -196,7 +196,6 @@ func StretchWSOLA(source []float64, targetFrames, sampleRate int) []float64 {
 	return base.StretchWSOLA(source, targetFrames, sampleRate)
 }
 
-// StretchWSOLAAnchoredは連続波形を分割せず、指定した時間写像に沿って伸縮する。
 func StretchWSOLAAnchored(source []float64, targetFrames, sampleRate int, sourceAnchors, targetAnchors []int) []float64 {
 	return base.StretchWSOLAAnchored(source, targetFrames, sampleRate, sourceAnchors, targetAnchors)
 }

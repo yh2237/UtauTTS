@@ -23,32 +23,31 @@ const (
 )
 
 type Model struct {
-	ID                   string             `json:"id,omitempty"`
-	DisplayName          string             `json:"display_name,omitempty"`
-	Description          string             `json:"description,omitempty"`
-	License              string             `json:"license,omitempty"`
-	LicenseNotices       []string           `json:"license_notices,omitempty"`
-	Language             string             `json:"language,omitempty"`
-	Provenance           *ModelProvenance   `json:"provenance,omitempty"`
-	RecommendedRenderers []string           `json:"recommended_renderers,omitempty"`
-	DefaultPriority      int                `json:"default_priority,omitempty"`
-	Version              int                `json:"version"`
-	FeatureVersion       int                `json:"feature_version"`
-	Mode                 string             `json:"mode"`
-	Outputs              map[string]bool    `json:"outputs,omitempty"`
-	DurationWeights      map[string]float64 `json:"duration_weights"`
-	PitchWeights         map[string]float64 `json:"pitch_weights,omitempty"`
-	EnergyWeights        map[string]float64 `json:"energy_weights,omitempty"`
-	// MoraDurationはモーラ長の倍率を出すマルチタスクモデルの継続時間ヘッド。
-	MoraDuration       *SequencePitchModel      `json:"mora_duration,omitempty"`
-	FramePitch         *FramePitchModel         `json:"frame_pitch,omitempty"`
-	MoraPitchResidual  *MoraPitchResidualModel  `json:"mora_pitch_residual,omitempty"`
-	EnglishIntonation  *EnglishIntonationModel  `json:"english_intonation,omitempty"`
-	MandarinIntonation *MandarinIntonationModel `json:"mandarin_intonation,omitempty"`
-	BaseModel          *BaseModelReference      `json:"base_model,omitempty"`
-	ResidualLimits     *ResidualLimits          `json:"residual_limits,omitempty"`
-	Metrics            Metrics                  `json:"metrics"`
-	Training           TrainingInfo             `json:"training"`
+	ID                   string                   `json:"id,omitempty"`
+	DisplayName          string                   `json:"display_name,omitempty"`
+	Description          string                   `json:"description,omitempty"`
+	License              string                   `json:"license,omitempty"`
+	LicenseNotices       []string                 `json:"license_notices,omitempty"`
+	Language             string                   `json:"language,omitempty"`
+	Provenance           *ModelProvenance         `json:"provenance,omitempty"`
+	RecommendedRenderers []string                 `json:"recommended_renderers,omitempty"`
+	DefaultPriority      int                      `json:"default_priority,omitempty"`
+	Version              int                      `json:"version"`
+	FeatureVersion       int                      `json:"feature_version"`
+	Mode                 string                   `json:"mode"`
+	Outputs              map[string]bool          `json:"outputs,omitempty"`
+	DurationWeights      map[string]float64       `json:"duration_weights"`
+	PitchWeights         map[string]float64       `json:"pitch_weights,omitempty"`
+	EnergyWeights        map[string]float64       `json:"energy_weights,omitempty"`
+	MoraDuration         *SequencePitchModel      `json:"mora_duration,omitempty"`
+	FramePitch           *FramePitchModel         `json:"frame_pitch,omitempty"`
+	MoraPitchResidual    *MoraPitchResidualModel  `json:"mora_pitch_residual,omitempty"`
+	EnglishIntonation    *EnglishIntonationModel  `json:"english_intonation,omitempty"`
+	MandarinIntonation   *MandarinIntonationModel `json:"mandarin_intonation,omitempty"`
+	BaseModel            *BaseModelReference      `json:"base_model,omitempty"`
+	ResidualLimits       *ResidualLimits          `json:"residual_limits,omitempty"`
+	Metrics              Metrics                  `json:"metrics"`
+	Training             TrainingInfo             `json:"training"`
 }
 
 type ModelProvenance struct {
@@ -77,11 +76,9 @@ type SequencePitchModel struct {
 	OutputBias   float64              `json:"output_bias"`
 	Low          float64              `json:"low"`
 	High         float64              `json:"high"`
-	// PhraseFinalLowは休止・文末の直前のモーラの倍率の下限。0なら使わない。
-	// 自然音声の句末の母音は短いが、原音接続ではその長さで切ると語尾が欠ける。
+	// 語尾が欠けないよう句末の長さに下限を置く。0は無効。
 	PhraseFinalLow float64 `json:"phrase_final_low,omitempty"`
-	// PhraseStartHighは文頭・休止の直後のモーラの倍率の上限。0なら使わない。
-	// 強制アラインメントでは文頭の母音に直前の無音や息が入り、長く学習されやすい。
+	// 整列で文頭に無音・息が混ざるため、長さに上限を置く。0は無効。
 	PhraseStartHigh float64 `json:"phrase_start_high,omitempty"`
 
 	validated bool
@@ -93,7 +90,6 @@ type SequencePitchLayer struct {
 	Bias     []float64     `json:"bias"`
 }
 
-// MoraPitchResidualModelはモーラごとの補正centを出力する。
 type MoraPitchResidualModel struct {
 	FeatureNames []string             `json:"feature_names"`
 	InputWeights [][]float64          `json:"input_weights"`
@@ -120,7 +116,6 @@ type FramePitchModel struct {
 	validated bool
 }
 
-// MandarinIntonationModelは既存の声調曲線に加える有界な補正を保持する。
 type MandarinIntonationModel struct {
 	FeatureNames []string    `json:"feature_names"`
 	Knots        []float64   `json:"knots"`
@@ -357,7 +352,6 @@ func LoadModel(path string) (*Model, error) {
 	return ParseModel(data)
 }
 
-// パスを経由せず、JSONからモデルを検証して読み込む。
 func ParseModel(data []byte) (*Model, error) {
 	var model Model
 	if err := json.Unmarshal(data, &model); err != nil {
@@ -478,7 +472,7 @@ func (m *Model) heads() []modelHead {
 	}
 }
 
-// SupportsLanguageはモデルの対象言語を判定する。未指定の旧モデルは日本語とする。
+// 言語未指定の旧モデルは日本語として扱う。
 func (m *Model) SupportsLanguage(language string) bool {
 	if m == nil {
 		return false
@@ -533,7 +527,6 @@ func (m *Model) PredictWithFeatures(morae []frontend.Mora, frames []FeatureFrame
 	return result
 }
 
-// RequiresExternalFeaturesはGoフロントエンドだけでは得られない入力の有無を返す。
 func (m *Model) RequiresExternalFeatures() bool {
 	if m.EnglishIntonation != nil {
 		return false
@@ -1018,7 +1011,7 @@ func englishFrameFeatures(morae []frontend.Mora, position int) map[string]float6
 	return f
 }
 
-// indexedFeatureVectorsは静的モーラ特徴を一度だけ変換し、フレームごとのmap生成を避ける。
+// 静的特徴を使い回し、フレームごとのmap生成を避ける。
 type indexedFeature struct {
 	column int
 	value  float64

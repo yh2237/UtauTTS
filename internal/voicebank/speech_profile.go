@@ -10,7 +10,6 @@ import (
 	"utautts/internal/sourceaudio"
 )
 
-// SpeechProfileはoto.ini付近の音響特徴を保持する。
 type SpeechProfile struct {
 	Version                    int     `json:"version"`
 	SourceSize                 int64   `json:"source_size"`

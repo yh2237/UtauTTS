@@ -67,8 +67,7 @@ func (state *bridgeState) close() {
 	}
 }
 
-// Rendererはジョブ単位のレンダリング状態（WORLDエンジンと特徴量キャッシュ）を保持する。
-// wasmではプロセスを介さずRenderJobを直接呼ぶ。
+// wasmではプロセスを介さず、RenderJobを直接呼ぶ。
 type Renderer struct {
 	state *bridgeState
 }
@@ -83,7 +82,6 @@ func (renderer *Renderer) Close() {
 	}
 }
 
-// RenderJobはunit-rendererジョブのJSONをその場でレンダリングしWAVを書き出す。
 func (renderer *Renderer) RenderJob(jobJSON []byte, outputPath string) ([]provider.WorldSpeechResult, error) {
 	input, err := decodeProviderJob(jobJSON, outputPath)
 	if err != nil {
@@ -139,7 +137,7 @@ func serveProvider(input io.Reader, output io.Writer, providerID string) error {
 			return nil
 		}
 		if header.Type == provider.MessageCancel {
-			// ネイティブアダプタの描画は同期処理。実行中の描画が終わらない場合、ホストはキャンセル猶予期間後にプロセスを終了する。
+			// 描画は同期処理。停止できなければホストが猶予後にプロセスを終了する。
 			continue
 		}
 		var request provider.RenderRequest

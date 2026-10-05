@@ -23,7 +23,7 @@ type Config struct {
 	CVVCTransitionGain      float64
 	CVVCPreBoundaryFade     bool
 	PitchCurve              *PitchCurve
-	// StretchAdaptは伸縮の音源適応(C3a)を有効にする。日本語のモーラだけを対象にする。
+	// 伸縮補正は日本語のモーラだけに適用する。
 	StretchAdapt bool
 	// StretchAdaptStrengthは伸縮補正の強度。0は既定1.0、負値は恒等。
 	StretchAdaptStrength float64
@@ -34,8 +34,7 @@ type ProviderOptions struct {
 	Worldline  WorldlineProviderOptions
 	DiffSinger DiffSingerOptions
 	// Goが知らないrenderer_settingsも、実装固有の値として保持する。
-	Renderer map[string]any
-	// RendererDiagnosticsはrenderer_settingsの型不一致などの非致命的な問題を記録する。
+	Renderer            map[string]any
 	RendererDiagnostics []string
 }
 
@@ -47,7 +46,6 @@ type DiffSingerOptions struct {
 	Expr        float64
 }
 
-// ClassicOptionsは外部UTAUのresampler/wavtool設定。
 type ClassicOptions struct {
 	ResamplerPath        string
 	WavtoolPath          string
@@ -60,7 +58,6 @@ type ClassicOptions struct {
 	ResamplerExpressions []ResamplerExpression
 }
 
-// WorldlineProviderOptionsはWORLD専用のホスト制御。残りのprovider入力はWORLD jobが持つ。
 type WorldlineProviderOptions struct {
 	// 原音区間ライブラリを使う。未指定は有効。
 	SourcePhoneMapping *bool `json:"source_phone_mapping,omitempty"`
@@ -69,22 +66,20 @@ type WorldlineProviderOptions struct {
 	ExactLength             bool
 	MixMode                 string
 	GapRepairMode           string
-	// E2Aは英語停止codaの閉鎖/解放分離(E2a)を有効にする。nilは既定ON。
+	// 英語の語末破裂音を閉鎖と解放に分ける。nilは有効。
 	E2A *bool
-	// E2Bは日本語破裂音の過渡音ゲート一般化(E2b)を有効にする。nilは既定ON。
+	// 日本語破裂音を保護する。nilは有効。
 	E2B *bool
-	// TimingWarpは日本語の出力を、学習した読み上げの動きに合わせてモーラの中だけ時間伸縮する。nilは既定ON。
+	// 日本語のモーラ内を学習した時間配分に合わせる。nilは有効。
 	TimingWarp *bool `json:"timing_warp,omitempty"`
-	// Microprosodyは日本語のF0曲線へ、子音の直後の小さな上下（自然な読み上げで測った値）を足す。nilは既定ON。
+	// 日本語の子音前後に微細な音高変化を足す。nilは有効。
 	Microprosody *bool `json:"microprosody,omitempty"`
 }
 
-// MicroprosodyEnabledは子音の前後の微細韻律が有効か。
 func (options WorldlineProviderOptions) MicroprosodyEnabled() bool {
 	return options.Microprosody == nil || *options.Microprosody
 }
 
-// TimingWarpEnabledは時間伸縮が有効か。
 func (options WorldlineProviderOptions) TimingWarpEnabled() bool {
 	return options.TimingWarp == nil || *options.TimingWarp
 }
@@ -118,7 +113,6 @@ func (cfg Config) ProviderID() engine.ProviderID {
 	return engine.ProviderID(cfg.Backend)
 }
 
-// ResamplerExpressionは位置ごとのresampler上書き。
 type ResamplerExpression struct {
 	Position   int      `json:"position"`
 	Velocity   *int     `json:"velocity,omitempty"`

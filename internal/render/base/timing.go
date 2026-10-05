@@ -68,7 +68,6 @@ func AdaptStretchTiming(unit plan.Unit, timing EffectiveTiming, releaseMS float6
 	if targetTail/sourceTail <= StretchAdaptMaxRatio {
 		return timing
 	}
-	// 超過分をfixed側へ移し、母音側の伸びを上限へ近づける。
 	allowedTail := sourceTail * StretchAdaptMaxRatio
 	targetFixed := targetTotal - allowedTail
 	targetFixed = timing.ConsonantMS + (targetFixed-timing.ConsonantMS)*strength
@@ -97,8 +96,7 @@ func onsetOverlapClass(onset string) string {
 	return ""
 }
 
-// OnsetOverlapMSは子音クラスに応じてoverlapを調整する。
-// 破裂・破擦音は重ねを小さくし、鼻音・流音は前の母音を重ねる。
+// 破裂・破擦音は重ねを抑え、鼻音・流音は前の母音につなぐ。
 func OnsetOverlapMS(onset string, preutterance, overlap float64) float64 {
 	switch onsetOverlapClass(onset) {
 	case "stop":
@@ -154,8 +152,7 @@ func NormalizePlanTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS flo
 	return timing
 }
 
-// NormalizedPhoneTimingUnitsはwaveformと同じ補正値をphrase timingへ渡す。
-// 形式別補正が不要な場合はPlanのsliceをそのまま返す。
+// 波形と同じ補正値を句のタイミングにも使う。
 func NormalizedPhoneTimingUnits(synthesisPlan *plan.Plan, releaseMS float64) []plan.Unit {
 	if synthesisPlan == nil {
 		return nil
@@ -190,7 +187,6 @@ func IsVCVUnit(unit plan.Unit) bool {
 	return strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV")
 }
 
-// brokenVCVTimingはoto.iniの位置が境界として成立しないVCVを判定する。
 func brokenVCVTiming(unit plan.Unit) bool {
 	if unit.PreutteranceMS < 0 || unit.ConsonantMS < 0 || unit.OverlapMS < 0 {
 		return true
@@ -219,7 +215,7 @@ func preservedVCVTiming(unit plan.Unit) EffectiveTiming {
 	}
 }
 
-// normalizeVCVTimingは壊れたVCV境界だけを補正する。正常なoto.iniの位置はそのまま使う。
+// 正常なotoの境界は動かさない。
 func normalizeVCVTiming(unit plan.Unit, timing EffectiveTiming, releaseMS float64) EffectiveTiming {
 	if !brokenVCVTiming(unit) {
 		return preservedVCVTiming(unit)
@@ -478,7 +474,6 @@ func uniqueTimingWarnings(values []string) []string {
 	return result
 }
 
-// NormalizeTimingはoto.iniの値を有界な実効タイミングへ補正する。
 func NormalizeTiming(unit plan.Unit, releaseMS float64) EffectiveTiming {
 	preutterance := math.Max(0, unit.PreutteranceMS)
 	overlap := unit.OverlapMS
@@ -512,7 +507,7 @@ func LimitLeadingPreutterance(required, maximum float64) float64 {
 	return math.Min(required, maximum)
 }
 
-// FadeInDurationMSは前後のゲインが同時に0にならない重なりを返す。
+// 前後のゲインが同時に0にならないよう、短く重ねる。
 func FadeInDurationMS(timing EffectiveTiming) float64 {
 	return math.Max(6, timing.PreutteranceMS-timing.OverlapMS)
 }

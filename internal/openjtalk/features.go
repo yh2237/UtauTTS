@@ -11,7 +11,6 @@ import (
 	"utautts/internal/prosody"
 )
 
-// njdNode はwasmフロントエンドが返すNJDノード1行分。
 // 列順: string, pos, pos_group1, ctype, cform, orig, read, pron, acc, mora_size, chain_rule, chain_flag
 type njdNode struct {
 	String    string
@@ -28,7 +27,6 @@ type njdNode struct {
 	ChainFlag int
 }
 
-// moraToken はPython版 openjtalk_feature_common.analyze が返すトークン相当。
 type moraToken struct {
 	Mora                 string
 	Vowel                string
@@ -56,7 +54,7 @@ var punctuation = map[rune]bool{
 	',': true, '.': true, '?': true, '!': true,
 }
 
-// VOWEL_GROUPSはfrontend.ParseKanaの母音対応と学習特徴を揃える。
+// frontend.ParseKanaと同じ母音対応を使う。
 var vowelGroups = []struct {
 	characters string
 	vowel      string
@@ -151,20 +149,15 @@ func buildAnalysis(nodes []njdNode) *Analysis {
 	return analysis
 }
 
-// refineAccentPhrasesはPython版 refine_accent_phrases の移植。Open JTalkの句と核を、
-// 聴取とjsut-label（人手のアクセント）で確かめた規則で直す。
+// 聴取とjsut-labelの人手アクセントで確認した規則を適用する。
 func refineAccentPhrases(nodes []njdNode) {
 	chainAccentPhrases(nodes)
 	accentBeforeTopicParticles(nodes)
 }
 
-// chainAccentPhrasesはPython版 chain_accent_phrases の移植。Open JTalkが切りすぎる句を前の句へつなぐ。
-//   - テ形の後の補助動詞（動詞・非自立）: 「降って/きた」→ フ＼ッテキタ、「遊んで/きた」→ アソンデキ＼タ。
-//   - サ変名詞の後の「する」: 句頭の下がりを入れずに「運転していま＼す」と1句にする。
-//     するの句が平板（「服従/するより」）なら、長い平板句で単調になるためつながない。
-//
-// 前の句に核があれば後ろの核を消し、前が平板なら後ろの核を句内の位置へずらして残す。
-// サ変はするの句の核で判断するため、補助動詞をつないだ後に処理する（して/います → していま＼す）。
+// Open JTalkが分けすぎる補助動詞とサ変の句をつなぐ。
+// 前句に核があれば後句の核を消し、なければ後句の核を残す。
+// サ変の判定には補助動詞を連結した後の核が必要なため、最後に処理する。
 func chainAccentPhrases(nodes []njdNode) {
 	chainPhrases(nodes, isAuxiliaryAfterTe)
 	chainPhrases(nodes, isAccentedSahenVerb)
@@ -197,14 +190,13 @@ func isAuxiliaryAfterTe(previous, node njdNode) bool {
 		node.Pos == "動詞" && node.PosGroup1 == "非自立"
 }
 
-// isAccentedSahenVerbは、句頭の「する」の句に核がある場合だけ真。nodeの核は句全体の核（補助動詞をつないだ後の値）。
+// 核は補助動詞を連結した後の句全体の値。
 func isAccentedSahenVerb(previous, node njdNode) bool {
 	return previous.Pos == "名詞" && previous.PosGroup1 == "サ変接続" &&
 		node.Pos == "動詞" && node.Orig == "する" && node.Acc > 0
 }
 
-// accentBeforeTopicParticlesは、平板の句で格助詞・接続助詞「て」の後に係助詞「は・も」が続くとき、
-// 直前の助詞へ核を置く（せーしつに＼わ、あそんで＼も）。東京式では平板の語に「には」「ても」が付くとこうなる。
+// 平板句の「には」「ても」などは、係助詞の直前に核を置く。
 func accentBeforeTopicParticles(nodes []njdNode) {
 	head, length := -1, 0
 	for index := range nodes {
@@ -252,7 +244,6 @@ func pronunciationMorae(pron string) []kanaMora {
 	return morae
 }
 
-// analyzeNJDはPython版 analyze の移植。
 func analyzeNJD(nodes []njdNode) (string, []moraToken) {
 	var readingParts []string
 	var result []moraToken
@@ -324,7 +315,6 @@ func analyzeNJD(nodes []njdNode) (string, []moraToken) {
 	return strings.Join(readingParts, ""), result
 }
 
-// splitMoraeはPython版 split_morae の移植。
 func splitMorae(reading string) []kanaMora {
 	normalized := norm.NFC.String(strings.NewReplacer("'", "", "’", "").Replace(reading))
 	var result []kanaMora

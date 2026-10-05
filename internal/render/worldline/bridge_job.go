@@ -9,7 +9,6 @@ import (
 	"utautts/internal/provider"
 )
 
-// BridgeJobはブリッジjobの検証済み要約。テストと診断で参照する。
 type BridgeJob struct {
 	Anchors     bool
 	CodaRelease bool
@@ -21,7 +20,6 @@ func invokeBridge(ctx context.Context, bridge, jobPath, outputPath string) error
 	return InvokeReport(ctx, bridge, jobPath, outputPath, nil)
 }
 
-// ReadBridgeJobはjobファイルのcontractを検証して要約を返す。
 func ReadBridgeJob(path string) (BridgeJob, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

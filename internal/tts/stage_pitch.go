@@ -15,7 +15,7 @@ type synthesisPitch struct {
 	RendererStrength float64
 }
 
-// 自動輪郭、実験指定、境界音調、手動指定の順にピッチを確定する。
+// 自動輪郭に境界音調を加え、最後に手動補正を適用する。
 func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *prosody.Model, morae []frontend.Mora, prosodyFeatures []prosody.FeatureFrame, reading, language string, synthesisPlan *plan.Plan) (synthesisPitch, error) {
 	pitchCurve := cfg.PitchCurve
 	applyPitch := applyPitchEnabled(cfg)
@@ -36,7 +36,7 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 			pitchCurve = scaleAutomaticPitchCurve(pitchCurve, cfg.IntonationStrength)
 		}
 	}
-	// 日本語の自動輪郭だけに句末境界音調(C2)を加える。手動ピッチは後段でマージする。
+	// 境界音調は自動輪郭だけに加える。
 	if cfg.PitchCurve == nil {
 		pitchCurve = profile.ApplyBoundaryTone(cfg, pitchCurve, finalPhraseEndMS(morae, curveTimings), finalPhraseIsQuestion(cfg.Text))
 	}

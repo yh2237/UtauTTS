@@ -76,7 +76,6 @@ type CandidateAudit struct {
 	BestJoinScore       float64              `json:"best_join_score,omitempty"`
 }
 
-// AuditLatticeは診断用に全候補と各候補への最良の入エッジを返す。
 func (b *Bank) AuditLattice(morae []frontend.Mora, tone string) (*LatticeAudit, error) {
 	return b.AuditLatticeWithConfig(morae, ResolveConfig{Tone: tone})
 }

@@ -20,7 +20,7 @@ import (
 	"utautts/internal/voicebank"
 )
 
-// Traceは合成フェーズの所要時間を出力する任意フック。nilなら無効。
+// nilなら計測ログを出さない。
 var Trace func(message string)
 
 func traceMark(start *time.Time, label string) {
@@ -33,23 +33,23 @@ func traceMark(start *time.Time, label string) {
 }
 
 type Config struct {
-	// ContextDurationは日本語モーラ長の文脈連動(C1)を有効にする。nilは無効。
+	// nilは無効。
 	ContextDuration *bool
 	// ContextDurationStrengthは文脈連動の強度。0は既定1.0。
 	ContextDurationStrength float64
-	// BoundaryToneは日本語の句末境界音調(C2)を有効にする。nilは既定ON。
+	// nilは既定で有効。
 	BoundaryTone *bool
 	// BoundaryToneStrengthは境界音調の強度。0は既定1.0。
 	BoundaryToneStrength float64
-	// StretchAdaptは日本語の伸縮を音源実測へ適応(C3a)する。nilは既定ON。
+	// nilは既定で有効。
 	StretchAdapt *bool
 	// StretchAdaptStrengthは伸縮補正の強度。0は既定1.0。
 	StretchAdaptStrength float64
-	// PauseContextはポーズ長の文脈化(B5)を有効にする。nilは既定ON。
+	// nilは既定で有効。
 	PauseContext *bool
 	// PauseContextStrengthはポーズ長補正の強度。0は既定1.0。
 	PauseContextStrength float64
-	// EnglishWeakFormは英語機能語の弱形(E1)を有効にする。nilは既定ON。
+	// nilは既定で有効。
 	EnglishWeakForm         *bool
 	Context                 context.Context
 	Engine                  engine.ResolvedEngine
@@ -129,7 +129,6 @@ type ProsodyPreview struct {
 	FramePitchCurve *render.PitchCurve
 }
 
-// ConvertToReadingは日本語テキストをかなへ変換し、必要ならOpen JTalkを使う。
 func ConvertToReading(text string, dictionary map[string]string, openJTalk openjtalk.Config) (string, error) {
 	return ConvertToReadingContext(context.Background(), text, dictionary, openJTalk)
 }
@@ -158,7 +157,6 @@ func resolveReading(cfg Config) (string, error) {
 	})
 }
 
-// ResolvePronunciationは発音解析を行う。音源固有のpresamp設定も利用する。
 func ResolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, error) {
 	return resolvePronunciation(cfg)
 }
@@ -231,7 +229,6 @@ func resolveProsodyModelForLanguage(cfg Config, language string) (*prosody.Model
 	return resolveProsodyModelForProfile(cfg, languageProfileFor(language))
 }
 
-// resolveProsodyFeaturesは未指定のアクセント特徴をOpen JTalkで補う。
 func resolveProsodyFeatures(cfg Config, model *prosody.Model, morae []frontend.Mora, reading string) ([]prosody.FeatureFrame, error) {
 	if model == nil || !model.RequiresExternalFeatures() || len(cfg.ProsodyFeatures) > 0 {
 		return cfg.ProsodyFeatures, nil
@@ -267,7 +264,6 @@ func ResolveRenderer(catalog *plugin.Catalog, rendererID string) (engine.Resolve
 	return ResolveRendererWithOptions(catalog, rendererID, engine.ResolveOptions{})
 }
 
-// ResolveRendererWithOptionsは資源上書きを適用してからRendererを検査する。
 func ResolveRendererWithOptions(catalog *plugin.Catalog, rendererID string, options engine.ResolveOptions) (engine.ResolvedEngine, error) {
 	if catalog == nil {
 		return engine.ResolvedEngine{}, errors.New("renderer catalog is not initialized")
@@ -276,7 +272,6 @@ func ResolveRendererWithOptions(catalog *plugin.Catalog, rendererID string, opti
 	return resolver.ResolveWithOptions(engine.DefinitionsFromCatalog(catalog), rendererID, options)
 }
 
-// ApplyRendererは表示用IDを解決し、解決済みEngineをConfigへ保存する。
 func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlineBridgePath string) (string, error) {
 	resolved, err := ResolveRendererWithOptions(catalog, rendererID, engine.ResolveOptions{
 		ResourceOverrides: map[engine.ResourceKey]string{
@@ -305,7 +300,6 @@ func Synthesize(cfg Config) (*Result, error) {
 	return SynthesizeWithOptions(cfg, render.ProviderOptions{})
 }
 
-// SynthesizeWithOptionsは選択したproviderの設定で共通TTS処理を実行する。
 func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (*Result, error) {
 	cfg.ProviderOptions = providerOptions
 	if err := synthesisContextError(cfg.Context); err != nil {
@@ -637,10 +631,8 @@ func validateConfig(cfg Config) error {
 	return nil
 }
 
-// constrainManualPitchContourは手動で加えた分の輪郭だけを平滑化し、傾きを制限する。
-// 結合後の曲線全体へかけると、編集していない箇所の自動輪郭（アクセント核の下降など）まで鈍る。
-// 傾きの上限は10msあたり50セント。モーラ中心（約120ms間隔）を直線でつなぐ編集は+300セントで25セントを要し、
-// 8セントでは「+150→-150」の下降が+100→+20のように逆向きになっていた。
+// 自動輪郭を鈍らせないよう、手動補正だけに制限をかける。
+// 10msあたり50セントを許容し、モーラ間の手動下降が逆転するのを防ぐ。
 func constrainManualPitchContour(manual *prosody.PitchContour) *prosody.PitchContour {
 	if manual == nil || manual.FrameMS <= 0 || len(manual.Cents) == 0 {
 		return manual
@@ -966,8 +958,7 @@ func rendererIntonationStrength(cfg Config, automatic *render.PitchCurve) float6
 	return effectiveIntonationStrength(cfg)
 }
 
-// MaxIntonationStrengthは利用者が指定できる抑揚の強さの上限。
-// 2を超える分は大きな動きだけを広げるため、レンダラーの音源ピッチ安定化の上限（render.MaxIntonationStrength）より大きい。
+// 音源ピッチの安定化とは別の上限。2を超える分は大きな輪郭変化だけを広げる。
 const MaxIntonationStrength = 8.0
 
 const (
@@ -977,9 +968,7 @@ const (
 	intonationExpandCents = 100.0
 )
 
-// scaleAutomaticPitchCurveは自動輪郭だけに強度を適用し、手動補正は増幅しない。
-// 強さ2までは一律の倍率。2を超えると、強さ2の曲線の値が0から遠いほど倍率を上げる。
-// 0付近（平らであるべき部分）は強さ2のまま、大きな動き（アクセントや句の上がり下がり）ほど指定の強さへ近づく。
+// 手動補正は増幅しない。強さ2より上では、平らな部分を保ち大きな動きだけ広げる。
 func scaleAutomaticPitchCurve(curve *render.PitchCurve, strength float64) *render.PitchCurve {
 	if curve == nil || len(curve.Cents) == 0 {
 		return curve

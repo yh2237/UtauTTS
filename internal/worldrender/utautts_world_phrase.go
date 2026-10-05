@@ -241,7 +241,7 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 			dirty[frame] = true
 		}
 		if normalizeOverlap && envelopeWeight > 1 {
-			// 波形版と同じく重なりを正規化し、スペクトルと非周期成分を同じ比率で縮小する。
+			// 波形版と同じ比率で重なりを正規化する。
 			normalization := 1 / envelopeWeight
 			for bin := 0; bin < bins; bin++ {
 				result.Spectrum[frameOffset+bin] *= normalization
@@ -286,7 +286,7 @@ func worldUnitAmplitudeGain(item unit) float64 {
 	return math.Min(1.5, math.Max(0, volume/100*energy))
 }
 
-// oto.offsetのフレーム端数を補正する。発話タイミング補正済みなら時刻基準を使う。
+// 時間写像がある場合は、その中で補正済みのoffset端数を再加算しない。
 func mapWorldFeatureTime(item unit, entry cachedWorldUnit, localMS float64) float64 {
 	sourceMS := mapWorldSourceTime(item, entry.duration, localMS)
 	if item.LegacyMix || entry.sourceShiftMS == 0 {
@@ -442,7 +442,6 @@ func worldEnvelopeWeight(item unit, localMS float64) float64 {
 			}
 			fraction := (x - left.XMS) / (right.XMS - left.XMS)
 			fraction = math.Max(0, math.Min(1, fraction))
-			// 音量変化を滑らかにする。
 			fraction = fraction * fraction * (3 - 2*fraction)
 			return math.Max(0, math.Min(1, lerp(left.Y, right.Y, fraction)))
 		}

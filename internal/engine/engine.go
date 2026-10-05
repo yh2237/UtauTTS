@@ -1,4 +1,3 @@
-// engineパッケージは公開エンジン定義と実装を結びつける。
 package engine
 
 import (
@@ -18,7 +17,6 @@ type PublicID string
 // ProviderIDは実装を識別する。複数の定義が同じ実装を選べるためPublicIDとは分ける。
 type ProviderID string
 
-// Contractはproviderが受け取る入力の種類。
 type Contract string
 
 const (
@@ -81,7 +79,6 @@ func (definition Definition) Resource(key ResourceKey) string {
 	return definition.Resources[key]
 }
 
-// Providerは利用可能な実装と型付き資源を表す。
 type Provider struct {
 	ID           ProviderID
 	Contract     Contract
@@ -168,7 +165,6 @@ func (registry Registry) Provider(id ProviderID) (Provider, bool) {
 	return cloneProvider(provider), found
 }
 
-// Providersは診断・テスト用の安定したコピーを返す。
 func (registry Registry) Providers() []Provider {
 	result := make([]Provider, 0, len(registry.providers))
 	for _, provider := range registry.providers {
@@ -190,7 +186,6 @@ func (registry Registry) Supports(id ProviderID) bool {
 	return found
 }
 
-// ResolvedEngineはユーザーに見える定義と利用可能なproviderを結びつける。
 type ResolvedEngine struct {
 	Definition   Definition
 	Provider     Provider
@@ -205,13 +200,11 @@ func (resolved ResolvedEngine) Resource(key ResourceKey) string {
 	return resolved.Definition.Resource(key)
 }
 
-// Availabilityはproviderが必要とする資源の事前検査結果。
 type Availability struct {
 	Available bool                `json:"available"`
 	Issues    []AvailabilityIssue `json:"issues,omitempty"`
 }
 
-// AvailabilityIssueは利用できない資源の理由。
 type AvailabilityIssue struct {
 	Resource ResourceKey `json:"resource,omitempty"`
 	Message  string      `json:"message"`
@@ -231,7 +224,6 @@ func (availability Availability) Error() string {
 	return strings.Join(messages, "; ")
 }
 
-// RequireAvailableは選択定義が現在の資源で動けない場合にユーザー向けエラーを返す。
 func (resolved ResolvedEngine) RequireAvailable() error {
 	if resolved.Availability.Available {
 		return nil
@@ -244,7 +236,6 @@ type ResolveOptions struct {
 	ResourceOverrides map[ResourceKey]string
 }
 
-// Resolverはインストール済みproviderのレジストリに対して定義を解決する。
 type Resolver struct {
 	registry Registry
 }
@@ -253,12 +244,12 @@ func NewResolver(registry Registry) Resolver {
 	return Resolver{registry: registry}
 }
 
-// Resolveは要求された定義を選ぶ。空のIDだけがカタログ既定を選べ、明示IDが見つからない場合はエラー。
+// 空IDは既定を選ぶ。未知の明示IDはエラーにする。
 func (resolver Resolver) Resolve(definitions []Definition, requested string) (ResolvedEngine, error) {
 	return resolver.ResolveWithOptions(definitions, requested, ResolveOptions{})
 }
 
-// ResolveWithOptionsは定義を解決し必要資源を評価する。Availabilityがfalseでも解決は成功し、UIが合成前に理由を表示できる。
+// 資源不足でも解決結果を返し、合成前にUIで理由を表示できるようにする。
 func (resolver Resolver) ResolveWithOptions(definitions []Definition, requested string, options ResolveOptions) (ResolvedEngine, error) {
 	requestedID := PublicID(strings.TrimSpace(requested))
 	var definition *Definition
@@ -349,7 +340,6 @@ func evaluateAvailability(definition Definition, provider Provider) Availability
 	return CheckResources(definition.Resources, provider.Requirements...)
 }
 
-// CheckResourcesは解決済み資源を評価する。Classic UTAUのツール選択などprovider固有オプションでも使う。
 func CheckResources(resources map[ResourceKey]string, requirements ...ResourceRequirement) Availability {
 	// wasmはエンジンをプロセス内に持つため、外部資源を検査しない。
 	if runtime.GOOS == "js" {
@@ -394,7 +384,7 @@ func CheckResources(resources map[ResourceKey]string, requirements ...ResourceRe
 	return Availability{Available: len(issues) == 0, Issues: issues}
 }
 
-// DefinitionsFromCatalogは発見済みrenderer manifestを定義へ変換する。ID未指定時に先頭が既定となるようカタログ順を保つ。
+// 先頭が既定となるため、カタログ順を保つ。
 func DefinitionsFromCatalog(catalog *plugin.Catalog) []Definition {
 	if catalog == nil {
 		return nil
@@ -406,7 +396,7 @@ func DefinitionsFromCatalog(catalog *plugin.Catalog) []Definition {
 	return result
 }
 
-// DefinitionFromV2はcontract/provider明示形式のmanifestを定義へ変換する。資源パスはpluginが絶対パス化するまでmanifestディレクトリ相対のまま。
+// 資源パスはpluginで解決するまでmanifest基準の相対パス。
 func DefinitionFromV2(renderer plugin.Renderer) Definition {
 	resourceNames := make(map[string]struct{}, len(renderer.Resources)+len(renderer.PlatformResources))
 	for name := range renderer.Resources {

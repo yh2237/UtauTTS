@@ -47,7 +47,6 @@ func applyBoundaryTone(curve *render.PitchCurve, durationMS float64, question bo
 		if timeMS < startMS {
 			continue
 		}
-		// 区間内は半余弦で0から最大へ立ち上げ、区間より後は最大値を保持する。
 		weight := 1.0
 		if timeMS < durationMS {
 			progress := (timeMS - startMS) / window

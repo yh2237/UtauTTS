@@ -1,4 +1,3 @@
-// neuralパッケージは実装に依存しないニューラル合成の入出力と契約を定義する。
 package neural
 
 import (
@@ -14,8 +13,7 @@ import (
 	"utautts/internal/render"
 )
 
-// Inputはニューラル合成providerが共通して必要とする解決済み入力。
-// tts側がConfigから変換し、provider実装はこのDTOだけを参照する。
+// providerはこの入力だけを参照し、tts.Configに依存しない。
 type Input struct {
 	Context         context.Context
 	VoicebankPath   string
@@ -33,11 +31,9 @@ type Input struct {
 	AutomaticPitch  bool
 	PhoneWeights    [][]float64
 	ProviderOptions render.ProviderOptions
-	// Engineは解決済みrenderer。provider resourceの参照に使う。
-	Engine engine.ResolvedEngine
+	Engine          engine.ResolvedEngine
 }
 
-// Outputはニューラル合成の低層結果。tts側でResultへ変換する。
 type Output struct {
 	Plan            *plan.Plan
 	Audio           *audio.PCM
@@ -46,13 +42,11 @@ type Output struct {
 	PitchPoints     []float64
 }
 
-// Synthesizerはニューラル歌唱スコアから音声を構築するprovider契約。
 type Synthesizer interface {
 	ProviderID() engine.ProviderID
 	Synthesize(Input) (*Output, error)
 }
 
-// Factoryはprovider実装を組み立てる。登録側が実装型に依存せずに済む。
 type Factory func() Synthesizer
 
 var (
@@ -60,7 +54,7 @@ var (
 	synthesizers = map[engine.ProviderID]Factory{}
 )
 
-// Registerはprovider実装をprovider IDで登録する。同一IDの再登録は上書きする。
+// 同じIDを登録し直すと上書きする。
 func Register(id engine.ProviderID, factory Factory) {
 	if id == "" || factory == nil {
 		panic("neural: synthesizer registration requires a provider id and factory")
@@ -85,7 +79,6 @@ var (
 	closers  []func() error
 )
 
-// RegisterCloserは常駐するproviderセッションの解放関数を登録する。providerアダプターのinitから呼ぶ。
 func RegisterCloser(fn func() error) {
 	if fn == nil {
 		return
@@ -95,7 +88,6 @@ func RegisterCloser(fn func() error) {
 	closerMu.Unlock()
 }
 
-// CloseSessionsは登録済みの常駐providerセッションを登録と逆順に解放する。
 func CloseSessions() error {
 	closerMu.Lock()
 	registered := append([]func() error(nil), closers...)

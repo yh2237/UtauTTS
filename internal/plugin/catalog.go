@@ -19,9 +19,9 @@ const ManifestVersion = 2
 type Capabilities struct {
 	FramePitch     bool `json:"frame_pitch,omitempty"`
 	BoundaryBridge bool `json:"boundary_bridge,omitempty"`
-	// InternalTimingはrendererが時間・韻律を内部で扱うことを示す。日本語リズム補正をSpeechTimingに関係なく常に適用する。
+	// レンダラー内でタイミングを扱う場合、日本語リズム補正を常に適用する。
 	InternalTiming bool `json:"internal_timing,omitempty"`
-	// SpeechProsodyExperimentは廃止した多言語スピーチ韻律の実験の宣言。既存のmanifestを読めるよう受け取り、使わない。
+	// 旧manifestを読めるよう残す。値は使わない。
 	SpeechProsodyExperiment bool `json:"speech_prosody_experiment,omitempty"`
 }
 
@@ -49,7 +49,6 @@ type Renderer struct {
 	Directory         string                                 `json:"-"`
 }
 
-// RendererSettingはrendererが公開する設定項目。GUIがtypeに応じてフォームを作る。
 type RendererSetting struct {
 	ID      string                 `json:"id"`
 	Type    string                 `json:"type"`
@@ -372,7 +371,7 @@ func (catalog *Catalog) Renderer(id string) (Renderer, bool) {
 	return Renderer{}, false
 }
 
-// Resourceは選択済みのmanifest v2リソースを、rendererディレクトリ基準で解決したパス付きで返す。
+// 資源パスはレンダラーディレクトリ基準で解決する。
 func (renderer Renderer) Resource(name string) RendererResource {
 	resource := renderer.Resources[name]
 	for _, platform := range []string{runtime.GOOS + "-" + runtime.GOARCH, "any"} {

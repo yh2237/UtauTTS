@@ -7,7 +7,7 @@ import (
 	"unicode"
 )
 
-// UnitOverrideは1発話中の1原音だけに効く上書き値。oto.iniや原音そのものは変えない。
+// 発話内の原音1つだけに適用する。otoや録音は変更しない。
 type UnitOverride struct {
 	Index               int      `json:"unit_index"`
 	OffsetMS            *float64 `json:"offset_ms,omitempty"`
@@ -24,7 +24,6 @@ type UnitOverride struct {
 	ResamplerTempo      *float64 `json:"resampler_tempo,omitempty"`
 }
 
-// ApplyUnitOverridesは原音の確定後にユーザー編集値を当てはめる。
 func ApplyUnitOverrides(units []Unit, overrides []UnitOverride) error {
 	seen := make(map[int]struct{}, len(overrides))
 	for _, override := range overrides {

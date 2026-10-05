@@ -58,7 +58,6 @@ func TestBuildAnalysisFromNJD(t *testing.T) {
 		t.Errorf("features[6] nucleus = %v, want 1", got)
 	}
 
-	// ポーズは空フレーム。
 	if len(analysis.Features[5]) != 0 {
 		t.Errorf("pause features = %v, want empty", analysis.Features[5])
 	}

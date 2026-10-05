@@ -14,12 +14,10 @@ import (
 	"utautts/internal/render"
 )
 
-// UtauTTSのプロジェクトをOpenUtauのUSTXへ変換する。
 // 1発話を1パート、音源ごとに1トラック、モーラごとに1ノートへ対応付ける。
 
 const utauTTSProjectFormat = "utautts-project"
 
-// UtauTTSProjectはGUIのプロジェクト形式(Main.qmlのprojectData)に対応する。
 type UtauTTSProject struct {
 	Format        string             `json:"format"`
 	FormatVersion int                `json:"format_version"`
@@ -240,12 +238,10 @@ func utteranceToVoicePart(utterance UtauTTSUtterance, trackIndex int, msToTicks 
 		pauseDuration = 180
 	}
 
-	// 手動値、自動値、基準値の順にモーラ長を選ぶ。
 	durations := utterance.MoraDurationsMS
 	if !utterance.ManualMoraDurEdited || len(durations) == 0 {
 		durations = utterance.AutomaticMoraDurMS
 	}
-	// 明示されたモーラ位置を優先する。
 	positions := utterance.MoraPositionsMS
 	if !utterance.ManualMoraDurEdited || len(positions) == 0 {
 		if len(utterance.AutomaticMoraPosMS) > 0 {
@@ -364,7 +360,6 @@ func exportLyric(mora UtauTTSMora, notes []USTXNote) string {
 	return "+"
 }
 
-// ToneToMIDIは音名をMIDIノート番号へ変換する(C4=60)。
 func ToneToMIDI(tone string) (int, error) {
 	tone = strings.TrimSpace(tone)
 	if number, err := strconv.Atoi(tone); err == nil {
@@ -405,7 +400,6 @@ var midiSemitones = map[string]int{
 	"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11,
 }
 
-// USTXのドキュメントモデル。YAMLのフィールド名はOpenUtauの形式に合わせる。
 const ustxResolution = 480
 
 type USTXProject struct {
@@ -506,7 +500,6 @@ type USTXVibrato struct {
 	Drift  float64 `yaml:"drift"`
 }
 
-// defaultUSTXExpressionsはUtaFormatix互換の既定エクスプレッションを返す。
 func defaultUSTXExpressions() map[string]USTXExpr {
 	return map[string]USTXExpr{
 		"dyn":  {Name: "dynamics (curve)", Abbr: "dyn", Type: "Curve", Min: -240, Max: 120, DefaultValue: 0},

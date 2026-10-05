@@ -1,4 +1,3 @@
-// adapterパッケージはDiffSingerを共通のニューラル合成契約へ適合させる。
 package adapter
 
 import (
@@ -110,7 +109,6 @@ func totalDurationMS(durations []float64) float64 {
 	return total
 }
 
-// shiftPitchCurveは先頭パディングぶん曲線を後ろへずらし、フレーム長を音源に合わせる。
 func shiftPitchCurve(curve *render.PitchCurve, frameMS, durationMS float64) *render.PitchCurve {
 	if curve == nil {
 		return nil
@@ -374,8 +372,7 @@ func diffsingerMIDI(tone string) (int, error) {
 	return midi, nil
 }
 
-// diffsingerMIDICurvesは話声向けに、音符(単語)ごとと音素ごとのMIDIをF0から求める。
-// 定数のMIDIではDiffSingerのピッチ・長さ予測器の基準が実際の高さとずれる。
+// 固定MIDIでは実際の高さとずれるため、F0から音符・音素別の基準値を求める。
 func diffsingerMIDICurves(f0 []float32, noteFrames, phoneFrames []int64, fallback int) ([]float32, []int64) {
 	values := make([]float64, len(f0))
 	for index, hz := range f0 {

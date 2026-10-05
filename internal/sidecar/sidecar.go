@@ -23,7 +23,6 @@ type Options struct {
 	Lab       string
 }
 
-// WriteはWAVと同じ場所へ同名の字幕と音素ラベルを書き出す。
 func Write(wavPath string, options Options) error {
 	if !options.WriteText && !options.WriteLab {
 		return nil
@@ -57,12 +56,10 @@ func Write(wavPath string, options Options) error {
 	return nil
 }
 
-// TextBytesは指定された文字コードの字幕ファイルを作る。
 func TextBytes(value, encoding string) ([]byte, error) {
 	return encodeText(ensureTrailingNewline(value), encoding)
 }
 
-// LabBytesは末尾を改行した音素ラベルを作る。
 func LabBytes(value string) ([]byte, error) {
 	if strings.TrimSpace(value) == "" {
 		return nil, fmt.Errorf("phoneme label is empty")

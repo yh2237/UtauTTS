@@ -9,16 +9,15 @@ import (
 )
 
 type Mora struct {
-	Language   string  `json:",omitempty"`
-	WordIndex  int     `json:",omitempty"`
-	WordEnd    bool    `json:",omitempty"`
-	SourceText string  `json:",omitempty"`
-	Phones     []Phone `json:",omitempty"`
-	Text       string
-	Consonant  string
-	Vowel      string
-	Pause      bool
-	// PauseKindはポーズの種類（comma, period, question, ellipsis, space, bracket, other）。
+	Language      string  `json:",omitempty"`
+	WordIndex     int     `json:",omitempty"`
+	WordEnd       bool    `json:",omitempty"`
+	SourceText    string  `json:",omitempty"`
+	Phones        []Phone `json:",omitempty"`
+	Text          string
+	Consonant     string
+	Vowel         string
+	Pause         bool
 	PauseKind     string `json:",omitempty"`
 	Stress        int
 	StressKnown   bool `json:",omitempty"`
@@ -37,7 +36,7 @@ const (
 	PauseKindOther    = "other"
 )
 
-// pauseKindRanksは連続する句読点を1つにまとめるときの優先度。値が大きいほど強い。
+// 句読点が続く場合は、最も強い休止を選ぶ。
 var pauseKindRanks = map[string]int{
 	PauseKindOther:    1,
 	PauseKindBracket:  1,
@@ -49,15 +48,13 @@ var pauseKindRanks = map[string]int{
 }
 
 type AliasHints struct {
-	Main       []string
-	MainKinds  []string
-	Transition []string
-	Endings    [][]string
-	// EndingPhonesは発音に必要な語末音素を示す。
-	EndingPhones    [][]string    `json:",omitempty"`
-	EndingFallbacks [][]CodaAlias `json:",omitempty"`
-	// MainMissingは短縮CVで欠ける語頭子音を示す。
-	MainMissing map[string][]string `json:",omitempty"`
+	Main            []string
+	MainKinds       []string
+	Transition      []string
+	Endings         [][]string
+	EndingPhones    [][]string          `json:",omitempty"`
+	EndingFallbacks [][]CodaAlias       `json:",omitempty"`
+	MainMissing     map[string][]string `json:",omitempty"`
 }
 
 type CodaAlias struct {
@@ -66,7 +63,6 @@ type CodaAlias struct {
 	CodaStart int
 }
 
-// Phoneはalias表記に依存しない音素を示す。
 type Phone struct {
 	Symbol string
 	Role   string

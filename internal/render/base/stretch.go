@@ -14,12 +14,10 @@ func StretchWSOLA(source []float64, targetFrames, sampleRate int) []float64 {
 	return wsola(source, targetFrames, sampleRate)
 }
 
-// StretchWSOLAAnchoredは連続波形を分割せず、指定した時間写像に沿って伸縮する。
 func StretchWSOLAAnchored(source []float64, targetFrames, sampleRate int, sourceAnchors, targetAnchors []int) []float64 {
 	return stretch.Anchored(source, targetFrames, sampleRate, sourceAnchors, targetAnchors)
 }
 
-// RetimeWithCompressedPrefixUsingは先頭区間と残りを別々に伸縮して接合する。
 func RetimeWithCompressedPrefixUsing(source []float64, targetFrames, sourcePrefixFrames, targetPrefixFrames, sampleRate int, stretch func([]float64, int, int) ([]float64, error)) ([]float64, error) {
 	if targetFrames <= 0 || len(source) == 0 {
 		return nil, nil
@@ -69,7 +67,6 @@ func RetimeWithCompressedPrefixUsing(source []float64, targetFrames, sourcePrefi
 	return result, nil
 }
 
-// StretchPreservingPrefixUsingは先頭区間を保ったまま残りを伸縮する。
 func StretchPreservingPrefixUsing(source []float64, targetFrames, prefixFrames, sampleRate int, stretch func([]float64, int, int) ([]float64, error)) ([]float64, error) {
 	return stretchPreservingPrefixUsing(source, targetFrames, prefixFrames, sampleRate, stretch)
 }

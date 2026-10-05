@@ -52,8 +52,7 @@ type CandidateRejection struct {
 
 const (
 	maxCandidatesPerPosition = 32
-	// 上限で切る際、同一ソースへの偏りを避けてViterbiの選択肢を残すため、
-	// ソースファイルが異なる候補を最低これだけ確保する。
+	// 同一録音への偏りを避け、別録音の候補を残す。
 	minDistinctSourceCandidates = 4
 )
 
@@ -173,7 +172,6 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 	return layers, nil
 }
 
-// candidateContextは、1つの合成で全モーラに共通する候補探索の条件（音源・方式・接辞・音階）。
 type candidateContext struct {
 	bank          *Bank
 	policy        AliasPolicy
@@ -184,8 +182,6 @@ type candidateContext struct {
 	resolvedTone  string
 }
 
-// positionCandidatesは1モーラの候補（主原音、CVVCの遷移、語末子音）を作る。
-// 候補が無く促音でもなければ、空の候補と欠落の情報を返す。
 func (c candidateContext) positionCandidates(position int, mora frontend.Mora, previousVowel string, phraseStart bool, previousLayer []Selection) ([]Selection, *MissingAliasError) {
 	b, policy, affix, hasAffix := c.bank, c.policy, c.affix, c.hasAffix
 	candidateSpecs := aliasCandidatesWithPolicy(mora.Text, previousVowel, phraseStart, policy)
@@ -230,7 +226,7 @@ func (c candidateContext) positionCandidates(position int, mora frontend.Mora, p
 		}
 	}
 	if !explicitCandidates && previousVowel == "cl" && !hasUsableCandidateEntries(b, candidateSpecs) {
-		// 促音の閉鎖後は無音からの立ち上がり。単独音を持たない連続音音源では語頭形(- て)を使う。
+		// 促音後は無音から始まるため、単独音がなければ語頭形を使う。
 		headSpecs := aliasCandidatesWithPolicy(mora.Text, "", true, policy)
 		if hasAffix {
 			headSpecs = affixCandidatesWithFallback(headSpecs, affix, true)
@@ -321,14 +317,13 @@ func (c candidateContext) positionCandidates(position int, mora frontend.Mora, p
 	return candidatesAtPosition, nil
 }
 
-// endingPlanは語末子音の候補。englishFallbackで分割した後の並びと、分割前の並び（変種を作る元）を持つ。
+// 元の候補は、語末子音の分割案を比較するために残す。
 type endingPlan struct {
 	specs, originalSpecs   [][]aliasCandidate
 	phones, originalPhones [][]string
 	starts, originalStarts []int
 }
 
-// endingPlanは語末子音の候補を組み、英語では複合原音がない部分だけ分割して不足音素と後続子音を残す。
 func (c candidateContext) endingPlan(mora frontend.Mora, endingSpecs [][]aliasCandidate) endingPlan {
 	endingPhones := make([][]string, len(endingSpecs))
 	endingStarts := make([]int, len(endingSpecs))
@@ -385,7 +380,6 @@ type validatedEntry struct {
 	validation EntryValidation
 }
 
-// positionBuilderは1モーラの候補づくりの途中状態（候補名の一覧、使えない原音の理由）を持つ。
 type positionBuilder struct {
 	context    candidateContext
 	position   int
@@ -395,7 +389,6 @@ type positionBuilder struct {
 	rejections []CandidateRejection
 }
 
-// validatedEntriesは使える原音だけを返し、使えない原音の理由を記録する。
 func (p *positionBuilder) validatedEntries(alias string, entries []oto.Entry) []validatedEntry {
 	valid := make([]validatedEntry, 0, len(entries))
 	for _, entry := range entries {
@@ -420,7 +413,6 @@ func (p *positionBuilder) selection(spec aliasCandidate, kind AliasKind, validat
 	}
 }
 
-// attachEndingsは語末子音ごとに最良の原音を付ける。録音のない語末子音は欠落として記録する。
 func (p *positionBuilder) attachEndings(main Selection, endingSpecs [][]aliasCandidate, endingPhones [][]string, endingStarts []int) Selection {
 	var endingLayers [][]Selection
 	for endingIndex, specs := range endingSpecs {
@@ -462,7 +454,6 @@ func (p *positionBuilder) attachEndings(main Selection, endingSpecs [][]aliasCan
 	return main
 }
 
-// attachVariantsは語末子音を付け、英語では分割の仕方を変えた語末の変種も候補として残す。
 func (p *positionBuilder) attachVariants(main Selection) Selection {
 	e := p.endings
 	base := p.attachEndings(main, e.specs, e.phones, e.starts)
@@ -503,7 +494,6 @@ func missingPhoneCount(gaps []SpeechGap) int {
 	return count
 }
 
-// candidateScoreはalias優先度とoto.iniの整合性から重複候補を選ぶ。
 func candidateScore(language string, candidateTier int, entry oto.Entry) float64 {
 	score := 100 - float64(candidateTier)*10
 	if entry.Preutterance >= 0 {
@@ -530,7 +520,6 @@ func candidateScore(language string, candidateTier int, entry oto.Entry) float64
 	return score
 }
 
-// validatedCandidateScoreは同じ候補内で明確な録音劣化を弱く避ける。
 func validatedCandidateScore(language string, candidateTier int, entry oto.Entry, validation EntryValidation) float64 {
 	score := candidateScore(language, candidateTier, entry)
 	if validation.Status == "degraded" {
@@ -678,7 +667,7 @@ func aliasCandidates(mora, previousVowel string, phraseStart bool) []aliasCandid
 	return aliasCandidatesWithPolicy(mora, previousVowel, phraseStart, AliasPolicyAuto)
 }
 
-// 専用録音がない場合の同音候補。小書き仮名の組み合わせは別音なので含めない。
+// 専用録音がない場合の代替読み。一般的な近似に限る。
 func equivalentKanaForms(mora string) []string {
 	switch mora {
 	case "を":
@@ -691,7 +680,7 @@ func equivalentKanaForms(mora string) []string {
 		return []string{"い"}
 	case "ゑ":
 		return []string{"え"}
-	// ヴ行の録音が無い音源では、日本語で普通に置き換えるバ行で合成する（無ければ合成自体が失敗する）。
+	// 専用録音がない外来音は、日本語の近い発音で代替する。
 	case "ゔ":
 		return []string{"ぶ"}
 	case "ゔぁ":
@@ -704,7 +693,6 @@ func equivalentKanaForms(mora string) []string {
 		return []string{"ぼ"}
 	case "ゔゅ":
 		return []string{"びゅ"}
-	// 「デュ」「テュ」の録音が無い音源では、古い外来語の読みと同じジュ・チュで合成する。
 	case "でゅ":
 		return []string{"じゅ"}
 	case "てゅ":
@@ -713,7 +701,7 @@ func equivalentKanaForms(mora string) []string {
 	return nil
 }
 
-// aliasFormはモーラに対して試す表記。fallbackは同音候補への追加ペナルティ。
+// fallbackは同音候補への追加減点。
 type aliasForm struct {
 	text       string
 	fallback   int
@@ -727,7 +715,7 @@ func aliasCandidatesWithPolicy(mora, previousVowel string, phraseStart bool, pol
 			forms = append(forms, aliasForm{text: vowelKana}, aliasForm{text: toKatakana(vowelKana)})
 		}
 	}
-	// 専用録音がない場合も同音候補で合成し、元の仮名を常に優先する。
+	// 同音候補より元の仮名を優先する。
 	base := []aliasForm{{text: mora}}
 	for _, equivalent := range equivalentKanaForms(mora) {
 		base = append(base, aliasForm{text: equivalent, fallback: 1, equivalent: true})

@@ -19,7 +19,7 @@ import (
 	"utautts/internal/voicebank"
 )
 
-// Traceはworldlineバックエンドの計測ログ出力。nilなら無効。
+// nilなら計測ログを出さない。
 var Trace func(message string)
 
 func traceMark(start *time.Time, label string) {
@@ -110,7 +110,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		return nil, err
 	}
 	traceMark(&started, "pitches")
-	// ジョブと出力は合成ごとに隔離し、リサンプル原音も同じ場所へ置く。
+	// 一時ファイルは合成ごとに隔離する。
 	tempDir, err := os.MkdirTemp("", "utautts-worldline-")
 	if err != nil {
 		return nil, err
@@ -158,7 +158,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 	return pcm, nil
 }
 
-// normalizeCVVCConfigはCVVCの設定を既定値で埋めて検査し、合成計画へ記録する。
 func normalizeCVVCConfig(synthesisPlan *plan.Plan, cfg *base.Config) error {
 	if cfg.CVVCTiming == "" {
 		cfg.CVVCTiming = base.CVVCTimingSequential
@@ -178,14 +177,12 @@ func normalizeCVVCConfig(synthesisPlan *plan.Plan, cfg *base.Config) error {
 	return nil
 }
 
-// worldlineTimingResultは句単位のOpenUTAU式タイミングと、素片ごとの実効タイミング。
 type worldlineTimingResult struct {
 	units     []base.EffectiveTiming
 	phones    []base.OpenUtauPhoneTiming
 	leadingMS float64
 }
 
-// prepareWorldlineTimingは句のタイミングを決め、素片の実効値を合成計画へ記録する。
 func prepareWorldlineTiming(synthesisPlan *plan.Plan, cfg base.Config) worldlineTimingResult {
 	phoneUnits := worldlinePhoneTimingUnits(synthesisPlan, cfg.ReleaseMS)
 	if synthesisPlan.SingleCV {
@@ -226,7 +223,7 @@ func prepareWorldlineTiming(synthesisPlan *plan.Plan, cfg base.Config) worldline
 			timing.PreutteranceMS = phoneTimings[i].Preutter
 			timing.OverlapMS = phoneTimings[i].Overlap
 			unit.CodaBoundaryLimited = phoneTimings[i].CodaLimited
-			// C3aでfixed境界をずらしたユニットはotoの値を上書きしない。
+			// 伸縮補正で動かした固定部は、otoの値に戻さない。
 			if (unit.Role != "mora" || !synthesisPlan.SingleCV) && !timing.StretchAdapted {
 				timing.ConsonantMS = unit.ConsonantMS
 				timing.Scale = 1
@@ -246,7 +243,6 @@ func prepareWorldlineTiming(synthesisPlan *plan.Plan, cfg base.Config) worldline
 	return result
 }
 
-// worldlinePitchResultは素片の元の音高と、合成の目標F0曲線。
 type worldlinePitchResult struct {
 	sampleRate   int
 	pitches      []float64
@@ -256,7 +252,6 @@ type worldlinePitchResult struct {
 	f0Curve      []float64
 }
 
-// prepareWorldlinePitchは素片の音高を測り、抑揚・手動ピッチ・微細韻律を含む目標F0曲線を作る。
 func prepareWorldlinePitch(synthesisPlan *plan.Plan, cfg base.Config, cache *base.SourceCache, timing worldlineTimingResult) (worldlinePitchResult, error) {
 	pitches, sampleRate, err := base.MeasureWorldlinePitches(synthesisPlan, cache)
 	if err != nil {
@@ -300,7 +295,6 @@ func prepareWorldlinePitch(synthesisPlan *plan.Plan, cfg base.Config, cache *bas
 	}, nil
 }
 
-// normalizeWorldlineSourcesは合成の標本化周波数と違う原音をtempDirへ変換し、元のパス→変換後のパスを返す。
 func normalizeWorldlineSources(synthesisPlan *plan.Plan, cache *base.SourceCache, sampleRate int, tempDir string) (map[string]string, error) {
 	normalizedSources := make(map[string]string)
 	for index := range synthesisPlan.Units {
@@ -328,7 +322,6 @@ func normalizeWorldlineSources(synthesisPlan *plan.Plan, cache *base.SourceCache
 	return normalizedSources, nil
 }
 
-// worldlineUnitBuilderは合成計画の素片1つを、bridgeへ渡すjobの素片に変換する。
 type worldlineUnitBuilder struct {
 	plan              *plan.Plan
 	cfg               base.Config
@@ -363,7 +356,7 @@ func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
 		volume = float64(unit.ResamplerVolume)
 	}
 
-	// OpenUTAUと同じ位置からbendを始め、先頭の余剰をskipする。
+	// OpenUtauと同じピッチ開始位置を使い、先頭の余剰は除く。
 	pitchLeadingMS := unit.PreutteranceMS
 	if singleCVUnit {
 		pitchLeadingMS = phoneTiming.Preutter
@@ -462,7 +455,6 @@ func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
 	return item, nil
 }
 
-// speechTimingは素片の時間写像（単独音・破裂音の保護・伸縮の有界化・語末の解放）をbridgeへ渡す形にする。
 func (b worldlineUnitBuilder) speechTiming(i int, timing base.EffectiveTiming, skipMS, positionMS float64, codaRelease, singleCVUnit, vcvUnit bool) *provider.WorldSpeechTiming {
 	synthesisPlan, options := b.plan, b.cfg.ProviderOptions.Worldline
 	unit := &synthesisPlan.Units[i]
@@ -476,11 +468,11 @@ func (b worldlineUnitBuilder) speechTiming(i int, timing base.EffectiveTiming, s
 			unit.StopBurstReason = "transient-unreliable"
 		}
 	}
-	// E2bは日本語VCVにも原波形バーストを広げるが、再伸縮はせずpreserve-onlyに留める。
+	// 日本語VCVは再伸縮せず、破裂音だけを保護する。
 	protectStopOnly := !b.legacyMix && unit.Role == "mora" && !singleCVUnit &&
 		(!vcvUnit || e2bStopGeneralization(synthesisPlan, *unit, options)) && stopProtected
 	legacyE2BStop := e2bLegacyStopPreserve(synthesisPlan, *unit, b.legacyMix, options) && !singleCVUnit
-	// C3aで伸縮を有界にしたユニットは、bridge側でもfixed境界を後ろへずらして母音の伸びを抑える。
+	// 固定部の補正をbridgeにも渡し、母音の伸びを抑える。
 	stretchSpeech := unit.Role == "mora" && unit.StretchAdapted && !codaRelease
 	if unit.Role == "mora" && (singleCVUnit || protectStopOnly || legacyE2BStop || stretchSpeech) {
 		targetOnset := skipMS + unit.NoteStartMS + leadingMS - positionMS
@@ -525,7 +517,7 @@ func (b worldlineUnitBuilder) speechTiming(i int, timing base.EffectiveTiming, s
 	return speech
 }
 
-// sourceDurationMSは素片として使える原音の長さ（offsetから右ブランクまで）。
+// offsetから右ブランクまでの長さ(ms)。
 func (b worldlineUnitBuilder) sourceDurationMS(unit plan.Unit) (float64, error) {
 	mono, err := b.cache.LoadMono(unit.Source)
 	if err != nil {
@@ -538,7 +530,6 @@ func (b worldlineUnitBuilder) sourceDurationMS(unit plan.Unit) (float64, error) 
 	return end - unit.OffsetMS, nil
 }
 
-// runWorldlineBridgeはjobを書いてbridgeを実行し、bridgeの報告を合成計画へ戻す。
 func runWorldlineBridge(synthesisPlan *plan.Plan, cfg base.Config, manifest worldlineManifest, bridge, tempDir string, started *time.Time) error {
 	job, err := worldlineProviderJob(synthesisPlan, cfg, manifest, bridge)
 	if err != nil {
@@ -651,7 +642,6 @@ func worldlineGapRepairEligible(synthesisPlan *plan.Plan, unitIndex int) bool {
 		previousMora.Vowel != "" && previousMora.Vowel == currentMora.Vowel
 }
 
-// 生波形補強は英語の破裂音と単独音に加え、E2bで日本語の破裂音にも広げる。
 func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options base.WorldlineProviderOptions) bool {
 	if synthesisPlan == nil {
 		return false
@@ -674,17 +664,16 @@ func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options b
 	phonemizer := strings.ToLower(strings.TrimSpace(synthesisPlan.Phonemizer))
 	japanese := language == "ja" || phonemizer == "ja" || strings.HasPrefix(phonemizer, "ja-")
 	if japanese && strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV") {
-		// E2b: 日本語VCVは信頼度が高い過渡だけ保護する。
+		// VCVは信頼度の高い過渡だけを保護する。
 		return options.JapaneseStopProtectionEnabled() && unit.SpeechProfile.TransientConfidence >= stopTransientVCVFloor
 	}
 	if japanese {
-		// E2b: 日本語CVも既定では無効。信頼度が高いときだけ保護する。
+		// CVも信頼度の高い過渡だけを保護する。
 		return options.JapaneseStopProtectionEnabled() && unit.SpeechProfile.TransientConfidence >= stopTransientJapaneseFloor
 	}
 	return true
 }
 
-// e2bStopGeneralizationはE2bが対象とする日本語の破裂音モーラかを返す。
 func e2bStopGeneralization(synthesisPlan *plan.Plan, unit plan.Unit, options base.WorldlineProviderOptions) bool {
 	if !options.JapaneseStopProtectionEnabled() || synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
 		return false
@@ -694,8 +683,7 @@ func e2bStopGeneralization(synthesisPlan *plan.Plan, unit plan.Unit, options bas
 	return language == "ja" || phonemizer == "ja" || strings.HasPrefix(phonemizer, "ja-")
 }
 
-// e2bLegacyStopPreserveはレガシー日本語連続混合でも原波形バーストだけを重ねるかを返す。
-// E2b無効時や信頼度が低いときは発動しない。
+// 低加工の連続音でも、信頼度の高い破裂音だけは補う。
 func e2bLegacyStopPreserve(synthesisPlan *plan.Plan, unit plan.Unit, legacyMix bool, options base.WorldlineProviderOptions) bool {
 	if !legacyMix || !e2bStopGeneralization(synthesisPlan, unit, options) {
 		return false
@@ -801,8 +789,7 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg base.Config, manifest wo
 	}, nil
 }
 
-// timingWarpJobは日本語の合成計画から、時間伸縮に使うモーラを作る（無効ならnil）。
-// CVVCでは子音がVC（transition）から始まるので、子音の長さはVCの長さまで含める。
+// CVVCの子音長にはVCを含める。
 func timingWarpJob(synthesisPlan *plan.Plan, cfg base.Config) *provider.TimingWarp {
 	if synthesisPlan == nil || !cfg.ProviderOptions.Worldline.TimingWarpEnabled() || !isJapanesePlan(synthesisPlan) {
 		return nil

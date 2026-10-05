@@ -2,9 +2,7 @@ package frontend
 
 import "strings"
 
-// EnglishOptionsは英語phonemizer共通の前処理オプション。
 type EnglishOptions struct {
-	// WeakFormsは非強調の機能語へ弱形を適用する(E1)。
 	WeakForms bool
 }
 

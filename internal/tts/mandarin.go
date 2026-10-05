@@ -121,7 +121,6 @@ func (chineseProfile) ApplyBoundaryTone(_ Config, curve *render.PitchCurve, _ fl
 	return curve
 }
 
-
 const mandarinPitchFrameMS = 10
 
 type tonePoint struct {
@@ -129,7 +128,6 @@ type tonePoint struct {
 	cents    float64
 }
 
-// mandarinToneCurveは各音節の声調を母音核と鼻音韻尾の区間へ置く。
 func mandarinToneCurve(morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) *render.PitchCurve {
 	if len(morae) == 0 || len(timings) != len(morae) || durationMS <= 0 {
 		return nil
@@ -175,8 +173,7 @@ func mandarinToneCurve(morae []frontend.Mora, timings []prosody.MoraTiming, dura
 	return curve
 }
 
-// mandarinToneWindowは声調を置く韻区間の開始位置と長さを返す。
-// 母音核が不明なときは頭子音の合計長でずらす従来動作へ戻す。
+// 母音核が不明なら、語頭子音の合計長を使う。
 func mandarinToneWindow(mora frontend.Mora, weights []float64, durationMS float64) (float64, float64) {
 	spans := phoneSpansFromWeights(weights, durationMS)
 	nucleusStart, nucleusEnd := -1, -1
@@ -209,8 +206,7 @@ func mandarinToneWindow(mora frontend.Mora, weights []float64, durationMS float6
 	return start, math.Max(1, end-start)
 }
 
-// mandarinNeutralTonePointsは軽声(5)のF0を前の声調から求める。
-// 前声調が高いほど軽声も高く、いずれも語尾へ向けてわずかに下降する。
+// 軽声は前の声調に合わせ、語尾へ少し下げる。
 func mandarinNeutralTonePoints(previous int) []tonePoint {
 	switch previous {
 	case 1, 2, 3, 4:

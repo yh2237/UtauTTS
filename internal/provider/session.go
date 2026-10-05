@@ -21,7 +21,7 @@ const (
 	defaultMaxLineBytes  = 16 * 1024 * 1024
 )
 
-// SessionOptionsは実行ファイルとホストが期待するハンドシェイクを示す。Argsはexec.Commandへ直接渡しシェル展開は行わない。
+// Argsは直接渡し、シェル展開しない。
 type SessionOptions struct {
 	Executable      string
 	Args            []string
@@ -135,7 +135,6 @@ type Session struct {
 
 var requestSequence atomic.Uint64
 
-// StartSessionはproviderを起動しhelloメッセージを待つ。
 func StartSession(ctx context.Context, options SessionOptions) (*Session, error) {
 	if ctx == nil {
 		ctx = context.Background()

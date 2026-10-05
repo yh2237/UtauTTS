@@ -921,7 +921,6 @@ func TestChooseBoundaryRepairKeepsNormalOrImprovesPeak(t *testing.T) {
 	for index := range previousWave {
 		previousWave[index] = 0.2 * math.Sin(2*math.Pi*float64(index)/20)
 	}
-	// 境界のインパルスが減らなければ通常接続へ戻ることを確認する。
 	mix[110] += 0.8
 	previous := renderedUnit{
 		Unit: plan.Unit{DurationMS: 80}, Timing: effectiveTiming{PreutteranceMS: 20}, Wave: previousWave,

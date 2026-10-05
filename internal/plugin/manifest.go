@@ -128,7 +128,6 @@ func validateRendererIDAndResources(id string, resources map[string]RendererReso
 	return nil
 }
 
-// validateRendererSettingsは設定項目のid・type・範囲の整合性を検査する。
 func validateRendererSettings(settings []RendererSetting) error {
 	seen := make(map[string]struct{}, len(settings))
 	for _, setting := range settings {

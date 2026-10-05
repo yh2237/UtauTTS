@@ -13,7 +13,7 @@ type rendererSettingsResolution struct {
 	Wavtool   string
 }
 
-// rendererSettingKindはmanifestのtypeに対応する値の種類。数値はnumber/integerを区別せずfloat64で扱う。
+// 数値はnumber/integerともfloat64で扱う。
 type rendererSettingKind int
 
 const (
@@ -25,12 +25,11 @@ const (
 
 // 新しい設定はmanifestとこのテーブルへ追加する。Requestの固定フィールドは増やさない。
 type rendererSettingSpec struct {
-	id   string
-	kind rendererSettingKind
-	// defaultValueはcanonicalな既定値。typedフィールドやrenderer_settingsが無い設定の土台になる。
+	id           string
+	kind         rendererSettingKind
 	defaultValue any
 	apply        func(value any, cfg *tts.Config, options *render.ProviderOptions, resolution *rendererSettingsResolution)
-	// typedは互換用のtypedフィールドから値を取り出す。nilならmap経路のみ（新設定向け）。
+	// nilならrenderer_settingsだけを受け取る。
 	typed func(request Request) any
 }
 
@@ -92,7 +91,6 @@ var rendererSettingSpecs = []rendererSettingSpec{
 			options.DiffSinger.PitchMix = value
 		}),
 	{
-		// typedはWORLDのホスト制御（Worldline.TimingWarp、nilは既定ON）。renderer_settingsが優先する。
 		id: "timing_warp", kind: rendererSettingKindBoolean, defaultValue: render.WorldlineProviderOptions{}.TimingWarpEnabled(),
 		typed: func(r Request) any { return r.Worldline.TimingWarpEnabled() },
 		apply: func(value any, _ *tts.Config, options *render.ProviderOptions, _ *rendererSettingsResolution) {
@@ -101,7 +99,6 @@ var rendererSettingSpecs = []rendererSettingSpec{
 		},
 	},
 	{
-		// typedはWORLDのホスト制御（Worldline.Microprosody、nilは既定ON）。renderer_settingsが優先する。
 		id: "microprosody", kind: rendererSettingKindBoolean, defaultValue: render.WorldlineProviderOptions{}.MicroprosodyEnabled(),
 		typed: func(r Request) any { return r.Worldline.MicroprosodyEnabled() },
 		apply: func(value any, _ *tts.Config, options *render.ProviderOptions, _ *rendererSettingsResolution) {
@@ -153,8 +150,7 @@ func stringSetting(id string, defaultValue string, typed func(Request) any, appl
 	}
 }
 
-// resolveRendererSettingsはrenderer設定を「既定→typed→renderer_settings」の順に解決する。
-// typedは既存経路の互換用で、同じidをmapが持てばmapが優先される。
+// 優先順はrenderer_settings、型付き設定、既定値。
 func resolveRendererSettings(request Request, cfg *tts.Config, options *render.ProviderOptions) rendererSettingsResolution {
 	return resolveRendererSettingsWith(rendererSettingSpecs, request, cfg, options)
 }
@@ -174,7 +170,6 @@ func resolveRendererSettingsWith(specs []rendererSettingSpec, request Request, c
 	return resolution
 }
 
-// applyRendererSettingsはmapだけを解決する。既存の呼び出し互換のためシグネチャを保つ。
 func applyRendererSettings(settings map[string]json.RawMessage, cfg *tts.Config, options *render.ProviderOptions) rendererSettingsResolution {
 	resolution := rendererSettingsResolution{}
 	applyRendererSettingsMap(rendererSettingSpecs, settings, cfg, options, &resolution)

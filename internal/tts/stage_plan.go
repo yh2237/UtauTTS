@@ -9,7 +9,6 @@ import (
 	"utautts/internal/voicebank"
 )
 
-// 原音選択後に長さを確定し、最後にユーザーのunit指定を適用する。
 func buildSynthesisPlan(cfg Config, profile languageProfile, bank *voicebank.Bank, reading, language, phonemizer string, morae []frontend.Mora, selections []voicebank.Selection, predictions []prosody.Prediction, requestedAliasPolicy voicebank.AliasPolicy, joinModel *connection.JoinModel) (*plan.Plan, bool, error) {
 	phoneWeights, phoneTimingSource := profile.PhoneTiming(cfg, morae, voicebank.IsSingleCVSelections(selections))
 	if len(cfg.PitchFactors) > 0 {
@@ -30,7 +29,7 @@ func buildSynthesisPlan(cfg Config, profile languageProfile, bank *voicebank.Ban
 			predictions[i].PitchFactor = factor
 		}
 	}
-	// C3aは日本語のモーラだけを対象にし、長いモーラ長で効果があるときだけ有効化する。
+	// 短いモーラでは不要な原音解析を避ける。
 	stretchAdapt := stretchAdaptEnabled(cfg) && profile.SupportsStretchAdapt()
 	synthesisPlan, err := plan.Build(bank, reading, morae, selections, plan.Config{
 		MoraDurationMS:       cfg.MoraDurationMS,

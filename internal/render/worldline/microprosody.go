@@ -7,13 +7,12 @@ import (
 	"utautts/internal/plan"
 )
 
-// microprosodyStartMSは、微細韻律のテンプレートの最初の点の母音の開始からの時刻。点は10ms間隔。
+// 母音開始を基準としたテンプレートの始点(ms)。点は10ms間隔。
 const microprosodyStartMS = -20.0
 
-// microprosodyTemplatesは子音の種類ごとの、母音の開始の前後のF0の小さな上下（セント）。
-// つくよみちゃんコーパスとみんなで作るJSUT BASIC5000_0001-0600（MFA整列、WORLD 5ms）で、
-// 150msの移動中央値からの残差を子音の種類ごとに平均し、母音→母音の平均を引いた値（−20〜+40ms）。
-// WORLDは目標のF0曲線で置き換えるので、元の録音にあったこの動きは失われる。それを曲線へ戻す。
+// つくよみちゃんコーパスとみんなで作るJSUT BASIC5000_0001-0600から測定したF0補正(cent)。
+// MFA整列・WORLD 5ms、150ms移動中央値からの残差を平均し、母音連続の平均を引いた値。
+// WORLDで失われる子音前後の微細な音高変化を補う。
 var microprosodyTemplates = map[string][]float64{
 	"voiceless_stop":      {-7, 52, 62, 37, 12, -1, -8},
 	"voiceless_fricative": {-28, -1, 21, 21, 3, -11, -10},
@@ -41,8 +40,7 @@ func microprosodyClass(consonant string) string {
 	return ""
 }
 
-// applyMicroprosodyは日本語のモーラの母音の開始（ノートの開始）の前後へ、子音の種類ごとのテンプレートを掛ける。
-// curveは合成計画の時刻curveStartMSからframeMS間隔のF0（Hz）。
+// curveは計画時刻curveStartMSからframeMS間隔のF0(Hz)。
 func applyMicroprosody(synthesisPlan *plan.Plan, curve []float64, curveStartMS, frameMS float64) {
 	if synthesisPlan == nil || frameMS <= 0 {
 		return

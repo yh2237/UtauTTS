@@ -312,7 +312,6 @@ func TestExportUSTXSequentialSameTrackParts(t *testing.T) {
 	if len(parts) != 2 {
 		t.Fatalf("voice_parts = %d, want 2", len(parts))
 	}
-	// 同じトラックのパートが重ならず、1拍分の間隔を持つことを確認する。
 	first := parts[0].(map[string]any)
 	second := parts[1].(map[string]any)
 	firstStart := first["position"].(int)
@@ -362,7 +361,6 @@ func TestExportUSTXLongVowelExtension(t *testing.T) {
 	for i, n := range notes {
 		lyrics[i] = n.(map[string]any)["lyric"].(string)
 	}
-	// よの後の長音が「+お」の拡張ノートになることを確認する。
 	want := []string{"お", "は", "よ", "+お", "ご", "ざ", "い", "ま", "す"}
 	for i := range want {
 		if lyrics[i] != want[i] {
@@ -392,7 +390,6 @@ func TestExportUSTXDurationsAndPauses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// BPM120のmsからtickへの変換を確認する。
 	text := string(data)
 	for _, want := range []string{"position: 0", "duration: 77", "position: 269", "duration: 115"} {
 		if !strings.Contains(text, want) {
@@ -441,7 +438,6 @@ func TestExportUSTXUsesAutomaticMoraTiming(t *testing.T) {
 	if len(notes) != 2 {
 		t.Fatalf("notes = %d, want 2", len(notes))
 	}
-	// 出力側と同じmsからtickへの変換。
 	ticks := func(ms float64) int {
 		return int(math.Round(ms * 480.0 / (60000.0 / 120.0)))
 	}

@@ -1,6 +1,5 @@
 package base
 
-// SourceSpanは原音区間と出力音素の対応を保持する。
 type SourceSpan struct {
 	Alias          string               `json:"alias"`
 	SourceSHA256   string               `json:"source_sha256"`

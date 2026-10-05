@@ -14,8 +14,7 @@ func englishSyllablePhones(s englishSyllable) []Phone {
 	return phones
 }
 
-// PhoneWeightは音素長の初期値を返す。
-// alias形式に依存させず全レンダラーで共有する。
+// 原音形式によらず、全レンダラーで同じ重みを使う。
 func PhoneWeight(symbol, role string) float64 {
 	if role == "nucleus" {
 		return 1
@@ -34,7 +33,6 @@ func PhoneWeight(symbol, role string) float64 {
 	}
 }
 
-// PhoneSpansは既知の長さを音素へ配分する。
 func PhoneSpans(phones []Phone, duration float64) []float64 {
 	spans := make([]float64, len(phones))
 	rhymeShares := MandarinRhymeShares(phones)

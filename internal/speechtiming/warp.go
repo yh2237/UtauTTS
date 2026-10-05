@@ -9,21 +9,19 @@ import (
 )
 
 const (
-	// FrameMSはWORLD特徴量のフレーム周期。
-	FrameMS = 10.0
-	// maxStretchは局所の伸縮の上限（倍）。
+	// WORLDのフレーム周期(ms)。
+	FrameMS    = 10.0
 	maxStretch = 2.0
-	// finalConsonantMSは、句の最後のモーラをノートの開始のどれだけ前から保護するか（子音を含める）。
+	// 句末の子音も保護するため、ノート開始より前から伸縮を止める。
 	finalConsonantMS = 120.0
-	// rampMSは、保護の手前で伸縮を0へ戻す長さ。
-	rampMS = 60.0
-	// longPauseSecは、これより長いモーラ間の隙間を無音として扱う。
+	rampMS           = 60.0
+	// この長さを超える隙間は休止とする(秒)。
 	longPauseSec = 0.15
 	melLowHz     = 40.0
 	melHighHz    = 12000.0
 )
 
-// Moraは合成計画の1モーラ（出力の時刻はミリ秒）。
+// 時刻は合成計画基準のms。
 type Mora struct {
 	Text                    string
 	NoteStartMS             float64
@@ -46,8 +44,7 @@ type phoneSpan struct {
 	label      string
 }
 
-// Warpは特徴量を目標に合わせて時間方向だけ伸縮した新しい特徴量を返す。
-// strengthは寄せ方の強さ（1が既定、0は恒等）。マージンは先頭の余白（ミリ秒）。
+// strengthは1が標準、0は無効。文頭余白はms。
 func Warp(model Predictor, morae []Mora, leadingMarginMS float64, input Features, strength float64) (Features, error) {
 	frames := input.Frames
 	bins := input.FFTSize/2 + 1
@@ -94,9 +91,7 @@ func Warp(model Predictor, morae []Mora, leadingMarginMS float64, input Features
 	return resample(input, positions), nil
 }
 
-// phoneTimelineは合成計画のモーラから音素の区間（秒）を作る。
-// 子音はノートの開始−実効の先行発声〜ノートの開始、母音はノートの開始〜モーラの終わり。
-// startsは各モーラのノートの開始、endsは発声区間の終わり（次のモーラとの間に隙間がある所と最後）。
+// 音素時刻は秒。startsはノート開始、endsは休止直前と発話末。
 func phoneTimeline(morae []Mora, marginMS float64, frames int) ([]phoneSpan, []float64, []float64) {
 	var phones []phoneSpan
 	var starts, ends []float64
@@ -111,7 +106,7 @@ func phoneTimeline(morae []Mora, marginMS float64, frames int) ([]phoneSpan, []f
 		if len(consonants) > 0 {
 			onset = note - mora.EffectivePreutteranceMS/1000
 		}
-		// 子音は前のモーラの母音の終わりに食い込む。前の母音をそこで切る（前の音素の始まりより前には出さない）。
+		// 子音は前の母音に食い込むため、母音を子音開始で切る。
 		if onset < cursor && len(phones) > 0 {
 			last := &phones[len(phones)-1]
 			onset = math.Max(onset, last.start+FrameMS/1000)
@@ -150,7 +145,6 @@ func phoneTimeline(morae []Mora, marginMS float64, frames int) ([]phoneSpan, []f
 	return phones, starts, ends
 }
 
-// moraPhonesはモーラの音素（子音…、母音）。母音はa/i/u/e/o/N/clのどれか。
 func moraPhones(text, previousVowel string) []string {
 	switch text {
 	case "ー":
@@ -190,7 +184,7 @@ func moraPhones(text, previousVowel string) []string {
 	return []string{consonant, vowel}
 }
 
-// specialConsonantは、frontendが子音を持たない外来音の拗音の子音。
+// frontendで子音が付かない外来音を補う。
 func specialConsonant(text string) string {
 	runes := []rune(text)
 	if len(runes) < 2 {
@@ -211,7 +205,6 @@ func specialConsonant(text string) string {
 	return ""
 }
 
-// frameInputsはモデルの入力（音素ID、連続値）と、発声フレームの印を作る。
 func frameInputs(phoneNames []string, phones []phoneSpan, f0 []float64) ([][3]int, [][4]float32, []bool) {
 	index := make(map[string]int, len(phoneNames))
 	for i, name := range phoneNames {
@@ -280,7 +273,6 @@ func frameInputs(phoneNames []string, phones []phoneSpan, f0 []float64) ([][3]in
 	return ids, cont, speech
 }
 
-// interpLogF0は有声フレームの対数F0を線形補間し、平均を引く（端は最寄りの値）。
 func interpLogF0(f0 []float64, voiced []int, t int, mean float64) float64 {
 	k := sort.SearchInts(voiced, t)
 	switch {
@@ -296,7 +288,7 @@ func interpLogF0(f0 []float64, voiced []int, t int, mean float64) float64 {
 	return math.Log(f0[left])*(1-w) + math.Log(f0[right])*w - mean
 }
 
-// logMelはWORLD包絡を40Hz〜12kHzの対数メル（dB）へ。学習時と同じ三角フィルタ。
+// 学習と同じ40Hz〜12kHzの三角フィルタで対数メル(dB)へ変換する。
 func logMel(spectrum []float64, frames, fftSize, sampleRate, mels int) [][]float64 {
 	bins := fftSize/2 + 1
 	mel := func(hz float64) float64 { return 2595 * math.Log10(1+hz/700) }
@@ -340,7 +332,7 @@ func logMel(spectrum []float64, frames, fftSize, sampleRate, mels int) [][]float
 	return result
 }
 
-// normalizeは発声フレームの平均と標準偏差で列ごとに正規化する（声の違いを除く）。
+// 声質差を減らすため、発声フレームの平均と標準偏差で正規化する。
 func normalize(rows [][]float64, speech []bool) {
 	if len(rows) == 0 {
 		return
@@ -378,8 +370,7 @@ func normalize(rows [][]float64, speech []bool) {
 	}
 }
 
-// warpMapは出力フレーム→元のフレームの位置を返す。anchors（フレーム）を固定点に区間ごとにDTWし、
-// 平滑化して局所の伸縮を制限し、区間の端点を合わせ直す。
+// 出力フレームから原音フレームへの対応。anchorsは固定点。
 func warpMap(source, target [][]float64, anchors []float64, frames int) []float64 {
 	edgeSet := map[int]bool{0: true, frames: true}
 	for _, anchor := range anchors {
@@ -410,7 +401,7 @@ func warpMap(source, target [][]float64, anchors []float64, frames int) []float6
 	smooth := make([]float64, frames)
 	for t := range frames {
 		var sum float64
-		// 端は線形に外挿する（恒等の対応を平滑化で歪めない）
+		// 恒等写像を端でも保つため、線形に外挿する。
 		for k := -2; k <= 2; k++ {
 			switch index := t + k; {
 			case index < 0:
@@ -445,7 +436,7 @@ func warpMap(source, target [][]float64, anchors []float64, frames int) []float6
 	return smooth
 }
 
-// dtwSegmentはtargetの各フレームに対応するsourceの位置。傾き(1,1)(1,2)(2,1)のDTW。
+// DTWの移動は(1,1)、(1,2)、(2,1)に制限する。
 func dtwSegment(source, target [][]float64) []float64 {
 	n, m := len(target), len(source)
 	result := make([]float64, n)
@@ -547,7 +538,7 @@ func dtwSegment(source, target [][]float64) []float64 {
 	return result
 }
 
-// protectPhraseEndsは伸縮の重み。句の最後のモーラ（子音を含む）は0、その手前rampMSでなだらかに1へ戻す。
+// 句末が切れないよう、最後のモーラは子音も含めて伸縮しない。
 func protectPhraseEnds(frames int, starts, ends []float64) []float64 {
 	weight := make([]float64, frames)
 	for t := range weight {
@@ -575,8 +566,7 @@ func protectPhraseEnds(frames int, starts, ends []float64) []float64 {
 	return weight
 }
 
-// resampleは包絡と非周期性を位置に沿って対数で線形補間し、有声・無声は最寄りの元のフレームに従う。
-// F0の値は元の曲線のまま（無声の所は補間した値で埋める）。
+// 有声判定は原音位置に従い、F0の値は元の曲線を保つ。
 func resample(input Features, positions []float64) Features {
 	frames := input.Frames
 	bins := input.FFTSize/2 + 1

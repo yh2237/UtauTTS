@@ -162,7 +162,6 @@ func TestMergeManualPitchCurve(t *testing.T) {
 }
 
 func testManualPitchConstraintKeepsLearnedFall(t *testing.T) {
-	// 学習輪郭の急な下降（10msで200セント）は、離れた箇所の手動編集で鈍らない。
 	base := &render.PitchCurve{FrameMS: 10, Cents: make([]float64, 20)}
 	for index := 15; index < len(base.Cents); index++ {
 		base.Cents[index] = -200
@@ -180,7 +179,7 @@ func testManualPitchConstraintKeepsLearnedFall(t *testing.T) {
 }
 
 func testManualPitchConstraintKeepsMoraFall(t *testing.T) {
-	// GUIのモーラ編集（中心間120msを直線補間）で+150→-150と下げた場合、下げた側が逆向きにならない。
+	// モーラ中心間を直線補間した手動編集。
 	manual := &prosody.PitchContour{FrameMS: 10, Cents: make([]float64, 49)}
 	for index := range manual.Cents {
 		switch {
@@ -511,7 +510,6 @@ func TestConvertToReadingUsesBuiltInTokenizer(t *testing.T) {
 }
 
 func TestConvertToReadingReportsOpenJTalkFallback(t *testing.T) {
-	// 存在しないhelperを指定し、同梱物に依存せずフォールバック失敗を再現する。
 	_, err := ConvertToReading("2024年です。", nil, openjtalk.Config{
 		HelperPath: filepath.Join(t.TempDir(), "missing-helper"),
 	})

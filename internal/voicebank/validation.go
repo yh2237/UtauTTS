@@ -13,7 +13,6 @@ import (
 	"utautts/internal/sourceaudio"
 )
 
-// EntryValidationは原音候補へ追加する前の検査結果。
 type EntryValidation struct {
 	Status string
 	Checks []string

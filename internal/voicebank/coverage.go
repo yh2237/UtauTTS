@@ -2,8 +2,7 @@ package voicebank
 
 import "utautts/internal/frontend"
 
-// Coverageは通常の候補絞り込み後の利用可能な主ユニット数を数える。
-// 発音品質や遷移・語尾の網羅性の指標ではない。
+// 主原音の網羅性だけを数える。発音品質や遷移・語尾は評価しない。
 type Coverage struct {
 	Positions       int                 `json:"positions"`
 	Covered         int                 `json:"covered"`
@@ -12,8 +11,7 @@ type Coverage struct {
 	MissingPhones   []SpeechGap         `json:"missing_phones,omitempty"`
 }
 
-// AuditCoverageは欠落位置を越えて続けつつ言語文脈を完全に保つ。
-// ポーズはカウント0でPositionsから除外し、欠落をまたぐパスは選ばない。
+// 休止は数えず、欠落位置を越えても言語文脈を保つ。
 func (b *Bank) AuditCoverage(morae []frontend.Mora, tone string) (*Coverage, error) {
 	result := &Coverage{CandidateCounts: make([]int, len(morae)), Missing: []MissingAliasError{}}
 	layers, err := b.candidateLayersDiagnostic(morae, tone, "", AliasPolicyAuto, &result.Missing)

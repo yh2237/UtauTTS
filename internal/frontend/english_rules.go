@@ -5,8 +5,7 @@ import (
 	"strings"
 )
 
-// 意図的に小さく保った綴り規則。強勢記号のない母音はStressKnown=falseのまま。
-// 辞書の完全一致と曖昧さのない辞書由来の屈折を優先する。
+// 辞書・屈折で解決できない語だけを補う。強勢のない母音は不明のまま扱う。
 func englishRulePronunciation(word string) (string, error) {
 	word = strings.ToLower(strings.ReplaceAll(word, "’", "'"))
 	if word == "" || strings.Trim(word, "abcdefghijklmnopqrstuvwxyz'") != "" || strings.Trim(word, "'") == "" {
@@ -18,7 +17,7 @@ func englishRulePronunciation(word string) (string, error) {
 
 type englishSpellingRule struct{ spelling, phones string }
 
-// 長い綴りを前に置く。音素は既存のARPAbet体系のみを使うため、ARPAsing・Delta・VCCVで共通に動作する。
+// 長い綴りを先に照合する。
 var englishSpellingGroups = []englishSpellingRule{
 	{"eigh", "EY"}, {"igh", "AY"}, {"tion", "SH AH N"}, {"sion", "ZH AH N"},
 	{"tch", "CH"}, {"dge", "JH"}, {"air", "EH R"},

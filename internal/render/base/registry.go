@@ -12,7 +12,7 @@ type RenderFunc func(*plan.Plan, Config) (*audio.PCM, error)
 
 var implementations = map[string]RenderFunc{}
 
-// RegisterRendererはbackend実装を登録する。renderer固有パッケージのinitから呼ぶ。
+// レンダラー固有パッケージのinitから登録する。
 func RegisterRenderer(id string, fn RenderFunc) {
 	implementations[id] = fn
 }
@@ -32,7 +32,6 @@ var (
 	closers  []func() error
 )
 
-// RegisterCloserは常駐する外部リソースの解放関数を登録する。renderer固有パッケージのinitから呼ぶ。
 func RegisterCloser(fn func() error) {
 	if fn == nil {
 		return
@@ -42,7 +41,6 @@ func RegisterCloser(fn func() error) {
 	closerMu.Unlock()
 }
 
-// CloseRegisteredは登録済みの解放関数を登録と逆順に呼び、返されたエラーをまとめる。
 func CloseRegistered() error {
 	closerMu.Lock()
 	registered := append([]func() error(nil), closers...)

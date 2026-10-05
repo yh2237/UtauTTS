@@ -164,7 +164,6 @@ type installVoicebankRequest struct {
 	Name    string `json:"name,omitempty"`
 }
 
-// ZIPの最上位ディレクトリが1つなら、その名前を音源フォルダ名に使う。
 func (e *Engine) installVoicebank(data []byte) (any, error) {
 	var request installVoicebankRequest
 	if len(data) != 0 {
@@ -247,7 +246,6 @@ func (e *Engine) installVoicebank(data []byte) (any, error) {
 	return map[string]any{"installed": target, "voicebanks": e.voicebankList()}, nil
 }
 
-// findVoicebankRootは展開先から音源ルート（oto.ini等を含む最も浅いディレクトリ）を探す。
 func findVoicebankRoot(root string) string {
 	best := ""
 	bestDepth := -1
@@ -700,8 +698,7 @@ func (e *Engine) exportUstx(data []byte) (any, error) {
 	return map[string]any{"ustx_path": outputPath}, nil
 }
 
-// enrichAndCurvesはUSTX出力前に解析と10msピッチ輪郭を補う。
-// 輪郭を作れない発話はnilのままにし、出力側でモーラ値へ戻す。
+// 輪郭を作れない発話はnilを返し、出力側でモーラ値を使う。
 func (e *Engine) enrichAndCurves(project *openutau.UtauTTSProject) []openutau.FrameCurve {
 	curves := make([]openutau.FrameCurve, len(project.Utterances))
 	for index := range project.Utterances {

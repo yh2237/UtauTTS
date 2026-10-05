@@ -50,7 +50,6 @@ type analysisCacheKey struct {
 	dictionary string
 }
 
-// prosodyComputationはプレビューと本合成で共有できるプロソディ入力。
 type prosodyComputation struct {
 	morae       []frontend.Mora
 	features    []prosody.FeatureFrame
@@ -144,7 +143,6 @@ func moraeEqual(a, b []frontend.Mora) bool {
 	return true
 }
 
-// resolveProsodyComputationは特徴量と予測をまとめて解決し、プレビューと本合成で再利用する。
 func resolveProsodyComputation(cfg Config, profile languageProfile, model *prosody.Model, morae []frontend.Mora, reading string) ([]prosody.FeatureFrame, []prosody.Prediction, error) {
 	if len(cfg.ProsodyFeatures) > 0 || cfg.SpeechModel != nil || cfg.SpeechModelPath != "" {
 		features := cfg.ProsodyFeatures
@@ -259,7 +257,6 @@ func analyzeOpenJTalkCached(ctx context.Context, text string, cfg openjtalk.Conf
 	return analysis, nil
 }
 
-// ClearCachesは音源やランタイム資源の更新後に合成入力を破棄する。
 func ClearCaches() {
 	// 同じパスの旧モデルが子プロセスに残らないよう、ONNXセッションも閉じる。
 	_ = neural.CloseSessions()

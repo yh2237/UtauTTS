@@ -1,7 +1,5 @@
-// Package speechtimingは、原音接続の出力を学習した読み上げの動きに合わせて時間方向だけ伸縮する。
-//
-// 目標モデルは音素・長さ・相対F0から、話者ごとに正規化した対数メル包絡の軌跡を予測する。
-// 包絡の形そのものは使わず、出力の包絡との対応（DTW）を求めて時間の割り当てだけを変える。
+// speechtimingは学習した読み上げに合わせて時間配分を調整する。
+// 予測した包絡は出力せず、原音の包絡を時間方向だけ伸縮する。
 package speechtiming
 
 import (
@@ -16,13 +14,10 @@ import (
 	"sync"
 )
 
-// Predictorは、フレームごとの入力から正規化した対数メル包絡を予測する。
-// 推論の実装（純Go、将来のgograd）はこのインターフェースの後ろで差し替える。
 type Predictor interface {
-	// Phonesは音素IDの並び。入力のIDはこの添字。
+	// 音素IDはこの配列の添字。
 	Phones() []string
-	// Predictはids（現在・前・次の音素ID）とcont（音素の中の位置、対数の長さ、相対の対数F0、有声）から、
-	// フレームごとのMels()次元の値を返す。
+	// idsは現在・前・次の音素。contは音素内位置・対数長・相対対数F0・有声フラグ。
 	Predict(ids [][3]int, cont [][4]float32) ([][]float32, error)
 	Mels() int
 }
@@ -36,7 +31,6 @@ var (
 	defaultErr    error
 )
 
-// DefaultTargetは同梱の目標モデルを返す。
 func DefaultTarget() (*TCN, error) {
 	defaultOnce.Do(func() {
 		defaultTarget, defaultErr = LoadTCN(embeddedTarget)
@@ -49,7 +43,6 @@ type tensor struct {
 	data  []float32
 }
 
-// readSafeTensorsはF32のsafetensorsを読む。
 func readSafeTensors(data []byte) (map[string]tensor, map[string]string, error) {
 	if len(data) < 8 {
 		return nil, nil, fmt.Errorf("safetensors: short file")
@@ -100,8 +93,6 @@ func readSafeTensors(data []byte) (map[string]tensor, map[string]string, error) 
 	return tensors, metadata, nil
 }
 
-// TCNは膨張畳み込みの目標モデル（純Goの推論）。
-// 構成: 音素埋め込み×3＋連続値4 → 1x1 → [k×dilation畳み込み → LayerNorm → GELU、残差]×N → 1x1。
 type TCN struct {
 	phones    []string
 	embedDim  int
@@ -119,7 +110,7 @@ type TCN struct {
 	outB      tensor
 }
 
-// LoadTCNはsafetensorsの重みを読む。構成は__metadata__（phones、dilations、kernel）から取る。
+// モデル構成はsafetensorsの__metadata__から読む。
 func LoadTCN(data []byte) (*TCN, error) {
 	tensors, metadata, err := readSafeTensors(data)
 	if err != nil {
@@ -201,7 +192,6 @@ func LoadTCN(data []byte) (*TCN, error) {
 func (m *TCN) Phones() []string { return append([]string(nil), m.phones...) }
 func (m *TCN) Mels() int        { return m.mels }
 
-// Predictは時間方向に並列化して推論する。
 func (m *TCN) Predict(ids [][3]int, cont [][4]float32) ([][]float32, error) {
 	frames := len(ids)
 	if len(cont) != frames {
@@ -269,7 +259,7 @@ func (m *TCN) dilatedConv(h, y []float32, frames, index, dilation int) {
 	})
 }
 
-// kernelMajorはPyTorchの[out,in,k]を、内積が連続になる[k,out,in]へ並べ替える。
+// 内積を連続メモリで計算するため、[out,in,k]を[k,out,in]へ並べ替える。
 func kernelMajor(w tensor) tensor {
 	out, in, kernel := w.shape[0], w.shape[1], w.shape[2]
 	data := make([]float32, len(w.data))

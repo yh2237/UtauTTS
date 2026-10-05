@@ -79,7 +79,6 @@ func TestApplyBoundaryToneKeepsFrameCountAndWindow(t *testing.T) {
 	if len(result.Cents) != len(curve.Cents) {
 		t.Fatalf("frame count = %d, want %d", len(result.Cents), len(curve.Cents))
 	}
-	// 窓の外側（終端から150msより前）は変わらない。
 	for index := 0; index < 80; index++ {
 		if result.Cents[index] != 0 {
 			t.Fatalf("cents[%d] = %.4f, want 0", index, result.Cents[index])
@@ -90,7 +89,6 @@ func TestApplyBoundaryToneKeepsFrameCountAndWindow(t *testing.T) {
 func TestApplyBoundaryToneHoldsAfterEnd(t *testing.T) {
 	curve := flatPitchCurve(40)
 	result := applyBoundaryTone(curve, 200, true, 1)
-	// 区間より後（末尾のポーズ区間）も最大値を保持して段差を作らない。
 	for index := 21; index < len(result.Cents); index++ {
 		if math.Abs(result.Cents[index]-boundaryToneRiseCents) > 1e-9 {
 			t.Fatalf("cents[%d] = %.4f, want held %.4f", index, result.Cents[index], boundaryToneRiseCents)

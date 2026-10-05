@@ -30,7 +30,7 @@ type JoinAuditUnit struct {
 	CandidateCount int     `json:"candidate_count,omitempty"`
 }
 
-// JoinAuditRowはレンダリング済みプランの1つの隣接境界。Labelがnilの場合は未ラベルで、1は優先/連続、0は却下/不連続を表す。
+// Labelはnilで未確認、1で採用、0で却下。
 type JoinAuditRow struct {
 	SchemaVersion    int           `json:"schema_version"`
 	GroupID          string        `json:"group_id"`

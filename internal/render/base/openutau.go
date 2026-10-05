@@ -11,7 +11,6 @@ func OpenUtauPhoneTimings(units []plan.Unit, cvvcTiming string) ([]OpenUtauPhone
 	return OpenUtauPhoneTimingsWithCoda(units, cvvcTiming, false)
 }
 
-// OpenUtauPhoneTimingsWithCodaは語末子音を持つ境界を保護して音素時間を作る。
 func OpenUtauPhoneTimingsWithCoda(units []plan.Unit, cvvcTiming string, protectCoda bool) ([]OpenUtauPhoneTiming, float64) {
 	result := make([]OpenUtauPhoneTiming, len(units))
 	previous := -1
@@ -81,7 +80,6 @@ func OpenUtauPhoneTimingsWithCoda(units []plan.Unit, cvvcTiming string, protectC
 	return result, phraseStart
 }
 
-// OpenUtauEnvelopeFromTimingは音素時間からOpenUTAU互換の5点エンベロープを作る。
 func OpenUtauEnvelopeFromTiming(unit plan.Unit, timing OpenUtauPhoneTiming) []WorldlineEnvelopePoint {
 	fadeIn := 5.0
 	if timing.Overlapped {
@@ -102,7 +100,6 @@ func OpenUtauEnvelopeFromTiming(unit plan.Unit, timing OpenUtauPhoneTiming) []Wo
 	}
 }
 
-// CVVCPreBoundaryEnvelopeはCVVC遷移音の境界フェードを手前へ寄せる。
 func CVVCPreBoundaryEnvelope(points []WorldlineEnvelopePoint, timing OpenUtauPhoneTiming) []WorldlineEnvelopePoint {
 	if len(points) != 5 {
 		return points

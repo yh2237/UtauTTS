@@ -50,7 +50,6 @@ type CVEntryAudit struct {
 	Warnings        []string `json:"warnings,omitempty"`
 }
 
-// AuditSingleCV は単独音の子音欠落や母音末尾欠落につながる値を監査する
 func (b *Bank) AuditSingleCV() (*SingleCVAudit, error) {
 	if b == nil {
 		return nil, fmt.Errorf("voicebank is nil")

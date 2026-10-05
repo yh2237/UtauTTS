@@ -1,5 +1,4 @@
-// Package ipapronは、Kagome IPA辞書の既知語の発音だけを小さな表で引く。
-// 辞書本文（全素性）を読まずに読み変換するために使う。表はmecab-ipadic由来の生成物で、
+// ipapronは辞書本文を読まず、生成表から既知語の発音を引く。表はmecab-ipadic由来で、
 // ライセンスはkagome-dict/ipaと同じ（THIRD_PARTY_NOTICES.txt参照）。
 package ipapron
 
@@ -20,14 +19,14 @@ const magic = "UTPRON01"
 //go:embed pron.bin
 var data []byte
 
-// Tableは形態素IDから発音を返す。埋め込みデータを複製せずに参照する。
+// 埋め込みデータは複製せずに参照する。
 type Table struct {
 	runes []rune
 	index []byte
 	blob  []byte
 }
 
-// Loadは埋め込み表を読み、渡された辞書の形態素表と一致する場合だけ返す。
+// 辞書の形態素表と一致する場合だけ読み込む。
 func Load(d *dict.Dict) (*Table, error) {
 	return parse(data, DictHash(d), len(d.Morphs))
 }
@@ -73,7 +72,6 @@ func (t *Table) span(id int) (offset, length int) {
 	return int(value >> 8), int(value & 0xff)
 }
 
-// Pronunciationは既知語IDの発音を返す。範囲外のIDはfalse。
 func (t *Table) Pronunciation(id int) (string, bool) {
 	if id < 0 || id*4 >= len(t.index) {
 		return "", false

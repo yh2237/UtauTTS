@@ -2,7 +2,7 @@ package frontend
 
 import "strings"
 
-// 辞書にある語幹だけを使う。呼び出し側が先に完全一致を解決するため、不規則形と語彙アクセントが優先される。
+// 完全一致を先に解決し、屈折の補完には辞書にある語幹だけを使う。
 func englishInflectedPronunciation(word string) (string, error) {
 	word = strings.ToLower(word)
 	type candidate struct{ stem, ending string }

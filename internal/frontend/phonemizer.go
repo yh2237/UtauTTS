@@ -53,7 +53,6 @@ func ResolveLanguage(language, phonemizer string) (string, string, error) {
 	return language, phonemizer, nil
 }
 
-// ParseEnglishDeltaはARPAbet読みをデルタ式CVVCへ変換する。
 func ParseEnglishDelta(text, reading string, dictionary map[string]string) (string, []Mora, error) {
 	return ParseEnglishDeltaWithConfig(text, reading, dictionary, PresampConfig{})
 }
@@ -66,7 +65,6 @@ func ParseEnglishDeltaWithOptions(text, reading string, dictionary map[string]st
 	return parseEnglishSyllables(text, reading, dictionary, deltaEnglishSymbols, " ", true, config, options)
 }
 
-// ParseEnglishVCCVはARPAbet読みをCz式VCCVへ変換する。
 func ParseEnglishVCCV(text, reading string, dictionary map[string]string) (string, []Mora, error) {
 	return ParseEnglishVCCVWithOptions(text, reading, dictionary, DefaultEnglishOptions())
 }
@@ -446,8 +444,7 @@ func englishPronunciation(text, reading string, dictionary map[string]string) (s
 	return englishPronunciationWithOptions(text, reading, dictionary, DefaultEnglishOptions())
 }
 
-// englishPronunciationWithOptionsは読みを解決する。辞書と明示の読みを優先し、
-// 生成した発音にだけ弱形(E1)を適用する。
+// 辞書・明示の読みには弱形を適用しない。
 func englishPronunciationWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, [][]string, error) {
 	pronunciation := strings.TrimSpace(reading)
 	var result [][]string
@@ -550,8 +547,7 @@ func englishOnsetClusterAliases(onset []string, symbols map[string][]string, sep
 	return uniqueStrings(result)
 }
 
-// combineEnglishTransitionAliasesは前音節の母音から遷移するalias候補を作る。
-// 子音始まりの音節はVC、母音始まりの音節はVVとして扱う。
+// 母音始まりはVCでなくVV候補にする。
 func combineEnglishTransitionAliases(previous []string, onset []string, vowels []string, symbols map[string][]string, separator string) []string {
 	if len(previous) == 0 {
 		return nil
@@ -569,8 +565,6 @@ func combineEnglishTransitionAliases(previous []string, onset []string, vowels [
 	return result
 }
 
-// combineEnglishVowelTransitionAliasesは母音連続のVV aliasを控えめに生成する。
-// 音源の在庫に合わせ、区切りあり・なしと解放マーカー付きを候補にする。
 func combineEnglishVowelTransitionAliases(previous, vowels []string, separator string) []string {
 	var result []string
 	for _, left := range previous {
@@ -642,11 +636,7 @@ func ParseEnglishARPAsingWithOptions(text, reading string, dictionary map[string
 	return pronunciation, morae, nil
 }
 
-// ParseEnglishCVはARPAbet読みをC+V形式（子音と母音を別々に録音した英語音源）へ変換する。
-//
-// 1音素=1 Moraとし、aliasの優先順序はOpenUtauのEnglish C+V Phonemizer
-// （Cadlaxa, MIT）に準拠する。母音は文頭が"-V","- V","V"、文中が"-V","V","- V"、
-// 子音は文頭が"- C","-C","C"、文中が"C","-C","- C"の順に試す。
+// 1音素を1 Moraとし、候補順はOpenUtauのEnglish C+V Phonemizer（Cadlaxa, MIT）に準拠する。
 func ParseEnglishCV(text, reading string, dictionary map[string]string) (string, []Mora, error) {
 	return ParseEnglishCVWithOptions(text, reading, dictionary, DefaultEnglishOptions())
 }
@@ -769,8 +759,7 @@ func ParseChineseCVVCWithConfig(text, reading string, dictionary map[string]stri
 	}
 	var morae []Mora
 	previousFinal := ""
-	// GUIプレビューは生成した読みを返す。完全一致のときだけ字句情報を復元し、
-	// 明示的に編集された読みは再解釈しない。
+	// プレビューの読みと一致する場合だけ再解析し、手動の読みは保つ。
 	if len(tokens) == 0 && text != "" {
 		if inferred, err := chineseReadingTokens(text, dictionary); err == nil {
 			var values []string
@@ -920,7 +909,6 @@ var englishVowels = map[string]bool{
 	"oy": true, "uh": true, "uw": true,
 }
 
-// cvEnglishConsonantsはC+V音源が別録音を持つ子音。q(声門閉鎖)も含む。
 var cvEnglishConsonants = map[string]bool{
 	"b": true, "ch": true, "d": true, "dh": true, "dx": true, "f": true, "g": true,
 	"hh": true, "jh": true, "k": true, "l": true, "m": true, "n": true, "ng": true,
@@ -952,7 +940,6 @@ var vccvEnglishSymbols = map[string][]string{
 	"w": {"w"}, "y": {"y"}, "z": {"z"}, "zh": {"zh"},
 }
 
-// 原音解析用に既存の英語記号表を返す。
 func EnglishSourceSymbols(phonemizer string) map[string][]string {
 	var source map[string][]string
 	switch phonemizer {

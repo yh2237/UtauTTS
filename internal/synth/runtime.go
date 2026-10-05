@@ -21,7 +21,6 @@ type Runtime struct {
 	Service  *Service
 }
 
-// NewRuntimeはGUI・HTTP・CLIで共有するプラグイン検出と既定Renderer補正を行う。
 func NewRuntime(config RuntimeConfig, voicebanks VoicebankResolver) (*Runtime, error) {
 	catalog, err := plugin.DiscoverWithDefaults(config.RendererDirectories, config.ModelDirectories, render.IsKnownRenderer)
 	if err != nil {

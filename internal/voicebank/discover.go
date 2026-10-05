@@ -11,7 +11,6 @@ import (
 	"utautts/internal/diffsinger"
 )
 
-// Summaryは音源ピッカーに表示する軽量な情報。
 type Summary struct {
 	Name          string `json:"name"`
 	Path          string `json:"path"`
@@ -230,7 +229,6 @@ func Inspect(root string) (Summary, error) {
 	return Summary{Name: name, Path: absRoot, Kind: "utau", ImagePath: imagePath, CharacterPath: characterPath, ReadmePath: readmePath}, nil
 }
 
-// InspectSingerはUTAU音源とDiffSinger音源の表示情報を読む。
 func InspectSinger(root string) (Summary, error) {
 	if diffsinger.IsSinger(root) {
 		return inspectDiffSinger(root)

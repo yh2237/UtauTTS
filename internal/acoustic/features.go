@@ -9,7 +9,6 @@ import (
 	"utautts/internal/pitch"
 )
 
-// Frameは波形領域のレベル、ピッチ、粗いスペクトル形状を表す。
 type Frame struct {
 	Valid      bool      `json:"valid"`
 	RMSDB      float64   `json:"rms_db"`
@@ -70,8 +69,7 @@ func LogSpectrum(values []float64, sampleRate, bands int, minimumHz, maximumHz f
 	return spectrum.Log(values, sampleRate, bands, minimumHz, maximumHz)
 }
 
-// SpectralTiltDBはスペクトルの低域平均に対する高域平均の比(dB)を返す。
-// SpectrumDBは対数間隔のバンドなので、両者の平均差は10*log10(高域/低域のエネルギー比)に相当する。
+// 対数バンドの高域平均−低域平均を、スペクトル傾斜(dB)とする。
 func SpectralTiltDB(spectrumDB []float64) float64 {
 	if len(spectrumDB) < 2 {
 		return 0
@@ -89,7 +87,6 @@ func SpectralTiltDB(spectrumDB []float64) float64 {
 	return high - low
 }
 
-// 傾斜差が小さいほど自然な接合とみなす。
 func SpectralTiltDelta(left, right []float64) float64 {
 	return math.Abs(SpectralTiltDB(left) - SpectralTiltDB(right))
 }

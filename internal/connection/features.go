@@ -1,4 +1,3 @@
-// connectionパッケージはUTAUユニット間の音響的な相性を測定する。
 package connection
 
 import (
@@ -13,7 +12,6 @@ import (
 	"utautts/internal/sourceaudio"
 )
 
-// Boundaryはユニット接合部のフレーム群を保持する。
 type Boundary struct {
 	Incoming     acoustic.Frame
 	Outgoing     acoustic.Frame
@@ -21,7 +19,6 @@ type Boundary struct {
 	outgoingWave []float64
 }
 
-// PairFeaturesはモデルとヒューリスティックで共有する入力。
 type PairFeatures struct {
 	PreviousOutgoing       acoustic.Frame `json:"previous_outgoing"`
 	CurrentIncoming        acoustic.Frame `json:"current_incoming"`
@@ -38,11 +35,10 @@ type PairFeatures struct {
 	CurrentVCV bool `json:"current_vcv,omitempty"`
 }
 
-// Extractorは複数ペアで使うWAV分析結果をキャッシュする。
 type Extractor struct {
-	mutex  sync.Mutex
-	cache  map[oto.Entry]Boundary
-	tails  map[oto.Entry]Boundary
+	mutex sync.Mutex
+	cache map[oto.Entry]Boundary
+	tails map[oto.Entry]Boundary
 	model *JoinModel
 }
 
@@ -50,7 +46,6 @@ func NewExtractor() *Extractor {
 	return &Extractor{cache: map[oto.Entry]Boundary{}}
 }
 
-// NewExtractorWithModelは同じ境界キャッシュを保ちつつ、任意の学習済み接合補正を適用するExtractorを生成する。
 func NewExtractorWithModel(model *JoinModel) *Extractor {
 	return &Extractor{cache: map[oto.Entry]Boundary{}, model: model}
 }
@@ -180,7 +175,7 @@ func activeTailCenter(wave []float64, rate int) (float64, bool) {
 	return 0, false
 }
 
-// ScoreEntriesは設定済みモデルで1つの遷移を評価する。判定が欠落または低信頼の場合は手作りscoreをフォールバックに使う。
+// 判定なし・低信頼の場合は規則スコアへ戻す。
 func (e *Extractor) ScoreEntries(previous, current oto.Entry) float64 {
 	features := e.Pair(previous, current)
 	return e.ScoreFeatures(features)
@@ -197,7 +192,6 @@ func (e *Extractor) ScoreSpeechContext(previous, current oto.Entry) float64 {
 	return e.ScoreEntries(previous, current)
 }
 
-// ScoreFeaturesは境界キャッシュに触れず、抽出済みの特徴量を評価する。
 func (e *Extractor) ScoreFeatures(features PairFeatures) float64 {
 	if e != nil && e.model != nil {
 		return e.model.Predict(features).Score
@@ -205,7 +199,6 @@ func (e *Extractor) ScoreFeatures(features PairFeatures) float64 {
 	return HandcraftedScore(features)
 }
 
-// HandcraftedScoreは学習モデルとの比較基準となる手作りの接続スコア。
 func HandcraftedScore(features PairFeatures) float64 {
 	score := sourceContinuityScore(features)
 	if !features.PreviousOutgoing.Valid || !features.CurrentIncoming.Valid {
@@ -213,8 +206,7 @@ func HandcraftedScore(features PairFeatures) float64 {
 	}
 	spectrumWeight, rmsWeight := 0.8, 0.25
 	if features.CurrentVCV {
-		// VCVの境界は閉鎖区間になることがあるため接続点の減点を弱める。
-		// 原音の適性は母音側の音響scoreで判断する。
+		// VCV境界は閉鎖区間も含むため、接続点の減点を弱める。
 		spectrumWeight, rmsWeight = 0.42, 0.13
 	}
 	score -= math.Min(18, features.SpectrumDelta*spectrumWeight)
@@ -224,7 +216,7 @@ func HandcraftedScore(features PairFeatures) float64 {
 	} else if features.VoicingMismatch && !features.CurrentVCV {
 		score -= 4
 	}
-	// 波形相関は0.5を中立として±2点の控えめな補正にする。
+	// 相関0.5を中立として補正する。
 	score += 4 * (features.WaveformCorrelation - 0.5)
 	score -= math.Min(4, features.SpectralTiltDelta*0.15)
 	return score
@@ -234,8 +226,7 @@ func sourceContinuityScore(features PairFeatures) float64 {
 	if !features.ForwardInSource {
 		return 0
 	}
-	// 同じ録音内の前向きの境界を、アンカーが近いほど僅かに優先する。
-	// VCVやVCの連続性を壊さないよう、ボーナスは常に正の6〜9点に収める。
+	// 同一録音の連続性を保つため、距離が遠くても6〜9点の加点を残す。
 	distance := features.SourceAnchorDistanceMS
 	if !isFinite(distance) || distance < 0 {
 		distance = 0

@@ -7,14 +7,12 @@ import (
 	"utautts/internal/speechtiming"
 )
 
-// timingWarpはWORLD特徴量の時間伸縮の入力（合成計画のモーラ）。
 type timingWarp struct {
 	Strength        float64
 	LeadingMarginMS float64
 	Morae           []speechtiming.Mora
 }
 
-// timingWarpFromJobはjobの時間伸縮の入力を、speechtimingのモーラへ移す。
 func timingWarpFromJob(job *provider.TimingWarp) *timingWarp {
 	if job == nil || job.Strength <= 0 {
 		return nil
@@ -29,7 +27,6 @@ func timingWarpFromJob(job *provider.TimingWarp) *timingWarp {
 	return result
 }
 
-// applyTimingWarpは合成直前の特徴量を、学習した読み上げの動きに合わせて時間方向だけ伸縮する。
 func applyTimingWarp(warp *timingWarp, sampleRate int, features *worldFeatures) error {
 	if warp == nil || warp.Strength <= 0 || len(warp.Morae) == 0 {
 		return nil

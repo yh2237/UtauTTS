@@ -10,7 +10,7 @@ import (
 	_ "utautts/internal/diffsinger/adapter"
 )
 
-// ニューラル合成の契約。Configは実装固有処理を適用する前の共通入力。
+// Configは実装固有の処理を適用する前の入力。
 type NeuralSynthesizer interface {
 	ProviderID() engine.ProviderID
 	Synthesize(Config) (*Result, error)
@@ -23,7 +23,7 @@ var (
 	neuralSynthesizers   = map[engine.ProviderID]NeuralSynthesizerFactory{}
 )
 
-// RegisterNeuralSynthesizerはprovider実装をprovider IDで登録する。同一IDの再登録は上書きする。
+// 同じIDを登録し直すと上書きする。
 func RegisterNeuralSynthesizer(id engine.ProviderID, factory NeuralSynthesizerFactory) {
 	if id == "" || factory == nil {
 		panic("tts: neural synthesizer registration requires a provider id and factory")
@@ -40,7 +40,6 @@ func neuralSynthesizerForProvider(id engine.ProviderID) (NeuralSynthesizer, bool
 	if found {
 		return factory(), true
 	}
-	// 低層レジストリのproviderはConfig変換アダプタで包んで公開契約へ適合させる。
 	if synthesizer, found := neural.ForProvider(id); found {
 		return lowLevelNeuralSynthesizer{inner: synthesizer}, true
 	}

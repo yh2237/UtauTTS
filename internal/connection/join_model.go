@@ -10,7 +10,7 @@ import (
 
 const JoinModelVersion = 1
 
-// legacyJoinFeatureNamesはD1以前の11次元モデルが保存した特徴順序。後方互換のため残す。
+// 旧11次元モデルの読込用。特徴順序を変えない。
 var legacyJoinFeatureNames = []string{
 	"spectrum_delta_db",
 	"rms_delta_db",
@@ -25,7 +25,7 @@ var legacyJoinFeatureNames = []string{
 	"current_valid",
 }
 
-// joinFeatureNamesは現行の特徴順序。D1の新特徴は既存モデルを壊さないよう末尾に追加する。
+// 既存モデルの特徴順序を保つため、新特徴は末尾へ追加する。
 var joinFeatureNames = append(append([]string(nil), legacyJoinFeatureNames...), "spectral_tilt_delta_db")
 
 func JoinFeatureNames() []string {
@@ -56,7 +56,6 @@ func JoinFeatureVector(features PairFeatures) []float64 {
 	}
 }
 
-// 外部ランタイムを増やさず、Goで評価するロジスティックランカー。
 type JoinModel struct {
 	Version       int       `json:"version"`
 	Kind          string    `json:"kind"`
@@ -74,7 +73,6 @@ type JoinModel struct {
 	Provenance    string    `json:"provenance,omitempty"`
 }
 
-// 診断用に基準スコアと学習判定を両方残す。
 type JoinPrediction struct {
 	Baseline    float64
 	Probability float64
@@ -196,7 +194,6 @@ func (model *JoinModel) Predict(features PairFeatures) JoinPrediction {
 	return result
 }
 
-// Scoreはペアを評価し、学習補正が使われたかを返す。
 func (model *JoinModel) Score(features PairFeatures) (float64, bool) {
 	prediction := model.Predict(features)
 	return prediction.Score, prediction.Applied

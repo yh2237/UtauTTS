@@ -21,7 +21,6 @@ type bridgeProcess struct {
 var sharedBridge bridgeProcess
 var bridgeGate = make(chan struct{}, 1)
 
-// InvokeReportはWORLDブリッジを実行し、任意でspeechタイミング報告を受け取る。
 func InvokeReport(ctx context.Context, bridge, jobPath, outputPath string, report *[]provider.WorldSpeechResult) error {
 	if ctx == nil {
 		ctx = context.Background()
@@ -99,7 +98,7 @@ func InvokeReport(ctx context.Context, bridge, jobPath, outputPath string, repor
 	return err
 }
 
-// Closeは常駐bridgeセッションを解放する。gateを取るため実行中renderの完了を待つ。
+// 実行中の合成が終わるまで待ってからセッションを閉じる。
 func Close() {
 	bridgeGate <- struct{}{}
 	sharedBridge.stop()

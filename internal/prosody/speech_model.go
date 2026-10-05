@@ -91,7 +91,6 @@ func SpeechLinear(head map[string]float64, features []string) float64 {
 	return value
 }
 
-// SpeechPhoneFeaturesは学習と推論で共通の音素特徴を返す。
 func SpeechPhoneFeatures(morae []frontend.Mora) [][][]string {
 	result := make([][][]string, len(morae))
 	type phoneRef struct{ position, phone int }

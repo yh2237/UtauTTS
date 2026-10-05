@@ -11,7 +11,6 @@ import (
 	"runtime"
 )
 
-// runFrontendは外部ヘルパープロセスでOpen JTalkを実行する。
 func runFrontend(ctx context.Context, text string, cfg Config) (*Analysis, error) {
 	helper, err := resolveHelper(cfg.HelperPath)
 	if err != nil {

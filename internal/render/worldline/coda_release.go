@@ -35,7 +35,6 @@ func codaReleaseEnvelope(u plan.Unit, points []base.WorldlineEnvelopePoint, fade
 	return result, fadeOut
 }
 
-// E2a: 英語停止codaの閉鎖と解放の分離に使う有界な定数。
 const (
 	codaReleaseMinMS       = 10.0
 	codaReleaseMaxMS       = 26.0
@@ -44,15 +43,14 @@ const (
 	codaSplitMinDurationMS = 30.0
 )
 
-// E2b: 日本語破裂音を保護するときの信頼度下限。既存のonset下限より高くして過剰適用を防ぐ。
+// 過剰な補強を避けるため、日本語破裂音の信頼度下限は高めにする。
 const (
 	stopTransientFloor         = .5
 	stopTransientJapaneseFloor = .65
 	stopTransientVCVFloor      = .7
 )
 
-// codaClosureReleaseSplitは英語停止codaの閉鎖と解放の長さを返す。総長は変えない。
-// 解放は測定できた過渡長を優先し、閉鎖には最低長を残す。
+// 総長を保ち、測定した解放長と閉鎖の最低長を確保する。
 func codaClosureReleaseSplit(u plan.Unit) (float64, float64, bool) {
 	if !base.CodaReleaseStop(u) || u.DurationMS < codaSplitMinDurationMS {
 		return 0, 0, false
@@ -70,7 +68,6 @@ func codaClosureReleaseSplit(u plan.Unit) (float64, float64, bool) {
 	return closure, release, true
 }
 
-// worldCodaReleaseSplitはE2aが有効で、かつ解放過渡を保護できる停止codaだけ分離を返す。
 func worldCodaReleaseSplit(p *plan.Plan, u plan.Unit, options base.WorldlineProviderOptions) (float64, float64, bool) {
 	if !options.SeparateCodaReleaseEnabled() || !worldCodaReleaseEligible(p, u) || !worldlineStopProtection(p, u, options) {
 		return 0, 0, false

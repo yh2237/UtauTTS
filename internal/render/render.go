@@ -276,7 +276,6 @@ func renderWaveformWithStretch(synthesisPlan *plan.Plan, cfg Config, parallelRet
 		unit := &synthesisPlan.Units[unitIndex]
 		timing := item.timing
 		if unitIndex < len(timings) {
-			// speechRetime が更新した子音境界を境界補正にも引き継ぐ
 			timing = timings[unitIndex]
 		}
 		wave := item.wave

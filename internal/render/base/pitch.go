@@ -12,7 +12,6 @@ import (
 	"utautts/internal/plan"
 )
 
-// EstimateUnitPitchは録音区間の代表F0を推定し、結果をキャッシュする。
 func EstimateUnitPitch(unit plan.Unit, mono *audio.PCM) (float64, error) {
 	key := unitPitchCacheKey{
 		path: unit.Source, offset: math.Float64bits(unit.OffsetMS), cutoff: math.Float64bits(unit.CutoffMS),
@@ -60,7 +59,6 @@ func EstimateUnitPitch(unit plan.Unit, mono *audio.PCM) (float64, error) {
 	return value, nil
 }
 
-// EffectiveUnitPitchFactorはピッチ処理が有効なときだけ手動係数を返す。
 func EffectiveUnitPitchFactor(unit plan.Unit, applyPitch bool) float64 {
 	if !applyPitch || unit.PitchFactor <= 0 {
 		return 1
@@ -68,7 +66,6 @@ func EffectiveUnitPitchFactor(unit plan.Unit, applyPitch bool) float64 {
 	return unit.PitchFactor
 }
 
-// PitchCurveFactorAtはセント単位カーブの指定時刻の倍率を返す。
 func PitchCurveFactorAt(curve *PitchCurve, timeMS float64) float64 {
 	if curve == nil || curve.FrameMS <= 0 || len(curve.Cents) == 0 {
 		return 1
@@ -139,7 +136,6 @@ func ResampleForPitchCurve(source []float64, baseFactor float64, curve *PitchCur
 	return result
 }
 
-// MedianFloatは中央値を返す。空入力は0。
 func MedianFloat(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
@@ -171,7 +167,6 @@ func NonzeroFloats(values []float64) []float64 {
 	return result
 }
 
-// AnalyzeIntonationは音源を測定してイントネーション係数を返す。
 func AnalyzeIntonation(synthesisPlan *plan.Plan, timings []EffectiveTiming, cache *SourceCache, strength float64) []float64 {
 	pitches := make([]float64, len(synthesisPlan.Units))
 	for i, unit := range synthesisPlan.Units {
@@ -190,7 +185,6 @@ func AnalyzeIntonation(synthesisPlan *plan.Plan, timings []EffectiveTiming, cach
 	return AnalyzeIntonationFromPitches(synthesisPlan, timings, pitches, strength)
 }
 
-// AnalyzeIntonationFromPitchesは測定済みF0からイントネーション係数を返す。
 func AnalyzeIntonationFromPitches(synthesisPlan *plan.Plan, timings []EffectiveTiming, pitches []float64, strength float64) []float64 {
 	factors := IdentityFactors(len(synthesisPlan.Units))
 	strength = math.Max(0, math.Min(MaxIntonationStrength, strength))
@@ -424,7 +418,6 @@ func nearestWorldlinePitch(values []float64, index int) float64 {
 	return 0
 }
 
-// MeasureWorldlinePitchesはユニットごとの原音F0を並列に測定する。
 func MeasureWorldlinePitches(synthesisPlan *plan.Plan, cache *SourceCache) ([]float64, int, error) {
 	values := make([]float64, len(synthesisPlan.Units))
 	sampleRate := 0

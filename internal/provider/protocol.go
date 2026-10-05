@@ -1,4 +1,4 @@
-// providerパッケージは外部合成プロセスとの通信を扱う。入力はホスト管理のjobファイルで渡す。
+// 入力はホスト管理のjobファイルで渡す。
 package provider
 
 import (
@@ -39,7 +39,7 @@ type Hello struct {
 	Contracts       []ContractSupport `json:"contracts"`
 }
 
-// RenderRequestは1つの描画ジョブを開始する。InputPath/OutputPathはホスト管理のjobディレクトリ内パスで、形式は選択した契約バージョンが定める。
+// 入出力パスはjobディレクトリ内。形式は契約バージョンに従う。
 type RenderRequest struct {
 	Type            string `json:"type"`
 	RequestID       string `json:"request_id"`
@@ -66,7 +66,7 @@ type Diagnostic struct {
 	Message   string `json:"message"`
 }
 
-// AudioArtifactはproviderが書き出した結果を示す。Pathは通常絶対パスで、相対パスは同じjobディレクトリ基準で解釈される。
+// 結果の相対パスはjobディレクトリ基準。
 type AudioArtifact struct {
 	Path       string `json:"path"`
 	Format     string `json:"format"`
@@ -81,7 +81,6 @@ type Result struct {
 	Report    map[string]any `json:"report,omitempty"`
 }
 
-// ErrorMessageは1リクエストまたはセッションハンドシェイクの終端エラー。
 type ErrorMessage struct {
 	Type      string `json:"type"`
 	RequestID string `json:"request_id,omitempty"`
@@ -96,7 +95,6 @@ type Cancel struct {
 	RequestID string `json:"request_id"`
 }
 
-// Shutdownは書き出し済み出力をフラッシュ後、セッションの正常終了を求める。
 type Shutdown struct {
 	Type string `json:"type"`
 }

@@ -169,7 +169,6 @@ func TestSourceContinuityScoreConsidersAnchorDistance(t *testing.T) {
 	if nearScore <= farScore {
 		t.Fatalf("near=%f far=%f, want near > far", nearScore, farScore)
 	}
-	// 距離考慮でも連続性ボーナスは常に正の6〜9点に収める。
 	if nearScore > 9 || farScore < 6 {
 		t.Fatalf("forward continuity out of range: near=%f far=%f", nearScore, farScore)
 	}
@@ -198,4 +197,3 @@ func TestHandcraftedScorePenalizesSpectralTiltDelta(t *testing.T) {
 		t.Fatalf("tilt penalty exceeded bound: %f", HandcraftedScore(small)-HandcraftedScore(large))
 	}
 }
-

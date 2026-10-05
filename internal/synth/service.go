@@ -1,4 +1,3 @@
-// synthパッケージはGUIとHTTPサーバで共有する合成処理を提供する。
 package synth
 
 import (
@@ -18,7 +17,6 @@ import (
 	"utautts/internal/voicebank"
 )
 
-// ErrUnavailableは音源・モデル・レンダラープラグインの解決失敗を表す。
 var ErrUnavailable = errors.New("unavailable")
 
 // DefaultApplyPitchとDefaultIntonationStrengthは合成の既定の抑揚設定。renderer manifestの既定に合わせる。
@@ -61,7 +59,7 @@ type Request struct {
 	Wavtool       string                `json:"wavtool"`
 	AliasPolicy   voicebank.AliasPolicy `json:"alias_policy"`
 	Dictionary    []DictionaryEntry     `json:"dictionary"`
-	// WordBoundaryEnvelopeとSpeechProsodyExperimentは廃止した実験。既存のクライアントのため受け取り、使わない。
+	// 旧クライアントの要求を受け取れるよう残す。値は使わない。
 	WordBoundaryEnvelope    bool   `json:"word_boundary_envelope"`
 	SpeechProsodyExperiment string `json:"prosody_experiment"`
 	// 互換用の固定フィールド。同じIDがrenderer_settingsにあればそちらを優先する。
@@ -102,13 +100,12 @@ type Request struct {
 	DiffSingerDurationMix   float64                      `json:"diffsinger_duration_mix"`
 	DiffSingerPitchMix      float64                      `json:"diffsinger_pitch_mix"`
 	DiffSingerExpr          float64                      `json:"diffsinger_expr"`
-	// WorldlineはWORLD providerのホスト制御（mix/gap repair/E2a/E2b）。空文字とnilは既定（auto/ON）を意味する。
+	// 空文字とnilは既定値を使う。
 	Worldline render.WorldlineProviderOptions `json:"worldline,omitempty"`
 	// 未知の設定IDもエラーにせず、実装固有値として渡す。
 	RendererSettings map[string]json.RawMessage `json:"renderer_settings,omitempty"`
 }
 
-// Normalizedは互換用のkanaをReadingへ正規化する。
 func (request Request) Normalized() Request {
 	if request.Reading == "" {
 		request.Reading = request.Kana
@@ -135,7 +132,6 @@ type DictionaryEntry struct {
 	Reading string `json:"reading"`
 }
 
-// DictionaryMapは空の項目を除いて合成エンジン用の辞書へ変換する。
 func DictionaryMap(entries []DictionaryEntry) map[string]string {
 	result := make(map[string]string, len(entries))
 	for _, entry := range entries {
@@ -170,7 +166,6 @@ func NewService(catalog *plugin.Catalog, renderer, worldlineBridgePath, openJTal
 	}
 }
 
-// Synthesizeはリクエストを解決し、音声・LAB・使用Rendererをまとめて返す。
 func (s *Service) Synthesize(request Request) (*Result, error) {
 	return s.SynthesizeContext(context.Background(), request)
 }
@@ -184,7 +179,6 @@ func (s *Service) SynthesizeContext(ctx context.Context, request Request) (*Resu
 	return SynthesizeResolved(resolved)
 }
 
-// ResolveSynthesisは音源・レンダラー・モデル・provider設定を一括解決する。解決済み設定が必要な出力向けに公開。
 func (s *Service) ResolveSynthesis(request Request) (ResolvedRequest, error) {
 	cfg, rendererID, providerOptions, err := s.config(request, true)
 	if err != nil {
@@ -201,7 +195,6 @@ func SynthesizeConfig(cfg tts.Config, rendererID string) (*Result, error) {
 	return SynthesizeConfigWithOptions(cfg, rendererID, render.ProviderOptions{})
 }
 
-// SynthesizeConfigWithOptionsはtts.Config外のprovider固有設定と共に解決済み設定を実行する。
 func SynthesizeConfigWithOptions(cfg tts.Config, rendererID string, providerOptions render.ProviderOptions) (*Result, error) {
 	result, err := tts.SynthesizeWithOptions(cfg, providerOptions)
 	if err != nil {
@@ -210,7 +203,7 @@ func SynthesizeConfigWithOptions(cfg tts.Config, rendererID string, providerOpti
 	return NewResult(result, rendererID)
 }
 
-// PredictProsodyは音声や音源を読み込まずにプロソディを返す。
+// 音声・音源を読み込まずに予測する。
 func (s *Service) PredictProsody(request Request) (*tts.ProsodyPreview, string, error) {
 	return s.PredictProsodyContext(context.Background(), request)
 }
@@ -228,7 +221,6 @@ func (s *Service) PredictProsodyContext(ctx context.Context, request Request) (*
 	return preview, rendererID, nil
 }
 
-// AnalyzeContextはエディタ初期化に必要な読みとモーラのみ解決し、予測はPredictProsodyContextに委ねる。
 func (s *Service) AnalyzeContext(ctx context.Context, request Request) (*tts.ProsodyPreview, error) {
 	request = request.Normalized()
 	dictionary := DictionaryMap(request.Dictionary)
@@ -308,7 +300,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 			ResamplerExpressions: append([]render.ResamplerExpression(nil), request.ResamplerExpressions...),
 		},
 	}
-	// WORLD固有のホスト制御はrenderer_settingsとは別のtypedフィールドで受ける（timing_warpはrenderer_settingsが優先）。
+	// 型付き設定を先に入れ、renderer_settingsで上書きする。
 	providerOptions.Worldline = request.Worldline
 	resolution := resolveRendererSettings(request, &cfg, &providerOptions)
 	voicebankPath := request.VoicebankPath
@@ -358,7 +350,6 @@ func firstNonEmpty(override, fallback string) string {
 	return fallback
 }
 
-// ResolveRendererは表示用Renderer IDをproviderとmanifest資源へ解決する。GUI/HTTP/CLIで既定・未指定時の挙動を揃える。
 func (s *Service) ResolveRenderer(requested string) (engine.ResolvedEngine, error) {
 	resolved, err := tts.ResolveRendererWithOptions(s.catalog, s.rendererID(requested), engine.ResolveOptions{
 		ResourceOverrides: map[engine.ResourceKey]string{
@@ -371,7 +362,7 @@ func (s *Service) ResolveRenderer(requested string) (engine.ResolvedEngine, erro
 	return resolved, nil
 }
 
-// RendererAvailabilityは検出済みRendererの事前確認情報を返す。致命的にせず、一覧で不足ランタイムを提示できるようにする。
+// 資源不足はエラーでなく、一覧表示用の情報として返す。
 func (s *Service) RendererAvailability() map[string]engine.Availability {
 	result := make(map[string]engine.Availability)
 	if s.catalog == nil {
@@ -406,7 +397,6 @@ type ClassicTools struct {
 	Resources map[engine.ResourceKey]string
 }
 
-// ResolveClassicToolsは全入口で共有するカタログからClassic UTAUツールIDを解決する。
 func (s *Service) ResolveClassicTools(resamplerID, wavtoolID string) (ClassicTools, error) {
 	if s.catalog == nil {
 		return ClassicTools{}, fmt.Errorf("%w: renderer catalog is not initialized", ErrUnavailable)
@@ -445,7 +435,6 @@ func (s *Service) rendererID(requested string) string {
 	return s.renderer
 }
 
-// ResolveModelはモデルIDまたは登録済みパスを実行時パスへ解決する。
 func (s *Service) ResolveModel(id string) (string, error) {
 	if id == "" || id == "none" {
 		return "", nil
@@ -460,7 +449,6 @@ func (s *Service) ResolveModel(id string) (string, error) {
 	return model.Path, nil
 }
 
-// ModelAvailableはリクエストがプロソディモデルを選択するかを返す。
 func (s *Service) ModelAvailable(id string) bool {
 	if id == "" || id == "none" {
 		return false

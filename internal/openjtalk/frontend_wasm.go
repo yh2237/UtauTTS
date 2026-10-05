@@ -8,8 +8,7 @@ import (
 	"syscall/js"
 )
 
-// runFrontendはブラウザ/Node上のOpen JTalk wasmをJSブリッジ経由で呼ぶ。
-// JS側は globalThis.utauttsOpenJTalk = { ready, run(text) -> {ok, tsv, error} } を用意する。
+// JS側にglobalThis.utauttsOpenJTalk = {ready, run(text) -> {ok, tsv, error}}を用意する。
 func runFrontend(ctx context.Context, text string, cfg Config) (*Analysis, error) {
 	_ = ctx
 	_ = cfg

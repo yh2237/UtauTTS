@@ -2,14 +2,13 @@ package worldrender
 
 import "math"
 
-// 音源波形と破裂音補強用の高域成分を保持する。
 type protectedStopSource struct {
 	sampleRate int
 	samples    []float64
 	transient  []float64
 }
 
-// WORLDのフレーム分析で薄くなった保護対象の破裂音を音源から補う。
+// WORLD分析で弱まる破裂音を原波形から補う。
 func mixProtectedStopBursts(input manifest, prepared []preparedWorldUnit, wave []float64, sampleRate int) map[int]float64 {
 	result := make(map[int]float64)
 	if sampleRate <= 0 || len(wave) == 0 {
@@ -59,7 +58,7 @@ func mixProtectedStopBursts(input manifest, prepared []preparedWorldUnit, wave [
 		}
 		if item.Speech.CodaRelease {
 			if item.Speech.SeparateRelease && item.Speech.ReleaseMS > 0 {
-				// E2a: 解放は末尾の短い非伸縮区間に置き、原音の高域をそこへ加算する。
+				// 解放は伸縮しない末尾区間に置く。
 				releaseMS := item.Speech.ReleaseMS
 				targetStart := item.PositionMS + item.LengthMS - releaseMS
 				sourceStart := worldSourceExactBaseMS(item.OffsetMS) + math.Max(0, prepared[index].cached.duration-releaseMS-6)

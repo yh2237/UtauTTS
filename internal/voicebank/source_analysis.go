@@ -10,7 +10,7 @@ import (
 	"utautts/internal/sourceaudio"
 )
 
-// SourceFrameは音素名を断定しない原音の音響観測。
+// 音響観測だけを持ち、音素名は推定しない。
 type SourceFrame struct {
 	StartMS          float64 `json:"start_ms"`
 	EndMS            float64 `json:"end_ms"`
@@ -36,7 +36,6 @@ type SourceLandmark struct {
 	RelativeToPeakDB float64 `json:"relative_to_peak_db"`
 }
 
-// SourceAnalysisは原音座標の観測と境界候補を保持する。
 type SourceAnalysis struct {
 	Version              int              `json:"version"`
 	Status               string           `json:"status"`
@@ -54,7 +53,6 @@ type SourceAnalysis struct {
 	Warnings             []string         `json:"warnings"`
 }
 
-// AnalyzeSpeechSourceは既存の描画設定を変更せず原音を観測する。
 func (b *Bank) AnalyzeSpeechSource(entry oto.Entry) (SourceAnalysis, error) {
 	pcm, x, err := sourceaudio.TrimmedMono(entry.Filename, entry.Offset, entry.Blank)
 	if err != nil {
@@ -64,7 +62,6 @@ func (b *Bank) AnalyzeSpeechSource(entry oto.Entry) (SourceAnalysis, error) {
 		return SourceAnalysis{}, fmt.Errorf("source too short for acoustic analysis")
 	}
 	a := analyzeSourceFrames(x, pcm.SampleRate)
-	// 切り出したPCMの音声条件を識別する。
 	h := sha256.New()
 	_, _ = fmt.Fprintf(h, "v1/%d/%d/", pcm.SampleRate, pcm.Channels)
 	for _, sample := range pcm.Data {

@@ -116,7 +116,6 @@ func TestPredictProsodyReturnsMandarinToneCurveWithoutModel(t *testing.T) {
 	}
 }
 
-// E3: 母音核が無い音節は音節全体へ置く従来動作へ戻す。
 func TestMandarinToneCurveFallsBackWithoutNucleus(t *testing.T) {
 	morae := []frontend.Mora{{Tone: 2}}
 	timings := []prosody.MoraTiming{{StartMS: 0, DurationMS: 120}}
@@ -129,7 +128,6 @@ func TestMandarinToneCurveFallsBackWithoutNucleus(t *testing.T) {
 	}
 }
 
-// E3: 軽声(5)のF0は前の声調に追従する。
 func TestMandarinNeutralToneDependsOnPreviousTone(t *testing.T) {
 	high := mandarinNeutralTonePoints(3)
 	low := mandarinNeutralTonePoints(1)

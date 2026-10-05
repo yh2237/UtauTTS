@@ -12,7 +12,7 @@ type PitchCurve struct {
 	Cents   []float64 `json:"cents"`
 }
 
-// CentsAtは時刻(ms)のセント値を線形補間で返す。範囲外は端の値を使う。
+// 範囲外の時刻(ms)は端の値を使う。
 func (curve *PitchCurve) CentsAt(timeMS float64) float64 {
 	if curve == nil || curve.FrameMS <= 0 || len(curve.Cents) == 0 {
 		return 0
@@ -34,18 +34,16 @@ type F0Track struct {
 }
 
 type EffectiveTiming struct {
-	PreutteranceMS float64
-	ConsonantMS    float64
-	OverlapMS      float64
-	Scale          float64
-	CVApplied      bool
-	CVWarnings     []string
-	// StretchAdaptedはC3aの伸縮上限を適用したことを示す。
+	PreutteranceMS     float64
+	ConsonantMS        float64
+	OverlapMS          float64
+	Scale              float64
+	CVApplied          bool
+	CVWarnings         []string
 	StretchAdapted     bool
 	StretchLimitReason string
 }
 
-// RenderedUnitは境界補正で参照する描画済みユニット。
 type RenderedUnit struct {
 	Index        int
 	Unit         plan.Unit

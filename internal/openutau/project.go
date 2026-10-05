@@ -10,7 +10,6 @@ import (
 	"strings"
 )
 
-// ProjectAuditはOpenUtau比較に必要なレンダラー関連USTXフィールドだけを保持する。
 type ProjectAudit struct {
 	Path               string              `json:"path"`
 	SHA256             string              `json:"sha256"`

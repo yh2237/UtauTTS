@@ -15,20 +15,18 @@ type languageProfile interface {
 	Language() string
 	ParsePronunciation(cfg Config, phonemizer string) (string, []frontend.Mora, error)
 	ApplySpeechProfile(cfg *Config)
-	// ProsodyModelFallbackは指定モデルが言語非対応のときの代替パスを返す。無ければ空。
 	ProsodyModelFallback(configuredPath string) string
 	SupportsStretchAdapt() bool
-	// PhoneTimingは言語phone weightsとその出所を返す。無効時はnil。
+	// 無効時はnilを返す。
 	PhoneTiming(cfg Config, morae []frontend.Mora, singleCV bool) ([][]float64, string)
-	// Predictは言語規則による基本予測を返す。無ければnil。
 	Predict(morae []frontend.Mora) []prosody.Prediction
 	AdjustPredictions(cfg Config, model *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction, features []prosody.FeatureFrame) []prosody.Prediction
-	// AutomaticPitchCurveは規則ベースの自動F0曲線を返す。enablePitchは描画を強制するか。
+	// enablePitchはピッチ適用を強制するかを表す。
 	AutomaticPitchCurve(cfg Config, model *prosody.Model, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*render.PitchCurve, bool)
 	ApplyBoundaryTone(cfg Config, curve *render.PitchCurve, durationMS float64, question bool) *render.PitchCurve
 }
 
-// languageProfileForは言語コードに対応するprofileを返す。未知は日本語として扱う。
+// 未知の言語は日本語として扱う。
 func languageProfileFor(language string) languageProfile {
 	switch language {
 	case frontend.LanguageEnglish:
@@ -40,7 +38,6 @@ func languageProfileFor(language string) languageProfile {
 	}
 }
 
-// predictMoraeは言語profileに沿って予測を組み立てる。SynthesizeとPredictProsodyで共有する。
 func predictMorae(cfg Config, profile languageProfile, model *prosody.Model, morae []frontend.Mora, features []prosody.FeatureFrame) ([]prosody.Prediction, error) {
 	predictions := profile.Predict(morae)
 	if model != nil {
@@ -62,7 +59,6 @@ func predictMorae(cfg Config, profile languageProfile, model *prosody.Model, mor
 	return predictions, nil
 }
 
-// resolveProsodyModelForProfileは言語profileに応じて代替モデルを探す。
 func resolveProsodyModelForProfile(cfg Config, profile languageProfile) (*prosody.Model, error) {
 	model, err := resolveProsodyModel(cfg)
 	if err != nil || model == nil || model.SupportsLanguage(profile.Language()) {

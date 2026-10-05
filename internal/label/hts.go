@@ -18,7 +18,7 @@ type anchor struct {
 	order   int
 }
 
-// HTSは合成済みWAVの時間軸に合わせたmonophone labelを返す。
+// 時刻は合成済みWAV基準。
 func HTS(synthesisPlan *plan.Plan, moraDurationsMS []float64, audioDurationMS float64) (string, error) {
 	if synthesisPlan == nil {
 		return "", fmt.Errorf("synthesis plan is nil")

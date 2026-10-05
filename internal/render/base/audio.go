@@ -11,7 +11,6 @@ import (
 	"utautts/internal/sourceaudio"
 )
 
-// SourceCacheは音源録音のデコード結果をレンダリング中に再利用する。
 type SourceCache struct {
 	raw        map[string]*audio.PCM
 	mono       map[string]*audio.PCM
@@ -101,7 +100,6 @@ func (c *SourceCache) LoadMono(path string) (*audio.PCM, error) {
 	return pcm, nil
 }
 
-// LoadNormalizedは音源を指定サンプルレートへ揃えて読み込む。
 func (c *SourceCache) LoadNormalized(path string, sampleRate int) (*audio.PCM, error) {
 	if sampleRate <= 0 {
 		return c.LoadMono(path)

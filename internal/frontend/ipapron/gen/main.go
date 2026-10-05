@@ -1,4 +1,3 @@
-// genは、Kagome IPA辞書の全素性から発音表pron.binを生成する。
 package main
 
 import (

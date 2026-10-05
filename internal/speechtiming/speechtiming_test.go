@@ -90,7 +90,6 @@ func TestPhoneTimelineMarksPhraseEnds(t *testing.T) {
 }
 
 func TestWarpKeepsIdenticalTargetAndProtectsEnds(t *testing.T) {
-	// 目標と元が同じなら、DTWの対応は恒等で、特徴量は変わらない。
 	frames := 60
 	rows := make([][]float64, frames)
 	for frame := range rows {
@@ -112,7 +111,6 @@ func TestWarpKeepsIdenticalTargetAndProtectsEnds(t *testing.T) {
 }
 
 func TestPhoneTimelineKeepsConsonantsInContinuousSpeech(t *testing.T) {
-	// 続けて話すと前のモーラの終わり＝次のノートの開始なので、子音は前の母音に食い込む。
 	morae := []Mora{
 		{Text: "あ", NoteStartMS: 0, DurationMS: 120},
 		{Text: "さ", NoteStartMS: 120, DurationMS: 120, EffectivePreutteranceMS: 70},

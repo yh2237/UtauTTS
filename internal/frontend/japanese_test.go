@@ -93,7 +93,6 @@ func testApplyDictionaryForAnalysisUsesKatakanaReading(t *testing.T) {
 	}
 }
 
-// 発音表を使う読み変換が、全素性を持つIPA辞書の読みと一致することを確認する。
 func TestToKanaMatchesFullDictionaryReadings(t *testing.T) {
 	texts := []string{
 		"東京特許許可局で、2026年10月1日に会議を行います。",

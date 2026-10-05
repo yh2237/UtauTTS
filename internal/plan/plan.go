@@ -22,8 +22,7 @@ const (
 type Config struct {
 	MoraDurationMS  float64
 	PauseDurationMS float64
-	// PauseContextはポーズ長の文脈化(B5)を有効にする。
-	PauseContext bool
+	PauseContext    bool
 	// PauseContextStrengthはポーズ長補正の強度。0は既定1.0、負値は恒等。
 	PauseContextStrength float64
 	MoraDurationsMS      []float64
@@ -34,7 +33,7 @@ type Config struct {
 	Tone               string
 	Color              string
 	AliasPolicy        voicebank.AliasPolicy
-	// StretchAdaptは伸縮の音源適応(C3a)で全モーラのSpeechProfileを取得する。日本語のみ有効化する。
+	// 日本語の全モーラで原音プロファイルを取得する。
 	StretchAdapt bool
 }
 
@@ -146,7 +145,6 @@ func cloneMora(mora frontend.Mora) frontend.Mora {
 	return mora
 }
 
-// BoundaryBridgeはレンダラーが適用する短い遷移補正を記録する。
 type BoundaryBridge struct {
 	UnitIndex   int     `json:"unit_index"`
 	Position    int     `json:"position"`
@@ -160,7 +158,6 @@ type BoundaryBridge struct {
 	Kind        string  `json:"kind"`
 }
 
-// BoundaryRepairDecisionは通常接続と補正接続の選択結果を記録する。
 type BoundaryRepairDecision struct {
 	UnitIndex        int     `json:"unit_index"`
 	Position         int     `json:"position"`
@@ -177,7 +174,6 @@ type BoundaryRepairDecision struct {
 	SelectedDeltaRMS float64 `json:"selected_delta_rms"`
 }
 
-// WorldRenderModeはWORLD系Rendererがunitごとに選んだ描画方式。
 type WorldRenderMode string
 
 const (
@@ -369,9 +365,8 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 				}
 			}
 		}
-		// VCVの境界は発話タイミング補正なしでも解析し、伸縮だけ設定に従う。
 		isVCV := aliasKind == voicebank.AliasVCV || voicebank.IsContextVCVAlias(selection.Alias)
-		// C3aでは日本語の全モーラを対象にするため、必要な音源だけプロファイルを取る（キャッシュ前提）。
+		// 接続・破裂音保護・伸縮補正で使う原音だけ解析する。
 		needsProfile := result.SingleCV || isVCV || stopPhone(mora.Consonant) ||
 			(cfg.StretchAdapt && japaneseSpeechMora(mora))
 		if needsProfile && mora.Vowel != "" && mora.Vowel != "cl" && !mainUnit.Silent {
@@ -559,9 +554,7 @@ func endingDurationFor(moraDuration float64, count int) float64 {
 	return math.Min(target, moraDuration*0.5/float64(count))
 }
 
-// cvvcTransitionDurationはCVVCのVCの長さ。続くCVの子音（先行発声−オーバーラップ）が長いときは、
-// VCをその長さまで（モーラの3/4まで）延ばす。VCが短いと、CVの先行発声は前の素片（VC）の半分に縮められ、
-// 摩擦音などの子音が詰め込まれて、遅れて詰まったように聞こえる。
+// 短いVCは次の子音を圧縮するため、子音長まで延ばす（モーラ長の3/4が上限）。
 func cvvcTransitionDuration(vc, cv oto.Entry, moraDuration float64) float64 {
 	duration := transitionDurationFor(vc, moraDuration)
 	consonant := cv.Preutterance - math.Min(math.Max(0, cv.Overlap), math.Max(0, cv.Preutterance))

@@ -35,7 +35,6 @@ type ExportOptions struct {
 	TextEncoding string
 }
 
-// WriteFilesはWAVと任意のTXT／LABを同名で保存する。
 func WriteFiles(wavPath string, result *Result, options ExportOptions) error {
 	if result == nil || result.Audio == nil {
 		return fmt.Errorf("synthesis result contains no audio")
@@ -46,7 +45,6 @@ func WriteFiles(wavPath string, result *Result, options ExportOptions) error {
 	return WriteSidecars(wavPath, options, result.Lab)
 }
 
-// WriteSidecarsは既存WAVに任意のTXT／LABを追加する。
 func WriteSidecars(wavPath string, options ExportOptions, lab string) error {
 	return sidecar.Write(wavPath, sidecar.Options{
 		WriteText: options.WriteText,

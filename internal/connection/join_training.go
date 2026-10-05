@@ -16,7 +16,6 @@ type JoinTrainingOptions struct {
 	MinConfidence float64
 }
 
-// JoinTrainingReportは診断情報のみを保持し、モデルパラメータは含まない。
 type JoinTrainingReport struct {
 	Examples int
 	Positive int
@@ -30,7 +29,6 @@ type joinTrainingExample struct {
 	label  float64
 }
 
-// 試聴ラベルからロジスティックランカーを学習する。外部ランタイムに依存せず、結果は決定的。
 func TrainJoinModel(rows []JoinAuditRow, options JoinTrainingOptions) (*JoinModel, JoinTrainingReport, error) {
 	options = normalizeTrainingOptions(options)
 	examples := make([]joinTrainingExample, 0, len(rows))

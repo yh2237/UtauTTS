@@ -31,7 +31,6 @@ func TestEnglishStressAccentHasAContinuousRiseAndFall(t *testing.T) {
 	}
 }
 
-// E1の弱形はConfigの*boolで切り替わり、未指定は既定ON。
 func TestEnglishWeakFormConfigControlsReading(t *testing.T) {
 	enabled := true
 	cfg := Config{Language: "en", Phonemizer: "en-arpasing", Text: "bread and butter", EnglishWeakForm: &enabled}

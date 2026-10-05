@@ -15,7 +15,7 @@ const (
 	pauseContextNeutralFactor  = 1.0
 )
 
-// pauseContextFactorはポーズ長へ掛ける文脈倍率を返す。無効時や負の強度は恒等。
+// 無効時と負の強度は1倍。
 func pauseContextFactor(morae []frontend.Mora, position int, cfg Config) float64 {
 	if !cfg.PauseContext {
 		return 1
@@ -38,7 +38,6 @@ func pauseContextFactor(morae []frontend.Mora, position int, cfg Config) float64
 	if isUtteranceFinalPause(morae, position) {
 		factor *= pauseContextFinalFactor
 	}
-	// 中立1.0からの偏差に強度を掛ける。
 	factor = 1 + (factor-1)*strength
 	return clampPauseContextFactor(factor)
 }

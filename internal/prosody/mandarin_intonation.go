@@ -35,7 +35,6 @@ func validateMandarinIntonation(model *MandarinIntonationModel) error {
 
 func finiteMandarin(value float64) bool { return !math.IsNaN(value) && !math.IsInf(value, 0) }
 
-// MandarinCorrectionは各節点の声調補正値を返す。
 func (model *MandarinIntonationModel) MandarinCorrection(features map[string]float64) []float64 {
 	if validateMandarinIntonation(model) != nil {
 		return nil

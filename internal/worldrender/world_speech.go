@@ -78,7 +78,7 @@ func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
 			if item.Speech.ProtectStop {
 				a.protected = math.Min(30, math.Min(a.sourceEnd-a.sourceOnset-4, a.targetEnd-a.targetOnset-4))
 			}
-			// E2a: 末尾の短い解放区間だけを原音と1:1で写し、閉鎖/母音は手前で伸縮する。
+			// 解放区間は原音の速度を保ち、閉鎖・母音だけ伸縮する。
 			if item.Speech.SeparateRelease && item.Speech.ReleaseMS > 0 {
 				releaseMS := item.Speech.ReleaseMS
 				if maxLen := a.targetEnd - a.targetOnset - 4; releaseMS > maxLen {
@@ -177,7 +177,7 @@ func (a worldSpeechMap) sourceTime(t float64) float64 {
 	}
 }
 
-// 混合特徴量内の短い有声の連続母音境界だけを平滑化する。キャッシュ済み音源特徴量とターゲットF0曲線は変更しない。
+// 短い有声の母音接続だけを平滑化する。キャッシュと目標F0は変えない。
 func applyWorldSpeechJoins(input manifest, features *worldFeatures) map[int]provider.WorldSpeechResult {
 	report := make(map[int]provider.WorldSpeechResult)
 	lastEnd := -1

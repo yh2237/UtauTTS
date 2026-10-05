@@ -5,8 +5,7 @@ import (
 	"math"
 )
 
-// TrimPCMはoto.iniのoffsetとblankから録音の利用可能領域を返す。
-// 子音境界は領域内の構造を示す値なので切り出しには使わない。
+// 子音境界は切り出しに使わず、offsetとblankで範囲を決める。
 func TrimPCM(pcm *PCM, offsetMs float64, blankMs float64) (*PCM, error) {
 	start, end, err := TrimFrames(pcm, offsetMs, blankMs)
 	if err != nil {
@@ -19,7 +18,6 @@ func TrimPCM(pcm *PCM, offsetMs float64, blankMs float64) (*PCM, error) {
 	return &PCM{SampleRate: pcm.SampleRate, Channels: pcm.Channels, Data: trimmed}, nil
 }
 
-// TrimFramesはコピーせず、otoのoffset/blankに対応するフレーム範囲を返す。
 func TrimFrames(pcm *PCM, offsetMs float64, blankMs float64) (int, int, error) {
 	if pcm.Channels <= 0 {
 		return 0, 0, errors.New("invalid channel count")

@@ -18,8 +18,7 @@ const (
 	japaneseContextBoundaryPresence = 0.5 // 0/1特徴の真偽判定しきい値
 )
 
-// japaneseContextDurationFactorsは各モーラの長さ倍率を韻律特徴から求める。
-// 特徴が無い、またはモーラ数と一致しない場合は恒等（全て1.0）を返す。
+// 特徴がない、またはモーラ数と合わない場合は全て1倍にする。
 func japaneseContextDurationFactors(morae []frontend.Mora, features []prosody.FeatureFrame, question bool) []float64 {
 	factors := make([]float64, len(morae))
 	for i := range factors {
@@ -58,8 +57,7 @@ func japaneseContextDurationFactors(morae []frontend.Mora, features []prosody.Fe
 	return factors
 }
 
-// applyJapaneseContextDurationは既存の予測へ文脈係数を乗算する。
-// 予測が無い場合は1埋めの配列を用意する。無効時は恒等。強度0は既定1.0、負値は恒等。
+// 強度0は既定の1倍、負値は無効。
 func applyJapaneseContextDuration(cfg Config, morae []frontend.Mora, features []prosody.FeatureFrame, predictions []prosody.Prediction, question bool) []prosody.Prediction {
 	if !contextDurationEnabled(cfg) {
 		return predictions
@@ -85,7 +83,6 @@ func applyJapaneseContextDuration(cfg Config, morae []frontend.Mora, features []
 		if factors[i] <= 0 {
 			continue
 		}
-		// 強度は中立1.0からの偏差へ掛け、クランプ済みの0.8〜1.3を保つ。
 		predictions[i].DurationFactor *= 1 + (factors[i]-1)*strength
 	}
 	return predictions

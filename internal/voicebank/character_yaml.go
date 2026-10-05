@@ -12,7 +12,6 @@ type ToneRange struct {
 	High int `json:"high"`
 }
 
-// Subbankは原音選択に必要なcharacter.yamlの情報を保持する。
 type Subbank struct {
 	ID         string
 	Color      string
@@ -32,7 +31,6 @@ type SubbankOption struct {
 	ToneRanges []ToneRange `json:"tone_ranges,omitempty"`
 }
 
-// SubbankOptionsは選択可能なサブバンクのコピーを宣言順で返す。
 func (b *Bank) SubbankOptions() []SubbankOption {
 	if b == nil || len(b.Subbanks) == 0 {
 		return nil
