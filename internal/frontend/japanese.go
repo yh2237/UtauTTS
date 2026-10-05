@@ -51,22 +51,38 @@ func ToKanaWithDictionary(text string, dictionary map[string]string) (string, er
 	}
 
 	var result strings.Builder
-	var ordinary strings.Builder
-	flushOrdinary := func() error {
-		if ordinary.Len() == 0 {
-			return nil
+	for _, segment := range splitDictionary(text, replacements) {
+		if !segment.matched {
+			if strings.TrimSpace(segment.text) == "" {
+				continue
+			}
+			reading, err := toKana(segment.text)
+			if err != nil {
+				return "", err
+			}
+			result.WriteString(reading)
+			continue
 		}
-		segment := ordinary.String()
-		ordinary.Reset()
-		if strings.TrimSpace(segment) == "" {
-			return nil
+		result.WriteString(normalizeDictionaryReading(segment.reading))
+	}
+	return result.String(), nil
+}
+
+// dictionarySegmentは辞書置換の走査結果。matchedのときだけreadingを使う。
+type dictionarySegment struct {
+	matched bool
+	text    string
+	reading string
+}
+
+// splitDictionaryは最長一致で本文を辞書部分と通常部分へ分割する。
+func splitDictionary(text string, replacements []replacement) []dictionarySegment {
+	var result []dictionarySegment
+	ordinaryStart := 0
+	flush := func(end int) {
+		if end > ordinaryStart {
+			result = append(result, dictionarySegment{text: text[ordinaryStart:end]})
 		}
-		reading, err := toKana(segment)
-		if err != nil {
-			return err
-		}
-		result.WriteString(reading)
-		return nil
 	}
 	for index := 0; index < len(text); {
 		matched := false
@@ -74,11 +90,10 @@ func ToKanaWithDictionary(text string, dictionary map[string]string) (string, er
 			if !strings.HasPrefix(text[index:], item.surface) {
 				continue
 			}
-			if err := flushOrdinary(); err != nil {
-				return "", err
-			}
-			result.WriteString(normalizeDictionaryReading(item.reading))
+			flush(index)
+			result = append(result, dictionarySegment{matched: true, reading: item.reading})
 			index += len(item.surface)
+			ordinaryStart = index
 			matched = true
 			break
 		}
@@ -89,13 +104,10 @@ func ToKanaWithDictionary(text string, dictionary map[string]string) (string, er
 		if size == 0 {
 			size = 1
 		}
-		ordinary.WriteString(text[index : index+size])
 		index += size
 	}
-	if err := flushOrdinary(); err != nil {
-		return "", err
-	}
-	return result.String(), nil
+	flush(len(text))
+	return result
 }
 
 type replacement struct {
@@ -134,26 +146,12 @@ func ApplyDictionary(text string, dictionary map[string]string) string {
 
 	var result strings.Builder
 	result.Grow(len(text))
-	for index := 0; index < len(text); {
-		matched := false
-		for _, item := range replacements {
-			if !strings.HasPrefix(text[index:], item.surface) {
-				continue
-			}
-			result.WriteString(item.reading)
-			index += len(item.surface)
-			matched = true
-			break
+	for _, segment := range splitDictionary(text, replacements) {
+		if segment.matched {
+			result.WriteString(segment.reading)
+		} else {
+			result.WriteString(segment.text)
 		}
-		if matched {
-			continue
-		}
-		_, size := utf8.DecodeRuneInString(text[index:])
-		if size == 0 {
-			size = 1
-		}
-		result.WriteString(text[index : index+size])
-		index += size
 	}
 	return result.String()
 }
