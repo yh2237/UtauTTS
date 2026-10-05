@@ -41,6 +41,26 @@ const (
 	DefaultReleaseMS       = render.DefaultReleaseMS
 )
 
+// DefaultRequestは全入口が共通で使う既定のリクエスト。renderer settingsの既定値と同期させる。
+func DefaultRequest() Request {
+	return Request{
+		MoraDurationMS:          DefaultMoraDurationMS,
+		PauseDurationMS:         DefaultPauseDurationMS,
+		IntonationStrength:      DefaultIntonationStrength,
+		ContextDuration:         DefaultContextDuration,
+		ContextDurationStrength: DefaultContextDurationStrength,
+		BoundaryTone:            DefaultBoundaryTone,
+		BoundaryToneStrength:    DefaultBoundaryToneStrength,
+		StretchAdapt:            DefaultStretchAdapt,
+		StretchAdaptStrength:    DefaultStretchAdaptStrength,
+		PauseContext:            DefaultPauseContext,
+		PauseContextStrength:    DefaultPauseContextStrength,
+		EnglishWeakForm:         DefaultEnglishWeakForm,
+		ApplyPitch:              DefaultApplyPitch,
+		Wavtool:                 "builtin",
+	}
+}
+
 type Request struct {
 	SpeechTiming  bool                  `json:"speech_timing"`
 	Text          string                `json:"text"`

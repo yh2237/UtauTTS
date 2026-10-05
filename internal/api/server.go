@@ -398,19 +398,7 @@ type synthesisRequestAlias SynthesisRequest
 
 // JSONで省略された設定に既定値を適用する。
 func (request *SynthesisRequest) UnmarshalJSON(data []byte) error {
-	decoded := synthesisRequestAlias{
-		ApplyPitch:              synth.DefaultApplyPitch,
-		IntonationStrength:      synth.DefaultIntonationStrength,
-		ContextDuration:         synth.DefaultContextDuration,
-		ContextDurationStrength: synth.DefaultContextDurationStrength,
-		BoundaryTone:            synth.DefaultBoundaryTone,
-		BoundaryToneStrength:    synth.DefaultBoundaryToneStrength,
-		StretchAdapt:            synth.DefaultStretchAdapt,
-		StretchAdaptStrength:    synth.DefaultStretchAdaptStrength,
-		PauseContext:            synth.DefaultPauseContext,
-		PauseContextStrength:    synth.DefaultPauseContextStrength,
-		EnglishWeakForm:         synth.DefaultEnglishWeakForm,
-	}
+	decoded := synthesisRequestAlias(synth.DefaultRequest())
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&decoded); err != nil {

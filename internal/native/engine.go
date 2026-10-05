@@ -420,7 +420,7 @@ func (request prosodyPreviewRequest) synthRequest() synth.Request {
 }
 
 func (e *Engine) predictProsody(data []byte) (any, error) {
-	var request prosodyPreviewRequest
+	request := prosodyPreviewRequest{Request: synth.DefaultRequest()}
 	if err := json.Unmarshal(data, &request); err != nil {
 		return nil, fmt.Errorf("decode prosody preview request: %w", err)
 	}
@@ -551,7 +551,7 @@ func waveformPeaks(result *synth.Result, maximumPoints int) (mins, maxs []float6
 }
 
 func (e *Engine) synthesize(data []byte) (any, error) {
-	var request synthesizeRequest
+	request := synthesizeRequest{Request: synth.DefaultRequest()}
 	if err := json.Unmarshal(data, &request); err != nil {
 		return nil, fmt.Errorf("decode synthesis request: %w", err)
 	}

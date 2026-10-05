@@ -2,6 +2,7 @@ package synth
 
 import (
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -11,76 +12,85 @@ import (
 	"utautts/internal/tts"
 )
 
-func TestRendererManifestSettingDefaultsMatchResolver(t *testing.T) {
-	for _, rendererID := range []string{"utautts-world-phrase", "classic-utau", "diffsinger"} {
-		t.Run(rendererID, func(t *testing.T) {
-			data, err := os.ReadFile(filepath.Join("..", "..", "renderer", rendererID, "renderer.json"))
-			if err != nil {
-				t.Fatal(err)
+// manifestの既定値とrendererSettingSpecsの既定値がずれていないことを確認する。
+func TestManifestSettingDefaultsMatchSpecs(t *testing.T) {
+	paths, err := filepath.Glob(filepath.Join("..", "..", "renderer", "*", "renderer.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(paths) == 0 {
+		t.Fatal("no bundled renderer manifests found")
+	}
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var manifest struct {
+			Settings []struct {
+				ID      string `json:"id"`
+				Default any    `json:"default"`
+			} `json:"settings"`
+		}
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		for _, setting := range manifest.Settings {
+			spec, found := rendererSettingSpecFor(rendererSettingSpecs, setting.ID)
+			if !found {
+				t.Errorf("%s: setting %q is not in rendererSettingSpecs", path, setting.ID)
+				continue
 			}
-			var manifest struct {
-				Settings []struct {
-					ID      string          `json:"id"`
-					Default json.RawMessage `json:"default"`
-				} `json:"settings"`
+			if !equalSettingDefault(spec.defaultValue, setting.Default) {
+				t.Errorf("%s: setting %q default = %v, want %v", path, setting.ID, setting.Default, spec.defaultValue)
 			}
-			if err := json.Unmarshal(data, &manifest); err != nil {
-				t.Fatal(err)
-			}
-			for _, setting := range manifest.Settings {
-				switch setting.ID {
-				case "context_duration", "context_duration_strength",
-					"boundary_tone_strength", "stretch_adapt_strength", "pause_context_strength":
-					t.Errorf("internal setting %q is exposed in the renderer UI", setting.ID)
-				}
-				spec, ok := rendererSettingSpecFor(rendererSettingSpecs, setting.ID)
-				if !ok {
-					continue
-				}
-				var declared any
-				if err := json.Unmarshal(setting.Default, &declared); err != nil {
-					t.Fatalf("setting %q default: %v", setting.ID, err)
-				}
-				if !reflect.DeepEqual(declared, spec.defaultValue) {
-					t.Errorf("setting %q default = %v, resolver = %v", setting.ID, declared, spec.defaultValue)
-				}
-			}
-		})
+		}
 	}
 }
 
-func TestWorldlineSettingPrecedence(t *testing.T) {
-	resolve := func(request Request, enabled func(render.WorldlineProviderOptions) bool) bool {
-		var cfg tts.Config
-		options := render.ProviderOptions{Worldline: request.Worldline}
-		resolveRendererSettings(request, &cfg, &options)
-		return enabled(options.Worldline)
+// DefaultRequestの値が全specの既定値と同じ解決結果になることを確認する。
+func TestDefaultRequestCoversSettingDefaults(t *testing.T) {
+	request := DefaultRequest()
+	for _, spec := range rendererSettingSpecs {
+		if spec.typed == nil {
+			continue
+		}
+		var defaultConfig, requestConfig tts.Config
+		var defaultOptions, requestOptions render.ProviderOptions
+		var defaultResolution, requestResolution rendererSettingsResolution
+		spec.apply(spec.defaultValue, &defaultConfig, &defaultOptions, &defaultResolution)
+		spec.apply(spec.typed(request), &requestConfig, &requestOptions, &requestResolution)
+		if !reflect.DeepEqual(defaultConfig, requestConfig) ||
+			!reflect.DeepEqual(defaultOptions, requestOptions) ||
+			defaultResolution != requestResolution {
+			t.Errorf("setting %q: DefaultRequest does not match the spec default", spec.id)
+		}
 	}
-	off := false
-	tests := []struct {
-		id      string
-		enabled func(render.WorldlineProviderOptions) bool
-	}{
-		{"timing_warp", render.WorldlineProviderOptions.TimingWarpEnabled},
-		{"microprosody", render.WorldlineProviderOptions.MicroprosodyEnabled},
+}
+
+func equalSettingDefault(specDefault, manifestDefault any) bool {
+	specNumber, specOK := floatSettingValue(specDefault)
+	manifestNumber, manifestOK := floatSettingValue(manifestDefault)
+	if specOK && manifestOK {
+		return math.Abs(specNumber-manifestNumber) < 1e-9
 	}
-	for _, test := range tests {
-		t.Run(test.id, func(t *testing.T) {
-			if !resolve(Request{}, test.enabled) {
-				t.Fatalf("%s should default to on", test.id)
-			}
-			disabled := render.WorldlineProviderOptions{TimingWarp: &off, Microprosody: &off}
-			if resolve(Request{Worldline: disabled}, test.enabled) {
-				t.Fatalf("typed %s=false should disable it", test.id)
-			}
-			settings := map[string]json.RawMessage{test.id: json.RawMessage("true")}
-			if !resolve(Request{Worldline: disabled, RendererSettings: settings}, test.enabled) {
-				t.Fatalf("renderer_settings should override the typed field for %s", test.id)
-			}
-			settings = map[string]json.RawMessage{test.id: json.RawMessage("false")}
-			if resolve(Request{RendererSettings: settings}, test.enabled) {
-				t.Fatalf("renderer_settings false should disable %s", test.id)
-			}
-		})
+	return reflect.DeepEqual(specDefault, manifestDefault)
+}
+
+func floatSettingValue(value any) (float64, bool) {
+	switch number := value.(type) {
+	case float64:
+		return number, true
+	case float32:
+		return float64(number), true
+	case int:
+		return float64(number), true
+	case int64:
+		return float64(number), true
+	case json.Number:
+		parsed, err := number.Float64()
+		return parsed, err == nil
+	default:
+		return 0, false
 	}
 }

@@ -39,35 +39,32 @@ type caseOptions struct {
 }
 
 func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Result, float64, error) {
-	request := synth.Request{
-		Text:                    p.Text,
-		Reading:                 p.Reading,
-		Language:                p.Language,
-		Phonemizer:              p.Phonemizer,
-		VoicebankPath:           o.bank,
-		Tone:                    "C4",
-		AliasPolicy:             voicebank.AliasPolicy(o.aliasPolicy),
-		Renderer:                o.rendererID,
-		Resampler:               o.resampler,
-		Wavtool:                 o.wavtool,
-		MoraDurationMS:          o.moraMS,
-		PauseDurationMS:         plan.DefaultPauseDurationMS,
-		MoraDurationsMS:         p.MoraDurationsMS,
-		PitchCurve:              p.PitchCurve,
-		ModelPath:               o.prosodyModelPath,
-		ApplyPitch:              o.applyPitch,
-		IntonationStrength:      synth.DefaultIntonationStrength,
-		ContextDuration:         o.contextDuration,
-		ContextDurationStrength: o.contextDurationStrength,
-		BoundaryTone:            o.boundaryTone,
-		BoundaryToneStrength:    o.boundaryToneStrength,
-		StretchAdapt:            o.stretchAdapt,
-		StretchAdaptStrength:    o.stretchAdaptStrength,
-		PauseContext:            o.pauseContext,
-		PauseContextStrength:    o.pauseContextStrength,
-		EnglishWeakForm:         o.englishWeakForm,
-		Worldline:               render.WorldlineProviderOptions{MixMode: o.mix, GapRepairMode: o.gapRepair, E2A: &o.e2a, E2B: &o.e2b, TimingWarp: new(!o.noTimingWarp)},
-	}
+	request := synth.DefaultRequest()
+	request.Text = p.Text
+	request.Reading = p.Reading
+	request.Language = p.Language
+	request.Phonemizer = p.Phonemizer
+	request.VoicebankPath = o.bank
+	request.Tone = "C4"
+	request.AliasPolicy = voicebank.AliasPolicy(o.aliasPolicy)
+	request.Renderer = o.rendererID
+	request.Resampler = o.resampler
+	request.Wavtool = o.wavtool
+	request.MoraDurationMS = o.moraMS
+	request.MoraDurationsMS = p.MoraDurationsMS
+	request.PitchCurve = p.PitchCurve
+	request.ModelPath = o.prosodyModelPath
+	request.ApplyPitch = o.applyPitch
+	request.ContextDuration = o.contextDuration
+	request.ContextDurationStrength = o.contextDurationStrength
+	request.BoundaryTone = o.boundaryTone
+	request.BoundaryToneStrength = o.boundaryToneStrength
+	request.StretchAdapt = o.stretchAdapt
+	request.StretchAdaptStrength = o.stretchAdaptStrength
+	request.PauseContext = o.pauseContext
+	request.PauseContextStrength = o.pauseContextStrength
+	request.EnglishWeakForm = o.englishWeakForm
+	request.Worldline = render.WorldlineProviderOptions{MixMode: o.mix, GapRepairMode: o.gapRepair, E2A: &o.e2a, E2B: &o.e2b, TimingWarp: new(!o.noTimingWarp)}
 	service := synth.NewService(catalog, o.rendererID, o.bridge, "", "", nil)
 	ctx, cancel := context.WithTimeout(context.Background(), o.timeout)
 	defer cancel()
