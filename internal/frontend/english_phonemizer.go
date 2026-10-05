@@ -1,0 +1,751 @@
+package frontend
+
+import (
+	"fmt"
+	"strings"
+	"unicode"
+)
+
+func ParseEnglishDelta(text, reading string, dictionary map[string]string) (string, []Mora, error) {
+	return ParseEnglishDeltaWithConfig(text, reading, dictionary, PresampConfig{})
+}
+
+func ParseEnglishDeltaWithConfig(text, reading string, dictionary map[string]string, config PresampConfig) (string, []Mora, error) {
+	return ParseEnglishDeltaWithOptions(text, reading, dictionary, config, DefaultEnglishOptions())
+}
+
+func ParseEnglishDeltaWithOptions(text, reading string, dictionary map[string]string, config PresampConfig, options EnglishOptions) (string, []Mora, error) {
+	return parseEnglishSyllables(text, reading, dictionary, deltaEnglishSymbols, " ", true, config, options)
+}
+
+func ParseEnglishVCCV(text, reading string, dictionary map[string]string) (string, []Mora, error) {
+	return ParseEnglishVCCVWithOptions(text, reading, dictionary, DefaultEnglishOptions())
+}
+
+func ParseEnglishVCCVWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, []Mora, error) {
+	return parseEnglishSyllables(text, reading, dictionary, vccvEnglishSymbols, " ", false, PresampConfig{}, options)
+}
+
+type PresampConfig struct {
+	Vowels       map[string]string
+	Consonants   map[string]string
+	Replacements map[string]string
+	Endings      []string
+}
+
+func parseEnglishSyllables(text, reading string, dictionary map[string]string, symbols map[string][]string, separator string, spacedStart bool, config PresampConfig, options EnglishOptions) (string, []Mora, error) {
+	pronunciation, words, err := englishPronunciationWithOptions(text, reading, dictionary, options)
+	if err != nil {
+		return "", nil, err
+	}
+	var syllableWords [][]englishSyllable
+	for _, word := range words {
+		if len(word) == 1 && word[0] == "SP" {
+			syllableWords = append(syllableWords, nil)
+			continue
+		}
+		syllables, syllableErr := syllabifyEnglishWord(word, symbols)
+		if syllableErr != nil {
+			return "", nil, syllableErr
+		}
+		if len(syllables) == 0 {
+			if len(syllableWords) == 0 || len(syllableWords[len(syllableWords)-1]) == 0 {
+				return "", nil, fmt.Errorf("ARPAbet reading contains no vowel")
+			}
+			lastWord := syllableWords[len(syllableWords)-1]
+			lastWord[len(lastWord)-1].coda = append(lastWord[len(lastWord)-1].coda, normalizeEnglishPhones(word)...)
+			continue
+		}
+		syllableWords = append(syllableWords, syllables)
+	}
+	if len(syllableWords) == 0 {
+		return "", nil, fmt.Errorf("ARPAbet reading contains no vowel")
+	}
+	units := make([]Mora, 0)
+	previousVowels := []string(nil)
+	phraseStart := true
+	for wordIndex, syllables := range syllableWords {
+		if len(syllables) == 0 {
+			if len(units) > 0 && !units[len(units)-1].Pause {
+				units = append(units, Mora{Pause: true})
+			}
+			previousVowels, phraseStart = nil, true
+			continue
+		}
+		for syllableIndex, syllable := range syllables {
+			vowels := englishSyllableVowels(syllable, symbols)
+			atPhraseStart := phraseStart
+			mainOnset := syllable.onset
+			if syllableIndex == 0 && wordIndex > 0 && len(syllableWords[wordIndex-1]) > 0 && len(mainOnset) == 0 {
+				prior := syllableWords[wordIndex-1]
+				coda := prior[len(prior)-1].coda
+				if len(coda) > 0 {
+					mainOnset = coda[len(coda)-1:]
+				}
+			}
+			if syllableIndex > 0 && len(syllable.onset) == 0 && len(syllables[syllableIndex-1].coda) > 0 {
+				bridgeOnset := append([]string{syllables[syllableIndex-1].coda[len(syllables[syllableIndex-1].coda)-1]}, syllable.onset...)
+				mainOnset = bridgeOnset
+			}
+			main := englishMainAliases(mainOnset, vowels, symbols)
+			if !sameStrings(mainOnset, syllable.onset) {
+				main = append(main, englishMainAliases(syllable.onset, vowels, symbols)...)
+			}
+			if atPhraseStart {
+				prefix := "-"
+				if spacedStart {
+					prefix = "- "
+				}
+				prefixed := make([]string, 0, len(main))
+				for _, alias := range main {
+					prefixed = append(prefixed, prefix+alias)
+				}
+				main = append(prefixed, main...)
+			}
+			phraseStart = false
+			var transitions []string
+			if syllableIndex == 0 || len(syllables[syllableIndex-1].coda) == 0 {
+				transitions = combineEnglishTransitionAliases(previousVowels, syllable.onset, vowels, symbols, separator)
+			}
+			if len(syllable.onset) > 1 {
+				transitions = append(transitions, englishOnsetClusterAliases(syllable.onset, symbols, separator, atPhraseStart)...)
+			}
+			main = uniqueStrings(main)
+			units = append(units, Mora{
+				Language: LanguageEnglish, WordIndex: wordIndex, WordEnd: syllableIndex+1 == len(syllables),
+				Phones: englishSyllablePhones(syllable),
+				Text:   main[0], Consonant: strings.Join(syllable.onset, " "), Vowel: vowels[0], Stress: syllable.stress,
+				Aliases: &AliasHints{Main: main, MainKinds: repeatAliasKind("cv", len(main)), Transition: uniqueStrings(transitions)},
+			})
+			current := &units[len(units)-1]
+			if atPhraseStart && len(syllable.onset) > 1 {
+				current.Aliases.MainMissing = make(map[string][]string)
+				for start := 1; start < len(syllable.onset); start++ {
+					for _, alias := range combineEnglishAliases(syllable.onset[start:], vowels, symbols) {
+						for _, prefix := range []string{"", "-", "- "} {
+							current.Aliases.MainMissing[prefix+alias] = append([]string(nil), syllable.onset[:start]...)
+						}
+					}
+				}
+			}
+			current.StressKnown = syllable.stressKnown
+			previousVowels = vowels
+			lastSyllable := syllableIndex+1 == len(syllables)
+			lastWord := wordIndex+1 == len(syllableWords) || len(syllableWords[wordIndex+1]) == 0
+			if len(syllable.coda) > 0 {
+				if lastSyllable {
+					if lastWord {
+						current.Aliases.Endings = englishTerminalConsonants(previousVowels, syllable.coda, symbols, separator)
+					} else {
+						current.Aliases.Endings = englishSyllableBridge(previousVowels, syllable.coda, syllableWords[wordIndex+1][0].onset, symbols, separator)
+					}
+					previousVowels = nil
+				} else {
+					current.Aliases.Endings = englishSyllableBridge(previousVowels, syllable.coda, syllables[syllableIndex+1].onset, symbols, separator)
+				}
+				current.Aliases.EndingPhones = [][]string{append([]string(nil), syllable.coda[:1]...)}
+				if len(current.Aliases.Endings) > 1 {
+					current.Aliases.EndingPhones = append(current.Aliases.EndingPhones, append([]string(nil), syllable.coda[1:]...))
+					if len(syllable.coda) > 2 {
+						current.Aliases.EndingFallbacks = make([][]CodaAlias, len(current.Aliases.Endings))
+						current.Aliases.EndingFallbacks[1] = englishCodaChain(syllable.coda, symbols, separator, lastSyllable && lastWord)
+					}
+				}
+				if !spacedStart {
+					// VCCVのIH+NGは専用の韻名を使う。
+					if syllable.vowel == "ih" && syllable.coda[0] == "ng" {
+						current.Aliases.Endings[0] = append([]string{"1 ng", "1ng"}, current.Aliases.Endings[0]...)
+					}
+					if sameStrings(syllable.coda, []string{"s", "p"}) {
+						var cluster []string
+						for _, vowel := range vowels {
+							cluster = append(cluster, vowel+" sp", vowel+"sp")
+						}
+						// VC連続録音と分割経路を比較する。
+						first := current.Aliases.Endings[0]
+						second := current.Aliases.Endings[1]
+						current.Aliases.Endings = [][]string{cluster}
+						current.Aliases.EndingPhones = [][]string{{"s", "p"}}
+						current.Aliases.EndingFallbacks = [][]CodaAlias{{
+							{Aliases: cluster, Phones: []string{"s", "p"}, CodaStart: 0},
+							{Aliases: first, Phones: []string{"s"}, CodaStart: 0},
+							{Aliases: second, Phones: []string{"p"}, CodaStart: 1},
+						}}
+					}
+				}
+			} else if lastSyllable && lastWord {
+				current.Aliases.Endings = [][]string{englishEndingAliases(previousVowels, config)}
+			}
+		}
+	}
+	return pronunciation, units, nil
+}
+
+func englishCodaChain(coda []string, symbols map[string][]string, separator string, terminal bool) []CodaAlias {
+	var result []CodaAlias
+	for i := 1; i < len(coda); i++ {
+		for end := i + 1; end <= len(coda); end++ {
+			var aliases []string
+			leftSymbols := symbols[coda[i-1]]
+			if coda[i-1] == "ng" && (coda[i] == "k" || coda[i] == "g") && symbols["ng"][0] == "N" {
+				// Delta音源の軟口蓋音前の鼻音表記を補う。
+				leftSymbols = append(append([]string(nil), leftSymbols...), "n")
+			}
+			for _, left := range leftSymbols {
+				for _, right := range combineEnglishAliases(coda[i:end], []string{""}, symbols) {
+					pair := []string{left + separator + right, left + right}
+					if terminal && end == len(coda) {
+						for _, name := range pair {
+							aliases = append(aliases, name+"-")
+						}
+					}
+					aliases = append(aliases, pair...)
+					if !terminal || end != len(coda) {
+						for _, name := range pair {
+							aliases = append(aliases, name+"-")
+						}
+					}
+				}
+			}
+			result = append(result, CodaAlias{Aliases: uniqueStrings(aliases), Phones: append([]string(nil), coda[i:end]...), CodaStart: i})
+		}
+	}
+	return result
+}
+
+type englishSyllable struct {
+	onset       []string
+	vowel       string
+	coda        []string
+	stress      int
+	stressKnown bool
+}
+
+// CMUdictのAH0は曖昧母音として扱い AXエイリアスを優先する。
+func englishSyllableVowels(s englishSyllable, symbols map[string][]string) []string {
+	if s.vowel == "ah" && s.stressKnown && s.stress == 0 {
+		return uniqueStrings(append(append([]string(nil), symbols["ax"]...), symbols["ah"]...))
+	}
+	return symbols[s.vowel]
+}
+
+func syllabifyEnglishWord(raw []string, symbols map[string][]string) ([]englishSyllable, error) {
+	phones := normalizeEnglishPhones(raw)
+	for _, phone := range phones {
+		if len(symbols[phone]) == 0 {
+			return nil, fmt.Errorf("unsupported ARPAbet phoneme %q", phone)
+		}
+	}
+	var vowels []int
+	for i, phone := range phones {
+		if englishVowels[phone] {
+			vowels = append(vowels, i)
+		}
+	}
+	if len(vowels) == 0 {
+		return nil, nil
+	}
+	syllables := make([]englishSyllable, len(vowels))
+	for i, vowelAt := range vowels {
+		syllables[i].vowel = phones[vowelAt]
+		syllables[i].stress = arpabetStress(raw[vowelAt])
+		syllables[i].stressKnown = arpabetHasStress(raw[vowelAt])
+		if i == 0 {
+			syllables[i].onset = append([]string(nil), phones[:vowelAt]...)
+			continue
+		}
+		cluster := phones[vowels[i-1]+1 : vowelAt]
+		onsetCount := englishOnsetSuffixLength(cluster)
+		syllables[i-1].coda = append([]string(nil), cluster[:len(cluster)-onsetCount]...)
+		syllables[i].onset = append([]string(nil), cluster[len(cluster)-onsetCount:]...)
+	}
+	syllables[len(syllables)-1].coda = append([]string(nil), phones[vowels[len(vowels)-1]+1:]...)
+	return syllables, nil
+}
+
+func normalizeEnglishPhones(raw []string) []string {
+	result := make([]string, 0, len(raw))
+	for _, phone := range raw {
+		if normalized := normalizeARPAbet(phone); normalized != "" {
+			result = append(result, normalized)
+		}
+	}
+	return result
+}
+
+func englishOnsetSuffixLength(cluster []string) int {
+	for count := len(cluster); count > 0; count-- {
+		if validEnglishOnset(cluster[len(cluster)-count:]) {
+			return count
+		}
+	}
+	return 0
+}
+
+func validEnglishOnset(cluster []string) bool {
+	if len(cluster) == 1 {
+		return cluster[0] != "ng"
+	}
+	return englishOnsets[strings.Join(cluster, " ")]
+}
+
+var englishOnsets = map[string]bool{
+	"b l": true, "b r": true, "d r": true, "d w": true, "f l": true, "f r": true,
+	"g l": true, "g r": true, "g w": true, "k l": true, "k r": true, "k w": true,
+	"p l": true, "p r": true, "sh r": true, "s f": true, "s k": true, "s l": true,
+	"s m": true, "s n": true, "s p": true, "s t": true, "s w": true, "t r": true,
+	"t w": true, "th r": true, "th w": true, "v r": true,
+	"s k l": true, "s k r": true, "s k w": true, "s p l": true, "s p r": true,
+	"s t r": true,
+}
+
+func englishEndingAliases(vowels []string, config PresampConfig) []string {
+	var result []string
+	for _, vowel := range vowels {
+		for _, format := range config.Endings {
+			result = append(result, strings.ReplaceAll(format, "%v%", vowel))
+		}
+		result = append(result, vowel+" -", vowel+"-")
+	}
+	return uniqueStrings(result)
+}
+
+func englishTerminalConsonants(vowels, coda []string, symbols map[string][]string, separator string) [][]string {
+	cluster := combineEnglishAliases(coda, []string{""}, symbols)
+	if len(coda) == 1 {
+		var endings []string
+		for _, vowel := range vowels {
+			for _, value := range cluster {
+				endings = append(endings, vowel+separator+value+"-", vowel+value+"-")
+			}
+		}
+		// 解放マーカーが欠けても利用可能なVCを候補から消さない。
+		for _, vowel := range vowels {
+			for _, value := range cluster {
+				endings = append(endings, vowel+separator+value, vowel+value)
+			}
+		}
+		return [][]string{uniqueStrings(endings)}
+	}
+	first := combineEnglishAliases(coda[:1], []string{""}, symbols)
+	rest := combineEnglishAliases(coda[1:], []string{""}, symbols)
+	var firstAliases, restAliases []string
+	for _, vowel := range vowels {
+		for _, value := range first {
+			firstAliases = append(firstAliases, vowel+separator+value, vowel+value)
+		}
+	}
+	for _, left := range first {
+		for _, right := range rest {
+			restAliases = append(restAliases,
+				left+separator+right+"-", left+right+"-",
+				left+separator+right, left+right)
+		}
+	}
+	for _, value := range rest {
+		restAliases = append(restAliases, value+"-", value)
+	}
+	return [][]string{uniqueStrings(firstAliases), uniqueStrings(restAliases)}
+}
+
+func englishSyllableBridge(vowels, coda, nextOnset []string, symbols map[string][]string, separator string) [][]string {
+	first := combineEnglishAliases(coda[:1], []string{""}, symbols)
+	var firstAliases []string
+	for _, vowel := range vowels {
+		for _, consonant := range first {
+			firstAliases = append(firstAliases, vowel+separator+consonant, vowel+consonant)
+		}
+	}
+	result := [][]string{uniqueStrings(firstAliases)}
+	restPhones := append(append([]string(nil), coda[1:]...), nextOnset...)
+	if len(restPhones) == 0 {
+		return result
+	}
+	rest := combineEnglishAliases(restPhones, []string{""}, symbols)
+	var bridge []string
+	for _, left := range first {
+		for _, right := range rest {
+			// 語境界のCCは解放マーカー付きを優先し、非マーカー形は後段に残す。
+			bridge = append(bridge, left+separator+right+"-", left+right+"-", left+separator+right, left+right)
+		}
+	}
+	// 語境界の子音連続がなくても語末子音全体を選べるようにする。
+	if len(coda) > 1 && len(nextOnset) > 0 {
+		codaRest := combineEnglishAliases(coda[1:], []string{""}, symbols)
+		for _, left := range first {
+			for _, right := range codaRest {
+				bridge = append(bridge, left+separator+right, left+right, left+separator+right+"-", left+right+"-")
+			}
+		}
+	}
+	return append(result, uniqueStrings(bridge))
+}
+
+func sameStrings(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func englishPronunciation(text, reading string, dictionary map[string]string) (string, [][]string, error) {
+	return englishPronunciationWithOptions(text, reading, dictionary, DefaultEnglishOptions())
+}
+
+// 辞書・明示の読みには弱形を適用しない。
+func englishPronunciationWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, [][]string, error) {
+	pronunciation := strings.TrimSpace(reading)
+	var result [][]string
+	if pronunciation != "" {
+		for _, part := range strings.Split(pronunciation, "|") {
+			fields := strings.Fields(part)
+			if len(fields) > 0 {
+				result = append(result, fields)
+			}
+		}
+	} else {
+		words := latinWords(normalizeEnglishText(text))
+		if len(words) == 0 {
+			return "", nil, fmt.Errorf("English text contains no words")
+		}
+		parts := make([]string, 0, len(words))
+		for index, word := range words {
+			if word == "<pause>" {
+				result = append(result, []string{"SP"})
+				parts = append(parts, "SP")
+				continue
+			}
+			value := dictionary[word]
+			if value == "" {
+				value = dictionary[strings.ToLower(word)]
+			}
+			if value == "" {
+				var err error
+				value, err = englishWordPronunciation(word)
+				if err != nil {
+					return "", nil, err
+				}
+				if strings.EqualFold(word, "read") && englishReadIsBaseForm(words, index) {
+					value = "R IY1 D"
+				}
+				// 機能語の弱形は句中だけ補い 明示した読みと辞書を優先する。
+				if weak, ok := englishWeakForm(word, words, index, options); ok {
+					value = weak
+				}
+			}
+			fields := strings.Fields(value)
+			if len(fields) > 0 {
+				result = append(result, fields)
+				parts = append(parts, strings.Join(fields, " "))
+			}
+		}
+		pronunciation = strings.Join(parts, " | ")
+	}
+	if len(result) == 0 {
+		return "", nil, fmt.Errorf("ARPAbet reading is empty")
+	}
+	return pronunciation, result, nil
+}
+
+func combineEnglishAliases(onset []string, vowels []string, symbols map[string][]string) []string {
+	aliases := []string{""}
+	for _, phoneme := range append(append([]string(nil), onset...), "") {
+		values := vowels
+		if phoneme != "" {
+			values = symbols[phoneme]
+		}
+		next := make([]string, 0, len(aliases)*len(values))
+		for _, left := range aliases {
+			for _, right := range values {
+				next = append(next, left+right)
+			}
+		}
+		aliases = next
+	}
+	return aliases
+}
+
+func englishMainAliases(onset []string, vowels []string, symbols map[string][]string) []string {
+	if len(onset) == 0 {
+		return combineEnglishAliases(nil, vowels, symbols)
+	}
+	var result []string
+	for start := 0; start < len(onset); start++ {
+		result = append(result, combineEnglishAliases(onset[start:], vowels, symbols)...)
+	}
+	return uniqueStrings(result)
+}
+
+func englishOnsetClusterAliases(onset []string, symbols map[string][]string, separator string, phraseStart bool) []string {
+	clusters := combineEnglishAliases(onset, []string{""}, symbols)
+	var result []string
+	for _, cluster := range clusters {
+		if phraseStart {
+			result = append(result, "- "+cluster, "-"+cluster)
+		}
+		result = append(result, cluster)
+	}
+	first := combineEnglishAliases(onset[:1], []string{""}, symbols)
+	rest := combineEnglishAliases(onset[1:], []string{""}, symbols)
+	for _, left := range first {
+		for _, right := range rest {
+			result = append(result, left+separator+right, left+right)
+		}
+	}
+	return uniqueStrings(result)
+}
+
+// 母音始まりはVCでなくVV候補にする。
+func combineEnglishTransitionAliases(previous []string, onset []string, vowels []string, symbols map[string][]string, separator string) []string {
+	if len(previous) == 0 {
+		return nil
+	}
+	if len(onset) == 0 {
+		return combineEnglishVowelTransitionAliases(previous, vowels, separator)
+	}
+	cluster := combineEnglishAliases(onset, []string{""}, symbols)
+	var result []string
+	for _, vowel := range previous {
+		for _, consonant := range cluster {
+			result = append(result, vowel+separator+consonant)
+		}
+	}
+	return result
+}
+
+func combineEnglishVowelTransitionAliases(previous, vowels []string, separator string) []string {
+	var result []string
+	for _, left := range previous {
+		for _, right := range vowels {
+			result = append(result,
+				left+separator+right+"-",
+				left+right+"-",
+				left+separator+right,
+				left+right,
+			)
+		}
+	}
+	return uniqueStrings(result)
+}
+
+func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (string, []Mora, error) {
+	return ParseEnglishARPAsingWithOptions(text, reading, dictionary, DefaultEnglishOptions())
+}
+
+func ParseEnglishARPAsingWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, []Mora, error) {
+	pronunciation, words, err := englishPronunciationWithOptions(text, reading, dictionary, options)
+	if err != nil {
+		return "", nil, err
+	}
+	var morae []Mora
+	previous := "-"
+	for wordIndex, word := range words {
+		if len(word) == 1 && word[0] == "SP" {
+			if len(morae) > 0 && !morae[len(morae)-1].Pause {
+				last := &morae[len(morae)-1]
+				last.Aliases.Endings = [][]string{{last.Text + " -", last.Text + "-"}}
+				morae = append(morae, Mora{Pause: true})
+			}
+			previous = "-"
+			continue
+		}
+		for phoneIndex, raw := range word {
+			symbol := normalizeARPAbet(raw)
+			if symbol == "" {
+				continue
+			}
+			candidates := []string{previous + " " + symbol, symbol}
+			if previous != "-" {
+				candidates = append(candidates, "- "+symbol)
+			}
+			if !englishVowels[symbol] && len(deltaEnglishSymbols[symbol]) == 0 {
+				return "", nil, fmt.Errorf("unsupported ARPAbet phoneme %q", raw)
+			}
+			mora := Mora{Language: LanguageEnglish, WordIndex: wordIndex, WordEnd: phoneIndex+1 == len(word), Text: symbol, Stress: arpabetStress(raw), Aliases: &AliasHints{Main: uniqueStrings(candidates)}}
+			mora.StressKnown = arpabetHasStress(raw)
+			if englishVowels[symbol] {
+				mora.Vowel = symbol
+				mora.DurationScale = 1
+				mora.Phones = []Phone{{Symbol: symbol, Role: "nucleus"}}
+			} else {
+				mora.Consonant = symbol
+				mora.DurationScale = PhoneWeight(symbol, "onset")
+				mora.Phones = []Phone{{Symbol: symbol, Role: "onset"}}
+			}
+			morae = append(morae, mora)
+			previous = symbol
+		}
+	}
+	if len(morae) > 0 && !morae[len(morae)-1].Pause {
+		last := morae[len(morae)-1].Text
+		morae[len(morae)-1].Aliases.Endings = [][]string{{last + " -", last + "-"}}
+	}
+	markEnglishPhoneCodas(morae)
+	return pronunciation, morae, nil
+}
+
+// 1音素を1 Moraとし、候補順はOpenUtauのEnglish C+V Phonemizer（Cadlaxa, MIT）に準拠する。
+func ParseEnglishCV(text, reading string, dictionary map[string]string) (string, []Mora, error) {
+	return ParseEnglishCVWithOptions(text, reading, dictionary, DefaultEnglishOptions())
+}
+
+func ParseEnglishCVWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, []Mora, error) {
+	pronunciation, words, err := englishPronunciationWithOptions(text, reading, dictionary, options)
+	if err != nil {
+		return "", nil, err
+	}
+	var morae []Mora
+	phraseStart := true
+	for wordIndex, word := range words {
+		if len(word) == 1 && word[0] == "SP" {
+			if len(morae) > 0 && !morae[len(morae)-1].Pause {
+				setEnglishCVEnding(&morae[len(morae)-1])
+				morae = append(morae, Mora{Pause: true})
+			}
+			phraseStart = true
+			continue
+		}
+		for phoneIndex, raw := range word {
+			symbol := normalizeARPAbet(raw)
+			if symbol == "" {
+				continue
+			}
+			if !englishVowels[symbol] && !cvEnglishConsonants[symbol] {
+				return "", nil, fmt.Errorf("unsupported ARPAbet phoneme %q", raw)
+			}
+			mora := Mora{Language: LanguageEnglish, WordIndex: wordIndex, WordEnd: phoneIndex+1 == len(word), Text: symbol, Stress: arpabetStress(raw)}
+			mora.StressKnown = arpabetHasStress(raw)
+			var candidates []string
+			if englishVowels[symbol] {
+				mora.Vowel = symbol
+				mora.DurationScale = 1
+				mora.Phones = []Phone{{Symbol: symbol, Role: "nucleus"}}
+				candidates = cvVowelAliases(symbol, phraseStart)
+			} else {
+				mora.Consonant = symbol
+				mora.DurationScale = PhoneWeight(symbol, "onset")
+				mora.Phones = []Phone{{Symbol: symbol, Role: "onset"}}
+				candidates = cvConsonantAliases(symbol, phraseStart)
+			}
+			mora.Aliases = &AliasHints{Main: candidates, MainKinds: repeatAliasKind("cv", len(candidates))}
+			morae = append(morae, mora)
+			phraseStart = false
+		}
+	}
+	if len(morae) > 0 && !morae[len(morae)-1].Pause {
+		setEnglishCVEnding(&morae[len(morae)-1])
+	}
+	markEnglishPhoneCodas(morae)
+	return pronunciation, morae, nil
+}
+
+func cvVowelAliases(vowel string, phraseStart bool) []string {
+	if phraseStart {
+		return uniqueStrings([]string{"-" + vowel, "- " + vowel, vowel})
+	}
+	return uniqueStrings([]string{"-" + vowel, vowel, "- " + vowel})
+}
+
+func cvConsonantAliases(consonant string, phraseStart bool) []string {
+	if phraseStart {
+		return uniqueStrings([]string{"- " + consonant, "-" + consonant, consonant})
+	}
+	return uniqueStrings([]string{consonant, "-" + consonant, "- " + consonant})
+}
+
+func setEnglishCVEnding(mora *Mora) {
+	if mora.Aliases == nil {
+		return
+	}
+	endings := []string{mora.Text + " -", mora.Text + "-"}
+	mora.Aliases.Endings = [][]string{uniqueStrings(endings)}
+}
+
+// 音素単位の音源でも、単語の最後の母音より後ろは語末子音として保持する。
+// 原音候補と任意の終了音は変更しない。
+func markEnglishPhoneCodas(morae []Mora) {
+	for i := len(morae) - 1; i >= 0; {
+		if morae[i].Pause {
+			i--
+			continue
+		}
+		word := morae[i].WordIndex
+		trailing := true
+		for i >= 0 && !morae[i].Pause && morae[i].WordIndex == word {
+			m := &morae[i]
+			if m.Vowel != "" {
+				trailing = false
+			} else if trailing && len(m.Phones) == 1 {
+				m.Phones[0].Role = "coda"
+				m.DurationScale = PhoneWeight(m.Phones[0].Symbol, "coda")
+			}
+			i--
+		}
+	}
+}
+
+func EnglishSourceSymbols(phonemizer string) map[string][]string {
+	var source map[string][]string
+	switch phonemizer {
+	case PhonemizerEnglishDelta:
+		source = deltaEnglishSymbols
+	case PhonemizerEnglishVCCV:
+		source = vccvEnglishSymbols
+	default:
+		return nil
+	}
+	result := make(map[string][]string, len(source))
+	for phone, symbols := range source {
+		result[phone] = append([]string(nil), symbols...)
+	}
+	return result
+}
+
+func normalizeARPAbet(value string) string {
+	return strings.TrimRight(strings.ToLower(strings.TrimSpace(value)), "0123456789")
+}
+
+func arpabetStress(value string) int {
+	value = strings.TrimSpace(value)
+	if len(value) == 0 {
+		return 0
+	}
+	last := value[len(value)-1]
+	if last >= '0' && last <= '2' {
+		return int(last - '0')
+	}
+	return 0
+}
+
+func arpabetHasStress(value string) bool {
+	value = strings.TrimSpace(value)
+	return len(value) > 0 && value[len(value)-1] >= '0' && value[len(value)-1] <= '2'
+}
+
+func latinWords(text string) []string {
+	var result []string
+	var word strings.Builder
+	flush := func() {
+		if word.Len() > 0 {
+			result = append(result, word.String())
+			word.Reset()
+		}
+	}
+	for _, r := range text {
+		if unicode.IsLetter(r) || r == '\'' {
+			word.WriteRune(r)
+			continue
+		}
+		flush()
+		if strings.ContainsRune(",.;:!?、。！？\n", r) && len(result) > 0 && result[len(result)-1] != "<pause>" {
+			result = append(result, "<pause>")
+		}
+	}
+	flush()
+	return result
+}
