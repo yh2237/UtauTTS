@@ -1,6 +1,6 @@
 # モデルの学習
 
-学習・データ準備コマンドは `cmd/tools/` にあります。生成物とキャッシュは `out/` に置き、配布済みの `models/*.json` は上書きしません。モデルの配布条件は [モデル一覧](../models/README.md) を参照してください。
+学習・データ準備コマンドは `cmd/tools/` にあります。Goの学習器はgograd v1.2.0を使用します。生成物とキャッシュは `out/` に置き、配布済みの `models/*.json` は上書きしません。モデルの配布条件は [モデル一覧](../models/README.md) を参照してください。
 
 ## 日本語フレーム抑揚モデル
 
@@ -90,7 +90,35 @@ go run ./cmd/tools/train-multilingual-speech out/speech-corpus.jsonl --language 
 go run ./cmd/tools/train-speech-timing --dataset out/mfa-align-20261002/base-mfa.jsonl --alignments out/mfa-align-20261002/alignments --world-engine runtime/utautts-world-engine.dll
 ```
 
-`--features-only --features-json out/speech-timing-target/sample.json` は先頭の特徴を比較用に出力します。`--out`、`--fixture`、`--cache`、`--steps`、`--valid`、`--seed`、`--device` を指定できます。
+`--features-only --features-json out/speech-timing-target/sample.json` は先頭の特徴を比較用に出力します。既存の `--cache` があれば、`--dataset`、`--alignments`、WORLD DLLなしで学習できます。
+
+### 中断と再開
+
+`--out` は最良の検証結果の推論用重み、`--fixture` はその重みに対応するparity fixtureです。再開用の学習状態は `--checkpoint` へ別に保存します。省略時は `<out>.training.safetensors` です。重み・AdamW・OneCycle・分割・窓サンプラの乱数状態・最良モデルを含み、推論用重みだけからは再開できません。
+
+```powershell
+go run ./cmd/tools/train-speech-timing `
+  --cache out/speech-timing-target/go-features.gob `
+  --steps 6000 --valid 30 --seed 0 --device cpu `
+  --out out/speech-timing-target/first.safetensors `
+  --fixture out/speech-timing-target/first-parity.json `
+  --checkpoint out/speech-timing-target/training.safetensors `
+  --checkpoint-every 250 --stop-after 2000
+
+go run ./cmd/tools/train-speech-timing `
+  --cache out/speech-timing-target/go-features.gob `
+  --steps 6000 --valid 30 --seed 0 --device cpu `
+  --out out/speech-timing-target/resumed.safetensors `
+  --fixture out/speech-timing-target/resumed-parity.json `
+  --checkpoint out/speech-timing-target/training.safetensors `
+  --resume out/speech-timing-target/training.safetensors
+```
+
+`--steps` は追加step数ではなく、最初に予定した全step数です。再開時もキャッシュの内容、seed、検証数、batch/windowサイズ、評価間隔、コーパス・通知指定を同じにします。`--out` と `--fixture` は新しいパスを指定してください。最良モデルは学習状態に保持されるため、再開後にスコアが改善しなくても書き出せます。
+
+`--batch-size` は既定16、`--window` は400 frame、`--eval-every` と `--checkpoint-every` は250 stepです。`--stop-after` は停止する完了step数で、0なら最後まで実行します。Ctrl+Cでは実行中の更新を終えて保存し、強制終了では最後の定期保存から再開します。parity fixture作成より先に、最新の学習状態を保存します。
+
+CPUの再開は連続実行とファイル単位で一致します。CUDAは勾配集約順序によるfloat32の微小差を許して検証します。窓サンプラは復元可能なPCG乱数を使い、最後の完全な窓も抽選対象にするため、旧トレーナーとは同じseedでも新規学習の軌跡が異なります。
 
 ## 残る Python
 

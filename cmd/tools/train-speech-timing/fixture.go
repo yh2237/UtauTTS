@@ -35,7 +35,9 @@ func writeFixture(path string, model *autograd.SpeechTiming, device tensor.Devic
 		return e
 	}
 	defer input.Close()
+	wasTraining := model.Module.Training
 	model.Train(false)
+	defer model.Train(wasTraining)
 	var pred *autograd.Tensor
 	autograd.NoGrad(func() { pred = model.Forward(ids, input, 0) })
 	values, e := pred.ToHost()
