@@ -51,7 +51,7 @@ void append_escaped_field(std::string& out, const char* value) {
 
 extern "C" {
 
-// 辞書ディレクトリを読み込む。成功で1、失敗で0を返す。
+// 成功は1、失敗は0。
 int UtauTTSOpenJTalkInit(const char* dictionary_path) {
   if (dictionary_path == nullptr || dictionary_path[0] == '\0') {
     set_error("dictionary path is empty");
@@ -71,7 +71,7 @@ int UtauTTSOpenJTalkInit(const char* dictionary_path) {
   return 1;
 }
 
-// テキストを解析し、NJDノードをTSVでoutputへ書く。戻り値は書き込んだバイト数（NUL除く）。失敗は0。
+// 戻り値はTSVのバイト数（NULを除く）。失敗は0。
 // 列: string, pos, pos_group1, ctype, cform, orig, read, pron, acc, mora_size, chain_rule, chain_flag
 int UtauTTSOpenJTalkRun(const char* text, char* output, int output_capacity) {
   if (!g_loaded) {

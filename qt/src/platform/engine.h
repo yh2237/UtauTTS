@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <functional>
 
-// 共通のエンジン呼び出し。デスクトップはGoのC ABI、wasmはJSへ委譲する。
+// デスクトップはGoのC ABI、wasmはJSを呼ぶ。
 QVariantMap callNative(uintptr_t handle, const QByteArray &method,
                        const QVariantMap &request = {});
 
@@ -19,6 +19,6 @@ void destroyNative(uintptr_t handle);
 
 QString lastNativeError();
 
-// wasmでは外部プロセスを起動せずfalseを返す。
+// wasmでは外部プロセスを起動できないためfalseを返す。
 bool startDetachedProcess(const QString &program, const QStringList &arguments,
                           const QString &workingDirectory, qint64 *pid);

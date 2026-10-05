@@ -84,7 +84,7 @@ bool callJsBool(const char *name) {
 qreal callJsNumber(const char *) { return 0; }
 bool callJsBool(const char *) { return false; }
 #endif
-}  // namespace
+}
 
 struct MediaPlayer::Impl {
     QUrl source;

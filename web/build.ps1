@@ -1,4 +1,3 @@
-# UtauTTS wasm向けビルド。GoのwasmとJS資産、既定の抑揚モデルを web/dist へ集める。
 $ErrorActionPreference = 'Stop'
 
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -32,7 +31,6 @@ $modelManifest = @{ models = @($modelFiles | ForEach-Object { $_.Name }) } | Con
 Set-Content -LiteralPath (Join-Path $dist 'models/manifest.json') -Value $modelManifest -Encoding utf8
 Write-Host ("Bundled models: " + (($modelFiles | ForEach-Object { $_.Name }) -join ', '))
 
-# 同梱音源を展開し、遅延配信用の manifest を作る。
 $voiceZip = Get-ChildItem -Path (Join-Path $root 'voice') -Filter *.zip -File -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($voiceZip) {
     & python (Join-Path $PSScriptRoot 'build-voice.py') $voiceZip.FullName (Join-Path $dist 'voice')

@@ -1,6 +1,5 @@
 "use strict";
 
-// エンジンと資産をWorkerで保持し、生成ファイルをUI側のFSミラーへ渡す。
 importScripts("./asset-paths.js");
 const config = JSON.parse(new URL(location.href).searchParams.get("config") || "{}");
 const paths = createUtauTTSAssetPaths(location.href, config);
@@ -181,7 +180,6 @@ async function handleCall(id, method, requestJSON) {
   } catch (error) {
     response = { ok: false, error: String((error && error.message) || error) };
   }
-  // 一覧画像は先読みしてUI側のFSミラーへ渡す。
   if (method === "voicebanks" && response && response.ok && response.result) {
     const banks = response.result.voicebanks || [];
     for (const bank of banks) {
@@ -197,7 +195,7 @@ async function handleCall(id, method, requestJSON) {
     { type: "callResult", id, response, files, removed },
     files.map((file) => file.bytes)
   );
-  // 音源一覧を待たせないよう、辞書とWORLDはメタデータ取得後に読み込む。
+  // 一覧表示を優先し、辞書とWORLDは後で読み込む。
   if (!runtimeKicked && method === "renderers") {
     runtimeKicked = true;
     ensureRuntime().catch((error) => console.error("runtime preload failed", error));

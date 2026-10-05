@@ -3,7 +3,6 @@
 #include <QObject>
 #include <QString>
 
-// 環境とレイアウトの判定を共通QMLへ公開する。
 class Platform : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool isDesktop READ isDesktop CONSTANT)

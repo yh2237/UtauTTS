@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# UtauTTS wasm向けビルド。GoのwasmとJS資産、既定の抑揚モデルを web/dist へ集める。
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -31,7 +30,6 @@ cp "${root_dir}/models/"*.json "${dist}/models/"
     printf ']}'
 } > "${dist}/models/manifest.json"
 
-# 同梱音源を展開し、遅延配信用の manifest を作る。
 voice_zip="$(ls "${root_dir}/voice/"*.zip 2>/dev/null | head -n1 || true)"
 if [ -n "${voice_zip}" ]; then
     python3 "${script_dir}/build-voice.py" "${voice_zip}" "${dist}/voice"

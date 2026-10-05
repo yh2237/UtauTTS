@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 
-// 各レイアウトで音源・モデルの解決など、表示に依存しない処理を共有する。
 QtObject {
     id: core
     required property var backend
@@ -233,7 +232,7 @@ QtObject {
         return options.length ? options[0].id : "";
     }
 
-    // モーラ位置(中心)を開始位置へ変換する。null は維持する。
+    // 保存形式の中心時刻を開始時刻へ戻す。nullは保つ。
     function normalizedMoraPositions(positions) {
         const normalized = (positions || []).slice();
         if (!normalized.length)

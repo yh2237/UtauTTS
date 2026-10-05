@@ -6,7 +6,7 @@
 #include <QVariantList>
 #include <memory>
 
-// 共通QML向けのメディアAPI。デスクトップはQtMultimedia、wasmはHTML Audioを使う。
+// デスクトップはQtMultimedia、wasmはHTML Audioを使う。
 
 class MediaOutput : public QObject {
     Q_OBJECT

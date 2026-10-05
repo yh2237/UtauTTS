@@ -1,6 +1,5 @@
 "use strict";
 
-// Open JTalkのEmscriptenモジュールをGo wasm向けのAPIへ変換する。
 function createOpenJTalkBridge(Module) {
   const init = Module.cwrap("UtauTTSOpenJTalkInit", "number", ["string"]);
   const runNative = Module.cwrap("UtauTTSOpenJTalkRun", "number", ["string", "number", "number"]);

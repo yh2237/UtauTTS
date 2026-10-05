@@ -51,7 +51,6 @@
 
 namespace {
 constexpr int maxRecentProjects = 10;
-// 長さの既定値はGoのinternal/planと揃える。
 constexpr int fallbackMoraDurationMS = 120;
 constexpr int fallbackPauseDurationMS = 180;
 constexpr int fallbackLeadingPreutteranceMS = 0;
@@ -356,7 +355,6 @@ extern "C" EMSCRIPTEN_KEEPALIVE void utauttsCallCompleted() {
     }
 }
 
-// wasmの保存先はブラウザに委ねる。
 static void wasmDownloadBytes(const QString &fileName, const QByteArray &data) {
     emscripten::val view = emscripten::val(emscripten::typed_memory_view(
             data.size(), reinterpret_cast<const unsigned char *>(data.constData())));
@@ -522,8 +520,7 @@ void Backend::runStartupMigrations() {
         }
     }
 
-    // 旧更新処理も保持するconfig.iniに移行状態を残す。
-    // 目標版で起動したときだけ完了にし、起動失敗時は復旧用にpendingを残す。
+    // 目標版が起動するまでconfig.iniにpendingを残し、起動失敗から復旧できるようにする。
     if (!pendingTo.isEmpty() && pendingTo == currentVersion) {
         settings.setValue(QStringLiteral("migration/last_from"), pendingFrom);
         settings.setValue(QStringLiteral("migration/last_to"), pendingTo);

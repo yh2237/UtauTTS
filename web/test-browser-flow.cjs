@@ -1,4 +1,3 @@
-// ブラウザと同じ資産配置で、共通Engineによる解析と抑揚予測を検証する。
 "use strict";
 
 const fs = require("fs");

@@ -1,6 +1,6 @@
 "use strict";
 
-// エンジンはWorkerで動かし、UI側にはFSミラーを置く。?async=0は互換用の同期モード。
+// ?async=0は互換用の同期モード。通常はWorkerを使う。
 (() => {
   const paths = window.utauttsAssetPaths;
   const ENGINE_BASE = paths.engineBaseURL;

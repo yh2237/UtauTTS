@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// 発話・編集・再生の状態はMainで共有し、ここではモバイルの操作部だけを持つ。
 Item {
     id: root
     required property var window

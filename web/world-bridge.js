@@ -1,6 +1,5 @@
 "use strict";
 
-// WORLDのEmscriptenモジュールをGo wasm向けのAPIへ変換する。
 function createWorldBridge(Module) {
   const FRAME_MS = 10.0;
   const ERROR_SIZE = 512;

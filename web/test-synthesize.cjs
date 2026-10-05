@@ -1,5 +1,4 @@
-// 共通EngineとOpen JTalk・WORLDのwasmで、テキストからWAVまでを検証する。
-// 事前に web/build.ps1 と web/build-openjtalk.ps1 と web/build-world.ps1 を実行しておく。
+// 実行前にweb/build、build-openjtalk、build-worldで資産を用意する。
 "use strict";
 
 const fs = require("fs");

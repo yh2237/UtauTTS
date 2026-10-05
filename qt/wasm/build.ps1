@@ -1,5 +1,4 @@
-# Qt wasm アプリをビルドし、web/dist と renderer をまとめた配布ディレクトリを作る。
-# 事前に emsdk を有効化し、web/dist のGo wasm・Open JTalk・WORLD資産を用意しておくこと。
+# 実行前にemsdkを有効化し、web/distにGo・Open JTalk・WORLDのwasmを用意する。
 $ErrorActionPreference = 'Stop'
 
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))

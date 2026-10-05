@@ -154,7 +154,6 @@ async function checkMobileSaveAll(page) {
   await page.mouse.click(354, 28); // Mobile navigation.
   await page.waitForTimeout(250);
   await page.mouse.click(140, 264); // Save all WAV.
-  // 未解析の発話も一括保存時に解析されることを検証する。
   for (let i = 0; i < 360 && downloads.length < 2; ++i) await page.waitForTimeout(500);
   if (downloads.length < 2) {
     console.error("save-all trace:", await page.evaluate(() => window.utauttsCallTrace));

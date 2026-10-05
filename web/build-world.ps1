@@ -1,5 +1,4 @@
-# WORLD (WORLD C++ + native/world-engine) を WebAssembly へビルドする。
-# 事前に Emscripten SDK を activate しておくこと。
+# 実行前にEmscripten SDKを有効化する。
 $ErrorActionPreference = 'Stop'
 
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))

@@ -1,6 +1,5 @@
 "use strict";
 
-// ページとWorkerでURL解決を共有する。スクリプトはPages、資産はR2にも配置できる。
 function createUtauTTSAssetPaths(scriptURL, config = {}) {
   const directory = (value, base) => {
     const url = new URL(value, base);
