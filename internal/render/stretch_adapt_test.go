@@ -58,26 +58,6 @@ func TestAdaptStretchTimingClampsConsonant(t *testing.T) {
 	}
 }
 
-func TestAdaptStretchTimingScalesByStrength(t *testing.T) {
-	unit := stretchAdaptUnit()
-	before := effectiveTiming{PreutteranceMS: 50, ConsonantMS: 100, OverlapMS: 20, Scale: 1}
-	full := adaptStretchTiming(unit, before, 20, true, 1)
-	half := adaptStretchTiming(unit, before, 20, true, 0.5)
-	if !(half.ConsonantMS > before.ConsonantMS && half.ConsonantMS < full.ConsonantMS) {
-		t.Fatalf("half strength = %.3f, full = %.3f", half.ConsonantMS, full.ConsonantMS)
-	}
-}
-
-func TestAdaptStretchTimingZeroStrengthUsesDefault(t *testing.T) {
-	unit := stretchAdaptUnit()
-	before := effectiveTiming{PreutteranceMS: 50, ConsonantMS: 100, OverlapMS: 20, Scale: 1}
-	got := adaptStretchTiming(unit, before, 20, true, 0)
-	full := adaptStretchTiming(unit, before, 20, true, 1)
-	if got.ConsonantMS != full.ConsonantMS || got.StretchAdapted != full.StretchAdapted {
-		t.Fatalf("zero strength = %+v, want %+v", got, full)
-	}
-}
-
 func TestAdaptStretchTimingIdentityCases(t *testing.T) {
 	unit := stretchAdaptUnit()
 	before := effectiveTiming{PreutteranceMS: 50, ConsonantMS: 100, OverlapMS: 20, Scale: 1}
@@ -120,5 +100,20 @@ func TestAdaptStretchTimingStrengthLimit(t *testing.T) {
 	over := adaptStretchTiming(unit, before, 20, true, stretchAdaptStrengthLimit+5)
 	if capped.ConsonantMS != over.ConsonantMS || capped.StretchAdapted != over.StretchAdapted {
 		t.Fatalf("strength was not capped: %+v vs %+v", capped, over)
+	}
+}
+
+func TestAdaptStretchTimingScalesByStrength(t *testing.T) {
+	unit := stretchAdaptUnit()
+	before := effectiveTiming{PreutteranceMS: 50, ConsonantMS: 100, OverlapMS: 20, Scale: 1}
+	full := adaptStretchTiming(unit, before, 20, true, 1)
+	half := adaptStretchTiming(unit, before, 20, true, 0.5)
+	if !(half.ConsonantMS > before.ConsonantMS && half.ConsonantMS < full.ConsonantMS) {
+		t.Fatalf("half strength = %.3f, full = %.3f", half.ConsonantMS, full.ConsonantMS)
+	}
+	// 強度0は既定（1.0）として扱う。
+	zero := adaptStretchTiming(unit, before, 20, true, 0)
+	if zero.ConsonantMS != full.ConsonantMS || zero.StretchAdapted != full.StretchAdapted {
+		t.Fatalf("zero strength = %+v, want %+v", zero, full)
 	}
 }

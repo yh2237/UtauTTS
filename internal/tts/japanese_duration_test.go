@@ -116,66 +116,40 @@ func TestApplyJapaneseContextDurationMultipliesExistingFactor(t *testing.T) {
 	}
 }
 
-func TestApplyJapaneseContextDurationDisabledIsIdentity(t *testing.T) {
+func TestApplyJapaneseContextDurationIdentityAndDefaults(t *testing.T) {
 	morae := testMorae("き", "は", "な")
 	features := []prosody.FeatureFrame{{}, {"pos=助詞": 1}, {}}
-	disabled := false
-	predictions := []prosody.Prediction{
-		{DurationFactor: 2, PitchFactor: 1, EnergyFactor: 1},
-		{DurationFactor: 2, PitchFactor: 1, EnergyFactor: 1},
-		{DurationFactor: 2, PitchFactor: 1, EnergyFactor: 1},
-	}
-	result := applyJapaneseContextDuration(Config{ContextDuration: &disabled}, morae, features, predictions, false)
-	for i := range result {
-		if result[i].DurationFactor != 2 {
-			t.Fatalf("disabled factor[%d] = %.4f, want 2", i, result[i].DurationFactor)
+	factors := func(factor float64) []prosody.Prediction {
+		return []prosody.Prediction{
+			{DurationFactor: factor, PitchFactor: 1, EnergyFactor: 1},
+			{DurationFactor: factor, PitchFactor: 1, EnergyFactor: 1},
+			{DurationFactor: factor, PitchFactor: 1, EnergyFactor: 1},
 		}
 	}
-}
-
-func TestApplyJapaneseContextDurationDefaultIsIdentity(t *testing.T) {
-	morae := testMorae("き", "は", "な")
-	features := []prosody.FeatureFrame{{}, {"pos=助詞": 1}, {}}
-	predictions := []prosody.Prediction{
-		{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1},
-		{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1},
-		{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1},
+	disabled, enabled := false, true
+	tests := []struct {
+		name string
+		cfg  Config
+		in   []prosody.Prediction
+		want float64 // 助詞（位置1）の倍率
+	}{
+		{"disabled", Config{ContextDuration: &disabled}, factors(2), 2},
+		{"default", Config{}, factors(1), 1},
+		{"zero strength uses default", Config{ContextDuration: &enabled, ContextDurationStrength: 0}, factors(1), japaneseParticleFactor},
+		{"fills missing predictions", Config{ContextDuration: &enabled}, nil, japaneseParticleFactor},
 	}
-	result := applyJapaneseContextDuration(Config{}, morae, features, predictions, false)
-	for i, prediction := range result {
-		if prediction.DurationFactor != 1 {
-			t.Fatalf("default factor[%d] = %.4f, want 1", i, prediction.DurationFactor)
-		}
-	}
-}
-
-func TestApplyJapaneseContextDurationZeroStrengthUsesDefault(t *testing.T) {
-	morae := testMorae("き", "は", "な")
-	features := []prosody.FeatureFrame{{}, {"pos=助詞": 1}, {}}
-	predictions := []prosody.Prediction{
-		{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1},
-		{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1},
-		{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1},
-	}
-	enabled := true
-	result := applyJapaneseContextDuration(Config{ContextDuration: &enabled, ContextDurationStrength: 0}, morae, features, predictions, false)
-	if result[1].DurationFactor != japaneseParticleFactor {
-		t.Fatalf("zero strength factor = %.4f, want default %.4f", result[1].DurationFactor, japaneseParticleFactor)
-	}
-}
-
-func TestApplyJapaneseContextDurationInitializesMissingPredictions(t *testing.T) {
-	morae := testMorae("き", "は", "な")
-	features := []prosody.FeatureFrame{{}, {"pos=助詞": 1}, {}}
-	enabled := true
-	result := applyJapaneseContextDuration(Config{ContextDuration: &enabled}, morae, features, nil, false)
-	if len(result) != len(morae) {
-		t.Fatalf("predictions length = %d, want %d", len(result), len(morae))
-	}
-	if result[0].PitchFactor != 1 || result[0].EnergyFactor != 1 {
-		t.Fatalf("defaults not filled: %+v", result[0])
-	}
-	if result[1].DurationFactor != japaneseParticleFactor {
-		t.Fatalf("particle factor = %.4f, want %.4f", result[1].DurationFactor, japaneseParticleFactor)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := applyJapaneseContextDuration(test.cfg, morae, features, test.in, false)
+			if len(result) != len(morae) {
+				t.Fatalf("predictions length = %d, want %d", len(result), len(morae))
+			}
+			if math.Abs(result[1].DurationFactor-test.want) > 1e-9 {
+				t.Fatalf("particle factor = %.4f, want %.4f", result[1].DurationFactor, test.want)
+			}
+			if test.in == nil && (result[0].PitchFactor != 1 || result[0].EnergyFactor != 1) {
+				t.Fatalf("defaults not filled: %+v", result[0])
+			}
+		})
 	}
 }

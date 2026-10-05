@@ -145,3 +145,17 @@ func TestSingleCVWorldOverlap(t *testing.T) {
 		}
 	})
 }
+
+func TestNormalizeLongVCVCompressesAndKeepsVowelTail(t *testing.T) {
+	unit := plan.Unit{Role: "mora", AliasKind: "VCV", DurationMS: 140, PreutteranceMS: 360, OverlapMS: 120, ConsonantMS: 439}
+	got := normalizeTiming(unit, 20)
+	if math.Abs(got.PreutteranceMS-105) > 0.001 {
+		t.Fatalf("preutterance = %.3f, want 105", got.PreutteranceMS)
+	}
+	if math.Abs(got.OverlapMS-35) > 0.001 {
+		t.Fatalf("overlap = %.3f, want 35", got.OverlapMS)
+	}
+	if got.ConsonantMS >= got.PreutteranceMS+unit.DurationMS+20-(20+49) {
+		t.Fatalf("consonant %.3f leaves no guaranteed vowel tail", got.ConsonantMS)
+	}
+}

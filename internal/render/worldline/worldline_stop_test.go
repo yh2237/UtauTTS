@@ -9,69 +9,6 @@ import (
 	"utautts/internal/voicebank"
 )
 
-func TestWorldlineStopProtectionSkipsJapaneseVCV(t *testing.T) {
-	p := &plan.Plan{
-		Language:   "ja",
-		Phonemizer: "ja-kana",
-		Morae:      []frontend.Mora{{Consonant: "k", Vowel: "a"}},
-	}
-	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "mora", AliasKind: "VCV"}, base.WorldlineProviderOptions{}) {
-		t.Fatal("Japanese VCV must not receive a raw stop burst")
-	}
-}
-
-func TestWorldlineStopProtectionKeepsEnglishPlosiveSupport(t *testing.T) {
-	p := &plan.Plan{
-		Language:   "en",
-		Phonemizer: "en-delta",
-		Morae:      []frontend.Mora{{Consonant: "k", Vowel: "ae"}},
-	}
-	profile := &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}
-	if !worldlineStopProtection(p, plan.Unit{Position: 0, Role: "mora", AliasKind: "VCV", SpeechProfile: profile}, base.WorldlineProviderOptions{}) {
-		t.Fatal("English VCV plosive must remain protected")
-	}
-}
-
-func TestWorldlineStopProtectionKeepsJapaneseCVSupport(t *testing.T) {
-	p := &plan.Plan{
-		Language:   "ja",
-		Phonemizer: "ja-kana",
-		Morae:      []frontend.Mora{{Consonant: "k", Vowel: "a"}},
-	}
-	profile := &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}
-	if !worldlineStopProtection(p, plan.Unit{Position: 0, Role: "mora", AliasKind: "CV", SpeechProfile: profile}, base.WorldlineProviderOptions{}) {
-		t.Fatal("Japanese CV onset should keep the short stop protection")
-	}
-	profile.TransientConfidence = .2
-	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "mora", AliasKind: "CV", SpeechProfile: profile}, base.WorldlineProviderOptions{}) {
-		t.Fatal("uncertain transient must not be mixed")
-	}
-}
-
-func TestWorldlineStopProtectionE2BGeneralizesJapanesePlosives(t *testing.T) {
-	p := &plan.Plan{
-		Language:   "ja",
-		Phonemizer: "ja-kana",
-		Morae:      []frontend.Mora{{Consonant: "k", Vowel: "a"}},
-	}
-	vcv := plan.Unit{Position: 0, Role: "mora", AliasKind: "VCV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}}
-	cv := plan.Unit{Position: 0, Role: "mora", AliasKind: "CV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .7}}
-	on, off := true, false
-	if !worldlineStopProtection(p, vcv, base.WorldlineProviderOptions{E2B: &on}) || !worldlineStopProtection(p, cv, base.WorldlineProviderOptions{E2B: &on}) {
-		t.Fatal("E2b on should protect reliable Japanese VCV and CV")
-	}
-	vcv.SpeechProfile.TransientConfidence = .6
-	if worldlineStopProtection(p, vcv, base.WorldlineProviderOptions{E2B: &on}) {
-		t.Fatal("E2b must gate Japanese VCV on high confidence")
-	}
-	if worldlineStopProtection(p, vcv, base.WorldlineProviderOptions{E2B: &off}) || worldlineStopProtection(p, cv, base.WorldlineProviderOptions{E2B: &off}) {
-		t.Fatal("E2b off must not protect Japanese plosives")
-	}
-	if !worldlineStopProtection(p, cv, base.WorldlineProviderOptions{}) {
-		t.Fatal("E2b default should be on")
-	}
-}
-
 func TestE2BLegacyStopPreserveOnlyForReliableJapanese(t *testing.T) {
 	p := &plan.Plan{
 		Language:   "ja",
@@ -145,5 +82,35 @@ func TestWorldlineGapRepairOnlyAcceptsRepeatedVowelWithoutOnset(t *testing.T) {
 	}
 	if worldlineGapRepairEligible(p, 2) {
 		t.Fatal("consonant onset boundary must preserve its unvoiced interval")
+	}
+}
+
+func TestWorldlineStopProtectionMatrix(t *testing.T) {
+	on, off := true, false
+	ja := &plan.Plan{Language: "ja", Phonemizer: "ja-kana", Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
+	en := &plan.Plan{Language: "en", Phonemizer: "en-delta", Morae: []frontend.Mora{{Consonant: "k", Vowel: "ae"}}}
+	reliable := &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}
+	cases := []struct {
+		name    string
+		plan    *plan.Plan
+		unit    plan.Unit
+		options base.WorldlineProviderOptions
+		want    bool
+	}{
+		{"Japanese VCV without measurement has no burst", ja, plan.Unit{Role: "mora", AliasKind: "VCV"}, base.WorldlineProviderOptions{}, false},
+		{"English VCV keeps plosive protection", en, plan.Unit{Role: "mora", AliasKind: "VCV", SpeechProfile: reliable}, base.WorldlineProviderOptions{}, true},
+		{"Japanese CV keeps protection", ja, plan.Unit{Role: "mora", AliasKind: "CV", SpeechProfile: reliable}, base.WorldlineProviderOptions{}, true},
+		{"uncertain transient is skipped", ja, plan.Unit{Role: "mora", AliasKind: "CV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .2}}, base.WorldlineProviderOptions{}, false},
+		{"E2b protects reliable VCV", ja, plan.Unit{Role: "mora", AliasKind: "VCV", SpeechProfile: reliable}, base.WorldlineProviderOptions{E2B: &on}, true},
+		{"E2b gates low confidence", ja, plan.Unit{Role: "mora", AliasKind: "VCV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .6}}, base.WorldlineProviderOptions{E2B: &on}, false},
+		{"E2b off disables VCV", ja, plan.Unit{Role: "mora", AliasKind: "VCV", SpeechProfile: reliable}, base.WorldlineProviderOptions{E2B: &off}, false},
+		{"E2b off disables CV", ja, plan.Unit{Role: "mora", AliasKind: "CV", SpeechProfile: reliable}, base.WorldlineProviderOptions{E2B: &off}, false},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			if got := worldlineStopProtection(test.plan, test.unit, test.options); got != test.want {
+				t.Fatalf("stop protection = %t, want %t", got, test.want)
+			}
+		})
 	}
 }

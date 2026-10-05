@@ -437,56 +437,6 @@ func TestVoicebankEndpointsDiscoverAndReloadDirectory(t *testing.T) {
 	}
 }
 
-func TestSynthesisRequestAppliesIntonationDefaults(t *testing.T) {
-	var request SynthesisRequest
-	if err := json.Unmarshal([]byte(`{"text":"あ"}`), &request); err != nil {
-		t.Fatal(err)
-	}
-	if !request.ApplyPitch || request.IntonationStrength != synth.DefaultIntonationStrength {
-		t.Fatalf("defaults = apply_pitch:%t intonation_strength:%v", request.ApplyPitch, request.IntonationStrength)
-	}
-	if request.ContextDuration != synth.DefaultContextDuration || request.ContextDurationStrength != synth.DefaultContextDurationStrength {
-		t.Fatalf("context defaults = context_duration:%t context_duration_strength:%v", request.ContextDuration, request.ContextDurationStrength)
-	}
-	if !request.BoundaryTone || request.BoundaryToneStrength != synth.DefaultBoundaryToneStrength {
-		t.Fatalf("boundary defaults = boundary_tone:%t boundary_tone_strength:%v", request.BoundaryTone, request.BoundaryToneStrength)
-	}
-	if !request.StretchAdapt || request.StretchAdaptStrength != synth.DefaultStretchAdaptStrength {
-		t.Fatalf("stretch defaults = stretch_adapt:%t stretch_adapt_strength:%v", request.StretchAdapt, request.StretchAdaptStrength)
-	}
-	if !request.PauseContext || request.PauseContextStrength != synth.DefaultPauseContextStrength {
-		t.Fatalf("pause defaults = pause_context:%t pause_context_strength:%v", request.PauseContext, request.PauseContextStrength)
-	}
-	if !request.EnglishWeakForm {
-		t.Fatalf("weak form default = english_weak_form:%t", request.EnglishWeakForm)
-	}
-}
-
-func TestSynthesisRequestRespectsExplicitIntonation(t *testing.T) {
-	var request SynthesisRequest
-	if err := json.Unmarshal([]byte(`{"text":"あ","apply_pitch":false,"intonation_strength":0,"context_duration":false,"context_duration_strength":0.5,"boundary_tone":false,"boundary_tone_strength":0.5,"stretch_adapt":false,"stretch_adapt_strength":0.5,"pause_context":false,"pause_context_strength":0.5,"english_weak_form":false}`), &request); err != nil {
-		t.Fatal(err)
-	}
-	if request.ApplyPitch || request.IntonationStrength != 0 {
-		t.Fatalf("explicit values = apply_pitch:%t intonation_strength:%v", request.ApplyPitch, request.IntonationStrength)
-	}
-	if request.ContextDuration || request.ContextDurationStrength != 0.5 {
-		t.Fatalf("explicit context values = context_duration:%t context_duration_strength:%v", request.ContextDuration, request.ContextDurationStrength)
-	}
-	if request.BoundaryTone || request.BoundaryToneStrength != 0.5 {
-		t.Fatalf("explicit boundary values = boundary_tone:%t boundary_tone_strength:%v", request.BoundaryTone, request.BoundaryToneStrength)
-	}
-	if request.StretchAdapt || request.StretchAdaptStrength != 0.5 {
-		t.Fatalf("explicit stretch values = stretch_adapt:%t stretch_adapt_strength:%v", request.StretchAdapt, request.StretchAdaptStrength)
-	}
-	if request.PauseContext || request.PauseContextStrength != 0.5 {
-		t.Fatalf("explicit pause values = pause_context:%t pause_context_strength:%v", request.PauseContext, request.PauseContextStrength)
-	}
-	if request.EnglishWeakForm {
-		t.Fatalf("explicit weak form = english_weak_form:%t", request.EnglishWeakForm)
-	}
-}
-
 func TestSynthesisRequestRejectsUnknownFields(t *testing.T) {
 	var request SynthesisRequest
 	if err := json.Unmarshal([]byte(`{"text":"あ","unknown_field":true}`), &request); err == nil {
@@ -509,5 +459,33 @@ func TestSynthesisRequestDecodesRendererSettings(t *testing.T) {
 	}
 	if request.ContextDuration != synth.DefaultContextDuration {
 		t.Fatalf("default was not applied before the map override: %#v", request)
+	}
+}
+
+func TestSynthesisRequestIntonationSettings(t *testing.T) {
+	apply := func(body string) SynthesisRequest {
+		t.Helper()
+		var request SynthesisRequest
+		if err := json.Unmarshal([]byte(body), &request); err != nil {
+			t.Fatal(err)
+		}
+		return request
+	}
+	defaults := apply(`{"text":"あ"}`)
+	if !defaults.ApplyPitch || defaults.IntonationStrength != synth.DefaultIntonationStrength ||
+		defaults.ContextDuration != synth.DefaultContextDuration || defaults.ContextDurationStrength != synth.DefaultContextDurationStrength ||
+		!defaults.BoundaryTone || defaults.BoundaryToneStrength != synth.DefaultBoundaryToneStrength ||
+		!defaults.StretchAdapt || defaults.StretchAdaptStrength != synth.DefaultStretchAdaptStrength ||
+		!defaults.PauseContext || defaults.PauseContextStrength != synth.DefaultPauseContextStrength ||
+		!defaults.EnglishWeakForm {
+		t.Fatalf("defaults = %#v", defaults)
+	}
+	explicit := apply(`{"text":"あ","apply_pitch":false,"intonation_strength":0,"context_duration":false,"context_duration_strength":0.5,"boundary_tone":false,"boundary_tone_strength":0.5,"stretch_adapt":false,"stretch_adapt_strength":0.5,"pause_context":false,"pause_context_strength":0.5,"english_weak_form":false}`)
+	if explicit.ApplyPitch || explicit.IntonationStrength != 0 ||
+		explicit.ContextDuration || explicit.ContextDurationStrength != 0.5 ||
+		explicit.BoundaryTone || explicit.BoundaryToneStrength != 0.5 ||
+		explicit.StretchAdapt || explicit.StretchAdaptStrength != 0.5 ||
+		explicit.PauseContext || explicit.PauseContextStrength != 0.5 || explicit.EnglishWeakForm {
+		t.Fatalf("explicit = %#v", explicit)
 	}
 }

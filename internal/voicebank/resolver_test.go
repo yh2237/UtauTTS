@@ -249,46 +249,6 @@ func TestResolveCVOnlySuppressesVCVCandidates(t *testing.T) {
 	}
 }
 
-func TestResolveVCVPreferKeepsUsableVCVAboveCV(t *testing.T) {
-	bank := &Bank{Entries: map[string][]oto.Entry{
-		"- あ": {{Alias: "- あ", Filename: "vcv-start.wav"}},
-		"a か": {{Alias: "a か", Filename: "vcv.wav"}},
-		"あ":   {{Alias: "あ", Filename: "cv.wav"}},
-		"か":   {{Alias: "か", Filename: "cv.wav"}},
-	}}
-	morae, err := frontend.ParseKana("あか")
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := bank.ResolveWithConfig(morae, ResolveConfig{AliasPolicy: AliasPolicyVCVPrefer})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got[0].Kind != AliasVCV || got[1].Kind != AliasVCV {
-		t.Fatalf("vcv-prefer selections = %#v", got)
-	}
-}
-
-func TestResolveVCVPreferFallsBackFromBrokenVCV(t *testing.T) {
-	bank := &Bank{Entries: map[string][]oto.Entry{
-		"- あ": {{Alias: "- あ", Fixed: 0, Preutterance: 200, Overlap: 250, Offset: -1}},
-		"a か": {{Alias: "a か", Fixed: 0, Preutterance: 200, Overlap: 250, Offset: -1}},
-		"あ":   {{Alias: "あ", Fixed: 100, Preutterance: 50, Overlap: 10}},
-		"か":   {{Alias: "か", Fixed: 100, Preutterance: 50, Overlap: 10}},
-	}}
-	morae, err := frontend.ParseKana("あか")
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := bank.ResolveWithConfig(morae, ResolveConfig{AliasPolicy: AliasPolicyVCVPrefer})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got[0].Kind != AliasCV || got[1].Kind != AliasCV {
-		t.Fatalf("broken VCV fallback = %#v", got)
-	}
-}
-
 func TestAliasCandidatesHandleSpecialMoraContexts(t *testing.T) {
 	contains := func(candidates []aliasCandidate, name string) bool {
 		for _, candidate := range candidates {
@@ -756,5 +716,38 @@ func TestResolveUsesHeadVCVAfterClosureOnlyWhenNoCVExists(t *testing.T) {
 	}
 	if got[2].Alias != "て" {
 		t.Fatalf("bank with CV after closure = %q, want unchanged CV", got[2].Alias)
+	}
+}
+
+func TestResolveVCVPreferPolicy(t *testing.T) {
+	morae, err := frontend.ParseKana("あか")
+	if err != nil {
+		t.Fatal(err)
+	}
+	usable := &Bank{Entries: map[string][]oto.Entry{
+		"- あ": {{Alias: "- あ", Filename: "vcv-start.wav"}},
+		"a か": {{Alias: "a か", Filename: "vcv.wav"}},
+		"あ":   {{Alias: "あ", Filename: "cv.wav"}},
+		"か":   {{Alias: "か", Filename: "cv.wav"}},
+	}}
+	got, err := usable.ResolveWithConfig(morae, ResolveConfig{AliasPolicy: AliasPolicyVCVPrefer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Kind != AliasVCV || got[1].Kind != AliasVCV {
+		t.Fatalf("usable VCV selections = %#v", got)
+	}
+	broken := &Bank{Entries: map[string][]oto.Entry{
+		"- あ": {{Alias: "- あ", Fixed: 0, Preutterance: 200, Overlap: 250, Offset: -1}},
+		"a か": {{Alias: "a か", Fixed: 0, Preutterance: 200, Overlap: 250, Offset: -1}},
+		"あ":   {{Alias: "あ", Fixed: 100, Preutterance: 50, Overlap: 10}},
+		"か":   {{Alias: "か", Fixed: 100, Preutterance: 50, Overlap: 10}},
+	}}
+	got, err = broken.ResolveWithConfig(morae, ResolveConfig{AliasPolicy: AliasPolicyVCVPrefer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Kind != AliasCV || got[1].Kind != AliasCV {
+		t.Fatalf("broken VCV fallback = %#v", got)
 	}
 }

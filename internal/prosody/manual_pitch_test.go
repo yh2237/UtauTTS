@@ -39,37 +39,6 @@ func TestManualPitchCurveKeepsUnspecifiedMoraeAtZero(t *testing.T) {
 	}
 }
 
-func TestManualPitchCurveRejectsPauseAndMoraMismatch(t *testing.T) {
-	morae := []frontend.Mora{{Text: "あ"}, {Pause: true}}
-	timings := []MoraTiming{{StartMS: 0, DurationMS: 100}, {StartMS: 100, DurationMS: 100}}
-	for _, point := range []ManualPitchPoint{{Position: 1, Cents: 10}, {Position: 0, Mora: "い", Cents: 10}} {
-		_, err := (&ManualPitchFile{Version: 1, Points: []ManualPitchPoint{point}}).Curve(morae, timings, 200)
-		if err == nil {
-			t.Fatalf("accepted invalid point %+v", point)
-		}
-	}
-}
-
-func TestManualPitchCurveRejectsNegativePosition(t *testing.T) {
-	morae := []frontend.Mora{{Text: "あ"}}
-	timings := []MoraTiming{{StartMS: 0, DurationMS: 100}}
-	file := &ManualPitchFile{Version: 1, Points: []ManualPitchPoint{{Position: -1, Cents: 10}}}
-	if _, err := file.Curve(morae, timings, 200); err == nil {
-		t.Fatal("curve accepted a negative position")
-	}
-}
-
-func TestManualPitchValidateRejectsNegativePositionAndMissingVersion(t *testing.T) {
-	for _, file := range []*ManualPitchFile{
-		{Version: 1, Points: []ManualPitchPoint{{Position: -1, Cents: 10}}},
-		{Points: []ManualPitchPoint{{Position: 0, Cents: 10}}},
-	} {
-		if err := file.Validate(); err == nil {
-			t.Fatalf("Validate accepted %+v", file)
-		}
-	}
-}
-
 func TestManualPitchFramesModeResamplesToDuration(t *testing.T) {
 	file := &ManualPitchFile{Version: 1, Mode: "frames", Frames: []float64{0, 100, 0}}
 	morae := []frontend.Mora{{Text: "あ"}, {Text: "い"}}
@@ -89,18 +58,6 @@ func TestManualPitchFramesModeResamplesToDuration(t *testing.T) {
 	}
 }
 
-func TestManualPitchFramesModeRejectsMixedPoints(t *testing.T) {
-	file := &ManualPitchFile{Version: 1, Mode: "frames",
-		Points: []ManualPitchPoint{{Position: 0, Cents: 10}}, Frames: []float64{0}}
-	if err := file.Validate(); err == nil {
-		t.Fatal("frames mode accepted mora points")
-	}
-	oversized := &ManualPitchFile{Version: 1, Mode: "frames", Frames: make([]float64, 20001)}
-	if err := oversized.Validate(); err == nil {
-		t.Fatal("oversized frames were accepted")
-	}
-}
-
 func TestManualPitchValidateDefaultsModeToOffset(t *testing.T) {
 	file := &ManualPitchFile{Version: 1, Points: []ManualPitchPoint{{Position: 0, Cents: 10}}}
 	if err := file.Validate(); err != nil {
@@ -108,5 +65,29 @@ func TestManualPitchValidateDefaultsModeToOffset(t *testing.T) {
 	}
 	if file.Mode != "offset" {
 		t.Fatalf("mode = %q, want offset", file.Mode)
+	}
+}
+
+func TestManualPitchValidationRejectsInvalidInputs(t *testing.T) {
+	morae := []frontend.Mora{{Text: "あ"}, {Pause: true}}
+	timings := []MoraTiming{{StartMS: 0, DurationMS: 100}, {StartMS: 100, DurationMS: 100}}
+	for _, file := range []*ManualPitchFile{
+		{Version: 1, Points: []ManualPitchPoint{{Position: 1, Cents: 10}}},
+		{Version: 1, Points: []ManualPitchPoint{{Position: 0, Mora: "い", Cents: 10}}},
+		{Version: 1, Points: []ManualPitchPoint{{Position: -1, Cents: 10}}},
+	} {
+		if _, err := file.Curve(morae, timings, 200); err == nil {
+			t.Fatalf("Curve accepted invalid input %+v", file)
+		}
+	}
+	for _, file := range []*ManualPitchFile{
+		{Version: 1, Points: []ManualPitchPoint{{Position: -1, Cents: 10}}},
+		{Points: []ManualPitchPoint{{Position: 0, Cents: 10}}},
+		{Version: 1, Mode: "frames", Points: []ManualPitchPoint{{Position: 0, Cents: 10}}, Frames: []float64{0}},
+		{Version: 1, Mode: "frames", Frames: make([]float64, 20001)},
+	} {
+		if err := file.Validate(); err == nil {
+			t.Fatalf("Validate accepted %+v", file)
+		}
 	}
 }

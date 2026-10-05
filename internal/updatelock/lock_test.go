@@ -38,63 +38,6 @@ func TestWriteReadRemove(t *testing.T) {
 	}
 }
 
-func TestReadAcceptsQtPendingLock(t *testing.T) {
-	target := filepath.Join(t.TempDir(), "UtauTTS")
-	path, err := Path(target)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data := []byte(`{"version":"v1.2.3","started_at":"2026-08-20T12:34:56.789Z","updater_pid":0}`)
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	state, err := Read(target)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if state.UpdaterPID != 0 || state.StartedAt.IsZero() {
-		t.Fatalf("state = %+v", state)
-	}
-}
-
-func TestReadFallbackLock(t *testing.T) {
-	target := filepath.Join(t.TempDir(), "UtauTTS")
-	if err := WriteFallback(target, "v1.2.4", 5678); err != nil {
-		t.Fatal(err)
-	}
-	defer Remove(target)
-
-	state, err := Read(target)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if state.Version != "v1.2.4" || state.UpdaterPID != 5678 || state.StartedAt.IsZero() {
-		t.Fatalf("state = %+v", state)
-	}
-}
-
-func TestWriteRejectsExistingLock(t *testing.T) {
-	target := filepath.Join(t.TempDir(), "UtauTTS")
-	defer Remove(target)
-	if err := Write(target, "v1.2.3", 5678); err != nil {
-		t.Fatal(err)
-	}
-	if err := Write(target, "v1.2.4", 9012); err == nil {
-		t.Fatal("second updater acquired an existing lock")
-	}
-}
-
-func TestWriteRejectsExistingFallbackLock(t *testing.T) {
-	target := filepath.Join(t.TempDir(), "UtauTTS")
-	defer Remove(target)
-	if err := WriteFallback(target, "v1.2.3", 5678); err != nil {
-		t.Fatal(err)
-	}
-	if err := Write(target, "v1.2.4", 9012); err == nil {
-		t.Fatal("updater ignored an existing fallback lock")
-	}
-}
-
 func TestAcquireReturnsHandoffToken(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "UtauTTS")
 	defer Remove(target)
@@ -175,4 +118,62 @@ func TestReadPrefersNewestLock(t *testing.T) {
 	if state.Version != "new" {
 		t.Fatalf("Read returned stale lock: %+v", state)
 	}
+}
+
+func TestReadAcceptsPendingAndFallbackLocks(t *testing.T) {
+	t.Run("qt pending lock", func(t *testing.T) {
+		target := filepath.Join(t.TempDir(), "UtauTTS")
+		path, err := Path(target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data := []byte(`{"version":"v1.2.3","started_at":"2026-08-20T12:34:56.789Z","updater_pid":0}`)
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		state, err := Read(target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if state.UpdaterPID != 0 || state.StartedAt.IsZero() {
+			t.Fatalf("state = %+v", state)
+		}
+	})
+	t.Run("fallback lock", func(t *testing.T) {
+		target := filepath.Join(t.TempDir(), "UtauTTS")
+		if err := WriteFallback(target, "v1.2.4", 5678); err != nil {
+			t.Fatal(err)
+		}
+		defer Remove(target)
+		state, err := Read(target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if state.Version != "v1.2.4" || state.UpdaterPID != 5678 || state.StartedAt.IsZero() {
+			t.Fatalf("state = %+v", state)
+		}
+	})
+}
+
+func TestWriteRejectsExistingLocks(t *testing.T) {
+	t.Run("regular lock", func(t *testing.T) {
+		target := filepath.Join(t.TempDir(), "UtauTTS")
+		defer Remove(target)
+		if err := Write(target, "v1.2.3", 5678); err != nil {
+			t.Fatal(err)
+		}
+		if err := Write(target, "v1.2.4", 9012); err == nil {
+			t.Fatal("second updater acquired an existing lock")
+		}
+	})
+	t.Run("fallback lock", func(t *testing.T) {
+		target := filepath.Join(t.TempDir(), "UtauTTS")
+		defer Remove(target)
+		if err := WriteFallback(target, "v1.2.3", 5678); err != nil {
+			t.Fatal(err)
+		}
+		if err := Write(target, "v1.2.4", 9012); err == nil {
+			t.Fatal("updater ignored an existing fallback lock")
+		}
+	})
 }

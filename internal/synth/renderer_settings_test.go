@@ -49,46 +49,38 @@ func TestRendererManifestSettingDefaultsMatchResolver(t *testing.T) {
 	}
 }
 
-func TestTimingWarpSettingPrecedence(t *testing.T) {
-	resolve := func(request Request) bool {
+func TestWorldlineSettingPrecedence(t *testing.T) {
+	resolve := func(request Request, enabled func(render.WorldlineProviderOptions) bool) bool {
 		var cfg tts.Config
 		options := render.ProviderOptions{Worldline: request.Worldline}
 		resolveRendererSettings(request, &cfg, &options)
-		return options.Worldline.TimingWarpEnabled()
+		return enabled(options.Worldline)
 	}
 	off := false
-	if !resolve(Request{}) {
-		t.Fatal("timing warp should default to on")
+	tests := []struct {
+		id      string
+		enabled func(render.WorldlineProviderOptions) bool
+	}{
+		{"timing_warp", render.WorldlineProviderOptions.TimingWarpEnabled},
+		{"microprosody", render.WorldlineProviderOptions.MicroprosodyEnabled},
 	}
-	if resolve(Request{Worldline: render.WorldlineProviderOptions{TimingWarp: &off}}) {
-		t.Fatal("typed Worldline.TimingWarp=false should disable timing warp")
-	}
-	settings := map[string]json.RawMessage{"timing_warp": json.RawMessage("true")}
-	if !resolve(Request{Worldline: render.WorldlineProviderOptions{TimingWarp: &off}, RendererSettings: settings}) {
-		t.Fatal("renderer_settings should override the typed field")
-	}
-	settings = map[string]json.RawMessage{"timing_warp": json.RawMessage("false")}
-	if resolve(Request{RendererSettings: settings}) {
-		t.Fatal("renderer_settings false should disable timing warp")
-	}
-}
-
-func TestMicroprosodySettingPrecedence(t *testing.T) {
-	resolve := func(request Request) bool {
-		var cfg tts.Config
-		options := render.ProviderOptions{Worldline: request.Worldline}
-		resolveRendererSettings(request, &cfg, &options)
-		return options.Worldline.MicroprosodyEnabled()
-	}
-	off := false
-	if !resolve(Request{}) {
-		t.Fatal("microprosody should default to on")
-	}
-	if resolve(Request{Worldline: render.WorldlineProviderOptions{Microprosody: &off}}) {
-		t.Fatal("typed Worldline.Microprosody=false should disable microprosody")
-	}
-	settings := map[string]json.RawMessage{"microprosody": json.RawMessage("true")}
-	if !resolve(Request{Worldline: render.WorldlineProviderOptions{Microprosody: &off}, RendererSettings: settings}) {
-		t.Fatal("renderer_settings should override the typed field")
+	for _, test := range tests {
+		t.Run(test.id, func(t *testing.T) {
+			if !resolve(Request{}, test.enabled) {
+				t.Fatalf("%s should default to on", test.id)
+			}
+			disabled := render.WorldlineProviderOptions{TimingWarp: &off, Microprosody: &off}
+			if resolve(Request{Worldline: disabled}, test.enabled) {
+				t.Fatalf("typed %s=false should disable it", test.id)
+			}
+			settings := map[string]json.RawMessage{test.id: json.RawMessage("true")}
+			if !resolve(Request{Worldline: disabled, RendererSettings: settings}, test.enabled) {
+				t.Fatalf("renderer_settings should override the typed field for %s", test.id)
+			}
+			settings = map[string]json.RawMessage{test.id: json.RawMessage("false")}
+			if resolve(Request{RendererSettings: settings}, test.enabled) {
+				t.Fatalf("renderer_settings false should disable %s", test.id)
+			}
+		})
 	}
 }
