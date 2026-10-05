@@ -8,6 +8,7 @@ import (
 
 	"github.com/yh2237/gograd/autograd"
 	"github.com/yh2237/gograd/tensor"
+	"utautts/cmd/tools/internal/toolutil"
 )
 
 type parityFixture struct {
@@ -52,7 +53,7 @@ func writeFixture(path string, model *autograd.SpeechTiming, device tensor.Devic
 	if e = os.MkdirAll(filepath.Dir(path), 0755); e != nil {
 		return e
 	}
-	out, e := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	out, e := toolutil.CreateExclusive(path)
 	if e != nil {
 		return e
 	}

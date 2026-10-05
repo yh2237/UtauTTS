@@ -360,7 +360,7 @@ func loadOrBuildFeatures(cache, dataset, alignDir, engine string) ([]utterance, 
 	if e := os.MkdirAll(filepath.Dir(cache), 0755); e != nil {
 		return nil, e
 	}
-	f, e := os.OpenFile(cache, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	f, e := toolutil.CreateExclusive(cache)
 	if e != nil {
 		return nil, e
 	}

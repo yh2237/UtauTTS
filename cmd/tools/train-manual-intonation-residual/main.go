@@ -15,6 +15,7 @@ import (
 	"github.com/yh2237/gograd/autograd"
 	"github.com/yh2237/gograd/cuda"
 	"github.com/yh2237/gograd/tensor"
+	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/openjtalk"
 )
 
@@ -236,7 +237,7 @@ func writeModel(path string, model map[string]any) error {
 	if e != nil {
 		return e
 	}
-	f, e := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	f, e := toolutil.CreateExclusive(path)
 	if e != nil {
 		return e
 	}

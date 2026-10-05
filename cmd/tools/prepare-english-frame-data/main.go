@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/frontend"
 )
 
@@ -257,7 +258,7 @@ func run(manifest, alignments, failed, out string) (map[string]any, error) {
 	if _, e = os.Stat(out); e == nil {
 		return nil, fmt.Errorf("refusing to overwrite %s", out)
 	}
-	f, e := os.OpenFile(out, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	f, e := toolutil.CreateExclusive(out)
 	if e != nil {
 		return nil, e
 	}

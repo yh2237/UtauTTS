@@ -400,7 +400,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, e)
 		os.Exit(1)
 	}
-	f, e := os.OpenFile(*out, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	f, e := toolutil.CreateExclusive(*out)
 	if e != nil {
 		fmt.Fprintln(os.Stderr, e)
 		os.Exit(1)

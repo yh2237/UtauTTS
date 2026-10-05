@@ -16,6 +16,7 @@ import (
 	"sync"
 
 	"github.com/parquet-go/parquet-go"
+	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/audio"
 )
 
@@ -322,7 +323,7 @@ func writeRows(path string, rows []row) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	f, err := toolutil.CreateExclusive(path)
 	if err != nil {
 		return err
 	}

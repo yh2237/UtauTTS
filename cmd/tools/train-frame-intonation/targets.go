@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/audio"
 )
 
@@ -187,7 +188,7 @@ func writeNPY(path string, x []float64) error {
 	if _, e := os.Stat(path); e == nil {
 		return fmt.Errorf("refusing to overwrite %s", path)
 	}
-	f, e := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	f, e := toolutil.CreateExclusive(path)
 	if e != nil {
 		return e
 	}

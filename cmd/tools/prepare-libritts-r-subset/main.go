@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/audio"
 )
 
@@ -81,7 +82,7 @@ func run(archivePath, out string, speakerLimit, perSpeaker int) ([]item, error) 
 			if e = os.MkdirAll(filepath.Dir(path), 0755); e != nil {
 				return nil, e
 			}
-			dst, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+			dst, err := toolutil.CreateExclusive(path)
 			if err != nil {
 				return nil, err
 			}

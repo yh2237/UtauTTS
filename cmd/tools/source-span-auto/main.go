@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/audio"
 )
 
@@ -162,7 +163,7 @@ func build(paths []string, out string, preferLast bool) (map[string]any, error) 
 	if e = os.MkdirAll(filepath.Dir(out), 0755); e != nil {
 		return nil, e
 	}
-	f, e := os.OpenFile(out, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	f, e := toolutil.CreateExclusive(out)
 	if e != nil {
 		return nil, e
 	}

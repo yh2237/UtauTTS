@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/audio"
 	"utautts/internal/frontend"
 	"utautts/internal/openjtalk"
@@ -269,7 +270,7 @@ func run(corpus, out string, limit int, allowMismatch bool, cfg openjtalk.Config
 	if e := os.MkdirAll(filepath.Dir(out), 0755); e != nil {
 		return 0, skipped, e
 	}
-	outFile, e := os.OpenFile(out, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	outFile, e := toolutil.CreateExclusive(out)
 	if e != nil {
 		return 0, skipped, e
 	}

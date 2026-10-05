@@ -14,6 +14,7 @@ import (
 	"github.com/yh2237/gograd/autograd"
 	"github.com/yh2237/gograd/cuda"
 	"github.com/yh2237/gograd/tensor"
+	"utautts/cmd/tools/internal/toolutil"
 )
 
 const corpus = "Tsukuyomi-chan Corpus Vol.1 (VOICEACTRESS100) + Minnade JSUT Corpus basic5000 BASIC5000_0001-0600, aligned with Montreal Forced Aligner japanese_mfa"
@@ -63,7 +64,7 @@ func main() {
 		if e = os.MkdirAll(filepath.Dir(*featuresJSON), 0755); e != nil {
 			fatal("feature export directory: %v", e)
 		}
-		file, e := os.OpenFile(*featuresJSON, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+		file, e := toolutil.CreateExclusive(*featuresJSON)
 		if e != nil {
 			fatal("feature export: %v", e)
 		}
