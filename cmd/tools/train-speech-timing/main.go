@@ -90,15 +90,9 @@ func main() {
 			fatal("cache %s has %d continuous features, need %d", item.ID, item.Continuous, continuous)
 		}
 	}
-	device := tensor.CPU
-	if *deviceFlag == "cuda" || (*deviceFlag == "auto" && cuda.Available()) {
-		device = tensor.CUDA
-	}
-	if *deviceFlag != "auto" && *deviceFlag != "cpu" && *deviceFlag != "cuda" {
-		fatal("unknown device %q", *deviceFlag)
-	}
-	if *deviceFlag == "cuda" && !cuda.Available() {
-		fatal("CUDA unavailable")
+	device, e := toolutil.ResolveDevice(*deviceFlag)
+	if e != nil {
+		fatal("%v", e)
 	}
 	if device == tensor.CUDA {
 		ctx, e := autograd.NewCUDAContext()

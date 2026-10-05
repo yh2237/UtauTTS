@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/yh2237/gograd/autograd"
-	"github.com/yh2237/gograd/cuda"
 	"github.com/yh2237/gograd/tensor"
 	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/openjtalk"
@@ -123,15 +122,9 @@ func train(c config) (map[string]any, error) {
 	if len(validation) == 0 {
 		validation = training
 	}
-	device := tensor.CPU
-	if c.Device == "cuda" || c.Device == "auto" && cuda.Available() {
-		device = tensor.CUDA
-	}
-	if c.Device == "cuda" && !cuda.Available() {
-		return nil, fmt.Errorf("CUDA unavailable")
-	}
-	if c.Device != "auto" && c.Device != "cuda" && c.Device != "cpu" {
-		return nil, fmt.Errorf("invalid device")
+	device, e := toolutil.ResolveDevice(c.Device)
+	if e != nil {
+		return nil, e
 	}
 	if device == tensor.CUDA {
 		ctx, e := autograd.NewCUDAContext()

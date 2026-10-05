@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/yh2237/gograd/autograd"
-	"github.com/yh2237/gograd/cuda"
 	"github.com/yh2237/gograd/tensor"
 
 	"utautts/cmd/tools/internal/toolutil"
@@ -274,15 +273,9 @@ func main() {
 	if c.FeaturesOnly {
 		return
 	}
-	device := tensor.CPU
-	if c.Device == "cuda" || (c.Device == "auto" && cuda.Available()) {
-		device = tensor.CUDA
-	}
-	if c.Device == "cuda" && !cuda.Available() {
-		fatal("CUDA unavailable")
-	}
-	if c.Device != "auto" && c.Device != "cuda" && c.Device != "cpu" {
-		fatal("invalid device %q", c.Device)
+	device, e := toolutil.ResolveDevice(c.Device)
+	if e != nil {
+		fatal("%v", e)
 	}
 	c.Device = string(device)
 	if device == tensor.CUDA {
