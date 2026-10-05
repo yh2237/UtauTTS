@@ -56,4 +56,3 @@ func (japaneseProfile) ApplyBoundaryTone(cfg Config, curve *render.PitchCurve, d
 	}
 	return applyBoundaryTone(curve, durationMS, question, boundaryToneStrength(cfg))
 }
-

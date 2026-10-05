@@ -145,7 +145,10 @@ function sharedState(items) {
       setProperty(i, key, value) { items[i][key] = value; } },
     prosodyPreviewTimer: { restart() {} },
     player: { stop() {} },
+    // Qt.callLaterは実行せず、呼ばれた関数だけを記録する。
+    Qt: { callLater(callback) { context.deferredCallLater.push(callback); } },
   });
+  context.deferredCallLater = [];
   const overrides = vm.createContext({});
   vm.runInContext(source("qt/qml/UnitOverrides.js"), overrides);
   context.UnitOverrides = overrides;
@@ -249,6 +252,8 @@ test("shared controller does not display or play synthesis from an older revisio
   context.onPreviewReady();
   assert.equal(context.player.source, "previous");
   assert.equal(plays, 0);
+  // 古い結果の到着で、次に届いた音声の自動再生を1回だけ止める。
+  assert.equal(context.autoplayPreview, false);
   context.pendingRevision = 2;
   context.pendingUtteranceId = "b";
   context.onPreviewReady();
@@ -258,5 +263,6 @@ test("shared controller does not display or play synthesis from an older revisio
   context.onPreviewReady();
   assert.equal(context.player.source, "generated");
   assert.equal(context.synthesisUnits[0].pitch_factor, 1.4);
-  assert.equal(plays, 1);
+  assert.equal(plays, 0);
+  assert.equal(context.autoplayPreview, true);
 });

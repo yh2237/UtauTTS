@@ -74,7 +74,6 @@ func (englishProfile) ApplyBoundaryTone(_ Config, curve *render.PitchCurve, _ fl
 	return curve
 }
 
-
 func englishOptions(cfg Config) frontend.EnglishOptions {
 	return frontend.EnglishOptions{WeakForms: cfg.EnglishWeakForm == nil || *cfg.EnglishWeakForm}
 }
