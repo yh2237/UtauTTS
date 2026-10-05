@@ -107,6 +107,7 @@ qt_add_qml_module(utautts
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/views/MainDialogs.qml
         qml/views/MainMenuBar.qml
         qml/views/MobileChrome.qml
         qml/AppCore.qml

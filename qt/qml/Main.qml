@@ -322,76 +322,7 @@ ApplicationWindow {
         }
     }
 
-    FileDialog {
-        id: saveDialog
-        fileMode: FileDialog.SaveFile
-        nameFilters: [window.translator.tr("main.wavFilter")]
-        defaultSuffix: "wav"
-        onAccepted: window.appBackend.savePreview(selectedFile)
-    }
-
-    FolderDialog {
-        id: saveAllDialog
-        onAccepted: window.startBatchExport(selectedFolder)
-    }
-
-    FolderDialog {
-        id: dragSaveDialog
-        onAccepted: window.startDragExport(selectedFolder)
-    }
-
-    FileDialog {
-        id: voicebankAddDialog
-        title: window.translator.tr("menu.file.addVoicebank")
-        fileMode: FileDialog.OpenFiles
-        nameFilters: [window.translator.tr("main.zipFilter")]
-        onAccepted: window.appBackend.installVoicebankArchives(selectedFiles)
-    }
-
-    Dialog {
-        id: frameRateDialog
-        title: window.translator.tr("main.exoFrameRateTitle")
-        modal: true
-        width: Math.min(window.width - 40, 400)
-        anchors.centerIn: Overlay.overlay
-        closePolicy: Popup.CloseOnEscape
-        standardButtons: Dialog.Ok | Dialog.Cancel
-        onAccepted: {
-            window.dragExportFrameRate = frameRateSpin.value;
-            dragSaveDialog.open();
-        }
-
-        contentItem: ColumnLayout {
-            spacing: 12
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-
-                Label {
-                    text: window.translator.tr("main.frameRate")
-                }
-                SpinBox {
-                    id: frameRateSpin
-                    Layout.preferredWidth: 120
-                    from: 1
-                    to: 240
-                    stepSize: 1
-                    value: 60
-                    editable: true
-                }
-                Label {
-                    text: window.translator.tr("main.fps")
-                    color: window.mutedText
-                }
-                Item {
-                    Layout.fillWidth: true
-                }
-            }
-        }
-    }
-
-    readonly property var dragTargetWindow: dragTargetWindowLoader.item
+    MainDialogs { id: dialogs; host: window }
     Loader {
         id: dragTargetWindowLoader
         active: Platform.hasNativeFileDialog
@@ -527,326 +458,6 @@ ApplicationWindow {
         onTriggered: window.historyMergeKey = ""
     }
 
-    FileDialog {
-        id: projectSaveDialog
-        fileMode: FileDialog.SaveFile
-        nameFilters: [window.translator.tr("main.projectFilter")]
-        defaultSuffix: "utautts"
-        onAccepted: window.saveProjectTo(selectedFile)
-        onRejected: window.closeAfterProjectSave = false
-    }
-
-    FileDialog {
-        id: ustxExportFileDialog
-        fileMode: FileDialog.SaveFile
-        nameFilters: [window.translator.tr("main.ustxFilter")]
-        defaultSuffix: "ustx"
-        onAccepted: window.exportUstxTo(selectedFile)
-    }
-
-    Dialog {
-        id: rendererPackagesDialog
-        title: window.translator.tr("plugins.title")
-        anchors.centerIn: parent
-        width: Math.min(620, window.width - 40)
-        height: Math.min(540, window.height - 40)
-        modal: true
-        standardButtons: Dialog.Close
-        contentItem: ColumnLayout {
-            ScrollView {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                Column {
-                    width: parent.width
-                    spacing: 10
-                    Repeater {
-                        model: window.appBackend.renderers
-                        delegate: Label {
-                            required property var modelData
-                            width: parent.width
-                            wrapMode: Text.Wrap
-                            text: modelData.display_name + "  " + (modelData.version || "")
-                        }
-                    }
-                    Label {
-                        width: parent.width
-                        visible: window.appBackend.pluginProblems.length > 0
-                        wrapMode: Text.Wrap
-                        text: window.translator.tr("plugins.disabled") + "\n" + window.appBackend.pluginProblems.join("\n\n")
-                    }
-                }
-            }
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                text: window.appBackend.error
-                visible: text.length > 0
-            }
-        }
-    }
-
-    FileDialog {
-        id: projectOpenDialog
-        fileMode: FileDialog.OpenFile
-        nameFilters: [window.translator.tr("main.projectFilter")]
-        onAccepted: window.loadProjectFrom(selectedFile)
-    }
-
-    FileDialog {
-        id: diagnosticSaveDialog
-        fileMode: FileDialog.SaveFile
-        nameFilters: [window.translator.tr("diagnostics.filter")]
-        defaultSuffix: "json"
-        onAccepted: window.exportDiagnosticsTo(selectedFile)
-    }
-
-    MessageDialog {
-        id: diagnosticResultDialog
-        buttons: MessageDialog.Ok
-    }
-
-    MessageDialog {
-        id: ustxExportMessageDialog
-        title: window.translator.tr("main.ustxExportTitle")
-        buttons: MessageDialog.Ok
-    }
-
-    Dialog {
-        id: closeWarningDialog
-        title: window.translator.tr("main.closeConfirmTitle")
-        modal: true
-        width: Math.min(window.width - 40, 460)
-        anchors.centerIn: Overlay.overlay
-        closePolicy: Popup.NoAutoClose
-
-        contentItem: ColumnLayout {
-            spacing: 12
-
-            Label {
-                Layout.fillWidth: true
-                text: window.appBackend.busy || window.batchExportActive
-                      ? window.translator.tr("main.closeWhileBusy")
-                      : window.translator.tr("main.closeUnsaved")
-                wrapMode: Text.WordWrap
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-
-                Item {
-                    Layout.fillWidth: true
-                }
-
-                Button {
-                    text: window.translator.tr("main.cancel")
-                    onClicked: closeWarningDialog.close()
-                }
-
-                Button {
-                    text: window.translator.tr("main.saveAndQuit")
-                    enabled: window.projectDirty && !window.appBackend.busy && !window.batchExportActive
-                    onClicked: {
-                        closeWarningDialog.close();
-                        window.closeAfterProjectSave = true;
-                        window.saveCurrentProject();
-                    }
-                }
-
-                Button {
-                    text: window.translator.tr("main.quitWithoutSaving")
-                    onClicked: {
-                        closeWarningDialog.close();
-                        window.quitWithoutWarning();
-                    }
-                }
-            }
-        }
-    }
-
-    MessageDialog {
-        id: shortcutConflictDialog
-        title: window.translator.tr("main.shortcutConflictTitle")
-        text: window.translator.tr("main.shortcutConflictText")
-        buttons: MessageDialog.Ok
-    }
-
-    MessageDialog {
-        id: projectLoadErrorDialog
-        title: window.translator.tr("main.projectOpenErrorTitle")
-        buttons: MessageDialog.Ok
-    }
-
-    Dialog {
-        id: aboutDialog
-        title: window.translator.tr("main.aboutTitle")
-        modal: true
-        anchors.centerIn: Overlay.overlay
-        width: Math.min(window.width - 40, 440)
-        closePolicy: Popup.CloseOnEscape
-        standardButtons: Dialog.Ok
-
-        contentItem: ColumnLayout {
-            spacing: 8
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                text: window.translator.tr("main.aboutText", Qt.application.version)
-            }
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                color: window.mutedText
-                text: window.translator.tr("main.aboutInformative")
-            }
-        }
-    }
-
-    Dialog {
-        id: updateDialog
-        title: window.translator.tr("update.title")
-        modal: true
-        width: Math.min(window.width - 40, 480)
-        anchors.centerIn: Overlay.overlay
-        closePolicy: Popup.CloseOnEscape
-        standardButtons: Dialog.NoButton
-
-        contentItem: ColumnLayout {
-            spacing: 12
-
-            Label {
-                Layout.fillWidth: true
-                text: window.translator.tr("update.message", window.updateAvailableVersion)
-                wrapMode: Text.WordWrap
-            }
-
-            Label {
-                Layout.fillWidth: true
-                visible: window.updateAvailablePreRelease
-                text: window.translator.tr("update.preReleaseNotice")
-                wrapMode: Text.WordWrap
-                color: window.mutedText
-                font.pixelSize: 11
-            }
-
-            ScrollView {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 150
-                clip: true
-                TextArea {
-                    readOnly: true
-                    wrapMode: Text.WordWrap
-                    text: window.updateReleaseNotes + (window.updateReleaseNotes.length ? "\n\n" : "") + window.updateReleaseUrl
-                }
-            }
-
-            Label {
-                Layout.fillWidth: true
-                text: window.translator.tr("update.preserveNote")
-                wrapMode: Text.WordWrap
-                color: window.mutedText
-                font.pixelSize: 11
-            }
-
-            CheckBox {
-                id: suppressUpdateVersionCheckBox
-                Layout.fillWidth: true
-                text: window.translator.tr("update.suppressVersion")
-                checked: window.updateSuppressVersion
-                onToggled: {
-                    window.updateSuppressVersion = checked;
-                    window.appBackend.setSuppressedUpdateVersion(checked ? window.updateAvailableVersion : "");
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-
-                Button {
-                    text: window.translator.tr("update.button")
-                    highlighted: true
-                    onClicked: window.performUpdate()
-                }
-                Button {
-                    text: window.translator.tr("update.openRelease")
-                    onClicked: Qt.openUrlExternally(window.updateReleaseUrl)
-                }
-                Button {
-                    text: window.translator.tr("update.later")
-                    onClicked: updateDialog.close()
-                }
-            }
-        }
-    }
-
-    Dialog {
-        id: updateProgressDialog
-        title: window.translator.tr("update.title")
-        modal: true
-        width: Math.min(window.width - 40, 440)
-        anchors.centerIn: Overlay.overlay
-        closePolicy: Popup.NoAutoClose
-        standardButtons: Dialog.NoButton
-
-        contentItem: ColumnLayout {
-            spacing: 12
-
-            Label {
-                Layout.fillWidth: true
-                text: window.translator.tr("update.downloading")
-                wrapMode: Text.WordWrap
-            }
-
-            ProgressBar {
-                Layout.fillWidth: true
-                from: 0
-                to: 1
-                value: window.updateDownloadTotal > 0 ? window.updateDownloadReceived / window.updateDownloadTotal : 0
-                indeterminate: window.updateDownloadTotal <= 0
-            }
-
-            Label {
-                Layout.fillWidth: true
-                text: window.updateDownloadTotal > 0
-                    ? Math.floor(window.updateDownloadReceived / 1048576) + " / "
-                      + Math.floor(window.updateDownloadTotal / 1048576) + " MB"
-                    : ""
-                color: window.mutedText
-                font.pixelSize: 11
-                horizontalAlignment: Text.AlignHCenter
-            }
-
-            Button {
-                Layout.alignment: Qt.AlignHCenter
-                text: window.translator.tr("common.cancel")
-                onClicked: {
-                    window.appBackend.cancelUpdateDownload();
-                    updateProgressDialog.close();
-                }
-            }
-        }
-    }
-
-    Dialog {
-        id: metadataReloadDialog
-        title: window.translator.tr("metadata.loading." + window.metadataReloadStage)
-        modal: true
-        width: Math.min(window.width - 40, 440)
-        anchors.centerIn: Overlay.overlay
-        closePolicy: Popup.NoAutoClose
-        standardButtons: Dialog.NoButton
-
-        contentItem: ColumnLayout {
-            spacing: 12
-
-            ProgressBar {
-                Layout.fillWidth: true
-                indeterminate: true
-            }
-        }
-    }
-
     Connections {
         target: window.appBackend
 
@@ -871,9 +482,9 @@ ApplicationWindow {
         }
 
         function onUstxExportFinished(success, detail) {
-            ustxExportMessageDialog.text = window.translator.tr(
+            dialogs.ustxExportMessageDialog.text = window.translator.tr(
                     success ? "main.ustxExportSuccess" : "main.ustxExportFailed", detail);
-            ustxExportMessageDialog.open();
+            dialogs.ustxExportMessageDialog.open();
         }
 
         function onUpdateDownloadProgress(bytesReceived, bytesTotal) {
@@ -882,7 +493,7 @@ ApplicationWindow {
         }
 
         function onUpdateDownloadFinished(success, localZip) {
-            updateProgressDialog.close();
+            dialogs.updateProgressDialog.close();
             if (success && localZip.length
                     && window.appBackend.installUpdate(localZip, window.updateAvailableVersion))
                 Qt.quit();
@@ -891,7 +502,7 @@ ApplicationWindow {
         function onMetadataReloadStarted() {
             window.metadataReloadActive = true;
             window.metadataReloadStage = "voicebanks";
-            metadataReloadDialog.open();
+            dialogs.metadataReloadDialog.open();
         }
 
         function onMetadataReloadStageChanged(stage) {
@@ -901,7 +512,7 @@ ApplicationWindow {
         function onMetadataChanged() {
             if (window.metadataReloadActive) {
                 window.metadataReloadActive = false;
-                metadataReloadDialog.close();
+                dialogs.metadataReloadDialog.close();
             }
             const suppressDirty = !window.metadataInitialized;
             window.assignDefaultVoicebank(suppressDirty);
@@ -950,7 +561,7 @@ ApplicationWindow {
             }
             if (window.metadataReloadActive && window.appBackend.error.length) {
                 window.metadataReloadActive = false;
-                metadataReloadDialog.close();
+                dialogs.metadataReloadDialog.close();
             }
             if (window.batchExportActive && !window.appBackend.busy
                     && (window.pendingUtteranceId.length || window.batchAnalysisUtteranceId.length)
@@ -1000,7 +611,7 @@ ApplicationWindow {
         if (!window.projectDirty && !window.appBackend.busy && !window.batchExportActive)
             return;
         close.accepted = false;
-        closeWarningDialog.open();
+        dialogs.closeWarningDialog.open();
     }
 
     menuBar: MainMenuBar {
@@ -1179,7 +790,7 @@ ApplicationWindow {
         if (window.appBackend.busy || window.batchExportActive)
             return;
         if (Platform.hasNativeFileDialog)
-            voicebankAddDialog.open();
+            dialogs.voicebankAddDialog.open();
         else
             window.appBackend.beginAddVoicebanks();
     }
@@ -1199,7 +810,7 @@ ApplicationWindow {
                 continue;
             const normalized = window.qtShortcutSequence(shortcut).toLowerCase();
             if (usedShortcuts.indexOf(normalized) >= 0) {
-                shortcutConflictDialog.open();
+                dialogs.shortcutConflictDialog.open();
                 return;
             }
             usedShortcuts.push(normalized);
@@ -1361,7 +972,7 @@ ApplicationWindow {
             window.updateReleaseUrl = release.html_url ? String(release.html_url) : "";
             window.updateDownloadUrl = window.releaseAssetURL(release);
             window.updateAvailablePreRelease = !!release.prerelease;
-            updateDialog.open();
+            dialogs.updateDialog.open();
         };
         request.send();
     }
@@ -1374,10 +985,10 @@ ApplicationWindow {
         window.updateDownloadReceived = 0;
         window.updateDownloadTotal = 0;
         if (window.appBackend.startUpdateDownload(window.updateDownloadUrl, window.updateAvailableVersion)) {
-            updateDialog.close();
-            updateProgressDialog.open();
+            dialogs.updateDialog.close();
+            dialogs.updateProgressDialog.open();
         } else {
-            updateDialog.close();
+            dialogs.updateDialog.close();
             Qt.openUrlExternally(window.updateReleaseUrl);
         }
     }
@@ -1469,7 +1080,7 @@ ApplicationWindow {
         if (!utterances.count || window.appBackend.busy || window.batchExportActive)
             return;
         if (Platform.hasNativeFileDialog) {
-            saveAllDialog.open();
+            dialogs.saveAllDialog.open();
         } else {
             window.startBatchExport(window.appBackend.defaultSaveFile("utautts.wav"));
         }
@@ -1481,7 +1092,7 @@ ApplicationWindow {
         if (selectedOnly && !window.current().reading.length)
             return;
         window.dragExportSelectedOnly = selectedOnly;
-        frameRateDialog.open();
+        dialogs.frameRateDialog.open();
     }
 
     function projectNumber(value, fallback, minimum, maximum, integer) {
@@ -1630,8 +1241,8 @@ ApplicationWindow {
         const destination = window.projectFile.toString().length
                 ? window.projectFile : window.appBackend.defaultSaveFile("untitled.utautts");
         if (Platform.hasNativeFileDialog) {
-            projectSaveDialog.currentFile = destination;
-            projectSaveDialog.open();
+            dialogs.projectSaveDialog.currentFile = destination;
+            dialogs.projectSaveDialog.open();
         } else {
             window.saveProjectTo(destination);
         }
@@ -1652,8 +1263,8 @@ ApplicationWindow {
             return;
         const destination = window.appBackend.defaultSaveFile("untitled.ustx");
         if (Platform.hasNativeFileDialog) {
-            ustxExportFileDialog.currentFile = destination;
-            ustxExportFileDialog.open();
+            dialogs.ustxExportFileDialog.currentFile = destination;
+            dialogs.ustxExportFileDialog.open();
         } else {
             window.exportUstxTo(destination);
         }
@@ -1670,12 +1281,12 @@ ApplicationWindow {
             return;
         const success = window.appBackend.exportDiagnosticReport(
                 destination, window.diagnosticContext());
-        diagnosticResultDialog.title = window.translator.tr(
+        dialogs.diagnosticResultDialog.title = window.translator.tr(
                 success ? "diagnostics.successTitle" : "diagnostics.errorTitle");
-        diagnosticResultDialog.text = success
+        dialogs.diagnosticResultDialog.text = success
                 ? window.translator.tr("diagnostics.success")
                 : window.appBackend.error;
-        diagnosticResultDialog.open();
+        dialogs.diagnosticResultDialog.open();
     }
 
     function saveProjectTo(destination) {
@@ -1702,9 +1313,9 @@ ApplicationWindow {
             return;
         const project = window.appBackend.loadProject(source);
         if (!project || project._error !== undefined) {
-            projectLoadErrorDialog.text = project && project._error !== undefined
+            dialogs.projectLoadErrorDialog.text = project && project._error !== undefined
                     ? String(project._error) : window.translator.tr("main.projectLoadError");
-            projectLoadErrorDialog.open();
+            dialogs.projectLoadErrorDialog.open();
             return;
         }
         window.applyLoadedProject(project, source);
@@ -1714,15 +1325,15 @@ ApplicationWindow {
         if (window.appBackend.busy || window.batchExportActive)
             return;
         if (Platform.hasNativeFileDialog)
-            projectOpenDialog.open();
+            dialogs.projectOpenDialog.open();
         else
             window.appBackend.beginOpenProject();
     }
 
     function applyLoadedProject(project, source) {
         if (!project || project.utterances === undefined || project.utterances === null) {
-            projectLoadErrorDialog.text = window.translator.tr("main.projectNoUtterances");
-            projectLoadErrorDialog.open();
+            dialogs.projectLoadErrorDialog.text = window.translator.tr("main.projectNoUtterances");
+            dialogs.projectLoadErrorDialog.open();
             return;
         }
         const loadedUtterances = window.copySequence(project.utterances);
@@ -2060,7 +1671,7 @@ ApplicationWindow {
         editorContent.pitchEditor.setDurationAtMS(position, Number(durationMs));
     }
 
-    readonly property var menuDialogs: ({about: aboutDialog, rendererPackages: rendererPackagesDialog})
+    readonly property var menuDialogs: ({about: dialogs.aboutDialog, rendererPackages: dialogs.rendererPackagesDialog})
 
     readonly property var selfTestContext: ({window: window, utterances: utterances, editorContent: editorContent, analyzeTimer: analyzeTimer})
 
@@ -2075,7 +1686,7 @@ ApplicationWindow {
         overrides: UnitOverrides,
         qt: Qt,
         platform: Platform,
-        saveDialog: saveDialog
+        saveDialog: dialogs.saveDialog
     })
 
     function updateUnitOverride(unitIndex, key, value) {
