@@ -17,6 +17,8 @@ import (
 	"github.com/yh2237/gograd/autograd"
 	"github.com/yh2237/gograd/cuda"
 	"github.com/yh2237/gograd/tensor"
+
+	"utautts/cmd/tools/internal/toolutil"
 )
 
 type config struct {
@@ -167,7 +169,7 @@ func main() {
 	if (c.PredictCorpus == "") != (c.PredictOut == "") {
 		fatal("--predict-corpus and --predict-out must be used together")
 	}
-	if c.PredictOut != "" && !strings.HasPrefix(filepath.Clean(c.PredictOut), "out"+string(filepath.Separator)) {
+	if c.PredictOut != "" && !toolutil.UnderOutChild(c.PredictOut) {
 		fatal("prediction output must be under out/")
 	}
 	if c.PredictOut != "" {
@@ -184,13 +186,13 @@ func main() {
 	if c.F0Method != 1 {
 		fatal("--f0-method supports Harvest (1) only")
 	}
-	if !strings.HasPrefix(filepath.Clean(c.Cache), "out"+string(filepath.Separator)) {
+	if !toolutil.UnderOutChild(c.Cache) {
 		fatal("F0 cache must be under out/")
 	}
 	if c.Batch < 1 || c.Hidden < 1 || c.Epochs < 0 || c.Frame <= 0 || c.Low >= c.High {
 		fatal("invalid training configuration")
 	}
-	if !strings.HasPrefix(filepath.Clean(c.Output), "out"+string(filepath.Separator)) {
+	if !toolutil.UnderOutChild(c.Output) {
 		fatal("output must be under out/")
 	}
 	if _, e := os.Stat(c.Output); e == nil {

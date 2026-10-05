@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"crypto/sha256"
 	"encoding/json"
 	"flag"
@@ -11,6 +10,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"utautts/cmd/tools/internal/toolutil"
 )
 
 type phone struct {
@@ -57,20 +58,16 @@ func load(path string) ([]record, string, error) {
 		return nil, "", e
 	}
 	hash := sha256.Sum256(raw)
-	s := bufio.NewScanner(strings.NewReader(strings.TrimPrefix(string(raw), "\ufeff")))
-	s.Buffer(make([]byte, 4096), 16<<20)
 	var rows []record
-	for s.Scan() {
-		if strings.TrimSpace(s.Text()) == "" {
-			continue
-		}
+	err := toolutil.ScanJSONLBytes(raw, func(line []byte) error {
 		var r record
-		if e := json.Unmarshal(s.Bytes(), &r); e != nil {
-			return nil, "", e
+		if e := json.Unmarshal(line, &r); e != nil {
+			return e
 		}
 		rows = append(rows, r)
-	}
-	return rows, fmt.Sprintf("%x", hash), s.Err()
+		return nil
+	})
+	return rows, fmt.Sprintf("%x", hash), err
 }
 func finite(x float64) bool { return !math.IsNaN(x) && !math.IsInf(x, 0) }
 func validate(rows []record, language string) error {

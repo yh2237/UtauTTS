@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/json"
@@ -13,6 +12,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"utautts/cmd/tools/internal/toolutil"
 )
 
 type token struct {
@@ -69,29 +70,20 @@ type example struct {
 }
 
 func loadRecords(path string) ([]record, error) {
-	f, e := os.Open(path)
-	if e != nil {
-		return nil, e
-	}
-	defer f.Close()
-	s := bufio.NewScanner(f)
-	s.Buffer(make([]byte, 4096), 16<<20)
 	var rows []record
-	for s.Scan() {
-		if len(strings.TrimSpace(s.Text())) == 0 {
-			continue
-		}
+	err := toolutil.ScanJSONL(path, func(line []byte) error {
 		var r record
-		if e = json.Unmarshal(s.Bytes(), &r); e != nil {
-			return nil, e
+		if e := json.Unmarshal(line, &r); e != nil {
+			return e
 		}
 		if r.Version != 1 || r.ID == "" || r.AudioPath == "" || len(r.Tokens) == 0 {
-			return nil, fmt.Errorf("invalid version-1 record %q", r.ID)
+			return fmt.Errorf("invalid version-1 record %q", r.ID)
 		}
 		rows = append(rows, r)
-	}
-	if e = s.Err(); e != nil {
-		return nil, e
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	if len(rows) == 0 {
 		return nil, fmt.Errorf("empty dataset")

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/json"
@@ -15,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"utautts/cmd/tools/internal/toolutil"
 )
 
 type token struct {
@@ -32,28 +33,19 @@ type record struct {
 }
 
 func records(path string) ([]record, error) {
-	f, e := os.Open(path)
-	if e != nil {
-		return nil, e
-	}
-	defer f.Close()
-	s := bufio.NewScanner(f)
-	s.Buffer(make([]byte, 4096), 16<<20)
 	var rows []record
-	for s.Scan() {
-		if strings.TrimSpace(s.Text()) == "" {
-			continue
-		}
+	err := toolutil.ScanJSONL(path, func(line []byte) error {
 		var r record
-		if e = json.Unmarshal(s.Bytes(), &r); e != nil {
-			return nil, e
+		if e := json.Unmarshal(line, &r); e != nil {
+			return e
 		}
 		if r.ID == "" || r.AudioPath == "" || len(r.Tokens) == 0 {
-			return nil, fmt.Errorf("invalid record %q", r.ID)
+			return fmt.Errorf("invalid record %q", r.ID)
 		}
 		rows = append(rows, r)
-	}
-	return rows, s.Err()
+		return nil
+	})
+	return rows, err
 }
 
 func pyFloat(v float64) string {
@@ -205,8 +197,7 @@ func run(dataset, dir, engine string, workers int) (int, error) {
 	if workers < 1 {
 		return 0, errors.New("workers must be positive")
 	}
-	clean := filepath.Clean(dir)
-	if clean != "out" && !strings.HasPrefix(clean, "out"+string(filepath.Separator)) {
+	if !toolutil.UnderOut(dir) {
 		return 0, errors.New("cache must be under out/")
 	}
 	rows, e := records(dataset)

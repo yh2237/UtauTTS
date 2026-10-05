@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/audio"
 )
 
@@ -288,29 +288,23 @@ func loadOrBuildFeatures(cache, dataset, alignDir, engine string) ([]utterance, 
 		e = gob.NewDecoder(f).Decode(&data)
 		return data, e
 	}
-	f, e := os.Open(dataset)
-	if e != nil {
-		return nil, e
-	}
-	defer f.Close()
 	var records []record
-	scan := bufio.NewScanner(f)
-	scan.Buffer(make([]byte, 4096), 4<<20)
-	for scan.Scan() {
+	err := toolutil.ScanJSONL(dataset, func(line []byte) error {
 		var r record
-		if e = json.Unmarshal(scan.Bytes(), &r); e != nil {
-			return nil, e
+		if e := json.Unmarshal(line, &r); e != nil {
+			return e
 		}
 		if r.Version != 1 {
-			return nil, fmt.Errorf("%s: version %d", r.ID, r.Version)
+			return fmt.Errorf("%s: version %d", r.ID, r.Version)
 		}
-		if _, e = os.Stat(filepath.Join(alignDir, r.ID+".json")); e != nil {
-			continue
+		if _, e := os.Stat(filepath.Join(alignDir, r.ID+".json")); e != nil {
+			return nil
 		}
 		records = append(records, r)
-	}
-	if e = scan.Err(); e != nil {
-		return nil, e
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	type result struct {
 		index int
@@ -363,10 +357,10 @@ func loadOrBuildFeatures(cache, dataset, alignDir, engine string) ([]utterance, 
 	if firstErr != nil {
 		return nil, firstErr
 	}
-	if e = os.MkdirAll(filepath.Dir(cache), 0755); e != nil {
+	if e := os.MkdirAll(filepath.Dir(cache), 0755); e != nil {
 		return nil, e
 	}
-	f, e = os.OpenFile(cache, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	f, e := os.OpenFile(cache, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if e != nil {
 		return nil, e
 	}
