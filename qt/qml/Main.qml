@@ -3,6 +3,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "UnitOverrides.js" as UnitOverrides
 import "MoraPositions.js" as MoraPositions
+import "QmlCore.js" as QmlCore
+import "UtteranceCore.js" as UtteranceCore
 import QtQuick.Controls
 import QtQuick.Layouts
 import UtauTTS.Platform 1.0
@@ -931,123 +933,11 @@ ApplicationWindow {
         }
 
         function onProsodyChanged() {
-            if (window.appBackend.prosodyRequestId !== window.pendingProsodyRequestId)
-                return;
-            window.pendingProsodyInFlight = false;
-            const index = window.utteranceIndex(window.pendingProsodyUtteranceId);
-            if (index < 0 || utterances.get(index).revision !== window.pendingProsodyRevision) {
-                Qt.callLater(window.flushProsodyPreviewRequest);
-                return;
-            }
-            let result;
-            try {
-                result = JSON.parse(window.appBackend.prosodyJson);
-            } catch (error) {
-                return;
-            }
-            // 解析を省いた要求では、予測結果から読みを補う。
-            if (!utterances.get(index).reading && result.reading) {
-                window.applyPronunciation(index, result.reading, window.copySequence(result.morae));
-            }
-            const automaticPoints = window.copySequence(result.pitch_points);
-            const automaticDurations = window.copySequence(result.mora_durations_ms);
-            const automaticPositions = window.copySequence(result.mora_positions_ms);
-            window.applyAutomaticProsody(index, automaticPoints, automaticDurations, automaticPositions);
-            window.applyAutomaticFramePitch(index, window.copySequence(result.frame_pitch_cents),
-                    Number(result.frame_ms) || 10);
-            window.scheduleExtendedEditorWaveform();
+            UtteranceCore.handleProsodyChanged(window.utteranceCoreContext);
         }
 
         function onPreviewReady() {
-            const audio = window.appBackend.previewUrl;
-            const pendingId = window.pendingUtteranceId;
-            const pendingRevision = window.pendingRevision;
-            const index = window.utteranceIndex(pendingId);
-            if (window.batchExportActive) {
-                if (index < 0 || utterances.get(index).revision !== pendingRevision) {
-                    window.finishBatchExport(false);
-                    return;
-                }
-                const fileName = window.batchExportMode === "drag"
-                        ? window.dragAudioFileName(utterances.get(index), index)
-                        : window.audioFileName(utterances.get(index));
-                const destination = Platform.hasNativeFileDialog
-                        ? window.appBackend.fileInDirectory(window.batchExportDirectory, fileName)
-                        : window.appBackend.defaultSaveFile(fileName);
-                window.pendingUtteranceId = "";
-                window.pendingRevision = -1;
-                if (!destination.toString().length || !window.appBackend.savePreview(destination)) {
-                    window.finishBatchExport(false);
-                    return;
-                }
-                ++window.batchExportCompleted;
-                if (window.batchExportMode === "drag")
-                    window.dragExportFiles.push(destination);
-                Qt.callLater(function() { window.synthesizeBatchItem(); });
-                return;
-            }
-            if (window.saveRequestPending) {
-                if (index < 0 || utterances.get(index).revision !== pendingRevision) {
-                    window.saveRequestPending = false;
-                    window.pendingUtteranceId = "";
-                    window.pendingRevision = -1;
-                    return;
-                }
-                window.saveRequestPending = false;
-                window.pendingUtteranceId = "";
-                window.pendingRevision = -1;
-                const audioDestination = window.appBackend.defaultSaveFile(window.audioFileName(utterances.get(index)));
-                if (window.appBackend.closeLogOnSuccess)
-                    window.closeLogWindow();
-                if (Platform.hasNativeFileDialog) {
-                    saveDialog.currentFile = audioDestination;
-                    saveDialog.open();
-                } else {
-                    window.appBackend.savePreview(audioDestination);
-                }
-                return;
-            }
-            if (window.playbackQueueActive) {
-                if (index < 0 || index !== window.selectedIndex || utterances.get(index).revision !== window.pendingRevision) {
-                    window.stopPlaybackQueue();
-                    return;
-                }
-                window.audioUtteranceId = window.pendingUtteranceId;
-                window.audioRevision = window.pendingRevision;
-                window.pendingUtteranceId = "";
-                window.pendingRevision = -1;
-                window.playbackError = "";
-                window.playbackRequested = true;
-                player.stop();
-                player.source = audio;
-                player.play();
-                return;
-            }
-            if (index < 0 || index !== window.selectedIndex || utterances.get(index).revision !== window.pendingRevision) {
-                window.pendingUtteranceId = "";
-                window.pendingRevision = -1;
-                window.autoplayPreview = false;
-                window.scheduleAutoPreview();
-                return;
-            }
-            window.updateSynthesisViewFromBackend(window.pendingUtteranceId,
-                                                  window.pendingRevision);
-            window.audioUtteranceId = window.pendingUtteranceId;
-            window.audioRevision = window.pendingRevision;
-            window.pendingUtteranceId = "";
-            window.pendingRevision = -1;
-            window.playbackError = "";
-            player.stop();
-            player.source = audio;
-            if (window.autoplayPreview !== false) {
-                window.playbackRequested = true;
-                if (window.appBackend.closeLogOnSuccess)
-                    window.closeLogWindow();
-                player.play();
-            } else {
-                window.playbackRequested = false;
-                window.autoplayPreview = true;
-            }
+            UtteranceCore.handlePreviewReady(window.utteranceCoreContext);
         }
 
         function onErrorChanged() {
@@ -1416,8 +1306,7 @@ ApplicationWindow {
     }
 
     function current() {
-        return utterances.count
-                ? utterances.get(Math.max(0, Math.min(selectedIndex, utterances.count - 1))) : null;
+        return QmlCore.currentUtterance(utterances, selectedIndex);
     }
 
     function rendererSettingContext(rendererId) {
@@ -1781,10 +1670,7 @@ ApplicationWindow {
     function normalizeAliasPolicy(value) { return core.normalizeAliasPolicy(value); }
 
     function utteranceIndex(id) {
-        for (let i = 0; i < utterances.count; ++i)
-            if (utterances.get(i).utteranceId === id)
-                return i;
-        return -1;
+        return QmlCore.utteranceIndex(utterances, id);
     }
 
     function voicebankName(id) { return core.voicebankName(id); }
@@ -2770,36 +2656,22 @@ ApplicationWindow {
         editorContent.pitchEditor.setDurationAtMS(position, Number(durationMs));
     }
 
+    readonly property var utteranceCoreContext: ({
+        window: window,
+        utterances: utterances,
+        player: player,
+        overrides: UnitOverrides,
+        qt: Qt,
+        platform: Platform,
+        saveDialog: saveDialog
+    })
+
     function updateUnitOverride(unitIndex, key, value) {
-        if (!utterances.count || unitIndex < 0 || !String(key || "").length)
-            return;
-        const item = current();
-        const normalizedKey = String(key);
-        if (value === undefined || value === null || (typeof value === "number" && !Number.isFinite(value)))
-            return;
-        const overrides = UnitOverrides.update(decodeSequence(item.phonemeOverridesJson),
-                                              unitIndex, normalizedKey, value);
-        const encoded = JSON.stringify(overrides);
-        if (item.phonemeOverridesJson === encoded)
-            return;
-        window.beginHistoryChange("unit:" + item.utteranceId + ":" + unitIndex + ":" + normalizedKey, true);
-        utterances.setProperty(selectedIndex, "phonemeOverridesJson", encoded);
-        markUtteranceDirty(selectedIndex);
-        window.scheduleAutoPreview();
+        UtteranceCore.updateUnitOverride(window.utteranceCoreContext, unitIndex, key, value);
     }
 
     function clearUnitOverride(unitIndex) {
-        if (!utterances.count || unitIndex < 0)
-            return;
-        const item = current();
-        const overrides = UnitOverrides.remove(decodeSequence(item.phonemeOverridesJson), unitIndex);
-        const encoded = JSON.stringify(overrides);
-        if (item.phonemeOverridesJson === encoded)
-            return;
-        window.beginHistoryChange("unit:" + item.utteranceId + ":" + unitIndex + ":clear", true);
-        utterances.setProperty(selectedIndex, "phonemeOverridesJson", encoded);
-        markUtteranceDirty(selectedIndex);
-        window.scheduleAutoPreview();
+        UtteranceCore.clearUnitOverride(window.utteranceCoreContext, unitIndex);
     }
 
     function clearSynthesisView() {
@@ -3062,24 +2934,11 @@ ApplicationWindow {
     }
 
     function copySequence(sequence) {
-        const result = [];
-        if (!sequence)
-            return result;
-        const size = sequence.length !== undefined ? sequence.length : sequence.count;
-        for (let index = 0; index < size; ++index)
-            result.push(sequence.get ? sequence.get(index) : sequence[index]);
-        return result;
+        return QmlCore.copySequence(sequence);
     }
 
     function decodeSequence(json) {
-        if (!json || !json.length)
-            return [];
-        try {
-            const value = JSON.parse(json);
-            return Array.isArray(value) ? value : [];
-        } catch (error) {
-            return [];
-        }
+        return QmlCore.decodeSequence(json);
     }
 
     function hasManualPitch(item) {
@@ -3563,26 +3422,7 @@ ApplicationWindow {
     }
 
     function requestProsodyPreview(index) {
-        if (window.batchExportActive || index < 0 || index >= utterances.count)
-            return;
-        const item = utterances.get(index);
-        if (!item.content.trim())
-            return;
-        if (window.appBackend.busy) {
-            // 合成中の予測要求は破棄されるため、完了後に再試行する。
-            window.pendingProsodyPreviewIndex = index;
-            return;
-        }
-        if (window.pendingProsodyInFlight && window.pendingProsodyUtteranceId === item.utteranceId
-                && window.pendingProsodyRevision === item.revision)
-            return;
-        const requestId = item.utteranceId + ":" + item.revision + ":" + Date.now();
-        window.pendingProsodyRequestId = requestId;
-        window.pendingProsodyUtteranceId = item.utteranceId;
-        window.pendingProsodyRevision = item.revision;
-        window.pendingProsodyInFlight = true;
-        window.pendingProsodyPreviewIndex = -1;
-        window.appBackend.predictProsody(window.buildProsodyRequest(item, requestId));
+        UtteranceCore.requestProsodyPreview(window.utteranceCoreContext, index);
     }
 
     function buildExportQueue(selectedOnly) {

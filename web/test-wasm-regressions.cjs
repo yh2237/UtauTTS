@@ -7,6 +7,10 @@ const path = require("node:path");
 const vm = require("node:vm");
 const { createVirtualFs } = require("./fs-shim.js");
 const { createUtauTTSAssetPaths } = require("../qt/wasm/asset-paths.js");
+const UtteranceCore = require("../qt/qml/UtteranceCore.js");
+const UnitOverrides = require("../qt/qml/UnitOverrides.js");
+const QmlCore = require("../qt/qml/QmlCore.js");
+const EditorValues = require("../qt/qml/EditorValues.js");
 const root = path.join(__dirname, "..");
 const source = name => fs.readFileSync(path.join(root, name), "utf8");
 
@@ -139,65 +143,56 @@ test("Worker failure after ready completes pending calls and preserves queued re
 });
 
 function sharedState(items) {
-  const context = vm.createContext({
-    console, UnitOverrides: {},
+  const context = {
+    console,
     utterances: { get count() { return items.length; }, get(i) { return items[i]; },
       setProperty(i, key, value) { items[i][key] = value; } },
     prosodyPreviewTimer: { restart() {} },
     player: { stop() {} },
     // Qt.callLaterは実行せず、呼ばれた関数だけを記録する。
     Qt: { callLater(callback) { context.deferredCallLater.push(callback); } },
-  });
+  };
   context.deferredCallLater = [];
-  const overrides = vm.createContext({});
-  vm.runInContext(source("qt/qml/UnitOverrides.js"), overrides);
-  context.UnitOverrides = overrides;
-  context.window = context;
   context.selectedIndex = 0;
   context.appBackend = { busy: false, error: "", predictProsody() {} };
   context.pendingProsodyInFlight = false;
   context.synthesisUnits = [];
-  const qml = source("qt/qml/Main.qml");
-  for (const match of qml.matchAll(/^    function [\s\S]*?^    }/gm))
-    vm.runInContext(match[0], context);
+  context.decodeSequence = QmlCore.decodeSequence;
+  context.copySequence = QmlCore.copySequence;
+  context.current = () => QmlCore.currentUtterance(context.utterances, context.selectedIndex);
+  context.utteranceIndex = id => QmlCore.utteranceIndex(context.utterances, id);
   context.beginHistoryChange = () => {};
   context.markUtteranceDirty = () => {};
   context.scheduleAutoPreview = () => {};
+  context.window = context;
+  context.overrides = UnitOverrides;
+  context.qt = context.Qt;
   return context;
 }
 
 test("both layouts update and reset the same canonical unit overrides", () => {
   const item = { utteranceId: "a", revision: 0, phonemeOverridesJson: "[]" };
   const context = sharedState([item]);
-  context.updateUnitOverride(2, "pitch_factor", 1.7);
+  UtteranceCore.updateUnitOverride(context, 2, "pitch_factor", 1.7);
   assert.deepEqual(JSON.parse(item.phonemeOverridesJson), [{ unit_index: 2, pitch_factor: 1.7 }]);
-  context.clearUnitOverride(2);
+  UtteranceCore.clearUnitOverride(context, 2);
   assert.deepEqual(JSON.parse(item.phonemeOverridesJson), []);
 });
 
 test("shared PhonemeEditor reads canonical overrides and live preview before synthesis values", () => {
-  const context = vm.createContext({});
-  context.root = context;
-  const qml = source("qt/qml/editors/PhonemeEditor.qml");
-  for (const name of ["unitAt", "overrideAt", "unitValue", "paramRange"]) {
-    const match = qml.match(new RegExp("^    function " + name + "\\([\\s\\S]*?^    }", "m"));
-    vm.runInContext(match[0], context);
-  }
-  context.units = [{ pitch_factor: 1 }, {}, {}];
-  context.overrides = [{ unit_index: 2, pitch_factor: 1.7 }];
-  assert.equal(context.unitValue(2, "pitch_factor"), 1.7);
-  assert.equal(context.unitValue(1, "pitch_factor"), 1);
-  assert.equal(context.unitValue(1, "resampler_volume"), 100);
-  context.previewUnit = { index: 2, key: "pitch_factor", value: 2.2 };
-  assert.equal(context.unitValue(2, "pitch_factor"), 2.2);
-  context.previewUnit = null;
-  assert.equal(context.unitValue(2, "pitch_factor"), 1.7);
+  const units = [{ pitch_factor: 1 }, {}, {}];
+  const overrides = [{ unit_index: 2, pitch_factor: 1.7 }];
+  assert.equal(EditorValues.unitValue(units, overrides, null, 2, "pitch_factor"), 1.7);
+  assert.equal(EditorValues.unitValue(units, overrides, null, 1, "pitch_factor"), 1);
+  assert.equal(EditorValues.unitValue(units, overrides, null, 1, "resampler_volume"), 100);
+  const preview = { index: 2, key: "pitch_factor", value: 2.2 };
+  assert.equal(EditorValues.unitValue(units, overrides, preview, 2, "pitch_factor"), 2.2);
+  assert.equal(EditorValues.unitValue(units, overrides, null, 2, "pitch_factor"), 1.7);
 });
 
 test("shared controller rejects outdated prosody and resolves moved utterances by identity", () => {
   const items = [ { utteranceId: "a", revision: 2 }, { utteranceId: "b", revision: 0 } ];
   const context = sharedState(items);
-  vm.runInContext(source("qt/qml/Main.qml").match(/^        function onProsodyChanged\([\s\S]*?^        }/m)[0], context);
   context.pendingProsodyRequestId = "request";
   context.pendingProsodyUtteranceId = "a";
   context.pendingProsodyRevision = 1;
@@ -207,11 +202,11 @@ test("shared controller rejects outdated prosody and resolves moved utterances b
   context.applyAutomaticProsody = () => {};
   context.applyAutomaticFramePitch = () => {};
   context.scheduleExtendedEditorWaveform = () => {};
-  context.onProsodyChanged();
+  UtteranceCore.handleProsodyChanged(context);
   assert.equal(items[0].reading, undefined);
   context.pendingProsodyRevision = 2;
   items.reverse();
-  context.onProsodyChanged();
+  UtteranceCore.handleProsodyChanged(context);
   assert.equal(items[1].reading, "old");
   assert.equal(items[0].reading, undefined);
 });
@@ -221,24 +216,21 @@ test("shared controller coalesces identical prosody requests and retries busy Ba
   let requests = 0;
   context.buildProsodyRequest = () => ({});
   context.appBackend.predictProsody = () => requests++;
-  context.requestProsodyPreview(0);
-  context.requestProsodyPreview(0);
+  UtteranceCore.requestProsodyPreview(context, 0);
+  UtteranceCore.requestProsodyPreview(context, 0);
   assert.equal(requests, 1);
   context.utterances.get(0).revision++;
   context.appBackend.busy = true;
-  context.requestProsodyPreview(0);
+  UtteranceCore.requestProsodyPreview(context, 0);
   assert.equal(requests, 1);
   context.appBackend.busy = false;
-  context.requestProsodyPreview(0);
+  UtteranceCore.requestProsodyPreview(context, 0);
   assert.equal(requests, 2);
 });
 
 test("shared controller does not display or play synthesis from an older revision or another utterance", () => {
   const item = { utteranceId: "a", revision: 2 };
   const context = sharedState([item]);
-  const handler = source("qt/qml/Main.qml")
-    .match(/^        function onPreviewReady\([\s\S]*?^        }/m)[0];
-  vm.runInContext(handler, context);
   let plays = 0;
   context.player.source = "previous";
   context.player.play = () => plays++;
@@ -249,18 +241,18 @@ test("shared controller does not display or play synthesis from an older revisio
   context.appBackend.synthesisJson = '{"units":[{"pitch_factor":1.4}]}';
   context.pendingUtteranceId = "a";
   context.pendingRevision = 1;
-  context.onPreviewReady();
+  UtteranceCore.handlePreviewReady(context);
   assert.equal(context.player.source, "previous");
   assert.equal(plays, 0);
   // 古い結果の到着で、次に届いた音声の自動再生を1回だけ止める。
   assert.equal(context.autoplayPreview, false);
   context.pendingRevision = 2;
   context.pendingUtteranceId = "b";
-  context.onPreviewReady();
+  UtteranceCore.handlePreviewReady(context);
   assert.equal(context.synthesisUnits.length, 0);
   context.pendingUtteranceId = "a";
   context.pendingRevision = 2;
-  context.onPreviewReady();
+  UtteranceCore.handlePreviewReady(context);
   assert.equal(context.player.source, "generated");
   assert.equal(context.synthesisUnits[0].pitch_factor, 1.4);
   assert.equal(plays, 0);

@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import UtauTTS.Platform 1.0
+import "../EditorValues.js" as EditorValues
 
 Item {
     id: root
@@ -224,56 +225,19 @@ Item {
     }
 
     function unitAt(index) {
-        if (index < 0 || index >= root.units.length)
-            return null;
-        return root.units[index];
+        return EditorValues.unitAt(root.units, index);
     }
 
     function overrideAt(index) {
-        for (const value of root.overrides || []) {
-            if (value && Number(value.unit_index) === Number(index))
-                return value;
-        }
-        return null;
+        return EditorValues.overrideAt(root.overrides, index);
     }
 
     function unitValue(index, key) {
-        if (root.previewUnit && Number(root.previewUnit.index) === Number(index)
-                && String(root.previewUnit.key) === String(key))
-            return root.previewUnit.value;
-        const override = root.overrideAt(index);
-        if (override && override[key] !== undefined)
-            return override[key];
-        const unit = root.unitAt(index);
-        const overrideFlag = String(key) + "_override";
-        if (String(key).indexOf("resampler_") === 0 && unit
-                && unit[overrideFlag] !== true)
-            return root.paramRange(key).def;
-        return unit && unit[key] !== undefined ? unit[key] : root.paramRange(key).def;
+        return EditorValues.unitValue(root.units, root.overrides, root.previewUnit, index, key);
     }
 
     function paramRange(key) {
-        switch (String(key)) {
-        case "pitch_factor":
-        case "energy_factor":
-            return {min: 0.1, max: 4.0, def: 1.0, isFloat: true};
-        case "resampler_velocity":
-        case "resampler_volume":
-            return {min: 0, max: 200, def: 100, isFloat: false};
-        case "resampler_modulation":
-            return {min: 0, max: 100, def: 0, isFloat: false};
-        case "resampler_tempo":
-            return {min: 40, max: 300, def: 120, isFloat: true};
-        case "consonant_ms":
-        case "preutterance_ms":
-        case "overlap_ms":
-            return {min: 0, max: 1000, def: 0, isFloat: false};
-        case "offset_ms":
-        case "cutoff_ms":
-            return {min: -2000, max: 5000, def: 0, isFloat: false};
-        default:
-            return {min: 0, max: 100, def: 0, isFloat: false};
-        }
+        return EditorValues.paramRange(key);
     }
 
     function isOtoKey(key) {

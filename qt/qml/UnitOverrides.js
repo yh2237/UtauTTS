@@ -37,3 +37,6 @@ function update(values, unitIndex, key, value) {
 function remove(values, unitIndex) {
     return normalize(values).filter(item => item.unit_index !== Number(unitIndex));
 }
+
+if (typeof module !== "undefined" && module.exports)
+    module.exports = {normalize, update, remove};
