@@ -95,6 +95,7 @@ else()
 endif()
 
 set_source_files_properties(qml/UnitOverrides.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
+set_source_files_properties(qml/MoraPositions.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 qt_add_qml_module(utautts
     URI UtauTTS
     VERSION 1.0
@@ -103,6 +104,7 @@ qt_add_qml_module(utautts
         qml/views/MobileChrome.qml
         qml/AppCore.qml
         qml/UnitOverrides.js
+        qml/MoraPositions.js
         qml/Translator.qml
         qml/shell/AdaptiveDialogWindow.qml
         qml/shell/SettingsWindow.qml

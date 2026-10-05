@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import "../controls"
+import "../MoraPositions.js" as MoraPositions
 
 Item {
     id: root
@@ -70,24 +71,7 @@ Item {
     }
 
     function normalizedPositions(values) {
-        const normalized = (values || []).slice();
-        if (!normalized.length)
-            return normalized;
-        if (normalized[0] === null || normalized[0] === undefined)
-            return normalized;
-        const first = Number(normalized[0]);
-        if (!Number.isFinite(first))
-            return normalized;
-        const origin = Math.max(0, first);
-        for (let index = 0; index < normalized.length; ++index) {
-            if (normalized[index] === null || normalized[index] === undefined)
-                continue;
-            const value = Number(normalized[index]);
-            if (Number.isFinite(value))
-                normalized[index] = Math.max(0, value - origin);
-        }
-        normalized[0] = 0;
-        return normalized;
+        return MoraPositions.normalizedMoraPositions(values);
     }
 
     function positionAt(index) {
