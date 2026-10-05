@@ -22,11 +22,6 @@ func RendererImplementation(id string) (RenderFunc, bool) {
 	return fn, ok
 }
 
-func KnownRenderer(id string) bool {
-	_, ok := implementations[id]
-	return ok
-}
-
 var (
 	closerMu sync.Mutex
 	closers  []func() error

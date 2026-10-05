@@ -1,7 +1,6 @@
 package worldline
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,10 +13,6 @@ type BridgeJob struct {
 	CodaRelease bool
 	Speech      bool
 	Engine      string `json:"engine"`
-}
-
-func invokeBridge(ctx context.Context, bridge, jobPath, outputPath string) error {
-	return InvokeReport(ctx, bridge, jobPath, outputPath, nil)
 }
 
 func ReadBridgeJob(path string) (BridgeJob, error) {

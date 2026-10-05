@@ -158,7 +158,6 @@ public:
     Q_INVOKABLE void beginOpenProject();
     void handlePickedProject();
     Q_INVOKABLE void rememberRecentProject(const QUrl &source);
-    Q_INVOKABLE void removeRecentProject(const QString &path);
     Q_INVOKABLE void clearRecentProjects();
     Q_INVOKABLE bool exportDiagnosticReport(const QUrl &destination, const QVariantMap &context);
     Q_INVOKABLE QString dictionaryFingerprint() const;

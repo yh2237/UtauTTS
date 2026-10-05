@@ -2203,22 +2203,6 @@ void Backend::rememberRecentProject(const QUrl &source) {
     emit recentProjectsChanged();
 }
 
-void Backend::removeRecentProject(const QString &path) {
-    const QString absolutePath = QFileInfo(path).absoluteFilePath();
-    QStringList updated;
-    for (const QString &existing : m_recentProjects) {
-        if (QFileInfo(existing).absoluteFilePath() != absolutePath)
-            updated.append(existing);
-    }
-    if (updated == m_recentProjects)
-        return;
-    m_recentProjects = updated;
-    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
-    settings.setValue(QStringLiteral("projects/recent"), m_recentProjects);
-    settings.sync();
-    emit recentProjectsChanged();
-}
-
 void Backend::clearRecentProjects() {
     if (m_recentProjects.isEmpty())
         return;

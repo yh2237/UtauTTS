@@ -52,10 +52,6 @@ func newSourceCache() sourceCache { return base.NewSourceCache() }
 
 func ClearWAVCache() { base.ClearWAVCache() }
 
-func estimateUnitPitch(unit plan.Unit, mono *audio.PCM) (float64, error) {
-	return base.EstimateUnitPitch(unit, mono)
-}
-
 func effectiveUnitPitchFactor(unit plan.Unit, applyPitch bool) float64 {
 	return base.EffectiveUnitPitchFactor(unit, applyPitch)
 }
@@ -138,10 +134,6 @@ func singleCVBoundaryEligible(synthesisPlan *plan.Plan, previous, current render
 	return base.SingleCVBoundaryEligible(synthesisPlan, previous, current)
 }
 
-func singleCVMoraBoundaryEligible(synthesisPlan *plan.Plan, position int) bool {
-	return base.SingleCVMoraBoundaryEligible(synthesisPlan, position)
-}
-
 func singleCVProtectedOnset(synthesisPlan *plan.Plan, unit plan.Unit) bool {
 	return base.SingleCVProtectedOnset(synthesisPlan, unit)
 }
@@ -177,8 +169,6 @@ func speechStop(p *plan.Plan, unit plan.Unit) bool { return base.SpeechStop(p, u
 func speechVowelJoin(p *plan.Plan, previous, current renderedUnit) bool {
 	return base.SpeechVowelJoin(p, previous, current)
 }
-
-func codaReleaseStop(u plan.Unit) bool { return base.CodaReleaseStop(u) }
 
 func retimeWithCompressedPrefixUsing(source []float64, targetFrames, sourcePrefixFrames, targetPrefixFrames, sampleRate int, stretch func([]float64, int, int) ([]float64, error)) ([]float64, error) {
 	return base.RetimeWithCompressedPrefixUsing(source, targetFrames, sourcePrefixFrames, targetPrefixFrames, sampleRate, stretch)
