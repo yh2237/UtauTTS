@@ -55,61 +55,14 @@ function Resolve-QtRoot {
 }
 
 function Copy-GoLicenses {
-    $goLicenseRoot = Join-Path $licenseRoot 'Go'
-    New-Item -ItemType Directory -Force -Path $goLicenseRoot | Out-Null
-    Get-ChildItem -LiteralPath $goLicenseRoot -File -ErrorAction SilentlyContinue |
-        Remove-Item -Force
-    $goRoot = Get-CommandOutput 'go' @('env', 'GOROOT')
-    $goLicensePath = Join-Path $licenseRoot 'Go/GO-LICENSE.txt'
-    Copy-Required (Join-Path $goRoot 'LICENSE') $goLicensePath
-    Copy-Required (Join-Path $root 'licenses/Go/CMUDICT-LICENSE.txt') (Join-Path $licenseRoot 'Go/CMUDICT-LICENSE.txt')
-    Copy-Required (Join-Path $root 'licenses/Go/PINYIN-DATA-NOTICE.txt') (Join-Path $licenseRoot 'Go/PINYIN-DATA-NOTICE.txt')
-    $licenseHashes = @{
-        (Get-FileHash -Algorithm SHA256 -LiteralPath $goLicensePath).Hash = $goLicensePath
-    }
-
-    $modules = @(Get-Content -LiteralPath (Join-Path $PSScriptRoot 'go-license-modules.txt') -Encoding UTF8 |
-        Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-    foreach ($module in $modules) {
-        $moduleInfo = Get-CommandOutput 'go' @('list', '-m', '-f={{.Dir}}|{{.Version}}', $module)
-        $parts = $moduleInfo.Split('|', 2)
-        if ($parts.Count -ne 2) {
-            throw "Could not resolve Go module metadata: $moduleInfo"
+    Push-Location $root
+    try {
+        & go run ./cmd/tools/collect-go-licenses --package-dir $PackageRoot --root $root
+        if ($LASTEXITCODE -ne 0) {
+            throw "collect-go-licenses failed with exit code $LASTEXITCODE"
         }
-        $moduleDirectory = $parts[0]
-        $moduleVersion = $parts[1]
-        $safeName = $module.Replace('/', '_').Replace('.', '_')
-        $licenseFiles = @(Get-ChildItem -LiteralPath $moduleDirectory -Recurse -File |
-            Where-Object {
-                $_.Name -match '^(LICENSE|COPYING|PATENTS)(\..*)?$' -or
-                $_.Name -match '^(NOTICE|THIRD_PARTY_NOTICES|DATA_LICENSES)(\..*)?$'
-            } | Sort-Object FullName)
-        $primaryLicense = $licenseFiles | Where-Object {
-            $_.Name -match '^(LICENSE|COPYING)(\..*)?$'
-        } | Select-Object -First 1
-        if ($null -eq $primaryLicense) {
-            throw "A license file was not found for Go module: $module"
-        }
-        foreach ($licenseFile in $licenseFiles) {
-            $isPrimaryLicense = $licenseFile.Name -match '^(LICENSE|COPYING)(\..*)?$'
-            $licenseHash = $null
-            if ($isPrimaryLicense) {
-                $licenseHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $licenseFile.FullName).Hash
-                if ($licenseHashes.ContainsKey($licenseHash)) {
-                    continue
-                }
-            }
-            $relativeName = $licenseFile.FullName.Substring($moduleDirectory.Length).TrimStart('\', '/')
-            $destinationName = $relativeName.Replace('\', '__').Replace('/', '__')
-            if ($relativeName -eq 'LICENSE') { $destinationName = 'LICENSE.txt' }
-            if ($relativeName -eq 'NOTICE') { $destinationName = 'NOTICE.txt' }
-            if ($relativeName -eq 'PATENTS') { $destinationName = 'PATENTS.txt' }
-            $destination = Join-Path $licenseRoot "Go/$safeName-$moduleVersion-$destinationName"
-            Copy-Required $licenseFile.FullName $destination
-            if ($isPrimaryLicense) {
-                $licenseHashes[$licenseHash] = $destination
-            }
-        }
+    } finally {
+        Pop-Location
     }
 }
 
