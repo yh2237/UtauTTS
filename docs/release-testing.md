@@ -98,3 +98,5 @@ GUIでは読み上げ言語を選べることを確認します。右側の設�
 | HTTP server | コンソール、health、音源・モデル・Renderer一覧、解析、既定Renderer合成、batch ZIP、音源再読込 |
 
 GUIの検査には、Windowsなら配布された`app/utautts-gui.exe --self-test`、Linuxなら`QT_QPA_PLATFORM=offscreen ./utautts --self-test`、macOSなら`QT_QPA_PLATFORM=cocoa QT_QUICK_BACKEND=software`を設定したアプリバンドル内の実行ファイルを使います。画面や更新確認は開かずテスト専用の一時設定と一時ファイルだけを使うようになっています。
+
+操作部品の入力検査は、Qt SDKの`qmltestrunner -input qt/tests -platform offscreen`で実行します。数値スライダーのキー操作・ドラッグ・ダブルクリックと、再生位置の更新中のシークを確認します。GUIのスクリーンショットを保存するときは、self-testに`UTAUTTS_UI_CAPTURE_DIR`で保存先を指定できます（通常のGUI検査では画面を開きません）。

@@ -13,7 +13,9 @@ AdaptiveDialogWindow {
     signal applyRequested(bool closeAfter)
     signal closed()
     readonly property alias view: settingsView
+    property alias currentPage: settingsView.currentPage
 
+    objectName: "settingsWindow"
     title: root.translator.tr("settings.title")
     visible: false
     dialogWidth: 720

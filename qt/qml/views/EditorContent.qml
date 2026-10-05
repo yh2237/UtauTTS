@@ -454,7 +454,7 @@ import UtauTTS.Media
                             }
                             SpinBox {
                                 id: intonationInput
-                                Layout.preferredWidth: 86
+                                Layout.preferredWidth: 96
                                 from: 0
                                 to: Math.round(window.maxIntonationStrength * 100)
                                 stepSize: 5
@@ -468,36 +468,14 @@ import UtauTTS.Media
                                 }
                             }
                         }
-                        Item {
+                        ParameterSlider {
+                            id: intonationSlider
                             Layout.fillWidth: true
-                            Layout.preferredHeight: intonationSlider.implicitHeight
-                            Slider {
-                                id: intonationSlider
-                                anchors.fill: parent
-                                from: 0
-                                to: window.maxIntonationStrength
-                                stepSize: .05
-                                onMoved: {
-                                    window.updateSetting("intonation", value);
-                                }
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                preventStealing: true
-                                onPressed: mouse => updateAt(mouse.x)
-                                onPositionChanged: mouse => {
-                                    if (pressed)
-                                        updateAt(mouse.x);
-                                }
-                                onDoubleClicked: window.resetIntonation()
-                                function updateAt(x) {
-                                    const fraction = Math.max(0, Math.min(1, x / width));
-                                    const value = Math.round((intonationSlider.from + fraction * (intonationSlider.to - intonationSlider.from)) / intonationSlider.stepSize) * intonationSlider.stepSize;
-                                    intonationSlider.value = value;
-                                    window.updateSetting("intonation", value);
-                                }
-                            }
+                            from: 0
+                            to: window.maxIntonationStrength
+                            stepSize: .05
+                            onMoved: window.updateSetting("intonation", value)
+                            onResetRequested: window.resetIntonation()
                         }
 
                         RowLayout {
@@ -522,36 +500,14 @@ import UtauTTS.Media
                                 }
                             }
                         }
-                        Item {
+                        ParameterSlider {
+                            id: moraSlider
                             Layout.fillWidth: true
-                            Layout.preferredHeight: moraSlider.implicitHeight
-                            Slider {
-                                id: moraSlider
-                                anchors.fill: parent
-                                from: 60
-                                to: 300
-                                stepSize: 5
-                                onMoved: {
-                                    window.updateSetting("moraDuration", value);
-                                }
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                preventStealing: true
-                                onPressed: mouse => updateAt(mouse.x)
-                                onPositionChanged: mouse => {
-                                    if (pressed)
-                                        updateAt(mouse.x);
-                                }
-                                onDoubleClicked: window.resetMoraDuration()
-                                function updateAt(x) {
-                                    const fraction = Math.max(0, Math.min(1, x / width));
-                                    const value = Math.round((moraSlider.from + fraction * (moraSlider.to - moraSlider.from)) / moraSlider.stepSize) * moraSlider.stepSize;
-                                    moraSlider.value = value;
-                                    window.updateSetting("moraDuration", value);
-                                }
-                            }
+                            from: 60
+                            to: 300
+                            stepSize: 5
+                            onMoved: window.updateSetting("moraDuration", value)
+                            onResetRequested: window.resetMoraDuration()
                         }
 
                         RowLayout {
@@ -576,36 +532,14 @@ import UtauTTS.Media
                                 }
                             }
                         }
-                        Item {
+                        ParameterSlider {
+                            id: pauseSlider
                             Layout.fillWidth: true
-                            Layout.preferredHeight: pauseSlider.implicitHeight
-                            Slider {
-                                id: pauseSlider
-                                anchors.fill: parent
-                                from: 0
-                                to: 800
-                                stepSize: 10
-                                onMoved: {
-                                    window.updateSetting("pauseDuration", value);
-                                }
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                preventStealing: true
-                                onPressed: mouse => updateAt(mouse.x)
-                                onPositionChanged: mouse => {
-                                    if (pressed)
-                                        updateAt(mouse.x);
-                                }
-                                onDoubleClicked: window.resetPauseDuration()
-                                function updateAt(x) {
-                                    const fraction = Math.max(0, Math.min(1, x / width));
-                                    const value = Math.round((pauseSlider.from + fraction * (pauseSlider.to - pauseSlider.from)) / pauseSlider.stepSize) * pauseSlider.stepSize;
-                                    pauseSlider.value = value;
-                                    window.updateSetting("pauseDuration", value);
-                                }
-                            }
+                            from: 0
+                            to: 800
+                            stepSize: 10
+                            onMoved: window.updateSetting("pauseDuration", value)
+                            onResetRequested: window.resetPauseDuration()
                         }
 
                         Item {
@@ -754,36 +688,14 @@ import UtauTTS.Media
                                 }
                             }
                         }
-                        Item {
+                        ParameterSlider {
+                            id: leadingPreutteranceSlider
                             Layout.fillWidth: true
-                            Layout.preferredHeight: leadingPreutteranceSlider.implicitHeight
-                            Slider {
-                                id: leadingPreutteranceSlider
-                                anchors.fill: parent
-                                from: 0
-                                to: 300
-                                stepSize: 5
-                                onMoved: {
-                                    window.updateSetting("leadingPreutterance", value);
-                                }
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                preventStealing: true
-                                onPressed: mouse => updateAt(mouse.x)
-                                onPositionChanged: mouse => {
-                                    if (pressed)
-                                        updateAt(mouse.x);
-                                }
-                                onDoubleClicked: window.resetLeadingPreutterance()
-                                function updateAt(x) {
-                                    const fraction = Math.max(0, Math.min(1, x / width));
-                                    const value = Math.round((leadingPreutteranceSlider.from + fraction * (leadingPreutteranceSlider.to - leadingPreutteranceSlider.from)) / leadingPreutteranceSlider.stepSize) * leadingPreutteranceSlider.stepSize;
-                                    leadingPreutteranceSlider.value = value;
-                                    window.updateSetting("leadingPreutterance", value);
-                                }
-                            }
+                            from: 0
+                            to: 300
+                            stepSize: 5
+                            onMoved: window.updateSetting("leadingPreutterance", value)
+                            onResetRequested: window.resetLeadingPreutterance()
                         }
 
                         }
@@ -1168,6 +1080,9 @@ import UtauTTS.Media
                     hasAudio: !window.batchExportActive && window.hasCurrentAudio()
                     canGenerate: !window.batchExportActive && window.utterancesModel.count
                                  && window.current().reading.length > 0
+                                 && (!window.appBackend.busy
+                                     || window.pendingUtteranceId === window.current().utteranceId
+                                        && window.pendingRevision === window.current().revision)
                     position: window.playerMedia.position
                     duration: window.playerMedia.duration
                     errorText: window.appBackend.error.length ? window.appBackend.error : window.playbackError

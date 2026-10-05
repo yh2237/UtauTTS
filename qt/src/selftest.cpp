@@ -9,6 +9,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJSValue>
 #include <QMetaObject>
 #include <QQuickWindow>
 #include <QSettings>
@@ -129,6 +130,10 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     const QString captureDirectory = qEnvironmentVariable("UTAUTTS_UI_CAPTURE_DIR");
     if (!captureDirectory.isEmpty()) {
         auto *window = qobject_cast<QQuickWindow *>(rootObject);
+        // 遅延生成の設定画面を、キャプチャ前に作る。
+        if (!require(QMetaObject::invokeMethod(rootObject, "openSettings"),
+                     QStringLiteral("settings UI could not be opened for capture")))
+            return 1;
         auto *settings = rootObject->findChild<QQuickWindow *>(QStringLiteral("settingsWindow"));
         if (!require(window && settings && QDir().mkpath(captureDirectory),
                      QStringLiteral("UI capture could not be initialized")))
@@ -196,7 +201,6 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
         if (!require(rootObject->property("projectFile").toUrl() == projectURL,
                      QStringLiteral("QML project load did not preserve the source URL")))
             return 1;
-        // 廃止したspeech_timingを含む旧プロジェクトも読み込め、保存し直すと項目は消える。
         if (!require(rows.size() == 1 && !rows.first().toMap().contains("speech_timing"),
                      QStringLiteral("legacy speech timing setting was not dropped")))
             return 1;
@@ -249,8 +253,61 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
         return 1;
     const QJsonDocument prosody = QJsonDocument::fromJson(backend.prosodyJson().toUtf8());
     if (!require(prosody.isObject()
-                 && !prosody.object().value(QStringLiteral("mora_durations_ms")).toArray().isEmpty(),
-                 QStringLiteral("prosody result is invalid")))
+                  && !prosody.object().value(QStringLiteral("mora_durations_ms")).toArray().isEmpty(),
+                  QStringLiteral("prosody result is invalid")))
+        return 1;
+
+    // 失敗したrevisionを再試行できることを確認する。
+    QVariant currentValue;
+    if (!require(QMetaObject::invokeMethod(rootObject, "current", Q_RETURN_ARG(QVariant, currentValue)),
+                 QStringLiteral("current utterance could not be inspected")))
+        return 1;
+    QVariantMap current = currentValue.metaType() == QMetaType::fromType<QJSValue>()
+            ? currentValue.value<QJSValue>().toVariant().toMap() : currentValue.toMap();
+    if (QObject *currentObject = currentValue.value<QObject *>()) {
+        current.insert("utteranceId", currentObject->property("utteranceId"));
+        current.insert("revision", currentObject->property("revision"));
+    } else if (currentValue.metaType() == QMetaType::fromType<QJSValue>()) {
+        const QJSValue object = currentValue.value<QJSValue>();
+        current.insert("utteranceId", object.property("utteranceId").toVariant());
+        current.insert("revision", object.property("revision").toVariant());
+    }
+    const int selected = rootObject->property("selectedIndex").toInt();
+    if (!require(!current.value("utteranceId").toString().isEmpty(),
+                 QStringLiteral("current utterance has no ID")))
+        return 1;
+    if (!waitFor(backend, &Backend::prosodyChanged, [&] {
+            QMetaObject::invokeMethod(rootObject, "clearAutomaticProsody", Q_ARG(QVariant, QVariant(selected)));
+            rootObject->setProperty("pendingProsodyUtteranceId", current.value("utteranceId"));
+            rootObject->setProperty("pendingProsodyRevision", current.value("revision"));
+            rootObject->setProperty("pendingProsodyInFlight", false);
+            rootObject->setProperty("pendingProsodyPreviewIndex", selected);
+            QMetaObject::invokeMethod(rootObject, "flushProsodyPreviewRequest");
+        }, QStringLiteral("retrying prosody preview")))
+        return 1;
+
+    // 生成中の再生操作で二重合成しないことを確認する。
+    const bool previousAutoPreview = backend.autoPreviewEnabled();
+    backend.setAutoPreviewEnabled(true);
+    if (!waitFor(backend, &Backend::previewReady, [&] {
+            rootObject->setProperty("autoPreviewPending", true);
+            QMetaObject::invokeMethod(rootObject, "refreshPreview");
+            QMetaObject::invokeMethod(rootObject, "synthesizeCurrent");
+            // テストでは実際の音を再生しない。
+            rootObject->setProperty("autoplayPreview", false);
+        }, QStringLiteral("UI preview synthesis")))
+        return 1;
+    int extraPreviews = 0;
+    const auto previewConnection = QObject::connect(&backend, &Backend::previewReady,
+                                                    [&] { ++extraPreviews; });
+    QMetaObject::invokeMethod(rootObject, "refreshPreview");
+    QEventLoop previewLoop;
+    QTimer::singleShot(400, &previewLoop, &QEventLoop::quit);
+    previewLoop.exec();
+    QObject::disconnect(previewConnection);
+    backend.setAutoPreviewEnabled(previousAutoPreview);
+    if (!require(extraPreviews == 0 && !rootObject->property("autoPreviewPending").toBool(),
+                 QStringLiteral("current preview was generated twice")))
         return 1;
 
     if (!waitFor(backend, &Backend::previewReady,

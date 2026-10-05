@@ -31,12 +31,14 @@ RowLayout {
         return minutes + ":" + String(seconds % 60).padStart(2, "0");
     }
 
+    readonly property bool waiting: root.busy && !root.playing && !root.hasAudio
+
     RoundButton {
         id: playbackButton
         Layout.preferredWidth: 40
         Layout.preferredHeight: 40
         highlighted: true
-        enabled: root.playing || root.hasAudio || (!root.busy && root.canGenerate)
+        enabled: root.playing || root.hasAudio || root.canGenerate
         onClicked: root.primaryClicked()
         ToolTip.visible: hovered
         ToolTip.text: root.errorText.length ? root.errorText
@@ -44,23 +46,70 @@ RowLayout {
                       : root.translator.tr("main.playback.generateAndPlay")
 
         contentItem: Text {
+            objectName: "previewPlaybackIcon"
             anchors.centerIn: parent
-            text: root.busy ? "\ue5d3" : root.playing ? "\ue034" : "\ue037"
+            visible: !root.waiting
+            text: root.playing ? "\ue034" : "\ue037"
             color: playbackButton.palette.buttonText
             font.family: iconFont.name
             font.pixelSize: 22
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }
+
+        Item {
+            id: waitingIndicator
+            objectName: "previewWaitingIndicator"
+            anchors.centerIn: parent
+            width: 22
+            height: 22
+            visible: root.waiting
+
+            Canvas {
+                id: waitingArc
+                anchors.fill: parent
+                property color strokeColor: playbackButton.palette.buttonText
+                onStrokeColorChanged: requestPaint()
+                onPaint: {
+                    const context = getContext("2d");
+                    context.clearRect(0, 0, width, height);
+                    context.strokeStyle = strokeColor;
+                    context.lineWidth = 2;
+                    context.lineCap = "round";
+                    context.beginPath();
+                    context.arc(width / 2, height / 2, width / 2 - 2,
+                                -Math.PI / 2, Math.PI);
+                    context.stroke();
+                }
+            }
+
+            RotationAnimator on rotation {
+                from: 0
+                to: 360
+                duration: 2000
+                loops: Animation.Infinite
+                running: root.waiting
+            }
+        }
     }
 
     Slider {
+        id: seekSlider
+        objectName: "previewSeekSlider"
         Layout.fillWidth: true
         from: 0
         to: Math.max(1, root.duration)
-        value: root.position
         enabled: root.hasAudio
         onMoved: root.seekRequested(value)
+
+        // ドラッグ中は再生位置の更新を反映しない。
+        Binding {
+            target: seekSlider
+            property: "value"
+            value: root.position
+            when: !seekSlider.pressed
+            restoreMode: Binding.RestoreNone
+        }
     }
 
     Label {

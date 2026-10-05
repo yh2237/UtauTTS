@@ -81,6 +81,7 @@ ApplicationWindow {
     property int synthesisViewRevision: -1
     property bool synthesisViewStale: false
     property bool autoplayPreview: true
+    property bool autoPreviewPending: false
 
     Timer {
         id: autoPreviewTimer
@@ -843,6 +844,18 @@ ApplicationWindow {
     Connections {
         target: window.appBackend
 
+        function onBusyChanged() {
+            if (!window.appBackend.busy) {
+                // 完了通知を反映してから、保留中の編集を処理する。
+                Qt.callLater(function() {
+                    if (window.autoPreviewPending && !autoPreviewTimer.running)
+                        window.refreshPreview();
+                    if (!prosodyPreviewTimer.running)
+                        window.flushProsodyPreviewRequest();
+                });
+            }
+        }
+
         function onProjectPicked(project) {
             window.applyLoadedProject(project);
         }
@@ -921,15 +934,17 @@ ApplicationWindow {
                 return;
             window.pendingProsodyInFlight = false;
             const index = window.utteranceIndex(window.pendingProsodyUtteranceId);
-            if (index < 0 || utterances.get(index).revision !== window.pendingProsodyRevision)
+            if (index < 0 || utterances.get(index).revision !== window.pendingProsodyRevision) {
+                Qt.callLater(window.flushProsodyPreviewRequest);
                 return;
+            }
             let result;
             try {
                 result = JSON.parse(window.appBackend.prosodyJson);
             } catch (error) {
                 return;
             }
-            // analyze往復を省いた場合、読み・モーラはプロソディ結果から適用する。
+            // 解析を省いた要求では、予測結果から読みを補う。
             if (!utterances.get(index).reading && result.reading) {
                 window.applyPronunciation(index, result.reading, window.copySequence(result.morae));
             }
@@ -1010,7 +1025,7 @@ ApplicationWindow {
             if (index < 0 || index !== window.selectedIndex || utterances.get(index).revision !== window.pendingRevision) {
                 window.pendingUtteranceId = "";
                 window.pendingRevision = -1;
-                window.autoplayPreview = true;
+                window.autoplayPreview = false;
                 window.scheduleAutoPreview();
                 return;
             }
@@ -2005,6 +2020,13 @@ ApplicationWindow {
         let error = check(utterances.count === 1, "initial utterance is missing");
         if (error.length)
             return error;
+        error = check(editorContent.phonemeEditor.sidePadding === editorContent.pitchEditor.sidePadding
+                      && editorContent.phonemeEditor.timeToX(0) === editorContent.pitchEditor.pointX(0)
+                      && Math.abs(editorContent.phonemeEditor.xToTime(
+                              editorContent.phonemeEditor.timeToX(120)) - 120) < 0.001,
+                      "editor timeline padding or hit coordinates are inconsistent");
+        if (error.length)
+            return error;
         error = check(window.current().phonemizer === "auto"
                       && window.buildSynthesisRequest(window.current()).phonemizer !== "auto",
                       "normal GUI defaults are incorrect");
@@ -2844,7 +2866,6 @@ ApplicationWindow {
         for (let index = 0; index < source.length; ++index) {
             const mora = source[index] || {};
             const pause = !!mora.pause;
-            // 長さの既定値はGoのplanと揃える。
             const defaultDuration = Math.max(20, Number(pause
                     ? defaultPauseDuration : defaultMoraDuration) || 120);
             const start = hasPositions
@@ -3100,7 +3121,7 @@ ApplicationWindow {
         const item = utterances.get(index);
         if (!item.content.trim() || window.automaticProsodyReady(item))
             return;
-        if (window.pendingProsodyUtteranceId === item.utteranceId
+        if (window.pendingProsodyInFlight && window.pendingProsodyUtteranceId === item.utteranceId
                 && window.pendingProsodyRevision === item.revision)
             return;
         const utteranceId = item.utteranceId;
@@ -3112,7 +3133,7 @@ ApplicationWindow {
             const selected = utterances.get(currentIndex);
             if (selected.revision !== revision || window.automaticProsodyReady(selected))
                 return;
-            if (window.pendingProsodyUtteranceId === utteranceId
+            if (window.pendingProsodyInFlight && window.pendingProsodyUtteranceId === utteranceId
                     && window.pendingProsodyRevision === revision)
                 return;
             window.requestProsodyPreview(currentIndex);
@@ -3231,7 +3252,6 @@ ApplicationWindow {
     }
 
     function resetMoraDuration() {
-        // リセット値もGoのplanと揃える。
         editorContent.moraSlider.value = 120;
         window.updateSetting("moraDuration", 120);
     }
@@ -3411,6 +3431,15 @@ ApplicationWindow {
         const item = current();
         if (!item || !item.reading)
             return;
+        autoPreviewTimer.stop();
+        window.autoPreviewPending = false;
+        if (window.appBackend.busy) {
+            // 生成中のプレビューを使い、二重合成を避ける。
+            if (window.pendingUtteranceId === item.utteranceId
+                    && window.pendingRevision === item.revision)
+                window.autoplayPreview = true;
+            return;
+        }
         clearPlayback();
         window.autoplayPreview = true;
         window.pendingUtteranceId = item.utteranceId;
@@ -3427,6 +3456,7 @@ ApplicationWindow {
         const item = current();
         if (!item || !item.reading)
             return;
+        window.autoPreviewPending = true;
         autoPreviewTimer.restart();
     }
 
@@ -3445,14 +3475,15 @@ ApplicationWindow {
 
     function refreshPreview() {
         if (!window.appBackend.autoPreviewEnabled || window.batchExportActive
-                || window.saveRequestPending || window.playbackQueueActive || !utterances.count)
-            return;
-        if (window.appBackend.busy) {
-            autoPreviewTimer.restart();
+                || window.saveRequestPending || window.playbackQueueActive || !utterances.count) {
+            window.autoPreviewPending = false;
             return;
         }
+        if (window.appBackend.busy)
+            return;
+        window.autoPreviewPending = false;
         const item = current();
-        if (!item || !item.reading)
+        if (!item || !item.reading || window.hasCurrentAudio())
             return;
         window.autoplayPreview = false;
         window.pendingUtteranceId = item.utteranceId;
@@ -3563,9 +3594,8 @@ ApplicationWindow {
         if (!item.content.trim())
             return;
         if (window.appBackend.busy) {
-            // 合成中はpredictProsodyが破棄されるため、空いたら再試行する。
+            // 合成中の予測要求は破棄されるため、完了後に再試行する。
             window.pendingProsodyPreviewIndex = index;
-            prosodyPreviewTimer.restart();
             return;
         }
         if (window.pendingProsodyInFlight && window.pendingProsodyUtteranceId === item.utteranceId
@@ -3576,6 +3606,7 @@ ApplicationWindow {
         window.pendingProsodyUtteranceId = item.utteranceId;
         window.pendingProsodyRevision = item.revision;
         window.pendingProsodyInFlight = true;
+        window.pendingProsodyPreviewIndex = -1;
         window.appBackend.predictProsody(window.buildProsodyRequest(item, requestId));
     }
 

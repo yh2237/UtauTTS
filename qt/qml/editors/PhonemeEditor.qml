@@ -44,6 +44,7 @@ Item {
     property bool snapEnabled: true
     property real currentScrollX: 0
     property var timingEditor: null
+    readonly property real sidePadding: timingEditor ? timingEditor.sidePadding : 36
     property var gesture: null
     property real gestureDuration: 0
     property var gesturePositions: []
@@ -534,16 +535,16 @@ Item {
     }
 
     function zoomedWidth() {
-        return Math.max(1, timelineViewport.width) * root.zoomFactor;
+        return Math.max(1, timelineViewport.width - root.sidePadding * 2) * root.zoomFactor;
     }
 
     function timeToX(value) {
-        return Number(value) / root.timelineDuration * root.zoomedWidth();
+        return root.sidePadding + Number(value) / root.timelineDuration * root.zoomedWidth();
     }
 
     function xToTime(value) {
         return Math.max(0, Math.min(root.timelineDuration,
-                                    Number(value) / Math.max(1, root.zoomedWidth()) * root.timelineDuration));
+                                    (Number(value) - root.sidePadding) / Math.max(1, root.zoomedWidth()) * root.timelineDuration));
     }
 
     function snapTime(value, enabled) {
@@ -564,10 +565,8 @@ Item {
                          root.timeToX(anchorTime) - anchorX));
     }
 
-    function xToScrollTime(anchorX) {        const total = root.zoomedWidth();
-        if (total <= 0)
-            return 0;
-        return (root.currentScrollX + anchorX) / total * root.timelineDuration;
+    function xToScrollTime(anchorX) {
+        return root.xToTime(root.currentScrollX + anchorX);
     }
 
     onFitRequested: {
@@ -834,7 +833,7 @@ Item {
                 anchors.fill: parent
                 anchors.margins: 1
                 clip: true
-                contentWidth: Math.max(width, root.zoomedWidth())
+                contentWidth: Math.max(width, root.sidePadding * 2 + root.zoomedWidth())
                 contentHeight: height
                 boundsBehavior: Flickable.StopAtBounds
                 interactive: false
@@ -1056,7 +1055,7 @@ Item {
                 id: timelineMouse
                 x: 0
                 y: 0
-                width: root.zoomedWidth()
+                width: timelineViewport.contentWidth
                 height: timelineViewport.height
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 property real pressCX: 0

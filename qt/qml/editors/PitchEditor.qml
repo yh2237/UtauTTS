@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
+import "../controls"
 
 Item {
     id: root
@@ -18,7 +19,6 @@ Item {
     property var morae: []
     property var moraDurations: []
     property var moraPositions: []
-    // 長さの既定値はGoのplanと揃える。
     property int defaultMoraDuration: 120
     property int defaultPauseDuration: 180
     property int minimumMoraDuration: 20
@@ -32,7 +32,7 @@ Item {
     Behavior on moraWidth {
         NumberAnimation { duration: 90; easing.type: Easing.OutCubic }
     }
-    property real sidePadding: 12
+    property real sidePadding: moraWidth / 2 + 4
     signal pointsEdited(var points)
     signal pitchPointTouched(int index)
     signal timingEdited(var durations, var positions)
@@ -186,7 +186,6 @@ Item {
         const currentMaximum = root.maximumDurationAt(index);
         const cursor = (x - root.sidePadding) / root.durationScale;
         if (moveFollowing) {
-            // Shift時は操作語以降をまとめて動かし、前方の間隔だけを変える。
             const lower = index > 0
                           ? positions[index - 1] + previousMinimum - positions[index]
                           : -positions[index];
@@ -199,7 +198,6 @@ Item {
             for (let position = index; position < count; ++position)
                 positions[position] += clamped;
         } else {
-            // 通常時は語頭線だけを動かし、他の語位置を維持する。
             const following = index + 1 < count ? positions[index + 1] : root.endTime();
             const lower = Math.max(index > 0 ? positions[index - 1] + previousMinimum : 0,
                                    following - currentMaximum);
@@ -208,7 +206,7 @@ Item {
                                    following - currentMinimum);
             positions[index] = Math.max(lower, Math.min(upper, cursor));
         }
-        // 語頭休止の独立パラメータはないため、先頭モーラは0に保ち、境界をタイミングで表す。
+        // 文頭休止の設定はないため、先頭モーラは0に保つ。
         root.moraPositions = root.normalizedPositions(positions);
         root.moraDurations = root.durationValuesFromPositions();
         canvas.requestPaint();
@@ -542,7 +540,7 @@ Item {
                 }
             }
 
-            // 背景ドラッグで横スクロール（タッチ/マウス）。編集ハンドル(z:2)より下に置く。
+            // 編集を優先するため、背景操作はハンドルより下に置く。
             MouseArea {
                 id: backgroundPan
                 anchors.left: parent.left
@@ -783,63 +781,59 @@ Item {
                 }
             }
 
-            MouseArea {
-                id: pitchArea
+            Item {
                 anchors.fill: canvas
-                property int dragging: -1
-                hoverEnabled: true
-                onContainsMouseChanged: {
-                    if (!containsMouse && dragging < 0)
-                        root.hoveredPoint = -1;
-                    canvas.requestPaint();
-                }
-                onPressed: mouse => {
-                    dragging = root.grabbablePoint(mouse.x, mouse.y);
-                    if (dragging >= 0) {
-                        root.hoveredPoint = dragging;
-                        update(mouse.y);
-                        const point = mapToItem(graph, mouse.x, mouse.y);
-                        root.showHud(point.x + 14, point.y - 40, root.pitchTextAt(dragging));
-                    }
-                }
-                onPositionChanged: mouse => {
-                    if (dragging >= 0) {
-                        update(mouse.y);
-                        const point = mapToItem(graph, mouse.x, mouse.y);
-                        root.showHud(point.x + 14, point.y - 40, root.pitchTextAt(dragging));
-                    } else if (containsMouse) {
-                        const hovered = root.grabbablePoint(mouse.x, mouse.y);
-                        if (hovered !== root.hoveredPoint) {
-                            root.hoveredPoint = hovered;
+                // 点の周囲だけ前面に置き、線と背景の操作を遮らない。
+                z: 3
+
+                Repeater {
+                    model: root.morae
+                    delegate: MouseArea {
+                        required property int index
+                        visible: root.pointIsEditable(index)
+                        x: root.pointX(index) - width / 2
+                        y: root.pointY(index) - height / 2
+                        width: 32
+                        height: 40
+                        hoverEnabled: true
+                        preventStealing: true
+                        cursorShape: Qt.SizeVerCursor
+
+                        onEntered: {
+                            root.hoveredPoint = index;
                             canvas.requestPaint();
                         }
-                    }
-                }
-                onReleased: {
-                    if (dragging >= 0)
-                        root.pointsEdited(root.points.slice());
-                    dragging = -1;
-                    root.hideHud();
-                }
-                onDoubleClicked: mouse => {
-                    const index = root.grabbablePoint(mouse.x, mouse.y);
-                    if (index < 0)
-                        return;
-                    const values = root.points.slice();
-                    values[index] = 0;
-                    root.pitchPointTouched(index);
-                    root.points = values;
-                    root.pointsEdited(values.slice());
-                    dragging = -1;
-                    root.hideHud();
-                }
-                onCanceled: {
-                    dragging = -1;
-                    root.hideHud();
-                }
+                        onExited: {
+                            if (!pressed && root.hoveredPoint === index)
+                                root.hoveredPoint = -1;
+                            canvas.requestPaint();
+                        }
+                        onPressed: mouse => updatePitch(mouse)
+                        onPositionChanged: mouse => {
+                            if (pressed)
+                                updatePitch(mouse);
+                        }
+                        onReleased: {
+                            root.pointsEdited(root.points.slice());
+                            root.hideHud();
+                            if (!containsMouse)
+                                root.hoveredPoint = -1;
+                            canvas.requestPaint();
+                        }
+                        onDoubleClicked: root.resetPitchAt(index)
+                        onCanceled: {
+                            root.hideHud();
+                            root.hoveredPoint = -1;
+                            canvas.requestPaint();
+                        }
 
-                function update(y) {
-                    root.updatePitchAt(dragging, y);
+                        function updatePitch(mouse) {
+                            const point = mapToItem(canvas, mouse.x, mouse.y);
+                            root.hoveredPoint = index;
+                            root.updatePitchAt(index, point.y);
+                            root.showHud(point.x + 14, point.y - 40, root.pitchTextAt(index));
+                        }
+                    }
                 }
             }
 
