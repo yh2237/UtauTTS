@@ -5,7 +5,7 @@ Qt WebAssembly版の処理経路、状態管理、仮想ファイルシステム
 ## 処理経路と担当
 
 ```text
-Main.qml / MobileMain.qml
+Main.qml（モバイル幅では MobileChrome.qml）
   -> Backend::callAsync（リクエストIDとコールバックを対応付け）
   -> engine-loader.js（メインスレッドの通信処理）
   -> engine-worker.js（呼び出しを直列に実行）
