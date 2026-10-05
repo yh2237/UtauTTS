@@ -245,7 +245,7 @@ func prepare(template, observation map[string]any, root string) (map[string]any,
 	return map[string]any{"version": 1, "feature_version": 1, "id": template["id"], "language": template["language"], "text": template["text"], "speaker": observation["speaker"], "split": observation["split"], "kind": "natural", "corpus": observation["corpus"], "license": observation["license"], "alignment": observation["alignment"], "audio_sha256": fmt.Sprintf("%x", sha), "pitch_source": "normalized-autocorrelation-v1", "phones": rows}, nil
 }
 func run(templates []string, observations, out string) ([]map[string]any, error) {
-	if clean := filepath.Clean(out); !strings.HasPrefix(clean, "out"+string(filepath.Separator)) {
+	if !toolutil.UnderOutChild(out) {
 		return nil, fmt.Errorf("output must be under out/")
 	}
 	source, e := readJSON(observations)

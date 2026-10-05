@@ -79,7 +79,8 @@ func build(paths []string, out string, preferLast bool) (map[string]any, error) 
 	if e != nil {
 		return nil, e
 	}
-	if rel, e := filepath.Rel(repoOut, absOut); e != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+	rel, e := filepath.Rel(repoOut, absOut)
+	if e != nil || !toolutil.UnderOutChild(rel) {
 		return nil, fmt.Errorf("output must be under out/")
 	}
 	if _, e := os.Stat(out); e == nil {

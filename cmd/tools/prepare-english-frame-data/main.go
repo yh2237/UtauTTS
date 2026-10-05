@@ -169,7 +169,7 @@ func build(row manifestRow, alignment map[string]any) (map[string]any, error) {
 }
 
 func run(manifest, alignments, failed, out string) (map[string]any, error) {
-	if clean := filepath.Clean(out); !strings.HasPrefix(clean, "out"+string(filepath.Separator)) {
+	if !toolutil.UnderOutChild(out) {
 		return nil, fmt.Errorf("output must be under out/")
 	}
 	data, e := os.ReadFile(manifest)

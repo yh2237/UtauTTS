@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"utautts/cmd/tools/internal/toolutil"
 )
 
 func findDir(root, part, suffix string) (string, error) {
@@ -113,7 +114,7 @@ func run(root, out, audioDir string, start, end int) (int, error) {
 	if start < 1 || end < start {
 		return 0, fmt.Errorf("invalid range")
 	}
-	if clean := filepath.Clean(out); !strings.HasPrefix(clean, "out"+string(filepath.Separator)) {
+	if !toolutil.UnderOutChild(out) {
 		return 0, fmt.Errorf("output must be under out/")
 	}
 	if _, e := os.Stat(out); e == nil {

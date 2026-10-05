@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
+	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/frontend"
 	"utautts/internal/openjtalk"
 )
@@ -328,7 +328,7 @@ func outputPath(path string) error {
 		return e
 	}
 	rel, e := filepath.Rel(root, abs)
-	if e != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+	if e != nil || !toolutil.UnderOutChild(rel) {
 		return fmt.Errorf("output must be under out/")
 	}
 	if _, e := os.Stat(path); e == nil {

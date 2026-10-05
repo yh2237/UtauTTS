@@ -193,8 +193,7 @@ func samePhones(a, b string) bool {
 }
 
 func run(corpus, out string, limit int, allowMismatch bool, cfg openjtalk.Config) (int, int, error) {
-	clean := filepath.Clean(out)
-	if !strings.HasPrefix(clean, "out"+string(filepath.Separator)) {
+	if !toolutil.UnderOutChild(out) {
 		return 0, 0, fmt.Errorf("output must be under out/")
 	}
 	if _, err := os.Stat(out); err == nil {

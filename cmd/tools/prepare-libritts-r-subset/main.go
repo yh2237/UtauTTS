@@ -27,7 +27,7 @@ func run(archivePath, out string, speakerLimit, perSpeaker int) ([]item, error) 
 	if speakerLimit < 1 || perSpeaker < 1 {
 		return nil, fmt.Errorf("speaker and utterance limits must be positive")
 	}
-	if clean := filepath.Clean(out); !strings.HasPrefix(clean, "out"+string(filepath.Separator)) {
+	if !toolutil.UnderOutChild(out) {
 		return nil, fmt.Errorf("output must be under out/")
 	}
 	if _, e := os.Stat(out); e == nil {
