@@ -96,4 +96,4 @@ go run ./cmd/tools/train-speech-timing --dataset out/mfa-align-20261002/base-mfa
 
 MFA 本体と、その辞書・整列・監査に依存する `align-intonation-mfa.py`、`source-phone-*`、`source-span-mapping.py`、`source-span-auto.py map` は Python のままです。Open JTalk 実行時ブリッジと共通モジュール、リリース・ライセンス・ビルド補助、web/wasm 配布補助も残ります。`plot-source-analysis.py` は MFA 監査の可視化です。
 
-`performance-baseline.py` は現行 Go CLI の性能測定用です。
+性能測定は `go run ./cmd/tools/performance-baseline --out out/perf-... --voicebank <音源>` で行います。ベンチ、ビルド、合成結果、pprofを新しいディレクトリへまとめます。
