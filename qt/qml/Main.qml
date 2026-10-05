@@ -7,6 +7,7 @@ import "QmlCore.js" as QmlCore
 import "UtteranceCore.js" as UtteranceCore
 import "HistoryCore.js" as HistoryCore
 import "IntonationLab.js" as IntonationLab
+import "SelfTest.js" as SelfTest
 import QtQuick.Controls
 import QtQuick.Layouts
 import UtauTTS.Platform 1.0
@@ -1523,176 +1524,8 @@ ApplicationWindow {
         HistoryCore.redo(window.historyCoreContext);
     }
     function runInterfaceSelfTest() {
-        if (!window.injectedSelfTest)
-            return "self-test mode is disabled";
-        function check(condition, message) {
-            return condition ? "" : message;
-        }
-
-        if (window.intonationLab) {
-            let error = check(utterances.count === 50, "intonation lab examples were not loaded");
-            if (error.length)
-                return error;
-            error = check(window.selectedIndex === 0
-                          && window.current().content.length > 0
-                          && window.intonationLabFirstIncomplete() === 0,
-                          "intonation lab did not select the first example");
-            return error;
-        }
-
-        let error = check(utterances.count === 1, "initial utterance is missing");
-        if (error.length)
-            return error;
-        error = check(editorContent.phonemeEditor.sidePadding === editorContent.pitchEditor.sidePadding
-                      && editorContent.phonemeEditor.timeToX(0) === editorContent.pitchEditor.pointX(0)
-                      && Math.abs(editorContent.phonemeEditor.xToTime(
-                              editorContent.phonemeEditor.timeToX(120)) - 120) < 0.001,
-                      "editor timeline padding or hit coordinates are inconsistent");
-        if (error.length)
-            return error;
-        error = check(window.current().phonemizer === "auto"
-                      && window.buildSynthesisRequest(window.current()).phonemizer !== "auto",
-                      "normal GUI defaults are incorrect");
-        if (error.length)
-            return error;
-        const contextRequest = window.buildSynthesisRequest(window.current());
-        const contextSettings = contextRequest.renderer_settings || {};
-        error = check(contextSettings.context_duration === undefined
-                      && contextSettings.context_duration_strength === undefined,
-                      "context duration was injected into the normal request");
-        if (error.length)
-            return error;
-        error = check(contextSettings.boundary_tone === true,
-                      "boundary tone settings were not injected into the request");
-        if (error.length)
-            return error;
-        error = check(contextSettings.stretch_adapt === true,
-                      "stretch adaptation settings were not injected into the request");
-        if (error.length)
-            return error;
-        error = check(contextSettings.english_weak_form === true,
-                      "English weak form setting was not injected into the request");
-        if (error.length)
-            return error;
-        for (let voiceIndex = 0; voiceIndex < window.appBackend.voicebanks.length; ++voiceIndex) {
-            const voice = window.appBackend.voicebanks[voiceIndex];
-            if (!voice.suggested_language || !voice.suggested_phonemizer)
-                continue;
-            error = check(window.resolvedPhonemizer(voice.suggested_language, "auto", voice.id)
-                          === voice.suggested_phonemizer,
-                          "automatic phoneme format detection failed");
-            if (error.length)
-                return error;
-        }
-        const rendererId = window.defaultRendererId();
-        const originalDefaultMoraDuration = window.appBackend.defaultMoraDuration;
-        window.appBackend.setRendererSetting(rendererId, "mora_duration_ms",
-                                             originalDefaultMoraDuration + 5);
-        error = check(window.current().moraDuration === originalDefaultMoraDuration,
-                      "changing renderer settings changed the current utterance");
-        if (error.length)
-            return error;
-        window.addUtterance(false);
-        error = check(window.current().moraDuration === originalDefaultMoraDuration + 5,
-                      "new utterance did not use the renderer setting default");
-        if (error.length)
-            return error;
-        window.removeUtterance();
-        window.appBackend.setRendererSetting(rendererId, "mora_duration_ms",
-                                             originalDefaultMoraDuration);
-        error = check(
-            (window.buildSynthesisRequest(window.current()).renderer_settings || {}).mora_duration_ms
-                === undefined,
-            "per-card mora duration was injected as a renderer setting override");
-        if (error.length)
-            return error;
-        window.resetHistory(false);
-        error = check(utterances.get(0).intonation === window.defaultIntonationStrength,
-                      "initial intonation strength is incorrect");
-        if (error.length)
-            return error;
-        window.updateUtteranceText(0, "こんにちは");
-        analyzeTimer.stop();
-        window.updatePitchPoints([20, -10]);
-        error = check(window.canUndo && window.current().manualPitchEdited,
-                      "pitch edit was not recorded");
-        if (error.length)
-            return error;
-        window.undo();
-        error = check(window.current().content === "こんにちは" && !window.current().manualPitchEdited,
-                      "pitch undo changed text or kept the edit");
-        if (error.length)
-            return error;
-        window.redo();
-        error = check(window.current().content === "こんにちは" && window.current().manualPitchEdited,
-                      "pitch redo failed");
-        if (error.length)
-            return error;
-
-        window.updateMoraTiming([110, 130], [0, 110]);
-        error = check(window.current().manualMoraDurationEdited, "mora timing edit was not recorded");
-        if (error.length)
-            return error;
-        window.undo();
-        error = check(!window.current().manualMoraDurationEdited, "mora timing undo failed");
-        if (error.length)
-            return error;
-        window.redo();
-        error = check(window.current().manualMoraDurationEdited, "mora timing redo failed");
-        if (error.length)
-            return error;
-
-        editorContent.pitchEditor.morae = [{mora: "あ", pause: false}, {mora: "", pause: true}];
-        editorContent.pitchEditor.moraDurations = [120, 180];
-        editorContent.pitchEditor.moraPositions = [0, 120];
-        error = check(editorContent.pitchEditor.durationIsEditable(1),
-                      "pause duration is not editable");
-        if (error.length)
-            return error;
-        editorContent.pitchEditor.updateEndPositionAt(
-                    editorContent.pitchEditor.sidePadding
-                    + 380 * editorContent.pitchEditor.durationScale);
-        error = check(Math.round(editorContent.pitchEditor.durationAt(1)) === 260,
-                      "pause duration edit failed");
-        if (error.length)
-            return error;
-
-        window.addUtterance();
-        error = check(utterances.count === 2, "utterance add failed");
-        if (error.length)
-            return error;
-        utterances.setProperty(0, "moraeJson", JSON.stringify([{mora: "こ", pause: false}]));
-        utterances.setProperty(0, "pointsJson", "[0]");
-        utterances.setProperty(0, "autoPointsJson", "[75]");
-        utterances.setProperty(0, "autoMoraDurationsJson", "[120]");
-        utterances.setProperty(0, "autoMoraPositionsJson", "[0]");
-        window.selectUtterance(0);
-        error = check(Math.round(editorContent.pitchEditor.pitchAt(0)) === 75,
-                      "card switch did not restore automatic prosody");
-        if (error.length)
-            return error;
-        window.selectUtterance(1);
-        window.moveUtterance(-1);
-        error = check(window.selectedIndex === 0, "utterance move failed");
-        if (error.length)
-            return error;
-        window.removeUtterance();
-        error = check(utterances.count === 1, "utterance remove failed");
-        if (error.length)
-            return error;
-        const project = window.projectData();
-        error = check(project.format === "utautts-project" && project.format_version === 8
-                      && project.utterances.length === 1, "project data generation failed");
-
-        analyzeTimer.stop();
-        utterances.clear();
-        window.nextUtteranceId = 1;
-        window.addUtterance(false);
-        window.resetHistory(false);
-        return error;
+        return SelfTest.run(window.selfTestContext);
     }
-
-
     function intonationLabDefaultFile() {
         return IntonationLab.defaultFile(window.intonationLabContext);
     }
@@ -2228,6 +2061,8 @@ ApplicationWindow {
     }
 
     readonly property var menuDialogs: ({about: aboutDialog, rendererPackages: rendererPackagesDialog})
+
+    readonly property var selfTestContext: ({window: window, utterances: utterances, editorContent: editorContent, analyzeTimer: analyzeTimer})
 
     readonly property var intonationLabContext: ({window: window, utterances: utterances, prepareTimer: intonationLabPrepareTimer, qt: Qt})
 
