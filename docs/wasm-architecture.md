@@ -63,4 +63,4 @@ node --test web/test-wasm-regressions.cjs web/test-asset-paths.cjs
 
 FSシムを変更した場合は、`web/build.ps1`または`web/build.sh`を実行し、`web/dist/fs-shim.js`を更新します。Qtのビルドではホストスクリプトを自動的にコピーします。
 
-Qt wasm版とネイティブ版の両方をビルドして確認します。ビルド済みのエンジン・辞書・音源がある場合は、`web/test-browser-flow.cjs`と`web/test-synthesize.cjs`で解析・合成の経路も確認します。
+Qt wasm版とネイティブ版の両方をビルドして確認します。ビルド済みのエンジン・辞書・音源がある場合は、`web/test-synthesize.cjs`で解析・合成の経路も確認します。

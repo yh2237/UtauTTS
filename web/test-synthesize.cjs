@@ -116,11 +116,17 @@ function call(method, request) {
     apply_pitch: true,
   };
 
+  let prediction = null;
   for (const label of ["predict", "predict2"]) {
     const started = Date.now();
-    call("predictProsody", base);
+    const result = call("predictProsody", base);
+    if (!prediction) prediction = result;
     console.log(label + " elapsed=" + (Date.now() - started) + "ms");
   }
+  assert.equal(prediction.reading, "コンニチワ、キョーワイイテンキデス。");
+  assert.equal(prediction.morae.length, 17);
+  assert.equal(prediction.prosody_model_applied, true);
+  assert.ok(prediction.frame_pitch_cents.length > 0);
   let data = null;
   for (let run = 1; run <= 2; run++) {
     const started = Date.now();

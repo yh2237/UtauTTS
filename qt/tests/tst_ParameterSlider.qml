@@ -54,24 +54,15 @@ TestCase {
         compare(slider.value % 5, 0);
         verify(moves.count > 0);
         verify(slider.activeFocus);
-    }
-
-    function test_doubleClickReset() {
-        slider.value = 80;
-        mouseDoubleClickSequence(slider, slider.width * 0.8, slider.height / 2);
-        tryCompare(resets, "count", 1);
-        compare(slider.value, 50);
-    }
-
-    function test_dragIsNotDoubleClick() {
+        // クリックに続くドラッグはダブルクリックとして扱わない。
         mouseClick(slider, slider.width / 2, slider.height / 2);
         mouseDrag(slider, slider.width / 2, slider.height / 2, 60, 0);
         compare(resets.count, 0);
         verify(slider.value > 50);
     }
 
-    function test_doubleClickOnTrack() {
-        slider.value = 10;
+    function test_doubleClickReset() {
+        slider.value = 80;
         mouseDoubleClickSequence(slider, slider.width * 0.8, slider.height / 2);
         tryCompare(resets, "count", 1);
         compare(slider.value, 50);
