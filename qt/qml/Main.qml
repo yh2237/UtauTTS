@@ -5,6 +5,7 @@ import "UnitOverrides.js" as UnitOverrides
 import "MoraPositions.js" as MoraPositions
 import "QmlCore.js" as QmlCore
 import "UtteranceCore.js" as UtteranceCore
+import "HistoryCore.js" as HistoryCore
 import QtQuick.Controls
 import QtQuick.Layouts
 import UtauTTS.Platform 1.0
@@ -1489,171 +1490,37 @@ ApplicationWindow {
         return Math.max(minimum, Math.min(maximum, normalized));
     }
 
-    function historyUtterance(item) {
-        return {
-            utteranceId: item.utteranceId,
-            pointsJson: item.pointsJson,
-            pitchFramesJson: item.pitchFramesJson,
-            moraDurationsJson: item.moraDurationsJson,
-            moraPositionsJson: item.moraPositionsJson,
-            phonemeOverridesJson: item.phonemeOverridesJson,
-            manualPitchEdited: item.manualPitchEdited,
-            manualMoraDurationEdited: item.manualMoraDurationEdited
-        };
-    }
-
     function historySnapshot() {
-        const items = [];
-        for (let index = 0; index < utterances.count; ++index)
-            items.push(window.historyUtterance(utterances.get(index)));
-        return JSON.stringify(items);
+        return HistoryCore.historySnapshot(window.historyCoreContext);
     }
 
     function editableFingerprint() {
-        const items = [];
-        for (let index = 0; index < utterances.count; ++index) {
-            const item = utterances.get(index);
-            items.push({
-                content: item.content,
-                voicebankId: item.voicebankId,
-                modelId: item.modelId,
-                renderer: item.renderer,
-                aliasPolicy: item.aliasPolicy,
-                tone: item.tone,
-                color: item.color,
-                moraDuration: item.moraDuration,
-                pauseDuration: item.pauseDuration,
-                leadingPreutterance: item.leadingPreutterance,
-                intonation: item.intonation,
-                applyPitch: item.applyPitch,
-                pointsJson: item.manualPitchEdited ? item.pointsJson : "[]",
-                pitchFramesJson: item.manualPitchEdited ? item.pitchFramesJson : "[]",
-                moraDurationsJson: item.manualMoraDurationEdited ? item.moraDurationsJson : "[]",
-                moraPositionsJson: item.manualMoraDurationEdited ? item.moraPositionsJson : "[]",
-                phonemeOverridesJson: item.phonemeOverridesJson || "[]",
-                manualPitchEdited: item.manualPitchEdited,
-                manualMoraDurationEdited: item.manualMoraDurationEdited
-            });
-        }
-        return JSON.stringify(items);
-    }
-
-    function limitedHistory(stack, snapshot) {
-        const result = stack.slice();
-        result.push(snapshot);
-        if (result.length > 100)
-            result.shift();
-        return result;
+        return HistoryCore.editableFingerprint(window.historyCoreContext);
     }
 
     function beginHistoryChange(key, merge) {
-        if (window.historyRestoring)
-            return;
-        const normalizedKey = String(key || "");
-        if (merge && normalizedKey.length && window.historyMergeKey === normalizedKey) {
-            historyMergeTimer.restart();
-            return;
-        }
-        window.undoStack = window.limitedHistory(window.undoStack, window.historySnapshot());
-        window.redoStack = [];
-        window.historyMergeKey = merge ? normalizedKey : "";
-        if (merge)
-            historyMergeTimer.restart();
-        else
-            historyMergeTimer.stop();
+        HistoryCore.beginHistoryChange(window.historyCoreContext, key, merge);
     }
 
     function endHistoryGesture() {
-        window.historyMergeKey = "";
-        historyMergeTimer.stop();
+        HistoryCore.endHistoryGesture(window.historyCoreContext);
     }
 
     function resetHistory(markDirty) {
-        window.undoStack = [];
-        window.redoStack = [];
-        window.endHistoryGesture();
-        window.savedProjectFingerprint = markDirty ? "__unsaved_project__" : window.editableFingerprint();
-        window.projectDirty = !!markDirty;
+        HistoryCore.resetHistory(window.historyCoreContext, markDirty);
     }
 
     function clearEditHistory() {
-        window.undoStack = [];
-        window.redoStack = [];
-        window.endHistoryGesture();
-    }
-
-    function restoreHistorySnapshot(snapshot) {
-        let savedItems;
-        try {
-            savedItems = JSON.parse(snapshot);
-        } catch (error) {
-            return false;
-        }
-        if (!Array.isArray(savedItems))
-            return false;
-
-        window.historyRestoring = true;
-        window.clearPlayback();
-        window.pendingProsodyRequestId = "";
-        window.pendingProsodyUtteranceId = "";
-        window.pendingProsodyRevision = -1;
-        for (let savedIndex = 0; savedIndex < savedItems.length; ++savedIndex) {
-            const saved = savedItems[savedIndex];
-            const index = window.utteranceIndex(String(saved.utteranceId || ""));
-            if (index < 0)
-                continue;
-            const item = utterances.get(index);
-            if (item.pointsJson === saved.pointsJson
-                    && item.pitchFramesJson === saved.pitchFramesJson
-                    && item.moraDurationsJson === saved.moraDurationsJson
-                    && item.moraPositionsJson === saved.moraPositionsJson
-                    && item.phonemeOverridesJson === saved.phonemeOverridesJson
-                    && item.manualPitchEdited === !!saved.manualPitchEdited
-                    && item.manualMoraDurationEdited === !!saved.manualMoraDurationEdited)
-                continue;
-            utterances.setProperty(index, "pointsJson", String(saved.pointsJson || "[]"));
-            utterances.setProperty(index, "pitchFramesJson", String(saved.pitchFramesJson || "[]"));
-            utterances.setProperty(index, "moraDurationsJson", String(saved.moraDurationsJson || "[]"));
-            utterances.setProperty(index, "moraPositionsJson", String(saved.moraPositionsJson || "[]"));
-            utterances.setProperty(index, "phonemeOverridesJson",
-                                   String(saved.phonemeOverridesJson || "[]"));
-            utterances.setProperty(index, "manualPitchEdited", !!saved.manualPitchEdited);
-            utterances.setProperty(index, "manualMoraDurationEdited", !!saved.manualMoraDurationEdited);
-            window.markUtteranceDirty(index, false);
-        }
-        if (utterances.count)
-            window.selectUtterance(window.selectedIndex);
-        window.historyRestoring = false;
-        window.projectDirty = window.editableFingerprint() !== window.savedProjectFingerprint;
-        return true;
+        HistoryCore.clearEditHistory(window.historyCoreContext);
     }
 
     function undo() {
-        if (!window.canUndo)
-            return;
-        window.endHistoryGesture();
-        const previous = window.undoStack[window.undoStack.length - 1];
-        const remaining = window.undoStack.slice(0, window.undoStack.length - 1);
-        const currentSnapshot = window.historySnapshot();
-        if (!window.restoreHistorySnapshot(previous))
-            return;
-        window.undoStack = remaining;
-        window.redoStack = window.limitedHistory(window.redoStack, currentSnapshot);
+        HistoryCore.undo(window.historyCoreContext);
     }
 
     function redo() {
-        if (!window.canRedo)
-            return;
-        window.endHistoryGesture();
-        const next = window.redoStack[window.redoStack.length - 1];
-        const remaining = window.redoStack.slice(0, window.redoStack.length - 1);
-        const currentSnapshot = window.historySnapshot();
-        if (!window.restoreHistorySnapshot(next))
-            return;
-        window.redoStack = remaining;
-        window.undoStack = window.limitedHistory(window.undoStack, currentSnapshot);
+        HistoryCore.redo(window.historyCoreContext);
     }
-
     function runInterfaceSelfTest() {
         if (!window.injectedSelfTest)
             return "self-test mode is disabled";
@@ -2425,6 +2292,8 @@ ApplicationWindow {
     }
 
     readonly property var menuDialogs: ({about: aboutDialog, rendererPackages: rendererPackagesDialog})
+
+    readonly property var historyCoreContext: ({window: window, utterances: utterances, mergeTimer: historyMergeTimer})
 
     readonly property var utteranceCoreContext: ({
         window: window,
