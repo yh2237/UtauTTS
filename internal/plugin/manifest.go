@@ -11,31 +11,6 @@ import (
 
 var rendererID = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,95}$`)
 
-type rendererManifestV2 struct {
-	Schema            string                                 `json:"$schema,omitempty"`
-	ManifestVersion   int                                    `json:"manifest_version"`
-	Kind              string                                 `json:"kind"`
-	ID                string                                 `json:"id"`
-	DisplayName       string                                 `json:"display_name"`
-	Description       string                                 `json:"description,omitempty"`
-	Contract          string                                 `json:"contract"`
-	ContractVersion   int                                    `json:"contract_version,omitempty"`
-	Provider          string                                 `json:"provider"`
-	ProviderVersion   string                                 `json:"provider_version"`
-	Protocol          string                                 `json:"protocol,omitempty"`
-	ProtocolVersion   int                                    `json:"protocol_version,omitempty"`
-	ProviderArgs      []string                               `json:"provider_args,omitempty"`
-	Experimental      bool                                   `json:"experimental,omitempty"`
-	Acceleration      string                                 `json:"acceleration,omitempty"`
-	DefaultPriority   int                                    `json:"default_priority,omitempty"`
-	UpdateManaged     bool                                   `json:"update_managed,omitempty"`
-	Capabilities      Capabilities                           `json:"capabilities,omitempty"`
-	Resources         map[string]RendererResource            `json:"resources,omitempty"`
-	PlatformResources map[string]map[string]RendererResource `json:"platform_resources,omitempty"`
-	Platforms         []string                               `json:"platforms,omitempty"`
-	Settings          []RendererSetting                      `json:"settings,omitempty"`
-}
-
 func decodeRenderer(data []byte, directory string) (Renderer, error) {
 	var header struct {
 		ManifestVersion int `json:"manifest_version"`
@@ -50,7 +25,7 @@ func decodeRenderer(data []byte, directory string) (Renderer, error) {
 }
 
 func decodeRendererV2(data []byte, _ string) (Renderer, error) {
-	var doc rendererManifestV2
+	var doc Renderer
 	if err := decodeStrictJSON(data, &doc); err != nil {
 		return Renderer{}, err
 	}
@@ -63,35 +38,17 @@ func decodeRendererV2(data []byte, _ string) (Renderer, error) {
 	if err := validateRendererSettings(doc.Settings); err != nil {
 		return Renderer{}, err
 	}
-	platforms := append([]string(nil), doc.Platforms...)
-	if len(platforms) == 0 && len(doc.PlatformResources) > 0 {
-		platforms = make([]string, 0, len(doc.PlatformResources))
+	doc.ProviderArgs = append([]string(nil), doc.ProviderArgs...)
+	doc.Settings = append([]RendererSetting(nil), doc.Settings...)
+	if len(doc.Platforms) == 0 && len(doc.PlatformResources) > 0 {
+		doc.Platforms = make([]string, 0, len(doc.PlatformResources))
 		for platform := range doc.PlatformResources {
-			platforms = append(platforms, platform)
+			doc.Platforms = append(doc.Platforms, platform)
 		}
+	} else {
+		doc.Platforms = append([]string(nil), doc.Platforms...)
 	}
-	return Renderer{
-		ManifestVersion:   doc.ManifestVersion,
-		Kind:              doc.Kind,
-		ID:                doc.ID,
-		DisplayName:       doc.DisplayName,
-		Description:       doc.Description,
-		Contract:          doc.Contract,
-		ContractVersion:   doc.ContractVersion,
-		Provider:          doc.Provider,
-		ProviderVersion:   doc.ProviderVersion,
-		Protocol:          doc.Protocol,
-		ProtocolVersion:   doc.ProtocolVersion,
-		ProviderArgs:      append([]string(nil), doc.ProviderArgs...),
-		Experimental:      doc.Experimental,
-		Acceleration:      doc.Acceleration,
-		DefaultPriority:   doc.DefaultPriority,
-		Capabilities:      doc.Capabilities,
-		Resources:         doc.Resources,
-		PlatformResources: doc.PlatformResources,
-		Platforms:         platforms,
-		Settings:          append([]RendererSetting(nil), doc.Settings...),
-	}, nil
+	return doc, nil
 }
 
 func decodeStrictJSON(data []byte, target any) error {

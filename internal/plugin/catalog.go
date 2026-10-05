@@ -25,7 +25,15 @@ type Capabilities struct {
 	SpeechProsodyExperiment bool `json:"speech_prosody_experiment,omitempty"`
 }
 
+// Supportsはproviderが必要とするcapabilityを満たすかを返す。
+func (capabilities Capabilities) Supports(requested Capabilities) bool {
+	return (!requested.FramePitch || capabilities.FramePitch) &&
+		(!requested.BoundaryBridge || capabilities.BoundaryBridge) &&
+		(!requested.InternalTiming || capabilities.InternalTiming)
+}
+
 type Renderer struct {
+	Schema            string                                 `json:"$schema,omitempty"`
 	ManifestVersion   int                                    `json:"manifest_version"`
 	Kind              string                                 `json:"kind"`
 	ID                string                                 `json:"id"`
@@ -41,6 +49,7 @@ type Renderer struct {
 	Experimental      bool                                   `json:"experimental,omitempty"`
 	Acceleration      string                                 `json:"acceleration,omitempty"`
 	DefaultPriority   int                                    `json:"default_priority,omitempty"`
+	UpdateManaged     bool                                   `json:"update_managed,omitempty"`
 	Capabilities      Capabilities                           `json:"capabilities,omitempty"`
 	Resources         map[string]RendererResource            `json:"resources,omitempty"`
 	PlatformResources map[string]map[string]RendererResource `json:"platform_resources,omitempty"`

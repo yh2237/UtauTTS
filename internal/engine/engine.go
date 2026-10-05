@@ -26,17 +26,7 @@ const (
 )
 
 // Capabilitiesはエンジン定義やproviderが公開する機能。定義はproviderの一部だけを公開してもよい。
-type Capabilities struct {
-	FramePitch     bool
-	BoundaryBridge bool
-	InternalTiming bool
-}
-
-func (capabilities Capabilities) Supports(requested Capabilities) bool {
-	return (!requested.FramePitch || capabilities.FramePitch) &&
-		(!requested.BoundaryBridge || capabilities.BoundaryBridge) &&
-		(!requested.InternalTiming || capabilities.InternalTiming)
-}
+type Capabilities = plugin.Capabilities
 
 type ResourceKey string
 
@@ -431,11 +421,7 @@ func DefinitionFromV2(renderer plugin.Renderer) Definition {
 		Experimental:    renderer.Experimental,
 		Acceleration:    renderer.Acceleration,
 		DefaultPriority: renderer.DefaultPriority,
-		Capabilities: Capabilities{
-			FramePitch:     renderer.Capabilities.FramePitch,
-			BoundaryBridge: renderer.Capabilities.BoundaryBridge,
-			InternalTiming: renderer.Capabilities.InternalTiming,
-		},
-		Resources: resources,
+		Capabilities:    renderer.Capabilities,
+		Resources:       resources,
 	}
 }
