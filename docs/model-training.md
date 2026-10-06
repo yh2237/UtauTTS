@@ -114,6 +114,34 @@ go run ./cmd/tools/train-speech-timing `
 
 学習した重みは `internal/speechtiming/speech-timing-target-en-v1.safetensors` へ置き、`TargetForLanguage("en")` が選びます。英語の時間伸縮はプランの `phone_timings`（codaを含む音素区間）をモデルへ渡します。
 
+### 中国語の目標音素時間モデル
+
+`speech-timing-target-zh-v1` は AISHELL-3（PaddleSpeechのtone TextGrid）から学習します。`prepare-aishell3-timing` がparquetの音声をWAVへ展開し、単語tierの音節区間と音素tierのinitial/final境界から、runtime記号（声調を除くpinyin音素）の区間を持つcorpusを作ります。
+
+```powershell
+go run ./cmd/tools/prepare-aishell3-timing `
+  --parquet data/aishell3/train-00000-of-00045.parquet `
+  --alignments data/aishell3/aishell3_alignment_tone `
+  --out-audio out/aishell3-zh-timing/audio `
+  --out-corpus out/aishell3-zh-timing/corpus.jsonl
+
+go run ./cmd/tools/train-speech-timing `
+  --corpus out/aishell3-zh-timing/corpus.jsonl --language zh `
+  --cache out/speech-timing-target/zh-features.gob --features-only
+
+go run ./cmd/tools/train-speech-timing `
+  --corpus out/aishell3-zh-timing/corpus.jsonl --language zh `
+  --cache out/speech-timing-target/zh-features.gob `
+  --steps 6000 --valid 30 --seed 0 --device cuda `
+  --training-corpus "AISHELL-3 (PaddleSpeech tone alignment)" `
+  --license-notice licenses/AISHELL-3-NOTICE.txt `
+  --license-notice licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt `
+  --out out/speech-timing-target/zh-model-v1.safetensors `
+  --fixture out/speech-timing-target/zh-parity-v1.json
+```
+
+学習した重みは `internal/speechtiming/speech-timing-target-zh-v1.safetensors` へ置き、`TargetForLanguage("zh")` が選びます。
+
 ### 中断と再開
 
 `--out` は最良の検証結果の推論用重み、`--fixture` はその重みに対応するparity fixtureです。再開用の学習状態は `--checkpoint` へ別に保存します。省略時は `<out>.training.safetensors` です。重み・AdamW・OneCycle・分割・窓サンプラの乱数状態・最良モデルを含み、推論用重みだけからは再開できません。

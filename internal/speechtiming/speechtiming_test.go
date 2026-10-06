@@ -139,6 +139,20 @@ func TestTargetForLanguageLoadsEnglishModel(t *testing.T) {
 	if len(japanese.Phones()) != 40 || japanese == english {
 		t.Fatalf("Japanese model = %d phones, same=%v", len(japanese.Phones()), japanese == english)
 	}
+	chinese, err := TargetForLanguage("zh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(chinese.Phones()) != 47 {
+		t.Fatalf("Chinese phones = %d, want 47", len(chinese.Phones()))
+	}
+	chineseKnown := map[string]bool{}
+	for _, phone := range chinese.Phones() {
+		chineseKnown[phone] = true
+	}
+	if !chineseKnown["a"] || !chineseKnown["ng"] || !chineseKnown["sil"] || !chineseKnown["v"] {
+		t.Fatalf("Chinese vocabulary is missing pinyin symbols: %v", chinese.Phones())
+	}
 }
 
 func TestWarpKeepsIdenticalTargetAndProtectsEnds(t *testing.T) {

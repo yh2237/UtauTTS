@@ -28,6 +28,9 @@ var embeddedTarget []byte
 //go:embed speech-timing-target-en-v1.safetensors
 var embeddedEnglishTarget []byte
 
+//go:embed speech-timing-target-zh-v1.safetensors
+var embeddedChineseTarget []byte
+
 var (
 	defaultOnce   sync.Once
 	defaultTarget *TCN
@@ -35,6 +38,9 @@ var (
 	englishOnce   sync.Once
 	englishTarget *TCN
 	englishErr    error
+	chineseOnce   sync.Once
+	chineseTarget *TCN
+	chineseErr    error
 )
 
 func DefaultTarget() (*TCN, error) {
@@ -52,6 +58,11 @@ func TargetForLanguage(language string) (*TCN, error) {
 			englishTarget, englishErr = LoadTCN(embeddedEnglishTarget)
 		})
 		return englishTarget, englishErr
+	case "zh", "zh-cn", "zh-hans", "cmn":
+		chineseOnce.Do(func() {
+			chineseTarget, chineseErr = LoadTCN(embeddedChineseTarget)
+		})
+		return chineseTarget, chineseErr
 	default:
 		return DefaultTarget()
 	}
