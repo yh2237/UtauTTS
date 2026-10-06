@@ -9,59 +9,29 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/parquet-go/parquet-go"
+	"utautts/cmd/tools/internal/aishell3"
 	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/audio"
 )
-
-type parquetRecord struct {
-	Audio struct {
-		Bytes []byte `parquet:"bytes"`
-		Path  string `parquet:"path"`
-	} `parquet:"audio"`
-	Pinyin string `parquet:"pinyin"`
-}
 
 type syllable struct {
 	start, end float64
 	label      string
 }
 
-var intervalPattern = regexp.MustCompile(`intervals \[\d+\]:\s*xmin = ([\d.]+)\s*xmax = ([\d.]+)\s*text = "([^"]*)"`)
-
 func textgridSyllables(path string) ([]syllable, error) {
-	raw, err := os.ReadFile(path)
+	intervals, err := aishell3.ReadTextGrid(path, "words")
 	if err != nil {
 		return nil, err
 	}
-	start := strings.Index(string(raw), `name = "words"`)
-	if start < 0 {
-		return nil, fmt.Errorf("words tier absent: %s", path)
-	}
-	section := string(raw[start:])
-	if end := strings.Index(section, "item [2]:"); end >= 0 {
-		section = section[:end]
-	}
-	matches := intervalPattern.FindAllStringSubmatch(section, -1)
-	out := make([]syllable, 0, len(matches))
-	for _, m := range matches {
-		a, err := strconv.ParseFloat(m[1], 64)
-		if err != nil {
-			return nil, err
-		}
-		b, err := strconv.ParseFloat(m[2], 64)
-		if err != nil {
-			return nil, err
-		}
-		if m[3] != "" {
-			out = append(out, syllable{a, b, m[3]})
-		}
+	out := make([]syllable, 0, len(intervals))
+	for _, interval := range intervals {
+		out = append(out, syllable{interval.Start, interval.End, interval.Text})
 	}
 	return out, nil
 }
@@ -146,9 +116,9 @@ func toneFeatures(tones []int, index int, starts, ends []bool) []float64 {
 	return x
 }
 
-func rowFromRecord(rec parquetRecord, alignments, worldEngine, cache string) (row, string, error) {
-	utterance := strings.TrimSuffix(filepath.Base(rec.Audio.Path), filepath.Ext(rec.Audio.Path))
-	speaker := utterance[:min(7, len(utterance))]
+func rowFromRecord(rec aishell3.Record, alignments, worldEngine, cache string) (row, string, error) {
+	utterance := aishell3.Utterance(rec.Audio.Path)
+	speaker := aishell3.Speaker(utterance)
 	grid := filepath.Join(alignments, speaker, utterance+".TextGrid")
 	intervals, err := textgridSyllables(grid)
 	if os.IsNotExist(err) {
@@ -259,11 +229,11 @@ func collect(parquetPath, alignments, worldEngine, cache string, limit, workers 
 		return nil, nil, nil, err
 	}
 	defer f.Close()
-	reader := parquet.NewGenericReader[parquetRecord](f)
+	reader := parquet.NewGenericReader[aishell3.Record](f)
 	defer reader.Close()
 	counts, skipped := map[string]int{}, map[string]int{}
 	var rows []row
-	batch := make([]parquetRecord, workers*2)
+	batch := make([]aishell3.Record, workers*2)
 	for {
 		n, err := reader.Read(batch)
 		if err != nil && err != io.EOF {
@@ -283,15 +253,15 @@ func collect(parquetPath, alignments, worldEngine, cache string, limit, workers 
 		semaphore := make(chan struct{}, workers)
 		for i := 0; i < n; i++ {
 			rec := batch[i]
-			utterance := strings.TrimSuffix(filepath.Base(rec.Audio.Path), filepath.Ext(rec.Audio.Path))
-			speaker := utterance[:min(7, len(utterance))]
+			utterance := aishell3.Utterance(rec.Audio.Path)
+			speaker := aishell3.Speaker(utterance)
 			results[i].speaker = speaker
 			if counts[speaker] >= limit {
 				continue
 			}
 			wg.Add(1)
 			semaphore <- struct{}{}
-			go func(i int, rec parquetRecord) {
+			go func(i int, rec aishell3.Record) {
 				defer wg.Done()
 				defer func() { <-semaphore }()
 				results[i].row, results[i].reason, results[i].err = rowFromRecord(rec, alignments, worldEngine, cache)

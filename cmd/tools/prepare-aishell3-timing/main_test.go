@@ -3,6 +3,8 @@ package main
 import (
 	"math"
 	"testing"
+
+	"utautts/cmd/tools/internal/aishell3"
 )
 
 const sampleGrid = `File type = "ooTextFile"
@@ -60,18 +62,18 @@ item []:
 `
 
 func TestTierIntervalsSkipsEmptyText(t *testing.T) {
-	words := tierIntervals(sampleGrid, "words")
-	phones := tierIntervals(sampleGrid, "phones")
+	words := aishell3.TextGridIntervals(sampleGrid, "words")
+	phones := aishell3.TextGridIntervals(sampleGrid, "phones")
 	if len(words) != 2 || len(phones) != 4 {
 		t.Fatalf("words=%d phones=%d, want 2/4", len(words), len(phones))
 	}
-	if words[0].text != "guang3" || phones[0].text != "g" {
+	if words[0].Text != "guang3" || phones[0].Text != "g" {
 		t.Fatalf("intervals = %+v / %+v", words[0], phones[0])
 	}
 }
 
 func TestBuildTokensUsesMeasuredBoundaries(t *testing.T) {
-	tokens, err := buildTokens(tierIntervals(sampleGrid, "words"), tierIntervals(sampleGrid, "phones"))
+	tokens, err := buildTokens(aishell3.TextGridIntervals(sampleGrid, "words"), aishell3.TextGridIntervals(sampleGrid, "phones"))
 	if err != nil {
 		t.Fatal(err)
 	}

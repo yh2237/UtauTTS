@@ -9,28 +9,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/parquet-go/parquet-go"
+	"utautts/cmd/tools/internal/aishell3"
 	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/audio"
 	"utautts/internal/frontend"
 )
-
-type parquetRecord struct {
-	Audio struct {
-		Bytes []byte `parquet:"bytes"`
-		Path  string `parquet:"path"`
-	} `parquet:"audio"`
-	Pinyin string `parquet:"pinyin"`
-}
-
-type interval struct {
-	start, end float64
-	text       string
-}
 
 type corpusPhone struct {
 	Symbol  string  `json:"symbol"`
@@ -53,29 +39,6 @@ type corpusLine struct {
 	Tokens    []corpusToken `json:"tokens"`
 }
 
-var intervalPattern = regexp.MustCompile(`intervals \[\d+\]:\s*xmin = ([\d.]+)\s*xmax = ([\d.]+)\s*text = "([^"]*)"`)
-
-func tierIntervals(raw, name string) []interval {
-	start := strings.Index(raw, `name = "`+name+`"`)
-	if start < 0 {
-		return nil
-	}
-	section := raw[start:]
-	if index := strings.Index(section, "\n    item ["); index >= 0 {
-		section = section[:index]
-	}
-	var result []interval
-	for _, match := range intervalPattern.FindAllStringSubmatch(section, -1) {
-		a, errA := strconv.ParseFloat(match[1], 64)
-		b, errB := strconv.ParseFloat(match[2], 64)
-		if errA != nil || errB != nil || strings.TrimSpace(match[3]) == "" {
-			continue
-		}
-		result = append(result, interval{a, b, match[3]})
-	}
-	return result
-}
-
 func main() {
 	parquetPath := flag.String("parquet", filepath.Join("data", "aishell3", "train-00000-of-00045.parquet"), "AISHELL-3 parquet shard")
 	alignments := flag.String("alignments", filepath.Join("data", "aishell3", "aishell3_alignment_tone"), "tone TextGrid directory")
@@ -96,7 +59,7 @@ func run(parquetPath, alignments, outAudio, outCorpus string, speakerLimit, perS
 		return err
 	}
 	defer file.Close()
-	reader := parquet.NewGenericReader[parquetRecord](file)
+	reader := parquet.NewGenericReader[aishell3.Record](file)
 	defer reader.Close()
 	if err := os.MkdirAll(outAudio, 0o755); err != nil {
 		return err
@@ -114,18 +77,14 @@ func run(parquetPath, alignments, outAudio, outCorpus string, speakerLimit, perS
 	seen := map[string]int{}
 	order := []string{}
 	total, written, skipped := 0, 0, 0
-	batch := make([]parquetRecord, 64)
+	batch := make([]aishell3.Record, 64)
 	for {
 		count, readErr := reader.Read(batch)
 		for index := 0; index < count; index++ {
 			record := batch[index]
 			total++
-			utterance := strings.TrimSuffix(filepath.Base(record.Audio.Path), filepath.Ext(record.Audio.Path))
-			// AISHELL-3のIDは話者7文字+発話4文字。
-			speaker := utterance
-			if len(utterance) > 4 {
-				speaker = utterance[:len(utterance)-4]
-			}
+			utterance := aishell3.Utterance(record.Audio.Path)
+			speaker := aishell3.Speaker(utterance)
 			if speakerLimit > 0 {
 				if _, ok := seen[speaker]; !ok {
 					if len(order) >= speakerLimit {
@@ -145,8 +104,8 @@ func run(parquetPath, alignments, outAudio, outCorpus string, speakerLimit, perS
 				continue
 			}
 			text := string(raw)
-			words := tierIntervals(text, "words")
-			phones := tierIntervals(text, "phones")
+			words := aishell3.TextGridIntervals(text, "words")
+			phones := aishell3.TextGridIntervals(text, "phones")
 			tokens, err := buildTokens(words, phones)
 			if err != nil || len(tokens) == 0 {
 				skipped++
@@ -184,24 +143,24 @@ func run(parquetPath, alignments, outAudio, outCorpus string, speakerLimit, perS
 }
 
 // buildTokensは単語tierと音素tierから、runtime記号の音素区間を作る。
-func buildTokens(words, phones []interval) ([]corpusToken, error) {
+func buildTokens(words, phones []aishell3.Interval) ([]corpusToken, error) {
 	phoneIndex := 0
 	var tokens []corpusToken
 	for _, word := range words {
-		if strings.TrimSpace(word.text) == "" {
+		if strings.TrimSpace(word.Text) == "" {
 			continue
 		}
-		_, morae, err := frontend.ParseChineseCVVC("", word.text, nil)
+		_, morae, err := frontend.ParseChineseCVVC("", word.Text, nil)
 		if err != nil || len(morae) == 0 || len(morae[0].Phones) == 0 {
-			return nil, fmt.Errorf("invalid syllable %q", word.text)
+			return nil, fmt.Errorf("invalid syllable %q", word.Text)
 		}
 		runtime := morae[0].Phones
 		// 音素tierからこの音節のinitialとfinalを取る。
-		var initialSpans []interval
-		var finalSpan interval
+		var initialSpans []aishell3.Interval
+		var finalSpan aishell3.Interval
 		hasFinal := false
 		if len(runtime) > 0 && runtime[0].Role == "onset" {
-			if phoneIndex < len(phones) && !strings.ContainsAny(phones[phoneIndex].text, "12345") {
+			if phoneIndex < len(phones) && !strings.ContainsAny(phones[phoneIndex].Text, "12345") {
 				initialSpans = append(initialSpans, phones[phoneIndex])
 				phoneIndex++
 			}
@@ -212,7 +171,7 @@ func buildTokens(words, phones []interval) ([]corpusToken, error) {
 			phoneIndex++
 		}
 		spans := allocateSpans(runtime, word, initialSpans, finalSpan, hasFinal)
-		token := corpusToken{StartMS: word.start * 1000, EndMS: word.end * 1000}
+		token := corpusToken{StartMS: word.Start * 1000, EndMS: word.End * 1000}
 		for index, phone := range runtime {
 			token.Phones = append(token.Phones, corpusPhone{
 				Symbol: phone.Symbol, Role: phone.Role,
@@ -225,7 +184,7 @@ func buildTokens(words, phones []interval) ([]corpusToken, error) {
 }
 
 // allocateSpansはinitialの実測区間とfinalの実測区間へ音素を配分する。
-func allocateSpans(runtime []frontend.Phone, word interval, initials []interval, final interval, hasFinal bool) [][2]float64 {
+func allocateSpans(runtime []frontend.Phone, word aishell3.Interval, initials []aishell3.Interval, final aishell3.Interval, hasFinal bool) [][2]float64 {
 	spans := make([][2]float64, len(runtime))
 	weights := make([]float64, len(runtime))
 	for i, phone := range runtime {
@@ -239,9 +198,9 @@ func allocateSpans(runtime []frontend.Phone, word interval, initials []interval,
 	}
 	if onsetCount == 0 || len(initials) == 0 {
 		// 実測のinitialが無い場合は音節全体（finalがあればその区間）へ配る。
-		start, end := word.start, word.end
+		start, end := word.Start, word.End
 		if hasFinal {
-			start, end = final.start, final.end
+			start, end = final.Start, final.End
 		}
 		shares := frontend.PhoneSpansFromWeights(weights, end-start)
 		cursor := start
@@ -252,7 +211,7 @@ func allocateSpans(runtime []frontend.Phone, word interval, initials []interval,
 		return spans
 	}
 	// initialの実測区間をonset音素へ配る。
-	start, end := initials[0].start, initials[0].end
+	start, end := initials[0].Start, initials[0].End
 	shares := frontend.PhoneSpansFromWeights(weights[:onsetCount], end-start)
 	cursor := start
 	for i := 0; i < onsetCount; i++ {
@@ -261,9 +220,9 @@ func allocateSpans(runtime []frontend.Phone, word interval, initials []interval,
 	}
 	// 残り（韻母・coda）をfinal区間へ配る。
 	if onsetCount < len(runtime) {
-		start, end := word.start, word.end
+		start, end := word.Start, word.End
 		if hasFinal {
-			start, end = final.start, final.end
+			start, end = final.Start, final.End
 		}
 		shares := frontend.PhoneSpansFromWeights(weights[onsetCount:], end-start)
 		cursor := start
