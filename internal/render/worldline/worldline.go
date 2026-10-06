@@ -283,7 +283,7 @@ func prepareWorldlinePitch(synthesisPlan *plan.Plan, cfg base.Config, cache *bas
 	for frame := range f0Curve {
 		f0Curve[frame] *= base.PitchCurveFactorAt(cfg.PitchCurve, curveStartMS+float64(frame)*frameMS)
 	}
-	if cfg.ApplyPitch && cfg.ProviderOptions.Worldline.MicroprosodyEnabled() && isJapanesePlan(synthesisPlan) {
+	if cfg.ApplyPitch && cfg.ProviderOptions.Worldline.MicroprosodyEnabled() && base.CorrectionAppliesTo("microprosody", synthesisPlan.Language) {
 		applyMicroprosody(synthesisPlan, f0Curve, curveStartMS, frameMS)
 	}
 	if cfg.TargetF0 != nil {
@@ -616,9 +616,7 @@ func legacyJapaneseContinuousMix(synthesisPlan *plan.Plan) bool {
 	if synthesisPlan == nil || synthesisPlan.SingleCV {
 		return false
 	}
-	language := strings.ToLower(strings.TrimSpace(synthesisPlan.Language))
-	phonemizer := strings.ToLower(strings.TrimSpace(synthesisPlan.Phonemizer))
-	return language == "ja" || phonemizer == "ja" || strings.HasPrefix(phonemizer, "ja-")
+	return base.JapanesePlan(synthesisPlan.Language, synthesisPlan.Phonemizer)
 }
 
 func worldlineLegacyMix(synthesisPlan *plan.Plan, mode string) (bool, error) {
@@ -685,7 +683,7 @@ func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options b
 	}
 	language := strings.ToLower(strings.TrimSpace(synthesisPlan.Language))
 	phonemizer := strings.ToLower(strings.TrimSpace(synthesisPlan.Phonemizer))
-	japanese := language == "ja" || phonemizer == "ja" || strings.HasPrefix(phonemizer, "ja-")
+	japanese := base.JapanesePlan(language, phonemizer)
 	if japanese && strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV") {
 		// VCVは信頼度の高い過渡だけを保護する。
 		return options.JapaneseStopProtectionEnabled() && unit.SpeechProfile.TransientConfidence >= stopTransientVCVFloor
@@ -701,9 +699,7 @@ func e2bStopGeneralization(synthesisPlan *plan.Plan, unit plan.Unit, options bas
 	if !options.JapaneseStopProtectionEnabled() || synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
 		return false
 	}
-	language := strings.ToLower(strings.TrimSpace(synthesisPlan.Language))
-	phonemizer := strings.ToLower(strings.TrimSpace(synthesisPlan.Phonemizer))
-	return language == "ja" || phonemizer == "ja" || strings.HasPrefix(phonemizer, "ja-")
+	return base.JapanesePlan(synthesisPlan.Language, synthesisPlan.Phonemizer)
 }
 
 // 低加工の連続音でも、信頼度の高い破裂音だけは補う。
@@ -820,8 +816,7 @@ func timingWarpJob(synthesisPlan *plan.Plan, cfg base.Config) *provider.TimingWa
 }
 
 func isJapanesePlan(synthesisPlan *plan.Plan) bool {
-	language := strings.ToLower(synthesisPlan.Language)
-	return language == "" || language == "ja" || strings.HasPrefix(language, "ja-")
+	return base.NormalizeLanguage(synthesisPlan.Language) == "ja"
 }
 
 func findFRQPath(wavPath string) string {
