@@ -33,93 +33,167 @@ type worldAnalysisResult struct {
 	err   error
 }
 
+// worldPhraseStageはbridge内の処理段。名前はプロファイルに使う。
+type worldPhraseStage struct {
+	name string
+	run  func(*worldPhrasePipeline) error
+}
+
+// worldPhrasePipelineはWORLDフレーズ合成の段階処理。各段はこの構造体だけを読み書きする。
+type worldPhrasePipeline struct {
+	engine     worldEngine
+	cache      *worldFeatureCache
+	input      manifest
+	prepared   []preparedWorldUnit
+	features   worldFeatures
+	wave       []float64
+	report     map[int]provider.WorldSpeechResult
+	stopBursts map[int]float64
+	fftSize    int
+}
+
 func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFeatureCache) ([]float32, error) {
-	started := time.Now()
-	frames := len(input.F0Curve)
-	if frames < 2 {
+	if len(input.F0Curve) < 2 {
 		return nil, fmt.Errorf("WORLD phrase has no frames")
 	}
-	prepared, err := prepareWorldUnits(engine, input, cache, worldCPUWorkers(len(input.Units)))
-	analysisDone := time.Now()
-	if err != nil {
+	pipeline := &worldPhrasePipeline{engine: engine, cache: cache, input: input, report: map[int]provider.WorldSpeechResult{}}
+	stages := []worldPhraseStage{
+		{"analysis", (*worldPhrasePipeline).analyze},
+		{"mix", (*worldPhrasePipeline).mix},
+		{"joins", (*worldPhrasePipeline).join},
+		{"warp", (*worldPhrasePipeline).warp},
+		{"synthesis", (*worldPhrasePipeline).synthesize},
+		{"bursts", (*worldPhrasePipeline).bursts},
+	}
+	timings := make(map[string]float64, len(stages))
+	started := time.Now()
+	for _, stage := range stages {
+		stageStart := time.Now()
+		if err := stage.run(pipeline); err != nil {
+			return nil, fmt.Errorf("WORLD %s: %w", stage.name, err)
+		}
+		timings[stage.name] = float64(time.Since(stageStart).Microseconds()) / 1000
+	}
+	pipeline.publish()
+	if err := writeWorldProfile(input, timings, time.Since(started)); err != nil {
 		return nil, err
 	}
-	fftSize := 0
+	return pipeline.output(), nil
+}
+
+func (p *worldPhrasePipeline) analyze() error {
+	prepared, err := prepareWorldUnits(p.engine, p.input, p.cache, worldCPUWorkers(len(p.input.Units)))
+	if err != nil {
+		return err
+	}
+	p.prepared = prepared
 	for _, item := range prepared {
-		if fftSize == 0 {
-			fftSize = item.cached.features.FFTSize
+		if p.fftSize == 0 {
+			p.fftSize = item.cached.features.FFTSize
 		}
-		if item.cached.features.FFTSize != fftSize {
-			return nil, fmt.Errorf("WORLD units have inconsistent FFT sizes")
+		if item.cached.features.FFTSize != p.fftSize {
+			return fmt.Errorf("WORLD units have inconsistent FFT sizes")
 		}
 	}
-	for index, item := range input.Units {
+	for index, item := range p.input.Units {
 		if item.Speech != nil && len(item.Speech.Anchors) > 0 {
-			if _, ok := worldSpeechAnchors(item, prepared[index].cached.duration); !ok {
-				return nil, fmt.Errorf("invalid multilingual anchors for unit %d", index)
+			if _, ok := worldSpeechAnchors(item, p.prepared[index].cached.duration); !ok {
+				return fmt.Errorf("invalid multilingual anchors for unit %d", index)
 			}
 		}
 	}
-	result := mixWorldFeatures(input, prepared, fftSize, worldCPUWorkers(frames))
-	if input.Engine == "utautts-world-phrase" {
-		repairWorldFeatureGaps(input, prepared, &result)
-	}
-	mixDone := time.Now()
-	report := make(map[int]provider.WorldSpeechResult)
-	if input.Engine == "utautts-world-phrase" {
-		report = applyWorldSpeechJoins(input, &result)
-		for index, item := range input.Units {
-			if item.Speech == nil {
-				continue
-			}
-			anchors, ok := worldSpeechAnchors(item, prepared[index].cached.duration)
-			entry := report[item.Speech.UnitIndex]
-			entry.UnitIndex = item.Speech.UnitIndex
-			entry.RetimeApplied, entry.TargetFixedMS = ok, anchors.targetFixed
-			report[item.Speech.UnitIndex] = entry
+	return nil
+}
+
+func (p *worldPhrasePipeline) mix() error {
+	p.features = mixWorldFeatures(p.input, p.prepared, p.fftSize, worldCPUWorkers(len(p.input.F0Curve)))
+	repairWorldFeatureGaps(p.input, p.prepared, &p.features)
+	return nil
+}
+
+func (p *worldPhrasePipeline) join() error {
+	p.report = applyWorldSpeechJoins(p.input, &p.features)
+	for index, item := range p.input.Units {
+		if item.Speech == nil {
+			continue
 		}
+		anchors, ok := worldSpeechAnchors(item, p.prepared[index].cached.duration)
+		entry := p.report[item.Speech.UnitIndex]
+		entry.UnitIndex = item.Speech.UnitIndex
+		entry.RetimeApplied, entry.TargetFixedMS = ok, anchors.targetFixed
+		p.report[item.Speech.UnitIndex] = entry
 	}
-	if err := applyTimingWarp(input.timingWarp, input.SampleRate, &result); err != nil {
-		return nil, err
-	}
-	wave, err := engine.Synthesize(result, input.SampleRate)
+	return nil
+}
+
+func (p *worldPhrasePipeline) warp() error {
+	return applyTimingWarp(p.input.timingWarp, p.input.SampleRate, &p.features)
+}
+
+func (p *worldPhrasePipeline) synthesize() error {
+	wave, err := p.engine.Synthesize(p.features, p.input.SampleRate)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	stopBursts := mixProtectedStopBursts(input, prepared, wave, input.SampleRate)
-	if input.SpeechResults != nil {
-		for _, item := range input.Units {
-			if item.Speech == nil {
-				continue
-			}
-			entry := report[item.Speech.UnitIndex]
-			if gain := stopBursts[item.Speech.UnitIndex]; gain > 0 {
-				entry.StopBurstApplied = true
-				entry.StopBurstGain = gain
-			}
-			*input.SpeechResults = append(*input.SpeechResults, entry)
-		}
+	p.wave = wave
+	return nil
+}
+
+func (p *worldPhrasePipeline) bursts() error {
+	p.stopBursts = mixProtectedStopBursts(p.input, p.prepared, p.wave, p.input.SampleRate)
+	return nil
+}
+
+func (p *worldPhrasePipeline) publish() {
+	if p.input.SpeechResults == nil {
+		return
 	}
-	if path := os.Getenv("UTAUTTS_WORLD_PROFILE"); path != "" {
-		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-		if err != nil {
-			return nil, fmt.Errorf("open WORLD profile: %w", err)
+	for _, item := range p.input.Units {
+		if item.Speech == nil {
+			continue
 		}
-		profile := map[string]any{"engine": input.Engine, "frames": frames, "units": len(input.Units), "analysis_ms": float64(analysisDone.Sub(started).Microseconds()) / 1000, "mix_ms": float64(mixDone.Sub(analysisDone).Microseconds()) / 1000, "synthesis_ms": float64(time.Since(mixDone).Microseconds()) / 1000}
-		encodeErr := json.NewEncoder(file).Encode(profile)
-		closeErr := file.Close()
-		if encodeErr != nil {
-			return nil, encodeErr
+		entry := p.report[item.Speech.UnitIndex]
+		if gain := p.stopBursts[item.Speech.UnitIndex]; gain > 0 {
+			entry.StopBurstApplied = true
+			entry.StopBurstGain = gain
 		}
-		if closeErr != nil {
-			return nil, closeErr
-		}
+		*p.input.SpeechResults = append(*p.input.SpeechResults, entry)
 	}
-	output := make([]float32, len(wave))
-	for index, sample := range wave {
+}
+
+func (p *worldPhrasePipeline) output() []float32 {
+	output := make([]float32, len(p.wave))
+	for index, sample := range p.wave {
 		output[index] = float32(sample)
 	}
-	return output, nil
+	return output
+}
+
+// writeWorldProfileはUTAUTTS_WORLD_PROFILEがあれば段ごとの時間を追記する。
+func writeWorldProfile(input manifest, timings map[string]float64, total time.Duration) error {
+	path := os.Getenv("UTAUTTS_WORLD_PROFILE")
+	if path == "" {
+		return nil
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("open WORLD profile: %w", err)
+	}
+	profile := map[string]any{
+		"engine": input.Engine, "frames": len(input.F0Curve), "units": len(input.Units),
+		"total_ms": float64(total.Microseconds()) / 1000,
+		"stages":   timings,
+		// 旧キー。mix_msはjoins/warpを、synthesis_msはburstsを含む。
+		"analysis_ms":  timings["analysis"],
+		"mix_ms":       timings["mix"] + timings["joins"] + timings["warp"],
+		"synthesis_ms": timings["synthesis"] + timings["bursts"],
+	}
+	encodeErr := json.NewEncoder(file).Encode(profile)
+	closeErr := file.Close()
+	if encodeErr != nil {
+		return encodeErr
+	}
+	return closeErr
 }
 
 func prepareWorldUnits(engine worldEngine, input manifest, cache *worldFeatureCache, workers int) ([]preparedWorldUnit, error) {
