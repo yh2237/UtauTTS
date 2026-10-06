@@ -4,10 +4,12 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 
@@ -41,13 +43,128 @@ type phone struct {
 
 const phoneNames = "<pad> <unk> sil a i u e o N cl k g s sh z j t ch ts d n h f b p m y r w v ky gy ny hy my ry by py dy ty"
 
-var phoneIDs = func() map[string]int {
-	m := map[string]int{}
-	for i, p := range strings.Fields(phoneNames) {
-		m[p] = i
+// vocabularyは学習データの音素記号とIDの対応。言語ごとに異なる。
+type vocabulary struct {
+	names   []string
+	ids     map[string]int
+	silence int
+	unknown int
+}
+
+func newVocabulary(names []string) *vocabulary {
+	v := &vocabulary{names: append([]string(nil), names...), ids: make(map[string]int, len(names))}
+	for i, name := range names {
+		v.ids[name] = i
 	}
-	return m
-}()
+	v.silence = v.id("sil")
+	v.unknown = v.id("<unk>")
+	return v
+}
+
+func (v *vocabulary) id(name string) int {
+	if index, ok := v.ids[name]; ok {
+		return index
+	}
+	return v.unknown
+}
+
+func (v *vocabulary) String() string { return strings.Join(v.names, " ") }
+
+func jaVocabulary() *vocabulary { return newVocabulary(strings.Fields(phoneNames)) }
+
+// vocabularyFromSymbolsはデータに現れる記号から語彙を作る。並びは<pad> <unk> silの後に辞書順。
+func vocabularyFromSymbols(symbols []string) *vocabulary {
+	unique := map[string]bool{}
+	for _, symbol := range symbols {
+		symbol = strings.TrimSpace(symbol)
+		if symbol != "" && symbol != "sil" {
+			unique[symbol] = true
+		}
+	}
+	sorted := make([]string, 0, len(unique))
+	for symbol := range unique {
+		sorted = append(sorted, symbol)
+	}
+	sort.Strings(sorted)
+	return newVocabulary(append([]string{"<pad>", "<unk>", "sil"}, sorted...))
+}
+
+type corpusPhone struct {
+	Symbol  string  `json:"symbol"`
+	StartMS float64 `json:"start_ms"`
+	EndMS   float64 `json:"end_ms"`
+}
+
+type corpusToken struct {
+	Pause   bool          `json:"pause"`
+	StartMS float64       `json:"start_ms"`
+	EndMS   float64       `json:"end_ms"`
+	Phones  []corpusPhone `json:"phones"`
+}
+
+type corpusRecord struct {
+	ID        string        `json:"id"`
+	AudioPath string        `json:"audio_path"`
+	Language  string        `json:"language"`
+	Tokens    []corpusToken `json:"tokens"`
+}
+
+// phonesFromTokensはcorpusのトークン境界を音素列へ変換し、隙間をsilで埋める。
+func phonesFromTokens(tokens []corpusToken) []phone {
+	var ps []phone
+	for _, token := range tokens {
+		if token.Pause {
+			ps = append(ps, phone{token.StartMS / 1000, token.EndMS / 1000, "sil", "sil"})
+			continue
+		}
+		for _, p := range token.Phones {
+			name := strings.TrimSpace(p.Symbol)
+			if name == "" {
+				name = "sil"
+			}
+			ps = append(ps, phone{p.StartMS / 1000, p.EndMS / 1000, name, name})
+		}
+	}
+	return fillSilence(ps)
+}
+
+func fillSilence(ps []phone) []phone {
+	var result []phone
+	cursor := 0.0
+	for _, p := range ps {
+		if p.start > cursor+1e-4 {
+			result = append(result, phone{cursor, p.start, "sil", ""})
+		}
+		result = append(result, p)
+		cursor = p.end
+	}
+	return result
+}
+
+// corpusVocabularyはcorpus全体の記号を一度走査して語彙を作る。
+func corpusVocabulary(path string) (*vocabulary, error) {
+	var symbols []string
+	err := toolutil.ScanJSONL(path, func(line []byte) error {
+		var r corpusRecord
+		if e := json.Unmarshal(line, &r); e != nil {
+			return e
+		}
+		for _, token := range r.Tokens {
+			for _, p := range token.Phones {
+				symbols = append(symbols, p.Symbol)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(symbols) == 0 {
+		return nil, fmt.Errorf("corpus %s has no phone symbols", path)
+	}
+	return vocabularyFromSymbols(symbols), nil
+}
+
 var ipa = map[string]string{"a": "a", "i": "i", "ɯ": "u", "e": "e", "o": "o", "aː": "a", "iː": "i", "ɯː": "u", "eː": "e", "oː": "o", "i̥": "i", "ɯ̥": "u", "ɴ": "N", "ʔ": "cl", "k": "k", "ɡ": "g", "s": "s", "ɕ": "sh", "z": "z", "dʑ": "j", "t": "t", "tɕ": "ch", "ts": "ts", "d": "d", "n": "n", "h": "h", "ɸ": "f", "b": "b", "p": "p", "m": "m", "j": "y", "ɾ": "r", "w": "w", "v": "v", "dʲ": "dy", "tʲ": "ty", "ʑ": "j", "dz": "z", "ŋ": "n", "ɰ̃": "N"}
 var palatal = map[string][2]string{"c": {"k", "ky"}, "ɟ": {"g", "gy"}, "ɲ": {"n", "ny"}, "ç": {"h", "hy"}, "mʲ": {"m", "my"}, "ɾʲ": {"r", "ry"}, "bʲ": {"b", "by"}, "pʲ": {"p", "py"}}
 
@@ -109,12 +226,12 @@ func readPhones(path string) ([]phone, error) {
 	return ps, nil
 }
 
-func frameInputs(ps []phone, f0 []float64) ([]int, []float32) {
+func frameInputs(ps []phone, f0 []float64, vocab *vocabulary) ([]int, []float32) {
 	frames := len(f0)
 	ids := make([]int, frames*3)
 	cont := make([]float32, frames*4)
 	for i := range ids {
-		ids[i] = 2
+		ids[i] = vocab.silence
 	}
 	for i, p := range ps {
 		a := int(math.Round(p.start * 100))
@@ -139,7 +256,7 @@ func frameInputs(ps []phone, f0 []float64) ([]int, []float32) {
 			next = ps[i+1].name
 		}
 		for t := a; t < b; t++ {
-			copy(ids[t*3:t*3+3], []int{phoneIDs[p.name], phoneIDs[prev], phoneIDs[next]})
+			copy(ids[t*3:t*3+3], []int{vocab.id(p.name), vocab.id(prev), vocab.id(next)})
 			cont[t*4] = float32(float64(t-a)+.5) / float32(max(1, b-a))
 			cont[t*4+1] = float32(math.Log((p.end-p.start)*1000+1) / 6)
 		}
@@ -218,7 +335,14 @@ func logMel(sp []float64, frames, fft, rate int) []float64 {
 	return out
 }
 
-func featurize(world *worldEngine, rec record, alignDir string) (utterance, error) {
+// trainingRecordは特徴量化の入力。Phonesがnilならalignmentsから読む。
+type trainingRecord struct {
+	ID        string
+	AudioPath string
+	Phones    []phone
+}
+
+func featurize(world *worldEngine, rec trainingRecord, alignDir string, vocab *vocabulary) (utterance, error) {
 	pcm, e := audio.ReadWav(rec.AudioPath)
 	if e != nil {
 		return utterance{}, e
@@ -237,16 +361,19 @@ func featurize(world *worldEngine, rec record, alignDir string) (utterance, erro
 	if e != nil {
 		return utterance{}, e
 	}
-	ps, e := readPhones(filepath.Join(alignDir, rec.ID+".json"))
-	if e != nil {
-		return utterance{}, e
+	ps := rec.Phones
+	if ps == nil {
+		ps, e = readPhones(filepath.Join(alignDir, rec.ID+".json"))
+		if e != nil {
+			return utterance{}, e
+		}
 	}
-	ids, cont := frameInputs(ps, f0)
+	ids, cont := frameInputs(ps, f0, vocab)
 	mel := logMel(sp, len(f0), fft, pcm.SampleRate)
 	speech := make([]bool, len(f0))
 	n := 0
 	for t := range f0 {
-		speech[t] = ids[t*3] != 2
+		speech[t] = ids[t*3] != vocab.silence
 		if speech[t] {
 			n++
 		}
@@ -281,30 +408,73 @@ func featurize(world *worldEngine, rec record, alignDir string) (utterance, erro
 	return utterance{rec.ID, len(f0), 4, ids, cont, target}, nil
 }
 
-func loadOrBuildFeatures(cache, dataset, alignDir, engine string) ([]utterance, error) {
+// featureCacheは特徴量と語彙を保存する。旧形式（[]utterance、日本語語彙）も読める。
+type featureCache struct {
+	Phones string
+	Data   []utterance
+}
+
+func loadOrBuildFeatures(cache, dataset, corpusPath, alignDir, engine string) ([]utterance, string, error) {
 	if f, e := os.Open(cache); e == nil {
 		defer f.Close()
-		var data []utterance
-		e = gob.NewDecoder(f).Decode(&data)
-		return data, e
+		var cached featureCache
+		decodeErr := gob.NewDecoder(f).Decode(&cached)
+		if decodeErr != nil {
+			if _, e := f.Seek(0, io.SeekStart); e != nil {
+				return nil, "", e
+			}
+			var legacy []utterance
+			if e := gob.NewDecoder(f).Decode(&legacy); e != nil {
+				return nil, "", fmt.Errorf("cache %s: %w", cache, decodeErr)
+			}
+			cached = featureCache{Phones: phoneNames, Data: legacy}
+		}
+		if cached.Phones == "" {
+			cached.Phones = phoneNames
+		}
+		return cached.Data, cached.Phones, nil
 	}
-	var records []record
-	err := toolutil.ScanJSONL(dataset, func(line []byte) error {
-		var r record
-		if e := json.Unmarshal(line, &r); e != nil {
-			return e
+	vocab := jaVocabulary()
+	if corpusPath != "" {
+		var e error
+		if vocab, e = corpusVocabulary(corpusPath); e != nil {
+			return nil, "", e
 		}
-		if r.Version != 1 {
-			return fmt.Errorf("%s: version %d", r.ID, r.Version)
-		}
-		if _, e := os.Stat(filepath.Join(alignDir, r.ID+".json")); e != nil {
+	}
+	var records []trainingRecord
+	if corpusPath != "" {
+		err := toolutil.ScanJSONL(corpusPath, func(line []byte) error {
+			var r corpusRecord
+			if e := json.Unmarshal(line, &r); e != nil {
+				return e
+			}
+			if r.ID == "" || r.AudioPath == "" {
+				return nil
+			}
+			records = append(records, trainingRecord{ID: r.ID, AudioPath: r.AudioPath, Phones: phonesFromTokens(r.Tokens)})
 			return nil
+		})
+		if err != nil {
+			return nil, "", err
 		}
-		records = append(records, r)
-		return nil
-	})
-	if err != nil {
-		return nil, err
+	} else {
+		err := toolutil.ScanJSONL(dataset, func(line []byte) error {
+			var r record
+			if e := json.Unmarshal(line, &r); e != nil {
+				return e
+			}
+			if r.Version != 1 {
+				return fmt.Errorf("%s: version %d", r.ID, r.Version)
+			}
+			if _, e := os.Stat(filepath.Join(alignDir, r.ID+".json")); e != nil {
+				return nil
+			}
+			records = append(records, trainingRecord{ID: r.ID, AudioPath: r.AudioPath})
+			return nil
+		})
+		if err != nil {
+			return nil, "", err
+		}
 	}
 	type result struct {
 		index int
@@ -328,7 +498,7 @@ func loadOrBuildFeatures(cache, dataset, alignDir, engine string) ([]utterance, 
 					results <- result{index: index, err: err}
 					continue
 				}
-				item, e := featurize(world, records[index], alignDir)
+				item, e := featurize(world, records[index], alignDir, vocab)
 				results <- result{index, item, e}
 			}
 		}()
@@ -355,19 +525,19 @@ func loadOrBuildFeatures(cache, dataset, alignDir, engine string) ([]utterance, 
 		}
 	}
 	if firstErr != nil {
-		return nil, firstErr
+		return nil, "", firstErr
 	}
 	if e := os.MkdirAll(filepath.Dir(cache), 0755); e != nil {
-		return nil, e
+		return nil, "", e
 	}
 	f, e := toolutil.CreateExclusive(cache)
 	if e != nil {
-		return nil, e
+		return nil, "", e
 	}
-	e = gob.NewEncoder(f).Encode(data)
+	e = gob.NewEncoder(f).Encode(featureCache{Phones: vocab.String(), Data: data})
 	closeErr := f.Close()
 	if e != nil {
-		return nil, e
+		return nil, "", e
 	}
-	return data, closeErr
+	return data, vocab.String(), closeErr
 }

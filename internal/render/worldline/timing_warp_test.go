@@ -31,7 +31,26 @@ func TestTimingWarpJobCountsCVVCTransitionAsConsonant(t *testing.T) {
 	if timingWarpJob(synthesisPlan, cfg) != nil {
 		t.Fatal("disabled timing warp produced a job")
 	}
-	if timingWarpJob(&plan.Plan{Language: "en", Units: synthesisPlan.Units}, base.Config{}) != nil {
-		t.Fatal("English plan produced a timing warp job")
+	if timingWarpJob(&plan.Plan{Language: "en", Units: synthesisPlan.Units}, base.Config{}) == nil {
+		t.Fatal("English plan did not produce a timing warp job")
+	}
+	english := &plan.Plan{Language: "en", Units: []plan.Unit{
+		{Position: 0, Role: "mora", Mora: "w3", NoteStartMS: 0, DurationMS: 120, EffectivePreutteranceMS: 40},
+	}, PhoneTimings: []plan.PhoneTiming{
+		{Position: 0, Symbol: "w", Role: "onset", StartMS: 0, DurationMS: 30},
+		{Position: 0, Symbol: "er", Role: "nucleus", StartMS: 30, DurationMS: 50},
+		{Position: 0, Symbol: "l", Role: "coda", StartMS: 80, DurationMS: 20},
+		{Position: 0, Symbol: "d", Role: "coda", StartMS: 100, DurationMS: 20},
+	}}
+	englishWarp := timingWarpJob(english, base.Config{})
+	if englishWarp == nil || len(englishWarp.Morae) != 1 {
+		t.Fatalf("English warp = %+v", englishWarp)
+	}
+	if englishWarp.Language != "en" {
+		t.Fatalf("English warp language = %q", englishWarp.Language)
+	}
+	spans := englishWarp.Morae[0].Spans
+	if len(spans) != 4 || spans[0].Symbol != "w" || spans[3].Symbol != "d" {
+		t.Fatalf("English spans = %+v", spans)
 	}
 }

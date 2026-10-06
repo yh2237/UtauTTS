@@ -25,10 +25,16 @@ type Predictor interface {
 //go:embed speech-timing-target-v1.safetensors
 var embeddedTarget []byte
 
+//go:embed speech-timing-target-en-v1.safetensors
+var embeddedEnglishTarget []byte
+
 var (
 	defaultOnce   sync.Once
 	defaultTarget *TCN
 	defaultErr    error
+	englishOnce   sync.Once
+	englishTarget *TCN
+	englishErr    error
 )
 
 func DefaultTarget() (*TCN, error) {
@@ -36,6 +42,19 @@ func DefaultTarget() (*TCN, error) {
 		defaultTarget, defaultErr = LoadTCN(embeddedTarget)
 	})
 	return defaultTarget, defaultErr
+}
+
+// TargetForLanguageは言語別の時間伸縮モデルを返す。未対応の言語は日本語モデル。
+func TargetForLanguage(language string) (*TCN, error) {
+	switch strings.ToLower(strings.TrimSpace(language)) {
+	case "en", "en-us", "en-gb":
+		englishOnce.Do(func() {
+			englishTarget, englishErr = LoadTCN(embeddedEnglishTarget)
+		})
+		return englishTarget, englishErr
+	default:
+		return DefaultTarget()
+	}
 }
 
 type tensor struct {

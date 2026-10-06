@@ -92,6 +92,28 @@ go run ./cmd/tools/train-speech-timing --dataset out/mfa-align-20261002/base-mfa
 
 `--features-only --features-json out/speech-timing-target/sample.json` は先頭の特徴を比較用に出力します。既存の `--cache` があれば、`--dataset`、`--alignments`、WORLD DLLなしで学習できます。
 
+### 英語の目標音素時間モデル
+
+`speech-timing-target-en-v1` は LibriTTS-R のトークン境界（`out/english-frame-v1/corpus.jsonl`）から学習します。`--corpus` は音素区間付きのトークン列を読み、言語別の語彙を組み立ててモデルmetadataの`phones`へ保存します。
+
+```powershell
+go run ./cmd/tools/train-speech-timing `
+  --corpus out/english-frame-v1/corpus.jsonl --language en `
+  --cache out/speech-timing-target/en-features.gob --features-only
+
+go run ./cmd/tools/train-speech-timing `
+  --corpus out/english-frame-v1/corpus.jsonl --language en `
+  --cache out/speech-timing-target/en-features.gob `
+  --steps 6000 --valid 30 --seed 0 --device cuda `
+  --training-corpus "LibriTTS-R train_clean_100 subset (24 speakers, MFA english_us_arpa)" `
+  --license-notice licenses/LibriTTS-R-NOTICE.txt `
+  --license-notice licenses/MFA-English-ARPA-NOTICE.txt `
+  --out out/speech-timing-target/en-model-v1.safetensors `
+  --fixture out/speech-timing-target/en-parity-v1.json
+```
+
+学習した重みは `internal/speechtiming/speech-timing-target-en-v1.safetensors` へ置き、`TargetForLanguage("en")` が選びます。英語の時間伸縮はプランの `phone_timings`（codaを含む音素区間）をモデルへ渡します。
+
 ### 中断と再開
 
 `--out` は最良の検証結果の推論用重み、`--fixture` はその重みに対応するparity fixtureです。再開用の学習状態は `--checkpoint` へ別に保存します。省略時は `<out>.training.safetensors` です。重み・AdamW・OneCycle・分割・窓サンプラの乱数状態・最良モデルを含み、推論用重みだけからは再開できません。

@@ -17,13 +17,13 @@ type parityFixture struct {
 	Output [][]float32  `json:"output"`
 }
 
-func writeFixture(path string, model *autograd.SpeechTiming, device tensor.Device) error {
+func writeFixture(path string, model *autograd.SpeechTiming, device tensor.Device, phones int) error {
 	rng := rand.New(rand.NewSource(3))
 	f := parityFixture{IDs: make([][3]int, 37), Cont: make([][4]float32, 37), Output: make([][]float32, 37)}
 	ids := make([]int, 37*3)
 	cv := make([]float32, 37*4)
 	for i := range ids {
-		ids[i] = rng.Intn(40)
+		ids[i] = rng.Intn(phones)
 		f.IDs[i/3][i%3] = ids[i]
 	}
 	for i := range cv {

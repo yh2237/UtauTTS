@@ -21,9 +21,20 @@ const (
 	melHighHz    = 12000.0
 )
 
+// PhoneSpanはモデルへ渡す音素区間（フレーズ先頭基準のms）。codaを含む実際の区間。
+type PhoneSpan struct {
+	Label      string
+	StartMS    float64
+	DurationMS float64
+}
+
 // 時刻は合成計画基準のms。
 type Mora struct {
-	Text                    string
+	Text string
+	// Phonesは子音列+母音の順。空ならTextをかなとして解析する。
+	Phones []string
+	// Spansがあれば音素区間としてそのまま使う。
+	Spans                   []PhoneSpan
 	NoteStartMS             float64
 	DurationMS              float64
 	EffectivePreutteranceMS float64
@@ -99,7 +110,44 @@ func phoneTimeline(morae []Mora, marginMS float64, frames int) ([]phoneSpan, []f
 	previousVowel := ""
 	for _, mora := range morae {
 		note := (marginMS + mora.NoteStartMS) / 1000
+		end := (marginMS + mora.NoteStartMS + mora.DurationMS) / 1000
+		if len(mora.Spans) > 0 {
+			if len(starts) > 0 && note > cursor+1e-3 {
+				ends = append(ends, cursor)
+			}
+			for _, span := range mora.Spans {
+				start := (marginMS + span.StartMS) / 1000
+				stop := (marginMS + span.StartMS + span.DurationMS) / 1000
+				if stop <= start {
+					continue
+				}
+				if start > cursor+1e-3 {
+					label := "sil"
+					if len(phones) > 0 && start-cursor <= longPauseSec {
+						label = phones[len(phones)-1].label
+					}
+					phones = append(phones, phoneSpan{cursor, start, label})
+				}
+				phones = append(phones, phoneSpan{start, stop, span.Label})
+				if stop > cursor {
+					cursor = stop
+				}
+			}
+			if end > cursor+1e-3 {
+				label := "sil"
+				if len(phones) > 0 && end-cursor <= longPauseSec {
+					label = phones[len(phones)-1].label
+				}
+				phones = append(phones, phoneSpan{cursor, end, label})
+				cursor = end
+			}
+			starts = append(starts, note)
+			continue
+		}
 		labels := moraPhones(mora.Text, previousVowel)
+		if len(mora.Phones) > 0 {
+			labels = mora.Phones
+		}
 		vowel := labels[len(labels)-1]
 		consonants := labels[:len(labels)-1]
 		onset := note
@@ -126,7 +174,7 @@ func phoneTimeline(morae []Mora, marginMS float64, frames int) ([]phoneSpan, []f
 				phones = append(phones, phoneSpan{onset + float64(index)*step, onset + float64(index+1)*step, consonant})
 			}
 		}
-		end := (marginMS + mora.NoteStartMS + mora.DurationMS) / 1000
+		end = (marginMS + mora.NoteStartMS + mora.DurationMS) / 1000
 		phones = append(phones, phoneSpan{note, end, vowel})
 		if len(starts) > 0 && note > cursor+1e-3 {
 			ends = append(ends, cursor)

@@ -89,6 +89,58 @@ func TestPhoneTimelineMarksPhraseEnds(t *testing.T) {
 	}
 }
 
+func TestPhoneTimelineUsesExplicitSpans(t *testing.T) {
+	morae := []Mora{{Text: "w3", NoteStartMS: 0, DurationMS: 120, EffectivePreutteranceMS: 40,
+		Spans: []PhoneSpan{
+			{Label: "w", StartMS: 0, DurationMS: 30},
+			{Label: "er", StartMS: 30, DurationMS: 50},
+			{Label: "l", StartMS: 80, DurationMS: 20},
+			{Label: "d", StartMS: 100, DurationMS: 20},
+		}}}
+	phones, starts, ends := phoneTimeline(morae, 50, 30)
+	var labels []string
+	for _, phone := range phones {
+		labels = append(labels, phone.label)
+	}
+	want := []string{"sil", "w", "er", "l", "d", "sil"}
+	if !reflect.DeepEqual(labels, want) {
+		t.Fatalf("labels = %v, want %v", labels, want)
+	}
+	if len(starts) != 1 || math.Abs(starts[0]-0.05) > 1e-9 {
+		t.Fatalf("starts = %v", starts)
+	}
+	if phones[1].start != 0.05 || phones[1].end != 0.08 {
+		t.Fatalf("w span = %v..%v", phones[1].start, phones[1].end)
+	}
+	if len(ends) != 1 || math.Abs(ends[0]-0.17) > 1e-9 {
+		t.Fatalf("ends = %v", ends)
+	}
+}
+
+func TestTargetForLanguageLoadsEnglishModel(t *testing.T) {
+	english, err := TargetForLanguage("en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(english.Phones()) != 42 {
+		t.Fatalf("English phones = %d, want 42", len(english.Phones()))
+	}
+	known := map[string]bool{}
+	for _, phone := range english.Phones() {
+		known[phone] = true
+	}
+	if !known["ah"] || !known["ow"] || !known["sil"] {
+		t.Fatalf("English vocabulary is missing ARPAsing symbols: %v", english.Phones())
+	}
+	japanese, err := TargetForLanguage("ja")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(japanese.Phones()) != 40 || japanese == english {
+		t.Fatalf("Japanese model = %d phones, same=%v", len(japanese.Phones()), japanese == english)
+	}
+}
+
 func TestWarpKeepsIdenticalTargetAndProtectsEnds(t *testing.T) {
 	frames := 60
 	rows := make([][]float64, frames)

@@ -65,13 +65,14 @@ func train(ctx context.Context, c trainingConfig) error {
 			return err
 		}
 	}
-	if _, err := os.Stat(c.Cache); os.IsNotExist(err) && (c.Dataset == "" || c.Alignments == "") {
-		return fmt.Errorf("--dataset and --alignments are required to build a new feature cache")
+	if _, err := os.Stat(c.Cache); os.IsNotExist(err) && c.Corpus == "" && (c.Dataset == "" || c.Alignments == "") {
+		return fmt.Errorf("--corpus or --dataset and --alignments are required to build a new feature cache")
 	}
-	items, err := loadOrBuildFeatures(c.Cache, c.Dataset, c.Alignments, c.WorldEngine)
+	items, phones, err := loadOrBuildFeatures(c.Cache, c.Dataset, c.Corpus, c.Alignments, c.WorldEngine)
 	if err != nil {
 		return fmt.Errorf("read features: %w", err)
 	}
+	vocab := newVocabulary(strings.Fields(phones))
 	for _, item := range items {
 		if item.Frames < 1 || item.Continuous < continuousFeatures || len(item.IDs) != item.Frames*3 || len(item.Cont) != item.Frames*item.Continuous || len(item.Target) != item.Frames*80 {
 			return fmt.Errorf("cache %s has incompatible frames/features", item.ID)
@@ -166,12 +167,12 @@ func train(ctx context.Context, c trainingConfig) error {
 		}
 		defer cudaContext.Close()
 	}
-	model, err := autograd.NewSpeechTiming(continuousFeatures, device, c.Seed)
+	model, err := autograd.NewSpeechTimingWithPhones(len(vocab.names), continuousFeatures, device, c.Seed)
 	if err != nil {
 		return err
 	}
 	defer closeModule(&model.Module)
-	bestModel, err := autograd.NewSpeechTiming(continuousFeatures, tensor.CPU, c.Seed)
+	bestModel, err := autograd.NewSpeechTimingWithPhones(len(vocab.names), continuousFeatures, tensor.CPU, c.Seed)
 	if err != nil {
 		return err
 	}
@@ -195,7 +196,7 @@ func train(ctx context.Context, c trainingConfig) error {
 		if err := os.MkdirAll(filepath.Dir(c.Out), 0700); err != nil {
 			return err
 		}
-		if err := bestModel.Module.SaveSafeTensorsMetadata(c.Out, checkpointMetadata(state.Best, state.BestStep, c.TrainingCorpus, c.Notices)); err != nil {
+		if err := bestModel.Module.SaveSafeTensorsMetadata(c.Out, checkpointMetadata(state.Best, state.BestStep, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language))); err != nil {
 			return err
 		}
 		fmt.Printf("resumed step=%d best=%.6f@%d\n", opt.StepCount, state.Best, state.BestStep)
@@ -228,7 +229,7 @@ func train(ctx context.Context, c trainingConfig) error {
 			return err
 		}
 		if step%c.EvalEvery == 0 || step == c.Steps-1 {
-			score, err := evaluate(model, validation, device)
+			score, err := evaluate(model, validation, device, vocab.silence)
 			if err != nil {
 				return err
 			}
@@ -243,7 +244,7 @@ func train(ctx context.Context, c trainingConfig) error {
 				if err := os.MkdirAll(filepath.Dir(c.Out), 0700); err != nil {
 					return err
 				}
-				if err := bestModel.Module.SaveSafeTensorsMetadata(c.Out, checkpointMetadata(score, step, c.TrainingCorpus, c.Notices)); err != nil {
+				if err := bestModel.Module.SaveSafeTensorsMetadata(c.Out, checkpointMetadata(score, step, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language))); err != nil {
 					return err
 				}
 			}
@@ -262,7 +263,7 @@ func train(ctx context.Context, c trainingConfig) error {
 	if err := model.Module.LoadStateDict(bestModel.Module.StateDict()); err != nil {
 		return err
 	}
-	if err := writeFixture(c.Fixture, model, device); err != nil {
+	if err := writeFixture(c.Fixture, model, device, len(vocab.names)); err != nil {
 		return err
 	}
 	fmt.Printf("finished completed=%d planned=%d best_valid_l1=%.6f best_step=%d wall=%s checkpoint=%s\n", opt.StepCount, c.Steps, state.Best, state.BestStep, time.Since(started).Round(time.Millisecond), c.Checkpoint)
@@ -319,7 +320,7 @@ func sampleBatch(items []utterance, sampler *autograd.WindowSampler, batch, wind
 	return ids, cont, target
 }
 
-func evaluate(model *autograd.SpeechTiming, items []utterance, device tensor.Device) (float64, error) {
+func evaluate(model *autograd.SpeechTiming, items []utterance, device tensor.Device, silence int) (float64, error) {
 	wasTraining := model.Module.Training
 	model.Train(false)
 	defer model.Train(wasTraining)
@@ -344,7 +345,7 @@ func evaluate(model *autograd.SpeechTiming, items []utterance, device tensor.Dev
 		var total float64
 		count := 0
 		for t := 0; t < item.Frames; t++ {
-			if item.IDs[t*3] == 2 {
+			if item.IDs[t*3] == silence {
 				continue
 			}
 			for j := 0; j < 80; j++ {
@@ -392,7 +393,7 @@ func validatePaths(c trainingConfig) error {
 		if output == "" {
 			continue
 		}
-		for _, input := range []string{c.Cache, c.Dataset} {
+		for _, input := range []string{c.Cache, c.Dataset, c.Corpus} {
 			if input == "" {
 				continue
 			}

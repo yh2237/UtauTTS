@@ -758,24 +758,37 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg base.Config, manifest wo
 
 // CVVCの子音長にはVCを含める。
 func timingWarpJob(synthesisPlan *plan.Plan, cfg base.Config) *provider.TimingWarp {
-	if synthesisPlan == nil || !cfg.ProviderOptions.Worldline.TimingWarpEnabled() || !isJapanesePlan(synthesisPlan) {
+	if synthesisPlan == nil || !cfg.ProviderOptions.Worldline.TimingWarpEnabled() {
 		return nil
 	}
+	japanese := isJapanesePlan(synthesisPlan)
 	transition := map[int]float64{}
 	for _, unit := range synthesisPlan.Units {
 		if unit.Role == "transition" && !unit.Silent {
 			transition[unit.Position] = unit.DurationMS
 		}
 	}
-	warp := &provider.TimingWarp{Strength: 1, LeadingMarginMS: synthesisPlan.LeadingMarginMS}
+	warp := &provider.TimingWarp{Strength: 1, LeadingMarginMS: synthesisPlan.LeadingMarginMS, Language: synthesisPlan.Language}
 	for _, unit := range synthesisPlan.Units {
 		if unit.Role != "mora" || unit.Silent || unit.Mora == "" {
 			continue
 		}
-		warp.Morae = append(warp.Morae, provider.TimingWarpMora{
+		entry := provider.TimingWarpMora{
 			Text: unit.Mora, NoteStartMS: unit.NoteStartMS, DurationMS: unit.DurationMS,
 			ConsonantMS: math.Max(unit.EffectivePreutteranceMS, transition[unit.Position]),
-		})
+		}
+		// 日本語以外はかな解析できないため、プランの音素と区間をそのまま渡す。
+		if !japanese {
+			for _, timing := range synthesisPlan.PhoneTimings {
+				if timing.Position != unit.Position {
+					continue
+				}
+				entry.Spans = append(entry.Spans, provider.TimingWarpPhone{
+					Symbol: timing.Symbol, StartMS: timing.StartMS, DurationMS: timing.DurationMS,
+				})
+			}
+		}
+		warp.Morae = append(warp.Morae, entry)
 	}
 	return warp
 }

@@ -166,13 +166,23 @@ type NeuralScore struct {
 type TimingWarp struct {
 	Strength        float64          `json:"strength"`
 	LeadingMarginMS float64          `json:"leading_margin_ms"`
+	Language        string           `json:"language,omitempty"`
 	Morae           []TimingWarpMora `json:"morae"`
+}
+
+// TimingWarpPhoneはモデルへ渡す音素区間（フレーズ先頭基準）。
+type TimingWarpPhone struct {
+	Symbol     string  `json:"symbol"`
+	StartMS    float64 `json:"start_ms"`
+	DurationMS float64 `json:"duration_ms"`
 }
 
 // ConsonantMSはノート開始より前の子音長。CVVCではVCを含む。
 type TimingWarpMora struct {
-	Text        string  `json:"text"`
-	NoteStartMS float64 `json:"note_start_ms"`
-	DurationMS  float64 `json:"duration_ms"`
-	ConsonantMS float64 `json:"consonant_ms"`
+	Text        string            `json:"text"`
+	Phones      []string          `json:"phones,omitempty"`
+	Spans       []TimingWarpPhone `json:"spans,omitempty"`
+	NoteStartMS float64           `json:"note_start_ms"`
+	DurationMS  float64           `json:"duration_ms"`
+	ConsonantMS float64           `json:"consonant_ms"`
 }
