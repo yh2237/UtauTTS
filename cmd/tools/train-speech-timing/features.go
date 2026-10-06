@@ -20,7 +20,12 @@ type utterance struct {
 	Frames, Continuous int
 	IDs                []int
 	Cont, Target       []float32
+	F0Target           []float32
+	EnergyTarget       []float32
 }
+
+// featureVersionはキャッシュ形式の版。utteranceの目標を変えたら上げる。
+const featureVersion = 2
 
 type record struct {
 	ID        string `json:"id"`
@@ -279,13 +284,37 @@ func featurize(world *worldEngine, rec trainingRecord, alignDir string, vocab *v
 			target[t*80+m] = float32((mel[t*80+m] - mean) * scale)
 		}
 	}
-	return utterance{rec.ID, len(f0), 4, ids, cont, target}, nil
+	// F0目標は入力と同じ補間済みの相対log F0（発話中央値基準、/0.3）。
+	f0Target := make([]float32, len(f0))
+	for t := range f0 {
+		f0Target[t] = cont[t*4+2]
+	}
+	// エネルギー目標はスペクトル合計のdBを発話内で中心化し/10した値。
+	bins := fft/2 + 1
+	energyTarget := make([]float32, len(f0))
+	meanEnergy := 0.0
+	for t := range f0 {
+		sum := 0.0
+		for b := 0; b < bins; b++ {
+			sum += sp[t*bins+b]
+		}
+		energyTarget[t] = float32(10 * math.Log10(sum+1e-12))
+		if speech[t] {
+			meanEnergy += float64(energyTarget[t])
+		}
+	}
+	meanEnergy /= float64(n)
+	for t := range f0 {
+		energyTarget[t] = float32((float64(energyTarget[t]) - meanEnergy) / 10)
+	}
+	return utterance{rec.ID, len(f0), 4, ids, cont, target, f0Target, energyTarget}, nil
 }
 
 // featureCacheは特徴量と語彙を保存する。旧形式（[]utterance、日本語語彙）も読める。
 type featureCache struct {
-	Phones string
-	Data   []utterance
+	Version int
+	Phones  string
+	Data    []utterance
 }
 
 func loadOrBuildFeatures(cache, dataset, corpusPath, alignDir, engine string) ([]utterance, string, error) {
@@ -302,6 +331,9 @@ func loadOrBuildFeatures(cache, dataset, corpusPath, alignDir, engine string) ([
 				return nil, "", fmt.Errorf("cache %s: %w", cache, decodeErr)
 			}
 			cached = featureCache{Phones: phoneNames, Data: legacy}
+		}
+		if cached.Version != featureVersion {
+			return nil, "", fmt.Errorf("feature cache %s is version %d, want %d; delete it to rebuild", cache, cached.Version, featureVersion)
 		}
 		if cached.Phones == "" {
 			cached.Phones = phoneNames
@@ -408,7 +440,7 @@ func loadOrBuildFeatures(cache, dataset, corpusPath, alignDir, engine string) ([
 	if e != nil {
 		return nil, "", e
 	}
-	e = gob.NewEncoder(f).Encode(featureCache{Phones: vocab.String(), Data: data})
+	e = gob.NewEncoder(f).Encode(featureCache{Version: featureVersion, Phones: vocab.String(), Data: data})
 	closeErr := f.Close()
 	if e != nil {
 		return nil, "", e

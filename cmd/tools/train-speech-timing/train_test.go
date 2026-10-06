@@ -24,7 +24,8 @@ func featureFixture(t *testing.T) string {
 	for i := 0; i < 4; i++ {
 		frames := 3 + 2*i
 		item := utterance{ID: string(rune('a' + i)), Frames: frames, Continuous: 4,
-			IDs: make([]int, frames*3), Cont: make([]float32, frames*4), Target: make([]float32, frames*80)}
+			IDs: make([]int, frames*3), Cont: make([]float32, frames*4), Target: make([]float32, frames*80),
+			F0Target: make([]float32, frames), EnergyTarget: make([]float32, frames)}
 		for f := 0; f < frames; f++ {
 			for j := 0; j < 3; j++ {
 				item.IDs[f*3+j] = 3 + (i+f+j)%20
@@ -35,11 +36,13 @@ func featureFixture(t *testing.T) string {
 			for j := 0; j < 80; j++ {
 				item.Target[f*80+j] = float32(math.Sin(float64(i+f+j) * .1))
 			}
+			item.F0Target[f] = float32(math.Sin(float64(i+f)*.2)) * 0.5
+			item.EnergyTarget[f] = float32(math.Cos(float64(i+f)*.15)) * 0.3
 		}
 		items = append(items, item)
 	}
 	var data bytes.Buffer
-	if err := gob.NewEncoder(&data).Encode(items); err != nil {
+	if err := gob.NewEncoder(&data).Encode(featureCache{Version: featureVersion, Phones: phoneNames, Data: items}); err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), "features.gob")
