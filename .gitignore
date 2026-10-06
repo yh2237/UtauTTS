@@ -23,6 +23,7 @@ third_party/open_jtalk/src/mecab/src/config.h
 /listening-results*.json
 /config.ini
 /prosody-training-session.json
+.vscode/
 .codex/
 .env
 .qt/
