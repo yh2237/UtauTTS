@@ -412,7 +412,8 @@ func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
 	// 解析キャッシュは変換前の原音と既定の音量で引く。
 	cacheKey := worldlineAnalysisCacheKey(originalSource, frqPath, *unit, 100)
 	cacheKey += fmt.Sprintf("|fs=%d", b.pitch.sampleRate)
-	speech := b.speechTiming(i, timing, skipMS, positionMS, codaRelease, singleCVUnit, vcvUnit)
+	strategy := b.resolveWorldlineSpeechStrategy(i, codaRelease, singleCVUnit, vcvUnit)
+	speech := b.speechTiming(i, timing, skipMS, positionMS, strategy)
 	gapRepair, err := worldlineGapRepair(synthesisPlan, i, b.legacyMix, cfg.ProviderOptions.Worldline.GapRepairMode)
 	if err != nil {
 		return worldlineManifestUnit{}, err
@@ -438,14 +439,14 @@ func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
 		EnergyFactor:  unit.EnergyFactor,
 		PitchLengthMS: pitchLengthMS, Envelope: envelopePoints,
 	}
-	if speech != nil && singleCVLegato(synthesisPlan, *unit) {
+	if speech != nil && strategy.singleCVLegato {
 		duration, err := b.sourceDurationMS(*unit)
 		if err != nil {
 			return worldlineManifestUnit{}, err
 		}
 		speech.Anchors = singleCVLegatoAnchors(speech.SourceOnsetMS, speech.TargetOnsetMS, requiredLength, duration)
 	}
-	if multilingualScore(synthesisPlan) {
+	if strategy.multilingual {
 		duration, err := b.sourceDurationMS(*unit)
 		if err != nil {
 			return worldlineManifestUnit{}, err
@@ -455,41 +456,66 @@ func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
 	return item, nil
 }
 
-func (b worldlineUnitBuilder) speechTiming(i int, timing base.EffectiveTiming, skipMS, positionMS float64, codaRelease, singleCVUnit, vcvUnit bool) *provider.WorldSpeechTiming {
+// worldlineSpeechStrategyはユニットへ適用するspeech timing方針の決定結果。
+type worldlineSpeechStrategy struct {
+	codaRelease      bool
+	singleCV         bool
+	stopProtected    bool
+	preserveStopOnly bool
+	legacyE2BStop    bool
+	stretch          bool
+	singleCVLegato   bool
+	multilingual     bool
+}
+
+// resolveWorldlineSpeechStrategyはユニットの種類から方針を一度だけ決める。
+func (b worldlineUnitBuilder) resolveWorldlineSpeechStrategy(i int, codaRelease, singleCVUnit, vcvUnit bool) worldlineSpeechStrategy {
 	synthesisPlan, options := b.plan, b.cfg.ProviderOptions.Worldline
 	unit := &synthesisPlan.Units[i]
-	leadingMS := b.timing.leadingMS
-	var speech *provider.WorldSpeechTiming
-	stopProtected := worldlineStopProtection(synthesisPlan, *unit, options)
+	strategy := worldlineSpeechStrategy{
+		codaRelease:    codaRelease,
+		singleCV:       singleCVUnit,
+		stopProtected:  worldlineStopProtection(synthesisPlan, *unit, options),
+		singleCVLegato: singleCVLegato(synthesisPlan, *unit),
+		multilingual:   multilingualScore(synthesisPlan),
+	}
 	if base.SpeechStop(synthesisPlan, *unit) {
-		if stopProtected {
+		if strategy.stopProtected {
 			unit.StopBurstReason = "transient-detected"
 		} else {
 			unit.StopBurstReason = "transient-unreliable"
 		}
 	}
 	// 日本語VCVは再伸縮せず、破裂音だけを保護する。
-	protectStopOnly := !b.legacyMix && unit.Role == "mora" && !singleCVUnit &&
-		(!vcvUnit || e2bStopGeneralization(synthesisPlan, *unit, options)) && stopProtected
-	legacyE2BStop := e2bLegacyStopPreserve(synthesisPlan, *unit, b.legacyMix, options) && !singleCVUnit
+	strategy.preserveStopOnly = !b.legacyMix && unit.Role == "mora" && !singleCVUnit &&
+		(!vcvUnit || e2bStopGeneralization(synthesisPlan, *unit, options)) && strategy.stopProtected
+	strategy.legacyE2BStop = e2bLegacyStopPreserve(synthesisPlan, *unit, b.legacyMix, options) && !singleCVUnit
 	// 固定部の補正をbridgeにも渡し、母音の伸びを抑える。
-	stretchSpeech := unit.Role == "mora" && unit.StretchAdapted && !codaRelease
-	if unit.Role == "mora" && (singleCVUnit || protectStopOnly || legacyE2BStop || stretchSpeech) {
+	strategy.stretch = unit.Role == "mora" && unit.StretchAdapted && !codaRelease
+	return strategy
+}
+
+func (b worldlineUnitBuilder) speechTiming(i int, timing base.EffectiveTiming, skipMS, positionMS float64, strategy worldlineSpeechStrategy) *provider.WorldSpeechTiming {
+	synthesisPlan := b.plan
+	unit := &synthesisPlan.Units[i]
+	leadingMS := b.timing.leadingMS
+	var speech *provider.WorldSpeechTiming
+	if unit.Role == "mora" && (strategy.singleCV || strategy.preserveStopOnly || strategy.legacyE2BStop || strategy.stretch) {
 		targetOnset := skipMS + unit.NoteStartMS + leadingMS - positionMS
-		if singleCVUnit {
+		if strategy.singleCV {
 			targetOnset = timing.PreutteranceMS
 		}
 		speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: speechSourceOnsetMS(*unit),
-			TargetOnsetMS: targetOnset, ProtectStop: stopProtected, PreserveStopOnly: protectStopOnly || legacyE2BStop}
+			TargetOnsetMS: targetOnset, ProtectStop: strategy.stopProtected, PreserveStopOnly: strategy.preserveStopOnly || strategy.legacyE2BStop}
 		if unit.SpeechProfile != nil && unit.SpeechProfile.TransientConfidence >= stopTransientFloor {
 			speech.SourceTransientMS = unit.SpeechProfile.TransientMS
 			speech.SourceTransientDurationMS = unit.SpeechProfile.TransientDurationMS
 		}
-		if singleCVUnit || stretchSpeech {
+		if strategy.singleCV || strategy.stretch {
 			speech.TargetFixedMS = timing.ConsonantMS
 		}
 		if i > 0 {
-			if singleCVUnit && base.SingleCVMoraBoundaryEligible(synthesisPlan, i) {
+			if strategy.singleCV && base.SingleCVMoraBoundaryEligible(synthesisPlan, i) {
 				speech.VowelJoin = !base.SingleCVProtectedOnset(synthesisPlan, *unit)
 				speech.TargetJoinMS = timing.PreutteranceMS
 				speech.TransitionLeftPhone = synthesisPlan.Morae[i-1].Vowel
@@ -503,8 +529,8 @@ func (b worldlineUnitBuilder) speechTiming(i int, timing base.EffectiveTiming, s
 			}
 		}
 	}
-	if codaRelease {
-		speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS, TargetOnsetMS: skipMS + unit.NoteStartMS + leadingMS - positionMS, CodaRelease: true, ProtectStop: stopProtected}
+	if strategy.codaRelease {
+		speech = &provider.WorldSpeechTiming{UnitIndex: i, SourceOnsetMS: unit.PreutteranceMS, TargetOnsetMS: skipMS + unit.NoteStartMS + leadingMS - positionMS, CodaRelease: true, ProtectStop: strategy.stopProtected}
 		if unit.CodaReleaseSeparated {
 			speech.SeparateRelease = true
 			speech.ReleaseMS = unit.CodaReleaseMS
