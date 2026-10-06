@@ -25,7 +25,7 @@ func featureFixture(t *testing.T) string {
 		frames := 3 + 2*i
 		item := utterance{ID: string(rune('a' + i)), Frames: frames, Continuous: 4,
 			IDs: make([]int, frames*3), Cont: make([]float32, frames*4), Target: make([]float32, frames*80),
-			F0Target: make([]float32, frames), EnergyTarget: make([]float32, frames)}
+			F0Target: make([]float32, frames), EnergyTarget: make([]float32, frames), Accent: make([]float32, frames*12)}
 		for f := 0; f < frames; f++ {
 			for j := 0; j < 3; j++ {
 				item.IDs[f*3+j] = 3 + (i+f+j)%20
@@ -38,6 +38,9 @@ func featureFixture(t *testing.T) string {
 			}
 			item.F0Target[f] = float32(math.Sin(float64(i+f)*.2)) * 0.5
 			item.EnergyTarget[f] = float32(math.Cos(float64(i+f)*.15)) * 0.3
+			for j := 0; j < 12; j++ {
+				item.Accent[f*12+j] = float32((i+f+j)%5) / 5
+			}
 		}
 		items = append(items, item)
 	}
@@ -190,6 +193,33 @@ func verifyRuntime(t *testing.T, modelPath, fixturePath string) {
 	if maximum > 2e-5 {
 		t.Fatalf("runtime predictions differ from best model: %g", maximum)
 	}
+	if len(fixture.F0Output) > 0 {
+		if !model.HasF0Head() || model.F0Context() != len(fixture.F0Cont[0]) {
+			t.Fatal("runtime model is missing the F0 head")
+		}
+		cont := make([][]float32, len(fixture.F0Cont))
+		for i, row := range fixture.F0Cont {
+			cont[i] = row[:]
+		}
+		f0Values, err := model.PredictF0(fixture.IDs, cont)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(f0Values) != len(fixture.F0Output) {
+			t.Fatalf("runtime f0 frames %d != %d", len(f0Values), len(fixture.F0Output))
+		}
+		f0Maximum := 0.0
+		for i := range f0Values {
+			if math.IsNaN(float64(f0Values[i])) || math.IsInf(float64(f0Values[i]), 0) {
+				t.Fatal("non-finite runtime f0 prediction")
+			}
+			f0Maximum = math.Max(f0Maximum, math.Abs(float64(f0Values[i]-fixture.F0Output[i])))
+		}
+		t.Logf("runtime/parity f0 max absolute error = %g", f0Maximum)
+		if f0Maximum > 2e-5 {
+			t.Fatalf("runtime f0 predictions differ from best model: %g", f0Maximum)
+		}
+	}
 }
 
 func TestFeatureOnlyDoesNotNeedMFAWithCache(t *testing.T) {
@@ -205,6 +235,50 @@ func TestFeatureOnlyDoesNotNeedMFAWithCache(t *testing.T) {
 	if err := json.Unmarshal(data, &items); err != nil || len(items) != 3 {
 		t.Fatal("feature export changed")
 	}
+}
+
+func TestMultiHeadTrainingWritesF0Model(t *testing.T) {
+	cache := featureFixture(t)
+	c := trainingConfig{Cache: cache, F0Head: true, F0Weight: 1, Steps: 6, Valid: 1, Batch: 1, Window: 5, EvalEvery: 2, CheckpointEvery: 99,
+		Seed: 17, Device: "cpu", TrainingCorpus: "test corpus", Notices: noticeFlags{"test-notice.txt"}}
+	c.Out = filepath.Join(t.TempDir(), "multi.safetensors")
+	c.Fixture = c.Out + ".fixture.json"
+	if err := train(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(c.Out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	headerLength := binary.LittleEndian.Uint64(data[:8])
+	var header map[string]json.RawMessage
+	if err := json.Unmarshal(data[8:8+headerLength], &header); err != nil {
+		t.Fatal(err)
+	}
+	var metadata map[string]string
+	if err := json.Unmarshal(header["__metadata__"], &metadata); err != nil {
+		t.Fatal(err)
+	}
+	if metadata["f0"] != "1" || metadata["f0_context"] != "14" {
+		t.Fatalf("f0 metadata = %v", metadata)
+	}
+	for _, name := range []string{"f0_inp.weight", "f0_blocks.0.weight", "f0_out.weight"} {
+		if _, ok := header[name]; !ok {
+			t.Errorf("missing %s", name)
+		}
+	}
+	fixtureData, err := os.ReadFile(c.Fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture parityFixture
+	if err := json.Unmarshal(fixtureData, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	if len(fixture.F0Output) != 37 || len(fixture.F0Cont) != 37 {
+		t.Fatalf("fixture f0 output %d f0 cont %d", len(fixture.F0Output), len(fixture.F0Cont))
+	}
+	verifyRuntime(t, c.Out, c.Fixture)
 }
 
 func TestTrainingProtectsExistingPaths(t *testing.T) {

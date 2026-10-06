@@ -135,6 +135,19 @@ type TCN struct {
 	normB     []tensor
 	outW      tensor
 	outB      tensor
+
+	hasF0       bool
+	f0Context   int
+	f0Kernel    int
+	f0Dilations []int
+	f0InW       tensor
+	f0InB       tensor
+	f0BlockW    []tensor
+	f0BlockB    []tensor
+	f0NormG     []tensor
+	f0NormB     []tensor
+	f0OutW      tensor
+	f0OutB      tensor
 }
 
 // モデル構成はsafetensorsの__metadata__から読む。
@@ -213,11 +226,90 @@ func LoadTCN(data []byte) (*TCN, error) {
 		return nil, fmt.Errorf("speech timing model: output shape %v", model.outW.shape)
 	}
 	model.mels = model.outW.shape[0]
+	if metadata["f0"] == "1" {
+		if err := model.loadF0Head(tensors, metadata, get, kernel); err != nil {
+			return nil, err
+		}
+	}
 	return model, nil
+}
+
+// loadF0HeadはF0入力を持たないF0ブランチを読む。
+func (m *TCN) loadF0Head(tensors map[string]tensor, metadata map[string]string, get func(string, int) (tensor, error), kernel int) error {
+	m.hasF0 = true
+	context, err := strconv.Atoi(metadata["f0_context"])
+	if err != nil || context < 1 {
+		return fmt.Errorf("speech timing model: f0 context %q", metadata["f0_context"])
+	}
+	m.f0Context = context
+	m.f0Kernel = kernel
+	if value := metadata["f0_kernel"]; value != "" {
+		if m.f0Kernel, err = strconv.Atoi(value); err != nil || m.f0Kernel <= 0 || m.f0Kernel%2 == 0 {
+			return fmt.Errorf("speech timing model: f0 kernel %q", value)
+		}
+	}
+	for field := range strings.FieldsSeq(metadata["f0_dilations"]) {
+		value, err := strconv.Atoi(field)
+		if err != nil || value <= 0 {
+			return fmt.Errorf("speech timing model: f0 dilation %q", field)
+		}
+		m.f0Dilations = append(m.f0Dilations, value)
+	}
+	if len(m.f0Dilations) == 0 {
+		m.f0Dilations = append([]int(nil), m.dilations...)
+	}
+	if m.f0InW, err = get("f0_inp.weight", 3); err != nil {
+		return err
+	}
+	if m.f0InB, err = get("f0_inp.bias", 1); err != nil {
+		return err
+	}
+	if m.f0InW.shape[0] != m.hidden || m.f0InW.shape[1] != 3*m.embedDim+context || m.f0InW.shape[2] != 1 {
+		return fmt.Errorf("speech timing model: f0 input shape %v", m.f0InW.shape)
+	}
+	for index := range m.f0Dilations {
+		w, err := get(fmt.Sprintf("f0_blocks.%d.weight", index), 3)
+		if err != nil {
+			return err
+		}
+		if w.shape[0] != m.hidden || w.shape[1] != m.hidden || w.shape[2] != m.f0Kernel {
+			return fmt.Errorf("speech timing model: f0 block %d shape %v", index, w.shape)
+		}
+		b, err := get(fmt.Sprintf("f0_blocks.%d.bias", index), 1)
+		if err != nil {
+			return err
+		}
+		g, err := get(fmt.Sprintf("f0_norms.%d.weight", index), 1)
+		if err != nil {
+			return err
+		}
+		nb, err := get(fmt.Sprintf("f0_norms.%d.bias", index), 1)
+		if err != nil {
+			return err
+		}
+		m.f0BlockW, m.f0BlockB = append(m.f0BlockW, kernelMajor(w)), append(m.f0BlockB, b)
+		m.f0NormG, m.f0NormB = append(m.f0NormG, g), append(m.f0NormB, nb)
+	}
+	if m.f0OutW, err = get("f0_out.weight", 3); err != nil {
+		return err
+	}
+	if m.f0OutB, err = get("f0_out.bias", 1); err != nil {
+		return err
+	}
+	if m.f0OutW.shape[0] != 1 || m.f0OutW.shape[1] != m.hidden || m.f0OutW.shape[2] != 1 {
+		return fmt.Errorf("speech timing model: f0 output shape %v", m.f0OutW.shape)
+	}
+	return nil
 }
 
 func (m *TCN) Phones() []string { return append([]string(nil), m.phones...) }
 func (m *TCN) Mels() int        { return m.mels }
+
+// HasF0HeadはF0ブランチの有無を返す。
+func (m *TCN) HasF0Head() bool { return m.hasF0 }
+
+// F0ContextはF0ブランチの連続入力幅。
+func (m *TCN) F0Context() int { return m.f0Context }
 
 func (m *TCN) Predict(ids [][3]int, cont [][4]float32) ([][]float32, error) {
 	frames := len(ids)
@@ -239,19 +331,7 @@ func (m *TCN) Predict(ids [][3]int, cont [][4]float32) ([][]float32, error) {
 		}
 		copy(row[3*m.embedDim:], cont[t][:])
 	}
-	h := pointwise(x, frames, inputs, m.inW.data, m.inB.data, m.hidden)
-	y := make([]float32, frames*m.hidden)
-	for index, dilation := range m.dilations {
-		m.dilatedConv(h, y, frames, index, dilation)
-		parallelFrames(frames, func(t int) {
-			row := y[t*m.hidden : (t+1)*m.hidden]
-			layerNorm(row, m.normG[index].data, m.normB[index].data)
-			dst := h[t*m.hidden : (t+1)*m.hidden]
-			for c, value := range row {
-				dst[c] += gelu(value)
-			}
-		})
-	}
+	h := m.runTrunk(x, frames, inputs, m.inW, m.inB, m.blockW, m.blockB, m.normG, m.normB, m.dilations, m.kernel)
 	out := pointwise(h, frames, m.hidden, m.outW.data, m.outB.data, m.mels)
 	result := make([][]float32, frames)
 	for t := range result {
@@ -260,25 +340,75 @@ func (m *TCN) Predict(ids [][3]int, cont [][4]float32) ([][]float32, error) {
 	return result, nil
 }
 
-func (m *TCN) dilatedConv(h, y []float32, frames, index, dilation int) {
-	w, b := m.blockW[index].data, m.blockB[index].data
-	hidden, kernel := m.hidden, m.kernel
+// PredictF0はF0ブランチでフレームごとの相対log F0（/0.3）を予測する。
+// contは音素内位置・対数長・アクセント特徴（幅はF0Context）。
+func (m *TCN) PredictF0(ids [][3]int, cont [][]float32) ([]float32, error) {
+	if !m.hasF0 {
+		return nil, fmt.Errorf("speech timing model: no F0 head")
+	}
+	frames := len(ids)
+	if len(cont) != frames {
+		return nil, fmt.Errorf("speech timing model: %d ids for %d f0 inputs", frames, len(cont))
+	}
+	if frames == 0 {
+		return nil, nil
+	}
+	inputs := 3*m.embedDim + m.f0Context
+	x := make([]float32, frames*inputs)
+	for t := range frames {
+		if len(cont[t]) != m.f0Context {
+			return nil, fmt.Errorf("speech timing model: f0 context width %d", len(cont[t]))
+		}
+		row := x[t*inputs : (t+1)*inputs]
+		for slot, id := range ids[t] {
+			if id < 0 || id >= len(m.phones) {
+				return nil, fmt.Errorf("speech timing model: phone id %d", id)
+			}
+			copy(row[slot*m.embedDim:(slot+1)*m.embedDim], m.embed.data[id*m.embedDim:(id+1)*m.embedDim])
+		}
+		copy(row[3*m.embedDim:], cont[t])
+	}
+	h := m.runTrunk(x, frames, inputs, m.f0InW, m.f0InB, m.f0BlockW, m.f0BlockB, m.f0NormG, m.f0NormB, m.f0Dilations, m.f0Kernel)
+	return pointwise(h, frames, m.hidden, m.f0OutW.data, m.f0OutB.data, 1), nil
+}
+
+// runTrunkは入力射影と残差ブロックを適用し、最終隠れ状態を返す。
+func (m *TCN) runTrunk(x []float32, frames, inputs int, inW, inB tensor, blockW, blockB, normG, normB []tensor, dilations []int, kernel int) []float32 {
+	h := pointwise(x, frames, inputs, inW.data, inB.data, m.hidden)
+	y := make([]float32, frames*m.hidden)
+	for index, dilation := range dilations {
+		m.dilatedConv(h, y, frames, blockW[index], blockB[index], kernel, dilation)
+		parallelFrames(frames, func(t int) {
+			row := y[t*m.hidden : (t+1)*m.hidden]
+			layerNorm(row, normG[index].data, normB[index].data)
+			dst := h[t*m.hidden : (t+1)*m.hidden]
+			for c, value := range row {
+				dst[c] += gelu(value)
+			}
+		})
+	}
+	return h
+}
+
+func (m *TCN) dilatedConv(h, y []float32, frames int, w, b tensor, kernel, dilation int) {
+	weights, biases := w.data, b.data
+	hidden := m.hidden
 	half := kernel / 2
 	parallelFrames(frames, func(t int) {
 		row := y[t*hidden : (t+1)*hidden]
-		copy(row, b)
+		copy(row, biases)
 		for k := range kernel {
 			source := t + (k-half)*dilation
 			if source < 0 || source >= frames {
 				continue
 			}
 			input := h[source*hidden : (source+1)*hidden]
-			tap := w[k*hidden*hidden : (k+1)*hidden*hidden]
+			tap := weights[k*hidden*hidden : (k+1)*hidden*hidden]
 			for o := range hidden {
-				weights := tap[o*hidden : (o+1)*hidden]
+				rowWeights := tap[o*hidden : (o+1)*hidden]
 				var sum float32
 				for i, value := range input {
-					sum += weights[i] * value
+					sum += rowWeights[i] * value
 				}
 				row[o] += sum
 			}

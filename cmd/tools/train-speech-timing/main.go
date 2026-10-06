@@ -18,7 +18,9 @@ type trainingConfig struct {
 	Checkpoint, Resume, Device, TrainingCorpus, Language                        string
 	Steps, StopAfter, Valid, Batch, Window, EvalEvery, CheckpointEvery          int
 	Seed                                                                        int64
+	F0Weight                                                                    float64
 	FeaturesOnly                                                                bool
+	F0Head                                                                      bool
 	Notices                                                                     noticeFlags
 }
 
@@ -34,6 +36,8 @@ func main() {
 	flag.StringVar(&c.Out, "out", filepath.Join("out", "speech-timing-target", fmt.Sprintf("go-model-%d.safetensors", stamp)), "new best inference weights path")
 	flag.StringVar(&c.Fixture, "fixture", filepath.Join("out", "speech-timing-target", fmt.Sprintf("go-parity-%d.json", stamp)), "new parity fixture path for best weights")
 	flag.BoolVar(&c.FeaturesOnly, "features-only", false, "build feature cache and exit")
+	flag.BoolVar(&c.F0Head, "f0", false, "add the context-only F0 head (multi-head model)")
+	flag.Float64Var(&c.F0Weight, "f0-weight", 1.0, "F0 loss weight for the F0 head")
 	flag.StringVar(&c.FeaturesJSON, "features-json", "", "write first three utterances as JSON for parity inspection")
 	flag.IntVar(&c.Steps, "steps", 6000, "total planned updates; keep unchanged when resuming")
 	flag.IntVar(&c.Valid, "valid", 30, "validation utterances")
@@ -65,14 +69,24 @@ func totalFrames(items []utterance) int {
 	return n
 }
 
-func checkpointMetadata(score float64, step int, trainingCorpus string, notices []string, phones, modelID string) map[string]string {
+func checkpointMetadata(score float64, step int, trainingCorpus string, notices []string, phones, modelID string, f0Head bool) map[string]string {
 	if len(notices) == 0 {
 		notices = []string{"licenses/TSUKUYOMI-CORPUS.txt", "licenses/MINNADE-JSUT-CORPUS.txt", "licenses/MFA-Japanese-NOTICE.txt"}
 	}
-	return map[string]string{"id": modelID, "format": "utautts-speech-timing-tcn-1", "phones": phones,
+	if f0Head {
+		modelID += "-f0"
+	}
+	meta := map[string]string{"id": modelID, "format": "utautts-speech-timing-tcn-1", "phones": phones,
 		"kernel": "5", "dilations": "1 2 4 8 1 2 4 8", "frame_ms": "10.0", "mels": "80",
 		"license": "MIT License", "training_corpus": trainingCorpus, "license_notices": strings.Join(notices, " "),
 		"valid_l1": fmt.Sprintf("%.4f", score), "steps": fmt.Sprint(step)}
+	if f0Head {
+		meta["f0"] = "1"
+		meta["f0_context"] = fmt.Sprint(f0ContextFeatures)
+		meta["f0_kernel"] = "5"
+		meta["f0_dilations"] = "1 2 4 8 1 2 4 8"
+	}
+	return meta
 }
 
 func modelIDForLanguage(language string) string {

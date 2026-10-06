@@ -22,16 +22,37 @@ type utterance struct {
 	Cont, Target       []float32
 	F0Target           []float32
 	EnergyTarget       []float32
+	Accent             []float32
 }
 
 // featureVersionはキャッシュ形式の版。utteranceの目標を変えたら上げる。
-const featureVersion = 2
+const featureVersion = 3
+
+// f0ContextFeaturesはF0ブランチの連続入力（音素内位置・対数長・アクセント12次元）。
+const f0ContextFeatures = 2 + 12
+
+type datasetToken struct {
+	Mora                 string  `json:"mora"`
+	Pause                bool    `json:"pause"`
+	AccentPhrasePosition int     `json:"accent_phrase_position"`
+	AccentPhraseLength   int     `json:"accent_phrase_length"`
+	AccentNucleus        int     `json:"accent_nucleus"`
+	AccentHigh           bool    `json:"accent_high"`
+	AccentPhraseStart    bool    `json:"accent_phrase_start"`
+	AccentPhraseEnd      bool    `json:"accent_phrase_end"`
+	WordStart            bool    `json:"word_start"`
+	WordEnd              bool    `json:"word_end"`
+	StartMS              float64 `json:"start_ms"`
+	EndMS                float64 `json:"end_ms"`
+}
 
 type record struct {
-	ID        string `json:"id"`
-	AudioPath string `json:"audio_path"`
-	Version   int    `json:"version"`
+	ID        string         `json:"id"`
+	AudioPath string         `json:"audio_path"`
+	Version   int            `json:"version"`
+	Tokens    []datasetToken `json:"tokens"`
 }
+
 type alignment struct {
 	Tiers struct {
 		Phones struct {
@@ -173,6 +194,47 @@ func frameInputs(ps []phone, f0 []float64, vocab *vocabulary) ([]int, []float32)
 	return ids, cont
 }
 
+func boolFeature(value bool) float32 {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+// accentFeatureFrameはスパース特徴（internal/openjtalk）と同じ意味の12次元。
+func accentFeatureFrame(token datasetToken) [12]float32 {
+	if token.Pause {
+		return [12]float32{}
+	}
+	length := token.AccentPhraseLength
+	if length < 1 {
+		length = 1
+	}
+	position := token.AccentPhrasePosition
+	nucleus := token.AccentNucleus
+	result := [12]float32{
+		float32(float64(position) / float64(length)),
+		float32(float64(length-position) / float64(length)),
+		float32(float64(nucleus) / float64(length)),
+		boolFeature(token.AccentHigh),
+		boolFeature(token.AccentPhraseStart),
+		boolFeature(token.AccentPhraseEnd),
+		boolFeature(token.WordStart),
+		boolFeature(token.WordEnd),
+	}
+	switch {
+	case nucleus == 0:
+		result[8] = 1
+	case position < nucleus:
+		result[9] = 1
+	case position == nucleus:
+		result[10] = 1
+	default:
+		result[11] = 1
+	}
+	return result
+}
+
 func logMel(sp []float64, frames, fft, rate int) []float64 {
 	const mels = 80
 	bins := fft/2 + 1
@@ -219,6 +281,7 @@ type trainingRecord struct {
 	ID        string
 	AudioPath string
 	Phones    []phone
+	Tokens    []datasetToken
 }
 
 func featurize(world *worldEngine, rec trainingRecord, alignDir string, vocab *vocabulary) (utterance, error) {
@@ -307,7 +370,21 @@ func featurize(world *worldEngine, rec trainingRecord, alignDir string, vocab *v
 	for t := range f0 {
 		energyTarget[t] = float32((float64(energyTarget[t]) - meanEnergy) / 10)
 	}
-	return utterance{rec.ID, len(f0), 4, ids, cont, target, f0Target, energyTarget}, nil
+	// アクセント特徴はトークンの時刻からフレームへ展開する（F0ブランチ専用）。
+	accent := make([]float32, len(f0)*12)
+	for _, token := range rec.Tokens {
+		if token.Pause || token.EndMS <= token.StartMS {
+			continue
+		}
+		feature := accentFeatureFrame(token)
+		a := int(math.Round(token.StartMS / 10))
+		b := int(math.Round(token.EndMS / 10))
+		a, b = max(0, a), min(len(f0), max(b, a+1))
+		for t := a; t < b; t++ {
+			copy(accent[t*12:t*12+12], feature[:])
+		}
+	}
+	return utterance{rec.ID, len(f0), 4, ids, cont, target, f0Target, energyTarget, accent}, nil
 }
 
 // featureCacheは特徴量と語彙を保存する。旧形式（[]utterance、日本語語彙）も読める。
@@ -375,7 +452,7 @@ func loadOrBuildFeatures(cache, dataset, corpusPath, alignDir, engine string) ([
 			if _, e := os.Stat(filepath.Join(alignDir, r.ID+".json")); e != nil {
 				return nil
 			}
-			records = append(records, trainingRecord{ID: r.ID, AudioPath: r.AudioPath})
+			records = append(records, trainingRecord{ID: r.ID, AudioPath: r.AudioPath, Tokens: r.Tokens})
 			return nil
 		})
 		if err != nil {

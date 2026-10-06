@@ -37,6 +37,58 @@ type trainingState struct {
 	BestStep                               int
 }
 
+// trainerModelは単一ヘッドとマルチヘッドを同じ学習ループで扱う。
+type trainerModel struct {
+	single *autograd.SpeechTiming
+	multi  *autograd.SpeechTimingMultiHead
+}
+
+func newTrainerModel(c trainingConfig, phones int, device tensor.Device) (trainerModel, error) {
+	if c.F0Head {
+		m, err := autograd.NewSpeechTimingMultiHead(phones, continuousFeatures, f0ContextFeatures, device, c.Seed)
+		if err != nil {
+			return trainerModel{}, err
+		}
+		return trainerModel{multi: m}, nil
+	}
+	m, err := autograd.NewSpeechTimingWithPhones(phones, continuousFeatures, device, c.Seed)
+	if err != nil {
+		return trainerModel{}, err
+	}
+	return trainerModel{single: m}, nil
+}
+
+func (m trainerModel) parameters() []autograd.Parameter {
+	if m.multi != nil {
+		return m.multi.Parameters()
+	}
+	return m.single.Parameters()
+}
+
+func (m trainerModel) train(training bool) {
+	if m.multi != nil {
+		m.multi.Train(training)
+		return
+	}
+	m.single.Train(training)
+}
+
+func (m trainerModel) module() *autograd.Module {
+	if m.multi != nil {
+		return &m.multi.Module
+	}
+	return &m.single.Module
+}
+
+func (m trainerModel) forward(ids []int, cont, f0Cont *autograd.Tensor, seed uint32) (*autograd.Tensor, *autograd.Tensor) {
+	if m.multi != nil {
+		return m.multi.Forward(ids, cont, f0Cont, seed)
+	}
+	return m.single.Forward(ids, cont, seed), nil
+}
+
+func (m trainerModel) close() { closeModule(m.module()) }
+
 func train(ctx context.Context, c trainingConfig) error {
 	if c.Checkpoint == "" {
 		c.Checkpoint = c.Out + ".training.safetensors"
@@ -76,6 +128,9 @@ func train(ctx context.Context, c trainingConfig) error {
 	for _, item := range items {
 		if item.Frames < 1 || item.Continuous < continuousFeatures || len(item.IDs) != item.Frames*3 || len(item.Cont) != item.Frames*item.Continuous || len(item.Target) != item.Frames*80 {
 			return fmt.Errorf("cache %s has incompatible frames/features", item.ID)
+		}
+		if len(item.F0Target) != item.Frames || len(item.EnergyTarget) != item.Frames || len(item.Accent) != item.Frames*12 {
+			return fmt.Errorf("cache %s is missing F0, energy or accent targets; delete it to rebuild", item.ID)
 		}
 	}
 	if c.FeaturesJSON != "" {
@@ -167,18 +222,18 @@ func train(ctx context.Context, c trainingConfig) error {
 		}
 		defer cudaContext.Close()
 	}
-	model, err := autograd.NewSpeechTimingWithPhones(len(vocab.names), continuousFeatures, device, c.Seed)
+	model, err := newTrainerModel(c, len(vocab.names), device)
 	if err != nil {
 		return err
 	}
-	defer closeModule(&model.Module)
-	bestModel, err := autograd.NewSpeechTimingWithPhones(len(vocab.names), continuousFeatures, tensor.CPU, c.Seed)
+	defer model.close()
+	bestModel, err := newTrainerModel(c, len(vocab.names), tensor.CPU)
 	if err != nil {
 		return err
 	}
-	defer closeModule(&bestModel.Module)
-	combined := &autograd.Module{Children: []autograd.NamedModule{{Name: "current", Module: &model.Module}, {Name: "best", Module: &bestModel.Module}}}
-	opt := autograd.NewAdamW(model.Parameters(), .002, .0001)
+	defer bestModel.close()
+	combined := &autograd.Module{Children: []autograd.NamedModule{{Name: "current", Module: model.module()}, {Name: "best", Module: bestModel.module()}}}
+	opt := autograd.NewAdamW(model.parameters(), .002, .0001)
 	defer opt.Close()
 	schedule := autograd.NewOneCycle(.002, c.Steps, .1)
 	opt.LR = float32(schedule.LR())
@@ -196,12 +251,12 @@ func train(ctx context.Context, c trainingConfig) error {
 		if err := os.MkdirAll(filepath.Dir(c.Out), 0700); err != nil {
 			return err
 		}
-		if err := bestModel.Module.SaveSafeTensorsMetadata(c.Out, checkpointMetadata(state.Best, state.BestStep, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language))); err != nil {
+		if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(state.Best, state.BestStep, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head)); err != nil {
 			return err
 		}
 		fmt.Printf("resumed step=%d best=%.6f@%d\n", opt.StepCount, state.Best, state.BestStep)
 	}
-	model.Train(true)
+	model.train(true)
 	started := time.Now()
 	save := func() error {
 		state.Sampler = sampler.State()
@@ -223,13 +278,13 @@ func train(ctx context.Context, c trainingConfig) error {
 			fmt.Println("interrupted: saving at completed update", opt.StepCount)
 			break
 		}
-		ids, cont, target := sampleBatch(training, sampler, c.Batch, c.Window)
-		loss, err := update(model, opt, schedule, ids, cont, target, c.Batch, c.Window, device, uint32(c.Seed)+uint32(step)*8)
+		ids, cont, target, f0Cont, f0Target := sampleBatch(training, sampler, c.Batch, c.Window)
+		loss, err := update(model, opt, schedule, ids, cont, target, f0Cont, f0Target, c.Batch, c.Window, device, uint32(c.Seed)+uint32(step)*8, c.F0Weight)
 		if err != nil {
 			return err
 		}
 		if step%c.EvalEvery == 0 || step == c.Steps-1 {
-			score, err := evaluate(model, validation, device, vocab.silence)
+			score, err := evaluate(model, validation, device, vocab.silence, c.F0Weight)
 			if err != nil {
 				return err
 			}
@@ -238,13 +293,13 @@ func train(ctx context.Context, c trainingConfig) error {
 			}
 			if score < state.Best {
 				state.Best, state.BestStep = score, step
-				if err := bestModel.Module.LoadStateDict(model.Module.StateDict()); err != nil {
+				if err := bestModel.module().LoadStateDict(model.module().StateDict()); err != nil {
 					return err
 				}
 				if err := os.MkdirAll(filepath.Dir(c.Out), 0700); err != nil {
 					return err
 				}
-				if err := bestModel.Module.SaveSafeTensorsMetadata(c.Out, checkpointMetadata(score, step, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language))); err != nil {
+				if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(score, step, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head)); err != nil {
 					return err
 				}
 			}
@@ -260,7 +315,7 @@ func train(ctx context.Context, c trainingConfig) error {
 	if err := save(); err != nil {
 		return err
 	}
-	if err := model.Module.LoadStateDict(bestModel.Module.StateDict()); err != nil {
+	if err := model.module().LoadStateDict(bestModel.module().StateDict()); err != nil {
 		return err
 	}
 	if err := writeFixture(c.Fixture, model, device, len(vocab.names)); err != nil {
@@ -270,7 +325,7 @@ func train(ctx context.Context, c trainingConfig) error {
 	return nil
 }
 
-func update(model *autograd.SpeechTiming, opt *autograd.AdamW, schedule *autograd.OneCycle, ids []int, cv, tv []float32, batch, window int, device tensor.Device, dropoutSeed uint32) (float32, error) {
+func update(model trainerModel, opt *autograd.AdamW, schedule *autograd.OneCycle, ids []int, cv, tv, f0cv, f0tv []float32, batch, window int, device tensor.Device, dropoutSeed uint32, f0Weight float64) (float32, error) {
 	cont, err := autograd.New(cv, []int{batch, window, continuousFeatures}, device, false)
 	if err != nil {
 		return 0, err
@@ -281,8 +336,22 @@ func update(model *autograd.SpeechTiming, opt *autograd.AdamW, schedule *autogra
 		return 0, err
 	}
 	defer target.Close()
+	f0Cont, err := autograd.New(f0cv, []int{batch, window, f0ContextFeatures}, device, false)
+	if err != nil {
+		return 0, err
+	}
+	defer f0Cont.Close()
 	opt.ZeroGrad()
-	loss := autograd.MaskedLoss(model.Forward(ids, cont, dropoutSeed), target, false)
+	mel, f0 := model.forward(ids, cont, f0Cont, dropoutSeed)
+	loss := autograd.MaskedLoss(mel, target, false)
+	if f0 != nil && f0Weight > 0 {
+		f0Target, err := autograd.New(f0tv, []int{batch, window, 1}, device, false)
+		if err != nil {
+			return 0, err
+		}
+		defer f0Target.Close()
+		loss = autograd.Add(loss, autograd.MulScalar(autograd.MaskedLoss(f0, f0Target, false), float32(f0Weight)))
+	}
 	defer loss.ReleaseGraph()
 	values, err := loss.ToHost()
 	if err != nil {
@@ -300,8 +369,12 @@ func update(model *autograd.SpeechTiming, opt *autograd.AdamW, schedule *autogra
 	return values[0], nil
 }
 
-func sampleBatch(items []utterance, sampler *autograd.WindowSampler, batch, window int) ([]int, []float32, []float32) {
-	ids, cont, target := make([]int, batch*window*3), make([]float32, batch*window*continuousFeatures), make([]float32, batch*window*80)
+func sampleBatch(items []utterance, sampler *autograd.WindowSampler, batch, window int) ([]int, []float32, []float32, []float32, []float32) {
+	ids := make([]int, batch*window*3)
+	cont := make([]float32, batch*window*continuousFeatures)
+	target := make([]float32, batch*window*80)
+	f0Cont := make([]float32, batch*window*f0ContextFeatures)
+	f0Target := make([]float32, batch*window)
 	for b, sampled := range sampler.Batch() {
 		item := items[sampled.Index]
 		for t := 0; t < window; t++ {
@@ -310,51 +383,81 @@ func sampleBatch(items []utterance, sampler *autograd.WindowSampler, batch, wind
 				for j := 0; j < 80; j++ {
 					target[dst*80+j] = float32(math.NaN())
 				}
+				f0Target[dst] = float32(math.NaN())
 				continue
 			}
 			copy(ids[dst*3:dst*3+3], item.IDs[src*3:src*3+3])
 			copy(cont[dst*continuousFeatures:(dst+1)*continuousFeatures], item.Cont[src*item.Continuous:src*item.Continuous+continuousFeatures])
 			copy(target[dst*80:dst*80+80], item.Target[src*80:src*80+80])
+			f0Cont[dst*f0ContextFeatures] = item.Cont[src*item.Continuous]
+			f0Cont[dst*f0ContextFeatures+1] = item.Cont[src*item.Continuous+1]
+			copy(f0Cont[dst*f0ContextFeatures+2:(dst+1)*f0ContextFeatures], item.Accent[src*12:src*12+12])
+			f0Target[dst] = item.F0Target[src]
 		}
 	}
-	return ids, cont, target
+	return ids, cont, target, f0Cont, f0Target
 }
 
-func evaluate(model *autograd.SpeechTiming, items []utterance, device tensor.Device, silence int) (float64, error) {
-	wasTraining := model.Module.Training
-	model.Train(false)
-	defer model.Train(wasTraining)
+func evaluate(model trainerModel, items []utterance, device tensor.Device, silence int, f0Weight float64) (float64, error) {
+	wasTraining := model.module().Training
+	model.train(false)
+	defer model.train(wasTraining)
 	var scores float64
 	for _, item := range items {
 		cv := make([]float32, item.Frames*continuousFeatures)
+		f0cv := make([]float32, item.Frames*f0ContextFeatures)
 		for t := 0; t < item.Frames; t++ {
 			copy(cv[t*continuousFeatures:(t+1)*continuousFeatures], item.Cont[t*item.Continuous:t*item.Continuous+continuousFeatures])
+			f0cv[t*f0ContextFeatures] = cv[t*continuousFeatures]
+			f0cv[t*f0ContextFeatures+1] = cv[t*continuousFeatures+1]
+			copy(f0cv[t*f0ContextFeatures+2:(t+1)*f0ContextFeatures], item.Accent[t*12:t*12+12])
 		}
 		cont, err := autograd.New(cv, []int{1, item.Frames, continuousFeatures}, device, false)
 		if err != nil {
 			return 0, err
 		}
-		var pred *autograd.Tensor
-		autograd.NoGrad(func() { pred = model.Forward(item.IDs, cont, 0) })
-		values, err := pred.ToHost()
-		pred.ReleaseGraph()
+		f0Cont, err := autograd.New(f0cv, []int{1, item.Frames, f0ContextFeatures}, device, false)
+		if err != nil {
+			cont.Close()
+			return 0, err
+		}
+		var mel, f0 *autograd.Tensor
+		autograd.NoGrad(func() { mel, f0 = model.forward(item.IDs, cont, f0Cont, 0) })
+		values, err := mel.ToHost()
+		mel.ReleaseGraph()
+		var f0Values []float32
+		if err == nil && f0 != nil {
+			f0Values, err = f0.ToHost()
+			f0.ReleaseGraph()
+		}
 		cont.Close()
+		f0Cont.Close()
 		if err != nil {
 			return 0, err
 		}
-		var total float64
-		count := 0
+		var melTotal float64
+		melCount := 0
+		var f0Total float64
+		f0Count := 0
 		for t := 0; t < item.Frames; t++ {
 			if item.IDs[t*3] == silence {
 				continue
 			}
 			for j := 0; j < 80; j++ {
-				total += math.Abs(float64(values[t*80+j] - item.Target[t*80+j]))
-				count++
+				melTotal += math.Abs(float64(values[t*80+j] - item.Target[t*80+j]))
+				melCount++
+			}
+			if f0Values != nil {
+				f0Total += math.Abs(float64(f0Values[t] - item.F0Target[t]))
+				f0Count++
 			}
 		}
-		if count > 0 {
-			scores += total / float64(count)
+		if melCount > 0 {
+			score := melTotal / float64(melCount)
+			if f0Count > 0 {
+				score += f0Weight * f0Total / float64(f0Count)
+			}
+			scores += score
 		}
 	}
 	return scores / float64(len(items)), nil
