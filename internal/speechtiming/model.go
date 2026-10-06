@@ -31,38 +31,33 @@ var embeddedEnglishTarget []byte
 //go:embed speech-timing-target-zh-v1.safetensors
 var embeddedChineseTarget []byte
 
+// modelCacheは埋め込みモデルを一度だけ読み込む。
+type modelCache struct {
+	once  sync.Once
+	model *TCN
+	err   error
+}
+
+func (c *modelCache) load(data []byte) (*TCN, error) {
+	c.once.Do(func() { c.model, c.err = LoadTCN(data) })
+	return c.model, c.err
+}
+
 var (
-	defaultOnce   sync.Once
-	defaultTarget *TCN
-	defaultErr    error
-	englishOnce   sync.Once
-	englishTarget *TCN
-	englishErr    error
-	chineseOnce   sync.Once
-	chineseTarget *TCN
-	chineseErr    error
+	japaneseTarget modelCache
+	englishTarget  modelCache
+	chineseTarget  modelCache
 )
 
-func DefaultTarget() (*TCN, error) {
-	defaultOnce.Do(func() {
-		defaultTarget, defaultErr = LoadTCN(embeddedTarget)
-	})
-	return defaultTarget, defaultErr
-}
+func DefaultTarget() (*TCN, error) { return japaneseTarget.load(embeddedTarget) }
 
 // TargetForLanguageは言語別の時間伸縮モデルを返す。未対応の言語は日本語モデル。
 func TargetForLanguage(language string) (*TCN, error) {
 	switch strings.ToLower(strings.TrimSpace(language)) {
 	case "en", "en-us", "en-gb":
-		englishOnce.Do(func() {
-			englishTarget, englishErr = LoadTCN(embeddedEnglishTarget)
-		})
-		return englishTarget, englishErr
+		return englishTarget.load(embeddedEnglishTarget)
 	case "zh", "zh-cn", "zh-hans", "cmn":
-		chineseOnce.Do(func() {
-			chineseTarget, chineseErr = LoadTCN(embeddedChineseTarget)
-		})
-		return chineseTarget, chineseErr
+		return chineseTarget.load(embeddedChineseTarget)
 	default:
 		return DefaultTarget()
 	}
