@@ -180,7 +180,6 @@ type TimingWarpPhone struct {
 // ConsonantMSはノート開始より前の子音長。CVVCではVCを含む。
 type TimingWarpMora struct {
 	Text        string            `json:"text"`
-	Phones      []string          `json:"phones,omitempty"`
 	Spans       []TimingWarpPhone `json:"spans,omitempty"`
 	NoteStartMS float64           `json:"note_start_ms"`
 	DurationMS  float64           `json:"duration_ms"`

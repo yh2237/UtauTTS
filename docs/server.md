@@ -254,7 +254,7 @@ ID順にソートされた音源一覧です。
 | `stretch_adapt` | boolean | `true` | 音源実測に基づき、原音より大きく伸ばす日本語モーラの母音側の伸びを有界にする（C3a）。結果が変わるのは大きな伸張が必要な長いモーラのときだけ |
 | `stretch_adapt_strength` | number | `1` | 伸縮補正の強度（0〜2）。0は既定1.0として扱う |
 | `microprosody` | boolean | `true` | `utautts-world-phrase`のみ。日本語のF0曲線へ、子音の直後の小さな音高の上下（自然な読み上げで測った値）を足す。`false`で従来と同じ音高 |
-| `timing_warp` | boolean | `true` | `utautts-world-phrase`のみ。日本語の出力を、学習した読み上げの動きに合わせてモーラの中だけ時間伸縮する（包絡・モーラの開始・長さ・音高は不変、句の最後のモーラは伸縮しない）。`false`で従来と同じ出力 |
+| `timing_warp` | boolean | `true` | `utautts-world-phrase`のみ。出力を、言語別に学習した読み上げの動きに合わせてモーラの中だけ時間伸縮する（日本語・英語・中国語。包絡・モーラの開始・長さ・音高は不変、句の最後のモーラは伸縮しない）。`false`で従来と同じ出力 |
 | `pause_context` | boolean | `true` | 句読点の種類と発話末で休止長を変える（B5） |
 | `pause_context_strength` | number | `1` | 休止長補正の強度（0〜2）。0は既定1.0として扱う |
 | `english_weak_form` | boolean | `true` | 英語機能語の弱形（E1）を有効にする。句中で前後がポーズでない非強調の機能語だけ弱形にし、明示の読みと辞書を優先する |

@@ -31,9 +31,7 @@ type PhoneSpan struct {
 // 時刻は合成計画基準のms。
 type Mora struct {
 	Text string
-	// Phonesは子音列+母音の順。空ならTextをかなとして解析する。
-	Phones []string
-	// Spansがあれば音素区間としてそのまま使う。
+	// Spansがあれば音素区間としてそのまま使う。無ければTextをかなとして解析する。
 	Spans                   []PhoneSpan
 	NoteStartMS             float64
 	DurationMS              float64
@@ -145,9 +143,6 @@ func phoneTimeline(morae []Mora, marginMS float64, frames int) ([]phoneSpan, []f
 			continue
 		}
 		labels := moraPhones(mora.Text, previousVowel)
-		if len(mora.Phones) > 0 {
-			labels = mora.Phones
-		}
 		vowel := labels[len(labels)-1]
 		consonants := labels[:len(labels)-1]
 		onset := note

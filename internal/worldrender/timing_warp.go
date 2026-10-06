@@ -21,7 +21,7 @@ func timingWarpFromJob(job *provider.TimingWarp) *timingWarp {
 	result := &timingWarp{Strength: job.Strength, LeadingMarginMS: job.LeadingMarginMS, Language: job.Language}
 	for _, mora := range job.Morae {
 		entry := speechtiming.Mora{
-			Text: mora.Text, Phones: append([]string(nil), mora.Phones...), NoteStartMS: mora.NoteStartMS, DurationMS: mora.DurationMS,
+			Text: mora.Text, NoteStartMS: mora.NoteStartMS, DurationMS: mora.DurationMS,
 			EffectivePreutteranceMS: mora.ConsonantMS,
 		}
 		for _, span := range mora.Spans {
