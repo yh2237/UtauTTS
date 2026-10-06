@@ -28,10 +28,6 @@ func (chineseProfile) ParsePronunciation(cfg Config, phonemizer string) (string,
 
 func (chineseProfile) ApplySpeechProfile(*Config) {}
 
-func (chineseProfile) ProsodyModelFallback(configuredPath string) string {
-	return mandarinFallbackProsodyModelPath(configuredPath)
-}
-
 func (chineseProfile) SupportsStretchAdapt() bool { return false }
 
 func (chineseProfile) PhoneTiming(cfg Config, morae []frontend.Mora, _ bool) ([][]float64, string) {

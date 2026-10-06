@@ -1,6 +1,6 @@
 package base
 
-import "strings"
+import "utautts/internal/frontend"
 
 // Correctionは言語別の補正。適用言語と設定キーを1箇所で宣言する。
 type Correction struct {
@@ -28,7 +28,7 @@ var Corrections = []Correction{
 
 // CorrectionAppliesToは補正が言語へ適用されるかを返す。空言語は日本語として扱う。
 func CorrectionAppliesTo(id, language string) bool {
-	normalized := NormalizeLanguage(language)
+	normalized := frontend.NormalizeLanguage(language)
 	for _, correction := range Corrections {
 		if correction.ID != id {
 			continue
@@ -44,27 +44,4 @@ func CorrectionAppliesTo(id, language string) bool {
 		return false
 	}
 	return false
-}
-
-// NormalizeLanguageは言語コードをja/en/zhへ揃える。空は日本語。
-func NormalizeLanguage(language string) string {
-	value := strings.ToLower(strings.TrimSpace(language))
-	if value == "" {
-		return "ja"
-	}
-	if index := strings.IndexAny(value, "-_"); index > 0 {
-		value = value[:index]
-	}
-	if value == "cmn" {
-		return "zh"
-	}
-	return value
-}
-
-// JapanesePlanは言語または音素化器が日本語かを返す。
-func JapanesePlan(language, phonemizer string) bool {
-	if NormalizeLanguage(language) == "ja" {
-		return true
-	}
-	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(phonemizer)), "ja")
 }

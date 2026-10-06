@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"utautts/internal/frontend"
 )
 
 type Predictor interface {
@@ -53,10 +55,10 @@ func DefaultTarget() (*TCN, error) { return japaneseTarget.load(embeddedTarget) 
 
 // TargetForLanguageは言語別の時間伸縮モデルを返す。未対応の言語は日本語モデル。
 func TargetForLanguage(language string) (*TCN, error) {
-	switch strings.ToLower(strings.TrimSpace(language)) {
-	case "en", "en-us", "en-gb":
+	switch frontend.NormalizeLanguage(language) {
+	case frontend.LanguageEnglish:
 		return englishTarget.load(embeddedEnglishTarget)
-	case "zh", "zh-cn", "zh-hans", "cmn":
+	case frontend.LanguageChinese:
 		return chineseTarget.load(embeddedChineseTarget)
 	default:
 		return DefaultTarget()

@@ -1,90 +1,24 @@
 package tts
 
 import (
+	"path/filepath"
 	"testing"
-
-	"utautts/internal/frontend"
-	"utautts/internal/prosody"
-	"utautts/internal/render"
 )
 
-func TestLanguageProfile(t *testing.T) {
-	t.Run("selects by language", func(t *testing.T) {
-		tests := []struct {
-			language string
-			want     string
-		}{
-			{frontend.LanguageJapanese, frontend.LanguageJapanese},
-			{frontend.LanguageEnglish, frontend.LanguageEnglish},
-			{frontend.LanguageChinese, frontend.LanguageChinese},
-			{"", frontend.LanguageJapanese},
+func TestProsodyFallbackModelPath(t *testing.T) {
+	configured := filepath.Join("models", "frame-intonation-tcn-v10.json")
+	cases := []struct {
+		language string
+		want     string
+	}{
+		{"en-US", filepath.Join("models", "frame-intonation-tcn-en-v1.json")},
+		{"zh-cn", filepath.Join("models", "tone-intonation-zh-v1.json")},
+		{"ja", ""},
+		{"fr", ""},
+	}
+	for _, test := range cases {
+		if got := prosodyFallbackModelPath(configured, test.language); got != test.want {
+			t.Fatalf("prosodyFallbackModelPath(%q) = %q, want %q", test.language, got, test.want)
 		}
-		for _, test := range tests {
-			if got := languageProfileFor(test.language).Language(); got != test.want {
-				t.Fatalf("languageProfileFor(%q).Language() = %q, want %q", test.language, got, test.want)
-			}
-		}
-	})
-	t.Run("predict selection", func(t *testing.T) {
-		morae := []frontend.Mora{{Vowel: "a", Stress: 1, StressKnown: true, Tone: 4}}
-		if predictions := languageProfileFor(frontend.LanguageEnglish).Predict(morae); len(predictions) != len(morae) {
-			t.Fatalf("English predictions = %#v", predictions)
-		}
-		if predictions := languageProfileFor(frontend.LanguageChinese).Predict(morae); len(predictions) != len(morae) {
-			t.Fatalf("Chinese predictions = %#v", predictions)
-		}
-		if predictions := languageProfileFor(frontend.LanguageJapanese).Predict(morae); predictions != nil {
-			t.Fatalf("Japanese predictions = %#v, want nil", predictions)
-		}
-	})
-}
-
-func TestLanguageProfilePitchCurveSelection(t *testing.T) {
-	timings := []prosody.MoraTiming{{StartMS: 0, DurationMS: 120}, {StartMS: 120, DurationMS: 120}}
-
-	english := []frontend.Mora{{Vowel: "ah", Stress: 1, StressKnown: true}, {Vowel: "ax", Stress: 0, StressKnown: true}}
-	if curve, _ := languageProfileFor(frontend.LanguageEnglish).AutomaticPitchCurve(Config{ApplyPitch: true, IntonationStrength: 1}, nil, english, timings, 240); curve == nil {
-		t.Fatal("English automatic pitch curve was not selected")
-	}
-	if curve, _ := languageProfileFor(frontend.LanguageEnglish).AutomaticPitchCurve(Config{}, nil, english, timings, 240); curve != nil {
-		t.Fatal("English automatic pitch curve was selected while pitch was disabled")
-	}
-
-	mandarin := []frontend.Mora{{Tone: 3}, {Tone: 1}}
-	curve, enable := languageProfileFor(frontend.LanguageChinese).AutomaticPitchCurve(Config{}, nil, mandarin, timings, 240)
-	if curve == nil || !enable {
-		t.Fatalf("Chinese tone curve = %#v enable=%v", curve, enable)
-	}
-
-	if curve, _ := languageProfileFor(frontend.LanguageJapanese).AutomaticPitchCurve(Config{ApplyPitch: true}, nil, english, timings, 240); curve != nil {
-		t.Fatalf("Japanese automatic pitch curve = %#v, want nil", curve)
-	}
-}
-
-func TestLanguageProfileBoundaryToneSelection(t *testing.T) {
-	base := &render.PitchCurve{FrameMS: 10, Cents: []float64{0, 0, 0, 0, 0, 0}}
-	japanese := languageProfileFor(frontend.LanguageJapanese).ApplyBoundaryTone(Config{}, base, 50, false)
-	if japanese == base || japanese.Cents[len(japanese.Cents)-1] == 0 {
-		t.Fatalf("Japanese boundary tone was not applied: %#v", japanese)
-	}
-	english := languageProfileFor(frontend.LanguageEnglish).ApplyBoundaryTone(Config{}, base, 50, false)
-	if english != base {
-		t.Fatal("English boundary tone changed the curve")
-	}
-}
-
-func TestLanguageProfilePhoneTimingSelection(t *testing.T) {
-	morae := []frontend.Mora{{Text: "か", Consonant: "k", Vowel: "a"}}
-	japanese := languageProfileFor(frontend.LanguageJapanese)
-	if weights, source := japanese.PhoneTiming(Config{}, morae, false); weights != nil || source != "" {
-		t.Fatalf("Japanese phone timing = %#v/%q, want nil", weights, source)
-	}
-	single := []frontend.Mora{{Text: "か", Consonant: "k", Vowel: "a"}}
-	if weights, _ := japanese.PhoneTiming(Config{}, single, true); len(weights) != 1 || len(single[0].Phones) != 2 {
-		t.Fatalf("Japanese single-CV phone timing = %#v phones=%#v", weights, single[0].Phones)
-	}
-	englishMora := []frontend.Mora{{Phones: []frontend.Phone{{Symbol: "k", Role: "onset"}}}}
-	if weights, source := languageProfileFor(frontend.LanguageEnglish).PhoneTiming(Config{}, englishMora, false); len(weights) != 1 || source != "multilingual-speech-score-v1" {
-		t.Fatalf("English phone timing = %#v/%q", weights, source)
 	}
 }

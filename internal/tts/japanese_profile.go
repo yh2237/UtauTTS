@@ -26,8 +26,6 @@ func (japaneseProfile) ParsePronunciation(cfg Config, phonemizer string) (string
 
 func (japaneseProfile) ApplySpeechProfile(*Config) {}
 
-func (japaneseProfile) ProsodyModelFallback(string) string { return "" }
-
 func (japaneseProfile) SupportsStretchAdapt() bool { return true }
 
 func (japaneseProfile) PhoneTiming(cfg Config, morae []frontend.Mora, singleCV bool) ([][]float64, string) {

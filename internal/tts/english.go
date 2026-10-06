@@ -44,10 +44,6 @@ func (englishProfile) ApplySpeechProfile(cfg *Config) {
 	}
 }
 
-func (englishProfile) ProsodyModelFallback(configuredPath string) string {
-	return englishFallbackProsodyModelPath(configuredPath)
-}
-
 func (englishProfile) SupportsStretchAdapt() bool { return false }
 
 func (englishProfile) PhoneTiming(cfg Config, morae []frontend.Mora, _ bool) ([][]float64, string) {

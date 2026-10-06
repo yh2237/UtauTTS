@@ -15,7 +15,6 @@ type languageProfile interface {
 	Language() string
 	ParsePronunciation(cfg Config, phonemizer string) (string, []frontend.Mora, error)
 	ApplySpeechProfile(cfg *Config)
-	ProsodyModelFallback(configuredPath string) string
 	SupportsStretchAdapt() bool
 	// 無効時はnilを返す。
 	PhoneTiming(cfg Config, morae []frontend.Mora, singleCV bool) ([][]float64, string)
@@ -67,7 +66,7 @@ func resolveProsodyModelForProfile(cfg Config, profile languageProfile) (*prosod
 	if cfg.ProsodyModel != nil || cfg.ProsodyModelPath == "" {
 		return nil, nil
 	}
-	path := profile.ProsodyModelFallback(cfg.ProsodyModelPath)
+	path := prosodyFallbackModelPath(cfg.ProsodyModelPath, profile.Language())
 	if path == "" {
 		return nil, nil
 	}
@@ -80,10 +79,16 @@ func resolveProsodyModelForProfile(cfg Config, profile languageProfile) (*prosod
 	return loadProsodyModelCached(path)
 }
 
-func englishFallbackProsodyModelPath(configuredPath string) string {
-	return filepath.Join(filepath.Dir(configuredPath), "frame-intonation-tcn-en-v1.json")
+// 言語別の代替抑揚モデル。configuredPathと同じディレクトリから読む。
+var prosodyModelFallbacks = map[string]string{
+	frontend.LanguageEnglish: "frame-intonation-tcn-en-v1.json",
+	frontend.LanguageChinese: "tone-intonation-zh-v1.json",
 }
 
-func mandarinFallbackProsodyModelPath(configuredPath string) string {
-	return filepath.Join(filepath.Dir(configuredPath), "tone-intonation-zh-v1.json")
+func prosodyFallbackModelPath(configuredPath, language string) string {
+	name := prosodyModelFallbacks[frontend.NormalizeLanguage(language)]
+	if name == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(configuredPath), name)
 }
