@@ -19,18 +19,11 @@ const (
 	melHighHz    = 12000.0
 )
 
-// PhoneSpanはモデルへ渡す音素区間（フレーズ先頭基準のms）。codaを含む実際の区間。
-type PhoneSpan struct {
-	Label      string
-	StartMS    float64
-	DurationMS float64
-}
-
 // 時刻は合成計画基準のms。
 type Mora struct {
 	Text string
-	// Spansがあれば音素区間としてそのまま使う。無ければTextをかなとして解析する。
-	Spans                   []PhoneSpan
+	// Spansがあればフレーズ先頭基準（秒）の音素区間としてそのまま使う。無ければTextをかなとして解析する。
+	Spans                   []Span
 	NoteStartMS             float64
 	DurationMS              float64
 	EffectivePreutteranceMS float64
@@ -46,18 +39,17 @@ type Features struct {
 	Aperiodicity []float64
 }
 
-// strengthは1が標準、0は無効。文頭余白はms。
-func Warp(model Predictor, morae []Mora, leadingMarginMS float64, input Features, strength float64) (Features, error) {
+// Warpはタイムラインの固定点に沿ってWORLD特徴量を時間伸縮する。strengthは1が標準、0は無効。
+func Warp(model Predictor, timeline Timeline, input Features, strength float64) (Features, error) {
 	frames := input.Frames
 	bins := input.FFTSize/2 + 1
 	if frames < 2 || len(input.F0) != frames || len(input.Spectrum) != frames*bins || len(input.Aperiodicity) != frames*bins {
 		return Features{}, fmt.Errorf("speech timing: inconsistent features")
 	}
-	if strength <= 0 || len(morae) == 0 {
+	if strength <= 0 || len(timeline.Spans) == 0 {
 		return input, nil
 	}
-	phones, starts, ends := phoneTimeline(morae, leadingMarginMS, frames)
-	ids, cont, speech := frameInputs(model.Phones(), phones, input.F0)
+	ids, cont, speech := frameInputs(model.Phones(), timeline.Spans, input.F0)
 	target, err := model.Predict(ids, cont)
 	if err != nil {
 		return Features{}, err
@@ -75,12 +67,12 @@ func Warp(model Predictor, morae []Mora, leadingMarginMS float64, input Features
 	}
 	normalize(source, speech)
 	normalize(targetRows, speech)
-	anchors := make([]float64, 0, len(starts)+len(ends))
-	for _, value := range append(append([]float64(nil), starts...), ends...) {
+	anchors := make([]float64, 0, len(timeline.Starts)+len(timeline.Ends))
+	for _, value := range append(append([]float64(nil), timeline.Starts...), timeline.Ends...) {
 		anchors = append(anchors, value*1000/FrameMS)
 	}
 	raw := warpMap(source, targetRows, anchors, frames)
-	weight := protectPhraseEnds(frames, starts, ends)
+	weight := protectPhraseEnds(frames, timeline.Starts, timeline.Ends)
 	positions := make([]float64, frames)
 	for t := range positions {
 		value := float64(t) + strength*weight[t]*(raw[t]-float64(t))
@@ -93,7 +85,7 @@ func Warp(model Predictor, morae []Mora, leadingMarginMS float64, input Features
 	return resample(input, positions), nil
 }
 
-func frameInputs(phoneNames []string, phones []phoneSpan, f0 []float64) ([][3]int, [][4]float32, []bool) {
+func frameInputs(phoneNames []string, phones []Span, f0 []float64) ([][3]int, [][4]float32, []bool) {
 	index := make(map[string]int, len(phoneNames))
 	for i, name := range phoneNames {
 		index[name] = i
@@ -113,8 +105,8 @@ func frameInputs(phoneNames []string, phones []phoneSpan, f0 []float64) ([][3]in
 		ids[t] = [3]int{silence, silence, silence}
 	}
 	for i, phone := range phones {
-		a := int(math.Round(phone.start * 1000 / FrameMS))
-		b := int(math.Round(phone.end * 1000 / FrameMS))
+		a := int(math.Round(phone.Start * 1000 / FrameMS))
+		b := int(math.Round(phone.End * 1000 / FrameMS))
 		a = max(0, a)
 		b = min(frames, max(b, a+1))
 		if a >= frames {
@@ -122,20 +114,20 @@ func frameInputs(phoneNames []string, phones []phoneSpan, f0 []float64) ([][3]in
 		}
 		previous, next := "sil", "sil"
 		if i > 0 {
-			previous = phones[i-1].label
+			previous = phones[i-1].Label
 		}
 		if i+1 < len(phones) {
-			next = phones[i+1].label
+			next = phones[i+1].Label
 		}
-		duration := float32(math.Log((phone.end-phone.start)*1000+1) / 6)
+		duration := float32(math.Log((phone.End-phone.Start)*1000+1) / 6)
 		for t := a; t < b; t++ {
-			ids[t] = [3]int{id(phone.label), id(previous), id(next)}
+			ids[t] = [3]int{id(phone.Label), id(previous), id(next)}
 			cont[t][0] = (float32(t-a) + 0.5) / float32(max(1, b-a))
 			cont[t][1] = duration
 		}
-		if phone.label != "sil" {
-			from := int(phone.start * 1000 / FrameMS)
-			to := int(phone.end*1000/FrameMS) + 1
+		if phone.Label != "sil" {
+			from := int(phone.Start * 1000 / FrameMS)
+			to := int(phone.End*1000/FrameMS) + 1
 			for t := max(0, from); t < min(frames, to); t++ {
 				speech[t] = true
 			}

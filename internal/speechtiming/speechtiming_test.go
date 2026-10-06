@@ -84,23 +84,23 @@ func TestPhoneTimelineMarksPhraseEnds(t *testing.T) {
 	if len(ends) != 2 || math.Abs(ends[0]-0.29) > 1e-9 || math.Abs(ends[1]-0.57) > 1e-9 {
 		t.Fatalf("ends = %v", ends)
 	}
-	if phones[0].label != "sil" || phones[1].label != "k" || phones[2].label != "a" {
+	if phones[0].Label != "sil" || phones[1].Label != "k" || phones[2].Label != "a" {
 		t.Fatalf("phones = %v", phones[:3])
 	}
 }
 
 func TestPhoneTimelineUsesExplicitSpans(t *testing.T) {
 	morae := []Mora{{Text: "w3", NoteStartMS: 0, DurationMS: 120, EffectivePreutteranceMS: 40,
-		Spans: []PhoneSpan{
-			{Label: "w", StartMS: 0, DurationMS: 30},
-			{Label: "er", StartMS: 30, DurationMS: 50},
-			{Label: "l", StartMS: 80, DurationMS: 20},
-			{Label: "d", StartMS: 100, DurationMS: 20},
+		Spans: []Span{
+			{Label: "w", Start: 0.05, End: 0.08},
+			{Label: "er", Start: 0.08, End: 0.13},
+			{Label: "l", Start: 0.13, End: 0.15},
+			{Label: "d", Start: 0.15, End: 0.17},
 		}}}
 	phones, starts, ends := phoneTimeline(morae, 50, 30)
 	var labels []string
 	for _, phone := range phones {
-		labels = append(labels, phone.label)
+		labels = append(labels, phone.Label)
 	}
 	want := []string{"sil", "w", "er", "l", "d", "sil"}
 	if !reflect.DeepEqual(labels, want) {
@@ -109,8 +109,8 @@ func TestPhoneTimelineUsesExplicitSpans(t *testing.T) {
 	if len(starts) != 1 || math.Abs(starts[0]-0.05) > 1e-9 {
 		t.Fatalf("starts = %v", starts)
 	}
-	if phones[1].start != 0.05 || phones[1].end != 0.08 {
-		t.Fatalf("w span = %v..%v", phones[1].start, phones[1].end)
+	if phones[1].Start != 0.05 || phones[1].End != 0.08 {
+		t.Fatalf("w span = %v..%v", phones[1].Start, phones[1].End)
 	}
 	if len(ends) != 1 || math.Abs(ends[0]-0.17) > 1e-9 {
 		t.Fatalf("ends = %v", ends)
@@ -155,6 +155,30 @@ func TestTargetForLanguageLoadsEnglishModel(t *testing.T) {
 	}
 }
 
+func TestTargetForLanguageAliases(t *testing.T) {
+	english, err := TargetForLanguage("en-US")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(english.Phones()) != 42 {
+		t.Fatalf("English alias phones = %d, want 42", len(english.Phones()))
+	}
+	chinese, err := TargetForLanguage("cmn")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(chinese.Phones()) != 47 {
+		t.Fatalf("Chinese alias phones = %d, want 47", len(chinese.Phones()))
+	}
+	japanese, err := TargetForLanguage("ja-JP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(japanese.Phones()) != 40 {
+		t.Fatalf("Japanese alias phones = %d, want 40", len(japanese.Phones()))
+	}
+}
+
 func TestWarpKeepsIdenticalTargetAndProtectsEnds(t *testing.T) {
 	frames := 60
 	rows := make([][]float64, frames)
@@ -184,12 +208,12 @@ func TestPhoneTimelineKeepsConsonantsInContinuousSpeech(t *testing.T) {
 	phones, _, _ := phoneTimeline(morae, 100, 60)
 	var found bool
 	for i, phone := range phones {
-		if phone.label == "s" {
+		if phone.Label == "s" {
 			found = true
-			if math.Abs(phone.start-0.15) > 1e-9 || math.Abs(phone.end-0.22) > 1e-9 {
-				t.Fatalf("s span = %v..%v, want 0.15..0.22", phone.start, phone.end)
+			if math.Abs(phone.Start-0.15) > 1e-9 || math.Abs(phone.End-0.22) > 1e-9 {
+				t.Fatalf("s span = %v..%v, want 0.15..0.22", phone.Start, phone.End)
 			}
-			if previous := phones[i-1]; previous.label != "a" || math.Abs(previous.end-0.15) > 1e-9 {
+			if previous := phones[i-1]; previous.Label != "a" || math.Abs(previous.End-0.15) > 1e-9 {
 				t.Fatalf("previous vowel = %+v, want a ending at 0.15", previous)
 			}
 		}

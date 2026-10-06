@@ -13,9 +13,11 @@ import (
 
 	"utautts/internal/audio"
 	"utautts/internal/engine"
+	"utautts/internal/frontend"
 	"utautts/internal/plan"
 	"utautts/internal/provider"
 	"utautts/internal/render/base"
+	"utautts/internal/speechtiming"
 	"utautts/internal/voicebank"
 )
 
@@ -616,7 +618,7 @@ func legacyJapaneseContinuousMix(synthesisPlan *plan.Plan) bool {
 	if synthesisPlan == nil || synthesisPlan.SingleCV {
 		return false
 	}
-	return base.JapanesePlan(synthesisPlan.Language, synthesisPlan.Phonemizer)
+	return frontend.JapanesePlan(synthesisPlan.Language, synthesisPlan.Phonemizer)
 }
 
 func worldlineLegacyMix(synthesisPlan *plan.Plan, mode string) (bool, error) {
@@ -683,7 +685,7 @@ func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options b
 	}
 	language := strings.ToLower(strings.TrimSpace(synthesisPlan.Language))
 	phonemizer := strings.ToLower(strings.TrimSpace(synthesisPlan.Phonemizer))
-	japanese := base.JapanesePlan(language, phonemizer)
+	japanese := frontend.JapanesePlan(language, phonemizer)
 	if japanese && strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV") {
 		// VCVは信頼度の高い過渡だけを保護する。
 		return options.JapaneseStopProtectionEnabled() && unit.SpeechProfile.TransientConfidence >= stopTransientVCVFloor
@@ -699,7 +701,7 @@ func e2bStopGeneralization(synthesisPlan *plan.Plan, unit plan.Unit, options bas
 	if !options.JapaneseStopProtectionEnabled() || synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
 		return false
 	}
-	return base.JapanesePlan(synthesisPlan.Language, synthesisPlan.Phonemizer)
+	return frontend.JapanesePlan(synthesisPlan.Language, synthesisPlan.Phonemizer)
 }
 
 // 低加工の連続音でも、信頼度の高い破裂音だけは補う。
@@ -734,7 +736,7 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg base.Config, manifest wo
 	}
 	worldline := provider.WorldlineOptions{
 		Engine: manifest.Engine, SampleRate: manifest.SampleRate, ExactLength: cfg.ProviderOptions.Worldline.ExactLength,
-		TimingWarp: timingWarpJob(synthesisPlan, cfg),
+		TimingWarp: timingWarpJob(synthesisPlan, cfg, len(manifest.F0Curve)),
 		F0Curve:    append([]float64(nil), manifest.F0Curve...),
 		Units:      make([]provider.WorldlineUnit, len(manifest.Units)),
 	}
@@ -778,8 +780,8 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg base.Config, manifest wo
 	}, nil
 }
 
-// CVVCの子音長にはVCを含める。
-func timingWarpJob(synthesisPlan *plan.Plan, cfg base.Config) *provider.TimingWarp {
+// CVVCの子音長にはVCを含める。タイムラインは本体で計算する。
+func timingWarpJob(synthesisPlan *plan.Plan, cfg base.Config, frames int) *provider.TimingWarp {
 	if synthesisPlan == nil || !cfg.ProviderOptions.Worldline.TimingWarpEnabled() {
 		return nil
 	}
@@ -790,33 +792,41 @@ func timingWarpJob(synthesisPlan *plan.Plan, cfg base.Config) *provider.TimingWa
 			transition[unit.Position] = unit.DurationMS
 		}
 	}
-	warp := &provider.TimingWarp{Strength: 1, LeadingMarginMS: synthesisPlan.LeadingMarginMS, Language: synthesisPlan.Language}
+	margin := synthesisPlan.LeadingMarginMS
+	var morae []speechtiming.Mora
 	for _, unit := range synthesisPlan.Units {
 		if unit.Role != "mora" || unit.Silent || unit.Mora == "" {
 			continue
 		}
-		entry := provider.TimingWarpMora{
+		entry := speechtiming.Mora{
 			Text: unit.Mora, NoteStartMS: unit.NoteStartMS, DurationMS: unit.DurationMS,
-			ConsonantMS: math.Max(unit.EffectivePreutteranceMS, transition[unit.Position]),
+			EffectivePreutteranceMS: math.Max(unit.EffectivePreutteranceMS, transition[unit.Position]),
 		}
-		// 日本語以外はかな解析できないため、プランの音素と区間をそのまま渡す。
+		// 日本語以外はかな解析できないため、プランの音素区間を余白込みで渡す。
 		if !japanese {
 			for _, timing := range synthesisPlan.PhoneTimings {
 				if timing.Position != unit.Position {
 					continue
 				}
-				entry.Spans = append(entry.Spans, provider.TimingWarpPhone{
-					Symbol: timing.Symbol, StartMS: timing.StartMS, DurationMS: timing.DurationMS,
+				entry.Spans = append(entry.Spans, speechtiming.Span{
+					Label: timing.Symbol,
+					Start: (margin + timing.StartMS) / 1000,
+					End:   (margin + timing.StartMS + timing.DurationMS) / 1000,
 				})
 			}
 		}
-		warp.Morae = append(warp.Morae, entry)
+		morae = append(morae, entry)
 	}
-	return warp
+	timeline := speechtiming.PhoneTimeline(morae, margin, frames)
+	spans := make([]provider.TimingWarpSpan, 0, len(timeline.Spans))
+	for _, span := range timeline.Spans {
+		spans = append(spans, provider.TimingWarpSpan{Label: span.Label, Start: span.Start, End: span.End})
+	}
+	return &provider.TimingWarp{Strength: 1, Language: synthesisPlan.Language, Spans: spans, Starts: timeline.Starts, Ends: timeline.Ends}
 }
 
 func isJapanesePlan(synthesisPlan *plan.Plan) bool {
-	return base.NormalizeLanguage(synthesisPlan.Language) == "ja"
+	return frontend.NormalizeLanguage(synthesisPlan.Language) == "ja"
 }
 
 func findFRQPath(wavPath string) string {

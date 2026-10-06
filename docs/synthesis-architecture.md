@@ -43,9 +43,9 @@ WORLDの英語・中国語では、まずotoと音響的な推定から原音の
 | 描画（本体） | 伸縮の有界化（原音より大きく伸ばすとき） | `render/base/timing.go`（`AdaptStretchTiming`） | `stretch_adapt` |
 | 描画（本体） | 単独音の母音だけのモーラを前の母音から滑らかにつなぐ | `render/worldline/singlecv_legato.go` | なし |
 | 描画（本体） | 子音の前後の小さな音高の動き | `render/worldline/microprosody.go` | `microprosody` |
-| 描画（本体） | 時間伸縮の入力（モーラ、CVVCではVCを含む子音の長さ。英語・中国語はプランの音素区間） | `render/worldline/worldline.go`（`timingWarpJob`） | `timing_warp` |
+| 描画（本体） | 時間伸縮の入力（音素区間と固定点のタイムライン。日本語は先行発声、英語・中国語はプランの音素区間） | `render/worldline/worldline.go`（`timingWarpJob`） | `timing_warp` |
 | 描画（bridge） | 母音接続・破裂音の保護・同じ母音の隙間の補修 | `worldrender/world_speech.go`、`world_gap.go`、`stop_burst.go` | なし |
-| 描画（bridge） | 学習した読み上げの動きに合わせてモーラの中だけ時間伸縮 | `speechtiming`、`worldrender/timing_warp.go` | `timing_warp` |
+| 描画（bridge） | 本体が作ったタイムラインに沿ってモーラの中だけ時間伸縮 | `speechtiming`、`worldrender/timing_warp.go` | `timing_warp` |
 
 描画（本体）の処理は`render/worldline/worldline.go`の`renderWorldlineEngine`が、タイミング（`prepareWorldlineTiming`）、音高（`prepareWorldlinePitch`）、原音の準備、素片（`worldlineUnitBuilder`）、bridgeの実行（`runWorldlineBridge`）の順に行います。bridgeへ渡す内容は`provider.UnitRendererJob`に明示し、bridgeは合成計画を読み直しません。
 
