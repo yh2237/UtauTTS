@@ -192,6 +192,6 @@ CPUの再開は連続実行とファイル単位で一致します。CUDAは勾�
 
 ## 残る Python
 
-MFA 本体と、その辞書・整列・監査に依存する `align-intonation-mfa.py`、`source-phone-*`、`source-span-mapping.py`、`source-span-auto.py map` は Python のままです。`plot-source-analysis.py` は MFA 監査の可視化です。Open JTalk 実行時ブリッジとそのビルド検証・PyInstallerライセンス収集、web/wasm 配布補助（`web/build-voice.py`、`qt/wasm/cloudflare.py`）も Python に依存します。Qt SBOM検証とモデルライセンス通知・CMUdict取り込みはGoコマンド（`cmd/tools/verify-qt-sbom`、`cmd/tools/copy-model-license-notices`、`cmd/tools/import-cmudict`）です。
+MFA 本体と、その辞書・整列・監査に依存する `align-intonation-mfa.py`、`source-phone-*`、`source-span-mapping.py`、`source-span-auto.py map` は Python のままです。`plot-source-analysis.py` は MFA 監査の可視化です。Open JTalk 実行時ブリッジとそのビルド検証・PyInstallerライセンス収集、wasm 配布補助（`qt/wasm/cloudflare.py`）も Python に依存します。Web 用音源 ZIP の展開は Go コマンド `cmd/tools/build-voice` が担います。Qt SBOM検証とモデルライセンス通知・CMUdict取り込みはGoコマンド（`cmd/tools/verify-qt-sbom`、`cmd/tools/copy-model-license-notices`、`cmd/tools/import-cmudict`）です。
 
 性能測定は `go run ./cmd/tools/performance-baseline --out out/perf-... --voicebank <音源>` で行います。ベンチ、ビルド、合成結果、pprofを新しいディレクトリへまとめます。

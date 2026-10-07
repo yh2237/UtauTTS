@@ -9,13 +9,14 @@ on:
       - 'qt/**'
       - 'renderer/utautts-world-phrase/**'
       - 'cmd/utautts-wasm/**'
+      - 'cmd/tools/build-voice/**'
       - 'cmd/utautts-worldline-bridge/**'
       - 'internal/**'
       - 'native/**'
       - 'third_party/open_jtalk/**'
       - '.github/workflows/wasm.yml'
   pull_request:
-    paths: ['web/**', 'qt/**', '.github/workflows/wasm.yml']
+    paths: ['web/**', 'qt/**', 'cmd/tools/build-voice/**', '.github/workflows/wasm.yml']
   workflow_dispatch:
     inputs:
       preview_name:
@@ -51,10 +52,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
       - name: Check wasm regressions and deployment packaging
         run: |
           node --test web/test-wasm-regressions.cjs web/test-asset-paths.cjs
           python -m unittest discover -s qt/wasm -p 'test_cloudflare.py' -v
+          go test ./cmd/tools/build-voice
 
   build:
     needs: check

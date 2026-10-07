@@ -33,8 +33,19 @@ Write-Host ("Bundled models: " + (($modelFiles | ForEach-Object { $_.Name }) -jo
 
 $voiceZip = Get-ChildItem -Path (Join-Path $root 'voice') -Filter *.zip -File -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($voiceZip) {
-    & python (Join-Path $PSScriptRoot 'build-voice.py') $voiceZip.FullName (Join-Path $dist 'voice')
+    $voiceStage = 'out/web-voice-' + [guid]::NewGuid().ToString('N')
+    Push-Location $root
+    try {
+        $env:GOOS = 'windows'; $env:GOARCH = (& go env GOHOSTARCH).Trim()
+        & go run ./cmd/tools/build-voice $voiceZip.FullName $voiceStage
+    } finally { Pop-Location }
     if ($LASTEXITCODE -ne 0) { throw "voice bank packaging failed" }
+    $stagePath = [IO.Path]::GetFullPath((Join-Path $root $voiceStage))
+    $outRoot = [IO.Path]::GetFullPath((Join-Path $root 'out')) + [IO.Path]::DirectorySeparatorChar
+    if (-not $stagePath.StartsWith($outRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'voice staging path escaped out/' }
+    New-Item -ItemType Directory -Force -Path (Join-Path $dist 'voice') | Out-Null
+    Copy-Item -Path (Join-Path $stagePath '*') -Destination (Join-Path $dist 'voice') -Recurse -Force
+    Remove-Item -LiteralPath $stagePath -Recurse -Force
 } else {
     Write-Host "No bundled voicebank zip found under voice/"
 }

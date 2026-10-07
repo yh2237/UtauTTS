@@ -32,7 +32,11 @@ cp "${root_dir}/models/"*.json "${dist}/models/"
 
 voice_zip="$(ls "${root_dir}/voice/"*.zip 2>/dev/null | head -n1 || true)"
 if [ -n "${voice_zip}" ]; then
-    python3 "${script_dir}/build-voice.py" "${voice_zip}" "${dist}/voice"
+    voice_stage="${root_dir}/out/web-voice-$$"
+    ( cd "${root_dir}" && GOOS="$(go env GOHOSTOS)" GOARCH="$(go env GOHOSTARCH)" go run ./cmd/tools/build-voice "${voice_zip}" "out/web-voice-$$" )
+    mkdir -p "${dist}/voice"
+    cp -R "${voice_stage}/." "${dist}/voice/"
+    rm -rf -- "${voice_stage}"
 fi
 
 echo "Built ${dist}"
