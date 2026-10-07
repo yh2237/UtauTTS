@@ -32,7 +32,7 @@ func applyJapaneseSpeechRhythm(cfg Config, model *prosody.Model, morae []fronten
 	if cfg.ProsodyPitchOnly {
 		return predictions
 	}
-	if rendererInternalTiming(cfg.Renderer, cfg.RendererCapabilities) {
+	if rendererInternalTiming(cfg.RendererCapabilities) {
 		predictions = internalTimingSpeechRhythm(cfg, model, morae, predictions)
 	}
 	return applyJapaneseContextDuration(cfg, morae, features, predictions, finalPhraseIsQuestion(cfg.Text))

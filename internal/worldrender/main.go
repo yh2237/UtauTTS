@@ -232,9 +232,6 @@ func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
 			target.Envelope[pointIndex] = envelopePoint{XMS: point.XMS, Y: point.Y}
 		}
 		input.Units[index] = target
-		if source.Speech != nil && input.Engine != "utautts-world-phrase" {
-			return manifest{}, fmt.Errorf("speech feature processing requires utautts-world-phrase")
-		}
 	}
 	return input, nil
 }
@@ -248,31 +245,31 @@ func renderManifestValue(input manifest, outputPath string, state *bridgeState) 
 	if len(input.Units) == 0 || len(input.F0Curve) < 2 {
 		return manifest{}, fmt.Errorf("manifest has no synthesis data")
 	}
-	if input.Engine == "utautts-world-phrase" {
-		var engine worldEngine
-		if state != nil {
-			engine = state.worldEngines[input.WorldEnginePath]
-		}
-		if engine == nil {
-			engine, err = openWorldEngine(input.WorldEnginePath)
-			if err != nil {
-				return manifest{}, err
-			}
-			if state != nil {
-				state.worldEngines[input.WorldEnginePath] = engine
-			} else {
-				defer engine.Close()
-			}
-		}
-		var cache *worldFeatureCache
-		if state != nil {
-			cache = state.worldUnits
-		}
-		samples, renderErr := renderUtauTTSWorldPhrase(engine, input, cache)
-		if renderErr != nil {
-			return manifest{}, renderErr
-		}
-		return input, writePCM16(input.OutputPath, input.SampleRate, samples)
+	if input.Engine != "utautts-world-phrase" {
+		return manifest{}, fmt.Errorf("unknown engine: %s", input.Engine)
 	}
-	return manifest{}, fmt.Errorf("unknown engine: %s", input.Engine)
+	var engine worldEngine
+	if state != nil {
+		engine = state.worldEngines[input.WorldEnginePath]
+	}
+	if engine == nil {
+		engine, err = openWorldEngine(input.WorldEnginePath)
+		if err != nil {
+			return manifest{}, err
+		}
+		if state != nil {
+			state.worldEngines[input.WorldEnginePath] = engine
+		} else {
+			defer engine.Close()
+		}
+	}
+	var cache *worldFeatureCache
+	if state != nil {
+		cache = state.worldUnits
+	}
+	samples, renderErr := renderUtauTTSWorldPhrase(engine, input, cache)
+	if renderErr != nil {
+		return manifest{}, renderErr
+	}
+	return input, writePCM16(input.OutputPath, input.SampleRate, samples)
 }

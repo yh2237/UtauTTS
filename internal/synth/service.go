@@ -347,8 +347,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		}
 	}
 	tts.ApplyResolvedEngine(&cfg, resolvedEngine)
-	// Classic UTAUは公開Renderer IDではなく解決済みproviderで判定する。
-	if requireVoicebank && resolvedEngine.Provider.ID == "utau-external-resampler" {
+	if requireVoicebank && resolvedEngine.Provider.ClassicTools {
 		tools, toolsErr := s.ResolveClassicTools(
 			firstNonEmpty(resolution.Resampler, request.Resampler),
 			firstNonEmpty(resolution.Wavtool, request.Wavtool),
@@ -397,7 +396,7 @@ func (s *Service) RendererAvailability() map[string]engine.Availability {
 			continue
 		}
 		availability := resolved.Availability
-		if availability.Available && resolved.Provider.ID == "utau-external-resampler" {
+		if availability.Available && resolved.Provider.ClassicTools {
 			if _, toolsErr := s.ResolveClassicTools("", ""); toolsErr != nil {
 				availability = engine.Availability{
 					Available: false,

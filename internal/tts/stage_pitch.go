@@ -29,7 +29,7 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 			}
 		}
 	}
-	if pitchCurve == nil && applyPitchEnabled(cfg) && rendererSupportsFramePitch(cfg.Renderer, cfg.RendererCapabilities) {
+	if pitchCurve == nil && applyPitchEnabled(cfg) && rendererSupportsFramePitch(cfg.RendererCapabilities) {
 		if unifiedProsodyEnabled(cfg) {
 			if contour := unifiedProsodyContour(language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan); contour != nil {
 				pitchCurve = scaleAutomaticPitchCurve(contour, cfg.IntonationStrength)

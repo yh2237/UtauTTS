@@ -8,27 +8,13 @@ import (
 	"utautts/internal/render"
 )
 
-func rendererSupportsFramePitch(renderer string, capabilities *plugin.Capabilities) bool {
-	return rendererCapability(renderer, capabilities, func(c plugin.Capabilities) bool { return c.FramePitch })
+// capabilityは解決済みRendererのもの（ApplyResolvedEngine）だけを見る。未解決は機能なしとして扱う。
+func rendererSupportsFramePitch(capabilities *plugin.Capabilities) bool {
+	return capabilities != nil && capabilities.FramePitch
 }
 
-func rendererInternalTiming(renderer string, capabilities *plugin.Capabilities) bool {
-	return rendererCapability(renderer, capabilities, func(c plugin.Capabilities) bool { return c.InternalTiming })
-}
-
-// rendererCapabilityは解決済みcapabilityを優先し、未解決時は外部manifestだけを参照する。Go側の既定値は持たない。
-func rendererCapability(renderer string, capabilities *plugin.Capabilities, selectCapability func(plugin.Capabilities) bool) bool {
-	if capabilities != nil {
-		return selectCapability(*capabilities)
-	}
-	directories, _ := plugin.DefaultDirectories()
-	items, _ := plugin.DiscoverRenderers(directories, nil)
-	for _, item := range items {
-		if item.ID == renderer || item.Provider == renderer {
-			return selectCapability(item.Capabilities)
-		}
-	}
-	return false
+func rendererInternalTiming(capabilities *plugin.Capabilities) bool {
+	return capabilities != nil && capabilities.InternalTiming
 }
 
 func applyPitchEnabled(cfg Config) bool {
@@ -37,7 +23,7 @@ func applyPitchEnabled(cfg Config) bool {
 
 func shouldPredictFrameContour(cfg Config, model *prosody.Model) bool {
 	return applyPitchEnabled(cfg) && model != nil && model.HasFrameContour() &&
-		rendererSupportsFramePitch(cfg.Renderer, cfg.RendererCapabilities)
+		rendererSupportsFramePitch(cfg.RendererCapabilities)
 }
 
 func effectiveIntonationStrength(cfg Config) float64 {

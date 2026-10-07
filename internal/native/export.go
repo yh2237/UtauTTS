@@ -127,9 +127,6 @@ func (e *Engine) enrichAndCurves(project *openutau.UtauTTSProject) []openutau.Fr
 			strength = 1
 		}
 		renderer := utterance.RendererID
-		if renderer == "" {
-			renderer = "utautts-world-phrase"
-		}
 		preview, _, err := e.synth.PredictProsody(synth.Request{
 			Text:               utterance.Text,
 			Kana:               utterance.AnalysisCache.Reading,

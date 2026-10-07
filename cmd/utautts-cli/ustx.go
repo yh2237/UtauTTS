@@ -19,9 +19,6 @@ func ustxFrameCurves(cfg tts.Config, count int) []openutau.FrameCurve {
 	if predictConfig.IntonationStrength <= 0 {
 		predictConfig.IntonationStrength = 1
 	}
-	if predictConfig.Renderer == "" {
-		predictConfig.Renderer = "utautts-world-phrase"
-	}
 	preview, err := tts.PredictProsody(predictConfig)
 	if err != nil || preview == nil || preview.FramePitchCurve == nil {
 		return curves
