@@ -134,6 +134,7 @@
     "menu.settings.settings": "设置...",
     "pitch.emptyMora": "・",
     "settings.defaultIntonation": "抑扬",
+    "settings.unifiedProsody": "统一韵律模型",
     "settings.contextDuration": "上下文时长",
     "settings.contextDurationStrength": "强度",
     "settings.boundaryTone": "句末语调",

@@ -72,12 +72,12 @@ type WorldlineProviderOptions struct {
 	E2B *bool
 	// 日本語のモーラ内を学習した時間配分に合わせる。nilは有効。
 	TimingWarp *bool `json:"timing_warp,omitempty"`
-	// 日本語の子音前後に微細な音高変化を足す。nilは有効。
+	// 日本語の子音前後に微細な音高変化を足す。nilは無効（引退）。
 	Microprosody *bool `json:"microprosody,omitempty"`
 }
 
 func (options WorldlineProviderOptions) MicroprosodyEnabled() bool {
-	return options.Microprosody == nil || *options.Microprosody
+	return options.Microprosody != nil && *options.Microprosody
 }
 
 func (options WorldlineProviderOptions) TimingWarpEnabled() bool {

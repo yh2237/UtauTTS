@@ -155,8 +155,27 @@ func TestTargetForLanguageLoadsEnglishModel(t *testing.T) {
 	}
 }
 
-func TestTargetForLanguageAliases(t *testing.T) {
-	english, err := TargetForLanguage("en-US")
+// 埋め込みのja統合韻律モデルがF0・エネルギーヘッド付きで読めることを確認する。
+func TestProsodyTargetLoadsHeads(t *testing.T) {
+	model, err := ProsodyTarget()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !model.HasF0Head() || !model.HasEnergyHead() {
+		t.Fatal("prosody target is missing heads")
+	}
+	if model.F0Scale() != 100 {
+		t.Fatalf("f0 scale = %v", model.F0Scale())
+	}
+	if len(model.Phones()) != 40 || model.Mels() != 80 {
+		t.Fatalf("phones %d mels %d", len(model.Phones()), model.Mels())
+	}
+	if len(model.PosVocab()) != 11 || len(model.PosGroup1Vocab()) != 28 {
+		t.Fatalf("pos vocab %d/%d", len(model.PosVocab()), len(model.PosGroup1Vocab()))
+	}
+}
+
+func TestTargetForLanguageAliases(t *testing.T) {	english, err := TargetForLanguage("en-US")
 	if err != nil {
 		t.Fatal(err)
 	}

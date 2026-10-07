@@ -92,6 +92,26 @@ go run ./cmd/tools/train-speech-timing --dataset out/mfa-align-20261002/base-mfa
 
 `--features-only --features-json out/speech-timing-target/sample.json` は先頭の特徴を比較用に出力します。既存の `--cache` があれば、`--dataset`、`--alignments`、WORLD DLLなしで学習できます。
 
+### 日本語の統合韻律モデル（F0・エネルギー）
+
+`speech-timing-target-ja-prosody-v1`（`internal/speechtiming` に埋め込み、`ProsodyTarget()` が読む）は、メルトランクに加えて F0 とエネルギーのヘッドを持ちます。既定の日本語抑揚はこのモデルで生成し、レンダラー設定 `unified_prosody`（既定ON）で従来の抑揚モデル（`frame-intonation-tcn-v10`）へ切り替えられます。
+
+F0教師は既存の抑揚モデルの**ランタイム輪郭**（平滑化・p99・最大90centクリップ込み）をコーパスの時間軸で生成した蒸留教師です。
+
+```powershell
+# 1. 教師輪郭（自然時間軸）
+go run ./cmd/tools/prosody-teacher --dataset out/mfa-align-20261002/all-mfa.jsonl --model models/frame-intonation-tcn-v10.json --out out/speech-timing-target/ja-v10-teacher.jsonl
+
+# 2. プラン時間風（モーラ120ms±15・ポーズ180ms）のデータと教師を作り、自然時間のデータと混合する
+#    plan-mfa.jsonl（plan_timing: true、時刻を振り直したトークン）を用意し、同じツールで教師を生成。
+#    all-mfa.jsonl + plan-mfa.jsonl = mix-mfa.jsonl、教師も連結して ja-mix-teacher.jsonl にする。
+
+# 3. 学習（F0蒸留＋エネルギー、プラン側はメル・エネルギー目標をNaNで除外）
+go run ./cmd/tools/train-speech-timing --dataset out/mfa-align-20261002/mix-mfa.jsonl --alignments "out/mfa-align-20261002/alignments,out/mfa-align-20261002/alignments-others" --cache out/speech-timing-target/ja-mix-features.gob --language ja --f0 --f0-teacher out/speech-timing-target/ja-mix-teacher.jsonl --f0-weight 1 --f0-delta-weight 0.35 --energy-weight 1 --lr 0.0015 --steps 8000 --device cuda --out out/speech-timing-target/ja-mh.safetensors
+```
+
+学習した重みを `internal/speechtiming/speech-timing-target-ja-prosody-v1.safetensors` へ置くと、`ProsodyTarget()` が読みます。F0ヘッドは教師のcent/100スケール（metadata `f0_scale=100`）で出力し、実行時に発話区間のGaussian平滑化（20ms）とp99/最大クリップを適用します。エネルギーは発話内で中心化し、プランの`EnergyFactor`（0.75〜1.3）へ適用します。言語が日本語以外のときは従来の経路（言語別抑揚モデル）へ戻ります。
+
 ### 英語の目標音素時間モデル
 
 `speech-timing-target-en-v1` は LibriTTS-R のトークン境界（`out/english-frame-v1/corpus.jsonl`）から学習します。`--corpus` は音素区間付きのトークン列を読み、言語別の語彙を組み立ててモデルmetadataの`phones`へ保存します。

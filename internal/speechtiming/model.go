@@ -33,6 +33,9 @@ var embeddedEnglishTarget []byte
 //go:embed speech-timing-target-zh-v1.safetensors
 var embeddedChineseTarget []byte
 
+//go:embed speech-timing-target-ja-prosody-v1.safetensors
+var embeddedJapaneseProsody []byte
+
 // modelCacheは埋め込みモデルを一度だけ読み込む。
 type modelCache struct {
 	once  sync.Once
@@ -49,9 +52,13 @@ var (
 	japaneseTarget modelCache
 	englishTarget  modelCache
 	chineseTarget  modelCache
+	japaneseProsody modelCache
 )
 
 func DefaultTarget() (*TCN, error) { return japaneseTarget.load(embeddedTarget) }
+
+// ProsodyTargetはjaの統合韻律モデル（メル＋F0＋エネルギー）を返す。
+func ProsodyTarget() (*TCN, error) { return japaneseProsody.load(embeddedJapaneseProsody) }
 
 // TargetForLanguageは言語別の時間伸縮モデルを返す。未対応の言語は日本語モデル。
 func TargetForLanguage(language string) (*TCN, error) {

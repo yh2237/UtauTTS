@@ -474,8 +474,8 @@ func TestSynthesisRequestIntonationSettings(t *testing.T) {
 	defaults := apply(`{"text":"あ"}`)
 	if !defaults.ApplyPitch || defaults.IntonationStrength != synth.DefaultIntonationStrength ||
 		defaults.ContextDuration != synth.DefaultContextDuration || defaults.ContextDurationStrength != synth.DefaultContextDurationStrength ||
-		!defaults.BoundaryTone || defaults.BoundaryToneStrength != synth.DefaultBoundaryToneStrength ||
-		!defaults.StretchAdapt || defaults.StretchAdaptStrength != synth.DefaultStretchAdaptStrength ||
+		defaults.BoundaryTone != synth.DefaultBoundaryTone || defaults.BoundaryToneStrength != synth.DefaultBoundaryToneStrength ||
+		defaults.StretchAdapt != synth.DefaultStretchAdapt || defaults.StretchAdaptStrength != synth.DefaultStretchAdaptStrength ||
 		!defaults.PauseContext || defaults.PauseContextStrength != synth.DefaultPauseContextStrength ||
 		!defaults.EnglishWeakForm {
 		t.Fatalf("defaults = %#v", defaults)

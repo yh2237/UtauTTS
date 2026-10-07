@@ -1,16 +1,13 @@
 package tts
 
-// 実験用: UTAUTTS_UNIFIED_F0 / UTAUTTS_UNIFIED_ENERGY が指すマルチヘッドモデルで、
+// 統合韻律モデル（メル＋F0＋エネルギー）の適用。
 // F0ヘッドの輪郭を自動ピッチ曲線に、エネルギーヘッドの値をプランのEnergyFactorに使う。
-// 実験後に削除する。
+// モデルはinternal/speechtimingへ埋め込む。
 
 import (
 	"fmt"
 	"math"
-	"os"
 	"sort"
-	"strconv"
-	"sync"
 
 	"utautts/internal/frontend"
 	"utautts/internal/plan"
@@ -19,29 +16,12 @@ import (
 	"utautts/internal/speechtiming"
 )
 
-var unifiedModels sync.Map
-
-func unifiedModelFromEnv(name string) *speechtiming.TCN {
-	path := os.Getenv(name)
-	if path == "" {
-		return nil
-	}
-	if cached, ok := unifiedModels.Load(path); ok {
-		return cached.(*speechtiming.TCN)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-	model, err := speechtiming.LoadTCN(data)
-	if err != nil {
-		return nil
-	}
-	unifiedModels.Store(path, model)
-	return model
+// unifiedProsodyEnabledは統合韻律モデルの使用有無。nilは既定で有効。
+func unifiedProsodyEnabled(cfg Config) bool {
+	return cfg.UnifiedProsody == nil || *cfg.UnifiedProsody
 }
 
-func unifiedF0AccentVector(frame prosody.FeatureFrame) [12]float32 {
+func unifiedProsodyAccentVector(frame prosody.FeatureFrame) [12]float32 {
 	return [12]float32{
 		float32(frame["accent_position"]),
 		float32(frame["accent_from_end"]),
@@ -58,10 +38,10 @@ func unifiedF0AccentVector(frame prosody.FeatureFrame) [12]float32 {
 	}
 }
 
-// unifiedF0ExtraVectorはアクセント12＋POS one-hot＋pos_group1 one-hotを組む。
-func unifiedF0ExtraVector(frame prosody.FeatureFrame, model *speechtiming.TCN) []float32 {
+// unifiedProsodyExtraVectorはアクセント12＋POS one-hot＋pos_group1 one-hotを組む。
+func unifiedProsodyExtraVector(frame prosody.FeatureFrame, model *speechtiming.TCN) []float32 {
 	extra := make([]float32, model.F0Context()-2)
-	accent := unifiedF0AccentVector(frame)
+	accent := unifiedProsodyAccentVector(frame)
 	copy(extra[:12], accent[:])
 	pos := model.PosVocab()
 	posIndex := len(pos)
@@ -84,10 +64,10 @@ func unifiedF0ExtraVector(frame prosody.FeatureFrame, model *speechtiming.TCN) [
 	return extra
 }
 
-// unifiedContextはjaのプランからタイムラインとアクセント特徴を組み、文脈トランクの入力と発話マスクを返す。
-func unifiedContext(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) ([][3]int, [][]float32, []bool, error) {
+// unifiedProsodyContextはjaのプランからタイムラインとアクセント特徴を組み、文脈トランクの入力と発話マスクを返す。
+func unifiedProsodyContext(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) ([][3]int, [][]float32, []bool, error) {
 	if model == nil || synthesisPlan == nil || frontend.NormalizeLanguage(language) != "ja" {
-		return nil, nil, nil, fmt.Errorf("unified model unavailable")
+		return nil, nil, nil, fmt.Errorf("unified prosody unavailable")
 	}
 	transition := map[int]float64{}
 	for _, unit := range synthesisPlan.Units {
@@ -106,18 +86,18 @@ func unifiedContext(model *speechtiming.TCN, language string, features []prosody
 		})
 	}
 	if len(morae) == 0 {
-		return nil, nil, nil, fmt.Errorf("unified model unavailable")
+		return nil, nil, nil, fmt.Errorf("unified prosody unavailable")
 	}
 	frames := int(math.Round(durationMS / 10))
 	if frames < 2 {
-		return nil, nil, nil, fmt.Errorf("unified model unavailable")
+		return nil, nil, nil, fmt.Errorf("unified prosody unavailable")
 	}
 	timeline := speechtiming.PhoneTimeline(morae, synthesisPlan.LeadingMarginMS, frames)
 	extras := make([][]float32, frames)
 	for index, timing := range timings {
 		var vector []float32
 		if index < len(features) {
-			vector = unifiedF0ExtraVector(features[index], model)
+			vector = unifiedProsodyExtraVector(features[index], model)
 		}
 		a := int(math.Round(timing.StartMS / 10))
 		b := int(math.Round((timing.StartMS + timing.DurationMS) / 10))
@@ -147,12 +127,13 @@ func unifiedContext(model *speechtiming.TCN, language string, features []prosody
 	return ids, cont, speech, nil
 }
 
-// unifiedF0ContourはF0ヘッドの輪郭を自動ピッチ曲線として返す。
-func unifiedF0Contour(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) *render.PitchCurve {
-	if model == nil || !model.HasF0Head() {
+// unifiedProsodyContourはF0ヘッドの輪郭を自動ピッチ曲線として返す。
+func unifiedProsodyContour(language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) *render.PitchCurve {
+	model, err := speechtiming.ProsodyTarget()
+	if err != nil || !model.HasF0Head() {
 		return nil
 	}
-	ids, cont, speech, err := unifiedContext(model, language, features, timings, durationMS, synthesisPlan)
+	ids, cont, speech, err := unifiedProsodyContext(model, language, features, timings, durationMS, synthesisPlan)
 	if err != nil {
 		return nil
 	}
@@ -170,14 +151,7 @@ func unifiedF0Contour(model *speechtiming.TCN, language string, features []proso
 	}
 	if model.F0Scale() > 0 {
 		// 蒸留モデルはv10と同じ後処理（平滑化20ms・p99 75cent・最大90cent）を再現する。
-		// UTAUTTS_UNIFIED_SMOOTH_MS で平滑化幅を広げられる（震えの実験用）。
-		sigma := 2.0
-		if value := os.Getenv("UTAUTTS_UNIFIED_SMOOTH_MS"); value != "" {
-			if parsed, err := strconv.ParseFloat(value, 64); err == nil && parsed > 0 {
-				sigma = parsed / 10
-			}
-		}
-		cents = smoothPhraseContour(cents, speech, sigma)
+		cents = smoothPhraseContour(cents, speech, 2.0)
 		cents = clipContourPercentile(cents, speech, 75, 90)
 	}
 	return &render.PitchCurve{FrameMS: 10, Cents: cents}
@@ -245,12 +219,13 @@ func clipContourPercentile(values []float64, speech []bool, p99, maximum float64
 	return values
 }
 
-// applyUnifiedEnergyはエネルギーヘッドの値を平滑化し、プランのEnergyFactorへ適用する。
-func applyUnifiedEnergy(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) {
-	if model == nil || !model.HasEnergyHead() {
+// applyUnifiedProsodyEnergyはエネルギーヘッドの値を平滑化し、プランのEnergyFactorへ適用する。
+func applyUnifiedProsodyEnergy(language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) {
+	model, err := speechtiming.ProsodyTarget()
+	if err != nil || !model.HasEnergyHead() {
 		return
 	}
-	ids, cont, _, err := unifiedContext(model, language, features, timings, durationMS, synthesisPlan)
+	ids, cont, _, err := unifiedProsodyContext(model, language, features, timings, durationMS, synthesisPlan)
 	if err != nil {
 		return
 	}
@@ -279,15 +254,6 @@ func applyUnifiedEnergy(model *speechtiming.TCN, language string, features []pro
 		for t := range values {
 			values[t] -= center
 		}
-	}
-	if os.Getenv("UTAUTTS_UNIFIED_ENERGY_DEBUG") != "" {
-		minimum, maximum, sum := values[0], values[0], 0.0
-		for _, value := range values {
-			minimum = min(minimum, value)
-			maximum = max(maximum, value)
-			sum += float64(value)
-		}
-		fmt.Fprintf(os.Stderr, "unified energy: frames=%d min=%.3f max=%.3f mean=%.3f\n", len(values), minimum, maximum, sum/float64(len(values)))
 	}
 	smoothed := movingAverage(values, 5)
 	for index := range synthesisPlan.Units {
