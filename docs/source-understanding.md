@@ -4,7 +4,7 @@
 
 合成処理全体の担当と補正順は[UTAU音源の合成処理](synthesis-architecture.md)にあります。
 
-観測ツールにはGoとPython、図の表示にはNumPyとMatplotlibが必要です。強制整列を行う場合はMFAと対象言語の音響モデルも用意してください。
+観測と図の作成にはGoが必要です。強制整列を行う場合はMFAと対象言語の音響モデルも用意してください。
 
 ## 通常の合成で使う
 
@@ -47,20 +47,20 @@ out/source-analyze.exe --plan out/utterance.plan.json --out out/source-observati
 ```
 
 ```powershell
-python tools/source-phone-alignment.py prepare --report out/source-observation/observations.json --requests out/source-requests.json --out out/source-alignment
+go run ./cmd/tools/source-phone-alignment prepare --report out/source-observation/observations.json --requests out/source-requests.json --out out/source-alignment
 mfa align out/source-alignment/corpus out/source-alignment/dictionary.dict english_us_arpa out/source-alignment/alignments --output_format json --num_jobs 1 --no_use_postgres --single_speaker
-python tools/source-phone-alignment.py import --manifest out/source-alignment/manifest.json --alignments out/source-alignment/alignments --model english_us_arpa --out out/source-alignment/aligned-observations.json
+go run ./cmd/tools/source-phone-alignment import --manifest out/source-alignment/manifest.json --alignments out/source-alignment/alignments --model english_us_arpa --out out/source-alignment/aligned-observations.json
 ```
 
 音素列の不一致、未知音素、重複・範囲外の時刻は取り込みません。`alignment_audit`に成功と除外理由を記録します。音響モデルとUtauTTSの音素表記が異なる場合は、入力の`canonical_phones`に同じ順序の内部記号を指定できます。
 
-エイリアスから候補列を作る場合は`source-phone-discovery.py`（英語）または`source-phone-discovery-zh.py`（中国語）を使います。各ツールの`prepare --help`と`finish --help`で引数を確認できます。中国語の生成対象は単母音と鼻音韻尾を持つ音節で、複合母音は対象外です。生成した`mfa-config.yaml`をMFAの`--config_path`へ指定してください。
+エイリアスから候補列を作る場合は`go run ./cmd/tools/source-phone-discovery`（英語）または`go run ./cmd/tools/source-phone-discovery-zh`（中国語）を使います。各ツールの`prepare --help`と`finish --help`で引数を確認できます。中国語の生成対象は単母音と鼻音韻尾を持つ音節で、複合母音は対象外です。生成した`mfa-config.yaml`をMFAの`--config_path`へ指定してください。
 
 ## 区間を確認する
 
 ```powershell
-python tools/source-phone-alignment.py audit --report out/source-alignment/aligned-observations.json --out out/source-alignment/acoustic-audit.json
-python tools/plot-source-analysis.py --report out/source-alignment/aligned-observations.json --alias "l d-" --detail --out out/source-alignment/detail.png
+go run ./cmd/tools/source-phone-alignment audit --report out/source-alignment/aligned-observations.json --out out/source-alignment/acoustic-audit.json
+go run ./cmd/tools/plot-source-analysis --report out/source-alignment/aligned-observations.json --alias "l d-" --detail --out out/source-alignment/detail.png
 ```
 
 原音の波形・スペクトログラム・RMSに整列区間を重ねて確認できます。`audit`は整列外の音響活動や破裂音の境界候補を調べます。`needs-review`は確認が必要な区間です。警告がない場合も、音素境界の正確さを保証するものではありません。
@@ -68,7 +68,7 @@ python tools/plot-source-analysis.py --report out/source-alignment/aligned-obser
 人手で確認した境界と比較する場合は、参照JSONの各unitに`unit_index`・`source_sha256`・`annotation_kind: manual`を記録し、`phones`へ音素ごとの`symbol`・`start_ms`・`end_ms`を指定します。
 
 ```powershell
-python tools/source-phone-alignment.py evaluate --report out/source-alignment/aligned-observations.json --references data/manual-source-phones.json --out out/source-alignment/boundary-metrics.json
+go run ./cmd/tools/source-phone-alignment evaluate --report out/source-alignment/aligned-observations.json --references data/manual-source-phones.json --out out/source-alignment/boundary-metrics.json
 ```
 
 音素開始・終了のMAE・最大誤差・20ms以内の割合を出力します。未注釈の原音は精度計算に含めません。
@@ -76,14 +76,14 @@ python tools/source-phone-alignment.py evaluate --report out/source-alignment/al
 ## ライブラリを作る
 
 ```powershell
-python tools/source-span-mapping.py propose --report out/source-alignment/aligned-observations.json --out out/span-requests.json
-python tools/source-span-mapping.py select --report out/source-alignment/aligned-observations.json --requests out/span-requests.json --out out/source-spans
+go run ./cmd/tools/source-span-mapping propose --report out/source-alignment/aligned-observations.json --out out/span-requests.json
+go run ./cmd/tools/source-span-mapping select --report out/source-alignment/aligned-observations.json --requests out/span-requests.json --out out/source-spans
 go run ./cmd/tools/source-span-auto build --spans out/source-spans/spans.json --out out/source-phone-library.json
 ```
 
 英語は担当する語末音素、中国語は鼻音韻尾を含む音節全体を対応付けます。対応が一意でない区間は候補から除外します。`select`は`spans.json`と対象区間・隣接区間の確認用WAVを出力します。既存結果を上書きしないため、新しい出力ディレクトリを使ってください。
 
-複数の区間ファイルは`build`へ`--spans`を繰り返し指定できます。同じ原音に異なる仮説がある場合はエラーになります。`--prefer-last`を明示した場合のみ後の候補を優先し、置換内容を記録します。`source-span-auto.py map`はMFA監査とPythonの`source-span-mapping.py`を呼ぶため、整列ワークフローに残します。
+複数の区間ファイルは`build`へ`--spans`を繰り返し指定できます。同じ原音に異なる仮説がある場合はエラーになります。`--prefer-last`を明示した場合のみ後の候補を優先し、置換内容を記録します。`go run ./cmd/tools/source-span-auto map`はGoで既存ライブラリを観測結果に対応付けます。
 
 確認したライブラリをボイスバンク直下の`source-phone-library.json`へ配置します。原音WAVはライブラリに含まれません。強制整列の結果を、そのまま人手確認済みの教師データとして使用しないでください。
 

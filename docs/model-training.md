@@ -13,12 +13,18 @@ go run ./cmd/tools/prepare-minnade-jsut --root "data/みんなで作るJSUTコ�
 go run ./cmd/tools/prepare-intonation-frame-data --corpus out/jsut --allow-reading-mismatch --out out/frame.jsonl
 ```
 
-初期のモーラ区間は発声区間へ均等に置きます。学習には MFA の `japanese_mfa` で整列し直した時刻を使います。MFA 辞書作成と整列結果の取り込みには、MFA に依存する Python ブリッジが残ります。
+初期のモーラ区間は発声区間へ均等に置きます。学習には MFA の `japanese_mfa` で整列し直した時刻を使います。MFA 辞書作成と整列結果の取り込みは Go コマンドが行います。MFA 本体は外部の Python/Kaldi バイナリです。
 
 ```powershell
-python tools/align-intonation-mfa.py prepare --out out/mfa out/frame.jsonl
+go run ./cmd/tools/align-intonation-mfa run --out out/mfa out/frame.jsonl
+```
+
+`run` は外部の `mfa align` を起動し、`out/mfa/aligned.jsonl` を作ります。整列を分けて実行する場合は、次の `prepare` と `import` を使います。
+
+```powershell
+go run ./cmd/tools/align-intonation-mfa prepare --out out/mfa out/frame.jsonl
 mfa align out/mfa/corpus out/mfa/dictionary.dict japanese_mfa out/mfa/alignments --output_format json --single_speaker --config_path out/mfa/config.yaml
-python tools/align-intonation-mfa.py import --alignments out/mfa/alignments --out out/frame-mfa.jsonl out/frame.jsonl
+go run ./cmd/tools/align-intonation-mfa import --alignments out/mfa/alignments --out out/frame-mfa.jsonl out/frame.jsonl
 ```
 
 旧 Viterbi 整列はアクセントの高低だけを根拠に境界を選び、学習に不適切だったため削除しました。v10 の元データは `out/mfa-align-20261002/base-mfa.jsonl`（SHA-256 `12218686bb4ce92f51dca69b31df0ed850e78075fef3c2f015e8aba1ea7397a3`）です。ID の FNV-1a 分割で学習 458、検証 72、試験 70 文とし、内部 F0、10 ms フレーム、40 ms 教師平滑化、差分損失重み 0.35、AdamW 0.002、幅 32・dilation 1,2,4,8,16,32 の TCN で 24 epoch 学習しました。
@@ -192,6 +198,6 @@ CPUの再開は連続実行とファイル単位で一致します。CUDAは勾�
 
 ## 残る Python
 
-MFA 本体と、その辞書・整列・監査に依存する `align-intonation-mfa.py`、`source-phone-*`、`source-span-mapping.py`、`source-span-auto.py map` は Python のままです。`plot-source-analysis.py` は MFA 監査の可視化です。Open JTalk 実行時ブリッジとそのビルド検証・PyInstallerライセンス収集、wasm 配布補助（`qt/wasm/cloudflare.py`）も Python に依存します。Web 用音源 ZIP の展開は Go コマンド `cmd/tools/build-voice` が担います。Qt SBOM検証とモデルライセンス通知・CMUdict取り込みはGoコマンド（`cmd/tools/verify-qt-sbom`、`cmd/tools/copy-model-license-notices`、`cmd/tools/import-cmudict`）です。
+MFA 本体は外部の Python/Kaldi 依存です。原音区間の整列・探索・監査、MFA の前後処理、音響プロット、wasm 配布補助は `cmd/tools/` の Go コマンドです。Open JTalk 実行時ブリッジとそのビルド検証・PyInstaller ライセンス収集は、ネイティブの辞書駆動 NJD 生成が Go から利用できるまで Python に残します。必要機能と検証結果は [Open JTalk 実行時ブリッジの移行判定](openjtalk-bridge-audit.md) を参照してください。
 
 性能測定は `go run ./cmd/tools/performance-baseline --out out/perf-... --voicebank <音源>` で行います。ベンチ、ビルド、合成結果、pprofを新しいディレクトリへまとめます。
