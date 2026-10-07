@@ -37,8 +37,6 @@ type Config struct {
 	ContextDuration *bool
 	// ContextDurationStrengthは文脈連動の強度。0は既定1.0。
 	ContextDurationStrength float64
-	// nilは既定で無効。統合韻律モデル（F0＋エネルギー）を使う。
-	UnifiedProsody *bool
 	// nilは既定で有効。境界音調。
 	BoundaryTone *bool
 	// BoundaryToneStrengthは境界音調の強度。0は既定1.0。

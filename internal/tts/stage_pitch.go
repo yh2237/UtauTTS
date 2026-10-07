@@ -30,8 +30,8 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 		}
 	}
 	if pitchCurve == nil && applyPitchEnabled(cfg) && rendererSupportsFramePitch(cfg.RendererCapabilities) {
-		if unifiedProsodyEnabled(cfg) {
-			if contour := unifiedProsodyContour(language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan); contour != nil {
+		if f0Head := unifiedF0Head(loadedProsody); f0Head != nil {
+			if contour := unifiedProsodyContour(f0Head, language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan); contour != nil {
 				pitchCurve = scaleAutomaticPitchCurve(contour, cfg.IntonationStrength)
 			}
 		}
@@ -43,8 +43,8 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 			}
 		}
 	}
-	if unifiedProsodyEnabled(cfg) {
-		applyUnifiedProsodyEnergy(language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan)
+	if f0Head := unifiedF0Head(loadedProsody); f0Head != nil {
+		applyUnifiedProsodyEnergy(f0Head, language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan)
 	}
 	// 境界音調は自動輪郭だけに加える。
 	if cfg.PitchCurve == nil {

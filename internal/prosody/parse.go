@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"utautts/internal/frontend"
+	"utautts/internal/speechtiming"
 )
 
 func LoadModel(path string) (*Model, error) {
@@ -16,7 +17,55 @@ func LoadModel(path string) (*Model, error) {
 	if err != nil {
 		return nil, err
 	}
+	var head f0HeadManifest
+	if err := json.Unmarshal(data, &head); err == nil && head.BaseModel != "" {
+		return loadF0HeadModel(path, data, head)
+	}
 	return ParseModel(data)
+}
+
+// f0HeadManifestは、基準の抑揚モデル（同じディレクトリのJSON）にF0ヘッド（統合韻律モデル）を重ねるモデルJSON。
+// 基準モデルがアクセント特徴とモーラの予測を、F0ヘッドが自動ピッチ曲線とモーラの音量を担う。
+type f0HeadManifest struct {
+	BaseModel string `json:"base_model"`
+	// F0HeadはF0（とエネルギー）ヘッドを持つ時間伸縮系モデルのsafetensors（JSONではbase64）。
+	F0Head []byte `json:"f0_head"`
+}
+
+func loadF0HeadModel(path string, data []byte, head f0HeadManifest) (*Model, error) {
+	base, err := LoadModel(filepath.Join(filepath.Dir(path), filepath.FromSlash(head.BaseModel)))
+	if err != nil {
+		return nil, fmt.Errorf("load base model %q: %w", head.BaseModel, err)
+	}
+	if base.F0Head != nil {
+		return nil, fmt.Errorf("base model %q must not have an F0 head", head.BaseModel)
+	}
+	tcn, err := speechtiming.LoadTCN(head.F0Head)
+	if err != nil {
+		return nil, fmt.Errorf("load F0 head: %w", err)
+	}
+	if !tcn.HasF0Head() {
+		return nil, fmt.Errorf("F0 head model has no F0 head")
+	}
+	var identity struct {
+		ID              string           `json:"id"`
+		DisplayName     string           `json:"display_name"`
+		Description     string           `json:"description"`
+		License         string           `json:"license"`
+		LicenseNotices  []string         `json:"license_notices"`
+		Language        string           `json:"language"`
+		Provenance      *ModelProvenance `json:"provenance"`
+		DefaultPriority int              `json:"default_priority"`
+	}
+	if err := json.Unmarshal(data, &identity); err != nil {
+		return nil, err
+	}
+	model := *base
+	model.ID, model.DisplayName, model.Description = identity.ID, identity.DisplayName, identity.Description
+	model.License, model.LicenseNotices, model.Provenance = identity.License, identity.LicenseNotices, identity.Provenance
+	model.Language, model.DefaultPriority = identity.Language, identity.DefaultPriority
+	model.F0Head = tcn
+	return &model, nil
 }
 
 func ParseModel(data []byte) (*Model, error) {

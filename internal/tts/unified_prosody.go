@@ -16,9 +16,12 @@ import (
 	"utautts/internal/speechtiming"
 )
 
-// unifiedProsodyEnabledは統合韻律モデルの使用有無。nilは既定で無効。
-func unifiedProsodyEnabled(cfg Config) bool {
-	return cfg.UnifiedProsody != nil && *cfg.UnifiedProsody
+// unifiedF0Headは選んだ抑揚モデルが持つ統合韻律モデル（F0ヘッド）。持たなければnil。
+func unifiedF0Head(model *prosody.Model) *speechtiming.TCN {
+	if model == nil {
+		return nil
+	}
+	return model.F0Head
 }
 
 func unifiedProsodyAccentVector(frame prosody.FeatureFrame) [12]float32 {
@@ -128,9 +131,8 @@ func unifiedProsodyContext(model *speechtiming.TCN, language string, features []
 }
 
 // unifiedProsodyContourはF0ヘッドの輪郭を自動ピッチ曲線として返す。
-func unifiedProsodyContour(language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) *render.PitchCurve {
-	model, err := speechtiming.ProsodyTarget()
-	if err != nil || !model.HasF0Head() {
+func unifiedProsodyContour(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) *render.PitchCurve {
+	if model == nil || !model.HasF0Head() {
 		return nil
 	}
 	ids, cont, speech, err := unifiedProsodyContext(model, language, features, timings, durationMS, synthesisPlan)
@@ -220,9 +222,8 @@ func clipContourPercentile(values []float64, speech []bool, p99, maximum float64
 }
 
 // applyUnifiedProsodyEnergyはエネルギーヘッドの値を平滑化し、プランのEnergyFactorへ適用する。
-func applyUnifiedProsodyEnergy(language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) {
-	model, err := speechtiming.ProsodyTarget()
-	if err != nil || !model.HasEnergyHead() {
+func applyUnifiedProsodyEnergy(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) {
+	if model == nil || !model.HasEnergyHead() {
 		return
 	}
 	ids, cont, _, err := unifiedProsodyContext(model, language, features, timings, durationMS, synthesisPlan)

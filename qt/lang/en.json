@@ -134,7 +134,6 @@
     "menu.settings.settings": "Settings...",
     "pitch.emptyMora": "・",
     "settings.defaultIntonation": "Intonation",
-    "settings.unifiedProsody": "Unified prosody model",
     "settings.contextDuration": "Context-aware duration",
     "settings.contextDurationStrength": "Strength",
     "settings.boundaryTone": "Phrase-final tone",

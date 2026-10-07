@@ -134,7 +134,6 @@
     "menu.settings.settings": "설정...",
     "pitch.emptyMora": "・",
     "settings.defaultIntonation": "억양",
-    "settings.unifiedProsody": "통합 운율 모델",
     "settings.contextDuration": "문맥 기반 길이",
     "settings.contextDurationStrength": "강도",
     "settings.boundaryTone": "문말 억양",

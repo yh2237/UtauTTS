@@ -4,7 +4,7 @@
 
 ## 同梱モデル
 
-日本語の既定モデル: `frame-intonation-tcn-v10`。代替: `frame-intonation-tcn-v9.1-t`、`frame-intonation-tcn-v9-t`。英語の既定モデル: `frame-intonation-tcn-en-v1`。中国語の既定モデル: `tone-intonation-zh-v1`。学習と評価: [モデルの学習](../docs/model-training.md)
+日本語の既定モデル: `frame-intonation-tcn-v10`。代替: `frame-intonation-tcn-v9.1-t`、`frame-intonation-tcn-v9-t`。試用: `speech-timing-target-ja-prosody-v1`（統合韻律モデル）。英語の既定モデル: `frame-intonation-tcn-en-v1`。中国語の既定モデル: `tone-intonation-zh-v1`。学習と評価: [モデルの学習](../docs/model-training.md)
 
 `frame-intonation-tcn-v10`と`frame-intonation-tcn-v9-*`は10ms単位の相対ピッチだけを予測します。モーラ長はGUIで指定した基準値と、言語別の時間規則（「ん」0.9倍、「ー」1.2倍など）で決めます。
 
@@ -14,6 +14,13 @@
 
 - 本モデルはフレーム単位の相対ピッチ（抑揚）のみを学習し、話者の声質を意図的に再現しません
 - 重みはMIT Licenseで配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本とMFA整列モデルを再配布しません
+- 通知: [licenses/TSUKUYOMI-CORPUS.txt](../licenses/TSUKUYOMI-CORPUS.txt)、[licenses/MINNADE-JSUT-CORPUS.txt](../licenses/MINNADE-JSUT-CORPUS.txt)、[licenses/MFA-Japanese-NOTICE.txt](../licenses/MFA-Japanese-NOTICE.txt)
+
+## 統合韻律モデル v1（試用）
+
+`speech-timing-target-ja-prosody-v1`は、`frame-intonation-tcn-v10`のランタイム輪郭を教師にして学習したF0・エネルギーヘッドです。モデルJSONは基準モデル`frame-intonation-tcn-v10.json`を参照し、アクセント特徴とモーラの予測はv10が担います。学習データと通知はv10と同じです。
+
+- 重みはMIT Licenseで配布します
 - 通知: [licenses/TSUKUYOMI-CORPUS.txt](../licenses/TSUKUYOMI-CORPUS.txt)、[licenses/MINNADE-JSUT-CORPUS.txt](../licenses/MINNADE-JSUT-CORPUS.txt)、[licenses/MFA-Japanese-NOTICE.txt](../licenses/MFA-Japanese-NOTICE.txt)
 
 ## v9.1 Tsukuyomi + JSUT（代替）

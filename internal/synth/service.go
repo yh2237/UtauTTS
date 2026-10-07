@@ -25,7 +25,6 @@ const (
 	DefaultIntonationStrength      = 4.0
 	DefaultContextDuration         = false
 	DefaultContextDurationStrength = 1.0
-	DefaultUnifiedProsody          = false
 	DefaultBoundaryTone            = true
 	DefaultBoundaryToneStrength    = 1.0
 	DefaultStretchAdapt            = true

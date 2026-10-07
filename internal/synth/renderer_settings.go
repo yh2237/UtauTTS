@@ -47,13 +47,6 @@ var rendererSettingSpecs = []rendererSettingSpec{
 	numberSetting("intonation_strength", DefaultIntonationStrength,
 		func(r Request) any { return r.IntonationStrength },
 		func(value float64, cfg *tts.Config, _ *render.ProviderOptions) { cfg.IntonationStrength = value }),
-	{
-		id: "unified_prosody", kind: rendererSettingKindBoolean, defaultValue: DefaultUnifiedProsody,
-		apply: func(value any, cfg *tts.Config, _ *render.ProviderOptions, _ *rendererSettingsResolution) {
-			enabled := value.(bool)
-			cfg.UnifiedProsody = &enabled
-		},
-	},
 	boolSetting("context_duration", DefaultContextDuration,
 		func(r Request) any { return r.ContextDuration },
 		func(value bool, cfg *tts.Config) { cfg.ContextDuration = &value }),

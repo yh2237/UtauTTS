@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"utautts/internal/frontend"
+	"utautts/internal/speechtiming"
 )
 
 const ModelVersion = 3
@@ -27,6 +28,8 @@ type Model struct {
 	Provenance           *ModelProvenance         `json:"provenance,omitempty"`
 	RecommendedRenderers []string                 `json:"recommended_renderers,omitempty"`
 	DefaultPriority      int                      `json:"default_priority,omitempty"`
+	// F0Headは統合韻律モデル（F0・エネルギーヘッド）。base_modelを持つモデルJSONだけが設定する。
+	F0Head *speechtiming.TCN `json:"-"`
 	Version              int                      `json:"version"`
 	FeatureVersion       int                      `json:"feature_version"`
 	Mode                 string                   `json:"mode"`
