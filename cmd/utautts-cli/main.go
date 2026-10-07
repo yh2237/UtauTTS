@@ -121,6 +121,10 @@ func main() {
 	flag.BoolVar(&englishWeakForm, "english-weak-form", synth.DefaultEnglishWeakForm, "weak forms for English function words (E1)")
 	flag.BoolVar(&microprosody, "microprosody", render.WorldlineProviderOptions{}.MicroprosodyEnabled(), "add measured consonant-induced F0 microprosody to Japanese WORLD output (utautts-world-phrase)")
 	flag.BoolVar(&timingWarp, "timing-warp", render.WorldlineProviderOptions{}.TimingWarpEnabled(), "warp Japanese WORLD output timing toward learned speech movement (utautts-world-phrase)")
+	worldMix := flag.String("world-mix", "auto", "WORLD feature mixing: auto, v1.3, adaptive")
+	worldGapRepair := flag.String("world-gap-repair", "auto", "WORLD gap repair: auto, on, off")
+	e2a := flag.Bool("e2a", render.WorldlineProviderOptions{}.E2AEnabled(), "separate English stop coda closure and release (E2a)")
+	e2b := flag.Bool("e2b", render.WorldlineProviderOptions{}.E2BEnabled(), "generalize stop-burst gate to Japanese plosives (E2b)")
 	flag.StringVar(&renderer, "renderer", "", "renderer ID (default: highest configured priority)")
 	flag.StringVar(&resampler, "resampler", "", "Classic UTAU resampler ID from Resamplers")
 	flag.StringVar(&wavtool, "wavtool", "builtin", "Classic UTAU wavtool ID from Wavtools")
@@ -214,7 +218,7 @@ func main() {
 		CVVCTransitionGain:      cvvcTransitionGain,
 		CVVCPreBoundaryFade:     cvvcPreBoundaryFade,
 		AliasPolicy:             voicebank.AliasPolicy(aliasPolicy),
-		Worldline:               render.WorldlineProviderOptions{TimingWarp: &timingWarp, Microprosody: &microprosody},
+		Worldline:               render.WorldlineProviderOptions{MixMode: *worldMix, GapRepairMode: *worldGapRepair, E2A: e2a, E2B: e2b, TimingWarp: &timingWarp, Microprosody: &microprosody},
 		JoinModelPath:           joinModelPath,
 		SpeechModelPath:         speechModelPath,
 		DiffSingerSteps:         diffSingerSteps,

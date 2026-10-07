@@ -31,11 +31,14 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 	}
 	if pitchCurve == nil && shouldPredictFrameContour(cfg, loadedProsody) {
 		question := finalPhraseIsQuestion(cfg.Text)
-		if contour := loadedProsody.PredictFrameContour(morae, prosodyFeatures, curveTimings, curveDurationMS, question); contour != nil {
+		if contour := unifiedF0Contour(unifiedModelFromEnv("UTAUTTS_UNIFIED_F0"), language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan); contour != nil {
+			pitchCurve = scaleAutomaticPitchCurve(contour, cfg.IntonationStrength)
+		} else if contour := loadedProsody.PredictFrameContour(morae, prosodyFeatures, curveTimings, curveDurationMS, question); contour != nil {
 			pitchCurve = &render.PitchCurve{FrameMS: contour.FrameMS, Cents: contour.Cents}
 			pitchCurve = scaleAutomaticPitchCurve(pitchCurve, cfg.IntonationStrength)
 		}
 	}
+	applyUnifiedEnergy(unifiedModelFromEnv("UTAUTTS_UNIFIED_ENERGY"), language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan)
 	// 境界音調は自動輪郭だけに加える。
 	if cfg.PitchCurve == nil {
 		pitchCurve = profile.ApplyBoundaryTone(cfg, pitchCurve, finalPhraseEndMS(morae, curveTimings), finalPhraseIsQuestion(cfg.Text))
