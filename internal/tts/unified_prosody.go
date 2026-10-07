@@ -16,9 +16,9 @@ import (
 	"utautts/internal/speechtiming"
 )
 
-// unifiedProsodyEnabledは統合韻律モデルの使用有無。nilは既定で有効。
+// unifiedProsodyEnabledは統合韻律モデルの使用有無。nilは既定で無効。
 func unifiedProsodyEnabled(cfg Config) bool {
-	return cfg.UnifiedProsody == nil || *cfg.UnifiedProsody
+	return cfg.UnifiedProsody != nil && *cfg.UnifiedProsody
 }
 
 func unifiedProsodyAccentVector(frame prosody.FeatureFrame) [12]float32 {

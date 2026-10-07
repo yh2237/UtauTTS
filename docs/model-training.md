@@ -94,7 +94,7 @@ go run ./cmd/tools/train-speech-timing --dataset out/mfa-align-20261002/base-mfa
 
 ### 日本語の統合韻律モデル（F0・エネルギー）
 
-`speech-timing-target-ja-prosody-v1`（`internal/speechtiming` に埋め込み、`ProsodyTarget()` が読む）は、メルトランクに加えて F0 とエネルギーのヘッドを持ちます。既定の日本語抑揚はこのモデルで生成し、レンダラー設定 `unified_prosody`（既定ON）で従来の抑揚モデル（`frame-intonation-tcn-v10`）へ切り替えられます。
+`speech-timing-target-ja-prosody-v1`（`internal/speechtiming` に埋め込み、`ProsodyTarget()` が読む）は、メルトランクに加えて F0 とエネルギーのヘッドを持ちます。レンダラー設定 `unified_prosody`（既定OFF）をONにすると、日本語の抑揚をこのモデルで生成します。既定は従来の抑揚モデル（`frame-intonation-tcn-v10`）です。
 
 F0教師は既存の抑揚モデルの**ランタイム輪郭**（平滑化・p99・最大90centクリップ込み）をコーパスの時間軸で生成した蒸留教師です。
 
