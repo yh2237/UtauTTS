@@ -47,7 +47,7 @@ func (englishProfile) ApplySpeechProfile(cfg *Config) {
 func (englishProfile) SupportsStretchAdapt() bool { return false }
 
 func (englishProfile) PhoneTiming(cfg Config, morae []frontend.Mora, _ bool) ([][]float64, string) {
-	return speechDurationsForConfig(cfg, morae), "multilingual-speech-score-v1"
+	return speechPhoneDurations(morae, cfg.MoraDurationMS), "multilingual-speech-score-v1"
 }
 
 func (englishProfile) Predict(morae []frontend.Mora) []prosody.Prediction {
@@ -59,10 +59,10 @@ func (englishProfile) AdjustPredictions(cfg Config, _ *prosody.Model, morae []fr
 }
 
 func (englishProfile) AutomaticPitchCurve(cfg Config, model *prosody.Model, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*render.PitchCurve, bool) {
-	if !applyPitchEnabled(cfg) || (shouldPredictFrameContour(cfg, model) && (cfg.SpeechModel == nil || len(cfg.SpeechModel.Pitch) == 0)) {
+	if !applyPitchEnabled(cfg) || shouldPredictFrameContour(cfg, model) {
 		return nil, false
 	}
-	curve := learnedSpeechCurve(cfg, morae, timings, englishSpeechCurve(morae, timings, durationMS, cfg.Text))
+	curve := englishSpeechCurve(morae, timings, durationMS, cfg.Text)
 	return scaleAutomaticPitchCurve(curve, cfg.IntonationStrength), false
 }
 

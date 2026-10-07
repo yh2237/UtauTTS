@@ -38,7 +38,6 @@ type Config struct {
 }
 
 type Plan struct {
-	SpeechModelID           string                   `json:"speech_model_id,omitempty"`
 	SingleCV                bool                     `json:"single_cv,omitempty"`
 	PhoneTimings            []PhoneTiming            `json:"phone_timings,omitempty"`
 	PhoneTimingSource       string                   `json:"phone_timing_source,omitempty"`

@@ -51,9 +51,6 @@ func buildSynthesisPlan(cfg Config, profile languageProfile, bank *voicebank.Ban
 	if err := plan.ApplyUnitOverrides(synthesisPlan.Units, cfg.UnitOverrides); err != nil {
 		return nil, false, fmt.Errorf("apply unit overrides: %w", err)
 	}
-	if cfg.SpeechModel != nil {
-		synthesisPlan.SpeechModelID = cfg.SpeechModel.ID
-	}
 	synthesisPlan.Text = cfg.Text
 	synthesisPlan.Language = language
 	synthesisPlan.Phonemizer = phonemizer

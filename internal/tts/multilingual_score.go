@@ -62,7 +62,7 @@ func speechPhoneDurations(morae []frontend.Mora, base float64) [][]float64 {
 }
 
 func applySpeechScore(cfg Config, morae []frontend.Mora, predictions []prosody.Prediction) []prosody.Prediction {
-	durations := speechDurationsForConfig(cfg, morae)
+	durations := speechPhoneDurations(morae, cfg.MoraDurationMS)
 	if len(predictions) != len(morae) {
 		predictions = make([]prosody.Prediction, len(morae))
 		for i := range predictions {
@@ -76,12 +76,6 @@ func applySpeechScore(cfg Config, morae []frontend.Mora, predictions []prosody.P
 		predictions[i].DurationMS = 0
 		for _, d := range durations[i] {
 			predictions[i].DurationMS += d
-		}
-	}
-	learnedSpeechEnergy(cfg, morae, predictions)
-	if cfg.SpeechModel != nil && len(cfg.SpeechModel.Pitch) > 0 {
-		for i := range predictions {
-			predictions[i].PitchFactor = 1
 		}
 	}
 	return predictions

@@ -73,8 +73,6 @@ type Config struct {
 	LeadingPreutteranceMS   float64
 	ProsodyModelPath        string
 	ProsodyModel            *prosody.Model
-	SpeechModelPath         string
-	SpeechModel             *prosody.SpeechModel
 	ManualPitchPath         string
 	ManualPitch             *prosody.ManualPitchFile
 	ProsodyFeatures         []prosody.FeatureFrame
@@ -349,15 +347,12 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	}
 	profile := languageProfileFor(language)
 	profile.ApplySpeechProfile(&cfg)
-	if err := configureSpeechModel(&cfg, language); err != nil {
-		return nil, err
-	}
 	traceMark(&start, "phonemize")
 	loadedProsody, err := resolveProsodyModelForProfile(cfg, profile)
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)
 	}
-	traceMark(&start, "speechModel")
+	traceMark(&start, "prosodyModel")
 	prosodyFeatures, predictions, err := resolveProsodyComputation(cfg, profile, loadedProsody, morae, reading)
 	if err != nil {
 		return nil, err
@@ -491,9 +486,6 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
 	profile := languageProfileFor(language)
-	if err := configureSpeechModel(&cfg, language); err != nil {
-		return nil, err
-	}
 	loadedProsody, err := resolveProsodyModelForProfile(cfg, profile)
 	if err != nil {
 		return nil, fmt.Errorf("load prosody model: %w", err)

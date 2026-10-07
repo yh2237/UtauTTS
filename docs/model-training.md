@@ -76,18 +76,6 @@ Go の `train-mandarin-intonation` は、Parquet の音声とピンイン、Padd
 go run ./cmd/tools/train-mandarin-intonation --parquet data/aishell3/train-00000-of-00045.parquet --alignments data/aishell3/aishell3_alignment_tone --world-engine runtime/utautts-world-engine.dll --limit-per-speaker 250 --workers 4 --f0-cache out/tone-intonation-zh-v1/f0-cache --observations-out out/tone-intonation-zh-v1/observations.jsonl --out out/tone-intonation-zh-v1/candidate.json
 ```
 
-## 多言語の発話補正モデル
-
-自然音声で観測した各音素の時刻、相対音量、ピッチを、同じ文のテンプレートと対応させて学習します。話者・文・音声の分割を守り、少数の音素は推論時に既定値へ戻します。生成結果や対応が曖昧なデータは教師に使いません。
-
-```powershell
-go run ./cmd/tools/speech-score --plan out/example.plan.json --id utterance-001 --out out/utterance-001.template.json
-go run ./cmd/tools/prepare-multilingual-speech --observations out/observations.json --out out/speech-corpus.jsonl out/utterance-001.template.json
-go run ./cmd/tools/train-multilingual-speech out/speech-corpus.jsonl --language en --id my-english-speech-v1 --out out/my-english-speech-v1.json
-```
-
-時間長は音素境界から、相対音量は区間 RMS から、ピッチは発話内の有声 F0 中央値から計算します。`--speech-model out/my-english-speech-v1.json` で適用できます。
-
 ## 日本語の目標音素時間モデル
 
 `speech-timing-target-v1` は音素・長さ・相対 F0 から、80 帯域の正規化対数メル包絡を予測します。Go の gograd コマンドが MFA 音素時刻と WORLD フレームを読み、特徴をキャッシュして学習します。特徴抽出には Windows の WORLD DLL が必要ですが、作成済みキャッシュからの学習は他の OS でも可能です。

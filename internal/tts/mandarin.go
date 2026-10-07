@@ -31,7 +31,7 @@ func (chineseProfile) ApplySpeechProfile(*Config) {}
 func (chineseProfile) SupportsStretchAdapt() bool { return false }
 
 func (chineseProfile) PhoneTiming(cfg Config, morae []frontend.Mora, _ bool) ([][]float64, string) {
-	return speechDurationsForConfig(cfg, morae), "multilingual-speech-score-v1"
+	return speechPhoneDurations(morae, cfg.MoraDurationMS), "multilingual-speech-score-v1"
 }
 
 func (chineseProfile) Predict(morae []frontend.Mora) []prosody.Prediction {
@@ -47,7 +47,6 @@ func (chineseProfile) AutomaticPitchCurve(cfg Config, model *prosody.Model, mora
 	if model != nil && model.MandarinIntonation != nil {
 		curve = applyMandarinIntonation(curve, model.MandarinIntonation, morae, timings)
 	}
-	curve = learnedSpeechCurve(cfg, morae, timings, curve)
 	return curve, curve != nil
 }
 

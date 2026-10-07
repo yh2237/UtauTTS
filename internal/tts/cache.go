@@ -144,7 +144,7 @@ func moraeEqual(a, b []frontend.Mora) bool {
 }
 
 func resolveProsodyComputation(cfg Config, profile languageProfile, model *prosody.Model, morae []frontend.Mora, reading string) ([]prosody.FeatureFrame, []prosody.Prediction, error) {
-	if len(cfg.ProsodyFeatures) > 0 || cfg.SpeechModel != nil || cfg.SpeechModelPath != "" {
+	if len(cfg.ProsodyFeatures) > 0 {
 		features := cfg.ProsodyFeatures
 		predictions, err := predictMorae(cfg, profile, model, morae, features)
 		return features, predictions, err

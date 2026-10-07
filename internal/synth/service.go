@@ -115,7 +115,6 @@ type Request struct {
 	CVVCTransitionGain      float64                      `json:"-"`
 	CVVCPreBoundaryFade     bool                         `json:"-"`
 	JoinModelPath           string                       `json:"-"`
-	SpeechModelPath         string                       `json:"-"`
 	ResamplerExpressions    []render.ResamplerExpression `json:"resampler_expressions"`
 	DiffSingerSteps         int64                        `json:"diffsinger_steps"`
 	DiffSingerDurationMix   float64                      `json:"diffsinger_duration_mix"`
@@ -314,7 +313,6 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		CVVCTransitionGain:      request.CVVCTransitionGain,
 		CVVCPreBoundaryFade:     request.CVVCPreBoundaryFade,
 		JoinModelPath:           request.JoinModelPath,
-		SpeechModelPath:         request.SpeechModelPath,
 	}
 	providerOptions := render.ProviderOptions{
 		Classic: render.ClassicOptions{
