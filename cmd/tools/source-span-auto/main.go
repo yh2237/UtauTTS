@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"utautts/cmd/tools/internal/sourcephone"
 	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/audio"
 )
@@ -71,17 +72,8 @@ func build(paths []string, out string, preferLast bool) (map[string]any, error) 
 	if len(paths) == 0 {
 		return nil, fmt.Errorf("at least one --spans is required")
 	}
-	absOut, e := filepath.Abs(out)
-	if e != nil {
+	if e := toolutil.RequireUnderOut(out, "output", false); e != nil {
 		return nil, e
-	}
-	repoOut, e := filepath.Abs("out")
-	if e != nil {
-		return nil, e
-	}
-	rel, e := filepath.Rel(repoOut, absOut)
-	if e != nil || !toolutil.UnderOutChild(rel) {
-		return nil, fmt.Errorf("output must be under out/")
 	}
 	if _, e := os.Stat(out); e == nil {
 		return nil, fmt.Errorf("refusing to overwrite %s", out)
@@ -181,9 +173,23 @@ type spansFlag []string
 func (s *spansFlag) String() string     { return strings.Join(*s, ",") }
 func (s *spansFlag) Set(v string) error { *s = append(*s, v); return nil }
 func main() {
-	if len(os.Args) < 2 || os.Args[1] != "build" {
-		fmt.Fprintln(os.Stderr, "usage: source-span-auto build --spans PATH [--spans PATH] --out out/library.json")
+	if len(os.Args) < 2 || (os.Args[1] != "build" && os.Args[1] != "map") {
+		fmt.Fprintln(os.Stderr, "usage: source-span-auto build|map [flags]")
 		os.Exit(2)
+	}
+	if os.Args[1] == "map" {
+		fs := flag.NewFlagSet("map", flag.ExitOnError)
+		report := fs.String("report", "", "observation report")
+		library := fs.String("library", "", "source phone library")
+		out := fs.String("out", "", "fresh output directory under out/")
+		fs.Parse(os.Args[2:])
+		coverage, err := sourcephone.MapReport(*report, *library, *out)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		fmt.Printf("mapped %d/%d ending units; others retain existing timing\n", coverage["mapped_units"], coverage["ending_units"])
+		return
 	}
 	fs := flag.NewFlagSet("build", flag.ExitOnError)
 	var paths spansFlag
