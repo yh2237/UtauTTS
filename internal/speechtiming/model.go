@@ -136,18 +136,25 @@ type TCN struct {
 	outW      tensor
 	outB      tensor
 
-	hasF0       bool
-	f0Context   int
-	f0Kernel    int
-	f0Dilations []int
-	f0InW       tensor
-	f0InB       tensor
-	f0BlockW    []tensor
-	f0BlockB    []tensor
-	f0NormG     []tensor
-	f0NormB     []tensor
-	f0OutW      tensor
-	f0OutB      tensor
+	hasF0        bool
+	f0Context    int
+	f0Kernel     int
+	f0Dilations  []int
+	f0Scale      float64
+	f0InW        tensor
+	f0InB        tensor
+	f0BlockW     []tensor
+	f0BlockB     []tensor
+	f0NormG      []tensor
+	f0NormB      []tensor
+	f0OutW       tensor
+	f0OutB       tensor
+	posVocab     []string
+	posGroup1Vocab []string
+
+	hasEnergy bool
+	energyW   tensor
+	energyB   tensor
 }
 
 // モデル構成はsafetensorsの__metadata__から読む。
@@ -231,6 +238,21 @@ func LoadTCN(data []byte) (*TCN, error) {
 			return nil, err
 		}
 	}
+	if metadata["energy"] == "1" {
+		if !model.hasF0 {
+			return nil, fmt.Errorf("speech timing model: energy head without f0 head")
+		}
+		model.hasEnergy = true
+		if model.energyW, err = get("energy_out.weight", 3); err != nil {
+			return nil, err
+		}
+		if model.energyB, err = get("energy_out.bias", 1); err != nil {
+			return nil, err
+		}
+		if model.energyW.shape[0] != 1 || model.energyW.shape[1] != model.hidden || model.energyW.shape[2] != 1 {
+			return nil, fmt.Errorf("speech timing model: energy output shape %v", model.energyW.shape)
+		}
+	}
 	return model, nil
 }
 
@@ -242,6 +264,22 @@ func (m *TCN) loadF0Head(tensors map[string]tensor, metadata map[string]string, 
 		return fmt.Errorf("speech timing model: f0 context %q", metadata["f0_context"])
 	}
 	m.f0Context = context
+	if value := metadata["f0_scale"]; value != "" {
+		scale, err := strconv.ParseFloat(value, 64)
+		if err != nil || scale <= 0 {
+			return fmt.Errorf("speech timing model: f0 scale %q", value)
+		}
+		m.f0Scale = scale
+	}
+	if value := metadata["f0_pos"]; value != "" {
+		m.posVocab = strings.Fields(value)
+	}
+	if value := metadata["f0_pos_group1"]; value != "" {
+		m.posGroup1Vocab = strings.Fields(value)
+	}
+	if expected := 2 + 12 + len(m.posVocab) + 1 + len(m.posGroup1Vocab) + 1; context != expected {
+		return fmt.Errorf("speech timing model: f0 context %d for %d pos and %d pos_group1", context, len(m.posVocab), len(m.posGroup1Vocab))
+	}
 	m.f0Kernel = kernel
 	if value := metadata["f0_kernel"]; value != "" {
 		if m.f0Kernel, err = strconv.Atoi(value); err != nil || m.f0Kernel <= 0 || m.f0Kernel%2 == 0 {
@@ -308,8 +346,20 @@ func (m *TCN) Mels() int        { return m.mels }
 // HasF0HeadはF0ブランチの有無を返す。
 func (m *TCN) HasF0Head() bool { return m.hasF0 }
 
+// HasEnergyHeadはエネルギーヘッドの有無を返す。
+func (m *TCN) HasEnergyHead() bool { return m.hasEnergy }
+
 // F0ContextはF0ブランチの連続入力幅。
 func (m *TCN) F0Context() int { return m.f0Context }
+
+// F0ScaleはF0出力1単位あたりのcent。0は自然スケール（log/0.3）。
+func (m *TCN) F0Scale() float64 { return m.f0Scale }
+
+// PosVocabはF0ブランチのPOS語彙（末尾のotherは含まない）。
+func (m *TCN) PosVocab() []string { return append([]string(nil), m.posVocab...) }
+
+// PosGroup1VocabはF0ブランチのpos_group1語彙（末尾のotherは含まない）。
+func (m *TCN) PosGroup1Vocab() []string { return append([]string(nil), m.posGroup1Vocab...) }
 
 func (m *TCN) Predict(ids [][3]int, cont [][4]float32) ([][]float32, error) {
 	frames := len(ids)
@@ -346,30 +396,51 @@ func (m *TCN) PredictF0(ids [][3]int, cont [][]float32) ([]float32, error) {
 	if !m.hasF0 {
 		return nil, fmt.Errorf("speech timing model: no F0 head")
 	}
+	h, frames, err := m.predictContextTrunk(ids, cont)
+	if err != nil || frames == 0 {
+		return nil, err
+	}
+	return pointwise(h, frames, m.hidden, m.f0OutW.data, m.f0OutB.data, 1), nil
+}
+
+// PredictEnergyは文脈トランクのエネルギーヘッドでフレームごとの中心化dB/10を予測する。
+func (m *TCN) PredictEnergy(ids [][3]int, cont [][]float32) ([]float32, error) {
+	if !m.hasEnergy {
+		return nil, fmt.Errorf("speech timing model: no energy head")
+	}
+	h, frames, err := m.predictContextTrunk(ids, cont)
+	if err != nil || frames == 0 {
+		return nil, err
+	}
+	return pointwise(h, frames, m.hidden, m.energyW.data, m.energyB.data, 1), nil
+}
+
+// predictContextTrunkはF0・エネルギー共通の文脈トランクを実行する。
+func (m *TCN) predictContextTrunk(ids [][3]int, cont [][]float32) ([]float32, int, error) {
 	frames := len(ids)
 	if len(cont) != frames {
-		return nil, fmt.Errorf("speech timing model: %d ids for %d f0 inputs", frames, len(cont))
+		return nil, 0, fmt.Errorf("speech timing model: %d ids for %d context inputs", frames, len(cont))
 	}
 	if frames == 0 {
-		return nil, nil
+		return nil, 0, nil
 	}
 	inputs := 3*m.embedDim + m.f0Context
 	x := make([]float32, frames*inputs)
 	for t := range frames {
 		if len(cont[t]) != m.f0Context {
-			return nil, fmt.Errorf("speech timing model: f0 context width %d", len(cont[t]))
+			return nil, 0, fmt.Errorf("speech timing model: f0 context width %d", len(cont[t]))
 		}
 		row := x[t*inputs : (t+1)*inputs]
 		for slot, id := range ids[t] {
 			if id < 0 || id >= len(m.phones) {
-				return nil, fmt.Errorf("speech timing model: phone id %d", id)
+				return nil, 0, fmt.Errorf("speech timing model: phone id %d", id)
 			}
 			copy(row[slot*m.embedDim:(slot+1)*m.embedDim], m.embed.data[id*m.embedDim:(id+1)*m.embedDim])
 		}
 		copy(row[3*m.embedDim:], cont[t])
 	}
 	h := m.runTrunk(x, frames, inputs, m.f0InW, m.f0InB, m.f0BlockW, m.f0BlockB, m.f0NormG, m.f0NormB, m.f0Dilations, m.f0Kernel)
-	return pointwise(h, frames, m.hidden, m.f0OutW.data, m.f0OutB.data, 1), nil
+	return h, frames, nil
 }
 
 // runTrunkは入力射影と残差ブロックを適用し、最終隠れ状態を返す。
