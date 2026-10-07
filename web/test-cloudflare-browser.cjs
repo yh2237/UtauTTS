@@ -8,7 +8,7 @@ const http = require("node:http");
 const { execFileSync } = require("node:child_process");
 const { chromium } = require("playwright");
 const root = path.resolve(__dirname, "..");
-const output = path.join(root, "build", "cloudflare-smoke");
+const output = path.join(root, "out", `cloudflare-smoke-${process.pid}-${Date.now()}`);
 let manifest;
 const requests = [];
 const types = { ".wasm": "application/wasm", ".js": "application/javascript",
@@ -259,7 +259,7 @@ async function checkResponsiveState(page) {
     const assetURL = await listen(assets);
     const pagesURL = await listen(pages);
     const revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
-    execFileSync(process.env.PYTHON || "python", ["qt/wasm/cloudflare.py", "package",
+    execFileSync("go", ["run", "./cmd/tools/cloudflare", "package",
       "--output", output, "--public-url", assetURL, "--deployment-id", "browser-smoke",
       "--version", "smoke", "--revision", revision, "--channel", "previews"],
     { cwd: root, stdio: "inherit" });
