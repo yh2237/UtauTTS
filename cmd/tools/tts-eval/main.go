@@ -52,7 +52,6 @@ type evalReport struct {
 	MoraMS                         float64
 	Phonemizer                     string
 	MeasurePitch                   bool
-	WorldMix, WorldGapRepair       string
 	GOOS, GOARCH, Voicebank, Model string
 	CorpusSHA256, Bridge           string
 	Build                          *debug.BuildInfo
@@ -79,8 +78,6 @@ func run() (runErr error) {
 	pauseContext := flag.Bool("pause-context", true, "context-aware punctuation pause length (B5)")
 	pauseContextStrength := flag.Float64("pause-context-strength", 1.0, "pause context strength (0 uses the default 1.0)")
 	englishWeakForm := flag.Bool("english-weak-form", true, "weak forms for English function words (E1)")
-	e2a := flag.Bool("e2a", render.WorldlineProviderOptions{}.E2AEnabled(), "separate English stop coda closure and release (E2a)")
-	e2b := flag.Bool("e2b", render.WorldlineProviderOptions{}.E2BEnabled(), "generalize stop-burst gate to Japanese plosives (E2b)")
 	timingWarp := flag.Bool("timing-warp", render.WorldlineProviderOptions{}.TimingWarpEnabled(), "warp Japanese WORLD output timing toward learned speech movement")
 	aliasPolicy := flag.String("alias-policy", "auto", "voicebank mode: auto or cv-only")
 	bank := flag.String("voicebank", "", "voicebank directory (required)")
@@ -93,8 +90,6 @@ func run() (runErr error) {
 	model := flag.String("model", "frame-intonation-tcn-v10", "prosody model ID")
 	modelFile := flag.String("model-file", "", "explicit experimental prosody model JSON (overrides model ID)")
 	bridge := flag.String("bridge", "", "override WORLD bridge executable")
-	worldMix := flag.String("world-mix", "auto", "WORLD feature mixing: auto, v1.3, adaptive")
-	worldGapRepair := flag.String("world-gap-repair", "auto", "WORLD gap repair: auto, on, off")
 	repeats := flag.Int("repeat", 2, "repetitions in the same process; first and warm runs are separate (ignored with --sweep)")
 	sweep := flag.Bool("sweep", false, "sweep correction presets across the corpus; each case runs exactly once and --repeat is ignored")
 	presets := flag.String("presets", defaultPresets, "comma-separated sweep preset names (only with --sweep)")
@@ -112,12 +107,6 @@ func run() (runErr error) {
 	}
 	if *bank == "" || *timeout <= 0 || (!*sweep && *repeats < 1) {
 		return fmt.Errorf("voicebank, positive repeat and timeout are required")
-	}
-	if !oneOf(*worldMix, "auto", "v1.3", "adaptive") {
-		return fmt.Errorf("world-mix must be auto, v1.3 or adaptive")
-	}
-	if !oneOf(*worldGapRepair, "auto", "on", "off") {
-		return fmt.Errorf("world-gap-repair must be auto, on or off")
 	}
 	data, err := os.ReadFile(*corpus)
 	if err != nil {
@@ -147,7 +136,7 @@ func run() (runErr error) {
 			boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
 			stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
 			pauseContext: *pauseContext, pauseContextStrength: *pauseContextStrength,
-			englishWeakForm: *englishWeakForm, e2a: *e2a, e2b: *e2b, noTimingWarp: !*timingWarp,
+			englishWeakForm: *englishWeakForm, noTimingWarp: !*timingWarp,
 		})
 	}
 	if *measurePitch && (*diagnose || *renderers != "utautts-world-phrase") {
@@ -214,13 +203,13 @@ func run() (runErr error) {
 					bank: *bank, aliasPolicy: *aliasPolicy, bridge: *bridge,
 					model: *model, modelFile: *modelFile, prosodyModelPath: prosodyPath,
 					moraMS:     *moraMS,
-					rendererID: rendererID, resampler: *resampler, wavtool: *wavtool, mix: *worldMix, gapRepair: *worldGapRepair,
+					rendererID: rendererID, resampler: *resampler, wavtool: *wavtool,
 					applyPitch: true, timeout: *timeout,
 					contextDuration: *contextDuration, contextDurationStrength: *contextDurationStrength,
 					boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
 					stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
 					pauseContext: *pauseContext, pauseContextStrength: *pauseContextStrength,
-					englishWeakForm: *englishWeakForm, e2a: *e2a, e2b: *e2b, noTimingWarp: !*timingWarp,
+					englishWeakForm: *englishWeakForm, noTimingWarp: !*timingWarp,
 				}, catalog)
 				row.ElapsedMS = elapsed
 				if callErr == nil {
@@ -248,7 +237,7 @@ func run() (runErr error) {
 				rows = append(rows, row)
 				fmt.Printf("%s %s #%d: %.0f ms, RTF %.3f %s\n", rendererID, p.ID, repetition, row.ElapsedMS, row.RTF, row.Error)
 				// 失敗に備え、ケースごとに保存する。
-				report := evalReport{*moraMS, *phonemizer, *measurePitch, *worldMix, *worldGapRepair, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, buildInfo, rows}
+				report := evalReport{*moraMS, *phonemizer, *measurePitch, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, buildInfo, rows}
 				encoded, err := json.MarshalIndent(report, "", "  ")
 				if err != nil {
 					return err

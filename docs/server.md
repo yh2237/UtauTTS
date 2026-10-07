@@ -267,7 +267,7 @@ ID順にソートされた音源一覧です。
 | `diffsinger_duration_mix` | number | `0`（既定値） | DiffSingerの長さ予測の混合率（0〜1）。0で既定値 |
 | `diffsinger_pitch_mix` | number | `0`（既定値） | DiffSingerのピッチ予測の混合率（0〜1）。0で既定値 |
 | `diffsinger_expr` | number | `0`（既定値） | DiffSingerの表現力（0〜2）。0で既定値1.0 |
-| `worldline` | object | なし | WORLD providerのホスト制御（mix／gap repair／E2a／E2b）。空で既定（auto／ON） |
+| `worldline` | object | なし | WORLD providerのホスト制御（`timing_warp`／`microprosody`／`source_phone_mapping`）。空で既定 |
 | `renderer_settings` | object | なし | Renderer manifestが宣言した設定値をまとめて渡すmap。未知のidもエラーにせずprovider固有値として渡します |
 
 ステータスコード：

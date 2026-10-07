@@ -22,7 +22,6 @@ type caseOptions struct {
 	moraMS                    float64
 	rendererID                string
 	resampler, wavtool        string
-	mix, gapRepair            string
 	applyPitch                bool
 	contextDuration           bool
 	contextDurationStrength   float64
@@ -33,7 +32,6 @@ type caseOptions struct {
 	pauseContext              bool
 	pauseContextStrength      float64
 	englishWeakForm           bool
-	e2a, e2b                  bool
 	noTimingWarp              bool
 	timeout                   time.Duration
 }
@@ -64,7 +62,7 @@ func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Re
 	request.PauseContext = o.pauseContext
 	request.PauseContextStrength = o.pauseContextStrength
 	request.EnglishWeakForm = o.englishWeakForm
-	request.Worldline = render.WorldlineProviderOptions{MixMode: o.mix, GapRepairMode: o.gapRepair, E2A: &o.e2a, E2B: &o.e2b, TimingWarp: new(!o.noTimingWarp)}
+	request.Worldline = render.WorldlineProviderOptions{TimingWarp: new(!o.noTimingWarp)}
 	service := synth.NewService(catalog, o.rendererID, o.bridge, "", "", nil)
 	ctx, cancel := context.WithTimeout(context.Background(), o.timeout)
 	defer cancel()

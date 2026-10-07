@@ -69,7 +69,7 @@ func codaClosureReleaseSplit(u plan.Unit) (float64, float64, bool) {
 }
 
 func worldCodaReleaseSplit(p *plan.Plan, u plan.Unit, options base.WorldlineProviderOptions) (float64, float64, bool) {
-	if !options.SeparateCodaReleaseEnabled() || !worldCodaReleaseEligible(p, u) || !worldlineStopProtection(p, u, options) {
+	if !worldCodaReleaseEligible(p, u) || !worldlineStopProtection(p, u, options) {
 		return 0, 0, false
 	}
 	return codaClosureReleaseSplit(u)

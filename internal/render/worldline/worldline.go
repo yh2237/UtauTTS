@@ -100,10 +100,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 	if err != nil {
 		return nil, err
 	}
-	legacyMix, err := worldlineLegacyMix(synthesisPlan, cfg.ProviderOptions.Worldline.MixMode)
-	if err != nil {
-		return nil, err
-	}
+	legacyMix := legacyJapaneseContinuousMix(synthesisPlan)
 	cache := base.NewSourceCache()
 	timing := prepareWorldlineTiming(synthesisPlan, cfg)
 	traceMark(&started, "timing")
@@ -416,10 +413,7 @@ func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
 	cacheKey += fmt.Sprintf("|fs=%d", b.pitch.sampleRate)
 	strategy := b.resolveWorldlineSpeechStrategy(i, codaRelease, singleCVUnit, vcvUnit)
 	speech := b.speechTiming(i, timing, skipMS, positionMS, strategy)
-	gapRepair, err := worldlineGapRepair(synthesisPlan, i, b.legacyMix, cfg.ProviderOptions.Worldline.GapRepairMode)
-	if err != nil {
-		return worldlineManifestUnit{}, err
-	}
+	gapRepair := b.legacyMix && worldlineGapRepairEligible(synthesisPlan, i)
 	if b.legacyMix {
 		unit.WorldRenderMode = plan.WorldRenderModeV13Compatible
 		unit.WorldRenderReason = "japanese-continuous-low-processing"
@@ -621,35 +615,6 @@ func legacyJapaneseContinuousMix(synthesisPlan *plan.Plan) bool {
 	return frontend.JapanesePlan(synthesisPlan.Language, synthesisPlan.Phonemizer)
 }
 
-func worldlineLegacyMix(synthesisPlan *plan.Plan, mode string) (bool, error) {
-	switch strings.ToLower(strings.TrimSpace(mode)) {
-	case "", "auto":
-		return legacyJapaneseContinuousMix(synthesisPlan), nil
-	case "v1.3", "legacy":
-		return true, nil
-	case "adaptive":
-		return false, nil
-	default:
-		return false, fmt.Errorf("unknown WORLD mix mode %q", mode)
-	}
-}
-
-func worldlineGapRepair(synthesisPlan *plan.Plan, unitIndex int, legacyMix bool, mode string) (bool, error) {
-	if !legacyMix {
-		return false, nil
-	}
-	switch strings.ToLower(strings.TrimSpace(mode)) {
-	case "", "auto":
-		return worldlineGapRepairEligible(synthesisPlan, unitIndex), nil
-	case "on":
-		return unitIndex > 0, nil
-	case "off":
-		return false, nil
-	default:
-		return false, fmt.Errorf("unknown WORLD gap repair mode %q", mode)
-	}
-}
-
 // 低加工経路では同じ母音が直接続く境界だけを補間する。
 func worldlineGapRepairEligible(synthesisPlan *plan.Plan, unitIndex int) bool {
 	if synthesisPlan == nil || unitIndex <= 0 || unitIndex >= len(synthesisPlan.Units) {
@@ -688,17 +653,17 @@ func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options b
 	japanese := frontend.JapanesePlan(language, phonemizer)
 	if japanese && strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV") {
 		// VCVは信頼度の高い過渡だけを保護する。
-		return options.JapaneseStopProtectionEnabled() && unit.SpeechProfile.TransientConfidence >= stopTransientVCVFloor
+		return unit.SpeechProfile.TransientConfidence >= stopTransientVCVFloor
 	}
 	if japanese {
 		// CVも信頼度の高い過渡だけを保護する。
-		return options.JapaneseStopProtectionEnabled() && unit.SpeechProfile.TransientConfidence >= stopTransientJapaneseFloor
+		return unit.SpeechProfile.TransientConfidence >= stopTransientJapaneseFloor
 	}
 	return true
 }
 
 func e2bStopGeneralization(synthesisPlan *plan.Plan, unit plan.Unit, options base.WorldlineProviderOptions) bool {
-	if !options.JapaneseStopProtectionEnabled() || synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
+	if synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
 		return false
 	}
 	return frontend.JapanesePlan(synthesisPlan.Language, synthesisPlan.Phonemizer)

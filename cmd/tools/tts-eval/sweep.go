@@ -17,28 +17,19 @@ import (
 	"utautts/internal/synth"
 )
 
-const defaultPresets = "default,legacy,legacy-gap,adaptive,timing,no-pitch"
+const defaultPresets = "default,timing,no-pitch"
 
-const (
-	baseRenderer = "utautts-world-phrase"
-	baseMix      = "auto"
-	baseGap      = "auto"
-)
+const baseRenderer = "utautts-world-phrase"
 
 type preset struct {
 	Name       string
 	Renderer   string
-	Mix        string
-	GapRepair  string
 	ApplyPitch bool
 }
 
 var presetTable = []preset{
-	{Name: "default", Renderer: baseRenderer, Mix: baseMix, GapRepair: baseGap, ApplyPitch: true},
-	{Name: "legacy", Renderer: baseRenderer, Mix: "v1.3", GapRepair: "off", ApplyPitch: true},
-	{Name: "legacy-gap", Renderer: baseRenderer, Mix: "v1.3", GapRepair: "auto", ApplyPitch: true},
-	{Name: "adaptive", Renderer: baseRenderer, Mix: "adaptive", GapRepair: "off", ApplyPitch: true},
-	{Name: "no-pitch", Renderer: baseRenderer, Mix: baseMix, GapRepair: baseGap, ApplyPitch: false},
+	{Name: "default", Renderer: baseRenderer, ApplyPitch: true},
+	{Name: "no-pitch", Renderer: baseRenderer, ApplyPitch: false},
 }
 
 func presetNames() []string {
@@ -92,7 +83,6 @@ type sweepRequest struct {
 	pauseContext                            bool
 	pauseContextStrength                    float64
 	englishWeakForm                         bool
-	e2a, e2b                                bool
 	noTimingWarp                            bool
 	timeout                                 time.Duration
 }
@@ -100,8 +90,6 @@ type sweepRequest struct {
 type sweepPresetJSON struct {
 	Name       string `json:"name"`
 	Renderer   string `json:"renderer"`
-	Mix        string `json:"mix"`
-	GapRepair  string `json:"gap_repair"`
 	ApplyPitch bool   `json:"apply_pitch"`
 }
 
@@ -180,7 +168,7 @@ func runSweep(req sweepRequest) error {
 		if err := os.Mkdir(dir, 0755); err != nil {
 			return err
 		}
-		fmt.Printf("sweep %s: renderer=%s mix=%s gap=%s apply-pitch=%t\n", ps.Name, ps.Renderer, ps.Mix, ps.GapRepair, ps.ApplyPitch)
+		fmt.Printf("sweep %s: renderer=%s apply-pitch=%t\n", ps.Name, ps.Renderer, ps.ApplyPitch)
 		var rows []measurement
 		for index, p := range req.prompts {
 			row := measurement{ID: p.ID, Text: p.Text, Focus: p.Focus, Renderer: ps.Renderer, Repetition: 1}
@@ -188,13 +176,13 @@ func runSweep(req sweepRequest) error {
 				bank: req.bank, aliasPolicy: req.aliasPolicy, bridge: req.bridge,
 				model: req.model, modelFile: req.modelFile, prosodyModelPath: prosodyPath,
 				moraMS:     req.moraMS,
-				rendererID: ps.Renderer, mix: ps.Mix, gapRepair: ps.GapRepair,
+				rendererID: ps.Renderer,
 				applyPitch: ps.ApplyPitch, timeout: req.timeout,
 				contextDuration: req.contextDuration, contextDurationStrength: req.contextDurationStrength,
 				boundaryTone: req.boundaryTone, boundaryToneStrength: req.boundaryToneStrength,
 				stretchAdapt: req.stretchAdapt, stretchAdaptStrength: req.stretchAdaptStrength,
 				pauseContext: req.pauseContext, pauseContextStrength: req.pauseContextStrength,
-				englishWeakForm: req.englishWeakForm, e2a: req.e2a, e2b: req.e2b, noTimingWarp: req.noTimingWarp,
+				englishWeakForm: req.englishWeakForm, noTimingWarp: req.noTimingWarp,
 			}, catalog)
 			row.ElapsedMS = elapsed
 			if callErr == nil {
@@ -221,7 +209,7 @@ func runSweep(req sweepRequest) error {
 			}
 			rows = append(rows, row)
 			fmt.Printf("%s %s: %.0f ms, RTF %.3f %s\n", ps.Name, p.ID, row.ElapsedMS, row.RTF, row.Error)
-			report := evalReport{req.moraMS, req.phonemizer, false, ps.Mix, ps.GapRepair, runtime.GOOS, runtime.GOARCH, req.bank, modelIdentity, corpusSHA, req.bridge, buildInfo, rows}
+			report := evalReport{req.moraMS, req.phonemizer, false, runtime.GOOS, runtime.GOARCH, req.bank, modelIdentity, corpusSHA, req.bridge, buildInfo, rows}
 			encoded, err := json.MarshalIndent(report, "", "  ")
 			if err != nil {
 				return err
@@ -267,7 +255,7 @@ func buildSweepJSON(req sweepRequest, selected []preset, promptData []sweepPromp
 			seen[ps.Renderer] = true
 			report.Renderers = append(report.Renderers, ps.Renderer)
 		}
-		report.Presets = append(report.Presets, sweepPresetJSON{ps.Name, ps.Renderer, ps.Mix, ps.GapRepair, ps.ApplyPitch})
+		report.Presets = append(report.Presets, sweepPresetJSON{ps.Name, ps.Renderer, ps.ApplyPitch})
 	}
 	for index, p := range req.prompts {
 		out := sweepPromptJSON{ID: p.ID, Text: p.Text, SelectionSHA256: promptData[index].selectionSHA, AudioMS: promptData[index].audioMS, Units: promptData[index].units}
@@ -280,7 +268,7 @@ func writeSweepIndex(path string, selected []preset, prompts []prompt, promptDat
 	var b strings.Builder
 	b.WriteString("# Sweep\n\n")
 	for _, ps := range selected {
-		fmt.Fprintf(&b, "- **%s**: renderer=%s, mix=%s, gap_repair=%s, apply_pitch=%t\n", ps.Name, ps.Renderer, ps.Mix, ps.GapRepair, ps.ApplyPitch)
+		fmt.Fprintf(&b, "- **%s**: renderer=%s, apply_pitch=%t\n", ps.Name, ps.Renderer, ps.ApplyPitch)
 	}
 	b.WriteString("\n| prompt |")
 	for _, ps := range selected {

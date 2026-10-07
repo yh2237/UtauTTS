@@ -64,12 +64,6 @@ type WorldlineProviderOptions struct {
 	// 試聴用の原音区間指定。通常の合成では未指定。
 	ExperimentalSourceSpans map[int]SourceSpan `json:"-"`
 	ExactLength             bool
-	MixMode                 string
-	GapRepairMode           string
-	// 英語の語末破裂音を閉鎖と解放に分ける。nilは有効。
-	E2A *bool
-	// 日本語破裂音を保護する。nilは有効。
-	E2B *bool
 	// 日本語のモーラ内を学習した時間配分に合わせる。nilは有効。
 	TimingWarp *bool `json:"timing_warp,omitempty"`
 	// 日本語の子音前後に微細な音高変化を足す。nilは有効。
@@ -82,24 +76,6 @@ func (options WorldlineProviderOptions) MicroprosodyEnabled() bool {
 
 func (options WorldlineProviderOptions) TimingWarpEnabled() bool {
 	return options.TimingWarp == nil || *options.TimingWarp
-}
-
-func (options WorldlineProviderOptions) SeparateCodaReleaseEnabled() bool {
-	return options.E2A == nil || *options.E2A
-}
-
-func (options WorldlineProviderOptions) JapaneseStopProtectionEnabled() bool {
-	return options.E2B == nil || *options.E2B
-}
-
-// E2AEnabledは既存ツールとの互換用。
-func (options WorldlineProviderOptions) E2AEnabled() bool {
-	return options.SeparateCodaReleaseEnabled()
-}
-
-// E2BEnabledは既存ツールとの互換用。
-func (options WorldlineProviderOptions) E2BEnabled() bool {
-	return options.JapaneseStopProtectionEnabled()
 }
 
 func (cfg Config) Resource(key engine.ResourceKey) string {

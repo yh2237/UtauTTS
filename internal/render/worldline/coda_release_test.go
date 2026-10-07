@@ -91,23 +91,16 @@ func TestCodaClosureReleaseSplitSeparatesEnglishStop(t *testing.T) {
 	}
 }
 
-func TestE2ACodaReleaseSplitRespectsToggle(t *testing.T) {
+func TestCodaReleaseSplitOnlyForEnglishStops(t *testing.T) {
 	p := &plan.Plan{Phonemizer: frontend.PhonemizerEnglishDelta, Morae: []frontend.Mora{{Consonant: "m", Vowel: "iy"}}}
 	u := plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, DurationMS: 70,
 		SpeechProfile: &voicebank.SpeechProfile{ReleaseTransientMS: 40, ReleaseTransientDurationMS: 16, ReleaseTransientConfidence: .6}}
-	on, off := true, false
-	if _, _, ok := worldCodaReleaseSplit(p, u, base.WorldlineProviderOptions{E2A: &on}); !ok {
-		t.Fatal("E2a on should split english stop coda")
-	}
-	if _, _, ok := worldCodaReleaseSplit(p, u, base.WorldlineProviderOptions{E2A: &off}); ok {
-		t.Fatal("E2a off must not split")
-	}
 	if _, _, ok := worldCodaReleaseSplit(p, u, base.WorldlineProviderOptions{}); !ok {
-		t.Fatal("E2a default should be on")
+		t.Fatal("english stop coda should split")
 	}
 	// 日本語はCodaPhonesが付かないため対象外。
 	ja := &plan.Plan{Language: "ja", Phonemizer: "ja-kana"}
-	if _, _, ok := worldCodaReleaseSplit(ja, u, base.WorldlineProviderOptions{E2A: &on}); ok {
+	if _, _, ok := worldCodaReleaseSplit(ja, u, base.WorldlineProviderOptions{}); ok {
 		t.Fatal("non-English coda must not split")
 	}
 }
