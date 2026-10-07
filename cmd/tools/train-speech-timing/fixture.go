@@ -12,11 +12,12 @@ import (
 )
 
 type parityFixture struct {
-	IDs      [][3]int                     `json:"ids"`
-	Cont     [][4]float32                 `json:"cont"`
-	F0Cont   [][f0ContextFeatures]float32 `json:"f0_cont,omitempty"`
-	Output   [][]float32                  `json:"output"`
-	F0Output []float32                    `json:"f0_output,omitempty"`
+	IDs          [][3]int                     `json:"ids"`
+	Cont         [][4]float32                 `json:"cont"`
+	F0Cont       [][f0ContextFeatures]float32 `json:"f0_cont,omitempty"`
+	Output       [][]float32                  `json:"output"`
+	F0Output     []float32                    `json:"f0_output,omitempty"`
+	EnergyOutput []float32                    `json:"energy_output,omitempty"`
 }
 
 func writeFixture(path string, model trainerModel, device tensor.Device, phones int) error {
@@ -51,8 +52,8 @@ func writeFixture(path string, model trainerModel, device tensor.Device, phones 
 	wasTraining := model.module().Training
 	model.train(false)
 	defer model.train(wasTraining)
-	var pred, f0Pred *autograd.Tensor
-	autograd.NoGrad(func() { pred, f0Pred = model.forward(ids, input, f0Input, 0) })
+	var pred, f0Pred, energyPred *autograd.Tensor
+	autograd.NoGrad(func() { pred, f0Pred, energyPred = model.forward(ids, input, f0Input, 0) })
 	values, e := pred.ToHost()
 	pred.ReleaseGraph()
 	if e != nil {
@@ -68,6 +69,14 @@ func writeFixture(path string, model trainerModel, device tensor.Device, phones 
 			return e
 		}
 		f.F0Output = f0Values
+	}
+	if energyPred != nil {
+		energyValues, e := energyPred.ToHost()
+		energyPred.ReleaseGraph()
+		if e != nil {
+			return e
+		}
+		f.EnergyOutput = energyValues
 	}
 	b, e := json.Marshal(f)
 	if e != nil {

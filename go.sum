@@ -36,8 +36,8 @@ github.com/xyproto/randomstring v1.0.5 h1:YtlWPoRdgMu3NZtP45drfy1GKoojuR7hmRcnhZ
 github.com/xyproto/randomstring v1.0.5/go.mod h1:rgmS5DeNXLivK7YprL0pY+lTuhNQW3iGxZ18UQApw/E=
 github.com/yh2237/audiodsp v0.4.1 h1:v6/ApQyZvOzKIySpLrglM/fBvh2rmX1oraJVmf0S/M4=
 github.com/yh2237/audiodsp v0.4.1/go.mod h1:Cv0D5PXZpjZW/Ty+326DBv2JmdZfu4d6zMhlNOfpWF8=
-github.com/yh2237/gograd v1.4.0 h1:S20+G3XudC4UXNWrN5TEXy8FsnziEN6wlenlskfnMPE=
-github.com/yh2237/gograd v1.4.0/go.mod h1:42B/uxczsSbUy/n+SAYj1Wuk0xeo+VqFnvKL6MGVkRw=
+github.com/yh2237/gograd v1.5.0 h1:8BDDjERGYBAYQBdf7PQfDYJUucJKOBgkAELVGs8mKjQ=
+github.com/yh2237/gograd v1.5.0/go.mod h1:42B/uxczsSbUy/n+SAYj1Wuk0xeo+VqFnvKL6MGVkRw=
 github.com/yh2237/utauio v0.3.0 h1:xqJ8mTmFt9+IYc71EgW/kUN3w35QBOipxiY9ZDEg2ts=
 github.com/yh2237/utauio v0.3.0/go.mod h1:I+illiKoP6S8iUC4iF15Y6ynXUbBTquYEPW3S8jDpZY=
 golang.org/x/sys v0.38.0 h1:3yZWxaJjBmCWXqhN1qh02AkOnCQ1poK6oF+a7xWL6Gc=

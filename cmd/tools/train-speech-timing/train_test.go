@@ -25,7 +25,7 @@ func featureFixture(t *testing.T) string {
 		frames := 3 + 2*i
 		item := utterance{ID: string(rune('a' + i)), Frames: frames, Continuous: 4,
 			IDs: make([]int, frames*3), Cont: make([]float32, frames*4), Target: make([]float32, frames*80),
-			F0Target: make([]float32, frames), EnergyTarget: make([]float32, frames), Accent: make([]float32, frames*12)}
+			F0Target: make([]float32, frames), EnergyTarget: make([]float32, frames), F0Extra: make([]float32, frames*f0ExtraFeatures)}
 		for f := 0; f < frames; f++ {
 			for j := 0; j < 3; j++ {
 				item.IDs[f*3+j] = 3 + (i+f+j)%20
@@ -38,8 +38,8 @@ func featureFixture(t *testing.T) string {
 			}
 			item.F0Target[f] = float32(math.Sin(float64(i+f)*.2)) * 0.5
 			item.EnergyTarget[f] = float32(math.Cos(float64(i+f)*.15)) * 0.3
-			for j := 0; j < 12; j++ {
-				item.Accent[f*12+j] = float32((i+f+j)%5) / 5
+			for j := 0; j < f0ExtraFeatures; j++ {
+				item.F0Extra[f*f0ExtraFeatures+j] = float32((i+f+j)%5) / 5
 			}
 		}
 		items = append(items, item)
@@ -62,7 +62,7 @@ func TestTrainerResumeAndRuntimeCompatibility(t *testing.T) {
 				t.Skip("CUDA unavailable")
 			}
 			cache := featureFixture(t)
-			c := trainingConfig{Cache: cache, Steps: 6, Valid: 1, Batch: 1, Window: 5, EvalEvery: 2, CheckpointEvery: 99,
+			c := trainingConfig{Cache: cache, Steps: 6, Valid: 1, Batch: 1, Window: 5, EvalEvery: 2, CheckpointEvery: 99, LR: 0.002,
 				Seed: 17, Device: device, TrainingCorpus: "test corpus", Notices: noticeFlags{"test-notice.txt"}}
 			c.Out = filepath.Join(t.TempDir(), "full.safetensors")
 			c.Fixture = c.Out + ".fixture.json"
@@ -219,6 +219,26 @@ func verifyRuntime(t *testing.T, modelPath, fixturePath string) {
 		if f0Maximum > 2e-5 {
 			t.Fatalf("runtime f0 predictions differ from best model: %g", f0Maximum)
 		}
+		if len(fixture.EnergyOutput) > 0 {
+			energyValues, err := model.PredictEnergy(fixture.IDs, cont)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(energyValues) != len(fixture.EnergyOutput) {
+				t.Fatalf("runtime energy frames %d != %d", len(energyValues), len(fixture.EnergyOutput))
+			}
+			energyMaximum := 0.0
+			for i := range energyValues {
+				if math.IsNaN(float64(energyValues[i])) || math.IsInf(float64(energyValues[i]), 0) {
+					t.Fatal("non-finite runtime energy prediction")
+				}
+				energyMaximum = math.Max(energyMaximum, math.Abs(float64(energyValues[i]-fixture.EnergyOutput[i])))
+			}
+			t.Logf("runtime/parity energy max absolute error = %g", energyMaximum)
+			if energyMaximum > 2e-5 {
+				t.Fatalf("runtime energy predictions differ from best model: %g", energyMaximum)
+			}
+		}
 	}
 }
 
@@ -239,7 +259,7 @@ func TestFeatureOnlyDoesNotNeedMFAWithCache(t *testing.T) {
 
 func TestMultiHeadTrainingWritesF0Model(t *testing.T) {
 	cache := featureFixture(t)
-	c := trainingConfig{Cache: cache, F0Head: true, F0Weight: 1, Steps: 6, Valid: 1, Batch: 1, Window: 5, EvalEvery: 2, CheckpointEvery: 99,
+	c := trainingConfig{Cache: cache, F0Head: true, F0Weight: 1, EnergyWeight: 1, LR: 0.002, Steps: 6, Valid: 1, Batch: 1, Window: 5, EvalEvery: 2, CheckpointEvery: 99,
 		Seed: 17, Device: "cpu", TrainingCorpus: "test corpus", Notices: noticeFlags{"test-notice.txt"}}
 	c.Out = filepath.Join(t.TempDir(), "multi.safetensors")
 	c.Fixture = c.Out + ".fixture.json"
@@ -259,10 +279,10 @@ func TestMultiHeadTrainingWritesF0Model(t *testing.T) {
 	if err := json.Unmarshal(header["__metadata__"], &metadata); err != nil {
 		t.Fatal(err)
 	}
-	if metadata["f0"] != "1" || metadata["f0_context"] != "14" {
+	if metadata["f0"] != "1" || metadata["f0_context"] != "55" || metadata["energy"] != "1" {
 		t.Fatalf("f0 metadata = %v", metadata)
 	}
-	for _, name := range []string{"f0_inp.weight", "f0_blocks.0.weight", "f0_out.weight"} {
+	for _, name := range []string{"f0_inp.weight", "f0_blocks.0.weight", "f0_out.weight", "energy_out.weight"} {
 		if _, ok := header[name]; !ok {
 			t.Errorf("missing %s", name)
 		}
@@ -275,15 +295,15 @@ func TestMultiHeadTrainingWritesF0Model(t *testing.T) {
 	if err := json.Unmarshal(fixtureData, &fixture); err != nil {
 		t.Fatal(err)
 	}
-	if len(fixture.F0Output) != 37 || len(fixture.F0Cont) != 37 {
-		t.Fatalf("fixture f0 output %d f0 cont %d", len(fixture.F0Output), len(fixture.F0Cont))
+	if len(fixture.F0Output) != 37 || len(fixture.F0Cont) != 37 || len(fixture.EnergyOutput) != 37 {
+		t.Fatalf("fixture f0 output %d f0 cont %d energy %d", len(fixture.F0Output), len(fixture.F0Cont), len(fixture.EnergyOutput))
 	}
 	verifyRuntime(t, c.Out, c.Fixture)
 }
 
 func TestTrainingProtectsExistingPaths(t *testing.T) {
 	cache := featureFixture(t)
-	c := trainingConfig{Cache: cache, Out: cache, Fixture: filepath.Join(t.TempDir(), "fixture.json"), Steps: 6, Valid: 1, Batch: 1, Window: 5, EvalEvery: 1, CheckpointEvery: 1, Device: "cpu"}
+	c := trainingConfig{Cache: cache, Out: cache, Fixture: filepath.Join(t.TempDir(), "fixture.json"), Steps: 6, Valid: 1, Batch: 1, Window: 5, EvalEvery: 1, CheckpointEvery: 1, Device: "cpu", LR: 0.002}
 	before, _ := os.ReadFile(cache)
 	if err := train(context.Background(), c); err == nil {
 		t.Fatal("accepted output over feature cache")

@@ -15,10 +15,10 @@ const corpus = "Tsukuyomi-chan Corpus Vol.1 (VOICEACTRESS100) + Minnade JSUT Cor
 
 type trainingConfig struct {
 	Dataset, Alignments, Corpus, WorldEngine, Cache, Out, Fixture, FeaturesJSON string
-	Checkpoint, Resume, Device, TrainingCorpus, Language                        string
+	Checkpoint, Resume, Device, TrainingCorpus, Language, F0Teacher             string
 	Steps, StopAfter, Valid, Batch, Window, EvalEvery, CheckpointEvery          int
 	Seed                                                                        int64
-	F0Weight                                                                    float64
+	F0Weight, F0DeltaWeight, EnergyWeight, LR                                   float64
 	FeaturesOnly                                                                bool
 	F0Head                                                                      bool
 	Notices                                                                     noticeFlags
@@ -38,6 +38,10 @@ func main() {
 	flag.BoolVar(&c.FeaturesOnly, "features-only", false, "build feature cache and exit")
 	flag.BoolVar(&c.F0Head, "f0", false, "add the context-only F0 head (multi-head model)")
 	flag.Float64Var(&c.F0Weight, "f0-weight", 1.0, "F0 loss weight for the F0 head")
+	flag.Float64Var(&c.F0DeltaWeight, "f0-delta-weight", 0.35, "adjacent frame F0 loss weight")
+	flag.Float64Var(&c.EnergyWeight, "energy-weight", 1.0, "energy loss weight for the multi-head model")
+	flag.Float64Var(&c.LR, "lr", 0.002, "maximum learning rate for OneCycle")
+	flag.StringVar(&c.F0Teacher, "f0-teacher", "", "distillation teacher JSONL (rendered v10 contours in cents)")
 	flag.StringVar(&c.FeaturesJSON, "features-json", "", "write first three utterances as JSON for parity inspection")
 	flag.IntVar(&c.Steps, "steps", 6000, "total planned updates; keep unchanged when resuming")
 	flag.IntVar(&c.Valid, "valid", 30, "validation utterances")
@@ -69,12 +73,15 @@ func totalFrames(items []utterance) int {
 	return n
 }
 
-func checkpointMetadata(score float64, step int, trainingCorpus string, notices []string, phones, modelID string, f0Head bool) map[string]string {
+func checkpointMetadata(score float64, step int, trainingCorpus string, notices []string, phones, modelID string, f0Head bool, f0Teacher bool) map[string]string {
 	if len(notices) == 0 {
 		notices = []string{"licenses/TSUKUYOMI-CORPUS.txt", "licenses/MINNADE-JSUT-CORPUS.txt", "licenses/MFA-Japanese-NOTICE.txt"}
 	}
 	if f0Head {
 		modelID += "-f0"
+	}
+	if f0Teacher {
+		modelID += "-distill"
 	}
 	meta := map[string]string{"id": modelID, "format": "utautts-speech-timing-tcn-1", "phones": phones,
 		"kernel": "5", "dilations": "1 2 4 8 1 2 4 8", "frame_ms": "10.0", "mels": "80",
@@ -85,6 +92,12 @@ func checkpointMetadata(score float64, step int, trainingCorpus string, notices 
 		meta["f0_context"] = fmt.Sprint(f0ContextFeatures)
 		meta["f0_kernel"] = "5"
 		meta["f0_dilations"] = "1 2 4 8 1 2 4 8"
+		meta["f0_pos"] = strings.Join(posVocab, " ")
+		meta["f0_pos_group1"] = strings.Join(posGroup1Vocab, " ")
+		meta["energy"] = "1"
+	}
+	if f0Teacher {
+		meta["f0_scale"] = "100"
 	}
 	return meta
 }

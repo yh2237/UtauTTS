@@ -80,11 +80,11 @@ func (m trainerModel) module() *autograd.Module {
 	return &m.single.Module
 }
 
-func (m trainerModel) forward(ids []int, cont, f0Cont *autograd.Tensor, seed uint32) (*autograd.Tensor, *autograd.Tensor) {
+func (m trainerModel) forward(ids []int, cont, f0Cont *autograd.Tensor, seed uint32) (*autograd.Tensor, *autograd.Tensor, *autograd.Tensor) {
 	if m.multi != nil {
 		return m.multi.Forward(ids, cont, f0Cont, seed)
 	}
-	return m.single.Forward(ids, cont, seed), nil
+	return m.single.Forward(ids, cont, seed), nil, nil
 }
 
 func (m trainerModel) close() { closeModule(m.module()) }
@@ -99,6 +99,9 @@ func train(ctx context.Context, c trainingConfig) error {
 	if !c.FeaturesOnly {
 		if c.Steps < 2 || c.Batch < 1 || c.Window < 1 || c.EvalEvery < 1 || c.CheckpointEvery < 1 || c.StopAfter < 0 || c.StopAfter > c.Steps {
 			return fmt.Errorf("invalid training steps, batch, window or interval")
+		}
+		if c.LR <= 0 || math.IsNaN(c.LR) || math.IsInf(c.LR, 0) {
+			return fmt.Errorf("invalid learning rate")
 		}
 		if err := requireNewPath(c.Out); err != nil {
 			return err
@@ -120,7 +123,7 @@ func train(ctx context.Context, c trainingConfig) error {
 	if _, err := os.Stat(c.Cache); os.IsNotExist(err) && c.Corpus == "" && (c.Dataset == "" || c.Alignments == "") {
 		return fmt.Errorf("--corpus or --dataset and --alignments are required to build a new feature cache")
 	}
-	items, phones, err := loadOrBuildFeatures(c.Cache, c.Dataset, c.Corpus, c.Alignments, c.WorldEngine)
+	items, phones, err := loadOrBuildFeatures(c.Cache, c.Dataset, c.Corpus, c.Alignments, c.WorldEngine, c.F0Teacher)
 	if err != nil {
 		return fmt.Errorf("read features: %w", err)
 	}
@@ -129,7 +132,7 @@ func train(ctx context.Context, c trainingConfig) error {
 		if item.Frames < 1 || item.Continuous < continuousFeatures || len(item.IDs) != item.Frames*3 || len(item.Cont) != item.Frames*item.Continuous || len(item.Target) != item.Frames*80 {
 			return fmt.Errorf("cache %s has incompatible frames/features", item.ID)
 		}
-		if len(item.F0Target) != item.Frames || len(item.EnergyTarget) != item.Frames || len(item.Accent) != item.Frames*12 {
+		if len(item.F0Target) != item.Frames || len(item.EnergyTarget) != item.Frames || len(item.F0Extra) != item.Frames*f0ExtraFeatures {
 			return fmt.Errorf("cache %s is missing F0, energy or accent targets; delete it to rebuild", item.ID)
 		}
 	}
@@ -233,9 +236,9 @@ func train(ctx context.Context, c trainingConfig) error {
 	}
 	defer bestModel.close()
 	combined := &autograd.Module{Children: []autograd.NamedModule{{Name: "current", Module: model.module()}, {Name: "best", Module: bestModel.module()}}}
-	opt := autograd.NewAdamW(model.parameters(), .002, .0001)
+	opt := autograd.NewAdamW(model.parameters(), float32(c.LR), .0001)
 	defer opt.Close()
-	schedule := autograd.NewOneCycle(.002, c.Steps, .1)
+	schedule := autograd.NewOneCycle(c.LR, c.Steps, .1)
 	opt.LR = float32(schedule.LR())
 	limit := c.Steps
 	if c.StopAfter > 0 {
@@ -251,7 +254,7 @@ func train(ctx context.Context, c trainingConfig) error {
 		if err := os.MkdirAll(filepath.Dir(c.Out), 0700); err != nil {
 			return err
 		}
-		if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(state.Best, state.BestStep, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head)); err != nil {
+		if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(state.Best, state.BestStep, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head, c.F0Teacher != "")); err != nil {
 			return err
 		}
 		fmt.Printf("resumed step=%d best=%.6f@%d\n", opt.StepCount, state.Best, state.BestStep)
@@ -278,13 +281,13 @@ func train(ctx context.Context, c trainingConfig) error {
 			fmt.Println("interrupted: saving at completed update", opt.StepCount)
 			break
 		}
-		ids, cont, target, f0Cont, f0Target := sampleBatch(training, sampler, c.Batch, c.Window)
-		loss, err := update(model, opt, schedule, ids, cont, target, f0Cont, f0Target, c.Batch, c.Window, device, uint32(c.Seed)+uint32(step)*8, c.F0Weight)
+		ids, cont, target, f0Cont, f0Target, energyTarget := sampleBatch(training, sampler, c.Batch, c.Window)
+		loss, err := update(model, opt, schedule, ids, cont, target, f0Cont, f0Target, energyTarget, c.Batch, c.Window, device, uint32(c.Seed)+uint32(step)*8, c.F0Weight, c.F0DeltaWeight, c.EnergyWeight)
 		if err != nil {
 			return err
 		}
 		if step%c.EvalEvery == 0 || step == c.Steps-1 {
-			score, err := evaluate(model, validation, device, vocab.silence, c.F0Weight)
+			score, err := evaluate(model, validation, device, vocab.silence, c.F0Weight, c.EnergyWeight)
 			if err != nil {
 				return err
 			}
@@ -299,7 +302,7 @@ func train(ctx context.Context, c trainingConfig) error {
 				if err := os.MkdirAll(filepath.Dir(c.Out), 0700); err != nil {
 					return err
 				}
-				if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(score, step, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head)); err != nil {
+				if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(score, step, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head, c.F0Teacher != "")); err != nil {
 					return err
 				}
 			}
@@ -325,7 +328,7 @@ func train(ctx context.Context, c trainingConfig) error {
 	return nil
 }
 
-func update(model trainerModel, opt *autograd.AdamW, schedule *autograd.OneCycle, ids []int, cv, tv, f0cv, f0tv []float32, batch, window int, device tensor.Device, dropoutSeed uint32, f0Weight float64) (float32, error) {
+func update(model trainerModel, opt *autograd.AdamW, schedule *autograd.OneCycle, ids []int, cv, tv, f0cv, f0tv, energyv []float32, batch, window int, device tensor.Device, dropoutSeed uint32, f0Weight, f0DeltaWeight, energyWeight float64) (float32, error) {
 	cont, err := autograd.New(cv, []int{batch, window, continuousFeatures}, device, false)
 	if err != nil {
 		return 0, err
@@ -342,7 +345,7 @@ func update(model trainerModel, opt *autograd.AdamW, schedule *autograd.OneCycle
 	}
 	defer f0Cont.Close()
 	opt.ZeroGrad()
-	mel, f0 := model.forward(ids, cont, f0Cont, dropoutSeed)
+	mel, f0, energy := model.forward(ids, cont, f0Cont, dropoutSeed)
 	loss := autograd.MaskedLoss(mel, target, false)
 	if f0 != nil && f0Weight > 0 {
 		f0Target, err := autograd.New(f0tv, []int{batch, window, 1}, device, false)
@@ -350,7 +353,22 @@ func update(model trainerModel, opt *autograd.AdamW, schedule *autograd.OneCycle
 			return 0, err
 		}
 		defer f0Target.Close()
-		loss = autograd.Add(loss, autograd.MulScalar(autograd.MaskedLoss(f0, f0Target, false), float32(f0Weight)))
+		absolute := autograd.MaskedLoss(f0, f0Target, false)
+		loss = autograd.Add(loss, autograd.MulScalar(absolute, float32(f0Weight)))
+		if f0DeltaWeight > 0 && window > 1 {
+			pd := autograd.Sub(autograd.Slice(f0, 1, 1, window), autograd.Slice(f0, 1, 0, window-1))
+			td := autograd.Sub(autograd.Slice(f0Target, 1, 1, window), autograd.Slice(f0Target, 1, 0, window-1))
+			delta := autograd.MaskedLoss(pd, td, false)
+			loss = autograd.Add(loss, autograd.MulScalar(delta, float32(f0Weight*f0DeltaWeight)))
+		}
+	}
+	if energy != nil && energyWeight > 0 {
+		energyTarget, err := autograd.New(energyv, []int{batch, window, 1}, device, false)
+		if err != nil {
+			return 0, err
+		}
+		defer energyTarget.Close()
+		loss = autograd.Add(loss, autograd.MulScalar(autograd.MaskedLoss(energy, energyTarget, false), float32(energyWeight)))
 	}
 	defer loss.ReleaseGraph()
 	values, err := loss.ToHost()
@@ -369,12 +387,13 @@ func update(model trainerModel, opt *autograd.AdamW, schedule *autograd.OneCycle
 	return values[0], nil
 }
 
-func sampleBatch(items []utterance, sampler *autograd.WindowSampler, batch, window int) ([]int, []float32, []float32, []float32, []float32) {
+func sampleBatch(items []utterance, sampler *autograd.WindowSampler, batch, window int) ([]int, []float32, []float32, []float32, []float32, []float32) {
 	ids := make([]int, batch*window*3)
 	cont := make([]float32, batch*window*continuousFeatures)
 	target := make([]float32, batch*window*80)
 	f0Cont := make([]float32, batch*window*f0ContextFeatures)
 	f0Target := make([]float32, batch*window)
+	energyTarget := make([]float32, batch*window)
 	for b, sampled := range sampler.Batch() {
 		item := items[sampled.Index]
 		for t := 0; t < window; t++ {
@@ -384,6 +403,7 @@ func sampleBatch(items []utterance, sampler *autograd.WindowSampler, batch, wind
 					target[dst*80+j] = float32(math.NaN())
 				}
 				f0Target[dst] = float32(math.NaN())
+				energyTarget[dst] = float32(math.NaN())
 				continue
 			}
 			copy(ids[dst*3:dst*3+3], item.IDs[src*3:src*3+3])
@@ -391,14 +411,15 @@ func sampleBatch(items []utterance, sampler *autograd.WindowSampler, batch, wind
 			copy(target[dst*80:dst*80+80], item.Target[src*80:src*80+80])
 			f0Cont[dst*f0ContextFeatures] = item.Cont[src*item.Continuous]
 			f0Cont[dst*f0ContextFeatures+1] = item.Cont[src*item.Continuous+1]
-			copy(f0Cont[dst*f0ContextFeatures+2:(dst+1)*f0ContextFeatures], item.Accent[src*12:src*12+12])
+			copy(f0Cont[dst*f0ContextFeatures+2:(dst+1)*f0ContextFeatures], item.F0Extra[src*f0ExtraFeatures:(src+1)*f0ExtraFeatures])
 			f0Target[dst] = item.F0Target[src]
+			energyTarget[dst] = item.EnergyTarget[src]
 		}
 	}
-	return ids, cont, target, f0Cont, f0Target
+	return ids, cont, target, f0Cont, f0Target, energyTarget
 }
 
-func evaluate(model trainerModel, items []utterance, device tensor.Device, silence int, f0Weight float64) (float64, error) {
+func evaluate(model trainerModel, items []utterance, device tensor.Device, silence int, f0Weight, energyWeight float64) (float64, error) {
 	wasTraining := model.module().Training
 	model.train(false)
 	defer model.train(wasTraining)
@@ -410,7 +431,7 @@ func evaluate(model trainerModel, items []utterance, device tensor.Device, silen
 			copy(cv[t*continuousFeatures:(t+1)*continuousFeatures], item.Cont[t*item.Continuous:t*item.Continuous+continuousFeatures])
 			f0cv[t*f0ContextFeatures] = cv[t*continuousFeatures]
 			f0cv[t*f0ContextFeatures+1] = cv[t*continuousFeatures+1]
-			copy(f0cv[t*f0ContextFeatures+2:(t+1)*f0ContextFeatures], item.Accent[t*12:t*12+12])
+			copy(f0cv[t*f0ContextFeatures+2:(t+1)*f0ContextFeatures], item.F0Extra[t*f0ExtraFeatures:(t+1)*f0ExtraFeatures])
 		}
 		cont, err := autograd.New(cv, []int{1, item.Frames, continuousFeatures}, device, false)
 		if err != nil {
@@ -421,14 +442,18 @@ func evaluate(model trainerModel, items []utterance, device tensor.Device, silen
 			cont.Close()
 			return 0, err
 		}
-		var mel, f0 *autograd.Tensor
-		autograd.NoGrad(func() { mel, f0 = model.forward(item.IDs, cont, f0Cont, 0) })
+		var mel, f0, energy *autograd.Tensor
+		autograd.NoGrad(func() { mel, f0, energy = model.forward(item.IDs, cont, f0Cont, 0) })
 		values, err := mel.ToHost()
 		mel.ReleaseGraph()
-		var f0Values []float32
+		var f0Values, energyValues []float32
 		if err == nil && f0 != nil {
 			f0Values, err = f0.ToHost()
 			f0.ReleaseGraph()
+		}
+		if err == nil && energy != nil {
+			energyValues, err = energy.ToHost()
+			energy.ReleaseGraph()
 		}
 		cont.Close()
 		f0Cont.Close()
@@ -439,23 +464,35 @@ func evaluate(model trainerModel, items []utterance, device tensor.Device, silen
 		melCount := 0
 		var f0Total float64
 		f0Count := 0
+		var energyTotal float64
+		energyCount := 0
 		for t := 0; t < item.Frames; t++ {
 			if item.IDs[t*3] == silence {
 				continue
 			}
 			for j := 0; j < 80; j++ {
+				if math.IsNaN(float64(item.Target[t*80+j])) {
+					continue
+				}
 				melTotal += math.Abs(float64(values[t*80+j] - item.Target[t*80+j]))
 				melCount++
 			}
-			if f0Values != nil {
+			if f0Values != nil && !math.IsNaN(float64(item.F0Target[t])) {
 				f0Total += math.Abs(float64(f0Values[t] - item.F0Target[t]))
 				f0Count++
+			}
+			if energyValues != nil && !math.IsNaN(float64(item.EnergyTarget[t])) {
+				energyTotal += math.Abs(float64(energyValues[t] - item.EnergyTarget[t]))
+				energyCount++
 			}
 		}
 		if melCount > 0 {
 			score := melTotal / float64(melCount)
 			if f0Count > 0 {
 				score += f0Weight * f0Total / float64(f0Count)
+			}
+			if energyCount > 0 {
+				score += energyWeight * energyTotal / float64(energyCount)
 			}
 			scores += score
 		}

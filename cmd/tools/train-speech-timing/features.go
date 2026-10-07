@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
@@ -9,10 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"utautts/cmd/tools/internal/toolutil"
 	"utautts/internal/audio"
+	"utautts/internal/frontend"
 )
 
 type utterance struct {
@@ -22,17 +25,30 @@ type utterance struct {
 	Cont, Target       []float32
 	F0Target           []float32
 	EnergyTarget       []float32
-	Accent             []float32
+	F0Extra            []float32
 }
 
 // featureVersionはキャッシュ形式の版。utteranceの目標を変えたら上げる。
-const featureVersion = 3
+const featureVersion = 7
 
-// f0ContextFeaturesはF0ブランチの連続入力（音素内位置・対数長・アクセント12次元）。
-const f0ContextFeatures = 2 + 12
+// f0ContextFeaturesはF0ブランチの連続入力（音素内位置・対数長・アクセント12・POS12・pos_group1 29）。
+const (
+	f0AccentFeatures    = 12
+	f0PosFeatures       = 12
+	f0PosGroupFeatures  = 29
+	f0ContextFeatures   = 2 + f0AccentFeatures + f0PosFeatures + f0PosGroupFeatures
+	f0ExtraFeatures     = f0AccentFeatures + f0PosFeatures + f0PosGroupFeatures
+)
+
+// posVocabはall-mfaのトークンから取った固定語彙（昇順）。未知は末尾のother。
+var posVocab = []string{"フィラー", "副詞", "助動詞", "助詞", "動詞", "名詞", "形容詞", "感動詞", "接続詞", "接頭詞", "連体詞"}
+
+// posGroup1Vocabは同様にpos_group1の固定語彙（昇順）。未知は末尾のother。
+var posGroup1Vocab = []string{"*", "サ変接続", "ナイ形容詞語幹", "一般", "並立助詞", "代名詞", "係助詞", "副助詞", "副助詞／並立助詞／終助詞", "副詞化", "副詞可能", "助詞類接続", "動詞接続", "動詞非自立的", "名詞接続", "固有名詞", "形容動詞語幹", "接尾", "接続助詞", "接続詞的", "数", "数接続", "格助詞", "特殊", "終助詞", "自立", "連体化", "非自立"}
 
 type datasetToken struct {
 	Mora                 string  `json:"mora"`
+	Vowel                string  `json:"vowel"`
 	Pause                bool    `json:"pause"`
 	AccentPhrasePosition int     `json:"accent_phrase_position"`
 	AccentPhraseLength   int     `json:"accent_phrase_length"`
@@ -42,15 +58,18 @@ type datasetToken struct {
 	AccentPhraseEnd      bool    `json:"accent_phrase_end"`
 	WordStart            bool    `json:"word_start"`
 	WordEnd              bool    `json:"word_end"`
+	Pos                  string  `json:"pos"`
+	PosGroup1            string  `json:"pos_group1"`
 	StartMS              float64 `json:"start_ms"`
 	EndMS                float64 `json:"end_ms"`
 }
 
 type record struct {
-	ID        string         `json:"id"`
-	AudioPath string         `json:"audio_path"`
-	Version   int            `json:"version"`
-	Tokens    []datasetToken `json:"tokens"`
+	ID         string         `json:"id"`
+	AudioPath  string         `json:"audio_path"`
+	Version    int            `json:"version"`
+	PlanTiming bool           `json:"plan_timing"`
+	Tokens     []datasetToken `json:"tokens"`
 }
 
 type alignment struct {
@@ -68,8 +87,22 @@ type phone struct {
 var ipa = map[string]string{"a": "a", "i": "i", "ɯ": "u", "e": "e", "o": "o", "aː": "a", "iː": "i", "ɯː": "u", "eː": "e", "oː": "o", "i̥": "i", "ɯ̥": "u", "ɴ": "N", "ʔ": "cl", "k": "k", "ɡ": "g", "s": "s", "ɕ": "sh", "z": "z", "dʑ": "j", "t": "t", "tɕ": "ch", "ts": "ts", "d": "d", "n": "n", "h": "h", "ɸ": "f", "b": "b", "p": "p", "m": "m", "j": "y", "ɾ": "r", "w": "w", "v": "v", "dʲ": "dy", "tʲ": "ty", "ʑ": "j", "dz": "z", "ŋ": "n", "ɰ̃": "N"}
 var palatal = map[string][2]string{"c": {"k", "ky"}, "ɟ": {"g", "gy"}, "ɲ": {"n", "ny"}, "ç": {"h", "hy"}, "mʲ": {"m", "my"}, "ɾʲ": {"r", "ry"}, "bʲ": {"b", "by"}, "pʲ": {"p", "py"}}
 
-func readPhones(path string) ([]phone, error) {
-	b, e := os.ReadFile(path)
+// alignmentPathはカンマ区切りのalignmentsディレクトリからIDのJSONを探す。
+func alignmentPath(alignDir, id string) (string, bool) {
+	for _, dir := range strings.Split(alignDir, ",") {
+		dir = strings.TrimSpace(dir)
+		if dir == "" {
+			continue
+		}
+		path := filepath.Join(dir, id+".json")
+		if _, err := os.Stat(path); err == nil {
+			return path, true
+		}
+	}
+	return "", false
+}
+
+func readPhones(path string) ([]phone, error) {	b, e := os.ReadFile(path)
 	if e != nil {
 		return nil, e
 	}
@@ -201,10 +234,15 @@ func boolFeature(value bool) float32 {
 	return 0
 }
 
-// accentFeatureFrameはスパース特徴（internal/openjtalk）と同じ意味の12次元。
-func accentFeatureFrame(token datasetToken) [12]float32 {
+// f0ExtraFeatureFrameはアクセント12＋POS one-hot12＋pos_group1 one-hot29を返す。
+func f0ExtraFeatureFrame(token datasetToken) [f0ExtraFeatures]float32 {
+	var result [f0ExtraFeatures]float32
+	posIndex := len(posVocab)
+	groupIndex := len(posGroup1Vocab)
 	if token.Pause {
-		return [12]float32{}
+		result[f0AccentFeatures+posIndex] = 1
+		result[f0AccentFeatures+f0PosFeatures+groupIndex] = 1
+		return result
 	}
 	length := token.AccentPhraseLength
 	if length < 1 {
@@ -212,7 +250,7 @@ func accentFeatureFrame(token datasetToken) [12]float32 {
 	}
 	position := token.AccentPhrasePosition
 	nucleus := token.AccentNucleus
-	result := [12]float32{
+	accent := [f0AccentFeatures]float32{
 		float32(float64(position) / float64(length)),
 		float32(float64(length-position) / float64(length)),
 		float32(float64(nucleus) / float64(length)),
@@ -224,14 +262,29 @@ func accentFeatureFrame(token datasetToken) [12]float32 {
 	}
 	switch {
 	case nucleus == 0:
-		result[8] = 1
+		accent[8] = 1
 	case position < nucleus:
-		result[9] = 1
+		accent[9] = 1
 	case position == nucleus:
-		result[10] = 1
+		accent[10] = 1
 	default:
-		result[11] = 1
+		accent[11] = 1
 	}
+	copy(result[:f0AccentFeatures], accent[:])
+	for index, name := range posVocab {
+		if token.Pos == name {
+			posIndex = index
+			break
+		}
+	}
+	result[f0AccentFeatures+posIndex] = 1
+	for index, name := range posGroup1Vocab {
+		if token.PosGroup1 == name {
+			groupIndex = index
+			break
+		}
+	}
+	result[f0AccentFeatures+f0PosFeatures+groupIndex] = 1
 	return result
 }
 
@@ -278,13 +331,54 @@ func logMel(sp []float64, frames, fft, rate int) []float64 {
 
 // trainingRecordは特徴量化の入力。Phonesがnilならalignmentsから読む。
 type trainingRecord struct {
-	ID        string
-	AudioPath string
-	Phones    []phone
-	Tokens    []datasetToken
+	ID         string
+	AudioPath  string
+	Phones     []phone
+	Tokens     []datasetToken
+	PlanTiming bool
 }
 
-func featurize(world *worldEngine, rec trainingRecord, alignDir string, vocab *vocabulary) (utterance, error) {
+// f0TeacherLineは蒸留教師の1行（v10のランタイム輪郭、cent）。
+type f0TeacherLine struct {
+	ID    string    `json:"id"`
+	Cents []float64 `json:"cents"`
+}
+
+// loadF0Teacherは蒸留教師JSONLを読む。
+func loadF0Teacher(path string) (map[string][]float32, error) {
+	if path == "" {
+		return nil, nil
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	result := map[string][]float32{}
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 4096), 16<<20)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var row f0TeacherLine
+		if err := json.Unmarshal([]byte(line), &row); err != nil {
+			return nil, err
+		}
+		values := make([]float32, len(row.Cents))
+		for i, value := range row.Cents {
+			values[i] = float32(value / 100)
+		}
+		result[row.ID] = values
+	}
+	return result, scanner.Err()
+}
+
+func featurize(world *worldEngine, rec trainingRecord, alignDir string, vocab *vocabulary, teacher []float32) (utterance, error) {
+	if rec.PlanTiming {
+		return featurizePlan(rec, vocab, teacher)
+	}
 	pcm, e := audio.ReadWav(rec.AudioPath)
 	if e != nil {
 		return utterance{}, e
@@ -305,7 +399,11 @@ func featurize(world *worldEngine, rec trainingRecord, alignDir string, vocab *v
 	}
 	ps := rec.Phones
 	if ps == nil {
-		ps, e = readPhones(filepath.Join(alignDir, rec.ID+".json"))
+		path, ok := alignmentPath(alignDir, rec.ID)
+		if !ok {
+			return utterance{}, fmt.Errorf("no alignment for %s", rec.ID)
+		}
+		ps, e = readPhones(path)
 		if e != nil {
 			return utterance{}, e
 		}
@@ -347,10 +445,62 @@ func featurize(world *worldEngine, rec trainingRecord, alignDir string, vocab *v
 			target[t*80+m] = float32((mel[t*80+m] - mean) * scale)
 		}
 	}
-	// F0目標は入力と同じ補間済みの相対log F0（発話中央値基準、/0.3）。
+	// F0目標: 蒸留教師があればその輪郭（cent/100）、なければ内部自己相関F0（無声・休止はNaN）。
 	f0Target := make([]float32, len(f0))
-	for t := range f0 {
-		f0Target[t] = cont[t*4+2]
+	if teacher != nil {
+		for t := range f0 {
+			if t < len(teacher) {
+				f0Target[t] = teacher[t]
+			}
+		}
+	} else {
+		internal := internalF0Track(x, pcm.SampleRate, 10.0)
+		pause := make([]bool, len(f0))
+		for _, token := range rec.Tokens {
+			if !token.Pause || token.EndMS <= token.StartMS {
+				continue
+			}
+			a := int(math.Round(token.StartMS / 10))
+			b := int(math.Round(token.EndMS / 10))
+			a, b = max(0, a), min(len(f0), max(b, a+1))
+			for t := a; t < b; t++ {
+				pause[t] = true
+			}
+		}
+		voiced := make([]bool, len(f0))
+		mean := 0.0
+		count := 0
+		for t := range f0 {
+			if t < len(internal) && internal[t] > 0 && !pause[t] {
+				mean += math.Log(internal[t])
+				voiced[t] = true
+				count++
+			}
+		}
+		if count > 0 {
+			mean /= float64(count)
+			for t := range f0 {
+				if !voiced[t] {
+					f0Target[t] = float32(math.NaN())
+					continue
+				}
+				sum := 0.0
+				neighbors := 0
+				for k := -1; k <= 1; k++ {
+					j := t + k
+					if j >= 0 && j < len(f0) && voiced[j] {
+						sum += math.Log(internal[j]) - mean
+						neighbors++
+					}
+				}
+				value := sum / float64(neighbors) / 0.3
+				f0Target[t] = float32(math.Min(1.0, math.Max(-1.0, value)))
+			}
+		} else {
+			for t := range f0 {
+				f0Target[t] = float32(math.NaN())
+			}
+		}
 	}
 	// エネルギー目標はスペクトル合計のdBを発話内で中心化し/10した値。
 	bins := fft/2 + 1
@@ -370,21 +520,104 @@ func featurize(world *worldEngine, rec trainingRecord, alignDir string, vocab *v
 	for t := range f0 {
 		energyTarget[t] = float32((float64(energyTarget[t]) - meanEnergy) / 10)
 	}
-	// アクセント特徴はトークンの時刻からフレームへ展開する（F0ブランチ専用）。
-	accent := make([]float32, len(f0)*12)
+	// アクセント・POS特徴はトークンの時刻からフレームへ展開する（F0ブランチ専用）。
+	extra := make([]float32, len(f0)*f0ExtraFeatures)
 	for _, token := range rec.Tokens {
-		if token.Pause || token.EndMS <= token.StartMS {
+		if token.EndMS <= token.StartMS {
 			continue
 		}
-		feature := accentFeatureFrame(token)
+		feature := f0ExtraFeatureFrame(token)
 		a := int(math.Round(token.StartMS / 10))
 		b := int(math.Round(token.EndMS / 10))
 		a, b = max(0, a), min(len(f0), max(b, a+1))
 		for t := a; t < b; t++ {
-			copy(accent[t*12:t*12+12], feature[:])
+			copy(extra[t*f0ExtraFeatures:(t+1)*f0ExtraFeatures], feature[:])
 		}
 	}
-	return utterance{rec.ID, len(f0), 4, ids, cont, target, f0Target, energyTarget, accent}, nil
+	return utterance{rec.ID, len(f0), 4, ids, cont, target, f0Target, energyTarget, extra}, nil
+}
+
+// featurizePlanはプラン時間風のレコードを音声なしで特徴量化する（F0蒸留用。メル・エネルギーはNaNで除外）。
+func featurizePlan(rec trainingRecord, vocab *vocabulary, teacher []float32) (utterance, error) {
+	durationMS := 0.0
+	for _, token := range rec.Tokens {
+		if token.EndMS > durationMS {
+			durationMS = token.EndMS
+		}
+	}
+	frames := int(math.Round(durationMS / 10))
+	if frames < 2 {
+		return utterance{}, fmt.Errorf("plan record %s is too short", rec.ID)
+	}
+	ps := planPhones(rec.Tokens)
+	f0 := make([]float64, frames)
+	ids, cont := frameInputs(ps, f0, vocab)
+	target := make([]float32, frames*80)
+	energyTarget := make([]float32, frames)
+	for i := range target {
+		target[i] = float32(math.NaN())
+	}
+	for i := range energyTarget {
+		energyTarget[i] = float32(math.NaN())
+	}
+	f0Target := make([]float32, frames)
+	for t := 0; t < frames && t < len(teacher); t++ {
+		f0Target[t] = teacher[t]
+	}
+	extra := make([]float32, frames*f0ExtraFeatures)
+	for _, token := range rec.Tokens {
+		if token.EndMS <= token.StartMS {
+			continue
+		}
+		feature := f0ExtraFeatureFrame(token)
+		a := int(math.Round(token.StartMS / 10))
+		b := int(math.Round(token.EndMS / 10))
+		a, b = max(0, a), min(frames, max(b, a+1))
+		for t := a; t < b; t++ {
+			copy(extra[t*f0ExtraFeatures:(t+1)*f0ExtraFeatures], feature[:])
+		}
+	}
+	return utterance{rec.ID, frames, 4, ids, cont, target, f0Target, energyTarget, extra}, nil
+}
+
+// planPhonesはトークン（プラン時間）から音素区間を組む。子音は先頭40%（最大50ms）。
+func planPhones(tokens []datasetToken) []phone {
+	var result []phone
+	for _, token := range tokens {
+		if token.Pause || token.EndMS <= token.StartMS {
+			continue
+		}
+		start := token.StartMS / 1000
+		end := token.EndMS / 1000
+		vowel := token.Vowel
+		consonant := ""
+		if parsed, err := frontend.ParseKana(token.Mora); err == nil && len(parsed) > 0 {
+			consonant = parsed[0].Consonant
+			if vowel == "" {
+				vowel = parsed[0].Vowel
+			}
+		}
+		switch token.Mora {
+		case "っ", "ッ":
+			consonant, vowel = "", "cl"
+		case "ん", "ン":
+			consonant, vowel = "", "N"
+		case "ー":
+			consonant = ""
+		}
+		if vowel == "" {
+			vowel = "a"
+		}
+		if consonant != "" {
+			length := end - start
+			consonantEnd := start + math.Min(0.05, length*0.4)
+			result = append(result, phone{start, consonantEnd, consonant, consonant})
+			result = append(result, phone{consonantEnd, end, vowel, vowel})
+		} else {
+			result = append(result, phone{start, end, vowel, vowel})
+		}
+	}
+	return result
 }
 
 // featureCacheは特徴量と語彙を保存する。旧形式（[]utterance、日本語語彙）も読める。
@@ -394,7 +627,7 @@ type featureCache struct {
 	Data    []utterance
 }
 
-func loadOrBuildFeatures(cache, dataset, corpusPath, alignDir, engine string) ([]utterance, string, error) {
+func loadOrBuildFeatures(cache, dataset, corpusPath, alignDir, engine, teacherPath string) ([]utterance, string, error) {
 	if f, e := os.Open(cache); e == nil {
 		defer f.Close()
 		var cached featureCache
@@ -424,6 +657,10 @@ func loadOrBuildFeatures(cache, dataset, corpusPath, alignDir, engine string) ([
 			return nil, "", e
 		}
 	}
+	teachers, e := loadF0Teacher(teacherPath)
+	if e != nil {
+		return nil, "", e
+	}
 	var records []trainingRecord
 	if corpusPath != "" {
 		err := toolutil.ScanJSONL(corpusPath, func(line []byte) error {
@@ -449,10 +686,12 @@ func loadOrBuildFeatures(cache, dataset, corpusPath, alignDir, engine string) ([
 			if r.Version != 1 {
 				return fmt.Errorf("%s: version %d", r.ID, r.Version)
 			}
-			if _, e := os.Stat(filepath.Join(alignDir, r.ID+".json")); e != nil {
-				return nil
+			if !r.PlanTiming {
+				if _, ok := alignmentPath(alignDir, r.ID); !ok {
+					return nil
+				}
 			}
-			records = append(records, trainingRecord{ID: r.ID, AudioPath: r.AudioPath, Tokens: r.Tokens})
+			records = append(records, trainingRecord{ID: r.ID, AudioPath: r.AudioPath, Tokens: r.Tokens, PlanTiming: r.PlanTiming})
 			return nil
 		})
 		if err != nil {
@@ -481,7 +720,7 @@ func loadOrBuildFeatures(cache, dataset, corpusPath, alignDir, engine string) ([
 					results <- result{index: index, err: err}
 					continue
 				}
-				item, e := featurize(world, records[index], alignDir, vocab)
+				item, e := featurize(world, records[index], alignDir, vocab, teachers[records[index].ID])
 				results <- result{index, item, e}
 			}
 		}()
