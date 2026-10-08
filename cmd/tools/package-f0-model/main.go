@@ -18,7 +18,9 @@ import (
 
 type options struct {
 	Weights, Base, ID, DisplayName, Description, License, Language, Out string
-	Priority                                                             int
+	Priority                                                            int
+	BaseBlend                                                           float64
+	UseEnergy                                                           bool
 }
 
 func main() {
@@ -31,6 +33,8 @@ func main() {
 	flag.StringVar(&o.License, "license", "", "モデルのライセンス（空は基準モデルと同じ）")
 	flag.StringVar(&o.Language, "language", "ja", "対象言語")
 	flag.IntVar(&o.Priority, "priority", 0, "default_priority（基準より小さくすると既定にならない）")
+	flag.Float64Var(&o.BaseBlend, "base-blend", 0, "基準モデルの抑揚曲線を混ぜる重み（0〜1）")
+	flag.BoolVar(&o.UseEnergy, "use-energy", true, "エネルギーヘッドでモーラの音量を変える")
 	flag.StringVar(&o.Out, "out", "", "出力JSON（out/以下）")
 	flag.Parse()
 	if err := run(o); err != nil {
@@ -42,6 +46,9 @@ func main() {
 func run(o options) error {
 	if o.Weights == "" || o.Base == "" || o.ID == "" || o.DisplayName == "" || o.Out == "" {
 		return fmt.Errorf("weights, base, id, display-name and out are required")
+	}
+	if o.BaseBlend < 0 || o.BaseBlend > 1 {
+		return fmt.Errorf("base-blend must be between 0 and 1")
 	}
 	if err := toolutil.RequireUnderOut(o.Out, "output", false); err != nil {
 		return err
@@ -73,6 +80,7 @@ func run(o options) error {
 		"license": license, "license_notices": base.LicenseNotices, "provenance": base.Provenance,
 		"language": o.Language, "default_priority": o.Priority,
 		"base_model": filepath.Base(o.Base), "f0_head": weights,
+		"base_blend": o.BaseBlend, "use_energy": o.UseEnergy,
 	}
 	data, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
