@@ -7,8 +7,11 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/yh2237/gograd/autograd"
 )
 
 const corpus = "Tsukuyomi-chan Corpus Vol.1 (VOICEACTRESS100) + Minnade JSUT Corpus basic5000 BASIC5000_0001-0600, aligned with Montreal Forced Aligner japanese_mfa"
@@ -21,6 +24,8 @@ type trainingConfig struct {
 	F0Weight, F0DeltaWeight, EnergyWeight, LR                                   float64
 	FeaturesOnly                                                                bool
 	F0Head                                                                      bool
+	F0Dilations                                                                 []int
+	PlanAugment                                                                 bool
 	Notices                                                                     noticeFlags
 }
 
@@ -56,13 +61,41 @@ func main() {
 	flag.IntVar(&c.EvalEvery, "eval-every", 250, "validation interval (also first/final update)")
 	flag.IntVar(&c.Batch, "batch-size", 16, "windows per training batch")
 	flag.IntVar(&c.Window, "window", 400, "frames per sampled window")
+	flag.BoolVar(&c.PlanAugment, "plan-augment", false, "add plan-timed copies (120 ms morae) of the training utterances with per-mora warped F0 targets")
+	flag.BoolVar(&f0PositionInput, "f0-position", false, "add sentence-position features (mora/phrase progress, final phrase, final breath group, question) to the F0 branch")
+	f0Dilations := flag.String("f0-dilations", "1 2 4 8 1 2 4 8", "dilation schedule of the F0 trunk (space separated); longer schedules see more of the sentence")
 	flag.Parse()
+	for _, field := range strings.Fields(*f0Dilations) {
+		value, err := strconv.Atoi(field)
+		if err != nil || value < 1 {
+			fmt.Fprintf(os.Stderr, "train-speech-timing: invalid f0 dilation %q\n", field)
+			os.Exit(2)
+		}
+		c.F0Dilations = append(c.F0Dilations, value)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	if err := train(ctx, c); err != nil {
 		fmt.Fprintln(os.Stderr, "train-speech-timing:", err)
 		os.Exit(1)
 	}
+}
+
+// f0DilationsOrDefaultは未指定ならメルトランクと同じ既定の並びを返す。
+func f0DilationsOrDefault(dilations []int) []int {
+	if len(dilations) == 0 {
+		return autograd.SpeechTimingDilations
+	}
+	return dilations
+}
+
+func dilationText(dilations []int) string {
+	dilations = f0DilationsOrDefault(dilations)
+	fields := make([]string, len(dilations))
+	for index, value := range dilations {
+		fields[index] = strconv.Itoa(value)
+	}
+	return strings.Join(fields, " ")
 }
 
 func totalFrames(items []utterance) int {
@@ -73,7 +106,7 @@ func totalFrames(items []utterance) int {
 	return n
 }
 
-func checkpointMetadata(score float64, step int, trainingCorpus string, notices []string, phones, modelID string, f0Head bool, f0Teacher bool) map[string]string {
+func checkpointMetadata(score float64, step int, trainingCorpus string, notices []string, phones, modelID string, f0Head bool, f0Teacher bool, f0Dilations []int) map[string]string {
 	if len(notices) == 0 {
 		notices = []string{"licenses/TSUKUYOMI-CORPUS.txt", "licenses/MINNADE-JSUT-CORPUS.txt", "licenses/MFA-Japanese-NOTICE.txt"}
 	}
@@ -89,9 +122,12 @@ func checkpointMetadata(score float64, step int, trainingCorpus string, notices 
 		"valid_l1": fmt.Sprintf("%.4f", score), "steps": fmt.Sprint(step)}
 	if f0Head {
 		meta["f0"] = "1"
-		meta["f0_context"] = fmt.Sprint(f0ContextFeatures)
+		meta["f0_context"] = fmt.Sprint(f0ContextWidth())
+		if f0PositionInput {
+			meta["f0_position"] = "1"
+		}
 		meta["f0_kernel"] = "5"
-		meta["f0_dilations"] = "1 2 4 8 1 2 4 8"
+		meta["f0_dilations"] = dilationText(f0Dilations)
 		meta["f0_pos"] = strings.Join(posVocab, " ")
 		meta["f0_pos_group1"] = strings.Join(posGroup1Vocab, " ")
 		meta["energy"] = "1"

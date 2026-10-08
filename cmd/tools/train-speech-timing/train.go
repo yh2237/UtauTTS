@@ -45,7 +45,7 @@ type trainerModel struct {
 
 func newTrainerModel(c trainingConfig, phones int, device tensor.Device) (trainerModel, error) {
 	if c.F0Head {
-		m, err := autograd.NewSpeechTimingMultiHead(phones, continuousFeatures, f0ContextFeatures, device, c.Seed)
+		m, err := autograd.NewSpeechTimingMultiHeadWithF0Dilations(phones, continuousFeatures, f0ContextWidth(), f0DilationsOrDefault(c.F0Dilations), device, c.Seed)
 		if err != nil {
 			return trainerModel{}, err
 		}
@@ -127,6 +127,14 @@ func train(ctx context.Context, c trainingConfig) error {
 	if err != nil {
 		return fmt.Errorf("read features: %w", err)
 	}
+	if f0PositionInput {
+		if c.Dataset == "" {
+			return fmt.Errorf("--f0-position needs --dataset")
+		}
+		if err := attachPositions(items, c.Dataset); err != nil {
+			return fmt.Errorf("attach positions: %w", err)
+		}
+	}
 	vocab := newVocabulary(strings.Fields(phones))
 	for _, item := range items {
 		if item.Frames < 1 || item.Continuous < continuousFeatures || len(item.IDs) != item.Frames*3 || len(item.Cont) != item.Frames*item.Continuous || len(item.Target) != item.Frames*80 {
@@ -201,6 +209,21 @@ func train(ctx context.Context, c trainingConfig) error {
 			training[i-c.Valid] = items[index]
 		}
 	}
+	// planValidationは検証発話のプラン時間版。合成時と同じ一定のモーラ長でのF0の相関（f0r_plan）を測る。
+	var planValidation []utterance
+	if c.F0Head && c.Dataset != "" {
+		if planValidation, err = planAugment(validation, c.Dataset, vocab, c.Seed+1); err != nil {
+			return fmt.Errorf("plan validation: %w", err)
+		}
+	}
+	if c.PlanAugment {
+		augmented, err := planAugment(training, c.Dataset, vocab, c.Seed)
+		if err != nil {
+			return fmt.Errorf("plan augment: %w", err)
+		}
+		fmt.Printf("plan-augmented=%d\n", len(augmented))
+		training = append(training, augmented...)
+	}
 	frames := make([]int, len(training))
 	for i, item := range training {
 		frames[i] = item.Frames
@@ -254,7 +277,7 @@ func train(ctx context.Context, c trainingConfig) error {
 		if err := os.MkdirAll(filepath.Dir(c.Out), 0700); err != nil {
 			return err
 		}
-		if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(state.Best, state.BestStep, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head, c.F0Teacher != "")); err != nil {
+		if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(state.Best, state.BestStep, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head, c.F0Teacher != "", c.F0Dilations)); err != nil {
 			return err
 		}
 		fmt.Printf("resumed step=%d best=%.6f@%d\n", opt.StepCount, state.Best, state.BestStep)
@@ -287,7 +310,11 @@ func train(ctx context.Context, c trainingConfig) error {
 			return err
 		}
 		if step%c.EvalEvery == 0 || step == c.Steps-1 {
-			score, err := evaluate(model, validation, device, vocab.silence, c.F0Weight, c.EnergyWeight)
+			score, f0Correlation, err := evaluate(model, validation, device, vocab.silence, c.F0Weight, c.EnergyWeight)
+			if err != nil {
+				return err
+			}
+			_, planCorrelation, err := evaluate(model, planValidation, device, vocab.silence, c.F0Weight, c.EnergyWeight)
 			if err != nil {
 				return err
 			}
@@ -302,11 +329,11 @@ func train(ctx context.Context, c trainingConfig) error {
 				if err := os.MkdirAll(filepath.Dir(c.Out), 0700); err != nil {
 					return err
 				}
-				if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(score, step, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head, c.F0Teacher != "")); err != nil {
+				if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(score, step, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head, c.F0Teacher != "", c.F0Dilations)); err != nil {
 					return err
 				}
 			}
-			fmt.Printf("step=%d loss=%.5f valid=%.5f best=%.5f@%d elapsed=%s\n", step, loss, score, state.Best, state.BestStep, time.Since(started).Round(time.Second))
+			fmt.Printf("step=%d loss=%.5f valid=%.5f f0r=%.3f f0r_plan=%.3f best=%.5f@%d elapsed=%s\n", step, loss, score, f0Correlation, planCorrelation, state.Best, state.BestStep, time.Since(started).Round(time.Second))
 		}
 		if opt.StepCount%c.CheckpointEvery == 0 && opt.StepCount != limit {
 			if err := save(); err != nil {
@@ -339,7 +366,7 @@ func update(model trainerModel, opt *autograd.AdamW, schedule *autograd.OneCycle
 		return 0, err
 	}
 	defer target.Close()
-	f0Cont, err := autograd.New(f0cv, []int{batch, window, f0ContextFeatures}, device, false)
+	f0Cont, err := autograd.New(f0cv, []int{batch, window, f0ContextWidth()}, device, false)
 	if err != nil {
 		return 0, err
 	}
@@ -391,7 +418,8 @@ func sampleBatch(items []utterance, sampler *autograd.WindowSampler, batch, wind
 	ids := make([]int, batch*window*3)
 	cont := make([]float32, batch*window*continuousFeatures)
 	target := make([]float32, batch*window*80)
-	f0Cont := make([]float32, batch*window*f0ContextFeatures)
+	width := f0ContextWidth()
+	f0Cont := make([]float32, batch*window*width)
 	f0Target := make([]float32, batch*window)
 	energyTarget := make([]float32, batch*window)
 	for b, sampled := range sampler.Batch() {
@@ -409,9 +437,7 @@ func sampleBatch(items []utterance, sampler *autograd.WindowSampler, batch, wind
 			copy(ids[dst*3:dst*3+3], item.IDs[src*3:src*3+3])
 			copy(cont[dst*continuousFeatures:(dst+1)*continuousFeatures], item.Cont[src*item.Continuous:src*item.Continuous+continuousFeatures])
 			copy(target[dst*80:dst*80+80], item.Target[src*80:src*80+80])
-			f0Cont[dst*f0ContextFeatures] = item.Cont[src*item.Continuous]
-			f0Cont[dst*f0ContextFeatures+1] = item.Cont[src*item.Continuous+1]
-			copy(f0Cont[dst*f0ContextFeatures+2:(dst+1)*f0ContextFeatures], item.F0Extra[src*f0ExtraFeatures:(src+1)*f0ExtraFeatures])
+			fillF0Context(f0Cont[dst*width:(dst+1)*width], item, src)
 			f0Target[dst] = item.F0Target[src]
 			energyTarget[dst] = item.EnergyTarget[src]
 		}
@@ -419,28 +445,30 @@ func sampleBatch(items []utterance, sampler *autograd.WindowSampler, batch, wind
 	return ids, cont, target, f0Cont, f0Target, energyTarget
 }
 
-func evaluate(model trainerModel, items []utterance, device tensor.Device, silence int, f0Weight, energyWeight float64) (float64, error) {
+// evaluateは検証のL1スコアと、F0の発話ごとの相関（発声フレーム、F0ヘッドがある場合）の平均を返す。
+// 相関は抑揚の形がどれだけ教師に近いかの指標で、試聴前の比較に使う。
+func evaluate(model trainerModel, items []utterance, device tensor.Device, silence int, f0Weight, energyWeight float64) (float64, float64, error) {
 	wasTraining := model.module().Training
 	model.train(false)
 	defer model.train(wasTraining)
-	var scores float64
+	var scores, correlations float64
+	correlationCount := 0
 	for _, item := range items {
 		cv := make([]float32, item.Frames*continuousFeatures)
-		f0cv := make([]float32, item.Frames*f0ContextFeatures)
+		width := f0ContextWidth()
+		f0cv := make([]float32, item.Frames*width)
 		for t := 0; t < item.Frames; t++ {
 			copy(cv[t*continuousFeatures:(t+1)*continuousFeatures], item.Cont[t*item.Continuous:t*item.Continuous+continuousFeatures])
-			f0cv[t*f0ContextFeatures] = cv[t*continuousFeatures]
-			f0cv[t*f0ContextFeatures+1] = cv[t*continuousFeatures+1]
-			copy(f0cv[t*f0ContextFeatures+2:(t+1)*f0ContextFeatures], item.F0Extra[t*f0ExtraFeatures:(t+1)*f0ExtraFeatures])
+			fillF0Context(f0cv[t*width:(t+1)*width], item, t)
 		}
 		cont, err := autograd.New(cv, []int{1, item.Frames, continuousFeatures}, device, false)
 		if err != nil {
-			return 0, err
+			return 0, 0, err
 		}
-		f0Cont, err := autograd.New(f0cv, []int{1, item.Frames, f0ContextFeatures}, device, false)
+		f0Cont, err := autograd.New(f0cv, []int{1, item.Frames, width}, device, false)
 		if err != nil {
 			cont.Close()
-			return 0, err
+			return 0, 0, err
 		}
 		var mel, f0, energy *autograd.Tensor
 		autograd.NoGrad(func() { mel, f0, energy = model.forward(item.IDs, cont, f0Cont, 0) })
@@ -458,7 +486,7 @@ func evaluate(model trainerModel, items []utterance, device tensor.Device, silen
 		cont.Close()
 		f0Cont.Close()
 		if err != nil {
-			return 0, err
+			return 0, 0, err
 		}
 		var melTotal float64
 		melCount := 0
@@ -466,9 +494,14 @@ func evaluate(model trainerModel, items []utterance, device tensor.Device, silen
 		f0Count := 0
 		var energyTotal float64
 		energyCount := 0
+		var predicted, target []float64
 		for t := 0; t < item.Frames; t++ {
 			if item.IDs[t*3] == silence {
 				continue
+			}
+			if f0Values != nil && !math.IsNaN(float64(item.F0Target[t])) {
+				predicted = append(predicted, float64(f0Values[t]))
+				target = append(target, float64(item.F0Target[t]))
 			}
 			for j := 0; j < 80; j++ {
 				if math.IsNaN(float64(item.Target[t*80+j])) {
@@ -496,8 +529,40 @@ func evaluate(model trainerModel, items []utterance, device tensor.Device, silen
 			}
 			scores += score
 		}
+		if r, ok := pearson(predicted, target); ok {
+			correlations += r
+			correlationCount++
+		}
 	}
-	return scores / float64(len(items)), nil
+	correlation := math.NaN()
+	if correlationCount > 0 {
+		correlation = correlations / float64(correlationCount)
+	}
+	return scores / float64(len(items)), correlation, nil
+}
+
+// pearsonは2系列の相関。10点未満や分散が無い場合はfalse。
+func pearson(a, b []float64) (float64, bool) {
+	if len(a) < 10 || len(a) != len(b) {
+		return 0, false
+	}
+	var meanA, meanB float64
+	for i := range a {
+		meanA += a[i]
+		meanB += b[i]
+	}
+	meanA /= float64(len(a))
+	meanB /= float64(len(b))
+	var cov, varA, varB float64
+	for i := range a {
+		cov += (a[i] - meanA) * (b[i] - meanB)
+		varA += (a[i] - meanA) * (a[i] - meanA)
+		varB += (b[i] - meanB) * (b[i] - meanB)
+	}
+	if varA == 0 || varB == 0 {
+		return 0, false
+	}
+	return cov / math.Sqrt(varA*varB), true
 }
 
 func requireNewPath(path string) error {

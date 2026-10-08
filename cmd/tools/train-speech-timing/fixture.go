@@ -12,12 +12,12 @@ import (
 )
 
 type parityFixture struct {
-	IDs          [][3]int                     `json:"ids"`
-	Cont         [][4]float32                 `json:"cont"`
-	F0Cont       [][f0ContextFeatures]float32 `json:"f0_cont,omitempty"`
-	Output       [][]float32                  `json:"output"`
-	F0Output     []float32                    `json:"f0_output,omitempty"`
-	EnergyOutput []float32                    `json:"energy_output,omitempty"`
+	IDs          [][3]int     `json:"ids"`
+	Cont         [][4]float32 `json:"cont"`
+	F0Cont       [][]float32  `json:"f0_cont,omitempty"`
+	Output       [][]float32  `json:"output"`
+	F0Output     []float32    `json:"f0_output,omitempty"`
+	EnergyOutput []float32    `json:"energy_output,omitempty"`
 }
 
 func writeFixture(path string, model trainerModel, device tensor.Device, phones int) error {
@@ -25,8 +25,12 @@ func writeFixture(path string, model trainerModel, device tensor.Device, phones 
 	f := parityFixture{IDs: make([][3]int, 37), Cont: make([][4]float32, 37), Output: make([][]float32, 37)}
 	ids := make([]int, 37*3)
 	cv := make([]float32, 37*4)
-	f0cv := make([]float32, 37*f0ContextFeatures)
-	f.F0Cont = make([][f0ContextFeatures]float32, 37)
+	width := f0ContextWidth()
+	f0cv := make([]float32, 37*width)
+	f.F0Cont = make([][]float32, 37)
+	for i := range f.F0Cont {
+		f.F0Cont[i] = make([]float32, width)
+	}
 	for i := range ids {
 		ids[i] = rng.Intn(phones)
 		f.IDs[i/3][i%3] = ids[i]
@@ -37,14 +41,14 @@ func writeFixture(path string, model trainerModel, device tensor.Device, phones 
 	}
 	for i := range f0cv {
 		f0cv[i] = float32(rng.NormFloat64())
-		f.F0Cont[i/f0ContextFeatures][i%f0ContextFeatures] = f0cv[i]
+		f.F0Cont[i/width][i%width] = f0cv[i]
 	}
 	input, e := autograd.New(cv, []int{1, 37, 4}, device, false)
 	if e != nil {
 		return e
 	}
 	defer input.Close()
-	f0Input, e := autograd.New(f0cv, []int{1, 37, f0ContextFeatures}, device, false)
+	f0Input, e := autograd.New(f0cv, []int{1, 37, width}, device, false)
 	if e != nil {
 		return e
 	}

@@ -26,6 +26,8 @@ type utterance struct {
 	F0Target           []float32
 	EnergyTarget       []float32
 	F0Extra            []float32
+	// Positionは文内の位置の特徴（--f0-position）。キャッシュの保存後に付けるため、キャッシュには入らない。
+	Position []float32
 }
 
 // featureVersionはキャッシュ形式の版。utteranceの目標を変えたら上げる。
@@ -33,11 +35,11 @@ const featureVersion = 7
 
 // f0ContextFeaturesはF0ブランチの連続入力（音素内位置・対数長・アクセント12・POS12・pos_group1 29）。
 const (
-	f0AccentFeatures    = 12
-	f0PosFeatures       = 12
-	f0PosGroupFeatures  = 29
-	f0ContextFeatures   = 2 + f0AccentFeatures + f0PosFeatures + f0PosGroupFeatures
-	f0ExtraFeatures     = f0AccentFeatures + f0PosFeatures + f0PosGroupFeatures
+	f0AccentFeatures   = 12
+	f0PosFeatures      = 12
+	f0PosGroupFeatures = 29
+	f0ContextFeatures  = 2 + f0AccentFeatures + f0PosFeatures + f0PosGroupFeatures
+	f0ExtraFeatures    = f0AccentFeatures + f0PosFeatures + f0PosGroupFeatures
 )
 
 // posVocabはall-mfaのトークンから取った固定語彙（昇順）。未知は末尾のother。
@@ -102,7 +104,8 @@ func alignmentPath(alignDir, id string) (string, bool) {
 	return "", false
 }
 
-func readPhones(path string) ([]phone, error) {	b, e := os.ReadFile(path)
+func readPhones(path string) ([]phone, error) {
+	b, e := os.ReadFile(path)
 	if e != nil {
 		return nil, e
 	}
@@ -534,7 +537,7 @@ func featurize(world *worldEngine, rec trainingRecord, alignDir string, vocab *v
 			copy(extra[t*f0ExtraFeatures:(t+1)*f0ExtraFeatures], feature[:])
 		}
 	}
-	return utterance{rec.ID, len(f0), 4, ids, cont, target, f0Target, energyTarget, extra}, nil
+	return utterance{rec.ID, len(f0), 4, ids, cont, target, f0Target, energyTarget, extra, nil}, nil
 }
 
 // featurizePlanはプラン時間風のレコードを音声なしで特徴量化する（F0蒸留用。メル・エネルギーはNaNで除外）。
@@ -577,7 +580,7 @@ func featurizePlan(rec trainingRecord, vocab *vocabulary, teacher []float32) (ut
 			copy(extra[t*f0ExtraFeatures:(t+1)*f0ExtraFeatures], feature[:])
 		}
 	}
-	return utterance{rec.ID, frames, 4, ids, cont, target, f0Target, energyTarget, extra}, nil
+	return utterance{rec.ID, frames, 4, ids, cont, target, f0Target, energyTarget, extra, nil}, nil
 }
 
 // planPhonesはトークン（プラン時間）から音素区間を組む。子音は先頭40%（最大50ms）。
