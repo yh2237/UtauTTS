@@ -50,13 +50,13 @@ func TestF0HeadModelRejectsMissingHead(t *testing.T) {
 	}
 }
 
-// 既定の日本語抑揚モデルv11は、v10を0.65混ぜ、エネルギーを使わない設定で読める。
+// 既定の日本語抑揚モデルv11は、v10を0.65混ぜ、エネルギーヘッドでモーラの音量も変える設定で読める。
 func TestBundledV11BlendsWithV10(t *testing.T) {
 	model, err := LoadModel(filepath.Join("..", "..", "models", "intonation-ja-v11.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if model.F0Head == nil || model.F0HeadBaseBlend != 0.65 || model.F0HeadEnergy || model.DefaultPriority <= 120 {
+	if model.F0Head == nil || model.F0HeadBaseBlend != 0.65 || !model.F0HeadEnergy || model.DefaultPriority <= 120 {
 		t.Fatalf("v11: head %v blend %v energy %v priority %d", model.F0Head != nil, model.F0HeadBaseBlend, model.F0HeadEnergy, model.DefaultPriority)
 	}
 }

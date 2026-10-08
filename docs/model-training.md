@@ -82,14 +82,14 @@ go run ./cmd/tools/train-mandarin-intonation --parquet data/aishell3/train-00000
 
 ```powershell
 go run ./cmd/tools/train-speech-timing --dataset out/irodori-teacher/train-ird.jsonl --alignments "out/mfa-align-20261002/alignments,out/irodori-teacher/alignments-ird" --cache out/irodori-teacher/features-ird.gob --language ja --f0 --valid 300 --steps 24000 --window 1000 --batch-size 8 --f0-dilations "1 2 4 8 16 32 64 1 2 4 8 16 32 64" --plan-augment --device cuda --out out/irodori-teacher/f0.safetensors
-go run ./cmd/tools/package-f0-model --weights out/irodori-teacher/f0.safetensors --base models/frame-intonation-tcn-v10.json --id my-f0-v1 --display-name "My F0 v1" --base-blend 0.65 --use-energy=false --out out/my-f0-v1.json
+go run ./cmd/tools/package-f0-model --weights out/irodori-teacher/f0.safetensors --base models/frame-intonation-tcn-v10.json --id my-f0-v1 --display-name "My F0 v1" --base-blend 0.65 --out out/my-f0-v1.json
 ```
 
 - `--f0-dilations`はF0ブランチの受容野。既定（1〜8×2、約±0.6秒）では文全体の抑揚を学べないため、1〜64×2（約±5秒）を使います。
 - `--plan-augment`は学習発話を合成時と同じ一定のモーラ長（120ms±15、休止180ms）へ並べ直し、F0目標をモーラごとに伸縮した複製を学習へ足します。合成時はプラン時間で推論するため、これが無いと自然時間との差で精度が大きく落ちます（検証のプラン時間の相関 0.59→0.75）。
 - 検証では、発話ごとのF0の相関を自然時間（`f0r`）とプラン時間（`f0r_plan`）で表示します。試聴前の比較に使います。
 - `--f0-position`（文内の位置の特徴）は効果が無かったため既定では使いません。
-- v11は基準モデルv10の曲線を0.65混ぜ（`--base-blend`、JSONの`base_blend`）、エネルギーヘッドを使いません（`--use-energy=false`）。
+- v11は基準モデルv10の曲線を0.65混ぜ（`--base-blend`、JSONの`base_blend`）、エネルギーヘッドでモーラの音量も変えます（`--use-energy`、既定true）。同じ文の教師のモーラ長を使う上限確認でも長さは選ばれなかったため、モーラ長は規則のままです。
 
 ## 日本語の目標音素時間モデル
 
