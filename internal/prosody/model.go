@@ -19,33 +19,37 @@ const (
 )
 
 type Model struct {
-	ID                   string                   `json:"id,omitempty"`
-	DisplayName          string                   `json:"display_name,omitempty"`
-	Description          string                   `json:"description,omitempty"`
-	License              string                   `json:"license,omitempty"`
-	LicenseNotices       []string                 `json:"license_notices,omitempty"`
-	Language             string                   `json:"language,omitempty"`
-	Provenance           *ModelProvenance         `json:"provenance,omitempty"`
-	RecommendedRenderers []string                 `json:"recommended_renderers,omitempty"`
-	DefaultPriority      int                      `json:"default_priority,omitempty"`
+	ID                   string           `json:"id,omitempty"`
+	DisplayName          string           `json:"display_name,omitempty"`
+	Description          string           `json:"description,omitempty"`
+	License              string           `json:"license,omitempty"`
+	LicenseNotices       []string         `json:"license_notices,omitempty"`
+	Language             string           `json:"language,omitempty"`
+	Provenance           *ModelProvenance `json:"provenance,omitempty"`
+	RecommendedRenderers []string         `json:"recommended_renderers,omitempty"`
+	DefaultPriority      int              `json:"default_priority,omitempty"`
 	// F0Headは統合韻律モデル（F0・エネルギーヘッド）。base_modelを持つモデルJSONだけが設定する。
 	F0Head *speechtiming.TCN `json:"-"`
-	Version              int                      `json:"version"`
-	FeatureVersion       int                      `json:"feature_version"`
-	Mode                 string                   `json:"mode"`
-	Outputs              map[string]bool          `json:"outputs,omitempty"`
-	DurationWeights      map[string]float64       `json:"duration_weights"`
-	PitchWeights         map[string]float64       `json:"pitch_weights,omitempty"`
-	EnergyWeights        map[string]float64       `json:"energy_weights,omitempty"`
-	MoraDuration         *SequencePitchModel      `json:"mora_duration,omitempty"`
-	FramePitch           *FramePitchModel         `json:"frame_pitch,omitempty"`
-	MoraPitchResidual    *MoraPitchResidualModel  `json:"mora_pitch_residual,omitempty"`
-	EnglishIntonation    *EnglishIntonationModel  `json:"english_intonation,omitempty"`
-	MandarinIntonation   *MandarinIntonationModel `json:"mandarin_intonation,omitempty"`
-	BaseModel            *BaseModelReference      `json:"base_model,omitempty"`
-	ResidualLimits       *ResidualLimits          `json:"residual_limits,omitempty"`
-	Metrics              Metrics                  `json:"metrics"`
-	Training             TrainingInfo             `json:"training"`
+	// F0HeadEnergyはF0ヘッドのエネルギーでモーラの音量を変えるか。
+	F0HeadEnergy bool `json:"-"`
+	// F0HeadBaseBlendは基準モデルの抑揚曲線を混ぜる重み。
+	F0HeadBaseBlend    float64                  `json:"-"`
+	Version            int                      `json:"version"`
+	FeatureVersion     int                      `json:"feature_version"`
+	Mode               string                   `json:"mode"`
+	Outputs            map[string]bool          `json:"outputs,omitempty"`
+	DurationWeights    map[string]float64       `json:"duration_weights"`
+	PitchWeights       map[string]float64       `json:"pitch_weights,omitempty"`
+	EnergyWeights      map[string]float64       `json:"energy_weights,omitempty"`
+	MoraDuration       *SequencePitchModel      `json:"mora_duration,omitempty"`
+	FramePitch         *FramePitchModel         `json:"frame_pitch,omitempty"`
+	MoraPitchResidual  *MoraPitchResidualModel  `json:"mora_pitch_residual,omitempty"`
+	EnglishIntonation  *EnglishIntonationModel  `json:"english_intonation,omitempty"`
+	MandarinIntonation *MandarinIntonationModel `json:"mandarin_intonation,omitempty"`
+	BaseModel          *BaseModelReference      `json:"base_model,omitempty"`
+	ResidualLimits     *ResidualLimits          `json:"residual_limits,omitempty"`
+	Metrics            Metrics                  `json:"metrics"`
+	Training           TrainingInfo             `json:"training"`
 }
 
 type ModelProvenance struct {

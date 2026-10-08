@@ -31,8 +31,14 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 	}
 	if pitchCurve == nil && applyPitchEnabled(cfg) && rendererSupportsFramePitch(cfg.RendererCapabilities) {
 		if f0Head := unifiedF0Head(loadedProsody); f0Head != nil {
-			if contour := unifiedProsodyContour(f0Head, language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan); contour != nil {
-				pitchCurve = scaleAutomaticPitchCurve(contour, cfg.IntonationStrength)
+			if contour := unifiedProsodyContour(f0Head, language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan, finalPhraseIsQuestion(cfg.Text)); contour != nil {
+				pitchCurve = scaleUnifiedPitchCurve(contour, f0Head, cfg.IntonationStrength)
+				if weight := loadedProsody.F0HeadBaseBlend; weight > 0 && shouldPredictFrameContour(cfg, loadedProsody) {
+					if base := loadedProsody.PredictFrameContour(morae, prosodyFeatures, curveTimings, curveDurationMS, finalPhraseIsQuestion(cfg.Text)); base != nil {
+						baseCurve := scaleAutomaticPitchCurve(&render.PitchCurve{FrameMS: base.FrameMS, Cents: base.Cents}, cfg.IntonationStrength)
+						pitchCurve = blendPitchCurves(pitchCurve, baseCurve, weight)
+					}
+				}
 			}
 		}
 		if pitchCurve == nil && shouldPredictFrameContour(cfg, loadedProsody) {
@@ -43,8 +49,8 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 			}
 		}
 	}
-	if f0Head := unifiedF0Head(loadedProsody); f0Head != nil {
-		applyUnifiedProsodyEnergy(f0Head, language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan)
+	if f0Head := unifiedF0Head(loadedProsody); f0Head != nil && loadedProsody.F0HeadEnergy {
+		applyUnifiedProsodyEnergy(f0Head, language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan, finalPhraseIsQuestion(cfg.Text))
 	}
 	// 境界音調は自動輪郭だけに加える。
 	if cfg.PitchCurve == nil {

@@ -13,6 +13,7 @@ import (
 	"utautts/internal/plan"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
+	"utautts/internal/settings"
 	"utautts/internal/speechtiming"
 )
 
@@ -39,6 +40,86 @@ func unifiedProsodyAccentVector(frame prosody.FeatureFrame) [12]float32 {
 		float32(frame["accent_type=nucleus"]),
 		float32(frame["accent_type=after"]),
 	}
+}
+
+// scaleUnifiedPitchCurveはF0ヘッドの輪郭へ抑揚の強さを掛ける。蒸留モデル（f0_scaleあり）は従来の抑揚モデルと同じ拡大を使い、
+// 自然スケールのモデルは既定の強さで自然の振れ幅になるよう、強さ/既定の強さを一律に掛ける。
+func scaleUnifiedPitchCurve(contour *render.PitchCurve, model *speechtiming.TCN, strength float64) *render.PitchCurve {
+	if model.F0Scale() > 0 {
+		return scaleAutomaticPitchCurve(contour, strength)
+	}
+	if contour == nil || strength <= 0 {
+		return nil
+	}
+	factor := strength / settings.Number("intonation_strength")
+	result := &render.PitchCurve{FrameMS: contour.FrameMS, Cents: make([]float64, len(contour.Cents))}
+	for index, cents := range contour.Cents {
+		result.Cents[index] = cents * factor
+	}
+	return result
+}
+
+// blendPitchCurvesは2つの輪郭をフレームごとに混ぜる（weightは2つ目の重み）。長さが違えば短い方に合わせる。
+func blendPitchCurves(a, b *render.PitchCurve, weight float64) *render.PitchCurve {
+	if a == nil || b == nil || a.FrameMS != b.FrameMS {
+		return a
+	}
+	result := &render.PitchCurve{FrameMS: a.FrameMS, Cents: append([]float64(nil), a.Cents...)}
+	for index := range result.Cents {
+		if index < len(b.Cents) {
+			result.Cents[index] = (1-weight)*a.Cents[index] + weight*b.Cents[index]
+		}
+	}
+	return result
+}
+
+// unifiedProsodyPositionsは文内の位置の特徴（train-speech-timingのpositionFeaturesと同じ定義）をモーラごとに返す。
+// 0 発話のモーラの通し位置、1 アクセント句の通し位置、2 最後のアクセント句、3 最後の息継ぎ区間、4 疑問文。休止（特徴が空）は疑問文だけを持つ。
+func unifiedProsodyPositions(features []prosody.FeatureFrame, question bool) [][speechtiming.PositionFeatures]float32 {
+	result := make([][speechtiming.PositionFeatures]float32, len(features))
+	pause := func(index int) bool { return len(features[index]) == 0 }
+	speech, phrases, lastGroup := 0, 0, 0
+	for index := range features {
+		if pause(index) {
+			continue
+		}
+		if features[index]["accent_phrase_start"] != 0 || phrases == 0 {
+			phrases++
+		}
+		if index > 0 && pause(index-1) {
+			lastGroup = speech
+		}
+		speech++
+	}
+	position, phrase := 0, -1
+	for index := range features {
+		if question {
+			result[index][4] = 1
+		}
+		if pause(index) {
+			continue
+		}
+		if features[index]["accent_phrase_start"] != 0 || phrase < 0 {
+			phrase++
+		}
+		result[index][0] = positionRatio(position, speech)
+		result[index][1] = positionRatio(phrase, phrases)
+		if phrase == phrases-1 {
+			result[index][2] = 1
+		}
+		if position >= lastGroup {
+			result[index][3] = 1
+		}
+		position++
+	}
+	return result
+}
+
+func positionRatio(index, count int) float32 {
+	if count <= 1 {
+		return 0
+	}
+	return float32(index) / float32(count-1)
 }
 
 // unifiedProsodyExtraVectorはアクセント12＋POS one-hot＋pos_group1 one-hotを組む。
@@ -68,7 +149,7 @@ func unifiedProsodyExtraVector(frame prosody.FeatureFrame, model *speechtiming.T
 }
 
 // unifiedProsodyContextはjaのプランからタイムラインとアクセント特徴を組み、文脈トランクの入力と発話マスクを返す。
-func unifiedProsodyContext(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) ([][3]int, [][]float32, []bool, error) {
+func unifiedProsodyContext(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan, question bool) ([][3]int, [][]float32, []bool, error) {
 	if model == nil || synthesisPlan == nil || frontend.NormalizeLanguage(language) != "ja" {
 		return nil, nil, nil, fmt.Errorf("unified prosody unavailable")
 	}
@@ -97,10 +178,17 @@ func unifiedProsodyContext(model *speechtiming.TCN, language string, features []
 	}
 	timeline := speechtiming.PhoneTimeline(morae, synthesisPlan.LeadingMarginMS, frames)
 	extras := make([][]float32, frames)
+	var positions [][speechtiming.PositionFeatures]float32
+	if model.F0Position() {
+		positions = unifiedProsodyPositions(features, question)
+	}
 	for index, timing := range timings {
 		var vector []float32
 		if index < len(features) {
 			vector = unifiedProsodyExtraVector(features[index], model)
+			if positions != nil {
+				copy(vector[len(vector)-speechtiming.PositionFeatures:], positions[index][:])
+			}
 		}
 		a := int(math.Round(timing.StartMS / 10))
 		b := int(math.Round((timing.StartMS + timing.DurationMS) / 10))
@@ -131,11 +219,11 @@ func unifiedProsodyContext(model *speechtiming.TCN, language string, features []
 }
 
 // unifiedProsodyContourはF0ヘッドの輪郭を自動ピッチ曲線として返す。
-func unifiedProsodyContour(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) *render.PitchCurve {
+func unifiedProsodyContour(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan, question bool) *render.PitchCurve {
 	if model == nil || !model.HasF0Head() {
 		return nil
 	}
-	ids, cont, speech, err := unifiedProsodyContext(model, language, features, timings, durationMS, synthesisPlan)
+	ids, cont, speech, err := unifiedProsodyContext(model, language, features, timings, durationMS, synthesisPlan, question)
 	if err != nil {
 		return nil
 	}
@@ -222,11 +310,11 @@ func clipContourPercentile(values []float64, speech []bool, p99, maximum float64
 }
 
 // applyUnifiedProsodyEnergyはエネルギーヘッドの値を平滑化し、プランのEnergyFactorへ適用する。
-func applyUnifiedProsodyEnergy(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) {
+func applyUnifiedProsodyEnergy(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan, question bool) {
 	if model == nil || !model.HasEnergyHead() {
 		return
 	}
-	ids, cont, _, err := unifiedProsodyContext(model, language, features, timings, durationMS, synthesisPlan)
+	ids, cont, _, err := unifiedProsodyContext(model, language, features, timings, durationMS, synthesisPlan, question)
 	if err != nil {
 		return
 	}

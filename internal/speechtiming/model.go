@@ -136,8 +136,10 @@ type TCN struct {
 	outW      tensor
 	outB      tensor
 
-	hasF0          bool
-	f0Context      int
+	hasF0     bool
+	f0Context int
+	// f0Positionは文内の位置の特徴（5次元）をF0入力の末尾に持つ。
+	f0Position     bool
 	f0Kernel       int
 	f0Dilations    []int
 	f0Scale        float64
@@ -277,7 +279,12 @@ func (m *TCN) loadF0Head(tensors map[string]tensor, metadata map[string]string, 
 	if value := metadata["f0_pos_group1"]; value != "" {
 		m.posGroup1Vocab = strings.Fields(value)
 	}
-	if expected := 2 + 12 + len(m.posVocab) + 1 + len(m.posGroup1Vocab) + 1; context != expected {
+	m.f0Position = metadata["f0_position"] == "1"
+	expected := 2 + 12 + len(m.posVocab) + 1 + len(m.posGroup1Vocab) + 1
+	if m.f0Position {
+		expected += PositionFeatures
+	}
+	if context != expected {
 		return fmt.Errorf("speech timing model: f0 context %d for %d pos and %d pos_group1", context, len(m.posVocab), len(m.posGroup1Vocab))
 	}
 	m.f0Kernel = kernel
@@ -351,6 +358,12 @@ func (m *TCN) HasEnergyHead() bool { return m.hasEnergy }
 
 // F0ContextはF0ブランチの連続入力幅。
 func (m *TCN) F0Context() int { return m.f0Context }
+
+// PositionFeaturesは文内の位置の特徴の次元（学習ツールのf0PositionFeaturesと同じ）。
+const PositionFeatures = 5
+
+// F0PositionはF0入力が文内の位置の特徴を持つかを返す。
+func (m *TCN) F0Position() bool { return m.f0Position }
 
 // F0ScaleはF0出力1単位あたりのcent。0は自然スケール（log/0.3）。
 func (m *TCN) F0Scale() float64 { return m.f0Scale }

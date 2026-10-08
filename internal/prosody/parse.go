@@ -30,6 +30,10 @@ type f0HeadManifest struct {
 	BaseModel string `json:"base_model"`
 	// F0HeadはF0（とエネルギー）ヘッドを持つ時間伸縮系モデルのsafetensors（JSONではbase64）。
 	F0Head []byte `json:"f0_head"`
+	// UseEnergyはエネルギーヘッドでモーラの音量を変えるか。未指定は使う。
+	UseEnergy *bool `json:"use_energy"`
+	// BaseBlendは基準モデルの抑揚曲線を混ぜる重み（0〜1）。0はF0ヘッドだけを使う。
+	BaseBlend float64 `json:"base_blend"`
 }
 
 func loadF0HeadModel(path string, data []byte, head f0HeadManifest) (*Model, error) {
@@ -65,6 +69,11 @@ func loadF0HeadModel(path string, data []byte, head f0HeadManifest) (*Model, err
 	model.License, model.LicenseNotices, model.Provenance = identity.License, identity.LicenseNotices, identity.Provenance
 	model.Language, model.DefaultPriority = identity.Language, identity.DefaultPriority
 	model.F0Head = tcn
+	model.F0HeadEnergy = head.UseEnergy == nil || *head.UseEnergy
+	if head.BaseBlend < 0 || head.BaseBlend > 1 {
+		return nil, fmt.Errorf("base_blend must be between 0 and 1, got %v", head.BaseBlend)
+	}
+	model.F0HeadBaseBlend = head.BaseBlend
 	return &model, nil
 }
 
