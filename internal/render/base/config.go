@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"utautts/internal/engine"
+	"utautts/internal/settings"
 )
 
 type Config struct {
@@ -71,11 +72,17 @@ type WorldlineProviderOptions struct {
 }
 
 func (options WorldlineProviderOptions) MicroprosodyEnabled() bool {
-	return options.Microprosody == nil || *options.Microprosody
+	if options.Microprosody == nil {
+		return settings.Bool("microprosody")
+	}
+	return *options.Microprosody
 }
 
 func (options WorldlineProviderOptions) TimingWarpEnabled() bool {
-	return options.TimingWarp == nil || *options.TimingWarp
+	if options.TimingWarp == nil {
+		return settings.Bool("timing_warp")
+	}
+	return *options.TimingWarp
 }
 
 func (cfg Config) Resource(key engine.ResourceKey) string {

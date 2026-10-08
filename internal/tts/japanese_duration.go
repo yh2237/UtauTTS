@@ -6,6 +6,7 @@ import (
 	"utautts/internal/frontend"
 	"utautts/internal/plan"
 	"utautts/internal/prosody"
+	"utautts/internal/settings"
 )
 
 // 読み上げ向けに、文脈による伸縮を控えめにする。
@@ -91,12 +92,15 @@ func applyJapaneseContextDuration(cfg Config, morae []frontend.Mora, features []
 }
 
 func contextDurationEnabled(cfg Config) bool {
-	return cfg.ContextDuration != nil && *cfg.ContextDuration
+	if cfg.ContextDuration == nil {
+		return settings.Bool("context_duration")
+	}
+	return *cfg.ContextDuration
 }
 
 func contextDurationStrength(cfg Config) float64 {
 	if cfg.ContextDurationStrength == 0 {
-		return 1
+		return settings.Number("context_duration_strength")
 	}
 	return cfg.ContextDurationStrength
 }

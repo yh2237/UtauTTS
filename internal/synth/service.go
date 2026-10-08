@@ -13,33 +13,34 @@ import (
 	"utautts/internal/prosody"
 	"utautts/internal/render"
 	_ "utautts/internal/render/worldline" // 同梱の既定Rendererをinitで登録する。
+	"utautts/internal/settings"
 	"utautts/internal/tts"
 	"utautts/internal/voicebank"
 )
 
 var ErrUnavailable = errors.New("unavailable")
 
-// DefaultApplyPitchとDefaultIntonationStrengthは合成の既定の抑揚設定。renderer manifestの既定に合わせる。
-const (
-	DefaultApplyPitch              = true
-	DefaultIntonationStrength      = 4.0
-	DefaultContextDuration         = false
-	DefaultContextDurationStrength = 1.0
-	DefaultBoundaryTone            = true
-	DefaultBoundaryToneStrength    = 1.0
-	DefaultStretchAdapt            = true
-	DefaultStretchAdaptStrength    = 1.0
-	DefaultPauseContext            = true
-	DefaultPauseContextStrength    = 1.0
-	DefaultEnglishWeakForm         = true
+// DefaultApplyPitchは合成の既定でピッチ曲線を適用するか。
+const DefaultApplyPitch = true
+
+// 設定の既定値は設定表（internal/settings）から引き、入口ごとの差を防ぐ。
+var (
+	DefaultMoraDurationMS          = settings.Number("mora_duration_ms")
+	DefaultPauseDurationMS         = settings.Number("pause_duration_ms")
+	DefaultIntonationStrength      = settings.Number("intonation_strength")
+	DefaultContextDuration         = settings.Bool("context_duration")
+	DefaultContextDurationStrength = settings.Number("context_duration_strength")
+	DefaultBoundaryTone            = settings.Bool("boundary_tone")
+	DefaultBoundaryToneStrength    = settings.Number("boundary_tone_strength")
+	DefaultStretchAdapt            = settings.Bool("stretch_adapt")
+	DefaultStretchAdaptStrength    = settings.Number("stretch_adapt_strength")
+	DefaultPauseContext            = settings.Bool("pause_context")
+	DefaultPauseContextStrength    = settings.Number("pause_context_strength")
+	DefaultEnglishWeakForm         = settings.Bool("english_weak_form")
 )
 
-// plan/renderの既定値を再公開し、入口ごとの差を防ぐ。
-const (
-	DefaultMoraDurationMS  = plan.DefaultMoraDurationMS
-	DefaultPauseDurationMS = plan.DefaultPauseDurationMS
-	DefaultReleaseMS       = render.DefaultReleaseMS
-)
+// DefaultReleaseMSはrenderの既定値の再公開。
+const DefaultReleaseMS = render.DefaultReleaseMS
 
 // DefaultRequestは全入口が共通で使う既定のリクエスト。renderer settingsの既定値と同期させる。
 func DefaultRequest() Request {

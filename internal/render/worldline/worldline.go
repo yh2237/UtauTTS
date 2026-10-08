@@ -282,7 +282,7 @@ func prepareWorldlinePitch(synthesisPlan *plan.Plan, cfg base.Config, cache *bas
 	for frame := range f0Curve {
 		f0Curve[frame] *= base.PitchCurveFactorAt(cfg.PitchCurve, curveStartMS+float64(frame)*frameMS)
 	}
-	if cfg.ApplyPitch && cfg.ProviderOptions.Worldline.MicroprosodyEnabled() && base.CorrectionAppliesTo("microprosody", synthesisPlan.Language) {
+	if cfg.ApplyPitch && cfg.ProviderOptions.Worldline.MicroprosodyEnabled() && microprosodyAppliesTo(synthesisPlan.Language) {
 		applyMicroprosody(synthesisPlan, f0Curve, curveStartMS, frameMS)
 	}
 	if cfg.TargetF0 != nil {

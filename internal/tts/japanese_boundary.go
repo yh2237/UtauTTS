@@ -6,6 +6,7 @@ import (
 	"utautts/internal/frontend"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
+	"utautts/internal/settings"
 )
 
 const (
@@ -63,12 +64,15 @@ func applyBoundaryTone(curve *render.PitchCurve, durationMS float64, question bo
 }
 
 func boundaryToneEnabled(cfg Config) bool {
-	return cfg.BoundaryTone == nil || *cfg.BoundaryTone
+	if cfg.BoundaryTone == nil {
+		return settings.Bool("boundary_tone")
+	}
+	return *cfg.BoundaryTone
 }
 
 func boundaryToneStrength(cfg Config) float64 {
 	if cfg.BoundaryToneStrength == 0 {
-		return 1
+		return settings.Number("boundary_tone_strength")
 	}
 	return cfg.BoundaryToneStrength
 }

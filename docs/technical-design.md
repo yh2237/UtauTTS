@@ -182,7 +182,7 @@ Renderer manifestの`id`は保存データやUIで使う公開識別子です。
 
 Renderer IDを省略した場合だけカタログの既定Rendererへ解決されます。未知のIDや必要なファイルが不足しているRendererを明示した場合はエラーになります。
 
-設定の境界もRenderer単位で分けます。`tts.Config`はテキスト、音源、モデル、Plan作成に必要な共通入力と解決済み`engine.ResolvedEngine`を持ちます。Classicの実行ファイルやWORLDの専用スイッチは`render.Config`の`render.ProviderOptions`へ分離し、Classicは`ClassicOptions`、WORLDは`WorldlineProviderOptions`へ固有設定を閉じ込めます。manifestの`settings`で宣言した項目は`synth`のspecテーブル経由でこれらへ振り分けます。
+設定の境界もRenderer単位で分けます。`tts.Config`はテキスト、音源、モデル、Plan作成に必要な共通入力と解決済み`engine.ResolvedEngine`を持ちます。Classicの実行ファイルやWORLDの専用スイッチは`render.Config`の`render.ProviderOptions`へ分離し、Classicは`ClassicOptions`、WORLDは`WorldlineProviderOptions`へ固有設定を閉じ込めます。設定の既定値・範囲・対象providerは設定表（`internal/settings`）が持ち、`synth`の適用テーブルが値をこれらへ振り分けます。
 
 ### Classic UTAU Renderer
 

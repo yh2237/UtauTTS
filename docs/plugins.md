@@ -50,7 +50,9 @@ Rendererの追加・更新はZIPインストールでは行いません。`rende
 
 ## Renderer設定と機能
 
-manifestの`settings`には、そのRendererが受け付ける設定項目を宣言します。宣言した項目はGUIの設定ウィンドウにRendererごとのタブとして表示され、そのRendererの設定として`config.ini`へ保存されます。CLIとServerからも同じIDで指定できます。
+UtauTTSが解釈する設定（モーラ長、抑揚の強さ、文末の音調、WORLDの時間伸縮、Classicのresamplerなど）は、Go側の設定表（`internal/settings`）で既定値・範囲・表示と、対象のproviderを1か所に定義します。カタログは設定表のうちそのRendererのproviderに適用される項目を、manifestの設定へ合成します。そのため同梱Rendererのmanifestは`settings`を持ちません。manifestの`settings`には、設定表にない外部provider固有の項目だけを宣言します。設定表と同じIDを宣言すると、そのRendererでは既定値や範囲を上書きできます。
+
+合成した項目はGUIの設定ウィンドウにRendererごとのタブとして表示され、そのRendererの設定として`config.ini`へ保存されます。CLIとServerからも同じIDで指定できます。
 
 設定は合成リクエストの`renderer_settings`マップとして渡されます。ただし、リクエストのトップレベル項目（`mora_duration_ms`や`intonation_strength`など）と同じIDの設定は、カード単位の値を優先するためこのマップには含まれません。GUIでは宣言した設定が新しいカードの既定値になり、カードごとの設定がそれを上書きします。
 

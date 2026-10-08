@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"utautts/internal/render"
+	"utautts/internal/settings"
 	"utautts/internal/tts"
 )
 
@@ -23,7 +24,7 @@ const (
 	rendererSettingKindString
 )
 
-// 新しい設定はmanifestとこのテーブルへ追加する。Requestの固定フィールドは増やさない。
+// 新しい設定は設定表（internal/settings）とこのテーブルへ追加する。既定値は設定表から引く。Requestの固定フィールドは増やさない。
 type rendererSettingSpec struct {
 	id           string
 	kind         rendererSettingKind
@@ -41,7 +42,7 @@ var rendererSettingSpecs = []rendererSettingSpec{
 	numberSetting("pause_duration_ms", DefaultPauseDurationMS,
 		func(r Request) any { return r.PauseDurationMS },
 		func(value float64, cfg *tts.Config, _ *render.ProviderOptions) { cfg.PauseDurationMS = value }),
-	numberSetting("leading_preutterance_ms", 0,
+	numberSetting("leading_preutterance_ms", settings.Number("leading_preutterance_ms"),
 		func(r Request) any { return r.LeadingPreutteranceMS },
 		func(value float64, cfg *tts.Config, _ *render.ProviderOptions) { cfg.LeadingPreutteranceMS = value }),
 	numberSetting("intonation_strength", DefaultIntonationStrength,
@@ -74,18 +75,18 @@ var rendererSettingSpecs = []rendererSettingSpec{
 	boolSetting("english_weak_form", DefaultEnglishWeakForm,
 		func(r Request) any { return r.EnglishWeakForm },
 		func(value bool, cfg *tts.Config) { cfg.EnglishWeakForm = &value }),
-	integerSetting("diffsinger_steps", 0,
+	integerSetting("diffsinger_steps", settings.Number("diffsinger_steps"),
 		func(r Request) any { return float64(r.DiffSingerSteps) },
 		func(value float64, options *render.ProviderOptions) { options.DiffSinger.Steps = int64(value) }),
-	numberSetting("diffsinger_expr", 0,
+	numberSetting("diffsinger_expr", settings.Number("diffsinger_expr"),
 		func(r Request) any { return r.DiffSingerExpr },
 		func(value float64, _ *tts.Config, options *render.ProviderOptions) { options.DiffSinger.Expr = value }),
-	numberSetting("diffsinger_duration_mix", 0,
+	numberSetting("diffsinger_duration_mix", settings.Number("diffsinger_duration_mix"),
 		func(r Request) any { return r.DiffSingerDurationMix },
 		func(value float64, _ *tts.Config, options *render.ProviderOptions) {
 			options.DiffSinger.DurationMix = value
 		}),
-	numberSetting("diffsinger_pitch_mix", 0,
+	numberSetting("diffsinger_pitch_mix", settings.Number("diffsinger_pitch_mix"),
 		func(r Request) any { return r.DiffSingerPitchMix },
 		func(value float64, _ *tts.Config, options *render.ProviderOptions) {
 			options.DiffSinger.PitchMix = value
@@ -106,10 +107,10 @@ var rendererSettingSpecs = []rendererSettingSpec{
 			options.Worldline.Microprosody = &enabled
 		},
 	},
-	stringSetting("resampler", "",
+	stringSetting("resampler", settings.String("resampler"),
 		func(r Request) any { return r.Resampler },
 		func(value string, resolution *rendererSettingsResolution) { resolution.Resampler = value }),
-	stringSetting("wavtool", "builtin",
+	stringSetting("wavtool", settings.String("wavtool"),
 		func(r Request) any { return r.Wavtool },
 		func(value string, resolution *rendererSettingsResolution) { resolution.Wavtool = value }),
 }

@@ -8,6 +8,7 @@ import (
 	"utautts/internal/frontend"
 	"utautts/internal/prosody"
 	"utautts/internal/render"
+	"utautts/internal/settings"
 	"utautts/internal/voicebank"
 )
 
@@ -71,7 +72,7 @@ func (englishProfile) ApplyBoundaryTone(_ Config, curve *render.PitchCurve, _ fl
 }
 
 func englishOptions(cfg Config) frontend.EnglishOptions {
-	return frontend.EnglishOptions{WeakForms: cfg.EnglishWeakForm == nil || *cfg.EnglishWeakForm}
+	return frontend.EnglishOptions{WeakForms: englishWeakFormEnabled(cfg)}
 }
 
 // 日本語モデルを使えない英語向けの規則ベースの代替。辞書の強勢を優先する。
@@ -159,4 +160,11 @@ func englishStressAccent(stress int, local float64) float64 {
 		dip = -12 * (1 - local/0.28) / float64(stress)
 	}
 	return dip + strength*math.Sin(math.Pi*local)
+}
+
+func englishWeakFormEnabled(cfg Config) bool {
+	if cfg.EnglishWeakForm == nil {
+		return settings.Bool("english_weak_form")
+	}
+	return *cfg.EnglishWeakForm
 }

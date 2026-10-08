@@ -11,7 +11,8 @@ import (
 )
 
 func multilingualScore(p *plan.Plan) bool {
-	return p.PhoneTimingSource == "multilingual-speech-score-v1" && base.CorrectionAppliesTo("source_phone_library", p.Language)
+	language := frontend.NormalizeLanguage(p.Language)
+	return p.PhoneTimingSource == "multilingual-speech-score-v1" && (language == frontend.LanguageEnglish || language == frontend.LanguageChinese)
 }
 
 // 原音のoto時刻を出力へ写す。鼻音境界は規則による推定値。

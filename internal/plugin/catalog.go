@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"utautts/internal/prosody"
+	"utautts/internal/settings"
 )
 
 const ManifestVersion = 2
@@ -263,7 +264,7 @@ func DiscoverRenderers(directories []string, supportsProvider func(string) bool)
 			}
 			seen[key] = path
 			renderer.Directory = filepath.Dir(path)
-			result = append(result, renderer)
+			result = append(result, withTableSettings(renderer))
 			return nil
 		})
 	}
@@ -274,6 +275,47 @@ func DiscoverRenderers(directories []string, supportsProvider func(string) bool)
 		return result[i].DisplayName < result[j].DisplayName
 	})
 	return result, errors.Join(problems...)
+}
+
+// withTableSettingsは設定表のうちproviderに適用されるものを表の順に並べ、manifestの宣言で
+// 同じIDを上書きし、表にない設定を後ろへ足す。
+func withTableSettings(renderer Renderer) Renderer {
+	declared := make(map[string]RendererSetting, len(renderer.Settings))
+	for _, setting := range renderer.Settings {
+		declared[setting.ID] = setting
+	}
+	used := map[string]bool{}
+	var merged []RendererSetting
+	for _, setting := range settings.ForProvider(renderer.Provider) {
+		if override, ok := declared[setting.ID]; ok {
+			merged = append(merged, override)
+			used[setting.ID] = true
+			continue
+		}
+		merged = append(merged, rendererSettingFromTable(setting))
+	}
+	for _, setting := range renderer.Settings {
+		if !used[setting.ID] {
+			merged = append(merged, setting)
+		}
+	}
+	renderer.Settings = merged
+	return renderer
+}
+
+func rendererSettingFromTable(setting settings.Setting) RendererSetting {
+	options := make([]RendererSettingValue, len(setting.Options))
+	for index, option := range setting.Options {
+		options[index] = RendererSettingValue{Value: option.Value, Label: option.Label}
+	}
+	if len(options) == 0 {
+		options = nil
+	}
+	return RendererSetting{
+		ID: setting.ID, Type: setting.Type, Group: setting.Group, Default: setting.Default,
+		Min: setting.Min, Max: setting.Max, Step: setting.Step, Label: setting.Label,
+		Options: options, OptionsSource: setting.OptionsSource,
+	}
 }
 
 func DiscoverModels(directories []string) ([]Model, error) {

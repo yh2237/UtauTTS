@@ -5,6 +5,7 @@ import (
 
 	"utautts/internal/frontend"
 	"utautts/internal/plan"
+	"utautts/internal/settings"
 )
 
 // 母音開始を基準としたテンプレートの始点(ms)。点は10ms間隔。
@@ -38,6 +39,12 @@ func microprosodyClass(consonant string) string {
 		return "liquid_glide"
 	}
 	return ""
+}
+
+// microprosodyAppliesToは微細韻律が言語に効くかを設定表で判定する。空の言語は日本語として扱う。
+func microprosodyAppliesTo(language string) bool {
+	setting, _ := settings.Lookup("microprosody")
+	return setting.AppliesToLanguage(frontend.NormalizeLanguage(language))
 }
 
 // curveは計画時刻curveStartMSからframeMS間隔のF0(Hz)。
