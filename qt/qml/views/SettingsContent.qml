@@ -21,7 +21,7 @@ Item {
 
     property int currentPage: 0
     property string pendingDefaultVoicebankId: ""
-    property string pendingDefaultModelId: "frame-intonation-tcn-v10"
+    property string pendingDefaultModelId: "intonation-ja-v11"
     property string pendingDefaultRendererId: "utautts-world-phrase"
     property string pendingDefaultAliasPolicy: "auto"
     property string pendingDefaultTone: "C4"
@@ -150,7 +150,8 @@ Item {
     }
 
     function resetDefaultModel() {
-        pendingDefaultModelId = root.validDefaultModelId("frame-intonation-tcn-v10");
+        // 既定はカタログの先頭（default_priorityが最大のモデル）。
+        pendingDefaultModelId = root.backend.models.length ? String(root.backend.models[0].id) : "none";
     }
 
     function resetDefaultTone() {

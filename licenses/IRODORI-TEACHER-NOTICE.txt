@@ -1,0 +1,34 @@
+Irodori-TTS teacher data for intonation-ja-v11
+==============================================
+
+The F0 head of intonation-ja-v11 was trained on relative pitch measured from
+speech that UtauTTS generated locally with a third-party text-to-speech model.
+UtauTTS redistributes only the trained F0 head weights (inside the model JSON),
+not the generated audio, the scripts, or the text-to-speech model.
+
+Text-to-speech model (teacher)
+    Irodori-TTS v4.1-Small, Aratako
+    https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small
+    https://github.com/Aratako/Irodori-TTS
+    License: MIT License
+Audio codec used by the teacher
+    Semantic-DACVAE-Japanese-32dim, Aratako
+    https://huggingface.co/Aratako/Semantic-DACVAE-Japanese-32dim
+    License: MIT License
+Speaker reference given to the teacher
+    Tsukuyomi-chan Corpus Vol.1 (CV. 夢前黎), VOICEACTRESS100_031-038
+    (see licenses/TSUKUYOMI-CORPUS.txt)
+Scripts read by the teacher
+    - BASIC5000 sentences from jsut-label (text_level0), with readings used to
+      discard sentences whose Open JTalk reading differed.
+      https://github.com/sarulab-speech/jsut-label
+      The jsut-label text licence lists Wikipedia (CC BY-SA 3.0), the Tanaka
+      Corpus (CC BY 2.0) and JSUT (CC BY-SA 4.0) as the sources of the text.
+    - Everyday sentences written for UtauTTS.
+Alignment
+    Montreal Forced Aligner, japanese_mfa (see licenses/MFA-Japanese-NOTICE.txt)
+
+The model learns relative pitch (intonation) only and does not intentionally
+reproduce any speaker's voice. The publishers' terms at the URLs above govern
+the use of their models and texts and remain the authority; this notice is
+informational and does not restate or interpret them.
