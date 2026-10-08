@@ -155,7 +155,8 @@ func TestTargetForLanguageLoadsEnglishModel(t *testing.T) {
 	}
 }
 
-func TestTargetForLanguageAliases(t *testing.T) {	english, err := TargetForLanguage("en-US")
+func TestTargetForLanguageAliases(t *testing.T) {
+	english, err := TargetForLanguage("en-US")
 	if err != nil {
 		t.Fatal(err)
 	}

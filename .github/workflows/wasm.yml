@@ -115,10 +115,11 @@ jobs:
       - name: Fetch Open JTalk dictionary
         run: |
           python -m pip install --quiet pyopenjtalk==0.4.1
+          # 初回の辞書ダウンロードは標準出力へ進捗を書くので、GITHUB_ENVへ書く前に済ませる。
+          python -c "import pyopenjtalk; pyopenjtalk.run_frontend('テスト')" > /dev/null
           python - <<'PY' >> "$GITHUB_ENV"
           import os
           import pyopenjtalk
-          pyopenjtalk.run_frontend('テスト')
           print('OPENJTALK_DICT=' + os.path.join(os.path.dirname(pyopenjtalk.__file__), 'open_jtalk_dic_utf_8-1.11'))
           PY
       - name: Build Go wasm
