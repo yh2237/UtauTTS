@@ -162,6 +162,16 @@ try {
         if ($forbiddenBundledData.Count -ne 0) {
             throw "Release package contains ignored training/build data: $($forbiddenBundledData -join ', ')"
         }
+        # User-provided tool folders ship only their README; never package local resamplers or vocoder weights.
+        foreach ($userDirectory in @('Resamplers', 'Wavtools', 'Dependencies')) {
+            $userDirectoryPath = Join-Path $packageRoot $userDirectory
+            if (-not (Test-Path -LiteralPath $userDirectoryPath)) { continue }
+            $unexpected = @(Get-ChildItem -LiteralPath $userDirectoryPath -Recurse -Force -File |
+                Where-Object { $_.Name -ne 'README.md' } | ForEach-Object { $_.FullName })
+            if ($unexpected.Count -ne 0) {
+                throw "Release package contains local files in ${userDirectory}: $($unexpected -join ', ')"
+            }
+        }
         foreach ($rendererId in @('utautts-world-phrase', 'classic-utau')) {
             Assert-Path (Join-Path $packageRoot "renderer/$rendererId/renderer.json") "renderer manifest $rendererId"
         }

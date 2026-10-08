@@ -234,9 +234,19 @@ try {
     }
     Copy-Item -Path (Join-Path $root 'renderer/*') -Destination $guiRendererPath -Recurse
     Copy-Item -Path (Join-Path $root 'renderer/*') -Destination $serverRendererPath -Recurse
+    # 利用者が置くツール・モデルのフォルダは、リポジトリで追跡しているファイル（README）だけを同梱する。
+    # 開発者が手元に置いたresamplerやvocoderの重み（配布条件が別のもの）を配布物へ入れない。
     foreach ($directoryName in @('Resamplers', 'Wavtools', 'Dependencies')) {
-        Copy-Item -LiteralPath (Join-Path $root $directoryName) -Destination $guiPath -Recurse
-        Copy-Item -LiteralPath (Join-Path $root $directoryName) -Destination $serverPath -Recurse
+        $trackedFiles = @(& git -C $root ls-files -- $directoryName)
+        if ($LASTEXITCODE -ne 0) { throw "git ls-files failed for $directoryName" }
+        foreach ($packagePath in @($guiPath, $serverPath)) {
+            New-Item -ItemType Directory -Force -Path (Join-Path $packagePath $directoryName) | Out-Null
+            foreach ($trackedFile in $trackedFiles) {
+                $destination = Join-Path $packagePath $trackedFile
+                New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
+                Copy-Item -LiteralPath (Join-Path $root $trackedFile) -Destination $destination
+            }
+        }
     }
     foreach ($rendererPath in @($guiRendererPath, $serverRendererPath)) {
         if ($Profile -eq 'Japanese') {
