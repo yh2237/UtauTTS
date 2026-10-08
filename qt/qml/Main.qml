@@ -874,13 +874,16 @@ ApplicationWindow {
             synthesisLogWindowLoader.item.close();
     }
 
+    // 4番目は正式版1・ベータ版0、5番目はベータ番号。同じ版ではベータ版を正式版より前に並べる。
     function versionParts(version) {
-        const match = /(\d+)(?:\.(\d+))?(?:\.(\d+))?/.exec(String(version));
+        const match = /(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-beta\.(\d+))?/.exec(String(version));
         if (!match)
             return null;
         const parts = [];
         for (let index = 1; index <= 3; ++index)
             parts.push(match[index] ? parseInt(match[index], 10) : 0);
+        parts.push(match[4] ? 0 : 1);
+        parts.push(match[4] ? parseInt(match[4], 10) : 0);
         return parts;
     }
 

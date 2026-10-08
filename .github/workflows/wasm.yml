@@ -3,7 +3,7 @@ name: wasm
 on:
   push:
     branches: [main]
-    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+    tags: ['v[0-9]+.[0-9]+.[0-9]+', 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+']
     paths:
       - 'web/**'
       - 'qt/**'
@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       preview_name:
-        description: 'Preview name (lowercase letters, digits, hyphens). Production requires a vX.X.X tag.'
+        description: 'Preview name (lowercase letters, digits, hyphens). Production requires a vX.X.X tag; vX.X.X-beta.N tags deploy to a preview.'
         type: string
         default: dev
         required: true

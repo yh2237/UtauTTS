@@ -11,21 +11,26 @@ $ErrorActionPreference = 'Stop'
 
 function Get-VersionParts([string]$Value) {
     $trimmed = $Value.Trim()
-    $match = [regex]::Match($trimmed, '^v(\d+)\.(\d+)\.(\d+)$')
+    $match = [regex]::Match($trimmed, '^v(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?$')
     if (-not $match.Success) {
-        throw "Version must use the release tag format vMAJOR.MINOR.PATCH: $Value"
+        throw "Version must use the release tag format vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-beta.N: $Value"
     }
+    # 4番目は正式版1・ベータ版0、5番目はベータ番号。同じ版ではベータ版を正式版より前に並べる。
+    $stable = if ($match.Groups[4].Success) { 0 } else { 1 }
+    $beta = if ($match.Groups[4].Success) { [int]$match.Groups[4].Value } else { 0 }
     return [int[]]@(
         [int]$match.Groups[1].Value,
         [int]$match.Groups[2].Value,
-        [int]$match.Groups[3].Value
+        [int]$match.Groups[3].Value,
+        $stable,
+        $beta
     )
 }
 
 function Compare-Version([string]$Left, [string]$Right) {
     $leftParts = @(Get-VersionParts $Left)
     $rightParts = @(Get-VersionParts $Right)
-    foreach ($index in 0..2) {
+    foreach ($index in 0..4) {
         if ($leftParts[$index] -lt $rightParts[$index]) { return -1 }
         if ($leftParts[$index] -gt $rightParts[$index]) { return 1 }
     }

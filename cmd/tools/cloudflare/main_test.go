@@ -158,6 +158,10 @@ func TestDeploymentPlan(t *testing.T) {
 			t.Fatalf("%v: %v", plan, err)
 		}
 	}
+	beta, err := deploymentPlan("push", "refs/tags/v1.2.3-beta.1", "dev", sha, "123", "1", "v1.2.3-beta.1")
+	if err != nil || beta["channel"] != "previews" || beta["branch"] != "preview-v1-2-3-beta-1" {
+		t.Fatalf("beta tag must go to a preview: %v %v", beta, err)
+	}
 	for _, version := range []string{"v1.2.3-rc.1", "v1.2.3-beta", "v1.2.3+build.1", "v1.2", "v1.2.3.4", "1.2.3", "v１.2.3"} {
 		if _, err := deploymentPlan("workflow_dispatch", "refs/heads/main", "dev", sha, "123", "1", version); err == nil {
 			t.Fatal(version)

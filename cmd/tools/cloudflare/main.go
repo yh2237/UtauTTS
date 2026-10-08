@@ -52,9 +52,12 @@ func inside(parent, child string) bool {
 	return err == nil && (rel == "." || (!filepath.IsAbs(rel) && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))))
 }
 
+// releaseVersionは正式版（vX.X.X）とベータ版（vX.X.X-beta.N）の版の形式。
+const releaseVersion = `^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$`
+
 func deploymentPlan(event, ref, preview, revision, runID, attempt, version string) (map[string]string, error) {
-	if !match(`^v[0-9]+\.[0-9]+\.[0-9]+$`, version) {
-		return nil, errors.New("appinfo version must have the form vX.X.X")
+	if !match(releaseVersion, version) {
+		return nil, errors.New("appinfo version must have the form vX.X.X or vX.X.X-beta.N")
 	}
 	if !match(`^[0-9a-f]{40}$`, revision) {
 		return nil, errors.New("revision must be a full git SHA")
@@ -62,15 +65,22 @@ func deploymentPlan(event, ref, preview, revision, runID, attempt, version strin
 	if !match(`^[0-9]+$`, runID) || !match(`^[0-9]+$`, attempt) {
 		return nil, errors.New("run id and attempt must be numeric")
 	}
-	production := event == "push" && strings.HasPrefix(ref, "refs/tags/")
+	tagged := event == "push" && strings.HasPrefix(ref, "refs/tags/")
+	production := false
 	label := preview
-	if production {
-		label = strings.TrimPrefix(ref, "refs/tags/")
-		if !match(`^v[0-9]+\.[0-9]+\.[0-9]+$`, label) {
-			return nil, errors.New("release tag must have the form vX.X.X")
+	if tagged {
+		tag := strings.TrimPrefix(ref, "refs/tags/")
+		if !match(releaseVersion, tag) {
+			return nil, errors.New("release tag must have the form vX.X.X or vX.X.X-beta.N")
 		}
-		if label != version {
-			return nil, fmt.Errorf("tag %s differs from appinfo version %s", label, version)
+		if tag != version {
+			return nil, fmt.Errorf("tag %s differs from appinfo version %s", tag, version)
+		}
+		// ベータ版は本番ではなく、タグ名のプレビューへ出す。
+		production = !strings.Contains(tag, "-")
+		label = tag
+		if !production {
+			label = strings.NewReplacer(".", "-").Replace(tag)
 		}
 	} else if event == "workflow_dispatch" {
 		if !match(`^[a-z0-9][a-z0-9-]{0,39}$`, preview) {

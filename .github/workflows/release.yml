@@ -14,7 +14,7 @@ jobs:
     uses: ./.github/workflows/windows.yml
     with:
       expected_version: ${{ github.ref_name }}
-      upgrade_from: v1.4.1
+      upgrade_from: v1.4.2
     permissions:
       contents: read
 
@@ -75,8 +75,10 @@ jobs:
             echo "A release for $tag already exists. Remove it before retrying this workflow." >&2
             exit 1
           fi
+          prerelease=()
+          case "$tag" in *-*) prerelease=(--prerelease) ;; esac
           gh release create "$tag" "${assets[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$tag" \
             --generate-notes \
-            --draft
+            --draft "${prerelease[@]}"
