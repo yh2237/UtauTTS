@@ -6,14 +6,14 @@ import (
 	"testing"
 )
 
-// 同梱の統合韻律モデルJSONが、基準モデルとF0・エネルギーヘッドを合わせて読めることを確認する。
+// 同梱のF0ヘッドつきモデルJSON（v11）が、基準モデルとF0・エネルギーヘッドを合わせて読めることを確認する。
 func TestBundledF0HeadModelLoads(t *testing.T) {
-	path := filepath.Join("..", "..", "models", "speech-timing-target-ja-prosody-v1.json")
+	path := filepath.Join("..", "..", "models", "intonation-ja-v11.json")
 	model, err := LoadModel(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if model.ID != "speech-timing-target-ja-prosody-v1" || model.Language != "ja" || model.DefaultPriority >= 120 {
+	if model.ID != "intonation-ja-v11" || model.Language != "ja" {
 		t.Fatalf("identity = %q %q %d", model.ID, model.Language, model.DefaultPriority)
 	}
 	if !model.HasFrameContour() || !model.RequiresExternalFeatures() {
@@ -23,7 +23,7 @@ func TestBundledF0HeadModelLoads(t *testing.T) {
 	if head == nil || !head.HasF0Head() || !head.HasEnergyHead() {
 		t.Fatal("F0 head is missing")
 	}
-	if head.F0Scale() != 100 || len(head.Phones()) != 40 || head.Mels() != 80 {
+	if head.F0Scale() != 0 || len(head.Phones()) != 40 || head.Mels() != 80 {
 		t.Fatalf("f0 scale %v phones %d mels %d", head.F0Scale(), len(head.Phones()), head.Mels())
 	}
 	if len(head.PosVocab()) != 11 || len(head.PosGroup1Vocab()) != 28 {

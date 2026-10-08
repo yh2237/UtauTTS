@@ -103,7 +103,7 @@ go run ./cmd/tools/train-speech-timing --dataset out/mfa-align-20261002/base-mfa
 
 ### 日本語の統合韻律モデル（F0・エネルギー）
 
-`speech-timing-target-ja-prosody-v1`（`models/speech-timing-target-ja-prosody-v1.json`）は、メルトランクに加えて F0 とエネルギーのヘッドを持ちます。抑揚モデルとしてIDで選ぶと、日本語の抑揚をこのモデルで生成します（試用、`default_priority` 90）。既定は従来の抑揚モデル（`frame-intonation-tcn-v10`）です。
+時間伸縮と同じ系統のモデルに、メルトランクに加えて F0 とエネルギーのヘッドを持たせます。ここでは既存の抑揚モデルを教師にした蒸留の手順を残します（この方法の`speech-timing-target-ja-prosody-v1`はv10と聴感上区別できず、v11の採用で同梱を終えました）。
 
 F0教師は既存の抑揚モデルの**ランタイム輪郭**（平滑化・p99・最大90centクリップ込み）をコーパスの時間軸で生成した蒸留教師です。
 
