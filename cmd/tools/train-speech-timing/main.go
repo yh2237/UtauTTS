@@ -19,6 +19,7 @@ const corpus = "Tsukuyomi-chan Corpus Vol.1 (VOICEACTRESS100) + Minnade JSUT Cor
 type trainingConfig struct {
 	Dataset, Alignments, Corpus, WorldEngine, Cache, Out, Fixture, FeaturesJSON string
 	Checkpoint, Resume, Device, TrainingCorpus, Language, F0Teacher             string
+	License                                                                     string
 	Steps, StopAfter, Valid, Batch, Window, EvalEvery, CheckpointEvery          int
 	Seed                                                                        int64
 	F0Weight, F0DeltaWeight, EnergyWeight, LR                                   float64
@@ -53,6 +54,7 @@ func main() {
 	flag.Int64Var(&c.Seed, "seed", 0, "model, split and sampler seed")
 	flag.StringVar(&c.Device, "device", "auto", "auto, cuda, or cpu")
 	flag.StringVar(&c.TrainingCorpus, "training-corpus", corpus, "checkpoint corpus description")
+	flag.StringVar(&c.License, "license", "MIT License", "license of the trained weights (metadata)")
 	flag.Var(&c.Notices, "license-notice", "license notice path (repeatable)")
 	flag.StringVar(&c.Checkpoint, "checkpoint", "", "resumable training state (default: out + .training.safetensors)")
 	flag.StringVar(&c.Resume, "resume", "", "resume from a training checkpoint, not inference weights")
@@ -106,7 +108,7 @@ func totalFrames(items []utterance) int {
 	return n
 }
 
-func checkpointMetadata(score float64, step int, trainingCorpus string, notices []string, phones, modelID string, f0Head bool, f0Teacher bool, f0Dilations []int) map[string]string {
+func checkpointMetadata(score float64, step int, trainingCorpus, license string, notices []string, phones, modelID string, f0Head bool, f0Teacher bool, f0Dilations []int) map[string]string {
 	if len(notices) == 0 {
 		notices = []string{"licenses/TSUKUYOMI-CORPUS.txt", "licenses/MINNADE-JSUT-CORPUS.txt", "licenses/MFA-Japanese-NOTICE.txt"}
 	}
@@ -118,7 +120,7 @@ func checkpointMetadata(score float64, step int, trainingCorpus string, notices 
 	}
 	meta := map[string]string{"id": modelID, "format": "utautts-speech-timing-tcn-1", "phones": phones,
 		"kernel": "5", "dilations": "1 2 4 8 1 2 4 8", "frame_ms": "10.0", "mels": "80",
-		"license": "MIT License", "training_corpus": trainingCorpus, "license_notices": strings.Join(notices, " "),
+		"license": license, "training_corpus": trainingCorpus, "license_notices": strings.Join(notices, " "),
 		"valid_l1": fmt.Sprintf("%.4f", score), "steps": fmt.Sprint(step)}
 	if f0Head {
 		meta["f0"] = "1"

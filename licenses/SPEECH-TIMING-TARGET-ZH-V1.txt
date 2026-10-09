@@ -1,0 +1,24 @@
+UtauTTS Mandarin Speech Timing Target v1
+========================================
+
+Model: speech-timing-target-zh-v1 (embedded in the WORLD bridge)
+Copyright (c) 2026 yh
+
+The model weights are distributed under Apache License, Version 2.0.
+The complete license text is included in
+licenses/APACHE-2.0.txt and is available at:
+https://www.apache.org/licenses/LICENSE-2.0
+
+UtauTTS uses selected AISHELL-3 utterances to train the timing of phoneme
+transitions only. Only normalized envelope movement is used to retime the
+voicebank output; no corpus audio or predicted envelope is rendered, and the
+model does not intentionally model the speakers' voice quality.
+Preprocessing aligns initials and finals and extracts normalized envelope
+movement. Corpus audio, transcripts, and alignment files are not
+redistributed.
+
+Training sources and attribution:
+licenses/AISHELL-3-NOTICE.txt
+licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt
+
+UtauTTS code is separately distributed under the repository MIT License.

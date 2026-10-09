@@ -141,8 +141,11 @@ go run ./cmd/tools/train-speech-timing `
   --cache out/speech-timing-target/en-features.gob `
   --steps 6000 --valid 30 --seed 0 --device cuda `
   --training-corpus "LibriTTS-R train_clean_100 subset (24 speakers, MFA english_us_arpa)" `
+  --license "CC BY 4.0" `
+  --license-notice licenses/SPEECH-TIMING-TARGET-EN-V1.txt `
   --license-notice licenses/LibriTTS-R-NOTICE.txt `
   --license-notice licenses/MFA-English-ARPA-NOTICE.txt `
+  --license-notice licenses/CC-BY-4.0.txt `
   --out out/speech-timing-target/en-model-v1.safetensors `
   --fixture out/speech-timing-target/en-parity-v1.json
 ```
@@ -169,8 +172,11 @@ go run ./cmd/tools/train-speech-timing `
   --cache out/speech-timing-target/zh-features.gob `
   --steps 6000 --valid 30 --seed 0 --device cuda `
   --training-corpus "AISHELL-3 (PaddleSpeech tone alignment)" `
+  --license "Apache License 2.0" `
+  --license-notice licenses/SPEECH-TIMING-TARGET-ZH-V1.txt `
   --license-notice licenses/AISHELL-3-NOTICE.txt `
   --license-notice licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt `
+  --license-notice licenses/APACHE-2.0.txt `
   --out out/speech-timing-target/zh-model-v1.safetensors `
   --fixture out/speech-timing-target/zh-parity-v1.json
 ```

@@ -1,0 +1,24 @@
+UtauTTS English Speech Timing Target v1
+=======================================
+
+Model: speech-timing-target-en-v1 (embedded in the WORLD bridge)
+Copyright (c) 2026 yh
+
+The model weights are distributed under Creative Commons Attribution 4.0
+International (CC BY 4.0). The complete license text is included in
+licenses/CC-BY-4.0.txt and is available at:
+https://creativecommons.org/licenses/by/4.0/
+
+UtauTTS uses selected LibriTTS-R utterances to train the timing of phoneme
+transitions only. Only normalized envelope movement is used to retime the
+voicebank output; no corpus audio or predicted envelope is rendered, and the
+model does not intentionally model the speakers' voice quality. Preprocessing
+selects utterances, aligns phonemes, and extracts normalized envelope
+movement. Corpus audio, scripts, and MFA alignment model weights are not
+redistributed.
+
+Training sources and attribution:
+licenses/LibriTTS-R-NOTICE.txt
+licenses/MFA-English-ARPA-NOTICE.txt
+
+UtauTTS code is separately distributed under the repository MIT License.

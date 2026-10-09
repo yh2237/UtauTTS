@@ -277,7 +277,7 @@ func train(ctx context.Context, c trainingConfig) error {
 		if err := os.MkdirAll(filepath.Dir(c.Out), 0700); err != nil {
 			return err
 		}
-		if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(state.Best, state.BestStep, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head, c.F0Teacher != "", c.F0Dilations)); err != nil {
+		if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(state.Best, state.BestStep, c.TrainingCorpus, c.License, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head, c.F0Teacher != "", c.F0Dilations)); err != nil {
 			return err
 		}
 		fmt.Printf("resumed step=%d best=%.6f@%d\n", opt.StepCount, state.Best, state.BestStep)
@@ -329,7 +329,7 @@ func train(ctx context.Context, c trainingConfig) error {
 				if err := os.MkdirAll(filepath.Dir(c.Out), 0700); err != nil {
 					return err
 				}
-				if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(score, step, c.TrainingCorpus, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head, c.F0Teacher != "", c.F0Dilations)); err != nil {
+				if err := bestModel.module().SaveSafeTensorsMetadata(c.Out, checkpointMetadata(score, step, c.TrainingCorpus, c.License, c.Notices, phones, modelIDForLanguage(c.Language), c.F0Head, c.F0Teacher != "", c.F0Dilations)); err != nil {
 					return err
 				}
 			}
