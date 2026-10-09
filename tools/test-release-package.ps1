@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$ReleaseRoot = "$(Join-Path $PSScriptRoot '..\release')",
     [ValidateSet('Full', 'Japanese')]
     [string]$Profile = 'Full'
