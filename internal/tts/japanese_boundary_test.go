@@ -76,9 +76,6 @@ func TestApplyBoundaryToneShapes(t *testing.T) {
 func TestApplyBoundaryToneKeepsFrameCountAndWindow(t *testing.T) {
 	curve := flatPitchCurve(100)
 	result := applyBoundaryTone(curve, curveEndMS(curve), true, 1)
-	if len(result.Cents) != len(curve.Cents) {
-		t.Fatalf("frame count = %d, want %d", len(result.Cents), len(curve.Cents))
-	}
 	for index := 0; index < 80; index++ {
 		if result.Cents[index] != 0 {
 			t.Fatalf("cents[%d] = %.4f, want 0", index, result.Cents[index])

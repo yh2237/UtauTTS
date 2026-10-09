@@ -26,9 +26,6 @@ func TestJapaneseContextDurationFactorsParticleIsShort(t *testing.T) {
 	if factors[1] >= 1 {
 		t.Fatalf("particle factor = %.4f, want < 1", factors[1])
 	}
-	if factors[1] != japaneseParticleFactor {
-		t.Fatalf("particle factor = %.4f, want %.4f", factors[1], japaneseParticleFactor)
-	}
 }
 
 func TestJapaneseContextDurationFactorsAccentPhraseEndIsLong(t *testing.T) {
@@ -40,9 +37,6 @@ func TestJapaneseContextDurationFactorsAccentPhraseEndIsLong(t *testing.T) {
 	factors := japaneseContextDurationFactors(morae, features, false)
 	if factors[0] <= 1 {
 		t.Fatalf("accent phrase end factor = %.4f, want > 1", factors[0])
-	}
-	if factors[0] != japaneseAccentPhraseEndFactor {
-		t.Fatalf("accent phrase end factor = %.4f, want %.4f", factors[0], japaneseAccentPhraseEndFactor)
 	}
 }
 

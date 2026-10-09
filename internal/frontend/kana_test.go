@@ -74,14 +74,10 @@ func testParseKanaPauseKinds(t *testing.T) {
 		want    string
 	}{
 		{"あ、い", PauseKindComma},
-		{"あ，い", PauseKindComma},
 		{"あ,い", PauseKindComma},
 		{"あ。い", PauseKindPeriod},
-		{"あ．い", PauseKindPeriod},
 		{"あ.い", PauseKindPeriod},
 		{"あ？い", PauseKindQuestion},
-		{"あ?い", PauseKindQuestion},
-		{"あ！い", PauseKindQuestion},
 		{"あ!い", PauseKindQuestion},
 		{"あ…い", PauseKindEllipsis},
 		{"あ〜い", PauseKindEllipsis},

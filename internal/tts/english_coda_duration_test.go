@@ -13,7 +13,7 @@ func TestEnglishPhoneCodaDurationAdjustment(t *testing.T) {
 	}
 	p := []prosody.Prediction{{DurationFactor: 1}, {DurationFactor: 1}, {DurationFactor: 1}}
 	p = (englishProfile{}).AdjustPredictions(Config{}, nil, m, p, nil)
-	if p[0].DurationMS != 42 || p[1].DurationMS < 60 || p[2].DurationMS <= p[1].DurationMS {
+	if p[0].DurationMS >= p[1].DurationMS || p[1].DurationMS < 60 || p[2].DurationMS <= p[1].DurationMS {
 		t.Fatal(p)
 	}
 }

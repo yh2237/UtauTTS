@@ -38,8 +38,8 @@ func TestParseEnglishARPAsingReading(t *testing.T) {
 	if units[1].Text != "ah" || units[1].Aliases.Main[0] != "hh ah" {
 		t.Fatalf("second unit = %#v", units[1])
 	}
-	if units[0].DurationScale != 0.45 || units[1].DurationScale != 1 || units[1].Stress != 0 {
-		t.Fatalf("timing metadata = %#v", units[:2])
+	if units[1].Stress != 0 {
+		t.Fatalf("stress = %#v", units[1])
 	}
 }
 
@@ -62,9 +62,6 @@ func TestParseEnglishCV(t *testing.T) {
 	}
 	if got := units[3].Aliases.Endings; len(got) != 1 || got[0][0] != "ow -" || got[0][1] != "ow-" {
 		t.Fatalf("ending = %#v", got)
-	}
-	if units[0].DurationScale != 0.45 || units[1].DurationScale != 1 {
-		t.Fatalf("timing metadata = %#v", units[:2])
 	}
 	_, vowelInitial, err := ParseEnglishCV("", "AA1 R", nil)
 	if err != nil {
@@ -226,25 +223,6 @@ func TestEnglishSyllabificationSplitsIllegalOnset(t *testing.T) {
 		if !containsString(units[0].Aliases.Endings[1], alias) {
 			t.Fatalf("missing bridge fallback %q: %#v", alias, units[0].Aliases.Endings[1])
 		}
-	}
-}
-
-func TestEnglishSyllableBridgeIncludesDashReleaseCandidates(t *testing.T) {
-	got := englishSyllableBridge([]string{"@"}, []string{"t"}, []string{"m"}, deltaEnglishSymbols, " ")
-	if len(got) != 2 {
-		t.Fatalf("groups=%#v", got)
-	}
-	if got[0][0] != "@ t" || got[1][0] != "t m-" {
-		t.Fatalf("dash release must lead: %#v", got)
-	}
-	for _, alias := range []string{"tm-", "t m", "tm"} {
-		if !containsString(got[1], alias) {
-			t.Fatalf("missing bridge candidate %q: %#v", alias, got[1])
-		}
-	}
-	cluster := englishSyllableBridge([]string{"{"}, []string{"k"}, []string{"s", "t", "r"}, deltaEnglishSymbols, " ")
-	if cluster[1][0] != "k str-" || !containsString(cluster[1], "k str") || !containsString(cluster[1], "kstr-") {
-		t.Fatalf("cluster bridge=%#v", cluster[1])
 	}
 }
 

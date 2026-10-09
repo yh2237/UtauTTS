@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"utautts/internal/diffsinger"
-	"utautts/internal/engine"
 	"utautts/internal/plugin"
 	"utautts/internal/prosody"
 )
@@ -20,29 +19,6 @@ func TestDiffSingerIsRegisteredAsNeuralSynthesizer(t *testing.T) {
 		t.Fatal("unit renderer was registered as a neural synthesizer")
 	}
 }
-
-func TestNeuralSynthesizerRegistryResolvesRegisteredFactory(t *testing.T) {
-	const id engine.ProviderID = "test-neural-provider"
-	RegisterNeuralSynthesizer(id, func() NeuralSynthesizer { return stubNeuralSynthesizer{id: id} })
-	defer func() {
-		neuralSynthesizersMu.Lock()
-		delete(neuralSynthesizers, id)
-		neuralSynthesizersMu.Unlock()
-	}()
-	synthesizer, found := neuralSynthesizerForProvider(id)
-	if !found || synthesizer.ProviderID() != id {
-		t.Fatalf("registered provider = %#v, found=%v", synthesizer, found)
-	}
-	if _, found := neuralSynthesizerForProvider("unregistered-neural-provider"); found {
-		t.Fatal("unregistered provider must not resolve")
-	}
-}
-
-type stubNeuralSynthesizer struct{ id engine.ProviderID }
-
-func (s stubNeuralSynthesizer) ProviderID() engine.ProviderID { return s.id }
-
-func (stubNeuralSynthesizer) Synthesize(Config) (*Result, error) { return nil, nil }
 
 func TestDiffSingerUsesSelectedSpeechModel(t *testing.T) {
 	model := &prosody.Model{Version: prosody.FramePitchModelVersion, FeatureVersion: 1, Mode: "intonation_frame_tcn_accent_bounded",

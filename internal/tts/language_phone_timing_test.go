@@ -44,20 +44,8 @@ func TestJapanesePhoneTimelineHasDefaultWeights(t *testing.T) {
 }
 
 func TestJapaneseLanguagePhoneTimingIsGated(t *testing.T) {
-	tests := []struct {
-		name     string
-		singleCV bool
-		want     bool
-	}{
-		{name: "ordinary continuous speech", want: false},
-		{name: "single cv bank", singleCV: true, want: true},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if got := shouldUseLanguagePhoneTiming(frontend.LanguageJapanese, test.singleCV); got != test.want {
-				t.Fatalf("use phone timing = %v, want %v", got, test.want)
-			}
-		})
+	if shouldUseLanguagePhoneTiming(frontend.LanguageJapanese, false) || !shouldUseLanguagePhoneTiming(frontend.LanguageJapanese, true) {
+		t.Fatal("Japanese phone timing must be limited to single CV banks")
 	}
 	if !shouldUseLanguagePhoneTiming(frontend.LanguageEnglish, false) {
 		t.Fatal("English phone timing was disabled")
