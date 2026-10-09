@@ -127,13 +127,13 @@ Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置�
 
 | モデル | 内容 |
 | --- | --- |
-| `frame-intonation-tcn-v10` | 既定。つくよみちゃんコーパスとみんなで作るJSUTコーパスbasic5000を、MFAで合成時と同じモーラ区間に整列して学習 |
-| `frame-intonation-tcn-v9.1-t` | 旧既定。同じコーパスを、アクセント情報による整列で学習 |
-| `frame-intonation-tcn-v9-t` | つくよみちゃんコーパスで学習 |
+| `frame-intonation-tcn-v11` | 既定。v10の抑揚に、Irodori-TTSの読み上げで学習したF0ヘッドの曲線とモーラの音量を加える |
+| `frame-intonation-tcn-v10` | つくよみちゃんコーパスとみんなで作るJSUTコーパスbasic5000を、MFAで合成時と同じモーラ区間に整列して学習 |
+| `frame-intonation-tcn-v9.1-t` | 同じコーパスを、アクセント情報による整列で学習 |
 | `frame-intonation-tcn-en-v1` | LibriTTS-Rで学習した英語のフレーム抑揚 |
 | `tone-intonation-zh-v1` | AISHELL-3で学習した中国語の声調曲線の補正 |
 
-`frame-intonation-tcn-v10`と`frame-intonation-tcn-v9-*`はOpen JTalkのアクセント特徴からフレーム単位の相対ピッチを予測します。モデルやRendererはGUI、CLI、Serverで共通です。学習元のライセンスは[抑揚モデル](models/README.md)、追加方法は[モデル／Rendererプラグイン](docs/plugins.md)にあります。
+`frame-intonation-tcn-v11`・`frame-intonation-tcn-v10`・`frame-intonation-tcn-v9.1-t`はOpen JTalkのアクセント特徴からフレーム単位の相対ピッチを予測します。モデルやRendererはGUI、CLI、Serverで共通です。学習元のライセンスは[抑揚モデル](models/README.md)、追加方法は[モデル／Rendererプラグイン](docs/plugins.md)にあります。
 
 ## CLI
 

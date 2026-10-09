@@ -79,7 +79,7 @@ for required in \
   "${gui_root}/runtime/utautts-world-engine.dylib" \
   "${server_root}/utautts-server" \
   "${server_root}/runtime/utautts-world-engine.dylib" \
-  "${gui_root}/models/frame-intonation-tcn-v9-t.json" \
+  "${gui_root}/models/frame-intonation-tcn-v11.json" \
   "${gui_root}/models/frame-intonation-tcn-v10.json" \
   "${gui_root}/renderer/utautts-world-phrase/renderer.json"; do
   [[ -f "${required}" ]] || fail "required package file is missing: ${required}"

@@ -140,13 +140,13 @@ Planは、候補選択、時間設計、Rendererの差を切り分けるため�
 
 | モデル | 形式 | 出力 |
 | --- | --- | --- |
-| `frame-intonation-tcn-v10` | version 8 / feature 1 | 10ms単位の相対ピッチ（既定） |
+| `frame-intonation-tcn-v11` | `base_model`（v10）＋`f0_head` | 10ms単位の相対ピッチとモーラの音量（既定） |
+| `frame-intonation-tcn-v10` | version 8 / feature 1 | 10ms単位の相対ピッチ |
 | `frame-intonation-tcn-v9.1-t` | version 8 / feature 1 | 10ms単位の相対ピッチ |
-| `frame-intonation-tcn-v9-t` | version 8 / feature 1 | 10ms単位の相対ピッチ |
 | `frame-intonation-tcn-en-v1` | version 8 / feature 1 | 英語の10ms単位の相対ピッチ |
 | `tone-intonation-zh-v1` | version 13 / feature 1 | 中国語の声調曲線への有界なピッチ補正 |
 
-frame headはモーラとOpen JTalk由来特徴をフレームへ展開してdilationを持つ小型TCNで相対pitchを予測します。`frame-intonation-tcn-v9-*`は440〜457特徴、10ms間隔、学習出力範囲±250 centです。推論後はモデル内のrender strength、平滑化、percentile／最大値制約を適用し、学習音声に由来する細かなF0揺れをこの処理で調整します。抑揚の強さ（既定4、0〜8）は、2までは曲線に一律の倍率を掛けます。2を超える分は、強さ2の曲線の値`x`に`1 + (強さ/2 - 1)(1 - exp(-(x/100)^2))`を掛け、0付近の平らな部分は強さ2のまま、アクセントや句の上がり下がりのような大きな動きほど指定の強さへ近づけます。自動の抑揚曲線が無いときの音源ピッチ安定化には、強さを4までで使います。
+frame headはモーラとOpen JTalk由来特徴をフレームへ展開してdilationを持つ小型TCNで相対pitchを予測します。`frame-intonation-tcn-v9.1-t`は440〜457特徴、10ms間隔、学習出力範囲±250 centです。推論後はモデル内のrender strength、平滑化、percentile／最大値制約を適用し、学習音声に由来する細かなF0揺れをこの処理で調整します。抑揚の強さ（既定4、0〜8）は、2までは曲線に一律の倍率を掛けます。2を超える分は、強さ2の曲線の値`x`に`1 + (強さ/2 - 1)(1 - exp(-(x/100)^2))`を掛け、0付近の平らな部分は強さ2のまま、アクセントや句の上がり下がりのような大きな動きほど指定の強さへ近づけます。自動の抑揚曲線が無いときの音源ピッチ安定化には、強さを4までで使います。
 
 multitaskモデル（version 10 / feature 2 / mode `prosody_multitask_tcn`）は、frame headに加えてモーラ長倍率を出す`mora_duration` headを持ちます。絶対msではなく基準モーラ長に対する倍率なのでGUIの話速設定や音源差と共存できます。標準配布にはversion 10モデルを含みません。
 
