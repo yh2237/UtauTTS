@@ -77,7 +77,7 @@ for required in \
   "${gui_root}/runtime/utautts-worldline-bridge" \
   "${gui_root}/runtime/utautts-world-engine.so" \
   "${server_root}/utautts-server" \
-  "${server_root}/manual-pitch.md" \
+  "${server_root}/README.md" \
   "${gui_root}/LICENSE" \
   "${gui_root}/LICENSE-SCOPE.md" \
   "${gui_root}/THIRD_PARTY_NOTICES.txt" \

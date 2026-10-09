@@ -1,6 +1,6 @@
 # 読み上げ品質の評価
 
-`tts-eval`は固定した文章と音源を使って、読み、原音候補、接続、合成音声を比較します。実行場所はリポジトリのルートです。必要な環境: [開発環境](../../docs/building.md)、評価対象のボイスバンク。
+`tts-eval`は固定した文章と音源を使って、読み、原音候補、接続、合成音声を比較します。リポジトリのルートで実行し、[開発環境](../../docs/building.md)と評価対象のボイスバンクが必要です。
 
 音源パスは評価対象のボイスバンクへ置き換えます。出力先には毎回新しいディレクトリを指定します。
 
@@ -11,11 +11,11 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/english-bank" --corpus tools/ev
 go run ./cmd/tools/tts-eval --voicebank "./voice/chinese-bank" --corpus tools/evaluation/chinese-v1.json --diagnose --out out/chinese-diagnosis
 ```
 
-英語と中国語のコーパスには自動読みと明示読みのケースがあります。数字や多音字を含む評価セットです。評価範囲: 各ケースの`language`と`phonemizer`を音源に合わせた比較。発音全体の網羅性: 対象外。英語の既定値は`en-arpasing`です。Delta/VCCV音源では`en-delta`または`en-vccv`、C+V音源では`en-cv`を指定します。
+英語と中国語のコーパスには、数字や多音字を含む自動読みと明示読みのケースがあります。各ケースの`language`と`phonemizer`を音源に合わせて比べるためのもので、発音全体を網羅してはいません。英語の既定値は`en-arpasing`です。Delta/VCCV音源では`en-delta`または`en-vccv`、C+V音源では`en-cv`を指定します。
 
-`english-v2.json`は無強勢母音と単語をまたぐ子音群を含む8ケースです。`chinese-v2.json`は鼻音韻尾・üの表記差・変調を含む9ケースです。`--corpus`で指定します。v1は過去の比較用に残しています。中国語v2の鼻音ケースは`ban/bang`などの完全な音節を使います。v1の単独韻母不足: v2とは別の結果として扱います。
+`english-v2.json`は無強勢母音と単語をまたぐ子音群を含む8ケースです。`chinese-v2.json`は鼻音韻尾・üの表記差・変調を含む9ケースです。`--corpus`で指定します。v1は過去の比較用に残しています。中国語v2の鼻音ケースは`ban/bang`などの完全な音節を使います。v1の単独韻母の不足はv2とは別の結果として扱います。
 
-`diagnostics.json`には読みと発音単位に加えて原音名（alias）の候補を保存します。診断モードの処理: 原音WAVの読み込みと音声合成なし。音素化・候補探索の失敗や必須音の不足があれば全ケースの処理後に終了コード1を返します。
+`diagnostics.json`には読みと発音単位に加えて原音名（alias）の候補を保存します。診断モードでは原音WAVを読み込まず、音声も合成しません。音素化・候補探索の失敗や必須音の不足があれば全ケースの処理後に終了コード1を返します。
 
 | 項目 | 意味 |
 | --- | --- |
@@ -36,11 +36,11 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/chinese-bank" --corpus tools/ev
 go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utautts-world-phrase --model none --repeat 1 --out out/ja-base
 ```
 
-コーパスの既定値は`tools/evaluation/japanese-v1.json`の8文です。`--model none`: 学習済み抑揚モデルなし。任意のモデルは`--model-file`でJSONのパスを指定できます。
+コーパスの既定値は`tools/evaluation/japanese-v1.json`の8文です。`--model none`は学習済み抑揚モデルを使いません。任意のモデルは`--model-file`でJSONのパスを指定できます。
 
-英語・中国語でも`--corpus`を指定して比較できます。診断モード: `--diagnose`。音声比較: `--diagnose`なし。WORLDの指定: `--renderers utautts-world-phrase`。対応ランタイムをビルドし、ブリッジのパスを`--bridge`で指定できます。
+英語・中国語でも`--corpus`を指定して比較できます。`--diagnose`を付けると診断、外すと音声の比較です。ビルドしたブリッジは`--bridge`で指定できます。
 
-出力: WAV・TXT・LAB・合成計画（Plan JSON）・`report.json`。合成計画の時刻: 生成時の目標値。音声からの実測境界: 別途解析。
+WAV・TXT・LAB・合成計画（Plan JSON）・`report.json`を出力します。合成計画の時刻は生成時の目標値で、音声から実測した境界ではありません。
 
 | 診断項目 | 意味 |
 | --- | --- |
@@ -53,11 +53,11 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utau
 | Planの`boundary_repair_decisions` | 接続補修の候補数と採否。補修前後の波形差分指標 |
 | reportの`missing_phone_groups` | 必須音が不足したグループの件数 |
 
-任意のリリース音は必須音の不足と区別します。検出範囲: 語中の複雑な子音群と原音の発音誤りの一部。音声生成では代替候補を使うため、生成成功と音の欠落は別に評価します。
+任意のリリース音は必須音の不足と区別します。語中の複雑な子音群や原音の発音誤りは一部しか検出できません。音声生成では代替候補を使うため、生成の成功と音の欠落は別に評価します。
 
-子音と接続の比較には`--corpus tools/evaluation/japanese-connection-v1.json`を指定します。同じ読みを使う6ケースで母音連続・破裂音・摩擦音・鼻音・長母音を確認できます。評価対象: 単独音と連続音など複数の収録形式。
+子音と接続の比較には`--corpus tools/evaluation/japanese-connection-v1.json`を指定します。同じ読みを使う6ケースで母音連続・破裂音・摩擦音・鼻音・長母音を確認できます。単独音・連続音など収録形式の違う音源で比べます。
 
-出力するPlan JSONには合成後の診断情報を含みます。区間別伸縮を適用しても指定したモーラ長は変えません。`boundary_repair_decisions`の指標: 補修箇所の評価。自然さ: 補修箇所の試聴で評価します。
+出力するPlan JSONには合成後の診断情報を含みます。区間別伸縮を適用しても指定したモーラ長は変えません。`boundary_repair_decisions`の指標は補修箇所の比較用で、自然さは試聴で評価します。
 
 解析キャッシュを使う2回目の合成は`--repeat 2`で比較できます。
 
@@ -73,7 +73,7 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utau
 2. 読みを固定して長さとピッチを調整する
 3. 同じ読み・長さ・ピッチでRendererを変える
 
-評価項目: 単語の聞き取り、音の欠落、接続、リズム、声質。性能指標: peak、RMS、RTF、合成成功率。自然さ: 聴取評価。
+聴取では単語の聞き取り、音の欠落、接続、リズム、声質を確認します。peak、RMS、RTF、合成成功率は性能の目安で、自然さは聴取で評価します。
 
 ## 目標F0と出力F0を比べる
 
@@ -98,10 +98,10 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utau
 
 `--renderers utautts-world-phrase --repeat 2`で確認します。解析キャッシュを共有するため初回と2回目以降を分けて確認します。
 
-RTFは合成時間を音声時間で割った値です。保存時間は含みません。測定条件: 文章と音源をそろえます。
+RTFは合成時間を音声時間で割った値で、保存時間は含みません。文章と音源をそろえて比べてください。
 
 ## 内部データと音源校正
 
 frontendの`Phones`はalias表記から独立した発音単位です。中国語はPinyinの声母・韻母を使います。`Tone`には元の声調を保持して変調を音高曲線の生成時に適用します。声調曲線は韻母側へ配置します。
 
-音源校正は実際に使う原音を遅延解析します。結果は音源インスタンスごとに最大4096件まで保持します。WAVのサイズ・更新時刻・oto値が変わると再計算し音源の再読込で破棄します。キャッシュ内容: 解析結果のみ。
+音源校正は実際に使う原音を遅延解析します。結果は音源インスタンスごとに最大4096件まで保持します。WAVのサイズ・更新時刻・oto値が変わると再計算し、音源の再読込で破棄します。キャッシュするのは解析結果だけです。
