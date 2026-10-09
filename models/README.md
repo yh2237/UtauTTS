@@ -4,9 +4,9 @@
 
 ## 同梱モデル
 
-日本語の既定モデル: `frame-intonation-tcn-v11`。代替: `frame-intonation-tcn-v10`、`frame-intonation-tcn-v9.1-t`、`frame-intonation-tcn-v9-t`。英語の既定モデル: `frame-intonation-tcn-en-v1`。中国語の既定モデル: `tone-intonation-zh-v1`。学習と評価: [モデルの学習](../docs/model-training.md)
+日本語の既定モデル: `frame-intonation-tcn-v11`。代替: `frame-intonation-tcn-v10`、`frame-intonation-tcn-v9.1-t`。英語の既定モデル: `frame-intonation-tcn-en-v1`。中国語の既定モデル: `tone-intonation-zh-v1`。学習と評価: [モデルの学習](../docs/model-training.md)
 
-`frame-intonation-tcn-v10`と`frame-intonation-tcn-v9-*`は10ms単位の相対ピッチだけを予測します。モーラ長はGUIで指定した基準値と、言語別の時間規則（「ん」0.9倍、「ー」1.2倍など）で決めます。
+`frame-intonation-tcn-v10`と`frame-intonation-tcn-v9.1-t`は10ms単位の相対ピッチだけを予測します。モーラ長はGUIで指定した基準値と、言語別の時間規則（「ん」0.9倍、「ー」1.2倍など）で決めます。
 
 ## Frame Intonation TCN v11（既定）
 
@@ -31,14 +31,6 @@
 - 本モデルはフレーム単位の相対ピッチ（抑揚）のみを学習し、話者の声質を意図的に再現しません
 - 重みはMIT Licenseで配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本を再配布しません
 - 通知: [licenses/TSUKUYOMI-CORPUS.txt](../licenses/TSUKUYOMI-CORPUS.txt)、[licenses/MINNADE-JSUT-CORPUS.txt](../licenses/MINNADE-JSUT-CORPUS.txt)
-
-## v9 Tsukuyomi（代替）
-
-`frame-intonation-tcn-v9-t`は、[つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）](https://tyc.rei-yumesaki.net/material/corpus/)で学習した単一話者モデルです。
-
-- 本モデルはフレーム単位の相対ピッチ（抑揚）のみを学習し、話者の声質を意図的に再現しません
-- 重みはMIT Licenseで配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本を再配布しません
-- 通知: [licenses/TSUKUYOMI-CORPUS.txt](../licenses/TSUKUYOMI-CORPUS.txt)
 
 ## English Frame Intonation TCN v1（英語の既定）
 
@@ -70,6 +62,15 @@ Delta/VCCVの音節構成を対象とし、en-cv/en-arpasingへの適用は未�
 - 重みはMIT Licenseで配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本とMFA整列モデルを再配布しません
 - 通知: [licenses/TSUKUYOMI-CORPUS.txt](../licenses/TSUKUYOMI-CORPUS.txt)、[licenses/MINNADE-JSUT-CORPUS.txt](../licenses/MINNADE-JSUT-CORPUS.txt)、[licenses/MFA-Japanese-NOTICE.txt](../licenses/MFA-Japanese-NOTICE.txt)
 - 学習: `cmd/tools/train-speech-timing`（gograd、[手順](../docs/model-training.md)）。同梱のv1は同じ特徴量・構成のPyTorch版で学習し、Go版は特徴量が一致し同等の検証誤差になることを確かめています。学習条件と検証の誤差はsafetensorsの`__metadata__`に記録しています
+
+## Speech Timing Target v1（英語・中国語の時間伸縮）
+
+`speech-timing-target-en-v1`と`speech-timing-target-zh-v1`は、英語・中国語の出力を時間伸縮するための目標モデルです（`internal/speechtiming/`、bridgeに埋め込み）。英語は抑揚モデル`frame-intonation-tcn-en-v1`と同じ[LibriTTS-R](https://www.openslr.org/141/)のtrain-clean-100の発話（MFA `english_us_arpa`で整列）、中国語は`tone-intonation-zh-v1`と同じ[AISHELL-3](https://www.openslr.org/93/)（PaddleSpeechの声調付き整列）で学習しました。
+
+- 本モデルは発話ごとに正規化した包絡の動きだけを合成に使い、予測した包絡そのものや話者の声質は出力に含めません
+- 重みは同じ学習元の抑揚モデルと同じライセンスで配布します。英語はCC BY 4.0、中国語はApache License 2.0です。UtauTTSはコーパスの音声・台本と整列データを再配布しません
+- 英語の通知: [licenses/SPEECH-TIMING-TARGET-EN-V1.txt](../licenses/SPEECH-TIMING-TARGET-EN-V1.txt)、[licenses/LibriTTS-R-NOTICE.txt](../licenses/LibriTTS-R-NOTICE.txt)、[licenses/MFA-English-ARPA-NOTICE.txt](../licenses/MFA-English-ARPA-NOTICE.txt)、ライセンス本文: [licenses/CC-BY-4.0.txt](../licenses/CC-BY-4.0.txt)
+- 中国語の通知: [licenses/SPEECH-TIMING-TARGET-ZH-V1.txt](../licenses/SPEECH-TIMING-TARGET-ZH-V1.txt)、[licenses/AISHELL-3-NOTICE.txt](../licenses/AISHELL-3-NOTICE.txt)、[licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt](../licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt)、ライセンス本文: [licenses/APACHE-2.0.txt](../licenses/APACHE-2.0.txt)
 
 ## モデルの記録
 

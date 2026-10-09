@@ -382,6 +382,12 @@ licenses/MINNADE-JSUT-CORPUS.txt. The frame-intonation-tcn-v10 training data
 was aligned locally with the Montreal Forced Aligner Japanese MFA acoustic
 model (CC BY 4.0), which is not bundled; see licenses/MFA-Japanese-NOTICE.txt.
 
+The F0 head of frame-intonation-tcn-v11 (the default Japanese model) was also
+trained on relative pitch measured from speech that UtauTTS generated locally
+with Irodori-TTS v4.1-Small (MIT License); the generated audio, scripts and
+the text-to-speech model are not bundled. See
+licenses/IRODORI-TEACHER-NOTICE.txt.
+
 The speech-timing-target-v1 weights (internal/speechtiming, embedded in the
 WORLD bridge) are UtauTTS weights distributed under the MIT License. They were
 trained on the same Tsukuyomi-chan Corpus Vol.1 and Minnade JSUT basic5000
@@ -398,6 +404,12 @@ The tone-intonation-zh-v1 weights are distributed under Apache License 2.0;
 see licenses/TONE-INTONATION-ZH-V1.txt. Training source notices:
 licenses/AISHELL-3-NOTICE.txt and
 licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt.
+
+The English and Mandarin speech timing targets (speech-timing-target-en-v1 and
+speech-timing-target-zh-v1, embedded in the WORLD bridge) are trained on the
+same LibriTTS-R and AISHELL-3 data as the intonation models and use the same
+weight licenses: CC BY 4.0 (licenses/SPEECH-TIMING-TARGET-EN-V1.txt) and
+Apache License 2.0 (licenses/SPEECH-TIMING-TARGET-ZH-V1.txt).
 
 UtauTTS source code uses the repository MIT License; models, prompts,
 voicebanks, and other third-party assets use their respective notices.
