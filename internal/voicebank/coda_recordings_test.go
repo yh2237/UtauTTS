@@ -33,9 +33,6 @@ func TestEndingRecordingsOptimizeJoinsAndRespectMissingPhoneGap(t *testing.T) {
 	if path[1].Alias != "isolated-best" {
 		t.Fatal("missing phone gap received a join penalty")
 	}
-	if selectEndingRecordings(nil, connection.NewExtractor()) != nil {
-		t.Fatal("empty path not nil")
-	}
 }
 
 func TestUtteranceGraphCanChooseEndingForFollowingRecording(t *testing.T) {

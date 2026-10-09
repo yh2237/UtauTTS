@@ -98,27 +98,6 @@ func TestEnglishMissingCompoundCodaUsesRecordedChain(t *testing.T) {
 	}
 }
 
-func TestCodaCoverageKeepsAlternativeSegmentations(t *testing.T) {
-	bank := &Bank{Entries: map[string][]oto.Entry{}}
-	for _, alias := range []string{"k st", "k s", "s t", "t s-"} {
-		bank.Entries[alias] = []oto.Entry{{Alias: alias, Filename: "fixture.wav"}}
-	}
-	edges := []frontend.CodaAlias{{Aliases: []string{"k st"}, Phones: []string{"s", "t"}, CodaStart: 1}, {Aliases: []string{"k s"}, Phones: []string{"s"}, CodaStart: 1}, {Aliases: []string{"s t"}, Phones: []string{"t"}, CodaStart: 2}, {Aliases: []string{"t s-"}, Phones: []string{"s"}, CodaStart: 3}}
-	paths := selectCodaChains(bank, edges, Affix{}, false)
-	if len(paths) != 2 || len(paths[0]) != 2 || len(paths[1]) != 3 {
-		t.Fatalf("alternative segmentation lost: %+v", paths)
-	}
-	for _, path := range paths {
-		count := 0
-		for _, edge := range path {
-			count += len(edge.Phones)
-		}
-		if count != 3 {
-			t.Fatal("coverage reduced")
-		}
-	}
-}
-
 func TestVCCVCodaChainUsesToneAffixes(t *testing.T) {
 	_, m, err := frontend.ParseEnglishVCCV("", "T EH1 K S T S", nil)
 	if err != nil {

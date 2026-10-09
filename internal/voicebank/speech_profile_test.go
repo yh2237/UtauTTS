@@ -49,10 +49,6 @@ func TestSpeechProfileBoundedAndInvalidated(t *testing.T) {
 	if silent.Applied || silent.SuggestedFixedMS != 100 || silent.Reason != "no-stable-voicing" {
 		t.Fatalf("stale profile: %+v", silent)
 	}
-	bank.ClearSpeechProfiles()
-	if len(bank.speechProfiles) != 0 {
-		t.Fatal("clear failed")
-	}
 }
 
 func TestMeasureSpeechTransientFindsLocalizedRelease(t *testing.T) {

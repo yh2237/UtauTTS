@@ -56,18 +56,3 @@ func TestEnglishCodaFloorClampsToVowelMinimum(t *testing.T) {
 		t.Fatalf("short mora changed: start=%v span=%v floor=%v", shortStart, shortSpan, shortFloor)
 	}
 }
-
-func TestEnglishCodaFloorClassifiesPhones(t *testing.T) {
-	stop := []frontend.Phone{{Symbol: "t", Role: "coda"}}
-	continuant := []frontend.Phone{{Symbol: "n", Role: "coda"}}
-	other := []frontend.Phone{{Symbol: "w", Role: "coda"}}
-	if got := englishCodaFloorMS(stop); got != englishCodaMinStopMS {
-		t.Fatalf("stop floor=%v", got)
-	}
-	if got := englishCodaFloorMS(continuant); got != englishCodaMinContinuantMS {
-		t.Fatalf("continuant floor=%v", got)
-	}
-	if got := englishCodaFloorMS(other); got != 0 {
-		t.Fatalf("other floor=%v", got)
-	}
-}

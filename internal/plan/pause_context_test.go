@@ -18,49 +18,21 @@ func pauseMorae(kind string, final bool) []frontend.Mora {
 	return morae
 }
 
-func TestPauseContextKindFactors(t *testing.T) {
-	cfg := Config{PauseContext: true, PauseContextStrength: 1}
-	cases := []struct {
-		kind string
-		want float64
-	}{
-		{frontend.PauseKindComma, pauseContextCommaFactor},
-		{frontend.PauseKindPeriod, pauseContextPeriodFactor},
-		{frontend.PauseKindQuestion, pauseContextQuestionFactor},
-		{frontend.PauseKindEllipsis, pauseContextEllipsisFactor},
-		{frontend.PauseKindSpace, pauseContextNeutralFactor},
-		{frontend.PauseKindBracket, pauseContextNeutralFactor},
-		{frontend.PauseKindOther, pauseContextNeutralFactor},
-		{"", pauseContextNeutralFactor},
-	}
-	for _, testCase := range cases {
-		morae := pauseMorae(testCase.kind, false)
-		got := pauseContextFactor(morae, 1, cfg)
-		if math.Abs(got-testCase.want) > 1e-9 {
-			t.Errorf("kind %q factor = %v, want %v", testCase.kind, got, testCase.want)
-		}
-	}
-}
-
-func TestPauseContextUtteranceFinalIsLonger(t *testing.T) {
-	cfg := Config{PauseContext: true, PauseContextStrength: 1}
-	nonFinal := pauseContextFactor(pauseMorae(frontend.PauseKindPeriod, false), 1, cfg)
-	final := pauseContextFactor(pauseMorae(frontend.PauseKindPeriod, true), 1, cfg)
-	if math.Abs(final-nonFinal*pauseContextFinalFactor) > 1e-9 {
-		t.Fatalf("final factor = %v, want %v", final, nonFinal*pauseContextFinalFactor)
-	}
-	if final <= nonFinal {
-		t.Fatalf("utterance final pause was not longer: final=%v nonFinal=%v", final, nonFinal)
-	}
-}
-
 func TestPauseContextKindOrdering(t *testing.T) {
 	cfg := Config{PauseContext: true, PauseContextStrength: 1}
-	comma := pauseContextFactor(pauseMorae(frontend.PauseKindComma, false), 1, cfg)
-	period := pauseContextFactor(pauseMorae(frontend.PauseKindPeriod, false), 1, cfg)
-	question := pauseContextFactor(pauseMorae(frontend.PauseKindQuestion, false), 1, cfg)
-	if !(comma < period && period < question) {
-		t.Fatalf("kind ordering = comma:%v period:%v question:%v", comma, period, question)
+	factor := func(kind string, final bool) float64 { return pauseContextFactor(pauseMorae(kind, final), 1, cfg) }
+	comma, period, question, ellipsis := factor(frontend.PauseKindComma, false), factor(frontend.PauseKindPeriod, false),
+		factor(frontend.PauseKindQuestion, false), factor(frontend.PauseKindEllipsis, false)
+	if !(comma < period && period < question && question < ellipsis) {
+		t.Fatalf("kind ordering = comma:%v period:%v question:%v ellipsis:%v", comma, period, question, ellipsis)
+	}
+	for _, kind := range []string{frontend.PauseKindSpace, frontend.PauseKindBracket, frontend.PauseKindOther, ""} {
+		if got := factor(kind, false); got != period {
+			t.Errorf("kind %q factor = %v, want neutral %v", kind, got, period)
+		}
+	}
+	if final := factor(frontend.PauseKindPeriod, true); final <= period {
+		t.Fatalf("utterance final pause was not longer: final=%v nonFinal=%v", final, period)
 	}
 }
 

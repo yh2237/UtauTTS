@@ -40,21 +40,31 @@ func TestDiscoverVoicebanksUsesMetadataNameAndSorts(t *testing.T) {
 
 func TestDiscoverDiffSingerWithoutOto(t *testing.T) {
 	root := t.TempDir()
-	singer := filepath.Join(root, "diffsinger")
-	if err := os.Mkdir(singer, 0o755); err != nil {
-		t.Fatal(err)
+	named := filepath.Join(root, "diffsinger")
+	minimal := filepath.Join(root, "Minimal")
+	for _, singer := range []string{named, minimal} {
+		if err := os.Mkdir(singer, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(singer, "dsconfig.yaml"), []byte("acoustic: acoustic.onnx\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if err := os.WriteFile(filepath.Join(singer, "dsconfig.yaml"), []byte("acoustic: acoustic.onnx\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(singer, "character.txt"), []byte("name=DS Test\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(named, "character.txt"), []byte("name=DS Test\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	got, err := Discover(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0].Kind != "diffsinger" || got[0].Name != "DS Test" {
+	names := map[string]string{}
+	for _, summary := range got {
+		if summary.Kind != "diffsinger" {
+			t.Fatalf("voicebanks = %#v", got)
+		}
+		names[summary.Path] = summary.Name
+	}
+	if len(got) != 2 || names[named] != "DS Test" || names[minimal] != "Minimal" {
 		t.Fatalf("voicebanks = %#v", got)
 	}
 }
@@ -86,25 +96,6 @@ func TestDiscoverDiffSingerBundleIgnoresCoreModules(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(got) != 1 || got[0].Path != singer || got[0].Name != "Lewisia" || got[0].Kind != "diffsinger" {
-		t.Fatalf("voicebanks = %#v", got)
-	}
-}
-
-func TestDiscoverMinimalDiffSingerWithoutMetadata(t *testing.T) {
-	root := t.TempDir()
-	singer := filepath.Join(root, "Minimal")
-	if err := os.Mkdir(singer, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(singer, "dsconfig.yaml"), []byte("acoustic: acoustic.onnx\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := Discover(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 1 || got[0].Path != singer || got[0].Name != "Minimal" {
 		t.Fatalf("voicebanks = %#v", got)
 	}
 }

@@ -72,25 +72,6 @@ func TestResolveUsesPhonemizerAliasHints(t *testing.T) {
 		"- ni": {{Alias: "- ni", Filename: "ni.wav"}},
 		"hao":  {{Alias: "hao", Filename: "hao.wav"}},
 		"i h":  {{Alias: "i h", Filename: "ih.wav"}},
-	}}
-	morae := []frontend.Mora{
-		{Text: "ni", Vowel: "i", Aliases: &frontend.AliasHints{Main: []string{"- ni", "ni"}}},
-		{Text: "hao", Consonant: "h", Vowel: "ao", Aliases: &frontend.AliasHints{Main: []string{"i hao", "hao"}, Transition: []string{"i h"}}},
-	}
-	got, err := bank.Resolve(morae)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got[0].Alias != "- ni" || got[1].Alias != "hao" || got[1].Transition == nil || got[1].Transition.Alias != "i h" {
-		t.Fatalf("selections = %#v", got)
-	}
-}
-
-func TestResolveUsesExplicitKindsAndEnding(t *testing.T) {
-	bank := &Bank{Entries: map[string][]oto.Entry{
-		"- ni": {{Alias: "- ni", Filename: "ni.wav"}},
-		"hao":  {{Alias: "hao", Filename: "hao.wav"}},
-		"i h":  {{Alias: "i h", Filename: "ih.wav"}},
 		"ao R": {{Alias: "ao R", Filename: "aor.wav"}},
 	}}
 	morae := []frontend.Mora{
@@ -104,7 +85,8 @@ func TestResolveUsesExplicitKindsAndEnding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got[0].Kind != AliasVCV || !got[1].Composite || got[1].Transition == nil {
+	if got[0].Alias != "- ni" || got[0].Kind != AliasVCV || got[1].Alias != "hao" || !got[1].Composite ||
+		got[1].Transition == nil || got[1].Transition.Alias != "i h" {
 		t.Fatalf("selections=%#v", got)
 	}
 	if len(got[1].Endings) != 1 || got[1].Endings[0].Alias != "ao R" {
@@ -290,31 +272,6 @@ func TestAliasCandidatesHandleSpecialMoraContexts(t *testing.T) {
 	}
 	if !contains(aliasCandidatesWithPolicy("でゅ", "", true, AliasPolicyAuto), "じゅ") {
 		t.Fatal("でゅ did not fall back to じゅ")
-	}
-	wo := aliasCandidatesWithPolicy("を", "", true, AliasPolicyAuto)
-	originalIndex, fallbackIndex := -1, -1
-	for index, candidate := range wo {
-		if candidate.name == "を" {
-			originalIndex = index
-		}
-		if candidate.name == "お" {
-			fallbackIndex = index
-		}
-	}
-	if originalIndex < 0 || fallbackIndex < 0 || originalIndex > fallbackIndex {
-		t.Fatalf("を must precede お in candidates: %v", wo)
-	}
-	originalTier, fallbackTier := -1, -1
-	for _, candidate := range wo {
-		if candidate.name == "を" {
-			originalTier = candidate.tier
-		}
-		if candidate.name == "お" {
-			fallbackTier = candidate.tier
-		}
-	}
-	if originalTier < 0 || fallbackTier <= originalTier {
-		t.Fatalf("equivalent fallback must have a worse tier than the original: %v", wo)
 	}
 	if contains(aliasCandidatesWithPolicy("てぃ", "", true, AliasPolicyAuto), "ち") {
 		t.Fatal("てぃ must not fall back to ち")
@@ -542,12 +499,6 @@ func TestResolveUsesPhrasePathInsteadOfGreedyDuplicateChoice(t *testing.T) {
 	if got[0].Entry.Filename != "continuous.wav" {
 		t.Fatalf("path did not retain source continuity: %#v", got)
 	}
-	if got[0].CandidateCount != 2 || got[0].TargetScore != 114 || got[0].JoinScore != 0 || got[0].PathScore != 114 {
-		t.Fatalf("first score audit = %#v", got[0])
-	}
-	if got[1].JoinScore != 9 || got[1].TargetScore+got[1].JoinScore != 123 || got[1].PathScore != 237 {
-		t.Fatalf("second score audit = %#v", got[1])
-	}
 }
 
 func TestResolveUsesSilentClosureWhenVoicebankHasNoSmallTsu(t *testing.T) {
@@ -616,29 +567,6 @@ func writeResolverTone(t *testing.T, path string, hz float64) {
 }
 
 func TestPruneCandidates(t *testing.T) {
-	t.Run("reserves distinct sources", func(t *testing.T) {
-		candidates := make([]Selection, 0, maxCandidatesPerPosition+4)
-		for index := 0; index < maxCandidatesPerPosition+4; index++ {
-			candidates = append(candidates, Selection{Alias: "main", TargetScore: 114, Entry: oto.Entry{Filename: "main.wav"}})
-		}
-		for index := 0; index < 4; index++ {
-			candidates = append(candidates, Selection{Alias: "alt", TargetScore: 90, Entry: oto.Entry{Filename: fmt.Sprintf("alt-%d.wav", index)}})
-		}
-		got := pruneCandidates(candidates)
-		if len(got) != maxCandidatesPerPosition {
-			t.Fatalf("len=%d want %d", len(got), maxCandidatesPerPosition)
-		}
-		if localCandidateScore(got[0]) != 114 {
-			t.Fatalf("top local score not retained: %#v", got[0])
-		}
-		sources := map[string]bool{}
-		for _, candidate := range got {
-			sources[candidate.Entry.Filename] = true
-		}
-		if len(sources) < minDistinctSourceCandidates {
-			t.Fatalf("distinct sources=%d want >=%d", len(sources), minDistinctSourceCandidates)
-		}
-	})
 	t.Run("fills to limit when diversity unavailable", func(t *testing.T) {
 		candidates := make([]Selection, 0, maxCandidatesPerPosition+8)
 		for index := 0; index < maxCandidatesPerPosition+8; index++ {

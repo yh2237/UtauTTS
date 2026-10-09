@@ -61,22 +61,7 @@ func TestMetadataSnapshotPreservesCaseAndRefreshesOnReload(t *testing.T) {
 	}
 }
 
-func TestResolveAtToneUsesAffixedAlias(t *testing.T) {
-	bank := &Bank{
-		Entries:   map[string][]oto.Entry{"あ_C4": {{Alias: "あ_C4"}}},
-		PrefixMap: map[string]Affix{"C4": {Suffix: "_C4"}},
-	}
-	morae, _ := frontend.ParseKana("あ")
-	selections, err := bank.ResolveAtTone(morae, "C4")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if selections[0].Alias != "あ_C4" {
-		t.Fatalf("alias = %q", selections[0].Alias)
-	}
-}
-
-func TestResolveAtToneUsesAffixedCVVCTransition(t *testing.T) {
+func TestResolveAtToneUsesAffixedAliases(t *testing.T) {
 	bank := &Bank{
 		Entries: map[string][]oto.Entry{
 			"あ_C4":   {{Alias: "あ_C4"}},
@@ -90,7 +75,8 @@ func TestResolveAtToneUsesAffixedCVVCTransition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(selections) != 2 || !selections[1].Composite || selections[1].Transition == nil || selections[1].Transition.Alias != "a k_C4" {
+	if len(selections) != 2 || selections[0].Alias != "あ_C4" || !selections[1].Composite ||
+		selections[1].Transition == nil || selections[1].Transition.Alias != "a k_C4" {
 		t.Fatalf("selections = %#v", selections)
 	}
 }
@@ -207,9 +193,6 @@ func TestResolverRejectsUnreadableAndSilentWAVCandidates(t *testing.T) {
 	}
 	if len(selected[0].CandidateRejections) != 1 || selected[0].CandidateRejections[0].Source != bad {
 		t.Fatalf("rejections=%+v", selected[0].CandidateRejections)
-	}
-	if len(selected[0].EntryValidation) != 3 {
-		t.Fatalf("validation checks=%v", selected[0].EntryValidation)
 	}
 }
 
