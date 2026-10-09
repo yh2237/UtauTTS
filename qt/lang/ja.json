@@ -227,6 +227,8 @@
     "voicebankDetails.capabilities": "alias数: CV {0} / VCV {1} / VC {2}",
     "voicebankDetails.title": "ボイスバンクの詳細",
     "menu.file.exportUstx": "USTXとして書き出す...",
+    "menu.file.export": "書き出し",
+    "menu.file.voicebanks": "音源とプラグイン",
     "main.ustxExportTitle": "USTX書き出し",
     "main.ustxExportSuccess": "USTXを書き出しました。\n{0}",
     "main.ustxExportFailed": "USTXを書き出せませんでした。\n{0}",

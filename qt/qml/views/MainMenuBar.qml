@@ -47,6 +47,7 @@ MenuBar {
                 onTriggered: root.host.appBackend.clearRecentProjects()
             }
         }
+        MenuSeparator {}
         GrayscaleMenuItem {
             text: root.host.translator.tr("menu.file.save")
             enabled: !root.host.appBackend.busy && !root.host.batchExportActive
@@ -57,93 +58,103 @@ MenuBar {
             enabled: !root.host.appBackend.busy && !root.host.batchExportActive
             onTriggered: root.host.openProjectSaveDialog()
         }
-        GrayscaleMenuItem {
-            text: root.host.translator.tr("menu.file.exportUstx")
-            enabled: utterances.count > 0 && !root.host.appBackend.busy && !root.host.batchExportActive
-            onTriggered: root.host.openUstxExportDialog()
-        }
         MenuSeparator {}
-        Instantiator {
-            model: Platform.isWeb ? 0 : 1
-            delegate: GrayscaleMenuItem {
-                text: root.host.translator.tr("menu.file.openVoiceDirectory")
+        Menu {
+            id: exportMenu
+            title: root.host.translator.tr("menu.file.export")
+            GrayscaleMenuItem {
+                text: root.host.translator.tr("menu.file.saveWav")
+                enabled: utterances.count > 0 && !root.host.appBackend.busy && !root.host.batchExportActive && root.host.current().reading.length > 0
+                onTriggered: root.host.saveCurrentAudio()
+            }
+            GrayscaleMenuItem {
+                text: root.host.translator.tr("menu.file.saveAllWav")
+                enabled: !root.host.appBackend.busy && !root.host.batchExportActive && root.host.hasPlayableTextFrom(0)
+                onTriggered: root.host.openSaveAllDialog()
+            }
+            GrayscaleMenuItem {
+                text: root.host.translator.tr("menu.file.exportUstx")
+                enabled: utterances.count > 0 && !root.host.appBackend.busy && !root.host.batchExportActive
+                onTriggered: root.host.openUstxExportDialog()
+            }
+            // exoの書き出しはネイティブのファイルダイアログがある環境だけ（末尾に足す）。
+            MenuSeparator {
+                visible: Platform.hasNativeFileDialog
+                height: visible ? implicitHeight : 0
+            }
+            Instantiator {
+                model: Platform.hasNativeFileDialog ? ["selected", "all"] : []
+                delegate: GrayscaleMenuItem {
+                    required property string modelData
+                    text: modelData === "selected"
+                          ? root.host.translator.tr("menu.file.exportExo")
+                          : root.host.translator.tr("menu.file.exportAllExo")
+                    enabled: modelData === "selected"
+                             ? (utterances.count > 0 && !root.host.appBackend.busy && !root.host.batchExportActive && root.host.current().reading.length > 0)
+                             : (!root.host.appBackend.busy && !root.host.batchExportActive && root.host.hasPlayableTextFrom(0))
+                    onTriggered: root.host.openDragExportDialog(modelData === "selected")
+                }
+                onObjectAdded: (index, object) => exportMenu.addItem(object)
+                onObjectRemoved: (index, object) => exportMenu.removeItem(object)
+            }
+        }
+        Menu {
+            id: voicebankMenu
+            title: root.host.translator.tr("menu.file.voicebanks")
+            GrayscaleMenuItem {
+                text: root.host.translator.tr("menu.file.addVoicebank")
                 enabled: !root.host.appBackend.busy && !root.host.batchExportActive
-                onTriggered: root.host.appBackend.openVoiceDirectory()
+                onTriggered: root.host.addVoicebanks()
             }
-            onObjectAdded: (index, object) => fileMenu.insertItem(index, object)
-            onObjectRemoved: (index, object) => fileMenu.removeItem(object)
-        }
-        GrayscaleMenuItem {
-            text: root.host.translator.tr("menu.file.addVoicebank")
-            enabled: !root.host.appBackend.busy && !root.host.batchExportActive
-            onTriggered: root.host.addVoicebanks()
-        }
-        Instantiator {
-            model: Platform.hasExternalTools ? ["resampler", "wavtool"] : []
-            delegate: GrayscaleMenuItem {
-                required property string modelData
-                text: modelData === "resampler"
-                      ? root.host.translator.tr("menu.file.openResamplersDirectory")
-                      : root.host.translator.tr("menu.file.openWavtoolsDirectory")
-                onTriggered: root.host.appBackend.openClassicToolDirectory(modelData)
-            }
-            onObjectAdded: (index, object) => fileMenu.insertItem(index, object)
-            onObjectRemoved: (index, object) => fileMenu.removeItem(object)
-        }
-        MenuSeparator {}
-        GrayscaleMenuItem {
-            text: root.host.translator.tr("menu.file.reloadVoicebanks")
-            enabled: !root.host.appBackend.busy
-            onTriggered: root.host.reloadVoicebanks()
-        }
-        Instantiator {
-            model: Platform.hasExternalTools ? 1 : 0
-            delegate: GrayscaleMenuItem {
-                text: root.host.translator.tr("menu.file.reloadClassicTools")
+            GrayscaleMenuItem {
+                text: root.host.translator.tr("menu.file.reloadVoicebanks")
                 enabled: !root.host.appBackend.busy
-                onTriggered: root.host.appBackend.reloadClassicTools()
+                onTriggered: root.host.reloadVoicebanks()
             }
-            onObjectAdded: (index, object) => fileMenu.insertItem(index, object)
-            onObjectRemoved: (index, object) => fileMenu.removeItem(object)
-        }
-        GrayscaleMenuItem {
-            text: root.host.translator.tr("plugins.title")
-            enabled: !root.host.appBackend.busy && !root.host.batchExportActive
-            onTriggered: root.host.menuDialogs.rendererPackages.open()
+            MenuSeparator {}
+            GrayscaleMenuItem {
+                text: root.host.translator.tr("plugins.title")
+                enabled: !root.host.appBackend.busy && !root.host.batchExportActive
+                onTriggered: root.host.menuDialogs.rendererPackages.open()
+            }
+            // 音源フォルダを開く操作はWeb以外（「音源を追加」の次）。
+            Instantiator {
+                model: Platform.isWeb ? 0 : 1
+                delegate: GrayscaleMenuItem {
+                    text: root.host.translator.tr("menu.file.openVoiceDirectory")
+                    enabled: !root.host.appBackend.busy && !root.host.batchExportActive
+                    onTriggered: root.host.appBackend.openVoiceDirectory()
+                }
+                onObjectAdded: (index, object) => voicebankMenu.insertItem(1, object)
+                onObjectRemoved: (index, object) => voicebankMenu.removeItem(object)
+            }
+            // Classic UTAUのツールは外部ツールを使える環境だけ（末尾に足す）。
+            MenuSeparator {
+                visible: Platform.hasExternalTools
+                height: visible ? implicitHeight : 0
+            }
+            Instantiator {
+                model: Platform.hasExternalTools ? ["resampler", "wavtool", "reload"] : []
+                delegate: GrayscaleMenuItem {
+                    required property string modelData
+                    text: modelData === "resampler"
+                          ? root.host.translator.tr("menu.file.openResamplersDirectory")
+                          : modelData === "wavtool"
+                            ? root.host.translator.tr("menu.file.openWavtoolsDirectory")
+                            : root.host.translator.tr("menu.file.reloadClassicTools")
+                    enabled: modelData !== "reload" || !root.host.appBackend.busy
+                    onTriggered: {
+                        if (modelData === "reload")
+                            root.host.appBackend.reloadClassicTools();
+                        else
+                            root.host.appBackend.openClassicToolDirectory(modelData);
+                    }
+                }
+                onObjectAdded: (index, object) => voicebankMenu.addItem(object)
+                onObjectRemoved: (index, object) => voicebankMenu.removeItem(object)
+            }
         }
         MenuSeparator {}
-        GrayscaleMenuItem {
-            text: root.host.translator.tr("menu.file.saveWav")
-            enabled: utterances.count > 0 && !root.host.appBackend.busy && !root.host.batchExportActive && root.host.current().reading.length > 0
-            onTriggered: root.host.saveCurrentAudio()
-        }
-        GrayscaleMenuItem {
-            text: root.host.translator.tr("menu.file.saveAllWav")
-            enabled: !root.host.appBackend.busy && !root.host.batchExportActive && root.host.hasPlayableTextFrom(0)
-            onTriggered: root.host.openSaveAllDialog()
-        }
-        MenuSeparator {}
-        Instantiator {
-            model: Platform.hasNativeFileDialog ? ["selected", "all"] : []
-            delegate: GrayscaleMenuItem {
-                required property string modelData
-                text: modelData === "selected"
-                      ? root.host.translator.tr("menu.file.exportExo")
-                      : root.host.translator.tr("menu.file.exportAllExo")
-                enabled: modelData === "selected"
-                         ? (utterances.count > 0 && !root.host.appBackend.busy && !root.host.batchExportActive && root.host.current().reading.length > 0)
-                         : (!root.host.appBackend.busy && !root.host.batchExportActive && root.host.hasPlayableTextFrom(0))
-                onTriggered: root.host.openDragExportDialog(modelData === "selected")
-            }
-            onObjectAdded: (index, object) => fileMenu.insertItem(index, object)
-            onObjectRemoved: (index, object) => fileMenu.removeItem(object)
-        }
-        Instantiator {
-            model: Platform.hasNativeFileDialog ? 1 : 0
-            delegate: MenuSeparator {}
-            onObjectAdded: (index, object) => fileMenu.insertItem(index, object)
-            onObjectRemoved: (index, object) => fileMenu.removeItem(object)
-        }
         GrayscaleMenuItem {
             text: root.host.translator.tr("menu.file.quit")
             onTriggered: Qt.quit()

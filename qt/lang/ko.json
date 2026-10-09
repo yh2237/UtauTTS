@@ -227,6 +227,8 @@
     "voicebankDetails.capabilities": "alias 수: CV {0} / VCV {1} / VC {2}",
     "voicebankDetails.title": "보이스뱅크 상세 정보",
     "menu.file.exportUstx": "USTX로 내보내기...",
+    "menu.file.export": "내보내기",
+    "menu.file.voicebanks": "음원과 플러그인",
     "main.ustxExportTitle": "USTX 내보내기",
     "main.ustxExportSuccess": "USTX를 내보냈습니다.\n{0}",
     "main.ustxExportFailed": "USTX를 내보낼 수 없습니다.\n{0}",

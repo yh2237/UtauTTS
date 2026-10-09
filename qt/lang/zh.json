@@ -228,6 +228,8 @@
     "voicebankDetails.title": "音源详情",
 
     "menu.file.exportUstx": "导出为 USTX...",
+    "menu.file.export": "导出",
+    "menu.file.voicebanks": "音源与插件",
     "main.ustxExportTitle": "导出 USTX",
     "main.ustxExportSuccess": "已导出 USTX。\n{0}",
     "main.ustxExportFailed": "无法导出 USTX。\n{0}",
