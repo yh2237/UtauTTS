@@ -156,26 +156,15 @@ func TestTargetForLanguageLoadsEnglishModel(t *testing.T) {
 }
 
 func TestTargetForLanguageAliases(t *testing.T) {
-	english, err := TargetForLanguage("en-US")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(english.Phones()) != 42 {
-		t.Fatalf("English alias phones = %d, want 42", len(english.Phones()))
-	}
-	chinese, err := TargetForLanguage("cmn")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(chinese.Phones()) != 47 {
-		t.Fatalf("Chinese alias phones = %d, want 47", len(chinese.Phones()))
-	}
-	japanese, err := TargetForLanguage("ja-JP")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(japanese.Phones()) != 40 {
-		t.Fatalf("Japanese alias phones = %d, want 40", len(japanese.Phones()))
+	for alias, language := range map[string]string{"en-US": "en", "cmn": "zh", "ja-JP": "ja"} {
+		got, err := TargetForLanguage(alias)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, err := TargetForLanguage(language)
+		if err != nil || got != want {
+			t.Fatalf("TargetForLanguage(%q) did not select the %s model", alias, language)
+		}
 	}
 }
 

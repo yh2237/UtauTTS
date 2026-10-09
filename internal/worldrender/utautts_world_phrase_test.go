@@ -28,99 +28,59 @@ func TestWorldMixIsOrderIndependentAndPreservesFade(t *testing.T) {
 	}
 }
 
-func TestWorldMixNormalizesOverlappingEnvelopeGain(t *testing.T) {
-	prepared := []preparedWorldUnit{{cached: cachedWorldUnit{duration: 20, features: worldFeatures{
-		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
-	}}}, {cached: cachedWorldUnit{duration: 20, features: worldFeatures{
-		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
-	}}}}
-	input := manifest{F0Curve: []float64{200, 200}, Units: []unit{
-		{LengthMS: 20, RequiredLengthMS: 20, Volume: 100},
-		{LengthMS: 20, RequiredLengthMS: 20, Volume: 100},
-	}}
-	result := mixWorldFeatures(input, prepared, 2, 1)
-	if math.Abs(result.Spectrum[0]-1) > 1e-9 {
-		t.Fatalf("overlap gain = %f, want 1", result.Spectrum[0])
+func flatPreparedUnits(count int) []preparedWorldUnit {
+	prepared := make([]preparedWorldUnit, count)
+	for index := range prepared {
+		prepared[index] = preparedWorldUnit{cached: cachedWorldUnit{duration: 20, features: worldFeatures{
+			Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
+		}}}
 	}
-	if math.Abs(result.Aperiodicity[0]-.2) > 1e-9 {
-		t.Fatalf("overlap aperiodicity = %f, want .2", result.Aperiodicity[0])
+	return prepared
+}
+
+func TestWorldMixOverlappingGain(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		units  []unit
+		energy float64
+	}{
+		{"normalizes overlap", []unit{{Volume: 100}, {Volume: 100}}, 1},
+		{"legacy keeps overlap", []unit{{Volume: 100, LegacyMix: true}, {Volume: 100, LegacyMix: true}}, 2},
+		{"energy factor scales amplitude", []unit{{Volume: 100, EnergyFactor: .5}}, .25},
+		{"normalizes before energy", []unit{{Volume: 100, EnergyFactor: .5}, {Volume: 100, EnergyFactor: .5}}, .25},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for index := range tc.units {
+				tc.units[index].LengthMS, tc.units[index].RequiredLengthMS = 20, 20
+			}
+			input := manifest{F0Curve: []float64{200, 200}, Units: tc.units}
+			result := mixWorldFeatures(input, flatPreparedUnits(len(tc.units)), 2, 1)
+			if math.Abs(result.Spectrum[0]-tc.energy) > 1e-9 {
+				t.Fatalf("spectrum = %f, want %f", result.Spectrum[0], tc.energy)
+			}
+			if len(tc.units) == 2 && math.Abs(result.Aperiodicity[0]-.2) > 1e-9 {
+				t.Fatalf("aperiodicity = %f, want .2", result.Aperiodicity[0])
+			}
+		})
 	}
 }
 
-func TestWorldMixLegacyModeKeepsOverlappingGain(t *testing.T) {
-	prepared := []preparedWorldUnit{{cached: cachedWorldUnit{duration: 20, features: worldFeatures{
-		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
-	}}}, {cached: cachedWorldUnit{duration: 20, features: worldFeatures{
-		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
-	}}}}
-	input := manifest{F0Curve: []float64{200, 200}, Units: []unit{
-		{LengthMS: 20, RequiredLengthMS: 20, Volume: 100, LegacyMix: true},
-		{LengthMS: 20, RequiredLengthMS: 20, Volume: 100, LegacyMix: true},
-	}}
-	result := mixWorldFeatures(input, prepared, 2, 1)
-	if math.Abs(result.Spectrum[0]-2) > 1e-9 {
-		t.Fatalf("legacy overlap gain = %f, want 2", result.Spectrum[0])
-	}
-	if math.Abs(result.Aperiodicity[0]-.2) > 1e-9 {
-		t.Fatalf("legacy overlap aperiodicity = %f, want .2", result.Aperiodicity[0])
-	}
-}
-
-func TestWorldEnvelopeUsesLinearFades(t *testing.T) {
-	item := unit{LengthMS: 200, FadeInMS: 50, FadeOutMS: 50}
-	if got := worldEnvelopeWeight(item, 25); math.Abs(got-0.5) > 1e-9 {
+func TestWorldEnvelopeWeight(t *testing.T) {
+	fade := unit{LengthMS: 200, FadeInMS: 50, FadeOutMS: 50}
+	if got := worldEnvelopeWeight(fade, 25); math.Abs(got-0.5) > 1e-9 {
 		t.Fatalf("fade-in weight = %f, want 0.5", got)
 	}
-}
-
-func TestWorldEnvelopeUsesUTAUPoints(t *testing.T) {
-	item := unit{LengthMS: 150, Envelope: []envelopePoint{
+	points := unit{LengthMS: 150, FadeInMS: 50, Envelope: []envelopePoint{
 		{XMS: -100, Y: 0}, {XMS: -50, Y: 1}, {XMS: 0, Y: 1}, {XMS: 50, Y: 0},
 	}}
-	if got := worldEnvelopeWeight(item, 0); got != 0 {
-		t.Fatalf("envelope start = %f, want 0", got)
+	for at, want := range map[float64]float64{0: 0, 75: 1, 125: .5} {
+		if got := worldEnvelopeWeight(points, at); math.Abs(got-want) > 1e-9 {
+			t.Fatalf("UTAU envelope at %v = %f, want %f", at, got, want)
+		}
 	}
-	if got := worldEnvelopeWeight(item, 75); got != 1 {
-		t.Fatalf("envelope plateau = %f, want 1", got)
-	}
-	if got := worldEnvelopeWeight(item, 125); math.Abs(got-.5) > 1e-9 {
-		t.Fatalf("envelope release = %f, want .5", got)
-	}
-}
-
-func TestWorldEnvelopeLegacyModeUsesLinearFades(t *testing.T) {
-	item := unit{LengthMS: 150, FadeInMS: 50, Envelope: []envelopePoint{
-		{XMS: -100, Y: 0}, {XMS: -50, Y: 1}, {XMS: 0, Y: 1}, {XMS: 50, Y: 0},
-	}, LegacyMix: true}
-	if got := worldEnvelopeWeight(item, 25); math.Abs(got-.5) > 1e-9 {
+	points.LegacyMix = true
+	if got := worldEnvelopeWeight(points, 25); math.Abs(got-.5) > 1e-9 {
 		t.Fatalf("legacy envelope weight = %f, want .5", got)
-	}
-}
-
-func TestWorldMixAppliesEnergyFactorAsAmplitude(t *testing.T) {
-	prepared := []preparedWorldUnit{{cached: cachedWorldUnit{duration: 20, features: worldFeatures{
-		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
-	}}}}
-	input := manifest{F0Curve: []float64{200, 200}, Units: []unit{{LengthMS: 20, RequiredLengthMS: 20, Volume: 100, EnergyFactor: .5}}}
-	result := mixWorldFeatures(input, prepared, 2, 1)
-	if math.Abs(result.Spectrum[0]-.25) > 1e-9 {
-		t.Fatalf("energy-scaled spectrum = %f, want .25", result.Spectrum[0])
-	}
-}
-
-func TestWorldMixNormalizesEnvelopeBeforeEnergyScaling(t *testing.T) {
-	prepared := []preparedWorldUnit{{cached: cachedWorldUnit{duration: 20, features: worldFeatures{
-		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
-	}}}, {cached: cachedWorldUnit{duration: 20, features: worldFeatures{
-		Frames: 2, FFTSize: 2, F0: []float64{200, 200}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{.2, .2, .2, .2},
-	}}}}
-	input := manifest{F0Curve: []float64{200, 200}, Units: []unit{
-		{LengthMS: 20, RequiredLengthMS: 20, Volume: 100, EnergyFactor: .5},
-		{LengthMS: 20, RequiredLengthMS: 20, Volume: 100, EnergyFactor: .5},
-	}}
-	result := mixWorldFeatures(input, prepared, 2, 1)
-	if math.Abs(result.Spectrum[0]-.25) > 1e-9 {
-		t.Fatalf("energy-scaled overlap spectrum = %f, want .25", result.Spectrum[0])
 	}
 }
 

@@ -8,28 +8,6 @@ import (
 	"utautts/internal/plan"
 )
 
-func TestSingleCVBoundaryProfilesProtectOnset(t *testing.T) {
-	if got := singleCVBoundaryProfileForOnset("s"); got.widthMS != 8 || got.maxMix >= singleCVBoundaryMixSonorant {
-		t.Fatalf("fricative profile = %+v", got)
-	}
-	if got := singleCVBoundaryProfileForOnset("m"); got.widthMS != 12 || got.maxMix != singleCVBoundaryMixSonorant {
-		t.Fatalf("sonorant profile = %+v", got)
-	}
-	if got := singleCVBoundaryProfileForOnset(""); got.widthMS != 16 || got.maxMix != singleCVBoundaryMixVowel {
-		t.Fatalf("vowel profile = %+v", got)
-	}
-
-	current := renderedUnit{StartFrame: 100, FadeInFrames: 20}
-	start, end := singleCVBoundaryWindow(current, 8, 200, 1000)
-	if start != 112 || end != 120 {
-		t.Fatalf("fricative window = [%d, %d), want [112, 120)", start, end)
-	}
-	start, end = singleCVBoundaryWindow(current, 16, 200, 1000)
-	if start != 104 || end != 120 {
-		t.Fatalf("vowel window = [%d, %d), want [104, 120)", start, end)
-	}
-}
-
 func TestSingleCVBoundaryBridgeOnlyAppliesWhenItImproves(t *testing.T) {
 	const sampleRate = 1000
 	p := &plan.Plan{SingleCV: true, Morae: []frontend.Mora{

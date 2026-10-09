@@ -36,16 +36,6 @@ func TestAdaptStretchTimingBoundsExcessiveStretch(t *testing.T) {
 	}
 }
 
-func TestAdaptStretchTimingLeavesNormalUnitsUnchanged(t *testing.T) {
-	unit := stretchAdaptUnit()
-	unit.SpeechProfile.TrimmedLengthMS = 400
-	before := effectiveTiming{PreutteranceMS: 50, ConsonantMS: 100, OverlapMS: 20, Scale: 1}
-	got := adaptStretchTiming(unit, before, 20, true, 1)
-	if got.StretchAdapted || got.ConsonantMS != before.ConsonantMS {
-		t.Fatalf("normal unit changed: %+v", got)
-	}
-}
-
 func TestAdaptStretchTimingClampsConsonant(t *testing.T) {
 	unit := stretchAdaptUnit()
 	unit.SpeechProfile.TrimmedLengthMS = 101
@@ -62,6 +52,11 @@ func TestAdaptStretchTimingIdentityCases(t *testing.T) {
 	unit := stretchAdaptUnit()
 	before := effectiveTiming{PreutteranceMS: 50, ConsonantMS: 100, OverlapMS: 20, Scale: 1}
 
+	normal := stretchAdaptUnit()
+	normal.SpeechProfile.TrimmedLengthMS = 400
+	if got := adaptStretchTiming(normal, before, 20, true, 1); got.StretchAdapted || got.ConsonantMS != before.ConsonantMS {
+		t.Fatalf("normal unit changed: %+v", got)
+	}
 	disabled := adaptStretchTiming(unit, before, 20, false, 1)
 	if disabled.StretchAdapted || disabled.ConsonantMS != before.ConsonantMS {
 		t.Fatalf("disabled = %+v", disabled)
@@ -93,17 +88,7 @@ func TestAdaptStretchTimingIdentityCases(t *testing.T) {
 	}
 }
 
-func TestAdaptStretchTimingStrengthLimit(t *testing.T) {
-	unit := stretchAdaptUnit()
-	before := effectiveTiming{PreutteranceMS: 50, ConsonantMS: 100, OverlapMS: 20, Scale: 1}
-	capped := adaptStretchTiming(unit, before, 20, true, stretchAdaptStrengthLimit)
-	over := adaptStretchTiming(unit, before, 20, true, stretchAdaptStrengthLimit+5)
-	if capped.ConsonantMS != over.ConsonantMS || capped.StretchAdapted != over.StretchAdapted {
-		t.Fatalf("strength was not capped: %+v vs %+v", capped, over)
-	}
-}
-
-func TestAdaptStretchTimingScalesByStrength(t *testing.T) {
+func TestAdaptStretchTimingStrength(t *testing.T) {
 	unit := stretchAdaptUnit()
 	before := effectiveTiming{PreutteranceMS: 50, ConsonantMS: 100, OverlapMS: 20, Scale: 1}
 	full := adaptStretchTiming(unit, before, 20, true, 1)
@@ -115,5 +100,10 @@ func TestAdaptStretchTimingScalesByStrength(t *testing.T) {
 	zero := adaptStretchTiming(unit, before, 20, true, 0)
 	if zero.ConsonantMS != full.ConsonantMS || zero.StretchAdapted != full.StretchAdapted {
 		t.Fatalf("zero strength = %+v, want %+v", zero, full)
+	}
+	capped := adaptStretchTiming(unit, before, 20, true, stretchAdaptStrengthLimit)
+	over := adaptStretchTiming(unit, before, 20, true, stretchAdaptStrengthLimit+5)
+	if capped.ConsonantMS != over.ConsonantMS || capped.StretchAdapted != over.StretchAdapted {
+		t.Fatalf("strength was not capped: %+v vs %+v", capped, over)
 	}
 }

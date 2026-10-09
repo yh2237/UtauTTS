@@ -80,14 +80,10 @@ func TestUtauResamplerArgumentsMatchOpenUtauClassicContract(t *testing.T) {
 }
 
 func TestEncodeUtauPitch(t *testing.T) {
-	if got, want := encodeUtauPitch([]int{0, 0, 0, 1, -1}), "AA#2#AB//"; got != want {
-		t.Fatalf("encodeUtauPitch() = %q, want %q", got, want)
-	}
-}
-
-func TestEncodeUtauPitchClampsToSigned12Bit(t *testing.T) {
-	if got, want := encodeUtauPitch([]int{-9999, 9999}), "gAf/"; got != want {
-		t.Fatalf("encodeUtauPitch() = %q, want %q", got, want)
+	for values, want := range map[*[]int]string{{0, 0, 0, 1, -1}: "AA#2#AB//", {-9999, 9999}: "gAf/"} {
+		if got := encodeUtauPitch(*values); got != want {
+			t.Fatalf("encodeUtauPitch(%v) = %q, want %q", *values, got, want)
+		}
 	}
 }
 
