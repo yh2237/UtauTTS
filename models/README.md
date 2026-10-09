@@ -4,13 +4,13 @@
 
 ## 同梱モデル
 
-日本語の既定モデル: `intonation-ja-v11`。代替: `frame-intonation-tcn-v10`、`frame-intonation-tcn-v9.1-t`、`frame-intonation-tcn-v9-t`。英語の既定モデル: `frame-intonation-tcn-en-v1`。中国語の既定モデル: `tone-intonation-zh-v1`。学習と評価: [モデルの学習](../docs/model-training.md)
+日本語の既定モデル: `frame-intonation-tcn-v11`。代替: `frame-intonation-tcn-v10`、`frame-intonation-tcn-v9.1-t`、`frame-intonation-tcn-v9-t`。英語の既定モデル: `frame-intonation-tcn-en-v1`。中国語の既定モデル: `tone-intonation-zh-v1`。学習と評価: [モデルの学習](../docs/model-training.md)
 
 `frame-intonation-tcn-v10`と`frame-intonation-tcn-v9-*`は10ms単位の相対ピッチだけを予測します。モーラ長はGUIで指定した基準値と、言語別の時間規則（「ん」0.9倍、「ー」1.2倍など）で決めます。
 
-## Intonation v11（既定）
+## Frame Intonation TCN v11（既定）
 
-`intonation-ja-v11`は、`frame-intonation-tcn-v10`の抑揚曲線（重み0.65）と、[Irodori-TTS](https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small)（MIT）にBASIC5000とUtauTTS用の日常文を読ませた音声で学習したF0ヘッドの曲線（0.35）を混ぜます。アクセント特徴とモーラの予測はv10が担います。F0ヘッドは合成時と同じ一定のモーラ長に並べ直した複製も使い、文全体（約±5秒）を見て学習しています。同じモデルのエネルギーヘッドでモーラの音量（0.75〜1.3倍）も変えます。聴取では混合が15行中7行でv10より選ばれ（v10 4、同程度4）、音量ありは音量なしに対し10対5で選ばれました。
+`frame-intonation-tcn-v11`は、`frame-intonation-tcn-v10`の抑揚曲線（重み0.65）と、[Irodori-TTS](https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small)（MIT）にBASIC5000とUtauTTS用の日常文を読ませた音声で学習したF0ヘッドの曲線（0.35）を混ぜます。アクセント特徴とモーラの予測はv10が担います。F0ヘッドは合成時と同じ一定のモーラ長に並べ直した複製も使い、文全体（約±5秒）を見て学習しています。同じモデルのエネルギーヘッドでモーラの音量（0.75〜1.3倍）も変えます。聴取では混合が15行中7行でv10より選ばれ（v10 4、同程度4）、音量ありは音量なしに対し10対5で選ばれました。
 
 - 本モデルは相対ピッチ（抑揚）のみを学習し、話者の声質を意図的に再現しません
 - 重みはMIT Licenseで配布します。教師の音声・台本・音声合成モデルは再配布しません

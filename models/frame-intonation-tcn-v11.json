@@ -1,6 +1,6 @@
 {
-  "id": "intonation-ja-v11",
-  "display_name": "Intonation v11 (v10 + Irodori-trained F0)",
+  "id": "frame-intonation-tcn-v11",
+  "display_name": "Frame Intonation TCN v11",
   "description": "frame-intonation-tcn-v10の抑揚曲線（0.65）と、Irodori-TTSの読み上げで学習したF0ヘッドの曲線（0.35）を混ぜる日本語の抑揚モデル。同じモデルのエネルギーヘッドでモーラの音量（0.75〜1.3倍）も変える。アクセント特徴とモーラの予測はv10を使う",
   "license": "MIT License (model weights)",
   "license_notices": [
