@@ -22,8 +22,6 @@ Item {
     property var manualFrames: []
     property real frameMs: 10
     property bool framePaintMode: false
-    // ペンで描く操作のカーソル（マウスを乗せた時の判定）
-    property bool framePaintHover: false
     property var overrides: []
     property color accentColor: "#d35f6b"
     property color axisColor: "#c79298"
@@ -434,9 +432,8 @@ Item {
         }
         const e = (!n && b < 0) ? root.exprHit(canvasX, canvasY) : null;
         root.hoveredExpr = e ? {u: e.u, l: e.l} : {u: -1, l: -1};
-        root.framePaintHover = root.framePaintRequested(mods);
-        if (root.framePaintHover)
-            root.timelineCursor = Qt.CrossCursor;
+        if (root.framePaintRequested(mods))
+            root.timelineCursor = Qt.SizeVerCursor;
         else if (e)
             root.timelineCursor = Qt.SizeHorCursor;
         else if (n)
@@ -1075,7 +1072,7 @@ Item {
                         pendingKind = "frame";
                         pressMoved = true;
                         frameBackup = root.manualFrames.slice();
-                        dragCursor = Qt.CrossCursor;
+                        dragCursor = Qt.SizeVerCursor;
                         return;
                     }
                     root.updateTimelineHover(p.x, p.y, mouse.modifiers);
@@ -1138,7 +1135,7 @@ Item {
                     }
                     if (activeKind === "frame" || pendingKind === "frame") {
                         activeKind = "frame";
-                        dragCursor = Qt.CrossCursor;
+                        dragCursor = Qt.SizeVerCursor;
                         frameLast = root.paintFrameTo(p.x, p.y, frameLast);
                         return;
                     }
@@ -1281,15 +1278,6 @@ Item {
                     root.fitRequested();
                 }
 }
-
-            PenCursorArea {
-                x: timelineMouse.x
-                y: timelineMouse.y
-                width: timelineMouse.width
-                height: timelineMouse.height
-                active: timelineMouse.activeKind === "frame" || timelineMouse.pendingKind === "frame"
-                        || (!timelineMouse.pressed && root.framePaintHover)
-            }
 
             Timer {
                 id: seekTimer
@@ -1642,19 +1630,16 @@ Item {
         waveformCanvas.requestPaint();
     }
     onMoraPositionsChanged: {
-        waveformCanvas.requestPaint();
-
+        waveformCanvas.requestPaint();
         
         scheduleSelectedFieldRefresh();
     }
     onMoraDurationsChanged: scheduleSelectedFieldRefresh()
     onSelectedUnitIndexChanged: {
-        scheduleSelectedFieldRefresh();
-
+        scheduleSelectedFieldRefresh();
     }
     onSelectedBoundaryChanged: {
-        
-
+        
         waveformCanvas.requestPaint();
     }
     onOverridesChanged: {
@@ -1679,8 +1664,7 @@ Item {
             root.hudText = "";
         }
         ensureUnitSelection();
-        waveformCanvas.requestPaint();
-
+        waveformCanvas.requestPaint();
         scheduleSelectedFieldRefresh();
     }
     onWidthChanged: waveformCanvas.requestPaint()
