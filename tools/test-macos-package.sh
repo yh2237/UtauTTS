@@ -140,6 +140,7 @@ actual_voicebank_sha256="$(shasum -a 256 "${voice_archive}" | awk '{print touppe
 for package_root in "${gui_root}" "${server_root}"; do
   (cd "${root_dir}" && "${go_command}" run ./cmd/tools/copy-model-license-notices \
     --models "${package_root}/models" \
+    --embedded-models "${root_dir}/internal/speechtiming" \
     --package-root "${package_root}" \
     --check-only) \
     || fail "packaged model license metadata is invalid: ${package_root}"

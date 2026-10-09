@@ -228,6 +228,7 @@ try {
         Invoke-Checked 'go' @(
             'run', './cmd/tools/copy-model-license-notices',
             '--models', (Join-Path $packagePath 'models'),
+            '--embedded-models', (Join-Path $root 'internal/speechtiming'),
             '--repository-root', $root,
             '--package-root', $packagePath
         )

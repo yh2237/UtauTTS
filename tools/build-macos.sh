@@ -148,6 +148,7 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
     "${package_dir}/renderer/diffsinger"
   (cd "${root_dir}" && "${go_command}" run ./cmd/tools/copy-model-license-notices \
     --models "${package_dir}/models" \
+    --embedded-models "${root_dir}/internal/speechtiming" \
     --repository-root "${root_dir}" \
     --package-root "${package_dir}")
 done

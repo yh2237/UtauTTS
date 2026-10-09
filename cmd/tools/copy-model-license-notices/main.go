@@ -1,12 +1,15 @@
 // copy-model-license-noticesはモデルが参照するライセンス表記を検証してコピーする。
 // license_noticesはパッケージ基準のPOSIXパスで、参照先はlicenses/内に限る。
+// 実行ファイルに埋め込むモデル（safetensors）の表記は、__metadata__のlicense_notices（空白区切り）から読む。
 package main
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -33,6 +36,7 @@ func main() {
 
 func run() error {
 	models := flag.String("models", "", "models directory")
+	embedded := flag.String("embedded-models", "", "directory of safetensors models embedded in executables (optional)")
 	packageRoot := flag.String("package-root", "", "package directory")
 	repositoryRoot := flag.String("repository-root", "", "repository root")
 	checkOnly := flag.Bool("check-only", false, "only verify that packaged notices exist")
@@ -60,13 +64,20 @@ func run() error {
 			return err
 		}
 	}
-	return copyNotices(modelsRoot, pkgRoot, repoRoot, *checkOnly)
+	return copyNotices(modelsRoot, *embedded, pkgRoot, repoRoot, *checkOnly)
 }
 
-func copyNotices(modelsRoot, packageRoot, repositoryRoot string, checkOnly bool) error {
+func copyNotices(modelsRoot, embeddedRoot, packageRoot, repositoryRoot string, checkOnly bool) error {
 	notices, err := loadModels(modelsRoot)
 	if err != nil {
 		return err
+	}
+	if strings.TrimSpace(embeddedRoot) != "" {
+		embedded, err := loadEmbeddedModels(embeddedRoot)
+		if err != nil {
+			return err
+		}
+		notices = append(notices, embedded...)
 	}
 	if checkOnly {
 		for _, model := range notices {
@@ -153,6 +164,73 @@ func loadModels(modelsRoot string) ([]modelNotices, error) {
 		result = append(result, modelNotices{name: name, notices: notices})
 	}
 	return result, nil
+}
+
+// loadEmbeddedModelsはsafetensorsの__metadata__からライセンスと表記を読む。
+func loadEmbeddedModels(root string) ([]modelNotices, error) {
+	paths, err := filepath.Glob(filepath.Join(root, "*.safetensors"))
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(paths)
+	if len(paths) == 0 {
+		return nil, fmt.Errorf("no embedded safetensors models found: %s", root)
+	}
+	result := make([]modelNotices, 0, len(paths))
+	for _, modelPath := range paths {
+		name := filepath.Base(modelPath)
+		metadata, err := readSafeTensorsMetadata(modelPath)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+		if strings.TrimSpace(metadata["license"]) == "" {
+			return nil, fmt.Errorf("%s: license is required", name)
+		}
+		fields := strings.Fields(metadata["license_notices"])
+		if len(fields) == 0 {
+			return nil, fmt.Errorf("%s: license_notices is required", name)
+		}
+		notices := make([]string, 0, len(fields))
+		for _, field := range fields {
+			normalized, err := parseNoticePath(field)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", name, err)
+			}
+			notices = append(notices, normalized)
+		}
+		result = append(result, modelNotices{name: name, notices: notices})
+	}
+	return result, nil
+}
+
+func readSafeTensorsMetadata(modelPath string) (map[string]string, error) {
+	file, err := os.Open(modelPath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	var size uint64
+	if err := binary.Read(file, binary.LittleEndian, &size); err != nil {
+		return nil, fmt.Errorf("invalid safetensors header: %w", err)
+	}
+	if size == 0 || size > 1<<24 {
+		return nil, fmt.Errorf("invalid safetensors header size %d", size)
+	}
+	header := make([]byte, size)
+	if _, err := io.ReadFull(file, header); err != nil {
+		return nil, fmt.Errorf("invalid safetensors header: %w", err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(header, &fields); err != nil {
+		return nil, fmt.Errorf("invalid safetensors header: %w", err)
+	}
+	metadata := map[string]string{}
+	if raw, ok := fields["__metadata__"]; ok {
+		if err := json.Unmarshal(raw, &metadata); err != nil {
+			return nil, fmt.Errorf("invalid safetensors metadata: %w", err)
+		}
+	}
+	return metadata, nil
 }
 
 func parseNotices(metadata map[string]any, modelName string) ([]string, error) {
