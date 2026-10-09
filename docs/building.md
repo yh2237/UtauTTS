@@ -38,7 +38,7 @@ Go依存の収集対象は[go-license-modules.txt](../tools/go-license-modules.t
 
 リリースビルドでは、Go依存のライセンス本文を`licenses/Go/`へ保存します。同じ本文は一度だけ収録します。Open JTalkヘルパーの通知は`runtime/licenses/`へ、辞書の`COPYING`は辞書ディレクトリ内へ保存します。QtのSPDX JSONは監査用に`build/license-audit/Qt/`へ保存し、配布物のQt通知は`licenses/Qt/`へ収録します。
 
-WindowsとmacOSのQt GUIのFFmpeg構成: 利用可能なネイティブバックエンド。外部のQt Multimedia用FFmpegバックエンドは、プラグインとコーデックのフォルダを設定画面で指定します。初回起動時の環境変数: 次の一覧を上から順に確認し、最初に見つかったパスを保存します。
+WindowsとmacOSのQt GUIは、利用できるネイティブのマルチメディアバックエンドを使います。外部のQt Multimedia用FFmpegバックエンドを使う場合は、プラグインとコーデックのフォルダを設定画面で指定します。初回起動時は次の環境変数を上から順に確認し、最初に見つかったパスを保存します。
 
 ```text
 UTAUTTS_FFMPEG_PATH
@@ -49,7 +49,7 @@ FFMPEG_ROOT
 
 リリースアーカイブには`Qt-SBOM-MANIFEST.txt`と`FFmpeg-OPTIONAL.txt`を含めます。
 
-WindowsのOpen JTalkヘルパーのランタイムDLL検出元: 公式のVisual C++再頒布用ディレクトリとWindows SDKのUCRT再頒布用ディレクトリ。PyInstallerのPATHは検出対象外。検出できない場合の指定変数: x64用ディレクトリを次の変数へ設定します（`UTAUTTS_MSVC_REDIST_DIR`は`Microsoft.VC143.CRT`ディレクトリ自体か、その親ルートを指定できます）。
+WindowsのOpen JTalkヘルパーが使うランタイムDLLは、公式のVisual C++再頒布用ディレクトリと、Windows SDKのUCRT再頒布用ディレクトリから探します。PyInstallerのPATHからは探しません。見つからない場合は、x64用のディレクトリを次の変数へ設定します（`UTAUTTS_MSVC_REDIST_DIR`には`Microsoft.VC143.CRT`ディレクトリ自体か、その親を指定できます）。
 
 ```powershell
 $env:UTAUTTS_MSVC_REDIST_DIR = 'C:\path\to\Microsoft.VC143.CRT'

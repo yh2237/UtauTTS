@@ -2,11 +2,11 @@
 
 Renderer、Classic UTAUツール、抑揚モデルを追加または配布するための仕様を説明します。
 
-モデルとRendererは安定したIDでGUI、CLI、Serverから共通に選びます。実行ファイルの隣にある`models/`と`renderer/`を自動検出し、CLIとServerでは`--model-dir`／`--renderer-dir`で探索先を追加できます。明示した探索先は同梱定義より優先されます。
+モデルとRendererは、GUI、CLI、Serverで共通の変わらないIDで選びます。実行ファイルの隣にある`models/`と`renderer/`を自動検出し、CLIとServerでは`--model-dir`／`--renderer-dir`で探索先を追加できます。明示した探索先は同梱定義より優先されます。
 
 ## Renderer manifest の仕様
 
-標準Rendererも外部Rendererも、`renderer/<id>/renderer.json`で定義します。表示情報、既定値、runtimeのパスはmanifestに記録します。`id`はプロジェクトやAPIに保存する公開IDです。`provider`は実装を選ぶID、`contract`は入力形式の契約を表します。内蔵ProviderはGo側のレジストリで管理し、外部実装は`utautts-provider`プロトコルで接続します。新しい合成エンジンABIはGo側へ実装します。
+標準Rendererも外部Rendererも、`renderer/<id>/renderer.json`で定義します。表示情報、既定値、runtimeのパスはmanifestに記録します。`id`はプロジェクトやAPIに保存する公開IDです。`provider`は実装を選ぶID、`contract`は受け取る入力の形式を表します。内蔵ProviderはGo側のレジストリで管理し、外部実装は`utautts-provider`プロトコルで接続します。新しい合成エンジンABIはGo側へ実装します。
 
 完全な形式は[renderer.schema.json](renderer.schema.json)を参照してください。実行時に読み込むのは`manifest_version: 2`だけです。公開ID、Provider、入力contract、Provider versionを分離し、runtimeを種別付きresourceとして記述します。
 
@@ -25,15 +25,13 @@ Renderer、Classic UTAUツール、抑揚モデルを追加または配布する
 }
 ```
 
-`resources`の`path`はRendererディレクトリ基準です。OSごとに異なる場合は`platform_resources`の`windows-amd64`／`linux-amd64`／`darwin-arm64`などへ同じresource keyを記述できます。`required`と`executable`は宣言情報で、実行時の必須resourceと機能はProviderレジストリとの整合性も検証されます。
+`resources`の`path`はRendererディレクトリを基準にした相対パスです。共有のruntimeはパッケージ直下の`runtime/`に置き、manifestから相対パスで参照します。OSごとにファイルが異なる場合は、`platform_resources`の`windows-amd64`／`linux-amd64`／`darwin-arm64`などへ同じresource keyで記述します。`required`と`executable`は宣言で、実行時に必要なresourceと機能はProviderレジストリの定義とも照らし合わせて検証します。
 
-`default_priority`が大きいRendererが既定値です。未知のproviderや壊れたmanifestは`problems`へ表示し、その定義だけを無効にします。未知のIDはエラーとして扱います。
+`default_priority`が最も大きいRendererが既定になります。未知のproviderや読み込めないmanifestは`problems`へ表示し、その定義だけを無効にします。存在しないRenderer IDを指定した場合はエラーになります。
 
 配布側が更新・削除を管理する同梱定義には`update_managed: true`を付けます。ユーザーが追加する定義では省略してください。
 
-共有runtimeはパッケージ直下の`runtime/`に置き、manifestからはRendererディレクトリを基準とする相対パスで参照します。OSごとに名前が異なる場合は、`platform_resources`に`windows-amd64`／`darwin-arm64`などを記述します。
-
-同梱RendererのProviderは`utautts-world-phrase`、`utau-external-resampler`、`diffsinger`です。標準定義の追加やユーザー定義によって、既存アダプターを別の公開IDで選べます。新規エンジンABIの動的ロードには対応していません。
+同梱RendererのProviderは`utautts-world-phrase`、`utau-external-resampler`、`diffsinger`です。定義を追加すると、既存のProviderを別の公開IDで選べます。新しいエンジンのABIを実行時に読み込むことには対応していません。
 
 配布プロファイルによって利用できるmanifestとruntimeが異なります。
 
@@ -44,15 +42,15 @@ Renderer、Classic UTAUツール、抑揚モデルを追加または配布する
 | Linux x64 | `utautts-world-phrase`、`classic-utau` |
 | macOS arm64 | `utautts-world-phrase`、`classic-utau` |
 
-WindowsのFullプロファイルだけがDiffSingerのruntimeを含みます。LinuxとmacOSのDiffSinger manifestは対応OS外なのでカタログから除外されます。
+DiffSingerのruntimeを含むのはWindowsのFullプロファイルだけです。LinuxとmacOSでは、DiffSingerのmanifestは対応OS外としてカタログから除きます。
 
 Rendererの追加・更新はZIPインストールでは行いません。`renderer/<id>/renderer.json`を探索先へ配置してからGUIを再起動（またはCLI／Serverを再起動）してください。既存IDを明示ディレクトリに置くと同梱定義を上書きできます。読み込んだRendererと読み込めなかった定義の理由は、GUIの「ファイル」→「音源とプラグイン」→「Rendererプラグイン」で確認できます。
 
 ## Renderer設定と機能
 
-UtauTTSが解釈する設定（モーラ長、抑揚の強さ、文末の音調、WORLDの時間伸縮、Classicのresamplerなど）は、Go側の設定表（`internal/settings`）で既定値・範囲・表示と、対象のproviderを1か所に定義します。カタログは設定表のうちそのRendererのproviderに適用される項目を、manifestの設定へ合成します。そのため同梱Rendererのmanifestは`settings`を持ちません。manifestの`settings`には、設定表にない外部provider固有の項目だけを宣言します。設定表と同じIDを宣言すると、そのRendererでは既定値や範囲を上書きできます。
+UtauTTSが解釈する設定（モーラ長、抑揚の強さ、文末の音調、WORLDの時間伸縮、Classicのresamplerなど）は、既定値・範囲・表示と対象のproviderを、Go側の設定表（`internal/settings`）の1か所で定義します。カタログは、設定表のうちそのRendererのproviderに適用される項目をmanifestの設定へ加えます。そのため同梱Rendererのmanifestは`settings`を持ちません。manifestの`settings`には、設定表にない外部provider固有の項目だけを宣言します。設定表と同じIDを宣言すると、そのRendererでは既定値や範囲を上書きできます。
 
-合成した項目はGUIの設定ウィンドウにRendererごとのタブとして表示され、そのRendererの設定として`config.ini`へ保存されます。CLIとServerからも同じIDで指定できます。
+加えた項目はGUIの設定ウィンドウにRendererごとのタブとして表示され、そのRendererの設定として`config.ini`へ保存されます。CLIとServerからも同じIDで指定できます。
 
 設定は合成リクエストの`renderer_settings`マップとして渡されます。ただし、リクエストのトップレベル項目（`mora_duration_ms`や`intonation_strength`など）と同じIDの設定は、カード単位の値を優先するためこのマップには含まれません。GUIでは宣言した設定が新しいカードの既定値になり、カードごとの設定がそれを上書きします。
 
@@ -68,7 +66,7 @@ UtauTTSが解釈する設定（モーラ長、抑揚の強さ、文末の音調�
 
 各項目は`id`と`type`（`integer`／`number`／`boolean`／`enum`／`string`）を持ち、`default`、`min`／`max`／`step`、`label`を付けられます。`group`は設定ウィンドウ内の分類です。`enum`では`options`で選択肢を列挙するか、`options_source`に`resamplers`／`wavtools`を指定して対応フォルダの実行ファイルを選ばせます。
 
-`capabilities`にはRendererの機能を宣言します。コアはこの機能フラグを見て、Renderer名ではなく能力に応じて処理を分けます。
+`capabilities`にはRendererの機能を宣言します。本体はRenderer名ではなく、このフラグを見て処理を分けます。
 
 | capability | 意味 |
 | --- | --- |
@@ -90,7 +88,7 @@ Wavtools/
   wavtool.exe
 ```
 
-GUIではbackend／providerが`utau-external-resampler`のRendererを選択した場合だけ、ResamplerとWavtoolの欄を表示します。したがって`classic-utau`以外の公開IDでもClassic UTAUを利用できます。外部wavtoolを使わない場合は`builtin`を選びます。配置後は「ファイル」→「音源とプラグイン」→「Classic UTAUを再読み込み」を選びます。
+GUIでは、providerが`utau-external-resampler`のRendererを選んだときにResamplerとWavtoolの欄を表示します。そのため`classic-utau`以外の公開IDでも、Classic UTAUの方式を使えます。外部wavtoolを使わない場合は`builtin`を選びます。配置後は「ファイル」→「音源とプラグイン」→「Classic UTAUを再読み込み」を選びます。
 
 UTAU互換のresampler呼び出しは、入力WAV、出力WAV、音高、velocity、flags、offset、必要長、consonant、cutoff、volume、modulation、tempo、12bit Base64ピッチ列の13引数です。ノート単位の設定はAPIの`resampler_expressions`またはCLIの`--resampler-expressions`で指定できます。
 
@@ -109,7 +107,7 @@ resamplerの既定値はvelocity 100、空のflags、modulation 0、tempo 120で
 ]
 ```
 
-複数の実行ファイルを同じ条件で診断する場合は`resampler-compat`を使います。`--mode direct`は13引数の直接呼び出し、`--mode integration`はUtauTTSのPlanと内蔵接続処理まで含む統合検査です。結果は終了状態、WAV形式、長さ、peak、RMSを含むJSONで出力されます。
+複数の実行ファイルを同じ条件で確かめる場合は`resampler-compat`を使います。`--mode direct`は13引数で直接呼び出し、`--mode integration`はUtauTTSのPlanと内蔵の接続処理まで含めて検査します。結果は終了状態、WAV形式、長さ、peak、RMSを含むJSONで出力されます。
 
 ```powershell
 go run ./cmd/tools/resampler-compat `
@@ -141,7 +139,7 @@ go run ./cmd/tools/resampler-compat `
 }
 ```
 
-`id`と`display_name`がないJSONはモデルとして扱いません。同じIDや壊れたJSONは診断へ表示します。CLIの`--prosody`にはファイルpathではなくIDを指定します。
+`id`と`display_name`がないJSONはモデルとして扱いません。IDの重複や読み込めないJSONは診断へ表示します。CLIの`--prosody`にはファイルのパスではなくIDを指定します。
 
 既存のJSONモデルを`models/`へ登録する場合は、識別情報とライセンス情報が必須です。`license_notices`（使用した各データの通知の配列）と`provenance`には実際の配布条件と出典を記録します。
 
@@ -157,7 +155,7 @@ go run ./cmd/tools/resampler-compat `
 
 ## 外部Providerプロトコル v1
 
-manifest v2の`protocol`に`utautts-provider`を指定すると、Rendererの実装を別プロセスとして導入できます。アプリはProviderをshell経由ではなく、`provider_executable`に指定された実行ファイルへ直接起動します。`provider_args`はそのまま引数として渡され、暗黙の`PATH`探索やshell展開は行いません。
+manifest v2の`protocol`に`utautts-provider`を指定すると、Rendererの実装を別プロセスとして追加できます。アプリはProviderをシェル経由ではなく、`provider_executable`に指定した実行ファイルとして直接起動します。`provider_args`はそのまま引数として渡し、`PATH`の探索やシェルの展開は行いません。
 
 ```json
 {
@@ -182,17 +180,19 @@ manifest v2の`protocol`に`utautts-provider`を指定すると、Rendererの実
 }
 ```
 
-Providerは起動直後に`hello`を1行返し、protocol version、Provider ID/version、session対応、capability、実装するcontract/versionを宣言します。必須capabilityが不足している場合は起動を拒否します。`unit-renderer` v1の必須job envelopeは`unit_renderer_job_v2`です。session対応Providerは同じプロセスで複数の`render` requestを順番に処理します。通常経路はこのsessionを再利用するため、モデルやruntimeの初期化を合成ごとに繰り返しません。`progress`、`diagnostic`、`result`、`error`、`cancel`、`shutdown`がv1の基本メッセージです。stdoutはNDJSON protocol専用で、診断用の自由なログはstderrへ書きます。
+Providerは起動直後に`hello`を1行返し、プロトコルのバージョン、ProviderのIDとバージョン、セッションに対応するか、capability、実装するcontractとバージョンを宣言します。必須のcapabilityが足りない場合、アプリはセッションの開始をエラーにします。`unit-renderer` v1で必須のjobの形式は`unit_renderer_job_v2`です。
 
-sessionの寿命はProvider processと同じです。Provider processが落ちた場合はpoolから破棄して次回の合成で再起動し、アプリ終了時やvoicebank／model cacheの破棄時には明示的にshutdownします。WORLD bridgeとDiffSinger bridgeもこのsession経路で接続します。
+セッションに対応したProviderは、同じプロセスで複数の`render`要求を順番に処理します。通常はこのセッションを使い回すため、モデルやruntimeの初期化を合成ごとに繰り返しません。v1の基本メッセージは`progress`、`diagnostic`、`result`、`error`、`cancel`、`shutdown`です。stdoutはNDJSONのプロトコル専用で、診断用の自由なログはstderrへ書きます。
 
-`unit-renderer` v1の`render` requestは、hostが作成したjob directory内の`input_path`と`output_path`を受け取ります。input JSONはjob version 2の`version`、`contract`、`contract_version`、選択済み`plan`、型付き`options`、宣言済み`resources`を持ちます。`provider_payload`は使用せず、Providerは共通フィールドと自分の型付きoptionsを直接消費します。Providerはjob directory内のoutput pathへ16-bit PCM WAVを書き、`result.audio.path`でそのファイルを返します。
+セッションの寿命はProviderのプロセスと同じです。プロセスが終了した場合は保持しているセッションから外し、次の合成で起動し直します。アプリの終了時や、音源・モデルのキャッシュを破棄するときは明示的に`shutdown`を送ります。WORLD bridgeとDiffSinger bridgeもこのセッションで接続します。
 
-同梱WORLD bridgeは共通`unit-renderer` jobの`plan`／`options`／`resources`を受け取ります。WORLD固有の準備済み入力は`options.worldline`に型付きで格納されます。bridgeとhostは同じjob versionのリリースを組み合わせます。
+`unit-renderer` v1の`render`要求は、アプリが作ったjobディレクトリ内の`input_path`と`output_path`を受け取ります。入力のJSON（job version 2）は`version`、`contract`、`contract_version`、選択済みの`plan`、型付きの`options`、宣言済みの`resources`を持ちます。`provider_payload`は使わず、Providerは共通のフィールドと自分用の型付き`options`を直接読みます。Providerはjobディレクトリ内の出力パスへ16-bit PCMのWAVを書き、`result.audio.path`でそのファイルを返します。
 
-`neural-synthesizer` v1のjobは`version`、`contract`、`contract_version`、共通`score`、provider固有の`options`、宣言済み`resources`を持ちます。`score`は`symbols`、frame duration、F0、MIDI、word grouping、note rest、pitch predictor使用有無を表します。DiffSingerは現段階では`options`に既存のbridge Request形式を入れるadapterですが、モデルpathは`resources`へ分離し、transport上は共通NeuralScore jobとして検証できます。
+同梱のWORLD bridgeは、共通の`unit-renderer` jobの`plan`／`options`／`resources`を受け取ります。WORLD固有の準備済みの入力は、型付きで`options.worldline`に入ります。bridgeとアプリは、同じjob versionのリリースどうしで組み合わせてください。
 
-概念上のjob形状は次の通りです。`options`の内部schemaはproviderごとに異なりますが、`score`と`resources`の位置はcontract v1で共通です。
+`neural-synthesizer` v1のjobは、`version`、`contract`、`contract_version`、共通の`score`、provider固有の`options`、宣言済みの`resources`を持ちます。`score`は音素記号、フレーム単位の長さ、F0、MIDI、単語のまとまり、休符、ピッチ予測器を使うかどうかを表します。DiffSingerは現時点では`options`に既存のbridgeの要求形式を入れていますが、モデルのパスは`resources`へ分けてあり、受け渡しの上では共通のNeuralScore jobとして検証できます。
+
+jobの形は概念上次のとおりです。`options`の中身はproviderごとに異なりますが、`score`と`resources`の位置はcontract v1で共通です。
 
 ```json
 {

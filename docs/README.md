@@ -1,6 +1,6 @@
 # UtauTTS ドキュメント
 
-UtauTTSの利用方法と開発資料を目的別にまとめています。利用者向けの入口は[インストール](installation.md)と[GUIの使い方](gui.md)です。
+UtauTTSの利用方法と開発資料を目的別にまとめています。初めて使う場合は、[インストール](installation.md)と[GUIの使い方](gui.md)から読んでください。
 
 ## 利用者向け
 

@@ -45,7 +45,7 @@ Rendererとruntimeの組み合わせを確認してください。既定Renderer
 
 ## LinuxでGUIが起動しない
 
-端末から`./utautts`を実行して不足しているライブラリ名を確認します。`ldd ./utautts | grep 'not found'`でも共有ライブラリを確認できます。Qt Quick、Qt Quick Controls、Qt Multimediaの実行パッケージが必要です。ZIP展開後に実行権限が失われた場合はREADMEに記載した`chmod +x`を実行してください。
+端末から`./utautts`を実行して不足しているライブラリ名を確認します。`ldd ./utautts | grep 'not found'`でも共有ライブラリを確認できます。Qt Quick、Qt Quick Controls、Qt Multimediaの実行パッケージが必要です。ZIP展開後に実行権限が失われた場合は、[インストール](installation.md#linux)の`chmod +x`を実行してください。
 
 ### glibc 2.44以降でCOPY relocationのエラーが出る
 

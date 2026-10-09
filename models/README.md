@@ -1,6 +1,6 @@
 # 抑揚モデルのライセンス
 
-この文書は同梱モデルの出典と通知の入口です。条件の原文は各配布元の規約に従います。全体の入口は[ライセンスの適用範囲](../LICENSE-SCOPE.md)です。
+この文書には、同梱モデルの出典と通知をまとめています。条件の原文は各配布元の規約に従います。UtauTTS全体のライセンスは[ライセンスの適用範囲](../LICENSE-SCOPE.md)を参照してください。
 
 ## 同梱モデル
 
@@ -10,7 +10,7 @@
 
 ## Frame Intonation TCN v11（既定）
 
-`frame-intonation-tcn-v11`は、`frame-intonation-tcn-v10`の抑揚曲線（重み0.65）と、[Irodori-TTS](https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small)（MIT）にBASIC5000とUtauTTS用の日常文を読ませた音声で学習したF0ヘッドの曲線（0.35）を混ぜます。アクセント特徴とモーラの予測はv10が担います。F0ヘッドは合成時と同じ一定のモーラ長に並べ直した複製も使い、文全体（約±5秒）を見て学習しています。同じモデルのエネルギーヘッドでモーラの音量（0.75〜1.3倍）も変えます。聴取では混合が15行中7行でv10より選ばれ（v10 4、同程度4）、音量ありは音量なしに対し10対5で選ばれました。
+`frame-intonation-tcn-v11`は、`frame-intonation-tcn-v10`の抑揚曲線（重み0.65）と、[Irodori-TTS](https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small)（MIT）にBASIC5000とUtauTTS用の日常文を読ませた音声で学習したF0ヘッドの曲線（0.35）を混ぜます。アクセント特徴とモーラの予測はv10が行います。F0ヘッドは合成時と同じ一定のモーラ長に並べ直した複製も使い、文全体（約±5秒）を見て学習しています。同じモデルのエネルギーヘッドでモーラの音量（0.75〜1.3倍）も変えます。聴取では、混合した曲線が15文中7文でv10より選ばれ（v10が4文、同程度が4文）、音量を変える版は変えない版に対して10対5で選ばれました。
 
 - 本モデルは相対ピッチ（抑揚）のみを学習し、話者の声質を意図的に再現しません
 - 重みはMIT Licenseで配布します。教師の音声・台本・音声合成モデルは再配布しません
@@ -26,7 +26,7 @@
 
 ## v9.1 Tsukuyomi + JSUT（代替）
 
-`frame-intonation-tcn-v9.1-t`は、[つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）](https://tyc.rei-yumesaki.net/material/corpus/)（CV.夢前黎）と[みんなで作るJSUTコーパスbasic5000](https://tyc.rei-yumesaki.net/material/minnade-jsut/)のBASIC5000_0001-0600で学習したモデルです。みんなで作るJSUTは複数話者の寄せ集めです。
+`frame-intonation-tcn-v9.1-t`は、[つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）](https://tyc.rei-yumesaki.net/material/corpus/)（CV.夢前黎）と[みんなで作るJSUTコーパスbasic5000](https://tyc.rei-yumesaki.net/material/minnade-jsut/)のBASIC5000_0001-0600で学習したモデルです。みんなで作るJSUTは、複数の話者の録音を集めたコーパスです。
 
 - 本モデルはフレーム単位の相対ピッチ（抑揚）のみを学習し、話者の声質を意図的に再現しません
 - 重みはMIT Licenseで配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本を再配布しません
