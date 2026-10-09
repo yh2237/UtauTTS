@@ -391,7 +391,6 @@ type SynthesisRequest synth.Request
 // synthesisRequestAliasはUnmarshalJSONの再帰を避けるための別名型。
 type synthesisRequestAlias SynthesisRequest
 
-// JSONで省略された設定に既定値を適用する。
 func (s *Server) handleSynthesizeAudio(w http.ResponseWriter, r *http.Request) {
 	var request SynthesisRequest
 	if err := decodeJSONBody(w, r, &request); err != nil {

@@ -20,7 +20,7 @@ func decodedName(f *zip.File) string {
 	if f.Flags&0x800 != 0 {
 		return f.Name
 	}
-	// Go preserves the original ZIP filename bytes when the UTF-8 flag is clear.
+	// UTF-8フラグが無い名前は元のバイト列のままなので、Shift_JISとして復号する。
 	name, _, err := transform.String(japanese.ShiftJIS.NewDecoder(), f.Name)
 	if err != nil || strings.ContainsRune(name, '\ufffd') {
 		return f.Name

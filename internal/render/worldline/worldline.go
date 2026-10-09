@@ -452,7 +452,6 @@ func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
 	return item, nil
 }
 
-// worldlineSpeechStrategyはユニットへ適用するspeech timing方針の決定結果。
 type worldlineSpeechStrategy struct {
 	codaRelease      bool
 	singleCV         bool
@@ -652,11 +651,9 @@ func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options b
 	phonemizer := strings.ToLower(strings.TrimSpace(synthesisPlan.Phonemizer))
 	japanese := frontend.JapanesePlan(language, phonemizer)
 	if japanese && strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV") {
-		// VCVは信頼度の高い過渡だけを保護する。
 		return unit.SpeechProfile.TransientConfidence >= stopTransientVCVFloor
 	}
 	if japanese {
-		// CVも信頼度の高い過渡だけを保護する。
 		return unit.SpeechProfile.TransientConfidence >= stopTransientJapaneseFloor
 	}
 	return true

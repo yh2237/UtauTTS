@@ -22,7 +22,6 @@ const f0PositionFeatures = 5
 // f0PositionInputは文内の位置の特徴をF0ブランチへ入れるか（--f0-position）。
 var f0PositionInput bool
 
-// f0ContextWidthはF0ブランチの連続入力の幅。
 func f0ContextWidth() int {
 	if f0PositionInput {
 		return f0ContextFeatures + f0PositionFeatures

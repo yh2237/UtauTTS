@@ -7,7 +7,6 @@ import (
 )
 
 const (
-	// WORLDのフレーム周期(ms)。
 	FrameMS    = 10.0
 	maxStretch = 2.0
 	// 句末の子音も保護するため、ノート開始より前から伸縮を止める。

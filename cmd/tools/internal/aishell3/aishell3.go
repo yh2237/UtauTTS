@@ -26,7 +26,6 @@ type Interval struct {
 
 var intervalPattern = regexp.MustCompile(`intervals \[\d+\]:\s*xmin = ([\d.]+)\s*xmax = ([\d.]+)\s*text = "([^"]*)"`)
 
-// Utterance は音声パスから発話IDを返す。
 func Utterance(audioPath string) string {
 	return strings.TrimSuffix(filepath.Base(audioPath), filepath.Ext(audioPath))
 }
@@ -61,7 +60,6 @@ func TextGridIntervals(raw, name string) []Interval {
 	return result
 }
 
-// ReadTextGrid はファイルを読み TextGridIntervals を呼ぶ。
 func ReadTextGrid(path, name string) ([]Interval, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {

@@ -350,10 +350,8 @@ func (m *TCN) loadF0Head(tensors map[string]tensor, metadata map[string]string, 
 func (m *TCN) Phones() []string { return append([]string(nil), m.phones...) }
 func (m *TCN) Mels() int        { return m.mels }
 
-// HasF0HeadはF0ブランチの有無を返す。
 func (m *TCN) HasF0Head() bool { return m.hasF0 }
 
-// HasEnergyHeadはエネルギーヘッドの有無を返す。
 func (m *TCN) HasEnergyHead() bool { return m.hasEnergy }
 
 // F0ContextはF0ブランチの連続入力幅。
@@ -362,7 +360,6 @@ func (m *TCN) F0Context() int { return m.f0Context }
 // PositionFeaturesは文内の位置の特徴の次元（学習ツールのf0PositionFeaturesと同じ）。
 const PositionFeatures = 5
 
-// F0PositionはF0入力が文内の位置の特徴を持つかを返す。
 func (m *TCN) F0Position() bool { return m.f0Position }
 
 // F0ScaleはF0出力1単位あたりのcent。0は自然スケール（log/0.3）。

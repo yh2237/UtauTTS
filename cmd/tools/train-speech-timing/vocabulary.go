@@ -109,7 +109,6 @@ func fillSilence(ps []phone) []phone {
 	return result
 }
 
-// corpusVocabularyはcorpus全体の記号を一度走査して語彙を作る。
 func corpusVocabulary(path string) (*vocabulary, error) {
 	var symbols []string
 	err := toolutil.ScanJSONL(path, func(line []byte) error {

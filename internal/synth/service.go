@@ -20,7 +20,6 @@ import (
 
 var ErrUnavailable = errors.New("unavailable")
 
-// DefaultApplyPitchは合成の既定でピッチ曲線を適用するか。
 const DefaultApplyPitch = true
 
 // 設定の既定値は設定表（internal/settings）から引き、入口ごとの差を防ぐ。
@@ -39,7 +38,6 @@ var (
 	DefaultEnglishWeakForm         = settings.Bool("english_weak_form")
 )
 
-// DefaultReleaseMSはrenderの既定値の再公開。
 const DefaultReleaseMS = render.DefaultReleaseMS
 
 // DefaultRequestは全入口が共通で使う既定のリクエスト。renderer settingsの既定値と同期させる。

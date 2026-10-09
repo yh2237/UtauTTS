@@ -347,7 +347,6 @@ type f0TeacherLine struct {
 	Cents []float64 `json:"cents"`
 }
 
-// loadF0Teacherは蒸留教師JSONLを読む。
 func loadF0Teacher(path string) (map[string][]float32, error) {
 	if path == "" {
 		return nil, nil

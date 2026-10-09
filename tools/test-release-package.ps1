@@ -162,7 +162,7 @@ try {
         if ($forbiddenBundledData.Count -ne 0) {
             throw "Release package contains ignored training/build data: $($forbiddenBundledData -join ', ')"
         }
-        # User-provided tool folders ship only their README; never package local resamplers or vocoder weights.
+        # 利用者が置くツールのフォルダはREADMEだけを同梱し、手元のresamplerやvocoderの重みを入れない。
         foreach ($userDirectory in @('Resamplers', 'Wavtools', 'Dependencies')) {
             $userDirectoryPath = Join-Path $packageRoot $userDirectory
             if (-not (Test-Path -LiteralPath $userDirectoryPath)) { continue }

@@ -28,8 +28,7 @@ const (
 	// StretchAdaptMinTailRatioは母音側に残す最小比率。子音側を伸ばしすぎない。
 	StretchAdaptMinTailRatio = 0.35
 	// StretchAdaptMinTailMSは母音側に残す最小長。
-	StretchAdaptMinTailMS = 40.0
-	// StretchAdaptStrengthLimitは補正強度の上限。
+	StretchAdaptMinTailMS     = 40.0
 	StretchAdaptStrengthLimit = 2.0
 )
 

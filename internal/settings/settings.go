@@ -63,7 +63,6 @@ var Table = []Setting{
 	{ID: "pause_context_strength", Type: "number", Default: 1.0, Hidden: true},
 }
 
-// Lookupは設定の定義を返す。
 func Lookup(id string) (Setting, bool) {
 	for _, setting := range Table {
 		if setting.ID == id {
@@ -90,7 +89,6 @@ func Number(id string) float64 { return mustLookup(id).Default.(float64) }
 // Stringはenum・string設定の既定値。
 func String(id string) string { return mustLookup(id).Default.(string) }
 
-// AppliesToは設定がproviderに適用されるかを返す。
 func (setting Setting) AppliesTo(provider string) bool {
 	if len(setting.Providers) == 0 {
 		return true

@@ -28,7 +28,6 @@ func ScanJSONLBytes(data []byte, handle func(line []byte) error) error {
 	return scanner.Err()
 }
 
-// ScanJSONLはファイルを読み、各行をhandleへ渡す。
 func ScanJSONL(path string, handle func(line []byte) error) error {
 	data, err := os.ReadFile(path)
 	if err != nil {

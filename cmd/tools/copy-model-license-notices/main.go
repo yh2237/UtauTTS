@@ -166,7 +166,6 @@ func loadModels(modelsRoot string) ([]modelNotices, error) {
 	return result, nil
 }
 
-// loadEmbeddedModelsはsafetensorsの__metadata__からライセンスと表記を読む。
 func loadEmbeddedModels(root string) ([]modelNotices, error) {
 	paths, err := filepath.Glob(filepath.Join(root, "*.safetensors"))
 	if err != nil {

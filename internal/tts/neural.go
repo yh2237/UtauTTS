@@ -10,7 +10,6 @@ import (
 	_ "utautts/internal/diffsinger/adapter"
 )
 
-// Configは実装固有の処理を適用する前の入力。
 type NeuralSynthesizer interface {
 	ProviderID() engine.ProviderID
 	Synthesize(Config) (*Result, error)

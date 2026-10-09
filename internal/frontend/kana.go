@@ -77,7 +77,6 @@ func ParseKana(reading string) ([]Mora, error) {
 			if len(result) > 0 && !result[len(result)-1].Pause {
 				result = append(result, Mora{Pause: true, PauseKind: kind})
 			} else if len(result) > 0 {
-				// 連続する句読点は1つのポーズにまとめ、強い方の種類を採用する。
 				result[len(result)-1].PauseKind = strongerPauseKind(result[len(result)-1].PauseKind, kind)
 			}
 			continue
