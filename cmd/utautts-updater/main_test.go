@@ -46,10 +46,10 @@ func makeZip(t *testing.T, files map[string]string) string {
 
 func TestExtractZip(t *testing.T) {
 	zipPath := makeZip(t, map[string]string{
-		"app/utautts-gui.exe": "binary",
-		"app/qml/Main.qml":    "main",
-		"models/prosody.json": "model",
-		"README.md":           "readme",
+		"app/utautts-gui.exe":  "binary",
+		"app\\qml\\Main.qml":   "main",
+		"models\\prosody.json": "model",
+		"README.md":            "readme",
 	})
 	dest := filepath.Join(t.TempDir(), "stage")
 	if err := extractZip(zipPath, dest); err != nil {
@@ -65,52 +65,8 @@ func TestExtractZip(t *testing.T) {
 			t.Errorf("missing extracted entry %s: %v", path, err)
 		}
 	}
-}
-
-func TestExtractZipWindowsBackslashSeparators(t *testing.T) {
-	zipPath := filepath.Join(t.TempDir(), "test.zip")
-	archive, err := os.Create(zipPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	writer := zip.NewWriter(archive)
-	for _, entry := range []struct{ name, content string }{
-		{"app\\utautts-gui.exe", "binary"},
-		{"app\\qml\\Main.qml", "main"},
-		{"app\\qml\\EditorContent.qml", "editor"},
-		{"models\\prosody.json", "model"},
-		{"README.md", "readme"},
-	} {
-		created, err := writer.Create(entry.name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := created.Write([]byte(entry.content)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := writer.Close(); err != nil {
-		t.Fatal(err)
-	}
-	_ = archive.Close()
-
-	dest := filepath.Join(t.TempDir(), "stage")
-	if err := extractZip(zipPath, dest); err != nil {
-		t.Fatal(err)
-	}
-	for _, path := range []string{
-		"app/utautts-gui.exe",
-		"app/qml/Main.qml",
-		"app/qml/EditorContent.qml",
-		"models/prosody.json",
-		"README.md",
-	} {
-		if _, err := os.Stat(filepath.Join(dest, path)); err != nil {
-			t.Errorf("missing extracted entry %s: %v", path, err)
-		}
-	}
-	if info, err := os.Stat(filepath.Join(dest, "app/qml")); err != nil || !info.IsDir() {
-		t.Errorf("app/qml should be a directory, err=%v", err)
+	if info, err := os.Stat(filepath.Join(dest, "app", "qml")); err != nil || !info.IsDir() {
+		t.Errorf("backslash entry did not create app/qml: %v", err)
 	}
 }
 

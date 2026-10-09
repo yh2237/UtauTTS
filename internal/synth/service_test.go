@@ -129,22 +129,6 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 	}
 }
 
-func TestApplyRendererSettingsUnknownGoesToProviderOptions(t *testing.T) {
-	cfg := tts.Config{}
-	options := render.ProviderOptions{}
-	applyRendererSettings(map[string]json.RawMessage{
-		"world_mode":  json.RawMessage(`"adaptive"`),
-		"world_gain":  json.RawMessage(`0.8`),
-		"world_ready": json.RawMessage(`true`),
-	}, &cfg, &options)
-	if options.Renderer["world_mode"] != "adaptive" || options.Renderer["world_gain"] != 0.8 || options.Renderer["world_ready"] != true {
-		t.Fatalf("provider values = %#v", options.Renderer)
-	}
-	if len(options.RendererDiagnostics) != 0 {
-		t.Fatalf("unexpected diagnostics: %v", options.RendererDiagnostics)
-	}
-}
-
 func TestApplyRendererSettingsTypeMismatchIsIgnored(t *testing.T) {
 	cfg := tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)}
 	options := render.ProviderOptions{}

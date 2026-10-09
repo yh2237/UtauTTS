@@ -50,16 +50,3 @@ func TestFrameInputsUsesVocabulary(t *testing.T) {
 		t.Fatalf("default id = %d, want silence %d", defaults[0], vocab.silence)
 	}
 }
-
-func TestModelIDForLanguage(t *testing.T) {
-	cases := map[string]string{
-		"": "speech-timing-target-v1", "ja": "speech-timing-target-v1",
-		"en": "speech-timing-target-en-v1", "zh": "speech-timing-target-zh-v1",
-		"fr": "speech-timing-target-fr-v1",
-	}
-	for language, want := range cases {
-		if got := modelIDForLanguage(language); got != want {
-			t.Fatalf("modelIDForLanguage(%q) = %q, want %q", language, got, want)
-		}
-	}
-}

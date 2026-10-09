@@ -99,20 +99,6 @@ func TestVoicebankRegistrationDisabledByDefault(t *testing.T) {
 	}
 }
 
-func TestRendererMetadataIncludesConfiguredDefault(t *testing.T) {
-	response := httptest.NewRecorder()
-	mustNewServer(t, Config{VoiceDir: t.TempDir(), Renderer: "utautts-world-phrase"}).Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/renderers", nil))
-	var payload struct {
-		Default string `json:"default_renderer"`
-	}
-	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
-		t.Fatal(err)
-	}
-	if payload.Default != "utautts-world-phrase" {
-		t.Fatalf("default = %q", payload.Default)
-	}
-}
-
 func TestNewReportsInvalidPlugin(t *testing.T) {
 	pluginDirectory := t.TempDir()
 	if err := os.WriteFile(filepath.Join(pluginDirectory, "renderer.json"), []byte(`{"kind":"renderer"}`), 0o600); err != nil {
@@ -308,20 +294,14 @@ func TestHealthReportsConfiguredRenderer(t *testing.T) {
 
 func TestAPIMetadata(t *testing.T) {
 	server := mustNewServer(t, Config{Renderer: "utautts-world-phrase", VoiceDir: t.TempDir()})
-	request := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/renderers", nil)
 	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, request)
-	if response.Code != http.StatusOK {
-		t.Fatalf("health status = %d, body = %s", response.Code, response.Body.String())
-	}
-
-	request = httptest.NewRequest(http.MethodGet, "/api/renderers", nil)
-	response = httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
 		t.Fatalf("renderers status = %d, body = %s", response.Code, response.Body.String())
 	}
 	var renderers struct {
+		Default   string `json:"default_renderer"`
 		Renderers []struct {
 			ID string `json:"id"`
 		} `json:"renderers"`
@@ -332,7 +312,7 @@ func TestAPIMetadata(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &renderers); err != nil {
 		t.Fatal(err)
 	}
-	if len(renderers.Renderers) < 2 {
+	if renderers.Default != "utautts-world-phrase" || len(renderers.Renderers) < 2 {
 		t.Fatalf("renderers = %#v", renderers.Renderers)
 	}
 	foundClassic := false
