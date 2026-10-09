@@ -48,6 +48,7 @@ qt_add_executable(utautts
     src/platform/engine.h
     src/platform/media.h
     src/platform/platform.h
+    src/platform/pen_cursor.h
 )
 
 if(EMSCRIPTEN)
@@ -55,7 +56,8 @@ if(EMSCRIPTEN)
 else()
     target_sources(utautts PRIVATE src/platform/engine_native.cpp src/platform/media_native.cpp)
 endif()
-target_sources(utautts PRIVATE src/platform/media_register.cpp src/platform/platform.cpp)
+target_sources(utautts PRIVATE src/platform/media_register.cpp src/platform/platform.cpp
+    src/platform/pen_cursor.cpp)
 
 if(WIN32)
     target_sources(utautts PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/utautts.rc")

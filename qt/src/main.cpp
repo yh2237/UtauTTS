@@ -1,5 +1,6 @@
 #include "backend.h"
 #include "platform/media.h"
+#include "platform/pen_cursor.h"
 #include "platform/platform.h"
 #include "selftest.h"
 #include <QDir>
@@ -199,6 +200,7 @@ int main(int argc, char *argv[]) {
     QQuickStyle::setStyle("Fusion");
     registerMediaTypes();
     registerPlatformSingleton();
+    registerPenCursorArea();
     QGuiApplication app(argc, argv);
     app.setApplicationName(UTAUTTS_APP_NAME);
     app.setApplicationDisplayName(UTAUTTS_APP_NAME);
