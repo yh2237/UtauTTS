@@ -1,7 +1,7 @@
-Irodori-TTS teacher data for intonation-ja-v11
+Irodori-TTS teacher data for frame-intonation-tcn-v11
 ==============================================
 
-The F0 head of intonation-ja-v11 was trained on relative pitch measured from
+The F0 head of frame-intonation-tcn-v11 was trained on relative pitch measured from
 speech that UtauTTS generated locally with a third-party text-to-speech model.
 UtauTTS redistributes only the trained F0 head weights (inside the model JSON),
 not the generated audio, the scripts, or the text-to-speech model.
