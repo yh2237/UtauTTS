@@ -134,16 +134,17 @@ ID順にソートされた音源一覧です。
 {
   "models": [
     {
-      "id": "frame-intonation-tcn-v10",
-      "display_name": "Frame Intonation TCN v10",
-      "description": "Tsukuyomi-chan Corpus Vol.1 と みんなで作るJSUTコーパスbasic5000 を、Montreal Forced Aligner で合成時と同じモーラ区間に整列して学習した日本語フレーム抑揚モデル",
-      "path": "C:\\...\\models\\frame-intonation-tcn-v10.json",
+      "id": "frame-intonation-tcn-v11",
+      "display_name": "Frame Intonation TCN v11",
+      "description": "...",
+      "language": "ja",
+      "path": "C:\\...\\models\\frame-intonation-tcn-v11.json",
       "version": 8,
       "feature_version": 1,
       "mode": "intonation_frame_tcn_accent_bounded",
       "sha256": "<モデルファイルのSHA-256>",
       "recommended_renderers": ["utautts-world-phrase"],
-      "default_priority": 120,
+      "default_priority": 130,
       "requires_features": true,
       "frame_contour": true
     }
@@ -151,7 +152,7 @@ ID順にソートされた音源一覧です。
 }
 ```
 
-`model_id` には `id` を指定します。モデル固有の`outputs`は、値が無い場合に省略されます。
+`model_id` には `id` を指定します。`language`は対象の言語で、未指定の古いモデルは日本語として扱います。モデル固有の`outputs`は、値が無い場合に省略されます。
 
 ### `GET /api/renderers`
 
@@ -208,7 +209,7 @@ ID順にソートされた音源一覧です。
 {
   "text": "こんにちは、今日はいい天気です。",
   "voicebank_id": "足立レイver3.5.0",
-  "model_id": "frame-intonation-tcn-v10",
+  "model_id": "frame-intonation-tcn-v11",
   "renderer": "utautts-world-phrase",
   "alias_policy": "auto",
   "intonation_strength": 1,
@@ -246,23 +247,20 @@ ID順にソートされた音源一覧です。
 | `unit_overrides` | object[] | なし | unit単位の候補・原音の明示指定（計画の上書き） |
 | `intonation_strength` | number | `4` | 抑揚の強さ（0〜8）。2までは一律、2を超えると大きな動きほど広げる |
 | `apply_pitch` | boolean | `true` | 波形ピッチ再サンプリング |
-| `speech_timing` | boolean | `false` | 廃止。受け取って無視する |
-| `context_duration` | boolean | `false` | 日本語モーラ長の文脈連動（C1）を有効にする |
+| `context_duration` | boolean | `false` | 日本語のモーラ長を文脈（助詞・句末など）に応じて変える |
 | `context_duration_strength` | number | `1` | 文脈連動の強度（0〜2）。0は既定1.0として扱う |
-| `boundary_tone` | boolean | `true` | 日本語の句末境界音調（C2）を有効にする |
+| `boundary_tone` | boolean | `true` | 日本語の文末の音調（疑問文の上昇など）を付ける |
 | `boundary_tone_strength` | number | `1` | 境界音調の強度（0〜2）。0は既定1.0として扱う |
-| `stretch_adapt` | boolean | `true` | 音源実測に基づき、原音より大きく伸ばす日本語モーラの母音側の伸びを有界にする（C3a）。結果が変わるのは大きな伸張が必要な長いモーラのときだけ |
+| `stretch_adapt` | boolean | `true` | 原音より大きく伸ばす日本語の長いモーラで、母音側の伸びを音源の実測に合わせて抑える |
 | `stretch_adapt_strength` | number | `1` | 伸縮補正の強度（0〜2）。0は既定1.0として扱う |
 | `microprosody` | boolean | `true` | `utautts-world-phrase`のみ。日本語のF0曲線へ、子音の直後の小さな音高の上下（自然な読み上げで測った値）を足す。`false`で従来と同じ音高 |
 | `timing_warp` | boolean | `true` | `utautts-world-phrase`のみ。出力を、言語別に学習した読み上げの動きに合わせてモーラの中だけ時間伸縮する（日本語・英語・中国語。包絡・モーラの開始・長さ・音高は不変、句の最後のモーラは伸縮しない）。`false`で従来と同じ出力 |
-| `pause_context` | boolean | `true` | 句読点の種類と発話末で休止長を変える（B5） |
+| `pause_context` | boolean | `true` | 句読点の種類と発話末で休止長を変える |
 | `pause_context_strength` | number | `1` | 休止長補正の強度（0〜2）。0は既定1.0として扱う |
-| `english_weak_form` | boolean | `true` | 英語機能語の弱形（E1）を有効にする。句中で前後がポーズでない非強調の機能語だけ弱形にし、明示の読みと辞書を優先する |
-| `manual_pitch` | object | なし | 手動ピッチ編集（[manual-pitch.md](manual-pitch.md) のJSON） |
+| `english_weak_form` | boolean | `true` | 英語の機能語を句中では弱形で読む。明示の読みと辞書を優先する |
+| `manual_pitch` | object | なし | [手動ピッチ編集JSON](#手動ピッチ編集json) |
 | `pitch_curve` | object | なし | コーパス指定の固定ピッチ曲線。指定時は自動予測の輪郭より優先 |
 | `dictionary` | object[] | なし | ユーザー辞書。各項目は`surface`と`reading`を持つ |
-| `word_boundary_envelope` | boolean | `false` | 廃止。受け取って無視する |
-| `prosody_experiment` | string | 未指定 | 廃止。受け取って無視する |
 | `diffsinger_steps` | number | `0`（既定値） | DiffSingerの拡散ステップ数。0で既定値 |
 | `diffsinger_duration_mix` | number | `0`（既定値） | DiffSingerの長さ予測の混合率（0〜1）。0で既定値 |
 | `diffsinger_pitch_mix` | number | `0`（既定値） | DiffSingerのピッチ予測の混合率（0〜1）。0で既定値 |
@@ -270,12 +268,43 @@ ID順にソートされた音源一覧です。
 | `worldline` | object | なし | WORLD providerのホスト制御（`timing_warp`／`microprosody`／`source_phone_mapping`）。空で既定 |
 | `renderer_settings` | object | なし | Rendererの設定値（`/api/renderers`の`settings`）をまとめて渡すmap。未知のidもエラーにせずprovider固有値として渡します |
 
+廃止した`speech_timing`、`word_boundary_envelope`、`prosody_experiment`は、古いクライアントのために受け取って無視します。
+
 ステータスコード：
 
 - `200`: WAVバイナリ。`X-UtauTTS-Engine` / `X-UtauTTS-Reading` ヘッダー付き
 - `400`: `text`／`reading`（`kana`を含む）の両方なし、範囲外のduration・`intonation_strength`、音源・モデルが未登録、指定Rendererの必要なファイル不足（`ErrUnavailable`）
 - `413`: 文字数・`manual_pitch` points超過、JSON 1 MiB超過
 - `422`: 合成の失敗（読み変換失敗、モデル評価失敗、未知の`alias_policy`など）
+
+### 手動ピッチ編集JSON
+
+`manual_pitch`（CLIでは`--manual-pitch`のファイル）は、読みの各モーラに対する音高補正をcent単位で指定します。補正は自動イントネーションに加算されます。
+
+```json
+{
+  "version": 1,
+  "reading": "こんにちは",
+  "mode": "offset",
+  "points": [
+    {"position": 0, "mora": "こ", "cents": 0},
+    {"position": 1, "mora": "ん", "cents": 40},
+    {"position": 2, "mora": "に", "cents": 80},
+    {"position": 3, "mora": "ち", "cents": 20},
+    {"position": 4, "mora": "は", "cents": -30}
+  ]
+}
+```
+
+`position`は読みのモーラ配列に対する0始まりの位置です。`mora`も書いた場合はその位置のモーラと一致するか検証します。休止モーラは編集できず、指定していないモーラの補正は0 centです。
+
+| `mode` | 内容 |
+| --- | --- |
+| `offset` | 自動イントネーションへ補正値を加算する（通常） |
+| `replace` | 自動イントネーションを使わず、手動の曲線だけを使う |
+| `frames` | 10 ms単位の補正値の配列`frames`を使う。GUIの拡張編集で抑揚線を描くとこの形式になる |
+
+手動の曲線は10 ms間隔へ補間し、急な変化は安全な範囲に抑えます。
 
 ### `POST /api/synthesize/label`
 

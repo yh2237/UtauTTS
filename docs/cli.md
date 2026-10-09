@@ -24,20 +24,17 @@
   --out ".\out.wav"
 ```
 
-学習イントネーションを適用する例です。モデルIDとframe pitch対応Rendererを指定します。配布物内のOpenJTalk frontendが実行時に読みとアクセント特徴を生成します。
+学習イントネーションはGUIと違い既定では使わないため、`--prosody`でモデルIDを指定します。配布物内のOpen JTalk frontendが実行時に読みとアクセント特徴を生成します。
 
 ```powershell
 .\UtauTTS\tools\utautts-cli.exe `
   --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
   --text "あらゆる現実をすべて自分のほうへねじ曲げたのだ。" `
-  --renderer utautts-world-phrase `
-  --prosody frame-intonation-tcn-v10 `
-  --prosody-pitch-only `
-  --apply-pitch `
+  --prosody frame-intonation-tcn-v11 `
   --out ".\out.wav"
 ```
 
-`--prosody`へモデルIDを指定すると別の抑揚モデルを使えます。`--plan-out`を指定すると原音の配置とタイミングをJSONへ保存できます。
+`--plan-out`を指定すると原音の配置とタイミングをJSONへ保存できます。
 
 英語では`--language en --prosody frame-intonation-tcn-en-v1`、中国語では`--language zh --prosody tone-intonation-zh-v1`を指定します。各言語のモデルは`utautts-world-phrase`で抑揚に反映されます。
 
@@ -77,23 +74,23 @@ GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`�
 | `--release-ms` | `20` | ユニット末尾のリリース包絡線（ms） |
 | `--prosody <id>` | | 抑揚モデルのplugin ID |
 | `--prosody-pitch-only` | `false` | 学習ピッチのみ適用し、モーラ長・音量は固定値を使う |
-| `--manual-pitch <path>` | | 手動ピッチ編集JSON（[manual-pitch.md](manual-pitch.md)） |
-| `--join-model <path>` | | 学習済みjoin-qualityモデルのJSON（[join-quality.md](join-quality.md)） |
+| `--manual-pitch <path>` | | [手動ピッチ編集JSON](server.md#手動ピッチ編集json) |
+| `--join-model <path>` | | 学習済みの接続モデルJSON（[モデルの学習](model-training.md#接続モデル)） |
 | `--prosody-features <path>` | | ケース別のモーラ単位アクセント特徴JSON |
 | `--prosody-feature-case <id>` | | `--prosody-features` 内のケースID |
 | `--pitch-contours <path>` | | ケース別ピッチ係数JSON（計画へ記録。波形処理には `--apply-pitch` が必要） |
 | `--pitch-case <id>` | | `--pitch-contours` 内のケースID |
 | `--apply-pitch` | `true` | 波形のピッチ再サンプリング |
 | `--intonation-strength` | `4` | 抑揚の強さ（0〜8）。2までは抑揚の曲線に一律の倍率を掛け、2を超えると大きな動きほど広げる（平らな部分は強さ2のまま） |
-| `--context-duration` | `false` | 日本語モーラ長の文脈連動（C1）を有効にする |
+| `--context-duration` | `false` | 日本語のモーラ長を文脈（助詞・句末など）に応じて変える |
 | `--context-duration-strength` | `1` | 文脈連動の強度（0〜2）。0は既定1.0として扱う |
-| `--boundary-tone` | `true` | 日本語の句末境界音調（C2）を有効にする |
+| `--boundary-tone` | `true` | 日本語の文末の音調（疑問文の上昇など）を付ける |
 | `--boundary-tone-strength` | `1` | 境界音調の強度（0〜2）。0は既定1.0として扱う |
-| `--stretch-adapt` | `true` | 音源実測に基づき、原音より大きく伸ばす日本語モーラの母音側の伸びを有界にする（C3a）。結果が変わるのは大きな伸張が必要な長いモーラのときだけ |
+| `--stretch-adapt` | `true` | 原音より大きく伸ばす日本語の長いモーラで、母音側の伸びを音源の実測に合わせて抑える |
 | `--stretch-adapt-strength` | `1` | 伸縮補正の強度（0〜2）。0は既定1.0として扱う |
-| `--pause-context` | `true` | 句読点の種類と発話末で休止長を変える（B5） |
+| `--pause-context` | `true` | 句読点の種類と発話末で休止長を変える |
 | `--pause-context-strength` | `1` | 休止長補正の強度（0〜2）。0は既定1.0として扱う |
-| `--english-weak-form` | `true` | 英語機能語の弱形（E1）を有効にする。句中で前後がポーズでない非強調の機能語だけ弱形にし、明示の読みと辞書を優先する |
+| `--english-weak-form` | `true` | 英語の機能語を句中では弱形で読む。明示の読みと辞書を優先する |
 | `--microprosody` | `true` | 日本語の`utautts-world-phrase`のF0曲線へ、子音の直後の小さな音高の上下（自然な読み上げで測った値、母音の開始の−20〜+40 ms）を足す。`false`で従来と同じ音高 |
 | `--timing-warp` | `true` | `utautts-world-phrase`の出力を、言語別に学習した読み上げの動きに合わせてモーラの中だけ時間伸縮する（日本語・英語・中国語）。包絡（声・音質）、モーラの開始、長さ、音高は変えず、句の最後のモーラは伸縮しない。`false`で従来と同じ出力 |
 | `--renderer <id>` | 既定Renderer | Renderer ID（省略時は設定された優先度が最大のもの。未知の明示IDはエラー） |
@@ -136,6 +133,21 @@ wrote out.wav (4.81s, 44100 Hz, 34 units)
 ```
 
 合成の失敗や引数エラーは終了コード1を返します。原音の選択と配置は`--plan-out`で確認できます。
+
+## 手動ピッチとモーラ長
+
+GUIで編集した抑揚は、[手動ピッチ編集JSON](server.md#手動ピッチ編集json)を`--manual-pitch`へ渡すと再現できます。手動ピッチを波形へ反映するには`--apply-pitch`（既定で有効）が必要です。
+
+```powershell
+.\UtauTTS\tools\utautts-cli.exe `
+  --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
+  --text "こんにちは" `
+  --prosody frame-intonation-tcn-v11 `
+  --manual-pitch ".\manual-pitch.json" `
+  --out ".\manual-pitch.wav"
+```
+
+モーラごとの長さは、読みの順に並べた配列、または`{"mora_durations_ms": [...]}`形式のJSONを`--mora-durations`へ指定します。0の位置は基本長を使います。
 
 ## USTXへの一括変換
 

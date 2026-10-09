@@ -46,7 +46,7 @@ Renderer、Classic UTAUツール、抑揚モデルを追加または配布する
 
 WindowsのFullプロファイルだけがDiffSingerのruntimeを含みます。LinuxとmacOSのDiffSinger manifestは対応OS外なのでカタログから除外されます。
 
-Rendererの追加・更新はZIPインストールでは行いません。`renderer/<id>/renderer.json`を探索先へ配置してからGUIを再起動（またはCLI／Serverを再起動）してください。既存IDを明示ディレクトリに置くと同梱定義を上書きできます。
+Rendererの追加・更新はZIPインストールでは行いません。`renderer/<id>/renderer.json`を探索先へ配置してからGUIを再起動（またはCLI／Serverを再起動）してください。既存IDを明示ディレクトリに置くと同梱定義を上書きできます。読み込んだRendererと読み込めなかった定義の理由は、GUIの「ファイル」→「音源とプラグイン」→「Rendererプラグイン」で確認できます。
 
 ## Renderer設定と機能
 
@@ -75,7 +75,6 @@ UtauTTSが解釈する設定（モーラ長、抑揚の強さ、文末の音調�
 | `frame_pitch` | 10 ms単位のフレームピッチ曲線を受け付ける |
 | `boundary_bridge` | 境界補修（boundary bridge）に対応する |
 | `internal_timing` | 内部でタイミングを調整する（日本語のリズム補正を常時適用する） |
-| `speech_prosody_experiment` | 廃止。既存のmanifestのため受け取り、使わない |
 
 ## Classic UTAUツール
 
@@ -91,7 +90,7 @@ Wavtools/
   wavtool.exe
 ```
 
-GUIではbackend／providerが`utau-external-resampler`のRendererを選択した場合だけ、ResamplerとWavtoolの欄を表示します。したがって`classic-utau`以外の公開IDでもClassic UTAUを利用できます。外部wavtoolを使わない場合は`builtin`を選びます。配置後は「Classic UTAUを再読み込み」を選びます。
+GUIではbackend／providerが`utau-external-resampler`のRendererを選択した場合だけ、ResamplerとWavtoolの欄を表示します。したがって`classic-utau`以外の公開IDでもClassic UTAUを利用できます。外部wavtoolを使わない場合は`builtin`を選びます。配置後は「ファイル」→「音源とプラグイン」→「Classic UTAUを再読み込み」を選びます。
 
 UTAU互換のresampler呼び出しは、入力WAV、出力WAV、音高、velocity、flags、offset、必要長、consonant、cutoff、volume、modulation、tempo、12bit Base64ピッチ列の13引数です。ノート単位の設定はAPIの`resampler_expressions`またはCLIの`--resampler-expressions`で指定できます。
 

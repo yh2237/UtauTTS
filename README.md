@@ -1,6 +1,6 @@
 # UtauTTS
 
-UTAUボイスバンクの原音接続に、学習ベースのイントネーション調整を加えた日本語TTS
+UTAUボイスバンクの原音接続に、学習ベースのイントネーション調整を加えたTTS
 
 **まだベータ版みたいなもんなのでゴリゴリ仕様が変わります。**
 
@@ -19,140 +19,32 @@ UTAUボイスバンクの原音接続に、学習ベースのイントネーシ�
 | `UtauTTS-Server-linux-x64.zip` | Linux x64向けHTTP Server |
 | `UtauTTS-Server-mac-arm64.zip` | Apple Silicon Mac向けHTTP Server |
 
-Windows版はZIPを展開して`utautts.exe`を実行します。
-
-Linux版はQt 6.5以降、Qt Quick、Qt Multimedia、日本語フォントが必要です。ZIPを展開し実行権限を付けて起動します。
-
-```bash
-chmod +x utautts tools/* runtime/utautts-openjtalk-features runtime/utautts-worldline-bridge
-./utautts
-```
-
-macOS版はApple Silicon（arm64）向けです。署名・公証は行っていません。初回起動時に隔離属性の解除が必要になる場合があります。手順は[インストール](docs/installation.md)を参照してください。
+Windows版はZIPを展開して`utautts.exe`を実行します。Linux版とmacOS版の準備は[インストール](docs/installation.md)を参照してください。
 
 GUI版には「足立レイ ver3.5.0」を同梱しています。利用条件は[同梱音源](docs/voicebank.md)と音源内の文書を確認してください。
 
 ## 使い方
 
-次の順で操作します。
-
 1. 文章欄へ読み上げる文を入力する
-2. 下部の「基本編集」でイントネーションと発音の長さを確認する
-3. 必要に応じて点や境界線を動かす
-4. `Ctrl+Enter`または再生ボタンで音声を確認する
-5. 「ファイル」→「WAVを保存...」で保存する
+2. 下部の「基本編集」でイントネーションと発音の長さを確認し、必要なら点や境界線を動かす
+3. `Ctrl+Enter`または再生ボタンで音声を確認する
+4. 「ファイル」→「書き出し」→「WAVを保存...」で保存する
 
-文章は追加、削除、並べ替えできます。「WAVをすべて保存...」では、文章が入っているカードをまとめて合成します。
+音源は実行ファイルと同じ階層の`voice`へフォルダごと置き、「ファイル」→「音源とプラグイン」→「音源を再読込」で読み込みます。音源の配置、カードごとの設定、編集の操作は[GUIの使い方](docs/gui.md)にあります。
 
-### 音源を追加する
+既定の抑揚モデルは`frame-intonation-tcn-v11`、Rendererは`utautts-world-phrase`です。英語・中国語のカードでは各言語のモデルへ自動で切り替わります。同梱モデルと学習元は[抑揚モデルのライセンス](models/README.md)にあります。
 
-実行ファイルと同じ階層にある`voice`へ音源のフォルダを置きます。
+## CLIとHTTP Server
 
-voiceディレクトリは「ファイル」→「音源フォルダを開く」から開けます。
-
-```text
-voice/
-  音源名/
-    oto.ini
-    *.wav
-```
-
-以下でも可
-
-```text
-voice/
-  音源名/
-    音源名/
-      oto.ini
-      *.wav
-```
-
-配置後にUtauTTSを再起動するか、「ファイル」→「音源を再読込」を選択してください。
-
-### 文章ごとの設定
-
-右側の設定で選択中の文章に使う音源や合成方法を変更できます。
-
-| 項目 | 内容 |
-| --- | --- |
-| 音源 | 使用するボイスバンク |
-| 原音形式 | CV、VCV、CVVCの選び方。既定値は`自動` |
-| 抑揚モデル | 自動イントネーションの予測に使うモデル |
-| Renderer | 原音の長さと高さを変え、接続してWAVにする方式 |
-| 言語／phonemizer | 言語別の読み上げ方式。日本語は`ja-kana`、英語は`en-arpasing`／`en-delta`／`en-vccv`／`en-cv`、中国語は`zh-cvvc` |
-| 音高 | `prefix.map`で使用する音階。自由入力で既定は`C4` |
-| 抑揚 | 自動イントネーションの強さ |
-| モーラ長 | 自動値がない場合に使う基本長 |
-| 休止長 | 句読点などの休止時間 |
-| 文頭の長さ | 最初の原音に確保する先行発声。既定値は`自動` |
-
-文頭が欠ける音源では「文頭の長さ」を長くし、余計なノイズを拾う音源では短くしてください。新規作成したカードに使う既定値は「設定」→「設定...」から変更できます。初期状態では原音形式が自動、音高が`C4`、抑揚が4、モーラ長が120 ms、休止長が180 ms、抑揚モデルが`frame-intonation-tcn-v10`、Rendererが`utautts-world-phrase`です。
-
-英語・中国語のカードでは、抑揚モデルが日本語用のままでも同梱の各言語のモデルへ自動で切り替わります。
-
-### イントネーションと長さを直す
-
-テキストの解析が終わるとモデルが予測した値がグラフへ表示されます。
-
-- 点を上下へ動かすとそのモーラのピッチが変わります。
-- 縦線を左右へ動かすとモーラの長さが変わります。
-- `Shift`を押しながら縦線を動かすと後ろの境界もまとめて移動します。
-- `Ctrl+Z`と`Ctrl+Y`でピッチとモーラ長のUndo／Redoを行います。
-
-### 保存と連携
-
-`.utautts`プロジェクトには文章、カードの順序、音源やRendererなどの合成設定、手動編集した値が保存されます。
-
-設定を有効にするとWAVと同名のファイルも書き出せます。
-
-- `.txt`: 入力した文章。UTF-8またはShift_JIS
-- `.lab`: HTK形式の推定音素境界。PSDToolKitなどのリップシンク用
-- `.exo`: 各文章のWAVを1レイヤーへ並べたAviUtl拡張編集用ファイル
-
-exo出力後に表示される領域をAviUtlの拡張編集へドラッグすると作成したWAVを読み込めます。
-
-### Renderer
-
-| Renderer | 特徴 |
-| --- | --- |
-| `utautts-world-phrase` | 既定。公式WORLDで解析し、UtauTTS独自の特徴配置でフレーズ全体を合成 |
-| `classic-utau` | UTAU互換resamplerで原音を処理し、wavtoolまたは内蔵処理で接続 |
-| `diffsinger` | DiffSinger音源とbridgeを使う連携機能。対応条件は[DiffSinger](docs/diffsinger.md)を参照 |
-
-Classic UTAU用の実行ファイルは`Resamplers/`または`Wavtools/`へ置きます。各フォルダは「ファイル」メニューから開けます。配置後は同じメニューの「Classic UTAUを再読み込み」を選びます。
-
-追加のRendererやモデル、Classic UTAUツールを登録する場合は、[モデル／Rendererプラグイン](docs/plugins.md)を参照してください。
-
-### 抑揚モデル
-
-| モデル | 内容 |
-| --- | --- |
-| `frame-intonation-tcn-v11` | 既定。v10の抑揚に、Irodori-TTSの読み上げで学習したF0ヘッドの曲線とモーラの音量を加える |
-| `frame-intonation-tcn-v10` | つくよみちゃんコーパスとみんなで作るJSUTコーパスbasic5000を、MFAで合成時と同じモーラ区間に整列して学習 |
-| `frame-intonation-tcn-v9.1-t` | 同じコーパスを、アクセント情報による整列で学習 |
-| `frame-intonation-tcn-en-v1` | LibriTTS-Rで学習した英語のフレーム抑揚 |
-| `tone-intonation-zh-v1` | AISHELL-3で学習した中国語の声調曲線の補正 |
-
-`frame-intonation-tcn-v11`・`frame-intonation-tcn-v10`・`frame-intonation-tcn-v9.1-t`はOpen JTalkのアクセント特徴からフレーム単位の相対ピッチを予測します。モデルやRendererはGUI、CLI、Serverで共通です。学習元のライセンスは[抑揚モデル](models/README.md)、追加方法は[モデル／Rendererプラグイン](docs/plugins.md)にあります。
-
-## CLI
-
-CLIはGUI版の`tools/utautts-cli.exe`または`tools/utautts-cli`に入っています。次は同梱音源へ自動イントネーションを適用する例です。
+CLIはGUI版の`tools/utautts-cli.exe`（Linux／macOSは`tools/utautts-cli`）です。
 
 ```powershell
 .\UtauTTS\tools\utautts-cli.exe `
   --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
   --text "こんにちは、今日はいい天気です。" `
-  --renderer utautts-world-phrase `
-  --prosody frame-intonation-tcn-v10 `
-  --prosody-pitch-only `
-  --apply-pitch `
+  --prosody frame-intonation-tcn-v11 `
   --out ".\out.wav"
 ```
-
-読みを直接渡す`--reading`、言語と発音形式、ユーザー辞書、モーラごとの長さ、TXT／LAB同時保存、合成計画を書き出す`--plan-out`なども指定できます。全オプションは[コマンドライン](docs/cli.md)を参照してください。
-
-## HTTP Server
 
 Server版を起動すると`http://127.0.0.1:8080/`でコンソールUIを使えます。
 
@@ -160,7 +52,7 @@ Server版を起動すると`http://127.0.0.1:8080/`でコンソールUIを使え
 .\UtauTTS-Server\utautts-server.exe --voice-dir ".\UtauTTS-Server\voice"
 ```
 
-文章解析、ユーザー辞書、音源・モデル・Rendererの一覧、WAV／LAB、一括ZIPへのTXT／LAB同梱を`/api/*`から利用できます。APIのJSON形式と入力制限は[UtauTTS Server](docs/server.md)にあります。
+全オプションは[コマンドライン](docs/cli.md)、APIは[UtauTTS Server](docs/server.md)を参照してください。
 
 ## うまく動かないとき
 
@@ -170,15 +62,7 @@ Server版を起動すると`http://127.0.0.1:8080/`でコンソールUIを使え
 
 ## ドキュメント
 
-- [インストール](docs/installation.md)
-- [GUIの使い方](docs/gui.md)／[設定](docs/settings.md)
-- [日本語・英語・中国語の読み上げ](docs/multilingual.md)／[辞書設定](docs/settings.md#辞書設定)
-- [イントネーションとモーラ長の編集](docs/manual-pitch.md)／[同梱音源](docs/voicebank.md)
-- [コマンドライン](docs/cli.md)／[UtauTTS Server](docs/server.md)
-- [音声合成の仕組み](docs/how-utautts-speaks.md)
-- [ドキュメント一覧](docs/README.md)
-
-開発者向けのビルド、拡張、評価資料は[ドキュメント一覧](docs/README.md)から確認できます。
+利用方法、仕組み、開発者向けの資料は[ドキュメント一覧](docs/README.md)にまとめています。
 
 ## 謝辞
 

@@ -2,7 +2,7 @@
 
 学習・データ準備コマンドは `cmd/tools/` にあります。Goの学習器はgograd v1.2.0を使用します。生成物とキャッシュは `out/` に置き、配布済みの `models/*.json` は上書きしません。モデルの配布条件は [モデル一覧](../models/README.md) を参照してください。
 
-## 日本語フレーム抑揚モデル
+## 日本語フレーム抑揚モデル（v10）
 
 `frame-intonation-tcn-v10` は、つくよみちゃんコーパス Vol.1 と「みんなで作る JSUT」basic5000 の音声を使い、Open JTalk のアクセント特徴と音素時刻から 10 ms ごとの F0 輪郭を学習します。入力は `version: 1` の JSONL で、各行に `id`、`text`、`audio_path`、時刻付き `tokens` を持ちます。Go トレーナーは gograd の残差 TCN を使用します。
 
@@ -52,6 +52,23 @@ go run ./cmd/tools/train-frame-intonation `
 go run ./cmd/tools/train-manual-intonation-residual --base-model models/frame-intonation-tcn-v10.json --out out/frame-intonation-lab.json --model-id frame-intonation-lab out/lab-session.utautts
 ```
 
+## 日本語抑揚 v11（Irodori-TTSを教師にしたF0ヘッド）
+
+`frame-intonation-tcn-v11`のF0ヘッドは、Irodori-TTS v4.1-Small（MIT）にBASIC5000とUtauTTS用の日常文を読ませた音声から学習します。読みの照合（jsut-labelの正解の読みとOpenJTalkの読みが違う文を除く）とMFA整列のあと、自然F0を目標に学習します。
+
+```powershell
+go run ./cmd/tools/train-speech-timing --dataset out/irodori-teacher/train-ird.jsonl --alignments "out/mfa-align-20261002/alignments,out/irodori-teacher/alignments-ird" --cache out/irodori-teacher/features-ird.gob --language ja --f0 --valid 300 --steps 24000 --window 1000 --batch-size 8 --f0-dilations "1 2 4 8 16 32 64 1 2 4 8 16 32 64" --plan-augment --device cuda --out out/irodori-teacher/f0.safetensors
+go run ./cmd/tools/package-f0-model --weights out/irodori-teacher/f0.safetensors --base models/frame-intonation-tcn-v10.json --id my-f0-v1 --display-name "My F0 v1" --base-blend 0.65 --out out/my-f0-v1.json
+```
+
+- `--f0-dilations`はF0ブランチの受容野。既定（1〜8×2、約±0.6秒）では文全体の抑揚を学べないため、1〜64×2（約±5秒）を使います。
+- `--plan-augment`は学習発話を合成時と同じ一定のモーラ長（120ms±15、休止180ms）へ並べ直し、F0目標をモーラごとに伸縮した複製を学習へ足します。合成時はプラン時間で推論するため、これが無いと自然時間との差で精度が大きく落ちます（検証のプラン時間の相関 0.59→0.75）。
+- 検証では、発話ごとのF0の相関を自然時間（`f0r`）とプラン時間（`f0r_plan`）で表示します。試聴前の比較に使います。
+- `--f0-position`（文内の位置の特徴）は効果が無かったため既定では使いません。
+- v11は基準モデルv10の曲線を0.65混ぜ（`--base-blend`、JSONの`base_blend`）、エネルギーヘッドでモーラの音量も変えます（`--use-energy`、既定true）。同じ文の教師のモーラ長を使う上限確認でも長さは選ばれなかったため、モーラ長は規則のままです。
+
+`package-f0-model`は学習した重みをモデルJSONにまとめます。モデルJSONは`base_model`（同じディレクトリの基準の抑揚モデル）と`f0_head`（safetensorsのbase64）を持ち、ライセンス・通知・出典は基準モデルから引き継ぎます。既存の抑揚モデルの輪郭を教師にする蒸留（`cmd/tools/prosody-teacher`と`--f0-teacher`）にも対応しますが、同梱モデルには使っていません。
+
 ## 英語フレーム抑揚モデル
 
 `frame-intonation-tcn-en-v1` は LibriTTS-R の自然音声と MFA の ARPABET 音素時刻・語強勢を使います。英語前処理には Open JTalk を使いません。音素区間は MFA の境界を保ち、WORLD Harvest F0 をキャッシュします。WORLD DLL は Windows 専用です。他の OS では事前作成した F0 キャッシュを使います。
@@ -76,24 +93,13 @@ Go の `train-mandarin-intonation` は、Parquet の音声とピンイン、Padd
 go run ./cmd/tools/train-mandarin-intonation --parquet data/aishell3/train-00000-of-00045.parquet --alignments data/aishell3/aishell3_alignment_tone --world-engine runtime/utautts-world-engine.dll --limit-per-speaker 250 --workers 4 --f0-cache out/tone-intonation-zh-v1/f0-cache --observations-out out/tone-intonation-zh-v1/observations.jsonl --out out/tone-intonation-zh-v1/candidate.json
 ```
 
-### 既定の日本語抑揚 v11（Irodori-TTSを教師にしたF0ヘッド）
+## 時間伸縮の目標モデル
 
-`frame-intonation-tcn-v11`のF0ヘッドは、Irodori-TTS v4.1-Small（MIT）にBASIC5000とUtauTTS用の日常文を読ませた音声から学習します。読みの照合（jsut-labelの正解の読みとOpenJTalkの読みが違う文を除く）とMFA整列のあと、自然F0を目標に学習します。
+`speech-timing-target-*`は`utautts-world-phrase`の出力をモーラの中だけ時間伸縮するためのモデルで、bridgeに埋め込みます。
 
-```powershell
-go run ./cmd/tools/train-speech-timing --dataset out/irodori-teacher/train-ird.jsonl --alignments "out/mfa-align-20261002/alignments,out/irodori-teacher/alignments-ird" --cache out/irodori-teacher/features-ird.gob --language ja --f0 --valid 300 --steps 24000 --window 1000 --batch-size 8 --f0-dilations "1 2 4 8 16 32 64 1 2 4 8 16 32 64" --plan-augment --device cuda --out out/irodori-teacher/f0.safetensors
-go run ./cmd/tools/package-f0-model --weights out/irodori-teacher/f0.safetensors --base models/frame-intonation-tcn-v10.json --id my-f0-v1 --display-name "My F0 v1" --base-blend 0.65 --out out/my-f0-v1.json
-```
+### 日本語
 
-- `--f0-dilations`はF0ブランチの受容野。既定（1〜8×2、約±0.6秒）では文全体の抑揚を学べないため、1〜64×2（約±5秒）を使います。
-- `--plan-augment`は学習発話を合成時と同じ一定のモーラ長（120ms±15、休止180ms）へ並べ直し、F0目標をモーラごとに伸縮した複製を学習へ足します。合成時はプラン時間で推論するため、これが無いと自然時間との差で精度が大きく落ちます（検証のプラン時間の相関 0.59→0.75）。
-- 検証では、発話ごとのF0の相関を自然時間（`f0r`）とプラン時間（`f0r_plan`）で表示します。試聴前の比較に使います。
-- `--f0-position`（文内の位置の特徴）は効果が無かったため既定では使いません。
-- v11は基準モデルv10の曲線を0.65混ぜ（`--base-blend`、JSONの`base_blend`）、エネルギーヘッドでモーラの音量も変えます（`--use-energy`、既定true）。同じ文の教師のモーラ長を使う上限確認でも長さは選ばれなかったため、モーラ長は規則のままです。
-
-## 日本語の目標音素時間モデル
-
-`speech-timing-target-v1` は音素・長さ・相対 F0 から、80 帯域の正規化対数メル包絡を予測します。Go の gograd コマンドが MFA 音素時刻と WORLD フレームを読み、特徴をキャッシュして学習します。特徴抽出には Windows の WORLD DLL が必要ですが、作成済みキャッシュからの学習は他の OS でも可能です。
+`speech-timing-target-v1`は音素・長さ・相対 F0 から、80 帯域の正規化対数メル包絡を予測します。Go の gograd コマンドが MFA 音素時刻と WORLD フレームを読み、特徴をキャッシュして学習します。特徴抽出には Windows の WORLD DLL が必要ですが、作成済みキャッシュからの学習は他の OS でも可能です。
 
 ```powershell
 go run ./cmd/tools/train-speech-timing --dataset out/mfa-align-20261002/base-mfa.jsonl --alignments out/mfa-align-20261002/alignments --world-engine runtime/utautts-world-engine.dll
@@ -101,33 +107,7 @@ go run ./cmd/tools/train-speech-timing --dataset out/mfa-align-20261002/base-mfa
 
 `--features-only --features-json out/speech-timing-target/sample.json` は先頭の特徴を比較用に出力します。既存の `--cache` があれば、`--dataset`、`--alignments`、WORLD DLLなしで学習できます。
 
-### 日本語の統合韻律モデル（F0・エネルギー）
-
-時間伸縮と同じ系統のモデルに、メルトランクに加えて F0 とエネルギーのヘッドを持たせます。ここでは既存の抑揚モデルを教師にした蒸留の手順を残します（この方法の`speech-timing-target-ja-prosody-v1`はv10と聴感上区別できず、v11の採用で同梱を終えました）。
-
-F0教師は既存の抑揚モデルの**ランタイム輪郭**（平滑化・p99・最大90centクリップ込み）をコーパスの時間軸で生成した蒸留教師です。
-
-```powershell
-# 1. 教師輪郭（自然時間軸）
-go run ./cmd/tools/prosody-teacher --dataset out/mfa-align-20261002/all-mfa.jsonl --model models/frame-intonation-tcn-v10.json --out out/speech-timing-target/ja-v10-teacher.jsonl
-
-# 2. プラン時間風（モーラ120ms±15・ポーズ180ms）のデータと教師を作り、自然時間のデータと混合する
-#    plan-mfa.jsonl（plan_timing: true、時刻を振り直したトークン）を用意し、同じツールで教師を生成。
-#    all-mfa.jsonl + plan-mfa.jsonl = mix-mfa.jsonl、教師も連結して ja-mix-teacher.jsonl にする。
-
-# 3. 学習（F0蒸留＋エネルギー、プラン側はメル・エネルギー目標をNaNで除外）
-go run ./cmd/tools/train-speech-timing --dataset out/mfa-align-20261002/mix-mfa.jsonl --alignments "out/mfa-align-20261002/alignments,out/mfa-align-20261002/alignments-others" --cache out/speech-timing-target/ja-mix-features.gob --language ja --f0 --f0-teacher out/speech-timing-target/ja-mix-teacher.jsonl --f0-weight 1 --f0-delta-weight 0.35 --energy-weight 1 --lr 0.0015 --steps 8000 --device cuda --out out/speech-timing-target/ja-mh.safetensors
-```
-
-学習した重みは`package-f0-model`でモデルJSONにまとめ、基準モデルと同じ`models/`へ置きます。モデルJSONは`base_model`（同じディレクトリの基準の抑揚モデル）と`f0_head`（safetensorsのbase64）を持ち、基準モデルがアクセント特徴とモーラの予測を、F0ヘッドが自動ピッチ曲線とモーラの音量を担います。ライセンス・通知・出典は基準モデルから引き継ぎます。
-
-```powershell
-go run ./cmd/tools/package-f0-model --weights out/speech-timing-target/ja-mh.safetensors --base models/frame-intonation-tcn-v10.json --id my-f0-v1 --display-name "My F0 v1" --priority 90 --out out/my-f0-v1.json
-```
-
-F0ヘッドは教師のcent/100スケール（metadata `f0_scale=100`）で出力し、実行時に発話区間のGaussian平滑化（20ms）とp99/最大クリップを適用します。エネルギーは発話内で中心化し、プランの`EnergyFactor`（0.75〜1.3）へ適用します。言語が日本語以外のときは従来の経路（言語別抑揚モデル）へ戻ります。
-
-### 英語の目標音素時間モデル
+### 英語
 
 `speech-timing-target-en-v1` は LibriTTS-R のトークン境界（`out/english-frame-v1/corpus.jsonl`）から学習します。`--corpus` は音素区間付きのトークン列を読み、言語別の語彙を組み立ててモデルmetadataの`phones`へ保存します。
 
@@ -152,7 +132,7 @@ go run ./cmd/tools/train-speech-timing `
 
 学習した重みは `internal/speechtiming/speech-timing-target-en-v1.safetensors` へ置き、`TargetForLanguage("en")` が選びます。英語の時間伸縮はプランの `phone_timings`（codaを含む音素区間）をモデルへ渡します。
 
-### 中国語の目標音素時間モデル
+### 中国語
 
 `speech-timing-target-zh-v1` は AISHELL-3（PaddleSpeechのtone TextGrid）から学習します。`prepare-aishell3-timing` がparquetの音声をWAVへ展開し、単語tierの音節区間と音素tierのinitial/final境界から、runtime記号（声調を除くpinyin音素）の区間を持つcorpusを作ります。
 
@@ -211,8 +191,27 @@ go run ./cmd/tools/train-speech-timing `
 
 CPUの再開は連続実行とファイル単位で一致します。CUDAは勾配集約順序によるfloat32の微小差を許して検証します。窓サンプラは復元可能なPCG乱数を使い、最後の完全な窓も抽選対象にするため、旧トレーナーとは同じseedでも新規学習の軌跡が異なります。
 
+## 接続モデル
+
+聴取ラベルから原音候補の接続スコアを学習します。接続モデルを指定しない合成では手設計のスコアを使います。モデルは候補の順位付けだけを調整し、波形やWORLD特徴は変えません。音源の不足、`oto.ini`で切り落とされた子音、録音ノイズは補正できません。
+
+合成計画を出力し、隣接する原音を分析します。
+
+```powershell
+go run ./cmd/utautts-cli --voicebank "./voice/音源" --reading "これはテストです。" --out out/join-audit.wav --plan-out out/join-audit.plan.json
+go run ./cmd/tools/join-audit --plan out/join-audit.plan.json --out out/join-audit.json
+```
+
+出力の`risk_flags`は聴取する境界を絞る目印です。各行の`label`へ、接続が自然なら`1`、段差・ノイズ・切り落としがあれば`0`を入れます。音源や文ごとに複数の監査ファイルを作り、正例と負例を合わせて4行以上用意します。
+
+```powershell
+go run ./cmd/tools/join-ranker --input out/join-audit.json --out out/join-ranker.json
+```
+
+`--input`は繰り返し指定できます。出力JSONには特徴量の順序、正規化値、学習条件を保存します。合成ではCLIの`--join-model`で指定し、計画には`join_cost_mode: "learned"`と`join_model_id`が記録されます。確信度が低い境界では手設計のスコアへ戻ります。ボイスバンクの録音から作ったモデルを共有する場合は、各音源のライセンスと作者の許諾に従ってください。
+
 ## 残る Python
 
-MFA 本体は外部の Python/Kaldi 依存です。原音区間の整列・探索・監査、MFA の前後処理、音響プロット、wasm 配布補助は `cmd/tools/` の Go コマンドです。Open JTalk 実行時ブリッジとそのビルド検証・PyInstaller ライセンス収集は、ネイティブの辞書駆動 NJD 生成が Go から利用できるまで Python に残します。必要機能と検証結果は [Open JTalk 実行時ブリッジの移行判定](openjtalk-bridge-audit.md) を参照してください。
+MFA 本体は外部の Python/Kaldi 依存です。原音区間の整列・探索・監査、MFA の前後処理、音響プロット、wasm 配布補助は `cmd/tools/` の Go コマンドです。Open JTalk の実行時helperは、辞書からNJDノードを作る処理がGoに無いため、PyInstallerでまとめたPythonのまま同梱します（[技術設計ガイド](technical-design.md#open-jtalk特徴)）。
 
 性能測定は `go run ./cmd/tools/performance-baseline --out out/perf-... --voicebank <音源>` で行います。ベンチ、ビルド、合成結果、pprofを新しいディレクトリへまとめます。

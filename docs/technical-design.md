@@ -21,7 +21,7 @@ GUI / CLI / HTTP Server
     ┌─ Language frontends ── 読み・音素・モーラ
     ├─ Open JTalk helper ── アクセント・単語・品詞特徴
     ├─ Voicebank resolver ─ 候補ラティスと選択経路
-    ├─ Prosody model ────── モーラ長・10msピッチ曲線
+    ├─ Prosody model ────── 10msピッチ曲線・モーラの音量
     └─ Plan builder ─────── 時刻付きの原音unit列
           │
           ▼
@@ -41,6 +41,49 @@ GUI / CLI / HTTP Server
 4. `render`が合成計画に従って原音を配置し、Rendererごとの方法でWAVへ変換します。
 
 GUI、CLI、HTTP Serverは別々の音声処理を持たず、最終的には同じ`synth.Service`と`tts.Synthesize`へ到達します。入口を追加・変更するときは設定の伝播だけを確認し、音声処理を重複実装しないようにします。
+
+### 処理の段階
+
+UTAU音源の経路は`tts.SynthesizeWithOptions`が次の順に実行します。DiffSingerなどのニューラル合成は別の経路です。
+
+| 段階 | 担当 | 出力 |
+| --- | --- | --- |
+| 発音解析 | `frontend`、`tts`の言語profile | 読み、音素、強勢・声調など |
+| 発話設計 | `prosody`、言語profile | 長さ・ピッチ・音量の予測 |
+| 原音選択 | `voicebank`、`connection` | aliasと原音の選択 |
+| 発話計画 | `tts/stage_plan.go`、`plan` | unitと音素の出力時刻 |
+| ピッチ確定 | `tts/stage_pitch.go` | 描画用のピッチ曲線 |
+| 描画 | `render`、選択したprovider | 音声と描画結果の診断 |
+
+言語固有の読み、韻律、音素の長さは`languageProfile`にまとめ、WORLD固有の伸縮や接続は`render/worldline`で扱います。共通の`Mora`型は日本語のモーラ以外にも使うため、英語・中国語では名前だけで判断せず`Language`と`Phones`を参照します。
+
+ピッチは、指定済みの曲線を優先し、未指定時に言語規則またはフレーム抑揚モデルから生成します。その後、言語別の境界音調、手動ピッチの順に処理し、手動ピッチの適用後は曲線の変化を制限します。発話計画は言語profileの音素長と予測から`plan.Build`で作り、構築後にユーザーのunit指定を適用します。
+
+### 日本語の補正の流れ
+
+原音の声質（包絡）を変える補正はありません。
+
+| 段階 | 補正 | 場所 | 設定 |
+| --- | --- | --- | --- |
+| 原音選択 | 録音の無いヴ行・デュ・テュを同音の行で代替 | `voicebank`（`equivalentKanaForms`） | なし |
+| 発話設計 | フレーム抑揚モデル、強さの拡大（2を超えると大きい動きほど広げる） | `prosody`、`tts`（`scaleAutomaticPitchCurve`） | `intonation_strength` |
+| 発話設計 | 文末の音調 | `tts/japanese_boundary.go` | `boundary_tone` |
+| 発話設計 | 文脈に応じたモーラ長（既定は無効） | `tts/japanese_duration.go` | `context_duration` |
+| 発話計画 | 句読点の休止長 | `plan/pause_context.go` | `pause_context` |
+| 発話計画 | CVVCで続く子音が長いときにVCを延ばす | `plan/plan.go`（`cvvcTransitionDuration`） | なし |
+| 発話計画 | 原音の校正（固定部・有声開始・破裂の過渡） | `voicebank/speech_profile.go` | なし |
+| 描画（本体） | 伸縮の有界化（原音より大きく伸ばすとき） | `render/base/timing.go`（`AdaptStretchTiming`） | `stretch_adapt` |
+| 描画（本体） | 単独音の母音だけのモーラを前の母音から滑らかにつなぐ | `render/worldline/singlecv_legato.go` | なし |
+| 描画（本体） | 子音の前後の小さな音高の動き | `render/worldline/microprosody.go` | `microprosody` |
+| 描画（本体） | 時間伸縮の入力（音素区間と固定点のタイムライン） | `render/worldline/worldline.go`（`timingWarpJob`） | `timing_warp` |
+| 描画（bridge） | 母音接続・破裂音の保護・同じ母音の隙間の補修 | `worldrender/world_speech.go`、`world_gap.go`、`stop_burst.go` | なし |
+| 描画（bridge） | タイムラインに沿ってモーラの中だけ時間伸縮 | `speechtiming`、`worldrender/timing_warp.go` | `timing_warp` |
+
+描画（本体）は`render/worldline/worldline.go`の`renderWorldlineEngine`が、タイミング、音高、原音の準備、素片、bridgeの実行の順に行います。bridgeへ渡す内容は`provider.UnitRendererJob`に明示し、bridgeは合成計画を読み直しません。日本語の連続音（単独音以外）は低加工の混合（同じ母音の隙間の補修つき）、それ以外は適応的な混合を使います。
+
+### 英語・中国語の原音写像
+
+WORLDの英語・中国語では、まずotoと音響的な推定から原音の時間写像を作ります。試聴用の手動区間があればそれを優先し、なければ[原音区間ライブラリ](source-understanding.md)を照合します。手動区間の不整合はエラーとし、ライブラリの未登録・不整合はotoの写像へ戻します。どちらも共通の`SourceSpan`型と`placeSourceSpan`で検証・描画し、対象の破裂音には過渡区間の保護を掛けます。適用した写像は描画結果の`speech_mapping`と原音・出力のanchorに記録します。英語の語末破裂音の閉鎖・解放の分離と日本語の破裂音保護は常に有効です。
 
 同梱Rendererは次の3つです。配布プロファイルによって利用できるものは異なります。
 
@@ -62,7 +105,7 @@ GUI、CLI、HTTP Serverは別々の音声処理を持たず、最終的には同
 
 ### Open JTalk特徴
 
-`frame-intonation-tcn-v10`などのモデルは読みだけでは得られない次の特徴を使います。
+日本語の抑揚モデルは読みだけでは得られない次の特徴を使います。
 
 - アクセント句内の位置と残り長
 - アクセント核との位置関係
@@ -71,6 +114,8 @@ GUI、CLI、HTTP Serverは別々の音声処理を持たず、最終的には同
 - 句境界と発話内位置
 
 Go本体は同梱された`utautts-openjtalk-features`を別プロセスとして起動してJSONで解析結果を受け取ります。helperはアプリの稼働中に常駐し、約100MBの辞書を最初の一度だけ読み込みます。PythonやOpen JTalkをGoプロセスへ直接埋め込まないのでGUI、CLI、Serverから同じ実行形式を利用できます。
+
+helperは`tools/openjtalk-feature-bridge.py`をPyInstallerでまとめたもので、pyopenjtalkでNJDノードを作ります。NJDノード以降（読み、モーラ、アクセント句の補正、疎な特徴）はGoの`internal/openjtalk`にも同じ実装があり、wasm版はブラウザのOpen JTalkからNJDを受け取ってこちらを使います。両者の一致は`go test ./internal/openjtalk -run TestCapturedPyopenjtalkBridgeParity`で確認します。辞書からNJDを作る部分がGoに無いため、ネイティブ版はhelperを使い続けます。
 
 Kagome側とOpen JTalk側でモーラ分割が一致しない場合は完全一致、母音一致、長音、skipへ異なるコストを与える動的計画法で対応位置を求めます。対応しなかった位置には最も近い特徴を補います。ここを単純な配列indexで結ぶと未知語や長音以降のアクセント特徴がすべてずれます。
 
@@ -152,7 +197,7 @@ multitaskモデル（version 10 / feature 2 / mode `prosody_multitask_tcn`）は
 
 英語モデルはARPAbetから得た強勢、語境界、句境界を特徴として使います。中国語モデルはPinyinの声調に基づく曲線を補正します。カードの言語を変えた場合は、対応するモデルがあれば切り替えます。
 
-version 11のmanual residual形式もruntimeが解釈できます。これはv8を基準にGUIで行った人手修正の傾向だけを小さなcent補正として学習する形式です。元モデルのSHA-256と補正範囲を持ち、基準モデルへ残差を加えます。標準配布にはversion 11モデルを含みません。
+manual residual形式（version 11）もruntimeが解釈できます。これはv8を基準にGUIで行った人手修正の傾向だけを小さなcent補正として学習する形式です。元モデルのSHA-256と補正範囲を持ち、基準モデルへ残差を加えます。標準配布にはversion 11モデルを含みません。
 
 ### 推論順序
 

@@ -1,6 +1,6 @@
 # Qt WebAssembly版の構成
 
-Qt WebAssembly版の処理経路、状態管理、仮想ファイルシステムの構成をまとめた開発者向けの文書です。音声合成本体の構成は[UTAU音源の合成処理](synthesis-architecture.md)、全体の設計は[技術設計ガイド](technical-design.md)を参照してください。
+Qt WebAssembly版の処理経路、状態管理、仮想ファイルシステムの構成をまとめた開発者向けの文書です。音声合成本体の構成は[技術設計ガイド](technical-design.md)を参照してください。
 
 ## 処理経路と担当
 
