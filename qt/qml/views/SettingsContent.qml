@@ -21,7 +21,7 @@ Item {
 
     property int currentPage: 0
     property string pendingDefaultVoicebankId: ""
-    property string pendingDefaultModelId: "intonation-ja-v11"
+    property string pendingDefaultModelId: "frame-intonation-tcn-v11"
     property string pendingDefaultRendererId: "utautts-world-phrase"
     property string pendingDefaultAliasPolicy: "auto"
     property string pendingDefaultTone: "C4"

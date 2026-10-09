@@ -29,7 +29,7 @@ func TestBlendPitchCurvesWeightsSecondCurve(t *testing.T) {
 
 // 自然スケールのF0ヘッドは、既定の強さ（4）で輪郭をそのまま、半分の強さで半分にする。
 func TestScaleUnifiedPitchCurveNaturalScale(t *testing.T) {
-	model, err := prosody.LoadModel(filepath.Join("..", "..", "models", "intonation-ja-v11.json"))
+	model, err := prosody.LoadModel(filepath.Join("..", "..", "models", "frame-intonation-tcn-v11.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

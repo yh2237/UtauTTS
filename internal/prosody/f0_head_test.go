@@ -8,12 +8,12 @@ import (
 
 // 同梱のF0ヘッドつきモデルJSON（v11）が、基準モデルとF0・エネルギーヘッドを合わせて読めることを確認する。
 func TestBundledF0HeadModelLoads(t *testing.T) {
-	path := filepath.Join("..", "..", "models", "intonation-ja-v11.json")
+	path := filepath.Join("..", "..", "models", "frame-intonation-tcn-v11.json")
 	model, err := LoadModel(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if model.ID != "intonation-ja-v11" || model.Language != "ja" {
+	if model.ID != "frame-intonation-tcn-v11" || model.Language != "ja" {
 		t.Fatalf("identity = %q %q %d", model.ID, model.Language, model.DefaultPriority)
 	}
 	if !model.HasFrameContour() || !model.RequiresExternalFeatures() {
@@ -52,7 +52,7 @@ func TestF0HeadModelRejectsMissingHead(t *testing.T) {
 
 // 既定の日本語抑揚モデルv11は、v10を0.65混ぜ、エネルギーヘッドでモーラの音量も変える設定で読める。
 func TestBundledV11BlendsWithV10(t *testing.T) {
-	model, err := LoadModel(filepath.Join("..", "..", "models", "intonation-ja-v11.json"))
+	model, err := LoadModel(filepath.Join("..", "..", "models", "frame-intonation-tcn-v11.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
