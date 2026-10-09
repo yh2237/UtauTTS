@@ -78,7 +78,7 @@ go run ./cmd/tools/train-mandarin-intonation --parquet data/aishell3/train-00000
 
 ### 既定の日本語抑揚 v11（Irodori-TTSを教師にしたF0ヘッド）
 
-`intonation-ja-v11`のF0ヘッドは、Irodori-TTS v4.1-Small（MIT）にBASIC5000とUtauTTS用の日常文を読ませた音声から学習します。読みの照合（jsut-labelの正解の読みとOpenJTalkの読みが違う文を除く）とMFA整列のあと、自然F0を目標に学習します。
+`frame-intonation-tcn-v11`のF0ヘッドは、Irodori-TTS v4.1-Small（MIT）にBASIC5000とUtauTTS用の日常文を読ませた音声から学習します。読みの照合（jsut-labelの正解の読みとOpenJTalkの読みが違う文を除く）とMFA整列のあと、自然F0を目標に学習します。
 
 ```powershell
 go run ./cmd/tools/train-speech-timing --dataset out/irodori-teacher/train-ird.jsonl --alignments "out/mfa-align-20261002/alignments,out/irodori-teacher/alignments-ird" --cache out/irodori-teacher/features-ird.gob --language ja --f0 --valid 300 --steps 24000 --window 1000 --batch-size 8 --f0-dilations "1 2 4 8 16 32 64 1 2 4 8 16 32 64" --plan-augment --device cuda --out out/irodori-teacher/f0.safetensors
