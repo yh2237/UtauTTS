@@ -30,7 +30,7 @@
 .\UtauTTS\tools\utautts-cli.exe `
   --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
   --text "あらゆる現実をすべて自分のほうへねじ曲げたのだ。" `
-  --prosody frame-intonation-tcn-v11 `
+  --prosody frame-intonation-tcn-v12 `
   --out ".\out.wav"
 ```
 
@@ -142,7 +142,7 @@ GUIで編集した抑揚は、[手動ピッチ編集JSON](server.md#手動ピッ
 .\UtauTTS\tools\utautts-cli.exe `
   --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
   --text "こんにちは" `
-  --prosody frame-intonation-tcn-v11 `
+  --prosody frame-intonation-tcn-v12 `
   --manual-pitch ".\manual-pitch.json" `
   --out ".\manual-pitch.wav"
 ```

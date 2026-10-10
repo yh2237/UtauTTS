@@ -60,3 +60,21 @@ func TestBundledV11BlendsWithV10(t *testing.T) {
 		t.Fatalf("v11: head %v blend %v energy %v priority %d", model.F0Head != nil, model.F0HeadBaseBlend, model.F0HeadEnergy, model.DefaultPriority)
 	}
 }
+
+// 既定の日本語抑揚モデルv12は、v10を混ぜず、全体を-50cent下げ、v11より優先される。
+func TestBundledV12UsesHeadOnly(t *testing.T) {
+	model, err := LoadModel(filepath.Join("..", "..", "models", "frame-intonation-tcn-v12.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	v11, err := LoadModel(filepath.Join("..", "..", "models", "frame-intonation-tcn-v11.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if model.F0Head == nil || model.F0HeadBaseBlend != 0 || model.F0HeadPitchOffsetCents != -50 || !model.F0HeadEnergy || model.DefaultPriority <= v11.DefaultPriority {
+		t.Fatalf("v12: head %v blend %v offset %v energy %v priority %d", model.F0Head != nil, model.F0HeadBaseBlend, model.F0HeadPitchOffsetCents, model.F0HeadEnergy, model.DefaultPriority)
+	}
+	if model.F0Head.F0Scale() != 0 {
+		t.Fatalf("v12 F0 head must use the natural scale, got f0_scale %v", model.F0Head.F0Scale())
+	}
+}

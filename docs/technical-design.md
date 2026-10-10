@@ -187,7 +187,8 @@ Planは、候補選択、時間設計、Rendererの差を切り分けるため�
 
 | モデル | 形式 | 出力 |
 | --- | --- | --- |
-| `frame-intonation-tcn-v11` | `base_model`（v10）＋`f0_head` | 10ms単位の相対ピッチとモーラの音量（既定） |
+| `frame-intonation-tcn-v12` | `base_model`（v10）＋`f0_head` | 10ms単位の相対ピッチとモーラの音量（既定） |
+| `frame-intonation-tcn-v11` | `base_model`（v10）＋`f0_head` | 10ms単位の相対ピッチとモーラの音量 |
 | `frame-intonation-tcn-v10` | version 8 / feature 1 | 10ms単位の相対ピッチ |
 | `frame-intonation-tcn-v9.1-t` | version 8 / feature 1 | 10ms単位の相対ピッチ |
 | `frame-intonation-tcn-en-v1` | version 8 / feature 1 | 英語の10ms単位の相対ピッチ |
@@ -256,9 +257,9 @@ resamplerとwavtoolは独立したプロセスです。呼び出しごとに、�
 
 推論は純GoのTCNで、`Predictor`インターフェースの後ろにあるため、gogradなど別の推論系へ差し替えられます。重みはsafetensors（F32）でbridgeに埋め込みます。学習はgogradを使うGoのコマンド`cmd/tools/train-speech-timing`で行います（[手順](model-training.md)）。
 
-日本語の抑揚の既定は`frame-intonation-tcn-v11`です。v11は、`frame-intonation-tcn-v10`の抑揚曲線（強さ4で拡大、重み0.65）と、Irodori-TTSの読み上げで学習した自然スケールのF0ヘッドの曲線（重み0.35、既定の強さ4で等倍）を混ぜます（モデルJSONの`base_blend`）。同じモデルのエネルギーヘッドで、モーラの音量（0.75〜1.3倍）も変えます（`use_energy`）。音量を変えるv11は、音量を変えないv11との聴取比較で10対5で選ばれました。
+日本語の抑揚の既定は`frame-intonation-tcn-v12`です。v12はv10の曲線を混ぜず（`base_blend` 0）、Irodori-TTSの読み上げで学習した自然スケールのF0ヘッドの曲線だけを使い、曲線全体を50セント下げます（`pitch_offset_cents` -50）。教師のF0は、オクターブの誤推定を折り返して作り直しています。v11は、`frame-intonation-tcn-v10`の抑揚曲線（強さ4で拡大、重み0.65）と、Irodori-TTSの読み上げで学習した自然スケールのF0ヘッドの曲線（重み0.35、既定の強さ4で等倍）を混ぜます（モデルJSONの`base_blend`）。同じモデルのエネルギーヘッドで、モーラの音量（0.75〜1.3倍）も変えます（`use_energy`）。音量を変えるv11は、音量を変えないv11との聴取比較で10対5で選ばれました。
 
-F0ヘッドは時間伸縮と同じ系統のモデル（`internal/speechtiming`）です。モデルJSONは基準の抑揚モデル（`base_model`）とF0ヘッドの重み（`f0_head`）を持ち、アクセント特徴とモーラの予測は基準モデルが行います。F0ヘッドの入力は音素の前後関係・音素内の位置・長さ・アクセント・品詞で、前後約5秒を見ます。自然スケールのモデルは抑揚の強さを「強さ/既定の4」で掛けます。既存の抑揚モデルの輪郭を教師にした蒸留モデル（`f0_scale`あり）は、教師の後処理（発話区間のGaussian平滑化20 ms、p99 75セント、最大90セントのクリップ）を推論時にも適用します。エネルギーヘッドはモーラごとの音量係数（0.75〜1.3）をプランの`EnergyFactor`へ適用します。日本語以外では言語別の抑揚モデルをそのまま使います。学習は`train-speech-timing`の`--f0`と`--plan-augment`で行います（[手順](model-training.md)）。
+F0ヘッドは時間伸縮と同じ系統のモデル（`internal/speechtiming`）です。モデルJSONは基準の抑揚モデル（`base_model`）とF0ヘッドの重み（`f0_head`）を持ち、アクセント特徴とモーラの予測は基準モデルが行います。F0ヘッドの入力は音素の前後関係・音素内の位置・長さ・アクセント・品詞で、前後約5秒を見ます。自然スケールのモデルは抑揚の強さを「強さ/既定の4」で掛けます。既存の抑揚モデルの輪郭を教師にした蒸留モデル（`f0_scale`あり）は、教師の後処理（発話区間のGaussian平滑化20 ms、p99 75セント、最大90セントのクリップ）を推論時にも適用します。エネルギーヘッドはモーラごとの音量係数（0.75〜1.3）をプランの`EnergyFactor`へ適用します。GUIの高さの表示、DiffSingerへの入力、USTXの書き出しも、合成と同じ休止長で入力を組み、合成と同じF0ヘッドの曲線を使います。日本語以外では言語別の抑揚モデルをそのまま使います。学習は`train-speech-timing`の`--f0`と`--plan-augment`で行います（[手順](model-training.md)）。
 
 ### DiffSinger
 

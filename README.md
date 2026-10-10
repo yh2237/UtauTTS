@@ -34,7 +34,7 @@ GUI版には「足立レイ ver3.5.0」を同梱しています。利用条件�
 
 音源は実行ファイルと同じ階層の`voice`へフォルダごと置き、「ファイル」→「音源とプラグイン」→「音源を再読込」で読み込みます。音源の配置、カードごとの設定、編集の操作は[GUIの使い方](docs/gui.md)にあります。
 
-既定の抑揚モデルは`frame-intonation-tcn-v11`、Rendererは`utautts-world-phrase`です。英語・中国語のカードでは各言語のモデルへ自動で切り替わります。同梱モデルと学習元は[抑揚モデルのライセンス](models/README.md)にあります。
+既定の抑揚モデルは`frame-intonation-tcn-v12`、Rendererは`utautts-world-phrase`です。英語・中国語のカードでは各言語のモデルへ自動で切り替わります。同梱モデルと学習元は[抑揚モデルのライセンス](models/README.md)にあります。
 
 ## CLIとHTTP Server
 
@@ -44,7 +44,7 @@ CLIはGUI版の`tools/utautts-cli.exe`（Linux／macOSは`tools/utautts-cli`）�
 .\UtauTTS\tools\utautts-cli.exe `
   --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
   --text "こんにちは、今日はいい天気です。" `
-  --prosody frame-intonation-tcn-v11 `
+  --prosody frame-intonation-tcn-v12 `
   --out ".\out.wav"
 ```
 

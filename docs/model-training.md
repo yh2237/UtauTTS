@@ -52,6 +52,15 @@ go run ./cmd/tools/train-frame-intonation `
 go run ./cmd/tools/train-manual-intonation-residual --base-model models/frame-intonation-tcn-v10.json --out out/frame-intonation-lab.json --model-id frame-intonation-lab out/lab-session.utautts
 ```
 
+## 日本語抑揚 v12（教師のF0を作り直したF0ヘッド）
+
+`frame-intonation-tcn-v12`は、v11と同じデータセットと整列で、教師のF0だけを作り直して学習します。教師はWORLD Harvest（10 ms、80〜800 Hz）で測ったF0を、最大から-40 dB以下のフレームを除き、前後150 msの中央値から600セント以上離れた値をオクターブ単位で折り返し、σ20 msで平滑化して、発話の中央値を0にしたものです。`--f0-teacher`のJSONL（`id`と`cents`）で渡します。ローダーは値を100で割るので、自然スケールの単位（log/0.3）になるよう「セント×100/519.3」で書きます。モデルJSONへまとめるときに`--natural-scale`でメタデータの`f0_scale`を外し、推論は自然スケールの経路を通します。v10の曲線は混ぜず（`--base-blend 0`）、曲線全体を50セント下げます（`--pitch-offset-cents -50`）。
+
+```powershell
+go run ./cmd/tools/train-speech-timing --dataset out/irodori-teacher/train-ird.jsonl --alignments "out/mfa-align-20261002/alignments,out/irodori-teacher/alignments-ird" --cache out/irodori-teacher/features-ird.gob --language ja --f0 --f0-teacher out/irodori-teacher/teacher-f0.jsonl --valid 300 --steps 24000 --window 1000 --batch-size 8 --f0-dilations "1 2 4 8 16 32 64 1 2 4 8 16 32 64" --plan-augment --out out/irodori-teacher/f0-v12.safetensors
+go run ./cmd/tools/package-f0-model --weights out/irodori-teacher/f0-v12.safetensors --base models/frame-intonation-tcn-v10.json --id my-f0-v12 --display-name "My F0 v12" --natural-scale --base-blend 0 --pitch-offset-cents -50 --out out/my-f0-v12.json
+```
+
 ## 日本語抑揚 v11（Irodori-TTSを教師にしたF0ヘッド）
 
 `frame-intonation-tcn-v11`のF0ヘッドは、Irodori-TTS v4.1-Small（MIT）にBASIC5000とUtauTTS用の日常文を読ませた音声から学習します。読みの照合（jsut-labelの正解の読みとOpenJTalkの読みが違う文を除く）とMFA整列のあと、自然F0を目標に学習します。

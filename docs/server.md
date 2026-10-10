@@ -134,11 +134,11 @@ ID順にソートされた音源一覧です。
 {
   "models": [
     {
-      "id": "frame-intonation-tcn-v11",
+      "id": "frame-intonation-tcn-v12",
       "display_name": "Frame Intonation TCN v11",
       "description": "...",
       "language": "ja",
-      "path": "C:\\...\\models\\frame-intonation-tcn-v11.json",
+      "path": "C:\\...\\models\\frame-intonation-tcn-v12.json",
       "version": 8,
       "feature_version": 1,
       "mode": "intonation_frame_tcn_accent_bounded",
@@ -209,7 +209,7 @@ ID順にソートされた音源一覧です。
 {
   "text": "こんにちは、今日はいい天気です。",
   "voicebank_id": "足立レイver3.5.0",
-  "model_id": "frame-intonation-tcn-v11",
+  "model_id": "frame-intonation-tcn-v12",
   "renderer": "utautts-world-phrase",
   "alias_policy": "auto",
   "intonation_strength": 1,

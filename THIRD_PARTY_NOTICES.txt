@@ -382,8 +382,8 @@ licenses/MINNADE-JSUT-CORPUS.txt. The frame-intonation-tcn-v10 training data
 was aligned locally with the Montreal Forced Aligner Japanese MFA acoustic
 model (CC BY 4.0), which is not bundled; see licenses/MFA-Japanese-NOTICE.txt.
 
-The F0 head of frame-intonation-tcn-v11 (the default Japanese model) was also
-trained on relative pitch measured from speech that UtauTTS generated locally
+The F0 heads of frame-intonation-tcn-v12 (the default Japanese model) and
+frame-intonation-tcn-v11 were also trained on relative pitch measured from speech that UtauTTS generated locally
 with Irodori-TTS v4.1-Small (MIT License); the generated audio, scripts and
 the text-to-speech model are not bundled. See
 licenses/IRODORI-TEACHER-NOTICE.txt.
