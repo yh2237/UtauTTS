@@ -313,7 +313,7 @@ func assemble(source, output, publicURL, id, version, revision, channel, siteDir
 	if err := os.MkdirAll(filepath.Join(pages, "editor"), 0755); err != nil {
 		return result, err
 	}
-	headers := "/*\n  X-Content-Type-Options: nosniff\n/\n  Cache-Control: no-cache\n/index.html\n  Cache-Control: no-cache\n/editor/\n  Cache-Control: no-cache\n/editor/index.html\n  Cache-Control: no-cache\n/deployment.json\n  Cache-Control: no-cache\n/app/*\n  Cache-Control: " + immutableCache + "\n/_astro/*\n  Cache-Control: " + immutableCache + "\n"
+	headers := "/*\n  X-Content-Type-Options: nosniff\n/\n  Cache-Control: no-cache\n/index.html\n  Cache-Control: no-cache\n/editor/\n  Cache-Control: no-cache\n/editor/index.html\n  Cache-Control: no-cache\n/deployment.json\n  Cache-Control: no-cache\n/app/*\n  Cache-Control: " + immutableCache + "\n/assets/*\n  Cache-Control: " + immutableCache + "\n"
 	for file, value := range map[string]string{"editor/index.html": page, "404.html": "<!doctype html><meta charset=utf-8><title>404</title>Not found\n", "_headers": headers} {
 		if err := os.WriteFile(filepath.Join(pages, filepath.FromSlash(file)), []byte(value), 0644); err != nil {
 			return result, err
