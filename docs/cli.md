@@ -24,7 +24,7 @@
   --out ".\out.wav"
 ```
 
-学習イントネーションはGUIと違い既定では使わないため、`--prosody`でモデルIDを指定します。配布物内のOpen JTalk frontendが実行時に読みとアクセント特徴を生成します。
+CLIはGUIと違い、抑揚モデルを既定では使いません。使う場合は`--prosody`でモデルIDを指定します。配布物内のOpen JTalk frontendが実行時に読みとアクセント特徴を生成します。
 
 ```powershell
 .\UtauTTS\tools\utautts-cli.exe `

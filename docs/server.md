@@ -25,7 +25,7 @@ xattr -rc "utautts-server" runtime
 ./utautts-server --voice-dir voice --renderer utautts-world-phrase
 ```
 
-標準では実行ファイルと同じ場所の`voice`ディレクトリを読み込みます。音源はフォルダごとに配置して`voicebank_id`には`/api/voicebanks`で取得したIDを指定します。省略するとID順で最初の音源が使われます。
+標準では実行ファイルと同じ場所の`voice`ディレクトリを読み込みます。音源はフォルダごとに配置し、`voicebank_id`には`/api/voicebanks`で取得したIDを指定します。省略するとID順で最初の音源が使われます。
 
 ## コンソールUI
 
@@ -114,7 +114,7 @@ ID順にソートされた音源一覧です。
 
 ### `POST /api/voicebanks`
 
-音源パスを動的に登録します。既定では無効で`--allow-voicebank-registration`を指定した場合だけ使えます。登録先は`--voice-dir`以下に制限されてシンボリックリンク解決後に範囲外なら400で拒否します。
+音源パスを動的に登録します。既定では無効で、`--allow-voicebank-registration`を指定した場合だけ使えます。登録先は`--voice-dir`以下に制限され、シンボリックリンクを解決した後に範囲外になるパスは400で拒否します。
 
 ```json
 {"name": "My Bank", "path": "voice/my-bank"}
@@ -124,7 +124,7 @@ ID順にソートされた音源一覧です。
 
 ### `POST /api/voicebanks/reload`
 
-`--voice-dir`を再走査して音源一覧を置き換えます。レスポンスは`GET /api/voicebanks`と同じ形式で失敗時は500です。
+`--voice-dir`を再走査して音源一覧を置き換えます。レスポンスは`GET /api/voicebanks`と同じ形式で、失敗時は500です。
 
 ### `GET /api/models`
 
@@ -219,7 +219,7 @@ ID順にソートされた音源一覧です。
 
 レスポンスヘッダーの`X-UtauTTS-Reading`に使用した読み、`X-UtauTTS-Engine`にRenderer IDが入ります。
 
-リクエスト項目：
+#### リクエスト項目
 
 | 項目 | 型 | 既定値 | 説明 |
 |---|---|---|---|
@@ -270,7 +270,7 @@ ID順にソートされた音源一覧です。
 
 廃止した`speech_timing`、`word_boundary_envelope`、`prosody_experiment`は、古いクライアントのために受け取って無視します。
 
-ステータスコード：
+#### ステータスコード
 
 - `200`: WAVバイナリ。`X-UtauTTS-Engine` / `X-UtauTTS-Reading` ヘッダー付き
 - `400`: `text`／`reading`（`kana`を含む）の両方なし、範囲外のduration・`intonation_strength`、音源・モデルが未登録、指定Rendererの必要なファイル不足（`ErrUnavailable`）

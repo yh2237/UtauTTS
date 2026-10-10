@@ -53,7 +53,7 @@ Delta/VCCVの音節構成を対象とし、en-cv/en-arpasingへの適用は未�
 
 ## Mandarin Tone Intonation v1（中国語の既定）
 
-`tone-intonation-zh-v1`は、[AISHELL-3](https://www.openslr.org/93/)の2話者の発話で学習し、別の1話者で検証した中国語モデルです。声調規則による音高曲線へ、有界な補正だけを加えます。
+`tone-intonation-zh-v1`は、[AISHELL-3](https://www.openslr.org/93/)の2話者の発話で学習し、別の1話者で検証した中国語モデルです。声調規則による音高曲線へ、範囲を限った補正だけを加えます。
 
 - 本モデルは相対ピッチ（抑揚）の補正のみを学習し、話者の声質を意図的に再現しません
 - 重みはApache License 2.0で配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本と整列データを再配布しません
@@ -69,7 +69,7 @@ Delta/VCCVの音節構成を対象とし、en-cv/en-arpasingへの適用は未�
 - 本モデルは発話ごとに正規化した包絡の動き（音の移り方の時間配分）だけを合成に使い、予測した包絡そのものや話者の声質は出力に含めません
 - 重みはMIT Licenseで配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本とMFA整列モデルを再配布しません
 - 通知: [licenses/TSUKUYOMI-CORPUS.txt](../licenses/TSUKUYOMI-CORPUS.txt)、[licenses/MINNADE-JSUT-CORPUS.txt](../licenses/MINNADE-JSUT-CORPUS.txt)、[licenses/MFA-Japanese-NOTICE.txt](../licenses/MFA-Japanese-NOTICE.txt)
-- 学習: `cmd/tools/train-speech-timing`（gograd、[手順](../docs/model-training.md)）。同梱のv1は同じ特徴量・構成のPyTorch版で学習し、Go版は特徴量が一致し同等の検証誤差になることを確かめています。学習条件と検証の誤差はsafetensorsの`__metadata__`に記録しています
+- 学習: `cmd/tools/train-speech-timing`（gograd、[手順](../docs/model-training.md)）。同梱のv1は同じ特徴量・構成のPyTorch版で学習し、Go版は特徴量が一致し、同等の検証誤差になることを確かめています。学習条件と検証の誤差はsafetensorsの`__metadata__`に記録しています
 
 ## Speech Timing Target v1（英語・中国語の時間伸縮）
 

@@ -2,7 +2,7 @@
 
 リリース用パッケージを作成し、ソースコードだけでは確認できない配布後の動作を検査します。
 
-正式リリースではソース上の単体テストだけでなく配布ZIPを展開した状態でも機能を確認します。
+正式リリースでは、ソース上の単体テストだけでなく、配布ZIPを展開した状態でも機能を確認します。
 
 ## 一括実行
 
@@ -40,7 +40,7 @@ WindowsからLinux版を検査する場合は、WSL2側で一度セットアッ�
 ./tools/test-linux-package.sh
 ```
 
-Linux検査ではZIPを一時ディレクトリへ展開して日本語フォント、共有ライブラリ解決、実行権限、GUI ELFのCOPY relocation／TEXTREL、QtオフスクリーンGUI自己診断、CLI合成、Serverの解析・合成・batch APIを確認します。PipeWire／PulseAudioのセッションがない完全なヘッドレス環境ではGUI自己診断だけを自動的にスキップし、CLIとServerの検査を続行します。GUI自己診断を必須にする場合は`UTAUTTS_REQUIRE_GUI_SELF_TEST=1`、明示的にスキップする場合は`UTAUTTS_SKIP_GUI_SELF_TEST=1`を設定してください。
+Linux検査ではZIPを一時ディレクトリへ展開し、日本語フォント、共有ライブラリ解決、実行権限、GUI ELFのCOPY relocation／TEXTREL、QtオフスクリーンGUI自己診断、CLI合成、Serverの解析・合成・batch APIを確認します。PipeWire／PulseAudioのセッションがない完全なヘッドレス環境ではGUI自己診断だけを自動的にスキップし、CLIとServerの検査を続行します。GUI自己診断を必須にする場合は`UTAUTTS_REQUIRE_GUI_SELF_TEST=1`、明示的にスキップする場合は`UTAUTTS_SKIP_GUI_SELF_TEST=1`を設定してください。
 
 macOS版はApple Silicon Mac、またはGitHub ActionsのmacOSワークフローで一括実行します。
 
@@ -97,6 +97,6 @@ GUIでは読み上げ言語を選べることを確認します。右側の設�
 | CLI | 既定Rendererによる最小合成、既定の抑揚モデルによる実運用合成、不正数値の拒否 |
 | HTTP server | コンソール、health、音源・モデル・Renderer一覧、解析、既定Renderer合成、batch ZIP、音源再読込 |
 
-GUIの検査には、Windowsなら配布された`app/utautts-gui.exe --self-test`、Linuxなら`QT_QPA_PLATFORM=offscreen ./utautts --self-test`、macOSなら`QT_QPA_PLATFORM=cocoa QT_QUICK_BACKEND=software`を設定したアプリバンドル内の実行ファイルを使います。画面や更新確認は開かずテスト専用の一時設定と一時ファイルだけを使うようになっています。
+GUIの検査には、Windowsなら配布された`app/utautts-gui.exe --self-test`、Linuxなら`QT_QPA_PLATFORM=offscreen ./utautts --self-test`、macOSなら`QT_QPA_PLATFORM=cocoa QT_QUICK_BACKEND=software`を設定したアプリバンドル内の実行ファイルを使います。画面や更新確認は開かず、テスト専用の一時設定と一時ファイルだけを使います。
 
 操作部品の入力検査は、Qt SDKの`qmltestrunner -input qt/tests -platform offscreen`で実行します。数値スライダーのキー操作・ドラッグ・ダブルクリックと、再生位置の更新中のシークを確認します。GUIのスクリーンショットを保存するときは、self-testに`UTAUTTS_UI_CAPTURE_DIR`で保存先を指定できます（通常のGUI検査では画面を開きません）。
