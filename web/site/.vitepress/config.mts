@@ -94,7 +94,7 @@ export default defineConfig({
         },
       },
     },
-    outline: { label: 'このページの内容' },
+    outline: { label: '目次' },
     docFooter: { prev: '前のページ', next: '次のページ' },
     darkModeSwitchLabel: '表示',
     lightModeSwitchTitle: 'ライトモードにする',
