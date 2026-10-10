@@ -212,3 +212,19 @@ func TestPublicAssetHeaders(t *testing.T) {
 		t.Fatalf("expected CORS rejection: %v", err)
 	}
 }
+
+// R2のURLはSigV4の規則で符号化する（「$」が生のままだと署名がR2側の計算と合わず403になる）。
+func TestR2ObjectURLUsesSigV4Encoding(t *testing.T) {
+	address := r2ObjectURL("acct", "bucket", "utautts/previews/x/web/dist/voice/足立レイver3.5.0/$read")
+	req, err := http.NewRequest("PUT", address, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "/bucket/utautts/previews/x/web/dist/voice/%E8%B6%B3%E7%AB%8B%E3%83%AC%E3%82%A4ver3.5.0/%24read"
+	if got := req.URL.EscapedPath(); got != want {
+		t.Fatalf("escaped path = %q, want %q", got, want)
+	}
+	if got := req.URL.RequestURI(); got != want {
+		t.Fatalf("request URI = %q, want %q", got, want)
+	}
+}

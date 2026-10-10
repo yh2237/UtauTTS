@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -88,6 +87,26 @@ func sendR2(client *http.Client, method, address string, body []byte, item asset
 	}
 	return nil, last
 }
+
+// r2ObjectURLはSigV4の規則（A-Za-z0-9-._~以外を%XX）で符号化したオブジェクトのURLを返す。
+// url.URLのEscapedPathは「$」などを符号化しないので、署名とR2側の計算が食い違って403になる。
+func r2ObjectURL(account, bucket, key string) string {
+	return "https://" + account + ".r2.cloudflarestorage.com" + sigV4EscapePath("/"+bucket+"/"+key)
+}
+
+func sigV4EscapePath(path string) string {
+	var b strings.Builder
+	for i := 0; i < len(path); i++ {
+		c := path[i]
+		if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || strings.IndexByte("-._~/", c) >= 0 {
+			b.WriteByte(c)
+		} else {
+			fmt.Fprintf(&b, "%%%02X", c)
+		}
+	}
+	return b.String()
+}
+
 func uploadOne(client *http.Client, output, bucket, account, keyID, secret string, item asset) error {
 	file, err := checkedFile(filepath.Join(output, "r2"), item.Path)
 	if err != nil {
@@ -101,7 +120,7 @@ func uploadOne(client *http.Client, output, bucket, account, keyID, secret strin
 	if int64(len(body)) != item.Size || hex.EncodeToString(sum[:]) != item.SHA256 {
 		return fmt.Errorf("asset changed after packaging: %s", item.Path)
 	}
-	address := "https://" + account + ".r2.cloudflarestorage.com/" + url.PathEscape(bucket) + "/" + (&url.URL{Path: item.Key}).EscapedPath()
+	address := r2ObjectURL(account, bucket, item.Key)
 	for _, method := range []string{"PUT", "HEAD"} {
 		requestBody := body
 		if method == "HEAD" {
