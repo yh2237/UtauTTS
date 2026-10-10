@@ -45,6 +45,11 @@ Item {
     property bool snapEnabled: true
     property real currentScrollX: 0
     property var timingEditor: null
+    // 縦の表示範囲（±セント）。点とフレームの曲線に合わせて300〜1200で広げ、ドラッグ中は変えない。
+    property real pitchRange: 300
+    property bool frameDragging: false
+    readonly property bool pitchRangeFrozen: !!root.gesture || root.frameDragging
+    readonly property real maximumPitchCents: 1200
     readonly property real sidePadding: timingEditor ? timingEditor.sidePadding : 36
     property var gesture: null
     property real gestureDuration: 0
@@ -79,7 +84,7 @@ Item {
     function noteY(position) {
         if (!root.timingEditor)
             return root.noteCenterY();
-        return root.noteCenterY() - root.timingEditor.pitchAt(position) * root.noteLaneH / 600;
+        return root.noteCenterY() - root.timingEditor.pitchAt(position) * root.noteLaneH / (2 * root.pitchRange);
     }
 
     readonly property int frameDisplayCount: Math.max(root.autoFrames.length,
@@ -124,7 +129,24 @@ Item {
     }
 
     function frameY(cents) {
-        return root.noteCenterY() - cents * root.noteLaneH / 600;
+        return root.noteCenterY() - cents * root.noteLaneH / (2 * root.pitchRange);
+    }
+
+    function refitPitchRange() {
+        if (root.pitchRangeFrozen)
+            return;
+        let peak = 0;
+        for (let index = 0; index < root.frameDisplayCount; ++index) {
+            if (root.frameHasPronunciation(index))
+                peak = Math.max(peak, Math.abs(root.frameTotalAt(index)));
+        }
+        if (root.timingEditor) {
+            for (let index = 0; index < root.timingEditor.points.length; ++index) {
+                if (root.timingEditor.pointIsEditable(index))
+                    peak = Math.max(peak, Math.abs(root.timingEditor.pitchAt(index)));
+            }
+        }
+        root.pitchRange = Math.max(300, Math.min(root.maximumPitchCents, Math.ceil(peak * 1.15 / 100) * 100));
     }
 
     function frameAtTime(timeMs) {
@@ -175,8 +197,9 @@ Item {
             root.hudText = "";
             return -1;
         }
-        const desired = Math.max(-600, Math.min(600,
-                (root.noteCenterY() - y) / root.noteLaneH * 600));
+        root.frameDragging = true;
+        const desired = Math.max(-root.maximumPitchCents, Math.min(root.maximumPitchCents,
+                (root.noteCenterY() - y) / root.noteLaneH * 2 * root.pitchRange));
         const values = root.paddedFrameManual();
         const lo = Math.max(0, fromFrame < 0 ? target : Math.min(fromFrame, target));
         const hi = Math.min(root.frameDisplayCount - 1,
@@ -647,8 +670,8 @@ Item {
                 const rate = (modifiers & Qt.ShiftModifier) !== 0 ? 0.15 : 0.5;
                 const values = g.points.slice();
                 const automatic = Number(root.timingEditor.autoPoints[g.position]) || 0;
-                values[g.position] = Math.round(Math.max(-300, Math.min(300,
-                        g.pitch - (y - g.y) / root.noteLaneH * 600 * rate)) - automatic);
+                values[g.position] = Math.round(Math.max(-root.maximumPitchCents, Math.min(root.maximumPitchCents,
+                        g.pitch - (y - g.y) / root.noteLaneH * 2 * root.pitchRange * rate)) - automatic);
                 root.timingEditor.points = values;
             }
         }
@@ -873,8 +896,9 @@ Item {
                     ctx.font = "10px sans-serif";
                     if (root.timingEditor) {
                         const middle = root.noteCenterY();
-                        for (const cents of [-300, 0, 300]) {
-                            const y = middle - cents * root.noteLaneH / 600;
+                        const gridLimit = Math.floor(root.pitchRange / 300) * 300;
+                        for (let cents = -gridLimit; cents <= gridLimit; cents += 300) {
+                            const y = middle - cents * root.noteLaneH / (2 * root.pitchRange);
                             ctx.strokeStyle = root.gridColor;
                             ctx.beginPath();
                             ctx.moveTo(Math.max(0, viewLeft), y);
@@ -1195,6 +1219,7 @@ Item {
                         const trimmed = root.trimmedFrames(root.manualFrames);
                         if (JSON.stringify(trimmed) !== JSON.stringify(root.trimmedFrames(frameBackup)))
                             root.framesEdited(trimmed);
+                        root.frameDragging = false;
                         activeKind = "";
                         pendingKind = "";
                         dragCursor = 0;
@@ -1224,6 +1249,7 @@ Item {
                     ToolTip.hide();
                     if (activeKind === "frame" || pendingKind === "frame") {
                         root.manualFrames = frameBackup.slice();
+                        root.frameDragging = false;
                         activeKind = "";
                         pendingKind = "";
                         dragCursor = 0;
@@ -1647,8 +1673,23 @@ Item {
         waveformCanvas.requestPaint();
     }
     onPlaybackMsChanged: waveformCanvas.requestPaint()
-    onAutoFramesChanged: waveformCanvas.requestPaint()
-    onManualFramesChanged: waveformCanvas.requestPaint()
+    onAutoFramesChanged: {
+        root.refitPitchRange();
+        waveformCanvas.requestPaint();
+    }
+    onManualFramesChanged: {
+        root.refitPitchRange();
+        waveformCanvas.requestPaint();
+    }
+    onPitchRangeFrozenChanged: root.refitPitchRange()
+    onPitchRangeChanged: waveformCanvas.requestPaint()
+
+    Connections {
+        target: root.timingEditor
+        ignoreUnknownSignals: true
+        function onPointsChanged() { root.refitPitchRange(); }
+        function onAutoPointsChanged() { root.refitPitchRange(); }
+    }
     onFrameMsChanged: waveformCanvas.requestPaint()
     onUnitsChanged: {
         if (!!root.gesture && !root.gestureModelMatches()) {
