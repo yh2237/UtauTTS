@@ -34,6 +34,8 @@ type f0HeadManifest struct {
 	UseEnergy *bool `json:"use_energy"`
 	// BaseBlendは基準モデルの抑揚曲線を混ぜる重み（0〜1）。0はF0ヘッドだけを使う。
 	BaseBlend float64 `json:"base_blend"`
+	// PitchOffsetCentsはF0ヘッドの自動ピッチ曲線全体へ足す高さ（セント）。
+	PitchOffsetCents float64 `json:"pitch_offset_cents"`
 }
 
 func loadF0HeadModel(path string, data []byte, head f0HeadManifest) (*Model, error) {
@@ -74,6 +76,10 @@ func loadF0HeadModel(path string, data []byte, head f0HeadManifest) (*Model, err
 		return nil, fmt.Errorf("base_blend must be between 0 and 1, got %v", head.BaseBlend)
 	}
 	model.F0HeadBaseBlend = head.BaseBlend
+	if math.IsNaN(head.PitchOffsetCents) || math.Abs(head.PitchOffsetCents) > 1200 {
+		return nil, fmt.Errorf("pitch_offset_cents must be between -1200 and 1200, got %v", head.PitchOffsetCents)
+	}
+	model.F0HeadPitchOffsetCents = head.PitchOffsetCents
 	return &model, nil
 }
 

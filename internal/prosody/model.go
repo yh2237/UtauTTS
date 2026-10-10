@@ -32,6 +32,8 @@ type Model struct {
 	F0Head *speechtiming.TCN `json:"-"`
 	// F0HeadEnergyはF0ヘッドのエネルギーでモーラの音量を変えるか。
 	F0HeadEnergy bool `json:"-"`
+	// F0HeadPitchOffsetCentsはF0ヘッドの自動ピッチ曲線へ足す高さ（セント）。
+	F0HeadPitchOffsetCents float64 `json:"-"`
 	// F0HeadBaseBlendは基準モデルの抑揚曲線を混ぜる重み。
 	F0HeadBaseBlend    float64                  `json:"-"`
 	Version            int                      `json:"version"`

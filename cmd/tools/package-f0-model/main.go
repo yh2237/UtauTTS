@@ -5,9 +5,12 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 
@@ -19,8 +22,8 @@ import (
 type options struct {
 	Weights, Base, ID, DisplayName, Description, License, Language, Out string
 	Priority                                                            int
-	BaseBlend                                                           float64
-	UseEnergy                                                           bool
+	BaseBlend, PitchOffsetCents                                         float64
+	UseEnergy, NaturalScale                                             bool
 }
 
 func main() {
@@ -35,6 +38,8 @@ func main() {
 	flag.IntVar(&o.Priority, "priority", 0, "default_priority（基準より小さくすると既定にならない）")
 	flag.Float64Var(&o.BaseBlend, "base-blend", 0, "基準モデルの抑揚曲線を混ぜる重み（0〜1）")
 	flag.BoolVar(&o.UseEnergy, "use-energy", true, "エネルギーヘッドでモーラの音量を変える")
+	flag.Float64Var(&o.PitchOffsetCents, "pitch-offset-cents", 0, "自動ピッチ曲線全体へ足す高さ（セント）")
+	flag.BoolVar(&o.NaturalScale, "natural-scale", false, "メタデータのf0_scaleを外す（--f0-teacherに自然スケールの単位で渡した場合）")
 	flag.StringVar(&o.Out, "out", "", "出力JSON（out/以下）")
 	flag.Parse()
 	if err := run(o); err != nil {
@@ -50,12 +55,20 @@ func run(o options) error {
 	if o.BaseBlend < 0 || o.BaseBlend > 1 {
 		return fmt.Errorf("base-blend must be between 0 and 1")
 	}
+	if math.Abs(o.PitchOffsetCents) > 1200 {
+		return fmt.Errorf("pitch-offset-cents must be between -1200 and 1200")
+	}
 	if err := toolutil.RequireUnderOut(o.Out, "output", false); err != nil {
 		return err
 	}
 	weights, err := os.ReadFile(o.Weights)
 	if err != nil {
 		return err
+	}
+	if o.NaturalScale {
+		if weights, err = withoutF0Scale(weights); err != nil {
+			return err
+		}
 	}
 	head, err := speechtiming.LoadTCN(weights)
 	if err != nil {
@@ -82,6 +95,9 @@ func run(o options) error {
 		"base_model": filepath.Base(o.Base), "f0_head": weights,
 		"base_blend": o.BaseBlend, "use_energy": o.UseEnergy,
 	}
+	if o.PitchOffsetCents != 0 {
+		manifest["pitch_offset_cents"] = o.PitchOffsetCents
+	}
 	data, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return err
@@ -102,4 +118,41 @@ func run(o options) error {
 	}
 	fmt.Printf("wrote %s (base %s); place it next to the base model in models/\n", o.Out, filepath.Base(o.Base))
 	return nil
+}
+
+// withoutF0Scaleはsafetensorsのメタデータからf0_scaleを外す（推論は自然スケールの経路になる）。
+func withoutF0Scale(weights []byte) ([]byte, error) {
+	if len(weights) < 8 {
+		return nil, fmt.Errorf("weights too short")
+	}
+	size := binary.LittleEndian.Uint64(weights[:8])
+	if size > uint64(len(weights)-8) {
+		return nil, fmt.Errorf("invalid safetensors header")
+	}
+	var header map[string]json.RawMessage
+	if err := json.Unmarshal(weights[8:8+size], &header); err != nil {
+		return nil, fmt.Errorf("read safetensors header: %w", err)
+	}
+	var metadata map[string]string
+	if raw, ok := header["__metadata__"]; ok {
+		if err := json.Unmarshal(raw, &metadata); err != nil {
+			return nil, fmt.Errorf("read safetensors metadata: %w", err)
+		}
+	}
+	delete(metadata, "f0_scale")
+	raw, err := json.Marshal(metadata)
+	if err != nil {
+		return nil, err
+	}
+	header["__metadata__"] = raw
+	encoded, err := json.Marshal(header)
+	if err != nil {
+		return nil, err
+	}
+	if pad := (8 - len(encoded)%8) % 8; pad > 0 {
+		encoded = append(encoded, bytes.Repeat([]byte(" "), pad)...)
+	}
+	result := binary.LittleEndian.AppendUint64(nil, uint64(len(encoded)))
+	result = append(result, encoded...)
+	return append(result, weights[8+size:]...), nil
 }

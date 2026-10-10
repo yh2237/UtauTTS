@@ -30,17 +30,7 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 		}
 	}
 	if pitchCurve == nil && applyPitchEnabled(cfg) && rendererSupportsFramePitch(cfg.RendererCapabilities) {
-		if f0Head := unifiedF0Head(loadedProsody); f0Head != nil {
-			if contour := unifiedProsodyContour(f0Head, language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan, finalPhraseIsQuestion(cfg.Text)); contour != nil {
-				pitchCurve = scaleUnifiedPitchCurve(contour, f0Head, cfg.IntonationStrength)
-				if weight := loadedProsody.F0HeadBaseBlend; weight > 0 && shouldPredictFrameContour(cfg, loadedProsody) {
-					if base := loadedProsody.PredictFrameContour(morae, prosodyFeatures, curveTimings, curveDurationMS, finalPhraseIsQuestion(cfg.Text)); base != nil {
-						baseCurve := scaleAutomaticPitchCurve(&render.PitchCurve{FrameMS: base.FrameMS, Cents: base.Cents}, cfg.IntonationStrength)
-						pitchCurve = blendPitchCurves(pitchCurve, baseCurve, weight)
-					}
-				}
-			}
-		}
+		pitchCurve = f0HeadPitchCurve(cfg, loadedProsody, language, morae, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan)
 		if pitchCurve == nil && shouldPredictFrameContour(cfg, loadedProsody) {
 			question := finalPhraseIsQuestion(cfg.Text)
 			if contour := loadedProsody.PredictFrameContour(morae, prosodyFeatures, curveTimings, curveDurationMS, question); contour != nil {
@@ -66,6 +56,39 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 	}
 	intonationStrength := rendererIntonationStrength(cfg, automaticPitchCurve)
 	return synthesisPitch{Curve: pitchCurve, Automatic: automaticPitchCurve, Apply: applyPitch, RendererStrength: intonationStrength}, nil
+}
+
+// f0HeadPitchCurveはF0ヘッドの自動ピッチ曲線を返す。基準モデルとの混合と高さの補正もここで行う。F0ヘッドが無ければnil。
+func f0HeadPitchCurve(cfg Config, loadedProsody *prosody.Model, language string, morae []frontend.Mora, prosodyFeatures []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan) *render.PitchCurve {
+	f0Head := unifiedF0Head(loadedProsody)
+	if f0Head == nil {
+		return nil
+	}
+	question := finalPhraseIsQuestion(cfg.Text)
+	contour := unifiedProsodyContour(f0Head, language, prosodyFeatures, timings, durationMS, synthesisPlan, question)
+	if contour == nil {
+		return nil
+	}
+	curve := scaleUnifiedPitchCurve(contour, f0Head, cfg.IntonationStrength)
+	if weight := loadedProsody.F0HeadBaseBlend; curve != nil && weight > 0 && shouldPredictFrameContour(cfg, loadedProsody) {
+		if base := loadedProsody.PredictFrameContour(morae, prosodyFeatures, timings, durationMS, question); base != nil {
+			baseCurve := scaleAutomaticPitchCurve(&render.PitchCurve{FrameMS: base.FrameMS, Cents: base.Cents}, cfg.IntonationStrength)
+			curve = blendPitchCurves(curve, baseCurve, weight)
+		}
+	}
+	return offsetPitchCurve(curve, loadedProsody.F0HeadPitchOffsetCents)
+}
+
+// offsetPitchCurveは曲線全体へ一定の高さを足す。
+func offsetPitchCurve(curve *render.PitchCurve, cents float64) *render.PitchCurve {
+	if curve == nil || cents == 0 {
+		return curve
+	}
+	result := &render.PitchCurve{FrameMS: curve.FrameMS, Cents: make([]float64, len(curve.Cents))}
+	for index, value := range curve.Cents {
+		result.Cents[index] = value + cents
+	}
+	return result
 }
 
 // resolveManualPitchCurveは手動ピッチを読み込み、検証して制限済みの補正曲線を返す。
