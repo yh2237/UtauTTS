@@ -22,9 +22,11 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-const desktopSidebar = [
+const sidebar = [
+  { text: '概要', link: '/' },
   {
     text: 'デスクトップ版',
+    collapsed: true,
     items: [
       { text: 'インストール', link: '/desktop/' },
       { text: '基本の使い方', link: '/desktop/basics' },
@@ -36,12 +38,9 @@ const desktopSidebar = [
       { text: '困ったとき', link: '/desktop/troubleshooting' },
     ],
   },
-  { text: '利用条件とライセンス', link: '/terms' },
-]
-
-const webSidebar = [
   {
     text: 'Web版',
+    collapsed: true,
     items: [
       { text: 'はじめに', link: '/web/' },
       { text: '基本の使い方', link: '/web/basics' },
@@ -77,15 +76,7 @@ export default defineConfig({
       { text: 'Web版', link: '/web/', activeMatch: '^/web/' },
       { text: 'エディタを開く', link: '/editor/', target: '_self' },
     ],
-    sidebar: {
-      '/desktop/': desktopSidebar,
-      '/web/': webSidebar,
-      '/': [
-        { text: 'デスクトップ版', link: '/desktop/' },
-        { text: 'Web版', link: '/web/' },
-        { text: '利用条件とライセンス', link: '/terms' },
-      ],
-    },
+    sidebar,
     socialLinks: [{ icon: 'github', link: 'https://github.com/yh2237/UtauTTS' }],
     search: {
       provider: 'local',
