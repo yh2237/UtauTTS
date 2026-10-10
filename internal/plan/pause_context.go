@@ -15,6 +15,11 @@ const (
 	pauseContextNeutralFactor  = 1.0
 )
 
+// PauseContextFactorは合成と同じ規則の休止長の倍率（音源を読まないプレビュー用）。
+func PauseContextFactor(morae []frontend.Mora, position int, enabled bool, strength float64) float64 {
+	return pauseContextFactor(morae, position, Config{PauseContext: enabled, PauseContextStrength: strength})
+}
+
 // 無効時と負の強度は1倍。
 func pauseContextFactor(morae []frontend.Mora, position int, cfg Config) float64 {
 	if !cfg.PauseContext {

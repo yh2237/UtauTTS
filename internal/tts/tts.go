@@ -506,7 +506,12 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		duration, manuallySet := plan.ConfiguredMoraDuration(index, cfg.MoraDurationsMS)
 		if !manuallySet {
 			if mora.Pause {
-				duration = cfg.PauseDurationMS
+				duration = cfg.PauseDurationMS * plan.PauseContextFactor(morae, index, pauseContextEnabled(cfg), pauseContextStrength(cfg))
+				if index < len(predictions) && predictions[index].DurationMS > 0 {
+					duration = predictions[index].DurationMS
+				} else if index < len(predictions) && predictions[index].DurationFactor > 0 {
+					duration *= predictions[index].DurationFactor
+				}
 			} else {
 				duration = plan.DurationFor(mora, cfg.MoraDurationMS)
 				if index < len(predictions) && predictions[index].DurationFactor > 0 {
@@ -528,12 +533,20 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	if curve, _ := profile.AutomaticPitchCurve(cfg, loadedProsody, morae, timings, totalDurationMS); curve != nil {
 		result.FramePitchCurve = curve
 	}
+	if result.FramePitchCurve == nil && applyPitchEnabled(cfg) && rendererSupportsFramePitch(cfg.RendererCapabilities) {
+		// 合成と同じF0ヘッドの曲線を見せる（v10だけの曲線を見せると、合成と食い違う）。
+		result.FramePitchCurve = f0HeadPitchCurve(cfg, loadedProsody, language, morae, prosodyFeatures, timings, totalDurationMS, previewPlan(morae, timings, cursor))
+	}
 	if result.FramePitchCurve == nil && shouldPredictFrameContour(cfg, loadedProsody) {
 		question := finalPhraseIsQuestion(cfg.Text)
 		if contour := loadedProsody.PredictFrameContour(morae, prosodyFeatures, timings, totalDurationMS, question); contour != nil {
 			curve := scaleAutomaticPitchCurve(&render.PitchCurve{FrameMS: contour.FrameMS, Cents: contour.Cents}, cfg.IntonationStrength)
 			result.FramePitchCurve = curve
 		}
+	}
+	if result.FramePitchCurve != nil {
+		// 合成と同じく、自動輪郭へ境界音調を加える。
+		result.FramePitchCurve = profile.ApplyBoundaryTone(cfg, result.FramePitchCurve, finalPhraseEndMS(morae, timings), finalPhraseIsQuestion(cfg.Text))
 	}
 	if result.FramePitchCurve != nil {
 		for index, mora := range morae {

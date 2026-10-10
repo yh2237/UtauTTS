@@ -247,6 +247,22 @@ func unifiedProsodyContour(model *speechtiming.TCN, language string, features []
 	return &render.PitchCurve{FrameMS: 10, Cents: cents}
 }
 
+// previewPlanは音源を読まないプレビュー用に、モーラの時刻からF0ヘッドの入力に足りるプランを組む。
+// 合成でも曲線を作る時点の先行発声と余白は0なので、休止と促音（無音の単位）を除くだけで同じ入力になる。
+func previewPlan(morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) *plan.Plan {
+	result := &plan.Plan{DurationMS: durationMS}
+	for index, mora := range morae {
+		if index >= len(timings) || mora.Pause || mora.Text == "っ" || mora.Text == "ッ" {
+			continue
+		}
+		result.Units = append(result.Units, plan.Unit{
+			Position: index, Role: "mora", Mora: mora.Text,
+			NoteStartMS: timings[index].StartMS, DurationMS: timings[index].DurationMS,
+		})
+	}
+	return result
+}
+
 // smoothPhraseContourは発話区間ごとにGaussian平滑化する（v10のランタイムと同じ）。
 func smoothPhraseContour(values []float64, speech []bool, sigma float64) []float64 {
 	result := append([]float64(nil), values...)
