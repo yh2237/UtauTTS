@@ -6,7 +6,6 @@ on:
     tags: ['v[0-9]+.[0-9]+.[0-9]+', 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+']
     paths:
       - 'web/**'
-      - 'site/**'
       - 'qt/**'
       - 'renderer/utautts-world-phrase/**'
       - 'cmd/utautts-wasm/**'
@@ -18,7 +17,7 @@ on:
       - 'third_party/open_jtalk/**'
       - '.github/workflows/wasm.yml'
   pull_request:
-    paths: ['web/**', 'site/**', 'qt/**', 'cmd/tools/build-voice/**', 'cmd/tools/cloudflare/**', '.github/workflows/wasm.yml']
+    paths: ['web/**', 'qt/**', 'cmd/tools/build-voice/**', 'cmd/tools/cloudflare/**', '.github/workflows/wasm.yml']
   workflow_dispatch:
     inputs:
       preview_name:
@@ -61,8 +60,8 @@ jobs:
           go test ./cmd/tools/build-voice ./cmd/tools/cloudflare
       - name: Build web guide
         run: |
-          npm ci --prefix site
-          npm run build --prefix site
+          npm ci --prefix web/site
+          npm run build --prefix web/site
 
   build:
     needs: check
@@ -165,8 +164,8 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/wasm-browser/node_modules" node web/test-cloudflare-browser.cjs
       - name: Build web guide
         run: |
-          npm ci --prefix site
-          npm run build --prefix site
+          npm ci --prefix web/site
+          npm run build --prefix web/site
       - name: Split Pages and R2 assets
         env:
           R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
@@ -176,7 +175,7 @@ jobs:
         run: |
           go run ./cmd/tools/cloudflare package --output out/cloudflare --public-url "$R2_PUBLIC_BASE_URL" \
             --deployment-id "$DEPLOYMENT_ID" --version "$VERSION" --revision "$GITHUB_SHA" --channel "$CHANNEL" \
-            --site site/dist
+            --site web/site/dist
       - uses: actions/upload-artifact@v4
         with:
           name: utautts-cloudflare

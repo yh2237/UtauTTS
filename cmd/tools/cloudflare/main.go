@@ -211,7 +211,7 @@ func copyFile(src, dst string) error {
 	return err
 }
 
-// copySiteはビルド済みのガイド（site/dist）をPagesの/へ置く。エディタと配備の情報の場所は使わせず、404.htmlはガイドのものにする。
+// copySiteはビルド済みのガイド（web/site/dist）をPagesの/へ置く。エディタと配備の情報の場所は使わせず、404.htmlはガイドのものにする。
 func copySite(siteDir, pages string) error {
 	if _, err := os.Stat(filepath.Join(siteDir, "index.html")); err != nil {
 		return fmt.Errorf("%s has no index.html: %w", siteDir, err)
