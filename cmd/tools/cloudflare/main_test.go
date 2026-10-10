@@ -64,7 +64,7 @@ func TestPackage(t *testing.T) {
 		os.WriteFile(file, []byte(data), 0644)
 	}
 	write("web/dist/out/private.wav", "private")
-	m, err := assemble(source, output, "https://assets.example.test", "v1.2.3-abc-123-1", "v1.2.3", strings.Repeat("a", 40), "releases")
+	m, err := assemble(source, output, "https://assets.example.test", "v1.2.3-abc-123-1", "v1.2.3", strings.Repeat("a", 40), "releases", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestPackage(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(output, "r2", "utautts.wasm")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := assemble(source, output, "https://assets.example.test", "v1.2.3-abc-123-1", "v1.2.3", strings.Repeat("a", 40), "releases"); err == nil || !strings.Contains(err.Error(), "overwrite") {
+	if _, err := assemble(source, output, "https://assets.example.test", "v1.2.3-abc-123-1", "v1.2.3", strings.Repeat("a", 40), "releases", ""); err == nil || !strings.Contains(err.Error(), "overwrite") {
 		t.Fatalf("expected overwrite refusal: %v", err)
 	}
 }
@@ -88,21 +88,21 @@ func TestPackage(t *testing.T) {
 func TestPackageInvalid(t *testing.T) {
 	source, output := fixture(t)
 	for _, tc := range []struct{ url, id string }{{"relative/assets", "valid"}, {"https://secret:token@example.test/", "valid"}, {"https://assets.example.test", "../unsafe"}} {
-		_, err := assemble(source, output, tc.url, tc.id, "v1.2.3", strings.Repeat("a", 40), "releases")
+		_, err := assemble(source, output, tc.url, tc.id, "v1.2.3", strings.Repeat("a", 40), "releases", "")
 		if err == nil {
 			t.Fatalf("accepted %v", tc)
 		}
 	}
-	if _, err := assemble(source, source, "https://assets.example.test", "valid", "v1.2.3", strings.Repeat("a", 40), "releases"); err == nil {
+	if _, err := assemble(source, source, "https://assets.example.test", "valid", "v1.2.3", strings.Repeat("a", 40), "releases", ""); err == nil {
 		t.Fatal("accepted output outside out")
 	}
-	if _, err := assemble(source, filepath.Join(source, "nested"), "https://assets.example.test", "valid", "v1.2.3", strings.Repeat("a", 40), "releases"); err == nil || !strings.Contains(err.Error(), "separate") {
+	if _, err := assemble(source, filepath.Join(source, "nested"), "https://assets.example.test", "valid", "v1.2.3", strings.Repeat("a", 40), "releases", ""); err == nil || !strings.Contains(err.Error(), "separate") {
 		t.Fatalf("accepted nested output: %v", err)
 	}
 	if err := os.Remove(filepath.Join(source, "web/dist/world/utautts-world.wasm")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := assemble(source, output, "https://assets.example.test", "valid", "v1.2.3", strings.Repeat("a", 40), "releases"); err == nil || !strings.Contains(err.Error(), "missing or invalid") {
+	if _, err := assemble(source, output, "https://assets.example.test", "valid", "v1.2.3", strings.Repeat("a", 40), "releases", ""); err == nil || !strings.Contains(err.Error(), "missing or invalid") {
 		t.Fatalf("expected missing file: %v", err)
 	}
 	manifestFile := filepath.Join(source, "web", "dist", "models", "manifest.json")
@@ -112,7 +112,7 @@ func TestPackageInvalid(t *testing.T) {
 	if err := os.WriteFile(manifestFile, []byte(`{"models":["../../../../outside.json"]}`), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := assemble(source, output, "https://assets.example.test", "valid", "v1.2.3", strings.Repeat("a", 40), "releases"); err == nil || !strings.Contains(err.Error(), "missing or invalid") {
+	if _, err := assemble(source, output, "https://assets.example.test", "valid", "v1.2.3", strings.Repeat("a", 40), "releases", ""); err == nil || !strings.Contains(err.Error(), "missing or invalid") {
 		t.Fatalf("expected traversal refusal: %v", err)
 	}
 }
@@ -130,7 +130,7 @@ func TestLargeWasmStaysInR2(t *testing.T) {
 		t.Fatal(err)
 	}
 	file.Close()
-	if _, err := assemble(source, output, "https://assets.example.test", "valid", "v1.2.3", strings.Repeat("a", 40), "releases"); err != nil {
+	if _, err := assemble(source, output, "https://assets.example.test", "valid", "v1.2.3", strings.Repeat("a", 40), "releases", ""); err != nil {
 		t.Fatal(err)
 	}
 	script, err := os.OpenFile(filepath.Join(source, "utautts.js"), os.O_WRONLY, 0644)
@@ -144,7 +144,7 @@ func TestLargeWasmStaysInR2(t *testing.T) {
 		t.Fatal(err)
 	}
 	script.Close()
-	if _, err := assemble(source, output+"-large", "https://assets.example.test", "valid", "v1.2.3", strings.Repeat("a", 40), "releases"); err == nil || !strings.Contains(err.Error(), "25 MiB") {
+	if _, err := assemble(source, output+"-large", "https://assets.example.test", "valid", "v1.2.3", strings.Repeat("a", 40), "releases", ""); err == nil || !strings.Contains(err.Error(), "25 MiB") {
 		t.Fatalf("expected large Pages rejection: %v", err)
 	}
 	t.Cleanup(func() { os.RemoveAll(output + "-large") })
@@ -176,7 +176,7 @@ func TestDeploymentPlan(t *testing.T) {
 
 func TestPublicAssetHeaders(t *testing.T) {
 	source, output := fixture(t)
-	m, err := assemble(source, output, "https://assets.example.test", "check", "v1.2.3", strings.Repeat("a", 40), "previews")
+	m, err := assemble(source, output, "https://assets.example.test", "check", "v1.2.3", strings.Repeat("a", 40), "previews", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,4 +227,45 @@ func TestR2ObjectURLUsesSigV4Encoding(t *testing.T) {
 	if got := req.URL.RequestURI(); got != want {
 		t.Fatalf("request URI = %q, want %q", got, want)
 	}
+}
+
+// ガイド（site/dist）は/に、エディタは/editor/に置く。ガイドはエディタや配備の情報の場所を使えない。
+func TestPackageSite(t *testing.T) {
+	source, output := fixture(t)
+	site := filepath.Join(source, "site-dist")
+	write := func(name, data string) {
+		file := filepath.Join(site, filepath.FromSlash(name))
+		os.MkdirAll(filepath.Dir(file), 0755)
+		if err := os.WriteFile(file, []byte(data), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("index.html", `<a href="/editor/">エディタを開く</a>`)
+	write("404.html", "guide 404")
+	write("basics/index.html", "basics")
+	m, err := assemble(source, output, "https://assets.example.test", "site", "v1.2.3", strings.Repeat("a", 40), "releases", site)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.Site {
+		t.Fatal("manifest does not record the guide")
+	}
+	read := func(name string) string {
+		data, err := os.ReadFile(filepath.Join(output, "pages", filepath.FromSlash(name)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(data)
+	}
+	if !strings.Contains(read("editor/index.html"), `src="../app/site/bootstrap.js"`) {
+		t.Fatal("editor page does not load the packaged runtime")
+	}
+	if read("index.html") != `<a href="/editor/">エディタを開く</a>` || read("basics/index.html") != "basics" || read("404.html") != "guide 404" {
+		t.Fatal("guide was not copied to the Pages root")
+	}
+	write("editor/index.html", "conflict")
+	if _, err := assemble(source, output+"-conflict", "https://assets.example.test", "site", "v1.2.3", strings.Repeat("a", 40), "releases", site); err == nil || !strings.Contains(err.Error(), "must not provide") {
+		t.Fatalf("expected conflict refusal: %v", err)
+	}
+	os.RemoveAll(output + "-conflict")
 }

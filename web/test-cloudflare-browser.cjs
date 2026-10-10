@@ -24,7 +24,7 @@ function staticServer(directory, assetServer) {
       requests.push(relative);
       response.setHeader("Access-Control-Allow-Origin", "*");
       response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-    } else if (!relative) relative = "index.html";
+    } else if (!relative || relative.endsWith("/")) relative += "index.html";
     const file = path.resolve(directory, relative);
     if (!file.startsWith(directory + path.sep)) { response.writeHead(400); response.end(); return; }
     fs.stat(file, (error, stat) => {
@@ -317,7 +317,8 @@ async function checkResponsiveState(page) {
           }
         };
       });
-      await page.goto(pagesURL + (mode === "responsive" || mode === "automatic-mobile" ? "/" : mobile ? "/?mobile=1" : "/?mobile=0"));
+      // エディタは/editor/に置く。
+      await page.goto(pagesURL + (mode === "responsive" || mode === "automatic-mobile" ? "/editor/" : mobile ? "/editor/?mobile=1" : "/editor/?mobile=0"));
       try {
         await page.waitForSelector("#loading.hidden", { state: "attached", timeout: 180000 });
       } catch (error) {

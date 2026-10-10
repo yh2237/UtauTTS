@@ -43,6 +43,7 @@ type manifest struct {
 	DeploymentID string  `json:"deployment_id"`
 	AssetBaseURL string  `json:"asset_base_url"`
 	R2Prefix     string  `json:"r2_prefix"`
+	Site         bool    `json:"site,omitempty"`
 	Assets       []asset `json:"assets,omitempty"`
 }
 
@@ -209,7 +210,39 @@ func copyFile(src, dst string) error {
 	_, err = io.Copy(out, in)
 	return err
 }
-func assemble(source, output, publicURL, id, version, revision, channel string) (manifest, error) {
+
+// copySiteはビルド済みのガイド（site/dist）をPagesの/へ置く。エディタと配備の情報の場所は使わせず、404.htmlはガイドのものにする。
+func copySite(siteDir, pages string) error {
+	if _, err := os.Stat(filepath.Join(siteDir, "index.html")); err != nil {
+		return fmt.Errorf("%s has no index.html: %w", siteDir, err)
+	}
+	return filepath.Walk(siteDir, func(file string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		rel, err := filepath.Rel(siteDir, file)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		if rel == "_headers" || rel == "deployment.json" || strings.HasPrefix(rel, "editor/") || strings.HasPrefix(rel, "app/") {
+			return fmt.Errorf("site must not provide %s", rel)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("site file is not a regular file: %s", rel)
+		}
+		dst := filepath.Join(pages, filepath.FromSlash(rel))
+		if rel == "404.html" {
+			if err := os.Remove(dst); err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
+		return copyFile(file, dst)
+	})
+}
+
+// assembleはPages（/にsiteDirのガイド、/editor/にエディタ）とR2の配置を作る。siteDirが空ならガイドは置かない。
+func assemble(source, output, publicURL, id, version, revision, channel, siteDir string) (manifest, error) {
 	var result manifest
 	if err := toolutil.RequireUnderOut(output, "output", false); err != nil {
 		return result, err
@@ -274,13 +307,23 @@ func assemble(source, output, publicURL, id, version, revision, channel string) 
 		if !strings.Contains(page, old) {
 			return result, fmt.Errorf("index.html is missing %s", old)
 		}
-		page = strings.ReplaceAll(page, old, `src="./app/`+id+`/`+name+`"`)
+		page = strings.ReplaceAll(page, old, `src="../app/`+id+`/`+name+`"`)
 	}
 	pages := filepath.Join(output, "pages")
-	for file, value := range map[string]string{"index.html": page, "404.html": "<!doctype html><meta charset=utf-8><title>404</title>Not found\n", "_headers": "/*\n  X-Content-Type-Options: nosniff\n/\n  Cache-Control: no-cache\n/index.html\n  Cache-Control: no-cache\n/deployment.json\n  Cache-Control: no-cache\n/app/*\n  Cache-Control: " + immutableCache + "\n"} {
-		if err := os.WriteFile(filepath.Join(pages, file), []byte(value), 0644); err != nil {
+	if err := os.MkdirAll(filepath.Join(pages, "editor"), 0755); err != nil {
+		return result, err
+	}
+	headers := "/*\n  X-Content-Type-Options: nosniff\n/\n  Cache-Control: no-cache\n/index.html\n  Cache-Control: no-cache\n/editor/\n  Cache-Control: no-cache\n/editor/index.html\n  Cache-Control: no-cache\n/deployment.json\n  Cache-Control: no-cache\n/app/*\n  Cache-Control: " + immutableCache + "\n/_astro/*\n  Cache-Control: " + immutableCache + "\n"
+	for file, value := range map[string]string{"editor/index.html": page, "404.html": "<!doctype html><meta charset=utf-8><title>404</title>Not found\n", "_headers": headers} {
+		if err := os.WriteFile(filepath.Join(pages, filepath.FromSlash(file)), []byte(value), 0644); err != nil {
 			return result, err
 		}
+	}
+	if siteDir != "" {
+		if err := copySite(siteDir, pages); err != nil {
+			return result, fmt.Errorf("copy site: %w", err)
+		}
+		result.Site = true
 	}
 	for _, name := range deps {
 		file, _ := checkedFile(source, name)
@@ -417,12 +460,21 @@ func checkPublic(output, pagesURL string, client *http.Client) error {
 	if served.DeploymentID != m.DeploymentID {
 		return errors.New("Pages is serving a different deployment")
 	}
-	_, html, err := requestPublic(client, base, "GET", "")
+	_, html, err := requestPublic(client, base+"editor/", "GET", "")
 	if err != nil {
 		return err
 	}
 	if !strings.Contains(string(html), "app/"+m.DeploymentID+"/bootstrap.js") {
-		return errors.New("Pages entry point does not reference the packaged runtime")
+		return errors.New("Pages editor does not reference the packaged runtime")
+	}
+	if m.Site {
+		_, guide, err := requestPublic(client, base, "GET", "")
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(string(guide), `href="/editor/"`) {
+			return errors.New("Pages guide does not link to the editor")
+		}
 	}
 	for _, name := range hostFiles {
 		if _, _, err := requestPublic(client, base+path.Join("app", m.DeploymentID, name), "HEAD", ""); err != nil {
@@ -473,10 +525,11 @@ func run(args []string) error {
 		version := f.String("version", "", "")
 		revision := f.String("revision", "", "")
 		channel := f.String("channel", "", "")
+		site := f.String("site", "", "")
 		if err := f.Parse(args[1:]); err != nil {
 			return err
 		}
-		_, err := assemble(*source, *output, *publicURL, *id, *version, *revision, *channel)
+		_, err := assemble(*source, *output, *publicURL, *id, *version, *revision, *channel, *site)
 		return err
 	case "upload", "verify", "verify-assets":
 		output := f.String("output", "out/cloudflare", "")

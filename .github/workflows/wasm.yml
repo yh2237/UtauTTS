@@ -6,6 +6,7 @@ on:
     tags: ['v[0-9]+.[0-9]+.[0-9]+', 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+']
     paths:
       - 'web/**'
+      - 'site/**'
       - 'qt/**'
       - 'renderer/utautts-world-phrase/**'
       - 'cmd/utautts-wasm/**'
@@ -17,7 +18,7 @@ on:
       - 'third_party/open_jtalk/**'
       - '.github/workflows/wasm.yml'
   pull_request:
-    paths: ['web/**', 'qt/**', 'cmd/tools/build-voice/**', 'cmd/tools/cloudflare/**', '.github/workflows/wasm.yml']
+    paths: ['web/**', 'site/**', 'qt/**', 'cmd/tools/build-voice/**', 'cmd/tools/cloudflare/**', '.github/workflows/wasm.yml']
   workflow_dispatch:
     inputs:
       preview_name:
@@ -58,6 +59,10 @@ jobs:
         run: |
           node --test web/test-wasm-regressions.cjs web/test-asset-paths.cjs
           go test ./cmd/tools/build-voice ./cmd/tools/cloudflare
+      - name: Build web guide
+        run: |
+          npm ci --prefix site
+          npm run build --prefix site
 
   build:
     needs: check
@@ -158,6 +163,10 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/wasm-browser" --no-package-lock --no-save playwright@1.51.1
           "$RUNNER_TEMP/wasm-browser/node_modules/.bin/playwright" install --with-deps chromium
           NODE_PATH="$RUNNER_TEMP/wasm-browser/node_modules" node web/test-cloudflare-browser.cjs
+      - name: Build web guide
+        run: |
+          npm ci --prefix site
+          npm run build --prefix site
       - name: Split Pages and R2 assets
         env:
           R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
@@ -166,7 +175,8 @@ jobs:
           CHANNEL: ${{ steps.plan.outputs.channel }}
         run: |
           go run ./cmd/tools/cloudflare package --output out/cloudflare --public-url "$R2_PUBLIC_BASE_URL" \
-            --deployment-id "$DEPLOYMENT_ID" --version "$VERSION" --revision "$GITHUB_SHA" --channel "$CHANNEL"
+            --deployment-id "$DEPLOYMENT_ID" --version "$VERSION" --revision "$GITHUB_SHA" --channel "$CHANNEL" \
+            --site site/dist
       - uses: actions/upload-artifact@v4
         with:
           name: utautts-cloudflare
@@ -217,4 +227,5 @@ jobs:
         run: |
           go run ./cmd/tools/cloudflare verify --pages-url "$DEPLOYMENT_URL"
           echo "### wasm deployment" >> "$GITHUB_STEP_SUMMARY"
-          echo "$DEPLOYMENT_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "Guide: $DEPLOYMENT_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "Editor: ${DEPLOYMENT_URL%/}/editor/" >> "$GITHUB_STEP_SUMMARY"

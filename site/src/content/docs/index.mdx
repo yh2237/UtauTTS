@@ -1,0 +1,35 @@
+---
+title: UtauTTS
+description: UTAU音源で文章を読み上げる、ブラウザで動くTTSエディタ
+template: splash
+hero:
+  tagline: UTAU音源で文章を読み上げる、ブラウザで動くTTSエディタ。インストールなしで、文章を入れるだけで話し始めます。
+  image:
+    file: ../../assets/icon.png
+  actions:
+    - text: エディタを開く
+      link: /editor/
+      icon: right-arrow
+      attrs:
+        target: _self
+    - text: 使い方を見る
+      link: /getting-started/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid>
+	<Card title="ブラウザだけで動く" icon="laptop">
+		音声合成はすべてブラウザの中で行います。文章や音源をサーバーへ送りません。
+	</Card>
+	<Card title="UTAU音源の声で話す" icon="star">
+		録音された声をそのままつなぎます。最初から「足立レイ」が入っていて、手持ちの音源もZIPで追加できます。
+	</Card>
+	<Card title="自然な抑揚を自動で" icon="random">
+		文章を入れると、読みとアクセントから抑揚を自動で付けます。
+	</Card>
+	<Card title="細かく直せる" icon="pencil">
+		モーラごとの高さと長さ、原音ごとの設定まで、グラフの上で直接編集できます。
+	</Card>
+</CardGrid>
