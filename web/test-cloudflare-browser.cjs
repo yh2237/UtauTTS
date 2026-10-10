@@ -260,7 +260,7 @@ async function checkResponsiveState(page) {
     const pagesURL = await listen(pages);
     const revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
     execFileSync("go", ["run", "./cmd/tools/cloudflare", "package",
-      "--output", output, "--public-url", assetURL, "--deployment-id", "browser-smoke",
+      "--output", path.relative(root, output), "--public-url", assetURL, "--deployment-id", "browser-smoke",
       "--version", "smoke", "--revision", revision, "--channel", "previews"],
     { cwd: root, stdio: "inherit" });
     manifest = JSON.parse(fs.readFileSync(path.join(output, "upload-manifest.json"), "utf8"));
