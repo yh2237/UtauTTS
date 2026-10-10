@@ -1,6 +1,6 @@
 ﻿# アイコンフォントを再生成する。Pythonとfonttoolsが必要。
 param(
-    [string]$Unicodes = "U+E925,U+E3C9,U+E5D4,U+E5CD,U+E145,U+E037,U+E034,U+E5D3,U+E5D5",
+    [string]$Unicodes = "U+E925,U+E3C9,U+E5D4,U+E5CD,U+E145,U+E037,U+E034,U+E5D3,U+E5D5,U+E166,U+E15A",
     [string]$UpstreamUrl = "https://raw.githubusercontent.com/google/material-design-icons/master/variablefont/MaterialSymbolsOutlined%5BFILL%2CGRAD%2Copsz%2Cwght%5D.ttf"
 )
 $ErrorActionPreference = 'Stop'

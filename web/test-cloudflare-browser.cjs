@@ -104,26 +104,31 @@ async function projectSnapshot(page) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
+async function openMobileMenu(page, edge) {
+  await page.mouse.click(354, 28);
+  await page.waitForTimeout(250);
+  await page.mouse.move(150, 420);
+  await page.mouse.wheel(0, edge === "bottom" ? 3000 : -3000);
+  await page.waitForTimeout(1000); // スクロールが止まる前のタップはスクロールを止めるだけになる。
+}
+
 async function checkMobilePagesAndDrag(page) {
   await page.setViewportSize({ width: 390, height: 844 });
   await expectMobileLayout(page, true);
-  await page.mouse.click(354, 28);
-  await page.waitForTimeout(250);
-  await page.mouse.click(140, 320); // Settings in the 16px-inset Drawer.
+  await openMobileMenu(page, "top");
+  await page.mouse.click(140, 674); // Settings in the 16px-inset Drawer.
   await page.waitForTimeout(250);
   await page.screenshot({ path: path.join(output, "mobile-settings-insets.png") });
   await page.mouse.click(348, 24); // Common page header's close button.
-  await page.mouse.click(354, 28);
-  await page.waitForTimeout(250);
-  await page.mouse.click(140, 376); // Dictionary settings.
+  await openMobileMenu(page, "top");
+  await page.mouse.click(140, 724); // Dictionary settings.
   await page.waitForTimeout(250);
   await page.mouse.click(100, 748); // Add an entry in the compact action grid.
   await page.waitForTimeout(100);
   await page.screenshot({ path: path.join(output, "mobile-dictionary-insets.png") });
   await page.mouse.click(348, 24);
-  await page.mouse.click(354, 28);
-  await page.waitForTimeout(250);
-  await page.mouse.click(140, 432); // License page.
+  await openMobileMenu(page, "bottom");
+  await page.mouse.click(140, 656); // License page.
   await page.waitForTimeout(250);
   const license = await page.locator("#qt-shadow-container").screenshot();
   await page.screenshot({ path: path.join(output, "mobile-license.png") });
@@ -151,9 +156,8 @@ async function checkMobilePagesAndDrag(page) {
 async function checkMobileSaveAll(page) {
   const downloads = [];
   page.on("download", download => downloads.push(download.suggestedFilename()));
-  await page.mouse.click(354, 28); // Mobile navigation.
-  await page.waitForTimeout(250);
-  await page.mouse.click(140, 264); // Save all WAV.
+  await openMobileMenu(page, "top");
+  await page.mouse.click(140, 237); // Save all WAV.
   for (let i = 0; i < 360 && downloads.length < 2; ++i) await page.waitForTimeout(500);
   if (downloads.length < 2) {
     console.error("save-all trace:", await page.evaluate(() => window.utauttsCallTrace));

@@ -50,56 +50,94 @@ Item {
             id: menuScroll
             implicitWidth: 0
             contentWidth: availableWidth
+            // デスクトップのメニューバーと同じ順に並べる。スマホで使わない項目（終了・フォルダを開く・プラグイン・exo）と、
+            // 同じ動作になる項目（Webでは「名前を付けて保存」は「保存」と同じ）は置かない。元に戻す・やり直すは見出しにある。
             ColumnLayout {
                 width: menuScroll.availableWidth
-                spacing: 8
-                Button {
+                spacing: 6
+
+                component SectionLabel: Label {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 48
-                    text: root.window.translator.tr("menu.file.addVoicebank")
-                    enabled: !root.backend.busy && !root.window.batchExportActive
-                    onClicked: { menuDrawer.close(); root.backend.beginAddVoicebanks(); }
+                    Layout.topMargin: 8
+                    font.bold: true
+                    font.pixelSize: 13
+                    opacity: 0.6
                 }
-                Button {
+                component MenuButton: Button {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 48
+                    Layout.preferredHeight: 44
+                }
+
+                SectionLabel { text: root.window.translator.tr("menu.file"); Layout.topMargin: 0 }
+                MenuButton {
                     text: root.window.translator.tr("menu.file.open")
                     enabled: !root.backend.busy && !root.window.batchExportActive
                     onClicked: { menuDrawer.close(); root.window.openProject(); }
                 }
-                Button {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 48
+                MenuButton {
                     text: root.window.translator.tr("menu.file.save")
                     enabled: !root.backend.busy && !root.window.batchExportActive
                     onClicked: { menuDrawer.close(); root.window.saveCurrentProject(); }
                 }
-                Button {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 48
+
+                SectionLabel { text: root.window.translator.tr("menu.file.export") }
+                MenuButton {
                     text: root.window.translator.tr("menu.file.saveWav")
                     enabled: !root.backend.busy && !root.window.batchExportActive && root.window.utterancesModel.count > 0
                              && root.window.current().reading.length > 0
                     onClicked: { menuDrawer.close(); root.window.saveCurrentAudio(); }
                 }
-                Button {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 48
+                MenuButton {
                     text: root.window.translator.tr("menu.file.saveAllWav")
                     enabled: !root.backend.busy && !root.window.batchExportActive && root.window.hasExportableText()
                     onClicked: { menuDrawer.close(); root.window.openSaveAllDialog(); }
                 }
-                Button {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 48
-                    text: root.window.translator.tr("menu.settings")
+                MenuButton {
+                    text: root.window.translator.tr("menu.file.exportUstx")
+                    enabled: !root.backend.busy && !root.window.batchExportActive && root.window.utterancesModel.count > 0
+                    onClicked: { menuDrawer.close(); root.window.openUstxExportDialog(); }
+                }
+
+                SectionLabel { text: root.window.translator.tr("menu.file.voicebanks") }
+                MenuButton {
+                    text: root.window.translator.tr("menu.file.addVoicebank")
+                    enabled: !root.backend.busy && !root.window.batchExportActive
+                    onClicked: { menuDrawer.close(); root.backend.beginAddVoicebanks(); }
+                }
+                MenuButton {
+                    text: root.window.translator.tr("menu.file.reloadVoicebanks")
+                    enabled: !root.backend.busy
+                    onClicked: { menuDrawer.close(); root.window.reloadVoicebanks(); }
+                }
+
+                SectionLabel { text: root.window.translator.tr("menu.playback") }
+                MenuButton {
+                    text: root.window.translator.tr("menu.playback.all")
+                    enabled: !root.backend.busy && !root.window.batchExportActive && !root.window.playbackQueueActive
+                             && root.window.hasPlayableTextFrom(0)
+                    onClicked: { menuDrawer.close(); root.window.startPlaybackQueue(0); }
+                }
+                MenuButton {
+                    text: root.window.translator.tr("menu.playback.fromSelected")
+                    enabled: !root.backend.busy && !root.window.batchExportActive && !root.window.playbackQueueActive
+                             && root.window.hasPlayableTextFrom(root.window.selectedIndex)
+                    onClicked: { menuDrawer.close(); root.window.startPlaybackQueue(root.window.selectedIndex); }
+                }
+                MenuButton {
+                    text: root.window.translator.tr("menu.playback.replay")
+                    enabled: !root.backend.busy && !root.window.batchExportActive && !root.window.playbackQueueActive
+                             && root.window.hasCachedAudio()
+                    onClicked: { menuDrawer.close(); root.window.replayCachedAudio(); }
+                }
+
+                SectionLabel { text: root.window.translator.tr("menu.settings") }
+                MenuButton {
+                    text: root.window.translator.tr("menu.settings.settings")
                     enabled: !root.window.batchExportActive
                     onClicked: { menuDrawer.close(); settingsDialog.open(); }
                 }
-                Button {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 48
-                    text: root.window.translator.tr("dictionary.title")
+                MenuButton {
+                    text: root.window.translator.tr("menu.settings.dictionary")
                     enabled: !root.window.batchExportActive
                     onClicked: {
                         menuDrawer.close();
@@ -107,15 +145,37 @@ Item {
                         dictionaryDialog.open();
                     }
                 }
-                Button {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 48
+
+                SectionLabel { text: root.window.translator.tr("menu.help") }
+                MenuButton {
+                    text: root.window.translator.tr("menu.help.about")
+                    onClicked: {
+                        menuDrawer.close();
+                        if (!root.backend.showNativeAboutDialog())
+                            root.window.menuDialogs.about.open();
+                    }
+                }
+                MenuButton {
+                    text: root.window.translator.tr("menu.help.repository")
+                    onClicked: { menuDrawer.close(); Qt.openUrlExternally(root.window.repositoryUrl); }
+                }
+                MenuButton {
                     text: root.window.translator.tr("menu.help.license")
                     onClicked: { menuDrawer.close(); licenseDialog.open(); }
                 }
-                Button {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 48
+                MenuButton {
+                    text: root.window.translator.tr("menu.help.voicebankDetails")
+                    enabled: root.backend.voicebanks.length > 0
+                    onClicked: { menuDrawer.close(); root.window.showVoicebankDetails(); }
+                }
+                MenuButton {
+                    text: root.window.translator.tr("menu.help.exportDiagnostics")
+                    onClicked: {
+                        menuDrawer.close();
+                        root.window.exportDiagnosticsTo(root.backend.defaultSaveFile("utautts-diagnostics.json"));
+                    }
+                }
+                MenuButton {
                     text: root.window.translator.tr("onboarding.title")
                     onClicked: { menuDrawer.close(); onboardingDialog.open(); }
                 }

@@ -625,6 +625,36 @@ ApplicationWindow {
         RowLayout {
             anchors.fill: parent
             visible: window.mobileLayout
+            spacing: 0
+            FontLoader {
+                id: headerIconFont
+                source: "qrc:/fonts/MaterialSymbolsOutlined-subset.ttf"
+            }
+            Repeater {
+                model: [
+                    { icon: "", tip: "menu.edit.undo", redo: false },
+                    { icon: "", tip: "menu.edit.redo", redo: true }
+                ]
+                delegate: ToolButton {
+                    id: historyButton
+                    required property var modelData
+                    Layout.preferredWidth: 52
+                    Layout.preferredHeight: 56
+                    enabled: (historyButton.modelData.redo ? window.canRedo : window.canUndo)
+                             && !window.appBackend.busy && !window.batchExportActive && !window.playbackQueueActive
+                    contentItem: Text {
+                        text: historyButton.modelData.icon
+                        font.family: headerIconFont.name
+                        font.pixelSize: 26
+                        color: historyButton.palette.buttonText
+                        opacity: historyButton.enabled ? 1 : 0.35
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    Accessible.name: window.translator.tr(historyButton.modelData.tip)
+                    onClicked: historyButton.modelData.redo ? window.redo() : window.undo()
+                }
+            }
             Item { Layout.fillWidth: true }
             ToolButton {
                 text: "☰"

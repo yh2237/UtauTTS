@@ -13,6 +13,8 @@ font, containing only the glyphs used by the UtauTTS interface:
 - pause (U+E034, pause)
 - more_horiz (U+E5D3, busy indicator)
 - refresh (U+E5D5, reset to default)
+- undo (U+E166, undo on mobile)
+- redo (U+E15A, redo on mobile)
 
 Source
 ------
