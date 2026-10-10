@@ -12,3 +12,17 @@
   --vp-c-brand-3: #c24e5a;
   --vp-c-brand-soft: rgba(211, 95, 107, 0.2);
 }
+
+.VPSidebar .VPSidebarItem .text {
+  font-size: 16px;
+  line-height: 28px;
+}
+
+.VPNavBar .VPNavBarMenu .VPNavBarMenuLink,
+.VPNavScreen .VPNavScreenMenuLink {
+  font-size: 16px;
+}
+
+.VPDocAside .VPDocOutlineItem .outline-link {
+  font-size: 15px;
+}
