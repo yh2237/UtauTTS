@@ -16,7 +16,12 @@ export default defineConfig({
   cleanUrls: true,
   outDir: './dist',
   srcExclude: ['README.md'],
-  head: [['link', { rel: 'icon', type: 'image/png', href: '/favicon.png' }]],
+  head: [
+    ['link', { rel: 'icon', type: 'image/png', href: '/favicon.png' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=LINE+Seed+JP:wght@400;700&display=swap' }],
+  ],
   ignoreDeadLinks: [/^\/editor\//],
   themeConfig: {
     logo: '/favicon.png',
@@ -25,7 +30,7 @@ export default defineConfig({
       {
         text: '使い方',
         items: [
-          { text: 'はじめに', link: '/getting-started' },
+          { text: 'はじめに', link: '/' },
           { text: '基本の使い方', link: '/basics' },
           { text: '抑揚と長さの編集', link: '/editing' },
           { text: 'スマートフォン・タブレット', link: '/mobile' },

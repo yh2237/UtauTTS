@@ -11,7 +11,7 @@ description: 作った音声の利用条件、ライセンス、うまく動か�
 
 ## UtauTTSのライセンスは
 
-UtauTTSのソースコードはMIT Licenseです。抑揚モデルなどの同梱物には、それぞれのライセンスと通知があります。エディタの「ヘルプ」→「ライセンス...」、または[ライセンスの適用範囲](https://github.com/yh2237/UtauTTS/blob/main/LICENSE-SCOPE.md)を参照してください。
+UtauTTSのソースコードはMIT Licenseです。抑揚モデルなどの同梱物には、それぞれのライセンスと通知があります。エディタの「ヘルプ」→「ライセンス...」、または[ライセンスの適用範囲](https://github.com/yh2237/UtauTTS/blob/main/LICENSE-SCOPE.md)を参照してください。このガイドとエディタの文字は[LINE Seed JP](https://github.com/line/seed)（SIL Open Font License 1.1）です。
 
 ## 文章や音源はどこかへ送られますか
 
