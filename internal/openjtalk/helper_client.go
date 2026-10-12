@@ -65,9 +65,23 @@ func invokeFrontendHelper(ctx context.Context, helper, dictionary, text string) 
 	request, _ := json.Marshal(struct {
 		Text string `json:"text"`
 	}{text})
-	if _, err := client.stdin.Write(append(request, '\n')); err != nil {
+	command := client.cmd
+	writeStopped := make(chan struct{})
+	stopWriting := context.AfterFunc(ctx, func() {
+		_ = command.Process.Kill()
+		close(writeStopped)
+	})
+	_, writeErr := client.stdin.Write(append(request, '\n'))
+	if !stopWriting() {
+		<-writeStopped
+	}
+	if err := ctx.Err(); err != nil {
 		client.stop()
 		return nil, err
+	}
+	if writeErr != nil {
+		client.stop()
+		return nil, writeErr
 	}
 	type readResult struct {
 		data []byte
