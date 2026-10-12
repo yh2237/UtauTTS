@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,6 +19,12 @@ import (
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
+func localRequest(method, target string, body io.Reader) *http.Request {
+	request := httptest.NewRequest(method, target, body)
+	request.Host = "127.0.0.1"
+	return request
+}
+
 func TestSynthesisWaitHonorsRequestCancellation(t *testing.T) {
 	server := mustNewServer(t, Config{VoiceDir: t.TempDir()})
 	for range cap(server.synthesisSem) {
@@ -25,7 +32,7 @@ func TestSynthesisWaitHonorsRequestCancellation(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	request := httptest.NewRequest(http.MethodPost, "/api/synthesize/audio", bytes.NewBufferString(`{"kana":"あ"}`)).WithContext(ctx)
+	request := localRequest(http.MethodPost, "/api/synthesize/audio", bytes.NewBufferString(`{"kana":"あ"}`)).WithContext(ctx)
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusRequestTimeout {
@@ -47,36 +54,20 @@ func mustNewServer(t *testing.T, config Config) *Server {
 	return server
 }
 
-func TestProtectedHandlerRequiresBearerToken(t *testing.T) {
-	server := mustNewServer(t, Config{AuthToken: "secret", VoiceDir: t.TempDir()})
-	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/health", nil))
-	if response.Code != http.StatusUnauthorized {
-		t.Fatalf("status = %d", response.Code)
-	}
-	request := httptest.NewRequest(http.MethodGet, "/api/health", nil)
-	request.Header.Set("Authorization", "Bearer secret")
-	response = httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, request)
-	if response.Code != http.StatusOK {
-		t.Fatalf("authenticated status = %d, body = %s", response.Code, response.Body.String())
-	}
-}
-
 func TestUnknownPathIsNotIndex(t *testing.T) {
 	response := httptest.NewRecorder()
-	mustNewServer(t, Config{VoiceDir: t.TempDir()}).Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/missing", nil))
+	mustNewServer(t, Config{VoiceDir: t.TempDir()}).Handler().ServeHTTP(response, localRequest(http.MethodGet, "/missing", nil))
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("status = %d", response.Code)
 	}
 }
 
-func TestConsoleUIDocsAreServedPublicly(t *testing.T) {
-	server := mustNewServer(t, Config{AuthToken: "secret", VoiceDir: t.TempDir()})
+func TestConsoleUIIsServedLocally(t *testing.T) {
+	server := mustNewServer(t, Config{VoiceDir: t.TempDir()})
 	handler := server.Handler()
 
 	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/", nil))
+	handler.ServeHTTP(response, localRequest(http.MethodGet, "/", nil))
 	if response.Code != http.StatusOK {
 		t.Fatalf("console status = %d, body = %s", response.Code, response.Body.String())
 	}
@@ -88,9 +79,14 @@ func TestConsoleUIDocsAreServedPublicly(t *testing.T) {
 			t.Fatalf("console page is missing %q", want)
 		}
 	}
+	for _, removed := range []string{`id="auth"`, `id="token"`, "utautts_auth_token", "Authorization"} {
+		if strings.Contains(response.Body.String(), removed) {
+			t.Fatalf("removed token UI remains: %s", removed)
+		}
+	}
 
 	response = httptest.NewRecorder()
-	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/ui", nil))
+	handler.ServeHTTP(response, localRequest(http.MethodGet, "/ui", nil))
 	if response.Code != http.StatusTemporaryRedirect {
 		t.Fatalf("/ui status = %d", response.Code)
 	}
@@ -98,7 +94,7 @@ func TestConsoleUIDocsAreServedPublicly(t *testing.T) {
 
 func TestVoicebankRegistrationDisabledByDefault(t *testing.T) {
 	response := httptest.NewRecorder()
-	mustNewServer(t, Config{VoiceDir: t.TempDir()}).Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/voicebanks", bytes.NewBufferString(`{"path":"."}`)))
+	mustNewServer(t, Config{VoiceDir: t.TempDir()}).Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/voicebanks", bytes.NewBufferString(`{"path":"."}`)))
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("status = %d", response.Code)
 	}
@@ -132,14 +128,14 @@ func TestJSONAndBatchLimits(t *testing.T) {
 	server := (&Server{voicebanks: map[string]Voicebank{}}).Handler()
 
 	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/analyze", strings.NewReader(`{"text":"あ","unknown":true}`))
+	request := localRequest(http.MethodPost, "/api/analyze", strings.NewReader(`{"text":"あ","unknown":true}`))
 	server.ServeHTTP(response, request)
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("unknown field status = %d", response.Code)
 	}
 
 	response = httptest.NewRecorder()
-	request = httptest.NewRequest(http.MethodPost, "/api/synthesize/audio",
+	request = localRequest(http.MethodPost, "/api/synthesize/audio",
 		strings.NewReader(`{"text":"`+strings.Repeat("あ", maxTextRunes+1)+`"}`))
 	server.ServeHTTP(response, request)
 	if response.Code != http.StatusRequestEntityTooLarge {
@@ -147,7 +143,7 @@ func TestJSONAndBatchLimits(t *testing.T) {
 	}
 
 	response = httptest.NewRecorder()
-	request = httptest.NewRequest(http.MethodPost, "/api/analyze",
+	request = localRequest(http.MethodPost, "/api/analyze",
 		strings.NewReader(`{"text":"`+strings.Repeat("あ", maxTextRunes+1)+`"}`))
 	server.ServeHTTP(response, request)
 	if response.Code != http.StatusRequestEntityTooLarge {
@@ -156,14 +152,14 @@ func TestJSONAndBatchLimits(t *testing.T) {
 
 	items := strings.Repeat(`{"request":{"kana":"あ"}},`, maxBatchItems) + `{"request":{"kana":"あ"}}`
 	response = httptest.NewRecorder()
-	request = httptest.NewRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(`{"items":[`+items+`]}`))
+	request = localRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(`{"items":[`+items+`]}`))
 	server.ServeHTTP(response, request)
 	if response.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("large batch status = %d, body = %s", response.Code, response.Body.String())
 	}
 
 	response = httptest.NewRecorder()
-	request = httptest.NewRequest(http.MethodPost, "/api/analyze", strings.NewReader(strings.Repeat(" ", maxJSONRequestBytes+1)))
+	request = localRequest(http.MethodPost, "/api/analyze", strings.NewReader(strings.Repeat(" ", maxJSONRequestBytes+1)))
 	server.ServeHTTP(response, request)
 	if response.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("large JSON status = %d", response.Code)
@@ -172,14 +168,14 @@ func TestJSONAndBatchLimits(t *testing.T) {
 
 func TestBatchRejectsDuplicateArchiveNamesBeforeSynthesis(t *testing.T) {
 	server := &Server{}
-	request := httptest.NewRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(`{"items":[{"name":"audio.wav"},{"name":"audio.wav"}]}`))
+	request := localRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(`{"items":[{"name":"audio.wav"},{"name":"audio.wav"}]}`))
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "duplicate batch filename") {
 		t.Fatalf("duplicate batch response = %d %s", response.Code, response.Body.String())
 	}
 
-	request = httptest.NewRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(`{"items":[{"name":".."},{"name":"utterance-1.wav"}]}`))
+	request = localRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(`{"items":[{"name":".."},{"name":"utterance-1.wav"}]}`))
 	response = httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusBadRequest {
@@ -190,7 +186,7 @@ func TestBatchRejectsDuplicateArchiveNamesBeforeSynthesis(t *testing.T) {
 func TestSynthesizeEndpointReportsWaveformRenderer(t *testing.T) {
 	server := newWaveformTestServer(t)
 	body := bytes.NewBufferString(`{"kana":"あ","voicebank_id":"test","mora_duration_ms":100}`)
-	request := httptest.NewRequest(http.MethodPost, "/api/synthesize/audio", body)
+	request := localRequest(http.MethodPost, "/api/synthesize/audio", body)
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
@@ -228,14 +224,14 @@ func TestLabelAndBatchSidecarEndpoints(t *testing.T) {
 	synthesis := `{"kana":"あ","voicebank_id":"test","mora_duration_ms":100}`
 
 	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/synthesize/label", strings.NewReader(synthesis)))
+	server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/label", strings.NewReader(synthesis)))
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), " a\n") {
 		t.Fatalf("label response = %d %q", response.Code, response.Body.String())
 	}
 
 	response = httptest.NewRecorder()
 	body := `{"write_text":true,"write_lab":true,"items":[{"name":"sample","request":` + synthesis + `}]}`
-	server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(body)))
+	server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(body)))
 	if response.Code != http.StatusOK {
 		t.Fatalf("batch response = %d %s", response.Code, response.Body.String())
 	}
@@ -260,7 +256,7 @@ func TestSynthesisInputCompatibility(t *testing.T) {
 		t.Helper()
 		body := `{"voicebank_id":"test","apply_pitch":false,` + fields + `}`
 		response := httptest.NewRecorder()
-		server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/synthesize/audio", strings.NewReader(body)))
+		server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/audio", strings.NewReader(body)))
 		if response.Code != http.StatusOK {
 			t.Fatalf("synthesis response = %d %s", response.Code, response.Body.String())
 		}
@@ -296,7 +292,7 @@ func TestSynthesizeEndpointRejectsUnknownText(t *testing.T) {
 	server := &Server{renderer: "waveform", catalog: &plugin.Catalog{Renderers: []plugin.Renderer{{ManifestVersion: 2, Kind: "synthesis-engine", ID: "waveform", DisplayName: "waveform", Contract: "unit-renderer", Provider: "waveform", ProviderVersion: "1"}}}, voicebanks: map[string]Voicebank{
 		"test": {ID: "test", Path: root},
 	}}
-	request := httptest.NewRequest(http.MethodPost, "/api/synthesize/audio", bytes.NewBufferString(`{"text":"UtauTTS","voicebank_id":"test"}`))
+	request := localRequest(http.MethodPost, "/api/synthesize/audio", bytes.NewBufferString(`{"text":"UtauTTS","voicebank_id":"test"}`))
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusUnprocessableEntity {
@@ -306,7 +302,7 @@ func TestSynthesizeEndpointRejectsUnknownText(t *testing.T) {
 
 func TestHealthReportsConfiguredRenderer(t *testing.T) {
 	server := &Server{renderer: "waveform"}
-	request := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	request := localRequest(http.MethodGet, "/api/health", nil)
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 
@@ -324,7 +320,7 @@ func TestHealthReportsConfiguredRenderer(t *testing.T) {
 
 func TestAPIMetadata(t *testing.T) {
 	server := mustNewServer(t, Config{Renderer: "utautts-world-phrase", VoiceDir: t.TempDir()})
-	request := httptest.NewRequest(http.MethodGet, "/api/renderers", nil)
+	request := localRequest(http.MethodGet, "/api/renderers", nil)
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
@@ -356,7 +352,7 @@ func TestAPIMetadata(t *testing.T) {
 
 func TestAnalyzeEndpointReturnsMoraes(t *testing.T) {
 	server := &Server{}
-	request := httptest.NewRequest(http.MethodPost, "/api/analyze", bytes.NewBufferString(`{"text":"あいうえお"}`))
+	request := localRequest(http.MethodPost, "/api/analyze", bytes.NewBufferString(`{"text":"あいうえお"}`))
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
@@ -381,7 +377,7 @@ func TestAnalyzeEndpointUsesUserDictionary(t *testing.T) {
 	server := &Server{}
 	body := `{"text":"v8","dictionary":[{"surface":"v8","reading":"ぶいはち"}]}`
 	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/analyze", strings.NewReader(body)))
+	server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/analyze", strings.NewReader(body)))
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"reading":"ブイハチ"`) {
 		t.Fatalf("dictionary analysis = %d %s", response.Code, response.Body.String())
 	}
@@ -407,7 +403,7 @@ func TestVoicebankEndpointsDiscoverAndReloadDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	request := httptest.NewRequest(http.MethodGet, "/api/voicebanks", nil)
+	request := localRequest(http.MethodGet, "/api/voicebanks", nil)
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	var first struct {
@@ -430,7 +426,7 @@ func TestVoicebankEndpointsDiscoverAndReloadDirectory(t *testing.T) {
 		t.Fatalf("voicebank metadata = %#v", first.Voicebanks[0])
 	}
 
-	request = httptest.NewRequest(http.MethodPost, "/api/voicebanks/reload", nil)
+	request = localRequest(http.MethodPost, "/api/voicebanks/reload", nil)
 	response = httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusOK {

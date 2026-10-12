@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -18,15 +19,14 @@ import (
 	"github.com/yh2237/UtauTTS/internal/appinfo"
 )
 
-func isLoopbackHost(host string) bool {
-	switch strings.ToLower(host) {
-	case "localhost", "127.0.0.1", "::1":
-		return true
+func localListenAddress(host string, port int) (string, error) {
+	if !api.IsLoopbackHost(host) {
+		return "", errors.New("UtauTTS Server is local-only; --host must be localhost or a loopback IP address")
 	}
-	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
-		return true
+	if strings.EqualFold(host, "localhost") {
+		host = "127.0.0.1"
 	}
-	return false
+	return net.JoinHostPort(host, strconv.Itoa(port)), nil
 }
 
 func main() {
@@ -43,13 +43,12 @@ func run() (runErr error) {
 	var config api.Config
 	flag.BoolVar(&showVersion, "version", false, "print application version")
 	flag.IntVar(&port, "port", 8080, "port")
-	flag.StringVar(&host, "host", "127.0.0.1", "host")
+	flag.StringVar(&host, "host", "127.0.0.1", "local listen host (localhost or a loopback IP address)")
 	flag.StringVar(&config.VoiceDir, "voice-dir", "voice", "directory containing voicebanks")
 	flag.StringVar(&config.Renderer, "renderer", "", "default renderer ID (default: highest configured priority)")
 	flag.StringVar(&config.WorldlineBridgePath, "worldline-bridge", "", "path to worldline bridge")
 	flag.StringVar(&config.OpenJTalkPath, "openjtalk-features", "", "path to Open JTalk feature helper")
 	flag.StringVar(&config.OpenJTalkDictionary, "openjtalk-dictionary", "", "path to Open JTalk dictionary")
-	flag.StringVar(&config.AuthToken, "auth-token", "", "optional local UI authentication token")
 	flag.BoolVar(&config.AllowVoicebankRegistration, "allow-voicebank-registration", false, "allow registration of paths below voice-dir")
 	defaults := api.DefaultLimits()
 	flag.Int64Var(&config.Limits.MaxJSONRequestBytes, "max-json-bytes", defaults.MaxJSONRequestBytes, "maximum JSON request bytes")
@@ -74,11 +73,12 @@ func run() (runErr error) {
 		fmt.Printf("%s %s\n", appinfo.Name(), appinfo.Version())
 		return nil
 	}
-	if config.AuthToken == "" && !isLoopbackHost(host) {
-		log.Printf("warning: listening on %s without an auth token; all API endpoints are unauthenticated", host)
+	address, err := localListenAddress(host, port)
+	if err != nil {
+		return err
 	}
 
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
 	}

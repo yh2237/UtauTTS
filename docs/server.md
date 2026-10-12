@@ -1,8 +1,8 @@
 # UtauTTS Server
 
-UtauTTSの合成機能をHTTP APIから利用するためのサーバーです。Windows、Linux x64、macOS arm64に対応しています。
+同じ端末のアプリからUtauTTSの合成機能をHTTP APIで利用するためのサーバーです。Windows、Linux x64、macOS arm64に対応しています。
 
-サーバーは初期状態で`127.0.0.1:8080`を待ち受けます。LANや外部から接続できるアドレスで起動する場合は、必ず`--auth-token`を設定してください（未設定でも起動は継続し、警告ログのみを出します）。
+既定では`127.0.0.1:8080`を待ち受けます。ローカル専用で、LANや外部アドレスへの待受はできません。外部公開が必要な場合は、本体とは別のアプリで認証・アクセス制御を担当してください。
 
 Windows
 
@@ -36,9 +36,8 @@ xattr -rc "utautts-server" runtime
 - 文章・音源・モデル・Rendererなどを指定した合成とWAVダウンロード
 - 言語・発音形式・読みの指定、音素ラベルの表示・ダウンロード、一括合成ZIPのダウンロード
 - 合成リクエストの詳細JSON指定、許可されたサーバーでの音源登録
-- `--auth-token`使用時はページ内のトークン入力へ保存すると以降のAPI呼び出しに`Authorization: Bearer <token>`を付加します
 
-コンソールUIは`/`で提供されます（`/ui`は`/`への307リダイレクトです）。認証・Origin検査は`/api/*`にのみ適用されます。
+コンソールUIは`/`で提供されます（`/ui`は`/`への307リダイレクトです）。トークンの入力は不要です。
 
 ## エンドポイント一覧
 
@@ -74,10 +73,10 @@ xattr -rc "utautts-server" runtime
 
 ### OpenAPI
 
-[OpenAPI 3.0.3のYAML](../internal/api/openapi.yaml)に、HTTPの入力・既定値・応答・認証・エラーを記録しています。サーバーからは`GET /api/openapi.yaml`で同じ内容を取得できます。`--auth-token`を設定している場合は、このエンドポイントにもBearerトークンが必要です。
+[OpenAPI 3.0.3のYAML](../internal/api/openapi.yaml)に、HTTPの入力・既定値・応答・エラーを記録しています。サーバーからは`GET /api/openapi.yaml`で同じ内容を取得できます。
 
 ```sh
-curl -H "Authorization: Bearer <token>" http://127.0.0.1:8080/api/openapi.yaml -o openapi.yaml
+curl http://127.0.0.1:8080/api/openapi.yaml -o openapi.yaml
 ```
 
 仕様の`info.version`は`development`で、アプリケーションのバージョンは`/api/health`で取得します。上限を表す`x-default-*`は既定の運用設定です。固定の`maxLength`・`maxItems`制約にはせず、現在の上限は`/api/limits`を参照します。
@@ -86,11 +85,13 @@ curl -H "Authorization: Bearer <token>" http://127.0.0.1:8080/api/openapi.yaml -
 
 OpenAPIの追加によって入力の検証規則は変えていません。音源・資源の不足やモーラ位置などは実際の要求処理でも検証します。
 
-### 認証
+### ローカル接続
 
-`--auth-token`を設定すると`/api/*`の全エンドポイントで`Authorization: Bearer <token>`ヘッダーが必要になります。無い場合は401です。コンソールUI（`/`と`/ui`）自体は公開されます。
+`--host`には`localhost`かloopback IP（`127.0.0.1`・`::1`など）だけを指定できます。`localhost`はDNSを使わず`127.0.0.1`で待ち受けます。空文字・`0.0.0.0`・LAN IP・外部ホスト名は起動時に拒否します。
 
-GET・HEAD以外のリクエストの`Origin`検査は`--auth-token`を設定した場合に有効になります。`Origin`ヘッダーがあり、リクエストの`Host`ヘッダーから見たorigin（`http://<host>` / `https://<host>`）と一致しないときは403で拒否します。
+UIとAPIの`Host`も`localhost`かloopback IPに限定します。別サイトからのPOSTなどの操作要求は、Go標準の`CrossOriginProtection`による`Sec-Fetch-Site`・`Origin`検査で拒否します。同じサーバーのUI操作と、これらのヘッダーを付けないローカルアプリの要求は受け付けます。拒否時は403の`forbidden`を返します。
+
+これは別サイトからの意図しない操作への保護で、同じ端末のアプリ間の認証ではありません。`--auth-token`とトークン管理UIは削除しました。以前の起動設定にこのフラグがある場合は取り除いてください。
 
 ### エラー分類
 
@@ -102,7 +103,7 @@ GET・HEAD以外のリクエストの`Origin`検査は`--auth-token`を設定し
 | `synthesis_error` | 読み解析・合成の失敗（422） |
 | `canceled`・`deadline_exceeded` | 要求のキャンセル・期限切れ（408） |
 | `queue_timeout` | 処理枠の待機時間超過（503） |
-| `unauthorized`・`forbidden` | 認証・Origin・登録許可のエラー（401・403） |
+| `forbidden` | 非ローカルのHost、別サイトからのブラウザ操作、登録許可のエラー（403） |
 | `internal_error` | 再読込・一時ファイル・ZIP出力などの内部エラー（500） |
 
 一括合成で発話が失敗した場合も同じ分類を使い、`error`には`item N: ...`を残します。応答本文の書込が始まった後の通信エラーはJSONへ切り替えず、ログへ記録します。クライアントが切断した場合はエラーJSONを受け取れないことがあります。
@@ -441,9 +442,8 @@ ID順にソートされた音源一覧です。
 - `--renderer`: Renderer ID。省略時は設定された優先度が最も高いものを使う
 - `--renderer-dir`: Rendererプラグインの検索先。複数回指定できる
 - `--model-dir`: 自己記述モデルJSONの検索先。複数回指定でき、リクエストの`model_id`で選択する
-- `--host`: 待受アドレス。初期値は`127.0.0.1`
+- `--host`: ローカルの待受アドレス。既定は`127.0.0.1`。`localhost`かloopback IPだけを指定できる
 - `--port`: ポート。初期値は`8080`
-- `--auth-token`: 認証トークン。設定すると`Authorization: Bearer <token>`が必須になる
 - `--allow-voicebank-registration`: `POST /api/voicebanks` による音源パス登録を許可する（登録先は`--voice-dir`以下に制限）
 - `--worldline-bridge`: worldline bridge実行ファイルを明示する
 - `--openjtalk-features` / `--openjtalk-dictionary`: 自動検出を使わずhelperまたは辞書を明示する開発用オプション

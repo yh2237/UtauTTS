@@ -16,7 +16,7 @@ func TestConfiguredLimitsAreExposedAndApplied(t *testing.T) {
 		t.Fatal("configured concurrency was not applied")
 	}
 	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/limits", nil))
+	server.Handler().ServeHTTP(response, localRequest(http.MethodGet, "/api/limits", nil))
 	var reported map[string]any
 	if err := json.Unmarshal(response.Body.Bytes(), &reported); err != nil {
 		t.Fatal(err)
@@ -38,7 +38,7 @@ func TestConfiguredLimitsAreExposedAndApplied(t *testing.T) {
 		{"/api/synthesize/batch", `{"items":[{"request":{"reading":"あ","apply_pitch":false}}]}`},
 	} {
 		response := httptest.NewRecorder()
-		server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, test.path, strings.NewReader(test.body)))
+		server.Handler().ServeHTTP(response, localRequest(http.MethodPost, test.path, strings.NewReader(test.body)))
 		assertAPIError(t, response, 413, "limit_exceeded")
 	}
 }
@@ -60,7 +60,7 @@ func TestQueueAndSynthesisTimeoutsReleaseSlots(t *testing.T) {
 				body = `{"items":[{"request":{"reading":"あ"}}]}`
 			}
 			response := httptest.NewRecorder()
-			server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, path, strings.NewReader(body)))
+			server.Handler().ServeHTTP(response, localRequest(http.MethodPost, path, strings.NewReader(body)))
 			assertAPIError(t, response, status, code)
 			if len(server.synthesisSem) != 1 || len(server.batchSem) != 1 {
 				t.Fatal("wait timeout changed the occupied slots")
@@ -70,7 +70,7 @@ func TestQueueAndSynthesisTimeoutsReleaseSlots(t *testing.T) {
 		<-server.batchSem
 		if !synthesisDeadline {
 			response := httptest.NewRecorder()
-			server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/analyze", strings.NewReader(`{"text":"あ"}`)))
+			server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/analyze", strings.NewReader(`{"text":"あ"}`)))
 			if response.Code != 200 || len(server.synthesisSem) != 0 {
 				t.Fatalf("next analysis leaked slot: %d %s", response.Code, response.Body.String())
 			}

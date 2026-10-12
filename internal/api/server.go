@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"crypto/subtle"
 	"embed"
 	"errors"
 	"fmt"
@@ -13,7 +12,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 
 	utautts "github.com/yh2237/UtauTTS"
@@ -50,12 +48,12 @@ const (
 )
 
 type Config struct {
-	VoiceDir, Renderer                            string
-	WorldlineBridgePath                           string
-	OpenJTalkPath, OpenJTalkDictionary, AuthToken string
-	AllowVoicebankRegistration                    bool
-	RendererDirectories, ModelDirectories         []string
-	Limits                                        Limits
+	VoiceDir, Renderer                    string
+	WorldlineBridgePath                   string
+	OpenJTalkPath, OpenJTalkDictionary    string
+	AllowVoicebankRegistration            bool
+	RendererDirectories, ModelDirectories []string
+	Limits                                Limits
 }
 
 type Voicebank struct {
@@ -85,7 +83,6 @@ type Server struct {
 	openJTalkPath       string
 	openJTalkDictionary string
 	voiceDir            string
-	authToken           string
 	allowRegistration   bool
 	catalog             *plugin.Catalog
 	service             *synth.Service
@@ -120,8 +117,8 @@ func New(config Config) (*Server, error) {
 		limits:              limits,
 		worldlineBridgePath: config.WorldlineBridgePath, voiceDir: voiceDir,
 		openJTalkPath: config.OpenJTalkPath, openJTalkDictionary: config.OpenJTalkDictionary,
-		authToken: config.AuthToken, allowRegistration: config.AllowVoicebankRegistration,
-		voiceLibrary: voicebank.NewLibrary(voiceDir),
+		allowRegistration: config.AllowVoicebankRegistration,
+		voiceLibrary:      voicebank.NewLibrary(voiceDir),
 	}
 	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
 		Renderer: config.Renderer, WorldlineBridgePath: config.WorldlineBridgePath,
@@ -171,37 +168,7 @@ func (s *Server) Handler() http.Handler {
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	})
 	mux.Handle("GET /", http.FileServer(http.FS(uiFS)))
-	return s.authenticate(mux)
-}
-
-func (s *Server) authenticate(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/api/") {
-			next.ServeHTTP(w, r)
-			return
-		}
-		if s.authToken != "" && r.Method != http.MethodGet && r.Method != http.MethodHead {
-			if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+r.Host && origin != "https://"+r.Host {
-				writeAPIError(w, http.StatusForbidden, errors.New("cross-origin request rejected"))
-				return
-			}
-		}
-		if s.authToken == "" {
-			next.ServeHTTP(w, r)
-			return
-		}
-		const prefix = "Bearer "
-		authorization := r.Header.Get("Authorization")
-		if len(authorization) <= len(prefix) || authorization[:len(prefix)] != prefix || !tokenEqual(authorization[len(prefix):], s.authToken) {
-			writeAPIError(w, http.StatusUnauthorized, errors.New("unauthorized"))
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func tokenEqual(left, right string) bool {
-	return len(left) == len(right) && subtle.ConstantTimeCompare([]byte(left), []byte(right)) == 1
+	return localOnly(mux)
 }
 
 func (s *Server) loadVoiceDirectory() error {

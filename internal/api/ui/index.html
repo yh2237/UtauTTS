@@ -38,14 +38,6 @@
 </header>
 
 <main>
-  <section id="auth">
-    <h2>認証トークン（任意）</h2>
-    <div class="row">
-      <div><input type="text" id="token" placeholder="auth token" autocomplete="off"></div>
-      <div class="auto"><button id="token-save">保存</button></div>
-    </div>
-  </section>
-
   <section id="voicebanks">
     <h2>音源 <span class="muted">GET /api/voicebanks</span> <button id="vb-refresh">再読込</button></h2>
     <table>
@@ -183,8 +175,6 @@
 
 <script>
 "use strict";
-const TOKEN_KEY = "utautts_auth_token";
-let token = "";
 let voicebankList = [];
 let modelList = [];
 const languageOptions = {
@@ -202,22 +192,8 @@ const exampleTexts = {
   en: "Hello world.",
   zh: "你好，今天天气很好。",
 };
-try { token = localStorage.getItem(TOKEN_KEY) || ""; } catch (_) {}
-document.getElementById("token").value = token;
-
-function authHeaders(json) {
-  const headers = {};
-  if (json) headers["Content-Type"] = "application/json";
-  if (token) headers["Authorization"] = "Bearer " + token;
-  return headers;
-}
-
 async function api(path, options) {
-  const opts = Object.assign({}, options);
-  const headers = Object.assign({}, (options && options.headers) || {});
-  if (token && !headers["Authorization"]) headers["Authorization"] = "Bearer " + token;
-  opts.headers = headers;
-  const response = await fetch(path, opts);
+  const response = await fetch(path, options);
   let data = null;
   const text = await response.text();
   try { data = text ? JSON.parse(text) : null; } catch (_) { data = text; }
@@ -264,12 +240,6 @@ function updateLanguage() {
 }
 document.getElementById("syn-language").addEventListener("change", updateLanguage);
 updateLanguage();
-
-document.getElementById("token-save").addEventListener("click", () => {
-  token = document.getElementById("token").value.trim();
-  try { localStorage.setItem(TOKEN_KEY, token); } catch (_) {}
-  document.getElementById("health").textContent = "トークンを保存しました";
-});
 
 async function loadHealth() {
   try {
@@ -336,7 +306,7 @@ document.getElementById("vb-register").addEventListener("click", async () => {
   const name = document.getElementById("vb-name").value.trim();
   if (!path) { setResult("vb-register-result", "音源ディレクトリを入力してください", "error"); return; }
   try {
-    await api("/api/voicebanks", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ path, name }) });
+    await api("/api/voicebanks", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ path, name }) });
     setResult("vb-register-result", "登録しました", "ok");
     await loadVoicebanks();
   } catch (error) {
@@ -403,7 +373,7 @@ async function loadRenderers() {
 
 document.getElementById("vb-refresh").addEventListener("click", async () => {
   try {
-    await api("/api/voicebanks/reload", { method: "POST", headers: authHeaders(true), body: "{}" });
+    await api("/api/voicebanks/reload", { method: "POST", headers: {"Content-Type": "application/json"}, body: "{}" });
     setResult("vb-refresh-result", "音源を再読込しました", "ok");
     await loadVoicebanks();
   } catch (error) {
@@ -418,7 +388,7 @@ document.getElementById("ana-run").addEventListener("click", async () => {
     const dictionary = parseJSONInput("ana-dictionary", "array");
     const payload = dictionary ? { text, dictionary } : { text };
     const { data } = await api("/api/analyze", {
-      method: "POST", headers: authHeaders(true), body: JSON.stringify(payload),
+      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload),
     });
     const morae = (data.morae || []).map((m) => (
       "<tr><td>" + m.position + "</td><td>" + escapeHtml(m.mora) +
@@ -465,7 +435,7 @@ function buildSynthesisPayload() {
 
 async function postFile(path, payload) {
   const response = await fetch(path, {
-    method: "POST", headers: authHeaders(true), body: JSON.stringify(payload),
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload),
   });
   if (!response.ok) {
     const body = await response.text();

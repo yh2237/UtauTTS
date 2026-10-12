@@ -5,8 +5,9 @@ info:
   x-default-max-json-bytes: 1048576
   description: |
     現行の開発版HTTP API。アプリケーションのバージョンは /api/health で取得する。
-    --auth-token を設定した場合は全 /api/* でBearer認証が必要。
-    未設定の場合だけ匿名アクセスを許可する。GET・HEAD以外では、トークン設定時にOriginも検査する。
+    ローカル専用。loopbackで待ち受け、認証トークンは使わない。
+    Hostはlocalhostまたはloopback IPに限定する。別サイトからのPOSTなどの操作要求はGo標準のCrossOriginProtectionで拒否する。
+    ローカルの非ブラウザ呼出しにはOriginやSec-Fetch-Siteは不要。これは同じ端末のアプリ間の認証ではない。
     JSON本文は単一オブジェクト。未知の項目は400。ただしrenderer_settingsのキーは任意。
     本文・文字数・配列・一括合成・並列数の上限は起動設定で変更でき、/api/limits が現在値を返す。
     x-default-* は既定の運用制限で、固定のスキーマ制約ではない。
@@ -16,9 +17,6 @@ info:
     応答書込開始後の通信エラーはJSONに切り替えずログへ記録する。
 servers:
   - url: /
-security:
-  - bearerAuth: []
-  - {}
 paths:
   /api/openapi.yaml:
     get:
@@ -30,7 +28,7 @@ paths:
           content:
             application/yaml:
               schema: {type: string}
-        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /api/health:
     get:
       operationId: getHealth
@@ -42,7 +40,7 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Health'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /api/readiness:
     get:
       operationId: getReadiness
@@ -57,7 +55,7 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/Readiness'}
         '503': *readinessResponse
-        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /api/limits:
     get:
       operationId: getLimits
@@ -68,7 +66,7 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Limits'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /api/voicebanks:
     get:
       operationId: listVoicebanks
@@ -85,7 +83,7 @@ paths:
                   voicebanks:
                     type: array
                     items: {$ref: '#/components/schemas/Voicebank'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
     post:
       operationId: registerVoicebank
       summary: 音源パスの登録
@@ -107,7 +105,6 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/Voicebank'}
         '400': {$ref: '#/components/responses/InvalidRequest'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '413': {$ref: '#/components/responses/LimitExceeded'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -119,7 +116,6 @@ paths:
       description: 実行中のRuntime要求の完了を待って自分の資源を再読込する。Rendererとモデルのカタログは再探索しない。
       responses:
         '200': *voicebanksResponse
-        '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
@@ -140,7 +136,7 @@ paths:
                     type: array
                     nullable: true
                     items: {$ref: '#/components/schemas/Model'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /api/renderers:
     get:
       operationId: listRenderers
@@ -152,7 +148,7 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/RendererCatalog'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /api/analyze:
     post:
       operationId: analyze
@@ -179,7 +175,6 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/Analysis'}
         '400': {$ref: '#/components/responses/InvalidRequest'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '408': {$ref: '#/components/responses/Timeout'}
         '413': {$ref: '#/components/responses/LimitExceeded'}
@@ -207,7 +202,6 @@ paths:
             audio/wav:
               schema: {type: string, format: binary}
         '400': {$ref: '#/components/responses/InvalidRequest'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '408': {$ref: '#/components/responses/Timeout'}
         '413': {$ref: '#/components/responses/LimitExceeded'}
@@ -260,7 +254,6 @@ paths:
             application/zip:
               schema: {type: string, format: binary}
         '400': {$ref: '#/components/responses/InvalidRequest'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '408': {$ref: '#/components/responses/Timeout'}
         '413': {$ref: '#/components/responses/LimitExceeded'}
@@ -268,11 +261,6 @@ paths:
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      description: --auth-token 設定時のみ必須。未設定のサーバーは匿名アクセスを許可する。
   requestBodies:
     Synthesis:
       required: true
@@ -286,11 +274,8 @@ components:
       content: &errorContent
         application/json:
           schema: {$ref: '#/components/schemas/Error'}
-    Unauthorized:
-      description: Bearerトークンがない・一致しない。codeはunauthorized。
-      content: *errorContent
     Forbidden:
-      description: Origin不一致または音源登録が無効。codeはforbidden。
+      description: Hostが非ローカル、別サイトからのブラウザ操作、または音源登録が無効。codeはforbidden。
       content: *errorContent
     Timeout:
       description: 要求キャンセルはcanceled、要求の期限切れはdeadline_exceeded。切断後は受信できない場合がある。
@@ -315,7 +300,7 @@ components:
         error: {type: string, description: 既存クライアント向けの説明文字列。一括合成ではitem Nを含む。}
         code:
           type: string
-          enum: [invalid_request, limit_exceeded, unavailable, synthesis_error, canceled, deadline_exceeded, queue_timeout, unauthorized, forbidden, internal_error]
+          enum: [invalid_request, limit_exceeded, unavailable, synthesis_error, canceled, deadline_exceeded, queue_timeout, forbidden, internal_error]
     SynthesisRequest:
       type: object
       additionalProperties: false

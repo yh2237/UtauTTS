@@ -61,16 +61,10 @@ func readSpec(t *testing.T) specDocument {
 	return doc
 }
 
-func TestOpenAPIEndpointUsesAPIAuthentication(t *testing.T) {
+func TestOpenAPIEndpointIsAvailableLocally(t *testing.T) {
 	server := newWaveformTestServer(t)
-	server.authToken = "secret"
 	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/openapi.yaml", nil))
-	assertAPIError(t, response, 401, "unauthorized")
-	request := httptest.NewRequest(http.MethodGet, "/api/openapi.yaml", nil)
-	request.Header.Set("Authorization", "Bearer secret")
-	response = httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, request)
+	server.Handler().ServeHTTP(response, localRequest(http.MethodGet, "/api/openapi.yaml", nil))
 	if response.Code != 200 || !strings.HasPrefix(response.Header().Get("Content-Type"), "application/yaml") || !bytes.Equal(response.Body.Bytes(), openAPISpec) {
 		t.Fatalf("OpenAPI response: %d %v", response.Code, response.Header())
 	}

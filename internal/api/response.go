@@ -32,8 +32,6 @@ func writeAPIError(w http.ResponseWriter, status int, err error) {
 		code = "invalid_request"
 	case status == http.StatusRequestEntityTooLarge:
 		code = "limit_exceeded"
-	case status == http.StatusUnauthorized:
-		code = "unauthorized"
 	case status == http.StatusForbidden:
 		code = "forbidden"
 	case status == http.StatusUnprocessableEntity:

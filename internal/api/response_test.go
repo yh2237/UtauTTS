@@ -41,20 +41,10 @@ func TestAPIErrorCodesPreserveLegacyMessageAndStatus(t *testing.T) {
 	} {
 		t.Run(test.path+"/"+test.code+"/"+test.body[:min(len(test.body), 30)], func(t *testing.T) {
 			response := httptest.NewRecorder()
-			server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, test.path, strings.NewReader(test.body)))
+			server.Handler().ServeHTTP(response, localRequest(http.MethodPost, test.path, strings.NewReader(test.body)))
 			assertAPIError(t, response, test.status, test.code)
 		})
 	}
-	protected := mustNewServer(t, Config{VoiceDir: t.TempDir(), AuthToken: "secret"})
-	response := httptest.NewRecorder()
-	protected.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/health", nil))
-	assertAPIError(t, response, 401, "unauthorized")
-	request := httptest.NewRequest(http.MethodPost, "/api/analyze", strings.NewReader(`{"text":"あ"}`))
-	request.Header.Set("Authorization", "Bearer secret")
-	request.Header.Set("Origin", "https://other.example")
-	response = httptest.NewRecorder()
-	protected.Handler().ServeHTTP(response, request)
-	assertAPIError(t, response, 403, "forbidden")
 }
 
 func TestAPIClassifiesCanceledAndExpiredRequests(t *testing.T) {
@@ -76,7 +66,7 @@ func TestAPIClassifiesCanceledAndExpiredRequests(t *testing.T) {
 				body = `{"items":[{"request":{"reading":"あ"}}]}`
 			}
 			response := httptest.NewRecorder()
-			request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body)).WithContext(ctx)
+			request := localRequest(http.MethodPost, path, strings.NewReader(body)).WithContext(ctx)
 			server.Handler().ServeHTTP(response, request)
 			assertAPIError(t, response, 408, code)
 		}
@@ -89,6 +79,6 @@ func TestClosedServerRejectsSynthesis(t *testing.T) {
 		t.Fatal(err)
 	}
 	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/synthesize/audio", strings.NewReader(`{"reading":"あ"}`)))
+	server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/audio", strings.NewReader(`{"reading":"あ"}`)))
 	assertAPIError(t, response, 503, "unavailable")
 }

@@ -23,7 +23,7 @@ func TestJSONSynthesisResultMatchesWAVAndLAB(t *testing.T) {
 		responses := make(map[string]*httptest.ResponseRecorder)
 		for _, kind := range []string{"audio", "label", "result"} {
 			response := httptest.NewRecorder()
-			server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/synthesize/"+kind, strings.NewReader(input)))
+			server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/"+kind, strings.NewReader(input)))
 			if response.Code != 200 {
 				t.Fatalf("%s: status=%d body=%s", kind, response.Code, response.Body.String())
 			}
@@ -56,7 +56,7 @@ func TestReadinessIsSeparateFromHealth(t *testing.T) {
 			server.voicebanks = map[string]Voicebank{}
 		}
 		response := httptest.NewRecorder()
-		server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/readiness", nil))
+		server.Handler().ServeHTTP(response, localRequest(http.MethodGet, "/api/readiness", nil))
 		if response.Code != expected {
 			t.Fatalf("readiness = %d %s", response.Code, response.Body.String())
 		}
@@ -68,7 +68,7 @@ func TestReadinessIsSeparateFromHealth(t *testing.T) {
 			t.Fatalf("readiness = %#v", payload)
 		}
 		response = httptest.NewRecorder()
-		server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/health", nil))
+		server.Handler().ServeHTTP(response, localRequest(http.MethodGet, "/api/health", nil))
 		if response.Code != 200 {
 			t.Fatalf("health = %d", response.Code)
 		}
@@ -76,7 +76,7 @@ func TestReadinessIsSeparateFromHealth(t *testing.T) {
 	server = newWaveformTestServer(t)
 	server.renderer = "missing"
 	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/readiness", nil))
+	server.Handler().ServeHTTP(response, localRequest(http.MethodGet, "/api/readiness", nil))
 	if response.Code != 503 || !strings.Contains(response.Body.String(), `"available":false`) {
 		t.Fatalf("missing renderer readiness = %d %s", response.Code, response.Body.String())
 	}
