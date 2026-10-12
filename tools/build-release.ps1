@@ -120,7 +120,8 @@ try {
         Write-Step 'Test (skipped)'
     } else {
         Write-Step 'Test'
-        Invoke-Checked 'go' @('test', './...')
+        # 出力・作業フォルダの実験用Goコードは、配布ビルドのテスト対象に含めない。
+        Invoke-Checked 'go' @('test', '.', './cmd/...', './internal/...')
     }
 
     Write-Step 'Build GUI package'
