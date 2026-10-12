@@ -140,8 +140,7 @@ func TestCLIClassicToolSelectionsAreNotIgnored(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, "Resamplers"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	// Only discovery is exercised: the missing selected tool must be rejected
-	// before any executable is started.
+	// 選択したツールの不足を起動前に検出する。
 	tool := "fixture"
 	if runtime.GOOS == "windows" {
 		tool += ".exe"

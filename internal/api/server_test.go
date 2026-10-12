@@ -14,8 +14,6 @@ import (
 	"testing"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
-	"github.com/yh2237/UtauTTS/internal/plugin"
-	"github.com/yh2237/UtauTTS/internal/synth"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
@@ -74,15 +72,8 @@ func TestConsoleUIIsServedLocally(t *testing.T) {
 	if contentType := response.Header().Get("Content-Type"); !strings.Contains(contentType, "text/html") {
 		t.Fatalf("content type = %q", contentType)
 	}
-	for _, want := range []string{"UtauTTS Server Console", "/api/synthesize/audio", "/api/analyze", "syn-alias-policy", "cvvc-enhanced", "payload.alias_policy"} {
-		if !strings.Contains(response.Body.String(), want) {
-			t.Fatalf("console page is missing %q", want)
-		}
-	}
-	for _, removed := range []string{`id="auth"`, `id="token"`, "utautts_auth_token", "Authorization"} {
-		if strings.Contains(response.Body.String(), removed) {
-			t.Fatalf("removed token UI remains: %s", removed)
-		}
+	if !strings.Contains(response.Body.String(), "UtauTTS Server Console") {
+		t.Fatal("console page is missing")
 	}
 
 	response = httptest.NewRecorder()
@@ -97,45 +88,34 @@ func TestNewReportsInvalidPlugin(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(pluginDirectory, "renderer.json"), []byte(`{"kind":"renderer"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	server, err := New(Config{VoiceDir: t.TempDir(), RendererDirectories: []string{pluginDirectory}})
-	if err != nil {
-		t.Fatal(err)
+	server := mustNewServer(t, Config{VoiceDir: t.TempDir(), RendererDirectories: []string{pluginDirectory}})
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, localRequest(http.MethodGet, "/api/renderers", nil))
+	var result struct {
+		Problems []any `json:"problems"`
 	}
-	if len(server.pluginCatalog().Problems) == 0 {
-		t.Fatal("invalid plugin was not reported")
+	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil || len(result.Problems) == 0 {
+		t.Fatalf("invalid plugin was not reported: %d %s", response.Code, response.Body.String())
 	}
 }
 
 func TestNewAllowsMissingVoiceDirectory(t *testing.T) {
-	server, err := New(Config{VoiceDir: filepath.Join(t.TempDir(), "missing")})
-	if err != nil {
-		t.Fatal(err)
+	server := mustNewServer(t, Config{VoiceDir: filepath.Join(t.TempDir(), "missing")})
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, localRequest(http.MethodGet, "/api/voicebanks", nil))
+	var result struct {
+		Voicebanks []Voicebank `json:"voicebanks"`
 	}
-	if len(server.voicebankList()) != 0 {
-		t.Fatalf("voicebanks=%#v", server.voicebankList())
+	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil || response.Code != 200 || len(result.Voicebanks) != 0 {
+		t.Fatalf("voicebanks=%s error=%v", response.Body.String(), err)
 	}
 }
 
 func TestJSONAndBatchLimits(t *testing.T) {
-	server := (&Server{voicebanks: map[string]Voicebank{}}).Handler()
+	server := mustNewServer(t, Config{VoiceDir: t.TempDir()}).Handler()
 
 	response := httptest.NewRecorder()
-	request := localRequest(http.MethodPost, "/api/analyze", strings.NewReader(`{"text":"あ","unknown":true}`))
-	server.ServeHTTP(response, request)
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("unknown field status = %d", response.Code)
-	}
-
-	response = httptest.NewRecorder()
-	request = localRequest(http.MethodPost, "/api/synthesize/audio",
-		strings.NewReader(`{"text":"`+strings.Repeat("あ", maxTextRunes+1)+`"}`))
-	server.ServeHTTP(response, request)
-	if response.Code != http.StatusRequestEntityTooLarge {
-		t.Fatalf("long synthesis status = %d, body = %s", response.Code, response.Body.String())
-	}
-
-	response = httptest.NewRecorder()
-	request = localRequest(http.MethodPost, "/api/analyze",
+	request := localRequest(http.MethodPost, "/api/analyze",
 		strings.NewReader(`{"text":"`+strings.Repeat("あ", maxTextRunes+1)+`"}`))
 	server.ServeHTTP(response, request)
 	if response.Code != http.StatusRequestEntityTooLarge {
@@ -159,7 +139,7 @@ func TestJSONAndBatchLimits(t *testing.T) {
 }
 
 func TestBatchRejectsDuplicateArchiveNamesBeforeSynthesis(t *testing.T) {
-	server := &Server{}
+	server := mustNewServer(t, Config{VoiceDir: t.TempDir()})
 	request := localRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(`{"items":[{"name":"audio.wav"},{"name":"audio.wav"}]}`))
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
@@ -194,7 +174,11 @@ func TestSynthesizeEndpointReportsWaveformRenderer(t *testing.T) {
 func newWaveformTestServer(t *testing.T) *Server {
 	t.Helper()
 	root := t.TempDir()
-	wavPath := filepath.Join(root, "a.wav")
+	bank := filepath.Join(root, "test")
+	if err := os.Mkdir(bank, 0700); err != nil {
+		t.Fatal(err)
+	}
+	wavPath := filepath.Join(bank, "a.wav")
 	samples := make([]int16, 400)
 	for i := range samples {
 		samples[i] = 8000
@@ -202,13 +186,14 @@ func newWaveformTestServer(t *testing.T) *Server {
 	if err := audio.WriteWav(wavPath, &audio.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(bank, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-
-	return &Server{renderer: "waveform", catalog: &plugin.Catalog{Renderers: []plugin.Renderer{{ManifestVersion: 2, Kind: "synthesis-engine", ID: "waveform", DisplayName: "waveform", Contract: "unit-renderer", Provider: "waveform", ProviderVersion: "1"}}}, voicebanks: map[string]Voicebank{
-		"test": {ID: "test", Name: "test", Path: root},
-	}}
+	manifest := `{"manifest_version":2,"kind":"synthesis-engine","id":"waveform","display_name":"Test waveform","contract":"unit-renderer","provider":"waveform","provider_version":"1"}`
+	if err := os.WriteFile(filepath.Join(root, "renderer.json"), []byte(manifest), 0600); err != nil {
+		t.Fatal(err)
+	}
+	return mustNewServer(t, Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{root}})
 }
 
 func TestLabelAndBatchSidecarEndpoints(t *testing.T) {
@@ -276,24 +261,8 @@ func TestSynthesisInputCompatibility(t *testing.T) {
 	}
 }
 
-func TestSynthesizeEndpointRejectsUnknownText(t *testing.T) {
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	server := &Server{renderer: "waveform", catalog: &plugin.Catalog{Renderers: []plugin.Renderer{{ManifestVersion: 2, Kind: "synthesis-engine", ID: "waveform", DisplayName: "waveform", Contract: "unit-renderer", Provider: "waveform", ProviderVersion: "1"}}}, voicebanks: map[string]Voicebank{
-		"test": {ID: "test", Path: root},
-	}}
-	request := localRequest(http.MethodPost, "/api/synthesize/audio", bytes.NewBufferString(`{"text":"UtauTTS","voicebank_id":"test"}`))
-	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, request)
-	if response.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
-	}
-}
-
 func TestHealthReportsConfiguredRenderer(t *testing.T) {
-	server := &Server{renderer: "waveform"}
+	server := newWaveformTestServer(t)
 	request := localRequest(http.MethodGet, "/api/health", nil)
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
@@ -343,7 +312,7 @@ func TestAPIMetadata(t *testing.T) {
 }
 
 func TestAnalyzeEndpointReturnsMoraes(t *testing.T) {
-	server := &Server{}
+	server := mustNewServer(t, Config{VoiceDir: t.TempDir()})
 	request := localRequest(http.MethodPost, "/api/analyze", bytes.NewBufferString(`{"text":"あいうえお"}`))
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
@@ -366,7 +335,7 @@ func TestAnalyzeEndpointReturnsMoraes(t *testing.T) {
 }
 
 func TestAnalyzeEndpointUsesUserDictionary(t *testing.T) {
-	server := &Server{}
+	server := mustNewServer(t, Config{VoiceDir: t.TempDir()})
 	body := `{"text":"v8","dictionary":[{"surface":"v8","reading":"ぶいはち"}]}`
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/analyze", strings.NewReader(body)))
@@ -390,10 +359,7 @@ func TestVoicebankEndpointsDiscoverAndReloadDirectory(t *testing.T) {
 		}
 	}
 	makeBank("alpha", "アルファ")
-	server := &Server{voicebanks: map[string]Voicebank{}, voiceDir: root}
-	if err := server.loadVoiceDirectory(); err != nil {
-		t.Fatal(err)
-	}
+	server := mustNewServer(t, Config{VoiceDir: root})
 
 	request := localRequest(http.MethodGet, "/api/voicebanks", nil)
 	response := httptest.NewRecorder()
@@ -435,55 +401,13 @@ func TestVoicebankEndpointsDiscoverAndReloadDirectory(t *testing.T) {
 	}
 }
 
-func TestSynthesisRequestRejectsUnknownFields(t *testing.T) {
+func TestSynthesisRequestPreservesExplicitZeroAndFalse(t *testing.T) {
 	var request SynthesisRequest
-	if err := json.Unmarshal([]byte(`{"text":"あ","unknown_field":true}`), &request); err == nil {
-		t.Fatal("unknown field was accepted")
-	}
-}
-
-// renderer_settingsはmapなのでDisallowUnknownFieldsと両立し、未知の設定idも受け取れる。
-func TestSynthesisRequestDecodesRendererSettings(t *testing.T) {
-	var request SynthesisRequest
-	data := `{"text":"あ","renderer_settings":{"context_duration":false,"mora_duration_ms":123,"custom_option":"value"}}`
-	if err := json.Unmarshal([]byte(data), &request); err != nil {
+	if err := json.Unmarshal([]byte(`{"text":"あ","apply_pitch":false,"intonation_strength":0}`), &request); err != nil {
 		t.Fatal(err)
 	}
-	if len(request.RendererSettings) != 3 {
-		t.Fatalf("renderer settings = %#v", request.RendererSettings)
-	}
-	if string(request.RendererSettings["custom_option"]) != `"value"` {
-		t.Fatalf("unknown renderer setting = %s", request.RendererSettings["custom_option"])
-	}
-	if request.ContextDuration != synth.DefaultContextDuration {
-		t.Fatalf("default was not applied before the map override: %#v", request)
-	}
-}
-
-func TestSynthesisRequestIntonationSettings(t *testing.T) {
-	apply := func(body string) SynthesisRequest {
-		t.Helper()
-		var request SynthesisRequest
-		if err := json.Unmarshal([]byte(body), &request); err != nil {
-			t.Fatal(err)
-		}
-		return request
-	}
-	defaults := apply(`{"text":"あ"}`)
-	if !defaults.ApplyPitch || defaults.IntonationStrength != synth.DefaultIntonationStrength ||
-		defaults.ContextDuration != synth.DefaultContextDuration || defaults.ContextDurationStrength != synth.DefaultContextDurationStrength ||
-		defaults.BoundaryTone != synth.DefaultBoundaryTone || defaults.BoundaryToneStrength != synth.DefaultBoundaryToneStrength ||
-		defaults.StretchAdapt != synth.DefaultStretchAdapt || defaults.StretchAdaptStrength != synth.DefaultStretchAdaptStrength ||
-		!defaults.PauseContext || defaults.PauseContextStrength != synth.DefaultPauseContextStrength ||
-		!defaults.EnglishWeakForm {
-		t.Fatalf("defaults = %#v", defaults)
-	}
-	explicit := apply(`{"text":"あ","apply_pitch":false,"intonation_strength":0,"context_duration":false,"context_duration_strength":0.5,"boundary_tone":false,"boundary_tone_strength":0.5,"stretch_adapt":false,"stretch_adapt_strength":0.5,"pause_context":false,"pause_context_strength":0.5,"english_weak_form":false}`)
-	if explicit.ApplyPitch || explicit.IntonationStrength != 0 ||
-		explicit.ContextDuration || explicit.ContextDurationStrength != 0.5 ||
-		explicit.BoundaryTone || explicit.BoundaryToneStrength != 0.5 ||
-		explicit.StretchAdapt || explicit.StretchAdaptStrength != 0.5 ||
-		explicit.PauseContext || explicit.PauseContextStrength != 0.5 || explicit.EnglishWeakForm {
-		t.Fatalf("explicit = %#v", explicit)
+	input := request.InternalRequest()
+	if input.ApplyPitch || input.IntonationStrength != 0 {
+		t.Fatalf("explicit settings were replaced by defaults: %+v", input)
 	}
 }

@@ -15,6 +15,20 @@ import (
 
 const openJTalkHelperEnvironment = "UTAUTTS_TEST_OPENJTALK_HELPER"
 
+func newTestEngine(t *testing.T, config Config) *Engine {
+	t.Helper()
+	engine, err := New(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if _, err := engine.Call("shutdown", nil); err != nil {
+			t.Error(err)
+		}
+	})
+	return engine
+}
+
 func waveformTestRendererDirectory(t *testing.T) string {
 	t.Helper()
 	directory := t.TempDir()
@@ -59,10 +73,7 @@ func TestEngineListsAnalyzesAndSynthesizes(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\na.wav=a k,0,0,0,0,0\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	engine, err := New(Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	engine := newTestEngine(t, Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
 	voicebanks, err := engine.Call("voicebanks", nil)
 	if err != nil || !strings.Contains(string(voicebanks), `"has_vc":true`) || !strings.Contains(string(voicebanks), `"VC":1`) {
 		t.Fatalf("voicebank capabilities=%s err=%v", voicebanks, err)
@@ -76,8 +87,11 @@ func TestEngineListsAnalyzesAndSynthesizes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !json.Valid(analysis) {
-		t.Fatalf("analysis=%s", analysis)
+	var reading struct {
+		Reading string `json:"reading"`
+	}
+	if err := json.Unmarshal(analysis, &reading); err != nil || reading.Reading != "ア" {
+		t.Fatalf("analysis=%s err=%v", analysis, err)
 	}
 	preview, err := engine.Call("predictProsody", []byte(`{"kana":"\u3042","mora_duration_ms":100,"apply_pitch":false}`))
 	if err != nil {
@@ -181,10 +195,7 @@ func TestEngineListsAllVoicebankTypes(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bankDir, "character.yaml"), []byte("subbanks:\n- color: \"\"\n  suffix: \" normal\"\n- color: \"power\"\n  suffix: \" power\"\n- color: \"edge\"\n  suffix: \" edge\"\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	engine, err := New(Config{VoiceDir: root})
-	if err != nil {
-		t.Fatal(err)
-	}
+	engine := newTestEngine(t, Config{VoiceDir: root})
 	resultJSON, err := engine.Call("voicebanks", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -229,10 +240,7 @@ func TestEngineFallsBackToOpenJTalkForEnglish(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv(openJTalkHelperEnvironment, "1")
-	engine, err := New(Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}, OpenJTalkPath: helper, OpenJTalkDictionary: root})
-	if err != nil {
-		t.Fatal(err)
-	}
+	engine := newTestEngine(t, Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}, OpenJTalkPath: helper, OpenJTalkDictionary: root})
 
 	analysisJSON, err := engine.Call("analyze", []byte(`{"text":"hello"}`))
 	if err != nil {
@@ -262,10 +270,7 @@ func TestEngineFallsBackToOpenJTalkForEnglish(t *testing.T) {
 }
 
 func TestEngineAnalyzesChinese(t *testing.T) {
-	engine, err := New(Config{VoiceDir: t.TempDir(), Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	engine := newTestEngine(t, Config{VoiceDir: t.TempDir(), Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
 	result, err := engine.Call("analyze", []byte(`{"text":"你好","language":"zh","phonemizer":"zh-cvvc"}`))
 	if err != nil {
 		t.Fatal(err)
@@ -289,26 +294,27 @@ func TestNewReportsInvalidPlugin(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(pluginDirectory, "renderer.json"), []byte(`{"kind":"renderer"}`), 0644); err != nil {
 		t.Fatal(err)
 	}
-	engine, err := New(Config{VoiceDir: t.TempDir(), RendererDirectories: []string{pluginDirectory}})
+	engine := newTestEngine(t, Config{VoiceDir: t.TempDir(), RendererDirectories: []string{pluginDirectory}})
+	data, err := engine.Call("renderers", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(engine.catalog.Problems) == 0 {
+	var result struct {
+		Problems []any `json:"problems"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil || len(result.Problems) == 0 {
 		t.Fatal("invalid plugin was not reported")
 	}
 	if _, err := engine.Call("shutdown", nil); err != nil {
 		t.Fatal(err)
 	}
-	if engine.ctx.Err() == nil {
-		t.Fatal("shutdown did not cancel engine context")
+	if _, err := engine.Call("predictProsody", []byte(`{"kana":"あ"}`)); err == nil {
+		t.Fatal("shutdown still allows prosody prediction")
 	}
 }
 
 func TestNewAllowsMissingVoiceDirectory(t *testing.T) {
-	engine, err := New(Config{VoiceDir: filepath.Join(t.TempDir(), "missing")})
-	if err != nil {
-		t.Fatal(err)
-	}
+	engine := newTestEngine(t, Config{VoiceDir: filepath.Join(t.TempDir(), "missing")})
 	result, err := engine.Call("voicebanks", nil)
 	if err != nil || string(result) != `{"voicebanks":[]}` {
 		t.Fatalf("voicebanks=%s err=%v", result, err)
@@ -328,10 +334,7 @@ func TestEngineWritesDragExo(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	engine, err := New(Config{VoiceDir: filepath.Join(root, "missing")})
-	if err != nil {
-		t.Fatal(err)
-	}
+	engine := newTestEngine(t, Config{VoiceDir: filepath.Join(root, "missing")})
 	output := filepath.Join(root, "utautts.exo")
 	request, _ := json.Marshal(map[string]any{"output_path": output, "files": paths, "frame_rate": 60})
 	if _, err := engine.Call("writeExo", request); err != nil {
@@ -346,8 +349,6 @@ func TestEngineWritesDragExo(t *testing.T) {
 	}
 }
 
-// The native entry reuses the shared request fields, so the GUI, CLI, and HTTP
-// accept the same normal, editing, and compatibility inputs.
 func TestNativeRequestsUseSharedFields(t *testing.T) {
 	root := t.TempDir()
 	bankDir := filepath.Join(root, "bank")
@@ -364,11 +365,7 @@ func TestNativeRequestsUseSharedFields(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	engine, err := New(Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _, _ = engine.Call("shutdown", nil) })
+	engine := newTestEngine(t, Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
 	output := filepath.Join(root, "preview.wav")
 
 	shared, _ := json.Marshal(map[string]any{

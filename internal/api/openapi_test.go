@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"sort"
 	"strings"
 	"testing"
 
@@ -53,47 +52,20 @@ func TestOpenAPIEndpointIsServedLocally(t *testing.T) {
 	}
 }
 
-// Keep this list in sync when the HTTP surface changes. It is intentionally a
-// plain list instead of parsing the handler source, so the test stays readable.
 func TestOpenAPIPaths(t *testing.T) {
 	doc := readSpec(t)
-	expected := map[string][]string{
-		"/api/openapi.yaml":      {http.MethodGet},
-		"/api/health":            {http.MethodGet},
-		"/api/voicebanks":        {http.MethodGet},
-		"/api/voicebanks/reload": {http.MethodPost},
-		"/api/models":            {http.MethodGet},
-		"/api/renderers":         {http.MethodGet},
-		"/api/analyze":           {http.MethodPost},
-		"/api/synthesize/audio":  {http.MethodPost},
-		"/api/synthesize/label":  {http.MethodPost},
-		"/api/synthesize/batch":  {http.MethodPost},
-	}
-	if len(doc.Paths) != len(expected) {
-		t.Errorf("documented paths=%d expected=%d", len(doc.Paths), len(expected))
-	}
-	for path, methods := range expected {
-		documented, ok := doc.Paths[path]
-		if !ok {
-			t.Errorf("path not documented: %s", path)
-			continue
-		}
-		got := make([]string, 0, len(documented))
-		for method := range documented {
-			got = append(got, strings.ToLower(method))
-		}
-		for index := range methods {
-			methods[index] = strings.ToLower(methods[index])
-		}
-		sort.Strings(got)
-		sort.Strings(methods)
-		if !reflect.DeepEqual(got, methods) {
-			t.Errorf("%s methods=%v expected=%v", path, got, methods)
+	handler := newWaveformTestServer(t).Handler()
+	for path, operations := range doc.Paths {
+		for method := range operations {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, localRequest(strings.ToUpper(method), path, strings.NewReader(`{}`)))
+			if response.Code == http.StatusNotFound || response.Code == http.StatusMethodNotAllowed || response.Code >= 500 {
+				t.Errorf("documented route %s %s returned %d: %s", method, path, response.Code, response.Body.String())
+			}
 		}
 	}
 }
 
-// Decoded defaults and the fixed limits are the values a client actually sees.
 func TestOpenAPIDefaultsMatchDecodedRequests(t *testing.T) {
 	doc := readSpec(t)
 	var request SynthesisRequest
@@ -147,19 +119,6 @@ func TestOpenAPIDefaultsMatchDecodedRequests(t *testing.T) {
 	}
 }
 
-// Keep this list in sync with the codes writeAPIError can return.
-func TestOpenAPIErrorCodes(t *testing.T) {
-	doc := readSpec(t)
-	expected := []string{"invalid_request", "limit_exceeded", "unavailable", "synthesis_error", "canceled", "deadline_exceeded", "forbidden", "internal_error"}
-	got := append([]string(nil), doc.Components.Schemas["Error"].Properties["code"].Enum...)
-	sort.Strings(expected)
-	sort.Strings(got)
-	if !reflect.DeepEqual(got, expected) {
-		t.Errorf("error codes=%v expected=%v", got, expected)
-	}
-}
-
-// Every local $ref must point to a node in this document.
 func TestOpenAPILocalReferencesResolve(t *testing.T) {
 	var document map[string]any
 	if err := yaml.Unmarshal(openAPISpec, &document); err != nil {

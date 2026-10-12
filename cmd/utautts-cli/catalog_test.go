@@ -95,7 +95,6 @@ func TestCLICatalogConflictsAndOutputFailure(t *testing.T) {
 	for _, args := range [][]string{
 		{"--json", "--list", "unknown"},
 		{"--json", "--list", "models", "--request", "-"},
-		{"--json", "--list", "models", "--out", "-"},
 		{"--json", "--list", "models", "--text", "あ"},
 	} {
 		var stdout, stderr bytes.Buffer

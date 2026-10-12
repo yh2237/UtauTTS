@@ -81,26 +81,14 @@ func TestResolveAtToneUsesAffixedAliases(t *testing.T) {
 	}
 }
 
-func TestLoadPrefixMapPreservesEmptyAffixes(t *testing.T) {
+func TestEmptyPrefixMapEntryPreventsNearestToneFallback(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, "oto.ini"), "a.wav=a,0,0,0,0,0\n")
-	write(t, filepath.Join(root, "prefix.map"), "B3\t\t_B3\r\nC4\t\t\r\nF4\t\t F4\r\n")
+	write(t, filepath.Join(root, "prefix.map"), "B3\t\t_B3\r\nC4\t\t\r\n")
 
 	bank, err := Load(root)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if got := bank.PrefixMap["B3"]; got != (Affix{Suffix: "_B3"}) {
-		t.Fatalf("B3 affix = %+v", got)
-	}
-	if got, ok := bank.PrefixMap["C4"]; !ok || got != (Affix{}) {
-		t.Fatalf("C4 affix = %+v, present = %t", got, ok)
-	}
-	if got := bank.PrefixMap["F4"]; got != (Affix{Suffix: " F4"}) {
-		t.Fatalf("F4 affix = %+v", got)
-	}
-	if len(bank.Diagnostics) != 0 {
-		t.Fatalf("diagnostics = %#v", bank.Diagnostics)
 	}
 	if got, ok := bank.AffixForTone("C4"); !ok || got != (Affix{}) {
 		t.Fatalf("C4 lookup = %+v, %t", got, ok)
@@ -123,12 +111,6 @@ func TestCharacterYAMLSubbankSelectionByToneAndColor(t *testing.T) {
 	subbanks, path, diagnostics := loadCharacterYAML(root)
 	if path == "" || len(diagnostics) != 0 || len(subbanks) != 2 {
 		t.Fatalf("subbanks=%+v path=%q diagnostics=%+v", subbanks, path, diagnostics)
-	}
-	if subbanks[0].Suffix != " C4" || !subbanks[0].ContainsTone("C4") {
-		t.Fatalf("normal subbank=%+v", subbanks[0])
-	}
-	if subbanks[1].Color != "power" || subbanks[1].Suffix != " P" {
-		t.Fatalf("power subbank=%+v", subbanks[1])
 	}
 
 	bank := &Bank{

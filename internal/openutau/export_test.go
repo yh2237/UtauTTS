@@ -200,6 +200,10 @@ func TestExportUSTX(t *testing.T) {
 	if secondPart["track_no"] != 1 {
 		t.Errorf("second part track_no = %v, want 1", secondPart["track_no"])
 	}
+	last := notes[len(notes)-1].(map[string]any)
+	if secondPart["position"].(int) < last["position"].(int)+last["duration"].(int) {
+		t.Fatal("utterances on different tracks overlap")
+	}
 	// 直接出力ではテキストを解析できないため、全件未解析なら失敗する。
 	unparsed := &UtauTTSProject{Format: utauTTSProjectFormat, FormatVersion: 5,
 		Utterances: []UtauTTSUtterance{{Text: "未解析カード", VoicebankID: "vb", Tone: "C4"}}}

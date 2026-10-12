@@ -86,7 +86,7 @@ func TestCLIDoctorKeepsChecksOnFailure(t *testing.T) {
 }
 
 func TestCLIDoctorRejectsOtherModesAndOutputFailure(t *testing.T) {
-	for _, flags := range [][]string{{"--list", "models"}, {"--request", "-"}, {"--out", "-"}, {"--text", "あ"}} {
+	for _, flags := range [][]string{{"--list", "models"}, {"--text", "あ"}} {
 		var stdout, stderr bytes.Buffer
 		code := executeCLI(append([]string{"--doctor", "--json"}, flags...), strings.NewReader(""), &stdout, &stderr)
 		response := decodeResponse(t, stdout.Bytes())

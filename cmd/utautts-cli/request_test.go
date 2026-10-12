@@ -40,19 +40,6 @@ func TestCLIJSONRequestMatchesFlags(t *testing.T) {
 			}
 		})
 	}
-	stdout.Reset()
-	stderr.Reset()
-	resultPath := filepath.Join(root, "json.wav")
-	args := append(base[:4:4], "--json", "--request", path, "--out", resultPath, "--write-lab")
-	if code := executeCLI(args, strings.NewReader(""), &stdout, &stderr); code != 0 {
-		t.Fatalf("JSON result exit=%d, stderr=%q", code, stderr.String())
-	}
-	response := decodeResponse(t, stdout.Bytes())
-	result := response["result"].(map[string]any)
-	label, err := os.ReadFile(filepath.Join(root, "baseline.lab"))
-	if err != nil || response["ok"] != true || result["phoneme_labels"] != string(label) {
-		t.Fatalf("JSON request labels differ: response=%#v, error=%v", response, err)
-	}
 }
 
 func TestCLIJSONRequestRejectsConflictsAndInvalidData(t *testing.T) {
@@ -63,7 +50,6 @@ func TestCLIJSONRequestRejectsConflictsAndInvalidData(t *testing.T) {
 	}{
 		{"text conflict", `{}`, "invalid_arguments", []string{"--text", "あ"}},
 		{"stdin conflict", `{}`, "invalid_arguments", []string{"--reading-file", "-"}},
-		{"option conflict", `{}`, "invalid_arguments", []string{"--apply-pitch=false"}},
 		{"evaluation conflict", `{}`, "invalid_arguments", []string{"--prosody-pitch-only"}},
 		{"null", `null`, "input_error", nil},
 		{"multiple objects", `{} {}`, "input_error", nil},

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,9 @@ func assertAPIError(t *testing.T, response *httptest.ResponseRecorder, status in
 	}
 	if response.Code != status || body.Code != code || body.Error == "" || !strings.HasPrefix(response.Header().Get("Content-Type"), "application/json") {
 		t.Fatalf("error response = %d %#v, want %d %s", response.Code, body, status, code)
+	}
+	if !slices.Contains(readSpec(t).Components.Schemas["Error"].Properties["code"].Enum, body.Code) {
+		t.Errorf("response code %q is not documented", body.Code)
 	}
 }
 

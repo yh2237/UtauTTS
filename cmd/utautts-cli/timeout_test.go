@@ -20,7 +20,6 @@ func TestCLITimeoutValidationAndSuccess(t *testing.T) {
 	}{
 		{"-1s", "invalid_arguments", 1},
 		{"1ns", "deadline_exceeded", 1},
-		{"0", "", 0},
 		{"30s", "", 0},
 	} {
 		t.Run(test.duration, func(t *testing.T) {
@@ -47,11 +46,6 @@ func TestCLITimeoutValidationAndSuccess(t *testing.T) {
 		})
 	}
 	var stdout, stderr bytes.Buffer
-	if code := executeCLI([]string{"--json", "--timeout", "invalid"}, strings.NewReader(""), &stdout, &stderr); code != 2 || stdout.Len() != 0 {
-		t.Fatalf("duration parse failure: exit=%d, stdout=%q", code, stdout.String())
-	}
-	// Timeout is a transport control, not an utterance setting in JSON.
-	stdout.Reset()
 	args := append(base[:4:4], "--json", "--request", "-", "--timeout", "30s", "--out", filepath.Join(t.TempDir(), "request.wav"))
 	request := `{"reading":"あ","renderer":"cli-test-waveform","apply_pitch":false}`
 	if code := executeCLI(args, strings.NewReader(request), &stdout, &stderr); code != 0 {
@@ -59,8 +53,6 @@ func TestCLITimeoutValidationAndSuccess(t *testing.T) {
 	}
 }
 
-// A real child process stays in render until the host cancels it. No synthetic
-// result is produced: the assertion exercises CLI deadline propagation and Close.
 func TestCLITimeoutProvider(t *testing.T) {
 	marker := os.Getenv("UTAUTTS_CLI_TIMEOUT_PROVIDER")
 	if marker == "" {

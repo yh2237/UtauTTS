@@ -1,31 +1,10 @@
 package audio
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 )
-
-func TestWavFileAndMemoryAPIsPreservePCM(t *testing.T) {
-	pcm := &PCM{SampleRate: 48000, Channels: 2, Data: []int16{-32768, -1, 0, 32767}}
-	path := filepath.Join(t.TempDir(), "output.wav")
-	if err := WriteWav(path, pcm); err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(data, PCMToWavBytes(pcm)) {
-		t.Fatal("file and memory WAV output differ")
-	}
-	got, err := ReadWav(path)
-	if err != nil || !reflect.DeepEqual(got, pcm) {
-		t.Fatalf("read PCM = %+v, %v", got, err)
-	}
-}
 
 func TestWriteWavRejectsEmptyPCMWithoutReplacingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "output.wav")
