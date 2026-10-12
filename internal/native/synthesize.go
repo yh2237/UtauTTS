@@ -7,12 +7,29 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/yh2237/UtauTTS/internal/entryinput"
 	"github.com/yh2237/UtauTTS/internal/synth"
 )
 
+// synthesizeRequest adds the native output path to the shared request fields.
 type synthesizeRequest struct {
-	synth.Request
+	entryinput.JSONRequest
 	OutputPath string `json:"output_path"`
+}
+
+func decodeSynthesizeRequest(data []byte) (synthesizeRequest, error) {
+	var request synthesizeRequest
+	if err := entryinput.DecodeRequestLenient(data, &request.JSONRequest); err != nil {
+		return synthesizeRequest{}, fmt.Errorf("decode synthesis request: %w", err)
+	}
+	var envelope struct {
+		OutputPath string `json:"output_path"`
+	}
+	if err := json.Unmarshal(data, &envelope); err != nil {
+		return synthesizeRequest{}, fmt.Errorf("decode synthesis request: %w", err)
+	}
+	request.OutputPath = envelope.OutputPath
+	return request, nil
 }
 
 func synthesisUnits(result *synth.Result) []map[string]any {
@@ -109,9 +126,9 @@ func waveformPeaks(result *synth.Result, maximumPoints int) (mins, maxs []float6
 }
 
 func (e *Engine) synthesize(data []byte) (any, error) {
-	request := synthesizeRequest{Request: synth.DefaultRequest()}
-	if err := json.Unmarshal(data, &request); err != nil {
-		return nil, fmt.Errorf("decode synthesis request: %w", err)
+	request, err := decodeSynthesizeRequest(data)
+	if err != nil {
+		return nil, err
 	}
 	if request.Text == "" && request.ReadingOrKana() == "" {
 		return nil, fmt.Errorf("text or reading is required")
@@ -119,7 +136,7 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 	if request.OutputPath == "" {
 		return nil, fmt.Errorf("output_path is required")
 	}
-	result, err := e.synth.SynthesizeContext(e.ctx, request.Request.Normalized())
+	result, err := e.synth.SynthesizeContext(e.ctx, request.InternalRequest())
 	if err != nil {
 		return nil, err
 	}

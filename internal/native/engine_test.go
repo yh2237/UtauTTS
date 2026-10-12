@@ -345,3 +345,63 @@ func TestEngineWritesDragExo(t *testing.T) {
 		t.Fatalf("unexpected exo output: %q", content)
 	}
 }
+
+// The native entry reuses the shared request fields, so the GUI, CLI, and HTTP
+// accept the same normal, editing, and compatibility inputs.
+func TestNativeRequestsUseSharedFields(t *testing.T) {
+	root := t.TempDir()
+	bankDir := filepath.Join(root, "bank")
+	if err := os.Mkdir(bankDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	samples := make([]int16, 400)
+	for index := range samples {
+		samples[index] = 4000
+	}
+	if err := audio.WriteWav(filepath.Join(bankDir, "a.wav"), &audio.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	engine, err := New(Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _, _ = engine.Call("shutdown", nil) })
+	output := filepath.Join(root, "preview.wav")
+
+	shared, _ := json.Marshal(map[string]any{
+		"kana": "あ", "voicebank_id": "bank", "mora_duration_ms": 100, "output_path": output,
+		"mora_durations_ms": []float64{150}, "alias_policy": "auto", "release_ms": 5, "release_set": true,
+	})
+	synthesis, err := engine.Call("synthesize", shared)
+	if err != nil {
+		t.Fatalf("shared synthesis fields were rejected: %v", err)
+	}
+	var synthesisResult struct {
+		Lab string `json:"lab"`
+	}
+	if err := json.Unmarshal(synthesis, &synthesisResult); err != nil || !strings.Contains(synthesisResult.Lab, " a\n") {
+		t.Fatalf("synthesis=%s err=%v", synthesis, err)
+	}
+
+	unknown, _ := json.Marshal(map[string]any{"kana": "あ", "voicebank_id": "bank", "output_path": output, "unknown_option": 1})
+	if _, err := engine.Call("synthesize", unknown); err != nil {
+		t.Fatalf("native synthesis is lenient for extra fields: %v", err)
+	}
+
+	preview, err := engine.Call("predictProsody", []byte(`{"request_id":"abc","kana":"あ","mora_duration_ms":100,"apply_pitch":false}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var previewResult struct {
+		RequestID string `json:"request_id"`
+	}
+	if err := json.Unmarshal(preview, &previewResult); err != nil || previewResult.RequestID != "abc" {
+		t.Fatalf("prosody preview=%s err=%v", preview, err)
+	}
+	if _, err := engine.Call("predictProsody", []byte(`{"kana":"あ","unknown_option":1}`)); err != nil {
+		t.Fatalf("native prosody preview is lenient for extra fields: %v", err)
+	}
+}

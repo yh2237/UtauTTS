@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/yh2237/UtauTTS/internal/appinfo"
+	"github.com/yh2237/UtauTTS/internal/entryinput"
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/openutau"
 	"github.com/yh2237/UtauTTS/internal/plugin"
@@ -214,23 +215,34 @@ func (e *Engine) analyze(data []byte) (any, error) {
 }
 
 type prosodyPreviewRequest struct {
+	entryinput.JSONRequest
 	RequestID string `json:"request_id"`
-	synth.Request
 }
 
-func (request prosodyPreviewRequest) synthRequest() synth.Request {
-	return request.Request.Normalized()
+func decodeProsodyPreviewRequest(data []byte) (prosodyPreviewRequest, error) {
+	var request prosodyPreviewRequest
+	if err := entryinput.DecodeRequestLenient(data, &request.JSONRequest); err != nil {
+		return prosodyPreviewRequest{}, fmt.Errorf("decode prosody preview request: %w", err)
+	}
+	var envelope struct {
+		RequestID string `json:"request_id"`
+	}
+	if err := json.Unmarshal(data, &envelope); err != nil {
+		return prosodyPreviewRequest{}, fmt.Errorf("decode prosody preview request: %w", err)
+	}
+	request.RequestID = envelope.RequestID
+	return request, nil
 }
 
 func (e *Engine) predictProsody(data []byte) (any, error) {
-	request := prosodyPreviewRequest{Request: synth.DefaultRequest()}
-	if err := json.Unmarshal(data, &request); err != nil {
-		return nil, fmt.Errorf("decode prosody preview request: %w", err)
+	request, err := decodeProsodyPreviewRequest(data)
+	if err != nil {
+		return nil, err
 	}
-	if request.Text == "" && request.Reading == "" && request.Kana == "" {
+	if request.Text == "" && request.ReadingOrKana() == "" {
 		return nil, fmt.Errorf("text or reading is required")
 	}
-	preview, _, err := e.synth.PredictProsodyContext(e.ctx, request.synthRequest())
+	preview, _, err := e.synth.PredictProsodyContext(e.ctx, request.InternalRequest())
 	if err != nil {
 		return nil, err
 	}

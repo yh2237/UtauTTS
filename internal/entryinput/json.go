@@ -104,6 +104,15 @@ func (request *JSONRequest) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// DecodeRequestLenient applies the shared defaults and ignores fields that are
+// not part of the shared request. It is for a trusted local UI entry such as
+// the native/C ABI, where the UI and the library ship together. The CLI and
+// HTTP keep the strict UnmarshalJSON validation.
+func DecodeRequestLenient(data []byte, request *JSONRequest) error {
+	*request = defaultJSONRequest()
+	return json.Unmarshal(data, (*jsonRequestAlias)(request))
+}
+
 func (request JSONRequest) ReadingOrKana() string {
 	if request.Reading != "" {
 		return request.Reading
