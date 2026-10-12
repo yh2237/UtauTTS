@@ -118,7 +118,7 @@ func (e *Engine) enrichAndCurves(project *openutau.UtauTTSProject) []openutau.Fr
 			continue
 		}
 		needsAnalysis := len(utterance.AnalysisCache.Morae) == 0
-		needsCurve := utterance.ModelID != "" && !needsAnalysis
+		needsCurve := utterance.ModelID != "" && len(utterance.AutomaticFramePitch) == 0
 		if !needsAnalysis && !needsCurve {
 			continue
 		}

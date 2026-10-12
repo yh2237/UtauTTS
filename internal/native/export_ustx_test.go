@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/yh2237/UtauTTS/internal/openutau"
 )
 
 // 外部資源なしのEngineを作り、ローカル環境に依存しない出力を検証する。
@@ -216,4 +218,26 @@ func TestExportUstxOutputPathWithBackslashes(t *testing.T) {
 		t.Fatal(err)
 	}
 	exportProjectTo(t, engine, outputPath, projectData)
+}
+
+func TestExportUstxKeepsSavedPitchWithoutModelResources(t *testing.T) {
+	engine := exportEngine(t)
+	t.Cleanup(func() { _, _ = engine.Call("shutdown", nil) })
+	utterance := utteranceWithReading("あ", "あ")
+	utterance["model_id"] = "unavailable-model"
+	utterance["automatic_frame_ms"] = 10
+	utterance["automatic_frame_pitch"] = []float64{0, 100, 0}
+	utterance["manual_pitch_edited"] = true
+	utterance["pitch_frames"] = []float64{0, 20, 0}
+	text := exportProject(t, engine, map[string]any{
+		"format": "utautts-project", "format_version": 8, "utterances": []any{utterance},
+	})
+	var got openutau.USTXProject
+	if err := yaml.Unmarshal([]byte(text), &got); err != nil {
+		t.Fatal(err)
+	}
+	points := got.VoiceParts[0].Notes[0].Pitch.Data
+	if len(points) < 3 || points[1].X != 10 || points[1].Y != 12 {
+		t.Fatalf("saved pitch and frame edit were not exported: %+v", points)
+	}
 }
