@@ -36,6 +36,10 @@ func TestProviderHelperProcess(t *testing.T) {
 			Contracts: []ContractSupport{{Name: "unit-renderer", Version: 1}},
 		})
 	}
+	if mode == "no-input" {
+		time.Sleep(3 * time.Second)
+		return
+	}
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		var header struct {
@@ -147,7 +151,33 @@ func TestSessionCancellationKeepsResponsiveProviderAlive(t *testing.T) {
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("error = %v", err)
 	}
+	if !session.IsAlive() {
+		t.Fatal("responsive provider was stopped after cancellation")
+	}
 	if err := session.Close(); err != nil {
 		t.Fatalf("close error = %v", err)
+	}
+}
+
+func TestSessionCancellationInterruptsBlockedWrite(t *testing.T) {
+	session, err := StartSession(context.Background(), testSessionOptions(t, "no-input"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	_, err = session.Render(ctx, RenderRequest{
+		InputPath: strings.Repeat("x", 1<<20), OutputPath: "output",
+	}, RenderOptions{})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("error=%v, want context.DeadlineExceeded", err)
+	}
+	if elapsed := time.Since(started); elapsed >= 2*time.Second {
+		t.Errorf("blocked write took %s", elapsed)
+	}
+	if session.IsAlive() {
+		t.Error("provider with an interrupted write was kept alive")
 	}
 }

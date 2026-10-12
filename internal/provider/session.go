@@ -234,7 +234,15 @@ func (session *Session) Hello() Hello {
 
 // 終了したセッションは再利用せず、呼び出し側で作り直す。
 func (session *Session) IsAlive() bool {
-	return session != nil && !session.isExited()
+	if session == nil || session.isExited() {
+		return false
+	}
+	select {
+	case <-session.stopCh:
+		return false
+	default:
+		return true
+	}
 }
 
 func (session *Session) Render(ctx context.Context, request RenderRequest, options RenderOptions) (Result, error) {
@@ -264,7 +272,7 @@ func (session *Session) Render(ctx context.Context, request RenderRequest, optio
 	if strings.TrimSpace(request.InputPath) == "" || strings.TrimSpace(request.OutputPath) == "" {
 		return Result{}, errors.New("provider render request requires input_path and output_path")
 	}
-	if err := session.send(request); err != nil {
+	if err := session.send(ctx, request); err != nil {
 		return Result{}, err
 	}
 	for {
@@ -306,12 +314,15 @@ func (session *Session) Render(ctx context.Context, request RenderRequest, optio
 }
 
 func (session *Session) cancelRequest(requestID string) {
-	_ = session.send(Cancel{Type: MessageCancel, RequestID: requestID})
-	timer := time.NewTimer(session.options.CancelGrace)
-	defer timer.Stop()
+	ctx, cancel := context.WithTimeout(context.Background(), session.options.CancelGrace)
+	defer cancel()
+	if err := session.send(ctx, Cancel{Type: MessageCancel, RequestID: requestID}); err != nil {
+		session.stop()
+		return
+	}
 	for {
 		select {
-		case <-timer.C:
+		case <-ctx.Done():
 			session.stop()
 			return
 		case line, ok := <-session.lines:
@@ -350,25 +361,40 @@ func (session *Session) Close() error {
 	if session.isExited() {
 		return session.exitError()
 	}
-	_ = session.send(Shutdown{Type: MessageShutdown})
-	timer := time.NewTimer(session.options.ShutdownGrace)
-	defer timer.Stop()
+	ctx, cancel := context.WithTimeout(context.Background(), session.options.ShutdownGrace)
+	defer cancel()
+	_ = session.send(ctx, Shutdown{Type: MessageShutdown})
 	select {
 	case <-session.exitCh:
 		return session.exitError()
-	case <-timer.C:
+	case <-ctx.Done():
 		session.stop()
 		return session.exitError()
 	}
 }
 
-func (session *Session) send(message any) error {
+func (session *Session) send(ctx context.Context, message any) error {
 	session.writeMu.Lock()
 	defer session.writeMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if session.stdin == nil {
 		return errors.New("provider session is closed")
 	}
-	if err := writeMessage(session.stdin, message); err != nil {
+	writeStopped := make(chan struct{})
+	stopWriting := context.AfterFunc(ctx, func() {
+		session.stop()
+		close(writeStopped)
+	})
+	err := writeMessage(session.stdin, message)
+	if !stopWriting() {
+		<-writeStopped
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err != nil {
 		session.stop()
 		return fmt.Errorf("write provider message: %w", err)
 	}
@@ -421,11 +447,11 @@ func (session *Session) exitError() error {
 func (session *Session) stop() {
 	session.stopOnce.Do(func() {
 		close(session.stopCh)
-		if session.stdin != nil {
-			_ = session.stdin.Close()
-		}
 		if session.cmd != nil && session.cmd.Process != nil && !session.isExited() {
 			_ = session.cmd.Process.Kill()
+		}
+		if session.stdin != nil {
+			_ = session.stdin.Close()
 		}
 	})
 }
