@@ -78,7 +78,7 @@ func TestResetAndNestedRequestOwnership(t *testing.T) {
 		reloaded <- scope.Reset(nil)
 	}()
 	<-resetting
-	// Nested operations must not reacquire the read lock while Reset is waiting.
+	// Reset待機中の入れ子要求で読込ロックを取り直すとデッドロックする。
 	nested := make(chan error, 1)
 	go func() {
 		nestedCtx, done, err := scope.Begin(ctx)

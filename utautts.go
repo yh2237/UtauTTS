@@ -1,6 +1,5 @@
-// Package utautts provides speech synthesis without GUI dependencies.
-// Runtime helpers and models are discovered at initialization; subprocesses
-// start on demand and are released by Engine.Close.
+// Package utauttsはGUIに依存しない音声合成APIを提供する。
+// 資源は初期化時に探索し、子プロセスは必要時に起動してEngine.Closeで終了する。
 package utautts
 
 import (
@@ -24,8 +23,7 @@ var (
 	ErrInvalidRequest = errors.New("invalid synthesis request")
 )
 
-// Config describes deployment resources, not individual utterances.
-// Empty paths use the application's existing discovery rules.
+// Configは発話ではなく資源配置を指定する。空のパスは既定の探索規則を使う。
 type Config struct {
 	VoiceDirectory      string
 	Renderer            string
@@ -48,8 +46,7 @@ func (r voiceResolver) Resolve(id string) (string, bool) {
 	return summary.Path, ok
 }
 
-// New discovers catalogs and voicebanks. Missing helpers are reported when a
-// renderer or analysis operation needs them, rather than starting subprocesses.
+// Newはカタログと音源を探索する。helperの不足は必要な操作を行う際に報告する。
 func New(config Config) (*Engine, error) {
 	voices := voicebank.NewLibrary(config.VoiceDirectory)
 	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
@@ -67,13 +64,12 @@ func New(config Config) (*Engine, error) {
 	return &Engine{runtime: runtime, voices: voices}, nil
 }
 
-// Close cancels this engine's active requests, waits for them, and releases its
-// caches and subprocesses. Repeated and concurrent calls return the same error.
+// Closeは自分の要求をキャンセルし、完了後にキャッシュと子プロセスを解放する。
+// 複数回・並行に呼んでも同じエラーを返す。
 func (e *Engine) Close() error { return e.runtime.Close() }
 
-// Reload waits for active requests and reloads this engine's voicebank library.
-// Its caches and subprocesses are discarded. Other engines remain usable.
-// Renderer and model catalogs are fixed at New; recreate the engine to rediscover them.
+// Reloadは要求の完了後、自分のキャッシュ・子プロセスを破棄して音源を再読込する。
+// 他のEngineには影響しない。Renderer・モデルの再探索にはEngineを作り直す。
 func (e *Engine) Reload() error { return e.runtime.Reload(e.voices.Reload) }
 
 type Voicebank struct {
@@ -136,16 +132,14 @@ func (e *Engine) Models(ctx context.Context) ([]Model, error) {
 	return items, nil
 }
 
-// Request describes one utterance. Empty IDs select catalog defaults.
-// Reading, when specified, takes precedence over Text for pronunciation.
+// Requestは1発話を指定する。空のIDは既定値を使い、発音はReadingをTextより優先する。
 type Request struct {
 	Text, Reading, Language, Phonemizer string
 	VoicebankID, RendererID, ModelID    string
 	Tone, Color                         string
 	Dictionary                          []DictionaryEntry
 	Options                             Options
-	// RendererSettings carries implementation-specific JSON values.
-	// Common option IDs are rejected; use Options for those settings.
+	// 共通設定はOptionsで指定し、ここには方式固有のJSONだけを渡す。
 	RendererSettings map[string]json.RawMessage
 }
 
@@ -154,8 +148,8 @@ type DictionaryEntry struct {
 	Reading string `json:"reading"`
 }
 
-// Options uses nil for defaults. Non-nil values, including 0 and false, are
-// explicit. MoraDurationMS must be positive; PauseDurationMS and ReleaseMS may be 0.
+// Optionsはnilを未指定とし、0・falseも明示値として扱う。
+// MoraDurationMSは正数、PauseDurationMSとReleaseMSは0以上を指定する。
 type Options struct {
 	MoraDurationMS, PauseDurationMS, IntonationStrength, ReleaseMS *float64
 	ApplyPitch, ContextDuration, BoundaryTone, StretchAdapt        *bool
@@ -193,7 +187,7 @@ func (e *Engine) Analyze(ctx context.Context, request Request) (*Analysis, error
 	return result, nil
 }
 
-// Audio contains interleaved signed 16-bit PCM owned by the caller.
+// Audioは呼出し側が所有する符号付き16-bit PCM。サンプルはチャンネルごとに交互に並ぶ。
 type Audio struct {
 	SampleRate, Channels int
 	Samples              []int16
@@ -203,8 +197,7 @@ func (a Audio) WriteWAV(w io.Writer) error {
 	return wav.Encode(w, &wav.PCM{SampleRate: a.SampleRate, Channels: a.Channels, Data: a.Samples})
 }
 
-// Phoneme times are relative to the start of the returned audio, in milliseconds.
-// They are planned label boundaries, not a forced alignment of the waveform.
+// Phonemeの時刻は音声先頭からのms。計画上の境界であり、波形への強制アライメントではない。
 type Phoneme struct {
 	Symbol         string
 	StartMS, EndMS float64

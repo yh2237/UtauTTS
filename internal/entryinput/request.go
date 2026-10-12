@@ -1,5 +1,5 @@
-// Package entryinput converts application inputs without changing their legacy
-// validation rules. Strict public API validation remains in the root package.
+// Package entryinputは既存入口の互換規則を保って入力を変換する。
+// 公開APIの厳密検証はルートパッケージが担当する。
 package entryinput
 
 import (
@@ -7,8 +7,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/synth"
 )
 
-// Apply adds the normal utterance to an internal request carrying editing or
-// evaluation settings. CLI and HTTP keep their existing zero-pause semantics.
+// Applyは編集・評価設定を保ち、通常入力を加える。CLI・HTTPの休止長0は既定値扱いのまま。
 func Apply(request utautts.Request, input synth.Request) synth.Request {
 	input = synth.ApplyCommonOptions(input, synth.CommonOptions(request.Options))
 	input.PauseDurationSet = false
@@ -20,8 +19,7 @@ func Apply(request utautts.Request, input synth.Request) synth.Request {
 	for i, entry := range request.Dictionary {
 		input.Dictionary[i] = synth.DictionaryEntry{Surface: entry.Surface, Reading: entry.Reading}
 	}
-	// These entries retain the existing priority over typed compatibility fields,
-	// including common settings and values diagnosed by the renderer itself.
+	// 共通設定を含め、mapの値を型付き互換フィールドより優先する。
 	input.RendererSettings = request.RendererSettings
 	return input
 }

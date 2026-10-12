@@ -12,8 +12,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
-// JSONRequest is the CLI/HTTP wire format, independent of evaluation-only
-// fields in synth.Request. Embedded fields keep the existing flat JSON format.
+// JSONRequestはCLI・HTTPの入力形式。編集・互換フィールドも同じ階層で受け取る。
 type JSONRequest struct {
 	Text               string                     `json:"text"`
 	Reading            string                     `json:"reading"`
@@ -47,8 +46,7 @@ type editingRequest struct {
 	ResamplerExpressions []render.ResamplerExpression `json:"resampler_expressions"`
 }
 
-// Compatibility fields are not part of the normal public utterance. Ignored
-// legacy fields remain accepted; typed provider settings keep their priority.
+// 無視する旧フィールドも受け付け、型付きProvider設定の優先順位を保つ。
 type compatibilityRequest struct {
 	Kana                    string                          `json:"kana"`
 	SpeechTiming            bool                            `json:"speech_timing"`
@@ -72,7 +70,6 @@ type compatibilityRequest struct {
 	Worldline               render.WorldlineProviderOptions `json:"worldline,omitempty"`
 }
 
-// jsonRequestAlias avoids recursive UnmarshalJSON calls.
 type jsonRequestAlias JSONRequest
 
 func defaultJSONRequest() JSONRequest {
@@ -104,10 +101,8 @@ func (request *JSONRequest) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// DecodeRequestLenient applies the shared defaults and ignores fields that are
-// not part of the shared request. It is for a trusted local UI entry such as
-// the native/C ABI, where the UI and the library ship together. The CLI and
-// HTTP keep the strict UnmarshalJSON validation.
+// DecodeRequestLenientは共通既定値を適用し、未知のフィールドを無視する。
+// 同梱UIのnative/C ABI向け。CLI・HTTPは厳密に検証する。
 func DecodeRequestLenient(data []byte, request *JSONRequest) error {
 	*request = defaultJSONRequest()
 	return json.Unmarshal(data, (*jsonRequestAlias)(request))

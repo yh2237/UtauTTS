@@ -56,7 +56,7 @@ func (r Request) internal() (synth.Request, error) {
 		if !json.Valid(raw) || strings.TrimSpace(string(raw)) == "null" {
 			return synth.Request{}, fmt.Errorf("%w: renderer setting %q must contain a non-null JSON value", ErrInvalidRequest, id)
 		}
-		// Known settings use the shared table; unknown values belong to the renderer.
+		// 未知の設定の検証はRendererに委ねる。
 		if setting, known := settings.Lookup(id); known {
 			switch setting.Type {
 			case "number", "integer":

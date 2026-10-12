@@ -69,7 +69,7 @@ func cliExitCode(err error) int {
 	if cliErrorCode(err) == "flag_parse_error" {
 		return 2
 	}
-	// Keep existing synthesis and I/O exit codes. --json provides finer detail.
+	// 既存の終了コードを保ち、詳細はJSONで区別する。
 	return 1
 }
 

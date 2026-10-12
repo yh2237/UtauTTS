@@ -9,7 +9,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/synth"
 )
 
-// Keep error as a string for existing clients; code is the machine-facing field.
+// 既存クライアント向けにerrorは文字列のまま保ち、判定用のcodeを添える。
 type errorResponse struct {
 	Error string `json:"error"`
 	Code  string `json:"code"`

@@ -1,8 +1,7 @@
-// 学習した統合韻律モデル（F0ヘッド付きsafetensors）を、models/へ置けるモデルJSONにまとめる。
-// 基準の抑揚モデルがアクセント特徴とモーラの予測を担い、このモデルが自動ピッチ曲線とモーラの音量を担う。
+// 学習済みF0ヘッド（safetensors）を基準モデルと合わせ、配布用JSONを作る。
+// 基準モデルがアクセント特徴とモーラ予測を、F0ヘッドが自動ピッチ曲線とモーラ音量を担う。
 // ライセンス・通知・出典は基準モデルから引き継ぐ（--licenseなどで上書きできる）。
-// --baseには基準の抑揚モデルJSONか、基準モデルを埋め込んだモデルJSON（models/frame-intonation-tcn-v12.jsonなど）を指定する。後者は埋め込んだ基準モデルを使う。
-// 使い方: go run ./cmd/tools/package-f0-model --weights out/speech-timing-target/ja-mh.safetensors --base models/frame-intonation-tcn-v12.json --embed-base --id my-f0-v1 --display-name "My F0 v1" --out out/my-f0-v1.json
+// --baseは基準モデルJSONか、それを埋め込んだモデルJSON。後者は埋込みの基準モデルを使う。
 package main
 
 import (

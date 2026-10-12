@@ -133,8 +133,7 @@ func TestEngineRequestErrors(t *testing.T) {
 	}
 }
 
-// Run explicitly with UTAUTTS_INTEGRATION=1 when the bundled bank and WORLD
-// runtime are installed. Regular tests use the synthetic bank above.
+// 同梱音源とWORLDを配置し、UTAUTTS_INTEGRATION=1で実行する。
 func TestBundledWorldRuntimeIsolation(t *testing.T) {
 	if os.Getenv("UTAUTTS_INTEGRATION") != "1" {
 		t.Skip("set UTAUTTS_INTEGRATION=1 to test bundled WORLD synthesis")

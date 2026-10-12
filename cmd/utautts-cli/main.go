@@ -181,8 +181,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	}
 	var report cliResponse
 	if jsonOutput {
-		// This defer runs after request completion and runtime shutdown. Never
-		// report success before Close has finished, or after an output failure.
+		// Runtimeの終了まで待ち、終了・出力の失敗もJSON結果へ反映する。
 		defer func() {
 			report.OK = runErr == nil
 			if runErr != nil {
@@ -400,7 +399,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	} else {
 		synthesisRequest = jsonRequest.InternalRequest()
 		synthesisRequest.VoicebankPath = voicebankPath
-		// CLI-only timing controls are not fields in the shared wire format.
+		// CLI固有の時間制御は共通JSONに含めない。
 		synthesisRequest.CVVCTiming = cvvcTiming
 		synthesisRequest.CVVCTransitionGain = cvvcTransitionGain
 	}

@@ -31,7 +31,7 @@ func runFrontend(ctx context.Context, text string, cfg Config) (*Analysis, error
 	return &result, nil
 }
 
-// ResolveHelperPath resolves the same file used by Analyze without starting it.
+// ResolveHelperPathはAnalyzeと同じhelperを、起動せずに探す。
 func ResolveHelperPath(explicit string) (string, error) {
 	name := "utautts-openjtalk-features"
 	if runtime.GOOS == "windows" {
@@ -43,7 +43,7 @@ func ResolveHelperPath(explicit string) (string, error) {
 	})
 }
 
-// ResolveDictionaryPath checks directory placement, not dictionary contents.
+// ResolveDictionaryPathは配置だけを確認し、辞書の内容は検査しない。
 func ResolveDictionaryPath(explicit string) (string, error) {
 	const name = "open_jtalk_dic_utf_8-1.11"
 	if explicit != "" {

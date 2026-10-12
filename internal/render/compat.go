@@ -9,7 +9,6 @@ import (
 	"github.com/yh2237/UtauTTS/internal/render/base"
 )
 
-// 共有層(base)の型を外部互換のため再公開する。
 type (
 	Config                   = base.Config
 	ProviderOptions          = base.ProviderOptions

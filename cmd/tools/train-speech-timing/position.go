@@ -8,15 +8,9 @@ import (
 	"github.com/yh2237/UtauTTS/cmd/tools/internal/toolutil"
 )
 
-// 文内の位置の特徴（F0ブランチの入力、--f0-position）。ランタイムのtts.unifiedProsodyPositionと同じ定義。
-//
-//	0 発話のモーラの通し位置（0〜1）
-//	1 アクセント句の通し位置（0〜1）
-//	2 最後のアクセント句
-//	3 最後の息継ぎ区間（休止で区切った最後の区間）
-//	4 疑問文（文末が？または?）
-//
-// 休止は疑問文だけを持つ。
+// --f0-positionの特徴順はtts.unifiedProsodyPositionと共通。
+// 0: 発話内モーラ位置、1: アクセント句内位置（ともに0〜1）、2: 最後のアクセント句。
+// 3: 休止で区切った最後の区間、4: 疑問文（文末が？または?）。休止は4だけを持つ。
 const f0PositionFeatures = 5
 
 // f0PositionInputは文内の位置の特徴をF0ブランチへ入れるか（--f0-position）。

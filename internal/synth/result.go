@@ -30,8 +30,7 @@ func NewResult(result *tts.Result, rendererID string) (*Result, error) {
 	return &Result{Result: result, RendererID: rendererID, DurationMS: durationMS, Lab: lab}, nil
 }
 
-// Diagnostics combines renderer messages and planned missing phones for the
-// public API and machine-facing application outputs.
+// DiagnosticsはRendererの診断と計画上の欠落音素をまとめる。
 func (r *Result) Diagnostics() []render.RenderDiagnostic {
 	diagnostics := make([]render.RenderDiagnostic, 0)
 	if r.RenderReport != nil {
@@ -46,7 +45,7 @@ func (r *Result) Diagnostics() []render.RenderDiagnostic {
 	return diagnostics
 }
 
-// Report is shared metadata for CLI and HTTP outputs; it contains no PCM.
+// ReportはPCMを含まないCLI・HTTP共通の結果情報。
 type Report struct {
 	Reading       string                    `json:"reading"`
 	RendererID    string                    `json:"renderer_id"`
