@@ -202,7 +202,7 @@ func run() (runErr error) {
 				}
 				result, elapsed, callErr := synthesizeCase(p, caseOptions{
 					service: synthesisRuntime.Service,
-					bank:    *bank, aliasPolicy: *aliasPolicy, bridge: *bridge,
+					bank:    *bank, aliasPolicy: *aliasPolicy,
 					model: *model, modelFile: *modelFile, prosodyModelPath: prosodyPath,
 					moraMS:     *moraMS,
 					rendererID: rendererID, resampler: *resampler, wavtool: *wavtool,
@@ -212,7 +212,7 @@ func run() (runErr error) {
 					stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
 					pauseContext: *pauseContext, pauseContextStrength: *pauseContextStrength,
 					englishWeakForm: *englishWeakForm, noTimingWarp: !*timingWarp,
-				}, catalog)
+				})
 				row.ElapsedMS = elapsed
 				if callErr == nil {
 					renderedPlan := fillMeasurement(&row, result)

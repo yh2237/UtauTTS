@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,8 +13,6 @@ import (
 	"time"
 
 	"github.com/yh2237/UtauTTS/internal/atomicfile"
-	"github.com/yh2237/UtauTTS/internal/plugin"
-	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/synth"
 )
 
@@ -126,15 +125,17 @@ type sweepPromptData struct {
 	units        map[string]sweepUnits
 }
 
-func runSweep(req sweepRequest) error {
+func runSweep(req sweepRequest) (runErr error) {
 	selected, err := resolvePresets(req.presets)
 	if err != nil {
 		return err
 	}
-	catalog, err := plugin.DiscoverWithDefaults(nil, nil, render.IsKnownRenderer)
+	synthesisRuntime, err := synth.NewRuntime(synth.RuntimeConfig{WorldlineBridgePath: req.bridge}, nil)
 	if err != nil {
 		return err
 	}
+	defer func() { runErr = errors.Join(runErr, synthesisRuntime.Close()) }()
+	catalog := synthesisRuntime.Catalog
 	prosody, ok := catalog.Model(req.model)
 	modelIdentity := req.model
 	if req.modelFile != "" {
@@ -173,8 +174,10 @@ func runSweep(req sweepRequest) error {
 		for index, p := range req.prompts {
 			row := measurement{ID: p.ID, Text: p.Text, Focus: p.Focus, Renderer: ps.Renderer, Repetition: 1}
 			result, elapsed, callErr := synthesizeCase(p, caseOptions{
-				bank: req.bank, aliasPolicy: req.aliasPolicy, bridge: req.bridge,
-				model: req.model, modelFile: req.modelFile, prosodyModelPath: prosodyPath,
+				service:     synthesisRuntime.Service,
+				bank:        req.bank,
+				aliasPolicy: req.aliasPolicy,
+				model:       req.model, modelFile: req.modelFile, prosodyModelPath: prosodyPath,
 				moraMS:     req.moraMS,
 				rendererID: ps.Renderer,
 				applyPitch: ps.ApplyPitch, timeout: req.timeout,
@@ -183,7 +186,7 @@ func runSweep(req sweepRequest) error {
 				stretchAdapt: req.stretchAdapt, stretchAdaptStrength: req.stretchAdaptStrength,
 				pauseContext: req.pauseContext, pauseContextStrength: req.pauseContextStrength,
 				englishWeakForm: req.englishWeakForm, noTimingWarp: req.noTimingWarp,
-			}, catalog)
+			})
 			row.ElapsedMS = elapsed
 			if callErr == nil {
 				renderedPlan := fillMeasurement(&row, result)

@@ -9,35 +9,34 @@ import (
 	"time"
 
 	"github.com/yh2237/UtauTTS/internal/plan"
-	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/synth"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
 type caseOptions struct {
-	service                   *synth.Service
-	bank, aliasPolicy, bridge string
-	model, modelFile          string
-	prosodyModelPath          string
-	moraMS                    float64
-	rendererID                string
-	resampler, wavtool        string
-	applyPitch                bool
-	contextDuration           bool
-	contextDurationStrength   float64
-	boundaryTone              bool
-	boundaryToneStrength      float64
-	stretchAdapt              bool
-	stretchAdaptStrength      float64
-	pauseContext              bool
-	pauseContextStrength      float64
-	englishWeakForm           bool
-	noTimingWarp              bool
-	timeout                   time.Duration
+	service                 *synth.Service
+	bank, aliasPolicy       string
+	model, modelFile        string
+	prosodyModelPath        string
+	moraMS                  float64
+	rendererID              string
+	resampler, wavtool      string
+	applyPitch              bool
+	contextDuration         bool
+	contextDurationStrength float64
+	boundaryTone            bool
+	boundaryToneStrength    float64
+	stretchAdapt            bool
+	stretchAdaptStrength    float64
+	pauseContext            bool
+	pauseContextStrength    float64
+	englishWeakForm         bool
+	noTimingWarp            bool
+	timeout                 time.Duration
 }
 
-func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Result, float64, error) {
+func synthesizeCase(p prompt, o caseOptions) (*synth.Result, float64, error) {
 	request := synth.DefaultRequest()
 	request.Text = p.Text
 	request.Reading = p.Reading
@@ -64,14 +63,10 @@ func synthesizeCase(p prompt, o caseOptions, catalog *plugin.Catalog) (*synth.Re
 	request.PauseContextStrength = o.pauseContextStrength
 	request.EnglishWeakForm = o.englishWeakForm
 	request.Worldline = render.WorldlineProviderOptions{TimingWarp: new(!o.noTimingWarp)}
-	service := o.service
-	if service == nil {
-		service = synth.NewService(catalog, o.rendererID, o.bridge, "", "", nil)
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), o.timeout)
 	defer cancel()
 	started := time.Now()
-	result, err := service.SynthesizeContext(ctx, request)
+	result, err := o.service.SynthesizeContext(ctx, request)
 	elapsed := float64(time.Since(started).Microseconds()) / 1000
 	return result, elapsed, err
 }
