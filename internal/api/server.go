@@ -151,7 +151,6 @@ func (s *Server) Close() error {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", s.handleHealth)
-	mux.HandleFunc("GET /api/readiness", s.handleReadiness)
 	mux.HandleFunc("GET /api/limits", s.handleLimits)
 	mux.HandleFunc("GET /api/openapi.yaml", s.handleOpenAPI)
 	mux.HandleFunc("GET /api/voicebanks", s.handleListVoicebanks)

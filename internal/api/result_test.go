@@ -48,36 +48,3 @@ func TestJSONSynthesisResultMatchesWAVAndLAB(t *testing.T) {
 		}
 	}
 }
-
-func TestReadinessIsSeparateFromHealth(t *testing.T) {
-	server := newWaveformTestServer(t)
-	for _, expected := range []int{200, 503} {
-		if expected == 503 {
-			server.voicebanks = map[string]Voicebank{}
-		}
-		response := httptest.NewRecorder()
-		server.Handler().ServeHTTP(response, localRequest(http.MethodGet, "/api/readiness", nil))
-		if response.Code != expected {
-			t.Fatalf("readiness = %d %s", response.Code, response.Body.String())
-		}
-		var payload map[string]any
-		if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
-			t.Fatal(err)
-		}
-		if payload["renderer_id"] != "waveform" || payload["renderer"].(map[string]any)["available"] != true {
-			t.Fatalf("readiness = %#v", payload)
-		}
-		response = httptest.NewRecorder()
-		server.Handler().ServeHTTP(response, localRequest(http.MethodGet, "/api/health", nil))
-		if response.Code != 200 {
-			t.Fatalf("health = %d", response.Code)
-		}
-	}
-	server = newWaveformTestServer(t)
-	server.renderer = "missing"
-	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, localRequest(http.MethodGet, "/api/readiness", nil))
-	if response.Code != 503 || !strings.Contains(response.Body.String(), `"available":false`) {
-		t.Fatalf("missing renderer readiness = %d %s", response.Code, response.Body.String())
-	}
-}

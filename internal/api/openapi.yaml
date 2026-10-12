@@ -33,28 +33,13 @@ paths:
     get:
       operationId: getHealth
       summary: 稼働確認
-      description: 資源不足でも200を返す。合成準備状況はreadinessを使う。
+      description: サーバーが稼働していれば200を返す。既定Rendererの資源や音源の状態は /api/renderers と /api/voicebanks で確認する。
       responses:
         '200':
           description: 稼働中
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Health'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-  /api/readiness:
-    get:
-      operationId: getReadiness
-      summary: 既定Rendererの静的資源検査と音源登録状況
-      description: |
-        必要資源と音源1件以上で200、不足または終了済みRuntimeは503。
-        helper・Providerを起動せず、Open JTalk・辞書・モデル・波形内容や個々の発話の合成可否は検証しない。
-      responses:
-        '200': &readinessResponse
-          description: 準備状況。503も同じ形式で返す。
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/Readiness'}
-        '503': *readinessResponse
         '403': {$ref: '#/components/responses/Forbidden'}
   /api/limits:
     get:
@@ -516,14 +501,6 @@ components:
         status: {type: string, enum: [ok]}
         engine: {type: string}
         version: {type: string}
-    Readiness:
-      type: object
-      required: [status, renderer_id, renderer, voicebank_count]
-      properties:
-        status: {type: string, enum: [ready, not_ready]}
-        renderer_id: {type: string}
-        renderer: {$ref: '#/components/schemas/Availability'}
-        voicebank_count: {type: integer, minimum: 0}
     Availability:
       type: object
       required: [available]

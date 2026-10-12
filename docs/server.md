@@ -44,7 +44,6 @@ xattr -rc "utautts-server" runtime
 | Method | Path | 説明 |
 |---|---|---|
 | `GET` | `/api/health` | 稼働確認 |
-| `GET` | `/api/readiness` | 既定Rendererの資源と音源登録状況の静的検査 |
 | `GET` | `/api/limits` | 適用中の運用制限 |
 | `GET` | `/api/openapi.yaml` | OpenAPI仕様（YAML） |
 | `GET` | `/api/voicebanks` | 音源一覧 |
@@ -116,22 +115,7 @@ UIとAPIの`Host`も`localhost`かloopback IPに限定します。別サイト�
 {"status":"ok","engine":"utautts-world-phrase","version":"1.5.1"}
 ```
 
-`engine`には既定RendererのID、`version`にはサーバーのバージョンが入ります。これは稼働確認で、合成資源がなくても200を返します。
-
-### `GET /api/readiness`
-
-既定Rendererの静的な資源検査と、登録された音源の件数を返します。必要資源があり、音源が1件以上なら200、それ以外は503です。終了済みRuntimeも503になります。
-
-```json
-{
-  "status": "ready",
-  "renderer_id": "utautts-world-phrase",
-  "renderer": {"available": true},
-  "voicebank_count": 1
-}
-```
-
-不足時は`status: "not_ready"`となり、Rendererの不足理由は`renderer.issues`へ入ります。helperやProviderは起動せず、Open JTalk・辞書・モデル・音源波形や実際の合成は検証しません。特定の発話が合成できることを保証する応答ではありません。
+`engine`には既定RendererのID、`version`にはサーバーのバージョンが入ります。これは稼働確認で、合成資源がなくても200を返します。既定Rendererの資源の利用可否は`/api/renderers`、音源の登録状況は`/api/voicebanks`で確認できます。
 
 ### `GET /api/limits`
 
