@@ -7,6 +7,9 @@ import (
 	"sync"
 	"unicode"
 
+	"github.com/yh2237/audiodsp/correlation"
+	"github.com/yh2237/audiodsp/stretch"
+
 	"github.com/yh2237/UtauTTS/internal/acoustic"
 	"github.com/yh2237/UtauTTS/internal/oto"
 	"github.com/yh2237/UtauTTS/internal/sourceaudio"
@@ -87,7 +90,7 @@ func pairFeatures(previous, current oto.Entry, left, right Boundary) PairFeature
 	if result.SameSource {
 		result.SourceAnchorDistanceMS = current.Offset + current.Preutterance - previous.Offset - previous.Preutterance
 	}
-	result.WaveformCorrelation = maxCorrelation(left.outgoingWave, right.incomingWave, 40)
+	result.WaveformCorrelation = correlation.Max(left.outgoingWave, right.incomingWave, 40, 32, 1e-10)
 	if !left.Outgoing.Valid || !right.Incoming.Valid {
 		return result
 	}
@@ -294,55 +297,7 @@ func frameFeatures(wave []float64, sampleRate int, centerMS float64) (acoustic.F
 	center = max(halfWindow, min(len(wave)-halfWindow, center))
 	start, end := center-halfWindow, center+halfWindow
 	frameWave := wave[start:end]
-	return acoustic.AnalyzeFrame(frameWave, sampleRate, 10, true), resampleFixed(frameWave, 240)
-}
-
-func resampleFixed(values []float64, length int) []float64 {
-	if len(values) == 0 || length <= 0 {
-		return nil
-	}
-	result := make([]float64, length)
-	for index := range result {
-		position := float64(index) * float64(len(values)-1) / float64(max(1, length-1))
-		left := int(position)
-		right := min(len(values)-1, left+1)
-		fraction := position - float64(left)
-		result[index] = values[left]*(1-fraction) + values[right]*fraction
-	}
-	return result
-}
-
-func maxCorrelation(left, right []float64, maxLag int) float64 {
-	if len(left) < 32 || len(right) < 32 {
-		return 0
-	}
-	best := -1.0
-	for lag := -maxLag; lag <= maxLag; lag++ {
-		leftStart, rightStart := max(0, -lag), max(0, lag)
-		length := min(len(left)-leftStart, len(right)-rightStart)
-		if length < 32 {
-			continue
-		}
-		leftMean, rightMean := 0.0, 0.0
-		for index := 0; index < length; index++ {
-			leftMean += left[leftStart+index]
-			rightMean += right[rightStart+index]
-		}
-		leftMean /= float64(length)
-		rightMean /= float64(length)
-		cross, leftEnergy, rightEnergy := 0.0, 0.0, 0.0
-		for index := 0; index < length; index++ {
-			a := left[leftStart+index] - leftMean
-			b := right[rightStart+index] - rightMean
-			cross += a * b
-			leftEnergy += a * a
-			rightEnergy += b * b
-		}
-		if leftEnergy > 1e-10 && rightEnergy > 1e-10 {
-			best = max(best, cross/math.Sqrt(leftEnergy*rightEnergy))
-		}
-	}
-	return max(0, best)
+	return acoustic.AnalyzeFrame(frameWave, sampleRate, 10, true), stretch.Linear(frameWave, 240)
 }
 
 func SameSource(left, right string) bool {

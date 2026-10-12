@@ -4,6 +4,8 @@ import (
 	"math"
 	"strings"
 
+	"github.com/yh2237/audiodsp/correlation"
+
 	"github.com/yh2237/UtauTTS/internal/connection"
 	"github.com/yh2237/UtauTTS/internal/oto"
 	"github.com/yh2237/UtauTTS/internal/plan"
@@ -421,22 +423,7 @@ func matchLevelAndMean(source, target []float64) []float64 {
 }
 
 func normalizedCorrelation(left, right []float64) float64 {
-	if len(left) < 2 || len(left) != len(right) {
-		return 0
-	}
-	leftMean, rightMean := meanValue(left), meanValue(right)
-	cross, leftEnergy, rightEnergy := 0.0, 0.0, 0.0
-	for index := range left {
-		a := left[index] - leftMean
-		b := right[index] - rightMean
-		cross += a * b
-		leftEnergy += a * a
-		rightEnergy += b * b
-	}
-	if leftEnergy <= 1e-12 || rightEnergy <= 1e-12 {
-		return 0
-	}
-	return cross / math.Sqrt(leftEnergy*rightEnergy)
+	return correlation.Normalized(left, right, 1e-12)
 }
 
 func measureTransition(wave []float64) transitionMeasure {
