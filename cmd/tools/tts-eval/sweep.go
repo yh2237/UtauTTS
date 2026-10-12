@@ -16,7 +16,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/synth"
 )
 
-const defaultPresets = "default,timing,no-pitch"
+const defaultPresets = "default,no-pitch"
 
 const baseRenderer = "utautts-world-phrase"
 
