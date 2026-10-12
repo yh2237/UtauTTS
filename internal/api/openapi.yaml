@@ -56,31 +56,6 @@ paths:
                     type: array
                     items: {$ref: '#/components/schemas/Voicebank'}
         '403': {$ref: '#/components/responses/Forbidden'}
-    post:
-      operationId: registerVoicebank
-      summary: 音源パスの登録
-      description: 既定は無効。許可時もシンボリックリンク解決後のパスがvoice-dir以下でなければ400。
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              properties:
-                name: {type: string, nullable: true, default: '', description: 空なら音源の表示名}
-                path: {type: string, nullable: true, default: '', description: サーバー上の音源パス。空は作業ディレクトリとして解決するが、通常は明示する。}
-      responses:
-        '200':
-          description: 登録した音源
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/Voicebank'}
-        '400': {$ref: '#/components/responses/InvalidRequest'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '413': {$ref: '#/components/responses/LimitExceeded'}
-        '500': {$ref: '#/components/responses/InternalError'}
-        '503': {$ref: '#/components/responses/Unavailable'}
   /api/voicebanks/reload:
     post:
       operationId: reloadVoicebanks
@@ -235,7 +210,7 @@ components:
         application/json:
           schema: {$ref: '#/components/schemas/Error'}
     Forbidden:
-      description: Hostが非ローカル、別サイトからのブラウザ操作、または音源登録が無効。codeはforbidden。
+      description: Hostが非ローカル、または別サイトからのブラウザ操作。codeはforbidden。
       content: *errorContent
     Timeout:
       description: 要求キャンセルはcanceled、要求の期限切れはdeadline_exceeded。切断後は受信できない場合がある。

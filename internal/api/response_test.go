@@ -37,7 +37,6 @@ func TestAPIErrorCodesPreserveLegacyMessageAndStatus(t *testing.T) {
 		{"/api/synthesize/audio", `{"reading":"あ","alias_policy":"missing"}`, "synthesis_error", 422},
 		{"/api/synthesize/audio", `{"reading":"` + strings.Repeat("あ", maxTextRunes+1) + `"}`, "limit_exceeded", 413},
 		{"/api/synthesize/batch", `{"items":[{"request":{"reading":"あ","renderer":"missing"}}]}`, "unavailable", 400},
-		{"/api/voicebanks", `{}`, "forbidden", 403},
 	} {
 		t.Run(test.path+"/"+test.code+"/"+test.body[:min(len(test.body), 30)], func(t *testing.T) {
 			response := httptest.NewRecorder()

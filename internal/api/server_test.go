@@ -92,14 +92,6 @@ func TestConsoleUIIsServedLocally(t *testing.T) {
 	}
 }
 
-func TestVoicebankRegistrationDisabledByDefault(t *testing.T) {
-	response := httptest.NewRecorder()
-	mustNewServer(t, Config{VoiceDir: t.TempDir()}).Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/voicebanks", bytes.NewBufferString(`{"path":"."}`)))
-	if response.Code != http.StatusForbidden {
-		t.Fatalf("status = %d", response.Code)
-	}
-}
-
 func TestNewReportsInvalidPlugin(t *testing.T) {
 	pluginDirectory := t.TempDir()
 	if err := os.WriteFile(filepath.Join(pluginDirectory, "renderer.json"), []byte(`{"kind":"renderer"}`), 0o600); err != nil {

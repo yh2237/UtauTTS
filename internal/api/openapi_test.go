@@ -60,7 +60,7 @@ func TestOpenAPIPaths(t *testing.T) {
 	expected := map[string][]string{
 		"/api/openapi.yaml":      {http.MethodGet},
 		"/api/health":            {http.MethodGet},
-		"/api/voicebanks":        {http.MethodGet, http.MethodPost},
+		"/api/voicebanks":        {http.MethodGet},
 		"/api/voicebanks/reload": {http.MethodPost},
 		"/api/models":            {http.MethodGet},
 		"/api/renderers":         {http.MethodGet},

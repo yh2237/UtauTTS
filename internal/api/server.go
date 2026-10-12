@@ -51,7 +51,6 @@ type Config struct {
 	VoiceDir, Renderer                    string
 	WorldlineBridgePath                   string
 	OpenJTalkPath, OpenJTalkDictionary    string
-	AllowVoicebankRegistration            bool
 	RendererDirectories, ModelDirectories []string
 }
 
@@ -82,7 +81,6 @@ type Server struct {
 	openJTalkPath       string
 	openJTalkDictionary string
 	voiceDir            string
-	allowRegistration   bool
 	catalog             *plugin.Catalog
 	service             *synth.Service
 	voiceLibrary        *voicebank.Library
@@ -110,8 +108,7 @@ func New(config Config) (*Server, error) {
 		batchSem:            make(chan struct{}, maxConcurrentBatches),
 		worldlineBridgePath: config.WorldlineBridgePath, voiceDir: voiceDir,
 		openJTalkPath: config.OpenJTalkPath, openJTalkDictionary: config.OpenJTalkDictionary,
-		allowRegistration: config.AllowVoicebankRegistration,
-		voiceLibrary:      voicebank.NewLibrary(voiceDir),
+		voiceLibrary: voicebank.NewLibrary(voiceDir),
 	}
 	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
 		Renderer: config.Renderer, WorldlineBridgePath: config.WorldlineBridgePath,
@@ -146,7 +143,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/openapi.yaml", s.handleOpenAPI)
 	mux.HandleFunc("GET /api/voicebanks", s.handleListVoicebanks)
-	mux.HandleFunc("POST /api/voicebanks", s.handleRegisterVoicebank)
 	mux.HandleFunc("POST /api/voicebanks/reload", s.handleReloadVoicebanks)
 	mux.HandleFunc("POST /api/synthesize/audio", s.handleSynthesizeAudio)
 	mux.HandleFunc("POST /api/synthesize/label", s.handleSynthesizeLabel)
@@ -321,83 +317,6 @@ func (s *Server) handleReloadVoicebanks(w http.ResponseWriter, _ *http.Request) 
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"voicebanks": s.voicebankList()})
-}
-
-func (s *Server) handleRegisterVoicebank(w http.ResponseWriter, r *http.Request) {
-	if !s.allowRegistration {
-		writeAPIError(w, http.StatusForbidden, errors.New("voicebank registration is disabled"))
-		return
-	}
-	var request struct {
-		Name string `json:"name"`
-		Path string `json:"path"`
-	}
-	if err := decodeJSONBody(w, r, &request); err != nil {
-		writeAPIError(w, jsonDecodeStatus(err), err)
-		return
-	}
-	path, err := pathWithin(s.voiceDir, request.Path)
-	if err != nil {
-		writeAPIError(w, http.StatusBadRequest, err)
-		return
-	}
-	vb, err := inspectVoicebank(path)
-	if err != nil {
-		writeAPIError(w, http.StatusBadRequest, err)
-		return
-	}
-	if request.Name != "" {
-		vb.Name = request.Name
-	}
-	summary, err := voicebank.InspectSinger(path)
-	if err != nil {
-		writeAPIError(w, http.StatusBadRequest, err)
-		return
-	}
-	register := func() error {
-		if s.voiceLibrary == nil {
-			s.voiceLibrary = voicebank.NewLibrary(s.voiceDir)
-		}
-		vb.ID = s.voiceLibrary.Add(summary)
-		s.mu.Lock()
-		s.voicebanks[vb.ID] = vb
-		s.mu.Unlock()
-		return nil
-	}
-	if s.runtime != nil {
-		if err := s.runtime.Reload(register); err != nil {
-			writeAPIError(w, http.StatusInternalServerError, err)
-			return
-		}
-	} else {
-		_ = register()
-		tts.ClearCaches()
-	}
-	writeJSON(w, http.StatusOK, vb)
-}
-
-func pathWithin(root, candidate string) (string, error) {
-	root, err := filepath.Abs(root)
-	if err != nil {
-		return "", err
-	}
-	candidate, err = filepath.Abs(candidate)
-	if err != nil {
-		return "", err
-	}
-	root, err = filepath.EvalSymlinks(root)
-	if err != nil {
-		return "", fmt.Errorf("resolve voicebank root: %w", err)
-	}
-	candidate, err = filepath.EvalSymlinks(candidate)
-	if err != nil {
-		return "", fmt.Errorf("resolve voicebank path: %w", err)
-	}
-	relative, err := filepath.Rel(root, candidate)
-	if err != nil || relative == ".." || filepath.IsAbs(relative) || len(relative) >= 3 && relative[:3] == ".."+string(filepath.Separator) {
-		return "", fmt.Errorf("voicebank path must be inside %s", root)
-	}
-	return candidate, nil
 }
 
 func (s *Server) handleSynthesizeAudio(w http.ResponseWriter, r *http.Request) {

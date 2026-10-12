@@ -49,7 +49,6 @@ func run() (runErr error) {
 	flag.StringVar(&config.WorldlineBridgePath, "worldline-bridge", "", "path to worldline bridge")
 	flag.StringVar(&config.OpenJTalkPath, "openjtalk-features", "", "path to Open JTalk feature helper")
 	flag.StringVar(&config.OpenJTalkDictionary, "openjtalk-dictionary", "", "path to Open JTalk dictionary")
-	flag.BoolVar(&config.AllowVoicebankRegistration, "allow-voicebank-registration", false, "allow registration of paths below voice-dir")
 	flag.Func("renderer-dir", "renderer plugin directory (repeatable)", func(value string) error {
 		config.RendererDirectories = append(config.RendererDirectories, value)
 		return nil

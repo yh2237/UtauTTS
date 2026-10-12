@@ -48,20 +48,6 @@ func (l *Library) Reload() error {
 	return nil
 }
 
-func (l *Library) Add(summary Summary) string {
-	if l == nil || summary.Path == "" {
-		return ""
-	}
-	id := StableID(l.root, summary.Path)
-	l.mu.Lock()
-	if l.items == nil {
-		l.items = make(map[string]Summary)
-	}
-	l.items[id] = summary
-	l.mu.Unlock()
-	return id
-}
-
 // 空IDは安定順の先頭を選ぶ。
 func (l *Library) Resolve(id string) (Summary, bool) {
 	if l == nil {

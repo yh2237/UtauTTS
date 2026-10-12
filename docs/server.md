@@ -35,7 +35,7 @@ xattr -rc "utautts-server" runtime
 - 文章の解析（`/api/analyze`）と読み・モーラ列の表示
 - 文章・音源・モデル・Rendererなどを指定した合成とWAVダウンロード
 - 言語・発音形式・読みの指定、音素ラベルの表示・ダウンロード、一括合成ZIPのダウンロード
-- 合成リクエストの詳細JSON指定、許可されたサーバーでの音源登録
+- 合成リクエストの詳細JSON指定
 
 コンソールUIは`/`で提供されます（`/ui`は`/`への307リダイレクトです）。トークンの入力は不要です。
 
@@ -46,7 +46,6 @@ xattr -rc "utautts-server" runtime
 | `GET` | `/api/health` | 稼働確認 |
 | `GET` | `/api/openapi.yaml` | OpenAPI仕様（YAML） |
 | `GET` | `/api/voicebanks` | 音源一覧 |
-| `POST` | `/api/voicebanks` | 音源の登録（既定で無効） |
 | `POST` | `/api/voicebanks/reload` | 音源ディレクトリの再読込 |
 | `GET` | `/api/models` | 抑揚モデル一覧 |
 | `GET` | `/api/renderers` | Renderer一覧 |
@@ -99,7 +98,7 @@ UIとAPIの`Host`も`localhost`かloopback IPに限定します。別サイト�
 | `unavailable` | 音源・モデル・Renderer等の不足（従来どおり400）、終了済みRuntime（503） |
 | `synthesis_error` | 読み解析・合成の失敗（422） |
 | `canceled`・`deadline_exceeded` | 要求のキャンセル・期限切れ（408） |
-| `forbidden` | 非ローカルのHost、別サイトからのブラウザ操作、登録許可のエラー（403） |
+| `forbidden` | 非ローカルのHost、別サイトからのブラウザ操作（403） |
 | `internal_error` | 再読込・一時ファイル・ZIP出力などの内部エラー（500） |
 
 一括合成で発話が失敗した場合も同じ分類を使い、`error`には`item N: ...`を残します。応答本文の書込が始まった後の通信エラーはJSONへ切り替えず、ログへ記録します。クライアントが切断した場合はエラーJSONを受け取れないことがあります。
@@ -143,16 +142,6 @@ ID順にソートされた音源一覧です。
 `alias_counts`、`vcv_contexts`、`vc_contexts`は音源のalias能力を表す診断情報です。実際の各モーラではaliasの存在と`oto.ini`設定が最終的な選択を決めます。
 
 `types`には`character.yaml`の全サブバンク（カラー、接頭辞・接尾辞、音域）が宣言順で入ります。合成するときはその`color`をリクエストの`color`へ指定できます。
-
-### `POST /api/voicebanks`
-
-音源パスを動的に登録します。既定では無効で、`--allow-voicebank-registration`を指定した場合だけ使えます。登録先は`--voice-dir`以下に制限され、シンボリックリンクを解決した後に範囲外になるパスは400で拒否します。
-
-```json
-{"name": "My Bank", "path": "voice/my-bank"}
-```
-
-成功すると登録された音源オブジェクト（`GET /api/voicebanks` と同じ形式）を返します。`name` は省略できます（省略時は音源の表示名）。
 
 ### `POST /api/voicebanks/reload`
 
@@ -379,6 +368,5 @@ ID順にソートされた音源一覧です。
 - `--model-dir`: 自己記述モデルJSONの検索先。複数回指定でき、リクエストの`model_id`で選択する
 - `--host`: ローカルの待受アドレス。既定は`127.0.0.1`。`localhost`かloopback IPだけを指定できる
 - `--port`: ポート。初期値は`8080`
-- `--allow-voicebank-registration`: `POST /api/voicebanks` による音源パス登録を許可する（登録先は`--voice-dir`以下に制限）
 - `--worldline-bridge`: worldline bridge実行ファイルを明示する
 - `--openjtalk-features` / `--openjtalk-dictionary`: 自動検出を使わずhelperまたは辞書を明示する開発用オプション
