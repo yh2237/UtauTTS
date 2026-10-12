@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/yh2237/utauio/character"
 	"github.com/yh2237/utauio/prefixmap"
 
 	"github.com/yh2237/UtauTTS/internal/oto"
@@ -21,29 +22,16 @@ func (b *Bank) loadMetadata(rootEntries ...[]os.DirEntry) {
 		entries, _ := os.ReadDir(b.Root)
 		rootEntries = [][]os.DirEntry{entries}
 	}
-	if subbanks, path, diagnostics, text := loadCharacterYAMLData(b.Root, rootEntries...); path != "" {
+	if subbanks, path, diagnostics, phonemizer := loadCharacterYAMLMetadata(b.Root, rootEntries...); path != "" {
 		b.CharacterYAML = path
 		b.Subbanks = subbanks
 		b.Diagnostics = append(b.Diagnostics, diagnostics...)
-		if text != "" {
-			for _, line := range strings.Split(text, "\n") {
-				key, value, ok := splitYAMLField(strings.TrimSpace(line))
-				if ok && strings.EqualFold(key, "default_phonemizer") {
-					b.DefaultPhonemizer = parseYAMLScalar(value)
-					break
-				}
-			}
-		}
+		b.DefaultPhonemizer = phonemizer
 	}
 	if path := findRootFile(b.Root, "character.txt", rootEntries...); path != "" {
 		if text, err := readMetadata(path); err == nil {
-			for _, line := range strings.Split(text, "\n") {
-				parts := strings.SplitN(strings.TrimSpace(line), "=", 2)
-				if len(parts) == 2 && strings.EqualFold(strings.TrimSpace(parts[0]), "name") {
-					if name := strings.TrimSpace(parts[1]); name != "" {
-						b.Name = name
-					}
-				}
+			if name := character.ParseText(text).Name; name != "" {
+				b.Name = name
 			}
 		}
 	}

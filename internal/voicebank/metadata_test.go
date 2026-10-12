@@ -167,6 +167,24 @@ func TestSubbankOptionsExposeEveryDeclaredType(t *testing.T) {
 	}
 }
 
+func TestCharacterYAMLDiagnosticsCarryFilePath(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "oto.ini"), "a.wav=あ,0,0,0,0,0\n")
+	path := filepath.Join(root, "CHARACTER.YML")
+	write(t, path, "subbanks:\n- color: power\n  tone_ranges: [bad, C3-C5]\n")
+	bank, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bank.Diagnostics) != 1 || bank.Diagnostics[0].Path != path || bank.Diagnostics[0].Line != 3 {
+		t.Fatalf("diagnostics=%+v", bank.Diagnostics)
+	}
+	_, subbank, ok := bank.AffixForToneAndColor("C4", "power")
+	if !ok || subbank.ID != "subbank-0" || subbank.Source != path || subbank.Tone != "C4" {
+		t.Fatalf("subbank=%+v ok=%t", subbank, ok)
+	}
+}
+
 func TestResolverRejectsUnreadableAndSilentWAVCandidates(t *testing.T) {
 	root := t.TempDir()
 	good := filepath.Join(root, "good.wav")
