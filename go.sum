@@ -36,6 +36,8 @@ github.com/xyproto/randomstring v1.0.5 h1:YtlWPoRdgMu3NZtP45drfy1GKoojuR7hmRcnhZ
 github.com/xyproto/randomstring v1.0.5/go.mod h1:rgmS5DeNXLivK7YprL0pY+lTuhNQW3iGxZ18UQApw/E=
 github.com/yh2237/audiodsp v0.5.0 h1:ItiDwvRUVSKqExbdefxcMbuPAKNiAelUdXyORIVxlqQ=
 github.com/yh2237/audiodsp v0.5.0/go.mod h1:Cv0D5PXZpjZW/Ty+326DBv2JmdZfu4d6zMhlNOfpWF8=
+github.com/yh2237/audiodsp v0.5.1 h1:nTXWsF856BxziYlm0FF12SQnRg94LwGimKx2uxvlGbw=
+github.com/yh2237/audiodsp v0.5.1/go.mod h1:Cv0D5PXZpjZW/Ty+326DBv2JmdZfu4d6zMhlNOfpWF8=
 github.com/yh2237/gograd v1.6.0 h1:FUbJJtzZ68qS+dUeGrUPC4Jc6Xi9Twn+ijnDL6kIeEw=
 github.com/yh2237/gograd v1.6.0/go.mod h1:8qs1O24IHCXEglJXubsF7Dvh7rAtm4HFw3lnrZG/ccU=
 github.com/yh2237/utauio v0.4.0 h1:fBHjYYQAEnDDUxi/8HnpotsSlHe1Fcop7hWcuXHn2w8=
