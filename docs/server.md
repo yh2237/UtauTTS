@@ -52,7 +52,6 @@ xattr -rc "utautts-server" runtime
 | `GET` | `/api/renderers` | Renderer一覧 |
 | `POST` | `/api/analyze` | 文章から読み・モーラ列への変換 |
 | `POST` | `/api/synthesize/audio` | 単一発話の合成（WAV） |
-| `POST` | `/api/synthesize/result` | 単一発話の音声と結果・診断（JSON） |
 | `POST` | `/api/synthesize/label` | 単一発話の音素ラベル（LAB） |
 | `POST` | `/api/synthesize/batch` | 複数発話の合成（ZIP） |
 
@@ -252,7 +251,7 @@ ID順にソートされた音源一覧です。
 
 レスポンスヘッダーの`X-UtauTTS-Reading`に使用した読み、`X-UtauTTS-Engine`にRenderer IDが入ります。
 
-`X-UtauTTS-Diagnostic-Count`には診断の件数が入ります。診断の内容も必要な場合は`/api/synthesize/result`を使います。
+`X-UtauTTS-Diagnostic-Count`にはRendererの診断と不足音素の警告の件数が入ります。診断の文面はCLIの`--json`や公開Go APIで取得できます。
 
 #### リクエスト項目
 
@@ -346,30 +345,6 @@ ID順にソートされた音源一覧です。
 `/api/synthesize/audio`と同じJSONを受け取り、合成音声に対応するHTK形式の音素ラベルを`text/plain`で返します。レスポンスには同じ`X-UtauTTS-Engine`と`X-UtauTTS-Reading`ヘッダーが付きます。
 
 `X-UtauTTS-Diagnostic-Count`も返します。ラベルは合成計画由来の100 ns単位の時刻で、波形の強制アライメント結果ではありません。
-
-### `POST /api/synthesize/result`
-
-`/api/synthesize/audio`と同じJSONを受け取り、一度の合成でWAVと結果メタデータ・診断を返します。既存のWAV・LABエンドポイントの応答形式は変わりません。
-
-```json
-{
-  "audio": {"format": "wav_pcm_s16le", "data": "<WAV全体のBase64>"},
-  "result": {
-    "reading": "ア",
-    "renderer_id": "utautts-world-phrase",
-    "duration_ms": 120,
-    "sample_rate": 44100,
-    "channels": 1,
-    "unit_count": 1,
-    "phoneme_labels": "0 1200000 a\n",
-    "diagnostics": []
-  }
-}
-```
-
-`audio.data`をBase64で復号すると、WAVエンドポイントと同じバイト列になります。`result`にはPCMやサーバー上の保存先を含めません。`diagnostics`はRendererの診断と不足音素の警告の配列で、各項目は`severity`・`code`・`message`を持ちます。警告があっても合成成功なら200です。
-
-`phoneme_labels`はLABエンドポイントと同じ計画由来のラベルです。Base64はバイナリより転送量が約3分の1増えるため、音声だけが必要ならWAVエンドポイントを使ってください。
 
 ### `POST /api/synthesize/batch`
 

@@ -125,7 +125,7 @@ paths:
     post:
       operationId: analyze
       summary: 日本語の文章を読みとモーラ列へ変換
-      description: 英語・中国語は合成要求でlanguageとphonemizerを指定する。合成と同じ並列枠・期限を使う。
+      description: 英語・中国語は合成要求でlanguageとphonemizerを指定する。合成と同じ並列枠を使う。
       requestBody:
         required: true
         content:
@@ -192,25 +192,13 @@ paths:
           content:
             text/plain:
               schema: {type: string}
-  /api/synthesize/result:
-    post:
-      <<: *synthesisOperation
-      operationId: synthesizeResult
-      summary: 一度の合成でWAVと結果・診断をJSONで取得
-      responses:
-        <<: *synthesisResponses
-        '200':
-          description: 警告があっても合成成功なら200。PCMやサーバー上の保存先は含まない。
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/SynthesisResponse'}
   /api/synthesize/batch:
     post:
       operationId: synthesizeBatch
       summary: 複数発話をWAV・任意のTXTとLABのZIPで取得
       description: |
         逐次合成。途中で失敗すると後続を合成せず、item Nを含むエラーを返す。
-        ZIPは完成後に送信し、途中のZIPは返さない。要求全体で一つの合成期限を使う。
+        ZIPは完成後に送信し、途中のZIPは返さない。
       requestBody:
         required: true
         content:
@@ -451,36 +439,6 @@ components:
             properties:
               name: {type: string, nullable: true, default: '', description: 'パス部分を除去し、.wavを補う。空・..等はutterance-N.wav。重複は400。'}
               request: {$ref: '#/components/schemas/SynthesisRequest'}
-    SynthesisResponse:
-      type: object
-      required: [result, audio]
-      properties:
-        result: {$ref: '#/components/schemas/SynthesisReport'}
-        audio:
-          type: object
-          required: [format, data]
-          properties:
-            format: {type: string, enum: [wav_pcm_s16le]}
-            data: {type: string, format: byte, description: WAV全体のBase64。WAVエンドポイントと同じバイト列。}
-    SynthesisReport:
-      type: object
-      required: [reading, renderer_id, duration_ms, sample_rate, channels, unit_count, phoneme_labels, diagnostics]
-      properties:
-        reading: {type: string}
-        renderer_id: {type: string}
-        duration_ms: {type: number}
-        sample_rate: {type: integer}
-        channels: {type: integer}
-        unit_count: {type: integer}
-        phoneme_labels: {type: string, description: 計画由来のHTKラベル。100 ns単位。波形の強制アライメントではない。}
-        diagnostics: {type: array, items: {$ref: '#/components/schemas/Diagnostic'}}
-    Diagnostic:
-      type: object
-      required: [message]
-      properties:
-        severity: {type: string, description: 省略される場合もある。通常info・warning・error。}
-        code: {type: string, description: Renderer診断のIDまたはmissing-phones。省略される場合もある。}
-        message: {type: string}
     Health:
       type: object
       required: [status, engine, version]

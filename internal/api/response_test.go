@@ -60,7 +60,7 @@ func TestAPIClassifiesCanceledAndExpiredRequests(t *testing.T) {
 		}
 		cancel()
 		server := mustNewServer(t, Config{VoiceDir: t.TempDir()})
-		for _, path := range []string{"/api/analyze", "/api/synthesize/audio", "/api/synthesize/label", "/api/synthesize/result", "/api/synthesize/batch"} {
+		for _, path := range []string{"/api/analyze", "/api/synthesize/audio", "/api/synthesize/label", "/api/synthesize/batch"} {
 			body := `{"text":"あ"}`
 			if strings.HasSuffix(path, "/batch") {
 				body = `{"items":[{"request":{"reading":"あ"}}]}`

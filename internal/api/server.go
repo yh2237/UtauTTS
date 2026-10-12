@@ -149,7 +149,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/voicebanks", s.handleRegisterVoicebank)
 	mux.HandleFunc("POST /api/voicebanks/reload", s.handleReloadVoicebanks)
 	mux.HandleFunc("POST /api/synthesize/audio", s.handleSynthesizeAudio)
-	mux.HandleFunc("POST /api/synthesize/result", s.handleSynthesizeResult)
 	mux.HandleFunc("POST /api/synthesize/label", s.handleSynthesizeLabel)
 	mux.HandleFunc("POST /api/synthesize/batch", s.handleSynthesizeBatch)
 	mux.HandleFunc("GET /api/models", s.handleModels)
