@@ -22,8 +22,6 @@ func writeAPIError(w http.ResponseWriter, status int, err error) {
 		status, code = http.StatusRequestTimeout, "canceled"
 	case errors.Is(err, context.DeadlineExceeded):
 		status, code = http.StatusRequestTimeout, "deadline_exceeded"
-	case errors.Is(err, errQueueTimeout):
-		status, code = http.StatusServiceUnavailable, "queue_timeout"
 	case errors.Is(err, lifecycle.ErrClosed):
 		status, code = http.StatusServiceUnavailable, "unavailable"
 	case errors.Is(err, synth.ErrUnavailable):

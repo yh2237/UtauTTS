@@ -50,16 +50,6 @@ func run() (runErr error) {
 	flag.StringVar(&config.OpenJTalkPath, "openjtalk-features", "", "path to Open JTalk feature helper")
 	flag.StringVar(&config.OpenJTalkDictionary, "openjtalk-dictionary", "", "path to Open JTalk dictionary")
 	flag.BoolVar(&config.AllowVoicebankRegistration, "allow-voicebank-registration", false, "allow registration of paths below voice-dir")
-	defaults := api.DefaultLimits()
-	flag.Int64Var(&config.Limits.MaxJSONRequestBytes, "max-json-bytes", defaults.MaxJSONRequestBytes, "maximum JSON request bytes")
-	flag.IntVar(&config.Limits.MaxTextRunes, "max-text-runes", defaults.MaxTextRunes, "maximum text/reading characters and duration/expression entries")
-	flag.IntVar(&config.Limits.MaxBatchItems, "max-batch-items", defaults.MaxBatchItems, "maximum batch utterances")
-	flag.Int64Var(&config.Limits.MaxBatchWAVBytes, "max-batch-wav-bytes", defaults.MaxBatchWAVBytes, "maximum total uncompressed WAV bytes per batch")
-	flag.IntVar(&config.Limits.MaxManualPitchPoints, "max-manual-pitch-points", defaults.MaxManualPitchPoints, "maximum manual pitch points")
-	flag.IntVar(&config.Limits.MaxConcurrentSynthesis, "max-concurrent-synthesis", defaults.MaxConcurrentSynthesis, "maximum concurrent synthesis/analysis operations")
-	flag.IntVar(&config.Limits.MaxConcurrentBatches, "max-concurrent-batches", defaults.MaxConcurrentBatches, "maximum concurrent batch operations")
-	flag.DurationVar(&config.Limits.QueueTimeout, "queue-timeout", 0, "maximum wait for each processing slot (e.g. 30s; 0 disables)")
-	flag.DurationVar(&config.Limits.SynthesisTimeout, "synthesis-timeout", 0, "analysis/synthesis timeout including queue waits; one deadline per batch (0 disables)")
 	flag.Func("renderer-dir", "renderer plugin directory (repeatable)", func(value string) error {
 		config.RendererDirectories = append(config.RendererDirectories, value)
 		return nil

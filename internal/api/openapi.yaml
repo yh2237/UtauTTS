@@ -2,15 +2,13 @@ openapi: 3.0.3
 info:
   title: UtauTTS Server HTTP API
   version: development
-  x-default-max-json-bytes: 1048576
   description: |
     現行の開発版HTTP API。アプリケーションのバージョンは /api/health で取得する。
     ローカル専用。loopbackで待ち受け、認証トークンは使わない。
     Hostはlocalhostまたはloopback IPに限定する。別サイトからのPOSTなどの操作要求はGo標準のCrossOriginProtectionで拒否する。
     ローカルの非ブラウザ呼出しにはOriginやSec-Fetch-Siteは不要。これは同じ端末のアプリ間の認証ではない。
     JSON本文は単一オブジェクト。未知の項目は400。ただしrenderer_settingsのキーは任意。
-    本文・文字数・配列・一括合成・並列数の上限は起動設定で変更でき、/api/limits が現在値を返す。
-    x-default-* は既定の運用制限で、固定のスキーマ制約ではない。
+    本文・文字数・配列・一括合成・並列数には固定の上限がある。x-default-* はその目安で、固定のスキーマ制約ではない。
     入力のdefaultはJSONデコード時の値。空・ゼロから決まる合成時の既定値は各項目の説明を参照。
     JSONスキーマだけでは音源・資源・モーラ位置などの合成時検証を表現しきれない。
     未定義パス・未対応メソッドの404・405はHTTPルーターのテキスト応答。
@@ -40,17 +38,6 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Health'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-  /api/limits:
-    get:
-      operationId: getLimits
-      summary: 適用中の運用制限
-      responses:
-        '200':
-          description: 適用値。時間はGoのduration表記で0sは無制限。
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/Limits'}
         '403': {$ref: '#/components/responses/Forbidden'}
   /api/voicebanks:
     get:
@@ -231,7 +218,7 @@ paths:
             schema: {$ref: '#/components/schemas/BatchRequest'}
       responses:
         '200':
-          description: 非圧縮WAV合計は既定256 MiB。上限は /api/limits を参照。
+          description: 非圧縮WAV合計は256 MiBまで。
           headers:
             Content-Disposition:
               schema: {type: string, example: 'attachment; filename="utautts-audio.zip"'}
@@ -275,7 +262,7 @@ components:
       description: 再読込・一時ファイル・ZIP出力等の失敗。codeはinternal_error。
       content: *errorContent
     Unavailable:
-      description: 終了済みRuntimeはunavailable、処理枠の待機期限超過はqueue_timeout。
+      description: 終了済みRuntimeはunavailable（503）。
       content: *errorContent
   schemas:
     Error:
@@ -285,7 +272,7 @@ components:
         error: {type: string, description: 既存クライアント向けの説明文字列。一括合成ではitem Nを含む。}
         code:
           type: string
-          enum: [invalid_request, limit_exceeded, unavailable, synthesis_error, canceled, deadline_exceeded, queue_timeout, forbidden, internal_error]
+          enum: [invalid_request, limit_exceeded, unavailable, synthesis_error, canceled, deadline_exceeded, forbidden, internal_error]
     SynthesisRequest:
       type: object
       additionalProperties: false
@@ -515,23 +502,6 @@ components:
       properties:
         resource: {type: string}
         message: {type: string}
-    Limits:
-      type: object
-      required: [max_json_request_bytes, max_text_runes, max_batch_items, max_batch_wav_bytes, max_manual_pitch_points, max_concurrent_synthesis, max_concurrent_batches, queue_timeout, synthesis_timeout]
-      description: |
-        時間の0sは無制限。queue_timeoutは処理枠ごと、synthesis_timeoutはJSON読込後の待機を含む解析・合成全体。
-        一括合成の発話ごとにはリセットしない。同期I/O・Runtime再読込の待機・応答書込・終了処理の強制打切りではない。
-        ネットワークの既存read timeout 30秒・write timeout 10分は別に適用される。メモリ使用量の上限ではない。
-      properties:
-        max_json_request_bytes: {type: integer, format: int64, minimum: 1, default: 1048576}
-        max_text_runes: {type: integer, minimum: 1, default: 500}
-        max_batch_items: {type: integer, minimum: 1, default: 16}
-        max_batch_wav_bytes: {type: integer, format: int64, minimum: 1, default: 268435456}
-        max_manual_pitch_points: {type: integer, minimum: 1, default: 1000}
-        max_concurrent_synthesis: {type: integer, minimum: 1, default: 4}
-        max_concurrent_batches: {type: integer, minimum: 1, default: 2}
-        queue_timeout: {type: string, default: 0s}
-        synthesis_timeout: {type: string, default: 0s}
     Analysis:
       type: object
       required: [reading, morae]

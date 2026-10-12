@@ -17,8 +17,8 @@ func writeJSON(w http.ResponseWriter, status int, data any) {
 	}
 }
 
-func (s *Server) decodeJSONBody(w http.ResponseWriter, r *http.Request, destination any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, s.effectiveLimits().MaxJSONRequestBytes)
+func decodeJSONBody(w http.ResponseWriter, r *http.Request, destination any) error {
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONRequestBytes)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(destination); err != nil {

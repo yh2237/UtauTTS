@@ -44,7 +44,6 @@ xattr -rc "utautts-server" runtime
 | Method | Path | 説明 |
 |---|---|---|
 | `GET` | `/api/health` | 稼働確認 |
-| `GET` | `/api/limits` | 適用中の運用制限 |
 | `GET` | `/api/openapi.yaml` | OpenAPI仕様（YAML） |
 | `GET` | `/api/voicebanks` | 音源一覧 |
 | `POST` | `/api/voicebanks` | 音源の登録（既定で無効） |
@@ -60,15 +59,15 @@ xattr -rc "utautts-server" runtime
 ## 共通仕様
 
 - 各API処理のエラーは`{"error":"説明","code":"分類"}`のJSONと対応するHTTPステータスで返ります。既存の`error`は文字列のままです。未定義パス・未対応メソッドの404・405はHTTPルーターの応答です。
-- JSON本文は既定で1 MiBまでです。未知のJSON fieldは入力ミスとして拒否されます（400）。
+- JSON本文は1 MiBまでです。未知のJSON fieldは入力ミスとして拒否されます（400）。
 - ボディは単一のJSONオブジェクトでなければなりません。
-- 1発話の`text`と有効な読み（`reading`、無ければ`kana`）は既定でそれぞれ500文字までです（413）。
-- `manual_pitch`のpointsは既定で最大1000個です（413）。
-- `mora_durations_ms`と`resampler_expressions`は既定で最大500要素です（413）。
-- batchは既定で16発話、非圧縮WAV合計256 MiBまでです（413）。
-- 合成・読み解析は既定で合計4並行、batchはさらに最大2並行です。超過分は空きを待ちます。待機順の保証はありません。
+- 1発話の`text`と有効な読み（`reading`、無ければ`kana`）はそれぞれ500文字までです（413）。
+- `manual_pitch`のpointsは最大1000個です（413）。
+- `mora_durations_ms`と`resampler_expressions`は最大500要素です（413）。
+- batchは16発話、非圧縮WAV合計256 MiBまでです（413）。
+- 合成と読み解析は合計4並行、batchはさらに最大2並行です。超過分は空きを待ちます。待機順の保証はありません。
 
-これらの上限は[起動オプション](#起動オプション)で変更でき、適用中の値は`/api/limits`で取得できます。
+これらの上限は固定です。必要なら呼出し側で要求を分けてください。
 
 ### OpenAPI
 
@@ -78,7 +77,7 @@ xattr -rc "utautts-server" runtime
 curl http://127.0.0.1:8080/api/openapi.yaml -o openapi.yaml
 ```
 
-仕様の`info.version`は`development`で、アプリケーションのバージョンは`/api/health`で取得します。上限を表す`x-default-*`は既定の運用設定です。固定の`maxLength`・`maxItems`制約にはせず、現在の上限は`/api/limits`を参照します。
+仕様の`info.version`は`development`で、アプリケーションのバージョンは`/api/health`で取得します。上限を表す`x-default-*`は目安で、固定の`maxLength`・`maxItems`制約ではありません。実際の上限は[共通仕様](#共通仕様)のとおりです。
 
 入力の`default`はJSONデコード時の値です。合成時に空・ゼロから補う値とは区別しています。例えば`tone`の空文字は合成時にC4となり、`release_set`が偽なら`release_ms`のデコード値0を使わず既定の20 msになります。通常入力・編集・互換入力を同じ要求スキーマに含め、任意の`renderer_settings`も受け取ります。
 
@@ -101,7 +100,6 @@ UIとAPIの`Host`も`localhost`かloopback IPに限定します。別サイト�
 | `unavailable` | 音源・モデル・Renderer等の不足（従来どおり400）、終了済みRuntime（503） |
 | `synthesis_error` | 読み解析・合成の失敗（422） |
 | `canceled`・`deadline_exceeded` | 要求のキャンセル・期限切れ（408） |
-| `queue_timeout` | 処理枠の待機時間超過（503） |
 | `forbidden` | 非ローカルのHost、別サイトからのブラウザ操作、登録許可のエラー（403） |
 | `internal_error` | 再読込・一時ファイル・ZIP出力などの内部エラー（500） |
 
@@ -116,28 +114,6 @@ UIとAPIの`Host`も`localhost`かloopback IPに限定します。別サイト�
 ```
 
 `engine`には既定RendererのID、`version`にはサーバーのバージョンが入ります。これは稼働確認で、合成資源がなくても200を返します。既定Rendererの資源の利用可否は`/api/renderers`、音源の登録状況は`/api/voicebanks`で確認できます。
-
-### `GET /api/limits`
-
-適用中の制限を返します。バイト数・件数・並列数は整数、時間は`30s`などの文字列です。
-
-```json
-{
-  "max_json_request_bytes": 1048576,
-  "max_text_runes": 500,
-  "max_batch_items": 16,
-  "max_batch_wav_bytes": 268435456,
-  "max_manual_pitch_points": 1000,
-  "max_concurrent_synthesis": 4,
-  "max_concurrent_batches": 2,
-  "queue_timeout": "0s",
-  "synthesis_timeout": "0s"
-}
-```
-
-`queue_timeout`は処理枠ごとの最大待機時間です。`synthesis_timeout`は要求のJSON読込後の解析・合成に適用し、処理枠の待機時間も含みます。一括合成では全発話を通して一つの期限を使い、発話ごとにはリセットしません。時間の`0s`は制限なしです。
-
-期限切れ後も要求と資源の終了を待ちます。本文読込や同期I/O、Runtime再読込の待機、応答書込を強制的に打ち切る設定ではありません。ネットワーク側には既存のread timeout 30秒・write timeout 10分が別途適用されます。並列数やWAV合計の制限はプロセスのメモリ使用量の上限を保証しません。
 
 ### `GET /api/voicebanks`
 
@@ -431,19 +407,3 @@ ID順にソートされた音源一覧です。
 - `--allow-voicebank-registration`: `POST /api/voicebanks` による音源パス登録を許可する（登録先は`--voice-dir`以下に制限）
 - `--worldline-bridge`: worldline bridge実行ファイルを明示する
 - `--openjtalk-features` / `--openjtalk-dictionary`: 自動検出を使わずhelperまたは辞書を明示する開発用オプション
-
-### 運用制限
-
-| オプション | 既定値 | 対象 |
-| --- | --- | --- |
-| `--max-json-bytes` | `1048576` | JSON本文のバイト数 |
-| `--max-text-runes` | `500` | 文章・有効な読みの文字数、モーラ長・resampler編集の要素数 |
-| `--max-batch-items` | `16` | 一括合成の発話数 |
-| `--max-batch-wav-bytes` | `268435456` | 一括合成の非圧縮WAV合計バイト数 |
-| `--max-manual-pitch-points` | `1000` | 手動ピッチのpoints数 |
-| `--max-concurrent-synthesis` | `4` | 合成・解析の合計並列数 |
-| `--max-concurrent-batches` | `2` | 一括合成の並列数 |
-| `--queue-timeout` | `0` | 処理枠ごとの待機時間。例: `30s` |
-| `--synthesis-timeout` | `0` | 解析・合成要求全体の期限。待機を含む。例: `2m` |
-
-サイズ・件数・並列数の`0`は既定値を使い、時間の`0`は無制限です。負の値は起動時に拒否します。

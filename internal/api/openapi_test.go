@@ -38,10 +38,7 @@ type specSchema struct {
 
 type specDocument struct {
 	OpenAPI string `yaml:"openapi"`
-	Info    struct {
-		MaxJSONBytes int64 `yaml:"x-default-max-json-bytes"`
-	} `yaml:"info"`
-	Paths map[string]map[string]struct {
+	Paths   map[string]map[string]struct {
 		OperationID string `yaml:"operationId"`
 	} `yaml:"paths"`
 	Components struct {
@@ -241,54 +238,41 @@ func schemaKind(typ reflect.Type) string {
 	}
 }
 
-func TestOpenAPIDefaultsMatchDecodedRequestsAndLimits(t *testing.T) {
+func TestOpenAPIDefaultsMatchDecodedRequests(t *testing.T) {
 	doc := readSpec(t)
 	var request SynthesisRequest
 	if err := json.Unmarshal([]byte(`{}`), &request); err != nil {
 		t.Fatal(err)
 	}
-	assertDefaults := func(name string, value any) {
-		t.Helper()
-		encoded, err := json.Marshal(value)
+	encoded, err := json.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var values map[string]any
+	if err := json.Unmarshal(encoded, &values); err != nil {
+		t.Fatal(err)
+	}
+	for field, property := range doc.Components.Schemas["SynthesisRequest"].Properties {
+		if property.Default == nil {
+			if property.Type == "string" || property.Type == "number" || property.Type == "integer" || property.Type == "boolean" {
+				t.Errorf("missing scalar default: %s", field)
+			}
+			continue
+		}
+		defaultJSON, err := json.Marshal(property.Default)
 		if err != nil {
 			t.Fatal(err)
 		}
-		var values map[string]any
-		if err := json.Unmarshal(encoded, &values); err != nil {
+		var expected any
+		if err := json.Unmarshal(defaultJSON, &expected); err != nil {
 			t.Fatal(err)
 		}
-		for field, property := range doc.Components.Schemas[name].Properties {
-			if property.Default == nil {
-				if name == "SynthesisRequest" && (property.Type == "string" || property.Type == "number" || property.Type == "integer" || property.Type == "boolean") {
-					t.Errorf("missing scalar default: %s.%s", name, field)
-				}
-				continue
-			}
-			defaultJSON, err := json.Marshal(property.Default)
-			if err != nil {
-				t.Fatal(err)
-			}
-			var expected any
-			if err := json.Unmarshal(defaultJSON, &expected); err != nil {
-				t.Fatal(err)
-			}
-			if !reflect.DeepEqual(values[field], expected) {
-				t.Errorf("%s.%s: decoded=%#v schema default=%#v", name, field, values[field], expected)
-			}
+		if !reflect.DeepEqual(values[field], expected) {
+			t.Errorf("%s: decoded=%#v schema default=%#v", field, values[field], expected)
 		}
 	}
-	assertDefaults("SynthesisRequest", request)
-	limits := DefaultLimits()
-	assertDefaults("Limits", struct {
-		Limits
-		QueueTimeout     string `json:"queue_timeout"`
-		SynthesisTimeout string `json:"synthesis_timeout"`
-	}{limits, limits.QueueTimeout.String(), limits.SynthesisTimeout.String()})
-	if doc.Info.MaxJSONBytes != limits.MaxJSONRequestBytes {
-		t.Errorf("default request bytes: spec=%d runtime=%d", doc.Info.MaxJSONBytes, limits.MaxJSONRequestBytes)
-	}
 	for _, field := range []string{"text", "reading", "kana"} {
-		if doc.Components.Schemas["SynthesisRequest"].Properties[field].MaxLength != limits.MaxTextRunes {
+		if doc.Components.Schemas["SynthesisRequest"].Properties[field].MaxLength != maxTextRunes {
 			t.Errorf("default max length differs: %s", field)
 		}
 	}
@@ -296,10 +280,10 @@ func TestOpenAPIDefaultsMatchDecodedRequestsAndLimits(t *testing.T) {
 		schema, field string
 		limit         int
 	}{
-		{"SynthesisRequest", "mora_durations_ms", limits.MaxTextRunes},
-		{"SynthesisRequest", "resampler_expressions", limits.MaxTextRunes},
-		{"ManualPitch", "points", limits.MaxManualPitchPoints},
-		{"BatchRequest", "items", limits.MaxBatchItems},
+		{"SynthesisRequest", "mora_durations_ms", maxTextRunes},
+		{"SynthesisRequest", "resampler_expressions", maxTextRunes},
+		{"ManualPitch", "points", maxManualPitchPoints},
+		{"BatchRequest", "items", maxBatchItems},
 	} {
 		if doc.Components.Schemas[check.schema].Properties[check.field].MaxItems != check.limit {
 			t.Errorf("default max items differs: %s.%s", check.schema, check.field)
