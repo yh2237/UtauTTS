@@ -61,13 +61,13 @@ Windowsの標準ビルドは`Full`プロファイルです。作成済みの日�
 
 ## 更新経路とリリースメタデータ
 
-`appinfo.json`の`version`がタグと一致し、`update_schema`・`migration_schema`・`install_layout`が前回から後退していないことを確認します。比較には前バージョンの各値も渡してください。次はv1.5.0からv1.5.1への更新の例です。
+`appinfo.json`の`version`がタグと一致し、`update_schema`・`migration_schema`・`install_layout`が前回から後退していないことを確認します。比較には前バージョンの各値も渡してください。次はv1.5.1からv1.5.2への更新の例です。
 
 ```powershell
-$expected = 'v1.5.1'  # 作成するタグへ置き換える
+$expected = 'v1.5.2'  # 作成するタグへ置き換える
 .\tools\check-release.ps1 `
   -ExpectedVersion $expected `
-  -PreviousVersion v1.5.0 `
+  -PreviousVersion v1.5.1 `
   -PreviousUpdateSchema 1 `
   -PreviousInstallLayout 2 `
   -PreviousMigrationSchema 1
@@ -80,7 +80,7 @@ Windows版の更新互換性はGitHub Actionsの`Windows package`で確認しま
 互換性検査では、公開済みの更新元ZIPに含まれる旧アップデーターを使って候補ZIPを導入します。設定、音源、Resampler、Wavtool、ユーザー追加Rendererが保持されること、旧ファイルが残らないこと、実行ファイルが候補版へ置き換わること、更新後のCLIとGUIが起動できることを確認します。現行アップデーターの単体テストでは、Windowsでインストールフォルダが使用中の場合の更新と、失敗時の復旧も確認します。作成済みの候補ZIPをローカルで確認する場合は次を実行します。
 
 ```powershell
-.\tools\test-update-compatibility.ps1 -PreviousVersion v1.5.0
+.\tools\test-update-compatibility.ps1 -PreviousVersion v1.5.1
 ```
 
 GUIでは読み上げ言語を選べることを確認します。右側の設定メニューで発音形式と合成方式を変更できることも確認します。設定画面の「プレリリース版も確認する」は、更新候補にプレリリース版を含めるかを切り替えます。同じ数値バージョンの安定版とプレリリース版がある場合は安定版を選びます。
