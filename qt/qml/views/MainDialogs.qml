@@ -47,10 +47,12 @@ Item {
 
     FileDialog {
         id: voicebankAddDialog
+        objectName: "voicebankAddDialog"
         title: host.translator.tr("menu.file.addVoicebank")
         fileMode: FileDialog.OpenFiles
         nameFilters: [host.translator.tr("main.zipFilter")]
-        onAccepted: host.appBackend.installVoicebankArchives(selectedFiles)
+        // QtのURLリストを通常の配列に変換し、C++側のQVariantの二重化を避ける。
+        onAccepted: host.appBackend.installVoicebankArchives(Array.from(selectedFiles))
     }
 
     Dialog {

@@ -164,6 +164,35 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     if (!require(temporary.isValid(), QStringLiteral("temporary directory is unavailable")))
         return 1;
 
+    // 実際のFileDialogから渡したURLが、ZIPを開く処理まで届くことを確認する。
+    QObject *voicebankDialog = rootObject->findChild<QObject *>(QStringLiteral("voicebankAddDialog"));
+    QFile invalidArchive(temporary.filePath(QStringLiteral("invalid-voicebank.zip")));
+    if (!require(voicebankDialog && invalidArchive.open(QIODevice::WriteOnly),
+                 QStringLiteral("voicebank dialog test could not be prepared")))
+        return 1;
+    invalidArchive.write("not a zip");
+    invalidArchive.close();
+    if (!require(voicebankDialog->setProperty("selectedFile", QUrl::fromLocalFile(invalidArchive.fileName()))
+                 && QMetaObject::invokeMethod(voicebankDialog, "accepted")
+                 && backend.busy(),
+                 QStringLiteral("selected voicebank archive did not reach the backend: ") + backend.error()))
+        return 1;
+    {
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        QObject::connect(&backend, &Backend::busyChanged, &loop, [&] {
+            if (!backend.busy())
+                loop.quit();
+        });
+        QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        timer.start(asyncTimeoutMS);
+        loop.exec();
+    }
+    if (!require(!backend.busy() && backend.error().startsWith(QStringLiteral("open voicebank archive:")),
+                 QStringLiteral("voicebank archive error was not returned: ") + backend.error()))
+        return 1;
+
     const QString voicebankID = firstID(backend.voicebanks());
     const QVariantMap model = backend.models().first().toMap();
     const QString modelID = model.value(QStringLiteral("id")).toString();
