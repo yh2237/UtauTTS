@@ -182,6 +182,7 @@ function checkFrameEditing(editorContent) {
     const editor = component.createObject(editorContent, {
         visible: false, translator: editorContent.phonemeEditor.translator,
         timingEditor: editorContent.pitchEditor,
+        width: 800, height: 300,
         leadingMargin: 20, frameMs: 10, waveformDuration: 1000,
         moraPositions: [0, 100, 300], moraDurations: [50, 50, 50],
         units: [{position: 2, render_start_ms: 330}, {position: 0, render_start_ms: 0},
@@ -193,6 +194,19 @@ function checkFrameEditing(editorContent) {
         if (Math.abs(editor.timeToX(120) - editor.timeToX(0)
                 - 120 * editorContent.pitchEditor.durationScale) > 0.001)
             return "拡張編集の初期倍率が基本編集と一致しません";
+        editor.waveformDuration = 6000;
+        const initialSpan = editor.timeToX(120) - editor.timeToX(0);
+        const anchorTime = editor.xToScrollTime(240);
+        for (let step = 0; step < 8; ++step)
+            editor.zoomAt(1.25, 240);
+        if (Math.abs((editor.timeToX(120) - editor.timeToX(0))
+                     / initialSpan - Math.pow(1.25, 8)) > 1e-8
+                || Math.abs(editor.xToScrollTime(240) - anchorTime) > 0.001)
+            return "連続ズームの倍率またはカーソル下の時刻がずれました";
+        for (let step = 0; step < 8; ++step)
+            editor.zoomAt(0.8, 240);
+        if (Math.abs(editor.timeToX(120) - editor.timeToX(0) - initialSpan) > 0.001)
+            return "拡大縮小で元の倍率に戻りません";
         editor.setFrameRange(0, 40, 100);
         const first = editor.manualFrames;
         if (first[0] !== 100 || first[5] !== 100 || first[6] !== 0

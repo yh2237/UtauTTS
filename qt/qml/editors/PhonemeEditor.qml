@@ -39,9 +39,6 @@ Item {
     readonly property real noteLaneTop: 20
     readonly property real noteLaneH: 110
     readonly property real exprTop: 156
-    Behavior on zoomFactor {
-        NumberAnimation { duration: 120 }
-    }
     property bool snapEnabled: true
     property real currentScrollX: 0
     property var timingEditor: null
@@ -547,6 +544,7 @@ Item {
     }
 
     function zoomAt(factor, anchorX) {
+        timelineScrollAnimation.stop();
         const next = Math.max(root.minimumZoom,
                               Math.min(root.maximumZoom, root.zoomFactor * factor));
         if (next === root.zoomFactor)
@@ -563,6 +561,7 @@ Item {
     }
 
     onFitRequested: {
+        timelineScrollAnimation.stop();
         root.zoomFactor = root.fitZoom;
         timelineViewport.contentX = 0;
     }
@@ -1383,15 +1382,13 @@ Item {
             WheelHandler {
                 acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                 onWheel: event => {
+                    const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x;
                     if ((event.modifiers & Qt.ControlModifier) !== 0) {
-                        const anchor = timelineMouse.lastPX >= 0
-                                ? timelineMouse.lastPX - timelineViewport.contentX
-                                : timelineViewport.width / 2;
-                        root.zoomAt(event.angleDelta.y > 0 ? root.msPerZoomStep
-                                                           : 1 / root.msPerZoomStep,
-                                Math.max(0, Math.min(timelineViewport.width, anchor)));
+                        const anchor = waveformFrame.mapToItem(timelineViewport, event.x, event.y).x;
+                        if (delta !== 0)
+                            root.zoomAt(Math.pow(root.msPerZoomStep, delta / 120),
+                                    Math.max(0, Math.min(timelineViewport.width, anchor)));
                     } else {
-                        const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x;
                         const maximum = Math.max(0, timelineViewport.contentWidth - timelineViewport.width);
                         timelineScrollAnimation.stop();
                         timelineScrollAnimation.from = timelineViewport.contentX;
@@ -1660,6 +1657,8 @@ Item {
         }
     }
 
+    onZoomFactorChanged: waveformCanvas.requestPaint()
+    onPixelsPerMsChanged: waveformCanvas.requestPaint()
     onWaveformMinChanged: waveformCanvas.requestPaint()
     onWaveformMaxChanged: waveformCanvas.requestPaint()
     onLeadingMarginChanged: waveformCanvas.requestPaint()
