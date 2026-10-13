@@ -33,6 +33,9 @@ function run(ctx) {
     error = checkFrameEditing(ctx.editorContent);
     if (error.length)
         return error;
+    error = checkNoteEditScroll(ctx.editorContent);
+    if (error.length)
+        return error;
     error = check(host.current().phonemizer === "auto"
                   && host.buildSynthesisRequest(host.current()).phonemizer !== "auto",
                   "normal GUI defaults are incorrect");
@@ -173,6 +176,67 @@ function run(ctx) {
     host.addUtterance(false);
     host.resetHistory(false);
     return error;
+}
+
+function checkNoteEditScroll(editorContent) {
+    const pitchComponent = Qt.createComponent("editors/PitchEditor.qml");
+    const component = Qt.createComponent("editors/PhonemeEditor.qml");
+    if (pitchComponent.status !== Component.Ready)
+        return pitchComponent.errorString();
+    if (component.status !== Component.Ready)
+        return component.errorString();
+    const morae = [], points = [], durations = [], positions = [];
+    for (let i = 0; i < 20; ++i) {
+        morae.push({mora: "か", pause: false});
+        points.push(0);
+        durations.push(120);
+        positions.push(i * 120);
+    }
+    const pitch = pitchComponent.createObject(editorContent, {
+        visible: false, width: 800, height: 300,
+        morae: morae, points: points, autoPoints: points,
+        moraDurations: durations, moraPositions: positions
+    });
+    if (!pitch)
+        return "スクロールテスト用のピッチエディターを作れません";
+    const editor = component.createObject(editorContent, {
+        visible: false, translator: editorContent.phonemeEditor.translator,
+        timingEditor: pitch, width: 800, height: 300
+    });
+    if (!editor) {
+        pitch.destroy();
+        return "スクロールテスト用の拡張エディターを作れません";
+    }
+    let error = "";
+    editor.noteGestureEdited.connect(function() {
+        editor.waveformDuration = 0;
+        if (editor.timelineDuration <= 0)
+            error = "波形の無効化でドラッグ中の表示時間がゼロになりました";
+    });
+    try {
+        editor.zoomAt(2, 240);
+        const scroll = editor.currentScrollX;
+        if (scroll <= 0)
+            return "スクロールテストで表示位置を移動できません";
+        for (const mode of ["pitch", "timing", "both", "cancel"]) {
+            editor.waveformDuration = editor.contentDuration;
+            const x = editor.timeToX(pitch.positionAt(5));
+            const y = editor.noteY(5);
+            editor.beginNoteDrag(5, x, y, false, mode);
+            editor.previewDrag(x + 10, y - 10, 0);
+            if (mode === "cancel")
+                editor.waveformDuration = 0;
+            editor.finishNoteDrag(mode === "cancel");
+            if (error.length)
+                return error;
+            if (Math.abs(editor.currentScrollX - scroll) > 0.001 || editor.zoomFactor !== 2)
+                return "ノート編集でスクロール位置または倍率が変わりました: " + mode;
+        }
+        return "";
+    } finally {
+        editor.destroy();
+        pitch.destroy();
+    }
 }
 
 function checkFrameEditing(editorContent) {

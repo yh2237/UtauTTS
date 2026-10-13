@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import UtauTTS.Platform 1.0
+import "../controls"
 import "../EditorValues.js" as EditorValues
 
 Item {
@@ -226,7 +227,6 @@ Item {
     signal moraDurationEdited(int position, real durationMs)
     signal noteGestureEdited(var durations, var positions, var points)
     signal resetUnitRequested(int unitIndex)
-    signal fitRequested()
 
     readonly property real fitZoom: Math.max(1, timelineViewport.width - root.sidePadding * 2)
             / Math.max(1, root.timelineDuration * root.pixelsPerMs)
@@ -558,12 +558,6 @@ Item {
 
     function xToScrollTime(anchorX) {
         return root.xToTime(root.currentScrollX + anchorX);
-    }
-
-    onFitRequested: {
-        timelineScrollAnimation.stop();
-        root.zoomFactor = root.fitZoom;
-        timelineViewport.contentX = 0;
     }
 
     function beginDrag(position, mode, x, y, following) {
@@ -1294,7 +1288,6 @@ Item {
                         root.unitValueEdited(e.u, e.key, root.paramRange(e.key).def);
                         return;
                     }
-                    root.fitRequested();
                 }
 }
 
@@ -1681,10 +1674,7 @@ Item {
     onWaveformMinChanged: waveformCanvas.requestPaint()
     onWaveformMaxChanged: waveformCanvas.requestPaint()
     onLeadingMarginChanged: waveformCanvas.requestPaint()
-    onWaveformDurationChanged: {
-        root.gestureDuration = 0;
-        waveformCanvas.requestPaint();
-    }
+    onWaveformDurationChanged: waveformCanvas.requestPaint()
     onMoraPositionsChanged: {
         waveformCanvas.requestPaint();        
         scheduleSelectedFieldRefresh();

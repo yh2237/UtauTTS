@@ -166,6 +166,17 @@ test("Worker waits for candidate prefetch before synthesis and still mirrors out
   assert.equal(result.files[0].path, "/tmp/output.wav");
 });
 
+test("extended editor double-click resets notes and expressions without fitting empty space", () => {
+  const editor = source("qt/qml/editors/PhonemeEditor.qml");
+  const start = editor.indexOf("onDoubleClicked: mouse => {");
+  const handler = editor.slice(start, editor.indexOf("\n            Timer {", start));
+  assert.ok(start >= 0);
+  assert.match(handler, /root\.timingEditor\.resetPitchAt\(n\.pos\)/);
+  assert.match(handler, /root\.unitValueEdited\(e\.u, e\.key, root\.paramRange\(e\.key\)\.def\)/);
+  assert.doesNotMatch(editor, /fitRequested/);
+  assert.doesNotMatch(handler, /zoomFactor\s*=|contentX\s*=/);
+});
+
 test("shared overrides preserve unit identity, merge parameters and remove without holes", () => {
   const context = vm.createContext({});
   vm.runInContext(source("qt/qml/UnitOverrides.js"), context);
