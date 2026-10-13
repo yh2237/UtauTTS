@@ -22,6 +22,12 @@ type preparedWorldUnit struct {
 	cached cachedWorldUnit
 }
 
+type worldMixUnit struct {
+	speech  worldSpeechMap
+	retimed bool
+	gain    float64
+}
+
 type worldAnalysisJob struct {
 	key     string
 	item    unit
@@ -263,6 +269,12 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 		Spectrum: make([]float64, frames*bins), Aperiodicity: make([]float64, frames*bins),
 	}
 	dirty := make([]bool, frames)
+	mixUnits := make([]worldMixUnit, len(input.Units))
+	for index, item := range input.Units {
+		mapping, ok := worldSpeechAnchors(item, prepared[index].cached.duration)
+		mixUnits[index] = worldMixUnit{speech: mapping, retimed: ok, gain: worldUnitAmplitudeGain(item)}
+	}
+	frameOffsets, frameUnits := worldFrameUnits(input)
 	frameWorkers := workers
 	if frames*bins < 32768 {
 		frameWorkers = 1
@@ -275,7 +287,8 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 			result.Spectrum[frameOffset+bin] = 1e-12
 			result.Aperiodicity[frameOffset+bin] = 0
 		}
-		for unitIndex, item := range input.Units {
+		for _, unitIndex := range frameUnits[frameOffsets[frame]:frameOffsets[frame+1]] {
+			item := input.Units[unitIndex]
 			entry := prepared[unitIndex].cached
 			timeMS := float64(frame) * worldFramePeriodMS
 			localMS := timeMS - item.PositionMS
@@ -289,8 +302,9 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 			if !item.LegacyMix {
 				normalizeOverlap = true
 			}
-			volumeGain := worldUnitAmplitudeGain(item)
-			sourceMS := mapWorldFeatureTime(item, entry, localMS)
+			mix := mixUnits[unitIndex]
+			volumeGain := mix.gain
+			sourceMS := mapWorldFeatureTimePrepared(item, entry, localMS, mix.speech, mix.retimed)
 			sourceFrame := sourceMS / worldFramePeriodMS
 			left := min(max(0, int(math.Floor(sourceFrame))), entry.features.Frames-1)
 			right := min(left+1, entry.features.Frames-1)
@@ -343,6 +357,41 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 	return result
 }
 
+// 重なりの加算順は元のunit順を保つ。
+func worldFrameUnits(input manifest) ([]int, []int) {
+	frames := len(input.F0Curve)
+	type interval struct{ start, end int }
+	ranges := make([]interval, len(input.Units))
+	counts := make([]int, frames)
+	for index, item := range input.Units {
+		start, end := 0, frames
+		if !math.IsNaN(item.PositionMS) && !math.IsInf(item.PositionMS, 0) {
+			start = int(math.Max(0, math.Min(float64(frames), math.Ceil(item.PositionMS/worldFramePeriodMS)-1)))
+			lastMS := item.PositionMS + item.LengthMS
+			if !math.IsNaN(lastMS) && !math.IsInf(lastMS, 0) {
+				end = int(math.Max(0, math.Min(float64(frames), math.Floor(lastMS/worldFramePeriodMS)+2)))
+			}
+		}
+		ranges[index] = interval{start, end}
+		for frame := start; frame < end; frame++ {
+			counts[frame]++
+		}
+	}
+	offsets := make([]int, frames+1)
+	for frame, count := range counts {
+		offsets[frame+1] = offsets[frame] + count
+		counts[frame] = offsets[frame]
+	}
+	units := make([]int, offsets[frames])
+	for index, span := range ranges {
+		for frame := span.start; frame < span.end; frame++ {
+			units[counts[frame]] = index
+			counts[frame]++
+		}
+	}
+	return offsets, units
+}
+
 // WORLDのパワースペクトルへ波形版と同じ音量係数を適用する。
 func worldUnitAmplitudeGain(item unit) float64 {
 	volume := item.Volume
@@ -362,11 +411,16 @@ func worldUnitAmplitudeGain(item unit) float64 {
 
 // 時間写像がある場合は、その中で補正済みのoffset端数を再加算しない。
 func mapWorldFeatureTime(item unit, entry cachedWorldUnit, localMS float64) float64 {
-	sourceMS := mapWorldSourceTime(item, entry.duration, localMS)
+	mapping, ok := worldSpeechAnchors(item, entry.duration)
+	return mapWorldFeatureTimePrepared(item, entry, localMS, mapping, ok)
+}
+
+func mapWorldFeatureTimePrepared(item unit, entry cachedWorldUnit, localMS float64, mapping worldSpeechMap, retimed bool) float64 {
+	sourceMS := mapWorldSourceTimePrepared(item, entry.duration, localMS, mapping, retimed)
 	if item.LegacyMix || entry.sourceShiftMS == 0 {
 		return sourceMS
 	}
-	if _, ok := worldSpeechAnchors(item, entry.duration); !ok {
+	if !retimed {
 		sourceMS += entry.sourceShiftMS
 	}
 	return sourceMS
@@ -481,9 +535,14 @@ func worldAutoGain(segment, source, f0 []float64) float64 {
 }
 
 func mapWorldSourceTime(item unit, sourceDuration, localMS float64) float64 {
+	mapping, ok := worldSpeechAnchors(item, sourceDuration)
+	return mapWorldSourceTimePrepared(item, sourceDuration, localMS, mapping, ok)
+}
+
+func mapWorldSourceTimePrepared(item unit, sourceDuration, localMS float64, mapping worldSpeechMap, retimed bool) float64 {
 	destinationMS := math.Max(0, item.SkipMS+localMS)
-	if anchors, ok := worldSpeechAnchors(item, sourceDuration); ok {
-		return anchors.sourceTime(destinationMS)
+	if retimed {
+		return mapping.sourceTime(destinationMS)
 	}
 	consonantSpeed := math.Pow(0.5, 1-item.ConsonantVelocity/100)
 	sourceConsonant := min(math.Max(0, item.ConsonantMS), sourceDuration)
