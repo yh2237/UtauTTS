@@ -58,8 +58,12 @@ func Warp(model Predictor, timeline Timeline, input Features, strength float64) 
 	}
 	source := logMel(input.Spectrum, frames, input.FFTSize, input.SampleRate, model.Mels())
 	targetRows := make([][]float64, frames)
+	targetValues := make([]float64, frames*model.Mels())
 	for t, row := range target {
-		targetRows[t] = make([]float64, len(row))
+		if len(row) != model.Mels() {
+			return Features{}, fmt.Errorf("speech timing: inconsistent target width")
+		}
+		targetRows[t] = targetValues[t*model.Mels() : (t+1)*model.Mels()]
 		for c, value := range row {
 			targetRows[t][c] = float64(value)
 		}
@@ -197,9 +201,10 @@ func logMel(spectrum []float64, frames, fftSize, sampleRate, mels int) [][]float
 		}
 	}
 	result := make([][]float64, frames)
+	values := make([]float64, frames*mels)
 	for t := range frames {
 		row := spectrum[t*bins : (t+1)*bins]
-		result[t] = make([]float64, mels)
+		result[t] = values[t*mels : (t+1)*mels]
 		for m, filter := range filters {
 			var sum float64
 			for _, w := range filter {
@@ -457,16 +462,41 @@ func resample(input Features, positions []float64) Features {
 			voiced = append(voiced, t)
 		}
 	}
+	logRows := [2][]float64{make([]float64, bins*2), make([]float64, bins*2)}
+	rowFrames := [2]int{-1, -1}
+	load := func(frame, keep int) int {
+		for slot, cached := range rowFrames {
+			if cached == frame {
+				return slot
+			}
+		}
+		slot := 0
+		if keep == 0 {
+			slot = 1
+		}
+		rowFrames[slot] = frame
+		for bin := range bins {
+			logRows[slot][bin] = math.Log(math.Max(input.Spectrum[frame*bins+bin], 1e-16))
+			logRows[slot][bins+bin] = math.Log(math.Max(input.Aperiodicity[frame*bins+bin], 1e-16))
+		}
+		return slot
+	}
 	for t, position := range positions {
 		left := int(math.Floor(position))
 		right := min(left+1, frames-1)
 		w := position - float64(left)
-		for bin := range bins {
-			for _, pair := range [][2][]float64{{input.Spectrum, output.Spectrum}, {input.Aperiodicity, output.Aperiodicity}} {
-				a := math.Log(math.Max(pair[0][left*bins+bin], 1e-16))
-				b := math.Log(math.Max(pair[0][right*bins+bin], 1e-16))
-				pair[1][t*bins+bin] = math.Exp(a*(1-w) + b*w)
+		keep := -1
+		for slot, cached := range rowFrames {
+			if cached == right {
+				keep = slot
 			}
+		}
+		leftSlot := load(left, keep)
+		rightSlot := load(right, leftSlot)
+		a, b := logRows[leftSlot], logRows[rightSlot]
+		for bin := range bins {
+			output.Spectrum[t*bins+bin] = math.Exp(a[bin]*(1-w) + b[bin]*w)
+			output.Aperiodicity[t*bins+bin] = math.Exp(a[bins+bin]*(1-w) + b[bins+bin]*w)
 			output.Aperiodicity[t*bins+bin] = math.Min(output.Aperiodicity[t*bins+bin], 1)
 		}
 		nearest := min(max(int(math.Round(position)), 0), frames-1)

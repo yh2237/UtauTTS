@@ -28,9 +28,10 @@ func (m *TCN) F0Inputs(spans []Span, extras [][]float32, frames int) ([][3]int, 
 	silence := id("sil")
 	ids := make([][3]int, frames)
 	cont := make([][]float32, frames)
+	values := make([]float32, frames*m.f0Context)
 	for t := range ids {
 		ids[t] = [3]int{silence, silence, silence}
-		cont[t] = make([]float32, m.f0Context)
+		cont[t] = values[t*m.f0Context : (t+1)*m.f0Context]
 	}
 	for i, span := range spans {
 		a := int(math.Round(span.Start * 1000 / FrameMS))
