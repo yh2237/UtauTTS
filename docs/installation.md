@@ -2,8 +2,6 @@
 
 [GitHub Releases](https://github.com/yh2237/UtauTTS/releases)から、環境と用途に合うZIPをダウンロードします。
 
-以下は現行mainの配布構成です。公開済みv1.5.2のGUI版にはHTTP Serverを含まないため、HTTP APIを使う場合はServer専用ZIPを選んでください。
-
 | パッケージ | 用途 |
 | --- | --- |
 | `UtauTTS-win-x64.zip` | Windows x64でGUI・CLI・HTTP Server |

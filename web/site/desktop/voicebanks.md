@@ -13,7 +13,7 @@ description: デスクトップ版でUTAU音源を追加する方法と、Classi
 
 ## フォルダを置く
 
-配布フォルダの`voice`へ、音源ごとにフォルダを分けて配置します。macOSでは`utautts.app`と同じ階層です。
+配布フォルダの`voice`へ、音源ごとにフォルダを分けて配置します。
 
 ```text
 voice/

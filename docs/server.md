@@ -6,8 +6,6 @@
 
 GUI版にも同じServerを同梱しています。GUIの起動ファイルと同じ階層の`utautts-server.exe`（Linux／macOSは`utautts-server`）を起動すると、同じ配布フォルダの音源・モデル・Rendererを使えます。GUIからの自動起動はありません。以下のコマンドは配布フォルダから実行してください。
 
-GUIへの同梱は現行mainの配布構成です。公開済みv1.5.2ではServer専用ZIPを使ってください。GUIの未保存編集や`config.ini`はServerへ自動反映されません。
-
 Windows
 
 ```powershell

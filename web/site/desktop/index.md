@@ -13,9 +13,7 @@ description: デスクトップ版の入手、起動、更新
 | `UtauTTS-mac-arm64.zip` | macOS（Apple Silicon） |
 | `UtauTTS-linux-x64.zip` | Linux（x64） |
 
-現行mainのGUI配布にはCLIとHTTP Serverも含みます。Serverは配布フォルダの`utautts-server.exe`（Linux／macOSは`utautts-server`）を手動で起動します。名前に`Server`が付くZIPはGUIや初期音源を含まないServer専用版です（[UtauTTS Server](https://github.com/yh2237/UtauTTS/blob/main/docs/server.md)）。
-
-公開済みv1.5.2のGUI版にはServerを含みません。HTTP APIを使う場合はServer専用ZIPを選んでください。
+名前に`Server`が付くZIPはHTTP API向けです（[UtauTTS Server](https://github.com/yh2237/UtauTTS/blob/main/docs/server.md)）。
 
 展開したフォルダ内の構成は変更しないでください。
 
