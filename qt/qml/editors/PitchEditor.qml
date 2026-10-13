@@ -427,14 +427,17 @@ Item {
 
             Canvas {
                 id: canvas
-                anchors.fill: parent
-                anchors.bottomMargin: 64
+                objectName: "pitchCanvas"
+                x: viewport.contentX
+                width: viewport.width
+                height: Math.max(0, viewport.height - 64)
                 onWidthChanged: requestPaint()
                 onHeightChanged: requestPaint()
                 onPaint: {
                     const ctx = getContext("2d");
                     ctx.reset();
                     ctx.clearRect(0, 0, width, height);
+                    ctx.translate(-x, 0);
                     const center = height / 2;
                     const scale = root.pitchScale(height);
                     const viewLeft = viewport.contentX - 40;
@@ -445,7 +448,7 @@ Item {
                         ctx.setLineDash(cents === 0 ? [] : [4, 5]);
                         ctx.beginPath();
                         ctx.moveTo(Math.max(0, viewLeft), center - cents * scale);
-                        ctx.lineTo(Math.min(width, viewRight), center - cents * scale);
+                        ctx.lineTo(Math.min(graph.width, viewRight), center - cents * scale);
                         ctx.stroke();
                     }
                     ctx.setLineDash([]);
@@ -659,7 +662,7 @@ Item {
                             }
                         }
                         onPressed: mouse => {
-                            const canvasPoint = mapToItem(canvas, mouse.x, mouse.y);
+                            const canvasPoint = mapToItem(graph, mouse.x, mouse.y);
                             if (root.hoverPointForStrip(index, canvasPoint.x, canvasPoint.y) === index) {
                                 mouse.accepted = false;
                                 return;
@@ -676,7 +679,7 @@ Item {
                             if (!pressed) {
                                 root.hoveredStrip = index;
                                 root.syncHoverModifiers(mouse.modifiers);
-                                const canvasPoint = mapToItem(canvas, mouse.x, mouse.y);
+                                const canvasPoint = mapToItem(graph, mouse.x, mouse.y);
                                 root.hoveredPoint = root.hoverPointForStrip(
                                         index, canvasPoint.x, canvasPoint.y);
                                 canvas.requestPaint();
@@ -772,7 +775,8 @@ Item {
             }
 
             Item {
-                anchors.fill: canvas
+                width: graph.width
+                height: canvas.height
                 // 点の周囲だけ前面に置き、線と背景の操作を遮らない。
                 z: 3
 
@@ -818,7 +822,7 @@ Item {
                         }
 
                         function updatePitch(mouse) {
-                            const point = mapToItem(canvas, mouse.x, mouse.y);
+                            const point = mapToItem(graph, mouse.x, mouse.y);
                             root.hoveredPoint = index;
                             root.updatePitchAt(index, point.y);
                             root.showHud(point.x + 14, point.y - 40, root.pitchTextAt(index));

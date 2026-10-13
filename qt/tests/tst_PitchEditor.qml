@@ -83,4 +83,29 @@ TestCase {
         compare(edits.count, 0);
         compare(timingEdits.count, 0);
     }
+
+    function test_longCanvasStaysViewportSized() {
+        const morae = [], points = [], durations = [], positions = [];
+        for (let i = 0; i < 500; ++i) {
+            morae.push({mora: "か", pause: false});
+            points.push(0);
+            durations.push(120);
+            positions.push(i * 120);
+        }
+        editor.morae = morae;
+        editor.points = points;
+        editor.autoPoints = points;
+        editor.moraDurations = durations;
+        editor.moraPositions = positions;
+        waitForRendering(editor);
+        const canvas = findChild(editor, "pitchCanvas");
+        verify(canvas !== null);
+        compare(canvas.width, editor.width);
+        editor.horizontalOffset = editor.pointX(300) - 250;
+        waitForRendering(editor);
+        compare(canvas.x, editor.horizontalOffset);
+        mouseDrag(editor, editor.pointX(300) - editor.horizontalOffset, editor.pointY(300), 0, -30);
+        verify(editor.points[300] > 0);
+        compare(editor.points[0], 0);
+    }
 }

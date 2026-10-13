@@ -1011,24 +1011,6 @@ Item {
                     }
                     ctx.lineWidth = 1;
                     ctx.globalAlpha = 1;
-                    if (root.playbackMs >= 0 && root.playbackMs <= root.timelineDuration) {
-                        const px = root.timeToX(root.playbackMs);
-                        if (inView(px)) {
-                            ctx.strokeStyle = root.accentColor;
-                            ctx.lineWidth = 2;
-                            ctx.beginPath();
-                            ctx.moveTo(px, 0);
-                            ctx.lineTo(px, height);
-                            ctx.stroke();
-                            ctx.fillStyle = root.accentColor;
-                            ctx.beginPath();
-                            ctx.moveTo(px - 5, 0);
-                            ctx.lineTo(px + 5, 0);
-                            ctx.lineTo(px, 8);
-                            ctx.closePath();
-                            ctx.fill();
-                        }
-                    }
                     for (let ui = 0; ui < root.units.length; ++ui) {
                         if (!root.overrideAt(ui))
                             continue;
@@ -1379,6 +1361,43 @@ Item {
                 z: 10
             }
             }
+            Item {
+                objectName: "playbackCursor"
+                x: 1 + root.timeToX(root.playbackMs) - timelineViewport.contentX
+                y: 1
+                height: timelineViewport.height
+                visible: root.playbackMs >= 0 && root.playbackMs <= root.timelineDuration
+                         && x >= 1 && x <= waveformFrame.width - 1
+                z: 3
+
+                Rectangle {
+                    x: -1
+                    width: 2
+                    height: parent.height
+                    color: root.accentColor
+                }
+                Canvas {
+                    id: cursorTip
+                    x: -5
+                    width: 10
+                    height: 8
+                    onPaint: {
+                        const ctx = getContext("2d");
+                        ctx.reset();
+                        ctx.fillStyle = root.accentColor;
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        ctx.lineTo(10, 0);
+                        ctx.lineTo(5, 8);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    Connections {
+                        target: root
+                        function onAccentColorChanged() { cursorTip.requestPaint(); }
+                    }
+                }
+            }
             WheelHandler {
                 acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                 onWheel: event => {
@@ -1680,7 +1699,6 @@ Item {
         scheduleSelectedFieldRefresh();
         waveformCanvas.requestPaint();
     }
-    onPlaybackMsChanged: waveformCanvas.requestPaint()
     onAutoFramesChanged: waveformCanvas.requestPaint()
     onManualFramesChanged: waveformCanvas.requestPaint()
     onFrameMsChanged: waveformCanvas.requestPaint()
