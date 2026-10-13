@@ -2,7 +2,7 @@
 
 `utautts-cli`はボイスバンク、モデル、Rendererを指定してWAVを作るコマンドライン合成ツールです。GUIやHTTP Serverと同じ合成処理を使います。
 
-配布物ではWindowsの`tools/utautts-cli.exe`、Linuxの`tools/utautts-cli`にあります。開発時は`go run ./cmd/utautts-cli`でも実行できます。
+GUI配布物ではWindowsの`tools/utautts-cli.exe`、Linux／macOSの`tools/utautts-cli`にあります。Server専用ZIPにはCLIを含みません。開発時は`go run ./cmd/utautts-cli`でも実行できます。
 
 ## 必須の引数
 
@@ -310,3 +310,5 @@ utautts-ustx project.utautts project.ustx
 ```
 
 出力パスを省略すると、元のプロジェクトと同じ場所へ`<名前>.ustx`として保存します。GUIの「USTXとして書き出す」では、解析前のカードも書き出すときに解析します。
+
+保存済みの自動フレームピッチ曲線を優先し、手動のフレーム補正またはモーラ単位の補正を加えて出力します。GUIでは保存曲線がない発話だけ再予測を試みます。OpenUtau側の音素化・原音選択・Rendererが異なるため、合成音声の完全一致は保証しません。

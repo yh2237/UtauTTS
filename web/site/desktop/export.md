@@ -21,7 +21,7 @@ description: デスクトップ版でのWAV、USTX、AviUtl向けexoの書き出
 
 「USTXとして書き出す...」でOpenUtauのプロジェクト（`.ustx`）に変換します。
 
-USTXの書き出しは開発途中で、一部に不具合があります。
+USTXの書き出しは開発途中です。保存済みの自動フレームピッチ曲線と手動補正を反映しますが、OpenUtau側の音素化・原音選択・Rendererが異なるため、合成音声の完全一致は保証しません。
 
 ## AviUtl向けのexo
 

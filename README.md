@@ -12,6 +12,8 @@ UTAUボイスバンクの原音接続に、学習ベースのイントネーシ�
 
 [GitHub Releases](https://github.com/yh2237/UtauTTS/releases)から環境と用途に合うZIPをダウンロードします。
 
+以下は現行mainの配布構成です。公開済みv1.5.2のGUI版にはHTTP Serverを含まないため、HTTP APIを使う場合はServer専用ZIPを選んでください。
+
 | パッケージ | 用途 |
 | --- | --- |
 | `UtauTTS-win-x64.zip` | Windows x64向けGUI・CLI・HTTP Server |
@@ -32,7 +34,7 @@ GUI版には「足立レイ ver3.5.0」を同梱しています。利用条件�
 3. `Ctrl+Enter`または再生ボタンで音声を確認する
 4. 「ファイル」→「書き出し」→「WAVを保存...」で保存する
 
-音源は実行ファイルと同じ階層の`voice`へフォルダごと置き、「ファイル」→「音源とプラグイン」→「音源を再読込」で読み込みます。音源の配置、カードごとの設定、編集の操作は[GUIの使い方](docs/gui.md)にあります。
+音源は配布フォルダの`voice`へフォルダごと置き、「ファイル」→「音源とプラグイン」→「音源を再読込」で読み込みます。音源の配置、カードごとの設定、編集の操作は[GUIの使い方](docs/gui.md)にあります。
 
 既定の抑揚モデルは`frame-intonation-tcn-v12`、Rendererは`utautts-world-phrase`です。英語・中国語のカードでは各言語のモデルへ自動で切り替わります。同梱モデルと学習元は[抑揚モデルのライセンス](models/README.md)にあります。
 

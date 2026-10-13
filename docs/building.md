@@ -56,7 +56,7 @@ $env:UTAUTTS_MSVC_REDIST_DIR = 'C:\path\to\Microsoft.VC143.CRT'
 $env:UTAUTTS_UCRT_REDIST_DIR = 'C:\path\to\Windows Kits\10\Redist\ucrt\DLLs\x64'
 ```
 
-同梱DLLは公式の再頒布用ディレクトリから取得し、開発環境のPATHにあるDLLは配布対象外です。macOSでは同じ名前の環境変数を`export`で設定します。値を特定できないQt GUIビルドは失敗させます。
+同梱DLLは公式の再頒布用ディレクトリから取得し、開発環境のPATHにあるDLLは配布対象外です。収集元が見つからない場合は、WindowsのOpen JTalkヘルパービルドが失敗します。
 
 ## Linux x64
 

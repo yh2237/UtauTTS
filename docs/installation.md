@@ -2,6 +2,8 @@
 
 [GitHub Releases](https://github.com/yh2237/UtauTTS/releases)から、環境と用途に合うZIPをダウンロードします。
 
+以下は現行mainの配布構成です。公開済みv1.5.2のGUI版にはHTTP Serverを含まないため、HTTP APIを使う場合はServer専用ZIPを選んでください。
+
 | パッケージ | 用途 |
 | --- | --- |
 | `UtauTTS-win-x64.zip` | Windows x64でGUI・CLI・HTTP Server |
@@ -64,6 +66,8 @@ Qtやデスクトップ環境が異なるディストリビューションでは
 ## ボイスバンクの追加
 
 実行ファイルと同じ階層の`voice`ディレクトリへ音源ごとにフォルダを分けて配置します。音源フォルダが1階層余分に包まれていても読み込めます。
+
+macOSでは`utautts.app`と同じ階層の`voice`へ配置します。モデル、Renderer、runtime、`config.ini`もアプリバンドルの外にあります。
 
 ```text
 voice/

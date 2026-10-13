@@ -6,6 +6,8 @@
 
 GUI版にも同じServerを同梱しています。GUIの起動ファイルと同じ階層の`utautts-server.exe`（Linux／macOSは`utautts-server`）を起動すると、同じ配布フォルダの音源・モデル・Rendererを使えます。GUIからの自動起動はありません。以下のコマンドは配布フォルダから実行してください。
 
+GUIへの同梱は現行mainの配布構成です。公開済みv1.5.2ではServer専用ZIPを使ってください。GUIの未保存編集や`config.ini`はServerへ自動反映されません。
+
 Windows
 
 ```powershell
@@ -110,7 +112,7 @@ UIとAPIの`Host`も`localhost`かloopback IPに限定します。別サイト�
 ### `GET /api/health`
 
 ```json
-{"status":"ok","engine":"utautts-world-phrase","version":"1.5.1"}
+{"status":"ok","engine":"utautts-world-phrase","version":"v1.5.2"}
 ```
 
 `engine`には既定RendererのID、`version`にはサーバーのバージョンが入ります。これは稼働確認で、合成資源がなくても200を返します。既定Rendererの資源の利用可否は`/api/renderers`、音源の登録状況は`/api/voicebanks`で確認できます。
@@ -167,7 +169,7 @@ ID順にソートされた音源一覧です。
       "mode": "intonation_frame_tcn_accent_bounded",
       "sha256": "<モデルファイルのSHA-256>",
       "recommended_renderers": ["utautts-world-phrase"],
-      "default_priority": 130,
+      "default_priority": 140,
       "requires_features": true,
       "frame_contour": true
     }
@@ -200,20 +202,19 @@ ID順にソートされた音源一覧です。
 
 ```json
 {
-  "text": "v8を使います。",
-  "dictionary": [{"surface": "v8", "reading": "ぶいはち"}]
+  "text": "こんにちは"
 }
 ```
 
 ```json
 {
-  "reading": "コンニチハ",
+  "reading": "コンニチワ",
   "morae": [
-    {"position": 0, "mora": "コ", "consonant": "k", "vowel": "o", "pause": false},
-    {"position": 1, "mora": "ン", "consonant": "n", "vowel": "n", "pause": false},
-    {"position": 2, "mora": "ニ", "consonant": "n", "vowel": "i", "pause": false},
-    {"position": 3, "mora": "チ", "consonant": "ch", "vowel": "i", "pause": false},
-    {"position": 4, "mora": "ハ", "consonant": "h", "vowel": "a", "pause": false}
+    {"position": 0, "mora": "こ", "consonant": "k", "vowel": "o", "pause": false},
+    {"position": 1, "mora": "ん", "consonant": "n", "vowel": "n", "pause": false},
+    {"position": 2, "mora": "に", "consonant": "n", "vowel": "i", "pause": false},
+    {"position": 3, "mora": "ち", "consonant": "ch", "vowel": "i", "pause": false},
+    {"position": 4, "mora": "わ", "consonant": "w", "vowel": "a", "pause": false}
   ]
 }
 ```
@@ -248,7 +249,7 @@ ID順にソートされた音源一覧です。
 
 | 項目 | 型 | 既定値 | 説明 |
 |---|---|---|---|
-| `text` | string | | 合成する文章。`reading` とどちらか一方が必須 |
+| `text` | string | | 合成する文章。`reading`（`kana`を含む）がなければ必須。両方指定すると読みを優先 |
 | `reading` | string | | かな、ARPAbet、またはPinyinを直接指定 |
 | `kana` | string | | `reading`と同じ入力を受け付ける互換用の別名 |
 | `language` | string | 自動選択 | `ja`、`en`、`zh`。空欄なら音源・phonemizerから選び、決まらなければ日本語 |
@@ -269,7 +270,7 @@ ID順にソートされた音源一覧です。
 | `release_ms` | number | `20` | 原音のリリース（余韻）長（ms）。`release_set`が真のときだけ明示値として適用 |
 | `release_set` | boolean | `false` | `release_ms`を明示指定として適用する |
 | `mora_durations_ms` | number[] | | モーラごとの長さ。値は0〜1000 |
-| `unit_overrides` | object[] | なし | unit単位の候補・原音の明示指定（計画の上書き） |
+| `unit_overrides` | object[] | なし | `unit_index`で指定した原音のoto値・ピッチ係数・音量係数・resampler設定を上書き |
 | `intonation_strength` | number | `4` | 自動抑揚の強さ（0〜8）。v12では曲線に「強さ/4」を掛ける。詳細は[抑揚の強さ](technical-design.md#抑揚の強さ) |
 | `apply_pitch` | boolean | `true` | Rendererのピッチ処理を有効にする |
 | `context_duration` | boolean | `false` | 日本語のモーラ長を文脈（助詞・句末など）に応じて変える |
@@ -278,8 +279,6 @@ ID順にソートされた音源一覧です。
 | `boundary_tone_strength` | number | `1` | 境界音調の強度（0〜2）。0は既定1.0として扱う |
 | `stretch_adapt` | boolean | `true` | 原音より大きく伸ばす日本語の長いモーラで、母音側の伸びを音源の実測に合わせて抑える |
 | `stretch_adapt_strength` | number | `1` | 伸縮補正の強度（0〜2）。0は既定1.0として扱う |
-| `microprosody` | boolean | `true` | 日本語のWORLD合成で、子音の前後の微細な音高変化を補う |
-| `timing_warp` | boolean | `true` | 日本語・英語・中国語のWORLD合成で、学習した時間配分に合わせてモーラ内を伸縮する。包絡・開始時刻・長さ・音高は保ち、句末モーラは伸縮しない |
 | `pause_context` | boolean | `true` | 句読点の種類と発話末で休止長を変える |
 | `pause_context_strength` | number | `1` | 休止長補正の強度（0〜2）。0は既定1.0として扱う |
 | `english_weak_form` | boolean | `true` | 英語の機能語を句中では弱形で読む。明示の読みと辞書を優先する |
@@ -295,6 +294,18 @@ ID順にソートされた音源一覧です。
 
 廃止した`speech_timing`、`word_boundary_envelope`、`prosody_experiment`は、古いクライアントのために受け取って無視します。
 
+WORLD固有の`microprosody`と`timing_warp`は、要求の直下ではなく`renderer_settings`または`worldline`内へ指定します。どちらも既定で有効です。同じ設定を両方に指定した場合は`renderer_settings`を優先します。
+
+```json
+{
+  "text": "こんにちは。",
+  "renderer": "utautts-world-phrase",
+  "renderer_settings": {"microprosody": false, "timing_warp": false}
+}
+```
+
+`microprosody`は日本語の子音の前後の微細な音高変化を補います。`timing_warp`は日本語・英語・中国語のモーラ内を学習した時間配分に合わせて伸縮します。包絡・開始時刻・長さ・音高は保ち、句末モーラは伸縮しません。原音区間ライブラリの自動適用は`worldline.source_phone_mapping`で切り替えます。
+
 #### ステータスコード
 
 - `200`: WAVバイナリ。`X-UtauTTS-Engine` / `X-UtauTTS-Reading` ヘッダー付き
@@ -309,14 +320,14 @@ ID順にソートされた音源一覧です。
 ```json
 {
   "version": 1,
-  "reading": "こんにちは",
+  "reading": "コンニチワ",
   "mode": "offset",
   "points": [
     {"position": 0, "mora": "こ", "cents": 0},
     {"position": 1, "mora": "ん", "cents": 40},
     {"position": 2, "mora": "に", "cents": 80},
     {"position": 3, "mora": "ち", "cents": 20},
-    {"position": 4, "mora": "は", "cents": -30}
+    {"position": 4, "mora": "わ", "cents": -30}
   ]
 }
 ```
@@ -330,6 +341,8 @@ ID順にソートされた音源一覧です。
 | `frames` | 10 ms単位の補正値の配列`frames`を使う。GUIの拡張編集で抑揚線を描くとこの形式になる |
 
 手動の曲線は10 ms間隔へ補間し、急な変化は安全な範囲に抑えます。
+
+`points`と`frames`の各補正値は±1200 cent以内です。`frames`モードでは`points`を併用できず、`frames`は最大20000個です。モーラ表記を検証する場合は解析結果に合わせてください。たとえば「こんにちは」の末尾は「わ」になります。
 
 ### `POST /api/synthesize/label`
 
