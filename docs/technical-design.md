@@ -4,7 +4,7 @@
 
 ## 1. 合成方式
 
-UtauTTSは、UTAU音源に収録された原音を`oto.ini`に基づいて配置、時間伸縮、接続し、必要に応じて学習済みの韻律を加える連結型TTSです。原音の声質を保ちながら、文章の発音順に並べて音声を生成します。
+UTAU原音の声質を保ち、`oto.ini`に基づく配置・時間伸縮・接続と、必要に応じた学習済みの韻律で文章を読み上げる連結型TTSです。
 
 ## 2. システム全体
 
@@ -168,7 +168,7 @@ path score = Σ local candidate score + Σ adjacent join score
 - 候補の除外理由と音響スコア
 - Rendererへ渡す前の選択時の値。Rendererが計算した実効値は`RenderReport`へ分ける
 
-Planは、候補選択、時間設計、Rendererの差を切り分けるための再現可能な記録です。新しい自動補正では、入力値、実際に使った値、採用した理由、代替へ戻した理由を記録します。最終的なWAVとPlanを合わせて見ると、品質が下がった原因を追えます。
+PlanとWAVを比較して、原音選択・時間設計・Rendererの問題を切り分けます。自動補正では入力値、使用値、採用・代替の理由を記録します。
 
 共有のPlanは読み取り専用で扱います。`UnitRenderer`にはPlanのコピーを渡し、Rendererが計算した先頭の余白、境界の補修、実効のpreutterance／consonant／overlap、原音と目標のF0などを`RenderReport`として返します。CLIのPlan JSONやLABのように描画後の値が必要な出力だけは、`tts.Result.RenderedPlan()`でコピーへReportを適用します。
 

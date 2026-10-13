@@ -1,6 +1,6 @@
 # モデル／Rendererプラグイン
 
-モデルとRendererは、GUI、CLI、Serverで共通の公開IDで選びます。実行ファイルの隣にある`models/`と`renderer/`を自動検出し、CLIとServerでは`--model-dir`／`--renderer-dir`で探索先を追加できます。明示した探索先は同梱定義より優先されます。
+モデルは`models/`、Rendererは`renderer/`へ配置し、公開IDで選びます。CLI・Serverでは`--model-dir`／`--renderer-dir`で探索先を追加でき、明示した探索先を同梱定義より優先します。
 
 ## Renderer manifest の仕様
 
@@ -42,13 +42,13 @@
 
 DiffSingerのruntimeを含むのはWindowsのFullプロファイルだけです。LinuxとmacOSでは、DiffSingerのmanifestは対応OS外としてカタログから除きます。
 
-Rendererの追加・更新はZIPインストールでは行いません。`renderer/<id>/renderer.json`を探索先へ配置してからGUIを再起動（またはCLI／Serverを再起動）してください。既存IDを明示ディレクトリに置くと同梱定義を上書きできます。読み込んだRendererと読み込めなかった定義の理由は、GUIの「ファイル」→「音源とプラグイン」→「Rendererプラグイン」で確認できます。
+Rendererの追加・更新は、ZIPではなく`renderer/<id>/renderer.json`を探索先へ配置してアプリを再起動します。既存IDを明示ディレクトリに置くと同梱定義を上書きできます。読込結果とエラーは「ファイル」→「音源とプラグイン」→「Rendererプラグイン」で確認します。
 
 ## Renderer設定と機能
 
 共通設定と内蔵Providerの設定は、`internal/settings`で既定値・範囲・表示・適用先を定義します。カタログが該当する設定を加えるため、同梱manifestに`settings`は不要です。外部Provider固有の設定はmanifestの`settings`に宣言します。共通設定と同じIDを宣言すると、そのRendererの既定値や範囲を上書きできます。
 
-加えた項目はGUIの設定ウィンドウにRendererごとのタブとして表示され、そのRendererの設定として`config.ini`へ保存されます。CLIとServerからも同じIDで指定できます。
+追加した設定はGUIのRendererタブに表示し、`config.ini`へ保存します。CLI・Serverも同じIDで指定します。
 
 GUIでは設定値を合成リクエストの`renderer_settings`マップで渡します。`mora_duration_ms`や`intonation_strength`などカード単位の値は、マップに重ねずトップレベル項目で渡します。CLI・APIで両方を指定した場合は`renderer_settings`が優先されます。
 

@@ -1,6 +1,6 @@
 # Qt WebAssembly版の構成
 
-Qt WebAssembly版の処理経路、状態管理、仮想ファイルシステムの構成をまとめた開発者向けの文書です。音声合成本体の構成は[技術設計ガイド](technical-design.md)を参照してください。
+Qt WebAssembly版の処理経路・状態管理・仮想FSを説明します。合成本体は[技術設計ガイド](technical-design.md)を参照してください。
 
 ## 処理経路と担当
 
@@ -33,7 +33,7 @@ Qtの`QFile`からGoのFSへはアクセスできません。プレビュー音�
 
 Open JTalkとWORLDはRenderer一覧を返した後に並行して読み込みます。解析・抑揚予測・合成の要求が来た場合は、その完了を待ちます。辞書はmanifestに記載したファイルを並行して取得します。初期化に失敗した場合は、次の要求で未初期化のruntimeだけを再試行します。
 
-Goの起動とQtの先行コンパイルは`Content-Type: application/wasm`の場合にstreaming APIを使い、それ以外は全体を取得してから処理します。取得順と計算の実装を最適化していますが、辞書やwasmの転送容量を減らす変更ではありません。
+Goの起動とQtの先行コンパイルは`Content-Type: application/wasm`ならstreaming APIを使い、それ以外は全体を取得してから処理します。
 
 ## 状態管理とデータ形式
 

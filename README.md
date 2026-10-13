@@ -34,7 +34,7 @@ GUI版には「足立レイ ver3.5.0」を同梱しています。利用条件�
 
 音源は配布フォルダの`voice`へフォルダごと置き、「ファイル」→「音源とプラグイン」→「音源を再読込」で読み込みます。音源の配置、カードごとの設定、編集の操作は[GUIの使い方](docs/gui.md)にあります。
 
-既定の抑揚モデルは`frame-intonation-tcn-v12`、Rendererは`utautts-world-phrase`です。英語・中国語のカードでは各言語のモデルへ自動で切り替わります。同梱モデルと学習元は[抑揚モデルのライセンス](models/README.md)にあります。
+合成設定は[GUIの使い方](docs/gui.md#カードごとの合成設定)、同梱モデルと学習元は[抑揚モデルのライセンス](models/README.md)を参照してください。
 
 ## CLIとHTTP Server
 
@@ -48,7 +48,7 @@ CLIはGUI版の`tools/utautts-cli.exe`（Linux／macOSは`tools/utautts-cli`）�
   --out ".\out.wav"
 ```
 
-HTTP ServerもGUI版に同梱しています。GUIの起動ファイルと同じ階層にある`utautts-server.exe`（Linux／macOSは`utautts-server`）を起動すると、同梱音源・モデルをHTTP APIから使えます。GUIと同時に自動起動はしません。
+HTTP APIは、GUI版に同梱した`utautts-server.exe`（Linux／macOSは`utautts-server`）を起動して使います。GUIとは別に起動してください。
 
 ```powershell
 .\UtauTTS\utautts-server.exe

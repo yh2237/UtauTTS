@@ -32,8 +32,6 @@ CLIやServerで個別にruntimeの場所を指定する場合は`--openjtalk-fea
 
 ## モーラ数や読みが一致しないエラーが表示される
 
-UtauTTS側の読みとOpen JTalk側の解析結果が一致していない可能性があります。
-
 - 固有名詞や略語などを辞書へ登録します。
 - 長音、促音、拗音を含む読みを確認します。
 - 文章を変更して再解析し表示された読みとモーラ列を確認します。
@@ -49,17 +47,17 @@ Rendererとruntimeの組み合わせを確認してください。既定Renderer
 
 ### glibc 2.44以降でCOPY relocationのエラーが出る
 
-`COPY relocation against non-copyable protected symbol`や`GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`を含むエラーは、古いLinux GUIバイナリで起きることがあります。古いZIPを再展開しても直らないため、最新のリリースを使用してください。ソースからビルドする場合は`./build.sh linux`で、ビルド直後とパッケージ展開後のELF検査も実行されます。
+`COPY relocation against non-copyable protected symbol`や`GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`が表示されたら、最新のリリースを使用してください。古いZIPの再展開では直りません。ソースからは`./build.sh linux`でビルドし、ELF検査まで実行します。
 
 ### MangoHudを有効にすると音声初期化時に落ちる
 
-MangoHudのVulkanレイヤーとQt MultimediaのFFmpegプラグインの組み合わせで、`vkCreateDevice`付近のクラッシュが起きることがあります。これは上のローダーエラーとは別の問題です。切り分けや回避には次を使ってください。
+MangoHudを無効にして起動してください。
 
 ```bash
 MANGOHUD=0 ./utautts
 ```
 
-MangoHud側の互換性問題を解消するまでの回避策です。
+互換性問題を解消するまでの回避策です。
 
 ## Linuxで日本語が四角い記号（豆腐）になる
 
@@ -67,7 +65,7 @@ MangoHud側の互換性問題を解消するまでの回避策です。
 
 ## 音声が生成されない、または合成が遅い
 
-合成中はログウィンドウに処理内容が表示されます。入力文章、音源、Renderer、モデル、runtimeの組み合わせを確認してください。まずは既定Renderer、抑揚モデルなし、短い文章で試すと、原因を切り分けやすくなります。
+既定Renderer・抑揚モデルなし・短い文章で試してください。直らなければ、ログと入力文章、音源、Renderer、モデル、runtimeの組み合わせを確認します。
 
 ## 問題を報告する
 

@@ -1,6 +1,6 @@
 # コマンドライン（CLI）
 
-`utautts-cli`はボイスバンク、モデル、Rendererを指定してWAVを作るコマンドライン合成ツールです。GUIやHTTP Serverと同じ合成処理を使います。
+`utautts-cli`で音源・モデル・Rendererを指定し、WAVを生成します。
 
 GUI配布物ではWindowsの`tools/utautts-cli.exe`、Linux／macOSの`tools/utautts-cli`にあります。Server専用ZIPにはCLIを含みません。開発時は`go run ./cmd/utautts-cli`でも実行できます。
 
@@ -26,7 +26,7 @@ GUI配布物ではWindowsの`tools/utautts-cli.exe`、Linux／macOSの`tools/uta
   --out ".\out.wav"
 ```
 
-CLIはGUIと違い、抑揚モデルを既定では使いません。使う場合は`--prosody`でモデルIDを指定します。配布物内のOpen JTalk frontendが実行時に読みとアクセント特徴を生成します。
+抑揚モデルを使う場合は`--prosody`にモデルIDを指定します。省略するとモデルを使いません。
 
 ```powershell
 .\UtauTTS\tools\utautts-cli.exe `
@@ -84,7 +84,7 @@ printf '%s\n' 'こんにちは。' | utautts-cli --voicebank "voice/足立レイ
 utautts-cli --voicebank "voice/足立レイver3.5.0" --request request.json --out speech.wav --json
 ```
 
-要求の項目・既定値・設定の優先順は[HTTP APIの合成要求](server.md#リクエスト項目)と共通です。通常の発話設定は直下に置き、方式固有の設定は`renderer_settings`へ渡します。`kana`などの互換項目や、モーラ長・手動ピッチなどの編集入力も受け取れます。CLIでは`voicebank_id`を使わず、音源のパスを`--voicebank`へ指定してください。
+項目・既定値・優先順は[HTTP APIの合成要求](server.md#リクエスト項目)と共通です。通常の設定は直下、方式固有の設定は`renderer_settings`へ指定します。`kana`などの互換入力や、モーラ長・手動ピッチにも対応します。音源は`voicebank_id`ではなく`--voicebank`へパスを指定してください。
 
 JSON要求と発話フラグ（`--text`・`--reading`・`--renderer`・`--prosody`・`--mora-ms`など）は併用できません。配置の指定、`--out`・`--plan-out`・`--ustx-out`、付随ファイルの指定、`--json`は併用できます。評価用の特徴量や固定曲線など、JSON形式にないCLI専用入力は従来のフラグで使います。
 
@@ -104,7 +104,7 @@ utautts-cli --list wavtools
 
 音源の一覧では`--voicebank`を探索元として使い、単一音源のディレクトリも指定できます。省略時は既存の`voice/`探索規則を使います。モデル・Rendererの追加探索先は`--model-dir`・`--renderer-dir`、WORLD bridgeの配置は`--worldline-bridge`で指定できます。
 
-`--json`を付けると`ok: true`と`catalog`を返します。`catalog.kind`は一覧の種類、`items`は要素の配列、`problems`はカタログ読込時の警告です。該当項目がない場合も空配列で成功します。
+`--json`で`ok: true`と`catalog`を返します。`catalog.kind`は一覧の種類、`items`は要素、`problems`は読込警告です。該当項目がなくても空配列で成功します。
 
 | 項目 | 内容 |
 | --- | --- |
@@ -114,7 +114,7 @@ utautts-cli --list wavtools
 | `provider`・`available`・`problems` | RendererのProviderと資源の利用可否、不足等の説明 |
 | `catalog.default_id` | 既定のRendererまたはClassicツール。モデルは既定で使わないため`none` |
 
-Rendererの`available`は宣言された資源の検査結果です。helper・Providerを起動して合成する検査ではなく、Open JTalkによる読み解析などを含む全機能の利用可否を保証するものではありません。利用できないRendererがあっても一覧取得は成功するため、各要素の状態を確認してください。
+一覧取得は利用できないRendererがあっても成功するため、各要素の`available`を確認してください。これはファイル配置の検査結果で、helper・Providerの起動や読み解析・合成の動作は保証しません。
 
 ## 環境診断
 
@@ -137,9 +137,9 @@ utautts-cli --doctor --renderer utautts-world-phrase --json
 
 `--timeout 30s`で合成処理の制限時間を指定します。`500ms`・`2m`などの時間表記を使い、既定の`0`は無制限です。負の値は入力エラーです。JSON要求とも併用できますが、一覧取得・環境診断とは併用できません。
 
-制限時間は発話の入力読込とRuntime初期化の後から数えます。合成へキャンセルを伝え、合成後とUSTX用の追加予測後、完了報告前にも期限を確認します。期限切れは終了コード1、JSONでは`deadline_exceeded`を返します。
+制限時間は入力読込とRuntime初期化後から数えます。合成後・USTX用の追加予測後・完了報告前にも期限を確認し、期限切れは終了コード1、JSONでは`deadline_exceeded`を返します。
 
-stdin待ち、Runtime初期化、同期的なファイル読込・書込、stdoutの書込、Runtimeの終了は強制的に打ち切りません。期限切れ後も要求と資源の終了を待つため、実際の終了まで指定時間を超える場合があります。すでに保存したファイルは巻き戻しません。プロセス全体の実行時間を制限する場合は、呼出し側で別途管理してください。
+stdin待ち、Runtimeの初期化・終了、同期ファイルI/O、stdout書込は強制終了しません。期限切れ後も処理の終了を待つため、指定時間を超える場合があります。保存済みファイルは残ります。プロセス全体の制限時間は呼出し側で管理してください。
 
 ## オプション
 
@@ -217,7 +217,7 @@ stdin待ち、Runtime初期化、同期的なファイル読込・書込、stdou
 
 `--prosody`と`--renderer`にはファイルパスではなくIDを指定します。Classic UTAUのツールも絶対パスではなく、`Resamplers/`または`Wavtools/`からの相対IDを指定します。一覧は[モデル／Rendererプラグイン](plugins.md)を参照してください。
 
-モデルやRendererは実行ファイルの隣にある`models/`と`renderer/`から自動検出します。別の検索先を追加する場合は`--model-dir`または`--renderer-dir`で指定します。明示したRenderer定義は同梱定義より優先されます。
+モデルやRendererの追加先は`models/`と`renderer/`です。別の探索先は`--model-dir`／`--renderer-dir`で指定し、明示したRenderer定義を同梱定義より優先します。
 
 `--renderer`を省略した場合はカタログの`default_priority`が最大のRendererを使います。存在しないIDを明示した場合はエラーになります。指定したRendererの必要なファイルが不足している場合もエラーになります。
 
@@ -284,7 +284,7 @@ utautts-cli --json --version
 
 フラグ解析が成功してからJSON出力を有効にします。未知のフラグ、不正なフラグ値、`--help`ではJSONを出さず、標準エラーへ説明を出します。stdoutへの書込自体が失敗した場合もJSONを返せないことがあります。
 
-JSONの成否は要求完了とRuntimeの終了後に確定します。失敗するまでに保存できたファイルを自動削除することはありません。終了コードは従来どおりで、フラグ解析の失敗は2、それ以外のエラーは1です。細かい分類は`error.code`で判定します。
+JSONの成否はRuntimeの終了後に確定し、失敗しても保存済みファイルは残ります。終了コードはフラグ解析エラーで2、それ以外で1です。分類は`error.code`で判定します。
 
 ## 手動ピッチとモーラ長
 

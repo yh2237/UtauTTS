@@ -1,6 +1,6 @@
 # 開発環境とビルド
 
-リポジトリを取得した後に、テスト、各OSのビルド、配布物の検査を行う手順を説明します。
+リポジトリ直下で、テストとビルドを実行します。
 
 ## ビルド方法
 
@@ -60,7 +60,7 @@ $env:UTAUTTS_UCRT_REDIST_DIR = 'C:\path\to\Windows Kits\10\Redist\ucrt\DLLs\x64'
 
 ## Linux x64
 
-Linuxネイティブ環境とWSL環境では、同じセットアップスクリプトを使います。実行するLinux環境ごとに一度だけ、リポジトリ直下で実行してください。
+Linux・WSLとも、使用する環境で一度だけ実行してください。
 
 ```bash
 ./tools/setup-linux.sh
@@ -72,7 +72,7 @@ Linuxネイティブ環境とWSL環境では、同じセットアップスクリ
 UTAUTTS_SKIP_APT=1 ./tools/setup-linux.sh
 ```
 
-Linux版のGUIとServerをビルドし、ZIPの基本動作検査まで行います。
+GUI・ServerのZIP作成と基本動作検査を実行します。
 
 ```bash
 ./build.sh linux
@@ -102,7 +102,7 @@ Qt SDKを`.qt/<version>/mingw_64`へ置くと自動検出します。別の場�
 .\build.bat win
 ```
 
-GUI版とServer版のZIPが`release/`へ作成され、配布物の基本動作検査まで実行されます。既定の`Full`プロファイルではDiffSingerのruntimeも作成します。日本語向けの軽量版は次のコマンドで作成します。
+GUI・ServerのZIPを`release/`へ作成し、基本動作を検査します。既定の`Full`はDiffSingerも含みます。日本語向けの軽量版は次で作成します。
 
 ```powershell
 .\tools\build-release.ps1 -Profile Japanese
@@ -118,7 +118,7 @@ macOS版はApple Silicon（arm64）向けです。Go、Python 3.12以降、CMake
 QT_ROOT=/path/to/Qt ./build.sh macos
 ```
 
-`tools/build-macos.sh`を直接実行しても同じ処理になります。GUI版とServer版のZIPを`release/`へ作成し、配布物の基本動作検査まで実行します。Mac実機を使えない場合はGitHub ActionsのmacOSワークフローを利用できます。
+GUI・ServerのZIPを`release/`へ作成し、基本動作を検査します。`tools/build-macos.sh`でも実行できます。Macがない場合はGitHub ActionsのmacOSワークフローを使ってください。
 
 ## WindowsからLinux x64を作成する場合
 
