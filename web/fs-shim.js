@@ -48,6 +48,21 @@ function createVirtualFs(options) {
     node.version = ++nextVersion;
   }
 
+  // 確保容量とファイル長を分け、追記のたびの全コピーを避ける。
+  function resizeFile(node, length) {
+    length = Number.isNaN(length) ? 0 : Math.trunc(length);
+    if (length < 0 || !Number.isSafeInteger(length)) throw makeError("EINVAL");
+    let storage = node.storage;
+    if (!storage || storage.length < length) {
+      storage = new Uint8Array(Math.max(length, node.data.length * 2, 8192));
+      storage.set(node.data.subarray(0, length));
+      node.storage = storage;
+    } else if (length > node.data.length) {
+      storage.fill(0, node.data.length, length);
+    }
+    node.data = storage.subarray(0, length);
+  }
+
   // リモート音源は初回アクセス時に同期XHRで取得する。Worker内専用。
   const remote = options && options.remote ? options.remote : null;
   const remotePrefix = remote ? normalizePath(remote.prefix || "/voice") : "";
@@ -317,7 +332,11 @@ function createVirtualFs(options) {
       }
       if (flags & constants.O_DIRECTORY && node.type !== "dir") throw makeError("ENOTDIR");
       if (node.type === "dir" && flags & (constants.O_WRONLY | constants.O_RDWR)) throw makeError("EISDIR");
-      if (flags & constants.O_TRUNC && node.type === "file") { node.data = new Uint8Array(0); changed(node); }
+      if (flags & constants.O_TRUNC && node.type === "file") {
+        node.data = EMPTY_BYTES;
+        node.storage = null;
+        changed(node);
+      }
       const fd = nextFd++;
       handles.set(fd, { path: normalized, pos: 0, node, flags });
       return fd;
@@ -393,9 +412,7 @@ function createVirtualFs(options) {
           : position === null || position === undefined ? handle.pos : Number(position);
         const end = start + length;
         if (handle.node.data.length < end) {
-          const grown = new Uint8Array(end);
-          grown.set(handle.node.data);
-          handle.node.data = grown;
+          resizeFile(handle.node, end);
         }
         handle.node.data.set(buffer.subarray(offset, offset + length), start);
         changed(handle.node);
@@ -456,9 +473,7 @@ function createVirtualFs(options) {
     _truncate(path, length) {
       const node = lookup(path);
       if (!node || node.type !== "file") throw makeError("ENOENT");
-      const next = new Uint8Array(Number(length));
-      next.set(node.data.subarray(0, Math.min(node.data.length, next.length)));
-      node.data = next;
+      resizeFile(node, Number(length));
       changed(node);
     },
     truncate(path, length, callback) {
@@ -469,9 +484,7 @@ function createVirtualFs(options) {
         const handle = handles.get(fd);
         if (!handle) throw makeError("EBADF");
         if (handle.node.type !== "file") throw makeError("EISDIR");
-        const next = new Uint8Array(Number(length));
-        next.set(handle.node.data.subarray(0, Math.min(handle.node.data.length, next.length)));
-        handle.node.data = next;
+        resizeFile(handle.node, Number(length));
         changed(handle.node);
         callback(null);
       } catch (error) {

@@ -50,6 +50,42 @@ test("FS append/exclusive creation and failed rename preserve existing data", ()
   assert.equal(vfs._stat("/tmp/file").size, 2);
 });
 
+test("FS chunked writes reuse capacity without exposing unused bytes", () => {
+  const vfs = createVirtualFs();
+  const fd = vfs._open("/out.wav", vfs.constants.O_WRONLY | vfs.constants.O_CREAT);
+  const chunk = new Uint8Array(8192).fill(37);
+  const buffers = new Set();
+  for (let i = 0; i < 128; i++) {
+    callbackCall(vfs, "write", fd, chunk, 0, chunk.length, null);
+    const data = vfs.readFile("/out.wav");
+    buffers.add(data.buffer);
+    assert.equal(data.length, (i + 1) * chunk.length);
+    assert.equal(vfs._fstat(fd).size, data.length);
+  }
+  assert.ok(buffers.size <= 8);
+  assert.ok(vfs.readFile("/out.wav").every(value => value === 37));
+});
+
+test("FS growth and truncation zero holes and preserve mounted slice bounds", () => {
+  const vfs = createVirtualFs();
+  const original = new Uint8Array([99, 1, 2, 99]);
+  vfs.mountFile("/file", original.subarray(1, 3));
+  const fd = vfs._open("/file", vfs.constants.O_RDWR);
+  callbackCall(vfs, "write", fd, new Uint8Array([3]), 0, 1, 4);
+  assert.deepEqual(Array.from(vfs.readFile("/file")), [1, 2, 0, 0, 3]);
+  assert.deepEqual(Array.from(original), [99, 1, 2, 99]);
+  vfs._truncate("/file", 1);
+  callbackCall(vfs, "ftruncate", fd, 5);
+  assert.deepEqual(Array.from(vfs.readFile("/file")), [1, 0, 0, 0, 0]);
+  const append = vfs._open("/file", vfs.constants.O_WRONLY | vfs.constants.O_APPEND);
+  callbackCall(vfs, "write", append, new Uint8Array([7]), 0, 1, 0);
+  assert.equal(vfs._fstat(fd).size, 6);
+  vfs._open("/file", vfs.constants.O_WRONLY | vfs.constants.O_TRUNC);
+  assert.equal(vfs._fstat(fd).size, 0);
+  callbackCall(vfs, "write", fd, new Uint8Array([8]), 0, 1, 2);
+  assert.deepEqual(Array.from(vfs.readFile("/file")), [0, 0, 8]);
+});
+
 test("remote FS directory discovery and exclusive checks do not download WAVs", () => {
   let downloads = 0;
   const previous = global.XMLHttpRequest;
