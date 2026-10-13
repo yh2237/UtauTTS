@@ -301,6 +301,9 @@ func normalizeWorldlineSources(synthesisPlan *plan.Plan, cache *base.SourceCache
 		if unit.Silent {
 			continue
 		}
+		if _, ok := normalizedSources[unit.Source]; ok {
+			continue
+		}
 		mono, err := cache.LoadMono(unit.Source)
 		if err != nil {
 			return nil, fmt.Errorf("read unit %q: %w", unit.Alias, err)
