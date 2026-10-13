@@ -40,6 +40,16 @@ func TestDefaultTargetMatchesPyTorch(t *testing.T) {
 	}
 }
 
+func TestPointwiseKeepsBiasOrderAndRemainingOutput(t *testing.T) {
+	got := pointwise([]float32{-1e8, 1e8, 1}, 1, 3,
+		[]float32{1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 2, 1, 1, 1},
+		[]float32{1, 1, 1, 1, 1}, 5)
+	want := []float32{1, -1e8, 1e8, 3, 1}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("pointwise = %v, want %v", got, want)
+	}
+}
+
 func TestMoraPhones(t *testing.T) {
 	cases := map[string][]string{
 		"か": {"k", "a"}, "し": {"sh", "i"}, "つ": {"ts", "u"}, "ふ": {"f", "u"}, "じ": {"j", "i"},

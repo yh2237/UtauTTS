@@ -486,7 +486,14 @@ func (m *TCN) dilatedConv(h, y []float32, frames int, w, b tensor, kernel, dilat
 			}
 			input := h[source*hidden : (source+1)*hidden]
 			tap := weights[k*hidden*hidden : (k+1)*hidden*hidden]
-			for o := range hidden {
+			o := 0
+			for ; o+4 <= hidden; o += 4 {
+				sums := dot4(input, tap[o*hidden:(o+4)*hidden], [4]float32{})
+				for c, sum := range sums {
+					row[o+c] += sum
+				}
+			}
+			for ; o < hidden; o++ {
 				rowWeights := tap[o*hidden : (o+1)*hidden]
 				var sum float32
 				for i, value := range input {
@@ -517,7 +524,12 @@ func pointwise(x []float32, frames, inputs int, w, b []float32, outputs int) []f
 	parallelFrames(frames, func(t int) {
 		input := x[t*inputs : (t+1)*inputs]
 		row := y[t*outputs : (t+1)*outputs]
-		for o := range outputs {
+		o := 0
+		for ; o+4 <= outputs; o += 4 {
+			sums := dot4(input, w[o*inputs:(o+4)*inputs], [4]float32{b[o], b[o+1], b[o+2], b[o+3]})
+			copy(row[o:o+4], sums[:])
+		}
+		for ; o < outputs; o++ {
 			weights := w[o*inputs : (o+1)*inputs]
 			sum := b[o]
 			for i, value := range input {
@@ -527,6 +539,21 @@ func pointwise(x []float32, frames, inputs int, w, b []float32, outputs int) []f
 		}
 	})
 	return y
+}
+
+// 4出力で入力走査を共有する。各出力のfloat32加算順は変えない。
+func dot4(input, weights []float32, sums [4]float32) [4]float32 {
+	width := len(input)
+	w0, w1 := weights[:width], weights[width:2*width]
+	w2, w3 := weights[2*width:3*width], weights[3*width:4*width]
+	s0, s1, s2, s3 := sums[0], sums[1], sums[2], sums[3]
+	for i, value := range input {
+		s0 += w0[i] * value
+		s1 += w1[i] * value
+		s2 += w2[i] * value
+		s3 += w3[i] * value
+	}
+	return [4]float32{s0, s1, s2, s3}
 }
 
 func layerNorm(row, gamma, beta []float32) {
