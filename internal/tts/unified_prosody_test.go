@@ -94,11 +94,17 @@ func BenchmarkResolveUnifiedProsody(b *testing.B) {
 	disabled := false
 	cfg := Config{ApplyPitch: true, IntonationStrength: 4, BoundaryTone: &disabled,
 		RendererCapabilities: &plugin.Capabilities{FramePitch: true}}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		if _, err := resolveSynthesisPitch(cfg, japaneseProfile{}, model, morae, features, "あか、さな", "ja", synthesisPlan); err != nil {
-			b.Fatal(err)
-		}
+	for _, mode := range []string{"cold", "warm"} {
+		b.Run(mode, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				if mode == "cold" {
+					synthesisCache.clear()
+				}
+				if _, err := resolveSynthesisPitch(cfg, japaneseProfile{}, model, morae, features, "あか、さな", "ja", synthesisPlan); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }

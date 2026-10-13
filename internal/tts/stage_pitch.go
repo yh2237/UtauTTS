@@ -34,7 +34,7 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 	predictEnergy := f0Head != nil && loadedProsody.F0HeadEnergy && !cfg.ProsodyPitchOnly
 	var unified unifiedProsodyPrediction
 	if f0Head != nil && (predictFramePitch || predictEnergy) {
-		unified = predictUnifiedProsody(f0Head, language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan, finalPhraseIsQuestion(cfg.Text), predictEnergy)
+		unified = predictUnifiedProsody(cfg.Context, f0Head, language, prosodyFeatures, curveTimings, curveDurationMS, synthesisPlan, finalPhraseIsQuestion(cfg.Text), predictEnergy)
 	}
 	if predictFramePitch {
 		pitchCurve = f0HeadPitchCurve(cfg, loadedProsody, morae, prosodyFeatures, curveTimings, curveDurationMS, unified.contour)

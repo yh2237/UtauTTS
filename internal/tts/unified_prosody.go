@@ -1,6 +1,7 @@
 package tts
 
 import (
+	"context"
 	"fmt"
 	"math"
 
@@ -216,7 +217,7 @@ type unifiedProsodyPrediction struct {
 	ids     [][3]int
 }
 
-func predictUnifiedProsody(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan, question, includeEnergy bool) unifiedProsodyPrediction {
+func predictUnifiedProsody(ctx context.Context, model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan, question, includeEnergy bool) unifiedProsodyPrediction {
 	if model == nil || !model.HasF0Head() {
 		return unifiedProsodyPrediction{}
 	}
@@ -224,12 +225,18 @@ func predictUnifiedProsody(model *speechtiming.TCN, language string, features []
 	if err != nil {
 		return unifiedProsodyPrediction{}
 	}
-	var values, energy []float32
-	if includeEnergy {
-		values, energy, err = model.PredictProsody(ids, cont)
-	} else {
-		values, err = model.PredictF0(ids, cont)
+	cache, err := cacheFor(ctx)
+	if err != nil {
+		return unifiedProsodyPrediction{}
 	}
+	key := unifiedProsodyKey(model, ids, cont, speech)
+	cache.RLock()
+	cached, ok := cache.unified[key]
+	cache.RUnlock()
+	if ok {
+		return cached.copy(includeEnergy)
+	}
+	values, energy, err := model.PredictProsody(ids, cont)
 	if err != nil || len(values) == 0 {
 		return unifiedProsodyPrediction{}
 	}
@@ -246,7 +253,9 @@ func predictUnifiedProsody(model *speechtiming.TCN, language string, features []
 		cents = prosody.SmoothPitchPhrases(cents, speech, 10, 20)
 		prosody.ClipPitchContour(cents, speech, 75, 90)
 	}
-	return unifiedProsodyPrediction{contour: &render.PitchCurve{FrameMS: 10, Cents: cents}, energy: energy, ids: ids}
+	prediction := unifiedProsodyPrediction{contour: &render.PitchCurve{FrameMS: 10, Cents: cents}, energy: energy, ids: ids}
+	cache.storeUnified(key, prediction)
+	return prediction.copy(includeEnergy)
 }
 
 // previewPlanは音源を読まないプレビュー用に、モーラの時刻からF0ヘッドの入力に足りるプランを組む。

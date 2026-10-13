@@ -32,6 +32,9 @@ type synthesisCacheState struct {
 	analysisOrder    []analysisCacheKey
 	computations     map[prosodyComputationKey]prosodyComputation
 	computationOrder []prosodyComputationKey
+	unified          map[unifiedProsodyCacheKey]unifiedProsodyPrediction
+	unifiedOrder     []unifiedProsodyCacheKey
+	unifiedBytes     int
 }
 
 func newSynthesisCache() *synthesisCacheState {
@@ -39,6 +42,7 @@ func newSynthesisCache() *synthesisCacheState {
 		banks: make(map[string]*voicebank.Bank), models: make(map[string]modelCacheEntry),
 		analyses:     make(map[analysisCacheKey]*openjtalk.Analysis),
 		computations: make(map[prosodyComputationKey]prosodyComputation),
+		unified:      make(map[unifiedProsodyCacheKey]unifiedProsodyPrediction),
 	}
 }
 
@@ -253,6 +257,9 @@ func loadProsodyModelCached(ctx context.Context, path string) (*prosody.Model, e
 		return nil, err
 	}
 	cache.Lock()
+	if old := cache.models[key].model; old != nil && old.F0Head != nil && old.F0Head != model.F0Head {
+		cache.forgetUnifiedModelLocked(old.F0Head)
+	}
 	cache.models[key] = modelCacheEntry{size: info.Size(), modTime: modTime, model: model}
 	cache.Unlock()
 	return model, nil
@@ -306,4 +313,7 @@ func (cache *synthesisCacheState) clear() {
 	cache.analysisOrder = nil
 	cache.computations = make(map[prosodyComputationKey]prosodyComputation)
 	cache.computationOrder = nil
+	cache.unified = make(map[unifiedProsodyCacheKey]unifiedProsodyPrediction)
+	cache.unifiedOrder = nil
+	cache.unifiedBytes = 0
 }
