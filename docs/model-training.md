@@ -8,7 +8,7 @@ v10は単体では配布せず、v12の基準モデルとしてモデルJSONに�
 
 `frame-intonation-tcn-v10` は、つくよみちゃんコーパス Vol.1 と「みんなで作る JSUT」basic5000 の音声を使い、Open JTalk のアクセント特徴と音素時刻から 10 ms ごとの F0 輪郭を学習します。入力は `version: 1` の JSONL で、各行に `id`、`text`、`audio_path`、時刻付き `tokens` を持ちます。Go トレーナーは gograd の残差 TCN を使用します。
 
-仮名読みのコーパスは、Open JTalk 由来の音素列との厳密な照合ができない場合に `--allow-reading-mismatch` を指定します。音素列を含む入力では、休止記号や長母音などを Python 版と同じ規則で正規化して照合します。
+仮名読みのコーパスでは、Open JTalk 由来の音素列との厳密な照合ができない場合に `--allow-reading-mismatch` を指定します。音素列を含む入力では、休止記号や長母音などを Python 版と同じ規則で正規化して照合します。
 
 ```powershell
 go run ./cmd/tools/prepare-minnade-jsut --root "data/みんなで作るJSUTコーパスbasic5000" --out out/jsut --start 1 --end 600

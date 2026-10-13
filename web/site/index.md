@@ -5,7 +5,7 @@ description: UtauTTSのデスクトップ版とWeb版の使い方
 
 # UtauTTS
 
-UtauTTSは、UTAUボイスバンクの原音接続に学習ベースのイントネーション調整を加えたTTSです
+UtauTTSは、UTAUボイスバンクの原音接続に学習ベースのイントネーション調整を加えたTTSです。
 
 Windows・macOS・Linux向けのデスクトップ版と、ブラウザで使うWeb版があります。
 

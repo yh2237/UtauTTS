@@ -11,7 +11,7 @@ UtauTTSの利用方法と開発資料を目的別にまとめています。初�
 - [コマンドライン](cli.md): CLIの使い方、手動ピッチ、USTX変換
 - [UtauTTS Server](server.md): HTTP API、手動ピッチ編集JSON、サーバーの起動
 - [トラブルシューティング](troubleshooting.md): 起動、解析、音声合成の問題
-- [同梱音源](voicebank.md): 同梱音源の出所と利用条件
+- [同梱音源](voicebank.md): 出典と利用条件
 
 ## 仕組み
 

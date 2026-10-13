@@ -12,7 +12,7 @@ GUI配布物ではWindowsの`tools/utautts-cli.exe`、Linux／macOSの`tools/uta
 - `--out <path>`: 出力WAVのパス。`-`で標準出力へ出す
 - `--text <文>`または`--reading <読み>`: 合成する文章または読み。UTF-8ファイルや標準入力からも読み込める
 
-`--text`は選択した言語と発音形式で読みを生成します。`--reading`は、かな、ARPAbet、Pinyinなどの読みを直接指定します。`--kana`は互換用の別名です。日本語以外を使う場合は`--language`も指定してください。
+`--text`は選択した言語と発音形式で読みを生成します。`--reading`はかな、ARPAbet、Pinyinなどの読みを直接指定します。`--kana`は互換用の別名です。日本語以外を使う場合は`--language`も指定してください。
 
 ## 基本例
 
@@ -40,7 +40,7 @@ CLIはGUIと違い、抑揚モデルを既定では使いません。使う場�
 
 英語では`--language en --prosody frame-intonation-tcn-en-v1`、中国語では`--language zh --prosody tone-intonation-zh-v1`を指定します。各言語のモデルは`utautts-world-phrase`で抑揚に反映されます。
 
-GUIと同じユーザー辞書は、次のJSONを`--dictionary dictionary.json`で渡します。
+GUIと同じユーザー辞書を使うには、次のJSONを`--dictionary dictionary.json`で渡します。
 
 ```json
 [
@@ -114,7 +114,7 @@ utautts-cli --list wavtools
 | `provider`・`available`・`problems` | RendererのProviderと資源の利用可否、不足等の説明 |
 | `catalog.default_id` | 既定のRendererまたはClassicツール。モデルは既定で使わないため`none` |
 
-Rendererの`available`は宣言された資源の検査結果です。helper・Providerを起動して合成する検査ではなく、Open JTalkによる読み解析などを含む全機能の利用可否は保証しません。利用できないRendererがあっても一覧取得は成功するため、各要素の状態を確認してください。
+Rendererの`available`は宣言された資源の検査結果です。helper・Providerを起動して合成する検査ではなく、Open JTalkによる読み解析などを含む全機能の利用可否を保証するものではありません。利用できないRendererがあっても一覧取得は成功するため、各要素の状態を確認してください。
 
 ## 環境診断
 
@@ -239,7 +239,7 @@ utautts-cli --voicebank "voice/足立レイver3.5.0" --text-file message.txt --o
 
 WAVを標準出力へ出す場合、`--write-text`と`--write-lab`は使えません。`--plan-out`と`--ustx-out`へのファイル保存は併用できます。
 
-Windows PowerShell 5.1など、外部コマンドの出力を文字列へ変換する環境ではWAVのリダイレクトを避けてください。`--out speech.wav`で直接保存するか、バイナリ出力を保つPowerShell 7.4以降などを使います。
+Windows PowerShell 5.1など、外部コマンドの出力を文字列へ変換する環境ではWAVのリダイレクトを避けてください。`--out speech.wav`で直接保存するか、バイナリ出力を保つPowerShell 7.4以降などを使ってください。
 
 合成・入出力・必須引数のエラーは終了コード1、未知のフラグなどフラグ解析のエラーは2を返します。原音の選択と配置は`--plan-out`で確認できます。
 

@@ -4,9 +4,9 @@
 
 | パッケージ | 用途 |
 | --- | --- |
-| `UtauTTS-win-x64.zip` | Windows x64でGUI・CLI・HTTP Server |
-| `UtauTTS-linux-x64.zip` | Linux x64でGUI・CLI・HTTP Server |
-| `UtauTTS-mac-arm64.zip` | Apple Silicon MacでGUI・CLI・HTTP Server |
+| `UtauTTS-win-x64.zip` | Windows x64向けGUI・CLI・HTTP Server |
+| `UtauTTS-linux-x64.zip` | Linux x64向けGUI・CLI・HTTP Server |
+| `UtauTTS-mac-arm64.zip` | Apple Silicon Mac向けGUI・CLI・HTTP Server |
 | `UtauTTS-Server-win-x64.zip` | Windows x64向けHTTP Server |
 | `UtauTTS-Server-linux-x64.zip` | Linux x64向けHTTP Server |
 | `UtauTTS-Server-mac-arm64.zip` | Apple Silicon Mac向けHTTP Server |
@@ -76,13 +76,13 @@ voice/
 
 「ファイル」→「音源とプラグイン」→「音源フォルダを開く」から`voice`ディレクトリを開けます。配置したらUtauTTSを再起動するか、同じメニューの「音源を再読込」を選んでください。
 
-配布されたZIPのままなら「音源を追加...」でZIPを選ぶと、`voice`へ展開して読み込みます。同じ名前の音源フォルダは置き換えます。
+配布されたZIPをそのまま使う場合は、「音源を追加...」でZIPを選ぶと`voice`へ展開して読み込みます。同じ名前の音源フォルダは置き換えます。
 
 GUI版には「足立レイ ver3.5.0」を初期音源として同梱しています。利用条件は[同梱音源](voicebank.md)と音源内の文書を確認してください。
 
 ## HTTP Serverの起動
 
-GUI版にもHTTP Serverを同梱しています。次のコマンドはGUI版・Server専用版どちらでも、展開したフォルダから実行できます。同じ配布フォルダの音源・モデル・Rendererを使い、GUIからの自動起動はしません。
+GUI版にもHTTP Serverを同梱しています。次のコマンドは、GUI版・Server専用版のどちらでも、展開したフォルダから実行できます。同じ配布フォルダの音源・モデル・Rendererを使い、GUIからの自動起動はしません。
 
 Windows
 
@@ -106,4 +106,4 @@ xattr -rc "utautts-server" runtime
 
 `http://127.0.0.1:8080/`でコンソールUIを開けます。
 
-[UtauTTS Server](server.md)を確認してください。
+詳細は[UtauTTS Server](server.md)を参照してください。

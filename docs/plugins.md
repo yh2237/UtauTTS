@@ -1,6 +1,6 @@
 # モデル／Rendererプラグイン
 
-モデルとRendererは、GUI、CLI、Serverで共通の変わらないIDで選びます。実行ファイルの隣にある`models/`と`renderer/`を自動検出し、CLIとServerでは`--model-dir`／`--renderer-dir`で探索先を追加できます。明示した探索先は同梱定義より優先されます。
+モデルとRendererは、GUI、CLI、Serverで共通の公開IDで選びます。実行ファイルの隣にある`models/`と`renderer/`を自動検出し、CLIとServerでは`--model-dir`／`--renderer-dir`で探索先を追加できます。明示した探索先は同梱定義より優先されます。
 
 ## Renderer manifest の仕様
 
