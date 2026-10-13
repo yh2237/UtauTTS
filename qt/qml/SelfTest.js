@@ -30,6 +30,9 @@ function run(ctx) {
                   "editor timeline padding or hit coordinates are inconsistent");
     if (error.length)
         return error;
+    error = checkFrameEditing(ctx.editorContent);
+    if (error.length)
+        return error;
     error = check(host.current().phonemizer === "auto"
                   && host.buildSynthesisRequest(host.current()).phonemizer !== "auto",
                   "normal GUI defaults are incorrect");
@@ -170,6 +173,38 @@ function run(ctx) {
     host.addUtterance(false);
     host.resetHistory(false);
     return error;
+}
+
+function checkFrameEditing(editorContent) {
+    const component = Qt.createComponent("editors/PhonemeEditor.qml");
+    if (component.status !== Component.Ready)
+        return component.errorString();
+    const editor = component.createObject(editorContent, {
+        visible: false, translator: editorContent.phonemeEditor.translator,
+        leadingMargin: 20, frameMs: 10, waveformDuration: 1000,
+        moraPositions: [0, 100, 300], moraDurations: [50, 50, 50],
+        units: [{position: 2, render_start_ms: 330}, {position: 0, render_start_ms: 0},
+                {position: 2, render_start_ms: 290}, {position: 1, silent: true}]
+    });
+    if (!editor)
+        return "フレーム編集テスト用のエディターを作れません";
+    try {
+        editor.setFrameRange(0, 40, 100);
+        const first = editor.manualFrames;
+        if (first[0] !== 100 || first[5] !== 100 || first[6] !== 0
+                || first[10] !== 0 || first[26] !== 0 || first[27] !== 100
+                || first[35] !== 100 || first[36] !== 0)
+            return "発音区間の両端・重なり・休止でフレーム補正が変わりました";
+        editor.moraPositions = [0, 100, 400];
+        editor.moraDurations = [100, 50, 100];
+        editor.setFrameRange(0, 60, 200);
+        if (editor.manualFrames[10] !== 200 || editor.manualFrames[11] !== 0
+                || editor.manualFrames[50] !== 200 || editor.manualFrames[51] !== 0)
+            return "時間編集後の発音区間が更新されません";
+        return "";
+    } finally {
+        editor.destroy();
+    }
 }
 
 if (typeof module !== "undefined" && module.exports)

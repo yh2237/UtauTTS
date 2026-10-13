@@ -88,6 +88,31 @@ Item {
     readonly property int frameDisplayCount: Math.max(root.autoFrames.length,
             root.manualFrames.length, root.frameCapacity(), 2)
 
+    // 時間・音素の変更時だけ区間を作り直し、再描画やペン操作では検索だけ行う。
+    readonly property var pronunciationSpans: {
+        const spans = [];
+        for (const unit of root.units || []) {
+            if (!unit || unit.silent)
+                continue;
+            const noteStart = root.unitNoteStart(unit) + root.leadingMargin;
+            const renderStart = Number(unit.render_start_ms);
+            const start = Number.isFinite(renderStart) ? renderStart : noteStart;
+            const end = noteStart + Math.max(1, root.unitDuration(unit));
+            if (end >= start)
+                spans.push({start: start, end: end});
+        }
+        spans.sort((a, b) => a.start - b.start);
+        const merged = [];
+        for (const span of spans) {
+            const last = merged.length ? merged[merged.length - 1] : null;
+            if (last && span.start <= last.end)
+                last.end = Math.max(last.end, span.end);
+            else
+                merged.push(span);
+        }
+        return merged;
+    }
+
     function frameStepMs() {
         const step = Number(root.frameMs);
         return step > 0 ? step : 10;
@@ -139,18 +164,17 @@ Item {
         if (index < 0 || index >= root.frameDisplayCount)
             return false;
         const time = root.frameTimeMs(index) + root.leadingMargin;
-        for (const unit of root.units || []) {
-            if (!unit || unit.silent)
-                continue;
-            const fallbackStart = root.unitNoteStart(unit) + root.leadingMargin;
-            const renderStart = Number(unit.render_start_ms);
-            const start = Number.isFinite(renderStart) ? renderStart : fallbackStart;
-            const end = root.unitNoteStart(unit) + root.leadingMargin
-                    + Math.max(1, root.unitDuration(unit));
-            if (time >= start && time <= end)
-                return true;
+        const spans = root.pronunciationSpans;
+        let low = 0;
+        let high = spans.length;
+        while (low < high) {
+            const middle = (low + high) >> 1;
+            if (spans[middle].start <= time)
+                low = middle + 1;
+            else
+                high = middle;
         }
-        return false;
+        return low > 0 && time <= spans[low - 1].end;
     }
 
     function paddedFrameManual() {
@@ -811,21 +835,30 @@ Item {
 
             Canvas {
                 id: waveformCanvas
-                width: timelineViewport.contentWidth
+                x: timelineViewport.contentX
+                width: timelineViewport.width
                 height: timelineViewport.height
 
                 onPaint: {
                     const ctx = getContext("2d");
                     ctx.reset();
                     ctx.clearRect(0, 0, width, height);
+                    ctx.translate(-x, 0);
                     const center = 55;
                     const viewLeft = timelineViewport.contentX - 60;
                     const viewRight = timelineViewport.contentX + timelineViewport.width + 60;
                     const inView = x => x >= viewLeft && x <= viewRight;
+                    const frameScale = root.timelineDuration / root.zoomedWidth() / root.frameStepMs();
+                    const frameOffset = root.leadingMargin / root.frameStepMs();
+                    const firstFrame = Math.max(0, Math.floor(
+                            (viewLeft - root.sidePadding) * frameScale - frameOffset) - 1);
+                    const lastFrame = Math.min(root.frameDisplayCount - 1, Math.ceil(
+                            (viewRight - root.sidePadding) * frameScale - frameOffset) + 1);
                     const step = Math.pow(10, Math.floor(Math.log10(100 / root.pixelsPerMs)));
                     const tick = step * (step * root.pixelsPerMs < 50 ? 5 : 1);
                     const tickStart = Math.max(0, Math.floor(root.xToTime(viewLeft) / tick) * tick);
-                    for (let time = tickStart; time <= root.timelineDuration; time += tick) {
+                    for (let time = tickStart; time <= Math.min(root.timelineDuration,
+                            root.xToTime(viewRight)); time += tick) {
                         const x = root.timeToX(time);
                         if (!inView(x))
                             continue;
@@ -844,8 +877,8 @@ Item {
                         const barY = laneTop + (laneH - 10) / 2;
                         ctx.strokeStyle = root.gridColor;
                         ctx.beginPath();
-                        ctx.moveTo(0, laneTop + laneH);
-                        ctx.lineTo(width, laneTop + laneH);
+                        ctx.moveTo(timelineViewport.contentX, laneTop + laneH);
+                        ctx.lineTo(timelineViewport.contentX + width, laneTop + laneH);
                         ctx.stroke();
                         for (let ei = 0; ei < root.units.length; ++ei) {
                             const eunit = root.units[ei];
@@ -881,14 +914,14 @@ Item {
                             ctx.strokeStyle = root.gridColor;
                             ctx.beginPath();
                             ctx.moveTo(Math.max(0, viewLeft), y);
-                            ctx.lineTo(Math.min(width, viewRight), y);
+                            ctx.lineTo(Math.min(timelineViewport.contentWidth, viewRight), y);
                             ctx.stroke();
                         }
                         ctx.strokeStyle = root.axisColor;
                         ctx.lineWidth = 1;
                         ctx.beginPath();
                         let autoStarted = false;
-                        for (let fi = 0; fi < root.autoFrames.length; ++fi) {
+                        for (let fi = firstFrame; fi <= Math.min(lastFrame, root.autoFrames.length - 1); ++fi) {
                             if (!root.frameHasPronunciation(fi)) {
                                 autoStarted = false;
                                 continue;
@@ -908,7 +941,7 @@ Item {
                         ctx.lineWidth = 2;
                         ctx.beginPath();
                         let frameStarted = false;
-                        for (let fj = 0; fj < root.frameDisplayCount; ++fj) {
+                        for (let fj = firstFrame; fj <= lastFrame; ++fj) {
                             if (!root.frameHasPronunciation(fj)) {
                                 frameStarted = false;
                                 continue;
@@ -925,7 +958,7 @@ Item {
                         }
                         ctx.stroke();
                         ctx.fillStyle = root.accentColor;
-                        for (let fk = 0; fk < root.frameDisplayCount; ++fk) {
+                        for (let fk = firstFrame; fk <= lastFrame; ++fk) {
                             if (!root.frameHasPronunciation(fk)
                                     || Math.abs(root.frameManualAt(fk)) <= 0.5)
                                 continue;
@@ -1050,7 +1083,7 @@ Item {
                     seekTimer.stop();
                     if (!!root.gesture || !!root.valueGesture)
                         return;
-                    const p = mapToItem(waveformCanvas, mouse.x, mouse.y);
+                    const p = mapToItem(timelineViewport.contentItem, mouse.x, mouse.y);
                     if (mouse.button === Qt.RightButton) {
                         const n = root.noteHit(p.x, p.y);
                         if (n) {
@@ -1115,7 +1148,7 @@ Item {
                     }
                 }
                 onPositionChanged: mouse => {
-                    const p = mapToItem(waveformCanvas, mouse.x, mouse.y);
+                    const p = mapToItem(timelineViewport.contentItem, mouse.x, mouse.y);
                     lastPX = p.x;
                     lastPY = p.y;
                     if (!pressed) {
@@ -1249,7 +1282,7 @@ Item {
                 }
                 onDoubleClicked: mouse => {
                     seekTimer.stop();
-                    const p = mapToItem(waveformCanvas, mouse.x, mouse.y);
+                    const p = mapToItem(timelineViewport.contentItem, mouse.x, mouse.y);
                     if (root.framePaintRequested(mouse.modifiers)) {
                         const target = root.frameAtTime(root.xToTime(p.x) - root.leadingMargin);
                         if (!root.frameHasPronunciation(target))
