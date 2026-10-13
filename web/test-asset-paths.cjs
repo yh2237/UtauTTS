@@ -61,6 +61,8 @@ test("bootstrap loads only the mirror on main in Worker mode and directs Qt wasm
     },
     async qtLoad(config) { qtConfig = config; return {}; },
     addEventListener() {},
+    async fetch() { return { ok: true, headers: new Map([["Content-Type", "application/wasm"]]) }; },
+    WebAssembly: { async compileStreaming() { return {}; } },
   });
   context.window = context;
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../qt/wasm/bootstrap.js"), "utf8"), context);

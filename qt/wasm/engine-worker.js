@@ -70,14 +70,14 @@ async function loadOpenJTalk() {
   const dictManifestURL = paths.dictManifestURL;
   const manifest = await (await fetchAsset(dictManifestURL)).json();
   let loaded = 0;
-  for (const name of manifest.files) {
+  await Promise.all(manifest.files.map(async name => {
     openjtalk.FS.writeFile(
       DICT_PATH + "/" + name,
       new Uint8Array(await (await fetchAsset(dictBase + encodeURIComponent(name))).arrayBuffer())
     );
     loaded++;
     status("辞書を読み込み中… (" + loaded + "/" + manifest.files.length + ")");
-  }
+  }));
   const bridge = createOpenJTalkBridge(openjtalk);
   bridge.init(DICT_PATH);
   globalThis.utauttsOpenJTalk = bridge;
@@ -93,50 +93,52 @@ async function loadWorld() {
 
 async function loadModels() {
   status("モデルを読み込み中…");
-  const manifest = await (await fetchAsset(ENGINE_BASE + "models/manifest.json")).json();
-  for (const name of manifest.models || []) {
-    virtualFs.mountFile(
-      "/models/" + name,
-      new Uint8Array(await (await fetchAsset(ENGINE_BASE + "models/" + encodeURIComponent(name))).arrayBuffer())
-    );
-  }
-  virtualFs.mountFile(
-    "/renderer/utautts-world-phrase/renderer.json",
-    new Uint8Array(await (await fetchAsset(paths.renderer("utautts-world-phrase/renderer.json"))).arrayBuffer())
-  );
+  await Promise.all([
+    (async () => {
+      const manifest = await (await fetchAsset(ENGINE_BASE + "models/manifest.json")).json();
+      await Promise.all((manifest.models || []).map(async name => {
+        virtualFs.mountFile(
+          "/models/" + name,
+          new Uint8Array(await (await fetchAsset(ENGINE_BASE + "models/" + encodeURIComponent(name))).arrayBuffer())
+        );
+      }));
+    })(),
+    (async () => virtualFs.mountFile(
+      "/renderer/utautts-world-phrase/renderer.json",
+      new Uint8Array(await (await fetchAsset(paths.renderer("utautts-world-phrase/renderer.json"))).arrayBuffer())
+    ))(),
+  ]);
 }
 
 async function init() {
   status("エンジンを初期化中…");
-  let voiceManifest = null;
-  try {
-    voiceManifest = await (await fetchAsset(ENGINE_BASE + "voice/manifest.json")).json();
-  } catch (error) {
-    console.warn("bundled voice manifest unavailable", error);
-    voiceManifest = null;
-  }
-  virtualFs = installVirtualFs({
-    cwd: "/",
-    remote: voiceManifest && voiceManifest.files ? {
-      prefix: "/voice",
-      baseURL: ENGINE_BASE + "voice/",
-      files: voiceManifest.files,
-    } : null,
-  });
   const go = new Go();
-  status("エンジンWASMを取得中…");
-  const response = await fetch(ENGINE_BASE + "utautts.wasm");
-  if (!response.ok) {
-    throw new Error("utautts.wasm HTTP " + response.status);
-  }
-  const bytes = await response.arrayBuffer();
-  status("WASMを初期化中…");
-  const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
+  const wasm = (async () => {
+    const response = await fetchAsset(ENGINE_BASE + "utautts.wasm");
+    if (response.headers.get("Content-Type")?.split(";")[0].trim() === "application/wasm")
+      return WebAssembly.instantiateStreaming(response, go.importObject);
+    return WebAssembly.instantiate(await response.arrayBuffer(), go.importObject);
+  })();
+  const assets = (async () => {
+    let voiceManifest = null;
+    try {
+      voiceManifest = await (await fetchAsset(ENGINE_BASE + "voice/manifest.json")).json();
+    } catch (error) {
+      console.warn("bundled voice manifest unavailable", error);
+    }
+    virtualFs = installVirtualFs({
+      cwd: "/",
+      remote: voiceManifest && voiceManifest.files ? {
+        prefix: "/voice",
+        baseURL: ENGINE_BASE + "voice/",
+        files: voiceManifest.files,
+      } : null,
+    });
+    await loadModels();
+  })();
+  const [{ instance }] = await Promise.all([wasm, assets]);
   go.run(instance);
   await waitFor(() => globalThis.utauttsWasm && globalThis.utauttsWasm.call, 30000);
-
-  await loadModels();
-
   self.postMessage({ type: "ready" });
 }
 
@@ -145,8 +147,12 @@ let runtimeKicked = false;
 function ensureRuntime() {
   if (!runtimePromise) {
     runtimePromise = (async () => {
-      if (!globalThis.utauttsOpenJTalk) await loadOpenJTalk();
-      if (!globalThis.utauttsWorld) await loadWorld();
+      const results = await Promise.allSettled([
+        globalThis.utauttsOpenJTalk ? null : loadOpenJTalk(),
+        globalThis.utauttsWorld ? null : loadWorld(),
+      ]);
+      for (const result of results)
+        if (result.status === "rejected") throw result.reason;
     })().catch(error => {
       runtimePromise = null;
       throw error;

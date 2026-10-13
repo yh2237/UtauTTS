@@ -31,19 +31,29 @@
     }, 200);
     let timeout;
     try {
-      // WorkerモードではUI側にFSミラーだけを置き、エンジンの読み込みを避ける。
-      await loadScript(paths.engine("fs-shim.js"));
-      if (new URLSearchParams(location.search).get("async") === "0") {
-        for (const file of ["wasm_exec.js", "openjtalk-bridge.js", "world-bridge.js",
-          "openjtalk/utautts-openjtalk.js", "world/utautts-world.js"])
-          await loadScript(paths.engine(file));
-      }
-      await loadScript(paths.app("engine-loader.js"));
-      const uiScripts = Promise.all([
-        loadScript(paths.app("utautts.js")), loadScript(paths.app("qtloader.js")),
-      ]);
+      const uiModule = (async () => {
+        const response = await fetch(paths.asset("utautts.wasm"));
+        if (!response.ok) throw new Error("UI WASM HTTP " + response.status);
+        if (response.headers.get("Content-Type")?.split(";")[0].trim() === "application/wasm")
+          return WebAssembly.compileStreaming(response);
+        return WebAssembly.compile(await response.arrayBuffer());
+      })();
+      const engineAndScripts = (async () => {
+        // WorkerモードではUI側にFSミラーだけを置く。
+        await loadScript(paths.engine("fs-shim.js"));
+        if (new URLSearchParams(location.search).get("async") === "0") {
+          for (const file of ["wasm_exec.js", "openjtalk-bridge.js", "world-bridge.js",
+            "openjtalk/utautts-openjtalk.js", "world/utautts-world.js"])
+            await loadScript(paths.engine(file));
+        }
+        await loadScript(paths.app("engine-loader.js"));
+        await Promise.all([
+          window.utauttsEngineReady,
+          loadScript(paths.app("utautts.js")), loadScript(paths.app("qtloader.js")),
+        ]);
+      })();
       await Promise.race([
-        Promise.all([window.utauttsEngineReady, uiScripts]),
+        Promise.all([engineAndScripts, uiModule]),
         new Promise((_, reject) => {
           timeout = setTimeout(() => reject(new Error("engine load timeout")), 180000);
         }),
@@ -54,6 +64,7 @@
       const qtInstance = await qtLoad({
         locateFile: file => paths.asset(file),
         qt: {
+          module: uiModule,
           fontDpi: 96,
           onLoaded: () => loading.classList.add("hidden"),
           onExit: data => {
