@@ -329,16 +329,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		requestedAliasPolicy = voicebank.AliasPolicyAuto
 	}
 	applyAliasProfile(bank, &cfg)
-	if len(bank.ARPAsing) > 0 {
-		dictionary := make(map[string]string, len(bank.ARPAsing)+len(cfg.Dictionary))
-		for key, value := range bank.ARPAsing {
-			dictionary[key] = value
-		}
-		for key, value := range cfg.Dictionary {
-			dictionary[key] = value
-		}
-		cfg.Dictionary = dictionary
-	}
+	applyVoicebankDictionary(bank, &cfg)
 	traceMark(&start, "setup")
 	language, phonemizer, reading, morae, err := resolvePronunciation(cfg)
 	if err != nil {
@@ -431,6 +422,20 @@ func resolveJoinModel(cfg Config) (*connection.JoinModel, error) {
 		return nil, nil
 	}
 	return connection.LoadJoinModel(cfg.JoinModelPath)
+}
+
+func applyVoicebankDictionary(bank *voicebank.Bank, cfg *Config) {
+	if len(bank.ARPAsing) == 0 {
+		return
+	}
+	dictionary := make(map[string]string, len(bank.ARPAsing)+len(cfg.Dictionary))
+	for key, value := range bank.ARPAsing {
+		dictionary[key] = value
+	}
+	for key, value := range cfg.Dictionary {
+		dictionary[key] = value
+	}
+	cfg.Dictionary = dictionary
 }
 
 func applyAliasProfile(bank *voicebank.Bank, cfg *Config) {

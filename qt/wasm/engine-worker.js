@@ -181,6 +181,12 @@ async function handleCall(id, method, requestJSON) {
   const before = snapshot();
   let response;
   try {
+    if (method === "synthesize") {
+      const prepared = JSON.parse(globalThis.utauttsWasm.call("prefetchSources", requestJSON || "{}"));
+      if (prepared.ok && Array.isArray(prepared.result)) {
+        await virtualFs.prefetchFiles(prepared.result);
+      }
+    }
     const raw = globalThis.utauttsWasm.call(method, requestJSON || "{}");
     response = JSON.parse(raw);
   } catch (error) {

@@ -94,7 +94,7 @@ function call(method, request) {
   await loadOpenJTalk();
   console.log("openjtalk ready");
 
-  const bytes = fs.readFileSync(path.join(DIST, "utautts.wasm"));
+  const bytes = fs.readFileSync(process.env.UTAUTTS_TEST_WASM_PATH || path.join(DIST, "utautts.wasm"));
   const go = new Go();
   go.env = { TMPDIR: "/tmp", UTAUTTS_WORLD_PROFILE: "/out/profile.jsonl", UTAUTTS_TTS_PROFILE: "1" };
   const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
@@ -115,6 +115,10 @@ function call(method, request) {
     intonation_strength: 1,
     apply_pitch: true,
   };
+
+  const candidates = call("prefetchSources", base);
+  assert.ok(candidates.length > 0 && candidates.every(name => name.startsWith(VOICE_PATH + "/")));
+  await virtualFs.prefetchFiles(candidates);
 
   let prediction = null;
   for (const label of ["predict", "predict2"]) {

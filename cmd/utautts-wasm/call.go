@@ -42,7 +42,16 @@ func engineCall(this js.Value, args []js.Value) any {
 	if err != nil {
 		return errorJSON("engine init: " + err.Error())
 	}
-	result, err := instance.Call(method, []byte(request))
+	var result []byte
+	if method == "prefetchSources" {
+		paths, prepareErr := instance.SynthesisSourcePaths([]byte(request))
+		err = prepareErr
+		if err == nil {
+			result, err = json.Marshal(paths)
+		}
+	} else {
+		result, err = instance.Call(method, []byte(request))
+	}
 	if err != nil {
 		data, _ := json.Marshal(errorResponse{Error: err.Error()})
 		return string(data)

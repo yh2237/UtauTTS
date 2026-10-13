@@ -108,6 +108,64 @@ test("remote FS directory discovery and exclusive checks do not download WAVs", 
   } finally { global.XMLHttpRequest = previous; }
 });
 
+test("remote FS prefetch is bounded, deduplicated and leaves failures retryable", async () => {
+  const originalFetch = global.fetch;
+  const originalXHR = global.XMLHttpRequest;
+  let active = 0, maximum = 0, requests = 0, synchronous = 0;
+  const files = Object.fromEntries(Array.from({length: 20}, (_, i) => ["bank/" + i + ".wav", 2]));
+  global.fetch = async url => {
+    requests++;
+    active++;
+    maximum = Math.max(maximum, active);
+    await new Promise(resolve => setImmediate(resolve));
+    active--;
+    return {ok: !url.endsWith("19.wav"), arrayBuffer: async () => new Uint8Array([1, 2]).buffer};
+  };
+  global.XMLHttpRequest = class {
+    open() {}
+    send() { synchronous++; this.status = 200; this.response = new Uint8Array([3, 4]).buffer; }
+  };
+  try {
+    const vfs = createVirtualFs({remote: {prefix: "/voice", baseURL: "/assets/", files}});
+    vfs.mountFile("/voice/bank/0.wav", new Uint8Array([7, 8]));
+    const paths = Object.keys(files).map(path => "/voice/" + path);
+    await vfs.prefetchFiles([...paths, paths[1], "/voice/bank/unknown.wav"]);
+    assert.equal(requests, 19);
+    assert.ok(maximum > 1 && maximum <= 8);
+    assert.deepEqual(Array.from(vfs.readFile(paths[0])), [7, 8]);
+    assert.deepEqual(Array.from(vfs.readFile(paths[1])), [1, 2]);
+    assert.equal(synchronous, 0);
+    assert.deepEqual(Array.from(vfs.readFile(paths[19])), [3, 4]);
+    assert.equal(synchronous, 1);
+    await vfs.prefetchFiles(paths);
+    assert.equal(requests, 19);
+  } finally { global.fetch = originalFetch; global.XMLHttpRequest = originalXHR; }
+});
+
+test("Worker waits for candidate prefetch before synthesis and still mirrors output", async () => {
+  const vfs = createVirtualFs();
+  const calls = [], messages = [];
+  vfs.prefetchFiles = async paths => { calls.push("fetch:" + paths[0]); };
+  const context = vm.createContext({
+    importScripts() {}, console, Uint8Array, URL, testFs: vfs,
+    location: {href: "https://example.test/app/engine-worker.js"}, createUtauTTSAssetPaths,
+    self: {postMessage(message) { messages.push(message); }},
+    utauttsWasm: {call(method) {
+      calls.push(method);
+      if (method === "prefetchSources") return '{"ok":true,"result":["/voice/bank/a.wav"]}';
+      vfs.mountFile("/tmp/output.wav", new Uint8Array([1, 2]));
+      return '{"ok":true,"result":{}}';
+    }},
+  });
+  const worker = source("qt/wasm/engine-worker.js");
+  vm.runInContext(worker.slice(0, worker.indexOf("\ninit().catch(")), context);
+  vm.runInContext("virtualFs = testFs; runtimePromise = Promise.resolve()", context);
+  await context.handleCall(1, "synthesize", "{}");
+  assert.deepEqual(calls, ["prefetchSources", "fetch:/voice/bank/a.wav", "synthesize"]);
+  const result = messages.find(message => message.type === "callResult");
+  assert.equal(result.files[0].path, "/tmp/output.wav");
+});
+
 test("shared overrides preserve unit identity, merge parameters and remove without holes", () => {
   const context = vm.createContext({});
   vm.runInContext(source("qt/qml/UnitOverrides.js"), context);

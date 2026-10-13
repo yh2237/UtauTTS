@@ -63,11 +63,12 @@ function createVirtualFs(options) {
     node.data = storage.subarray(0, length);
   }
 
-  // リモート音源は初回アクセス時に同期XHRで取得する。Worker内専用。
+  // 未取得のリモート原音は同期XHRで取得する。Worker内専用。
   const remote = options && options.remote ? options.remote : null;
   const remotePrefix = remote ? normalizePath(remote.prefix || "/voice") : "";
   const remoteBase = remote ? (remote.baseURL || "") : "";
   const remoteFiles = remote ? (remote.files || {}) : {};
+  const remotePending = new Map();
 
   const remoteFileSizes = new Map();
   const remoteDirs = new Set();
@@ -143,6 +144,25 @@ function createVirtualFs(options) {
       console.warn("fs-shim remoteFetch failed for " + rel + ": " + error);
       return false;
     }
+  }
+
+  async function prefetchRemote(path) {
+    const rel = remoteRelative(path);
+    if (lookup(path) || rel === null || !remoteIsFile(rel) || !remoteBase) return;
+    if (remotePending.has(rel)) return remotePending.get(rel);
+    const pending = Promise.resolve().then(async () => {
+      try {
+        const url = remoteBase + rel.split("/").map(encodeURIComponent).join("/");
+        const response = await fetch(url, {signal: AbortSignal.timeout(30000)});
+        if (!response.ok) return;
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (!lookup(path)) fs.mountFile(path, bytes);
+      } catch (error) {
+        // 取得できなかった原音は、通常の読み込みで再試行する。
+      } finally { remotePending.delete(rel); }
+    });
+    remotePending.set(rel, pending);
+    return pending;
   }
 
   function remoteDirStats(size) {
@@ -265,6 +285,14 @@ function createVirtualFs(options) {
 
   const fs = {
     constants,
+    async prefetchFiles(paths) {
+      if (!remote) return;
+      const files = Array.from(new Set(paths));
+      let next = 0;
+      await Promise.all(Array.from({length: Math.min(8, files.length)}, async () => {
+        while (next < files.length) await prefetchRemote(files[next++]);
+      }));
+    },
     mountFile(path, data) {
       const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
       const parent = ensureDir(parentPath(path));
