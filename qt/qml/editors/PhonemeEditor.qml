@@ -231,7 +231,9 @@ Item {
     signal resetUnitRequested(int unitIndex)
     signal fitRequested()
 
-    readonly property real minimumZoom: 1
+    readonly property real fitZoom: Math.max(1, timelineViewport.width - root.sidePadding * 2)
+            / Math.max(1, root.timelineDuration * root.pixelsPerMs)
+    readonly property real minimumZoom: Math.min(1, root.fitZoom)
     readonly property real maximumZoom: 24
     readonly property real displayDuration: Math.max(1, Number(root.waveformDuration) || 1)
     readonly property real timelineDuration: root.gesture ? root.gestureDuration : root.contentDuration
@@ -526,7 +528,7 @@ Item {
     }
 
     function zoomedWidth() {
-        return Math.max(1, timelineViewport.width - root.sidePadding * 2) * root.zoomFactor;
+        return root.timelineDuration * root.pixelsPerMs * root.zoomFactor;
     }
 
     function timeToX(value) {
@@ -561,7 +563,7 @@ Item {
     }
 
     onFitRequested: {
-        root.zoomFactor = 1;
+        root.zoomFactor = root.fitZoom;
         timelineViewport.contentX = 0;
     }
 

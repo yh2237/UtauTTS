@@ -181,6 +181,7 @@ function checkFrameEditing(editorContent) {
         return component.errorString();
     const editor = component.createObject(editorContent, {
         visible: false, translator: editorContent.phonemeEditor.translator,
+        timingEditor: editorContent.pitchEditor,
         leadingMargin: 20, frameMs: 10, waveformDuration: 1000,
         moraPositions: [0, 100, 300], moraDurations: [50, 50, 50],
         units: [{position: 2, render_start_ms: 330}, {position: 0, render_start_ms: 0},
@@ -189,6 +190,9 @@ function checkFrameEditing(editorContent) {
     if (!editor)
         return "フレーム編集テスト用のエディターを作れません";
     try {
+        if (Math.abs(editor.timeToX(120) - editor.timeToX(0)
+                - 120 * editorContent.pitchEditor.durationScale) > 0.001)
+            return "拡張編集の初期倍率が基本編集と一致しません";
         editor.setFrameRange(0, 40, 100);
         const first = editor.manualFrames;
         if (first[0] !== 100 || first[5] !== 100 || first[6] !== 0
