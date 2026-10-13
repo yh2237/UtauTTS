@@ -4,6 +4,8 @@
 
 既定では`127.0.0.1:8080`を待ち受けます。ローカル専用で、LANや外部アドレスへの待受はできません。外部公開が必要な場合は、本体とは別のアプリで認証・アクセス制御を担当してください。
 
+GUI版にも同じServerを同梱しています。GUIの起動ファイルと同じ階層の`utautts-server.exe`（Linux／macOSは`utautts-server`）を起動すると、同じ配布フォルダの音源・モデル・Rendererを使えます。GUIからの自動起動はありません。以下のコマンドは配布フォルダから実行してください。
+
 Windows
 
 ```powershell
@@ -25,7 +27,7 @@ xattr -rc "utautts-server" runtime
 ./utautts-server --voice-dir voice --renderer utautts-world-phrase
 ```
 
-標準では実行ファイルと同じ場所の`voice`ディレクトリを読み込みます。音源はフォルダごとに配置し、`voicebank_id`には`/api/voicebanks`で取得したIDを指定します。省略するとID順で最初の音源が使われます。
+既定の音源ディレクトリは`voice`です。作業フォルダにあればそちらを優先し、なければServer実行ファイルと同じ場所から探します。別の音源を使う場合は`--voice-dir`で指定してください。音源はフォルダごとに配置し、`voicebank_id`には`/api/voicebanks`で取得したIDを指定します。省略するとID順で最初の音源が使われます。
 
 ## コンソールUI
 

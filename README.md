@@ -14,9 +14,9 @@ UTAUボイスバンクの原音接続に、学習ベースのイントネーシ�
 
 | パッケージ | 用途 |
 | --- | --- |
-| `UtauTTS-win-x64.zip` | Windows x64向けGUIとCLI |
-| `UtauTTS-linux-x64.zip` | Linux x64向けGUIとCLI |
-| `UtauTTS-mac-arm64.zip` | Apple Silicon Mac向けGUIとCLI |
+| `UtauTTS-win-x64.zip` | Windows x64向けGUI・CLI・HTTP Server |
+| `UtauTTS-linux-x64.zip` | Linux x64向けGUI・CLI・HTTP Server |
+| `UtauTTS-mac-arm64.zip` | Apple Silicon Mac向けGUI・CLI・HTTP Server |
 | `UtauTTS-Server-win-x64.zip` | Windows x64向けHTTP Server |
 | `UtauTTS-Server-linux-x64.zip` | Linux x64向けHTTP Server |
 | `UtauTTS-Server-mac-arm64.zip` | Apple Silicon Mac向けHTTP Server |
@@ -48,13 +48,13 @@ CLIはGUI版の`tools/utautts-cli.exe`（Linux／macOSは`tools/utautts-cli`）�
   --out ".\out.wav"
 ```
 
-Server版を起動すると`http://127.0.0.1:8080/`でコンソールUIを使えます。
+HTTP ServerもGUI版に同梱しています。GUIの起動ファイルと同じ階層にある`utautts-server.exe`（Linux／macOSは`utautts-server`）を起動すると、同梱音源・モデルをHTTP APIから使えます。GUIと同時に自動起動はしません。
 
 ```powershell
-.\UtauTTS-Server\utautts-server.exe --voice-dir ".\UtauTTS-Server\voice"
+.\UtauTTS\utautts-server.exe
 ```
 
-全オプションは[コマンドライン](docs/cli.md)、APIは[UtauTTS Server](docs/server.md)を参照してください。
+`http://127.0.0.1:8080/`でコンソールUIを開けます。GUIが不要な場合はServer専用ZIPも使えます。全オプションは[コマンドライン](docs/cli.md)、APIは[UtauTTS Server](docs/server.md)を参照してください。
 
 ## うまく動かないとき
 

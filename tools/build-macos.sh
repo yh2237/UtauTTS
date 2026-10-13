@@ -64,6 +64,7 @@ echo '=== Test ==='
 
 echo '=== Build CLI, updater, and server ==='
 "${go_command}" build -trimpath -ldflags="-s -w" -o "${server_dir}/utautts-server" ./cmd/utautts-server
+cp "${server_dir}/utautts-server" "${gui_dir}/utautts-server"
 "${go_command}" build -trimpath -ldflags="-s -w" -o "${gui_dir}/tools/utautts-cli" ./cmd/utautts-cli
 "${go_command}" build -trimpath -ldflags="-s -w" -o "${gui_dir}/tools/utautts-ustx" ./cmd/tools/utautts-ustx
 "${go_command}" build -trimpath -ldflags="-s -w" -o "${gui_dir}/tools/utautts-updater" ./cmd/utautts-updater
@@ -260,7 +261,7 @@ PY
 done
 
 chmod +x "${app_path}/Contents/MacOS/utautts" \
-  "${gui_dir}/tools/"* "${gui_dir}/runtime/"* \
+  "${gui_dir}/utautts-server" "${gui_dir}/tools/"* "${gui_dir}/runtime/"* \
   "${server_dir}/utautts-server" "${server_dir}/runtime/"*
 
 echo '=== Package ==='

@@ -69,6 +69,7 @@ bash "${root_dir}/tools/check-linux-relocations.sh" "${gui_root}/utautts"
 
 for required in \
   "${gui_root}/utautts" \
+  "${gui_root}/utautts-server" \
   "${gui_root}/libutautts_native.so" \
   "${gui_root}/tools/utautts-cli" \
   "${gui_root}/tools/utautts-ustx" \
@@ -184,6 +185,7 @@ for removed_runtime in libcoreclr.so libhostpolicy.so utautts-worldline-bridge.r
 done
 for executable in \
   "${gui_root}/utautts" \
+  "${gui_root}/utautts-server" \
   "${gui_root}/tools/utautts-cli" \
   "${gui_root}/tools/utautts-ustx" \
   "${gui_root}/tools/utautts-updater" \
@@ -239,9 +241,9 @@ fi
 
 port="$("${python_command}" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')"
 (
-  cd "${server_root}"
-  exec ./utautts-server --host 127.0.0.1 --port "${port}" \
-    --voice-dir "${gui_root}/voice" --renderer utautts-world-phrase
+  cd "${work_dir}"
+  exec "${gui_root}/utautts-server" --host 127.0.0.1 --port "${port}" \
+    --renderer utautts-world-phrase
 ) >"${work_dir}/server.stdout.log" 2>"${work_dir}/server.stderr.log" &
 server_pid=$!
 base_url="http://127.0.0.1:${port}"

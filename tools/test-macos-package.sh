@@ -70,6 +70,7 @@ app="${gui_root}/UtauTTS.app"
 cli="${gui_root}/tools/utautts-cli"
 for required in \
   "${app}/Contents/MacOS/utautts" \
+  "${gui_root}/utautts-server" \
   "${app}/Contents/Frameworks/libutautts_native.dylib" \
   "${cli}" \
   "${gui_root}/tools/utautts-ustx" \
@@ -201,6 +202,7 @@ for removed in \
 done
 for executable in \
   "${app}/Contents/MacOS/utautts" "${cli}" \
+  "${gui_root}/utautts-server" \
   "${gui_root}/tools/utautts-ustx" "${gui_root}/tools/utautts-updater" \
   "${gui_root}/runtime/utautts-openjtalk-features" \
   "${gui_root}/runtime/utautts-worldline-bridge" "${server_root}/utautts-server"; do
@@ -236,9 +238,9 @@ smoke_text='こんにちは'
 
 port="$("${python_command}" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')"
 (
-  cd "${server_root}"
-  exec ./utautts-server --host 127.0.0.1 --port "${port}" \
-    --voice-dir "${gui_root}/voice" --renderer utautts-world-phrase
+  cd "${work_dir}"
+  exec "${gui_root}/utautts-server" --host 127.0.0.1 --port "${port}" \
+    --renderer utautts-world-phrase
 ) >"${work_dir}/server.stdout.log" 2>"${work_dir}/server.stderr.log" &
 server_pid=$!
 base_url="http://127.0.0.1:${port}"

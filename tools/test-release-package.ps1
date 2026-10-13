@@ -380,8 +380,9 @@ try {
         throw "Packaged CLI accepted or panicked on NaN input: exit=$nanExitCode output=$($nanOutput -join ' ')"
     }
 
-    $server = Join-Path $serverRoot 'utautts-server.exe'
-    Assert-Path $server 'packaged server'
+    Assert-Path (Join-Path $serverRoot 'utautts-server.exe') 'standalone server'
+    $server = Join-Path $guiRoot 'utautts-server.exe'
+    Assert-Path $server 'GUI bundled server'
     $port = 18000 + (Get-Random -Minimum 0 -Maximum 1000)
     $stdout = Join-Path $temporaryRoot 'server.stdout.log'
     $stderr = Join-Path $temporaryRoot 'server.stderr.log'
@@ -389,7 +390,7 @@ try {
     Remove-Item Env:PATH -ErrorAction SilentlyContinue
     try {
         $process = Start-Process -FilePath $server -ArgumentList @(
-            '--host', '127.0.0.1', '--port', $port.ToString(), '--voice-dir', $voicebank.FullName, '--renderer', 'utautts-world-phrase'
+            '--host', '127.0.0.1', '--port', $port.ToString(), '--renderer', 'utautts-world-phrase'
         ) -WorkingDirectory $workingDirectory -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
     } finally {
         $env:Path = $savedPath

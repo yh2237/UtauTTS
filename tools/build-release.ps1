@@ -132,6 +132,7 @@ try {
 
     Write-Step 'Build server package'
     Invoke-Checked 'go' @('build', '-trimpath', '-ldflags', '-s -w', '-o', (Join-Path $serverPath 'utautts-server.exe'), './cmd/utautts-server')
+    Copy-Item -LiteralPath (Join-Path $serverPath 'utautts-server.exe') -Destination $guiPath
 
     Write-Step 'Build Open JTalk frontend helper'
     & (Join-Path $PSScriptRoot 'build-openjtalk-feature-bridge.ps1') -Python $pythonCommand

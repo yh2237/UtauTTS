@@ -4,9 +4,9 @@
 
 | パッケージ | 用途 |
 | --- | --- |
-| `UtauTTS-win-x64.zip` | Windows x64でGUIとCLI |
-| `UtauTTS-linux-x64.zip` | Linux x64でGUIとCLI |
-| `UtauTTS-mac-arm64.zip` | Apple Silicon MacでGUIとCLI |
+| `UtauTTS-win-x64.zip` | Windows x64でGUI・CLI・HTTP Server |
+| `UtauTTS-linux-x64.zip` | Linux x64でGUI・CLI・HTTP Server |
+| `UtauTTS-mac-arm64.zip` | Apple Silicon MacでGUI・CLI・HTTP Server |
 | `UtauTTS-Server-win-x64.zip` | Windows x64向けHTTP Server |
 | `UtauTTS-Server-linux-x64.zip` | Linux x64向けHTTP Server |
 | `UtauTTS-Server-mac-arm64.zip` | Apple Silicon Mac向けHTTP Server |
@@ -78,7 +78,9 @@ voice/
 
 GUI版には「足立レイ ver3.5.0」を初期音源として同梱しています。利用条件は[同梱音源](voicebank.md)と音源内の文書を確認してください。
 
-## Server版の起動
+## HTTP Serverの起動
+
+GUI版にもHTTP Serverを同梱しています。次のコマンドはGUI版・Server専用版どちらでも、展開したフォルダから実行できます。同じ配布フォルダの音源・モデル・Rendererを使い、GUIからの自動起動はしません。
 
 Windows
 

@@ -72,6 +72,7 @@ echo '=== Test ==='
 
 echo '=== Build server ==='
 "${go_command}" build -trimpath -ldflags="-s -w" -o "${server_dir}/utautts-server" ./cmd/utautts-server
+cp "${server_dir}/utautts-server" "${gui_dir}/utautts-server"
 
 echo '=== Build CLI ==='
 "${go_command}" build -trimpath -ldflags="-s -w" -o "${gui_dir}/tools/utautts-cli" ./cmd/utautts-cli
@@ -229,7 +230,7 @@ cp "${root_dir}/LICENSE-SCOPE.md" "${server_dir}/LICENSE-SCOPE.md"
 cp "${root_dir}/THIRD_PARTY_NOTICES.txt" "${server_dir}/THIRD_PARTY_NOTICES.txt"
 
 chmod +x "${gui_dir}/utautts" "${gui_dir}/libutautts_native.so" \
-  "${gui_dir}/tools/"* "${gui_dir}/runtime/utautts-openjtalk-features" \
+  "${gui_dir}/utautts-server" "${gui_dir}/tools/"* "${gui_dir}/runtime/utautts-openjtalk-features" \
   "${gui_dir}/runtime/utautts-worldline-bridge" \
   "${server_dir}/utautts-server" "${server_dir}/runtime/utautts-openjtalk-features" \
   "${server_dir}/runtime/utautts-worldline-bridge"
