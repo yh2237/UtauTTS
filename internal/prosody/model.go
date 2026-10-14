@@ -418,6 +418,8 @@ func (m *Model) PredictFrameContour(morae []frontend.Mora, frames []FeatureFrame
 	baseFeatures := indexedFeatureVectors(morae, frames, featureIndex)
 	hidden := len(model.InputBias)
 	state := make([][]float64, count)
+	// TCNと同様、10msフレームごとの小さな確保を一つにまとめる。
+	stateValues := make([]float64, count*hidden)
 	speech := make([]bool, count)
 	moraIndex := 0
 	for frameIndex := 0; frameIndex < count; frameIndex++ {
@@ -428,7 +430,8 @@ func (m *Model) PredictFrameContour(morae []frontend.Mora, frames []FeatureFrame
 		duration := math.Max(1, timings[moraIndex].DurationMS)
 		progress := clamp((timeMS-timings[moraIndex].StartMS)/duration, 0, 1)
 		framePosition := float64(frameIndex) / float64(max(1, count-1))
-		state[frameIndex] = append([]float64(nil), model.InputBias...)
+		state[frameIndex] = stateValues[frameIndex*hidden : (frameIndex+1)*hidden]
+		copy(state[frameIndex], model.InputBias)
 		for _, feature := range baseFeatures[moraIndex] {
 			for output := 0; output < hidden; output++ {
 				state[frameIndex][output] += model.InputWeights[output][feature.column] * feature.value
