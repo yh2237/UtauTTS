@@ -196,6 +196,15 @@ bool updateInProgress() {
 }
 
 int main(int argc, char *argv[]) {
+#if !defined(Q_OS_WIN) && !defined(Q_OS_MACOS)
+    // Linuxデスクトップ統合（特にKDE Plasmaのplatform theme）が
+    // QQuickStyle::setStyle("Fusion")を上書きしてBreeze等に切り替えるため、
+    // 起動前にデスクトップ統合を無効化しWindows版と同一のFusion UIを維持する。
+    qputenv("XDG_CURRENT_DESKTOP", "X-Generic");
+    qputenv("XDG_SESSION_DESKTOP", "X-Generic");
+    qputenv("DESKTOP_SESSION", "default");
+    qputenv("KDE_FULL_SESSION", "");
+#endif
     QQuickStyle::setStyle("Fusion");
     registerMediaTypes();
     registerPlatformSingleton();
