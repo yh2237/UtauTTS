@@ -1,16 +1,20 @@
 # 第三者コードの出典
 
-UtauTTSの互換処理で参照した公開実装と対応箇所を記載します。配布物のライセンス本文は[`THIRD_PARTY_NOTICES.txt`](../THIRD_PARTY_NOTICES.txt)と[`licenses/`](../licenses/)にあります。
+UtauTTSの互換処理において参照したオープンソース実装と該当モジュールの一覧です。ライセンス本文は [`THIRD_PARTY_NOTICES.txt`](../THIRD_PARTY_NOTICES.txt) および [`licenses/`](../licenses/) を参照してください。
 
-## OpenUtau互換処理
+## OpenUtau 互換実装
 
-参照実装と対応箇所は次の通りです。
+- **Classic UTAU連携** (`internal/render/external_utau.go`):
+  resamplerおよびwavtoolへの引数受け渡し規則、および5点包絡線処理。
+- **音素タイミング** (`internal/render/worldline/`):
+  音素境界の決定および閉鎖音・破裂音の処理。
+- **プロジェクト入出力** (`internal/openutau/`, `cmd/tools/utautts-ustx/`):
+  OpenUtauのプロジェクトファイル形式（USTX）の読み書き。
+- **英語 C+V Phonemizer** (`internal/frontend/english_phonemizer.go`):
+  Cadlaxa氏によるEnglish C+V Phonemizerに基づくエイリアス探索優先順。
 
-- `internal/render/external_utau.go`: Classic UTAUのresamplerとwavtoolへ渡す引数と包絡線処理
-- `internal/render/worldline/`: 音素単位のタイミングと停止音の扱い
-- `internal/openutau/`と`cmd/tools/utautts-ustx/`: USTX形式の入出力
-- `internal/frontend/english_phonemizer.go`のC+V phonemizer（`ParseEnglishCV`）: 英語C+V音源で試すaliasの優先順序
+※上記はOpenUtau（MIT License）の実装を参照しています。
 
-参照元は[OpenUtauのworldline実装](https://github.com/openutau/OpenUtau/tree/0.1.565/cpp/worldline)、[English VCCV phonemizer](https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Plugin.Builtin/EnglishVCCVPhonemizer.cs)、[English C+V phonemizer](https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Plugin.Builtin/EnglishCpVPhonemizer.cs)（作者: Cadlaxa）です。OpenUtauのMIT Licenseと著作権表示は`THIRD_PARTY_NOTICES.txt`に記載しています。
+## WORLD 音声分析合成系
 
-`utautts-world-phrase`は、リポジトリ内の公式WORLDソースからビルドしています。
+`utautts-world-phrase` は、公式のWORLDライブラリ（Harvest, CheapTrick, D4C, Synthesis）のC/C++ソースコードからビルドされています。

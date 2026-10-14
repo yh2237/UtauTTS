@@ -1,103 +1,51 @@
-# リリーステスト
+# リリーステスト手順
 
-リリース前に単体テストを実行し、配布ZIPを展開した状態でも動作を検査します。
+リリース前に実施する単体テスト、パッケージビルド、および配布ZIPの自己診断テストの手順です。
 
-## 一括実行
+## 1. パッケージ作成と一括テスト
 
-Windows版のビルドと検査は、リポジトリ直下で実行します。
+各プラットフォームで以下のコマンドを実行すると、単体テスト、バイナリビルド、ライセンス収集、ZIP生成、および基本動作確認が一括で実行されます。
 
-```powershell
-.\build.bat win
-```
+- **Windows**:
+  ```powershell
+  .\build.bat win
+  ```
+- **Linux (Debian / Ubuntu / WSL2)**:
+  ```bash
+  ./build.sh linux
+  ```
+- **macOS (Apple Silicon)**:
+  ```bash
+  ./build.sh macos
+  ```
 
-Goテスト、GUI・CLI・Serverのビルド、ライセンス収集、ZIP作成、基本動作検査を実行します。どれかが失敗すると停止します。
+---
 
-作成済みのZIPだけを再検査する場合は次を実行します。
+## 2. 生成済みパッケージ単体の検査
 
-```powershell
-./tools/test-release-package.ps1
-```
+既にビルドされたZIPファイルに対して動作検査のみを再実行する場合:
 
-Linux版はDebian／Ubuntu上で直接一括実行できます。
+- **Windows**:
+  ```powershell
+  ./tools/test-release-package.ps1
+  ```
+- **Linux**:
+  ```bash
+  ./tools/test-linux-package.sh
+  ```
+- **macOS**:
+  ```bash
+  ./tools/test-macos-package.sh
+  ```
 
-```bash
-./build.sh linux
-```
+Linux検査では、一時ディレクトリへのZIP展開、依存ライブラリの解決状態、実行権限、ELFバイナリのCOPY relocation / TEXTRELの有無、QtオフスクリーンGUI自己診断、CLI合成、およびHTTP Server APIの動作が検証されます。
 
-WindowsからLinux版を検査する場合は、WSL2側で一度セットアップした後、Windows側から次を実行します。
+---
 
-```powershell
-.\build.bat linux
-```
+## 3. バージョン更新互換性テスト
 
-`build.bat linux`はWSL側のLinuxビルドと同じパッケージ検査まで実行します。WSLの準備方法は[開発環境とビルド](building.md#windowsからlinux-x64を作成する場合)を確認してください。
-
-作成済みのLinux ZIPだけを再検査する場合はLinux環境で次を実行します。
-
-```bash
-./tools/test-linux-package.sh
-```
-
-Linux検査ではZIPを一時ディレクトリへ展開し、日本語フォント、共有ライブラリ解決、実行権限、GUI ELFのCOPY relocation／TEXTREL、QtオフスクリーンGUI自己診断、CLI合成、Serverの解析・合成・batch APIを確認します。PipeWire／PulseAudioのセッションがない完全なヘッドレス環境ではGUI自己診断だけを自動的にスキップし、CLIとServerの検査を続行します。GUI自己診断を必須にする場合は`UTAUTTS_REQUIRE_GUI_SELF_TEST=1`、明示的にスキップする場合は`UTAUTTS_SKIP_GUI_SELF_TEST=1`を設定してください。
-
-macOS版はApple Silicon Mac、またはGitHub ActionsのmacOSワークフローで一括実行します。
-
-```bash
-./build.sh macos
-```
-
-作成済みのmacOS ZIPだけを再検査する場合は、macOS環境で次を実行します。
-
-```bash
-./tools/test-macos-package.sh
-```
-
-Windowsの標準ビルドは`Full`プロファイルです。作成済みの日本語軽量版を検査する場合は、ビルド時と同じプロファイルを指定します。
-
-```powershell
-.\tools\build-release.ps1 -Profile Japanese
-.\tools\test-release-package.ps1 -Profile Japanese
-```
-
-## 更新経路とリリースメタデータ
-
-`appinfo.json`の`version`がタグと一致し、`update_schema`・`migration_schema`・`install_layout`が前回から後退していないことを確認します。比較には前バージョンの各値も渡してください。次はv1.5.1からv1.5.2への更新の例です。
-
-```powershell
-$expected = 'v1.5.2'  # 作成するタグへ置き換える
-.\tools\check-release.ps1 `
-  -ExpectedVersion $expected `
-  -PreviousVersion v1.5.1 `
-  -PreviousUpdateSchema 1 `
-  -PreviousInstallLayout 2 `
-  -PreviousMigrationSchema 1
-```
-
-`build-release.ps1`と`test-release-package.ps1`もこの検査を呼び出します。`go test ./cmd/utautts-updater`では現行パッケージの導入と音源・設定の保持を確認します。Qtの配布物self-testでは、初回起動migration schemaの記録とpending update markerの消去も確認します。
-
-Windows版の更新互換性はGitHub Actionsの`Windows package`で確認します。手動実行では`upgrade_from`に更新元のタグを指定します。プルリクエストに`release-candidate`ラベルを付けた場合は、ワークフローの既定タグからの更新を検査します。正式リリースのタグをpushした場合は、`release.yml`に指定した更新元からの更新をリリース作成前に検査します。
-
-互換性検査では、公開済みの更新元ZIPに含まれる旧アップデーターを使って候補ZIPを導入します。設定、音源、Resampler、Wavtool、ユーザー追加Rendererが保持されること、旧ファイルが残らないこと、実行ファイルが候補版へ置き換わること、更新後のCLIとGUIが起動できることを確認します。現行アップデーターの単体テストでは、Windowsでインストールフォルダが使用中の場合の更新と、失敗時の復旧も確認します。作成済みの候補ZIPをローカルで確認する場合は次を実行します。
+以前のバージョンからの更新・移行が正常に行われるか確認します（設定や追加音源が消去されず維持されることを検証）。
 
 ```powershell
 .\tools\test-update-compatibility.ps1 -PreviousVersion v1.5.1
 ```
-
-GUIでは言語・発音形式・合成方式を変更できることを確認します。「プレリリース版も確認する」で更新候補を切り替え、同じ数値バージョンなら安定版を優先することも確認します。
-
-## 自動確認する機能
-
-| 対象 | 確認内容 |
-| --- | --- |
-| Go内部処理 | frontend、音源読込、原音選択、各Renderer、抑揚、WAV、exo、API、更新処理 |
-| 配布内容 | 必須ファイル、モデル、Renderer、runtime、ライセンス、不要な開発用ファイルの不在 |
-| GUI | QMLロード、Goネイティブ接続、音源・モデル・Renderer列挙 |
-| GUI編集基盤 | プロジェクト保存・読込、辞書と設定の保存 |
-| GUI音声処理 | 文章解析、抑揚予測、実運用Rendererでの合成、WAV保存 |
-| GUI出力 | exo出力、設定とWAVの保存・読込 |
-| CLI | 既定Rendererによる最小合成、既定の抑揚モデルによる実運用合成、不正数値の拒否 |
-| HTTP server | GUI同梱Serverを別の作業フォルダから音源指定なしで起動し、コンソール、health、音源・モデル・Renderer一覧、解析、既定Renderer合成、batch ZIP、音源再読込を検査 |
-
-GUIの検査には、Windowsなら配布された`app/utautts-gui.exe --self-test`、Linuxなら`QT_QPA_PLATFORM=offscreen ./utautts --self-test`、macOSなら`QT_QPA_PLATFORM=cocoa QT_QUICK_BACKEND=software`を設定したアプリバンドル内の実行ファイルを使います。画面や更新確認は開かず、テスト専用の一時設定と一時ファイルだけを使います。
-
-操作部品の入力検査は、Qt SDKの`qmltestrunner -input qt/tests -platform offscreen`で実行します。数値スライダーのキー操作・ドラッグ・ダブルクリックと、再生位置の更新中のシークを確認します。GUIのスクリーンショットを保存するときは、self-testに`UTAUTTS_UI_CAPTURE_DIR`で保存先を指定できます（通常のGUI検査では画面を開きません）。

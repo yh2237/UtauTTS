@@ -1,37 +1,31 @@
-# DiffSinger連携
+# DiffSinger
 
-専用のDiffSinger音源を選んで合成します。`oto.ini`、resampler、wavtoolは使いません。
+UtauTTSは、OpenUtau仕様のDiffSinger音源パッケージに対応しています。原音の切り出し・接続を行わず、音響モデルとボコーダーを用いたニューラル音声合成を行います。
 
-## 対応範囲
+## 対応仕様
+- OpenUtau形式の `dsconfig.yaml`
+- 音素長配分（`dsdur`）、ピッチ予測（`dspitch`）、声質予測（`dsvariance`）
+- 共有ボコーダー（`Dependencies/<ボコーダー名>`）
+- 連続・離散 Diffusion
 
-- OpenUtau形式の`dsconfig.yaml`
-- テキスト形式とJSON形式の音素表
-- 音源内の`dsvocoder`とOpenUtau形式の共有vocoder
-- 音源パッケージ内の共有モデル
-- 言語ID、話者埋め込み、gender、velocity
-- `dsdur`による音素長配分
-- `dspitch`によるピッチ推定
-- `dsvariance`による声質推定
-- 連続・離散diffusion
-- 日本語かな入力
+※現在の制約: GPUアクセラレーションおよび話者混合（Speaker Mix）には対応していません（Windows x64でのCPU実行のみ）。
 
-共有vocoderは`Dependencies/<名前>`に配置します。名前は音源の指定と一致させてください。探索先は、UtauTTSを起動したディレクトリの`Dependencies`、実行ファイルと同じ場所の`Dependencies`、OpenUtauの標準`Dependencies`の順です。
+---
 
-## 対応していないもの
+## 使い方
 
-- 話者混合
-- GPUを使った実行
-- Windows以外の実行環境
+1. 通常のUTAU音源と同様に、`voice/` 配下にDiffSinger音源フォルダを配置します。
+2. 共有ボコーダーが必要な音源の場合は、`Dependencies/<ボコーダー名>` に配置します。
+3. GUIで音源を選択すると、Rendererが自動的に `diffsinger` に切り替わります。
+4. タイムライン上のエディタで、通常の音源と同様に音高や長さを調整できます。
 
-## 合成と調整
+---
 
-GUIでDiffSinger音源を選ぶとRendererも切り替わります。長さとピッチは通常のエディターで調整し、手動で指定した値を優先します。抑揚を使うにはピッチ処理を有効にし、抑揚の強さを0より大きくします。
+## 主な調声パラメータ
 
-CLIでは次のオプション、HTTPでは`diffsinger_steps`などで調整します。いずれも0で既定値を使います。
-
-| オプション | 効果 |
-| --- | --- |
-| `--diffsinger-steps` | 拡散ステップ数を変更 |
-| `--diffsinger-duration-mix` | 音節内の子音・母音の配分を調整。上げると音源側、下げるとUtauTTSの予測を優先 |
-| `--diffsinger-pitch-mix` | 上げると音源側のピッチ予測、下げるとUtauTTSの話声抑揚を優先 |
-| `--diffsinger-expr` | 下げるとビブラートや息遣いが弱まる。0は既定値1.0 |
+| パラメータ | CLIオプション | 説明 |
+| :--- | :--- | :--- |
+| **拡散ステップ数** | `--diffsinger-steps` | 拡散ステップ数を変更します。 |
+| **長さ混合率** | `--diffsinger-duration-mix` | 音節内の子音・母音の配分（0〜1）。上げると音源側、下げるとUtauTTSの予測を優先します。 |
+| **ピッチ混合率** | `--diffsinger-pitch-mix` | ピッチの予測配分（0〜1）。上げると音源側のピッチ予測、下げるとUtauTTSの話声抑揚を優先します。 |
+| **表現力** | `--diffsinger-expr` | 下げるとビブラートや息遣いが弱まります。既定値は `1.0` です。 |

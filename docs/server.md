@@ -1,313 +1,97 @@
 # UtauTTS Server
 
-同じ端末のアプリからHTTP APIで音声を合成します。Windows、Linux x64、macOS arm64に対応しています。
+ローカルアプリケーションからHTTP経由で音声合成機能を利用できる常駐型APIサーバーです。Windows、Linux、macOSに対応しています。
 
-既定では`127.0.0.1:8080`を待ち受けます。ローカル専用で、LANや外部アドレスへの待受はできません。外部公開が必要な場合は、本体とは別のアプリで認証・アクセス制御を担当してください。
-
-GUI版にも同梱しています。GUIとは別に、配布フォルダで次を実行してください。同じフォルダの音源・モデル・Rendererを使います。
-
-Windows
+## サーバーの起動
 
 ```powershell
-.\utautts-server.exe `
-  --voice-dir "voice" `
-  --renderer utautts-world-phrase
+.\utautts-server.exe --voice-dir "voice" --port 8080
 ```
 
-Linux
+起動後、ブラウザで `http://127.0.0.1:8080/` にアクセスすると、WebコンソールUIからパラメータの確認や試聴、バッチダウンロードを行えます。
 
-```bash
-./utautts-server --voice-dir voice --renderer utautts-world-phrase
-```
+> **セキュリティについて**: サーバーはローカル専用です。`--host` は `localhost` またはloopback IP（`127.0.0.1`、`::1` など）だけを受け付け、既定は `127.0.0.1` です。`localhost` はDNSを使わず `127.0.0.1` で待ち受けます。
 
-macOS
+---
 
-```bash
-xattr -rc "utautts-server" runtime
-./utautts-server --voice-dir voice --renderer utautts-world-phrase
-```
+## 主なエンドポイント一覧
 
-既定の音源ディレクトリは`voice`です。作業フォルダにあればそちらを優先し、なければServer実行ファイルと同じ場所から探します。別の音源を使う場合は`--voice-dir`で指定してください。音源はフォルダごとに配置し、`voicebank_id`には`/api/voicebanks`で取得したIDを指定します。省略するとID順で最初の音源が使われます。
+| メソッド | パス | 説明 |
+| :--- | :--- | :--- |
+| `GET` | `/api/health` | サーバー稼働状態とバージョンの確認 |
+| `GET` | `/api/voicebanks` | 認識されているボイスバンク一覧の取得 |
+| `POST` | `/api/voicebanks/reload` | 音源ディレクトリの再スキャン |
+| `GET` | `/api/models` | 利用可能な抑揚モデル一覧の取得 |
+| `GET` | `/api/renderers` | 利用可能なRenderer一覧の取得 |
+| `POST` | `/api/analyze` | テキストの読み・モーラ分解結果の取得 |
+| `POST` | `/api/synthesize/audio` | 1発話の合成音声をWAVバイナリ（`audio/wav`）で取得 |
+| `POST` | `/api/synthesize/label` | 1発話の音素境界ラベル（`.lab`）をテキスト形式で取得 |
+| `POST` | `/api/synthesize/batch` | 複数発話の一括合成（ZIP形式でダウンロード） |
+| `GET` | `/api/openapi.yaml` | OpenAPI 3.0 仕様書（YAML）の取得 |
 
-## コンソールUI
+`POST /api/analyze` は日本語の読み・かなモーラ解析用です。英語・中国語は `/api/synthesize/*` の `language` / `phonemizer` を指定し、必要なら `reading` でARPAbetまたはPinyinを直接渡してください。
 
-`http://127.0.0.1:8080/`を開き、文章・音源・モデル・Rendererを指定して合成します。読みの確認、WAV・音素ラベル・一括合成ZIPのダウンロード、詳細JSONの指定もできます。
+---
 
-コンソールUIは`/`で提供されます（`/ui`は`/`への307リダイレクトです）。トークンの入力は不要です。
+## 共通の入力制限とエラー
 
-## エンドポイント一覧
+- JSON本文は1 MiBまでで、単一のJSONオブジェクトを指定します。未知のJSONフィールドは400で拒否します。
+- 1発話の `text` と有効な読み（`reading`、なければ `kana`）は、それぞれ500文字までです。
+- `manual_pitch.points` は最大1000個、`mora_durations_ms` と `resampler_expressions` は最大500要素です。
+- batchは最大16発話、非圧縮WAVの合計256 MiBまでです。
+- 合成と読み解析は合計4並行、batchはさらに最大2並行です。超過分は空きを待ち、待機順の保証はありません。
 
-| Method | Path | 説明 |
-|---|---|---|
-| `GET` | `/api/health` | 稼働確認 |
-| `GET` | `/api/openapi.yaml` | OpenAPI仕様（YAML） |
-| `GET` | `/api/voicebanks` | 音源一覧 |
-| `POST` | `/api/voicebanks/reload` | 音源ディレクトリの再読込 |
-| `GET` | `/api/models` | 抑揚モデル一覧 |
-| `GET` | `/api/renderers` | Renderer一覧 |
-| `POST` | `/api/analyze` | 文章から読み・モーラ列への変換 |
-| `POST` | `/api/synthesize/audio` | 単一発話の合成（WAV） |
-| `POST` | `/api/synthesize/label` | 単一発話の音素ラベル（LAB） |
-| `POST` | `/api/synthesize/batch` | 複数発話の合成（ZIP） |
+これらの上限は固定です。必要なら呼出し側で要求を分けてください。上限超過は413を返します。
 
-## 共通仕様
-
-- 各API処理のエラーは`{"error":"説明","code":"分類"}`のJSONと対応するHTTPステータスで返ります。既存の`error`は文字列のままです。未定義パス・未対応メソッドの404・405はHTTPルーターの応答です。
-- JSON本文は1 MiBまでです。未知のJSON fieldは入力ミスとして拒否されます（400）。
-- ボディは単一のJSONオブジェクトでなければなりません。
-- 1発話の`text`と有効な読み（`reading`、無ければ`kana`）はそれぞれ500文字までです（413）。
-- `manual_pitch`のpointsは最大1000個です（413）。
-- `mora_durations_ms`と`resampler_expressions`は最大500要素です（413）。
-- batchは16発話、非圧縮WAV合計256 MiBまでです（413）。
-- 合成と読み解析は合計4並行、batchはさらに最大2並行です。超過分は空きを待ちます。待機順の保証はありません。
-
-これらの上限は固定です。必要なら呼出し側で要求を分けてください。
-
-### OpenAPI
-
-[OpenAPI 3.0.3のYAML](../internal/api/openapi.yaml)に、HTTPの入力・既定値・応答・エラーを記録しています。サーバーからは`GET /api/openapi.yaml`で同じ内容を取得できます。
-
-```sh
-curl http://127.0.0.1:8080/api/openapi.yaml -o openapi.yaml
-```
-
-仕様の`info.version`は`development`で、アプリケーションのバージョンは`/api/health`で取得します。上限を表す`x-default-*`は目安で、固定の`maxLength`・`maxItems`制約ではありません。実際の上限は[共通仕様](#共通仕様)のとおりです。
-
-入力の`default`はJSONデコード時の値です。合成時に空・ゼロから補う値とは区別しています。例えば`tone`の空文字は合成時にC4となり、`release_set`が偽なら`release_ms`のデコード値0を使わず既定の20 msになります。通常入力・編集・互換入力を同じ要求スキーマに含め、任意の`renderer_settings`も受け取ります。
-
-音源・資源の不足やモーラ位置は要求処理でも検証します。
-
-### ローカル接続
-
-`--host`には`localhost`かloopback IP（`127.0.0.1`・`::1`など）だけを指定できます。`localhost`はDNSを使わず`127.0.0.1`で待ち受けます。空文字・`0.0.0.0`・LAN IP・外部ホスト名は起動時に拒否します。
-
-UIとAPIの`Host`も`localhost`かloopback IPに限定します。別サイトからのPOSTなどの操作要求は、Go標準の`CrossOriginProtection`による`Sec-Fetch-Site`・`Origin`検査で拒否します。同じサーバーのUI操作と、これらのヘッダーを付けないローカルアプリの要求は受け付けます。拒否時は403の`forbidden`を返します。
-
-同じ端末のアプリ間では認証しません。古い起動設定に`--auth-token`があれば取り除いてください。
-
-### エラー分類
+各API処理のエラーは `{"error":"説明","code":"分類"}` と対応するHTTPステータスで返します。未定義パス・未対応メソッドの404・405はHTTPルーターの応答です。
 
 | `code` | 内容・HTTPステータス |
-| --- | --- |
+| :--- | :--- |
 | `invalid_request` | JSON・必須項目・範囲・ファイル名などの入力不正（400） |
 | `limit_exceeded` | 本文・文字数・編集要素・一括合成の上限超過（413） |
-| `unavailable` | 音源・モデル・Renderer等の不足（従来どおり400）、終了済みRuntime（503） |
+| `unavailable` | 音源・モデル・Renderer等の不足（400）、終了済みRuntime（503） |
 | `synthesis_error` | 読み解析・合成の失敗（422） |
-| `canceled`・`deadline_exceeded` | 要求のキャンセル・期限切れ（408） |
+| `canceled` / `deadline_exceeded` | 要求のキャンセル・期限切れ（408） |
 | `forbidden` | 非ローカルのHost、別サイトからのブラウザ操作（403） |
 | `internal_error` | 再読込・一時ファイル・ZIP出力などの内部エラー（500） |
+---
 
-一括合成で発話が失敗した場合も同じ分類を使い、`error`には`item N: ...`を残します。応答本文の書込が始まった後の通信エラーはJSONへ切り替えず、ログへ記録します。クライアントが切断した場合はエラーJSONを受け取れないことがあります。
+## 合成APIの仕様（`POST /api/synthesize/audio`）
 
-## 各エンドポイント
-
-### `GET /api/health`
-
-```json
-{"status":"ok","engine":"utautts-world-phrase","version":"v1.5.2"}
-```
-
-`engine`には既定RendererのID、`version`にはサーバーのバージョンが入ります。これは稼働確認で、合成資源がなくても200を返します。既定Rendererの資源の利用可否は`/api/renderers`、音源の登録状況は`/api/voicebanks`で確認できます。
-
-### `GET /api/voicebanks`
-
-ID順にソートされた音源一覧です。
-
-```json
-{
-  "voicebanks": [
-    {
-      "id": "足立レイver3.5.0",
-      "name": "足立レイ",
-      "path": "C:\\...\\voice\\足立レイver3.5.0",
-      "oto_file_count": 12,
-      "phoneme_count": 2640,
-      "diagnostic_count": 3,
-      "alias_counts": {"CV": 1200, "VCV": 1400, "VC": 40, "other": 0},
-      "vcv_contexts": {"-": 50, "a": 280, "i": 270},
-      "vc_contexts": {"a": 8, "i": 7},
-      "has_vc": true,
-      "has_initial_vcv": true,
-      "has_n_context_vcv": true
-    }
-  ]
-}
-```
-
-`id`は`voicebank_id`に指定する値で、`--voice-dir`からの相対パスです（入れ子の音源では`a/b`のようにスラッシュ区切りになります）。`phoneme_count`は全`oto.ini`のエントリ数、`diagnostic_count`はoto.iniの診断で問題があるエントリ数です。
-`alias_counts`、`vcv_contexts`、`vc_contexts`は音源のalias能力を表す診断情報です。実際の各モーラではaliasの存在と`oto.ini`設定が最終的な選択を決めます。
-
-`types`には`character.yaml`の全サブバンク（カラー、接頭辞・接尾辞、音域）が宣言順で入ります。合成するときはその`color`をリクエストの`color`へ指定できます。
-
-### `POST /api/voicebanks/reload`
-
-`--voice-dir`を再走査して音源一覧を置き換えます。レスポンスは`GET /api/voicebanks`と同じ形式で、失敗時は500です。
-
-### `GET /api/models`
-
-利用可能な抑揚モデルの一覧です。
-
-```json
-{
-  "models": [
-    {
-      "id": "frame-intonation-tcn-v12",
-      "display_name": "Frame Intonation TCN v12",
-      "description": "...",
-      "language": "ja",
-      "path": "C:\\...\\models\\frame-intonation-tcn-v12.json",
-      "version": 8,
-      "feature_version": 1,
-      "mode": "intonation_frame_tcn_accent_bounded",
-      "sha256": "<モデルファイルのSHA-256>",
-      "recommended_renderers": ["utautts-world-phrase"],
-      "default_priority": 140,
-      "requires_features": true,
-      "frame_contour": true
-    }
-  ]
-}
-```
-
-`model_id` には `id` を指定します。`language`は対象の言語で、未指定の古いモデルは日本語として扱います。モデル固有の`outputs`は、値が無い場合に省略されます。
-
-### `GET /api/renderers`
-
-```json
-{
-  "default_renderer": "utautts-world-phrase",
-  "renderers": [
-    {"manifest_version": 2, "kind": "synthesis-engine", "id": "utautts-world-phrase", "display_name": "UtauTTS WORLD phrase", "description": "...", "contract": "unit-renderer", "provider": "utautts-world-phrase", "provider_version": "1", "capabilities": {"frame_pitch": true}, "default_priority": 300}
-  ],
-  "availability": {"utautts-world-phrase": {"available": true}},
-  "problems": null,
-  "resamplers": null,
-  "wavtools": [{"id": "builtin", "display_name": "UtauTTS built-in", "built_in": true}]
-}
-```
-
-`default_renderer`はサーバー起動時の既定Rendererです。`availability`は各Rendererの実行時資源の事前検査結果（`available`と、不足時の`issues`）です。`problems`には読み込めなかったmanifestなどの診断が入ります。`resamplers`と`wavtools`にはClassic UTAUで選択できるツールが含まれ、`wavtools`には常に`builtin`が含まれます。要素が無い配列は`null`として返ります。リクエストで未知のRenderer IDを明示すると、既定Rendererへ切り替えずエラーになります。
-
-### `POST /api/analyze`
-
-文章を読みとモーラ列へ変換します。合成前の読み確認に使います。
-
-```json
-{
-  "text": "こんにちは"
-}
-```
-
-```json
-{
-  "reading": "コンニチワ",
-  "morae": [
-    {"position": 0, "mora": "こ", "consonant": "k", "vowel": "o", "pause": false},
-    {"position": 1, "mora": "ん", "consonant": "n", "vowel": "n", "pause": false},
-    {"position": 2, "mora": "に", "consonant": "n", "vowel": "i", "pause": false},
-    {"position": 3, "mora": "ち", "consonant": "ch", "vowel": "i", "pause": false},
-    {"position": 4, "mora": "わ", "consonant": "w", "vowel": "a", "pause": false}
-  ]
-}
-```
-
-`consonant`と`vowel`はCVVC候補生成に使う文脈です。`pause`が`true`のモーラは休止になります。`text`が空なら400、500文字を超えたら413、変換に失敗したら422です。
-
-`dictionary`はGUIのユーザー辞書と同じ表記・読みの配列です。合成リクエストにも同じ形式で指定できます。
-
-このエンドポイントは日本語の読み・かなモーラ解析用です。英語・中国語の合成では、`/api/synthesize/*`の`language`／`phonemizer`を指定し、必要なら`reading`でARPAbetまたはPinyinを直接渡してください。
-
-### `POST /api/synthesize/audio`
-
-一つの発話を合成して`audio/wav`を返します。
-
+### リクエストJSONの例
 ```json
 {
   "text": "こんにちは、今日はいい天気です。",
   "voicebank_id": "足立レイver3.5.0",
   "model_id": "frame-intonation-tcn-v12",
   "renderer": "utautts-world-phrase",
-  "alias_policy": "auto",
-  "intonation_strength": 1,
+  "intonation_strength": 4.0,
+  "mora_duration_ms": 120,
+  "pause_duration_ms": 180,
   "apply_pitch": true
 }
 ```
 
-レスポンスヘッダーの`X-UtauTTS-Reading`に使用した読み、`X-UtauTTS-Engine`にRenderer IDが入ります。
+### 主なパラメータ
+- `text` (string): 読み上げる文章（`reading` 未指定時は必須）。
+- `reading` (string): 読み（かな、ARPAbet、Pinyin）を直接指定する場合に使用。
+- `voicebank_id` (string): 使用する音源ID（省略時は一覧先頭の音源）。
+- `model_id` (string): 使用する抑揚モデルID。
+- `renderer` (string): 合成エンジンID（既定値: `utautts-world-phrase`）。
+- `intonation_strength` (number): 抑揚の強さ（0〜8、既定値 `4.0`）。
+- `mora_duration_ms` (number): 基本モーラ長（既定値 `120`）。
+- `pause_duration_ms` (number): 句読点等の休止長（既定値 `180`）。
+- `renderer_settings` (object): Renderer固有のオプション（例: `{"timing_warp": false}`）。
 
-`X-UtauTTS-Diagnostic-Count`にはRendererの診断と不足音素の警告の件数が入ります。診断の文面はCLIの`--json`や公開Go APIで取得できます。
+### レスポンス
+- 成功時はステータスコード `200` とともに `Content-Type: audio/wav` でWAVバイナリを返却します。
+- レスポンスヘッダーには `X-UtauTTS-Reading`（解析された読み文字列）や `X-UtauTTS-Engine`（使用エンジンID）が付与されます。
 
-#### リクエスト項目
+---
 
-| 項目 | 型 | 既定値 | 説明 |
-|---|---|---|---|
-| `text` | string | | 合成する文章。`reading`（`kana`を含む）がなければ必須。両方指定すると読みを優先 |
-| `reading` | string | | かな、ARPAbet、またはPinyinを直接指定 |
-| `kana` | string | | `reading`と同じ入力を受け付ける互換用の別名 |
-| `language` | string | 自動選択 | `ja`、`en`、`zh`。空欄なら音源・phonemizerから選び、決まらなければ日本語 |
-| `phonemizer` | string | 言語から自動選択 | `ja-kana`、`en-arpasing`、`en-delta`、`en-vccv`、`en-cv`、`zh-cvvc`。言語に対応しない組み合わせはエラー |
-| `voicebank_id` | string | ID順先頭 | `GET /api/voicebanks` の `id` |
-| `tone` | string | `C4` | `prefix.map` 使用時の音階 |
-| `color` | string | なし | `character.yaml`で定義された音源タイプ／サブバンク |
-| `model_id` | string | なし | `GET /api/models` の `id` |
-| `model_path` | string | なし | モデルJSONのローカルパス。指定時は`model_id`より優先し、`--model-dir`を探索せず直接読み込みます |
-| `renderer` | string | 既定Renderer | `GET /api/renderers` の `id`。省略時だけ既定Rendererを使い、未知の明示IDはエラーになります |
-| `resampler` | string | 自動選択 | Classic UTAUで使うresamplerの相対ID |
-| `wavtool` | string | `builtin` | Classic UTAUで使うwavtoolの相対ID |
-| `resampler_expressions` | object[] | なし | unit単位のresampler設定。形式は[Classic UTAU互換仕様](plugins.md#classic-utau互換仕様)を参照 |
-| `alias_policy` | string | `auto` | `auto`（VC/VCV収録比から自動選択）、`cvvc-enhanced`（CVVC優先・sequential timing・VC音量35%、英語では55%）、`vcv-prefer`、`cvvc-prefer`、`cv-only` |
-| `mora_duration_ms` | number | `120` | 基本モーラ長（0〜1000） |
-| `pause_duration_ms` | number | `180` | 句読点の休止長（0〜3000） |
-| `leading_preutterance_ms` | number | `0`（自動） | 文頭に確保する先行発声（0〜1000）。0では先頭原音の`oto.ini`から決定 |
-| `release_ms` | number | `20` | 原音のリリース（余韻）長（ms）。`release_set`が真のときだけ明示値として適用 |
-| `release_set` | boolean | `false` | `release_ms`を明示指定として適用する |
-| `mora_durations_ms` | number[] | | モーラごとの長さ。値は0〜1000 |
-| `unit_overrides` | object[] | なし | `unit_index`で指定した原音のoto値・ピッチ係数・音量係数・resampler設定を上書き |
-| `intonation_strength` | number | `4` | 自動抑揚の強さ（0〜8）。v12では曲線に「強さ/4」を掛ける。詳細は[抑揚の強さ](technical-design.md#抑揚の強さ) |
-| `apply_pitch` | boolean | `true` | Rendererのピッチ処理を有効にする |
-| `context_duration` | boolean | `false` | 日本語のモーラ長を文脈（助詞・句末など）に応じて変える |
-| `context_duration_strength` | number | `1` | 文脈連動の強度（0〜2）。0は既定1.0として扱う |
-| `boundary_tone` | boolean | `true` | 日本語の文末の音調（疑問文の上昇など）を付ける |
-| `boundary_tone_strength` | number | `1` | 境界音調の強度（0〜2）。0は既定1.0として扱う |
-| `stretch_adapt` | boolean | `true` | 原音より大きく伸ばす日本語の長いモーラで、母音側の伸びを音源の実測に合わせて抑える |
-| `stretch_adapt_strength` | number | `1` | 伸縮補正の強度（0〜2）。0は既定1.0として扱う |
-| `pause_context` | boolean | `true` | 句読点の種類と発話末で休止長を変える |
-| `pause_context_strength` | number | `1` | 休止長補正の強度（0〜2）。0は既定1.0として扱う |
-| `english_weak_form` | boolean | `true` | 英語の機能語を句中では弱形で読む。明示の読みと辞書を優先する |
-| `manual_pitch` | object | なし | [手動ピッチ編集JSON](#手動ピッチ編集json) |
-| `pitch_curve` | object | なし | コーパス指定の固定ピッチ曲線。指定時は自動予測の輪郭より優先 |
-| `dictionary` | object[] | なし | ユーザー辞書。各項目は`surface`と`reading`を持つ |
-| `diffsinger_steps` | number | `0`（既定値） | DiffSingerの拡散ステップ数。0で既定値 |
-| `diffsinger_duration_mix` | number | `0`（既定値） | DiffSingerの長さ予測の混合率（0〜1）。0で既定値 |
-| `diffsinger_pitch_mix` | number | `0`（既定値） | DiffSingerのピッチ予測の混合率（0〜1）。0で既定値 |
-| `diffsinger_expr` | number | `0`（既定値） | DiffSingerの表現力（0〜2）。0で既定値1.0 |
-| `worldline` | object | なし | WORLD providerのホスト制御（`timing_warp`／`microprosody`／`source_phone_mapping`）。空で既定 |
-| `renderer_settings` | object | なし | Rendererの設定値（`/api/renderers`の`settings`）をまとめて渡すmap。未知のidもエラーにせずprovider固有値として渡します |
+## 手動ピッチ補正（`manual_pitch`）
 
-廃止した`speech_timing`、`word_boundary_envelope`、`prosody_experiment`は、古いクライアントのために受け取って無視します。
-
-WORLD固有の`microprosody`と`timing_warp`は、要求の直下ではなく`renderer_settings`または`worldline`内へ指定します。どちらも既定で有効です。同じ設定を両方に指定した場合は`renderer_settings`を優先します。
-
-```json
-{
-  "text": "こんにちは。",
-  "renderer": "utautts-world-phrase",
-  "renderer_settings": {"microprosody": false, "timing_warp": false}
-}
-```
-
-`microprosody`は日本語の子音の前後の微細な音高変化を補います。`timing_warp`は日本語・英語・中国語のモーラ内を学習した時間配分に合わせて伸縮します。包絡・開始時刻・長さ・音高は保ち、句末モーラは伸縮しません。原音区間ライブラリの自動適用は`worldline.source_phone_mapping`で切り替えます。
-
-#### ステータスコード
-
-- `200`: WAVバイナリ。`X-UtauTTS-Engine` / `X-UtauTTS-Reading` ヘッダー付き
-- `400`: `text`／`reading`（`kana`を含む）の両方なし、範囲外のduration・`intonation_strength`、音源・モデルが未登録、指定Rendererの必要なファイル不足（`ErrUnavailable`）
-- `413`: 文字数・`manual_pitch` points超過、JSON 1 MiB超過
-- `422`: 合成の失敗（読み変換失敗、モデル評価失敗、未知の`alias_policy`など）
-
-### 手動ピッチ編集JSON
-
-`manual_pitch`（CLIでは`--manual-pitch`のファイル）は、読みの各モーラに対する音高補正をcent単位で指定します。補正は自動イントネーションに加算されます。
+GUIで調声したピッチ曲線を反映させたい場合、リクエスト内の `manual_pitch` フィールドでcent単位の補正値を指定できます。
 
 ```json
 {
@@ -323,57 +107,8 @@ WORLD固有の`microprosody`と`timing_warp`は、要求の直下ではなく`re
   ]
 }
 ```
+- `mode`: `"offset"`（自動予測値への加算）、`"replace"`（手動値のみ使用）、`"frames"`（10msごとの直接指定）。
 
-`position`は読みのモーラ配列に対する0始まりの位置です。`mora`も書いた場合はその位置のモーラと一致するか検証します。休止モーラは編集できず、指定していないモーラの補正は0 centです。
+`position` は読みのモーラ配列に対する0始まりの位置です。`mora` も指定した場合は、その位置のモーラと一致するか検証します。休止モーラは編集できず、指定していないモーラの補正は0centです。手動の曲線は10ms間隔へ補間し、急な変化は安全な範囲に抑えます。
 
-| `mode` | 内容 |
-| --- | --- |
-| `offset` | 自動イントネーションへ補正値を加算する（通常） |
-| `replace` | 自動イントネーションを使わず、手動の曲線だけを使う |
-| `frames` | 10 ms単位の補正値の配列`frames`を使う。GUIの拡張編集で抑揚線を描くとこの形式になる |
-
-手動の曲線は10 ms間隔へ補間し、急な変化は安全な範囲に抑えます。
-
-`points`と`frames`の各補正値は±1200 cent以内です。`frames`モードでは`points`を併用できず、`frames`は最大20000個です。モーラ表記を検証する場合は解析結果に合わせてください。たとえば「こんにちは」の末尾は「わ」になります。
-
-### `POST /api/synthesize/label`
-
-`/api/synthesize/audio`と同じJSONを受け取り、合成音声に対応するHTK形式の音素ラベルを`text/plain`で返します。レスポンスには同じ`X-UtauTTS-Engine`と`X-UtauTTS-Reading`ヘッダーが付きます。
-
-`X-UtauTTS-Diagnostic-Count`も返します。ラベルは合成計画由来の100 ns単位の時刻で、波形の強制アライメント結果ではありません。
-
-### `POST /api/synthesize/batch`
-
-複数発話を一つのZIPとして取得します。レスポンスは`application/zip`で`Content-Disposition: attachment; filename="utautts-audio.zip"`が付きます。
-
-```json
-{
-  "write_text": true,
-  "write_lab": true,
-  "text_encoding": "utf-8",
-  "items": [
-    {
-      "name": "001.wav",
-      "request": {"text": "こんにちは", "voicebank_id": "足立レイver3.5.0"}
-    },
-    {
-      "name": "002.wav",
-      "request": {"kana": "オハヨウ", "voicebank_id": "足立レイver3.5.0"}
-    }
-  ]
-}
-```
-
-`write_text`と`write_lab`を有効にすると、各WAVと同名のTXT／LABもZIPへ入ります。`text_encoding`は`utf-8`または`shift_jis`です。`name`はパス部分が除去され、`.wav`以外なら`.wav`が補われます。空や`..`なら`utterance-N.wav`に置き換えられます。重複するファイル名は400です。途中のアイテムで合成に失敗すると`item N: <error>`形式でエラーを返し、それより後ろは合成しません。
-
-## 起動オプション
-
-- `--version`: バージョンを表示して終了する
-- `--voice-dir`: ボイスバンクを格納したディレクトリ
-- `--renderer`: Renderer ID。省略時は設定された優先度が最も高いものを使う
-- `--renderer-dir`: Rendererプラグインの検索先。複数回指定できる
-- `--model-dir`: 自己記述モデルJSONの検索先。複数回指定でき、リクエストの`model_id`で選択する
-- `--host`: ローカルの待受アドレス。既定は`127.0.0.1`。`localhost`かloopback IPだけを指定できる
-- `--port`: ポート。初期値は`8080`
-- `--worldline-bridge`: worldline bridge実行ファイルを明示する
-- `--openjtalk-features` / `--openjtalk-dictionary`: 自動検出を使わずhelperまたは辞書を明示する開発用オプション
+`points` と `frames` の各補正値は±1200cent以内です。`frames` モードでは `points` を併用できず、`frames` は最大20000個です。

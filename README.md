@@ -10,68 +10,68 @@ UTAUボイスバンクの原音接続に、学習ベースのイントネーシ�
 
 ## インストール
 
-[GitHub Releases](https://github.com/yh2237/UtauTTS/releases)から環境と用途に合うZIPをダウンロードします。
+[GitHub Releases](https://github.com/yh2237/UtauTTS/releases) からお使いの環境・用途に合ったZIPファイルをダウンロードしてください。
 
-| パッケージ | 用途 |
-| --- | --- |
-| `UtauTTS-win-x64.zip` | Windows x64向けGUI・CLI・HTTP Server |
-| `UtauTTS-linux-x64.zip` | Linux x64向けGUI・CLI・HTTP Server |
-| `UtauTTS-mac-arm64.zip` | Apple Silicon Mac向けGUI・CLI・HTTP Server |
-| `UtauTTS-Server-win-x64.zip` | Windows x64向けHTTP Server |
-| `UtauTTS-Server-linux-x64.zip` | Linux x64向けHTTP Server |
-| `UtauTTS-Server-mac-arm64.zip` | Apple Silicon Mac向けHTTP Server |
+| パッケージ | 内容 |
+| :--- | :--- |
+| `UtauTTS-win-x64.zip` | Windows x64向け（GUI / CLI / HTTP Server同梱） |
+| `UtauTTS-linux-x64.zip` | Linux x64向け（GUI / CLI / HTTP Server同梱） |
+| `UtauTTS-mac-arm64.zip` | Apple Silicon Mac向け（GUI / CLI / HTTP Server同梱） |
+| `UtauTTS-Server-win-x64.zip` | Windows x64向け HTTP Server単体版 |
+| `UtauTTS-Server-linux-x64.zip` | Linux x64向け HTTP Server単体版 |
+| `UtauTTS-Server-mac-arm64.zip` | Apple Silicon Mac向け HTTP Server単体版 |
 
-Windows版はZIPを展開して`utautts.exe`を実行します。Linux版とmacOS版の準備は[インストール](docs/installation.md)を参照してください。
+- **Windows**: ZIPを展開し、中にある `utautts.exe` を実行します。
+- **Linux / macOS**: 実行権限の付与などが必要です。詳細は [インストール手順](docs/installation.md) を参照してください。
 
-GUI版には「足立レイ ver3.5.0」を同梱しています。利用条件は[同梱音源](docs/voicebank.md)と音源内の文書を確認してください。
+※GUI版には初期音源として「足立レイ ver3.5.0」を同梱しています（利用条件は [同梱音源](docs/voicebank.md) および音源付属のライセンス文書をご確認ください）。
 
-## 使い方
+## 基本的な使い方
 
-1. 文章欄へ読み上げる文を入力する
-2. 下部の「基本編集」でイントネーションと発音の長さを確認し、必要なら点や境界線を動かす
-3. `Ctrl+Enter`または再生ボタンで音声を確認する
-4. 「ファイル」→「書き出し」→「WAVを保存...」で保存する
+1. テキスト入力欄に読み上げたい文章を入力します。
+2. 画面下部の「基本編集」でイントネーション曲線や発音長を確認し、必要に応じて制御点や境界線をドラッグして調整します。
+3. `Ctrl + Enter` または「再生」ボタンでプレビュー音声を生成・再生します。
+4. 「ファイル」→「書き出し」→「WAVを保存...」で音声ファイルとして保存します。
 
-音源は配布フォルダの`voice`へフォルダごと置き、「ファイル」→「音源とプラグイン」→「音源を再読込」で読み込みます。音源の配置、カードごとの設定、編集の操作は[GUIの使い方](docs/gui.md)にあります。
+追加音源は、展開先フォルダ直下の `voice/` にフォルダごと配置し、「ファイル」→「音源とプラグイン」→「音源を再読込」を実行してください。音源の配置やカード設定、操作の詳細は [GUIの使い方](docs/gui.md) をご覧ください。
 
-合成設定は[GUIの使い方](docs/gui.md#カードごとの合成設定)、同梱モデルと学習元は[抑揚モデルのライセンス](models/README.md)を参照してください。
+合成設定は [GUIの使い方](docs/gui.md#カードごとの合成設定)、同梱モデルと学習元データは [抑揚モデルのライセンス](models/README.md) を参照してください。
 
-## CLIとHTTP Server
+## CLI & HTTP Server
 
-CLIはGUI版の`tools/utautts-cli.exe`（Linux／macOSは`tools/utautts-cli`）です。
+### CLI
+GUI版の `tools/utautts-cli.exe`（Linux / macOSは `tools/utautts-cli`）から直接実行できます。
 
 ```powershell
-.\UtauTTS\tools\utautts-cli.exe `
-  --voicebank ".\UtauTTS\voice\足立レイver3.5.0" `
+.\tools\utautts-cli.exe `
+  --voicebank ".\voice\足立レイver3.5.0" `
   --text "こんにちは、今日はいい天気です。" `
   --prosody frame-intonation-tcn-v12 `
   --out ".\out.wav"
 ```
 
-HTTP APIは、GUI版に同梱した`utautts-server.exe`（Linux／macOSは`utautts-server`）を起動して使います。GUIとは別に起動してください。
+### HTTP Server
+GUI版に同梱の `utautts-server.exe`（Linux / macOSは `utautts-server`）を実行します。GUIとは独立して起動可能です。
 
 ```powershell
-.\UtauTTS\utautts-server.exe
+.\utautts-server.exe
 ```
 
-`http://127.0.0.1:8080/`でコンソールUIを開けます。GUIが不要な場合はServer専用ZIPも使えます。全オプションは[コマンドライン](docs/cli.md)、APIは[UtauTTS Server](docs/server.md)を参照してください。
+起動後、ブラウザで `http://127.0.0.1:8080/` を開くとWebコンソールUIが利用できます。全オプションは [コマンドライン](docs/cli.md)、API仕様は [UtauTTS Server](docs/server.md) を参照してください。
 
-## うまく動かないとき
+## トラブルシューティング
 
-[トラブルシューティング](docs/troubleshooting.md)をご覧ください。
+うまく動かない場合は [トラブルシューティング](docs/troubleshooting.md) をご確認ください。解決しない場合は GitHub Issues または（[@2237yh](https://x.com/2237yh)）までお気軽にお問い合わせください。
 
-解決しない場合はIssueを送るか[@2237yh](https://x.com/2237yh)に直接DMを送ってください。
+## ドキュメント一覧
 
-## ドキュメント
-
-利用方法、仕組み、開発者向けの資料は[ドキュメント一覧](docs/README.md)にまとめています。
+機能解説や開発者向け資料は [ドキュメント一覧](docs/README.md) にまとめています。
 
 ## 謝辞
-
 - [アアアアアアア（@a7_riri）](https://x.com/a7_riri)
 - [siyukatu（@siyukat）](https://x.com/siyukat)
 - [WhosThat（@WndertheTree）](https://x.com/WndertheTree)
 
 ## ライセンス
 
-UtauTTSのソースコードは[MIT License](./LICENSE)です。同梱モデル、ボイスバンク、文章データ、OpenUtau/WORLD由来ファイル、Qtなどの第三者コンポーネントには個別の利用条件があります。詳細は[ライセンスの適用範囲](./LICENSE-SCOPE.md)、[第三者通知](./THIRD_PARTY_NOTICES.txt)、`THIRD_PARTY_NOTICES-*`、`licenses/`、各同梱文書を確認してください。
+UtauTTSのソースコードは [MIT License](./LICENSE) です。同梱モデル、ボイスバンク、コーパス、OpenUtau / WORLD由来ファイル、Qtなどの第三者コンポーネントには個別のライセンスが適用されます。詳細は [ライセンスの適用範囲](./LICENSE-SCOPE.md)、[第三者通知](./THIRD_PARTY_NOTICES.txt)、`licenses/` および同梱文書をご確認ください。

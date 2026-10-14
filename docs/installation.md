@@ -1,44 +1,51 @@
-# インストール
+# インストールと起動
 
-[GitHub Releases](https://github.com/yh2237/UtauTTS/releases)から、環境と用途に合うZIPをダウンロードします。
+[GitHub Releases](https://github.com/yh2237/UtauTTS/releases) から、お使いの環境と用途に合わせたZIPパッケージをダウンロードしてください。
 
 | パッケージ | 用途 |
-| --- | --- |
+| :--- | :--- |
 | `UtauTTS-win-x64.zip` | Windows x64向けGUI・CLI・HTTP Server |
 | `UtauTTS-linux-x64.zip` | Linux x64向けGUI・CLI・HTTP Server |
 | `UtauTTS-mac-arm64.zip` | Apple Silicon Mac向けGUI・CLI・HTTP Server |
-| `UtauTTS-Server-win-x64.zip` | Windows x64向けHTTP Server |
-| `UtauTTS-Server-linux-x64.zip` | Linux x64向けHTTP Server |
-| `UtauTTS-Server-mac-arm64.zip` | Apple Silicon Mac向けHTTP Server |
+| `UtauTTS-Server-win-x64.zip` | Windows x64向けHTTP Server単体版 |
+| `UtauTTS-Server-linux-x64.zip` | Linux x64向けHTTP Server単体版 |
+| `UtauTTS-Server-mac-arm64.zip` | Apple Silicon Mac向けHTTP Server単体版 |
+
+---
 
 ## Windows
 
-1. `UtauTTS-win-x64.zip`を任意のフォルダへ展開します。
-2. 展開先の`utautts.exe`を実行します。
-3. 左側へ文章を入力して再生ボタンで合成を確認します。
+1. `UtauTTS-win-x64.zip` を任意のフォルダへ展開します。
+2. 展開先にある `utautts.exe` を実行します。
+3. 画面左側のカードに文章を入力し、再生ボタン（または `Ctrl + Enter`）で音声合成を確認します。
 
-ZIP内のフォルダ構成は変更しないでください。`runtime`やモデルだけを別の場所へ移動すると、音声を合成できません。
+> **注意**: ZIP内のフォルダ構成（`runtime/` や `models/` など）は変更しないでください。配置を変更すると合成エンジンやモデルが正常に認識されなくなります。
 
-外部FFmpegを使う場合は、設定画面でQt Multimedia用のプラグインとコーデックのフォルダを指定します。環境変数での指定は[開発環境とビルド](building.md#リリース用ファイルとライセンス)を参照してください。
+外部FFmpegを使用する場合は、設定画面でQt Multimedia用プラグインとコーデックのフォルダを指定します。初回起動時は環境変数 `UTAUTTS_FFMPEG_PATH`、`FFMPEG_PATH`、`FFMPEG_DIR`、`FFMPEG_ROOT` を順に確認し、最初に見つかったパスを保存します。
 
-## macOS
+---
 
-macOS版はApple Silicon（arm64）向けです。`UtauTTS-mac-arm64.zip`を展開し、展開先のフォルダ構成を変更せずに使用してください。
+## macOS（Apple Silicon）
 
-macOS版はAppleの署名・公証を行っていないため、初回起動時に警告が表示されることがあります。公式GitHub Releasesからダウンロードしたファイルであることを確認したうえで展開先へ移動し、隔離属性を解除して起動します。
+macOS版は Apple Silicon（arm64）専用です。署名・公証が未完了のため、初回起動時にセキュリティ警告が出る場合があります。
 
-```bash
-cd "/path/to/extracted-folder"
-xattr -rc "utautts.app" tools runtime
-open "utautts.app"
-```
+1. `UtauTTS-mac-arm64.zip` を展開します。
+2. ターミナルで展開先ディレクトリに移動し、隔離属性（quarantine）を解除して起動します。
+   ```bash
+   cd "/path/to/extracted-folder"
+   xattr -rc "utautts.app" tools runtime
+   open "utautts.app"
+   ```
 
-`/path/to/extracted-folder`は実際に展開したフォルダのパスへ置き換えてください。`xattr`はアプリ本体だけでなく、同梱のCLI、更新ツール、runtimeにも適用します。配布元が信頼できることを確認できないファイルでは、この操作を行わないでください。
+※配布元が信頼できることを確認した上で実行してください。
 
-## Linux
+---
 
-Linux GUI版には、システムにインストールしたQt 6.5以降（Qt Quick、Qt Quick Controls、Qt Multimedia）と日本語フォントが必要です。Debian 13では次のパッケージを導入します。
+## Linux（x64）
 
+Linux GUI版の動作には、Qt 6.5以降（Qt Quick, Qt Quick Controls, Qt Multimedia）および日本語フォントが必要です。
+
+Debian / Ubuntu系のパッケージ導入例:
 ```bash
 sudo apt-get update
 sudo apt-get install -y fontconfig fonts-noto-cjk \
@@ -46,64 +53,56 @@ sudo apt-get install -y fontconfig fonts-noto-cjk \
   qml6-module-qtquick-controls qml6-module-qtmultimedia
 ```
 
-ZIPを展開して必要に応じて実行権限を付けます。
-
+ZIPを展開後、各実行ファイルに実行権限を付与して起動します:
 ```bash
 chmod +x utautts tools/* runtime/utautts-openjtalk-features runtime/utautts-worldline-bridge
 ./utautts
 ```
 
-Qtやデスクトップ環境が異なるディストリビューションでは同等のQt Quick・Qt Multimediaパッケージを導入してください。
+---
 
 ## 更新
 
-プレリリース版も使う場合は、設定画面の「プレリリース版も確認する」を有効にします。通常は安定版だけを通知し、同じ版なら安定版を優先します。
+更新にはアプリ内アップデーターを使ってください。ZIPを手動で上書きしないでください。更新では `voice/`、`Resamplers/`、`Wavtools/`、`Dependencies/`、`config.ini` と、引き継ぎ可能なユーザーRenderer定義を保持します。Renderer定義は `renderer/<id>/renderer.json` に配置してください。
 
-更新では`voice/`、`Resamplers/`、`Wavtools/`、`Dependencies/`、`config.ini`と、引き継ぎ可能なユーザーRenderer定義を保持します。Renderer定義は`renderer/<id>/renderer.json`へ配置してください。ZIPを手動で上書きせず、アプリ内アップデーターを使用してください。
+---
 
 ## ボイスバンクの追加
 
-実行ファイルと同じ階層の`voice`ディレクトリへ音源ごとにフォルダを分けて配置します。音源フォルダが1階層余分に包まれていても読み込めます。
-
-macOSでは`utautts.app`と同じ階層の`voice`へ配置します。
+実行ファイルと同じ階層にある `voice/` ディレクトリに、音源フォルダをそのまま配置してください（macOS版は `utautts.app` と同じ階層の `voice/`）。
 
 ```text
 voice/
-  音源名/
-    oto.ini
-    *.wav
+  └── 音源名/
+        ├── oto.ini
+        └── *.wav
 ```
 
-「ファイル」→「音源とプラグイン」→「音源フォルダを開く」から`voice`ディレクトリを開けます。配置したらUtauTTSを再起動するか、同じメニューの「音源を再読込」を選んでください。
+- 「ファイル」→「音源とプラグイン」→「音源フォルダを開く」からフォルダを直接開けます。
+- 音源配置後、アプリを再起動するか「音源を再読込」を実行すると認識されます。
+- 配布ZIPファイルをそのまま読み込ませたい場合は、「音源を追加...」からZIPを選択すると `voice/` 直下へ自動展開・登録されます。
 
-配布されたZIPをそのまま使う場合は、「音源を追加...」でZIPを選ぶと`voice`へ展開して読み込みます。同じ名前の音源フォルダは置き換えます。
+※GUI版には「足立レイ ver3.5.0」が同梱されています。利用条件は [同梱音源](voicebank.md) を確認してください。
 
-GUI版には「足立レイ ver3.5.0」を初期音源として同梱しています。利用条件は[同梱音源](voicebank.md)と音源内の文書を確認してください。
+---
 
 ## HTTP Serverの起動
 
-GUI版・Server専用版とも、展開したフォルダで次を実行します。GUIとは別に起動してください。
+GUI版・Server専用版とも、展開先フォルダで以下のコマンドを実行します（GUIとは独立して起動可能）:
 
-Windows
+- **Windows**:
+  ```powershell
+  .\utautts-server.exe --voice-dir ".\voice"
+  ```
+- **Linux**:
+  ```bash
+  chmod +x utautts-server runtime/utautts-openjtalk-features runtime/utautts-worldline-bridge
+  ./utautts-server --voice-dir ./voice
+  ```
+- **macOS**:
+  ```bash
+  xattr -rc "utautts-server" runtime
+  ./utautts-server --voice-dir ./voice
+  ```
 
-```powershell
-.\utautts-server.exe --voice-dir ".\voice"
-```
-
-Linux
-
-```bash
-chmod +x utautts-server runtime/utautts-openjtalk-features runtime/utautts-worldline-bridge
-./utautts-server --voice-dir ./voice
-```
-
-macOS
-
-```bash
-xattr -rc "utautts-server" runtime
-./utautts-server --voice-dir ./voice
-```
-
-`http://127.0.0.1:8080/`でコンソールUIを開けます。
-
-詳細は[UtauTTS Server](server.md)を参照してください。
+起動後、ブラウザで `http://127.0.0.1:8080/` にアクセスするとWebコンソールUIが開きます。詳細は [UtauTTS Server](server.md) を参照してください。

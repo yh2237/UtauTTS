@@ -1,72 +1,44 @@
 # トラブルシューティング
 
-## 音源が一覧に表示されない
+## 音源・ツールの認識に関する問題
 
-- 音源が配布フォルダの`voice/<音源名>/`に置かれているか確認します。
-- `oto.ini`が音源フォルダ内にあるか確認します。
-- 音源フォルダが1階層余分に包まれている場合は読み込めますが、それより深い場合は音源フォルダを`voice`の直下へ移します。
-- 配置後に「ファイル」→「音源とプラグイン」→「音源を再読込」を実行します。
+### 音源が一覧に表示されない
+- 配布フォルダ直下の `voice/<音源名>/` に正しく配置されているか確認してください。
+- フォルダ内に `oto.ini` が存在するか確認してください。`voice/音源名/音源名/oto.ini` のように1階層余分に包まれた構成も読み込めます。それより深い場合は、音源フォルダを `voice/` 直下へ移してください。
+- 音源を追加した後は、「ファイル」→「音源とプラグイン」→「音源を再読込」を実行してください。
 
-## resamplerやwavtoolが一覧に表示されない
+### ResamplerやWavtoolが表示されない
+- 実行ファイルをそれぞれ `Resamplers/` または `Wavtools/` フォルダ内に配置し、「ファイル」→「音源とプラグイン」→「Classic UTAUを再読み込み」を実行してください。依存DLLは実行ファイルと同じフォルダ内に同居可能です。
 
-実行ファイルを`Resamplers/`または`Wavtools/`へ置き、「ファイル」→「音源とプラグイン」→「Classic UTAUを再読み込み」を実行します。DLLは実行ファイルと同じサブフォルダへ置けます。
+---
 
-## `utautts-openjtalk-features not found` と表示される
+## 起動・解析エラー
 
-Open JTalkの解析helperが見つかっていません。配布版では配布フォルダの`runtime`ディレクトリへ次のファイルが含まれます。
+### `utautts-openjtalk-features not found` と表示される
+- Open JTalk解析ヘルパー（`runtime/utautts-openjtalk-features.exe`）が見つからない状態です。セキュリティソフトによる誤検知・自動隔離がないか確認し、ZIPを展開し直してください。
+- Linux環境の場合は、同ファイルに実行権限（`chmod +x`）が付与されているか確認してください。
 
-```text
-runtime/utautts-openjtalk-features.exe
-runtime/open_jtalk_dic_utf_8-1.11/
-```
+### `Open JTalk frontend failed` が表示される
+- 特殊な記号や固有名詞で読み解析に失敗している可能性があります。「設定」→「辞書設定...」であらかじめ単語の読みを登録してから再解析をお試しください。
 
-Linux版では`runtime/utautts-openjtalk-features`に実行権限があることも確認してください。
+### Linux環境で文字が四角（豆腐）になる
+- 日本語フォントが不足しています。以下のコマンドで日本語フォントをインストールしてください。
+  ```bash
+  sudo apt-get install -y fonts-noto-cjk fontconfig
+  ```
 
-ファイルがなければ配布ZIPを再展開してください。セキュリティソフトが実行ファイルを削除することがあります。除外設定は`utautts.exe`だけでなく展開先のフォルダへ指定します。
+### Linuxで `COPY relocation against non-copyable protected symbol` エラーが出る
+- 最新のglibc（2.44以降）環境で発生することがあります。最新リリースのバイナリを使用するか、最新ソースコードから `./build.sh linux` でリビルドしてください。
 
-## `Open JTalk frontend failed` が表示される
+---
 
-helper、Open JTalk辞書、音源の読み込みに問題がないか確認します。入力文章の読みが特殊な場合は「設定」→「辞書設定...」で表記と読みを登録してから文章を再解析してください。
+## 合成・再生の問題
 
-CLIやServerで個別にruntimeの場所を指定する場合は`--openjtalk-features`と`--openjtalk-dictionary`を使えます。
+### 音声が生成されない / 合成が極端に遅い
+- まずは **既定Renderer（UtauTTS WORLD phrase）**、**抑揚モデルなし**、短文の組み合わせで動作を確認してください。
+- 外部Resampler等を使用している場合、引数の不整合や子プロセスがハングアップしていないか確認してください。
 
-## モーラ数や読みが一致しないエラーが表示される
+---
 
-- 固有名詞や略語などを辞書へ登録します。
-- 長音、促音、拗音を含む読みを確認します。
-- 文章を変更して再解析し表示された読みとモーラ列を確認します。
-- それでも解決しない場合はエラーログと入力文章を添えて報告してください。
-
-## Rendererやruntimeのファイルが見つからない
-
-Rendererとruntimeの組み合わせを確認してください。既定Rendererに必要なファイルは[モデル／Rendererプラグイン](plugins.md)にあります。
-
-## LinuxでGUIが起動しない
-
-端末から`./utautts`を実行して不足しているライブラリ名を確認します。`ldd ./utautts | grep 'not found'`でも共有ライブラリを確認できます。Qt Quick、Qt Quick Controls、Qt Multimediaの実行パッケージが必要です。ZIP展開後に実行権限が失われた場合は、[インストール](installation.md#linux)の`chmod +x`を実行してください。
-
-### glibc 2.44以降でCOPY relocationのエラーが出る
-
-`COPY relocation against non-copyable protected symbol`や`GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`が表示されたら、最新のリリースを使用してください。古いZIPの再展開では直りません。ソースからは`./build.sh linux`でビルドし、ELF検査まで実行します。
-
-### MangoHudを有効にすると音声初期化時に落ちる
-
-MangoHudを無効にして起動してください。
-
-```bash
-MANGOHUD=0 ./utautts
-```
-
-互換性問題を解消するまでの回避策です。
-
-## Linuxで日本語が四角い記号（豆腐）になる
-
-日本語グリフを含むフォントがインストールされていません。Debian／Ubuntuでは`sudo apt-get install fontconfig fonts-noto-cjk`を実行してからGUIを起動し直してください。`fc-list :lang=ja`で利用可能な日本語フォントを確認できます。
-
-## 音声が生成されない、または合成が遅い
-
-既定Renderer・抑揚モデルなし・短い文章で試してください。直らなければ、ログと入力文章、音源、Renderer、モデル、runtimeの組み合わせを確認します。
-
-## 問題を報告する
-
-「ヘルプ」→「診断情報を書き出す...」からJSONを保存し、操作手順と画面に出たエラーを添えてIssueを送ってください。入力文章、音声、ボイスバンクの絶対パスは記録されません。
+## 問題が解決しない場合
+「ヘルプ」→「診断情報を書き出す...」から診断JSONを出力し、再現手順とエラーメッセージを添えて [GitHub Issues](https://github.com/yh2237/UtauTTS/issues) までご報告ください（入力文章や音声波形などの個人情報は含まれません）。
