@@ -2,14 +2,14 @@ package frontend
 
 import (
 	"fmt"
-	"github.com/mozillazg/go-pinyin"
 	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/mozillazg/go-pinyin"
 )
 
-// 独立に用意した小さな種辞書。ユーザー辞書を優先し、未知語はgo-pinyinで処理する。
 var chineseWords = map[string]string{
 	"银行": "yin2 hang2", "銀行": "yin2 hang2", "行长": "hang2 zhang3", "行長": "hang2 zhang3",
 	"行业": "hang2 ye4", "行業": "hang2 ye4", "行为": "xing2 wei2", "行为人": "xing2 wei2 ren2",
@@ -23,6 +23,7 @@ var chineseWords = map[string]string{
 	"你好": "ni3 hao3", "很好": "hen3 hao3", "可以": "ke3 yi3", "准备": "zhun3 bei4",
 	"我们": "wo3 men5", "你们": "ni3 men5", "他们": "ta1 men5", "什么": "shen2 me5",
 	"怎么": "zen3 me5", "这个": "zhe4 ge5", "那个": "na4 ge5", "妈妈": "ma1 ma5", "爸爸": "ba4 ba5",
+	"爷爷": "ye2 ye5", "爺爺": "ye2 ye5", "奶奶": "nai3 nai5",
 	"朋友": "peng2 you5", "东西": "dong1 xi5", "知道": "zhi1 dao5",
 	"吗": "ma5", "呢": "ne5", "吧": "ba5", "的": "de5", "了": "le5",
 }

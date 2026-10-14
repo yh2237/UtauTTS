@@ -90,6 +90,9 @@ func applyMandarinIntonation(curve *render.PitchCurve, model *prosody.MandarinIn
 		}
 		first := max(0, int(math.Ceil(timings[index].StartMS/curve.FrameMS)))
 		last := min(len(result.Cents)-1, int(math.Floor((timings[index].StartMS+timings[index].DurationMS)/curve.FrameMS)))
+		if next := index + 1; next < len(morae) && !morae[next].Pause && timings[next].DurationMS > 0 && tones[next] >= 1 && tones[next] <= 5 {
+			last = min(last, int(math.Ceil(timings[next].StartMS/curve.FrameMS))-1)
+		}
 		for frame := first; frame <= last; frame++ {
 			unit := (float64(frame)*curve.FrameMS - timings[index].StartMS) / timings[index].DurationMS
 			result.Cents[frame] += interpolateMandarinCorrection(model.Knots, correction, unit)
