@@ -11,7 +11,7 @@ UtauTTSの利用方法および技術ドキュメントの目次です。
 - [日本語・英語・中国語の読み上げ](multilingual.md) - 多言語音源での利用方法と発音形式
 - [CLI（コマンドライン）リファレンス](cli.md) - コマンドラインからの音声合成・一括処理
 - [HTTP APIサーバー仕様](server.md) - REST APIエンドポイントと連携仕様
-- [DiffSinger連携](diffsinger.md) - ニューラル音源の利用
+- [DiffSinger](diffsinger.md) - ニューラル音源の利用
 - [トラブルシューティング](troubleshooting.md) - よくある質問と不具合への対処
 - [同梱音源について](voicebank.md) - 初期音源の出典と利用条件
 
