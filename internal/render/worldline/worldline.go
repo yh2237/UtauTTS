@@ -370,6 +370,9 @@ func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
 	if cfg.CVVCPreBoundaryFade && unit.Role == "transition" {
 		envelopePoints = base.CVVCPreBoundaryEnvelope(envelopePoints, phoneTiming)
 	}
+	if cut, ok := codaEndingStart(synthesisPlan, *unit); ok {
+		envelopePoints = capEnvelopeEnd(envelopePoints, cut+3-unit.NoteStartMS)
+	}
 	pitchLengthMS := envelopePoints[4].XMS + pitchLeadingMS
 	positionMS := unit.NoteStartMS - phoneTiming.Preutter + leadingMS
 	consonantLength := unit.ConsonantMS
@@ -475,7 +478,7 @@ func (b worldlineUnitBuilder) resolveWorldlineSpeechStrategy(i int, codaRelease,
 		singleCV:       singleCVUnit,
 		stopProtected:  worldlineStopProtection(synthesisPlan, *unit, options),
 		singleCVLegato: singleCVLegato(synthesisPlan, *unit),
-		multilingual:   multilingualScore(synthesisPlan),
+		multilingual:   speechPlacement(synthesisPlan, *unit),
 	}
 	if base.SpeechStop(synthesisPlan, *unit) {
 		if strategy.stopProtected {

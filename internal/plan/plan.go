@@ -343,6 +343,9 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		if err != nil {
 			return nil, err
 		}
+		if mora.Language == frontend.LanguageEnglish && cfg.PhoneWeightsSource == "multilingual-speech-score-v1" {
+			phoneSpans = otoCodaSpans(mora, phoneSpans, selection.Endings)
+		}
 		for i, phone := range mora.Phones {
 			result.PhoneTimings = append(result.PhoneTimings, PhoneTiming{Position: position, Symbol: phone.Symbol, Role: phone.Role, StartMS: phoneCursor, DurationMS: phoneSpans[i]})
 			phoneCursor += phoneSpans[i]

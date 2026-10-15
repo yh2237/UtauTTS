@@ -5,6 +5,7 @@ import (
 
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/plan"
+	"github.com/yh2237/UtauTTS/internal/render/base"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
@@ -41,7 +42,13 @@ func TestResolveWorldlineSpeechStrategy(t *testing.T) {
 		{"coda release ending", &plan.Plan{Language: "ja", Units: []plan.Unit{
 			{Role: "ending", CodaPhones: []string{"d"}, SpeechProfile: releaseProfile}}}, false, 0, true, false, false,
 			worldlineSpeechStrategy{codaRelease: true, stopProtected: true}},
-		{"multilingual english", &plan.Plan{Language: "en", PhoneTimingSource: "multilingual-speech-score-v1",
+		{"english syllable uses utau placement", &plan.Plan{Language: "en", PhoneTimingSource: "multilingual-speech-score-v1",
+			Units: []plan.Unit{{Position: 0, Role: "mora"}}}, false, 0, false, false, false,
+			worldlineSpeechStrategy{}},
+		{"english ending keeps speech placement", &plan.Plan{Language: "en", PhoneTimingSource: "multilingual-speech-score-v1",
+			Units: []plan.Unit{{Position: 0, Role: "ending"}}}, false, 0, false, false, false,
+			worldlineSpeechStrategy{multilingual: true}},
+		{"multilingual chinese", &plan.Plan{Language: "zh", PhoneTimingSource: "multilingual-speech-score-v1",
 			Units: []plan.Unit{{Position: 0, Role: "mora"}}}, false, 0, false, false, false,
 			worldlineSpeechStrategy{multilingual: true}},
 		{"single CV legato", &plan.Plan{SingleCV: true, Language: "ja",
@@ -57,5 +64,37 @@ func TestResolveWorldlineSpeechStrategy(t *testing.T) {
 				t.Fatalf("strategy = %+v, want %+v", got, test.want)
 			}
 		})
+	}
+}
+
+func TestEnglishMainStopsAtCodaEnding(t *testing.T) {
+	units := []plan.Unit{
+		{Position: 0, Role: "mora", NoteStartMS: 0, DurationMS: 351},
+		{Position: 0, Role: "ending", NoteStartMS: 215, DurationMS: 66, CodaPhones: []string{"l"}},
+		{Position: 0, Role: "ending", NoteStartMS: 281, DurationMS: 69, CodaPhones: []string{"d"}},
+	}
+	english := &plan.Plan{Language: "en", PhoneTimingSource: "multilingual-speech-score-v1", Units: units}
+	if cut, ok := codaEndingStart(english, units[0]); !ok || cut != 215 {
+		t.Fatalf("english cut = %v %v, want 215", cut, ok)
+	}
+	if _, ok := codaEndingStart(english, units[1]); ok {
+		t.Fatal("ending unit must not be cut")
+	}
+	chinese := &plan.Plan{Language: "zh", PhoneTimingSource: "multilingual-speech-score-v1", Units: units}
+	if _, ok := codaEndingStart(chinese, units[0]); ok {
+		t.Fatal("chinese main is speech-placed and must not be cut here")
+	}
+	japanese := &plan.Plan{Language: "ja", Units: units}
+	if _, ok := codaEndingStart(japanese, units[0]); ok {
+		t.Fatal("japanese must not be cut")
+	}
+
+	points := []base.WorldlineEnvelopePoint{{XMS: 0, Y: 0}, {XMS: 20, Y: 1}, {XMS: 200, Y: 1}, {XMS: 380, Y: 1}, {XMS: 400, Y: 0}}
+	got := capEnvelopeEnd(points, 250)
+	if got[4].XMS != 250 || got[3].XMS != 240 || got[2].XMS != 200 || points[4].XMS != 400 {
+		t.Fatalf("capped envelope = %+v (original %+v)", got, points)
+	}
+	if same := capEnvelopeEnd(points, 500); same[4].XMS != 400 {
+		t.Fatal("envelope ending before the cut must not change")
 	}
 }

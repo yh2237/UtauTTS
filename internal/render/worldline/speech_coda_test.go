@@ -24,7 +24,7 @@ func TestCodaMappingProtectsMeasuredReleaseWithoutChangingSpeechClock(t *testing
 			if err != nil {
 				t.Fatal(err)
 			}
-			if p.Units[0].DurationMS != 69.3 || p.Units[0].NoteStartMS != 641.28 || item.LengthMS != 89.29999999999995 {
+			if p.Units[0].DurationMS != 69.3 || p.Units[0].NoteStartMS != 641.28 || math.Abs(item.LengthMS-69.3) > 1e-9 {
 				t.Fatal("speech clock changed", item)
 			}
 			if !item.Speech.ProtectStop || !p.Units[0].CodaReleaseSeparated {

@@ -122,3 +122,26 @@ func TestEnglishCodaBeforeClusterUsesAvailableRecording(t *testing.T) {
 		t.Fatal("wrong missing phones", got)
 	}
 }
+
+func TestMeasureCodaBurst(t *testing.T) {
+	const rate = 8000
+	samples := make([]float64, rate*400/1000)
+	for i := range samples {
+		ms := float64(i) * 1000 / rate
+		switch {
+		case ms < 200:
+			samples[i] = .5 * math.Sin(2*math.Pi*200*float64(i)/rate)
+		case ms < 300:
+			samples[i] = .02 * math.Sin(2*math.Pi*150*float64(i)/rate)
+		case ms < 320:
+			samples[i] = .3 * math.Sin(2*math.Pi*3000*float64(i)/rate)
+		}
+	}
+	burst, confidence := measureCodaBurst(samples, rate, 200)
+	if confidence < .5 || burst < 295 || burst > 310 {
+		t.Fatalf("burst = %.1f (%.2f)", burst, confidence)
+	}
+	if burst, _ := measureCodaBurst(samples[:rate*290/1000], rate, 200); burst != 0 {
+		t.Fatalf("burst without release = %.1f", burst)
+	}
+}
