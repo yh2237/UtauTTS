@@ -371,7 +371,7 @@ func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
 		envelopePoints = base.CVVCPreBoundaryEnvelope(envelopePoints, phoneTiming)
 	}
 	if cut, ok := codaEndingStart(synthesisPlan, *unit); ok {
-		envelopePoints = capEnvelopeEnd(envelopePoints, cut+3-unit.NoteStartMS)
+		envelopePoints = envelopeEndAt(envelopePoints, cut+3-unit.NoteStartMS)
 	}
 	pitchLengthMS := envelopePoints[4].XMS + pitchLeadingMS
 	positionMS := unit.NoteStartMS - phoneTiming.Preutter + leadingMS
@@ -379,7 +379,7 @@ func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
 	if singleCVUnit {
 		consonantLength = timing.ConsonantMS
 	}
-	requiredLength := math.Max(unit.DurationMS+durCorrection+skipMS, consonantLength)
+	requiredLength := math.Max(math.Max(unit.DurationMS+durCorrection, envelopePoints[4].XMS+phoneTiming.Preutter)+skipMS, consonantLength)
 	requiredLength = math.Ceil(requiredLength/50+0.5) * 50
 	if cfg.ProviderOptions.Worldline.ExactLength {
 		requiredLength = unit.DurationMS

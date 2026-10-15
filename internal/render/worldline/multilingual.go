@@ -23,9 +23,9 @@ func codaEndingStart(p *plan.Plan, u plan.Unit) (float64, bool) {
 	return 0, false
 }
 
-// 5点の音量包絡を、終わりがendMS（ノートの開始から）になるよう短くする。
-func capEnvelopeEnd(points []base.WorldlineEnvelopePoint, endMS float64) []base.WorldlineEnvelopePoint {
-	if len(points) != 5 || endMS >= points[4].XMS || endMS <= points[1].XMS {
+// 5点の音量包絡の終わりをendMS（ノートの開始から）にする。
+func envelopeEndAt(points []base.WorldlineEnvelopePoint, endMS float64) []base.WorldlineEnvelopePoint {
+	if len(points) != 5 || endMS <= points[1].XMS {
 		return points
 	}
 	capped := append([]base.WorldlineEnvelopePoint(nil), points...)
@@ -45,7 +45,7 @@ func speechPlacement(p *plan.Plan, u plan.Unit) bool {
 	if !multilingualScore(p) {
 		return false
 	}
-	return frontend.NormalizeLanguage(p.Language) == frontend.LanguageChinese || u.Role == "ending"
+	return frontend.NormalizeLanguage(p.Language) == frontend.LanguageChinese || u.Role == "ending" && len(u.CodaPhones) > 0
 }
 
 // 原音のoto時刻を出力へ写す。鼻音境界は規則による推定値。

@@ -45,9 +45,12 @@ func TestResolveWorldlineSpeechStrategy(t *testing.T) {
 		{"english syllable uses utau placement", &plan.Plan{Language: "en", PhoneTimingSource: "multilingual-speech-score-v1",
 			Units: []plan.Unit{{Position: 0, Role: "mora"}}}, false, 0, false, false, false,
 			worldlineSpeechStrategy{}},
-		{"english ending keeps speech placement", &plan.Plan{Language: "en", PhoneTimingSource: "multilingual-speech-score-v1",
-			Units: []plan.Unit{{Position: 0, Role: "ending"}}}, false, 0, false, false, false,
+		{"english coda keeps speech placement", &plan.Plan{Language: "en", PhoneTimingSource: "multilingual-speech-score-v1",
+			Units: []plan.Unit{{Position: 0, Role: "ending", CodaPhones: []string{"t"}}}}, false, 0, false, false, false,
 			worldlineSpeechStrategy{multilingual: true}},
+		{"english tail uses utau placement", &plan.Plan{Language: "en", PhoneTimingSource: "multilingual-speech-score-v1",
+			Units: []plan.Unit{{Position: 0, Role: "ending"}}}, false, 0, false, false, false,
+			worldlineSpeechStrategy{}},
 		{"multilingual chinese", &plan.Plan{Language: "zh", PhoneTimingSource: "multilingual-speech-score-v1",
 			Units: []plan.Unit{{Position: 0, Role: "mora"}}}, false, 0, false, false, false,
 			worldlineSpeechStrategy{multilingual: true}},
@@ -90,11 +93,11 @@ func TestEnglishMainStopsAtCodaEnding(t *testing.T) {
 	}
 
 	points := []base.WorldlineEnvelopePoint{{XMS: 0, Y: 0}, {XMS: 20, Y: 1}, {XMS: 200, Y: 1}, {XMS: 380, Y: 1}, {XMS: 400, Y: 0}}
-	got := capEnvelopeEnd(points, 250)
+	got := envelopeEndAt(points, 250)
 	if got[4].XMS != 250 || got[3].XMS != 240 || got[2].XMS != 200 || points[4].XMS != 400 {
 		t.Fatalf("capped envelope = %+v (original %+v)", got, points)
 	}
-	if same := capEnvelopeEnd(points, 500); same[4].XMS != 400 {
-		t.Fatal("envelope ending before the cut must not change")
+	if longer := envelopeEndAt(points, 500); longer[4].XMS != 500 || longer[3].XMS != 490 || longer[2].XMS != 200 {
+		t.Fatalf("extended envelope = %+v", longer)
 	}
 }
