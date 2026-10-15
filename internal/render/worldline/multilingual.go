@@ -42,10 +42,7 @@ func multilingualScore(p *plan.Plan) bool {
 }
 
 func speechPlacement(p *plan.Plan, u plan.Unit) bool {
-	if !multilingualScore(p) {
-		return false
-	}
-	return frontend.NormalizeLanguage(p.Language) == frontend.LanguageChinese || u.Role == "ending" && len(u.CodaPhones) > 0
+	return multilingualScore(p) && u.Role == "ending" && len(u.CodaPhones) > 0
 }
 
 // 原音のoto時刻を出力へ写す。鼻音境界は規則による推定値。

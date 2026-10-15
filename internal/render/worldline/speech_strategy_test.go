@@ -51,9 +51,9 @@ func TestResolveWorldlineSpeechStrategy(t *testing.T) {
 		{"english tail uses utau placement", &plan.Plan{Language: "en", PhoneTimingSource: "multilingual-speech-score-v1",
 			Units: []plan.Unit{{Position: 0, Role: "ending"}}}, false, 0, false, false, false,
 			worldlineSpeechStrategy{}},
-		{"multilingual chinese", &plan.Plan{Language: "zh", PhoneTimingSource: "multilingual-speech-score-v1",
+		{"chinese syllable uses utau placement", &plan.Plan{Language: "zh", PhoneTimingSource: "multilingual-speech-score-v1",
 			Units: []plan.Unit{{Position: 0, Role: "mora"}}}, false, 0, false, false, false,
-			worldlineSpeechStrategy{multilingual: true}},
+			worldlineSpeechStrategy{}},
 		{"single CV legato", &plan.Plan{SingleCV: true, Language: "ja",
 			Morae: []frontend.Mora{{Vowel: "a"}, {Vowel: "a"}},
 			Units: []plan.Unit{{Position: 0, Role: "mora"}, {Position: 1, Role: "mora"}}}, false, 1, false, true, false,
@@ -82,10 +82,6 @@ func TestEnglishMainStopsAtCodaEnding(t *testing.T) {
 	}
 	if _, ok := codaEndingStart(english, units[1]); ok {
 		t.Fatal("ending unit must not be cut")
-	}
-	chinese := &plan.Plan{Language: "zh", PhoneTimingSource: "multilingual-speech-score-v1", Units: units}
-	if _, ok := codaEndingStart(chinese, units[0]); ok {
-		t.Fatal("chinese main is speech-placed and must not be cut here")
 	}
 	japanese := &plan.Plan{Language: "ja", Units: units}
 	if _, ok := codaEndingStart(japanese, units[0]); ok {
