@@ -436,6 +436,40 @@ func equivalentKanaForms(mora string) []string {
 		return []string{"じゅ"}
 	case "てゅ":
 		return []string{"ちゅ"}
+	case "ふゅ":
+		return []string{"ひゅ"}
+	case "くぁ", "くゎ":
+		return []string{"か"}
+	case "くぃ":
+		return []string{"き"}
+	case "くぇ":
+		return []string{"け"}
+	case "くぉ":
+		return []string{"こ"}
+	case "ぐぁ", "ぐゎ":
+		return []string{"が"}
+	case "ぐぃ":
+		return []string{"ぎ"}
+	case "ぐぇ":
+		return []string{"げ"}
+	case "ぐぉ":
+		return []string{"ご"}
+	case "きぇ":
+		return []string{"け"}
+	case "ぎぇ":
+		return []string{"げ"}
+	case "にぇ":
+		return []string{"ね"}
+	case "ひぇ":
+		return []string{"へ"}
+	case "びぇ":
+		return []string{"べ"}
+	case "ぴぇ":
+		return []string{"ぺ"}
+	case "みぇ":
+		return []string{"め"}
+	case "りぇ":
+		return []string{"れ"}
 	}
 	return nil
 }

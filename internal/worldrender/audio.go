@@ -3,102 +3,28 @@ package worldrender
 import (
 	"encoding/binary"
 	"fmt"
-	"io"
 	"math"
 	"os"
 	"path/filepath"
+
+	"github.com/yh2237/UtauTTS/internal/audio"
 )
 
+// 音源選択と同じ読込規則にそろえる。RIFFサイズの誤りや、奇数長dataの端数は許容する。
 func readPCM16(path string) (int, []float64, error) {
-	file, err := os.Open(path)
+	pcm, err := audio.ReadWav(path)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, fmt.Errorf("read WAV %s: %w", path, err)
 	}
-	defer file.Close()
-	var header [12]byte
-	if _, err := io.ReadFull(file, header[:]); err != nil {
-		return 0, nil, err
-	}
-	if string(header[:4]) != "RIFF" || string(header[8:]) != "WAVE" {
-		return 0, nil, fmt.Errorf("not PCM WAV: %s", path)
-	}
-	info, err := file.Stat()
-	if err != nil {
-		return 0, nil, err
-	}
-	riffSize := int64(binary.LittleEndian.Uint32(header[4:]))
-	if riffSize < 4 || riffSize > info.Size()-8 {
-		return 0, nil, fmt.Errorf("invalid WAV RIFF size: %w", io.ErrUnexpectedEOF)
-	}
-	remaining := riffSize - 4
-	var format, channels, bits uint16
-	var sampleRate uint32
-	var data []byte
-	for remaining > 0 {
-		if remaining < 8 {
-			return 0, nil, fmt.Errorf("truncated WAV chunk header: %w", io.ErrUnexpectedEOF)
-		}
-		var chunk [8]byte
-		if _, err := io.ReadFull(file, chunk[:]); err != nil {
-			return 0, nil, err
-		}
-		remaining -= 8
-		size := int64(binary.LittleEndian.Uint32(chunk[4:]))
-		paddedSize := size + (size & 1)
-		// 宣言値だけで確保せず、RIFF境界と実ファイル長を先に確認する。
-		if paddedSize > remaining {
-			return 0, nil, fmt.Errorf("truncated WAV chunk %q: %w", chunk[:4], io.ErrUnexpectedEOF)
-		}
-		skip := paddedSize
-		switch string(chunk[:4]) {
-		case "fmt ":
-			if size < 16 {
-				return 0, nil, fmt.Errorf("invalid WAV fmt chunk size: %d", size)
-			}
-			var payload [16]byte
-			if _, err := io.ReadFull(file, payload[:]); err != nil {
-				return 0, nil, err
-			}
-			format = binary.LittleEndian.Uint16(payload[:])
-			channels = binary.LittleEndian.Uint16(payload[2:])
-			sampleRate = binary.LittleEndian.Uint32(payload[4:])
-			bits = binary.LittleEndian.Uint16(payload[14:])
-			skip -= 16
-		case "data":
-			if uint64(size) > uint64(^uint(0)>>1) {
-				return 0, nil, fmt.Errorf("WAV data chunk is too large: %d", size)
-			}
-			data = make([]byte, int(size))
-			if _, err := io.ReadFull(file, data); err != nil {
-				return 0, nil, err
-			}
-			skip -= size
-		}
-		// 未使用のメタデータやfmt拡張は読み込まずに飛ばす。
-		if skip > 0 {
-			if _, err := file.Seek(skip, io.SeekCurrent); err != nil {
-				return 0, nil, err
-			}
-		}
-		remaining -= paddedSize
-	}
-	if format != 1 || channels == 0 || bits != 16 || sampleRate == 0 || data == nil {
-		return 0, nil, fmt.Errorf("worldline bridge supports PCM16 WAV only: %s", path)
-	}
-	if len(data)%(int(channels)*2) != 0 {
-		return 0, nil, fmt.Errorf("incomplete PCM16 frame: %s", path)
-	}
-	frames := len(data) / (int(channels) * 2)
-	samples := make([]float64, frames)
+	samples := make([]float64, len(pcm.Data)/pcm.Channels)
 	for frame := range samples {
 		var sum float64
-		for channel := 0; channel < int(channels); channel++ {
-			offset := (frame*int(channels) + channel) * 2
-			sum += float64(int16(binary.LittleEndian.Uint16(data[offset:]))) / 32768
+		for _, sample := range pcm.Data[frame*pcm.Channels : (frame+1)*pcm.Channels] {
+			sum += float64(sample) / 32768
 		}
-		samples[frame] = sum / float64(channels)
+		samples[frame] = sum / float64(pcm.Channels)
 	}
-	return int(sampleRate), samples, nil
+	return pcm.SampleRate, samples, nil
 }
 
 func writePCM16(path string, sampleRate int, samples []float32) error {

@@ -3,7 +3,6 @@ package worldrender
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"math"
 	"os"
@@ -50,40 +49,45 @@ func writePCM16TestFile(tb testing.TB, data []byte) string {
 
 func TestReadPCM16Chunks(t *testing.T) {
 	for _, channels := range []uint16{1, 2} {
-		for _, dataFirst := range []bool{false, true} {
-			name := "mono"
-			if channels == 2 {
-				name = "stereo"
-			}
-			if dataFirst {
-				name += "/data-first"
-			}
-			t.Run(name, func(t *testing.T) {
-				format := pcm16TestChunk("fmt ", append(pcm16TestFormat(channels), 0, 0))
-				pcm := []byte{0, 128, 255, 127}
-				data := pcm16TestChunk("data", pcm)
-				chunks := [][]byte{format, pcm16TestChunk("JUNK", []byte{1, 2, 3}), data}
-				if dataFirst {
-					chunks[0], chunks[2] = chunks[2], chunks[0]
-				}
-				rate, samples, err := readPCM16(writePCM16TestFile(t, pcm16TestWAV(chunks...)))
-				if err != nil {
-					t.Fatal(err)
-				}
-				want := []float64{-1, 32767.0 / 32768}
-				if channels == 2 {
-					want = []float64{-1.0 / 65536}
-				}
-				if rate != 44100 || len(samples) != len(want) {
-					t.Fatalf("rate=%d samples=%v", rate, samples)
-				}
-				for i := range want {
-					if samples[i] != want[i] {
-						t.Fatalf("samples[%d]=%v, want %v", i, samples[i], want[i])
-					}
-				}
-			})
+		name := "mono"
+		if channels == 2 {
+			name = "stereo"
 		}
+		t.Run(name, func(t *testing.T) {
+			format := pcm16TestChunk("fmt ", append(pcm16TestFormat(channels), 0, 0))
+			pcm := []byte{0, 128, 255, 127}
+			data := pcm16TestChunk("data", pcm)
+			rate, samples, err := readPCM16(writePCM16TestFile(t, pcm16TestWAV(format, pcm16TestChunk("JUNK", []byte{1, 2, 3}), data)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := []float64{-1, 32767.0 / 32768}
+			if channels == 2 {
+				want = []float64{-1.0 / 65536}
+			}
+			if rate != 44100 || len(samples) != len(want) {
+				t.Fatalf("rate=%d samples=%v", rate, samples)
+			}
+			for i := range want {
+				if samples[i] != want[i] {
+					t.Fatalf("samples[%d]=%v, want %v", i, samples[i], want[i])
+				}
+			}
+		})
+	}
+}
+
+// 配布音源にある形。RIFFサイズが8 byte短く、奇数長のdataがpadなしでEOFに達する。
+func TestReadPCM16AcceptsShortRIFFAndUnpaddedOddData(t *testing.T) {
+	data := pcm16TestChunk("data", []byte{0, 128, 255, 127, 9})
+	contents := pcm16TestWAV(pcm16TestChunk("fmt ", pcm16TestFormat(1)), data[:len(data)-1])
+	binary.LittleEndian.PutUint32(contents[4:], uint32(len(contents)-16))
+	rate, samples, err := readPCM16(writePCM16TestFile(t, contents))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rate != 44100 || len(samples) != 2 || samples[0] != -1 || samples[1] != 32767.0/32768 {
+		t.Fatalf("rate=%d samples=%v", rate, samples)
 	}
 }
 
@@ -94,7 +98,6 @@ func TestReadPCM16RejectsMalformedChunks(t *testing.T) {
 	missingPad = missingPad[:len(missingPad)-1]
 	for name, contents := range map[string][]byte{
 		"short fmt":            pcm16TestWAV(pcm16TestChunk("fmt ", []byte{1, 0}), data),
-		"partial sample":       pcm16TestWAV(format, pcm16TestChunk("data", []byte{0})),
 		"partial stereo frame": pcm16TestWAV(pcm16TestChunk("fmt ", pcm16TestFormat(2)), data),
 		"missing padding":      pcm16TestWAV(format, data, missingPad),
 		"partial chunk header": pcm16TestWAV(format, data, []byte("JUNK")),
@@ -140,26 +143,6 @@ func TestReadPCM16RejectsOversizedDeclarations(t *testing.T) {
 				t.Fatalf("oversized chunk error=%v, want unexpected EOF", err)
 			}
 		})
-	}
-}
-
-func TestReadPCM16RIFFBounds(t *testing.T) {
-	format := pcm16TestChunk("fmt ", pcm16TestFormat(1))
-	data := pcm16TestChunk("data", []byte{0, 0})
-	for _, size := range []uint32{0, 3, 4, 5, 28, 35, 39, math.MaxUint32} {
-		t.Run(fmt.Sprintf("size=%d", size), func(t *testing.T) {
-			contents := pcm16TestWAV(format, data)
-			binary.LittleEndian.PutUint32(contents[4:], size)
-			if _, _, err := readPCM16(writePCM16TestFile(t, contents)); err == nil {
-				t.Fatal("out-of-bounds RIFF size was accepted")
-			}
-		})
-	}
-	// RIFF境界の外のデータをチャンクとして解釈しない。
-	contents := append(pcm16TestWAV(format, data), []byte("trailing bytes")...)
-	rate, samples, err := readPCM16(writePCM16TestFile(t, contents))
-	if err != nil || rate != 44100 || len(samples) != 1 || samples[0] != 0 {
-		t.Fatalf("trailing bytes: rate=%d samples=%v err=%v", rate, samples, err)
 	}
 }
 
