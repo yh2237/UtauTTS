@@ -621,6 +621,25 @@ func TestPruneCandidates(t *testing.T) {
 	})
 }
 
+func TestResolvePrefersWildcardCVInsidePhrase(t *testing.T) {
+	morae, err := frontend.ParseKana("あお、お")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bank := &Bank{Entries: map[string][]oto.Entry{
+		"あ":   {{Alias: "あ", Filename: "a.wav", Offset: 6, Fixed: 52, Blank: 69}},
+		"お":   {{Alias: "お", Filename: "o.wav", Offset: 10, Fixed: 45, Blank: 72}},
+		"* お": {{Alias: "* お", Filename: "o.wav", Offset: 45, Fixed: 50, Blank: 86, Preutterance: 25, Overlap: 50}},
+	}}
+	got, err := bank.Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[1].Alias != "* お" || got[2].Alias != "お" {
+		t.Fatalf("aliases = %q, %q", got[1].Alias, got[2].Alias)
+	}
+}
+
 func TestResolveCutsSteadyVowelWhenSameVowelAliasIsMissing(t *testing.T) {
 	morae, err := frontend.ParseKana("かあかー")
 	if err != nil {
