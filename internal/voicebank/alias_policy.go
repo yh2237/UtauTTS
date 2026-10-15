@@ -43,7 +43,7 @@ func aliasCandidatesWithPolicy(mora, previousVowel string, phraseStart bool, pol
 	}
 	if policy != AliasPolicyCVOnly && !phraseStart {
 		for _, form := range forms {
-			candidates = append(candidates, aliasCandidate{name: "* " + form.text, tier: policyTier(policy, 2, AliasCV) + form.fallback, kind: AliasCV, equivalent: form.equivalent})
+			candidates = append(candidates, aliasCandidate{name: "* " + form.text, tier: policyTier(policy, 0, AliasCV) + form.fallback, kind: AliasCV, equivalent: form.equivalent})
 		}
 	}
 	return uniqueCandidates(candidates)

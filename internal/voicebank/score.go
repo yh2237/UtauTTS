@@ -20,8 +20,9 @@ func candidateScore(language string, candidateTier int, entry oto.Entry) float64
 	} else {
 		score -= 20 + math.Abs(entry.Preutterance-entry.Fixed)
 	}
-	if entry.Overlap <= entry.Preutterance || language == frontend.LanguageEnglish {
+	if entry.Overlap <= entry.Preutterance || language == frontend.LanguageEnglish || isWildcardAlias(entry.Alias) {
 		// C+V/VCCVの母音はoverlapがpreutteranceを超えても正常。減点すると文頭形が優先される。
+		// 単独音の「* あ」は前の母音と長く重ねる接続用の設定なので、同じく正常とみなす。
 		score += 4
 	} else {
 		score -= 20 + math.Abs(entry.Overlap-entry.Preutterance)
