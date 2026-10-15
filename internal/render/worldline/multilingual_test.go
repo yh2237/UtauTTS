@@ -1,6 +1,8 @@
 package worldline
 
 import (
+	"math"
+
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
@@ -66,4 +68,29 @@ func TestSpeechPlacementKeepsOtoAndNasalClockSeparate(t *testing.T) {
 	if p.Units[0].SpeechSourceAnchorsMS[0] != 0 {
 		t.Fatal("clone shares anchor slice")
 	}
+}
+
+func TestEnglishStopEndingKeepsClosureBeforeBurst(t *testing.T) {
+	p := &plan.Plan{Language: frontend.LanguageEnglish, Units: []plan.Unit{{
+		Role: "ending", CodaPhones: []string{"t"}, NoteStartMS: 88, DurationMS: 184, PreutteranceMS: 191,
+		SpeechProfile: &voicebank.SpeechProfile{CodaBurstMS: 289, CodaBurstConfidence: 1},
+	}}}
+	u, err := placeSpeechUnit(p, 0, worldlineManifestUnit{}, 536, 55)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := u.Speech.Anchors
+	if u.PositionMS != 88+55 || len(a) < 3 || a[0].SourceMS != 189 || a[0].TargetMS != 0 {
+		t.Fatalf("position %.1f anchors %+v", u.PositionMS, a)
+	}
+	closure := 184 * .55
+	for i := 1; i < len(a); i++ {
+		if a[i-1].SourceMS < 289 && a[i].SourceMS >= 289 {
+			if burst := a[i-1].TargetMS + (289-a[i-1].SourceMS)*(a[i].TargetMS-a[i-1].TargetMS)/(a[i].SourceMS-a[i-1].SourceMS); math.Abs(burst-closure) > 1 {
+				t.Fatalf("burst at %.1f, want %.1f: %+v", burst, closure, a)
+			}
+			return
+		}
+	}
+	t.Fatalf("burst not mapped: %+v", a)
 }

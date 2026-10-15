@@ -2,17 +2,50 @@ package worldline
 
 import (
 	"fmt"
+	"math"
+
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/provider"
 	"github.com/yh2237/UtauTTS/internal/render/base"
 	"github.com/yh2237/UtauTTS/internal/speechwindow"
-	"math"
 )
+
+func codaEndingStart(p *plan.Plan, u plan.Unit) (float64, bool) {
+	if u.Role != "mora" || speechPlacement(p, u) || !multilingualScore(p) {
+		return 0, false
+	}
+	for _, next := range p.Units {
+		if next.Position == u.Position && next.Role == "ending" && len(next.CodaPhones) > 0 {
+			return next.NoteStartMS, true
+		}
+	}
+	return 0, false
+}
+
+// 5点の音量包絡を、終わりがendMS（ノートの開始から）になるよう短くする。
+func capEnvelopeEnd(points []base.WorldlineEnvelopePoint, endMS float64) []base.WorldlineEnvelopePoint {
+	if len(points) != 5 || endMS >= points[4].XMS || endMS <= points[1].XMS {
+		return points
+	}
+	capped := append([]base.WorldlineEnvelopePoint(nil), points...)
+	fade := math.Min(10, (endMS-capped[1].XMS)/2)
+	capped[4].XMS = endMS
+	capped[3].XMS = math.Max(capped[1].XMS, endMS-fade)
+	capped[2].XMS = math.Min(capped[2].XMS, capped[3].XMS)
+	return capped
+}
 
 func multilingualScore(p *plan.Plan) bool {
 	language := frontend.NormalizeLanguage(p.Language)
 	return p.PhoneTimingSource == "multilingual-speech-score-v1" && (language == frontend.LanguageEnglish || language == frontend.LanguageChinese)
+}
+
+func speechPlacement(p *plan.Plan, u plan.Unit) bool {
+	if !multilingualScore(p) {
+		return false
+	}
+	return frontend.NormalizeLanguage(p.Language) == frontend.LanguageChinese || u.Role == "ending"
 }
 
 // 原音のoto時刻を出力へ写す。鼻音境界は規則による推定値。
@@ -22,6 +55,12 @@ func placeSpeechUnit(p *plan.Plan, index int, item worldlineManifestUnit, source
 		return item, fmt.Errorf("invalid speech source or target for %q", u.Alias)
 	}
 	transient, transientDuration, hasTransient := speechCodaTransient(p, *u, sourceDuration)
+	englishEnding := u.Role == "ending" && p.Language == frontend.LanguageEnglish
+	if englishEnding &&
+		u.SpeechProfile != nil && u.SpeechProfile.CodaBurstConfidence >= .5 && base.CodaReleaseStop(*u) &&
+		u.SpeechProfile.CodaBurstMS > 0 && u.SpeechProfile.CodaBurstMS < sourceDuration {
+		transient, transientDuration, hasTransient = u.SpeechProfile.CodaBurstMS, 8, true
+	}
 	if hasTransient && u.SpeechProfile.ActivityConfidence >= .65 {
 		// 破裂音の後ろに余白を残し、長い末尾無音を除く。
 		activeEnd := math.Max(u.SpeechProfile.ActivityEndMS+8, transient+speechwindow.TransientTailMS(transientDuration, 10)+8)
@@ -30,7 +69,10 @@ func placeSpeechUnit(p *plan.Plan, index int, item worldlineManifestUnit, source
 		}
 	}
 	start, end := u.NoteStartMS, u.NoteStartMS+u.DurationMS
-	if u.Role == "transition" {
+	stopLayout := englishEnding && hasTransient
+	switch {
+	case stopLayout:
+	case u.Role == "transition":
 		start -= math.Min(20, u.DurationMS*.5)
 		for _, main := range p.Units {
 			if main.Position == u.Position && main.Role == "mora" {
@@ -41,9 +83,9 @@ func placeSpeechUnit(p *plan.Plan, index int, item worldlineManifestUnit, source
 		if end <= u.NoteStartMS {
 			end = u.NoteStartMS + math.Min(20, u.DurationMS)
 		}
-	} else if u.Role == "ending" {
+	case u.Role == "ending":
 		start -= math.Min(20, u.DurationMS*.5)
-	} else {
+	default:
 		for _, next := range p.Units {
 			if next.Position == u.Position && next.Role == "ending" && len(next.CodaPhones) > 0 {
 				end = math.Min(end, next.NoteStartMS+3)
@@ -69,7 +111,11 @@ func placeSpeechUnit(p *plan.Plan, index int, item worldlineManifestUnit, source
 		anchors = append(anchors, provider.SpeechAnchor{SourceMS: source, TargetMS: target})
 	}
 	pre := math.Max(0, math.Min(sourceDuration-1, u.PreutteranceMS))
-	if u.Role == "transition" || u.Role == "ending" {
+	if stopLayout {
+		closure := math.Max(35, math.Min(length*.55, length-20))
+		add(math.Max(0, transient-100), 0)
+		add(transient, closure)
+	} else if u.Role == "transition" || u.Role == "ending" {
 		add(math.Max(0, pre-math.Min(40, pre)), 0)
 		add(pre, u.NoteStartMS-start)
 	} else {

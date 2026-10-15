@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
 // PhoneTimingは合成目標であり音響解析の結果ではない。
@@ -124,4 +125,83 @@ func englishCodaFloorMS(phones []frontend.Phone) float64 {
 	default:
 		return 0
 	}
+}
+
+func otoCodaSpans(mora frontend.Mora, spans []float64, endings []voicebank.Selection) []float64 {
+	nucleus := -1
+	var coda []int
+	for i, p := range mora.Phones {
+		switch p.Role {
+		case "nucleus":
+			nucleus = i
+		case "coda":
+			coda = append(coda, i)
+		}
+	}
+	var groups []voicebank.Selection
+	for _, e := range endings {
+		if len(e.CodaPhones) > 0 {
+			groups = append(groups, e)
+		}
+	}
+	if nucleus < 0 || len(coda) == 0 || len(groups) == 0 {
+		return spans
+	}
+	out := append([]float64(nil), spans...)
+	container := out[nucleus]
+	for _, i := range coda {
+		container += out[i]
+	}
+	targets := make([]float64, len(groups))
+	total := 0.0
+	for k, g := range groups {
+		targets[k] = 62
+		if k == len(groups)-1 {
+			targets[k] = g.Entry.Preutterance
+			if g.Entry.Overlap < 0 {
+				targets[k] -= g.Entry.Overlap
+			}
+		}
+		total += targets[k]
+	}
+	limit := math.Min(container*.8, container-englishCodaMinVowelMS)
+	scale := 1.0
+	if total > limit && total > 0 {
+		scale = limit / total
+	}
+	codaTotal := 0.0
+	for k, g := range groups {
+		start, count := g.CodaStart, len(g.CodaPhones)
+		if start < 0 || start+count > len(coda) {
+			return spans
+		}
+		current := 0.0
+		for _, i := range coda[start : start+count] {
+			current += spans[i]
+		}
+		for _, i := range coda[start : start+count] {
+			share := 1 / float64(count)
+			if current > 0 {
+				share = spans[i] / current
+			}
+			out[i] = targets[k] * scale * share
+		}
+		codaTotal += targets[k] * scale
+	}
+	covered := map[int]bool{}
+	for _, g := range groups {
+		for _, i := range coda[g.CodaStart : g.CodaStart+len(g.CodaPhones)] {
+			covered[i] = true
+		}
+	}
+	for _, i := range coda {
+		if !covered[i] {
+			codaTotal += out[i]
+		}
+	}
+	out[nucleus] = container - codaTotal
+	if out[nucleus] < englishCodaMinVowelMS {
+		return spans
+	}
+	return out
 }

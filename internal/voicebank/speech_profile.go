@@ -34,6 +34,8 @@ type SpeechProfile struct {
 	ReleaseTransientMS         float64 `json:"release_transient_ms,omitempty"`
 	ReleaseTransientConfidence float64 `json:"release_transient_confidence,omitempty"`
 	ReleaseTransientDurationMS float64 `json:"release_transient_duration_ms,omitempty"`
+	CodaBurstMS                float64 `json:"coda_burst_ms,omitempty"`
+	CodaBurstConfidence        float64 `json:"coda_burst_confidence,omitempty"`
 	F0Hz                       float64 `json:"f0_hz"`
 	RMSDB                      float64 `json:"rms_db"`
 	VoicedRatio                float64 `json:"voiced_ratio"`
@@ -98,6 +100,7 @@ func measureSpeechProfile(wave []float64, rate int, entry oto.Entry, result Spee
 	if entry.Fixed > entry.Preutterance+20 {
 		result.ReleaseTransientMS, result.ReleaseTransientDurationMS, result.ReleaseTransientConfidence = measureSpeechTransient(samples, sampleRate, entry.Fixed)
 	}
+	result.CodaBurstMS, result.CodaBurstConfidence = measureCodaBurst(samples, sampleRate, entry.Preutterance)
 	frame := max(16, sampleRate*40/1000)
 	hop := max(1, sampleRate*5/1000)
 	left := int(math.Max(entry.Preutterance, entry.Fixed-25) * float64(sampleRate) / 1000)
@@ -258,4 +261,54 @@ func measureSpeechTransient(samples []float64, sampleRate int, anchorMS float64)
 	}
 	durationMS := float64((last-first)*hop+window) * 1000 / float64(sampleRate)
 	return float64(bestStart+window/2) * 1000 / float64(sampleRate), durationMS, confidence
+}
+
+// 語末閉鎖音の破裂位置。高域（1次差分）の強さが原音の大きい部分より15dB以上下がった区間（閉鎖）が50ms続いた直後に、
+// 15ms以内で10dB以上上がる所を破裂とみなし、先行発声の60ms前以降で最後のものを返す。有声閉鎖音は閉鎖中も声が続くため、
+// 全体の音量ではなく高域で見る。
+func measureCodaBurst(samples []float64, sampleRate int, preMS float64) (float64, float64) {
+	window := max(8, sampleRate/100)
+	hop := max(1, sampleRate/200)
+	if sampleRate <= 0 || len(samples) < window+hop*4 {
+		return 0, 0
+	}
+	var hf []float64
+	for start := 1; start+window <= len(samples); start += hop {
+		sum := 0.0
+		for i := start; i < start+window; i++ {
+			d := samples[i] - samples[i-1]
+			sum += d * d
+		}
+		hf = append(hf, 10*math.Log10(sum/float64(window)+1e-12))
+	}
+	sorted := append([]float64(nil), hf...)
+	sort.Float64s(sorted)
+	reference := sorted[len(sorted)*9/10]
+	closureFrames := max(1, 50*sampleRate/1000/hop)
+	riseFrames := max(1, 15*sampleRate/1000/hop)
+	first := max(closureFrames, int((preMS-60)*float64(sampleRate)/1000)/hop)
+	burstMS, confidence := 0.0, 0.0
+	for i := first; i+riseFrames < len(hf); i++ {
+		quiet := true
+		floor := math.Inf(1)
+		for j := i - closureFrames; j < i; j++ {
+			if hf[j] > reference-15 {
+				quiet = false
+				break
+			}
+			floor = math.Min(floor, hf[j])
+		}
+		if !quiet {
+			continue
+		}
+		peak := math.Inf(-1)
+		for j := i; j <= i+riseFrames; j++ {
+			peak = math.Max(peak, hf[j])
+		}
+		if rise := peak - floor; rise >= 10 && hf[i] > hf[i-1]+3 {
+			burstMS = float64(i*hop+window/2) * 1000 / float64(sampleRate)
+			confidence = math.Min(1, rise/20)
+		}
+	}
+	return burstMS, confidence
 }
