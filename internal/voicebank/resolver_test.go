@@ -273,6 +273,11 @@ func TestAliasCandidatesHandleSpecialMoraContexts(t *testing.T) {
 	if !contains(aliasCandidatesWithPolicy("でゅ", "", true, AliasPolicyAuto), "じゅ") {
 		t.Fatal("でゅ did not fall back to じゅ")
 	}
+	for mora, equivalent := range map[string]string{"ふゅ": "ひゅ", "くぁ": "か", "くゎ": "か", "ぐぁ": "が", "くぉ": "こ", "きぇ": "け", "りぇ": "れ"} {
+		if candidates := aliasCandidatesWithPolicy(mora, "a", false, AliasPolicyAuto); !contains(candidates, "a "+equivalent) || !contains(candidates, toKatakana(equivalent)) {
+			t.Fatalf("mora %q did not fall back to %q", mora, equivalent)
+		}
+	}
 	if contains(aliasCandidatesWithPolicy("てぃ", "", true, AliasPolicyAuto), "ち") {
 		t.Fatal("てぃ must not fall back to ち")
 	}
