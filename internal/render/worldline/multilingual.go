@@ -45,16 +45,14 @@ func speechPlacement(p *plan.Plan, u plan.Unit) bool {
 	return multilingualScore(p) && u.Role == "ending" && len(u.CodaPhones) > 0
 }
 
-// 原音のoto時刻を出力へ写す。鼻音境界は規則による推定値。
+// 英語の語末子音の原音を、音素の時刻へ写す。
 func placeSpeechUnit(p *plan.Plan, index int, item worldlineManifestUnit, sourceDuration, leading float64) (worldlineManifestUnit, error) {
 	u := &p.Units[index]
 	if sourceDuration < 2 || u.DurationMS <= 0 {
 		return item, fmt.Errorf("invalid speech source or target for %q", u.Alias)
 	}
 	transient, transientDuration, hasTransient := speechCodaTransient(p, *u, sourceDuration)
-	englishEnding := u.Role == "ending" && p.Language == frontend.LanguageEnglish
-	if englishEnding &&
-		u.SpeechProfile != nil && u.SpeechProfile.CodaBurstConfidence >= .5 && base.CodaReleaseStop(*u) &&
+	if u.SpeechProfile != nil && u.SpeechProfile.CodaBurstConfidence >= .5 && base.CodaReleaseStop(*u) &&
 		u.SpeechProfile.CodaBurstMS > 0 && u.SpeechProfile.CodaBurstMS < sourceDuration {
 		transient, transientDuration, hasTransient = u.SpeechProfile.CodaBurstMS, 8, true
 	}
@@ -66,28 +64,8 @@ func placeSpeechUnit(p *plan.Plan, index int, item worldlineManifestUnit, source
 		}
 	}
 	start, end := u.NoteStartMS, u.NoteStartMS+u.DurationMS
-	stopLayout := englishEnding && hasTransient
-	switch {
-	case stopLayout:
-	case u.Role == "transition":
+	if !hasTransient {
 		start -= math.Min(20, u.DurationMS*.5)
-		for _, main := range p.Units {
-			if main.Position == u.Position && main.Role == "mora" {
-				end = u.NoteStartMS + main.TargetOnsetMS
-				break
-			}
-		}
-		if end <= u.NoteStartMS {
-			end = u.NoteStartMS + math.Min(20, u.DurationMS)
-		}
-	case u.Role == "ending":
-		start -= math.Min(20, u.DurationMS*.5)
-	default:
-		for _, next := range p.Units {
-			if next.Position == u.Position && next.Role == "ending" && len(next.CodaPhones) > 0 {
-				end = math.Min(end, next.NoteStartMS+3)
-			}
-		}
 	}
 	start = math.Max(-leading, start)
 	length := end - start
@@ -95,7 +73,6 @@ func placeSpeechUnit(p *plan.Plan, index int, item worldlineManifestUnit, source
 		return item, fmt.Errorf("empty speech coverage for %q", u.Alias)
 	}
 	anchors := []provider.SpeechAnchor{}
-	rhymeMapping := false
 	add := func(source, target float64) {
 		source = math.Max(0, math.Min(sourceDuration, source))
 		target = math.Max(0, math.Min(length, target))
@@ -108,42 +85,13 @@ func placeSpeechUnit(p *plan.Plan, index int, item worldlineManifestUnit, source
 		anchors = append(anchors, provider.SpeechAnchor{SourceMS: source, TargetMS: target})
 	}
 	pre := math.Max(0, math.Min(sourceDuration-1, u.PreutteranceMS))
-	if stopLayout {
+	if hasTransient {
 		closure := math.Max(35, math.Min(length*.55, length-20))
 		add(math.Max(0, transient-100), 0)
 		add(transient, closure)
-	} else if u.Role == "transition" || u.Role == "ending" {
+	} else {
 		add(math.Max(0, pre-math.Min(40, pre)), 0)
 		add(pre, u.NoteStartMS-start)
-	} else {
-		onset := u.TargetOnsetMS
-		if onset > 0 {
-			add(0, 0)
-			add(pre, onset)
-		} else {
-			isVowel := false
-			for _, phone := range p.Morae[u.Position].Phones {
-				if phone.Role == "nucleus" {
-					isVowel = true
-				}
-			}
-			if isVowel {
-				add(pre, 0)
-			} else {
-				add(0, 0)
-			}
-		}
-		var rhymeAnchors []provider.SpeechAnchor
-		if p.Language == frontend.LanguageChinese {
-			rhymeAnchors, rhymeMapping = mandarinRhymeAnchors(p, *u, sourceDuration, length)
-		}
-		if len(rhymeAnchors) > 0 {
-			for _, anchor := range rhymeAnchors {
-				add(anchor.SourceMS, anchor.TargetMS)
-			}
-		} else if onset > 0 && u.SourceFixedMS != nil {
-			add(*u.SourceFixedMS, math.Min(length-10, onset+math.Min(20, length*.1)))
-		}
 	}
 	for len(anchors) > 0 && (anchors[len(anchors)-1].SourceMS >= sourceDuration-.01 || anchors[len(anchors)-1].TargetMS >= length-.01) {
 		anchors = anchors[:len(anchors)-1]
@@ -175,9 +123,6 @@ func placeSpeechUnit(p *plan.Plan, index int, item worldlineManifestUnit, source
 	}
 	item.LegacyMix = false
 	u.SpeechMapping = "oto-landmark-prior-v1"
-	if rhymeMapping {
-		u.SpeechMapping = "mandarin-rhyme-prior-v1"
-	}
 	u.CodaReleaseSeparated = false
 	u.CodaClosureMS, u.CodaReleaseMS = 0, 0
 	if protected {

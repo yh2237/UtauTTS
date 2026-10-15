@@ -53,11 +53,8 @@ func TestCodaMappingProtectsMeasuredReleaseWithoutChangingSpeechClock(t *testing
 func TestCodaMappingDoesNotProtectUnreliableOrForeignTransient(t *testing.T) {
 	profile := &voicebank.SpeechProfile{TransientMS: 100, TransientDurationMS: 8, TransientConfidence: .1, ActivityConfidence: 1, ActivityEndMS: 150}
 	p := &plan.Plan{Language: frontend.LanguageEnglish, Morae: []frontend.Mora{{}}, Units: []plan.Unit{{Role: "ending", DurationMS: 70, NoteStartMS: 200, PreutteranceMS: 100, CodaPhones: []string{"d"}, SpeechProfile: profile}}}
-	for _, lang := range []string{frontend.LanguageEnglish, frontend.LanguageChinese} {
-		p.Language = lang
-		item, err := placeSpeechUnit(p, 0, worldlineManifestUnit{}, 300, 0)
-		if err != nil || item.Speech.ProtectStop || item.Speech.Anchors[len(item.Speech.Anchors)-1].SourceMS != 300 {
-			t.Fatal("unreliable source changed", item, err)
-		}
+	item, err := placeSpeechUnit(p, 0, worldlineManifestUnit{}, 300, 0)
+	if err != nil || item.Speech.ProtectStop || item.Speech.Anchors[len(item.Speech.Anchors)-1].SourceMS != 300 {
+		t.Fatal("unreliable source changed", item, err)
 	}
 }

@@ -19,16 +19,7 @@ func placeSourceSpan(p *plan.Plan, index int, item worldlineManifestUnit, span b
 	}
 	finite := func(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) }
 	wanted := u.CodaPhones
-	chineseRhyme := p.Language == "zh" && u.Role == "mora" && len(u.CodaPhones) > 0
-	if chineseRhyme {
-		wanted = nil
-		for _, t := range p.PhoneTimings {
-			if t.Position == u.Position {
-				wanted = append(wanted, t.Symbol)
-			}
-		}
-	}
-	if (u.Role != "ending" && !chineseRhyme) || span.Alias != u.Alias || len(span.Mappings) != len(wanted) || len(span.Mappings) == 0 {
+	if u.Role != "ending" || span.Alias != u.Alias || len(span.Mappings) != len(wanted) || len(span.Mappings) == 0 {
 		return fail()
 	}
 	if !finite(span.CoreStartMS) || !finite(span.CoreEndMS) || !finite(span.ContextStartMS) || span.ContextStartMS < 0 || span.ContextStartMS > span.CoreStartMS || span.CoreStartMS < 0 || span.CoreEndMS > duration+.1 || span.CoreEndMS <= span.CoreStartMS {
@@ -100,9 +91,6 @@ func placeSourceSpan(p *plan.Plan, index int, item worldlineManifestUnit, span b
 	bestScore := 0.0
 	var transient, transientDuration float64
 	for _, hint := range span.Landmarks {
-		if chineseRhyme {
-			break
-		}
 		if !finite(hint.SourceMS) || !finite(hint.DurationMS) || !finite(hint.Score) || !finite(hint.RelativeDB) || hint.DurationMS <= 0 {
 			continue
 		}

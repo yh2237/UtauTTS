@@ -108,7 +108,7 @@ func AttachLibrary(reportPath, libraryPath string) (Object, error) {
 		delete(unit, "forced_phone_intervals")
 		delete(unit, "phone_alignment")
 		role := String(unit["role"])
-		if (role != "ending" && !(report["language"] == "zh" && role == "mora")) || len(List(unit["assigned_coda_phones"])) == 0 {
+		if role != "ending" || len(List(unit["assigned_coda_phones"])) == 0 {
 			continue
 		}
 		digest, duration, err := ClipIdentity(String(unit["source_clip"]))
@@ -154,7 +154,7 @@ func MapReport(reportPath, libraryPath, out string) (Object, error) {
 	for _, raw := range List(report["units"]) {
 		unit := Map(raw)
 		role := String(unit["role"])
-		if (role == "ending" || (report["language"] == "zh" && role == "mora")) && len(List(unit["assigned_coda_phones"])) > 0 {
+		if role == "ending" && len(List(unit["assigned_coda_phones"])) > 0 {
 			ending[Int(unit["unit_index"])] = true
 		}
 	}

@@ -193,25 +193,6 @@ func TestAliasHypotheses(t *testing.T) {
 		t.Fatal("guessed unknown alias")
 	}
 }
-func TestChinesePhones(t *testing.T) {
-	unit := Object{"role": "mora", "alias": "hen", "assigned_coda_phones": []any{"n"}, "requested_context": []any{Object{"symbol": "h", "role": "onset"}, Object{"symbol": "e", "role": "nucleus"}, Object{"symbol": "n", "role": "coda"}}}
-	acoustic, canonical := PhonesForChineseUnit(unit)
-	if strings.Join(acoustic, ",") != "x,ə,n" || strings.Join(canonical, ",") != "h,e,n" {
-		t.Fatalf("%v %v", acoustic, canonical)
-	}
-	unit["alias"] = "other"
-	if acoustic, _ := PhonesForChineseUnit(unit); acoustic != nil {
-		t.Fatal(acoustic)
-	}
-	unit["alias"] = "hangB3"
-	unit["assigned_coda_phones"] = []any{"ng"}
-	Map(List(unit["requested_context"])[1])["symbol"] = "a"
-	Map(List(unit["requested_context"])[2])["symbol"] = "ng"
-	acoustic, _ = PhonesForChineseUnit(unit)
-	if strings.Join(acoustic, ",") != "x,a,ŋ" {
-		t.Fatal(acoustic)
-	}
-}
 
 func TestDiscoveryAcousticScreen(t *testing.T) {
 	frames := []any{}

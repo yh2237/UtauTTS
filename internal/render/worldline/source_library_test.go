@@ -37,16 +37,3 @@ func TestNormalSourceLibraryCanBeDisabled(t *testing.T) {
 		t.Fatal("disabled library still loaded")
 	}
 }
-
-func TestChineseSourceLibraryMapsEntireNasalSyllable(t *testing.T) {
-	p := &plan.Plan{Language: "zh", Units: []plan.Unit{{Alias: "hen", Role: "mora", Position: 2, NoteStartMS: 500, DurationMS: 200, CodaPhones: []string{"n"}}}, PhoneTimings: []plan.PhoneTiming{{Position: 2, Symbol: "h", Role: "onset", StartMS: 500, DurationMS: 40}, {Position: 2, Symbol: "e", Role: "nucleus", StartMS: 540, DurationMS: 110}, {Position: 2, Symbol: "n", Role: "coda", StartMS: 650, DurationMS: 50}}}
-	r := voicebank.SourcePhoneRecord{Phones: []voicebank.SourcePhoneInterval{{Symbol: "h", StartMS: 0, EndMS: 40}, {Symbol: "e", StartMS: 40, EndMS: 200}, {Symbol: "n", StartMS: 200, EndMS: 300}}}
-	span, ok := sourceRecordSpan(p, 0, r, voicebank.SourceAnalysis{})
-	if !ok || len(span.Mappings) != 3 || span.CoreStartMS != 0 || span.Mappings[2].RequestedStartMS != 650 {
-		t.Fatal(span, ok)
-	}
-	span, ok = sourceRecordSpan(p, 0, voicebank.SourcePhoneRecord{Phones: []voicebank.SourcePhoneInterval{{Symbol: "e", StartMS: 0, EndMS: 200}, {Symbol: "n", StartMS: 200, EndMS: 300}}}, voicebank.SourceAnalysis{})
-	if ok {
-		t.Fatal("incomplete source syllable applied", span)
-	}
-}

@@ -1,10 +1,10 @@
 # 原音区間ライブラリ
 
-原音の音素区間（母音・子音・語末子音境界）を解析し、多言語合成用のライブラリとして登録する手順です。
+原音の音素区間（母音・子音・語末子音境界）を解析し、英語合成用のライブラリとして登録する手順です。
 
-※CPU版WORLDの英語・中国語では登録済みの原音区間を自動で使用するため、通常は本手順を実施する必要はありません。自作音源や未登録音源に対応させる開発者向けの手順です。
+※CPU版WORLDの英語では登録済みの原音区間を自動で使用するため、通常は本手順を実施する必要はありません。自作音源や未登録音源に対応させる開発者向けの手順です。
 
-ボイスバンク直下の `source-phone-library.json` を優先し、次にモデル探索先の `source-phones/en.json` または `source-phones/zh.json` を参照します。[同梱データの収録範囲](../models/source-phones/README.md)も確認してください。
+ボイスバンク直下の `source-phone-library.json` を優先し、次にモデル探索先の `source-phones/en.json` を参照します。[同梱データの収録範囲](../models/source-phones/README.md)も確認してください。
 
 ---
 
@@ -21,7 +21,7 @@ go run ./cmd/tools/source-analyze --plan out/utterance.plan.json --out out/sourc
 
 ## 2. MFA（Montreal Forced Aligner）による音素区間の整列
 
-録音に含まれる音素列を定義し、MFAを用いて音素境界を強制整列します（以下は英語ARPAbetの例）。
+録音に含まれる音素列を定義し、MFAを用いて音素境界を強制整列します。
 
 ```powershell
 # 1. 整列用コーパスの準備

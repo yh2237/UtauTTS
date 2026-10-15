@@ -11,7 +11,7 @@ import (
 )
 
 func sourceLibraries(p *plan.Plan, cfg base.Config) []*voicebank.SourcePhoneLibrary {
-	if !multilingualScore(p) {
+	if !multilingualScore(p) || p.Language != "en" {
 		return nil
 	}
 	if cfg.ProviderOptions.Worldline.SourcePhoneMapping != nil && !*cfg.ProviderOptions.Worldline.SourcePhoneMapping {
@@ -34,7 +34,7 @@ func sourceLibraries(p *plan.Plan, cfg base.Config) []*voicebank.SourcePhoneLibr
 
 func librarySpeechSpan(p *plan.Plan, index int, libraries []*voicebank.SourcePhoneLibrary) (base.SourceSpan, bool) {
 	u := p.Units[index]
-	if (u.Role != "ending" && !(p.Language == "zh" && u.Role == "mora")) || len(u.CodaPhones) == 0 || len(libraries) == 0 {
+	if u.Role != "ending" || len(u.CodaPhones) == 0 || len(libraries) == 0 {
 		return base.SourceSpan{}, false
 	}
 	bank := &voicebank.Bank{}
@@ -57,7 +57,7 @@ func sourceRecordSpan(p *plan.Plan, index int, record voicebank.SourcePhoneRecor
 	u := p.Units[index]
 	var targets []plan.PhoneTiming
 	for _, t := range p.PhoneTimings {
-		if t.Position == u.Position && (t.Role == "coda" || (p.Language == "zh" && u.Role == "mora")) {
+		if t.Position == u.Position && t.Role == "coda" {
 			targets = append(targets, t)
 		}
 	}
@@ -88,9 +88,6 @@ func sourceRecordSpan(p *plan.Plan, index int, record voicebank.SourcePhoneRecor
 		targetSymbols = append(targetSymbols, t.Symbol)
 	}
 	wanted := u.CodaPhones
-	if p.Language == "zh" && u.Role == "mora" {
-		wanted = targetSymbols
-	}
 	if len(wanted) == 0 || len(record.Phones) == 0 {
 		return base.SourceSpan{}, false
 	}

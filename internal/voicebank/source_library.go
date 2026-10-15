@@ -35,7 +35,7 @@ func LoadSourcePhoneLibrary(path string) (*SourcePhoneLibrary, error) {
 	if err = json.Unmarshal(data, &library); err != nil {
 		return nil, err
 	}
-	if library.Version != 1 || library.TimeOrigin != "oto-offset" || (library.Language != "en" && library.Language != "zh") {
+	if library.Version != 1 || library.TimeOrigin != "oto-offset" || library.Language != "en" {
 		return nil, fmt.Errorf("unsupported source phone library")
 	}
 	seen := map[string]bool{}

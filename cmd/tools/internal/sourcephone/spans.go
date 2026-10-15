@@ -54,14 +54,9 @@ func Propose(reportPath, out string) (Object, error) {
 		return nil, err
 	}
 	rows, rejected := []any{}, []any{}
-	language := String(report["language"])
 	for _, raw := range List(report["units"]) {
 		unit := Map(raw)
 		wanted := stringsOf(List(unit["assigned_coda_phones"]))
-		chinese := language == "zh" && String(unit["role"]) == "mora" && len(wanted) > 0
-		if chinese {
-			wanted = symbols(List(unit["requested_context"]))
-		}
 		reason := ""
 		if len(wanted) == 0 {
 			reason = "no assigned coda sequence"
@@ -80,7 +75,7 @@ func Propose(reportPath, out string) (Object, error) {
 							allCoda = false
 						}
 					}
-					if chinese || allCoda {
+					if allCoda {
 						targetMatches = append(targetMatches, i)
 					}
 				}
@@ -163,13 +158,6 @@ func SelectUnit(unit, request Object, language string) (Object, error) {
 		}
 	}
 	assigned := stringsOf(List(unit["assigned_coda_phones"]))
-	chinese := language == "zh" && String(unit["role"]) == "mora" && len(assigned) > 0
-	if chinese {
-		if len(targets) != len(context) {
-			return nil, fmt.Errorf("Chinese selection must cover the whole syllable")
-		}
-		assigned = nil
-	}
 	if len(assigned) > 0 {
 		if len(assigned) != len(targets) {
 			return nil, fmt.Errorf("selection must cover exactly the assigned coda phones")

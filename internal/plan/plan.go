@@ -184,7 +184,6 @@ const (
 type Unit struct {
 	// 原音の固定部と単位開始からの目標母音時刻を分ける。
 	SourceFixedMS               *float64                       `json:"source_fixed_ms,omitempty"`
-	TargetOnsetMS               float64                        `json:"target_onset_ms,omitempty"`
 	SpeechMapping               string                         `json:"speech_mapping,omitempty"`
 	SpeechSourceAnchorsMS       []float64                      `json:"speech_source_anchors_ms,omitempty"`
 	SpeechTargetAnchorsMS       []float64                      `json:"speech_target_anchors_ms,omitempty"`
@@ -466,7 +465,7 @@ func phoneSpansForMora(mora frontend.Mora, duration float64, weights [][]float64
 }
 
 func applyPhoneTimingAnchor(unit *Unit, mora frontend.Mora, spans []float64) {
-	if unit == nil || len(spans) != len(mora.Phones) {
+	if unit == nil || len(spans) != len(mora.Phones) || mora.Language == frontend.LanguageEnglish || mora.Language == frontend.LanguageChinese {
 		return
 	}
 	onsetMS := 0.0
@@ -478,12 +477,8 @@ func applyPhoneTimingAnchor(unit *Unit, mora frontend.Mora, spans []float64) {
 	if math.IsNaN(onsetMS) || math.IsInf(onsetMS, 0) {
 		return
 	}
-	if mora.Language == frontend.LanguageEnglish || mora.Language == frontend.LanguageChinese {
-		unit.TargetOnsetMS = onsetMS
-	} else {
-		if onsetMS > 0 && unit.PreutteranceMS > 0 {
-			unit.ConsonantMS = unit.PreutteranceMS + onsetMS
-		}
+	if onsetMS > 0 && unit.PreutteranceMS > 0 {
+		unit.ConsonantMS = unit.PreutteranceMS + onsetMS
 	}
 }
 
