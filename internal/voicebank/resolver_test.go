@@ -621,6 +621,48 @@ func TestPruneCandidates(t *testing.T) {
 	})
 }
 
+func TestResolveCutsSteadyVowelWhenSameVowelAliasIsMissing(t *testing.T) {
+	morae, err := frontend.ParseKana("かあかー")
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := map[string][]oto.Entry{
+		"- か": {{Alias: "- か", Filename: "ka.wav", Offset: 100, Fixed: 100, Blank: -300, Preutterance: 60, Overlap: 20}},
+		"a か": {{Alias: "a か", Filename: "aka.wav", Offset: 100, Fixed: 150, Blank: -350, Preutterance: 120, Overlap: 40}},
+		"- あ": {{Alias: "- あ", Filename: "a.wav", Offset: 182, Fixed: 156, Blank: -349, Preutterance: 56, Overlap: 33}},
+	}
+	got, err := (&Bank{Entries: entries}).Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, index := range []int{1, 3} {
+		entry := got[index].Entry
+		if got[index].Alias != "a あ" || got[index].Kind != AliasVCV || entry.Filename != "a.wav" {
+			t.Fatalf("selection %d = %q %s %q", index, got[index].Alias, got[index].Kind, entry.Filename)
+		}
+		// 母音の始まり(238ms)の80ms後を安定部分とし、その60ms前から元の終わり(531ms)まで読む。
+		if entry.Offset != 258 || entry.Blank != -273 || entry.Preutterance != 60 || entry.Fixed != 60 || entry.Overlap != 40 {
+			t.Fatalf("derived entry = %+v", entry)
+		}
+	}
+
+	entries["あ"] = []oto.Entry{{Alias: "あ", Filename: "cv-a.wav"}}
+	got, err = (&Bank{Entries: entries}).Resolve(morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[1].Alias != "あ" || got[1].Entry.Filename != "cv-a.wav" {
+		t.Fatalf("recorded alias was not preferred: %q %q", got[1].Alias, got[1].Entry.Filename)
+	}
+
+	delete(entries, "あ")
+	entries["- あ"] = []oto.Entry{{Alias: "- あ", Filename: "a.wav", Offset: 100, Blank: -150, Preutterance: 50}}
+	var missing *MissingAliasError
+	if _, err := (&Bank{Entries: entries}).Resolve(morae); !errors.As(err, &missing) || missing.Mora != "あ" {
+		t.Fatalf("too-short donor error = %v", err)
+	}
+}
+
 func TestResolveUsesHeadVCVAfterClosureOnlyWhenNoCVExists(t *testing.T) {
 	morae, err := frontend.ParseKana("かって")
 	if err != nil {

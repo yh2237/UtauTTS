@@ -97,6 +97,9 @@ func (c candidateContext) positionCandidates(position int, mora frontend.Mora, p
 			}
 		}
 	}
+	if len(candidatesAtPosition) == 0 && !explicitCandidates {
+		candidatesAtPosition = builder.sameVowelContinuations(previousVowel)
+	}
 	rejections := builder.rejections
 	for index := range candidatesAtPosition {
 		selected := &candidatesAtPosition[index]
@@ -317,6 +320,66 @@ func missingPhoneCount(gaps []SpeechGap) int {
 		count += len(gap.Phones)
 	}
 	return count
+}
+
+const (
+	steadyVowelDelayMs   = 80  // 母音の始まりから安定部分までの時間
+	steadyVowelLeadMs    = 60  // 安定部分より前から読む長さ。先行発声と固定範囲に使う
+	steadyVowelOverlapMs = 40  // 直前の同じ母音と重ねる長さ
+	steadyVowelMinMs     = 120 // 切り出した後に残す最短の長さ
+)
+
+// 同じ母音の連続音（a あ）も単独音もない音源では、同じ母音の別の原音から安定部分を切り出してつなぐ。
+// 語頭形は無音から始まり、句中で途切れて聞こえるため使わない。
+func (p *positionBuilder) sameVowelContinuations(previousVowel string) []Selection {
+	c := p.context
+	vowelKana := map[string]string{"a": "あ", "i": "い", "u": "う", "e": "え", "o": "お"}[previousVowel]
+	if vowelKana == "" || p.mora.Vowel != previousVowel || (p.mora.Text != "ー" && p.mora.Text != vowelKana) {
+		return nil
+	}
+	donors := aliasCandidatesWithPolicy(vowelKana, "", true, c.policy)
+	for _, context := range []string{"a", "i", "u", "e", "o", "n"} {
+		donors = append(donors, aliasCandidatesWithPolicy(vowelKana, context, false, c.policy)...)
+	}
+	name := previousVowel + " " + vowelKana
+	if c.hasAffix {
+		donors = affixCandidatesWithFallback(donors, c.affix, true)
+		name = c.affix.Prefix + name + c.affix.Suffix
+	}
+	// 後段は別名から母音どうしのつなぎとして扱う。
+	spec := aliasCandidate{name: name, tier: 2, kind: AliasVCV}
+	var result []Selection
+	for _, donor := range uniqueCandidates(donors) {
+		for _, entry := range c.bank.Entries[donor.name] {
+			derived, ok := steadyVowelEntry(entry, name)
+			if !ok {
+				continue
+			}
+			for _, validated := range p.validatedEntries(name, []oto.Entry{derived}) {
+				result = append(result, p.attachVariants(p.selection(spec, AliasVCV, validated)))
+			}
+		}
+	}
+	return result
+}
+
+func steadyVowelEntry(entry oto.Entry, alias string) (oto.Entry, bool) {
+	offset := entry.Offset + entry.Preutterance + steadyVowelDelayMs - steadyVowelLeadMs
+	derived := entry
+	derived.Alias = alias
+	derived.Offset = offset
+	derived.Fixed = steadyVowelLeadMs
+	derived.Preutterance = steadyVowelLeadMs
+	derived.Overlap = steadyVowelOverlapMs
+	// 負の除外範囲はoffsetからの長さなので、元の終わりを保つように付け直す。
+	if entry.Blank < 0 {
+		end := entry.Offset - entry.Blank
+		if end-offset < steadyVowelMinMs {
+			return oto.Entry{}, false
+		}
+		derived.Blank = offset - end
+	}
+	return derived, true
 }
 
 func hasUsableCandidateEntries(bank *Bank, candidates []aliasCandidate) bool {
