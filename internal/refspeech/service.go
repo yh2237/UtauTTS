@@ -297,13 +297,13 @@ func (s *Service) Speak(ctx context.Context, bankRoot, worldEnginePath string, p
 	return engine.Speak(index, world, pieces, options)
 }
 
-// Readは音素列をKokoroで読む。音源と索引は使わない。
-func (s *Service) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
+// ReadProsodyは音素列をKokoroで読み、記号ごとの長さとF0を返す。音源と索引は使わない。
+func (s *Service) ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error) {
 	engine, err := s.openEngine()
 	if err != nil {
 		return Reference{}, err
 	}
 	s.foreground.RLock()
 	defer s.foreground.RUnlock()
-	return engine.Read(pieces, speed, durations)
+	return engine.ReadProsody(pieces, speed, durations)
 }

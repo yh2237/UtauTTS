@@ -387,29 +387,70 @@ func (m *Model) SynthesizeWithDurations(phonemes string, voice *Voice, durations
 	return m.synthesizePhonemes(phonemes, voice, 1, durations, rng)
 }
 
-func (m *Model) synthesizePhonemes(phonemes string, voice *Voice, speed float32, durations []int, rng *torchrng.Generator) (Result, error) {
-	if voice == nil || rng == nil {
-		return Result{}, fmt.Errorf("kokoro: invalid synthesis arguments")
+// Prosodyは、波形を作る前までの結果（記号ごとの長さとF0）。Decodeで波形にする。
+type Prosody struct {
+	Durations []int
+	F0        []float32
+	frames    int
+	asr       []float32
+	noise     []float32
+	style     []float32
+}
+
+// ReadProsodyは、波形を作らずに記号ごとの長さとF0を求める。durationsがnilならspeedで長さを予測する。
+func (m *Model) ReadProsody(phonemes string, voice *Voice, speed float32, durations []int) (*Prosody, error) {
+	if voice == nil || speed <= 0 {
+		return nil, fmt.Errorf("kokoro: invalid synthesis arguments")
+	}
+	for _, d := range durations {
+		if d < 1 {
+			return nil, fmt.Errorf("kokoro: durations must be positive")
+		}
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	ids := m.Tokens(phonemes)
 	if len(ids)+2 > m.config.PLBERT.MaxPosition {
-		return Result{}, fmt.Errorf("kokoro: too many tokens")
+		return nil, fmt.Errorf("kokoro: too many tokens")
 	}
 	runes := []rune(phonemes)
 	if len(runes) < 1 || len(runes) > 510 {
-		return Result{}, fmt.Errorf("kokoro: voice length out of range")
+		return nil, fmt.Errorf("kokoro: voice length out of range")
 	}
 	ref := voice.data[(len(runes)-1)*256 : len(runes)*256]
 	ids = append(append([]int{0}, ids...), 0)
 	if durations != nil && len(durations) != len(ids) {
-		return Result{}, fmt.Errorf("kokoro: %d durations for %d tokens", len(durations), len(ids))
+		return nil, fmt.Errorf("kokoro: %d durations for %d tokens", len(durations), len(ids))
 	}
-	return m.synthesize(ids, ref, speed, durations, rng)
+	return m.prosody(ids, ref, speed, durations), nil
 }
 
-func (m *Model) synthesize(ids []int, ref []float32, speed float32, durations []int, rng *torchrng.Generator) (Result, error) {
+// Decodeは、ReadProsodyの結果から24 kHzの波形を作る。
+func (m *Model) Decode(p *Prosody, rng *torchrng.Generator) ([]float32, error) {
+	if p == nil || rng == nil {
+		return nil, fmt.Errorf("kokoro: invalid synthesis arguments")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.decode(p.asr, p.frames, p.F0, p.noise, p.style, rng), nil
+}
+
+func (m *Model) synthesizePhonemes(phonemes string, voice *Voice, speed float32, durations []int, rng *torchrng.Generator) (Result, error) {
+	if rng == nil {
+		return Result{}, fmt.Errorf("kokoro: invalid synthesis arguments")
+	}
+	p, err := m.ReadProsody(phonemes, voice, speed, durations)
+	if err != nil {
+		return Result{}, err
+	}
+	audio, err := m.Decode(p, rng)
+	if err != nil {
+		return Result{}, err
+	}
+	return Result{audio, p.Durations, p.F0}, nil
+}
+
+func (m *Model) prosody(ids []int, ref []float32, speed float32, durations []int) *Prosody {
 	bert := m.albert(ids)
 	dEn := m.linear(bert, len(ids), 768, 512, "bert_encoder")
 	d := m.durationEncoder(dEn, ref[128:])
@@ -440,9 +481,7 @@ func (m *Model) synthesize(ids []int, ref []float32, speed float32, durations []
 	}()
 	f0, noise := m.f0n(aligned, total, ref[128:])
 	wait.Wait()
-	asr := align(text, 512, dur, total)
-	audio := m.decode(asr, total, f0, noise, ref[:128], rng)
-	return Result{audio, dur, f0}, nil
+	return &Prosody{Durations: dur, F0: f0, frames: total, asr: align(text, 512, dur, total), noise: noise, style: ref[:128]}
 }
 func align(x []float32, ch int, dur []int, total int) []float32 {
 	y := make([]float32, total*ch)

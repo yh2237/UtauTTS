@@ -123,7 +123,7 @@ func englishPlanTiming(cfg Config, service *refspeech.Service, pieces []refspeec
 	if !hasManualMoraDurations(cfg.MoraDurationsMS) && !manualPitch {
 		return nil, nil, nil
 	}
-	reference, err := service.Read(pieces, options.Speed, nil)
+	reference, err := service.ReadProsody(pieces, options.Speed, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -204,13 +204,13 @@ func predictEnglishReference(cfg Config, reading string, morae []frontend.Mora) 
 	if err != nil {
 		return nil, fmt.Errorf("English prosody: %w", err)
 	}
-	reference, err := service.Read(pieces, options.Speed, nil)
+	reference, err := service.ReadProsody(pieces, options.Speed, nil)
 	if err != nil {
 		return nil, fmt.Errorf("English prosody: %w", err)
 	}
 	if hasManualMoraDurations(cfg.MoraDurationsMS) {
 		forced := englishForcedDurations(reference.Timing, englishMoraTokens(pieces, reference.Timing, reading, morae), cfg.MoraDurationsMS)
-		if reference, err = service.Read(pieces, options.Speed, forced); err != nil {
+		if reference, err = service.ReadProsody(pieces, options.Speed, forced); err != nil {
 			return nil, fmt.Errorf("English prosody: %w", err)
 		}
 	}

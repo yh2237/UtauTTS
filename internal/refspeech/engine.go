@@ -21,9 +21,11 @@ const (
 	hubertRate   = 16000
 	kokoroRate   = 24000
 	// DurationUnitMSはKokoroの音素長の単位（600サンプル）。
-	DurationUnitMS  = 25.0
-	kokoroF0FrameMS = 12.5
-	kokoroSeed      = 0
+	DurationUnitMS = 25.0
+	// kokoroSamplesPerTokenは長さ1あたりのKokoroの出力のサンプル数。
+	kokoroSamplesPerToken = 600
+	kokoroF0FrameMS       = 12.5
+	kokoroSeed            = 0
 	// F0FrameMSはSpeech.F0の周期。
 	F0FrameMS = refmatch.FrameMS / 4
 )
@@ -43,12 +45,13 @@ type Engine struct {
 
 	// readsは最近のKokoroの読み。予測と合成で同じ文を読み直さないために使う。
 	readsMu sync.Mutex
-	reads   []cachedRead
+	reads   []*cachedRead
 }
 
 type cachedRead struct {
 	key       string
 	reference Reference
+	prosody   *kokoro.Prosody
 }
 
 const cachedReads = 8
@@ -136,7 +139,7 @@ type Speech struct {
 
 // ReferenceはKokoroの読み。
 type Reference struct {
-	// Audioは24kHzの音声。F0はKokoroの内部のF0（12.5msごと、Hz）。
+	// Audioは24kHzの音声（ReadProsodyではnil）。F0はKokoroの内部のF0（12.5msごと、Hz）。
 	Audio []float32
 	F0    []float32
 	Timing
@@ -144,12 +147,26 @@ type Reference struct {
 
 // ReferenceF0は参照のF0を、有声区間を約20msでなめらかにしてF0FrameMSごとにする（0は無声）。
 func (r Reference) ReferenceF0() []float64 {
-	frames := len(r.Audio) * 1000 / kokoroRate / int(refmatch.FrameMS)
+	samples := 0
+	for _, d := range r.Durations {
+		samples += d * kokoroSamplesPerToken
+	}
+	frames := samples * 1000 / kokoroRate / int(refmatch.FrameMS)
 	return refmatch.ReferenceF0(r.F0, kokoroF0FrameMS, frames)
 }
 
 // Readは音素列をKokoroで読む。durationsを渡すと、その長さで読む。返す値は書き換えない。
 func (e *Engine) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
+	return e.read(pieces, speed, durations, true)
+}
+
+// ReadProsodyはReadと同じく読むが、波形は作らずに記号ごとの長さとF0だけを返す。
+// 後で同じ引数でReadを呼ぶと、ここで求めた結果から波形だけを作る。
+func (e *Engine) ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error) {
+	return e.read(pieces, speed, durations, false)
+}
+
+func (e *Engine) read(pieces []Piece, speed float32, durations []int, withAudio bool) (Reference, error) {
 	var phonemes strings.Builder
 	symbols := make([]string, len(pieces))
 	for i, piece := range pieces {
@@ -161,36 +178,46 @@ func (e *Engine) Read(pieces []Piece, speed float32, durations []int) (Reference
 	}
 	key := fmt.Sprint(strings.Join(symbols, "\x00"), "\x01", speed, "\x01", durations)
 	e.readsMu.Lock()
+	var entry *cachedRead
 	for _, cached := range e.reads {
 		if cached.key == key {
-			e.readsMu.Unlock()
-			return cached.reference, nil
+			entry = cached
 		}
 	}
 	e.readsMu.Unlock()
-	var result kokoro.Result
-	var err error
-	if durations != nil {
-		result, err = e.kokoro.SynthesizeWithDurations(phonemes.String(), e.voice, durations, torchrng.New(kokoroSeed))
-	} else {
-		result, err = e.kokoro.Synthesize(phonemes.String(), e.voice, speed, torchrng.New(kokoroSeed))
+	if entry == nil {
+		prosody, err := e.kokoro.ReadProsody(phonemes.String(), e.voice, speed, durations)
+		if err != nil {
+			return Reference{}, err
+		}
+		entry = &cachedRead{key: key, prosody: prosody, reference: Reference{F0: prosody.F0,
+			Timing: Timing{Durations: prosody.Durations, PieceTokens: make([][2]int, len(pieces))}}}
+		token := 1
+		for i, piece := range pieces {
+			start := token
+			token += len(e.kokoro.Tokens(piece.Symbols))
+			entry.reference.PieceTokens[i] = [2]int{start, token}
+		}
+		e.readsMu.Lock()
+		e.reads = append(e.reads, entry)
+		if len(e.reads) > cachedReads {
+			e.reads = e.reads[1:]
+		}
+		e.readsMu.Unlock()
 	}
+	e.readsMu.Lock()
+	reference := entry.reference
+	e.readsMu.Unlock()
+	if !withAudio || reference.Audio != nil {
+		return reference, nil
+	}
+	audio, err := e.kokoro.Decode(entry.prosody, torchrng.New(kokoroSeed))
 	if err != nil {
 		return Reference{}, err
 	}
-	reference := Reference{Audio: result.Audio, F0: result.F0,
-		Timing: Timing{Durations: result.Durations, PieceTokens: make([][2]int, len(pieces))}}
-	token := 1
-	for i, piece := range pieces {
-		start := token
-		token += len(e.kokoro.Tokens(piece.Symbols))
-		reference.PieceTokens[i] = [2]int{start, token}
-	}
 	e.readsMu.Lock()
-	e.reads = append(e.reads, cachedRead{key: key, reference: reference})
-	if len(e.reads) > cachedReads {
-		e.reads = e.reads[1:]
-	}
+	entry.reference.Audio = audio
+	reference = entry.reference
 	e.readsMu.Unlock()
 	return reference, nil
 }
