@@ -88,7 +88,11 @@ func englishReferenceInputs(cfg Config, reading string) (*refspeech.Service, []r
 	if frequency, ok := voicebank.ToneFrequency(cfg.Tone); ok {
 		options.CenterHz = frequency
 	}
-	return service, refspeech.KokoroPieces(lexicon, cfg.Text, reading, cfg.Dictionary), options, nil
+	automatic, _, err := frontend.ParseEnglishARPAsing(cfg.Text, "", cfg.Dictionary)
+	if err != nil {
+		automatic = ""
+	}
+	return service, refspeech.KokoroPieces(lexicon, cfg.Text, reading, automatic, cfg.Dictionary), options, nil
 }
 
 // englishManualPitchは手動の抑揚を、最初のモーラの始まりからのミリ秒ごとのセントにする。

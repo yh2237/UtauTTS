@@ -2,6 +2,7 @@
 package refspeech
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 
@@ -26,20 +27,22 @@ type Piece struct {
 }
 
 // KokoroPhonemesは文の語をmisakiの辞書で引いてKokoroの音素列にする。
-// 辞書にない語と利用者辞書にある語は、読み（「HH AH0 L OW1 | SP | ...」形式のARPAbet）から直す。
-// 語の並びが読みと合わないとき（読みを直接指定したときなど）は、すべて読みから直す。
-func KokoroPhonemes(lexicon *Lexicon, text, reading string, dictionary map[string]string) string {
+// 辞書にない語、利用者辞書にある語、automatic（文から自動で作った読み）と読みが違う語は、
+// 読み（「HH AH0 L OW1 | SP | ...」形式のARPAbet）から直す。
+// 語の並びが読みやautomaticと合わないときは、すべて読みから直す。
+func KokoroPhonemes(lexicon *Lexicon, text, reading, automatic string, dictionary map[string]string) string {
 	var b strings.Builder
-	for _, piece := range KokoroPieces(lexicon, text, reading, dictionary) {
+	for _, piece := range KokoroPieces(lexicon, text, reading, automatic, dictionary) {
 		b.WriteString(piece.Symbols)
 	}
 	return b.String()
 }
 
-func KokoroPieces(lexicon *Lexicon, text, reading string, dictionary map[string]string) []Piece {
+func KokoroPieces(lexicon *Lexicon, text, reading, automatic string, dictionary map[string]string) []Piece {
 	parts := readingWords(reading)
 	words := frontend.EnglishWords(text)
-	if lexicon == nil || len(words) != len(parts) {
+	automaticParts := readingWords(automatic)
+	if lexicon == nil || len(words) != len(parts) || len(automaticParts) != len(parts) {
 		words = nil
 	}
 	symbols := make([]string, len(parts))
@@ -55,7 +58,8 @@ func KokoroPieces(lexicon *Lexicon, text, reading string, dictionary map[string]
 			word = words[i]
 		}
 		phonemes, ok := "", false
-		if word != "" && dictionary[word] == "" && dictionary[strings.ToLower(word)] == "" {
+		if word != "" && dictionary[word] == "" && dictionary[strings.ToLower(word)] == "" &&
+			slices.Equal(parts[i], automaticParts[i]) {
 			phonemes, ok = lexicon.Word(word, context)
 		}
 		if !ok {
