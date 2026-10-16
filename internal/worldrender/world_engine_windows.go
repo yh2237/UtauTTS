@@ -4,14 +4,15 @@ package worldrender
 
 import (
 	"fmt"
+	"math"
 	"runtime"
 	"syscall"
 	"unsafe"
 )
 
 type windowsWorldEngine struct {
-	dll                        *syscall.DLL
-	shape, analyze, synthesize *syscall.Proc
+	dll                                    *syscall.DLL
+	shape, analyze, analyzeD4C, synthesize *syscall.Proc
 }
 
 type windowsWorldShape struct {
@@ -75,7 +76,8 @@ func openWorldEngine(path string) (worldEngine, error) {
 		_ = dll.Release()
 		return nil, err
 	}
-	return &windowsWorldEngine{dll: dll, shape: shape, analyze: analyze, synthesize: synthesize}, nil
+	analyzeD4C, _ := dll.FindProc("UtauTTSWorldAnalyzeD4C")
+	return &windowsWorldEngine{dll: dll, shape: shape, analyze: analyze, analyzeD4C: analyzeD4C, synthesize: synthesize}, nil
 }
 
 func (engine *windowsWorldEngine) Close() error { return engine.dll.Release() }
@@ -90,8 +92,15 @@ func worldError(buffer []byte) string {
 }
 
 func (engine *windowsWorldEngine) Analyze(samples []float64, sampleRate int, inputF0 []float64) (worldFeatures, error) {
+	return engine.AnalyzeWith(samples, sampleRate, inputF0, worldFramePeriodMS, 0)
+}
+
+func (engine *windowsWorldEngine) AnalyzeWith(samples []float64, sampleRate int, inputF0 []float64, frameMS, d4cThreshold float64) (worldFeatures, error) {
+	if d4cThreshold != 0 && engine.analyzeD4C == nil {
+		return worldFeatures{}, fmt.Errorf("WORLD engine export UtauTTSWorldAnalyzeD4C is missing")
+	}
 	errorBuffer := make([]byte, 512)
-	shape := windowsWorldShape{SampleCount: int32(len(samples)), SampleRate: int32(sampleRate), FramePeriodMS: worldFramePeriodMS}
+	shape := windowsWorldShape{SampleCount: int32(len(samples)), SampleRate: int32(sampleRate), FramePeriodMS: frameMS}
 	ok, _, _ := engine.shape.Call(uintptr(unsafe.Pointer(&shape)), windowsSlicePointer(errorBuffer), uintptr(len(errorBuffer)))
 	if ok == 0 {
 		return worldFeatures{}, fmt.Errorf("WORLD analysis shape: %s", worldError(errorBuffer))
@@ -100,17 +109,21 @@ func (engine *windowsWorldEngine) Analyze(samples []float64, sampleRate int, inp
 	if len(inputF0) >= 2 {
 		frames = len(inputF0)
 	}
-	features := worldFeatures{Frames: frames, FFTSize: int(shape.FFTSize)}
+	features := worldFeatures{Frames: frames, FFTSize: int(shape.FFTSize), FramePeriodMS: frameMS}
 	bins := features.FFTSize/2 + 1
 	features.F0 = make([]float64, features.Frames)
 	features.Spectrum = make([]float64, features.Frames*bins)
 	features.Aperiodicity = make([]float64, features.Frames*bins)
 	request := windowsWorldAnalysis{
-		Samples: windowsSlicePointer(samples), SampleCount: int32(len(samples)), SampleRate: int32(sampleRate), FramePeriodMS: worldFramePeriodMS,
+		Samples: windowsSlicePointer(samples), SampleCount: int32(len(samples)), SampleRate: int32(sampleRate), FramePeriodMS: frameMS,
 		InputF0: windowsSlicePointer(inputF0), InputF0Count: int32(len(inputF0)),
 		F0: windowsSlicePointer(features.F0), Spectrum: windowsSlicePointer(features.Spectrum), AP: windowsSlicePointer(features.Aperiodicity),
 	}
-	ok, _, _ = engine.analyze.Call(uintptr(unsafe.Pointer(&request)), windowsSlicePointer(errorBuffer), uintptr(len(errorBuffer)))
+	if d4cThreshold != 0 {
+		ok, _, _ = engine.analyzeD4C.Call(uintptr(unsafe.Pointer(&request)), uintptr(math.Float64bits(d4cThreshold)), windowsSlicePointer(errorBuffer), uintptr(len(errorBuffer)))
+	} else {
+		ok, _, _ = engine.analyze.Call(uintptr(unsafe.Pointer(&request)), windowsSlicePointer(errorBuffer), uintptr(len(errorBuffer)))
+	}
 	runtime.KeepAlive(samples)
 	runtime.KeepAlive(inputF0)
 	runtime.KeepAlive(features)
@@ -124,11 +137,11 @@ func (engine *windowsWorldEngine) Synthesize(features worldFeatures, sampleRate 
 	if err := validateWorldFeatures(features); err != nil {
 		return nil, err
 	}
-	output := make([]float64, worldSynthesisLength(features.Frames, sampleRate))
+	output := make([]float64, worldSynthesisLengthAt(features.Frames, sampleRate, features.periodMS()))
 	errorBuffer := make([]byte, 512)
 	request := windowsWorldSynthesis{
 		F0: windowsSlicePointer(features.F0), FrameCount: int32(features.Frames), Spectrum: windowsSlicePointer(features.Spectrum), AP: windowsSlicePointer(features.Aperiodicity),
-		FFTSize: int32(features.FFTSize), FrameMS: worldFramePeriodMS, SampleRate: int32(sampleRate), Output: windowsSlicePointer(output), OutputSize: int32(len(output)),
+		FFTSize: int32(features.FFTSize), FrameMS: features.periodMS(), SampleRate: int32(sampleRate), Output: windowsSlicePointer(output), OutputSize: int32(len(output)),
 	}
 	ok, _, _ := engine.synthesize.Call(uintptr(unsafe.Pointer(&request)), windowsSlicePointer(errorBuffer), uintptr(len(errorBuffer)))
 	runtime.KeepAlive(features)

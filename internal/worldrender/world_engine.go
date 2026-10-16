@@ -10,11 +10,19 @@ import (
 const worldFramePeriodMS = provider.FramePeriodMS
 
 type worldFeatures struct {
-	Frames       int
-	FFTSize      int
-	F0           []float64
-	Spectrum     []float64
-	Aperiodicity []float64
+	Frames        int
+	FFTSize       int
+	F0            []float64
+	Spectrum      []float64
+	Aperiodicity  []float64
+	FramePeriodMS float64
+}
+
+func (features worldFeatures) periodMS() float64 {
+	if features.FramePeriodMS > 0 {
+		return features.FramePeriodMS
+	}
+	return worldFramePeriodMS
 }
 
 type worldEngine interface {
@@ -99,10 +107,14 @@ func worldFeatureCacheBytes(value cachedWorldUnit) int64 {
 }
 
 func worldSynthesisLength(frames, sampleRate int) int {
+	return worldSynthesisLengthAt(frames, sampleRate, worldFramePeriodMS)
+}
+
+func worldSynthesisLengthAt(frames, sampleRate int, frameMS float64) int {
 	if frames < 2 || sampleRate <= 0 {
 		return 0
 	}
-	return int(float64(frames-1)*worldFramePeriodMS/1000*float64(sampleRate)) + 1
+	return int(float64(frames-1)*frameMS/1000*float64(sampleRate)) + 1
 }
 
 func validateWorldFeatures(features worldFeatures) error {
