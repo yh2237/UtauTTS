@@ -396,20 +396,20 @@ BASIC5000_0001-0600 data as the base model of frame-intonation-tcn-v12 with the 
 licenses/MFA-Japanese-NOTICE.txt). Only normalized envelope movement is used to
 retime the voicebank output; no corpus audio or predicted envelope is rendered.
 
-The frame-intonation-tcn-en-v1 weights are distributed under CC BY 4.0;
-see licenses/ENGLISH-FRAME-INTONATION-TCN-V1.txt. Training source notices:
-licenses/LibriTTS-R-NOTICE.txt and licenses/MFA-English-ARPA-NOTICE.txt.
-
 The tone-intonation-zh-v1 weights are distributed under Apache License 2.0;
 see licenses/TONE-INTONATION-ZH-V1.txt. Training source notices:
 licenses/AISHELL-3-NOTICE.txt and
 licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt.
 
-The English and Mandarin speech timing targets (speech-timing-target-en-v1 and
-speech-timing-target-zh-v1, embedded in the WORLD bridge) are trained on the
-same LibriTTS-R and AISHELL-3 data as the intonation models and use the same
-weight licenses: CC BY 4.0 (licenses/SPEECH-TIMING-TARGET-EN-V1.txt) and
-Apache License 2.0 (licenses/SPEECH-TIMING-TARGET-ZH-V1.txt).
+The Mandarin speech timing target (speech-timing-target-zh-v1, embedded in
+the WORLD bridge) is trained on the same AISHELL-3 data as the intonation model
+and uses the same weight license: Apache License 2.0
+(licenses/SPEECH-TIMING-TARGET-ZH-V1.txt).
+
+English synthesis uses Kokoro-82M, HuBERT Base (facebook/hubert-base-ls960)
+and the misaki English lexicon from models/english-reference, redistributed
+unmodified under the Apache License 2.0; see
+licenses/ENGLISH-REFERENCE-MODELS.txt.
 
 UtauTTS source code uses the repository MIT License; models, prompts,
 voicebanks, and other third-party assets use their respective notices.
@@ -447,18 +447,6 @@ Upstream: https://github.com/google/material-design-icons
 (variant file variablefont/MaterialSymbolsOutlined[FILL,GRAD,opsz,wght].ttf).
 Licensed under the Apache License, Version 2.0. Its notice is
 licenses/MATERIAL-SYMBOLS.txt.
-
-
-LibriTTS-R and MFA English ARPA (English frame-intonation model)
-=====================================================================
-
-English Frame Intonation TCN v1 is trained on selected LibriTTS-R utterances
-released by Google LLC under CC BY 4.0. Local phoneme alignment uses the
-Montreal Forced Aligner English ARPA acoustic model and dictionary.
-Corpus audio and alignment model weights are not bundled. The intonation
-weights are distributed under CC BY 4.0. Attribution and changes:
-licenses/LibriTTS-R-NOTICE.txt and licenses/MFA-English-ARPA-NOTICE.txt.
-License text: licenses/CC-BY-4.0.txt.
 
 
 LINE Seed JP (UI font)

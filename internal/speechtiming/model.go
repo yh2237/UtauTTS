@@ -27,9 +27,6 @@ type Predictor interface {
 //go:embed speech-timing-target-v1.safetensors
 var embeddedTarget []byte
 
-//go:embed speech-timing-target-en-v1.safetensors
-var embeddedEnglishTarget []byte
-
 //go:embed speech-timing-target-zh-v1.safetensors
 var embeddedChineseTarget []byte
 
@@ -46,7 +43,6 @@ func (c *modelCache) load(data []byte) (*TCN, error) {
 
 var (
 	japaneseTarget modelCache
-	englishTarget  modelCache
 	chineseTarget  modelCache
 )
 
@@ -55,8 +51,6 @@ func DefaultTarget() (*TCN, error) { return japaneseTarget.load(embeddedTarget) 
 // TargetForLanguageは言語別の時間伸縮モデルを返す。未対応の言語は日本語モデル。
 func TargetForLanguage(language string) (*TCN, error) {
 	switch frontend.NormalizeLanguage(language) {
-	case frontend.LanguageEnglish:
-		return englishTarget.load(embeddedEnglishTarget)
 	case frontend.LanguageChinese:
 		return chineseTarget.load(embeddedChineseTarget)
 	default:

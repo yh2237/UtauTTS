@@ -43,26 +43,7 @@
 
 ---
 
-## 2. 英語フレーム抑揚モデル
-
-`frame-intonation-tcn-en-v1` は、LibriTTS-Rの音声データとMFAによるARPAbet音素アライメント・強勢情報を用いて学習します。
-
-```powershell
-go run ./cmd/tools/train-frame-intonation `
-  --dataset out/english-frame/corpus.jsonl `
-  --language en `
-  --f0-source world `
-  --training-corpus "LibriTTS-R train_clean_100 subset" `
-  --model-license "CC BY 4.0" `
-  --license-notice licenses/LibriTTS-R-NOTICE.txt `
-  --license-notice licenses/MFA-English-ARPA-NOTICE.txt `
-  --epochs 40 --hidden 32 --batch-size 16 `
-  --out out/english-frame/candidate.json
-```
-
----
-
-## 3. 中国語声調抑揚モデル
+## 2. 中国語声調抑揚モデル
 
 `tone-intonation-zh-v1` は、AISHELL-3の音声とPaddleSpeechの音節境界情報を使用し、声調の基本曲線に対する文脈補正値をRidge回帰によって学習します。
 
@@ -76,6 +57,6 @@ go run ./cmd/tools/train-mandarin-intonation `
 
 ---
 
-## 4. 時間伸縮目標モデル（Speech Timing Target）
+## 3. 時間伸縮目標モデル（Speech Timing Target）
 
 モーラ内の自然な子音・母音の伸縮比率を決定するモデルです。言語ごとに訓練した重み（`.safetensors`）をWORLD bridgeに内包して使用します。

@@ -129,26 +129,10 @@ func TestRepositoryBundlesSelfDescribingModels(t *testing.T) {
 			t.Fatalf("incomplete bundled model: %#v", model)
 		}
 	}
-	var english *Model
 	for _, model := range models {
 		if model.Language == "en" {
-			if model.ID != "frame-intonation-tcn-en-v1" {
-				t.Fatalf("default English model = %q", model.ID)
-			}
-			break
+			t.Fatalf("English intonation model is still bundled: %q", model.ID)
 		}
-	}
-	for index := range models {
-		if models[index].ID == "english-intonation-v1" {
-			t.Fatal("removed English model is still bundled")
-		}
-		if models[index].ID == "frame-intonation-tcn-en-v1" {
-			english = &models[index]
-			break
-		}
-	}
-	if english == nil || english.Language != "en" || !english.FrameContour || english.RequiresFeatures {
-		t.Fatalf("English model metadata = %#v", english)
 	}
 	var mandarin *Model
 	for index := range models {
@@ -300,16 +284,5 @@ func TestExplicitRendererDirectoryOverridesPackagedID(t *testing.T) {
 	}
 	if len(items) != 1 || items[0].DisplayName != "explicit" {
 		t.Fatalf("renderer override = %#v", items)
-	}
-}
-
-func TestLegacyEnglishModelSelectionMigratesToTCN(t *testing.T) {
-	catalog := &Catalog{Models: []Model{{ID: "frame-intonation-tcn-en-v1"}}}
-	model, ok := catalog.Model("english-intonation-v1")
-	if !ok || model.ID != "frame-intonation-tcn-en-v1" {
-		t.Fatalf("legacy English selection = %#v, ok=%v", model, ok)
-	}
-	if _, ok := (&Catalog{}).Model("english-intonation-v1"); ok {
-		t.Fatal("missing replacement model was accepted")
 	}
 }

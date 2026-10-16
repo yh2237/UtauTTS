@@ -14,7 +14,6 @@ const (
 	FramePitchModelVersion         = 8
 	ProsodyMultitaskModelVersion   = 10
 	ManualResidualModelVersion     = 11
-	EnglishIntonationModelVersion  = 12
 	MandarinIntonationModelVersion = 13
 )
 
@@ -46,7 +45,6 @@ type Model struct {
 	MoraDuration       *SequencePitchModel      `json:"mora_duration,omitempty"`
 	FramePitch         *FramePitchModel         `json:"frame_pitch,omitempty"`
 	MoraPitchResidual  *MoraPitchResidualModel  `json:"mora_pitch_residual,omitempty"`
-	EnglishIntonation  *EnglishIntonationModel  `json:"english_intonation,omitempty"`
 	MandarinIntonation *MandarinIntonationModel `json:"mandarin_intonation,omitempty"`
 	BaseModel          *BaseModelReference      `json:"base_model,omitempty"`
 	ResidualLimits     *ResidualLimits          `json:"residual_limits,omitempty"`
@@ -128,197 +126,6 @@ type MandarinIntonationModel struct {
 	MaxCents     float64     `json:"max_cents"`
 }
 
-// 英語の強勢と句境界を予測する軽量モデル。
-type EnglishIntonationModel struct {
-	FrameMS                   float64 `json:"frame_ms"`
-	BaselineStartCents        float64 `json:"baseline_start_cents"`
-	BaselineEndCents          float64 `json:"baseline_end_cents"`
-	PrimaryStressCents        float64 `json:"primary_stress_cents"`
-	SecondaryStressCents      float64 `json:"secondary_stress_cents"`
-	UnstressedCents           float64 `json:"unstressed_cents"`
-	PreStressDipCents         float64 `json:"pre_stress_dip_cents"`
-	WordDownstepCents         float64 `json:"word_downstep_cents"`
-	PhraseFinalFallCents      float64 `json:"phrase_final_fall_cents"`
-	QuestionRiseCents         float64 `json:"question_rise_cents"`
-	SmoothingMS               float64 `json:"smoothing_ms"`
-	LowCents                  float64 `json:"low_cents"`
-	HighCents                 float64 `json:"high_cents"`
-	P99Cents                  float64 `json:"p99_cents"`
-	MaxCents                  float64 `json:"max_cents"`
-	PrimaryDurationFactor     float64 `json:"primary_duration_factor"`
-	SecondaryDurationFactor   float64 `json:"secondary_duration_factor"`
-	UnstressedDurationFactor  float64 `json:"unstressed_duration_factor"`
-	PhraseFinalDurationFactor float64 `json:"phrase_final_duration_factor"`
-	PrimaryEnergyFactor       float64 `json:"primary_energy_factor,omitempty"`
-	SecondaryEnergyFactor     float64 `json:"secondary_energy_factor,omitempty"`
-	UnstressedEnergyFactor    float64 `json:"unstressed_energy_factor,omitempty"`
-	PhraseFinalEnergyFactor   float64 `json:"phrase_final_energy_factor,omitempty"`
-}
-
-func (model *EnglishIntonationModel) predict(morae []frontend.Mora) []Prediction {
-	result := make([]Prediction, len(morae))
-	for index, mora := range morae {
-		result[index] = Prediction{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1}
-		if mora.Pause {
-			continue
-		}
-		factor := 1.0
-		energy := 1.0
-		if mora.Vowel != "" {
-			switch mora.Stress {
-			case 1:
-				factor = model.PrimaryDurationFactor
-				energy = positiveFactor(model.PrimaryEnergyFactor)
-			case 2:
-				factor = model.SecondaryDurationFactor
-				energy = positiveFactor(model.SecondaryEnergyFactor)
-			case 0:
-				if mora.StressKnown {
-					factor = model.UnstressedDurationFactor
-					energy = positiveFactor(model.UnstressedEnergyFactor)
-				}
-			}
-		}
-		if mora.WordEnd && (index+1 == len(morae) || morae[index+1].Pause) {
-			factor *= model.PhraseFinalDurationFactor
-			energy *= positiveFactor(model.PhraseFinalEnergyFactor)
-		}
-		result[index].DurationFactor = factor
-		result[index].EnergyFactor = energy
-	}
-	return result
-}
-
-func positiveFactor(value float64) float64 {
-	if value > 0 {
-		return value
-	}
-	return 1
-}
-
-func (model *EnglishIntonationModel) predictContour(morae []frontend.Mora, timings []MoraTiming, durationMS float64, question bool) *PitchContour {
-	if len(morae) == 0 || len(timings) != len(morae) || durationMS <= 0 || validateEnglishIntonation(model) != nil {
-		return nil
-	}
-	count := max(2, int(math.Ceil(durationMS/model.FrameMS))+1)
-	values := make([]float64, count)
-	speech := make([]bool, count)
-	moraAtFrame := make([]int, count)
-	phraseStart := make([]int, 0)
-	phraseEnd := make([]int, 0)
-	for start := 0; start < len(morae); {
-		if morae[start].Pause {
-			start++
-			continue
-		}
-		end := start
-		for end+1 < len(morae) && !morae[end+1].Pause {
-			end++
-		}
-		phraseStart = append(phraseStart, start)
-		phraseEnd = append(phraseEnd, end)
-		start = end + 1
-	}
-	phraseForMora := make([]int, len(morae))
-	for phrase, start := range phraseStart {
-		for index := start; index <= phraseEnd[phrase]; index++ {
-			phraseForMora[index] = phrase
-		}
-	}
-	moraIndex := 0
-	for frame := 0; frame < count; frame++ {
-		timeMS := float64(frame) * model.FrameMS
-		for moraIndex+1 < len(timings) && timeMS >= timings[moraIndex].StartMS+timings[moraIndex].DurationMS {
-			moraIndex++
-		}
-		moraAtFrame[frame] = moraIndex
-		speech[frame] = !morae[moraIndex].Pause
-	}
-	for frame, index := range moraAtFrame {
-		if !speech[frame] {
-			continue
-		}
-		phrase := phraseForMora[index]
-		start, end := phraseStart[phrase], phraseEnd[phrase]
-		left := timings[start].StartMS
-		right := timings[end].StartMS + timings[end].DurationMS
-		phraseProgress := clamp((float64(frame)*model.FrameMS-left)/math.Max(1, right-left), 0, 1)
-		value := model.BaselineStartCents*(1-phraseProgress) + model.BaselineEndCents*phraseProgress
-		wordOrdinal := 0
-		previousWord := -1
-		for position := start; position <= index; position++ {
-			if position == start || morae[position].WordIndex != previousWord {
-				wordOrdinal++
-				previousWord = morae[position].WordIndex
-			}
-		}
-		if wordOrdinal > 1 {
-			value -= model.WordDownstepCents * float64(wordOrdinal-1)
-		}
-		mora := morae[index]
-		if mora.Vowel != "" {
-			timing := timings[index]
-			local := clamp((float64(frame)*model.FrameMS-timing.StartMS)/math.Max(1, timing.DurationMS), 0, 1)
-			var stressCents float64
-			switch mora.Stress {
-			case 1:
-				stressCents = model.PrimaryStressCents
-			case 2:
-				stressCents = model.SecondaryStressCents
-			case 0:
-				if mora.StressKnown {
-					stressCents = model.UnstressedCents
-				}
-			}
-			if stressCents != 0 {
-				value += stressCents * math.Sin(math.Pi*local)
-			}
-			if mora.Stress > 0 && local < 0.28 {
-				value += model.PreStressDipCents * (1 - local/0.28) / float64(mora.Stress)
-			}
-		}
-		if index == end && phraseProgress > 0.64 {
-			boundary := smoothstep01((phraseProgress - 0.64) / 0.36)
-			if question && phrase == len(phraseStart)-1 {
-				value += model.QuestionRiseCents * boundary
-			} else {
-				value += model.PhraseFinalFallCents * boundary
-			}
-		}
-		values[frame] = value
-	}
-	values = SmoothPitchPhrases(values, speech, model.FrameMS, model.SmoothingMS)
-	voiced := make([]float64, 0, count)
-	for index, value := range values {
-		if speech[index] {
-			voiced = append(voiced, value)
-		}
-	}
-	center := median(voiced)
-	for index := range values {
-		if speech[index] {
-			values[index] -= center
-		} else {
-			values[index] = 0
-		}
-	}
-	if observed := absolutePercentile(values, speech, 0.99); observed > model.P99Cents {
-		gain := model.P99Cents / observed
-		for index := range values {
-			if speech[index] {
-				values[index] *= gain
-			}
-		}
-	}
-	for index := range values {
-		values[index] = clamp(values[index], model.LowCents, model.HighCents)
-		if speech[index] {
-			values[index] = clamp(values[index], -model.MaxCents, model.MaxCents)
-		}
-	}
-	return &PitchContour{FrameMS: model.FrameMS, Cents: values}
-}
-
 type MoraTiming struct {
 	StartMS    float64
 	DurationMS float64
@@ -353,9 +160,6 @@ func (m *Model) Predict(morae []frontend.Mora) []Prediction {
 }
 
 func (m *Model) PredictWithFeatures(morae []frontend.Mora, frames []FeatureFrame) []Prediction {
-	if m.EnglishIntonation != nil {
-		return m.EnglishIntonation.predict(morae)
-	}
 	result := make([]Prediction, len(morae))
 	durations := centeredFactors(m.DurationWeights, morae, 0.8, 1.25)
 	if m.MoraDuration != nil {
@@ -374,9 +178,6 @@ func (m *Model) PredictWithFeatures(morae []frontend.Mora, frames []FeatureFrame
 }
 
 func (m *Model) RequiresExternalFeatures() bool {
-	if m.EnglishIntonation != nil {
-		return false
-	}
 	featureSets := [][]string(nil)
 	if m.MoraDuration != nil {
 		featureSets = append(featureSets, m.MoraDuration.FeatureNames)
@@ -399,13 +200,10 @@ func (m *Model) RequiresExternalFeatures() bool {
 }
 
 func (m *Model) HasFrameContour() bool {
-	return m != nil && (m.FramePitch != nil || m.EnglishIntonation != nil)
+	return m != nil && m.FramePitch != nil
 }
 
 func (m *Model) PredictFrameContour(morae []frontend.Mora, frames []FeatureFrame, timings []MoraTiming, durationMS float64, question bool) *PitchContour {
-	if m.EnglishIntonation != nil {
-		return m.EnglishIntonation.predictContour(morae, timings, durationMS, question)
-	}
 	model := m.FramePitch
 	if model == nil || len(morae) == 0 || len(timings) != len(morae) || (!model.validated && validateFramePitch(model) != nil) {
 		return nil

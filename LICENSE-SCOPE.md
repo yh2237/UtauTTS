@@ -8,16 +8,15 @@ UtauTTSのオリジナルコードは [`LICENSE`](./LICENSE)（MIT License）が
 
 ## 同梱モデル
 
-日本語の抑揚モデルおよび時間伸縮モデルの重みはMIT Licenseで配布しています。英語モデル（`frame-intonation-tcn-en-v1`、`speech-timing-target-en-v1`）の重みはCC BY 4.0、中国語モデル（`tone-intonation-zh-v1`、`speech-timing-target-zh-v1`）の重みはApache License 2.0です。各モデルが参照するライセンス通知は `licenses/` に収録されています。
+日本語の抑揚モデルおよび時間伸縮モデルの重みはMIT Licenseで配布しています。中国語モデル（`tone-intonation-zh-v1`、`speech-timing-target-zh-v1`）の重みと、英語の合成に使う`english-reference/`のモデル（Kokoro-82M、HuBERT Base、misakiの英語辞書）はApache License 2.0です。各モデルが参照するライセンス通知は `licenses/` に収録されています。
 
 | モデル | 適用ライセンス / 通知ファイル |
 | :--- | :--- |
 | `frame-intonation-tcn-v12`（v10を内包） | `licenses/TSUKUYOMI-CORPUS.txt`, `licenses/MINNADE-JSUT-CORPUS.txt`, `licenses/MFA-Japanese-NOTICE.txt`, `licenses/IRODORI-TEACHER-NOTICE.txt` |
 | `speech-timing-target-v1`（bridge内包） | `licenses/TSUKUYOMI-CORPUS.txt`, `licenses/MINNADE-JSUT-CORPUS.txt`, `licenses/MFA-Japanese-NOTICE.txt` |
-| `frame-intonation-tcn-en-v1` | CC BY 4.0 (`licenses/ENGLISH-FRAME-INTONATION-TCN-V1.txt`, `licenses/LibriTTS-R-NOTICE.txt`, `licenses/MFA-English-ARPA-NOTICE.txt`, `licenses/CC-BY-4.0.txt`) |
 | `tone-intonation-zh-v1` | Apache License 2.0 (`licenses/TONE-INTONATION-ZH-V1.txt`, `licenses/AISHELL-3-NOTICE.txt`, `licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt`, `licenses/APACHE-2.0.txt`) |
-| `speech-timing-target-en-v1`（bridge内包） | CC BY 4.0 (`licenses/SPEECH-TIMING-TARGET-EN-V1.txt`, `licenses/LibriTTS-R-NOTICE.txt`, `licenses/MFA-English-ARPA-NOTICE.txt`, `licenses/CC-BY-4.0.txt`) |
 | `speech-timing-target-zh-v1`（bridge内包） | Apache License 2.0 (`licenses/SPEECH-TIMING-TARGET-ZH-V1.txt`, `licenses/AISHELL-3-NOTICE.txt`, `licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt`, `licenses/APACHE-2.0.txt`) |
+| `english-reference/`（Kokoro-82M、HuBERT Base、misakiの英語辞書） | Apache License 2.0 (`licenses/ENGLISH-REFERENCE-MODELS.txt`, `licenses/APACHE-2.0.txt`) |
 
 モデルを利用する際は、各モデルJSONに記載されたライセンス条項に従ってください。学習元コーパスの利用条件は、各配布元の規約に準拠します。詳細は [抑揚モデルのライセンス](./models/README.md) を参照してください。
 

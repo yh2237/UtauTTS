@@ -90,29 +90,10 @@ func export(m *tcn, names []string, c config, sha string, trainRows, validRows, 
 	}
 	mode := "intonation_frame_tcn_accent_bounded"
 	accent := "openjtalk"
-	if c.Language == "en" {
-		mode = "intonation_frame_tcn_english_bounded"
-		accent = "aligned-arpabet-stress"
-	}
 	trainMeta := map[string]any{"records": len(train), "tokens": countTokens, "frames": frames(train), "epochs": c.Epochs, "learning_rate": c.LR, "hidden": c.Hidden, "batch_size": c.Batch, "seed": c.Seed, "device": c.Device, "openjtalk_accent": c.OpenJTalkAccent, "f0_source": map[string]string{"internal": "internal_autocorrelation", "world": "utautts_world_harvest"}[c.F0Source], "target_smooth_ms": c.Smooth, "delta_weight": c.Delta, "best_epoch": bestEpoch, "evaluation_is_in_sample": c.AllDataTraining, "accent_source": accent, "dataset_sha256": sha, "selection_metric": "validation_rendered_contour_mae", "history": history, "split_ids": map[string]any{"train": ids(trainRows), "validation": ids(validRows), "test": ids(testRows)}}
 	trainMeta["alignment"] = alignmentMetadata(trainRows, validRows, c.Language)
 	if len(testRows) > 0 {
 		trainMeta["test_alignment"] = alignmentStats(testRows, c.Language)
-	}
-	if c.Language == "en" {
-		trainMeta["split_unit"] = "speaker"
-		splits := map[string][]string{}
-		for name, rows := range map[string][]record{"train": trainRows, "validation": validRows, "test": testRows} {
-			set := map[string]bool{}
-			for _, r := range rows {
-				set[r.Speaker] = true
-			}
-			for speaker := range set {
-				splits[name] = append(splits[name], speaker)
-			}
-			sort.Strings(splits[name])
-		}
-		trainMeta["speaker_splits"] = splits
 	}
 	description := c.Description
 	if description == "" {
@@ -123,15 +104,9 @@ func export(m *tcn, names []string, c config, sha string, trainRows, validRows, 
 		renderers = []string{"utautts-world-phrase"}
 	}
 	payload := map[string]any{"id": modelID, "display_name": display, "description": description, "license": c.License, "license_notices": c.Notices, "provenance": map[string]any{"training_corpus": c.Corpus}, "recommended_renderers": renderers, "version": 8, "feature_version": 1, "mode": mode, "language": c.Language, "duration_weights": map[string]float64{}, "frame_pitch": exportedFrame(m, names, c), "metrics": metrics, "training": trainMeta}
-	if c.Language == "en" {
-		payload["status"] = "experimental-requires-listening"
-	}
 	return payload
 }
 func alignmentStats(rows []record, language string) map[string]any {
-	if language == "en" {
-		return map[string]any{"alignment_records": 0, "alignment_moras": 0, "skipped_records": 0, "alignment_rate": 0.0, "fallback_records": len(rows)}
-	}
 	moras := 0
 	types := map[string]int{}
 	pos := map[string]int{}

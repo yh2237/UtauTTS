@@ -47,12 +47,12 @@ func parseFlags() config {
 	flag.StringVar(&c.Output, "out", filepath.Join("out", "frame-intonation-go", fmt.Sprintf("model-%d.json", time.Now().UnixNano())), "new model JSON under out/")
 	flag.StringVar(&c.Cache, "f0-cache", "", "F0 .npy cache under out/")
 	flag.StringVar(&c.F0Source, "f0-source", "auto", "internal or world")
-	flag.StringVar(&c.WorldEngine, "world-engine", "runtime/utautts-world-engine.dll", "WORLD engine DLL for English Harvest")
+	flag.StringVar(&c.WorldEngine, "world-engine", "runtime/utautts-world-engine.dll", "WORLD engine DLL for Harvest")
 	flag.StringVar(&c.PredictCorpus, "predict-corpus", "", "JSON or JSONL cases for contour prediction")
 	flag.StringVar(&c.PredictOut, "predict-out", "", "prediction JSON under out/")
 	flag.StringVar(&c.OpenJTalkHelper, "openjtalk-features", "", "Open JTalk feature helper executable")
 	flag.StringVar(&c.OpenJTalkDictionary, "openjtalk-dictionary", "", "Open JTalk dictionary directory")
-	flag.StringVar(&c.Language, "language", "ja", "ja or en")
+	c.Language = "ja"
 	flag.StringVar(&c.ID, "model-id", "", "model ID")
 	flag.StringVar(&c.Name, "display-name", "", "display name")
 	flag.StringVar(&c.Description, "description", "", "model description")
@@ -86,63 +86,22 @@ func parseFlags() config {
 	flag.BoolVar(&c.FeaturesOnly, "features-only", false, "prepare data and print counts without training")
 	flag.BoolVar(&c.IndexOnly, "index-only", false, "build the sorted feature dictionary without F0 extraction")
 	flag.Parse()
-	if c.Language == "ja" {
-		c.OpenJTalkAccent = true
-		flag.Visit(func(f *flag.Flag) {
-			if f.Name == "openjtalk-accent" {
-				c.OpenJTalkAccent = f.Value.String() == "true"
-			}
-		})
-		if noOpenJTalk {
-			c.OpenJTalkAccent = false
+	c.OpenJTalkAccent = true
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "openjtalk-accent" {
+			c.OpenJTalkAccent = f.Value.String() == "true"
 		}
-	}
-	visited := map[string]bool{}
-	flag.Visit(func(f *flag.Flag) { visited[f.Name] = true })
-	if c.Language == "en" {
-		if !visited["epochs"] {
-			c.Epochs = 40
-		}
-		if !visited["batch-size"] {
-			c.Batch = 16
-		}
-		if !visited["dilations"] {
-			dil = "1,2,4,8"
-		}
-		if !visited["model-license"] {
-			c.License = "CC BY 4.0 (model weights)"
-		}
-		if !visited["low-cents"] {
-			c.Low = -400
-		}
-		if !visited["high-cents"] {
-			c.High = 400
-		}
-		if !visited["render-strength"] {
-			c.RenderStrength = .65
-		}
-		if !visited["render-p99-cents"] {
-			c.RenderP99 = 200
-		}
-		if !visited["render-max-cents"] {
-			c.RenderMax = 250
-		}
+	})
+	if noOpenJTalk {
+		c.OpenJTalkAccent = false
 	}
 	c.Notices = nn
 	c.RecommendedRenderers = renderers
 	if c.F0Source == "auto" {
-		if c.Language == "en" {
-			c.F0Source = "world"
-		} else {
-			c.F0Source = "internal"
-		}
+		c.F0Source = "internal"
 	}
 	if c.Cache == "" {
-		if c.Language == "ja" {
-			c.Cache = "out/mfa-align-20261002/f0-internal"
-		} else {
-			c.Cache = "out/frame-intonation-go/english-f0-cache"
-		}
+		c.Cache = "out/mfa-align-20261002/f0-internal"
 	}
 	for _, s := range strings.Split(dil, ",") {
 		v, e := strconv.Atoi(strings.TrimSpace(s))
@@ -158,12 +117,6 @@ func main() {
 	c := parseFlags()
 	if c.Dataset == "" || c.Corpus == "" || len(c.Notices) == 0 {
 		fatal("--dataset, --training-corpus and --license-notice are required")
-	}
-	if c.Language != "ja" && c.Language != "en" {
-		fatal("language must be ja or en")
-	}
-	if c.Language == "en" && c.AllDataTraining {
-		fatal("English explicit speaker splits do not support --all-data-training")
 	}
 	if (c.PredictCorpus == "") != (c.PredictOut == "") {
 		fatal("--predict-corpus and --predict-out must be used together")
@@ -220,17 +173,12 @@ func main() {
 		if language != c.Language {
 			fatal("language mismatch: %s", r.ID)
 		}
-		if c.Language == "ja" && !c.OpenJTalkAccent {
+		if !c.OpenJTalkAccent {
 			for _, t := range r.Tokens {
 				if !t.Pause && t.AccentLength == 0 {
 					fatal("%s lacks Open JTalk annotations; prepare the JSONL with Open JTalk first", r.ID)
 				}
 			}
-		}
-	}
-	if c.Language == "en" {
-		if e := validateEnglishSplits(rows); e != nil {
-			fatal("dataset: %v", e)
 		}
 	}
 	trainRows, validRows, testRows := splitForTraining(rows, c.Holdout, c.AllDataTraining)
@@ -370,13 +318,6 @@ func main() {
 		alignment["alignment_rate"] = float64(len(trainRows)+len(validRows)) / float64(max(1, inputTrain+inputValid))
 		if len(testRows) > 0 {
 			setAlignmentCounts(training["test_alignment"].(map[string]any), inputTest, len(testRows))
-		}
-	}
-	if c.Language == "en" {
-		metrics := payload["metrics"].(map[string]any)
-		metrics["validation_flat_baseline"] = flatBaselineMetrics(valid, c)
-		if len(test) > 0 {
-			metrics["test_flat_baseline"] = flatBaselineMetrics(test, c)
 		}
 	}
 	data, e := json.MarshalIndent(payload, "", "  ")

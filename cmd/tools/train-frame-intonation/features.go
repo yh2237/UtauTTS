@@ -100,17 +100,6 @@ func fnv1a(s string) uint32 {
 }
 func splitRecords(rows []record, holdout bool) (train, valid, test []record) {
 	for _, r := range rows {
-		if r.Language == "en" {
-			switch r.Split {
-			case "train":
-				train = append(train, r)
-			case "validation":
-				valid = append(valid, r)
-			case "test":
-				test = append(test, r)
-			}
-			continue
-		}
 		switch fnv1a(r.ID) % 10 {
 		case 0:
 			valid = append(valid, r)
@@ -125,21 +114,6 @@ func splitRecords(rows []record, holdout bool) (train, valid, test []record) {
 		}
 	}
 	return
-}
-func validateEnglishSplits(rows []record) error {
-	seen := map[string]string{}
-	for _, r := range rows {
-		if r.Speaker == "" || r.Split != "train" && r.Split != "validation" && r.Split != "test" {
-			return fmt.Errorf("English record %s needs speaker and explicit train/validation/test split", r.ID)
-		}
-		for _, key := range []string{"speaker:" + r.Speaker, "text:" + r.Text} {
-			if prior, ok := seen[key]; ok && prior != r.Split {
-				return fmt.Errorf("English split leakage at %s: %s in %s and %s", r.ID, key, prior, r.Split)
-			}
-			seen[key] = r.Split
-		}
-	}
-	return nil
 }
 func timeGrid(r record, step float64) []float64 {
 	start, end := r.Start, r.End
@@ -166,7 +140,7 @@ func tokenAt(ts []token, t float64) int {
 	}
 	return len(ts) - 1
 }
-func tokenFeatures(ts []token, i int, english bool) map[string]float64 {
+func tokenFeatures(ts []token, i int) map[string]float64 {
 	t := ts[i]
 	p := float64(i) / float64(max(1, len(ts)-1))
 	m := map[string]float64{"bias": 1, "position": p, "position2": p * p, "from_end": 1 - p}
@@ -175,43 +149,6 @@ func tokenFeatures(ts []token, i int, english bool) map[string]float64 {
 	}
 	if i == len(ts)-1 || ts[i+1].Pause {
 		m["phrase_end"] = 1
-	}
-	if english {
-		add := func(prefix string, x token) {
-			if x.Pause {
-				m[prefix+"=<PAUSE>"] = 1
-				return
-			}
-			var syms []string
-			for _, ph := range x.Phones {
-				syms = append(syms, ph.Symbol)
-				m[prefix+"_"+ph.Role+"="+ph.Symbol] = 1
-			}
-			m[prefix+"="+strings.Join(syms, " ")] = 1
-			if x.StressKnown {
-				m[fmt.Sprintf("%s_stress=%d", prefix, x.Stress)] = 1
-			}
-		}
-		add("syllable", t)
-		if i > 0 {
-			add("prev", ts[i-1])
-		} else {
-			m["prev=<BOS>"] = 1
-		}
-		if i+1 < len(ts) {
-			add("next", ts[i+1])
-		} else {
-			m["next=<EOS>"] = 1
-		}
-		if !t.Pause {
-			if i == 0 || ts[i-1].Pause || ts[i-1].WordIndex != t.WordIndex {
-				m["en_word_start"] = 1
-			}
-			if t.WordEnd {
-				m["en_word_end"] = 1
-			}
-		}
-		return m
 	}
 	add := func(prefix string, x token) {
 		if x.Pause {
@@ -293,7 +230,7 @@ func tokenFeatures(ts []token, i int, english bool) map[string]float64 {
 	return m
 }
 func frameFeatures(r record, i int, t, start, end float64) map[string]float64 {
-	m := tokenFeatures(r.Tokens, i, r.Language == "en")
+	m := tokenFeatures(r.Tokens, i)
 	x := r.Tokens[i]
 	duration := math.Max(1, x.End-x.Start)
 	progress := math.Max(0, math.Min(1, (t-x.Start)/duration))

@@ -9,7 +9,7 @@ func TestRetiredModelIDsUseCurrentModel(t *testing.T) {
 			t.Fatalf("currentModelID(%q) = %q", id, got)
 		}
 	}
-	for _, id := range []string{"frame-intonation-tcn-v12", "frame-intonation-tcn-en-v1", "none", ""} {
+	for _, id := range []string{"frame-intonation-tcn-v12", "tone-intonation-zh-v1", "none", ""} {
 		if got := currentModelID(id); got != id {
 			t.Fatalf("currentModelID(%q) = %q, want unchanged", id, got)
 		}

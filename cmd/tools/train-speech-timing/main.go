@@ -144,8 +144,6 @@ func modelIDForLanguage(language string) string {
 	switch strings.ToLower(strings.TrimSpace(language)) {
 	case "", "ja", "ja-jp":
 		return "speech-timing-target-v1"
-	case "en":
-		return "speech-timing-target-en-v1"
 	case "zh":
 		return "speech-timing-target-zh-v1"
 	default:
