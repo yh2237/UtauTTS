@@ -150,6 +150,15 @@ Item {
         return root.sidePadding + root.positionAt(index) * root.durationScale;
     }
 
+    function columnWidth(index) {
+        let width = root.moraWidth;
+        if (index > 0)
+            width = Math.min(width, root.pointX(index) - root.pointX(index - 1));
+        if (index + 1 < root.morae.length)
+            width = Math.min(width, root.pointX(index + 1) - root.pointX(index));
+        return Math.max(0, width);
+    }
+
     function durationValuesFromPositions() {
         const values = [];
         for (let index = 0; index < root.morae.length; ++index)
@@ -572,10 +581,11 @@ Item {
                         id: pointColumn
                         required property var modelData
                         required property int index
-                        width: root.moraWidth
+                        width: root.columnWidth(pointColumn.index)
                         height: parent.height
                         x: root.pointX(pointColumn.index) - width / 2
                         spacing: 1
+                        clip: true
 
                         Text {
                             width: parent.width
@@ -585,7 +595,7 @@ Item {
                             elide: Text.ElideRight
                         }
                         TextInput {
-                            width: parent.width - 8
+                            width: Math.max(0, parent.width - 8)
                             height: 24
                             anchors.horizontalCenter: parent.horizontalCenter
                             visible: root.pointIsEditable(pointColumn.index)
@@ -619,6 +629,7 @@ Item {
                             text: root.durationIsEditable(pointColumn.index)
                                   ? Math.round(root.durationAt(pointColumn.index)) + " ms" : ""
                             horizontalAlignment: Text.AlignHCenter
+                            elide: Text.ElideRight
                             color: root.labelColor
                             opacity: 0.75
                             font.pixelSize: 10
