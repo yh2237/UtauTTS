@@ -1,6 +1,7 @@
 package voicebank
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -212,6 +213,15 @@ func subbankToneDistance(subbank Subbank, target int) int {
 		}
 	}
 	return best
+}
+
+// ToneFrequencyは音名（例: C4）の周波数を返す。空や解釈できない値はfalse。
+func ToneFrequency(tone string) (float64, bool) {
+	number, ok := toneNumber(tone)
+	if !ok {
+		return 0, false
+	}
+	return 440 * math.Pow(2, float64(number-69)/12), true
 }
 
 func toneNumber(tone string) (int, bool) {

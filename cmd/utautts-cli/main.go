@@ -121,7 +121,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	flag.StringVar(&requestFile, "request", "", "synthesis request JSON file (- reads standard input; exclusive with utterance flags)")
 	flag.StringVar(&language, "language", "ja", "language: ja, en, or zh")
 	flag.StringVar(&phonemizer, "phonemizer", "", "phonemizer ID (default: selected by language)")
-	flag.StringVar(&tone, "tone", "C4", "voicebank tone used with prefix.map")
+	flag.StringVar(&tone, "tone", "", "base pitch such as C4, also used with prefix.map (empty: the voicebank's recorded pitch)")
 	flag.StringVar(&color, "color", "", "voicebank subbank/color (character.yaml)")
 	flag.StringVar(&outPath, "out", "", "output WAV path (- writes standard output)")
 	flag.StringVar(&planPath, "plan-out", "", "optional synthesis plan JSON path")

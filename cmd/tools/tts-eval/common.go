@@ -43,7 +43,6 @@ func synthesizeCase(p prompt, o caseOptions) (*synth.Result, float64, error) {
 	request.Language = p.Language
 	request.Phonemizer = p.Phonemizer
 	request.VoicebankPath = o.bank
-	request.Tone = "C4"
 	request.AliasPolicy = voicebank.AliasPolicy(o.aliasPolicy)
 	request.Renderer = o.rendererID
 	request.Resampler = o.resampler
