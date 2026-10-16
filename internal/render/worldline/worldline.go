@@ -274,6 +274,7 @@ func prepareWorldlinePitch(synthesisPlan *plan.Plan, cfg base.Config, cache *bas
 			intonation[i] = pitchFactors[i] / base.EffectiveUnitPitchFactor(unit, true)
 		}
 	}
+	base.ApplyTonePitch(synthesisPlan, pitchFactors, reference)
 	frameMS := worldlineFrameMS
 	curveStartMS := -timing.leadingMS
 	curveDurationMS := synthesisPlan.DurationMS + cfg.ReleaseMS + timing.leadingMS

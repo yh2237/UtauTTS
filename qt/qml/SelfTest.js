@@ -167,7 +167,7 @@ function run(ctx) {
     if (error.length)
         return error;
     const project = host.projectData();
-    error = check(project.format === "utautts-project" && project.format_version === 8
+    error = check(project.format === "utautts-project" && project.format_version === 9
                   && project.utterances.length === 1, "project data generation failed");
 
     ctx.analyzeTimer.stop();

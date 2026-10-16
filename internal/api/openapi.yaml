@@ -260,7 +260,7 @@ components:
         renderer: {type: string, nullable: true, default: '', description: 空なら起動時の既定Renderer。未知の明示IDはエラー。}
         model_id: {type: string, nullable: true, default: '', description: 抑揚モデルID。空またはnoneなら使わない。}
         model_path: {type: string, nullable: true, default: '', description: ローカルモデルパスの互換入力。model_idより優先する。}
-        tone: {type: string, nullable: true, default: '', description: 空なら合成時にC4}
+        tone: {type: string, nullable: true, default: '', description: '読み上げの基準の音程（例: C4）。空なら音源の録音の高さで読み上げ、原音はC4として選ぶ。'}
         color: {type: string, nullable: true, default: ''}
         dictionary:
           type: array

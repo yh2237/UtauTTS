@@ -10,7 +10,22 @@ import (
 	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/UtauTTS/internal/pitch"
 	"github.com/yh2237/UtauTTS/internal/plan"
+	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
+
+// ApplyTonePitchは音高が指定されたとき、原音の高さの中央値がその音程になるよう係数を掛ける。
+func ApplyTonePitch(synthesisPlan *plan.Plan, factors []float64, reference float64) {
+	if synthesisPlan == nil || reference <= 0 {
+		return
+	}
+	frequency, ok := voicebank.ToneFrequency(synthesisPlan.Tone)
+	if !ok {
+		return
+	}
+	for index := range factors {
+		factors[index] *= frequency / reference
+	}
+}
 
 // F0AtTimeは時刻に対応する目標F0を返す。原音ピッチへ係数を掛け、境界の間は対数線形でつなぐ。
 func F0AtTime(synthesisPlan *plan.Plan, pitches, factors []float64, reference, timeMS float64) float64 {

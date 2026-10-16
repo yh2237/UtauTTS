@@ -67,7 +67,7 @@ func run() (runErr error) {
 	if len(voices) == 0 {
 		return errors.New("no voicebanks found")
 	}
-	result, err := engine.Synthesize(ctx, utautts.Request{Text: *text, VoicebankID: voices[0].ID, Tone: "C4"})
+	result, err := engine.Synthesize(ctx, utautts.Request{Text: *text, VoicebankID: voices[0].ID})
 	if err != nil {
 		return err
 	}

@@ -159,6 +159,7 @@ func renderUtauExternalResampler(synthesisPlan *plan.Plan, cfg Config) (*audio.P
 	for index, unit := range synthesisPlan.Units {
 		factors[index] = intonation[index] * effectiveUnitPitchFactor(unit, cfg.ApplyPitch)
 	}
+	base.ApplyTonePitch(synthesisPlan, factors, reference)
 
 	tempDir, err := os.MkdirTemp("", "utautts-resampler-")
 	if err != nil {
