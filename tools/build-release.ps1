@@ -219,11 +219,6 @@ try {
     }
     $bundledModels | Copy-Item -Destination $guiModelsPath
     $bundledModels | Copy-Item -Destination $serverModelsPath
-	$sourcePhonePath = Join-Path $sourceModels 'source-phones'
-	if (Test-Path -LiteralPath $sourcePhonePath -PathType Container) {
-		Copy-Item -LiteralPath $sourcePhonePath -Destination $guiModelsPath -Recurse
-		Copy-Item -LiteralPath $sourcePhonePath -Destination $serverModelsPath -Recurse
-	}
     if ($Profile -eq 'Full') {
         $englishReferencePath = Join-Path $sourceModels 'english-reference'
         foreach ($packageModelsPath in @($guiModelsPath, $serverModelsPath)) {

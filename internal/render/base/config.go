@@ -63,8 +63,7 @@ type WorldlineProviderOptions struct {
 	// 原音区間ライブラリを使う。未指定は有効。
 	SourcePhoneMapping *bool `json:"source_phone_mapping,omitempty"`
 	// 試聴用の原音区間指定。通常の合成では未指定。
-	ExperimentalSourceSpans map[int]SourceSpan `json:"-"`
-	ExactLength             bool
+	ExactLength bool
 	// 日本語のモーラ内を学習した時間配分に合わせる。nilは有効。
 	TimingWarp *bool `json:"timing_warp,omitempty"`
 	// 日本語の子音前後に微細な音高変化を足す。nilは有効。
