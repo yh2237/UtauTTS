@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yh2237/gograd/autograd"
 )
 
 const corpus = "Tsukuyomi-chan Corpus Vol.1 (VOICEACTRESS100) + Minnade JSUT Corpus basic5000 BASIC5000_0001-0600, aligned with Montreal Forced Aligner japanese_mfa"
@@ -86,7 +85,7 @@ func main() {
 // f0DilationsOrDefaultは未指定ならメルトランクと同じ既定の並びを返す。
 func f0DilationsOrDefault(dilations []int) []int {
 	if len(dilations) == 0 {
-		return autograd.SpeechTimingDilations
+		return SpeechTimingDilations
 	}
 	return dilations
 }

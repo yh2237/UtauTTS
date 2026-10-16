@@ -39,19 +39,19 @@ type trainingState struct {
 
 // trainerModelは単一ヘッドとマルチヘッドを同じ学習ループで扱う。
 type trainerModel struct {
-	single *autograd.SpeechTiming
-	multi  *autograd.SpeechTimingMultiHead
+	single *SpeechTiming
+	multi  *SpeechTimingMultiHead
 }
 
 func newTrainerModel(c trainingConfig, phones int, device tensor.Device) (trainerModel, error) {
 	if c.F0Head {
-		m, err := autograd.NewSpeechTimingMultiHeadWithF0Dilations(phones, continuousFeatures, f0ContextWidth(), f0DilationsOrDefault(c.F0Dilations), device, c.Seed)
+		m, err := NewSpeechTimingMultiHeadWithF0Dilations(phones, continuousFeatures, f0ContextWidth(), f0DilationsOrDefault(c.F0Dilations), device, c.Seed)
 		if err != nil {
 			return trainerModel{}, err
 		}
 		return trainerModel{multi: m}, nil
 	}
-	m, err := autograd.NewSpeechTimingWithPhones(phones, continuousFeatures, device, c.Seed)
+	m, err := NewSpeechTimingWithPhones(phones, continuousFeatures, device, c.Seed)
 	if err != nil {
 		return trainerModel{}, err
 	}
