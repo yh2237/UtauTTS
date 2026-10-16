@@ -42,7 +42,6 @@ type Plan struct {
 	SingleCV                bool                     `json:"single_cv,omitempty"`
 	PhoneTimings            []PhoneTiming            `json:"phone_timings,omitempty"`
 	PhoneTimingSource       string                   `json:"phone_timing_source,omitempty"`
-	MissingPhones           []voicebank.SpeechGap    `json:"missing_phones,omitempty"`
 	Version                 int                      `json:"version"`
 	Voicebank               string                   `json:"voicebank"`
 	Text                    string                   `json:"text,omitempty"`
@@ -76,12 +75,6 @@ func Clone(source *Plan) *Plan {
 	}
 	result := *source
 	result.PhoneTimings = append([]PhoneTiming(nil), source.PhoneTimings...)
-	result.MissingPhones = append([]voicebank.SpeechGap(nil), source.MissingPhones...)
-	for i, gap := range source.MissingPhones {
-		result.MissingPhones[i] = gap
-		result.MissingPhones[i].Phones = append([]string(nil), gap.Phones...)
-		result.MissingPhones[i].Aliases = append([]string(nil), gap.Aliases...)
-	}
 	result.Units = append([]Unit(nil), source.Units...)
 	for index := range result.Units {
 		result.Units[index].SpeechSourceAnchorsMS = append([]float64(nil), source.Units[index].SpeechSourceAnchorsMS...)
@@ -188,7 +181,6 @@ type Unit struct {
 	SpeechSourceAnchorsMS       []float64                      `json:"speech_source_anchors_ms,omitempty"`
 	SpeechTargetAnchorsMS       []float64                      `json:"speech_target_anchors_ms,omitempty"`
 	CodaPhones                  []string                       `json:"coda_phones,omitempty"`
-	CodaFloorMS                 float64                        `json:"coda_floor_ms,omitempty"`
 	CodaBoundaryLimited         bool                           `json:"coda_boundary_limited,omitempty"`
 	CodaClosureMS               float64                        `json:"coda_closure_ms,omitempty"`
 	CodaReleaseMS               float64                        `json:"coda_release_ms,omitempty"`
@@ -327,7 +319,6 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		if !ok {
 			return nil, fmt.Errorf("selection missing for mora %q at position %d", mora.Text, position)
 		}
-		result.MissingPhones = append(result.MissingPhones, selection.MissingPhones...)
 		duration, manuallySet := ConfiguredMoraDuration(position, cfg.MoraDurationsMS)
 		if !manuallySet {
 			duration = DurationFor(mora, cfg.MoraDurationMS)
@@ -341,9 +332,6 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		phoneSpans, err := phoneSpansForMora(mora, duration, cfg.PhoneWeights, position)
 		if err != nil {
 			return nil, err
-		}
-		if mora.Language == frontend.LanguageEnglish && cfg.PhoneWeightsSource == "multilingual-speech-score-v1" {
-			phoneSpans = otoCodaSpans(mora, phoneSpans, selection.Endings)
 		}
 		for i, phone := range mora.Phones {
 			result.PhoneTimings = append(result.PhoneTimings, PhoneTiming{Position: position, Symbol: phone.Symbol, Role: phone.Role, StartMS: phoneCursor, DurationMS: phoneSpans[i]})
@@ -359,8 +347,8 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			aliasKind = voicebank.ClassifyAlias(selection.Alias)
 		}
 		mainUnit := unitFromSelection(&selection, position, cursor, duration, prediction, "mora")
-		// 音素単位英語と中国語の鼻音は主原音内にある。終了音として重複させない。
-		if mora.Language == frontend.LanguageChinese || (mora.Language == frontend.LanguageEnglish && len(mora.Phones) == 1) {
+		// 中国語の鼻音は主原音内にある。終了音として重複させない。
+		if mora.Language == frontend.LanguageChinese {
 			for _, phone := range mora.Phones {
 				if phone.Role == "coda" {
 					mainUnit.CodaPhones = append(mainUnit.CodaPhones, phone.Symbol)
@@ -375,10 +363,6 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			profile := bank.CalibrateSpeech(selection.Entry)
 			mainUnit.SpeechProfile = &profile
 		}
-		if mora.Language == frontend.LanguageEnglish && containsStopPhone(mainUnit.CodaPhones) && !mainUnit.Silent && mainUnit.SpeechProfile == nil {
-			profile := bank.CalibrateSpeech(selection.Entry)
-			mainUnit.SpeechProfile = &profile
-		}
 		if position < len(cfg.PhoneWeights) && cfg.PhoneWeights[position] != nil {
 			applyPhoneTimingAnchor(&mainUnit, mora, phoneSpans)
 		}
@@ -390,24 +374,10 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			endingStart := cursor + duration - endingDuration*float64(len(selection.Endings))
 			for index := range selection.Endings {
 				start, span := endingStart+float64(index)*endingDuration, endingDuration
-				codaFloorMS := 0.0
-				if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil && len(mora.Aliases.EndingPhones) > 0 {
-					start, span, codaFloorMS = speechEndingTiming(mora, phoneSpans, selection.Endings[index].EndingIndex, cursor, duration, cfg.PhoneWeightsSource == "multilingual-speech-score-v1")
-				}
 				selectedEnding := selection.Endings[index]
-				if mora.Language == frontend.LanguageEnglish && len(selectedEnding.CodaPhones) > 0 && cfg.PhoneWeightsSource == "multilingual-speech-score-v1" {
-					start, span = speechCodaGroupTiming(mora, phoneSpans, selectedEnding.CodaStart, len(selectedEnding.CodaPhones), cursor)
-				}
 				endingUnit := unitFromSelection(&selection.Endings[index], position, start, span, prediction, "ending")
-				endingIndex := selection.Endings[index].EndingIndex
-				if mora.Language == frontend.LanguageEnglish && mora.Aliases != nil && endingIndex >= 0 && endingIndex < len(mora.Aliases.EndingPhones) {
-					endingUnit.CodaPhones = append([]string(nil), mora.Aliases.EndingPhones[endingIndex]...)
-				}
 				if len(selectedEnding.CodaPhones) > 0 {
 					endingUnit.CodaPhones = append([]string(nil), selectedEnding.CodaPhones...)
-				}
-				if len(endingUnit.CodaPhones) > 0 {
-					endingUnit.CodaFloorMS = codaFloorMS
 				}
 				if containsStopPhone(endingUnit.CodaPhones) && !endingUnit.Silent {
 					profile := bank.CalibrateSpeech(selection.Endings[index].Entry)

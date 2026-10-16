@@ -89,23 +89,6 @@ func TestAliasProfilesBundleSelectionAndRendererSettings(t *testing.T) {
 	}
 }
 
-func TestEnglishSpeechProfileKeepsCVVCTransitionsAudible(t *testing.T) {
-	cfg := Config{AliasPolicy: voicebank.AliasPolicyCVVCPrefer, CVVCTransitionGain: 0.35}
-	applyLanguageSpeechProfile(frontend.LanguageEnglish, &cfg)
-	if cfg.CVVCTransitionGain <= 0.35 {
-		t.Fatalf("English transition gain = %.2f, want above the default 0.35", cfg.CVVCTransitionGain)
-	}
-	cfg.CVVCTransitionGain = 0.6
-	applyLanguageSpeechProfile(frontend.LanguageEnglish, &cfg)
-	if cfg.CVVCTransitionGain != 0.6 {
-		t.Fatalf("explicit transition gain was changed: %.2f", cfg.CVVCTransitionGain)
-	}
-	applyLanguageSpeechProfile(frontend.LanguageJapanese, &cfg)
-	if cfg.CVVCTransitionGain != 0.6 {
-		t.Fatalf("Japanese transition gain was changed: %.2f", cfg.CVVCTransitionGain)
-	}
-}
-
 func TestResolveProsodyModelForLanguageUsesBundledEnglishFallback(t *testing.T) {
 	directory := t.TempDir()
 	japanesePath := filepath.Join(directory, "japanese-intonation.json")

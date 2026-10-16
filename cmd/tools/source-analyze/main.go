@@ -106,7 +106,7 @@ func run(path, out, positions string) error {
 	value := map[string]any{"version": 1, "language": p.Language, "text": p.Text, "reading": p.Reading, "voicebank": p.Voicebank,
 		"phonemizer": p.Phonemizer, "source_phone_symbols": frontend.EnglishSourceSymbols(p.Phonemizer),
 		"analysis_kind": "acoustic-observation-not-phone-alignment", "units": rows,
-		"missing_phones": p.MissingPhones, "annotation_status": "unobserved", "reference_audio": "",
+		"annotation_status": "unobserved", "reference_audio": "",
 		"observed_phone_intervals": []any{}}
 	data, err = json.MarshalIndent(value, "", "  ")
 	if err != nil {

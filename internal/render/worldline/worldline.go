@@ -18,7 +18,6 @@ import (
 	"github.com/yh2237/UtauTTS/internal/provider"
 	"github.com/yh2237/UtauTTS/internal/render/base"
 	"github.com/yh2237/UtauTTS/internal/speechtiming"
-	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
 // nilなら計測ログを出さない。
@@ -129,7 +128,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 	units := worldlineUnitBuilder{
 		plan: synthesisPlan, cfg: cfg, cache: &cache, timing: timing, pitch: pitch,
 		normalizedSources: normalizedSources, legacyMix: legacyMix,
-		libraries: sourceLibraries(synthesisPlan, cfg),
 	}
 	for i := range synthesisPlan.Units {
 		if synthesisPlan.Units[i].Silent {
@@ -333,7 +331,6 @@ type worldlineUnitBuilder struct {
 	pitch             worldlinePitchResult
 	normalizedSources map[string]string
 	legacyMix         bool
-	libraries         []*voicebank.SourcePhoneLibrary
 }
 
 func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
@@ -370,9 +367,6 @@ func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
 	envelopePoints := base.OpenUtauEnvelopeFromTiming(*unit, phoneTiming)
 	if cfg.CVVCPreBoundaryFade && unit.Role == "transition" {
 		envelopePoints = base.CVVCPreBoundaryEnvelope(envelopePoints, phoneTiming)
-	}
-	if cut, ok := codaEndingStart(synthesisPlan, *unit); ok {
-		envelopePoints = envelopeEndAt(envelopePoints, cut+3-unit.NoteStartMS)
 	}
 	pitchLengthMS := envelopePoints[4].XMS + pitchLeadingMS
 	positionMS := unit.NoteStartMS - phoneTiming.Preutter + leadingMS
@@ -449,13 +443,6 @@ func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
 		}
 		speech.Anchors = singleCVLegatoAnchors(speech.SourceOnsetMS, speech.TargetOnsetMS, requiredLength, duration)
 	}
-	if strategy.multilingual {
-		duration, err := b.sourceDurationMS(*unit)
-		if err != nil {
-			return worldlineManifestUnit{}, err
-		}
-		return mapSpeechSource(synthesisPlan, i, item, cfg.ProviderOptions.Worldline, b.libraries, duration, leadingMS)
-	}
 	return item, nil
 }
 
@@ -467,7 +454,6 @@ type worldlineSpeechStrategy struct {
 	legacyE2BStop    bool
 	stretch          bool
 	singleCVLegato   bool
-	multilingual     bool
 }
 
 // resolveWorldlineSpeechStrategyはユニットの種類から方針を一度だけ決める。
@@ -479,7 +465,6 @@ func (b worldlineUnitBuilder) resolveWorldlineSpeechStrategy(i int, codaRelease,
 		singleCV:       singleCVUnit,
 		stopProtected:  worldlineStopProtection(synthesisPlan, *unit, options),
 		singleCVLegato: singleCVLegato(synthesisPlan, *unit),
-		multilingual:   speechPlacement(synthesisPlan, *unit),
 	}
 	if base.SpeechStop(synthesisPlan, *unit) {
 		if strategy.stopProtected {

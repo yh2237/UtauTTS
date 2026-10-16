@@ -36,7 +36,6 @@ type measurement struct {
 	Peak                     float64 `json:"peak"`
 	RMS                      float64 `json:"rms"`
 	SilentUnits              int     `json:"silent_units"`
-	MissingPhoneGroups       int     `json:"missing_phone_groups"`
 	V13CompatibleUnits       int     `json:"v1_3_compatible_units"`
 	AdaptiveUnits            int     `json:"adaptive_units"`
 	GapRepairUnits           int     `json:"gap_repair_units"`

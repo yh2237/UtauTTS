@@ -97,7 +97,6 @@ type sweepUnits struct {
 	GapRepair int `json:"gap_repair"`
 	StopBurst int `json:"stop_burst"`
 	Silent    int `json:"silent"`
-	Missing   int `json:"missing"`
 }
 
 type sweepPromptJSON struct {
@@ -245,7 +244,6 @@ func unitsFrom(row measurement) sweepUnits {
 		GapRepair: row.GapRepairUnits,
 		StopBurst: row.StopBurstUnits,
 		Silent:    row.SilentUnits,
-		Missing:   row.MissingPhoneGroups,
 	}
 }
 

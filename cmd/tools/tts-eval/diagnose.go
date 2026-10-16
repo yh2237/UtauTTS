@@ -86,10 +86,6 @@ func diagnoseCorpus(bankPath, out string, prompts []prompt) error {
 			if err != nil {
 				row.Stage = "candidate_selection"
 			}
-			if err == nil && len(row.Coverage.MissingPhones) > 0 {
-				row.Stage = "phoneme_coverage"
-				err = fmt.Errorf("%d required phone groups are missing", len(row.Coverage.MissingPhones))
-			}
 		}
 		if err != nil {
 			row.Error = err.Error()

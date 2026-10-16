@@ -118,7 +118,6 @@ func selectionPlanDigest(p *plan.Plan) string {
 
 func fillMeasurement(row *measurement, result *synth.Result) *plan.Plan {
 	row.AudioMS = result.DurationMS
-	row.MissingPhoneGroups = len(result.Plan.MissingPhones)
 	renderedPlan := result.RenderedPlan()
 	for _, unit := range renderedPlan.Units {
 		switch unit.WorldRenderMode {
