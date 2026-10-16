@@ -235,6 +235,7 @@ func (e *Engine) Speak(index *refmatch.Index, world refmatch.World, pieces []Pie
 	}
 	audio, err := index.Synthesize(world, refmatch.Request{
 		Features: features, Frames: frames, ReferenceF0: referenceF0, OutputF0: outF0,
+		ReferenceLevel: refmatch.ReferenceLevels(samples, kokoroRate, frames*4),
 	})
 	if err != nil {
 		return Speech{}, err

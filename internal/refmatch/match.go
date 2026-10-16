@@ -16,7 +16,10 @@ const (
 	voicingPenalty  = 0.5
 	smoothingFrames = 3
 	postfilterBeta  = 0.4
-	matchBlockRows  = 32
+	// 参照の音量がピークからquietLevelDBより下がった分だけ、出力も最大maxQuietCutDBまで下げる。
+	quietLevelDB   = 40.0
+	maxQuietCutDB  = 40.0
+	matchBlockRows = 32
 )
 
 // Requestは参照音声の特徴量とF0。
@@ -32,6 +35,8 @@ type Request struct {
 	PitchScale float64
 	// OutputF0を渡すと、CenterHzとPitchScaleの代わりにこのF0（5msごと、Hz、0は無声）で合成する。
 	OutputF0 []float64
+	// ReferenceLevelは参照の5msごとの音量（dB、ReferenceLevelsの値）。無音の区間で出力を下げるのに使う。
+	ReferenceLevel []float64
 }
 
 // Synthesizeは、参照の各フレームに前後2フレームまで含めて近い音源のフレームを4つ選び、その平均をWORLDで合成する。
@@ -58,6 +63,7 @@ func (index *Index) Synthesize(world World, request Request) ([]float64, error) 
 	decodedAP := make([]float64, rows*bins)
 	sharpened := make([]float64, spectrumDims)
 	before := make([]float64, bins)
+	cut := quietCut(request.ReferenceLevel, rows)
 	for row := range rows {
 		coded := spectrum[row*spectrumDims : (row+1)*spectrumDims]
 		c.decodeSpectrum(coded, before)
@@ -67,7 +73,7 @@ func (index *Index) Synthesize(world World, request Request) ([]float64, error) 
 		}
 		after := decodedSpectrum[row*bins : (row+1)*bins]
 		c.decodeSpectrum(sharpened, after)
-		ratio := sum(before) / sum(after)
+		ratio := sum(before) / sum(after) * math.Pow(10, -cut[row]/10)
 		for i := range after {
 			after[i] *= ratio
 		}
@@ -81,6 +87,40 @@ func (index *Index) Synthesize(world World, request Request) ([]float64, error) 
 		c.decodeAperiodicity(aperiodicity[row*index.APBands:(row+1)*index.APBands], ap)
 	}
 	return world.Synthesize(outF0, decodedSpectrum, decodedAP, index.FFTSize, index.SampleRate, worldFrameMS)
+}
+
+// ReferenceLevelsは参照音声の5msごとの音量を、95パーセンタイルを0dBとして返す。
+func ReferenceLevels(samples []float64, sampleRate, rows int) []float64 {
+	hop := sampleRate * int(worldFrameMS) / 1000
+	levels := make([]float64, rows)
+	for row := range rows {
+		var energy float64
+		for i := (row - 1) * hop; i < (row+2)*hop; i++ {
+			if i >= 0 && i < len(samples) {
+				energy += samples[i] * samples[i]
+			}
+		}
+		levels[row] = 10 * math.Log10(energy/float64(3*hop)+1e-12)
+	}
+	peak := percentile(levels, 95)
+	for i := range levels {
+		levels[i] -= peak
+	}
+	return levels
+}
+
+// quietCutは行ごとに出力を下げるdBを返す。
+func quietCut(levels []float64, rows int) []float64 {
+	cut := make([]float64, rows)
+	if len(levels) < rows {
+		return cut
+	}
+	for row := range rows {
+		if levels[row] < -quietLevelDB {
+			cut[row] = math.Min(-quietLevelDB-levels[row], maxQuietCutDB)
+		}
+	}
+	return gaussianFilter(cut, 2)
 }
 
 func frameVoicing(f0 []float64) []bool {
