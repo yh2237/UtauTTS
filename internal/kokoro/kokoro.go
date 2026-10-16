@@ -30,6 +30,7 @@ type Model struct {
 	weights      map[string]torchpth.Tensor
 	convLayouts  map[string][]float32
 	convTLayouts map[string][]float32
+	convPacked   map[string][]*tensor.PackedB
 	packedLinear sync.Map
 	layoutMu     sync.Mutex
 	mu           sync.Mutex
@@ -63,7 +64,7 @@ func Load(pthPath, configPath string) (*Model, error) {
 		name = strings.Replace(name, ".module.", ".", 1)
 		clean[name] = value
 	}
-	model := &Model{config: cfg, weights: clean, convLayouts: make(map[string][]float32), convTLayouts: make(map[string][]float32)}
+	model := &Model{config: cfg, weights: clean, convLayouts: make(map[string][]float32), convTLayouts: make(map[string][]float32), convPacked: make(map[string][]*tensor.PackedB)}
 	for name := range clean {
 		if strings.HasSuffix(name, ".weight_v") {
 			model.folded(strings.TrimSuffix(name, ".weight_v"))
@@ -259,35 +260,53 @@ func (m *Model) conv(x []float32, t, in, out, kernel, stride, pad, dilation, gro
 		}
 		m.convLayouts[name] = flatWeights
 	}
+	depth := in / groups * kernel
+	outGroup := out / groups
+	packed, ok := m.convPacked[name]
+	if !ok {
+		packed = make([]*tensor.PackedB, groups)
+		for group := range packed {
+			packed[group] = tensor.PackB(flatWeights[group*outGroup*depth:(group+1)*outGroup*depth], outGroup, depth, true)
+		}
+		m.convPacked[name] = packed
+	}
 	m.layoutMu.Unlock()
 	n := (t+2*pad-dilation*(kernel-1)-1)/stride + 1
 	y := make([]float32, n*out)
-	depth := in / groups * kernel
 	const block = 256
-	for group := 0; group < groups; group++ {
-		outGroup := out / groups
-		flat := flatWeights[group*outGroup*depth : (group+1)*outGroup*depth]
-		column := make([]float32, min(block, n)*depth)
-		blockOutput := make([]float32, min(block, n)*outGroup)
-		for start := 0; start < n; start += block {
-			rows := min(block, n-start)
-			a := column[:rows*depth]
-			clear(a)
-			for r := 0; r < rows; r++ {
-				for k := 0; k < kernel; k++ {
-					src := (start+r)*stride + k*dilation - pad
-					if src >= 0 && src < t {
-						copy(a[r*depth+k*(in/groups):r*depth+(k+1)*(in/groups)], x[src*in+group*(in/groups):src*in+(group+1)*(in/groups)])
+	blocks := (n + block - 1) / block
+	// ブロックごとに並べ直しから行列積までを分担し、1つのブロックしかないときは行列積を並列にする。
+	workers := min(runtime.GOMAXPROCS(0), blocks)
+	gemmWorkers := max(1, runtime.GOMAXPROCS(0)/workers)
+	var wait sync.WaitGroup
+	for worker := range workers {
+		wait.Go(func() {
+			column := make([]float32, min(block, n)*depth)
+			blockOutput := make([]float32, min(block, n)*outGroup)
+			for index := worker; index < blocks; index += workers {
+				start := index * block
+				rows := min(block, n-start)
+				for group := 0; group < groups; group++ {
+					a := column[:rows*depth]
+					clear(a)
+					for r := 0; r < rows; r++ {
+						for k := 0; k < kernel; k++ {
+							src := (start+r)*stride + k*dilation - pad
+							if src >= 0 && src < t {
+								copy(a[r*depth+k*(in/groups):r*depth+(k+1)*(in/groups)], x[src*in+group*(in/groups):src*in+(group+1)*(in/groups)])
+							}
+						}
+					}
+					z := blockOutput[:rows*outGroup]
+					tensor.SGEMMPacked(z, a, packed[group], rows, gemmWorkers)
+					for r := 0; r < rows; r++ {
+						copy(y[(start+r)*out+group*outGroup:(start+r)*out+(group+1)*outGroup], z[r*outGroup:(r+1)*outGroup])
 					}
 				}
 			}
-			z := blockOutput[:rows*outGroup]
-			tensor.SGEMMOp(z, a, flat, rows, outGroup, depth, false, true)
-			for r := 0; r < rows; r++ {
-				copy(y[(start+r)*out+group*outGroup:(start+r)*out+(group+1)*outGroup], z[r*outGroup:(r+1)*outGroup])
-			}
-		}
+		})
 	}
+	wait.Wait()
 	if b, ok := m.weights[name+".bias"]; ok {
 		for r := 0; r < n; r++ {
 			for c := 0; c < out; c++ {
