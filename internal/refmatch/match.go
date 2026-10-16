@@ -30,6 +30,8 @@ type Request struct {
 	CenterHz float64
 	// PitchScaleは参照のF0の動きを何倍にするか。
 	PitchScale float64
+	// OutputF0を渡すと、CenterHzとPitchScaleの代わりにこのF0（5msごと、Hz、0は無声）で合成する。
+	OutputF0 []float64
 }
 
 // Synthesizeは、参照の各フレームに前後2フレームまで含めて近い音源のフレームを4つ選び、その平均をWORLDで合成する。
@@ -47,7 +49,11 @@ func (index *Index) Synthesize(world World, request Request) ([]float64, error) 
 
 	c := newCodec(index.SampleRate, index.FFTSize, spectrumDims)
 	bins := index.FFTSize/2 + 1
-	outF0 := index.OutputF0(f0, request.CenterHz, request.PitchScale)
+	outF0 := request.OutputF0
+	if len(outF0) < rows {
+		outF0 = index.OutputF0(f0, request.CenterHz, request.PitchScale)
+	}
+	outF0 = outF0[:rows]
 	decodedSpectrum := make([]float64, rows*bins)
 	decodedAP := make([]float64, rows*bins)
 	sharpened := make([]float64, spectrumDims)

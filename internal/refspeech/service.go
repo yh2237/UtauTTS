@@ -289,10 +289,10 @@ func (s *Service) Speak(ctx context.Context, bankRoot, worldEnginePath string, p
 }
 
 // Readは音素列をKokoroで読む。音源と索引は使わない。
-func (s *Service) Read(pieces []Piece, speed float32) (Reference, error) {
+func (s *Service) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
 	engine, err := s.openEngine()
 	if err != nil {
 		return Reference{}, err
 	}
-	return engine.Read(pieces, speed)
+	return engine.Read(pieces, speed, durations)
 }
