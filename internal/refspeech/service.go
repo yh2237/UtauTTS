@@ -40,9 +40,11 @@ type Service struct {
 
 	mu      sync.Mutex
 	buildMu sync.Mutex
-	engine  *Engine
-	worlds  map[string]*worldrender.World
-	indexes map[string]*indexEntry
+	// foregroundは読み上げの間に持つ。索引の作成は、ファイルごとに読み上げが終わるのを待つ。
+	foreground sync.RWMutex
+	engine     *Engine
+	worlds     map[string]*worldrender.World
+	indexes    map[string]*indexEntry
 }
 
 type indexEntry struct {
@@ -232,7 +234,12 @@ func (s *Service) loadOrBuild(bankRoot, worldEnginePath string, progress func(do
 	if err != nil {
 		return nil, err
 	}
-	index, err := refmatch.BuildIndex(files, FeatureModel, world, engine.Features, progress)
+	features := func(samples []float64, rate int) ([]float32, int, int, error) {
+		s.foreground.Lock()
+		s.foreground.Unlock()
+		return engine.Features(samples, rate)
+	}
+	index, err := refmatch.BuildIndex(files, FeatureModel, world, features, progress)
 	if err != nil {
 		return nil, err
 	}
@@ -285,6 +292,8 @@ func (s *Service) Speak(ctx context.Context, bankRoot, worldEnginePath string, p
 	if err != nil {
 		return Speech{}, err
 	}
+	s.foreground.RLock()
+	defer s.foreground.RUnlock()
 	return engine.Speak(index, world, pieces, options)
 }
 
@@ -294,5 +303,7 @@ func (s *Service) Read(pieces []Piece, speed float32, durations []int) (Referenc
 	if err != nil {
 		return Reference{}, err
 	}
+	s.foreground.RLock()
+	defer s.foreground.RUnlock()
 	return engine.Read(pieces, speed, durations)
 }
