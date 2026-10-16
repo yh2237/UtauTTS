@@ -93,6 +93,9 @@ type Config struct {
 	JoinModelPath           string
 	JoinModel               *connection.JoinModel
 	ProviderOptions         render.ProviderOptions
+	// WorldEnginePathとEnglishReferenceDirは英語の合成に使うWORLDエンジンとモデルのフォルダ。Rendererに関係なく使う。
+	WorldEnginePath     string
+	EnglishReferenceDir string
 }
 
 type Result struct {
@@ -334,6 +337,9 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	language, phonemizer, reading, morae, err := resolvePronunciation(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
+	}
+	if frontend.NormalizeLanguage(language) == frontend.LanguageEnglish {
+		return synthesizeEnglishReference(cfg, bank, language, phonemizer, reading, morae)
 	}
 	profile := languageProfileFor(language)
 	profile.ApplySpeechProfile(&cfg)

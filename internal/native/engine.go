@@ -12,6 +12,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/openutau"
 	"github.com/yh2237/UtauTTS/internal/plugin"
+	"github.com/yh2237/UtauTTS/internal/refspeech"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/synth"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
@@ -121,6 +122,8 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 		result, err = e.exportUstx(requestJSON)
 	case "writeSidecars":
 		result, err = e.writeSidecars(requestJSON)
+	case "englishIndexes":
+		result = refspeech.CurrentProgress()
 	case "installVoicebank":
 		result, err = e.installVoicebank(requestJSON)
 	default:
@@ -166,6 +169,9 @@ func (e *Engine) voicebankList() []map[string]any {
 		if bank, err := voicebank.Load(item.Path); err == nil {
 			capabilities := bank.AliasCapabilities()
 			language, phonemizer := bank.SuggestedLanguage()
+			if language == frontend.LanguageEnglish {
+				e.synth.PrepareEnglish(bank.Root)
+			}
 			entry["suggested_language"] = language
 			entry["suggested_phonemizer"] = phonemizer
 			entry["types"] = bank.SubbankOptions()

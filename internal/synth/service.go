@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/yh2237/UtauTTS/internal/engine"
@@ -390,6 +392,13 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		}
 	}
 	tts.ApplyResolvedEngine(&cfg, resolvedEngine)
+	cfg.EnglishReferenceDir = s.englishReferenceDir()
+	cfg.WorldEnginePath = resolvedEngine.Resource(engine.ResourceWorldEngine)
+	if cfg.WorldEnginePath == "" {
+		if worldPhrase, err := s.ResolveRenderer("utautts-world-phrase"); err == nil {
+			cfg.WorldEnginePath = worldPhrase.Resource(engine.ResourceWorldEngine)
+		}
+	}
 	if requireVoicebank && resolvedEngine.Provider.ClassicTools {
 		tools, toolsErr := s.ResolveClassicTools(
 			firstNonEmpty(resolution.Resampler, request.Resampler),
@@ -402,6 +411,33 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		providerOptions.Classic.WavtoolPath = tools.Wavtool.Path
 	}
 	return cfg, string(resolvedEngine.PublicID()), providerOptions, nil
+}
+
+// PrepareEnglishは音源の英語の索引がなければ裏で作り始める。モデルかWORLDエンジンがなければ何もしない。
+func (s *Service) PrepareEnglish(bankRoot string) {
+	worldPhrase, err := s.ResolveRenderer("utautts-world-phrase")
+	if err != nil {
+		return
+	}
+	service, err := tts.EnglishReferenceService(s.englishReferenceDir(), worldPhrase.Resource(engine.ResourceWorldEngine))
+	if err != nil {
+		return
+	}
+	service.Prepare(bankRoot)
+}
+
+// englishReferenceDirは、抑揚モデルのあるフォルダのうち、英語の合成のモデルを置いたフォルダを返す。
+func (s *Service) englishReferenceDir() string {
+	if s.catalog == nil {
+		return ""
+	}
+	for _, model := range s.catalog.Models {
+		dir := filepath.Join(filepath.Dir(model.Path), tts.EnglishReferenceDir)
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			return dir
+		}
+	}
+	return ""
 }
 
 func firstNonEmpty(override, fallback string) string {
