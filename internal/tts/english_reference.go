@@ -156,9 +156,17 @@ func synthesizeEnglishReference(cfg Config, bank *voicebank.Bank, language, phon
 	if err != nil {
 		return nil, fmt.Errorf("English synthesis: %w", err)
 	}
+	peak := 0.0
+	for _, v := range speech.Audio {
+		peak = math.Max(peak, math.Abs(v))
+	}
+	scale := 1.0
+	if peak > 0.98 {
+		scale = 0.98 / peak
+	}
 	pcm := &audio.PCM{SampleRate: speech.SampleRate, Channels: 1, Data: make([]int16, len(speech.Audio))}
 	for i, v := range speech.Audio {
-		pcm.Data[i] = int16(math.Round(math.Max(-1, math.Min(1, v)) * 32767))
+		pcm.Data[i] = int16(math.Round(math.Max(-1, math.Min(1, v*scale)) * 32767))
 	}
 	durations := englishMoraDurations(englishMoraTokens(pieces, speech.Timing, reading, morae), speech.Timing, cfg.MoraDurationsMS)
 	leading := speech.LeadingMS()
