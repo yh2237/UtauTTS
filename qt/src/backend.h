@@ -27,6 +27,8 @@ class Backend final : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool connected READ connected NOTIFY connectedChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
+    Q_PROPERTY(bool englishIndexBuilding READ englishIndexBuilding NOTIFY englishIndexChanged)
+    Q_PROPERTY(double englishIndexProgress READ englishIndexProgress NOTIFY englishIndexChanged)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
     Q_PROPERTY(QVariantList voicebanks READ voicebanks NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList models READ models NOTIFY metadataChanged)
@@ -98,6 +100,8 @@ public:
     QString prosodyJson() const { return m_prosodyJson; }
     QString synthesisJson() const { return m_synthesisJson; }
     QUrl previewUrl() const { return m_previewUrl; }
+    bool englishIndexBuilding() const { return m_englishIndexBuilding; }
+    double englishIndexProgress() const { return m_englishIndexProgress; }
     bool darkMode() const { return m_darkMode; }
     QString language() const { return m_language; }
     bool onboardingCompleted() const { return m_onboardingCompleted; }
@@ -208,6 +212,7 @@ signals:
     void errorChanged();
     void metadataReloadStarted();
     void metadataReloadStageChanged(const QString &stage);
+    void englishIndexChanged();
     void metadataChanged();
     void analysisChanged();
     void prosodyChanged();
@@ -264,8 +269,11 @@ private:
     void trimPreviewCache();
     void clearPreviewCache();
     bool restartNativeBackend();
+    void checkEnglishIndexes();
     uintptr_t m_handle = 0;
     bool m_busy = false;
+    bool m_englishIndexBuilding = false;
+    double m_englishIndexProgress = 0;
     QString m_error;
     QString m_previewPath;
     QString m_previewText;

@@ -509,6 +509,15 @@ ApplicationWindow {
             window.metadataReloadStage = stage;
         }
 
+        function onEnglishIndexChanged() {
+            if (window.appBackend.englishIndexBuilding) {
+                window.metadataReloadStage = "englishIndex";
+                dialogs.metadataReloadDialog.open();
+            } else if (window.metadataReloadStage === "englishIndex" && !window.metadataReloadActive) {
+                dialogs.metadataReloadDialog.close();
+            }
+        }
+
         function onMetadataChanged() {
             if (window.metadataReloadActive) {
                 window.metadataReloadActive = false;
