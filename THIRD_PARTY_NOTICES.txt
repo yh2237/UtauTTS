@@ -100,6 +100,20 @@ licenses/Go/github_com_yh2237_utauio-v0.4.0-LICENSE.txt.
 Source: https://github.com/yh2237/audiodsp
 
 
+gograd
+======
+
+UtauTTS uses github.com/yh2237/gograd v1.7.0 for matrix multiplication,
+PyTorch checkpoint reading, PyTorch-compatible random numbers and resampling,
+and in its training tools for automatic differentiation and CUDA training.
+The library is distributed under the MIT License, Copyright (c) 2026 yh. It
+has no external module dependencies. Its license text is identical to
+utauio's and is included once as
+licenses/Go/github_com_yh2237_utauio-v0.4.0-LICENSE.txt.
+
+Source: https://github.com/yh2237/gograd
+
+
 go-pinyin
 =========
 
@@ -230,6 +244,8 @@ The UtauTTS WORLD phrase renderer builds the official WORLD
 sources at commit d625e7608ca23a870018f01e7c562ac683d9847f into an UtauTTS-owned
 analysis and synthesis library. The WORLD license and bundled component
 notices are included under licenses/WORLD in each release package.
+UtauTTS modifies fft.cpp, harvest.cpp, cheaptrick.cpp and d4c.cpp to speed up
+analysis; third_party/world/README.md lists the changes.
 
 Copyright (c) 2010 M. Morise
 All rights reserved.
@@ -413,6 +429,47 @@ licenses/ENGLISH-REFERENCE-MODELS.txt.
 
 UtauTTS source code uses the repository MIT License; models, prompts,
 voicebanks, and other third-party assets use their respective notices.
+
+
+Kokoro, StyleTTS 2, HuBERT and misaki code
+==========================================
+
+internal/kokoro reimplements in Go the Kokoro-82M inference of the kokoro
+Python package (https://github.com/hexgrad/kokoro), which is licensed under
+the Apache License 2.0. Parts of that package are adapted from StyleTTS 2
+(https://github.com/yl4579/StyleTTS2), which is licensed under the MIT
+License:
+
+Copyright (c) 2023 Aaron (Yinghao) Li
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+internal/hubert reimplements in Go the HuBERT Base feature extractor and is
+checked against the Hugging Face Transformers implementation
+(https://github.com/huggingface/transformers), which is licensed under the
+Apache License 2.0.
+
+internal/refspeech/lexicon.go ports the English lexicon lookup and the
+context-dependent word readings of misaki (https://github.com/hexgrad/misaki),
+which is licensed under the Apache License 2.0.
+
+The Apache License 2.0 text is in licenses/APACHE-2.0.txt.
 
 
 DiffSinger ONNX Runtime and DirectML bridge
