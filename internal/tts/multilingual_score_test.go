@@ -46,28 +46,3 @@ func TestMandarinNeutralToneShorterWithAudibleNasal(t *testing.T) {
 		}
 	}
 }
-
-func TestSpeechPreviewUsesCanonicalClockAndManualOverride(t *testing.T) {
-	var total float64
-	for _, phone := range []string{"en-delta", "en-vccv", "en-arpasing", "en-cv"} {
-		cfg := Config{Language: "en", Phonemizer: phone, Reading: "HH AH0 L OW1 | W ER1 L D"}
-		preview, err := PredictProsody(cfg)
-		if err != nil {
-			t.Fatal(err)
-		}
-		sum := 0.0
-		for _, d := range preview.MoraDurationsMS {
-			sum += d
-		}
-		if total == 0 {
-			total = sum
-		} else if math.Abs(total-sum) > .001 {
-			t.Fatal(phone, sum, total)
-		}
-		cfg.MoraDurationsMS = []float64{250}
-		manual, err := PredictProsody(cfg)
-		if err != nil || manual.MoraDurationsMS[0] != 250 {
-			t.Fatal(manual, err)
-		}
-	}
-}

@@ -12,6 +12,9 @@ import (
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
+// EnglishReferenceDirはモデルのフォルダの下で、英語の参照TTSと特徴量のモデルを置くフォルダ。
+const EnglishReferenceDir = "english-reference"
+
 type englishProfile struct{}
 
 func (englishProfile) Language() string { return frontend.LanguageEnglish }

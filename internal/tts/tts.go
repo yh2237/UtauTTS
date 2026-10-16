@@ -495,6 +495,9 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
+	if frontend.NormalizeLanguage(language) == frontend.LanguageEnglish {
+		return predictEnglishReference(cfg, reading, morae)
+	}
 	profile := languageProfileFor(language)
 	loadedProsody, err := resolveProsodyModelForProfile(cfg, profile)
 	if err != nil {

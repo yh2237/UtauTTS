@@ -419,11 +419,7 @@ func (s *Service) PrepareEnglish(bankRoot string) {
 	if err != nil {
 		return
 	}
-	service, err := tts.EnglishReferenceService(s.englishReferenceDir(), worldPhrase.Resource(engine.ResourceWorldEngine))
-	if err != nil {
-		return
-	}
-	service.Prepare(bankRoot)
+	tts.PrepareEnglishIndex(s.englishReferenceDir(), bankRoot, worldPhrase.Resource(engine.ResourceWorldEngine))
 }
 
 // englishReferenceDirは、抑揚モデルのあるフォルダのうち、英語の合成のモデルを置いたフォルダを返す。

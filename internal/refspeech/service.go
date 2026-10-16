@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -34,14 +35,13 @@ type IndexStatus struct {
 
 // Serviceはモデルと音源ごとの索引を持ち、索引を裏で作る。
 type Service struct {
-	models     Models
-	enginePath string
-	cacheDir   string
+	models   Models
+	cacheDir string
 
 	mu      sync.Mutex
 	buildMu sync.Mutex
 	engine  *Engine
-	world   *worldrender.World
+	worlds  map[string]*worldrender.World
 	indexes map[string]*indexEntry
 }
 
@@ -86,15 +86,15 @@ func CurrentProgress() Progress {
 	return Progress{Building: true, Progress: (float64(batch.done) + batch.current) / float64(batch.total)}
 }
 
-// Sharedはモデルの置き場所とWORLDエンジンごとに1つのServiceを返す。
-func Shared(models Models, enginePath, cacheDir string) *Service {
-	key := strings.Join([]string{models.KokoroWeights, models.HuBERT, enginePath, cacheDir}, "\x00")
+// Sharedはモデルの置き場所ごとに1つのServiceを返す。
+func Shared(models Models, cacheDir string) *Service {
+	key := strings.Join([]string{models.KokoroWeights, models.HuBERT, cacheDir}, "\x00")
 	sharedMu.Lock()
 	defer sharedMu.Unlock()
 	if service, ok := sharedServices[key]; ok {
 		return service
 	}
-	service := &Service{models: models, enginePath: enginePath, cacheDir: cacheDir, indexes: map[string]*indexEntry{}}
+	service := &Service{models: models, cacheDir: cacheDir, worlds: map[string]*worldrender.World{}, indexes: map[string]*indexEntry{}}
 	sharedServices[key] = service
 	return service
 }
@@ -108,24 +108,38 @@ func DefaultCacheDir() (string, error) {
 	return filepath.Join(base, "UtauTTS", "english-reference"), nil
 }
 
-func (s *Service) open() (*Engine, *worldrender.World, error) {
+func (s *Service) openEngine() (*Engine, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.engine == nil {
 		engine, err := Open(s.models)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		s.engine = engine
 	}
-	if s.world == nil {
-		world, err := worldrender.OpenWorld(s.enginePath)
+	return s.engine, nil
+}
+
+func (s *Service) open(worldEnginePath string) (*Engine, *worldrender.World, error) {
+	engine, err := s.openEngine()
+	if err != nil {
+		return nil, nil, err
+	}
+	if worldEnginePath == "" {
+		return nil, nil, errors.New("English synthesis needs the UtauTTS WORLD engine")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	world := s.worlds[worldEnginePath]
+	if world == nil {
+		world, err = worldrender.OpenWorld(worldEnginePath)
 		if err != nil {
 			return nil, nil, err
 		}
-		s.world = world
+		s.worlds[worldEnginePath] = world
 	}
-	return s.engine, s.world, nil
+	return engine, world, nil
 }
 
 // Statusは音源の索引の状態を返す。
@@ -139,13 +153,13 @@ func (s *Service) Status(bankRoot string) IndexStatus {
 }
 
 // Prepareは音源の索引がなければ裏で作り始める。
-func (s *Service) Prepare(bankRoot string) {
-	s.entry(bankRoot)
+func (s *Service) Prepare(bankRoot, worldEnginePath string) {
+	s.entry(bankRoot, worldEnginePath)
 }
 
 // Indexは音源の索引を返す。作成中なら終わるまで待つ。
-func (s *Service) Index(ctx context.Context, bankRoot string) (*refmatch.Index, error) {
-	entry := s.entry(bankRoot)
+func (s *Service) Index(ctx context.Context, bankRoot, worldEnginePath string) (*refmatch.Index, error) {
+	entry := s.entry(bankRoot, worldEnginePath)
 	select {
 	case <-entry.done:
 	case <-ctx.Done():
@@ -159,7 +173,7 @@ func (s *Service) Index(ctx context.Context, bankRoot string) (*refmatch.Index, 
 	return entry.index, nil
 }
 
-func (s *Service) entry(bankRoot string) *indexEntry {
+func (s *Service) entry(bankRoot, worldEnginePath string) *indexEntry {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if entry, ok := s.indexes[bankRoot]; ok && entry.status.State != IndexFailed {
@@ -170,15 +184,15 @@ func (s *Service) entry(bankRoot string) *indexEntry {
 	batchMu.Lock()
 	batch.total++
 	batchMu.Unlock()
-	go s.build(bankRoot, entry)
+	go s.build(bankRoot, worldEnginePath, entry)
 	return entry
 }
 
 // buildは索引を1つずつ作る。どの索引の作成も全コアを使うため。
-func (s *Service) build(bankRoot string, entry *indexEntry) {
+func (s *Service) build(bankRoot, worldEnginePath string, entry *indexEntry) {
 	s.buildMu.Lock()
 	defer s.buildMu.Unlock()
-	index, err := s.loadOrBuild(bankRoot, func(done, total int) {
+	index, err := s.loadOrBuild(bankRoot, worldEnginePath, func(done, total int) {
 		progress := float64(done) / float64(max(total, 1))
 		s.mu.Lock()
 		entry.status.Progress = progress
@@ -205,7 +219,7 @@ func (s *Service) build(bankRoot string, entry *indexEntry) {
 	close(entry.done)
 }
 
-func (s *Service) loadOrBuild(bankRoot string, progress func(done, total int)) (*refmatch.Index, error) {
+func (s *Service) loadOrBuild(bankRoot, worldEnginePath string, progress func(done, total int)) (*refmatch.Index, error) {
 	files, key, err := bankRecordings(bankRoot)
 	if err != nil {
 		return nil, err
@@ -214,7 +228,7 @@ func (s *Service) loadOrBuild(bankRoot string, progress func(done, total int)) (
 	if index, err := refmatch.LoadIndex(path); err == nil && index.Model == FeatureModel && index.Source == key {
 		return index, nil
 	}
-	engine, world, err := s.open()
+	engine, world, err := s.open(worldEnginePath)
 	if err != nil {
 		return nil, err
 	}
@@ -262,14 +276,23 @@ func bankRecordings(bankRoot string) ([]string, string, error) {
 }
 
 // Speakは音源の索引を使って音素列を合成する。
-func (s *Service) Speak(ctx context.Context, bankRoot string, pieces []Piece, options Options) (Speech, error) {
-	index, err := s.Index(ctx, bankRoot)
+func (s *Service) Speak(ctx context.Context, bankRoot, worldEnginePath string, pieces []Piece, options Options) (Speech, error) {
+	index, err := s.Index(ctx, bankRoot, worldEnginePath)
 	if err != nil {
 		return Speech{}, err
 	}
-	engine, world, err := s.open()
+	engine, world, err := s.open(worldEnginePath)
 	if err != nil {
 		return Speech{}, err
 	}
 	return engine.Speak(index, world, pieces, options)
+}
+
+// Readは音素列をKokoroで読む。音源と索引は使わない。
+func (s *Service) Read(pieces []Piece, speed float32) (Reference, error) {
+	engine, err := s.openEngine()
+	if err != nil {
+		return Reference{}, err
+	}
+	return engine.Read(pieces, speed)
 }

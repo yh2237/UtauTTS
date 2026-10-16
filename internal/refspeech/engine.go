@@ -98,20 +98,59 @@ type Speech struct {
 	F0 []float64
 }
 
+// ReferenceはKokoroの読み。
+type Reference struct {
+	// Audioは24kHzの音声。F0はKokoroの内部のF0（12.5msごと、Hz）。
+	Audio []float32
+	F0    []float32
+	// PieceMSは音素列の断片ごとの長さ。LeadingMSとTrailingMSは先頭と末尾の境界記号の長さ。
+	PieceMS               []float64
+	LeadingMS, TrailingMS float64
+}
+
+// ReferenceF0は参照のF0を、有声区間を約20msでなめらかにしてF0FrameMSごとにする（0は無声）。
+func (r Reference) ReferenceF0() []float64 {
+	frames := len(r.Audio) * 1000 / kokoroRate / int(refmatch.FrameMS)
+	return refmatch.ReferenceF0(r.F0, kokoroF0FrameMS, frames)
+}
+
+// Readは音素列をKokoroで読む。
+func (e *Engine) Read(pieces []Piece, speed float32) (Reference, error) {
+	var phonemes strings.Builder
+	for _, piece := range pieces {
+		phonemes.WriteString(piece.Symbols)
+	}
+	if speed <= 0 {
+		speed = 1
+	}
+	result, err := e.kokoro.Synthesize(phonemes.String(), e.voice, speed, torchrng.New(kokoroSeed))
+	if err != nil {
+		return Reference{}, err
+	}
+	reference := Reference{Audio: result.Audio, F0: result.F0, PieceMS: make([]float64, len(pieces))}
+	durations := result.Durations
+	if len(durations) > 0 {
+		reference.LeadingMS = float64(durations[0]) * kokoroDurationMS
+		reference.TrailingMS = float64(durations[len(durations)-1]) * kokoroDurationMS
+	}
+	token := 1
+	for i, piece := range pieces {
+		for range e.kokoro.Tokens(piece.Symbols) {
+			if token < len(durations)-1 {
+				reference.PieceMS[i] += float64(durations[token]) * kokoroDurationMS
+			}
+			token++
+		}
+	}
+	return reference, nil
+}
+
 // Speakは音素列をKokoroで読み、その特徴量に近い音源のフレームで合成し直す。
 func (e *Engine) Speak(index *refmatch.Index, world refmatch.World, pieces []Piece, options Options) (Speech, error) {
 	if index.Model != FeatureModel {
 		return Speech{}, fmt.Errorf("voicebank index uses %q, want %q", index.Model, FeatureModel)
 	}
-	var phonemes strings.Builder
-	for _, piece := range pieces {
-		phonemes.WriteString(piece.Symbols)
-	}
-	speed := options.Speed
-	if speed <= 0 {
-		speed = 1
-	}
-	reference, err := e.kokoro.Synthesize(phonemes.String(), e.voice, speed, torchrng.New(kokoroSeed))
+	reference, err := e.Read(pieces, options.Speed)
 	if err != nil {
 		return Speech{}, err
 	}
@@ -123,30 +162,15 @@ func (e *Engine) Speak(index *refmatch.Index, world refmatch.World, pieces []Pie
 	if err != nil {
 		return Speech{}, err
 	}
-	scale := options.PitchScale
 	referenceF0 := refmatch.ReferenceF0(reference.F0, kokoroF0FrameMS, frames)
 	audio, err := index.Synthesize(world, refmatch.Request{
 		Features: features, Frames: frames, ReferenceF0: referenceF0,
-		CenterHz: options.CenterHz, PitchScale: scale,
+		CenterHz: options.CenterHz, PitchScale: options.PitchScale,
 	})
 	if err != nil {
 		return Speech{}, err
 	}
-	speech := Speech{Audio: audio, SampleRate: index.SampleRate, PieceMS: make([]float64, len(pieces)),
-		F0: index.OutputF0(referenceF0, options.CenterHz, scale)}
-	durations := reference.Durations
-	if len(durations) > 0 {
-		speech.LeadingMS = float64(durations[0]) * kokoroDurationMS
-		speech.TrailingMS = float64(durations[len(durations)-1]) * kokoroDurationMS
-	}
-	token := 1
-	for i, piece := range pieces {
-		for range e.kokoro.Tokens(piece.Symbols) {
-			if token < len(durations)-1 {
-				speech.PieceMS[i] += float64(durations[token]) * kokoroDurationMS
-			}
-			token++
-		}
-	}
-	return speech, nil
+	return Speech{Audio: audio, SampleRate: index.SampleRate, PieceMS: reference.PieceMS,
+		LeadingMS: reference.LeadingMS, TrailingMS: reference.TrailingMS,
+		F0: index.OutputF0(referenceF0, options.CenterHz, options.PitchScale)}, nil
 }

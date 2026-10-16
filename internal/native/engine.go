@@ -12,9 +12,9 @@ import (
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/openutau"
 	"github.com/yh2237/UtauTTS/internal/plugin"
-	"github.com/yh2237/UtauTTS/internal/refspeech"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/synth"
+	"github.com/yh2237/UtauTTS/internal/tts"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
@@ -123,7 +123,7 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 	case "writeSidecars":
 		result, err = e.writeSidecars(requestJSON)
 	case "englishIndexes":
-		result = refspeech.CurrentProgress()
+		result = tts.EnglishIndexProgress()
 	case "installVoicebank":
 		result, err = e.installVoicebank(requestJSON)
 	default:
