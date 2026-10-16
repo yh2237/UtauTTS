@@ -78,7 +78,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		stretchAdaptStrength     float64
 		pauseContext             bool
 		pauseContextStrength     float64
-		englishWeakForm          bool
 		timingWarp               bool
 		microprosody             bool
 		renderer                 string
@@ -152,7 +151,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	flag.Float64Var(&stretchAdaptStrength, "stretch-adapt-strength", synth.DefaultStretchAdaptStrength, "stretch adaptation strength (0 uses the default 1.0)")
 	flag.BoolVar(&pauseContext, "pause-context", synth.DefaultPauseContext, "context-aware punctuation pause length (B5)")
 	flag.Float64Var(&pauseContextStrength, "pause-context-strength", synth.DefaultPauseContextStrength, "pause context strength (0 uses the default 1.0)")
-	flag.BoolVar(&englishWeakForm, "english-weak-form", synth.DefaultEnglishWeakForm, "weak forms for English function words (E1)")
 	flag.BoolVar(&microprosody, "microprosody", render.WorldlineProviderOptions{}.MicroprosodyEnabled(), "add measured consonant-induced F0 microprosody to Japanese WORLD output (utautts-world-phrase)")
 	flag.BoolVar(&timingWarp, "timing-warp", render.WorldlineProviderOptions{}.TimingWarpEnabled(), "warp Japanese WORLD output timing toward learned speech movement (utautts-world-phrase)")
 	flag.StringVar(&renderer, "renderer", "", "renderer ID (default: highest configured priority)")
@@ -366,7 +364,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 				MoraDurationMS: &moraMS, PauseDurationMS: &pauseMS, ReleaseMS: &releaseMS,
 				IntonationStrength: &intonationStrength, ApplyPitch: &applyPitch,
 				ContextDuration: &contextDuration, BoundaryTone: &boundaryTone,
-				StretchAdapt: &stretchAdapt, PauseContext: &pauseContext, EnglishWeakForm: &englishWeakForm,
+				StretchAdapt: &stretchAdapt, PauseContext: &pauseContext,
 			},
 		}
 		// 配置、詳細編集、評価用入力は通常の発話要求に含めない。

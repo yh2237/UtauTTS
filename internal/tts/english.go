@@ -8,7 +8,6 @@ import (
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
-	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
@@ -22,17 +21,17 @@ func (englishProfile) Language() string { return frontend.LanguageEnglish }
 func (englishProfile) ParsePronunciation(cfg Config, phonemizer string) (string, []frontend.Mora, error) {
 	switch phonemizer {
 	case frontend.PhonemizerEnglish:
-		return frontend.ParseEnglishARPAsingWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, englishOptions(cfg))
+		return frontend.ParseEnglishARPAsing(cfg.Text, cfg.Reading, cfg.Dictionary)
 	case frontend.PhonemizerEnglishDelta:
 		var presamp frontend.PresampConfig
 		if cfg.Voicebank != nil {
 			presamp = cfg.Voicebank.Presamp.FrontendConfig()
 		}
-		return frontend.ParseEnglishDeltaWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, presamp, englishOptions(cfg))
+		return frontend.ParseEnglishDeltaWithConfig(cfg.Text, cfg.Reading, cfg.Dictionary, presamp)
 	case frontend.PhonemizerEnglishVCCV:
-		return frontend.ParseEnglishVCCVWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, englishOptions(cfg))
+		return frontend.ParseEnglishVCCV(cfg.Text, cfg.Reading, cfg.Dictionary)
 	case frontend.PhonemizerEnglishCV:
-		return frontend.ParseEnglishCVWithOptions(cfg.Text, cfg.Reading, cfg.Dictionary, englishOptions(cfg))
+		return frontend.ParseEnglishCV(cfg.Text, cfg.Reading, cfg.Dictionary)
 	default:
 		return "", nil, fmt.Errorf("unsupported phonemizer %q for language %q", phonemizer, frontend.LanguageEnglish)
 	}
@@ -72,10 +71,6 @@ func (englishProfile) AutomaticPitchCurve(cfg Config, model *prosody.Model, mora
 
 func (englishProfile) ApplyBoundaryTone(_ Config, curve *render.PitchCurve, _ float64, _ bool) *render.PitchCurve {
 	return curve
-}
-
-func englishOptions(cfg Config) frontend.EnglishOptions {
-	return frontend.EnglishOptions{WeakForms: englishWeakFormEnabled(cfg)}
 }
 
 // 日本語モデルを使えない英語向けの規則ベースの代替。辞書の強勢を優先する。
@@ -163,11 +158,4 @@ func englishStressAccent(stress int, local float64) float64 {
 		dip = -12 * (1 - local/0.28) / float64(stress)
 	}
 	return dip + strength*math.Sin(math.Pi*local)
-}
-
-func englishWeakFormEnabled(cfg Config) bool {
-	if cfg.EnglishWeakForm == nil {
-		return settings.Bool("english_weak_form")
-	}
-	return *cfg.EnglishWeakForm
 }

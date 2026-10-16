@@ -144,7 +144,6 @@
     "settings.timingWarp": "Speech-like timing",
     "settings.pauseContext": "Context-aware pause length",
     "settings.pauseContextStrength": "Strength",
-    "settings.englishWeakForm": "English weak forms",
     "settings.resamplerAuto": "Automatic",
     "settings.defaultDiffSingerSteps": "DiffSinger Steps",
     "settings.defaultDiffSingerExpr": "DiffSinger Expression",

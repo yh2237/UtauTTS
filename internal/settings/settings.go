@@ -44,7 +44,6 @@ var Table = []Setting{
 	{ID: "pause_context", Type: "boolean", Group: "correction", Default: true, Label: "settings.pauseContext"},
 	{ID: "timing_warp", Type: "boolean", Group: "correction", Default: true, Label: "settings.timingWarp", Providers: []string{worldPhrase}},
 	{ID: "microprosody", Type: "boolean", Group: "prosody", Default: true, Label: "settings.microprosody", Providers: []string{worldPhrase}, Languages: []string{"ja"}},
-	{ID: "english_weak_form", Type: "boolean", Group: "pronunciation", Default: true, Label: "settings.englishWeakForm", Languages: []string{"en"}},
 	{ID: "resampler", Type: "enum", Group: "classic", Default: "", OptionsSource: "resamplers", Label: "main.param.resampler", Providers: []string{classic}},
 	{ID: "wavtool", Type: "enum", Group: "classic", Default: "builtin", OptionsSource: "wavtools", Label: "main.param.wavtool", Providers: []string{classic}},
 	{ID: "diffsinger_steps", Type: "integer", Group: "diffsinger", Default: 0.0, Min: value(0), Max: value(100), Label: "settings.defaultDiffSingerSteps", Providers: []string{diffSinger}},

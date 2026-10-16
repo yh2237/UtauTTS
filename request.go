@@ -50,7 +50,7 @@ func (r Request) internal() (synth.Request, error) {
 	for id, raw := range r.RendererSettings {
 		switch id {
 		case "mora_duration_ms", "pause_duration_ms", "intonation_strength", "release_ms", "apply_pitch",
-			"context_duration", "boundary_tone", "stretch_adapt", "pause_context", "english_weak_form":
+			"context_duration", "boundary_tone", "stretch_adapt", "pause_context":
 			return synth.Request{}, fmt.Errorf("%w: %s belongs in Options", ErrInvalidRequest, id)
 		}
 		if !json.Valid(raw) || strings.TrimSpace(string(raw)) == "null" {

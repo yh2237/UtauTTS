@@ -71,9 +71,6 @@ var rendererSettingSpecs = []rendererSettingSpec{
 	numberSetting("pause_context_strength",
 		func(r Request) any { return r.PauseContextStrength },
 		func(value float64, cfg *tts.Config, _ *render.ProviderOptions) { cfg.PauseContextStrength = value }),
-	boolSetting("english_weak_form",
-		func(r Request) any { return r.EnglishWeakForm },
-		func(value bool, cfg *tts.Config) { cfg.EnglishWeakForm = &value }),
 	numberSetting("diffsinger_steps",
 		func(r Request) any { return float64(r.DiffSingerSteps) },
 		func(value float64, _ *tts.Config, options *render.ProviderOptions) {

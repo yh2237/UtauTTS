@@ -32,7 +32,6 @@ type JSONRequest struct {
 	BoundaryTone       bool                       `json:"boundary_tone"`
 	StretchAdapt       bool                       `json:"stretch_adapt"`
 	PauseContext       bool                       `json:"pause_context"`
-	EnglishWeakForm    bool                       `json:"english_weak_form"`
 	RendererSettings   map[string]json.RawMessage `json:"renderer_settings,omitempty"`
 	editingRequest
 	compatibilityRequest
@@ -79,7 +78,6 @@ func defaultJSONRequest() JSONRequest {
 		IntonationStrength: defaults.IntonationStrength, ApplyPitch: defaults.ApplyPitch,
 		ContextDuration: defaults.ContextDuration, BoundaryTone: defaults.BoundaryTone,
 		StretchAdapt: defaults.StretchAdapt, PauseContext: defaults.PauseContext,
-		EnglishWeakForm: defaults.EnglishWeakForm,
 		compatibilityRequest: compatibilityRequest{
 			Wavtool:                 defaults.Wavtool,
 			ContextDurationStrength: defaults.ContextDurationStrength,
@@ -127,7 +125,6 @@ func (request JSONRequest) publicRequest() utautts.Request {
 			IntonationStrength: &request.IntonationStrength, ApplyPitch: &request.ApplyPitch,
 			ContextDuration: &request.ContextDuration, BoundaryTone: &request.BoundaryTone,
 			StretchAdapt: &request.StretchAdapt, PauseContext: &request.PauseContext,
-			EnglishWeakForm: &request.EnglishWeakForm,
 		},
 	}
 }

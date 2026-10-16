@@ -38,7 +38,6 @@ var (
 	DefaultStretchAdaptStrength    = settings.Number("stretch_adapt_strength")
 	DefaultPauseContext            = settings.Bool("pause_context")
 	DefaultPauseContextStrength    = settings.Number("pause_context_strength")
-	DefaultEnglishWeakForm         = settings.Bool("english_weak_form")
 )
 
 const DefaultReleaseMS = render.DefaultReleaseMS
@@ -57,7 +56,6 @@ func DefaultRequest() Request {
 		StretchAdaptStrength:    DefaultStretchAdaptStrength,
 		PauseContext:            DefaultPauseContext,
 		PauseContextStrength:    DefaultPauseContextStrength,
-		EnglishWeakForm:         DefaultEnglishWeakForm,
 		ApplyPitch:              DefaultApplyPitch,
 		Wavtool:                 "builtin",
 	}
@@ -109,7 +107,6 @@ type Request struct {
 	StretchAdaptStrength    float64                      `json:"stretch_adapt_strength"`
 	PauseContext            bool                         `json:"pause_context"`
 	PauseContextStrength    float64                      `json:"pause_context_strength"`
-	EnglishWeakForm         bool                         `json:"english_weak_form"`
 	ApplyPitch              bool                         `json:"apply_pitch"`
 	BoundaryBridgeMS        float64                      `json:"-"`
 	BoundaryBridgeThreshold float64                      `json:"-"`

@@ -51,7 +51,6 @@ type Config struct {
 	// PauseContextStrengthはポーズ長補正の強度。0は既定1.0。
 	PauseContextStrength float64
 	// nilは既定で有効。
-	EnglishWeakForm         *bool
 	Context                 context.Context
 	Engine                  engine.ResolvedEngine
 	VoicebankPath           string
