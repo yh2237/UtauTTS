@@ -449,12 +449,16 @@ static void GetBaseIndex(double current_position, const double *base_time,
 static void GetMainWindow(double current_position, const int *base_index,
     int base_time_length, double fs, double window_length_in_time,
     double *main_window) {
-  double tmp = 0.0;
+  double start = 2.0 * world::kPi *
+    ((base_index[0] - 1.0) / fs - current_position) / window_length_in_time;
+  double step = 2.0 * world::kPi / fs / window_length_in_time;
+  double c = cos(start), s = sin(start);
+  double cd = cos(step), sd = sin(step);
   for (int i = 0; i < base_time_length; ++i) {
-    tmp = (base_index[i] - 1.0) / fs - current_position;
-    main_window[i] = 0.42 +
-      0.5 * cos(2.0 * world::kPi * tmp / window_length_in_time) +
-      0.08 * cos(4.0 * world::kPi * tmp / window_length_in_time);
+    main_window[i] = 0.42 + 0.5 * c + 0.08 * (2.0 * c * c - 1.0);
+    double next = c * cd - s * sd;
+    s = s * cd + c * sd;
+    c = next;
   }
 }
 

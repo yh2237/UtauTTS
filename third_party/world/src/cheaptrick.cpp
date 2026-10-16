@@ -28,12 +28,16 @@ static void SmoothingWithRecovery(double f0, int fs, int fft_size, double q1,
   smoothing_lifter[0] = 1.0;
   compensation_lifter[0] = (1.0 - 2.0 * q1) + 2.0 * q1;
   double quefrency;
+  double step = world::kPi * f0 / fs;
+  double c = cos(step), s = sin(step);
+  double cd = c, sd = s;
   for (int i = 1; i <= forward_real_fft->fft_size / 2; ++i) {
     quefrency = static_cast<double>(i) / fs;
-    smoothing_lifter[i] = sin(world::kPi * f0 * quefrency) /
-      (world::kPi * f0 * quefrency);
-    compensation_lifter[i] = (1.0 - 2.0 * q1) + 2.0 * q1 *
-      cos(2.0 * world::kPi * quefrency * f0);
+    smoothing_lifter[i] = s / (world::kPi * f0 * quefrency);
+    compensation_lifter[i] = (1.0 - 2.0 * q1) + 2.0 * q1 * (c * c - s * s);
+    double next = c * cd - s * sd;
+    s = s * cd + c * sd;
+    c = next;
   }
 
   for (int i = 0; i <= fft_size / 2; ++i)
@@ -96,11 +100,16 @@ static void SetParametersForGetWindowedWaveform(int half_window_length,
 
   // Designing of the window function
   double average = 0.0;
-  double position;
+  double start = world::kPi * current_f0 * (base_index[0] / 1.5 / fs);
+  double step = world::kPi * current_f0 / 1.5 / fs;
+  double c = cos(start), s = sin(start);
+  double cd = cos(step), sd = sin(step);
   for (int i = 0; i <= half_window_length * 2; ++i) {
-    position = base_index[i] / 1.5 / fs;
-    window[i] = 0.5 * cos(world::kPi * position * current_f0) + 0.5;
+    window[i] = 0.5 * c + 0.5;
     average += window[i] * window[i];
+    double next = c * cd - s * sd;
+    s = s * cd + c * sd;
+    c = next;
   }
   average = sqrt(average);
   for (int i = 0; i <= half_window_length * 2; ++i) window[i] /= average;
