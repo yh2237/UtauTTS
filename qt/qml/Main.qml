@@ -760,7 +760,7 @@ ApplicationWindow {
             model_id: item.modelId || "",
             renderer: item.renderer || "",
             alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
-            tone: item.tone || "C4",
+            tone: item.tone || "",
             color: item.color || "",
             mora_duration_ms: item.moraDuration,
             pause_duration_ms: item.pauseDuration,
@@ -1205,7 +1205,7 @@ ApplicationWindow {
                 model_id: item.modelId || "",
                 renderer_id: item.renderer || "",
                 alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
-                tone: item.tone || "C4",
+                tone: item.tone || "",
                 color: item.color || "",
                 mora_duration_ms: item.moraDuration,
                 pause_duration_ms: item.pauseDuration,
@@ -1238,7 +1238,7 @@ ApplicationWindow {
         }
         const project = {
             format: "utautts-project",
-            format_version: 8,
+            format_version: 9,
             app_version: Qt.application.version,
             utterances: savedUtterances,
             selected_index: utterances.count ? selectedIndex : 0
@@ -1428,7 +1428,9 @@ ApplicationWindow {
                 renderer: rendererId,
                 aliasPolicy: saved.alias_policy === undefined
                         ? window.appBackend.defaultAliasPolicy : window.normalizeAliasPolicy(saved.alias_policy),
-                tone: String(saved.tone || window.appBackend.defaultTone),
+                // 形式8までは指定なしもC4で保存していた。
+                tone: projectFormatVersion < 9 && String(saved.tone) === "C4"
+                        ? "" : String(saved.tone === undefined ? window.appBackend.defaultTone : saved.tone),
                 color: String(saved.color || ""),
                 moraDuration: window.projectNumber(saved.mora_duration_ms, window.appBackend.defaultMoraDuration, 20, 1000, true),
                 pauseDuration: window.projectNumber(saved.pause_duration_ms, window.appBackend.defaultPauseDuration, 0, 3000, true),
@@ -1957,7 +1959,7 @@ ApplicationWindow {
         }
         selectedIndex = index;
         const item = current();
-        editorContent.toneField.text = item.tone;
+        editorContent.toneSlider.value = editorContent.toneInput.toneToValue(item.tone);
         editorContent.moraSlider.value = item.moraDuration;
         editorContent.pauseSlider.value = item.pauseDuration;
         editorContent.leadingPreutteranceSlider.value = item.leadingPreutterance;
@@ -2154,6 +2156,11 @@ ApplicationWindow {
     function resetPauseDuration() {
         editorContent.pauseSlider.value = 180;
         window.updateSetting("pauseDuration", 180);
+    }
+
+    function resetTone() {
+        editorContent.toneSlider.value = editorContent.toneInput.automaticValue;
+        window.updateSetting("tone", "");
     }
 
     function resetLeadingPreutterance() {

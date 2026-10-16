@@ -24,7 +24,7 @@ Item {
     property string pendingDefaultModelId: "frame-intonation-tcn-v12"
     property string pendingDefaultRendererId: "utautts-world-phrase"
     property string pendingDefaultAliasPolicy: "auto"
-    property string pendingDefaultTone: "C4"
+    property string pendingDefaultTone: ""
     property bool pendingExportTextWithWav: false
     property bool pendingExportLabWithWav: false
     property string pendingExportTextEncoding: "utf-8"
@@ -155,7 +155,7 @@ Item {
     }
 
     function resetDefaultTone() {
-        pendingDefaultTone = "C4";
+        pendingDefaultTone = "";
     }
 
     function resetPreviewCacheFileCount() {
@@ -639,12 +639,14 @@ Item {
                                                 text: root.translator.tr("settings.defaultTone")
                                                 Layout.fillWidth: true
                                             }
-                                            TextField {
-                                                id: defaultToneField
+                                            ToneSpinBox {
+                                                id: defaultToneInput
                                                 Layout.preferredWidth: 180
-                                                horizontalAlignment: TextInput.AlignRight
-                                                text: root.pendingDefaultTone
-                                                onEditingFinished: root.pendingDefaultTone = text.trim().length ? text.trim() : "C4"
+                                                automaticText: root.translator.tr("main.aliasPolicy.auto")
+                                                onToneModified: tone => root.pendingDefaultTone = tone
+                                                Binding on value {
+                                                    value: defaultToneInput.toneToValue(root.pendingDefaultTone)
+                                                }
                                             }
                                             SettingsResetButton {
                                                 translator: root.translator

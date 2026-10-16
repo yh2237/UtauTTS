@@ -309,7 +309,7 @@ private:
     QString m_ffmpegPath;
     QString m_audioOutputDeviceId;
     QVariantMap m_rendererSettings;
-    QString m_defaultTone = QStringLiteral("C4");
+    QString m_defaultTone;
     QString m_defaultAliasPolicy = QStringLiteral("auto");
     bool m_exportTextWithWav = false;
     bool m_exportLabWithWav = false;

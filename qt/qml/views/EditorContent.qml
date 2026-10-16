@@ -19,7 +19,8 @@ import UtauTTS.Media
         property alias aliasPolicyCombo: aliasPolicyCombo
         property alias modelCombo: modelCombo
         property alias rendererCombo: rendererCombo
-        property alias toneField: toneField
+        property alias toneInput: toneInput
+        property alias toneSlider: toneSlider
         property alias colorCombo: colorCombo
         property alias intonationInput: intonationInput
         property alias intonationSlider: intonationSlider
@@ -481,6 +482,32 @@ import UtauTTS.Media
                         RowLayout {
                             Layout.fillWidth: true
                             Label {
+                                text: window.translator.tr("main.param.tone")
+                                Layout.fillWidth: true
+                            }
+                            ToneSpinBox {
+                                id: toneInput
+                                Layout.preferredWidth: 96
+                                automaticText: window.translator.tr("main.aliasPolicy.auto")
+                                value: Math.round(toneSlider.value)
+                                onToneModified: tone => {
+                                    toneSlider.value = value;
+                                    window.updateSetting("tone", tone);
+                                }
+                            }
+                        }
+                        ParameterSlider {
+                            id: toneSlider
+                            Layout.fillWidth: true
+                            from: toneInput.from
+                            to: toneInput.to
+                            onMoved: window.updateSetting("tone", toneInput.valueToTone(Math.round(value)))
+                            onResetRequested: window.resetTone()
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
                                 text: window.translator.tr("main.param.moraDuration")
                                 Layout.fillWidth: true
                             }
@@ -634,22 +661,6 @@ import UtauTTS.Media
                                 textRole: "display_name"
                                 valueRole: "id"
                                 onActivated: window.updateSetting("renderer", currentValue)
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Layout.topMargin: 8
-                            Label {
-                                text: window.translator.tr("main.param.tone")
-                                Layout.fillWidth: true
-                            }
-                            TextField {
-                                id: toneField
-                                Layout.preferredWidth: 72
-                                horizontalAlignment: TextInput.AlignRight
-                                text: "C4"
-                                onEditingFinished: window.updateSetting("tone", text)
                             }
                         }
 

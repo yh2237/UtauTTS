@@ -142,6 +142,7 @@ qt_add_qml_module(utautts
         qml/controls/GrayscaleMenuItem.qml
         qml/controls/PlaybackControls.qml
         qml/controls/ParameterSlider.qml
+        qml/controls/ToneSpinBox.qml
         qml/controls/DragHud.qml
         qml/editors/PitchEditor.qml
         qml/editors/PhonemeEditor.qml

@@ -416,7 +416,7 @@ Backend::Backend(QObject *parent)
       m_defaultModelId(portableSettingValue("synthesis/defaultModelId",
                                          QStringLiteral("frame-intonation-tcn-v12")).toString().trimmed()),
       m_defaultVoicebankId(portableSettingValue("voicebank/defaultId", QString()).toString().trimmed()),
-      m_defaultTone(portableSettingValue("synthesis/defaultTone", QStringLiteral("C4")).toString().trimmed()),
+      m_defaultTone(portableSettingValue("synthesis/defaultBaseTone", QString()).toString().trimmed()),
       m_defaultAliasPolicy(normalizeAliasPolicySetting(
           portableSettingValue("synthesis/defaultAliasPolicy", QStringLiteral("auto")).toString())),
       m_exportTextWithWav(portableSettingValue("export/writeTextWithWav", false).toBool()),
@@ -436,8 +436,10 @@ Backend::Backend(QObject *parent)
     emscripten::val asyncFlag = emscripten::val::global("utauttsAsyncMode");
     m_wasmAsync = !asyncFlag.isUndefined() && asyncFlag.as<bool>();
 #endif
-    if (m_defaultTone.isEmpty())
-        m_defaultTone = QStringLiteral("C4");
+    // 旧設定のC4は指定なしの既定値だったので引き継がない。
+    const QString legacyTone = portableSettingValue("synthesis/defaultTone", QString()).toString().trimmed();
+    if (m_defaultTone.isEmpty() && legacyTone.compare(QStringLiteral("C4"), Qt::CaseInsensitive) != 0)
+        m_defaultTone = legacyTone;
     m_previewCacheFileCount = qBound(1, m_previewCacheFileCount, 256);
     if (m_exportTextEncoding != QStringLiteral("shift_jis"))
         m_exportTextEncoding = QStringLiteral("utf-8");
@@ -876,7 +878,7 @@ void Backend::setSynthesisDefaults(const QString &modelId, const QString &render
                                    const QString &tone, const QString &aliasPolicy) {
     const QString normalizedModelId = modelId.trimmed();
     const QString normalizedRendererId = rendererId.trimmed();
-    const QString normalizedTone = tone.trimmed().isEmpty() ? QStringLiteral("C4") : tone.trimmed();
+    const QString normalizedTone = tone.trimmed();
     const QString normalizedAliasPolicy = normalizeAliasPolicySetting(aliasPolicy);
     if (m_defaultModelId == normalizedModelId
             && m_defaultRenderer == normalizedRendererId
@@ -896,7 +898,8 @@ void Backend::setSynthesisDefaults(const QString &modelId, const QString &render
     settings.remove("synthesis/defaultApplyPitch");
     settings.setValue("synthesis/defaultModelId", m_defaultModelId);
     settings.setValue("synthesis/defaultRendererId", m_defaultRenderer);
-    settings.setValue("synthesis/defaultTone", m_defaultTone);
+    settings.remove("synthesis/defaultTone");
+    settings.setValue("synthesis/defaultBaseTone", m_defaultTone);
     settings.setValue("synthesis/defaultAliasPolicy", m_defaultAliasPolicy);
     settings.sync();
     emit synthesisDefaultsChanged();
