@@ -727,6 +727,11 @@ func arpabetHasStress(value string) bool {
 	return len(value) > 0 && value[len(value)-1] >= '0' && value[len(value)-1] <= '2'
 }
 
+// EnglishWordsは英語の読みを作るときと同じ語の並びを返す。区切りは"<pause>"になる。
+func EnglishWords(text string) []string {
+	return latinWords(normalizeEnglishText(text))
+}
+
 func latinWords(text string) []string {
 	var result []string
 	var word strings.Builder

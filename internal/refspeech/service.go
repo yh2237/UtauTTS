@@ -1,0 +1,275 @@
+package refspeech
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
+
+	"github.com/yh2237/UtauTTS/internal/refmatch"
+	"github.com/yh2237/UtauTTS/internal/worldrender"
+)
+
+// IndexStateは音源の索引の状態。
+type IndexState string
+
+const (
+	IndexMissing  IndexState = ""
+	IndexBuilding IndexState = "building"
+	IndexReady    IndexState = "ready"
+	IndexFailed   IndexState = "failed"
+)
+
+type IndexStatus struct {
+	State    IndexState `json:"state"`
+	Progress float64    `json:"progress,omitempty"`
+	Error    string     `json:"error,omitempty"`
+}
+
+// Serviceはモデルと音源ごとの索引を持ち、索引を裏で作る。
+type Service struct {
+	models     Models
+	enginePath string
+	cacheDir   string
+
+	mu      sync.Mutex
+	buildMu sync.Mutex
+	engine  *Engine
+	world   *worldrender.World
+	indexes map[string]*indexEntry
+}
+
+type indexEntry struct {
+	status IndexStatus
+	index  *refmatch.Index
+	done   chan struct{}
+}
+
+var (
+	sharedMu       sync.Mutex
+	sharedServices = map[string]*Service{}
+
+	batchMu sync.Mutex
+	batch   indexBatch
+)
+
+// indexBatchは、作成中の索引がなくなるまでに作り始めた索引の数と、作り終えた数。
+type indexBatch struct {
+	total, done int
+	current     float64
+	failed      []string
+}
+
+// Progressは索引の作成の進み具合。
+type Progress struct {
+	Building bool     `json:"building"`
+	Progress float64  `json:"progress"`
+	Failed   []string `json:"failed,omitempty"`
+}
+
+// CurrentProgressは、作成中の索引がなくなるまでにまとめて作った索引全体の進み具合を返す。
+// 作成中の索引がなくなると、それまでに失敗した索引を返して数え直す。
+func CurrentProgress() Progress {
+	batchMu.Lock()
+	defer batchMu.Unlock()
+	if batch.total == 0 || batch.done >= batch.total {
+		progress := Progress{Failed: batch.failed}
+		batch = indexBatch{}
+		return progress
+	}
+	return Progress{Building: true, Progress: (float64(batch.done) + batch.current) / float64(batch.total)}
+}
+
+// Sharedはモデルの置き場所とWORLDエンジンごとに1つのServiceを返す。
+func Shared(models Models, enginePath, cacheDir string) *Service {
+	key := strings.Join([]string{models.KokoroWeights, models.HuBERT, enginePath, cacheDir}, "\x00")
+	sharedMu.Lock()
+	defer sharedMu.Unlock()
+	if service, ok := sharedServices[key]; ok {
+		return service
+	}
+	service := &Service{models: models, enginePath: enginePath, cacheDir: cacheDir, indexes: map[string]*indexEntry{}}
+	sharedServices[key] = service
+	return service
+}
+
+// DefaultCacheDirは利用者ごとのキャッシュに置く索引のディレクトリ。
+func DefaultCacheDir() (string, error) {
+	base, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, "UtauTTS", "english-reference"), nil
+}
+
+func (s *Service) open() (*Engine, *worldrender.World, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.engine == nil {
+		engine, err := Open(s.models)
+		if err != nil {
+			return nil, nil, err
+		}
+		s.engine = engine
+	}
+	if s.world == nil {
+		world, err := worldrender.OpenWorld(s.enginePath)
+		if err != nil {
+			return nil, nil, err
+		}
+		s.world = world
+	}
+	return s.engine, s.world, nil
+}
+
+// Statusは音源の索引の状態を返す。
+func (s *Service) Status(bankRoot string) IndexStatus {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if entry, ok := s.indexes[bankRoot]; ok {
+		return entry.status
+	}
+	return IndexStatus{}
+}
+
+// Prepareは音源の索引がなければ裏で作り始める。
+func (s *Service) Prepare(bankRoot string) {
+	s.entry(bankRoot)
+}
+
+// Indexは音源の索引を返す。作成中なら終わるまで待つ。
+func (s *Service) Index(ctx context.Context, bankRoot string) (*refmatch.Index, error) {
+	entry := s.entry(bankRoot)
+	select {
+	case <-entry.done:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if entry.index == nil {
+		return nil, fmt.Errorf("voicebank index: %s", entry.status.Error)
+	}
+	return entry.index, nil
+}
+
+func (s *Service) entry(bankRoot string) *indexEntry {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if entry, ok := s.indexes[bankRoot]; ok && entry.status.State != IndexFailed {
+		return entry
+	}
+	entry := &indexEntry{status: IndexStatus{State: IndexBuilding}, done: make(chan struct{})}
+	s.indexes[bankRoot] = entry
+	batchMu.Lock()
+	batch.total++
+	batchMu.Unlock()
+	go s.build(bankRoot, entry)
+	return entry
+}
+
+// buildは索引を1つずつ作る。どの索引の作成も全コアを使うため。
+func (s *Service) build(bankRoot string, entry *indexEntry) {
+	s.buildMu.Lock()
+	defer s.buildMu.Unlock()
+	index, err := s.loadOrBuild(bankRoot, func(done, total int) {
+		progress := float64(done) / float64(max(total, 1))
+		s.mu.Lock()
+		entry.status.Progress = progress
+		s.mu.Unlock()
+		batchMu.Lock()
+		batch.current = progress
+		batchMu.Unlock()
+	})
+	batchMu.Lock()
+	batch.done++
+	batch.current = 0
+	if err != nil {
+		batch.failed = append(batch.failed, fmt.Sprintf("%s: %v", filepath.Base(bankRoot), err))
+	}
+	batchMu.Unlock()
+	s.mu.Lock()
+	if err != nil {
+		entry.status = IndexStatus{State: IndexFailed, Error: err.Error()}
+	} else {
+		entry.status = IndexStatus{State: IndexReady, Progress: 1}
+		entry.index = index
+	}
+	s.mu.Unlock()
+	close(entry.done)
+}
+
+func (s *Service) loadOrBuild(bankRoot string, progress func(done, total int)) (*refmatch.Index, error) {
+	files, key, err := bankRecordings(bankRoot)
+	if err != nil {
+		return nil, err
+	}
+	path := filepath.Join(s.cacheDir, key+".idx")
+	if index, err := refmatch.LoadIndex(path); err == nil && index.Model == FeatureModel && index.Source == key {
+		return index, nil
+	}
+	engine, world, err := s.open()
+	if err != nil {
+		return nil, err
+	}
+	index, err := refmatch.BuildIndex(files, FeatureModel, world, engine.Features, progress)
+	if err != nil {
+		return nil, err
+	}
+	index.Source = key
+	if err := os.MkdirAll(s.cacheDir, 0o755); err != nil {
+		return nil, err
+	}
+	if err := index.Save(path); err != nil {
+		return nil, err
+	}
+	return index, nil
+}
+
+// bankRecordingsは音源フォルダ以下のWAVと、その一覧・大きさ・更新時刻から作るキーを返す。
+func bankRecordings(bankRoot string) ([]string, string, error) {
+	var files []string
+	hash := sha256.New()
+	fmt.Fprintf(hash, "%s\x00%s\x00", FeatureModel, filepath.Clean(bankRoot))
+	err := filepath.WalkDir(bankRoot, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || !strings.EqualFold(filepath.Ext(path), ".wav") {
+			return err
+		}
+		files = append(files, path)
+		return nil
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	sort.Strings(files)
+	for _, path := range files {
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, "", err
+		}
+		fmt.Fprintf(hash, "%s\x00%d\x00%d\x00", path, info.Size(), info.ModTime().UnixNano())
+	}
+	if len(files) == 0 {
+		return nil, "", fmt.Errorf("no WAV files in %s", bankRoot)
+	}
+	return files, hex.EncodeToString(hash.Sum(nil))[:32], nil
+}
+
+// Speakは音源の索引を使って音素列を合成する。
+func (s *Service) Speak(ctx context.Context, bankRoot string, pieces []Piece, options Options) (Speech, error) {
+	index, err := s.Index(ctx, bankRoot)
+	if err != nil {
+		return Speech{}, err
+	}
+	engine, world, err := s.open()
+	if err != nil {
+		return Speech{}, err
+	}
+	return engine.Speak(index, world, pieces, options)
+}
