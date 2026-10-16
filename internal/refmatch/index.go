@@ -37,7 +37,7 @@ type World interface {
 	Synthesize(f0, spectrum, aperiodicity []float64, fftSize, sampleRate int, frameMS float64) ([]float64, error)
 }
 
-// FeatureFuncは波形から20msごとの特徴量（frames×dims）を返す。
+// FeatureFuncは波形から20msごとの特徴量（frames×dims）を返す。複数のgoroutineから同時に呼ぶ。
 type FeatureFunc func(samples []float64, sampleRate int) (values []float32, frames, dims int, err error)
 
 // Indexは音源の録音から選べるフレームの一覧。
@@ -74,14 +74,14 @@ type Header struct {
 func BuildIndex(files []string, model string, world World, features FeatureFunc, progress func(done, total int)) (*Index, error) {
 	results := make([]fileFrames, len(files))
 	jobs := make(chan int)
-	var mu, featureMu sync.Mutex
+	var mu sync.Mutex
 	var firstErr error
 	done := 0
 	var wg sync.WaitGroup
 	for range max(1, min(runtime.GOMAXPROCS(0), len(files))) {
 		wg.Go(func() {
 			for number := range jobs {
-				result, err := analyzeFile(files[number], world, features, &featureMu)
+				result, err := analyzeFile(files[number], world, features)
 				mu.Lock()
 				results[number] = result
 				if err != nil && firstErr == nil {
@@ -151,7 +151,7 @@ type fileFrames struct {
 }
 
 // analyzeFileは、95パーセンタイルの音量から約45dB以上小さいフレームを除いて、1ファイル分のフレームを返す。
-func analyzeFile(path string, world World, features FeatureFunc, featureMu *sync.Mutex) (fileFrames, error) {
+func analyzeFile(path string, world World, features FeatureFunc) (fileFrames, error) {
 	samples, rate, err := readMono(path)
 	if err != nil {
 		return fileFrames{}, err
@@ -160,9 +160,7 @@ func analyzeFile(path string, world World, features FeatureFunc, featureMu *sync
 	if float64(len(samples)) < float64(rate)*minimumFileSec {
 		return result, nil
 	}
-	featureMu.Lock()
 	values, frames, dims, err := features(samples, rate)
-	featureMu.Unlock()
 	if err != nil {
 		return result, err
 	}
