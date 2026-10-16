@@ -82,6 +82,22 @@ jobs:
           fi
           echo "QT_ROOT=$qt_root" >> "$GITHUB_ENV"
 
+      - name: Cache English reference models
+        uses: actions/cache@v4
+        with:
+          path: |
+            models/english-reference/kokoro-v1_0.pth
+            models/english-reference/config.json
+            models/english-reference/af_heart.pt
+            models/english-reference/hubert-base-ls960.safetensors
+            models/english-reference/us_gold.json
+            models/english-reference/us_silver.json
+          key: english-reference-${{ hashFiles('tools/fetch-english-reference.sh') }}
+
+      - name: Fetch English reference models
+        shell: bash
+        run: bash tools/fetch-english-reference.sh
+
       - name: Build and smoke-test Linux packages
         shell: bash
         run: bash tools/build-linux.sh

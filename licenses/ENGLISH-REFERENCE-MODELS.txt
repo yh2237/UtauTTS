@@ -1,0 +1,29 @@
+English reference models (models/english-reference)
+====================================================
+
+UtauTTS reads English sentences with Kokoro-82M, compares the speech with the
+voicebank recordings through HuBERT Base features, and synthesizes the output
+from the voicebank frames only. The following files are redistributed
+unmodified. All of them are licensed under the Apache License, Version 2.0;
+the license text is in licenses/APACHE-2.0.txt.
+
+Kokoro-82M
+  Files: kokoro-v1_0.pth, config.json, af_heart.pt (voices/af_heart.pt)
+  Source: https://huggingface.co/hexgrad/Kokoro-82M
+  Revision: f3ff3571791e39611d31c381e3a41a3af07b4987
+  License: Apache License 2.0
+
+HuBERT Base (facebook/hubert-base-ls960)
+  File: hubert-base-ls960.safetensors (model.safetensors)
+  Source: https://huggingface.co/facebook/hubert-base-ls960
+  Revision: af46f65f540dc3ca7aa59f46c6c3d5dbb4374fa8
+  License: Apache License 2.0
+  The model was trained on LibriSpeech (960 hours, CC BY 4.0). The original
+  fairseq release is under the MIT License, Copyright (c) Facebook, Inc. and
+  its affiliates. LibriSpeech audio is not redistributed.
+
+misaki English lexicon
+  Files: us_gold.json, us_silver.json (misaki/data)
+  Source: https://github.com/hexgrad/misaki
+  Revision: fba1236595f2d2bf21d414ba6e57d25256afada3
+  License: Apache License 2.0

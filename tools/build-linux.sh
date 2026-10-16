@@ -175,6 +175,12 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
 done
 
 echo '=== Model license notices ==='
+for english_reference_file in kokoro-v1_0.pth config.json af_heart.pt hubert-base-ls960.safetensors us_gold.json us_silver.json; do
+  if [[ ! -f "${root_dir}/models/english-reference/${english_reference_file}" ]]; then
+    echo "English reference model is missing: models/english-reference/${english_reference_file}. Run tools/fetch-english-reference.sh." >&2
+    exit 1
+  fi
+done
 for package_dir in "${gui_dir}" "${server_dir}"; do
   (cd "${root_dir}" && "${go_command}" run ./cmd/tools/copy-model-license-notices \
     --models "${root_dir}/models" \

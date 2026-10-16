@@ -120,6 +120,10 @@ try {
         Assert-Path (Join-Path $packageRoot 'runtime/open_jtalk_dic_utf_8-1.11/COPYING') 'Open JTalk dictionary license'
         Assert-Path (Join-Path $packageRoot 'runtime/utautts-worldline-bridge.exe') 'native worldline bridge'
         if ($Profile -eq 'Full') {
+            foreach ($englishReferenceFile in @('kokoro-v1_0.pth', 'config.json', 'af_heart.pt', 'hubert-base-ls960.safetensors', 'us_gold.json', 'us_silver.json', 'notices.json')) {
+                Assert-Path (Join-Path $packageRoot "models/english-reference/$englishReferenceFile") "English reference model: $englishReferenceFile"
+            }
+            Assert-Path (Join-Path $packageRoot 'licenses/ENGLISH-REFERENCE-MODELS.txt') 'English reference model notice'
             Assert-Path (Join-Path $packageRoot 'runtime/utautts-diffsinger-bridge.exe') 'DiffSinger bridge'
             foreach ($diffSingerLicense in @(
                 'ONNXRUNTIME-LICENSE.txt',
@@ -133,6 +137,9 @@ try {
                 Assert-Path (Join-Path $packageRoot "runtime/licenses/$diffSingerLicense") "DiffSinger dependency license: $diffSingerLicense"
             }
         } else {
+            if (Test-Path -LiteralPath (Join-Path $packageRoot 'models/english-reference')) {
+                throw "Japanese package contains English reference models: $packageRoot"
+            }
             foreach ($optionalRuntime in @('utautts-diffsinger-bridge.exe')) {
                 if (Test-Path -LiteralPath (Join-Path $packageRoot "runtime/$optionalRuntime")) {
                     throw "Japanese package contains optional runtime: $optionalRuntime"

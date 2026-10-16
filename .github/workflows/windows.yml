@@ -120,6 +120,22 @@ jobs:
           }
           "MSYS2_ROOT=$msys2Root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Cache English reference models
+        uses: actions/cache@v4
+        with:
+          path: |
+            models/english-reference/kokoro-v1_0.pth
+            models/english-reference/config.json
+            models/english-reference/af_heart.pt
+            models/english-reference/hubert-base-ls960.safetensors
+            models/english-reference/us_gold.json
+            models/english-reference/us_silver.json
+          key: english-reference-${{ hashFiles('tools/fetch-english-reference.ps1') }}
+
+      - name: Fetch English reference models
+        shell: pwsh
+        run: .\tools\fetch-english-reference.ps1
+
       - name: Build and smoke-test Windows packages
         shell: pwsh
         run: .\tools\build-release.ps1 -Profile Full

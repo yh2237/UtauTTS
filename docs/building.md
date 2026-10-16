@@ -22,6 +22,8 @@
 
 ビルドが完了すると、`release/` ディレクトリに配布用ZIPアーカイブが生成されます。
 
+英語の合成に使うモデル（約0.7GB）はGitで管理していません。ビルドの前に、Windowsでは`tools/fetch-english-reference.ps1`、Linux・macOSでは`tools/fetch-english-reference.sh`を実行して、`models/english-reference/`に取得してください。
+
 ---
 
 ## 開発用サーバーの起動

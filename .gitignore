@@ -33,4 +33,5 @@ aqtinstall.log
 %SystemDrive%/
 voice/足立レイver3.5.0/
 AGENTS.md
-/models/english-reference/
+/models/english-reference/*
+!/models/english-reference/notices.json

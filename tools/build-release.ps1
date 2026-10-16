@@ -224,6 +224,20 @@ try {
 		Copy-Item -LiteralPath $sourcePhonePath -Destination $guiModelsPath -Recurse
 		Copy-Item -LiteralPath $sourcePhonePath -Destination $serverModelsPath -Recurse
 	}
+    if ($Profile -eq 'Full') {
+        $englishReferencePath = Join-Path $sourceModels 'english-reference'
+        foreach ($packageModelsPath in @($guiModelsPath, $serverModelsPath)) {
+            $destination = Join-Path $packageModelsPath 'english-reference'
+            New-Item -ItemType Directory -Force -Path $destination | Out-Null
+            foreach ($name in @('kokoro-v1_0.pth', 'config.json', 'af_heart.pt', 'hubert-base-ls960.safetensors', 'us_gold.json', 'us_silver.json', 'notices.json')) {
+                $source = Join-Path $englishReferencePath $name
+                if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
+                    throw "English reference model is missing: $source. Run tools/fetch-english-reference.ps1."
+                }
+                Copy-Item -LiteralPath $source -Destination $destination
+            }
+        }
+    }
     Copy-Item -LiteralPath $modelReadmePath -Destination $guiModelsPath
     Copy-Item -LiteralPath $modelReadmePath -Destination $serverModelsPath
     foreach ($packagePath in @($guiPath, $serverPath)) {
