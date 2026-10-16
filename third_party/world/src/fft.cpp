@@ -18,9 +18,15 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include <map>
+#include <vector>
 
 void cdft(int n, int isgn, double *a, int *ip, double *w);
 void rdft(int n, int isgn, double *a, int *ip, double *w);
+void makewt(int nw, int *ip, double *w);
+void makect(int nc, int *ip, double *c);
 
 namespace {
 static void BackwardFFT(fft_plan p) {
@@ -73,10 +79,37 @@ static void ForwardFFT(fft_plan p) {
 
 }  // namespace
 
+namespace {
+// 表はnと種類だけで決まるため、スレッドごとに一度作って計画へ写す。
+struct FFTTables {
+  std::vector<int> ip;
+  std::vector<double> w;
+};
+
+static void CopyFFTTables(int n, bool real, int *ip, double *w) {
+  thread_local std::map<int, FFTTables> real_tables, complex_tables;
+  std::map<int, FFTTables> &tables = real ? real_tables : complex_tables;
+  std::map<int, FFTTables>::iterator found = tables.find(n);
+  if (found == tables.end()) {
+    FFTTables created;
+    created.ip.assign(n, 0);
+    created.w.assign(n * 5 / 4, 0.0);
+    if (real) {
+      makewt(n >> 2, created.ip.data(), created.w.data());
+      makect(n >> 2, created.ip.data(), created.w.data() + (n >> 2));
+    } else {
+      makewt(n >> 1, created.ip.data(), created.w.data());
+    }
+    found = tables.insert(std::make_pair(n, created)).first;
+  }
+  memcpy(ip, found->second.ip.data(), sizeof(int) * n);
+  memcpy(w, found->second.w.data(), sizeof(double) * (n * 5 / 4));
+}
+
+}  // namespace
+
 fft_plan fft_plan_dft_1d(int n, fft_complex *in, fft_complex *out, int sign,
     unsigned int flags) {
-  void makewt(int nw, int *ip, double *w);
-
   fft_plan output = {0};
   output.n = n;
   output.in = NULL;
@@ -89,16 +122,12 @@ fft_plan fft_plan_dft_1d(int n, fft_complex *in, fft_complex *out, int sign,
   output.ip = new int[n];
   output.w = new double[n * 5 / 4];
 
-  output.ip[0] = 0;
-  makewt(output.n >> 1, output.ip, output.w);
+  CopyFFTTables(output.n, false, output.ip, output.w);
   return output;
 }
 
 fft_plan fft_plan_dft_c2r_1d(int n, fft_complex *in, double *out,
     unsigned int flags) {
-  void makewt(int nw, int *ip, double *w);
-  void makect(int nc, int *ip, double *c);
-
   fft_plan output = {0};
   output.n = n;
   output.in = NULL;
@@ -111,17 +140,12 @@ fft_plan fft_plan_dft_c2r_1d(int n, fft_complex *in, double *out,
   output.ip = new int[n];
   output.w = new double[n * 5 / 4];
 
-  output.ip[0] = 0;
-  makewt(output.n >> 2, output.ip, output.w);
-  makect(output.n >> 2, output.ip, output.w + (output.n >> 2));
+  CopyFFTTables(output.n, true, output.ip, output.w);
   return output;
 }
 
 fft_plan fft_plan_dft_r2c_1d(int n, double *in, fft_complex *out,
     unsigned int flags) {
-  void makewt(int nw, int *ip, double *w);
-  void makect(int nc, int *ip, double *c);
-
   fft_plan output = {0};
   output.n = n;
   output.in = in;
@@ -134,9 +158,7 @@ fft_plan fft_plan_dft_r2c_1d(int n, double *in, fft_complex *out,
   output.ip = new int[n];
   output.w = new double[n * 5 / 4];
 
-  output.ip[0] = 0;
-  makewt(output.n >> 2, output.ip, output.w);
-  makect(output.n >> 2, output.ip, output.w + (output.n >> 2));
+  CopyFFTTables(output.n, true, output.ip, output.w);
   return output;
 }
 
