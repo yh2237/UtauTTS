@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 
 	"github.com/yh2237/UtauTTS/internal/refmatch"
 	"github.com/yh2237/gograd/dsp"
@@ -39,7 +40,18 @@ type Engine struct {
 	kokoro *kokoro.Model
 	voice  *kokoro.Voice
 	hubert *hubert.Model
+
+	// readsは最近のKokoroの読み。予測と合成で同じ文を読み直さないために使う。
+	readsMu sync.Mutex
+	reads   []cachedRead
 }
+
+type cachedRead struct {
+	key       string
+	reference Reference
+}
+
+const cachedReads = 8
 
 func Open(models Models) (*Engine, error) {
 	model, err := kokoro.Load(models.KokoroWeights, models.KokoroConfig)
@@ -136,15 +148,26 @@ func (r Reference) ReferenceF0() []float64 {
 	return refmatch.ReferenceF0(r.F0, kokoroF0FrameMS, frames)
 }
 
-// Readは音素列をKokoroで読む。durationsを渡すと、その長さで読む。
+// Readは音素列をKokoroで読む。durationsを渡すと、その長さで読む。返す値は書き換えない。
 func (e *Engine) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
 	var phonemes strings.Builder
-	for _, piece := range pieces {
+	symbols := make([]string, len(pieces))
+	for i, piece := range pieces {
 		phonemes.WriteString(piece.Symbols)
+		symbols[i] = piece.Symbols
 	}
 	if speed <= 0 {
 		speed = 1
 	}
+	key := fmt.Sprint(strings.Join(symbols, "\x00"), "\x01", speed, "\x01", durations)
+	e.readsMu.Lock()
+	for _, cached := range e.reads {
+		if cached.key == key {
+			e.readsMu.Unlock()
+			return cached.reference, nil
+		}
+	}
+	e.readsMu.Unlock()
 	var result kokoro.Result
 	var err error
 	if durations != nil {
@@ -163,6 +186,12 @@ func (e *Engine) Read(pieces []Piece, speed float32, durations []int) (Reference
 		token += len(e.kokoro.Tokens(piece.Symbols))
 		reference.PieceTokens[i] = [2]int{start, token}
 	}
+	e.readsMu.Lock()
+	e.reads = append(e.reads, cachedRead{key: key, reference: reference})
+	if len(e.reads) > cachedReads {
+		e.reads = e.reads[1:]
+	}
+	e.readsMu.Unlock()
 	return reference, nil
 }
 
