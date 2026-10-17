@@ -54,8 +54,12 @@ func TestInstallVoicebankReplacesExistingBank(t *testing.T) {
 	zipPath := filepath.Join(t.TempDir(), "bank.zip")
 	writeBankZip(t, zipPath, map[string]string{"oto.ini": "a.wav=あ,0,0,0,0,0\n"})
 	engine := newTestEngine(t, Config{VoiceDir: voiceDir})
-	if _, err := engine.installVoicebank(installRequest(t, zipPath)); err != nil {
+	result, err := engine.installVoicebank(installRequest(t, zipPath))
+	if err != nil {
 		t.Fatal(err)
+	}
+	if listed := result.(map[string]any)["voicebanks"].([]map[string]any); len(listed) != 1 {
+		t.Fatalf("listed %d voicebanks after install, want 1", len(listed))
 	}
 	if _, err := os.Stat(filepath.Join(old, "oto.ini")); err != nil {
 		t.Fatalf("new bank not installed: %v", err)
