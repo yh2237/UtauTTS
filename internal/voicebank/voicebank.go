@@ -145,6 +145,8 @@ type sourcePathValidator struct {
 	rootErr      error
 	parents      map[string]resolvedSourceParent
 	checked      map[string]bool
+	// entriesはディレクトリごとの名前と、シンボリックリンクかどうか。読めなかったディレクトリはnil。
+	entries map[string]map[string]bool
 }
 
 func newSourcePathValidator(root string) *sourcePathValidator {
@@ -153,6 +155,7 @@ func newSourcePathValidator(root string) *sourcePathValidator {
 	return &sourcePathValidator{
 		root: root, resolvedRoot: resolvedRoot, rootErr: rootErr,
 		parents: make(map[string]resolvedSourceParent), checked: make(map[string]bool),
+		entries: make(map[string]map[string]bool),
 	}
 }
 
@@ -195,7 +198,14 @@ func (v *sourcePathValidator) check(candidate string) bool {
 		return true
 	}
 	resolvedCandidate := filepath.Join(resolved.path, filepath.Base(candidate))
-	if info, err := os.Lstat(candidate); err == nil {
+	if symlink, found := v.entry(parent, filepath.Base(candidate)); found {
+		if symlink {
+			var err error
+			if resolvedCandidate, err = filepath.EvalSymlinks(candidate); err != nil {
+				return false
+			}
+		}
+	} else if info, err := os.Lstat(candidate); err == nil {
 		if info.Mode()&os.ModeSymlink != 0 {
 			resolvedCandidate, err = filepath.EvalSymlinks(candidate)
 			if err != nil {
@@ -207,6 +217,23 @@ func (v *sourcePathValidator) check(candidate string) bool {
 	}
 	resolvedRelative, err := filepath.Rel(v.resolvedRoot, resolvedCandidate)
 	return err == nil && resolvedRelative != ".." && !strings.HasPrefix(resolvedRelative, ".."+string(filepath.Separator)) && !filepath.IsAbs(resolvedRelative)
+}
+
+// entryは、ディレクトリの一覧に名前があるかと、シンボリックリンクかを返す。
+// 録音ごとにLstatを呼ばないよう、一覧はディレクトリごとに1回だけ読む。
+func (v *sourcePathValidator) entry(dir, name string) (symlink, found bool) {
+	names, ok := v.entries[dir]
+	if !ok {
+		if list, err := os.ReadDir(dir); err == nil {
+			names = make(map[string]bool, len(list))
+			for _, item := range list {
+				names[item.Name()] = item.Type()&os.ModeSymlink != 0
+			}
+		}
+		v.entries[dir] = names
+	}
+	symlink, found = names[name]
+	return symlink, found
 }
 
 func (b *Bank) Aliases() []string {

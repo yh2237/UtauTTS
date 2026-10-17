@@ -6,6 +6,7 @@ import (
 	"fmt"
 	goruntime "runtime"
 	"sort"
+	"sync"
 
 	"github.com/yh2237/UtauTTS/internal/appinfo"
 	"github.com/yh2237/UtauTTS/internal/entryinput"
@@ -153,42 +154,59 @@ func (e *Engine) reload() error {
 
 func (e *Engine) voicebankList() []map[string]any {
 	items := e.voicebanks.List()
-	list := make([]map[string]any, 0, len(items))
-	for _, libraryItem := range items {
-		id, item := libraryItem.ID, libraryItem.Summary
-		presentation, _ := voicebank.LoadPresentation(item)
-		entry := map[string]any{
-			"id":          id,
-			"name":        item.Name,
-			"path":        item.Path,
-			"kind":        item.Kind,
-			"image_path":  item.ImagePath,
-			"readme_path": item.ReadmePath,
-			"readme_text": presentation.ReadmeText,
-		}
-		if bank, err := voicebank.Load(item.Path); err == nil {
-			capabilities := bank.AliasCapabilities()
-			language, phonemizer := bank.SuggestedLanguage()
-			if language == frontend.LanguageEnglish {
-				e.synth.PrepareEnglish(bank.Root)
+	entries := make([]map[string]any, len(items))
+	// 音源ごとにoto.iniを読むので、音源ごとに並べて読む。
+	var wait sync.WaitGroup
+	next := make(chan int)
+	for range min(goruntime.GOMAXPROCS(0), len(items)) {
+		wait.Go(func() {
+			for index := range next {
+				entries[index] = e.voicebankEntry(items[index])
 			}
-			entry["suggested_language"] = language
-			entry["suggested_phonemizer"] = phonemizer
-			entry["types"] = bank.SubbankOptions()
-			entry["alias_counts"] = capabilities.Counts
-			entry["vcv_contexts"] = capabilities.VCVContexts
-			entry["vc_contexts"] = capabilities.VCContexts
-			entry["has_vc"] = capabilities.HasVC
-			entry["has_initial_vcv"] = capabilities.HasInitialVCV
-			entry["has_n_context_vcv"] = capabilities.HasNContextVCV
-		} else if item.Kind == "diffsinger" {
-			entry["suggested_language"] = "ja"
-			entry["suggested_phonemizer"] = "ja-kana"
-		}
-		list = append(list, entry)
+		})
 	}
+	for index := range items {
+		next <- index
+	}
+	close(next)
+	wait.Wait()
+	list := append(make([]map[string]any, 0, len(entries)), entries...)
 	sort.Slice(list, func(i, j int) bool { return list[i]["name"].(string) < list[j]["name"].(string) })
 	return list
+}
+
+func (e *Engine) voicebankEntry(libraryItem voicebank.LibraryItem) map[string]any {
+	id, item := libraryItem.ID, libraryItem.Summary
+	presentation, _ := voicebank.LoadPresentation(item)
+	entry := map[string]any{
+		"id":          id,
+		"name":        item.Name,
+		"path":        item.Path,
+		"kind":        item.Kind,
+		"image_path":  item.ImagePath,
+		"readme_path": item.ReadmePath,
+		"readme_text": presentation.ReadmeText,
+	}
+	if bank, err := voicebank.Load(item.Path); err == nil {
+		capabilities := bank.AliasCapabilities()
+		language, phonemizer := bank.SuggestedLanguage()
+		if language == frontend.LanguageEnglish {
+			e.synth.PrepareEnglish(bank.Root)
+		}
+		entry["suggested_language"] = language
+		entry["suggested_phonemizer"] = phonemizer
+		entry["types"] = bank.SubbankOptions()
+		entry["alias_counts"] = capabilities.Counts
+		entry["vcv_contexts"] = capabilities.VCVContexts
+		entry["vc_contexts"] = capabilities.VCContexts
+		entry["has_vc"] = capabilities.HasVC
+		entry["has_initial_vcv"] = capabilities.HasInitialVCV
+		entry["has_n_context_vcv"] = capabilities.HasNContextVCV
+	} else if item.Kind == "diffsinger" {
+		entry["suggested_language"] = "ja"
+		entry["suggested_phonemizer"] = "ja-kana"
+	}
+	return entry
 }
 
 func (e *Engine) models() []plugin.Model {
