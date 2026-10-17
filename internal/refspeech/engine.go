@@ -46,12 +46,23 @@ type Engine struct {
 	// readsは最近のKokoroの読み。予測と合成で同じ文を読み直さないために使う。
 	readsMu sync.Mutex
 	reads   []*cachedRead
+
+	// featuresは最近の参照音声の特徴量。同じ文を続けて合成するときに計算し直さない。
+	featuresMu sync.Mutex
+	features   []*cachedFeatures
 }
 
 type cachedRead struct {
 	key       string
 	reference Reference
 	prosody   *kokoro.Prosody
+}
+
+type cachedFeatures struct {
+	key    string
+	values []float32
+	frames int
+	dims   int
 }
 
 const cachedReads = 8
@@ -160,6 +171,40 @@ func (e *Engine) Read(pieces []Piece, speed float32, durations []int) (Reference
 	return e.read(pieces, speed, durations, true)
 }
 
+// readKeyは、Kokoroの読みと、その音声から作る特徴量を使い回すためのキー。
+func readKey(symbols []string, speed float32, durations []int) string {
+	return fmt.Sprint(strings.Join(symbols, "\x00"), "\x01", speed, "\x01", durations)
+}
+
+// cachedFeaturesは、同じ読みの参照音声から作った特徴量を返す。
+func (e *Engine) cachedFeatures(key string) *cachedFeatures {
+	e.featuresMu.Lock()
+	defer e.featuresMu.Unlock()
+	for _, entry := range e.features {
+		if entry.key == key {
+			return entry
+		}
+	}
+	return nil
+}
+
+// storeFeaturesは、参照音声の特徴量を覚えておく。
+func (e *Engine) storeFeatures(key string, values []float32, frames, dims int) {
+	e.featuresMu.Lock()
+	defer e.featuresMu.Unlock()
+	entry := &cachedFeatures{key: key, values: values, frames: frames, dims: dims}
+	for i, cached := range e.features {
+		if cached.key == key {
+			e.features[i] = entry
+			return
+		}
+	}
+	e.features = append(e.features, entry)
+	if len(e.features) > cachedReads {
+		e.features = e.features[1:]
+	}
+}
+
 // ReadProsodyはReadと同じく読むが、波形は作らずに記号ごとの長さとF0だけを返す。
 // 後で同じ引数でReadを呼ぶと、ここで求めた結果から波形だけを作る。
 func (e *Engine) ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error) {
@@ -176,7 +221,7 @@ func (e *Engine) read(pieces []Piece, speed float32, durations []int, withAudio 
 	if speed <= 0 {
 		speed = 1
 	}
-	key := fmt.Sprint(strings.Join(symbols, "\x00"), "\x01", speed, "\x01", durations)
+	key := readKey(symbols, speed, durations)
 	e.readsMu.Lock()
 	var entry *cachedRead
 	for _, cached := range e.reads {
@@ -235,9 +280,25 @@ func (e *Engine) Speak(index *refmatch.Index, world refmatch.World, pieces []Pie
 	for i, v := range reference.Audio {
 		samples[i] = float64(v)
 	}
-	features, frames, _, err := e.Features(samples, kokoroRate)
-	if err != nil {
-		return Speech{}, err
+	symbols := make([]string, len(pieces))
+	for i, piece := range pieces {
+		symbols[i] = piece.Symbols
+	}
+	speed := options.Speed
+	if speed <= 0 {
+		speed = 1
+	}
+	key := readKey(symbols, speed, options.Durations)
+	var features []float32
+	var frames int
+	if cached := e.cachedFeatures(key); cached != nil {
+		features, frames = cached.values, cached.frames
+	} else {
+		var dims int
+		if features, frames, dims, err = e.Features(samples, kokoroRate); err != nil {
+			return Speech{}, err
+		}
+		e.storeFeatures(key, features, frames, dims)
 	}
 	referenceF0 := refmatch.ReferenceF0(reference.F0, kokoroF0FrameMS, frames)
 	automaticF0 := index.OutputF0(referenceF0, options.CenterHz, options.PitchScale)
