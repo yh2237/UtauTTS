@@ -83,140 +83,9 @@ func TestFramePitchModelSafetyLimitsEffectiveContour(t *testing.T) {
 	}
 }
 
-func TestManualResidualModelAddsMoraCorrectionsWithoutCrossingPause(t *testing.T) {
-	model := &Model{
-		Version: ManualResidualModelVersion, FeatureVersion: 2, Mode: "intonation_frame_v8_manual_residual",
-		BaseModel: &BaseModelReference{ID: "base-intonation", SHA256: strings.Repeat("a", 64)},
-		FramePitch: &FramePitchModel{
-			FeatureNames: []string{"bias"}, InputWeights: [][]float64{{0}}, InputBias: []float64{0},
-			OutputWeight: []float64{0}, FrameMS: 10, LowCents: -250, HighCents: 250,
-		},
-		MoraPitchResidual: &MoraPitchResidualModel{
-			FeatureNames: []string{"bias"}, InputWeights: [][]float64{{0}}, InputBias: []float64{0},
-			OutputWeight: []float64{0}, OutputBias: 30,
-		},
-		ResidualLimits: &ResidualLimits{LowCents: -120, HighCents: 120, SmoothingMS: 20},
-	}
-	morae := []frontend.Mora{{Text: "あ", Vowel: "a"}, {Pause: true}, {Text: "い", Vowel: "i"}}
-	timings := []MoraTiming{{StartMS: 0, DurationMS: 100}, {StartMS: 100, DurationMS: 50}, {StartMS: 150, DurationMS: 100}}
-	curve := model.PredictFrameContour(morae, nil, timings, 250, false)
-	if curve == nil {
-		t.Fatal("manual residual model returned no contour")
-	}
-	if curve.Cents[5] < 29.9 || curve.Cents[20] < 29.9 {
-		t.Fatalf("residual was not added at mora centers: %.2f %.2f", curve.Cents[5], curve.Cents[20])
-	}
-	for index := 10; index < 15; index++ {
-		if curve.Cents[index] != 0 {
-			t.Fatalf("residual crossed pause at frame %d: %.2f", index, curve.Cents[index])
-		}
-	}
-	model.Mode = "intonation_frame_manual_residual"
-	model.BaseModel.ID = "frame-intonation-v9-base"
-	path := filepath.Join(t.TempDir(), "manual-residual.json")
-	if err := model.Save(path); err != nil {
-		t.Fatal(err)
-	}
-	loaded, err := LoadModel(path)
-	if err != nil || loaded.MoraPitchResidual == nil {
-		t.Fatalf("manual residual model did not round-trip: model=%#v err=%v", loaded, err)
-	}
-}
-
-func TestProsodyMultitaskModelPredictsMoraDurationAndLoads(t *testing.T) {
-	model := &Model{
-		Version: ProsodyMultitaskModelVersion, FeatureVersion: 2, Mode: "prosody_multitask_tcn",
-		MoraDuration: &SequencePitchModel{
-			FeatureNames: []string{"position"},
-			InputWeights: [][]float64{{1}}, InputBias: []float64{0},
-			OutputWeight: []float64{2}, Low: 0.5, High: 2,
-		},
-		FramePitch: &FramePitchModel{
-			FeatureNames: []string{"frame_position"}, InputWeights: [][]float64{{1}}, InputBias: []float64{0},
-			OutputWeight: []float64{1}, FrameMS: 10, LowCents: -120, HighCents: 120,
-		},
-	}
-	morae := []frontend.Mora{
-		{Text: "a", Vowel: "a"}, {Text: "i", Vowel: "i"}, {Text: "u", Vowel: "u"},
-	}
-	predicted := model.Predict(morae)
-	if predicted[0].DurationFactor >= 1 || predicted[2].DurationFactor <= 1 {
-		t.Fatalf("mora duration head did not produce relative factors: %#v", predicted)
-	}
-	if !model.HasFrameContour() {
-		t.Fatal("multitask model did not report frame contour")
-	}
-	path := filepath.Join(t.TempDir(), "multitask.json")
-	if err := model.Save(path); err != nil {
-		t.Fatal(err)
-	}
-	loaded, err := LoadModel(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := loaded.Predict(morae)[2].DurationFactor; math.Abs(got-predicted[2].DurationFactor) > 1e-9 {
-		t.Fatalf("multitask round trip changed duration prediction: %v != %v", got, predicted[2].DurationFactor)
-	}
-}
-
-func TestMoraDurationPhraseFinalLowerBound(t *testing.T) {
-	head := &SequencePitchModel{
-		FeatureNames: []string{"position"},
-		InputWeights: [][]float64{{1}}, InputBias: []float64{0},
-		OutputWeight: []float64{-2}, Low: 0.5, High: 2,
-	}
-	morae := []frontend.Mora{
-		{Text: "a", Vowel: "a"}, {Text: "i", Vowel: "i"}, {Text: "、", Pause: true}, {Text: "u", Vowel: "u"}, {Text: "e", Vowel: "e"},
-	}
-	plain := head.predict(morae, nil)
-	if plain[4] >= 1 {
-		t.Fatalf("test head should shorten the last mora: %v", plain)
-	}
-	head.PhraseFinalLow = 1
-	floored := head.predict(morae, nil)
-	for _, position := range []int{1, 4} {
-		if floored[position] < 1 || floored[position] < plain[position] {
-			t.Fatalf("phrase-final mora %d was not raised to the bound: %v", position, floored)
-		}
-	}
-	if floored[0] != plain[0] || floored[3] != plain[3] {
-		t.Fatalf("non-final morae changed: %v -> %v", plain, floored)
-	}
-	head.PhraseFinalLow = 0
-	head.OutputWeight = []float64{2}
-	rising := head.predict(morae, nil)
-	head.PhraseStartHigh = 1
-	capped := head.predict(morae, nil)
-	if rising[3] <= 1 || capped[3] > 1 || capped[0] > 1 || capped[4] != rising[4] {
-		t.Fatalf("phrase-start morae were not capped: %v -> %v", rising, capped)
-	}
-}
-
-func TestProsodyMultitaskModelReportsExternalFeaturesFromEitherHead(t *testing.T) {
-	model := &Model{
-		Version: ProsodyMultitaskModelVersion, FeatureVersion: 2, Mode: "prosody_multitask_tcn",
-		MoraDuration: &SequencePitchModel{
-			FeatureNames: []string{"accent_high"}, InputWeights: [][]float64{{1}}, InputBias: []float64{0},
-			OutputWeight: []float64{1}, Low: 0.5, High: 2,
-		},
-		FramePitch: &FramePitchModel{
-			FeatureNames: []string{"frame_position"}, InputWeights: [][]float64{{1}}, InputBias: []float64{0},
-			OutputWeight: []float64{1}, FrameMS: 10, LowCents: -120, HighCents: 120,
-		},
-	}
-	if !model.RequiresExternalFeatures() {
-		t.Fatal("mora duration accent features were not reported")
-	}
-}
-
 func TestLoadModelRejectsMismatchedHeads(t *testing.T) {
 	invalid := []*Model{
-		{Version: ModelVersion, FeatureVersion: 1, Mode: "speech_prosody_residual",
-			FramePitch: &FramePitchModel{FrameMS: 10}},
 		{Version: FramePitchModelVersion, FeatureVersion: 1, Mode: "intonation_frame_tcn_accent_bounded",
-			MoraDuration: &SequencePitchModel{}},
-		{Version: ProsodyMultitaskModelVersion, FeatureVersion: 2, Mode: "prosody_multitask_tcn",
-			MoraDuration: &SequencePitchModel{}, FramePitch: &FramePitchModel{FrameMS: 10},
 			MandarinIntonation: &MandarinIntonationModel{}},
 		{Version: 9, FeatureVersion: 1, Mode: "intonation_phrase_anchor_v9"},
 	}
@@ -226,7 +95,9 @@ func TestLoadModelRejectsMismatchedHeads(t *testing.T) {
 			t.Fatal(err)
 		}
 		if _, err := LoadModel(path); err == nil {
-			t.Fatalf("model %d with mismatched heads was accepted", index)
+			t.Fatalf("model %d was accepted", index)
+		} else if index == 1 && !strings.Contains(err.Error(), "unsupported prosody model") {
+			t.Fatalf("unsupported model error = %v", err)
 		}
 	}
 }

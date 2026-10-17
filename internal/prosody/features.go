@@ -149,23 +149,6 @@ func addCategorical(features map[string]float64, prefix string, mora frontend.Mo
 	features[prefix+"_vowel="+mora.Vowel] = 1
 }
 
-func dot(weights, features map[string]float64) float64 {
-	result := 0.0
-	for _, name := range sortedFeatureNames(features) {
-		result += weights[name] * features[name]
-	}
-	return result
-}
-
-func sortedFeatureNames(features map[string]float64) []string {
-	names := make([]string, 0, len(features))
-	for name := range features {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
 func clamp(value, low, high float64) float64 {
 	return math.Max(low, math.Min(high, value))
 }

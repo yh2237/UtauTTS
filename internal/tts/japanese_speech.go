@@ -21,19 +21,19 @@ func japaneseSpeechPhones(morae []frontend.Mora) {
 	}
 }
 
-func internalTimingSpeechRhythm(cfg Config, model *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction) []prosody.Prediction {
-	if cfg.ProsodyPitchOnly || (model != nil && (model.MoraDuration != nil || len(model.DurationWeights) > 0)) {
+func internalTimingSpeechRhythm(cfg Config, morae []frontend.Mora, predictions []prosody.Prediction) []prosody.Prediction {
+	if cfg.ProsodyPitchOnly {
 		return predictions
 	}
 	return japaneseSpeechRhythmPredictions(morae, predictions)
 }
 
-func applyJapaneseSpeechRhythm(cfg Config, model *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction, features []prosody.FeatureFrame) []prosody.Prediction {
+func applyJapaneseSpeechRhythm(cfg Config, morae []frontend.Mora, predictions []prosody.Prediction, features []prosody.FeatureFrame) []prosody.Prediction {
 	if cfg.ProsodyPitchOnly {
 		return predictions
 	}
 	if rendererInternalTiming(cfg.RendererCapabilities) {
-		predictions = internalTimingSpeechRhythm(cfg, model, morae, predictions)
+		predictions = internalTimingSpeechRhythm(cfg, morae, predictions)
 	}
 	return applyJapaneseContextDuration(cfg, morae, features, predictions, finalPhraseIsQuestion(cfg.Text))
 }

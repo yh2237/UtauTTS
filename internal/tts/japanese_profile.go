@@ -41,7 +41,7 @@ func (japaneseProfile) PhoneTiming(cfg Config, morae []frontend.Mora, singleCV b
 func (japaneseProfile) Predict([]frontend.Mora) []prosody.Prediction { return nil }
 
 func (japaneseProfile) AdjustPredictions(cfg Config, model *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction, features []prosody.FeatureFrame) []prosody.Prediction {
-	return applyJapaneseSpeechRhythm(cfg, model, morae, predictions, features)
+	return applyJapaneseSpeechRhythm(cfg, morae, predictions, features)
 }
 
 func (japaneseProfile) AutomaticPitchCurve(Config, *prosody.Model, []frontend.Mora, []prosody.MoraTiming, float64) (*render.PitchCurve, bool) {

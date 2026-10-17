@@ -8,12 +8,8 @@ import (
 	"github.com/yh2237/UtauTTS/internal/speechtiming"
 )
 
-const ModelVersion = 3
-
 const (
 	FramePitchModelVersion         = 8
-	ProsodyMultitaskModelVersion   = 10
-	ManualResidualModelVersion     = 11
 	MandarinIntonationModelVersion = 13
 )
 
@@ -38,16 +34,8 @@ type Model struct {
 	Version            int                      `json:"version"`
 	FeatureVersion     int                      `json:"feature_version"`
 	Mode               string                   `json:"mode"`
-	Outputs            map[string]bool          `json:"outputs,omitempty"`
-	DurationWeights    map[string]float64       `json:"duration_weights"`
-	PitchWeights       map[string]float64       `json:"pitch_weights,omitempty"`
-	EnergyWeights      map[string]float64       `json:"energy_weights,omitempty"`
-	MoraDuration       *SequencePitchModel      `json:"mora_duration,omitempty"`
 	FramePitch         *FramePitchModel         `json:"frame_pitch,omitempty"`
-	MoraPitchResidual  *MoraPitchResidualModel  `json:"mora_pitch_residual,omitempty"`
 	MandarinIntonation *MandarinIntonationModel `json:"mandarin_intonation,omitempty"`
-	BaseModel          *BaseModelReference      `json:"base_model,omitempty"`
-	ResidualLimits     *ResidualLimits          `json:"residual_limits,omitempty"`
 	Metrics            Metrics                  `json:"metrics"`
 	Training           TrainingInfo             `json:"training"`
 }
@@ -56,35 +44,7 @@ type ModelProvenance struct {
 	TrainingCorpus string `json:"training_corpus,omitempty"`
 }
 
-type BaseModelReference struct {
-	ID     string `json:"id"`
-	SHA256 string `json:"sha256"`
-}
-
-type ResidualLimits struct {
-	LowCents    float64 `json:"low_cents"`
-	HighCents   float64 `json:"high_cents"`
-	SmoothingMS float64 `json:"smoothing_ms,omitempty"`
-}
-
 type FeatureFrame map[string]float64
-
-type SequencePitchModel struct {
-	FeatureNames []string             `json:"feature_names"`
-	InputWeights [][]float64          `json:"input_weights"`
-	InputBias    []float64            `json:"input_bias"`
-	Layers       []SequencePitchLayer `json:"layers"`
-	OutputWeight []float64            `json:"output_weight"`
-	OutputBias   float64              `json:"output_bias"`
-	Low          float64              `json:"low"`
-	High         float64              `json:"high"`
-	// 語尾が欠けないよう句末の長さに下限を置く。0は無効。
-	PhraseFinalLow float64 `json:"phrase_final_low,omitempty"`
-	// 整列で文頭に無音・息が混ざるため、長さに上限を置く。0は無効。
-	PhraseStartHigh float64 `json:"phrase_start_high,omitempty"`
-
-	validated bool
-}
 
 type SequencePitchLayer struct {
 	Dilation int           `json:"dilation"`
@@ -92,14 +52,6 @@ type SequencePitchLayer struct {
 	Bias     []float64     `json:"bias"`
 }
 
-type MoraPitchResidualModel struct {
-	FeatureNames []string             `json:"feature_names"`
-	InputWeights [][]float64          `json:"input_weights"`
-	InputBias    []float64            `json:"input_bias"`
-	Layers       []SequencePitchLayer `json:"layers"`
-	OutputWeight []float64            `json:"output_weight"`
-	OutputBias   float64              `json:"output_bias"`
-}
 type FramePitchModel struct {
 	FeatureNames      []string             `json:"feature_names"`
 	InputWeights      [][]float64          `json:"input_weights"`
@@ -159,41 +111,22 @@ func (m *Model) Predict(morae []frontend.Mora) []Prediction {
 	return m.PredictWithFeatures(morae, nil)
 }
 
-func (m *Model) PredictWithFeatures(morae []frontend.Mora, frames []FeatureFrame) []Prediction {
+func (m *Model) PredictWithFeatures(morae []frontend.Mora, _ []FeatureFrame) []Prediction {
 	result := make([]Prediction, len(morae))
-	durations := centeredFactors(m.DurationWeights, morae, 0.8, 1.25)
-	if m.MoraDuration != nil {
-		durations = m.MoraDuration.predict(morae, frames)
-	}
-	pitches := centeredFactors(m.PitchWeights, morae, 0.97, 1.03)
-	energies := centeredFactors(m.EnergyWeights, morae, 0.9, 1.1)
-	for i := range morae {
-		result[i] = Prediction{
-			DurationFactor: durations[i],
-			PitchFactor:    pitches[i],
-			EnergyFactor:   energies[i],
-		}
+	for i := range result {
+		result[i] = Prediction{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1}
 	}
 	return result
 }
 
 func (m *Model) RequiresExternalFeatures() bool {
-	featureSets := [][]string(nil)
-	if m.MoraDuration != nil {
-		featureSets = append(featureSets, m.MoraDuration.FeatureNames)
+	if m.FramePitch == nil {
+		return false
 	}
-	if m.FramePitch != nil {
-		featureSets = append(featureSets, m.FramePitch.FeatureNames)
-	}
-	if m.MoraPitchResidual != nil {
-		featureSets = append(featureSets, m.MoraPitchResidual.FeatureNames)
-	}
-	for _, names := range featureSets {
-		for _, name := range names {
-			if strings.HasPrefix(name, "accent_") || strings.HasPrefix(name, "word_") ||
-				strings.HasPrefix(name, "pos=") || strings.HasPrefix(name, "pos_group1=") {
-				return true
-			}
+	for _, name := range m.FramePitch.FeatureNames {
+		if strings.HasPrefix(name, "accent_") || strings.HasPrefix(name, "word_") ||
+			strings.HasPrefix(name, "pos=") || strings.HasPrefix(name, "pos_group1=") {
+			return true
 		}
 	}
 	return false
@@ -300,90 +233,5 @@ func (m *Model) PredictFrameContour(morae []frontend.Mora, frames []FeatureFrame
 		values[position] = clamp(values[position], model.LowCents, model.HighCents)
 	}
 	contour := &PitchContour{FrameMS: model.FrameMS, Cents: values}
-	if m.MoraPitchResidual != nil {
-		return m.applyMoraPitchResidual(contour, morae, frames, timings)
-	}
 	return contour
-}
-
-func (m *SequencePitchModel) predict(morae []frontend.Mora, frames []FeatureFrame) []float64 {
-	result := make([]float64, len(morae))
-	for i := range result {
-		result[i] = 1
-	}
-	if len(morae) == 0 || (!m.validated && validateSequencePitch(m) != nil) {
-		return result
-	}
-	featureIndex := make(map[string]int, len(m.FeatureNames))
-	for i, name := range m.FeatureNames {
-		featureIndex[name] = i
-	}
-	baseFeatures := indexedFeatureVectors(morae, frames, featureIndex)
-	hidden := len(m.InputBias)
-	state := make([][]float64, len(morae))
-	for position := range morae {
-		state[position] = append([]float64(nil), m.InputBias...)
-		for _, feature := range baseFeatures[position] {
-			for output := 0; output < hidden; output++ {
-				state[position][output] += m.InputWeights[output][feature.column] * feature.value
-			}
-		}
-		for output := range state[position] {
-			state[position][output] = math.Tanh(state[position][output])
-		}
-	}
-	state = tcnForward(state, m.Layers, nil)
-	logs := make([]float64, len(morae))
-	var speech []float64
-	for position := range morae {
-		if morae[position].Pause {
-			continue
-		}
-		value := m.OutputBias
-		for i, weight := range m.OutputWeight {
-			value += weight * state[position][i]
-		}
-		logs[position] = value
-		speech = append(speech, value)
-	}
-	if len(speech) == 0 {
-		return result
-	}
-	center := median(speech)
-	for position := range morae {
-		if !morae[position].Pause {
-			result[position] = clamp(math.Exp(logs[position]-center), m.Low, m.High)
-			if m.PhraseStartHigh > 0 && (position == 0 || morae[position-1].Pause) {
-				result[position] = math.Min(result[position], m.PhraseStartHigh)
-			}
-			if m.PhraseFinalLow > 0 && (position+1 == len(morae) || morae[position+1].Pause) {
-				result[position] = math.Max(result[position], m.PhraseFinalLow)
-			}
-		}
-	}
-	return result
-}
-
-func centeredFactors(weights map[string]float64, morae []frontend.Mora, low, high float64) []float64 {
-	result := make([]float64, len(morae))
-	logs := make([]float64, len(morae))
-	var speech []float64
-	for i := range morae {
-		result[i] = 1
-		if morae[i].Pause || len(weights) == 0 {
-			continue
-		}
-		logs[i] = dot(weights, featuresFor(morae, i))
-		speech = append(speech, logs[i])
-	}
-	if len(speech) == 0 {
-		return result
-	}
-	center := median(speech)
-	for i := range morae {
-		if !morae[i].Pause {
-			result[i] = clamp(math.Exp(logs[i]-center), low, high)
-		}
-	}
-	return result
 }
