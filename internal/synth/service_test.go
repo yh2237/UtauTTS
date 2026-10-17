@@ -89,7 +89,7 @@ func TestResolveSynthesisUsesDirectVoicebankPathAndNormalizesKana(t *testing.T) 
 	resolved, err := service.ResolveSynthesis(Request{
 		VoicebankPath: "voicebank", Kana: "あ", Renderer: "waveform",
 		ReleaseMS: 20, ReleaseSet: true, BoundaryBridgeMS: 12,
-		CVVCTiming: "sequential", JoinModelPath: "join.json",
+		CVVCTiming: "sequential",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -98,8 +98,7 @@ func TestResolveSynthesisUsesDirectVoicebankPathAndNormalizesKana(t *testing.T) 
 		t.Fatalf("resolved config = %#v", resolved.Config)
 	}
 	if !resolved.Config.ReleaseSet || resolved.Config.ReleaseMS != 20 ||
-		resolved.Config.BoundaryBridgeMS != 12 || resolved.Config.CVVCTiming != "sequential" ||
-		resolved.Config.JoinModelPath != "join.json" {
+		resolved.Config.BoundaryBridgeMS != 12 || resolved.Config.CVVCTiming != "sequential" {
 		t.Fatalf("CLI settings were not preserved: %#v", resolved.Config)
 	}
 }

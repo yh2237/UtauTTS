@@ -90,7 +90,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		language                 string
 		phonemizer               string
 		aliasPolicy              string
-		joinModelPath            string
 		diffSingerSteps          int64
 		diffSingerDurationMix    float64
 		diffSingerPitchMix       float64
@@ -161,7 +160,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	flag.Float64Var(&cvvcTransitionGain, "cvvc-transition-gain", 1, "CVVC transition volume multiplier (0..1)")
 	flag.BoolVar(&cvvcPreBoundaryFade, "cvvc-pre-boundary-fade", false, "fade CVVC transitions out before the following CV consonant")
 	flag.StringVar(&aliasPolicy, "alias-policy", string(voicebank.AliasPolicyAuto), "voicebank mode: auto, cvvc-enhanced, vcv-prefer, cvvc-prefer, or cv-only")
-	flag.StringVar(&joinModelPath, "join-model", "", "optional learned join-quality model JSON")
 	flag.Int64Var(&diffSingerSteps, "diffsinger-steps", 0, "DiffSinger diffusion steps (0 uses the default)")
 	flag.Float64Var(&diffSingerDurationMix, "diffsinger-duration-mix", 0, "DiffSinger duration predictor mix 0..1 (0 uses the default)")
 	flag.Float64Var(&diffSingerPitchMix, "diffsinger-pitch-mix", 0, "DiffSinger pitch predictor mix 0..1 (0 uses the default)")
@@ -387,7 +385,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 			CVVCPreBoundaryFade:     cvvcPreBoundaryFade,
 			AliasPolicy:             voicebank.AliasPolicy(aliasPolicy),
 			Worldline:               render.WorldlineProviderOptions{TimingWarp: &timingWarp, Microprosody: &microprosody},
-			JoinModelPath:           joinModelPath,
 			DiffSingerSteps:         diffSingerSteps,
 			DiffSingerDurationMix:   diffSingerDurationMix,
 			DiffSingerPitchMix:      diffSingerPitchMix,

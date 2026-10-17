@@ -81,11 +81,6 @@ func (b *Bank) AuditLattice(morae []frontend.Mora, tone string) (*LatticeAudit, 
 }
 
 func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) (*LatticeAudit, error) {
-	if cfg.JoinModel != nil {
-		if err := cfg.JoinModel.Validate(); err != nil {
-			return nil, fmt.Errorf("join model: %w", err)
-		}
-	}
 	policy := cfg.AliasPolicy
 	if policy == "" {
 		policy = AliasPolicyAuto
@@ -101,9 +96,6 @@ func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) 
 		b.extractor = connection.NewExtractor()
 	}
 	extractor := b.extractor
-	if cfg.JoinModel != nil {
-		extractor = connection.NewExtractorWithModel(cfg.JoinModel)
-	}
 	selectedByPosition := selectionsByPosition(selectBestPaths(layers, extractor))
 	cache := extractor
 	pitchCache := map[candidatePitchKey]candidatePitch{}

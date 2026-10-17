@@ -113,7 +113,6 @@ type Request struct {
 	CVVCTiming              string                       `json:"-"`
 	CVVCTransitionGain      float64                      `json:"-"`
 	CVVCPreBoundaryFade     bool                         `json:"-"`
-	JoinModelPath           string                       `json:"-"`
 	ResamplerExpressions    []render.ResamplerExpression `json:"resampler_expressions"`
 	DiffSingerSteps         int64                        `json:"diffsinger_steps"`
 	DiffSingerDurationMix   float64                      `json:"diffsinger_duration_mix"`
@@ -215,10 +214,6 @@ func (s *Service) ResolveSynthesis(request Request) (ResolvedRequest, error) {
 
 func SynthesizeResolved(resolved ResolvedRequest) (*Result, error) {
 	return SynthesizeConfigWithOptions(resolved.Config, resolved.RendererID, resolved.ProviderOptions)
-}
-
-func SynthesizeConfig(cfg tts.Config, rendererID string) (*Result, error) {
-	return SynthesizeConfigWithOptions(cfg, rendererID, render.ProviderOptions{})
 }
 
 func SynthesizeConfigWithOptions(cfg tts.Config, rendererID string, providerOptions render.ProviderOptions) (*Result, error) {
@@ -354,7 +349,6 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		CVVCTiming:              request.CVVCTiming,
 		CVVCTransitionGain:      request.CVVCTransitionGain,
 		CVVCPreBoundaryFade:     request.CVVCPreBoundaryFade,
-		JoinModelPath:           request.JoinModelPath,
 	}
 	providerOptions := render.ProviderOptions{
 		Classic: render.ClassicOptions{

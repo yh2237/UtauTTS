@@ -41,22 +41,10 @@ type PairFeatures struct {
 type Extractor struct {
 	mutex sync.Mutex
 	cache map[oto.Entry]Boundary
-	model *JoinModel
 }
 
 func NewExtractor() *Extractor {
 	return &Extractor{cache: map[oto.Entry]Boundary{}}
-}
-
-func NewExtractorWithModel(model *JoinModel) *Extractor {
-	return &Extractor{cache: map[oto.Entry]Boundary{}, model: model}
-}
-
-func (e *Extractor) JoinModel() *JoinModel {
-	if e == nil {
-		return nil
-	}
-	return e.model
 }
 
 func (e *Extractor) Boundary(entry oto.Entry) Boundary {
@@ -113,18 +101,11 @@ func (e *Extractor) ScoreEntries(previous, current oto.Entry) float64 {
 // ScoreSpeechContextは描画で保持する接続区間の中央を評価する。
 // 入口はpreutterance前の最大40ms、出口は従来の推定位置を使う。
 func (e *Extractor) ScoreSpeechContext(previous, current oto.Entry) float64 {
-	// 学習時の境界定義を保つ。
-	if e != nil && e.model != nil {
-		return e.ScoreEntries(previous, current)
-	}
 	current.Overlap = math.Min(20, math.Max(0, current.Preutterance)*.5)
 	return e.ScoreEntries(previous, current)
 }
 
 func (e *Extractor) ScoreFeatures(features PairFeatures) float64 {
-	if e != nil && e.model != nil {
-		return e.model.Predict(features).Score
-	}
 	return HandcraftedScore(features)
 }
 
@@ -233,4 +214,8 @@ func SameSource(left, right string) bool {
 	leftAbs, leftErr := filepath.Abs(left)
 	rightAbs, rightErr := filepath.Abs(right)
 	return leftErr == nil && rightErr == nil && filepath.Clean(leftAbs) == filepath.Clean(rightAbs)
+}
+
+func isFinite(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0)
 }

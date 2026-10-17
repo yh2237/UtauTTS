@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
-	"github.com/yh2237/UtauTTS/internal/connection"
 	"github.com/yh2237/UtauTTS/internal/engine"
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
@@ -89,8 +88,6 @@ type Config struct {
 	CVVCPreBoundaryFade     bool
 	PitchCurve              *render.PitchCurve
 	AliasPolicy             voicebank.AliasPolicy
-	JoinModelPath           string
-	JoinModel               *connection.JoinModel
 	ProviderOptions         render.ProviderOptions
 	// WorldEnginePathとEnglishReferenceDirは英語の合成に使うWORLDエンジンとモデルのフォルダ。Rendererに関係なく使う。
 	WorldEnginePath     string
@@ -273,19 +270,6 @@ func ResolveRendererWithOptions(catalog *plugin.Catalog, rendererID string, opti
 	return resolver.ResolveWithOptions(engine.DefinitionsFromCatalog(catalog), rendererID, options)
 }
 
-func ApplyRenderer(cfg *Config, catalog *plugin.Catalog, rendererID, worldlineBridgePath string) (string, error) {
-	resolved, err := ResolveRendererWithOptions(catalog, rendererID, engine.ResolveOptions{
-		ResourceOverrides: map[engine.ResourceKey]string{
-			engine.ResourceWorldlineBridge: worldlineBridgePath,
-		},
-	})
-	if err != nil {
-		return "", err
-	}
-	ApplyResolvedEngine(cfg, resolved)
-	return string(resolved.PublicID()), nil
-}
-
 func ApplyResolvedEngine(cfg *Config, resolved engine.ResolvedEngine) {
 	capabilities := resolved.Definition.Capabilities
 	cfg.Engine = resolved
@@ -336,10 +320,6 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if frontend.NormalizeLanguage(language) == frontend.LanguageEnglish {
 		return synthesizeEnglishReference(cfg, bank, language, phonemizer, reading, morae)
 	}
-	joinModel, err := resolveJoinModel(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("load join model: %w", err)
-	}
 	profile := languageProfileFor(language)
 	profile.ApplySpeechProfile(&cfg)
 	traceMark(&start, "phonemize")
@@ -354,13 +334,13 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	}
 	traceMark(&start, "prosody")
 	selections, err := bank.ResolveWithConfig(morae, voicebank.ResolveConfig{
-		Tone: cfg.Tone, Color: cfg.Color, AliasPolicy: cfg.AliasPolicy, JoinModel: joinModel,
+		Tone: cfg.Tone, Color: cfg.Color, AliasPolicy: cfg.AliasPolicy,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("resolve voicebank units: %w", err)
 	}
 	traceMark(&start, "select")
-	synthesisPlan, stretchAdapt, err := buildSynthesisPlan(cfg, profile, bank, reading, language, phonemizer, morae, selections, predictions, requestedAliasPolicy, joinModel)
+	synthesisPlan, stretchAdapt, err := buildSynthesisPlan(cfg, profile, bank, reading, language, phonemizer, morae, selections, predictions, requestedAliasPolicy)
 	if err != nil {
 		return nil, err
 	}
@@ -416,19 +396,6 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	}, nil
 }
 
-func resolveJoinModel(cfg Config) (*connection.JoinModel, error) {
-	if cfg.JoinModel != nil {
-		if err := cfg.JoinModel.Validate(); err != nil {
-			return nil, err
-		}
-		return cfg.JoinModel, nil
-	}
-	if strings.TrimSpace(cfg.JoinModelPath) == "" {
-		return nil, nil
-	}
-	return connection.LoadJoinModel(cfg.JoinModelPath)
-}
-
 func applyVoicebankDictionary(bank *voicebank.Bank, cfg *Config) {
 	if len(bank.ARPAsing) == 0 {
 		return
@@ -466,10 +433,6 @@ func applyCVVCEnhancedProfile(cfg *Config) {
 	cfg.CVVCTiming = render.CVVCTimingSequential
 	cfg.CVVCTransitionGain = 0.35
 	cfg.CVVCPreBoundaryFade = false
-}
-
-func applyLanguageSpeechProfile(language string, cfg *Config) {
-	languageProfileFor(language).ApplySpeechProfile(cfg)
 }
 
 // 音声を合成せず韻律を予測する。プレビューでも手動のモーラ長を尊重する。
