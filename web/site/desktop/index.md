@@ -5,7 +5,7 @@ description: デスクトップ版の入手、起動、更新
 
 # インストール
 
-環境に合うZIPを[GitHub Releases](https://github.com/yh2237/UtauTTS/releases)からダウンロードしてください。展開したフォルダは好きな場所へ置き、必要ならショートカットを作ってください。
+環境に合うZIPを[GitHub Releases](https://github.com/yh2237/UtauTTS/releases)からダウンロードしてください。
 
 | ファイル | 対応環境 |
 | --- | --- |

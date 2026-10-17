@@ -7,7 +7,7 @@ description: 作成した音声の利用条件とUtauTTSのライセンス
 
 ## 作った音声の利用条件
 
-音声の利用条件は、使用した音源の規約に従います。同梱されている「足立レイ ver3.5.0」については[公式配布ページ](https://mechanicalgirl.jp/adachi-rei/)と[キャラクター／音源使用ガイドライン](https://mechanicalgirl.jp/guidelines/)を確認してください。
+音声の利用条件は使用した音源の規約に従います。同梱されている「足立レイ ver3.5.0」については[公式配布ページ](https://mechanicalgirl.jp/adachi-rei/)と[キャラクター／音源使用ガイドライン](https://mechanicalgirl.jp/guidelines/)を確認してください。
 
 ## UtauTTSのライセンス
 

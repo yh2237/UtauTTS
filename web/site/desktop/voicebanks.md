@@ -32,7 +32,7 @@ voice/
 
 UTAU互換のresamplerとwavtoolでも合成できますが、あまり推奨していません。
 
-1. resamplerの実行ファイルを`Resamplers`フォルダ、wavtoolを`Wavtools`フォルダへ置きます。必要なDLLは、実行ファイルと同じフォルダへ置いてください。
+1. resamplerの実行ファイルを`Resamplers`フォルダ、wavtoolを`Wavtools`フォルダへ置きます。必要なDLLは実行ファイルと同じフォルダへ置いてください。
 2. 「ファイル」→「音源とプラグイン」→「Classic UTAUを再読み込み」を選びます。
 3. 「設定」→「設定...」のRendererタブで「Classic UTAU」を開き、使うresamplerとwavtoolを選びます。
 4. カードの設定で、Rendererを「Classic UTAU」にします。

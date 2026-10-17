@@ -19,7 +19,7 @@ description: デスクトップ版のトラブルシューティング
 
 ## Open JTalkの解析ファイルが見つからない
 
-`utautts-openjtalk-features not found`は、文章解析に使うファイルが見つからないエラーです。配布ZIPを展開し直してください。セキュリティソフトがファイルを削除している場合は、展開先のフォルダごと除外設定を指定してください。
+`utautts-openjtalk-features not found`は、文章解析に使うファイルが見つからないエラーです。配布ZIPを展開し直してください。セキュリティソフトがファイルを削除している場合は、展開先のフォルダごと除外に指定してください。
 
 Linux版では`runtime/utautts-openjtalk-features`の実行権限も確認してください。
 
