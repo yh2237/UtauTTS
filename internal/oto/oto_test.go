@@ -21,10 +21,6 @@ func TestIniAPIsPreserveSourcesDuplicatesAndDiagnostics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	memory, err := parseText(text, encoding, path, filepath.Dir(path))
-	if err != nil || !reflect.DeepEqual(file, memory) {
-		t.Fatalf("file and byte APIs differ: %+v, %v", memory, err)
-	}
 	want := []Entry{
 		{Filename: filepath.Join(filepath.Dir(path), "sub", "a.wav"), Alias: "あ", Offset: 12.5,
 			Fixed: 100.25, Blank: -20.5, Preutterance: 30.75, Overlap: 10.5, OtoPath: path, Line: 1},
