@@ -20,28 +20,6 @@ func selectBestPaths(layers [][]Selection, extractor *connection.Extractor) []Se
 	if cache == nil {
 		cache = connection.NewExtractor()
 	}
-	for i := range layers {
-		var expanded []Selection
-		for _, candidate := range layers[i] {
-			alternatives := []Selection{candidate}
-			if cache.JoinModel() == nil {
-				alternatives = append(alternatives, candidate.EndingAlternatives...)
-			}
-			for _, candidate := range alternatives {
-				if len(candidate.EndingCandidates) > 0 && cache.JoinModel() == nil {
-					paths, _ := endingRecordingPathsFrom(&candidate, candidate.EndingCandidates, cache)
-					for _, path := range paths {
-						variant := candidate
-						variant.Endings = path
-						expanded = append(expanded, variant)
-					}
-				} else {
-					expanded = append(expanded, candidate)
-				}
-			}
-		}
-		layers[i] = expanded
-	}
 	for start := 0; start < len(layers); {
 		for start < len(layers) && len(layers[start]) == 0 {
 			start++
@@ -122,18 +100,9 @@ func candidateScores(selection Selection, cache *connection.Extractor, includeJo
 	previous := selection.Entry
 	for index := range selection.Endings {
 		ending := &selection.Endings[index]
-		local += ending.TargetScore - 114 + englishEndingReleasePreference(*ending)
+		local += ending.TargetScore - 114
 		if includeJoin {
-			contiguous := index > 0 && contiguousCodas(selection.Endings[index-1], *ending)
-			gap := selection.Mora.Language == frontend.LanguageEnglish && len(ending.CodaPhones) > 0 &&
-				((index == 0 && ending.CodaStart > 0) || (index > 0 && len(selection.Endings[index-1].CodaPhones) > 0 && !contiguous))
-			if gap && cache.JoinModel() == nil {
-				// 不足音素をまたぐ接合は評価しない。
-			} else if selection.Mora.Language == frontend.LanguageEnglish && contiguous {
-				local += cache.ScoreSpeechTailContext(previous, ending.Entry) + sourceGroupContinuityScore(previous, ending.Entry)
-			} else {
-				local += speechContextJoinScore(previous, ending.Entry, selection.Mora.Language, true, cache)
-			}
+			local += speechContextJoinScore(previous, ending.Entry, selection.Mora.Language, true, cache)
 		}
 		previous = ending.Entry
 	}
@@ -152,7 +121,7 @@ func joinScore(previous, current oto.Entry, cache *connection.Extractor) float64
 }
 
 func speechContextJoinScore(previous, current oto.Entry, language string, context bool, cache *connection.Extractor) float64 {
-	if context && (language == frontend.LanguageEnglish || language == frontend.LanguageChinese) {
+	if context && language == frontend.LanguageChinese {
 		return cache.ScoreSpeechContext(previous, current) + sourceGroupContinuityScore(previous, current)
 	}
 	return joinScore(previous, current, cache)

@@ -13,13 +13,7 @@ func worldCodaReleaseEligible(p *plan.Plan, u plan.Unit) bool {
 	if len(u.CodaPhones) == 0 {
 		return false
 	}
-	switch p.Phonemizer {
-	case frontend.PhonemizerEnglishDelta, frontend.PhonemizerEnglishVCCV:
-		return u.Role == "ending"
-	case frontend.PhonemizerEnglish, frontend.PhonemizerEnglishCV, frontend.PhonemizerChinese:
-		return u.Role == "mora"
-	}
-	return false
+	return p.Phonemizer == frontend.PhonemizerChinese && u.Role == "mora"
 }
 
 func codaReleaseEnvelope(u plan.Unit, points []base.WorldlineEnvelopePoint, fadeOut float64) ([]base.WorldlineEnvelopePoint, float64) {

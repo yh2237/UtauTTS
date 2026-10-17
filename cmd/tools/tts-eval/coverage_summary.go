@@ -10,17 +10,14 @@ import (
 
 // missing_phone_rateは、必須音が欠けた位置の割合。
 type coverageSummary struct {
-	Language           string         `json:"language"`
-	Cases              int            `json:"cases"`
-	FailedCases        int            `json:"failed_cases"`
-	Positions          int            `json:"positions"`
-	Covered            int            `json:"covered"`
-	CoverageRate       float64        `json:"coverage_rate"`
-	MissingPositions   int            `json:"missing_positions"`
-	MissingPhoneGroups int            `json:"missing_phone_groups"`
-	MissingPhoneRate   float64        `json:"missing_phone_rate"`
-	MissingPhones      map[string]int `json:"missing_phones,omitempty"`
-	MissingMorae       map[string]int `json:"missing_morae,omitempty"`
+	Language         string         `json:"language"`
+	Cases            int            `json:"cases"`
+	FailedCases      int            `json:"failed_cases"`
+	Positions        int            `json:"positions"`
+	Covered          int            `json:"covered"`
+	CoverageRate     float64        `json:"coverage_rate"`
+	MissingPositions int            `json:"missing_positions"`
+	MissingMorae     map[string]int `json:"missing_morae,omitempty"`
 }
 
 func summarizeCoverage(rows []diagnostic) []coverageSummary {
@@ -33,7 +30,7 @@ func summarizeCoverage(rows []diagnostic) []coverageSummary {
 		}
 		summary, found := byLanguage[language]
 		if !found {
-			summary = &coverageSummary{Language: language, MissingPhones: map[string]int{}, MissingMorae: map[string]int{}}
+			summary = &coverageSummary{Language: language, MissingMorae: map[string]int{}}
 			byLanguage[language] = summary
 			order = append(order, language)
 		}
@@ -52,21 +49,12 @@ func summarizeCoverage(rows []diagnostic) []coverageSummary {
 				summary.MissingMorae[missing.Mora]++
 			}
 		}
-		summary.MissingPhoneGroups += len(row.Coverage.MissingPhones)
-		for _, gap := range row.Coverage.MissingPhones {
-			for _, phone := range gap.Phones {
-				if phone != "" {
-					summary.MissingPhones[phone]++
-				}
-			}
-		}
 	}
 	result := make([]coverageSummary, 0, len(order))
 	for _, language := range order {
 		summary := byLanguage[language]
 		if summary.Positions > 0 {
 			summary.CoverageRate = float64(summary.Covered) / float64(summary.Positions)
-			summary.MissingPhoneRate = float64(summary.MissingPhoneGroups) / float64(summary.Positions)
 		}
 		result = append(result, *summary)
 	}

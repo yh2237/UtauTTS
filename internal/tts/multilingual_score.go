@@ -4,7 +4,6 @@ import (
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
-	"math"
 )
 
 // 原音alias数に依存せず、音素ごとの長さを決める。
@@ -19,32 +18,9 @@ func speechPhoneDurations(morae []frontend.Mora, base float64) [][]float64 {
 		}
 		result[i] = make([]float64, len(m.Phones))
 		rhymeShares := frontend.MandarinRhymeShares(m.Phones)
-		final := true
-		for j := i + 1; j < len(morae) && !morae[j].Pause; j++ {
-			if morae[j].WordIndex != m.WordIndex {
-				final = false
-				break
-			}
-		}
 		for j, p := range m.Phones {
 			d := base * frontend.PhoneWeight(p.Symbol, p.Role)
-			if m.Language == frontend.LanguageEnglish {
-				if p.Role == "nucleus" {
-					if m.Stress == 1 {
-						d *= 1.2
-					} else if m.Stress == 2 {
-						d *= 1.1
-					} else if m.StressKnown {
-						d *= .85
-					}
-					if final {
-						d *= 1.12
-					}
-				} else if p.Role == "coda" {
-					d = base * englishPhoneWeight(m, p, frontend.PhoneWeight(p.Symbol, p.Role))
-					d = math.Max(d, base*.5)
-				}
-			} else if m.Language == frontend.LanguageChinese {
+			if m.Language == frontend.LanguageChinese {
 				if rhymeShares[j] > 0 {
 					d = base * mandarinPhoneWeight(m, frontend.Phone{Role: "nucleus"}, 1) * rhymeShares[j]
 				}

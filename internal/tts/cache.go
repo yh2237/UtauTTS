@@ -129,12 +129,12 @@ func hashFloatSlice(values []float64) string {
 func prosodyComputationKeyFor(cfg Config) prosodyComputationKey {
 	settings := fmt.Sprintf(
 		"mora=%v pause=%v/%v pitchonly=%v apply=%v strength=%v release=%v cap=%v "+
-			"cd=%v cds=%v bt=%v bts=%v sa=%v sas=%v pc=%v pcs=%v ewf=%v tone=%v color=%v",
+			"cd=%v cds=%v bt=%v bts=%v sa=%v sas=%v pc=%v pcs=%v tone=%v color=%v",
 		cfg.MoraDurationMS, cfg.PauseDurationMS, cfg.PauseDurationSet, cfg.ProsodyPitchOnly, cfg.ApplyPitch,
 		cfg.IntonationStrength, cfg.ReleaseMS, rendererCapabilityKey(cfg.RendererCapabilities),
 		optionalBoolKey(cfg.ContextDuration), cfg.ContextDurationStrength, optionalBoolKey(cfg.BoundaryTone), cfg.BoundaryToneStrength,
 		optionalBoolKey(cfg.StretchAdapt), cfg.StretchAdaptStrength, optionalBoolKey(cfg.PauseContext), cfg.PauseContextStrength,
-		optionalBoolKey(cfg.EnglishWeakForm), cfg.Tone, cfg.Color)
+		cfg.Tone, cfg.Color)
 	return prosodyComputationKey{
 		text: cfg.Text, reading: cfg.Reading, language: cfg.Language, phonemizer: cfg.Phonemizer,
 		modelPath: cfg.ProsodyModelPath, renderer: cfg.Renderer, voicebankPath: cfg.VoicebankPath,

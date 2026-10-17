@@ -51,7 +51,6 @@ type Config struct {
 	// PauseContextStrengthはポーズ長補正の強度。0は既定1.0。
 	PauseContextStrength float64
 	// nilは既定で有効。
-	EnglishWeakForm         *bool
 	Context                 context.Context
 	Engine                  engine.ResolvedEngine
 	VoicebankPath           string
@@ -93,6 +92,9 @@ type Config struct {
 	JoinModelPath           string
 	JoinModel               *connection.JoinModel
 	ProviderOptions         render.ProviderOptions
+	// WorldEnginePathとEnglishReferenceDirは英語の合成に使うWORLDエンジンとモデルのフォルダ。Rendererに関係なく使う。
+	WorldEnginePath     string
+	EnglishReferenceDir string
 }
 
 type Result struct {
@@ -335,6 +337,9 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
+	if frontend.NormalizeLanguage(language) == frontend.LanguageEnglish {
+		return synthesizeEnglishReference(cfg, bank, language, phonemizer, reading, morae)
+	}
 	profile := languageProfileFor(language)
 	profile.ApplySpeechProfile(&cfg)
 	traceMark(&start, "phonemize")
@@ -488,6 +493,9 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	language, _, reading, morae, err := resolvePronunciation(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
+	}
+	if frontend.NormalizeLanguage(language) == frontend.LanguageEnglish {
+		return predictEnglishReference(cfg, reading, morae)
 	}
 	profile := languageProfileFor(language)
 	loadedProsody, err := resolveProsodyModelForProfile(cfg, profile)

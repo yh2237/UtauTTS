@@ -81,7 +81,6 @@ func resolveProsodyModelForProfile(cfg Config, profile languageProfile) (*prosod
 
 // 言語別の代替抑揚モデル。configuredPathと同じディレクトリから読む。
 var prosodyModelFallbacks = map[string]string{
-	frontend.LanguageEnglish: "frame-intonation-tcn-en-v1.json",
 	frontend.LanguageChinese: "tone-intonation-zh-v1.json",
 }
 

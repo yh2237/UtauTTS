@@ -75,6 +75,12 @@ int UtauTTSWorldF0(const double* samples, int count, int rate, double frame_ms,
 
 int UtauTTSWorldAnalyze(const UtauTTSWorldAnalysisRequest* request,
                         char* error, int error_capacity) {
+  return UtauTTSWorldAnalyzeD4C(request, 0, error, error_capacity);
+}
+
+int UtauTTSWorldAnalyzeD4C(const UtauTTSWorldAnalysisRequest* request,
+                           double d4c_threshold, char* error,
+                           int error_capacity) {
   if (request == nullptr || request->samples == nullptr ||
       request->f0 == nullptr || request->spectrum == nullptr ||
       request->aperiodicity == nullptr) {
@@ -126,7 +132,7 @@ int UtauTTSWorldAnalyze(const UtauTTSWorldAnalysisRequest* request,
                spectrum_rows.data());
     D4COption d4c{};
     InitializeD4COption(&d4c);
-    d4c.threshold = 0;
+    d4c.threshold = d4c_threshold;
     D4C(request->samples, request->sample_count, request->sample_rate,
         time_axis.data(), request->f0, frame_count, shape.fft_size, &d4c,
         aperiodicity_rows.data());

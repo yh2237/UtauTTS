@@ -10,41 +10,8 @@ import (
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
-func TestCodaReleaseScope(t *testing.T) {
-	p := &plan.Plan{Phonemizer: frontend.PhonemizerEnglishDelta, Morae: []frontend.Mora{{Phones: []frontend.Phone{{Symbol: "p", Role: "coda"}}}}}
-	u := plan.Unit{Position: 0, Role: "ending", Alias: "V p-", CodaPhones: []string{"p"}}
-	if !worldCodaReleaseEligible(p, u) {
-		t.Fatal("verified p not enabled by default")
-	}
-	for _, alias := range []string{"V t-", "V k-", "V p t", "V p-B3", "pV"} {
-		v := u
-		v.Alias = alias
-		if !worldCodaReleaseEligible(p, v) {
-			t.Fatal("required coda rejected because of alias", alias)
-		}
-	}
-	v := u
-	v.Role = "transition"
-	if worldCodaReleaseEligible(p, v) {
-		t.Fatal("transition changed")
-	}
-	p.Phonemizer = frontend.PhonemizerEnglishVCCV
-	if !worldCodaReleaseEligible(p, u) {
-		t.Fatal("VCCV coda skipped")
-	}
-	p.Phonemizer = frontend.PhonemizerEnglishDelta
-	p.Morae[0].Phones[0].Role = "onset"
-	u.CodaPhones = nil
-	if worldCodaReleaseEligible(p, u) {
-		t.Fatal("optional ending mistaken for required coda")
-	}
-	if !base.CodaReleaseStop(plan.Unit{CodaPhones: []string{"d"}}) || base.CodaReleaseStop(plan.Unit{CodaPhones: []string{"l"}}) {
-		t.Fatal("wrong stop classification")
-	}
-}
-
 func TestMainCodaFadeScope(t *testing.T) {
-	for _, phonemizer := range []string{frontend.PhonemizerEnglish, frontend.PhonemizerEnglishCV, frontend.PhonemizerChinese} {
+	for _, phonemizer := range []string{frontend.PhonemizerChinese} {
 		p := &plan.Plan{Phonemizer: phonemizer}
 		u := plan.Unit{Role: "mora", CodaPhones: []string{"n"}, DurationMS: 60}
 		if !worldCodaReleaseEligible(p, u) {
@@ -70,12 +37,12 @@ func TestCodaReleaseEnvelopeKeepsConsonantAudible(t *testing.T) {
 	}
 }
 
-func TestCodaClosureReleaseSplitSeparatesEnglishStop(t *testing.T) {
+func TestCodaClosureReleaseSplitSeparatesStop(t *testing.T) {
 	u := plan.Unit{Role: "ending", CodaPhones: []string{"t"}, DurationMS: 70,
 		SpeechProfile: &voicebank.SpeechProfile{ReleaseTransientMS: 40, ReleaseTransientDurationMS: 16, ReleaseTransientConfidence: .6}}
 	closure, release, ok := codaClosureReleaseSplit(u)
 	if !ok {
-		t.Fatal("english stop coda not split")
+		t.Fatal("stop coda not split")
 	}
 	if math.Abs(closure+release-u.DurationMS) > 1e-9 {
 		t.Fatalf("total length changed: closure=%v release=%v", closure, release)
@@ -88,19 +55,5 @@ func TestCodaClosureReleaseSplitSeparatesEnglishStop(t *testing.T) {
 	}
 	if _, _, ok := codaClosureReleaseSplit(plan.Unit{CodaPhones: []string{"t"}, DurationMS: 20}); ok {
 		t.Fatal("short coda must not split")
-	}
-}
-
-func TestCodaReleaseSplitOnlyForEnglishStops(t *testing.T) {
-	p := &plan.Plan{Phonemizer: frontend.PhonemizerEnglishDelta, Morae: []frontend.Mora{{Consonant: "m", Vowel: "iy"}}}
-	u := plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, DurationMS: 70,
-		SpeechProfile: &voicebank.SpeechProfile{ReleaseTransientMS: 40, ReleaseTransientDurationMS: 16, ReleaseTransientConfidence: .6}}
-	if _, _, ok := worldCodaReleaseSplit(p, u, base.WorldlineProviderOptions{}); !ok {
-		t.Fatal("english stop coda should split")
-	}
-	// 日本語はCodaPhonesが付かないため対象外。
-	ja := &plan.Plan{Language: "ja", Phonemizer: "ja-kana"}
-	if _, _, ok := worldCodaReleaseSplit(ja, u, base.WorldlineProviderOptions{}); ok {
-		t.Fatal("non-English coda must not split")
 	}
 }

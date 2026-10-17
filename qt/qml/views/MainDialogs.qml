@@ -415,7 +415,8 @@ Item {
 
             ProgressBar {
                 Layout.fillWidth: true
-                indeterminate: true
+                indeterminate: host.metadataReloadStage !== "englishIndex"
+                value: host.appBackend.englishIndexProgress
             }
         }
     }

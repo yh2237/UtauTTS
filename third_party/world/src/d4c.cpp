@@ -30,18 +30,19 @@ static void SetParametersForGetWindowedWaveform(int half_window_length,
       MyMinInt(x_length - 1, MyMaxInt(0, origin + base_index[i]));
 
   // Designing of the window function
-  double position;
-  if (window_type == world::kHanning) {  // Hanning window
-    for (int i = 0; i <= half_window_length * 2; ++i) {
-      position = (2.0 * base_index[i] / window_length_ratio) / fs;
-      window[i] = 0.5 * cos(world::kPi * position * current_f0) + 0.5;
-    }
-  } else {  // Blackman window
-    for (int i = 0; i <= half_window_length * 2; ++i) {
-      position = (2.0 * base_index[i] / window_length_ratio) / fs;
-      window[i] = 0.42 + 0.5 * cos(world::kPi * position * current_f0) +
-        0.08 * cos(world::kPi * position * current_f0 * 2);
-    }
+  double start = world::kPi * current_f0 *
+    ((2.0 * base_index[0] / window_length_ratio) / fs);
+  double step = world::kPi * current_f0 * (2.0 / window_length_ratio / fs);
+  double c = cos(start), s = sin(start);
+  double cd = cos(step), sd = sin(step);
+  for (int i = 0; i <= half_window_length * 2; ++i) {
+    if (window_type == world::kHanning)
+      window[i] = 0.5 * c + 0.5;
+    else
+      window[i] = 0.42 + 0.5 * c + 0.08 * (2.0 * c * c - 1.0);
+    double next = c * cd - s * sd;
+    s = s * cd + c * sd;
+    c = next;
   }
 }
 
@@ -214,12 +215,17 @@ static void GetCoarseAperiodicity(const double *static_group_delay, int fs,
       power_spectrum[j] =
         forward_real_fft->spectrum[j][0] * forward_real_fft->spectrum[j][0] +
         forward_real_fft->spectrum[j][1] * forward_real_fft->spectrum[j][1];
-    std::sort(power_spectrum, power_spectrum + fft_size / 2 + 1);
-    for (int j = 1 ; j <= fft_size / 2; ++j)
-      power_spectrum[j] += power_spectrum[j - 1];
-    coarse_aperiodicity[i] =
-      10 * log10(power_spectrum[fft_size / 2 - boundary - 1] /
-                 power_spectrum[fft_size / 2]);
+    // Only the sum of the smallest values and the total are needed, so the
+    // values are partitioned instead of sorted.
+    int lower = fft_size / 2 - boundary;
+    std::nth_element(power_spectrum, power_spectrum + lower,
+        power_spectrum + fft_size / 2 + 1);
+    double lower_sum = 0.0;
+    double total = 0.0;
+    for (int j = 0; j < lower; ++j) lower_sum += power_spectrum[j];
+    total = lower_sum;
+    for (int j = lower; j <= fft_size / 2; ++j) total += power_spectrum[j];
+    coarse_aperiodicity[i] = 10 * log10(lower_sum / total);
   }
   delete[] power_spectrum;
 }

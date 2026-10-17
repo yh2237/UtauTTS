@@ -36,7 +36,6 @@ type measurement struct {
 	Peak                     float64 `json:"peak"`
 	RMS                      float64 `json:"rms"`
 	SilentUnits              int     `json:"silent_units"`
-	MissingPhoneGroups       int     `json:"missing_phone_groups"`
 	V13CompatibleUnits       int     `json:"v1_3_compatible_units"`
 	AdaptiveUnits            int     `json:"adaptive_units"`
 	GapRepairUnits           int     `json:"gap_repair_units"`
@@ -76,7 +75,6 @@ func run() (runErr error) {
 	stretchAdaptStrength := flag.Float64("stretch-adapt-strength", 1.0, "stretch adaptation strength (0 uses the default 1.0)")
 	pauseContext := flag.Bool("pause-context", true, "context-aware punctuation pause length (B5)")
 	pauseContextStrength := flag.Float64("pause-context-strength", 1.0, "pause context strength (0 uses the default 1.0)")
-	englishWeakForm := flag.Bool("english-weak-form", true, "weak forms for English function words (E1)")
 	timingWarp := flag.Bool("timing-warp", render.WorldlineProviderOptions{}.TimingWarpEnabled(), "warp Japanese WORLD output timing toward learned speech movement")
 	aliasPolicy := flag.String("alias-policy", "auto", "voicebank mode: auto or cv-only")
 	bank := flag.String("voicebank", "", "voicebank directory (required)")
@@ -135,7 +133,7 @@ func run() (runErr error) {
 			boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
 			stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
 			pauseContext: *pauseContext, pauseContextStrength: *pauseContextStrength,
-			englishWeakForm: *englishWeakForm, noTimingWarp: !*timingWarp,
+			noTimingWarp: !*timingWarp,
 		})
 	}
 	if *measurePitch && (*diagnose || *renderers != "utautts-world-phrase") {
@@ -211,7 +209,7 @@ func run() (runErr error) {
 					boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
 					stretchAdapt: *stretchAdapt, stretchAdaptStrength: *stretchAdaptStrength,
 					pauseContext: *pauseContext, pauseContextStrength: *pauseContextStrength,
-					englishWeakForm: *englishWeakForm, noTimingWarp: !*timingWarp,
+					noTimingWarp: !*timingWarp,
 				})
 				row.ElapsedMS = elapsed
 				if callErr == nil {

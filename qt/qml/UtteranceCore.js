@@ -46,6 +46,7 @@ function requestProsodyPreview(ctx, index) {
     if (host.appBackend.busy) {
         // 合成中の予測要求は破棄されるため、完了後に再試行する。
         host.pendingProsodyPreviewIndex = index;
+        host.pendingProsodyPreviewRefresh = true;
         return;
     }
     if (host.pendingProsodyInFlight && host.pendingProsodyUtteranceId === item.utteranceId
@@ -57,6 +58,7 @@ function requestProsodyPreview(ctx, index) {
     host.pendingProsodyRevision = item.revision;
     host.pendingProsodyInFlight = true;
     host.pendingProsodyPreviewIndex = -1;
+    host.pendingProsodyPreviewRefresh = false;
     host.appBackend.predictProsody(host.buildProsodyRequest(item, requestId));
 }
 
@@ -67,6 +69,11 @@ function handleProsodyChanged(ctx) {
     host.pendingProsodyInFlight = false;
     const index = host.utteranceIndex(host.pendingProsodyUtteranceId);
     if (index < 0 || ctx.utterances.get(index).revision !== host.pendingProsodyRevision) {
+        // 予測中に編集された。選択中なら今の内容で予測し直す。
+        if (index >= 0 && index === host.selectedIndex) {
+            host.pendingProsodyPreviewIndex = index;
+            host.pendingProsodyPreviewRefresh = true;
+        }
         ctx.qt.callLater(host.flushProsodyPreviewRequest);
         return;
     }

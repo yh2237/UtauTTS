@@ -31,7 +31,6 @@ type caseOptions struct {
 	stretchAdaptStrength    float64
 	pauseContext            bool
 	pauseContextStrength    float64
-	englishWeakForm         bool
 	noTimingWarp            bool
 	timeout                 time.Duration
 }
@@ -60,7 +59,6 @@ func synthesizeCase(p prompt, o caseOptions) (*synth.Result, float64, error) {
 	request.StretchAdaptStrength = o.stretchAdaptStrength
 	request.PauseContext = o.pauseContext
 	request.PauseContextStrength = o.pauseContextStrength
-	request.EnglishWeakForm = o.englishWeakForm
 	request.Worldline = render.WorldlineProviderOptions{TimingWarp: new(!o.noTimingWarp)}
 	ctx, cancel := context.WithTimeout(context.Background(), o.timeout)
 	defer cancel()
@@ -120,7 +118,6 @@ func selectionPlanDigest(p *plan.Plan) string {
 
 func fillMeasurement(row *measurement, result *synth.Result) *plan.Plan {
 	row.AudioMS = result.DurationMS
-	row.MissingPhoneGroups = len(result.Plan.MissingPhones)
 	renderedPlan := result.RenderedPlan()
 	for _, unit := range renderedPlan.Units {
 		switch unit.WorldRenderMode {

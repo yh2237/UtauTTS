@@ -388,7 +388,7 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     if (!require(backend.dictionaryEntries().size() == 1 && !backend.dictionaryFingerprint().isEmpty(),
                  QStringLiteral("dictionary settings failed")))
         return 1;
-    backend.setSynthesisDefaults(QStringLiteral("frame-intonation-tcn-en-v1"),
+    backend.setSynthesisDefaults(QStringLiteral("tone-intonation-zh-v1"),
                                  QStringLiteral("utautts-world-phrase"),
                                  QStringLiteral("D4"), QStringLiteral("cv-only"));
     backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
@@ -411,13 +411,11 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                                QStringLiteral("stretch_adapt"), false);
     backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
                                QStringLiteral("stretch_adapt_strength"), 0.5);
-    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
-                               QStringLiteral("english_weak_form"), false);
     backend.setPreviewCacheFileCount(7);
     backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y");
     if (!require(backend.defaultMoraDuration() == 130 && backend.defaultPauseDuration() == 190
                  && backend.defaultLeadingPreutterance() == 45
-                 && backend.defaultModelId() == QStringLiteral("frame-intonation-tcn-en-v1")
+                 && backend.defaultModelId() == QStringLiteral("tone-intonation-zh-v1")
                  && backend.defaultRenderer() == QStringLiteral("utautts-world-phrase")
                  && backend.previewCacheFileCount() == 7
                  && backend.defaultIntonationStrength() == 2.5
@@ -435,8 +433,6 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                                             QStringLiteral("stretch_adapt"), true).toBool() == false
                  && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
                                             QStringLiteral("stretch_adapt_strength"), 1.0).toDouble() == 0.5
-                 && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
-                                            QStringLiteral("english_weak_form"), true).toBool() == false
                  && backend.undoShortcut() == QStringLiteral("Ctrl+Z"),
                  QStringLiteral("application settings failed")))
         return 1;

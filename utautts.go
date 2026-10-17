@@ -153,7 +153,7 @@ type DictionaryEntry struct {
 type Options struct {
 	MoraDurationMS, PauseDurationMS, IntonationStrength, ReleaseMS *float64
 	ApplyPitch, ContextDuration, BoundaryTone, StretchAdapt        *bool
-	PauseContext, EnglishWeakForm                                  *bool
+	PauseContext                                                   *bool
 }
 
 type Analysis struct {

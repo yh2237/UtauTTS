@@ -49,6 +49,9 @@ UTAUTTS_WORLD_API int UtauTTSWorldAnalysisShape(
     UtauTTSWorldAnalysisShapeRequest* request, char* error, int error_capacity);
 UTAUTTS_WORLD_API int UtauTTSWorldAnalyze(
     const UtauTTSWorldAnalysisRequest* request, char* error, int error_capacity);
+UTAUTTS_WORLD_API int UtauTTSWorldAnalyzeD4C(
+    const UtauTTSWorldAnalysisRequest* request, double d4c_threshold,
+    char* error, int error_capacity);
 UTAUTTS_WORLD_API int UtauTTSWorldSynthesize(
     const UtauTTSWorldSynthesisRequest* request, char* error, int error_capacity);
 

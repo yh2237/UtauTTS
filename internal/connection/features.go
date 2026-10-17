@@ -41,7 +41,6 @@ type PairFeatures struct {
 type Extractor struct {
 	mutex sync.Mutex
 	cache map[oto.Entry]Boundary
-	tails map[oto.Entry]Boundary
 	model *JoinModel
 }
 
@@ -103,79 +102,6 @@ func pairFeatures(previous, current oto.Entry, left, right Boundary) PairFeature
 		result.F0DeltaCents = math.Abs(1200 * math.Log2(right.Incoming.F0Hz/left.Outgoing.F0Hz))
 	}
 	return result
-}
-
-// ScoreSpeechTailContextは連続する語末音の発声末尾と接続区間を比較する。
-// 呼び出し側で音素の連続性を確認する。末尾検出は音素認識ではない。
-func (e *Extractor) ScoreSpeechTailContext(previous, current oto.Entry) float64 {
-	if e.model != nil {
-		return e.ScoreEntries(previous, current)
-	}
-	current.Overlap = math.Min(20, math.Max(0, current.Preutterance)*.5)
-	left := e.speechTail(previous)
-	return e.ScoreFeatures(pairFeatures(previous, current, left, e.Boundary(current)))
-}
-
-func (e *Extractor) speechTail(entry oto.Entry) Boundary {
-	fallback := e.Boundary(entry)
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-	if e.tails == nil {
-		e.tails = make(map[oto.Entry]Boundary)
-	}
-	if value, ok := e.tails[entry]; ok {
-		return value
-	}
-	value := fallback
-	pcm, wave, err := sourceaudio.ReadMono(entry.Filename)
-	if err == nil && pcm.SampleRate > 0 && pcm.Channels > 0 {
-		endMS := float64(len(wave)) * 1000 / float64(pcm.SampleRate)
-		if entry.Blank < 0 {
-			endMS = entry.Offset - entry.Blank
-		} else {
-			endMS -= entry.Blank
-		}
-		start := max(0, min(len(wave), int(math.Ceil(entry.Offset*float64(pcm.SampleRate)/1000))))
-		end := max(start, min(len(wave), int(math.Floor(endMS*float64(pcm.SampleRate)/1000))))
-		if tail, ok := activeTailCenter(wave[start:end], pcm.SampleRate); ok {
-			// 切り出し外の録音を分析に含めない。
-			value.Outgoing, value.outgoingWave = frameFeatures(wave[start:end], pcm.SampleRate, tail)
-		}
-	}
-	e.tails[entry] = value
-	return value
-}
-
-func activeTailCenter(wave []float64, rate int) (float64, bool) {
-	if rate <= 0 || len(wave) < int(.03*float64(rate)) {
-		return 0, false
-	}
-	step := max(1, rate/200) // 5msごとのエネルギー。
-	energy := make([]float64, 0, (len(wave)+step-1)/step)
-	peak := 0.0
-	for start := 0; start < len(wave); start += step {
-		end := min(len(wave), start+step)
-		sum := 0.0
-		for _, v := range wave[start:end] {
-			sum += v * v
-		}
-		rms := math.Sqrt(sum / float64(end-start))
-		energy = append(energy, rms)
-		peak = math.Max(peak, rms)
-	}
-	if peak < 1e-5 {
-		return 0, false
-	}
-	for i := len(energy) - 1; i >= 0; i-- {
-		if energy[i] >= peak*.02 {
-			end := min(len(wave), (i+1)*step)
-			if end < int(.03*float64(rate)) {
-				return 0, false
-			}
-			return float64(end)*1000/float64(rate) - 15, true
-		}
-	}
-	return 0, false
 }
 
 // 判定なし・低信頼の場合は規則スコアへ戻す。

@@ -13,8 +13,9 @@ typedef struct { const double* samples; int sample_count; int sample_rate; doubl
 typedef struct { const double* f0; int frame_count; const double* spectrum; const double* ap; int fft_size; double frame_period_ms; int sample_rate; double* output; int output_count; } WorldSynthesis;
 typedef int (*WorldShapeFn)(WorldShape*, char*, int);
 typedef int (*WorldAnalyzeFn)(const WorldAnalysis*, char*, int);
+typedef int (*WorldAnalyzeD4CFn)(const WorldAnalysis*, double, char*, int);
 typedef int (*WorldSynthesizeFn)(const WorldSynthesis*, char*, int);
-typedef struct { void* handle; WorldShapeFn shape; WorldAnalyzeFn analyze; WorldSynthesizeFn synthesize; } WorldEngine;
+typedef struct { void* handle; WorldShapeFn shape; WorldAnalyzeFn analyze; WorldAnalyzeD4CFn analyze_d4c; WorldSynthesizeFn synthesize; } WorldEngine;
 
 static WorldEngine* world_open(const char* path, char* error, int capacity) {
   WorldEngine* engine = (WorldEngine*)calloc(1, sizeof(WorldEngine));
@@ -26,11 +27,16 @@ static WorldEngine* world_open(const char* path, char* error, int capacity) {
   LOAD(analyze, "UtauTTSWorldAnalyze");
   LOAD(synthesize, "UtauTTSWorldSynthesize");
 #undef LOAD
+  engine->analyze_d4c = (WorldAnalyzeD4CFn)dlsym(engine->handle, "UtauTTSWorldAnalyzeD4C");
   return engine;
 }
 static void world_close(WorldEngine* engine) { if (engine) { dlclose(engine->handle); free(engine); } }
 static int world_shape(WorldEngine* engine, WorldShape* request, char* error, int capacity) { return engine->shape(request, error, capacity); }
-static int world_analyze(WorldEngine* engine, const WorldAnalysis* request, char* error, int capacity) { return engine->analyze(request, error, capacity); }
+static int world_analyze(WorldEngine* engine, const WorldAnalysis* request, double d4c_threshold, char* error, int capacity) {
+  if (d4c_threshold == 0) return engine->analyze(request, error, capacity);
+  if (!engine->analyze_d4c) { snprintf(error, capacity, "missing UtauTTSWorldAnalyzeD4C"); return 0; }
+  return engine->analyze_d4c(request, d4c_threshold, error, capacity);
+}
 static int world_synthesize(WorldEngine* engine, const WorldSynthesis* request, char* error, int capacity) { return engine->synthesize(request, error, capacity); }
 */
 import "C"
@@ -60,8 +66,12 @@ func (engine *darwinWorldEngine) Close() error {
 }
 
 func (engine *darwinWorldEngine) Analyze(samples []float64, sampleRate int, inputF0 []float64) (worldFeatures, error) {
+	return engine.AnalyzeWith(samples, sampleRate, inputF0, worldFramePeriodMS, 0)
+}
+
+func (engine *darwinWorldEngine) AnalyzeWith(samples []float64, sampleRate int, inputF0 []float64, frameMS, d4cThreshold float64) (worldFeatures, error) {
 	errorBuffer := make([]byte, 512)
-	shape := C.WorldShape{sample_count: C.int(len(samples)), sample_rate: C.int(sampleRate), frame_period_ms: C.double(worldFramePeriodMS)}
+	shape := C.WorldShape{sample_count: C.int(len(samples)), sample_rate: C.int(sampleRate), frame_period_ms: C.double(frameMS)}
 	if C.world_shape(engine.pointer, &shape, (*C.char)(unsafe.Pointer(&errorBuffer[0])), C.int(len(errorBuffer))) == 0 {
 		return worldFeatures{}, fmt.Errorf("WORLD analysis shape: %s", cString(errorBuffer))
 	}
@@ -69,7 +79,7 @@ func (engine *darwinWorldEngine) Analyze(samples []float64, sampleRate int, inpu
 	if len(inputF0) >= 2 {
 		frames = len(inputF0)
 	}
-	features := worldFeatures{Frames: frames, FFTSize: int(shape.fft_size)}
+	features := worldFeatures{Frames: frames, FFTSize: int(shape.fft_size), FramePeriodMS: frameMS}
 	bins := features.FFTSize/2 + 1
 	features.F0 = make([]float64, features.Frames)
 	features.Spectrum = make([]float64, features.Frames*bins)
@@ -78,11 +88,11 @@ func (engine *darwinWorldEngine) Analyze(samples []float64, sampleRate int, inpu
 	cSpectrum, cAP := cBytes(features.Spectrum), cBytes(features.Aperiodicity)
 	defer freePointers([]unsafe.Pointer{cSamples, cInputF0, cF0, cSpectrum, cAP})
 	request := C.WorldAnalysis{
-		samples: (*C.double)(cSamples), sample_count: C.int(len(samples)), sample_rate: C.int(sampleRate), frame_period_ms: C.double(worldFramePeriodMS),
+		samples: (*C.double)(cSamples), sample_count: C.int(len(samples)), sample_rate: C.int(sampleRate), frame_period_ms: C.double(frameMS),
 		input_f0: (*C.double)(cInputF0), input_f0_count: C.int(len(inputF0)),
 		f0: (*C.double)(cF0), spectrum: (*C.double)(cSpectrum), ap: (*C.double)(cAP),
 	}
-	if C.world_analyze(engine.pointer, &request, (*C.char)(unsafe.Pointer(&errorBuffer[0])), C.int(len(errorBuffer))) == 0 {
+	if C.world_analyze(engine.pointer, &request, C.double(d4cThreshold), (*C.char)(unsafe.Pointer(&errorBuffer[0])), C.int(len(errorBuffer))) == 0 {
 		return worldFeatures{}, fmt.Errorf("WORLD analysis: %s", cString(errorBuffer))
 	}
 	copy(features.F0, unsafe.Slice((*float64)(cF0), len(features.F0)))
@@ -95,14 +105,14 @@ func (engine *darwinWorldEngine) Synthesize(features worldFeatures, sampleRate i
 	if err := validateWorldFeatures(features); err != nil {
 		return nil, err
 	}
-	output := make([]float64, worldSynthesisLength(features.Frames, sampleRate))
+	output := make([]float64, worldSynthesisLengthAt(features.Frames, sampleRate, features.periodMS()))
 	errorBuffer := make([]byte, 512)
 	cF0, cSpectrum := cBytes(features.F0), cBytes(features.Spectrum)
 	cAP, cOutput := cBytes(features.Aperiodicity), cBytes(output)
 	defer freePointers([]unsafe.Pointer{cF0, cSpectrum, cAP, cOutput})
 	request := C.WorldSynthesis{
 		f0: (*C.double)(cF0), frame_count: C.int(features.Frames), spectrum: (*C.double)(cSpectrum), ap: (*C.double)(cAP),
-		fft_size: C.int(features.FFTSize), frame_period_ms: C.double(worldFramePeriodMS), sample_rate: C.int(sampleRate), output: (*C.double)(cOutput), output_count: C.int(len(output)),
+		fft_size: C.int(features.FFTSize), frame_period_ms: C.double(features.periodMS()), sample_rate: C.int(sampleRate), output: (*C.double)(cOutput), output_count: C.int(len(output)),
 	}
 	if C.world_synthesize(engine.pointer, &request, (*C.char)(unsafe.Pointer(&errorBuffer[0])), C.int(len(errorBuffer))) == 0 {
 		return nil, fmt.Errorf("WORLD synthesis: %s", cString(errorBuffer))

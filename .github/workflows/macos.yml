@@ -23,6 +23,7 @@ on:
       - 'THIRD_PARTY_NOTICES.txt'
       - 'THIRD_PARTY_NOTICES-MACOS-GUI.txt'
       - 'tools/build-macos.sh'
+      - 'tools/fetch-english-reference.sh'
       - 'tools/collect-go-licenses.sh'
       - 'tools/collect-macos-qt-licenses.sh'
       - 'tools/collect-pyinstaller-runtime-licenses.py'
@@ -53,6 +54,7 @@ on:
       - 'THIRD_PARTY_NOTICES.txt'
       - 'THIRD_PARTY_NOTICES-MACOS-GUI.txt'
       - 'tools/build-macos.sh'
+      - 'tools/fetch-english-reference.sh'
       - 'tools/collect-go-licenses.sh'
       - 'tools/collect-macos-qt-licenses.sh'
       - 'tools/collect-pyinstaller-runtime-licenses.py'
@@ -121,6 +123,22 @@ jobs:
         run: |
           echo "QT_ROOT=$RUNNER_TEMP/qt/$QT_VERSION/macos" >> "$GITHUB_ENV"
           echo "$RUNNER_TEMP/qt/$QT_VERSION/macos/bin" >> "$GITHUB_PATH"
+
+      - name: Cache English reference models
+        uses: actions/cache@v4
+        with:
+          path: |
+            models/english-reference/kokoro-v1_0.pth
+            models/english-reference/config.json
+            models/english-reference/af_heart.pt
+            models/english-reference/hubert-base-ls960.safetensors
+            models/english-reference/us_gold.json
+            models/english-reference/us_silver.json
+          key: english-reference-${{ hashFiles('tools/fetch-english-reference.sh') }}
+
+      - name: Fetch English reference models
+        shell: bash
+        run: bash tools/fetch-english-reference.sh
 
       - name: Build and smoke-test macOS packages
         shell: bash

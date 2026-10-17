@@ -127,27 +127,13 @@ func TestPhoneTimelineUsesExplicitSpans(t *testing.T) {
 	}
 }
 
-func TestTargetForLanguageLoadsEnglishModel(t *testing.T) {
-	english, err := TargetForLanguage("en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(english.Phones()) != 42 {
-		t.Fatalf("English phones = %d, want 42", len(english.Phones()))
-	}
-	known := map[string]bool{}
-	for _, phone := range english.Phones() {
-		known[phone] = true
-	}
-	if !known["ah"] || !known["ow"] || !known["sil"] {
-		t.Fatalf("English vocabulary is missing ARPAsing symbols: %v", english.Phones())
-	}
+func TestTargetForLanguageLoadsModels(t *testing.T) {
 	japanese, err := TargetForLanguage("ja")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(japanese.Phones()) != 40 || japanese == english {
-		t.Fatalf("Japanese model = %d phones, same=%v", len(japanese.Phones()), japanese == english)
+	if len(japanese.Phones()) != 40 {
+		t.Fatalf("Japanese model = %d phones", len(japanese.Phones()))
 	}
 	chinese, err := TargetForLanguage("zh")
 	if err != nil {
@@ -166,7 +152,7 @@ func TestTargetForLanguageLoadsEnglishModel(t *testing.T) {
 }
 
 func TestTargetForLanguageAliases(t *testing.T) {
-	for alias, language := range map[string]string{"en-US": "en", "cmn": "zh", "ja-JP": "ja"} {
+	for alias, language := range map[string]string{"cmn": "zh", "ja-JP": "ja"} {
 		got, err := TargetForLanguage(alias)
 		if err != nil {
 			t.Fatal(err)

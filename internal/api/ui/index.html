@@ -114,7 +114,7 @@
     </div>
     <details>
       <summary>詳細設定（合成リクエストのJSON）</summary>
-      <p class="muted">基本項目に追加・上書きするJSONオブジェクトを入力します。例：<code>{"boundary_tone":false,"english_weak_form":false}</code>。項目は<a href="https://github.com/yh2237/UtauTTS/blob/main/docs/server.md">API仕様</a>を参照してください。</p>
+      <p class="muted">基本項目に追加・上書きするJSONオブジェクトを入力します。例：<code>{"boundary_tone":false,"pause_context":false}</code>。項目は<a href="https://github.com/yh2237/UtauTTS/blob/main/docs/server.md">API仕様</a>を参照してください。</p>
       <textarea id="syn-extra" placeholder='{"renderer_settings":{}}'></textarea>
     </details>
     <button id="syn-run">合成する</button>
@@ -177,7 +177,6 @@ const languageOptions = {
 };
 const languageModels = {
   ja: "frame-intonation-tcn-v12",
-  en: "frame-intonation-tcn-en-v1",
   zh: "tone-intonation-zh-v1",
 };
 const exampleTexts = {

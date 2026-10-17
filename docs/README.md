@@ -20,7 +20,6 @@ UtauTTSの利用方法および技術ドキュメントの目次です。
 - [技術設計ガイド](technical-design.md) - システムアーキテクチャとデータ構造
 - [モデル／Rendererプラグイン](plugins.md) - 合成エンジンや抑揚モデルの拡張仕様
 - [モデルの学習手順](model-training.md) - 独自イントネーションモデルの学習方法
-- [原音区間ライブラリ](source-understanding.md) - 多言語原音区間の解析・強制整列手順
 - [開発環境とビルド](building.md) - ソースコードからのビルド手順
 - [Qt WebAssembly版の構成](wasm-architecture.md) - Web版の非同期通信・仮想ファイルシステム
 - [リリーステスト](release-testing.md) - 自動検査パッケージ検証

@@ -101,16 +101,12 @@ func ParseModel(data []byte) (*Model, error) {
 		return nil, err
 	}
 	current := model.Version == ModelVersion && model.FeatureVersion == 1 && model.Mode == "speech_prosody_residual"
-	frame := model.FeatureVersion == 1 && model.Version == FramePitchModelVersion && (model.Mode == "intonation_frame_tcn_accent_bounded" || model.Mode == "intonation_frame_tcn_english_bounded")
-	if model.Mode == "intonation_frame_tcn_english_bounded" && model.Language != "en" {
-		return nil, fmt.Errorf("English frame model must declare language en")
-	}
+	frame := model.FeatureVersion == 1 && model.Version == FramePitchModelVersion && model.Mode == "intonation_frame_tcn_accent_bounded"
 	multitask := model.FeatureVersion == 2 && model.Version == ProsodyMultitaskModelVersion && model.Mode == "prosody_multitask_tcn"
 	manualResidual := model.FeatureVersion == 2 && model.Version == ManualResidualModelVersion &&
 		(model.Mode == "intonation_frame_v8_manual_residual" || model.Mode == "intonation_frame_manual_residual")
-	englishIntonation := model.FeatureVersion == 1 && model.Version == EnglishIntonationModelVersion && model.Mode == "english_intonation_v1"
 	mandarinIntonation := model.FeatureVersion == 1 && model.Version == MandarinIntonationModelVersion && model.Mode == "mandarin_intonation_v1"
-	if !current && !frame && !multitask && !manualResidual && !englishIntonation && !mandarinIntonation {
+	if !current && !frame && !multitask && !manualResidual && !mandarinIntonation {
 		return nil, fmt.Errorf("unsupported prosody model version %d/feature %d mode %q", model.Version, model.FeatureVersion, model.Mode)
 	}
 	var allowedHeads []string
@@ -132,8 +128,6 @@ func ParseModel(data []byte) (*Model, error) {
 		allowedHeads = []string{"mora_duration", "frame_pitch"}
 	case manualResidual:
 		allowedHeads = []string{"frame_pitch", "mora_pitch_residual"}
-	case englishIntonation:
-		allowedHeads = []string{"english_intonation"}
 	case mandarinIntonation:
 		allowedHeads = []string{"mandarin_intonation"}
 	}
@@ -170,14 +164,6 @@ func ParseModel(data []byte) (*Model, error) {
 			return nil, fmt.Errorf("invalid manual residual base model metadata")
 		}
 	}
-	if englishIntonation {
-		if err := validateEnglishIntonation(model.EnglishIntonation); err != nil {
-			return nil, fmt.Errorf("invalid English intonation model: %w", err)
-		}
-		if !strings.EqualFold(strings.TrimSpace(model.Language), "en") {
-			return nil, fmt.Errorf("English intonation model must declare language en")
-		}
-	}
 	if mandarinIntonation {
 		if model.Language != "zh" || validateMandarinIntonation(model.MandarinIntonation) != nil {
 			return nil, fmt.Errorf("invalid Mandarin intonation model")
@@ -210,7 +196,6 @@ func (m *Model) heads() []modelHead {
 		{"mora_duration", m.MoraDuration != nil},
 		{"frame_pitch", m.FramePitch != nil},
 		{"mora_pitch_residual", m.MoraPitchResidual != nil},
-		{"english_intonation", m.EnglishIntonation != nil},
 		{"mandarin_intonation", m.MandarinIntonation != nil},
 	}
 }
@@ -240,40 +225,6 @@ func validateWeightMap(name string, weights map[string]float64) error {
 	for key, value := range weights {
 		if math.IsNaN(value) || math.IsInf(value, 0) {
 			return fmt.Errorf("%s %q must be finite, got %v", name, key, value)
-		}
-	}
-	return nil
-}
-
-func validateEnglishIntonation(model *EnglishIntonationModel) error {
-	if model == nil || model.FrameMS < 1 || model.LowCents >= model.HighCents ||
-		model.LowCents > 0 || model.HighCents < 0 || model.P99Cents <= 0 || model.MaxCents <= 0 ||
-		model.SmoothingMS < 0 || model.PrimaryStressCents <= 0 || model.SecondaryStressCents < 0 ||
-		model.UnstressedCents > 0 || model.PreStressDipCents > 0 || model.WordDownstepCents < 0 ||
-		model.PhraseFinalFallCents > 0 || model.QuestionRiseCents < 0 {
-		return fmt.Errorf("invalid metadata")
-	}
-	for name, value := range map[string]float64{
-		"baseline_start_cents": model.BaselineStartCents, "baseline_end_cents": model.BaselineEndCents,
-		"primary_stress_cents": model.PrimaryStressCents, "secondary_stress_cents": model.SecondaryStressCents,
-		"unstressed_cents": model.UnstressedCents, "pre_stress_dip_cents": model.PreStressDipCents,
-		"word_downstep_cents": model.WordDownstepCents, "phrase_final_fall_cents": model.PhraseFinalFallCents,
-		"question_rise_cents": model.QuestionRiseCents, "smoothing_ms": model.SmoothingMS,
-		"low_cents": model.LowCents, "high_cents": model.HighCents, "p99_cents": model.P99Cents,
-		"max_cents": model.MaxCents, "primary_duration_factor": model.PrimaryDurationFactor,
-		"secondary_duration_factor": model.SecondaryDurationFactor, "unstressed_duration_factor": model.UnstressedDurationFactor,
-		"phrase_final_duration_factor": model.PhraseFinalDurationFactor,
-	} {
-		if math.IsNaN(value) || math.IsInf(value, 0) {
-			return fmt.Errorf("%s must be finite", name)
-		}
-	}
-	for name, value := range map[string]float64{
-		"primary_duration_factor": model.PrimaryDurationFactor, "secondary_duration_factor": model.SecondaryDurationFactor,
-		"unstressed_duration_factor": model.UnstressedDurationFactor, "phrase_final_duration_factor": model.PhraseFinalDurationFactor,
-	} {
-		if value <= 0 {
-			return fmt.Errorf("%s must be positive", name)
 		}
 	}
 	return nil

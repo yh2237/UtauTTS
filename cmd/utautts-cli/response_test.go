@@ -83,29 +83,6 @@ func TestCLIJSONErrors(t *testing.T) {
 	}
 }
 
-func TestCLIJSONReportsMissingPhones(t *testing.T) {
-	args := synthesisArgs(t)
-	if err := os.WriteFile(filepath.Join(args[1], "oto.ini"), []byte("a.wav=tA,0,40,0,60,30\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	var stdout, stderr bytes.Buffer
-	path := filepath.Join(t.TempDir(), "speech.wav")
-	code := executeCLI(append(args, "--json", "--language", "en", "--phonemizer", "en-delta", "--reading", "S T AA1", "--out", path), strings.NewReader(""), &stdout, &stderr)
-	if code != 0 {
-		t.Fatalf("exit=%d, stderr=%q", code, stderr.String())
-	}
-	response := decodeResponse(t, stdout.Bytes())
-	result := response["result"].(map[string]any)
-	diagnostics := result["diagnostics"].([]any)
-	for _, item := range diagnostics {
-		diagnostic := item.(map[string]any)
-		if diagnostic["code"] == "missing-phones" && diagnostic["severity"] == "warning" && diagnostic["message"] != "" {
-			return
-		}
-	}
-	t.Fatalf("missing phone was not reported: %#v", diagnostics)
-}
-
 func TestCLIJSONVersionAndParseErrors(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if code := executeCLI([]string{"--json", "--version"}, strings.NewReader(""), &stdout, &stderr); code != 0 {

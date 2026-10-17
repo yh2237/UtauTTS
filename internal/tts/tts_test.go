@@ -89,59 +89,6 @@ func TestAliasProfilesBundleSelectionAndRendererSettings(t *testing.T) {
 	}
 }
 
-func TestEnglishSpeechProfileKeepsCVVCTransitionsAudible(t *testing.T) {
-	cfg := Config{AliasPolicy: voicebank.AliasPolicyCVVCPrefer, CVVCTransitionGain: 0.35}
-	applyLanguageSpeechProfile(frontend.LanguageEnglish, &cfg)
-	if cfg.CVVCTransitionGain <= 0.35 {
-		t.Fatalf("English transition gain = %.2f, want above the default 0.35", cfg.CVVCTransitionGain)
-	}
-	cfg.CVVCTransitionGain = 0.6
-	applyLanguageSpeechProfile(frontend.LanguageEnglish, &cfg)
-	if cfg.CVVCTransitionGain != 0.6 {
-		t.Fatalf("explicit transition gain was changed: %.2f", cfg.CVVCTransitionGain)
-	}
-	applyLanguageSpeechProfile(frontend.LanguageJapanese, &cfg)
-	if cfg.CVVCTransitionGain != 0.6 {
-		t.Fatalf("Japanese transition gain was changed: %.2f", cfg.CVVCTransitionGain)
-	}
-}
-
-func TestResolveProsodyModelForLanguageUsesBundledEnglishFallback(t *testing.T) {
-	directory := t.TempDir()
-	japanesePath := filepath.Join(directory, "japanese-intonation.json")
-	englishPath := filepath.Join(directory, "frame-intonation-tcn-en-v1.json")
-	japanese := &prosody.Model{
-		Version: prosody.FramePitchModelVersion, FeatureVersion: 1, Mode: "intonation_frame_tcn_accent_bounded",
-		FramePitch: &prosody.FramePitchModel{
-			FeatureNames: []string{"bias"}, InputWeights: [][]float64{{0}}, InputBias: []float64{0},
-			OutputWeight: []float64{0}, FrameMS: 10, LowCents: -100, HighCents: 100,
-		},
-	}
-	if err := japanese.Save(japanesePath); err != nil {
-		t.Fatal(err)
-	}
-	english := &prosody.Model{
-		Language: frontend.LanguageEnglish, Version: prosody.FramePitchModelVersion,
-		FeatureVersion: 1, Mode: "intonation_frame_tcn_english_bounded",
-		FramePitch: japanese.FramePitch,
-	}
-	got, err := resolveProsodyModelForLanguage(Config{ProsodyModelPath: japanesePath}, frontend.LanguageEnglish)
-	if err != nil || got != nil {
-		t.Fatalf("missing English fallback = %#v err=%v", got, err)
-	}
-	if err := english.Save(englishPath); err != nil {
-		t.Fatal(err)
-	}
-	got, err = resolveProsodyModelForLanguage(Config{ProsodyModelPath: japanesePath}, frontend.LanguageEnglish)
-	if err != nil || got == nil || got.Language != frontend.LanguageEnglish {
-		t.Fatalf("English fallback = %#v err=%v", got, err)
-	}
-	got, err = resolveProsodyModelForLanguage(Config{ProsodyModelPath: japanesePath}, frontend.LanguageJapanese)
-	if err != nil || got == nil || got.Language != "" {
-		t.Fatalf("Japanese model = %#v err=%v", got, err)
-	}
-}
-
 func testMoraTimingsIncludePausesMissingFromPlanUnits(t *testing.T) {
 	morae := []frontend.Mora{{Text: "a"}, {Pause: true}, {Text: "i"}}
 	p := &plan.Plan{DurationMS: 380, Units: []plan.Unit{

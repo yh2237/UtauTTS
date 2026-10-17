@@ -160,6 +160,7 @@ ApplicationWindow {
     property string pendingProsodyUtteranceId: ""
     property int pendingProsodyRevision: -1
     property int pendingProsodyPreviewIndex: -1
+    property bool pendingProsodyPreviewRefresh: false
     property bool saveRequestPending: false
     property bool playbackRequested: false
     property string playbackError: ""
@@ -507,6 +508,15 @@ ApplicationWindow {
 
         function onMetadataReloadStageChanged(stage) {
             window.metadataReloadStage = stage;
+        }
+
+        function onEnglishIndexChanged() {
+            if (window.appBackend.englishIndexBuilding) {
+                window.metadataReloadStage = "englishIndex";
+                dialogs.metadataReloadDialog.open();
+            } else if (window.metadataReloadStage === "englishIndex" && !window.metadataReloadActive) {
+                dialogs.metadataReloadDialog.close();
+            }
         }
 
         function onMetadataChanged() {
@@ -2037,7 +2047,7 @@ ApplicationWindow {
         if (window.batchExportActive || index < 0 || index >= utterances.count)
             return;
         const item = utterances.get(index);
-        if (!item.content.trim() || window.automaticProsodyReady(item))
+        if (!item.content.trim() || (!window.pendingProsodyPreviewRefresh && window.automaticProsodyReady(item)))
             return;
         if (window.pendingProsodyInFlight && window.pendingProsodyUtteranceId === item.utteranceId
                 && window.pendingProsodyRevision === item.revision)
@@ -2049,7 +2059,8 @@ ApplicationWindow {
             if (currentIndex !== window.selectedIndex || currentIndex < 0)
                 return;
             const selected = utterances.get(currentIndex);
-            if (selected.revision !== revision || window.automaticProsodyReady(selected))
+            if (selected.revision !== revision
+                    || (!window.pendingProsodyPreviewRefresh && window.automaticProsodyReady(selected)))
                 return;
             if (window.pendingProsodyInFlight && window.pendingProsodyUtteranceId === utteranceId
                     && window.pendingProsodyRevision === revision)

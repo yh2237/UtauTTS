@@ -274,7 +274,6 @@ components:
         boundary_tone: {type: boolean, nullable: true, default: true}
         stretch_adapt: {type: boolean, nullable: true, default: true}
         pause_context: {type: boolean, nullable: true, default: true}
-        english_weak_form: {type: boolean, nullable: true, default: true}
         renderer_settings:
           type: object
           nullable: true

@@ -4,7 +4,7 @@ package synth
 type CommonOptions struct {
 	MoraDurationMS, PauseDurationMS, IntonationStrength, ReleaseMS *float64
 	ApplyPitch, ContextDuration, BoundaryTone, StretchAdapt        *bool
-	PauseContext, EnglishWeakForm                                  *bool
+	PauseContext                                                   *bool
 }
 
 func ApplyCommonOptions(input Request, options CommonOptions) Request {
@@ -27,7 +27,7 @@ func ApplyCommonOptions(input Request, options CommonOptions) Request {
 	for _, option := range []struct{ value, target *bool }{
 		{options.ApplyPitch, &input.ApplyPitch}, {options.ContextDuration, &input.ContextDuration},
 		{options.BoundaryTone, &input.BoundaryTone}, {options.StretchAdapt, &input.StretchAdapt},
-		{options.PauseContext, &input.PauseContext}, {options.EnglishWeakForm, &input.EnglishWeakForm},
+		{options.PauseContext, &input.PauseContext},
 	} {
 		if option.value != nil {
 			*option.target = *option.value

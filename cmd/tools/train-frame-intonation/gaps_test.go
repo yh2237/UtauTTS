@@ -51,20 +51,6 @@ func TestAudioRootAndExportOptions(t *testing.T) {
 	}
 }
 
-func TestEnglishFlatBaseline(t *testing.T) {
-	c := config{Low: -400, High: 400, Frame: 10, RenderStrength: .65, RenderSmoothing: 20, RenderP99: 200, RenderMax: 250}
-	ex := example{Targets: []float32{.25, -.5, .125}, Mask: []bool{true, true, false}}
-	got := flatBaselineMetrics([]example{ex}, c)
-	if got["raw_mae_cents"] != 150 {
-		t.Fatalf("raw baseline=%v", got)
-	}
-	reference := renderContour([]float64{100, -200, 50}, ex.Mask, 10, .65, 20, 200, 250, -400, 400)
-	want := (math.Abs(reference[0]) + math.Abs(reference[1])) / 2
-	if math.Abs(got["rendered_mae_cents"]-want) > 1e-9 {
-		t.Fatalf("rendered baseline=%v want %v", got, want)
-	}
-}
-
 func TestPredictCorpusJSONAndJSONL(t *testing.T) {
 	m, err := newTCN(2, 3, []int{1}, tensor.CPU, 1)
 	if err != nil {

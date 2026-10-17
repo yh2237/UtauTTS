@@ -11,19 +11,11 @@ func ParseEnglishDelta(text, reading string, dictionary map[string]string) (stri
 }
 
 func ParseEnglishDeltaWithConfig(text, reading string, dictionary map[string]string, config PresampConfig) (string, []Mora, error) {
-	return ParseEnglishDeltaWithOptions(text, reading, dictionary, config, DefaultEnglishOptions())
-}
-
-func ParseEnglishDeltaWithOptions(text, reading string, dictionary map[string]string, config PresampConfig, options EnglishOptions) (string, []Mora, error) {
-	return parseEnglishSyllables(text, reading, dictionary, deltaEnglishSymbols, " ", true, config, options)
+	return parseEnglishSyllables(text, reading, dictionary, deltaEnglishSymbols, " ", true, config)
 }
 
 func ParseEnglishVCCV(text, reading string, dictionary map[string]string) (string, []Mora, error) {
-	return ParseEnglishVCCVWithOptions(text, reading, dictionary, DefaultEnglishOptions())
-}
-
-func ParseEnglishVCCVWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, []Mora, error) {
-	return parseEnglishSyllables(text, reading, dictionary, vccvEnglishSymbols, " ", false, PresampConfig{}, options)
+	return parseEnglishSyllables(text, reading, dictionary, vccvEnglishSymbols, " ", false, PresampConfig{})
 }
 
 type PresampConfig struct {
@@ -33,8 +25,8 @@ type PresampConfig struct {
 	Endings      []string
 }
 
-func parseEnglishSyllables(text, reading string, dictionary map[string]string, symbols map[string][]string, separator string, spacedStart bool, config PresampConfig, options EnglishOptions) (string, []Mora, error) {
-	pronunciation, words, err := englishPronunciationWithOptions(text, reading, dictionary, options)
+func parseEnglishSyllables(text, reading string, dictionary map[string]string, symbols map[string][]string, separator string, spacedStart bool, config PresampConfig) (string, []Mora, error) {
+	pronunciation, words, err := englishPronunciation(text, reading, dictionary)
 	if err != nil {
 		return "", nil, err
 	}
@@ -394,11 +386,6 @@ func sameStrings(left, right []string) bool {
 }
 
 func englishPronunciation(text, reading string, dictionary map[string]string) (string, [][]string, error) {
-	return englishPronunciationWithOptions(text, reading, dictionary, DefaultEnglishOptions())
-}
-
-// 辞書・明示の読みには弱形を適用しない。
-func englishPronunciationWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, [][]string, error) {
 	pronunciation := strings.TrimSpace(reading)
 	var result [][]string
 	if pronunciation != "" {
@@ -432,10 +419,6 @@ func englishPronunciationWithOptions(text, reading string, dictionary map[string
 				}
 				if strings.EqualFold(word, "read") && englishReadIsBaseForm(words, index) {
 					value = "R IY1 D"
-				}
-				// 機能語の弱形は句中だけ補い 明示した読みと辞書を優先する。
-				if weak, ok := englishWeakForm(word, words, index, options); ok {
-					value = weak
 				}
 			}
 			fields := strings.Fields(value)
@@ -534,11 +517,7 @@ func combineEnglishVowelTransitionAliases(previous, vowels []string, separator s
 }
 
 func ParseEnglishARPAsing(text, reading string, dictionary map[string]string) (string, []Mora, error) {
-	return ParseEnglishARPAsingWithOptions(text, reading, dictionary, DefaultEnglishOptions())
-}
-
-func ParseEnglishARPAsingWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, []Mora, error) {
-	pronunciation, words, err := englishPronunciationWithOptions(text, reading, dictionary, options)
+	pronunciation, words, err := englishPronunciation(text, reading, dictionary)
 	if err != nil {
 		return "", nil, err
 	}
@@ -591,11 +570,7 @@ func ParseEnglishARPAsingWithOptions(text, reading string, dictionary map[string
 
 // 1音素を1 Moraとし、候補順はOpenUtauのEnglish C+V Phonemizer（Cadlaxa, MIT）に準拠する。
 func ParseEnglishCV(text, reading string, dictionary map[string]string) (string, []Mora, error) {
-	return ParseEnglishCVWithOptions(text, reading, dictionary, DefaultEnglishOptions())
-}
-
-func ParseEnglishCVWithOptions(text, reading string, dictionary map[string]string, options EnglishOptions) (string, []Mora, error) {
-	pronunciation, words, err := englishPronunciationWithOptions(text, reading, dictionary, options)
+	pronunciation, words, err := englishPronunciation(text, reading, dictionary)
 	if err != nil {
 		return "", nil, err
 	}
@@ -689,23 +664,6 @@ func markEnglishPhoneCodas(morae []Mora) {
 	}
 }
 
-func EnglishSourceSymbols(phonemizer string) map[string][]string {
-	var source map[string][]string
-	switch phonemizer {
-	case PhonemizerEnglishDelta:
-		source = deltaEnglishSymbols
-	case PhonemizerEnglishVCCV:
-		source = vccvEnglishSymbols
-	default:
-		return nil
-	}
-	result := make(map[string][]string, len(source))
-	for phone, symbols := range source {
-		result[phone] = append([]string(nil), symbols...)
-	}
-	return result
-}
-
 func normalizeARPAbet(value string) string {
 	return strings.TrimRight(strings.ToLower(strings.TrimSpace(value)), "0123456789")
 }
@@ -725,6 +683,11 @@ func arpabetStress(value string) int {
 func arpabetHasStress(value string) bool {
 	value = strings.TrimSpace(value)
 	return len(value) > 0 && value[len(value)-1] >= '0' && value[len(value)-1] <= '2'
+}
+
+// EnglishWordsは英語の読みを作るときと同じ語の並びを返す。区切りは"<pause>"になる。
+func EnglishWords(text string) []string {
+	return latinWords(normalizeEnglishText(text))
 }
 
 func latinWords(text string) []string {

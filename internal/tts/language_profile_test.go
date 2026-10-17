@@ -11,7 +11,7 @@ func TestProsodyFallbackModelPath(t *testing.T) {
 		language string
 		want     string
 	}{
-		{"en-US", filepath.Join("models", "frame-intonation-tcn-en-v1.json")},
+		{"en-US", ""},
 		{"zh-cn", filepath.Join("models", "tone-intonation-zh-v1.json")},
 		{"ja", ""},
 		{"fr", ""},

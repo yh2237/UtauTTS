@@ -105,9 +105,6 @@ func predictCorpus(model *tcn, path string, index map[string]int, c config) (map
 	cases := make([]map[string]any, 0, len(items))
 	for k, item := range items {
 		if len(item.Tokens) == 0 {
-			if c.Language != "ja" {
-				return nil, fmt.Errorf("case %d: English raw text needs timed tokens", k)
-			}
 			a, err := openjtalk.Analyze(item.Text, openjtalk.Config{HelperPath: c.OpenJTalkHelper, DictionaryPath: c.OpenJTalkDictionary})
 			if err != nil {
 				item.Tokens = fallbackPredictionTokens(item.Text)

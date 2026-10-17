@@ -1,18 +1,11 @@
 package prosody
 
 import (
-	"fmt"
 	"math"
 	"sort"
-	"strings"
 
 	"github.com/yh2237/UtauTTS/internal/frontend"
 )
-
-func smoothstep01(value float64) float64 {
-	value = clamp(value, 0, 1)
-	return value * value * (3 - 2*value)
-}
 
 // SmoothPitchPhrasesは休止をまたがずにGaussian平滑化する。
 func SmoothPitchPhrases(values []float64, speech []bool, frameMS, sigmaMS float64) []float64 {
@@ -82,13 +75,6 @@ func absolutePercentile(values []float64, mask []bool, quantile float64) float64
 }
 
 func featuresFor(morae []frontend.Mora, position int) map[string]float64 {
-	english := morae[position].Language == frontend.LanguageEnglish
-	if morae[position].Pause {
-		english = english || (position > 0 && morae[position-1].Language == frontend.LanguageEnglish) || (position+1 < len(morae) && morae[position+1].Language == frontend.LanguageEnglish)
-	}
-	if english {
-		return englishFrameFeatures(morae, position)
-	}
 	current := morae[position]
 	denominator := float64(max(1, len(morae)-1))
 	pos := float64(position) / denominator
@@ -114,54 +100,6 @@ func featuresFor(morae []frontend.Mora, position int) map[string]float64 {
 		result["next=<EOS>"] = 1
 	}
 	return result
-}
-
-// 英語の特徴は録音aliasではなく音素・強勢から作る。
-func englishFrameFeatures(morae []frontend.Mora, position int) map[string]float64 {
-	current := morae[position]
-	pos := float64(position) / float64(max(1, len(morae)-1))
-	f := map[string]float64{"bias": 1, "position": pos, "position2": pos * pos, "from_end": 1 - pos}
-	add := func(prefix string, unit frontend.Mora) {
-		if unit.Pause {
-			f[prefix+"=<PAUSE>"] = 1
-			return
-		}
-		var symbols []string
-		for _, phone := range unit.Phones {
-			symbols = append(symbols, phone.Symbol)
-			f[prefix+"_"+phone.Role+"="+phone.Symbol] = 1
-		}
-		f[prefix+"="+strings.Join(symbols, " ")] = 1
-		if unit.StressKnown {
-			f[fmt.Sprintf("%s_stress=%d", prefix, unit.Stress)] = 1
-		}
-	}
-	add("syllable", current)
-	if position == 0 {
-		f["prev=<BOS>"] = 1
-	} else {
-		add("prev", morae[position-1])
-	}
-	if position+1 == len(morae) {
-		f["next=<EOS>"] = 1
-	} else {
-		add("next", morae[position+1])
-	}
-	if position == 0 || morae[position-1].Pause {
-		f["phrase_start"] = 1
-	}
-	if position+1 == len(morae) || morae[position+1].Pause {
-		f["phrase_end"] = 1
-	}
-	if !current.Pause {
-		if position == 0 || morae[position-1].Pause || morae[position-1].WordIndex != current.WordIndex {
-			f["en_word_start"] = 1
-		}
-		if current.WordEnd {
-			f["en_word_end"] = 1
-		}
-	}
-	return f
 }
 
 // 静的特徴を使い回し、フレームごとのmap生成を避ける。

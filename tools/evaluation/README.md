@@ -23,12 +23,11 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/chinese-bank" --corpus tools/ev
 | `coverage.covered` | 有効な主候補がある位置数 |
 | `coverage.candidate_counts` | 候補絞り込み後の件数。添字は休止を含む発音単位に対応 |
 | `coverage.missing` | 主候補の不足位置と探索したaliasや除外理由 |
-| `coverage.missing_phones` | 最も不足が少ない候補でも欠ける必須音 |
 | `lattice` | 経路選択結果。全文の探索失敗時は保存なし |
 
 促音の無音区間も有効候補に含みます。候補数と発音の正しさは別指標です。原音の収録内容と接続は聴取で評価します。
 
-`coverage_summary.json`には言語別の集計を保存します。`coverage_rate`は有効な主候補がある位置の割合、`missing_phone_rate`は必須音が欠けた位置の割合、`missing_phones`は欠けた必須音の頻度、`missing_morae`は主候補が無かったモーラの頻度です。音源と言語の組み合わせの網羅性を比べる目安にします。
+`coverage_summary.json`には言語別の集計を保存します。`coverage_rate`は有効な主候補がある位置の割合、`missing_morae`は主候補が無かったモーラの頻度です。音源と言語の組み合わせの網羅性を比べる目安にします。
 
 ## 音声を比較する
 
@@ -45,7 +44,6 @@ WAV・TXT・LAB・合成計画（Plan JSON）・`report.json`を出力します�
 | 診断項目 | 意味 |
 | --- | --- |
 | Planの`phone_timings` | 発音単位ごとの目標時刻 |
-| Planの`missing_phones` | 選択した経路で不足した必須語尾や検出可能な句頭子音群 |
 | unitの`speech_profile` | 固定部の元の値と提案値。安定区間・F0・音量・有声率・信頼度・採否の理由 |
 | unitの`speech_retime_applied` | CPU版WORLDの区間別伸縮を適用したか |
 | unitの`speech_join_applied` | CPU版WORLDの母音接続補修を適用したか |

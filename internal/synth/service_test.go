@@ -41,7 +41,7 @@ func TestDefaultRequestResolvesSynthesisSettings(t *testing.T) {
 	}
 	for name, enabled := range map[string]*bool{
 		"boundary_tone": cfg.BoundaryTone, "stretch_adapt": cfg.StretchAdapt,
-		"pause_context": cfg.PauseContext, "english_weak_form": cfg.EnglishWeakForm,
+		"pause_context": cfg.PauseContext,
 	} {
 		if enabled == nil || !*enabled {
 			t.Errorf("default %s = %v, want enabled", name, enabled)
@@ -120,7 +120,6 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 		"stretch_adapt_strength":    json.RawMessage(`0.5`),
 		"pause_context":             json.RawMessage(`false`),
 		"pause_context_strength":    json.RawMessage(`0.5`),
-		"english_weak_form":         json.RawMessage(`false`),
 		"diffsinger_steps":          json.RawMessage(`42`),
 		"diffsinger_expr":           json.RawMessage(`0.75`),
 		"diffsinger_duration_mix":   json.RawMessage(`0.25`),
@@ -147,9 +146,6 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 	}
 	if cfg.PauseContext == nil || *cfg.PauseContext || cfg.PauseContextStrength != 0.5 {
 		t.Fatalf("pause context settings = %#v", cfg)
-	}
-	if cfg.EnglishWeakForm == nil || *cfg.EnglishWeakForm {
-		t.Fatalf("english weak form settings = %#v", cfg)
 	}
 	if options.DiffSinger.Steps != 42 || options.DiffSinger.Expr != 0.75 ||
 		options.DiffSinger.DurationMix != 0.25 || options.DiffSinger.PitchMix != 0.35 {

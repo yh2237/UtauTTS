@@ -17,12 +17,9 @@ type Selection struct {
 	Composite           bool
 	Transition          *Selection
 	Endings             []Selection
-	EndingCandidates    [][]Selection
-	EndingAlternatives  []Selection
 	EndingIndex         int
 	CodaPhones          []string
 	CodaStart           int
-	MissingPhones       []SpeechGap
 	FallbackTier        int
 	Entry               oto.Entry
 	Candidates          []string
@@ -53,13 +50,6 @@ const (
 	// 同一録音への偏りを避け、別録音の候補を残す。
 	minDistinctSourceCandidates = 4
 )
-
-type SpeechGap struct {
-	Position int      `json:"position"`
-	Role     string   `json:"role"`
-	Phones   []string `json:"phones"`
-	Aliases  []string `json:"aliases"`
-}
 
 type ResolveConfig struct {
 	Tone        string

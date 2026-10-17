@@ -103,14 +103,6 @@ func (c candidateContext) positionCandidates(position int, mora frontend.Mora, p
 	rejections := builder.rejections
 	for index := range candidatesAtPosition {
 		selected := &candidatesAtPosition[index]
-		if mora.Aliases != nil && selected.Transition == nil {
-			for alias, phones := range mora.Aliases.MainMissing {
-				if selected.Alias == alias || (hasAffix && selected.Alias == affix.Prefix+alias+affix.Suffix) {
-					selected.MissingPhones = append(append([]SpeechGap(nil), selected.MissingPhones...), SpeechGap{Position: position, Role: "onset", Phones: append([]string(nil), phones...), Aliases: append([]string(nil), mora.Aliases.Transition...)})
-					break
-				}
-			}
-		}
 		selected.CandidateRejections = append([]CandidateRejection(nil), rejections...)
 		if selected.Transition != nil {
 			selected.Transition.CandidateRejections = append([]CandidateRejection(nil), rejections...)
@@ -131,7 +123,6 @@ func (c candidateContext) positionCandidates(position int, mora frontend.Mora, p
 		return nil, &MissingAliasError{Position: position, Mora: mora.Text, Candidates: builder.candidates, CandidateRejections: rejections}
 	}
 	applyCompositePreferences(candidatesAtPosition, policy)
-	applyEnglishCandidatePreferences(candidatesAtPosition, previousLayer)
 	candidatesAtPosition = pruneCandidates(candidatesAtPosition)
 	for index := range candidatesAtPosition {
 		candidatesAtPosition[index].CandidateCount = len(candidatesAtPosition)
@@ -168,39 +159,7 @@ func (c candidateContext) endingPlan(mora frontend.Mora, endingSpecs [][]aliasCa
 		phones: endingPhones, originalPhones: endingPhones,
 		starts: endingStarts, originalStarts: endingStarts,
 	}
-	if mora.Language != frontend.LanguageEnglish || mora.Aliases == nil {
-		return plan
-	}
-	var expanded [][]aliasCandidate
-	var phones [][]string
-	var starts []int
-	for i, specs := range endingSpecs {
-		var chain []frontend.CodaAlias
-		if i < len(mora.Aliases.EndingFallbacks) && !hasUsableCandidateEntries(c.bank, specs) {
-			chain = selectCodaChain(c.bank, mora.Aliases.EndingFallbacks[i], c.affix, c.hasAffix)
-		}
-		if len(chain) > 0 {
-			for _, edge := range chain {
-				expanded = append(expanded, c.edgeCandidates(edge))
-				phones = append(phones, edge.Phones)
-				starts = append(starts, edge.CodaStart)
-			}
-		} else {
-			expanded = append(expanded, specs)
-			phones = append(phones, endingPhones[i])
-			starts = append(starts, endingStarts[i])
-		}
-	}
-	plan.specs, plan.phones, plan.starts = expanded, phones, starts
 	return plan
-}
-
-func (c candidateContext) edgeCandidates(edge frontend.CodaAlias) []aliasCandidate {
-	names := explicitAliasCandidates(edge.Aliases, AliasOther)
-	if c.hasAffix {
-		names = affixCandidatesWithFallback(names, c.affix, true)
-	}
-	return names
 }
 
 type validatedEntry struct {
@@ -255,13 +214,6 @@ func (p *positionBuilder) attachEndings(main Selection, endingSpecs [][]aliasCan
 			}
 		}
 		if len(choices) == 0 {
-			if len(endingPhones[endingIndex]) > 0 {
-				gap := SpeechGap{Position: p.position, Role: "coda", Phones: append([]string(nil), endingPhones[endingIndex]...)}
-				for _, spec := range specs {
-					gap.Aliases = append(gap.Aliases, spec.name)
-				}
-				main.MissingPhones = append(main.MissingPhones, gap)
-			}
 			// 録音のない末子音で、後続の録音可能な子音を隠さない。
 			continue
 		}
@@ -276,50 +228,12 @@ func (p *positionBuilder) attachEndings(main Selection, endingSpecs [][]aliasCan
 		}
 		main.Endings = append(main.Endings, best)
 	}
-	if p.mora.Language == frontend.LanguageEnglish {
-		main.EndingCandidates = endingLayers
-	}
 	return main
 }
 
 func (p *positionBuilder) attachVariants(main Selection) Selection {
 	e := p.endings
-	base := p.attachEndings(main, e.specs, e.phones, e.starts)
-	if p.mora.Language != frontend.LanguageEnglish || p.mora.Aliases == nil {
-		return base
-	}
-	c := p.context
-	for group, edges := range p.mora.Aliases.EndingFallbacks {
-		if group >= len(e.originalSpecs) {
-			continue
-		}
-		for _, chain := range selectCodaChains(c.bank, edges, c.affix, c.hasAffix) {
-			specs := append([][]aliasCandidate(nil), e.originalSpecs[:group]...)
-			phones := append([][]string(nil), e.originalPhones[:group]...)
-			starts := append([]int(nil), e.originalStarts[:group]...)
-			for _, edge := range chain {
-				specs = append(specs, c.edgeCandidates(edge))
-				phones = append(phones, edge.Phones)
-				starts = append(starts, edge.CodaStart)
-			}
-			specs = append(specs, e.originalSpecs[group+1:]...)
-			phones = append(phones, e.originalPhones[group+1:]...)
-			starts = append(starts, e.originalStarts[group+1:]...)
-			variant := p.attachEndings(main, specs, phones, starts)
-			if missingPhoneCount(variant.MissingPhones) <= missingPhoneCount(base.MissingPhones) {
-				base.EndingAlternatives = append(base.EndingAlternatives, variant)
-			}
-		}
-	}
-	return base
-}
-
-func missingPhoneCount(gaps []SpeechGap) int {
-	count := 0
-	for _, gap := range gaps {
-		count += len(gap.Phones)
-	}
-	return count
+	return p.attachEndings(main, e.specs, e.phones, e.starts)
 }
 
 const (

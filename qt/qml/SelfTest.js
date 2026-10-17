@@ -56,10 +56,6 @@ function run(ctx) {
                   "stretch adaptation settings were not injected into the request");
     if (error.length)
         return error;
-    error = check(contextSettings.english_weak_form === true,
-                  "English weak form setting was not injected into the request");
-    if (error.length)
-        return error;
     for (let voiceIndex = 0; voiceIndex < host.appBackend.voicebanks.length; ++voiceIndex) {
         const voice = host.appBackend.voicebanks[voiceIndex];
         if (!voice.suggested_language || !voice.suggested_phonemizer)

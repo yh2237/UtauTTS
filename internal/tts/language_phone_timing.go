@@ -1,10 +1,6 @@
 package tts
 
-import (
-	"strings"
-
-	"github.com/yh2237/UtauTTS/internal/frontend"
-)
+import "github.com/yh2237/UtauTTS/internal/frontend"
 
 func shouldUseLanguagePhoneTiming(language string, singleCV bool) bool {
 	if language != frontend.LanguageJapanese {
@@ -23,10 +19,7 @@ func languagePhoneWeights(language string, morae []frontend.Mora) [][]float64 {
 		rhymeShares := frontend.MandarinRhymeShares(mora.Phones)
 		for j, phone := range mora.Phones {
 			weight := frontend.PhoneWeight(phone.Symbol, phone.Role)
-			switch language {
-			case frontend.LanguageEnglish:
-				weight = englishPhoneWeight(mora, phone, weight)
-			case frontend.LanguageChinese:
+			if language == frontend.LanguageChinese {
 				weight = mandarinPhoneWeight(mora, phone, weight)
 				if rhymeShares[j] > 0 {
 					weight = mandarinPhoneWeight(mora, frontend.Phone{Role: "nucleus"}, 1) * rhymeShares[j]
@@ -37,32 +30,6 @@ func languagePhoneWeights(language string, morae []frontend.Mora) [][]float64 {
 		result[i] = weights
 	}
 	return result
-}
-
-func englishPhoneWeight(mora frontend.Mora, phone frontend.Phone, weight float64) float64 {
-	if phone.Role == "nucleus" {
-		switch mora.Stress {
-		case 1:
-			return weight * 1.12
-		case 2:
-			return weight * 1.06
-		case 0:
-			if mora.StressKnown {
-				return weight * 0.9
-			}
-		}
-	}
-	if phone.Role != "coda" {
-		return weight
-	}
-	switch strings.ToLower(phone.Symbol) {
-	case "p", "t", "k", "b", "d", "g", "ch", "jh":
-		return weight * 1.65
-	case "s", "sh", "f", "th", "z", "zh", "v", "dh":
-		return weight * 1.25
-	default:
-		return weight * 1.1
-	}
 }
 
 func mandarinPhoneWeight(mora frontend.Mora, phone frontend.Phone, weight float64) float64 {

@@ -1,0 +1,444 @@
+//go:build !js
+
+package tts
+
+import (
+	"context"
+	"fmt"
+	"math"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
+
+	"github.com/yh2237/UtauTTS/internal/audio"
+	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/plan"
+	"github.com/yh2237/UtauTTS/internal/prosody"
+	"github.com/yh2237/UtauTTS/internal/refspeech"
+	"github.com/yh2237/UtauTTS/internal/render"
+	"github.com/yh2237/UtauTTS/internal/settings"
+	"github.com/yh2237/UtauTTS/internal/voicebank"
+)
+
+var englishLexicons sync.Map
+
+// EnglishReferenceModelsは英語の合成に使うモデルの場所を返す。
+func EnglishReferenceModels(dir string) (refspeech.Models, string, string) {
+	return refspeech.Models{
+		KokoroWeights: filepath.Join(dir, "kokoro-v1_0.pth"),
+		KokoroConfig:  filepath.Join(dir, "config.json"),
+		KokoroVoice:   filepath.Join(dir, "af_heart.pt"),
+		HuBERT:        filepath.Join(dir, "hubert-base-ls960.safetensors"),
+	}, filepath.Join(dir, "us_gold.json"), filepath.Join(dir, "us_silver.json")
+}
+
+// EnglishReferenceServiceは英語の合成と音源の索引作成を受け持つServiceを返す。
+func EnglishReferenceService(dir string) (*refspeech.Service, error) {
+	if dir == "" {
+		return nil, fmt.Errorf("English synthesis models are not installed in models/%s", EnglishReferenceDir)
+	}
+	cacheDir, err := refspeech.DefaultCacheDir()
+	if err != nil {
+		return nil, err
+	}
+	models, _, _ := EnglishReferenceModels(dir)
+	return refspeech.Shared(models, cacheDir), nil
+}
+
+// PrepareEnglishIndexは音源の英語の索引がなければ裏で作り始める。モデルがなければ何もしない。
+func PrepareEnglishIndex(dir, bankRoot, worldEnginePath string) {
+	if service, err := EnglishReferenceService(dir); err == nil {
+		service.Prepare(bankRoot, worldEnginePath)
+	}
+}
+
+// EnglishIndexProgressは索引の作成の進み具合を返す。
+func EnglishIndexProgress() refspeech.Progress {
+	return refspeech.CurrentProgress()
+}
+
+func englishLexicon(dir string) (*refspeech.Lexicon, error) {
+	_, gold, silver := EnglishReferenceModels(dir)
+	if cached, ok := englishLexicons.Load(gold); ok {
+		return cached.(*refspeech.Lexicon), nil
+	}
+	lexicon, err := refspeech.LoadLexicon(gold, silver)
+	if err != nil {
+		return nil, fmt.Errorf("load English lexicon: %w", err)
+	}
+	actual, _ := englishLexicons.LoadOrStore(gold, lexicon)
+	return actual.(*refspeech.Lexicon), nil
+}
+
+// englishReferenceInputsは、モーラ長を話速に、抑揚の強さをF0の動きの幅に、音高をF0の中心に直す。
+func englishReferenceInputs(cfg Config, reading string) (*refspeech.Service, []refspeech.Piece, refspeech.Options, error) {
+	service, err := EnglishReferenceService(cfg.EnglishReferenceDir)
+	if err != nil {
+		return nil, nil, refspeech.Options{}, err
+	}
+	lexicon, err := englishLexicon(cfg.EnglishReferenceDir)
+	if err != nil {
+		return nil, nil, refspeech.Options{}, err
+	}
+	options := refspeech.Options{Speed: 1, PitchScale: cfg.IntonationStrength / settings.Number("intonation_strength")}
+	if cfg.MoraDurationMS > 0 {
+		options.Speed = float32(plan.DefaultMoraDurationMS / cfg.MoraDurationMS)
+	}
+	if frequency, ok := voicebank.ToneFrequency(cfg.Tone); ok {
+		options.CenterHz = frequency
+	}
+	automatic, _, err := frontend.ParseEnglishARPAsing(cfg.Text, "", cfg.Dictionary)
+	if err != nil {
+		automatic = ""
+	}
+	return service, refspeech.KokoroPieces(lexicon, cfg.Text, reading, automatic, cfg.Dictionary), options, nil
+}
+
+// englishManualPitchは手動の抑揚を、最初のモーラの始まりからのミリ秒ごとのセントにする。
+func englishManualPitch(cfg Config, reading string, morae []frontend.Mora, durations []float64) (func(float64) float64, bool, error) {
+	timings := make([]prosody.MoraTiming, len(morae))
+	cursor := 0.0
+	for i, d := range durations {
+		timings[i] = prosody.MoraTiming{StartMS: cursor, DurationMS: d}
+		cursor += d
+	}
+	contour, mode, err := resolveManualPitchCurve(cfg, reading, morae, timings, cursor)
+	if err != nil || contour == nil {
+		return nil, false, err
+	}
+	curve := &render.PitchCurve{FrameMS: contour.FrameMS, Cents: contour.Cents}
+	return curve.CentsAt, mode == "replace", nil
+}
+
+func hasManualMoraDurations(durations []float64) bool {
+	for _, d := range durations {
+		if d > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// englishPlanTimingは、手動の長さや抑揚があればKokoroで一度読んで、手動の長さに合わせた記号の長さと、モーラの長さを返す。
+// 手動の編集がなければnilを返し、Kokoroの予測した長さで読む。
+func englishPlanTiming(cfg Config, service *refspeech.Service, pieces []refspeech.Piece, options refspeech.Options, reading string, morae []frontend.Mora) ([]int, []float64, error) {
+	manualPitch := cfg.ManualPitch != nil || cfg.ManualPitchPath != ""
+	if !hasManualMoraDurations(cfg.MoraDurationsMS) && !manualPitch {
+		return nil, nil, nil
+	}
+	reference, err := service.ReadProsody(pieces, options.Speed, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	moraTokens := englishMoraTokens(pieces, reference.Timing, reading, morae)
+	forced := englishForcedDurations(reference.Timing, moraTokens, cfg.MoraDurationsMS)
+	return forced, englishMoraDurations(moraTokens, refspeech.Timing{Durations: forced}, cfg.MoraDurationsMS), nil
+}
+
+// synthesizeEnglishReferenceは英語の文を参照TTSで読み、音源のフレームで合成し直す。
+func synthesizeEnglishReference(cfg Config, bank *voicebank.Bank, language, phonemizer, reading string, morae []frontend.Mora) (*Result, error) {
+	ctx := cfg.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	service, pieces, options, err := englishReferenceInputs(cfg, reading)
+	if err != nil {
+		return nil, err
+	}
+	forced, planned, err := englishPlanTiming(cfg, service, pieces, options, reading, morae)
+	if err != nil {
+		return nil, fmt.Errorf("English synthesis: %w", err)
+	}
+	if forced != nil {
+		options.Durations = forced
+		if options.PitchCents, options.ReplacePitch, err = englishManualPitch(cfg, reading, morae, planned); err != nil {
+			return nil, err
+		}
+	}
+	speech, err := service.Speak(ctx, bank.Root, cfg.WorldEnginePath, pieces, options)
+	if err != nil {
+		return nil, fmt.Errorf("English synthesis: %w", err)
+	}
+	peak := 0.0
+	for _, v := range speech.Audio {
+		peak = math.Max(peak, math.Abs(v))
+	}
+	scale := 1.0
+	if peak > 0.98 {
+		scale = 0.98 / peak
+	}
+	pcm := &audio.PCM{SampleRate: speech.SampleRate, Channels: 1, Data: make([]int16, len(speech.Audio))}
+	for i, v := range speech.Audio {
+		pcm.Data[i] = int16(math.Round(math.Max(-1, math.Min(1, v*scale)) * 32767))
+	}
+	durations := englishMoraDurations(englishMoraTokens(pieces, speech.Timing, reading, morae), speech.Timing, cfg.MoraDurationsMS)
+	leading := speech.LeadingMS()
+	synthesisPlan := &plan.Plan{
+		Version: plan.Version, Voicebank: bank.Root, Text: cfg.Text, Reading: reading,
+		Language: language, Phonemizer: phonemizer, Tone: cfg.Tone,
+		SelectionMode: "reference", AliasPolicy: "reference", JoinCostMode: "none",
+		LeadingMarginMS: leading, Morae: append([]frontend.Mora(nil), morae...),
+		DurationMS: float64(len(speech.Audio)) * 1000 / float64(speech.SampleRate),
+	}
+	result := &Result{Voicebank: bank, Plan: synthesisPlan, Audio: pcm,
+		MoraDurationsMS: durations, MoraPositionsMS: make([]float64, len(morae)), PitchPoints: make([]float64, len(morae))}
+	center := englishCenterHz(speech.AutomaticF0)
+	cursor := 0.0
+	for index, mora := range morae {
+		result.MoraPositionsMS[index] = cursor + durations[index]/2
+		if !mora.Pause {
+			synthesisPlan.Units = append(synthesisPlan.Units, plan.Unit{
+				Position: index, Role: "mora", Mora: mora.Text, Alias: mora.Text,
+				NoteStartMS: cursor, DurationMS: durations[index],
+				PitchFactor: 1, EnergyFactor: 1, TimingScale: 1, IntonationFactor: 1,
+			})
+			start := leading + cursor
+			result.PitchPoints[index] = englishCentsBetween(speech.AutomaticF0, center, start, start+durations[index])
+		}
+		cursor += durations[index]
+	}
+	return result, nil
+}
+
+// predictEnglishReferenceは、Kokoroの読みだけから英語のモーラ長と抑揚を返す。音源は使わない。
+// 手動のモーラ長があれば、その長さで読んだときの抑揚を返す。
+func predictEnglishReference(cfg Config, reading string, morae []frontend.Mora) (*ProsodyPreview, error) {
+	service, pieces, options, err := englishReferenceInputs(cfg, reading)
+	if err != nil {
+		return nil, fmt.Errorf("English prosody: %w", err)
+	}
+	reference, err := service.ReadProsody(pieces, options.Speed, nil)
+	if err != nil {
+		return nil, fmt.Errorf("English prosody: %w", err)
+	}
+	if hasManualMoraDurations(cfg.MoraDurationsMS) {
+		forced := englishForcedDurations(reference.Timing, englishMoraTokens(pieces, reference.Timing, reading, morae), cfg.MoraDurationsMS)
+		if reference, err = service.ReadProsody(pieces, options.Speed, forced); err != nil {
+			return nil, fmt.Errorf("English prosody: %w", err)
+		}
+	}
+	durations := englishMoraDurations(englishMoraTokens(pieces, reference.Timing, reading, morae), reference.Timing, cfg.MoraDurationsMS)
+	f0 := reference.ReferenceF0()
+	center := englishCenterHz(f0)
+	leading := reference.LeadingMS()
+	result := &ProsodyPreview{
+		Reading: reading, Morae: append([]frontend.Mora(nil), morae...), MoraDurationsMS: durations,
+		MoraPositionsMS: make([]float64, len(morae)), PitchPoints: make([]float64, len(morae)),
+		FramePitchCurve: englishPitchCurve(f0, center, leading, options.PitchScale),
+	}
+	cursor := 0.0
+	for index, mora := range morae {
+		result.MoraPositionsMS[index] = cursor + durations[index]/2
+		if !mora.Pause {
+			start := leading + cursor
+			result.PitchPoints[index] = options.PitchScale * englishCentsBetween(f0, center, start, start+durations[index])
+		}
+		cursor += durations[index]
+	}
+	return result, nil
+}
+
+// englishMoraTokensは、Kokoroの入力記号をモーラへ割り当てる。
+// 語の記号は、語の中のモーラへ音素の数の比で順に分け、語の後ろの空白は語の最後のモーラに入れる。
+// 休止のモーラには読点を、文末の休止には文末の記号と末尾の境界記号も入れる。
+// 文末に休止がなければ、それらは最後のモーラに入れる。先頭の境界記号はどのモーラにも入れない。
+func englishMoraTokens(pieces []refspeech.Piece, timing refspeech.Timing, reading string, morae []frontend.Mora) [][]int {
+	parts := splitEnglishReading(reading)
+	own := map[int][]int{}
+	tail := map[int][]int{}
+	lastPart := -1
+	for i, piece := range pieces {
+		tokens := make([]int, 0)
+		for token := timing.PieceTokens[i][0]; token < timing.PieceTokens[i][1]; token++ {
+			tokens = append(tokens, token)
+		}
+		if piece.Part >= 0 {
+			lastPart = piece.Part
+			own[piece.Part] = append(own[piece.Part], tokens...)
+		} else if lastPart >= 0 {
+			tail[lastPart] = append(tail[lastPart], tokens...)
+		}
+	}
+	if lastPart >= 0 && len(timing.Durations) > 0 {
+		tail[lastPart] = append(tail[lastPart], len(timing.Durations)-1)
+		if last := len(parts) - 1; last > lastPart && parts[last] == "SP" {
+			own[last] = append(own[last], tail[lastPart]...)
+			tail[lastPart] = nil
+		}
+	}
+	result := make([][]int, len(morae))
+	pause := 0
+	var pauseParts []int
+	for index, part := range parts {
+		if part == "SP" {
+			pauseParts = append(pauseParts, index)
+		}
+	}
+	for start := 0; start < len(morae); {
+		mora := morae[start]
+		if mora.Pause {
+			if pause < len(pauseParts) {
+				part := pauseParts[pause]
+				result[start] = append(append([]int(nil), own[part]...), tail[part]...)
+			}
+			pause++
+			start++
+			continue
+		}
+		end := start
+		for end+1 < len(morae) && !morae[end+1].Pause && morae[end+1].WordIndex == mora.WordIndex {
+			end++
+		}
+		tokens := own[mora.WordIndex]
+		weights := make([]int, end-start+1)
+		total := 0
+		for i := range weights {
+			weights[i] = max(1, len(morae[start+i].Phones))
+			total += weights[i]
+		}
+		cumulative, at := 0, 0
+		for i := range weights {
+			cumulative += weights[i]
+			next := int(math.Round(float64(len(tokens)) * float64(cumulative) / float64(total)))
+			result[start+i] = append([]int(nil), tokens[at:next]...)
+			at = next
+		}
+		result[end] = append(result[end], tail[mora.WordIndex]...)
+		start = end + 1
+	}
+	return result
+}
+
+// englishMoraDurationsは、モーラに割り当てた記号の長さを足す。手動の長さがあるモーラはその値にする。
+func englishMoraDurations(moraTokens [][]int, timing refspeech.Timing, manual []float64) []float64 {
+	durations := make([]float64, len(moraTokens))
+	for i, tokens := range moraTokens {
+		if value, ok := plan.ConfiguredMoraDuration(i, manual); ok {
+			durations[i] = value
+			continue
+		}
+		for _, token := range tokens {
+			durations[i] += timing.MS(token)
+		}
+	}
+	return durations
+}
+
+// englishForcedDurationsは、手動の長さがあるモーラの記号の長さを、比を保って目標に合わせる。
+func englishForcedDurations(timing refspeech.Timing, moraTokens [][]int, manual []float64) []int {
+	result := append([]int(nil), timing.Durations...)
+	for i, tokens := range moraTokens {
+		target, ok := plan.ConfiguredMoraDuration(i, manual)
+		if !ok || len(tokens) == 0 {
+			continue
+		}
+		frames := max(len(tokens), int(math.Round(target/refspeech.DurationUnitMS)))
+		current := 0
+		for _, token := range tokens {
+			current += timing.Durations[token]
+		}
+		type share struct {
+			token int
+			rest  float64
+		}
+		shares := make([]share, len(tokens))
+		assigned := 0
+		for k, token := range tokens {
+			exact := float64(frames) * float64(timing.Durations[token]) / float64(max(current, 1))
+			result[token] = max(1, int(math.Floor(exact)))
+			assigned += result[token]
+			shares[k] = share{token, exact - math.Floor(exact)}
+		}
+		sort.SliceStable(shares, func(a, b int) bool { return shares[a].rest > shares[b].rest })
+		for k := 0; assigned < frames; k = (k + 1) % len(shares) {
+			result[shares[k].token]++
+			assigned++
+		}
+		for k := len(shares) - 1; assigned > frames && k >= 0; k-- {
+			if result[shares[k].token] > 1 {
+				result[shares[k].token]--
+				assigned--
+			}
+		}
+	}
+	return result
+}
+
+func splitEnglishReading(reading string) []string {
+	var parts []string
+	for _, part := range strings.Split(reading, "|") {
+		if fields := strings.Fields(part); len(fields) > 0 {
+			parts = append(parts, strings.Join(fields, " "))
+		}
+	}
+	return parts
+}
+
+// englishPitchCurveは、最初のモーラの始まりを0とするセントの曲線。無声区間は前後の有声区間を直線でつなぐ。
+func englishPitchCurve(f0 []float64, center, leadingMS, scale float64) *render.PitchCurve {
+	first := int(leadingMS / refspeech.F0FrameMS)
+	if center <= 0 || first >= len(f0) {
+		return nil
+	}
+	cents := make([]float64, len(f0)-first)
+	last := -1
+	for i := range cents {
+		v := f0[first+i]
+		if v <= 0 {
+			continue
+		}
+		cents[i] = scale * 1200 * math.Log2(v/center)
+		if last < 0 {
+			for j := range i {
+				cents[j] = cents[i]
+			}
+		} else {
+			for j := last + 1; j < i; j++ {
+				cents[j] = cents[last] + (cents[i]-cents[last])*float64(j-last)/float64(i-last)
+			}
+		}
+		last = i
+	}
+	if last < 0 {
+		return nil
+	}
+	for j := last + 1; j < len(cents); j++ {
+		cents[j] = cents[last]
+	}
+	return &render.PitchCurve{FrameMS: refspeech.F0FrameMS, Cents: cents}
+}
+
+// englishCenterHzは出力のF0の有声区間の中央値。
+func englishCenterHz(f0 []float64) float64 {
+	var voiced []float64
+	for _, v := range f0 {
+		if v > 0 {
+			voiced = append(voiced, v)
+		}
+	}
+	if len(voiced) == 0 {
+		return 0
+	}
+	sort.Float64s(voiced)
+	return voiced[len(voiced)/2]
+}
+
+// englishCentsBetweenはstartMSからendMSまでの有声区間の平均F0を、centerからのセントで返す。
+func englishCentsBetween(f0 []float64, center, startMS, endMS float64) float64 {
+	if center <= 0 {
+		return 0
+	}
+	var sum float64
+	count := 0
+	for frame := int(startMS / refspeech.F0FrameMS); frame < int(endMS/refspeech.F0FrameMS) && frame < len(f0); frame++ {
+		if frame >= 0 && f0[frame] > 0 {
+			sum += math.Log2(f0[frame] / center)
+			count++
+		}
+	}
+	if count == 0 {
+		return 0
+	}
+	return 1200 * sum / float64(count)
+}

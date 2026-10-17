@@ -61,6 +61,24 @@ func TestCopyNoticesIncludesEmbeddedModels(t *testing.T) {
 	}
 }
 
+func TestCopyNoticesIncludesFolderModels(t *testing.T) {
+	repository := t.TempDir()
+	writeFile(t, filepath.Join(repository, "licenses", "MODEL-NOTICE.txt"), "notice body")
+	writeFile(t, filepath.Join(repository, "licenses", "FOLDER-NOTICE.txt"), "folder body")
+	models := filepath.Join(repository, "models")
+	writeFile(t, filepath.Join(models, "voice-v1.json"), `{"license":"CC0","license_notices":["licenses/MODEL-NOTICE.txt"]}`)
+	writeFile(t, filepath.Join(models, "reference", "notices.json"), `{"license":"Apache-2.0","license_notices":["licenses/FOLDER-NOTICE.txt"]}`)
+	writeFile(t, filepath.Join(models, "reference", "config.json"), `{"vocab":{}}`)
+
+	packageRoot := t.TempDir()
+	if err := copyNotices(models, "", packageRoot, repository, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(packageRoot, "licenses", "FOLDER-NOTICE.txt")); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCopyNoticesAcceptsLegacyField(t *testing.T) {
 	repository := t.TempDir()
 	writeFile(t, filepath.Join(repository, "licenses", "LEGACY.txt"), "legacy")

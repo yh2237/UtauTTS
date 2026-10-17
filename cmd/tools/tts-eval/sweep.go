@@ -81,7 +81,6 @@ type sweepRequest struct {
 	stretchAdaptStrength                    float64
 	pauseContext                            bool
 	pauseContextStrength                    float64
-	englishWeakForm                         bool
 	noTimingWarp                            bool
 	timeout                                 time.Duration
 }
@@ -98,7 +97,6 @@ type sweepUnits struct {
 	GapRepair int `json:"gap_repair"`
 	StopBurst int `json:"stop_burst"`
 	Silent    int `json:"silent"`
-	Missing   int `json:"missing"`
 }
 
 type sweepPromptJSON struct {
@@ -185,7 +183,7 @@ func runSweep(req sweepRequest) (runErr error) {
 				boundaryTone: req.boundaryTone, boundaryToneStrength: req.boundaryToneStrength,
 				stretchAdapt: req.stretchAdapt, stretchAdaptStrength: req.stretchAdaptStrength,
 				pauseContext: req.pauseContext, pauseContextStrength: req.pauseContextStrength,
-				englishWeakForm: req.englishWeakForm, noTimingWarp: req.noTimingWarp,
+				noTimingWarp: req.noTimingWarp,
 			})
 			row.ElapsedMS = elapsed
 			if callErr == nil {
@@ -246,7 +244,6 @@ func unitsFrom(row measurement) sweepUnits {
 		GapRepair: row.GapRepairUnits,
 		StopBurst: row.StopBurstUnits,
 		Silent:    row.SilentUnits,
-		Missing:   row.MissingPhoneGroups,
 	}
 }
 

@@ -2,7 +2,6 @@ package synth
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/UtauTTS/internal/label"
@@ -30,17 +29,11 @@ func NewResult(result *tts.Result, rendererID string) (*Result, error) {
 	return &Result{Result: result, RendererID: rendererID, DurationMS: durationMS, Lab: lab}, nil
 }
 
-// DiagnosticsはRendererの診断と計画上の欠落音素をまとめる。
+// DiagnosticsはRendererの診断を返す。
 func (r *Result) Diagnostics() []render.RenderDiagnostic {
 	diagnostics := make([]render.RenderDiagnostic, 0)
 	if r.RenderReport != nil {
 		diagnostics = append(diagnostics, r.RenderReport.Diagnostics...)
-	}
-	for _, gap := range r.Plan.MissingPhones {
-		diagnostics = append(diagnostics, render.RenderDiagnostic{
-			Severity: "warning", Code: "missing-phones",
-			Message: fmt.Sprintf("position %d: %s", gap.Position, strings.Join(gap.Phones, " ")),
-		})
 	}
 	return diagnostics
 }

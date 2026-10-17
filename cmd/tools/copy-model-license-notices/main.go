@@ -130,6 +130,7 @@ func copyNotices(modelsRoot, embeddedRoot, packageRoot, repositoryRoot string, c
 	return nil
 }
 
+// loadModelsはモデルJSONと、フォルダで置くモデルのnotices.jsonから表記を読む。
 func loadModels(modelsRoot string) ([]modelNotices, error) {
 	paths, err := filepath.Glob(filepath.Join(modelsRoot, "*.json"))
 	if err != nil {
@@ -139,9 +140,16 @@ func loadModels(modelsRoot string) ([]modelNotices, error) {
 	if len(paths) == 0 {
 		return nil, fmt.Errorf("no model JSON files found: %s", modelsRoot)
 	}
+	folders, err := filepath.Glob(filepath.Join(modelsRoot, "*", "notices.json"))
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(folders)
+	paths = append(paths, folders...)
 	result := make([]modelNotices, 0, len(paths))
 	for _, modelPath := range paths {
-		name := filepath.Base(modelPath)
+		name, _ := filepath.Rel(modelsRoot, modelPath)
+		name = filepath.ToSlash(name)
 		data, err := os.ReadFile(modelPath)
 		if err != nil {
 			return nil, fmt.Errorf("%s: invalid model JSON: %w", name, err)

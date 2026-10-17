@@ -9,6 +9,9 @@
 
 #include <math.h>
 
+#include <map>
+#include <vector>
+
 #include "world/common.h"
 #include "world/constantnumbers.h"
 #include "world/fft.h"
@@ -446,12 +449,16 @@ static void GetBaseIndex(double current_position, const double *base_time,
 static void GetMainWindow(double current_position, const int *base_index,
     int base_time_length, double fs, double window_length_in_time,
     double *main_window) {
-  double tmp = 0.0;
+  double start = 2.0 * world::kPi *
+    ((base_index[0] - 1.0) / fs - current_position) / window_length_in_time;
+  double step = 2.0 * world::kPi / fs / window_length_in_time;
+  double c = cos(start), s = sin(start);
+  double cd = cos(step), sd = sin(step);
   for (int i = 0; i < base_time_length; ++i) {
-    tmp = (base_index[i] - 1.0) / fs - current_position;
-    main_window[i] = 0.42 +
-      0.5 * cos(2.0 * world::kPi * tmp / window_length_in_time) +
-      0.08 * cos(4.0 * world::kPi * tmp / window_length_in_time);
+    main_window[i] = 0.42 + 0.5 * c + 0.08 * (2.0 * c * c - 1.0);
+    double next = c * cd - s * sd;
+    s = s * cd + c * sd;
+    c = next;
   }
 }
 
@@ -536,12 +543,26 @@ static void FixF0(const double *power_spectrum, const double *numerator_i,
 }
 
 //-----------------------------------------------------------------------------
-// GetMeanF0() calculates the instantaneous frequency.
+// MeanF0Spectra holds the spectra used by GetMeanF0(). They depend only on
+// the position and the half window length, so candidates in the same frame
+// with the same window share them.
 //-----------------------------------------------------------------------------
-static void GetMeanF0(const double *x, int x_length, double fs,
-    double current_position, double current_f0, int fft_size,
-    double window_length_in_time, const double *base_time,
-    int base_time_length, double *refined_f0, double *refined_score) {
+struct MeanF0Spectra {
+  int fft_size;
+  std::vector<double> power_spectrum;
+  std::vector<double> numerator_i;
+};
+
+static void GetMeanF0Spectra(const double *x, int x_length, double fs,
+    double current_position, int half_window_length, MeanF0Spectra *spectra) {
+  double window_length_in_time = (2.0 * half_window_length + 1.0) / fs;
+  int base_time_length = half_window_length * 2 + 1;
+  double *base_time = new double[base_time_length];
+  for (int i = 0; i < base_time_length; i++)
+    base_time[i] = (-half_window_length + i) / fs;
+  int fft_size = static_cast<int>(pow(2.0, 2.0 +
+    static_cast<int>(log(half_window_length * 2.0 + 1.0) / world::kLog2)));
+
   ForwardRealFFT forward_real_fft = { 0 };
   InitializeForwardRealFFT(fft_size, &forward_real_fft);
   fft_complex *main_spectrum = new fft_complex[fft_size];
@@ -559,27 +580,22 @@ static void GetMeanF0(const double *x, int x_length, double fs,
   GetSpectra(x, x_length, fft_size, base_index, main_window, diff_window,
       base_time_length, &forward_real_fft, main_spectrum, diff_spectrum);
 
-  double *power_spectrum = new double[fft_size / 2 + 1];
-  double *numerator_i = new double[fft_size / 2 + 1];
+  spectra->fft_size = fft_size;
+  spectra->power_spectrum.resize(fft_size / 2 + 1);
+  spectra->numerator_i.resize(fft_size / 2 + 1);
   for (int j = 0; j <= fft_size / 2; ++j) {
-    numerator_i[j] = main_spectrum[j][0] * diff_spectrum[j][1] -
+    spectra->numerator_i[j] = main_spectrum[j][0] * diff_spectrum[j][1] -
       main_spectrum[j][1] * diff_spectrum[j][0];
-    power_spectrum[j] = main_spectrum[j][0] * main_spectrum[j][0] +
+    spectra->power_spectrum[j] = main_spectrum[j][0] * main_spectrum[j][0] +
       main_spectrum[j][1] * main_spectrum[j][1];
   }
-
-  int number_of_harmonics =
-    MyMinInt(static_cast<int>(fs / 2.0 / current_f0), 6);
-  FixF0(power_spectrum, numerator_i, fft_size, fs, current_f0,
-      number_of_harmonics, refined_f0, refined_score);
 
   delete[] diff_spectrum;
   delete[] diff_window;
   delete[] main_window;
   delete[] base_index;
-  delete[] numerator_i;
-  delete[] power_spectrum;
   delete[] main_spectrum;
+  delete[] base_time;
   DestroyForwardRealFFT(&forward_real_fft);
 }
 
@@ -588,6 +604,7 @@ static void GetMeanF0(const double *x, int x_length, double fs,
 //-----------------------------------------------------------------------------
 static void GetRefinedF0(const double *x, int x_length, double fs,
     double current_position, double current_f0, double f0_floor, double f0_ceil,
+    std::map<int, MeanF0Spectra> *frame_spectra,
     double *refined_f0, double *refined_score) {
   if (current_f0 <= 0.0) {
     *refined_f0 = 0.0;
@@ -596,24 +613,27 @@ static void GetRefinedF0(const double *x, int x_length, double fs,
   }
 
   int half_window_length = static_cast<int>(1.5 * fs / current_f0 + 1.0);
-  double window_length_in_time = (2.0 * half_window_length + 1.0) / fs;
-  double *base_time = new double[half_window_length * 2 + 1];
-  for (int i = 0; i < half_window_length * 2 + 1; i++)
-    base_time[i] = (-half_window_length + i) / fs;
-  int fft_size = static_cast<int>(pow(2.0, 2.0 +
-    static_cast<int>(log(half_window_length * 2.0 + 1.0) / world::kLog2)));
+  std::map<int, MeanF0Spectra>::iterator found =
+    frame_spectra->find(half_window_length);
+  if (found == frame_spectra->end()) {
+    found = frame_spectra->insert(
+        std::make_pair(half_window_length, MeanF0Spectra())).first;
+    GetMeanF0Spectra(x, x_length, fs, current_position, half_window_length,
+        &found->second);
+  }
+  const MeanF0Spectra &spectra = found->second;
 
-  GetMeanF0(x, x_length, fs, current_position, current_f0, fft_size,
-      window_length_in_time, base_time, half_window_length * 2 + 1,
-      refined_f0, refined_score);
+  int number_of_harmonics =
+    MyMinInt(static_cast<int>(fs / 2.0 / current_f0), 6);
+  FixF0(spectra.power_spectrum.data(), spectra.numerator_i.data(),
+      spectra.fft_size, fs, current_f0, number_of_harmonics, refined_f0,
+      refined_score);
 
   if (*refined_f0 < f0_floor || *refined_f0 > f0_ceil ||
       *refined_score < 2.5) {
     *refined_f0 = 0.0;
     *refined_score = 0.0;
   }
-
-  delete[] base_time;
 }
 
 //-----------------------------------------------------------------------------
@@ -623,11 +643,14 @@ static void RefineF0Candidates(const double *x, int x_length, double fs,
     const double *temporal_positions, int f0_length, int max_candidates,
     double f0_floor, double f0_ceil,
     double **refined_f0_candidates, double **f0_scores) {
-  for (int i = 0; i < f0_length; i++)
+  std::map<int, MeanF0Spectra> frame_spectra;
+  for (int i = 0; i < f0_length; i++) {
+    frame_spectra.clear();
     for (int j = 0; j < max_candidates; ++j)
       GetRefinedF0(x, x_length, fs, temporal_positions[i],
-          refined_f0_candidates[i][j], f0_floor, f0_ceil,
+          refined_f0_candidates[i][j], f0_floor, f0_ceil, &frame_spectra,
           &refined_f0_candidates[i][j], &f0_scores[i][j]);
+  }
 }
 
 //-----------------------------------------------------------------------------
