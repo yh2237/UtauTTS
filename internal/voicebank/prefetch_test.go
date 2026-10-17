@@ -55,6 +55,14 @@ func TestReferenceRecordingsUseDefaultPitchNormalVoice(t *testing.T) {
 	if got := single.ReferenceRecordings(); !reflect.DeepEqual(got, []string{"aa.wav", "aak.wav"}) {
 		t.Fatalf("single-pitch recordings=%v", got)
 	}
+	// prefix.mapの接尾辞がどの別名にも付いていない音源は、すべての録音を使う。
+	unmatched := &Bank{
+		Entries:   map[string][]oto.Entry{"- aa": {{Filename: "aa.wav"}}, "aa k": {{Filename: "aak.wav"}}},
+		PrefixMap: map[string]Affix{"C4": {Suffix: "C4"}},
+	}
+	if got := unmatched.ReferenceRecordings(); !reflect.DeepEqual(got, []string{"aa.wav", "aak.wav"}) {
+		t.Fatalf("unmatched affix recordings=%v", got)
+	}
 }
 
 func tone(t *testing.T, name string) int {

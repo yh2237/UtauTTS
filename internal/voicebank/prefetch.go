@@ -70,16 +70,24 @@ func (b *Bank) CandidateSourcePaths(morae []frontend.Mora, cfg ResolveConfig) []
 // ReferenceRecordingsは英語の索引に使う録音を返す。音高や声色ごとの収録があれば、既定の音高の通常の声だけを使う。
 func (b *Bank) ReferenceRecordings() []string {
 	affix, _, hasAffix := b.AffixForToneAndColor("", "")
-	paths := make(map[string]bool)
-	for alias, entries := range b.Entries {
-		if hasAffix && (!strings.HasPrefix(alias, affix.Prefix) || !strings.HasSuffix(alias, affix.Suffix)) {
-			continue
-		}
-		for _, entry := range entries {
-			if entry.Filename != "" {
-				paths[entry.Filename] = true
+	collect := func(affixed bool) map[string]bool {
+		paths := make(map[string]bool)
+		for alias, entries := range b.Entries {
+			if affixed && (!strings.HasPrefix(alias, affix.Prefix) || !strings.HasSuffix(alias, affix.Suffix)) {
+				continue
+			}
+			for _, entry := range entries {
+				if entry.Filename != "" {
+					paths[entry.Filename] = true
+				}
 			}
 		}
+		return paths
+	}
+	paths := collect(hasAffix)
+	if len(paths) == 0 {
+		// 既定の音高の別名が見つからない音源は、すべての録音を使う。
+		paths = collect(false)
 	}
 	result := make([]string, 0, len(paths))
 	for path := range paths {
