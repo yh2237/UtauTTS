@@ -25,7 +25,7 @@ utautts-cli --voicebank "./voice/english-bank" --language en --phonemizer en-arp
 
 ## 読みを直す
 
-自動の読みが意図と違うときは、読み欄か辞書設定で発音記号を直接指定できます。CLIでは`--reading`で指定します。
+自動の読みが意図と違うときは、辞書設定で発音記号を直接指定できます。CLIでは`--reading`で指定します。
 
 | 言語 | 読みの例 | 区切りの規則 |
 | :--- | :--- | :--- |
