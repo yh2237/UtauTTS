@@ -138,7 +138,11 @@ func TestBundledWorldRuntimeIsolation(t *testing.T) {
 	if os.Getenv("UTAUTTS_INTEGRATION") != "1" {
 		t.Skip("set UTAUTTS_INTEGRATION=1 to test bundled WORLD synthesis")
 	}
-	config := utautts.Config{VoiceDirectory: filepath.Join("voice", "足立レイver3.5.0"), Renderer: "utautts-world-phrase"}
+	voice := os.Getenv("UTAUTTS_TEST_VOICE")
+	if voice == "" {
+		t.Skip("set UTAUTTS_TEST_VOICE to the voicebank folder name under voice/")
+	}
+	config := utautts.Config{VoiceDirectory: filepath.Join("voice", voice), Renderer: "utautts-world-phrase"}
 	first, second := newEngine(t, config), newEngine(t, config)
 	ctx := context.Background()
 	request := utautts.Request{Text: "こんにちは。今日はいい天気ですね。", Tone: "C4"}

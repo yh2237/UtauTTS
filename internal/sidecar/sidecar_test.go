@@ -35,7 +35,7 @@ func testWriteCreatesMatchingUTF8Sidecars(t *testing.T) {
 func testWriteEncodesShiftJIS(t *testing.T) {
 	directory := t.TempDir()
 	if err := Write(filepath.Join(directory, "voice.wav"), Options{
-		WriteText: true, Encoding: EncodingShiftJIS, Text: "足立レイ",
+		WriteText: true, Encoding: EncodingShiftJIS, Text: "テスト音源",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func testWriteEncodesShiftJIS(t *testing.T) {
 		t.Fatal(err)
 	}
 	decoded, _, err := transform.Bytes(japanese.ShiftJIS.NewDecoder(), data)
-	if err != nil || string(decoded) != "足立レイ\n" {
+	if err != nil || string(decoded) != "テスト音源\n" {
 		t.Fatalf("unexpected Shift_JIS text: %q, %v", decoded, err)
 	}
 }

@@ -270,7 +270,7 @@ func TestDiscoverFindsMetadataRootInsideTwoWrappers(t *testing.T) {
 	if err := os.MkdirAll(otoRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(bankRoot, "character.txt"), []byte("name=Teto English\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(bankRoot, "character.txt"), []byte("name=Test English\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(otoRoot, "oto.ini"), []byte("a.wav=- h@,0,0,0,0,0\n"), 0o644); err != nil {
@@ -278,7 +278,7 @@ func TestDiscoverFindsMetadataRootInsideTwoWrappers(t *testing.T) {
 	}
 
 	got, err := Discover(root)
-	if err != nil || len(got) != 1 || got[0].Path != bankRoot || got[0].Name != "Teto English" {
+	if err != nil || len(got) != 1 || got[0].Path != bankRoot || got[0].Name != "Test English" {
 		t.Fatalf("Discover() = %#v, %v", got, err)
 	}
 }

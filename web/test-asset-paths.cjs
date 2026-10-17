@@ -34,8 +34,8 @@ test("Pages and Worker retain the same R2 release while the Worker stays same-or
   const worker = createUtauTTSAssetPaths(workerURL.href, JSON.parse(workerURL.searchParams.get("config")));
   assert.equal(workerURL.origin, "https://tts.pages.dev");
   assert.equal(page.engineBaseURL, worker.engineBaseURL);
-  assert.equal(worker.engine("voice/足立レイ/a.wav"),
-    "https://assets.example.test/utautts/releases/v1-sha/web/dist/voice/%E8%B6%B3%E7%AB%8B%E3%83%AC%E3%82%A4/a.wav");
+  assert.equal(worker.engine("voice/テスト音源/a.wav"),
+    "https://assets.example.test/utautts/releases/v1-sha/web/dist/voice/%E3%83%86%E3%82%B9%E3%83%88%E9%9F%B3%E6%BA%90/a.wav");
   assert.equal(page.asset("utautts.wasm"), "https://assets.example.test/utautts/releases/v1-sha/utautts.wasm");
   assert.equal(page.dictManifestURL, worker.dictManifestURL);
 });

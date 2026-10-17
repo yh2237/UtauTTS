@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/gograd/cuda"
 )
 
@@ -26,27 +25,12 @@ func TestFeaturesCUDA(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer m.Close()
-	wavPath := filepath.Join("..", "..", "sample", "TETO-English-150401", "重音テト音声ライブラリー", "重音テト英語音源", "_3_h3_3-.wav")
-	pcm, err := audio.ReadWav(wavPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Read the real recording as mono and resample it to HuBERT's 16 kHz input.
-	mono := make([]float32, len(pcm.Data)/pcm.Channels)
-	for i := range mono {
-		for ch := 0; ch < pcm.Channels; ch++ {
-			mono[i] += float32(pcm.Data[i*pcm.Channels+ch]) / (32768 * float32(pcm.Channels))
-		}
-	}
-	wave := make([]float32, 24000)
+	// 同じ入力でCPUとCUDAの出力を比べる。入力は声に近い倍音を含む合成波にする。
+	const sampleRate = 16000
+	wave := make([]float32, sampleRate*3/2)
 	for i := range wave {
-		at := float64(i) * float64(pcm.SampleRate) / 16000
-		j := int(at)
-		if j+1 >= len(mono) {
-			t.Fatalf("recording shorter than 1.5 seconds")
-		}
-		frac := float32(at - float64(j))
-		wave[i] = mono[j]*(1-frac) + mono[j+1]*frac
+		at := float64(i) / sampleRate
+		wave[i] = float32(.35*math.Sin(2*math.Pi*140*at) + .2*math.Sin(2*math.Pi*280*at) + .1*math.Sin(2*math.Pi*560*at))
 	}
 	start := time.Now()
 	cpu, err := m.Features(wave, 6)

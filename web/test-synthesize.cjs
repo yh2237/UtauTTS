@@ -20,9 +20,20 @@ const { installVirtualFs } = require(path.join(__dirname, "fs-shim.js"));
 const { createOpenJTalkBridge } = require(path.join(__dirname, "openjtalk-bridge.js"));
 const { createWorldBridge } = require(path.join(__dirname, "world-bridge.js"));
 
-const VOICE_NAME = "足立レイver3.5.0";
+const VOICE_NAME = process.env.UTAUTTS_TEST_VOICE || testVoiceName();
 const VOICE_DIR = path.join(ROOT, "voice", VOICE_NAME);
 const VOICE_PATH = "/voice/" + VOICE_NAME;
+
+function testVoiceName() {
+  try {
+    const entries = fs.readdirSync(path.join(ROOT, "voice"), { withFileTypes: true });
+    const directory = entries.find((entry) => entry.isDirectory());
+    if (directory) return directory.name;
+  } catch (error) {
+    // voice/がないときは、音源を置く前提の名前を返す。
+  }
+  return "テスト音源";
+}
 const MODEL_PATH = "/models/frame-intonation-tcn-v12.json";
 const DICT_PATH = "/dict";
 const OUTPUT_PATH = "/out/utautts.wav";

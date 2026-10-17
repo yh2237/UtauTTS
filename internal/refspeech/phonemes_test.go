@@ -10,7 +10,7 @@ func TestKokoroPhonemesFromReading(t *testing.T) {
 	for _, test := range []struct {
 		text, reading, want string
 	}{
-		{"Hello, my name is Teto.", "HH AH0 L OW1 | SP | M AY1 | N EY1 M | IH1 Z | T EH T AA | SP", "həlˈO, mˈI nˈAm ˈɪz tɛtɑ."},
+		{"Hello, my name is Sam.", "HH AH0 L OW1 | SP | M AY1 | N EY1 M | IH1 Z | S AE1 M | SP", "həlˈO, mˈI nˈAm ˈɪz sˈæm."},
 		{"What time does the meeting start?", "W AH1 T | T AY1 M | D AH0 Z | DH AH0 | M IY1 T IH0 NG | S T AA1 R T | SP", "wˈʌt tˈIm dəz ðə mˈitɪŋ stˈɑɹt?"},
 	} {
 		if got := KokoroPhonemes(nil, test.text, test.reading, test.reading, nil); got != test.want {
@@ -32,7 +32,7 @@ func TestKokoroPhonemesMatchMisaki(t *testing.T) {
 	for _, test := range []struct {
 		text, reading, want string
 	}{
-		{"Hello, my name is Teto.", "HH AH0 L OW1 | SP | M AY1 | N EY1 M | IH1 Z | T EH T AA | SP", "həlˈO, mI nˈAm ɪz tɛtɑ."},
+		{"Hello, my name is Sam.", "HH AH0 L OW1 | SP | M AY1 | N EY1 M | IH1 Z | S AE1 M | SP", "həlˈO, mI nˈAm ɪz sˈæm."},
 		{"The weather is really nice today.", "DH AH0 | W EH1 DH ER0 | IH1 Z | R IH1 L IY0 | N AY1 S | T AH0 D EY1 | SP", "ðə wˈɛðəɹ ɪz ɹˈiᵊli nˈIs tədˈA."},
 		{"Could you help me with this box?", "K UH1 D | Y UW1 | HH EH1 L P | M IY1 | W IH1 DH | DH IH1 S | B AA1 K S | SP", "kˌʊd ju hˈɛlp mˌi wɪð ðɪs bˈɑks?"},
 		{"I had chocolate cake for breakfast.", "AY1 | HH AE1 D | CH AO1 K L AH0 T | K EY1 K | F ER0 | B R EH1 K F AH0 S T | SP", "ˌI hæd ʧˈɑkᵊlət kˈAk fɔɹ bɹˈɛkfəst."},
@@ -56,15 +56,15 @@ func TestKokoroPhonemesUseEditedWords(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	automatic := "HH AH0 L OW1 | SP | M AY1 | N EY1 M | IH1 Z | T EH T AA | SP"
+	automatic := "HH AH0 L OW1 | SP | M AY1 | N EY1 M | IH1 Z | S AE1 M | SP"
 	for _, test := range []struct {
 		reading, want string
 	}{
-		{automatic, "həlˈO, mI nˈAm ɪz tɛtɑ."},
-		{"HH AH0 L OW1 | SP | M AY1 | N EY1 M | IH1 Z | T EY1 T OW0 | SP", "həlˈO, mI nˈAm ɪz tˈAtO."},
+		{automatic, "həlˈO, mI nˈAm ɪz sˈæm."},
+		{"HH AH0 L OW1 | SP | M AY1 | N EY1 M | IH1 Z | S EY1 M | SP", "həlˈO, mI nˈAm ɪz sˈAm."},
 		{"B AY1 | SP", "bˈI."},
 	} {
-		if got := KokoroPhonemes(lexicon, "Hello, my name is Teto.", test.reading, automatic, nil); got != test.want {
+		if got := KokoroPhonemes(lexicon, "Hello, my name is Sam.", test.reading, automatic, nil); got != test.want {
 			t.Errorf("KokoroPhonemes(%q) = %q, want %q", test.reading, got, test.want)
 		}
 	}
