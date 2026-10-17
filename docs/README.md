@@ -2,7 +2,7 @@
 
 ## はじめに
 - [インストールと起動](installation.md) - OSごとの手順と必要な環境
-- [GUIの使い方](gui.md) - 編集、書き出し、AviUtl連携
+- [GUIの使い方](gui.md) - 編集、書き出し
 - [設定リファレンス](settings.md) - 合成の初期値、Renderer設定、辞書設定、書き出し
 
 ## 機能別ガイド
