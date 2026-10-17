@@ -91,12 +91,69 @@ func TestBuildIndexSkipsUnreadableWAV(t *testing.T) {
 		}
 		return values, frames, 3, nil
 	}
-	index, err := BuildIndex([]string{bad, good}, "test", fakeWorld{}, features, nil)
+	index, err := BuildIndex([]string{bad, good}, "test", fakeWorld{}, features, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(index.Files, []string{good}) || index.Frames == 0 {
 		t.Fatalf("files %v, frames %d", index.Files, index.Frames)
+	}
+}
+
+func TestBuildIndexReusesUnchangedRecordings(t *testing.T) {
+	dir := t.TempDir()
+	makeWav := func(name string, frequency float64) string {
+		path := filepath.Join(dir, name)
+		pcm := &audio.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 8000)}
+		for i := range pcm.Data {
+			pcm.Data[i] = int16(8000 * math.Sin(float64(i)*frequency))
+		}
+		if err := audio.WriteWav(path, pcm); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	files := []string{makeWav("a.wav", 0.1), makeWav("b.wav", 0.2)}
+	cache := OpenPartCache(filepath.Join(t.TempDir(), "parts"))
+	calls := 0
+	features := func(samples []float64, rate int) ([]float32, int, int, error) {
+		calls++
+		frames := len(samples) * 50 / rate
+		values := make([]float32, frames*3)
+		for i := range values {
+			values[i] = float32(i%3 + 1)
+		}
+		return values, frames, 3, nil
+	}
+	first, err := BuildIndex(files, "test", fakeWorld{}, features, nil, cache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != len(files) {
+		t.Fatalf("first build analyzed %d files", calls)
+	}
+	calls = 0
+	second, err := BuildIndex(files, "test", fakeWorld{}, features, nil, cache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 0 {
+		t.Fatalf("second build analyzed %d files, want 0", calls)
+	}
+	if first.Frames != second.Frames || !reflect.DeepEqual(first.Features, second.Features) ||
+		!reflect.DeepEqual(first.Spectrum, second.Spectrum) || !reflect.DeepEqual(first.Aperiodicity, second.Aperiodicity) ||
+		!reflect.DeepEqual(first.F0, second.F0) || !reflect.DeepEqual(first.File, second.File) {
+		t.Fatal("index built from cached parts differs")
+	}
+	if err := audio.WriteWav(files[0], &audio.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 9000)}); err != nil {
+		t.Fatal(err)
+	}
+	calls = 0
+	if _, err := BuildIndex(files, "test", fakeWorld{}, features, nil, cache); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("build after one change analyzed %d files, want 1", calls)
 	}
 }
 
@@ -118,7 +175,7 @@ func TestBuildIndexTakesRateFromUsableWAV(t *testing.T) {
 		frames := len(samples) * 50 / rate
 		return make([]float32, frames*3), frames, 3, nil
 	}
-	index, err := BuildIndex([]string{short, good}, "test", fakeWorld{}, features, nil)
+	index, err := BuildIndex([]string{short, good}, "test", fakeWorld{}, features, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

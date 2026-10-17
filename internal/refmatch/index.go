@@ -2,6 +2,7 @@ package refmatch
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -70,8 +71,8 @@ type Header struct {
 }
 
 // BuildIndexは録音ファイルを解析して索引を作る。最初のファイルと標本化周波数が違うファイルと0.1秒未満のファイルは使わない。
-// WORLDの解析はファイルごとに並列に行い、featuresは同時に1つだけ呼ぶ。
-func BuildIndex(files []string, model string, world World, features FeatureFunc, progress func(done, total int)) (*Index, error) {
+// WORLDの解析はファイルごとに並列に行う。cacheを渡すと、内容が同じ録音の解析結果を再利用する。
+func BuildIndex(files []string, model string, world World, features FeatureFunc, progress func(done, total int), cache *PartCache) (*Index, error) {
 	results := make([]fileFrames, len(files))
 	jobs := make(chan int)
 	var mu sync.Mutex
@@ -81,7 +82,7 @@ func BuildIndex(files []string, model string, world World, features FeatureFunc,
 	for range max(1, min(runtime.GOMAXPROCS(0), len(files))) {
 		wg.Go(func() {
 			for number := range jobs {
-				result, err := analyzeFile(files[number], world, features)
+				result, err := analyzeFile(files[number], model, world, features, cache)
 				mu.Lock()
 				results[number] = result
 				if err != nil && firstErr == nil {
@@ -154,8 +155,32 @@ type fileFrames struct {
 }
 
 // analyzeFileは、95パーセンタイルの音量から約45dB以上小さいフレームを除いて、1ファイル分のフレームを返す。
-func analyzeFile(path string, world World, features FeatureFunc) (fileFrames, error) {
-	samples, rate, err := readMono(path)
+// 内容が同じ録音の解析結果がcacheにあれば、解析せずにそれを返す。
+func analyzeFile(path, model string, world World, features FeatureFunc, cache *PartCache) (fileFrames, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		// 読めない形式のWAV（PCM以外など）は、索引に入れずに飛ばす。
+		return fileFrames{}, nil
+	}
+	key := ""
+	if cache != nil {
+		key = partKey(model, data)
+		if frames, ok := cache.Load(key); ok {
+			return frames, nil
+		}
+	}
+	result, err := analyzeBytes(data, world, features)
+	if err != nil {
+		return result, err
+	}
+	if key != "" {
+		cache.Save(key, result)
+	}
+	return result, nil
+}
+
+func analyzeBytes(data []byte, world World, features FeatureFunc) (fileFrames, error) {
+	samples, rate, err := decodeMono(data)
 	if err != nil {
 		// 読めない形式のWAV（PCM以外など）は、索引に入れずに飛ばす。
 		return fileFrames{}, nil
@@ -209,8 +234,8 @@ func analyzeFile(path string, world World, features FeatureFunc) (fileFrames, er
 	return result, nil
 }
 
-func readMono(path string) ([]float64, int, error) {
-	pcm, err := audio.ReadWav(path)
+func decodeMono(data []byte) ([]float64, int, error) {
+	pcm, err := audio.DecodeWav(bytes.NewReader(data))
 	if err != nil {
 		return nil, 0, err
 	}

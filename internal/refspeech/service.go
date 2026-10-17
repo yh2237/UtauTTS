@@ -255,7 +255,7 @@ func (s *Service) loadOrBuild(bankRoot string, recordings []string, worldEngineP
 		s.foreground.Unlock()
 		return engine.Features(samples, rate)
 	}
-	index, err := refmatch.BuildIndex(files, FeatureModel, world, features, progress)
+	index, err := refmatch.BuildIndex(files, FeatureModel, world, features, progress, refmatch.OpenPartCache(filepath.Join(s.cacheDir, "parts")))
 	if err != nil {
 		return nil, err
 	}
