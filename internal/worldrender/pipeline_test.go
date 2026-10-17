@@ -35,7 +35,7 @@ func (e *fakeWorldEngine) Analyze(samples []float64, rate int, f0 []float64) (wo
 
 func (e *fakeWorldEngine) Synthesize(features worldFeatures, rate int) ([]float64, error) {
 	e.synthCalls++
-	return make([]float64, worldSynthesisLength(features.Frames, rate)), nil
+	return make([]float64, worldSynthesisLengthAt(features.Frames, rate, worldFramePeriodMS)), nil
 }
 
 func TestWorldPhrasePipelineRunsStagesInOrder(t *testing.T) {
@@ -66,7 +66,7 @@ func TestWorldPhrasePipelineRunsStagesInOrder(t *testing.T) {
 	if engine.analyzeCalls != 1 || engine.synthCalls != 1 {
 		t.Fatalf("analyze=%d synth=%d, want 1/1", engine.analyzeCalls, engine.synthCalls)
 	}
-	if len(output) != worldSynthesisLength(len(input.F0Curve), rate) {
+	if len(output) != worldSynthesisLengthAt(len(input.F0Curve), rate, worldFramePeriodMS) {
 		t.Fatalf("output length = %d", len(output))
 	}
 	if len(results) != 1 || results[0].UnitIndex != 0 {

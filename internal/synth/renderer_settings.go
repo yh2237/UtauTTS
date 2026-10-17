@@ -154,12 +154,6 @@ func resolveRendererSettings(request Request, cfg *tts.Config, options *render.P
 	return resolution
 }
 
-func applyRendererSettings(settings map[string]json.RawMessage, cfg *tts.Config, options *render.ProviderOptions) rendererSettingsResolution {
-	resolution := rendererSettingsResolution{}
-	applyRendererSettingsMap(rendererSettingSpecs, settings, cfg, options, &resolution)
-	return resolution
-}
-
 // 既知IDは設定へ、未知IDは実装固有値へ渡す。型不一致は診断を残して無視する。
 func applyRendererSettingsMap(specs []rendererSettingSpec, settings map[string]json.RawMessage, cfg *tts.Config, options *render.ProviderOptions, resolution *rendererSettingsResolution) {
 	if len(settings) == 0 {

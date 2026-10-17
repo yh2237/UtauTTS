@@ -15,12 +15,13 @@ func TestCodaReleaseReachesBurstBeforeAudibleEnd(t *testing.T) {
 		t.Fatal("valid coda rejected")
 	}
 	release := a.targetOnset + (408-a.sourceOnset)*(a.targetEnd-a.targetOnset)/(a.sourceEnd-a.sourceOnset)
-	if release >= u.SkipMS+u.LengthMS || math.Abs(mapWorldSourceTime(u, 583, release-u.SkipMS)-408) > 1e-8 {
+	if release >= u.SkipMS+u.LengthMS || math.Abs(mapWorldSourceTimePrepared(u, 583, release-u.SkipMS, a, ok)-408) > 1e-8 {
 		t.Fatal("release outside audible output", release)
 	}
 	old := u
 	old.Speech = nil
-	if mapWorldSourceTime(old, 583, u.LengthMS) >= 408 {
+	oldMapping, oldOK := worldSpeechAnchors(old, 583)
+	if mapWorldSourceTimePrepared(old, 583, u.LengthMS, oldMapping, oldOK) >= 408 {
 		t.Fatal("fixture no longer reproduces truncation")
 	}
 	previous := -1.0

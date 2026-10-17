@@ -99,10 +99,6 @@ func (b *Bank) ResolveWithConfig(morae []frontend.Mora, cfg ResolveConfig) ([]Se
 	return selectBestPaths(layers, extractor), nil
 }
 
-func (b *Bank) candidateLayers(morae []frontend.Mora, tone string) ([][]Selection, error) {
-	return b.candidateLayersWithPolicy(morae, tone, "", AliasPolicyAuto)
-}
-
 func (b *Bank) candidateLayersWithPolicy(morae []frontend.Mora, tone, color string, policy AliasPolicy) ([][]Selection, error) {
 	return b.candidateLayersDiagnostic(morae, tone, color, policy, nil)
 }

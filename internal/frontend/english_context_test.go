@@ -15,7 +15,7 @@ func TestEnglishReadUsesUnambiguousVerbContext(t *testing.T) {
 		{"I have read this book.", "R EH1 D"},
 		{"I read it yesterday.", "R EH1 D"},
 	} {
-		got, _, err := ParseEnglishDelta(tc.text, "", nil)
+		got, _, err := ParseEnglishDeltaWithConfig(tc.text, "", nil, PresampConfig{})
 		if err != nil || !strings.Contains(got, tc.reading) {
 			t.Fatalf("%q = %q, %v", tc.text, got, err)
 		}
@@ -24,7 +24,7 @@ func TestEnglishReadUsesUnambiguousVerbContext(t *testing.T) {
 	if err != nil || !strings.Contains(got, "R EH1 D") {
 		t.Fatalf("dictionary override lost: %q, %v", got, err)
 	}
-	got, _, err = ParseEnglishDelta("Please read this.", "R EH1 D", nil)
+	got, _, err = ParseEnglishDeltaWithConfig("Please read this.", "R EH1 D", nil, PresampConfig{})
 	if err != nil || got != "R EH1 D" {
 		t.Fatalf("explicit reading lost: %q, %v", got, err)
 	}

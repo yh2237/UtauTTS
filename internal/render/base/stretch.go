@@ -10,14 +10,6 @@ func WSOLAStretch(source []float64, targetFrames, sampleRate int) ([]float64, er
 	return wsola(source, targetFrames, sampleRate), nil
 }
 
-func StretchWSOLA(source []float64, targetFrames, sampleRate int) []float64 {
-	return wsola(source, targetFrames, sampleRate)
-}
-
-func StretchWSOLAAnchored(source []float64, targetFrames, sampleRate int, sourceAnchors, targetAnchors []int) []float64 {
-	return stretch.Anchored(source, targetFrames, sampleRate, sourceAnchors, targetAnchors)
-}
-
 func RetimeWithCompressedPrefixUsing(source []float64, targetFrames, sourcePrefixFrames, targetPrefixFrames, sampleRate int, stretch func([]float64, int, int) ([]float64, error)) ([]float64, error) {
 	if targetFrames <= 0 || len(source) == 0 {
 		return nil, nil
@@ -65,10 +57,6 @@ func RetimeWithCompressedPrefixUsing(source []float64, targetFrames, sourcePrefi
 	copy(result[targetPrefixFrames+crossfade:], tail[overlap:])
 	declickJoin(result, targetPrefixFrames, msToFrames(2, sampleRate))
 	return result, nil
-}
-
-func StretchPreservingPrefixUsing(source []float64, targetFrames, prefixFrames, sampleRate int, stretch func([]float64, int, int) ([]float64, error)) ([]float64, error) {
-	return stretchPreservingPrefixUsing(source, targetFrames, prefixFrames, sampleRate, stretch)
 }
 
 func stretchPreservingPrefixUsing(source []float64, targetFrames, prefixFrames, sampleRate int, stretch func([]float64, int, int) ([]float64, error)) ([]float64, error) {

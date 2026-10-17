@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/yh2237/UtauTTS/internal/render/base"
+	"github.com/yh2237/audiodsp/stretch"
 	"math"
 	"path/filepath"
 	"reflect"
@@ -380,7 +382,7 @@ func TestRenderAllowsSilentClosureUnit(t *testing.T) {
 
 func TestNormalizeTimingLeavesOrdinaryBankAlone(t *testing.T) {
 	unit := plan.Unit{DurationMS: 140, PreutteranceMS: 60, OverlapMS: 20, ConsonantMS: 100}
-	got := normalizeTiming(unit, 20)
+	got := base.NormalizeTiming(unit, 20)
 	if got.PreutteranceMS != 60 || got.OverlapMS != 20 || got.ConsonantMS != 100 || got.Scale != 1 {
 		t.Fatalf("ordinary timing changed: %#v", got)
 	}
@@ -725,7 +727,7 @@ func TestStretchPreservesPrefixAndLength(t *testing.T) {
 	for i := range source {
 		source[i] = float64(i) / 200
 	}
-	got, err := stretchPreservingPrefixUsing(source, 350, 50, 1000, wsolaStretch)
+	got, err := retimeWithCompressedPrefixUsing(source, 350, 50, 50, 1000, wsolaStretch)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -742,8 +744,8 @@ func TestStretchWSOLAAnchoredUsesOneContinuousOutput(t *testing.T) {
 	for index := range source {
 		source[index] = 0.5 * math.Sin(2*math.Pi*float64(index)/50)
 	}
-	first := StretchWSOLAAnchored(source, 300, 1000, []int{0, 300, 700, 1000}, []int{0, 100, 200, 300})
-	second := StretchWSOLAAnchored(source, 300, 1000, []int{0, 300, 700, 1000}, []int{0, 100, 200, 300})
+	first := stretch.Anchored(source, 300, 1000, []int{0, 300, 700, 1000}, []int{0, 100, 200, 300})
+	second := stretch.Anchored(source, 300, 1000, []int{0, 300, 700, 1000}, []int{0, 100, 200, 300})
 	if len(first) != 300 {
 		t.Fatalf("length = %d, want 300", len(first))
 	}
@@ -789,7 +791,7 @@ func TestStabilizeWorldlinePitches(t *testing.T) {
 		{"corrects near half pitch", []float64{207, 115, 205}, []float64{207, 230, 205}, []float64{0, 1, 0}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := stabilizeWorldlinePitches(tc.input)
+			got := base.StabilizeWorldlinePitches(tc.input)
 			if len(got) != len(tc.want) {
 				t.Fatalf("pitches = %v, want %d values", got, len(tc.want))
 			}
@@ -824,7 +826,7 @@ func TestStabilizeSingleCVPitches(t *testing.T) {
 		{"leaves ambiguous short phrase", []string{"a", "i"}, []float64{207, 155}, []float64{207, 155}, []float64{0, 0}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := stabilizeSingleCVPitches(planFor(tc.vowels...), tc.input)
+			got := base.StabilizeSingleCVPitches(planFor(tc.vowels...), tc.input)
 			if len(got) != len(tc.want) {
 				t.Fatalf("pitches = %v, want %d values", got, len(tc.want))
 			}

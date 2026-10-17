@@ -52,15 +52,6 @@ func ReadIni(otoPath string) (*Ini, error) {
 	return parseText(text, encoding, absPath, filepath.Dir(absPath))
 }
 
-// sourceは出典表示用で、baseDirは録音パスの基準。どちらも作業ディレクトリから補完しない。
-func ParseBytes(data []byte, source, baseDir string) (*Ini, error) {
-	text, encoding, err := Decode(data)
-	if err != nil {
-		return nil, fmt.Errorf("decode %s: %w", source, err)
-	}
-	return parseText(text, encoding, source, baseDir)
-}
-
 func parseText(text, encoding, source, baseDir string) (*Ini, error) {
 	result := &Ini{Path: source, Encoding: encoding, Entries: map[string][]Entry{}}
 	diagnostics, err := otofile.Scan(strings.NewReader(text), baseDir, func(record otofile.Entry) {

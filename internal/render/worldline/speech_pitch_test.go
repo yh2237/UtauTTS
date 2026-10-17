@@ -15,7 +15,7 @@ func TestSpeechPitchReferenceExcludesTransitionsAndPreservesControls(t *testing.
 	if reference != 200 {
 		t.Fatal("non-vowel recordings moved register", reference)
 	}
-	curve := worldlineF0CurveAt(p, pitches, factors, reference, 25, 10)
+	curve := worldlineF0CurveAtOffset(p, pitches, factors, reference, 25, 10, 0)
 	for _, hz := range curve {
 		if math.Abs(hz-200) > 1e-8 {
 			t.Fatal("recording pitch leaked into target", hz)

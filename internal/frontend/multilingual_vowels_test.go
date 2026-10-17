@@ -10,7 +10,9 @@ func TestEnglishSchwaAliasesPreserveLexicalPhones(t *testing.T) {
 		name         string
 		parse        func(string, string, map[string]string) (string, []Mora, error)
 		weak, strong string
-	}{{"delta", ParseEnglishDelta, "@", "V"}, {"vccv", ParseEnglishVCCV, "x", "u"}} {
+	}{{"delta", func(text, reading string, dictionary map[string]string) (string, []Mora, error) {
+		return ParseEnglishDeltaWithConfig(text, reading, dictionary, PresampConfig{})
+	}, "@", "V"}, {"vccv", ParseEnglishVCCV, "x", "u"}} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, phone := range []struct {
 				vowel, symbol string

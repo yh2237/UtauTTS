@@ -24,7 +24,7 @@ func TestResolverAcceptsManifestDeclaredExternalProvider(t *testing.T) {
 		Capabilities: Capabilities{FramePitch: true},
 		Resources:    map[ResourceKey]string{ResourceProviderExecutable: executable},
 	}
-	resolved, err := NewResolver(registry).Resolve([]Definition{definition}, "external-world")
+	resolved, err := NewResolver(registry).ResolveWithOptions([]Definition{definition}, "external-world", ResolveOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestResolverUsesDefaultOnlyForEmptyPublicID(t *testing.T) {
 		{ID: "neural", Contract: ContractNeuralSynthesizer, Provider: "builtin.second"},
 	}
 
-	resolved, err := resolver.Resolve(definitions, "")
+	resolved, err := resolver.ResolveWithOptions(definitions, "", ResolveOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestResolverUsesDefaultOnlyForEmptyPublicID(t *testing.T) {
 		t.Fatalf("default resolution = %#v", resolved)
 	}
 
-	resolved, err = resolver.Resolve(definitions, "neural")
+	resolved, err = resolver.ResolveWithOptions(definitions, "neural", ResolveOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestResolverUsesDefaultOnlyForEmptyPublicID(t *testing.T) {
 		t.Fatalf("explicit resolution = %#v", resolved)
 	}
 
-	if _, err := resolver.Resolve(definitions, "removed"); !errors.Is(err, ErrDefinitionNotFound) {
+	if _, err := resolver.ResolveWithOptions(definitions, "removed", ResolveOptions{}); !errors.Is(err, ErrDefinitionNotFound) {
 		t.Fatalf("missing explicit renderer error = %v", err)
 	}
 }
@@ -73,9 +73,9 @@ func TestResolverRejectsProviderWithWrongContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = NewResolver(registry).Resolve([]Definition{{
+	_, err = NewResolver(registry).ResolveWithOptions([]Definition{{
 		ID: "incorrect", Contract: ContractUnitRenderer, Provider: "builtin.neural",
-	}}, "incorrect")
+	}}, "incorrect", ResolveOptions{})
 	if !errors.Is(err, ErrContractMismatch) {
 		t.Fatalf("contract mismatch error = %v", err)
 	}
@@ -86,9 +86,9 @@ func TestResolverRejectsProviderVersionMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = NewResolver(registry).Resolve([]Definition{{
+	_, err = NewResolver(registry).ResolveWithOptions([]Definition{{
 		ID: "old-definition", Contract: ContractUnitRenderer, Provider: "builtin.waveform", ProviderVersion: "1",
-	}}, "old-definition")
+	}}, "old-definition", ResolveOptions{})
 	if !errors.Is(err, ErrProviderVersionMismatch) {
 		t.Fatalf("provider version mismatch error = %v", err)
 	}
@@ -102,10 +102,10 @@ func TestResolverRejectsDefinitionCapabilityUnsupportedByProvider(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = NewResolver(registry).Resolve([]Definition{{
+	_, err = NewResolver(registry).ResolveWithOptions([]Definition{{
 		ID: "incorrect", Contract: ContractUnitRenderer, Provider: "builtin.basic",
 		Capabilities: Capabilities{FramePitch: true, BoundaryBridge: true},
-	}}, "incorrect")
+	}}, "incorrect", ResolveOptions{})
 	if !errors.Is(err, ErrCapabilityMismatch) {
 		t.Fatalf("capability mismatch error = %v", err)
 	}
@@ -124,7 +124,7 @@ func TestResolverReportsMissingRequiredResourceAndHonorsOverride(t *testing.T) {
 		ID: "requires-bridge", Contract: ContractUnitRenderer, Provider: "builtin.requires-bridge",
 	}}
 
-	resolved, err := resolver.Resolve(definitions, "requires-bridge")
+	resolved, err := resolver.ResolveWithOptions(definitions, "requires-bridge", ResolveOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

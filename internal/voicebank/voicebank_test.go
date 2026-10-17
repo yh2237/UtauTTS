@@ -56,7 +56,7 @@ func TestSourcePathWithinRejectsSymlinkOutsideVoicebank(t *testing.T) {
 	if err := os.Symlink(outside, link); err != nil {
 		t.Skipf("symlinks are unavailable: %v", err)
 	}
-	if sourcePathWithin(root, link) {
+	if newSourcePathValidator(root).within(link) {
 		t.Fatal("source symlink outside voicebank was accepted")
 	}
 }

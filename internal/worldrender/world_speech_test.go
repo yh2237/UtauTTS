@@ -41,20 +41,20 @@ func TestWorldSpeechMappingAnchorsAndStop(t *testing.T) {
 		t.Fatal("valid anchors rejected")
 	}
 	for _, pair := range [][2]float64{{0, 0}, {40, 63}, {a.targetFixed, 103}, {240, 400}, {35, 58}} {
-		if got := mapWorldSourceTime(u, 400, pair[0]); math.Abs(got-pair[1]) > 1e-9 {
+		if got := mapWorldSourceTimePrepared(u, 400, pair[0], a, ok); math.Abs(got-pair[1]) > 1e-9 {
 			t.Fatalf("map(%g)=%g want %g", pair[0], got, pair[1])
 		}
 	}
 	previous := -1.0
 	for tm := 0.0; tm <= 260; tm += .25 {
-		v := mapWorldSourceTime(u, 400, tm)
+		v := mapWorldSourceTimePrepared(u, 400, tm, a, ok)
 		if v < previous || v > 400 {
 			t.Fatal("nonmonotone/out of bounds", tm, v)
 		}
 		previous = v
 	}
 	u.SkipMS = 15
-	if got := mapWorldSourceTime(u, 400, 25); got != 63 {
+	if got := mapWorldSourceTimePrepared(u, 400, 25, a, ok); got != 63 {
 		t.Fatal("skip shifted vowel onset", got)
 	}
 	for _, change := range []func(*unit){
@@ -72,7 +72,9 @@ func TestWorldSpeechMappingAnchorsAndStop(t *testing.T) {
 		}
 		plain := bad
 		plain.Speech = nil
-		if got, want := mapWorldSourceTime(bad, 400, 80), mapWorldSourceTime(plain, 400, 80); got != want {
+		badMapping, badOK := worldSpeechAnchors(bad, 400)
+		plainMapping, plainOK := worldSpeechAnchors(plain, 400)
+		if got, want := mapWorldSourceTimePrepared(bad, 400, 80, badMapping, badOK), mapWorldSourceTimePrepared(plain, 400, 80, plainMapping, plainOK); got != want {
 			t.Fatal("fallback differs", got, want)
 		}
 	}
@@ -98,7 +100,9 @@ func TestWorldSpeechPreserveStopOnlyDoesNotRetargetFeatures(t *testing.T) {
 	}
 	plain := u
 	plain.Speech = nil
-	if got, want := mapWorldSourceTime(u, 300, 90), mapWorldSourceTime(plain, 300, 90); got != want {
+	mapping, ok := worldSpeechAnchors(u, 300)
+	plainMapping, plainOK := worldSpeechAnchors(plain, 300)
+	if got, want := mapWorldSourceTimePrepared(u, 300, 90, mapping, ok), mapWorldSourceTimePrepared(plain, 300, 90, plainMapping, plainOK); got != want {
 		t.Fatalf("preserve-only stop changed source mapping: %f != %f", got, want)
 	}
 }

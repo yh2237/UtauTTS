@@ -108,7 +108,7 @@ func TestCharacterYAMLSubbankSelectionByToneAndColor(t *testing.T) {
   suffix: " P"
   tone_ranges: [C3-C5]
 `)
-	subbanks, path, diagnostics := loadCharacterYAML(root)
+	subbanks, path, diagnostics, _ := loadCharacterYAMLMetadata(root)
 	if path == "" || len(diagnostics) != 0 || len(subbanks) != 2 {
 		t.Fatalf("subbanks=%+v path=%q diagnostics=%+v", subbanks, path, diagnostics)
 	}

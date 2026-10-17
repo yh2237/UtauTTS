@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"sort"
 	"strings"
 
 	"github.com/yh2237/UtauTTS/internal/plugin"
@@ -157,17 +156,6 @@ func (registry Registry) Provider(id ProviderID) (Provider, bool) {
 	return cloneProvider(provider), found
 }
 
-func (registry Registry) Providers() []Provider {
-	result := make([]Provider, 0, len(registry.providers))
-	for _, provider := range registry.providers {
-		result = append(result, cloneProvider(provider))
-	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].ID < result[j].ID
-	})
-	return result
-}
-
 func cloneProvider(provider Provider) Provider {
 	provider.Requirements = append([]ResourceRequirement(nil), provider.Requirements...)
 	return provider
@@ -237,10 +225,6 @@ func NewResolver(registry Registry) Resolver {
 }
 
 // 空IDは既定を選ぶ。未知の明示IDはエラーにする。
-func (resolver Resolver) Resolve(definitions []Definition, requested string) (ResolvedEngine, error) {
-	return resolver.ResolveWithOptions(definitions, requested, ResolveOptions{})
-}
-
 // 資源不足でも解決結果を返し、合成前にUIで理由を表示できるようにする。
 func (resolver Resolver) ResolveWithOptions(definitions []Definition, requested string, options ResolveOptions) (ResolvedEngine, error) {
 	requestedID := PublicID(strings.TrimSpace(requested))

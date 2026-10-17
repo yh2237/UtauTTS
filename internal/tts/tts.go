@@ -127,10 +127,6 @@ type ProsodyPreview struct {
 	FramePitchCurve *render.PitchCurve
 }
 
-func ConvertToReading(text string, dictionary map[string]string, openJTalk openjtalk.Config) (string, error) {
-	return ConvertToReadingContext(context.Background(), text, dictionary, openJTalk)
-}
-
 func ConvertToReadingContext(ctx context.Context, text string, dictionary map[string]string, openJTalk openjtalk.Config) (string, error) {
 	if err := synthesisContextError(ctx); err != nil {
 		return "", err
@@ -223,10 +219,6 @@ func resolveProsodyModel(cfg Config) (*prosody.Model, error) {
 	return loadProsodyModelCached(cfg.Context, cfg.ProsodyModelPath)
 }
 
-func resolveProsodyModelForLanguage(cfg Config, language string) (*prosody.Model, error) {
-	return resolveProsodyModelForProfile(cfg, languageProfileFor(language))
-}
-
 func resolveProsodyFeatures(cfg Config, model *prosody.Model, morae []frontend.Mora, reading string) ([]prosody.FeatureFrame, error) {
 	if model == nil || !model.RequiresExternalFeatures() || len(cfg.ProsodyFeatures) > 0 {
 		return cfg.ProsodyFeatures, nil
@@ -258,10 +250,6 @@ func analyzeAndAlignRuntimeFeatures(ctx context.Context, morae []frontend.Mora, 
 	return alignRuntimeProsodyFeatures(morae, analysis)
 }
 
-func ResolveRenderer(catalog *plugin.Catalog, rendererID string) (engine.ResolvedEngine, error) {
-	return ResolveRendererWithOptions(catalog, rendererID, engine.ResolveOptions{})
-}
-
 func ResolveRendererWithOptions(catalog *plugin.Catalog, rendererID string, options engine.ResolveOptions) (engine.ResolvedEngine, error) {
 	if catalog == nil {
 		return engine.ResolvedEngine{}, errors.New("renderer catalog is not initialized")
@@ -275,10 +263,6 @@ func ApplyResolvedEngine(cfg *Config, resolved engine.ResolvedEngine) {
 	cfg.Engine = resolved
 	cfg.Renderer = string(resolved.Provider.ID)
 	cfg.RendererCapabilities = &capabilities
-}
-
-func Synthesize(cfg Config) (*Result, error) {
-	return SynthesizeWithOptions(cfg, render.ProviderOptions{})
 }
 
 func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (*Result, error) {

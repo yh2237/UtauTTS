@@ -199,10 +199,6 @@ func resolveProsodyComputation(cfg Config, profile languageProfile, model *proso
 	return features, predictions, nil
 }
 
-func loadVoicebankCached(path string) (*voicebank.Bank, error) {
-	return loadVoicebankCachedContext(nil, path)
-}
-
 func loadVoicebankCachedContext(ctx context.Context, path string) (*voicebank.Bank, error) {
 	cache, err := cacheFor(ctx)
 	if err != nil {

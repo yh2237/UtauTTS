@@ -54,11 +54,6 @@ func (b *Bank) SubbankOptions() []SubbankOption {
 	return options
 }
 
-func loadCharacterYAML(root string) ([]Subbank, string, []Diagnostic) {
-	subbanks, path, diagnostics, _ := loadCharacterYAMLMetadata(root)
-	return subbanks, path, diagnostics
-}
-
 func loadCharacterYAMLMetadata(root string, rootEntries ...[]os.DirEntry) ([]Subbank, string, []Diagnostic, string) {
 	path := findRootFile(root, "character.yaml", rootEntries...)
 	if path == "" {

@@ -507,7 +507,7 @@ func TestResolveUsesSilentClosureWhenVoicebankHasNoSmallTsu(t *testing.T) {
 }
 
 func TestAliasCandidateTiersDoNotPenalizeScriptVariants(t *testing.T) {
-	candidates := aliasCandidates("こ", "", true)
+	candidates := aliasCandidatesWithPolicy("こ", "", true, AliasPolicyAuto)
 	want := map[string]int{"- こ": 0, "- コ": 0, "こ": 1, "コ": 1}
 	for _, candidate := range candidates {
 		if tier, ok := want[candidate.name]; ok {
@@ -583,7 +583,7 @@ func TestPruneCandidates(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		layers, err := bank.candidateLayers(morae, "C4")
+		layers, err := bank.candidateLayersWithPolicy(morae, "C4", "", AliasPolicyAuto)
 		if err != nil {
 			t.Fatal(err)
 		}

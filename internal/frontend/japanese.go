@@ -40,10 +40,6 @@ func tokenPronunciation(token tokenizer.Token, table *ipapron.Table) (string, bo
 	return token.Pronunciation()
 }
 
-func ToKana(text string) (string, error) {
-	return ToKanaWithDictionary(text, nil)
-}
-
 func ToKanaWithDictionary(text string, dictionary map[string]string) (string, error) {
 	replacements := dictionaryReplacements(dictionary)
 	if len(replacements) == 0 {

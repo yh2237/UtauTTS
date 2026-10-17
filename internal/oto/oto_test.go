@@ -17,7 +17,11 @@ func TestIniAPIsPreserveSourcesDuplicatesAndDiagnostics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	memory, err := ParseBytes(data, path, filepath.Dir(path))
+	text, encoding, err := Decode(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	memory, err := parseText(text, encoding, path, filepath.Dir(path))
 	if err != nil || !reflect.DeepEqual(file, memory) {
 		t.Fatalf("file and byte APIs differ: %+v, %v", memory, err)
 	}
@@ -32,7 +36,7 @@ func TestIniAPIsPreserveSourcesDuplicatesAndDiagnostics(t *testing.T) {
 	if len(file.Diagnostics) != 1 || file.Diagnostics[0].Line != 3 || file.Diagnostics[0].Message == "" {
 		t.Fatalf("diagnostics = %+v", file.Diagnostics)
 	}
-	virtual, err := ParseBytes(data, "uploaded/oto.ini", "recordings")
+	virtual, err := parseText(text, encoding, "uploaded/oto.ini", "recordings")
 	if err != nil || virtual.Path != "uploaded/oto.ini" || virtual.Entries["あ"][0].Filename != filepath.Join("recordings", "sub", "a.wav") {
 		t.Fatalf("virtual source path = %+v, %v", virtual, err)
 	}

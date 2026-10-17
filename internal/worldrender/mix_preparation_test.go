@@ -51,7 +51,7 @@ func TestWorldPreparedMappingMatchesOriginal(t *testing.T) {
 			item := unit{Speech: speech, LegacyMix: legacy, OffsetMS: 123.5, ConsonantMS: 70, RequiredLengthMS: 180, LengthMS: 180, ConsonantVelocity: 86}
 			mapping, ok := worldSpeechAnchors(item, entry.duration)
 			for local := -10.; local <= 210; local += .5 {
-				want := mapWorldSourceTime(item, entry.duration, local)
+				want := mapWorldSourceTimePrepared(item, entry.duration, local, mapping, ok)
 				if !legacy {
 					if _, valid := worldSpeechAnchors(item, entry.duration); !valid {
 						want += entry.sourceShiftMS

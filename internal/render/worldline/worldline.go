@@ -834,14 +834,6 @@ func worldlineAnalysisCacheKey(source, frqPath string, unit plan.Unit, volume fl
 		identity(source), identity(frqPath), unit.OffsetMS, unit.CutoffMS, volume)
 }
 
-func worldlineF0Curve(synthesisPlan *plan.Plan, pitches, factors []float64, reference float64, length int) []float64 {
-	return worldlineF0CurveAt(synthesisPlan, pitches, factors, reference, length, worldlineFrameMS)
-}
-
-func worldlineF0CurveAt(synthesisPlan *plan.Plan, pitches, factors []float64, reference float64, length int, frameMS float64) []float64 {
-	return worldlineF0CurveAtOffset(synthesisPlan, pitches, factors, reference, length, frameMS, 0)
-}
-
 func worldlineF0CurveAtOffset(synthesisPlan *plan.Plan, pitches, factors []float64, reference float64, length int, frameMS, startMS float64) []float64 {
 	curve := make([]float64, length)
 	for frame := range curve {

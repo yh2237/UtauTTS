@@ -6,10 +6,6 @@ import (
 	"unicode"
 )
 
-func ParseEnglishDelta(text, reading string, dictionary map[string]string) (string, []Mora, error) {
-	return ParseEnglishDeltaWithConfig(text, reading, dictionary, PresampConfig{})
-}
-
 func ParseEnglishDeltaWithConfig(text, reading string, dictionary map[string]string, config PresampConfig) (string, []Mora, error) {
 	return parseEnglishSyllables(text, reading, dictionary, deltaEnglishSymbols, " ", true, config)
 }

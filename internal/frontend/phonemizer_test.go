@@ -3,7 +3,9 @@ package frontend
 import "testing"
 
 func TestEnglishPunctuationPreservesPhrasePauses(t *testing.T) {
-	for _, parser := range []func(string, string, map[string]string) (string, []Mora, error){ParseEnglishARPAsing, ParseEnglishDelta, ParseEnglishVCCV, ParseEnglishCV} {
+	for _, parser := range []func(string, string, map[string]string) (string, []Mora, error){ParseEnglishARPAsing, func(text, reading string, dictionary map[string]string) (string, []Mora, error) {
+		return ParseEnglishDeltaWithConfig(text, reading, dictionary, PresampConfig{})
+	}, ParseEnglishVCCV, ParseEnglishCV} {
 		reading, units, err := parser("Cat, is!", "", map[string]string{"cat": "K AE1 T", "is": "IH0 Z"})
 		if err != nil {
 			t.Fatal(err)
@@ -76,7 +78,7 @@ func TestParseEnglishCV(t *testing.T) {
 }
 
 func TestParseEnglishUsesBuiltInG2P(t *testing.T) {
-	reading, units, err := ParseEnglishDelta("hello", "", nil)
+	reading, units, err := ParseEnglishDeltaWithConfig("hello", "", nil, PresampConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +88,7 @@ func TestParseEnglishUsesBuiltInG2P(t *testing.T) {
 }
 
 func TestParseEnglishDelta(t *testing.T) {
-	_, units, err := ParseEnglishDelta("", "HH AH0 L OW1", nil)
+	_, units, err := ParseEnglishDeltaWithConfig("", "HH AH0 L OW1", nil, PresampConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +122,9 @@ func TestEnglishVowelInitialSyllableGeneratesVVTransition(t *testing.T) {
 		next      []string
 		mainFirst string
 	}{
-		{"delta", ParseEnglishDelta, "M IY1 | AH0 T", "i", []string{"@", "V"}, "@"},
+		{"delta", func(text, reading string, dictionary map[string]string) (string, []Mora, error) {
+			return ParseEnglishDeltaWithConfig(text, reading, dictionary, PresampConfig{})
+		}, "M IY1 | AH0 T", "i", []string{"@", "V"}, "@"},
 		{"vccv", ParseEnglishVCCV, "M IY1 | AE1 T", "E", []string{"@"}, "@"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -146,7 +150,7 @@ func TestEnglishVowelInitialSyllableGeneratesVVTransition(t *testing.T) {
 }
 
 func TestEnglishOnsetSyllableKeepsVCTransition(t *testing.T) {
-	_, units, err := ParseEnglishDelta("", "M IY1 | T AE1", nil)
+	_, units, err := ParseEnglishDeltaWithConfig("", "M IY1 | T AE1", nil, PresampConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +176,7 @@ func TestEnglishVowelTransitionPrefersDashThenFallback(t *testing.T) {
 }
 
 func TestEnglishCVVCKeepsFinalConsonant(t *testing.T) {
-	_, delta, err := ParseEnglishDelta("", "K AE1 T", nil)
+	_, delta, err := ParseEnglishDeltaWithConfig("", "K AE1 T", nil, PresampConfig{})
 	if err != nil || len(delta) != 1 || delta[0].Aliases.Endings[0][0] != "{ t-" {
 		t.Fatalf("delta=%#v err=%v", delta, err)
 	}
@@ -183,7 +187,7 @@ func TestEnglishCVVCKeepsFinalConsonant(t *testing.T) {
 }
 
 func TestEnglishCVVCSplitsFinalCluster(t *testing.T) {
-	_, units, err := ParseEnglishDelta("", "T EH1 K S T", nil)
+	_, units, err := ParseEnglishDeltaWithConfig("", "T EH1 K S T", nil, PresampConfig{})
 	if err != nil || len(units) != 1 || len(units[0].Aliases.Endings) != 2 {
 		t.Fatalf("units=%#v err=%v", units, err)
 	}
@@ -198,7 +202,7 @@ func TestEnglishCVVCSplitsFinalCluster(t *testing.T) {
 }
 
 func TestEnglishFinalClusterCanUseLastConsonantAlone(t *testing.T) {
-	_, units, err := ParseEnglishDelta("world", "", nil)
+	_, units, err := ParseEnglishDeltaWithConfig("world", "", nil, PresampConfig{})
 	if err != nil || len(units) != 1 || len(units[0].Aliases.Endings) != 2 {
 		t.Fatalf("units=%#v err=%v", units, err)
 	}
@@ -208,7 +212,7 @@ func TestEnglishFinalClusterCanUseLastConsonantAlone(t *testing.T) {
 }
 
 func TestEnglishSyllabificationSplitsIllegalOnset(t *testing.T) {
-	_, units, err := ParseEnglishDelta("", "AE1 T L AH0", nil)
+	_, units, err := ParseEnglishDeltaWithConfig("", "AE1 T L AH0", nil, PresampConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +231,7 @@ func TestEnglishSyllabificationSplitsIllegalOnset(t *testing.T) {
 }
 
 func TestEnglishSyllabificationKeepsValidThreePhoneOnset(t *testing.T) {
-	_, units, err := ParseEnglishDelta("", "EH1 K S T R AH0", nil)
+	_, units, err := ParseEnglishDeltaWithConfig("", "EH1 K S T R AH0", nil, PresampConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,10 +247,10 @@ func TestEnglishSyllabificationKeepsValidThreePhoneOnset(t *testing.T) {
 }
 
 func TestEnglishGeneratedReadingKeepsWordBoundaries(t *testing.T) {
-	reading, units, err := ParseEnglishDelta("cat is", "", map[string]string{
+	reading, units, err := ParseEnglishDeltaWithConfig("cat is", "", map[string]string{
 		"cat": "K AE T",
 		"is":  "IH Z",
-	})
+	}, PresampConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}

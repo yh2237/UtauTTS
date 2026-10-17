@@ -83,20 +83,8 @@ func analyzeIntonationFromPitches(synthesisPlan *plan.Plan, timings []effectiveT
 	return base.AnalyzeIntonationFromPitches(synthesisPlan, timings, pitches, strength)
 }
 
-func stabilizeSingleCVPitches(synthesisPlan *plan.Plan, values []float64) []float64 {
-	return base.StabilizeSingleCVPitches(synthesisPlan, values)
-}
-
-func stabilizeWorldlinePitches(values []float64) []float64 {
-	return base.StabilizeWorldlinePitches(values)
-}
-
 func measureWorldlinePitches(synthesisPlan *plan.Plan, cache *sourceCache) ([]float64, int, error) {
 	return base.MeasureWorldlinePitches(synthesisPlan, cache)
-}
-
-func normalizeTiming(unit plan.Unit, releaseMS float64) effectiveTiming {
-	return base.NormalizeTiming(unit, releaseMS)
 }
 
 func normalizePlanTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64) effectiveTiming {
@@ -113,20 +101,8 @@ func adaptStretchTiming(unit plan.Unit, timing effectiveTiming, releaseMS float6
 	return base.AdaptStretchTiming(unit, timing, releaseMS, enabled, strength)
 }
 
-func onsetOverlapMS(onset string, preutterance, overlap float64) float64 {
-	return base.OnsetOverlapMS(onset, preutterance, overlap)
-}
-
-func codaBoundaryOverlapMS(previousDuration, preutterance, overlap float64) (float64, float64, bool) {
-	return base.CodaBoundaryOverlapMS(previousDuration, preutterance, overlap)
-}
-
 func singleCVOnset(synthesisPlan *plan.Plan, unit plan.Unit) string {
 	return base.SingleCVOnset(synthesisPlan, unit)
-}
-
-func singleCVWorldOverlapMS(synthesisPlan *plan.Plan, unit plan.Unit, preutteranceMS float64) float64 {
-	return base.SingleCVWorldOverlapMS(synthesisPlan, unit, preutteranceMS)
 }
 
 func singleCVBoundaryEligible(synthesisPlan *plan.Plan, previous, current renderedUnit) bool {
@@ -147,10 +123,6 @@ func openUtauPhoneTimings(units []plan.Unit, cvvcTiming string) ([]openUtauPhone
 	return base.OpenUtauPhoneTimings(units, cvvcTiming)
 }
 
-func openUtauPhoneTimingsWithCoda(units []plan.Unit, cvvcTiming string, protectCoda bool) ([]openUtauPhoneTiming, float64) {
-	return base.OpenUtauPhoneTimingsWithCoda(units, cvvcTiming, protectCoda)
-}
-
 func openUtauEnvelopeFromTiming(unit plan.Unit, timing openUtauPhoneTiming) []worldlineEnvelopePoint {
 	return base.OpenUtauEnvelopeFromTiming(unit, timing)
 }
@@ -163,8 +135,6 @@ func providerPitchCurve(curve *PitchCurve) *provider.PitchCurve {
 	return base.ProviderPitchCurve(curve)
 }
 
-func speechStop(p *plan.Plan, unit plan.Unit) bool { return base.SpeechStop(p, unit) }
-
 func speechVowelJoin(p *plan.Plan, previous, current renderedUnit) bool {
 	return base.SpeechVowelJoin(p, previous, current)
 }
@@ -173,20 +143,8 @@ func retimeWithCompressedPrefixUsing(source []float64, targetFrames, sourcePrefi
 	return base.RetimeWithCompressedPrefixUsing(source, targetFrames, sourcePrefixFrames, targetPrefixFrames, sampleRate, stretch)
 }
 
-func stretchPreservingPrefixUsing(source []float64, targetFrames, prefixFrames, sampleRate int, stretch func([]float64, int, int) ([]float64, error)) ([]float64, error) {
-	return base.StretchPreservingPrefixUsing(source, targetFrames, prefixFrames, sampleRate, stretch)
-}
-
 func wsolaStretch(source []float64, targetFrames, sampleRate int) ([]float64, error) {
 	return base.WSOLAStretch(source, targetFrames, sampleRate)
-}
-
-func StretchWSOLA(source []float64, targetFrames, sampleRate int) []float64 {
-	return base.StretchWSOLA(source, targetFrames, sampleRate)
-}
-
-func StretchWSOLAAnchored(source []float64, targetFrames, sampleRate int, sourceAnchors, targetAnchors []int) []float64 {
-	return base.StretchWSOLAAnchored(source, targetFrames, sampleRate, sourceAnchors, targetAnchors)
 }
 
 func msToFrames(ms float64, sampleRate int) int { return base.MsToFrames(ms, sampleRate) }

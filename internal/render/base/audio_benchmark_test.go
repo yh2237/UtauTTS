@@ -1,6 +1,7 @@
 package base
 
 import (
+	"github.com/yh2237/audiodsp/stretch"
 	"math"
 	"path/filepath"
 	"testing"
@@ -29,7 +30,7 @@ func BenchmarkWSOLA(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				benchmarkWave = StretchWSOLA(source, target.frames, 16000)
+				benchmarkWave = wsola(source, target.frames, 16000)
 			}
 		})
 	}
@@ -42,7 +43,7 @@ func BenchmarkWSOLAAnchored(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		benchmarkWave = StretchWSOLAAnchored(source, 4000, 16000, sourceAnchors, targetAnchors)
+		benchmarkWave = stretch.Anchored(source, 4000, 16000, sourceAnchors, targetAnchors)
 	}
 }
 

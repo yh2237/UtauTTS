@@ -130,10 +130,6 @@ func sourceGroupForOto(root, otoPath string) string {
 	return filepath.ToSlash(relative)
 }
 
-func sourcePathWithin(root, candidate string) bool {
-	return newSourcePathValidator(root).within(candidate)
-}
-
 type resolvedSourceParent struct {
 	path string
 	err  error

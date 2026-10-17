@@ -25,7 +25,7 @@ func TestToKanaWithDictionary(t *testing.T) {
 }
 
 func testToKanaUsesDictionaryPronunciation(t *testing.T) {
-	got, err := ToKana("今日はいい天気です。")
+	got, err := ToKanaWithDictionary("今日はいい天気です。", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func testToKanaUsesDictionaryPronunciation(t *testing.T) {
 }
 
 func testToKanaPreservesKanaAndPunctuation(t *testing.T) {
-	got, err := ToKana("こんにちは、テストです。")
+	got, err := ToKanaWithDictionary("こんにちは、テストです。", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func testToKanaPreservesKanaAndPunctuation(t *testing.T) {
 }
 
 func testToKanaIgnoresTokenWithoutPronunciation(t *testing.T) {
-	got, err := ToKana("こんにちは🙂。")
+	got, err := ToKanaWithDictionary("こんにちは🙂。", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestToKanaMatchesFullDictionaryReadings(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, text := range texts {
-		got, gotErr := ToKana(text)
+		got, gotErr := ToKanaWithDictionary(text, nil)
 		want, wantErr := readTokens(full.Tokenize(strings.TrimSpace(text)), nil)
 		if got != want || (gotErr == nil) != (wantErr == nil) {
 			t.Fatalf("%q: got %q/%v want %q/%v", text, got, gotErr, want, wantErr)

@@ -61,7 +61,9 @@ func TestEnglishSpeechTimingDistinguishesPhoneClasses(t *testing.T) {
 }
 
 func TestEnglishWordBoundaryIsNotPhraseBoundary(t *testing.T) {
-	for _, parser := range []func(string, string, map[string]string) (string, []Mora, error){ParseEnglishDelta, ParseEnglishVCCV} {
+	for _, parser := range []func(string, string, map[string]string) (string, []Mora, error){func(text, reading string, dictionary map[string]string) (string, []Mora, error) {
+		return ParseEnglishDeltaWithConfig(text, reading, dictionary, PresampConfig{})
+	}, ParseEnglishVCCV} {
 		_, units, err := parser("", "K AE1 T | IH1 Z | SP | K AE1 T", nil)
 		if err != nil {
 			t.Fatal(err)

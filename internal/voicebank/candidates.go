@@ -375,10 +375,6 @@ func affixCandidatesWithFallback(base []aliasCandidate, affix Affix, allowUnpref
 	return uniqueCandidates(result)
 }
 
-func aliasCandidates(mora, previousVowel string, phraseStart bool) []aliasCandidate {
-	return aliasCandidatesWithPolicy(mora, previousVowel, phraseStart, AliasPolicyAuto)
-}
-
 // 専用録音がない場合の代替読み。一般的な近似に限る。
 func equivalentKanaForms(mora string) []string {
 	switch mora {

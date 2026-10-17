@@ -18,7 +18,7 @@ func TestWorldlineRejectsUnknownCVVCTimingBeforeResolvingAssets(t *testing.T) {
 
 func TestWorldlineF0CurveInterpolatesInLogFrequency(t *testing.T) {
 	p := &plan.Plan{Units: []plan.Unit{{NoteStartMS: 0}, {NoteStartMS: 100}}}
-	curve := worldlineF0Curve(p, []float64{200, 400}, []float64{1, 1}, 220, 11)
+	curve := worldlineF0CurveAtOffset(p, []float64{200, 400}, []float64{1, 1}, 220, 11, worldlineFrameMS, 0)
 	if math.Abs(curve[0]-200) > 0.01 || math.Abs(curve[10]-400) > 0.01 {
 		t.Fatalf("curve endpoints = %.2f..%.2f", curve[0], curve[10])
 	}
@@ -40,7 +40,7 @@ func TestWorldlineF0CurveOffsetIncludesPhraseLeading(t *testing.T) {
 
 func TestWorldlineF0CurveAppliesLearnedPitchFactors(t *testing.T) {
 	p := &plan.Plan{Units: []plan.Unit{{NoteStartMS: 0}, {NoteStartMS: 100}}}
-	curve := worldlineF0Curve(p, []float64{200, 200}, []float64{1.03, 0.97}, 200, 11)
+	curve := worldlineF0CurveAtOffset(p, []float64{200, 200}, []float64{1.03, 0.97}, 200, 11, worldlineFrameMS, 0)
 	if math.Abs(curve[0]-206) > 0.01 || math.Abs(curve[10]-194) > 0.01 {
 		t.Fatalf("factored curve endpoints = %.2f..%.2f", curve[0], curve[10])
 	}

@@ -534,11 +534,6 @@ func worldAutoGain(segment, source, f0 []float64) float64 {
 	return math.Pow(0.5/peak, 0.86)
 }
 
-func mapWorldSourceTime(item unit, sourceDuration, localMS float64) float64 {
-	mapping, ok := worldSpeechAnchors(item, sourceDuration)
-	return mapWorldSourceTimePrepared(item, sourceDuration, localMS, mapping, ok)
-}
-
 func mapWorldSourceTimePrepared(item unit, sourceDuration, localMS float64, mapping worldSpeechMap, retimed bool) float64 {
 	destinationMS := math.Max(0, item.SkipMS+localMS)
 	if retimed {

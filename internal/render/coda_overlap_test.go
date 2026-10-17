@@ -2,6 +2,7 @@ package render
 
 import (
 	"github.com/yh2237/UtauTTS/internal/plan"
+	"github.com/yh2237/UtauTTS/internal/render/base"
 	"math"
 	"testing"
 )
@@ -10,14 +11,14 @@ func TestCodaOverlapReservesAudibleTail(t *testing.T) {
 	units := []plan.Unit{{Role: "ending", NoteStartMS: 0, DurationMS: 41.263, PreutteranceMS: 250, OverlapMS: 83.333, CodaPhones: []string{"k"}},
 		{Role: "ending", NoteStartMS: 41.263, DurationMS: 118, PreutteranceMS: 74.324, CodaPhones: []string{"s", "t"}}}
 	before, _ := openUtauPhoneTimings(units, "")
-	after, _ := openUtauPhoneTimingsWithCoda(units, "", true)
+	after, _ := base.OpenUtauPhoneTimingsWithCoda(units, "", true)
 	oldTail := units[0].DurationMS - before[0].TailIntrude + before[0].TailOverlap
 	tail := units[0].DurationMS - after[0].TailIntrude + after[0].TailOverlap
 	if oldTail >= 10 || tail < 19.99 {
 		t.Fatal(oldTail, tail)
 	}
 	units[0].CodaPhones = nil
-	unchanged, _ := openUtauPhoneTimingsWithCoda(units, "", true)
+	unchanged, _ := base.OpenUtauPhoneTimingsWithCoda(units, "", true)
 	if unchanged[0] != before[0] || unchanged[1] != before[1] {
 		t.Fatal("optional ending changed")
 	}
@@ -28,7 +29,7 @@ func TestCodaBoundaryLimitsNextOnsetIntrusion(t *testing.T) {
 		{Role: "ending", NoteStartMS: 0, DurationMS: 65, PreutteranceMS: 250, OverlapMS: 83.333, CodaPhones: []string{"t"}},
 		{Role: "mora", NoteStartMS: 65, DurationMS: 100, PreutteranceMS: 74.324, OverlapMS: 30},
 	}
-	timings, _ := openUtauPhoneTimingsWithCoda(units, "", true)
+	timings, _ := base.OpenUtauPhoneTimingsWithCoda(units, "", true)
 	if !timings[1].CodaLimited {
 		t.Fatal("coda boundary not limited")
 	}
@@ -37,24 +38,24 @@ func TestCodaBoundaryLimitsNextOnsetIntrusion(t *testing.T) {
 		t.Fatalf("audible coda tail = %v", tail)
 	}
 	units[0].CodaPhones = nil
-	plain, _ := openUtauPhoneTimingsWithCoda(units, "", true)
+	plain, _ := base.OpenUtauPhoneTimingsWithCoda(units, "", true)
 	if plain[1].CodaLimited || plain[1] == timings[1] {
 		t.Fatalf("non-coda boundary changed: %+v", plain[1])
 	}
 }
 
 func TestCodaBoundaryOverlapClampsAndSkipsShortCoda(t *testing.T) {
-	if _, _, limited := codaBoundaryOverlapMS(20, 100, 10); limited {
+	if _, _, limited := base.CodaBoundaryOverlapMS(20, 100, 10); limited {
 		t.Fatal("short coda must not be limited")
 	}
-	preutterance, overlap, limited := codaBoundaryOverlapMS(65, 100, 40)
+	preutterance, overlap, limited := base.CodaBoundaryOverlapMS(65, 100, 40)
 	if !limited || math.Abs(preutterance-35) > 1e-9 || math.Abs(overlap-codaBoundaryMaxOverlapMS) > 1e-9 {
 		t.Fatalf("preutterance=%v overlap=%v limited=%v", preutterance, overlap, limited)
 	}
-	if _, overlap, limited := codaBoundaryOverlapMS(20, 100, 40); !limited || math.Abs(overlap-codaBoundaryMaxOverlapMS) > 1e-9 {
+	if _, overlap, limited := base.CodaBoundaryOverlapMS(20, 100, 40); !limited || math.Abs(overlap-codaBoundaryMaxOverlapMS) > 1e-9 {
 		t.Fatalf("short coda overlap=%v limited=%v", overlap, limited)
 	}
-	if p, _, limited := codaBoundaryOverlapMS(65, 10, 5); limited || p != 10 {
+	if p, _, limited := base.CodaBoundaryOverlapMS(65, 10, 5); limited || p != 10 {
 		t.Fatalf("small intrusion changed: p=%v limited=%v", p, limited)
 	}
 }

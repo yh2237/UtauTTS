@@ -118,10 +118,11 @@ func TestMapWorldFeatureTimeAppliesFractionalOtoOffset(t *testing.T) {
 
 func TestMapWorldSourceTimePreservesConsonantAndStretchesTail(t *testing.T) {
 	item := unit{ConsonantMS: 100, RequiredLengthMS: 500, ConsonantVelocity: 100}
-	if got := mapWorldSourceTime(item, 300, 80); got != 80 {
+	mapping, ok := worldSpeechAnchors(item, 300)
+	if got := mapWorldSourceTimePrepared(item, 300, 80, mapping, ok); got != 80 {
 		t.Fatalf("consonant time = %f, want 80", got)
 	}
-	if got := mapWorldSourceTime(item, 300, 300); math.Abs(got-200) > 1e-9 {
+	if got := mapWorldSourceTimePrepared(item, 300, 300, mapping, ok); math.Abs(got-200) > 1e-9 {
 		t.Fatalf("stretched tail time = %f, want 200", got)
 	}
 }

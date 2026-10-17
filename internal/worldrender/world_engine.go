@@ -106,10 +106,6 @@ func worldFeatureCacheBytes(value cachedWorldUnit) int64 {
 	return int64(len(features.F0)+len(features.Spectrum)+len(features.Aperiodicity)) * 8
 }
 
-func worldSynthesisLength(frames, sampleRate int) int {
-	return worldSynthesisLengthAt(frames, sampleRate, worldFramePeriodMS)
-}
-
 func worldSynthesisLengthAt(frames, sampleRate int, frameMS float64) int {
 	if frames < 2 || sampleRate <= 0 {
 		return 0

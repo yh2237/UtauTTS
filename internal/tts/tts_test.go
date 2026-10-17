@@ -45,7 +45,7 @@ func testMoraTimingsIgnoreCodaAndTransitionUnits(t *testing.T) {
 func TestSynthesizeHonorsCanceledContextBeforeLoadingInputs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := Synthesize(Config{Context: ctx, VoicebankPath: filepath.Join(t.TempDir(), "missing")})
+	_, err := SynthesizeWithOptions(Config{Context: ctx, VoicebankPath: filepath.Join(t.TempDir(), "missing")}, render.ProviderOptions{})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}
@@ -289,7 +289,7 @@ func TestPreviewAndSynthesisShareCanonicalMoraDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := Synthesize(Config{VoicebankPath: root, Reading: "あか"})
+	result, err := SynthesizeWithOptions(Config{VoicebankPath: root, Reading: "あか"}, render.ProviderOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,12 +308,12 @@ func TestSynthesizePitchOverrideDoesNotChangeCachedProsody(t *testing.T) {
 	t.Cleanup(ClearCaches)
 	cfg := Config{VoicebankPath: testSynthesisBank(t, "あ", "か"), Reading: "あか",
 		RendererCapabilities: &plugin.Capabilities{InternalTiming: true}, PitchFactors: []float64{1.1, 0.9}}
-	overridden, err := Synthesize(cfg)
+	overridden, err := SynthesizeWithOptions(cfg, render.ProviderOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	cfg.PitchFactors = nil
-	automatic, err := Synthesize(cfg)
+	automatic, err := SynthesizeWithOptions(cfg, render.ProviderOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -470,7 +470,7 @@ func TestValidateConfig(t *testing.T) {
 }
 
 func TestConvertToReadingReportsOpenJTalkFallback(t *testing.T) {
-	_, err := ConvertToReading("2024年です。", nil, openjtalk.Config{
+	_, err := ConvertToReadingContext(context.Background(), "2024年です。", nil, openjtalk.Config{
 		HelperPath: filepath.Join(t.TempDir(), "missing-helper"),
 	})
 	if err == nil {
@@ -489,11 +489,11 @@ func TestVoicebankCacheInvalidatedByClearCaches(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	first, err := loadVoicebankCached(bankDir)
+	first, err := loadVoicebankCachedContext(nil, bankDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := loadVoicebankCached(bankDir)
+	second, err := loadVoicebankCachedContext(nil, bankDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -501,7 +501,7 @@ func TestVoicebankCacheInvalidatedByClearCaches(t *testing.T) {
 		t.Fatal("voicebank was loaded more than once")
 	}
 	ClearCaches()
-	third, err := loadVoicebankCached(bankDir)
+	third, err := loadVoicebankCachedContext(nil, bankDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -512,10 +512,10 @@ func TestVoicebankCacheInvalidatedByClearCaches(t *testing.T) {
 
 func TestSynthesizePropagatesAliasPolicyIntoPlan(t *testing.T) {
 	root := testSynthesisBank(t, "- あ", "a か", "あ", "か")
-	result, err := Synthesize(Config{
+	result, err := SynthesizeWithOptions(Config{
 		VoicebankPath: root, Reading: "あか", MoraDurationMS: 100,
 		AliasPolicy: voicebank.AliasPolicyCVOnly,
-	})
+	}, render.ProviderOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -538,7 +538,7 @@ func TestSynthesizePropagatesAliasPolicyIntoPlan(t *testing.T) {
 
 func TestSynthesizeUsesCVVCTransitionInAutoMode(t *testing.T) {
 	root := testSynthesisBank(t, "あ", "か", "a k")
-	result, err := Synthesize(Config{VoicebankPath: root, Reading: "あか", MoraDurationMS: 100})
+	result, err := SynthesizeWithOptions(Config{VoicebankPath: root, Reading: "あか", MoraDurationMS: 100}, render.ProviderOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

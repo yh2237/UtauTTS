@@ -63,11 +63,11 @@ func TestDiffSingerProviderSessionKeepsBridgeResident(t *testing.T) {
 	request := Request{
 		Tokens: []int64{0}, Durations: []int64{2}, F0: []float32{261, 261}, SampleRate: 44100,
 	}
-	first, err := RenderSession(context.Background(), executable, request)
+	first, err := renderSession(context.Background(), executable, provider.NeuralScore{}, request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := RenderSession(context.Background(), executable, request)
+	second, err := renderSession(context.Background(), executable, provider.NeuralScore{}, request)
 	if err != nil {
 		t.Fatal(err)
 	}

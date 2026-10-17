@@ -16,10 +16,6 @@ import (
 )
 
 // 合成間でbridgeとONNXセッションを使い回す。
-func RenderSession(ctx context.Context, bridgePath string, request Request) (*audio.PCM, error) {
-	return renderSession(ctx, bridgePath, provider.NeuralScore{}, request)
-}
-
 func renderSession(ctx context.Context, bridgePath string, score provider.NeuralScore, request Request) (*audio.PCM, error) {
 	if ctx == nil {
 		ctx = context.Background()

@@ -124,7 +124,8 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 		"diffsinger_duration_mix":   json.RawMessage(`0.25`),
 		"diffsinger_pitch_mix":      json.RawMessage(`0.35`),
 	}
-	resolution := applyRendererSettings(settings, &cfg, &options)
+	resolution := rendererSettingsResolution{}
+	applyRendererSettingsMap(rendererSettingSpecs, settings, &cfg, &options, &resolution)
 	if len(options.RendererDiagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", options.RendererDiagnostics)
 	}
@@ -155,11 +156,12 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 func TestApplyRendererSettingsTypeMismatchIsIgnored(t *testing.T) {
 	cfg := tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)}
 	options := render.ProviderOptions{}
-	applyRendererSettings(map[string]json.RawMessage{
+	resolution := rendererSettingsResolution{}
+	applyRendererSettingsMap(rendererSettingSpecs, map[string]json.RawMessage{
 		"mora_duration_ms": json.RawMessage(`true`),
 		"context_duration": json.RawMessage(`"yes"`),
 		"resampler":        json.RawMessage(`123`),
-	}, &cfg, &options)
+	}, &cfg, &options, &resolution)
 	if cfg.MoraDurationMS != 140 || cfg.ContextDuration == nil || !*cfg.ContextDuration {
 		t.Fatalf("mismatched values changed config: %#v", cfg)
 	}

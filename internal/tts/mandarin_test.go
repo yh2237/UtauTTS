@@ -10,7 +10,7 @@ import (
 
 func TestBundledMandarinModelIsUsedForJapaneseDefault(t *testing.T) {
 	defaultPath := filepath.Join("..", "..", "models", "frame-intonation-tcn-v12.json")
-	model, err := resolveProsodyModelForLanguage(Config{ProsodyModelPath: defaultPath}, frontend.LanguageChinese)
+	model, err := resolveProsodyModelForProfile(Config{ProsodyModelPath: defaultPath}, languageProfileFor(frontend.LanguageChinese))
 	if err != nil || model == nil || model.ID != "tone-intonation-zh-v1" {
 		t.Fatalf("Mandarin fallback = %#v, %v", model, err)
 	}

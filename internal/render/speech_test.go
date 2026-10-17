@@ -1,6 +1,7 @@
 package render
 
 import (
+	"github.com/yh2237/UtauTTS/internal/render/base"
 	"testing"
 
 	"github.com/yh2237/UtauTTS/internal/frontend"
@@ -10,21 +11,21 @@ import (
 
 func TestSpeechStopUsesMoraConsonantWithoutPhoneMetadata(t *testing.T) {
 	p := &plan.Plan{Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
-	if !speechStop(p, plan.Unit{Position: 0}) {
+	if !base.SpeechStop(p, plan.Unit{Position: 0}) {
 		t.Fatal("stop consonant was not detected without phone metadata")
 	}
 	p.Morae[0].Consonant = "s"
-	if speechStop(p, plan.Unit{Position: 0}) {
+	if base.SpeechStop(p, plan.Unit{Position: 0}) {
 		t.Fatal("fricative was classified as a stop")
 	}
 }
 
 func TestSpeechStopIncludesCodaPlosive(t *testing.T) {
 	p := &plan.Plan{Morae: []frontend.Mora{{Consonant: "m", Vowel: "iy"}}}
-	if !speechStop(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}}) {
+	if !base.SpeechStop(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}}) {
 		t.Fatal("coda plosive was not detected")
 	}
-	if speechStop(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"s"}}) {
+	if base.SpeechStop(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"s"}}) {
 		t.Fatal("coda fricative was classified as a stop")
 	}
 }
