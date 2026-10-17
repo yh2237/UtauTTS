@@ -2447,7 +2447,7 @@ ApplicationWindow {
                 version: 1,
                 reading: item.reading,
                 mode: "frames",
-                frames: frameOffsets.map(value => Math.max(-1200, Math.min(1200, Number(value) || 0)))
+                frames: frameOffsets.map(value => Math.max(-4800, Math.min(4800, Number(value) || 0)))
             };
         } else if (item.applyPitch && item.reading && manualPitch && points.some(value => Math.abs(Number(value)) > .1)) {
             const manualPoints = [];
@@ -2458,7 +2458,7 @@ ApplicationWindow {
                 manualPoints.push({
                     position: index,
                     mora: mora ? mora.mora || "" : "",
-                    cents: points[index]
+                    cents: Math.max(-4800, Math.min(4800, Number(points[index]) || 0))
                 });
             }
             request.manual_pitch = {

@@ -91,3 +91,19 @@ func TestManualPitchValidationRejectsInvalidInputs(t *testing.T) {
 		}
 	}
 }
+
+func TestManualPitchAcceptsCorrectionBeyondDisplayRange(t *testing.T) {
+	// 自動予測値が大きいと、表示上の±800centに合わせる補正値はその分大きくなる。
+	if err := (&ManualPitchFile{Version: 1, Points: []ManualPitchPoint{{Position: 0, Cents: 1500}}}).Validate(); err != nil {
+		t.Fatalf("offset Validate: %v", err)
+	}
+	if err := (&ManualPitchFile{Version: 1, Mode: "frames", Frames: []float64{1500}}).Validate(); err != nil {
+		t.Fatalf("frames Validate: %v", err)
+	}
+	if err := (&ManualPitchFile{Version: 1, Points: []ManualPitchPoint{{Position: 0, Cents: ManualPitchCentsLimit + 1}}}).Validate(); err == nil {
+		t.Fatal("Validate accepted a value above the limit")
+	}
+	if err := (&ManualPitchFile{Version: 1, Mode: "frames", Frames: []float64{ManualPitchCentsLimit + 1}}).Validate(); err == nil {
+		t.Fatal("Validate accepted a frame above the limit")
+	}
+}

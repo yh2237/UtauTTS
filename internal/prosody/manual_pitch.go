@@ -11,6 +11,11 @@ import (
 
 const ManualPitchVersion = 1
 
+// ManualPitchCentsLimitは、自動予測値に加える補正値の上限。
+// GUIのピッチ欄は表示上の値を±800centに収めるが、補正値は自動予測値との差なので、
+// 自動予測値が大きいと±800centを超える。
+const ManualPitchCentsLimit = 4800
+
 // ManualPitchFileはモデル輪郭に対する相対補正を保持する。
 // mode=offset: モーラ単位の補正。mode=frames: 時刻基準の10ms単位フレーム補正。
 type ManualPitchFile struct {
@@ -62,8 +67,8 @@ func (file *ManualPitchFile) Validate() error {
 		if point.Position < 0 {
 			return fmt.Errorf("manual pitch point %d has negative position", index)
 		}
-		if math.IsNaN(point.Cents) || math.IsInf(point.Cents, 0) || math.Abs(point.Cents) > 1200 {
-			return fmt.Errorf("manual pitch point %d is outside +/-1200 cents", index)
+		if math.IsNaN(point.Cents) || math.IsInf(point.Cents, 0) || math.Abs(point.Cents) > ManualPitchCentsLimit {
+			return fmt.Errorf("manual pitch point %d is outside +/-%d cents", index, ManualPitchCentsLimit)
 		}
 	}
 	if file.Mode == "frames" {
@@ -74,8 +79,8 @@ func (file *ManualPitchFile) Validate() error {
 			return fmt.Errorf("manual pitch frames are limited to 20000 entries")
 		}
 		for index, cents := range file.Frames {
-			if math.IsNaN(cents) || math.IsInf(cents, 0) || math.Abs(cents) > 1200 {
-				return fmt.Errorf("manual pitch frame %d is outside +/-1200 cents", index)
+			if math.IsNaN(cents) || math.IsInf(cents, 0) || math.Abs(cents) > ManualPitchCentsLimit {
+				return fmt.Errorf("manual pitch frame %d is outside +/-%d cents", index, ManualPitchCentsLimit)
 			}
 		}
 	}
