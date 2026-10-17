@@ -1,13 +1,13 @@
 # 開発環境とビルド
 
-リポジトリ直下でビルドおよびテストを実行する手順です。
+コマンドはリポジトリ直下で実行します。
 
 ## 必要要件
 
-- **Go**: 1.27.0 以降
-- **Qt**: Qt 6.5 以降（Qt Quick, Qt Quick Controls, Qt Multimedia, Qt Concurrent）
-- **CMake & Ninja**
-- **Python**: 3.12 以降（Open JTalkヘルパーのビルド用）
+- Go: 1.27.0 以降
+- Qt: Qt 6.5 以降（Qt Quick, Qt Quick Controls, Qt Multimedia, Qt Concurrent）
+- CMake & Ninja
+- Python: 3.12 以降（Open JTalkヘルパーのビルド用）
 
 ---
 
@@ -15,12 +15,12 @@
 
 | 対象OS | 実行環境 | コマンド |
 | :--- | :--- | :--- |
-| **Windows x64** | Windows (PowerShell / CMD) | `.\build.bat win` |
-| **Linux x64** | Linux (Debian / Ubuntu等) | `./build.sh linux` |
-| **Linux x64** | Windows (WSL2) | `.\build.bat linux` |
-| **macOS arm64** | Apple Silicon Mac | `./build.sh macos` |
+| Windows x64 | Windows (PowerShell / CMD) | `.\build.bat win` |
+| Linux x64 | Linux (Debian / Ubuntu等) | `./build.sh linux` |
+| Linux x64 | Windows (WSL2) | `.\build.bat linux` |
+| macOS arm64 | Apple Silicon Mac | `./build.sh macos` |
 
-ビルドが完了すると、`release/` ディレクトリに配布用ZIPアーカイブが生成されます。
+配布用のZIPは `release/` にできます。
 
 英語の合成に使うモデル（約0.7GB）はGitで管理していません。ビルドの前に、Windowsでは`tools/fetch-english-reference.ps1`、Linux・macOSでは`tools/fetch-english-reference.sh`を実行して、`models/english-reference/`に取得してください。
 
@@ -28,16 +28,15 @@
 
 ## 開発用サーバーの起動
 
-開発中にローカルAPIサーバーを直接起動する場合:
-- **Windows**: `.\dev.bat`
-- **Linux / macOS**: `./dev.sh`
+ソースから直接ローカルAPIサーバーを起動するときは、次を実行します。
+- Windows: `.\dev.bat`
+- Linux / macOS: `./dev.sh`
 
 ---
 
 ## テストの実行
 
 ```bash
-# 全テストと静的解析の実行
 go test ./...
 go vet ./...
 ```
