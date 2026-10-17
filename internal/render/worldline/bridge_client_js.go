@@ -44,9 +44,3 @@ func InvokeReport(ctx context.Context, bridge, jobPath, outputPath string, repor
 	}
 	return nil
 }
-
-func Close() {
-	if wasmRenderer != nil {
-		wasmRenderer.Close()
-	}
-}

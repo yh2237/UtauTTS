@@ -1,8 +1,6 @@
 package base
 
 import (
-	"errors"
-	"sync"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/UtauTTS/internal/plan"
@@ -22,27 +20,3 @@ func RendererImplementation(id string) (RenderFunc, bool) {
 	return fn, ok
 }
 
-var (
-	closerMu sync.Mutex
-	closers  []func() error
-)
-
-func RegisterCloser(fn func() error) {
-	if fn == nil {
-		return
-	}
-	closerMu.Lock()
-	closers = append(closers, fn)
-	closerMu.Unlock()
-}
-
-func CloseRegistered() error {
-	closerMu.Lock()
-	registered := append([]func() error(nil), closers...)
-	closerMu.Unlock()
-	var err error
-	for index := len(registered) - 1; index >= 0; index-- {
-		err = errors.Join(err, registered[index]())
-	}
-	return err
-}

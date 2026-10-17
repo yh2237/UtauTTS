@@ -117,13 +117,6 @@ func InvokeReport(ctx context.Context, bridge, jobPath, outputPath string, repor
 	return err
 }
 
-// 実行中の合成が終わるまで待ってからセッションを閉じる。
-func Close() {
-	bridgeGate <- struct{}{}
-	sharedBridge.stop()
-	<-bridgeGate
-}
-
 func (client *bridgeProcess) stop() error {
 	var err error
 	if client.session != nil {

@@ -22,16 +22,6 @@ var (
 	neuralSynthesizers   = map[engine.ProviderID]NeuralSynthesizerFactory{}
 )
 
-// 同じIDを登録し直すと上書きする。
-func RegisterNeuralSynthesizer(id engine.ProviderID, factory NeuralSynthesizerFactory) {
-	if id == "" || factory == nil {
-		panic("tts: neural synthesizer registration requires a provider id and factory")
-	}
-	neuralSynthesizersMu.Lock()
-	defer neuralSynthesizersMu.Unlock()
-	neuralSynthesizers[id] = factory
-}
-
 func neuralSynthesizerForProvider(id engine.ProviderID) (NeuralSynthesizer, bool) {
 	neuralSynthesizersMu.RLock()
 	factory, found := neuralSynthesizers[id]

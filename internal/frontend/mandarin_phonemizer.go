@@ -160,18 +160,6 @@ func chineseAliasSpellings(syllable string) []string {
 	return uniqueStrings([]string{syllable, other})
 }
 
-func chineseSyllables(text string, dictionary map[string]string) ([]string, error) {
-	tokens, err := chineseReadingTokens(text, dictionary)
-	if err != nil {
-		return nil, err
-	}
-	var result []string
-	for _, token := range tokens {
-		result = append(result, token.reading)
-	}
-	return result, nil
-}
-
 var englishVowels = map[string]bool{
 	"aa": true, "ae": true, "ah": true, "ao": true, "aw": true, "ax": true, "ay": true,
 	"eh": true, "er": true, "ey": true, "ih": true, "iy": true, "ow": true,

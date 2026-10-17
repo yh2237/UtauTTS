@@ -364,10 +364,6 @@ func preferOriginalKanaCandidates(bank *Bank, candidates []aliasCandidate) []ali
 	return result
 }
 
-func affixCandidates(base []aliasCandidate, affix Affix) []aliasCandidate {
-	return affixCandidatesWithFallback(base, affix, true)
-}
-
 func affixCandidatesWithFallback(base []aliasCandidate, affix Affix, allowUnprefixed bool) []aliasCandidate {
 	result := make([]aliasCandidate, 0, len(base)*2)
 	for _, candidate := range base {

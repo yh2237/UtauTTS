@@ -34,10 +34,6 @@ func traceMark(start *time.Time, label string) {
 
 func init() {
 	base.RegisterRenderer("utautts-world-phrase", renderUtauTTSWorldPhrase)
-	base.RegisterCloser(func() error {
-		Close()
-		return nil
-	})
 }
 
 const worldlineFrameMS = provider.FramePeriodMS
