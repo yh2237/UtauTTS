@@ -253,8 +253,12 @@ func loadProsodyModelCached(ctx context.Context, path string) (*prosody.Model, e
 		return nil, err
 	}
 	cache.Lock()
-	if old := cache.models[key].model; old != nil && old.F0Head != nil && old.F0Head != model.F0Head {
-		cache.forgetUnifiedModelLocked(old.F0Head)
+	if old := cache.models[key].model; old != nil {
+		if old.F0Head != nil && old.F0Head != model.F0Head {
+			cache.forgetUnifiedModelLocked(old.F0Head)
+		}
+		cache.computations = make(map[prosodyComputationKey]prosodyComputation)
+		cache.computationOrder = nil
 	}
 	cache.models[key] = modelCacheEntry{size: info.Size(), modTime: modTime, model: model}
 	cache.Unlock()
