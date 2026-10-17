@@ -391,12 +391,12 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 }
 
 // PrepareEnglishは音源の英語の索引がなければ裏で作り始める。モデルかWORLDエンジンがなければ何もしない。
-func (s *Service) PrepareEnglish(bankRoot string) {
+func (s *Service) PrepareEnglish(bank *voicebank.Bank) {
 	worldPhrase, err := s.ResolveRenderer("utautts-world-phrase")
 	if err != nil {
 		return
 	}
-	tts.PrepareEnglishIndex(s.englishReferenceDir(), bankRoot, worldPhrase.Resource(engine.ResourceWorldEngine))
+	tts.PrepareEnglishIndex(s.englishReferenceDir(), bank, worldPhrase.Resource(engine.ResourceWorldEngine))
 }
 
 // englishReferenceDirは、抑揚モデルのあるフォルダのうち、英語の合成のモデルを置いたフォルダを返す。

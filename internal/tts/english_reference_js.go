@@ -20,6 +20,6 @@ func predictEnglishReference(Config, string, []frontend.Mora) (*ProsodyPreview, 
 	return nil, errEnglishUnavailable
 }
 
-func PrepareEnglishIndex(string, string, string) {}
+func PrepareEnglishIndex(string, *voicebank.Bank, string) {}
 
 func EnglishIndexProgress() struct{} { return struct{}{} }

@@ -2,6 +2,7 @@ package voicebank
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/yh2237/UtauTTS/internal/frontend"
 )
@@ -57,6 +58,28 @@ func (b *Bank) CandidateSourcePaths(morae []frontend.Mora, cfg ResolveConfig) []
 			}
 		}
 		previous, initial = mora.Vowel, false
+	}
+	result := make([]string, 0, len(paths))
+	for path := range paths {
+		result = append(result, path)
+	}
+	sort.Strings(result)
+	return result
+}
+
+// ReferenceRecordingsは英語の索引に使う録音を返す。音高や声色ごとの収録があれば、既定の音高の通常の声だけを使う。
+func (b *Bank) ReferenceRecordings() []string {
+	affix, _, hasAffix := b.AffixForToneAndColor("", "")
+	paths := make(map[string]bool)
+	for alias, entries := range b.Entries {
+		if hasAffix && (!strings.HasPrefix(alias, affix.Prefix) || !strings.HasSuffix(alias, affix.Suffix)) {
+			continue
+		}
+		for _, entry := range entries {
+			if entry.Filename != "" {
+				paths[entry.Filename] = true
+			}
+		}
 	}
 	result := make([]string, 0, len(paths))
 	for path := range paths {

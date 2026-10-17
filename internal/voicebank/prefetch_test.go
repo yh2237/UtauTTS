@@ -38,3 +38,30 @@ func TestCandidateSourcePathsIncludesAffixedAndFallbackSources(t *testing.T) {
 		t.Fatalf("paths=%v", got)
 	}
 }
+
+func TestReferenceRecordingsUseDefaultPitchNormalVoice(t *testing.T) {
+	bank := &Bank{Entries: map[string][]oto.Entry{
+		"- aaB3": {{Filename: "B3/aa.wav"}}, "aa kB3": {{Filename: "B3/aak.wav"}},
+		"- aaG4": {{Filename: "G4/aa.wav"}}, "- aaF": {{Filename: "Falsetto/aa.wav"}},
+	}, Subbanks: []Subbank{
+		{Suffix: "G4", ToneRanges: []ToneRange{{Low: tone(t, "G4"), High: tone(t, "B7")}}},
+		{Suffix: "B3", ToneRanges: []ToneRange{{Low: tone(t, "A#3"), High: tone(t, "D4")}}},
+		{Color: "Falsetto", Suffix: "F", ToneRanges: []ToneRange{{Low: tone(t, "C1"), High: tone(t, "B7")}}},
+	}}
+	if got := bank.ReferenceRecordings(); !reflect.DeepEqual(got, []string{"B3/aa.wav", "B3/aak.wav"}) {
+		t.Fatalf("recordings=%v", got)
+	}
+	single := &Bank{Entries: map[string][]oto.Entry{"- aa": {{Filename: "aa.wav"}}, "aa k": {{Filename: "aak.wav"}, {Filename: "aa.wav"}}}}
+	if got := single.ReferenceRecordings(); !reflect.DeepEqual(got, []string{"aa.wav", "aak.wav"}) {
+		t.Fatalf("single-pitch recordings=%v", got)
+	}
+}
+
+func tone(t *testing.T, name string) int {
+	t.Helper()
+	number, ok := toneNumber(name)
+	if !ok {
+		t.Fatalf("bad tone %q", name)
+	}
+	return number
+}

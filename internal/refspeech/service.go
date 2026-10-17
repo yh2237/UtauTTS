@@ -155,7 +155,7 @@ func (s *Service) Status(bankRoot string) IndexStatus {
 }
 
 // Prepareは音源の索引がないか、録音が変わっていれば、裏で作り始める。
-func (s *Service) Prepare(bankRoot, worldEnginePath string) {
+func (s *Service) Prepare(bankRoot string, recordings []string, worldEnginePath string) {
 	s.mu.Lock()
 	entry := s.indexes[bankRoot]
 	var index *refmatch.Index
@@ -164,7 +164,7 @@ func (s *Service) Prepare(bankRoot, worldEnginePath string) {
 	}
 	s.mu.Unlock()
 	if index != nil {
-		if _, key, err := bankRecordings(bankRoot); err == nil && key != index.Source {
+		if _, key, err := bankRecordings(bankRoot, recordings); err == nil && key != index.Source {
 			s.mu.Lock()
 			if s.indexes[bankRoot] == entry {
 				delete(s.indexes, bankRoot)
@@ -172,12 +172,12 @@ func (s *Service) Prepare(bankRoot, worldEnginePath string) {
 			s.mu.Unlock()
 		}
 	}
-	s.entry(bankRoot, worldEnginePath)
+	s.entry(bankRoot, recordings, worldEnginePath)
 }
 
 // Indexは音源の索引を返す。作成中なら終わるまで待つ。
-func (s *Service) Index(ctx context.Context, bankRoot, worldEnginePath string) (*refmatch.Index, error) {
-	entry := s.entry(bankRoot, worldEnginePath)
+func (s *Service) Index(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string) (*refmatch.Index, error) {
+	entry := s.entry(bankRoot, recordings, worldEnginePath)
 	select {
 	case <-entry.done:
 	case <-ctx.Done():
@@ -191,7 +191,7 @@ func (s *Service) Index(ctx context.Context, bankRoot, worldEnginePath string) (
 	return entry.index, nil
 }
 
-func (s *Service) entry(bankRoot, worldEnginePath string) *indexEntry {
+func (s *Service) entry(bankRoot string, recordings []string, worldEnginePath string) *indexEntry {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if entry, ok := s.indexes[bankRoot]; ok && entry.status.State != IndexFailed {
@@ -202,15 +202,15 @@ func (s *Service) entry(bankRoot, worldEnginePath string) *indexEntry {
 	batchMu.Lock()
 	batch.total++
 	batchMu.Unlock()
-	go s.build(bankRoot, worldEnginePath, entry)
+	go s.build(bankRoot, recordings, worldEnginePath, entry)
 	return entry
 }
 
 // buildは索引を1つずつ作る。どの索引の作成も全コアを使うため。
-func (s *Service) build(bankRoot, worldEnginePath string, entry *indexEntry) {
+func (s *Service) build(bankRoot string, recordings []string, worldEnginePath string, entry *indexEntry) {
 	s.buildMu.Lock()
 	defer s.buildMu.Unlock()
-	index, err := s.loadOrBuild(bankRoot, worldEnginePath, func(done, total int) {
+	index, err := s.loadOrBuild(bankRoot, recordings, worldEnginePath, func(done, total int) {
 		progress := float64(done) / float64(max(total, 1))
 		s.mu.Lock()
 		entry.status.Progress = progress
@@ -237,8 +237,8 @@ func (s *Service) build(bankRoot, worldEnginePath string, entry *indexEntry) {
 	close(entry.done)
 }
 
-func (s *Service) loadOrBuild(bankRoot, worldEnginePath string, progress func(done, total int)) (*refmatch.Index, error) {
-	files, key, err := bankRecordings(bankRoot)
+func (s *Service) loadOrBuild(bankRoot string, recordings []string, worldEnginePath string, progress func(done, total int)) (*refmatch.Index, error) {
+	files, key, err := bankRecordings(bankRoot, recordings)
 	if err != nil {
 		return nil, err
 	}
@@ -269,27 +269,22 @@ func (s *Service) loadOrBuild(bankRoot, worldEnginePath string, progress func(do
 	return index, nil
 }
 
-// bankRecordingsは音源フォルダ以下のWAVと、その一覧・大きさ・更新時刻から作るキーを返す。
-func bankRecordings(bankRoot string) ([]string, string, error) {
-	var files []string
+// bankRecordingsは索引に使う録音と、その一覧・大きさ・更新時刻から作るキーを返す。
+func bankRecordings(bankRoot string, recordings []string) ([]string, string, error) {
+	sorted := append([]string(nil), recordings...)
+	sort.Strings(sorted)
 	hash := sha256.New()
 	fmt.Fprintf(hash, "%s\x00%s\x00", FeatureModel, filepath.Clean(bankRoot))
-	err := filepath.WalkDir(bankRoot, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() || !strings.EqualFold(filepath.Ext(path), ".wav") {
-			return err
-		}
-		files = append(files, path)
-		return nil
-	})
-	if err != nil {
-		return nil, "", err
-	}
-	sort.Strings(files)
-	for _, path := range files {
+	var files []string
+	for _, path := range sorted {
 		info, err := os.Stat(path)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
 		if err != nil {
 			return nil, "", err
 		}
+		files = append(files, path)
 		fmt.Fprintf(hash, "%s\x00%d\x00%d\x00", path, info.Size(), info.ModTime().UnixNano())
 	}
 	if len(files) == 0 {
@@ -299,8 +294,8 @@ func bankRecordings(bankRoot string) ([]string, string, error) {
 }
 
 // Speakは音源の索引を使って音素列を合成する。
-func (s *Service) Speak(ctx context.Context, bankRoot, worldEnginePath string, pieces []Piece, options Options) (Speech, error) {
-	index, err := s.Index(ctx, bankRoot, worldEnginePath)
+func (s *Service) Speak(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string, pieces []Piece, options Options) (Speech, error) {
+	index, err := s.Index(ctx, bankRoot, recordings, worldEnginePath)
 	if err != nil {
 		return Speech{}, err
 	}

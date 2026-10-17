@@ -191,7 +191,7 @@ func (e *Engine) voicebankEntry(libraryItem voicebank.LibraryItem) map[string]an
 		capabilities := bank.AliasCapabilities()
 		language, phonemizer := bank.SuggestedLanguage()
 		if language == frontend.LanguageEnglish {
-			e.synth.PrepareEnglish(bank.Root)
+			e.synth.PrepareEnglish(bank)
 		}
 		entry["suggested_language"] = language
 		entry["suggested_phonemizer"] = phonemizer

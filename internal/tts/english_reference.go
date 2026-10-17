@@ -47,9 +47,9 @@ func EnglishReferenceService(dir string) (*refspeech.Service, error) {
 }
 
 // PrepareEnglishIndexは音源の英語の索引がなければ裏で作り始める。モデルがなければ何もしない。
-func PrepareEnglishIndex(dir, bankRoot, worldEnginePath string) {
+func PrepareEnglishIndex(dir string, bank *voicebank.Bank, worldEnginePath string) {
 	if service, err := EnglishReferenceService(dir); err == nil {
-		service.Prepare(bankRoot, worldEnginePath)
+		service.Prepare(bank.Root, bank.ReferenceRecordings(), worldEnginePath)
 	}
 }
 
@@ -156,7 +156,7 @@ func synthesizeEnglishReference(cfg Config, bank *voicebank.Bank, language, phon
 			return nil, err
 		}
 	}
-	speech, err := service.Speak(ctx, bank.Root, cfg.WorldEnginePath, pieces, options)
+	speech, err := service.Speak(ctx, bank.Root, bank.ReferenceRecordings(), cfg.WorldEnginePath, pieces, options)
 	if err != nil {
 		return nil, fmt.Errorf("English synthesis: %w", err)
 	}
