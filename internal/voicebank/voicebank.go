@@ -55,6 +55,12 @@ func Load(root string) (*Bank, error) {
 		}
 		absRoot = filepath.Dir(absRoot)
 	}
+	// 展開時に包まれたフォルダを渡されても、音源の一覧と同じ内側のフォルダを使う。
+	if !hasDirectOto(absRoot) && !hasVoicebankMetadata(absRoot) {
+		if nested, err := findNestedVoicebankRoot(absRoot); err == nil {
+			absRoot = nested
+		}
+	}
 
 	var otoFiles []string
 	err = filepath.WalkDir(absRoot, func(path string, entry fs.DirEntry, walkErr error) error {

@@ -113,3 +113,25 @@ func write(t *testing.T, path, content string) {
 		t.Fatal(err)
 	}
 }
+
+func TestLoadUsesTheBankInsideAWrapperFolder(t *testing.T) {
+	wrapper := t.TempDir()
+	inner := filepath.Join(wrapper, "bank")
+	pitch := filepath.Join(inner, "high")
+	if err := os.MkdirAll(pitch, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write(t, filepath.Join(inner, "character.txt"), "name=bank\n")
+	write(t, filepath.Join(inner, "prefix.map"), "C4\t\t高\n")
+	write(t, filepath.Join(pitch, "oto.ini"), "a.wav=あ高,0,0,0,0,0\n")
+	bank, err := Load(wrapper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bank.Root != inner {
+		t.Fatalf("root = %s, want %s", bank.Root, inner)
+	}
+	if affix, ok := bank.AffixForTone("C4"); !ok || affix.Suffix != "高" {
+		t.Fatalf("prefix.map inside the wrapper was not read: %+v %v", affix, ok)
+	}
+}
