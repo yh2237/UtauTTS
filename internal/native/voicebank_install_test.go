@@ -48,8 +48,10 @@ func TestInstallVoicebankReplacesExistingBank(t *testing.T) {
 	if err := os.MkdirAll(old, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(old, "old.txt"), []byte("old"), 0o644); err != nil {
-		t.Fatal(err)
+	for name, body := range map[string]string{"oto.ini": "o.wav=お,0,0,0,0,0\n", "old.txt": "old"} {
+		if err := os.WriteFile(filepath.Join(old, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 	zipPath := filepath.Join(t.TempDir(), "bank.zip")
 	writeBankZip(t, zipPath, map[string]string{"oto.ini": "a.wav=あ,0,0,0,0,0\n"})
