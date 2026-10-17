@@ -322,10 +322,6 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		}
 	}
 	cfg.Voicebank = bank
-	joinModel, err := resolveJoinModel(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("load join model: %w", err)
-	}
 	requestedAliasPolicy := cfg.AliasPolicy
 	if requestedAliasPolicy == "" {
 		requestedAliasPolicy = voicebank.AliasPolicyAuto
@@ -339,6 +335,10 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	}
 	if frontend.NormalizeLanguage(language) == frontend.LanguageEnglish {
 		return synthesizeEnglishReference(cfg, bank, language, phonemizer, reading, morae)
+	}
+	joinModel, err := resolveJoinModel(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("load join model: %w", err)
 	}
 	profile := languageProfileFor(language)
 	profile.ApplySpeechProfile(&cfg)
