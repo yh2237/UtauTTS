@@ -132,10 +132,6 @@ func detachFromTarget(target string) error {
 }
 
 func run(target, url, zipPath string, pid int, version string, preserve []string, deleteLocalZip bool) error {
-	return runPackage(target, url, zipPath, pid, version, preserve, deleteLocalZip)
-}
-
-func runPackage(target, url, zipPath string, pid int, version string, preserve []string, deleteLocalZip bool) error {
 	logf("utautts-updater start: target=%s version=%s", target, version)
 	absolute, err := filepath.Abs(target)
 	if err != nil {

@@ -15,7 +15,6 @@ const htkTicksPerMillisecond = 10000.0
 type anchor struct {
 	startMS float64
 	phone   string
-	order   int
 }
 
 // 時刻は合成済みWAV基準。
@@ -46,13 +45,11 @@ func HTS(synthesisPlan *plan.Plan, moraDurationsMS []float64, audioDurationMS fl
 
 	anchors := make([]anchor, 0, len(morae)*2+1)
 	cursor := 0.0
-	order := 0
 	for position, mora := range morae {
 		duration := math.Max(0, moraDurationsMS[position])
 		noteStart := cursor + synthesisPlan.LeadingMarginMS
 		if mora.Pause {
-			anchors = append(anchors, anchor{startMS: noteStart, phone: "pau", order: order})
-			order++
+			anchors = append(anchors, anchor{startMS: noteStart, phone: "pau"})
 			cursor += duration
 			continue
 		}
@@ -65,19 +62,13 @@ func HTS(synthesisPlan *plan.Plan, moraDurationsMS []float64, audioDurationMS fl
 			if phone == "n" {
 				phone = "N"
 			}
-			anchors = append(anchors, anchor{startMS: noteStart, phone: phone, order: order})
-			order++
+			anchors = append(anchors, anchor{startMS: noteStart, phone: phone})
 		} else {
 			if mora.Consonant != "" {
 				preutterance := math.Max(0, unit.EffectivePreutteranceMS)
-				anchors = append(anchors, anchor{
-					startMS: math.Max(0, noteStart-preutterance),
-					phone:   labPhone(mora.Consonant), order: order,
-				})
-				order++
+				anchors = append(anchors, anchor{startMS: math.Max(0, noteStart-preutterance), phone: mora.Consonant})
 			}
-			anchors = append(anchors, anchor{startMS: noteStart, phone: labPhone(mora.Vowel), order: order})
-			order++
+			anchors = append(anchors, anchor{startMS: noteStart, phone: mora.Vowel})
 		}
 		cursor += duration
 	}
@@ -87,16 +78,11 @@ func HTS(synthesisPlan *plan.Plan, moraDurationsMS []float64, audioDurationMS fl
 
 	nominalEnd := cursor + synthesisPlan.LeadingMarginMS
 	if nominalEnd < audioDurationMS-0.01 {
-		anchors = append(anchors, anchor{startMS: nominalEnd, phone: "sil", order: order})
+		anchors = append(anchors, anchor{startMS: nominalEnd, phone: "sil"})
 	}
-	sort.SliceStable(anchors, func(i, j int) bool {
-		if anchors[i].startMS == anchors[j].startMS {
-			return anchors[i].order < anchors[j].order
-		}
-		return anchors[i].startMS < anchors[j].startMS
-	})
+	sort.SliceStable(anchors, func(i, j int) bool { return anchors[i].startMS < anchors[j].startMS })
 	if anchors[0].startMS > 0.01 {
-		anchors = append([]anchor{{startMS: 0, phone: "sil", order: -1}}, anchors...)
+		anchors = append([]anchor{{startMS: 0, phone: "sil"}}, anchors...)
 	} else {
 		anchors[0].startMS = 0
 	}
@@ -120,8 +106,6 @@ func HTS(synthesisPlan *plan.Plan, moraDurationsMS []float64, audioDurationMS fl
 	}
 	return builder.String(), nil
 }
-
-func labPhone(phone string) string { return phone }
 
 func clamp(value, minimum, maximum float64) float64 {
 	return math.Max(minimum, math.Min(maximum, value))

@@ -53,8 +53,7 @@ func engineCall(this js.Value, args []js.Value) any {
 		result, err = instance.Call(method, []byte(request))
 	}
 	if err != nil {
-		data, _ := json.Marshal(errorResponse{Error: err.Error()})
-		return string(data)
+		return errorJSON(err)
 	}
 	response, err := json.Marshal(struct {
 		OK     bool            `json:"ok"`

@@ -94,8 +94,7 @@ func pairFeatures(previous, current oto.Entry, left, right Boundary) PairFeature
 
 // 判定なし・低信頼の場合は規則スコアへ戻す。
 func (e *Extractor) ScoreEntries(previous, current oto.Entry) float64 {
-	features := e.Pair(previous, current)
-	return e.ScoreFeatures(features)
+	return HandcraftedScore(e.Pair(previous, current))
 }
 
 // ScoreSpeechContextは描画で保持する接続区間の中央を評価する。
@@ -103,10 +102,6 @@ func (e *Extractor) ScoreEntries(previous, current oto.Entry) float64 {
 func (e *Extractor) ScoreSpeechContext(previous, current oto.Entry) float64 {
 	current.Overlap = math.Min(20, math.Max(0, current.Preutterance)*.5)
 	return e.ScoreEntries(previous, current)
-}
-
-func (e *Extractor) ScoreFeatures(features PairFeatures) float64 {
-	return HandcraftedScore(features)
 }
 
 func HandcraftedScore(features PairFeatures) float64 {

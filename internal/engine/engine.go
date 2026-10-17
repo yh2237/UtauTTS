@@ -56,10 +56,6 @@ type Definition struct {
 	Protocol        string
 	ProtocolVersion int
 	ProviderArgs    []string
-	ManifestVersion int
-	Experimental    bool
-	Acceleration    string
-	DefaultPriority int
 	Capabilities    Capabilities
 	Resources       map[ResourceKey]string
 }
@@ -403,10 +399,6 @@ func DefinitionFromV2(renderer plugin.Renderer) Definition {
 		Protocol:        strings.TrimSpace(renderer.Protocol),
 		ProtocolVersion: renderer.ProtocolVersion,
 		ProviderArgs:    append([]string(nil), renderer.ProviderArgs...),
-		ManifestVersion: renderer.ManifestVersion,
-		Experimental:    renderer.Experimental,
-		Acceleration:    renderer.Acceleration,
-		DefaultPriority: renderer.DefaultPriority,
 		Capabilities:    renderer.Capabilities,
 		Resources:       resources,
 	}

@@ -37,14 +37,9 @@ type unit struct {
 	RequiredLengthMS  float64                     `json:"required_length_ms"`
 	ConsonantMS       float64                     `json:"consonant_ms"`
 	CutoffMS          float64                     `json:"cutoff_ms"`
-	Tone              int                         `json:"tone"`
 	ConsonantVelocity float64                     `json:"consonant_velocity"`
-	PitchStartMS      float64                     `json:"pitch_start_ms"`
-	PitchLengthMS     float64                     `json:"pitch_length_ms"`
 	Volume            float64                     `json:"volume"`
 	VolumeSet         bool                        `json:"volume_set"`
-	Modulation        float64                     `json:"modulation"`
-	Tempo             float64                     `json:"tempo"`
 	EnergyFactor      float64                     `json:"energy_factor"`
 	Envelope          []envelopePoint             `json:"envelope"`
 }
@@ -223,9 +218,8 @@ func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
 			PositionMS: source.PositionMS, SkipMS: source.SkipMS, LengthMS: source.LengthMS,
 			FadeInMS: source.FadeInMS, FadeOutMS: source.FadeOutMS, OffsetMS: source.OffsetMS,
 			RequiredLengthMS: source.RequiredLengthMS, ConsonantMS: source.ConsonantMS,
-			CutoffMS: source.CutoffMS, Tone: source.Tone, ConsonantVelocity: source.ConsonantVelocity,
-			PitchStartMS: source.PitchStartMS, PitchLengthMS: source.PitchLengthMS,
-			Volume: source.Volume, Modulation: source.Modulation, Tempo: source.Tempo, EnergyFactor: source.EnergyFactor,
+			CutoffMS: source.CutoffMS, ConsonantVelocity: source.ConsonantVelocity,
+			Volume: source.Volume, EnergyFactor: source.EnergyFactor,
 			Envelope: make([]envelopePoint, len(source.Envelope)),
 		}
 		for pointIndex, point := range source.Envelope {

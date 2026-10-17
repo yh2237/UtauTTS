@@ -242,10 +242,9 @@ type incomingScore struct {
 func bestIncoming(previous []Selection, current oto.Entry, cache *connection.Extractor) incomingScore {
 	best := incomingScore{score: -1e100}
 	for _, candidate := range previous {
-		features := cache.Pair(candidate.Entry, current)
-		score := cache.ScoreFeatures(features) + sourceGroupContinuityScore(candidate.Entry, current)
+		score := cache.ScoreEntries(candidate.Entry, current) + sourceGroupContinuityScore(candidate.Entry, current)
 		if score > best.score {
-			best = incomingScore{score: score, handcrafted: connection.HandcraftedScore(features) + sourceGroupContinuityScore(candidate.Entry, current)}
+			best = incomingScore{score: score, handcrafted: score}
 		}
 	}
 	return best

@@ -205,13 +205,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		RendererDirectories: rendererDirectories, ModelDirectories: modelDirectories,
 	}
 	if doctor {
-		var conflict string
-		flag.Visit(func(option *flagpkg.Flag) {
-			if !doctorFlags[option.Name] && conflict == "" {
-				conflict = option.Name
-			}
-		})
-		if conflict != "" {
+		if conflict := flagOutside(flag, doctorFlags); conflict != "" {
 			return cliFailure("invalid_arguments", fmt.Errorf("--doctor cannot be combined with --%s", conflict))
 		}
 		diagnosis, err := inspectEnvironment(voicebankPath, prosodyPath, resampler, wavtool, runtimeConfig)
@@ -225,13 +219,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		return err
 	}
 	if listKind != "" {
-		var conflict string
-		flag.Visit(func(option *flagpkg.Flag) {
-			if !catalogFlags[option.Name] && conflict == "" {
-				conflict = option.Name
-			}
-		})
-		if conflict != "" {
+		if conflict := flagOutside(flag, catalogFlags); conflict != "" {
 			return cliFailure("invalid_arguments", fmt.Errorf("--list cannot be combined with --%s", conflict))
 		}
 		catalog, err := loadCatalog(listKind, voicebankPath, runtimeConfig)
@@ -260,13 +248,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		}
 	})
 	if requestFile != "" {
-		var conflict string
-		flag.Visit(func(option *flagpkg.Flag) {
-			if !requestTransportFlags[option.Name] && conflict == "" {
-				conflict = option.Name
-			}
-		})
-		if conflict != "" {
+		if conflict := flagOutside(flag, requestTransportFlags); conflict != "" {
 			return cliFailure("invalid_arguments", fmt.Errorf("--request cannot be combined with --%s; put utterance settings in JSON", conflict))
 		}
 	}
@@ -469,6 +451,16 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	}
 	_, err = fmt.Fprintf(summary, "wrote %s (%.2fs, %d Hz, %d units)\n", outPath, duration, output.Audio.SampleRate, len(output.Plan.Units))
 	return cliFailure("output_error", err)
+}
+
+func flagOutside(flags *flagpkg.FlagSet, allowed map[string]bool) string {
+	var conflict string
+	flags.Visit(func(option *flagpkg.Flag) {
+		if !allowed[option.Name] && conflict == "" {
+			conflict = option.Name
+		}
+	})
+	return conflict
 }
 
 func loadResamplerExpressions(path string) ([]render.ResamplerExpression, error) {

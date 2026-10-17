@@ -63,7 +63,6 @@ func DefaultRequest() Request {
 
 type Request struct {
 	PauseDurationSet bool                  `json:"-"`
-	SpeechTiming     bool                  `json:"speech_timing"`
 	Text             string                `json:"text"`
 	Reading          string                `json:"reading"`
 	Kana             string                `json:"kana"`
@@ -80,9 +79,6 @@ type Request struct {
 	Wavtool          string                `json:"wavtool"`
 	AliasPolicy      voicebank.AliasPolicy `json:"alias_policy"`
 	Dictionary       []DictionaryEntry     `json:"dictionary"`
-	// 旧クライアントの要求を受け取れるよう残す。値は使わない。
-	WordBoundaryEnvelope    bool   `json:"word_boundary_envelope"`
-	SpeechProsodyExperiment string `json:"prosody_experiment"`
 	// 互換用の固定フィールド。同じIDがrenderer_settingsにあればそちらを優先する。
 	MoraDurationMS        float64                  `json:"mora_duration_ms"`
 	PauseDurationMS       float64                  `json:"pause_duration_ms"`
@@ -129,13 +125,6 @@ func (request Request) Normalized() Request {
 		request.Reading = request.Kana
 	}
 	return request
-}
-
-func (request Request) ReadingOrKana() string {
-	if request.Reading != "" {
-		return request.Reading
-	}
-	return request.Kana
 }
 
 // ResolvedRequestは合成へ渡す解決済み入力。CLIはUSTX出力にConfigを、GUI/HTTPは通常Synthesizeを使う。
@@ -317,9 +306,6 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		}
 	}
 	reading := request.Reading
-	if reading == "" {
-		reading = request.Kana
-	}
 	cfg := tts.Config{
 		PauseDurationSet:        request.PauseDurationSet,
 		Text:                    request.Text,

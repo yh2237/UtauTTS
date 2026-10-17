@@ -370,10 +370,10 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 		}
 		defer func() { <-s.synthesisSem }()
 	}
-	if synthesisReading(request) == "" && request.Text == "" {
+	if request.ReadingOrKana() == "" && request.Text == "" {
 		return nil, http.StatusBadRequest, fmt.Errorf("text or reading is required")
 	}
-	if len([]rune(request.Text)) > maxTextRunes || len([]rune(synthesisReading(request))) > maxTextRunes {
+	if len([]rune(request.Text)) > maxTextRunes || len([]rune(request.ReadingOrKana())) > maxTextRunes {
 		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("text and reading are limited to %d characters", maxTextRunes)
 	}
 	if request.MoraDurationMS < 0 || request.MoraDurationMS > 1000 || request.PauseDurationMS < 0 || request.PauseDurationMS > 3000 || request.LeadingPreutteranceMS < 0 || request.LeadingPreutteranceMS > 1000 {
@@ -407,10 +407,6 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 		return nil, http.StatusUnprocessableEntity, err
 	}
 	return result, http.StatusOK, nil
-}
-
-func synthesisReading(request SynthesisRequest) string {
-	return request.ReadingOrKana()
 }
 
 func contextErrorStatus(err error, fallback int) int {

@@ -111,7 +111,7 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 		if request.WriteText {
 			text := item.Request.Text
 			if text == "" {
-				text = synthesisReading(item.Request)
+				text = item.Request.ReadingOrKana()
 			}
 			data, err := sidecar.TextBytes(text, request.TextEncoding)
 			if err != nil {

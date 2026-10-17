@@ -107,7 +107,6 @@ type preparedWaveformUnit struct {
 	wave                     []float64
 	targetFrames             int
 	sourceConsonantFrames    int
-	sourcePreutteranceFrames int
 	effectiveConsonantFrames int
 }
 
@@ -183,7 +182,6 @@ func renderWaveformWithStretch(synthesisPlan *plan.Plan, cfg Config, parallelRet
 		targetMS := math.Max(1, timing.PreutteranceMS+unit.DurationMS+cfg.ReleaseMS)
 		targetFrames := msToFrames(targetMS, sampleRate)
 		sourceConsonantFrames := msToFrames(unit.ConsonantMS, sampleRate)
-		sourcePreutteranceFrames := msToFrames(unit.PreutteranceMS, sampleRate)
 		effectiveConsonantFrames := msToFrames(timing.ConsonantMS, sampleRate)
 		wave := pcmFloats(trimmed.Data)
 		appliedPitch := 1.0
@@ -203,11 +201,9 @@ func renderWaveformWithStretch(synthesisPlan *plan.Plan, cfg Config, parallelRet
 				consonantFactor = clampPitchFactor(appliedPitch * pitchCurveFactorAt(cfg.PitchCurve, unit.NoteStartMS-timing.PreutteranceMS))
 			}
 			sourceConsonantFrames = int(math.Round(float64(sourceConsonantFrames) / consonantFactor))
-			sourcePreutteranceFrames = int(math.Round(float64(sourcePreutteranceFrames) / consonantFactor))
 		}
 		prepared = append(prepared, preparedWaveformUnit{unitIndex: unitIndex, timing: timing, wave: wave,
 			targetFrames: targetFrames, sourceConsonantFrames: sourceConsonantFrames,
-			sourcePreutteranceFrames: sourcePreutteranceFrames,
 			effectiveConsonantFrames: effectiveConsonantFrames})
 	}
 	retimeUnit := func(index int) error {

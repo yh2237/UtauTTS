@@ -406,7 +406,7 @@ func (b worldlineUnitBuilder) build(i int) (worldlineManifestUnit, error) {
 		}
 	}
 	// 解析キャッシュは変換前の原音と既定の音量で引く。
-	cacheKey := worldlineAnalysisCacheKey(originalSource, frqPath, *unit, 100)
+	cacheKey := worldlineAnalysisCacheKey(originalSource, frqPath, *unit)
 	cacheKey += fmt.Sprintf("|fs=%d", b.pitch.sampleRate)
 	strategy := b.resolveWorldlineSpeechStrategy(i, codaRelease, singleCVUnit, vcvUnit)
 	speech := b.speechTiming(i, timing, skipMS, positionMS, strategy)
@@ -819,7 +819,7 @@ func resolveWorldEngine(configured string) (string, error) {
 	return configured, nil
 }
 
-func worldlineAnalysisCacheKey(source, frqPath string, unit plan.Unit, volume float64) string {
+func worldlineAnalysisCacheKey(source, frqPath string, unit plan.Unit) string {
 	identity := func(path string) string {
 		if path == "" {
 			return ""
@@ -830,8 +830,8 @@ func worldlineAnalysisCacheKey(source, frqPath string, unit plan.Unit, volume fl
 		}
 		return fmt.Sprintf("%s:%d:%d", path, info.Size(), info.ModTime().UnixNano())
 	}
-	return fmt.Sprintf("%s|%s|%.6f|%.6f|%.6f|86",
-		identity(source), identity(frqPath), unit.OffsetMS, unit.CutoffMS, volume)
+	return fmt.Sprintf("%s|%s|%.6f|%.6f|100.000000|86",
+		identity(source), identity(frqPath), unit.OffsetMS, unit.CutoffMS)
 }
 
 func worldlineF0CurveAtOffset(synthesisPlan *plan.Plan, pitches, factors []float64, reference float64, length int, frameMS, startMS float64) []float64 {
