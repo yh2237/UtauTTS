@@ -203,7 +203,7 @@ $j+\delta$ が別の録音にまたがる項は、分子と分母の両方から
 
 F0はKokoroのF0から作ります。有声区間のF0を対数で約20msの幅でなめらかにして、5msごとに直します。中央値が音高の指定（指定がなければ音源のF0の中央値）になるようにF0全体を移し、動きの幅を抑揚の強さの倍率 $k$（抑揚の強さ÷4）で変えます。
 
-$$F_0(t)=F_{\mathrm{center}}\cdot\left(\frac{F_{\mathrm{Kokoro}}(t)}{\operatorname{median}F_{\mathrm{Kokoro}}}\right)^{k}$$
+$$F_0(t)=F_{\mathrm{center}}\cdot\left(\frac{F_{\mathrm{Kokoro}}(t)}{\mathrm{median}\,F_{\mathrm{Kokoro}}}\right)^{k}$$
 
 Kokoroが無音の区間では、選んだフレームが小さな雑音として残ります。そこで、Kokoroの音量（5msごと、95パーセンタイルを0dB）が-40dBより下がった分だけ、出力も最大40dBまで下げます。下げる量は約10msの幅でなめらかにします。
 
