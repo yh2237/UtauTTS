@@ -27,11 +27,5 @@ func init() {
 	}
 }
 
-func Name() string         { return metadata.Name }
-func Version() string      { return metadata.Version }
-func UpdateSchema() int    { return metadata.UpdateSchema }
-func MigrationSchema() int { return metadata.MigrationSchema }
-func InstallLayout() int   { return metadata.InstallLayout }
-func Organization() string { return metadata.Organization }
-func Repository() string   { return metadata.Repository }
-func License() string      { return metadata.License }
+func Name() string    { return metadata.Name }
+func Version() string { return metadata.Version }

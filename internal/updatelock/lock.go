@@ -74,18 +74,6 @@ func writeFile(path string, data []byte) error {
 	return nil
 }
 
-func WritePrimary(target, version string, pid int) error {
-	path, err := Path(target)
-	if err != nil {
-		return err
-	}
-	data, err := marshalState(version, pid, "")
-	if err != nil {
-		return err
-	}
-	return writeFile(path, data)
-}
-
 func WriteFallback(target, version string, pid int) error {
 	path, err := FallbackPath(target)
 	if err != nil {

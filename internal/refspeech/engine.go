@@ -83,8 +83,6 @@ func Open(models Models) (*Engine, error) {
 	return &Engine{kokoro: model, voice: voice, hubert: features}, nil
 }
 
-func (e *Engine) Close() error { return e.hubert.Close() }
-
 // FeaturesはHuBERT Baseの6層目を20msごとに返す。refmatch.FeatureFuncとして使う。
 func (e *Engine) Features(samples []float64, sampleRate int) ([]float32, int, int, error) {
 	wave := make([]float32, len(samples))

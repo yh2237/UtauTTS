@@ -148,9 +148,6 @@ func internalF0(r record, step float64) ([]float64, error) {
 	}
 	return out, nil
 }
-func loadF0(r record, step float64, cache string, times []float64) ([]float64, error) {
-	return loadF0Source(r, step, cache, times, "internal", "")
-}
 func loadF0Source(r record, step float64, cache string, times []float64, source, worldPath string) ([]float64, error) {
 	tag := "internal_autocorrelation"
 	if source == "world" {
@@ -285,9 +282,6 @@ func targetF0(f0 []float64, mask []bool, step, smooth, low, high float64) []floa
 		}
 	}
 	return out
-}
-func prepareRecord(r record, names map[string]int, step, smooth, low, high float64, cache string) (example, error) {
-	return prepareRecordSource(r, names, step, smooth, low, high, cache, "internal", "")
 }
 func prepareRecordSource(r record, names map[string]int, step, smooth, low, high float64, cache, source, worldPath string) (example, error) {
 	times := timeGrid(r, step)

@@ -146,9 +146,6 @@ func evaluate(rows []row, weights [][]float64) map[string]any {
 	}
 	return map[string]any{"mae_cents": math.RoundToEven(sum/float64(count)*100) / 100, "rule_mae_cents": math.RoundToEven(base/float64(count)*100) / 100, "evaluated_knots": count}
 }
-func train(rows []row) (map[string]any, error) {
-	return trainWithSkipped(rows, nil)
-}
 func trainWithSkipped(rows []row, skipped map[string]int) (map[string]any, error) {
 	counts := map[string]int{}
 	for _, r := range rows {

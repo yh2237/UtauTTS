@@ -62,13 +62,6 @@ func FreshDir(dir string) error {
 	return os.MkdirAll(dir, 0755)
 }
 func Absolute(file string) string { v, _ := filepath.Abs(file); return v }
-func sortStrings(values []string) {
-	for i := 1; i < len(values); i++ {
-		for j := i; j > 0 && values[j] < values[j-1]; j-- {
-			values[j], values[j-1] = values[j-1], values[j]
-		}
-	}
-}
 func Finite(values ...float64) bool {
 	for _, v := range values {
 		if math.IsNaN(v) || math.IsInf(v, 0) {

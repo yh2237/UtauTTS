@@ -144,16 +144,6 @@ func (s *Service) open(worldEnginePath string) (*Engine, *worldrender.World, err
 	return engine, world, nil
 }
 
-// Statusは音源の索引の状態を返す。
-func (s *Service) Status(bankRoot string) IndexStatus {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if entry, ok := s.indexes[bankRoot]; ok {
-		return entry.status
-	}
-	return IndexStatus{}
-}
-
 // Prepareは音源の索引がないか、録音が変わっていれば、裏で作り始める。
 func (s *Service) Prepare(bankRoot string, recordings []string, worldEnginePath string) {
 	s.mu.Lock()

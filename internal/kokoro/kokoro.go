@@ -174,7 +174,6 @@ func norm(x, w, b []float32, rows, ch int) {
 		}
 	}
 }
-func gelu(x float32) float32    { return .5 * x * (1 + float32(math.Erf(float64(x)/math.Sqrt2))) }
 func sigmoid(x float32) float32 { return 1 / (1 + float32(math.Exp(float64(-x)))) }
 func leaky(x, alpha float32) float32 {
 	if x < 0 {

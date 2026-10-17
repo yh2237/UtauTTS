@@ -253,12 +253,3 @@ func run() (runErr error) {
 	}
 	return nil
 }
-
-func oneOf(value string, values ...string) bool {
-	for _, candidate := range values {
-		if value == candidate {
-			return true
-		}
-	}
-	return false
-}

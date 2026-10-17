@@ -312,9 +312,6 @@ func pyFloat(v float64) string {
 	}
 	return s
 }
-func cachePath(dir string, r record, step float64) string {
-	return cachePathTag(dir, r, step, "internal_autocorrelation")
-}
 func cachePathTag(dir string, r record, step float64, tag string) string {
 	var b strings.Builder
 	b.WriteByte('[')
