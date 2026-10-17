@@ -178,7 +178,7 @@ func TestEngineListsAnalyzesAndSynthesizes(t *testing.T) {
 
 func TestEngineListsAllVoicebankTypes(t *testing.T) {
 	root := t.TempDir()
-	bankDir := filepath.Join(root, "teto")
+	bankDir := filepath.Join(root, "bank")
 	if err := os.Mkdir(bankDir, 0755); err != nil {
 		t.Fatal(err)
 	}
