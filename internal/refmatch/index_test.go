@@ -99,3 +99,30 @@ func TestBuildIndexSkipsUnreadableWAV(t *testing.T) {
 		t.Fatalf("files %v, frames %d", index.Files, index.Frames)
 	}
 }
+
+func TestBuildIndexTakesRateFromUsableWAV(t *testing.T) {
+	dir := t.TempDir()
+	short := filepath.Join(dir, "short.wav")
+	if err := audio.WriteWav(short, &audio.PCM{SampleRate: 44100, Channels: 1, Data: make([]int16, 441)}); err != nil {
+		t.Fatal(err)
+	}
+	good := filepath.Join(dir, "good.wav")
+	pcm := &audio.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 8000)}
+	for i := range pcm.Data {
+		pcm.Data[i] = int16(8000 * math.Sin(float64(i)*0.1))
+	}
+	if err := audio.WriteWav(good, pcm); err != nil {
+		t.Fatal(err)
+	}
+	features := func(samples []float64, rate int) ([]float32, int, int, error) {
+		frames := len(samples) * 50 / rate
+		return make([]float32, frames*3), frames, 3, nil
+	}
+	index, err := BuildIndex([]string{short, good}, "test", fakeWorld{}, features, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if index.SampleRate != 16000 || !reflect.DeepEqual(index.Files, []string{good}) {
+		t.Fatalf("rate %d, files %v", index.SampleRate, index.Files)
+	}
+}

@@ -112,10 +112,13 @@ func BuildIndex(files []string, model string, world World, features FeatureFunc,
 	index := &Index{Header: Header{Version: indexVersion, Model: model}}
 	var voicedF0 []float64
 	for number, result := range results {
+		if !result.usable {
+			continue
+		}
 		if index.SampleRate == 0 {
 			index.SampleRate = result.rate
 		}
-		if result.rate != index.SampleRate || !result.usable {
+		if result.rate != index.SampleRate {
 			continue
 		}
 		if index.FFTSize == 0 {
