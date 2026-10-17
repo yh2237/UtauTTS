@@ -22,10 +22,31 @@ func (b *Bank) SuggestedLanguage() (string, string) {
 	if strings.Contains(configured, "arpasing") {
 		return LanguageEnglish, "en-arpasing"
 	}
+	if strings.Contains(configured, "xsampa") {
+		return LanguageEnglish, "en-delta"
+	}
+	// OpenUtauの英語の発音変換は、音源の直下にある自分の設定ファイルを読む。
+	for _, config := range []struct{ file, phonemizer string }{
+		{"envccv.yaml", "en-vccv"}, {"en-xsampa.yaml", "en-delta"}, {"en-cPv.yaml", "en-cv"},
+	} {
+		if b.Root != "" && findRootFile(b.Root, config.file) != "" {
+			return LanguageEnglish, config.phonemizer
+		}
+	}
+	// 音高ごとの収録は、別名に接頭辞・接尾辞が付く。
+	affixes := []Affix{{}}
+	for _, subbank := range b.Subbanks {
+		affixes = append(affixes, Affix{Prefix: subbank.Prefix, Suffix: subbank.Suffix})
+	}
+	for _, affix := range b.PrefixMap {
+		affixes = append(affixes, affix)
+	}
 	has := func(aliases ...string) bool {
 		for _, alias := range aliases {
-			if len(b.Entries[alias]) > 0 {
-				return true
+			for _, affix := range affixes {
+				if len(b.Entries[affix.Prefix+alias+affix.Suffix]) > 0 {
+					return true
+				}
 			}
 		}
 		return false

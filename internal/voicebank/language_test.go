@@ -1,6 +1,8 @@
 package voicebank
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/yh2237/UtauTTS/internal/oto"
@@ -9,6 +11,22 @@ import (
 func TestSuggestedLanguage(t *testing.T) {
 	t.Run("inventory aliases", testSuggestedLanguage)
 	t.Run("OpenUtau phonemizer", testSuggestedLanguageUsesOpenUtauPhonemizer)
+	t.Run("OpenUtau phonemizer files", testSuggestedLanguageUsesPhonemizerFiles)
+	t.Run("pitch affixes", testSuggestedLanguageIgnoresPitchAffixes)
+}
+
+func testSuggestedLanguageIgnoresPitchAffixes(t *testing.T) {
+	aliases := []string{"- hVD#4", "- h@D#4", "V lD#4", "@ lD#4", "h{D#4", "- h{D#4", "- niD#4"}
+	subbank := &Bank{Entries: map[string][]oto.Entry{}, Subbanks: []Subbank{{Suffix: "D#4"}}}
+	prefixMap := &Bank{Entries: map[string][]oto.Entry{}, PrefixMap: map[string]Affix{"D#4": {Suffix: "D#4"}}}
+	for name, bank := range map[string]*Bank{"subbank": subbank, "prefix.map": prefixMap} {
+		for _, alias := range aliases {
+			bank.Entries[alias] = []oto.Entry{{Alias: alias}}
+		}
+		if language, phonemizer := bank.SuggestedLanguage(); language != "en" || phonemizer != "en-delta" {
+			t.Fatalf("%s: got %s/%s", name, language, phonemizer)
+		}
+	}
 }
 
 func testSuggestedLanguage(t *testing.T) {
@@ -53,5 +71,23 @@ func testSuggestedLanguageUsesOpenUtauPhonemizer(t *testing.T) {
 	language, phonemizer = cpv.SuggestedLanguage()
 	if language != "en" || phonemizer != "en-cv" {
 		t.Fatalf("got %s/%s", language, phonemizer)
+	}
+	xsampa := &Bank{DefaultPhonemizer: "OpenUtau.Plugin.Builtin.EnXSampaPhonemizer"}
+	language, phonemizer = xsampa.SuggestedLanguage()
+	if language != "en" || phonemizer != "en-delta" {
+		t.Fatalf("x-sampa got %s/%s", language, phonemizer)
+	}
+}
+
+func testSuggestedLanguageUsesPhonemizerFiles(t *testing.T) {
+	for file, want := range map[string]string{"envccv.yaml": "en-vccv", "en-xsampa.yaml": "en-delta", "en-cPv.yaml": "en-cv"} {
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, file), []byte("symbols: []\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		bank := &Bank{Root: root, Entries: map[string][]oto.Entry{"a": {{Alias: "a"}}}}
+		if language, phonemizer := bank.SuggestedLanguage(); language != "en" || phonemizer != want {
+			t.Fatalf("%s: got %s/%s, want en/%s", file, language, phonemizer, want)
+		}
 	}
 }
