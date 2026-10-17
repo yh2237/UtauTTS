@@ -87,10 +87,23 @@ func (e *Engine) installVoicebank(data []byte) (any, error) {
 	}
 
 	targetDir := filepath.Join(e.config.VoiceDir, target)
-	if err := os.RemoveAll(targetDir); err != nil {
-		return nil, fmt.Errorf("clear voicebank folder: %w", err)
+	// 古い音源は消さずに脇へ移す。移せないときや新しい音源を置けないときは元に戻す。
+	previous := ""
+	if _, err := os.Lstat(targetDir); err == nil {
+		aside, err := os.MkdirTemp(e.config.VoiceDir, ".previous-")
+		if err != nil {
+			return nil, fmt.Errorf("create backup directory: %w", err)
+		}
+		defer os.RemoveAll(aside)
+		previous = filepath.Join(aside, target)
+		if err := os.Rename(targetDir, previous); err != nil {
+			return nil, fmt.Errorf("move existing voicebank folder: %w", err)
+		}
 	}
 	if err := os.Rename(bankRoot, targetDir); err != nil {
+		if previous != "" {
+			_ = os.Rename(previous, targetDir)
+		}
 		return nil, fmt.Errorf("place voicebank folder: %w", err)
 	}
 
