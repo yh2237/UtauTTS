@@ -41,6 +41,10 @@ func (b *Bank) SuggestedLanguage() (string, string) {
 	if has("- aa", "- ah", "- ao") && has("aa -", "ah -", "ao -") && !has("hh ah", "ah l") {
 		return LanguageEnglish, "en-cv"
 	}
+	// OpenUtauのC+V（en-cPv.yaml）は、ARPAbetの子音と母音を区切りなしの単音で録音する。
+	if has("aa", "ah", "ao", "eh", "ih", "iy") && has("hh", "jh", "dh", "ng") {
+		return LanguageEnglish, "en-cv"
+	}
 	if has("- hh", "hh ah", "ah l") || len(b.ARPAsing) > 0 {
 		return LanguageEnglish, "en-arpasing"
 	}

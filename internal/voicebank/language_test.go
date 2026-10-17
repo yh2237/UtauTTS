@@ -24,8 +24,10 @@ func testSuggestedLanguage(t *testing.T) {
 		{"arpasing", "en", "en-arpasing", []string{"- hh", "hh ah"}},
 		{"cv", "en", "en-cv", []string{"- aa", "aa", "aa -"}},
 		{"veriacveng cv", "en", "en-cv", []string{"- aa", "- ah", "- ao", "aa -", "ah -", "ao -"}},
+		{"adachi rei english c+v", "en", "en-cv", []string{"aa", "ah", "ao", "hh", "jh", "ng", "k", "uw-"}},
 		{"chinese", "zh", "zh-cvvc", []string{"- ni", "hao"}},
 		{"japanese", "ja", "ja-kana", []string{"- あ", "あ"}},
+		{"japanese romaji", "ja", "ja-kana", []string{"a", "ka", "- ka", "a ka", "n", "nga"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
