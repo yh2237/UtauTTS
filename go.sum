@@ -38,6 +38,8 @@ github.com/yh2237/audiodsp v0.5.2 h1:T8+t7FwtS5hAnHFkLVHOhAFxvs9/FaZo/3imEL0GWOo
 github.com/yh2237/audiodsp v0.5.2/go.mod h1:Cv0D5PXZpjZW/Ty+326DBv2JmdZfu4d6zMhlNOfpWF8=
 github.com/yh2237/gograd v1.7.0 h1:/fHtsjLwByLU1h7TICH5Q49lAZy2OaRqDDv85eDgIeE=
 github.com/yh2237/gograd v1.7.0/go.mod h1:A1pI4+4getS6AUxp8CGs8R/KiylolTBoMKfmcCir/uo=
+github.com/yh2237/gograd v1.7.1 h1:UYZc4NXObYr+456NNlo90pc5/0eWATJLw3uA+Wzb+xk=
+github.com/yh2237/gograd v1.7.1/go.mod h1:A1pI4+4getS6AUxp8CGs8R/KiylolTBoMKfmcCir/uo=
 github.com/yh2237/utauio v0.4.0 h1:fBHjYYQAEnDDUxi/8HnpotsSlHe1Fcop7hWcuXHn2w8=
 github.com/yh2237/utauio v0.4.0/go.mod h1:I+illiKoP6S8iUC4iF15Y6ynXUbBTquYEPW3S8jDpZY=
 golang.org/x/sys v0.38.0 h1:3yZWxaJjBmCWXqhN1qh02AkOnCQ1poK6oF+a7xWL6Gc=
