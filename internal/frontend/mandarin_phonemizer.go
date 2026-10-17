@@ -173,11 +173,6 @@ var cvEnglishConsonants = map[string]bool{
 	"v": true, "w": true, "y": true, "z": true, "zh": true,
 }
 
-// IsEnglishPhoneは、英語の音素として扱える記号かを返す。
-func IsEnglishPhone(phone string) bool {
-	return englishVowels[phone] || cvEnglishConsonants[phone]
-}
-
 var deltaEnglishSymbols = map[string][]string{
 	"aa": {"A", "Q"}, "ae": {"{"}, "ah": {"V", "@"}, "ao": {"O", "Q"}, "ax": {"@", "V"},
 	"aw": {"aU", "au"}, "ay": {"aI", "ai"}, "eh": {"E", "e"}, "er": {"3"},

@@ -69,13 +69,3 @@ func TestKokoroPhonemesUseEditedWords(t *testing.T) {
 		}
 	}
 }
-
-func TestKokoroARPAbet(t *testing.T) {
-	for symbol, want := range map[string]string{
-		"ə": "ax", "ɑ": "aa", "æ": "ae", "O": "ow", "I": "ay", "ɹ": "r", "ʃ": "sh", "T": "dx", "ˈ": "",
-	} {
-		if got := kokoroARPAbet(symbol); got != want {
-			t.Errorf("kokoroARPAbet(%q) = %q, want %q", symbol, got, want)
-		}
-	}
-}

@@ -132,19 +132,6 @@ func (m *Model) Tokens(phonemes string) []int {
 	}
 	return ids
 }
-
-// TokenSymbolsは音素列をトークンごとの記号に分ける。Tokensと同じく、語彙にない記号は飛ばす。
-func (m *Model) TokenSymbols(phonemes string) []string {
-	symbols := make([]string, 0, len(phonemes))
-	for _, r := range phonemes {
-		symbol := string(r)
-		if _, ok := m.config.Vocab[symbol]; ok {
-			symbols = append(symbols, symbol)
-		}
-	}
-	return symbols
-}
-
 func (m *Model) value(name string) []float32 {
 	v, ok := m.weights[name]
 	if !ok {
