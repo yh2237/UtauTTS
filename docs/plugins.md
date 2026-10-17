@@ -1,17 +1,17 @@
 # モデル／Rendererプラグイン仕様
 
-UtauTTSでは、合成エンジン（Renderer）や抑揚モデルをプラグインとして追加・拡張できます。
+合成エンジン（Renderer）と抑揚モデルは、プラグインとして追加できます。
 
-- **モデル配置先**: `models/`
-- **Renderer配置先**: `renderer/<id>/`
+- モデルの配置先: `models/`
+- Rendererの配置先: `renderer/<id>/`
 
-CLIやServerでは `--model-dir` / `--renderer-dir` 引数で外部ディレクトリを追加指定可能です。
+CLIとServerでは、`--model-dir` と `--renderer-dir` で配置先のディレクトリを追加できます。
 
 ---
 
 ## 1. Renderer Manifest（renderer.json）
 
-各Rendererは `renderer/<id>/renderer.json` に設定を記述します。現在有効なスキーマは `manifest_version: 2` です。
+Rendererは `renderer/<id>/renderer.json` で定義します。受け付けるスキーマは `manifest_version: 2` です。
 
 ```json
 {
@@ -31,30 +31,30 @@ CLIやServerでは `--model-dir` / `--renderer-dir` 引数で外部ディレク�
 }
 ```
 
-- **id**: プロジェクトやAPIで識別子として使う一意なID。
-- **contract**: 入出力インターフェース（`unit-renderer` または `neural-synthesizer`）。
-- **provider**: 内部実装エンジン（`utautts-world-phrase`、`utau-external-resampler`、`diffsinger` 等）。
-- **resources**: 必要なバイナリやライブラリの相対パス。プラットフォームごとに切り替える場合は `platform_resources` を定義します。
+- `id`: プロジェクトやAPIで使う一意なID。
+- `contract`: 入出力の形式（`unit-renderer` または `neural-synthesizer`）。
+- `provider`: 実装（`utautts-world-phrase`、`utau-external-resampler`、`diffsinger` 等）。
+- `resources`: 必要なバイナリやライブラリの相対パス。OSごとに切り替えるときは `platform_resources` を定義します。
 
 ### 外部Providerプロトコル（プロセス間連携）
-`protocol: "utautts-provider"` を指定することで、独自の合成エンジンを外部プロセスとして起動し、標準入出力（NDJSON形式）経由で連携させることも可能です。セッション維持に対応したProviderであれば、プロセスを常駐させてモデル初期化オーバーヘッドを回避できます。
+`protocol: "utautts-provider"` を指定すると、独自の合成エンジンを外部プロセスとして起動し、標準入出力のNDJSONでやり取りします。Providerはセッションモードに対応している必要があります。起動したプロセスは常駐させ、続く合成でも使います。
 
 ---
 
 ## 2. Classic UTAUツール（Resampler / Wavtool）
 
-従来のUTAU向けエンジンは、専用ディレクトリにバイナリを配置するだけで利用できます。マニフェストファイルは不要です。
+従来のUTAU向けのエンジンは次のディレクトリにバイナリを置けば使えます。manifestは要りません。
 
-- **Resampler**: `Resamplers/`（サブディレクトリ内の配置や依存DLLの同居にも対応）
-- **Wavtool**: `Wavtools/`（内蔵の5点包絡線処理を使う場合は `builtin` を指定）
+- Resampler: `Resamplers/`（サブディレクトリ内の配置や、依存DLLの同居にも対応）
+- Wavtool: `Wavtools/`（内蔵の5点包絡線処理を使うときは `builtin` を指定）
 
-GUIでProviderが `utau-external-resampler` のRendererを選択すると、使用するResamplerとWavtoolを一覧から切り替えられます。
+ResamplerとWavtoolを使うのは、Providerが `utau-external-resampler` のRendererです。
 
 ---
 
 ## 3. 抑揚モデル（Prosody Models）
 
-学習済みモデルは `models/` にJSONファイルとして配置します。モデルJSON自体がマニフェストを兼ねています。
+学習済みモデルは `models/` にJSONファイルとして置きます。モデルのJSONがmanifestを兼ねます。
 
 ```json
 {
@@ -73,5 +73,5 @@ GUIでProviderが `utau-external-resampler` のRendererを選択すると、使�
 }
 ```
 
-- `id` と `display_name` が定義されているJSONが自動認識されます。
-- CLIではファイルパスではなく、定義した `id` を `--prosody` オプションに指定します。
+- `id` と `display_name` があるJSONをモデルとして読み込みます。
+- CLIの `--prosody` にはファイルパスではなく `id` を指定します。

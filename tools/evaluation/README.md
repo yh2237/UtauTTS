@@ -2,7 +2,7 @@
 
 `tts-eval`は固定した文章と音源を使って、読み、原音候補、接続、合成音声を比較します。リポジトリのルートで実行し、[開発環境](../../docs/building.md)と評価対象のボイスバンクが必要です。
 
-音源パスは評価対象のボイスバンクへ置き換えます。出力先には毎回新しいディレクトリを指定します。
+出力先には毎回新しいディレクトリを指定します。
 
 ## 読みと原音候補を診断する
 
@@ -37,7 +37,7 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utau
 
 コーパスの既定値は`tools/evaluation/japanese-v1.json`の8文です。`--model none`は学習済み抑揚モデルを使いません。任意のモデルは`--model-file`でJSONのパスを指定できます。
 
-英語・中国語でも`--corpus`を指定して比較できます。`--diagnose`を付けると診断、外すと音声の比較です。ビルドしたブリッジは`--bridge`で指定できます。
+英語・中国語でも`--corpus`を指定して比較できます。ビルドしたブリッジは`--bridge`で指定できます。
 
 WAV・TXT・LAB・合成計画（Plan JSON）・`report.json`を出力します。合成計画の時刻は生成時の目標値で、音声から実測した境界ではありません。
 
@@ -49,15 +49,12 @@ WAV・TXT・LAB・合成計画（Plan JSON）・`report.json`を出力します�
 | unitの`speech_join_applied` | CPU版WORLDの母音接続補修を適用したか |
 | unitの`effective_consonant_ms` | 伸縮後の固定部の位置 |
 | Planの`boundary_repair_decisions` | 接続補修の候補数と採否。補修前後の波形差分指標 |
-| reportの`missing_phone_groups` | 必須音が不足したグループの件数 |
 
 任意のリリース音は必須音の不足と区別します。語中の複雑な子音群や原音の発音誤りは一部しか検出できません。音声生成では代替候補を使うため、生成の成功と音の欠落は別に評価します。
 
 子音と接続の比較には`--corpus tools/evaluation/japanese-connection-v1.json`を指定します。同じ読みを使う6ケースで母音連続・破裂音・摩擦音・鼻音・長母音を確認できます。単独音・連続音など収録形式の違う音源で比べます。
 
 出力するPlan JSONには合成後の診断情報を含みます。区間別伸縮を適用しても指定したモーラ長は変えません。`boundary_repair_decisions`の指標は補修箇所の比較用で、自然さは試聴で評価します。
-
-解析キャッシュを使う2回目の合成は`--repeat 2`で比較できます。
 
 ## 読み・長さ・ピッチを固定する
 

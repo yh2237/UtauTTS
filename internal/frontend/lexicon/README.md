@@ -1,7 +1,5 @@
 # 同梱英語発音辞書
 
-実行時に使う辞書の出典と更新方法を記録しています。
-
 出典: https://github.com/cmusphinx/cmudict
 
 Revision: `74790861f652b15e4ac49015a90074ad62a27690`
@@ -12,4 +10,4 @@ Revision: `74790861f652b15e4ac49015a90074ad62a27690`
 
 利用条件は[LICENSE](LICENSE)と配布物の`licenses/Go/CMUDICT-LICENSE.txt`を参照してください。
 
-更新時は、CMUdictのリポジトリを取得して、使用するrevisionへ切り替えます。UtauTTSのルートから`go run ./cmd/tools/import-cmudict <checkout>`を実行してください。`<checkout>`はCMUdictの作業ディレクトリです。辞書とライセンスに加えてこの出典情報も更新します。
+更新時はCMUdictのリポジトリを取得して、使用するrevisionへ切り替えます。UtauTTSのルートから`go run ./cmd/tools/import-cmudict <checkout>`を実行してください。`<checkout>`はCMUdictの作業ディレクトリです。辞書とライセンスに加えてこの出典情報も更新します。

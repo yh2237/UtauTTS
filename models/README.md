@@ -1,6 +1,6 @@
 # 抑揚モデルのライセンス
 
-この文書には、同梱モデルの出典と通知をまとめています。条件の原文は各配布元の規約に従います。UtauTTS全体のライセンスは[ライセンスの適用範囲](../LICENSE-SCOPE.md)を参照してください。
+同梱モデルの出典と通知です。条件の原文は各配布元の規約に従います。UtauTTS全体のライセンスは[ライセンスの適用範囲](../LICENSE-SCOPE.md)を参照してください。
 
 ## 同梱モデル
 
@@ -10,11 +10,11 @@
 | 英語 | `english-reference/`（Kokoro-82M、HuBERT Base） |
 | 中国語 | `tone-intonation-zh-v1` |
 
-日本語と中国語の抑揚モデルはモーラ長を予測しません。長さは指定した基準値と言語別の時間規則（「ん」0.9倍、「ー」1.2倍など）で決めます。英語は、モーラ長と抑揚をKokoroの読みから決めます。学習と評価の手順は[モデルの学習](../docs/model-training.md)にあります。
+日本語と中国語の抑揚モデルはモーラ長を予測しません。長さは指定した基準値と言語別の時間規則（「ん」0.9倍、「ー」1.2倍など）で決めます。英語はモーラ長と抑揚をKokoroの読みから決めます。学習と評価の手順は[モデルの学習](../docs/model-training.md)にあります。
 
 ## Frame Intonation TCN v12（既定）
 
-`frame-intonation-tcn-v12`は、[Irodori-TTS](https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small)（MIT）にBASIC5000とUtauTTS用の日常文を読ませた音声と、コーパスの音声からF0ヘッドを学習したモデルです。教師のF0は、オクターブ誤推定を前後の値に合わせて折り返し、音量の小さいフレームを除いて作り直しています。
+`frame-intonation-tcn-v12`は、[Irodori-TTS](https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small)（MIT）にBASIC5000とUtauTTS用の日常文を読ませた音声と、コーパスの音声からF0ヘッドを学習したモデルです。教師のF0はオクターブ誤推定を前後の値に合わせて折り返し、音量の小さいフレームを除いて作り直しています。
 
 アクセント特徴とモーラの予測には、[つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）](https://tyc.rei-yumesaki.net/material/corpus/)（CV.夢前黎）と[みんなで作るJSUTコーパスbasic5000](https://tyc.rei-yumesaki.net/material/minnade-jsut/)のBASIC5000_0001-0600で学習した基準モデル（v10）を使います。基準モデルはモデルJSONに埋め込んでいます。
 
@@ -26,7 +26,7 @@ v10の曲線は混ぜず、F0ヘッドの曲線だけを自然の振れ幅で使
 
 ## English Reference Models（英語）
 
-英語は、`english-reference/`のKokoro-82M（声はaf_heart）で文を読み、HuBERT Baseの特徴量で音源の録音から近いフレームを選んで合成します。仕組みは[音声合成の仕組み](../docs/how-utautts-speaks.md#9-英語の読み上げ)にあります。Kokoroの音声は出力に使いません。
+英語は`english-reference/`のKokoro-82M（声はaf_heart）で文を読み、HuBERT Baseの特徴量で音源の録音から近いフレームを選んで合成します。仕組みは[音声合成の仕組み](../docs/how-utautts-speaks.md#9-英語の読み上げ)にあります。Kokoroの音声は出力に使いません。
 
 - Kokoro-82M、HuBERT Base（`facebook/hubert-base-ls960`）の重みとmisakiの英語辞書は、配布元から変更せずに同梱します。いずれもApache License 2.0です
 - 通知: [licenses/ENGLISH-REFERENCE-MODELS.txt](../licenses/ENGLISH-REFERENCE-MODELS.txt)、ライセンス本文: [licenses/APACHE-2.0.txt](../licenses/APACHE-2.0.txt)
@@ -50,7 +50,7 @@ v10の曲線は混ぜず、F0ヘッドの曲線だけを自然の振れ幅で使
 - 本モデルは発話ごとに正規化した包絡の動き（音の移り方の時間配分）だけを合成に使い、予測した包絡そのものや話者の声質は出力に含めません
 - 重みはMIT Licenseで配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本とMFA整列モデルを再配布しません
 - 通知: [licenses/TSUKUYOMI-CORPUS.txt](../licenses/TSUKUYOMI-CORPUS.txt)、[licenses/MINNADE-JSUT-CORPUS.txt](../licenses/MINNADE-JSUT-CORPUS.txt)、[licenses/MFA-Japanese-NOTICE.txt](../licenses/MFA-Japanese-NOTICE.txt)
-- 学習: `cmd/tools/train-speech-timing`（gograd、[手順](../docs/model-training.md)）。同梱のv1は同じ特徴量・構成のPyTorch版で学習し、Go版では特徴量が一致し、同等の検証誤差になることを確かめています。学習条件と検証の誤差はsafetensorsの`__metadata__`に記録しています
+- 学習: `cmd/tools/train-speech-timing`（gograd、[手順](../docs/model-training.md)）。同梱のv1は同じ特徴量・構成のPyTorch版で学習しました。Go版で特徴量が一致し、検証誤差が同等になることを確かめています。学習条件と検証の誤差はsafetensorsの`__metadata__`に記録しています
 
 ## Speech Timing Target v1（中国語の時間伸縮）
 

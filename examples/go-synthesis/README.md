@@ -1,7 +1,5 @@
 # 合成APIの開発用動作確認
 
-このディレクトリは、開発中の合成APIを確認するための実行例です。
-
 ## 実行
 
 Go 1.27以上と、UtauTTSの音源・モデル・Renderer・runtimeが必要です。
@@ -11,7 +9,7 @@ go mod tidy
 go run . -assets /path/to/UtauTTS -out speech.wav
 ```
 
-`-assets`には次の配置を指定します。
+`-assets`には次の構成のディレクトリを指定します。
 
 ```text
 UtauTTS/
