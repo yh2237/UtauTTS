@@ -304,12 +304,7 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		if mora.Pause {
 			duration, manuallySet := ConfiguredMoraDuration(position, cfg.MoraDurationsMS)
 			if !manuallySet {
-				duration = cfg.PauseDurationMS * pauseContextFactor(morae, position, cfg)
-				if prediction.DurationMS > 0 {
-					duration = prediction.DurationMS
-				} else if prediction.DurationFactor > 0 {
-					duration *= prediction.DurationFactor
-				}
+				duration = PredictedDuration(cfg.PauseDurationMS*pauseContextFactor(morae, position, cfg), prediction)
 			}
 			cursor += duration
 			continue
@@ -320,12 +315,7 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 		}
 		duration, manuallySet := ConfiguredMoraDuration(position, cfg.MoraDurationsMS)
 		if !manuallySet {
-			duration = DurationFor(mora, cfg.MoraDurationMS)
-			if prediction.DurationMS > 0 {
-				duration = prediction.DurationMS
-			} else if prediction.DurationFactor > 0 {
-				duration *= prediction.DurationFactor
-			}
+			duration = PredictedDuration(DurationFor(mora, cfg.MoraDurationMS), prediction)
 		}
 		phoneCursor := cursor
 		phoneSpans, err := phoneSpansForMora(mora, duration, cfg.PhoneWeights, position)
@@ -571,6 +561,16 @@ func ConfiguredMoraDuration(position int, durations []float64) (float64, bool) {
 }
 
 // DurationForは基準モーラ長へ言語別の長さ規則を適用する。
+func PredictedDuration(base float64, prediction prosody.Prediction) float64 {
+	if prediction.DurationMS > 0 {
+		return prediction.DurationMS
+	}
+	if prediction.DurationFactor > 0 {
+		return base * prediction.DurationFactor
+	}
+	return base
+}
+
 func DurationFor(mora frontend.Mora, base float64) float64 {
 	if mora.DurationScale > 0 {
 		return base * mora.DurationScale

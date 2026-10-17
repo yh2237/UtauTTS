@@ -466,21 +466,14 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	for index, mora := range morae {
 		duration, manuallySet := plan.ConfiguredMoraDuration(index, cfg.MoraDurationsMS)
 		if !manuallySet {
+			var prediction prosody.Prediction
+			if index < len(predictions) {
+				prediction = predictions[index]
+			}
 			if mora.Pause {
-				duration = cfg.PauseDurationMS * plan.PauseContextFactor(morae, index, pauseContextEnabled(cfg), pauseContextStrength(cfg))
-				if index < len(predictions) && predictions[index].DurationMS > 0 {
-					duration = predictions[index].DurationMS
-				} else if index < len(predictions) && predictions[index].DurationFactor > 0 {
-					duration *= predictions[index].DurationFactor
-				}
+				duration = plan.PredictedDuration(cfg.PauseDurationMS*plan.PauseContextFactor(morae, index, pauseContextEnabled(cfg), pauseContextStrength(cfg)), prediction)
 			} else {
-				duration = plan.DurationFor(mora, cfg.MoraDurationMS)
-				if index < len(predictions) && predictions[index].DurationFactor > 0 {
-					duration *= predictions[index].DurationFactor
-				}
-				if index < len(predictions) && predictions[index].DurationMS > 0 && (language == frontend.LanguageEnglish || language == frontend.LanguageChinese) {
-					duration = predictions[index].DurationMS
-				}
+				duration = plan.PredictedDuration(plan.DurationFor(mora, cfg.MoraDurationMS), prediction)
 			}
 		}
 		duration = math.Max(0, duration)
