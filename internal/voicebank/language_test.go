@@ -91,3 +91,19 @@ func testSuggestedLanguageUsesPhonemizerFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestSuggestedLanguageIgnoresInlineToneSuffix(t *testing.T) {
+	bank := &Bank{Entries: map[string][]oto.Entry{}}
+	for _, alias := range []string{"- hhB3", "hh ahB3", "ah -B3", "- aaB3", "aaB3", "- aaD4", "hh ahD4"} {
+		bank.Entries[alias] = []oto.Entry{{Alias: alias}}
+	}
+	if language, phonemizer := bank.SuggestedLanguage(); language != "en" || phonemizer != "en-arpasing" {
+		t.Fatalf("got %s/%s", language, phonemizer)
+	}
+	if base, suffix, ok := splitToneSuffix("- hhB3"); !ok || base != "- hh" || suffix != "B3" {
+		t.Fatalf("splitToneSuffix = %q %q %v", base, suffix, ok)
+	}
+	if _, _, ok := splitToneSuffix("- hh"); ok {
+		t.Fatal("a plain alias has a tone suffix")
+	}
+}
