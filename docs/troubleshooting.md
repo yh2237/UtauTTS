@@ -16,7 +16,7 @@
 
 ### `utautts-openjtalk-features not found` と表示される
 - Open JTalkの解析ヘルパー（`runtime/utautts-openjtalk-features.exe`）が見つかりません。セキュリティソフトが誤検知して隔離していないか確認し、ZIPを展開し直してください。
-- Linuxでは、このファイルに実行権限（`chmod +x`）があるか確認してください。
+- Linuxでは、`runtime/utautts-openjtalk-features` に実行権限（`chmod +x`）があるか確認してください。
 
 ### `Open JTalk frontend failed` が表示される
 - 特殊な記号や固有名詞の読みを解析できなかった可能性があります。「設定」→「辞書設定...」でその語の読みを登録してください。
@@ -41,4 +41,4 @@
 ---
 
 ## 問題が解決しない場合
-「ヘルプ」→「診断情報を書き出す...」で診断JSONを書き出し、再現手順とエラーメッセージを添えて [GitHub Issues](https://github.com/yh2237/UtauTTS/issues) で報告してください。診断JSONには、入力した文章や音声波形などの個人情報は含まれません。
+再現手順とエラーメッセージを添えて [GitHub Issues](https://github.com/yh2237/UtauTTS/issues) で報告してください。

@@ -33,7 +33,7 @@ GUI、CLI、HTTP Serverは、どれも共通の`synth.Service`を通して処理
 
 ### 処理パイプライン
 
-1. 言語解析（Frontend）: テキストを読み・音素・モーラの列にします。日本語では常駐するOpen JTalkのヘルパープロセスから言語特徴量を得ます。
+1. 言語解析（Frontend）: テキストを読み・音素・モーラの列にします。日本語では、デスクトップ版は常駐するOpen JTalkのヘルパープロセスから、WebAssembly版はOpen JTalkのWasmモジュールから言語特徴量を得ます。
 2. 発話設計（Prosody）: 抑揚モデル（TCN）で、10msごとのピッチの相対値（cent）と、モーラごとの音量の倍率を予測します。
 3. 原音選択（Lattice & Viterbi）: ボイスバンクから原音の候補を集め、Target CostとConcatenation Costから最適な経路を決めます。同じWAVの中で続く原音には加点します。
 4. 計画生成（Plan Builder）: `oto.ini`の設定値と目標の長さを突き合わせて、各原音を置く時刻を決めます。
