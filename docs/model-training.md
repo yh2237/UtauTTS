@@ -1,19 +1,19 @@
 # モデルの学習
 
-抑揚モデルおよび時間伸縮モデルの学習手順です。学習器およびデータ処理コマンドは `cmd/tools/` 配下に配置されています（Goトレーナーには `gograd` を使用）。
+抑揚モデルと時間伸縮モデルの学習の手順です。学習とデータ処理のコマンドは`cmd/tools/`にあり、Goの学習には`gograd`を使います。
 
-モデルの配布ライセンスおよびデータ出典については [モデル一覧](../models/README.md) を参照してください。
+モデルの配布ライセンスとデータの出典は[モデル一覧](../models/README.md)を参照してください。
 
 ---
 
 ## 1. 日本語フレーム抑揚モデル（v12）
 
-現行の日本語標準モデル `frame-intonation-tcn-v12` のF0ヘッドは、Irodori-TTS音声および各種コーパスを用いて学習されています。
+日本語の標準モデル`frame-intonation-tcn-v12`のF0ヘッドは、Irodori-TTSの音声と各種のコーパスで学習しています。
 
-### 学習手順の概要
-1. コーパスのテキストと音声からMFA整列を行い、音素境界時刻を確定します。
-2. WORLD HarvestによりF0を抽出し、オクターブ誤推定の補正と平滑化を行って目標F0データを作成します。
-3. `train-speech-timing` コマンドでTCNを学習します。
+### 手順
+1. コーパスのテキストと音声をMFAで整列し、音素の境界の時刻を求めます。
+2. WORLDのHarvestでF0を求め、オクターブの誤推定を直して平滑化し、目標のF0を作ります。
+3. `train-speech-timing`でTCNを学習します。
    ```powershell
    go run ./cmd/tools/train-speech-timing `
      --dataset out/irodori-teacher/train-ird.jsonl `
@@ -25,7 +25,7 @@
      --plan-augment `
      --out out/irodori-teacher/f0-v12.safetensors
    ```
-4. 学習した重みを既存のベースモデルと結合してモデルJSONを出力します。
+4. 学習した重みを既存の基準モデルと合わせて、モデルJSONを出力します。
    ```powershell
    go run ./cmd/tools/package-f0-model `
      --weights out/irodori-teacher/f0-v12.safetensors `
@@ -36,16 +36,16 @@
      --out out/my-f0-v12.json
    ```
 
-`--f0-teacher` には `id` と `cents` を持つJSONLを渡します。教師F0はWORLD Harvest（10ms、80〜800Hz）で抽出し、最大から−40dB以下のフレームを除外します。前後150msの中央値から600cent以上離れた値をオクターブ単位で折り返し、σ20msで平滑化して、発話の中央値を0にします。ローダーは値を100で割るため、自然スケール（log/0.3）に合わせて `cents` には「セント×100/519.3」を記録します。モデルJSONへの変換では `--natural-scale` を指定します。
+`--f0-teacher`には`id`と`cents`を持つJSONLを渡します。教師のF0はWORLDのHarvest（10ms、80〜800Hz）で求め、音量が最大から−40dB以下のフレームを除きます。前後150msの中央値から600cent以上離れた値をオクターブ単位で折り返し、σ20msで平滑化して、発話の中央値を0にします。読み込むときに値を100で割るため、自然スケール（log/0.3）に合わせて、`cents`には「セント×100/519.3」を記録します。モデルJSONへの変換では`--natural-scale`を指定します。
 
-- `--plan-augment`: 学習発話を合成時と同じ一定のモーラ長（120ms±15、休止180ms）へ並べ直し、モーラごとにF0目標を伸縮した複製を学習へ追加します。同梱モデルの検証では、プラン時間でのF0相関が0.59から0.75へ改善しました。
-- `--f0-dilations`: 受容野を広げ、文全体の抑揚の流れを学習させます。
+- `--plan-augment`: 学習の発話を合成時と同じ一定のモーラ長（120ms±15、休止180ms）に並べ直し、F0の目標をモーラごとに伸縮した複製を学習に加えます。同梱モデルの検証では、プランの時間でのF0の相関が0.59から0.75に上がりました。
+- `--f0-dilations`: 受容野を広げて、文全体の抑揚の流れを学習させます。
 
 ---
 
 ## 2. 中国語声調抑揚モデル
 
-`tone-intonation-zh-v1` は、AISHELL-3の音声とPaddleSpeechの音節境界情報を使用し、声調の基本曲線に対する文脈補正値をRidge回帰によって学習します。
+`tone-intonation-zh-v1`は、AISHELL-3の音声とPaddleSpeechの音節の境界を使い、声調の基本曲線に対する文脈の補正値をRidge回帰で学習します。
 
 ```powershell
 go run ./cmd/tools/train-mandarin-intonation `
@@ -59,4 +59,4 @@ go run ./cmd/tools/train-mandarin-intonation `
 
 ## 3. 時間伸縮目標モデル（Speech Timing Target）
 
-モーラ内の自然な子音・母音の伸縮比率を決定するモデルです。言語ごとに訓練した重み（`.safetensors`）をWORLD bridgeに内包して使用します。
+モーラの中で子音と母音を自然に伸縮させる比を決めるモデルです。言語ごとに学習した重み（`.safetensors`）をWORLD bridgeに埋め込んで使います。

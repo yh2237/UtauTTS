@@ -2,13 +2,13 @@
 
 ## 1. 合成方式の概要
 
-UtauTTSは、UTAUボイスバンクの原音の声質を保持しつつ、`oto.ini` に基づく原音選択・タイミング配置・時間伸縮と、機械学習モデルによる自然な韻律（ピッチ・音量）を組み合わせて文章を読み上げる連結型テキスト音声合成システムです。
+UtauTTSは連結型のテキスト音声合成システムです。UTAUボイスバンクの原音の声質を保ったまま、`oto.ini`に基づく原音の選択・配置・時間伸縮と、機械学習モデルによる自然な韻律（ピッチ・音量）を組み合わせて文章を読み上げます。
 
 ---
 
 ## 2. システム全体像
 
-GUI、CLI、HTTP Serverのいずれのインターフェースも、共通の `synth.Service` コア層を介して処理を実行します。
+GUI、CLI、HTTP Serverは、どれも共通の`synth.Service`を通して処理します。
 
 ```text
 [ GUI (Qt/QML) ]   [ CLI ]   [ HTTP Server ]
@@ -33,46 +33,46 @@ GUI、CLI、HTTP Serverのいずれのインターフェースも、共通の `s
 
 ### 処理パイプライン
 
-1. **言語解析（Frontend）**: テキストを読み・音素・モーラ列に変換します。日本語では常駐型Open JTalkヘルパープロセスから言語特徴量を取得します。
-2. **発話設計（Prosody）**: 抑揚モデル（TCN）により、10ms単位のピッチ相対値（cent）およびモーラごとの音量倍率を予測します。
-3. **原音選択（Lattice & Viterbi）**: ボイスバンクから原音候補を抽出し、Target CostとConcatenation Costに基づき最適経路を決定します。同一WAV内の連続原音にはボーナススコアを付与します。
-4. **計画生成（Plan Builder）**: `oto.ini` 設定値と目標長を突き合わせ、各原音の正確な配置タイミングを決定します。
-5. **波形描画（Render）**: 
-   - `utautts-world-phrase`: 原音ごとのWORLD音響特徴量（F0・スペクトル包絡・非周期性指標）を時間軸上に配置・補間し、一括再合成します。
-   - `classic-utau`: 外部resamplerとwavtoolを呼び出して個別波形を加工・接続します。
+1. 言語解析（Frontend）: テキストを読み・音素・モーラの列にします。日本語では常駐するOpen JTalkのヘルパープロセスから言語特徴量を得ます。
+2. 発話設計（Prosody）: 抑揚モデル（TCN）で、10msごとのピッチの相対値（cent）と、モーラごとの音量の倍率を予測します。
+3. 原音選択（Lattice & Viterbi）: ボイスバンクから原音の候補を集め、Target CostとConcatenation Costから最適な経路を決めます。同じWAVの中で続く原音には加点します。
+4. 計画生成（Plan Builder）: `oto.ini`の設定値と目標の長さを突き合わせて、各原音を置く時刻を決めます。
+5. 波形描画（Render）
+   - `utautts-world-phrase`: 原音ごとのWORLD音響特徴量（F0・スペクトル包絡・非周期性指標）を時間軸に並べて補間し、まとめて合成し直します。
+   - `classic-utau`: 外部のresamplerとwavtoolを呼び出して、波形を1つずつ加工してつなぎます。
 
 ---
 
 ## 3. 日本語音声における補正パイプライン
 
-原音の声質（スペクトル包絡）そのものは変更せず、自然な発話のための補正を段階的に適用します。
+原音の声質（スペクトル包絡）は変えずに、自然な発話にするための補正を段階ごとに掛けます。
 
 | 段階 | 補正内容 | 処理モジュール | 設定項目 |
 | :--- | :--- | :--- | :--- |
-| **原音選択** | 収録のない「ヴ」「デュ」等を同音行で自動代替 | `voicebank` | なし |
-| **発話設計** | 文末音調（疑問文の語尾上昇等）の付加 | `tts/japanese_boundary.go` | `boundary_tone` |
-| **発話設計** | 文脈（助詞・句末）に応じたモーラ長補正 | `tts/japanese_duration.go` | `context_duration` |
-| **発話計画** | 句読点の種類に応じた休止長調整 | `plan/pause_context.go` | `pause_context` |
-| **描画（本体）** | 母音過度伸長の抑制（長音時の音質維持） | `render/base/timing.go` | `stretch_adapt` |
-| **描画（本体）** | 無声破裂音直後の微小ピッチ上昇（Micro-prosody） | `render/worldline/microprosody.go` | `microprosody` |
-| **描画（bridge）**| 自然音声モデルに基づくモーラ内音素長最適化 | `speechtiming`, `worldrender` | `timing_warp` |
+| 原音選択 | 収録のない「ヴ」「デュ」などを同じ行の音で代替 | `voicebank` | なし |
+| 発話設計 | 文末の音調（疑問文の語尾上げなど）を付加 | `tts/japanese_boundary.go` | `boundary_tone` |
+| 発話設計 | 文脈（助詞・句末）に応じたモーラ長の補正 | `tts/japanese_duration.go` | `context_duration` |
+| 発話計画 | 句読点の種類に応じた休止長の調整 | `plan/pause_context.go` | `pause_context` |
+| 描画（本体） | 母音の伸ばしすぎの抑制（長音の音質を保つ） | `render/base/timing.go` | `stretch_adapt` |
+| 描画（本体） | 無声破裂音の直後の小さなピッチの上昇（Micro-prosody） | `render/worldline/microprosody.go` | `microprosody` |
+| 描画（bridge）| 自然音声モデルに基づくモーラ内の音素長の調整 | `speechtiming`, `worldrender` | `timing_warp` |
 
 ---
 
 ## 4. 中間表現「Plan」の役割
 
-原音選択とRendererを疎結合にするため、`internal/plan` の `Plan` 構造体を中間表現として使用します。
-- モーラ位置、音素コンテキスト、使用WAV、`oto.ini` 適用値（offset, consonant, cutoff, preutterance, overlap）
-- 目標タイミング（開始時刻・モーラ長）
-- ピッチ係数、音量係数、経路探索スコア
+原音の選択とRendererを切り離すため、`internal/plan`の`Plan`構造体を中間表現にします。主な内容は次のとおりです。
+- モーラの位置、音素の文脈、使うWAV、`oto.ini`の適用値（offset, consonant, cutoff, preutterance, overlap）
+- 目標のタイミング（開始時刻・モーラ長）
+- ピッチ係数、音量係数、経路探索のスコア
 
-Planはイミュータブル（読み取り専用）として扱われ、Renderer実行時の動的補正結果は `RenderReport` に分離して記録されます。これにより、同一のPlanを異なるRendererに渡して品質比較することが可能です。
+Planは読み取り専用として扱い、Rendererが実行時に補正した結果は`RenderReport`に分けて記録します。そのため、同じPlanを別のRendererに渡して品質を比べられます。
 
 ---
 
-## 5. キャッシュ戦略とリソース管理
+## 5. キャッシュとリソース管理
 
-高速なレスポンスを実現するため、各層でキャッシュを運用しています。
-- **ボイスバンク定義**: メモリ上に常駐保持。
-- **Open JTalk辞書**: 別プロセスのヘルパーを起動して辞書（約100MB）を常駐化。
-- **WAV & 音響特徴量**: プロセス内LRUキャッシュ（最大256MB）により、再解析コストを削減。
+応答を速くするため、各層でキャッシュを使います。
+- ボイスバンクの定義: メモリに保持します。
+- Open JTalkの辞書: ヘルパーを別プロセスで起動し、辞書（約100MB）を読み込んだまま保ちます。
+- WAVと音響特徴量: WAV（`internal/sourceaudio`）とWORLDの音響特徴量（`internal/worldrender`）を、それぞれ最大256MiBのLRUキャッシュに保持し、解析し直す手間を減らします。
