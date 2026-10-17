@@ -37,6 +37,8 @@ type Request struct {
 	OutputF0 []float64
 	// ReferenceLevelは参照の5msごとの音量（dB、ReferenceLevelsの値）。無音の区間で出力を下げるのに使う。
 	ReferenceLevel []float64
+	// Candidatesは各フレームで選んでよい音源のフレーム番号。空かnilのフレームは索引全体から選ぶ。
+	Candidates [][]int32
 }
 
 // Synthesizeは、参照の各フレームに前後2フレームまで含めて近い音源のフレームを4つ選び、その平均をWORLDで合成する。
@@ -45,7 +47,7 @@ func (index *Index) Synthesize(world World, request Request) ([]float64, error) 
 		return nil, errors.New("reference features and F0 do not match")
 	}
 	f0 := request.ReferenceF0[:request.Frames*subFrames]
-	nearest := index.nearest(request.Features, request.Frames, frameVoicing(f0))
+	nearest := index.nearest(request.Features, request.Frames, frameVoicing(f0), request.Candidates)
 	rows := request.Frames * subFrames
 	spectrum := index.average(index.Spectrum, spectrumDims, nearest, rows)
 	aperiodicity := index.average(index.Aperiodicity, index.APBands, nearest, rows)
@@ -138,7 +140,7 @@ func frameVoicing(f0 []float64) []bool {
 }
 
 // nearestは参照のフレームごとに、文脈を含めた類似度が高い音源のフレームをneighbors個返す。
-func (index *Index) nearest(features []float32, frames int, queryVoiced []bool) [][]int {
+func (index *Index) nearest(features []float32, frames int, queryVoiced []bool, candidates [][]int32) [][]int {
 	dims, n := index.Dims, index.Frames
 	query := make([]float32, len(features))
 	for t := range frames {
@@ -172,7 +174,11 @@ func (index *Index) nearest(features []float32, frames int, queryVoiced []bool) 
 					}
 				}
 				for t := start; t < end; t++ {
-					result[t] = index.topContext(sim, first, last, t)
+					if candidates != nil && t < len(candidates) && len(candidates[t]) > 0 {
+						result[t] = index.topContextFrom(sim, first, last, t, candidates[t])
+					} else {
+						result[t] = index.topContext(sim, first, last, t)
+					}
 				}
 			}
 		}()
@@ -186,10 +192,15 @@ func (index *Index) nearest(features []float32, frames int, queryVoiced []bool) 
 }
 
 func (index *Index) topContext(sim []float32, first, last, t int) []int {
+	return index.topContextFrom(sim, first, last, t, nil)
+}
+
+// topContextFromは前後2フレームまで含めた近さで上位4つを選ぶ。allowedがあればそのフレームだけを候補にする。
+func (index *Index) topContextFrom(sim []float32, first, last, t int, allowed []int32) []int {
 	n := index.Frames
 	bestScore := make([]float32, 0, neighbors)
 	best := make([]int, 0, neighbors)
-	for j := range n {
+	consider := func(j int) {
 		var total, count float32
 		for delta := -contextFrames; delta <= contextFrames; delta++ {
 			tt, jj := t+delta, j+delta
@@ -205,7 +216,7 @@ func (index *Index) topContext(sim []float32, first, last, t int) []int {
 		}
 		score := total / max(count, 1e-6)
 		if len(best) == neighbors && score <= bestScore[neighbors-1] {
-			continue
+			return
 		}
 		position := len(best)
 		if position == neighbors {
@@ -219,6 +230,15 @@ func (index *Index) topContext(sim []float32, first, last, t int) []int {
 			position--
 		}
 		best[position], bestScore[position] = j, score
+	}
+	if allowed == nil {
+		for j := range n {
+			consider(j)
+		}
+	} else {
+		for _, j := range allowed {
+			consider(int(j))
+		}
 	}
 	return best
 }

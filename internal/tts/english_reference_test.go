@@ -65,3 +65,23 @@ func TestEnglishPitchCurveStartsAtFirstMoraAndBridgesUnvoiced(t *testing.T) {
 		t.Fatal("unvoiced reference produced a curve")
 	}
 }
+
+func TestEnglishAliasPhones(t *testing.T) {
+	for _, test := range []struct {
+		alias string
+		want  []string
+	}{
+		{"aa", []string{"aa"}},
+		{"ae1", []string{"ae"}},
+		{"th_ax", []string{"th", "ax"}},
+		{"- aa", []string{"aa"}},
+		{"oy-", []string{"oy"}},
+		{"_3_h3_3-", nil},
+		{"ra_ri_ru_re_ro", nil},
+		{"", nil},
+	} {
+		if got := englishAliasPhones(test.alias); !reflect.DeepEqual(got, test.want) {
+			t.Errorf("englishAliasPhones(%q) = %v, want %v", test.alias, got, test.want)
+		}
+	}
+}

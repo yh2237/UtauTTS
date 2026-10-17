@@ -20,6 +20,40 @@ var kokoroConsonants = map[string]string{
 	"TH": "θ", "V": "v", "W": "w", "Y": "j", "Z": "z", "ZH": "ʒ",
 }
 
+// kokoroVowelPhonesとkokoroConsonantPhonesは、上の表を記号からARPAbetへ引く形にしたもの。
+var (
+	kokoroVowelPhones     = invertKokoroPhones(kokoroVowels)
+	kokoroConsonantPhones = invertKokoroPhones(kokoroConsonants)
+)
+
+func invertKokoroPhones(table map[string]string) map[string]string {
+	inverted := make(map[string]string, len(table))
+	for phone, symbol := range table {
+		inverted[symbol] = strings.ToLower(phone)
+	}
+	return inverted
+}
+
+// kokoroARPAbetはKokoroの記号1つをARPAbetの音素にする。強勢や句読点など音素でない記号は空を返す。
+func kokoroARPAbet(symbol string) string {
+	switch symbol {
+	case "ʌ":
+		return "ah"
+	case "ə":
+		return "ax"
+	case "ɜ":
+		return "er"
+	case "ɾ", "T":
+		return "dx"
+	case "ʔ":
+		return "t"
+	}
+	if phone, ok := kokoroVowelPhones[symbol]; ok {
+		return phone
+	}
+	return kokoroConsonantPhones[symbol]
+}
+
 // Pieceは音素列の断片。Partは読みの何番目の語（SPを含む）か。語の間の空白と文末の記号は-1。
 type Piece struct {
 	Symbols string

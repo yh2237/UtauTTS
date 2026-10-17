@@ -22,3 +22,22 @@ func TestQuietCutFollowsReferenceSilence(t *testing.T) {
 		t.Fatal("cut without reference levels")
 	}
 }
+
+func TestNearestUsesOnlyCandidates(t *testing.T) {
+	index := &Index{
+		Header:   Header{Dims: 2, Frames: 4},
+		Features: []float32{1, 0, 1, 0, 0, 1, 0, 1},
+		File:     []int32{0, 0, 1, 1},
+		F0:       make([]float32, 4*subFrames),
+	}
+	features := []float32{1, 0}
+	voiced := []bool{false}
+	all := index.nearest(features, 1, voiced, nil)
+	if len(all[0]) == 0 || index.File[all[0][0]] != 0 {
+		t.Fatalf("unconstrained pick = %v", all[0])
+	}
+	only := index.nearest(features, 1, voiced, [][]int32{{2, 3}})
+	if len(only[0]) == 0 || index.File[only[0][0]] != 1 {
+		t.Fatalf("constrained pick = %v", only[0])
+	}
+}

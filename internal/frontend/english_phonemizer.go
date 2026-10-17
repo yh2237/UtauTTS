@@ -664,6 +664,11 @@ func normalizeARPAbet(value string) string {
 	return strings.TrimRight(strings.ToLower(strings.TrimSpace(value)), "0123456789")
 }
 
+// EnglishPhoneは英語の音素記号を、音源の別名と比べられる形にそろえる（小文字にして強勢の数字を外す）。
+func EnglishPhone(value string) string {
+	return normalizeARPAbet(value)
+}
+
 func arpabetStress(value string) int {
 	value = strings.TrimSpace(value)
 	if len(value) == 0 {

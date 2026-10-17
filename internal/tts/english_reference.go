@@ -156,7 +156,7 @@ func synthesizeEnglishReference(cfg Config, bank *voicebank.Bank, language, phon
 			return nil, err
 		}
 	}
-	speech, err := service.Speak(ctx, bank.Root, bank.ReferenceRecordings(), cfg.WorldEnginePath, pieces, options)
+	speech, err := service.Speak(ctx, bank.Root, bank.ReferenceRecordings(), cfg.WorldEnginePath, pieces, options, englishPhoneRecordings(bank))
 	if err != nil {
 		return nil, fmt.Errorf("English synthesis: %w", err)
 	}
@@ -441,4 +441,60 @@ func englishCentsBetween(f0 []float64, center, startMS, endMS float64) float64 {
 		return 0
 	}
 	return 1200 * sum / float64(count)
+}
+
+// englishPhoneRecordingsは、英語の音素ごとに、その音素を別名に含む録音を返す。
+// 別名が音素の名前になっている音源だけを対象にする。VCCV音源の別名は音素の並びで、
+// 一部だけを取り出すと別の音素の録音を候補にしてしまうため。
+func englishPhoneRecordings(bank *voicebank.Bank) map[string][]string {
+	aliases, labeled := 0, 0
+	for alias := range bank.Entries {
+		aliases++
+		if len(englishAliasPhones(alias)) > 0 {
+			labeled++
+		}
+	}
+	if aliases == 0 || labeled*2 < aliases {
+		return nil
+	}
+	result := map[string][]string{}
+	seen := map[string]map[string]bool{}
+	for alias, entries := range bank.Entries {
+		for _, phone := range englishAliasPhones(alias) {
+			for _, entry := range entries {
+				if entry.Filename == "" {
+					continue
+				}
+				if seen[phone] == nil {
+					seen[phone] = map[string]bool{}
+				}
+				if seen[phone][entry.Filename] {
+					continue
+				}
+				seen[phone][entry.Filename] = true
+				result[phone] = append(result[phone], entry.Filename)
+			}
+		}
+	}
+	return result
+}
+
+// englishAliasPhonesは別名を音素に分ける。区切りは空白・下線・ハイフン。
+// 音素1つか2つだけでできた別名だけを対象にし、それ以外は無視する。
+// VCCV音源の「- hh ah」のような長い別名を、音素の対応づけに使わないため。
+func englishAliasPhones(alias string) []string {
+	var phones []string
+	for _, token := range strings.FieldsFunc(alias, func(r rune) bool {
+		return r == ' ' || r == '\t' || r == '_' || r == '-'
+	}) {
+		phone := frontend.EnglishPhone(token)
+		if !frontend.IsEnglishPhone(phone) {
+			return nil
+		}
+		phones = append(phones, phone)
+		if len(phones) > 2 {
+			return nil
+		}
+	}
+	return phones
 }

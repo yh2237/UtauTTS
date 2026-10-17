@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -223,7 +225,8 @@ func (e *Engine) read(pieces []Piece, speed float32, durations []int, withAudio 
 }
 
 // Speakは音素列をKokoroで読み、その特徴量に近い音源のフレームで合成し直す。
-func (e *Engine) Speak(index *refmatch.Index, world refmatch.World, pieces []Piece, options Options) (Speech, error) {
+// phonesを渡すと、各フレームでその音素を含む別名の録音だけを候補にする。
+func (e *Engine) Speak(index *refmatch.Index, world refmatch.World, pieces []Piece, options Options, phones map[string][]string) (Speech, error) {
 	if index.Model != FeatureModel {
 		return Speech{}, fmt.Errorf("voicebank index uses %q, want %q", index.Model, FeatureModel)
 	}
@@ -263,9 +266,66 @@ func (e *Engine) Speak(index *refmatch.Index, world refmatch.World, pieces []Pie
 	audio, err := index.Synthesize(world, refmatch.Request{
 		Features: features, Frames: frames, ReferenceF0: referenceF0, OutputF0: outF0,
 		ReferenceLevel: refmatch.ReferenceLevels(samples, kokoroRate, frames*4),
+		Candidates:     e.candidates(index, reference, pieces, phones, frames),
 	})
 	if err != nil {
 		return Speech{}, err
 	}
 	return Speech{Audio: audio, SampleRate: index.SampleRate, Timing: reference.Timing, F0: outF0, AutomaticF0: automaticF0}, nil
+}
+
+// candidatesは、各フレームでその音素を含む別名の録音だけを候補にする表を作る。
+// 音素に対応する録音がないフレームと、phonesが空のときはnilを返し、索引全体から選ばせる。
+func (e *Engine) candidates(index *refmatch.Index, reference Reference, pieces []Piece, phones map[string][]string, frames int) [][]int32 {
+	if len(phones) == 0 || index.Frames == 0 || frames == 0 {
+		return nil
+	}
+	fileID := make(map[string]int32, len(index.Files))
+	for id, path := range index.Files {
+		fileID[filepath.Clean(path)] = int32(id)
+	}
+	framesByFile := make([][]int32, len(index.Files))
+	for frame, file := range index.File {
+		framesByFile[file] = append(framesByFile[file], int32(frame))
+	}
+	candidateFrames := make(map[string][]int32, len(phones))
+	for phone, paths := range phones {
+		var candidates []int32
+		for _, path := range paths {
+			if id, ok := fileID[filepath.Clean(path)]; ok {
+				candidates = append(candidates, framesByFile[id]...)
+			}
+		}
+		if len(candidates) > 0 {
+			candidateFrames[phone] = candidates
+		}
+	}
+	if len(candidateFrames) == 0 {
+		return nil
+	}
+	tokenPhones := make([]string, len(reference.Durations))
+	for i, piece := range pieces {
+		if i >= len(reference.PieceTokens) {
+			break
+		}
+		start, end := reference.PieceTokens[i][0], reference.PieceTokens[i][1]
+		symbols := e.kokoro.TokenSymbols(piece.Symbols)
+		for k := 0; k < len(symbols) && start+k < end && start+k < len(tokenPhones); k++ {
+			tokenPhones[start+k] = kokoroARPAbet(symbols[k])
+		}
+	}
+	starts := make([]float64, len(reference.Durations)+1)
+	for i, duration := range reference.Durations {
+		starts[i+1] = starts[i] + float64(duration)*DurationUnitMS
+	}
+	result := make([][]int32, frames)
+	for t := range frames {
+		milliseconds := (float64(t) + 0.5) * refmatch.FrameMS
+		token := sort.Search(len(starts), func(i int) bool { return starts[i] > milliseconds }) - 1
+		if token < 0 || token >= len(tokenPhones) {
+			continue
+		}
+		result[t] = candidateFrames[tokenPhones[token]]
+	}
+	return result
 }

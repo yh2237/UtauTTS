@@ -293,8 +293,8 @@ func bankRecordings(bankRoot string, recordings []string) ([]string, string, err
 	return files, hex.EncodeToString(hash.Sum(nil))[:32], nil
 }
 
-// Speakは音源の索引を使って音素列を合成する。
-func (s *Service) Speak(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string, pieces []Piece, options Options) (Speech, error) {
+// Speakは音源の索引を使って音素列を合成する。phonesを渡すと、各フレームでその音素を含む別名の録音だけを候補にする。
+func (s *Service) Speak(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string, pieces []Piece, options Options, phones map[string][]string) (Speech, error) {
 	index, err := s.Index(ctx, bankRoot, recordings, worldEnginePath)
 	if err != nil {
 		return Speech{}, err
@@ -305,7 +305,7 @@ func (s *Service) Speak(ctx context.Context, bankRoot string, recordings []strin
 	}
 	s.foreground.RLock()
 	defer s.foreground.RUnlock()
-	return engine.Speak(index, world, pieces, options)
+	return engine.Speak(index, world, pieces, options, phones)
 }
 
 // ReadProsodyは音素列をKokoroで読み、記号ごとの長さとF0を返す。音源と索引は使わない。
