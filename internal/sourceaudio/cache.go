@@ -132,10 +132,11 @@ func (c *cache) load(path string) (*cachedSource, error) {
 	pending.err = err
 
 	c.mu.Lock()
-	if c.loading[path] == pending {
+	current := c.loading[path] == pending
+	if current {
 		delete(c.loading, path)
 	}
-	if err == nil && generation == c.generation {
+	if err == nil && current && generation == c.generation {
 		if element, ok := c.byPath[path]; ok {
 			c.remove(element)
 		}

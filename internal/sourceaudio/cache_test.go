@@ -248,3 +248,46 @@ func TestFailedLoadIsNotCachedAndIsRetried(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestOlderLoadDoesNotReplaceNewerEntry(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "source.wav")
+	writeFixture(t, path, 100)
+	c := newCache(1 << 20)
+	started, release := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	original := readWavFile
+	readWavFile = func(path string) (*audio.PCM, error) {
+		first := false
+		once.Do(func() { first = true })
+		if first {
+			close(started)
+			<-release
+		}
+		return original(path)
+	}
+	t.Cleanup(func() { readWavFile = original })
+	older := make(chan error, 1)
+	go func() {
+		_, err := c.load(path)
+		older <- err
+	}()
+	<-started
+	writeFixture(t, path, 300)
+	later := time.Now().Add(time.Minute)
+	if err := os.Chtimes(path, later, later); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.load(path); err != nil {
+		t.Fatal(err)
+	}
+	close(release)
+	if err := <-older; err != nil {
+		t.Fatal(err)
+	}
+	c.mu.Lock()
+	entry := c.byPath[path].Value.(*cachedSource)
+	c.mu.Unlock()
+	if entry.modTime != later.UnixNano() {
+		t.Fatal("the load that started before the file changed replaced the newer entry")
+	}
+}
