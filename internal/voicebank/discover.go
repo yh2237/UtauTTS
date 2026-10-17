@@ -64,7 +64,12 @@ func Discover(root string) ([]Summary, error) {
 }
 
 func inspectDiscoveredRoot(root string) (Summary, error) {
-	resolved, err := findVoicebankRoot(root)
+	if hasDirectOto(root) || hasVoicebankMetadata(root) {
+		if summary, err := InspectSinger(root); err == nil {
+			return summary, nil
+		}
+	}
+	resolved, err := findNestedVoicebankRoot(root)
 	if err != nil {
 		return Summary{}, err
 	}
@@ -77,6 +82,10 @@ func findVoicebankRoot(root string) (string, error) {
 			return root, nil
 		}
 	}
+	return findNestedVoicebankRoot(root)
+}
+
+func findNestedVoicebankRoot(root string) (string, error) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return "", err
