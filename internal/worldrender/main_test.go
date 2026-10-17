@@ -36,3 +36,24 @@ func TestDecodeProviderJobRejectsOldJobShape(t *testing.T) {
 		t.Fatal("old job shape was accepted")
 	}
 }
+
+func TestDecodeProviderJobKeepsExplicitZeroVolume(t *testing.T) {
+	data, err := json.Marshal(provider.UnitRendererJob{
+		Version: provider.UnitRendererJobVersion, Contract: "unit-renderer", ContractVersion: 1,
+		Plan: json.RawMessage(`{"version":19}`),
+		Options: provider.UnitRendererOptions{Worldline: &provider.WorldlineOptions{
+			Engine: "utautts-world-phrase", SampleRate: 44100,
+			Units: []provider.WorldlineUnit{{Source: "voice.wav", LengthMS: 100, Volume: 0, VolumeSet: true}},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := decodeProviderJob(data, "out.wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gain := worldUnitAmplitudeGain(got.Units[0]); gain != 0 {
+		t.Fatalf("gain = %g, want 0 for volume 0", gain)
+	}
+}

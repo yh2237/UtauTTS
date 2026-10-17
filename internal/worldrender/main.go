@@ -219,7 +219,7 @@ func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
 			FadeInMS: source.FadeInMS, FadeOutMS: source.FadeOutMS, OffsetMS: source.OffsetMS,
 			RequiredLengthMS: source.RequiredLengthMS, ConsonantMS: source.ConsonantMS,
 			CutoffMS: source.CutoffMS, ConsonantVelocity: source.ConsonantVelocity,
-			Volume: source.Volume, EnergyFactor: source.EnergyFactor,
+			Volume: source.Volume, VolumeSet: source.VolumeSet, EnergyFactor: source.EnergyFactor,
 			Envelope: make([]envelopePoint, len(source.Envelope)),
 		}
 		for pointIndex, point := range source.Envelope {
