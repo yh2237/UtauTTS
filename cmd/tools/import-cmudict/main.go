@@ -71,9 +71,9 @@ func generate(checkout, root string) error {
 		"出典: https://github.com/cmusphinx/cmudict\n\n" +
 		"Revision: `" + revision + "`\n\n" +
 		"展開後のSHA-256: `" + hex.EncodeToString(sum[:]) + "`\n\n" +
-		"`cmudict.dict.gz`は原文を変更せずgzipで圧縮した辞書です。実行時は基本の発音を選び母音の強勢を保持します。Goバイナリへ埋め込むためビルド時や実行時のダウンロードは不要です。\n\n" +
+		"`cmudict.dict.gz`は原文を変更せずgzipで圧縮した辞書です。実行時は基本の発音を選び、母音の強勢を保持します。Goバイナリへ埋め込むため、ビルド時や実行時のダウンロードは不要です。\n\n" +
 		"利用条件は[LICENSE](LICENSE)と配布物の`licenses/Go/CMUDICT-LICENSE.txt`を参照してください。\n\n" +
-		"更新時はCMUdictのリポジトリを取得して使用するrevisionへ切り替えます。" +
+		"更新時はCMUdictのリポジトリを取得して、使用するrevisionへ切り替えます。" +
 		"UtauTTSのルートから`go run ./cmd/tools/import-cmudict <checkout>`を実行してください。" +
 		"`<checkout>`はCMUdictの作業ディレクトリです。辞書とライセンスに加えてこの出典情報も更新します。\n"
 	return os.WriteFile(filepath.Join(target, "README.md"), []byte(readme), 0o644)
