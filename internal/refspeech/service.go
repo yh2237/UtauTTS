@@ -154,8 +154,24 @@ func (s *Service) Status(bankRoot string) IndexStatus {
 	return IndexStatus{}
 }
 
-// Prepareは音源の索引がなければ裏で作り始める。
+// Prepareは音源の索引がないか、録音が変わっていれば、裏で作り始める。
 func (s *Service) Prepare(bankRoot, worldEnginePath string) {
+	s.mu.Lock()
+	entry := s.indexes[bankRoot]
+	var index *refmatch.Index
+	if entry != nil {
+		index = entry.index
+	}
+	s.mu.Unlock()
+	if index != nil {
+		if _, key, err := bankRecordings(bankRoot); err == nil && key != index.Source {
+			s.mu.Lock()
+			if s.indexes[bankRoot] == entry {
+				delete(s.indexes, bankRoot)
+			}
+			s.mu.Unlock()
+		}
+	}
 	s.entry(bankRoot, worldEnginePath)
 }
 
