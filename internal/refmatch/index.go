@@ -154,7 +154,8 @@ type fileFrames struct {
 func analyzeFile(path string, world World, features FeatureFunc) (fileFrames, error) {
 	samples, rate, err := readMono(path)
 	if err != nil {
-		return fileFrames{}, err
+		// 読めない形式のWAV（PCM以外など）は、索引に入れずに飛ばす。
+		return fileFrames{}, nil
 	}
 	result := fileFrames{rate: rate}
 	if float64(len(samples)) < float64(rate)*minimumFileSec {
