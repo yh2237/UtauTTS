@@ -19,6 +19,9 @@ type Model struct {
 	// muはCloseとFeaturesを、cacheは読み込んだ重みと前処理した重みを守る。
 	mu    sync.RWMutex
 	cache sync.Mutex
+	// cudaMu protects cudaState; the state is defined in the Windows-only implementation.
+	cudaMu    sync.Mutex
+	cudaState any
 }
 
 func Load(path string) (*Model, error) {
@@ -134,6 +137,11 @@ func applyGELU(values []float32) {
 		}()
 	}
 	wait.Wait()
+}
+
+// FeaturesAcceleratedは、GPUが使える環境ではGPUで、そうでなければCPUで特徴量を求める。
+func (m *Model) FeaturesAccelerated(wave []float32, layer int) ([][]float32, error) {
+	return m.featuresAccelerated(wave, layer)
 }
 
 // Features returns hidden_states[layer] as contiguous [frames][768] rows.

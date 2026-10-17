@@ -80,7 +80,7 @@ func (e *Engine) Features(samples []float64, sampleRate int) ([]float32, int, in
 	for i, v := range samples {
 		wave[i] = float32(v)
 	}
-	rows, err := e.hubert.Features(dsp.Resample(wave, sampleRate, hubertRate), hubertLayer)
+	rows, err := e.hubert.FeaturesAccelerated(dsp.Resample(wave, sampleRate, hubertRate), hubertLayer)
 	if err != nil {
 		return nil, 0, 0, err
 	}
