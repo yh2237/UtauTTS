@@ -13,19 +13,27 @@ import (
 )
 
 func TestFeaturesCUDA(t *testing.T) {
+	checkCUDAParity(t, filepath.Join("..", "..", "models", "english-reference", "hubert-base-ls960.safetensors"))
+}
+
+func TestFeaturesCUDAWavLM(t *testing.T) {
+	checkCUDAParity(t, filepath.Join("..", "..", "models", "english-reference", "wavlm", "wavlm-base-plus.safetensors"))
+}
+
+// checkCUDAParityは、同じ入力でCPUとCUDAの出力を比べる。入力は声に近い倍音を含む合成波にする。
+func checkCUDAParity(t *testing.T, modelPath string) {
+	t.Helper()
 	if !cuda.Available() {
 		t.Skip("CUDA is unavailable")
 	}
-	modelPath := filepath.Join("..", "..", "models", "english-reference", "hubert-base-ls960.safetensors")
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
-		t.Skip("HuBERT model is missing")
+		t.Skipf("%s is missing", modelPath)
 	}
 	m, err := Load(modelPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer m.Close()
-	// 同じ入力でCPUとCUDAの出力を比べる。入力は声に近い倍音を含む合成波にする。
 	const sampleRate = 16000
 	wave := make([]float32, sampleRate*3/2)
 	for i := range wave {

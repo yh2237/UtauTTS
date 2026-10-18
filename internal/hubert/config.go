@@ -84,8 +84,11 @@ func loadConfig(weightsPath string) Config {
 	return parsed
 }
 
-// baseHuBERTは、HuBERT Baseの形かどうかを返す。GPUの実装はHuBERT Base専用なので、それ以外はCPUで計算する。
-func (c Config) baseHuBERT() bool {
+// canUseCUDAは、GPUの実装が使える形かを返す。
+// 768次元・12層・12ヘッドの事後正規化で、畳み込みのバイアスを持たないHuBERT BaseとWavLM base+が対象。
+func (c Config) canUseCUDA() bool {
 	return c.HiddenSize == 768 && c.Layers == 12 && c.Heads == 12 && c.Intermediate == 3072 &&
-		!c.Stable && c.FeatNorm == "group" && c.ModelType == "hubert"
+		!c.Stable && c.FeatNorm == "group" && c.GroupNormGroups == 0 && !c.ConvBias &&
+		c.PosKernel == 128 && c.PosGroups == 16 &&
+		(c.ModelType == "hubert" || c.ModelType == "wavlm")
 }

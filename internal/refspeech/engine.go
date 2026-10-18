@@ -32,7 +32,7 @@ const (
 // FeatureModelは索引の特徴量の種類。変えたら索引を作り直す。
 // UTAUTTS_FEATURE_MODELとUTAUTTS_HUBERT_LAYERで変えられる（実験用）。
 var (
-	FeatureModel = "hubert-base-ls960-layer6"
+	FeatureModel = "wavlm-base-plus-layer6"
 	hubertLayer  = 6
 )
 
@@ -48,7 +48,7 @@ func init() {
 	if name := os.Getenv("UTAUTTS_FEATURE_MODEL"); name != "" {
 		FeatureModel = fmt.Sprintf("%s-layer%d", name, hubertLayer)
 	} else if layerChanged {
-		FeatureModel = fmt.Sprintf("hubert-base-ls960-layer%d", hubertLayer)
+		FeatureModel = fmt.Sprintf("wavlm-base-plus-layer%d", hubertLayer)
 	}
 }
 

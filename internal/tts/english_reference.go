@@ -29,7 +29,7 @@ func EnglishReferenceModels(dir string) (refspeech.Models, string, string) {
 		KokoroWeights: filepath.Join(dir, "kokoro-v1_0.pth"),
 		KokoroConfig:  filepath.Join(dir, "config.json"),
 		KokoroVoice:   filepath.Join(dir, "af_heart.pt"),
-		HuBERT:        filepath.Join(dir, "hubert-base-ls960.safetensors"),
+		HuBERT:        filepath.Join(dir, "wavlm", "wavlm-base-plus.safetensors"),
 	}, filepath.Join(dir, "us_gold.json"), filepath.Join(dir, "us_silver.json")
 }
 
