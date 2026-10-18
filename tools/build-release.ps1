@@ -77,14 +77,14 @@ function Compress-Package([string]$SourceDirectory, [string]$DestinationZip) {
     if (Test-Path -LiteralPath $DestinationZip) {
         Remove-Item -Force -LiteralPath $DestinationZip
     }
-    # 大きなGUI配布物ではCompress-Archiveより速い。モデルの重みはあまり縮まないので、
-    # 圧縮の強さは速度を優先する。
+    # Faster than Compress-Archive for a large GUI package. Model weights do not
+    # compress well, so prefer speed over the strongest compression.
     [System.IO.Compression.ZipFile]::CreateFromDirectory(
         $SourceDirectory, $DestinationZip,
         [System.IO.Compression.CompressionLevel]::Fastest, $false)
 }
 
-# Compress-PackagesInParallelは、GUIとサーバーのZIPを同時に作る。
+# Compress-PackagesInParallel creates the GUI and server ZIPs at the same time.
 function Compress-PackagesInParallel([string]$FirstSource, [string]$FirstZip,
         [string]$SecondSource, [string]$SecondZip) {
     $script = {

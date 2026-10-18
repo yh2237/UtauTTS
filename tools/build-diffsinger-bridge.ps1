@@ -23,7 +23,7 @@ function Copy-RequiredLicense([string]$Source, [string]$Destination) {
 }
 
 $outputExe = Join-Path $OutputDirectory 'utautts-diffsinger-bridge.exe'
-# スタンプは配布フォルダの外に置く。配布フォルダはビルドのたびに作り直されるため。
+# Keep the stamp outside the package directory: the package is rebuilt every time.
 $stampPath = Join-Path $publish '.utautts-diffsinger-stamp'
 $sourceRoot = Join-Path $PSScriptRoot 'diffsinger-bridge'
 $sourceFiles = @(Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -ErrorAction SilentlyContinue |
