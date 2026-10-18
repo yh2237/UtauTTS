@@ -6,6 +6,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $kokoro = 'https://huggingface.co/hexgrad/Kokoro-82M/resolve/f3ff3571791e39611d31c381e3a41a3af07b4987'
 $hubert = 'https://huggingface.co/facebook/hubert-base-ls960/resolve/af46f65f540dc3ca7aa59f46c6c3d5dbb4374fa8'
+$wavlm = 'https://huggingface.co/microsoft/wavlm-base-plus/resolve/4c66d4806a428f2e922ccfa1a962776e232d487b'
 $misaki = 'https://raw.githubusercontent.com/hexgrad/misaki/fba1236595f2d2bf21d414ba6e57d25256afada3/misaki/data'
 $files = @(
     @{ Name = 'kokoro-v1_0.pth'; Url = "$kokoro/kokoro-v1_0.pth"; Sha256 = '496dba118d1a58f5f3db2efc88dbdc216e0483fc89fe6e47ee1f2c53f18ad1e4' },
@@ -32,4 +33,37 @@ foreach ($file in $files) {
         throw "SHA256 mismatch for $($file.Name): $hash"
     }
     Move-Item -LiteralPath $temporary -Destination $destination -Force
+}
+
+# WavLMは配布元にsafetensorsがないため、pytorch_model.binを取得して変換する。
+$wavlmDirectory = Join-Path $DestinationDirectory 'wavlm'
+New-Item -ItemType Directory -Force -Path $wavlmDirectory | Out-Null
+$wavlmFiles = @(
+    @{ Name = 'pytorch_model.bin'; Url = "$wavlm/pytorch_model.bin"; Sha256 = '3bb273a6ace99408b50cfc81afdbb7ef2de02da2eab0234e18db608ce692fe51' },
+    @{ Name = 'config.json'; Url = "$wavlm/config.json"; Sha256 = 'fea6df1c2700a3954fc07e70588aecc9055eeb28db2ff57151a2db0d19180ed4' }
+)
+foreach ($file in $wavlmFiles) {
+    $destination = Join-Path $wavlmDirectory $file.Name
+    if ((Test-Path -LiteralPath $destination -PathType Leaf) -and
+            (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -eq $file.Sha256) {
+        continue
+    }
+    $temporary = "$destination.download"
+    Write-Host "Downloading $($file.Url)"
+    Invoke-WebRequest -Uri $file.Url -OutFile $temporary -UseBasicParsing
+    $hash = (Get-FileHash -LiteralPath $temporary -Algorithm SHA256).Hash
+    if ($hash -ne $file.Sha256) {
+        Remove-Item -LiteralPath $temporary -Force
+        throw "SHA256 mismatch for $($file.Name): $hash"
+    }
+    Move-Item -LiteralPath $temporary -Destination $destination -Force
+}
+$safetensors = Join-Path $wavlmDirectory 'wavlm-base-plus.safetensors'
+$bin = Join-Path $wavlmDirectory 'pytorch_model.bin'
+if (-not (Test-Path -LiteralPath $safetensors -PathType Leaf)) {
+    Write-Host "Converting $bin to safetensors"
+    python -c "import torch; from safetensors.torch import save_file; state=torch.load(r'$bin', map_location='cpu', weights_only=True); save_file({k: v.contiguous() for k, v in state.items()}, r'$safetensors')"
+    if ($LASTEXITCODE -ne 0) {
+        throw 'WavLMの変換に失敗しました。Pythonのtorchとsafetensorsが必要です。'
+    }
 }
