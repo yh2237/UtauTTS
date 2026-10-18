@@ -35,13 +35,17 @@ foreach ($file in $files) {
     Move-Item -LiteralPath $temporary -Destination $destination -Force
 }
 
-# WavLMは配布元にsafetensorsがないため、pytorch_model.binを取得して変換する。
+# WavLM is distributed as pytorch_model.bin, so download it and convert it to
+# safetensors when the converted file is not there yet.
 $wavlmDirectory = Join-Path $DestinationDirectory 'wavlm'
 New-Item -ItemType Directory -Force -Path $wavlmDirectory | Out-Null
-$wavlmFiles = @(
-    @{ Name = 'pytorch_model.bin'; Url = "$wavlm/pytorch_model.bin"; Sha256 = '3bb273a6ace99408b50cfc81afdbb7ef2de02da2eab0234e18db608ce692fe51' },
-    @{ Name = 'config.json'; Url = "$wavlm/config.json"; Sha256 = 'fea6df1c2700a3954fc07e70588aecc9055eeb28db2ff57151a2db0d19180ed4' }
-)
+$safetensors = Join-Path $wavlmDirectory 'wavlm-base-plus.safetensors'
+$config = @{ Name = 'config.json'; Url = "$wavlm/config.json"; Sha256 = 'fea6df1c2700a3954fc07e70588aecc9055eeb28db2ff57151a2db0d19180ed4' }
+$wavlmFiles = @()
+if (-not (Test-Path -LiteralPath $safetensors -PathType Leaf)) {
+    $wavlmFiles += @{ Name = 'pytorch_model.bin'; Url = "$wavlm/pytorch_model.bin"; Sha256 = '3bb273a6ace99408b50cfc81afdbb7ef2de02da2eab0234e18db608ce692fe51' }
+}
+$wavlmFiles += $config
 foreach ($file in $wavlmFiles) {
     $destination = Join-Path $wavlmDirectory $file.Name
     if ((Test-Path -LiteralPath $destination -PathType Leaf) -and
@@ -58,12 +62,11 @@ foreach ($file in $wavlmFiles) {
     }
     Move-Item -LiteralPath $temporary -Destination $destination -Force
 }
-$safetensors = Join-Path $wavlmDirectory 'wavlm-base-plus.safetensors'
 $bin = Join-Path $wavlmDirectory 'pytorch_model.bin'
 if (-not (Test-Path -LiteralPath $safetensors -PathType Leaf)) {
     Write-Host "Converting $bin to safetensors"
     python -c "import torch; from safetensors.torch import save_file; state=torch.load(r'$bin', map_location='cpu', weights_only=True); save_file({k: v.contiguous() for k, v in state.items()}, r'$safetensors')"
     if ($LASTEXITCODE -ne 0) {
-        throw 'WavLMの変換に失敗しました。Pythonのtorchとsafetensorsが必要です。'
+        throw 'WavLM conversion failed: Python with torch, numpy, and safetensors is required.'
     }
 }

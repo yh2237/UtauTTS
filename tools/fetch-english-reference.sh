@@ -47,12 +47,14 @@ fetch hubert-base-ls960.safetensors "${hubert}/model.safetensors" ec18ca2453e7cf
 fetch us_gold.json "${misaki}/us_gold.json" dc414872a49a28ae6c141463d502fd945f3b2fde040484fdc47d00cc4612686f
 fetch us_silver.json "${misaki}/us_silver.json" de8f67be911bb6c659187b4a65fd966b6a30e56350e0f790d763210b053ac475
 
-# WavLMは配布元にsafetensorsがないため、pytorch_model.binを取得して変換する。
+# WavLM is distributed as pytorch_model.bin, so download it and convert it to
+# safetensors when the converted file is not there yet.
 wavlm_dir="${destination}/wavlm"
 mkdir -p "${wavlm_dir}"
-fetch_to "${wavlm_dir}" pytorch_model.bin "${wavlm}/pytorch_model.bin" 3bb273a6ace99408b50cfc81afdbb7ef2de02da2eab0234e18db608ce692fe51
+safetensors="${wavlm_dir}/wavlm-base-plus.safetensors"
 fetch_to "${wavlm_dir}" config.json "${wavlm}/config.json" fea6df1c2700a3954fc07e70588aecc9055eeb28db2ff57151a2db0d19180ed4
-if [[ ! -f "${wavlm_dir}/wavlm-base-plus.safetensors" ]]; then
+if [[ ! -f "${safetensors}" ]]; then
+  fetch_to "${wavlm_dir}" pytorch_model.bin "${wavlm}/pytorch_model.bin" 3bb273a6ace99408b50cfc81afdbb7ef2de02da2eab0234e18db608ce692fe51
   echo "Converting ${wavlm_dir}/pytorch_model.bin to safetensors"
-  python3 -c "import torch; from safetensors.torch import save_file; state=torch.load(r'${wavlm_dir}/pytorch_model.bin', map_location='cpu', weights_only=True); save_file({k: v.contiguous() for k, v in state.items()}, r'${wavlm_dir}/wavlm-base-plus.safetensors')"
+  python3 -c "import torch; from safetensors.torch import save_file; state=torch.load(r'${wavlm_dir}/pytorch_model.bin', map_location='cpu', weights_only=True); save_file({k: v.contiguous() for k, v in state.items()}, r'${safetensors}')"
 fi

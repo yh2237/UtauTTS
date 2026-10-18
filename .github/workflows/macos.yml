@@ -136,13 +136,12 @@ jobs:
             models/english-reference/us_silver.json
             models/english-reference/wavlm/wavlm-base-plus.safetensors
             models/english-reference/wavlm/config.json
-            models/english-reference/wavlm/pytorch_model.bin
           key: english-reference-${{ hashFiles('tools/fetch-english-reference.sh') }}
 
       - name: Install model conversion tools
         if: steps.models-cache.outputs.cache-hit != 'true'
         shell: bash
-        run: python -m pip install --disable-pip-version-check torch safetensors
+        run: python -m pip install --disable-pip-version-check numpy safetensors torch
 
       - name: Fetch English reference models
         shell: bash
