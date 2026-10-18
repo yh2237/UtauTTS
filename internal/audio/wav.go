@@ -1,6 +1,7 @@
 package audio
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -27,11 +28,14 @@ func ReadWav(path string) (*PCM, error) {
 }
 
 func DecodeWav(input io.Reader) (*PCM, error) {
-	pcm, err := wav.Decode(input)
+	data, err := io.ReadAll(input)
 	if err != nil {
 		return nil, err
 	}
-	return (*PCM)(pcm), nil
+	if pcm, err := wav.Decode(bytes.NewReader(data)); err == nil {
+		return (*PCM)(pcm), nil
+	}
+	return decodeExtendedWav(data)
 }
 
 func WriteWav(path string, pcm *PCM) error {

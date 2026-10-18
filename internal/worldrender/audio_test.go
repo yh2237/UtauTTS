@@ -153,7 +153,6 @@ func TestReadPCM16RejectsInvalidFormat(t *testing.T) {
 		"not PCM":       func(b []byte) { binary.LittleEndian.PutUint16(b[20:], 3) },
 		"zero channels": func(b []byte) { binary.LittleEndian.PutUint16(b[22:], 0) },
 		"zero rate":     func(b []byte) { binary.LittleEndian.PutUint32(b[24:], 0) },
-		"not 16 bits":   func(b []byte) { binary.LittleEndian.PutUint16(b[34:], 8) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			contents := pcm16TestWAV(pcm16TestChunk("fmt ", pcm16TestFormat(1)), pcm16TestChunk("data", []byte{0, 0}))

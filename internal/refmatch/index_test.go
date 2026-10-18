@@ -1,6 +1,8 @@
 package refmatch
 
 import (
+	"bytes"
+	"encoding/binary"
 	"math"
 	"os"
 	"path/filepath"
@@ -98,6 +100,52 @@ func TestBuildIndexSkipsUnreadableWAV(t *testing.T) {
 	if !reflect.DeepEqual(index.Files, []string{good}) || index.Frames == 0 {
 		t.Fatalf("files %v, frames %d", index.Files, index.Frames)
 	}
+}
+
+func TestBuildIndexReads24BitWAV(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "voice24.wav")
+	if err := write24BitWav(path, 16000, 1, 16000); err != nil {
+		t.Fatal(err)
+	}
+	features := func(samples []float64, rate int) ([]float32, int, int, error) {
+		frames := len(samples) * 50 / rate
+		return make([]float32, frames*3), frames, 3, nil
+	}
+	index, err := BuildIndex([]string{path}, "test", fakeWorld{}, features, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(index.Files, []string{path}) || index.SampleRate != 16000 || index.Frames == 0 {
+		t.Fatalf("files %v, rate %d, frames %d", index.Files, index.SampleRate, index.Frames)
+	}
+}
+
+// write24BitWavは、24bit PCMのWAVを書き出す。8/24/32bitの録音を読めるかの確認に使う。
+func write24BitWav(path string, rate, channels, frames int) error {
+	data := make([]byte, 0, frames*channels*3)
+	for i := 0; i < frames*channels; i++ {
+		value := int32(8000) << 8
+		data = append(data, byte(value), byte(value>>8), byte(value>>16))
+	}
+	var buffer bytes.Buffer
+	buffer.WriteString("RIFF")
+	binary.Write(&buffer, binary.LittleEndian, uint32(0))
+	buffer.WriteString("WAVE")
+	buffer.WriteString("fmt ")
+	binary.Write(&buffer, binary.LittleEndian, uint32(16))
+	binary.Write(&buffer, binary.LittleEndian, uint16(1))
+	binary.Write(&buffer, binary.LittleEndian, uint16(channels))
+	binary.Write(&buffer, binary.LittleEndian, uint32(rate))
+	binary.Write(&buffer, binary.LittleEndian, uint32(rate*channels*3))
+	binary.Write(&buffer, binary.LittleEndian, uint16(channels*3))
+	binary.Write(&buffer, binary.LittleEndian, uint16(24))
+	buffer.WriteString("data")
+	binary.Write(&buffer, binary.LittleEndian, uint32(len(data)))
+	buffer.Write(data)
+	out := buffer.Bytes()
+	binary.LittleEndian.PutUint32(out[4:], uint32(len(out)-8))
+	return os.WriteFile(path, out, 0o644)
 }
 
 func TestBuildIndexReusesUnchangedRecordings(t *testing.T) {
