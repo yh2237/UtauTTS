@@ -4,6 +4,12 @@ setlocal
 set "target=%~1"
 if not defined target set "target=win"
 
+if /I "%target%"=="-skip-tests" (
+    set "UTAUTTS_SKIP_TESTS=1"
+    set "target=win"
+)
+if /I "%~2"=="-skip-tests" set "UTAUTTS_SKIP_TESTS=1"
+
 if /I "%target%"=="win" goto build_win
 if /I "%target%"=="linux" goto build_linux
 if /I "%target%"=="both" goto build_both
@@ -53,11 +59,13 @@ if defined UTAUTTS_WSL_DISTRO (
 exit /b %errorlevel%
 
 :usage
-echo Usage: build.bat [win^|linux^|both]
+echo Usage: build.bat [win^|linux^|both] [-skip-tests]
 echo.
 echo   win    Build the Windows release package. (default)
 echo   linux  Build the Linux package through WSL.
 echo   both   Build Windows and then Linux packages.
+echo.
+echo   -skip-tests  Skip the Go test step in the Windows build.
 echo.
 echo Set UTAUTTS_WSL_DISTRO to select a non-default WSL distribution.
 exit /b 0

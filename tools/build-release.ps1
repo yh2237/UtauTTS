@@ -15,8 +15,15 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $stepStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+$stepTimings = [System.Collections.Generic.List[object]]::new()
+$lastStepName = 'Start'
 function Write-Step([string]$Name) {
-    Write-Host ("=== {0} === (+{1:N1}s)" -f $Name, $stepStopwatch.Elapsed.TotalSeconds)
+    $elapsed = $stepStopwatch.Elapsed.TotalSeconds
+    if ($lastStepName -ne 'Start') {
+        $stepTimings.Add([pscustomobject]@{ Step = $lastStepName; Seconds = $elapsed })
+    }
+    Write-Host ("=== {0} === (+{1:N1}s)" -f $Name, $elapsed)
+    $lastStepName = $Name
     $stepStopwatch.Restart()
 }
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -116,7 +123,7 @@ foreach ($zip in @($guiZip, $serverZip)) {
 $env:GOCACHE = Join-Path $root 'build\go-cache'
 Push-Location $root
 try {
-    if ($SkipTests) {
+    if ($SkipTests -or $env:UTAUTTS_SKIP_TESTS -eq '1') {
         Write-Step 'Test (skipped)'
     } else {
         Write-Step 'Test'
@@ -332,6 +339,13 @@ try {
     Write-Host 'Server:'
     Get-ChildItem -LiteralPath $serverPath | Select-Object Name, Length
     Get-Item -LiteralPath $guiZip, $serverZip | Select-Object FullName, Length
+
+    $stepTimings.Add([pscustomobject]@{ Step = $lastStepName; Seconds = $stepStopwatch.Elapsed.TotalSeconds })
+    Write-Host '=== Timings ==='
+    $stepTimings | Sort-Object Seconds -Descending | ForEach-Object {
+        Write-Host ("{0,6:N1}s  {1}" -f $_.Seconds, $_.Step)
+    }
+    Write-Host ("{0,6:N1}s  Total" -f (($stepTimings | Measure-Object Seconds -Sum).Sum))
 } finally {
     Pop-Location
 }
