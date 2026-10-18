@@ -29,7 +29,7 @@ const (
 	d4cThreshold   = 0.85
 	quietMarginC0  = 9.0
 	indexMagic     = "UTRM"
-	indexVersion   = 3
+	indexVersion   = 4
 	minimumFileSec = 0.1
 )
 
@@ -148,12 +148,56 @@ func BuildIndex(files []string, model string, world World, features FeatureFunc,
 		return nil, errors.New("no usable frames in the voicebank recordings")
 	}
 	index.F0Median = percentile(voicedF0, 50)
-	// 索引はfloat16で保存する。作った直後と読み直した後で結果が変わらないよう、ここでも丸める。
-	index.Features = roundToHalf(index.Features)
+	// 索引はint8とfloat16で保存する。作った直後と読み直した後で結果が変わらないよう、ここでも丸める。
+	index.Features = quantizeRoundTrip(index.Features, index.Dims)
 	index.Spectrum = roundToHalf(index.Spectrum)
 	index.Aperiodicity = roundToHalf(index.Aperiodicity)
 	index.F0 = roundToHalf(index.F0)
 	return index, nil
+}
+
+// quantizeFeaturesは、フレームごとの最大値でint8に量子化し、スケールを返す。
+func quantizeFeatures(values []float32, frames, dims int) ([]int8, []float32) {
+	quantized := make([]int8, len(values))
+	scales := make([]float32, frames)
+	for frame := 0; frame < frames; frame++ {
+		row := values[frame*dims : (frame+1)*dims]
+		var peak float32
+		for _, value := range row {
+			if absolute := float32(math.Abs(float64(value))); absolute > peak {
+				peak = absolute
+			}
+		}
+		if peak == 0 {
+			scales[frame] = 1
+			continue
+		}
+		scale := peak / 127
+		scales[frame] = scale
+		for i, value := range row {
+			quantized[frame*dims+i] = int8(math.Round(float64(value / scale)))
+		}
+	}
+	return quantized, scales
+}
+
+// dequantizeFeaturesは、int8とスケールから元の値に戻す。
+func dequantizeFeatures(quantized []int8, scales []float32, dims int) []float32 {
+	values := make([]float32, len(quantized))
+	for i, value := range quantized {
+		values[i] = float32(value) * scales[i/dims]
+	}
+	return values
+}
+
+// quantizeRoundTripは、保存するint8に丸めてから戻す。
+func quantizeRoundTrip(values []float32, dims int) []float32 {
+	if dims <= 0 {
+		return values
+	}
+	frames := len(values) / dims
+	quantized, scales := quantizeFeatures(values, frames, dims)
+	return dequantizeFeatures(quantized, scales, dims)
 }
 
 // roundToHalfは、値をfloat16に丸めてfloat32へ戻す。保存した索引と同じ値にするために使う。
@@ -395,10 +439,7 @@ func (index *Index) Save(path string) error {
 		buffered.WriteString(indexMagic)
 		binary.Write(buffered, binary.LittleEndian, uint32(len(header)))
 		buffered.Write(header)
-		half := make([]uint16, len(index.Features))
-		for i, v := range index.Features {
-			half[i] = float32ToHalf(v)
-		}
+		quantized, scales := quantizeFeatures(index.Features, index.Frames, index.Dims)
 		spectrum := make([]uint16, len(index.Spectrum))
 		for i, v := range index.Spectrum {
 			spectrum[i] = float32ToHalf(v)
@@ -411,7 +452,7 @@ func (index *Index) Save(path string) error {
 		for i, v := range index.F0 {
 			f0[i] = float32ToHalf(v)
 		}
-		for _, data := range []any{half, spectrum, aperiodicity, f0, index.File} {
+		for _, data := range []any{quantized, scales, spectrum, aperiodicity, f0, index.File} {
 			if err := binary.Write(buffered, binary.LittleEndian, data); err != nil {
 				return err
 			}
@@ -447,20 +488,18 @@ func LoadIndex(path string) (*Index, error) {
 		return nil, fmt.Errorf("%s has an unsupported index version", path)
 	}
 	n := index.Frames
-	half := make([]uint16, n*index.Dims)
+	quantized := make([]int8, n*index.Dims)
+	scales := make([]float32, n)
 	spectrum := make([]uint16, n*subFrames*spectrumDims)
 	aperiodicity := make([]uint16, n*subFrames*index.APBands)
 	f0 := make([]uint16, n*subFrames)
 	index.File = make([]int32, n)
-	for _, data := range []any{half, spectrum, aperiodicity, f0, index.File} {
+	for _, data := range []any{quantized, scales, spectrum, aperiodicity, f0, index.File} {
 		if err := binary.Read(reader, binary.LittleEndian, data); err != nil {
 			return nil, fmt.Errorf("%s is truncated: %w", path, err)
 		}
 	}
-	index.Features = make([]float32, len(half))
-	for i, v := range half {
-		index.Features[i] = halfToFloat32(v)
-	}
+	index.Features = dequantizeFeatures(quantized, scales, index.Dims)
 	index.Spectrum = make([]float32, len(spectrum))
 	for i, v := range spectrum {
 		index.Spectrum[i] = halfToFloat32(v)

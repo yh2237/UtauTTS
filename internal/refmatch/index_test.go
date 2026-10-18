@@ -38,7 +38,8 @@ func TestIndexSaveLoad(t *testing.T) {
 		t.Fatal("index changed after save and load")
 	}
 	for i, v := range loaded.Features {
-		if math.Abs(float64(v-index.Features[i])) > 1e-3 {
+		// 特徴量はint8で保存するため、フレームごとのスケール分の誤差が出る。
+		if math.Abs(float64(v-index.Features[i])) > 1e-2 {
 			t.Fatalf("feature %d = %g, want %g", i, v, index.Features[i])
 		}
 	}
