@@ -92,6 +92,9 @@ type Config struct {
 	// WorldEnginePathとEnglishReferenceDirは英語の合成に使うWORLDエンジンとモデルのフォルダ。Rendererに関係なく使う。
 	WorldEnginePath     string
 	EnglishReferenceDir string
+	// Methodは合成の方法。空なら言語ごとの既定（英語は参照、そのほかはネイティブ）。
+	// "native"は音源のプランで合成し、"reference"は参照TTSの読みを音源のフレームで作り直す。
+	Method string
 }
 
 type Result struct {
@@ -301,7 +304,10 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
-	if frontend.NormalizeLanguage(language) == frontend.LanguageEnglish {
+	if usesReferenceSynthesis(language, cfg.Method) {
+		if frontend.NormalizeLanguage(language) != frontend.LanguageEnglish {
+			return nil, fmt.Errorf("reference synthesis is only available for English")
+		}
 		return synthesizeEnglishReference(cfg, bank, language, phonemizer, reading, morae)
 	}
 	profile := languageProfileFor(language)
@@ -441,7 +447,10 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
-	if frontend.NormalizeLanguage(language) == frontend.LanguageEnglish {
+	if usesReferenceSynthesis(language, cfg.Method) {
+		if frontend.NormalizeLanguage(language) != frontend.LanguageEnglish {
+			return nil, fmt.Errorf("reference synthesis is only available for English")
+		}
 		return predictEnglishReference(cfg, reading, morae)
 	}
 	profile := languageProfileFor(language)
@@ -561,4 +570,16 @@ func moraTimings(morae []frontend.Mora, synthesisPlan *plan.Plan) []prosody.Mora
 		}
 	}
 	return timings
+}
+
+// usesReferenceSynthesisは、参照TTSの経路を使うかを返す。
+// methodが空なら、英語だけ参照にする。
+func usesReferenceSynthesis(language, method string) bool {
+	switch method {
+	case "reference":
+		return true
+	case "native":
+		return false
+	}
+	return frontend.NormalizeLanguage(language) == frontend.LanguageEnglish
 }
