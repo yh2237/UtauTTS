@@ -372,7 +372,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	}
 	tts.ApplyResolvedEngine(&cfg, resolvedEngine)
 	cfg.Method = request.Method
-	cfg.EnglishReferenceDir = s.englishReferenceDir()
+	cfg.ReferenceDir = s.referenceDir()
 	cfg.WorldEnginePath = resolvedEngine.Resource(engine.ResourceWorldEngine)
 	if cfg.WorldEnginePath == "" {
 		if worldPhrase, err := s.ResolveRenderer("utautts-world-phrase"); err == nil {
@@ -399,16 +399,16 @@ func (s *Service) PrepareEnglish(bank *voicebank.Bank) {
 	if err != nil {
 		return
 	}
-	tts.PrepareEnglishIndex(s.englishReferenceDir(), bank, worldPhrase.Resource(engine.ResourceWorldEngine))
+	tts.PrepareReferenceIndex(s.referenceDir(), bank, worldPhrase.Resource(engine.ResourceWorldEngine))
 }
 
-// englishReferenceDirは、抑揚モデルのあるフォルダのうち、英語の合成のモデルを置いたフォルダを返す。
-func (s *Service) englishReferenceDir() string {
+// referenceDirは、抑揚モデルのあるフォルダのうち、英語の合成のモデルを置いたフォルダを返す。
+func (s *Service) referenceDir() string {
 	if s.catalog == nil {
 		return ""
 	}
 	for _, model := range s.catalog.Models {
-		dir := filepath.Join(filepath.Dir(model.Path), tts.EnglishReferenceDir)
+		dir := filepath.Join(filepath.Dir(model.Path), tts.ReferenceDir)
 		if info, err := os.Stat(dir); err == nil && info.IsDir() {
 			return dir
 		}

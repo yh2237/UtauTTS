@@ -23,8 +23,8 @@ import (
 
 var englishLexicons sync.Map
 
-// EnglishReferenceModelsは英語の合成に使うモデルの場所を返す。
-func EnglishReferenceModels(dir string) (refspeech.Models, string, string) {
+// ReferenceModelsは英語の合成に使うモデルの場所を返す。
+func ReferenceModels(dir string) (refspeech.Models, string, string) {
 	return refspeech.Models{
 		KokoroWeights: filepath.Join(dir, "kokoro-v1_0.pth"),
 		KokoroConfig:  filepath.Join(dir, "config.json"),
@@ -33,33 +33,33 @@ func EnglishReferenceModels(dir string) (refspeech.Models, string, string) {
 	}, filepath.Join(dir, "us_gold.json"), filepath.Join(dir, "us_silver.json")
 }
 
-// EnglishReferenceServiceは英語の合成と音源の索引作成を受け持つServiceを返す。
-func EnglishReferenceService(dir string) (*refspeech.Service, error) {
+// ReferenceServiceは英語の合成と音源の索引作成を受け持つServiceを返す。
+func ReferenceService(dir string) (*refspeech.Service, error) {
 	if dir == "" {
-		return nil, fmt.Errorf("English synthesis models are not installed in models/%s", EnglishReferenceDir)
+		return nil, fmt.Errorf("English synthesis models are not installed in models/%s", ReferenceDir)
 	}
 	cacheDir, err := refspeech.DefaultCacheDir()
 	if err != nil {
 		return nil, err
 	}
-	models, _, _ := EnglishReferenceModels(dir)
+	models, _, _ := ReferenceModels(dir)
 	return refspeech.Shared(models, cacheDir), nil
 }
 
-// PrepareEnglishIndexは音源の英語の索引がなければ裏で作り始める。モデルがなければ何もしない。
-func PrepareEnglishIndex(dir string, bank *voicebank.Bank, worldEnginePath string) {
-	if service, err := EnglishReferenceService(dir); err == nil {
+// PrepareReferenceIndexは音源の英語の索引がなければ裏で作り始める。モデルがなければ何もしない。
+func PrepareReferenceIndex(dir string, bank *voicebank.Bank, worldEnginePath string) {
+	if service, err := ReferenceService(dir); err == nil {
 		service.Prepare(bank.Root, bank.ReferenceRecordings(), worldEnginePath)
 	}
 }
 
-// EnglishIndexProgressは索引の作成の進み具合を返す。
-func EnglishIndexProgress() refspeech.Progress {
+// ReferenceIndexProgressは索引の作成の進み具合を返す。
+func ReferenceIndexProgress() refspeech.Progress {
 	return refspeech.CurrentProgress()
 }
 
 func englishLexicon(dir string) (*refspeech.Lexicon, error) {
-	_, gold, silver := EnglishReferenceModels(dir)
+	_, gold, silver := ReferenceModels(dir)
 	if cached, ok := englishLexicons.Load(gold); ok {
 		return cached.(*refspeech.Lexicon), nil
 	}
@@ -73,11 +73,11 @@ func englishLexicon(dir string) (*refspeech.Lexicon, error) {
 
 // englishReferenceInputsは、モーラ長を話速に、抑揚の強さをF0の動きの幅に、音高をF0の中心に直す。
 func englishReferenceInputs(cfg Config, reading string) (*refspeech.Service, refspeech.Provider, []refspeech.Piece, refspeech.Options, error) {
-	service, err := EnglishReferenceService(cfg.EnglishReferenceDir)
+	service, err := ReferenceService(cfg.ReferenceDir)
 	if err != nil {
 		return nil, nil, nil, refspeech.Options{}, err
 	}
-	lexicon, err := englishLexicon(cfg.EnglishReferenceDir)
+	lexicon, err := englishLexicon(cfg.ReferenceDir)
 	if err != nil {
 		return nil, nil, nil, refspeech.Options{}, err
 	}

@@ -89,9 +89,9 @@ type Config struct {
 	PitchCurve              *render.PitchCurve
 	AliasPolicy             voicebank.AliasPolicy
 	ProviderOptions         render.ProviderOptions
-	// WorldEnginePathとEnglishReferenceDirは英語の合成に使うWORLDエンジンとモデルのフォルダ。Rendererに関係なく使う。
-	WorldEnginePath     string
-	EnglishReferenceDir string
+	// WorldEnginePathとReferenceDirは参照の合成に使うWORLDエンジンとモデルのフォルダ。Rendererに関係なく使う。
+	WorldEnginePath string
+	ReferenceDir    string
 	// Methodは合成の方法。空なら言語ごとの既定（英語は参照、そのほかはネイティブ）。
 	// "native"は音源のプランで合成し、"reference"は参照TTSの読みを音源のフレームで作り直す。
 	Method string

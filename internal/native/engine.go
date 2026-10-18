@@ -124,7 +124,7 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 	case "writeSidecars":
 		result, err = e.writeSidecars(requestJSON)
 	case "englishIndexes":
-		result = tts.EnglishIndexProgress()
+		result = tts.ReferenceIndexProgress()
 	case "installVoicebank":
 		result, err = e.installVoicebank(requestJSON)
 	default:

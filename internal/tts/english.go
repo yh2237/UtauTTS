@@ -8,8 +8,9 @@ import (
 	"github.com/yh2237/UtauTTS/internal/render"
 )
 
-// EnglishReferenceDirはモデルのフォルダの下で、英語の参照TTSと特徴量のモデルを置くフォルダ。
-const EnglishReferenceDir = "english-reference"
+// ReferenceDirはモデルのフォルダの下で、参照TTSと特徴量のモデルを置くフォルダ。
+// いまは英語の参照モデル（KokoroとWavLM）が入っている。
+const ReferenceDir = "english-reference"
 
 type englishProfile struct{}
 
