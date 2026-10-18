@@ -73,12 +73,38 @@ function Reset-Directory([string]$Path) {
     New-Item -ItemType Directory -Force -Path $Path | Out-Null
 }
 
+# Find-SevenZip returns the 7-Zip executable when it is installed.
+function Find-SevenZip() {
+    foreach ($candidate in @(
+            (Join-Path $env:ProgramFiles '7-Zip/7z.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} '7-Zip/7z.exe'))) {
+        if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+            return $candidate
+        }
+    }
+    return $null
+}
+
 function Compress-Package([string]$SourceDirectory, [string]$DestinationZip) {
     if (Test-Path -LiteralPath $DestinationZip) {
         Remove-Item -Force -LiteralPath $DestinationZip
     }
-    # Faster than Compress-Archive for a large GUI package. Model weights do not
-    # compress well, so prefer speed over the strongest compression.
+    $sevenZip = Find-SevenZip
+    if ($sevenZip) {
+        # 7-Zip compresses with multiple threads. Model weights do not compress
+        # well, so a low level keeps the archive close to the fastest setting.
+        Push-Location -LiteralPath $SourceDirectory
+        try {
+            & $sevenZip a -tzip -mx=3 -mmt=on -y -bso0 -bsp0 $DestinationZip '*'
+            if ($LASTEXITCODE -gt 1) {
+                throw "7-Zip failed for $DestinationZip (exit $LASTEXITCODE)"
+            }
+        } finally {
+            Pop-Location
+        }
+        return
+    }
+    # Faster than Compress-Archive for a large GUI package.
     [System.IO.Compression.ZipFile]::CreateFromDirectory(
         $SourceDirectory, $DestinationZip,
         [System.IO.Compression.CompressionLevel]::Fastest, $false)
@@ -354,7 +380,13 @@ try {
     }
 
     Write-Step 'Compress packages'
-    Compress-PackagesInParallel $guiPath $guiZip $serverPath $serverZip
+    if (Find-SevenZip) {
+        # 7-Zip already uses every core, so the two archives are made in turn.
+        Compress-Package $guiPath $guiZip
+        Compress-Package $serverPath $serverZip
+    } else {
+        Compress-PackagesInParallel $guiPath $guiZip $serverPath $serverZip
+    }
 
     Write-Step 'Test release packages'
     if ($SkipPackageTest -or $env:UTAUTTS_SKIP_PACKAGE_TEST -eq '1') {
