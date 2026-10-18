@@ -140,9 +140,15 @@ cp -R "${openjtalk_dictionary}" "${gui_dir}/runtime/"
 cp -R "${openjtalk_dictionary}" "${server_dir}/runtime/"
 
 echo '=== Models and renderers ==='
-for english_reference_file in kokoro-v1_0.pth config.json af_heart.pt hubert-base-ls960.safetensors us_gold.json us_silver.json; do
+for english_reference_file in kokoro-v1_0.pth config.json af_heart.pt us_gold.json us_silver.json; do
   if [[ ! -f "${root_dir}/models/english-reference/${english_reference_file}" ]]; then
     echo "English reference model is missing: models/english-reference/${english_reference_file}. Run tools/fetch-english-reference.sh." >&2
+    exit 1
+  fi
+done
+for wavlm_file in wavlm/wavlm-base-plus.safetensors wavlm/config.json; do
+  if [[ ! -f "${root_dir}/models/english-reference/${wavlm_file}" ]]; then
+    echo "WavLM model is missing: models/english-reference/${wavlm_file}. Run tools/fetch-english-reference.sh." >&2
     exit 1
   fi
 done

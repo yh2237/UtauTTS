@@ -6,6 +6,7 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 destination="${1:-${root_dir}/models/english-reference}"
 kokoro="https://huggingface.co/hexgrad/Kokoro-82M/resolve/f3ff3571791e39611d31c381e3a41a3af07b4987"
 hubert="https://huggingface.co/facebook/hubert-base-ls960/resolve/af46f65f540dc3ca7aa59f46c6c3d5dbb4374fa8"
+wavlm="https://huggingface.co/microsoft/wavlm-base-plus/resolve/4c66d4806a428f2e922ccfa1a962776e232d487b"
 misaki="https://raw.githubusercontent.com/hexgrad/misaki/fba1236595f2d2bf21d414ba6e57d25256afada3/misaki/data"
 
 sha256() {
@@ -16,9 +17,9 @@ sha256() {
   fi
 }
 
-fetch() {
-  local name="$1" url="$2" expected="$3"
-  local target="${destination}/${name}"
+fetch_to() {
+  local directory="$1" name="$2" url="$3" expected="$4"
+  local target="${directory}/${name}"
   if [[ -f "${target}" && "$(sha256 "${target}")" == "${expected}" ]]; then
     return
   fi
@@ -34,6 +35,10 @@ fetch() {
   mv -f "${target}.download" "${target}"
 }
 
+fetch() {
+  fetch_to "${destination}" "$@"
+}
+
 mkdir -p "${destination}"
 fetch kokoro-v1_0.pth "${kokoro}/kokoro-v1_0.pth" 496dba118d1a58f5f3db2efc88dbdc216e0483fc89fe6e47ee1f2c53f18ad1e4
 fetch config.json "${kokoro}/config.json" 5abb01e2403b072bf03d04fde160443e209d7a0dad49a423be15196b9b43c17f
@@ -41,3 +46,13 @@ fetch af_heart.pt "${kokoro}/voices/af_heart.pt" 0ab5709b8ffab19bfd849cd11d98f75
 fetch hubert-base-ls960.safetensors "${hubert}/model.safetensors" ec18ca2453e7cf3de5e4fc5b79e7484b27506ed0ad684282ddd10ecb9492f37f
 fetch us_gold.json "${misaki}/us_gold.json" dc414872a49a28ae6c141463d502fd945f3b2fde040484fdc47d00cc4612686f
 fetch us_silver.json "${misaki}/us_silver.json" de8f67be911bb6c659187b4a65fd966b6a30e56350e0f790d763210b053ac475
+
+# WavLMは配布元にsafetensorsがないため、pytorch_model.binを取得して変換する。
+wavlm_dir="${destination}/wavlm"
+mkdir -p "${wavlm_dir}"
+fetch_to "${wavlm_dir}" pytorch_model.bin "${wavlm}/pytorch_model.bin" 3bb273a6ace99408b50cfc81afdbb7ef2de02da2eab0234e18db608ce692fe51
+fetch_to "${wavlm_dir}" config.json "${wavlm}/config.json" fea6df1c2700a3954fc07e70588aecc9055eeb28db2ff57151a2db0d19180ed4
+if [[ ! -f "${wavlm_dir}/wavlm-base-plus.safetensors" ]]; then
+  echo "Converting ${wavlm_dir}/pytorch_model.bin to safetensors"
+  python3 -c "import torch; from safetensors.torch import save_file; state=torch.load(r'${wavlm_dir}/pytorch_model.bin', map_location='cpu', weights_only=True); save_file({k: v.contiguous() for k, v in state.items()}, r'${wavlm_dir}/wavlm-base-plus.safetensors')"
+fi
