@@ -328,3 +328,33 @@ func (e *Engine) Speak(index *refmatch.Index, world refmatch.World, pieces []Pie
 	}
 	return Speech{Audio: audio, SampleRate: index.SampleRate, Timing: reference.Timing, F0: outF0, AutomaticF0: automaticF0}, nil
 }
+
+// SpeakAudioは参照の音声から、音源のフレームで合成し直す。言語に依存しない入口。
+// 音素の並びや長さは使わず、参照の音声と、そこから測ったF0だけを使う。
+func (e *Engine) SpeakAudio(index *refmatch.Index, world refmatch.World, audio []float64, sampleRate int) (Speech, error) {
+	if index.Model != FeatureModel {
+		return Speech{}, fmt.Errorf("voicebank index uses %q, want %q", index.Model, FeatureModel)
+	}
+	f0, _, _, _, err := world.Analyze(audio, sampleRate, refmatch.FrameMS, 0.85)
+	if err != nil {
+		return Speech{}, fmt.Errorf("analyze reference: %w", err)
+	}
+	features, frames, _, err := e.Features(audio, sampleRate)
+	if err != nil {
+		return Speech{}, err
+	}
+	f0Values := make([]float32, len(f0))
+	for i, v := range f0 {
+		f0Values[i] = float32(v)
+	}
+	referenceF0 := refmatch.ReferenceF0(f0Values, refmatch.FrameMS, frames)
+	automaticF0 := index.OutputF0(referenceF0, 0, 1)
+	rendered, err := index.Synthesize(world, refmatch.Request{
+		Features: features, Frames: frames, ReferenceF0: referenceF0, OutputF0: automaticF0,
+		ReferenceLevel: refmatch.ReferenceLevels(audio, sampleRate, frames*4),
+	})
+	if err != nil {
+		return Speech{}, err
+	}
+	return Speech{Audio: rendered, SampleRate: index.SampleRate, F0: automaticF0}, nil
+}
