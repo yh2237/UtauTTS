@@ -29,7 +29,7 @@ const (
 	d4cThreshold   = 0.85
 	quietMarginC0  = 9.0
 	indexMagic     = "UTRM"
-	indexVersion   = 2
+	indexVersion   = 3
 	minimumFileSec = 0.1
 )
 
@@ -148,7 +148,21 @@ func BuildIndex(files []string, model string, world World, features FeatureFunc,
 		return nil, errors.New("no usable frames in the voicebank recordings")
 	}
 	index.F0Median = percentile(voicedF0, 50)
+	// 索引はfloat16で保存する。作った直後と読み直した後で結果が変わらないよう、ここでも丸める。
+	index.Features = roundToHalf(index.Features)
+	index.Spectrum = roundToHalf(index.Spectrum)
+	index.Aperiodicity = roundToHalf(index.Aperiodicity)
+	index.F0 = roundToHalf(index.F0)
 	return index, nil
+}
+
+// roundToHalfは、値をfloat16に丸めてfloat32へ戻す。保存した索引と同じ値にするために使う。
+func roundToHalf(values []float32) []float32 {
+	out := make([]float32, len(values))
+	for i, value := range values {
+		out[i] = halfToFloat32(float32ToHalf(value))
+	}
+	return out
 }
 
 type fileFrames struct {
@@ -385,7 +399,19 @@ func (index *Index) Save(path string) error {
 		for i, v := range index.Features {
 			half[i] = float32ToHalf(v)
 		}
-		for _, data := range []any{half, index.Spectrum, index.Aperiodicity, index.F0, index.File} {
+		spectrum := make([]uint16, len(index.Spectrum))
+		for i, v := range index.Spectrum {
+			spectrum[i] = float32ToHalf(v)
+		}
+		aperiodicity := make([]uint16, len(index.Aperiodicity))
+		for i, v := range index.Aperiodicity {
+			aperiodicity[i] = float32ToHalf(v)
+		}
+		f0 := make([]uint16, len(index.F0))
+		for i, v := range index.F0 {
+			f0[i] = float32ToHalf(v)
+		}
+		for _, data := range []any{half, spectrum, aperiodicity, f0, index.File} {
 			if err := binary.Write(buffered, binary.LittleEndian, data); err != nil {
 				return err
 			}
@@ -422,11 +448,11 @@ func LoadIndex(path string) (*Index, error) {
 	}
 	n := index.Frames
 	half := make([]uint16, n*index.Dims)
-	index.Spectrum = make([]float32, n*subFrames*spectrumDims)
-	index.Aperiodicity = make([]float32, n*subFrames*index.APBands)
-	index.F0 = make([]float32, n*subFrames)
+	spectrum := make([]uint16, n*subFrames*spectrumDims)
+	aperiodicity := make([]uint16, n*subFrames*index.APBands)
+	f0 := make([]uint16, n*subFrames)
 	index.File = make([]int32, n)
-	for _, data := range []any{half, index.Spectrum, index.Aperiodicity, index.F0, index.File} {
+	for _, data := range []any{half, spectrum, aperiodicity, f0, index.File} {
 		if err := binary.Read(reader, binary.LittleEndian, data); err != nil {
 			return nil, fmt.Errorf("%s is truncated: %w", path, err)
 		}
@@ -434,6 +460,18 @@ func LoadIndex(path string) (*Index, error) {
 	index.Features = make([]float32, len(half))
 	for i, v := range half {
 		index.Features[i] = halfToFloat32(v)
+	}
+	index.Spectrum = make([]float32, len(spectrum))
+	for i, v := range spectrum {
+		index.Spectrum[i] = halfToFloat32(v)
+	}
+	index.Aperiodicity = make([]float32, len(aperiodicity))
+	for i, v := range aperiodicity {
+		index.Aperiodicity[i] = halfToFloat32(v)
+	}
+	index.F0 = make([]float32, len(f0))
+	for i, v := range f0 {
+		index.F0[i] = halfToFloat32(v)
 	}
 	return index, nil
 }
