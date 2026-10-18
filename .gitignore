@@ -35,3 +35,5 @@ voice/*/
 AGENTS.md
 /models/english-reference/*
 !/models/english-reference/notices.json
+/models/xls-r/
+/models/wavlm/

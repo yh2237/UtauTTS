@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -15,11 +17,8 @@ import (
 )
 
 const (
-	// FeatureModelは索引の特徴量の種類。変えたら索引を作り直す。
-	FeatureModel = "hubert-base-ls960-layer6"
-	hubertLayer  = 6
-	hubertRate   = 16000
-	kokoroRate   = 24000
+	hubertRate = 16000
+	kokoroRate = 24000
 	// DurationUnitMSはKokoroの音素長の単位（600サンプル）。
 	DurationUnitMS = 25.0
 	// kokoroSamplesPerTokenは長さ1あたりのKokoroの出力のサンプル数。
@@ -29,6 +28,29 @@ const (
 	// F0FrameMSはSpeech.F0の周期。
 	F0FrameMS = refmatch.FrameMS / 4
 )
+
+// FeatureModelは索引の特徴量の種類。変えたら索引を作り直す。
+// UTAUTTS_FEATURE_MODELとUTAUTTS_HUBERT_LAYERで変えられる（実験用）。
+var (
+	FeatureModel = "hubert-base-ls960-layer6"
+	hubertLayer  = 6
+)
+
+func init() {
+	layerChanged := false
+	if value := os.Getenv("UTAUTTS_HUBERT_LAYER"); value != "" {
+		layer, err := strconv.Atoi(value)
+		if err == nil && layer > 0 {
+			hubertLayer = layer
+			layerChanged = true
+		}
+	}
+	if name := os.Getenv("UTAUTTS_FEATURE_MODEL"); name != "" {
+		FeatureModel = fmt.Sprintf("%s-layer%d", name, hubertLayer)
+	} else if layerChanged {
+		FeatureModel = fmt.Sprintf("hubert-base-ls960-layer%d", hubertLayer)
+	}
+}
 
 // Modelsは同梱するモデルのファイル。
 type Models struct {
@@ -68,6 +90,9 @@ type cachedFeatures struct {
 const cachedReads = 8
 
 func Open(models Models) (*Engine, error) {
+	if path := os.Getenv("UTAUTTS_HUBERT_PATH"); path != "" {
+		models.HuBERT = path
+	}
 	model, err := kokoro.Load(models.KokoroWeights, models.KokoroConfig)
 	if err != nil {
 		return nil, fmt.Errorf("load Kokoro: %w", err)
