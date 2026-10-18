@@ -40,11 +40,13 @@ $stampText = $stampParts -join "`n"
 $stampHasher = [System.Security.Cryptography.SHA256]::Create()
 $bridgeStamp = [System.BitConverter]::ToString(
         $stampHasher.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($stampText))).Replace('-', '').ToLowerInvariant()
-$bridgeUpToDate = (Test-Path -LiteralPath $outputExe -PathType Leaf) -and
-        (Test-Path -LiteralPath $stampPath -PathType Leaf) -and
-        ((Get-Content -LiteralPath $stampPath -Raw).Trim() -eq $bridgeStamp)
+$publishedExe = Join-Path $publish 'utautts-diffsinger-bridge.exe'
+$bridgeUpToDate = (Test-Path -LiteralPath $stampPath -PathType Leaf) -and
+        ((Get-Content -LiteralPath $stampPath -Raw).Trim() -eq $bridgeStamp) -and
+        (Test-Path -LiteralPath $publishedExe -PathType Leaf)
 
 if ($bridgeUpToDate) {
+    Copy-Item -LiteralPath $publishedExe -Destination $OutputDirectory -Force
     Write-Host 'DiffSinger bridge is up to date.'
 } else {
     dotnet publish $project -c Release -r win-x64 --self-contained true `
