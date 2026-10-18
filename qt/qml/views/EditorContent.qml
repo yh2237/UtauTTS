@@ -15,6 +15,7 @@ import UtauTTS.Media
         property alias utteranceList: utteranceList
         property alias voiceCombo: voiceCombo
         property alias speechLanguageCombo: speechLanguageCombo
+        property alias methodCombo: methodCombo
         property alias phonemizerCombo: phonemizerCombo
         property alias aliasPolicyCombo: aliasPolicyCombo
         property alias modelCombo: modelCombo
@@ -374,8 +375,11 @@ import UtauTTS.Media
                                 if (voice && voice.suggested_language) {
                                     const language = String(voice.suggested_language);
                                     const phonemizer = "auto";
+                                    const method = window.defaultMethod(language);
+                                    window.utterancesModel.setProperty(window.selectedIndex, "method", method);
                                     window.updateSpeechLanguage(language, phonemizer);
                                     window.selectCombo(speechLanguageCombo, language);
+                                    window.selectCombo(methodCombo, method);
                                     window.selectCombo(phonemizerCombo, phonemizer);
                                 }
 
@@ -394,17 +398,30 @@ import UtauTTS.Media
                             Layout.fillWidth: true
                             spacing: 4
                             Label {
+                                text: window.translator.tr("main.param.method")
+                                Layout.fillWidth: true
+                            }
+                            ComboBox {
+                                id: methodCombo
+                                Layout.fillWidth: true
+                                model: window.methodOptions()
+                                textRole: "display_name"
+                                valueRole: "id"
+                                onActivated: window.updateSpeechMethod(currentValue)
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+                            Label {
                                 text: window.translator.tr("main.param.language")
                                 Layout.fillWidth: true
                             }
                             ComboBox {
                                 id: speechLanguageCombo
                                 Layout.fillWidth: true
-                                model: [
-                                    { id: "ja", display_name: window.translator.tr("main.language.ja") },
-                                    { id: "en", display_name: window.translator.tr("main.language.en") },
-                                    { id: "zh", display_name: window.translator.tr("main.language.zh") }
-                                ]
+                                model: window.languageOptions(methodCombo.currentValue)
                                 textRole: "display_name"
                                 valueRole: "id"
                                 onActivated: {

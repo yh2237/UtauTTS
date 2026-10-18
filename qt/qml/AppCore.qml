@@ -135,6 +135,27 @@ QtObject {
         return "ja-kana";
     }
 
+    function defaultMethod(language) {
+        return String(language || "ja").toLowerCase() === "en" ? "reference" : "native";
+    }
+
+    function methodOptions() {
+        return [
+            { id: "native", display_name: core.translator.tr("main.method.native") },
+            { id: "reference", display_name: core.translator.tr("main.method.reference") }
+        ];
+    }
+
+    function languageOptions(method) {
+        const labels = {
+            "ja": core.translator.tr("main.language.ja"),
+            "en": core.translator.tr("main.language.en"),
+            "zh": core.translator.tr("main.language.zh")
+        };
+        const ids = String(method || "native") === "reference" ? ["en"] : ["ja", "zh"];
+        return ids.map(id => ({ id: id, display_name: labels[id] }));
+    }
+
     function phonemizerOptions(language) {
         const labels = {
             "auto": core.translator.tr("main.phonemizer.auto"),

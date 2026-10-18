@@ -1211,6 +1211,7 @@ ApplicationWindow {
                 text: item.content || "",
                 language: item.language || "ja",
                 phonemizer: item.phonemizer || window.defaultPhonemizer(item.language || "ja"),
+                method: item.method || "",
                 voicebank_id: item.voicebankId || "",
                 model_id: item.modelId || "",
                 renderer_id: item.renderer || "",
@@ -1410,6 +1411,7 @@ ApplicationWindow {
                 content: content,
                 language: String(saved.language || "ja"),
                 phonemizer: String(saved.phonemizer || window.defaultPhonemizer(saved.language || "ja")),
+                method: String(saved.method || ""),
                 reading: "",
                 moraeJson: "[]",
                 pointsJson: JSON.stringify(points),
@@ -1494,6 +1496,12 @@ ApplicationWindow {
 
     function defaultPhonemizer(language) { return core.defaultPhonemizer(language); }
 
+    function defaultMethod(language) { return core.defaultMethod(language); }
+
+    function methodOptions() { return core.methodOptions(); }
+
+    function languageOptions(method) { return core.languageOptions(method); }
+
     function phonemizerOptions(language) { return core.phonemizerOptions(language); }
 
     function resolvedPhonemizer(language, phonemizer, voicebankId) { return core.resolvedPhonemizer(language, phonemizer, voicebankId); }
@@ -1527,6 +1535,28 @@ ApplicationWindow {
         markUtteranceDirty(selectedIndex);
         selectCombo(editorContent.modelCombo, current().modelId);
         window.analyzeUtterance(selectedIndex);
+    }
+
+    function updateSpeechMethod(method) {
+        if (!utterances.count)
+            return;
+        const item = current();
+        const normalized = String(method || window.defaultMethod(item.language || "ja"));
+        utterances.setProperty(selectedIndex, "method", normalized);
+        const options = window.languageOptions(normalized);
+        const language = String(item.language || "ja");
+        let supported = false;
+        for (let index = 0; index < options.length; ++index) {
+            if (options[index].id === language) {
+                supported = true;
+                break;
+            }
+        }
+        if (!supported && options.length) {
+            window.updateSpeechLanguage(options[0].id, "auto");
+            selectCombo(editorContent.phonemizerCombo, "auto");
+        }
+        selectCombo(editorContent.speechLanguageCombo, current().language || "ja");
     }
 
     function updateSetting(name, value) {
@@ -1986,6 +2016,8 @@ ApplicationWindow {
         editorContent.phonemeEditor.frameMs = Number(item.autoFrameMs) > 0 ? Number(item.autoFrameMs) : 10;
         selectCombo(editorContent.voiceCombo, item.voicebankId);
         selectCombo(editorContent.speechLanguageCombo, item.language || "ja");
+        selectCombo(editorContent.methodCombo,
+                    item.method || window.defaultMethod(item.language || "ja"));
         selectCombo(editorContent.phonemizerCombo,
                     item.phonemizer || window.defaultPhonemizer(item.language || "ja"));
         Qt.callLater(function() {
@@ -2189,6 +2221,7 @@ ApplicationWindow {
             content: "",
             language: language,
             phonemizer: phonemizer,
+            method: window.defaultMethod(language),
             reading: "",
             moraeJson: "[]",
             pointsJson: "[]",
@@ -2423,6 +2456,7 @@ ApplicationWindow {
             reading: item.reading || "",
             language: item.language || "ja",
             phonemizer: window.resolvedPhonemizer(item.language, item.phonemizer, item.voicebankId),
+            method: item.method || "",
             dictionary: window.appBackend.dictionaryEntries,
             voicebank_id: item.voicebankId || editorContent.voiceCombo.currentValue,
             model_id: item.modelId,
@@ -2480,6 +2514,7 @@ ApplicationWindow {
             reading: item.reading || "",
             language: item.language || "ja",
             phonemizer: window.resolvedPhonemizer(item.language, item.phonemizer, item.voicebankId),
+            method: item.method || "",
             dictionary: window.appBackend.dictionaryEntries,
             model_id: item.modelId,
             model_path: window.intonationLab ? window.intonationLabBaseModelPath() : "",
