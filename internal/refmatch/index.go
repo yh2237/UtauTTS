@@ -16,6 +16,7 @@ import (
 
 	"github.com/yh2237/UtauTTS/internal/atomicfile"
 	"github.com/yh2237/UtauTTS/internal/audio"
+	"github.com/yh2237/gograd/dsp"
 	"github.com/yh2237/gograd/tensor"
 )
 
@@ -28,7 +29,7 @@ const (
 	d4cThreshold   = 0.85
 	quietMarginC0  = 9.0
 	indexMagic     = "UTRM"
-	indexVersion   = 1
+	indexVersion   = 2
 	minimumFileSec = 0.1
 )
 
@@ -73,6 +74,8 @@ type Header struct {
 // BuildIndexは録音ファイルを解析して索引を作る。最初のファイルと標本化周波数が違うファイルと0.1秒未満のファイルは使わない。
 // WORLDの解析はファイルごとに並列に行う。cacheを渡すと、内容が同じ録音の解析結果を再利用する。
 func BuildIndex(files []string, model string, world World, features FeatureFunc, progress func(done, total int), cache *PartCache) (*Index, error) {
+	// 録音ごとに標本化周波数が違う音源があるため、索引の周波数を先に決めて揃える。
+	targetRate := chooseIndexRate(files)
 	results := make([]fileFrames, len(files))
 	jobs := make(chan int)
 	var mu sync.Mutex
@@ -82,7 +85,7 @@ func BuildIndex(files []string, model string, world World, features FeatureFunc,
 	for range max(1, min(runtime.GOMAXPROCS(0), len(files))) {
 		wg.Go(func() {
 			for number := range jobs {
-				result, err := analyzeFile(files[number], model, world, features, cache)
+				result, err := analyzeFile(files[number], model, world, features, cache, targetRate)
 				mu.Lock()
 				results[number] = result
 				if err != nil && firstErr == nil {
@@ -155,8 +158,8 @@ type fileFrames struct {
 }
 
 // analyzeFileは、95パーセンタイルの音量から約45dB以上小さいフレームを除いて、1ファイル分のフレームを返す。
-// 内容が同じ録音の解析結果がcacheにあれば、解析せずにそれを返す。
-func analyzeFile(path, model string, world World, features FeatureFunc, cache *PartCache) (fileFrames, error) {
+// 内容が同じ録音の解析結果がcacheにあれば、解析せずにそれを返す。標本化周波数はtargetRateに揃える。
+func analyzeFile(path, model string, world World, features FeatureFunc, cache *PartCache, targetRate int) (fileFrames, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		// 読めない形式のWAV（PCM以外など）は、索引に入れずに飛ばす。
@@ -164,12 +167,12 @@ func analyzeFile(path, model string, world World, features FeatureFunc, cache *P
 	}
 	key := ""
 	if cache != nil {
-		key = partKey(model, data)
+		key = partKey(model, data, targetRate)
 		if frames, ok := cache.Load(key); ok {
 			return frames, nil
 		}
 	}
-	result, err := analyzeBytes(data, world, features)
+	result, err := analyzeBytes(data, world, features, targetRate)
 	if err != nil {
 		return result, err
 	}
@@ -179,11 +182,86 @@ func analyzeFile(path, model string, world World, features FeatureFunc, cache *P
 	return result, nil
 }
 
-func analyzeBytes(data []byte, world World, features FeatureFunc) (fileFrames, error) {
+// chooseIndexRateは、索引の標本化周波数を決める。短すぎない録音でいちばん多い周波数を使い、48kHzを上限にする。
+func chooseIndexRate(files []string) int {
+	counts := map[int]int{}
+	for _, path := range files {
+		if rate, duration, err := wavInfo(path); err == nil && rate > 0 && duration >= minimumFileSec {
+			counts[rate]++
+		}
+	}
+	best, bestCount := 0, 0
+	for rate, count := range counts {
+		if count > bestCount || (count == bestCount && rate > best) {
+			best, bestCount = rate, count
+		}
+	}
+	if best > 48000 {
+		best = 48000
+	}
+	return best
+}
+
+// wavInfoは、WAVのヘッダだけを読んで標本化周波数と長さ（秒）を返す。
+func wavInfo(path string) (int, float64, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer file.Close()
+	header := make([]byte, 12)
+	if _, err := io.ReadFull(file, header); err != nil {
+		return 0, 0, err
+	}
+	if string(header[:4]) != "RIFF" || string(header[8:12]) != "WAVE" {
+		return 0, 0, errors.New("not a WAV file")
+	}
+	rate, channels, bits := 0, 0, 0
+	for {
+		chunk := make([]byte, 8)
+		if _, err := io.ReadFull(file, chunk); err != nil {
+			return 0, 0, err
+		}
+		size := int(binary.LittleEndian.Uint32(chunk[4:]))
+		switch string(chunk[:4]) {
+		case "fmt ":
+			format := make([]byte, size)
+			if _, err := io.ReadFull(file, format); err != nil {
+				return 0, 0, err
+			}
+			if len(format) < 16 {
+				return 0, 0, errors.New("bad fmt chunk")
+			}
+			channels = int(binary.LittleEndian.Uint16(format[2:]))
+			rate = int(binary.LittleEndian.Uint32(format[4:]))
+			bits = int(binary.LittleEndian.Uint16(format[14:]))
+		case "data":
+			bytesPerFrame := channels * (bits / 8)
+			if rate == 0 || bytesPerFrame == 0 {
+				return 0, 0, errors.New("data before fmt")
+			}
+			return rate, float64(size) / float64(bytesPerFrame*rate), nil
+		default:
+			if _, err := file.Seek(int64(size+size%2), io.SeekCurrent); err != nil {
+				return 0, 0, err
+			}
+		}
+	}
+}
+
+func analyzeBytes(data []byte, world World, features FeatureFunc, targetRate int) (fileFrames, error) {
 	samples, rate, err := decodeMono(data)
 	if err != nil {
 		// 読めない形式のWAV（PCM以外など）は、索引に入れずに飛ばす。
 		return fileFrames{}, nil
+	}
+	if targetRate > 0 && rate != targetRate {
+		converted := dsp.Resample(float32Values(samples), rate, targetRate)
+		samples = make([]float64, len(converted))
+		for i, value := range converted {
+			samples[i] = float64(value)
+		}
+		rate = targetRate
 	}
 	result := fileFrames{rate: rate}
 	if float64(len(samples)) < float64(rate)*minimumFileSec {
@@ -232,6 +310,15 @@ func analyzeBytes(data []byte, world World, features FeatureFunc) (fileFrames, e
 		result.frames++
 	}
 	return result, nil
+}
+
+// float32Valuesは、標本化周波数を変えるためにfloat64の波形をfloat32へ移す。
+func float32Values(samples []float64) []float32 {
+	values := make([]float32, len(samples))
+	for i, sample := range samples {
+		values[i] = float32(sample)
+	}
+	return values
 }
 
 func decodeMono(data []byte) ([]float64, int, error) {
