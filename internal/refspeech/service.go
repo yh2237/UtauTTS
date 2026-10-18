@@ -298,6 +298,21 @@ func (s *Service) Speak(ctx context.Context, bankRoot string, recordings []strin
 	return engine.Speak(index, world, pieces, options)
 }
 
+// SpeakReferenceは、参照の読みから音源のフレームで合成し直す。参照TTSの種類に依存しない入口。
+func (s *Service) SpeakReference(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string, reference Reference, options Options) (Speech, error) {
+	index, err := s.Index(ctx, bankRoot, recordings, worldEnginePath)
+	if err != nil {
+		return Speech{}, err
+	}
+	engine, world, err := s.open(worldEnginePath)
+	if err != nil {
+		return Speech{}, err
+	}
+	s.foreground.RLock()
+	defer s.foreground.RUnlock()
+	return engine.SpeakReference(index, world, reference, options)
+}
+
 // SpeakAudioは参照の音声から、音源のフレームで合成し直す。言語に依存しない入口。
 func (s *Service) SpeakAudio(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string, audio []float64, sampleRate int) (Speech, error) {
 	index, err := s.Index(ctx, bankRoot, recordings, worldEnginePath)

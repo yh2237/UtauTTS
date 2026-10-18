@@ -177,6 +177,10 @@ type Reference struct {
 	Audio []float32
 	F0    []float32
 	Timing
+	// SampleRateはAudioの標本化周波数。0なら24kHz。
+	SampleRate int
+	// Keyは同じ読みを見分けるための値。特徴量の使い回しに使う（中身は問わない）。
+	Key string
 }
 
 // ReferenceF0は参照のF0を、有声区間を約20msでなめらかにしてF0FrameMSごとにする（0は無声）。
@@ -258,7 +262,7 @@ func (e *Engine) read(pieces []Piece, speed float32, durations []int, withAudio 
 		if err != nil {
 			return Reference{}, err
 		}
-		entry = &cachedRead{key: key, prosody: prosody, reference: Reference{F0: prosody.F0,
+		entry = &cachedRead{key: key, prosody: prosody, reference: Reference{F0: prosody.F0, SampleRate: kokoroRate, Key: key,
 			Timing: Timing{Durations: prosody.Durations, PieceTokens: make([][2]int, len(pieces))}}}
 		token := 1
 		for i, piece := range pieces {
@@ -292,36 +296,43 @@ func (e *Engine) read(pieces []Piece, speed float32, durations []int, withAudio 
 
 // Speakは音素列をKokoroで読み、その特徴量に近い音源のフレームで合成し直す。
 func (e *Engine) Speak(index *refmatch.Index, world refmatch.World, pieces []Piece, options Options) (Speech, error) {
-	if index.Model != FeatureModel {
-		return Speech{}, fmt.Errorf("voicebank index uses %q, want %q", index.Model, FeatureModel)
-	}
 	reference, err := e.Read(pieces, options.Speed, options.Durations)
 	if err != nil {
 		return Speech{}, err
+	}
+	return e.SpeakReference(index, world, reference, options)
+}
+
+// SpeakReferenceは、参照の読み（Reference）から、音源のフレームで合成し直す。
+// 参照TTSが何であっても、音声とF0があれば同じように合成できる。
+func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, reference Reference, options Options) (Speech, error) {
+	if index.Model != FeatureModel {
+		return Speech{}, fmt.Errorf("voicebank index uses %q, want %q", index.Model, FeatureModel)
+	}
+	rate := reference.SampleRate
+	if rate <= 0 {
+		rate = kokoroRate
 	}
 	samples := make([]float64, len(reference.Audio))
 	for i, v := range reference.Audio {
 		samples[i] = float64(v)
 	}
-	symbols := make([]string, len(pieces))
-	for i, piece := range pieces {
-		symbols[i] = piece.Symbols
-	}
-	speed := options.Speed
-	if speed <= 0 {
-		speed = 1
-	}
-	key := readKey(symbols, speed, options.Durations)
 	var features []float32
 	var frames int
-	if cached := e.cachedFeatures(key); cached != nil {
-		features, frames = cached.values, cached.frames
-	} else {
+	if reference.Key != "" {
+		if cached := e.cachedFeatures(reference.Key); cached != nil {
+			features, frames = cached.values, cached.frames
+		}
+	}
+	if features == nil {
 		var dims int
-		if features, frames, dims, err = e.Features(samples, kokoroRate); err != nil {
+		var err error
+		if features, frames, dims, err = e.Features(samples, rate); err != nil {
 			return Speech{}, err
 		}
-		e.storeFeatures(key, features, frames, dims)
+		if reference.Key != "" {
+			e.storeFeatures(reference.Key, features, frames, dims)
+		}
 	}
 	referenceF0 := refmatch.ReferenceF0(reference.F0, kokoroF0FrameMS, frames)
 	automaticF0 := index.OutputF0(referenceF0, options.CenterHz, options.PitchScale)
@@ -346,7 +357,7 @@ func (e *Engine) Speak(index *refmatch.Index, world refmatch.World, pieces []Pie
 	}
 	audio, err := index.Synthesize(world, refmatch.Request{
 		Features: features, Frames: frames, ReferenceF0: referenceF0, OutputF0: outF0,
-		ReferenceLevel: refmatch.ReferenceLevels(samples, kokoroRate, frames*4),
+		ReferenceLevel: refmatch.ReferenceLevels(samples, rate, frames*4),
 	})
 	if err != nil {
 		return Speech{}, err
