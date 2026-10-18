@@ -72,14 +72,14 @@ func englishLexicon(dir string) (*refspeech.Lexicon, error) {
 }
 
 // englishReferenceInputsは、モーラ長を話速に、抑揚の強さをF0の動きの幅に、音高をF0の中心に直す。
-func englishReferenceInputs(cfg Config, reading string) (*refspeech.Service, []refspeech.Piece, refspeech.Options, error) {
+func englishReferenceInputs(cfg Config, reading string) (*refspeech.Service, refspeech.Provider, []refspeech.Piece, refspeech.Options, error) {
 	service, err := EnglishReferenceService(cfg.EnglishReferenceDir)
 	if err != nil {
-		return nil, nil, refspeech.Options{}, err
+		return nil, nil, nil, refspeech.Options{}, err
 	}
 	lexicon, err := englishLexicon(cfg.EnglishReferenceDir)
 	if err != nil {
-		return nil, nil, refspeech.Options{}, err
+		return nil, nil, nil, refspeech.Options{}, err
 	}
 	options := refspeech.Options{Speed: 1, PitchScale: cfg.IntonationStrength / settings.Number("intonation_strength")}
 	if cfg.MoraDurationMS > 0 {
@@ -88,11 +88,12 @@ func englishReferenceInputs(cfg Config, reading string) (*refspeech.Service, []r
 	if frequency, ok := voicebank.ToneFrequency(cfg.Tone); ok {
 		options.CenterHz = frequency
 	}
-	automatic, _, err := frontend.ParseEnglishARPAsing(cfg.Text, "", cfg.Dictionary)
+	provider := refspeech.NewKokoroProvider(service, lexicon, cfg.Dictionary)
+	pieces, err := provider.Pieces(cfg.Text, reading)
 	if err != nil {
-		automatic = ""
+		return nil, nil, nil, refspeech.Options{}, err
 	}
-	return service, refspeech.KokoroPieces(lexicon, cfg.Text, reading, automatic, cfg.Dictionary), options, nil
+	return service, provider, pieces, options, nil
 }
 
 // englishManualPitchは手動の抑揚を、最初のモーラの始まりからのミリ秒ごとのセントにする。
@@ -122,12 +123,12 @@ func hasManualMoraDurations(durations []float64) bool {
 
 // englishPlanTimingは、手動の長さや抑揚があればKokoroで一度読んで、手動の長さに合わせた記号の長さと、モーラの長さを返す。
 // 手動の編集がなければnilを返し、Kokoroの予測した長さで読む。
-func englishPlanTiming(cfg Config, service *refspeech.Service, pieces []refspeech.Piece, options refspeech.Options, reading string, morae []frontend.Mora) ([]int, []float64, error) {
+func englishPlanTiming(cfg Config, provider refspeech.Provider, pieces []refspeech.Piece, options refspeech.Options, reading string, morae []frontend.Mora) ([]int, []float64, error) {
 	manualPitch := cfg.ManualPitch != nil || cfg.ManualPitchPath != ""
 	if !hasManualMoraDurations(cfg.MoraDurationsMS) && !manualPitch {
 		return nil, nil, nil
 	}
-	reference, err := service.ReadProsody(pieces, options.Speed, nil)
+	reference, err := provider.ReadProsody(pieces, options.Speed, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -142,11 +143,11 @@ func synthesizeEnglishReference(cfg Config, bank *voicebank.Bank, language, phon
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	service, pieces, options, err := englishReferenceInputs(cfg, reading)
+	service, provider, pieces, options, err := englishReferenceInputs(cfg, reading)
 	if err != nil {
 		return nil, err
 	}
-	forced, planned, err := englishPlanTiming(cfg, service, pieces, options, reading, morae)
+	forced, planned, err := englishPlanTiming(cfg, provider, pieces, options, reading, morae)
 	if err != nil {
 		return nil, fmt.Errorf("English synthesis: %w", err)
 	}
@@ -156,7 +157,11 @@ func synthesizeEnglishReference(cfg Config, bank *voicebank.Bank, language, phon
 			return nil, err
 		}
 	}
-	speech, err := service.Speak(ctx, bank.Root, bank.ReferenceRecordings(), cfg.WorldEnginePath, pieces, options)
+	reference, err := provider.Read(pieces, options.Speed, options.Durations)
+	if err != nil {
+		return nil, fmt.Errorf("English synthesis: %w", err)
+	}
+	speech, err := service.SpeakReference(ctx, bank.Root, bank.ReferenceRecordings(), cfg.WorldEnginePath, reference, options)
 	if err != nil {
 		return nil, fmt.Errorf("English synthesis: %w", err)
 	}
@@ -204,17 +209,17 @@ func synthesizeEnglishReference(cfg Config, bank *voicebank.Bank, language, phon
 // predictEnglishReferenceは、Kokoroの読みだけから英語のモーラ長と抑揚を返す。音源は使わない。
 // 手動のモーラ長があれば、その長さで読んだときの抑揚を返す。
 func predictEnglishReference(cfg Config, reading string, morae []frontend.Mora) (*ProsodyPreview, error) {
-	service, pieces, options, err := englishReferenceInputs(cfg, reading)
+	_, provider, pieces, options, err := englishReferenceInputs(cfg, reading)
 	if err != nil {
 		return nil, fmt.Errorf("English prosody: %w", err)
 	}
-	reference, err := service.ReadProsody(pieces, options.Speed, nil)
+	reference, err := provider.ReadProsody(pieces, options.Speed, nil)
 	if err != nil {
 		return nil, fmt.Errorf("English prosody: %w", err)
 	}
 	if hasManualMoraDurations(cfg.MoraDurationsMS) {
 		forced := englishForcedDurations(reference.Timing, englishMoraTokens(pieces, reference.Timing, reading, morae), cfg.MoraDurationsMS)
-		if reference, err = service.ReadProsody(pieces, options.Speed, forced); err != nil {
+		if reference, err = provider.ReadProsody(pieces, options.Speed, forced); err != nil {
 			return nil, fmt.Errorf("English prosody: %w", err)
 		}
 	}

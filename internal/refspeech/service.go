@@ -298,6 +298,17 @@ func (s *Service) Speak(ctx context.Context, bankRoot string, recordings []strin
 	return engine.Speak(index, world, pieces, options)
 }
 
+// Readは音素列を参照TTS（Kokoro）で読み、参照の音声とF0を返す。
+func (s *Service) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
+	engine, err := s.openEngine()
+	if err != nil {
+		return Reference{}, err
+	}
+	s.foreground.RLock()
+	defer s.foreground.RUnlock()
+	return engine.Read(pieces, speed, durations)
+}
+
 // SpeakReferenceは、参照の読みから音源のフレームで合成し直す。参照TTSの種類に依存しない入口。
 func (s *Service) SpeakReference(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string, reference Reference, options Options) (Speech, error) {
 	index, err := s.Index(ctx, bankRoot, recordings, worldEnginePath)
