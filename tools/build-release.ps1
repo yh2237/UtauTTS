@@ -8,7 +8,8 @@ param(
     [int]$PreviousUpdateSchema = 0,
     [int]$PreviousInstallLayout = 0,
     [int]$PreviousMigrationSchema = 0,
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [switch]$SkipPackageTest
 )
 
 $ErrorActionPreference = 'Stop'
@@ -76,10 +77,37 @@ function Compress-Package([string]$SourceDirectory, [string]$DestinationZip) {
     if (Test-Path -LiteralPath $DestinationZip) {
         Remove-Item -Force -LiteralPath $DestinationZip
     }
-    # 大きなGUI配布物ではCompress-Archiveより速い。
+    # 大きなGUI配布物ではCompress-Archiveより速い。モデルの重みはあまり縮まないので、
+    # 圧縮の強さは速度を優先する。
     [System.IO.Compression.ZipFile]::CreateFromDirectory(
         $SourceDirectory, $DestinationZip,
-        [System.IO.Compression.CompressionLevel]::Optimal, $false)
+        [System.IO.Compression.CompressionLevel]::Fastest, $false)
+}
+
+# Compress-PackagesInParallelは、GUIとサーバーのZIPを同時に作る。
+function Compress-PackagesInParallel([string]$FirstSource, [string]$FirstZip,
+        [string]$SecondSource, [string]$SecondZip) {
+    $script = {
+        param($SourceDirectory, $DestinationZip)
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        if (Test-Path -LiteralPath $DestinationZip) {
+            Remove-Item -Force -LiteralPath $DestinationZip
+        }
+        [System.IO.Compression.ZipFile]::CreateFromDirectory(
+            $SourceDirectory, $DestinationZip,
+            [System.IO.Compression.CompressionLevel]::Fastest, $false)
+    }
+    $jobs = @(
+        Start-Job -ScriptBlock $script -ArgumentList $FirstSource, $FirstZip
+        Start-Job -ScriptBlock $script -ArgumentList $SecondSource, $SecondZip
+    )
+    $jobs | Wait-Job | Out-Null
+    $output = $jobs | Receive-Job
+    $failures = @($jobs | Where-Object { $_.State -ne 'Completed' -or $_.ChildJobs[0].Error.Count -gt 0 })
+    $jobs | Remove-Job -Force
+    if ($failures.Count -gt 0) {
+        throw "Package compression failed: $($failures | ForEach-Object { $_.ChildJobs[0].Error } | Out-String)"
+    }
 }
 
 function Expand-BundledVoicebank([string]$Destination) {
@@ -325,12 +353,16 @@ try {
         Remove-Item -LiteralPath $qmlToolingPath -Recurse -Force
     }
 
-    Write-Step 'Package'
-    Compress-Package $guiPath $guiZip
-    Compress-Package $serverPath $serverZip
+    Write-Step 'Compress packages'
+    Compress-PackagesInParallel $guiPath $guiZip $serverPath $serverZip
 
-    & (Join-Path $PSScriptRoot 'test-release-package.ps1') -ReleaseRoot $releaseRoot -Profile $Profile
-    if ($LASTEXITCODE -ne 0) { throw "Release package smoke test failed with exit code $LASTEXITCODE" }
+    Write-Step 'Test release packages'
+    if ($SkipPackageTest -or $env:UTAUTTS_SKIP_PACKAGE_TEST -eq '1') {
+        Write-Step 'Test release packages (skipped)'
+    } else {
+        & (Join-Path $PSScriptRoot 'test-release-package.ps1') -ReleaseRoot $releaseRoot -Profile $Profile
+        if ($LASTEXITCODE -ne 0) { throw "Release package smoke test failed with exit code $LASTEXITCODE" }
+    }
 
     Write-Host 'GUI:'
     Get-ChildItem -LiteralPath $guiPath | Select-Object Name, Length

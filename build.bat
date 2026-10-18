@@ -8,7 +8,12 @@ if /I "%target%"=="-skip-tests" (
     set "UTAUTTS_SKIP_TESTS=1"
     set "target=win"
 )
+if /I "%target%"=="-skip-package-test" (
+    set "UTAUTTS_SKIP_PACKAGE_TEST=1"
+    set "target=win"
+)
 if /I "%~2"=="-skip-tests" set "UTAUTTS_SKIP_TESTS=1"
+if /I "%~2"=="-skip-package-test" set "UTAUTTS_SKIP_PACKAGE_TEST=1"
 
 if /I "%target%"=="win" goto build_win
 if /I "%target%"=="linux" goto build_linux
@@ -66,6 +71,7 @@ echo   linux  Build the Linux package through WSL.
 echo   both   Build Windows and then Linux packages.
 echo.
 echo   -skip-tests  Skip the Go test step in the Windows build.
+echo   -skip-package-test  Skip extracting and smoke-testing the built ZIPs.
 echo.
 echo Set UTAUTTS_WSL_DISTRO to select a non-default WSL distribution.
 exit /b 0
