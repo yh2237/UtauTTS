@@ -1290,6 +1290,7 @@ void Backend::initialize() {
                 {QStringLiteral("resamplers"), result.value(QStringLiteral("resamplers"))},
                 {QStringLiteral("wavtools"), result.value(QStringLiteral("wavtools"))},
                 {QStringLiteral("default_renderer"), result.value(QStringLiteral("default_renderer"))},
+                {QStringLiteral("reference_providers"), result.value(QStringLiteral("reference_providers"))},
             });
         if (!m_startupMigrationError.isEmpty())
             setError(m_startupMigrationError);
@@ -1371,6 +1372,7 @@ void Backend::initializeAsync() {
                     {QStringLiteral("resamplers"), result.value(QStringLiteral("resamplers"))},
                     {QStringLiteral("wavtools"), result.value(QStringLiteral("wavtools"))},
                     {QStringLiteral("default_renderer"), result.value(QStringLiteral("default_renderer"))},
+                    {QStringLiteral("reference_providers"), result.value(QStringLiteral("reference_providers"))},
                 });
             if (!m_startupMigrationError.isEmpty()) {
                 setError(m_startupMigrationError);
@@ -1528,6 +1530,7 @@ void Backend::applyMetadata(const QVariantMap &voices, const QVariantMap &models
         appendLog(problem);
     m_resamplers = renderers.value("resamplers").toList();
     m_wavtools = renderers.value("wavtools").toList();
+    m_referenceProviders = renderers.value("reference_providers").toList();
     m_catalogDefaultRenderer = renderers.value("default_renderer").toString();
     const auto containsId = [](const QVariantList &items, const QString &id) {
         return std::any_of(items.cbegin(), items.cend(), [&id](const QVariant &item) {
@@ -1544,7 +1547,10 @@ void Backend::applyMetadata(const QVariantMap &voices, const QVariantMap &models
 }
 
 void Backend::refreshMetadata() {
-    applyMetadata(call("voicebanks"), call("models"), call("renderers"));
+    QVariantMap renderers = call("renderers");
+    renderers.insert(QStringLiteral("reference_providers"),
+                     call("referenceProviders").value(QStringLiteral("reference_providers")));
+    applyMetadata(call("voicebanks"), call("models"), renderers);
 }
 
 void Backend::refreshMetadataFromWasm() {

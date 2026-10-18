@@ -152,8 +152,19 @@ QtObject {
             "en": core.translator.tr("main.language.en"),
             "zh": core.translator.tr("main.language.zh")
         };
-        const ids = String(method || "native") === "reference" ? ["en"] : ["ja", "zh"];
-        return ids.map(id => ({ id: id, display_name: labels[id] }));
+        if (String(method || "native") === "reference") {
+            const providers = core.backend.referenceProviders || [];
+            const ids = [];
+            for (let index = 0; index < providers.length; ++index) {
+                const language = String((providers[index] || {}).language || "");
+                if (language.length && ids.indexOf(language) < 0)
+                    ids.push(language);
+            }
+            if (!ids.length)
+                ids.push("en");
+            return ids.map(id => ({ id: id, display_name: labels[id] || id }));
+        }
+        return ["ja", "zh"].map(id => ({ id: id, display_name: labels[id] }));
     }
 
     function phonemizerOptions(language) {

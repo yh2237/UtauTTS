@@ -104,6 +104,8 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 		result = map[string]any{"voicebanks": e.voicebankList()}
 	case "models":
 		result = map[string]any{"models": e.models()}
+	case "referenceProviders":
+		result = map[string]any{"reference_providers": e.synth.ReferenceProviders()}
 	case "renderers":
 		result = map[string]any{
 			"default_renderer": e.config.Renderer, "renderers": e.catalog.Renderers,

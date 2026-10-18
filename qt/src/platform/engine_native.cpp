@@ -66,6 +66,9 @@ QVariantMap initializeNative(const QByteArray &encoded,
         const QVariantMap renderers = callNative(handle, "renderers");
         if (progress) {
             progress(3);
+        }
+        const QVariantMap providers = callNative(handle, "referenceProviders");
+        if (progress) {
             progress(4);
         }
         return {
@@ -77,6 +80,7 @@ QVariantMap initializeNative(const QByteArray &encoded,
             {"resamplers", renderers.value("resamplers")},
             {"wavtools", renderers.value("wavtools")},
             {"default_renderer", renderers.value("default_renderer")},
+            {"reference_providers", providers.value("reference_providers")},
         };
     } catch (const std::exception &exception) {
         UtauTTSDestroy(handle);

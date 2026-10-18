@@ -402,7 +402,12 @@ func (s *Service) PrepareEnglish(bank *voicebank.Bank) {
 	tts.PrepareReferenceIndex(s.referenceDir(), bank, worldPhrase.Resource(engine.ResourceWorldEngine))
 }
 
-// referenceDirは、抑揚モデルのあるフォルダのうち、英語の合成のモデルを置いたフォルダを返す。
+// ReferenceProvidersは、使える参照TTSを返す。
+func (s *Service) ReferenceProviders() []tts.ReferenceProviderInfo {
+	return tts.ReferenceProviders(s.referenceDir())
+}
+
+// referenceDirは、抑揚モデルのあるフォルダのうち、参照の合成のモデルを置いたフォルダを返す。
 func (s *Service) referenceDir() string {
 	if s.catalog == nil {
 		return ""
