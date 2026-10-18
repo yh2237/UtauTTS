@@ -164,7 +164,7 @@ Kokoroは入力記号ごとの長さ（25ms単位）、内部で予測したF0�
 
 ### 特徴量
 
-特徴量にはLibriSpeechの960時間で学習したHuBERT Base（`facebook/hubert-base-ls960`）の6層目を使います。音声を16kHzにして、20msごとに768次元の値を求めます。
+特徴量にはLibriSpeechの960時間で学習したWavLM base+（`microsoft/wavlm-base-plus`）の6層目を使います。音声を16kHzにして、20msごとに768次元の値を求めます。
 
 ### 音源の索引
 
