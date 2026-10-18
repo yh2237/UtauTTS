@@ -83,16 +83,24 @@ jobs:
           echo "QT_ROOT=$qt_root" >> "$GITHUB_ENV"
 
       - name: Cache English reference models
+        id: models-cache
         uses: actions/cache@v4
         with:
           path: |
             models/english-reference/kokoro-v1_0.pth
             models/english-reference/config.json
             models/english-reference/af_heart.pt
-            models/english-reference/hubert-base-ls960.safetensors
             models/english-reference/us_gold.json
             models/english-reference/us_silver.json
+            models/english-reference/wavlm/wavlm-base-plus.safetensors
+            models/english-reference/wavlm/config.json
+            models/english-reference/wavlm/pytorch_model.bin
           key: english-reference-${{ hashFiles('tools/fetch-english-reference.sh') }}
+
+      - name: Install model conversion tools
+        if: steps.models-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: python -m pip install --disable-pip-version-check torch safetensors
 
       - name: Fetch English reference models
         shell: bash
