@@ -19,11 +19,9 @@ $stepTimings = [System.Collections.Generic.List[object]]::new()
 $lastStepName = 'Start'
 function Write-Step([string]$Name) {
     $elapsed = $stepStopwatch.Elapsed.TotalSeconds
-    if ($lastStepName -ne 'Start') {
-        $stepTimings.Add([pscustomobject]@{ Step = $lastStepName; Seconds = $elapsed })
-    }
+    $stepTimings.Add([pscustomobject]@{ Step = $script:lastStepName; Seconds = $elapsed })
     Write-Host ("=== {0} === (+{1:N1}s)" -f $Name, $elapsed)
-    $lastStepName = $Name
+    $script:lastStepName = $Name
     $stepStopwatch.Restart()
 }
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -340,7 +338,7 @@ try {
     Get-ChildItem -LiteralPath $serverPath | Select-Object Name, Length
     Get-Item -LiteralPath $guiZip, $serverZip | Select-Object FullName, Length
 
-    $stepTimings.Add([pscustomobject]@{ Step = $lastStepName; Seconds = $stepStopwatch.Elapsed.TotalSeconds })
+    $stepTimings.Add([pscustomobject]@{ Step = $script:lastStepName; Seconds = $stepStopwatch.Elapsed.TotalSeconds })
     Write-Host '=== Timings ==='
     $stepTimings | Sort-Object Seconds -Descending | ForEach-Object {
         Write-Host ("{0,6:N1}s  {1}" -f $_.Seconds, $_.Step)
