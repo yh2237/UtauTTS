@@ -9,7 +9,7 @@ require (
 	github.com/mozillazg/go-pinyin v0.21.0
 	github.com/parquet-go/parquet-go v0.32.0
 	github.com/yh2237/audiodsp v0.5.2
-	github.com/yh2237/gograd v1.7.1
+	github.com/yh2237/gograd v1.8.0
 	github.com/yh2237/utauio v0.4.0
 	golang.org/x/text v0.39.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -17,6 +17,7 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.1.1 // indirect
+	github.com/ebitengine/purego v0.11.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/parquet-go/bitpack v1.0.0 // indirect
