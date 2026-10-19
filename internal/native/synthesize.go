@@ -172,5 +172,6 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 		"waveform_max":          waveformMax,
 		"waveform_sample_rate":  result.Audio.SampleRate,
 		"prosody_model_applied": e.synth.ModelAvailable(request.ModelID),
+		"feature_device":        e.synth.FeatureDevice(),
 	}, nil
 }

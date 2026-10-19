@@ -247,6 +247,7 @@ func (m *Model) featuresOnDevice(device tensor.Device, wave []float32, layer int
 		return nil, err
 	}
 	defer leave()
+	setLastDevice(gpuDeviceLabel(device))
 	gpuMu.Lock()
 	defer gpuMu.Unlock()
 	m.mu.RLock()

@@ -5,6 +5,7 @@ import (
 	"math"
 	"runtime"
 	"sync"
+	"sync/atomic"
 
 	"github.com/yh2237/gograd/autograd"
 	"github.com/yh2237/gograd/tensor"
@@ -140,6 +141,34 @@ func applyGELU(values []float32) {
 	wait.Wait()
 }
 
+// lastDeviceは、直近の特徴量計算に使ったデバイス名。
+var lastDevice atomic.Value
+
+// LastDeviceは、直近の特徴量計算に使ったデバイスを返す。
+func LastDevice() string {
+	if value, ok := lastDevice.Load().(string); ok {
+		return value
+	}
+	return ""
+}
+
+func setLastDevice(name string) {
+	lastDevice.Store(name)
+}
+
+// gpuDeviceLabelは、画面に出すためのデバイス名を返す。
+func gpuDeviceLabel(device tensor.Device) string {
+	switch device {
+	case tensor.CUDA:
+		return "CUDA"
+	case tensor.DirectML:
+		return "DirectML"
+	case tensor.Vulkan:
+		return "Vulkan"
+	}
+	return string(device)
+}
+
 // FeaturesAcceleratedは、GPUが使える環境ではGPUで、そうでなければCPUで特徴量を求める。
 func (m *Model) FeaturesAccelerated(wave []float32, layer int) ([][]float32, error) {
 	return m.featuresAccelerated(wave, layer)
@@ -148,6 +177,7 @@ func (m *Model) FeaturesAccelerated(wave []float32, layer int) ([][]float32, err
 // Features returns hidden_states[layer] as contiguous [frames][HiddenSize] rows.
 // Featuresは複数のgoroutineから同時に呼べる。
 func (m *Model) Features(wave []float32, layer int) ([][]float32, error) {
+	setLastDevice("CPU")
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	config := m.config

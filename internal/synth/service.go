@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/yh2237/UtauTTS/internal/engine"
+	"github.com/yh2237/UtauTTS/internal/hubert"
 	"github.com/yh2237/UtauTTS/internal/lifecycle"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/plugin"
@@ -400,6 +401,11 @@ func (s *Service) PrepareEnglish(bank *voicebank.Bank) {
 		return
 	}
 	tts.PrepareReferenceIndex(s.referenceDir(), bank, worldPhrase.Resource(engine.ResourceWorldEngine))
+}
+
+// FeatureDeviceは、直近の特徴量計算に使ったデバイスを返す。
+func (s *Service) FeatureDevice() string {
+	return hubert.LastDevice()
 }
 
 // ReferenceProvidersは、使える参照TTSを返す。

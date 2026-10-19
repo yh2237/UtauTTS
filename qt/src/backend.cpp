@@ -1858,6 +1858,9 @@ void Backend::synthesize(const QVariantMap &input) {
                     storePreviewCache(cacheKey, PreviewCacheEntry{
                         outputPath, previewText, m_previewLab, m_synthesisJson});
                     emit synthesisChanged();
+                    const QString device = result.value("feature_device").toString();
+                    if (!device.isEmpty())
+                        appendLog(tr("使用デバイス: %1").arg(device));
                     appendLog(tr("音声合成が完了しました。"));
                     emit previewReady();
                 }

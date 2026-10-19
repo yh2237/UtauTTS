@@ -33,6 +33,36 @@ func TestFeaturesVulkan(t *testing.T) {
 	checkGPUParity(t, tensor.Vulkan, wavlmModelPath)
 }
 
+// TestLastDeviceは、特徴量の計算に使ったデバイスが記録されることを確かめる。
+func TestLastDevice(t *testing.T) {
+	if _, err := os.Stat(wavlmModelPath); os.IsNotExist(err) {
+		t.Skipf("%s is missing", wavlmModelPath)
+	}
+	m, err := Load(wavlmModelPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close()
+	wave := make([]float32, 16000)
+	for i := range wave {
+		wave[i] = float32(math.Sin(2 * math.Pi * 140 * float64(i) / 16000))
+	}
+	if _, err := m.Features(wave, 1); err != nil {
+		t.Fatal(err)
+	}
+	if got := LastDevice(); got != "CPU" {
+		t.Fatalf("Features used %q, want CPU", got)
+	}
+	if _, err := m.FeaturesAccelerated(wave, 1); err != nil {
+		t.Fatal(err)
+	}
+	if got := LastDevice(); got == "" {
+		t.Fatal("FeaturesAccelerated did not record a device")
+	} else {
+		t.Logf("FeaturesAccelerated used %s", got)
+	}
+}
+
 // checkGPUParityは、同じ入力でCPUとGPUの出力を比べる。入力は声に近い倍音を含む合成波にする。
 func checkGPUParity(t *testing.T, device tensor.Device, modelPath string) {
 	t.Helper()
