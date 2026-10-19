@@ -2,17 +2,37 @@
 
 package hubert
 
-import "os"
+import (
+	"os"
 
-// featuresAcceleratedは、CUDAが使えればCUDAで特徴量を求める。
-// UTAUTTS_NO_CUDAが設定されているとき、HuBERT Base以外のモデル、CUDAで失敗したときはCPUに戻す。
+	"github.com/yh2237/gograd/tensor"
+)
+
+// featuresAcceleratedは、CUDA、DirectML、Vulkanの順に試し、使えなければCPUに戻す。
 func (m *Model) featuresAccelerated(wave []float32, layer int) ([][]float32, error) {
-	if os.Getenv("UTAUTTS_NO_CUDA") != "" || !m.config.canUseCUDA() {
-		return m.Features(wave, layer)
+	for _, device := range m.acceleratedDevices() {
+		rows, err := m.featuresOnDevice(device, wave, layer)
+		if err == nil {
+			return rows, nil
+		}
 	}
-	rows, err := m.FeaturesCUDA(wave, layer)
-	if err != nil {
-		return m.Features(wave, layer)
+	return m.Features(wave, layer)
+}
+
+// acceleratedDevicesは、設定と環境変数から試す順にデバイスを返す。
+func (m *Model) acceleratedDevices() []tensor.Device {
+	if os.Getenv("UTAUTTS_NO_GPU") != "" || !m.config.canUseCUDA() {
+		return nil
 	}
-	return rows, nil
+	devices := make([]tensor.Device, 0, 3)
+	if os.Getenv("UTAUTTS_NO_CUDA") == "" {
+		devices = append(devices, tensor.CUDA)
+	}
+	if os.Getenv("UTAUTTS_NO_DIRECTML") == "" {
+		devices = append(devices, tensor.DirectML)
+	}
+	if os.Getenv("UTAUTTS_NO_VULKAN") == "" {
+		devices = append(devices, tensor.Vulkan)
+	}
+	return devices
 }

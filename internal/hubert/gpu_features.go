@@ -1,5 +1,3 @@
-//go:build windows
-
 package hubert
 
 import (
@@ -9,25 +7,27 @@ import (
 	"sync"
 
 	"github.com/yh2237/gograd/autograd"
-	"github.com/yh2237/gograd/cuda"
 	"github.com/yh2237/gograd/tensor"
 )
 
-// gograd's CUDA device and stream are local to an OS thread. The index builder
-// may call different models concurrently, so the lock covers all GPU work.
-var hubertGPUMu sync.Mutex
+// gpuMu covers all GPU work. CUDA binds its stream to an OS thread, and the
+// index builder may call different models concurrently.
+var gpuMu sync.Mutex
 
-type hubertCUDAState struct {
+// gpuState keeps the weights uploaded for one device.
+type gpuState struct {
+	device  tensor.Device
 	weights map[string]*autograd.Tensor
 }
 
-func (s *hubertCUDAState) close() {
+func (s *gpuState) close() {
 	for _, w := range s.weights {
 		w.Close()
 	}
+	s.weights = nil
 }
 
-func (m *Model) cudaWeight(s *hubertCUDAState, name string, shape ...int) (*autograd.Tensor, error) {
+func (m *Model) gpuWeight(s *gpuState, name string, shape ...int) (*autograd.Tensor, error) {
 	if w := s.weights[name]; w != nil {
 		return w, nil
 	}
@@ -35,7 +35,7 @@ func (m *Model) cudaWeight(s *hubertCUDAState, name string, shape ...int) (*auto
 	if err != nil {
 		return nil, err
 	}
-	w, err := autograd.New(values, shape, tensor.CUDA, false)
+	w, err := autograd.New(values, shape, s.device, false)
 	if err != nil {
 		return nil, fmt.Errorf("hubert: upload %s: %w", name, err)
 	}
@@ -43,31 +43,31 @@ func (m *Model) cudaWeight(s *hubertCUDAState, name string, shape ...int) (*auto
 	return w, nil
 }
 
-func (m *Model) cudaLinear(s *hubertCUDAState, x *autograd.Tensor, prefix string, in, out int) (*autograd.Tensor, error) {
-	w, err := m.cudaWeight(s, prefix+".weight", out, in)
+func (m *Model) gpuLinear(s *gpuState, x *autograd.Tensor, prefix string, in, out int) (*autograd.Tensor, error) {
+	w, err := m.gpuWeight(s, prefix+".weight", out, in)
 	if err != nil {
 		return nil, err
 	}
-	b, err := m.cudaWeight(s, prefix+".bias", out)
+	b, err := m.gpuWeight(s, prefix+".bias", out)
 	if err != nil {
 		return nil, err
 	}
 	return autograd.Add(autograd.MatMul(x, autograd.Transpose(w, 0, 1)), b), nil
 }
 
-func (m *Model) cudaNorm(s *hubertCUDAState, x *autograd.Tensor, prefix string, width int) (*autograd.Tensor, error) {
-	w, err := m.cudaWeight(s, prefix+".weight", width)
+func (m *Model) gpuNorm(s *gpuState, x *autograd.Tensor, prefix string, width int) (*autograd.Tensor, error) {
+	w, err := m.gpuWeight(s, prefix+".weight", width)
 	if err != nil {
 		return nil, err
 	}
-	b, err := m.cudaWeight(s, prefix+".bias", width)
+	b, err := m.gpuWeight(s, prefix+".bias", width)
 	if err != nil {
 		return nil, err
 	}
 	return autograd.LayerNorm(x, w, b, 1e-5), nil
 }
 
-func (m *Model) cudaPos(s *hubertCUDAState, x *autograd.Tensor, frames int) (*autograd.Tensor, error) {
+func (m *Model) gpuPos(s *gpuState, x *autograd.Tensor, frames int) (*autograd.Tensor, error) {
 	v, err := m.get("encoder.pos_conv_embed.conv.weight_v")
 	if err != nil {
 		v, err = m.get("encoder.pos_conv_embed.conv.parametrizations.weight.original1")
@@ -88,13 +88,13 @@ func (m *Model) cudaPos(s *hubertCUDAState, x *autograd.Tensor, frames int) (*au
 	}
 	w := s.weights["pos.weight"]
 	if w == nil {
-		w, err = autograd.New(values, []int{768, 48, 128}, tensor.CUDA, false)
+		w, err = autograd.New(values, []int{768, 48, 128}, s.device, false)
 		if err != nil {
 			return nil, err
 		}
 		s.weights["pos.weight"] = w
 	}
-	b, err := m.cudaWeight(s, "encoder.pos_conv_embed.conv.bias", 768)
+	b, err := m.gpuWeight(s, "encoder.pos_conv_embed.conv.bias", 768)
 	if err != nil {
 		return nil, err
 	}
@@ -110,17 +110,17 @@ func (m *Model) cudaPos(s *hubertCUDAState, x *autograd.Tensor, frames int) (*au
 	return autograd.GELU(autograd.Concat(2, parts...), false), nil
 }
 
-func (m *Model) cudaEncoder(s *hubertCUDAState, x *autograd.Tensor, frames, index int) (*autograd.Tensor, error) {
+func (m *Model) gpuEncoder(s *gpuState, x *autograd.Tensor, frames, index int) (*autograd.Tensor, error) {
 	base := fmt.Sprintf("encoder.layers.%d", index)
-	q, err := m.cudaLinear(s, x, base+".attention.q_proj", 768, 768)
+	q, err := m.gpuLinear(s, x, base+".attention.q_proj", 768, 768)
 	if err != nil {
 		return nil, err
 	}
-	k, err := m.cudaLinear(s, x, base+".attention.k_proj", 768, 768)
+	k, err := m.gpuLinear(s, x, base+".attention.k_proj", 768, 768)
 	if err != nil {
 		return nil, err
 	}
-	v, err := m.cudaLinear(s, x, base+".attention.v_proj", 768, 768)
+	v, err := m.gpuLinear(s, x, base+".attention.v_proj", 768, 768)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func (m *Model) cudaEncoder(s *hubertCUDAState, x *autograd.Tensor, frames, inde
 	}
 	scores := autograd.MulScalar(autograd.MatMul(heads(q), autograd.Transpose(heads(k), 2, 3)), 0.125)
 	if m.config.RelativeBias {
-		bias, err := m.cudaRelativeBias(s, x, frames, index)
+		bias, err := m.gpuRelativeBias(s, x, frames, index)
 		if err != nil {
 			return nil, err
 		}
@@ -137,31 +137,31 @@ func (m *Model) cudaEncoder(s *hubertCUDAState, x *autograd.Tensor, frames, inde
 	}
 	context := autograd.MatMul(autograd.Softmax(scores, 3), heads(v))
 	context = autograd.Reshape(autograd.Permute(context, 0, 2, 1, 3), 1, frames, 768)
-	attention, err := m.cudaLinear(s, context, base+".attention.out_proj", 768, 768)
+	attention, err := m.gpuLinear(s, context, base+".attention.out_proj", 768, 768)
 	if err != nil {
 		return nil, err
 	}
 	x = autograd.Add(x, attention)
-	x, err = m.cudaNorm(s, x, base+".layer_norm", 768)
+	x, err = m.gpuNorm(s, x, base+".layer_norm", 768)
 	if err != nil {
 		return nil, err
 	}
-	f, err := m.cudaLinear(s, x, base+".feed_forward.intermediate_dense", 768, 3072)
+	f, err := m.gpuLinear(s, x, base+".feed_forward.intermediate_dense", 768, 3072)
 	if err != nil {
 		return nil, err
 	}
 	f = autograd.GELU(f, false)
-	f, err = m.cudaLinear(s, f, base+".feed_forward.output_dense", 3072, 768)
+	f, err = m.gpuLinear(s, f, base+".feed_forward.output_dense", 3072, 768)
 	if err != nil {
 		return nil, err
 	}
 	x = autograd.Add(x, f)
-	return m.cudaNorm(s, x, base+".final_layer_norm", 768)
+	return m.gpuNorm(s, x, base+".final_layer_norm", 768)
 }
 
-// cudaRelativeBiasは、WavLMの相対位置バイアスにゲートを掛けたものを返す。
+// gpuRelativeBiasは、WavLMの相対位置バイアスにゲートを掛けたものを返す。
 // バイアス表はフレーム数ごとに使い回し、ゲートは層の入力から計算する。
-func (m *Model) cudaRelativeBias(s *hubertCUDAState, x *autograd.Tensor, frames, index int) (*autograd.Tensor, error) {
+func (m *Model) gpuRelativeBias(s *gpuState, x *autograd.Tensor, frames, index int) (*autograd.Tensor, error) {
 	config := m.config
 	heads, width := config.Heads, config.HiddenSize
 	headDim := width / heads
@@ -180,7 +180,7 @@ func (m *Model) cudaRelativeBias(s *hubertCUDAState, x *autograd.Tensor, frames,
 				}
 			}
 		}
-		table, err = autograd.New(ordered, []int{1, heads, frames, frames}, tensor.CUDA, false)
+		table, err = autograd.New(ordered, []int{1, heads, frames, frames}, s.device, false)
 		if err != nil {
 			return nil, err
 		}
@@ -223,7 +223,7 @@ func (m *Model) cudaRelativeBias(s *hubertCUDAState, x *autograd.Tensor, frames,
 			gate[h*frames+t] = gateA*(gateB*constWeight[h]-1) + 2
 		}
 	}
-	gateTensor, err := autograd.New(gate, []int{1, heads, frames, 1}, tensor.CUDA, false)
+	gateTensor, err := autograd.New(gate, []int{1, heads, frames, 1}, s.device, false)
 	if err != nil {
 		return nil, err
 	}
@@ -231,36 +231,39 @@ func (m *Model) cudaRelativeBias(s *hubertCUDAState, x *autograd.Tensor, frames,
 	return autograd.Mul(table, expanded), nil
 }
 
-// FeaturesCUDA returns hidden_states[layer] as [frames][768] rows on the host.
-func (m *Model) FeaturesCUDA(wave []float32, layer int) ([][]float32, error) {
+// featuresOnDevice returns hidden_states[layer] as [frames][768] rows on the host.
+func (m *Model) featuresOnDevice(device tensor.Device, wave []float32, layer int) ([][]float32, error) {
+	if !m.config.canUseCUDA() {
+		return nil, fmt.Errorf("hubert: model is not supported on %s", device)
+	}
 	if layer < 0 || layer > 12 {
 		return nil, fmt.Errorf("hubert: layer must be 0..12")
 	}
 	if len(wave) < 400 {
 		return nil, fmt.Errorf("hubert: waveform too short")
 	}
-	hubertGPUMu.Lock()
-	defer hubertGPUMu.Unlock()
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if !cuda.Available() {
-		return nil, cuda.ErrUnavailable
-	}
-	if err := cuda.SetDevice(0); err != nil {
+	leave, err := enterGPUDevice(device)
+	if err != nil {
 		return nil, err
 	}
-	m.cudaMu.Lock()
-	s, _ := m.cudaState.(*hubertCUDAState)
-	if s == nil {
-		s = &hubertCUDAState{weights: make(map[string]*autograd.Tensor)}
-		runtime.SetFinalizer(s, (*hubertCUDAState).close)
-		m.cudaState = s
+	defer leave()
+	gpuMu.Lock()
+	defer gpuMu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	m.stateMu.Lock()
+	if m.deviceStates == nil {
+		m.deviceStates = make(map[tensor.Device]*gpuState)
 	}
-	m.cudaMu.Unlock()
+	s := m.deviceStates[device]
+	if s == nil {
+		s = &gpuState{device: device, weights: make(map[string]*autograd.Tensor)}
+		runtime.SetFinalizer(s, (*gpuState).close)
+		m.deviceStates[device] = s
+	}
+	m.stateMu.Unlock()
 
-	x, err := autograd.New(wave, []int{1, len(wave), 1}, tensor.CUDA, false)
+	x, err := autograd.New(wave, []int{1, len(wave), 1}, device, false)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +274,7 @@ func (m *Model) FeaturesCUDA(wave []float32, layer int) ([][]float32, error) {
 	frames, channels := len(wave), 1
 	zero := s.weights["conv.zero"]
 	if zero == nil {
-		zero, err = autograd.New(make([]float32, 512), []int{512}, tensor.CUDA, false)
+		zero, err = autograd.New(make([]float32, 512), []int{512}, device, false)
 		if err != nil {
 			return nil, err
 		}
@@ -279,7 +282,7 @@ func (m *Model) FeaturesCUDA(wave []float32, layer int) ([][]float32, error) {
 	}
 	for i := 0; i < 7; i++ {
 		base := fmt.Sprintf("feature_extractor.conv_layers.%d", i)
-		w, e := m.cudaWeight(s, base+".conv.weight", 512, channels, kernels[i])
+		w, e := m.gpuWeight(s, base+".conv.weight", 512, channels, kernels[i])
 		if e != nil {
 			return nil, e
 		}
@@ -287,11 +290,11 @@ func (m *Model) FeaturesCUDA(wave []float32, layer int) ([][]float32, error) {
 		frames = (frames-kernels[i])/strides[i] + 1
 		channels = 512
 		if i == 0 {
-			w, e := m.cudaWeight(s, base+".layer_norm.weight", 512)
+			w, e := m.gpuWeight(s, base+".layer_norm.weight", 512)
 			if e != nil {
 				return nil, e
 			}
-			b, e := m.cudaWeight(s, base+".layer_norm.bias", 512)
+			b, e := m.gpuWeight(s, base+".layer_norm.bias", 512)
 			if e != nil {
 				return nil, e
 			}
@@ -299,25 +302,25 @@ func (m *Model) FeaturesCUDA(wave []float32, layer int) ([][]float32, error) {
 		}
 		x = autograd.GELU(x, false)
 	}
-	x, err = m.cudaNorm(s, x, "feature_projection.layer_norm", 512)
+	x, err = m.gpuNorm(s, x, "feature_projection.layer_norm", 512)
 	if err != nil {
 		return nil, err
 	}
-	x, err = m.cudaLinear(s, x, "feature_projection.projection", 512, 768)
+	x, err = m.gpuLinear(s, x, "feature_projection.projection", 512, 768)
 	if err != nil {
 		return nil, err
 	}
-	pos, err := m.cudaPos(s, x, frames)
+	pos, err := m.gpuPos(s, x, frames)
 	if err != nil {
 		return nil, err
 	}
 	x = autograd.Add(x, pos)
-	x, err = m.cudaNorm(s, x, "encoder.layer_norm", 768)
+	x, err = m.gpuNorm(s, x, "encoder.layer_norm", 768)
 	if err != nil {
 		return nil, err
 	}
 	for i := 0; i < layer; i++ {
-		x, err = m.cudaEncoder(s, x, frames, i)
+		x, err = m.gpuEncoder(s, x, frames, i)
 		if err != nil {
 			return nil, err
 		}

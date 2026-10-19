@@ -20,9 +20,9 @@ type Model struct {
 	// muはCloseとFeaturesを、cacheは読み込んだ重みと前処理した重みを守る。
 	mu    sync.RWMutex
 	cache sync.Mutex
-	// cudaMu protects cudaState; the state is defined in the Windows-only implementation.
-	cudaMu    sync.Mutex
-	cudaState any
+	// stateMu protects deviceStates; the states are defined in the GPU implementation.
+	stateMu      sync.Mutex
+	deviceStates map[tensor.Device]*gpuState
 }
 
 func Load(path string) (*Model, error) {
