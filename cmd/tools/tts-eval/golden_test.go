@@ -40,6 +40,7 @@ func TestSelectionPlanGolden(t *testing.T) {
 	request := synth.Request{
 		Reading: "かさ", VoicebankPath: bankDir, Tone: "C4", Renderer: "waveform",
 		Method:         tts.MethodWaveformSynthesis,
+		Language:       "ja",
 		MoraDurationMS: synth.DefaultMoraDurationMS, PauseDurationMS: plan.DefaultPauseDurationMS,
 	}
 	first, err := service.SynthesizeContext(context.Background(), request)

@@ -19,6 +19,7 @@ type specSchema struct {
 	Enum       []string              `yaml:"enum"`
 	MaxLength  int                   `yaml:"x-default-maxLength"`
 	MaxItems   int                   `yaml:"x-default-maxItems"`
+	Required   []string              `yaml:"required"`
 }
 
 type specDocument struct {
@@ -80,9 +81,13 @@ func TestOpenAPIDefaultsMatchDecodedRequests(t *testing.T) {
 	if err := json.Unmarshal(encoded, &values); err != nil {
 		t.Fatal(err)
 	}
+	required := map[string]bool{}
+	for _, field := range doc.Components.Schemas["SynthesisRequest"].Required {
+		required[field] = true
+	}
 	for field, property := range doc.Components.Schemas["SynthesisRequest"].Properties {
 		if property.Default == nil {
-			if property.Type == "string" || property.Type == "number" || property.Type == "integer" || property.Type == "boolean" {
+			if !required[field] && (property.Type == "string" || property.Type == "number" || property.Type == "integer" || property.Type == "boolean") {
 				t.Errorf("missing scalar default: %s", field)
 			}
 			continue

@@ -99,8 +99,8 @@ paths:
   /api/analyze:
     post:
       operationId: analyze
-      summary: 日本語の文章を読みとモーラ列へ変換
-      description: 英語・中国語は合成要求でlanguageとphonemizerを指定する。合成と同じ並列枠を使う。
+      summary: 文章を読みとモーラ列へ変換
+      description: 合成と同じ並列枠を使う。languageは必須。
       requestBody:
         required: true
         content:
@@ -108,8 +108,9 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [text]
+              required: [language, text]
               properties:
+                language: {type: string, description: 'ja・en・zh'}
                 text: {type: string, minLength: 1, x-default-maxLength: 500}
                 dictionary:
                   type: array
@@ -243,6 +244,7 @@ components:
         textか有効な読みが必須。readingが空でなければkanaより優先し、読みがあればtextより優先する。
         通常設定は直下、方式固有値はrenderer_settings。共通設定をmapに置く従来の互換指定も受け取り、map側を優先する。
         nullのスカラーはデコード済みの既定値を変えない。nullの配列・任意オブジェクトは未指定扱い。
+      required: [method, language, voicebank_id]
       anyOf:
         - required: [text]
           properties: {text: {type: string, minLength: 1}}
@@ -254,11 +256,12 @@ components:
         text: {type: string, nullable: true, default: '', x-default-maxLength: 500}
         reading: {type: string, nullable: true, default: '', x-default-maxLength: 500}
         kana: {type: string, nullable: true, default: '', x-default-maxLength: 500, deprecated: true, description: readingの互換名。readingが空の場合に使う。}
-        language: {type: string, nullable: true, default: '', description: 'ja・en・zh。空なら音源・phonemizerから選び、決まらなければja。'}
+        language: {type: string, description: 'ja・en・zh。省略できない。'}
+        method: {type: string, enum: [waveform-synthesis, reference-matching], description: 合成の方式。省略できない。}
         phonemizer: {type: string, nullable: true, default: '', description: 'ja-kana・en-arpasing・en-delta・en-vccv・en-cv・zh-cvvc。空なら自動選択。'}
-        voicebank_id: {type: string, nullable: true, default: '', description: 空ならID順先頭の登録音源}
+        voicebank_id: {type: string, description: 登録音源のID。省略できない。}
         renderer: {type: string, nullable: true, default: '', description: 空なら起動時の既定Renderer。未知の明示IDはエラー。}
-        model_id: {type: string, nullable: true, default: '', description: 抑揚モデルID。空またはnoneなら使わない。}
+        model_id: {type: string, nullable: true, default: '', description: 抑揚モデルID。空またはnoneなら使わない。同梱から外したIDはエラー。}
         model_path: {type: string, nullable: true, default: '', description: ローカルモデルパスの互換入力。model_idより優先する。}
         tone: {type: string, nullable: true, default: '', description: '読み上げの基準の音程（例: C4）。空なら音源の録音の高さで読み上げ、原音はC4として選ぶ。'}
         color: {type: string, nullable: true, default: ''}

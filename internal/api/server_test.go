@@ -30,7 +30,7 @@ func TestSynthesisWaitHonorsRequestCancellation(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	request := localRequest(http.MethodPost, "/api/synthesize/audio", bytes.NewBufferString(`{"method":"waveform-synthesis","kana":"あ"}`)).WithContext(ctx)
+	request := localRequest(http.MethodPost, "/api/synthesize/audio", bytes.NewBufferString(`{"method":"waveform-synthesis","language":"ja","kana":"あ"}`)).WithContext(ctx)
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusRequestTimeout {
@@ -122,7 +122,7 @@ func TestJSONAndBatchLimits(t *testing.T) {
 		t.Fatalf("long analyze status = %d, body = %s", response.Code, response.Body.String())
 	}
 
-	items := strings.Repeat(`{"request":{"method":"waveform-synthesis","kana":"あ"}},`, maxBatchItems) + `{"request":{"method":"waveform-synthesis","kana":"あ"}}`
+	items := strings.Repeat(`{"request":{"method":"waveform-synthesis","language":"ja","kana":"あ"}},`, maxBatchItems) + `{"request":{"method":"waveform-synthesis","language":"ja","kana":"あ"}}`
 	response = httptest.NewRecorder()
 	request = localRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(`{"items":[`+items+`]}`))
 	server.ServeHTTP(response, request)
@@ -157,7 +157,7 @@ func TestBatchRejectsDuplicateArchiveNamesBeforeSynthesis(t *testing.T) {
 
 func TestSynthesizeEndpointReportsWaveformRenderer(t *testing.T) {
 	server := newWaveformTestServer(t)
-	body := bytes.NewBufferString(`{"method":"waveform-synthesis","kana":"あ","voicebank_id":"test","mora_duration_ms":100}`)
+	body := bytes.NewBufferString(`{"method":"waveform-synthesis","language":"ja","kana":"あ","voicebank_id":"test","mora_duration_ms":100}`)
 	request := localRequest(http.MethodPost, "/api/synthesize/audio", body)
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
@@ -198,7 +198,7 @@ func newWaveformTestServer(t *testing.T) *Server {
 
 func TestLabelAndBatchSidecarEndpoints(t *testing.T) {
 	server := newWaveformTestServer(t)
-	synthesis := `{"method":"waveform-synthesis","kana":"あ","voicebank_id":"test","mora_duration_ms":100}`
+	synthesis := `{"method":"waveform-synthesis","language":"ja","kana":"あ","voicebank_id":"test","mora_duration_ms":100}`
 
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/label", strings.NewReader(synthesis)))
@@ -231,7 +231,7 @@ func TestSynthesisInputCompatibility(t *testing.T) {
 	server := newWaveformTestServer(t)
 	synthesize := func(t *testing.T, fields string) *httptest.ResponseRecorder {
 		t.Helper()
-		body := `{"method":"waveform-synthesis","voicebank_id":"test","apply_pitch":false,` + fields + `}`
+		body := `{"method":"waveform-synthesis","language":"ja","voicebank_id":"test","apply_pitch":false,` + fields + `}`
 		response := httptest.NewRecorder()
 		server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/audio", strings.NewReader(body)))
 		if response.Code != http.StatusOK {
@@ -313,7 +313,7 @@ func TestAPIMetadata(t *testing.T) {
 
 func TestAnalyzeEndpointReturnsMoraes(t *testing.T) {
 	server := mustNewServer(t, Config{VoiceDir: t.TempDir()})
-	request := localRequest(http.MethodPost, "/api/analyze", bytes.NewBufferString(`{"text":"あいうえお"}`))
+	request := localRequest(http.MethodPost, "/api/analyze", bytes.NewBufferString(`{"language":"ja","text":"あいうえお"}`))
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
@@ -336,7 +336,7 @@ func TestAnalyzeEndpointReturnsMoraes(t *testing.T) {
 
 func TestAnalyzeEndpointUsesUserDictionary(t *testing.T) {
 	server := mustNewServer(t, Config{VoiceDir: t.TempDir()})
-	body := `{"text":"v8","dictionary":[{"surface":"v8","reading":"ぶいはち"}]}`
+	body := `{"language":"ja","text":"v8","dictionary":[{"surface":"v8","reading":"ぶいはち"}]}`
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/analyze", strings.NewReader(body)))
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"reading":"ブイハチ"`) {

@@ -258,6 +258,7 @@ func (s *Server) handleRenderers(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 	var request struct {
+		Language   string                    `json:"language"`
 		Text       string                    `json:"text"`
 		Dictionary []utautts.DictionaryEntry `json:"dictionary"`
 	}
@@ -283,7 +284,7 @@ func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	preview, err := s.synthesisService().AnalyzeContext(r.Context(), entryinput.Apply(utautts.Request{
-		Text: request.Text, Dictionary: request.Dictionary,
+		Text: request.Text, Language: request.Language, Dictionary: request.Dictionary,
 	}, synth.DefaultRequest()))
 	if err != nil {
 		writeAPIError(w, contextErrorStatus(err, http.StatusUnprocessableEntity), err)

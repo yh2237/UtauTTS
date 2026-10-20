@@ -47,7 +47,7 @@ func TestCLITimeoutValidationAndSuccess(t *testing.T) {
 	}
 	var stdout, stderr bytes.Buffer
 	args := append(base[:4:4], "--json", "--request", "-", "--timeout", "30s", "--out", filepath.Join(t.TempDir(), "request.wav"))
-	request := `{"reading":"あ","renderer":"cli-test-waveform","method":"waveform-synthesis","apply_pitch":false}`
+	request := `{"reading":"あ","renderer":"cli-test-waveform","method":"waveform-synthesis","language":"ja","apply_pitch":false}`
 	if code := executeCLI(args, strings.NewReader(request), &stdout, &stderr); code != 0 {
 		t.Fatalf("JSON request timeout: exit=%d, stdout=%q, stderr=%q", code, stdout.String(), stderr.String())
 	}

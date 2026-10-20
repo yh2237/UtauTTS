@@ -29,13 +29,13 @@ func TestLocalHandlerRejectsNonLocalHosts(t *testing.T) {
 
 func TestLocalAPIRejectsCrossSiteOperations(t *testing.T) {
 	handler := newWaveformTestServer(t).Handler()
-	request := localRequest(http.MethodPost, "/api/analyze", strings.NewReader(`{"text":"あ"}`))
+	request := localRequest(http.MethodPost, "/api/analyze", strings.NewReader(`{"language":"ja","text":"あ"}`))
 	request.Header.Set("Sec-Fetch-Site", "cross-site")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	assertAPIError(t, response, 403, "forbidden")
 	for _, browser := range []bool{false, true} {
-		request := localRequest(http.MethodPost, "/api/analyze", strings.NewReader(`{"text":"あ"}`))
+		request := localRequest(http.MethodPost, "/api/analyze", strings.NewReader(`{"language":"ja","text":"あ"}`))
 		if browser {
 			request.Header.Set("Origin", "http://127.0.0.1")
 			request.Header.Set("Sec-Fetch-Site", "same-origin")
