@@ -1636,10 +1636,44 @@ void Backend::checkEnglishIndexes() {
 #endif
 }
 
+// 合成の間に索引を作っているときは、進み具合を1割ごとにログへ出す。
+// 索引の作成は音源によっては1分以上かかるため、待っている間の手掛かりにする。
+void Backend::startIndexProgressLog() {
+    m_indexProgressStep = -1;
+    if (!m_indexProgressTimer) {
+        m_indexProgressTimer = new QTimer(this);
+        m_indexProgressTimer->setInterval(700);
+        connect(m_indexProgressTimer, &QTimer::timeout, this, &Backend::logIndexProgress);
+    }
+    m_indexProgressTimer->start();
+}
+
+void Backend::stopIndexProgressLog() {
+    if (m_indexProgressTimer) {
+        m_indexProgressTimer->stop();
+    }
+}
+
+void Backend::logIndexProgress() {
+#ifndef UTAUTTS_WASM
+    callAsync("englishIndexes", {}, [this](const QVariantMap &result) {
+        if (result.contains("_error") || !result.value("building").toBool()) {
+            return;
+        }
+        const int percent = qBound(0, qRound(result.value("progress").toDouble() * 100), 100);
+        const int step = percent / 10;
+        if (step == m_indexProgressStep) {
+            return;
+        }
+        m_indexProgressStep = step;
+        appendLog(tr("索引を作成中: %1%").arg(step * 10));
+    });
+#endif
+}
+
 bool Backend::openVoiceDirectory() {
 #ifdef UTAUTTS_WASM
-    emscripten::val function = emscripten::val::global("utauttsPickVoiceDirectory");
-    if (!function.isUndefined()) {
+    emscripten::val function = emscripten::val::global("utauttsPickVoiceDirectory");    if (!function.isUndefined()) {
         function();
     }
     return true;
@@ -1842,7 +1876,9 @@ void Backend::synthesize(const QVariantMap &input) {
     appendLog(tr("音声合成を開始しました: %1").arg(request.value("text").toString()));
     setBusy(true);
     setError({});
+    startIndexProgressLog();
     callAsync("synthesize", request, [this, outputPath, previewText, cacheKey](const QVariantMap &result) {
+                stopIndexProgressLog();
                 setBusy(false);
                 if (result.contains("_error")) {
                     const QString error = result.value("_error").toString();

@@ -9,6 +9,7 @@
 #include <QHash>
 #include <QList>
 #include <QTemporaryDir>
+#include <QTimer>
 #include <QUrl>
 #include <QStringList>
 #include <QVariantList>
@@ -272,10 +273,16 @@ private:
     void clearPreviewCache();
     bool restartNativeBackend();
     void checkEnglishIndexes();
+    // 合成の間に索引を作っているときは、進み具合をログへ出す。
+    void startIndexProgressLog();
+    void stopIndexProgressLog();
+    void logIndexProgress();
     uintptr_t m_handle = 0;
     bool m_busy = false;
     bool m_englishIndexBuilding = false;
     double m_englishIndexProgress = 0;
+    QTimer *m_indexProgressTimer = nullptr;
+    int m_indexProgressStep = -1;
     QString m_error;
     QString m_previewPath;
     QString m_previewText;
