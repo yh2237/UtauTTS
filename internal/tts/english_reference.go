@@ -161,13 +161,21 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	service, provider, pieces, options, err := referenceInputs(cfg, language, reading)
-	if err != nil {
-		return nil, err
-	}
 	log := cfg.Logf
 	if log == nil {
 		log = func(string) {}
+	}
+	// 参照TTSへは、連続変調を反映した読みを渡す。編集画面などに出す読みは辞書の声調のまま。
+	referenceReading := reading
+	if frontend.NormalizeLanguage(language) == frontend.LanguageChinese {
+		referenceReading = chineseSurfaceReading(reading, morae)
+		if referenceReading != reading {
+			log(fmt.Sprintf("参照の読み: %s", referenceReading))
+		}
+	}
+	service, provider, pieces, options, err := referenceInputs(cfg, language, referenceReading)
+	if err != nil {
+		return nil, err
 	}
 	options.Logf = log
 	log(fmt.Sprintf("参照TTS: %s（%d 記号）", provider.ID(), len(pieces)))
@@ -238,7 +246,11 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 // predictReferenceは、参照TTSの読みだけからモーラ長と抑揚を返す。音源は使わない。
 // 手動のモーラ長があれば、その長さで読んだときの抑揚を返す。
 func predictReference(cfg Config, language, reading string, morae []frontend.Mora) (*ProsodyPreview, error) {
-	_, provider, pieces, options, err := referenceInputs(cfg, language, reading)
+	referenceReading := reading
+	if frontend.NormalizeLanguage(language) == frontend.LanguageChinese {
+		referenceReading = chineseSurfaceReading(reading, morae)
+	}
+	_, provider, pieces, options, err := referenceInputs(cfg, language, referenceReading)
 	if err != nil {
 		return nil, fmt.Errorf("reference prosody: %w", err)
 	}
