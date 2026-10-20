@@ -1636,10 +1636,11 @@ void Backend::checkEnglishIndexes() {
 #endif
 }
 
-// 合成の間に索引を作っているときは、進み具合を1割ごとにログへ出す。
+// 合成の間は、索引の進み具合と、いまどの段階にいるかをログへ出す。
 // 索引の作成は音源によっては1分以上かかるため、待っている間の手掛かりにする。
 void Backend::startIndexProgressLog() {
     m_indexProgressStep = -1;
+    m_synthesisStage.clear();
     if (!m_indexProgressTimer) {
         m_indexProgressTimer = new QTimer(this);
         m_indexProgressTimer->setInterval(700);
@@ -1657,7 +1658,17 @@ void Backend::stopIndexProgressLog() {
 void Backend::logIndexProgress() {
 #ifndef UTAUTTS_WASM
     callAsync("englishIndexes", {}, [this](const QVariantMap &result) {
-        if (result.contains("_error") || !result.value("building").toBool()) {
+        if (result.contains("_error")) {
+            return;
+        }
+        const QString stage = result.value("stage").toString();
+        if (stage != m_synthesisStage) {
+            m_synthesisStage = stage;
+            if (!stage.isEmpty()) {
+                appendLog(stage);
+            }
+        }
+        if (!result.value("building").toBool()) {
             return;
         }
         const int percent = qBound(0, qRound(result.value("progress").toDouble() * 100), 100);
@@ -1673,7 +1684,8 @@ void Backend::logIndexProgress() {
 
 bool Backend::openVoiceDirectory() {
 #ifdef UTAUTTS_WASM
-    emscripten::val function = emscripten::val::global("utauttsPickVoiceDirectory");    if (!function.isUndefined()) {
+    emscripten::val function = emscripten::val::global("utauttsPickVoiceDirectory");
+    if (!function.isUndefined()) {
         function();
     }
     return true;
@@ -1899,6 +1911,8 @@ void Backend::synthesize(const QVariantMap &input) {
                         if (!text.isEmpty())
                             appendLog(text);
                     }
+                    const QString method = result.value("method").toString();
+                    appendLog(tr("方式: %1").arg(method.isEmpty() ? tr("自動") : method));
                     const QString device = result.value("feature_device").toString();
                     if (!device.isEmpty())
                         appendLog(tr("使用デバイス: %1").arg(device));

@@ -381,6 +381,7 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 	}
 	featuresStarted := time.Now()
 	if features == nil {
+		SetStage("特徴量を計算しています")
 		var dims int
 		var err error
 		if features, frames, dims, err = e.Features(samples, rate); err != nil {
@@ -413,6 +414,7 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 		}
 	}
 	synthesizeStarted := time.Now()
+	SetStage("照合と波形の合成をしています")
 	audio, err := index.Synthesize(world, refmatch.Request{
 		Features: features, Frames: frames, ReferenceF0: referenceF0, OutputF0: outF0,
 		ReferenceLevel: refmatch.ReferenceLevels(samples, rate, frames*4),

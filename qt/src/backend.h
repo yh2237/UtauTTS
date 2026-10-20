@@ -283,6 +283,7 @@ private:
     double m_englishIndexProgress = 0;
     QTimer *m_indexProgressTimer = nullptr;
     int m_indexProgressStep = -1;
+    QString m_synthesisStage;
     QString m_error;
     QString m_previewPath;
     QString m_previewText;

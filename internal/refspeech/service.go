@@ -68,6 +68,9 @@ var (
 
 	batchMu sync.Mutex
 	batch   indexBatch
+
+	stageMu      sync.Mutex
+	currentStage string
 )
 
 // indexBatchは、作成中の索引がなくなるまでに作り始めた索引の数と、作り終えた数。
@@ -82,19 +85,33 @@ type Progress struct {
 	Building bool     `json:"building"`
 	Progress float64  `json:"progress"`
 	Failed   []string `json:"failed,omitempty"`
+	// Stageは、参照照合の合成がいまどの段階にあるか。止まったときに手掛かりにする。
+	Stage string `json:"stage,omitempty"`
 }
 
 // CurrentProgressは、作成中の索引がなくなるまでにまとめて作った索引全体の進み具合を返す。
 // 作成中の索引がなくなると、それまでに失敗した索引を返して数え直す。
 func CurrentProgress() Progress {
+	stageMu.Lock()
+	stage := currentStage
+	stageMu.Unlock()
 	batchMu.Lock()
 	defer batchMu.Unlock()
 	if batch.total == 0 || batch.done >= batch.total {
-		progress := Progress{Failed: batch.failed}
+		progress := Progress{Failed: batch.failed, Stage: stage}
 		batch = indexBatch{}
 		return progress
 	}
-	return Progress{Building: true, Progress: (float64(batch.done) + batch.current) / float64(batch.total)}
+	return Progress{
+		Building: true, Progress: (float64(batch.done) + batch.current) / float64(batch.total), Stage: stage,
+	}
+}
+
+// SetStageは、参照照合の合成の段階を記録する。空にすると消える。
+func SetStage(stage string) {
+	stageMu.Lock()
+	currentStage = stage
+	stageMu.Unlock()
 }
 
 // Sharedはモデルの置き場所ごとに1つのServiceを返す。
@@ -218,6 +235,7 @@ func (s *Service) Index(ctx context.Context, bankRoot string, recordings []strin
 // indexは索引を返し、作成の経過をlogfへ伝える。logfがnilなら何も伝えない。
 func (s *Service) index(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string, logf func(string)) (*refmatch.Index, error) {
 	start := time.Now()
+	SetStage("索引を準備しています")
 	entry := s.entry(bankRoot, recordings, worldEnginePath)
 	select {
 	case <-entry.done:

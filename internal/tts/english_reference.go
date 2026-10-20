@@ -191,9 +191,11 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 			return nil, err
 		}
 	}
+	refspeech.SetStage("参照音声を生成しています")
 	readStarted := time.Now()
 	reference, err := provider.Read(pieces, options.Speed, options.Durations)
 	if err != nil {
+		refspeech.SetStage("")
 		return nil, fmt.Errorf("reference synthesis: %w", err)
 	}
 	rate := reference.SampleRate
@@ -202,7 +204,9 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	}
 	log(fmt.Sprintf("参照音声: %d Hz、%.2f 秒（生成 %d ms）",
 		rate, float64(len(reference.Audio))/float64(rate), time.Since(readStarted).Milliseconds()))
+	refspeech.SetStage("索引を準備しています")
 	speech, err := service.SpeakReference(ctx, bank.Root, bank.ReferenceRecordings(), cfg.WorldEnginePath, reference, options)
+	refspeech.SetStage("")
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)
 	}
