@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/UtauTTS/internal/frontend"
@@ -165,6 +166,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	if log == nil {
 		log = func(string) {}
 	}
+	started := time.Now()
 	// 参照TTSへは、連続変調を反映した読みを渡す。編集画面などに出す読みは辞書の声調のまま。
 	referenceReading := reading
 	if frontend.NormalizeLanguage(language) == frontend.LanguageChinese {
@@ -189,6 +191,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 			return nil, err
 		}
 	}
+	readStarted := time.Now()
 	reference, err := provider.Read(pieces, options.Speed, options.Durations)
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)
@@ -197,7 +200,8 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	if rate <= 0 {
 		rate = 24000
 	}
-	log(fmt.Sprintf("参照音声: %d Hz、%.2f 秒", rate, float64(len(reference.Audio))/float64(rate)))
+	log(fmt.Sprintf("参照音声: %d Hz、%.2f 秒（生成 %d ms）",
+		rate, float64(len(reference.Audio))/float64(rate), time.Since(readStarted).Milliseconds()))
 	speech, err := service.SpeakReference(ctx, bank.Root, bank.ReferenceRecordings(), cfg.WorldEnginePath, reference, options)
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)
@@ -240,6 +244,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 		}
 		cursor += durations[index]
 	}
+	log(fmt.Sprintf("合成: 合計 %.2f 秒", time.Since(started).Seconds()))
 	return result, nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/yh2237/UtauTTS/internal/hubert"
 	"github.com/yh2237/UtauTTS/internal/kokoro"
@@ -371,11 +372,14 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 	}
 	var features []float32
 	var frames int
+	featuresFromCache := false
 	if reference.Key != "" {
 		if cached := e.cachedFeatures(reference.Key); cached != nil {
 			features, frames = cached.values, cached.frames
+			featuresFromCache = true
 		}
 	}
+	featuresStarted := time.Now()
 	if features == nil {
 		var dims int
 		var err error
@@ -386,6 +390,7 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 			e.storeFeatures(reference.Key, features, frames, dims)
 		}
 	}
+	featuresElapsed := time.Since(featuresStarted)
 	referenceF0 := refmatch.ReferenceF0(reference.F0, kokoroF0FrameMS, frames)
 	automaticF0 := index.OutputF0(referenceF0, options.CenterHz, options.PitchScale)
 	outF0 := append([]float64(nil), automaticF0...)
@@ -407,12 +412,22 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 			}
 		}
 	}
+	synthesizeStarted := time.Now()
 	audio, err := index.Synthesize(world, refmatch.Request{
 		Features: features, Frames: frames, ReferenceF0: referenceF0, OutputF0: outF0,
 		ReferenceLevel: refmatch.ReferenceLevels(samples, rate, frames*4),
 	})
 	if err != nil {
 		return Speech{}, err
+	}
+	if options.Logf != nil {
+		source := "計算"
+		if featuresFromCache {
+			source = "キャッシュ"
+		}
+		options.Logf(fmt.Sprintf("合成: 特徴量 %s %d ms、照合と波形 %d ms（%d フレーム、%d サンプル）",
+			source, featuresElapsed.Milliseconds(), time.Since(synthesizeStarted).Milliseconds(),
+			frames, len(audio)))
 	}
 	return Speech{Audio: audio, SampleRate: index.SampleRate, Timing: reference.Timing, F0: outF0, AutomaticF0: automaticF0}, nil
 }
