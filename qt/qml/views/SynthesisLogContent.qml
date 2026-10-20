@@ -12,8 +12,10 @@ ColumnLayout {
 
     Label {
         Layout.fillWidth: true
-        visible: content.backend.busy
-        text: content.translator.tr("log.synthesizing")
+        visible: content.backend.busy || content.backend.logLines.length > 0
+        text: content.backend.busy
+              ? content.translator.tr("log.synthesizing")
+              : content.translator.tr("log.completed")
         font.bold: true
     }
 

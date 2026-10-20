@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yh2237/UtauTTS/internal/hubert"
 	"github.com/yh2237/UtauTTS/internal/refmatch"
 	"github.com/yh2237/UtauTTS/internal/worldrender"
 )
@@ -87,6 +88,8 @@ type Progress struct {
 	Failed   []string `json:"failed,omitempty"`
 	// Stageは、参照照合の合成がいまどの段階にあるか。止まったときに手掛かりにする。
 	Stage string `json:"stage,omitempty"`
+	// Deviceは、直近の特徴量計算に使ったデバイス。計算が始まるまで空。
+	Device string `json:"device,omitempty"`
 }
 
 // CurrentProgressは、作成中の索引がなくなるまでにまとめて作った索引全体の進み具合を返す。
@@ -98,12 +101,13 @@ func CurrentProgress() Progress {
 	batchMu.Lock()
 	defer batchMu.Unlock()
 	if batch.total == 0 || batch.done >= batch.total {
-		progress := Progress{Failed: batch.failed, Stage: stage}
+		progress := Progress{Failed: batch.failed, Stage: stage, Device: hubert.LastDevice()}
 		batch = indexBatch{}
 		return progress
 	}
 	return Progress{
-		Building: true, Progress: (float64(batch.done) + batch.current) / float64(batch.total), Stage: stage,
+		Building: true, Progress: (float64(batch.done) + batch.current) / float64(batch.total),
+		Stage: stage, Device: hubert.LastDevice(),
 	}
 }
 

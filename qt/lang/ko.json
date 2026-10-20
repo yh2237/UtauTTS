@@ -18,6 +18,7 @@
     "drag.title": "exo를 드래그",
     "license.title": "라이선스",
     "log.synthesizing": "음성을 합성하는 중…",
+    "log.completed": "음성 합성이 완료되었습니다",
     "log.title": "음성 합성 로그",
     "main.aboutInformative": "UTAU 보이스뱅크의 원음을 연결하고 학습 기반 억양 보정을 더한 일본어 TTS",
     "main.aboutText": "UtauTTS {0}\n\nDeveloped by yh",

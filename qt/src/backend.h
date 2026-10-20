@@ -284,6 +284,7 @@ private:
     QTimer *m_indexProgressTimer = nullptr;
     int m_indexProgressStep = -1;
     QString m_synthesisStage;
+    QString m_synthesisDevice;
     QString m_error;
     QString m_previewPath;
     QString m_previewText;

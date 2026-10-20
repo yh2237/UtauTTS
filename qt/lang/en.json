@@ -18,6 +18,7 @@
     "drag.title": "Drag exo",
     "license.title": "License",
     "log.synthesizing": "Synthesizing audio…",
+    "log.completed": "Synthesis finished",
     "log.title": "Synthesis Log",
     "main.aboutInformative": "Japanese TTS with learning-based intonation adjustment for connected UTAU voicebanks",
     "main.aboutText": "UtauTTS {0}\n\nDeveloped by yh",

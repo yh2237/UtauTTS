@@ -1636,11 +1636,12 @@ void Backend::checkEnglishIndexes() {
 #endif
 }
 
-// 合成の間は、索引の進み具合と、いまどの段階にいるかをログへ出す。
+// 合成の間は、索引の進み具合、段階、使い始めたデバイスをログへ出す。
 // 索引の作成は音源によっては1分以上かかるため、待っている間の手掛かりにする。
 void Backend::startIndexProgressLog() {
     m_indexProgressStep = -1;
     m_synthesisStage.clear();
+    m_synthesisDevice.clear();
     if (!m_indexProgressTimer) {
         m_indexProgressTimer = new QTimer(this);
         m_indexProgressTimer->setInterval(700);
@@ -1667,6 +1668,12 @@ void Backend::logIndexProgress() {
             if (!stage.isEmpty()) {
                 appendLog(stage);
             }
+        }
+        // デバイスは特徴量の計算が始まると決まる。決まった時点で出す。
+        const QString device = result.value("device").toString();
+        if (!device.isEmpty() && device != m_synthesisDevice) {
+            m_synthesisDevice = device;
+            appendLog(tr("使用デバイス: %1").arg(device));
         }
         if (!result.value("building").toBool()) {
             return;
@@ -1886,10 +1893,14 @@ void Backend::synthesize(const QVariantMap &input) {
         "utautts-" + QUuid::createUuid().toString(QUuid::WithoutBraces) + ".wav");
     request.insert("output_path", outputPath);
     appendLog(tr("音声合成を開始しました: %1").arg(request.value("text").toString()));
+    // 方式が要求に入っていれば、合成を始める前に出す。空なら言語で決まるので完了時に出す。
+    const QString requestedMethod = request.value("method").toString();
+    if (!requestedMethod.isEmpty())
+        appendLog(tr("方式: %1").arg(requestedMethod));
     setBusy(true);
     setError({});
     startIndexProgressLog();
-    callAsync("synthesize", request, [this, outputPath, previewText, cacheKey](const QVariantMap &result) {
+    callAsync("synthesize", request, [this, outputPath, previewText, cacheKey, requestedMethod](const QVariantMap &result) {
                 stopIndexProgressLog();
                 setBusy(false);
                 if (result.contains("_error")) {
@@ -1912,9 +1923,10 @@ void Backend::synthesize(const QVariantMap &input) {
                             appendLog(text);
                     }
                     const QString method = result.value("method").toString();
-                    appendLog(tr("方式: %1").arg(method.isEmpty() ? tr("自動") : method));
+                    if (requestedMethod.isEmpty() && !method.isEmpty())
+                        appendLog(tr("方式: %1").arg(method));
                     const QString device = result.value("feature_device").toString();
-                    if (!device.isEmpty())
+                    if (!device.isEmpty() && device != m_synthesisDevice)
                         appendLog(tr("使用デバイス: %1").arg(device));
                     appendLog(tr("音声合成が完了しました。"));
                     emit previewReady();
