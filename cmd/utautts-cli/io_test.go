@@ -36,7 +36,7 @@ func synthesisArgs(t *testing.T) []string {
 			t.Fatal(err)
 		}
 	}
-	return []string{"--voicebank", root, "--renderer-dir", root, "--renderer", "cli-test-waveform", "--prosody", "none", "--apply-pitch=false"}
+	return []string{"--voicebank", root, "--renderer-dir", root, "--renderer", "cli-test-waveform", "--method", "waveform-synthesis", "--prosody", "none", "--apply-pitch=false"}
 }
 
 func TestCLIPipeMatchesFileOutput(t *testing.T) {

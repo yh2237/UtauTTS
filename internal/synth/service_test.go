@@ -28,7 +28,9 @@ func TestDefaultRequestResolvesSynthesisSettings(t *testing.T) {
 	service := NewService(&plugin.Catalog{
 		Renderers: []plugin.Renderer{testRenderer("waveform", "waveform")},
 	}, "waveform", "", "", "", testVoicebankResolver{path: "voicebank"})
-	resolved, err := service.ResolveSynthesis(DefaultRequest())
+	request := DefaultRequest()
+	request.Method = tts.MethodWaveformSynthesis
+	resolved, err := service.ResolveSynthesis(request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,6 +75,7 @@ func TestClassicUtauResolvesSelectedTools(t *testing.T) {
 	service := NewService(catalog, "classic-utau", "", "", "", testVoicebankResolver{path: "voicebank"})
 	cfg, renderer, options, err := service.config(Request{
 		Renderer: "classic-utau", Resampler: "nested/resampler.exe", Wavtool: "wavtool.exe",
+		Method: tts.MethodWaveformSynthesis,
 	}, true)
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +90,7 @@ func TestResolveSynthesisUsesDirectVoicebankPathAndNormalizesKana(t *testing.T) 
 		Renderers: []plugin.Renderer{testRenderer("waveform", "waveform")},
 	}, "waveform", "", "", "", nil)
 	resolved, err := service.ResolveSynthesis(Request{
-		VoicebankPath: "voicebank", Kana: "あ", Renderer: "waveform",
+		VoicebankPath: "voicebank", Kana: "あ", Renderer: "waveform", Method: tts.MethodWaveformSynthesis,
 		ReleaseMS: 20, ReleaseSet: true, BoundaryBridgeMS: 12,
 		CVVCTiming: "sequential",
 	})
@@ -176,6 +179,7 @@ func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 	}, "waveform", "", "", "", nil)
 	cfg, _, options, err := service.config(Request{
 		Renderer: "waveform", ContextDuration: true, MoraDurationMS: 140, DiffSingerSteps: 17,
+		Method: tts.MethodWaveformSynthesis,
 		RendererSettings: map[string]json.RawMessage{
 			"context_duration": json.RawMessage(`false`),
 			"mora_duration_ms": json.RawMessage(`123`),
@@ -196,7 +200,7 @@ func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 		t.Fatalf("unknown renderer setting = %#v", options.Renderer)
 	}
 
-	cfg, _, options, err = service.config(Request{Renderer: "waveform", ContextDuration: true, MoraDurationMS: 140, DiffSingerSteps: 17}, false)
+	cfg, _, options, err = service.config(Request{Renderer: "waveform", Method: tts.MethodWaveformSynthesis, ContextDuration: true, MoraDurationMS: 140, DiffSingerSteps: 17}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,6 +229,7 @@ func TestRendererSettingsRouteClassicTools(t *testing.T) {
 	service := NewService(catalog, "classic-utau", "", "", "", testVoicebankResolver{path: "voicebank"})
 	_, _, options, err := service.config(Request{
 		Renderer: "classic-utau",
+		Method:   tts.MethodWaveformSynthesis,
 		RendererSettings: map[string]json.RawMessage{
 			"resampler": json.RawMessage(`"nested/resampler.exe"`),
 			"wavtool":   json.RawMessage(`"wavtool.exe"`),
@@ -244,7 +249,7 @@ func TestClassicUtauRejectsUnknownResampler(t *testing.T) {
 		Wavtools:  []plugin.ClassicTool{{ID: "builtin", BuiltIn: true}},
 	}
 	service := NewService(catalog, "classic-utau", "", "", "", testVoicebankResolver{path: "voicebank"})
-	if _, _, _, err := service.config(Request{Renderer: "classic-utau", Resampler: "missing", Wavtool: "builtin"}, true); err == nil {
+	if _, _, _, err := service.config(Request{Renderer: "classic-utau", Method: tts.MethodWaveformSynthesis, Resampler: "missing", Wavtool: "builtin"}, true); err == nil {
 		t.Fatal("unknown resampler was accepted")
 	}
 }
@@ -311,7 +316,7 @@ func TestSynthesisConfigRejectsUnavailableRendererRuntime(t *testing.T) {
 			return renderer
 		}(),
 	}}, "", "", "", "", testVoicebankResolver{path: "voicebank"})
-	if _, _, _, err := service.config(Request{Renderer: "world"}, true); !errors.Is(err, ErrUnavailable) {
+	if _, _, _, err := service.config(Request{Renderer: "world", Method: tts.MethodWaveformSynthesis}, true); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("unavailable runtime error = %v", err)
 	}
 }
@@ -322,6 +327,7 @@ func TestConfigUsesExplicitModelPath(t *testing.T) {
 	}, "waveform", "", "", "", nil)
 	cfg, renderer, _, err := service.config(Request{
 		ModelID: "not-in-catalog", ModelPath: "out/working-model.json", Renderer: "waveform",
+		Method: tts.MethodWaveformSynthesis,
 	}, false)
 	if err != nil {
 		t.Fatal(err)

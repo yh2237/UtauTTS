@@ -76,7 +76,7 @@ type Request struct {
 	ModelID          string `json:"model_id"`
 	ModelPath        string `json:"model_path"`
 	Renderer         string `json:"renderer"`
-	// Methodは合成の方法。空なら言語ごとの既定、"native"はプラン、"reference"は参照TTS。
+	// Methodは合成の方法。省略できない。tts.MethodWaveformSynthesisかtts.MethodReferenceMatching。
 	Method      string                `json:"method"`
 	Resampler   string                `json:"resampler"`
 	Wavtool     string                `json:"wavtool"`
@@ -316,6 +316,9 @@ func (s *Service) begin(ctx context.Context) (context.Context, func(), error) {
 
 func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, string, render.ProviderOptions, error) {
 	request = request.Normalized()
+	if err := tts.ValidateMethod(request.Method); err != nil {
+		return tts.Config{}, "", render.ProviderOptions{}, err
+	}
 	modelPath := strings.TrimSpace(request.ModelPath)
 	if modelPath == "" {
 		var err error

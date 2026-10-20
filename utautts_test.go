@@ -71,7 +71,7 @@ func TestEngineSynthesisAndIsolation(t *testing.T) {
 	if err != nil || len(voices) != 1 {
 		t.Fatalf("voicebanks = %v, %v", voices, err)
 	}
-	request := utautts.Request{Reading: "あ、あ", VoicebankID: voices[0].ID, ModelID: "none", Options: utautts.Options{ApplyPitch: new(false)}}
+	request := utautts.Request{Reading: "あ、あ", Method: "waveform-synthesis", VoicebankID: voices[0].ID, ModelID: "none", Options: utautts.Options{ApplyPitch: new(false)}}
 	analysis, err := first.Analyze(ctx, request)
 	if err != nil || analysis.Reading != request.Reading || len(analysis.Morae) != 3 || !analysis.Morae[1].Pause {
 		t.Fatalf("analysis = %v, %v", analysis, err)
@@ -128,7 +128,7 @@ func TestEngineRequestErrors(t *testing.T) {
 	if _, err := engine.Analyze(ctx, utautts.Request{Reading: "あ"}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled analysis: %v", err)
 	}
-	if _, err := engine.Synthesize(context.Background(), utautts.Request{Reading: "あ", VoicebankID: "missing"}); !errors.Is(err, utautts.ErrUnavailable) {
+	if _, err := engine.Synthesize(context.Background(), utautts.Request{Reading: "あ", Method: "waveform-synthesis", VoicebankID: "missing"}); !errors.Is(err, utautts.ErrUnavailable) {
 		t.Fatalf("missing voicebank: %v", err)
 	}
 }

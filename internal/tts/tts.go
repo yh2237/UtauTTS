@@ -568,14 +568,24 @@ func moraTimings(morae []frontend.Mora, synthesisPlan *plan.Plan) []prosody.Mora
 	return timings
 }
 
-// usesReferenceSynthesisは、参照TTSの経路を使うかを返す。
-// methodが空なら、英語だけ参照にする。
-func usesReferenceSynthesis(language, method string) bool {
+// 合成の方式。表示名（波形合成・参照照合）と同じ意味の識別子を使う。
+const (
+	MethodWaveformSynthesis = "waveform-synthesis"
+	MethodReferenceMatching = "reference-matching"
+)
+
+// ValidateMethodは、合成の方式の指定を確かめる。方式は必須で、既定値はない。
+func ValidateMethod(method string) error {
 	switch method {
-	case "reference":
-		return true
-	case "native":
-		return false
+	case MethodWaveformSynthesis, MethodReferenceMatching:
+		return nil
+	case "":
+		return fmt.Errorf("method is required: %q or %q", MethodWaveformSynthesis, MethodReferenceMatching)
 	}
-	return frontend.NormalizeLanguage(language) == frontend.LanguageEnglish
+	return fmt.Errorf("unknown method %q: %q or %q", method, MethodWaveformSynthesis, MethodReferenceMatching)
+}
+
+// usesReferenceSynthesisは、参照TTSの経路を使うかを返す。
+func usesReferenceSynthesis(language, method string) bool {
+	return method == MethodReferenceMatching
 }

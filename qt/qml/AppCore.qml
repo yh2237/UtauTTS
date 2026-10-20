@@ -136,13 +136,23 @@ QtObject {
     }
 
     function defaultMethod(language) {
-        return String(language || "ja").toLowerCase() === "en" ? "reference" : "native";
+        return String(language || "ja").toLowerCase() === "en" ? "reference-matching" : "waveform-synthesis";
+    }
+
+    // 保存済みのプロジェクトには古い識別子が入っているため、今の名前へ直す。
+    function normalizeMethod(method, language) {
+        const value = String(method || "");
+        if (value === "reference" || value === "reference-matching")
+            return "reference-matching";
+        if (value === "native" || value === "waveform-synthesis" || value === "waveform")
+            return "waveform-synthesis";
+        return core.defaultMethod(language);
     }
 
     function methodOptions() {
         return [
-            { id: "native", display_name: core.translator.tr("main.method.native") },
-            { id: "reference", display_name: core.translator.tr("main.method.reference") }
+            { id: "waveform-synthesis", display_name: core.translator.tr("main.method.native") },
+            { id: "reference-matching", display_name: core.translator.tr("main.method.reference") }
         ];
     }
 
@@ -152,7 +162,7 @@ QtObject {
             "en": core.translator.tr("main.language.en"),
             "zh": core.translator.tr("main.language.zh")
         };
-        if (String(method || "native") === "reference") {
+        if (core.normalizeMethod(method) === "reference-matching") {
             const providers = core.backend.referenceProviders || [];
             const ids = [];
             for (let index = 0; index < providers.length; ++index) {

@@ -137,7 +137,7 @@ type Request struct {
 	Text, Reading, Language, Phonemizer string
 	VoicebankID, RendererID, ModelID    string
 	Tone, Color                         string
-	// Methodは合成の方法。空なら言語ごとの既定、"native"は波形合成、"reference"は参照照合。
+	// Methodは合成の方法。省略できない。`waveform-synthesis`か`reference-matching`。
 	Method     string
 	Dictionary []DictionaryEntry
 	Options    Options

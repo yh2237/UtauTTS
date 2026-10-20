@@ -30,7 +30,7 @@ func TestSynthesisWaitHonorsRequestCancellation(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	request := localRequest(http.MethodPost, "/api/synthesize/audio", bytes.NewBufferString(`{"kana":"あ"}`)).WithContext(ctx)
+	request := localRequest(http.MethodPost, "/api/synthesize/audio", bytes.NewBufferString(`{"method":"waveform-synthesis","kana":"あ"}`)).WithContext(ctx)
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusRequestTimeout {
@@ -122,7 +122,7 @@ func TestJSONAndBatchLimits(t *testing.T) {
 		t.Fatalf("long analyze status = %d, body = %s", response.Code, response.Body.String())
 	}
 
-	items := strings.Repeat(`{"request":{"kana":"あ"}},`, maxBatchItems) + `{"request":{"kana":"あ"}}`
+	items := strings.Repeat(`{"request":{"method":"waveform-synthesis","kana":"あ"}},`, maxBatchItems) + `{"request":{"method":"waveform-synthesis","kana":"あ"}}`
 	response = httptest.NewRecorder()
 	request = localRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(`{"items":[`+items+`]}`))
 	server.ServeHTTP(response, request)
@@ -157,7 +157,7 @@ func TestBatchRejectsDuplicateArchiveNamesBeforeSynthesis(t *testing.T) {
 
 func TestSynthesizeEndpointReportsWaveformRenderer(t *testing.T) {
 	server := newWaveformTestServer(t)
-	body := bytes.NewBufferString(`{"kana":"あ","voicebank_id":"test","mora_duration_ms":100}`)
+	body := bytes.NewBufferString(`{"method":"waveform-synthesis","kana":"あ","voicebank_id":"test","mora_duration_ms":100}`)
 	request := localRequest(http.MethodPost, "/api/synthesize/audio", body)
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
@@ -198,7 +198,7 @@ func newWaveformTestServer(t *testing.T) *Server {
 
 func TestLabelAndBatchSidecarEndpoints(t *testing.T) {
 	server := newWaveformTestServer(t)
-	synthesis := `{"kana":"あ","voicebank_id":"test","mora_duration_ms":100}`
+	synthesis := `{"method":"waveform-synthesis","kana":"あ","voicebank_id":"test","mora_duration_ms":100}`
 
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/label", strings.NewReader(synthesis)))
@@ -231,7 +231,7 @@ func TestSynthesisInputCompatibility(t *testing.T) {
 	server := newWaveformTestServer(t)
 	synthesize := func(t *testing.T, fields string) *httptest.ResponseRecorder {
 		t.Helper()
-		body := `{"voicebank_id":"test","apply_pitch":false,` + fields + `}`
+		body := `{"method":"waveform-synthesis","voicebank_id":"test","apply_pitch":false,` + fields + `}`
 		response := httptest.NewRecorder()
 		server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/audio", strings.NewReader(body)))
 		if response.Code != http.StatusOK {

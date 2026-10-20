@@ -11,6 +11,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/synth"
+	"github.com/yh2237/UtauTTS/internal/tts"
 )
 
 // 原音選択・時間配分を意図的に変えた場合だけ更新する。
@@ -38,6 +39,7 @@ func TestSelectionPlanGolden(t *testing.T) {
 	service := synth.NewService(catalog, "waveform", "", "", "", nil)
 	request := synth.Request{
 		Reading: "かさ", VoicebankPath: bankDir, Tone: "C4", Renderer: "waveform",
+		Method:         tts.MethodWaveformSynthesis,
 		MoraDurationMS: synth.DefaultMoraDurationMS, PauseDurationMS: plan.DefaultPauseDurationMS,
 	}
 	first, err := service.SynthesizeContext(context.Background(), request)

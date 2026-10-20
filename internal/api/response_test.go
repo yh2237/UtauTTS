@@ -36,11 +36,11 @@ func TestAPIErrorCodesPreserveLegacyMessageAndStatus(t *testing.T) {
 	}{
 		{"/api/analyze", `{"unknown":true}`, "invalid_request", 400},
 		{"/api/synthesize/audio", `{}`, "invalid_request", 400},
-		{"/api/synthesize/label", `{"reading":"あ","renderer":"missing"}`, "unavailable", 400},
-		{"/api/synthesize/audio", `{"reading":"あ","mora_duration_ms":1001}`, "invalid_request", 400},
-		{"/api/synthesize/audio", `{"reading":"あ","alias_policy":"missing"}`, "synthesis_error", 422},
-		{"/api/synthesize/audio", `{"reading":"` + strings.Repeat("あ", maxTextRunes+1) + `"}`, "limit_exceeded", 413},
-		{"/api/synthesize/batch", `{"items":[{"request":{"reading":"あ","renderer":"missing"}}]}`, "unavailable", 400},
+		{"/api/synthesize/label", `{"method":"waveform-synthesis","reading":"あ","renderer":"missing"}`, "unavailable", 400},
+		{"/api/synthesize/audio", `{"method":"waveform-synthesis","reading":"あ","mora_duration_ms":1001}`, "invalid_request", 400},
+		{"/api/synthesize/audio", `{"method":"waveform-synthesis","reading":"あ","alias_policy":"missing"}`, "synthesis_error", 422},
+		{"/api/synthesize/audio", `{"method":"waveform-synthesis","reading":"` + strings.Repeat("あ", maxTextRunes+1) + `"}`, "limit_exceeded", 413},
+		{"/api/synthesize/batch", `{"items":[{"request":{"method":"waveform-synthesis","reading":"あ","renderer":"missing"}}]}`, "unavailable", 400},
 	} {
 		t.Run(test.path+"/"+test.code+"/"+test.body[:min(len(test.body), 30)], func(t *testing.T) {
 			response := httptest.NewRecorder()
@@ -66,7 +66,7 @@ func TestAPIClassifiesCanceledAndExpiredRequests(t *testing.T) {
 		for _, path := range []string{"/api/analyze", "/api/synthesize/audio", "/api/synthesize/label", "/api/synthesize/batch"} {
 			body := `{"text":"あ"}`
 			if strings.HasSuffix(path, "/batch") {
-				body = `{"items":[{"request":{"reading":"あ"}}]}`
+				body = `{"items":[{"request":{"method":"waveform-synthesis","reading":"あ"}}]}`
 			}
 			response := httptest.NewRecorder()
 			request := localRequest(http.MethodPost, path, strings.NewReader(body)).WithContext(ctx)
@@ -82,6 +82,6 @@ func TestClosedServerRejectsSynthesis(t *testing.T) {
 		t.Fatal(err)
 	}
 	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/audio", strings.NewReader(`{"reading":"あ"}`)))
+	server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/audio", strings.NewReader(`{"method":"waveform-synthesis","reading":"あ"}`)))
 	assertAPIError(t, response, 503, "unavailable")
 }

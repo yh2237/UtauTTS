@@ -93,7 +93,7 @@ func TestEngineListsAnalyzesAndSynthesizes(t *testing.T) {
 	if err := json.Unmarshal(analysis, &reading); err != nil || reading.Reading != "ア" {
 		t.Fatalf("analysis=%s err=%v", analysis, err)
 	}
-	preview, err := engine.Call("predictProsody", []byte(`{"kana":"\u3042","mora_duration_ms":100,"apply_pitch":false}`))
+	preview, err := engine.Call("predictProsody", []byte(`{"kana":"\u3042","method":"waveform-synthesis","mora_duration_ms":100,"apply_pitch":false}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestEngineListsAnalyzesAndSynthesizes(t *testing.T) {
 		t.Fatalf("invalid character was not ignored: %s", ignoredAnalysis)
 	}
 	output := filepath.Join(root, "preview.wav")
-	request, _ := json.Marshal(map[string]any{"kana": "あ", "voicebank_id": "bank", "mora_duration_ms": 100, "output_path": output})
+	request, _ := json.Marshal(map[string]any{"kana": "あ", "method": "waveform-synthesis", "voicebank_id": "bank", "mora_duration_ms": 100, "output_path": output})
 	synthesis, err := engine.Call("synthesize", request)
 	if err != nil {
 		t.Fatal(err)
@@ -170,7 +170,7 @@ func TestEngineListsAnalyzesAndSynthesizes(t *testing.T) {
 	if _, err := engine.Call("reloadVoicebanks", nil); err != nil {
 		t.Fatal(err)
 	}
-	request, _ = json.Marshal(map[string]any{"kana": "い", "voicebank_id": "bank", "mora_duration_ms": 100, "output_path": filepath.Join(root, "reloaded.wav")})
+	request, _ = json.Marshal(map[string]any{"kana": "い", "method": "waveform-synthesis", "voicebank_id": "bank", "mora_duration_ms": 100, "output_path": filepath.Join(root, "reloaded.wav")})
 	if _, err := engine.Call("synthesize", request); err != nil {
 		t.Fatalf("synthesis after voicebank reload: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestEngineFallsBackToOpenJTalkForEnglish(t *testing.T) {
 
 	output := filepath.Join(root, "english.wav")
 	request, _ := json.Marshal(map[string]any{
-		"text": "hello", "voicebank_id": "bank", "mora_duration_ms": 100, "output_path": output,
+		"text": "hello", "method": "waveform-synthesis", "voicebank_id": "bank", "mora_duration_ms": 100, "output_path": output,
 	})
 	if _, err := engine.Call("synthesize", request); err != nil {
 		t.Fatal(err)
@@ -369,7 +369,7 @@ func TestNativeRequestsUseSharedFields(t *testing.T) {
 	output := filepath.Join(root, "preview.wav")
 
 	shared, _ := json.Marshal(map[string]any{
-		"kana": "あ", "voicebank_id": "bank", "mora_duration_ms": 100, "output_path": output,
+		"kana": "あ", "method": "waveform-synthesis", "voicebank_id": "bank", "mora_duration_ms": 100, "output_path": output,
 		"mora_durations_ms": []float64{150}, "alias_policy": "auto", "release_ms": 5, "release_set": true,
 	})
 	synthesis, err := engine.Call("synthesize", shared)
@@ -383,12 +383,12 @@ func TestNativeRequestsUseSharedFields(t *testing.T) {
 		t.Fatalf("synthesis=%s err=%v", synthesis, err)
 	}
 
-	unknown, _ := json.Marshal(map[string]any{"kana": "あ", "voicebank_id": "bank", "output_path": output, "unknown_option": 1})
+	unknown, _ := json.Marshal(map[string]any{"kana": "あ", "method": "waveform-synthesis", "voicebank_id": "bank", "output_path": output, "unknown_option": 1})
 	if _, err := engine.Call("synthesize", unknown); err != nil {
 		t.Fatalf("native synthesis is lenient for extra fields: %v", err)
 	}
 
-	preview, err := engine.Call("predictProsody", []byte(`{"request_id":"abc","kana":"あ","mora_duration_ms":100,"apply_pitch":false}`))
+	preview, err := engine.Call("predictProsody", []byte(`{"request_id":"abc","kana":"あ","method":"waveform-synthesis","mora_duration_ms":100,"apply_pitch":false}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -398,7 +398,7 @@ func TestNativeRequestsUseSharedFields(t *testing.T) {
 	if err := json.Unmarshal(preview, &previewResult); err != nil || previewResult.RequestID != "abc" {
 		t.Fatalf("prosody preview=%s err=%v", preview, err)
 	}
-	if _, err := engine.Call("predictProsody", []byte(`{"kana":"あ","unknown_option":1}`)); err != nil {
+	if _, err := engine.Call("predictProsody", []byte(`{"kana":"あ","method":"waveform-synthesis","unknown_option":1}`)); err != nil {
 		t.Fatalf("native prosody preview is lenient for extra fields: %v", err)
 	}
 }

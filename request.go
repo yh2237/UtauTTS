@@ -18,6 +18,7 @@ func (r Request) internal() (synth.Request, error) {
 	input.Text, input.Reading, input.Language, input.Phonemizer = r.Text, r.Reading, r.Language, r.Phonemizer
 	input.VoicebankID, input.Renderer, input.ModelID = r.VoicebankID, r.RendererID, r.ModelID
 	input.Tone, input.Color = r.Tone, r.Color
+	input.Method = r.Method
 	for _, entry := range r.Dictionary {
 		if entry.Surface == "" || entry.Reading == "" {
 			return synth.Request{}, fmt.Errorf("%w: dictionary surface and reading are required", ErrInvalidRequest)

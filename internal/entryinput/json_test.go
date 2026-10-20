@@ -7,7 +7,7 @@ import (
 
 // TestMethodReachesInternalRequestは、合成の方法がJSONから内部の要求まで落ちずに届くことを確かめる。
 func TestMethodReachesInternalRequest(t *testing.T) {
-	for _, method := range []string{"native", "reference"} {
+	for _, method := range []string{"waveform-synthesis", "reference-matching"} {
 		raw := `{"text":"hello","language":"en","method":"` + method + `"}`
 		var request JSONRequest
 		if err := json.Unmarshal([]byte(raw), &request); err != nil {

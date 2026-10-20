@@ -17,7 +17,7 @@ func TestSynthesisSourcePathsDoesNotLoadWaveforms(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := newTestEngine(t, Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
-	paths, err := e.SynthesisSourcePaths([]byte(`{"reading":"あか","voicebank_id":"bank","renderer":"waveform","model_id":"none"}`))
+	paths, err := e.SynthesisSourcePaths([]byte(`{"reading":"あか","method":"waveform-synthesis","voicebank_id":"bank","renderer":"waveform","model_id":"none"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
