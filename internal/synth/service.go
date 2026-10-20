@@ -429,7 +429,7 @@ func (s *Service) ReferenceProviders() []tts.ReferenceProviderInfo {
 	return tts.ReferenceProviders(s.referenceDir())
 }
 
-// referenceDirは、抑揚モデルのあるフォルダのうち、参照の合成のモデルを置いたフォルダを返す。
+// referenceDirは、抑揚モデルのあるフォルダのうち、参照照合のモデルを置いたフォルダを返す。
 func (s *Service) referenceDir() string {
 	if s.catalog == nil {
 		return ""

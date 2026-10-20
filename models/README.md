@@ -34,7 +34,7 @@ v10の曲線は混ぜず、F0ヘッドの曲線だけを自然の振れ幅で使
 
 ## Chinese Reference Model（中国語）
 
-中国語の参照は`english-reference/kokoro-zh/`のKokoro-82M-v1.1-zh（声はzf_001）で文を読み、英語と同じくWavLM base+の特徴量で音源の録音から近いフレームを選んで合成します。漢字はピンインに直し、声母と韻母を注音符号にして参照TTSへ渡します。Kokoroの音声は出力に使いません。
+中国語の参照は`english-reference/kokoro-zh/`のKokoro-82M-v1.1-zh（声はzf_001）を使います。英語と同じく音源のフレームから合成し、漢字はピンインに直して声母と韻母を注音符号にして参照TTSへ渡します。Kokoroの音声は出力に使いません。
 
 - Kokoro-82M-v1.1-zhはApache License 2.0です。配布元から変更せずに同梱します
 - 通知: [licenses/CHINESE-REFERENCE-MODEL.txt](../licenses/CHINESE-REFERENCE-MODEL.txt)、ライセンス本文: [licenses/APACHE-2.0.txt](../licenses/APACHE-2.0.txt)

@@ -23,7 +23,7 @@ import (
 
 var englishLexicons sync.Map
 
-// ReferenceModelsは参照の合成に使うモデルの場所を返す。
+// ReferenceModelsは参照照合に使うモデルの場所を返す。
 func ReferenceModels(dir string) (refspeech.Models, string, string) {
 	return refspeech.Models{
 		KokoroWeights: filepath.Join(dir, "kokoro-v1_0.pth"),
@@ -36,7 +36,7 @@ func ReferenceModels(dir string) (refspeech.Models, string, string) {
 	}, filepath.Join(dir, "us_gold.json"), filepath.Join(dir, "us_silver.json")
 }
 
-// ReferenceServiceは参照の合成と音源の索引作成を受け持つServiceを返す。
+// ReferenceServiceは参照照合と音源の索引作成を受け持つServiceを返す。
 func ReferenceService(dir string) (*refspeech.Service, error) {
 	if dir == "" {
 		return nil, fmt.Errorf("reference synthesis models are not installed in models/%s", ReferenceDir)

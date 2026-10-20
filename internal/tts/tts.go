@@ -89,7 +89,7 @@ type Config struct {
 	PitchCurve              *render.PitchCurve
 	AliasPolicy             voicebank.AliasPolicy
 	ProviderOptions         render.ProviderOptions
-	// WorldEnginePathとReferenceDirは参照の合成に使うWORLDエンジンとモデルのフォルダ。Rendererに関係なく使う。
+	// WorldEnginePathとReferenceDirは参照照合に使うWORLDエンジンとモデルのフォルダ。Rendererに関係なく使う。
 	WorldEnginePath string
 	ReferenceDir    string
 	// Methodは合成の方法。空なら言語ごとの既定（英語は参照照合、そのほかは波形合成）。

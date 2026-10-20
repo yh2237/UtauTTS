@@ -9,7 +9,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
-// Web版はKokoroとWavLMのモデルを持たないため、参照の合成をしない。
+// Web版はKokoroとWavLMのモデルを持たないため、参照照合をしない。
 var errReferenceUnavailable = errors.New("reference synthesis is not available in the web version")
 
 func synthesizeReference(Config, *voicebank.Bank, string, string, string, []frontend.Mora) (*Result, error) {
