@@ -95,6 +95,8 @@ type Config struct {
 	// Methodは合成の方法。空なら言語ごとの既定（英語は参照、そのほかはネイティブ）。
 	// "native"は音源のプランで合成し、"reference"は参照TTSの読みを音源のフレームで作り直す。
 	Method string
+	// Logfは合成の途中経過を伝える。nilなら何も伝えない。
+	Logf func(string)
 }
 
 type Result struct {

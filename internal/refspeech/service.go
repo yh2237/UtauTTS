@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/yh2237/UtauTTS/internal/refmatch"
 	"github.com/yh2237/UtauTTS/internal/worldrender"
@@ -51,6 +52,10 @@ type indexEntry struct {
 	status IndexStatus
 	index  *refmatch.Index
 	done   chan struct{}
+	// logsは索引を作ったときの途中経過。待っていた側へまとめて渡す。
+	logs []string
+	// builtはこのプロセスで索引を作ったかどうか（キャッシュから読んだだけならfalse）。
+	built bool
 }
 
 var (
@@ -165,18 +170,39 @@ func (s *Service) Prepare(bankRoot string, recordings []string, worldEnginePath 
 	s.entry(bankRoot, recordings, worldEnginePath)
 }
 
-// Indexは音源の索引を返す。作成中なら終わるまで待つ。
+// Indexは音源の索引を返す。索引がなければ作り、でき上がるまで待つ。
 func (s *Service) Index(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string) (*refmatch.Index, error) {
+	return s.index(ctx, bankRoot, recordings, worldEnginePath, nil)
+}
+
+// indexは索引を返し、作成の経過をlogfへ伝える。logfがnilなら何も伝えない。
+func (s *Service) index(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string, logf func(string)) (*refmatch.Index, error) {
+	start := time.Now()
 	entry := s.entry(bankRoot, recordings, worldEnginePath)
 	select {
 	case <-entry.done:
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+	elapsed := time.Since(start)
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// 作成の途中経過は、索引を作った側が記録している。待っていた側へまとめて渡す。
+	if logf != nil {
+		for _, line := range entry.logs {
+			logf(line)
+		}
+	}
 	if entry.index == nil {
+		if logf != nil {
+			logf(fmt.Sprintf("索引: %s の作成に失敗しました（%.1f 秒）: %s",
+				filepath.Base(bankRoot), elapsed.Seconds(), entry.status.Error))
+		}
 		return nil, fmt.Errorf("voicebank index: %s", entry.status.Error)
+	}
+	if logf != nil && entry.built {
+		logf(fmt.Sprintf("索引: %s の準備ができました（%.1f 秒、フレーム %d）",
+			filepath.Base(bankRoot), elapsed.Seconds(), entry.index.Frames))
 	}
 	return entry.index, nil
 }
@@ -200,7 +226,11 @@ func (s *Service) entry(bankRoot string, recordings []string, worldEnginePath st
 func (s *Service) build(bankRoot string, recordings []string, worldEnginePath string, entry *indexEntry) {
 	s.buildMu.Lock()
 	defer s.buildMu.Unlock()
-	index, err := s.loadOrBuild(bankRoot, recordings, worldEnginePath, func(done, total int) {
+	var logs []string
+	log := func(format string, args ...any) {
+		logs = append(logs, fmt.Sprintf(format, args...))
+	}
+	index, fromCache, err := s.loadOrBuild(bankRoot, recordings, worldEnginePath, log, func(done, total int) {
 		progress := float64(done) / float64(max(total, 1))
 		s.mu.Lock()
 		entry.status.Progress = progress
@@ -217,6 +247,8 @@ func (s *Service) build(bankRoot string, recordings []string, worldEnginePath st
 	}
 	batchMu.Unlock()
 	s.mu.Lock()
+	entry.logs = logs
+	entry.built = !fromCache
 	if err != nil {
 		entry.status = IndexStatus{State: IndexFailed, Error: err.Error()}
 	} else {
@@ -227,18 +259,23 @@ func (s *Service) build(bankRoot string, recordings []string, worldEnginePath st
 	close(entry.done)
 }
 
-func (s *Service) loadOrBuild(bankRoot string, recordings []string, worldEnginePath string, progress func(done, total int)) (*refmatch.Index, error) {
+// loadOrBuildは索引をキャッシュから読み、なければ作る。fromCacheは読み込んだだけならtrue。
+func (s *Service) loadOrBuild(bankRoot string, recordings []string, worldEnginePath string,
+	logf func(string, ...any), progress func(done, total int)) (*refmatch.Index, bool, error) {
 	files, key, err := bankRecordings(bankRoot, recordings)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	path := filepath.Join(s.cacheDir, key+".idx")
 	if index, err := refmatch.LoadIndex(path); err == nil && index.Model == FeatureModel && index.Source == key {
-		return index, nil
+		logf("索引: %s の作成済みの索引を読み込みました（録音 %d 件、フレーム %d）",
+			filepath.Base(bankRoot), len(index.Files), index.Frames)
+		return index, true, nil
 	}
+	logf("索引: %s を作成します（録音 %d 件、モデル %s）", filepath.Base(bankRoot), len(files), FeatureModel)
 	engine, world, err := s.open(worldEnginePath)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	features := func(samples []float64, rate int) ([]float32, int, int, error) {
 		s.foreground.Lock()
@@ -247,16 +284,18 @@ func (s *Service) loadOrBuild(bankRoot string, recordings []string, worldEngineP
 	}
 	index, err := refmatch.BuildIndex(files, FeatureModel, world, features, progress, refmatch.OpenPartCache(filepath.Join(s.cacheDir, "parts")))
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	index.Source = key
 	if err := os.MkdirAll(s.cacheDir, 0o755); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if err := index.Save(path); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return index, nil
+	logf("索引: %s を保存しました（フレーム %d、F0 の中央値 %.0f Hz）",
+		filepath.Base(bankRoot), index.Frames, index.F0Median)
+	return index, false, nil
 }
 
 // bankRecordingsは索引に使う録音と、その一覧・大きさ・更新時刻から作るキーを返す。
@@ -285,7 +324,7 @@ func bankRecordings(bankRoot string, recordings []string) ([]string, string, err
 
 // Speakは音源の索引を使って音素列を合成する。
 func (s *Service) Speak(ctx context.Context, id, bankRoot string, recordings []string, worldEnginePath string, pieces []Piece, options Options) (Speech, error) {
-	index, err := s.Index(ctx, bankRoot, recordings, worldEnginePath)
+	index, err := s.index(ctx, bankRoot, recordings, worldEnginePath, options.Logf)
 	if err != nil {
 		return Speech{}, err
 	}
@@ -311,7 +350,7 @@ func (s *Service) Read(id string, pieces []Piece, speed float32, durations []int
 
 // SpeakReferenceは、参照の読みから音源のフレームで合成し直す。参照TTSの種類に依存しない入口。
 func (s *Service) SpeakReference(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string, reference Reference, options Options) (Speech, error) {
-	index, err := s.Index(ctx, bankRoot, recordings, worldEnginePath)
+	index, err := s.index(ctx, bankRoot, recordings, worldEnginePath, options.Logf)
 	if err != nil {
 		return Speech{}, err
 	}

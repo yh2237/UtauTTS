@@ -15,6 +15,7 @@ func Apply(request utautts.Request, input synth.Request) synth.Request {
 	input.Language, input.Phonemizer = request.Language, request.Phonemizer
 	input.VoicebankID, input.Renderer, input.ModelID = request.VoicebankID, request.RendererID, request.ModelID
 	input.Tone, input.Color = request.Tone, request.Color
+	input.Method = request.Method
 	input.Dictionary = make([]synth.DictionaryEntry, len(request.Dictionary))
 	for i, entry := range request.Dictionary {
 		input.Dictionary[i] = synth.DictionaryEntry{Surface: entry.Surface, Reading: entry.Reading}

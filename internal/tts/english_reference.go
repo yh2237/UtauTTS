@@ -155,7 +155,7 @@ func referencePlanTiming(cfg Config, language string, provider refspeech.Provide
 	return forced, englishMoraDurations(moraTokens, refspeech.Timing{Durations: forced}, cfg.MoraDurationsMS), nil
 }
 
-// synthesizeEnglishReferenceは英語の文を参照TTSで読み、音源のフレームで合成し直す。
+// synthesizeReferenceは文を参照TTSで読み、音源のフレームで合成し直す。
 func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer, reading string, morae []frontend.Mora) (*Result, error) {
 	ctx := cfg.Context
 	if ctx == nil {
@@ -165,9 +165,15 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	if err != nil {
 		return nil, err
 	}
+	log := cfg.Logf
+	if log == nil {
+		log = func(string) {}
+	}
+	options.Logf = log
+	log(fmt.Sprintf("参照TTS: %s（%d 記号）", provider.ID(), len(pieces)))
 	forced, planned, err := referencePlanTiming(cfg, language, provider, pieces, options, reading, morae)
 	if err != nil {
-		return nil, fmt.Errorf("English synthesis: %w", err)
+		return nil, fmt.Errorf("reference synthesis: %w", err)
 	}
 	if forced != nil {
 		options.Durations = forced
@@ -177,11 +183,16 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	}
 	reference, err := provider.Read(pieces, options.Speed, options.Durations)
 	if err != nil {
-		return nil, fmt.Errorf("English synthesis: %w", err)
+		return nil, fmt.Errorf("reference synthesis: %w", err)
 	}
+	rate := reference.SampleRate
+	if rate <= 0 {
+		rate = 24000
+	}
+	log(fmt.Sprintf("参照音声: %d Hz、%.2f 秒", rate, float64(len(reference.Audio))/float64(rate)))
 	speech, err := service.SpeakReference(ctx, bank.Root, bank.ReferenceRecordings(), cfg.WorldEnginePath, reference, options)
 	if err != nil {
-		return nil, fmt.Errorf("English synthesis: %w", err)
+		return nil, fmt.Errorf("reference synthesis: %w", err)
 	}
 	peak := 0.0
 	for _, v := range speech.Audio {

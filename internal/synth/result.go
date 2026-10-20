@@ -15,6 +15,8 @@ type Result struct {
 	RendererID string
 	DurationMS float64
 	Lab        string
+	// Logsは合成の途中経過。索引の作成など、時間のかかる処理を伝える。
+	Logs []string
 }
 
 func NewResult(result *tts.Result, rendererID string) (*Result, error) {
@@ -48,13 +50,15 @@ type Report struct {
 	UnitCount     int                       `json:"unit_count"`
 	PhonemeLabels string                    `json:"phoneme_labels"`
 	Diagnostics   []render.RenderDiagnostic `json:"diagnostics"`
+	// Logsは合成の途中経過。索引の作成など、時間のかかる処理を伝える。
+	Logs []string `json:"logs,omitempty"`
 }
 
 func (r *Result) Report() Report {
 	return Report{
 		Reading: r.Plan.Reading, RendererID: r.RendererID, DurationMS: r.DurationMS,
 		SampleRate: r.Audio.SampleRate, Channels: r.Audio.Channels, UnitCount: len(r.Plan.Units),
-		PhonemeLabels: r.Lab, Diagnostics: r.Diagnostics(),
+		PhonemeLabels: r.Lab, Diagnostics: r.Diagnostics(), Logs: r.Logs,
 	}
 }
 

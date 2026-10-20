@@ -23,6 +23,7 @@ type JSONRequest struct {
 	ModelID            string                     `json:"model_id"`
 	Tone               string                     `json:"tone"`
 	Color              string                     `json:"color"`
+	Method             string                     `json:"method"`
 	Dictionary         []utautts.DictionaryEntry  `json:"dictionary"`
 	MoraDurationMS     float64                    `json:"mora_duration_ms"`
 	PauseDurationMS    float64                    `json:"pause_duration_ms"`
@@ -119,6 +120,7 @@ func (request JSONRequest) publicRequest() utautts.Request {
 		Language: request.Language, Phonemizer: request.Phonemizer,
 		VoicebankID: request.VoicebankID, RendererID: request.Renderer, ModelID: request.ModelID,
 		Tone: request.Tone, Color: request.Color, Dictionary: request.Dictionary,
+		Method:           request.Method,
 		RendererSettings: request.RendererSettings,
 		Options: utautts.Options{
 			MoraDurationMS: &request.MoraDurationMS, PauseDurationMS: &request.PauseDurationMS,

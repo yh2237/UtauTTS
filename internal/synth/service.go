@@ -209,6 +209,17 @@ func SynthesizeResolved(resolved ResolvedRequest) (*Result, error) {
 }
 
 func SynthesizeConfigWithOptions(cfg tts.Config, rendererID string, providerOptions render.ProviderOptions) (*Result, error) {
+	var logs []string
+	if cfg.Logf != nil {
+		// 呼出し側が受け取りたい場合はそちらへも流す。
+		forward := cfg.Logf
+		cfg.Logf = func(line string) {
+			logs = append(logs, line)
+			forward(line)
+		}
+	} else {
+		cfg.Logf = func(line string) { logs = append(logs, line) }
+	}
 	if scope := lifecycle.FromContext(cfg.Context); scope != nil {
 		ctx, release, err := scope.Begin(cfg.Context)
 		if err != nil {
@@ -221,7 +232,12 @@ func SynthesizeConfigWithOptions(cfg tts.Config, rendererID string, providerOpti
 	if err != nil {
 		return nil, err
 	}
-	return NewResult(result, rendererID)
+	output, err := NewResult(result, rendererID)
+	if err != nil {
+		return nil, err
+	}
+	output.Logs = logs
+	return output, nil
 }
 
 // 音声・音源を読み込まずに予測する。

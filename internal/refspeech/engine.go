@@ -188,6 +188,8 @@ type Options struct {
 	PitchCents func(ms float64) float64
 	// ReplacePitchなら、PitchCentsをF0の中心からのセントとして、KokoroのF0の動きの代わりに使う。
 	ReplacePitch bool
+	// Logfは合成の途中経過を伝える。nilなら何も伝えない。
+	Logf func(string)
 }
 
 // TimingはKokoroの入力記号（先頭と末尾の境界記号を含む）ごとの長さ。

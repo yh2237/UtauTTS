@@ -1858,6 +1858,11 @@ void Backend::synthesize(const QVariantMap &input) {
                     storePreviewCache(cacheKey, PreviewCacheEntry{
                         outputPath, previewText, m_previewLab, m_synthesisJson});
                     emit synthesisChanged();
+                    for (const QVariant &line : result.value("logs").toList()) {
+                        const QString text = line.toString();
+                        if (!text.isEmpty())
+                            appendLog(text);
+                    }
                     const QString device = result.value("feature_device").toString();
                     if (!device.isEmpty())
                         appendLog(tr("使用デバイス: %1").arg(device));

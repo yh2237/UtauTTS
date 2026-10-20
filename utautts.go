@@ -137,8 +137,10 @@ type Request struct {
 	Text, Reading, Language, Phonemizer string
 	VoicebankID, RendererID, ModelID    string
 	Tone, Color                         string
-	Dictionary                          []DictionaryEntry
-	Options                             Options
+	// Methodは合成の方法。空なら言語ごとの既定、"native"はネイティブ、"reference"は参照TTS。
+	Method     string
+	Dictionary []DictionaryEntry
+	Options    Options
 	// 共通設定はOptionsで指定し、ここには方式固有のJSONだけを渡す。
 	RendererSettings map[string]json.RawMessage
 }
