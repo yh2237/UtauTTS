@@ -410,7 +410,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	return cfg, string(resolvedEngine.PublicID()), providerOptions, nil
 }
 
-// PrepareEnglishは音源の英語の索引がなければ裏で作り始める。モデルかWORLDエンジンがなければ何もしない。
+// PrepareEnglishは音源の参照照合の索引がなければ裏で作り始める。モデルかWORLDエンジンがなければ何もしない。
 func (s *Service) PrepareEnglish(bank *voicebank.Bank) {
 	worldPhrase, err := s.ResolveRenderer("utautts-world-phrase")
 	if err != nil {

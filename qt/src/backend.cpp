@@ -1627,7 +1627,7 @@ void Backend::checkEnglishIndexes() {
         }
         const QStringList failed = result.value("failed").toStringList();
         if (!failed.isEmpty()) {
-            setError(tr("英語の索引を作れませんでした: %1").arg(failed.join(QStringLiteral(", "))));
+            setError(tr("索引を作れませんでした: %1").arg(failed.join(QStringLiteral(", "))));
         }
         if (building) {
             QTimer::singleShot(500, this, &Backend::checkEnglishIndexes);

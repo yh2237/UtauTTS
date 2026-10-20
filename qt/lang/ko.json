@@ -224,7 +224,7 @@
     "metadata.loading.models": "모델 불러오는 중",
     "metadata.loading.renderers": "렌더러 불러오는 중",
     "metadata.loading.resamplers": "Resamplers 불러오는 중",
-    "metadata.loading.englishIndex": "영어 색인 생성 중",
+    "metadata.loading.englishIndex": "색인 생성 중",
     "metadata.loading.wavtools": "Wavtools 불러오는 중",
     "voicebankDetails.noReadme": "README가 없습니다",
     "voicebankDetails.capabilities": "alias 수: CV {0} / VCV {1} / VC {2}",

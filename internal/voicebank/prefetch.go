@@ -67,7 +67,7 @@ func (b *Bank) CandidateSourcePaths(morae []frontend.Mora, cfg ResolveConfig) []
 	return result
 }
 
-// ReferenceRecordingsは英語の索引に使う録音を返す。音高や声色ごとの収録があれば、既定の音高の通常の声だけを使う。
+// ReferenceRecordingsは参照照合の索引に使う録音を返す。音高や声色ごとの収録があれば、既定の音高の通常の声だけを使う。
 func (b *Bank) ReferenceRecordings() []string {
 	affix, _, hasAffix := b.AffixForToneAndColor("", "")
 	collect := func(affixed bool) map[string]bool {

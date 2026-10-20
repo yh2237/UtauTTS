@@ -270,6 +270,8 @@ func (s *Service) build(bankRoot string, recordings []string, worldEnginePath st
 	log := func(format string, args ...any) {
 		logs = append(logs, fmt.Sprintf(format, args...))
 	}
+	// lastStepは、進捗を最後に記録した1割の段階。
+	lastStep := -1
 	if summary := s.CleanupCache(); summary != "" {
 		log("%s", summary)
 	}
@@ -281,6 +283,12 @@ func (s *Service) build(bankRoot string, recordings []string, worldEnginePath st
 		batchMu.Lock()
 		batch.current = progress
 		batchMu.Unlock()
+		// 1割ごとに経過を残す。時間のかかる音源で、どこまで進んだか分かるようにする。
+		if step := done * 10 / max(total, 1); step != lastStep && step < 10 {
+			lastStep = step
+			log("索引: %s を解析しています（%d%%、%d/%d 件）",
+				filepath.Base(bankRoot), step*10, done, total)
+		}
 	})
 	batchMu.Lock()
 	batch.done++

@@ -224,7 +224,7 @@
     "metadata.loading.models": "Loading Models",
     "metadata.loading.renderers": "Loading Renderers",
     "metadata.loading.resamplers": "Loading Resamplers",
-    "metadata.loading.englishIndex": "Building English Index",
+    "metadata.loading.englishIndex": "Building Index",
     "metadata.loading.wavtools": "Loading Wavtools",
     "voicebankDetails.noReadme": "No README available",
     "voicebankDetails.capabilities": "Alias count: CV {0} / VCV {1} / VC {2}",
