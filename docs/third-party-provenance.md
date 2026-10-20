@@ -15,7 +15,7 @@ UtauTTSが互換処理や移植のために参照した公開コードと、そ�
 
 `utautts-world-phrase`は、公式のWORLD（Harvest、CheapTrick、D4C、Synthesis）のC++のソースからビルドしています。ソースは`third_party/world/`にあります。解析を速くするため、`fft.cpp`、`harvest.cpp`、`cheaptrick.cpp`、`d4c.cpp`に変更を加えています。変更の内容は`third_party/world/README.md`にあります。
 
-## 参照の読み上げ
+## 参照照合
 
 次のモジュールはPythonの実装をGoに移したものです。
 

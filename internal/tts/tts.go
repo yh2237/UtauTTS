@@ -92,7 +92,7 @@ type Config struct {
 	// WorldEnginePathとReferenceDirは参照の合成に使うWORLDエンジンとモデルのフォルダ。Rendererに関係なく使う。
 	WorldEnginePath string
 	ReferenceDir    string
-	// Methodは合成の方法。空なら言語ごとの既定（英語は参照、そのほかはネイティブ）。
+	// Methodは合成の方法。空なら言語ごとの既定（英語は参照照合、そのほかは波形合成）。
 	// "native"は音源のプランで合成し、"reference"は参照TTSの読みを音源のフレームで作り直す。
 	Method string
 	// Logfは合成の途中経過を伝える。nilなら何も伝えない。

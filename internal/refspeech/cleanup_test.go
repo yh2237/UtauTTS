@@ -18,11 +18,11 @@ func writeIndex(t *testing.T, dir, name string, version int, model string) strin
 			Version: version, Model: model, SampleRate: 44100, APBands: apBands,
 			FFTSize: 1024, Dims: dims, Frames: frames,
 		},
-		Features:      make([]float32, frames*dims),
-		Spectrum:      make([]float32, frames*4*60),
-		Aperiodicity:  make([]float32, frames*4*apBands),
-		F0:            make([]float32, frames*4),
-		File:          make([]int32, frames),
+		Features:     make([]float32, frames*dims),
+		Spectrum:     make([]float32, frames*4*60),
+		Aperiodicity: make([]float32, frames*4*apBands),
+		F0:           make([]float32, frames*4),
+		File:         make([]int32, frames),
 	}
 	path := filepath.Join(dir, name)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
