@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/yh2237/UtauTTS/internal/atomicfile"
 )
@@ -53,7 +54,8 @@ func (c *PartCache) path(key string) string {
 
 // Loadは保存した解析結果を返す。ないか読めなければfalse。
 func (c *PartCache) Load(key string) (fileFrames, bool) {
-	data, err := os.ReadFile(c.path(key))
+	path := c.path(key)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return fileFrames{}, false
 	}
@@ -61,6 +63,9 @@ func (c *PartCache) Load(key string) (fileFrames, bool) {
 	if err != nil {
 		return fileFrames{}, false
 	}
+	// 使った記録を残し、しばらく使っていないものだけを整理できるようにする。
+	now := time.Now()
+	_ = os.Chtimes(path, now, now)
 	return frames, true
 }
 

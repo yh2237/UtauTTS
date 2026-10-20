@@ -46,6 +46,10 @@ type Service struct {
 	engine     *Engine
 	worlds     map[string]*worldrender.World
 	indexes    map[string]*indexEntry
+
+	// cleanupOnceは、キャッシュの整理を1プロセスにつき1度だけ行うためのもの。
+	cleanupOnce sync.Once
+	cleanupLog  string
 }
 
 type indexEntry struct {
@@ -106,13 +110,49 @@ func Shared(models Models, cacheDir string) *Service {
 	return service
 }
 
+// CleanupCacheは、使えなくなった索引と、しばらく使われていない部分キャッシュを削除する。
+// 索引を作る前に1度だけ呼ぶ。削除の結果を1行で返す。
+func (s *Service) CleanupCache() string {
+	s.cleanupOnce.Do(func() {
+		result, err := Cleanup(s.cacheDir)
+		if err != nil {
+			s.cleanupLog = fmt.Sprintf("索引のキャッシュを整理できませんでした: %v", err)
+			return
+		}
+		s.cleanupLog = result.Summary()
+	})
+	return s.cleanupLog
+}
+
 // DefaultCacheDirは利用者ごとのキャッシュに置く索引のディレクトリ。
+// 索引は作り直せる大きな派生データなので、アプリのフォルダではなくキャッシュに置く。
 func DefaultCacheDir() (string, error) {
 	base, err := os.UserCacheDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(base, "UtauTTS", "english-reference"), nil
+	dir := filepath.Join(base, "UtauTTS", "reference-index")
+	migrateLegacyCacheDir(base, dir)
+	return dir, nil
+}
+
+// legacyCacheNameは、中国語を足す前の索引のフォルダ名。
+const legacyCacheName = "english-reference"
+
+// migrateLegacyCacheDirは、古い名前のフォルダがあれば1度だけ今の名前に移す。
+// 同じ場所なので、中身の移動は名前の変更だけで済む。
+func migrateLegacyCacheDir(base, dir string) {
+	if _, err := os.Stat(dir); err == nil {
+		return
+	}
+	legacy := filepath.Join(base, "UtauTTS", legacyCacheName)
+	if _, err := os.Stat(legacy); err != nil {
+		return
+	}
+	if err := os.Rename(legacy, dir); err != nil {
+		// 名前を変えられない環境では、古いフォルダをそのまま使う。
+		return
+	}
 }
 
 func (s *Service) openEngine() (*Engine, error) {
@@ -230,6 +270,9 @@ func (s *Service) build(bankRoot string, recordings []string, worldEnginePath st
 	log := func(format string, args ...any) {
 		logs = append(logs, fmt.Sprintf(format, args...))
 	}
+	if summary := s.CleanupCache(); summary != "" {
+		log("%s", summary)
+	}
 	index, fromCache, err := s.loadOrBuild(bankRoot, recordings, worldEnginePath, log, func(done, total int) {
 		progress := float64(done) / float64(max(total, 1))
 		s.mu.Lock()
@@ -268,6 +311,9 @@ func (s *Service) loadOrBuild(bankRoot string, recordings []string, worldEngineP
 	}
 	path := filepath.Join(s.cacheDir, key+".idx")
 	if index, err := refmatch.LoadIndex(path); err == nil && index.Model == FeatureModel && index.Source == key {
+		// 使った記録を残し、上限を超えたときに古いものから消せるようにする。
+		now := time.Now()
+		_ = os.Chtimes(path, now, now)
 		logf("索引: %s の作成済みの索引を読み込みました（録音 %d 件、フレーム %d）",
 			filepath.Base(bankRoot), len(index.Files), index.Frames)
 		return index, true, nil

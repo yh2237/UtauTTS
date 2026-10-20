@@ -461,6 +461,40 @@ func (index *Index) Save(path string) error {
 	})
 }
 
+// ReadHeaderは索引ファイルのヘッダだけを読む。中身を読まずに使えるかを確かめるときに使う。
+func ReadHeader(path string) (Header, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return Header{}, err
+	}
+	defer file.Close()
+	return readHeader(bufio.NewReader(file))
+}
+
+// readHeaderは、マジックとヘッダを読む。
+func readHeader(reader *bufio.Reader) (Header, error) {
+	magic := make([]byte, len(indexMagic))
+	if _, err := io.ReadFull(reader, magic); err != nil || string(magic) != indexMagic {
+		return Header{}, fmt.Errorf("not a reference matching index")
+	}
+	var length uint32
+	if err := binary.Read(reader, binary.LittleEndian, &length); err != nil || length == 0 || length > 1<<26 {
+		return Header{}, fmt.Errorf("invalid header")
+	}
+	header := make([]byte, length)
+	if _, err := io.ReadFull(reader, header); err != nil {
+		return Header{}, err
+	}
+	var parsed Header
+	if err := json.Unmarshal(header, &parsed); err != nil {
+		return Header{}, err
+	}
+	return parsed, nil
+}
+
+// Versionは索引の版を返す。版が変わった索引は使えない。
+func Version() int { return indexVersion }
+
 func LoadIndex(path string) (*Index, error) {
 	file, err := os.Open(path)
 	if err != nil {
