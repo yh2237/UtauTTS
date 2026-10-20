@@ -33,6 +33,7 @@ class Backend final : public QObject {
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
     Q_PROPERTY(QVariantList voicebanks READ voicebanks NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList models READ models NOTIFY metadataChanged)
+    Q_PROPERTY(QVariantMap retiredModels READ retiredModels NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList referenceProviders READ referenceProviders NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList renderers READ renderers NOTIFY metadataChanged)
     Q_PROPERTY(QStringList pluginProblems READ pluginProblems NOTIFY metadataChanged)
@@ -87,6 +88,7 @@ public:
     QString error() const { return m_error; }
     QVariantList voicebanks() const { return m_voicebanks; }
     QVariantList models() const { return m_models; }
+    QVariantMap retiredModels() const { return m_retiredModels; }
     QVariantList referenceProviders() const { return m_referenceProviders; }
     QVariantList renderers() const { return m_renderers; }
     QStringList pluginProblems() const { return m_pluginProblems; }
@@ -304,6 +306,7 @@ private:
 #endif
     int m_activeCallCount = 0;
     QVariantList m_voicebanks, m_models, m_renderers, m_resamplers, m_wavtools, m_dictionaryEntries;
+    QVariantMap m_retiredModels;
     QVariantList m_referenceProviders;
     QStringList m_pluginProblems;
     QString m_catalogDefaultRenderer;

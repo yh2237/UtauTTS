@@ -1522,6 +1522,7 @@ void Backend::applyMetadata(const QVariantMap &voices, const QVariantMap &models
                             const QVariantMap &renderers) {
     m_voicebanks = voices.value("voicebanks").toList();
     m_models = models.value("models").toList();
+    m_retiredModels = models.value("retired_models").toMap();
     m_renderers = renderers.value("renderers").toList();
     m_pluginProblems.clear();
     for (const QVariant &problem : renderers.value("problems").toList())

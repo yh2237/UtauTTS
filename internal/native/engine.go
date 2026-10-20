@@ -103,7 +103,7 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 		err = e.reload()
 		result = map[string]any{"voicebanks": e.voicebankList()}
 	case "models":
-		result = map[string]any{"models": e.models()}
+		result = map[string]any{"models": e.models(), "retired_models": synth.RetiredModelIDs()}
 	case "referenceProviders":
 		result = map[string]any{"reference_providers": e.synth.ReferenceProviders()}
 	case "renderers":

@@ -40,6 +40,19 @@ QtObject {
         return selected || (core.backend.voicebanks.length ? core.backend.voicebanks[0] : null);
     }
 
+    // 保存済みのプロジェクトには、同梱から外したモデルのIDが残りうる。
+    // 読み替えはここで行い、コアには今のIDだけを渡す。
+    function normalizeModelId(id, language) {
+        const value = String(id === undefined || id === null ? "" : id);
+        const retired = core.backend.retiredModels || {};
+        const migrated = retired[value] !== undefined ? String(retired[value]) : value;
+        if (migrated === "" || migrated === "none")
+            return "none";
+        if (core.modelById(migrated))
+            return migrated;
+        return core.defaultModelIdForLanguage(language);
+    }
+
     function defaultModelId() {
         const configured = String(core.backend.defaultModelId || "none");
         return configured === "none" || core.modelById(configured)

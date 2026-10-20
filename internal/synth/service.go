@@ -538,19 +538,21 @@ func (s *Service) rendererID(requested string) string {
 	return s.renderer
 }
 
-// retiredModelIDsは同梱から外した抑揚モデルと、その代わりに使うモデル。保存済みのプロジェクトや設定、APIの指定を引き継ぐ。
+// retiredModelIDsは同梱から外した抑揚モデルと、その代わりに使うモデル。
 var retiredModelIDs = map[string]string{
 	"frame-intonation-tcn-v9.1-t": "frame-intonation-tcn-v12",
 	"frame-intonation-tcn-v10":    "frame-intonation-tcn-v12",
 	"frame-intonation-tcn-v11":    "frame-intonation-tcn-v12",
 }
 
-// currentModelIDは同梱から外したモデルのIDを、代わりのモデルのIDへ置き換える。
-func currentModelID(id string) string {
-	if replacement, ok := retiredModelIDs[id]; ok {
-		return replacement
+// RetiredModelIDsは、保存済みのプロジェクトを読み直す側へ読み替えの表を渡す。
+// 読み替えるのはプロジェクトを持つGUIの役目なので、ここでは知らせるだけにする。
+func RetiredModelIDs() map[string]string {
+	result := make(map[string]string, len(retiredModelIDs))
+	for id, replacement := range retiredModelIDs {
+		result[id] = replacement
 	}
-	return id
+	return result
 }
 
 func (s *Service) ResolveModel(id string) (string, error) {
@@ -560,9 +562,11 @@ func (s *Service) ResolveModel(id string) (string, error) {
 	if s.catalog == nil {
 		return "", fmt.Errorf("%w: model catalog is not initialized", ErrUnavailable)
 	}
-	id = currentModelID(id)
 	model, found := s.catalog.Model(id)
 	if !found {
+		if replacement, retired := retiredModelIDs[id]; retired {
+			return "", fmt.Errorf("%w: prosody model %q was retired; use %q", ErrUnavailable, id, replacement)
+		}
 		return "", fmt.Errorf("%w: prosody model %q not found", ErrUnavailable, id)
 	}
 	return model.Path, nil
@@ -572,6 +576,6 @@ func (s *Service) ModelAvailable(id string) bool {
 	if id == "" || id == "none" {
 		return false
 	}
-	_, found := s.catalog.Model(currentModelID(id))
+	_, found := s.catalog.Model(id)
 	return found
 }

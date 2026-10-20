@@ -767,7 +767,7 @@ ApplicationWindow {
         const item = window.current();
         const context = {
             voicebank_id: item.voicebankId || "",
-            model_id: item.modelId || "",
+            model_id: window.normalizeModelId(item.modelId, item.language || "ja"),
             renderer: item.renderer || "",
             alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
             tone: item.tone || "",
@@ -1213,7 +1213,7 @@ ApplicationWindow {
                 phonemizer: item.phonemizer || window.defaultPhonemizer(item.language || "ja"),
                 method: window.normalizeMethod(item.method, item.language || "ja"),
                 voicebank_id: item.voicebankId || "",
-                model_id: item.modelId || "",
+                model_id: window.normalizeModelId(item.modelId, item.language || "ja"),
                 renderer_id: item.renderer || "",
                 alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
                 tone: item.tone || "",
@@ -1436,7 +1436,7 @@ ApplicationWindow {
                 labEntryId: String(saved.lab_entry_id || ""),
                 voicebankId: voicebankId,
                 imagePath: voice ? voice.image_path || "" : "",
-                modelId: String(saved.model_id || ""),
+                modelId: window.normalizeModelId(saved.model_id, saved.language || "ja"),
                 renderer: rendererId,
                 aliasPolicy: saved.alias_policy === undefined
                         ? window.appBackend.defaultAliasPolicy : window.normalizeAliasPolicy(saved.alias_policy),
@@ -1498,6 +1498,7 @@ ApplicationWindow {
 
     function defaultMethod(language) { return core.defaultMethod(language); }
     function normalizeMethod(method, language) { return core.normalizeMethod(method, language); }
+    function normalizeModelId(id, language) { return core.normalizeModelId(id, language); }
 
     function methodOptions() { return core.methodOptions(); }
 
