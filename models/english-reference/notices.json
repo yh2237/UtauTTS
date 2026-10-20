@@ -2,6 +2,7 @@
     "license": "Apache-2.0 AND MIT",
     "license_notices": [
         "licenses/ENGLISH-REFERENCE-MODELS.txt",
+        "licenses/CHINESE-REFERENCE-MODEL.txt",
         "licenses/APACHE-2.0.txt",
         "licenses/WAVLM-MIT.txt"
     ]

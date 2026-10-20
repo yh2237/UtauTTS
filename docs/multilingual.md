@@ -38,7 +38,7 @@ utautts-cli --voicebank "./voice/english-bank" --language en --phonemizer en-arp
 
 ## 長さと抑揚
 
-英語では参照用の音声合成（Kokoro-82M）の読みから長さと抑揚を決めます。仕組みは[英語の読み上げ](how-utautts-speaks.md#9-英語の読み上げ)にあります。
+英語と中国語では参照用の音声合成（Kokoro-82M）の読みから長さと抑揚を決めます。仕組みは[参照の読み上げ](how-utautts-speaks.md#9-参照の読み上げ)にあります。
 
 - モーラ長の設定は話速に使います。120msで1倍です。
 - 抑揚の強さはF0の動きの幅に使います。4で1倍です。

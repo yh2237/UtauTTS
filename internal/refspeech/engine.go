@@ -57,12 +57,28 @@ type Models struct {
 	KokoroWeights string
 	KokoroConfig  string
 	KokoroVoice   string
-	HuBERT        string
+	// ZhWeights、ZhConfig、ZhVoiceは中国語のKokoro。空なら中国語の参照は使わない。
+	ZhWeights string
+	ZhConfig  string
+	ZhVoice   string
+	HuBERT    string
+}
+
+// 参照TTSのID。Provider.ID()と対応する。
+const (
+	kokoroEnglish = "kokoro-en"
+	kokoroChinese = "kokoro-zh"
+)
+
+// voiceSetは1つの参照TTSのモデルと声。
+type voiceSet struct {
+	model *kokoro.Model
+	voice *kokoro.Voice
 }
 
 type Engine struct {
-	kokoro *kokoro.Model
-	voice  *kokoro.Voice
+	// voicesは参照TTSのIDごとのモデルと声。
+	voices map[string]*voiceSet
 	hubert *hubert.Model
 
 	// readsは最近のKokoroの読み。予測と合成で同じ文を読み直さないために使う。
@@ -93,19 +109,49 @@ func Open(models Models) (*Engine, error) {
 	if path := os.Getenv("UTAUTTS_HUBERT_PATH"); path != "" {
 		models.HuBERT = path
 	}
-	model, err := kokoro.Load(models.KokoroWeights, models.KokoroConfig)
+	voices := map[string]*voiceSet{}
+	english, err := loadVoiceSet(kokoroEnglish, models.KokoroWeights, models.KokoroConfig, models.KokoroVoice)
 	if err != nil {
-		return nil, fmt.Errorf("load Kokoro: %w", err)
+		return nil, err
 	}
-	voice, err := kokoro.LoadVoice(models.KokoroVoice)
-	if err != nil {
-		return nil, fmt.Errorf("load Kokoro voice: %w", err)
+	voices[kokoroEnglish] = english
+	if models.ZhWeights != "" && models.ZhConfig != "" && models.ZhVoice != "" {
+		chinese, err := loadVoiceSet(kokoroChinese, models.ZhWeights, models.ZhConfig, models.ZhVoice)
+		if err != nil {
+			return nil, err
+		}
+		voices[kokoroChinese] = chinese
 	}
 	features, err := hubert.Load(models.HuBERT)
 	if err != nil {
 		return nil, fmt.Errorf("load HuBERT: %w", err)
 	}
-	return &Engine{kokoro: model, voice: voice, hubert: features}, nil
+	return &Engine{voices: voices, hubert: features}, nil
+}
+
+// loadVoiceSetは、1つのKokoroのモデルと声を読む。
+func loadVoiceSet(id, weights, config, voicePath string) (*voiceSet, error) {
+	model, err := kokoro.Load(weights, config)
+	if err != nil {
+		return nil, fmt.Errorf("load Kokoro (%s): %w", id, err)
+	}
+	voice, err := kokoro.LoadVoice(voicePath)
+	if err != nil {
+		return nil, fmt.Errorf("load Kokoro voice (%s): %w", id, err)
+	}
+	return &voiceSet{model: model, voice: voice}, nil
+}
+
+// voiceSetForは、参照TTSのIDに対応するモデルと声を返す。
+func (e *Engine) voiceSetFor(id string) (*voiceSet, error) {
+	if id == "" {
+		id = kokoroEnglish
+	}
+	set := e.voices[id]
+	if set == nil {
+		return nil, fmt.Errorf("reference TTS %q is not installed", id)
+	}
+	return set, nil
 }
 
 // FeaturesはHuBERT Baseの6層目を20msごとに返す。refmatch.FeatureFuncとして使う。
@@ -193,14 +239,14 @@ func (r Reference) ReferenceF0() []float64 {
 	return refmatch.ReferenceF0(r.F0, kokoroF0FrameMS, frames)
 }
 
-// Readは音素列をKokoroで読む。durationsを渡すと、その長さで読む。返す値は書き換えない。
-func (e *Engine) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
-	return e.read(pieces, speed, durations, true)
+// Readは音素列を参照TTSで読む。durationsを渡すと、その長さで読む。返す値は書き換えない。
+func (e *Engine) Read(id string, pieces []Piece, speed float32, durations []int) (Reference, error) {
+	return e.read(id, pieces, speed, durations, true)
 }
 
 // readKeyは、Kokoroの読みと、その音声から作る特徴量を使い回すためのキー。
-func readKey(symbols []string, speed float32, durations []int) string {
-	return fmt.Sprint(strings.Join(symbols, "\x00"), "\x01", speed, "\x01", durations)
+func readKey(id string, symbols []string, speed float32, durations []int) string {
+	return fmt.Sprint(id, "\x02", strings.Join(symbols, "\x00"), "\x01", speed, "\x01", durations)
 }
 
 // cachedFeaturesは、同じ読みの参照音声から作った特徴量を返す。
@@ -234,11 +280,15 @@ func (e *Engine) storeFeatures(key string, values []float32, frames, dims int) {
 
 // ReadProsodyはReadと同じく読むが、波形は作らずに記号ごとの長さとF0だけを返す。
 // 後で同じ引数でReadを呼ぶと、ここで求めた結果から波形だけを作る。
-func (e *Engine) ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error) {
-	return e.read(pieces, speed, durations, false)
+func (e *Engine) ReadProsody(id string, pieces []Piece, speed float32, durations []int) (Reference, error) {
+	return e.read(id, pieces, speed, durations, false)
 }
 
-func (e *Engine) read(pieces []Piece, speed float32, durations []int, withAudio bool) (Reference, error) {
+func (e *Engine) read(id string, pieces []Piece, speed float32, durations []int, withAudio bool) (Reference, error) {
+	set, err := e.voiceSetFor(id)
+	if err != nil {
+		return Reference{}, err
+	}
 	var phonemes strings.Builder
 	symbols := make([]string, len(pieces))
 	for i, piece := range pieces {
@@ -248,7 +298,7 @@ func (e *Engine) read(pieces []Piece, speed float32, durations []int, withAudio 
 	if speed <= 0 {
 		speed = 1
 	}
-	key := readKey(symbols, speed, durations)
+	key := readKey(id, symbols, speed, durations)
 	e.readsMu.Lock()
 	var entry *cachedRead
 	for _, cached := range e.reads {
@@ -258,7 +308,7 @@ func (e *Engine) read(pieces []Piece, speed float32, durations []int, withAudio 
 	}
 	e.readsMu.Unlock()
 	if entry == nil {
-		prosody, err := e.kokoro.ReadProsody(phonemes.String(), e.voice, speed, durations)
+		prosody, err := set.model.ReadProsody(phonemes.String(), set.voice, speed, durations)
 		if err != nil {
 			return Reference{}, err
 		}
@@ -267,7 +317,7 @@ func (e *Engine) read(pieces []Piece, speed float32, durations []int, withAudio 
 		token := 1
 		for i, piece := range pieces {
 			start := token
-			token += len(e.kokoro.Tokens(piece.Symbols))
+			token += len(set.model.Tokens(piece.Symbols))
 			entry.reference.PieceTokens[i] = [2]int{start, token}
 		}
 		e.readsMu.Lock()
@@ -283,7 +333,7 @@ func (e *Engine) read(pieces []Piece, speed float32, durations []int, withAudio 
 	if !withAudio || reference.Audio != nil {
 		return reference, nil
 	}
-	audio, err := e.kokoro.Decode(entry.prosody, torchrng.New(kokoroSeed))
+	audio, err := set.model.Decode(entry.prosody, torchrng.New(kokoroSeed))
 	if err != nil {
 		return Reference{}, err
 	}
@@ -294,9 +344,9 @@ func (e *Engine) read(pieces []Piece, speed float32, durations []int, withAudio 
 	return reference, nil
 }
 
-// Speakは音素列をKokoroで読み、その特徴量に近い音源のフレームで合成し直す。
-func (e *Engine) Speak(index *refmatch.Index, world refmatch.World, pieces []Piece, options Options) (Speech, error) {
-	reference, err := e.Read(pieces, options.Speed, options.Durations)
+// Speakは音素列を参照TTSで読み、その特徴量に近い音源のフレームで合成し直す。
+func (e *Engine) Speak(id string, index *refmatch.Index, world refmatch.World, pieces []Piece, options Options) (Speech, error) {
+	reference, err := e.Read(id, pieces, options.Speed, options.Durations)
 	if err != nil {
 		return Speech{}, err
 	}

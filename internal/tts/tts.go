@@ -305,10 +305,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
 	if usesReferenceSynthesis(language, cfg.Method) {
-		if frontend.NormalizeLanguage(language) != frontend.LanguageEnglish {
-			return nil, fmt.Errorf("reference synthesis is only available for English")
-		}
-		return synthesizeEnglishReference(cfg, bank, language, phonemizer, reading, morae)
+		return synthesizeReference(cfg, bank, language, phonemizer, reading, morae)
 	}
 	profile := languageProfileFor(language)
 	profile.ApplySpeechProfile(&cfg)
@@ -448,10 +445,7 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
 	if usesReferenceSynthesis(language, cfg.Method) {
-		if frontend.NormalizeLanguage(language) != frontend.LanguageEnglish {
-			return nil, fmt.Errorf("reference synthesis is only available for English")
-		}
-		return predictEnglishReference(cfg, reading, morae)
+		return predictReference(cfg, language, reading, morae)
 	}
 	profile := languageProfileFor(language)
 	loadedProsody, err := resolveProsodyModelForProfile(cfg, profile)

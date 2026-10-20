@@ -9,15 +9,15 @@ import (
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
-// Web版はKokoroとHuBERTのモデルを持たないため、英語を合成しない。
-var errEnglishUnavailable = errors.New("English synthesis is not available in the web version")
+// Web版はKokoroとWavLMのモデルを持たないため、参照の合成をしない。
+var errReferenceUnavailable = errors.New("reference synthesis is not available in the web version")
 
-func synthesizeEnglishReference(Config, *voicebank.Bank, string, string, string, []frontend.Mora) (*Result, error) {
-	return nil, errEnglishUnavailable
+func synthesizeReference(Config, *voicebank.Bank, string, string, string, []frontend.Mora) (*Result, error) {
+	return nil, errReferenceUnavailable
 }
 
-func predictEnglishReference(Config, string, []frontend.Mora) (*ProsodyPreview, error) {
-	return nil, errEnglishUnavailable
+func predictReference(Config, string, string, []frontend.Mora) (*ProsodyPreview, error) {
+	return nil, errReferenceUnavailable
 }
 
 func PrepareReferenceIndex(string, *voicebank.Bank, string) {}

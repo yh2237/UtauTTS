@@ -33,7 +33,7 @@ func NewKokoroProvider(service *Service, lexicon *Lexicon, dictionary map[string
 	return &KokoroProvider{service: service, lexicon: lexicon, dictionary: dictionary}
 }
 
-func (p *KokoroProvider) ID() string { return "kokoro-en" }
+func (p *KokoroProvider) ID() string { return kokoroEnglish }
 
 func (p *KokoroProvider) Language() string { return "en" }
 
@@ -50,12 +50,12 @@ func (p *KokoroProvider) Read(pieces []Piece, speed float32, durations []int) (R
 	if p.service == nil {
 		return Reference{}, fmt.Errorf("kokoro provider has no service")
 	}
-	return p.service.Read(pieces, speed, durations)
+	return p.service.Read(p.ID(), pieces, speed, durations)
 }
 
 func (p *KokoroProvider) ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error) {
 	if p.service == nil {
 		return Reference{}, fmt.Errorf("kokoro provider has no service")
 	}
-	return p.service.ReadProsody(pieces, speed, durations)
+	return p.service.ReadProsody(p.ID(), pieces, speed, durations)
 }

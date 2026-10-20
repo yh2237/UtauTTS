@@ -1,0 +1,18 @@
+Chinese reference model (models/english-reference/kokoro-zh)
+============================================================
+
+UtauTTS reads Chinese sentences with Kokoro-82M-v1.1-zh, compares the speech
+with the voicebank recordings through WavLM features, and synthesizes the
+output from the voicebank frames only. Kokoro-82M-v1.1-zh is licensed under the
+Apache License, Version 2.0 (licenses/APACHE-2.0.txt). The following files are
+redistributed unmodified.
+
+Kokoro-82M v1.1-zh (hexgrad/Kokoro-82M-v1.1-zh)
+  Files: kokoro-zh/kokoro-v1_1-zh.pth, kokoro-zh/config.json,
+         kokoro-zh/zf_001.pt (voices/zf_001.pt)
+  Source: https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh
+  Revision: 01e7505bd6a7a2ac4975463114c3a7650a9f7218
+  License: Apache License 2.0
+  The Chinese speech data used for training was provided by LongMaoData and is
+  not redistributed. The model builds on StyleTTS 2 and ISTFTNet, which are
+  licensed under the MIT License.

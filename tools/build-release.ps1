@@ -300,6 +300,16 @@ try {
                 }
                 Copy-Item -LiteralPath $source -Destination $wavlmDestination
             }
+            $chineseSource = Join-Path $englishReferencePath 'kokoro-zh'
+            $chineseDestination = Join-Path $destination 'kokoro-zh'
+            New-Item -ItemType Directory -Force -Path $chineseDestination | Out-Null
+            foreach ($name in @('kokoro-v1_1-zh.pth', 'config.json', 'zf_001.pt')) {
+                $source = Join-Path $chineseSource $name
+                if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
+                    throw "Chinese reference model is missing: $source. Run tools/fetch-english-reference.ps1."
+                }
+                Copy-Item -LiteralPath $source -Destination $chineseDestination
+            }
         }
     }
     Copy-Item -LiteralPath $modelReadmePath -Destination $guiModelsPath

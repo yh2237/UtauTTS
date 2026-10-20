@@ -18,8 +18,17 @@ func ReferenceProviders(dir string) []ReferenceProviderInfo {
 	if dir == "" {
 		return nil
 	}
-	if _, err := os.Stat(filepath.Join(dir, "kokoro-v1_0.pth")); err != nil {
-		return nil
+	var providers []ReferenceProviderInfo
+	if exists(filepath.Join(dir, "kokoro-v1_0.pth")) {
+		providers = append(providers, ReferenceProviderInfo{ID: "kokoro-en", Language: "en", Name: "Kokoro-82M"})
 	}
-	return []ReferenceProviderInfo{{ID: "kokoro-en", Language: "en", Name: "Kokoro-82M"}}
+	if exists(filepath.Join(dir, "kokoro-zh", "kokoro-v1_1-zh.pth")) {
+		providers = append(providers, ReferenceProviderInfo{ID: "kokoro-zh", Language: "zh", Name: "Kokoro-82M v1.1-zh"})
+	}
+	return providers
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

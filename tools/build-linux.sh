@@ -187,6 +187,12 @@ for wavlm_file in wavlm/wavlm-base-plus.safetensors wavlm/config.json; do
     exit 1
   fi
 done
+for chinese_file in kokoro-zh/kokoro-v1_1-zh.pth kokoro-zh/config.json kokoro-zh/zf_001.pt; do
+  if [[ ! -f "${root_dir}/models/english-reference/${chinese_file}" ]]; then
+    echo "Chinese reference model is missing: models/english-reference/${chinese_file}. Run tools/fetch-english-reference.sh." >&2
+    exit 1
+  fi
+done
 for package_dir in "${gui_dir}" "${server_dir}"; do
   (cd "${root_dir}" && "${go_command}" run ./cmd/tools/copy-model-license-notices \
     --models "${root_dir}/models" \

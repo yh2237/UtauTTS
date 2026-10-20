@@ -284,7 +284,7 @@ func bankRecordings(bankRoot string, recordings []string) ([]string, string, err
 }
 
 // Speakは音源の索引を使って音素列を合成する。
-func (s *Service) Speak(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string, pieces []Piece, options Options) (Speech, error) {
+func (s *Service) Speak(ctx context.Context, id, bankRoot string, recordings []string, worldEnginePath string, pieces []Piece, options Options) (Speech, error) {
 	index, err := s.Index(ctx, bankRoot, recordings, worldEnginePath)
 	if err != nil {
 		return Speech{}, err
@@ -295,18 +295,18 @@ func (s *Service) Speak(ctx context.Context, bankRoot string, recordings []strin
 	}
 	s.foreground.RLock()
 	defer s.foreground.RUnlock()
-	return engine.Speak(index, world, pieces, options)
+	return engine.Speak(id, index, world, pieces, options)
 }
 
 // Readは音素列を参照TTS（Kokoro）で読み、参照の音声とF0を返す。
-func (s *Service) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
+func (s *Service) Read(id string, pieces []Piece, speed float32, durations []int) (Reference, error) {
 	engine, err := s.openEngine()
 	if err != nil {
 		return Reference{}, err
 	}
 	s.foreground.RLock()
 	defer s.foreground.RUnlock()
-	return engine.Read(pieces, speed, durations)
+	return engine.Read(id, pieces, speed, durations)
 }
 
 // SpeakReferenceは、参照の読みから音源のフレームで合成し直す。参照TTSの種類に依存しない入口。
@@ -340,12 +340,12 @@ func (s *Service) SpeakAudio(ctx context.Context, bankRoot string, recordings []
 }
 
 // ReadProsodyは音素列をKokoroで読み、記号ごとの長さとF0を返す。音源と索引は使わない。
-func (s *Service) ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error) {
+func (s *Service) ReadProsody(id string, pieces []Piece, speed float32, durations []int) (Reference, error) {
 	engine, err := s.openEngine()
 	if err != nil {
 		return Reference{}, err
 	}
 	s.foreground.RLock()
 	defer s.foreground.RUnlock()
-	return engine.ReadProsody(pieces, speed, durations)
+	return engine.ReadProsody(id, pieces, speed, durations)
 }

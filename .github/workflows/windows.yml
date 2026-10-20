@@ -132,6 +132,9 @@ jobs:
             models/english-reference/us_silver.json
             models/english-reference/wavlm/wavlm-base-plus.safetensors
             models/english-reference/wavlm/config.json
+            models/english-reference/kokoro-zh/kokoro-v1_1-zh.pth
+            models/english-reference/kokoro-zh/config.json
+            models/english-reference/kokoro-zh/zf_001.pt
           key: english-reference-${{ hashFiles('tools/fetch-english-reference.ps1') }}
 
       - name: Install model conversion tools
