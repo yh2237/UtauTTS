@@ -1,0 +1,25 @@
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <a href="https://yh.contact" class="brand-mark">
+          <img src="https://cdn.2237yh.net/imgs/yh.contact-utautts.png" alt="yh.contact" class="banner" height="40">
+        </a>
+      </div>
+      <div class="header-actions">
+        <iframe src="https://github.com/sponsors/yh2237/button" title="Sponsor yh2237" height="32" width="114" style="border: 0; border-radius: 6px;"></iframe>
+      </div>
+    </div>
+    <nav class="linkbar" aria-label="メインナビゲーション">
+      <ul id="normal" class="dropmenu">
+        {% for menu in site.linkbar %}
+        <li><a href="{{ menu.href }}">{{ menu.label }}</a>
+          <ul>
+            {% for item in menu.items %}
+            <li><a href="{{ item.href }}"{% if item.external %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ item.label }}</a></li>
+            {% endfor %}
+          </ul>
+        </li>
+        {% endfor %}
+      </ul>
+    </nav>
+  </header>

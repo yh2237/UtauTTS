@@ -1,0 +1,43 @@
+---
+title: Web版
+description: ブラウザで使えるUtauTTS。インストールせずに音声の合成、抑揚の編集、WAVの保存ができます。
+layout: layouts/base.njk
+---
+      <header class="page-heading">
+        <h1>Web版</h1>
+        <p>ブラウザから使えるUtauTTSです。</p>
+      </header>
+
+      <section class="grid">
+        <article class="panel" id="about">
+          <h2>About</h2>
+          <p>インストールせずに音声の合成と編集ができます。合成はブラウザ内で行い、入力した文章や追加した音源をサーバーへ送信しません。</p>
+          <p>Chrome・Edgeに対応しています。エンジン・辞書・抑揚モデルなど100MB以上のデータを読み込むため、Wi-Fi環境で開いてください。</p>
+          <p><a href="/editor/" class="action-link">Web版エディタを開く</a></p>
+        </article>
+        <hr>
+        <article class="panel" id="usage">
+          <h2>基本的な使い方</h2>
+          <ol class="steps">
+            <li>エディタを開き、読み込みが終わるまで待ちます。</li>
+            <li>カードに文章を入力します。解析には時間がかかる場合があります。</li>
+            <li>必要に応じてグラフで音高と発音の長さを調整し、再生ボタンまたは<kbd>Ctrl</kbd> + <kbd>Enter</kbd>で確認します。</li>
+            <li>「ファイル」→「書き出し」→「WAVを保存...」で音声をダウンロードします。</li>
+          </ol>
+          <p>スマートフォン・タブレットではグラフを指で操作できます。カードの音源や抑揚の設定は、右側の鉛筆ボタンから開きます。</p>
+        </article>
+        <hr>
+        <article class="panel" id="voicebanks">
+          <h2>音源を追加する</h2>
+          <p>「足立レイ ver3.5.0」を同梱しています。ほかの音源は「ファイル」→「音源とプラグイン」→「音源を追加...」でZIPを選んで追加します。</p>
+          <p>追加した音源はページを開いている間だけ使えます。ページを再読み込みしたあとは、もう一度追加してください。</p>
+        </article>
+        <hr>
+        <article class="panel" id="save">
+          <h2>保存と制限</h2>
+          <p>「ファイル」→「プロジェクトを保存」で、文章・設定・編集内容を<code>.utautts</code>ファイルに保存できます。ページを閉じる前に保存してください。</p>
+          <p>Web版では参照照合と英語の合成、その他一部機能を利用できません。これらを使う場合は<a href="/desktop">デスクトップ版</a>をダウンロードしてください。</p>
+          <p>作成した音声の利用条件は使用した音源の規約に従います。<a href="/terms">利用条件とライセンス</a>も確認してください。</p>
+        </article>
+        <hr>
+      </section>

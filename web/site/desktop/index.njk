@@ -1,0 +1,62 @@
+---
+title: デスクトップ版
+description: UtauTTSのデスクトップ版のインストール、音声の編集、音源の追加、書き出し。
+layout: layouts/base.njk
+---
+      <header class="page-heading">
+        <h1>デスクトップ版</h1>
+        <p>Windows・macOS・Linuxで使うUtauTTSです。</p>
+      </header>
+
+      <section class="grid">
+        <article class="panel" id="about">
+          <h2>ABOUT</h2>
+          <p>文章をカードに入力して読み上げます。カードごとに音源や言語を選び、グラフで抑揚と発音の長さを調整できます。日本語・英語・中国語に対応しています。</p>
+          <p>GUIに加え、コマンドラインから使うCLIと、ほかのアプリから呼び出すHTTP Serverを同梱しています。</p>
+          <p><a href="/#downloads" class="action-link">ダウンロード</a></p>
+        </article>
+        <hr>
+        <article class="panel" id="install">
+          <h2>インストール</h2>
+          <p>環境に合うZIPを展開します。展開したフォルダ内の構成は変更しないでください。</p>
+          <h3>Windows x64</h3>
+          <p>展開したフォルダを好きな場所へ配置し、<code>utautts.exe</code>を起動します。</p>
+          <h3>macOS / Apple Silicon</h3>
+          <p>macOS版はAppleの署名が無いのでZIPを展開し、そのフォルダで次を実行してください。</p>
+          <pre><code>xattr -rc "utautts.app" tools runtime
+open "utautts.app"</code></pre>
+          <h3>Linux x64</h3>
+          <p>Qt 6.5以降と日本語フォントが必要です。<a href="https://github.com/yh2237/UtauTTS/blob/main/docs/installation.md" target="_blank" rel="noopener noreferrer">ディストリビューションごとの準備</a>を確認し、展開したフォルダで実行します。</p>
+          <pre><code>chmod +x utautts tools/* runtime/utautts-openjtalk-features runtime/utautts-worldline-bridge
+./utautts</code></pre>
+        </article>
+        <hr>
+        <article class="panel" id="usage">
+          <h2>基本の使い方</h2>
+          <ol class="steps">
+            <li>カードに読み上げる文章を入力し、音源を選びます。</li>
+            <li>必要に応じて、画面下部のグラフで音高と発音の長さを調整します。</li>
+            <li>再生ボタンまたは<kbd>Ctrl</kbd> + <kbd>Enter</kbd>で音声を確認します。</li>
+            <li>「ファイル」→「書き出し」→「WAVを保存...」で保存します。</li>
+          </ol>
+          <p>「ファイル」→「プロジェクトを保存」で、文章・設定・編集内容を<code>.utautts</code>ファイルに保存できます。</p>
+        </article>
+        <hr>
+        <article class="panel" id="voicebanks">
+          <h2>音源を追加する</h2>
+          <p>「ファイル」→「音源とプラグイン」→「音源を追加...」で音源のZIPを選びます。配布フォルダの<code>voice/</code>へ音源フォルダを置き「音源を再読込」でも追加できます。</p>
+          <p>同梱の「足立レイ ver3.5.0」と追加した音源には、それぞれの利用規約が適用されます。<a href="/terms">利用条件</a>を確認してください。</p>
+        </article>
+        <hr>
+        <article class="panel" id="docs">
+          <h2>詳しい使い方</h2>
+          <ul class="plain-list">
+            <li><a href="https://github.com/yh2237/UtauTTS/blob/main/docs/gui.md" target="_blank" rel="noopener noreferrer">GUIの操作と編集</a></li>
+            <li><a href="https://github.com/yh2237/UtauTTS/blob/main/docs/multilingual.md" target="_blank" rel="noopener noreferrer">英語・中国語の読み上げ</a></li>
+            <li><a href="https://github.com/yh2237/UtauTTS/blob/main/docs/cli.md" target="_blank" rel="noopener noreferrer">CLIの使い方</a></li>
+            <li><a href="https://github.com/yh2237/UtauTTS/blob/main/docs/server.md" target="_blank" rel="noopener noreferrer">HTTP ServerのAPI</a></li>
+            <li><a href="https://github.com/yh2237/UtauTTS/blob/main/docs/troubleshooting.md" target="_blank" rel="noopener noreferrer">トラブルシューティング</a></li>
+          </ul>
+        </article>
+        <hr>
+      </section>

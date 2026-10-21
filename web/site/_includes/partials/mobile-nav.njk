@@ -1,0 +1,7 @@
+  <nav class="mobile-nav" role="navigation" aria-label="モバイルナビゲーション">
+    <ul>
+      {% for link in site.footerLinks %}
+      <li><a href="{{ link.href }}">{{ link.label }}</a></li>
+      {% endfor %}
+    </ul>
+  </nav>

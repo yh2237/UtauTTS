@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }} | {{ site.title }}</title>
+  {% if description %}<meta name="description" content="{{ description }}">{% endif %}
+  <link rel="stylesheet" href="/css/home.css">
+  <link rel="stylesheet" href="/css/linkbar.css">
+  <link rel="icon" href="/img/favicon.png" type="image/png">
+  <noscript><link rel="stylesheet" href="/css/no-script.css"></noscript>
+</head>
+
+<body class="home font-loading">
+
+  {% include "partials/site-header.njk" %}
+
+  {% include "partials/mobile-nav.njk" %}
+
+  <div class="page-wrapper">
+
+    {% include "partials/font-loader.njk" %}
+
+    <main class="content">
+{{ content | safe }}
+      {% include "partials/site-footer.njk" %}
+    </main>
+
+  </div>
+
+  <script src="/js/font_loader.js"></script>
+
+</body>
+
+</html>

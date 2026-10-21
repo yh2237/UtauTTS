@@ -1,0 +1,22 @@
+body.font-loading {
+    overflow: auto;
+}
+
+body.font-loading .site-header {
+    display: block;
+}
+
+body.font-loading main.content {
+    display: flex;
+}
+
+body.font-loading .mobile-nav,
+.font-loader {
+    display: none;
+}
+
+@media (max-width: 800px) {
+    body.font-loading .mobile-nav {
+        display: block;
+    }
+}

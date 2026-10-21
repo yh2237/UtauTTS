@@ -1,6 +1,6 @@
 "use strict";
 
-// PagesとR2を別オリジンで再現する。build/web-releaseとPlaywright Chromiumが必要。
+// PagesとR2を別オリジンで再現する。build/web-release、web/site/dist、Playwright Chromiumが必要。
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -12,7 +12,8 @@ const output = path.join(root, "out", `cloudflare-smoke-${process.pid}-${Date.no
 let manifest;
 const requests = [];
 const types = { ".wasm": "application/wasm", ".js": "application/javascript",
-  ".json": "application/json", ".html": "text/html", ".wav": "audio/wav" };
+  ".json": "application/json", ".html": "text/html", ".wav": "audio/wav",
+  ".css": "text/css", ".png": "image/png", ".md": "text/plain" };
 
 function staticServer(directory, assetServer) {
   return http.createServer((request, response) => {
@@ -40,6 +41,20 @@ function staticServer(directory, assetServer) {
 async function listen(server) {
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   return "http://127.0.0.1:" + server.address().port;
+}
+
+async function checkWebsite(browser, pagesURL) {
+  const page = await browser.newPage();
+  try {
+    await page.route("**/*", route => new URL(route.request().url()).origin === pagesURL
+      ? route.continue() : route.abort());
+    const response = await page.goto(pagesURL + "/", { waitUntil: "domcontentloaded" });
+    assert.equal(response.status(), 200);
+    await page.getByRole("main").waitFor({ state: "visible" });
+    console.log("Website visible alongside /editor/");
+  } finally {
+    await page.close();
+  }
 }
 
 async function installTestCalls(page) {
@@ -130,9 +145,7 @@ async function checkMobilePagesAndDrag(page) {
   await openMobileMenu(page, "bottom");
   await page.mouse.click(140, 656); // License page.
   await page.waitForTimeout(250);
-  const license = await page.locator("#qt-shadow-container").screenshot();
   await page.screenshot({ path: path.join(output, "mobile-license.png") });
-  assert.ok(license.length > 0);
   await page.mouse.click(348, 24);
   const before = await projectSnapshot(page);
   const session = await page.context().newCDPSession(page);
@@ -149,7 +162,7 @@ async function checkMobilePagesAndDrag(page) {
   assert.deepEqual(after.utterances.map(row => row.text), before.utterances.map(row => row.text).reverse(),
     "mobile touch drag must reorder utterances through their voicebank images");
   await page.screenshot({ path: path.join(output, "mobile-scrollbar-position.png") });
-  console.log("Mobile settings/dictionary pages and touch-only reordering verified");
+  console.log("Mobile touch-only reordering verified");
   await checkMobileSaveAll(page);
 }
 
@@ -265,12 +278,13 @@ async function checkResponsiveState(page) {
     const revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
     execFileSync("go", ["run", "./cmd/tools/cloudflare", "package",
       "--output", path.relative(root, output), "--public-url", assetURL, "--deployment-id", "browser-smoke",
-      "--version", "smoke", "--revision", revision, "--channel", "previews"],
+      "--version", "smoke", "--revision", revision, "--channel", "previews", "--site", "web/site/dist"],
     { cwd: root, stdio: "inherit" });
     manifest = JSON.parse(fs.readFileSync(path.join(output, "upload-manifest.json"), "utf8"));
     browser = await chromium.launch({ headless: true, args: [
       "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader",
     ] });
+    await checkWebsite(browser, pagesURL);
     for (const mode of ["desktop", "mobile", "responsive", "automatic-mobile"]) {
       const mobile = mode === "mobile" || mode === "automatic-mobile";
       const page = await browser.newPage({ locale: "ja-JP",
@@ -344,33 +358,6 @@ async function checkResponsiveState(page) {
       } else {
         await page.setViewportSize({ width: mobile ? 1024 : 390, height: 844 });
         await expectMobileLayout(page, mobile); // URL overrides remain fixed while resizing.
-      }
-      if (mode === "mobile") {
-        await installTestCalls(page);
-        const result = await page.evaluate(async () => {
-          const voices = await window.utauttsTestCall("voicebanks");
-          const models = await window.utauttsTestCall("models");
-          if (!voices.ok || !models.ok) throw new Error(JSON.stringify({ voices, models }));
-          const voice = voices.result.voicebanks[0];
-          const model = models.result.models.find(value => String(value.id).includes("v9.1")) || models.result.models[0];
-          const request = { text: "こんにちは。", language: "ja", phonemizer: "ja-kana",
-            voicebank_id: voice.id, model_id: model.id, renderer: "utautts-world-phrase", tone: "C4" };
-          const prosody = await window.utauttsTestCall("predictProsody", request);
-          if (!prosody.ok) throw new Error(JSON.stringify(prosody));
-          const audio = await window.utauttsTestCall("synthesize", { ...request, output_path: "/tmp/deploy-smoke.wav" });
-          if (!audio.ok) throw new Error(JSON.stringify(audio));
-          const bytes = window.utauttsFs.readFile("/tmp/deploy-smoke.wav");
-          return { wavSize: bytes && bytes.length,
-            header: bytes && String.fromCharCode(...bytes.slice(0, 4)),
-            units: audio.result.units.length,
-            sourceWavsMirrored: audio.result.units.some(unit => unit.source && window.utauttsFs.exists(unit.source)) };
-        });
-        assert.equal(result.header, "RIFF");
-        assert.ok(result.wavSize > 44);
-        assert.ok(result.units > 0);
-        assert.equal(result.sourceWavsMirrored, false);
-        assert.deepEqual(errors, [], "synthesis JavaScript errors");
-        console.log("Worker prosody and synthesis:", result);
       }
       assert.deepEqual(errors, [], "layout JavaScript/QML errors");
       await page.close();

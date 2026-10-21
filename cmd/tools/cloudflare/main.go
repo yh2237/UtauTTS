@@ -211,7 +211,7 @@ func copyFile(src, dst string) error {
 	return err
 }
 
-// copySiteはビルド済みのガイド（web/site/dist）をPagesの/へ置く。エディタと配備の情報の場所は使わせず、404.htmlはガイドのものにする。
+// copySiteはビルド済みのサイトをPagesの/へ置く。エディタと配備情報の場所は使わせず、404.htmlはサイトのものにする。
 func copySite(siteDir, pages string) error {
 	if _, err := os.Stat(filepath.Join(siteDir, "index.html")); err != nil {
 		return fmt.Errorf("%s has no index.html: %w", siteDir, err)
@@ -241,7 +241,7 @@ func copySite(siteDir, pages string) error {
 	})
 }
 
-// assembleはPages（/にsiteDirのガイド、/editor/にエディタ）とR2の配置を作る。siteDirが空ならガイドは置かない。
+// assembleはPages（/にsiteDirのサイト、/editor/にエディタ）とR2の配置を作る。siteDirが空ならサイトは置かない。
 func assemble(source, output, publicURL, id, version, revision, channel, siteDir string) (manifest, error) {
 	var result manifest
 	if err := toolutil.RequireUnderOut(output, "output", false); err != nil {
@@ -468,12 +468,12 @@ func checkPublic(output, pagesURL string, client *http.Client) error {
 		return errors.New("Pages editor does not reference the packaged runtime")
 	}
 	if m.Site {
-		_, guide, err := requestPublic(client, base, "GET", "")
+		_, site, err := requestPublic(client, base, "GET", "")
 		if err != nil {
 			return err
 		}
-		if !strings.Contains(string(guide), `href="/editor/"`) {
-			return errors.New("Pages guide does not link to the editor")
+		if !strings.Contains(strings.ToLower(string(site)), "<html") {
+			return errors.New("Pages website did not return an HTML page")
 		}
 	}
 	for _, name := range hostFiles {

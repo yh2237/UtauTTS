@@ -3,11 +3,16 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "vitepress dev",
-    "build": "vitepress build",
-    "preview": "vitepress preview"
+    "dev": "eleventy --serve",
+    "prebuild": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\"",
+    "build": "eleventy",
+    "preview": "eleventy --serve",
+    "test": "node --test ../test-site.cjs"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "devDependencies": {
-    "vitepress": "^1.6.4"
+    "@11ty/eleventy": "^3.1.6"
   }
 }

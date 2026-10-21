@@ -1,0 +1,105 @@
+.linkbar ul, .linkbar ol, .dropmenu ul {
+    padding: 0;
+    margin: 0;
+}
+
+.linkbar a,
+.mobile-nav a {
+    text-decoration: none;
+}
+
+.linkbar {
+    display: flex;
+    justify-content: center;
+}
+
+.linkbar,
+.mobile-nav {
+    background-color: var(--accent);
+}
+
+.dropmenu {
+    list-style-type: none;
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    width: 100%;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0;
+}
+
+.dropmenu li {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+}
+
+.dropmenu li a,
+.mobile-nav a {
+    display: block;
+    margin: 0;
+    padding: 15px 0 11px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 16px;
+    line-height: 1;
+    text-decoration: none;
+}
+
+.dropmenu li ul {
+    list-style: none;
+    position: absolute;
+    z-index: 9999;
+    top: 100%;
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-width: 100%;
+    margin: 0;
+    padding: 0;
+    display: block;
+}
+
+.dropmenu li ul li {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    height: 0;
+    transition: .2s;
+}
+
+.dropmenu li ul li a {
+    padding: 13px 15px;
+    background: var(--accent);
+    text-align: left;
+    font-size: 14px;
+    font-weight: bold;
+    border-top: 1px solid var(--accent-light);
+}
+
+.dropmenu li:hover>a,
+.dropmenu li a:hover,
+.mobile-nav a:hover,
+.mobile-nav a:focus-visible {
+    background: var(--accent-dark);
+}
+
+.dropmenu li a:hover {
+    border-radius: 3px 3px 0 0;
+}
+
+.dropmenu li:hover ul li,
+.dropmenu li:focus-within ul li {
+    overflow: visible;
+    height: 38px;
+}
+
+@media screen and (max-width: 800px) {
+    .linkbar {
+        display: none;
+    }
+}
