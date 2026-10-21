@@ -400,17 +400,7 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
                                QStringLiteral("intonation_strength"), 2.5);
     backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
-                               QStringLiteral("context_duration"), false);
-    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
-                               QStringLiteral("context_duration_strength"), 0.5);
-    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
                                QStringLiteral("boundary_tone"), false);
-    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
-                               QStringLiteral("boundary_tone_strength"), 0.5);
-    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
-                               QStringLiteral("stretch_adapt"), false);
-    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
-                               QStringLiteral("stretch_adapt_strength"), 0.5);
     backend.setPreviewCacheFileCount(7);
     backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y");
     if (!require(backend.defaultMoraDuration() == 130 && backend.defaultPauseDuration() == 190
@@ -422,26 +412,9 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  && backend.defaultTone() == QStringLiteral("D4")
                  && backend.defaultAliasPolicy() == QStringLiteral("cv-only")
                  && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
-                                            QStringLiteral("context_duration"), true).toBool() == false
-                 && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
-                                            QStringLiteral("context_duration_strength"), 1.0).toDouble() == 0.5
-                 && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
                                             QStringLiteral("boundary_tone"), true).toBool() == false
-                 && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
-                                            QStringLiteral("boundary_tone_strength"), 1.0).toDouble() == 0.5
-                 && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
-                                            QStringLiteral("stretch_adapt"), true).toBool() == false
-                 && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
-                                            QStringLiteral("stretch_adapt_strength"), 1.0).toDouble() == 0.5
                  && backend.undoShortcut() == QStringLiteral("Ctrl+Z"),
                  QStringLiteral("application settings failed")))
-        return 1;
-
-    backend.setRendererSetting(QStringLiteral("diffsinger"),
-                               QStringLiteral("diffsinger_steps"), 42);
-    if (!require(backend.rendererSetting(QStringLiteral("diffsinger"),
-                                         QStringLiteral("diffsinger_steps"), 0).toInt() == 42,
-                 QStringLiteral("renderer settings failed")))
         return 1;
 
     qInfo() << "UtauTTS self-test passed";

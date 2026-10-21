@@ -5,19 +5,21 @@ import (
 	"testing"
 )
 
-// TestMethodReachesInternalRequestは、合成の方法がJSONから内部の要求まで落ちずに届くことを確かめる。
-func TestMethodReachesInternalRequest(t *testing.T) {
+func TestJSONRequestPreservesSynthesisFields(t *testing.T) {
 	for _, method := range []string{"waveform-synthesis", "reference-matching"} {
-		raw := `{"text":"hello","language":"en","method":"` + method + `"}`
+		raw := `{"text":"hello","language":"en","voicebank_id":"bank","method":"` + method + `","apply_pitch":false,"intonation_strength":0}`
 		var request JSONRequest
 		if err := json.Unmarshal([]byte(raw), &request); err != nil {
 			t.Fatal(err)
 		}
-		if got := request.InternalRequest().Method; got != method {
-			t.Errorf("method %q became %q", method, got)
+		input := request.InternalRequest()
+		if input.Method != method || input.Language != "en" || input.VoicebankID != "bank" || input.Text != "hello" {
+			t.Errorf("shared request fields were lost: %+v", input)
+		}
+		if input.ApplyPitch || input.IntonationStrength != 0 {
+			t.Fatalf("explicit settings were replaced by defaults: %+v", input)
 		}
 	}
-	// 指定がなければ空のまま（言語ごとの既定を使う）。
 	var empty JSONRequest
 	if err := json.Unmarshal([]byte(`{"text":"hello"}`), &empty); err != nil {
 		t.Fatal(err)

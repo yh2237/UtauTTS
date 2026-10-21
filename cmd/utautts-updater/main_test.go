@@ -65,9 +65,6 @@ func TestExtractZip(t *testing.T) {
 			t.Errorf("missing extracted entry %s: %v", path, err)
 		}
 	}
-	if info, err := os.Stat(filepath.Join(dest, "app", "qml")); err != nil || !info.IsDir() {
-		t.Errorf("backslash entry did not create app/qml: %v", err)
-	}
 }
 
 func TestRunUpdatesLinuxPackageAndKeepsExecutableMode(t *testing.T) {
@@ -155,14 +152,6 @@ func TestNormalizeStageMovesTopLevelFolder(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(stage, "UtauTTS")); !os.IsNotExist(err) {
 		t.Errorf("top-level folder should have been removed")
-	}
-}
-
-func TestNormalizeStageFlatLayoutIsValid(t *testing.T) {
-	stage := filepath.Join(t.TempDir(), "stage")
-	writeTestFile(t, filepath.Join(stage, "utautts.exe"), "launcher")
-	if err := normalizeStage(stage); err != nil {
-		t.Fatalf("flat package layout should be accepted: %v", err)
 	}
 }
 

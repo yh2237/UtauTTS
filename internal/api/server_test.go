@@ -400,14 +400,3 @@ func TestVoicebankEndpointsDiscoverAndReloadDirectory(t *testing.T) {
 		t.Fatalf("reloaded voicebanks = %#v", second.Voicebanks)
 	}
 }
-
-func TestSynthesisRequestPreservesExplicitZeroAndFalse(t *testing.T) {
-	var request SynthesisRequest
-	if err := json.Unmarshal([]byte(`{"text":"あ","apply_pitch":false,"intonation_strength":0}`), &request); err != nil {
-		t.Fatal(err)
-	}
-	input := request.InternalRequest()
-	if input.ApplyPitch || input.IntonationStrength != 0 {
-		t.Fatalf("explicit settings were replaced by defaults: %+v", input)
-	}
-}

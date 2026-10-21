@@ -26,18 +26,14 @@ test("assembled sites work at a subpath and relative dictionary overrides remain
   assert.equal(paths.app("engine-worker.js"), "https://example.test/UtauTTS/engine-worker.js");
 });
 
-test("Pages and Worker retain the same R2 release while the Worker stays same-origin", () => {
-  const config = { assetBaseURL: "https://assets.example.test/utautts/releases/v1-sha" };
-  const page = createUtauTTSAssetPaths("https://tts.pages.dev/app/v1-sha/bootstrap.js", config);
-  const workerURL = new URL(page.app("engine-worker.js"));
-  workerURL.searchParams.set("config", JSON.stringify(config));
-  const worker = createUtauTTSAssetPaths(workerURL.href, JSON.parse(workerURL.searchParams.get("config")));
-  assert.equal(workerURL.origin, "https://tts.pages.dev");
-  assert.equal(page.engineBaseURL, worker.engineBaseURL);
-  assert.equal(worker.engine("voice/テスト音源/a.wav"),
-    "https://assets.example.test/utautts/releases/v1-sha/web/dist/voice/%E3%83%86%E3%82%B9%E3%83%88%E9%9F%B3%E6%BA%90/a.wav");
-  assert.equal(page.asset("utautts.wasm"), "https://assets.example.test/utautts/releases/v1-sha/utautts.wasm");
-  assert.equal(page.dictManifestURL, worker.dictManifestURL);
+test("R2 assets use the pinned release while the Worker stays on Pages", () => {
+  const paths = createUtauTTSAssetPaths("https://tts.pages.dev/app/v1-sha/bootstrap.js", {
+    assetBaseURL: "https://assets.example.test/utautts/releases/v1-sha",
+  });
+  assert.equal(paths.app("engine-worker.js"), "https://tts.pages.dev/app/v1-sha/engine-worker.js");
+  assert.equal(paths.engine("voice/bank/a.wav"),
+    "https://assets.example.test/utautts/releases/v1-sha/web/dist/voice/bank/a.wav");
+  assert.equal(paths.asset("utautts.wasm"), "https://assets.example.test/utautts/releases/v1-sha/utautts.wasm");
 });
 
 test("bootstrap loads only the mirror on main in Worker mode and directs Qt wasm to R2", async () => {

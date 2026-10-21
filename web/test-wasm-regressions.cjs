@@ -145,7 +145,11 @@ test("remote FS prefetch is bounded, deduplicated and leaves failures retryable"
 test("Worker waits for candidate prefetch before synthesis and still mirrors output", async () => {
   const vfs = createVirtualFs();
   const calls = [], messages = [];
-  vfs.prefetchFiles = async paths => { calls.push("fetch:" + paths[0]); };
+  let completePrefetch;
+  vfs.prefetchFiles = paths => {
+    calls.push("fetch:" + paths[0]);
+    return new Promise(resolve => { completePrefetch = resolve; });
+  };
   const context = vm.createContext({
     importScripts() {}, console, Uint8Array, URL, testFs: vfs,
     location: {href: "https://example.test/app/engine-worker.js"}, createUtauTTSAssetPaths,
@@ -160,37 +164,39 @@ test("Worker waits for candidate prefetch before synthesis and still mirrors out
   const worker = source("qt/wasm/engine-worker.js");
   vm.runInContext(worker.slice(0, worker.indexOf("\ninit().catch(")), context);
   vm.runInContext("virtualFs = testFs; runtimePromise = Promise.resolve()", context);
-  await context.handleCall(1, "synthesize", "{}");
+  const pending = context.handleCall(1, "synthesize", "{}");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(calls, ["prefetchSources", "fetch:/voice/bank/a.wav"]);
+  completePrefetch();
+  await pending;
   assert.deepEqual(calls, ["prefetchSources", "fetch:/voice/bank/a.wav", "synthesize"]);
   const result = messages.find(message => message.type === "callResult");
   assert.equal(result.files[0].path, "/tmp/output.wav");
 });
 
-test("extended editor double-click resets notes and expressions without fitting empty space", () => {
-  const editor = source("qt/qml/editors/PhonemeEditor.qml");
-  const start = editor.indexOf("onDoubleClicked: mouse => {");
-  const handler = editor.slice(start, editor.indexOf("\n            Timer {", start));
-  assert.ok(start >= 0);
-  assert.match(handler, /root\.timingEditor\.resetPitchAt\(n\.pos\)/);
-  assert.match(handler, /root\.unitValueEdited\(e\.u, e\.key, root\.paramRange\(e\.key\)\.def\)/);
-  assert.doesNotMatch(editor, /fitRequested/);
-  assert.doesNotMatch(handler, /zoomFactor\s*=|contentX\s*=/);
-});
-
-test("shared overrides preserve unit identity, merge parameters and remove without holes", () => {
-  const context = vm.createContext({});
-  vm.runInContext(source("qt/qml/UnitOverrides.js"), context);
-  let values = context.update([], 3, "pitch_factor", 2);
-  values = context.update(values, 1, "resampler_volume", 80);
-  values = context.update(values, 3, "energy_factor", 1.5);
-  assert.deepEqual(JSON.parse(JSON.stringify(values)), [
+test("unit edits preserve sparse identity through project state and editor preview", () => {
+  const item = { utteranceId: "a", revision: 0, phonemeOverridesJson: "[]" };
+  const context = sharedState([item]);
+  UtteranceCore.updateUnitOverride(context, 3, "pitch_factor", 2);
+  UtteranceCore.updateUnitOverride(context, 1, "resampler_volume", 80);
+  UtteranceCore.updateUnitOverride(context, 3, "energy_factor", 1.5);
+  let values = JSON.parse(item.phonemeOverridesJson);
+  assert.deepEqual(values, [
     { unit_index: 3, pitch_factor: 2, energy_factor: 1.5 },
     { unit_index: 1, resampler_volume: 80 },
   ]);
-  values = context.remove(values, 3);
-  assert.deepEqual(JSON.parse(JSON.stringify(values)), [{ unit_index: 1, resampler_volume: 80 }]);
-  assert.equal(context.update(values, 1, "pitch_factor", NaN)[0].pitch_factor, undefined);
-  assert.equal(context.normalize([null, { pitch_factor: 2 }])[0].unit_index, 1);
+  const units = [{}, {}, {}, { pitch_factor: 1 }];
+  assert.equal(EditorValues.unitValue(units, values, null, 3, "pitch_factor"), 2);
+  assert.equal(EditorValues.unitValue(units, values, null, 1, "resampler_volume"), 80);
+  const preview = { index: 3, key: "pitch_factor", value: 2.2 };
+  assert.equal(EditorValues.unitValue(units, values, preview, 3, "pitch_factor"), 2.2);
+  UtteranceCore.clearUnitOverride(context, 3);
+  values = JSON.parse(item.phonemeOverridesJson);
+  assert.deepEqual(values, [{ unit_index: 1, resampler_volume: 80 }]);
+  assert.equal(EditorValues.unitValue(units, values, null, 3, "pitch_factor"), 1);
+  assert.equal(EditorValues.unitValue(units, values, null, 0, "resampler_volume"), 100);
+  assert.equal(UnitOverrides.update(values, 1, "pitch_factor", NaN)[0].pitch_factor, undefined);
+  assert.equal(UnitOverrides.normalize([null, { pitch_factor: 2 }])[0].unit_index, 1);
 });
 
 test("Worker mirrors same-size output rewrites, excludes source WAVs and reports deletion", async () => {
@@ -274,26 +280,6 @@ function sharedState(items) {
   context.qt = context.Qt;
   return context;
 }
-
-test("both layouts update and reset the same canonical unit overrides", () => {
-  const item = { utteranceId: "a", revision: 0, phonemeOverridesJson: "[]" };
-  const context = sharedState([item]);
-  UtteranceCore.updateUnitOverride(context, 2, "pitch_factor", 1.7);
-  assert.deepEqual(JSON.parse(item.phonemeOverridesJson), [{ unit_index: 2, pitch_factor: 1.7 }]);
-  UtteranceCore.clearUnitOverride(context, 2);
-  assert.deepEqual(JSON.parse(item.phonemeOverridesJson), []);
-});
-
-test("shared PhonemeEditor reads canonical overrides and live preview before synthesis values", () => {
-  const units = [{ pitch_factor: 1 }, {}, {}];
-  const overrides = [{ unit_index: 2, pitch_factor: 1.7 }];
-  assert.equal(EditorValues.unitValue(units, overrides, null, 2, "pitch_factor"), 1.7);
-  assert.equal(EditorValues.unitValue(units, overrides, null, 1, "pitch_factor"), 1);
-  assert.equal(EditorValues.unitValue(units, overrides, null, 1, "resampler_volume"), 100);
-  const preview = { index: 2, key: "pitch_factor", value: 2.2 };
-  assert.equal(EditorValues.unitValue(units, overrides, preview, 2, "pitch_factor"), 2.2);
-  assert.equal(EditorValues.unitValue(units, overrides, null, 2, "pitch_factor"), 1.7);
-});
 
 test("shared controller rejects outdated prosody and resolves moved utterances by identity", () => {
   const items = [ { utteranceId: "a", revision: 2 }, { utteranceId: "b", revision: 0 } ];

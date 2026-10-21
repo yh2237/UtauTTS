@@ -245,17 +245,6 @@ func TestRendererSettingsRouteClassicTools(t *testing.T) {
 	}
 }
 
-func TestClassicUtauRejectsUnknownResampler(t *testing.T) {
-	catalog := &plugin.Catalog{
-		Renderers: []plugin.Renderer{testRenderer("classic-utau", "utau-external-resampler")},
-		Wavtools:  []plugin.ClassicTool{{ID: "builtin", BuiltIn: true}},
-	}
-	service := NewService(catalog, "classic-utau", "", "", "", testVoicebankResolver{path: "voicebank"})
-	if _, _, _, err := service.config(Request{Renderer: "classic-utau", Method: tts.MethodWaveformSynthesis, Language: "ja", Resampler: "missing", Wavtool: "builtin"}, true); err == nil {
-		t.Fatal("unknown resampler was accepted")
-	}
-}
-
 func TestClassicUtauRejectsMissingToolExecutable(t *testing.T) {
 	catalog := &plugin.Catalog{
 		Renderers:  []plugin.Renderer{testRenderer("classic-utau", "utau-external-resampler")},

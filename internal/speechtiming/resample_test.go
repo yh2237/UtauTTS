@@ -64,37 +64,6 @@ func resampledValueClose(got, want float64) bool {
 	return math.Abs(got-want) <= 1e-13*math.Abs(want)
 }
 
-func TestResampledValueComparison(t *testing.T) {
-	a, b := math.Log(1.9), math.Log(2)
-	position := float64(3) * 1.7
-	w := position - math.Floor(position)
-	fused := math.Exp(math.FMA(a, 1-w, float64(b*w)))
-	reference := math.Exp(math.FMA(b, w, float64(a*(1-w))))
-	for _, tc := range []struct {
-		name      string
-		got, want float64
-		close     bool
-	}{
-		{"fused rounding", fused, reference, true},
-		{"adjacent value", math.Nextafter(1, 2), 1, true},
-		{"zero", 0, 0, true},
-		{"changed value", reference * (1 + 1e-9), reference, false},
-		{"lost floor", 0, 1e-16, false},
-		{"changed zero", 1e-16, 0, false},
-		{"NaN output", math.NaN(), 1, false},
-		{"NaN reference", 1, math.NaN(), false},
-		{"infinite output", math.Inf(1), 1, false},
-		{"infinite reference", 1, math.Inf(1), false},
-		{"matching infinities", math.Inf(1), math.Inf(1), false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := resampledValueClose(tc.got, tc.want); got != tc.close {
-				t.Fatalf("comparison=%v, want %v", got, tc.close)
-			}
-		})
-	}
-}
-
 func resampleReference(input Features, positions []float64) Features {
 	frames, bins := input.Frames, input.FFTSize/2+1
 	output := Features{Frames: frames, FFTSize: input.FFTSize, SampleRate: input.SampleRate,

@@ -109,6 +109,7 @@ func TestMapWorldFeatureTimeAppliesFractionalOtoOffset(t *testing.T) {
 	if got := mapWorldFeatureTime(item, entry, 20); math.Abs(got-20) > 1e-9 {
 		t.Fatalf("legacy feature source time = %f, want 20", got)
 	}
+	item.LegacyMix = false
 	item.ConsonantMS, item.RequiredLengthMS = 70, 180
 	item.Speech = &provider.WorldSpeechTiming{SourceOnsetMS: 50, TargetOnsetMS: 50}
 	if got := mapWorldFeatureTime(item, entry, 20); math.Abs(got-20) > 1e-9 {

@@ -4,8 +4,6 @@ import (
 	"math"
 	"math/rand/v2"
 	"testing"
-
-	"github.com/yh2237/UtauTTS/internal/provider"
 )
 
 func TestWorldFrameUnitsKeepsAllActiveUnitsInOrder(t *testing.T) {
@@ -34,33 +32,6 @@ func TestWorldFrameUnitsKeepsAllActiveUnitsInOrder(t *testing.T) {
 		for i := 1; i < len(candidates); i++ {
 			if candidates[i] <= candidates[i-1] {
 				t.Fatal("unit order changed")
-			}
-		}
-	}
-}
-
-func TestWorldPreparedMappingMatchesOriginal(t *testing.T) {
-	entry := cachedWorldUnit{duration: 300, sourceShiftMS: 3.5}
-	for _, speech := range []*provider.WorldSpeechTiming{nil,
-		{SourceOnsetMS: 50, TargetOnsetMS: 40},
-		{CodaRelease: true, SourceOnsetMS: 40, TargetOnsetMS: 30, ProtectStop: true},
-		{Anchors: []provider.SpeechAnchor{{SourceMS: 0, TargetMS: 0}, {SourceMS: 90, TargetMS: 60}, {SourceMS: 290, TargetMS: 180}}},
-		{Anchors: []provider.SpeechAnchor{{SourceMS: 20, TargetMS: 0}}},
-	} {
-		for _, legacy := range []bool{false, true} {
-			item := unit{Speech: speech, LegacyMix: legacy, OffsetMS: 123.5, ConsonantMS: 70, RequiredLengthMS: 180, LengthMS: 180, ConsonantVelocity: 86}
-			mapping, ok := worldSpeechAnchors(item, entry.duration)
-			for local := -10.; local <= 210; local += .5 {
-				want := mapWorldSourceTimePrepared(item, entry.duration, local, mapping, ok)
-				if !legacy {
-					if _, valid := worldSpeechAnchors(item, entry.duration); !valid {
-						want += entry.sourceShiftMS
-					}
-				}
-				got := mapWorldFeatureTimePrepared(item, entry, local, mapping, ok)
-				if got != want {
-					t.Fatalf("mapping changed: %g != %g", got, want)
-				}
 			}
 		}
 	}

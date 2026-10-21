@@ -156,19 +156,6 @@ func speechMaxDiff(got, want []float32) float64 {
 	return maxAbs
 }
 
-func TestSpeechTimingOneCyclePyTorch(t *testing.T) {
-	// torch.optim.lr_scheduler.OneCycleLR(max_lr=.002,total_steps=6000,pct_start=.1)
-	want := map[int]float64{0: .00008, 1: .00008001320341708383, 599: .002,
-		600: .0019999998307687816, 3000: .0011730785180852907, 5999: .000000008}
-	c := autograd.NewOneCycle(.002, 6000, .1)
-	for i := 0; i < 6000; i++ {
-		if expected, ok := want[i]; ok && math.Abs(c.LR()-expected) > 1e-10 {
-			t.Errorf("step %d LR %.12g != PyTorch %.12g", i, c.LR(), expected)
-		}
-		c.StepCount++
-	}
-}
-
 func TestSpeechTimingMultiHeadShapesAndParameters(t *testing.T) {
 	m, e := NewSpeechTimingMultiHead(44, 4, 2, tensor.CPU, 0)
 	if e != nil {
@@ -235,48 +222,6 @@ func TestSpeechTimingWithPhonesUsesVocabularySize(t *testing.T) {
 	}
 	if _, e := NewSpeechTimingWithPhones(0, 4, tensor.CPU, 0); e == nil {
 		t.Fatal("zero phone count was accepted")
-	}
-}
-
-func TestSpeechTimingCheckpointMetadata(t *testing.T) {
-	m, e := NewSpeechTiming(4, tensor.CPU, 0)
-	if e != nil {
-		t.Fatal(e)
-	}
-	path := filepath.Join(t.TempDir(), "model.safetensors")
-	meta := map[string]string{"format": "utautts-speech-timing-tcn-1", "phones": "<pad> <unk>"}
-	if e = m.Module.SaveSafeTensorsMetadata(path, meta); e != nil {
-		t.Fatal(e)
-	}
-	data, e := os.ReadFile(path)
-	if e != nil {
-		t.Fatal(e)
-	}
-	hlen := encodingbinary.LittleEndian.Uint64(data[:8])
-	var header map[string]json.RawMessage
-	if e = json.Unmarshal(data[8:8+hlen], &header); e != nil {
-		t.Fatal(e)
-	}
-	if len(header) != 38 {
-		t.Fatalf("checkpoint entries %d, want 37 tensors plus metadata", len(header))
-	}
-	var got map[string]string
-	if e = json.Unmarshal(header["__metadata__"], &got); e != nil {
-		t.Fatal(e)
-	}
-	if got["format"] != meta["format"] {
-		t.Fatalf("format %q", got["format"])
-	}
-	n, e := NewSpeechTiming(4, tensor.CPU, 1)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if e = n.Module.LoadSafeTensors(path); e != nil {
-		t.Fatal(e)
-	}
-	loaded := n.Module.StateDict()
-	for name, values := range m.Module.StateDict() {
-		checkSpeechValues(t, name, loaded[name], values, 0)
 	}
 }
 

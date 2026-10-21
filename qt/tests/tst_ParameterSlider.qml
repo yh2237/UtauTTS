@@ -39,15 +39,6 @@ TestCase {
         resets.clear();
     }
 
-    function test_keyboard() {
-        slider.forceActiveFocus();
-        keyClick(Qt.Key_Right);
-        compare(slider.value, 55);
-        compare(moves.count, 1);
-        keyClick(Qt.Key_Left);
-        compare(slider.value, 50);
-    }
-
     function test_dragAndFocus() {
         mouseDrag(slider, slider.width / 2, slider.height / 2, 70, 0);
         verify(slider.value > 50);

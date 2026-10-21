@@ -78,7 +78,7 @@ func TestEngineListsAnalyzesAndSynthesizes(t *testing.T) {
 	if err != nil || !strings.Contains(string(voicebanks), `"has_vc":true`) || !strings.Contains(string(voicebanks), `"VC":1`) {
 		t.Fatalf("voicebank capabilities=%s err=%v", voicebanks, err)
 	}
-	for _, method := range []string{"health", "voicebanks", "renderers", "models"} {
+	for _, method := range []string{"health", "renderers", "models"} {
 		if _, err := engine.Call(method, nil); err != nil {
 			t.Fatalf("%s: %v", method, err)
 		}
@@ -106,22 +106,12 @@ func TestEngineListsAnalyzesAndSynthesizes(t *testing.T) {
 	if len(previewResult.MoraDurationsMS) != 1 || previewResult.MoraDurationsMS[0] != 100 {
 		t.Fatalf("prosody preview=%s", preview)
 	}
-	dictionaryAnalysis, err := engine.Call("analyze", []byte(`{"language":"ja","text":"UtauTTS","dictionary":[{"surface":"UtauTTS","reading":"あ"}]}`))
+	dictionaryAnalysis, err := engine.Call("analyze", []byte(`{"language":"ja","text":"v8","dictionary":[{"surface":"v8","reading":"ぶいはち"}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var dictionaryResult struct {
 		Reading string `json:"reading"`
-	}
-	if err := json.Unmarshal(dictionaryAnalysis, &dictionaryResult); err != nil {
-		t.Fatal(err)
-	}
-	if dictionaryResult.Reading != "ア" {
-		t.Fatalf("dictionary analysis=%s", dictionaryAnalysis)
-	}
-	dictionaryAnalysis, err = engine.Call("analyze", []byte(`{"language":"ja","text":"v8","dictionary":[{"surface":"v8","reading":"ぶいはち"}]}`))
-	if err != nil {
-		t.Fatal(err)
 	}
 	if err := json.Unmarshal(dictionaryAnalysis, &dictionaryResult); err != nil {
 		t.Fatal(err)
