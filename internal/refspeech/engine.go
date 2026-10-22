@@ -69,9 +69,10 @@ type Models struct {
 
 // 参照TTSのID。Provider.ID()と対応する。
 const (
-	kokoroEnglish = "kokoro-en"
-	kokoroChinese = "kokoro-zh"
-	kokoroSpanish = "kokoro-es"
+	kokoroEnglish    = "kokoro-en"
+	kokoroChinese    = "kokoro-zh"
+	kokoroSpanish    = "kokoro-es"
+	kokoroPortuguese = "kokoro-pt"
 )
 
 // voiceSetは1つの参照TTSのモデルと声。

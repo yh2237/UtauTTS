@@ -129,6 +129,7 @@ jobs:
             models/english-reference/config.json
             models/english-reference/af_heart.pt
             models/english-reference/ef_dora.pt
+            models/english-reference/pf_dora.pt
             models/english-reference/us_gold.json
             models/english-reference/us_silver.json
             models/english-reference/wavlm/wavlm-base-plus.safetensors

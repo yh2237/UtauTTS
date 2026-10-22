@@ -7,42 +7,50 @@ import (
 	"github.com/yh2237/UtauTTS/internal/frontend"
 )
 
-// KokoroSpanishProviderはスペイン語の参照TTS（Kokoro-82Mのef_dora）。
-type KokoroSpanishProvider struct {
-	service *Service
+// KokoroSyllableProviderは、音節を1モーラにして読む言語（スペイン語、ポルトガル語）の参照TTS。
+// 英語と同じKokoro-82Mのモデルを、言語ごとの声で読む。
+type KokoroSyllableProvider struct {
+	service  *Service
+	language string
 }
 
-// NewKokoroSpanishProviderはスペイン語の参照TTSを作る。
-func NewKokoroSpanishProvider(service *Service) *KokoroSpanishProvider {
-	return &KokoroSpanishProvider{service: service}
+// syllableVoicesは、言語ごとの参照TTSのID。
+var syllableVoices = map[string]string{
+	frontend.LanguageSpanish:    kokoroSpanish,
+	frontend.LanguagePortuguese: kokoroPortuguese,
 }
 
-func (p *KokoroSpanishProvider) ID() string { return kokoroSpanish }
+// NewKokoroSyllableProviderは、音節で読む言語の参照TTSを作る。
+func NewKokoroSyllableProvider(service *Service, language string) *KokoroSyllableProvider {
+	return &KokoroSyllableProvider{service: service, language: language}
+}
 
-func (p *KokoroSpanishProvider) Language() string { return frontend.LanguageSpanish }
+func (p *KokoroSyllableProvider) ID() string { return syllableVoices[p.language] }
 
-// Piecesは、スペイン語の読み（「ˈo.la , kˈe tˈal ?」）を音節ごとの断片にする。
-// 断片のPartはモーラの番号で、frontend.ParseSpanishのモーラと同じ並びになる。
+func (p *KokoroSyllableProvider) Language() string { return p.language }
+
+// Piecesは、読み（「ˈo.la , kˈe tˈal ?」）を音節ごとの断片にする。
+// 断片のPartはモーラの番号で、frontend.ParseSyllableLanguageのモーラと同じ並びになる。
 // 語の間の空白と文末の記号はPartを-1にする。
-func (p *KokoroSpanishProvider) Pieces(text, reading string) ([]Piece, error) {
+func (p *KokoroSyllableProvider) Pieces(text, reading string) ([]Piece, error) {
 	fields := strings.Fields(reading)
 	if len(fields) == 0 {
-		return nil, fmt.Errorf("Spanish reference synthesis needs a reading")
+		return nil, fmt.Errorf("%s reference synthesis needs a reading", p.language)
 	}
 	last := len(fields) - 1
-	for last >= 0 && frontend.IsSpanishPause(fields[last]) {
+	for last >= 0 && frontend.IsSyllablePause(fields[last]) {
 		last--
 	}
 	var pieces []Piece
 	part := 0
 	pausePending := false
 	for i, field := range fields {
-		if frontend.IsSpanishPause(field) {
+		if frontend.IsSyllablePause(field) {
 			if i > last {
 				pieces = append(pieces, Piece{Symbols: field, Part: -1})
 				continue
 			}
-			// frontend.ParseSpanishと同じく、先頭と続いた記号は休止のモーラにしない。
+			// frontend.ParseSyllableLanguageと同じく、先頭と続いた記号は休止のモーラにしない。
 			if part > 0 && !pausePending {
 				pieces = append(pieces, Piece{Symbols: field, Part: part})
 				part++
@@ -60,19 +68,19 @@ func (p *KokoroSpanishProvider) Pieces(text, reading string) ([]Piece, error) {
 		pausePending = false
 	}
 	if part == 0 {
-		return nil, fmt.Errorf("Spanish reference synthesis needs a reading")
+		return nil, fmt.Errorf("%s reference synthesis needs a reading", p.language)
 	}
 	return pieces, nil
 }
 
-func (p *KokoroSpanishProvider) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
+func (p *KokoroSyllableProvider) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
 	if p.service == nil {
 		return Reference{}, fmt.Errorf("kokoro provider has no service")
 	}
 	return p.service.Read(p.ID(), pieces, speed, durations)
 }
 
-func (p *KokoroSpanishProvider) ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error) {
+func (p *KokoroSyllableProvider) ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error) {
 	if p.service == nil {
 		return Reference{}, fmt.Errorf("kokoro provider has no service")
 	}

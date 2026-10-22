@@ -126,8 +126,8 @@ func referenceProvider(cfg Config, language string, service *refspeech.Service) 
 	switch frontend.NormalizeLanguage(language) {
 	case frontend.LanguageChinese:
 		return refspeech.NewKokoroChineseProvider(service), nil
-	case frontend.LanguageSpanish:
-		return refspeech.NewKokoroSpanishProvider(service), nil
+	case frontend.LanguageSpanish, frontend.LanguagePortuguese:
+		return refspeech.NewKokoroSyllableProvider(service, frontend.NormalizeLanguage(language)), nil
 	case frontend.LanguageEnglish:
 		lexicon, err := englishLexicon(cfg.ReferenceDir)
 		if err != nil {

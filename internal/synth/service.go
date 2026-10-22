@@ -271,7 +271,7 @@ func (s *Service) AnalyzeContext(ctx context.Context, request Request) (*tts.Pro
 	defer release()
 	request = request.Normalized()
 	if strings.TrimSpace(request.Language) == "" {
-		return nil, fmt.Errorf("language is required: ja, en, zh, or es")
+		return nil, fmt.Errorf("language is required: ja, en, zh, es, or pt")
 	}
 	dictionary := DictionaryMap(request.Dictionary)
 	voicebankPath := request.VoicebankPath
@@ -323,7 +323,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		return tts.Config{}, "", render.ProviderOptions{}, err
 	}
 	if strings.TrimSpace(request.Language) == "" {
-		return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("language is required: ja, en, zh, or es")
+		return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("language is required: ja, en, zh, es, or pt")
 	}
 	if requireVoicebank && request.VoicebankID == "" && request.VoicebankPath == "" {
 		return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("voicebank_id is required")

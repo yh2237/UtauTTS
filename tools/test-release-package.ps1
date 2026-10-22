@@ -110,7 +110,7 @@ try {
         Assert-Path (Join-Path $packageRoot 'runtime/open_jtalk_dic_utf_8-1.11/COPYING') 'Open JTalk dictionary license'
         Assert-Path (Join-Path $packageRoot 'runtime/utautts-worldline-bridge.exe') 'native worldline bridge'
         if ($Profile -eq 'Full') {
-            foreach ($englishReferenceFile in @('kokoro-v1_0.pth', 'config.json', 'af_heart.pt', 'ef_dora.pt', 'us_gold.json', 'us_silver.json', 'notices.json')) {
+            foreach ($englishReferenceFile in @('kokoro-v1_0.pth', 'config.json', 'af_heart.pt', 'ef_dora.pt', 'pf_dora.pt', 'us_gold.json', 'us_silver.json', 'notices.json')) {
                 Assert-Path (Join-Path $packageRoot "models/english-reference/$englishReferenceFile") "English reference model: $englishReferenceFile"
             }
             foreach ($wavlmFile in @('wavlm-base-plus.safetensors', 'config.json')) {

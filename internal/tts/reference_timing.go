@@ -56,7 +56,7 @@ func referenceMoraTokens(language string, pieces []refspeech.Piece, timing refsp
 	switch frontend.NormalizeLanguage(language) {
 	case frontend.LanguageEnglish:
 		return englishMoraTokens(pieces, timing, reading, morae)
-	case frontend.LanguageSpanish:
+	case frontend.LanguageSpanish, frontend.LanguagePortuguese:
 		return partMoraTokens(pieces, timing, morae)
 	}
 	return simpleMoraTokens(pieces, timing, morae)
