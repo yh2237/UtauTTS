@@ -279,34 +279,34 @@ try {
     $bundledModels | Copy-Item -Destination $guiModelsPath
     $bundledModels | Copy-Item -Destination $serverModelsPath
     if ($Profile -eq 'Full') {
-        $englishReferencePath = Join-Path $sourceModels 'english-reference'
+        $referencePath = Join-Path $sourceModels 'reference'
         foreach ($packageModelsPath in @($guiModelsPath, $serverModelsPath)) {
-            $destination = Join-Path $packageModelsPath 'english-reference'
+            $destination = Join-Path $packageModelsPath 'reference'
             New-Item -ItemType Directory -Force -Path $destination | Out-Null
             foreach ($name in @('kokoro-v1_0.pth', 'config.json', 'af_heart.pt', 'ef_dora.pt', 'pf_dora.pt', 'jf_alpha.pt', 'us_gold.json', 'us_silver.json', 'notices.json')) {
-                $source = Join-Path $englishReferencePath $name
+                $source = Join-Path $referencePath $name
                 if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
-                    throw "English reference model is missing: $source. Run tools/fetch-english-reference.ps1."
+                    throw "Reference model is missing: $source. Run tools/fetch-reference-models.ps1."
                 }
                 Copy-Item -LiteralPath $source -Destination $destination
             }
-            $wavlmSource = Join-Path $englishReferencePath 'wavlm'
+            $wavlmSource = Join-Path $referencePath 'wavlm'
             $wavlmDestination = Join-Path $destination 'wavlm'
             New-Item -ItemType Directory -Force -Path $wavlmDestination | Out-Null
             foreach ($name in @('wavlm-base-plus.safetensors', 'config.json')) {
                 $source = Join-Path $wavlmSource $name
                 if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
-                    throw "WavLM model is missing: $source. Run tools/fetch-english-reference.ps1."
+                    throw "WavLM model is missing: $source. Run tools/fetch-reference-models.ps1."
                 }
                 Copy-Item -LiteralPath $source -Destination $wavlmDestination
             }
-            $chineseSource = Join-Path $englishReferencePath 'kokoro-zh'
+            $chineseSource = Join-Path $referencePath 'kokoro-zh'
             $chineseDestination = Join-Path $destination 'kokoro-zh'
             New-Item -ItemType Directory -Force -Path $chineseDestination | Out-Null
             foreach ($name in @('kokoro-v1_1-zh.pth', 'config.json', 'zf_001.pt')) {
                 $source = Join-Path $chineseSource $name
                 if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
-                    throw "Chinese reference model is missing: $source. Run tools/fetch-english-reference.ps1."
+                    throw "Chinese reference model is missing: $source. Run tools/fetch-reference-models.ps1."
                 }
                 Copy-Item -LiteralPath $source -Destination $chineseDestination
             }

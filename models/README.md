@@ -7,8 +7,8 @@
 | 言語 | 既定モデル |
 | --- | --- |
 | 日本語 | `frame-intonation-tcn-v12` |
-| 英語 | `english-reference/`（Kokoro-82M） |
-| 中国語 | `tone-intonation-zh-v1`、参照は`english-reference/kokoro-zh/`（Kokoro-82M-v1.1-zh） |
+| 英語 | `reference/`（Kokoro-82M） |
+| 中国語 | `tone-intonation-zh-v1`、参照は`reference/kokoro-zh/`（Kokoro-82M-v1.1-zh） |
 
 日本語と中国語の抑揚モデルはモーラ長を予測しません。長さは指定した基準値と言語別の時間規則（「ん」0.9倍、「ー」1.2倍など）で決めます。英語と中国語の参照は、モーラ長と抑揚をKokoroの読みから決めます。学習と評価の手順は[モデルの学習](../docs/model-training.md)にあります。
 
@@ -26,23 +26,23 @@ v10の曲線は混ぜず、F0ヘッドの曲線だけを自然の振れ幅で使
 
 ## English Reference Models（英語）
 
-英語は`english-reference/`のKokoro-82M（声はaf_heart）で文を読み、WavLM base+の特徴量で音源の録音から近いフレームを選んで合成します。仕組みは[音声合成の仕組み](../docs/how-utautts-speaks.md#9-参照照合)にあります。Kokoroの音声は出力に使いません。
+英語は`reference/`のKokoro-82M（声はaf_heart）で文を読み、WavLM base+の特徴量で音源の録音から近いフレームを選んで合成します。仕組みは[音声合成の仕組み](../docs/how-utautts-speaks.md#9-参照照合)にあります。Kokoroの音声は出力に使いません。
 
 - Kokoro-82Mとmisakiの英語辞書はApache License 2.0、WavLM base+（`microsoft/wavlm-base-plus`）はMIT Licenseです。いずれも配布元から変更せずに同梱します
 - 通知: [licenses/REFERENCE-MODELS.txt](../licenses/REFERENCE-MODELS.txt)、ライセンス本文: [licenses/APACHE-2.0.txt](../licenses/APACHE-2.0.txt)、[licenses/WAVLM-MIT.txt](../licenses/WAVLM-MIT.txt)
-- 取得: リポジトリでは`tools/fetch-english-reference.ps1`（Linux・macOSは`.sh`）で、版とSHA256を固定して取得します。WavLMは配布元にsafetensorsがないため、取得時に変換します
+- 取得: リポジトリでは`tools/fetch-reference-models.ps1`（Linux・macOSは`.sh`）で、版とSHA256を固定して取得します。WavLMは配布元にsafetensorsがないため、取得時に変換します
 
 ## Chinese Reference Model（中国語）
 
-中国語の参照は`english-reference/kokoro-zh/`のKokoro-82M-v1.1-zh（声はzf_001）を使います。英語と同じく音源のフレームから合成し、漢字はピンインに直して声母と韻母を注音符号にして参照TTSへ渡します。Kokoroの音声は出力に使いません。
+中国語の参照は`reference/kokoro-zh/`のKokoro-82M-v1.1-zh（声はzf_001）を使います。英語と同じく音源のフレームから合成し、漢字はピンインに直して声母と韻母を注音符号にして参照TTSへ渡します。Kokoroの音声は出力に使いません。
 
 - Kokoro-82M-v1.1-zhはApache License 2.0です。配布元から変更せずに同梱します
 - 通知: [licenses/CHINESE-REFERENCE-MODEL.txt](../licenses/CHINESE-REFERENCE-MODEL.txt)、ライセンス本文: [licenses/APACHE-2.0.txt](../licenses/APACHE-2.0.txt)
-- 取得: 英語と同じ`tools/fetch-english-reference.ps1`（Linux・macOSは`.sh`）で、版とSHA256を固定して取得します
+- 取得: 英語と同じ`tools/fetch-reference-models.ps1`（Linux・macOSは`.sh`）で、版とSHA256を固定して取得します
 
 ## Spanish, Portuguese and Japanese Reference Voices（スペイン語・ポルトガル語・日本語）
 
-スペイン語・ポルトガル語・日本語（試用）は英語と同じKokoro-82Mのモデルを、声ef_dora・pf_dora・jf_alpha（`english-reference/ef_dora.pt`、`pf_dora.pt`、`jf_alpha.pt`）で使います。スペイン語とポルトガル語は綴りから規則で、日本語はかなの読みから表で音素記号にします。ライセンスと通知は英語と同じです。
+スペイン語・ポルトガル語・日本語（試用）は英語と同じKokoro-82Mのモデルを、声ef_dora・pf_dora・jf_alpha（`reference/ef_dora.pt`、`pf_dora.pt`、`jf_alpha.pt`）で使います。スペイン語とポルトガル語は綴りから規則で、日本語はかなの読みから表で音素記号にします。ライセンスと通知は英語と同じです。
 
 ## Mandarin Tone Intonation v1（中国語の既定）
 

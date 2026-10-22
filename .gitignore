@@ -33,7 +33,7 @@ aqtinstall.log
 %SystemDrive%/
 voice/*/
 AGENTS.md
-/models/english-reference/*
-!/models/english-reference/notices.json
+/models/reference/*
+!/models/reference/notices.json
 /models/xls-r/
 /models/wavlm/

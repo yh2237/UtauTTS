@@ -175,21 +175,21 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
 done
 
 echo '=== Model license notices ==='
-for english_reference_file in kokoro-v1_0.pth config.json af_heart.pt ef_dora.pt pf_dora.pt jf_alpha.pt us_gold.json us_silver.json; do
-  if [[ ! -f "${root_dir}/models/english-reference/${english_reference_file}" ]]; then
-    echo "English reference model is missing: models/english-reference/${english_reference_file}. Run tools/fetch-english-reference.sh." >&2
+for reference_file in kokoro-v1_0.pth config.json af_heart.pt ef_dora.pt pf_dora.pt jf_alpha.pt us_gold.json us_silver.json; do
+  if [[ ! -f "${root_dir}/models/reference/${reference_file}" ]]; then
+    echo "Reference model is missing: models/reference/${reference_file}. Run tools/fetch-reference-models.sh." >&2
     exit 1
   fi
 done
 for wavlm_file in wavlm/wavlm-base-plus.safetensors wavlm/config.json; do
-  if [[ ! -f "${root_dir}/models/english-reference/${wavlm_file}" ]]; then
-    echo "WavLM model is missing: models/english-reference/${wavlm_file}. Run tools/fetch-english-reference.sh." >&2
+  if [[ ! -f "${root_dir}/models/reference/${wavlm_file}" ]]; then
+    echo "WavLM model is missing: models/reference/${wavlm_file}. Run tools/fetch-reference-models.sh." >&2
     exit 1
   fi
 done
 for chinese_file in kokoro-zh/kokoro-v1_1-zh.pth kokoro-zh/config.json kokoro-zh/zf_001.pt; do
-  if [[ ! -f "${root_dir}/models/english-reference/${chinese_file}" ]]; then
-    echo "Chinese reference model is missing: models/english-reference/${chinese_file}. Run tools/fetch-english-reference.sh." >&2
+  if [[ ! -f "${root_dir}/models/reference/${chinese_file}" ]]; then
+    echo "Chinese reference model is missing: models/reference/${chinese_file}. Run tools/fetch-reference-models.sh." >&2
     exit 1
   fi
 done

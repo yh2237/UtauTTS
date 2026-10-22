@@ -125,20 +125,20 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            models/english-reference/kokoro-v1_0.pth
-            models/english-reference/config.json
-            models/english-reference/af_heart.pt
-            models/english-reference/ef_dora.pt
-            models/english-reference/pf_dora.pt
-            models/english-reference/jf_alpha.pt
-            models/english-reference/us_gold.json
-            models/english-reference/us_silver.json
-            models/english-reference/wavlm/wavlm-base-plus.safetensors
-            models/english-reference/wavlm/config.json
-            models/english-reference/kokoro-zh/kokoro-v1_1-zh.pth
-            models/english-reference/kokoro-zh/config.json
-            models/english-reference/kokoro-zh/zf_001.pt
-          key: english-reference-${{ hashFiles('tools/fetch-english-reference.ps1') }}
+            models/reference/kokoro-v1_0.pth
+            models/reference/config.json
+            models/reference/af_heart.pt
+            models/reference/ef_dora.pt
+            models/reference/pf_dora.pt
+            models/reference/jf_alpha.pt
+            models/reference/us_gold.json
+            models/reference/us_silver.json
+            models/reference/wavlm/wavlm-base-plus.safetensors
+            models/reference/wavlm/config.json
+            models/reference/kokoro-zh/kokoro-v1_1-zh.pth
+            models/reference/kokoro-zh/config.json
+            models/reference/kokoro-zh/zf_001.pt
+          key: reference-models-${{ hashFiles('tools/fetch-reference-models.ps1') }}
 
       - name: Install model conversion tools
         if: steps.models-cache.outputs.cache-hit != 'true'
@@ -149,7 +149,7 @@ jobs:
 
       - name: Fetch English reference models
         shell: pwsh
-        run: .\tools\fetch-english-reference.ps1
+        run: .\tools\fetch-reference-models.ps1
 
       - name: Build and smoke-test Windows packages
         shell: pwsh

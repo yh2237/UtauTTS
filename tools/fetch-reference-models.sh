@@ -3,7 +3,14 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-destination="${1:-${root_dir}/models/english-reference}"
+destination="${1:-${root_dir}/models/reference}"
+# 以前のフォルダ名（english-reference）に取得済みのモデルは、そのまま移す。
+legacy="${root_dir}/models/english-reference"
+if [[ $# -eq 0 && -d "${legacy}" && ! -e "${destination}/kokoro-v1_0.pth" ]]; then
+  mkdir -p "${destination}"
+  cp -a "${legacy}/." "${destination}/"
+  rm -rf "${legacy}"
+fi
 kokoro="https://huggingface.co/hexgrad/Kokoro-82M/resolve/f3ff3571791e39611d31c381e3a41a3af07b4987"
 kokoro_zh="https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh/resolve/01e7505bd6a7a2ac4975463114c3a7650a9f7218"
 hubert="https://huggingface.co/facebook/hubert-base-ls960/resolve/af46f65f540dc3ca7aa59f46c6c3d5dbb4374fa8"

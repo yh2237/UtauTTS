@@ -8,10 +8,6 @@ import (
 	"github.com/yh2237/UtauTTS/internal/render"
 )
 
-// ReferenceDirはモデルのフォルダの下で、参照TTSと特徴量のモデルを置くフォルダ。
-// いまは英語の参照モデル（KokoroとWavLM）が入っている。
-const ReferenceDir = "english-reference"
-
 type englishProfile struct{}
 
 func (englishProfile) Language() string { return frontend.LanguageEnglish }
@@ -35,7 +31,7 @@ func (englishProfile) ParsePronunciation(cfg Config, phonemizer string) (string,
 	}
 }
 
-// 英語は参照TTSで合成するので（english_reference.go）、原音接続用の処理は持たない。
+// 英語は参照TTSで合成するので（reference_synthesis.go）、原音接続用の処理は持たない。
 func (englishProfile) ApplySpeechProfile(*Config) {}
 
 func (englishProfile) SupportsStretchAdapt() bool { return false }

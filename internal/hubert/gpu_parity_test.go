@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	hubertModelPath = filepath.Join("..", "..", "models", "english-reference", "hubert-base-ls960.safetensors")
-	wavlmModelPath  = filepath.Join("..", "..", "models", "english-reference", "wavlm", "wavlm-base-plus.safetensors")
+	hubertModelPath = filepath.Join("..", "..", "models", "reference", "hubert-base-ls960.safetensors")
+	wavlmModelPath  = filepath.Join("..", "..", "models", "reference", "wavlm", "wavlm-base-plus.safetensors")
 )
 
 func TestFeaturesCUDA(t *testing.T) {

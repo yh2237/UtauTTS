@@ -1,5 +1,5 @@
 param(
-    [string]$DestinationDirectory = (Join-Path (Split-Path $PSScriptRoot -Parent) 'models/english-reference')
+    [string]$DestinationDirectory = (Join-Path (Split-Path $PSScriptRoot -Parent) 'models/reference')
 )
 
 # 参照の合成で同梱するモデルを、版を固定した配布元から取得してハッシュを確かめる。
@@ -24,6 +24,14 @@ $files = @(
     @{ Name = 'us_silver.json'; Url = "$misaki/us_silver.json"; Sha256 = 'de8f67be911bb6c659187b4a65fd966b6a30e56350e0f790d763210b053ac475' }
 )
 
+# 以前のフォルダ名（english-reference）に取得済みのモデルは、そのまま移す。
+$legacyDirectory = Join-Path (Split-Path $PSScriptRoot -Parent) 'models/english-reference'
+if ((-not $PSBoundParameters.ContainsKey('DestinationDirectory')) -and (Test-Path -LiteralPath $legacyDirectory) -and
+    -not (Test-Path -LiteralPath (Join-Path $DestinationDirectory 'kokoro-v1_0.pth'))) {
+    New-Item -ItemType Directory -Force -Path $DestinationDirectory | Out-Null
+    Get-ChildItem -LiteralPath $legacyDirectory -Force | Move-Item -Destination $DestinationDirectory -Force
+    Remove-Item -LiteralPath $legacyDirectory -Recurse -Force
+}
 New-Item -ItemType Directory -Force -Path $DestinationDirectory | Out-Null
 foreach ($file in $files) {
     $destination = Join-Path $DestinationDirectory $file.Name

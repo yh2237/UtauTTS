@@ -22,7 +22,7 @@
 
 配布用のZIPは `release/` にできます。
 
-英語の合成に使うモデル（約0.7GB）はGitで管理していません。ビルドの前に、Windowsでは`tools/fetch-english-reference.ps1`、Linux・macOSでは`tools/fetch-english-reference.sh`を実行して、`models/english-reference/`に取得してください。
+参照照合に使うモデル（約0.7GB）はGitで管理していません。ビルドの前に、Windowsでは`tools/fetch-reference-models.ps1`、Linux・macOSでは`tools/fetch-reference-models.sh`を実行して、`models/reference/`に取得してください。
 
 ---
 

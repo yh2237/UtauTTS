@@ -1,4 +1,4 @@
-Chinese reference model (models/english-reference/kokoro-zh)
+Chinese reference model (models/reference/kokoro-zh)
 ============================================================
 
 UtauTTS reads Chinese sentences with Kokoro-82M-v1.1-zh, compares the speech

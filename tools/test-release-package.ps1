@@ -111,13 +111,13 @@ try {
         Assert-Path (Join-Path $packageRoot 'runtime/utautts-worldline-bridge.exe') 'native worldline bridge'
         if ($Profile -eq 'Full') {
             foreach ($englishReferenceFile in @('kokoro-v1_0.pth', 'config.json', 'af_heart.pt', 'ef_dora.pt', 'pf_dora.pt', 'jf_alpha.pt', 'us_gold.json', 'us_silver.json', 'notices.json')) {
-                Assert-Path (Join-Path $packageRoot "models/english-reference/$englishReferenceFile") "English reference model: $englishReferenceFile"
+                Assert-Path (Join-Path $packageRoot "models/reference/$englishReferenceFile") "Reference model: $englishReferenceFile"
             }
             foreach ($wavlmFile in @('wavlm-base-plus.safetensors', 'config.json')) {
-                Assert-Path (Join-Path $packageRoot "models/english-reference/wavlm/$wavlmFile") "English reference model: wavlm/$wavlmFile"
+                Assert-Path (Join-Path $packageRoot "models/reference/wavlm/$wavlmFile") "Reference model: wavlm/$wavlmFile"
             }
             foreach ($chineseFile in @('kokoro-v1_1-zh.pth', 'config.json', 'zf_001.pt')) {
-                Assert-Path (Join-Path $packageRoot "models/english-reference/kokoro-zh/$chineseFile") "Chinese reference model: kokoro-zh/$chineseFile"
+                Assert-Path (Join-Path $packageRoot "models/reference/kokoro-zh/$chineseFile") "Chinese reference model: kokoro-zh/$chineseFile"
             }
             Assert-Path (Join-Path $packageRoot 'licenses/REFERENCE-MODELS.txt') 'reference model notice'
             Assert-Path (Join-Path $packageRoot 'licenses/CHINESE-REFERENCE-MODEL.txt') 'Chinese reference model notice'
@@ -134,7 +134,7 @@ try {
                 Assert-Path (Join-Path $packageRoot "runtime/licenses/$diffSingerLicense") "DiffSinger dependency license: $diffSingerLicense"
             }
         } else {
-            if (Test-Path -LiteralPath (Join-Path $packageRoot 'models/english-reference')) {
+            if (Test-Path -LiteralPath (Join-Path $packageRoot 'models/reference')) {
                 throw "Japanese package contains English reference models: $packageRoot"
             }
             foreach ($optionalRuntime in @('utautts-diffsinger-bridge.exe')) {

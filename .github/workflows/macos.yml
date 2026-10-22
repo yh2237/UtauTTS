@@ -23,7 +23,7 @@ on:
       - 'THIRD_PARTY_NOTICES.txt'
       - 'THIRD_PARTY_NOTICES-MACOS-GUI.txt'
       - 'tools/build-macos.sh'
-      - 'tools/fetch-english-reference.sh'
+      - 'tools/fetch-reference-models.sh'
       - 'tools/collect-go-licenses.sh'
       - 'tools/collect-macos-qt-licenses.sh'
       - 'tools/collect-pyinstaller-runtime-licenses.py'
@@ -54,7 +54,7 @@ on:
       - 'THIRD_PARTY_NOTICES.txt'
       - 'THIRD_PARTY_NOTICES-MACOS-GUI.txt'
       - 'tools/build-macos.sh'
-      - 'tools/fetch-english-reference.sh'
+      - 'tools/fetch-reference-models.sh'
       - 'tools/collect-go-licenses.sh'
       - 'tools/collect-macos-qt-licenses.sh'
       - 'tools/collect-pyinstaller-runtime-licenses.py'
@@ -129,20 +129,20 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            models/english-reference/kokoro-v1_0.pth
-            models/english-reference/config.json
-            models/english-reference/af_heart.pt
-            models/english-reference/ef_dora.pt
-            models/english-reference/pf_dora.pt
-            models/english-reference/jf_alpha.pt
-            models/english-reference/us_gold.json
-            models/english-reference/us_silver.json
-            models/english-reference/wavlm/wavlm-base-plus.safetensors
-            models/english-reference/wavlm/config.json
-            models/english-reference/kokoro-zh/kokoro-v1_1-zh.pth
-            models/english-reference/kokoro-zh/config.json
-            models/english-reference/kokoro-zh/zf_001.pt
-          key: english-reference-${{ hashFiles('tools/fetch-english-reference.sh') }}
+            models/reference/kokoro-v1_0.pth
+            models/reference/config.json
+            models/reference/af_heart.pt
+            models/reference/ef_dora.pt
+            models/reference/pf_dora.pt
+            models/reference/jf_alpha.pt
+            models/reference/us_gold.json
+            models/reference/us_silver.json
+            models/reference/wavlm/wavlm-base-plus.safetensors
+            models/reference/wavlm/config.json
+            models/reference/kokoro-zh/kokoro-v1_1-zh.pth
+            models/reference/kokoro-zh/config.json
+            models/reference/kokoro-zh/zf_001.pt
+          key: reference-models-${{ hashFiles('tools/fetch-reference-models.sh') }}
 
       - name: Install model conversion tools
         if: steps.models-cache.outputs.cache-hit != 'true'
@@ -151,7 +151,7 @@ jobs:
 
       - name: Fetch English reference models
         shell: bash
-        run: bash tools/fetch-english-reference.sh
+        run: bash tools/fetch-reference-models.sh
 
       - name: Build and smoke-test macOS packages
         shell: bash

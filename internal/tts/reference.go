@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 )
 
+// ReferenceDirはモデルのフォルダの下で、参照照合のモデル（参照TTSと特徴量のモデル）を置くフォルダ。
+const ReferenceDir = "reference"
+
 // ReferenceProviderInfoは参照TTSの種類。画面の一覧に使う。
 type ReferenceProviderInfo struct {
 	ID       string `json:"id"`
