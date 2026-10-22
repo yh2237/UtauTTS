@@ -25,15 +25,35 @@ func ParseSpanish(text, reading string, dictionary map[string]string) (string, [
 			return "", nil, err
 		}
 	}
-	morae, err := spanishMorae(reading)
+	morae, err := syllableMorae(reading, LanguageSpanish)
 	if err != nil {
 		return "", nil, err
 	}
 	return reading, morae, nil
 }
 
-// IsSpanishPauseは、読みの語が休止の記号かを返す。
-func IsSpanishPause(field string) bool { return spanishPauses[field] != "" }
+// IsSyllablePauseは、音節で読む言語の読みの語が休止の記号かを返す。
+func IsSyllablePause(field string) bool { return spanishPauses[field] != "" }
+
+// syllableLanguagesは、音節を1モーラにして参照照合だけで読む言語と、その発音形式。
+var syllableLanguages = map[string]string{
+	LanguageSpanish:    PhonemizerSpanish,
+	LanguagePortuguese: PhonemizerPortuguese,
+}
+
+// IsSyllableLanguageは、音節を1モーラにして参照照合だけで読む言語かを返す。
+func IsSyllableLanguage(language string) bool { return syllableLanguages[language] != "" }
+
+// ParseSyllableLanguageは、音節で読む言語の文か読みから、読みとモーラを返す。
+func ParseSyllableLanguage(language, phonemizer, text, reading string, dictionary map[string]string) (string, []Mora, error) {
+	if syllableLanguages[language] != phonemizer {
+		return "", nil, fmt.Errorf("unsupported phonemizer %q for language %q", phonemizer, language)
+	}
+	if language == LanguagePortuguese {
+		return ParsePortuguese(text, reading, dictionary)
+	}
+	return ParseSpanish(text, reading, dictionary)
+}
 
 // spanishPausesは読みのうち、休止を表す記号と休止の種類。
 var spanishPauses = map[string]string{
@@ -41,8 +61,8 @@ var spanishPauses = map[string]string{
 	".": PauseKindPeriod, "?": PauseKindQuestion, "!": PauseKindPeriod, "…": PauseKindEllipsis,
 }
 
-// spanishMoraeは読みをモーラにする。文末の記号はモーラにしない。
-func spanishMorae(reading string) ([]Mora, error) {
+// syllableMoraeは、音節を「.」で、語を空白で区切った読みをモーラにする。文末の記号はモーラにしない。
+func syllableMorae(reading, language string) ([]Mora, error) {
 	fields := strings.Fields(reading)
 	last := len(fields) - 1
 	for last >= 0 && spanishPauses[fields[last]] != "" {
@@ -53,7 +73,7 @@ func spanishMorae(reading string) ([]Mora, error) {
 	for i, field := range fields[:last+1] {
 		if kind := spanishPauses[field]; kind != "" {
 			if len(morae) > 0 && !morae[len(morae)-1].Pause {
-				morae = append(morae, Mora{Language: LanguageSpanish, Text: field, Pause: true, PauseKind: kind})
+				morae = append(morae, Mora{Language: language, Text: field, Pause: true, PauseKind: kind})
 			}
 			continue
 		}
@@ -61,11 +81,11 @@ func spanishMorae(reading string) ([]Mora, error) {
 		for j, syllable := range syllables {
 			plain, stress := spanishStripStress(syllable)
 			if plain == "" {
-				return nil, fmt.Errorf("empty Spanish syllable in %q", field)
+				return nil, fmt.Errorf("empty syllable in %q", field)
 			}
 			onset, rest := spanishSplitOnset(plain)
 			morae = append(morae, Mora{
-				Language: LanguageSpanish, WordIndex: word, WordEnd: j == len(syllables)-1,
+				Language: language, WordIndex: word, WordEnd: j == len(syllables)-1,
 				Text: plain, Consonant: onset, Vowel: rest, Stress: stress, StressKnown: true,
 			})
 		}
@@ -74,7 +94,7 @@ func spanishMorae(reading string) ([]Mora, error) {
 		}
 	}
 	if len(morae) == 0 {
-		return nil, fmt.Errorf("no Spanish syllables in %q", reading)
+		return nil, fmt.Errorf("no syllables in %q", reading)
 	}
 	return morae, nil
 }
@@ -92,7 +112,7 @@ func spanishStripStress(syllable string) (string, int) {
 // spanishSplitOnsetは音節を、最初の母音の前の子音と残りに分ける。
 func spanishSplitOnset(syllable string) (string, string) {
 	for i, r := range syllable {
-		if strings.ContainsRune(esNucleusRunes, r) {
+		if strings.ContainsRune(syllableNucleusRunes, r) {
 			return syllable[:i], syllable[i:]
 		}
 	}
@@ -101,6 +121,9 @@ func spanishSplitOnset(syllable string) (string, string) {
 
 // esNucleusRunesは音節の核になる記号（I=ai、W=au、A=eiはmisakiの二重母音）。
 const esNucleusRunes = "aeiouɛIWA"
+
+// syllableNucleusRunesは、ほかの言語も含めた音節の核の記号。
+const syllableNucleusRunes = "aeiouɛɔæɐəAIWYOʊyũõĩ"
 
 // esUnstressedは、2語以上の文で強勢を置かない機能語（espeak-ngの扱いに合わせる）。
 var esUnstressed = map[string]bool{
@@ -127,6 +150,8 @@ var esWordExceptions = map[string]string{
 type esToken struct {
 	word  string
 	pause string
+	// joinNextは、次の語とハイフンでつながっているか。
+	joinNext bool
 }
 
 // SpanishReadingは文をスペイン語の読みにする。dictionaryの語（小文字）は、その読みを使う。
