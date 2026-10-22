@@ -22,10 +22,12 @@ import (
 
 const (
 	// FrameMSは特徴量1フレームの長さ。WORLDはその1/subFramesの周期で解析する。
-	FrameMS        = 20.0
-	subFrames      = 4
-	worldFrameMS   = FrameMS / subFrames
-	spectrumDims   = 60
+	FrameMS      = 20.0
+	subFrames    = 4
+	worldFrameMS = FrameMS / subFrames
+	spectrumDims = 60
+	// d4cThresholdは索引の解析に使うD4Cのしきい値。原音接続（worldrenderのunitD4CThreshold）の0と違い、
+	// WORLDの既定値を使う。0では参照照合の出力の高音に雑音が乗った。
 	d4cThreshold   = 0.85
 	quietMarginC0  = 9.0
 	indexMagic     = "UTRM"

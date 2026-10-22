@@ -66,7 +66,7 @@ func (engine *darwinWorldEngine) Close() error {
 }
 
 func (engine *darwinWorldEngine) Analyze(samples []float64, sampleRate int, inputF0 []float64) (worldFeatures, error) {
-	return engine.AnalyzeWith(samples, sampleRate, inputF0, worldFramePeriodMS, 0)
+	return engine.AnalyzeWith(samples, sampleRate, inputF0, worldFramePeriodMS, unitD4CThreshold)
 }
 
 func (engine *darwinWorldEngine) AnalyzeWith(samples []float64, sampleRate int, inputF0 []float64, frameMS, d4cThreshold float64) (worldFeatures, error) {

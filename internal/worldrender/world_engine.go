@@ -9,6 +9,10 @@ import (
 
 const worldFramePeriodMS = provider.FramePeriodMS
 
+// unitD4CThresholdは原音接続の解析に使うD4Cのしきい値。0にして有声判定を使わない。
+// WORLDの既定の0.85では、足立レイの「い」のような定常の母音が無声と判定され、雑音になる。
+const unitD4CThreshold = 0.0
+
 type worldFeatures struct {
 	Frames        int
 	FFTSize       int
