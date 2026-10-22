@@ -232,7 +232,7 @@ app_binary="${app}/Contents/MacOS/utautts"
 
 smoke_text='こんにちは'
 "${cli}" --voicebank "${voicebank}" --text "${smoke_text}" \
-  --prosody frame-intonation-tcn-v12 --renderer utautts-world-phrase \
+  --method waveform-synthesis --prosody frame-intonation-tcn-v12 --renderer utautts-world-phrase \
   --apply-pitch --intonation-strength 1 --out "${work_dir}/utautts-world.wav"
 [[ "$(file_size "${work_dir}/utautts-world.wav")" -gt 44 ]] || fail 'synthesis output is empty'
 

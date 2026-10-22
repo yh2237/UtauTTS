@@ -350,7 +350,7 @@ try {
     $smokeText = -join @([char]0x3053, [char]0x3093, [char]0x306B, [char]0x3061, [char]0x306F)
     Push-Location $workingDirectory
     try {
-        & $cli --renderer utautts-world-phrase --voicebank $voicebank.FullName --text $smokeText --out $outputWav
+        & $cli --method waveform-synthesis --renderer utautts-world-phrase --voicebank $voicebank.FullName --text $smokeText --out $outputWav
         if ($LASTEXITCODE -ne 0) {
             throw "Packaged CLI failed with exit code $LASTEXITCODE"
         }
@@ -362,7 +362,7 @@ try {
     $utauTTSWorldWav = Join-Path $workingDirectory 'package-utautts-world-smoke.wav'
     Push-Location $workingDirectory
     try {
-        & $cli --voicebank $voicebank.FullName --text $smokeText --prosody frame-intonation-tcn-v12 `
+        & $cli --voicebank $voicebank.FullName --text $smokeText --method waveform-synthesis --prosody frame-intonation-tcn-v12 `
             --renderer utautts-world-phrase --apply-pitch --intonation-strength 1 --out $utauTTSWorldWav
         if ($LASTEXITCODE -ne 0) {
             throw "Packaged UtauTTS WORLD synthesis failed with exit code $LASTEXITCODE"
@@ -375,7 +375,7 @@ try {
     $savedErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
-        $nanOutput = & $cli --renderer utautts-world-phrase --voicebank $voicebank.FullName --text $smokeText --mora-ms NaN --out (Join-Path $workingDirectory 'nan.wav') 2>&1
+        $nanOutput = & $cli --method waveform-synthesis --renderer utautts-world-phrase --voicebank $voicebank.FullName --text $smokeText --mora-ms NaN --out (Join-Path $workingDirectory 'nan.wav') 2>&1
     } finally {
         $ErrorActionPreference = $savedErrorActionPreference
     }
@@ -438,6 +438,8 @@ try {
         $synthesisBody = @{
             text = $smokeText
             voicebank_id = $voicebankId
+            language = 'ja'
+            method = 'waveform-synthesis'
             renderer = 'utautts-world-phrase'
             mora_duration_ms = 120
         } | ConvertTo-Json -Compress
@@ -453,6 +455,8 @@ try {
         $worldPitchBody = @{
             text = $smokeText
             voicebank_id = $voicebankId
+            language = 'ja'
+            method = 'waveform-synthesis'
             model_id = 'frame-intonation-tcn-v12'
             renderer = 'utautts-world-phrase'
             intonation_strength = 1
@@ -468,9 +472,9 @@ try {
         }
         }
         $batchItems = @()
-        $batchItems += @{ name = 'first.wav'; request = @{ text = $smokeText; voicebank_id = $voicebankId; renderer = 'utautts-world-phrase' } }
+        $batchItems += @{ name = 'first.wav'; request = @{ text = $smokeText; voicebank_id = $voicebankId; language = 'ja'; method = 'waveform-synthesis'; renderer = 'utautts-world-phrase' } }
         $singleMora = [string][char]0x3042
-        $batchItems += @{ name = 'second.wav'; request = @{ kana = $singleMora; voicebank_id = $voicebankId; renderer = 'utautts-world-phrase' } }
+        $batchItems += @{ name = 'second.wav'; request = @{ kana = $singleMora; voicebank_id = $voicebankId; language = 'ja'; method = 'waveform-synthesis'; renderer = 'utautts-world-phrase' } }
         $batchBody = @{ items = $batchItems } | ConvertTo-Json -Depth 6 -Compress
         $batchZip = Join-Path $workingDirectory 'server-batch.zip'
         Invoke-WebRequest -UseBasicParsing -Method Post -Uri "$baseUrl/api/synthesize/batch" `

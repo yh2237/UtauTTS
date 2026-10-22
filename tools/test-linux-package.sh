@@ -227,10 +227,10 @@ fi
 
 smoke_text='こんにちは'
 "${gui_root}/tools/utautts-cli" --voicebank "${voicebank}" --text "${smoke_text}" \
-  --prosody frame-intonation-tcn-v12 --renderer utautts-world-phrase \
+  --method waveform-synthesis --prosody frame-intonation-tcn-v12 --renderer utautts-world-phrase \
   --apply-pitch --intonation-strength 1 --out "${work_dir}/utautts-world.wav"
 [ "$(stat -c %s "${work_dir}/utautts-world.wav")" -gt 44 ] || fail 'synthesis output is empty'
-if "${gui_root}/tools/utautts-cli" --renderer utautts-world-phrase --voicebank "${voicebank}" \
+if "${gui_root}/tools/utautts-cli" --method waveform-synthesis --renderer utautts-world-phrase --voicebank "${voicebank}" \
     --text "${smoke_text}" --mora-ms NaN --out "${work_dir}/nan.wav" \
     >"${work_dir}/nan.stdout.log" 2>"${work_dir}/nan.stderr.log"; then
   fail 'packaged CLI accepted NaN input'
@@ -281,17 +281,17 @@ if not voices:
 voice = voices[0]["id"]
 (root / "analyze.json").write_text(json.dumps({"text": "こんにちは"}, ensure_ascii=False), encoding="utf-8")
 (root / "synthesize.json").write_text(json.dumps({
-    "text": "こんにちは", "voicebank_id": voice, "renderer": "utautts-world-phrase", "mora_duration_ms": 120
+    "text": "こんにちは", "voicebank_id": voice, "language": "ja", "method": "waveform-synthesis", "renderer": "utautts-world-phrase", "mora_duration_ms": 120
 }, ensure_ascii=False), encoding="utf-8")
 (root / "world-pitch.json").write_text(json.dumps({
-    "text": "こんにちは", "voicebank_id": voice,
+    "text": "こんにちは", "voicebank_id": voice, "language": "ja", "method": "waveform-synthesis",
     "model_id": "frame-intonation-tcn-v12",
     "renderer": "utautts-world-phrase",
     "intonation_strength": 1, "apply_pitch": True,
 }, ensure_ascii=False), encoding="utf-8")
 (root / "batch.json").write_text(json.dumps({"items": [
-    {"name": "first.wav", "request": {"text": "こんにちは", "voicebank_id": voice, "renderer": "utautts-world-phrase"}},
-    {"name": "second.wav", "request": {"kana": "あ", "voicebank_id": voice, "renderer": "utautts-world-phrase"}}
+    {"name": "first.wav", "request": {"text": "こんにちは", "voicebank_id": voice, "language": "ja", "method": "waveform-synthesis", "renderer": "utautts-world-phrase"}},
+    {"name": "second.wav", "request": {"kana": "あ", "voicebank_id": voice, "language": "ja", "method": "waveform-synthesis", "renderer": "utautts-world-phrase"}}
 ]}, ensure_ascii=False), encoding="utf-8")
 PY
 
