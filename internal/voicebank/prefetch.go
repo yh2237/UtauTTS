@@ -74,14 +74,36 @@ type ReferenceRecording struct {
 	Entries []oto.Entry
 }
 
-// ReferenceRecordingsは参照照合の索引に使う録音を返す。音高や声色ごとの収録があれば、既定の音高の通常の声だけを使う。
-// 録音の範囲を決めるため、同じ録音を使う原音はすべて返す。
-func (b *Bank) ReferenceRecordings() []ReferenceRecording {
-	affix, _, hasAffix := b.AffixForToneAndColor("", "")
+// ReferenceRecordingsは参照照合の索引に使う録音を返す。音高や声色ごとの収録があれば、既定の音高のcolorの声だけを使う。
+// colorがない音源では通常の声を使う。録音の範囲を決めるため、同じ録音を使う原音はすべて返す。
+func (b *Bank) ReferenceRecordings(color string) []ReferenceRecording {
+	affix, _, hasAffix := b.AffixForToneAndColor("", color)
+	if !hasAffix && color != "" {
+		affix, _, hasAffix = b.AffixForToneAndColor("", "")
+	}
+	// 接頭辞も接尾辞も空の通常の声は、どの別名にも当てはまる。他の声色や音高の別名は除く。
+	var others []Affix
+	for _, subbank := range b.Subbanks {
+		others = append(others, Affix{Prefix: subbank.Prefix, Suffix: subbank.Suffix})
+	}
+	for _, other := range b.PrefixMap {
+		others = append(others, other)
+	}
+	matches := func(alias string, affix Affix) bool {
+		return strings.HasPrefix(alias, affix.Prefix) && strings.HasSuffix(alias, affix.Suffix)
+	}
+	belongsElsewhere := func(alias string) bool {
+		for _, other := range others {
+			if len(other.Prefix)+len(other.Suffix) > len(affix.Prefix)+len(affix.Suffix) && matches(alias, other) {
+				return true
+			}
+		}
+		return false
+	}
 	collect := func(affixed bool) map[string][]oto.Entry {
 		paths := make(map[string][]oto.Entry)
 		for alias, entries := range b.Entries {
-			if affixed && (!strings.HasPrefix(alias, affix.Prefix) || !strings.HasSuffix(alias, affix.Suffix)) {
+			if affixed && (!matches(alias, affix) || belongsElsewhere(alias)) {
 				continue
 			}
 			for _, entry := range entries {

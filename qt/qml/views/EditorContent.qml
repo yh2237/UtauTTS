@@ -9,6 +9,7 @@ import UtauTTS.Media
         required property var window
         readonly property bool mobileLayout: window.mobileLayout
         readonly property bool extendedPitchEditorVisible: pitchModeTabs.currentIndex === 1
+        readonly property bool referenceMatching: methodCombo.currentValue === "reference-matching"
 
         property alias pitchEditor: pitchEditor
         property alias phonemeEditor: phonemeEditor
@@ -556,6 +557,7 @@ import UtauTTS.Media
 
                         RowLayout {
                             Layout.fillWidth: true
+                            visible: !editorSplitView.referenceMatching
                             Label {
                                 text: window.translator.tr("main.param.pauseDuration")
                                 Layout.fillWidth: true
@@ -578,6 +580,7 @@ import UtauTTS.Media
                         }
                         ParameterSlider {
                             id: pauseSlider
+                            visible: !editorSplitView.referenceMatching
                             Layout.fillWidth: true
                             from: 0
                             to: 800
@@ -614,6 +617,7 @@ import UtauTTS.Media
 
                         ColumnLayout {
                             Layout.fillWidth: true
+                            visible: !editorSplitView.referenceMatching
                             spacing: 4
                             Label {
                                 text: window.translator.tr("main.param.aliasPolicy")
@@ -638,7 +642,7 @@ import UtauTTS.Media
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 4
-                            visible: !window.utterancesModel.count || ["ja", "en"].indexOf(window.current().language || "ja") >= 0
+                            visible: !editorSplitView.referenceMatching && (!window.utterancesModel.count || ["ja", "en"].indexOf(window.current().language || "ja") >= 0)
                             Label {
                                 text: window.translator.tr("main.param.intonationModel")
                                 Layout.fillWidth: true
@@ -666,6 +670,7 @@ import UtauTTS.Media
 
                         ColumnLayout {
                             Layout.fillWidth: true
+                            visible: !editorSplitView.referenceMatching
                             spacing: 4
                             Label {
                                 text: window.translator.tr("main.param.renderer")
@@ -683,6 +688,7 @@ import UtauTTS.Media
 
                         RowLayout {
                             Layout.fillWidth: true
+                            visible: !editorSplitView.referenceMatching
                             Layout.topMargin: 8
                             Label {
                                 text: window.translator.tr("main.param.leadingPreutterance")
@@ -718,6 +724,7 @@ import UtauTTS.Media
                         }
                         ParameterSlider {
                             id: leadingPreutteranceSlider
+                            visible: !editorSplitView.referenceMatching
                             Layout.fillWidth: true
                             from: 0
                             to: 300
