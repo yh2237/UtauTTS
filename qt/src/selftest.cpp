@@ -421,6 +421,12 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  && backend.undoShortcut() == QStringLiteral("Ctrl+Z"),
                  QStringLiteral("application settings failed")))
         return 1;
+    backend.setSynthesisDefaults(QStringLiteral("tone-intonation-zh-v1"), QStringLiteral("classic-utau"),
+                                 QStringLiteral("D4"), QStringLiteral("cv-only"));
+    if (!require(backend.defaultMoraDuration() == 130 && backend.defaultIntonationStrength() == 2.5
+                 && backend.defaultPauseDuration() != 190,
+                 QStringLiteral("common synthesis settings depend on the renderer")))
+        return 1;
 
     qInfo() << "UtauTTS self-test passed";
     return 0;

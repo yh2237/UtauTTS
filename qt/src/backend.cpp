@@ -292,6 +292,16 @@ QByteArray nativeConfigJSON() {
     return QJsonDocument(config).toJson(QJsonDocument::Compact);
 }
 
+// 参照照合でも使う設定は、Rendererごとではなく1つの値として保存する。
+const QStringList commonRendererSettings{QStringLiteral("mora_duration_ms"),
+                                         QStringLiteral("intonation_strength")};
+
+QString rendererSettingKey(const QString &rendererId, const QString &settingId) {
+    if (commonRendererSettings.contains(settingId))
+        return QStringLiteral("common/") + settingId;
+    return rendererId + QLatin1Char('/') + settingId;
+}
+
 QString portableSettingsPath() {
     const QString selfTestDirectory = qEnvironmentVariable("UTAUTTS_SELF_TEST_DIRECTORY");
     if (!selfTestDirectory.isEmpty())
@@ -480,6 +490,29 @@ Backend::Backend(QObject *parent)
                 && rendererSettingsDocument.isObject()) {
             m_rendererSettings = rendererSettingsDocument.object().toVariantMap();
         }
+    }
+    // 以前は既定のRendererごとに保存していた。
+    bool movedCommonSettings = false;
+    for (const QString &settingId : commonRendererSettings) {
+        const QString commonKey = rendererSettingKey(QString(), settingId);
+        const QString legacyKey = m_defaultRenderer + QLatin1Char('/') + settingId;
+        if (!m_rendererSettings.contains(commonKey) && m_rendererSettings.contains(legacyKey))
+            m_rendererSettings.insert(commonKey, m_rendererSettings.value(legacyKey));
+        for (auto it = m_rendererSettings.begin(); it != m_rendererSettings.end();) {
+            if (it.key() != commonKey && it.key().endsWith(QLatin1Char('/') + settingId)) {
+                it = m_rendererSettings.erase(it);
+                movedCommonSettings = true;
+            } else {
+                ++it;
+            }
+        }
+    }
+    if (movedCommonSettings) {
+        QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+        settings.setValue("synthesis/rendererSettings",
+                          QJsonDocument(QJsonObject::fromVariantMap(m_rendererSettings))
+                              .toJson(QJsonDocument::Compact));
+        settings.sync();
     }
     runStartupMigrations();
     if (m_ffmpegPath.isEmpty()) {
@@ -929,7 +962,7 @@ QVariant Backend::rendererSettingOrManifest(const QString &rendererId, const QSt
                                             const QVariant &fallback) const {
     const QString cleanedRendererId = rendererId.trimmed();
     const QString cleanedSettingId = settingId.trimmed();
-    const QString key = cleanedRendererId + QLatin1Char('/') + cleanedSettingId;
+    const QString key = rendererSettingKey(cleanedRendererId, cleanedSettingId);
     if (m_rendererSettings.contains(key))
         return m_rendererSettings.value(key);
     for (const QVariant &value : m_renderers) {
@@ -948,7 +981,7 @@ QVariant Backend::rendererSettingOrManifest(const QString &rendererId, const QSt
 
 QVariant Backend::rendererSetting(const QString &rendererId, const QString &settingId,
                                   const QVariant &fallback) const {
-    const QString key = rendererId.trimmed() + QLatin1Char('/') + settingId.trimmed();
+    const QString key = rendererSettingKey(rendererId.trimmed(), settingId.trimmed());
     return m_rendererSettings.value(key, fallback);
 }
 
@@ -956,9 +989,10 @@ void Backend::setRendererSetting(const QString &rendererId, const QString &setti
                                  const QVariant &value) {
     const QString cleanedRendererId = rendererId.trimmed();
     const QString cleanedSettingId = settingId.trimmed();
-    if (cleanedRendererId.isEmpty() || cleanedSettingId.isEmpty())
+    if (cleanedSettingId.isEmpty()
+            || (cleanedRendererId.isEmpty() && !commonRendererSettings.contains(cleanedSettingId)))
         return;
-    const QString key = cleanedRendererId + QLatin1Char('/') + cleanedSettingId;
+    const QString key = rendererSettingKey(cleanedRendererId, cleanedSettingId);
     if (m_rendererSettings.value(key) == value)
         return;
     m_rendererSettings.insert(key, value);
