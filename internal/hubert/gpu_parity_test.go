@@ -90,13 +90,13 @@ func checkGPUParity(t *testing.T, device tensor.Device, modelPath string) {
 	}
 	cpuTime := time.Since(start)
 	start = time.Now()
-	gpu, err := m.featuresOnDevice(device, wave, 6)
+	gpu, err := m.featuresOnDevice(device, wave, 6, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	firstTime := time.Since(start)
 	start = time.Now()
-	gpu, err = m.featuresOnDevice(device, wave, 6)
+	gpu, err = m.featuresOnDevice(device, wave, 6, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

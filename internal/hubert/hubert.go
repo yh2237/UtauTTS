@@ -1,6 +1,7 @@
 package hubert
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"runtime"
@@ -171,12 +172,99 @@ func gpuDeviceLabel(device tensor.Device) string {
 
 // FeaturesAcceleratedは、GPUが使える環境ではGPUで、そうでなければCPUで特徴量を求める。
 func (m *Model) FeaturesAccelerated(wave []float32, layer int) ([][]float32, error) {
-	return m.featuresAccelerated(wave, layer)
+	return m.featuresAccelerated(wave, layer, nil)
+}
+
+// FeaturesWithStatsは、先頭の畳み込みの正規化に、波形全体の統計の代わりにstatsを使う。
+// 区切って求めた特徴量が、つないだ波形から求めたものとそろう。GPUが使えればGPUで求める。
+func (m *Model) FeaturesWithStats(wave []float32, layer int, stats GroupStats) ([][]float32, error) {
+	if m.config.FeatNorm == "layer" || m.config.GroupNormGroups > 0 {
+		return nil, errors.New("hubert: model does not normalize each channel over time")
+	}
+	return m.featuresAccelerated(wave, layer, &stats)
+}
+
+// GroupStatsは、先頭の畳み込みの出力の、チャンネルごとの和と二乗和。
+type GroupStats struct {
+	Frames  int
+	Sum     []float64
+	Squares []float64
+}
+
+// Addはotherの分を足す。
+func (s *GroupStats) Add(other GroupStats) {
+	if s.Sum == nil {
+		s.Sum = make([]float64, len(other.Sum))
+		s.Squares = make([]float64, len(other.Squares))
+	}
+	s.Frames += other.Frames
+	for i := range other.Sum {
+		s.Sum[i] += other.Sum[i]
+		s.Squares[i] += other.Squares[i]
+	}
+}
+
+// GroupStatsOfは、波形を先頭の畳み込みに通した出力からGroupStatsを求める。
+func (m *Model) GroupStatsOf(wave []float32) (GroupStats, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	config := m.config
+	if len(wave) < config.ConvKernel[0] {
+		return GroupStats{}, fmt.Errorf("hubert: waveform too short")
+	}
+	w, err := m.get("feature_extractor.conv_layers.0.conv.weight")
+	if err != nil {
+		return GroupStats{}, err
+	}
+	m.cache.Lock()
+	if m.convWeights[0] == nil {
+		m.convWeights[0] = flattenConv(w, 1, config.ConvDim[0], config.ConvKernel[0])
+	}
+	weights := m.convWeights[0]
+	m.cache.Unlock()
+	ch := config.ConvDim[0]
+	x, frames := conv(wave, len(wave), 1, weights, ch, config.ConvKernel[0], config.ConvStride[0])
+	stats := GroupStats{Frames: frames, Sum: make([]float64, ch), Squares: make([]float64, ch)}
+	for frame := 0; frame < frames; frame++ {
+		for channel, value := range x[frame*ch : (frame+1)*ch] {
+			stats.Sum[channel] += float64(value)
+			stats.Squares[channel] += float64(value) * float64(value)
+		}
+	}
+	return stats, nil
+}
+
+// fixedNormは、statsで正規化して重みを掛ける処理を、チャンネルごとの倍率と足す値にする。
+func (m *Model) fixedNorm(base string, stats *GroupStats) (scale, shift []float32, err error) {
+	w, err := m.get(base + ".layer_norm.weight")
+	if err != nil {
+		return nil, nil, err
+	}
+	b, err := m.get(base + ".layer_norm.bias")
+	if err != nil {
+		return nil, nil, err
+	}
+	if stats.Frames == 0 || len(stats.Sum) != len(w) {
+		return nil, nil, errors.New("hubert: group stats do not match the model")
+	}
+	scale, shift = make([]float32, len(w)), make([]float32, len(w))
+	for i := range w {
+		mean := stats.Sum[i] / float64(stats.Frames)
+		variance := max(stats.Squares[i]/float64(stats.Frames)-mean*mean, 0)
+		inverse := 1 / math.Sqrt(variance+1e-5)
+		scale[i] = float32(float64(w[i]) * inverse)
+		shift[i] = float32(float64(b[i]) - mean*float64(w[i])*inverse)
+	}
+	return scale, shift, nil
 }
 
 // Features returns hidden_states[layer] as contiguous [frames][HiddenSize] rows.
 // Featuresは複数のgoroutineから同時に呼べる。
 func (m *Model) Features(wave []float32, layer int) ([][]float32, error) {
+	return m.features(wave, layer, nil)
+}
+
+func (m *Model) features(wave []float32, layer int, stats *GroupStats) ([][]float32, error) {
 	setLastDevice("CPU")
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -234,7 +322,18 @@ func (m *Model) Features(wave []float32, layer int) ([][]float32, error) {
 			if e != nil {
 				return nil, e
 			}
-			if config.GroupNormGroups > 0 {
+			if stats != nil {
+				scale, shift, e := m.fixedNorm(base, stats)
+				if e != nil {
+					return nil, e
+				}
+				for frame := 0; frame < frames; frame++ {
+					row := x[frame*ch : (frame+1)*ch]
+					for channel := range row {
+						row[channel] = row[channel]*scale[channel] + shift[channel]
+					}
+				}
+			} else if config.GroupNormGroups > 0 {
 				groupNormHF(x, nw, nb, frames, ch, config.GroupNormGroups)
 			} else {
 				groupNorm(x, nw, nb, frames, ch)

@@ -9,14 +9,14 @@ import (
 )
 
 // featuresAcceleratedは、CUDA、DirectML、Vulkanの順に試し、使えなければCPUに戻す。
-func (m *Model) featuresAccelerated(wave []float32, layer int) ([][]float32, error) {
+func (m *Model) featuresAccelerated(wave []float32, layer int, stats *GroupStats) ([][]float32, error) {
 	for _, device := range m.acceleratedDevices() {
-		rows, err := m.featuresOnDevice(device, wave, layer)
+		rows, err := m.featuresOnDevice(device, wave, layer, stats)
 		if err == nil {
 			return rows, nil
 		}
 	}
-	return m.Features(wave, layer)
+	return m.features(wave, layer, stats)
 }
 
 // acceleratedDevicesは、設定と環境変数から試す順にデバイスを返す。

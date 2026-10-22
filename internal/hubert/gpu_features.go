@@ -232,7 +232,7 @@ func (m *Model) gpuRelativeBias(s *gpuState, x *autograd.Tensor, frames, index i
 }
 
 // featuresOnDevice returns hidden_states[layer] as [frames][768] rows on the host.
-func (m *Model) featuresOnDevice(device tensor.Device, wave []float32, layer int) ([][]float32, error) {
+func (m *Model) featuresOnDevice(device tensor.Device, wave []float32, layer int, stats *GroupStats) ([][]float32, error) {
 	if !m.config.canUseCUDA() {
 		return nil, fmt.Errorf("hubert: model is not supported on %s", device)
 	}
@@ -299,7 +299,25 @@ func (m *Model) featuresOnDevice(device tensor.Device, wave []float32, layer int
 			if e != nil {
 				return nil, e
 			}
-			x = autograd.GroupNorm(x, w, b, 512, 1e-5)
+			if stats == nil {
+				x = autograd.GroupNorm(x, w, b, 512, 1e-5)
+			} else {
+				scale, shift, e := m.fixedNorm(base, stats)
+				if e != nil {
+					return nil, e
+				}
+				scaleT, e := autograd.New(scale, []int{512}, device, false)
+				if e != nil {
+					return nil, e
+				}
+				defer scaleT.Close()
+				shiftT, e := autograd.New(shift, []int{512}, device, false)
+				if e != nil {
+					return nil, e
+				}
+				defer shiftT.Close()
+				x = autograd.Add(autograd.Mul(x, scaleT), shiftT)
+			}
 		}
 		x = autograd.GELU(x, false)
 	}
