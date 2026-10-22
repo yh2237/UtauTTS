@@ -78,7 +78,7 @@ API処理のエラーは `{"error":"説明","code":"分類"}` と対応するHTT
 ### 主なパラメータ
 - `text` (string): 読み上げる文章（`reading` がなければ必須）。
 - `reading` (string): 読み（かな、ARPAbet、Pinyin）を直接指定するときに使用。
-- `language` (string): 言語（`ja`、`en`、`zh`）。必須。
+- `language` (string): 言語（`ja`、`en`、`zh`、`es`）。必須。
 - `method` (string): 合成の方式（`waveform-synthesis` か `reference-matching`）。必須。
 - `voicebank_id` (string): 音源ID。必須。
 - `model_id` (string): 抑揚モデルID。

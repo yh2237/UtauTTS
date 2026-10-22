@@ -25,8 +25,14 @@ func ReferenceProviders(dir string) []ReferenceProviderInfo {
 	if exists(filepath.Join(dir, "kokoro-zh", "kokoro-v1_1-zh.pth")) {
 		providers = append(providers, ReferenceProviderInfo{ID: "kokoro-zh", Language: "zh", Name: "Kokoro-82M v1.1-zh"})
 	}
+	if exists(filepath.Join(dir, "kokoro-v1_0.pth")) && exists(filepath.Join(dir, sharedReferenceVoices["kokoro-es"])) {
+		providers = append(providers, ReferenceProviderInfo{ID: "kokoro-es", Language: "es", Name: "Kokoro-82M"})
+	}
 	return providers
 }
+
+// sharedReferenceVoicesは、英語と同じKokoro v1.0のモデルで読む言語の声のファイル。
+var sharedReferenceVoices = map[string]string{"kokoro-es": "ef_dora.pt"}
 
 func exists(path string) bool {
 	_, err := os.Stat(path)

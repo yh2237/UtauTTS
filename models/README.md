@@ -40,6 +40,10 @@ v10の曲線は混ぜず、F0ヘッドの曲線だけを自然の振れ幅で使
 - 通知: [licenses/CHINESE-REFERENCE-MODEL.txt](../licenses/CHINESE-REFERENCE-MODEL.txt)、ライセンス本文: [licenses/APACHE-2.0.txt](../licenses/APACHE-2.0.txt)
 - 取得: 英語と同じ`tools/fetch-english-reference.ps1`（Linux・macOSは`.sh`）で、版とSHA256を固定して取得します
 
+## Spanish Reference Voice（スペイン語）
+
+スペイン語は英語と同じKokoro-82Mのモデルを、声ef_dora（`english-reference/ef_dora.pt`）で使います。文は綴りから規則で音素記号にします。ライセンスと通知は英語と同じです。
+
 ## Mandarin Tone Intonation v1（中国語の既定）
 
 `tone-intonation-zh-v1`は、[AISHELL-3](https://www.openslr.org/93/)の2話者の発話で学習し、別の1話者で検証した中国語モデルです。声調規則による音高曲線へ、範囲を限った補正だけを加えます。

@@ -308,6 +308,9 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	if cfg.Method == MethodReferenceMatching {
 		return synthesizeReference(cfg, bank, language, phonemizer, reading, morae)
 	}
+	if err := requireReferenceOnly(language); err != nil {
+		return nil, err
+	}
 	profile := languageProfileFor(language)
 	profile.ApplySpeechProfile(&cfg)
 	traceMark(&start, "phonemize")
@@ -448,6 +451,9 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	if cfg.Method == MethodReferenceMatching {
 		return predictReference(cfg, language, reading, morae)
 	}
+	if err := requireReferenceOnly(language); err != nil {
+		return nil, err
+	}
 	profile := languageProfileFor(language)
 	loadedProsody, err := resolveProsodyModelForProfile(cfg, profile)
 	if err != nil {
@@ -574,6 +580,14 @@ const (
 )
 
 // ValidateMethodは、合成の方式の指定を確かめる。方式は必須で、既定値はない。
+// requireReferenceOnlyは、参照照合でしか合成できない言語なら誤りを返す。
+func requireReferenceOnly(language string) error {
+	if language == frontend.LanguageSpanish {
+		return fmt.Errorf("language %q is available only with method %q", language, MethodReferenceMatching)
+	}
+	return nil
+}
+
 func ValidateMethod(method string) error {
 	switch method {
 	case MethodWaveformSynthesis, MethodReferenceMatching:

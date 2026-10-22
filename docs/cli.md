@@ -43,7 +43,7 @@
 | `--text-file <path>` | | 入力テキストファイル（`-` で標準入力） |
 | `--prosody <id>` | | 抑揚モデルID（例: `frame-intonation-tcn-v12`） |
 | `--renderer <id>` | `default_priority` が最大のRenderer | 波形合成で使う合成エンジンID |
-| `--language <id>` | `ja` | 言語（`ja`, `en`, `zh`） |
+| `--language <id>` | `ja` | 言語（`ja`, `en`, `zh`, `es`） |
 | `--phonemizer <id>` | 自動 | 発音形式（`ja-kana`, `en-arpasing`, `zh-cvvc` 等） |
 | `--dictionary <path>` | | ユーザー辞書（JSON） |
 | `--json` | `false` | 結果（読み、音声の長さ、合成単位の数など）やエラーをJSONで標準出力に出力 |

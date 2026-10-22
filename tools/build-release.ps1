@@ -283,7 +283,7 @@ try {
         foreach ($packageModelsPath in @($guiModelsPath, $serverModelsPath)) {
             $destination = Join-Path $packageModelsPath 'english-reference'
             New-Item -ItemType Directory -Force -Path $destination | Out-Null
-            foreach ($name in @('kokoro-v1_0.pth', 'config.json', 'af_heart.pt', 'us_gold.json', 'us_silver.json', 'notices.json')) {
+            foreach ($name in @('kokoro-v1_0.pth', 'config.json', 'af_heart.pt', 'ef_dora.pt', 'us_gold.json', 'us_silver.json', 'notices.json')) {
                 $source = Join-Path $englishReferencePath $name
                 if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
                     throw "English reference model is missing: $source. Run tools/fetch-english-reference.ps1."

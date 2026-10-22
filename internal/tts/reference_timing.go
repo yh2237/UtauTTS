@@ -26,10 +26,38 @@ func simpleMoraTokens(pieces []refspeech.Piece, timing refspeech.Timing, morae [
 	return result
 }
 
+// partMoraTokensは、断片のPartがモーラの番号の言語（スペイン語など）で、Kokoroの入力記号をモーラへ割り当てる。
+// 語の間の空白や文末の記号（Partが-1）は前のモーラに入れ、末尾の境界記号は最後のモーラに入れる。
+func partMoraTokens(pieces []refspeech.Piece, timing refspeech.Timing, morae []frontend.Mora) [][]int {
+	result := make([][]int, len(morae))
+	if len(timing.PieceTokens) != len(pieces) || len(morae) == 0 {
+		return result
+	}
+	current := -1
+	for i, piece := range pieces {
+		if piece.Part >= 0 && piece.Part < len(morae) {
+			current = piece.Part
+		}
+		if current < 0 {
+			continue
+		}
+		for token := timing.PieceTokens[i][0]; token < timing.PieceTokens[i][1]; token++ {
+			result[current] = append(result[current], token)
+		}
+	}
+	if len(timing.Durations) > 0 {
+		result[len(result)-1] = append(result[len(result)-1], len(timing.Durations)-1)
+	}
+	return result
+}
+
 // referenceMoraTokensは、言語に合った割り当て方で、Kokoroの入力記号をモーラへ割り当てる。
 func referenceMoraTokens(language string, pieces []refspeech.Piece, timing refspeech.Timing, reading string, morae []frontend.Mora) [][]int {
-	if frontend.NormalizeLanguage(language) == frontend.LanguageEnglish {
+	switch frontend.NormalizeLanguage(language) {
+	case frontend.LanguageEnglish:
 		return englishMoraTokens(pieces, timing, reading, morae)
+	case frontend.LanguageSpanish:
+		return partMoraTokens(pieces, timing, morae)
 	}
 	return simpleMoraTokens(pieces, timing, morae)
 }

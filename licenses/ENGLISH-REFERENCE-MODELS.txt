@@ -1,7 +1,7 @@
 English reference models (models/english-reference)
 ====================================================
 
-UtauTTS reads English sentences with Kokoro-82M, compares the speech with the
+UtauTTS reads English and Spanish sentences with Kokoro-82M, compares the speech with the
 voicebank recordings through WavLM features, and synthesizes the output
 from the voicebank frames only. The following files are redistributed
 unmodified. Kokoro-82M, the misaki lexicon, and HuBERT Base are licensed under
@@ -9,7 +9,8 @@ the Apache License, Version 2.0 (licenses/APACHE-2.0.txt). WavLM is licensed
 under the MIT License (licenses/WAVLM-MIT.txt).
 
 Kokoro-82M
-  Files: kokoro-v1_0.pth, config.json, af_heart.pt (voices/af_heart.pt)
+  Files: kokoro-v1_0.pth, config.json, af_heart.pt (voices/af_heart.pt),
+         ef_dora.pt (voices/ef_dora.pt)
   Source: https://huggingface.co/hexgrad/Kokoro-82M
   Revision: f3ff3571791e39611d31c381e3a41a3af07b4987
   License: Apache License 2.0

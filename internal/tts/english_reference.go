@@ -27,7 +27,14 @@ var englishLexicons sync.Map
 
 // ReferenceModelsは参照照合に使うモデルの場所を返す。
 func ReferenceModels(dir string) (refspeech.Models, string, string) {
+	shared := map[string]string{}
+	for id, name := range sharedReferenceVoices {
+		if path := filepath.Join(dir, name); exists(path) {
+			shared[id] = path
+		}
+	}
 	return refspeech.Models{
+		SharedVoices:  shared,
 		KokoroWeights: filepath.Join(dir, "kokoro-v1_0.pth"),
 		KokoroConfig:  filepath.Join(dir, "config.json"),
 		KokoroVoice:   filepath.Join(dir, "af_heart.pt"),
@@ -119,6 +126,8 @@ func referenceProvider(cfg Config, language string, service *refspeech.Service) 
 	switch frontend.NormalizeLanguage(language) {
 	case frontend.LanguageChinese:
 		return refspeech.NewKokoroChineseProvider(service), nil
+	case frontend.LanguageSpanish:
+		return refspeech.NewKokoroSpanishProvider(service), nil
 	case frontend.LanguageEnglish:
 		lexicon, err := englishLexicon(cfg.ReferenceDir)
 		if err != nil {

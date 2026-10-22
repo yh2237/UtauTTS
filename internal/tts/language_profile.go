@@ -32,6 +32,8 @@ func languageProfileFor(language string) languageProfile {
 		return englishProfile{}
 	case frontend.LanguageChinese:
 		return chineseProfile{}
+	case frontend.LanguageSpanish:
+		return spanishProfile{}
 	default:
 		return japaneseProfile{}
 	}

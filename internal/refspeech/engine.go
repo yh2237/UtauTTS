@@ -62,13 +62,16 @@ type Models struct {
 	ZhWeights string
 	ZhConfig  string
 	ZhVoice   string
-	HuBERT    string
+	// SharedVoicesは、英語と同じKokoro v1.0のモデルで読む声（参照TTSのIDごとの声のファイル）。
+	SharedVoices map[string]string
+	HuBERT       string
 }
 
 // 参照TTSのID。Provider.ID()と対応する。
 const (
 	kokoroEnglish = "kokoro-en"
 	kokoroChinese = "kokoro-zh"
+	kokoroSpanish = "kokoro-es"
 )
 
 // voiceSetは1つの参照TTSのモデルと声。
@@ -116,6 +119,13 @@ func Open(models Models) (*Engine, error) {
 		return nil, err
 	}
 	voices[kokoroEnglish] = english
+	for id, path := range models.SharedVoices {
+		voice, err := kokoro.LoadVoice(path)
+		if err != nil {
+			return nil, fmt.Errorf("load Kokoro voice (%s): %w", id, err)
+		}
+		voices[id] = &voiceSet{model: english.model, voice: voice}
+	}
 	if models.ZhWeights != "" && models.ZhConfig != "" && models.ZhVoice != "" {
 		chinese, err := loadVoiceSet(kokoroChinese, models.ZhWeights, models.ZhConfig, models.ZhVoice)
 		if err != nil {

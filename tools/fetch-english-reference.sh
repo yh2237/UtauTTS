@@ -45,6 +45,7 @@ mkdir -p "${destination}"
 fetch kokoro-v1_0.pth "${kokoro}/kokoro-v1_0.pth" 496dba118d1a58f5f3db2efc88dbdc216e0483fc89fe6e47ee1f2c53f18ad1e4
 fetch config.json "${kokoro}/config.json" 5abb01e2403b072bf03d04fde160443e209d7a0dad49a423be15196b9b43c17f
 fetch af_heart.pt "${kokoro}/voices/af_heart.pt" 0ab5709b8ffab19bfd849cd11d98f75b60af7733253ad0d67b12382a102cb4ff
+fetch ef_dora.pt "${kokoro}/voices/ef_dora.pt" d9d69b0f8a2b87a345f269d89639f89dfbd1a6c9da0c498ae36dd34afcf35530
 fetch hubert-base-ls960.safetensors "${hubert}/model.safetensors" ec18ca2453e7cf3de5e4fc5b79e7484b27506ed0ad684282ddd10ecb9492f37f
 fetch us_gold.json "${misaki}/us_gold.json" dc414872a49a28ae6c141463d502fd945f3b2fde040484fdc47d00cc4612686f
 fetch us_silver.json "${misaki}/us_silver.json" de8f67be911bb6c659187b4a65fd966b6a30e56350e0f790d763210b053ac475
