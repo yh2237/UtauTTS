@@ -279,7 +279,7 @@ with open(os.environ["VOICEBANK_JSON"], encoding="utf-8") as stream:
 if not voices:
     raise SystemExit("server returned no voicebank")
 voice = voices[0]["id"]
-(root / "analyze.json").write_text(json.dumps({"text": "こんにちは"}, ensure_ascii=False), encoding="utf-8")
+(root / "analyze.json").write_text(json.dumps({"text": "こんにちは", "language": "ja"}, ensure_ascii=False), encoding="utf-8")
 (root / "synthesize.json").write_text(json.dumps({
     "text": "こんにちは", "voicebank_id": voice, "language": "ja", "method": "waveform-synthesis", "renderer": "utautts-world-phrase", "mora_duration_ms": 120
 }, ensure_ascii=False), encoding="utf-8")

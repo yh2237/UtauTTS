@@ -429,7 +429,7 @@ try {
             throw 'Packaged server metadata is incomplete'
         }
         $voicebankId = $voices.voicebanks[0].id
-        $analysisBody = @{ text = $smokeText } | ConvertTo-Json -Compress
+        $analysisBody = @{ text = $smokeText; language = 'ja' } | ConvertTo-Json -Compress
         $analysis = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/analyze" `
             -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($analysisBody)) -TimeoutSec 15
         if ([string]::IsNullOrWhiteSpace($analysis.reading) -or @($analysis.morae).Count -lt 1) {
