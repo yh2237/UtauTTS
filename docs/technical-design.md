@@ -41,6 +41,21 @@ GUI、CLI、HTTP Serverは、どれも共通の`synth.Service`を通して処理
    - `utautts-world-phrase`: 原音ごとのWORLD音響特徴量（F0・スペクトル包絡・非周期性指標）を時間軸に並べて補間し、まとめて合成し直します。
    - `classic-utau`: 外部のresamplerとwavtoolを呼び出して、波形を1つずつ加工してつなぎます。
 
+### 方式
+
+合成の方式は波形合成と参照照合の2つで、上の処理パイプラインは波形合成のものです。
+
+参照照合は原音選択、Plan、Rendererを使いません。`refspeech`が参照TTSに文を読ませ、その音声に近いフレームを音源の索引から選んで、WORLDで合成します（[参照照合](how-utautts-speaks.md#9-参照照合)）。WORLDのエンジンは`utautts-world-phrase`のものを使います。
+
+WORLDの解析の設定は方式ごとに違います。
+
+| 項目 | 波形合成（`utautts-world-phrase`） | 参照照合 |
+| :--- | :--- | :--- |
+| フレーム周期 | 10ms | 5ms |
+| F0 | 音源の`.frq`。なければHarvest | Harvest |
+| D4Cのしきい値 | 0 | 0.85 |
+| スペクトル包絡 | そのまま | 60次に符号化 |
+
 ---
 
 ## 3. 日本語音声における補正パイプライン

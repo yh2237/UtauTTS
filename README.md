@@ -46,6 +46,7 @@ GUI版の `tools/utautts-cli.exe`（Linux / macOSは `tools/utautts-cli`）を�
 .\tools\utautts-cli.exe `
   --voicebank ".\voice\足立レイver3.5.0" `
   --text "こんにちは、今日はいい天気です。" `
+  --method waveform-synthesis `
   --prosody frame-intonation-tcn-v12 `
   --out ".\out.wav"
 ```

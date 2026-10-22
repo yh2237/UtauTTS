@@ -63,6 +63,8 @@ API処理のエラーは `{"error":"説明","code":"分類"}` と対応するHTT
 ```json
 {
   "text": "こんにちは、今日はいい天気です。",
+  "language": "ja",
+  "method": "waveform-synthesis",
   "voicebank_id": "足立レイver3.5.0",
   "model_id": "frame-intonation-tcn-v12",
   "renderer": "utautts-world-phrase",
@@ -76,9 +78,11 @@ API処理のエラーは `{"error":"説明","code":"分類"}` と対応するHTT
 ### 主なパラメータ
 - `text` (string): 読み上げる文章（`reading` がなければ必須）。
 - `reading` (string): 読み（かな、ARPAbet、Pinyin）を直接指定するときに使用。
-- `voicebank_id` (string): 音源ID（省略時は `/api/voicebanks` の先頭の音源）。
+- `language` (string): 言語（`ja`、`en`、`zh`）。必須。
+- `method` (string): 合成の方式（`waveform-synthesis` か `reference-matching`）。必須。
+- `voicebank_id` (string): 音源ID。必須。
 - `model_id` (string): 抑揚モデルID。
-- `renderer` (string): 合成エンジンID（省略時は既定のRenderer。同梱の既定は `utautts-world-phrase`）。
+- `renderer` (string): 波形合成で使う合成エンジンID（省略時は既定のRenderer。同梱の既定は `utautts-world-phrase`）。
 - `intonation_strength` (number): 抑揚の強さ（0〜8、既定値 `4.0`）。
 - `mora_duration_ms` (number): 基本モーラ長（既定値 `120`）。
 - `pause_duration_ms` (number): 句読点などの休止長（既定値 `180`）。

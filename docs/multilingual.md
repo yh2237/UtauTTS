@@ -15,10 +15,10 @@ UtauTTSは日本語に加えて、英語と中国語も合成できます。使�
 
 英語はどの発音形式でも同じ方式で合成します。発音形式で変わるのは、編集画面でのモーラの区切り方です。言語が英語と判定されない音源で英語を使うと、初めて合成するときに録音を解析するため時間がかかります。Web版では英語を合成できません。
 
-GUIでは、発音形式は通常`自動`のままで、音源に合うものが選ばれます。CLIでは`--language`と`--phonemizer`を指定します。
+GUIでは、発音形式は通常`自動`のままで、音源に合うものが選ばれます。CLIでは`--language`、`--phonemizer`、`--method`を指定します。
 
 ```powershell
-utautts-cli --voicebank "./voice/english-bank" --language en --phonemizer en-arpasing --text "Hello world." --out hello.wav
+utautts-cli --voicebank "./voice/english-bank" --language en --phonemizer en-arpasing --method reference-matching --text "Hello world." --out hello.wav
 ```
 
 ---

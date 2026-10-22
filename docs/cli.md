@@ -9,6 +9,7 @@
 .\tools\utautts-cli.exe `
   --voicebank ".\voice\足立レイver3.5.0" `
   --text "あらゆる現実をすべて自分のほうへねじ曲げたのだ。" `
+  --method waveform-synthesis `
   --out ".\out.wav"
 ```
 
@@ -17,6 +18,7 @@
 .\tools\utautts-cli.exe `
   --voicebank ".\voice\足立レイver3.5.0" `
   --text "あらゆる現実をすべて自分のほうへねじ曲げたのだ。" `
+  --method waveform-synthesis `
   --prosody frame-intonation-tcn-v12 `
   --out ".\out.wav"
 ```
@@ -35,11 +37,12 @@
 | :--- | :--- | :--- |
 | `--voicebank <dir>` | (必須) | 音源のディレクトリ |
 | `--out <path>` | (必須) | 出力するWAVのパス（`-` で標準出力） |
+| `--method <id>` | (必須) | 合成の方式（`waveform-synthesis` で波形合成、`reference-matching` で参照照合） |
 | `--text <文字列>` | | 読み上げる文章 |
 | `--reading <読み>` | | 読み（かな、ARPAbet、Pinyin）を直接指定（`--kana` も可） |
 | `--text-file <path>` | | 入力テキストファイル（`-` で標準入力） |
 | `--prosody <id>` | | 抑揚モデルID（例: `frame-intonation-tcn-v12`） |
-| `--renderer <id>` | `default_priority` が最大のRenderer | 合成エンジンID |
+| `--renderer <id>` | `default_priority` が最大のRenderer | 波形合成で使う合成エンジンID |
 | `--language <id>` | `ja` | 言語（`ja`, `en`, `zh`） |
 | `--phonemizer <id>` | 自動 | 発音形式（`ja-kana`, `en-arpasing`, `zh-cvvc` 等） |
 | `--dictionary <path>` | | ユーザー辞書（JSON） |
