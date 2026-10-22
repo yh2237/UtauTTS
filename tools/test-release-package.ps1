@@ -77,6 +77,62 @@ function Assert-Zip([string]$Path) {
     } finally {
         $archive.Dispose()
     }
+    Assert-Utf8EntryNames $Path
+}
+
+# Assert-Utf8EntryNames checks that every non-ASCII entry name carries the
+# UTF-8 flag (general purpose bit 11). The updater (Go archive/zip) reads
+# unflagged names as CP437, which breaks Japanese voicebank paths.
+function Assert-Utf8EntryNames([string]$Path) {
+    $stream = [IO.File]::OpenRead($Path)
+    try {
+        $tailLength = [int][Math]::Min($stream.Length, 65557)
+        $tail = New-Object byte[] $tailLength
+        [void]$stream.Seek(-$tailLength, [IO.SeekOrigin]::End)
+        [void]$stream.Read($tail, 0, $tailLength)
+        $end = -1
+        for ($i = $tailLength - 22; $i -ge 0; $i--) {
+            if ([BitConverter]::ToUInt32($tail, $i) -eq 0x06054b50) {
+                $end = $i
+                break
+            }
+        }
+        if ($end -lt 0) {
+            throw "ZIP end record was not found: $Path"
+        }
+        $size = [BitConverter]::ToUInt32($tail, $end + 12)
+        $offset = [BitConverter]::ToUInt32($tail, $end + 16)
+        if ($offset -eq [uint32]::MaxValue) {
+            throw "ZIP64 archives are not checked: $Path"
+        }
+        $directory = New-Object byte[] $size
+        [void]$stream.Seek($offset, [IO.SeekOrigin]::Begin)
+        $read = 0
+        while ($read -lt $size) {
+            $count = $stream.Read($directory, $read, $size - $read)
+            if ($count -le 0) {
+                break
+            }
+            $read += $count
+        }
+        $position = 0
+        while ($position + 46 -le $size -and [BitConverter]::ToUInt32($directory, $position) -eq 0x02014b50) {
+            $flags = [BitConverter]::ToUInt16($directory, $position + 8)
+            $nameLength = [BitConverter]::ToUInt16($directory, $position + 28)
+            $extraLength = [BitConverter]::ToUInt16($directory, $position + 30)
+            $commentLength = [BitConverter]::ToUInt16($directory, $position + 32)
+            if (($flags -band 0x800) -eq 0) {
+                for ($j = 0; $j -lt $nameLength; $j++) {
+                    if ($directory[$position + 46 + $j] -ge 0x80) {
+                        throw "ZIP entry name is not marked as UTF-8: $Path"
+                    }
+                }
+            }
+            $position += 46 + $nameLength + $extraLength + $commentLength
+        }
+    } finally {
+        $stream.Dispose()
+    }
 }
 
 New-Item -ItemType Directory -Force -Path $temporaryRoot | Out-Null

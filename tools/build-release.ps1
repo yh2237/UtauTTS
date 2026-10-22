@@ -93,9 +93,11 @@ function Compress-Package([string]$SourceDirectory, [string]$DestinationZip) {
     if ($sevenZip) {
         # 7-Zip compresses with multiple threads. Model weights do not compress
         # well, so a low level keeps the archive close to the fastest setting.
+        # -mcu=on stores names as UTF-8 with the UTF-8 flag. Without it the
+        # updater (Go archive/zip) reads Japanese names as CP437 and fails.
         Push-Location -LiteralPath $SourceDirectory
         try {
-            & $sevenZip a -tzip -mx=3 -mmt=on -y -bso0 -bsp0 $DestinationZip '*'
+            & $sevenZip a -tzip -mx=3 -mmt=on -mcu=on -y -bso0 -bsp0 $DestinationZip '*'
             if ($LASTEXITCODE -gt 1) {
                 throw "7-Zip failed for $DestinationZip (exit $LASTEXITCODE)"
             }
