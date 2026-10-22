@@ -211,7 +211,7 @@ func (s *Service) open(worldEnginePath string) (*Engine, *worldrender.World, err
 }
 
 // Prepareは音源の索引がないか、録音が変わっていれば、裏で作り始める。
-func (s *Service) Prepare(bankRoot string, recordings []string, worldEnginePath string) {
+func (s *Service) Prepare(bankRoot string, recordings []refmatch.Recording, worldEnginePath string) {
 	s.mu.Lock()
 	entry := s.indexes[bankRoot]
 	var index *refmatch.Index
@@ -232,12 +232,12 @@ func (s *Service) Prepare(bankRoot string, recordings []string, worldEnginePath 
 }
 
 // Indexは音源の索引を返す。索引がなければ作り、でき上がるまで待つ。
-func (s *Service) Index(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string) (*refmatch.Index, error) {
+func (s *Service) Index(ctx context.Context, bankRoot string, recordings []refmatch.Recording, worldEnginePath string) (*refmatch.Index, error) {
 	return s.index(ctx, bankRoot, recordings, worldEnginePath, nil)
 }
 
 // indexは索引を返し、作成の経過をlogfへ伝える。logfがnilなら何も伝えない。
-func (s *Service) index(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string, logf func(string)) (*refmatch.Index, error) {
+func (s *Service) index(ctx context.Context, bankRoot string, recordings []refmatch.Recording, worldEnginePath string, logf func(string)) (*refmatch.Index, error) {
 	start := time.Now()
 	SetStage("索引を準備しています")
 	entry := s.entry(bankRoot, recordings, worldEnginePath)
@@ -269,7 +269,7 @@ func (s *Service) index(ctx context.Context, bankRoot string, recordings []strin
 	return entry.index, nil
 }
 
-func (s *Service) entry(bankRoot string, recordings []string, worldEnginePath string) *indexEntry {
+func (s *Service) entry(bankRoot string, recordings []refmatch.Recording, worldEnginePath string) *indexEntry {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if entry, ok := s.indexes[bankRoot]; ok && entry.status.State != IndexFailed {
@@ -285,7 +285,7 @@ func (s *Service) entry(bankRoot string, recordings []string, worldEnginePath st
 }
 
 // buildは索引を1つずつ作る。どの索引の作成も全コアを使うため。
-func (s *Service) build(bankRoot string, recordings []string, worldEnginePath string, entry *indexEntry) {
+func (s *Service) build(bankRoot string, recordings []refmatch.Recording, worldEnginePath string, entry *indexEntry) {
 	s.buildMu.Lock()
 	defer s.buildMu.Unlock()
 	var logs []string
@@ -333,7 +333,7 @@ func (s *Service) build(bankRoot string, recordings []string, worldEnginePath st
 }
 
 // loadOrBuildは索引をキャッシュから読み、なければ作る。fromCacheは読み込んだだけならtrue。
-func (s *Service) loadOrBuild(bankRoot string, recordings []string, worldEnginePath string,
+func (s *Service) loadOrBuild(bankRoot string, recordings []refmatch.Recording, worldEnginePath string,
 	logf func(string, ...any), progress func(done, total int)) (*refmatch.Index, bool, error) {
 	files, key, err := bankRecordings(bankRoot, recordings)
 	if err != nil {
@@ -374,23 +374,26 @@ func (s *Service) loadOrBuild(bankRoot string, recordings []string, worldEngineP
 	return index, false, nil
 }
 
-// bankRecordingsは索引に使う録音と、その一覧・大きさ・更新時刻から作るキーを返す。
-func bankRecordings(bankRoot string, recordings []string) ([]string, string, error) {
-	sorted := append([]string(nil), recordings...)
-	sort.Strings(sorted)
+// bankRecordingsは索引に使う録音と、その一覧・範囲・大きさ・更新時刻から作るキーを返す。
+func bankRecordings(bankRoot string, recordings []refmatch.Recording) ([]refmatch.Recording, string, error) {
+	sorted := append([]refmatch.Recording(nil), recordings...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Path < sorted[j].Path })
 	hash := sha256.New()
 	fmt.Fprintf(hash, "%s\x00%s\x00", FeatureModel, filepath.Clean(bankRoot))
-	var files []string
-	for _, path := range sorted {
-		info, err := os.Stat(path)
+	var files []refmatch.Recording
+	for _, recording := range sorted {
+		info, err := os.Stat(recording.Path)
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
 		}
 		if err != nil {
 			return nil, "", err
 		}
-		files = append(files, path)
-		fmt.Fprintf(hash, "%s\x00%d\x00%d\x00", path, info.Size(), info.ModTime().UnixNano())
+		files = append(files, recording)
+		fmt.Fprintf(hash, "%s\x00%d\x00%d\x00", recording.Path, info.Size(), info.ModTime().UnixNano())
+		for _, region := range recording.Regions {
+			fmt.Fprintf(hash, "%g\x00%g\x00", region.Offset, region.Blank)
+		}
 	}
 	if len(files) == 0 {
 		return nil, "", fmt.Errorf("no WAV files in %s", bankRoot)
@@ -399,7 +402,7 @@ func bankRecordings(bankRoot string, recordings []string) ([]string, string, err
 }
 
 // Speakは音源の索引を使って音素列を合成する。
-func (s *Service) Speak(ctx context.Context, id, bankRoot string, recordings []string, worldEnginePath string, pieces []Piece, options Options) (Speech, error) {
+func (s *Service) Speak(ctx context.Context, id, bankRoot string, recordings []refmatch.Recording, worldEnginePath string, pieces []Piece, options Options) (Speech, error) {
 	index, err := s.index(ctx, bankRoot, recordings, worldEnginePath, options.Logf)
 	if err != nil {
 		return Speech{}, err
@@ -425,7 +428,7 @@ func (s *Service) Read(id string, pieces []Piece, speed float32, durations []int
 }
 
 // SpeakReferenceは、参照の読みから音源のフレームで合成し直す。参照TTSの種類に依存しない入口。
-func (s *Service) SpeakReference(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string, reference Reference, options Options) (Speech, error) {
+func (s *Service) SpeakReference(ctx context.Context, bankRoot string, recordings []refmatch.Recording, worldEnginePath string, reference Reference, options Options) (Speech, error) {
 	index, err := s.index(ctx, bankRoot, recordings, worldEnginePath, options.Logf)
 	if err != nil {
 		return Speech{}, err
@@ -440,7 +443,7 @@ func (s *Service) SpeakReference(ctx context.Context, bankRoot string, recording
 }
 
 // SpeakAudioは参照の音声から、音源のフレームで合成し直す。言語に依存しない入口。
-func (s *Service) SpeakAudio(ctx context.Context, bankRoot string, recordings []string, worldEnginePath string, audio []float64, sampleRate int) (Speech, error) {
+func (s *Service) SpeakAudio(ctx context.Context, bankRoot string, recordings []refmatch.Recording, worldEnginePath string, audio []float64, sampleRate int) (Speech, error) {
 	index, err := s.Index(ctx, bankRoot, recordings, worldEnginePath)
 	if err != nil {
 		return Speech{}, err

@@ -39,11 +39,11 @@ func OpenPartCache(dir string) *PartCache {
 	return &PartCache{dir: dir}
 }
 
-// partKeyは解析条件と録音の中身から決まる。音源の場所が変わっても同じ録音なら使い回せる。
+// partKeyは解析条件と録音の中身と使う範囲から決まる。音源の場所が変わっても同じ録音なら使い回せる。
 // 標本化周波数は索引ごとに揃えるため、解析条件に含める。
-func partKey(model string, data []byte, rate int) string {
+func partKey(model string, data []byte, rate int, start, end float64) string {
 	hash := sha256.New()
-	fmt.Fprintf(hash, "%s\x00%d\x00%d\x00", model, partVersion, rate)
+	fmt.Fprintf(hash, "%s\x00%d\x00%d\x00%g\x00%g\x00", model, partVersion, rate, start, end)
 	hash.Write(data)
 	return hex.EncodeToString(hash.Sum(nil))
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
+	"github.com/yh2237/UtauTTS/internal/refmatch"
 	"github.com/yh2237/UtauTTS/internal/refspeech"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/settings"
@@ -53,8 +54,21 @@ func ReferenceService(dir string) (*refspeech.Service, error) {
 // PrepareReferenceIndexは音源の参照の索引がなければ裏で作り始める。モデルがなければ何もしない。
 func PrepareReferenceIndex(dir string, bank *voicebank.Bank, worldEnginePath string) {
 	if service, err := ReferenceService(dir); err == nil {
-		service.Prepare(bank.Root, bank.ReferenceRecordings(), worldEnginePath)
+		service.Prepare(bank.Root, referenceRecordings(bank), worldEnginePath)
 	}
+}
+
+// referenceRecordingsは索引に使う録音と、それを使う原音のoto.iniの範囲を返す。
+func referenceRecordings(bank *voicebank.Bank) []refmatch.Recording {
+	recordings := bank.ReferenceRecordings()
+	result := make([]refmatch.Recording, len(recordings))
+	for i, recording := range recordings {
+		result[i].Path = recording.Path
+		for _, entry := range recording.Entries {
+			result[i].Regions = append(result[i].Regions, refmatch.Region{Offset: entry.Offset, Blank: entry.Blank})
+		}
+	}
+	return result
 }
 
 // ReferenceIndexProgressは索引の作成の進み具合を返す。
@@ -205,7 +219,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	log(fmt.Sprintf("参照音声: %d Hz、%.2f 秒（生成 %d ms）",
 		rate, float64(len(reference.Audio))/float64(rate), time.Since(readStarted).Milliseconds()))
 	refspeech.SetStage("索引を準備しています")
-	speech, err := service.SpeakReference(ctx, bank.Root, bank.ReferenceRecordings(), cfg.WorldEnginePath, reference, options)
+	speech, err := service.SpeakReference(ctx, bank.Root, referenceRecordings(bank), cfg.WorldEnginePath, reference, options)
 	refspeech.SetStage("")
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)

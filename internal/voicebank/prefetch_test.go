@@ -48,21 +48,35 @@ func TestReferenceRecordingsUseDefaultPitchNormalVoice(t *testing.T) {
 		{Suffix: "B3", ToneRanges: []ToneRange{{Low: tone(t, "A#3"), High: tone(t, "D4")}}},
 		{Color: "Falsetto", Suffix: "F", ToneRanges: []ToneRange{{Low: tone(t, "C1"), High: tone(t, "B7")}}},
 	}}
-	if got := bank.ReferenceRecordings(); !reflect.DeepEqual(got, []string{"B3/aa.wav", "B3/aak.wav"}) {
+	if got := recordingPaths(bank.ReferenceRecordings()); !reflect.DeepEqual(got, []string{"B3/aa.wav", "B3/aak.wav"}) {
 		t.Fatalf("recordings=%v", got)
 	}
-	single := &Bank{Entries: map[string][]oto.Entry{"- aa": {{Filename: "aa.wav"}}, "aa k": {{Filename: "aak.wav"}, {Filename: "aa.wav"}}}}
-	if got := single.ReferenceRecordings(); !reflect.DeepEqual(got, []string{"aa.wav", "aak.wav"}) {
-		t.Fatalf("single-pitch recordings=%v", got)
+	single := &Bank{Entries: map[string][]oto.Entry{
+		"- aa": {{Filename: "aa.wav", Offset: 100}}, "aa k": {{Filename: "aak.wav"}, {Filename: "aa.wav", Offset: 500}},
+	}}
+	got := single.ReferenceRecordings()
+	if paths := recordingPaths(got); !reflect.DeepEqual(paths, []string{"aa.wav", "aak.wav"}) {
+		t.Fatalf("single-pitch recordings=%v", paths)
+	}
+	if entries := got[0].Entries; len(entries) != 2 || entries[0].Offset != 100 || entries[1].Offset != 500 {
+		t.Fatalf("aa.wav entries=%v", entries)
 	}
 	// prefix.mapの接尾辞がどの別名にも付いていない音源は、すべての録音を使う。
 	unmatched := &Bank{
 		Entries:   map[string][]oto.Entry{"- aa": {{Filename: "aa.wav"}}, "aa k": {{Filename: "aak.wav"}}},
 		PrefixMap: map[string]Affix{"C4": {Suffix: "C4"}},
 	}
-	if got := unmatched.ReferenceRecordings(); !reflect.DeepEqual(got, []string{"aa.wav", "aak.wav"}) {
+	if got := recordingPaths(unmatched.ReferenceRecordings()); !reflect.DeepEqual(got, []string{"aa.wav", "aak.wav"}) {
 		t.Fatalf("unmatched affix recordings=%v", got)
 	}
+}
+
+func recordingPaths(recordings []ReferenceRecording) []string {
+	paths := make([]string, len(recordings))
+	for i, recording := range recordings {
+		paths[i] = recording.Path
+	}
+	return paths
 }
 
 func tone(t *testing.T, name string) int {

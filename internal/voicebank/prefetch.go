@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/oto"
 )
 
 // 先読み用の候補を返す。WAVの検証と原音選択は合成時に行う。
@@ -67,18 +68,25 @@ func (b *Bank) CandidateSourcePaths(morae []frontend.Mora, cfg ResolveConfig) []
 	return result
 }
 
+// ReferenceRecordingは参照照合の索引に使う録音と、その録音を使う原音。
+type ReferenceRecording struct {
+	Path    string
+	Entries []oto.Entry
+}
+
 // ReferenceRecordingsは参照照合の索引に使う録音を返す。音高や声色ごとの収録があれば、既定の音高の通常の声だけを使う。
-func (b *Bank) ReferenceRecordings() []string {
+// 録音の範囲を決めるため、同じ録音を使う原音はすべて返す。
+func (b *Bank) ReferenceRecordings() []ReferenceRecording {
 	affix, _, hasAffix := b.AffixForToneAndColor("", "")
-	collect := func(affixed bool) map[string]bool {
-		paths := make(map[string]bool)
+	collect := func(affixed bool) map[string][]oto.Entry {
+		paths := make(map[string][]oto.Entry)
 		for alias, entries := range b.Entries {
 			if affixed && (!strings.HasPrefix(alias, affix.Prefix) || !strings.HasSuffix(alias, affix.Suffix)) {
 				continue
 			}
 			for _, entry := range entries {
 				if entry.Filename != "" {
-					paths[entry.Filename] = true
+					paths[entry.Filename] = nil
 				}
 			}
 		}
@@ -89,10 +97,23 @@ func (b *Bank) ReferenceRecordings() []string {
 		// 既定の音高の別名が見つからない音源は、すべての録音を使う。
 		paths = collect(false)
 	}
-	result := make([]string, 0, len(paths))
-	for path := range paths {
-		result = append(result, path)
+	for _, entries := range b.Entries {
+		for _, entry := range entries {
+			if list, ok := paths[entry.Filename]; ok {
+				paths[entry.Filename] = append(list, entry)
+			}
+		}
 	}
-	sort.Strings(result)
+	result := make([]ReferenceRecording, 0, len(paths))
+	for path, entries := range paths {
+		sort.Slice(entries, func(i, j int) bool {
+			if entries[i].Offset != entries[j].Offset {
+				return entries[i].Offset < entries[j].Offset
+			}
+			return entries[i].Blank < entries[j].Blank
+		})
+		result = append(result, ReferenceRecording{Path: path, Entries: entries})
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Path < result[j].Path })
 	return result
 }

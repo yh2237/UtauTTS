@@ -71,9 +71,44 @@ type Header struct {
 	Source     string   `json:"source"`
 }
 
-// BuildIndexは録音ファイルを解析して索引を作る。最初のファイルと標本化周波数が違うファイルと0.1秒未満のファイルは使わない。
-// WORLDの解析はファイルごとに並列に行う。cacheを渡すと、内容が同じ録音の解析結果を再利用する。
-func BuildIndex(files []string, model string, world World, features FeatureFunc, progress func(done, total int), cache *PartCache) (*Index, error) {
+// Recordingは索引に使う録音と、その録音を使う原音のoto.iniの範囲。
+type Recording struct {
+	Path    string
+	Regions []Region
+}
+
+// Regionはoto.iniのoffsetとblank（ミリ秒）。blankが負ならoffsetからの長さ、正なら録音の末尾から除く長さ。
+type Region struct {
+	Offset, Blank float64
+}
+
+// spanは、最初の原音の始まりから最後の原音の終わりまで（ミリ秒）を返す。範囲が決まらなければ録音の全体を返す。
+// 範囲の外には、収録の前後の息や物音が入っていることがある。
+func (r Recording) span(durationMS float64) (start, end float64) {
+	start, end = math.Inf(1), math.Inf(-1)
+	for _, region := range r.Regions {
+		last := durationMS - region.Blank
+		if region.Blank < 0 {
+			last = region.Offset - region.Blank
+		}
+		if last <= region.Offset {
+			continue
+		}
+		start, end = min(start, region.Offset), max(end, last)
+	}
+	if start >= end {
+		return 0, durationMS
+	}
+	return max(start, 0), min(end, durationMS)
+}
+
+// BuildIndexは録音を解析して索引を作る。最初のファイルと標本化周波数が違うファイルと0.1秒未満のファイルは使わない。
+// WORLDの解析はファイルごとに並列に行う。cacheを渡すと、内容と範囲が同じ録音の解析結果を再利用する。
+func BuildIndex(recordings []Recording, model string, world World, features FeatureFunc, progress func(done, total int), cache *PartCache) (*Index, error) {
+	files := make([]string, len(recordings))
+	for i, recording := range recordings {
+		files[i] = recording.Path
+	}
 	// 録音ごとに標本化周波数が違う音源があるため、索引の周波数を先に決めて揃える。
 	targetRate := chooseIndexRate(files)
 	results := make([]fileFrames, len(files))
@@ -85,7 +120,7 @@ func BuildIndex(files []string, model string, world World, features FeatureFunc,
 	for range max(1, min(runtime.GOMAXPROCS(0), len(files))) {
 		wg.Go(func() {
 			for number := range jobs {
-				result, err := analyzeFile(files[number], model, world, features, cache, targetRate)
+				result, err := analyzeFile(recordings[number], model, world, features, cache, targetRate)
 				mu.Lock()
 				results[number] = result
 				if err != nil && firstErr == nil {
@@ -215,22 +250,26 @@ type fileFrames struct {
 	features, spectrum, aperiodicity, f0 []float32
 }
 
-// analyzeFileは、95パーセンタイルの音量から約45dB以上小さいフレームを除いて、1ファイル分のフレームを返す。
-// 内容が同じ録音の解析結果がcacheにあれば、解析せずにそれを返す。標本化周波数はtargetRateに揃える。
-func analyzeFile(path, model string, world World, features FeatureFunc, cache *PartCache, targetRate int) (fileFrames, error) {
-	data, err := os.ReadFile(path)
+// analyzeFileは、oto.iniの範囲の外と、95パーセンタイルの音量から約45dB以上小さいフレームを除いて、1ファイル分のフレームを返す。
+// 内容と範囲が同じ録音の解析結果がcacheにあれば、解析せずにそれを返す。標本化周波数はtargetRateに揃える。
+func analyzeFile(recording Recording, model string, world World, features FeatureFunc, cache *PartCache, targetRate int) (fileFrames, error) {
+	data, err := os.ReadFile(recording.Path)
 	if err != nil {
 		// 読めない形式のWAV（PCM以外など）は、索引に入れずに飛ばす。
 		return fileFrames{}, nil
 	}
+	start, end := 0.0, math.Inf(1)
+	if _, duration, err := wavInfo(recording.Path); err == nil {
+		start, end = recording.span(duration * 1000)
+	}
 	key := ""
 	if cache != nil {
-		key = partKey(model, data, targetRate)
+		key = partKey(model, data, targetRate, start, end)
 		if frames, ok := cache.Load(key); ok {
 			return frames, nil
 		}
 	}
-	result, err := analyzeBytes(data, world, features, targetRate)
+	result, err := analyzeBytes(data, world, features, targetRate, start, end)
 	if err != nil {
 		return result, err
 	}
@@ -307,7 +346,8 @@ func wavInfo(path string) (int, float64, error) {
 	}
 }
 
-func analyzeBytes(data []byte, world World, features FeatureFunc, targetRate int) (fileFrames, error) {
+// analyzeBytesは、中心がstartからendまで（ミリ秒）のフレームを使う。
+func analyzeBytes(data []byte, world World, features FeatureFunc, targetRate int, start, end float64) (fileFrames, error) {
 	samples, rate, err := decodeMono(data)
 	if err != nil {
 		// 読めない形式のWAV（PCM以外など）は、索引に入れずに飛ばす。
@@ -344,6 +384,9 @@ func analyzeBytes(data []byte, world World, features FeatureFunc, targetRate int
 	loud := percentile(levels(coded), 95)
 	codedAP := make([]float64, c.apBands)
 	for frame := range usable {
+		if center := (float64(frame) + 0.5) * FrameMS; center < start || center >= end {
+			continue
+		}
 		quiet := true
 		for sub := range subFrames {
 			if coded[(frame*subFrames+sub)*spectrumDims] >= loud-quietMarginC0 {

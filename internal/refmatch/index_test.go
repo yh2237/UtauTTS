@@ -94,7 +94,7 @@ func TestBuildIndexSkipsUnreadableWAV(t *testing.T) {
 		}
 		return values, frames, 3, nil
 	}
-	index, err := BuildIndex([]string{bad, good}, "test", fakeWorld{}, features, nil, nil)
+	index, err := BuildIndex(recordingsOf(bad, good), "test", fakeWorld{}, features, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestBuildIndexReads24BitWAV(t *testing.T) {
 		frames := len(samples) * 50 / rate
 		return make([]float32, frames*3), frames, 3, nil
 	}
-	index, err := BuildIndex([]string{path}, "test", fakeWorld{}, features, nil, nil)
+	index, err := BuildIndex(recordingsOf(path), "test", fakeWorld{}, features, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func TestBuildIndexReusesUnchangedRecordings(t *testing.T) {
 		}
 		return values, frames, 3, nil
 	}
-	first, err := BuildIndex(files, "test", fakeWorld{}, features, nil, cache)
+	first, err := BuildIndex(recordingsOf(files...), "test", fakeWorld{}, features, nil, cache)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestBuildIndexReusesUnchangedRecordings(t *testing.T) {
 		t.Fatalf("first build analyzed %d files", calls)
 	}
 	calls = 0
-	second, err := BuildIndex(files, "test", fakeWorld{}, features, nil, cache)
+	second, err := BuildIndex(recordingsOf(files...), "test", fakeWorld{}, features, nil, cache)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +198,7 @@ func TestBuildIndexReusesUnchangedRecordings(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls = 0
-	if _, err := BuildIndex(files, "test", fakeWorld{}, features, nil, cache); err != nil {
+	if _, err := BuildIndex(recordingsOf(files...), "test", fakeWorld{}, features, nil, cache); err != nil {
 		t.Fatal(err)
 	}
 	if calls != 1 {
@@ -224,11 +224,62 @@ func TestBuildIndexTakesRateFromUsableWAV(t *testing.T) {
 		frames := len(samples) * 50 / rate
 		return make([]float32, frames*3), frames, 3, nil
 	}
-	index, err := BuildIndex([]string{short, good}, "test", fakeWorld{}, features, nil, nil)
+	index, err := BuildIndex(recordingsOf(short, good), "test", fakeWorld{}, features, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if index.SampleRate != 16000 || !reflect.DeepEqual(index.Files, []string{good}) {
 		t.Fatalf("rate %d, files %v", index.SampleRate, index.Files)
+	}
+}
+
+func recordingsOf(paths ...string) []Recording {
+	recordings := make([]Recording, len(paths))
+	for i, path := range paths {
+		recordings[i].Path = path
+	}
+	return recordings
+}
+
+func TestRecordingSpanCoversFirstToLastAlias(t *testing.T) {
+	recording := Recording{Regions: []Region{{Offset: 300, Blank: -200}, {Offset: 100, Blank: 400}, {Offset: 900, Blank: -50}}}
+	if start, end := recording.span(1000); start != 100 || end != 950 {
+		t.Fatalf("span %v-%v, want 100-950", start, end)
+	}
+	if start, end := (Recording{}).span(1000); start != 0 || end != 1000 {
+		t.Fatalf("no aliases: span %v-%v, want the whole recording", start, end)
+	}
+	if start, end := (Recording{Regions: []Region{{Offset: 800, Blank: 300}}}).span(1000); start != 0 || end != 1000 {
+		t.Fatalf("empty alias: span %v-%v, want the whole recording", start, end)
+	}
+}
+
+func TestBuildIndexSkipsFramesOutsideAliases(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "voice.wav")
+	pcm := &audio.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 16000)}
+	for i := range pcm.Data {
+		pcm.Data[i] = int16(8000 * math.Sin(float64(i)*0.1))
+	}
+	if err := audio.WriteWav(path, pcm); err != nil {
+		t.Fatal(err)
+	}
+	features := func(samples []float64, rate int) ([]float32, int, int, error) {
+		frames := len(samples) * 50 / rate
+		values := make([]float32, frames*3)
+		for i := range values {
+			values[i] = float32(i%3 + 1)
+		}
+		return values, frames, 3, nil
+	}
+	whole, err := BuildIndex(recordingsOf(path), "test", fakeWorld{}, features, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	part, err := BuildIndex([]Recording{{Path: path, Regions: []Region{{Offset: 200, Blank: -400}}}}, "test", fakeWorld{}, features, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := 400 / int(FrameMS); part.Frames != want || whole.Frames <= part.Frames {
+		t.Fatalf("frames: whole %d, aliased %d, want %d", whole.Frames, part.Frames, want)
 	}
 }
