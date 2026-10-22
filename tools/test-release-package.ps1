@@ -119,7 +119,7 @@ try {
             foreach ($chineseFile in @('kokoro-v1_1-zh.pth', 'config.json', 'zf_001.pt')) {
                 Assert-Path (Join-Path $packageRoot "models/english-reference/kokoro-zh/$chineseFile") "Chinese reference model: kokoro-zh/$chineseFile"
             }
-            Assert-Path (Join-Path $packageRoot 'licenses/ENGLISH-REFERENCE-MODELS.txt') 'English reference model notice'
+            Assert-Path (Join-Path $packageRoot 'licenses/REFERENCE-MODELS.txt') 'reference model notice'
             Assert-Path (Join-Path $packageRoot 'licenses/CHINESE-REFERENCE-MODEL.txt') 'Chinese reference model notice'
             Assert-Path (Join-Path $packageRoot 'runtime/utautts-diffsinger-bridge.exe') 'DiffSinger bridge'
             foreach ($diffSingerLicense in @(

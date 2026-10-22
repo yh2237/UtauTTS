@@ -29,7 +29,7 @@ v10の曲線は混ぜず、F0ヘッドの曲線だけを自然の振れ幅で使
 英語は`english-reference/`のKokoro-82M（声はaf_heart）で文を読み、WavLM base+の特徴量で音源の録音から近いフレームを選んで合成します。仕組みは[音声合成の仕組み](../docs/how-utautts-speaks.md#9-参照照合)にあります。Kokoroの音声は出力に使いません。
 
 - Kokoro-82Mとmisakiの英語辞書はApache License 2.0、WavLM base+（`microsoft/wavlm-base-plus`）はMIT Licenseです。いずれも配布元から変更せずに同梱します
-- 通知: [licenses/ENGLISH-REFERENCE-MODELS.txt](../licenses/ENGLISH-REFERENCE-MODELS.txt)、ライセンス本文: [licenses/APACHE-2.0.txt](../licenses/APACHE-2.0.txt)、[licenses/WAVLM-MIT.txt](../licenses/WAVLM-MIT.txt)
+- 通知: [licenses/REFERENCE-MODELS.txt](../licenses/REFERENCE-MODELS.txt)、ライセンス本文: [licenses/APACHE-2.0.txt](../licenses/APACHE-2.0.txt)、[licenses/WAVLM-MIT.txt](../licenses/WAVLM-MIT.txt)
 - 取得: リポジトリでは`tools/fetch-english-reference.ps1`（Linux・macOSは`.sh`）で、版とSHA256を固定して取得します。WavLMは配布元にsafetensorsがないため、取得時に変換します
 
 ## Chinese Reference Model（中国語）

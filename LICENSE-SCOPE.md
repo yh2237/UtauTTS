@@ -16,7 +16,7 @@ UtauTTSのオリジナルコードは [`LICENSE`](./LICENSE)（MIT License）が
 | `speech-timing-target-v1`（bridge内包） | `licenses/TSUKUYOMI-CORPUS.txt`, `licenses/MINNADE-JSUT-CORPUS.txt`, `licenses/MFA-Japanese-NOTICE.txt` |
 | `tone-intonation-zh-v1` | Apache License 2.0 (`licenses/TONE-INTONATION-ZH-V1.txt`, `licenses/AISHELL-3-NOTICE.txt`, `licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt`, `licenses/APACHE-2.0.txt`) |
 | `speech-timing-target-zh-v1`（bridge内包） | Apache License 2.0 (`licenses/SPEECH-TIMING-TARGET-ZH-V1.txt`, `licenses/AISHELL-3-NOTICE.txt`, `licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt`, `licenses/APACHE-2.0.txt`) |
-| `english-reference/`（Kokoro-82M、HuBERT Base、misakiの英語辞書） | Apache License 2.0 (`licenses/ENGLISH-REFERENCE-MODELS.txt`, `licenses/APACHE-2.0.txt`) |
+| `english-reference/`（参照照合のモデル。Kokoro-82M、HuBERT Base、misakiの英語辞書） | Apache License 2.0 (`licenses/REFERENCE-MODELS.txt`, `licenses/APACHE-2.0.txt`) |
 
 モデルを利用する際は、各モデルJSONに記載されたライセンス条項に従ってください。学習元コーパスの利用条件は、各配布元の規約に準拠します。詳細は [抑揚モデルのライセンス](./models/README.md) を参照してください。
 

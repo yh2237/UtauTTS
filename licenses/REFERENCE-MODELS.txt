@@ -1,7 +1,8 @@
-English reference models (models/english-reference)
-====================================================
+Reference models (models/english-reference)
+============================================
 
-UtauTTS reads English, Spanish, Portuguese, and Japanese sentences with Kokoro-82M, compares the speech with the
+For reference matching, UtauTTS reads sentences in English, Spanish,
+Portuguese, and Japanese with Kokoro-82M, compares the speech with the
 voicebank recordings through WavLM features, and synthesizes the output
 from the voicebank frames only. The following files are redistributed
 unmodified. Kokoro-82M, the misaki lexicon, and HuBERT Base are licensed under

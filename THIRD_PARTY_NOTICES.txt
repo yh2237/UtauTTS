@@ -422,10 +422,10 @@ the WORLD bridge) is trained on the same AISHELL-3 data as the intonation model
 and uses the same weight license: Apache License 2.0
 (licenses/SPEECH-TIMING-TARGET-ZH-V1.txt).
 
-English synthesis uses Kokoro-82M, HuBERT Base (facebook/hubert-base-ls960)
+Reference matching uses Kokoro-82M, HuBERT Base (facebook/hubert-base-ls960)
 and the misaki English lexicon from models/english-reference, redistributed
 unmodified under the Apache License 2.0; see
-licenses/ENGLISH-REFERENCE-MODELS.txt.
+licenses/REFERENCE-MODELS.txt.
 
 UtauTTS source code uses the repository MIT License; models, prompts,
 voicebanks, and other third-party assets use their respective notices.
