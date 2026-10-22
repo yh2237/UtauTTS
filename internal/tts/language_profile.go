@@ -29,11 +29,11 @@ type languageProfile interface {
 func languageProfileFor(language string) languageProfile {
 	switch language {
 	case frontend.LanguageEnglish:
-		return englishProfile{}
+		return referenceProfile{language: language, parse: parseEnglishPronunciation}
 	case frontend.LanguageChinese:
 		return chineseProfile{}
 	case frontend.LanguageSpanish, frontend.LanguagePortuguese:
-		return syllableProfile{language: language}
+		return referenceProfile{language: language, parse: parseSyllableLanguage(language)}
 	default:
 		return japaneseProfile{}
 	}

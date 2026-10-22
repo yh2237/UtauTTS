@@ -7,15 +7,13 @@ import (
 
 // KokoroChineseProviderは中国語の参照TTS（Kokoro-82M-v1.1-zh）。
 type KokoroChineseProvider struct {
-	service *Service
+	kokoroVoice
 }
 
 // NewKokoroChineseProviderは中国語の参照TTSを作る。
 func NewKokoroChineseProvider(service *Service) *KokoroChineseProvider {
-	return &KokoroChineseProvider{service: service}
+	return &KokoroChineseProvider{kokoroVoice{service: service, id: kokoroChinese}}
 }
-
-func (p *KokoroChineseProvider) ID() string { return kokoroChinese }
 
 func (p *KokoroChineseProvider) Language() string { return "zh" }
 
@@ -44,18 +42,4 @@ func (p *KokoroChineseProvider) Pieces(text, reading string) ([]Piece, error) {
 		return nil, fmt.Errorf("Chinese reference synthesis needs a Pinyin reading")
 	}
 	return pieces, nil
-}
-
-func (p *KokoroChineseProvider) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
-	if p.service == nil {
-		return Reference{}, fmt.Errorf("kokoro provider has no service")
-	}
-	return p.service.Read(p.ID(), pieces, speed, durations)
-}
-
-func (p *KokoroChineseProvider) ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error) {
-	if p.service == nil {
-		return Reference{}, fmt.Errorf("kokoro provider has no service")
-	}
-	return p.service.ReadProsody(p.ID(), pieces, speed, durations)
 }

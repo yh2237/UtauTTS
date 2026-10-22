@@ -9,17 +9,15 @@ import (
 
 // KokoroJapaneseProviderは日本語の参照TTS（Kokoro-82Mのjf_alpha）。英語と同じモデルで読む。
 type KokoroJapaneseProvider struct {
-	service *Service
+	kokoroVoice
 	// wordStartは、読みのモーラごとの語の頭（OpenJTalkの解析から）。nilなら語の区切りを置かない。
 	wordStart []bool
 }
 
 // NewKokoroJapaneseProviderは日本語の参照TTSを作る。
 func NewKokoroJapaneseProvider(service *Service, wordStart []bool) *KokoroJapaneseProvider {
-	return &KokoroJapaneseProvider{service: service, wordStart: wordStart}
+	return &KokoroJapaneseProvider{kokoroVoice: kokoroVoice{service: service, id: kokoroJapanese}, wordStart: wordStart}
 }
-
-func (p *KokoroJapaneseProvider) ID() string { return kokoroJapanese }
 
 func (p *KokoroJapaneseProvider) Language() string { return frontend.LanguageJapanese }
 
@@ -45,18 +43,4 @@ func (p *KokoroJapaneseProvider) Pieces(text, reading string) ([]Piece, error) {
 		return nil, fmt.Errorf("Japanese reference synthesis needs a reading")
 	}
 	return pieces, nil
-}
-
-func (p *KokoroJapaneseProvider) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
-	if p.service == nil {
-		return Reference{}, fmt.Errorf("kokoro provider has no service")
-	}
-	return p.service.Read(p.ID(), pieces, speed, durations)
-}
-
-func (p *KokoroJapaneseProvider) ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error) {
-	if p.service == nil {
-		return Reference{}, fmt.Errorf("kokoro provider has no service")
-	}
-	return p.service.ReadProsody(p.ID(), pieces, speed, durations)
 }

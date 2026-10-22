@@ -10,7 +10,7 @@ import (
 // KokoroSyllableProviderは、音節を1モーラにして読む言語（スペイン語、ポルトガル語）の参照TTS。
 // 英語と同じKokoro-82Mのモデルを、言語ごとの声で読む。
 type KokoroSyllableProvider struct {
-	service  *Service
+	kokoroVoice
 	language string
 }
 
@@ -22,10 +22,8 @@ var syllableVoices = map[string]string{
 
 // NewKokoroSyllableProviderは、音節で読む言語の参照TTSを作る。
 func NewKokoroSyllableProvider(service *Service, language string) *KokoroSyllableProvider {
-	return &KokoroSyllableProvider{service: service, language: language}
+	return &KokoroSyllableProvider{kokoroVoice: kokoroVoice{service: service, id: syllableVoices[language]}, language: language}
 }
-
-func (p *KokoroSyllableProvider) ID() string { return syllableVoices[p.language] }
 
 func (p *KokoroSyllableProvider) Language() string { return p.language }
 
@@ -71,18 +69,4 @@ func (p *KokoroSyllableProvider) Pieces(text, reading string) ([]Piece, error) {
 		return nil, fmt.Errorf("%s reference synthesis needs a reading", p.language)
 	}
 	return pieces, nil
-}
-
-func (p *KokoroSyllableProvider) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
-	if p.service == nil {
-		return Reference{}, fmt.Errorf("kokoro provider has no service")
-	}
-	return p.service.Read(p.ID(), pieces, speed, durations)
-}
-
-func (p *KokoroSyllableProvider) ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error) {
-	if p.service == nil {
-		return Reference{}, fmt.Errorf("kokoro provider has no service")
-	}
-	return p.service.ReadProsody(p.ID(), pieces, speed, durations)
 }

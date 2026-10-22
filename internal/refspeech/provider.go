@@ -21,19 +21,39 @@ type Provider interface {
 	ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error)
 }
 
+// kokoroVoiceは、参照TTSのIDに対応するKokoroの声で音素列を読む。言語ごとの参照TTSが埋め込む。
+type kokoroVoice struct {
+	service *Service
+	id      string
+}
+
+func (v kokoroVoice) ID() string { return v.id }
+
+func (v kokoroVoice) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
+	if v.service == nil {
+		return Reference{}, fmt.Errorf("kokoro provider has no service")
+	}
+	return v.service.Read(v.id, pieces, speed, durations)
+}
+
+func (v kokoroVoice) ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error) {
+	if v.service == nil {
+		return Reference{}, fmt.Errorf("kokoro provider has no service")
+	}
+	return v.service.ReadProsody(v.id, pieces, speed, durations)
+}
+
 // KokoroProviderは英語の参照TTS（Kokoro-82M）。
 type KokoroProvider struct {
-	service    *Service
+	kokoroVoice
 	lexicon    *Lexicon
 	dictionary map[string]string
 }
 
 // NewKokoroProviderは英語の参照TTSを作る。serviceはKokoroの読みと合成に使う。
 func NewKokoroProvider(service *Service, lexicon *Lexicon, dictionary map[string]string) *KokoroProvider {
-	return &KokoroProvider{service: service, lexicon: lexicon, dictionary: dictionary}
+	return &KokoroProvider{kokoroVoice: kokoroVoice{service: service, id: kokoroEnglish}, lexicon: lexicon, dictionary: dictionary}
 }
-
-func (p *KokoroProvider) ID() string { return kokoroEnglish }
 
 func (p *KokoroProvider) Language() string { return "en" }
 
@@ -44,18 +64,4 @@ func (p *KokoroProvider) Pieces(text, reading string) ([]Piece, error) {
 		automatic = ""
 	}
 	return KokoroPieces(p.lexicon, text, reading, automatic, p.dictionary), nil
-}
-
-func (p *KokoroProvider) Read(pieces []Piece, speed float32, durations []int) (Reference, error) {
-	if p.service == nil {
-		return Reference{}, fmt.Errorf("kokoro provider has no service")
-	}
-	return p.service.Read(p.ID(), pieces, speed, durations)
-}
-
-func (p *KokoroProvider) ReadProsody(pieces []Piece, speed float32, durations []int) (Reference, error) {
-	if p.service == nil {
-		return Reference{}, fmt.Errorf("kokoro provider has no service")
-	}
-	return p.service.ReadProsody(p.ID(), pieces, speed, durations)
 }
