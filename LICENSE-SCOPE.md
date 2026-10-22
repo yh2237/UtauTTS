@@ -8,7 +8,7 @@ UtauTTSのオリジナルコードは [`LICENSE`](./LICENSE)（MIT License）が
 
 ## 同梱モデル
 
-日本語の抑揚モデルおよび時間伸縮モデルの重みはMIT Licenseで配布しています。中国語モデル（`tone-intonation-zh-v1`、`speech-timing-target-zh-v1`）の重みと、英語の合成に使う`reference/`のモデル（Kokoro-82M、HuBERT Base、misakiの英語辞書）はApache License 2.0です。各モデルが参照するライセンス通知は `licenses/` に収録されています。
+日本語の抑揚モデルおよび時間伸縮モデルの重みはMIT Licenseで配布しています。中国語モデル（`tone-intonation-zh-v1`、`speech-timing-target-zh-v1`）の重みと、参照照合に使う`reference/`のモデル（Kokoro-82M、Kokoro-82M-v1.1-zh、HuBERT Base、misakiの英語辞書）はApache License 2.0、WavLM base+はMIT Licenseです。各モデルが参照するライセンス通知は `licenses/` に収録されています。
 
 | モデル | 適用ライセンス / 通知ファイル |
 | :--- | :--- |
@@ -17,6 +17,8 @@ UtauTTSのオリジナルコードは [`LICENSE`](./LICENSE)（MIT License）が
 | `tone-intonation-zh-v1` | Apache License 2.0 (`licenses/TONE-INTONATION-ZH-V1.txt`, `licenses/AISHELL-3-NOTICE.txt`, `licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt`, `licenses/APACHE-2.0.txt`) |
 | `speech-timing-target-zh-v1`（bridge内包） | Apache License 2.0 (`licenses/SPEECH-TIMING-TARGET-ZH-V1.txt`, `licenses/AISHELL-3-NOTICE.txt`, `licenses/PADDLESPEECH-AISHELL3-ALIGNMENT-NOTICE.txt`, `licenses/APACHE-2.0.txt`) |
 | `reference/`（参照照合のモデル。Kokoro-82M、HuBERT Base、misakiの英語辞書） | Apache License 2.0 (`licenses/REFERENCE-MODELS.txt`, `licenses/APACHE-2.0.txt`) |
+| `reference/wavlm/`（WavLM base+） | MIT License (`licenses/REFERENCE-MODELS.txt`, `licenses/WAVLM-MIT.txt`) |
+| `reference/kokoro-zh/`（Kokoro-82M-v1.1-zh） | Apache License 2.0 (`licenses/CHINESE-REFERENCE-MODEL.txt`, `licenses/APACHE-2.0.txt`) |
 
 モデルを利用する際は、各モデルJSONに記載されたライセンス条項に従ってください。学習元コーパスの利用条件は、各配布元の規約に準拠します。詳細は [抑揚モデルのライセンス](./models/README.md) を参照してください。
 

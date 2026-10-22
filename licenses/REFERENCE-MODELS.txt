@@ -1,5 +1,5 @@
 Reference models (models/reference)
-============================================
+====================================
 
 For reference matching, UtauTTS reads sentences in English, Spanish,
 Portuguese, and Japanese with Kokoro-82M, compares the speech with the
@@ -20,6 +20,7 @@ Kokoro-82M
 WavLM base+ (microsoft/wavlm-base-plus)
   Files: wavlm/wavlm-base-plus.safetensors (pytorch_model.bin), wavlm/config.json
   Source: https://huggingface.co/microsoft/wavlm-base-plus
+  Revision: 4c66d4806a428f2e922ccfa1a962776e232d487b
   License: MIT License, Copyright (c) Microsoft Corporation
   The model was trained on LibriSpeech (960 hours, CC BY 4.0). LibriSpeech
   audio is not redistributed.
