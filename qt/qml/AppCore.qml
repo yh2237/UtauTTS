@@ -145,11 +145,15 @@ QtObject {
             return "en-arpasing";
         if (language === "zh")
             return "zh-cvvc";
+        if (language === "es")
+            return "es-syllable";
         return "ja-kana";
     }
 
     function defaultMethod(language) {
-        return String(language || "ja").toLowerCase() === "en" ? "reference-matching" : "waveform-synthesis";
+        // 波形合成は日本語と中国語だけ。ほかの言語は参照照合で読む。
+        return ["ja", "zh"].indexOf(String(language || "ja").toLowerCase()) >= 0
+                ? "waveform-synthesis" : "reference-matching";
     }
 
     // 保存済みのプロジェクトには古い識別子が入っているため、今の名前へ直す。
@@ -173,7 +177,8 @@ QtObject {
         const labels = {
             "ja": core.translator.tr("main.language.ja"),
             "en": core.translator.tr("main.language.en"),
-            "zh": core.translator.tr("main.language.zh")
+            "zh": core.translator.tr("main.language.zh"),
+            "es": core.translator.tr("main.language.es")
         };
         if (core.normalizeMethod(method) === "reference-matching") {
             const providers = core.backend.referenceProviders || [];
@@ -198,7 +203,8 @@ QtObject {
             "en-delta": core.translator.tr("main.phonemizer.enDelta"),
             "en-vccv": core.translator.tr("main.phonemizer.enVccv"),
             "en-cv": core.translator.tr("main.phonemizer.enCv"),
-            "zh-cvvc": core.translator.tr("main.phonemizer.zhCvvc")
+            "zh-cvvc": core.translator.tr("main.phonemizer.zhCvvc"),
+            "es-syllable": core.translator.tr("main.phonemizer.esSyllable")
         };
         if (language === "en")
             return ["auto", "en-arpasing", "en-delta", "en-vccv", "en-cv"].map(
