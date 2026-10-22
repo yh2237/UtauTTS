@@ -39,12 +39,16 @@ bool waitFor(Backend &backend, Signal signal, Trigger trigger, const QString &op
         completed = true;
         loop.quit();
     });
+    QObject::connect(&backend, &Backend::errorChanged, &loop, [&] {
+        if (!backend.error().isEmpty())
+            loop.quit();
+    });
     QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
     trigger();
     timer.start(asyncTimeoutMS);
     loop.exec();
-    return require(completed, operation + QStringLiteral(" timed out"))
-        && require(backend.error().isEmpty(), operation + QStringLiteral(": ") + backend.error());
+    return require(backend.error().isEmpty(), operation + QStringLiteral(": ") + backend.error())
+        && require(completed, operation + QStringLiteral(" timed out"));
 }
 
 QString firstID(const QVariantList &items) {
@@ -273,6 +277,7 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
 
     const QVariantMap commonRequest{
         {"request_id", "self-test-prosody"}, {"text", QStringLiteral("こんにちは")},
+        {"language", "ja"}, {"method", "waveform-synthesis"},
         {"voicebank_id", voicebankID}, {"model_id", modelID}, {"renderer", rendererID},
         {"alias_policy", "auto"}, {"tone", "C4"}, {"mora_duration_ms", 120},
         {"pause_duration_ms", 180}, {"intonation_strength", 1.0}, {"apply_pitch", true}
