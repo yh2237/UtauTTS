@@ -41,8 +41,25 @@ type Request struct {
 
 // Synthesizeは、参照の各フレームに前後2フレームまで含めて近い音源のフレームを4つ選び、その平均をWORLDで合成する。
 func (index *Index) Synthesize(world World, request Request) ([]float64, error) {
+	parameters, err := index.Parameters(request)
+	if err != nil {
+		return nil, err
+	}
+	return world.Synthesize(parameters.F0, parameters.Spectrum, parameters.Aperiodicity, index.FFTSize, index.SampleRate, worldFrameMS)
+}
+
+// ParametersはSynthesizeでWORLDへ渡すパラメータ。5msごと。
+type Parameters struct {
+	F0 []float64
+	// SpectrumとAperiodicityはフレームごとにFFTSize/2+1個並ぶ。
+	Spectrum     []float64
+	Aperiodicity []float64
+}
+
+// ParametersはSynthesizeと同じようにフレームを選び、WORLDで合成する前のパラメータを返す。
+func (index *Index) Parameters(request Request) (Parameters, error) {
 	if request.Frames <= 0 || len(request.Features) != request.Frames*index.Dims || len(request.ReferenceF0) < request.Frames*subFrames {
-		return nil, errors.New("reference features and F0 do not match")
+		return Parameters{}, errors.New("reference features and F0 do not match")
 	}
 	f0 := request.ReferenceF0[:request.Frames*subFrames]
 	nearest := index.nearest(request.Features, request.Frames, frameVoicing(f0))
@@ -86,7 +103,7 @@ func (index *Index) Synthesize(world World, request Request) ([]float64, error) 
 		}
 		c.decodeAperiodicity(aperiodicity[row*index.APBands:(row+1)*index.APBands], ap)
 	}
-	return world.Synthesize(outF0, decodedSpectrum, decodedAP, index.FFTSize, index.SampleRate, worldFrameMS)
+	return Parameters{F0: outF0, Spectrum: decodedSpectrum, Aperiodicity: decodedAP}, nil
 }
 
 // ReferenceLevelsは参照音声の5msごとの音量を、95パーセンタイルを0dBとして返す。
