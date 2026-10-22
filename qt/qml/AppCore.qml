@@ -147,6 +147,8 @@ QtObject {
             return "zh-cvvc";
         if (language === "es")
             return "es-syllable";
+        if (language === "pt")
+            return "pt-syllable";
         return "ja-kana";
     }
 
@@ -178,7 +180,8 @@ QtObject {
             "ja": core.translator.tr("main.language.ja"),
             "en": core.translator.tr("main.language.en"),
             "zh": core.translator.tr("main.language.zh"),
-            "es": core.translator.tr("main.language.es")
+            "es": core.translator.tr("main.language.es"),
+            "pt": core.translator.tr("main.language.pt")
         };
         if (core.normalizeMethod(method) === "reference-matching") {
             const providers = core.backend.referenceProviders || [];
@@ -204,7 +207,8 @@ QtObject {
             "en-vccv": core.translator.tr("main.phonemizer.enVccv"),
             "en-cv": core.translator.tr("main.phonemizer.enCv"),
             "zh-cvvc": core.translator.tr("main.phonemizer.zhCvvc"),
-            "es-syllable": core.translator.tr("main.phonemizer.esSyllable")
+            "es-syllable": core.translator.tr("main.phonemizer.esSyllable"),
+            "pt-syllable": core.translator.tr("main.phonemizer.ptSyllable")
         };
         if (language === "en")
             return ["auto", "en-arpasing", "en-delta", "en-vccv", "en-cv"].map(
