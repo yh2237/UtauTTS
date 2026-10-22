@@ -21,9 +21,9 @@ func TestPrepareRebuildsWhenRecordingsChange(t *testing.T) {
 	}
 	s := &Service{cacheDir: t.TempDir(), worlds: map[string]*worldrender.World{}, indexes: map[string]*indexEntry{}}
 	current := &indexEntry{status: IndexStatus{State: IndexReady}, index: &refmatch.Index{Header: refmatch.Header{Source: key}}, done: make(chan struct{})}
-	s.indexes[bank] = current
+	s.indexes[indexID(bank, recordings)] = current
 	s.Prepare(bank, recordings, "")
-	if s.indexes[bank] != current {
+	if s.indexes[indexID(bank, recordings)] != current {
 		t.Fatal("unchanged recordings rebuilt the index")
 	}
 	if err := os.WriteFile(recordings[0].Path, []byte("RIFF more"), 0o644); err != nil {
@@ -31,7 +31,7 @@ func TestPrepareRebuildsWhenRecordingsChange(t *testing.T) {
 	}
 	s.Prepare(bank, recordings, "")
 	s.mu.Lock()
-	replaced := s.indexes[bank] != current
+	replaced := s.indexes[indexID(bank, recordings)] != current
 	s.mu.Unlock()
 	if !replaced {
 		t.Fatal("changed recordings kept the old index")

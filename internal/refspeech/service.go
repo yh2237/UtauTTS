@@ -212,8 +212,9 @@ func (s *Service) open(worldEnginePath string) (*Engine, *worldrender.World, err
 
 // Prepareは音源の索引がないか、録音が変わっていれば、裏で作り始める。
 func (s *Service) Prepare(bankRoot string, recordings []refmatch.Recording, worldEnginePath string) {
+	id := indexID(bankRoot, recordings)
 	s.mu.Lock()
-	entry := s.indexes[bankRoot]
+	entry := s.indexes[id]
 	var index *refmatch.Index
 	if entry != nil {
 		index = entry.index
@@ -222,8 +223,8 @@ func (s *Service) Prepare(bankRoot string, recordings []refmatch.Recording, worl
 	if index != nil {
 		if _, key, err := bankRecordings(bankRoot, recordings); err == nil && key != index.Source {
 			s.mu.Lock()
-			if s.indexes[bankRoot] == entry {
-				delete(s.indexes, bankRoot)
+			if s.indexes[id] == entry {
+				delete(s.indexes, id)
 			}
 			s.mu.Unlock()
 		}
@@ -270,13 +271,14 @@ func (s *Service) index(ctx context.Context, bankRoot string, recordings []refma
 }
 
 func (s *Service) entry(bankRoot string, recordings []refmatch.Recording, worldEnginePath string) *indexEntry {
+	id := indexID(bankRoot, recordings)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if entry, ok := s.indexes[bankRoot]; ok && entry.status.State != IndexFailed {
+	if entry, ok := s.indexes[id]; ok && entry.status.State != IndexFailed {
 		return entry
 	}
 	entry := &indexEntry{status: IndexStatus{State: IndexBuilding}, done: make(chan struct{})}
-	s.indexes[bankRoot] = entry
+	s.indexes[id] = entry
 	batchMu.Lock()
 	batch.total++
 	batchMu.Unlock()
@@ -375,6 +377,21 @@ func (s *Service) loadOrBuild(bankRoot string, recordings []refmatch.Recording, 
 }
 
 // bankRecordingsは索引に使う録音と、その一覧・範囲・大きさ・更新時刻から作るキーを返す。
+// indexIDは、作った索引を覚えておくための名前。同じ音源でも声色ごとに録音が違うので、録音の一覧で分ける。
+// ファイルの更新はbankRecordingsの名前で見分ける。
+func indexID(bankRoot string, recordings []refmatch.Recording) string {
+	paths := make([]string, len(recordings))
+	for i, recording := range recordings {
+		paths[i] = recording.Path
+	}
+	sort.Strings(paths)
+	hash := sha256.New()
+	for _, path := range paths {
+		fmt.Fprintf(hash, "%s\x00", path)
+	}
+	return filepath.Clean(bankRoot) + "\x00" + hex.EncodeToString(hash.Sum(nil))[:16]
+}
+
 func bankRecordings(bankRoot string, recordings []refmatch.Recording) ([]refmatch.Recording, string, error) {
 	sorted := append([]refmatch.Recording(nil), recordings...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Path < sorted[j].Path })

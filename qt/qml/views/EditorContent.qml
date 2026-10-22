@@ -444,7 +444,6 @@ import UtauTTS.Media
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            visible: !editorSplitView.referenceMatching
                             spacing: 4
                             Label {
                                 text: window.translator.tr("main.param.voicebankType")

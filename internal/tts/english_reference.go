@@ -51,16 +51,16 @@ func ReferenceService(dir string) (*refspeech.Service, error) {
 	return refspeech.Shared(models, cacheDir), nil
 }
 
-// PrepareReferenceIndexは音源の参照の索引がなければ裏で作り始める。モデルがなければ何もしない。
+// PrepareReferenceIndexは音源の通常の声の参照の索引がなければ裏で作り始める。モデルがなければ何もしない。
 func PrepareReferenceIndex(dir string, bank *voicebank.Bank, worldEnginePath string) {
 	if service, err := ReferenceService(dir); err == nil {
-		service.Prepare(bank.Root, referenceRecordings(bank), worldEnginePath)
+		service.Prepare(bank.Root, referenceRecordings(bank, ""), worldEnginePath)
 	}
 }
 
 // referenceRecordingsは索引に使う録音と、それを使う原音のoto.iniの範囲を返す。
-func referenceRecordings(bank *voicebank.Bank) []refmatch.Recording {
-	recordings := bank.ReferenceRecordings()
+func referenceRecordings(bank *voicebank.Bank, color string) []refmatch.Recording {
+	recordings := bank.ReferenceRecordings(color)
 	result := make([]refmatch.Recording, len(recordings))
 	for i, recording := range recordings {
 		result[i].Path = recording.Path
@@ -219,7 +219,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	log(fmt.Sprintf("参照音声: %d Hz、%.2f 秒（生成 %d ms）",
 		rate, float64(len(reference.Audio))/float64(rate), time.Since(readStarted).Milliseconds()))
 	refspeech.SetStage("索引を準備しています")
-	speech, err := service.SpeakReference(ctx, bank.Root, referenceRecordings(bank), cfg.WorldEnginePath, reference, options)
+	speech, err := service.SpeakReference(ctx, bank.Root, referenceRecordings(bank, cfg.Color), cfg.WorldEnginePath, reference, options)
 	refspeech.SetStage("")
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)
@@ -240,7 +240,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	leading := speech.LeadingMS()
 	synthesisPlan := &plan.Plan{
 		Version: plan.Version, Voicebank: bank.Root, Text: cfg.Text, Reading: reading,
-		Language: language, Phonemizer: phonemizer, Tone: cfg.Tone,
+		Language: language, Phonemizer: phonemizer, Tone: cfg.Tone, Color: cfg.Color,
 		SelectionMode: "reference", AliasPolicy: "reference", JoinCostMode: "none",
 		LeadingMarginMS: leading, Morae: append([]frontend.Mora(nil), morae...),
 		DurationMS: float64(len(speech.Audio)) * 1000 / float64(speech.SampleRate),

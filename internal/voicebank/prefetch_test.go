@@ -48,13 +48,32 @@ func TestReferenceRecordingsUseDefaultPitchNormalVoice(t *testing.T) {
 		{Suffix: "B3", ToneRanges: []ToneRange{{Low: tone(t, "A#3"), High: tone(t, "D4")}}},
 		{Color: "Falsetto", Suffix: "F", ToneRanges: []ToneRange{{Low: tone(t, "C1"), High: tone(t, "B7")}}},
 	}}
-	if got := recordingPaths(bank.ReferenceRecordings()); !reflect.DeepEqual(got, []string{"B3/aa.wav", "B3/aak.wav"}) {
+	if got := recordingPaths(bank.ReferenceRecordings("")); !reflect.DeepEqual(got, []string{"B3/aa.wav", "B3/aak.wav"}) {
 		t.Fatalf("recordings=%v", got)
+	}
+	if got := recordingPaths(bank.ReferenceRecordings("Falsetto")); !reflect.DeepEqual(got, []string{"Falsetto/aa.wav"}) {
+		t.Fatalf("Falsetto recordings=%v", got)
+	}
+	if got := recordingPaths(bank.ReferenceRecordings("Unknown")); !reflect.DeepEqual(got, []string{"B3/aa.wav", "B3/aak.wav"}) {
+		t.Fatalf("unknown color recordings=%v", got)
+	}
+	// 通常の声の接尾辞が空でも、他の声色の別名は通常の声に入れない。
+	plain := &Bank{Entries: map[string][]oto.Entry{
+		"- あ": {{Filename: "normal/a.wav"}}, "- あ囁": {{Filename: "whisper/a.wav"}},
+	}, Subbanks: []Subbank{
+		{ToneRanges: []ToneRange{{Low: tone(t, "C1"), High: tone(t, "B7")}}},
+		{Color: "Whisper", Suffix: "囁", ToneRanges: []ToneRange{{Low: tone(t, "C1"), High: tone(t, "B7")}}},
+	}}
+	if got := recordingPaths(plain.ReferenceRecordings("")); !reflect.DeepEqual(got, []string{"normal/a.wav"}) {
+		t.Fatalf("plain normal recordings=%v", got)
+	}
+	if got := recordingPaths(plain.ReferenceRecordings("Whisper")); !reflect.DeepEqual(got, []string{"whisper/a.wav"}) {
+		t.Fatalf("plain whisper recordings=%v", got)
 	}
 	single := &Bank{Entries: map[string][]oto.Entry{
 		"- aa": {{Filename: "aa.wav", Offset: 100}}, "aa k": {{Filename: "aak.wav"}, {Filename: "aa.wav", Offset: 500}},
 	}}
-	got := single.ReferenceRecordings()
+	got := single.ReferenceRecordings("")
 	if paths := recordingPaths(got); !reflect.DeepEqual(paths, []string{"aa.wav", "aak.wav"}) {
 		t.Fatalf("single-pitch recordings=%v", paths)
 	}
@@ -66,7 +85,7 @@ func TestReferenceRecordingsUseDefaultPitchNormalVoice(t *testing.T) {
 		Entries:   map[string][]oto.Entry{"- aa": {{Filename: "aa.wav"}}, "aa k": {{Filename: "aak.wav"}}},
 		PrefixMap: map[string]Affix{"C4": {Suffix: "C4"}},
 	}
-	if got := recordingPaths(unmatched.ReferenceRecordings()); !reflect.DeepEqual(got, []string{"aa.wav", "aak.wav"}) {
+	if got := recordingPaths(unmatched.ReferenceRecordings("")); !reflect.DeepEqual(got, []string{"aa.wav", "aak.wav"}) {
 		t.Fatalf("unmatched affix recordings=%v", got)
 	}
 }
