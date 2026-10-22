@@ -71,12 +71,6 @@ func NewRenderer() *Renderer {
 	return &Renderer{state: newBridgeState()}
 }
 
-func (renderer *Renderer) Close() {
-	if renderer != nil && renderer.state != nil {
-		renderer.state.close()
-	}
-}
-
 func (renderer *Renderer) RenderJob(jobJSON []byte, outputPath string) ([]provider.WorldSpeechResult, error) {
 	input, err := decodeProviderJob(jobJSON, outputPath)
 	if err != nil {

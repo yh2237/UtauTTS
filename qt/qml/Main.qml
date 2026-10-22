@@ -1180,10 +1180,6 @@ ApplicationWindow {
     function runInterfaceSelfTest() {
         return SelfTest.run(window.selfTestContext);
     }
-    function intonationLabDefaultFile() {
-        return IntonationLab.defaultFile(window.intonationLabContext);
-    }
-
     function intonationLabBaseModelPath() {
         return IntonationLab.baseModelPath();
     }

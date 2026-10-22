@@ -95,18 +95,3 @@ func pinyinToZhuyin(syllable string) (string, bool) {
 	}
 	return initialSymbol + finalSymbol + tone, true
 }
-
-// zhuyinPhonemesは、ピンインの並びをKokoroの中国語の音素列にする。読めない音節は飛ばす。
-func zhuyinPhonemes(pinyins []string) string {
-	var builder strings.Builder
-	for _, pinyin := range pinyins {
-		if pinyin == "|" {
-			builder.WriteString(",")
-			continue
-		}
-		if symbol, ok := pinyinToZhuyin(pinyin); ok {
-			builder.WriteString(symbol)
-		}
-	}
-	return builder.String()
-}

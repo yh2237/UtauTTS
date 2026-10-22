@@ -3,6 +3,7 @@ package refspeech
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -13,8 +14,8 @@ func TestKokoroPhonemesFromReading(t *testing.T) {
 		{"Hello, my name is Sam.", "HH AH0 L OW1 | SP | M AY1 | N EY1 M | IH1 Z | S AE1 M | SP", "həlˈO, mˈI nˈAm ˈɪz sˈæm."},
 		{"What time does the meeting start?", "W AH1 T | T AY1 M | D AH0 Z | DH AH0 | M IY1 T IH0 NG | S T AA1 R T | SP", "wˈʌt tˈIm dəz ðə mˈitɪŋ stˈɑɹt?"},
 	} {
-		if got := KokoroPhonemes(nil, test.text, test.reading, test.reading, nil); got != test.want {
-			t.Errorf("KokoroPhonemes(%q) = %q, want %q", test.reading, got, test.want)
+		if got := joinPieces(KokoroPieces(nil, test.text, test.reading, test.reading, nil)); got != test.want {
+			t.Errorf("KokoroPieces(%q) = %q, want %q", test.reading, got, test.want)
 		}
 	}
 }
@@ -40,8 +41,8 @@ func TestKokoroPhonemesMatchMisaki(t *testing.T) {
 		{"What time does the meeting start?", "W AH1 T | T AY1 M | D AH0 Z | DH AH0 | M IY1 T IH0 NG | S T AA1 R T | SP", "wˌʌt tˈIm dˈʌz ðə mˈiTɪŋ stˈɑɹt?"},
 		{"Let's take a short break.", "L EH1 T S | T EY1 K | AH0 | SH AO1 R T | B R EY1 K | SP", "lˈɛts tˈAk ɐ ʃˈɔɹt bɹˈAk."},
 	} {
-		if got := KokoroPhonemes(lexicon, test.text, test.reading, test.reading, nil); got != test.want {
-			t.Errorf("KokoroPhonemes(%q) = %q, want %q", test.text, got, test.want)
+		if got := joinPieces(KokoroPieces(lexicon, test.text, test.reading, test.reading, nil)); got != test.want {
+			t.Errorf("KokoroPieces(%q) = %q, want %q", test.text, got, test.want)
 		}
 	}
 }
@@ -64,8 +65,17 @@ func TestKokoroPhonemesUseEditedWords(t *testing.T) {
 		{"HH AH0 L OW1 | SP | M AY1 | N EY1 M | IH1 Z | S EY1 M | SP", "həlˈO, mI nˈAm ɪz sˈAm."},
 		{"B AY1 | SP", "bˈI."},
 	} {
-		if got := KokoroPhonemes(lexicon, "Hello, my name is Sam.", test.reading, automatic, nil); got != test.want {
-			t.Errorf("KokoroPhonemes(%q) = %q, want %q", test.reading, got, test.want)
+		if got := joinPieces(KokoroPieces(lexicon, "Hello, my name is Sam.", test.reading, automatic, nil)); got != test.want {
+			t.Errorf("KokoroPieces(%q) = %q, want %q", test.reading, got, test.want)
 		}
 	}
+}
+
+// joinPiecesは断片をつないで、Kokoroに渡す音素列にする。
+func joinPieces(pieces []Piece) string {
+	var b strings.Builder
+	for _, piece := range pieces {
+		b.WriteString(piece.Symbols)
+	}
+	return b.String()
 }

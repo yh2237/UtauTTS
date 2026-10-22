@@ -26,18 +26,10 @@ type Piece struct {
 	Part    int
 }
 
-// KokoroPhonemesは文の語をmisakiの辞書で引いてKokoroの音素列にする。
+// KokoroPiecesは文の語をmisakiの辞書で引いてKokoroの音素列の断片にする。
 // 辞書にない語、利用者辞書にある語、automatic（文から自動で作った読み）と読みが違う語は、
 // 読み（「HH AH0 L OW1 | SP | ...」形式のARPAbet）から直す。
 // 語の並びが読みやautomaticと合わないときは、すべて読みから直す。
-func KokoroPhonemes(lexicon *Lexicon, text, reading, automatic string, dictionary map[string]string) string {
-	var b strings.Builder
-	for _, piece := range KokoroPieces(lexicon, text, reading, automatic, dictionary) {
-		b.WriteString(piece.Symbols)
-	}
-	return b.String()
-}
-
 func KokoroPieces(lexicon *Lexicon, text, reading, automatic string, dictionary map[string]string) []Piece {
 	parts := readingWords(reading)
 	words := frontend.EnglishWords(text)

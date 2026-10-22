@@ -888,8 +888,4 @@ Item {
     onMoraWidthChanged: canvas.requestPaint()
     onDefaultMoraDurationChanged: canvas.requestPaint()
     onDefaultPauseDurationChanged: canvas.requestPaint()
-
-    function refresh() {
-        canvas.requestPaint();
-    }
 }

@@ -20,7 +20,7 @@ import (
 func TestRenderHonorsCanceledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := Render(nil, Config{Context: ctx})
+	_, err := renderMutable(nil, Config{Context: ctx})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}
@@ -40,11 +40,11 @@ func TestRenderIsDeterministicAndUsesAbsolutePlacement(t *testing.T) {
 		Alias: "あ", Source: path, NoteStartMS: 100, DurationMS: 100,
 		PreutteranceMS: 100, OverlapMS: 0,
 	}}}
-	first, err := Render(p, Config{ReleaseMS: 20})
+	first, err := renderMutable(p, Config{ReleaseMS: 20})
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := Render(p, Config{ReleaseMS: 20})
+	second, err := renderMutable(p, Config{ReleaseMS: 20})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestRenderCVVCPlanWithTransitionUnit(t *testing.T) {
 		{Position: 1, Role: "transition", Alias: "a k", Source: path, NoteStartMS: 100, DurationMS: 30, PreutteranceMS: 50, OverlapMS: 20, ConsonantMS: 20},
 		{Position: 1, Role: "mora", Alias: "か", Source: path, NoteStartMS: 100, DurationMS: 100, PreutteranceMS: 40, OverlapMS: 10},
 	}}
-	pcm, err := Render(p, Config{ReleaseMS: 20})
+	pcm, err := renderMutable(p, Config{ReleaseMS: 20})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestRenderRejectsInvalidConfiguration(t *testing.T) {
 }
 
 func testRenderRejectsUnknownBackend(t *testing.T) {
-	_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "missing"})
+	_, err := renderMutable(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "missing"})
 	if err == nil {
 		t.Fatal("unknown backend was accepted")
 	}
@@ -213,7 +213,7 @@ func TestWaveformRendererRendersFramePitchCurve(t *testing.T) {
 	if err := audio.WriteWav(path, &audio.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
 		t.Fatal(err)
 	}
-	pcm, err := Render(&plan.Plan{DurationMS: 200, Units: []plan.Unit{{
+	pcm, err := renderMutable(&plan.Plan{DurationMS: 200, Units: []plan.Unit{{
 		Position: 0, Alias: "a", Source: path, NoteStartMS: 100, DurationMS: 100,
 		PreutteranceMS: 100, OverlapMS: 0, PitchFactor: 1, EnergyFactor: 1,
 	}}}, Config{
@@ -259,7 +259,7 @@ func testRenderRejectsNonFinitePitchCurve(t *testing.T) {
 		{FrameMS: math.NaN(), Cents: []float64{0}},
 		{FrameMS: 5, Cents: []float64{math.Inf(1)}},
 	} {
-		_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "utautts-world-phrase", ApplyPitch: true, PitchCurve: curve})
+		_, err := renderMutable(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "utautts-world-phrase", ApplyPitch: true, PitchCurve: curve})
 		if err == nil {
 			t.Fatalf("accepted non-finite curve: %+v", curve)
 		}
@@ -268,7 +268,7 @@ func testRenderRejectsNonFinitePitchCurve(t *testing.T) {
 
 func testRenderRejectsNonFiniteTimingConfiguration(t *testing.T) {
 	for _, value := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{ReleaseMS: value})
+		_, err := renderMutable(&plan.Plan{Units: []plan.Unit{{}}}, Config{ReleaseMS: value})
 		if err == nil {
 			t.Fatalf("accepted non-finite release_ms %v", value)
 		}
@@ -289,11 +289,11 @@ func TestRenderReleaseZeroIsHonoredWhenExplicit(t *testing.T) {
 		Alias: "あ", Source: path, NoteStartMS: 100, DurationMS: 100,
 		PreutteranceMS: 100, OverlapMS: 0,
 	}}}
-	implicit, err := Render(p, Config{ReleaseMS: 0})
+	implicit, err := renderMutable(p, Config{ReleaseMS: 0})
 	if err != nil {
 		t.Fatal(err)
 	}
-	explicit, err := Render(p, Config{ReleaseMS: 0, ReleaseSet: true})
+	explicit, err := renderMutable(p, Config{ReleaseMS: 0, ReleaseSet: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,7 +319,7 @@ func TestWaveformRendererPreservesFirstUnitPreutterance(t *testing.T) {
 		Alias: "に", Source: path, NoteStartMS: 0, DurationMS: 100,
 		PreutteranceMS: 40, OverlapMS: 0, ConsonantMS: 40,
 	}}}
-	pcm, err := Render(p, Config{Backend: "waveform", ReleaseMS: 0, ReleaseSet: true})
+	pcm, err := renderMutable(p, Config{Backend: "waveform", ReleaseMS: 0, ReleaseSet: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -343,7 +343,7 @@ func testRenderRejectsUnsafePitchCurveRangeAndFrame(t *testing.T) {
 		{FrameMS: 5, Cents: []float64{4801}},
 		{FrameMS: 5, Cents: []float64{-4801}},
 	} {
-		_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "utautts-world-phrase", ApplyPitch: true, PitchCurve: curve})
+		_, err := renderMutable(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "utautts-world-phrase", ApplyPitch: true, PitchCurve: curve})
 		if err == nil {
 			t.Fatalf("accepted unsafe curve: %+v", curve)
 		}
@@ -351,7 +351,7 @@ func testRenderRejectsUnsafePitchCurveRangeAndFrame(t *testing.T) {
 }
 
 func TestBoundaryBridgeRequiresWaveformRenderer(t *testing.T) {
-	_, err := Render(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "utautts-world-phrase", BoundaryBridgeMS: 20})
+	_, err := renderMutable(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "utautts-world-phrase", BoundaryBridgeMS: 20})
 	if err == nil {
 		t.Fatal("boundary bridge was accepted by non-waveform renderer")
 	}
@@ -371,7 +371,7 @@ func TestRenderAllowsSilentClosureUnit(t *testing.T) {
 		{Position: 1, Alias: "<closure>", Silent: true, NoteStartMS: 100, DurationMS: 65},
 		{Position: 2, Alias: "か", Source: path, NoteStartMS: 165, DurationMS: 100},
 	}}
-	pcm, err := Render(p, Config{ReleaseMS: 20})
+	pcm, err := renderMutable(p, Config{ReleaseMS: 20})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,7 +435,7 @@ func TestRenderLongVCVUsesWeightedCrossfade(t *testing.T) {
 		{Alias: "a", Source: path, NoteStartMS: 0, DurationMS: 140, PreutteranceMS: 360, OverlapMS: 120, ConsonantMS: 439},
 		{Alias: "b", Source: path, NoteStartMS: 140, DurationMS: 140, PreutteranceMS: 360, OverlapMS: 120, ConsonantMS: 439},
 	}}
-	pcm, err := Render(p, Config{ReleaseMS: 20})
+	pcm, err := renderMutable(p, Config{ReleaseMS: 20})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,7 +500,7 @@ func TestConnectedUnitsUseComplementaryHandoff(t *testing.T) {
 		{Position: 0, Alias: "a", Source: path, NoteStartMS: 0, DurationMS: 140, PreutteranceMS: 60, OverlapMS: 20, ConsonantMS: 100},
 		{Position: 1, Alias: "b", Source: path, NoteStartMS: 140, DurationMS: 140, PreutteranceMS: 60, OverlapMS: 20, ConsonantMS: 100},
 	}}
-	pcm, err := Render(p, Config{ReleaseMS: 20})
+	pcm, err := renderMutable(p, Config{ReleaseMS: 20})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -666,7 +666,7 @@ func TestRenderPitchFactorRequiresExplicitMode(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := &plan.Plan{DurationMS: 300, Units: []plan.Unit{{Position: 0, Source: path, DurationMS: 300, PitchFactor: 1.05, EnergyFactor: 1}}}
-	pcm, err := Render(p, Config{ReleaseMS: 20})
+	pcm, err := renderMutable(p, Config{ReleaseMS: 20})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -674,7 +674,7 @@ func TestRenderPitchFactorRequiresExplicitMode(t *testing.T) {
 	if math.Abs(baseline-200) > 5 {
 		t.Fatalf("default F0 = %.2f, want about 200", baseline)
 	}
-	pcm, err = Render(p, Config{ReleaseMS: 20, ApplyPitch: true})
+	pcm, err = renderMutable(p, Config{ReleaseMS: 20, ApplyPitch: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -700,7 +700,7 @@ func TestRenderResamplerVolumeOverrideScalesWaveform(t *testing.T) {
 			PitchFactor: 1, EnergyFactor: 1,
 			ResamplerVolume: volume, ResamplerVolumeOverride: override,
 		}}}
-		pcm, err := Render(p, Config{ReleaseMS: 20})
+		pcm, err := renderMutable(p, Config{ReleaseMS: 20})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -881,7 +881,7 @@ func TestWaveformBoundaryBridgeIsOptionalAndAudited(t *testing.T) {
 		{Position: 0, Mora: "a", Source: paths[0], NoteStartMS: 0, DurationMS: 100, ConsonantMS: 10, PreutteranceMS: 40},
 		{Position: 1, Mora: "i", Source: paths[1], NoteStartMS: 100, DurationMS: 100, ConsonantMS: 10, PreutteranceMS: 40},
 	}}
-	if _, err := Render(base, Config{ReleaseMS: 20}); err != nil {
+	if _, err := renderMutable(base, Config{ReleaseMS: 20}); err != nil {
 		t.Fatal(err)
 	}
 	if len(base.BoundaryBridges) != 0 || base.BoundaryBridgeMS != 0 {
@@ -889,7 +889,7 @@ func TestWaveformBoundaryBridgeIsOptionalAndAudited(t *testing.T) {
 	}
 
 	experiment := &plan.Plan{DurationMS: 200, Units: append([]plan.Unit(nil), base.Units...)}
-	if _, err := Render(experiment, Config{ReleaseMS: 20, BoundaryBridgeMS: 20, BoundaryBridgeThreshold: 100}); err != nil {
+	if _, err := renderMutable(experiment, Config{ReleaseMS: 20, BoundaryBridgeMS: 20, BoundaryBridgeThreshold: 100}); err != nil {
 		t.Fatal(err)
 	}
 	if len(experiment.BoundaryRepairDecisions) != 1 {

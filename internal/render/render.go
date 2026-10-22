@@ -28,10 +28,6 @@ var boundaryBridgeRenderers = map[string]struct{}{
 	"": {}, "waveform": {},
 }
 
-func Render(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
-	return renderMutable(synthesisPlan, cfg)
-}
-
 func renderMutable(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
 	if err := contextError(cfg.Context); err != nil {
 		return nil, err
