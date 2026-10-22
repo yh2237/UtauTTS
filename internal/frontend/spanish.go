@@ -33,7 +33,7 @@ func ParseSpanish(text, reading string, dictionary map[string]string) (string, [
 }
 
 // IsSyllablePauseは、音節で読む言語の読みの語が休止の記号かを返す。
-func IsSyllablePause(field string) bool { return spanishPauses[field] != "" }
+func IsSyllablePause(field string) bool { return syllablePauses[field] != "" }
 
 // syllableLanguagesは、音節を1モーラにして参照照合だけで読む言語と、その発音形式。
 var syllableLanguages = map[string]string{
@@ -55,8 +55,8 @@ func ParseSyllableLanguage(language, phonemizer, text, reading string, dictionar
 	return ParseSpanish(text, reading, dictionary)
 }
 
-// spanishPausesは読みのうち、休止を表す記号と休止の種類。
-var spanishPauses = map[string]string{
+// syllablePausesは読みのうち、休止を表す記号と休止の種類。
+var syllablePauses = map[string]string{
 	",": PauseKindComma, ";": PauseKindComma, ":": PauseKindComma,
 	".": PauseKindPeriod, "?": PauseKindQuestion, "!": PauseKindPeriod, "…": PauseKindEllipsis,
 }
@@ -65,13 +65,13 @@ var spanishPauses = map[string]string{
 func syllableMorae(reading, language string) ([]Mora, error) {
 	fields := strings.Fields(reading)
 	last := len(fields) - 1
-	for last >= 0 && spanishPauses[fields[last]] != "" {
+	for last >= 0 && syllablePauses[fields[last]] != "" {
 		last--
 	}
 	var morae []Mora
 	word := 0
 	for i, field := range fields[:last+1] {
-		if kind := spanishPauses[field]; kind != "" {
+		if kind := syllablePauses[field]; kind != "" {
 			if len(morae) > 0 && !morae[len(morae)-1].Pause {
 				morae = append(morae, Mora{Language: language, Text: field, Pause: true, PauseKind: kind})
 			}
@@ -146,8 +146,8 @@ var esWordExceptions = map[string]string{
 	"xavier": "sa.βjˈeɾ",
 }
 
-// esTokenは文を区切った語か記号。
-type esToken struct {
+// syllableTokenは文を区切った語か記号。
+type syllableToken struct {
 	word  string
 	pause string
 	// joinNextは、次の語とハイフンでつながっているか。
@@ -219,7 +219,7 @@ func SpanishReading(text string, dictionary map[string]string) (string, error) {
 // esAssimilateAcrossWordsは、語末のnを次の語の頭の音に合わせる（un beso → ˈum bˈeso、un gato → ˈuŋ ɡˈato）。jの前では同化しない。
 func esAssimilateAcrossWords(fields []string) {
 	for i := 0; i+1 < len(fields); i++ {
-		if spanishPauses[fields[i+1]] != "" {
+		if syllablePauses[fields[i+1]] != "" {
 			continue
 		}
 		next := []rune(strings.NewReplacer(esPrimary, "", esSecondary, "").Replace(fields[i+1]))
@@ -250,13 +250,13 @@ func esLastPhone(reading string) string {
 	return string(runes[len(runes)-1])
 }
 
-func spanishTokens(text string) []esToken {
+func spanishTokens(text string) []syllableToken {
 	text = norm.NFC.String(strings.ToLower(text))
-	var tokens []esToken
+	var tokens []syllableToken
 	var word strings.Builder
 	flush := func() {
 		if word.Len() > 0 {
-			tokens = append(tokens, esToken{word: word.String()})
+			tokens = append(tokens, syllableToken{word: word.String()})
 			word.Reset()
 		}
 	}
@@ -269,20 +269,20 @@ func spanishTokens(text string) []esToken {
 			word.WriteRune(r)
 		default:
 			flush()
-			if pause := esPauseSymbol(r); pause != "" {
+			if pause := syllablePauseSymbol(r); pause != "" {
 				if len(tokens) > 0 && tokens[len(tokens)-1].pause != "" {
 					continue
 				}
-				tokens = append(tokens, esToken{pause: pause})
+				tokens = append(tokens, syllableToken{pause: pause})
 			}
 		}
 	}
 	flush()
-	var expanded []esToken
+	var expanded []syllableToken
 	for _, token := range tokens {
 		if token.word != "" && strings.IndexFunc(token.word, unicode.IsDigit) >= 0 {
 			for _, number := range strings.Fields(spanishNumberWords(token.word)) {
-				expanded = append(expanded, esToken{word: number})
+				expanded = append(expanded, syllableToken{word: number})
 			}
 			continue
 		}
@@ -291,7 +291,7 @@ func spanishTokens(text string) []esToken {
 	return expanded
 }
 
-func esPauseSymbol(r rune) string {
+func syllablePauseSymbol(r rune) string {
 	switch r {
 	case ',', '、':
 		return ","

@@ -125,7 +125,7 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 		result, err = e.exportUstx(requestJSON)
 	case "writeSidecars":
 		result, err = e.writeSidecars(requestJSON)
-	case "englishIndexes":
+	case "referenceIndexes":
 		result = tts.ReferenceIndexProgress()
 	case "installVoicebank":
 		result, err = e.installVoicebank(requestJSON)
@@ -193,7 +193,7 @@ func (e *Engine) voicebankEntry(libraryItem voicebank.LibraryItem) map[string]an
 		capabilities := bank.AliasCapabilities()
 		language, phonemizer := bank.SuggestedLanguage()
 		if language == frontend.LanguageEnglish {
-			e.synth.PrepareEnglish(bank)
+			e.synth.PrepareReferenceIndex(bank)
 		}
 		entry["suggested_language"] = language
 		entry["suggested_phonemizer"] = phonemizer

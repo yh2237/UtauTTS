@@ -122,13 +122,13 @@ func ptWordReading(word string, dictionary map[string]string, inSentence bool) (
 	return ptRender(syllables), nil
 }
 
-func ptTokens(text string) []esToken {
+func ptTokens(text string) []syllableToken {
 	text = norm.NFC.String(strings.ToLower(text))
-	var tokens []esToken
+	var tokens []syllableToken
 	var word strings.Builder
 	flush := func() {
 		if word.Len() > 0 {
-			tokens = append(tokens, esToken{word: word.String()})
+			tokens = append(tokens, syllableToken{word: word.String()})
 			word.Reset()
 		}
 	}
@@ -141,11 +141,11 @@ func ptTokens(text string) []esToken {
 			tokens[len(tokens)-1].joinNext = true
 		default:
 			flush()
-			if pause := esPauseSymbol(r); pause != "" {
+			if pause := syllablePauseSymbol(r); pause != "" {
 				if len(tokens) > 0 && tokens[len(tokens)-1].pause != "" {
 					continue
 				}
-				tokens = append(tokens, esToken{pause: pause})
+				tokens = append(tokens, syllableToken{pause: pause})
 			}
 		}
 	}
@@ -793,7 +793,7 @@ func ptCoda(phone ptPhone, next, vowel string, lastSyllable bool) string {
 // ptAcrossWordsは語の境目の音を直す。語末のsは有声音の前でz、語末のrは母音の前でɾ、語末のʊは母音の前でw。
 func ptAcrossWords(fields []string) {
 	for i := 0; i+1 < len(fields); i++ {
-		if spanishPauses[fields[i+1]] != "" {
+		if syllablePauses[fields[i+1]] != "" {
 			continue
 		}
 		next := []rune(strings.NewReplacer(esPrimary, "", esSecondary, "").Replace(fields[i+1]))

@@ -510,11 +510,11 @@ ApplicationWindow {
             window.metadataReloadStage = stage;
         }
 
-        function onEnglishIndexChanged() {
-            if (window.appBackend.englishIndexBuilding) {
-                window.metadataReloadStage = "englishIndex";
+        function onReferenceIndexChanged() {
+            if (window.appBackend.referenceIndexBuilding) {
+                window.metadataReloadStage = "referenceIndex";
                 dialogs.metadataReloadDialog.open();
-            } else if (window.metadataReloadStage === "englishIndex" && !window.metadataReloadActive) {
+            } else if (window.metadataReloadStage === "referenceIndex" && !window.metadataReloadActive) {
                 dialogs.metadataReloadDialog.close();
             }
         }

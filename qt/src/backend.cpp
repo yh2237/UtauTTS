@@ -1413,7 +1413,7 @@ void Backend::initializeAsync() {
             } else {
                 setError({});
             }
-            checkEnglishIndexes();
+            checkReferenceIndexes();
         }
         setBusy(false);
         watcher->deleteLater();
@@ -1641,31 +1641,31 @@ void Backend::reloadVoicebanks() {
             clearPreviewCache();
             m_voicebanks = result.value("voicebanks").toList();
             emit metadataChanged();
-            checkEnglishIndexes();
+            checkReferenceIndexes();
         }
     });
 }
 
 // 英語向けの音源の索引は、音源一覧を読み込んだときに裏で作り始める。作り終えるまで進み具合を読む。
-void Backend::checkEnglishIndexes() {
+void Backend::checkReferenceIndexes() {
 #ifndef UTAUTTS_WASM
-    callAsync("englishIndexes", {}, [this](const QVariantMap &result) {
+    callAsync("referenceIndexes", {}, [this](const QVariantMap &result) {
         if (result.contains("_error")) {
             return;
         }
         const bool building = result.value("building").toBool();
         const double progress = result.value("progress").toDouble();
-        if (building != m_englishIndexBuilding || progress != m_englishIndexProgress) {
-            m_englishIndexBuilding = building;
-            m_englishIndexProgress = progress;
-            emit englishIndexChanged();
+        if (building != m_referenceIndexBuilding || progress != m_referenceIndexProgress) {
+            m_referenceIndexBuilding = building;
+            m_referenceIndexProgress = progress;
+            emit referenceIndexChanged();
         }
         const QStringList failed = result.value("failed").toStringList();
         if (!failed.isEmpty()) {
             setError(tr("索引を作れませんでした: %1").arg(failed.join(QStringLiteral(", "))));
         }
         if (building) {
-            QTimer::singleShot(500, this, &Backend::checkEnglishIndexes);
+            QTimer::singleShot(500, this, &Backend::checkReferenceIndexes);
         }
     });
 #endif
@@ -1693,7 +1693,7 @@ void Backend::stopIndexProgressLog() {
 
 void Backend::logIndexProgress() {
 #ifndef UTAUTTS_WASM
-    callAsync("englishIndexes", {}, [this](const QVariantMap &result) {
+    callAsync("referenceIndexes", {}, [this](const QVariantMap &result) {
         if (result.contains("_error")) {
             return;
         }
@@ -1807,7 +1807,7 @@ void Backend::installVoicebankArchives(const QVariantList &archives) {
             }
             m_voicebanks = result.value("voicebanks").toList();
             emit metadataChanged();
-            checkEnglishIndexes();
+            checkReferenceIndexes();
             appendLog(tr("音源を追加しました。"));
 #ifdef UTAUTTS_WASM
             refreshMetadataFromWasm();

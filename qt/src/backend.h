@@ -28,8 +28,8 @@ class Backend final : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool connected READ connected NOTIFY connectedChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
-    Q_PROPERTY(bool englishIndexBuilding READ englishIndexBuilding NOTIFY englishIndexChanged)
-    Q_PROPERTY(double englishIndexProgress READ englishIndexProgress NOTIFY englishIndexChanged)
+    Q_PROPERTY(bool referenceIndexBuilding READ referenceIndexBuilding NOTIFY referenceIndexChanged)
+    Q_PROPERTY(double referenceIndexProgress READ referenceIndexProgress NOTIFY referenceIndexChanged)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
     Q_PROPERTY(QVariantList voicebanks READ voicebanks NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList models READ models NOTIFY metadataChanged)
@@ -105,8 +105,8 @@ public:
     QString prosodyJson() const { return m_prosodyJson; }
     QString synthesisJson() const { return m_synthesisJson; }
     QUrl previewUrl() const { return m_previewUrl; }
-    bool englishIndexBuilding() const { return m_englishIndexBuilding; }
-    double englishIndexProgress() const { return m_englishIndexProgress; }
+    bool referenceIndexBuilding() const { return m_referenceIndexBuilding; }
+    double referenceIndexProgress() const { return m_referenceIndexProgress; }
     bool darkMode() const { return m_darkMode; }
     QString language() const { return m_language; }
     bool onboardingCompleted() const { return m_onboardingCompleted; }
@@ -217,7 +217,7 @@ signals:
     void errorChanged();
     void metadataReloadStarted();
     void metadataReloadStageChanged(const QString &stage);
-    void englishIndexChanged();
+    void referenceIndexChanged();
     void metadataChanged();
     void analysisChanged();
     void prosodyChanged();
@@ -274,15 +274,15 @@ private:
     void trimPreviewCache();
     void clearPreviewCache();
     bool restartNativeBackend();
-    void checkEnglishIndexes();
+    void checkReferenceIndexes();
     // 合成の間に索引を作っているときは、進み具合をログへ出す。
     void startIndexProgressLog();
     void stopIndexProgressLog();
     void logIndexProgress();
     uintptr_t m_handle = 0;
     bool m_busy = false;
-    bool m_englishIndexBuilding = false;
-    double m_englishIndexProgress = 0;
+    bool m_referenceIndexBuilding = false;
+    double m_referenceIndexProgress = 0;
     QTimer *m_indexProgressTimer = nullptr;
     int m_indexProgressStep = -1;
     QString m_synthesisStage;

@@ -230,7 +230,7 @@
     "metadata.loading.models": "正在加载模型",
     "metadata.loading.renderers": "正在加载渲染器",
     "metadata.loading.resamplers": "正在加载 Resamplers",
-    "metadata.loading.englishIndex": "正在创建索引",
+    "metadata.loading.referenceIndex": "正在创建索引",
     "metadata.loading.wavtools": "正在加载 Wavtools",
     "voicebankDetails.noReadme": "没有 README",
     "voicebankDetails.capabilities": "alias数量: CV {0} / VCV {1} / VC {2}",

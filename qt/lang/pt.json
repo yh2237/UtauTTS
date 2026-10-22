@@ -230,7 +230,7 @@
     "metadata.loading.models": "Carregando modelos",
     "metadata.loading.renderers": "Carregando Renderers",
     "metadata.loading.resamplers": "Carregando Resamplers",
-    "metadata.loading.englishIndex": "Criando o índice",
+    "metadata.loading.referenceIndex": "Criando o índice",
     "metadata.loading.wavtools": "Carregando Wavtools",
     "voicebankDetails.noReadme": "Sem README",
     "voicebankDetails.capabilities": "Número de aliases: CV {0} / VCV {1} / VC {2}",
