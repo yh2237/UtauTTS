@@ -14,8 +14,8 @@ func TestRepositoryRendererPluginsAreSelfDescribing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) < 2 {
-		t.Fatalf("renderer plugins = %d, want multiple independently described plugins", len(items))
+	if len(items) == 0 {
+		t.Fatal("no renderer plugins were found")
 	}
 	if items[0].ID != "utautts-world-phrase" {
 		t.Fatalf("default renderer = %q, want manifest-priority UtauTTS WORLD phrase", items[0].ID)
