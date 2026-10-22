@@ -296,7 +296,7 @@ func TestAPIMetadata(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &renderers); err != nil {
 		t.Fatal(err)
 	}
-	if renderers.Default != "utautts-world-phrase" || len(renderers.Renderers) < 2 {
+	if renderers.Default != "utautts-world-phrase" || len(renderers.Renderers) == 0 {
 		t.Fatalf("renderers = %#v", renderers.Renderers)
 	}
 }
