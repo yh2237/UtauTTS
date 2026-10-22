@@ -73,6 +73,160 @@ Item {
         return renderers.length ? renderers[0] : null;
     }
 
+    // backend.cppのcommonRendererSettingsと同じ。Rendererごとではなく1つの値として保存される。
+    readonly property var commonSettingIds: ["intonation_strength", "mora_duration_ms"]
+
+    function commonSettings(renderer) {
+        const rows = [];
+        const settings = renderer && renderer.settings ? renderer.settings : [];
+        for (let order = 0; order < root.commonSettingIds.length; ++order) {
+            for (let index = 0; index < settings.length; ++index) {
+                if (String(settings[index].id) === root.commonSettingIds[order])
+                    rows.push(Object.assign({ rendererId: String(renderer.id) }, settings[index]));
+            }
+        }
+        return rows;
+    }
+
+    Component {
+        id: settingRowComponent
+        RowLayout {
+            id: rendererSettingRow
+            required property var modelData
+            Layout.fillWidth: true
+            property string rendererId: String(rendererSettingRow.modelData.rendererId)
+            property string settingType: String(rendererSettingRow.modelData.type || "integer")
+            property bool scaled: rendererSettingRow.settingType === "number"
+            property real factor: rendererSettingRow.scaled ? 100 : 1
+
+        function settingFallback() {
+            return rendererSettingRow.modelData.default;
+        }
+        function storedValue() {
+            // 変更の通知を受けるためにrendererSettingsを読む。
+            root.backend.rendererSettings;
+            return root.backend.rendererSetting(
+                rendererSettingRow.rendererId,
+                String(rendererSettingRow.modelData.id),
+                rendererSettingRow.settingFallback());
+        }
+        function minimum() {
+            return rendererSettingRow.modelData.min !== undefined
+                    ? Number(rendererSettingRow.modelData.min) : 0;
+        }
+        function maximum() {
+            if (rendererSettingRow.modelData.max !== undefined)
+                return Number(rendererSettingRow.modelData.max);
+            return rendererSettingRow.scaled ? 1 : 100;
+        }
+        function stepSize() {
+            const step = rendererSettingRow.modelData.step !== undefined
+                    ? Number(rendererSettingRow.modelData.step) : 1;
+            const scaledStep = step * rendererSettingRow.factor;
+            return scaledStep > 0 ? scaledStep : 1;
+        }
+        function scaledValue() {
+            return Math.round(Number(rendererSettingRow.storedValue())
+                              * rendererSettingRow.factor);
+        }
+        function actualValue(value) {
+            return rendererSettingRow.scaled
+                    ? value / rendererSettingRow.factor : value;
+        }
+        function textValue(value) {
+            return rendererSettingRow.scaled
+                    ? (value / rendererSettingRow.factor).toFixed(2)
+                    : String(value);
+        }
+        function parsedValue(text) {
+            const parsed = rendererSettingRow.scaled
+                    ? parseFloat(text) : parseInt(text);
+            return isNaN(parsed)
+                    ? 0
+                    : Math.round(parsed * rendererSettingRow.factor);
+        }
+        function applyValue(value) {
+            root.backend.setRendererSetting(
+                rendererSettingRow.rendererId,
+                String(rendererSettingRow.modelData.id),
+                rendererSettingRow.actualValue(value));
+        }
+        function enumModel() {
+            const source = String(rendererSettingRow.modelData.options_source || "");
+            if (source === "resamplers" || source === "wavtools") {
+                const tools = source === "resamplers"
+                              ? root.backend.resamplers
+                              : root.backend.wavtools;
+                const rows = [];
+                if (source === "resamplers")
+                    rows.push({ value: "", label: root.translator.tr("settings.resamplerAuto") });
+                for (let index = 0; index < tools.length; ++index) {
+                    const tool = tools[index];
+                    rows.push({
+                        value: String(tool.id),
+                        label: String(tool.display_name || tool.id)
+                    });
+                }
+                return rows;
+            }
+            const options = rendererSettingRow.modelData.options || [];
+            const rows = [];
+            for (let index = 0; index < options.length; ++index) {
+                const option = options[index];
+                rows.push({
+                    value: String(option.value),
+                    label: root.translator.tr(option.label || option.value)
+                });
+            }
+            return rows;
+        }
+
+        Label {
+            Layout.fillWidth: true
+            text: root.translator.tr(
+                      rendererSettingRow.modelData.label
+                      || rendererSettingRow.modelData.id)
+        }
+        SpinBox {
+            visible: rendererSettingRow.settingType === "integer"
+                     || rendererSettingRow.settingType === "number"
+            Layout.preferredWidth: 180
+            Layout.alignment: Qt.AlignVCenter
+            from: Math.round(rendererSettingRow.minimum()
+                             * rendererSettingRow.factor)
+            to: Math.round(rendererSettingRow.maximum()
+                           * rendererSettingRow.factor)
+            stepSize: rendererSettingRow.stepSize()
+            value: rendererSettingRow.scaledValue()
+            editable: true
+            textFromValue: value => rendererSettingRow.textValue(value)
+            valueFromText: text => rendererSettingRow.parsedValue(text)
+            onValueModified: rendererSettingRow.applyValue(value)
+        }
+        Switch {
+            visible: rendererSettingRow.settingType === "boolean"
+            Layout.alignment: Qt.AlignVCenter
+            checked: !!rendererSettingRow.storedValue()
+            onToggled: root.backend.setRendererSetting(
+                rendererSettingRow.rendererId,
+                String(rendererSettingRow.modelData.id),
+                checked)
+        }
+        ComboBox {
+            visible: rendererSettingRow.settingType === "enum"
+            Layout.preferredWidth: 240
+            model: rendererSettingRow.enumModel()
+            textRole: "label"
+            valueRole: "value"
+            currentIndex: indexOfValue(String(rendererSettingRow.storedValue()))
+            onActivated: root.backend.setRendererSetting(
+                rendererSettingRow.rendererId,
+                String(rendererSettingRow.modelData.id),
+                currentValue)
+        }
+    }
+    }
+
     function rendererSettingGroups(renderer) {
         const groups = [];
         if (!renderer || !renderer.settings)
@@ -80,6 +234,8 @@ Item {
         const settings = renderer.settings;
         for (let index = 0; index < settings.length; ++index) {
             const setting = settings[index];
+            if (root.commonSettingIds.indexOf(String(setting.id)) >= 0)
+                continue;
             const group = String(setting.group || "");
             let entry = null;
             for (let scan = 0; scan < groups.length; ++scan) {
@@ -92,7 +248,7 @@ Item {
                 entry = { id: group, rendererId: String(renderer.id), settings: [] };
                 groups.push(entry);
             }
-            entry.settings.push(setting);
+            entry.settings.push(Object.assign({ rendererId: String(renderer.id) }, setting));
         }
         return groups;
     }
@@ -427,119 +583,6 @@ Item {
                         anchors.fill: parent
                         spacing: 8
 
-                        Item {
-                            id: rendererTabsHeader
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 44
-
-                            Rectangle {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.top: rendererTabFlick.bottom
-                                height: 1
-                                color: root.hostWindow.borderColor
-                            }
-
-                            Flickable {
-                                id: rendererTabFlick
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.top: parent.top
-                                height: 35
-                                contentWidth: rendererTabRow.width
-                                contentHeight: height
-                                clip: true
-                                boundsBehavior: Flickable.StopAtBounds
-
-                                WheelHandler {
-                                    onWheel: event => {
-                                        const maximum = Math.max(0, rendererTabFlick.contentWidth - rendererTabFlick.width);
-                                        rendererTabFlick.contentX = Math.max(0, Math.min(maximum, rendererTabFlick.contentX - event.angleDelta.y));
-                                        event.accepted = true;
-                                    }
-                                }
-
-                                Row {
-                                    id: rendererTabRow
-                                    height: rendererTabFlick.height
-                                    spacing: 0
-
-                                    Repeater {
-                                        id: rendererTabRepeater
-                                        model: root.backend.renderers
-
-                                        ToolButton {
-                                            id: rendererTab
-                                            required property int index
-                                            required property var modelData
-                                            width: Math.max(96, rendererTabLabel.implicitWidth + 24)
-                                            height: rendererTabRow.height
-                                            ButtonGroup.group: rendererTabGroup
-                                            checkable: true
-                                            checked: String(modelData.id) === String(root.pendingDefaultRendererId)
-                                            text: String(modelData.display_name || modelData.id)
-                                            onClicked: root.pendingDefaultRendererId = String(modelData.id)
-
-                                            background: Rectangle {
-                                                color: rendererTab.checked
-                                                       ? root.palette.base
-                                                       : rendererTab.hovered
-                                                         ? Qt.rgba(root.palette.alternateBase.r,
-                                                                   root.palette.alternateBase.g,
-                                                                   root.palette.alternateBase.b, 0.42)
-                                                         : "transparent"
-                                                Rectangle {
-                                                    anchors.left: parent.left
-                                                    anchors.right: parent.right
-                                                    anchors.bottom: parent.bottom
-                                                    height: 1
-                                                    color: rendererTab.checked ? root.palette.base : "transparent"
-                                                }
-                                                Rectangle {
-                                                    visible: rendererTab.index < rendererTabRepeater.count - 1
-                                                    anchors.right: parent.right
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                    width: 1
-                                                    height: 18
-                                                    color: root.hostWindow.borderColor
-                                                }
-                                            }
-                                            contentItem: Text {
-                                                id: rendererTabLabel
-                                                anchors.centerIn: parent
-                                                text: rendererTab.text
-                                                color: rendererTab.checked
-                                                       ? root.palette.text : root.palette.placeholderText
-                                                font.pixelSize: 13
-                                                horizontalAlignment: Text.AlignHCenter
-                                                verticalAlignment: Text.AlignVCenter
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            ScrollBar {
-                                id: rendererTabBar
-                                orientation: Qt.Horizontal
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.top: rendererTabFlick.bottom
-                                anchors.topMargin: 2
-                                height: 7
-                                policy: ScrollBar.AsNeeded
-                                size: rendererTabFlick.visibleArea.widthRatio
-                                position: rendererTabFlick.visibleArea.xPosition
-                                active: rendererTabFlick.movingHorizontally || hovered
-                                onPositionChanged: rendererTabFlick.contentX = position * Math.max(0, rendererTabFlick.contentWidth - rendererTabFlick.width)
-                            }
-
-                            ButtonGroup {
-                                id: rendererTabGroup
-                                exclusive: true
-                            }
-                        }
-
                         ScrollView {
                             id: synthesisSettingsPage
                             Layout.fillWidth: true
@@ -582,6 +625,152 @@ Item {
                                             SettingsResetButton {
                                                 translator: root.translator
                                                 onResetRequested: root.resetDefaultVoicebank()
+                                            }
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultTone")
+                                                Layout.fillWidth: true
+                                            }
+                                            ToneSpinBox {
+                                                id: defaultToneInput
+                                                Layout.preferredWidth: 180
+                                                automaticText: root.translator.tr("main.aliasPolicy.auto")
+                                                onToneModified: tone => root.pendingDefaultTone = tone
+                                                Binding on value {
+                                                    value: defaultToneInput.toneToValue(root.pendingDefaultTone)
+                                                }
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultTone()
+                                            }
+                                        }
+                                        Repeater {
+                                            model: root.commonSettings(root.selectedRenderer())
+                                            delegate: settingRowComponent
+                                        }
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
+                                        Label {
+                                            Layout.fillWidth: true
+                                            text: root.translator.tr("main.method.native")
+                                            font.bold: true
+                                        }
+                                        Item {
+                                            id: rendererTabsHeader
+                                            Layout.fillWidth: true
+                                            Layout.preferredHeight: 44
+
+                                            Rectangle {
+                                                anchors.left: parent.left
+                                                anchors.right: parent.right
+                                                anchors.top: rendererTabFlick.bottom
+                                                height: 1
+                                                color: root.hostWindow.borderColor
+                                            }
+
+                                            Flickable {
+                                                id: rendererTabFlick
+                                                anchors.left: parent.left
+                                                anchors.right: parent.right
+                                                anchors.top: parent.top
+                                                height: 35
+                                                contentWidth: rendererTabRow.width
+                                                contentHeight: height
+                                                clip: true
+                                                boundsBehavior: Flickable.StopAtBounds
+
+                                                WheelHandler {
+                                                    onWheel: event => {
+                                                        const maximum = Math.max(0, rendererTabFlick.contentWidth - rendererTabFlick.width);
+                                                        rendererTabFlick.contentX = Math.max(0, Math.min(maximum, rendererTabFlick.contentX - event.angleDelta.y));
+                                                        event.accepted = true;
+                                                    }
+                                                }
+
+                                                Row {
+                                                    id: rendererTabRow
+                                                    height: rendererTabFlick.height
+                                                    spacing: 0
+
+                                                    Repeater {
+                                                        id: rendererTabRepeater
+                                                        model: root.backend.renderers
+
+                                                        ToolButton {
+                                                            id: rendererTab
+                                                            required property int index
+                                                            required property var modelData
+                                                            width: Math.max(96, rendererTabLabel.implicitWidth + 24)
+                                                            height: rendererTabRow.height
+                                                            ButtonGroup.group: rendererTabGroup
+                                                            checkable: true
+                                                            checked: String(modelData.id) === String(root.pendingDefaultRendererId)
+                                                            text: String(modelData.display_name || modelData.id)
+                                                            onClicked: root.pendingDefaultRendererId = String(modelData.id)
+
+                                                            background: Rectangle {
+                                                                color: rendererTab.checked
+                                                                       ? root.palette.base
+                                                                       : rendererTab.hovered
+                                                                         ? Qt.rgba(root.palette.alternateBase.r,
+                                                                                   root.palette.alternateBase.g,
+                                                                                   root.palette.alternateBase.b, 0.42)
+                                                                         : "transparent"
+                                                                Rectangle {
+                                                                    anchors.left: parent.left
+                                                                    anchors.right: parent.right
+                                                                    anchors.bottom: parent.bottom
+                                                                    height: 1
+                                                                    color: rendererTab.checked ? root.palette.base : "transparent"
+                                                                }
+                                                                Rectangle {
+                                                                    visible: rendererTab.index < rendererTabRepeater.count - 1
+                                                                    anchors.right: parent.right
+                                                                    anchors.verticalCenter: parent.verticalCenter
+                                                                    width: 1
+                                                                    height: 18
+                                                                    color: root.hostWindow.borderColor
+                                                                }
+                                                            }
+                                                            contentItem: Text {
+                                                                id: rendererTabLabel
+                                                                anchors.centerIn: parent
+                                                                text: rendererTab.text
+                                                                color: rendererTab.checked
+                                                                       ? root.palette.text : root.palette.placeholderText
+                                                                font.pixelSize: 13
+                                                                horizontalAlignment: Text.AlignHCenter
+                                                                verticalAlignment: Text.AlignVCenter
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            ScrollBar {
+                                                id: rendererTabBar
+                                                orientation: Qt.Horizontal
+                                                anchors.left: parent.left
+                                                anchors.right: parent.right
+                                                anchors.top: rendererTabFlick.bottom
+                                                anchors.topMargin: 2
+                                                height: 7
+                                                policy: ScrollBar.AsNeeded
+                                                size: rendererTabFlick.visibleArea.widthRatio
+                                                position: rendererTabFlick.visibleArea.xPosition
+                                                active: rendererTabFlick.movingHorizontally || hovered
+                                                onPositionChanged: rendererTabFlick.contentX = position * Math.max(0, rendererTabFlick.contentWidth - rendererTabFlick.width)
+                                            }
+
+                                            ButtonGroup {
+                                                id: rendererTabGroup
+                                                exclusive: true
                                             }
                                         }
                                         RowLayout {
@@ -633,26 +822,6 @@ Item {
                                                 onResetRequested: root.resetDefaultModel()
                                             }
                                         }
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            Label {
-                                                text: root.translator.tr("settings.defaultTone")
-                                                Layout.fillWidth: true
-                                            }
-                                            ToneSpinBox {
-                                                id: defaultToneInput
-                                                Layout.preferredWidth: 180
-                                                automaticText: root.translator.tr("main.aliasPolicy.auto")
-                                                onToneModified: tone => root.pendingDefaultTone = tone
-                                                Binding on value {
-                                                    value: defaultToneInput.toneToValue(root.pendingDefaultTone)
-                                                }
-                                            }
-                                            SettingsResetButton {
-                                                translator: root.translator
-                                                onResetRequested: root.resetDefaultTone()
-                                            }
-                                        }
                                     }
                                     Repeater {
                                         model: root.rendererSettingGroups(root.selectedRenderer())
@@ -670,141 +839,7 @@ Item {
 
                                             Repeater {
                                                 model: rendererGroup.modelData.settings
-                                                delegate: RowLayout {
-                                                    id: rendererSettingRow
-                                                    required property var modelData
-                                                    Layout.fillWidth: true
-                                                    property string rendererId: String(rendererGroup.modelData.rendererId)
-                                                    property string settingType: String(rendererSettingRow.modelData.type || "integer")
-                                                    property bool scaled: rendererSettingRow.settingType === "number"
-                                                    property real factor: rendererSettingRow.scaled ? 100 : 1
-
-                                                function settingFallback() {
-                                                    return rendererSettingRow.modelData.default;
-                                                }
-                                                function storedValue() {
-                                                    const map = root.backend.rendererSettings;
-                                                    const key = rendererSettingRow.rendererId + "/"
-                                                            + String(rendererSettingRow.modelData.id);
-                                                    if (map && map[key] !== undefined)
-                                                        return map[key];
-                                                    return rendererSettingRow.settingFallback();
-                                                }
-                                                function minimum() {
-                                                    return rendererSettingRow.modelData.min !== undefined
-                                                            ? Number(rendererSettingRow.modelData.min) : 0;
-                                                }
-                                                function maximum() {
-                                                    if (rendererSettingRow.modelData.max !== undefined)
-                                                        return Number(rendererSettingRow.modelData.max);
-                                                    return rendererSettingRow.scaled ? 1 : 100;
-                                                }
-                                                function stepSize() {
-                                                    const step = rendererSettingRow.modelData.step !== undefined
-                                                            ? Number(rendererSettingRow.modelData.step) : 1;
-                                                    const scaledStep = step * rendererSettingRow.factor;
-                                                    return scaledStep > 0 ? scaledStep : 1;
-                                                }
-                                                function scaledValue() {
-                                                    return Math.round(Number(rendererSettingRow.storedValue())
-                                                                      * rendererSettingRow.factor);
-                                                }
-                                                function actualValue(value) {
-                                                    return rendererSettingRow.scaled
-                                                            ? value / rendererSettingRow.factor : value;
-                                                }
-                                                function textValue(value) {
-                                                    return rendererSettingRow.scaled
-                                                            ? (value / rendererSettingRow.factor).toFixed(2)
-                                                            : String(value);
-                                                }
-                                                function parsedValue(text) {
-                                                    const parsed = rendererSettingRow.scaled
-                                                            ? parseFloat(text) : parseInt(text);
-                                                    return isNaN(parsed)
-                                                            ? 0
-                                                            : Math.round(parsed * rendererSettingRow.factor);
-                                                }
-                                                function applyValue(value) {
-                                                    root.backend.setRendererSetting(
-                                                        rendererSettingRow.rendererId,
-                                                        String(rendererSettingRow.modelData.id),
-                                                        rendererSettingRow.actualValue(value));
-                                                }
-                                                function enumModel() {
-                                                    const source = String(rendererSettingRow.modelData.options_source || "");
-                                                    if (source === "resamplers" || source === "wavtools") {
-                                                        const tools = source === "resamplers"
-                                                                      ? root.backend.resamplers
-                                                                      : root.backend.wavtools;
-                                                        const rows = [];
-                                                        if (source === "resamplers")
-                                                            rows.push({ value: "", label: root.translator.tr("settings.resamplerAuto") });
-                                                        for (let index = 0; index < tools.length; ++index) {
-                                                            const tool = tools[index];
-                                                            rows.push({
-                                                                value: String(tool.id),
-                                                                label: String(tool.display_name || tool.id)
-                                                            });
-                                                        }
-                                                        return rows;
-                                                    }
-                                                    const options = rendererSettingRow.modelData.options || [];
-                                                    const rows = [];
-                                                    for (let index = 0; index < options.length; ++index) {
-                                                        const option = options[index];
-                                                        rows.push({
-                                                            value: String(option.value),
-                                                            label: root.translator.tr(option.label || option.value)
-                                                        });
-                                                    }
-                                                    return rows;
-                                                }
-
-                                                Label {
-                                                    Layout.fillWidth: true
-                                                    text: root.translator.tr(
-                                                              rendererSettingRow.modelData.label
-                                                              || rendererSettingRow.modelData.id)
-                                                }
-                                                SpinBox {
-                                                    visible: rendererSettingRow.settingType === "integer"
-                                                             || rendererSettingRow.settingType === "number"
-                                                    Layout.preferredWidth: 180
-                                                    Layout.alignment: Qt.AlignVCenter
-                                                    from: Math.round(rendererSettingRow.minimum()
-                                                                     * rendererSettingRow.factor)
-                                                    to: Math.round(rendererSettingRow.maximum()
-                                                                   * rendererSettingRow.factor)
-                                                    stepSize: rendererSettingRow.stepSize()
-                                                    value: rendererSettingRow.scaledValue()
-                                                    editable: true
-                                                    textFromValue: value => rendererSettingRow.textValue(value)
-                                                    valueFromText: text => rendererSettingRow.parsedValue(text)
-                                                    onValueModified: rendererSettingRow.applyValue(value)
-                                                }
-                                                Switch {
-                                                    visible: rendererSettingRow.settingType === "boolean"
-                                                    Layout.alignment: Qt.AlignVCenter
-                                                    checked: !!rendererSettingRow.storedValue()
-                                                    onToggled: root.backend.setRendererSetting(
-                                                        rendererSettingRow.rendererId,
-                                                        String(rendererSettingRow.modelData.id),
-                                                        checked)
-                                                }
-                                                ComboBox {
-                                                    visible: rendererSettingRow.settingType === "enum"
-                                                    Layout.preferredWidth: 240
-                                                    model: rendererSettingRow.enumModel()
-                                                    textRole: "label"
-                                                    valueRole: "value"
-                                                    currentIndex: indexOfValue(String(rendererSettingRow.storedValue()))
-                                                    onActivated: root.backend.setRendererSetting(
-                                                        rendererSettingRow.rendererId,
-                                                        String(rendererSettingRow.modelData.id),
-                                                        currentValue)
-                                                }
-                                            }
+                                                delegate: settingRowComponent
                                         }
                                     }
                                 }
