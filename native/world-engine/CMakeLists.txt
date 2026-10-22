@@ -12,6 +12,7 @@ add_library(utautts-world-engine SHARED
     "${WORLD_ROOT}/harvest.cpp"
     "${WORLD_ROOT}/matlabfunctions.cpp"
     "${WORLD_ROOT}/synthesis.cpp"
+    "${WORLD_ROOT}/synthesisrealtime.cpp"
 )
 
 target_include_directories(utautts-world-engine PRIVATE "${WORLD_ROOT}")

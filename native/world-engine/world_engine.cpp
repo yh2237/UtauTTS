@@ -9,6 +9,7 @@
 #include "world/d4c.h"
 #include "world/harvest.h"
 #include "world/synthesis.h"
+#include "world/synthesisrealtime.h"
 
 namespace {
 constexpr double kF0Floor = 71.0;
@@ -181,6 +182,88 @@ int UtauTTSWorldSynthesize(const UtauTTSWorldSynthesisRequest* request,
   } catch (...) {
     return fail("unknown WORLD synthesis error", error, error_capacity);
   }
+}
+
+namespace {
+
+// WorldSynthesizerは足したスペクトルを指すだけなので、取り出し終わるまでここで持つ。
+struct WorldStream {
+  WorldSynthesizer synth;
+  int bins;
+  int ring;
+  std::vector<std::vector<double>> spectrum;
+  std::vector<std::vector<double>> aperiodicity;
+  std::vector<std::vector<double*>> spectrum_rows;
+  std::vector<std::vector<double*>> aperiodicity_rows;
+  std::vector<double> f0;
+};
+
+}  // namespace
+
+void* UtauTTSWorldStreamOpen(int sample_rate, double frame_period_ms,
+                             int fft_size, int buffer_size, int ring_size) {
+  if (sample_rate <= 0 || frame_period_ms <= 0 || fft_size <= 0 ||
+      buffer_size <= 0 || ring_size <= 0) {
+    return nullptr;
+  }
+  try {
+    auto* stream = new WorldStream();
+    InitializeSynthesizer(sample_rate, frame_period_ms, fft_size, buffer_size,
+                          ring_size, &stream->synth);
+    stream->bins = fft_size / 2 + 1;
+    stream->ring = ring_size;
+    stream->spectrum.resize(ring_size);
+    stream->aperiodicity.resize(ring_size);
+    stream->spectrum_rows.resize(ring_size);
+    stream->aperiodicity_rows.resize(ring_size);
+    return stream;
+  } catch (...) {
+    return nullptr;
+  }
+}
+
+int UtauTTSWorldStreamAdd(void* handle, const double* f0, int frame_count,
+                          const double* spectrum, const double* aperiodicity) {
+  auto* stream = static_cast<WorldStream*>(handle);
+  if (stream == nullptr || f0 == nullptr || spectrum == nullptr ||
+      aperiodicity == nullptr || frame_count <= 0) {
+    return 0;
+  }
+  WorldSynthesizer& synth = stream->synth;
+  if (synth.head_pointer - synth.current_pointer2 == stream->ring) return 0;
+  const int slot = synth.head_pointer % stream->ring;
+  const size_t values = static_cast<size_t>(frame_count) * stream->bins;
+  stream->spectrum[slot].assign(spectrum, spectrum + values);
+  stream->aperiodicity[slot].assign(aperiodicity, aperiodicity + values);
+  stream->spectrum_rows[slot].resize(frame_count);
+  stream->aperiodicity_rows[slot].resize(frame_count);
+  for (int frame = 0; frame < frame_count; ++frame) {
+    stream->spectrum_rows[slot][frame] =
+        stream->spectrum[slot].data() + static_cast<size_t>(frame) * stream->bins;
+    stream->aperiodicity_rows[slot][frame] =
+        stream->aperiodicity[slot].data() +
+        static_cast<size_t>(frame) * stream->bins;
+  }
+  stream->f0.assign(f0, f0 + frame_count);
+  return AddParameters(stream->f0.data(), frame_count,
+                       stream->spectrum_rows[slot].data(),
+                       stream->aperiodicity_rows[slot].data(), &synth);
+}
+
+int UtauTTSWorldStreamSynthesize(void* handle, double* output) {
+  auto* stream = static_cast<WorldStream*>(handle);
+  if (stream == nullptr || output == nullptr) return 0;
+  if (Synthesis2(&stream->synth) == 0) return 0;
+  std::copy(stream->synth.buffer,
+            stream->synth.buffer + stream->synth.buffer_size, output);
+  return 1;
+}
+
+void UtauTTSWorldStreamClose(void* handle) {
+  auto* stream = static_cast<WorldStream*>(handle);
+  if (stream == nullptr) return;
+  DestroySynthesizer(&stream->synth);
+  delete stream;
 }
 
 int UtauTTSWorldAnalyzeFlat(const double* samples, int sample_count,

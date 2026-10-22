@@ -61,6 +61,16 @@ UTAUTTS_WORLD_API int UtauTTSWorldAnalyzeFlat(
     double frame_period_ms, const double* input_f0, int input_f0_count,
     double* f0, double* spectrum, double* aperiodicity, char* error,
     int error_capacity);
+// 逐次合成。パラメータを少しずつ足し、buffer_sizeサンプルずつ取り出す。区切りでも波形がつながる。
+UTAUTTS_WORLD_API void* UtauTTSWorldStreamOpen(int sample_rate,
+    double frame_period_ms, int fft_size, int buffer_size, int ring_size);
+// 1なら足した。0ならたまっていて足せない（先に取り出す）。
+UTAUTTS_WORLD_API int UtauTTSWorldStreamAdd(void* stream, const double* f0,
+    int frame_count, const double* spectrum, const double* aperiodicity);
+// 1ならoutputへbuffer_sizeサンプルを書いた。0なら足したパラメータがまだ足りない。
+UTAUTTS_WORLD_API int UtauTTSWorldStreamSynthesize(void* stream, double* output);
+UTAUTTS_WORLD_API void UtauTTSWorldStreamClose(void* stream);
+
 UTAUTTS_WORLD_API int UtauTTSWorldSynthesizeFlat(
     const double* f0, int frame_count, const double* spectrum,
     const double* aperiodicity, int fft_size, double frame_period_ms,
