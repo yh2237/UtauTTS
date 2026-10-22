@@ -23,3 +23,4 @@ UtauTTSが互換処理や移植のために参照した公開コードと、そ�
 - WavLM base+の特徴量（`internal/hubert/`）: Hugging Face Transformersの実装（Apache License 2.0）と出力を照合
 - 英語の辞書の引き方（`internal/refspeech/lexicon.go`）: misaki（Apache License 2.0）の辞書の引き方と、前後の語で変わる読み
 - 中国語の音素の書き方（`internal/refspeech/zhuyin.go`）: misaki（Apache License 2.0）の中国語G2Pが使う注音符号の表
+- 日本語の音素の書き方（`internal/frontend/japanese_kokoro.go`）: misaki（Apache License 2.0）の日本語G2Pが使うかなの表。misakiはcutlet（MIT License）から移している

@@ -40,9 +40,9 @@ v10の曲線は混ぜず、F0ヘッドの曲線だけを自然の振れ幅で使
 - 通知: [licenses/CHINESE-REFERENCE-MODEL.txt](../licenses/CHINESE-REFERENCE-MODEL.txt)、ライセンス本文: [licenses/APACHE-2.0.txt](../licenses/APACHE-2.0.txt)
 - 取得: 英語と同じ`tools/fetch-english-reference.ps1`（Linux・macOSは`.sh`）で、版とSHA256を固定して取得します
 
-## Spanish and Portuguese Reference Voices（スペイン語・ポルトガル語）
+## Spanish, Portuguese and Japanese Reference Voices（スペイン語・ポルトガル語・日本語）
 
-スペイン語とポルトガル語は英語と同じKokoro-82Mのモデルを、声ef_dora・pf_dora（`english-reference/ef_dora.pt`、`pf_dora.pt`）で使います。文は綴りから規則で音素記号にします。ライセンスと通知は英語と同じです。
+スペイン語・ポルトガル語・日本語（試用）は英語と同じKokoro-82Mのモデルを、声ef_dora・pf_dora・jf_alpha（`english-reference/ef_dora.pt`、`pf_dora.pt`、`jf_alpha.pt`）で使います。スペイン語とポルトガル語は綴りから規則で、日本語はかなの読みから表で音素記号にします。ライセンスと通知は英語と同じです。
 
 ## Mandarin Tone Intonation v1（中国語の既定）
 

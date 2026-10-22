@@ -14,6 +14,7 @@ import (
 
 	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/openjtalk"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/refmatch"
@@ -103,7 +104,7 @@ func referenceInputs(cfg Config, language, reading string) (*refspeech.Service, 
 	if err != nil {
 		return nil, nil, nil, refspeech.Options{}, err
 	}
-	provider, err := referenceProvider(cfg, language, service)
+	provider, err := referenceProvider(cfg, language, reading, service)
 	if err != nil {
 		return nil, nil, nil, refspeech.Options{}, err
 	}
@@ -122,12 +123,14 @@ func referenceInputs(cfg Config, language, reading string) (*refspeech.Service, 
 }
 
 // referenceProviderは、言語に合う参照TTSを返す。
-func referenceProvider(cfg Config, language string, service *refspeech.Service) (refspeech.Provider, error) {
+func referenceProvider(cfg Config, language, reading string, service *refspeech.Service) (refspeech.Provider, error) {
 	switch frontend.NormalizeLanguage(language) {
 	case frontend.LanguageChinese:
 		return refspeech.NewKokoroChineseProvider(service), nil
 	case frontend.LanguageSpanish, frontend.LanguagePortuguese:
 		return refspeech.NewKokoroSyllableProvider(service, frontend.NormalizeLanguage(language)), nil
+	case frontend.LanguageJapanese:
+		return refspeech.NewKokoroJapaneseProvider(service, japaneseWordStarts(cfg, reading)), nil
 	case frontend.LanguageEnglish:
 		lexicon, err := englishLexicon(cfg.ReferenceDir)
 		if err != nil {
@@ -136,6 +139,52 @@ func referenceProvider(cfg Config, language string, service *refspeech.Service) 
 		return refspeech.NewKokoroProvider(service, lexicon, cfg.Dictionary), nil
 	}
 	return nil, fmt.Errorf("reference synthesis is not available for %q", language)
+}
+
+// japaneseWordStartsは、かなの読みのモーラごとに語の頭かを、OpenJTalkの解析から返す。
+// 解析できなければnil（語の区切りを置かずに読む）。
+func japaneseWordStarts(cfg Config, reading string) []bool {
+	morae, err := frontend.ParseKana(reading)
+	if err != nil {
+		return nil
+	}
+	text := frontend.ApplyDictionaryForAnalysis(cfg.Text, cfg.Dictionary)
+	if strings.TrimSpace(text) == "" {
+		text = reading
+	}
+	features, err := analyzeAndAlignRuntimeFeatures(cfg.Context, morae, text,
+		openjtalk.Config{HelperPath: cfg.OpenJTalkPath, DictionaryPath: cfg.OpenJTalkDictionaryPath})
+	if err != nil || len(features) != len(morae) {
+		return nil
+	}
+	// misakiの語の区切り（UniDicの語をまとめたもの）に近づける。
+	// 接続助詞のて・で（し・て → ɕite）、です以外の助動詞に続く助動詞（ませ・ん → maseɴ）、
+	// 動詞「い」に続く助動詞（い・た → ita）は前の語に続けて読む。
+	starts := make([]bool, len(morae))
+	wordStart, wordLength := 0, 0
+	for i, feature := range features {
+		start := feature["word_start"] > 0
+		if start && i > 0 {
+			previous := features[i-1]
+			kana := morae[i].Text
+			switch {
+			case feature["pos_group1=接続助詞"] > 0 && (kana == "て" || kana == "で" || kana == "テ" || kana == "デ"):
+				start = false
+			case feature["pos=助動詞"] > 0 && previous["pos=助動詞"] > 0 && kana != "で" && kana != "デ":
+				start = false
+			case feature["pos=助動詞"] > 0 && previous["pos=動詞"] > 0 && wordLength == 1 && (morae[i-1].Text == "い" || morae[i-1].Text == "イ"):
+				start = false
+			case feature["pos_group1=接尾"] > 0:
+				start = false
+			}
+		}
+		if feature["word_start"] > 0 {
+			wordStart, wordLength = i, 0
+		}
+		wordLength = i - wordStart + 1
+		starts[i] = start
+	}
+	return starts
 }
 
 // englishManualPitchは手動の抑揚を、最初のモーラの始まりからのミリ秒ごとのセントにする。
