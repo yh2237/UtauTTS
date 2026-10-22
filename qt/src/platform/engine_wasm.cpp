@@ -55,18 +55,12 @@ QVariantMap initializeNative(const QByteArray &, const std::function<void(int)> 
         progress(2);
     }
     const QVariantMap renderers = callNative(0, "renderers");
-    if (progress) {
-        progress(3);
-        progress(4);
-    }
     return {
         {"_handle", QVariant::fromValue<qulonglong>(1)},
         {"voicebanks", voices.value("voicebanks")},
         {"models", models.value("models")},
         {"renderers", renderers.value("renderers")},
         {"problems", renderers.value("problems")},
-        {"resamplers", renderers.value("resamplers")},
-        {"wavtools", renderers.value("wavtools")},
         {"default_renderer", renderers.value("default_renderer")},
     };
 }

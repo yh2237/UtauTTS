@@ -58,7 +58,6 @@ func DefaultRequest() Request {
 		PauseContext:            DefaultPauseContext,
 		PauseContextStrength:    DefaultPauseContextStrength,
 		ApplyPitch:              DefaultApplyPitch,
-		Wavtool:                 "builtin",
 	}
 }
 
@@ -78,8 +77,6 @@ type Request struct {
 	Renderer         string `json:"renderer"`
 	// Methodは合成の方法。省略できない。tts.MethodWaveformSynthesisかtts.MethodReferenceMatching。
 	Method      string                `json:"method"`
-	Resampler   string                `json:"resampler"`
-	Wavtool     string                `json:"wavtool"`
 	AliasPolicy voicebank.AliasPolicy `json:"alias_policy"`
 	Dictionary  []DictionaryEntry     `json:"dictionary"`
 	// 互換用の固定フィールド。同じIDがrenderer_settingsにあればそちらを優先する。
@@ -93,30 +90,29 @@ type Request struct {
 	ManualPitchPath       string                   `json:"-"`
 	ManualPitch           *prosody.ManualPitchFile `json:"manual_pitch"`
 	// PitchCurveはコーパス指定の固定ピッチ曲線。指定時は自動輪郭より優先される。
-	PitchCurve              *render.PitchCurve           `json:"pitch_curve,omitempty"`
-	ProsodyFeatures         []prosody.FeatureFrame       `json:"-"`
-	ProsodyPitchOnly        bool                         `json:"-"`
-	PitchFactors            []float64                    `json:"-"`
-	IntonationStrength      float64                      `json:"intonation_strength"`
-	ContextDuration         bool                         `json:"context_duration"`
-	ContextDurationStrength float64                      `json:"context_duration_strength"`
-	BoundaryTone            bool                         `json:"boundary_tone"`
-	BoundaryToneStrength    float64                      `json:"boundary_tone_strength"`
-	StretchAdapt            bool                         `json:"stretch_adapt"`
-	StretchAdaptStrength    float64                      `json:"stretch_adapt_strength"`
-	PauseContext            bool                         `json:"pause_context"`
-	PauseContextStrength    float64                      `json:"pause_context_strength"`
-	ApplyPitch              bool                         `json:"apply_pitch"`
-	BoundaryBridgeMS        float64                      `json:"-"`
-	BoundaryBridgeThreshold float64                      `json:"-"`
-	CVVCTiming              string                       `json:"-"`
-	CVVCTransitionGain      float64                      `json:"-"`
-	CVVCPreBoundaryFade     bool                         `json:"-"`
-	ResamplerExpressions    []render.ResamplerExpression `json:"resampler_expressions"`
-	DiffSingerSteps         int64                        `json:"diffsinger_steps"`
-	DiffSingerDurationMix   float64                      `json:"diffsinger_duration_mix"`
-	DiffSingerPitchMix      float64                      `json:"diffsinger_pitch_mix"`
-	DiffSingerExpr          float64                      `json:"diffsinger_expr"`
+	PitchCurve              *render.PitchCurve     `json:"pitch_curve,omitempty"`
+	ProsodyFeatures         []prosody.FeatureFrame `json:"-"`
+	ProsodyPitchOnly        bool                   `json:"-"`
+	PitchFactors            []float64              `json:"-"`
+	IntonationStrength      float64                `json:"intonation_strength"`
+	ContextDuration         bool                   `json:"context_duration"`
+	ContextDurationStrength float64                `json:"context_duration_strength"`
+	BoundaryTone            bool                   `json:"boundary_tone"`
+	BoundaryToneStrength    float64                `json:"boundary_tone_strength"`
+	StretchAdapt            bool                   `json:"stretch_adapt"`
+	StretchAdaptStrength    float64                `json:"stretch_adapt_strength"`
+	PauseContext            bool                   `json:"pause_context"`
+	PauseContextStrength    float64                `json:"pause_context_strength"`
+	ApplyPitch              bool                   `json:"apply_pitch"`
+	BoundaryBridgeMS        float64                `json:"-"`
+	BoundaryBridgeThreshold float64                `json:"-"`
+	CVVCTiming              string                 `json:"-"`
+	CVVCTransitionGain      float64                `json:"-"`
+	CVVCPreBoundaryFade     bool                   `json:"-"`
+	DiffSingerSteps         int64                  `json:"diffsinger_steps"`
+	DiffSingerDurationMix   float64                `json:"diffsinger_duration_mix"`
+	DiffSingerPitchMix      float64                `json:"diffsinger_pitch_mix"`
+	DiffSingerExpr          float64                `json:"diffsinger_expr"`
 	// 空文字とnilは既定値を使う。
 	Worldline render.WorldlineProviderOptions `json:"worldline,omitempty"`
 	// 未知の設定IDもエラーにせず、実装固有値として渡す。
@@ -367,14 +363,10 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		CVVCTransitionGain:      request.CVVCTransitionGain,
 		CVVCPreBoundaryFade:     request.CVVCPreBoundaryFade,
 	}
-	providerOptions := render.ProviderOptions{
-		Classic: render.ClassicOptions{
-			ResamplerExpressions: append([]render.ResamplerExpression(nil), request.ResamplerExpressions...),
-		},
-	}
+	providerOptions := render.ProviderOptions{}
 	// 型付き設定を先に入れ、renderer_settingsで上書きする。
 	providerOptions.Worldline = request.Worldline
-	resolution := resolveRendererSettings(request, &cfg, &providerOptions)
+	resolveRendererSettings(request, &cfg, &providerOptions)
 	voicebankPath := request.VoicebankPath
 	if voicebankPath == "" && s.voicebanks != nil && (requireVoicebank || request.VoicebankID != "") {
 		if path, ok := s.voicebanks.Resolve(request.VoicebankID); ok {
@@ -407,17 +399,6 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		if worldPhrase, err := s.ResolveRenderer("utautts-world-phrase"); err == nil {
 			cfg.WorldEnginePath = worldPhrase.Resource(engine.ResourceWorldEngine)
 		}
-	}
-	if requireVoicebank && resolvedEngine.Provider.ClassicTools {
-		tools, toolsErr := s.ResolveClassicTools(
-			firstNonEmpty(resolution.Resampler, request.Resampler),
-			firstNonEmpty(resolution.Wavtool, request.Wavtool),
-		)
-		if toolsErr != nil {
-			return tts.Config{}, "", render.ProviderOptions{}, toolsErr
-		}
-		providerOptions.Classic.ResamplerPath = tools.Resampler.Path
-		providerOptions.Classic.WavtoolPath = tools.Wavtool.Path
 	}
 	return cfg, string(resolvedEngine.PublicID()), providerOptions, nil
 }
@@ -489,55 +470,9 @@ func (s *Service) RendererAvailability() map[string]engine.Availability {
 			}
 			continue
 		}
-		availability := resolved.Availability
-		if availability.Available && resolved.Provider.ClassicTools {
-			if _, toolsErr := s.ResolveClassicTools("", ""); toolsErr != nil {
-				availability = engine.Availability{
-					Available: false,
-					Issues:    []engine.AvailabilityIssue{{Message: toolsErr.Error()}},
-				}
-			}
-		}
-		result[renderer.ID] = availability
+		result[renderer.ID] = resolved.Availability
 	}
 	return result
-}
-
-type ClassicTools struct {
-	Resampler plugin.ClassicTool
-	Wavtool   plugin.ClassicTool
-	Resources map[engine.ResourceKey]string
-}
-
-func (s *Service) ResolveClassicTools(resamplerID, wavtoolID string) (ClassicTools, error) {
-	if s.catalog == nil {
-		return ClassicTools{}, fmt.Errorf("%w: renderer catalog is not initialized", ErrUnavailable)
-	}
-	resampler, found := s.catalog.Resampler(resamplerID)
-	if !found {
-		return ClassicTools{}, fmt.Errorf("%w: classic UTAU resampler %q not found", ErrUnavailable, resamplerID)
-	}
-	wavtool, found := s.catalog.Wavtool(wavtoolID)
-	if !found {
-		return ClassicTools{}, fmt.Errorf("%w: classic UTAU wavtool %q not found", ErrUnavailable, wavtoolID)
-	}
-	resources := map[engine.ResourceKey]string{
-		engine.ResourceClassicResampler: resampler.Path,
-	}
-	requirements := []engine.ResourceRequirement{{
-		Key: engine.ResourceClassicResampler, Required: true, Executable: true,
-	}}
-	if wavtool.Path != "" {
-		resources[engine.ResourceClassicWavtool] = wavtool.Path
-		requirements = append(requirements, engine.ResourceRequirement{
-			Key: engine.ResourceClassicWavtool, Required: true, Executable: true,
-		})
-	}
-	availability := engine.CheckResources(resources, requirements...)
-	if !availability.Available {
-		return ClassicTools{}, fmt.Errorf("%w: classic UTAU tools: %s", ErrUnavailable, availability.Error())
-	}
-	return ClassicTools{Resampler: resampler, Wavtool: wavtool, Resources: resources}, nil
 }
 
 func (s *Service) rendererID(requested string) string {

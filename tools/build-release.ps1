@@ -327,9 +327,9 @@ try {
     }
     Copy-Item -Path (Join-Path $root 'renderer/*') -Destination $guiRendererPath -Recurse
     Copy-Item -Path (Join-Path $root 'renderer/*') -Destination $serverRendererPath -Recurse
-    # 利用者が置くツール・モデルのフォルダは、リポジトリで追跡しているファイル（README）だけを同梱する。
-    # 開発者が手元に置いたresamplerやvocoderの重み（配布条件が別のもの）を配布物へ入れない。
-    foreach ($directoryName in @('Resamplers', 'Wavtools', 'Dependencies')) {
+    # 利用者が置くモデルのフォルダは、リポジトリで追跡しているファイル（README）だけを同梱する。
+    # 開発者が手元に置いたvocoderの重み（配布条件が別のもの）を配布物へ入れない。
+    foreach ($directoryName in @('Dependencies')) {
         $trackedFiles = @(& git -C $root ls-files -- $directoryName)
         if ($LASTEXITCODE -ne 0) { throw "git ls-files failed for $directoryName" }
         foreach ($packagePath in @($guiPath, $serverPath)) {

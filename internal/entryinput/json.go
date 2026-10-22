@@ -39,11 +39,12 @@ type JSONRequest struct {
 }
 
 type editingRequest struct {
-	MoraDurationsMS      []float64                    `json:"mora_durations_ms"`
-	UnitOverrides        []plan.UnitOverride          `json:"unit_overrides"`
-	ManualPitch          *prosody.ManualPitchFile     `json:"manual_pitch"`
-	PitchCurve           *render.PitchCurve           `json:"pitch_curve,omitempty"`
-	ResamplerExpressions []render.ResamplerExpression `json:"resampler_expressions"`
+	MoraDurationsMS []float64                `json:"mora_durations_ms"`
+	UnitOverrides   []plan.UnitOverride      `json:"unit_overrides"`
+	ManualPitch     *prosody.ManualPitchFile `json:"manual_pitch"`
+	PitchCurve      *render.PitchCurve       `json:"pitch_curve,omitempty"`
+	// 廃止したClassic UTAU用。受け付けて無視する。
+	ResamplerExpressions json.RawMessage `json:"resampler_expressions"`
 }
 
 // 無視する旧フィールドも受け付け、型付きProvider設定の優先順位を保つ。
@@ -80,7 +81,6 @@ func defaultJSONRequest() JSONRequest {
 		ContextDuration: defaults.ContextDuration, BoundaryTone: defaults.BoundaryTone,
 		StretchAdapt: defaults.StretchAdapt, PauseContext: defaults.PauseContext,
 		compatibilityRequest: compatibilityRequest{
-			Wavtool:                 defaults.Wavtool,
 			ContextDurationStrength: defaults.ContextDurationStrength,
 			BoundaryToneStrength:    defaults.BoundaryToneStrength,
 			StretchAdaptStrength:    defaults.StretchAdaptStrength,
@@ -135,9 +135,8 @@ func (request JSONRequest) InternalRequest() synth.Request {
 	input := Apply(request.publicRequest(), synth.DefaultRequest())
 	input.MoraDurationsMS, input.UnitOverrides = request.MoraDurationsMS, request.UnitOverrides
 	input.ManualPitch, input.PitchCurve = request.ManualPitch, request.PitchCurve
-	input.ResamplerExpressions = request.ResamplerExpressions
 	input.ModelPath = request.ModelPath
-	input.Resampler, input.Wavtool, input.AliasPolicy = request.Resampler, request.Wavtool, request.AliasPolicy
+	input.AliasPolicy = request.AliasPolicy
 	input.LeadingPreutteranceMS = request.LeadingPreutteranceMS
 	input.ReleaseMS, input.ReleaseSet = request.ReleaseMS, request.ReleaseSet
 	input.ContextDurationStrength = request.ContextDurationStrength

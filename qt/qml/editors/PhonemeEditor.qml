@@ -275,8 +275,7 @@ Item {
             offset_ms: "offset", cutoff_ms: "cutoff", consonant_ms: "consonant",
             preutterance_ms: "preutterance", overlap_ms: "overlap",
             pitch_factor: "pitchFactor", energy_factor: "energyFactor",
-            resampler_velocity: "velocity", resampler_volume: "volume",
-            resampler_modulation: "modulation", resampler_tempo: "tempo"
+            resampler_volume: "volume"
         };
         const suffix = names[String(key)] || String(key);
         return root.translator.tr("main.pitch." + suffix);
@@ -773,11 +772,7 @@ Item {
         overlapSpin.value = enabled ? Math.round(root.unitNumber(root.selectedUnitIndex, "overlap_ms", 0)) : 0;
         pitchFactorField.text = enabled ? root.unitNumber(root.selectedUnitIndex, "pitch_factor", 1).toFixed(3) : "";
         energyFactorField.text = enabled ? root.unitNumber(root.selectedUnitIndex, "energy_factor", 1).toFixed(3) : "";
-        velocitySpin.value = enabled ? Math.round(root.unitNumber(root.selectedUnitIndex, "resampler_velocity", 100)) : 100;
         volumeSpin.value = enabled ? Math.round(root.unitNumber(root.selectedUnitIndex, "resampler_volume", 100)) : 100;
-        modulationSpin.value = enabled ? Math.round(root.unitNumber(root.selectedUnitIndex, "resampler_modulation", 0)) : 0;
-        tempoField.text = enabled ? root.unitNumber(root.selectedUnitIndex, "resampler_tempo", 120).toFixed(2) : "";
-        flagsField.text = enabled ? String(root.unitValue(root.selectedUnitIndex, "resampler_flags") || "") : "";
     }
 
     function scheduleSelectedFieldRefresh() {
@@ -1574,21 +1569,9 @@ Item {
                     onEditingFinished: root.commitNumber(root.selectedUnitIndex, "energy_factor", text, 1)
                 }
 
-                Label { text: root.translator.tr("main.pitch.velocity"); visible: Platform.hasExternalTools }
-                SpinBox {
-                    id: velocitySpin
-                    visible: Platform.hasExternalTools
-                    Layout.preferredWidth: 108
-                    from: 0
-                    to: 200
-                    enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit
-                    value: enabled ? Math.round(root.unitNumber(root.selectedUnitIndex, "resampler_velocity", 100)) : 100
-                    onValueModified: root.unitValueEdited(root.selectedUnitIndex, "resampler_velocity", value)
-                }
-                Label { text: root.translator.tr("main.pitch.volume"); visible: Platform.hasExternalTools }
+                Label { text: root.translator.tr("main.pitch.volume") }
                 SpinBox {
                     id: volumeSpin
-                    visible: Platform.hasExternalTools
                     Layout.preferredWidth: 108
                     from: 0
                     to: 200
@@ -1597,61 +1580,6 @@ Item {
                     onValueModified: root.unitValueEdited(root.selectedUnitIndex, "resampler_volume", value)
                 }
 
-                Label { text: root.translator.tr("main.pitch.modulation"); visible: Platform.hasExternalTools }
-                SpinBox {
-                    id: modulationSpin
-                    visible: Platform.hasExternalTools
-                    Layout.preferredWidth: 108
-                    from: 0
-                    to: 100
-                    enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit
-                    value: enabled ? Math.round(root.unitNumber(root.selectedUnitIndex, "resampler_modulation", 0)) : 0
-                    onValueModified: root.unitValueEdited(root.selectedUnitIndex, "resampler_modulation", value)
-                }
-                Label { text: root.translator.tr("main.pitch.tempo"); visible: Platform.hasExternalTools }
-                TextField {
-                    id: tempoField
-                    visible: Platform.hasExternalTools
-                    Layout.preferredWidth: 108
-                    enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit
-                    text: enabled ? root.unitNumber(root.selectedUnitIndex, "resampler_tempo", 120).toFixed(2) : ""
-                    validator: DoubleValidator { bottom: 0.001; top: 1000.0 }
-                    onEditingFinished: root.commitNumber(root.selectedUnitIndex, "resampler_tempo", text, 120)
-                }
-
-                Label { text: root.translator.tr("main.pitch.flags"); visible: Platform.hasExternalTools }
-                TextField {
-                    id: flagsField
-                    visible: Platform.hasExternalTools
-                    Layout.columnSpan: 3
-                    Layout.fillWidth: true
-                    enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit
-                    text: enabled ? String(root.unitValue(root.selectedUnitIndex, "resampler_flags") || "") : ""
-                    onEditingFinished: root.unitValueEdited(root.selectedUnitIndex, "resampler_flags", text.trim())
-                }
-
-                Label { text: root.translator.tr("main.pitch.flagsPreset"); visible: Platform.hasExternalTools }
-                RowLayout {
-                    Layout.columnSpan: 3
-                    Layout.fillWidth: true
-                    spacing: 6
-                    visible: Platform.hasExternalTools
-                    Button {
-                        text: "g-3"
-                        enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit
-                        onClicked: root.unitValueEdited(root.selectedUnitIndex, "resampler_flags", "g-3")
-                    }
-                    Button {
-                        text: "Mt10"
-                        enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit
-                        onClicked: root.unitValueEdited(root.selectedUnitIndex, "resampler_flags", "Mt10")
-                    }
-                    Button {
-                        text: root.translator.tr("main.pitch.flagsClear")
-                        enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit
-                        onClicked: root.unitValueEdited(root.selectedUnitIndex, "resampler_flags", "")
-                    }
-                }
 
                 Label {
                     Layout.columnSpan: 4

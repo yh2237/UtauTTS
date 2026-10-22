@@ -14,7 +14,6 @@ import (
 
 func init() {
 	base.RegisterRenderer("waveform", renderWaveform)
-	base.RegisterRenderer("utau-external-resampler", renderUtauExternalResampler)
 }
 
 func IsKnownRenderer(id string) bool {

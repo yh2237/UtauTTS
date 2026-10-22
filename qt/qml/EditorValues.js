@@ -33,13 +33,8 @@ function paramRange(key) {
     case "pitch_factor":
     case "energy_factor":
         return {min: 0.1, max: 4.0, def: 1.0, isFloat: true};
-    case "resampler_velocity":
     case "resampler_volume":
         return {min: 0, max: 200, def: 100, isFloat: false};
-    case "resampler_modulation":
-        return {min: 0, max: 100, def: 0, isFloat: false};
-    case "resampler_tempo":
-        return {min: 40, max: 300, def: 120, isFloat: true};
     case "consonant_ms":
     case "preutterance_ms":
     case "overlap_ms":

@@ -777,7 +777,6 @@ ApplicationWindow {
             leading_preutterance_ms: item.leadingPreutterance,
             intonation_strength: item.intonation,
             apply_pitch: item.applyPitch,
-            resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson),
             unit_overrides: window.decodeSequence(item.phonemeOverridesJson)
         };
         window.addRendererSettings(context, item.renderer);
@@ -1230,7 +1229,6 @@ ApplicationWindow {
                 automatic_mora_positions_ms: window.automaticSequence(item, "autoMoraPositionsJson"),
                 manual_pitch_edited: window.hasManualPitch(item),
                 manual_mora_duration_edited: window.hasManualMoraDurations(item),
-                resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson),
                 phoneme_overrides: window.decodeSequence(item.phonemeOverridesJson),
                 analysis_cache: {
                     reading: item.reading || "",
@@ -1419,7 +1417,6 @@ ApplicationWindow {
                 autoFrameMs: Number(saved.automatic_frame_ms) || 10,
                 autoMoraDurationsJson: JSON.stringify(automaticDurations),
                 autoMoraPositionsJson: JSON.stringify(automaticPositions),
-                resamplerExpressionsJson: JSON.stringify(window.copySequence(saved.resampler_expressions)),
                 phonemeOverridesJson: JSON.stringify(window.copySequence(saved.phoneme_overrides)),
                 manualPitchEdited: saved.manual_pitch_edited === undefined
                         ? points.some(value => Math.abs(Number(value)) > .1)
@@ -2231,7 +2228,6 @@ ApplicationWindow {
             autoFrameMs: 10,
             autoMoraDurationsJson: "[]",
             autoMoraPositionsJson: "[]",
-            resamplerExpressionsJson: "[]",
             phonemeOverridesJson: "[]",
             manualPitchEdited: false,
             manualMoraDurationEdited: false,
@@ -2468,7 +2464,6 @@ ApplicationWindow {
             mora_durations_ms: manualDurations,
             intonation_strength: item.intonation,
             apply_pitch: item.applyPitch,
-            resampler_expressions: window.decodeSequence(item.resamplerExpressionsJson),
             unit_overrides: window.decodeSequence(item.phonemeOverridesJson)
         };
         window.addRendererSettings(request, item.renderer);

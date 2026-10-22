@@ -12,10 +12,8 @@ import (
 type (
 	Config                   = base.Config
 	ProviderOptions          = base.ProviderOptions
-	ClassicOptions           = base.ClassicOptions
 	DiffSingerOptions        = base.DiffSingerOptions
 	WorldlineProviderOptions = base.WorldlineProviderOptions
-	ResamplerExpression      = base.ResamplerExpression
 	PitchCurve               = base.PitchCurve
 	F0Track                  = base.F0Track
 )

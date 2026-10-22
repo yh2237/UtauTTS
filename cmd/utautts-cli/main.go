@@ -41,74 +41,71 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	flag := flagpkg.NewFlagSet("utautts-cli", flagpkg.ContinueOnError)
 	flag.SetOutput(stderr)
 	var (
-		voicebankPath            string
-		reading                  string
-		text                     string
-		textFile                 string
-		readingFile              string
-		requestFile              string
-		tone                     string
-		color                    string
-		outPath                  string
-		planPath                 string
-		ustxOut                  string
-		dictionaryPath           string
-		moraDurationsPath        string
-		resamplerExpressionsPath string
-		moraMS                   float64
-		pauseMS                  float64
-		leadingPreutteranceMS    float64
-		releaseMS                float64
-		prosodyPath              string
-		manualPitchPath          string
-		prosodyFeaturesPath      string
-		prosodyFeaturesCase      string
-		prosodyPitchOnly         bool
-		openJTalkPath            string
-		openJTalkDictionaryPath  string
-		pitchContourPath         string
-		pitchContourCase         string
-		applyPitch               bool
-		intonationStrength       float64
-		contextDuration          bool
-		contextDurationStrength  float64
-		boundaryTone             bool
-		boundaryToneStrength     float64
-		stretchAdapt             bool
-		stretchAdaptStrength     float64
-		pauseContext             bool
-		pauseContextStrength     float64
-		timingWarp               bool
-		microprosody             bool
-		renderer                 string
-		resampler                string
-		wavtool                  string
-		worldlineBridgePath      string
-		cvvcTiming               string
-		cvvcTransitionGain       float64
-		cvvcPreBoundaryFade      bool
-		language                 string
-		phonemizer               string
-		aliasPolicy              string
-		method                   string
-		diffSingerSteps          int64
-		diffSingerDurationMix    float64
-		diffSingerPitchMix       float64
-		diffSingerExpr           float64
-		rendererDirectories      []string
-		modelDirectories         []string
-		writeText                bool
-		writeLab                 bool
-		textEncoding             string
-		showVersion              bool
-		jsonOutput               bool
-		listKind                 string
-		doctor                   bool
-		timeout                  time.Duration
+		voicebankPath           string
+		reading                 string
+		text                    string
+		textFile                string
+		readingFile             string
+		requestFile             string
+		tone                    string
+		color                   string
+		outPath                 string
+		planPath                string
+		ustxOut                 string
+		dictionaryPath          string
+		moraDurationsPath       string
+		moraMS                  float64
+		pauseMS                 float64
+		leadingPreutteranceMS   float64
+		releaseMS               float64
+		prosodyPath             string
+		manualPitchPath         string
+		prosodyFeaturesPath     string
+		prosodyFeaturesCase     string
+		prosodyPitchOnly        bool
+		openJTalkPath           string
+		openJTalkDictionaryPath string
+		pitchContourPath        string
+		pitchContourCase        string
+		applyPitch              bool
+		intonationStrength      float64
+		contextDuration         bool
+		contextDurationStrength float64
+		boundaryTone            bool
+		boundaryToneStrength    float64
+		stretchAdapt            bool
+		stretchAdaptStrength    float64
+		pauseContext            bool
+		pauseContextStrength    float64
+		timingWarp              bool
+		microprosody            bool
+		renderer                string
+		worldlineBridgePath     string
+		cvvcTiming              string
+		cvvcTransitionGain      float64
+		cvvcPreBoundaryFade     bool
+		language                string
+		phonemizer              string
+		aliasPolicy             string
+		method                  string
+		diffSingerSteps         int64
+		diffSingerDurationMix   float64
+		diffSingerPitchMix      float64
+		diffSingerExpr          float64
+		rendererDirectories     []string
+		modelDirectories        []string
+		writeText               bool
+		writeLab                bool
+		textEncoding            string
+		showVersion             bool
+		jsonOutput              bool
+		listKind                string
+		doctor                  bool
+		timeout                 time.Duration
 	)
 	flag.BoolVar(&showVersion, "version", false, "print application version")
 	flag.BoolVar(&jsonOutput, "json", false, "print result, catalog, doctor, version or error JSON to standard output")
-	flag.StringVar(&listKind, "list", "", "list voicebanks, models, renderers, resamplers or wavtools without synthesizing")
+	flag.StringVar(&listKind, "list", "", "list voicebanks, models or renderers without synthesizing")
 	flag.BoolVar(&doctor, "doctor", false, "inspect selected resources without starting helpers or synthesizing")
 	flag.DurationVar(&timeout, "timeout", 0, "synthesis timeout after input and initialization (e.g. 30s; 0 disables)")
 	flag.StringVar(&voicebankPath, "voicebank", "", "path to a UTAU voicebank directory")
@@ -127,7 +124,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	flag.StringVar(&ustxOut, "ustx-out", "", "optional OpenUtau USTX project path")
 	flag.StringVar(&dictionaryPath, "dictionary", "", "optional user dictionary JSON path")
 	flag.StringVar(&moraDurationsPath, "mora-durations", "", "optional mora duration JSON path")
-	flag.StringVar(&resamplerExpressionsPath, "resampler-expressions", "", "optional per-mora resampler expression JSON path")
 	flag.Float64Var(&moraMS, "mora-ms", synth.DefaultMoraDurationMS, "base mora duration in milliseconds")
 	flag.Float64Var(&pauseMS, "pause-ms", synth.DefaultPauseDurationMS, "punctuation pause in milliseconds")
 	flag.Float64Var(&leadingPreutteranceMS, "leading-preutterance-ms", 0, "leading preutterance in milliseconds (0 uses oto.ini)")
@@ -154,8 +150,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	flag.BoolVar(&microprosody, "microprosody", render.WorldlineProviderOptions{}.MicroprosodyEnabled(), "add measured consonant-induced F0 microprosody to Japanese WORLD output (utautts-world-phrase)")
 	flag.BoolVar(&timingWarp, "timing-warp", render.WorldlineProviderOptions{}.TimingWarpEnabled(), "warp Japanese WORLD output timing toward learned speech movement (utautts-world-phrase)")
 	flag.StringVar(&renderer, "renderer", "", "renderer ID (default: highest configured priority)")
-	flag.StringVar(&resampler, "resampler", "", "Classic UTAU resampler ID from Resamplers")
-	flag.StringVar(&wavtool, "wavtool", "builtin", "Classic UTAU wavtool ID from Wavtools")
 	flag.StringVar(&worldlineBridgePath, "worldline-bridge", "", "path to utautts-worldline-bridge executable")
 	flag.StringVar(&cvvcTiming, "cvvc-timing", render.CVVCTimingSequential, "CVVC timing: sequential")
 	flag.Float64Var(&cvvcTransitionGain, "cvvc-transition-gain", 1, "CVVC transition volume multiplier (0..1)")
@@ -210,7 +204,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		if conflict := flagOutside(flag, doctorFlags); conflict != "" {
 			return cliFailure("invalid_arguments", fmt.Errorf("--doctor cannot be combined with --%s", conflict))
 		}
-		diagnosis, err := inspectEnvironment(voicebankPath, prosodyPath, resampler, wavtool, runtimeConfig)
+		diagnosis, err := inspectEnvironment(voicebankPath, prosodyPath, runtimeConfig)
 		if jsonOutput {
 			report.Doctor = diagnosis
 			return err
@@ -335,10 +329,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		if err != nil {
 			return cliFailure("input_error", err)
 		}
-		resamplerExpressions, err := loadResamplerExpressions(resamplerExpressionsPath)
-		if err != nil {
-			return cliFailure("input_error", err)
-		}
 		request := utautts.Request{
 			Text: text, Reading: reading, Language: language, Phonemizer: phonemizer,
 			Tone: tone, Color: color, ModelID: prosodyPath, Dictionary: dictionary,
@@ -353,8 +343,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		// 配置、詳細編集、評価用入力は通常の発話要求に含めない。
 		synthesisRequest = entryinput.Apply(request, synth.Request{
 			VoicebankPath:           voicebankPath,
-			Resampler:               resampler,
-			Wavtool:                 wavtool,
 			MoraDurationsMS:         moraDurations,
 			LeadingPreutteranceMS:   leadingPreutteranceMS,
 			ManualPitchPath:         manualPitchPath,
@@ -374,7 +362,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 			DiffSingerDurationMix:   diffSingerDurationMix,
 			DiffSingerPitchMix:      diffSingerPitchMix,
 			DiffSingerExpr:          diffSingerExpr,
-			ResamplerExpressions:    resamplerExpressions,
 		})
 	} else {
 		synthesisRequest = jsonRequest.InternalRequest()
@@ -464,21 +451,6 @@ func flagOutside(flags *flagpkg.FlagSet, allowed map[string]bool) string {
 		}
 	})
 	return conflict
-}
-
-func loadResamplerExpressions(path string) ([]render.ResamplerExpression, error) {
-	if path == "" {
-		return nil, nil
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var values []render.ResamplerExpression
-	if err := json.Unmarshal(data, &values); err != nil {
-		return nil, fmt.Errorf("decode resampler expressions: %w", err)
-	}
-	return values, nil
 }
 
 func loadDictionary(path string) ([]utautts.DictionaryEntry, error) {

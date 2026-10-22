@@ -37,7 +37,7 @@ func TestCLIListsCatalogsWithoutSynthesisArguments(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, kind := range []string{"voicebanks", "models", "renderers", "resamplers", "wavtools"} {
+	for _, kind := range []string{"voicebanks", "models", "renderers"} {
 		t.Run(kind, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
 			args := []string{"--json", "--list", kind, "--voicebank", root, "--renderer-dir", root, "--model-dir", root}
@@ -73,14 +73,6 @@ func TestCLIListsCatalogsWithoutSynthesisArguments(t *testing.T) {
 				}
 				if len(catalog["problems"].([]any)) == 0 {
 					t.Fatal("invalid plugin was not reported")
-				}
-			case "resamplers":
-				if len(items) != 0 {
-					t.Fatalf("unexpected resamplers = %#v", items)
-				}
-			case "wavtools":
-				if len(items) != 1 || items[0].(map[string]any)["id"] != "builtin" {
-					t.Fatalf("wavtools = %#v", items)
 				}
 			}
 			stdout.Reset()

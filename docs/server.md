@@ -37,7 +37,7 @@
 
 - JSON本文は1 MiBまでで、単一のJSONオブジェクトを指定します。未知のJSONフィールドは400で拒否します。
 - 1発話の `text` と有効な読み（`reading`、なければ `kana`）は、それぞれ500文字までです。
-- `manual_pitch.points` は最大1000個、`mora_durations_ms` と `resampler_expressions` は最大500要素です。
+- `manual_pitch.points` は最大1000個、`mora_durations_ms` は最大500要素です。
 - batchは最大16発話で、非圧縮WAVの合計は256 MiBまでです。
 - 同時に実行する合成と読み解析は合わせて4件まで、batchの要求はさらに2件までです。超えた要求は空きを待ちます。待つ順番は保証しません。
 

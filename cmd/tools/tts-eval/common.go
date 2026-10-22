@@ -21,7 +21,6 @@ type caseOptions struct {
 	prosodyModelPath        string
 	moraMS                  float64
 	rendererID              string
-	resampler, wavtool      string
 	applyPitch              bool
 	contextDuration         bool
 	contextDurationStrength float64
@@ -44,8 +43,6 @@ func synthesizeCase(p prompt, o caseOptions) (*synth.Result, float64, error) {
 	request.VoicebankPath = o.bank
 	request.AliasPolicy = voicebank.AliasPolicy(o.aliasPolicy)
 	request.Renderer = o.rendererID
-	request.Resampler = o.resampler
-	request.Wavtool = o.wavtool
 	request.MoraDurationMS = o.moraMS
 	request.MoraDurationsMS = p.MoraDurationsMS
 	request.PitchCurve = p.PitchCurve

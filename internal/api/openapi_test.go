@@ -114,7 +114,6 @@ func TestOpenAPIDefaultsMatchDecodedRequests(t *testing.T) {
 		limit         int
 	}{
 		{"SynthesisRequest", "mora_durations_ms", maxTextRunes},
-		{"SynthesisRequest", "resampler_expressions", maxTextRunes},
 		{"ManualPitch", "points", maxManualPitchPoints},
 		{"BatchRequest", "items", maxBatchItems},
 	} {

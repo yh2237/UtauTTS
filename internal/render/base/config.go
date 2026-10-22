@@ -31,7 +31,6 @@ type Config struct {
 }
 
 type ProviderOptions struct {
-	Classic    ClassicOptions
 	Worldline  WorldlineProviderOptions
 	DiffSinger DiffSingerOptions
 	// Goが知らないrenderer_settingsも、実装固有の値として保持する。
@@ -45,18 +44,6 @@ type DiffSingerOptions struct {
 	DurationMix float64
 	PitchMix    float64
 	Expr        float64
-}
-
-type ClassicOptions struct {
-	ResamplerPath        string
-	WavtoolPath          string
-	Velocity             int
-	VelocitySet          bool
-	Flags                string
-	Modulation           int
-	ModulationSet        bool
-	Tempo                float64
-	ResamplerExpressions []ResamplerExpression
 }
 
 type WorldlineProviderOptions struct {
@@ -93,15 +80,6 @@ func (cfg Config) ProviderID() engine.ProviderID {
 		return cfg.Engine.Provider.ID
 	}
 	return engine.ProviderID(cfg.Backend)
-}
-
-type ResamplerExpression struct {
-	Position   int      `json:"position"`
-	Velocity   *int     `json:"velocity,omitempty"`
-	Volume     *int     `json:"volume,omitempty"`
-	Flags      *string  `json:"flags,omitempty"`
-	Modulation *int     `json:"modulation,omitempty"`
-	Tempo      *float64 `json:"tempo,omitempty"`
 }
 
 const (

@@ -69,8 +69,6 @@ type RendererSetting struct {
 	Step    *float64               `json:"step,omitempty"`
 	Label   string                 `json:"label,omitempty"`
 	Options []RendererSettingValue `json:"options,omitempty"`
-	// OptionsSourceはenumの選択肢をカタログから供給する場合の名前（例: resamplers, wavtools）。
-	OptionsSource string `json:"options_source,omitempty"`
 }
 
 type RendererSettingValue struct {
@@ -102,18 +100,9 @@ type Model struct {
 }
 
 type Catalog struct {
-	Problems   []string `json:"problems,omitempty"`
-	Renderers  []Renderer
-	Models     []Model
-	Resamplers []ClassicTool
-	Wavtools   []ClassicTool
-}
-
-type ClassicTool struct {
-	ID          string `json:"id"`
-	DisplayName string `json:"display_name"`
-	Path        string `json:"path,omitempty"`
-	BuiltIn     bool   `json:"built_in,omitempty"`
+	Problems  []string `json:"problems,omitempty"`
+	Renderers []Renderer
+	Models    []Model
 }
 
 func Discover(rendererDirectories, modelDirectories []string, supportsProvider func(string) bool) (*Catalog, error) {
@@ -131,94 +120,10 @@ func DiscoverWithDefaults(rendererDirectories, modelDirectories []string, suppor
 	if err != nil {
 		catalog.Problems = append(catalog.Problems, err.Error())
 	}
-	resamplerDirs, wavtoolDirs := DefaultClassicToolDirectories()
-	catalog.Resamplers, catalog.Wavtools = DiscoverClassicTools(resamplerDirs, wavtoolDirs)
-	catalog.Wavtools = append([]ClassicTool{{ID: "builtin", DisplayName: "UtauTTS built-in", BuiltIn: true}}, catalog.Wavtools...)
 	sort.SliceStable(catalog.Renderers, func(i, j int) bool {
 		return catalog.Renderers[i].DefaultPriority > catalog.Renderers[j].DefaultPriority
 	})
 	return catalog, nil
-}
-
-func DefaultClassicToolDirectories() (resamplerDirectories, wavtoolDirectories []string) {
-	var roots []string
-	if executable, err := os.Executable(); err == nil {
-		root := filepath.Dir(executable)
-		if strings.EqualFold(filepath.Base(root), "tools") || strings.EqualFold(filepath.Base(root), "app") {
-			root = filepath.Dir(root)
-		}
-		roots = append(roots, root)
-	}
-	if current, err := os.Getwd(); err == nil {
-		roots = append(roots, workspaceRoot(current))
-	}
-	for _, root := range uniqueDirectories(roots) {
-		resamplerDirectories = append(resamplerDirectories, filepath.Join(root, "Resamplers"))
-		wavtoolDirectories = append(wavtoolDirectories, filepath.Join(root, "Wavtools"))
-	}
-	return uniqueDirectories(resamplerDirectories), uniqueDirectories(wavtoolDirectories)
-}
-
-func DiscoverClassicTools(resamplerDirectories, wavtoolDirectories []string) ([]ClassicTool, []ClassicTool) {
-	return discoverClassicTools(resamplerDirectories), discoverClassicTools(wavtoolDirectories)
-}
-
-func discoverClassicTools(directories []string) []ClassicTool {
-	seen := map[string]bool{}
-	var result []ClassicTool
-	for _, root := range uniqueDirectories(directories) {
-		_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-			if err != nil || entry.IsDir() || !isClassicExecutable(entry) {
-				return nil
-			}
-			relative, relErr := filepath.Rel(root, path)
-			if relErr != nil {
-				return nil
-			}
-			id := filepath.ToSlash(relative)
-			key := strings.ToLower(id)
-			if seen[key] {
-				return nil
-			}
-			seen[key] = true
-			result = append(result, ClassicTool{ID: id, DisplayName: strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name())), Path: path})
-			return nil
-		})
-	}
-	sort.Slice(result, func(i, j int) bool { return strings.ToLower(result[i].ID) < strings.ToLower(result[j].ID) })
-	return result
-}
-
-func isClassicExecutable(entry os.DirEntry) bool {
-	extension := strings.ToLower(filepath.Ext(entry.Name()))
-	if runtime.GOOS == "windows" {
-		return extension == ".exe"
-	}
-	if extension != "" && extension != ".sh" {
-		return false
-	}
-	info, err := entry.Info()
-	return err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0
-}
-
-func (catalog *Catalog) Resampler(id string) (ClassicTool, bool) {
-	return classicTool(catalog.Resamplers, id)
-}
-
-func (catalog *Catalog) Wavtool(id string) (ClassicTool, bool) {
-	return classicTool(catalog.Wavtools, id)
-}
-
-func classicTool(values []ClassicTool, id string) (ClassicTool, bool) {
-	for _, value := range values {
-		if strings.EqualFold(value.ID, strings.TrimSpace(id)) {
-			return value, true
-		}
-	}
-	if id == "" && len(values) > 0 {
-		return values[0], true
-	}
-	return ClassicTool{}, false
 }
 
 func DiscoverRenderers(directories []string, supportsProvider func(string) bool) ([]Renderer, error) {
@@ -311,7 +216,7 @@ func rendererSettingFromTable(setting settings.Setting) RendererSetting {
 	return RendererSetting{
 		ID: setting.ID, Type: setting.Type, Group: setting.Group, Default: setting.Default,
 		Min: setting.Min, Max: setting.Max, Step: setting.Step, Label: setting.Label,
-		Options: options, OptionsSource: setting.OptionsSource,
+		Options: options,
 	}
 }
 

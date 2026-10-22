@@ -3,8 +3,6 @@ package synth
 import (
 	"encoding/json"
 	"errors"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/yh2237/UtauTTS/internal/engine"
@@ -60,33 +58,6 @@ func (resolver testVoicebankResolver) Resolve(string) (string, bool) {
 	return resolver.path, true
 }
 
-func TestClassicUtauResolvesSelectedTools(t *testing.T) {
-	directory := t.TempDir()
-	resamplerPath := filepath.Join(directory, "resampler")
-	wavtoolPath := filepath.Join(directory, "wavtool")
-	for _, path := range []string{resamplerPath, wavtoolPath} {
-		if err := os.WriteFile(path, []byte("tool"), 0o700); err != nil {
-			t.Fatal(err)
-		}
-	}
-	catalog := &plugin.Catalog{
-		Renderers:  []plugin.Renderer{testRenderer("classic-utau", "utau-external-resampler")},
-		Resamplers: []plugin.ClassicTool{{ID: "nested/resampler.exe", Path: resamplerPath}},
-		Wavtools:   []plugin.ClassicTool{{ID: "builtin", BuiltIn: true}, {ID: "wavtool.exe", Path: wavtoolPath}},
-	}
-	service := NewService(catalog, "classic-utau", "", "", "", testVoicebankResolver{path: "voicebank"})
-	cfg, renderer, options, err := service.config(Request{
-		Renderer: "classic-utau", Resampler: "nested/resampler.exe", Wavtool: "wavtool.exe",
-		Method: tts.MethodWaveformSynthesis, Language: "ja", VoicebankID: "bank",
-	}, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if renderer != "classic-utau" || options.Classic.ResamplerPath != resamplerPath || options.Classic.WavtoolPath != wavtoolPath {
-		t.Fatalf("classic UTAU config = %#v, provider options %#v, renderer %q", cfg, options, renderer)
-	}
-}
-
 func TestResolveSynthesisUsesDirectVoicebankPathAndNormalizesKana(t *testing.T) {
 	service := NewService(&plugin.Catalog{
 		Renderers: []plugin.Renderer{testRenderer("waveform", "waveform")},
@@ -129,13 +100,9 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 		"diffsinger_duration_mix":   json.RawMessage(`0.25`),
 		"diffsinger_pitch_mix":      json.RawMessage(`0.35`),
 	}
-	resolution := rendererSettingsResolution{}
-	applyRendererSettingsMap(rendererSettingSpecs, settings, &cfg, &options, &resolution)
+	applyRendererSettingsMap(rendererSettingSpecs, settings, &cfg, &options)
 	if len(options.RendererDiagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", options.RendererDiagnostics)
-	}
-	if resolution.Resampler != "" || resolution.Wavtool != "" {
-		t.Fatalf("classic tools were set: %#v", resolution)
 	}
 	if cfg.MoraDurationMS != 130 || cfg.PauseDurationMS != 190 || cfg.LeadingPreutteranceMS != 45 || cfg.IntonationStrength != 2.5 {
 		t.Fatalf("timing settings = %#v", cfg)
@@ -161,12 +128,11 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 func TestApplyRendererSettingsTypeMismatchIsIgnored(t *testing.T) {
 	cfg := tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)}
 	options := render.ProviderOptions{}
-	resolution := rendererSettingsResolution{}
 	applyRendererSettingsMap(rendererSettingSpecs, map[string]json.RawMessage{
-		"mora_duration_ms": json.RawMessage(`true`),
-		"context_duration": json.RawMessage(`"yes"`),
-		"resampler":        json.RawMessage(`123`),
-	}, &cfg, &options, &resolution)
+		"mora_duration_ms":    json.RawMessage(`true`),
+		"context_duration":    json.RawMessage(`"yes"`),
+		"intonation_strength": json.RawMessage(`"high"`),
+	}, &cfg, &options)
 	if cfg.MoraDurationMS != 140 || cfg.ContextDuration == nil || !*cfg.ContextDuration {
 		t.Fatalf("mismatched values changed config: %#v", cfg)
 	}
@@ -211,49 +177,6 @@ func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 	}
 	if options.DiffSinger.Steps != 17 {
 		t.Fatalf("typed DiffSinger steps were lost: %#v", options.DiffSinger)
-	}
-}
-
-func TestRendererSettingsRouteClassicTools(t *testing.T) {
-	directory := t.TempDir()
-	resamplerPath := filepath.Join(directory, "resampler")
-	wavtoolPath := filepath.Join(directory, "wavtool")
-	for _, path := range []string{resamplerPath, wavtoolPath} {
-		if err := os.WriteFile(path, []byte("tool"), 0o700); err != nil {
-			t.Fatal(err)
-		}
-	}
-	catalog := &plugin.Catalog{
-		Renderers:  []plugin.Renderer{testRenderer("classic-utau", "utau-external-resampler")},
-		Resamplers: []plugin.ClassicTool{{ID: "nested/resampler.exe", Path: resamplerPath}},
-		Wavtools:   []plugin.ClassicTool{{ID: "builtin", BuiltIn: true}, {ID: "wavtool.exe", Path: wavtoolPath}},
-	}
-	service := NewService(catalog, "classic-utau", "", "", "", testVoicebankResolver{path: "voicebank"})
-	_, _, options, err := service.config(Request{
-		Renderer: "classic-utau",
-		Method:   tts.MethodWaveformSynthesis, Language: "ja", VoicebankID: "bank",
-		RendererSettings: map[string]json.RawMessage{
-			"resampler": json.RawMessage(`"nested/resampler.exe"`),
-			"wavtool":   json.RawMessage(`"wavtool.exe"`),
-		},
-	}, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if options.Classic.ResamplerPath != resamplerPath || options.Classic.WavtoolPath != wavtoolPath {
-		t.Fatalf("classic tools from renderer_settings = %#v", options.Classic)
-	}
-}
-
-func TestClassicUtauRejectsMissingToolExecutable(t *testing.T) {
-	catalog := &plugin.Catalog{
-		Renderers:  []plugin.Renderer{testRenderer("classic-utau", "utau-external-resampler")},
-		Resamplers: []plugin.ClassicTool{{ID: "missing.exe", Path: filepath.Join(t.TempDir(), "missing.exe")}},
-		Wavtools:   []plugin.ClassicTool{{ID: "builtin", BuiltIn: true}},
-	}
-	service := NewService(catalog, "classic-utau", "", "", "", testVoicebankResolver{path: "voicebank"})
-	if _, err := service.ResolveClassicTools("missing.exe", "builtin"); !errors.Is(err, ErrUnavailable) {
-		t.Fatalf("missing tool error = %v", err)
 	}
 }
 

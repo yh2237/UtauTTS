@@ -70,11 +70,7 @@ type UnitRenderReport struct {
 	SourceF0Hz              float64
 	TargetF0Hz              float64
 	IntonationFactor        float64
-	ResamplerVelocity       int
 	ResamplerVolume         int
-	ResamplerFlags          string
-	ResamplerModulation     int
-	ResamplerTempo          float64
 }
 
 type builtinUnitRenderer struct {
@@ -179,11 +175,7 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 			SourceF0Hz:              unit.SourceF0Hz,
 			TargetF0Hz:              unit.TargetF0Hz,
 			IntonationFactor:        unit.IntonationFactor,
-			ResamplerVelocity:       unit.ResamplerVelocity,
 			ResamplerVolume:         unit.ResamplerVolume,
-			ResamplerFlags:          unit.ResamplerFlags,
-			ResamplerModulation:     unit.ResamplerModulation,
-			ResamplerTempo:          unit.ResamplerTempo,
 		}
 	}
 	return report
@@ -234,10 +226,6 @@ func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 		unit.SourceF0Hz = unitReport.SourceF0Hz
 		unit.TargetF0Hz = unitReport.TargetF0Hz
 		unit.IntonationFactor = unitReport.IntonationFactor
-		unit.ResamplerVelocity = unitReport.ResamplerVelocity
 		unit.ResamplerVolume = unitReport.ResamplerVolume
-		unit.ResamplerFlags = unitReport.ResamplerFlags
-		unit.ResamplerModulation = unitReport.ResamplerModulation
-		unit.ResamplerTempo = unitReport.ResamplerTempo
 	}
 }

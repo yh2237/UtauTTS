@@ -9,18 +9,12 @@ import (
 	"github.com/yh2237/UtauTTS/internal/tts"
 )
 
-type rendererSettingsResolution struct {
-	Resampler string
-	Wavtool   string
-}
-
 // 数値はnumber/integerともfloat64で扱う。
 type rendererSettingKind int
 
 const (
 	rendererSettingKindNumber rendererSettingKind = iota
 	rendererSettingKindBoolean
-	rendererSettingKindString
 )
 
 // 既定値はinternal/settingsから取得し、このテーブルで適用先を指定する。
@@ -28,7 +22,7 @@ type rendererSettingSpec struct {
 	id           string
 	kind         rendererSettingKind
 	defaultValue any
-	apply        func(value any, cfg *tts.Config, options *render.ProviderOptions, resolution *rendererSettingsResolution)
+	apply        func(value any, cfg *tts.Config, options *render.ProviderOptions)
 	// nilならrenderer_settingsだけを受け取る。
 	typed func(request Request) any
 }
@@ -92,7 +86,7 @@ var rendererSettingSpecs = []rendererSettingSpec{
 	{
 		id: "timing_warp", kind: rendererSettingKindBoolean, defaultValue: settings.Bool("timing_warp"),
 		typed: func(r Request) any { return r.Worldline.TimingWarpEnabled() },
-		apply: func(value any, _ *tts.Config, options *render.ProviderOptions, _ *rendererSettingsResolution) {
+		apply: func(value any, _ *tts.Config, options *render.ProviderOptions) {
 			enabled := value.(bool)
 			options.Worldline.TimingWarp = &enabled
 		},
@@ -100,23 +94,17 @@ var rendererSettingSpecs = []rendererSettingSpec{
 	{
 		id: "microprosody", kind: rendererSettingKindBoolean, defaultValue: settings.Bool("microprosody"),
 		typed: func(r Request) any { return r.Worldline.MicroprosodyEnabled() },
-		apply: func(value any, _ *tts.Config, options *render.ProviderOptions, _ *rendererSettingsResolution) {
+		apply: func(value any, _ *tts.Config, options *render.ProviderOptions) {
 			enabled := value.(bool)
 			options.Worldline.Microprosody = &enabled
 		},
 	},
-	stringSetting("resampler",
-		func(r Request) any { return r.Resampler },
-		func(value string, resolution *rendererSettingsResolution) { resolution.Resampler = value }),
-	stringSetting("wavtool",
-		func(r Request) any { return r.Wavtool },
-		func(value string, resolution *rendererSettingsResolution) { resolution.Wavtool = value }),
 }
 
 func numberSetting(id string, typed func(Request) any, apply func(float64, *tts.Config, *render.ProviderOptions)) rendererSettingSpec {
 	return rendererSettingSpec{
 		id: id, kind: rendererSettingKindNumber, defaultValue: settings.Number(id), typed: typed,
-		apply: func(value any, cfg *tts.Config, options *render.ProviderOptions, _ *rendererSettingsResolution) {
+		apply: func(value any, cfg *tts.Config, options *render.ProviderOptions) {
 			apply(value.(float64), cfg, options)
 		},
 	}
@@ -125,37 +113,26 @@ func numberSetting(id string, typed func(Request) any, apply func(float64, *tts.
 func boolSetting(id string, typed func(Request) any, apply func(bool, *tts.Config)) rendererSettingSpec {
 	return rendererSettingSpec{
 		id: id, kind: rendererSettingKindBoolean, defaultValue: settings.Bool(id), typed: typed,
-		apply: func(value any, cfg *tts.Config, _ *render.ProviderOptions, _ *rendererSettingsResolution) {
+		apply: func(value any, cfg *tts.Config, _ *render.ProviderOptions) {
 			apply(value.(bool), cfg)
 		},
 	}
 }
 
-func stringSetting(id string, typed func(Request) any, apply func(string, *rendererSettingsResolution)) rendererSettingSpec {
-	return rendererSettingSpec{
-		id: id, kind: rendererSettingKindString, defaultValue: settings.String(id), typed: typed,
-		apply: func(value any, _ *tts.Config, _ *render.ProviderOptions, resolution *rendererSettingsResolution) {
-			apply(value.(string), resolution)
-		},
-	}
-}
-
 // 優先順はrenderer_settings、型付き設定、既定値。
-func resolveRendererSettings(request Request, cfg *tts.Config, options *render.ProviderOptions) rendererSettingsResolution {
-	resolution := rendererSettingsResolution{}
+func resolveRendererSettings(request Request, cfg *tts.Config, options *render.ProviderOptions) {
 	for _, spec := range rendererSettingSpecs {
 		value := spec.defaultValue
 		if spec.typed != nil {
 			value = spec.typed(request)
 		}
-		spec.apply(value, cfg, options, &resolution)
+		spec.apply(value, cfg, options)
 	}
-	applyRendererSettingsMap(rendererSettingSpecs, request.RendererSettings, cfg, options, &resolution)
-	return resolution
+	applyRendererSettingsMap(rendererSettingSpecs, request.RendererSettings, cfg, options)
 }
 
 // 既知IDは設定へ、未知IDは実装固有値へ渡す。型不一致は診断を残して無視する。
-func applyRendererSettingsMap(specs []rendererSettingSpec, settings map[string]json.RawMessage, cfg *tts.Config, options *render.ProviderOptions, resolution *rendererSettingsResolution) {
+func applyRendererSettingsMap(specs []rendererSettingSpec, settings map[string]json.RawMessage, cfg *tts.Config, options *render.ProviderOptions) {
 	if len(settings) == 0 {
 		return
 	}
@@ -176,7 +153,7 @@ func applyRendererSettingsMap(specs []rendererSettingSpec, settings map[string]j
 		if !ok {
 			continue
 		}
-		spec.apply(value, cfg, options, resolution)
+		spec.apply(value, cfg, options)
 	}
 	if len(unknown) > 0 {
 		options.Renderer = unknown
@@ -196,8 +173,6 @@ func (spec rendererSettingSpec) decode(id string, raw json.RawMessage, options *
 	switch spec.kind {
 	case rendererSettingKindBoolean:
 		return rendererSettingBool(id, raw, options)
-	case rendererSettingKindString:
-		return rendererSettingString(id, raw, options)
 	default:
 		return rendererSettingNumber(id, raw, options)
 	}
@@ -219,16 +194,6 @@ func rendererSettingBool(id string, raw json.RawMessage, options *render.Provide
 		options.RendererDiagnostics = append(options.RendererDiagnostics,
 			fmt.Sprintf("renderer setting %q expects a boolean: %v", id, err))
 		return false, false
-	}
-	return value, true
-}
-
-func rendererSettingString(id string, raw json.RawMessage, options *render.ProviderOptions) (string, bool) {
-	var value string
-	if err := json.Unmarshal(raw, &value); err != nil {
-		options.RendererDiagnostics = append(options.RendererDiagnostics,
-			fmt.Sprintf("renderer setting %q expects a string: %v", id, err))
-		return "", false
 	}
 	return value, true
 }

@@ -48,7 +48,7 @@ func loadCatalog(kind, voiceDirectory string, config synth.RuntimeConfig) (repor
 			})
 		}
 		return report, nil
-	case "models", "renderers", "resamplers", "wavtools":
+	case "models", "renderers":
 	default:
 		return nil, cliFailure("invalid_arguments", fmt.Errorf("unknown --list kind %q", kind))
 	}
@@ -74,17 +74,6 @@ func loadCatalog(kind, voiceDirectory string, config synth.RuntimeConfig) (repor
 				item.Problems = append(item.Problems, issue.Message)
 			}
 			report.Items = append(report.Items, item)
-		}
-	case "resamplers", "wavtools":
-		tools := runtime.Catalog.Resamplers
-		if kind == "wavtools" {
-			tools = runtime.Catalog.Wavtools
-			report.DefaultID = "builtin"
-		} else if len(tools) != 0 {
-			report.DefaultID = tools[0].ID
-		}
-		for _, tool := range tools {
-			report.Items = append(report.Items, cliCatalogItem{ID: tool.ID, Name: tool.DisplayName, Path: tool.Path})
 		}
 	}
 	return report, nil

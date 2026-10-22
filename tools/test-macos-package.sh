@@ -197,6 +197,7 @@ fi
   || fail 'server package must not contain the macOS GUI third-party addendum'
 for removed in \
   "${gui_root}/renderer/waveform" \
+  "${gui_root}/renderer/classic-utau" \
   "${gui_root}/renderer/diffsinger"; do
   [[ ! -e "${removed}" ]] || fail "initial macOS package contains an excluded renderer: ${removed}"
 done
@@ -263,7 +264,7 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as stream:
     renderers = json.load(stream).get("renderers", [])
 ids = {item.get("id") for item in renderers}
-for required in ("utautts-world-phrase", "classic-utau"):
+for required in ("utautts-world-phrase",):
     if required not in ids:
         raise SystemExit(f"server did not expose renderer: {required}")
 PY

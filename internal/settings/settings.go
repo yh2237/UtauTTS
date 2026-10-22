@@ -11,12 +11,11 @@ type Setting struct {
 	Type  string // integer, number, boolean, enum, string
 	Group string
 	// Defaultはnumber・integerならfloat64、booleanならbool、enum・stringならstring。
-	Default       any
-	Min, Max      *float64
-	Step          *float64
-	Label         string
-	Options       []Option
-	OptionsSource string
+	Default  any
+	Min, Max *float64
+	Step     *float64
+	Label    string
+	Options  []Option
 	// Providersは設定を受け付けるprovider。空は全Renderer共通。
 	Providers []string
 	// Languagesは設定が効く言語（正規化済みの言語コード）。空は全言語。
@@ -29,7 +28,6 @@ func value(v float64) *float64 { return &v }
 
 const (
 	worldPhrase = "utautts-world-phrase"
-	classic     = "utau-external-resampler"
 	diffSinger  = "diffsinger"
 )
 
@@ -44,8 +42,6 @@ var Table = []Setting{
 	{ID: "pause_context", Type: "boolean", Group: "correction", Default: true, Label: "settings.pauseContext"},
 	{ID: "timing_warp", Type: "boolean", Group: "correction", Default: true, Label: "settings.timingWarp", Providers: []string{worldPhrase}},
 	{ID: "microprosody", Type: "boolean", Group: "prosody", Default: true, Label: "settings.microprosody", Providers: []string{worldPhrase}, Languages: []string{"ja"}},
-	{ID: "resampler", Type: "enum", Group: "classic", Default: "", OptionsSource: "resamplers", Label: "main.param.resampler", Providers: []string{classic}},
-	{ID: "wavtool", Type: "enum", Group: "classic", Default: "builtin", OptionsSource: "wavtools", Label: "main.param.wavtool", Providers: []string{classic}},
 	{ID: "diffsinger_steps", Type: "integer", Group: "diffsinger", Default: 0.0, Min: value(0), Max: value(100), Label: "settings.defaultDiffSingerSteps", Providers: []string{diffSinger}},
 	{ID: "diffsinger_expr", Type: "number", Group: "diffsinger", Default: 0.0, Min: value(0), Max: value(2), Step: value(0.01), Label: "settings.defaultDiffSingerExpr", Providers: []string{diffSinger}},
 	{ID: "diffsinger_duration_mix", Type: "number", Group: "diffsinger", Default: 0.0, Min: value(0), Max: value(1), Step: value(0.01), Label: "settings.defaultDiffSingerDurationMix", Providers: []string{diffSinger}},

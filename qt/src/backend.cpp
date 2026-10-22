@@ -1321,8 +1321,6 @@ void Backend::initialize() {
             QVariantMap{
                 {QStringLiteral("renderers"), result.value(QStringLiteral("renderers"))},
                 {QStringLiteral("problems"), result.value(QStringLiteral("problems"))},
-                {QStringLiteral("resamplers"), result.value(QStringLiteral("resamplers"))},
-                {QStringLiteral("wavtools"), result.value(QStringLiteral("wavtools"))},
                 {QStringLiteral("default_renderer"), result.value(QStringLiteral("default_renderer"))},
                 {QStringLiteral("reference_providers"), result.value(QStringLiteral("reference_providers"))},
             });
@@ -1380,8 +1378,7 @@ void Backend::initializeAsync() {
     auto *watcher = new QFutureWatcher<QVariantMap>(this);
     const QStringList stages{
         QStringLiteral("voicebanks"), QStringLiteral("models"),
-        QStringLiteral("renderers"), QStringLiteral("resamplers"),
-        QStringLiteral("wavtools"),
+        QStringLiteral("renderers"),
     };
     connect(watcher, &QFutureWatcher<QVariantMap>::progressValueChanged, this,
             [this, stages](int value) {
@@ -1403,8 +1400,6 @@ void Backend::initializeAsync() {
                 QVariantMap{
                     {QStringLiteral("renderers"), result.value(QStringLiteral("renderers"))},
                     {QStringLiteral("problems"), result.value(QStringLiteral("problems"))},
-                    {QStringLiteral("resamplers"), result.value(QStringLiteral("resamplers"))},
-                    {QStringLiteral("wavtools"), result.value(QStringLiteral("wavtools"))},
                     {QStringLiteral("default_renderer"), result.value(QStringLiteral("default_renderer"))},
                     {QStringLiteral("reference_providers"), result.value(QStringLiteral("reference_providers"))},
                 });
@@ -1442,16 +1437,6 @@ void Backend::initializeAsync() {
     m_activeCalls.addFuture(m_initializationFuture);
     watcher->setFuture(m_initializationFuture);
 #endif
-}
-
-bool Backend::restartNativeBackend() {
-    if (m_busy || m_activeCallCount != 0) {
-        setError(tr("処理中はRendererを変更できません。"));
-        return false;
-    }
-    clearPreviewCache();
-    initialize();
-    return m_handle != 0;
 }
 
 QVariantMap Backend::call(const QByteArray &method, const QVariantMap &request) {
@@ -1563,8 +1548,6 @@ void Backend::applyMetadata(const QVariantMap &voices, const QVariantMap &models
         m_pluginProblems.append(problem.toString());
     for (const QString &problem : m_pluginProblems)
         appendLog(problem);
-    m_resamplers = renderers.value("resamplers").toList();
-    m_wavtools = renderers.value("wavtools").toList();
     m_referenceProviders = renderers.value("reference_providers").toList();
     m_catalogDefaultRenderer = renderers.value("default_renderer").toString();
     const auto containsId = [](const QVariantList &items, const QString &id) {
@@ -1825,26 +1808,6 @@ void Backend::installVoicebankArchives(const QVariantList &archives) {
                   [step](const QVariantMap &result) { (*step)(result); });
     };
     (*step)(QVariantMap{});
-}
-
-bool Backend::openClassicToolDirectory(const QString &kind) {
-    const QString directoryName = kind == QStringLiteral("wavtool")
-            ? QStringLiteral("Wavtools") : QStringLiteral("Resamplers");
-    const QDir directory(resourceRoot().filePath(directoryName));
-    if (!directory.exists() && !QDir().mkpath(directory.absolutePath())) {
-        setError(tr("ツール用ディレクトリを作成できませんでした。"));
-        return false;
-    }
-    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(directory.absolutePath()))) {
-        setError(tr("ツール用ディレクトリを開けませんでした。"));
-        return false;
-    }
-    setError({});
-    return true;
-}
-
-bool Backend::reloadClassicTools() {
-    return restartNativeBackend();
 }
 
 void Backend::analyze(const QString &text, const QString &requestId) {

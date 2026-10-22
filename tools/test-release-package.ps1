@@ -222,8 +222,8 @@ try {
         if ($forbiddenBundledData.Count -ne 0) {
             throw "Release package contains ignored training/build data: $($forbiddenBundledData -join ', ')"
         }
-        # 利用者が置くツールのフォルダはREADMEだけを同梱し、手元のresamplerやvocoderの重みを入れない。
-        foreach ($userDirectory in @('Resamplers', 'Wavtools', 'Dependencies')) {
+        # 利用者が置くモデルのフォルダはREADMEだけを同梱し、手元のvocoderの重みを入れない。
+        foreach ($userDirectory in @('Dependencies')) {
             $userDirectoryPath = Join-Path $packageRoot $userDirectory
             if (-not (Test-Path -LiteralPath $userDirectoryPath)) { continue }
             $unexpected = @(Get-ChildItem -LiteralPath $userDirectoryPath -Recurse -Force -File |
@@ -232,11 +232,11 @@ try {
                 throw "Release package contains local files in ${userDirectory}: $($unexpected -join ', ')"
             }
         }
-        foreach ($rendererId in @('utautts-world-phrase', 'classic-utau')) {
-            Assert-Path (Join-Path $packageRoot "renderer/$rendererId/renderer.json") "renderer manifest $rendererId"
-        }
-        if (Test-Path -LiteralPath (Join-Path $packageRoot 'renderer/waveform')) {
-            throw "Removed waveform renderer is still packaged: $packageRoot"
+        Assert-Path (Join-Path $packageRoot 'renderer/utautts-world-phrase/renderer.json') 'renderer manifest utautts-world-phrase'
+        foreach ($removedRenderer in @('waveform', 'classic-utau')) {
+            if (Test-Path -LiteralPath (Join-Path $packageRoot "renderer/$removedRenderer")) {
+                throw "Removed $removedRenderer renderer is still packaged: $packageRoot"
+            }
         }
         if ($Profile -eq 'Full') {
             Assert-Path (Join-Path $packageRoot 'renderer/diffsinger/renderer.json') 'DiffSinger renderer manifest'

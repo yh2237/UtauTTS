@@ -87,7 +87,7 @@ paths:
   /api/renderers:
     get:
       operationId: listRenderers
-      summary: Renderer・Classicツール・資源利用可否の一覧
+      summary: Rendererと資源利用可否の一覧
       description: 起動時のカタログと静的資源検査。helper・Providerは起動しない。要素がない配列はnullになる場合がある。
       responses:
         '200':
@@ -295,13 +295,9 @@ components:
           $ref: '#/components/schemas/ManualPitch'
         pitch_curve:
           $ref: '#/components/schemas/PitchCurve'
-        resampler_expressions:
-          type: array
-          nullable: true
-          x-default-maxItems: 500
-          items: {$ref: '#/components/schemas/ResamplerExpression'}
-        resampler: {type: string, nullable: true, default: '', description: Classic UTAUのResamplers相対ID。空なら自動選択。}
-        wavtool: {type: string, nullable: true, default: builtin}
+        resampler_expressions: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
+        resampler: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
+        wavtool: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
         alias_policy: {type: string, nullable: true, default: '', description: '空またはauto・cvvc-enhanced・vcv-prefer・cvvc-prefer・cv-only。'}
         leading_preutterance_ms: {type: number, nullable: true, default: 0, minimum: 0, maximum: 1000, description: ゼロならoto.iniから決定}
         release_ms: {type: number, nullable: true, default: 0, description: release_setがtrueのときだけ使う。未指定時の合成リリースは20 ms。}
@@ -373,21 +369,11 @@ components:
         overlap_ms: {type: number, nullable: true, minimum: 0}
         pitch_factor: {type: number, nullable: true, minimum: 0, exclusiveMinimum: true}
         energy_factor: {type: number, nullable: true, minimum: 0, exclusiveMinimum: true}
-        resampler_velocity: {type: integer, nullable: true, minimum: 0, maximum: 200}
         resampler_volume: {type: integer, nullable: true, minimum: 0, maximum: 200}
-        resampler_flags: {type: string, nullable: true, description: 空白不可}
-        resampler_modulation: {type: integer, nullable: true, minimum: 0, maximum: 100}
-        resampler_tempo: {type: number, nullable: true, minimum: 0, exclusiveMinimum: true, maximum: 1000}
-    ResamplerExpression:
-      type: object
-      additionalProperties: false
-      properties:
-        position: {type: integer, nullable: true, default: 0}
-        velocity: {type: integer, nullable: true}
-        volume: {type: integer, nullable: true}
-        flags: {type: string, nullable: true}
-        modulation: {type: integer, nullable: true}
-        tempo: {type: number, nullable: true}
+        resampler_velocity: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
+        resampler_flags: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
+        resampler_modulation: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
+        resampler_tempo: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
     Worldline:
       type: object
       nullable: true
@@ -505,14 +491,12 @@ components:
         frame_contour: {type: boolean}
     RendererCatalog:
       type: object
-      required: [default_renderer, renderers, availability, problems, resamplers, wavtools]
+      required: [default_renderer, renderers, availability, problems]
       properties:
         default_renderer: {type: string}
         renderers: {type: array, nullable: true, items: {$ref: '#/components/schemas/Renderer'}}
         availability: {type: object, additionalProperties: {$ref: '#/components/schemas/Availability'}}
         problems: {type: array, nullable: true, items: {type: string}}
-        resamplers: {type: array, nullable: true, items: {$ref: '#/components/schemas/ClassicTool'}}
-        wavtools: {type: array, nullable: true, items: {$ref: '#/components/schemas/ClassicTool'}}
     Renderer:
       type: object
       required: [manifest_version, kind, id, display_name]
@@ -565,18 +549,9 @@ components:
         step: {type: number}
         label: {type: string}
         options: {type: array, items: {$ref: '#/components/schemas/RendererSettingValue'}}
-        options_source: {type: string}
     RendererSettingValue:
       type: object
       required: [value]
       properties:
         value: {type: string}
         label: {type: string}
-    ClassicTool:
-      type: object
-      required: [id, display_name]
-      properties:
-        id: {type: string}
-        display_name: {type: string}
-        path: {type: string}
-        built_in: {type: boolean}

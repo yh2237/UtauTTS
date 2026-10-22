@@ -128,31 +128,6 @@ MenuBar {
                 onObjectAdded: (index, object) => voicebankMenu.insertItem(1, object)
                 onObjectRemoved: (index, object) => voicebankMenu.removeItem(object)
             }
-            // Classic UTAUのツールは外部ツールを使える環境だけ（末尾に足す）。
-            MenuSeparator {
-                visible: Platform.hasExternalTools
-                height: visible ? implicitHeight : 0
-            }
-            Instantiator {
-                model: Platform.hasExternalTools ? ["resampler", "wavtool", "reload"] : []
-                delegate: GrayscaleMenuItem {
-                    required property string modelData
-                    text: modelData === "resampler"
-                          ? root.host.translator.tr("menu.file.openResamplersDirectory")
-                          : modelData === "wavtool"
-                            ? root.host.translator.tr("menu.file.openWavtoolsDirectory")
-                            : root.host.translator.tr("menu.file.reloadClassicTools")
-                    enabled: modelData !== "reload" || !root.host.appBackend.busy
-                    onTriggered: {
-                        if (modelData === "reload")
-                            root.host.appBackend.reloadClassicTools();
-                        else
-                            root.host.appBackend.openClassicToolDirectory(modelData);
-                    }
-                }
-                onObjectAdded: (index, object) => voicebankMenu.addItem(object)
-                onObjectRemoved: (index, object) => voicebankMenu.removeItem(object)
-            }
         }
         MenuSeparator {
             visible: Platform.isDesktop

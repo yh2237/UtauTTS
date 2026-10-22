@@ -33,8 +33,6 @@ const (
 	ResourceWorldlineBridge    ResourceKey = "worldline_bridge"
 	ResourceWorldEngine        ResourceKey = "world_engine"
 	ResourceDiffSingerBridge   ResourceKey = "diffsinger_bridge"
-	ResourceClassicResampler   ResourceKey = "classic_resampler"
-	ResourceClassicWavtool     ResourceKey = "classic_wavtool"
 	ResourceProviderExecutable ResourceKey = "provider_executable"
 )
 
@@ -70,8 +68,6 @@ type Provider struct {
 	Version      string
 	Capabilities Capabilities
 	Requirements []ResourceRequirement
-	// ClassicToolsは合成ごとに選んだUTAUのresamplerとwavtoolを使うprovider。
-	ClassicTools bool
 }
 
 type Registry struct {
@@ -134,7 +130,6 @@ var builtinRegistry = mustRegistry(
 			{Key: ResourceWorldlineBridge, Required: true, Executable: true},
 		},
 	},
-	Provider{ID: "utau-external-resampler", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true}, ClassicTools: true},
 	Provider{
 		ID: "diffsinger", Contract: ContractNeuralSynthesizer, Version: "1", Capabilities: Capabilities{FramePitch: true, InternalTiming: true},
 		Requirements: []ResourceRequirement{

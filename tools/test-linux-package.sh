@@ -263,11 +263,11 @@ curl -fsS "${base_url}/api/voicebanks" >"${work_dir}/voicebanks.json"
 curl -fsS "${base_url}/api/models" >"${work_dir}/models.json"
 curl -fsS "${base_url}/api/renderers" >"${work_dir}/renderers.json"
 
-for renderer_id in classic-utau utautts-world-phrase; do
-  test -f "${gui_root}/renderer/${renderer_id}/renderer.json" \
-    || fail "missing renderer manifest: ${renderer_id}"
+test -f "${gui_root}/renderer/utautts-world-phrase/renderer.json" \
+  || fail 'missing renderer manifest: utautts-world-phrase'
+for removed_renderer in waveform classic-utau; do
+  test ! -e "${gui_root}/renderer/${removed_renderer}" || fail "removed ${removed_renderer} renderer is still packaged"
 done
-test ! -e "${gui_root}/renderer/waveform" || fail 'removed waveform renderer is still packaged'
 VOICEBANK_JSON="${work_dir}/voicebanks.json" REQUEST_DIR="${work_dir}" "${python_command}" - <<'PY'
 import json
 import os

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
@@ -202,60 +201,6 @@ func TestPackagedDirectoriesTakePrecedenceOverWorkspaceDirectories(t *testing.T)
 	}
 	if len(models) != 1 || filepath.Clean(models[0]) != filepath.Join(packaged, "models") {
 		t.Fatalf("model directories = %#v", models)
-	}
-}
-
-func TestDiscoverClassicToolsUsesRelativeIDsAndIgnoresLibraries(t *testing.T) {
-	resamplers := filepath.Join(t.TempDir(), "Resamplers")
-	wavtools := filepath.Join(t.TempDir(), "Wavtools")
-	if err := os.MkdirAll(filepath.Join(resamplers, "L2R"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	executableName := "L2R"
-	if runtime.GOOS == "windows" {
-		executableName += ".exe"
-	}
-	for path, data := range map[string]string{
-		filepath.Join(resamplers, "L2R", executableName): "exe",
-		filepath.Join(resamplers, "L2R", "runtime.dll"):  "dll",
-		filepath.Join(wavtools, executableName):          "exe",
-	} {
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte(data), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	gotResamplers, gotWavtools := DiscoverClassicTools([]string{resamplers}, []string{wavtools})
-	if len(gotResamplers) != 1 || gotResamplers[0].ID != "L2R/"+executableName {
-		t.Fatalf("resamplers = %#v", gotResamplers)
-	}
-	if len(gotWavtools) != 1 || gotWavtools[0].ID != executableName {
-		t.Fatalf("wavtools = %#v", gotWavtools)
-	}
-}
-
-func TestClassicToolLookupIsCaseInsensitive(t *testing.T) {
-	catalog := Catalog{Resamplers: []ClassicTool{{ID: "L2R/L2R.exe", Path: "resampler"}}}
-	tool, ok := catalog.Resampler("l2r/l2r.EXE")
-	if !ok || tool.Path != "resampler" {
-		t.Fatalf("Resampler() = %#v, %v", tool, ok)
-	}
-}
-
-func TestDefaultCatalogIncludesClassicUtau(t *testing.T) {
-	catalog, err := DiscoverWithDefaults(nil, nil, func(string) bool { return true })
-	if err != nil {
-		t.Fatal(err)
-	}
-	renderer, ok := catalog.Renderer("classic-utau")
-	if !ok || renderer.Provider != "utau-external-resampler" {
-		t.Fatalf("classic renderer = %#v, %v", renderer, ok)
-	}
-	wavtool, ok := catalog.Wavtool("builtin")
-	if !ok || !wavtool.BuiltIn || wavtool.Path != "" {
-		t.Fatalf("built-in wavtool = %#v, %v", wavtool, ok)
 	}
 }
 

@@ -37,8 +37,6 @@ class Backend final : public QObject {
     Q_PROPERTY(QVariantList referenceProviders READ referenceProviders NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList renderers READ renderers NOTIFY metadataChanged)
     Q_PROPERTY(QStringList pluginProblems READ pluginProblems NOTIFY metadataChanged)
-    Q_PROPERTY(QVariantList resamplers READ resamplers NOTIFY metadataChanged)
-    Q_PROPERTY(QVariantList wavtools READ wavtools NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList dictionaryEntries READ dictionaryEntries NOTIFY dictionaryChanged)
     Q_PROPERTY(QString defaultRenderer READ defaultRenderer NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(QString defaultModelId READ defaultModelId NOTIFY synthesisDefaultsChanged)
@@ -92,8 +90,6 @@ public:
     QVariantList referenceProviders() const { return m_referenceProviders; }
     QVariantList renderers() const { return m_renderers; }
     QStringList pluginProblems() const { return m_pluginProblems; }
-    QVariantList resamplers() const { return m_resamplers; }
-    QVariantList wavtools() const { return m_wavtools; }
     QVariantList dictionaryEntries() const { return m_dictionaryEntries; }
     QString defaultRenderer() const { return m_defaultRenderer; }
     QString defaultModelId() const { return m_defaultModelId; }
@@ -147,8 +143,6 @@ public:
     Q_INVOKABLE void installVoicebankArchives(const QVariantList &archives);
     void handlePickedVoicebankArchives();
     void handleWasmCallCompleted();
-    Q_INVOKABLE bool openClassicToolDirectory(const QString &kind);
-    Q_INVOKABLE bool reloadClassicTools();
     Q_INVOKABLE void analyze(const QString &text, const QString &requestId);
     Q_INVOKABLE void analyzeSpeech(const QString &text, const QString &requestId,
                                    const QString &language, const QString &phonemizer,
@@ -273,7 +267,6 @@ private:
     void storePreviewCache(const QByteArray &key, const PreviewCacheEntry &entry);
     void trimPreviewCache();
     void clearPreviewCache();
-    bool restartNativeBackend();
     void checkReferenceIndexes();
     // 合成の間に索引を作っているときは、進み具合をログへ出す。
     void startIndexProgressLog();
@@ -305,7 +298,7 @@ private:
     QHash<qulonglong, std::function<void(const QVariantMap &)>> m_wasmCallbacks;
 #endif
     int m_activeCallCount = 0;
-    QVariantList m_voicebanks, m_models, m_renderers, m_resamplers, m_wavtools, m_dictionaryEntries;
+    QVariantList m_voicebanks, m_models, m_renderers, m_dictionaryEntries;
     QVariantMap m_retiredModels;
     QVariantList m_referenceProviders;
     QStringList m_pluginProblems;

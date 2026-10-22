@@ -6,7 +6,6 @@ UtauTTSが互換処理や移植のために参照した公開コードと、そ�
 
 次のモジュールはOpenUtau（MIT License）の実装を参照しています。
 
-- Classic UTAU（`internal/render/external_utau.go`）: resamplerとwavtoolへの引数の渡し方と、5点の包絡線の処理
 - 音素のタイミング（`internal/render/worldline/`）: 音素の境界の決め方と、閉鎖音・破裂音の処理
 - プロジェクトの入出力（`internal/openutau/`、`cmd/tools/utautts-ustx/`）: OpenUtauのプロジェクトファイル（USTX）の書き出し
 - 英語のC+Vの発音形式（`internal/frontend/english_phonemizer.go`）: Cadlaxa氏のEnglish C+V Phonemizerに基づく、エイリアスを探す順序

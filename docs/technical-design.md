@@ -24,7 +24,7 @@ GUI、CLI、HTTP Serverは、どれも共通の`synth.Service`を通して処理
                 │
                 ▼
           render.Config
-          ├── UnitRenderer        （WORLD phrase / Classic UTAU）
+          ├── UnitRenderer        （WORLD phrase）
           └── NeuralSynthesizer   （DiffSinger）
                 │
                 ▼
@@ -39,7 +39,6 @@ GUI、CLI、HTTP Serverは、どれも共通の`synth.Service`を通して処理
 4. 計画生成（Plan Builder）: `oto.ini`の設定値と目標の長さを突き合わせて、各原音を置く時刻を決めます。
 5. 波形描画（Render）
    - `utautts-world-phrase`: 原音ごとのWORLD音響特徴量（F0・スペクトル包絡・非周期性指標）を時間軸に並べて補間し、まとめて合成し直します。
-   - `classic-utau`: 外部のresamplerとwavtoolを呼び出して、波形を1つずつ加工してつなぎます。
 
 ### 方式
 

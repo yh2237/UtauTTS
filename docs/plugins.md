@@ -33,7 +33,7 @@ Rendererは `renderer/<id>/renderer.json` で定義します。受け付ける�
 
 - `id`: プロジェクトやAPIで使う一意なID。
 - `contract`: 入出力の形式（`unit-renderer` または `neural-synthesizer`）。
-- `provider`: 実装（`utautts-world-phrase`、`utau-external-resampler`、`diffsinger` 等）。
+- `provider`: 実装（`utautts-world-phrase`、`diffsinger` 等）。
 - `resources`: 必要なバイナリやライブラリの相対パス。OSごとに切り替えるときは `platform_resources` を定義します。
 
 ### 外部Providerプロトコル（プロセス間連携）
@@ -41,18 +41,7 @@ Rendererは `renderer/<id>/renderer.json` で定義します。受け付ける�
 
 ---
 
-## 2. Classic UTAUツール（Resampler / Wavtool）
-
-従来のUTAU向けのエンジンは次のディレクトリにバイナリを置けば使えます。manifestは要りません。
-
-- Resampler: `Resamplers/`（サブディレクトリ内の配置や、依存DLLの同居にも対応）
-- Wavtool: `Wavtools/`（内蔵の5点包絡線処理を使うときは `builtin` を指定）
-
-ResamplerとWavtoolを使うのは、Providerが `utau-external-resampler` のRendererです。
-
----
-
-## 3. 抑揚モデル（Prosody Models）
+## 2. 抑揚モデル（Prosody Models）
 
 学習済みモデルは `models/` にJSONファイルとして置きます。モデルのJSONがmanifestを兼ねます。
 

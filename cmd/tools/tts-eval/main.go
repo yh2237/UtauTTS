@@ -82,8 +82,6 @@ func run() (runErr error) {
 	corpus := flag.String("corpus", "tools/evaluation/japanese-v1.json", "JSON listening corpus")
 	out := flag.String("out", "out/tts-eval", "new output directory")
 	renderers := flag.String("renderers", "utautts-world-phrase", "comma-separated renderer IDs")
-	resampler := flag.String("resampler", "", "Classic UTAU resampler ID from Resamplers (classic-utau renderer)")
-	wavtool := flag.String("wavtool", "builtin", "Classic UTAU wavtool ID from Wavtools (classic-utau renderer)")
 	model := flag.String("model", "frame-intonation-tcn-v12", "prosody model ID")
 	modelFile := flag.String("model-file", "", "explicit experimental prosody model JSON (overrides model ID)")
 	bridge := flag.String("bridge", "", "override WORLD bridge executable")
@@ -203,7 +201,7 @@ func run() (runErr error) {
 					bank:    *bank, aliasPolicy: *aliasPolicy,
 					model: *model, modelFile: *modelFile, prosodyModelPath: prosodyPath,
 					moraMS:     *moraMS,
-					rendererID: rendererID, resampler: *resampler, wavtool: *wavtool,
+					rendererID: rendererID,
 					applyPitch: true, timeout: *timeout,
 					contextDuration: *contextDuration, contextDurationStrength: *contextDurationStrength,
 					boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,

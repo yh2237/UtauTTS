@@ -111,7 +111,6 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 			"default_renderer": e.config.Renderer, "renderers": e.catalog.Renderers,
 			"availability": e.synth.RendererAvailability(),
 			"problems":     e.catalog.Problems,
-			"resamplers":   e.catalog.Resamplers, "wavtools": e.catalog.Wavtools,
 		}
 	case "analyze":
 		result, err = e.analyze(requestJSON)

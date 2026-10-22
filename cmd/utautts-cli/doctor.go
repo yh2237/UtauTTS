@@ -15,7 +15,7 @@ import (
 
 var doctorFlags = map[string]bool{
 	"doctor": true, "json": true, "version": true, "voicebank": true,
-	"renderer": true, "prosody": true, "resampler": true, "wavtool": true,
+	"renderer": true, "prosody": true,
 	"renderer-dir": true, "model-dir": true,
 	"worldline-bridge": true, "openjtalk-features": true, "openjtalk-dictionary": true,
 }
@@ -34,7 +34,7 @@ type cliDoctorCheck struct {
 	Message string `json:"message"`
 }
 
-func inspectEnvironment(voicePath, modelID, resamplerID, wavtoolID string, config synth.RuntimeConfig) (report *cliDoctorReport, runErr error) {
+func inspectEnvironment(voicePath, modelID string, config synth.RuntimeConfig) (report *cliDoctorReport, runErr error) {
 	report = &cliDoctorReport{Version: appinfo.Version(), OS: runtime.GOOS, Arch: runtime.GOARCH, Checks: make([]cliDoctorCheck, 0)}
 	add := func(id, path, message string, err error, required bool) {
 		status := "ok"
@@ -61,10 +61,6 @@ func inspectEnvironment(voicePath, modelID, resamplerID, wavtoolID string, confi
 	} else {
 		definition, _ := rt.Catalog.Renderer(string(selected.PublicID()))
 		add("renderer", definition.Directory, string(selected.PublicID()), selected.RequireAvailable(), true)
-		if selected.Provider.ClassicTools {
-			tools, err := rt.Service.ResolveClassicTools(resamplerID, wavtoolID)
-			add("classic_tools", tools.Resampler.Path, tools.Resampler.ID+" / "+tools.Wavtool.ID, err, true)
-		}
 	}
 	modelPath, err := rt.Service.ResolveModel(modelID)
 	modelMessage := modelID

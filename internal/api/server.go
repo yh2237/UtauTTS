@@ -252,7 +252,6 @@ func (s *Server) handleRenderers(w http.ResponseWriter, _ *http.Request) {
 		"default_renderer": s.renderer, "renderers": catalog.Renderers,
 		"availability": s.synthesisService().RendererAvailability(),
 		"problems":     catalog.Problems,
-		"resamplers":   catalog.Resamplers, "wavtools": catalog.Wavtools,
 	})
 }
 
@@ -393,9 +392,6 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 	}
 	if request.ManualPitch != nil && len(request.ManualPitch.Points) > maxManualPitchPoints {
 		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("manual pitch supports at most %d points", maxManualPitchPoints)
-	}
-	if len(request.ResamplerExpressions) > maxTextRunes {
-		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("resampler_expressions contains too many values")
 	}
 	result, err := s.synthesisService().SynthesizeContext(ctx, request.InternalRequest())
 	if err != nil {
