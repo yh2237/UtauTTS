@@ -2,7 +2,7 @@ package frontend
 
 import "strings"
 
-// NormalizeLanguageは言語コードをja/en/zhへ揃える。空は日本語。
+// NormalizeLanguageは言語コードをja/en/zh/esへ揃える。空は日本語。
 func NormalizeLanguage(language string) string {
 	value := strings.ToLower(strings.TrimSpace(language))
 	if value == "" {

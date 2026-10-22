@@ -9,6 +9,7 @@ const (
 	LanguageJapanese = "ja"
 	LanguageEnglish  = "en"
 	LanguageChinese  = "zh"
+	LanguageSpanish  = "es"
 
 	PhonemizerJapanese     = "ja-kana"
 	PhonemizerEnglish      = "en-arpasing"
@@ -16,6 +17,7 @@ const (
 	PhonemizerEnglishVCCV  = "en-vccv"
 	PhonemizerEnglishCV    = "en-cv"
 	PhonemizerChinese      = "zh-cvvc"
+	PhonemizerSpanish      = "es-syllable"
 )
 
 func ResolveLanguage(language, phonemizer string) (string, string, error) {
@@ -27,6 +29,8 @@ func ResolveLanguage(language, phonemizer string) (string, string, error) {
 			language = LanguageEnglish
 		case PhonemizerChinese:
 			language = LanguageChinese
+		case PhonemizerSpanish:
+			language = LanguageSpanish
 		default:
 			language = LanguageJapanese
 		}
@@ -36,12 +40,14 @@ func ResolveLanguage(language, phonemizer string) (string, string, error) {
 			LanguageJapanese: PhonemizerJapanese,
 			LanguageEnglish:  PhonemizerEnglish,
 			LanguageChinese:  PhonemizerChinese,
+			LanguageSpanish:  PhonemizerSpanish,
 		}[language]
 	}
 	valid := map[string]map[string]bool{
 		LanguageJapanese: {PhonemizerJapanese: true},
 		LanguageEnglish:  {PhonemizerEnglish: true, PhonemizerEnglishDelta: true, PhonemizerEnglishVCCV: true, PhonemizerEnglishCV: true},
 		LanguageChinese:  {PhonemizerChinese: true},
+		LanguageSpanish:  {PhonemizerSpanish: true},
 	}[language]
 	if valid == nil {
 		return "", "", fmt.Errorf("unsupported language %q", language)
