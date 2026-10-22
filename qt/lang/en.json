@@ -55,6 +55,7 @@
     "main.method.reference": "Reference matching",
     "main.param.phonemizer": "Phoneme format",
     "main.language.ja": "Japanese",
+    "main.language.jaBeta": "Japanese (beta)",
     "main.language.en": "English",
     "main.language.zh": "Chinese",
     "main.language.es": "Spanish",

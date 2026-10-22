@@ -184,6 +184,8 @@ QtObject {
             "pt": core.translator.tr("main.language.pt")
         };
         if (core.normalizeMethod(method) === "reference-matching") {
+            // 日本語の参照照合は試用中。
+            labels["ja"] = core.translator.tr("main.language.jaBeta");
             const providers = core.backend.referenceProviders || [];
             const ids = [];
             for (let index = 0; index < providers.length; ++index) {
