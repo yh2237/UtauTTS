@@ -127,40 +127,13 @@ func TestPhoneTimelineUsesExplicitSpans(t *testing.T) {
 	}
 }
 
-func TestTargetForLanguageLoadsModels(t *testing.T) {
-	japanese, err := TargetForLanguage("ja")
+func TestDefaultTargetLoadsModel(t *testing.T) {
+	japanese, err := DefaultTarget()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(japanese.Phones()) != 40 {
 		t.Fatalf("Japanese model = %d phones", len(japanese.Phones()))
-	}
-	chinese, err := TargetForLanguage("zh")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(chinese.Phones()) != 47 {
-		t.Fatalf("Chinese phones = %d, want 47", len(chinese.Phones()))
-	}
-	chineseKnown := map[string]bool{}
-	for _, phone := range chinese.Phones() {
-		chineseKnown[phone] = true
-	}
-	if !chineseKnown["a"] || !chineseKnown["ng"] || !chineseKnown["sil"] || !chineseKnown["v"] {
-		t.Fatalf("Chinese vocabulary is missing pinyin symbols: %v", chinese.Phones())
-	}
-}
-
-func TestTargetForLanguageAliases(t *testing.T) {
-	for alias, language := range map[string]string{"cmn": "zh", "ja-JP": "ja"} {
-		got, err := TargetForLanguage(alias)
-		if err != nil {
-			t.Fatal(err)
-		}
-		want, err := TargetForLanguage(language)
-		if err != nil || got != want {
-			t.Fatalf("TargetForLanguage(%q) did not select the %s model", alias, language)
-		}
 	}
 }
 

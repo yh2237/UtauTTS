@@ -582,7 +582,7 @@ const (
 // ValidateMethodは、合成の方式の指定を確かめる。方式は必須で、既定値はない。
 // requireReferenceOnlyは、参照照合でしか合成できない言語なら誤りを返す。
 func requireReferenceOnly(language string) error {
-	if frontend.IsSyllableLanguage(language) {
+	if frontend.IsSyllableLanguage(language) || language == frontend.LanguageChinese {
 		return fmt.Errorf("language %q is available only with method %q", language, MethodReferenceMatching)
 	}
 	return nil

@@ -12,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/yh2237/UtauTTS/internal/frontend"
 )
 
 type Predictor interface {
@@ -26,9 +24,6 @@ type Predictor interface {
 
 //go:embed speech-timing-target-v1.safetensors
 var embeddedTarget []byte
-
-//go:embed speech-timing-target-zh-v1.safetensors
-var embeddedChineseTarget []byte
 
 type modelCache struct {
 	once  sync.Once
@@ -43,20 +38,9 @@ func (c *modelCache) load(data []byte) (*TCN, error) {
 
 var (
 	japaneseTarget modelCache
-	chineseTarget  modelCache
 )
 
 func DefaultTarget() (*TCN, error) { return japaneseTarget.load(embeddedTarget) }
-
-// TargetForLanguageは言語別の時間伸縮モデルを返す。未対応の言語は日本語モデル。
-func TargetForLanguage(language string) (*TCN, error) {
-	switch frontend.NormalizeLanguage(language) {
-	case frontend.LanguageChinese:
-		return chineseTarget.load(embeddedChineseTarget)
-	default:
-		return DefaultTarget()
-	}
-}
 
 type tensor struct {
 	shape []int

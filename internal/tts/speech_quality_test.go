@@ -38,19 +38,6 @@ func TestChinesePreviewReadingRoundTripKeepsLexicalContext(t *testing.T) {
 	}
 }
 
-func TestChineseNeutralDurationAndManualTiming(t *testing.T) {
-	cfg := Config{Language: "zh", Reading: "ma1 ma5", MoraDurationMS: 120}
-	p, err := PredictProsody(cfg)
-	if err != nil || p.MoraDurationsMS[1] >= p.MoraDurationsMS[0] {
-		t.Fatalf("preview %+v %v", p, err)
-	}
-	cfg.MoraDurationsMS = []float64{80, 140}
-	p, err = PredictProsody(cfg)
-	if err != nil || !reflect.DeepEqual(p.MoraDurationsMS, cfg.MoraDurationsMS) {
-		t.Fatalf("manual %+v %v", p, err)
-	}
-}
-
 func TestDiffSingerUsesJapaneseSpeechRhythmAndKeepsManualDurations(t *testing.T) {
 	// DiffSinger manifestはWindows限定のため、capabilityは明示して検証する。
 	internalTiming := &plugin.Capabilities{InternalTiming: true}

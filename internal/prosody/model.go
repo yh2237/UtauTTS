@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	FramePitchModelVersion         = 8
-	MandarinIntonationModelVersion = 13
+	FramePitchModelVersion = 8
 )
 
 type Model struct {
@@ -30,14 +29,13 @@ type Model struct {
 	// F0HeadPitchOffsetCentsはF0ヘッドの自動ピッチ曲線へ足す高さ（セント）。
 	F0HeadPitchOffsetCents float64 `json:"-"`
 	// F0HeadBaseBlendは基準モデルの抑揚曲線を混ぜる重み。
-	F0HeadBaseBlend    float64                  `json:"-"`
-	Version            int                      `json:"version"`
-	FeatureVersion     int                      `json:"feature_version"`
-	Mode               string                   `json:"mode"`
-	FramePitch         *FramePitchModel         `json:"frame_pitch,omitempty"`
-	MandarinIntonation *MandarinIntonationModel `json:"mandarin_intonation,omitempty"`
-	Metrics            Metrics                  `json:"metrics"`
-	Training           TrainingInfo             `json:"training"`
+	F0HeadBaseBlend float64          `json:"-"`
+	Version         int              `json:"version"`
+	FeatureVersion  int              `json:"feature_version"`
+	Mode            string           `json:"mode"`
+	FramePitch      *FramePitchModel `json:"frame_pitch,omitempty"`
+	Metrics         Metrics          `json:"metrics"`
+	Training        TrainingInfo     `json:"training"`
 }
 
 type ModelProvenance struct {
@@ -68,14 +66,6 @@ type FramePitchModel struct {
 	RenderMaxCents    float64              `json:"render_max_cents,omitempty"`
 
 	validated bool
-}
-
-type MandarinIntonationModel struct {
-	FeatureNames []string    `json:"feature_names"`
-	Knots        []float64   `json:"knots"`
-	Weights      [][]float64 `json:"weights"`
-	Strength     float64     `json:"strength"`
-	MaxCents     float64     `json:"max_cents"`
 }
 
 type MoraTiming struct {

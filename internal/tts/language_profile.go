@@ -2,8 +2,6 @@ package tts
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/prosody"
@@ -31,7 +29,7 @@ func languageProfileFor(language string) languageProfile {
 	case frontend.LanguageEnglish:
 		return referenceProfile{language: language, parse: parseEnglishPronunciation}
 	case frontend.LanguageChinese:
-		return chineseProfile{}
+		return referenceProfile{language: language, parse: parseChinesePronunciation}
 	case frontend.LanguageSpanish, frontend.LanguagePortuguese:
 		return referenceProfile{language: language, parse: parseSyllableLanguage(language)}
 	default:
@@ -45,9 +43,7 @@ func predictMorae(cfg Config, profile languageProfile, model *prosody.Model, mor
 		if model.RequiresExternalFeatures() && len(features) != len(morae) {
 			return nil, fmt.Errorf("prosody model %d/%s requires %d mora-level accent feature frames, got %d", model.Version, model.Mode, len(morae), len(features))
 		}
-		if model.MandarinIntonation == nil {
-			predictions = model.PredictWithFeatures(morae, features)
-		}
+		predictions = model.PredictWithFeatures(morae, features)
 		if cfg.ProsodyPitchOnly {
 			for i := range predictions {
 				predictions[i].DurationMS = 0
@@ -65,31 +61,5 @@ func resolveProsodyModelForProfile(cfg Config, profile languageProfile) (*prosod
 	if err != nil || model == nil || model.SupportsLanguage(profile.Language()) {
 		return model, err
 	}
-	if cfg.ProsodyModel != nil || cfg.ProsodyModelPath == "" {
-		return nil, nil
-	}
-	path := prosodyFallbackModelPath(cfg.ProsodyModelPath, profile.Language())
-	if path == "" {
-		return nil, nil
-	}
-	if _, statErr := os.Stat(path); statErr != nil {
-		if os.IsNotExist(statErr) {
-			return nil, nil
-		}
-		return nil, statErr
-	}
-	return loadProsodyModelCached(cfg.Context, path)
-}
-
-// 言語別の代替抑揚モデル。configuredPathと同じディレクトリから読む。
-var prosodyModelFallbacks = map[string]string{
-	frontend.LanguageChinese: "tone-intonation-zh-v1.json",
-}
-
-func prosodyFallbackModelPath(configuredPath, language string) string {
-	name := prosodyModelFallbacks[frontend.NormalizeLanguage(language)]
-	if name == "" {
-		return ""
-	}
-	return filepath.Join(filepath.Dir(configuredPath), name)
+	return nil, nil
 }

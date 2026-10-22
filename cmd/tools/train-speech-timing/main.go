@@ -34,7 +34,7 @@ func main() {
 	flag.StringVar(&c.Dataset, "dataset", "", "version-1 JSONL with id and audio_path")
 	flag.StringVar(&c.Alignments, "alignments", "", "MFA alignment directory")
 	flag.StringVar(&c.Corpus, "corpus", "", "token corpus JSONL with phone spans (language-specific vocabulary)")
-	flag.StringVar(&c.Language, "language", "ja", "training language for the model id: ja, en, zh")
+	flag.StringVar(&c.Language, "language", "ja", "training language for the model id: ja, en")
 	flag.StringVar(&c.WorldEngine, "world-engine", "runtime/utautts-world-engine.dll", "WORLD engine DLL")
 	flag.StringVar(&c.Cache, "cache", "out/speech-timing-target/go-features.gob", "Go feature cache")
 	flag.StringVar(&c.Out, "out", filepath.Join("out", "speech-timing-target", fmt.Sprintf("go-model-%d.safetensors", stamp)), "new best inference weights path")
@@ -142,8 +142,6 @@ func modelIDForLanguage(language string) string {
 	switch strings.ToLower(strings.TrimSpace(language)) {
 	case "", "ja", "ja-jp":
 		return "speech-timing-target-v1"
-	case "zh":
-		return "speech-timing-target-zh-v1"
 	default:
 		return "speech-timing-target-" + strings.ToLower(strings.TrimSpace(language)) + "-v1"
 	}

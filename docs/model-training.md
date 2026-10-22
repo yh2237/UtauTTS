@@ -43,20 +43,6 @@
 
 ---
 
-## 2. 中国語声調抑揚モデル
-
-`tone-intonation-zh-v1`は、AISHELL-3の音声とPaddleSpeechの音節の境界を使い、声調の基本曲線に対する文脈の補正値をRidge回帰で学習します。
-
-```powershell
-go run ./cmd/tools/train-mandarin-intonation `
-  --parquet data/aishell3/train.parquet `
-  --alignments data/aishell3/alignments `
-  --limit-per-speaker 250 `
-  --out out/tone-intonation-zh-v1/candidate.json
-```
-
----
-
-## 3. 時間伸縮目標モデル（Speech Timing Target）
+## 2. 時間伸縮目標モデル（Speech Timing Target）
 
 モーラの中で子音と母音を自然に伸縮させる比を決めるモデルです。言語ごとに学習した重み（`.safetensors`）をWORLD bridgeに埋め込んで使います。

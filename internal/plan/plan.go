@@ -328,14 +328,6 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 			aliasKind = voicebank.ClassifyAlias(selection.Alias)
 		}
 		mainUnit := unitFromSelection(&selection, position, cursor, duration, prediction, "mora")
-		// 中国語の鼻音は主原音内にある。終了音として重複させない。
-		if mora.Language == frontend.LanguageChinese {
-			for _, phone := range mora.Phones {
-				if phone.Role == "coda" {
-					mainUnit.CodaPhones = append(mainUnit.CodaPhones, phone.Symbol)
-				}
-			}
-		}
 		isVCV := aliasKind == voicebank.AliasVCV || voicebank.IsContextVCVAlias(selection.Alias)
 		// 接続・破裂音保護・伸縮補正で使う原音だけ解析する。
 		needsProfile := result.SingleCV || isVCV || stopPhone(mora.Consonant) ||
@@ -416,7 +408,7 @@ func phoneSpansForMora(mora frontend.Mora, duration float64, weights [][]float64
 }
 
 func applyPhoneTimingAnchor(unit *Unit, mora frontend.Mora, spans []float64) {
-	if unit == nil || len(spans) != len(mora.Phones) || mora.Language == frontend.LanguageEnglish || mora.Language == frontend.LanguageChinese {
+	if unit == nil || len(spans) != len(mora.Phones) || mora.Language == frontend.LanguageEnglish {
 		return
 	}
 	onsetMS := 0.0
@@ -471,7 +463,7 @@ func unitFromSelection(selection *voicebank.Selection, position int, noteStart, 
 		JoinScore:           selection.JoinScore,
 		PathScore:           selection.PathScore,
 	}
-	if selection.Mora.Language == frontend.LanguageEnglish || selection.Mora.Language == frontend.LanguageChinese {
+	if selection.Mora.Language == frontend.LanguageEnglish {
 		fixed := entry.Fixed
 		unit.SourceFixedMS = &fixed
 	}

@@ -6,7 +6,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/render"
 )
 
-// referenceProfileは、参照照合で読む言語（英語、スペイン語、ポルトガル語）。
+// referenceProfileは、参照照合で読む言語（英語、中国語、スペイン語、ポルトガル語）。
 // 長さと抑揚は参照TTSの読みから決めるので、原音接続用の処理は持たない。
 type referenceProfile struct {
 	language string

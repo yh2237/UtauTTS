@@ -85,8 +85,7 @@ func TestFramePitchModelSafetyLimitsEffectiveContour(t *testing.T) {
 
 func TestLoadModelRejectsMismatchedHeads(t *testing.T) {
 	invalid := []*Model{
-		{Version: FramePitchModelVersion, FeatureVersion: 1, Mode: "intonation_frame_tcn_accent_bounded",
-			MandarinIntonation: &MandarinIntonationModel{}},
+		{Version: FramePitchModelVersion, FeatureVersion: 1, Mode: "intonation_frame_tcn_accent_bounded"},
 		{Version: 9, FeatureVersion: 1, Mode: "intonation_phrase_anchor_v9"},
 	}
 	for index, model := range invalid {

@@ -101,33 +101,19 @@ func ParseModel(data []byte) (*Model, error) {
 		return nil, err
 	}
 	frame := model.FeatureVersion == 1 && model.Version == FramePitchModelVersion && model.Mode == "intonation_frame_tcn_accent_bounded"
-	mandarinIntonation := model.FeatureVersion == 1 && model.Version == MandarinIntonationModelVersion && model.Mode == "mandarin_intonation_v1"
-	if !frame && !mandarinIntonation {
+	if !frame {
 		return nil, fmt.Errorf("unsupported prosody model version %d/feature %d mode %q", model.Version, model.FeatureVersion, model.Mode)
 	}
-	var allowedHeads []string
-	switch {
-	case frame:
-		allowedHeads = []string{"frame_pitch"}
-	case mandarinIntonation:
-		allowedHeads = []string{"mandarin_intonation"}
-	}
+	allowedHeads := []string{"frame_pitch"}
 	for _, head := range model.heads() {
 		if head.present && !containsString(allowedHeads, head.name) {
 			return nil, fmt.Errorf("prosody model head %q is not supported by mode %q", head.name, model.Mode)
 		}
 	}
-	if frame {
-		if err := validateFramePitch(model.FramePitch); err != nil {
-			return nil, fmt.Errorf("invalid frame pitch model: %w", err)
-		}
-		model.FramePitch.validated = true
+	if err := validateFramePitch(model.FramePitch); err != nil {
+		return nil, fmt.Errorf("invalid frame pitch model: %w", err)
 	}
-	if mandarinIntonation {
-		if model.Language != "zh" || validateMandarinIntonation(model.MandarinIntonation) != nil {
-			return nil, fmt.Errorf("invalid Mandarin intonation model")
-		}
-	}
+	model.FramePitch.validated = true
 	return &model, nil
 }
 
@@ -153,7 +139,6 @@ type modelHead struct {
 func (m *Model) heads() []modelHead {
 	return []modelHead{
 		{"frame_pitch", m.FramePitch != nil},
-		{"mandarin_intonation", m.MandarinIntonation != nil},
 	}
 }
 

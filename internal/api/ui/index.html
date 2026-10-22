@@ -177,7 +177,6 @@ const languageOptions = {
 };
 const languageModels = {
   ja: "frame-intonation-tcn-v12",
-  zh: "tone-intonation-zh-v1",
 };
 const exampleTexts = {
   ja: "こんにちは、今日はいい天気です。",
@@ -396,6 +395,8 @@ function buildSynthesisPayload() {
   if (voicebank) payload.voicebank_id = voicebank;
   if (reading) payload.reading = reading;
   payload.language = language;
+  // 波形合成は日本語だけ。ほかの言語は参照照合で読む。
+  payload.method = language === "ja" ? "waveform-synthesis" : "reference-matching";
   if (phonemizer) payload.phonemizer = phonemizer;
   if (tone) payload.tone = tone;
   if (color) payload.color = color;

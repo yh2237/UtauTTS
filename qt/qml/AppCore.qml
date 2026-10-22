@@ -152,9 +152,11 @@ QtObject {
         return "ja-kana";
     }
 
+    // 波形合成は日本語だけ。ほかの言語は参照照合で読む。
+    readonly property var waveformLanguages: ["ja"]
+
     function defaultMethod(language) {
-        // 波形合成は日本語と中国語だけ。ほかの言語は参照照合で読む。
-        return ["ja", "zh"].indexOf(String(language || "ja").toLowerCase()) >= 0
+        return core.waveformLanguages.indexOf(String(language || "ja").toLowerCase()) >= 0
                 ? "waveform-synthesis" : "reference-matching";
     }
 
@@ -163,7 +165,8 @@ QtObject {
         const value = String(method || "");
         if (value === "reference" || value === "reference-matching")
             return "reference-matching";
-        if (value === "native" || value === "waveform-synthesis" || value === "waveform")
+        if ((value === "native" || value === "waveform-synthesis" || value === "waveform")
+                && core.waveformLanguages.indexOf(String(language || "ja").toLowerCase()) >= 0)
             return "waveform-synthesis";
         return core.defaultMethod(language);
     }
@@ -197,7 +200,7 @@ QtObject {
                 ids.push("en");
             return ids.map(id => ({ id: id, display_name: labels[id] || id }));
         }
-        return ["ja", "zh"].map(id => ({ id: id, display_name: labels[id] }));
+        return core.waveformLanguages.map(id => ({ id: id, display_name: labels[id] }));
     }
 
     function phonemizerOptions(language) {

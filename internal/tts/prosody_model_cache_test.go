@@ -8,7 +8,7 @@ import (
 )
 
 func TestReplacedProsodyModelDropsCachedPredictions(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "models", "tone-intonation-zh-v1.json"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "models", "frame-intonation-tcn-v12.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

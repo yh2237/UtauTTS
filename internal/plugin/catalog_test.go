@@ -133,16 +133,6 @@ func TestRepositoryBundlesSelfDescribingModels(t *testing.T) {
 			t.Fatalf("English intonation model is still bundled: %q", model.ID)
 		}
 	}
-	var mandarin *Model
-	for index := range models {
-		if models[index].Language == "zh" {
-			mandarin = &models[index]
-			break
-		}
-	}
-	if mandarin == nil || mandarin.ID != "tone-intonation-zh-v1" || mandarin.RequiresFeatures {
-		t.Fatalf("Mandarin model metadata = %#v", mandarin)
-	}
 }
 
 func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {

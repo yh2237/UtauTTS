@@ -262,12 +262,6 @@ func prepareWorldlinePitch(synthesisPlan *plan.Plan, cfg base.Config, cache *bas
 	for i, unit := range synthesisPlan.Units {
 		pitchFactors[i] = intonation[i] * base.EffectiveUnitPitchFactor(unit, cfg.ApplyPitch)
 	}
-	if multilingualScore(synthesisPlan) && cfg.ApplyPitch {
-		pitchFactors, reference = speechReferencePitchFactors(synthesisPlan, pitches, reference)
-		for i, unit := range synthesisPlan.Units {
-			intonation[i] = pitchFactors[i] / base.EffectiveUnitPitchFactor(unit, true)
-		}
-	}
 	base.ApplyTonePitch(synthesisPlan, pitchFactors, reference)
 	frameMS := worldlineFrameMS
 	curveStartMS := -timing.leadingMS

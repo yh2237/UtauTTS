@@ -28,7 +28,7 @@ func applyTimingWarp(warp *timingWarp, sampleRate int, features *worldFeatures) 
 	if warp == nil || warp.Strength <= 0 || len(warp.Timeline.Spans) == 0 {
 		return nil
 	}
-	model, err := speechtiming.TargetForLanguage(warp.Language)
+	model, err := speechtiming.DefaultTarget()
 	if err != nil {
 		return fmt.Errorf("load timing warp model: %w", err)
 	}
