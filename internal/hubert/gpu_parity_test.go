@@ -12,14 +12,7 @@ import (
 	"github.com/yh2237/gograd/tensor"
 )
 
-var (
-	hubertModelPath = filepath.Join("..", "..", "models", "reference", "hubert-base-ls960.safetensors")
-	wavlmModelPath  = filepath.Join("..", "..", "models", "reference", "wavlm", "wavlm-base-plus.safetensors")
-)
-
-func TestFeaturesCUDA(t *testing.T) {
-	checkGPUParity(t, tensor.CUDA, hubertModelPath)
-}
+var wavlmModelPath = filepath.Join("..", "..", "models", "reference", "wavlm", "wavlm-base-plus.safetensors")
 
 func TestFeaturesCUDAWavLM(t *testing.T) {
 	checkGPUParity(t, tensor.CUDA, wavlmModelPath)

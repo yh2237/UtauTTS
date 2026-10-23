@@ -412,9 +412,8 @@ BASIC5000_0001-0600 data as the base model of frame-intonation-tcn-v12 with the 
 licenses/MFA-Japanese-NOTICE.txt). Only normalized envelope movement is used to
 retime the voicebank output; no corpus audio or predicted envelope is rendered.
 
-Reference matching uses Kokoro-82M, Kokoro-82M-v1.1-zh, HuBERT Base
-(facebook/hubert-base-ls960) and the misaki English lexicon from
-models/reference, redistributed unmodified under the Apache License 2.0, and
+Reference matching uses Kokoro-82M, Kokoro-82M-v1.1-zh and the misaki
+English lexicon from models/reference, redistributed unmodified under the Apache License 2.0, and
 WavLM base+ (microsoft/wavlm-base-plus), redistributed under the MIT License;
 see licenses/REFERENCE-MODELS.txt, licenses/CHINESE-REFERENCE-MODEL.txt and
 licenses/WAVLM-MIT.txt.

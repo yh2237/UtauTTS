@@ -25,15 +25,6 @@ WavLM base+ (microsoft/wavlm-base-plus)
   The model was trained on LibriSpeech (960 hours, CC BY 4.0). LibriSpeech
   audio is not redistributed.
 
-HuBERT Base (facebook/hubert-base-ls960)
-  File: hubert-base-ls960.safetensors (model.safetensors)
-  Source: https://huggingface.co/facebook/hubert-base-ls960
-  Revision: af46f65f540dc3ca7aa59f46c6c3d5dbb4374fa8
-  License: Apache License 2.0
-  The model was trained on LibriSpeech (960 hours, CC BY 4.0). The original
-  fairseq release is under the MIT License, Copyright (c) Facebook, Inc. and
-  its affiliates. LibriSpeech audio is not redistributed.
-
 misaki English lexicon
   Files: us_gold.json, us_silver.json (misaki/data)
   Source: https://github.com/hexgrad/misaki
