@@ -185,7 +185,7 @@ Item {
             model: settingRow.enumModel()
             textRole: "label"
             valueRole: "value"
-            currentIndex: indexOfValue(String(settingRow.storedValue()))
+            currentIndex: count > 0 ? indexOfValue(String(settingRow.storedValue())) : -1
             onActivated: root.backend.setSynthesisSetting(
                 String(settingRow.modelData.id),
                 currentValue)
@@ -909,7 +909,7 @@ Item {
                                                 ]
                                                 textRole: "display_name"
                                                 valueRole: "id"
-                                                currentIndex: indexOfValue(root.pendingDefaultAliasPolicy)
+                                                currentIndex: count > 0 ? indexOfValue(root.pendingDefaultAliasPolicy) : -1
                                                 onActivated: root.pendingDefaultAliasPolicy = currentValue
                                             }
                                             SettingsResetButton {
