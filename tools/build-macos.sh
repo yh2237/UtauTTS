@@ -126,11 +126,10 @@ if [[ ! -x "${openjtalk_helper}" || ! -d "${openjtalk_dictionary}" ]]; then
   exit 1
 fi
 
-echo '=== Build UtauTTS WORLD bridge and engine ==='
+echo '=== Build UtauTTS WORLD engine ==='
 staging_dir="${root_dir}/.tmp-worldline-macos"
 rm -rf "${staging_dir}"
 mkdir -p "${staging_dir}"
-"${go_command}" build -trimpath -ldflags="-s -w" -o "${staging_dir}/utautts-worldline-bridge" ./cmd/utautts-worldline-bridge
 bash "${root_dir}/tools/build-world-engine-macos.sh" "${staging_dir}"
 cp -R "${staging_dir}/." "${gui_dir}/runtime/"
 cp -R "${staging_dir}/." "${server_dir}/runtime/"

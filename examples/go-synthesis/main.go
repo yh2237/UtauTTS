@@ -35,10 +35,8 @@ func run() (runErr error) {
 	if *voice == "" {
 		*voice = filepath.Join(root, "voice")
 	}
-	bridge := "utautts-worldline-bridge"
 	helperName := "utautts-openjtalk-features"
 	if runtime.GOOS == "windows" {
-		bridge += ".exe"
 		helperName += ".exe"
 	}
 	if *helper == "" {
@@ -49,8 +47,7 @@ func run() (runErr error) {
 	}
 	engine, err := utautts.New(utautts.Config{
 		VoiceDirectory: *voice, Renderer: "utautts-world-phrase",
-		WorldlineBridgePath: filepath.Join(root, "runtime", bridge),
-		OpenJTalkPath:       *helper, OpenJTalkDictionary: *dictionary,
+		OpenJTalkPath: *helper, OpenJTalkDictionary: *dictionary,
 		RendererDirectories: []string{filepath.Join(root, "renderer")},
 		ModelDirectories:    []string{filepath.Join(root, "models")},
 	})

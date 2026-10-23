@@ -11,7 +11,6 @@ import (
 
 type RuntimeConfig struct {
 	Renderer                              string
-	WorldlineBridgePath                   string
 	OpenJTalkPath                         string
 	OpenJTalkDictionary                   string
 	RendererDirectories, ModelDirectories []string
@@ -33,7 +32,7 @@ func NewRuntime(config RuntimeConfig, voicebanks VoicebankResolver) (*Runtime, e
 		config.Renderer = renderer.ID
 	}
 	scope := lifecycle.New()
-	service := NewService(catalog, config.Renderer, config.WorldlineBridgePath,
+	service := NewService(catalog, config.Renderer,
 		config.OpenJTalkPath, config.OpenJTalkDictionary, voicebanks)
 	service.scope = scope
 	return &Runtime{

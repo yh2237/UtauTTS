@@ -36,7 +36,7 @@ func TestSelectionPlanGolden(t *testing.T) {
 		ManifestVersion: 2, Kind: "synthesis-engine", ID: "waveform", DisplayName: "waveform",
 		Contract: "unit-renderer", Provider: "waveform", ProviderVersion: "1",
 	}}}
-	service := synth.NewService(catalog, "waveform", "", "", "", nil)
+	service := synth.NewService(catalog, "waveform", "", "", nil)
 	request := synth.Request{
 		Reading: "かさ", VoicebankPath: bankDir, Tone: "C4", Renderer: "waveform",
 		Method:         tts.MethodWaveformSynthesis,

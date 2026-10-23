@@ -1,11 +1,8 @@
 package worldrender
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 
 	"github.com/yh2237/UtauTTS/internal/provider"
 )
@@ -49,26 +46,20 @@ type envelopePoint struct {
 	Y   float64 `json:"y"`
 }
 
-func newBridgeState() *bridgeState {
-	return &bridgeState{
+func newRendererState() *rendererState {
+	return &rendererState{
 		worldEngines: make(map[string]worldEngine),
 		worldUnits:   newWorldFeatureCache(128),
 	}
 }
 
-func (state *bridgeState) close() {
-	for _, engine := range state.worldEngines {
-		_ = engine.Close()
-	}
-}
-
-// wasmではプロセスを介さず、RenderJobを直接呼ぶ。
+// Rendererは読み込んだWORLDエンジンと分析結果を持ち続ける。同時には呼ばない。
 type Renderer struct {
-	state *bridgeState
+	state *rendererState
 }
 
 func NewRenderer() *Renderer {
-	return &Renderer{state: newBridgeState()}
+	return &Renderer{state: newRendererState()}
 }
 
 func (renderer *Renderer) RenderJob(jobJSON []byte, outputPath string) ([]provider.WorldSpeechResult, error) {
@@ -86,102 +77,9 @@ func (renderer *Renderer) RenderJob(jobJSON []byte, outputPath string) ([]provid
 	return nil, nil
 }
 
-func ServeProvider(input io.Reader, output io.Writer, providerID string) error {
-	return serveProvider(input, output, providerID)
-}
-
-// 共通のunit-rendererジョブとWORLDオプションだけを受け付ける。
-func serveProvider(input io.Reader, output io.Writer, providerID string) error {
-	state := newBridgeState()
-	defer state.close()
-	writer := bufio.NewWriter(output)
-	encoder := json.NewEncoder(writer)
-	if err := encoder.Encode(provider.Hello{
-		Type: provider.MessageHello, Protocol: provider.ProtocolName, ProtocolVersion: provider.ProtocolVersion,
-		Provider: providerID, ProviderVersion: "1", Session: true,
-		Capabilities: []string{"frame_pitch", provider.CapabilityUnitRendererJobV2, provider.CapabilityWorldSpeechV1, provider.CapabilityCodaReleaseV1, provider.CapabilitySpeechAnchorsV1},
-		Contracts:    []provider.ContractSupport{{Name: "unit-renderer", Version: 1}},
-	}); err != nil {
-		return err
-	}
-	if err := writer.Flush(); err != nil {
-		return err
-	}
-	scanner := bufio.NewScanner(input)
-	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
-	for scanner.Scan() {
-		var header struct {
-			Type string `json:"type"`
-		}
-		if err := json.Unmarshal(scanner.Bytes(), &header); err != nil {
-			if writeErr := encoder.Encode(provider.ErrorMessage{Type: provider.MessageError, Code: "invalid_request", Message: err.Error()}); writeErr != nil {
-				return writeErr
-			}
-			if err := writer.Flush(); err != nil {
-				return err
-			}
-			continue
-		}
-		if header.Type == provider.MessageShutdown {
-			return nil
-		}
-		if header.Type == provider.MessageCancel {
-			// 描画は同期処理。停止できなければホストが猶予後にプロセスを終了する。
-			continue
-		}
-		var request provider.RenderRequest
-		if err := json.Unmarshal(scanner.Bytes(), &request); err != nil {
-			if writeErr := encoder.Encode(provider.ErrorMessage{Type: provider.MessageError, Code: "invalid_request", Message: err.Error()}); writeErr != nil {
-				return writeErr
-			}
-			if err := writer.Flush(); err != nil {
-				return err
-			}
-			continue
-		}
-		if request.Type != provider.MessageRender || request.Contract != "unit-renderer" || request.ContractVersion != 1 {
-			if err := encoder.Encode(provider.ErrorMessage{Type: provider.MessageError, RequestID: request.RequestID, Code: "unsupported_request", Message: "worldline bridge accepts unit-renderer contract version 1"}); err != nil {
-				return err
-			}
-			if err := writer.Flush(); err != nil {
-				return err
-			}
-			continue
-		}
-		result, err := renderProviderInputAt(request.InputPath, request.OutputPath, state)
-		if err != nil {
-			if encodeErr := encoder.Encode(provider.ErrorMessage{Type: provider.MessageError, RequestID: request.RequestID, Code: "render_failed", Message: err.Error()}); encodeErr != nil {
-				return encodeErr
-			}
-		} else if err := encoder.Encode(provider.Result{
-			Report: map[string]any{"world_speech": result.SpeechResults},
-			Type:   provider.MessageResult, RequestID: request.RequestID,
-			Audio: provider.AudioArtifact{Path: result.OutputPath, Format: "wav_pcm_s16le", SampleRate: result.SampleRate, Channels: 1},
-		}); err != nil {
-			return err
-		}
-		if err := writer.Flush(); err != nil {
-			return err
-		}
-	}
-	return scanner.Err()
-}
-
-type bridgeState struct {
+type rendererState struct {
 	worldEngines map[string]worldEngine
 	worldUnits   *worldFeatureCache
-}
-
-func renderProviderInputAt(path, outputPath string, state *bridgeState) (manifest, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return manifest{}, err
-	}
-	input, err := decodeProviderJob(data, outputPath)
-	if err != nil {
-		return manifest{}, err
-	}
-	return renderManifestValue(input, outputPath, state)
 }
 
 func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
@@ -224,7 +122,7 @@ func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
 	return input, nil
 }
 
-func renderManifestValue(input manifest, outputPath string, state *bridgeState) (manifest, error) {
+func renderManifestValue(input manifest, outputPath string, state *rendererState) (manifest, error) {
 	input.SpeechResults = new([]provider.WorldSpeechResult)
 	var err error
 	if outputPath != "" {

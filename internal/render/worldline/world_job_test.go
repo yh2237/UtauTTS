@@ -1,9 +1,6 @@
 package worldline
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -17,13 +14,12 @@ func TestWorldlineProviderJobCarriesCommonPlanAndResources(t *testing.T) {
 	job, err := worldlineProviderJob(synthesisPlan, base.Config{ApplyPitch: true}, worldlineManifest{
 		Engine: "utautts-world-phrase", OutputPath: "output.wav",
 		SampleRate: 44100, F0Curve: []float64{220, 220},
-	}, "bridge.exe")
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if job.Version != provider.UnitRendererJobVersion || job.Contract != "unit-renderer" ||
-		len(job.Plan) == 0 || job.Resources["worldline_bridge"] != "bridge.exe" ||
-		job.Resources["world_engine"] != "" || !job.Options.ApplyPitch ||
+		len(job.Plan) == 0 || job.Resources != nil || !job.Options.ApplyPitch ||
 		job.Options.Worldline == nil {
 		t.Fatalf("job = %#v", job)
 	}
@@ -36,7 +32,7 @@ func TestWorldlineProviderJobCarriesEnergyFactor(t *testing.T) {
 	job, err := worldlineProviderJob(&plan.Plan{Version: plan.Version}, base.Config{}, worldlineManifest{
 		Engine: "utautts-world-phrase", SampleRate: 44100,
 		Units: []worldlineManifestUnit{{Source: "voice.wav", EnergyFactor: .65, LegacyMix: true}},
-	}, "bridge.exe")
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,23 +66,11 @@ func TestLegacyJapaneseContinuousMixOnlyUsesOrdinaryJapanesePlans(t *testing.T) 
 func TestWorldSpeechJobCarriesSpeechRequirement(t *testing.T) {
 	speech := &provider.WorldSpeechTiming{UnitIndex: 0, SourceOnsetMS: 60, TargetOnsetMS: 40, ProtectStop: true}
 	p := &plan.Plan{Units: []plan.Unit{{DurationMS: 120}}}
-	job, err := worldlineProviderJob(p, base.Config{}, worldlineManifest{Engine: "utautts-world-phrase", Units: []worldlineManifestUnit{{Speech: speech}}}, "bridge.exe")
+	job, err := worldlineProviderJob(p, base.Config{}, worldlineManifest{Engine: "utautts-world-phrase", Units: []worldlineManifestUnit{{Speech: speech}}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := job.Options.Worldline.Units[0].Speech; got == nil || !reflect.DeepEqual(got, speech) {
 		t.Fatal("lost speech controls", got)
-	}
-	data, err := json.Marshal(job)
-	if err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(t.TempDir(), "job.json")
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		t.Fatal(err)
-	}
-	decoded, err := ReadBridgeJob(path)
-	if err != nil || !decoded.Speech {
-		t.Fatal("missing speech requirement", decoded, err)
 	}
 }

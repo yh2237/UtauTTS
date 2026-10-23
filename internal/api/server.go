@@ -49,7 +49,6 @@ const (
 
 type Config struct {
 	VoiceDir, Renderer                    string
-	WorldlineBridgePath                   string
 	OpenJTalkPath, OpenJTalkDictionary    string
 	RendererDirectories, ModelDirectories []string
 }
@@ -77,7 +76,6 @@ type Server struct {
 	synthesisSem        chan struct{}
 	batchSem            chan struct{}
 	renderer            string
-	worldlineBridgePath string
 	openJTalkPath       string
 	openJTalkDictionary string
 	voiceDir            string
@@ -103,15 +101,15 @@ func (r apiVoicebankResolver) Resolve(id string) (string, bool) {
 func New(config Config) (*Server, error) {
 	voiceDir := voicebank.ResolveDirectory(config.VoiceDir)
 	srv := &Server{
-		voicebanks:          map[string]Voicebank{},
-		synthesisSem:        make(chan struct{}, maxConcurrentSynthesis),
-		batchSem:            make(chan struct{}, maxConcurrentBatches),
-		worldlineBridgePath: config.WorldlineBridgePath, voiceDir: voiceDir,
+		voicebanks:    map[string]Voicebank{},
+		synthesisSem:  make(chan struct{}, maxConcurrentSynthesis),
+		batchSem:      make(chan struct{}, maxConcurrentBatches),
+		voiceDir:      voiceDir,
 		openJTalkPath: config.OpenJTalkPath, openJTalkDictionary: config.OpenJTalkDictionary,
 		voiceLibrary: voicebank.NewLibrary(voiceDir),
 	}
 	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
-		Renderer: config.Renderer, WorldlineBridgePath: config.WorldlineBridgePath,
+		Renderer:      config.Renderer,
 		OpenJTalkPath: config.OpenJTalkPath, OpenJTalkDictionary: config.OpenJTalkDictionary,
 		RendererDirectories: config.RendererDirectories, ModelDirectories: config.ModelDirectories,
 	}, apiVoicebankResolver{server: srv})
@@ -417,7 +415,7 @@ func (s *Server) synthesisService() *synth.Service {
 	if s.service != nil {
 		return s.service
 	}
-	return synth.NewService(s.pluginCatalog(), s.renderer, s.worldlineBridgePath,
+	return synth.NewService(s.pluginCatalog(), s.renderer,
 		s.openJTalkPath, s.openJTalkDictionary, apiVoicebankResolver{server: s})
 }
 

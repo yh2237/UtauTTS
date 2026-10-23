@@ -254,12 +254,12 @@ func analyzeAndAlignRuntimeFeatures(ctx context.Context, morae []frontend.Mora, 
 	return alignRuntimeProsodyFeatures(morae, analysis)
 }
 
-func ResolveRendererWithOptions(catalog *plugin.Catalog, rendererID string, options engine.ResolveOptions) (engine.ResolvedEngine, error) {
+func ResolveRenderer(catalog *plugin.Catalog, rendererID string) (engine.ResolvedEngine, error) {
 	if catalog == nil {
 		return engine.ResolvedEngine{}, errors.New("renderer catalog is not initialized")
 	}
 	resolver := engine.NewResolver(engine.BuiltinRegistry())
-	return resolver.ResolveWithOptions(engine.DefinitionsFromCatalog(catalog), rendererID, options)
+	return resolver.Resolve(engine.DefinitionsFromCatalog(catalog), rendererID)
 }
 
 func ApplyResolvedEngine(cfg *Config, resolved engine.ResolvedEngine) {

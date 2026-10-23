@@ -11,7 +11,6 @@ on:
       - 'cmd/utautts-wasm/**'
       - 'cmd/tools/build-voice/**'
       - 'cmd/tools/cloudflare/**'
-      - 'cmd/utautts-worldline-bridge/**'
       - 'internal/**'
       - 'native/**'
       - 'third_party/open_jtalk/**'

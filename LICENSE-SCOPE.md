@@ -13,7 +13,7 @@ UtauTTSのオリジナルコードは [`LICENSE`](./LICENSE)（MIT License）が
 | モデル | 適用ライセンス / 通知ファイル |
 | :--- | :--- |
 | `frame-intonation-tcn-v12`（v10を内包） | `licenses/TSUKUYOMI-CORPUS.txt`, `licenses/MINNADE-JSUT-CORPUS.txt`, `licenses/MFA-Japanese-NOTICE.txt`, `licenses/IRODORI-TEACHER-NOTICE.txt` |
-| `speech-timing-target-v1`（bridge内包） | `licenses/TSUKUYOMI-CORPUS.txt`, `licenses/MINNADE-JSUT-CORPUS.txt`, `licenses/MFA-Japanese-NOTICE.txt` |
+| `speech-timing-target-v1`（実行ファイルに内包） | `licenses/TSUKUYOMI-CORPUS.txt`, `licenses/MINNADE-JSUT-CORPUS.txt`, `licenses/MFA-Japanese-NOTICE.txt` |
 | `reference/`（参照照合のモデル。Kokoro-82M、misakiの英語辞書） | Apache License 2.0 (`licenses/REFERENCE-MODELS.txt`, `licenses/APACHE-2.0.txt`) |
 | `reference/wavlm/`（WavLM base+） | MIT License (`licenses/REFERENCE-MODELS.txt`, `licenses/WAVLM-MIT.txt`) |
 | `reference/kokoro-zh/`（Kokoro-82M-v1.1-zh） | Apache License 2.0 (`licenses/CHINESE-REFERENCE-MODEL.txt`, `licenses/APACHE-2.0.txt`) |

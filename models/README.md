@@ -46,7 +46,7 @@ v10の曲線は混ぜず、F0ヘッドの曲線だけを自然の振れ幅で使
 
 ## Speech Timing Target v1（日本語の時間伸縮）
 
-`speech-timing-target-v1`は、`utautts-world-phrase`の日本語出力をモーラの中だけ時間伸縮するための目標モデルです（`internal/speechtiming/speech-timing-target-v1.safetensors`、bridgeに埋め込み）。v12の基準モデル（v10）と同じ[つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）](https://tyc.rei-yumesaki.net/material/corpus/)（CV.夢前黎）と[みんなで作るJSUTコーパスbasic5000](https://tyc.rei-yumesaki.net/material/minnade-jsut/)のBASIC5000_0001-0600を、Montreal Forced Aligner（`japanese_mfa`）で整列して学習しました。
+`speech-timing-target-v1`は、`utautts-world-phrase`の日本語出力をモーラの中だけ時間伸縮するための目標モデルです（`internal/speechtiming/speech-timing-target-v1.safetensors`、実行ファイルに埋め込み）。v12の基準モデル（v10）と同じ[つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）](https://tyc.rei-yumesaki.net/material/corpus/)（CV.夢前黎）と[みんなで作るJSUTコーパスbasic5000](https://tyc.rei-yumesaki.net/material/minnade-jsut/)のBASIC5000_0001-0600を、Montreal Forced Aligner（`japanese_mfa`）で整列して学習しました。
 
 - 本モデルは発話ごとに正規化した包絡の動き（音の移り方の時間配分）だけを合成に使い、予測した包絡そのものや話者の声質は出力に含めません
 - 重みはMIT Licenseで配布します。学習元コーパスの利用条件は、配布元が公開する原文に従います。UtauTTSはコーパスの音声・台本とMFA整列モデルを再配布しません

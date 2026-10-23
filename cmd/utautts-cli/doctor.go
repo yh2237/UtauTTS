@@ -17,7 +17,7 @@ var doctorFlags = map[string]bool{
 	"doctor": true, "json": true, "version": true, "voicebank": true,
 	"renderer": true, "prosody": true,
 	"renderer-dir": true, "model-dir": true,
-	"worldline-bridge": true, "openjtalk-features": true, "openjtalk-dictionary": true,
+	"openjtalk-features": true, "openjtalk-dictionary": true,
 }
 
 type cliDoctorReport struct {

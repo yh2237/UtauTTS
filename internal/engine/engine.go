@@ -30,7 +30,6 @@ type Capabilities = plugin.Capabilities
 type ResourceKey string
 
 const (
-	ResourceWorldlineBridge    ResourceKey = "worldline_bridge"
 	ResourceWorldEngine        ResourceKey = "world_engine"
 	ResourceDiffSingerBridge   ResourceKey = "diffsinger_bridge"
 	ResourceProviderExecutable ResourceKey = "provider_executable"
@@ -127,7 +126,6 @@ var builtinRegistry = mustRegistry(
 		ID: "utautts-world-phrase", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true},
 		Requirements: []ResourceRequirement{
 			{Key: ResourceWorldEngine, Required: true},
-			{Key: ResourceWorldlineBridge, Required: true, Executable: true},
 		},
 	},
 	Provider{
@@ -202,11 +200,6 @@ func (resolved ResolvedEngine) RequireAvailable() error {
 	return fmt.Errorf("%w: renderer %q: %s", ErrResourcesUnavailable, resolved.Definition.ID, resolved.Availability.Error())
 }
 
-// ResolveOptionsはアプリ指定の資源パスをmanifest由来より優先し、同梱資源と同じ事前検査に載せる。
-type ResolveOptions struct {
-	ResourceOverrides map[ResourceKey]string
-}
-
 type Resolver struct {
 	registry Registry
 }
@@ -217,7 +210,7 @@ func NewResolver(registry Registry) Resolver {
 
 // 空IDは既定を選ぶ。未知の明示IDはエラーにする。
 // 資源不足でも解決結果を返し、合成前にUIで理由を表示できるようにする。
-func (resolver Resolver) ResolveWithOptions(definitions []Definition, requested string, options ResolveOptions) (ResolvedEngine, error) {
+func (resolver Resolver) Resolve(definitions []Definition, requested string) (ResolvedEngine, error) {
 	requestedID := PublicID(strings.TrimSpace(requested))
 	var definition *Definition
 	if requestedID == "" {
@@ -255,7 +248,6 @@ func (resolver Resolver) ResolveWithOptions(definitions []Definition, requested 
 		return ResolvedEngine{}, fmt.Errorf("%w: renderer plugin %q advertises unsupported capabilities for provider %q", ErrCapabilityMismatch, definition.ID, provider.ID)
 	}
 	resolvedDefinition := cloneDefinition(*definition)
-	applyResourceOverrides(&resolvedDefinition, options)
 	return ResolvedEngine{
 		Definition:   resolvedDefinition,
 		Provider:     provider,
@@ -288,19 +280,6 @@ func cloneDefinition(definition Definition) Definition {
 	}
 	definition.ProviderArgs = append([]string(nil), definition.ProviderArgs...)
 	return definition
-}
-
-func applyResourceOverrides(definition *Definition, options ResolveOptions) {
-	for key, value := range options.ResourceOverrides {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		if definition.Resources == nil {
-			definition.Resources = make(map[ResourceKey]string)
-		}
-		definition.Resources[key] = value
-	}
 }
 
 func evaluateAvailability(definition Definition, provider Provider) Availability {

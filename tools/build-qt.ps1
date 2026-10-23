@@ -238,17 +238,4 @@ if ($standaloneDevelopmentPackage) {
         Expand-Archive -LiteralPath $archive.FullName -DestinationPath $voiceDirectory
     }
 }
-# ホストと同じリビジョンの音声合成ブリッジを組み込む。
-if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
-    throw 'Qt package output directory was not resolved'
-}
-$worldBridgeDirectory = [IO.Path]::Combine($OutputDirectory, 'runtime')
-New-Item -ItemType Directory -Force -Path $worldBridgeDirectory | Out-Null
-Push-Location $root
-try {
-    & go build -trimpath -ldflags '-s -w' -o (Join-Path $worldBridgeDirectory 'utautts-worldline-bridge.exe') ./cmd/utautts-worldline-bridge
-    if ($LASTEXITCODE -ne 0) { throw 'WORLD bridge build failed' }
-} finally {
-    Pop-Location
-}
 Write-Host "Built Qt package at $OutputDirectory"

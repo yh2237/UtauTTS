@@ -76,7 +76,6 @@ for required in \
   "${gui_root}/tools/utautts-ustx" \
   "${gui_root}/tools/utautts-updater" \
   "${gui_root}/runtime/utautts-openjtalk-features" \
-  "${gui_root}/runtime/utautts-worldline-bridge" \
   "${gui_root}/runtime/utautts-world-engine.dylib" \
   "${server_root}/utautts-server" \
   "${server_root}/runtime/utautts-world-engine.dylib" \
@@ -206,7 +205,7 @@ for executable in \
   "${gui_root}/utautts-server" \
   "${gui_root}/tools/utautts-ustx" "${gui_root}/tools/utautts-updater" \
   "${gui_root}/runtime/utautts-openjtalk-features" \
-  "${gui_root}/runtime/utautts-worldline-bridge" "${server_root}/utautts-server"; do
+  "${server_root}/utautts-server"; do
   [[ -x "${executable}" ]] || fail "executable permission is missing: ${executable}"
 done
 

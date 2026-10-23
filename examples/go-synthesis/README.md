@@ -17,7 +17,6 @@ UtauTTS/
   models/      韻律モデル
   renderer/    Rendererのmanifest
   runtime/
-    utautts-worldline-bridge[.exe]
     utautts-world-engine.dll またはOS用の共有ライブラリ
     utautts-openjtalk-features[.exe]
     open_jtalk_dic_utf_8-1.11/

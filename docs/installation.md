@@ -52,7 +52,7 @@ sudo apt-get install -y fontconfig fonts-noto-cjk \
 
 ZIPを展開したら、実行ファイルに実行権限を付けて起動します。
 ```bash
-chmod +x utautts tools/* runtime/utautts-openjtalk-features runtime/utautts-worldline-bridge
+chmod +x utautts tools/* runtime/utautts-openjtalk-features
 ./utautts
 ```
 
@@ -92,7 +92,7 @@ GUI版でもServer単体版でも、展開先のフォルダで次のコマン�
   ```
 - Linux:
   ```bash
-  chmod +x utautts-server runtime/utautts-openjtalk-features runtime/utautts-worldline-bridge
+  chmod +x utautts-server runtime/utautts-openjtalk-features
   ./utautts-server --voice-dir ./voice
   ```
 - macOS:

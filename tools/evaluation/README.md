@@ -37,7 +37,7 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utau
 
 コーパスの既定値は`tools/evaluation/japanese-v1.json`の8文です。`--model none`は学習済み抑揚モデルを使いません。任意のモデルは`--model-file`でJSONのパスを指定できます。
 
-英語・中国語でも`--corpus`を指定して比較できます。ビルドしたブリッジは`--bridge`で指定できます。
+英語・中国語でも`--corpus`を指定して比較できます。
 
 WAV・TXT・LAB・合成計画（Plan JSON）・`report.json`を出力します。合成計画の時刻は生成時の目標値で、音声から実測した境界ではありません。
 

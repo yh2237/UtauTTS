@@ -24,7 +24,7 @@ func TestResolverAcceptsManifestDeclaredExternalProvider(t *testing.T) {
 		Capabilities: Capabilities{FramePitch: true},
 		Resources:    map[ResourceKey]string{ResourceProviderExecutable: executable},
 	}
-	resolved, err := NewResolver(registry).ResolveWithOptions([]Definition{definition}, "external-world", ResolveOptions{})
+	resolved, err := NewResolver(registry).Resolve([]Definition{definition}, "external-world")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestResolverUsesDefaultOnlyForEmptyPublicID(t *testing.T) {
 		{ID: "neural", Contract: ContractNeuralSynthesizer, Provider: "builtin.second"},
 	}
 
-	resolved, err := resolver.ResolveWithOptions(definitions, "", ResolveOptions{})
+	resolved, err := resolver.Resolve(definitions, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestResolverUsesDefaultOnlyForEmptyPublicID(t *testing.T) {
 		t.Fatalf("default resolution = %#v", resolved)
 	}
 
-	resolved, err = resolver.ResolveWithOptions(definitions, "neural", ResolveOptions{})
+	resolved, err = resolver.Resolve(definitions, "neural")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestResolverUsesDefaultOnlyForEmptyPublicID(t *testing.T) {
 		t.Fatalf("explicit resolution = %#v", resolved)
 	}
 
-	if _, err := resolver.ResolveWithOptions(definitions, "removed", ResolveOptions{}); !errors.Is(err, ErrDefinitionNotFound) {
+	if _, err := resolver.Resolve(definitions, "removed"); !errors.Is(err, ErrDefinitionNotFound) {
 		t.Fatalf("missing explicit renderer error = %v", err)
 	}
 }
@@ -73,9 +73,9 @@ func TestResolverRejectsProviderWithWrongContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = NewResolver(registry).ResolveWithOptions([]Definition{{
+	_, err = NewResolver(registry).Resolve([]Definition{{
 		ID: "incorrect", Contract: ContractUnitRenderer, Provider: "builtin.neural",
-	}}, "incorrect", ResolveOptions{})
+	}}, "incorrect")
 	if !errors.Is(err, ErrContractMismatch) {
 		t.Fatalf("contract mismatch error = %v", err)
 	}
@@ -86,9 +86,9 @@ func TestResolverRejectsProviderVersionMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = NewResolver(registry).ResolveWithOptions([]Definition{{
+	_, err = NewResolver(registry).Resolve([]Definition{{
 		ID: "old-definition", Contract: ContractUnitRenderer, Provider: "builtin.waveform", ProviderVersion: "1",
-	}}, "old-definition", ResolveOptions{})
+	}}, "old-definition")
 	if !errors.Is(err, ErrProviderVersionMismatch) {
 		t.Fatalf("provider version mismatch error = %v", err)
 	}
@@ -102,29 +102,29 @@ func TestResolverRejectsDefinitionCapabilityUnsupportedByProvider(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = NewResolver(registry).ResolveWithOptions([]Definition{{
+	_, err = NewResolver(registry).Resolve([]Definition{{
 		ID: "incorrect", Contract: ContractUnitRenderer, Provider: "builtin.basic",
 		Capabilities: Capabilities{FramePitch: true, BoundaryBridge: true},
-	}}, "incorrect", ResolveOptions{})
+	}}, "incorrect")
 	if !errors.Is(err, ErrCapabilityMismatch) {
 		t.Fatalf("capability mismatch error = %v", err)
 	}
 }
 
-func TestResolverReportsMissingRequiredResourceAndHonorsOverride(t *testing.T) {
+func TestResolverReportsMissingRequiredResource(t *testing.T) {
 	registry, err := NewRegistry(Provider{
-		ID: "builtin.requires-bridge", Contract: ContractUnitRenderer, Version: "1",
-		Requirements: []ResourceRequirement{{Key: ResourceWorldlineBridge, Required: true}},
+		ID: "builtin.requires-engine", Contract: ContractUnitRenderer, Version: "1",
+		Requirements: []ResourceRequirement{{Key: ResourceWorldEngine, Required: true}},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	resolver := NewResolver(registry)
 	definitions := []Definition{{
-		ID: "requires-bridge", Contract: ContractUnitRenderer, Provider: "builtin.requires-bridge",
+		ID: "requires-engine", Contract: ContractUnitRenderer, Provider: "builtin.requires-engine",
 	}}
 
-	resolved, err := resolver.ResolveWithOptions(definitions, "requires-bridge", ResolveOptions{})
+	resolved, err := resolver.Resolve(definitions, "requires-engine")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,18 +135,17 @@ func TestResolverReportsMissingRequiredResourceAndHonorsOverride(t *testing.T) {
 		t.Fatalf("required resource error = %v", err)
 	}
 
-	path := filepath.Join(t.TempDir(), "bridge")
-	if err := os.WriteFile(path, []byte("bridge"), 0o600); err != nil {
+	path := filepath.Join(t.TempDir(), "engine")
+	if err := os.WriteFile(path, []byte("engine"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	resolved, err = resolver.ResolveWithOptions(definitions, "requires-bridge", ResolveOptions{
-		ResourceOverrides: map[ResourceKey]string{ResourceWorldlineBridge: path},
-	})
+	definitions[0].Resources = map[ResourceKey]string{ResourceWorldEngine: path}
+	resolved, err = resolver.Resolve(definitions, "requires-engine")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !resolved.Availability.Available {
-		t.Fatalf("override availability = %#v", resolved.Availability)
+		t.Fatalf("availability = %#v", resolved.Availability)
 	}
 }
 
@@ -177,16 +176,15 @@ func TestBundledManifestDefinitionsResolveAgainstBuiltinRegistry(t *testing.T) {
 		if !providerOK {
 			t.Fatalf("bundled renderer %q provider %q is not registered", definition.ID, definition.Provider)
 		}
-		overrides := make(map[ResourceKey]string, len(provider.Requirements))
+		declared := definition.Resources
+		definition.Resources = make(map[ResourceKey]string, len(provider.Requirements))
 		for _, requirement := range provider.Requirements {
-			if requirement.Required && definition.Resource(requirement.Key) == "" {
+			if requirement.Required && declared[requirement.Key] == "" {
 				t.Fatalf("bundled renderer %q does not declare required resource %q", definition.ID, requirement.Key)
 			}
-			overrides[requirement.Key] = resourceFixture(requirement.Key)
+			definition.Resources[requirement.Key] = resourceFixture(requirement.Key)
 		}
-		resolved, resolveErr := resolver.ResolveWithOptions([]Definition{definition}, string(definition.ID), ResolveOptions{
-			ResourceOverrides: overrides,
-		})
+		resolved, resolveErr := resolver.Resolve([]Definition{definition}, string(definition.ID))
 		if resolveErr != nil {
 			t.Fatalf("resolve bundled renderer %q: %v", definition.ID, resolveErr)
 		}

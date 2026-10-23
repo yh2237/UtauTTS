@@ -68,21 +68,21 @@ func resolvePresets(names string) ([]preset, error) {
 }
 
 type sweepRequest struct {
-	bank, out, presets, aliasPolicy, bridge string
-	model, modelFile, phonemizer            string
-	corpusData                              []byte
-	prompts                                 []prompt
-	moraMS                                  float64
-	contextDuration                         bool
-	contextDurationStrength                 float64
-	boundaryTone                            bool
-	boundaryToneStrength                    float64
-	stretchAdapt                            bool
-	stretchAdaptStrength                    float64
-	pauseContext                            bool
-	pauseContextStrength                    float64
-	noTimingWarp                            bool
-	timeout                                 time.Duration
+	bank, out, presets, aliasPolicy string
+	model, modelFile, phonemizer    string
+	corpusData                      []byte
+	prompts                         []prompt
+	moraMS                          float64
+	contextDuration                 bool
+	contextDurationStrength         float64
+	boundaryTone                    bool
+	boundaryToneStrength            float64
+	stretchAdapt                    bool
+	stretchAdaptStrength            float64
+	pauseContext                    bool
+	pauseContextStrength            float64
+	noTimingWarp                    bool
+	timeout                         time.Duration
 }
 
 type sweepPresetJSON struct {
@@ -128,7 +128,7 @@ func runSweep(req sweepRequest) (runErr error) {
 	if err != nil {
 		return err
 	}
-	synthesisRuntime, err := synth.NewRuntime(synth.RuntimeConfig{WorldlineBridgePath: req.bridge}, nil)
+	synthesisRuntime, err := synth.NewRuntime(synth.RuntimeConfig{}, nil)
 	if err != nil {
 		return err
 	}
@@ -210,7 +210,7 @@ func runSweep(req sweepRequest) (runErr error) {
 			}
 			rows = append(rows, row)
 			fmt.Printf("%s %s: %.0f ms, RTF %.3f %s\n", ps.Name, p.ID, row.ElapsedMS, row.RTF, row.Error)
-			report := evalReport{req.moraMS, req.phonemizer, false, runtime.GOOS, runtime.GOARCH, req.bank, modelIdentity, corpusSHA, req.bridge, buildInfo, rows}
+			report := evalReport{req.moraMS, req.phonemizer, false, runtime.GOOS, runtime.GOARCH, req.bank, modelIdentity, corpusSHA, buildInfo, rows}
 			encoded, err := json.MarshalIndent(report, "", "  ")
 			if err != nil {
 				return err

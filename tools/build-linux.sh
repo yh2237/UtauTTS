@@ -96,13 +96,10 @@ for runtime_dir in "${gui_dir}/runtime" "${server_dir}/runtime"; do
   cp -R "${root_dir}/.tmp-openjtalk-linux/pyopenjtalk/open_jtalk_dic_utf_8-1.11" "${runtime_dir}/"
 done
 
-echo '=== Build native bridge and UtauTTS WORLD engine ==='
+echo '=== Build UtauTTS WORLD engine ==='
 staging_dir="${root_dir}/.tmp-worldline-linux"
 rm -rf "${staging_dir}"
 mkdir -p "${staging_dir}"
-CGO_ENABLED=1 "${go_command}" build -trimpath -ldflags="-s -w" \
-  -o "${staging_dir}/utautts-worldline-bridge" \
-  ./cmd/utautts-worldline-bridge
 bash "${root_dir}/tools/build-world-engine.sh" "${staging_dir}"
 for runtime_dir in "${gui_dir}/runtime" "${server_dir}/runtime"; do
   cp -R "${staging_dir}/." "${runtime_dir}/"
@@ -249,9 +246,7 @@ cp "${root_dir}/THIRD_PARTY_NOTICES.txt" "${server_dir}/THIRD_PARTY_NOTICES.txt"
 
 chmod +x "${gui_dir}/utautts" "${gui_dir}/libutautts_native.so" \
   "${gui_dir}/utautts-server" "${gui_dir}/tools/"* "${gui_dir}/runtime/utautts-openjtalk-features" \
-  "${gui_dir}/runtime/utautts-worldline-bridge" \
-  "${server_dir}/utautts-server" "${server_dir}/runtime/utautts-openjtalk-features" \
-  "${server_dir}/runtime/utautts-worldline-bridge"
+  "${server_dir}/utautts-server" "${server_dir}/runtime/utautts-openjtalk-features"
 
 echo '=== Package ==='
 rm -f "${gui_zip}" "${server_zip}"

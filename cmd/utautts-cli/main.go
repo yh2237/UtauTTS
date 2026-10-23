@@ -80,7 +80,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		timingWarp              bool
 		microprosody            bool
 		renderer                string
-		worldlineBridgePath     string
 		cvvcTiming              string
 		cvvcTransitionGain      float64
 		cvvcPreBoundaryFade     bool
@@ -150,7 +149,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	flag.BoolVar(&microprosody, "microprosody", render.WorldlineProviderOptions{}.MicroprosodyEnabled(), "add measured consonant-induced F0 microprosody to Japanese WORLD output (utautts-world-phrase)")
 	flag.BoolVar(&timingWarp, "timing-warp", render.WorldlineProviderOptions{}.TimingWarpEnabled(), "warp Japanese WORLD output timing toward learned speech movement (utautts-world-phrase)")
 	flag.StringVar(&renderer, "renderer", "", "renderer ID (default: highest configured priority)")
-	flag.StringVar(&worldlineBridgePath, "worldline-bridge", "", "path to utautts-worldline-bridge executable")
 	flag.StringVar(&cvvcTiming, "cvvc-timing", render.CVVCTimingSequential, "CVVC timing: sequential")
 	flag.Float64Var(&cvvcTransitionGain, "cvvc-transition-gain", 1, "CVVC transition volume multiplier (0..1)")
 	flag.BoolVar(&cvvcPreBoundaryFade, "cvvc-pre-boundary-fade", false, "fade CVVC transitions out before the following CV consonant")
@@ -196,7 +194,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		return cliFailure("invalid_arguments", errors.New("--timeout must not be negative"))
 	}
 	runtimeConfig := synth.RuntimeConfig{
-		Renderer: renderer, WorldlineBridgePath: worldlineBridgePath,
+		Renderer:      renderer,
 		OpenJTalkPath: openJTalkPath, OpenJTalkDictionary: openJTalkDictionaryPath,
 		RendererDirectories: rendererDirectories, ModelDirectories: modelDirectories,
 	}

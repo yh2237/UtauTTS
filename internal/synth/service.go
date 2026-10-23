@@ -157,18 +157,16 @@ type VoicebankResolver interface {
 type Service struct {
 	catalog             *plugin.Catalog
 	renderer            string
-	worldlineBridgePath string
 	openJTalkPath       string
 	openJTalkDictionary string
 	voicebanks          VoicebankResolver
 	scope               *lifecycle.Scope
 }
 
-func NewService(catalog *plugin.Catalog, renderer, worldlineBridgePath, openJTalkPath, openJTalkDictionary string, voicebanks VoicebankResolver) *Service {
+func NewService(catalog *plugin.Catalog, renderer, openJTalkPath, openJTalkDictionary string, voicebanks VoicebankResolver) *Service {
 	return &Service{
 		catalog: catalog, renderer: renderer,
-		worldlineBridgePath: worldlineBridgePath,
-		openJTalkPath:       openJTalkPath, openJTalkDictionary: openJTalkDictionary,
+		openJTalkPath: openJTalkPath, openJTalkDictionary: openJTalkDictionary,
 		voicebanks: voicebanks,
 	}
 }
@@ -437,11 +435,7 @@ func (s *Service) referenceDir() string {
 }
 
 func (s *Service) ResolveRenderer(requested string) (engine.ResolvedEngine, error) {
-	resolved, err := tts.ResolveRendererWithOptions(s.catalog, s.rendererID(requested), engine.ResolveOptions{
-		ResourceOverrides: map[engine.ResourceKey]string{
-			engine.ResourceWorldlineBridge: s.worldlineBridgePath,
-		},
-	})
+	resolved, err := tts.ResolveRenderer(s.catalog, s.rendererID(requested))
 	if err != nil {
 		return engine.ResolvedEngine{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}

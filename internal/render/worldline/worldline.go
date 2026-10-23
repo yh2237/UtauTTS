@@ -91,10 +91,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 	if err != nil {
 		return nil, err
 	}
-	bridge, err := resolveWorldlineBridge(cfg.Resource(engine.ResourceWorldlineBridge))
-	if err != nil {
-		return nil, err
-	}
 	legacyMix := legacyJapaneseContinuousMix(synthesisPlan)
 	cache := base.NewSourceCache()
 	timing := prepareWorldlineTiming(synthesisPlan, cfg)
@@ -136,7 +132,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		manifest.Units = append(manifest.Units, item)
 	}
 	traceMark(&started, "units")
-	if err := runWorldlineBridge(synthesisPlan, cfg, manifest, bridge, tempDir, &started); err != nil {
+	if err := renderWorldline(synthesisPlan, cfg, manifest, &started); err != nil {
 		return nil, err
 	}
 	pcm, err := audio.ReadWav(manifest.OutputPath)
@@ -530,17 +526,13 @@ func (b worldlineUnitBuilder) sourceDurationMS(unit plan.Unit) (float64, error) 
 	return provider.SourceEndMS(sourceDuration, unit.OffsetMS, unit.CutoffMS) - unit.OffsetMS, nil
 }
 
-func runWorldlineBridge(synthesisPlan *plan.Plan, cfg base.Config, manifest worldlineManifest, bridge, tempDir string, started *time.Time) error {
-	job, err := worldlineProviderJob(synthesisPlan, cfg, manifest, bridge)
+func renderWorldline(synthesisPlan *plan.Plan, cfg base.Config, manifest worldlineManifest, started *time.Time) error {
+	job, err := worldlineProviderJob(synthesisPlan, cfg, manifest)
 	if err != nil {
 		return err
 	}
-	jobPath := filepath.Join(tempDir, "job.json")
 	jobData, err := json.Marshal(job)
 	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(jobPath, jobData, 0o600); err != nil {
 		return err
 	}
 	traceMark(started, "job")
@@ -550,14 +542,14 @@ func runWorldlineBridge(synthesisPlan *plan.Plan, cfg base.Config, manifest worl
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	var speechResults []provider.WorldSpeechResult
-	if commandErr := InvokeReport(ctx, bridge, jobPath, manifest.OutputPath, &speechResults); commandErr != nil {
+	speechResults, err := renderJob(ctx, jobData, manifest.OutputPath)
+	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return fmt.Errorf("worldline bridge canceled: %w", ctxErr)
+			return fmt.Errorf("WORLD render canceled: %w", ctxErr)
 		}
-		return fmt.Errorf("worldline bridge failed: %w", commandErr)
+		return fmt.Errorf("WORLD render failed: %w", err)
 	}
-	traceMark(started, "bridge")
+	traceMark(started, "world")
 	for _, result := range speechResults {
 		if result.UnitIndex < 0 || result.UnitIndex >= len(synthesisPlan.Units) {
 			return fmt.Errorf("invalid WORLD speech report unit %d", result.UnitIndex)
@@ -661,22 +653,14 @@ func worldlineTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64
 	return base.NormalizePlanTiming(synthesisPlan, unit, releaseMS)
 }
 
-func worldlineProviderJob(synthesisPlan *plan.Plan, cfg base.Config, manifest worldlineManifest, bridge string) (provider.UnitRendererJob, error) {
+func worldlineProviderJob(synthesisPlan *plan.Plan, cfg base.Config, manifest worldlineManifest) (provider.UnitRendererJob, error) {
 	planData, err := json.Marshal(plan.Clone(synthesisPlan))
 	if err != nil {
 		return provider.UnitRendererJob{}, err
 	}
-	resources := map[string]string{
-		"world_engine":     manifest.WorldEnginePath,
-		"worldline_bridge": bridge,
-	}
-	for key, value := range resources {
-		if strings.TrimSpace(value) == "" {
-			delete(resources, key)
-		}
-	}
-	if len(resources) == 0 {
-		resources = nil
+	var resources map[string]string
+	if strings.TrimSpace(manifest.WorldEnginePath) != "" {
+		resources = map[string]string{"world_engine": manifest.WorldEnginePath}
 	}
 	worldline := provider.WorldlineOptions{
 		Engine: manifest.Engine, SampleRate: manifest.SampleRate, ExactLength: cfg.ProviderOptions.Worldline.ExactLength,
@@ -785,19 +769,6 @@ func findFRQPath(wavPath string) string {
 		}
 	}
 	return ""
-}
-
-func resolveWorldlineBridge(configured string) (string, error) {
-	if isWasm() {
-		return configured, nil
-	}
-	if configured == "" {
-		return "", errors.New("worldline bridge is not configured by the renderer plugin")
-	}
-	if _, err := os.Stat(configured); err != nil {
-		return "", fmt.Errorf("worldline bridge %q: %w", configured, err)
-	}
-	return configured, nil
 }
 
 func resolveWorldEngine(configured string) (string, error) {

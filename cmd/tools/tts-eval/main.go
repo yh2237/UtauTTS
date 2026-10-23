@@ -51,7 +51,7 @@ type evalReport struct {
 	Phonemizer                     string
 	MeasurePitch                   bool
 	GOOS, GOARCH, Voicebank, Model string
-	CorpusSHA256, Bridge           string
+	CorpusSHA256                   string
 	Build                          *debug.BuildInfo
 	Measurements                   []measurement
 }
@@ -84,7 +84,6 @@ func run() (runErr error) {
 	renderers := flag.String("renderers", "utautts-world-phrase", "comma-separated renderer IDs")
 	model := flag.String("model", "frame-intonation-tcn-v12", "prosody model ID")
 	modelFile := flag.String("model-file", "", "explicit experimental prosody model JSON (overrides model ID)")
-	bridge := flag.String("bridge", "", "override WORLD bridge executable")
 	repeats := flag.Int("repeat", 2, "repetitions in the same process; first and warm runs are separate (ignored with --sweep)")
 	sweep := flag.Bool("sweep", false, "sweep correction presets across the corpus; each case runs exactly once and --repeat is ignored")
 	presets := flag.String("presets", defaultPresets, "comma-separated sweep preset names (only with --sweep)")
@@ -124,7 +123,7 @@ func run() (runErr error) {
 	}
 	if *sweep {
 		return runSweep(sweepRequest{
-			bank: *bank, out: *out, presets: *presets, aliasPolicy: *aliasPolicy, bridge: *bridge,
+			bank: *bank, out: *out, presets: *presets, aliasPolicy: *aliasPolicy,
 			model: *model, modelFile: *modelFile, phonemizer: *phonemizer,
 			corpusData: data, prompts: prompts, moraMS: *moraMS, timeout: *timeout,
 			contextDuration: *contextDuration, contextDurationStrength: *contextDurationStrength,
@@ -143,7 +142,7 @@ func run() (runErr error) {
 		}
 		return diagnoseCorpus(*bank, *out, prompts)
 	}
-	synthesisRuntime, err := synth.NewRuntime(synth.RuntimeConfig{WorldlineBridgePath: *bridge}, nil)
+	synthesisRuntime, err := synth.NewRuntime(synth.RuntimeConfig{}, nil)
 	if err != nil {
 		return err
 	}
@@ -235,7 +234,7 @@ func run() (runErr error) {
 				rows = append(rows, row)
 				fmt.Printf("%s %s #%d: %.0f ms, RTF %.3f %s\n", rendererID, p.ID, repetition, row.ElapsedMS, row.RTF, row.Error)
 				// 失敗に備え、ケースごとに保存する。
-				report := evalReport{*moraMS, *phonemizer, *measurePitch, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), *bridge, buildInfo, rows}
+				report := evalReport{*moraMS, *phonemizer, *measurePitch, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), buildInfo, rows}
 				encoded, err := json.MarshalIndent(report, "", "  ")
 				if err != nil {
 					return err

@@ -22,7 +22,6 @@ import (
 type Config struct {
 	VoiceDir            string   `json:"voice_dir"`
 	Renderer            string   `json:"renderer"`
-	WorldlineBridgePath string   `json:"worldline_bridge_path"`
 	OpenJTalkPath       string   `json:"openjtalk_path"`
 	OpenJTalkDictionary string   `json:"openjtalk_dictionary"`
 	RendererDirectories []string `json:"renderer_directories,omitempty"`
@@ -44,7 +43,7 @@ func New(config Config) (*Engine, error) {
 	engine := &Engine{config: config, voicebanks: voicebank.NewLibrary(config.VoiceDir)}
 	engine.ctx, engine.cancel = context.WithCancel(context.Background())
 	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
-		Renderer: config.Renderer, WorldlineBridgePath: config.WorldlineBridgePath,
+		Renderer:      config.Renderer,
 		OpenJTalkPath: config.OpenJTalkPath, OpenJTalkDictionary: config.OpenJTalkDictionary,
 		RendererDirectories: config.RendererDirectories, ModelDirectories: config.ModelDirectories,
 	}, nativeVoicebankResolver{library: engine.voicebanks})
