@@ -53,8 +53,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-          cache: pip
-          cache-dependency-path: tools/requirements-build.txt
 
       - name: Cache Qt
         id: qt-cache
