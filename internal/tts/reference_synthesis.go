@@ -224,8 +224,8 @@ func referencePlanTiming(cfg Config, language string, provider refspeech.Provide
 		return nil, nil, err
 	}
 	moraTokens := referenceMoraTokens(language, pieces, reference.Timing, reading, morae)
-	forced := englishForcedDurations(reference.Timing, moraTokens, cfg.MoraDurationsMS)
-	return forced, englishMoraDurations(moraTokens, refspeech.Timing{Durations: forced}, cfg.MoraDurationsMS), nil
+	forced := referenceForcedDurations(reference.Timing, moraTokens, cfg.MoraDurationsMS)
+	return forced, referenceMoraDurations(moraTokens, refspeech.Timing{Durations: forced}, cfg.MoraDurationsMS), nil
 }
 
 // synthesizeReferenceは文を参照TTSで読み、音源のフレームで合成し直す。
@@ -294,7 +294,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	for i, v := range speech.Audio {
 		pcm.Data[i] = int16(math.Round(math.Max(-1, math.Min(1, v*scale)) * 32767))
 	}
-	durations := englishMoraDurations(referenceMoraTokens(language, pieces, speech.Timing, reading, morae), speech.Timing, cfg.MoraDurationsMS)
+	durations := referenceMoraDurations(referenceMoraTokens(language, pieces, speech.Timing, reading, morae), speech.Timing, cfg.MoraDurationsMS)
 	leading := speech.LeadingMS()
 	synthesisPlan := &plan.Plan{
 		Version: plan.Version, Voicebank: bank.Root, Text: cfg.Text, Reading: reading,
@@ -305,7 +305,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	}
 	result := &Result{Voicebank: bank, Plan: synthesisPlan, Audio: pcm,
 		MoraDurationsMS: durations, MoraPositionsMS: make([]float64, len(morae)), PitchPoints: make([]float64, len(morae))}
-	center := englishCenterHz(speech.AutomaticF0)
+	center := referenceCenterHz(speech.AutomaticF0)
 	cursor := 0.0
 	for index, mora := range morae {
 		result.MoraPositionsMS[index] = cursor + durations[index]/2
@@ -316,7 +316,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 				PitchFactor: 1, EnergyFactor: 1, TimingScale: 1, IntonationFactor: 1,
 			})
 			start := leading + cursor
-			result.PitchPoints[index] = englishCentsBetween(speech.AutomaticF0, center, start, start+durations[index])
+			result.PitchPoints[index] = referenceCentsBetween(speech.AutomaticF0, center, start, start+durations[index])
 		}
 		cursor += durations[index]
 	}
@@ -340,26 +340,26 @@ func predictReference(cfg Config, language, reading string, morae []frontend.Mor
 		return nil, fmt.Errorf("reference prosody: %w", err)
 	}
 	if hasManualMoraDurations(cfg.MoraDurationsMS) {
-		forced := englishForcedDurations(reference.Timing, referenceMoraTokens(language, pieces, reference.Timing, reading, morae), cfg.MoraDurationsMS)
+		forced := referenceForcedDurations(reference.Timing, referenceMoraTokens(language, pieces, reference.Timing, reading, morae), cfg.MoraDurationsMS)
 		if reference, err = provider.ReadProsody(pieces, options.Speed, forced); err != nil {
 			return nil, fmt.Errorf("reference prosody: %w", err)
 		}
 	}
-	durations := englishMoraDurations(referenceMoraTokens(language, pieces, reference.Timing, reading, morae), reference.Timing, cfg.MoraDurationsMS)
+	durations := referenceMoraDurations(referenceMoraTokens(language, pieces, reference.Timing, reading, morae), reference.Timing, cfg.MoraDurationsMS)
 	f0 := reference.ReferenceF0()
-	center := englishCenterHz(f0)
+	center := referenceCenterHz(f0)
 	leading := reference.LeadingMS()
 	result := &ProsodyPreview{
 		Reading: reading, Morae: append([]frontend.Mora(nil), morae...), MoraDurationsMS: durations,
 		MoraPositionsMS: make([]float64, len(morae)), PitchPoints: make([]float64, len(morae)),
-		FramePitchCurve: englishPitchCurve(f0, center, leading, options.PitchScale),
+		FramePitchCurve: referencePitchCurve(f0, center, leading, options.PitchScale),
 	}
 	cursor := 0.0
 	for index, mora := range morae {
 		result.MoraPositionsMS[index] = cursor + durations[index]/2
 		if !mora.Pause {
 			start := leading + cursor
-			result.PitchPoints[index] = options.PitchScale * englishCentsBetween(f0, center, start, start+durations[index])
+			result.PitchPoints[index] = options.PitchScale * referenceCentsBetween(f0, center, start, start+durations[index])
 		}
 		cursor += durations[index]
 	}
@@ -437,8 +437,8 @@ func englishMoraTokens(pieces []refspeech.Piece, timing refspeech.Timing, readin
 	return result
 }
 
-// englishMoraDurationsは、モーラに割り当てた記号の長さを足す。手動の長さがあるモーラはその値にする。
-func englishMoraDurations(moraTokens [][]int, timing refspeech.Timing, manual []float64) []float64 {
+// referenceMoraDurationsは、モーラに割り当てた記号の長さを足す。手動の長さがあるモーラはその値にする。
+func referenceMoraDurations(moraTokens [][]int, timing refspeech.Timing, manual []float64) []float64 {
 	durations := make([]float64, len(moraTokens))
 	for i, tokens := range moraTokens {
 		if value, ok := plan.ConfiguredMoraDuration(i, manual); ok {
@@ -452,8 +452,8 @@ func englishMoraDurations(moraTokens [][]int, timing refspeech.Timing, manual []
 	return durations
 }
 
-// englishForcedDurationsは、手動の長さがあるモーラの記号の長さを、比を保って目標に合わせる。
-func englishForcedDurations(timing refspeech.Timing, moraTokens [][]int, manual []float64) []int {
+// referenceForcedDurationsは、手動の長さがあるモーラの記号の長さを、比を保って目標に合わせる。
+func referenceForcedDurations(timing refspeech.Timing, moraTokens [][]int, manual []float64) []int {
 	result := append([]int(nil), timing.Durations...)
 	for i, tokens := range moraTokens {
 		target, ok := plan.ConfiguredMoraDuration(i, manual)
@@ -502,8 +502,8 @@ func splitEnglishReading(reading string) []string {
 	return parts
 }
 
-// englishPitchCurveは、最初のモーラの始まりを0とするセントの曲線。無声区間は前後の有声区間を直線でつなぐ。
-func englishPitchCurve(f0 []float64, center, leadingMS, scale float64) *render.PitchCurve {
+// referencePitchCurveは、最初のモーラの始まりを0とするセントの曲線。無声区間は前後の有声区間を直線でつなぐ。
+func referencePitchCurve(f0 []float64, center, leadingMS, scale float64) *render.PitchCurve {
 	first := int(leadingMS / refspeech.F0FrameMS)
 	if center <= 0 || first >= len(f0) {
 		return nil
@@ -536,8 +536,8 @@ func englishPitchCurve(f0 []float64, center, leadingMS, scale float64) *render.P
 	return &render.PitchCurve{FrameMS: refspeech.F0FrameMS, Cents: cents}
 }
 
-// englishCenterHzは出力のF0の有声区間の中央値。
-func englishCenterHz(f0 []float64) float64 {
+// referenceCenterHzは出力のF0の有声区間の中央値。
+func referenceCenterHz(f0 []float64) float64 {
 	var voiced []float64
 	for _, v := range f0 {
 		if v > 0 {
@@ -551,8 +551,8 @@ func englishCenterHz(f0 []float64) float64 {
 	return voiced[len(voiced)/2]
 }
 
-// englishCentsBetweenはstartMSからendMSまでの有声区間の平均F0を、centerからのセントで返す。
-func englishCentsBetween(f0 []float64, center, startMS, endMS float64) float64 {
+// referenceCentsBetweenはstartMSからendMSまでの有声区間の平均F0を、centerからのセントで返す。
+func referenceCentsBetween(f0 []float64, center, startMS, endMS float64) float64 {
 	if center <= 0 {
 		return 0
 	}
