@@ -27,7 +27,6 @@ var (
 type Config struct {
 	VoiceDirectory      string
 	Renderer            string
-	WorldlineBridgePath string
 	OpenJTalkPath       string
 	OpenJTalkDictionary string
 	RendererDirectories []string
@@ -50,7 +49,7 @@ func (r voiceResolver) Resolve(id string) (string, bool) {
 func New(config Config) (*Engine, error) {
 	voices := voicebank.NewLibrary(config.VoiceDirectory)
 	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
-		Renderer: config.Renderer, WorldlineBridgePath: config.WorldlineBridgePath,
+		Renderer:      config.Renderer,
 		OpenJTalkPath: config.OpenJTalkPath, OpenJTalkDictionary: config.OpenJTalkDictionary,
 		RendererDirectories: append([]string(nil), config.RendererDirectories...),
 		ModelDirectories:    append([]string(nil), config.ModelDirectories...),
