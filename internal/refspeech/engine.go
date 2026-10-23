@@ -216,13 +216,17 @@ type Timing struct {
 // MSは記号の長さをミリ秒で返す。
 func (t Timing) MS(token int) float64 { return float64(t.Durations[token]) * DurationUnitMS }
 
-// LeadingMSは先頭の境界記号の長さ。最初のモーラはここから始まる。
+// LeadingMSは、音声の中で最初のモーラが始まる時刻。
+// Kokoroの音声は記号の長さを並べた時刻より約50ms早く鳴るため、先頭の境界記号の長さから差し引く
+// （日本語・英語、話速によらない。強制整列で測った）。
 func (t Timing) LeadingMS() float64 {
 	if len(t.Durations) == 0 {
 		return 0
 	}
-	return t.MS(0)
+	return max(0, t.MS(0)-kokoroAudioLeadMS)
 }
+
+const kokoroAudioLeadMS = 50.0
 
 type Speech struct {
 	Audio      []float64
