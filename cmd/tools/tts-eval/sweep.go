@@ -18,17 +18,14 @@ import (
 
 const defaultPresets = "default,no-pitch"
 
-const baseRenderer = "utautts-world-phrase"
-
 type preset struct {
 	Name       string
-	Renderer   string
 	ApplyPitch bool
 }
 
 var presetTable = []preset{
-	{Name: "default", Renderer: baseRenderer, ApplyPitch: true},
-	{Name: "no-pitch", Renderer: baseRenderer, ApplyPitch: false},
+	{Name: "default", ApplyPitch: true},
+	{Name: "no-pitch", ApplyPitch: false},
 }
 
 func presetNames() []string {
@@ -87,7 +84,6 @@ type sweepRequest struct {
 
 type sweepPresetJSON struct {
 	Name       string `json:"name"`
-	Renderer   string `json:"renderer"`
 	ApplyPitch bool   `json:"apply_pitch"`
 }
 
@@ -111,7 +107,6 @@ type sweepJSON struct {
 	CorpusSHA256 string            `json:"corpus_sha256"`
 	Voicebank    string            `json:"voicebank"`
 	Model        string            `json:"model"`
-	Renderers    []string          `json:"renderers"`
 	Presets      []sweepPresetJSON `json:"presets"`
 	Prompts      []sweepPromptJSON `json:"prompts"`
 	Build        *debug.BuildInfo  `json:"build,omitempty"`
@@ -167,17 +162,16 @@ func runSweep(req sweepRequest) (runErr error) {
 		if err := os.Mkdir(dir, 0755); err != nil {
 			return err
 		}
-		fmt.Printf("sweep %s: renderer=%s apply-pitch=%t\n", ps.Name, ps.Renderer, ps.ApplyPitch)
+		fmt.Printf("sweep %s: apply-pitch=%t\n", ps.Name, ps.ApplyPitch)
 		var rows []measurement
 		for index, p := range req.prompts {
-			row := measurement{ID: p.ID, Text: p.Text, Focus: p.Focus, Renderer: ps.Renderer, Repetition: 1}
+			row := measurement{ID: p.ID, Text: p.Text, Focus: p.Focus, Repetition: 1}
 			result, elapsed, callErr := synthesizeCase(p, caseOptions{
 				service:     synthesisRuntime.Service,
 				bank:        req.bank,
 				aliasPolicy: req.aliasPolicy,
 				model:       req.model, modelFile: req.modelFile, prosodyModelPath: prosodyPath,
 				moraMS:     req.moraMS,
-				rendererID: ps.Renderer,
 				applyPitch: ps.ApplyPitch, timeout: req.timeout,
 				contextDuration: req.contextDuration, contextDurationStrength: req.contextDurationStrength,
 				boundaryTone: req.boundaryTone, boundaryToneStrength: req.boundaryToneStrength,
@@ -249,13 +243,8 @@ func unitsFrom(row measurement) sweepUnits {
 
 func buildSweepJSON(req sweepRequest, selected []preset, promptData []sweepPromptData, modelIdentity, corpusSHA string, buildInfo *debug.BuildInfo) sweepJSON {
 	report := sweepJSON{CorpusSHA256: corpusSHA, Voicebank: req.bank, Model: modelIdentity, Build: buildInfo}
-	seen := map[string]bool{}
 	for _, ps := range selected {
-		if !seen[ps.Renderer] {
-			seen[ps.Renderer] = true
-			report.Renderers = append(report.Renderers, ps.Renderer)
-		}
-		report.Presets = append(report.Presets, sweepPresetJSON{ps.Name, ps.Renderer, ps.ApplyPitch})
+		report.Presets = append(report.Presets, sweepPresetJSON{ps.Name, ps.ApplyPitch})
 	}
 	for index, p := range req.prompts {
 		out := sweepPromptJSON{ID: p.ID, Text: p.Text, SelectionSHA256: promptData[index].selectionSHA, AudioMS: promptData[index].audioMS, Units: promptData[index].units}
@@ -268,7 +257,7 @@ func writeSweepIndex(path string, selected []preset, prompts []prompt, promptDat
 	var b strings.Builder
 	b.WriteString("# Sweep\n\n")
 	for _, ps := range selected {
-		fmt.Fprintf(&b, "- **%s**: renderer=%s, apply_pitch=%t\n", ps.Name, ps.Renderer, ps.ApplyPitch)
+		fmt.Fprintf(&b, "- **%s**: apply_pitch=%t\n", ps.Name, ps.ApplyPitch)
 	}
 	b.WriteString("\n| prompt |")
 	for _, ps := range selected {

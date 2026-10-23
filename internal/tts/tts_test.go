@@ -11,11 +11,9 @@ import (
 	"testing"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
-	"github.com/yh2237/UtauTTS/internal/engine"
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
 	"github.com/yh2237/UtauTTS/internal/plan"
-	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
@@ -290,7 +288,7 @@ func TestPreviewAndSynthesisShareCanonicalMoraDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := SynthesizeWithOptions(Config{VoicebankPath: root, Reading: "あか", Renderer: engine.TestConcatProvider}, render.ProviderOptions{})
+	result, err := SynthesizeWithOptions(Config{VoicebankPath: root, Reading: "あか"}, render.ProviderOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -307,8 +305,8 @@ func TestPreviewAndSynthesisShareCanonicalMoraDefault(t *testing.T) {
 func TestSynthesizePitchOverrideDoesNotChangeCachedProsody(t *testing.T) {
 	ClearCaches()
 	t.Cleanup(ClearCaches)
-	cfg := Config{VoicebankPath: testSynthesisBank(t, "あ", "か"), Reading: "あか", Renderer: engine.TestConcatProvider,
-		RendererCapabilities: &plugin.Capabilities{InternalTiming: true}, PitchFactors: []float64{1.1, 0.9}}
+	cfg := Config{VoicebankPath: testSynthesisBank(t, "あ", "か"), Reading: "あか",
+		PitchFactors: []float64{1.1, 0.9}}
 	overridden, err := SynthesizeWithOptions(cfg, render.ProviderOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -356,11 +354,10 @@ func testExternalPitchFactorsDoNotImplicitlyEnableWaveformPitchProcessing(t *tes
 
 func testPitchProcessingSwitchControlsModelFrameContour(t *testing.T) {
 	model := &prosody.Model{FramePitch: &prosody.FramePitchModel{}}
-	capabilities := &plugin.Capabilities{FramePitch: true}
-	if shouldPredictFrameContour(Config{RendererCapabilities: capabilities}, model) {
+	if shouldPredictFrameContour(Config{}, model) {
 		t.Fatal("model frame contour was enabled while pitch processing was off")
 	}
-	if !shouldPredictFrameContour(Config{ApplyPitch: true, RendererCapabilities: capabilities}, model) {
+	if !shouldPredictFrameContour(Config{ApplyPitch: true}, model) {
 		t.Fatal("model frame contour was disabled while pitch processing was on")
 	}
 	if got := effectiveIntonationStrength(Config{IntonationStrength: 0.5}); got != 0 {
@@ -514,7 +511,7 @@ func TestVoicebankCacheInvalidatedByClearCaches(t *testing.T) {
 func TestSynthesizePropagatesAliasPolicyIntoPlan(t *testing.T) {
 	root := testSynthesisBank(t, "- あ", "a か", "あ", "か")
 	result, err := SynthesizeWithOptions(Config{
-		VoicebankPath: root, Reading: "あか", MoraDurationMS: 100, Renderer: engine.TestConcatProvider,
+		VoicebankPath: root, Reading: "あか", MoraDurationMS: 100,
 		AliasPolicy: voicebank.AliasPolicyCVOnly,
 	}, render.ProviderOptions{})
 	if err != nil {
@@ -538,7 +535,7 @@ func TestSynthesizePropagatesAliasPolicyIntoPlan(t *testing.T) {
 
 func TestSynthesizeUsesCVVCTransitionInAutoMode(t *testing.T) {
 	root := testSynthesisBank(t, "あ", "か", "a k")
-	result, err := SynthesizeWithOptions(Config{VoicebankPath: root, Reading: "あか", MoraDurationMS: 100, Renderer: engine.TestConcatProvider}, render.ProviderOptions{})
+	result, err := SynthesizeWithOptions(Config{VoicebankPath: root, Reading: "あか", MoraDurationMS: 100}, render.ProviderOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

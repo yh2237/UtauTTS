@@ -83,22 +83,6 @@ func TestConsoleUIIsServedLocally(t *testing.T) {
 	}
 }
 
-func TestNewReportsInvalidPlugin(t *testing.T) {
-	pluginDirectory := t.TempDir()
-	if err := os.WriteFile(filepath.Join(pluginDirectory, "renderer.json"), []byte(`{"kind":"renderer"}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	server := mustNewServer(t, Config{VoiceDir: t.TempDir(), RendererDirectories: []string{pluginDirectory}})
-	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, localRequest(http.MethodGet, "/api/renderers", nil))
-	var result struct {
-		Problems []any `json:"problems"`
-	}
-	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil || len(result.Problems) == 0 {
-		t.Fatalf("invalid plugin was not reported: %d %s", response.Code, response.Body.String())
-	}
-}
-
 func TestNewAllowsMissingVoiceDirectory(t *testing.T) {
 	server := mustNewServer(t, Config{VoiceDir: filepath.Join(t.TempDir(), "missing")})
 	response := httptest.NewRecorder()
@@ -166,7 +150,7 @@ func TestSynthesizeEndpointReportsWaveformRenderer(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
-	if wav := response.Body.Bytes(); len(wav) < 4 || string(wav[:4]) != "RIFF" || response.Header().Get("X-UtauTTS-Engine") != "test-concat" {
+	if wav := response.Body.Bytes(); len(wav) < 4 || string(wav[:4]) != "RIFF" || response.Header().Get("X-UtauTTS-Method") != "waveform-synthesis" {
 		t.Fatalf("unexpected audio response: headers=%v bytes=%d", response.Header(), len(wav))
 	}
 }
@@ -193,7 +177,7 @@ func newWaveformTestServer(t *testing.T) *Server {
 	if err := os.WriteFile(filepath.Join(root, "renderer.json"), []byte(manifest), 0600); err != nil {
 		t.Fatal(err)
 	}
-	return mustNewServer(t, Config{VoiceDir: root, Renderer: "test-concat", RendererDirectories: []string{root}})
+	return mustNewServer(t, Config{VoiceDir: root})
 }
 
 func TestLabelAndBatchSidecarEndpoints(t *testing.T) {
@@ -261,7 +245,7 @@ func TestSynthesisInputCompatibility(t *testing.T) {
 	}
 }
 
-func TestHealthReportsConfiguredRenderer(t *testing.T) {
+func TestHealthReportsStatus(t *testing.T) {
 	server := newWaveformTestServer(t)
 	request := localRequest(http.MethodGet, "/api/health", nil)
 	response := httptest.NewRecorder()
@@ -274,30 +258,29 @@ func TestHealthReportsConfiguredRenderer(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload["status"] != "ok" || payload["engine"] != "test-concat" {
+	if payload["status"] != "ok" || payload["version"] == "" {
 		t.Fatalf("unexpected response: %#v", payload)
 	}
 }
 
 func TestAPIMetadata(t *testing.T) {
-	server := mustNewServer(t, Config{Renderer: "utautts-world-phrase", VoiceDir: t.TempDir()})
-	request := localRequest(http.MethodGet, "/api/renderers", nil)
+	server := mustNewServer(t, Config{VoiceDir: t.TempDir()})
+	request := localRequest(http.MethodGet, "/api/settings", nil)
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
-		t.Fatalf("renderers status = %d, body = %s", response.Code, response.Body.String())
+		t.Fatalf("settings status = %d, body = %s", response.Code, response.Body.String())
 	}
-	var renderers struct {
-		Default   string `json:"default_renderer"`
-		Renderers []struct {
+	var payload struct {
+		Settings []struct {
 			ID string `json:"id"`
-		} `json:"renderers"`
+		} `json:"settings"`
 	}
-	if err := json.Unmarshal(response.Body.Bytes(), &renderers); err != nil {
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
 		t.Fatal(err)
 	}
-	if renderers.Default != "utautts-world-phrase" || len(renderers.Renderers) == 0 {
-		t.Fatalf("renderers = %#v", renderers.Renderers)
+	if len(payload.Settings) == 0 || payload.Settings[0].ID != "mora_duration_ms" {
+		t.Fatalf("settings = %#v", payload.Settings)
 	}
 }
 

@@ -12,7 +12,6 @@ import (
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/lifecycle"
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
-	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
@@ -88,13 +87,6 @@ func optionalBoolKey(value *bool) string {
 	return "false"
 }
 
-func rendererCapabilityKey(caps *plugin.Capabilities) string {
-	if caps == nil {
-		return "nil"
-	}
-	return fmt.Sprintf("it=%v", caps.InternalTiming)
-}
-
 func hashStringMap(values map[string]string) string {
 	if len(values) == 0 {
 		return ""
@@ -127,16 +119,16 @@ func hashFloatSlice(values []float64) string {
 
 func prosodyComputationKeyFor(cfg Config) prosodyComputationKey {
 	settings := fmt.Sprintf(
-		"mora=%v pause=%v/%v pitchonly=%v apply=%v strength=%v release=%v cap=%v "+
+		"mora=%v pause=%v/%v pitchonly=%v apply=%v strength=%v release=%v "+
 			"cd=%v cds=%v bt=%v bts=%v sa=%v sas=%v pc=%v pcs=%v tone=%v color=%v",
 		cfg.MoraDurationMS, cfg.PauseDurationMS, cfg.PauseDurationSet, cfg.ProsodyPitchOnly, cfg.ApplyPitch,
-		cfg.IntonationStrength, cfg.ReleaseMS, rendererCapabilityKey(cfg.RendererCapabilities),
+		cfg.IntonationStrength, cfg.ReleaseMS,
 		optionalBoolKey(cfg.ContextDuration), cfg.ContextDurationStrength, optionalBoolKey(cfg.BoundaryTone), cfg.BoundaryToneStrength,
 		optionalBoolKey(cfg.StretchAdapt), cfg.StretchAdaptStrength, optionalBoolKey(cfg.PauseContext), cfg.PauseContextStrength,
 		cfg.Tone, cfg.Color)
 	return prosodyComputationKey{
 		text: cfg.Text, reading: cfg.Reading, language: cfg.Language, phonemizer: cfg.Phonemizer,
-		modelPath: cfg.ProsodyModelPath, renderer: cfg.Renderer, voicebankPath: cfg.VoicebankPath,
+		modelPath: cfg.ProsodyModelPath, renderer: cfg.Backend, voicebankPath: cfg.VoicebankPath,
 		openJTalkPath: cfg.OpenJTalkPath, openJTalkDictionary: cfg.OpenJTalkDictionaryPath,
 		settings:          settings,
 		dictionaryHash:    hashStringMap(cfg.Dictionary),

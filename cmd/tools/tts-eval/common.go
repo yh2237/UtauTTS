@@ -20,7 +20,6 @@ type caseOptions struct {
 	model, modelFile        string
 	prosodyModelPath        string
 	moraMS                  float64
-	rendererID              string
 	applyPitch              bool
 	contextDuration         bool
 	contextDurationStrength float64
@@ -42,7 +41,6 @@ func synthesizeCase(p prompt, o caseOptions) (*synth.Result, float64, error) {
 	request.Phonemizer = p.Phonemizer
 	request.VoicebankPath = o.bank
 	request.AliasPolicy = voicebank.AliasPolicy(o.aliasPolicy)
-	request.Renderer = o.rendererID
 	request.MoraDurationMS = o.moraMS
 	request.MoraDurationsMS = p.MoraDurationsMS
 	request.PitchCurve = p.PitchCurve

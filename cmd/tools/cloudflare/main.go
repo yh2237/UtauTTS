@@ -143,7 +143,7 @@ func checkedFile(root, relative string) (string, error) {
 	return file, nil
 }
 func assetFiles(source string) ([]string, error) {
-	files := []string{"utautts.wasm", "renderer/utautts-world-phrase/renderer.json"}
+	files := []string{"utautts.wasm"}
 	for _, name := range []string{"utautts.wasm", "wasm_exec.js", "fs-shim.js", "openjtalk-bridge.js", "world-bridge.js", "openjtalk/utautts-openjtalk.js", "openjtalk/utautts-openjtalk.wasm", "world/utautts-world.js", "world/utautts-world.wasm", "openjtalk/dict-manifest.json", "models/manifest.json", "voice/manifest.json"} {
 		files = append(files, "web/dist/"+name)
 	}
@@ -401,7 +401,7 @@ func checkAssets(output, origin string, client *http.Client) error {
 	if err != nil {
 		return err
 	}
-	samples := map[string]bool{"utautts.wasm": true, "web/dist/utautts.wasm": true, "web/dist/fs-shim.js": true, "web/dist/openjtalk/dict-manifest.json": true, "web/dist/models/manifest.json": true, "web/dist/voice/manifest.json": true, "renderer/utautts-world-phrase/renderer.json": true, "web/dist/openjtalk/utautts-openjtalk.wasm": true, "web/dist/world/utautts-world.wasm": true}
+	samples := map[string]bool{"utautts.wasm": true, "web/dist/utautts.wasm": true, "web/dist/fs-shim.js": true, "web/dist/openjtalk/dict-manifest.json": true, "web/dist/models/manifest.json": true, "web/dist/voice/manifest.json": true, "web/dist/openjtalk/utautts-openjtalk.wasm": true, "web/dist/world/utautts-world.wasm": true}
 	voice, dict := false, false
 	for _, a := range m.Assets {
 		if !voice && strings.HasPrefix(a.Path, "web/dist/voice/") && strings.HasSuffix(a.Path, ".wav") {

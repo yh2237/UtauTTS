@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/yh2237/UtauTTS/internal/runtimepath"
 	"github.com/yh2237/audiodsp/wav"
 )
 
@@ -26,17 +27,18 @@ func synthesisArgs(t *testing.T) []string {
 	for name, data := range map[string][]byte{
 		"a.wav":   audio.Bytes(),
 		"oto.ini": []byte("a.wav=あ,0,40,0,60,30\n"),
-		"renderer.json": []byte(`{
-			"manifest_version":2,"kind":"synthesis-engine","id":"cli-test-waveform",
-			"display_name":"CLI test waveform","contract":"unit-renderer",
-			"provider":"test-concat","provider_version":"1"
-		}`),
+		// doctorが探すWORLDのライブラリ。合成はテスト用の描画で行う。
+		filepath.Join("runtime", runtimepath.LibraryName("utautts-world-engine")): []byte("fixture"),
 	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0700); err != nil {
+			t.Fatal(err)
+		}
 		if err := os.WriteFile(filepath.Join(root, name), data, 0600); err != nil {
 			t.Fatal(err)
 		}
 	}
-	return []string{"--voicebank", root, "--renderer-dir", root, "--renderer", "cli-test-waveform", "--method", "waveform-synthesis", "--prosody", "none", "--apply-pitch=false"}
+	t.Chdir(root)
+	return []string{"--voicebank", root, "--model-dir", root, "--prosody", "none", "--method", "waveform-synthesis", "--apply-pitch=false"}
 }
 
 func TestCLIPipeMatchesFileOutput(t *testing.T) {

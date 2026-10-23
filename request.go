@@ -16,7 +16,7 @@ func (r Request) internal() (synth.Request, error) {
 	}
 	input := synth.ApplyCommonOptions(synth.DefaultRequest(), synth.CommonOptions(r.Options))
 	input.Text, input.Reading, input.Language, input.Phonemizer = r.Text, r.Reading, r.Language, r.Phonemizer
-	input.VoicebankID, input.Renderer, input.ModelID = r.VoicebankID, r.RendererID, r.ModelID
+	input.VoicebankID, input.ModelID = r.VoicebankID, r.ModelID
 	input.Tone, input.Color = r.Tone, r.Color
 	input.Method = r.Method
 	for _, entry := range r.Dictionary {
@@ -47,8 +47,8 @@ func (r Request) internal() (synth.Request, error) {
 			return synth.Request{}, err
 		}
 	}
-	input.RendererSettings = make(map[string]json.RawMessage, len(r.RendererSettings))
-	for id, raw := range r.RendererSettings {
+	input.RendererSettings = make(map[string]json.RawMessage, len(r.Settings))
+	for id, raw := range r.Settings {
 		switch id {
 		case "mora_duration_ms", "pause_duration_ms", "intonation_strength", "release_ms", "apply_pitch",
 			"context_duration", "boundary_tone", "stretch_adapt", "pause_context":
@@ -57,7 +57,7 @@ func (r Request) internal() (synth.Request, error) {
 		if !json.Valid(raw) || strings.TrimSpace(string(raw)) == "null" {
 			return synth.Request{}, fmt.Errorf("%w: renderer setting %q must contain a non-null JSON value", ErrInvalidRequest, id)
 		}
-		// 未知の設定の検証はRendererに委ねる。
+		// 未知の設定は、そのまま合成へ渡す。
 		if setting, known := settings.Lookup(id); known {
 			switch setting.Type {
 			case "number", "integer":

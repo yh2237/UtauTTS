@@ -126,12 +126,10 @@ func (e *Engine) enrichAndCurves(project *openutau.UtauTTSProject) []openutau.Fr
 		if strength <= 0 {
 			strength = 1
 		}
-		renderer := utterance.RendererID
-		preview, _, err := e.synth.PredictProsody(synth.Request{
+		preview, err := e.synth.PredictProsody(synth.Request{
 			Text:               utterance.Text,
 			Kana:               utterance.AnalysisCache.Reading,
 			ModelID:            utterance.ModelID,
-			Renderer:           renderer,
 			MoraDurationMS:     utterance.MoraDurationMS,
 			PauseDurationMS:    utterance.PauseDurationMS,
 			MoraDurationsMS:    utterance.MoraDurationsMS,

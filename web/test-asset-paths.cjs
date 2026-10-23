@@ -9,12 +9,10 @@ const { createUtauTTSAssetPaths } = require("../qt/wasm/asset-paths.js");
 
 test("local Qt build resolves engine assets in the repo, not below the build directory", () => {
   const paths = createUtauTTSAssetPaths("http://localhost:8010/build/qt-wasm/bootstrap.js", {
-    engineBaseURL: "../../web/dist/", rendererBaseURL: "../../renderer/",
+    engineBaseURL: "../../web/dist/",
   });
   assert.equal(paths.engine("utautts.wasm"), "http://localhost:8010/web/dist/utautts.wasm");
   assert.equal(paths.asset("utautts.wasm"), "http://localhost:8010/build/qt-wasm/utautts.wasm");
-  assert.equal(paths.renderer("utautts-world-phrase/renderer.json"),
-    "http://localhost:8010/renderer/utautts-world-phrase/renderer.json");
 });
 
 test("assembled sites work at a subpath and relative dictionary overrides remain engine-relative", () => {

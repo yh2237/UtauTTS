@@ -2,7 +2,6 @@ package main
 
 import (
 	"archive/zip"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -183,11 +182,6 @@ func run(target, url, zipPath string, pid int, version string, preserve []string
 		return fmt.Errorf("parent process %d did not exit within timeout", pid)
 	}
 	started = time.Now()
-	if err := carryCurrentRenderers(target, stage); err != nil {
-		_ = os.RemoveAll(stage)
-		return fmt.Errorf("carry renderer definitions: %w", err)
-	}
-
 	for _, rel := range preserve {
 		if err := preservePath(target, stage, rel); err != nil {
 			_ = os.RemoveAll(stage)
@@ -294,69 +288,6 @@ func replaceInstallContents(target, stage, old string) error {
 		logf("removing empty stage failed: %v", err)
 	}
 	return nil
-}
-
-type rendererPackageManifest struct {
-	ManifestVersion int    `json:"manifest_version"`
-	Kind            string `json:"kind"`
-	ID              string `json:"id"`
-	DisplayName     string `json:"display_name"`
-	UpdateManaged   bool   `json:"update_managed,omitempty"`
-}
-
-func carryCurrentRenderers(current, stage string) error {
-	destinationRoot := filepath.Join(stage, "renderer")
-	if err := os.MkdirAll(destinationRoot, 0o755); err != nil {
-		return err
-	}
-	sourceRoot := filepath.Join(current, "renderer")
-	return filepath.WalkDir(sourceRoot, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			if os.IsNotExist(walkErr) {
-				return nil
-			}
-			return walkErr
-		}
-		if entry.IsDir() || !strings.EqualFold(entry.Name(), "renderer.json") {
-			return nil
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		var manifest rendererPackageManifest
-		if err := json.Unmarshal(data, &manifest); err != nil || manifest.ManifestVersion != 2 || manifest.Kind != "synthesis-engine" || manifest.DisplayName == "" || manifest.UpdateManaged || !safeRendererID(manifest.ID) {
-			return nil
-		}
-		return carryCurrentRendererVerbatim(filepath.Dir(path), destinationRoot, manifest.ID)
-	})
-}
-
-func carryCurrentRendererVerbatim(sourceDirectory, destinationRoot, id string) error {
-	destination := filepath.Join(destinationRoot, id)
-	if _, err := os.Stat(filepath.Join(destination, "renderer.json")); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	if err := copyTree(sourceDirectory, destination); err != nil {
-		return err
-	}
-	logf("current renderer carried forward: %s", id)
-	return nil
-}
-
-func safeRendererID(id string) bool {
-	if id == "" || id == "." || id == ".." || len(id) > 96 {
-		return false
-	}
-	for index, char := range id {
-		if char >= 'a' && char <= 'z' || char >= '0' && char <= '9' || index > 0 && (char == '.' || char == '_' || char == '-') {
-			continue
-		}
-		return false
-	}
-	return true
 }
 
 func retry(attempts int, delay time.Duration, fn func() error) error {
@@ -589,27 +520,6 @@ func safePreservePath(value string) (string, error) {
 		return "", fmt.Errorf("preserve path escapes the package root: %q", value)
 	}
 	return filepath.FromSlash(clean), nil
-}
-
-func copyTree(source, destination string) error {
-	return filepath.WalkDir(source, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		relative, err := filepath.Rel(source, path)
-		if err != nil {
-			return err
-		}
-		target := filepath.Join(destination, relative)
-		if entry.IsDir() {
-			return os.MkdirAll(target, 0o755)
-		}
-		mode := fs.FileMode(0o644)
-		if info, statErr := os.Stat(path); statErr == nil {
-			mode = info.Mode().Perm()
-		}
-		return copyFile(path, target, mode)
-	})
 }
 
 func copyFile(source, destination string, mode fs.FileMode) error {

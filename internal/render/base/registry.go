@@ -9,7 +9,10 @@ type RenderFunc func(*plan.Plan, Config) (*audio.PCM, error)
 
 var implementations = map[string]RenderFunc{}
 
-// レンダラー固有パッケージのinitから登録する。
+// DefaultBackendは、Backendが空のときに使う描画。テストではWORLDのいらない描画に差し替える。
+var DefaultBackend = WorldPhraseBackend
+
+// 描画を実装するパッケージのinitから登録する。
 func RegisterRenderer(id string, fn RenderFunc) {
 	implementations[id] = fn
 }

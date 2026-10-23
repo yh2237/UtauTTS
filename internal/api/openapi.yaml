@@ -31,7 +31,7 @@ paths:
     get:
       operationId: getHealth
       summary: 稼働確認
-      description: サーバーが稼働していれば200を返す。既定Rendererの資源や音源の状態は /api/renderers と /api/voicebanks で確認する。
+      description: サーバーが稼働していれば200を返す。音源の状態は /api/voicebanks で確認する。
       responses:
         '200':
           description: 稼働中
@@ -60,7 +60,7 @@ paths:
     post:
       operationId: reloadVoicebanks
       summary: 音源ディレクトリを再走査
-      description: 実行中のRuntime要求の完了を待って自分の資源を再読込する。Rendererとモデルのカタログは再探索しない。
+      description: 実行中のRuntime要求の完了を待って自分の資源を再読込する。モデルのカタログは再探索しない。
       responses:
         '200': *voicebanksResponse
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -84,17 +84,17 @@ paths:
                     nullable: true
                     items: {$ref: '#/components/schemas/Model'}
         '403': {$ref: '#/components/responses/Forbidden'}
-  /api/renderers:
+  /api/settings:
     get:
-      operationId: listRenderers
-      summary: Rendererと資源利用可否の一覧
-      description: 起動時のカタログと静的資源検査。helper・Providerは起動しない。要素がない配列はnullになる場合がある。
+      operationId: listSettings
+      summary: 合成設定の一覧
+      description: renderer_settingsで指定できる設定の既定値と範囲。methodsは設定が効く方式で、空なら全方式。
       responses:
         '200':
-          description: Rendererカタログ
+          description: 設定の一覧
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/RendererCatalog'}
+              schema: {$ref: '#/components/schemas/SettingCatalog'}
         '403': {$ref: '#/components/responses/Forbidden'}
   /api/analyze:
     post:
@@ -137,14 +137,14 @@ paths:
         '200':
           description: 合成完了後のWAV全体。低遅延ストリーミングではない。
           headers: &synthesisHeaders
-            X-UtauTTS-Engine:
-              description: Renderer ID
+            X-UtauTTS-Method:
+              description: 合成の方式
               schema: {type: string}
             X-UtauTTS-Reading:
               description: 使用した読み
               schema: {type: string}
             X-UtauTTS-Diagnostic-Count:
-              description: Renderer診断と不足音素の警告の件数
+              description: 描画の診断と不足音素の警告の件数
               schema: {type: integer, minimum: 0}
           content:
             audio/wav:
@@ -260,7 +260,7 @@ components:
         method: {type: string, enum: [waveform-synthesis, reference-matching], description: 合成の方式。省略できない。}
         phonemizer: {type: string, nullable: true, default: '', description: 'ja-kana・en-arpasing・en-delta・en-vccv・en-cv・zh-cvvc。空なら自動選択。'}
         voicebank_id: {type: string, description: 登録音源のID。省略できない。}
-        renderer: {type: string, nullable: true, default: '', description: 空なら起動時の既定Renderer。未知の明示IDはエラー。}
+        renderer: {deprecated: true, description: 廃止したレンダラーの選択。受け付けて無視する。}
         model_id: {type: string, nullable: true, default: '', description: 抑揚モデルID。空またはnoneなら使わない。同梱から外したIDはエラー。}
         model_path: {type: string, nullable: true, default: '', description: ローカルモデルパスの互換入力。model_idより優先する。}
         tone: {type: string, nullable: true, default: '', description: '読み上げの基準の音程（例: C4）。空なら音源の録音の高さで読み上げ、原音はC4として選ぶ。'}
@@ -281,7 +281,7 @@ components:
           type: object
           nullable: true
           additionalProperties: true
-          description: 任意のRenderer設定map。既知IDの型不一致などは既存の診断規則で扱う。未知IDもProviderへ渡す。
+          description: 設定のmap。IDは /api/settings のもの。型が合わない値は診断を残して無視し、未知のIDもそのまま合成へ渡す。
         mora_durations_ms:
           type: array
           nullable: true
@@ -404,25 +404,10 @@ components:
               request: {$ref: '#/components/schemas/SynthesisRequest'}
     Health:
       type: object
-      required: [status, engine, version]
+      required: [status, version]
       properties:
         status: {type: string, enum: [ok]}
-        engine: {type: string}
         version: {type: string}
-    Availability:
-      type: object
-      required: [available]
-      properties:
-        available: {type: boolean}
-        issues:
-          type: array
-          items: {$ref: '#/components/schemas/AvailabilityIssue'}
-    AvailabilityIssue:
-      type: object
-      required: [message]
-      properties:
-        resource: {type: string}
-        message: {type: string}
     Analysis:
       type: object
       required: [reading, morae]
@@ -485,58 +470,16 @@ components:
         mode: {type: string}
         sha256: {type: string}
         outputs: {type: object, additionalProperties: {type: boolean}}
-        recommended_renderers: {type: array, items: {type: string}}
         default_priority: {type: integer}
         requires_features: {type: boolean}
         frame_contour: {type: boolean}
-    RendererCatalog:
+    SettingCatalog:
       type: object
-      required: [default_renderer, renderers, availability, problems]
+      required: [settings, problems]
       properties:
-        default_renderer: {type: string}
-        renderers: {type: array, nullable: true, items: {$ref: '#/components/schemas/Renderer'}}
-        availability: {type: object, additionalProperties: {$ref: '#/components/schemas/Availability'}}
+        settings: {type: array, items: {$ref: '#/components/schemas/Setting'}}
         problems: {type: array, nullable: true, items: {type: string}}
-    Renderer:
-      type: object
-      required: [manifest_version, kind, id, display_name]
-      properties:
-        $schema: {type: string}
-        manifest_version: {type: integer}
-        kind: {type: string}
-        id: {type: string}
-        display_name: {type: string}
-        description: {type: string}
-        contract: {type: string}
-        contract_version: {type: integer}
-        provider: {type: string}
-        provider_version: {type: string}
-        protocol: {type: string}
-        protocol_version: {type: integer}
-        provider_args: {type: array, items: {type: string}}
-        experimental: {type: boolean}
-        acceleration: {type: string}
-        default_priority: {type: integer}
-        update_managed: {type: boolean}
-        capabilities: {$ref: '#/components/schemas/Capabilities'}
-        resources: {type: object, additionalProperties: {$ref: '#/components/schemas/RendererResource'}}
-        platform_resources: {type: object, additionalProperties: {type: object, additionalProperties: {$ref: '#/components/schemas/RendererResource'}}}
-        platforms: {type: array, items: {type: string}}
-        settings: {type: array, items: {$ref: '#/components/schemas/RendererSetting'}}
-    Capabilities:
-      type: object
-      properties:
-        frame_pitch: {type: boolean}
-        boundary_bridge: {type: boolean, deprecated: true}
-        internal_timing: {type: boolean}
-        speech_prosody_experiment: {type: boolean, deprecated: true}
-    RendererResource:
-      type: object
-      properties:
-        path: {type: string}
-        required: {type: boolean}
-        executable: {type: boolean}
-    RendererSetting:
+    Setting:
       type: object
       required: [id, type]
       properties:
@@ -548,8 +491,10 @@ components:
         max: {type: number}
         step: {type: number}
         label: {type: string}
-        options: {type: array, items: {$ref: '#/components/schemas/RendererSettingValue'}}
-    RendererSettingValue:
+        options: {type: array, items: {$ref: '#/components/schemas/SettingOption'}}
+        methods: {type: array, items: {type: string}}
+        languages: {type: array, items: {type: string}}
+    SettingOption:
       type: object
       required: [value]
       properties:

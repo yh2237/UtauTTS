@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
-	"github.com/yh2237/UtauTTS/internal/engine"
 	"github.com/yh2237/UtauTTS/internal/plan"
+	"github.com/yh2237/UtauTTS/internal/render/rendertest"
 )
 
 func TestRenderHonorsCanceledContext(t *testing.T) {
@@ -98,7 +98,7 @@ func TestRenderWithReportKeepsSelectionPlanImmutable(t *testing.T) {
 	}}}
 	before := plan.Clone(input)
 
-	result, err := RenderWithReport(input, Config{Backend: engine.TestConcatProvider, ReleaseMS: 20})
+	result, err := RenderWithReport(input, Config{Backend: rendertest.Backend, ReleaseMS: 20})
 	if err != nil {
 		t.Fatal(err)
 	}

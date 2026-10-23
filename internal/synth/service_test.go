@@ -2,10 +2,8 @@ package synth
 
 import (
 	"encoding/json"
-	"errors"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/engine"
 	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/tts"
@@ -15,17 +13,8 @@ func boolPointer(value bool) *bool { return &value }
 
 type testVoicebankResolver struct{ path string }
 
-func testRenderer(id, provider string) plugin.Renderer {
-	return plugin.Renderer{
-		ManifestVersion: 2, Kind: "synthesis-engine", ID: id, DisplayName: id,
-		Contract: "unit-renderer", Provider: provider, ProviderVersion: "1",
-	}
-}
-
 func TestDefaultRequestResolvesSynthesisSettings(t *testing.T) {
-	service := NewService(&plugin.Catalog{
-		Renderers: []plugin.Renderer{testRenderer("test-concat", "test-concat")},
-	}, "test-concat", "", "", testVoicebankResolver{path: "voicebank"})
+	service := NewService(&plugin.Catalog{}, "", "", testVoicebankResolver{path: "voicebank"})
 	request := DefaultRequest()
 	request.Method = tts.MethodWaveformSynthesis
 	request.Language = "ja"
@@ -59,11 +48,9 @@ func (resolver testVoicebankResolver) Resolve(string) (string, bool) {
 }
 
 func TestResolveSynthesisUsesDirectVoicebankPathAndNormalizesKana(t *testing.T) {
-	service := NewService(&plugin.Catalog{
-		Renderers: []plugin.Renderer{testRenderer("test-concat", "test-concat")},
-	}, "test-concat", "", "", nil)
+	service := NewService(&plugin.Catalog{}, "", "", nil)
 	resolved, err := service.ResolveSynthesis(Request{
-		VoicebankPath: "voicebank", Kana: "あ", Renderer: "test-concat", Method: tts.MethodWaveformSynthesis, Language: "ja",
+		VoicebankPath: "voicebank", Kana: "あ", Method: tts.MethodWaveformSynthesis, Language: "ja",
 		ReleaseMS: 20, ReleaseSet: true,
 		CVVCTiming: "sequential",
 	})
@@ -134,11 +121,9 @@ func TestApplyRendererSettingsTypeMismatchIsIgnored(t *testing.T) {
 }
 
 func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
-	service := NewService(&plugin.Catalog{
-		Renderers: []plugin.Renderer{testRenderer("test-concat", "test-concat")},
-	}, "test-concat", "", "", nil)
-	cfg, _, options, err := service.config(Request{
-		Renderer: "test-concat", ContextDuration: true, MoraDurationMS: 140,
+	service := NewService(&plugin.Catalog{}, "", "", nil)
+	cfg, options, err := service.config(Request{
+		ContextDuration: true, MoraDurationMS: 140,
 		Method: tts.MethodWaveformSynthesis, Language: "ja",
 		RendererSettings: map[string]json.RawMessage{
 			"context_duration": json.RawMessage(`false`),
@@ -156,7 +141,7 @@ func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 		t.Fatalf("unknown renderer setting = %#v", options.Renderer)
 	}
 
-	cfg, _, options, err = service.config(Request{Renderer: "test-concat", Method: tts.MethodWaveformSynthesis, Language: "ja", ContextDuration: true, MoraDurationMS: 140}, false)
+	cfg, options, err = service.config(Request{Method: tts.MethodWaveformSynthesis, Language: "ja", ContextDuration: true, MoraDurationMS: 140}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,73 +150,16 @@ func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 	}
 }
 
-func TestResolveRendererSeparatesPublicIDFromProvider(t *testing.T) {
-	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{
-		func() plugin.Renderer {
-			renderer := testRenderer("friendly-world", "utautts-world-phrase")
-			renderer.DisplayName = "Friendly WORLD"
-			return renderer
-		}(),
-	}}, "", "", "", nil)
-
-	resolved, err := service.ResolveRenderer("friendly-world")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resolved.PublicID() != "friendly-world" {
-		t.Fatalf("public id = %q", resolved.PublicID())
-	}
-	if resolved.Provider.ID != "utautts-world-phrase" || resolved.Definition.Contract != engine.ContractUnitRenderer {
-		t.Fatalf("provider resolution = %#v", resolved)
-	}
-}
-
-func TestResolveRendererDoesNotFallbackForMissingExplicitID(t *testing.T) {
-	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{testRenderer("default", "test-concat")}}, "default", "", "", nil)
-	if _, err := service.ResolveRenderer("removed"); !errors.Is(err, ErrUnavailable) {
-		t.Fatalf("missing explicit renderer error = %v", err)
-	}
-}
-
-func TestRendererAvailabilityReportsMissingRuntimeWithoutRejectingListing(t *testing.T) {
-	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{
-		func() plugin.Renderer {
-			renderer := testRenderer("world", "utautts-world-phrase")
-			renderer.DisplayName = "WORLD"
-			return renderer
-		}(),
-	}}, "", "", "", nil)
-	availability := service.RendererAvailability()["world"]
-	if availability.Available || len(availability.Issues) == 0 {
-		t.Fatalf("availability = %#v", availability)
-	}
-}
-
-func TestSynthesisConfigRejectsUnavailableRendererRuntime(t *testing.T) {
-	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{
-		func() plugin.Renderer {
-			renderer := testRenderer("world", "utautts-world-phrase")
-			renderer.DisplayName = "WORLD"
-			return renderer
-		}(),
-	}}, "", "", "", testVoicebankResolver{path: "voicebank"})
-	if _, _, _, err := service.config(Request{Renderer: "world", Method: tts.MethodWaveformSynthesis, Language: "ja", VoicebankID: "bank"}, true); !errors.Is(err, ErrUnavailable) {
-		t.Fatalf("unavailable runtime error = %v", err)
-	}
-}
-
 func TestConfigUsesExplicitModelPath(t *testing.T) {
-	service := NewService(&plugin.Catalog{
-		Renderers: []plugin.Renderer{testRenderer("test-concat", "test-concat")},
-	}, "test-concat", "", "", nil)
-	cfg, renderer, _, err := service.config(Request{
-		ModelID: "not-in-catalog", ModelPath: "out/working-model.json", Renderer: "test-concat",
+	service := NewService(&plugin.Catalog{}, "", "", nil)
+	cfg, _, err := service.config(Request{
+		ModelID: "not-in-catalog", ModelPath: "out/working-model.json",
 		Method: tts.MethodWaveformSynthesis, Language: "ja",
 	}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renderer != "test-concat" || cfg.ProsodyModelPath != "out/working-model.json" {
-		t.Fatalf("explicit model path was not preserved: renderer=%q config=%#v", renderer, cfg)
+	if cfg.ProsodyModelPath != "out/working-model.json" {
+		t.Fatalf("explicit model path was not preserved: %#v", cfg)
 	}
 }

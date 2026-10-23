@@ -187,7 +187,7 @@ async function checkResponsiveState(page) {
   assert.ok(voices.ok && voices.result.voicebanks.length);
   const utterance = {
     text: "こんにちは。", language: "ja", phonemizer: "ja-kana",
-    voicebank_id: voices.result.voicebanks[0].id, model_id: "none", renderer_id: "utautts-world-phrase",
+    voicebank_id: voices.result.voicebanks[0].id, model_id: "none",
     alias_policy: "cv-only", tone: "D4", color: "", mora_duration_ms: 120, pause_duration_ms: 180,
     intonation: 1.4, apply_pitch: true, speech_timing: false,
     pitch_points: [75, -40, 20, 0, 0, 0], pitch_frames: [40, -60, 15],
@@ -213,7 +213,7 @@ async function checkResponsiveState(page) {
   assert.equal(before.selected_index, 1);
   assert.ok(before.utterances[1].analysis_cache.reading, "selected utterance must be analyzed before playback");
   assert.deepEqual(before.utterances[1].phoneme_overrides, utterance.phoneme_overrides);
-  const fields = ["text", "language", "phonemizer", "voicebank_id", "model_id", "renderer_id", "tone",
+  const fields = ["text", "language", "phonemizer", "voicebank_id", "model_id", "tone",
     "intonation", "alias_policy", "pitch_points", "pitch_frames", "mora_durations_ms", "mora_positions_ms",
     "manual_pitch_edited", "manual_mora_duration_edited", "phoneme_overrides"];
   function editable(value) {

@@ -26,10 +26,8 @@ var (
 // Configは発話ではなく資源配置を指定する。空のパスは既定の探索規則を使う。
 type Config struct {
 	VoiceDirectory      string
-	Renderer            string
 	OpenJTalkPath       string
 	OpenJTalkDictionary string
-	RendererDirectories []string
 	ModelDirectories    []string
 }
 
@@ -49,10 +47,8 @@ func (r voiceResolver) Resolve(id string) (string, bool) {
 func New(config Config) (*Engine, error) {
 	voices := voicebank.NewLibrary(config.VoiceDirectory)
 	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
-		Renderer:      config.Renderer,
 		OpenJTalkPath: config.OpenJTalkPath, OpenJTalkDictionary: config.OpenJTalkDictionary,
-		RendererDirectories: append([]string(nil), config.RendererDirectories...),
-		ModelDirectories:    append([]string(nil), config.ModelDirectories...),
+		ModelDirectories: append([]string(nil), config.ModelDirectories...),
 	}, voiceResolver{voices})
 	if err != nil {
 		return nil, err
@@ -68,7 +64,7 @@ func New(config Config) (*Engine, error) {
 func (e *Engine) Close() error { return e.runtime.Close() }
 
 // Reloadは要求の完了後、自分のキャッシュ・子プロセスを破棄して音源を再読込する。
-// 他のEngineには影響しない。Renderer・モデルの再探索にはEngineを作り直す。
+// 他のEngineには影響しない。モデルの再探索にはEngineを作り直す。
 func (e *Engine) Reload() error { return e.runtime.Reload(e.voices.Reload) }
 
 type Voicebank struct {
@@ -87,31 +83,6 @@ func (e *Engine) Voicebanks(ctx context.Context) ([]Voicebank, error) {
 		voices[i] = Voicebank{item.ID, item.Summary.Name, item.Summary.Path, item.Summary.Kind}
 	}
 	return voices, nil
-}
-
-type Renderer struct {
-	ID, Name  string
-	Available bool
-	Problems  []string
-}
-
-func (e *Engine) Renderers(ctx context.Context) ([]Renderer, error) {
-	_, release, err := e.runtime.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer release()
-	availability := e.runtime.Service.RendererAvailability()
-	items := make([]Renderer, 0, len(e.runtime.Catalog.Renderers))
-	for _, item := range e.runtime.Catalog.Renderers {
-		status := availability[item.ID]
-		renderer := Renderer{ID: item.ID, Name: item.DisplayName, Available: status.Available}
-		for _, issue := range status.Issues {
-			renderer.Problems = append(renderer.Problems, issue.Message)
-		}
-		items = append(items, renderer)
-	}
-	return items, nil
 }
 
 type Model struct {
@@ -134,14 +105,14 @@ func (e *Engine) Models(ctx context.Context) ([]Model, error) {
 // Requestは1発話を指定する。空のIDは既定値を使い、発音はReadingをTextより優先する。
 type Request struct {
 	Text, Reading, Language, Phonemizer string
-	VoicebankID, RendererID, ModelID    string
+	VoicebankID, ModelID                string
 	Tone, Color                         string
 	// Methodは合成の方法。省略できない。`waveform-synthesis`か`reference-matching`。
 	Method     string
 	Dictionary []DictionaryEntry
 	Options    Options
 	// 共通設定はOptionsで指定し、ここには方式固有のJSONだけを渡す。
-	RendererSettings map[string]json.RawMessage
+	Settings map[string]json.RawMessage
 }
 
 type DictionaryEntry struct {
@@ -207,11 +178,11 @@ type Phoneme struct {
 type Diagnostic struct{ Severity, Code, Message string }
 
 type Result struct {
-	Audio               Audio
-	Reading, RendererID string
-	DurationMS          float64
-	Phonemes            []Phoneme
-	Diagnostics         []Diagnostic
+	Audio       Audio
+	Reading     string
+	DurationMS  float64
+	Phonemes    []Phoneme
+	Diagnostics []Diagnostic
 }
 
 func (e *Engine) Synthesize(ctx context.Context, request Request) (*Result, error) {
@@ -230,7 +201,7 @@ func (e *Engine) Synthesize(ctx context.Context, request Request) (*Result, erro
 	}
 	result := &Result{
 		Audio:   Audio{output.Audio.SampleRate, output.Audio.Channels, output.Audio.Data},
-		Reading: output.Plan.Reading, RendererID: output.RendererID, DurationMS: output.DurationMS,
+		Reading: output.Plan.Reading, DurationMS: output.DurationMS,
 	}
 	labels := strings.NewReader(output.Lab)
 	for {

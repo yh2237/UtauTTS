@@ -27,7 +27,7 @@ func TestCLIDoctorReportsPlacementWithoutRunningHelper(t *testing.T) {
 	if response["ok"] != true || response["result"] != nil || doctor["os"] == "" || doctor["arch"] == "" {
 		t.Fatalf("doctor response = %#v", response)
 	}
-	for _, id := range []string{"renderer", "model", "voicebank", "openjtalk_engine", "openjtalk_dictionary"} {
+	for _, id := range []string{"world_engine", "model", "voicebank", "openjtalk_engine", "openjtalk_dictionary"} {
 		if checks[id]["status"] != "ok" {
 			t.Fatalf("check %s = %#v", id, checks[id])
 		}
@@ -36,7 +36,7 @@ func TestCLIDoctorReportsPlacementWithoutRunningHelper(t *testing.T) {
 		t.Fatalf("helper path = %#v", checks["openjtalk_engine"])
 	}
 	stdout.Reset()
-	if code := executeCLI(append(base[:6:6], "--doctor"), strings.NewReader(""), &stdout, &stderr); code != 0 || !strings.Contains(stdout.String(), "renderer\tcli-test-waveform") {
+	if code := executeCLI(append(base[:6:6], "--doctor"), strings.NewReader(""), &stdout, &stderr); code != 0 || !strings.Contains(stdout.String(), "world_engine\t") {
 		t.Fatalf("text diagnosis: exit=%d, stdout=%q, stderr=%q", code, stdout.String(), stderr.String())
 	}
 }
@@ -57,7 +57,6 @@ func TestCLIDoctorKeepsChecksOnFailure(t *testing.T) {
 		id    string
 		flags []string
 	}{
-		{"renderer", []string{"--renderer", "missing-renderer"}},
 		{"model", []string{"--prosody", "missing-model"}},
 		{"voicebank", []string{"--voicebank", filepath.Join(t.TempDir(), "missing")}},
 		{"openjtalk_engine", []string{"--openjtalk-engine", filepath.Join(t.TempDir(), "missing")}},

@@ -37,7 +37,7 @@ func TestCLIJSONSynthesisResult(t *testing.T) {
 	if !ok || response["ok"] != true || response["error"] != nil {
 		t.Fatalf("success response = %#v", response)
 	}
-	if result["path"] != path || result["reading"] != "あ" || result["renderer_id"] != "cli-test-waveform" || result["unit_count"] != float64(1) {
+	if result["path"] != path || result["reading"] != "あ" || result["method"] != "waveform-synthesis" || result["unit_count"] != float64(1) {
 		t.Fatalf("result metadata = %#v", result)
 	}
 	if result["sample_rate"] != float64(16000) || result["channels"] != float64(1) || result["duration_ms"].(float64) <= 0 {
@@ -64,7 +64,6 @@ func TestCLIJSONErrors(t *testing.T) {
 		{"required flags", "invalid_arguments", "", []string{"--json"}},
 		{"stdout conflict", "invalid_arguments", "", append(base, "--json", "--reading", "あ", "--out", "-")},
 		{"UTF-8 input", "input_error", "\xff", append(base, "--json", "--text-file", "-", "--out", filepath.Join(t.TempDir(), "invalid.wav"))},
-		{"unknown renderer", "unavailable", "", append(base, "--json", "--renderer", "does-not-exist", "--reading", "あ", "--out", filepath.Join(t.TempDir(), "unavailable.wav"))},
 		{"synthesis failure", "synthesis_error", "", append(base, "--json", "--reading", "unknown", "--out", filepath.Join(t.TempDir(), "invalid-reading.wav"))},
 		{"file output failure", "output_error", "", append(base, "--json", "--reading", "あ", "--out", filepath.Join(t.TempDir(), "missing", "speech.wav"))},
 	} {

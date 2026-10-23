@@ -94,10 +94,6 @@ function call(method, request) {
 (async () => {
   const virtualFs = installVirtualFs({ cwd: "/" });
   virtualFs.mountFile(MODEL_PATH, new Uint8Array(fs.readFileSync(path.join(ROOT, "models", "frame-intonation-tcn-v12.json"))));
-  virtualFs.mountFile(
-    "/renderer/utautts-world-phrase/renderer.json",
-    new Uint8Array(fs.readFileSync(path.join(ROOT, "renderer", "utautts-world-phrase", "renderer.json")))
-  );
   console.log("voicebank files:", mountTree(virtualFs, VOICE_DIR, VOICE_PATH));
 
   await loadWorld();
@@ -122,7 +118,6 @@ function call(method, request) {
     phonemizer: "ja-kana",
     model_id: modelID,
     voicebank_id: voicebankID,
-    renderer: "utautts-world-phrase",
     tone: "C4",
     intonation_strength: 1,
     apply_pitch: true,

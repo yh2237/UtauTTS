@@ -47,10 +47,6 @@
         new Uint8Array(await (await fetch(ENGINE_BASE + "models/" + encodeURIComponent(modelName))).arrayBuffer())
       );
     }
-    virtualFs.mountFile(
-      "/renderer/utautts-world-phrase/renderer.json",
-      new Uint8Array(await (await fetch(paths.renderer("utautts-world-phrase/renderer.json"))).arrayBuffer())
-    );
 
     const openjtalk = await createUtauTTSOpenJTalk({
       locateFile: (file) => ENGINE_BASE + "openjtalk/" + file,

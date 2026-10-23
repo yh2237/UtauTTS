@@ -2,18 +2,15 @@ package tts
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"strings"
 	"time"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
-	"github.com/yh2237/UtauTTS/internal/engine"
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
 	"github.com/yh2237/UtauTTS/internal/plan"
-	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
@@ -51,7 +48,6 @@ type Config struct {
 	PauseContextStrength float64
 	// nilは既定で有効。
 	Context                 context.Context
-	Engine                  engine.ResolvedEngine
 	VoicebankPath           string
 	Voicebank               *voicebank.Bank
 	Text                    string
@@ -79,14 +75,14 @@ type Config struct {
 	PitchFactors            []float64
 	ApplyPitch              bool
 	IntonationStrength      float64
-	Renderer                string
-	RendererCapabilities    *plugin.Capabilities
-	CVVCTiming              string
-	CVVCTransitionGain      float64
-	CVVCPreBoundaryFade     bool
-	PitchCurve              *render.PitchCurve
-	AliasPolicy             voicebank.AliasPolicy
-	ProviderOptions         render.ProviderOptions
+	// Backendは描画の実装。空ならWORLDを使う。テストで差し替える。
+	Backend             string
+	CVVCTiming          string
+	CVVCTransitionGain  float64
+	CVVCPreBoundaryFade bool
+	PitchCurve          *render.PitchCurve
+	AliasPolicy         voicebank.AliasPolicy
+	ProviderOptions     render.ProviderOptions
 	// WorldEnginePathとReferenceDirは参照照合に使うWORLDエンジンとモデルのフォルダ。Rendererに関係なく使う。
 	WorldEnginePath string
 	ReferenceDir    string
@@ -252,21 +248,6 @@ func analyzeAndAlignRuntimeFeatures(ctx context.Context, morae []frontend.Mora, 
 	return alignRuntimeProsodyFeatures(morae, analysis)
 }
 
-func ResolveRenderer(catalog *plugin.Catalog, rendererID string) (engine.ResolvedEngine, error) {
-	if catalog == nil {
-		return engine.ResolvedEngine{}, errors.New("renderer catalog is not initialized")
-	}
-	resolver := engine.NewResolver(engine.BuiltinRegistry())
-	return resolver.Resolve(engine.DefinitionsFromCatalog(catalog), rendererID)
-}
-
-func ApplyResolvedEngine(cfg *Config, resolved engine.ResolvedEngine) {
-	capabilities := resolved.Definition.Capabilities
-	cfg.Engine = resolved
-	cfg.Renderer = string(resolved.Provider.ID)
-	cfg.RendererCapabilities = &capabilities
-}
-
 func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (*Result, error) {
 	cfg.ProviderOptions = providerOptions
 	if err := synthesisContextError(cfg.Context); err != nil {
@@ -334,13 +315,13 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	traceMark(&start, "pitch")
 	rendered, err := render.RenderWithReport(synthesisPlan, render.Config{
 		Context:               cfg.Context,
-		Engine:                cfg.Engine,
+		WorldEnginePath:       cfg.WorldEnginePath,
 		ReleaseMS:             cfg.ReleaseMS,
 		ReleaseSet:            cfg.ReleaseSet,
 		LeadingPreutteranceMS: cfg.LeadingPreutteranceMS,
 		IntonationStrength:    pitch.RendererStrength,
 		ApplyPitch:            pitch.Apply,
-		Backend:               cfg.Renderer,
+		Backend:               cfg.Backend,
 		ProviderOptions:       providerOptions,
 		CVVCTiming:            cfg.CVVCTiming,
 		CVVCTransitionGain:    cfg.CVVCTransitionGain,
@@ -486,7 +467,7 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	if curve, _ := profile.AutomaticPitchCurve(cfg, loadedProsody, morae, timings, totalDurationMS); curve != nil {
 		result.FramePitchCurve = curve
 	}
-	if result.FramePitchCurve == nil && applyPitchEnabled(cfg) && rendererSupportsFramePitch(cfg.RendererCapabilities) {
+	if result.FramePitchCurve == nil && applyPitchEnabled(cfg) {
 		unified := predictUnifiedProsody(cfg.Context, unifiedF0Head(loadedProsody), language, prosodyFeatures, timings, totalDurationMS, previewPlan(morae, timings, cursor), finalPhraseIsQuestion(cfg.Text), false)
 		result.FramePitchCurve = f0HeadPitchCurve(cfg, loadedProsody, morae, prosodyFeatures, timings, totalDurationMS, unified.contour)
 	}

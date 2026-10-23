@@ -79,7 +79,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		pauseContextStrength    float64
 		timingWarp              bool
 		microprosody            bool
-		renderer                string
 		cvvcTiming              string
 		cvvcTransitionGain      float64
 		cvvcPreBoundaryFade     bool
@@ -87,7 +86,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		phonemizer              string
 		aliasPolicy             string
 		method                  string
-		rendererDirectories     []string
 		modelDirectories        []string
 		writeText               bool
 		writeLab                bool
@@ -100,7 +98,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	)
 	flag.BoolVar(&showVersion, "version", false, "print application version")
 	flag.BoolVar(&jsonOutput, "json", false, "print result, catalog, doctor, version or error JSON to standard output")
-	flag.StringVar(&listKind, "list", "", "list voicebanks, models or renderers without synthesizing")
+	flag.StringVar(&listKind, "list", "", "list voicebanks or models without synthesizing")
 	flag.BoolVar(&doctor, "doctor", false, "inspect selected resources without starting helpers or synthesizing")
 	flag.DurationVar(&timeout, "timeout", 0, "synthesis timeout after input and initialization (e.g. 30s; 0 disables)")
 	flag.StringVar(&voicebankPath, "voicebank", "", "path to a UTAU voicebank directory")
@@ -144,7 +142,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	flag.Float64Var(&pauseContextStrength, "pause-context-strength", synth.DefaultPauseContextStrength, "pause context strength (0 uses the default 1.0)")
 	flag.BoolVar(&microprosody, "microprosody", render.WorldlineProviderOptions{}.MicroprosodyEnabled(), "add measured consonant-induced F0 microprosody to Japanese WORLD output (utautts-world-phrase)")
 	flag.BoolVar(&timingWarp, "timing-warp", render.WorldlineProviderOptions{}.TimingWarpEnabled(), "warp Japanese WORLD output timing toward learned speech movement (utautts-world-phrase)")
-	flag.StringVar(&renderer, "renderer", "", "renderer ID (default: highest configured priority)")
 	flag.StringVar(&cvvcTiming, "cvvc-timing", render.CVVCTimingSequential, "CVVC timing: sequential")
 	flag.Float64Var(&cvvcTransitionGain, "cvvc-transition-gain", 1, "CVVC transition volume multiplier (0..1)")
 	flag.BoolVar(&cvvcPreBoundaryFade, "cvvc-pre-boundary-fade", false, "fade CVVC transitions out before the following CV consonant")
@@ -153,7 +150,6 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	flag.BoolVar(&writeText, "write-text", false, "write a text file next to the WAV")
 	flag.BoolVar(&writeLab, "write-lab", false, "write an HTK label file next to the WAV")
 	flag.StringVar(&textEncoding, "text-encoding", sidecar.EncodingUTF8, "text sidecar encoding: utf-8 or shift_jis")
-	flag.Func("renderer-dir", "renderer plugin directory (repeatable)", func(value string) error { rendererDirectories = append(rendererDirectories, value); return nil })
 	flag.Func("model-dir", "prosody model directory (repeatable)", func(value string) error { modelDirectories = append(modelDirectories, value); return nil })
 	if err := flag.Parse(args); err != nil {
 		if errors.Is(err, flagpkg.ErrHelp) {
@@ -186,9 +182,8 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		return cliFailure("invalid_arguments", errors.New("--timeout must not be negative"))
 	}
 	runtimeConfig := synth.RuntimeConfig{
-		Renderer:      renderer,
 		OpenJTalkPath: openJTalkPath, OpenJTalkDictionary: openJTalkDictionaryPath,
-		RendererDirectories: rendererDirectories, ModelDirectories: modelDirectories,
+		ModelDirectories: modelDirectories,
 	}
 	if doctor {
 		if conflict := flagOutside(flag, doctorFlags); conflict != "" {

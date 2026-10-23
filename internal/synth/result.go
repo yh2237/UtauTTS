@@ -12,14 +12,14 @@ import (
 
 type Result struct {
 	*tts.Result
-	RendererID string
+	Method     string
 	DurationMS float64
 	Lab        string
 	// Logsは合成の途中経過。索引の作成など、時間のかかる処理を伝える。
 	Logs []string
 }
 
-func NewResult(result *tts.Result, rendererID string) (*Result, error) {
+func NewResult(result *tts.Result, method string) (*Result, error) {
 	if result == nil || result.Audio == nil {
 		return nil, fmt.Errorf("synthesis result contains no audio")
 	}
@@ -28,10 +28,10 @@ func NewResult(result *tts.Result, rendererID string) (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("build phoneme label: %w", err)
 	}
-	return &Result{Result: result, RendererID: rendererID, DurationMS: durationMS, Lab: lab}, nil
+	return &Result{Result: result, Method: method, DurationMS: durationMS, Lab: lab}, nil
 }
 
-// DiagnosticsはRendererの診断を返す。
+// Diagnosticsは描画の診断を返す。
 func (r *Result) Diagnostics() []render.RenderDiagnostic {
 	diagnostics := make([]render.RenderDiagnostic, 0)
 	if r.RenderReport != nil {
@@ -43,7 +43,7 @@ func (r *Result) Diagnostics() []render.RenderDiagnostic {
 // ReportはPCMを含まないCLI・HTTP共通の結果情報。
 type Report struct {
 	Reading       string                    `json:"reading"`
-	RendererID    string                    `json:"renderer_id"`
+	Method        string                    `json:"method"`
 	DurationMS    float64                   `json:"duration_ms"`
 	SampleRate    int                       `json:"sample_rate"`
 	Channels      int                       `json:"channels"`
@@ -56,7 +56,7 @@ type Report struct {
 
 func (r *Result) Report() Report {
 	return Report{
-		Reading: r.Plan.Reading, RendererID: r.RendererID, DurationMS: r.DurationMS,
+		Reading: r.Plan.Reading, Method: r.Method, DurationMS: r.DurationMS,
 		SampleRate: r.Audio.SampleRate, Channels: r.Audio.Channels, UnitCount: len(r.Plan.Units),
 		PhonemeLabels: r.Lab, Diagnostics: r.Diagnostics(), Logs: r.Logs,
 	}

@@ -7,7 +7,6 @@ import (
 
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/plan"
-	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 )
 
@@ -38,8 +37,7 @@ func unifiedProsodyFixture(t testing.TB) (*prosody.Model, []frontend.Mora, []pro
 func TestUnifiedProsodyReleaseBaseline(t *testing.T) {
 	model, morae, features, synthesisPlan := unifiedProsodyFixture(t)
 	disabled := false
-	cfg := Config{ApplyPitch: true, IntonationStrength: 4, BoundaryTone: &disabled,
-		RendererCapabilities: &plugin.Capabilities{FramePitch: true}}
+	cfg := Config{ApplyPitch: true, IntonationStrength: 4, BoundaryTone: &disabled}
 	pitch, err := resolveSynthesisPitch(cfg, japaneseProfile{}, model, morae, features, "あか、さな", "ja", synthesisPlan)
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +61,7 @@ func TestUnifiedProsodyReleaseBaseline(t *testing.T) {
 	}
 	preview, err := PredictProsody(Config{Reading: "あか、さな", ProsodyModel: model, ProsodyFeatures: features,
 		ApplyPitch: true, IntonationStrength: 4, BoundaryTone: &disabled, PauseContext: &disabled,
-		ReleaseSet: true, RendererCapabilities: cfg.RendererCapabilities})
+		ReleaseSet: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,8 +90,7 @@ func TestUnifiedProsodyReleaseBaseline(t *testing.T) {
 func BenchmarkResolveUnifiedProsody(b *testing.B) {
 	model, morae, features, synthesisPlan := unifiedProsodyFixture(b)
 	disabled := false
-	cfg := Config{ApplyPitch: true, IntonationStrength: 4, BoundaryTone: &disabled,
-		RendererCapabilities: &plugin.Capabilities{FramePitch: true}}
+	cfg := Config{ApplyPitch: true, IntonationStrength: 4, BoundaryTone: &disabled}
 	for _, mode := range []string{"cold", "warm"} {
 		b.Run(mode, func(b *testing.B) {
 			b.ReportAllocs()

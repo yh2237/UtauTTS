@@ -20,6 +20,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/entryinput"
 	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/render"
+	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/synth"
 	"github.com/yh2237/UtauTTS/internal/tts"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
@@ -47,9 +48,9 @@ const (
 )
 
 type Config struct {
-	VoiceDir, Renderer                    string
-	OpenJTalkPath, OpenJTalkDictionary    string
-	RendererDirectories, ModelDirectories []string
+	VoiceDir                           string
+	OpenJTalkPath, OpenJTalkDictionary string
+	ModelDirectories                   []string
 }
 
 type Voicebank struct {
@@ -74,7 +75,6 @@ type Server struct {
 	voicebanks          map[string]Voicebank
 	synthesisSem        chan struct{}
 	batchSem            chan struct{}
-	renderer            string
 	openJTalkPath       string
 	openJTalkDictionary string
 	voiceDir            string
@@ -108,14 +108,13 @@ func New(config Config) (*Server, error) {
 		voiceLibrary: voicebank.NewLibrary(voiceDir),
 	}
 	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
-		Renderer:      config.Renderer,
 		OpenJTalkPath: config.OpenJTalkPath, OpenJTalkDictionary: config.OpenJTalkDictionary,
-		RendererDirectories: config.RendererDirectories, ModelDirectories: config.ModelDirectories,
+		ModelDirectories: config.ModelDirectories,
 	}, apiVoicebankResolver{server: srv})
 	if err != nil {
 		return nil, err
 	}
-	srv.renderer, srv.catalog, srv.service = runtime.Renderer, runtime.Catalog, runtime.Service
+	srv.catalog, srv.service = runtime.Catalog, runtime.Service
 	srv.runtime = runtime
 	if err := srv.loadVoiceDirectory(); err != nil {
 		_ = runtime.Close()
@@ -145,7 +144,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/synthesize/label", s.handleSynthesizeLabel)
 	mux.HandleFunc("POST /api/synthesize/batch", s.handleSynthesizeBatch)
 	mux.HandleFunc("GET /api/models", s.handleModels)
-	mux.HandleFunc("GET /api/renderers", s.handleRenderers)
+	mux.HandleFunc("GET /api/settings", s.handleSettings)
 	mux.HandleFunc("POST /api/analyze", s.handleAnalyze)
 	mux.HandleFunc("GET /ui", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
@@ -221,24 +220,15 @@ func inspectVoicebank(path string) (Voicebank, error) {
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
-	engine := s.renderer
-	if engine == "" {
-		engine = s.pluginCatalog().DefaultRenderer()
-	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "engine": engine, "version": appinfo.Version()})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": appinfo.Version()})
 }
 
 func (s *Server) handleModels(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"models": s.pluginCatalog().Models})
 }
 
-func (s *Server) handleRenderers(w http.ResponseWriter, _ *http.Request) {
-	catalog := s.pluginCatalog()
-	writeJSON(w, http.StatusOK, map[string]any{
-		"default_renderer": s.renderer, "renderers": catalog.Renderers,
-		"availability": s.synthesisService().RendererAvailability(),
-		"problems":     catalog.Problems,
-	})
+func (s *Server) handleSettings(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"settings": settings.Visible(), "problems": s.pluginCatalog().Problems})
 }
 
 func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
@@ -317,7 +307,7 @@ func (s *Server) handleSynthesizeAudio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "audio/wav")
-	w.Header().Set("X-UtauTTS-Engine", result.RendererID)
+	w.Header().Set("X-UtauTTS-Method", result.Method)
 	w.Header().Set("X-UtauTTS-Reading", result.Plan.Reading)
 	w.Header().Set("X-UtauTTS-Diagnostic-Count", strconv.Itoa(len(result.Diagnostics())))
 	w.WriteHeader(http.StatusOK)
@@ -338,7 +328,7 @@ func (s *Server) handleSynthesizeLabel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("X-UtauTTS-Engine", result.RendererID)
+	w.Header().Set("X-UtauTTS-Method", result.Method)
 	w.Header().Set("X-UtauTTS-Reading", result.Plan.Reading)
 	w.Header().Set("X-UtauTTS-Diagnostic-Count", strconv.Itoa(len(result.Diagnostics())))
 	w.WriteHeader(http.StatusOK)
@@ -403,7 +393,7 @@ func (s *Server) synthesisService() *synth.Service {
 	if s.service != nil {
 		return s.service
 	}
-	return synth.NewService(s.pluginCatalog(), s.renderer,
+	return synth.NewService(s.pluginCatalog(),
 		s.openJTalkPath, s.openJTalkDictionary, apiVoicebankResolver{server: s})
 }
 

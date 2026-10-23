@@ -19,7 +19,6 @@ type JSONRequest struct {
 	Language           string                     `json:"language"`
 	Phonemizer         string                     `json:"phonemizer"`
 	VoicebankID        string                     `json:"voicebank_id"`
-	Renderer           string                     `json:"renderer"`
 	ModelID            string                     `json:"model_id"`
 	Tone               string                     `json:"tone"`
 	Color              string                     `json:"color"`
@@ -64,7 +63,8 @@ type compatibilityRequest struct {
 	BoundaryToneStrength    float64               `json:"boundary_tone_strength"`
 	StretchAdaptStrength    float64               `json:"stretch_adapt_strength"`
 	PauseContextStrength    float64               `json:"pause_context_strength"`
-	// 廃止したDiffSinger用。受け付けて無視する。
+	// 廃止したレンダラーの選択とDiffSinger用。受け付けて無視する。
+	Renderer              json.RawMessage                 `json:"renderer"`
 	DiffSingerSteps       json.RawMessage                 `json:"diffsinger_steps"`
 	DiffSingerDurationMix json.RawMessage                 `json:"diffsinger_duration_mix"`
 	DiffSingerPitchMix    json.RawMessage                 `json:"diffsinger_pitch_mix"`
@@ -119,10 +119,10 @@ func (request JSONRequest) publicRequest() utautts.Request {
 	return utautts.Request{
 		Text: request.Text, Reading: request.ReadingOrKana(),
 		Language: request.Language, Phonemizer: request.Phonemizer,
-		VoicebankID: request.VoicebankID, RendererID: request.Renderer, ModelID: request.ModelID,
+		VoicebankID: request.VoicebankID, ModelID: request.ModelID,
 		Tone: request.Tone, Color: request.Color, Dictionary: request.Dictionary,
-		Method:           request.Method,
-		RendererSettings: request.RendererSettings,
+		Method:   request.Method,
+		Settings: request.RendererSettings,
 		Options: utautts.Options{
 			MoraDurationMS: &request.MoraDurationMS, PauseDurationMS: &request.PauseDurationMS,
 			IntonationStrength: &request.IntonationStrength, ApplyPitch: &request.ApplyPitch,

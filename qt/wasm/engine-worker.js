@@ -103,10 +103,6 @@ async function loadModels() {
         );
       }));
     })(),
-    (async () => virtualFs.mountFile(
-      "/renderer/utautts-world-phrase/renderer.json",
-      new Uint8Array(await (await fetchAsset(paths.renderer("utautts-world-phrase/renderer.json"))).arrayBuffer())
-    ))(),
   ]);
 }
 
@@ -208,7 +204,7 @@ async function handleCall(id, method, requestJSON) {
     files.map((file) => file.bytes)
   );
   // 一覧表示を優先し、辞書とWORLDは後で読み込む。
-  if (!runtimeKicked && method === "renderers") {
+  if (!runtimeKicked && method === "settings") {
     runtimeKicked = true;
     ensureRuntime().catch((error) => console.error("runtime preload failed", error));
   }

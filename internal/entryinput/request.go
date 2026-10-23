@@ -13,7 +13,7 @@ func Apply(request utautts.Request, input synth.Request) synth.Request {
 	input.PauseDurationSet = false
 	input.Text, input.Reading = request.Text, request.Reading
 	input.Language, input.Phonemizer = request.Language, request.Phonemizer
-	input.VoicebankID, input.Renderer, input.ModelID = request.VoicebankID, request.RendererID, request.ModelID
+	input.VoicebankID, input.ModelID = request.VoicebankID, request.ModelID
 	input.Tone, input.Color = request.Tone, request.Color
 	input.Method = request.Method
 	input.Dictionary = make([]synth.DictionaryEntry, len(request.Dictionary))
@@ -21,6 +21,6 @@ func Apply(request utautts.Request, input synth.Request) synth.Request {
 		input.Dictionary[i] = synth.DictionaryEntry{Surface: entry.Surface, Reading: entry.Reading}
 	}
 	// 共通設定を含め、mapの値を型付き互換フィールドより優先する。
-	input.RendererSettings = request.RendererSettings
+	input.RendererSettings = request.Settings
 	return input
 }

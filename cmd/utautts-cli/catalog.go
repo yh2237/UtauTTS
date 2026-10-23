@@ -12,7 +12,7 @@ import (
 
 var catalogFlags = map[string]bool{
 	"list": true, "json": true, "version": true, "voicebank": true,
-	"renderer-dir": true, "model-dir": true,
+	"model-dir":        true,
 	"openjtalk-engine": true, "openjtalk-dictionary": true,
 }
 
@@ -48,7 +48,7 @@ func loadCatalog(kind, voiceDirectory string, config synth.RuntimeConfig) (repor
 			})
 		}
 		return report, nil
-	case "models", "renderers":
+	case "models":
 	default:
 		return nil, cliFailure("invalid_arguments", fmt.Errorf("unknown --list kind %q", kind))
 	}
@@ -63,17 +63,6 @@ func loadCatalog(kind, voiceDirectory string, config synth.RuntimeConfig) (repor
 		report.DefaultID = "none"
 		for _, model := range runtime.Catalog.Models {
 			report.Items = append(report.Items, cliCatalogItem{ID: model.ID, Name: model.DisplayName, Path: model.Path, Language: model.Language})
-		}
-	case "renderers":
-		report.DefaultID = runtime.Catalog.DefaultRenderer()
-		availability := runtime.Service.RendererAvailability()
-		for _, renderer := range runtime.Catalog.Renderers {
-			status := availability[renderer.ID]
-			item := cliCatalogItem{ID: renderer.ID, Name: renderer.DisplayName, Path: renderer.Directory, Provider: renderer.Provider, Available: &status.Available}
-			for _, issue := range status.Issues {
-				item.Problems = append(item.Problems, issue.Message)
-			}
-			report.Items = append(report.Items, item)
 		}
 	}
 	return report, nil

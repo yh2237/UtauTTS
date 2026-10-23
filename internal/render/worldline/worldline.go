@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
-	"github.com/yh2237/UtauTTS/internal/engine"
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/provider"
@@ -87,7 +86,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 	if err := normalizeCVVCConfig(synthesisPlan, &cfg); err != nil {
 		return nil, err
 	}
-	worldEnginePath, err := resolveWorldEngine(cfg.Resource(engine.ResourceWorldEngine))
+	worldEnginePath, err := resolveWorldEngine(cfg.WorldEnginePath)
 	if err != nil {
 		return nil, err
 	}
@@ -774,7 +773,7 @@ func resolveWorldEngine(configured string) (string, error) {
 		return configured, nil
 	}
 	if configured == "" {
-		return "", errors.New("UtauTTS WORLD engine is not configured by the renderer plugin")
+		return "", errors.New("UtauTTS WORLD engine was not found in runtime")
 	}
 	if _, err := os.Stat(configured); err != nil {
 		return "", fmt.Errorf("UtauTTS WORLD engine %q: %w", configured, err)

@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/engine"
 	"github.com/yh2237/UtauTTS/internal/hubert"
 	"github.com/yh2237/UtauTTS/internal/lifecycle"
 	"github.com/yh2237/UtauTTS/internal/plan"
@@ -20,6 +19,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/tts"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
+	"github.com/yh2237/UtauTTS/internal/worldrender"
 )
 
 var ErrUnavailable = errors.New("unavailable")
@@ -74,7 +74,6 @@ type Request struct {
 	Color            string `json:"color"`
 	ModelID          string `json:"model_id"`
 	ModelPath        string `json:"model_path"`
-	Renderer         string `json:"renderer"`
 	// Methodは合成の方法。省略できない。tts.MethodWaveformSynthesisかtts.MethodReferenceMatching。
 	Method      string                `json:"method"`
 	AliasPolicy voicebank.AliasPolicy `json:"alias_policy"`
@@ -123,7 +122,6 @@ func (request Request) Normalized() Request {
 // ResolvedRequestは合成へ渡す解決済み入力。CLIはUSTX出力にConfigを、GUI/HTTPは通常Synthesizeを使う。
 type ResolvedRequest struct {
 	Config          tts.Config
-	RendererID      string
 	ProviderOptions render.ProviderOptions
 }
 
@@ -150,16 +148,15 @@ type VoicebankResolver interface {
 
 type Service struct {
 	catalog             *plugin.Catalog
-	renderer            string
 	openJTalkPath       string
 	openJTalkDictionary string
 	voicebanks          VoicebankResolver
 	scope               *lifecycle.Scope
 }
 
-func NewService(catalog *plugin.Catalog, renderer, openJTalkPath, openJTalkDictionary string, voicebanks VoicebankResolver) *Service {
+func NewService(catalog *plugin.Catalog, openJTalkPath, openJTalkDictionary string, voicebanks VoicebankResolver) *Service {
 	return &Service{
-		catalog: catalog, renderer: renderer,
+		catalog:       catalog,
 		openJTalkPath: openJTalkPath, openJTalkDictionary: openJTalkDictionary,
 		voicebanks: voicebanks,
 	}
@@ -184,19 +181,19 @@ func (s *Service) SynthesizeContext(ctx context.Context, request Request) (*Resu
 }
 
 func (s *Service) ResolveSynthesis(request Request) (ResolvedRequest, error) {
-	cfg, rendererID, providerOptions, err := s.config(request, true)
+	cfg, providerOptions, err := s.config(request, true)
 	if err != nil {
 		return ResolvedRequest{}, err
 	}
 	cfg.Context = s.bind(nil)
-	return ResolvedRequest{Config: cfg, RendererID: rendererID, ProviderOptions: providerOptions}, nil
+	return ResolvedRequest{Config: cfg, ProviderOptions: providerOptions}, nil
 }
 
 func SynthesizeResolved(resolved ResolvedRequest) (*Result, error) {
-	return SynthesizeConfigWithOptions(resolved.Config, resolved.RendererID, resolved.ProviderOptions)
+	return SynthesizeConfigWithOptions(resolved.Config, resolved.ProviderOptions)
 }
 
-func SynthesizeConfigWithOptions(cfg tts.Config, rendererID string, providerOptions render.ProviderOptions) (*Result, error) {
+func SynthesizeConfigWithOptions(cfg tts.Config, providerOptions render.ProviderOptions) (*Result, error) {
 	var logs []string
 	if cfg.Logf != nil {
 		// 呼出し側が受け取りたい場合はそちらへも流す。
@@ -220,7 +217,7 @@ func SynthesizeConfigWithOptions(cfg tts.Config, rendererID string, providerOpti
 	if err != nil {
 		return nil, err
 	}
-	output, err := NewResult(result, rendererID)
+	output, err := NewResult(result, cfg.Method)
 	if err != nil {
 		return nil, err
 	}
@@ -229,26 +226,22 @@ func SynthesizeConfigWithOptions(cfg tts.Config, rendererID string, providerOpti
 }
 
 // 音声・音源を読み込まずに予測する。
-func (s *Service) PredictProsody(request Request) (*tts.ProsodyPreview, string, error) {
+func (s *Service) PredictProsody(request Request) (*tts.ProsodyPreview, error) {
 	return s.PredictProsodyContext(context.Background(), request)
 }
 
-func (s *Service) PredictProsodyContext(ctx context.Context, request Request) (*tts.ProsodyPreview, string, error) {
+func (s *Service) PredictProsodyContext(ctx context.Context, request Request) (*tts.ProsodyPreview, error) {
 	ctx, release, err := s.begin(ctx)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	defer release()
-	cfg, rendererID, _, err := s.config(request, false)
+	cfg, _, err := s.config(request, false)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	cfg.Context = ctx
-	preview, err := tts.PredictProsody(cfg)
-	if err != nil {
-		return nil, "", err
-	}
-	return preview, rendererID, nil
+	return tts.PredictProsody(cfg)
 }
 
 func (s *Service) AnalyzeContext(ctx context.Context, request Request) (*tts.ProsodyPreview, error) {
@@ -305,23 +298,23 @@ func (s *Service) begin(ctx context.Context) (context.Context, func(), error) {
 	return ctx, func() {}, ctx.Err()
 }
 
-func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, string, render.ProviderOptions, error) {
+func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, render.ProviderOptions, error) {
 	request = request.Normalized()
 	if err := tts.ValidateMethod(request.Method); err != nil {
-		return tts.Config{}, "", render.ProviderOptions{}, err
+		return tts.Config{}, render.ProviderOptions{}, err
 	}
 	if strings.TrimSpace(request.Language) == "" {
-		return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("language is required: ja, en, zh, es, or pt")
+		return tts.Config{}, render.ProviderOptions{}, fmt.Errorf("language is required: ja, en, zh, es, or pt")
 	}
 	if requireVoicebank && request.VoicebankID == "" && request.VoicebankPath == "" {
-		return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("voicebank_id is required")
+		return tts.Config{}, render.ProviderOptions{}, fmt.Errorf("voicebank_id is required")
 	}
 	modelPath := strings.TrimSpace(request.ModelPath)
 	if modelPath == "" {
 		var err error
 		modelPath, err = s.ResolveModel(request.ModelID)
 		if err != nil {
-			return tts.Config{}, "", render.ProviderOptions{}, err
+			return tts.Config{}, render.ProviderOptions{}, err
 		}
 	}
 	reading := request.Reading
@@ -366,40 +359,26 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 	if requireVoicebank {
 		if voicebankPath == "" {
 			if s.voicebanks == nil {
-				return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: voicebank resolver is not configured", ErrUnavailable)
+				return tts.Config{}, render.ProviderOptions{}, fmt.Errorf("%w: voicebank resolver is not configured", ErrUnavailable)
 			}
-			return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: voicebank not found", ErrUnavailable)
+			return tts.Config{}, render.ProviderOptions{}, fmt.Errorf("%w: voicebank not found", ErrUnavailable)
 		}
 	}
 	cfg.VoicebankPath = voicebankPath
-	resolvedEngine, err := s.ResolveRenderer(request.Renderer)
-	if err != nil {
-		return tts.Config{}, "", render.ProviderOptions{}, err
-	}
-	if requireVoicebank {
-		if availabilityErr := resolvedEngine.RequireAvailable(); availabilityErr != nil {
-			return tts.Config{}, "", render.ProviderOptions{}, fmt.Errorf("%w: %v", ErrUnavailable, availabilityErr)
-		}
-	}
-	tts.ApplyResolvedEngine(&cfg, resolvedEngine)
 	cfg.Method = request.Method
 	cfg.ReferenceDir = s.referenceDir()
-	cfg.WorldEnginePath = resolvedEngine.Resource(engine.ResourceWorldEngine)
-	if cfg.WorldEnginePath == "" {
-		if worldPhrase, err := s.ResolveRenderer("utautts-world-phrase"); err == nil {
-			cfg.WorldEnginePath = worldPhrase.Resource(engine.ResourceWorldEngine)
-		}
-	}
-	return cfg, string(resolvedEngine.PublicID()), providerOptions, nil
+	// 見つからなければ空のまま渡し、WORLDを使うときに知らせる。
+	cfg.WorldEnginePath, _ = worldrender.ResolveEnginePath()
+	return cfg, providerOptions, nil
 }
 
 // PrepareReferenceIndexは音源の参照照合の索引がなければ裏で作り始める。モデルかWORLDエンジンがなければ何もしない。
 func (s *Service) PrepareReferenceIndex(bank *voicebank.Bank) {
-	worldPhrase, err := s.ResolveRenderer("utautts-world-phrase")
+	worldEnginePath, err := worldrender.ResolveEnginePath()
 	if err != nil {
 		return
 	}
-	tts.PrepareReferenceIndex(s.referenceDir(), bank, worldPhrase.Resource(engine.ResourceWorldEngine))
+	tts.PrepareReferenceIndex(s.referenceDir(), bank, worldEnginePath)
 }
 
 // FeatureDeviceは、直近の特徴量計算に使ったデバイスを返す。
@@ -424,41 +403,6 @@ func (s *Service) referenceDir() string {
 		}
 	}
 	return ""
-}
-
-func (s *Service) ResolveRenderer(requested string) (engine.ResolvedEngine, error) {
-	resolved, err := tts.ResolveRenderer(s.catalog, s.rendererID(requested))
-	if err != nil {
-		return engine.ResolvedEngine{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
-	}
-	return resolved, nil
-}
-
-// 資源不足はエラーでなく、一覧表示用の情報として返す。
-func (s *Service) RendererAvailability() map[string]engine.Availability {
-	result := make(map[string]engine.Availability)
-	if s.catalog == nil {
-		return result
-	}
-	for _, renderer := range s.catalog.Renderers {
-		resolved, err := s.ResolveRenderer(renderer.ID)
-		if err != nil {
-			result[renderer.ID] = engine.Availability{
-				Available: false,
-				Issues:    []engine.AvailabilityIssue{{Message: err.Error()}},
-			}
-			continue
-		}
-		result[renderer.ID] = resolved.Availability
-	}
-	return result
-}
-
-func (s *Service) rendererID(requested string) string {
-	if requested != "" {
-		return requested
-	}
-	return s.renderer
 }
 
 // retiredModelIDsは同梱から外した抑揚モデルと、その代わりに使うモデル。

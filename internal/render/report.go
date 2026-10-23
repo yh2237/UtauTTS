@@ -4,13 +4,12 @@ import (
 	"fmt"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
-	"github.com/yh2237/UtauTTS/internal/engine"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/render/base"
 )
 
 type UnitRenderer interface {
-	ProviderID() engine.ProviderID
+	ProviderID() string
 	Render(*plan.Plan, Config) (*UnitRenderResult, error)
 }
 
@@ -21,7 +20,7 @@ type UnitRenderResult struct {
 
 type RenderReport struct {
 	TargetF0            *F0Track `json:"target_f0,omitempty"`
-	Provider            engine.ProviderID
+	Provider            string
 	LeadingMarginMS     float64
 	CVVCTiming          string
 	CVVCTransitionGain  float64
@@ -70,10 +69,10 @@ type UnitRenderReport struct {
 }
 
 type builtinUnitRenderer struct {
-	provider engine.ProviderID
+	provider string
 }
 
-func (renderer builtinUnitRenderer) ProviderID() engine.ProviderID {
+func (renderer builtinUnitRenderer) ProviderID() string {
 	return renderer.provider
 }
 
@@ -98,12 +97,12 @@ func (renderer builtinUnitRenderer) Render(synthesisPlan *plan.Plan, cfg Config)
 
 func UnitRendererForProvider(provider string) (UnitRenderer, error) {
 	if provider == "" {
-		return nil, fmt.Errorf("unit renderer is not selected")
+		provider = base.DefaultBackend
 	}
 	if _, found := base.RendererImplementation(provider); !found {
 		return nil, fmt.Errorf("unknown unit renderer provider %q", provider)
 	}
-	return builtinUnitRenderer{provider: engine.ProviderID(provider)}, nil
+	return builtinUnitRenderer{provider: provider}, nil
 }
 
 // RenderWithReportはPlanのコピーを描画する。
@@ -116,17 +115,10 @@ func RenderWithReport(synthesisPlan *plan.Plan, cfg Config) (*UnitRenderResult, 
 }
 
 func UnitRendererForConfig(cfg Config) (UnitRenderer, error) {
-	definition := cfg.Engine.Definition
-	if definition.Protocol == "utautts-provider" {
-		if definition.Contract != engine.ContractUnitRenderer {
-			return nil, fmt.Errorf("external provider contract %q is not a unit-renderer", definition.Contract)
-		}
-		return newExternalUnitRenderer(definition), nil
-	}
 	return UnitRendererForProvider(cfg.Backend)
 }
 
-func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) RenderReport {
+func reportFromPlan(provider string, synthesisPlan *plan.Plan) RenderReport {
 	report := RenderReport{Provider: provider}
 	if synthesisPlan == nil {
 		return report

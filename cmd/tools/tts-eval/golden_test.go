@@ -32,13 +32,9 @@ func TestSelectionPlanGolden(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte("a.wav=か,0,40,0,60,30\na.wav=さ,0,50,0,70,35\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	catalog := &plugin.Catalog{Renderers: []plugin.Renderer{{
-		ManifestVersion: 2, Kind: "synthesis-engine", ID: "test-concat", DisplayName: "test-concat",
-		Contract: "unit-renderer", Provider: "test-concat", ProviderVersion: "1",
-	}}}
-	service := synth.NewService(catalog, "test-concat", "", "", nil)
+	service := synth.NewService(&plugin.Catalog{}, "", "", nil)
 	request := synth.Request{
-		Reading: "かさ", VoicebankPath: bankDir, Tone: "C4", Renderer: "test-concat",
+		Reading: "かさ", VoicebankPath: bankDir, Tone: "C4",
 		Method:         tts.MethodWaveformSynthesis,
 		Language:       "ja",
 		MoraDurationMS: synth.DefaultMoraDurationMS, PauseDurationMS: plan.DefaultPauseDurationMS,

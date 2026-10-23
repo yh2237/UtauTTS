@@ -20,13 +20,6 @@ func TestCLIListsCatalogsWithoutSynthesisArguments(t *testing.T) {
 			"version":8,"feature_version":1,"mode":"intonation_frame_tcn_accent_bounded","duration_weights":{},
 			"frame_pitch":{"feature_names":["bias"],"input_weights":[[0]],"input_bias":[0],"layers":[],"output_weight":[0],"output_bias":0,"frame_ms":10,"low_cents":-100,"high_cents":100}
 		}`,
-		"missing/renderer.json": `{
-			"manifest_version":2,"kind":"synthesis-engine","id":"cli-test-missing",
-			"display_name":"Missing provider","contract":"unit-renderer","contract_version":1,"provider":"cli-test-external","provider_version":"1",
-			"protocol":"utautts-provider","protocol_version":1,
-			"resources":{"provider_executable":{"path":"missing-provider","required":true,"executable":true}}
-		}`,
-		"invalid/renderer.json": `{"manifest_version":2}`,
 	}
 	for name, data := range files {
 		path := filepath.Join(root, name)
@@ -37,10 +30,10 @@ func TestCLIListsCatalogsWithoutSynthesisArguments(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, kind := range []string{"voicebanks", "models", "renderers"} {
+	for _, kind := range []string{"voicebanks", "models"} {
 		t.Run(kind, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			args := []string{"--json", "--list", kind, "--voicebank", root, "--renderer-dir", root, "--model-dir", root}
+			args := []string{"--json", "--list", kind, "--voicebank", root, "--model-dir", root}
 			if code := executeCLI(args, strings.NewReader(""), &stdout, &stderr); code != 0 {
 				t.Fatalf("exit=%d, stderr=%q", code, stderr.String())
 			}
@@ -61,18 +54,6 @@ func TestCLIListsCatalogsWithoutSynthesisArguments(t *testing.T) {
 			case "models":
 				if len(items) != 1 || items[0].(map[string]any)["id"] != "cli-test-model" || catalog["default_id"] != "none" {
 					t.Fatalf("models = %#v", catalog)
-				}
-			case "renderers":
-				byID := make(map[string]map[string]any)
-				for _, item := range items {
-					value := item.(map[string]any)
-					byID[value["id"].(string)] = value
-				}
-				if byID["cli-test-waveform"]["available"] != true || byID["cli-test-missing"]["available"] != false || len(byID["cli-test-missing"]["problems"].([]any)) == 0 {
-					t.Fatalf("renderer availability = %#v", byID)
-				}
-				if len(catalog["problems"].([]any)) == 0 {
-					t.Fatal("invalid plugin was not reported")
 				}
 			}
 			stdout.Reset()

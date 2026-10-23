@@ -3,25 +3,28 @@ package base
 import (
 	"context"
 
-	"github.com/yh2237/UtauTTS/internal/engine"
 	"github.com/yh2237/UtauTTS/internal/settings"
 )
+
+// WorldPhraseBackendはWORLDで描画する実装。製品の波形合成は常にこれを使う。
+const WorldPhraseBackend = "utautts-world-phrase"
 
 type Config struct {
 	TargetF0              *F0Track
 	Context               context.Context
-	Engine                engine.ResolvedEngine
+	WorldEnginePath       string
 	ReleaseMS             float64
 	ReleaseSet            bool
 	LeadingPreutteranceMS float64
 	IntonationStrength    float64
 	ApplyPitch            bool
-	Backend               string
-	ProviderOptions       ProviderOptions
-	CVVCTiming            string
-	CVVCTransitionGain    float64
-	CVVCPreBoundaryFade   bool
-	PitchCurve            *PitchCurve
+	// Backendは描画の実装。空ならWORLDを使う。テストではWORLDのいらない実装に差し替える。
+	Backend             string
+	ProviderOptions     ProviderOptions
+	CVVCTiming          string
+	CVVCTransitionGain  float64
+	CVVCPreBoundaryFade bool
+	PitchCurve          *PitchCurve
 	// 伸縮補正は日本語のモーラだけに適用する。
 	StretchAdapt bool
 	// StretchAdaptStrengthは伸縮補正の強度。0は既定1.0、負値は恒等。
@@ -58,17 +61,6 @@ func (options WorldlineProviderOptions) TimingWarpEnabled() bool {
 		return settings.Bool("timing_warp")
 	}
 	return *options.TimingWarp
-}
-
-func (cfg Config) Resource(key engine.ResourceKey) string {
-	return cfg.Engine.Resource(key)
-}
-
-func (cfg Config) ProviderID() engine.ProviderID {
-	if cfg.Engine.Provider.ID != "" {
-		return cfg.Engine.Provider.ID
-	}
-	return engine.ProviderID(cfg.Backend)
 }
 
 const (

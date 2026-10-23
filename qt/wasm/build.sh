@@ -15,14 +15,12 @@ release_dir="${root_dir}/build/web-release"
 cmake --build "${build_dir}"
 
 rm -rf "${release_dir}"
-mkdir -p "${release_dir}/web" "${release_dir}/renderer/utautts-world-phrase"
+mkdir -p "${release_dir}/web"
 cp "${build_dir}/index.html" "${build_dir}/engine-loader.js" "${build_dir}/engine-worker.js" \
    "${build_dir}/asset-paths.js" "${build_dir}/bootstrap.js" \
    "${build_dir}/utautts.js" "${build_dir}/utautts.wasm" "${build_dir}/qtloader.js" \
    "${release_dir}/"
 cp -r "${root_dir}/web/dist" "${release_dir}/web/dist"
-cp "${root_dir}/renderer/utautts-world-phrase/renderer.json" \
-    "${release_dir}/renderer/utautts-world-phrase/renderer.json"
 printf 'globalThis.UtauTTSConfig = {};\n' > "${release_dir}/config.js"
 
 echo "Assembled ${release_dir}"

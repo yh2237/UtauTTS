@@ -2,6 +2,7 @@ package tts
 
 import (
 	"fmt"
+
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
@@ -29,7 +30,7 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 			}
 		}
 	}
-	predictFramePitch := pitchCurve == nil && applyPitchEnabled(cfg) && rendererSupportsFramePitch(cfg.RendererCapabilities)
+	predictFramePitch := pitchCurve == nil && applyPitchEnabled(cfg)
 	f0Head := unifiedF0Head(loadedProsody)
 	predictEnergy := f0Head != nil && loadedProsody.F0HeadEnergy && !cfg.ProsodyPitchOnly
 	var unified unifiedProsodyPrediction

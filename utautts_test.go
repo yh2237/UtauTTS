@@ -11,19 +11,18 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/yh2237/UtauTTS/internal/render/base"
 	"github.com/yh2237/audiodsp/wav"
 
-	"github.com/yh2237/UtauTTS"
+	utautts "github.com/yh2237/UtauTTS"
 )
 
 func testConfig(t *testing.T) utautts.Config {
 	t.Helper()
 	root := t.TempDir()
-	bank, renderer := filepath.Join(root, "bank"), filepath.Join(root, "renderer")
-	for _, dir := range []string{bank, renderer} {
-		if err := os.Mkdir(dir, 0755); err != nil {
-			t.Fatal(err)
-		}
+	bank := filepath.Join(root, "bank")
+	if err := os.Mkdir(bank, 0755); err != nil {
+		t.Fatal(err)
 	}
 	samples := make([]int16, 8000)
 	for i := range samples {
@@ -36,17 +35,12 @@ func testConfig(t *testing.T) utautts.Config {
 	for path, data := range map[string][]byte{
 		filepath.Join(bank, "a.wav"):   audio.Bytes(),
 		filepath.Join(bank, "oto.ini"): []byte("a.wav=あ,0,40,0,60,30\n"),
-		filepath.Join(renderer, "renderer.json"): []byte(`{
-			"manifest_version":2,"kind":"synthesis-engine","id":"test-waveform",
-			"display_name":"Test waveform","contract":"unit-renderer",
-			"provider":"test-concat","provider_version":"1"
-		}`),
 	} {
 		if err := os.WriteFile(path, data, 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	return utautts.Config{VoiceDirectory: bank, Renderer: "test-waveform", RendererDirectories: []string{renderer}}
+	return utautts.Config{VoiceDirectory: bank}
 }
 
 func newEngine(t *testing.T, config utautts.Config) *utautts.Engine {
@@ -85,7 +79,7 @@ func TestEngineSynthesisAndIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if short.DurationMS >= baseline.DurationMS-100 || short.RendererID != "test-waveform" || short.Reading != request.Reading {
+	if short.DurationMS >= baseline.DurationMS-100 || short.Reading != request.Reading {
 		t.Fatalf("explicit zero pause/release not applied: %v vs %v", short.DurationMS, baseline.DurationMS)
 	}
 	if len(short.Phonemes) == 0 || short.Phonemes[0].StartMS != 0 || math.Abs(short.Phonemes[len(short.Phonemes)-1].EndMS-short.DurationMS) > 0.001 {
@@ -116,8 +110,8 @@ func TestEngineRequestErrors(t *testing.T) {
 		{},
 		{Reading: "あ", Options: utautts.Options{MoraDurationMS: new(0.0)}},
 		{Reading: "あ", Options: utautts.Options{IntonationStrength: new(math.NaN())}},
-		{Reading: "あ", RendererSettings: map[string]json.RawMessage{"timing_warp": json.RawMessage(`"false"`)}},
-		{Reading: "あ", RendererSettings: map[string]json.RawMessage{"pause_duration_ms": json.RawMessage(`0`)}},
+		{Reading: "あ", Settings: map[string]json.RawMessage{"timing_warp": json.RawMessage(`"false"`)}},
+		{Reading: "あ", Settings: map[string]json.RawMessage{"pause_duration_ms": json.RawMessage(`0`)}},
 	} {
 		if _, err := engine.Synthesize(context.Background(), request); !errors.Is(err, utautts.ErrInvalidRequest) {
 			t.Errorf("invalid request returned %v", err)
@@ -142,7 +136,10 @@ func TestBundledWorldRuntimeIsolation(t *testing.T) {
 	if voice == "" {
 		t.Skip("set UTAUTTS_TEST_VOICE to the voicebank folder name under voice/")
 	}
-	config := utautts.Config{VoiceDirectory: filepath.Join("voice", voice), Renderer: "utautts-world-phrase"}
+	backend := base.DefaultBackend
+	base.DefaultBackend = base.WorldPhraseBackend
+	t.Cleanup(func() { base.DefaultBackend = backend })
+	config := utautts.Config{VoiceDirectory: filepath.Join("voice", voice)}
 	first, second := newEngine(t, config), newEngine(t, config)
 	ctx := context.Background()
 	request := utautts.Request{Text: "こんにちは。今日はいい天気ですね。", Tone: "C4"}

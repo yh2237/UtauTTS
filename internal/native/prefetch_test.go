@@ -16,7 +16,7 @@ func TestSynthesisSourcePathsDoesNotLoadWaveforms(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bank, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\nka.wav=か,0,0,0,0,0\nunused.wav=さ,0,0,0,0,0\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	e := newTestEngine(t, Config{VoiceDir: root, Renderer: "test-concat", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
+	e := newTestEngine(t, Config{VoiceDir: root})
 	paths, err := e.SynthesisSourcePaths([]byte(`{"reading":"あか","method":"waveform-synthesis","language":"ja","voicebank_id":"bank","renderer":"test-concat","model_id":"none"}`))
 	if err != nil {
 		t.Fatal(err)

@@ -14,6 +14,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/openutau"
 	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/render"
+	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/synth"
 	"github.com/yh2237/UtauTTS/internal/tts"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
@@ -21,10 +22,8 @@ import (
 
 type Config struct {
 	VoiceDir            string   `json:"voice_dir"`
-	Renderer            string   `json:"renderer"`
 	OpenJTalkPath       string   `json:"openjtalk_path"`
 	OpenJTalkDictionary string   `json:"openjtalk_dictionary"`
-	RendererDirectories []string `json:"renderer_directories,omitempty"`
 	ModelDirectories    []string `json:"model_directories,omitempty"`
 }
 
@@ -43,15 +42,14 @@ func New(config Config) (*Engine, error) {
 	engine := &Engine{config: config, voicebanks: voicebank.NewLibrary(config.VoiceDir)}
 	engine.ctx, engine.cancel = context.WithCancel(context.Background())
 	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
-		Renderer:      config.Renderer,
 		OpenJTalkPath: config.OpenJTalkPath, OpenJTalkDictionary: config.OpenJTalkDictionary,
-		RendererDirectories: config.RendererDirectories, ModelDirectories: config.ModelDirectories,
+		ModelDirectories: config.ModelDirectories,
 	}, nativeVoicebankResolver{library: engine.voicebanks})
 	if err != nil {
 		engine.cancel()
 		return nil, err
 	}
-	engine.config.Renderer, engine.catalog, engine.synth = runtime.Renderer, runtime.Catalog, runtime.Service
+	engine.catalog, engine.synth = runtime.Catalog, runtime.Service
 	engine.runtime = runtime
 	if err := engine.reload(); err != nil {
 		engine.cancel()
@@ -71,7 +69,7 @@ func (e *Engine) warmUp() {
 	if e.catalog != nil && len(e.catalog.Models) > 0 {
 		modelID = e.catalog.Models[0].ID
 	}
-	_, _, _ = e.synth.PredictProsodyContext(e.ctx, synth.Request{
+	_, _ = e.synth.PredictProsodyContext(e.ctx, synth.Request{
 		Text: "あ", Language: "ja", ModelID: modelID,
 	})
 }
@@ -95,7 +93,7 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 		err = e.runtime.Close()
 		result = map[string]bool{"ok": true}
 	case "health":
-		result = map[string]any{"status": "ok", "engine": e.config.Renderer, "version": appinfo.Version()}
+		result = map[string]any{"status": "ok", "version": appinfo.Version()}
 	case "voicebanks":
 		result = map[string]any{"voicebanks": e.voicebankList()}
 	case "reloadVoicebanks":
@@ -105,12 +103,8 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 		result = map[string]any{"models": e.models(), "retired_models": synth.RetiredModelIDs()}
 	case "referenceProviders":
 		result = map[string]any{"reference_providers": e.synth.ReferenceProviders()}
-	case "renderers":
-		result = map[string]any{
-			"default_renderer": e.config.Renderer, "renderers": e.catalog.Renderers,
-			"availability": e.synth.RendererAvailability(),
-			"problems":     e.catalog.Problems,
-		}
+	case "settings":
+		result = map[string]any{"settings": settings.Visible(), "problems": e.catalog.Problems}
 	case "analyze":
 		result, err = e.analyze(requestJSON)
 	case "predictProsody":
@@ -263,7 +257,7 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 	if request.Text == "" && request.ReadingOrKana() == "" {
 		return nil, fmt.Errorf("text or reading is required")
 	}
-	preview, _, err := e.synth.PredictProsodyContext(e.ctx, request.InternalRequest())
+	preview, err := e.synth.PredictProsodyContext(e.ctx, request.InternalRequest())
 	if err != nil {
 		return nil, err
 	}

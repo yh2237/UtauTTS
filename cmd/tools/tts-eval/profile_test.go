@@ -22,9 +22,9 @@ func TestEvaluationProfileRecordsCaseAndRestoresHooks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.SetCase("first", "renderer", 1)
+	p.SetCase("first", 1)
 	tts.Trace("select: 12.5ms")
-	p.SetCase("second", "renderer", 2)
+	p.SetCase("second", 2)
 	worldline.Trace("bridge: 3.0ms")
 	if err := p.Close(); err != nil {
 		t.Fatal(err)
@@ -43,7 +43,7 @@ func TestEvaluationProfileRecordsCaseAndRestoresHooks(t *testing.T) {
 		if err := decoder.Decode(&row); err != nil {
 			t.Fatal(err)
 		}
-		if row.ID != wantID || row.Repetition != i+1 || row.Renderer != "renderer" || row.ElapsedMS == nil {
+		if row.ID != wantID || row.Repetition != i+1 || row.ElapsedMS == nil {
 			t.Fatalf("incorrect case association: %+v", row)
 		}
 		wantSource, wantPhase, wantMS := "tts", "select", 12.5

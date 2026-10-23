@@ -3,27 +3,16 @@ package tts
 import (
 	"math"
 
-	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
 )
-
-// capabilityは解決済みRendererのもの（ApplyResolvedEngine）だけを見る。未解決は機能なしとして扱う。
-func rendererSupportsFramePitch(capabilities *plugin.Capabilities) bool {
-	return capabilities != nil && capabilities.FramePitch
-}
-
-func rendererInternalTiming(capabilities *plugin.Capabilities) bool {
-	return capabilities != nil && capabilities.InternalTiming
-}
 
 func applyPitchEnabled(cfg Config) bool {
 	return cfg.ApplyPitch || cfg.ProsodyPitchOnly
 }
 
 func shouldPredictFrameContour(cfg Config, model *prosody.Model) bool {
-	return applyPitchEnabled(cfg) && model != nil && model.HasFrameContour() &&
-		rendererSupportsFramePitch(cfg.RendererCapabilities)
+	return applyPitchEnabled(cfg) && model != nil && model.HasFrameContour()
 }
 
 func effectiveIntonationStrength(cfg Config) float64 {

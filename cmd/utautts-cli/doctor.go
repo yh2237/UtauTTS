@@ -11,12 +11,12 @@ import (
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
 	"github.com/yh2237/UtauTTS/internal/synth"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
+	"github.com/yh2237/UtauTTS/internal/worldrender"
 )
 
 var doctorFlags = map[string]bool{
 	"doctor": true, "json": true, "version": true, "voicebank": true,
-	"renderer": true, "prosody": true,
-	"renderer-dir": true, "model-dir": true,
+	"prosody": true, "model-dir": true,
 	"openjtalk-engine": true, "openjtalk-dictionary": true,
 }
 
@@ -55,13 +55,8 @@ func inspectEnvironment(voicePath, modelID string, config synth.RuntimeConfig) (
 	for _, problem := range rt.Catalog.Problems {
 		add("catalog", "", "", errors.New(problem), false)
 	}
-	selected, err := rt.Service.ResolveRenderer(config.Renderer)
-	if err != nil {
-		add("renderer", "", "", err, true)
-	} else {
-		definition, _ := rt.Catalog.Renderer(string(selected.PublicID()))
-		add("renderer", definition.Directory, string(selected.PublicID()), selected.RequireAvailable(), true)
-	}
+	worldEngine, err := worldrender.ResolveEnginePath()
+	add("world_engine", worldEngine, "WORLD library found (not loaded)", err, true)
 	modelPath, err := rt.Service.ResolveModel(modelID)
 	modelMessage := modelID
 	if modelPath == "" && err == nil {

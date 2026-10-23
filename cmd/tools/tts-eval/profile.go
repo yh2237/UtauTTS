@@ -17,7 +17,6 @@ import (
 
 type phaseMeasurement struct {
 	ID         string   `json:"id"`
-	Renderer   string   `json:"renderer"`
 	Repetition int      `json:"repetition"`
 	Source     string   `json:"source"`
 	Message    string   `json:"message"`
@@ -60,10 +59,10 @@ func startEvaluationProfile(dir string) (*evaluationProfile, error) {
 	return p, nil
 }
 
-func (p *evaluationProfile) SetCase(id, renderer string, repetition int) {
+func (p *evaluationProfile) SetCase(id string, repetition int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.current = phaseMeasurement{ID: id, Renderer: renderer, Repetition: repetition}
+	p.current = phaseMeasurement{ID: id, Repetition: repetition}
 }
 
 func (p *evaluationProfile) trace(source string, previous func(string)) func(string) {

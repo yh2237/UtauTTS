@@ -28,7 +28,6 @@ type measurement struct {
 	ID                       string  `json:"id"`
 	Text                     string  `json:"text"`
 	Focus                    string  `json:"focus"`
-	Renderer                 string  `json:"renderer"`
 	Repetition               int     `json:"repetition"`
 	ElapsedMS                float64 `json:"elapsed_ms"`
 	AudioMS                  float64 `json:"audio_ms"`
@@ -81,7 +80,6 @@ func run() (runErr error) {
 	diagnose := flag.Bool("diagnose", false, "write frontend and candidate diagnostics without rendering")
 	corpus := flag.String("corpus", "tools/evaluation/japanese-v1.json", "JSON listening corpus")
 	out := flag.String("out", "out/tts-eval", "new output directory")
-	renderers := flag.String("renderers", "utautts-world-phrase", "comma-separated renderer IDs")
 	model := flag.String("model", "frame-intonation-tcn-v12", "prosody model ID")
 	modelFile := flag.String("model-file", "", "explicit experimental prosody model JSON (overrides model ID)")
 	repeats := flag.Int("repeat", 2, "repetitions in the same process; first and warm runs are separate (ignored with --sweep)")
@@ -133,7 +131,7 @@ func run() (runErr error) {
 			noTimingWarp: !*timingWarp,
 		})
 	}
-	if *measurePitch && (*diagnose || *renderers != "utautts-world-phrase") {
+	if *measurePitch && *diagnose {
 		return fmt.Errorf("pitch measurement requires CPU WORLD synthesis")
 	}
 	if *diagnose {
@@ -187,20 +185,18 @@ func run() (runErr error) {
 	var rows []measurement
 	failed := false
 	buildInfo, _ := debug.ReadBuildInfo()
-	for rendererIndex, rendererID := range strings.Split(*renderers, ",") {
-		rendererID = strings.TrimSpace(rendererID)
+	{
 		for index, p := range prompts {
 			for repetition := 1; repetition <= *repeats; repetition++ {
-				row := measurement{ID: p.ID, Text: p.Text, Focus: p.Focus, Renderer: rendererID, Repetition: repetition}
+				row := measurement{ID: p.ID, Text: p.Text, Focus: p.Focus, Repetition: repetition}
 				if profile != nil {
-					profile.SetCase(p.ID, rendererID, repetition)
+					profile.SetCase(p.ID, repetition)
 				}
 				result, elapsed, callErr := synthesizeCase(p, caseOptions{
 					service: synthesisRuntime.Service,
 					bank:    *bank, aliasPolicy: *aliasPolicy,
 					model: *model, modelFile: *modelFile, prosodyModelPath: prosodyPath,
 					moraMS:     *moraMS,
-					rendererID: rendererID,
 					applyPitch: true, timeout: *timeout,
 					contextDuration: *contextDuration, contextDurationStrength: *contextDurationStrength,
 					boundaryTone: *boundaryTone, boundaryToneStrength: *boundaryToneStrength,
@@ -211,7 +207,7 @@ func run() (runErr error) {
 				row.ElapsedMS = elapsed
 				if callErr == nil {
 					renderedPlan := fillMeasurement(&row, result)
-					row.WAV = fmt.Sprintf("%02d-renderer%02d-%d.wav", index+1, rendererIndex+1, repetition)
+					row.WAV = fmt.Sprintf("%02d-%d.wav", index+1, repetition)
 					callErr = synth.WriteFiles(filepath.Join(*out, row.WAV), result, synth.ExportOptions{Text: p.Text, WriteText: true, WriteLab: true})
 					if callErr == nil {
 						var planData []byte
@@ -232,7 +228,7 @@ func run() (runErr error) {
 					failed = true
 				}
 				rows = append(rows, row)
-				fmt.Printf("%s %s #%d: %.0f ms, RTF %.3f %s\n", rendererID, p.ID, repetition, row.ElapsedMS, row.RTF, row.Error)
+				fmt.Printf("%s #%d: %.0f ms, RTF %.3f %s\n", p.ID, repetition, row.ElapsedMS, row.RTF, row.Error)
 				// 失敗に備え、ケースごとに保存する。
 				report := evalReport{*moraMS, *phonemizer, *measurePitch, runtime.GOOS, runtime.GOARCH, *bank, modelIdentity, fmt.Sprintf("%x", sha256.Sum256(data)), buildInfo, rows}
 				encoded, err := json.MarshalIndent(report, "", "  ")

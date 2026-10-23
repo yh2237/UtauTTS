@@ -319,66 +319,22 @@ func TestRunPreservesPortableConfig(t *testing.T) {
 	target := filepath.Join(root, "UtauTTS")
 	writeTestFile(t, filepath.Join(target, "app", "utautts-gui.exe"), "old-gui")
 	writeTestFile(t, filepath.Join(target, "config.ini"), "portable-settings")
-	writeTestFile(t, filepath.Join(target, "renderer", "builtin", "renderer.json"),
-		`{"manifest_version":2,"kind":"synthesis-engine","id":"builtin","display_name":"Old","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`)
 
 	zipPath := makeZip(t, map[string]string{
-		"app/utautts-gui.exe":            "new-gui",
-		"config.ini":                     "package-default",
-		"renderer/builtin/renderer.json": `{"manifest_version":2,"kind":"synthesis-engine","id":"builtin","display_name":"New","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`,
+		"app/utautts-gui.exe": "new-gui",
+		"config.ini":          "package-default",
 	})
 	if err := run(target, "", zipPath, 0, "test", []string{"config.ini"}, false); err != nil {
 		t.Fatal(err)
 	}
 	for path, want := range map[string]string{
-		"config.ini":                     "portable-settings",
-		"renderer/builtin/renderer.json": `{"manifest_version":2,"kind":"synthesis-engine","id":"builtin","display_name":"New","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`,
+		"config.ini":          "portable-settings",
+		"app/utautts-gui.exe": "new-gui",
 	} {
 		data, err := os.ReadFile(filepath.Join(target, filepath.FromSlash(path)))
 		if err != nil || string(data) != want {
 			t.Errorf("%s = %q, %v; want %q", path, data, err, want)
 		}
-	}
-}
-
-func TestCarryCurrentRenderersDropsRemovedManagedWaveform(t *testing.T) {
-	current := t.TempDir()
-	stage := t.TempDir()
-	writeTestFile(t, filepath.Join(current, "renderer", "test-concat", "renderer.json"),
-		`{"manifest_version":2,"kind":"synthesis-engine","id":"test-concat","display_name":"Waveform","update_managed":true}`)
-	writeTestFile(t, filepath.Join(current, "renderer", "custom", "renderer.json"),
-		`{"manifest_version":2,"kind":"synthesis-engine","id":"custom","display_name":"Custom"}`)
-	if err := carryCurrentRenderers(current, stage); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(filepath.Join(stage, "renderer", "test-concat")); !os.IsNotExist(err) {
-		t.Fatalf("removed managed waveform renderer was carried forward: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(stage, "renderer", "custom", "renderer.json")); err != nil {
-		t.Fatalf("user renderer was not carried forward: %v", err)
-	}
-}
-
-func TestCopyTreePreservesExecutableMode(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows does not expose Unix executable permission bits")
-	}
-	source := filepath.Join(t.TempDir(), "source")
-	destination := filepath.Join(t.TempDir(), "destination")
-	executable := filepath.Join(source, "renderer")
-	writeTestFile(t, executable, "#!/bin/sh\n")
-	if err := os.Chmod(executable, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := copyTree(source, destination); err != nil {
-		t.Fatal(err)
-	}
-	info, err := os.Stat(filepath.Join(destination, "renderer"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if info.Mode().Perm()&0o111 == 0 {
-		t.Fatalf("copied renderer mode = %o, executable bit was lost", info.Mode().Perm())
 	}
 }
 

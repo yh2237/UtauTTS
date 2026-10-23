@@ -36,11 +36,9 @@ func TestAPIErrorCodesPreserveLegacyMessageAndStatus(t *testing.T) {
 	}{
 		{"/api/analyze", `{"unknown":true}`, "invalid_request", 400},
 		{"/api/synthesize/audio", `{}`, "invalid_request", 400},
-		{"/api/synthesize/label", `{"method":"waveform-synthesis","language":"ja","voicebank_id":"test","reading":"あ","renderer":"missing"}`, "unavailable", 400},
 		{"/api/synthesize/audio", `{"method":"waveform-synthesis","language":"ja","voicebank_id":"test","reading":"あ","mora_duration_ms":1001}`, "invalid_request", 400},
 		{"/api/synthesize/audio", `{"method":"waveform-synthesis","language":"ja","voicebank_id":"test","reading":"あ","alias_policy":"missing"}`, "synthesis_error", 422},
 		{"/api/synthesize/audio", `{"method":"waveform-synthesis","language":"ja","voicebank_id":"test","reading":"` + strings.Repeat("あ", maxTextRunes+1) + `"}`, "limit_exceeded", 413},
-		{"/api/synthesize/batch", `{"items":[{"request":{"method":"waveform-synthesis","language":"ja","voicebank_id":"test","reading":"あ","renderer":"missing"}}]}`, "unavailable", 400},
 	} {
 		t.Run(test.path+"/"+test.code+"/"+test.body[:min(len(test.body), 30)], func(t *testing.T) {
 			response := httptest.NewRecorder()

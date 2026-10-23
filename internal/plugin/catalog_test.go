@@ -8,37 +8,6 @@ import (
 	"testing"
 )
 
-func TestRepositoryRendererPluginsAreSelfDescribing(t *testing.T) {
-	directories, _ := DefaultDirectories()
-	items, err := DiscoverRenderers(directories, func(string) bool { return true })
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(items) == 0 {
-		t.Fatal("no renderer plugins were found")
-	}
-	if items[0].ID != "utautts-world-phrase" {
-		t.Fatalf("default renderer = %q, want manifest-priority UtauTTS WORLD phrase", items[0].ID)
-	}
-	for _, item := range items {
-		if item.ID == "test-concat" {
-			t.Fatal("removed waveform renderer is still bundled")
-		}
-		if item.ID == "" || item.DisplayName == "" || item.Provider == "" {
-			t.Fatalf("incomplete renderer plugin: %#v", item)
-		}
-		if item.ManifestVersion != 2 || item.Contract == "" || item.ProviderVersion == "" {
-			t.Fatalf("bundled renderer was not migrated to explicit v2 metadata: %#v", item)
-		}
-		switch item.ID {
-		case "diffsinger":
-			if !item.Capabilities.InternalTiming {
-				t.Fatal("DiffSinger renderer lost internal timing support")
-			}
-		}
-	}
-}
-
 func TestModelUsesIdentityStoredInsideModel(t *testing.T) {
 	directory := t.TempDir()
 	path := filepath.Join(directory, "arbitrary-filename.json")
@@ -112,8 +81,7 @@ func TestInvalidModelIsReported(t *testing.T) {
 }
 
 func TestRepositoryBundlesSelfDescribingModels(t *testing.T) {
-	_, modelDirectories := DefaultDirectories()
-	models, err := DiscoverModels(modelDirectories)
+	models, err := DiscoverModels(DefaultModelDirectories())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,48 +103,10 @@ func TestRepositoryBundlesSelfDescribingModels(t *testing.T) {
 	}
 }
 
-func TestWorldlineRenderersDeclareAcceleration(t *testing.T) {
-	directories, _ := DefaultDirectories()
-	items, err := DiscoverRenderers(directories, func(string) bool { return true })
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := map[string]string{
-		"utautts-world-phrase": "cpu",
-	}
-	for _, item := range items {
-		if acceleration, ok := want[item.ID]; ok {
-			if item.Acceleration != acceleration {
-				t.Fatalf("renderer %q acceleration = %q, want %q", item.ID, item.Acceleration, acceleration)
-			}
-			delete(want, item.ID)
-		}
-	}
-	if len(want) != 0 {
-		t.Fatalf("missing worldline renderers: %#v", want)
-	}
-}
-
-func TestUnknownRendererRequiresExplicitSelection(t *testing.T) {
-	catalog := &Catalog{Renderers: []Renderer{{ID: "default"}, {ID: "other"}}}
-	for _, requested := range []string{"unknown", "removed-renderer", ""} {
-		got, ok := catalog.Renderer(requested)
-		if (requested == "" && (!ok || got.ID != "default")) || (requested != "" && ok) {
-			t.Fatalf("Renderer(%q) = %#v, %v", requested, got, ok)
-		}
-	}
-}
-
 func TestPackagedDirectoriesTakePrecedenceOverWorkspaceDirectories(t *testing.T) {
 	workspace := t.TempDir()
 	packaged := filepath.Join(workspace, "release", "UtauTTS")
-	if err := os.MkdirAll(filepath.Join(workspace, "renderer"), 0o755); err != nil {
-		t.Fatal(err)
-	}
 	if err := os.MkdirAll(filepath.Join(workspace, "models"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Join(packaged, "renderer"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(packaged, "models"), 0o755); err != nil {
@@ -185,39 +115,8 @@ func TestPackagedDirectoriesTakePrecedenceOverWorkspaceDirectories(t *testing.T)
 	if err := os.WriteFile(filepath.Join(workspace, "go.mod"), []byte("module test\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	renderers, models := defaultDirectories(filepath.Join(packaged, "tools", "utautts-cli.exe"), workspace)
-	if len(renderers) != 1 || filepath.Clean(renderers[0]) != filepath.Join(packaged, "renderer") {
-		t.Fatalf("renderer directories = %#v", renderers)
-	}
+	models := defaultModelDirectories(filepath.Join(packaged, "tools", "utautts-cli.exe"), workspace)
 	if len(models) != 1 || filepath.Clean(models[0]) != filepath.Join(packaged, "models") {
 		t.Fatalf("model directories = %#v", models)
-	}
-}
-
-func TestExplicitRendererDirectoryOverridesPackagedID(t *testing.T) {
-	root := t.TempDir()
-	packaged := filepath.Join(root, "packaged")
-	explicit := filepath.Join(root, "explicit")
-	for _, directory := range []string{
-		filepath.Join(packaged, "test-concat"), filepath.Join(explicit, "test-concat"),
-	} {
-		if err := os.MkdirAll(directory, 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	manifest := `{"manifest_version":2,"kind":"synthesis-engine","id":"test-concat","display_name":"packaged","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`
-	if err := os.WriteFile(filepath.Join(packaged, "test-concat", "renderer.json"), []byte(manifest), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	manifest = `{"manifest_version":2,"kind":"synthesis-engine","id":"test-concat","display_name":"explicit","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`
-	if err := os.WriteFile(filepath.Join(explicit, "test-concat", "renderer.json"), []byte(manifest), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	items, err := DiscoverRenderers([]string{explicit, packaged}, func(string) bool { return true })
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(items) != 1 || items[0].DisplayName != "explicit" {
-		t.Fatalf("renderer override = %#v", items)
 	}
 }

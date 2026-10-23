@@ -20,13 +20,10 @@ if ($LASTEXITCODE -ne 0) { throw "cmake build failed" }
 
 if (Test-Path $releaseDir) { Remove-Item -Recurse -Force $releaseDir }
 New-Item -ItemType Directory -Force -Path (Join-Path $releaseDir 'web') | Out-Null
-New-Item -ItemType Directory -Force -Path (Join-Path $releaseDir 'renderer\utautts-world-phrase') | Out-Null
 foreach ($name in 'index.html', 'engine-loader.js', 'engine-worker.js', 'asset-paths.js', 'bootstrap.js', 'utautts.js', 'utautts.wasm', 'qtloader.js') {
     Copy-Item -LiteralPath (Join-Path $buildDir $name) -Destination $releaseDir -Force
 }
 Copy-Item -Recurse -Force (Join-Path $root 'web\dist') (Join-Path $releaseDir 'web\dist')
-Copy-Item -LiteralPath (Join-Path $root 'renderer\utautts-world-phrase\renderer.json') `
-    -Destination (Join-Path $releaseDir 'renderer\utautts-world-phrase\renderer.json') -Force
 [IO.File]::WriteAllText((Join-Path $releaseDir 'config.js'), "globalThis.UtauTTSConfig = {};`n", [Text.UTF8Encoding]::new($false))
 
 Write-Host "Assembled $releaseDir"

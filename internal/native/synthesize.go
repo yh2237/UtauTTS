@@ -155,7 +155,6 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 		"leading_margin_ms":     leadingMarginMS,
 		"lab":                   result.Lab,
 		"unit_count":            len(result.Plan.Units),
-		"engine":                result.RendererID,
 		"mora_durations_ms":     result.MoraDurationsMS,
 		"mora_positions_ms":     result.MoraPositionsMS,
 		"pitch_points":          result.PitchPoints,

@@ -1,10 +1,10 @@
 package tts
 
 import (
-	"github.com/yh2237/UtauTTS/internal/frontend"
-	"github.com/yh2237/UtauTTS/internal/plugin"
 	"reflect"
 	"testing"
+
+	"github.com/yh2237/UtauTTS/internal/frontend"
 )
 
 func TestChineseSandhiUsesWordsAndCharacters(t *testing.T) {
@@ -35,26 +35,5 @@ func TestChinesePreviewReadingRoundTripKeepsLexicalContext(t *testing.T) {
 		if err != nil || !reflect.DeepEqual(mandarinSurfaceTones(first), mandarinSurfaceTones(second)) {
 			t.Fatalf("round trip %s: %+v %v", text, second, err)
 		}
-	}
-}
-
-func TestDiffSingerUsesJapaneseSpeechRhythmAndKeepsManualDurations(t *testing.T) {
-	// DiffSinger manifestはWindows限定のため、capabilityは明示して検証する。
-	internalTiming := &plugin.Capabilities{InternalTiming: true}
-	baseline, err := PredictProsody(Config{Reading: "カサ", Renderer: "diffsinger", RendererCapabilities: internalTiming, MoraDurationMS: 120})
-	if err != nil {
-		t.Fatal(err)
-	}
-	plain, err := PredictProsody(Config{Reading: "カサ", MoraDurationMS: 120})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if reflect.DeepEqual(baseline.MoraDurationsMS, plain.MoraDurationsMS) {
-		t.Fatalf("DiffSinger rhythm = %v", baseline.MoraDurationsMS)
-	}
-	manual := Config{Reading: "カサ", Renderer: "diffsinger", RendererCapabilities: internalTiming, MoraDurationMS: 120, MoraDurationsMS: []float64{90, 100}}
-	preview, err := PredictProsody(manual)
-	if err != nil || !reflect.DeepEqual(preview.MoraDurationsMS, manual.MoraDurationsMS) {
-		t.Fatalf("manual: %+v %v", preview, err)
 	}
 }

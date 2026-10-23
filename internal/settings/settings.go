@@ -7,26 +7,28 @@ type Option struct {
 }
 
 type Setting struct {
-	ID    string
-	Type  string // integer, number, boolean, enum, string
-	Group string
+	ID    string `json:"id"`
+	Type  string `json:"type"` // integer, number, boolean, enum, string
+	Group string `json:"group,omitempty"`
 	// Defaultはnumber・integerならfloat64、booleanならbool、enum・stringならstring。
-	Default  any
-	Min, Max *float64
-	Step     *float64
-	Label    string
-	Options  []Option
-	// Providersは設定を受け付けるprovider。空は全Renderer共通。
-	Providers []string
+	Default any      `json:"default,omitempty"`
+	Min     *float64 `json:"min,omitempty"`
+	Max     *float64 `json:"max,omitempty"`
+	Step    *float64 `json:"step,omitempty"`
+	Label   string   `json:"label,omitempty"`
+	Options []Option `json:"options,omitempty"`
+	// Methodsは設定が効く方式。空は全方式。
+	Methods []string `json:"methods,omitempty"`
 	// Languagesは設定が効く言語（正規化済みの言語コード）。空は全言語。
-	Languages []string
+	Languages []string `json:"languages,omitempty"`
 	// HiddenはGUIに出さない設定（CLI・APIの互換用）。
-	Hidden bool
+	Hidden bool `json:"-"`
 }
 
 func value(v float64) *float64 { return &v }
 
-const worldPhrase = "utautts-world-phrase"
+// waveformは波形合成の方式名（tts.MethodWaveformSynthesis）。
+const waveform = "waveform-synthesis"
 
 // Tableは設定の定義。順序はGUIの表示順。
 var Table = []Setting{
@@ -37,8 +39,8 @@ var Table = []Setting{
 	{ID: "boundary_tone", Type: "boolean", Group: "correction", Default: true, Label: "settings.boundaryTone", Languages: []string{"ja"}},
 	{ID: "stretch_adapt", Type: "boolean", Group: "correction", Default: true, Label: "settings.stretchAdapt", Languages: []string{"ja"}},
 	{ID: "pause_context", Type: "boolean", Group: "correction", Default: true, Label: "settings.pauseContext"},
-	{ID: "timing_warp", Type: "boolean", Group: "correction", Default: true, Label: "settings.timingWarp", Providers: []string{worldPhrase}},
-	{ID: "microprosody", Type: "boolean", Group: "prosody", Default: true, Label: "settings.microprosody", Providers: []string{worldPhrase}, Languages: []string{"ja"}},
+	{ID: "timing_warp", Type: "boolean", Group: "correction", Default: true, Label: "settings.timingWarp", Methods: []string{waveform}},
+	{ID: "microprosody", Type: "boolean", Group: "prosody", Default: true, Label: "settings.microprosody", Methods: []string{waveform}, Languages: []string{"ja"}},
 	// GUIに出さない設定。強度の0は既定1.0として扱う。
 	{ID: "context_duration", Type: "boolean", Default: false, Hidden: true, Languages: []string{"ja"}},
 	{ID: "context_duration_strength", Type: "number", Default: 1.0, Hidden: true},
@@ -70,18 +72,6 @@ func Bool(id string) bool { return mustLookup(id).Default.(bool) }
 // Numberはnumber・integer設定の既定値。
 func Number(id string) float64 { return mustLookup(id).Default.(float64) }
 
-func (setting Setting) AppliesTo(provider string) bool {
-	if len(setting.Providers) == 0 {
-		return true
-	}
-	for _, candidate := range setting.Providers {
-		if candidate == provider {
-			return true
-		}
-	}
-	return false
-}
-
 // AppliesToLanguageは設定が言語（正規化済み）に効くかを返す。
 func (setting Setting) AppliesToLanguage(language string) bool {
 	if len(setting.Languages) == 0 {
@@ -96,10 +86,11 @@ func (setting Setting) AppliesToLanguage(language string) bool {
 }
 
 // ForProviderはproviderのGUIに出す設定を表の順で返す。
-func ForProvider(provider string) []Setting {
+// Visibleは、GUIに出す設定を表示順に返す。
+func Visible() []Setting {
 	var result []Setting
 	for _, setting := range Table {
-		if !setting.Hidden && setting.AppliesTo(provider) {
+		if !setting.Hidden {
 			result = append(result, setting)
 		}
 	}
