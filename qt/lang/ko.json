@@ -158,7 +158,6 @@
     "settings.audioOutput": "오디오 출력",
     "settings.audioOutput.default": "시스템 기본값",
     "settings.page.appearance": "표시 및 동작",
-    "settings.page.export": "내보내기",
     "settings.page.shortcuts": "단축키",
     "settings.page.synthesis": "음성 합성",
     "settings.synthesisGeneral": "일반",

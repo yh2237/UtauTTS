@@ -158,7 +158,6 @@
     "settings.audioOutput": "音频输出",
     "settings.audioOutput.default": "系统默认",
     "settings.page.appearance": "外观与行为",
-    "settings.page.export": "导出",
     "settings.page.shortcuts": "快捷键",
     "settings.page.synthesis": "语音合成",
     "settings.synthesisGeneral": "常规",

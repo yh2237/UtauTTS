@@ -158,7 +158,6 @@
     "settings.audioOutput": "オーディオ出力",
     "settings.audioOutput.default": "システムの既定値",
     "settings.page.appearance": "表示と動作",
-    "settings.page.export": "書き出し",
     "settings.page.shortcuts": "ショートカット",
     "settings.page.synthesis": "音声合成",
     "settings.synthesisGeneral": "一般",

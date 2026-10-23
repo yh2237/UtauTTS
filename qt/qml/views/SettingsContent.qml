@@ -56,9 +56,8 @@ Item {
     }
 
     function settingsPageLabels() {
-        return [root.translator.tr("settings.page.synthesis"),
-            root.translator.tr("settings.page.export"),
-            root.translator.tr("settings.page.appearance"),
+        return [root.translator.tr("settings.page.appearance"),
+            root.translator.tr("settings.page.synthesis"),
             root.translator.tr("settings.page.shortcuts")];
     }
 
@@ -532,231 +531,6 @@ Item {
                 Layout.fillHeight: true
                 currentIndex: root.currentPage
 
-                Item {
-                    id: timingSettingsPage
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        spacing: 8
-
-                        ScrollView {
-                            id: synthesisSettingsPage
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            contentWidth: availableWidth
-                            rightPadding: 12
-
-                            ColumnLayout {
-                                width: synthesisSettingsPage.availableWidth
-                                spacing: 14
-
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 8
-
-                                    Label {
-                                        Layout.fillWidth: true
-                                        text: root.translator.tr("settings.synthesisGeneral")
-                                        font.bold: true
-                                    }
-
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            Label {
-                                                text: root.translator.tr("settings.defaultVoicebank")
-                                                Layout.fillWidth: true
-                                            }
-                                            ComboBox {
-                                                id: defaultVoicebankCombo
-                                                Layout.preferredWidth: 240
-                                                model: [{
-                                                    id: "",
-                                                    name: root.translator.tr("settings.defaultVoicebank.auto")
-                                                }].concat(root.backend.voicebanks)
-                                                textRole: "name"
-                                                valueRole: "id"
-                                                currentIndex: root.defaultVoicebankIndex()
-                                                onActivated: root.pendingDefaultVoicebankId = currentValue
-                                            }
-                                            SettingsResetButton {
-                                                translator: root.translator
-                                                onResetRequested: root.resetDefaultVoicebank()
-                                            }
-                                        }
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            Label {
-                                                text: root.translator.tr("settings.defaultTone")
-                                                Layout.fillWidth: true
-                                            }
-                                            ToneSpinBox {
-                                                id: defaultToneInput
-                                                Layout.preferredWidth: 180
-                                                automaticText: root.translator.tr("main.aliasPolicy.auto")
-                                                onToneModified: tone => root.pendingDefaultTone = tone
-                                                Binding on value {
-                                                    value: defaultToneInput.toneToValue(root.pendingDefaultTone)
-                                                }
-                                            }
-                                            SettingsResetButton {
-                                                translator: root.translator
-                                                onResetRequested: root.resetDefaultTone()
-                                            }
-                                        }
-                                        Repeater {
-                                            model: root.commonSettings()
-                                            delegate: settingRowComponent
-                                        }
-                                    }
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 8
-
-                                        Label {
-                                            Layout.fillWidth: true
-                                            text: root.translator.tr("main.method.native")
-                                            font.bold: true
-                                        }
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            Label {
-                                                text: root.translator.tr("settings.defaultAliasPolicy")
-                                                Layout.fillWidth: true
-                                            }
-                                            ComboBox {
-                                                id: defaultAliasPolicyCombo
-                                                Layout.preferredWidth: 240
-                                                model: [
-                                                    { id: "auto", display_name: root.translator.tr("main.aliasPolicy.auto") },
-                                                    { id: "cvvc-enhanced", display_name: root.translator.tr("main.aliasPolicy.cvvcEnhanced") },
-                                                    { id: "vcv-prefer", display_name: root.translator.tr("main.aliasPolicy.vcvPrefer") },
-                                                    { id: "cvvc-prefer", display_name: root.translator.tr("main.aliasPolicy.cvvcPrefer") },
-                                                    { id: "cv-only", display_name: root.translator.tr("main.aliasPolicy.cvOnly") }
-                                                ]
-                                                textRole: "display_name"
-                                                valueRole: "id"
-                                                currentIndex: indexOfValue(root.pendingDefaultAliasPolicy)
-                                                onActivated: root.pendingDefaultAliasPolicy = currentValue
-                                            }
-                                            SettingsResetButton {
-                                                translator: root.translator
-                                                onResetRequested: root.resetDefaultAliasPolicy()
-                                            }
-                                        }
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            Label {
-                                                text: root.translator.tr("settings.defaultModel")
-                                                Layout.fillWidth: true
-                                            }
-                                            ComboBox {
-                                                id: defaultModelCombo
-                                                Layout.preferredWidth: 240
-                                                model: [{
-                                                    id: "none",
-                                                    display_name: root.translator.tr("main.modelNone")
-                                                }].concat(root.backend.models)
-                                                textRole: "display_name"
-                                                valueRole: "id"
-                                                currentIndex: root.defaultModelIndex()
-                                                onActivated: root.pendingDefaultModelId = currentValue
-                                            }
-                                            SettingsResetButton {
-                                                translator: root.translator
-                                                onResetRequested: root.resetDefaultModel()
-                                            }
-                                        }
-                                    }
-                                    Repeater {
-                                        model: root.settingGroups()
-                                        delegate: ColumnLayout {
-                                            id: settingGroup
-                                            required property var modelData
-                                            Layout.fillWidth: true
-                                            spacing: 8
-
-                                            Label {
-                                                Layout.fillWidth: true
-                                                text: root.groupLabel(String(settingGroup.modelData.id))
-                                                font.bold: true
-                                            }
-
-                                            Repeater {
-                                                model: settingGroup.modelData.settings
-                                                delegate: settingRowComponent
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                ScrollView {
-                    id: exportSettingsPage
-                    contentWidth: availableWidth
-                    rightPadding: 12
-
-                    ColumnLayout {
-                        width: exportSettingsPage.availableWidth
-                        spacing: 12
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.exportTextWithWav")
-                            }
-                            Switch {
-                                id: exportTextWithWavSwitch
-                                checked: root.pendingExportTextWithWav
-                                onToggled: root.pendingExportTextWithWav = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetExportTextWithWav()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.exportTextEncoding")
-                            }
-                            ComboBox {
-                                id: exportTextEncodingCombo
-                                Layout.preferredWidth: 180
-                                enabled: root.pendingExportTextWithWav
-                                model: ["UTF-8", "Shift_JIS (CP932)"]
-                                currentIndex: root.pendingExportTextEncoding === "shift_jis" ? 1 : 0
-                                onActivated: root.pendingExportTextEncoding = currentIndex === 1 ? "shift_jis" : "utf-8"
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetExportTextEncoding()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.exportLabWithWav")
-                            }
-                            Switch {
-                                id: exportLabWithWavSwitch
-                                checked: root.pendingExportLabWithWav
-                                onToggled: root.pendingExportLabWithWav = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetExportLabWithWav()
-                            }
-                        }
-                    }
-                }
-
                 ScrollView {
                     id: appearanceSettingsPage
                     contentWidth: availableWidth
@@ -976,6 +750,219 @@ Item {
                             }
                         }
 
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.exportTextWithWav")
+                            }
+                            Switch {
+                                id: exportTextWithWavSwitch
+                                checked: root.pendingExportTextWithWav
+                                onToggled: root.pendingExportTextWithWav = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetExportTextWithWav()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.exportTextEncoding")
+                            }
+                            ComboBox {
+                                id: exportTextEncodingCombo
+                                Layout.preferredWidth: 180
+                                enabled: root.pendingExportTextWithWav
+                                model: ["UTF-8", "Shift_JIS (CP932)"]
+                                currentIndex: root.pendingExportTextEncoding === "shift_jis" ? 1 : 0
+                                onActivated: root.pendingExportTextEncoding = currentIndex === 1 ? "shift_jis" : "utf-8"
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetExportTextEncoding()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.exportLabWithWav")
+                            }
+                            Switch {
+                                id: exportLabWithWavSwitch
+                                checked: root.pendingExportLabWithWav
+                                onToggled: root.pendingExportLabWithWav = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetExportLabWithWav()
+                            }
+                        }
+                    }
+                }
+
+                Item {
+                    id: timingSettingsPage
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: 8
+
+                        ScrollView {
+                            id: synthesisSettingsPage
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            contentWidth: availableWidth
+                            rightPadding: 12
+
+                            ColumnLayout {
+                                width: synthesisSettingsPage.availableWidth
+                                spacing: 14
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: root.translator.tr("settings.synthesisGeneral")
+                                        font.bold: true
+                                    }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultVoicebank")
+                                                Layout.fillWidth: true
+                                            }
+                                            ComboBox {
+                                                id: defaultVoicebankCombo
+                                                Layout.preferredWidth: 240
+                                                model: [{
+                                                    id: "",
+                                                    name: root.translator.tr("settings.defaultVoicebank.auto")
+                                                }].concat(root.backend.voicebanks)
+                                                textRole: "name"
+                                                valueRole: "id"
+                                                currentIndex: root.defaultVoicebankIndex()
+                                                onActivated: root.pendingDefaultVoicebankId = currentValue
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultVoicebank()
+                                            }
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultTone")
+                                                Layout.fillWidth: true
+                                            }
+                                            ToneSpinBox {
+                                                id: defaultToneInput
+                                                Layout.preferredWidth: 180
+                                                automaticText: root.translator.tr("main.aliasPolicy.auto")
+                                                onToneModified: tone => root.pendingDefaultTone = tone
+                                                Binding on value {
+                                                    value: defaultToneInput.toneToValue(root.pendingDefaultTone)
+                                                }
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultTone()
+                                            }
+                                        }
+                                        Repeater {
+                                            model: root.commonSettings()
+                                            delegate: settingRowComponent
+                                        }
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
+                                        Label {
+                                            Layout.fillWidth: true
+                                            text: root.translator.tr("main.method.native")
+                                            font.bold: true
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultAliasPolicy")
+                                                Layout.fillWidth: true
+                                            }
+                                            ComboBox {
+                                                id: defaultAliasPolicyCombo
+                                                Layout.preferredWidth: 240
+                                                model: [
+                                                    { id: "auto", display_name: root.translator.tr("main.aliasPolicy.auto") },
+                                                    { id: "cvvc-enhanced", display_name: root.translator.tr("main.aliasPolicy.cvvcEnhanced") },
+                                                    { id: "vcv-prefer", display_name: root.translator.tr("main.aliasPolicy.vcvPrefer") },
+                                                    { id: "cvvc-prefer", display_name: root.translator.tr("main.aliasPolicy.cvvcPrefer") },
+                                                    { id: "cv-only", display_name: root.translator.tr("main.aliasPolicy.cvOnly") }
+                                                ]
+                                                textRole: "display_name"
+                                                valueRole: "id"
+                                                currentIndex: indexOfValue(root.pendingDefaultAliasPolicy)
+                                                onActivated: root.pendingDefaultAliasPolicy = currentValue
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultAliasPolicy()
+                                            }
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                text: root.translator.tr("settings.defaultModel")
+                                                Layout.fillWidth: true
+                                            }
+                                            ComboBox {
+                                                id: defaultModelCombo
+                                                Layout.preferredWidth: 240
+                                                model: [{
+                                                    id: "none",
+                                                    display_name: root.translator.tr("main.modelNone")
+                                                }].concat(root.backend.models)
+                                                textRole: "display_name"
+                                                valueRole: "id"
+                                                currentIndex: root.defaultModelIndex()
+                                                onActivated: root.pendingDefaultModelId = currentValue
+                                            }
+                                            SettingsResetButton {
+                                                translator: root.translator
+                                                onResetRequested: root.resetDefaultModel()
+                                            }
+                                        }
+                                    }
+                                    Repeater {
+                                        model: root.settingGroups()
+                                        delegate: ColumnLayout {
+                                            id: settingGroup
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Label {
+                                                Layout.fillWidth: true
+                                                text: root.groupLabel(String(settingGroup.modelData.id))
+                                                font.bold: true
+                                            }
+
+                                            Repeater {
+                                                model: settingGroup.modelData.settings
+                                                delegate: settingRowComponent
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 

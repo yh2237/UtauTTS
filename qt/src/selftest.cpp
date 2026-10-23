@@ -140,8 +140,8 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
         window->hide();
         settings->show();
         for (const auto &[page, name] : {
-                 std::pair{0, QStringLiteral("settings-synthesis.png")},
-                 std::pair{2, QStringLiteral("settings-behavior.png")}}) {
+                 std::pair{1, QStringLiteral("settings-synthesis.png")},
+                 std::pair{0, QStringLiteral("settings-behavior.png")}}) {
             settings->setProperty("currentPage", page);
             QEventLoop loop;
             QTimer::singleShot(300, &loop, &QEventLoop::quit);
