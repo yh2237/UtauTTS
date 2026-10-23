@@ -46,7 +46,7 @@ func run() (runErr error) {
 	flag.StringVar(&host, "host", "127.0.0.1", "local listen host (localhost or a loopback IP address)")
 	flag.StringVar(&config.VoiceDir, "voice-dir", "voice", "directory containing voicebanks")
 	flag.StringVar(&config.Renderer, "renderer", "", "default renderer ID (default: highest configured priority)")
-	flag.StringVar(&config.OpenJTalkPath, "openjtalk-features", "", "path to Open JTalk feature helper")
+	flag.StringVar(&config.OpenJTalkPath, "openjtalk-engine", "", "path to the Open JTalk engine library")
 	flag.StringVar(&config.OpenJTalkDictionary, "openjtalk-dictionary", "", "path to Open JTalk dictionary")
 	flag.Func("renderer-dir", "renderer plugin directory (repeatable)", func(value string) error {
 		config.RendererDirectories = append(config.RendererDirectories, value)

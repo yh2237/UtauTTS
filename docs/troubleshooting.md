@@ -11,9 +11,8 @@
 
 ## 起動・解析エラー
 
-### `utautts-openjtalk-features not found` と表示される
-- Open JTalkの解析ヘルパー（`runtime/utautts-openjtalk-features.exe`）が見つかりません。セキュリティソフトが誤検知して隔離していないか確認し、ZIPを展開し直してください。
-- Linuxでは、`runtime/utautts-openjtalk-features` に実行権限（`chmod +x`）があるか確認してください。
+### `utautts-openjtalk-engine.dll not found` と表示される
+- Open JTalkのライブラリ（Windowsは`runtime/utautts-openjtalk-engine.dll`、Linuxは`.so`、macOSは`.dylib`）が見つかりません。セキュリティソフトが誤検知して隔離していないか確認し、ZIPを展開し直してください。
 
 ### `Open JTalk frontend failed` が表示される
 - 特殊な記号や固有名詞の読みを解析できなかった可能性があります。「設定」→「辞書設定...」でその語の読みを登録してください。

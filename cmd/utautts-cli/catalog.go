@@ -13,7 +13,7 @@ import (
 var catalogFlags = map[string]bool{
 	"list": true, "json": true, "version": true, "voicebank": true,
 	"renderer-dir": true, "model-dir": true,
-	"openjtalk-features": true, "openjtalk-dictionary": true,
+	"openjtalk-engine": true, "openjtalk-dictionary": true,
 }
 
 type cliCatalogReport struct {

@@ -125,14 +125,10 @@ jobs:
           "$EMSDK_DIR/emsdk" activate "$EMSDK_BRIDGE_VERSION"
       - name: Fetch Open JTalk dictionary
         run: |
-          python -m pip install --quiet pyopenjtalk==0.4.1
-          # 初回の辞書ダウンロードは標準出力へ進捗を書くので、GITHUB_ENVへ書く前に済ませる。
-          python -c "import pyopenjtalk; pyopenjtalk.run_frontend('テスト')" > /dev/null
-          python - <<'PY' >> "$GITHUB_ENV"
-          import os
-          import pyopenjtalk
-          print('OPENJTALK_DICT=' + os.path.join(os.path.dirname(pyopenjtalk.__file__), 'open_jtalk_dic_utf_8-1.11'))
-          PY
+          curl -fsSL -o "$RUNNER_TEMP/dic.tar.gz" https://github.com/r9y9/open_jtalk/releases/download/v1.11.1/open_jtalk_dic_utf_8-1.11.tar.gz
+          echo 'fe6ba0e43542cef98339abdffd903e062008ea170b04e7e2a35da805902f382a  '"$RUNNER_TEMP/dic.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/dic.tar.gz" -C "$RUNNER_TEMP"
+          echo "OPENJTALK_DICT=$RUNNER_TEMP/open_jtalk_dic_utf_8-1.11" >> "$GITHUB_ENV"
       - name: Build Go wasm
         run: bash web/build.sh
       - name: Build WORLD and Open JTalk wasm

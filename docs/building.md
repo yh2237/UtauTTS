@@ -7,7 +7,7 @@
 - Go: 1.27.0 以降
 - Qt: Qt 6.5 以降（Qt Quick, Qt Quick Controls, Qt Multimedia, Qt Concurrent）
 - CMake & Ninja
-- Python: 3.12 以降（Open JTalkヘルパーのビルド用）
+- Python: 3.12 以降（同梱音源のZIPの展開用）
 
 ---
 
@@ -31,6 +31,8 @@
 ソースから直接ローカルAPIサーバーを起動するときは、次を実行します。
 - Windows: `.\dev.bat`
 - Linux / macOS: `./dev.sh`
+
+WORLDとOpen JTalkのライブラリ、Open JTalkの辞書は`runtime/`から読み込みます。初回は、Windowsでは`tools/build-native-engines.ps1`、Linux・macOSでは`tools/build-native-engines.sh`を実行して用意してください。
 
 ---
 

@@ -19,6 +19,7 @@ if ([string]::IsNullOrWhiteSpace($QtMinGWRoot)) {
 if ([string]::IsNullOrWhiteSpace($QtMinGWRoot)) { throw "Qt MinGW compiler was not found below $toolsRoot" }
 $toolchain = Join-Path ([IO.Path]::GetFullPath($QtMinGWRoot)) 'bin'
 $compiler = Join-Path $toolchain 'g++.exe'
+$cCompiler = Join-Path $toolchain 'gcc.exe'
 
 function Resolve-BuildTool([string]$Configured, [string]$Bundled, [string]$Name) {
     if (-not [string]::IsNullOrWhiteSpace($Configured)) {
@@ -37,17 +38,31 @@ $cmake = Resolve-BuildTool $CMakeCommand (Join-Path $toolsRoot 'CMake_64/bin/cma
 $ninja = Resolve-BuildTool $NinjaCommand (Join-Path $toolsRoot 'Ninja/ninja.exe') 'ninja'
 foreach ($path in @($cmake, $ninja, $compiler)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-        throw "Required WORLD build tool was not found: $path"
+        throw "Required native build tool was not found: $path"
     }
 }
 
 $env:Path = "$toolchain;$env:Path"
-$buildDirectory = Join-Path $root 'build/world-engine-windows'
-& $cmake -S (Join-Path $root 'native/world-engine') -B $buildDirectory -G Ninja `
-    -DCMAKE_BUILD_TYPE=Release "-DCMAKE_MAKE_PROGRAM=$ninja" "-DCMAKE_CXX_COMPILER=$compiler"
-if ($LASTEXITCODE -ne 0) { throw "WORLD engine configure failed with exit code $LASTEXITCODE" }
+$buildDirectory = Join-Path $root 'build/native-windows'
+& $cmake -S (Join-Path $root 'native') -B $buildDirectory -G Ninja `
+    -DCMAKE_BUILD_TYPE=Release "-DCMAKE_MAKE_PROGRAM=$ninja" "-DCMAKE_CXX_COMPILER=$compiler" "-DCMAKE_C_COMPILER=$cCompiler"
+if ($LASTEXITCODE -ne 0) { throw "Native engine configure failed with exit code $LASTEXITCODE" }
 & $cmake --build $buildDirectory --config Release
-if ($LASTEXITCODE -ne 0) { throw "WORLD engine build failed with exit code $LASTEXITCODE" }
+if ($LASTEXITCODE -ne 0) { throw "Native engine build failed with exit code $LASTEXITCODE" }
 
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
-Copy-Item -LiteralPath (Join-Path $buildDirectory 'utautts-world-engine.dll') -Destination $OutputDirectory -Force
+Copy-Item -LiteralPath (Join-Path $buildDirectory 'world-engine/utautts-world-engine.dll') -Destination $OutputDirectory -Force
+Copy-Item -LiteralPath (Join-Path $buildDirectory 'openjtalk-engine/utautts-openjtalk-engine.dll') -Destination $OutputDirectory -Force
+
+$dictionaryName = 'open_jtalk_dic_utf_8-1.11'
+$dictionaryPath = Join-Path $OutputDirectory $dictionaryName
+if (-not (Test-Path -LiteralPath (Join-Path $dictionaryPath 'sys.dic') -PathType Leaf)) {
+    $archive = Join-Path $buildDirectory "$dictionaryName.tar.gz"
+    Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/r9y9/open_jtalk/releases/download/v1.11.1/$dictionaryName.tar.gz" -OutFile $archive
+    $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+    if ($hash -ne 'fe6ba0e43542cef98339abdffd903e062008ea170b04e7e2a35da805902f382a') {
+        throw "Open JTalk dictionary checksum mismatch: $hash"
+    }
+    & (Join-Path $env:SystemRoot 'System32/tar.exe') -xzf $archive -C $OutputDirectory
+    if ($LASTEXITCODE -ne 0) { throw "Extracting the Open JTalk dictionary failed with exit code $LASTEXITCODE" }
+}

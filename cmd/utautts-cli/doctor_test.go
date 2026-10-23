@@ -16,7 +16,7 @@ func TestCLIDoctorReportsPlacementWithoutRunningHelper(t *testing.T) {
 	if err := os.WriteFile(helper, []byte("must not be executed"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	args := append(base[:6:6], "--doctor", "--json", "--openjtalk-features", helper, "--openjtalk-dictionary", root)
+	args := append(base[:6:6], "--doctor", "--json", "--openjtalk-engine", helper, "--openjtalk-dictionary", root)
 	var stdout, stderr bytes.Buffer
 	if code := executeCLI(args, strings.NewReader(""), &stdout, &stderr); code != 0 {
 		t.Fatalf("exit=%d, stderr=%q", code, stderr.String())
@@ -27,13 +27,13 @@ func TestCLIDoctorReportsPlacementWithoutRunningHelper(t *testing.T) {
 	if response["ok"] != true || response["result"] != nil || doctor["os"] == "" || doctor["arch"] == "" {
 		t.Fatalf("doctor response = %#v", response)
 	}
-	for _, id := range []string{"renderer", "model", "voicebank", "openjtalk_helper", "openjtalk_dictionary"} {
+	for _, id := range []string{"renderer", "model", "voicebank", "openjtalk_engine", "openjtalk_dictionary"} {
 		if checks[id]["status"] != "ok" {
 			t.Fatalf("check %s = %#v", id, checks[id])
 		}
 	}
-	if checks["openjtalk_helper"]["path"] != helper {
-		t.Fatalf("helper path = %#v", checks["openjtalk_helper"])
+	if checks["openjtalk_engine"]["path"] != helper {
+		t.Fatalf("helper path = %#v", checks["openjtalk_engine"])
 	}
 	stdout.Reset()
 	if code := executeCLI(append(base[:6:6], "--doctor"), strings.NewReader(""), &stdout, &stderr); code != 0 || !strings.Contains(stdout.String(), "renderer\tcli-test-waveform") {
@@ -60,7 +60,7 @@ func TestCLIDoctorKeepsChecksOnFailure(t *testing.T) {
 		{"renderer", []string{"--renderer", "missing-renderer"}},
 		{"model", []string{"--prosody", "missing-model"}},
 		{"voicebank", []string{"--voicebank", filepath.Join(t.TempDir(), "missing")}},
-		{"openjtalk_helper", []string{"--openjtalk-features", filepath.Join(t.TempDir(), "missing")}},
+		{"openjtalk_engine", []string{"--openjtalk-engine", filepath.Join(t.TempDir(), "missing")}},
 		{"openjtalk_dictionary", []string{"--openjtalk-dictionary", filepath.Join(t.TempDir(), "missing")}},
 	} {
 		t.Run(test.id, func(t *testing.T) {

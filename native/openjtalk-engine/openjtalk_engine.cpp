@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <vector>
 
 // 各ヘッダは自前で extern "C" を切り替えるので、C++からはそのままincludeする。
 #include "mecab.h"
@@ -71,7 +72,7 @@ int UtauTTSOpenJTalkInit(const char* dictionary_path) {
   return 1;
 }
 
-// 戻り値はTSVのバイト数（NULを除く）。失敗は0。
+// 戻り値はTSVのバイト数（NULを除く）。失敗は0、出力先が足りないときは必要なバイト数（NULを含む）の負数。
 // 列: string, pos, pos_group1, ctype, cform, orig, read, pron, acc, mora_size, chain_rule, chain_flag
 int UtauTTSOpenJTalkRun(const char* text, char* output, int output_capacity) {
   if (!g_loaded) {
@@ -82,9 +83,10 @@ int UtauTTSOpenJTalkRun(const char* text, char* output, int output_capacity) {
     set_error("invalid Open JTalk buffers");
     return 0;
   }
-  char buffer[8192];
-  text2mecab(buffer, text);
-  if (!Mecab_analysis(&g_mecab, buffer)) {
+  // text2mecabは半角を全角へ広げるので、出力は入力の3倍まで。
+  std::vector<char> buffer(std::strlen(text) * 3 + 1);
+  text2mecab(buffer.data(), text);
+  if (!Mecab_analysis(&g_mecab, buffer.data())) {
     set_error("MeCab analysis failed");
     return 0;
   }
@@ -120,7 +122,7 @@ int UtauTTSOpenJTalkRun(const char* text, char* output, int output_capacity) {
 
   if (static_cast<int>(out.size()) + 1 > output_capacity) {
     set_error("output buffer is too small");
-    return 0;
+    return -(static_cast<int>(out.size()) + 1);
   }
   std::memcpy(output, out.data(), out.size());
   output[out.size()] = '\0';

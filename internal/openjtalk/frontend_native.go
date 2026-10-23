@@ -4,15 +4,28 @@ package openjtalk
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 )
 
+// ライブラリは辞書を1つだけ持つので、呼び出しを直列にする。
+var engine struct {
+	sync.Mutex
+	library    nativeEngine
+	path       string
+	dictionary string
+}
+
+type nativeEngine interface {
+	load(dictionary string) error
+	run(text string) (string, error)
+}
+
 func runFrontend(ctx context.Context, text string, cfg Config) (*Analysis, error) {
-	helper, err := ResolveHelperPath(cfg.HelperPath)
+	path, err := ResolveEnginePath(cfg.EnginePath)
 	if err != nil {
 		return nil, err
 	}
@@ -20,27 +33,45 @@ func runFrontend(ctx context.Context, text string, cfg Config) (*Analysis, error
 	if err != nil {
 		return nil, err
 	}
-	response, err := invokeFrontendHelper(ctx, helper, dictionary, text)
+	engine.Lock()
+	defer engine.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if engine.library == nil || engine.path != path {
+		library, err := openNativeEngine(path)
+		if err != nil {
+			return nil, fmt.Errorf("load Open JTalk engine %q: %w", path, err)
+		}
+		engine.library, engine.path, engine.dictionary = library, path, ""
+	}
+	if engine.dictionary != dictionary {
+		if err := engine.library.load(dictionary); err != nil {
+			return nil, fmt.Errorf("load Open JTalk dictionary %q: %w", dictionary, err)
+		}
+		engine.dictionary = dictionary
+	}
+	tsv, err := engine.library.run(text)
 	if err != nil {
-		return nil, fmt.Errorf("frontend helper failed (helper=%q, dictionary=%q): %w", helper, dictionary, err)
+		return nil, err
 	}
-	var result Analysis
-	if err := json.Unmarshal(response, &result); err != nil {
-		return nil, fmt.Errorf("decode Open JTalk response: %w", err)
+	nodes, err := parseNJD(tsv)
+	if err != nil {
+		return nil, err
 	}
-	return &result, nil
+	return buildAnalysis(nodes), nil
 }
 
-// ResolveHelperPathはAnalyzeと同じhelperを、起動せずに探す。
-func ResolveHelperPath(explicit string) (string, error) {
-	name := "utautts-openjtalk-features"
-	if runtime.GOOS == "windows" {
-		name += ".exe"
+// ResolveEnginePathはAnalyzeと同じライブラリを、読み込まずに探す。
+func ResolveEnginePath(explicit string) (string, error) {
+	name := "utautts-openjtalk-engine.so"
+	switch runtime.GOOS {
+	case "windows":
+		name = "utautts-openjtalk-engine.dll"
+	case "darwin":
+		name = "utautts-openjtalk-engine.dylib"
 	}
-	return resolveFile(explicit, name, []string{
-		filepath.Join("runtime", name),
-		filepath.Join("tools", "openjtalk-feature-bridge", "bin", name),
-	})
+	return resolveFile(explicit, name, []string{filepath.Join("runtime", name)})
 }
 
 // ResolveDictionaryPathは配置だけを確認し、辞書の内容は検査しない。
@@ -53,14 +84,9 @@ func ResolveDictionaryPath(explicit string) (string, error) {
 		return "", fmt.Errorf("Open JTalk dictionary not found: %s", explicit)
 	}
 	for _, root := range searchRoots() {
-		for _, relative := range []string{
-			filepath.Join("runtime", name),
-			filepath.Join(".tmp-openjtalk", "pyopenjtalk", name),
-		} {
-			candidate := filepath.Join(root, relative)
-			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-				return filepath.Abs(candidate)
-			}
+		candidate := filepath.Join(root, "runtime", name)
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return filepath.Abs(candidate)
 		}
 	}
 	return "", fmt.Errorf("Open JTalk dictionary not found; expected runtime/%s", name)

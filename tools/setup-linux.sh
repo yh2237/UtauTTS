@@ -13,8 +13,7 @@ usage() {
   cat <<'EOF'
 Usage: tools/setup-linux.sh
 
-Install Debian/Ubuntu build prerequisites, create .venv, install the pinned
-Open JTalk/PyInstaller build dependencies, and configure the Go 1.27 toolchain.
+Install Debian/Ubuntu build prerequisites and configure the Go 1.27 toolchain.
 The resulting tools are found automatically; a .env file is not normally needed.
 
 Set UTAUTTS_SKIP_APT=1 when the system packages are already available or when
@@ -95,16 +94,6 @@ fi
 
 python_command="$(utautts_resolve_executable "${PYTHON:-python3}" || true)"
 [ -n "${python_command}" ] || { echo 'python3 is required' >&2; exit 1; }
-
-venv_dir="${UTAUTTS_VENV:-${root_dir}/.venv}"
-if [ ! -x "${venv_dir}/bin/python" ]; then
-  "${python_command}" -m venv "${venv_dir}" || {
-    echo 'Python venv creation failed; install python3-venv and retry.' >&2
-    exit 1
-  }
-fi
-"${venv_dir}/bin/python" -m pip install --disable-pip-version-check \
-  --requirement "${root_dir}/tools/requirements-build.txt"
 
 utautts_configure_qt_environment
 cmake_command="$(utautts_resolve_executable "${CMAKE:-cmake}" || true)"

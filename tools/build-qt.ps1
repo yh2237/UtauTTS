@@ -224,7 +224,7 @@ if ($standaloneDevelopmentPackage) {
         (Join-Path $root 'release/UtauTTS/runtime')
     )
     $runtimeSource = $runtimeCandidates | Where-Object {
-        Test-Path -LiteralPath (Join-Path $_ 'utautts-openjtalk-features.exe') -PathType Leaf
+        Test-Path -LiteralPath (Join-Path $_ 'utautts-openjtalk-engine.dll') -PathType Leaf
     } | Select-Object -First 1
     if ($runtimeSource) {
         Copy-Item -LiteralPath $runtimeSource -Destination (Join-Path $OutputDirectory 'runtime') -Recurse

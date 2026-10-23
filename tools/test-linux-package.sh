@@ -74,7 +74,7 @@ for required in \
   "${gui_root}/tools/utautts-cli" \
   "${gui_root}/tools/utautts-ustx" \
   "${gui_root}/tools/utautts-updater" \
-  "${gui_root}/runtime/utautts-openjtalk-features" \
+  "${gui_root}/runtime/utautts-openjtalk-engine.so" \
   "${gui_root}/runtime/utautts-world-engine.so" \
   "${server_root}/utautts-server" \
   "${server_root}/README.md" \
@@ -110,21 +110,16 @@ for required in \
   "${gui_root}/licenses/WORLD/WORLD-LICENSE.txt" \
   "${gui_root}/licenses/WORLD/OOURA-NOTICE.txt" \
   "${gui_root}/licenses/WORLD/MACRODEFINITIONS-LICENSE.txt" \
-  "${gui_root}/licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt" \
   "${gui_root}/licenses/OpenJTalk/MECAB_COPYING.txt" \
   "${gui_root}/licenses/OpenJTalk/MECAB_NAIST_JDIC_COPYING.txt" \
   "${gui_root}/licenses/OpenJTalk/OPENJTALK_COPYING.txt" \
   "${gui_root}/runtime/open_jtalk_dic_utf_8-1.11/COPYING" \
-  "${server_root}/licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt" \
   "${server_root}/licenses/OpenJTalk/MECAB_COPYING.txt" \
   "${server_root}/licenses/OpenJTalk/MECAB_NAIST_JDIC_COPYING.txt" \
   "${server_root}/licenses/OpenJTalk/OPENJTALK_COPYING.txt" \
   "${server_root}/runtime/open_jtalk_dic_utf_8-1.11/COPYING" \
   "${server_root}/models/README.md" \
-  "${gui_root}/runtime/licenses/PYTHON_LICENSE.txt" \
-  "${gui_root}/runtime/licenses/PYINSTALLER_COPYING.txt" \
-  "${server_root}/runtime/licenses/PYTHON_LICENSE.txt" \
-  "${server_root}/runtime/licenses/PYINSTALLER_COPYING.txt" \
+  "${server_root}/runtime/utautts-openjtalk-engine.so" \
   "${server_root}/runtime/utautts-world-engine.so"; do
   [ -f "${required}" ] || fail "required package file is missing: ${required}"
 done
@@ -177,7 +172,7 @@ for package_root in "${gui_root}" "${server_root}"; do
   [ ! -e "${package_root}/licenses/openjtalk" ] \
     || fail "Open JTalk licenses are duplicated under a lowercase directory: ${package_root}"
 done
-for removed_runtime in libcoreclr.so libhostpolicy.so utautts-worldline-bridge.runtimeconfig.json utautts-worldline-bridge; do
+for removed_runtime in libcoreclr.so libhostpolicy.so utautts-worldline-bridge.runtimeconfig.json utautts-worldline-bridge utautts-openjtalk-features; do
   [ ! -e "${server_root}/runtime/${removed_runtime}" ] && [ ! -e "${gui_root}/runtime/${removed_runtime}" ] \
     || fail "server package still contains an obsolete WORLD bridge file: ${removed_runtime}"
 done
@@ -187,7 +182,6 @@ for executable in \
   "${gui_root}/tools/utautts-cli" \
   "${gui_root}/tools/utautts-ustx" \
   "${gui_root}/tools/utautts-updater" \
-  "${gui_root}/runtime/utautts-openjtalk-features" \
   "${server_root}/utautts-server"; do
   [ -x "${executable}" ] || fail "executable permission is missing: ${executable}"
 done

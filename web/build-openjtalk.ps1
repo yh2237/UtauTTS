@@ -61,7 +61,7 @@ $arguments += @(
 if ($LASTEXITCODE -ne 0) { throw "em++ link failed with exit code $LASTEXITCODE" }
 
 if ([string]::IsNullOrWhiteSpace($DictionaryPath)) {
-    $DictionaryPath = Join-Path $root '.tmp-openjtalk/pyopenjtalk/open_jtalk_dic_utf_8-1.11'
+    $DictionaryPath = Join-Path $root 'runtime/open_jtalk_dic_utf_8-1.11'
 }
 $dictOut = Join-Path $outDir 'dict'
 if (-not (Test-Path $DictionaryPath)) {

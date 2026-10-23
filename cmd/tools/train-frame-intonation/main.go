@@ -22,7 +22,7 @@ import (
 
 type config struct {
 	Dataset, Output, Cache, Language, ID, Name, Corpus, License, Device, F0Source, WorldEngine string
-	PredictCorpus, PredictOut, OpenJTalkHelper, OpenJTalkDictionary                            string
+	PredictCorpus, PredictOut, OpenJTalkEngine, OpenJTalkDictionary                            string
 	Description, AudioRoot                                                                     string
 	Notices                                                                                    []string
 	RecommendedRenderers                                                                       []string
@@ -50,7 +50,7 @@ func parseFlags() config {
 	flag.StringVar(&c.WorldEngine, "world-engine", "runtime/utautts-world-engine.dll", "WORLD engine DLL for Harvest")
 	flag.StringVar(&c.PredictCorpus, "predict-corpus", "", "JSON or JSONL cases for contour prediction")
 	flag.StringVar(&c.PredictOut, "predict-out", "", "prediction JSON under out/")
-	flag.StringVar(&c.OpenJTalkHelper, "openjtalk-features", "", "Open JTalk feature helper executable")
+	flag.StringVar(&c.OpenJTalkEngine, "openjtalk-engine", "", "Open JTalk engine library")
 	flag.StringVar(&c.OpenJTalkDictionary, "openjtalk-dictionary", "", "Open JTalk dictionary directory")
 	c.Language = "ja"
 	flag.StringVar(&c.ID, "model-id", "", "model ID")

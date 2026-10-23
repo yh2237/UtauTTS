@@ -75,7 +75,7 @@ for required in \
   "${cli}" \
   "${gui_root}/tools/utautts-ustx" \
   "${gui_root}/tools/utautts-updater" \
-  "${gui_root}/runtime/utautts-openjtalk-features" \
+  "${gui_root}/runtime/utautts-openjtalk-engine.dylib" \
   "${gui_root}/runtime/utautts-world-engine.dylib" \
   "${server_root}/utautts-server" \
   "${server_root}/runtime/utautts-world-engine.dylib" \
@@ -99,13 +99,10 @@ for package_root in "${gui_root}" "${server_root}"; do
     "${package_root}/licenses/Go/golang_org_x_text-v0.39.0-PATENTS.txt" \
     "${package_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \
     "${package_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt" \
-    "${package_root}/licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt" \
     "${package_root}/licenses/OpenJTalk/MECAB_COPYING.txt" \
     "${package_root}/licenses/OpenJTalk/MECAB_NAIST_JDIC_COPYING.txt" \
     "${package_root}/licenses/OpenJTalk/OPENJTALK_COPYING.txt" \
-    "${package_root}/runtime/open_jtalk_dic_utf_8-1.11/COPYING" \
-    "${package_root}/runtime/licenses/PYTHON_LICENSE.txt" \
-    "${package_root}/runtime/licenses/PYINSTALLER_COPYING.txt"; do
+    "${package_root}/runtime/open_jtalk_dic_utf_8-1.11/COPYING"; do
     [[ -f "${required}" ]] || fail "required license file is missing: ${required}"
   done
 done
@@ -204,7 +201,6 @@ for executable in \
   "${app}/Contents/MacOS/utautts" "${cli}" \
   "${gui_root}/utautts-server" \
   "${gui_root}/tools/utautts-ustx" "${gui_root}/tools/utautts-updater" \
-  "${gui_root}/runtime/utautts-openjtalk-features" \
   "${server_root}/utautts-server"; do
   [[ -x "${executable}" ]] || fail "executable permission is missing: ${executable}"
 done

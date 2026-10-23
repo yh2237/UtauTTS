@@ -471,7 +471,7 @@ func TestValidateConfig(t *testing.T) {
 
 func TestConvertToReadingReportsOpenJTalkFallback(t *testing.T) {
 	_, err := ConvertToReadingContext(context.Background(), "2024年です。", nil, openjtalk.Config{
-		HelperPath: filepath.Join(t.TempDir(), "missing-helper"),
+		EnginePath: filepath.Join(t.TempDir(), "missing-helper"),
 	})
 	if err == nil {
 		t.Fatal("text the tokenizer cannot read was silently accepted")

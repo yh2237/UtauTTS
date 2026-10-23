@@ -117,26 +117,12 @@ find "${app_path}" -type d \( -iname 'QtSvg.framework' -o -iname 'QtSvgWidgets.f
 find "${app_path}" -type f \( -iname '*FluentWinUI3*' -o -iname '*Imagine*' \
   -o -iname '*Material*' -o -iname '*Universal*' -o -iname '*WindowsStyleImpl*' \) -delete
 
-echo '=== Build Open JTalk frontend helper ==='
-PYTHON="${python_command}" bash "${root_dir}/tools/build-openjtalk-feature-bridge-macos.sh"
-openjtalk_helper="${root_dir}/tools/openjtalk-feature-bridge/bin/utautts-openjtalk-features"
-openjtalk_dictionary="${root_dir}/.tmp-openjtalk-macos/pyopenjtalk/open_jtalk_dic_utf_8-1.11"
-if [[ ! -x "${openjtalk_helper}" || ! -d "${openjtalk_dictionary}" ]]; then
-  echo 'Open JTalk helper build did not produce the helper or dictionary' >&2
-  exit 1
-fi
-
-echo '=== Build UtauTTS WORLD engine ==='
-staging_dir="${root_dir}/.tmp-worldline-macos"
-rm -rf "${staging_dir}"
+echo '=== Build UtauTTS native engines ==='
+staging_dir="${root_dir}/.tmp-native-macos"
 mkdir -p "${staging_dir}"
-bash "${root_dir}/tools/build-world-engine-macos.sh" "${staging_dir}"
+bash "${root_dir}/tools/build-native-engines.sh" "${staging_dir}"
 cp -R "${staging_dir}/." "${gui_dir}/runtime/"
 cp -R "${staging_dir}/." "${server_dir}/runtime/"
-cp "${openjtalk_helper}" "${gui_dir}/runtime/"
-cp "${openjtalk_helper}" "${server_dir}/runtime/"
-cp -R "${openjtalk_dictionary}" "${gui_dir}/runtime/"
-cp -R "${openjtalk_dictionary}" "${server_dir}/runtime/"
 
 echo '=== Models and renderers ==='
 for reference_file in kokoro-v1_0.pth config.json af_heart.pt ef_dora.pt pf_dora.pt jf_alpha.pt us_gold.json us_silver.json; do
@@ -234,47 +220,6 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
     (cd "${root_dir}" && "${go_command}" run ./cmd/tools/verify-qt-sbom \
       --package-root "${package_dir}" --sbom-root "${qt_audit_root}")
   fi
-
-  python_license="$("${python_command}" - <<'PY'
-import os
-import sysconfig
-
-roots = [
-    sysconfig.get_path("stdlib"),
-    sysconfig.get_config_var("prefix"),
-    sysconfig.get_config_var("base"),
-]
-for root in roots:
-    if not root:
-        continue
-    for name in ("LICENSE.txt", "LICENSE", "License.txt", "LICENSE.md"):
-        candidate = os.path.join(root, name)
-        if os.path.isfile(candidate):
-            print(candidate)
-            raise SystemExit
-PY
-  )"
-  runtime_license_root="${package_dir}/runtime/licenses"
-  mkdir -p "${runtime_license_root}"
-  if [[ -n "${python_license}" ]]; then
-    cp "${python_license}" "${runtime_license_root}/PYTHON_LICENSE.txt"
-  fi
-  pyinstaller_license="$(find "${root_dir}/.tmp-pyinstaller-macos" -type f \
-    \( -path '*/pyinstaller-*.dist-info/licenses/COPYING.txt' -o \
-       -path '*/pyinstaller-*.dist-info/COPYING.txt' \) -print -quit)"
-  if [[ -n "${pyinstaller_license}" ]]; then
-    cp "${pyinstaller_license}" "${runtime_license_root}/PYINSTALLER_COPYING.txt"
-  fi
-  [[ -n "${python_license}" && -n "${pyinstaller_license}" ]] || {
-    echo 'Python or PyInstaller license was not found' >&2
-    exit 1
-  }
-  PYTHONPATH="${root_dir}/.tmp-pyinstaller-macos" "${python_command}" \
-    "${root_dir}/tools/collect-pyinstaller-runtime-licenses.py" \
-    --archive "${package_dir}/runtime/utautts-openjtalk-features" \
-    --output-dir "${runtime_license_root}" \
-    --python-license "${python_license}" \
-    --pyinstaller-license "${pyinstaller_license}"
 done
 
 chmod +x "${app_path}/Contents/MacOS/utautts" \

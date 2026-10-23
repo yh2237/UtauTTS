@@ -153,7 +153,7 @@ func japaneseWordStarts(cfg Config, reading string) []bool {
 		text = reading
 	}
 	features, err := analyzeAndAlignRuntimeFeatures(cfg.Context, morae, text,
-		openjtalk.Config{HelperPath: cfg.OpenJTalkPath, DictionaryPath: cfg.OpenJTalkDictionaryPath})
+		openjtalk.Config{EnginePath: cfg.OpenJTalkPath, DictionaryPath: cfg.OpenJTalkDictionaryPath})
 	if err != nil || len(features) != len(morae) {
 		return nil
 	}

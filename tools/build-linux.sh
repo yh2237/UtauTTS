@@ -89,63 +89,12 @@ bash "${root_dir}/tools/check-linux-relocations.sh" "${root_dir}/build/qt-linux/
 cp "${root_dir}/build/qt-linux/app/utautts" "${gui_dir}/utautts"
 cp "${root_dir}/build/native/libutautts_native.so" "${gui_dir}/libutautts_native.so"
 
-echo '=== Build Open JTalk frontend helper ==='
-PYTHON="${python_command}" bash "${root_dir}/tools/build-openjtalk-feature-bridge.sh"
-for runtime_dir in "${gui_dir}/runtime" "${server_dir}/runtime"; do
-  cp "${root_dir}/tools/openjtalk-feature-bridge/bin/utautts-openjtalk-features" "${runtime_dir}/"
-  cp -R "${root_dir}/.tmp-openjtalk-linux/pyopenjtalk/open_jtalk_dic_utf_8-1.11" "${runtime_dir}/"
-done
-
-echo '=== Build UtauTTS WORLD engine ==='
-staging_dir="${root_dir}/.tmp-worldline-linux"
-rm -rf "${staging_dir}"
+echo '=== Build UtauTTS native engines ==='
+staging_dir="${root_dir}/.tmp-native-linux"
 mkdir -p "${staging_dir}"
-bash "${root_dir}/tools/build-world-engine.sh" "${staging_dir}"
+bash "${root_dir}/tools/build-native-engines.sh" "${staging_dir}"
 for runtime_dir in "${gui_dir}/runtime" "${server_dir}/runtime"; do
   cp -R "${staging_dir}/." "${runtime_dir}/"
-done
-
-echo '=== Python and PyInstaller licenses ==='
-python_license="$("${python_command}" - <<'PY'
-import os
-import sysconfig
-
-roots = [
-    sysconfig.get_path("stdlib"),
-    sysconfig.get_path("platstdlib"),
-    os.path.dirname(os.__file__),
-]
-for root in roots:
-    if not root:
-        continue
-    for name in ("LICENSE.txt", "LICENSE"):
-        candidate = os.path.join(root, name)
-        if os.path.isfile(candidate):
-            print(candidate)
-            raise SystemExit
-PY
-)"
-if [ -z "${python_license}" ]; then
-  python_license="$(find /usr/lib -maxdepth 3 -name 'LICENSE.txt' -path '*python3*' -print -quit 2>/dev/null || true)"
-fi
-pyinstaller_license="$(find "${root_dir}/.tmp-pyinstaller-linux" -type f \
-  \( -path '*/pyinstaller-*.dist-info/licenses/COPYING.txt' -o \
-     -path '*/pyinstaller-*.dist-info/COPYING.txt' \) -print -quit)"
-if [ -z "${python_license}" ] || [ -z "${pyinstaller_license}" ]; then
-  echo 'Python or PyInstaller license was not found' >&2
-  exit 1
-fi
-for runtime_dir in "${gui_dir}/runtime" "${server_dir}/runtime"; do
-  license_dir="${runtime_dir}/licenses"
-  mkdir -p "${license_dir}"
-  cp "${python_license}" "${license_dir}/PYTHON_LICENSE.txt"
-  cp "${pyinstaller_license}" "${license_dir}/PYINSTALLER_COPYING.txt"
-  PYTHONPATH="${root_dir}/.tmp-pyinstaller-linux" "${python_command}" \
-    "${root_dir}/tools/collect-pyinstaller-runtime-licenses.py" \
-    --archive "${runtime_dir}/utautts-openjtalk-features" \
-    --output-dir "${license_dir}" \
-    --python-license "${python_license}" \
-    --pyinstaller-license "${pyinstaller_license}"
 done
 
 echo '=== Go licenses ==='
@@ -245,8 +194,7 @@ cp "${root_dir}/LICENSE-SCOPE.md" "${server_dir}/LICENSE-SCOPE.md"
 cp "${root_dir}/THIRD_PARTY_NOTICES.txt" "${server_dir}/THIRD_PARTY_NOTICES.txt"
 
 chmod +x "${gui_dir}/utautts" "${gui_dir}/libutautts_native.so" \
-  "${gui_dir}/utautts-server" "${gui_dir}/tools/"* "${gui_dir}/runtime/utautts-openjtalk-features" \
-  "${server_dir}/utautts-server" "${server_dir}/runtime/utautts-openjtalk-features"
+  "${gui_dir}/utautts-server" "${gui_dir}/tools/"* "${server_dir}/utautts-server"
 
 echo '=== Package ==='
 rm -f "${gui_zip}" "${server_zip}"

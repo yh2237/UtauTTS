@@ -159,7 +159,6 @@ try {
         Assert-Path (Join-Path $packageRoot 'licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt') 'yaml.v3 license'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt') 'yaml.v3 notice'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_ikawaha_kagome-dict-v1.1.7-LICENSE.txt') 'kagome-dict license'
-        Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/HTS_ENGINE_API_COPYING.txt') 'hts_engine_API license'
         Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/MECAB_COPYING.txt') 'MeCab license'
         Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/MECAB_NAIST_JDIC_COPYING.txt') 'MeCab NAIST dictionary license'
         Assert-Path (Join-Path $packageRoot 'licenses/OpenJTalk/OPENJTALK_COPYING.txt') 'Open JTalk license'
@@ -249,8 +248,10 @@ try {
                 }
             }
         }
-        Assert-Path (Join-Path $packageRoot 'runtime/licenses/PYTHON_LICENSE.txt') 'Python runtime license'
-        Assert-Path (Join-Path $packageRoot 'runtime/licenses/PYINSTALLER_COPYING.txt') 'PyInstaller license'
+        Assert-Path (Join-Path $packageRoot 'runtime/utautts-openjtalk-engine.dll') 'Open JTalk engine'
+        if (Test-Path -LiteralPath (Join-Path $packageRoot 'runtime/utautts-openjtalk-features.exe')) {
+            throw "Release package still contains the Python Open JTalk helper: $packageRoot"
+        }
         foreach ($removedLicense in @(
             'licenses/Go/APACHE-2.0.txt',
             'licenses/Go/github_com_ikawaha_kagome-dict_ipa-v1.2.6-LICENSE.txt',

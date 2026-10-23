@@ -195,14 +195,9 @@ try {
     Invoke-Checked 'go' @('build', '-trimpath', '-ldflags', '-s -w', '-o', (Join-Path $serverPath 'utautts-server.exe'), './cmd/utautts-server')
     Copy-Item -LiteralPath (Join-Path $serverPath 'utautts-server.exe') -Destination $guiPath
 
-    Write-Step 'Build Open JTalk frontend helper'
-    & (Join-Path $PSScriptRoot 'build-openjtalk-feature-bridge.ps1') -Python $pythonCommand
-    if ($LASTEXITCODE -ne 0) {
-        throw "Open JTalk frontend helper build failed with exit code $LASTEXITCODE"
-    }
-
-    & (Join-Path $PSScriptRoot 'build-world-engine.ps1') -OutputDirectory $guiRuntimePath
-    if ($LASTEXITCODE -ne 0) { throw "UtauTTS WORLD engine build failed with exit code $LASTEXITCODE" }
+    Write-Step 'Build native engines'
+    & (Join-Path $PSScriptRoot 'build-native-engines.ps1') -OutputDirectory $guiRuntimePath
+    if ($LASTEXITCODE -ne 0) { throw "Native engine build failed with exit code $LASTEXITCODE" }
     if ($Profile -eq 'Full') {
         Write-Step 'Build DiffSinger bridge'
         & (Join-Path $PSScriptRoot 'build-diffsinger-bridge.ps1') -OutputDirectory $guiRuntimePath
@@ -210,54 +205,6 @@ try {
     }
 
     Copy-Item -Path (Join-Path $guiRuntimePath '*') -Destination $serverRuntimePath -Recurse -Force
-
-    $openJTalkHelper = Join-Path $root 'tools/openjtalk-feature-bridge/bin/utautts-openjtalk-features.exe'
-    $openJTalkDictionary = Join-Path $root '.tmp-openjtalk/pyopenjtalk/open_jtalk_dic_utf_8-1.11'
-    $microsoftRuntimeSourceManifest = Join-Path $root '.tmp-openjtalk-ms-runtime/source-manifest.json'
-    if (-not (Test-Path -LiteralPath $microsoftRuntimeSourceManifest -PathType Leaf)) {
-        throw "Microsoft runtime source manifest was not produced: $microsoftRuntimeSourceManifest"
-    }
-    foreach ($runtimePath in @($guiRuntimePath, $serverRuntimePath)) {
-        Copy-Item -LiteralPath $openJTalkHelper -Destination $runtimePath
-        Copy-Item -LiteralPath $openJTalkDictionary -Destination $runtimePath -Recurse
-        $licensePath = Join-Path $runtimePath 'licenses'
-        New-Item -ItemType Directory -Force -Path $licensePath | Out-Null
-        $pythonInfo = Get-Command $pythonCommand -ErrorAction Stop
-        $pythonExecutable = if ($pythonInfo.Path) { $pythonInfo.Path } else { $pythonInfo.Source }
-        $pythonStdlibOutput = @(& $pythonCommand -c "import sysconfig; print(sysconfig.get_path('stdlib'))")
-        $pythonExitCode = $LASTEXITCODE
-        if ($pythonExitCode -ne 0) { throw 'Could not determine the Python standard-library path' }
-        $pythonStdlib = $pythonStdlibOutput | Select-Object -First 1
-        if ([string]::IsNullOrWhiteSpace($pythonStdlib) -or
-            -not (Test-Path -LiteralPath $pythonStdlib -PathType Container)) {
-            throw "Python standard-library path was not found: $pythonStdlib"
-        }
-        $pythonLicense = @(
-            Get-ChildItem -LiteralPath $pythonStdlib -Filter 'LICENSE*' -File -ErrorAction SilentlyContinue
-            Get-ChildItem -LiteralPath (Split-Path $pythonStdlib -Parent) -Filter 'LICENSE*' -File -ErrorAction SilentlyContinue
-            Get-ChildItem -LiteralPath (Split-Path $pythonExecutable) -Filter 'LICENSE*' -File -ErrorAction SilentlyContinue
-            Get-ChildItem -LiteralPath (Split-Path (Split-Path $pythonExecutable)) -Filter 'LICENSE*' -File -ErrorAction SilentlyContinue
-        ) | Select-Object -First 1
-        if ($null -eq $pythonLicense) { throw "Python license was not found for $pythonExecutable" }
-        Copy-Item -LiteralPath $pythonLicense.FullName -Destination (Join-Path $licensePath 'PYTHON_LICENSE.txt')
-        $pyInstallerLicense = @(Get-ChildItem -LiteralPath (Join-Path $root '.tmp-pyinstaller') -Recurse -Filter 'COPYING.txt' -File | Where-Object { $_.FullName -like '*pyinstaller-*.dist-info*' })
-        if ($pyInstallerLicense.Count -ne 1) { throw 'Expected exactly one PyInstaller COPYING.txt' }
-        Copy-Item -LiteralPath $pyInstallerLicense[0].FullName -Destination (Join-Path $licensePath 'PYINSTALLER_COPYING.txt')
-        $previousPythonPath = $env:PYTHONPATH
-        try {
-            $env:PYTHONPATH = Join-Path $root '.tmp-pyinstaller'
-            Invoke-Checked $pythonCommand @(
-                (Join-Path $root 'tools/collect-pyinstaller-runtime-licenses.py'),
-                '--archive', (Join-Path $runtimePath 'utautts-openjtalk-features.exe'),
-                '--output-dir', $licensePath,
-                '--python-license', $pythonLicense.FullName,
-                '--pyinstaller-license', $pyInstallerLicense[0].FullName,
-                '--microsoft-runtime-source-manifest', $microsoftRuntimeSourceManifest
-            )
-        } finally {
-            $env:PYTHONPATH = $previousPythonPath
-        }
-    }
 
     Copy-Item -LiteralPath 'LICENSE', 'LICENSE-SCOPE.md', 'README.md', 'THIRD_PARTY_NOTICES.txt', 'THIRD_PARTY_NOTICES-WINDOWS-GUI.txt' -Destination $guiPath
 

@@ -105,7 +105,7 @@ func predictCorpus(model *tcn, path string, index map[string]int, c config) (map
 	cases := make([]map[string]any, 0, len(items))
 	for k, item := range items {
 		if len(item.Tokens) == 0 {
-			a, err := openjtalk.Analyze(item.Text, openjtalk.Config{HelperPath: c.OpenJTalkHelper, DictionaryPath: c.OpenJTalkDictionary})
+			a, err := openjtalk.Analyze(item.Text, openjtalk.Config{EnginePath: c.OpenJTalkEngine, DictionaryPath: c.OpenJTalkDictionary})
 			if err != nil {
 				item.Tokens = fallbackPredictionTokens(item.Text)
 			} else {

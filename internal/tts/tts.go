@@ -151,7 +151,7 @@ func resolveReading(cfg Config) (string, error) {
 		return cfg.Reading, nil
 	}
 	return ConvertToReadingContext(cfg.Context, cfg.Text, cfg.Dictionary, openjtalk.Config{
-		HelperPath: cfg.OpenJTalkPath, DictionaryPath: cfg.OpenJTalkDictionaryPath,
+		EnginePath: cfg.OpenJTalkPath, DictionaryPath: cfg.OpenJTalkDictionaryPath,
 	})
 }
 
@@ -233,7 +233,7 @@ func resolveProsodyFeatures(cfg Config, model *prosody.Model, morae []frontend.M
 		runtimeText = reading
 	}
 	runtimeConfig := openjtalk.Config{
-		HelperPath: cfg.OpenJTalkPath, DictionaryPath: cfg.OpenJTalkDictionaryPath,
+		EnginePath: cfg.OpenJTalkPath, DictionaryPath: cfg.OpenJTalkDictionaryPath,
 	}
 	aligned, alignmentErr := analyzeAndAlignRuntimeFeatures(cfg.Context, morae, runtimeText, runtimeConfig)
 	if alignmentErr == nil {

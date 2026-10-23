@@ -12,7 +12,6 @@ dist/
 .tmp-*/
 tools/diffsinger-bridge/bin/
 tools/diffsinger-bridge/obj/
-tools/openjtalk-feature-bridge/bin/
 third_party/open_jtalk/src/mecab/src/config.h
 /runtime/
 /notes/

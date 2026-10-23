@@ -1,19 +1,16 @@
 package native
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
 )
-
-const openJTalkHelperEnvironment = "UTAUTTS_TEST_OPENJTALK_HELPER"
 
 func newTestEngine(t *testing.T, config Config) *Engine {
 	t.Helper()
@@ -39,22 +36,21 @@ func waveformTestRendererDirectory(t *testing.T) string {
 	return directory
 }
 
-func TestMain(m *testing.M) {
-	if os.Getenv(openJTalkHelperEnvironment) == "1" {
-		for _, argument := range os.Args {
-			if argument == "--serve" {
-				scanner := bufio.NewScanner(os.Stdin)
-				for scanner.Scan() {
-					_, _ = fmt.Fprintln(os.Stdout, `{"version":1,"reading":"ハロー","morae":["は","ろ","ー"],"features":[{},{},{}]}`)
-				}
-				os.Exit(0)
-			}
-		}
-		_, _ = io.Copy(io.Discard, os.Stdin)
-		_, _ = fmt.Fprint(os.Stdout, `{"version":1,"reading":"ハロー","morae":["は","ろ","ー"],"features":[{},{},{}]}`)
-		os.Exit(0)
+// openJTalkRuntimeはリポジトリのruntimeにあるOpen JTalkのライブラリと辞書を返す。
+func openJTalkRuntime(t *testing.T) (string, string) {
+	t.Helper()
+	name := map[string]string{"windows": "utautts-openjtalk-engine.dll", "darwin": "utautts-openjtalk-engine.dylib"}[runtime.GOOS]
+	if name == "" {
+		name = "utautts-openjtalk-engine.so"
 	}
-	os.Exit(m.Run())
+	library := filepath.Join("..", "..", "runtime", name)
+	dictionary := filepath.Join("..", "..", "runtime", "open_jtalk_dic_utf_8-1.11")
+	for _, path := range []string{library, dictionary} {
+		if _, err := os.Stat(path); err != nil {
+			t.Skipf("Open JTalk runtime is missing: %v", err)
+		}
+	}
+	return library, dictionary
 }
 
 func TestEngineListsAnalyzesAndSynthesizes(t *testing.T) {
@@ -222,15 +218,15 @@ func TestEngineFallsBackToOpenJTalkForEnglish(t *testing.T) {
 	if err := audio.WriteWav(filepath.Join(bankDir, "a.wav"), &audio.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte("a.wav=は,0,0,0,0,0\na.wav=ろ,0,0,0,0,0\na.wav=ー,0,0,0,0,0\n"), 0644); err != nil {
+	var oto strings.Builder
+	for _, alias := range []string{"え", "い", "ち", "ー", "る", "お"} {
+		oto.WriteString("a.wav=" + alias + ",0,0,0,0,0\n")
+	}
+	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte(oto.String()), 0644); err != nil {
 		t.Fatal(err)
 	}
-	helper, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv(openJTalkHelperEnvironment, "1")
-	engine := newTestEngine(t, Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}, OpenJTalkPath: helper, OpenJTalkDictionary: root})
+	library, dictionary := openJTalkRuntime(t)
+	engine := newTestEngine(t, Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}, OpenJTalkPath: library, OpenJTalkDictionary: dictionary})
 
 	analysisJSON, err := engine.Call("analyze", []byte(`{"language":"ja","text":"hello"}`))
 	if err != nil {
@@ -243,7 +239,7 @@ func TestEngineFallsBackToOpenJTalkForEnglish(t *testing.T) {
 	if err := json.Unmarshal(analysisJSON, &analysis); err != nil {
 		t.Fatal(err)
 	}
-	if analysis.Reading != "ハロー" || len(analysis.Morae) != 3 {
+	if analysis.Reading != "エイチイーエルエルオー" || len(analysis.Morae) != 11 {
 		t.Fatalf("analysis=%s", analysisJSON)
 	}
 

@@ -276,10 +276,12 @@ QByteArray nativeConfigJSON() {
     config.insert("renderer_directories", QJsonArray{root.filePath("renderer")});
     config.insert("model_directories", QJsonArray{root.filePath("models")});
     const QString runtime = root.filePath("runtime");
-#ifdef Q_OS_WIN
-    const QString openJTalkName = QStringLiteral("utautts-openjtalk-features.exe");
+#if defined(Q_OS_WIN)
+    const QString openJTalkName = QStringLiteral("utautts-openjtalk-engine.dll");
+#elif defined(Q_OS_MACOS)
+    const QString openJTalkName = QStringLiteral("utautts-openjtalk-engine.dylib");
 #else
-    const QString openJTalkName = QStringLiteral("utautts-openjtalk-features");
+    const QString openJTalkName = QStringLiteral("utautts-openjtalk-engine.so");
 #endif
     const QString openJTalkPath = QDir(runtime).filePath(openJTalkName);
     const QString openJTalkDictionary = QDir(runtime).filePath("open_jtalk_dic_utf_8-1.11");

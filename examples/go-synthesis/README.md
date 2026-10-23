@@ -18,8 +18,8 @@ UtauTTS/
   renderer/    Rendererのmanifest
   runtime/
     utautts-world-engine.dll またはOS用の共有ライブラリ
-    utautts-openjtalk-features[.exe]
+    utautts-openjtalk-engine.dll またはOS用の共有ライブラリ
     open_jtalk_dic_utf_8-1.11/
 ```
 
-開発環境でhelperや辞書が別の場所にある場合は、`-openjtalk-helper`と`-openjtalk-dictionary`で指定します。音源の配置は`-voice-dir`で変更できます。資源と音源の利用・再配布条件は、それぞれのライセンスに従ってください。
+開発環境でOpen JTalkのライブラリや辞書が別の場所にある場合は、`-openjtalk-engine`と`-openjtalk-dictionary`で指定します。音源の配置は`-voice-dir`で変更できます。資源と音源の利用・再配布条件は、それぞれのライセンスに従ってください。

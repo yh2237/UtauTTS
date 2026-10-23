@@ -270,7 +270,7 @@ func analyzeOpenJTalkCached(ctx context.Context, text string, cfg openjtalk.Conf
 	if err != nil {
 		return nil, err
 	}
-	key := analysisCacheKey{text: text, helper: cfg.HelperPath, dictionary: cfg.DictionaryPath}
+	key := analysisCacheKey{text: text, helper: cfg.EnginePath, dictionary: cfg.DictionaryPath}
 	cache.RLock()
 	analysis := cache.analyses[key]
 	cache.RUnlock()

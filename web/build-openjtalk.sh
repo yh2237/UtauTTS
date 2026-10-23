@@ -7,7 +7,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 jtalk="${root_dir}/third_party/open_jtalk/src"
 build_dir="${root_dir}/build/openjtalk-wasm"
 out_dir="${script_dir}/dist/openjtalk"
-dict_src="${OPENJTALK_DICT:-${root_dir}/.tmp-openjtalk/pyopenjtalk/open_jtalk_dic_utf_8-1.11}"
+dict_src="${OPENJTALK_DICT:-${root_dir}/runtime/open_jtalk_dic_utf_8-1.11}"
 mkdir -p "${out_dir}"
 
 if [ ! -f "${build_dir}/build.ninja" ]; then

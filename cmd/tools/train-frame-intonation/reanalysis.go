@@ -91,7 +91,7 @@ func applyAnalysis(row *record, a *openjtalk.Analysis) {
 }
 
 func reanalyzeSplits(train, valid, test []record, c config) ([]record, []record, []record, error) {
-	cfg := openjtalk.Config{HelperPath: c.OpenJTalkHelper, DictionaryPath: c.OpenJTalkDictionary}
+	cfg := openjtalk.Config{EnginePath: c.OpenJTalkEngine, DictionaryPath: c.OpenJTalkDictionary}
 	initial := len(train) + len(valid)
 	var err error
 	train, err = reanalyzeRecords(train, cfg)

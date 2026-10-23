@@ -290,14 +290,14 @@ func main() {
 	out := flag.String("out", "", "new JSONL under out/")
 	limit := flag.Int("limit", 0, "row limit")
 	allow := flag.Bool("allow-reading-mismatch", false, "permit missing G2P phone validation")
-	helper := flag.String("openjtalk-helper", "", "native helper path")
+	library := flag.String("openjtalk-engine", "", "Open JTalk engine library")
 	dictionary := flag.String("openjtalk-dictionary", "", "dictionary path")
 	flag.Parse()
 	if *corpus == "" || *out == "" {
 		fmt.Fprintln(os.Stderr, "corpus and out are required")
 		os.Exit(2)
 	}
-	n, skip, err := run(*corpus, *out, *limit, *allow, openjtalk.Config{HelperPath: *helper, DictionaryPath: *dictionary})
+	n, skip, err := run(*corpus, *out, *limit, *allow, openjtalk.Config{EnginePath: *library, DictionaryPath: *dictionary})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

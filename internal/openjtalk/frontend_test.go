@@ -21,8 +21,8 @@ func TestAnalyzeRejectsEmptyTextBeforeResolvingRuntime(t *testing.T) {
 	}
 }
 
-func TestResolveHelperRejectsMissingExplicitPath(t *testing.T) {
-	if _, err := ResolveHelperPath(t.TempDir()); err == nil {
-		t.Fatal("directory was accepted as helper executable")
+func TestResolveEngineRejectsMissingExplicitPath(t *testing.T) {
+	if _, err := ResolveEnginePath(t.TempDir()); err == nil {
+		t.Fatal("directory was accepted as engine library")
 	}
 }

@@ -10,7 +10,7 @@ import (
 )
 
 type Config struct {
-	HelperPath     string
+	EnginePath     string
 	DictionaryPath string
 }
 

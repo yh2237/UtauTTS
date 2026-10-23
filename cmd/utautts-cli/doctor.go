@@ -17,7 +17,7 @@ var doctorFlags = map[string]bool{
 	"doctor": true, "json": true, "version": true, "voicebank": true,
 	"renderer": true, "prosody": true,
 	"renderer-dir": true, "model-dir": true,
-	"openjtalk-features": true, "openjtalk-dictionary": true,
+	"openjtalk-engine": true, "openjtalk-dictionary": true,
 }
 
 type cliDoctorReport struct {
@@ -74,11 +74,11 @@ func inspectEnvironment(voicePath, modelID string, config synth.RuntimeConfig) (
 		bank, err := voicebank.InspectSinger(voicePath)
 		add("voicebank", voicePath, bank.Name, err, true)
 	}
-	helper, err := openjtalk.ResolveHelperPath(config.OpenJTalkPath)
+	library, err := openjtalk.ResolveEnginePath(config.OpenJTalkPath)
 	if err != nil {
-		helper = config.OpenJTalkPath
+		library = config.OpenJTalkPath
 	}
-	add("openjtalk_helper", helper, "helper file found (not executed)", err, config.OpenJTalkPath != "")
+	add("openjtalk_engine", library, "engine library found (not loaded)", err, config.OpenJTalkPath != "")
 	dictionary, err := openjtalk.ResolveDictionaryPath(config.OpenJTalkDictionary)
 	if err != nil {
 		dictionary = config.OpenJTalkDictionary

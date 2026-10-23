@@ -24,7 +24,7 @@ func run() (runErr error) {
 	assets := flag.String("assets", "../..", "UtauTTS resource directory")
 	voice := flag.String("voice-dir", "", "voicebank directory (default: assets/voice)")
 	text := flag.String("text", "こんにちは。今日はいい天気ですね。", "text to synthesize")
-	helper := flag.String("openjtalk-helper", "", "Open JTalk helper (default: assets/runtime)")
+	library := flag.String("openjtalk-engine", "", "Open JTalk engine library (default: assets/runtime)")
 	dictionary := flag.String("openjtalk-dictionary", "", "Open JTalk dictionary (default: assets/runtime)")
 	out := flag.String("out", "speech.wav", "output WAV path")
 	flag.Parse()
@@ -35,19 +35,22 @@ func run() (runErr error) {
 	if *voice == "" {
 		*voice = filepath.Join(root, "voice")
 	}
-	helperName := "utautts-openjtalk-features"
-	if runtime.GOOS == "windows" {
-		helperName += ".exe"
+	libraryName := "utautts-openjtalk-engine.so"
+	switch runtime.GOOS {
+	case "windows":
+		libraryName = "utautts-openjtalk-engine.dll"
+	case "darwin":
+		libraryName = "utautts-openjtalk-engine.dylib"
 	}
-	if *helper == "" {
-		*helper = filepath.Join(root, "runtime", helperName)
+	if *library == "" {
+		*library = filepath.Join(root, "runtime", libraryName)
 	}
 	if *dictionary == "" {
 		*dictionary = filepath.Join(root, "runtime", "open_jtalk_dic_utf_8-1.11")
 	}
 	engine, err := utautts.New(utautts.Config{
 		VoiceDirectory: *voice, Renderer: "utautts-world-phrase",
-		OpenJTalkPath: *helper, OpenJTalkDictionary: *dictionary,
+		OpenJTalkPath: *library, OpenJTalkDictionary: *dictionary,
 		RendererDirectories: []string{filepath.Join(root, "renderer")},
 		ModelDirectories:    []string{filepath.Join(root, "models")},
 	})
