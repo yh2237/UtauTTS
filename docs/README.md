@@ -9,7 +9,6 @@
 - [日本語以外の読み上げ](multilingual.md) - 多言語音源の使い方と発音形式
 - [CLI（コマンドライン）リファレンス](cli.md) - コマンドラインでの合成と一括処理
 - [HTTP APIサーバー仕様](server.md) - REST APIのエンドポイントと連携の仕様
-- [DiffSinger](diffsinger.md) - ニューラル音源の利用
 - [トラブルシューティング](troubleshooting.md) - よくある不具合と対処
 - [同梱音源について](voicebank.md) - 初期音源の出典と利用条件
 

@@ -421,7 +421,7 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  && backend.undoShortcut() == QStringLiteral("Ctrl+Z"),
                  QStringLiteral("application settings failed")))
         return 1;
-    backend.setSynthesisDefaults(QStringLiteral("frame-intonation-tcn-v12"), QStringLiteral("diffsinger"),
+    backend.setSynthesisDefaults(QStringLiteral("frame-intonation-tcn-v12"), QStringLiteral("test-concat"),
                                  QStringLiteral("D4"), QStringLiteral("cv-only"));
     if (!require(backend.defaultMoraDuration() == 130 && backend.defaultIntonationStrength() == 2.5
                  && backend.defaultPauseDuration() != 190,

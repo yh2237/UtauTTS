@@ -331,8 +331,7 @@ https://github.com/golang/text/blob/master/LICENSE
 gopkg.in/yaml.v3
 =================
 
-UtauTTS uses gopkg.in/yaml.v3 v3.0.1 for USTX, voicebank, and DiffSinger
-project data. The module is distributed under the MIT License and Apache
+UtauTTS uses gopkg.in/yaml.v3 v3.0.1 for USTX and voicebank project data. The module is distributed under the MIT License and Apache
 License 2.0. Its complete LICENSE and NOTICE files are included under
 licenses/Go in each release package.
 
@@ -451,29 +450,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 The Apache License 2.0 text is in licenses/APACHE-2.0.txt.
-
-
-DiffSinger ONNX Runtime and DirectML bridge
-===========================================
-
-The Full Windows package includes the optional DiffSinger bridge. It embeds
-ONNX Runtime with the DirectML execution provider and the Microsoft DirectML
-runtime. The Microsoft.ML.OnnxRuntime.DirectML and
-Microsoft.ML.OnnxRuntime.Managed packages have identical license and
-third-party notice files. Those files are included once as
-ONNXRUNTIME-LICENSE.txt and ONNXRUNTIME-THIRD-PARTY-NOTICES.txt. The three
-Microsoft.AI.DirectML notices and the distinct System.Memory and
-System.Numerics.Tensors third-party notices remain under runtime/licenses
-alongside the .NET runtime notices. Their MIT license text is identical to
-DOTNET-RUNTIME-LICENSE.txt and is included once. Package profiles: Full
-Windows = bridge included; Japanese Windows, Linux, and macOS = bridge absent.
-
-Upstream package pages:
-https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.DirectML/1.23.0
-https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.Managed/1.23.0
-https://www.nuget.org/packages/Microsoft.AI.DirectML/1.15.4
-https://www.nuget.org/packages/System.Memory/4.5.5
-https://www.nuget.org/packages/System.Numerics.Tensors/9.0.0
 
 
 Material Symbols (icon font subset)

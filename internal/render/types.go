@@ -5,7 +5,6 @@ import "github.com/yh2237/UtauTTS/internal/render/base"
 type (
 	Config                   = base.Config
 	ProviderOptions          = base.ProviderOptions
-	DiffSingerOptions        = base.DiffSingerOptions
 	WorldlineProviderOptions = base.WorldlineProviderOptions
 	PitchCurve               = base.PitchCurve
 	F0Track                  = base.F0Track

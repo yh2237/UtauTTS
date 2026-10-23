@@ -38,68 +38,6 @@ func TestDiscoverVoicebanksUsesMetadataNameAndSorts(t *testing.T) {
 	}
 }
 
-func TestDiscoverDiffSingerWithoutOto(t *testing.T) {
-	root := t.TempDir()
-	named := filepath.Join(root, "diffsinger")
-	minimal := filepath.Join(root, "Minimal")
-	for _, singer := range []string{named, minimal} {
-		if err := os.Mkdir(singer, 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(singer, "dsconfig.yaml"), []byte("acoustic: acoustic.onnx\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := os.WriteFile(filepath.Join(named, "character.txt"), []byte("name=DS Test\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	got, err := Discover(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	names := map[string]string{}
-	for _, summary := range got {
-		if summary.Kind != "diffsinger" {
-			t.Fatalf("voicebanks = %#v", got)
-		}
-		names[summary.Path] = summary.Name
-	}
-	if len(got) != 2 || names[named] != "DS Test" || names[minimal] != "Minimal" {
-		t.Fatalf("voicebanks = %#v", got)
-	}
-}
-
-func TestDiscoverDiffSingerBundleIgnoresCoreModules(t *testing.T) {
-	root := t.TempDir()
-	bundle := filepath.Join(root, "Lewy")
-	singer := filepath.Join(bundle, "Lewisia")
-	core := filepath.Join(bundle, "0_CORE")
-	for _, path := range []string{
-		filepath.Join(singer, "dsconfig.yaml"),
-		filepath.Join(core, "dsacoustic", "dsconfig.yaml"),
-		filepath.Join(core, "dsdur", "dsconfig.yaml"),
-		filepath.Join(core, "dspitch", "dsconfig.yaml"),
-	} {
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte("phonemes: phonemes.txt\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := os.WriteFile(filepath.Join(singer, "character.txt"), []byte("name=Lewisia\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := Discover(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 1 || got[0].Path != singer || got[0].Name != "Lewisia" || got[0].Kind != "diffsinger" {
-		t.Fatalf("voicebanks = %#v", got)
-	}
-}
-
 func TestInspectFindsSafeImageAndPresentationText(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0o644); err != nil {

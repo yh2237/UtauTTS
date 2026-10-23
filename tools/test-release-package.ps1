@@ -178,26 +178,9 @@ try {
             }
             Assert-Path (Join-Path $packageRoot 'licenses/REFERENCE-MODELS.txt') 'reference model notice'
             Assert-Path (Join-Path $packageRoot 'licenses/CHINESE-REFERENCE-MODEL.txt') 'Chinese reference model notice'
-            Assert-Path (Join-Path $packageRoot 'runtime/utautts-diffsinger-bridge.exe') 'DiffSinger bridge'
-            foreach ($diffSingerLicense in @(
-                'ONNXRUNTIME-LICENSE.txt',
-                'ONNXRUNTIME-THIRD-PARTY-NOTICES.txt',
-                'DIRECTML-LICENSE.txt',
-                'DIRECTML-LICENSE-CODE.txt',
-                'DIRECTML-THIRD-PARTY-NOTICES.txt',
-                'SYSTEM-MEMORY-THIRD-PARTY-NOTICES.txt',
-                'SYSTEM-NUMERICS-TENSORS-THIRD-PARTY-NOTICES.txt'
-            )) {
-                Assert-Path (Join-Path $packageRoot "runtime/licenses/$diffSingerLicense") "DiffSinger dependency license: $diffSingerLicense"
-            }
         } else {
             if (Test-Path -LiteralPath (Join-Path $packageRoot 'models/reference')) {
                 throw "Japanese package contains English reference models: $packageRoot"
-            }
-            foreach ($optionalRuntime in @('utautts-diffsinger-bridge.exe')) {
-                if (Test-Path -LiteralPath (Join-Path $packageRoot "runtime/$optionalRuntime")) {
-                    throw "Japanese package contains optional runtime: $optionalRuntime"
-                }
             }
         }
         Assert-Path (Join-Path $packageRoot 'runtime/utautts-world-engine.dll') 'UtauTTS WORLD engine'
@@ -234,19 +217,13 @@ try {
             }
         }
         Assert-Path (Join-Path $packageRoot 'renderer/utautts-world-phrase/renderer.json') 'renderer manifest utautts-world-phrase'
-        foreach ($removedRenderer in @('waveform', 'classic-utau')) {
+        foreach ($removedRenderer in @('waveform', 'classic-utau', 'diffsinger')) {
             if (Test-Path -LiteralPath (Join-Path $packageRoot "renderer/$removedRenderer")) {
                 throw "Removed $removedRenderer renderer is still packaged: $packageRoot"
             }
         }
-        if ($Profile -eq 'Full') {
-            Assert-Path (Join-Path $packageRoot 'renderer/diffsinger/renderer.json') 'DiffSinger renderer manifest'
-        } else {
-            foreach ($optionalRenderer in @('diffsinger')) {
-                if (Test-Path -LiteralPath (Join-Path $packageRoot "renderer/$optionalRenderer/renderer.json")) {
-                    throw "Japanese package contains optional renderer: $optionalRenderer"
-                }
-            }
+        if (Test-Path -LiteralPath (Join-Path $packageRoot 'runtime/utautts-diffsinger-bridge.exe')) {
+            throw "Release package still contains the DiffSinger bridge: $packageRoot"
         }
         Assert-Path (Join-Path $packageRoot 'runtime/utautts-openjtalk-engine.dll') 'Open JTalk engine'
         if (Test-Path -LiteralPath (Join-Path $packageRoot 'runtime/utautts-openjtalk-features.exe')) {

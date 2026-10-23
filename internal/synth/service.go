@@ -107,10 +107,6 @@ type Request struct {
 	CVVCTiming              string                 `json:"-"`
 	CVVCTransitionGain      float64                `json:"-"`
 	CVVCPreBoundaryFade     bool                   `json:"-"`
-	DiffSingerSteps         int64                  `json:"diffsinger_steps"`
-	DiffSingerDurationMix   float64                `json:"diffsinger_duration_mix"`
-	DiffSingerPitchMix      float64                `json:"diffsinger_pitch_mix"`
-	DiffSingerExpr          float64                `json:"diffsinger_expr"`
 	// 空文字とnilは既定値を使う。
 	Worldline render.WorldlineProviderOptions `json:"worldline,omitempty"`
 	// 未知の設定IDもエラーにせず、実装固有値として渡す。

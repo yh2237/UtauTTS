@@ -148,8 +148,6 @@ cp -R "${root_dir}/models/." "${server_dir}/models/"
 cp -R "${root_dir}/renderer/." "${gui_dir}/renderer/"
 cp -R "${root_dir}/renderer/." "${server_dir}/renderer/"
 for package_dir in "${gui_dir}" "${server_dir}"; do
-  rm -rf \
-    "${package_dir}/renderer/diffsinger"
   (cd "${root_dir}" && "${go_command}" run ./cmd/tools/copy-model-license-notices \
     --models "${package_dir}/models" \
     --embedded-models "${root_dir}/internal/speechtiming" \

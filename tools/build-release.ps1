@@ -198,11 +198,6 @@ try {
     Write-Step 'Build native engines'
     & (Join-Path $PSScriptRoot 'build-native-engines.ps1') -OutputDirectory $guiRuntimePath
     if ($LASTEXITCODE -ne 0) { throw "Native engine build failed with exit code $LASTEXITCODE" }
-    if ($Profile -eq 'Full') {
-        Write-Step 'Build DiffSinger bridge'
-        & (Join-Path $PSScriptRoot 'build-diffsinger-bridge.ps1') -OutputDirectory $guiRuntimePath
-        if ($LASTEXITCODE -ne 0) { throw "DiffSinger bridge build failed with exit code $LASTEXITCODE" }
-    }
 
     Copy-Item -Path (Join-Path $guiRuntimePath '*') -Destination $serverRuntimePath -Recurse -Force
 
@@ -280,16 +275,6 @@ try {
                 $destination = Join-Path $packagePath $trackedFile
                 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
                 Copy-Item -LiteralPath (Join-Path $root $trackedFile) -Destination $destination
-            }
-        }
-    }
-    foreach ($rendererPath in @($guiRendererPath, $serverRendererPath)) {
-        if ($Profile -eq 'Japanese') {
-            foreach ($optionalRenderer in @('diffsinger')) {
-                $optionalRendererPath = Join-Path $rendererPath $optionalRenderer
-                if (Test-Path -LiteralPath $optionalRendererPath) {
-                    Remove-Item -LiteralPath $optionalRendererPath -Recurse -Force
-                }
             }
         }
     }

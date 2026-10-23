@@ -69,10 +69,6 @@ bool Platform::hasExternalTools() const {
     return isDesktop();
 }
 
-bool Platform::hasDiffsinger() const {
-    return isDesktop();
-}
-
 QString Platform::name() const {
     if (!isWeb())
         return QStringLiteral("desktop");

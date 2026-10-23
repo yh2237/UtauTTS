@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/yh2237/UtauTTS/internal/diffsinger"
 )
 
 type Summary struct {
@@ -32,7 +30,7 @@ func Discover(root string) ([]Summary, error) {
 		root = "voice"
 	}
 	if looksLikeVoicebankRoot(root) {
-		if summary, err := InspectSinger(root); err == nil {
+		if summary, err := Inspect(root); err == nil {
 			return []Summary{summary}, nil
 		}
 	}
@@ -65,7 +63,7 @@ func Discover(root string) ([]Summary, error) {
 
 func inspectDiscoveredRoot(root string) (Summary, error) {
 	if hasDirectOto(root) || hasVoicebankMetadata(root) {
-		if summary, err := InspectSinger(root); err == nil {
+		if summary, err := Inspect(root); err == nil {
 			return summary, nil
 		}
 	}
@@ -73,12 +71,12 @@ func inspectDiscoveredRoot(root string) (Summary, error) {
 	if err != nil {
 		return Summary{}, err
 	}
-	return InspectSinger(resolved)
+	return Inspect(resolved)
 }
 
 func findVoicebankRoot(root string) (string, error) {
 	if hasDirectOto(root) || hasVoicebankMetadata(root) {
-		if _, err := InspectSinger(root); err == nil {
+		if _, err := Inspect(root); err == nil {
 			return root, nil
 		}
 	}
@@ -105,7 +103,7 @@ func findNestedVoicebankRoot(root string) (string, error) {
 	if len(found) > 1 {
 		var preferred []string
 		for _, candidate := range found {
-			if hasDirectOto(candidate) || (diffsinger.IsSinger(candidate) && hasVoicebankMetadata(candidate)) {
+			if hasDirectOto(candidate) {
 				preferred = append(preferred, candidate)
 			}
 		}
@@ -113,9 +111,6 @@ func findNestedVoicebankRoot(root string) (string, error) {
 			return preferred[0], nil
 		}
 		// 複数サブバンクは共通の親を音源ルートにする。
-		return root, nil
-	}
-	if diffsinger.IsSinger(root) {
 		return root, nil
 	}
 	return "", ErrNoOto
@@ -212,30 +207,6 @@ func Inspect(root string) (Summary, error) {
 		readmePath = findRootFile(absRoot, "readme.md")
 	}
 	return Summary{Name: name, Path: absRoot, Kind: "utau", ImagePath: imagePath, CharacterPath: characterPath, ReadmePath: readmePath}, nil
-}
-
-func InspectSinger(root string) (Summary, error) {
-	if diffsinger.IsSinger(root) {
-		return inspectDiffSinger(root)
-	}
-	return Inspect(root)
-}
-
-func inspectDiffSinger(root string) (Summary, error) {
-	absRoot, err := filepath.Abs(root)
-	if err != nil {
-		return Summary{}, err
-	}
-	if !diffsinger.IsSinger(absRoot) {
-		return Summary{}, ErrNoOto
-	}
-	characterPath := findRootFile(absRoot, "character.txt")
-	name, imagePath := presentationIdentity(absRoot, characterPath)
-	readmePath := findRootFile(absRoot, "readme.txt")
-	if readmePath == "" {
-		readmePath = findRootFile(absRoot, "readme.md")
-	}
-	return Summary{Name: name, Path: absRoot, Kind: diffsinger.SingerKind, ImagePath: imagePath, CharacterPath: characterPath, ReadmePath: readmePath}, nil
 }
 
 func presentationIdentity(root, characterPath string) (string, string) {

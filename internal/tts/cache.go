@@ -11,7 +11,6 @@ import (
 
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/lifecycle"
-	"github.com/yh2237/UtauTTS/internal/neural"
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
 	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/prosody"
@@ -298,8 +297,6 @@ func analyzeOpenJTalkCached(ctx context.Context, text string, cfg openjtalk.Conf
 }
 
 func ClearCaches() {
-	// 同じパスの旧モデルが子プロセスに残らないよう、ONNXセッションも閉じる。
-	_ = neural.CloseSessions()
 	synthesisCache.clear()
 	render.ClearWAVCache()
 }

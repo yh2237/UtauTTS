@@ -26,10 +26,7 @@ type Setting struct {
 
 func value(v float64) *float64 { return &v }
 
-const (
-	worldPhrase = "utautts-world-phrase"
-	diffSinger  = "diffsinger"
-)
+const worldPhrase = "utautts-world-phrase"
 
 // Tableは設定の定義。順序はGUIの表示順。
 var Table = []Setting{
@@ -42,10 +39,6 @@ var Table = []Setting{
 	{ID: "pause_context", Type: "boolean", Group: "correction", Default: true, Label: "settings.pauseContext"},
 	{ID: "timing_warp", Type: "boolean", Group: "correction", Default: true, Label: "settings.timingWarp", Providers: []string{worldPhrase}},
 	{ID: "microprosody", Type: "boolean", Group: "prosody", Default: true, Label: "settings.microprosody", Providers: []string{worldPhrase}, Languages: []string{"ja"}},
-	{ID: "diffsinger_steps", Type: "integer", Group: "diffsinger", Default: 0.0, Min: value(0), Max: value(100), Label: "settings.defaultDiffSingerSteps", Providers: []string{diffSinger}},
-	{ID: "diffsinger_expr", Type: "number", Group: "diffsinger", Default: 0.0, Min: value(0), Max: value(2), Step: value(0.01), Label: "settings.defaultDiffSingerExpr", Providers: []string{diffSinger}},
-	{ID: "diffsinger_duration_mix", Type: "number", Group: "diffsinger", Default: 0.0, Min: value(0), Max: value(1), Step: value(0.01), Label: "settings.defaultDiffSingerDurationMix", Providers: []string{diffSinger}},
-	{ID: "diffsinger_pitch_mix", Type: "number", Group: "diffsinger", Default: 0.0, Min: value(0), Max: value(1), Step: value(0.01), Label: "settings.defaultDiffSingerPitchMix", Providers: []string{diffSinger}},
 	// GUIに出さない設定。強度の0は既定1.0として扱う。
 	{ID: "context_duration", Type: "boolean", Default: false, Hidden: true, Languages: []string{"ja"}},
 	{ID: "context_duration_strength", Type: "number", Default: 1.0, Hidden: true},

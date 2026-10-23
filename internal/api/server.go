@@ -17,7 +17,6 @@ import (
 	utautts "github.com/yh2237/UtauTTS"
 	"github.com/yh2237/UtauTTS/internal/appinfo"
 	"github.com/yh2237/UtauTTS/internal/audio"
-	"github.com/yh2237/UtauTTS/internal/diffsinger"
 	"github.com/yh2237/UtauTTS/internal/entryinput"
 	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/render"
@@ -198,17 +197,6 @@ func (s *Server) reloadVoiceDirectory() error {
 }
 
 func inspectVoicebank(path string) (Voicebank, error) {
-	if diffsinger.IsSinger(path) {
-		singer, err := diffsinger.Load(path)
-		if err != nil {
-			return Voicebank{}, err
-		}
-		summary, _ := voicebank.InspectSinger(path)
-		return Voicebank{
-			ID: filepath.Base(singer.Root), Name: summary.Name, Path: singer.Root,
-			Kind: diffsinger.SingerKind, PhonemeCount: len(singer.Tokens),
-		}, nil
-	}
 	bank, err := voicebank.Load(path)
 	if err != nil {
 		return Voicebank{}, err

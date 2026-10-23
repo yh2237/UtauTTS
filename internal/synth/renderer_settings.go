@@ -65,24 +65,6 @@ var rendererSettingSpecs = []rendererSettingSpec{
 	numberSetting("pause_context_strength",
 		func(r Request) any { return r.PauseContextStrength },
 		func(value float64, cfg *tts.Config, _ *render.ProviderOptions) { cfg.PauseContextStrength = value }),
-	numberSetting("diffsinger_steps",
-		func(r Request) any { return float64(r.DiffSingerSteps) },
-		func(value float64, _ *tts.Config, options *render.ProviderOptions) {
-			options.DiffSinger.Steps = int64(value)
-		}),
-	numberSetting("diffsinger_expr",
-		func(r Request) any { return r.DiffSingerExpr },
-		func(value float64, _ *tts.Config, options *render.ProviderOptions) { options.DiffSinger.Expr = value }),
-	numberSetting("diffsinger_duration_mix",
-		func(r Request) any { return r.DiffSingerDurationMix },
-		func(value float64, _ *tts.Config, options *render.ProviderOptions) {
-			options.DiffSinger.DurationMix = value
-		}),
-	numberSetting("diffsinger_pitch_mix",
-		func(r Request) any { return r.DiffSingerPitchMix },
-		func(value float64, _ *tts.Config, options *render.ProviderOptions) {
-			options.DiffSinger.PitchMix = value
-		}),
 	{
 		id: "timing_warp", kind: rendererSettingKindBoolean, defaultValue: settings.Bool("timing_warp"),
 		typed: func(r Request) any { return r.Worldline.TimingWarpEnabled() },

@@ -71,7 +71,7 @@ func inspectEnvironment(voicePath, modelID string, config synth.RuntimeConfig) (
 	if voicePath == "" {
 		add("voicebank", "", "", errors.New("no voicebank selected; use --voicebank to inspect one"), false)
 	} else {
-		bank, err := voicebank.InspectSinger(voicePath)
+		bank, err := voicebank.Inspect(voicePath)
 		add("voicebank", voicePath, bank.Name, err, true)
 	}
 	library, err := openjtalk.ResolveEnginePath(config.OpenJTalkPath)

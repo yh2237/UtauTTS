@@ -31,7 +31,6 @@ type ResourceKey string
 
 const (
 	ResourceWorldEngine        ResourceKey = "world_engine"
-	ResourceDiffSingerBridge   ResourceKey = "diffsinger_bridge"
 	ResourceProviderExecutable ResourceKey = "provider_executable"
 )
 
@@ -129,12 +128,6 @@ var builtinRegistry = mustRegistry(
 		ID: "utautts-world-phrase", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true},
 		Requirements: []ResourceRequirement{
 			{Key: ResourceWorldEngine, Required: true},
-		},
-	},
-	Provider{
-		ID: "diffsinger", Contract: ContractNeuralSynthesizer, Version: "1", Capabilities: Capabilities{FramePitch: true, InternalTiming: true},
-		Requirements: []ResourceRequirement{
-			{Key: ResourceDiffSingerBridge, Required: true, Executable: true},
 		},
 	},
 )

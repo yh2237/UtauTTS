@@ -202,9 +202,6 @@ func (e *Engine) voicebankEntry(libraryItem voicebank.LibraryItem) map[string]an
 		entry["has_vc"] = capabilities.HasVC
 		entry["has_initial_vcv"] = capabilities.HasInitialVCV
 		entry["has_n_context_vcv"] = capabilities.HasNContextVCV
-	} else if item.Kind == "diffsinger" {
-		entry["suggested_language"] = "ja"
-		entry["suggested_phonemizer"] = "ja-kana"
 	}
 	return entry
 }

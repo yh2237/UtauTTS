@@ -306,10 +306,10 @@ components:
         boundary_tone_strength: {type: number, nullable: true, default: 1, description: 互換入力。ゼロは合成時の既定値1。}
         stretch_adapt_strength: {type: number, nullable: true, default: 1, description: 互換入力。ゼロは合成時の既定値1。}
         pause_context_strength: {type: number, nullable: true, default: 1, description: 互換入力。ゼロは合成時の既定値1。}
-        diffsinger_steps: {type: integer, format: int64, nullable: true, default: 0, description: ゼロならProviderの既定値}
-        diffsinger_duration_mix: {type: number, nullable: true, default: 0, description: ゼロならProviderの既定値}
-        diffsinger_pitch_mix: {type: number, nullable: true, default: 0, description: ゼロならProviderの既定値}
-        diffsinger_expr: {type: number, nullable: true, default: 0, description: ゼロならProviderの既定値}
+        diffsinger_steps: {deprecated: true, description: 廃止したDiffSinger用。受け付けて無視する。}
+        diffsinger_duration_mix: {deprecated: true, description: 廃止したDiffSinger用。受け付けて無視する。}
+        diffsinger_pitch_mix: {deprecated: true, description: 廃止したDiffSinger用。受け付けて無視する。}
+        diffsinger_expr: {deprecated: true, description: 廃止したDiffSinger用。受け付けて無視する。}
         worldline:
           $ref: '#/components/schemas/Worldline'
         speech_timing: {type: boolean, nullable: true, default: false, deprecated: true, description: 受け取るが使わない}

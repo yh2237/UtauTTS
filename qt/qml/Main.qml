@@ -1583,17 +1583,6 @@ ApplicationWindow {
         }
         if (["voicebankId", "modelId", "renderer", "aliasPolicy", "phonemizer"].indexOf(name) >= 0)
             utterances.setProperty(selectedIndex, "phonemeOverridesJson", "[]");
-        if (name === "voicebankId") {
-            const voice = window.voicebankById(value);
-            if (Platform.hasDiffsinger && voice && String(voice.kind || "") === "diffsinger") {
-                utterances.setProperty(selectedIndex, "renderer", "diffsinger");
-                selectCombo(editorContent.rendererCombo, "diffsinger");
-            } else if (item.renderer === "diffsinger") {
-                const renderer = window.defaultRendererId();
-                utterances.setProperty(selectedIndex, "renderer", renderer);
-                selectCombo(editorContent.rendererCombo, renderer);
-            }
-        }
         if (["voicebankId", "aliasPolicy", "modelId", "renderer", "tone", "color", "moraDuration",
              "pauseDuration", "intonation", "applyPitch"].indexOf(name) >= 0) {
             window.requestMissingProsodyPreview(selectedIndex);
@@ -2236,8 +2225,7 @@ ApplicationWindow {
             voicebankId: voice ? voice.id : "",
             imagePath: voice ? voice.image_path || "" : "",
             modelId: window.metadataInitialized ? window.defaultModelIdForLanguage(language) : "",
-            renderer: Platform.hasDiffsinger && voice && String(voice.kind || "") === "diffsinger"
-                    ? "diffsinger" : (window.appBackend.renderers.length ? window.defaultRendererId() : ""),
+            renderer: window.appBackend.renderers.length ? window.defaultRendererId() : "",
             aliasPolicy: window.appBackend.defaultAliasPolicy,
             tone: window.appBackend.defaultTone,
             color: "",

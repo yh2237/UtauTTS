@@ -10,8 +10,6 @@ build/
 dist/
 .tmp-go-cache/
 .tmp-*/
-tools/diffsinger-bridge/bin/
-tools/diffsinger-bridge/obj/
 third_party/open_jtalk/src/mecab/src/config.h
 /runtime/
 /notes/

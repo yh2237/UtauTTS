@@ -33,7 +33,7 @@ Rendererは `renderer/<id>/renderer.json` で定義します。受け付ける�
 
 - `id`: プロジェクトやAPIで使う一意なID。
 - `contract`: 入出力の形式（`unit-renderer` または `neural-synthesizer`）。
-- `provider`: 実装（`utautts-world-phrase`、`diffsinger` 等）。
+- `provider`: 実装（`utautts-world-phrase`）。
 - `resources`: 必要なバイナリやライブラリの相対パス。OSごとに切り替えるときは `platform_resources` を定義します。
 
 ### 外部Providerプロトコル（プロセス間連携）

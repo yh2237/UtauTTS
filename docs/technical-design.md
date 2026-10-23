@@ -24,8 +24,7 @@ GUI、CLI、HTTP Serverは、どれも共通の`synth.Service`を通して処理
                 │
                 ▼
           render.Config
-          ├── UnitRenderer        （WORLD phrase）
-          └── NeuralSynthesizer   （DiffSinger）
+          └── UnitRenderer        （WORLD phrase）
                 │
                 ▼
           音声波形 (PCM) + 診断レポート (RenderReport)

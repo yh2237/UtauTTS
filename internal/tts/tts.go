@@ -276,13 +276,6 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		return nil, err
 	}
 	start := time.Now()
-	providerID := engine.ProviderID(cfg.Renderer)
-	if cfg.Engine.Provider.ID != "" {
-		providerID = cfg.Engine.Provider.ID
-	}
-	if synthesizer, found := neuralSynthesizerForProvider(providerID); found {
-		return synthesizer.Synthesize(cfg)
-	}
 	bank := cfg.Voicebank
 	var err error
 	if bank == nil {

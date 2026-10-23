@@ -95,10 +95,6 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 		"stretch_adapt_strength":    json.RawMessage(`0.5`),
 		"pause_context":             json.RawMessage(`false`),
 		"pause_context_strength":    json.RawMessage(`0.5`),
-		"diffsinger_steps":          json.RawMessage(`42`),
-		"diffsinger_expr":           json.RawMessage(`0.75`),
-		"diffsinger_duration_mix":   json.RawMessage(`0.25`),
-		"diffsinger_pitch_mix":      json.RawMessage(`0.35`),
 	}
 	applyRendererSettingsMap(rendererSettingSpecs, settings, &cfg, &options)
 	if len(options.RendererDiagnostics) != 0 {
@@ -118,10 +114,6 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 	}
 	if cfg.PauseContext == nil || *cfg.PauseContext || cfg.PauseContextStrength != 0.5 {
 		t.Fatalf("pause context settings = %#v", cfg)
-	}
-	if options.DiffSinger.Steps != 42 || options.DiffSinger.Expr != 0.75 ||
-		options.DiffSinger.DurationMix != 0.25 || options.DiffSinger.PitchMix != 0.35 {
-		t.Fatalf("diffsinger settings = %#v", options.DiffSinger)
 	}
 }
 
@@ -146,12 +138,11 @@ func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 		Renderers: []plugin.Renderer{testRenderer("test-concat", "test-concat")},
 	}, "test-concat", "", "", nil)
 	cfg, _, options, err := service.config(Request{
-		Renderer: "test-concat", ContextDuration: true, MoraDurationMS: 140, DiffSingerSteps: 17,
+		Renderer: "test-concat", ContextDuration: true, MoraDurationMS: 140,
 		Method: tts.MethodWaveformSynthesis, Language: "ja",
 		RendererSettings: map[string]json.RawMessage{
 			"context_duration": json.RawMessage(`false`),
 			"mora_duration_ms": json.RawMessage(`123`),
-			"diffsinger_steps": json.RawMessage(`5`),
 			"custom_option":    json.RawMessage(`"value"`),
 		},
 	}, false)
@@ -161,22 +152,16 @@ func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 	if cfg.ContextDuration == nil || *cfg.ContextDuration || cfg.MoraDurationMS != 123 {
 		t.Fatalf("renderer settings did not override fixed fields: %#v", cfg)
 	}
-	if options.DiffSinger.Steps != 5 {
-		t.Fatalf("DiffSinger steps were not overridden: %#v", options.DiffSinger)
-	}
 	if options.Renderer["custom_option"] != "value" {
 		t.Fatalf("unknown renderer setting = %#v", options.Renderer)
 	}
 
-	cfg, _, options, err = service.config(Request{Renderer: "test-concat", Method: tts.MethodWaveformSynthesis, Language: "ja", ContextDuration: true, MoraDurationMS: 140, DiffSingerSteps: 17}, false)
+	cfg, _, options, err = service.config(Request{Renderer: "test-concat", Method: tts.MethodWaveformSynthesis, Language: "ja", ContextDuration: true, MoraDurationMS: 140}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cfg.ContextDuration == nil || !*cfg.ContextDuration || cfg.MoraDurationMS != 140 {
 		t.Fatalf("fixed fields without a map changed: %#v", cfg)
-	}
-	if options.DiffSinger.Steps != 17 {
-		t.Fatalf("typed DiffSinger steps were lost: %#v", options.DiffSinger)
 	}
 }
 

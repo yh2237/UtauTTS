@@ -49,26 +49,27 @@ type editingRequest struct {
 
 // 無視する旧フィールドも受け付け、型付きProvider設定の優先順位を保つ。
 type compatibilityRequest struct {
-	Kana                    string                          `json:"kana"`
-	SpeechTiming            bool                            `json:"speech_timing"`
-	ModelPath               string                          `json:"model_path"`
-	Resampler               string                          `json:"resampler"`
-	Wavtool                 string                          `json:"wavtool"`
-	AliasPolicy             voicebank.AliasPolicy           `json:"alias_policy"`
-	WordBoundaryEnvelope    bool                            `json:"word_boundary_envelope"`
-	SpeechProsodyExperiment string                          `json:"prosody_experiment"`
-	LeadingPreutteranceMS   float64                         `json:"leading_preutterance_ms"`
-	ReleaseMS               float64                         `json:"release_ms"`
-	ReleaseSet              bool                            `json:"release_set"`
-	ContextDurationStrength float64                         `json:"context_duration_strength"`
-	BoundaryToneStrength    float64                         `json:"boundary_tone_strength"`
-	StretchAdaptStrength    float64                         `json:"stretch_adapt_strength"`
-	PauseContextStrength    float64                         `json:"pause_context_strength"`
-	DiffSingerSteps         int64                           `json:"diffsinger_steps"`
-	DiffSingerDurationMix   float64                         `json:"diffsinger_duration_mix"`
-	DiffSingerPitchMix      float64                         `json:"diffsinger_pitch_mix"`
-	DiffSingerExpr          float64                         `json:"diffsinger_expr"`
-	Worldline               render.WorldlineProviderOptions `json:"worldline,omitempty"`
+	Kana                    string                `json:"kana"`
+	SpeechTiming            bool                  `json:"speech_timing"`
+	ModelPath               string                `json:"model_path"`
+	Resampler               string                `json:"resampler"`
+	Wavtool                 string                `json:"wavtool"`
+	AliasPolicy             voicebank.AliasPolicy `json:"alias_policy"`
+	WordBoundaryEnvelope    bool                  `json:"word_boundary_envelope"`
+	SpeechProsodyExperiment string                `json:"prosody_experiment"`
+	LeadingPreutteranceMS   float64               `json:"leading_preutterance_ms"`
+	ReleaseMS               float64               `json:"release_ms"`
+	ReleaseSet              bool                  `json:"release_set"`
+	ContextDurationStrength float64               `json:"context_duration_strength"`
+	BoundaryToneStrength    float64               `json:"boundary_tone_strength"`
+	StretchAdaptStrength    float64               `json:"stretch_adapt_strength"`
+	PauseContextStrength    float64               `json:"pause_context_strength"`
+	// 廃止したDiffSinger用。受け付けて無視する。
+	DiffSingerSteps       json.RawMessage                 `json:"diffsinger_steps"`
+	DiffSingerDurationMix json.RawMessage                 `json:"diffsinger_duration_mix"`
+	DiffSingerPitchMix    json.RawMessage                 `json:"diffsinger_pitch_mix"`
+	DiffSingerExpr        json.RawMessage                 `json:"diffsinger_expr"`
+	Worldline             render.WorldlineProviderOptions `json:"worldline,omitempty"`
 }
 
 type jsonRequestAlias JSONRequest
@@ -143,8 +144,6 @@ func (request JSONRequest) InternalRequest() synth.Request {
 	input.BoundaryToneStrength = request.BoundaryToneStrength
 	input.StretchAdaptStrength = request.StretchAdaptStrength
 	input.PauseContextStrength = request.PauseContextStrength
-	input.DiffSingerSteps, input.DiffSingerExpr = request.DiffSingerSteps, request.DiffSingerExpr
-	input.DiffSingerDurationMix, input.DiffSingerPitchMix = request.DiffSingerDurationMix, request.DiffSingerPitchMix
 	input.Worldline = request.Worldline
 	return input
 }

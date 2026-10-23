@@ -29,19 +29,10 @@ type Config struct {
 }
 
 type ProviderOptions struct {
-	Worldline  WorldlineProviderOptions
-	DiffSinger DiffSingerOptions
+	Worldline WorldlineProviderOptions
 	// Goが知らないrenderer_settingsも、実装固有の値として保持する。
 	Renderer            map[string]any
 	RendererDiagnostics []string
-}
-
-// DiffSingerOptionsはDiffSinger推論の任意調整。0は既定値を使う。
-type DiffSingerOptions struct {
-	Steps       int64
-	DurationMix float64
-	PitchMix    float64
-	Expr        float64
 }
 
 type WorldlineProviderOptions struct {
