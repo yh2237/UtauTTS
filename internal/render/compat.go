@@ -3,7 +3,6 @@ package render
 import (
 	"context"
 
-	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/provider"
 	"github.com/yh2237/UtauTTS/internal/render/base"
@@ -49,10 +48,6 @@ func newSourceCache() sourceCache { return base.NewSourceCache() }
 
 func ClearWAVCache() { base.ClearWAVCache() }
 
-func effectiveUnitPitchFactor(unit plan.Unit, applyPitch bool) float64 {
-	return base.EffectiveUnitPitchFactor(unit, applyPitch)
-}
-
 func pitchCurveFactorAt(curve *PitchCurve, timeMS float64) float64 {
 	return base.PitchCurveFactorAt(curve, timeMS)
 }
@@ -67,33 +62,15 @@ func resampleForPitchCurve(source []float64, baseFactor float64, curve *PitchCur
 	return base.ResampleForPitchCurve(source, baseFactor, curve, startMS, spanMS)
 }
 
-func medianFloat(values []float64) float64 { return base.MedianFloat(values) }
-
 func identityFactors(size int) []float64 { return base.IdentityFactors(size) }
-
-func nonzeroFloats(values []float64) []float64 { return base.NonzeroFloats(values) }
 
 func analyzeIntonation(synthesisPlan *plan.Plan, timings []effectiveTiming, cache *sourceCache, strength float64) []float64 {
 	return base.AnalyzeIntonation(synthesisPlan, timings, cache, strength)
 }
 
-func analyzeIntonationFromPitches(synthesisPlan *plan.Plan, timings []effectiveTiming, pitches []float64, strength float64) []float64 {
-	return base.AnalyzeIntonationFromPitches(synthesisPlan, timings, pitches, strength)
-}
-
-func measureWorldlinePitches(synthesisPlan *plan.Plan, cache *sourceCache) ([]float64, int, error) {
-	return base.MeasureWorldlinePitches(synthesisPlan, cache)
-}
-
 func normalizePlanTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64) effectiveTiming {
 	return base.NormalizePlanTiming(synthesisPlan, unit, releaseMS)
 }
-
-func normalizedPhoneTimingUnits(synthesisPlan *plan.Plan, releaseMS float64) []plan.Unit {
-	return base.NormalizedPhoneTimingUnits(synthesisPlan, releaseMS)
-}
-
-func isVCVUnit(unit plan.Unit) bool { return base.IsVCVUnit(unit) }
 
 func adaptStretchTiming(unit plan.Unit, timing effectiveTiming, releaseMS float64, enabled bool, strength float64) effectiveTiming {
 	return base.AdaptStretchTiming(unit, timing, releaseMS, enabled, strength)
@@ -116,18 +93,6 @@ func limitLeadingPreutterance(required, maximum float64) float64 {
 }
 
 func fadeInDurationMS(timing effectiveTiming) float64 { return base.FadeInDurationMS(timing) }
-
-func openUtauPhoneTimings(units []plan.Unit, cvvcTiming string) ([]openUtauPhoneTiming, float64) {
-	return base.OpenUtauPhoneTimings(units, cvvcTiming)
-}
-
-func openUtauEnvelopeFromTiming(unit plan.Unit, timing openUtauPhoneTiming) []worldlineEnvelopePoint {
-	return base.OpenUtauEnvelopeFromTiming(unit, timing)
-}
-
-func cvvcPreBoundaryEnvelope(points []worldlineEnvelopePoint, timing openUtauPhoneTiming) []worldlineEnvelopePoint {
-	return base.CVVCPreBoundaryEnvelope(points, timing)
-}
 
 func providerPitchCurve(curve *PitchCurve) *provider.PitchCurve {
 	return base.ProviderPitchCurve(curve)
@@ -158,9 +123,3 @@ func floatPCM(data []float64) []int16 { return base.FloatPCM(data) }
 func smoothstep(value float64) float64 { return base.Smoothstep(value) }
 
 func contextError(ctx context.Context) error { return base.ContextError(ctx) }
-
-func toMono(pcm *audio.PCM) *audio.PCM { return base.ToMono(pcm) }
-
-func resampleRate(pcm *audio.PCM, targetRate int) *audio.PCM {
-	return base.ResampleRate(pcm, targetRate)
-}

@@ -7,10 +7,6 @@ import (
 	"github.com/yh2237/UtauTTS/internal/provider"
 )
 
-func OpenUtauPhoneTimings(units []plan.Unit, cvvcTiming string) ([]OpenUtauPhoneTiming, float64) {
-	return OpenUtauPhoneTimingsWithCoda(units, cvvcTiming, false)
-}
-
 func OpenUtauPhoneTimingsWithCoda(units []plan.Unit, cvvcTiming string, protectCoda bool) ([]OpenUtauPhoneTiming, float64) {
 	result := make([]OpenUtauPhoneTiming, len(units))
 	previous := -1

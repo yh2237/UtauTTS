@@ -94,7 +94,7 @@ func TestNormalizeVCVTimingRepairsBrokenBoundaries(t *testing.T) {
 func TestNormalizedPhoneTimingUnitsKeepValidVCVAnchors(t *testing.T) {
 	p := &plan.Plan{Units: []plan.Unit{{Role: "mora", AliasKind: "VCV", DurationMS: 140,
 		PreutteranceMS: 210, OverlapMS: 70, ConsonantMS: 360}}}
-	units := normalizedPhoneTimingUnits(p, 20)
+	units := base.NormalizedPhoneTimingUnits(p, 20)
 	if len(units) != 1 || units[0].PreutteranceMS != 210 || units[0].ConsonantMS != 360 {
 		t.Fatalf("normalized phone units = %+v", units)
 	}

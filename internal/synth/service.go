@@ -436,13 +436,6 @@ func (s *Service) referenceDir() string {
 	return ""
 }
 
-func firstNonEmpty(override, fallback string) string {
-	if strings.TrimSpace(override) != "" {
-		return override
-	}
-	return fallback
-}
-
 func (s *Service) ResolveRenderer(requested string) (engine.ResolvedEngine, error) {
 	resolved, err := tts.ResolveRendererWithOptions(s.catalog, s.rendererID(requested), engine.ResolveOptions{
 		ResourceOverrides: map[engine.ResourceKey]string{
@@ -489,16 +482,6 @@ var retiredModelIDs = map[string]string{
 	"frame-intonation-tcn-v11":    "frame-intonation-tcn-v12",
 }
 
-// RetiredModelIDsは、保存済みのプロジェクトを読み直す側へ読み替えの表を渡す。
-// 読み替えるのはプロジェクトを持つGUIの役目なので、ここでは知らせるだけにする。
-func RetiredModelIDs() map[string]string {
-	result := make(map[string]string, len(retiredModelIDs))
-	for id, replacement := range retiredModelIDs {
-		result[id] = replacement
-	}
-	return result
-}
-
 func (s *Service) ResolveModel(id string) (string, error) {
 	if id == "" || id == "none" {
 		return "", nil
@@ -522,4 +505,14 @@ func (s *Service) ModelAvailable(id string) bool {
 	}
 	_, found := s.catalog.Model(id)
 	return found
+}
+
+// RetiredModelIDsは、保存済みのプロジェクトを読み直す側へ読み替えの表を渡す。
+// 読み替えるのはプロジェクトを持つGUIの役目なので、ここでは知らせるだけにする。
+func RetiredModelIDs() map[string]string {
+	result := make(map[string]string, len(retiredModelIDs))
+	for id, replacement := range retiredModelIDs {
+		result[id] = replacement
+	}
+	return result
 }

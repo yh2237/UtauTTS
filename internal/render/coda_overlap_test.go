@@ -10,7 +10,7 @@ import (
 func TestCodaOverlapReservesAudibleTail(t *testing.T) {
 	units := []plan.Unit{{Role: "ending", NoteStartMS: 0, DurationMS: 41.263, PreutteranceMS: 250, OverlapMS: 83.333, CodaPhones: []string{"k"}},
 		{Role: "ending", NoteStartMS: 41.263, DurationMS: 118, PreutteranceMS: 74.324, CodaPhones: []string{"s", "t"}}}
-	before, _ := openUtauPhoneTimings(units, "")
+	before, _ := base.OpenUtauPhoneTimingsWithCoda(units, "", false)
 	after, _ := base.OpenUtauPhoneTimingsWithCoda(units, "", true)
 	oldTail := units[0].DurationMS - before[0].TailIntrude + before[0].TailOverlap
 	tail := units[0].DurationMS - after[0].TailIntrude + after[0].TailOverlap

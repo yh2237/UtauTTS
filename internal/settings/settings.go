@@ -77,9 +77,6 @@ func Bool(id string) bool { return mustLookup(id).Default.(bool) }
 // Numberはnumber・integer設定の既定値。
 func Number(id string) float64 { return mustLookup(id).Default.(float64) }
 
-// Stringはenum・string設定の既定値。
-func String(id string) string { return mustLookup(id).Default.(string) }
-
 func (setting Setting) AppliesTo(provider string) bool {
 	if len(setting.Providers) == 0 {
 		return true

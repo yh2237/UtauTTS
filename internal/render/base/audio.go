@@ -196,10 +196,6 @@ func PcmFloats(data []int16) []float64 { return pcmFloats(data) }
 
 func FloatPCM(data []float64) []int16 { return floatPCM(data) }
 
-func ToMono(pcm *audio.PCM) *audio.PCM { return toMono(pcm) }
-
-func ResampleRate(pcm *audio.PCM, targetRate int) *audio.PCM { return resampleRate(pcm, targetRate) }
-
 func ContextError(ctx context.Context) error {
 	if ctx == nil {
 		return nil

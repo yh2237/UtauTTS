@@ -154,11 +154,11 @@ func TestOpenUtauEnvelopeUsesNextPhoneTailTiming(t *testing.T) {
 		{NoteStartMS: 0, DurationMS: 100, PreutteranceMS: 30, OverlapMS: 5},
 		{NoteStartMS: 100, DurationMS: 100, PreutteranceMS: 40, OverlapMS: 10},
 	}
-	timings, phraseStart := openUtauPhoneTimings(units, CVVCTimingSequential)
+	timings, phraseStart := base.OpenUtauPhoneTimingsWithCoda(units, CVVCTimingSequential, false)
 	if timings[0].TailIntrude != 40 || timings[0].TailOverlap != 10 || !timings[1].Overlapped || phraseStart != -30 {
 		t.Fatalf("timing = %+v %+v phraseStart=%.1f", timings[0], timings[1], phraseStart)
 	}
-	envelope := openUtauEnvelopeFromTiming(units[0], timings[0])
+	envelope := base.OpenUtauEnvelopeFromTiming(units[0], timings[0])
 	wantX := []float64{-30, -25, 0, 60, 70}
 	for index, want := range wantX {
 		if envelope[index].XMS != want {
@@ -173,7 +173,7 @@ func TestOpenUtauSequentialCVVCTimingChainsTransitionAndMainPhone(t *testing.T) 
 		{Position: 1, Role: "transition", NoteStartMS: 100, DurationMS: 30, PreutteranceMS: 50, OverlapMS: 20},
 		{Position: 1, Role: "mora", NoteStartMS: 100, DurationMS: 100, PreutteranceMS: 40, OverlapMS: 10},
 	}
-	timings, phraseStart := openUtauPhoneTimings(units, CVVCTimingSequential)
+	timings, phraseStart := base.OpenUtauPhoneTimingsWithCoda(units, CVVCTimingSequential, false)
 	if timings[0].TailIntrude != 50 || timings[0].TailOverlap != 20 {
 		t.Fatalf("previous mora tail timing = %+v", timings[0])
 	}
@@ -193,7 +193,7 @@ func TestCVVCPreBoundaryEnvelopeEndsAtFollowingMoraBoundary(t *testing.T) {
 		{XMS: -80, Y: 0}, {XMS: -50, Y: 1}, {XMS: 0, Y: 1},
 		{XMS: 10, Y: 1}, {XMS: 30, Y: 0},
 	}
-	got := cvvcPreBoundaryEnvelope(points, openUtauPhoneTiming{TailOverlap: 20})
+	got := base.CVVCPreBoundaryEnvelope(points, openUtauPhoneTiming{TailOverlap: 20})
 	if got[2].XMS != -20 || got[3].XMS != -20 || got[4].XMS != 0 {
 		t.Fatalf("unexpected pre-boundary envelope: %+v", got)
 	}
@@ -641,7 +641,7 @@ func TestMeasureWorldlinePitchesHandlesMultipleUnits(t *testing.T) {
 		}
 		units[index] = plan.Unit{Position: index, Source: path, DurationMS: 150}
 	}
-	values, sampleRate, err := measureWorldlinePitches(&plan.Plan{Units: units}, &sourceCache{})
+	values, sampleRate, err := base.MeasureWorldlinePitches(&plan.Plan{Units: units}, &sourceCache{})
 	if err != nil {
 		t.Fatal(err)
 	}
