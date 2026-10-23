@@ -9,6 +9,7 @@ import (
 
 	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/UtauTTS/internal/sourceaudio"
+	"github.com/yh2237/audiodsp/stretch"
 )
 
 type SourceCache struct {
@@ -172,25 +173,9 @@ func msToFramesSigned(ms float64, sampleRate int) int {
 	return int(math.Round(ms * float64(sampleRate) / 1000))
 }
 
-func framesToMS(frames, sampleRate int) float64 {
-	if sampleRate <= 0 {
-		return 0
-	}
-	return float64(frames) * 1000 / float64(sampleRate)
-}
-
-func smoothstep(value float64) float64 {
-	value = math.Max(0, math.Min(1, value))
-	return value * value * (3 - 2*value)
-}
-
-func Smoothstep(value float64) float64 { return smoothstep(value) }
-
 func MsToFrames(ms float64, sampleRate int) int { return msToFrames(ms, sampleRate) }
 
 func MsToFramesSigned(ms float64, sampleRate int) int { return msToFramesSigned(ms, sampleRate) }
-
-func FramesToMS(frames, sampleRate int) float64 { return framesToMS(frames, sampleRate) }
 
 func PcmFloats(data []int16) []float64 { return pcmFloats(data) }
 
@@ -206,4 +191,8 @@ func ContextError(ctx context.Context) error {
 	default:
 		return nil
 	}
+}
+
+func linearResample(source []float64, targetFrames int) []float64 {
+	return stretch.Linear(source, targetFrames)
 }

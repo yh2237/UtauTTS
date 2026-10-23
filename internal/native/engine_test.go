@@ -29,7 +29,7 @@ func newTestEngine(t *testing.T, config Config) *Engine {
 func waveformTestRendererDirectory(t *testing.T) string {
 	t.Helper()
 	directory := t.TempDir()
-	manifest := []byte(`{"manifest_version":2,"kind":"synthesis-engine","id":"waveform","display_name":"Test waveform","contract":"unit-renderer","provider":"waveform","provider_version":"1"}`)
+	manifest := []byte(`{"manifest_version":2,"kind":"synthesis-engine","id":"test-concat","display_name":"Test waveform","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`)
 	if err := os.WriteFile(filepath.Join(directory, "renderer.json"), manifest, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestEngineListsAnalyzesAndSynthesizes(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\na.wav=a k,0,0,0,0,0\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	engine := newTestEngine(t, Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
+	engine := newTestEngine(t, Config{VoiceDir: root, Renderer: "test-concat", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
 	voicebanks, err := engine.Call("voicebanks", nil)
 	if err != nil || !strings.Contains(string(voicebanks), `"has_vc":true`) || !strings.Contains(string(voicebanks), `"VC":1`) {
 		t.Fatalf("voicebank capabilities=%s err=%v", voicebanks, err)
@@ -226,7 +226,7 @@ func TestEngineFallsBackToOpenJTalkForEnglish(t *testing.T) {
 		t.Fatal(err)
 	}
 	library, dictionary := openJTalkRuntime(t)
-	engine := newTestEngine(t, Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}, OpenJTalkPath: library, OpenJTalkDictionary: dictionary})
+	engine := newTestEngine(t, Config{VoiceDir: root, Renderer: "test-concat", RendererDirectories: []string{waveformTestRendererDirectory(t)}, OpenJTalkPath: library, OpenJTalkDictionary: dictionary})
 
 	analysisJSON, err := engine.Call("analyze", []byte(`{"language":"ja","text":"hello"}`))
 	if err != nil {
@@ -256,7 +256,7 @@ func TestEngineFallsBackToOpenJTalkForEnglish(t *testing.T) {
 }
 
 func TestEngineAnalyzesChinese(t *testing.T) {
-	engine := newTestEngine(t, Config{VoiceDir: t.TempDir(), Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
+	engine := newTestEngine(t, Config{VoiceDir: t.TempDir(), Renderer: "test-concat", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
 	result, err := engine.Call("analyze", []byte(`{"text":"你好","language":"zh","phonemizer":"zh-cvvc"}`))
 	if err != nil {
 		t.Fatal(err)
@@ -351,7 +351,7 @@ func TestNativeRequestsUseSharedFields(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	engine := newTestEngine(t, Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
+	engine := newTestEngine(t, Config{VoiceDir: root, Renderer: "test-concat", RendererDirectories: []string{waveformTestRendererDirectory(t)}})
 	output := filepath.Join(root, "preview.wav")
 
 	shared, _ := json.Marshal(map[string]any{

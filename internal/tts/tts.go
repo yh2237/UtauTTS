@@ -81,8 +81,6 @@ type Config struct {
 	IntonationStrength      float64
 	Renderer                string
 	RendererCapabilities    *plugin.Capabilities
-	BoundaryBridgeMS        float64
-	BoundaryBridgeThreshold float64
 	CVVCTiming              string
 	CVVCTransitionGain      float64
 	CVVCPreBoundaryFade     bool
@@ -342,23 +340,21 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 	}
 	traceMark(&start, "pitch")
 	rendered, err := render.RenderWithReport(synthesisPlan, render.Config{
-		Context:                 cfg.Context,
-		Engine:                  cfg.Engine,
-		ReleaseMS:               cfg.ReleaseMS,
-		ReleaseSet:              cfg.ReleaseSet,
-		LeadingPreutteranceMS:   cfg.LeadingPreutteranceMS,
-		IntonationStrength:      pitch.RendererStrength,
-		ApplyPitch:              pitch.Apply,
-		Backend:                 cfg.Renderer,
-		ProviderOptions:         providerOptions,
-		BoundaryBridgeMS:        cfg.BoundaryBridgeMS,
-		BoundaryBridgeThreshold: cfg.BoundaryBridgeThreshold,
-		CVVCTiming:              cfg.CVVCTiming,
-		CVVCTransitionGain:      cfg.CVVCTransitionGain,
-		CVVCPreBoundaryFade:     cfg.CVVCPreBoundaryFade,
-		PitchCurve:              pitch.Curve,
-		StretchAdapt:            stretchAdapt,
-		StretchAdaptStrength:    stretchAdaptStrength(cfg),
+		Context:               cfg.Context,
+		Engine:                cfg.Engine,
+		ReleaseMS:             cfg.ReleaseMS,
+		ReleaseSet:            cfg.ReleaseSet,
+		LeadingPreutteranceMS: cfg.LeadingPreutteranceMS,
+		IntonationStrength:    pitch.RendererStrength,
+		ApplyPitch:            pitch.Apply,
+		Backend:               cfg.Renderer,
+		ProviderOptions:       providerOptions,
+		CVVCTiming:            cfg.CVVCTiming,
+		CVVCTransitionGain:    cfg.CVVCTransitionGain,
+		CVVCPreBoundaryFade:   cfg.CVVCPreBoundaryFade,
+		PitchCurve:            pitch.Curve,
+		StretchAdapt:          stretchAdapt,
+		StretchAdaptStrength:  stretchAdaptStrength(cfg),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("render: %w", err)

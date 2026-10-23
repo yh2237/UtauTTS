@@ -166,7 +166,7 @@ func TestSynthesizeEndpointReportsWaveformRenderer(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
-	if wav := response.Body.Bytes(); len(wav) < 4 || string(wav[:4]) != "RIFF" || response.Header().Get("X-UtauTTS-Engine") != "waveform" {
+	if wav := response.Body.Bytes(); len(wav) < 4 || string(wav[:4]) != "RIFF" || response.Header().Get("X-UtauTTS-Engine") != "test-concat" {
 		t.Fatalf("unexpected audio response: headers=%v bytes=%d", response.Header(), len(wav))
 	}
 }
@@ -189,11 +189,11 @@ func newWaveformTestServer(t *testing.T) *Server {
 	if err := os.WriteFile(filepath.Join(bank, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	manifest := `{"manifest_version":2,"kind":"synthesis-engine","id":"waveform","display_name":"Test waveform","contract":"unit-renderer","provider":"waveform","provider_version":"1"}`
+	manifest := `{"manifest_version":2,"kind":"synthesis-engine","id":"test-concat","display_name":"Test waveform","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`
 	if err := os.WriteFile(filepath.Join(root, "renderer.json"), []byte(manifest), 0600); err != nil {
 		t.Fatal(err)
 	}
-	return mustNewServer(t, Config{VoiceDir: root, Renderer: "waveform", RendererDirectories: []string{root}})
+	return mustNewServer(t, Config{VoiceDir: root, Renderer: "test-concat", RendererDirectories: []string{root}})
 }
 
 func TestLabelAndBatchSidecarEndpoints(t *testing.T) {
@@ -274,7 +274,7 @@ func TestHealthReportsConfiguredRenderer(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload["status"] != "ok" || payload["engine"] != "waveform" {
+	if payload["status"] != "ok" || payload["engine"] != "test-concat" {
 		t.Fatalf("unexpected response: %#v", payload)
 	}
 }

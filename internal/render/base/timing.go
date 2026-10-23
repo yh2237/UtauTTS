@@ -416,22 +416,6 @@ func SingleCVOnset(synthesisPlan *plan.Plan, unit plan.Unit) string {
 	return ""
 }
 
-func SingleCVBoundaryEligible(synthesisPlan *plan.Plan, previous, current RenderedUnit) bool {
-	if synthesisPlan == nil || !synthesisPlan.SingleCV || previous.Index+1 != current.Index {
-		return false
-	}
-	if previous.Unit.Role != "mora" || current.Unit.Role != "mora" || previous.Unit.Position+1 != current.Unit.Position {
-		return false
-	}
-	if previous.Unit.Silent || current.Unit.Silent || current.Unit.Position < 0 || current.Unit.Position >= len(synthesisPlan.Morae) {
-		return false
-	}
-	if len(previous.Unit.CodaPhones) > 0 {
-		return false
-	}
-	return SingleCVMoraBoundaryEligible(synthesisPlan, current.Unit.Position)
-}
-
 func SingleCVMoraBoundaryEligible(synthesisPlan *plan.Plan, position int) bool {
 	if synthesisPlan == nil || position <= 0 || position >= len(synthesisPlan.Morae) {
 		return false
@@ -504,9 +488,4 @@ func LimitLeadingPreutterance(required, maximum float64) float64 {
 		return required
 	}
 	return math.Min(required, maximum)
-}
-
-// 前後のゲインが同時に0にならないよう、短く重ねる。
-func FadeInDurationMS(timing EffectiveTiming) float64 {
-	return math.Max(6, timing.PreutteranceMS-timing.OverlapMS)
 }

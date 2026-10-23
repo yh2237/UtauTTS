@@ -33,12 +33,12 @@ func TestSelectionPlanGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	catalog := &plugin.Catalog{Renderers: []plugin.Renderer{{
-		ManifestVersion: 2, Kind: "synthesis-engine", ID: "waveform", DisplayName: "waveform",
-		Contract: "unit-renderer", Provider: "waveform", ProviderVersion: "1",
+		ManifestVersion: 2, Kind: "synthesis-engine", ID: "test-concat", DisplayName: "test-concat",
+		Contract: "unit-renderer", Provider: "test-concat", ProviderVersion: "1",
 	}}}
-	service := synth.NewService(catalog, "waveform", "", "", nil)
+	service := synth.NewService(catalog, "test-concat", "", "", nil)
 	request := synth.Request{
-		Reading: "かさ", VoicebankPath: bankDir, Tone: "C4", Renderer: "waveform",
+		Reading: "かさ", VoicebankPath: bankDir, Tone: "C4", Renderer: "test-concat",
 		Method:         tts.MethodWaveformSynthesis,
 		Language:       "ja",
 		MoraDurationMS: synth.DefaultMoraDurationMS, PauseDurationMS: plan.DefaultPauseDurationMS,

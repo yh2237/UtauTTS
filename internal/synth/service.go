@@ -104,8 +104,6 @@ type Request struct {
 	PauseContext            bool                   `json:"pause_context"`
 	PauseContextStrength    float64                `json:"pause_context_strength"`
 	ApplyPitch              bool                   `json:"apply_pitch"`
-	BoundaryBridgeMS        float64                `json:"-"`
-	BoundaryBridgeThreshold float64                `json:"-"`
 	CVVCTiming              string                 `json:"-"`
 	CVVCTransitionGain      float64                `json:"-"`
 	CVVCPreBoundaryFade     bool                   `json:"-"`
@@ -355,8 +353,6 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, st
 		ApplyPitch:              request.ApplyPitch,
 		OpenJTalkPath:           s.openJTalkPath,
 		OpenJTalkDictionaryPath: s.openJTalkDictionary,
-		BoundaryBridgeMS:        request.BoundaryBridgeMS,
-		BoundaryBridgeThreshold: request.BoundaryBridgeThreshold,
 		CVVCTiming:              request.CVVCTiming,
 		CVVCTransitionGain:      request.CVVCTransitionGain,
 		CVVCPreBoundaryFade:     request.CVVCPreBoundaryFade,

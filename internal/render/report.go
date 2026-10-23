@@ -20,18 +20,14 @@ type UnitRenderResult struct {
 }
 
 type RenderReport struct {
-	TargetF0                *F0Track `json:"target_f0,omitempty"`
-	Provider                engine.ProviderID
-	LeadingMarginMS         float64
-	BoundaryBridgeMS        float64
-	BoundaryBridgeThreshold float64
-	BoundaryBridges         []plan.BoundaryBridge
-	BoundaryRepairDecisions []plan.BoundaryRepairDecision
-	CVVCTiming              string
-	CVVCTransitionGain      float64
-	CVVCPreBoundaryFade     bool
-	Diagnostics             []RenderDiagnostic `json:"diagnostics,omitempty"`
-	Units                   []UnitRenderReport
+	TargetF0            *F0Track `json:"target_f0,omitempty"`
+	Provider            engine.ProviderID
+	LeadingMarginMS     float64
+	CVVCTiming          string
+	CVVCTransitionGain  float64
+	CVVCPreBoundaryFade bool
+	Diagnostics         []RenderDiagnostic `json:"diagnostics,omitempty"`
+	Units               []UnitRenderReport
 }
 
 type RenderDiagnostic struct {
@@ -102,7 +98,7 @@ func (renderer builtinUnitRenderer) Render(synthesisPlan *plan.Plan, cfg Config)
 
 func UnitRendererForProvider(provider string) (UnitRenderer, error) {
 	if provider == "" {
-		provider = "waveform"
+		return nil, fmt.Errorf("unit renderer is not selected")
 	}
 	if _, found := base.RendererImplementation(provider); !found {
 		return nil, fmt.Errorf("unknown unit renderer provider %q", provider)
@@ -136,10 +132,6 @@ func reportFromPlan(provider engine.ProviderID, synthesisPlan *plan.Plan) Render
 		return report
 	}
 	report.LeadingMarginMS = synthesisPlan.LeadingMarginMS
-	report.BoundaryBridgeMS = synthesisPlan.BoundaryBridgeMS
-	report.BoundaryBridgeThreshold = synthesisPlan.BoundaryBridgeThreshold
-	report.BoundaryBridges = append([]plan.BoundaryBridge(nil), synthesisPlan.BoundaryBridges...)
-	report.BoundaryRepairDecisions = append([]plan.BoundaryRepairDecision(nil), synthesisPlan.BoundaryRepairDecisions...)
 	report.CVVCTiming = synthesisPlan.CVVCTiming
 	report.CVVCTransitionGain = synthesisPlan.CVVCTransitionGain
 	report.CVVCPreBoundaryFade = synthesisPlan.CVVCPreBoundaryFade
@@ -186,10 +178,6 @@ func (report RenderReport) ApplyTo(synthesisPlan *plan.Plan) {
 		return
 	}
 	synthesisPlan.LeadingMarginMS = report.LeadingMarginMS
-	synthesisPlan.BoundaryBridgeMS = report.BoundaryBridgeMS
-	synthesisPlan.BoundaryBridgeThreshold = report.BoundaryBridgeThreshold
-	synthesisPlan.BoundaryBridges = append([]plan.BoundaryBridge(nil), report.BoundaryBridges...)
-	synthesisPlan.BoundaryRepairDecisions = append([]plan.BoundaryRepairDecision(nil), report.BoundaryRepairDecisions...)
 	synthesisPlan.CVVCTiming = report.CVVCTiming
 	synthesisPlan.CVVCTransitionGain = report.CVVCTransitionGain
 	synthesisPlan.CVVCPreBoundaryFade = report.CVVCPreBoundaryFade

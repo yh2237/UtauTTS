@@ -24,8 +24,8 @@ func testRenderer(id, provider string) plugin.Renderer {
 
 func TestDefaultRequestResolvesSynthesisSettings(t *testing.T) {
 	service := NewService(&plugin.Catalog{
-		Renderers: []plugin.Renderer{testRenderer("waveform", "waveform")},
-	}, "waveform", "", "", testVoicebankResolver{path: "voicebank"})
+		Renderers: []plugin.Renderer{testRenderer("test-concat", "test-concat")},
+	}, "test-concat", "", "", testVoicebankResolver{path: "voicebank"})
 	request := DefaultRequest()
 	request.Method = tts.MethodWaveformSynthesis
 	request.Language = "ja"
@@ -60,11 +60,11 @@ func (resolver testVoicebankResolver) Resolve(string) (string, bool) {
 
 func TestResolveSynthesisUsesDirectVoicebankPathAndNormalizesKana(t *testing.T) {
 	service := NewService(&plugin.Catalog{
-		Renderers: []plugin.Renderer{testRenderer("waveform", "waveform")},
-	}, "waveform", "", "", nil)
+		Renderers: []plugin.Renderer{testRenderer("test-concat", "test-concat")},
+	}, "test-concat", "", "", nil)
 	resolved, err := service.ResolveSynthesis(Request{
-		VoicebankPath: "voicebank", Kana: "あ", Renderer: "waveform", Method: tts.MethodWaveformSynthesis, Language: "ja",
-		ReleaseMS: 20, ReleaseSet: true, BoundaryBridgeMS: 12,
+		VoicebankPath: "voicebank", Kana: "あ", Renderer: "test-concat", Method: tts.MethodWaveformSynthesis, Language: "ja",
+		ReleaseMS: 20, ReleaseSet: true,
 		CVVCTiming: "sequential",
 	})
 	if err != nil {
@@ -74,7 +74,7 @@ func TestResolveSynthesisUsesDirectVoicebankPathAndNormalizesKana(t *testing.T) 
 		t.Fatalf("resolved config = %#v", resolved.Config)
 	}
 	if !resolved.Config.ReleaseSet || resolved.Config.ReleaseMS != 20 ||
-		resolved.Config.BoundaryBridgeMS != 12 || resolved.Config.CVVCTiming != "sequential" {
+		resolved.Config.CVVCTiming != "sequential" {
 		t.Fatalf("CLI settings were not preserved: %#v", resolved.Config)
 	}
 }
@@ -143,10 +143,10 @@ func TestApplyRendererSettingsTypeMismatchIsIgnored(t *testing.T) {
 
 func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 	service := NewService(&plugin.Catalog{
-		Renderers: []plugin.Renderer{testRenderer("waveform", "waveform")},
-	}, "waveform", "", "", nil)
+		Renderers: []plugin.Renderer{testRenderer("test-concat", "test-concat")},
+	}, "test-concat", "", "", nil)
 	cfg, _, options, err := service.config(Request{
-		Renderer: "waveform", ContextDuration: true, MoraDurationMS: 140, DiffSingerSteps: 17,
+		Renderer: "test-concat", ContextDuration: true, MoraDurationMS: 140, DiffSingerSteps: 17,
 		Method: tts.MethodWaveformSynthesis, Language: "ja",
 		RendererSettings: map[string]json.RawMessage{
 			"context_duration": json.RawMessage(`false`),
@@ -168,7 +168,7 @@ func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 		t.Fatalf("unknown renderer setting = %#v", options.Renderer)
 	}
 
-	cfg, _, options, err = service.config(Request{Renderer: "waveform", Method: tts.MethodWaveformSynthesis, Language: "ja", ContextDuration: true, MoraDurationMS: 140, DiffSingerSteps: 17}, false)
+	cfg, _, options, err = service.config(Request{Renderer: "test-concat", Method: tts.MethodWaveformSynthesis, Language: "ja", ContextDuration: true, MoraDurationMS: 140, DiffSingerSteps: 17}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestResolveRendererSeparatesPublicIDFromProvider(t *testing.T) {
 }
 
 func TestResolveRendererDoesNotFallbackForMissingExplicitID(t *testing.T) {
-	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{testRenderer("default", "waveform")}}, "default", "", "", nil)
+	service := NewService(&plugin.Catalog{Renderers: []plugin.Renderer{testRenderer("default", "test-concat")}}, "default", "", "", nil)
 	if _, err := service.ResolveRenderer("removed"); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("missing explicit renderer error = %v", err)
 	}
@@ -237,16 +237,16 @@ func TestSynthesisConfigRejectsUnavailableRendererRuntime(t *testing.T) {
 
 func TestConfigUsesExplicitModelPath(t *testing.T) {
 	service := NewService(&plugin.Catalog{
-		Renderers: []plugin.Renderer{testRenderer("waveform", "waveform")},
-	}, "waveform", "", "", nil)
+		Renderers: []plugin.Renderer{testRenderer("test-concat", "test-concat")},
+	}, "test-concat", "", "", nil)
 	cfg, renderer, _, err := service.config(Request{
-		ModelID: "not-in-catalog", ModelPath: "out/working-model.json", Renderer: "waveform",
+		ModelID: "not-in-catalog", ModelPath: "out/working-model.json", Renderer: "test-concat",
 		Method: tts.MethodWaveformSynthesis, Language: "ja",
 	}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renderer != "waveform" || cfg.ProsodyModelPath != "out/working-model.json" {
+	if renderer != "test-concat" || cfg.ProsodyModelPath != "out/working-model.json" {
 		t.Fatalf("explicit model path was not preserved: renderer=%q config=%#v", renderer, cfg)
 	}
 }

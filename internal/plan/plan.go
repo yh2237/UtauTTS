@@ -39,32 +39,28 @@ type Config struct {
 }
 
 type Plan struct {
-	SingleCV                bool                     `json:"single_cv,omitempty"`
-	PhoneTimings            []PhoneTiming            `json:"phone_timings,omitempty"`
-	PhoneTimingSource       string                   `json:"phone_timing_source,omitempty"`
-	Version                 int                      `json:"version"`
-	Voicebank               string                   `json:"voicebank"`
-	Text                    string                   `json:"text,omitempty"`
-	Reading                 string                   `json:"reading"`
-	Language                string                   `json:"language,omitempty"`
-	Phonemizer              string                   `json:"phonemizer,omitempty"`
-	Tone                    string                   `json:"tone,omitempty"`
-	Color                   string                   `json:"color,omitempty"`
-	SelectionMode           string                   `json:"selection_mode"`
-	AliasPolicy             string                   `json:"alias_policy"`
-	RequestedAliasPolicy    string                   `json:"requested_alias_policy,omitempty"`
-	JoinCostMode            string                   `json:"join_cost_mode"`
-	BoundaryBridgeMS        float64                  `json:"boundary_bridge_ms,omitempty"`
-	BoundaryBridgeThreshold float64                  `json:"boundary_bridge_threshold,omitempty"`
-	BoundaryBridges         []BoundaryBridge         `json:"boundary_bridges,omitempty"`
-	BoundaryRepairDecisions []BoundaryRepairDecision `json:"boundary_repair_decisions,omitempty"`
-	CVVCTiming              string                   `json:"cvvc_timing,omitempty"`
-	CVVCTransitionGain      float64                  `json:"cvvc_transition_gain,omitempty"`
-	CVVCPreBoundaryFade     bool                     `json:"cvvc_pre_boundary_fade,omitempty"`
-	LeadingMarginMS         float64                  `json:"leading_margin_ms,omitempty"`
-	DurationMS              float64                  `json:"duration_ms"`
-	Units                   []Unit                   `json:"units"`
-	Morae                   []frontend.Mora          `json:"linguistic_units,omitempty"`
+	SingleCV             bool            `json:"single_cv,omitempty"`
+	PhoneTimings         []PhoneTiming   `json:"phone_timings,omitempty"`
+	PhoneTimingSource    string          `json:"phone_timing_source,omitempty"`
+	Version              int             `json:"version"`
+	Voicebank            string          `json:"voicebank"`
+	Text                 string          `json:"text,omitempty"`
+	Reading              string          `json:"reading"`
+	Language             string          `json:"language,omitempty"`
+	Phonemizer           string          `json:"phonemizer,omitempty"`
+	Tone                 string          `json:"tone,omitempty"`
+	Color                string          `json:"color,omitempty"`
+	SelectionMode        string          `json:"selection_mode"`
+	AliasPolicy          string          `json:"alias_policy"`
+	RequestedAliasPolicy string          `json:"requested_alias_policy,omitempty"`
+	JoinCostMode         string          `json:"join_cost_mode"`
+	CVVCTiming           string          `json:"cvvc_timing,omitempty"`
+	CVVCTransitionGain   float64         `json:"cvvc_transition_gain,omitempty"`
+	CVVCPreBoundaryFade  bool            `json:"cvvc_pre_boundary_fade,omitempty"`
+	LeadingMarginMS      float64         `json:"leading_margin_ms,omitempty"`
+	DurationMS           float64         `json:"duration_ms"`
+	Units                []Unit          `json:"units"`
+	Morae                []frontend.Mora `json:"linguistic_units,omitempty"`
 }
 
 // Cloneはレンダラー用の独立したコピーを返す。診断結果を選択計画へ戻さない。
@@ -91,8 +87,6 @@ func Clone(source *Plan) *Plan {
 		result.Units[index].EntryValidation = append([]string(nil), source.Units[index].EntryValidation...)
 		result.Units[index].CandidateRejections = append([]voicebank.CandidateRejection(nil), source.Units[index].CandidateRejections...)
 	}
-	result.BoundaryBridges = append([]BoundaryBridge(nil), source.BoundaryBridges...)
-	result.BoundaryRepairDecisions = append([]BoundaryRepairDecision(nil), source.BoundaryRepairDecisions...)
 	if source.Morae != nil {
 		result.Morae = make([]frontend.Mora, len(source.Morae))
 		for index, mora := range source.Morae {
@@ -135,35 +129,6 @@ func cloneMora(mora frontend.Mora) frontend.Mora {
 	}
 	mora.Aliases = &hints
 	return mora
-}
-
-type BoundaryBridge struct {
-	UnitIndex   int     `json:"unit_index"`
-	Position    int     `json:"position"`
-	StartMS     float64 `json:"start_ms"`
-	EndMS       float64 `json:"end_ms"`
-	DurationMS  float64 `json:"duration_ms"`
-	LagMS       float64 `json:"lag_ms,omitempty"`
-	JoinScore   float64 `json:"join_score"`
-	Correlation float64 `json:"correlation,omitempty"`
-	Source      string  `json:"source"`
-	Kind        string  `json:"kind"`
-}
-
-type BoundaryRepairDecision struct {
-	UnitIndex        int     `json:"unit_index"`
-	Position         int     `json:"position"`
-	CandidateCount   int     `json:"candidate_count"`
-	SelectedKind     string  `json:"selected_kind"`
-	Applied          bool    `json:"applied"`
-	DurationMS       float64 `json:"duration_ms,omitempty"`
-	LagMS            float64 `json:"lag_ms,omitempty"`
-	JoinScore        float64 `json:"join_score"`
-	Correlation      float64 `json:"correlation,omitempty"`
-	BaselinePeak     float64 `json:"baseline_peak_delta"`
-	SelectedPeak     float64 `json:"selected_peak_delta"`
-	BaselineDeltaRMS float64 `json:"baseline_delta_rms"`
-	SelectedDeltaRMS float64 `json:"selected_delta_rms"`
 }
 
 type WorldRenderMode string

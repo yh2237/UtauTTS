@@ -125,62 +125,6 @@ func PitchCurveFactorAt(curve *PitchCurve, timeMS float64) float64 {
 	return math.Pow(2, cents/1200)
 }
 
-func clampPitchFactor(factor float64) float64 {
-	return math.Max(0.75, math.Min(1.35, factor))
-}
-
-func ClampPitchFactor(factor float64) float64 { return clampPitchFactor(factor) }
-
-func ResampleForPitch(source []float64, factor float64) []float64 {
-	if len(source) < 16 || factor <= 0 || math.Abs(factor-1) < 0.001 {
-		return append([]float64(nil), source...)
-	}
-	factor = clampPitchFactor(factor)
-	return linearResample(source, max(16, int(math.Round(float64(len(source))/factor))))
-}
-
-// ResampleForPitchCurveは1/f(t)を積分し、時間変化するピッチでsourceを伸縮する。
-// 平坦なカーブはResampleForPitchと同じ結果になる。
-func ResampleForPitchCurve(source []float64, baseFactor float64, curve *PitchCurve, startMS, spanMS float64) []float64 {
-	if len(source) < 16 || baseFactor <= 0 {
-		return append([]float64(nil), source...)
-	}
-	if curve == nil || curve.FrameMS <= 0 || len(curve.Cents) == 0 {
-		return ResampleForPitch(source, baseFactor)
-	}
-	span := math.Max(1e-3, spanMS)
-	cumulative := make([]float64, len(source)+1)
-	for i := range source {
-		frame := 0.0
-		if len(source) > 1 {
-			frame = float64(i) / float64(len(source)-1)
-		}
-		factor := clampPitchFactor(baseFactor * PitchCurveFactorAt(curve, startMS+span*frame))
-		cumulative[i+1] = cumulative[i] + 1/factor
-	}
-	targetFrames := max(16, int(math.Round(cumulative[len(source)])))
-	result := make([]float64, targetFrames)
-	segment := 0
-	for output := range result {
-		for segment < len(source)-1 && float64(output) >= cumulative[segment+1] {
-			segment++
-		}
-		fraction := 0.0
-		if segment < len(source)-1 {
-			width := cumulative[segment+1] - cumulative[segment]
-			if width > 0 {
-				fraction = (float64(output) - cumulative[segment]) / width
-			}
-		}
-		right := source[segment]
-		if segment+1 < len(source) {
-			right = source[segment+1]
-		}
-		result[output] = source[segment] + (right-source[segment])*fraction
-	}
-	return result
-}
-
 func MedianFloat(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
@@ -210,24 +154,6 @@ func NonzeroFloats(values []float64) []float64 {
 		}
 	}
 	return result
-}
-
-func AnalyzeIntonation(synthesisPlan *plan.Plan, timings []EffectiveTiming, cache *SourceCache, strength float64) []float64 {
-	pitches := make([]float64, len(synthesisPlan.Units))
-	for i, unit := range synthesisPlan.Units {
-		if unit.Silent || unit.Role == "transition" {
-			continue
-		}
-		mono, err := cache.LoadMono(unit.Source)
-		if err != nil {
-			continue
-		}
-		pitches[i], err = EstimateUnitPitch(unit, mono)
-		if err != nil {
-			continue
-		}
-	}
-	return AnalyzeIntonationFromPitches(synthesisPlan, timings, pitches, strength)
 }
 
 func AnalyzeIntonationFromPitches(synthesisPlan *plan.Plan, timings []EffectiveTiming, pitches []float64, strength float64) []float64 {

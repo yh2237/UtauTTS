@@ -21,7 +21,7 @@ func TestRepositoryRendererPluginsAreSelfDescribing(t *testing.T) {
 		t.Fatalf("default renderer = %q, want manifest-priority UtauTTS WORLD phrase", items[0].ID)
 	}
 	for _, item := range items {
-		if item.ID == "waveform" {
+		if item.ID == "test-concat" {
 			t.Fatal("removed waveform renderer is still bundled")
 		}
 		if item.ID == "" || item.DisplayName == "" || item.Provider == "" {
@@ -44,7 +44,7 @@ func TestModelUsesIdentityStoredInsideModel(t *testing.T) {
 	path := filepath.Join(directory, "arbitrary-filename.json")
 	data := []byte(`{
   "id":"intonation.example", "display_name":"Example model", "description":"self described",
-  "recommended_renderers":["waveform"], "version":8, "feature_version":1,
+  "recommended_renderers":["test-concat"], "version":8, "feature_version":1,
   "mode":"intonation_frame_tcn_accent_bounded", "duration_weights":{},
   "frame_pitch":{"feature_names":["bias"],"input_weights":[[0]],"input_bias":[0],"layers":[],"output_weight":[0],"output_bias":0,"frame_ms":10,"low_cents":-100,"high_cents":100},
   "metrics":{}, "training":{}
@@ -199,18 +199,18 @@ func TestExplicitRendererDirectoryOverridesPackagedID(t *testing.T) {
 	packaged := filepath.Join(root, "packaged")
 	explicit := filepath.Join(root, "explicit")
 	for _, directory := range []string{
-		filepath.Join(packaged, "waveform"), filepath.Join(explicit, "waveform"),
+		filepath.Join(packaged, "test-concat"), filepath.Join(explicit, "test-concat"),
 	} {
 		if err := os.MkdirAll(directory, 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
-	manifest := `{"manifest_version":2,"kind":"synthesis-engine","id":"waveform","display_name":"packaged","contract":"unit-renderer","provider":"waveform","provider_version":"1"}`
-	if err := os.WriteFile(filepath.Join(packaged, "waveform", "renderer.json"), []byte(manifest), 0o600); err != nil {
+	manifest := `{"manifest_version":2,"kind":"synthesis-engine","id":"test-concat","display_name":"packaged","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`
+	if err := os.WriteFile(filepath.Join(packaged, "test-concat", "renderer.json"), []byte(manifest), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	manifest = `{"manifest_version":2,"kind":"synthesis-engine","id":"waveform","display_name":"explicit","contract":"unit-renderer","provider":"waveform","provider_version":"1"}`
-	if err := os.WriteFile(filepath.Join(explicit, "waveform", "renderer.json"), []byte(manifest), 0o600); err != nil {
+	manifest = `{"manifest_version":2,"kind":"synthesis-engine","id":"test-concat","display_name":"explicit","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`
+	if err := os.WriteFile(filepath.Join(explicit, "test-concat", "renderer.json"), []byte(manifest), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	items, err := DiscoverRenderers([]string{explicit, packaged}, func(string) bool { return true })

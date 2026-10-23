@@ -16,6 +16,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/lifecycle"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/provider"
+	"github.com/yh2237/UtauTTS/internal/render/base"
 )
 
 const unitRendererJobVersion = provider.UnitRendererJobVersion
@@ -36,7 +37,7 @@ func (renderer externalUnitRenderer) Render(synthesisPlan *plan.Plan, cfg Config
 	if synthesisPlan == nil || len(synthesisPlan.Units) == 0 {
 		return nil, errors.New("empty synthesis plan")
 	}
-	if err := contextError(cfg.Context); err != nil {
+	if err := base.ContextError(cfg.Context); err != nil {
 		return nil, err
 	}
 	executable := strings.TrimSpace(renderer.definition.Resource(engine.ResourceProviderExecutable))
@@ -59,16 +60,14 @@ func (renderer externalUnitRenderer) Render(synthesisPlan *plan.Plan, cfg Config
 		ContractVersion: renderer.definition.ContractVersion,
 		Plan:            planData,
 		Options: provider.UnitRendererOptions{
-			ReleaseMS:               cfg.ReleaseMS,
-			LeadingPreutteranceMS:   cfg.LeadingPreutteranceMS,
-			IntonationStrength:      cfg.IntonationStrength,
-			ApplyPitch:              cfg.ApplyPitch,
-			BoundaryBridgeMS:        cfg.BoundaryBridgeMS,
-			BoundaryBridgeThreshold: cfg.BoundaryBridgeThreshold,
-			CVVCTiming:              cfg.CVVCTiming,
-			CVVCTransitionGain:      cfg.CVVCTransitionGain,
-			CVVCPreBoundaryFade:     cfg.CVVCPreBoundaryFade,
-			PitchCurve:              providerPitchCurve(cfg.PitchCurve),
+			ReleaseMS:             cfg.ReleaseMS,
+			LeadingPreutteranceMS: cfg.LeadingPreutteranceMS,
+			IntonationStrength:    cfg.IntonationStrength,
+			ApplyPitch:            cfg.ApplyPitch,
+			CVVCTiming:            cfg.CVVCTiming,
+			CVVCTransitionGain:    cfg.CVVCTransitionGain,
+			CVVCPreBoundaryFade:   cfg.CVVCPreBoundaryFade,
+			PitchCurve:            base.ProviderPitchCurve(cfg.PitchCurve),
 		},
 		Resources: definitionResources(renderer.definition),
 	}
@@ -236,9 +235,6 @@ func providerCapabilities(capabilities engine.Capabilities) []string {
 	result := []string{provider.CapabilityUnitRendererJobV2}
 	if capabilities.FramePitch {
 		result = append(result, "frame_pitch")
-	}
-	if capabilities.BoundaryBridge {
-		result = append(result, "boundary_bridge")
 	}
 	return result
 }

@@ -29,7 +29,7 @@ func TestRetiredModelIDsAreReported(t *testing.T) {
 
 // TestResolveModelRejectsRetiredIDは、引退したモデルの指定をエラーにすることを確かめる。
 func TestResolveModelRejectsRetiredID(t *testing.T) {
-	service := NewService(&plugin.Catalog{}, "waveform", "", "", nil)
+	service := NewService(&plugin.Catalog{}, "test-concat", "", "", nil)
 	_, err := service.ResolveModel("frame-intonation-tcn-v10")
 	if err == nil {
 		t.Fatal("a retired model id was accepted")

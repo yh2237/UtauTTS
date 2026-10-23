@@ -104,7 +104,7 @@ func TestResolverRejectsDefinitionCapabilityUnsupportedByProvider(t *testing.T) 
 	}
 	_, err = NewResolver(registry).Resolve([]Definition{{
 		ID: "incorrect", Contract: ContractUnitRenderer, Provider: "builtin.basic",
-		Capabilities: Capabilities{FramePitch: true, BoundaryBridge: true},
+		Capabilities: Capabilities{FramePitch: true, InternalTiming: true},
 	}}, "incorrect")
 	if !errors.Is(err, ErrCapabilityMismatch) {
 		t.Fatalf("capability mismatch error = %v", err)

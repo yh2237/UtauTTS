@@ -320,19 +320,19 @@ func TestRunPreservesPortableConfig(t *testing.T) {
 	writeTestFile(t, filepath.Join(target, "app", "utautts-gui.exe"), "old-gui")
 	writeTestFile(t, filepath.Join(target, "config.ini"), "portable-settings")
 	writeTestFile(t, filepath.Join(target, "renderer", "builtin", "renderer.json"),
-		`{"manifest_version":2,"kind":"synthesis-engine","id":"builtin","display_name":"Old","contract":"unit-renderer","provider":"waveform","provider_version":"1"}`)
+		`{"manifest_version":2,"kind":"synthesis-engine","id":"builtin","display_name":"Old","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`)
 
 	zipPath := makeZip(t, map[string]string{
 		"app/utautts-gui.exe":            "new-gui",
 		"config.ini":                     "package-default",
-		"renderer/builtin/renderer.json": `{"manifest_version":2,"kind":"synthesis-engine","id":"builtin","display_name":"New","contract":"unit-renderer","provider":"waveform","provider_version":"1"}`,
+		"renderer/builtin/renderer.json": `{"manifest_version":2,"kind":"synthesis-engine","id":"builtin","display_name":"New","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`,
 	})
 	if err := run(target, "", zipPath, 0, "test", []string{"config.ini"}, false); err != nil {
 		t.Fatal(err)
 	}
 	for path, want := range map[string]string{
 		"config.ini":                     "portable-settings",
-		"renderer/builtin/renderer.json": `{"manifest_version":2,"kind":"synthesis-engine","id":"builtin","display_name":"New","contract":"unit-renderer","provider":"waveform","provider_version":"1"}`,
+		"renderer/builtin/renderer.json": `{"manifest_version":2,"kind":"synthesis-engine","id":"builtin","display_name":"New","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`,
 	} {
 		data, err := os.ReadFile(filepath.Join(target, filepath.FromSlash(path)))
 		if err != nil || string(data) != want {
@@ -344,14 +344,14 @@ func TestRunPreservesPortableConfig(t *testing.T) {
 func TestCarryCurrentRenderersDropsRemovedManagedWaveform(t *testing.T) {
 	current := t.TempDir()
 	stage := t.TempDir()
-	writeTestFile(t, filepath.Join(current, "renderer", "waveform", "renderer.json"),
-		`{"manifest_version":2,"kind":"synthesis-engine","id":"waveform","display_name":"Waveform","update_managed":true}`)
+	writeTestFile(t, filepath.Join(current, "renderer", "test-concat", "renderer.json"),
+		`{"manifest_version":2,"kind":"synthesis-engine","id":"test-concat","display_name":"Waveform","update_managed":true}`)
 	writeTestFile(t, filepath.Join(current, "renderer", "custom", "renderer.json"),
 		`{"manifest_version":2,"kind":"synthesis-engine","id":"custom","display_name":"Custom"}`)
 	if err := carryCurrentRenderers(current, stage); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(stage, "renderer", "waveform")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(stage, "renderer", "test-concat")); !os.IsNotExist(err) {
 		t.Fatalf("removed managed waveform renderer was carried forward: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(stage, "renderer", "custom", "renderer.json")); err != nil {

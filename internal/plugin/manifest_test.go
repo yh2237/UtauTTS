@@ -8,9 +8,9 @@ import (
 
 func TestRendererManifestRejectsUnsupportedAndInvalidFields(t *testing.T) {
 	for _, document := range []string{
-		`{"manifest_version":2,"kind":"renderer","id":"example.wave","display_name":"Example","backend":"waveform"}`,
-		`{"manifest_version":1,"kind":"renderer","id":"example.wave","display_name":"Example","backend":"waveform","protocol_version":1}`,
-		`{"manifest_version":2,"kind":"synthesis-engine","id":"example.wave","display_name":"Example","contract":"unit-renderer","provider":"waveform","provider_version":"1","resources":{"engine":{"required":true}}}`,
+		`{"manifest_version":2,"kind":"renderer","id":"example.wave","display_name":"Example","backend":"test-concat"}`,
+		`{"manifest_version":1,"kind":"renderer","id":"example.wave","display_name":"Example","backend":"test-concat","protocol_version":1}`,
+		`{"manifest_version":2,"kind":"synthesis-engine","id":"example.wave","display_name":"Example","contract":"unit-renderer","provider":"test-concat","provider_version":"1","resources":{"engine":{"required":true}}}`,
 	} {
 		if _, err := decodeRenderer([]byte(document)); err == nil {
 			t.Fatalf("unsupported or invalid field was accepted: %s", document)
@@ -20,11 +20,11 @@ func TestRendererManifestRejectsUnsupportedAndInvalidFields(t *testing.T) {
 
 func TestRendererManifestV2UsesExplicitProviderAndTypedResources(t *testing.T) {
 	directory := t.TempDir()
-	document := `{"manifest_version":2,"kind":"synthesis-engine","id":"example.wave","display_name":"Example","contract":"unit-renderer","provider":"waveform","provider_version":"1","resources":{"engine":{"path":"runtime/engine.dll","required":true}},"platform_resources":{"any":{"engine":{"path":"runtime/engine-any.bin","required":true,"executable":true}}}}`
+	document := `{"manifest_version":2,"kind":"synthesis-engine","id":"example.wave","display_name":"Example","contract":"unit-renderer","provider":"test-concat","provider_version":"1","resources":{"engine":{"path":"runtime/engine.dll","required":true}},"platform_resources":{"any":{"engine":{"path":"runtime/engine-any.bin","required":true,"executable":true}}}}`
 	if err := os.WriteFile(filepath.Join(directory, "renderer.json"), []byte(document), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	items, err := DiscoverRenderers([]string{directory}, func(provider string) bool { return provider == "waveform" })
+	items, err := DiscoverRenderers([]string{directory}, func(provider string) bool { return provider == "test-concat" })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestRendererManifestV2UsesExplicitProviderAndTypedResources(t *testing.T) {
 		t.Fatalf("v2 renderers = %#v", items)
 	}
 	item := items[0]
-	if item.ManifestVersion != 2 || item.Kind != "synthesis-engine" || item.Provider != "waveform" || item.Contract != "unit-renderer" || item.ProviderVersion != "1" {
+	if item.ManifestVersion != 2 || item.Kind != "synthesis-engine" || item.Provider != "test-concat" || item.Contract != "unit-renderer" || item.ProviderVersion != "1" {
 		t.Fatalf("v2 metadata = %#v", item)
 	}
 	resource := item.Resource("engine")
@@ -69,7 +69,7 @@ func TestRendererManifestV2AcceptsExternalProviderSession(t *testing.T) {
 
 func TestRendererManifestUnsupportedPlatformIsSkipped(t *testing.T) {
 	directory := t.TempDir()
-	document := `{"manifest_version":2,"kind":"synthesis-engine","id":"example.future","display_name":"Future","contract":"unit-renderer","provider":"waveform","provider_version":"1","platforms":["plan9-amd64"]}`
+	document := `{"manifest_version":2,"kind":"synthesis-engine","id":"example.future","display_name":"Future","contract":"unit-renderer","provider":"test-concat","provider_version":"1","platforms":["plan9-amd64"]}`
 	if err := os.WriteFile(filepath.Join(directory, "renderer.json"), []byte(document), 0o600); err != nil {
 		t.Fatal(err)
 	}

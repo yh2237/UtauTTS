@@ -8,22 +8,20 @@ import (
 )
 
 type Config struct {
-	TargetF0                *F0Track
-	Context                 context.Context
-	Engine                  engine.ResolvedEngine
-	ReleaseMS               float64
-	ReleaseSet              bool
-	LeadingPreutteranceMS   float64
-	IntonationStrength      float64
-	ApplyPitch              bool
-	Backend                 string
-	ProviderOptions         ProviderOptions
-	BoundaryBridgeMS        float64
-	BoundaryBridgeThreshold float64
-	CVVCTiming              string
-	CVVCTransitionGain      float64
-	CVVCPreBoundaryFade     bool
-	PitchCurve              *PitchCurve
+	TargetF0              *F0Track
+	Context               context.Context
+	Engine                engine.ResolvedEngine
+	ReleaseMS             float64
+	ReleaseSet            bool
+	LeadingPreutteranceMS float64
+	IntonationStrength    float64
+	ApplyPitch            bool
+	Backend               string
+	ProviderOptions       ProviderOptions
+	CVVCTiming            string
+	CVVCTransitionGain    float64
+	CVVCPreBoundaryFade   bool
+	PitchCurve            *PitchCurve
 	// 伸縮補正は日本語のモーラだけに適用する。
 	StretchAdapt bool
 	// StretchAdaptStrengthは伸縮補正の強度。0は既定1.0、負値は恒等。

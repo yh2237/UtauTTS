@@ -39,7 +39,7 @@ func testConfig(t *testing.T) utautts.Config {
 		filepath.Join(renderer, "renderer.json"): []byte(`{
 			"manifest_version":2,"kind":"synthesis-engine","id":"test-waveform",
 			"display_name":"Test waveform","contract":"unit-renderer",
-			"provider":"waveform","provider_version":"1"
+			"provider":"test-concat","provider_version":"1"
 		}`),
 	} {
 		if err := os.WriteFile(path, data, 0644); err != nil {

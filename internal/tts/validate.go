@@ -15,8 +15,6 @@ func validateConfig(cfg Config) error {
 		"boundary_tone_strength":    cfg.BoundaryToneStrength,
 		"stretch_adapt_strength":    cfg.StretchAdaptStrength,
 		"pause_context_strength":    cfg.PauseContextStrength,
-		"boundary_bridge_ms":        cfg.BoundaryBridgeMS,
-		"boundary_bridge_threshold": cfg.BoundaryBridgeThreshold,
 	}
 	for name, value := range finite {
 		if math.IsNaN(value) || math.IsInf(value, 0) {

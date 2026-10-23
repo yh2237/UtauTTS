@@ -2,8 +2,8 @@ package render
 
 import "math"
 
-// smoothAndLimitPitchCurveは入力を保ったまま平滑化と変化量制限を適用する。
-func smoothAndLimitPitchCurve(curve *PitchCurve, sigmaMS, maxCentsPer10MS float64) *PitchCurve {
+// ConstrainPitchCurveは入力を保ったまま平滑化と変化量制限を適用する。外部編集した輪郭にも学習済み輪郭と同じ制限をかける。
+func ConstrainPitchCurve(curve *PitchCurve, sigmaMS, maxCentsPer10MS float64) *PitchCurve {
 	if curve == nil || curve.FrameMS <= 0 || len(curve.Cents) == 0 {
 		return curve
 	}
@@ -38,9 +38,4 @@ func smoothAndLimitPitchCurve(curve *PitchCurve, sigmaMS, maxCentsPer10MS float6
 		}
 	}
 	return result
-}
-
-// ConstrainPitchCurveは外部編集した輪郭にも学習済み輪郭と同じ制限を適用する。
-func ConstrainPitchCurve(curve *PitchCurve, sigmaMS, maxCentsPer10MS float64) *PitchCurve {
-	return smoothAndLimitPitchCurve(curve, sigmaMS, maxCentsPer10MS)
 }

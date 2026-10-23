@@ -527,7 +527,7 @@ components:
       type: object
       properties:
         frame_pitch: {type: boolean}
-        boundary_bridge: {type: boolean}
+        boundary_bridge: {type: boolean, deprecated: true}
         internal_timing: {type: boolean}
         speech_prosody_experiment: {type: boolean, deprecated: true}
     RendererResource:

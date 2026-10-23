@@ -120,8 +120,11 @@ func mustRegistry(providers ...Provider) Registry {
 	return registry
 }
 
+// TestConcatProviderは、WORLDのライブラリなしで合成の流れを確かめるテスト用の描画。
+const TestConcatProvider = "test-concat"
+
 var builtinRegistry = mustRegistry(
-	Provider{ID: "waveform", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true, BoundaryBridge: true}},
+	Provider{ID: TestConcatProvider, Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true}},
 	Provider{
 		ID: "utautts-world-phrase", Contract: ContractUnitRenderer, Version: "1", Capabilities: Capabilities{FramePitch: true},
 		Requirements: []ResourceRequirement{

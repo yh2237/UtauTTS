@@ -29,7 +29,7 @@ func synthesisArgs(t *testing.T) []string {
 		"renderer.json": []byte(`{
 			"manifest_version":2,"kind":"synthesis-engine","id":"cli-test-waveform",
 			"display_name":"CLI test waveform","contract":"unit-renderer",
-			"provider":"waveform","provider_version":"1"
+			"provider":"test-concat","provider_version":"1"
 		}`),
 	} {
 		if err := os.WriteFile(filepath.Join(root, name), data, 0600); err != nil {

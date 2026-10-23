@@ -30,17 +30,15 @@ type UnitRendererJob struct {
 }
 
 type UnitRendererOptions struct {
-	ReleaseMS               float64           `json:"release_ms"`
-	LeadingPreutteranceMS   float64           `json:"leading_preutterance_ms"`
-	IntonationStrength      float64           `json:"intonation_strength"`
-	ApplyPitch              bool              `json:"apply_pitch"`
-	BoundaryBridgeMS        float64           `json:"boundary_bridge_ms"`
-	BoundaryBridgeThreshold float64           `json:"boundary_bridge_threshold"`
-	CVVCTiming              string            `json:"cvvc_timing,omitempty"`
-	CVVCTransitionGain      float64           `json:"cvvc_transition_gain,omitempty"`
-	CVVCPreBoundaryFade     bool              `json:"cvvc_pre_boundary_fade,omitempty"`
-	PitchCurve              *PitchCurve       `json:"pitch_curve,omitempty"`
-	Worldline               *WorldlineOptions `json:"worldline,omitempty"`
+	ReleaseMS             float64           `json:"release_ms"`
+	LeadingPreutteranceMS float64           `json:"leading_preutterance_ms"`
+	IntonationStrength    float64           `json:"intonation_strength"`
+	ApplyPitch            bool              `json:"apply_pitch"`
+	CVVCTiming            string            `json:"cvvc_timing,omitempty"`
+	CVVCTransitionGain    float64           `json:"cvvc_transition_gain,omitempty"`
+	CVVCPreBoundaryFade   bool              `json:"cvvc_pre_boundary_fade,omitempty"`
+	PitchCurve            *PitchCurve       `json:"pitch_curve,omitempty"`
+	Worldline             *WorldlineOptions `json:"worldline,omitempty"`
 }
 
 type WorldlineOptions struct {

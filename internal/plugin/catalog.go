@@ -18,18 +18,17 @@ import (
 const ManifestVersion = 2
 
 type Capabilities struct {
-	FramePitch     bool `json:"frame_pitch,omitempty"`
-	BoundaryBridge bool `json:"boundary_bridge,omitempty"`
+	FramePitch bool `json:"frame_pitch,omitempty"`
 	// レンダラー内でタイミングを扱う場合、日本語リズム補正を常に適用する。
 	InternalTiming bool `json:"internal_timing,omitempty"`
 	// 旧manifestを読めるよう残す。値は使わない。
 	SpeechProsodyExperiment bool `json:"speech_prosody_experiment,omitempty"`
+	BoundaryBridge          bool `json:"boundary_bridge,omitempty"`
 }
 
 // Supportsはproviderが必要とするcapabilityを満たすかを返す。
 func (capabilities Capabilities) Supports(requested Capabilities) bool {
 	return (!requested.FramePitch || capabilities.FramePitch) &&
-		(!requested.BoundaryBridge || capabilities.BoundaryBridge) &&
 		(!requested.InternalTiming || capabilities.InternalTiming)
 }
 

@@ -15,7 +15,7 @@ func TestDiffSingerIsRegisteredAsNeuralSynthesizer(t *testing.T) {
 	if !found || synthesizer.ProviderID() != diffsinger.ProviderID {
 		t.Fatalf("DiffSinger neural provider = %#v, found=%v", synthesizer, found)
 	}
-	if _, found := neuralSynthesizerForProvider("waveform"); found {
+	if _, found := neuralSynthesizerForProvider("test-concat"); found {
 		t.Fatal("unit renderer was registered as a neural synthesizer")
 	}
 }
