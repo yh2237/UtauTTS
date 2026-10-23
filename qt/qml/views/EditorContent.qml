@@ -20,7 +20,6 @@ import UtauTTS.Media
         property alias phonemizerCombo: phonemizerCombo
         property alias aliasPolicyCombo: aliasPolicyCombo
         property alias modelCombo: modelCombo
-        property alias rendererCombo: rendererCombo
         property alias toneInput: toneInput
         property alias toneSlider: toneSlider
         property alias colorCombo: colorCombo
@@ -656,33 +655,7 @@ import UtauTTS.Media
                                 }].concat(window.appBackend.models)
                                 textRole: "display_name"
                                 valueRole: "id"
-                                onActivated: {
-                                    window.updateSetting("modelId", currentValue);
-                                    const model = window.modelById(currentValue);
-                                    const renderer = window.preferredRendererForModel(model);
-                                    if (renderer) {
-                                        window.updateSetting("renderer", renderer);
-                                        window.selectCombo(rendererCombo, renderer);
-                                    }
-                                }
-                            }
-                        }
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            visible: !editorSplitView.referenceMatching
-                            spacing: 4
-                            Label {
-                                text: window.translator.tr("main.param.renderer")
-                                Layout.fillWidth: true
-                            }
-                            ComboBox {
-                                id: rendererCombo
-                                Layout.fillWidth: true
-                                model: window.appBackend.renderers
-                                textRole: "display_name"
-                                valueRole: "id"
-                                onActivated: window.updateSetting("renderer", currentValue)
+                                onActivated: window.updateSetting("modelId", currentValue)
                             }
                         }
 

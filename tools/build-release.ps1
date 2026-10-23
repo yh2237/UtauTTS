@@ -47,10 +47,8 @@ $serverPath = Join-Path $releaseRoot 'UtauTTS-Server'
 $guiToolsPath = Join-Path $guiPath 'tools'
 $guiRuntimePath = Join-Path $guiPath 'runtime'
 $guiModelsPath = Join-Path $guiPath 'models'
-$guiRendererPath = Join-Path $guiPath 'renderer'
 $serverRuntimePath = Join-Path $serverPath 'runtime'
 $serverModelsPath = Join-Path $serverPath 'models'
-$serverRendererPath = Join-Path $serverPath 'renderer'
 $guiZip = Join-Path $releaseRoot 'UtauTTS-win-x64.zip'
 $serverZip = Join-Path $releaseRoot 'UtauTTS-Server-win-x64.zip'
 $bundledVoicebankDirectory = Join-Path $root 'voice'
@@ -167,7 +165,7 @@ with zipfile.ZipFile(archive_path, metadata_encoding='cp932') as archive:
 
 Reset-Directory $guiPath
 Reset-Directory $serverPath
-New-Item -ItemType Directory -Force -Path $guiToolsPath, $guiRuntimePath, $guiModelsPath, $guiRendererPath, $serverRuntimePath, $serverModelsPath, $serverRendererPath | Out-Null
+New-Item -ItemType Directory -Force -Path $guiToolsPath, $guiRuntimePath, $guiModelsPath, $serverRuntimePath, $serverModelsPath | Out-Null
 foreach ($zip in @($guiZip, $serverZip)) {
     if (Test-Path -LiteralPath $zip) {
         Remove-Item -Force -LiteralPath $zip
@@ -262,8 +260,6 @@ try {
             '--package-root', $packagePath
         )
     }
-    Copy-Item -Path (Join-Path $root 'renderer/*') -Destination $guiRendererPath -Recurse
-    Copy-Item -Path (Join-Path $root 'renderer/*') -Destination $serverRendererPath -Recurse
     # 利用者が置くモデルのフォルダは、リポジトリで追跡しているファイル（README）だけを同梱する。
     # 開発者が手元に置いたvocoderの重み（配布条件が別のもの）を配布物へ入れない。
     foreach ($directoryName in @('Dependencies')) {

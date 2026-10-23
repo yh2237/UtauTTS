@@ -13,7 +13,7 @@ func TestModelUsesIdentityStoredInsideModel(t *testing.T) {
 	path := filepath.Join(directory, "arbitrary-filename.json")
 	data := []byte(`{
   "id":"intonation.example", "display_name":"Example model", "description":"self described",
-  "recommended_renderers":["test-concat"], "version":8, "feature_version":1,
+  "version":8, "feature_version":1,
   "mode":"intonation_frame_tcn_accent_bounded", "duration_weights":{},
   "frame_pitch":{"feature_names":["bias"],"input_weights":[[0]],"input_bias":[0],"layers":[],"output_weight":[0],"output_bias":0,"frame_ms":10,"low_cents":-100,"high_cents":100},
   "metrics":{}, "training":{}

@@ -27,13 +27,6 @@ QtObject {
         return null;
     }
 
-    function rendererById(id) {
-        for (let i = 0; i < core.backend.renderers.length; ++i)
-            if (core.backend.renderers[i].id === id)
-                return core.backend.renderers[i];
-        return null;
-    }
-
     function defaultVoicebank() {
         const configured = String(core.backend.defaultVoicebankId || "");
         const selected = configured.length ? core.voicebankById(configured) : null;
@@ -87,31 +80,6 @@ QtObject {
                 return model.id;
         }
         return "none";
-    }
-
-    function preferredRendererForModel(model) {
-        const recommended = model && model.recommended_renderers ? model.recommended_renderers : [];
-        for (let index = 0; index < recommended.length; ++index) {
-            const renderer = core.rendererById(recommended[index]);
-            if (renderer)
-                return renderer.id;
-        }
-        return core.defaultRendererId();
-    }
-
-    function defaultRendererId() {
-        const configured = String(core.backend.defaultRenderer || "");
-        if (core.rendererById(configured))
-            return configured;
-        const available = core.backend.renderers;
-        return available.length ? available[0].id : "";
-    }
-
-    function normalizeRendererId(id) {
-        const rendererId = String(id || "");
-        if (rendererId && core.rendererById(rendererId))
-            return rendererId;
-        return core.defaultRendererId();
     }
 
     function normalizeAliasPolicy(value) {

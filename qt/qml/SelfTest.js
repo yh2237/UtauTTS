@@ -66,26 +66,23 @@ function run(ctx) {
         if (error.length)
             return error;
     }
-    const rendererId = host.defaultRendererId();
     const originalDefaultMoraDuration = host.appBackend.defaultMoraDuration;
-    host.appBackend.setRendererSetting(rendererId, "mora_duration_ms",
-                                       originalDefaultMoraDuration + 5);
+    host.appBackend.setSynthesisSetting("mora_duration_ms", originalDefaultMoraDuration + 5);
     error = check(host.current().moraDuration === originalDefaultMoraDuration,
-                  "changing renderer settings changed the current utterance");
+                  "changing synthesis settings changed the current utterance");
     if (error.length)
         return error;
     host.addUtterance(false);
     error = check(host.current().moraDuration === originalDefaultMoraDuration + 5,
-                  "new utterance did not use the renderer setting default");
+                  "new utterance did not use the synthesis setting default");
     if (error.length)
         return error;
     host.removeUtterance();
-    host.appBackend.setRendererSetting(rendererId, "mora_duration_ms",
-                                       originalDefaultMoraDuration);
+    host.appBackend.setSynthesisSetting("mora_duration_ms", originalDefaultMoraDuration);
     error = check(
         (host.buildSynthesisRequest(host.current()).renderer_settings || {}).mora_duration_ms
             === undefined,
-        "per-card mora duration was injected as a renderer setting override");
+        "per-card mora duration was injected as a synthesis setting override");
     if (error.length)
         return error;
     host.resetHistory(false);

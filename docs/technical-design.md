@@ -17,14 +17,14 @@ GUI、CLI、HTTP Serverは、どれも共通の`synth.Service`を通して処理
                 ▼
           synth.Service
           ├── Language Frontends （読み・音素・モーラ分解）
-          ├── Open JTalk Helper   （アクセント句・単語・品詞特徴の抽出）
+          ├── Open JTalk          （アクセント句・単語・品詞特徴の抽出）
           ├── Voicebank Resolver  （原音候補ラティスとViterbi経路探索）
           ├── Prosody Model       （10msピッチ曲線・モーラ音量スケール予測）
           └── Plan Builder        （中間表現 Plan の構築）
                 │
                 ▼
-          render.Config
-          └── UnitRenderer        （WORLD phrase）
+          render
+          └── WORLD phrase        （utautts-world-phrase）
                 │
                 ▼
           音声波形 (PCM) + 診断レポート (RenderReport)
@@ -32,7 +32,7 @@ GUI、CLI、HTTP Serverは、どれも共通の`synth.Service`を通して処理
 
 ### 処理パイプライン
 
-1. 言語解析（Frontend）: テキストを読み・音素・モーラの列にします。日本語では、デスクトップ版は常駐するOpen JTalkのヘルパープロセスから、WebAssembly版はOpen JTalkのWasmモジュールから言語特徴量を得ます。
+1. 言語解析（Frontend）: テキストを読み・音素・モーラの列にします。日本語では、Open JTalkのライブラリ（WebAssembly版はWasmモジュール）から言語特徴量を得ます。
 2. 発話設計（Prosody）: 抑揚モデル（TCN）で、10msごとのピッチの相対値（cent）と、モーラごとの音量の倍率を予測します。
 3. 原音選択（Lattice & Viterbi）: ボイスバンクから原音の候補を集め、Target CostとConcatenation Costから最適な経路を決めます。同じWAVの中で続く原音には加点します。
 4. 計画生成（Plan Builder）: `oto.ini`の設定値と目標の長さを突き合わせて、各原音を置く時刻を決めます。
@@ -43,7 +43,7 @@ GUI、CLI、HTTP Serverは、どれも共通の`synth.Service`を通して処理
 
 合成の方式は波形合成と参照照合の2つで、上の処理パイプラインは波形合成のものです。
 
-参照照合は原音選択、Plan、Rendererを使いません。`refspeech`が参照TTSに文を読ませ、その音声に近いフレームを音源の索引から選んで、WORLDで合成します（[参照照合](how-utautts-speaks.md#9-参照照合)）。WORLDのエンジンは`utautts-world-phrase`のものを使います。
+参照照合は原音選択とPlanを使いません。`refspeech`が参照TTSに文を読ませ、その音声に近いフレームを音源の索引から選んで、WORLDで合成します（[参照照合](how-utautts-speaks.md#9-参照照合)）。WORLDのライブラリは波形合成と同じものを使います。
 
 WORLDの解析の設定は方式ごとに違います。
 
@@ -74,12 +74,12 @@ WORLDの解析の設定は方式ごとに違います。
 
 ## 4. 中間表現「Plan」の役割
 
-原音の選択とRendererを切り離すため、`internal/plan`の`Plan`構造体を中間表現にします。主な内容は次のとおりです。
+原音の選択と波形の描画を切り離すため、`internal/plan`の`Plan`構造体を中間表現にします。主な内容は次のとおりです。
 - モーラの位置、音素の文脈、使うWAV、`oto.ini`の適用値（offset, consonant, cutoff, preutterance, overlap）
 - 目標のタイミング（開始時刻・モーラ長）
 - ピッチ係数、音量係数、経路探索のスコア
 
-Planは読み取り専用として扱い、Rendererが実行時に補正した結果は`RenderReport`に分けて記録します。そのため、同じPlanを別のRendererに渡して品質を比べられます。
+Planは読み取り専用として扱い、描画のときに補正した結果は`RenderReport`に分けて記録します。
 
 ---
 

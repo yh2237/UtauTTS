@@ -216,11 +216,8 @@ try {
                 throw "Release package contains local files in ${userDirectory}: $($unexpected -join ', ')"
             }
         }
-        Assert-Path (Join-Path $packageRoot 'renderer/utautts-world-phrase/renderer.json') 'renderer manifest utautts-world-phrase'
-        foreach ($removedRenderer in @('waveform', 'classic-utau', 'diffsinger')) {
-            if (Test-Path -LiteralPath (Join-Path $packageRoot "renderer/$removedRenderer")) {
-                throw "Removed $removedRenderer renderer is still packaged: $packageRoot"
-            }
+        if (Test-Path -LiteralPath (Join-Path $packageRoot 'renderer')) {
+            throw "Removed renderer directory is still packaged: $packageRoot"
         }
         if (Test-Path -LiteralPath (Join-Path $packageRoot 'runtime/utautts-diffsinger-bridge.exe')) {
             throw "Release package still contains the DiffSinger bridge: $packageRoot"
@@ -386,7 +383,7 @@ try {
     $smokeText = -join @([char]0x3053, [char]0x3093, [char]0x306B, [char]0x3061, [char]0x306F)
     Push-Location $workingDirectory
     try {
-        & $cli --method waveform-synthesis --renderer utautts-world-phrase --voicebank $voicebank.FullName --text $smokeText --out $outputWav
+        & $cli --method waveform-synthesis --voicebank $voicebank.FullName --text $smokeText --out $outputWav
         if ($LASTEXITCODE -ne 0) {
             throw "Packaged CLI failed with exit code $LASTEXITCODE"
         }
@@ -399,7 +396,7 @@ try {
     Push-Location $workingDirectory
     try {
         & $cli --voicebank $voicebank.FullName --text $smokeText --method waveform-synthesis --prosody frame-intonation-tcn-v12 `
-            --renderer utautts-world-phrase --apply-pitch --intonation-strength 1 --out $utauTTSWorldWav
+            --apply-pitch --intonation-strength 1 --out $utauTTSWorldWav
         if ($LASTEXITCODE -ne 0) {
             throw "Packaged UtauTTS WORLD synthesis failed with exit code $LASTEXITCODE"
         }
@@ -411,7 +408,7 @@ try {
     $savedErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
-        $nanOutput = & $cli --method waveform-synthesis --renderer utautts-world-phrase --voicebank $voicebank.FullName --text $smokeText --mora-ms NaN --out (Join-Path $workingDirectory 'nan.wav') 2>&1
+        $nanOutput = & $cli --method waveform-synthesis --voicebank $voicebank.FullName --text $smokeText --mora-ms NaN --out (Join-Path $workingDirectory 'nan.wav') 2>&1
     } finally {
         $ErrorActionPreference = $savedErrorActionPreference
     }
@@ -430,7 +427,7 @@ try {
     Remove-Item Env:PATH -ErrorAction SilentlyContinue
     try {
         $process = Start-Process -FilePath $server -ArgumentList @(
-            '--host', '127.0.0.1', '--port', $port.ToString(), '--renderer', 'utautts-world-phrase'
+            '--host', '127.0.0.1', '--port', $port.ToString()
         ) -WorkingDirectory $workingDirectory -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
     } finally {
         $env:Path = $savedPath
@@ -460,8 +457,8 @@ try {
         }
         $voices = Invoke-RestMethod -Uri "$baseUrl/api/voicebanks" -TimeoutSec 5
         $models = Invoke-RestMethod -Uri "$baseUrl/api/models" -TimeoutSec 5
-        $renderers = Invoke-RestMethod -Uri "$baseUrl/api/renderers" -TimeoutSec 5
-        if (@($voices.voicebanks).Count -lt 1 -or @($models.models).Count -lt 1 -or @($renderers.renderers).Count -lt 1) {
+        $settings = Invoke-RestMethod -Uri "$baseUrl/api/settings" -TimeoutSec 5
+        if (@($voices.voicebanks).Count -lt 1 -or @($models.models).Count -lt 1 -or @($settings.settings).Count -lt 1) {
             throw 'Packaged server metadata is incomplete'
         }
         $voicebankId = $voices.voicebanks[0].id
@@ -476,7 +473,6 @@ try {
             voicebank_id = $voicebankId
             language = 'ja'
             method = 'waveform-synthesis'
-            renderer = 'utautts-world-phrase'
             mora_duration_ms = 120
         } | ConvertTo-Json -Compress
         $serverWav = Join-Path $workingDirectory 'server-smoke.wav'
@@ -494,7 +490,6 @@ try {
             language = 'ja'
             method = 'waveform-synthesis'
             model_id = 'frame-intonation-tcn-v12'
-            renderer = 'utautts-world-phrase'
             intonation_strength = 1
             apply_pitch = $true
         } | ConvertTo-Json -Compress
@@ -508,9 +503,9 @@ try {
         }
         }
         $batchItems = @()
-        $batchItems += @{ name = 'first.wav'; request = @{ text = $smokeText; voicebank_id = $voicebankId; language = 'ja'; method = 'waveform-synthesis'; renderer = 'utautts-world-phrase' } }
+        $batchItems += @{ name = 'first.wav'; request = @{ text = $smokeText; voicebank_id = $voicebankId; language = 'ja'; method = 'waveform-synthesis' } }
         $singleMora = [string][char]0x3042
-        $batchItems += @{ name = 'second.wav'; request = @{ kana = $singleMora; voicebank_id = $voicebankId; language = 'ja'; method = 'waveform-synthesis'; renderer = 'utautts-world-phrase' } }
+        $batchItems += @{ name = 'second.wav'; request = @{ kana = $singleMora; voicebank_id = $voicebankId; language = 'ja'; method = 'waveform-synthesis' } }
         $batchBody = @{ items = $batchItems } | ConvertTo-Json -Depth 6 -Compress
         $batchZip = Join-Path $workingDirectory 'server-batch.zip'
         Invoke-WebRequest -UseBasicParsing -Method Post -Uri "$baseUrl/api/synthesize/batch" `

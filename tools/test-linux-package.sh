@@ -218,10 +218,10 @@ fi
 
 smoke_text='こんにちは'
 "${gui_root}/tools/utautts-cli" --voicebank "${voicebank}" --text "${smoke_text}" \
-  --method waveform-synthesis --prosody frame-intonation-tcn-v12 --renderer utautts-world-phrase \
+  --method waveform-synthesis --prosody frame-intonation-tcn-v12 \
   --apply-pitch --intonation-strength 1 --out "${work_dir}/utautts-world.wav"
 [ "$(stat -c %s "${work_dir}/utautts-world.wav")" -gt 44 ] || fail 'synthesis output is empty'
-if "${gui_root}/tools/utautts-cli" --method waveform-synthesis --renderer utautts-world-phrase --voicebank "${voicebank}" \
+if "${gui_root}/tools/utautts-cli" --method waveform-synthesis --voicebank "${voicebank}" \
     --text "${smoke_text}" --mora-ms NaN --out "${work_dir}/nan.wav" \
     >"${work_dir}/nan.stdout.log" 2>"${work_dir}/nan.stderr.log"; then
   fail 'packaged CLI accepted NaN input'
@@ -233,8 +233,7 @@ fi
 port="$("${python_command}" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')"
 (
   cd "${work_dir}"
-  exec "${gui_root}/utautts-server" --host 127.0.0.1 --port "${port}" \
-    --renderer utautts-world-phrase
+  exec "${gui_root}/utautts-server" --host 127.0.0.1 --port "${port}"
 ) >"${work_dir}/server.stdout.log" 2>"${work_dir}/server.stderr.log" &
 server_pid=$!
 base_url="http://127.0.0.1:${port}"
@@ -252,13 +251,9 @@ curl -fsS "${base_url}/api/health" >/dev/null || fail 'packaged Linux server hea
 curl -fsS "${base_url}/" | grep -q 'UtauTTS Server Console' || fail 'server console is unavailable'
 curl -fsS "${base_url}/api/voicebanks" >"${work_dir}/voicebanks.json"
 curl -fsS "${base_url}/api/models" >"${work_dir}/models.json"
-curl -fsS "${base_url}/api/renderers" >"${work_dir}/renderers.json"
+curl -fsS "${base_url}/api/settings" >"${work_dir}/settings.json"
 
-test -f "${gui_root}/renderer/utautts-world-phrase/renderer.json" \
-  || fail 'missing renderer manifest: utautts-world-phrase'
-for removed_renderer in waveform classic-utau; do
-  test ! -e "${gui_root}/renderer/${removed_renderer}" || fail "removed ${removed_renderer} renderer is still packaged"
-done
+test ! -e "${gui_root}/renderer" || fail 'removed renderer directory is still packaged'
 VOICEBANK_JSON="${work_dir}/voicebanks.json" REQUEST_DIR="${work_dir}" "${python_command}" - <<'PY'
 import json
 import os
@@ -272,24 +267,23 @@ if not voices:
 voice = voices[0]["id"]
 (root / "analyze.json").write_text(json.dumps({"text": "こんにちは", "language": "ja"}, ensure_ascii=False), encoding="utf-8")
 (root / "synthesize.json").write_text(json.dumps({
-    "text": "こんにちは", "voicebank_id": voice, "language": "ja", "method": "waveform-synthesis", "renderer": "utautts-world-phrase", "mora_duration_ms": 120
+    "text": "こんにちは", "voicebank_id": voice, "language": "ja", "method": "waveform-synthesis", "mora_duration_ms": 120
 }, ensure_ascii=False), encoding="utf-8")
 (root / "world-pitch.json").write_text(json.dumps({
     "text": "こんにちは", "voicebank_id": voice, "language": "ja", "method": "waveform-synthesis",
     "model_id": "frame-intonation-tcn-v12",
-    "renderer": "utautts-world-phrase",
     "intonation_strength": 1, "apply_pitch": True,
 }, ensure_ascii=False), encoding="utf-8")
 (root / "batch.json").write_text(json.dumps({"items": [
-    {"name": "first.wav", "request": {"text": "こんにちは", "voicebank_id": voice, "language": "ja", "method": "waveform-synthesis", "renderer": "utautts-world-phrase"}},
-    {"name": "second.wav", "request": {"kana": "あ", "voicebank_id": voice, "language": "ja", "method": "waveform-synthesis", "renderer": "utautts-world-phrase"}}
+    {"name": "first.wav", "request": {"text": "こんにちは", "voicebank_id": voice, "language": "ja", "method": "waveform-synthesis"}},
+    {"name": "second.wav", "request": {"kana": "あ", "voicebank_id": voice, "language": "ja", "method": "waveform-synthesis"}}
 ]}, ensure_ascii=False), encoding="utf-8")
 PY
 
 curl -fsS -H 'Content-Type: application/json; charset=utf-8' --data-binary @"${work_dir}/analyze.json" \
   "${base_url}/api/analyze" >"${work_dir}/analysis.json"
 ANALYSIS_JSON="${work_dir}/analysis.json" MODELS_JSON="${work_dir}/models.json" \
-RENDERERS_JSON="${work_dir}/renderers.json" "${python_command}" - <<'PY'
+SETTINGS_JSON="${work_dir}/settings.json" "${python_command}" - <<'PY'
 import json
 import os
 
@@ -302,8 +296,8 @@ if not analysis.get("reading") or not analysis.get("morae"):
     raise SystemExit("server analysis returned no reading")
 if not load("MODELS_JSON").get("models"):
     raise SystemExit("server returned no model")
-if not load("RENDERERS_JSON").get("renderers"):
-    raise SystemExit("server returned no renderer")
+if not load("SETTINGS_JSON").get("settings"):
+    raise SystemExit("server returned no setting")
 PY
 curl -fsS -H 'Content-Type: application/json; charset=utf-8' --data-binary @"${work_dir}/synthesize.json" \
   "${base_url}/api/synthesize/audio" >"${work_dir}/server.wav"

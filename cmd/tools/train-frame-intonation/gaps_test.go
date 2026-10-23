@@ -44,9 +44,9 @@ func TestAudioRootAndExportOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := config{Output: "out/test.json", Language: "ja", Corpus: "fixture", License: "MIT", Notices: []string{"license"}, Hidden: 2, Dilations: []int{1}, Low: -250, High: 250, Frame: 10, Description: "fixture model", RecommendedRenderers: []string{"renderer-a", "renderer-b"}}
+	c := config{Output: "out/test.json", Language: "ja", Corpus: "fixture", License: "MIT", Notices: []string{"license"}, Hidden: 2, Dilations: []int{1}, Low: -250, High: 250, Frame: 10, Description: "fixture model"}
 	payload := export(m, []string{"bias"}, c, "hash", nil, nil, nil, nil, nil, 0, 0, 0, 0, 0, nil)
-	if payload["description"] != "fixture model" || len(payload["recommended_renderers"].([]string)) != 2 {
+	if payload["description"] != "fixture model" {
 		t.Fatalf("export options: %v", payload)
 	}
 }

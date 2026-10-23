@@ -112,11 +112,6 @@ MenuBar {
                 onTriggered: root.host.reloadVoicebanks()
             }
             MenuSeparator {}
-            GrayscaleMenuItem {
-                text: root.host.translator.tr("plugins.title")
-                enabled: !root.host.appBackend.busy && !root.host.batchExportActive
-                onTriggered: root.host.menuDialogs.rendererPackages.open()
-            }
             // 音源フォルダを開く操作はWeb以外（「音源を追加」の次）。
             Instantiator {
                 model: Platform.isWeb ? 0 : 1

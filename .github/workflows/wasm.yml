@@ -7,7 +7,6 @@ on:
     paths:
       - 'web/**'
       - 'qt/**'
-      - 'renderer/utautts-world-phrase/**'
       - 'cmd/utautts-wasm/**'
       - 'cmd/tools/build-voice/**'
       - 'cmd/tools/cloudflare/**'

@@ -60,7 +60,7 @@ chmod +x utautts tools/*
 
 ## 更新
 
-更新にはアプリ内のアップデーターを使ってください。ZIPを手で上書きしないでください。更新では `voice/`、`Dependencies/`、`config.ini` と、引き継げるユーザーのRenderer定義を残します。Renderer定義は `renderer/<id>/renderer.json` に置いてください。
+更新にはアプリ内のアップデーターを使ってください。ZIPを手で上書きしないでください。更新では `voice/` と `config.ini` を残します。
 
 ---
 

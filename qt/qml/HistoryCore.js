@@ -29,7 +29,6 @@ function editableFingerprint(ctx) {
             content: item.content,
             voicebankId: item.voicebankId,
             modelId: item.modelId,
-            renderer: item.renderer,
             aliasPolicy: item.aliasPolicy,
             tone: item.tone,
             color: item.color,

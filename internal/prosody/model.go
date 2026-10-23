@@ -13,15 +13,14 @@ const (
 )
 
 type Model struct {
-	ID                   string           `json:"id,omitempty"`
-	DisplayName          string           `json:"display_name,omitempty"`
-	Description          string           `json:"description,omitempty"`
-	License              string           `json:"license,omitempty"`
-	LicenseNotices       []string         `json:"license_notices,omitempty"`
-	Language             string           `json:"language,omitempty"`
-	Provenance           *ModelProvenance `json:"provenance,omitempty"`
-	RecommendedRenderers []string         `json:"recommended_renderers,omitempty"`
-	DefaultPriority      int              `json:"default_priority,omitempty"`
+	ID              string           `json:"id,omitempty"`
+	DisplayName     string           `json:"display_name,omitempty"`
+	Description     string           `json:"description,omitempty"`
+	License         string           `json:"license,omitempty"`
+	LicenseNotices  []string         `json:"license_notices,omitempty"`
+	Language        string           `json:"language,omitempty"`
+	Provenance      *ModelProvenance `json:"provenance,omitempty"`
+	DefaultPriority int              `json:"default_priority,omitempty"`
 	// F0Headは統合韻律モデル（F0・エネルギーヘッド）。base_modelを持つモデルJSONだけが設定する。
 	F0Head *speechtiming.TCN `json:"-"`
 	// F0HeadEnergyはF0ヘッドのエネルギーでモーラの音量を変えるか。

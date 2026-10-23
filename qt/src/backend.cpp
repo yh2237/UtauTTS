@@ -119,7 +119,7 @@ QString languageCodeForLocale(const QString &locale, const QStringList &availabl
 }
 
 bool hasResourceLayout(const QDir &root) {
-    return root.exists("renderer") || root.exists("models") || root.exists("voice");
+    return root.exists("models") || root.exists("voice");
 }
 
 QString normalizeFfmpegPath(const QString &value) {
@@ -273,7 +273,6 @@ QDir resourceRoot() {
 QByteArray nativeConfigJSON() {
     const QDir root = resourceRoot();
     QJsonObject config{{"voice_dir", root.filePath("voice")}};
-    config.insert("renderer_directories", QJsonArray{root.filePath("renderer")});
     config.insert("model_directories", QJsonArray{root.filePath("models")});
     const QString runtime = root.filePath("runtime");
 #if defined(Q_OS_WIN)
@@ -292,16 +291,6 @@ QByteArray nativeConfigJSON() {
         config.insert("openjtalk_dictionary", openJTalkDictionary);
     }
     return QJsonDocument(config).toJson(QJsonDocument::Compact);
-}
-
-// 参照照合でも使う設定は、Rendererごとではなく1つの値として保存する。
-const QStringList commonRendererSettings{QStringLiteral("mora_duration_ms"),
-                                         QStringLiteral("intonation_strength")};
-
-QString rendererSettingKey(const QString &rendererId, const QString &settingId) {
-    if (commonRendererSettings.contains(settingId))
-        return QStringLiteral("common/") + settingId;
-    return rendererId + QLatin1Char('/') + settingId;
 }
 
 QString portableSettingsPath() {
@@ -423,8 +412,6 @@ Backend::Backend(QObject *parent)
           portableSettingValue("media/ffmpegPath", QString()).toString())),
       m_audioOutputDeviceId(portableSettingValue(
           "media/audioOutputDeviceId", QString()).toString().trimmed()),
-      m_defaultRenderer(portableSettingValue("synthesis/defaultRendererId",
-                                          QStringLiteral("utautts-world-phrase")).toString().trimmed()),
       m_defaultModelId(portableSettingValue("synthesis/defaultModelId",
                                          QStringLiteral("frame-intonation-tcn-v12")).toString().trimmed()),
       m_defaultVoicebankId(portableSettingValue("voicebank/defaultId", QString()).toString().trimmed()),
@@ -482,38 +469,30 @@ Backend::Backend(QObject *parent)
             }
         }
     }
-    const QByteArray rendererSettingsJSON = portableSettingValue(
-            "synthesis/rendererSettings").toByteArray();
-    if (!rendererSettingsJSON.isEmpty()) {
-        QJsonParseError rendererSettingsError;
-        const QJsonDocument rendererSettingsDocument = QJsonDocument::fromJson(
-                rendererSettingsJSON, &rendererSettingsError);
-        if (rendererSettingsError.error == QJsonParseError::NoError
-                && rendererSettingsDocument.isObject()) {
-            m_rendererSettings = rendererSettingsDocument.object().toVariantMap();
-        }
-    }
-    // 以前は既定のRendererごとに保存していた。
-    bool movedCommonSettings = false;
-    for (const QString &settingId : commonRendererSettings) {
-        const QString commonKey = rendererSettingKey(QString(), settingId);
-        const QString legacyKey = m_defaultRenderer + QLatin1Char('/') + settingId;
-        if (!m_rendererSettings.contains(commonKey) && m_rendererSettings.contains(legacyKey))
-            m_rendererSettings.insert(commonKey, m_rendererSettings.value(legacyKey));
-        for (auto it = m_rendererSettings.begin(); it != m_rendererSettings.end();) {
-            if (it.key() != commonKey && it.key().endsWith(QLatin1Char('/') + settingId)) {
-                it = m_rendererSettings.erase(it);
-                movedCommonSettings = true;
-            } else {
-                ++it;
+    const auto readSettingsMap = [](const char *key) {
+        const QJsonDocument document = QJsonDocument::fromJson(portableSettingValue(key).toByteArray());
+        return document.isObject() ? document.object().toVariantMap() : QVariantMap{};
+    };
+    m_synthesisSettings = readSettingsMap("synthesis/settings");
+    // 以前はRendererごとに「<id>/<設定>」で保存し、共通の値だけ「common/<設定>」に置いていた。
+    const QVariantMap legacySettings = readSettingsMap("synthesis/rendererSettings");
+    if (!legacySettings.isEmpty()) {
+        const QString legacyRenderer = portableSettingValue("synthesis/defaultRendererId",
+                                                            QStringLiteral("utautts-world-phrase")).toString().trimmed();
+        for (const QString &prefix : {QStringLiteral("common"), legacyRenderer, QStringLiteral("utautts-world-phrase")}) {
+            for (auto it = legacySettings.cbegin(); it != legacySettings.cend(); ++it) {
+                if (!it.key().startsWith(prefix + QLatin1Char('/')))
+                    continue;
+                const QString settingId = it.key().mid(prefix.size() + 1);
+                if (!m_synthesisSettings.contains(settingId))
+                    m_synthesisSettings.insert(settingId, it.value());
             }
         }
-    }
-    if (movedCommonSettings) {
         QSettings settings(portableSettingsPath(), QSettings::IniFormat);
-        settings.setValue("synthesis/rendererSettings",
-                          QJsonDocument(QJsonObject::fromVariantMap(m_rendererSettings))
-                              .toJson(QJsonDocument::Compact));
+        settings.setValue("synthesis/settings",
+                          QJsonDocument(QJsonObject::fromVariantMap(m_synthesisSettings)).toJson(QJsonDocument::Compact));
+        settings.remove("synthesis/rendererSettings");
+        settings.remove("synthesis/defaultRendererId");
         settings.sync();
     }
     runStartupMigrations();
@@ -909,20 +888,17 @@ void Backend::setExportSettings(bool writeText, bool writeLab, const QString &te
     emit exportSettingsChanged();
 }
 
-void Backend::setSynthesisDefaults(const QString &modelId, const QString &rendererId,
-                                   const QString &tone, const QString &aliasPolicy) {
+void Backend::setSynthesisDefaults(const QString &modelId, const QString &tone,
+                                   const QString &aliasPolicy) {
     const QString normalizedModelId = modelId.trimmed();
-    const QString normalizedRendererId = rendererId.trimmed();
     const QString normalizedTone = tone.trimmed();
     const QString normalizedAliasPolicy = normalizeAliasPolicySetting(aliasPolicy);
     if (m_defaultModelId == normalizedModelId
-            && m_defaultRenderer == normalizedRendererId
             && m_defaultTone == normalizedTone
             && m_defaultAliasPolicy == normalizedAliasPolicy) {
         return;
     }
     m_defaultModelId = normalizedModelId;
-    m_defaultRenderer = normalizedRendererId;
     m_defaultTone = normalizedTone;
     m_defaultAliasPolicy = normalizedAliasPolicy;
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
@@ -932,7 +908,6 @@ void Backend::setSynthesisDefaults(const QString &modelId, const QString &render
     settings.remove("synthesis/defaultIntonationStrength");
     settings.remove("synthesis/defaultApplyPitch");
     settings.setValue("synthesis/defaultModelId", m_defaultModelId);
-    settings.setValue("synthesis/defaultRendererId", m_defaultRenderer);
     settings.remove("synthesis/defaultTone");
     settings.setValue("synthesis/defaultBaseTone", m_defaultTone);
     settings.setValue("synthesis/defaultAliasPolicy", m_defaultAliasPolicy);
@@ -941,69 +916,47 @@ void Backend::setSynthesisDefaults(const QString &modelId, const QString &render
 }
 
 int Backend::defaultMoraDuration() const {
-    return qBound(20, rendererSettingOrManifest(m_defaultRenderer, QStringLiteral("mora_duration_ms"),
-                                                fallbackMoraDurationMS).toInt(), 1000);
+    return qBound(20, settingOrDefault(QStringLiteral("mora_duration_ms"), fallbackMoraDurationMS).toInt(), 1000);
 }
 
 int Backend::defaultPauseDuration() const {
-    return qBound(0, rendererSettingOrManifest(m_defaultRenderer, QStringLiteral("pause_duration_ms"),
-                                               fallbackPauseDurationMS).toInt(), 3000);
+    return qBound(0, settingOrDefault(QStringLiteral("pause_duration_ms"), fallbackPauseDurationMS).toInt(), 3000);
 }
 
 int Backend::defaultLeadingPreutterance() const {
-    return qBound(0, rendererSettingOrManifest(m_defaultRenderer, QStringLiteral("leading_preutterance_ms"),
-                                               fallbackLeadingPreutteranceMS).toInt(), 300);
+    return qBound(0, settingOrDefault(QStringLiteral("leading_preutterance_ms"), fallbackLeadingPreutteranceMS).toInt(), 300);
 }
 
 double Backend::defaultIntonationStrength() const {
-    return qBound(0.0, rendererSettingOrManifest(m_defaultRenderer, QStringLiteral("intonation_strength"),
-                                                 fallbackIntonationStrength).toDouble(), 8.0);
+    return qBound(0.0, settingOrDefault(QStringLiteral("intonation_strength"), fallbackIntonationStrength).toDouble(), 8.0);
 }
 
-QVariant Backend::rendererSettingOrManifest(const QString &rendererId, const QString &settingId,
-                                            const QVariant &fallback) const {
-    const QString cleanedRendererId = rendererId.trimmed();
-    const QString cleanedSettingId = settingId.trimmed();
-    const QString key = rendererSettingKey(cleanedRendererId, cleanedSettingId);
-    if (m_rendererSettings.contains(key))
-        return m_rendererSettings.value(key);
-    for (const QVariant &value : m_renderers) {
-        const QVariantMap renderer = value.toMap();
-        if (renderer.value(QStringLiteral("id")).toString() != cleanedRendererId)
-            continue;
-        for (const QVariant &settingValue : renderer.value(QStringLiteral("settings")).toList()) {
-            const QVariantMap setting = settingValue.toMap();
-            if (setting.value(QStringLiteral("id")).toString() == cleanedSettingId)
-                return setting.value(QStringLiteral("default"));
-        }
-        break;
+QVariant Backend::settingOrDefault(const QString &settingId, const QVariant &fallback) const {
+    if (m_synthesisSettings.contains(settingId))
+        return m_synthesisSettings.value(settingId);
+    for (const QVariant &value : m_settingDefinitions) {
+        const QVariantMap setting = value.toMap();
+        if (setting.value(QStringLiteral("id")).toString() == settingId)
+            return setting.value(QStringLiteral("default"));
     }
     return fallback;
 }
 
-QVariant Backend::rendererSetting(const QString &rendererId, const QString &settingId,
-                                  const QVariant &fallback) const {
-    const QString key = rendererSettingKey(rendererId.trimmed(), settingId.trimmed());
-    return m_rendererSettings.value(key, fallback);
+QVariant Backend::synthesisSetting(const QString &settingId, const QVariant &fallback) const {
+    return m_synthesisSettings.value(settingId.trimmed(), fallback);
 }
 
-void Backend::setRendererSetting(const QString &rendererId, const QString &settingId,
-                                 const QVariant &value) {
-    const QString cleanedRendererId = rendererId.trimmed();
+void Backend::setSynthesisSetting(const QString &settingId, const QVariant &value) {
     const QString cleanedSettingId = settingId.trimmed();
-    if (cleanedSettingId.isEmpty()
-            || (cleanedRendererId.isEmpty() && !commonRendererSettings.contains(cleanedSettingId)))
+    if (cleanedSettingId.isEmpty() || m_synthesisSettings.value(cleanedSettingId) == value)
         return;
-    const QString key = rendererSettingKey(cleanedRendererId, cleanedSettingId);
-    if (m_rendererSettings.value(key) == value)
-        return;
-    m_rendererSettings.insert(key, value);
+    m_synthesisSettings.insert(cleanedSettingId, value);
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
-    settings.setValue("synthesis/rendererSettings",
-                      QJsonDocument(QJsonObject::fromVariantMap(m_rendererSettings))
+    settings.setValue("synthesis/settings",
+                      QJsonDocument(QJsonObject::fromVariantMap(m_synthesisSettings))
                           .toJson(QJsonDocument::Compact));
     settings.sync();
-    emit rendererSettingsChanged();
+    emit synthesisSettingsChanged();
     emit synthesisDefaultsChanged();
 }
 
@@ -1321,9 +1274,8 @@ void Backend::initialize() {
             QVariantMap{{QStringLiteral("voicebanks"), result.value(QStringLiteral("voicebanks"))}},
             QVariantMap{{QStringLiteral("models"), result.value(QStringLiteral("models"))}},
             QVariantMap{
-                {QStringLiteral("renderers"), result.value(QStringLiteral("renderers"))},
+                {QStringLiteral("settings"), result.value(QStringLiteral("settings"))},
                 {QStringLiteral("problems"), result.value(QStringLiteral("problems"))},
-                {QStringLiteral("default_renderer"), result.value(QStringLiteral("default_renderer"))},
                 {QStringLiteral("reference_providers"), result.value(QStringLiteral("reference_providers"))},
             });
         if (!m_startupMigrationError.isEmpty())
@@ -1348,14 +1300,14 @@ void Backend::initializeAsync() {
         emit connectedChanged();
         callAsync("voicebanks", {}, [this](const QVariantMap &voices) {
             callAsync("models", {}, [this, voices](const QVariantMap &models) {
-                callAsync("renderers", {}, [this, voices, models](const QVariantMap &renderers) {
+                callAsync("settings", {}, [this, voices, models](const QVariantMap &settings) {
                     setBusy(false);
-                    if (voices.contains("_error") || models.contains("_error") || renderers.contains("_error")) {
+                    if (voices.contains("_error") || models.contains("_error") || settings.contains("_error")) {
                         setError(voices.value("_error",
                                               models.value("_error",
-                                                           renderers.value("_error"))).toString());
+                                                           settings.value("_error"))).toString());
                     } else {
-                        applyMetadata(voices, models, renderers);
+                        applyMetadata(voices, models, settings);
                         setError({});
                     }
                     emit metadataChanged();
@@ -1380,7 +1332,7 @@ void Backend::initializeAsync() {
     auto *watcher = new QFutureWatcher<QVariantMap>(this);
     const QStringList stages{
         QStringLiteral("voicebanks"), QStringLiteral("models"),
-        QStringLiteral("renderers"),
+        QStringLiteral("settings"),
     };
     connect(watcher, &QFutureWatcher<QVariantMap>::progressValueChanged, this,
             [this, stages](int value) {
@@ -1400,9 +1352,8 @@ void Backend::initializeAsync() {
                 QVariantMap{{QStringLiteral("voicebanks"), result.value(QStringLiteral("voicebanks"))}},
                 QVariantMap{{QStringLiteral("models"), result.value(QStringLiteral("models"))}},
                 QVariantMap{
-                    {QStringLiteral("renderers"), result.value(QStringLiteral("renderers"))},
+                    {QStringLiteral("settings"), result.value(QStringLiteral("settings"))},
                     {QStringLiteral("problems"), result.value(QStringLiteral("problems"))},
-                    {QStringLiteral("default_renderer"), result.value(QStringLiteral("default_renderer"))},
                     {QStringLiteral("reference_providers"), result.value(QStringLiteral("reference_providers"))},
                 });
             if (!m_startupMigrationError.isEmpty()) {
@@ -1540,25 +1491,19 @@ void Backend::handleWasmCallCompleted() {
 }
 
 void Backend::applyMetadata(const QVariantMap &voices, const QVariantMap &models,
-                            const QVariantMap &renderers) {
+                            const QVariantMap &settings) {
     m_voicebanks = voices.value("voicebanks").toList();
     m_models = models.value("models").toList();
     m_retiredModels = models.value("retired_models").toMap();
-    m_renderers = renderers.value("renderers").toList();
-    m_pluginProblems.clear();
-    for (const QVariant &problem : renderers.value("problems").toList())
-        m_pluginProblems.append(problem.toString());
-    for (const QString &problem : m_pluginProblems)
-        appendLog(problem);
-    m_referenceProviders = renderers.value("reference_providers").toList();
-    m_catalogDefaultRenderer = renderers.value("default_renderer").toString();
+    m_settingDefinitions = settings.value("settings").toList();
+    for (const QVariant &problem : settings.value("problems").toList())
+        appendLog(problem.toString());
+    m_referenceProviders = settings.value("reference_providers").toList();
     const auto containsId = [](const QVariantList &items, const QString &id) {
         return std::any_of(items.cbegin(), items.cend(), [&id](const QVariant &item) {
             return item.toMap().value(QStringLiteral("id")).toString() == id;
         });
     };
-    if (!containsId(m_renderers, m_defaultRenderer))
-        m_defaultRenderer = m_catalogDefaultRenderer;
     if (m_defaultModelId != QStringLiteral("none") && !containsId(m_models, m_defaultModelId))
         m_defaultModelId = m_models.isEmpty()
                 ? QStringLiteral("none") : m_models.constFirst().toMap().value(QStringLiteral("id")).toString();
@@ -1567,10 +1512,10 @@ void Backend::applyMetadata(const QVariantMap &voices, const QVariantMap &models
 }
 
 void Backend::refreshMetadata() {
-    QVariantMap renderers = call("renderers");
-    renderers.insert(QStringLiteral("reference_providers"),
-                     call("referenceProviders").value(QStringLiteral("reference_providers")));
-    applyMetadata(call("voicebanks"), call("models"), renderers);
+    QVariantMap settings = call("settings");
+    settings.insert(QStringLiteral("reference_providers"),
+                    call("referenceProviders").value(QStringLiteral("reference_providers")));
+    applyMetadata(call("voicebanks"), call("models"), settings);
 }
 
 void Backend::refreshMetadataFromWasm() {
@@ -1578,8 +1523,8 @@ void Backend::refreshMetadataFromWasm() {
     if (m_wasmAsync) {
         callAsync("voicebanks", {}, [this](const QVariantMap &voices) {
             callAsync("models", {}, [this, voices](const QVariantMap &models) {
-                callAsync("renderers", {}, [this, voices, models](const QVariantMap &renderers) {
-                    applyMetadata(voices, models, renderers);
+                callAsync("settings", {}, [this, voices, models](const QVariantMap &settings) {
+                    applyMetadata(voices, models, settings);
                     emit metadataChanged();
                 });
             });
@@ -2352,24 +2297,6 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
             {"version", source.value("version")},
             {"format", source.value("format")},
             {"license", source.value("license")},
-            {"recommended_renderers", source.value("recommended_renderers")},
-        });
-    }
-
-    QVariantList renderers;
-    for (const QVariant &value : m_renderers) {
-        const QVariantMap source = value.toMap();
-        renderers.append(QVariantMap{
-            {"id", source.value("id")},
-            {"display_name", source.value("display_name")},
-            {"manifest_version", source.value("manifest_version")},
-            {"kind", source.value("kind")},
-            {"contract", source.value("contract")},
-            {"provider", source.value("provider")},
-            {"provider_version", source.value("provider_version")},
-            {"acceleration", source.value("acceleration")},
-            {"experimental", source.value("experimental")},
-            {"capabilities", source.value("capabilities")},
         });
     }
 
@@ -2388,7 +2315,7 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
     }
 
     const QStringList contextKeys{
-        QStringLiteral("voicebank_id"), QStringLiteral("model_id"), QStringLiteral("renderer"),
+        QStringLiteral("voicebank_id"), QStringLiteral("model_id"),
         QStringLiteral("alias_policy"), QStringLiteral("tone"), QStringLiteral("color"),
         QStringLiteral("mora_duration_ms"), QStringLiteral("pause_duration_ms"),
         QStringLiteral("intonation_strength"), QStringLiteral("apply_pitch"),
@@ -2422,8 +2349,7 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
             {"dark_mode", m_darkMode},
             {"default_voicebank_id", m_defaultVoicebankId},
             {"default_model_id", m_defaultModelId},
-            {"default_renderer_id", m_defaultRenderer},
-            {"renderer_settings", m_rendererSettings},
+            {"synthesis_settings", m_synthesisSettings},
             {"default_tone", m_defaultTone},
             {"default_alias_policy", m_defaultAliasPolicy},
             {"export_text_with_wav", m_exportTextWithWav},
@@ -2436,10 +2362,8 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
         }},
         {"current_selection", selection},
         {"catalog", QVariantMap{
-            {"default_renderer", m_catalogDefaultRenderer},
             {"voicebanks", voicebanks},
             {"models", models},
-            {"renderers", renderers},
         }},
         {"logs", logs},
         {"privacy", QVariantMap{

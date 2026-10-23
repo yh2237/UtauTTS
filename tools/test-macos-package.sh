@@ -79,8 +79,7 @@ for required in \
   "${gui_root}/runtime/utautts-world-engine.dylib" \
   "${server_root}/utautts-server" \
   "${server_root}/runtime/utautts-world-engine.dylib" \
-  "${gui_root}/models/frame-intonation-tcn-v12.json" \
-  "${gui_root}/renderer/utautts-world-phrase/renderer.json"; do
+  "${gui_root}/models/frame-intonation-tcn-v12.json"; do
   [[ -f "${required}" ]] || fail "required package file is missing: ${required}"
 done
 for package_root in "${gui_root}" "${server_root}"; do
@@ -191,12 +190,7 @@ if find "${app}/Contents" -type d \( -iname 'QtSvg.framework' -o -iname 'QtSvgWi
 fi
 [[ ! -e "${server_root}/THIRD_PARTY_NOTICES-MACOS-GUI.txt" ]] \
   || fail 'server package must not contain the macOS GUI third-party addendum'
-for removed in \
-  "${gui_root}/renderer/waveform" \
-  "${gui_root}/renderer/classic-utau" \
-  "${gui_root}/renderer/diffsinger"; do
-  [[ ! -e "${removed}" ]] || fail "initial macOS package contains an excluded renderer: ${removed}"
-done
+[[ ! -e "${gui_root}/renderer" ]] || fail 'removed renderer directory is still packaged'
 for executable in \
   "${app}/Contents/MacOS/utautts" "${cli}" \
   "${gui_root}/utautts-server" \
@@ -228,15 +222,14 @@ app_binary="${app}/Contents/MacOS/utautts"
 
 smoke_text='こんにちは'
 "${cli}" --voicebank "${voicebank}" --text "${smoke_text}" \
-  --method waveform-synthesis --prosody frame-intonation-tcn-v12 --renderer utautts-world-phrase \
+  --method waveform-synthesis --prosody frame-intonation-tcn-v12 \
   --apply-pitch --intonation-strength 1 --out "${work_dir}/utautts-world.wav"
 [[ "$(file_size "${work_dir}/utautts-world.wav")" -gt 44 ]] || fail 'synthesis output is empty'
 
 port="$("${python_command}" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')"
 (
   cd "${work_dir}"
-  exec "${gui_root}/utautts-server" --host 127.0.0.1 --port "${port}" \
-    --renderer utautts-world-phrase
+  exec "${gui_root}/utautts-server" --host 127.0.0.1 --port "${port}"
 ) >"${work_dir}/server.stdout.log" 2>"${work_dir}/server.stderr.log" &
 server_pid=$!
 base_url="http://127.0.0.1:${port}"
@@ -251,17 +244,14 @@ for _ in $(seq 1 100); do
   sleep 0.1
 done
 curl -fsS "${base_url}/api/health" >/dev/null || fail 'packaged macOS server health check timed out'
-curl -fsS "${base_url}/api/renderers" >"${work_dir}/renderers.json"
-"${python_command}" - "${work_dir}/renderers.json" <<'PY'
+curl -fsS "${base_url}/api/settings" >"${work_dir}/settings.json"
+"${python_command}" - "${work_dir}/settings.json" <<'PY'
 import json
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as stream:
-    renderers = json.load(stream).get("renderers", [])
-ids = {item.get("id") for item in renderers}
-for required in ("utautts-world-phrase",):
-    if required not in ids:
-        raise SystemExit(f"server did not expose renderer: {required}")
+    if not json.load(stream).get("settings"):
+        raise SystemExit("server returned no setting")
 PY
 
 kill "${server_pid}"

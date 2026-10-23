@@ -49,8 +49,8 @@ fi
 rm -rf "${gui_dir}" "${server_dir}"
 rm -f "${gui_zip}" "${server_zip}"
 mkdir -p \
-  "${gui_dir}/tools" "${gui_dir}/runtime" "${gui_dir}/models" "${gui_dir}/renderer" \
-  "${server_dir}/runtime" "${server_dir}/models" "${server_dir}/renderer" \
+  "${gui_dir}/tools" "${gui_dir}/runtime" "${gui_dir}/models" \
+  "${server_dir}/runtime" "${server_dir}/models" \
   "${root_dir}/build/native"
 
 export CGO_ENABLED=1
@@ -124,7 +124,7 @@ bash "${root_dir}/tools/build-native-engines.sh" "${staging_dir}"
 cp -R "${staging_dir}/." "${gui_dir}/runtime/"
 cp -R "${staging_dir}/." "${server_dir}/runtime/"
 
-echo '=== Models and renderers ==='
+echo '=== Models ==='
 for reference_file in kokoro-v1_0.pth config.json af_heart.pt ef_dora.pt pf_dora.pt jf_alpha.pt us_gold.json us_silver.json; do
   if [[ ! -f "${root_dir}/models/reference/${reference_file}" ]]; then
     echo "Reference model is missing: models/reference/${reference_file}. Run tools/fetch-reference-models.sh." >&2
@@ -145,8 +145,6 @@ for chinese_file in kokoro-zh/kokoro-v1_1-zh.pth kokoro-zh/config.json kokoro-zh
 done
 cp -R "${root_dir}/models/." "${gui_dir}/models/"
 cp -R "${root_dir}/models/." "${server_dir}/models/"
-cp -R "${root_dir}/renderer/." "${gui_dir}/renderer/"
-cp -R "${root_dir}/renderer/." "${server_dir}/renderer/"
 for package_dir in "${gui_dir}" "${server_dir}"; do
   (cd "${root_dir}" && "${go_command}" run ./cmd/tools/copy-model-license-notices \
     --models "${package_dir}/models" \

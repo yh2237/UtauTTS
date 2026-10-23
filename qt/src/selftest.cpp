@@ -55,23 +55,10 @@ QString firstID(const QVariantList &items) {
     return items.isEmpty() ? QString() : items.first().toMap().value(QStringLiteral("id")).toString();
 }
 
-QString productionRenderer(const Backend &backend, const QVariantMap &model) {
-    const QVariantList recommended = model.value(QStringLiteral("recommended_renderers")).toList();
-    for (const QVariant &wantedValue : recommended) {
-        const QString wanted = wantedValue.toString();
-        for (const QVariant &rendererValue : backend.renderers()) {
-            const QVariantMap renderer = rendererValue.toMap();
-            if (renderer.value(QStringLiteral("id")).toString() == wanted)
-                return wanted;
-        }
-    }
-    return firstID(backend.renderers());
-}
-
-QVariantMap sampleProject(const QString &voicebankID, const QString &modelID, const QString &rendererID) {
+QVariantMap sampleProject(const QString &voicebankID, const QString &modelID) {
     const QVariantMap utterance{
         {"text", QStringLiteral("こんにちは")}, {"voicebank_id", voicebankID},
-        {"model_id", modelID}, {"renderer_id", rendererID}, {"alias_policy", "auto"},
+        {"model_id", modelID}, {"alias_policy", "auto"},
         {"tone", "C4"}, {"color", ""}, {"mora_duration_ms", 120},
         {"pause_duration_ms", 180}, {"intonation", 1.0}, {"apply_pitch", true},
         {"pitch_points", QVariantList{}}, {"mora_durations_ms", QVariantList{}},
@@ -89,7 +76,7 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                         QStringLiteral("portable config file was not created"))
             || !require(!backend.voicebanks().isEmpty(), QStringLiteral("no bundled voicebank"))
             || !require(!backend.models().isEmpty(), QStringLiteral("no bundled prosody model"))
-            || !require(!backend.renderers().isEmpty(), QStringLiteral("no bundled renderer")))
+            || !require(!backend.settingDefinitions().isEmpty(), QStringLiteral("no synthesis settings")))
         return 1;
 
     QSettings migrationSettings(QDir(selfTestDirectory).filePath(QStringLiteral("config.ini")),
@@ -200,13 +187,12 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     const QString voicebankID = firstID(backend.voicebanks());
     const QVariantMap model = backend.models().first().toMap();
     const QString modelID = model.value(QStringLiteral("id")).toString();
-    const QString rendererID = productionRenderer(backend, model);
-    if (!require(!voicebankID.isEmpty() && !modelID.isEmpty() && !rendererID.isEmpty(),
+    if (!require(!voicebankID.isEmpty() && !modelID.isEmpty(),
                  QStringLiteral("metadata contains an empty id")))
         return 1;
 
     const QUrl projectURL = QUrl::fromLocalFile(temporary.filePath(QStringLiteral("smoke.utautts")));
-    const QVariantMap project = sampleProject(voicebankID, modelID, rendererID);
+    const QVariantMap project = sampleProject(voicebankID, modelID);
     if (!require(backend.saveProject(projectURL, project), backend.error()))
         return 1;
     const QVariantMap loadedProject = backend.loadProject(projectURL);
@@ -247,7 +233,7 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
 
     const QUrl diagnosticsURL = QUrl::fromLocalFile(temporary.filePath(QStringLiteral("diagnostics.json")));
     const QVariantMap diagnosticContext{
-        {"voicebank_id", voicebankID}, {"model_id", modelID}, {"renderer", rendererID},
+        {"voicebank_id", voicebankID}, {"model_id", modelID},
         {"alias_policy", "auto"}, {"tone", "C4"}, {"mora_duration_ms", 120},
         {"pause_duration_ms", 180}, {"intonation_strength", 1.0}, {"apply_pitch", true},
         {"text", QStringLiteral("診断情報に含めない文章")},
@@ -278,7 +264,7 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     const QVariantMap commonRequest{
         {"request_id", "self-test-prosody"}, {"text", QStringLiteral("こんにちは")},
         {"language", "ja"}, {"method", "waveform-synthesis"},
-        {"voicebank_id", voicebankID}, {"model_id", modelID}, {"renderer", rendererID},
+        {"voicebank_id", voicebankID}, {"model_id", modelID},
         {"alias_policy", "auto"}, {"tone", "C4"}, {"mora_duration_ms", 120},
         {"pause_duration_ms", 180}, {"intonation_strength", 1.0}, {"apply_pitch", true}
     };
@@ -394,38 +380,24 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  QStringLiteral("dictionary settings failed")))
         return 1;
     backend.setSynthesisDefaults(QStringLiteral("frame-intonation-tcn-v12"),
-                                 QStringLiteral("utautts-world-phrase"),
                                  QStringLiteral("D4"), QStringLiteral("cv-only"));
-    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
-                               QStringLiteral("mora_duration_ms"), 130);
-    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
-                               QStringLiteral("pause_duration_ms"), 190);
-    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
-                               QStringLiteral("leading_preutterance_ms"), 45);
-    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
-                               QStringLiteral("intonation_strength"), 2.5);
-    backend.setRendererSetting(QStringLiteral("utautts-world-phrase"),
-                               QStringLiteral("boundary_tone"), false);
+    backend.setSynthesisSetting(QStringLiteral("mora_duration_ms"), 130);
+    backend.setSynthesisSetting(QStringLiteral("pause_duration_ms"), 190);
+    backend.setSynthesisSetting(QStringLiteral("leading_preutterance_ms"), 45);
+    backend.setSynthesisSetting(QStringLiteral("intonation_strength"), 2.5);
+    backend.setSynthesisSetting(QStringLiteral("boundary_tone"), false);
     backend.setPreviewCacheFileCount(7);
     backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y");
     if (!require(backend.defaultMoraDuration() == 130 && backend.defaultPauseDuration() == 190
                  && backend.defaultLeadingPreutterance() == 45
                  && backend.defaultModelId() == QStringLiteral("frame-intonation-tcn-v12")
-                 && backend.defaultRenderer() == QStringLiteral("utautts-world-phrase")
                  && backend.previewCacheFileCount() == 7
                  && backend.defaultIntonationStrength() == 2.5
                  && backend.defaultTone() == QStringLiteral("D4")
                  && backend.defaultAliasPolicy() == QStringLiteral("cv-only")
-                 && backend.rendererSetting(QStringLiteral("utautts-world-phrase"),
-                                            QStringLiteral("boundary_tone"), true).toBool() == false
+                 && backend.synthesisSetting(QStringLiteral("boundary_tone"), true).toBool() == false
                  && backend.undoShortcut() == QStringLiteral("Ctrl+Z"),
                  QStringLiteral("application settings failed")))
-        return 1;
-    backend.setSynthesisDefaults(QStringLiteral("frame-intonation-tcn-v12"), QStringLiteral("test-concat"),
-                                 QStringLiteral("D4"), QStringLiteral("cv-only"));
-    if (!require(backend.defaultMoraDuration() == 130 && backend.defaultIntonationStrength() == 2.5
-                 && backend.defaultPauseDuration() != 190,
-                 QStringLiteral("common synthesis settings depend on the renderer")))
         return 1;
 
     qInfo() << "UtauTTS self-test passed";

@@ -35,10 +35,8 @@ class Backend final : public QObject {
     Q_PROPERTY(QVariantList models READ models NOTIFY metadataChanged)
     Q_PROPERTY(QVariantMap retiredModels READ retiredModels NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList referenceProviders READ referenceProviders NOTIFY metadataChanged)
-    Q_PROPERTY(QVariantList renderers READ renderers NOTIFY metadataChanged)
-    Q_PROPERTY(QStringList pluginProblems READ pluginProblems NOTIFY metadataChanged)
+    Q_PROPERTY(QVariantList settingDefinitions READ settingDefinitions NOTIFY metadataChanged)
     Q_PROPERTY(QVariantList dictionaryEntries READ dictionaryEntries NOTIFY dictionaryChanged)
-    Q_PROPERTY(QString defaultRenderer READ defaultRenderer NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(QString defaultModelId READ defaultModelId NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(QString defaultVoicebankId READ defaultVoicebankId NOTIFY voicebankSettingsChanged)
     Q_PROPERTY(QString analysisRequestId READ analysisRequestId NOTIFY analysisChanged)
@@ -63,7 +61,7 @@ class Backend final : public QObject {
     Q_PROPERTY(int defaultPauseDuration READ defaultPauseDuration NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(int defaultLeadingPreutterance READ defaultLeadingPreutterance NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(double defaultIntonationStrength READ defaultIntonationStrength NOTIFY synthesisDefaultsChanged)
-    Q_PROPERTY(QVariantMap rendererSettings READ rendererSettings NOTIFY rendererSettingsChanged)
+    Q_PROPERTY(QVariantMap synthesisSettings READ synthesisSettings NOTIFY synthesisSettingsChanged)
     Q_PROPERTY(QString defaultTone READ defaultTone NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(QString defaultAliasPolicy READ defaultAliasPolicy NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(bool exportTextWithWav READ exportTextWithWav NOTIFY exportSettingsChanged)
@@ -88,10 +86,8 @@ public:
     QVariantList models() const { return m_models; }
     QVariantMap retiredModels() const { return m_retiredModels; }
     QVariantList referenceProviders() const { return m_referenceProviders; }
-    QVariantList renderers() const { return m_renderers; }
-    QStringList pluginProblems() const { return m_pluginProblems; }
+    QVariantList settingDefinitions() const { return m_settingDefinitions; }
     QVariantList dictionaryEntries() const { return m_dictionaryEntries; }
-    QString defaultRenderer() const { return m_defaultRenderer; }
     QString defaultModelId() const { return m_defaultModelId; }
     QString defaultVoicebankId() const { return m_defaultVoicebankId; }
     QString analysisRequestId() const { return m_analysisRequestId; }
@@ -118,7 +114,7 @@ public:
     int defaultPauseDuration() const;
     int defaultLeadingPreutterance() const;
     double defaultIntonationStrength() const;
-    QVariantMap rendererSettings() const { return m_rendererSettings; }
+    QVariantMap synthesisSettings() const { return m_synthesisSettings; }
     QString defaultTone() const { return m_defaultTone; }
     QString defaultAliasPolicy() const { return m_defaultAliasPolicy; }
     bool exportTextWithWav() const { return m_exportTextWithWav; }
@@ -188,12 +184,10 @@ public:
     Q_INVOKABLE void setFfmpegPath(const QString &value);
     Q_INVOKABLE void setAudioOutputDeviceId(const QString &value);
     Q_INVOKABLE QString audioOutputDeviceKey(const QVariant &id) const;
-    Q_INVOKABLE void setSynthesisDefaults(const QString &modelId, const QString &rendererId,
-                                          const QString &tone, const QString &aliasPolicy);
-    Q_INVOKABLE QVariant rendererSetting(const QString &rendererId, const QString &settingId,
-                                         const QVariant &fallback = {}) const;
-    Q_INVOKABLE void setRendererSetting(const QString &rendererId, const QString &settingId,
-                                        const QVariant &value);
+    Q_INVOKABLE void setSynthesisDefaults(const QString &modelId, const QString &tone,
+                                          const QString &aliasPolicy);
+    Q_INVOKABLE QVariant synthesisSetting(const QString &settingId, const QVariant &fallback = {}) const;
+    Q_INVOKABLE void setSynthesisSetting(const QString &settingId, const QVariant &value);
     Q_INVOKABLE void setDefaultVoicebank(const QString &value);
     Q_INVOKABLE void setExportSettings(bool writeText, bool writeLab, const QString &textEncoding);
     Q_INVOKABLE void setShortcutSequences(const QString &synthesize,
@@ -227,7 +221,7 @@ signals:
     void ffmpegSettingsChanged();
     void audioOutputSettingsChanged();
     void synthesisDefaultsChanged();
-    void rendererSettingsChanged();
+    void synthesisSettingsChanged();
     void exportSettingsChanged();
     void voicebankSettingsChanged();
     void ustxExportFinished(bool success, const QString &detail);
@@ -255,14 +249,13 @@ private:
     void callAsync(const QByteArray &method, const QVariantMap &request,
                    std::function<void(const QVariantMap &)> completed);
     void applyMetadata(const QVariantMap &voices, const QVariantMap &models,
-                      const QVariantMap &renderers);
+                      const QVariantMap &settings);
     void refreshMetadata();
     void setBusy(bool value);
     void setError(const QString &value);
     void runStartupMigrations();
     QByteArray previewCacheKey(const QVariantMap &request) const;
-    QVariant rendererSettingOrManifest(const QString &rendererId, const QString &settingId,
-                                       const QVariant &fallback) const;
+    QVariant settingOrDefault(const QString &settingId, const QVariant &fallback) const;
     bool restorePreviewCache(const QByteArray &key);
     void storePreviewCache(const QByteArray &key, const PreviewCacheEntry &entry);
     void trimPreviewCache();
@@ -298,12 +291,9 @@ private:
     QHash<qulonglong, std::function<void(const QVariantMap &)>> m_wasmCallbacks;
 #endif
     int m_activeCallCount = 0;
-    QVariantList m_voicebanks, m_models, m_renderers, m_dictionaryEntries;
+    QVariantList m_voicebanks, m_models, m_settingDefinitions, m_dictionaryEntries;
     QVariantMap m_retiredModels;
     QVariantList m_referenceProviders;
-    QStringList m_pluginProblems;
-    QString m_catalogDefaultRenderer;
-    QString m_defaultRenderer;
     QString m_defaultModelId;
     QString m_defaultVoicebankId;
     QString m_analysisRequestId, m_analysisSourceText, m_analysisJson;
@@ -324,7 +314,7 @@ private:
     bool m_extendedDetailsVisible = false;
     QString m_ffmpegPath;
     QString m_audioOutputDeviceId;
-    QVariantMap m_rendererSettings;
+    QVariantMap m_synthesisSettings;
     QString m_defaultTone;
     QString m_defaultAliasPolicy = QStringLiteral("auto");
     bool m_exportTextWithWav = false;

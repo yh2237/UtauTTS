@@ -25,7 +25,6 @@ type config struct {
 	PredictCorpus, PredictOut, OpenJTalkEngine, OpenJTalkDictionary                            string
 	Description, AudioRoot                                                                     string
 	Notices                                                                                    []string
-	RecommendedRenderers                                                                       []string
 	Epochs, Hidden, Batch, Seed, Limit                                                         int
 	LR, Delta, Smooth, Frame, Low, High                                                        float64
 	RenderStrength, RenderSmoothing, RenderP99, RenderMax                                      float64
@@ -40,7 +39,6 @@ func (n *notices) Set(v string) error { *n = append(*n, v); return nil }
 func parseFlags() config {
 	var c config
 	var nn notices
-	var renderers notices
 	var dil string
 	var noOpenJTalk bool
 	flag.StringVar(&c.Dataset, "dataset", "", "version-1 JSONL")
@@ -56,7 +54,6 @@ func parseFlags() config {
 	flag.StringVar(&c.ID, "model-id", "", "model ID")
 	flag.StringVar(&c.Name, "display-name", "", "display name")
 	flag.StringVar(&c.Description, "description", "", "model description")
-	flag.Var(&renderers, "recommended-renderer", "compatible renderer ID, repeatable")
 	flag.StringVar(&c.AudioRoot, "audio-root", "", "root for relative audio paths")
 	flag.IntVar(&c.F0Method, "f0-method", 1, "WORLD Harvest method (1)")
 	flag.StringVar(&c.Corpus, "training-corpus", "", "training corpus provenance")
@@ -96,7 +93,6 @@ func parseFlags() config {
 		c.OpenJTalkAccent = false
 	}
 	c.Notices = nn
-	c.RecommendedRenderers = renderers
 	if c.F0Source == "auto" {
 		c.F0Source = "internal"
 	}

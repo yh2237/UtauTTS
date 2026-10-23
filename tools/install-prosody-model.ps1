@@ -4,8 +4,7 @@ param(
     [string]$DestinationDirectory = "models",
     [string]$Id = "",
     [string]$DisplayName = "",
-    [string]$Description = "",
-    [string[]]$RecommendedRenderer = @()
+    [string]$Description = ""
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,8 +14,7 @@ $raw = Get-Content -LiteralPath $source -Raw -Encoding UTF8
 $model = $raw | ConvertFrom-Json
 $migrateIdentity = -not [string]::IsNullOrWhiteSpace($Id) -or
     -not [string]::IsNullOrWhiteSpace($DisplayName) -or
-    -not [string]::IsNullOrWhiteSpace($Description) -or
-    $RecommendedRenderer.Count -gt 0
+    -not [string]::IsNullOrWhiteSpace($Description)
 if ($migrateIdentity -and -not [string]::IsNullOrWhiteSpace([string]$model.id) -and -not [string]::IsNullOrWhiteSpace([string]$model.display_name)) {
     throw 'The source already has model identity; do not use migration metadata arguments.'
 }
@@ -28,7 +26,6 @@ if ($migrateIdentity) {
     if ([string]::IsNullOrWhiteSpace([string]$model.id)) { $identity['id'] = $Id }
     if ([string]::IsNullOrWhiteSpace([string]$model.display_name)) { $identity['display_name'] = $DisplayName }
     if (-not [string]::IsNullOrWhiteSpace($Description)) { $identity['description'] = $Description }
-    if ($RecommendedRenderer.Count -gt 0) { $identity['recommended_renderers'] = @($RecommendedRenderer) }
     $metadata = ($identity | ConvertTo-Json -Compress).Trim('{', '}')
     $brace = $raw.IndexOf('{')
     if ($brace -lt 0) { throw 'The model JSON does not start with an object.' }

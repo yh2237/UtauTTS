@@ -61,8 +61,8 @@ if [ -n "${QT_ROOT:-}" ]; then
   qt_cmake_args+=("-DCMAKE_PREFIX_PATH=${QT_ROOT};${QT_ROOT}/usr")
 fi
 
-mkdir -p "${gui_dir}/tools" "${gui_dir}/runtime" "${gui_dir}/models" "${gui_dir}/renderer" \
-  "${server_dir}/runtime" "${server_dir}/models" "${server_dir}/renderer" \
+mkdir -p "${gui_dir}/tools" "${gui_dir}/runtime" "${gui_dir}/models" \
+  "${server_dir}/runtime" "${server_dir}/models" \
   "${root_dir}/build/native" "${root_dir}/build/qt-linux"
 cd "${root_dir}"
 
@@ -147,10 +147,9 @@ for package_dir in "${gui_dir}" "${server_dir}"; do
     --package-root "${package_dir}")
 done
 
-echo '=== Models and renderers ==='
+echo '=== Models ==='
 for package_dir in "${gui_dir}" "${server_dir}"; do
   cp -R "${root_dir}/models/." "${package_dir}/models/"
-  cp -R "${root_dir}/renderer/." "${package_dir}/renderer/"
 done
 
 echo '=== Voicebanks ==='

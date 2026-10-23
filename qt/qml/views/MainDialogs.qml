@@ -14,7 +14,6 @@ Item {
     property alias frameRateDialog : frameRateDialog
     property alias projectSaveDialog : projectSaveDialog
     property alias ustxExportFileDialog : ustxExportFileDialog
-    property alias rendererPackagesDialog : rendererPackagesDialog
     property alias projectOpenDialog : projectOpenDialog
     property alias diagnosticSaveDialog : diagnosticSaveDialog
     property alias diagnosticResultDialog : diagnosticResultDialog
@@ -115,47 +114,6 @@ Item {
         nameFilters: [host.translator.tr("main.ustxFilter")]
         defaultSuffix: "ustx"
         onAccepted: host.exportUstxTo(selectedFile)
-    }
-
-    Dialog {
-        id: rendererPackagesDialog
-        title: host.translator.tr("plugins.title")
-        anchors.centerIn: parent
-        width: Math.min(620, host.width - 40)
-        height: Math.min(540, host.height - 40)
-        modal: true
-        standardButtons: Dialog.Close
-        contentItem: ColumnLayout {
-            ScrollView {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                Column {
-                    width: parent.width
-                    spacing: 10
-                    Repeater {
-                        model: host.appBackend.renderers
-                        delegate: Label {
-                            required property var modelData
-                            width: parent.width
-                            wrapMode: Text.Wrap
-                            text: modelData.display_name + "  " + (modelData.version || "")
-                        }
-                    }
-                    Label {
-                        width: parent.width
-                        visible: host.appBackend.pluginProblems.length > 0
-                        wrapMode: Text.Wrap
-                        text: host.translator.tr("plugins.disabled") + "\n" + host.appBackend.pluginProblems.join("\n\n")
-                    }
-                }
-            }
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                text: host.appBackend.error
-                visible: text.length > 0
-            }
-        }
     }
 
     FileDialog {

@@ -99,11 +99,7 @@ func export(m *tcn, names []string, c config, sha string, trainRows, validRows, 
 	if description == "" {
 		description = "Frame-level learned intonation model"
 	}
-	renderers := c.RecommendedRenderers
-	if len(renderers) == 0 {
-		renderers = []string{"utautts-world-phrase"}
-	}
-	payload := map[string]any{"id": modelID, "display_name": display, "description": description, "license": c.License, "license_notices": c.Notices, "provenance": map[string]any{"training_corpus": c.Corpus}, "recommended_renderers": renderers, "version": 8, "feature_version": 1, "mode": mode, "language": c.Language, "duration_weights": map[string]float64{}, "frame_pitch": exportedFrame(m, names, c), "metrics": metrics, "training": trainMeta}
+	payload := map[string]any{"id": modelID, "display_name": display, "description": description, "license": c.License, "license_notices": c.Notices, "provenance": map[string]any{"training_corpus": c.Corpus}, "version": 8, "feature_version": 1, "mode": mode, "language": c.Language, "duration_weights": map[string]float64{}, "frame_pitch": exportedFrame(m, names, c), "metrics": metrics, "training": trainMeta}
 	return payload
 }
 func alignmentStats(rows []record, language string) map[string]any {

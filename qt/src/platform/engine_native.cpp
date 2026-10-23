@@ -63,15 +63,14 @@ QVariantMap initializeNative(const QByteArray &encoded,
         if (progress) {
             progress(2);
         }
-        const QVariantMap renderers = callNative(handle, "renderers");
+        const QVariantMap settings = callNative(handle, "settings");
         const QVariantMap providers = callNative(handle, "referenceProviders");
         return {
             {"_handle", QVariant::fromValue<qulonglong>(static_cast<qulonglong>(handle))},
             {"voicebanks", voices.value("voicebanks")},
             {"models", models.value("models")},
-            {"renderers", renderers.value("renderers")},
-            {"problems", renderers.value("problems")},
-            {"default_renderer", renderers.value("default_renderer")},
+            {"settings", settings.value("settings")},
+            {"problems", settings.value("problems")},
             {"reference_providers", providers.value("reference_providers")},
         };
     } catch (const std::exception &exception) {

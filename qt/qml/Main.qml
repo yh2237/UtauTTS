@@ -731,26 +731,18 @@ ApplicationWindow {
         return QmlCore.currentUtterance(utterances, selectedIndex);
     }
 
-    function rendererSettingContext(rendererId) {
+    function synthesisSettingContext() {
         const context = {};
-        const renderers = window.appBackend.renderers;
-        for (let index = 0; index < renderers.length; ++index) {
-            const renderer = renderers[index];
-            if (String(renderer.id) !== String(rendererId || ""))
-                continue;
-            const settings = renderer.settings || [];
-            for (let settingIndex = 0; settingIndex < settings.length; ++settingIndex) {
-                const setting = settings[settingIndex];
-                context[String(setting.id)] = window.appBackend.rendererSetting(
-                        renderer.id, setting.id, setting.default);
-            }
-            break;
+        const settings = window.appBackend.settingDefinitions;
+        for (let index = 0; index < settings.length; ++index) {
+            const setting = settings[index];
+            context[String(setting.id)] = window.appBackend.synthesisSetting(setting.id, setting.default);
         }
         return context;
     }
 
-    function addRendererSettings(request, rendererId) {
-        const settings = window.rendererSettingContext(rendererId);
+    function addSynthesisSettings(request) {
+        const settings = window.synthesisSettingContext();
         const keys = Object.keys(settings);
         for (let index = 0; index < keys.length; ++index) {
             if (Object.prototype.hasOwnProperty.call(request, keys[index]))
@@ -768,7 +760,6 @@ ApplicationWindow {
         const context = {
             voicebank_id: item.voicebankId || "",
             model_id: window.normalizeModelId(item.modelId, item.language || "ja"),
-            renderer: item.renderer || "",
             alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
             tone: item.tone || "",
             color: item.color || "",
@@ -779,7 +770,7 @@ ApplicationWindow {
             apply_pitch: item.applyPitch,
             unit_overrides: window.decodeSequence(item.phonemeOverridesJson)
         };
-        window.addRendererSettings(context, item.renderer);
+        window.addSynthesisSettings(context);
         return context;
     }
 
@@ -855,7 +846,6 @@ ApplicationWindow {
             usedShortcuts.push(normalized);
         }
         window.appBackend.setSynthesisDefaults(settingsWindowRef.view.pendingDefaultModelId,
-                                               settingsWindowRef.view.pendingDefaultRendererId,
                                                settingsWindowRef.view.pendingDefaultTone,
                                                settingsWindowRef.view.pendingDefaultAliasPolicy);
         window.appBackend.setDarkMode(settingsWindowRef.view.pendingDarkMode);
@@ -1079,17 +1069,9 @@ ApplicationWindow {
 
     function modelById(id) { return core.modelById(id); }
 
-    function rendererById(id) { return core.rendererById(id); }
-
     function defaultModelId() { return core.defaultModelId(); }
 
     function defaultModelIdForLanguage(language) { return core.defaultModelIdForLanguage(language); }
-
-    function preferredRendererForModel(model) { return core.preferredRendererForModel(model); }
-
-    function defaultRendererId() { return core.defaultRendererId(); }
-
-    function normalizeRendererId(id) { return core.normalizeRendererId(id); }
 
     function normalizeAliasPolicy(value) { return core.normalizeAliasPolicy(value); }
 
@@ -1209,7 +1191,6 @@ ApplicationWindow {
                 method: window.normalizeMethod(item.method, item.language || "ja"),
                 voicebank_id: item.voicebankId || "",
                 model_id: window.normalizeModelId(item.modelId, item.language || "ja"),
-                renderer_id: item.renderer || "",
                 alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
                 tone: item.tone || "",
                 color: item.color || "",
@@ -1380,7 +1361,6 @@ ApplicationWindow {
         window.clearPlayback();
         utterances.clear();
         window.nextUtteranceId = 1;
-        let migratedRenderer = false;
         const projectFormatVersion = Number(project.format_version) || 1;
         for (let index = 0; index < loadedUtterances.length; ++index) {
             const saved = loadedUtterances[index] || {};
@@ -1389,9 +1369,6 @@ ApplicationWindow {
             const points = window.copySequence(saved.pitch_points);
             const pitchFrames = window.copySequence(saved.pitch_frames);
             const content = String(saved.text || "");
-            let rendererId = window.normalizeRendererId(saved.renderer_id);
-            if (String(saved.renderer_id || "") !== rendererId)
-                migratedRenderer = true;
             const manualDurations = window.copySequence(saved.mora_durations_ms);
             const automaticDurations = window.copySequence(saved.automatic_mora_durations_ms);
             let manualPositions = window.copySequence(saved.mora_positions_ms);
@@ -1430,7 +1407,6 @@ ApplicationWindow {
                 voicebankId: voicebankId,
                 imagePath: voice ? voice.image_path || "" : "",
                 modelId: window.normalizeModelId(saved.model_id, saved.language || "ja"),
-                renderer: rendererId,
                 aliasPolicy: saved.alias_policy === undefined
                         ? window.appBackend.defaultAliasPolicy : window.normalizeAliasPolicy(saved.alias_policy),
                 // 形式8までは指定なしもC4で保存していた。
@@ -1446,7 +1422,7 @@ ApplicationWindow {
             });
         }
 
-        window.projectDirty = migratedRenderer;
+        window.projectDirty = false;
         window.projectFile = source || "";
         if (source && source.toString().length)
             window.appBackend.rememberRecentProject(source);
@@ -1459,7 +1435,7 @@ ApplicationWindow {
             editorContent.pitchEditor.moraPositions = [];
             editorContent.phonemeEditor.manualFrames = [];
             editorContent.phonemeEditor.autoFrames = [];
-            window.resetHistory(migratedRenderer);
+            window.resetHistory(false);
             return;
         }
         selectedIndex = Math.max(0, Math.min(Number(project.selected_index) || 0, utterances.count - 1));
@@ -1480,7 +1456,7 @@ ApplicationWindow {
             }
         }
         editorContent.utteranceList.positionViewAtIndex(selectedIndex, ListView.Contain);
-        window.resetHistory(migratedRenderer);
+        window.resetHistory(false);
     }
 
     function localImageUrl(path) {
@@ -1561,7 +1537,7 @@ ApplicationWindow {
         if (item[name] === value)
             return;
         utterances.setProperty(selectedIndex, name, value);
-        if (["voicebankId", "modelId", "renderer", "aliasPolicy", "phonemizer", "tone", "color", "moraDuration", "pauseDuration",
+        if (["voicebankId", "modelId", "aliasPolicy", "phonemizer", "tone", "color", "moraDuration", "pauseDuration",
              "intonation", "applyPitch"].indexOf(name) >= 0)
             clearAutomaticProsody(selectedIndex);
         if (name === "moraDuration")
@@ -1581,9 +1557,9 @@ ApplicationWindow {
             utterances.setProperty(selectedIndex, "phonemeOverridesJson", "[]");
             window.analyzeUtterance(selectedIndex);
         }
-        if (["voicebankId", "modelId", "renderer", "aliasPolicy", "phonemizer"].indexOf(name) >= 0)
+        if (["voicebankId", "modelId", "aliasPolicy", "phonemizer"].indexOf(name) >= 0)
             utterances.setProperty(selectedIndex, "phonemeOverridesJson", "[]");
-        if (["voicebankId", "aliasPolicy", "modelId", "renderer", "tone", "color", "moraDuration",
+        if (["voicebankId", "aliasPolicy", "modelId", "tone", "color", "moraDuration",
              "pauseDuration", "intonation", "applyPitch"].indexOf(name) >= 0) {
             window.requestMissingProsodyPreview(selectedIndex);
         }
@@ -1730,7 +1706,7 @@ ApplicationWindow {
         editorContent.pitchEditor.setDurationAtMS(position, Number(durationMs));
     }
 
-    readonly property var menuDialogs: ({about: dialogs.aboutDialog, rendererPackages: dialogs.rendererPackagesDialog})
+    readonly property var menuDialogs: ({about: dialogs.aboutDialog})
 
     readonly property var selfTestContext: ({window: window, utterances: utterances, editorContent: editorContent, analyzeTimer: analyzeTimer})
 
@@ -1933,9 +1909,8 @@ ApplicationWindow {
     }
 
     function assignDefaultSynthesisSettings(suppressDirty) {
-        if (!utterances.count || !window.appBackend.renderers.length)
+        if (!utterances.count)
             return;
-        const rendererId = window.defaultRendererId();
         for (let index = 0; index < utterances.count; ++index) {
             const item = utterances.get(index);
             let changed = false;
@@ -1943,10 +1918,6 @@ ApplicationWindow {
             if (modelId !== "none" && !window.modelById(modelId)) {
                 utterances.setProperty(index, "modelId",
                                        window.defaultModelIdForLanguage(item.language || "ja"));
-                changed = true;
-            }
-            if (!window.rendererById(String(item.renderer || ""))) {
-                utterances.setProperty(index, "renderer", rendererId);
                 changed = true;
             }
             if (!item.aliasPolicy) {
@@ -2013,7 +1984,6 @@ ApplicationWindow {
         });
         selectCombo(editorContent.aliasPolicyCombo, window.normalizeAliasPolicy(item.aliasPolicy));
         selectCombo(editorContent.modelCombo, item.modelId);
-        selectCombo(editorContent.rendererCombo, item.renderer);
         window.requestMissingProsodyPreview(index);
     }
 
@@ -2225,7 +2195,6 @@ ApplicationWindow {
             voicebankId: voice ? voice.id : "",
             imagePath: voice ? voice.image_path || "" : "",
             modelId: window.metadataInitialized ? window.defaultModelIdForLanguage(language) : "",
-            renderer: window.appBackend.renderers.length ? window.defaultRendererId() : "",
             aliasPolicy: window.appBackend.defaultAliasPolicy,
             tone: window.appBackend.defaultTone,
             color: "",
@@ -2442,7 +2411,6 @@ ApplicationWindow {
             dictionary: window.appBackend.dictionaryEntries,
             voicebank_id: item.voicebankId || editorContent.voiceCombo.currentValue,
             model_id: item.modelId,
-            renderer: item.renderer,
             alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
             tone: item.tone,
             color: item.color || "",
@@ -2454,7 +2422,7 @@ ApplicationWindow {
             apply_pitch: item.applyPitch,
             unit_overrides: window.decodeSequence(item.phonemeOverridesJson)
         };
-        window.addRendererSettings(request, item.renderer);
+        window.addSynthesisSettings(request);
         const frameOffsets = window.decodeSequence(item.pitchFramesJson);
         const hasFrameOffsets = frameOffsets.some(value => Math.abs(Number(value)) > .1);
         if (item.applyPitch && item.reading && manualPitch && hasFrameOffsets) {
@@ -2499,7 +2467,6 @@ ApplicationWindow {
             dictionary: window.appBackend.dictionaryEntries,
             model_id: item.modelId,
             model_path: window.intonationLab ? window.intonationLabBaseModelPath() : "",
-            renderer: item.renderer,
             mora_duration_ms: item.moraDuration,
             pause_duration_ms: item.pauseDuration,
             mora_durations_ms: window.hasManualMoraDurations(item)
@@ -2507,7 +2474,7 @@ ApplicationWindow {
             intonation_strength: item.intonation,
             apply_pitch: item.applyPitch
         };
-        window.addRendererSettings(request, item.renderer);
+        window.addSynthesisSettings(request);
         return request;
     }
 

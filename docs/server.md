@@ -22,7 +22,7 @@
 | `GET` | `/api/voicebanks` | 認識した音源の一覧 |
 | `POST` | `/api/voicebanks/reload` | 音源ディレクトリの再スキャン |
 | `GET` | `/api/models` | 使える抑揚モデルの一覧 |
-| `GET` | `/api/renderers` | 使えるRendererの一覧 |
+| `GET` | `/api/settings` | 合成設定の一覧（既定値と範囲） |
 | `POST` | `/api/analyze` | テキストの読みとモーラ |
 | `POST` | `/api/synthesize/audio` | 1発話の合成音声（WAV、`audio/wav`） |
 | `POST` | `/api/synthesize/label` | 1発話の音素境界ラベル（`.lab`、テキスト） |
@@ -49,7 +49,7 @@ API処理のエラーは `{"error":"説明","code":"分類"}` と対応するHTT
 | :--- | :--- |
 | `invalid_request` | JSON・必須項目・範囲・ファイル名などの入力不正（400） |
 | `limit_exceeded` | 本文・文字数・編集要素・一括合成の上限超過（413） |
-| `unavailable` | 音源・モデル・Renderer等の不足（400）、終了済みRuntime（503） |
+| `unavailable` | 音源・モデル等の不足（400）、終了済みRuntime（503） |
 | `synthesis_error` | 読み解析・合成の失敗（422） |
 | `canceled` / `deadline_exceeded` | 要求のキャンセル・期限切れ（408） |
 | `forbidden` | 非ローカルのHost、別サイトからのブラウザ操作（403） |
@@ -67,7 +67,6 @@ API処理のエラーは `{"error":"説明","code":"分類"}` と対応するHTT
   "method": "waveform-synthesis",
   "voicebank_id": "足立レイver3.5.0",
   "model_id": "frame-intonation-tcn-v12",
-  "renderer": "utautts-world-phrase",
   "intonation_strength": 4.0,
   "mora_duration_ms": 120,
   "pause_duration_ms": 180,
@@ -82,15 +81,14 @@ API処理のエラーは `{"error":"説明","code":"分類"}` と対応するHTT
 - `method` (string): 合成の方式（`waveform-synthesis` か `reference-matching`）。必須。
 - `voicebank_id` (string): 音源ID。必須。
 - `model_id` (string): 抑揚モデルID。
-- `renderer` (string): 波形合成で使う合成エンジンID（省略時は既定のRenderer。同梱の既定は `utautts-world-phrase`）。
 - `intonation_strength` (number): 抑揚の強さ（0〜8、既定値 `4.0`）。
 - `mora_duration_ms` (number): 基本モーラ長（既定値 `120`）。
 - `pause_duration_ms` (number): 句読点などの休止長（既定値 `180`）。
-- `renderer_settings` (object): Renderer固有のオプション（例: `{"timing_warp": false}`）。
+- `renderer_settings` (object): `/api/settings` の設定をIDで指定する（例: `{"timing_warp": false}`）。
 
 ### レスポンス
 - 成功すると、`200` と `Content-Type: audio/wav` でWAVを返します。
-- レスポンスヘッダーには解析した読みの `X-UtauTTS-Reading` や、使ったRendererのIDの `X-UtauTTS-Engine` が付きます。
+- レスポンスヘッダーには解析した読みの `X-UtauTTS-Reading` や、合成の方式の `X-UtauTTS-Method` が付きます。
 
 ---
 

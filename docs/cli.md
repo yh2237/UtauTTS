@@ -42,7 +42,6 @@
 | `--reading <読み>` | | 読み（かな、ARPAbet、Pinyin）を直接指定（`--kana` も可） |
 | `--text-file <path>` | | 入力テキストファイル（`-` で標準入力） |
 | `--prosody <id>` | | 抑揚モデルID（例: `frame-intonation-tcn-v12`） |
-| `--renderer <id>` | `default_priority` が最大のRenderer | 波形合成で使う合成エンジンID |
 | `--language <id>` | `ja` | 言語（`ja`, `en`, `zh`, `es`, `pt`） |
 | `--phonemizer <id>` | 自動 | 発音形式（`ja-kana`, `en-arpasing`, `zh-cvvc` 等） |
 | `--dictionary <path>` | | ユーザー辞書（JSON） |
@@ -73,10 +72,9 @@
 ## 診断・一覧表示コマンド
 
 ```bash
-# 音源・モデル・Rendererの一覧
+# 音源・モデルの一覧
 utautts-cli --list voicebanks
 utautts-cli --list models --json
-utautts-cli --list renderers
 
 # 指定した資源と依存ファイルの確認（ヘルパーの起動と合成はしない）
 utautts-cli --doctor --voicebank "voice/足立レイver3.5.0" --prosody frame-intonation-tcn-v12
