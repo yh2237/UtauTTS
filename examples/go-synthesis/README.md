@@ -2,7 +2,7 @@
 
 ## 実行
 
-Go 1.27以上と、UtauTTSの音源・モデル・Renderer・runtimeが必要です。
+Go 1.27以上と、UtauTTSの音源・モデル・runtimeが必要です。
 
 ```sh
 go mod tidy
@@ -15,7 +15,6 @@ go run . -assets /path/to/UtauTTS -out speech.wav
 UtauTTS/
   voice/       音源ディレクトリ
   models/      韻律モデル
-  renderer/    Rendererのmanifest
   runtime/
     utautts-world-engine.dll またはOS用の共有ライブラリ
     utautts-openjtalk-engine.dll またはOS用の共有ライブラリ

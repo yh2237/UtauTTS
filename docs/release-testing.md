@@ -42,7 +42,7 @@ Linuxの検査では一時ディレクトリへのZIPの展開、依存ライブ
 
 ## 3. バージョン更新互換性テスト
 
-前のバージョンから更新したときに、設定や追加した音源が消えずに残るかを確かめます。
+前のバージョンから更新したときに、設定や追加した音源が消えずに残るかを確かめます。`internal/appinfo/appinfo.json`の版を前のバージョンと違う値にしてから、配布パッケージを作っておきます。
 
 ```powershell
 .\tools\test-update-compatibility.ps1 -PreviousVersion v1.5.1
