@@ -139,7 +139,7 @@ func TestBatchRejectsDuplicateArchiveNamesBeforeSynthesis(t *testing.T) {
 	}
 }
 
-func TestSynthesizeEndpointReportsWaveformRenderer(t *testing.T) {
+func TestSynthesizeEndpointReportsWaveformSynthesis(t *testing.T) {
 	server := newWaveformTestServer(t)
 	body := bytes.NewBufferString(`{"method":"waveform-synthesis","language":"ja","kana":"あ","voicebank_id":"test","mora_duration_ms":100}`)
 	request := localRequest(http.MethodPost, "/api/synthesize/audio", body)
@@ -183,10 +183,6 @@ func newWaveformTestServer(t *testing.T) *Server {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(bank, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	manifest := `{"manifest_version":2,"kind":"synthesis-engine","id":"test-concat","display_name":"Test waveform","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`
-	if err := os.WriteFile(filepath.Join(root, "renderer.json"), []byte(manifest), 0600); err != nil {
 		t.Fatal(err)
 	}
 	return mustNewServer(t, Config{VoiceDir: root})

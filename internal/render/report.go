@@ -5,7 +5,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/plan"
 )
 
-type UnitRenderResult struct {
+type RenderResult struct {
 	Audio  *audio.PCM
 	Report RenderReport
 }
@@ -60,7 +60,7 @@ type UnitRenderReport struct {
 }
 
 // RenderWithReportはPlanのコピーを描画する。
-func RenderWithReport(synthesisPlan *plan.Plan, cfg Config) (*UnitRenderResult, error) {
+func RenderWithReport(synthesisPlan *plan.Plan, cfg Config) (*RenderResult, error) {
 	workingPlan := plan.Clone(synthesisPlan)
 	targetF0 := &F0Track{}
 	cfg.TargetF0 = targetF0
@@ -68,7 +68,7 @@ func RenderWithReport(synthesisPlan *plan.Plan, cfg Config) (*UnitRenderResult, 
 	if err != nil {
 		return nil, err
 	}
-	result := &UnitRenderResult{Audio: pcm, Report: reportFromPlan(workingPlan)}
+	result := &RenderResult{Audio: pcm, Report: reportFromPlan(workingPlan)}
 	if len(targetF0.Hz) > 0 {
 		result.Report.TargetF0 = targetF0
 	}

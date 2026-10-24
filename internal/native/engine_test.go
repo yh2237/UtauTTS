@@ -26,16 +26,6 @@ func newTestEngine(t *testing.T, config Config) *Engine {
 	return engine
 }
 
-func waveformTestRendererDirectory(t *testing.T) string {
-	t.Helper()
-	directory := t.TempDir()
-	manifest := []byte(`{"manifest_version":2,"kind":"synthesis-engine","id":"test-concat","display_name":"Test waveform","contract":"unit-renderer","provider":"test-concat","provider_version":"1"}`)
-	if err := os.WriteFile(filepath.Join(directory, "renderer.json"), manifest, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	return directory
-}
-
 // openJTalkRuntimeはリポジトリのruntimeにあるOpen JTalkのライブラリと辞書を返す。
 func openJTalkRuntime(t *testing.T) (string, string) {
 	t.Helper()
