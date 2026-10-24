@@ -12,11 +12,8 @@ import (
 	"github.com/yh2237/UtauTTS/internal/render/base"
 )
 
-const Backend = "test-concat"
-
 func init() {
-	base.RegisterRenderer(Backend, renderConcat)
-	base.DefaultBackend = Backend
+	base.TestRenderer = renderConcat
 }
 
 func renderConcat(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error) {

@@ -15,7 +15,6 @@ import (
 	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
-	_ "github.com/yh2237/UtauTTS/internal/render/worldline" // 同梱の既定Rendererをinitで登録する。
 	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/tts"
 	"github.com/yh2237/UtauTTS/internal/voicebank"

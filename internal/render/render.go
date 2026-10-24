@@ -8,6 +8,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/render/base"
+	"github.com/yh2237/UtauTTS/internal/render/worldline"
 )
 
 func renderMutable(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
@@ -52,11 +53,8 @@ func renderMutable(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
 			}
 		}
 	}
-	if cfg.Backend == "" {
-		cfg.Backend = base.DefaultBackend
+	if base.TestRenderer != nil {
+		return base.TestRenderer(synthesisPlan, cfg)
 	}
-	if backend, ok := base.RendererImplementation(cfg.Backend); ok {
-		return backend(synthesisPlan, cfg)
-	}
-	return nil, fmt.Errorf("unknown renderer backend %q", cfg.Backend)
+	return worldline.Render(synthesisPlan, cfg)
 }

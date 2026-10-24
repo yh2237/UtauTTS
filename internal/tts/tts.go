@@ -75,14 +75,12 @@ type Config struct {
 	PitchFactors            []float64
 	ApplyPitch              bool
 	IntonationStrength      float64
-	// Backendは描画の実装。空ならWORLDを使う。テストで差し替える。
-	Backend             string
-	CVVCTiming          string
-	CVVCTransitionGain  float64
-	CVVCPreBoundaryFade bool
-	PitchCurve          *render.PitchCurve
-	AliasPolicy         voicebank.AliasPolicy
-	ProviderOptions     render.ProviderOptions
+	CVVCTiming              string
+	CVVCTransitionGain      float64
+	CVVCPreBoundaryFade     bool
+	PitchCurve              *render.PitchCurve
+	AliasPolicy             voicebank.AliasPolicy
+	ProviderOptions         render.ProviderOptions
 	// WorldEnginePathとReferenceDirは参照照合に使うWORLDエンジンとモデルのフォルダ。Rendererに関係なく使う。
 	WorldEnginePath string
 	ReferenceDir    string
@@ -321,7 +319,6 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		LeadingPreutteranceMS: cfg.LeadingPreutteranceMS,
 		IntonationStrength:    pitch.RendererStrength,
 		ApplyPitch:            pitch.Apply,
-		Backend:               cfg.Backend,
 		ProviderOptions:       providerOptions,
 		CVVCTiming:            cfg.CVVCTiming,
 		CVVCTransitionGain:    cfg.CVVCTransitionGain,

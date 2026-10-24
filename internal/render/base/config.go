@@ -6,9 +6,6 @@ import (
 	"github.com/yh2237/UtauTTS/internal/settings"
 )
 
-// WorldPhraseBackendはWORLDで描画する実装。製品の波形合成は常にこれを使う。
-const WorldPhraseBackend = "utautts-world-phrase"
-
 type Config struct {
 	TargetF0              *F0Track
 	Context               context.Context
@@ -18,13 +15,11 @@ type Config struct {
 	LeadingPreutteranceMS float64
 	IntonationStrength    float64
 	ApplyPitch            bool
-	// Backendは描画の実装。空ならWORLDを使う。テストではWORLDのいらない実装に差し替える。
-	Backend             string
-	ProviderOptions     ProviderOptions
-	CVVCTiming          string
-	CVVCTransitionGain  float64
-	CVVCPreBoundaryFade bool
-	PitchCurve          *PitchCurve
+	ProviderOptions       ProviderOptions
+	CVVCTiming            string
+	CVVCTransitionGain    float64
+	CVVCPreBoundaryFade   bool
+	PitchCurve            *PitchCurve
 	// 伸縮補正は日本語のモーラだけに適用する。
 	StretchAdapt bool
 	// StretchAdaptStrengthは伸縮補正の強度。0は既定1.0、負値は恒等。

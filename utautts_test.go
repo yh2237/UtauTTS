@@ -136,13 +136,20 @@ func TestBundledWorldRuntimeIsolation(t *testing.T) {
 	if voice == "" {
 		t.Skip("set UTAUTTS_TEST_VOICE to the voicebank folder name under voice/")
 	}
-	backend := base.DefaultBackend
-	base.DefaultBackend = base.WorldPhraseBackend
-	t.Cleanup(func() { base.DefaultBackend = backend })
+	testRenderer := base.TestRenderer
+	base.TestRenderer = nil
+	t.Cleanup(func() { base.TestRenderer = testRenderer })
 	config := utautts.Config{VoiceDirectory: filepath.Join("voice", voice)}
 	first, second := newEngine(t, config), newEngine(t, config)
 	ctx := context.Background()
-	request := utautts.Request{Text: "こんにちは。今日はいい天気ですね。", Tone: "C4"}
+	voices, err := first.Voicebanks(ctx)
+	if err != nil || len(voices) == 0 {
+		t.Fatalf("voicebanks = %v, %v", voices, err)
+	}
+	request := utautts.Request{
+		Text: "こんにちは。今日はいい天気ですね。", Tone: "C4",
+		Method: "waveform-synthesis", Language: "ja", VoicebankID: voices[0].ID,
+	}
 	for _, engine := range []*utautts.Engine{first, second} {
 		if _, err := engine.Synthesize(ctx, request); err != nil {
 			t.Fatal(err)

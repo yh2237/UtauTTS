@@ -30,10 +30,6 @@ func traceMark(start *time.Time, label string) {
 	*start = now
 }
 
-func init() {
-	base.RegisterRenderer("utautts-world-phrase", renderUtauTTSWorldPhrase)
-}
-
 const worldlineFrameMS = provider.FramePeriodMS
 
 type worldlineManifest struct {
@@ -44,7 +40,8 @@ type worldlineManifest struct {
 	Units           []worldlineManifestUnit `json:"units"`
 }
 
-func renderUtauTTSWorldPhrase(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error) {
+// RenderはPlanをWORLDで描画する。
+func Render(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error) {
 	return renderWorldlineEngine(synthesisPlan, cfg, "utautts-world-phrase")
 }
 

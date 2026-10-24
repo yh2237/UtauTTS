@@ -9,7 +9,6 @@ import (
 
 	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/UtauTTS/internal/plan"
-	"github.com/yh2237/UtauTTS/internal/render/rendertest"
 )
 
 func TestRenderHonorsCanceledContext(t *testing.T) {
@@ -22,17 +21,9 @@ func TestRenderHonorsCanceledContext(t *testing.T) {
 }
 
 func TestRenderRejectsInvalidConfiguration(t *testing.T) {
-	t.Run("unknown backend", testRenderRejectsUnknownBackend)
 	t.Run("nonfinite pitch", testRenderRejectsNonFinitePitchCurve)
 	t.Run("nonfinite timing", testRenderRejectsNonFiniteTimingConfiguration)
 	t.Run("unsafe pitch range", testRenderRejectsUnsafePitchCurveRangeAndFrame)
-}
-
-func testRenderRejectsUnknownBackend(t *testing.T) {
-	_, err := renderMutable(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "missing"})
-	if err == nil {
-		t.Fatal("unknown backend was accepted")
-	}
 }
 
 func TestConstrainPitchCurveDoesNotMutateAndLimitsSlope(t *testing.T) {
@@ -53,7 +44,7 @@ func testRenderRejectsNonFinitePitchCurve(t *testing.T) {
 		{FrameMS: math.NaN(), Cents: []float64{0}},
 		{FrameMS: 5, Cents: []float64{math.Inf(1)}},
 	} {
-		_, err := renderMutable(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "utautts-world-phrase", ApplyPitch: true, PitchCurve: curve})
+		_, err := renderMutable(&plan.Plan{Units: []plan.Unit{{}}}, Config{ApplyPitch: true, PitchCurve: curve})
 		if err == nil {
 			t.Fatalf("accepted non-finite curve: %+v", curve)
 		}
@@ -75,7 +66,7 @@ func testRenderRejectsUnsafePitchCurveRangeAndFrame(t *testing.T) {
 		{FrameMS: 5, Cents: []float64{4801}},
 		{FrameMS: 5, Cents: []float64{-4801}},
 	} {
-		_, err := renderMutable(&plan.Plan{Units: []plan.Unit{{}}}, Config{Backend: "utautts-world-phrase", ApplyPitch: true, PitchCurve: curve})
+		_, err := renderMutable(&plan.Plan{Units: []plan.Unit{{}}}, Config{ApplyPitch: true, PitchCurve: curve})
 		if err == nil {
 			t.Fatalf("accepted unsafe curve: %+v", curve)
 		}
@@ -98,7 +89,7 @@ func TestRenderWithReportKeepsSelectionPlanImmutable(t *testing.T) {
 	}}}
 	before := plan.Clone(input)
 
-	result, err := RenderWithReport(input, Config{Backend: rendertest.Backend, ReleaseMS: 20})
+	result, err := RenderWithReport(input, Config{ReleaseMS: 20})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +107,7 @@ func TestReportFromPlanExportsSpeechDiagnostics(t *testing.T) {
 	working.Units[0].SpeechRetimeApplied = true
 	working.Units[0].SpeechJoinApplied = true
 	working.Units[0].EffectiveConsonantMS = 80
-	report := reportFromPlan("utautts-world-phrase", working)
+	report := reportFromPlan(working)
 	exported := plan.Clone(p)
 	report.ApplyTo(exported)
 	if p.Units[0].SpeechRetimeApplied || p.Units[0].SpeechJoinApplied {

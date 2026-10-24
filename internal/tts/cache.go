@@ -71,7 +71,7 @@ type prosodyComputation struct {
 
 type prosodyComputationKey struct {
 	text, reading, language, phonemizer string
-	modelPath, renderer, voicebankPath  string
+	modelPath, voicebankPath            string
 	openJTalkPath, openJTalkDictionary  string
 	settings                            string
 	dictionaryHash, moraDurationsHash   string
@@ -128,7 +128,7 @@ func prosodyComputationKeyFor(cfg Config) prosodyComputationKey {
 		cfg.Tone, cfg.Color)
 	return prosodyComputationKey{
 		text: cfg.Text, reading: cfg.Reading, language: cfg.Language, phonemizer: cfg.Phonemizer,
-		modelPath: cfg.ProsodyModelPath, renderer: cfg.Backend, voicebankPath: cfg.VoicebankPath,
+		modelPath: cfg.ProsodyModelPath, voicebankPath: cfg.VoicebankPath,
 		openJTalkPath: cfg.OpenJTalkPath, openJTalkDictionary: cfg.OpenJTalkDictionaryPath,
 		settings:          settings,
 		dictionaryHash:    hashStringMap(cfg.Dictionary),

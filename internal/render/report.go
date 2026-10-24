@@ -1,17 +1,9 @@
 package render
 
 import (
-	"fmt"
-
 	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/UtauTTS/internal/plan"
-	"github.com/yh2237/UtauTTS/internal/render/base"
 )
-
-type UnitRenderer interface {
-	ProviderID() string
-	Render(*plan.Plan, Config) (*UnitRenderResult, error)
-}
 
 type UnitRenderResult struct {
 	Audio  *audio.PCM
@@ -20,7 +12,6 @@ type UnitRenderResult struct {
 
 type RenderReport struct {
 	TargetF0            *F0Track `json:"target_f0,omitempty"`
-	Provider            string
 	LeadingMarginMS     float64
 	CVVCTiming          string
 	CVVCTransitionGain  float64
@@ -68,58 +59,24 @@ type UnitRenderReport struct {
 	ResamplerVolume         int
 }
 
-type builtinUnitRenderer struct {
-	provider string
-}
-
-func (renderer builtinUnitRenderer) ProviderID() string {
-	return renderer.provider
-}
-
-func (renderer builtinUnitRenderer) Render(synthesisPlan *plan.Plan, cfg Config) (*UnitRenderResult, error) {
+// RenderWithReportはPlanのコピーを描画する。
+func RenderWithReport(synthesisPlan *plan.Plan, cfg Config) (*UnitRenderResult, error) {
 	workingPlan := plan.Clone(synthesisPlan)
-	cfg.Backend = string(renderer.provider)
 	targetF0 := &F0Track{}
 	cfg.TargetF0 = targetF0
 	pcm, err := renderMutable(workingPlan, cfg)
 	if err != nil {
 		return nil, err
 	}
-	result := &UnitRenderResult{
-		Audio:  pcm,
-		Report: reportFromPlan(renderer.provider, workingPlan),
-	}
+	result := &UnitRenderResult{Audio: pcm, Report: reportFromPlan(workingPlan)}
 	if len(targetF0.Hz) > 0 {
 		result.Report.TargetF0 = targetF0
 	}
 	return result, nil
 }
 
-func UnitRendererForProvider(provider string) (UnitRenderer, error) {
-	if provider == "" {
-		provider = base.DefaultBackend
-	}
-	if _, found := base.RendererImplementation(provider); !found {
-		return nil, fmt.Errorf("unknown unit renderer provider %q", provider)
-	}
-	return builtinUnitRenderer{provider: provider}, nil
-}
-
-// RenderWithReportはPlanのコピーを描画する。
-func RenderWithReport(synthesisPlan *plan.Plan, cfg Config) (*UnitRenderResult, error) {
-	renderer, err := UnitRendererForConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return renderer.Render(synthesisPlan, cfg)
-}
-
-func UnitRendererForConfig(cfg Config) (UnitRenderer, error) {
-	return UnitRendererForProvider(cfg.Backend)
-}
-
-func reportFromPlan(provider string, synthesisPlan *plan.Plan) RenderReport {
-	report := RenderReport{Provider: provider}
+func reportFromPlan(synthesisPlan *plan.Plan) RenderReport {
+	report := RenderReport{}
 	if synthesisPlan == nil {
 		return report
 	}
