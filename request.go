@@ -37,14 +37,16 @@ func (r Request) internal() (synth.Request, error) {
 		if option.value == nil {
 			continue
 		}
+		// 直下の数値と同じく、整数でない値も受け付ける。
 		setting, _ := settings.Lookup(option.id)
-		if err := validateNumber(option.id, *option.value, setting.Min, setting.Max); err != nil {
-			return synth.Request{}, err
+		if value := *option.value; math.IsNaN(value) || math.IsInf(value, 0) ||
+			setting.Min != nil && value < *setting.Min || setting.Max != nil && value > *setting.Max {
+			return synth.Request{}, fmt.Errorf("%w: %s is outside the supported range", ErrInvalidRequest, option.id)
 		}
 	}
 	if r.Options.ReleaseMS != nil {
-		if err := validateNumber("release_ms", *r.Options.ReleaseMS, new(0.0), nil); err != nil {
-			return synth.Request{}, err
+		if value := *r.Options.ReleaseMS; math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+			return synth.Request{}, fmt.Errorf("%w: release_ms is outside the supported range", ErrInvalidRequest)
 		}
 	}
 	input.Settings = make(map[string]json.RawMessage, len(r.Settings))
@@ -61,34 +63,10 @@ func (r Request) internal() (synth.Request, error) {
 		if !known {
 			return synth.Request{}, fmt.Errorf("%w: unknown setting %q", ErrInvalidRequest, id)
 		}
-		switch setting.Type {
-		case "number", "integer":
-			var value float64
-			if err := json.Unmarshal(raw, &value); err != nil || (setting.Type == "integer" && value != math.Trunc(value)) {
-				return synth.Request{}, fmt.Errorf("%w: setting %q expects %s", ErrInvalidRequest, id, setting.Type)
-			}
-			if err := validateNumber(id, value, setting.Min, setting.Max); err != nil {
-				return synth.Request{}, err
-			}
-		case "boolean":
-			var value bool
-			if err := json.Unmarshal(raw, &value); err != nil {
-				return synth.Request{}, fmt.Errorf("%w: setting %q expects boolean", ErrInvalidRequest, id)
-			}
-		case "string", "enum":
-			var value string
-			if err := json.Unmarshal(raw, &value); err != nil {
-				return synth.Request{}, fmt.Errorf("%w: setting %q expects string", ErrInvalidRequest, id)
-			}
+		if _, err := setting.Decode(raw); err != nil {
+			return synth.Request{}, fmt.Errorf("%w: %v", ErrInvalidRequest, err)
 		}
 		input.Settings[id] = append(json.RawMessage(nil), raw...)
 	}
 	return input, nil
-}
-
-func validateNumber(id string, value float64, min, max *float64) error {
-	if math.IsNaN(value) || math.IsInf(value, 0) || (min != nil && value < *min) || (max != nil && value > *max) {
-		return fmt.Errorf("%w: %s is outside the supported range", ErrInvalidRequest, id)
-	}
-	return nil
 }

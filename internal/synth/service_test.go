@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/yh2237/UtauTTS/internal/plugin"
+	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/tts"
 )
 
@@ -65,6 +66,19 @@ func TestResolveSynthesisUsesDirectVoicebankPathAndNormalizesKana(t *testing.T) 
 	}
 }
 
+func TestEverySettingHasATarget(t *testing.T) {
+	for _, setting := range settings.Table {
+		if _, ok := settingTargets[setting.ID]; !ok {
+			t.Errorf("setting %q has no target", setting.ID)
+		}
+	}
+	for id := range settingTargets {
+		if _, ok := settings.Lookup(id); !ok {
+			t.Errorf("target %q is not in the settings table", id)
+		}
+	}
+}
+
 func TestApplySettingsKnownIDs(t *testing.T) {
 	cfg := tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)}
 	settings := map[string]json.RawMessage{
@@ -81,7 +95,7 @@ func TestApplySettingsKnownIDs(t *testing.T) {
 		"pause_context":             json.RawMessage(`false`),
 		"pause_context_strength":    json.RawMessage(`0.5`),
 	}
-	if diagnostics := applySettingsMap(settingSpecs, settings, &cfg); len(diagnostics) != 0 {
+	if diagnostics := applySettingsMap(settings, &cfg); len(diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", diagnostics)
 	}
 	if cfg.MoraDurationMS != 130 || cfg.PauseDurationMS != 190 || cfg.LeadingPreutteranceMS != 45 || cfg.IntonationStrength != 2.5 {
@@ -103,7 +117,7 @@ func TestApplySettingsKnownIDs(t *testing.T) {
 
 func TestApplySettingsOutOfRangeIsIgnored(t *testing.T) {
 	cfg := tts.Config{MoraDurationMS: 140, PauseDurationMS: 180}
-	diagnostics := applySettingsMap(settingSpecs, map[string]json.RawMessage{
+	diagnostics := applySettingsMap(map[string]json.RawMessage{
 		"mora_duration_ms":  json.RawMessage(`100000000`),
 		"pause_duration_ms": json.RawMessage(`-1`),
 	}, &cfg)
@@ -117,7 +131,7 @@ func TestApplySettingsOutOfRangeIsIgnored(t *testing.T) {
 
 func TestApplySettingsTypeMismatchIsIgnored(t *testing.T) {
 	cfg := tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)}
-	diagnostics := applySettingsMap(settingSpecs, map[string]json.RawMessage{
+	diagnostics := applySettingsMap(map[string]json.RawMessage{
 		"mora_duration_ms":    json.RawMessage(`true`),
 		"context_duration":    json.RawMessage(`"yes"`),
 		"intonation_strength": json.RawMessage(`"high"`),
