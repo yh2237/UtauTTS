@@ -167,7 +167,7 @@ func hasManualMoraDurations(durations []float64) bool {
 // 手動の編集がなければnilを返し、Kokoroの予測した長さで読む。
 func referencePlanTiming(cfg Config, language string, provider refspeech.Provider, pieces []refspeech.Piece, options refspeech.Options, reading string, morae []frontend.Mora) ([]int, []float64, error) {
 	manualPitch := cfg.ManualPitch != nil || cfg.ManualPitchPath != ""
-	if !hasManualMoraDurations(cfg.MoraDurationsMS) && !manualPitch {
+	if !hasManualMoraDurations(cfg.MoraDurationsMS) && !manualPitch && len(cfg.UnitOverrides) == 0 {
 		return nil, nil, nil
 	}
 	reference, err := provider.ReadProsody(pieces, options.Speed, nil)
@@ -204,6 +204,10 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	}
 	options.Logf = log
 	log(fmt.Sprintf("参照TTS: %s（%d 記号）", provider.ID(), len(pieces)))
+	unitCents, unitGain, err := referenceUnitAdjustments(cfg, morae)
+	if err != nil {
+		return nil, err
+	}
 	forced, planned, err := referencePlanTiming(cfg, language, provider, pieces, options, reading, morae)
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)
@@ -212,6 +216,16 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 		options.Durations = forced
 		if options.PitchCents, options.ReplacePitch, err = referenceManualPitch(cfg, reading, morae, planned); err != nil {
 			return nil, err
+		}
+		// 拡張編集のPITは、手動の抑揚の上に足す。
+		if pit := moraEnvelope(planned, unitCents, 0); pit != nil {
+			manual := options.PitchCents
+			options.PitchCents = func(ms float64) float64 {
+				if manual != nil {
+					return manual(ms) + pit(ms)
+				}
+				return pit(ms)
+			}
 		}
 	}
 	refspeech.SetStage("参照音声を生成しています")
@@ -233,6 +247,14 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)
 	}
+	durations := referenceMoraDurations(referenceMoraTokens(language, pieces, speech.Timing, reading, morae), speech.Timing, cfg.MoraDurationsMS)
+	leading := speech.LeadingMS()
+	// 拡張編集のVOLは、モーラの区間の音量に掛ける。
+	if volume := moraEnvelope(durations, unitGain, 1); volume != nil {
+		for i := range speech.Audio {
+			speech.Audio[i] *= volume(float64(i)*1000/float64(speech.SampleRate) - leading)
+		}
+	}
 	peak := 0.0
 	for _, v := range speech.Audio {
 		peak = math.Max(peak, math.Abs(v))
@@ -245,8 +267,6 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	for i, v := range speech.Audio {
 		pcm.Data[i] = int16(math.Round(math.Max(-1, math.Min(1, v*scale)) * 32767))
 	}
-	durations := referenceMoraDurations(referenceMoraTokens(language, pieces, speech.Timing, reading, morae), speech.Timing, cfg.MoraDurationsMS)
-	leading := speech.LeadingMS()
 	synthesisPlan := &plan.Plan{
 		Version: plan.Version, Voicebank: bank.Root, Text: cfg.Text, Reading: reading,
 		Language: language, Phonemizer: phonemizer, Tone: cfg.Tone, Color: cfg.Color,
