@@ -1,11 +1,11 @@
 Reference models (models/reference)
 ====================================
 
-For reference matching, UtauTTS reads sentences in English, Spanish,
-Portuguese, and Japanese with Kokoro-82M, compares the speech with the
+For reference matching, UtauTTS reads sentences in English, Spanish, and
+Portuguese with Kokoro-82M, compares the speech with the
 voicebank recordings through WavLM features, and synthesizes the output
 from the voicebank frames only. The following files are redistributed
-unmodified. Kokoro-82M, the misaki lexicon, and HuBERT Base are licensed under
+unmodified. Kokoro-82M and the misaki lexicon are licensed under
 the Apache License, Version 2.0 (licenses/APACHE-2.0.txt). WavLM is licensed
 under the MIT License (licenses/WAVLM-MIT.txt).
 

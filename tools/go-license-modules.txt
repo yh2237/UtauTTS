@@ -7,3 +7,4 @@ github.com/ikawaha/kagome-dict/ipa
 github.com/mozillazg/go-pinyin
 gopkg.in/yaml.v3
 github.com/yh2237/gograd
+github.com/ebitengine/purego

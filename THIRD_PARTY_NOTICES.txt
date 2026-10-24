@@ -103,15 +103,60 @@ Source: https://github.com/yh2237/audiodsp
 gograd
 ======
 
-UtauTTS uses github.com/yh2237/gograd v1.7.0 for matrix multiplication,
-PyTorch checkpoint reading, PyTorch-compatible random numbers and resampling,
-and in its training tools for automatic differentiation and CUDA training.
-The library is distributed under the MIT License, Copyright (c) 2026 yh. It
-has no external module dependencies. Its license text is identical to
+UtauTTS uses github.com/yh2237/gograd v1.8.0 for matrix multiplication,
+CPU, CUDA, DirectML and Vulkan inference, PyTorch checkpoint reading,
+PyTorch-compatible random numbers and resampling, and in its training tools
+for automatic differentiation and CUDA training. The library is distributed
+under the MIT License, Copyright (c) 2026 yh. Its license text is identical to
 utauio's and is included once as
-licenses/Go/github_com_yh2237_utauio-v0.4.0-LICENSE.txt.
+licenses/Go/github_com_yh2237_utauio-v0.4.0-LICENSE.txt. On Linux, its Vulkan
+calls use github.com/ebitengine/purego (see below).
+
+gograd/torchrng ports the float32 approximations of log, sin and cos that
+PyTorch uses for torch.randn (aten/src/ATen/native/cpu/avx_mathfun.h,
+https://github.com/pytorch/pytorch). That file carries the following notice:
+
+  AVX implementation of sin, cos, sincos, exp and log
+
+  Based on "sse_mathfun.h", by Julien Pommier
+  http://gruntthepeon.free.fr/ssemath/
+
+  Copyright (C) 2012 Giovanni Garberoglio
+  Interdisciplinary Laboratory for Computational Science (LISC)
+  Fondazione Bruno Kessler and University of Trento
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+
+  (this is the zlib license)
 
 Source: https://github.com/yh2237/gograd
+
+
+purego
+======
+
+The Linux release binaries use github.com/ebitengine/purego v0.11.2, through
+gograd, to call the Vulkan loader without cgo. It is distributed under the
+Apache License 2.0; its license is included as
+licenses/Go/github_com_ebitengine_purego-v0.11.2-LICENSE.txt. Its
+internal/fakecgo package contains code from the Go runtime, covered by
+licenses/Go/GO-LICENSE.txt.
+
+Source: https://github.com/ebitengine/purego
 
 
 go-pinyin
@@ -370,7 +415,7 @@ the text-to-speech model are not bundled. See
 licenses/IRODORI-TEACHER-NOTICE.txt.
 
 The speech-timing-target-v1 weights (internal/speechtiming, embedded in the
-WORLD bridge) are UtauTTS weights distributed under the MIT License. They were
+UtauTTS binaries) are UtauTTS weights distributed under the MIT License. They were
 trained on the same Tsukuyomi-chan Corpus Vol.1 and Minnade JSUT basic5000
 BASIC5000_0001-0600 data as the base model of frame-intonation-tcn-v12 with the same notices
 (licenses/TSUKUYOMI-CORPUS.txt, licenses/MINNADE-JSUT-CORPUS.txt and
@@ -387,7 +432,7 @@ UtauTTS source code uses the repository MIT License; models, prompts,
 voicebanks, and other third-party assets use their respective notices.
 
 
-Kokoro, StyleTTS 2, HuBERT and misaki code
+Kokoro, StyleTTS 2, WavLM and misaki code
 ==========================================
 
 internal/kokoro reimplements in Go the Kokoro-82M inference of the kokoro
@@ -416,7 +461,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-internal/hubert reimplements in Go the HuBERT Base feature extractor and is
+internal/hubert reimplements in Go the WavLM base+ feature extractor and is
 checked against the Hugging Face Transformers implementation
 (https://github.com/huggingface/transformers), which is licensed under the
 Apache License 2.0.

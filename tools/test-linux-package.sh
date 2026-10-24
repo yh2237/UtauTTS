@@ -96,6 +96,7 @@ for required in \
   "${gui_root}/licenses/Go/golang_org_x_text-v0.39.0-PATENTS.txt" \
   "${gui_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-LICENSE.txt" \
   "${gui_root}/licenses/Go/gopkg_in_yaml_v3-v3.0.1-NOTICE.txt" \
+  "${gui_root}/licenses/Go/github_com_ebitengine_purego-v0.11.2-LICENSE.txt" \
   "${server_root}/licenses/Go/GO-LICENSE.txt" \
   "${server_root}/licenses/Go/github_com_yh2237_utauio-v0.4.0-LICENSE.txt" \
   "${server_root}/licenses/Go/CMUDICT-LICENSE.txt" \
