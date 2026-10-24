@@ -47,7 +47,7 @@
     "main.param.language": "言語",
     "main.param.method": "方式",
     "main.method.native": "波形合成",
-    "main.method.reference": "参照照合",
+    "main.method.reference": "（beta）参照照合",
     "main.param.phonemizer": "発音形式",
     "main.language.ja": "日本語",
     "main.language.en": "英語",

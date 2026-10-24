@@ -47,7 +47,7 @@
     "main.param.language": "언어",
     "main.param.method": "합성 방식",
     "main.method.native": "파형 합성",
-    "main.method.reference": "참조 매칭",
+    "main.method.reference": "(beta) 참조 매칭",
     "main.param.phonemizer": "발음 형식",
     "main.language.ja": "일본어",
     "main.language.en": "영어",

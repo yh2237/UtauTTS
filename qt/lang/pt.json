@@ -47,7 +47,7 @@
     "main.param.language": "Idioma da fala",
     "main.param.method": "Método de síntese",
     "main.method.native": "Síntese por forma de onda",
-    "main.method.reference": "Correspondência com referência",
+    "main.method.reference": "(beta) Correspondência com referência",
     "main.param.phonemizer": "Formato de fonemas",
     "main.language.ja": "Japonês",
     "main.language.en": "Inglês",
