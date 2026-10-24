@@ -155,7 +155,8 @@ QtObject {
             "es": core.translator.tr("main.language.es"),
             "pt": core.translator.tr("main.language.pt")
         };
-        if (core.normalizeMethod(method) === "reference-matching") {
+        const value = String(method || "");
+        if (value === "reference" || value === "reference-matching") {
             const providers = core.backend.referenceProviders || [];
             const ids = [];
             for (let index = 0; index < providers.length; ++index) {

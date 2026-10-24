@@ -36,6 +36,11 @@ function run(ctx) {
     error = checkNoteEditScroll(ctx.editorContent);
     if (error.length)
         return error;
+    error = check(host.languageOptions("reference-matching").every(option => option.id !== "ja")
+                  && host.languageOptions("reference-matching").length > 0,
+                  "reference matching offers no languages or offers Japanese");
+    if (error.length)
+        return error;
     error = check(host.current().phonemizer === "auto"
                   && host.buildSynthesisRequest(host.current()).phonemizer !== "auto",
                   "normal GUI defaults are incorrect");
