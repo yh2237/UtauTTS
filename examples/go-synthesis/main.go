@@ -49,10 +49,8 @@ func run() (runErr error) {
 		*dictionary = filepath.Join(root, "runtime", "open_jtalk_dic_utf_8-1.11")
 	}
 	engine, err := utautts.New(utautts.Config{
-		VoiceDirectory: *voice, Renderer: "utautts-world-phrase",
-		OpenJTalkPath: *library, OpenJTalkDictionary: *dictionary,
-		RendererDirectories: []string{filepath.Join(root, "renderer")},
-		ModelDirectories:    []string{filepath.Join(root, "models")},
+		VoiceDirectory: *voice, OpenJTalkPath: *library, OpenJTalkDictionary: *dictionary,
+		ModelDirectories: []string{filepath.Join(root, "models")},
 	})
 	if err != nil {
 		return err
@@ -67,7 +65,9 @@ func run() (runErr error) {
 	if len(voices) == 0 {
 		return errors.New("no voicebanks found")
 	}
-	result, err := engine.Synthesize(ctx, utautts.Request{Text: *text, VoicebankID: voices[0].ID})
+	result, err := engine.Synthesize(ctx, utautts.Request{
+		Text: *text, Language: "ja", Method: "waveform-synthesis", VoicebankID: voices[0].ID,
+	})
 	if err != nil {
 		return err
 	}

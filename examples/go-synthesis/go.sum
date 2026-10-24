@@ -1,3 +1,5 @@
+github.com/ebitengine/purego v0.11.2 h1:WWiTx8rD8zYdOwSj8O/NiNbsOvSAgJMTlyV1XlbUSeU=
+github.com/ebitengine/purego v0.11.2/go.mod h1:DCHPP08djqhNSoTfImcnHYQRZmd0qhakvrozqaEYhGQ=
 github.com/ikawaha/kagome-dict v1.1.7 h1:O/uAL+WCGhp6kT0+szxBSPaSM4i+vdArSefFvJE4Nug=
 github.com/ikawaha/kagome-dict v1.1.7/go.mod h1:9tvk7/jZkvYt40foxkB9CqSAAknoQrIPfzqQd05UkFw=
 github.com/ikawaha/kagome-dict/ipa v1.2.6 h1:Bcvm4jgxAAnTIKb6ckqUKBiFDN0wuanFfycMuYt7xGQ=
@@ -8,8 +10,8 @@ github.com/mozillazg/go-pinyin v0.21.0 h1:Wo8/NT45z7P3er/9YSLHA3/kjZzbLz5hR7i+jG
 github.com/mozillazg/go-pinyin v0.21.0/go.mod h1:iR4EnMMRXkfpFVV5FMi4FNB6wGq9NV6uDWbUuPhP4Yc=
 github.com/yh2237/audiodsp v0.5.2 h1:T8+t7FwtS5hAnHFkLVHOhAFxvs9/FaZo/3imEL0GWOo=
 github.com/yh2237/audiodsp v0.5.2/go.mod h1:Cv0D5PXZpjZW/Ty+326DBv2JmdZfu4d6zMhlNOfpWF8=
-github.com/yh2237/gograd v1.7.0 h1:/fHtsjLwByLU1h7TICH5Q49lAZy2OaRqDDv85eDgIeE=
-github.com/yh2237/gograd v1.7.0/go.mod h1:A1pI4+4getS6AUxp8CGs8R/KiylolTBoMKfmcCir/uo=
+github.com/yh2237/gograd v1.8.0 h1:hIVmxjentk/rn92diDT4TA59OlAXHVHHFB9H0+jGUtY=
+github.com/yh2237/gograd v1.8.0/go.mod h1:ACNZET0YGHhzQfw+ixcf5h2bd72MS6P+dl27MSlO61c=
 github.com/yh2237/utauio v0.4.0 h1:fBHjYYQAEnDDUxi/8HnpotsSlHe1Fcop7hWcuXHn2w8=
 github.com/yh2237/utauio v0.4.0/go.mod h1:I+illiKoP6S8iUC4iF15Y6ynXUbBTquYEPW3S8jDpZY=
 golang.org/x/text v0.39.0 h1:UbZz4pLOvn600D6Oh6GGEI6VAmndrEBLv8/6BEXzyus=
