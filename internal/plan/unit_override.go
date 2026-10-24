@@ -1,7 +1,6 @@
 package plan
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 )
@@ -17,11 +16,6 @@ type UnitOverride struct {
 	PitchFactor     *float64 `json:"pitch_factor,omitempty"`
 	EnergyFactor    *float64 `json:"energy_factor,omitempty"`
 	ResamplerVolume *int     `json:"resampler_volume,omitempty"`
-	// 廃止したClassic UTAU用。保存済みの値を受け付けて無視する。
-	ResamplerVelocity   json.RawMessage `json:"resampler_velocity,omitempty"`
-	ResamplerFlags      json.RawMessage `json:"resampler_flags,omitempty"`
-	ResamplerModulation json.RawMessage `json:"resampler_modulation,omitempty"`
-	ResamplerTempo      json.RawMessage `json:"resampler_tempo,omitempty"`
 }
 
 func ApplyUnitOverrides(units []Unit, overrides []UnitOverride) error {

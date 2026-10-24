@@ -189,7 +189,7 @@ async function checkResponsiveState(page) {
     text: "こんにちは。", language: "ja", phonemizer: "ja-kana",
     voicebank_id: voices.result.voicebanks[0].id, model_id: "none",
     alias_policy: "cv-only", tone: "D4", color: "", mora_duration_ms: 120, pause_duration_ms: 180,
-    intonation: 1.4, apply_pitch: true, speech_timing: false,
+    intonation: 1.4, apply_pitch: true,
     pitch_points: [75, -40, 20, 0, 0, 0], pitch_frames: [40, -60, 15],
     mora_durations_ms: [120, 130, 110, 140, 150, 180],
     mora_positions_ms: [0, 120, 250, 360, 500, 650],

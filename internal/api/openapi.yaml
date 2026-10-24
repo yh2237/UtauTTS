@@ -260,7 +260,6 @@ components:
         method: {type: string, enum: [waveform-synthesis, reference-matching], description: 合成の方式。省略できない。}
         phonemizer: {type: string, nullable: true, default: '', description: 'ja-kana・en-arpasing・en-delta・en-vccv・en-cv・zh-cvvc。空なら自動選択。'}
         voicebank_id: {type: string, description: 登録音源のID。省略できない。}
-        renderer: {deprecated: true, description: 廃止したレンダラーの選択。受け付けて無視する。}
         model_id: {type: string, nullable: true, default: '', description: 抑揚モデルID。空またはnoneなら使わない。同梱から外したIDはエラー。}
         model_path: {type: string, nullable: true, default: '', description: ローカルモデルパスの互換入力。model_idより優先する。}
         tone: {type: string, nullable: true, default: '', description: '読み上げの基準の音程（例: C4）。空なら音源の録音の高さで読み上げ、原音はC4として選ぶ。'}
@@ -295,9 +294,6 @@ components:
           $ref: '#/components/schemas/ManualPitch'
         pitch_curve:
           $ref: '#/components/schemas/PitchCurve'
-        resampler_expressions: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
-        resampler: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
-        wavtool: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
         alias_policy: {type: string, nullable: true, default: '', description: '空またはauto・cvvc-enhanced・vcv-prefer・cvvc-prefer・cv-only。'}
         leading_preutterance_ms: {type: number, nullable: true, default: 0, minimum: 0, maximum: 1000, description: ゼロならoto.iniから決定}
         release_ms: {type: number, nullable: true, default: 0, description: release_setがtrueのときだけ使う。未指定時の合成リリースは20 ms。}
@@ -306,15 +302,8 @@ components:
         boundary_tone_strength: {type: number, nullable: true, default: 1, description: 互換入力。ゼロは合成時の既定値1。}
         stretch_adapt_strength: {type: number, nullable: true, default: 1, description: 互換入力。ゼロは合成時の既定値1。}
         pause_context_strength: {type: number, nullable: true, default: 1, description: 互換入力。ゼロは合成時の既定値1。}
-        diffsinger_steps: {deprecated: true, description: 廃止したDiffSinger用。受け付けて無視する。}
-        diffsinger_duration_mix: {deprecated: true, description: 廃止したDiffSinger用。受け付けて無視する。}
-        diffsinger_pitch_mix: {deprecated: true, description: 廃止したDiffSinger用。受け付けて無視する。}
-        diffsinger_expr: {deprecated: true, description: 廃止したDiffSinger用。受け付けて無視する。}
         worldline:
           $ref: '#/components/schemas/Worldline'
-        speech_timing: {type: boolean, nullable: true, default: false, deprecated: true, description: 受け取るが使わない}
-        word_boundary_envelope: {type: boolean, nullable: true, default: false, deprecated: true, description: 受け取るが使わない}
-        prosody_experiment: {type: string, nullable: true, default: '', deprecated: true, description: 受け取るが使わない}
     DictionaryEntry:
       type: object
       additionalProperties: false
@@ -370,10 +359,6 @@ components:
         pitch_factor: {type: number, nullable: true, minimum: 0, exclusiveMinimum: true}
         energy_factor: {type: number, nullable: true, minimum: 0, exclusiveMinimum: true}
         resampler_volume: {type: integer, nullable: true, minimum: 0, maximum: 200}
-        resampler_velocity: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
-        resampler_flags: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
-        resampler_modulation: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
-        resampler_tempo: {deprecated: true, description: 廃止したClassic UTAU用。受け付けて無視する。}
     Worldline:
       type: object
       nullable: true

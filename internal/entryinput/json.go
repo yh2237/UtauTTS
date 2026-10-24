@@ -42,34 +42,21 @@ type editingRequest struct {
 	UnitOverrides   []plan.UnitOverride      `json:"unit_overrides"`
 	ManualPitch     *prosody.ManualPitchFile `json:"manual_pitch"`
 	PitchCurve      *render.PitchCurve       `json:"pitch_curve,omitempty"`
-	// 廃止したClassic UTAU用。受け付けて無視する。
-	ResamplerExpressions json.RawMessage `json:"resampler_expressions"`
 }
 
-// 無視する旧フィールドも受け付け、型付きProvider設定の優先順位を保つ。
+// 互換用の入力。settingsにも同じIDがあればそちらを優先する。
 type compatibilityRequest struct {
-	Kana                    string                `json:"kana"`
-	SpeechTiming            bool                  `json:"speech_timing"`
-	ModelPath               string                `json:"model_path"`
-	Resampler               string                `json:"resampler"`
-	Wavtool                 string                `json:"wavtool"`
-	AliasPolicy             voicebank.AliasPolicy `json:"alias_policy"`
-	WordBoundaryEnvelope    bool                  `json:"word_boundary_envelope"`
-	SpeechProsodyExperiment string                `json:"prosody_experiment"`
-	LeadingPreutteranceMS   float64               `json:"leading_preutterance_ms"`
-	ReleaseMS               float64               `json:"release_ms"`
-	ReleaseSet              bool                  `json:"release_set"`
-	ContextDurationStrength float64               `json:"context_duration_strength"`
-	BoundaryToneStrength    float64               `json:"boundary_tone_strength"`
-	StretchAdaptStrength    float64               `json:"stretch_adapt_strength"`
-	PauseContextStrength    float64               `json:"pause_context_strength"`
-	// 廃止したレンダラーの選択とDiffSinger用。受け付けて無視する。
-	Renderer              json.RawMessage                 `json:"renderer"`
-	DiffSingerSteps       json.RawMessage                 `json:"diffsinger_steps"`
-	DiffSingerDurationMix json.RawMessage                 `json:"diffsinger_duration_mix"`
-	DiffSingerPitchMix    json.RawMessage                 `json:"diffsinger_pitch_mix"`
-	DiffSingerExpr        json.RawMessage                 `json:"diffsinger_expr"`
-	Worldline             render.WorldlineProviderOptions `json:"worldline,omitempty"`
+	Kana                    string                          `json:"kana"`
+	ModelPath               string                          `json:"model_path"`
+	AliasPolicy             voicebank.AliasPolicy           `json:"alias_policy"`
+	LeadingPreutteranceMS   float64                         `json:"leading_preutterance_ms"`
+	ReleaseMS               float64                         `json:"release_ms"`
+	ReleaseSet              bool                            `json:"release_set"`
+	ContextDurationStrength float64                         `json:"context_duration_strength"`
+	BoundaryToneStrength    float64                         `json:"boundary_tone_strength"`
+	StretchAdaptStrength    float64                         `json:"stretch_adapt_strength"`
+	PauseContextStrength    float64                         `json:"pause_context_strength"`
+	Worldline               render.WorldlineProviderOptions `json:"worldline,omitempty"`
 }
 
 type jsonRequestAlias JSONRequest

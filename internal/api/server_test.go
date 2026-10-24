@@ -226,7 +226,7 @@ func TestSynthesisInputCompatibility(t *testing.T) {
 	for _, test := range []struct {
 		name, input, equivalent, different string
 	}{
-		{"legacy kana and ignored fields", `"kana":"あ","speech_timing":true,"word_boundary_envelope":true,"prosody_experiment":"old"`, `"reading":"あ"`, ""},
+		{"legacy kana", `"kana":"あ"`, `"reading":"あ"`, ""},
 		{"reading precedence", `"reading":"あ","kana":"unknown"`, `"reading":"あ"`, ""},
 		{"dictionary", `"text":"token","dictionary":[{"surface":"token","reading":"あ"}]`, `"reading":"ア"`, ""},
 		{"zero pause uses default", `"reading":"あ、あ","pause_duration_ms":0`, `"reading":"あ、あ"`, `"reading":"あ、あ","pause_duration_ms":40`},

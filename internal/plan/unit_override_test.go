@@ -1,7 +1,6 @@
 package plan
 
 import (
-	"encoding/json"
 	"math"
 	"testing"
 )
@@ -13,16 +12,15 @@ func TestApplyUnitOverrides(t *testing.T) {
 	}}
 	if err := ApplyUnitOverrides(units, []UnitOverride{
 		{
-			Index:             0,
-			OffsetMS:          float64Pointer(12),
-			CutoffMS:          float64Pointer(-8),
-			ConsonantMS:       float64Pointer(42),
-			PreutteranceMS:    float64Pointer(55),
-			OverlapMS:         float64Pointer(9),
-			PitchFactor:       float64Pointer(1.2),
-			EnergyFactor:      float64Pointer(.8),
-			ResamplerVolume:   intPointer(110),
-			ResamplerVelocity: json.RawMessage(`90`),
+			Index:           0,
+			OffsetMS:        float64Pointer(12),
+			CutoffMS:        float64Pointer(-8),
+			ConsonantMS:     float64Pointer(42),
+			PreutteranceMS:  float64Pointer(55),
+			OverlapMS:       float64Pointer(9),
+			PitchFactor:     float64Pointer(1.2),
+			EnergyFactor:    float64Pointer(.8),
+			ResamplerVolume: intPointer(110),
 		},
 	}); err != nil {
 		t.Fatal(err)
