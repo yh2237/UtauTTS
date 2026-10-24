@@ -125,7 +125,7 @@ cp -R "${staging_dir}/." "${gui_dir}/runtime/"
 cp -R "${staging_dir}/." "${server_dir}/runtime/"
 
 echo '=== Models ==='
-for reference_file in kokoro-v1_0.pth config.json af_heart.pt ef_dora.pt pf_dora.pt jf_alpha.pt us_gold.json us_silver.json; do
+for reference_file in kokoro-v1_0.pth config.json af_heart.pt ef_dora.pt pf_dora.pt us_gold.json us_silver.json; do
   if [[ ! -f "${root_dir}/models/reference/${reference_file}" ]]; then
     echo "Reference model is missing: models/reference/${reference_file}. Run tools/fetch-reference-models.sh." >&2
     exit 1

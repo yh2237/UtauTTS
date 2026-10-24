@@ -14,7 +14,6 @@ $files = @(
     @{ Name = 'af_heart.pt'; Url = "$kokoro/voices/af_heart.pt"; Sha256 = '0ab5709b8ffab19bfd849cd11d98f75b60af7733253ad0d67b12382a102cb4ff' },
     @{ Name = 'ef_dora.pt'; Url = "$kokoro/voices/ef_dora.pt"; Sha256 = 'd9d69b0f8a2b87a345f269d89639f89dfbd1a6c9da0c498ae36dd34afcf35530' },
     @{ Name = 'pf_dora.pt'; Url = "$kokoro/voices/pf_dora.pt"; Sha256 = '07e4ff987c5d5a8c3995efd15cc4f0db7c4c15e881b198d8ab7f67ecf51f5eb7' },
-    @{ Name = 'jf_alpha.pt'; Url = "$kokoro/voices/jf_alpha.pt"; Sha256 = '1bf4c9dc69e45ee46183b071f4db766349aac5592acbcfeaf051018048a5d787' },
     @{ Name = 'kokoro-zh/kokoro-v1_1-zh.pth'; Url = "$kokoroZh/kokoro-v1_1-zh.pth"; Sha256 = 'b1d8410fa44dfb5c15471fd6c4225ea6b4e9ac7fa03c98e8bea47a9928476e2b' },
     @{ Name = 'kokoro-zh/config.json'; Url = "$kokoroZh/config.json"; Sha256 = 'bc333efa5ce4ceff433c8c8e5d027a1eca0166001e4e4a62bea2d26ff7a46890' },
     @{ Name = 'kokoro-zh/zf_001.pt'; Url = "$kokoroZh/voices/zf_001.pt"; Sha256 = '9bdc9a87e13e9bb1ea3e7803259c2ecbfebaeeb2ff80b5d0c76df1a464c1c962' },

@@ -11,8 +11,7 @@ under the MIT License (licenses/WAVLM-MIT.txt).
 
 Kokoro-82M
   Files: kokoro-v1_0.pth, config.json, af_heart.pt (voices/af_heart.pt),
-         ef_dora.pt (voices/ef_dora.pt), pf_dora.pt (voices/pf_dora.pt),
-         jf_alpha.pt (voices/jf_alpha.pt)
+         ef_dora.pt (voices/ef_dora.pt), pf_dora.pt (voices/pf_dora.pt)
   Source: https://huggingface.co/hexgrad/Kokoro-82M
   Revision: f3ff3571791e39611d31c381e3a41a3af07b4987
   License: Apache License 2.0

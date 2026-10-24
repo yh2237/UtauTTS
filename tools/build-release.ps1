@@ -220,7 +220,7 @@ try {
         foreach ($packageModelsPath in @($guiModelsPath, $serverModelsPath)) {
             $destination = Join-Path $packageModelsPath 'reference'
             New-Item -ItemType Directory -Force -Path $destination | Out-Null
-            foreach ($name in @('kokoro-v1_0.pth', 'config.json', 'af_heart.pt', 'ef_dora.pt', 'pf_dora.pt', 'jf_alpha.pt', 'us_gold.json', 'us_silver.json', 'notices.json')) {
+            foreach ($name in @('kokoro-v1_0.pth', 'config.json', 'af_heart.pt', 'ef_dora.pt', 'pf_dora.pt', 'us_gold.json', 'us_silver.json', 'notices.json')) {
                 $source = Join-Path $referencePath $name
                 if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
                     throw "Reference model is missing: $source. Run tools/fetch-reference-models.ps1."

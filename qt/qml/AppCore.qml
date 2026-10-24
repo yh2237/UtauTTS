@@ -132,7 +132,8 @@ QtObject {
     function normalizeMethod(method, language) {
         const value = String(method || "");
         if (value === "reference" || value === "reference-matching")
-            return "reference-matching";
+            return core.waveformLanguages.indexOf(String(language || "ja").toLowerCase()) >= 0
+                    ? "waveform-synthesis" : "reference-matching";
         if ((value === "native" || value === "waveform-synthesis" || value === "waveform")
                 && core.waveformLanguages.indexOf(String(language || "ja").toLowerCase()) >= 0)
             return "waveform-synthesis";
@@ -155,8 +156,6 @@ QtObject {
             "pt": core.translator.tr("main.language.pt")
         };
         if (core.normalizeMethod(method) === "reference-matching") {
-            // 日本語の参照照合は試用中。
-            labels["ja"] = core.translator.tr("main.language.jaBeta");
             const providers = core.backend.referenceProviders || [];
             const ids = [];
             for (let index = 0; index < providers.length; ++index) {

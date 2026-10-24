@@ -167,7 +167,7 @@ try {
             throw "Release package still contains the WORLD bridge: $packageRoot"
         }
         if ($Profile -eq 'Full') {
-            foreach ($englishReferenceFile in @('kokoro-v1_0.pth', 'config.json', 'af_heart.pt', 'ef_dora.pt', 'pf_dora.pt', 'jf_alpha.pt', 'us_gold.json', 'us_silver.json', 'notices.json')) {
+            foreach ($englishReferenceFile in @('kokoro-v1_0.pth', 'config.json', 'af_heart.pt', 'ef_dora.pt', 'pf_dora.pt', 'us_gold.json', 'us_silver.json', 'notices.json')) {
                 Assert-Path (Join-Path $packageRoot "models/reference/$englishReferenceFile") "Reference model: $englishReferenceFile"
             }
             foreach ($wavlmFile in @('wavlm-base-plus.safetensors', 'config.json')) {

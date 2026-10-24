@@ -90,7 +90,6 @@ jobs:
             models/reference/af_heart.pt
             models/reference/ef_dora.pt
             models/reference/pf_dora.pt
-            models/reference/jf_alpha.pt
             models/reference/us_gold.json
             models/reference/us_silver.json
             models/reference/wavlm/wavlm-base-plus.safetensors

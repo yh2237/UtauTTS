@@ -73,7 +73,6 @@ const (
 	kokoroChinese    = "kokoro-zh"
 	kokoroSpanish    = "kokoro-es"
 	kokoroPortuguese = "kokoro-pt"
-	kokoroJapanese   = "kokoro-ja"
 )
 
 // voiceSetは1つの参照TTSのモデルと声。
