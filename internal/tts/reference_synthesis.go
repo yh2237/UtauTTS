@@ -369,6 +369,14 @@ func englishMoraTokens(pieces []refspeech.Piece, timing refspeech.Timing, readin
 			end++
 		}
 		tokens := own[mora.WordIndex]
+		if assigned := englishWordAssignment(pieces, timing, tokens, morae[start:end+1]); assigned != nil {
+			for i, mora := range assigned {
+				result[start+i] = mora
+			}
+			result[end] = append(result[end], tail[mora.WordIndex]...)
+			start = end + 1
+			continue
+		}
 		weights := make([]int, end-start+1)
 		total := 0
 		for i := range weights {
