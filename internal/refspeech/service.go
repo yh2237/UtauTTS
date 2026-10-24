@@ -212,6 +212,12 @@ func (s *Service) open(worldEnginePath string) (*Engine, *worldrender.World, err
 
 // Prepareは音源の索引がないか、録音が変わっていれば、裏で作り始める。
 func (s *Service) Prepare(bankRoot string, recordings []refmatch.Recording, worldEnginePath string) {
+	s.dropStale(bankRoot, recordings)
+	s.entry(bankRoot, recordings, worldEnginePath)
+}
+
+// dropStaleは、作った後に録音のファイルが変わった索引を捨てる。
+func (s *Service) dropStale(bankRoot string, recordings []refmatch.Recording) {
 	id := indexID(bankRoot, recordings)
 	s.mu.Lock()
 	entry := s.indexes[id]
@@ -220,16 +226,16 @@ func (s *Service) Prepare(bankRoot string, recordings []refmatch.Recording, worl
 		index = entry.index
 	}
 	s.mu.Unlock()
-	if index != nil {
-		if _, key, err := bankRecordings(bankRoot, recordings); err == nil && key != index.Source {
-			s.mu.Lock()
-			if s.indexes[id] == entry {
-				delete(s.indexes, id)
-			}
-			s.mu.Unlock()
-		}
+	if index == nil {
+		return
 	}
-	s.entry(bankRoot, recordings, worldEnginePath)
+	if _, key, err := bankRecordings(bankRoot, recordings); err == nil && key != index.Source {
+		s.mu.Lock()
+		if s.indexes[id] == entry {
+			delete(s.indexes, id)
+		}
+		s.mu.Unlock()
+	}
 }
 
 // Indexは音源の索引を返す。索引がなければ作り、でき上がるまで待つ。
@@ -241,6 +247,7 @@ func (s *Service) Index(ctx context.Context, bankRoot string, recordings []refma
 func (s *Service) index(ctx context.Context, bankRoot string, recordings []refmatch.Recording, worldEnginePath string, logf func(string)) (*refmatch.Index, error) {
 	start := time.Now()
 	SetStage("索引を準備しています")
+	s.dropStale(bankRoot, recordings)
 	entry := s.entry(bankRoot, recordings, worldEnginePath)
 	select {
 	case <-entry.done:
