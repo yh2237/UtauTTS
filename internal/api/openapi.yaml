@@ -3,16 +3,7 @@ info:
   title: UtauTTS Server HTTP API
   version: development
   description: |
-    現行の開発版HTTP API。アプリケーションのバージョンは /api/health で取得する。
-    ローカル専用。loopbackで待ち受け、認証トークンは使わない。
-    Hostはlocalhostまたはloopback IPに限定する。別サイトからのPOSTなどの操作要求はGo標準のCrossOriginProtectionで拒否する。
-    ローカルの非ブラウザ呼出しにはOriginやSec-Fetch-Siteは不要。これは同じ端末のアプリ間の認証ではない。
-    JSON本文は単一オブジェクト。未知の項目は400。ただしsettingsのキーは任意。
-    本文・文字数・配列・一括合成・並列数には固定の上限がある。x-default-* はその目安で、固定のスキーマ制約ではない。
-    入力のdefaultはJSONデコード時の値。空・ゼロから決まる合成時の既定値は各項目の説明を参照。
-    JSONスキーマだけでは音源・資源・モーラ位置などの合成時検証を表現しきれない。
-    未定義パス・未対応メソッドの404・405はHTTPルーターのテキスト応答。
-    応答書込開始後の通信エラーはJSONに切り替えずログへ記録する。
+    現行の開発版HTTP API。
 servers:
   - url: /
 paths:
@@ -110,7 +101,7 @@ paths:
               additionalProperties: false
               required: [language, text]
               properties:
-                language: {type: string, description: 'ja・en・zh'}
+                language: {type: string, description: 'ja・en・zh・es・pt'}
                 text: {type: string, minLength: 1, x-default-maxLength: 500}
                 dictionary:
                   type: array
@@ -256,7 +247,7 @@ components:
         text: {type: string, nullable: true, default: '', x-default-maxLength: 500}
         reading: {type: string, nullable: true, default: '', x-default-maxLength: 500}
         kana: {type: string, nullable: true, default: '', x-default-maxLength: 500, deprecated: true, description: readingの互換名。readingが空の場合に使う。}
-        language: {type: string, description: 'ja・en・zh。省略できない。'}
+        language: {type: string, description: 'ja・en・zh・es・pt。省略できない。'}
         method: {type: string, enum: [waveform-synthesis, reference-matching], description: 合成の方式。省略できない。}
         phonemizer: {type: string, nullable: true, default: '', description: 'ja-kana・en-arpasing・en-delta・en-vccv・en-cv・zh-cvvc。空なら自動選択。'}
         voicebank_id: {type: string, description: 登録音源のID。省略できない。}

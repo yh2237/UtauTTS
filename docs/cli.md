@@ -76,7 +76,7 @@
 utautts-cli --list voicebanks
 utautts-cli --list models --json
 
-# 指定した資源と依存ファイルの確認（ヘルパーの起動と合成はしない）
+# 指定した資源と依存ファイルの確認（合成はしない）
 utautts-cli --doctor --voicebank "voice/足立レイver3.5.0" --prosody frame-intonation-tcn-v12
 ```
 

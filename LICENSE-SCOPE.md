@@ -26,12 +26,12 @@ GUI版の初期音源「足立レイ ver3.5.0」は、UtauTTS本体とは独立�
 
 ## 第三者コンポーネント
 
-Qt、WORLD、Open JTalk、Go/Python依存ライブラリ、外部FFmpeg等には、各開発元が定めるライセンスが適用されます。ライセンス全文は [`licenses/`](./licenses/)、概要は [第三者通知](./THIRD_PARTY_NOTICES.txt) に記載されています。また、互換処理にあたって参照した公開コードは [第三者コードの出典](./docs/third-party-provenance.md) を参照してください。
+Qt、WORLD、Open JTalk、Go依存ライブラリ、外部FFmpeg等には、各開発元が定めるライセンスが適用されます。ライセンス全文は [`licenses/`](./licenses/)、概要は [第三者通知](./THIRD_PARTY_NOTICES.txt) に記載されています。また、互換処理にあたって参照した公開コードは [第三者コードの出典](./docs/third-party-provenance.md) を参照してください。
 
 ## リリースパッケージの構成
 
-- **GUI版**: モデル、Renderer、ランタイム、ライセンス文書、初期ボイスバンク、プラットフォーム固有の通知
-- **Server版**: モデル、Renderer、ランタイム、ライセンス文書
+- **GUI版**: モデル、ランタイム、ライセンス文書、初期ボイスバンク、プラットフォーム固有の通知
+- **Server版**: モデル、ランタイム、ライセンス文書
 
 全パッケージ共通で [`LICENSE`](./LICENSE)、`LICENSE-SCOPE.md`、[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、[`licenses/`](./licenses/) を同梱しています。
 

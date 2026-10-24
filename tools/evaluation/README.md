@@ -32,12 +32,12 @@ go run ./cmd/tools/tts-eval --voicebank "./voice/chinese-bank" --corpus tools/ev
 ## 音声を比較する
 
 ```powershell
-go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --renderers utautts-world-phrase --model none --repeat 1 --out out/ja-base
+go run ./cmd/tools/tts-eval --voicebank "./voice/japanese-bank" --model none --repeat 1 --out out/ja-base
 ```
 
 コーパスの既定値は`tools/evaluation/japanese-v1.json`の8文です。`--model none`は学習済み抑揚モデルを使いません。任意のモデルは`--model-file`でJSONのパスを指定できます。
 
-英語・中国語でも`--corpus`を指定して比較できます。
+英語でも`--corpus`を指定して比較できます。
 
 WAV・TXT・LAB・合成計画（Plan JSON）・`report.json`を出力します。合成計画の時刻は生成時の目標値で、音声から実測した境界ではありません。
 
@@ -66,7 +66,6 @@ WAV・TXT・LAB・合成計画（Plan JSON）・`report.json`を出力します�
 
 1. 自動読みと修正した読みを比較する
 2. 読みを固定して長さとピッチを調整する
-3. 同じ読み・長さ・ピッチでRendererを変える
 
 聴取では単語の聞き取り、音の欠落、接続、リズム、声質を確認します。peak、RMS、RTF、合成成功率は性能の目安で、自然さは聴取で評価します。
 
@@ -91,7 +90,7 @@ WAV・TXT・LAB・合成計画（Plan JSON）・`report.json`を出力します�
 
 ## 合成速度を比較する
 
-`--renderers utautts-world-phrase --repeat 2`で確認します。解析キャッシュを共有するため、初回と2回目以降を分けて確認します。
+`--repeat 2`で確認します。解析キャッシュを共有するため、初回と2回目以降を分けて確認します。
 
 RTFは合成時間を音声時間で割った値で、保存時間は含みません。文章と音源をそろえて比べてください。
 

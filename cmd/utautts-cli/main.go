@@ -99,7 +99,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	flag.BoolVar(&showVersion, "version", false, "print application version")
 	flag.BoolVar(&jsonOutput, "json", false, "print result, catalog, doctor, version or error JSON to standard output")
 	flag.StringVar(&listKind, "list", "", "list voicebanks or models without synthesizing")
-	flag.BoolVar(&doctor, "doctor", false, "inspect selected resources without starting helpers or synthesizing")
+	flag.BoolVar(&doctor, "doctor", false, "inspect selected resources without synthesizing")
 	flag.DurationVar(&timeout, "timeout", 0, "synthesis timeout after input and initialization (e.g. 30s; 0 disables)")
 	flag.StringVar(&voicebankPath, "voicebank", "", "path to a UTAU voicebank directory")
 	flag.StringVar(&reading, "kana", "", "kana reading to synthesize")

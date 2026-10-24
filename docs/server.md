@@ -29,7 +29,7 @@
 | `POST` | `/api/synthesize/batch` | 複数発話の一括合成（ZIP） |
 | `GET` | `/api/openapi.yaml` | OpenAPI 3.0 仕様書（YAML） |
 
-`POST /api/analyze` が扱うのは日本語の読みとかなのモーラだけです。英語・中国語は `/api/synthesize/*` に `language` と `phonemizer` を指定し、必要なら `reading` でARPAbetかPinyinを直接渡してください。
+`POST /api/analyze` には `language` を指定します。
 
 ---
 
@@ -88,7 +88,7 @@ API処理のエラーは `{"error":"説明","code":"分類"}` と対応するHTT
 
 ### レスポンス
 - 成功すると、`200` と `Content-Type: audio/wav` でWAVを返します。
-- レスポンスヘッダーには解析した読みの `X-UtauTTS-Reading` や、合成の方式の `X-UtauTTS-Method` が付きます。
+- レスポンスヘッダーには解析した読みの `X-UtauTTS-Reading`、合成の方式の `X-UtauTTS-Method`、使えなかった設定などの診断の数の `X-UtauTTS-Diagnostic-Count` が付きます。
 
 ---
 
