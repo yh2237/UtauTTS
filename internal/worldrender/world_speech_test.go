@@ -2,14 +2,13 @@ package worldrender
 
 import (
 	"encoding/json"
-	"github.com/yh2237/UtauTTS/internal/provider"
 	"math"
 	"reflect"
 	"testing"
 )
 
 func TestExplicitSpeechAnchorsInterpolationAndValidation(t *testing.T) {
-	u := unit{OffsetMS: 13, RequiredLengthMS: 999, ConsonantMS: 999, Speech: &provider.WorldSpeechTiming{Anchors: []provider.SpeechAnchor{{SourceMS: 10, TargetMS: 0}, {SourceMS: 100, TargetMS: 40}, {SourceMS: 300, TargetMS: 200}}}}
+	u := Unit{OffsetMS: 13, RequiredLengthMS: 999, ConsonantMS: 999, Speech: &SpeechTiming{Anchors: []SpeechAnchor{{SourceMS: 10, TargetMS: 0}, {SourceMS: 100, TargetMS: 40}, {SourceMS: 300, TargetMS: 200}}}}
 	a, ok := worldSpeechAnchors(u, 400)
 	if !ok {
 		t.Fatal("valid piecewise mapping rejected")
@@ -19,7 +18,7 @@ func TestExplicitSpeechAnchorsInterpolationAndValidation(t *testing.T) {
 			t.Fatalf("%v: %g", pair, got)
 		}
 	}
-	for _, invalid := range [][]provider.SpeechAnchor{
+	for _, invalid := range [][]SpeechAnchor{
 		{{SourceMS: 0, TargetMS: 0}},
 		{{SourceMS: 0, TargetMS: 0}, {SourceMS: 100, TargetMS: 0}},
 		{{SourceMS: 100, TargetMS: 0}, {SourceMS: 10, TargetMS: 40}},
@@ -34,8 +33,8 @@ func TestExplicitSpeechAnchorsInterpolationAndValidation(t *testing.T) {
 }
 
 func TestWorldSpeechMappingAnchorsAndStop(t *testing.T) {
-	u := unit{OffsetMS: 13, ConsonantMS: 100, RequiredLengthMS: 240, ConsonantVelocity: 100,
-		Speech: &provider.WorldSpeechTiming{SourceOnsetMS: 60, TargetOnsetMS: 40, ProtectStop: true}}
+	u := Unit{OffsetMS: 13, ConsonantMS: 100, RequiredLengthMS: 240, ConsonantVelocity: 100,
+		Speech: &SpeechTiming{SourceOnsetMS: 60, TargetOnsetMS: 40, ProtectStop: true}}
 	a, ok := worldSpeechAnchors(u, 400)
 	if !ok {
 		t.Fatal("valid anchors rejected")
@@ -57,11 +56,11 @@ func TestWorldSpeechMappingAnchorsAndStop(t *testing.T) {
 	if got := mapWorldSourceTimePrepared(u, 400, 25, a, ok); got != 63 {
 		t.Fatal("skip shifted vowel onset", got)
 	}
-	for _, change := range []func(*unit){
-		func(u *unit) { u.Speech.SourceOnsetMS = 0 },
-		func(u *unit) { u.RequiredLengthMS = 50 },
-		func(u *unit) { u.Speech.TargetOnsetMS = math.NaN() },
-		func(u *unit) { u.ConsonantMS = 395 },
+	for _, change := range []func(*Unit){
+		func(u *Unit) { u.Speech.SourceOnsetMS = 0 },
+		func(u *Unit) { u.RequiredLengthMS = 50 },
+		func(u *Unit) { u.Speech.TargetOnsetMS = math.NaN() },
+		func(u *Unit) { u.ConsonantMS = 395 },
 	} {
 		bad := u
 		speech := *u.Speech
@@ -81,7 +80,7 @@ func TestWorldSpeechMappingAnchorsAndStop(t *testing.T) {
 }
 
 func TestWorldSpeechMappingHonorsTargetFixed(t *testing.T) {
-	u := unit{OffsetMS: 0, ConsonantMS: 100, RequiredLengthMS: 240, Speech: &provider.WorldSpeechTiming{
+	u := Unit{OffsetMS: 0, ConsonantMS: 100, RequiredLengthMS: 240, Speech: &SpeechTiming{
 		SourceOnsetMS: 60, TargetOnsetMS: 40, TargetFixedMS: 96}}
 	a, ok := worldSpeechAnchors(u, 400)
 	if !ok {
@@ -93,8 +92,8 @@ func TestWorldSpeechMappingHonorsTargetFixed(t *testing.T) {
 }
 
 func TestWorldSpeechPreserveStopOnlyDoesNotRetargetFeatures(t *testing.T) {
-	u := unit{OffsetMS: 3, ConsonantMS: 70, RequiredLengthMS: 180,
-		Speech: &provider.WorldSpeechTiming{SourceOnsetMS: 50, TargetOnsetMS: 50, PreserveStopOnly: true}}
+	u := Unit{OffsetMS: 3, ConsonantMS: 70, RequiredLengthMS: 180,
+		Speech: &SpeechTiming{SourceOnsetMS: 50, TargetOnsetMS: 50, PreserveStopOnly: true}}
 	if _, ok := worldSpeechAnchors(u, 300); ok {
 		t.Fatal("preserve-only stop unexpectedly enabled feature retiming")
 	}
@@ -148,12 +147,12 @@ func TestWorldSpeechJoinPreservesPitchAndRejectsUnsafeWindows(t *testing.T) {
 }
 
 func TestWorldSpeechJoinEligibilityAndReport(t *testing.T) {
-	in := manifest{Units: []unit{{PositionMS: 0, LengthMS: 40}, {PositionMS: 20, LengthMS: 60, Speech: &provider.WorldSpeechTiming{UnitIndex: 2, TargetOnsetMS: 10, VowelJoin: true}}}}
+	in := phraseInput{Units: []Unit{{PositionMS: 0, LengthMS: 40}, {PositionMS: 20, LengthMS: 60, Speech: &SpeechTiming{UnitIndex: 2, TargetOnsetMS: 10, VowelJoin: true}}}}
 	f := speechTestFeatures()
 	if !applyWorldSpeechJoins(in, &f)[2].JoinApplied {
 		t.Fatal("missing applied report")
 	}
-	in.Units = append(in.Units, unit{PositionMS: 20, LengthMS: 50})
+	in.Units = append(in.Units, Unit{PositionMS: 20, LengthMS: 50})
 	f = speechTestFeatures()
 	if len(applyWorldSpeechJoins(in, &f)) != 0 {
 		t.Fatal("smoothed across a third unit")
@@ -167,9 +166,9 @@ func TestWorldSpeechJoinEligibilityAndReport(t *testing.T) {
 }
 
 func TestWorldSpeechJoinUsesExplicitAnchor(t *testing.T) {
-	in := manifest{Units: []unit{
+	in := phraseInput{Units: []Unit{
 		{PositionMS: 0, LengthMS: 100},
-		{PositionMS: 20, LengthMS: 80, Speech: &provider.WorldSpeechTiming{UnitIndex: 1, TargetOnsetMS: 10, TargetJoinMS: 20, VowelJoin: true}},
+		{PositionMS: 20, LengthMS: 80, Speech: &SpeechTiming{UnitIndex: 1, TargetOnsetMS: 10, TargetJoinMS: 20, VowelJoin: true}},
 	}}
 	f := speechTestFeatures()
 	if !applyWorldSpeechJoins(in, &f)[1].JoinApplied {
@@ -181,8 +180,8 @@ func TestWorldSpeechMixDoesNotChangeCachedFeatures(t *testing.T) {
 	source := speechTestFeatures()
 	before, _ := json.Marshal(source)
 	prepared := []preparedWorldUnit{{cached: cachedWorldUnit{features: source, duration: 70}}}
-	u := unit{LengthMS: 100, RequiredLengthMS: 100, ConsonantMS: 30, ConsonantVelocity: 100, Volume: 100, Speech: &provider.WorldSpeechTiming{SourceOnsetMS: 10, TargetOnsetMS: 10}}
-	in := manifest{Units: []unit{u}, F0Curve: []float64{220, 230, 240, 250, 260, 270, 280}}
+	u := Unit{LengthMS: 100, RequiredLengthMS: 100, ConsonantMS: 30, ConsonantVelocity: 100, Volume: 100, Speech: &SpeechTiming{SourceOnsetMS: 10, TargetOnsetMS: 10}}
+	in := phraseInput{Units: []Unit{u}, F0Curve: []float64{220, 230, 240, 250, 260, 270, 280}}
 	_ = mixWorldFeatures(in, prepared, 2, 1)
 	after, _ := json.Marshal(source)
 	if string(before) != string(after) {

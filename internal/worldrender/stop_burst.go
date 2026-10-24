@@ -13,7 +13,7 @@ type protectedStopSource struct {
 }
 
 // WORLD分析で弱まる破裂音を原波形から補う。
-func mixProtectedStopBursts(input manifest, prepared []preparedWorldUnit, wave []float64, sampleRate int) map[int]float64 {
+func mixProtectedStopBursts(input phraseInput, prepared []preparedWorldUnit, wave []float64, sampleRate int) map[int]float64 {
 	result := make(map[int]float64)
 	if sampleRate <= 0 || len(wave) == 0 {
 		return result
@@ -107,7 +107,7 @@ func stopTransientPostMS(durationMS, fallback float64) float64 {
 	return speechwindow.TransientTailMS(durationMS, fallback)
 }
 
-func stopBurstOnsets(item unit, sourceBaseMS, sourceAnchorMS, targetAnchorMS float64) (float64, float64) {
+func stopBurstOnsets(item Unit, sourceBaseMS, sourceAnchorMS, targetAnchorMS float64) (float64, float64) {
 	sourceOnset := sourceAnchorMS
 	targetOnset := item.PositionMS + targetAnchorMS - item.SkipMS
 	if item.Speech.SourceTransientMS > 0 {
@@ -119,7 +119,7 @@ func stopBurstOnsets(item unit, sourceBaseMS, sourceAnchorMS, targetAnchorMS flo
 	return sourceBaseMS + sourceOnset, targetOnset
 }
 
-func worldUnitEnergy(item unit) float64 {
+func worldUnitEnergy(item Unit) float64 {
 	energy := item.EnergyFactor
 	if energy <= 0 || math.IsNaN(energy) || math.IsInf(energy, 0) {
 		return 1

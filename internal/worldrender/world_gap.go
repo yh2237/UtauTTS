@@ -13,7 +13,7 @@ const (
 )
 
 // 連続音の内部境界にある短い無声音区間だけを補間する。
-func repairWorldFeatureGaps(input manifest, prepared []preparedWorldUnit, features *worldFeatures) int {
+func repairWorldFeatureGaps(input phraseInput, prepared []preparedWorldUnit, features *worldFeatures) int {
 	if features == nil || len(features.F0) < 3 || len(input.Units) != len(prepared) {
 		return 0
 	}
@@ -107,7 +107,7 @@ func repairWorldFeatureGaps(input manifest, prepared []preparedWorldUnit, featur
 	return repaired
 }
 
-func worldBoundaryScanRange(previous, next unit, left, right, frames int) (int, int) {
+func worldBoundaryScanRange(previous, next Unit, left, right, frames int) (int, int) {
 	if frames <= 0 {
 		return 0, 0
 	}
@@ -122,7 +122,7 @@ func worldBoundaryScanRange(previous, next unit, left, right, frames int) (int, 
 	return start, end
 }
 
-func worldGapBoundaryPair(input manifest, prepared []preparedWorldUnit, leftFrame, rightFrame int) bool {
+func worldGapBoundaryPair(input phraseInput, prepared []preparedWorldUnit, leftFrame, rightFrame int) bool {
 	left := worldVoicedUnitAt(input, prepared, leftFrame)
 	right := worldVoicedUnitAt(input, prepared, rightFrame)
 	if left < 0 || right != left+1 || right >= len(input.Units) {
@@ -135,7 +135,7 @@ func worldGapBoundaryPair(input manifest, prepared []preparedWorldUnit, leftFram
 	return true
 }
 
-func worldGapInsideLegacyBoundary(input manifest, prepared []preparedWorldUnit, start, end int) bool {
+func worldGapInsideLegacyBoundary(input phraseInput, prepared []preparedWorldUnit, start, end int) bool {
 	if start <= 0 || end <= start {
 		return false
 	}
@@ -153,7 +153,7 @@ func worldGapInsideLegacyBoundary(input manifest, prepared []preparedWorldUnit, 
 	return float64(start)*worldFramePeriodMS >= overlapStart && float64(end)*worldFramePeriodMS <= overlapEnd
 }
 
-func worldLegacyBoundaryEligible(previous, next unit) bool {
+func worldLegacyBoundaryEligible(previous, next Unit) bool {
 	if !previous.LegacyMix || !next.LegacyMix || !next.GapRepair {
 		return false
 	}
@@ -166,7 +166,7 @@ func worldLegacyBoundaryEligible(previous, next unit) bool {
 	return true
 }
 
-func worldBoundaryAnchors(input manifest, prepared []preparedWorldUnit, features *worldFeatures, energy []float64, previous, next int) (int, int) {
+func worldBoundaryAnchors(input phraseInput, prepared []preparedWorldUnit, features *worldFeatures, energy []float64, previous, next int) (int, int) {
 	if previous < 0 || next >= len(input.Units) || len(energy) != len(features.F0) {
 		return -1, -1
 	}
@@ -237,7 +237,7 @@ func worldBoundaryEnergyGap(energy []float64, left, right, frame int) bool {
 	return ratio < worldGapEnergyRatio && energy[frame] < math.Max(energy[left], energy[right])*.5
 }
 
-func worldVoicedUnitAt(input manifest, prepared []preparedWorldUnit, frame int) int {
+func worldVoicedUnitAt(input phraseInput, prepared []preparedWorldUnit, frame int) int {
 	if frame < 0 || frame >= len(input.F0Curve) || len(input.Units) != len(prepared) {
 		return -1
 	}

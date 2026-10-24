@@ -8,11 +8,11 @@ import (
 
 func TestWorldFrameUnitsKeepsAllActiveUnitsInOrder(t *testing.T) {
 	rng := rand.New(rand.NewPCG(42, 7))
-	input := manifest{F0Curve: make([]float64, 600)}
+	input := phraseInput{F0Curve: make([]float64, 600)}
 	for range 200 {
-		input.Units = append(input.Units, unit{PositionMS: rng.Float64()*6500 - 500, LengthMS: rng.Float64() * 800})
+		input.Units = append(input.Units, Unit{PositionMS: rng.Float64()*6500 - 500, LengthMS: rng.Float64() * 800})
 	}
-	input.Units = append(input.Units, unit{PositionMS: 10, LengthMS: 0}, unit{PositionMS: math.NaN(), LengthMS: 100}, unit{LengthMS: math.Inf(1)})
+	input.Units = append(input.Units, Unit{PositionMS: 10, LengthMS: 0}, Unit{PositionMS: math.NaN(), LengthMS: 100}, Unit{LengthMS: math.Inf(1)})
 	offsets, units := worldFrameUnits(input)
 	for frame := range input.F0Curve {
 		candidates := units[offsets[frame]:offsets[frame+1]]
@@ -39,14 +39,14 @@ func TestWorldFrameUnitsKeepsAllActiveUnitsInOrder(t *testing.T) {
 
 func BenchmarkWorldMixPrepared(b *testing.B) {
 	const frames = 600
-	input := manifest{F0Curve: make([]float64, frames), Units: make([]unit, 100)}
+	input := phraseInput{F0Curve: make([]float64, frames), Units: make([]Unit, 100)}
 	for i := range input.Units {
-		input.Units[i] = unit{PositionMS: float64(i) * 60, LengthMS: 120, RequiredLengthMS: 120, ConsonantVelocity: 100}
+		input.Units[i] = Unit{PositionMS: float64(i) * 60, LengthMS: 120, RequiredLengthMS: 120, ConsonantVelocity: 100}
 	}
 	prepared := flatPreparedUnits(len(input.Units))
 	for _, tc := range []struct {
 		name string
-		run  func(manifest, []preparedWorldUnit, int, int) worldFeatures
+		run  func(phraseInput, []preparedWorldUnit, int, int) worldFeatures
 	}{{"reference", mixWorldFeaturesReference}, {"prepared", mixWorldFeatures}} {
 		b.Run(tc.name, func(b *testing.B) {
 			b.ReportAllocs()

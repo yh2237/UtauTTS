@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
-	"github.com/yh2237/UtauTTS/internal/provider"
 	"github.com/yh2237/UtauTTS/internal/worldrender"
 )
 
@@ -14,7 +13,7 @@ var (
 	worldGate     = make(chan struct{}, 1)
 )
 
-func renderWorld(ctx context.Context, options provider.WorldlineOptions, enginePath string) (*audio.PCM, []provider.WorldSpeechResult, error) {
+func renderWorld(ctx context.Context, options worldrender.Phrase, enginePath string) (*audio.PCM, []worldrender.SpeechResult, error) {
 	select {
 	case worldGate <- struct{}{}:
 	case <-ctx.Done():

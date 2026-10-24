@@ -10,7 +10,7 @@ import (
 )
 
 func TestWorldlineRejectsUnknownCVVCTimingBeforeResolvingAssets(t *testing.T) {
-	_, err := renderWorldlineEngine(&plan.Plan{Units: []plan.Unit{{Role: "mora"}}}, base.Config{CVVCTiming: "unknown"}, "utautts-world-phrase")
+	_, err := renderWorldlineEngine(&plan.Plan{Units: []plan.Unit{{Role: "mora"}}}, base.Config{CVVCTiming: "unknown"})
 	if err == nil || !strings.Contains(err.Error(), "unknown CVVC timing mode") {
 		t.Fatalf("unexpected error: %v", err)
 	}

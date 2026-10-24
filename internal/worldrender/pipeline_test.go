@@ -6,8 +6,6 @@ import (
 	"math"
 	"path/filepath"
 	"testing"
-
-	"github.com/yh2237/UtauTTS/internal/provider"
 )
 
 type fakeWorldEngine struct {
@@ -51,14 +49,14 @@ func TestWorldPhrasePipelineRunsStagesInOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	engine := &fakeWorldEngine{}
-	var results []provider.WorldSpeechResult
-	input := manifest{
-		Engine: "utautts-world-phrase", SampleRate: rate,
+	var results []SpeechResult
+	input := phraseInput{
+		SampleRate:    rate,
 		F0Curve:       []float64{200, 200, 200, 200, 200, 200, 200, 200},
 		SpeechResults: &results,
-		Units: []unit{{
+		Units: []Unit{{
 			Source: path, PositionMS: 0, LengthMS: 80, RequiredLengthMS: 80,
-			Volume: 100, VolumeSet: true, Speech: &provider.WorldSpeechTiming{UnitIndex: 0},
+			Volume: 100, VolumeSet: true, Speech: &SpeechTiming{UnitIndex: 0},
 		}},
 	}
 	output, err := renderUtauTTSWorldPhrase(context.Background(), engine, input, newWorldFeatureCache(4))
@@ -77,7 +75,7 @@ func TestWorldPhrasePipelineRunsStagesInOrder(t *testing.T) {
 }
 
 func TestWorldPhrasePipelineRejectsShortPhrase(t *testing.T) {
-	if _, err := renderUtauTTSWorldPhrase(context.Background(), &fakeWorldEngine{}, manifest{F0Curve: []float64{200}}, nil); err == nil {
+	if _, err := renderUtauTTSWorldPhrase(context.Background(), &fakeWorldEngine{}, phraseInput{F0Curve: []float64{200}}, nil); err == nil {
 		t.Fatal("short phrase was accepted")
 	}
 }
@@ -86,10 +84,10 @@ func TestWorldPhrasePipelineStopsWhenCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	engine := &fakeWorldEngine{}
-	input := manifest{
-		Engine: "utautts-world-phrase", SampleRate: 16000,
-		F0Curve: []float64{200, 200},
-		Units:   []unit{{Source: filepath.Join(t.TempDir(), "missing.wav"), LengthMS: 20}},
+	input := phraseInput{
+		SampleRate: 16000,
+		F0Curve:    []float64{200, 200},
+		Units:      []Unit{{Source: filepath.Join(t.TempDir(), "missing.wav"), LengthMS: 20}},
 	}
 	if _, err := renderUtauTTSWorldPhrase(ctx, engine, input, nil); !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)

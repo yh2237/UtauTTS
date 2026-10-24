@@ -4,16 +4,14 @@ import (
 	"math"
 	"reflect"
 	"testing"
-
-	"github.com/yh2237/UtauTTS/internal/provider"
 )
 
 func TestWorldMixIsOrderIndependentAndPreservesFade(t *testing.T) {
 	makeUnit := func(f0, ap float64) preparedWorldUnit {
 		return preparedWorldUnit{cached: cachedWorldUnit{duration: 20, features: worldFeatures{Frames: 2, FFTSize: 2, F0: []float64{f0, f0}, Spectrum: []float64{1, 1, 1, 1}, Aperiodicity: []float64{ap, ap, ap, ap}}}}
 	}
-	u := unit{LengthMS: 40, FadeInMS: 40, RequiredLengthMS: 40, ConsonantVelocity: 100, Volume: 100}
-	in := manifest{F0Curve: []float64{200, 200, 200}, Units: []unit{u, u}}
+	u := Unit{LengthMS: 40, FadeInMS: 40, RequiredLengthMS: 40, ConsonantVelocity: 100, Volume: 100}
+	in := phraseInput{F0Curve: []float64{200, 200, 200}, Units: []Unit{u, u}}
 	a, b := makeUnit(200, .1), makeUnit(0, .9)
 	ab := mixWorldFeatures(in, []preparedWorldUnit{a, b}, 2, 1)
 	ba := mixWorldFeatures(in, []preparedWorldUnit{b, a}, 2, 1)
@@ -41,19 +39,19 @@ func flatPreparedUnits(count int) []preparedWorldUnit {
 func TestWorldMixOverlappingGain(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
-		units  []unit
+		units  []Unit
 		energy float64
 	}{
-		{"normalizes overlap", []unit{{Volume: 100}, {Volume: 100}}, 1},
-		{"legacy keeps overlap", []unit{{Volume: 100, LegacyMix: true}, {Volume: 100, LegacyMix: true}}, 2},
-		{"energy factor scales amplitude", []unit{{Volume: 100, EnergyFactor: .5}}, .25},
-		{"normalizes before energy", []unit{{Volume: 100, EnergyFactor: .5}, {Volume: 100, EnergyFactor: .5}}, .25},
+		{"normalizes overlap", []Unit{{Volume: 100}, {Volume: 100}}, 1},
+		{"legacy keeps overlap", []Unit{{Volume: 100, LegacyMix: true}, {Volume: 100, LegacyMix: true}}, 2},
+		{"energy factor scales amplitude", []Unit{{Volume: 100, EnergyFactor: .5}}, .25},
+		{"normalizes before energy", []Unit{{Volume: 100, EnergyFactor: .5}, {Volume: 100, EnergyFactor: .5}}, .25},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for index := range tc.units {
 				tc.units[index].LengthMS, tc.units[index].RequiredLengthMS = 20, 20
 			}
-			input := manifest{F0Curve: []float64{200, 200}, Units: tc.units}
+			input := phraseInput{F0Curve: []float64{200, 200}, Units: tc.units}
 			result := mixWorldFeatures(input, flatPreparedUnits(len(tc.units)), 2, 1)
 			if math.Abs(result.Spectrum[0]-tc.energy) > 1e-9 {
 				t.Fatalf("spectrum = %f, want %f", result.Spectrum[0], tc.energy)
@@ -66,11 +64,11 @@ func TestWorldMixOverlappingGain(t *testing.T) {
 }
 
 func TestWorldEnvelopeWeight(t *testing.T) {
-	fade := unit{LengthMS: 200, FadeInMS: 50, FadeOutMS: 50}
+	fade := Unit{LengthMS: 200, FadeInMS: 50, FadeOutMS: 50}
 	if got := worldEnvelopeWeight(fade, 25); math.Abs(got-0.5) > 1e-9 {
 		t.Fatalf("fade-in weight = %f, want 0.5", got)
 	}
-	points := unit{LengthMS: 150, FadeInMS: 50, Envelope: []envelopePoint{
+	points := Unit{LengthMS: 150, FadeInMS: 50, Envelope: []EnvelopePoint{
 		{XMS: -100, Y: 0}, {XMS: -50, Y: 1}, {XMS: 0, Y: 1}, {XMS: 50, Y: 0},
 	}}
 	for at, want := range map[float64]float64{0: 0, 75: 1, 125: .5} {
@@ -85,23 +83,23 @@ func TestWorldEnvelopeWeight(t *testing.T) {
 }
 
 func TestWorldUnitAmplitudeGainRestoresNeutralDefaults(t *testing.T) {
-	if got := worldUnitAmplitudeGain(unit{}); math.Abs(got-1) > 1e-9 {
+	if got := worldUnitAmplitudeGain(Unit{}); math.Abs(got-1) > 1e-9 {
 		t.Fatalf("neutral gain = %f, want 1", got)
 	}
-	if got := worldUnitAmplitudeGain(unit{Volume: 0, VolumeSet: true}); got != 0 {
+	if got := worldUnitAmplitudeGain(Unit{Volume: 0, VolumeSet: true}); got != 0 {
 		t.Fatalf("explicit zero gain = %f, want 0", got)
 	}
-	if got := worldUnitAmplitudeGain(unit{Volume: 50, EnergyFactor: .8}); math.Abs(got-.4) > 1e-9 {
+	if got := worldUnitAmplitudeGain(Unit{Volume: 50, EnergyFactor: .8}); math.Abs(got-.4) > 1e-9 {
 		t.Fatalf("combined gain = %f, want .4", got)
 	}
-	if got := worldUnitAmplitudeGain(unit{Volume: 50, EnergyFactor: .8, LegacyMix: true}); math.Abs(got-.5) > 1e-9 {
+	if got := worldUnitAmplitudeGain(Unit{Volume: 50, EnergyFactor: .8, LegacyMix: true}); math.Abs(got-.5) > 1e-9 {
 		t.Fatalf("legacy gain = %f, want .5", got)
 	}
 }
 
 func TestMapWorldFeatureTimeAppliesFractionalOtoOffset(t *testing.T) {
 	entry := cachedWorldUnit{duration: 300, sourceShiftMS: 3}
-	item := unit{ConsonantMS: 100, RequiredLengthMS: 100, ConsonantVelocity: 100}
+	item := Unit{ConsonantMS: 100, RequiredLengthMS: 100, ConsonantVelocity: 100}
 	if got := mapWorldFeatureTime(item, entry, 20); math.Abs(got-23) > 1e-9 {
 		t.Fatalf("feature source time = %f, want 23", got)
 	}
@@ -111,14 +109,14 @@ func TestMapWorldFeatureTimeAppliesFractionalOtoOffset(t *testing.T) {
 	}
 	item.LegacyMix = false
 	item.ConsonantMS, item.RequiredLengthMS = 70, 180
-	item.Speech = &provider.WorldSpeechTiming{SourceOnsetMS: 50, TargetOnsetMS: 50}
+	item.Speech = &SpeechTiming{SourceOnsetMS: 50, TargetOnsetMS: 50}
 	if got := mapWorldFeatureTime(item, entry, 20); math.Abs(got-20) > 1e-9 {
 		t.Fatalf("speech-retimed source time = %f, want 20", got)
 	}
 }
 
 func TestMapWorldSourceTimePreservesConsonantAndStretchesTail(t *testing.T) {
-	item := unit{ConsonantMS: 100, RequiredLengthMS: 500, ConsonantVelocity: 100}
+	item := Unit{ConsonantMS: 100, RequiredLengthMS: 500, ConsonantVelocity: 100}
 	mapping, ok := worldSpeechAnchors(item, 300)
 	if got := mapWorldSourceTimePrepared(item, 300, 80, mapping, ok); got != 80 {
 		t.Fatalf("consonant time = %f, want 80", got)
@@ -129,7 +127,7 @@ func TestMapWorldSourceTimePreservesConsonantAndStretchesTail(t *testing.T) {
 }
 
 func TestRepairWorldFeatureGapsFillsOnlyOverlappingLegacyBoundary(t *testing.T) {
-	input := manifest{F0Curve: make([]float64, 12), Units: []unit{
+	input := phraseInput{F0Curve: make([]float64, 12), Units: []Unit{
 		{LegacyMix: true, PositionMS: 0, LengthMS: 80, RequiredLengthMS: 80, ConsonantMS: 10, Volume: 100},
 		{LegacyMix: true, GapRepair: true, PositionMS: 50, LengthMS: 80, RequiredLengthMS: 80, ConsonantMS: 10, Volume: 101},
 	}}
@@ -188,7 +186,7 @@ func TestRepairWorldFeatureGapsFillsOnlyOverlappingLegacyBoundary(t *testing.T) 
 }
 
 func TestRepairWorldFeatureGapsFillsSpectralDip(t *testing.T) {
-	input := manifest{F0Curve: make([]float64, 30), Units: []unit{
+	input := phraseInput{F0Curve: make([]float64, 30), Units: []Unit{
 		{LegacyMix: true, PositionMS: 0, LengthMS: 170, RequiredLengthMS: 170, ConsonantMS: 10, Volume: 100},
 		{LegacyMix: true, GapRepair: true, PositionMS: 100, LengthMS: 170, RequiredLengthMS: 170, ConsonantMS: 10, Volume: 100},
 	}}
@@ -274,10 +272,10 @@ func TestParallelWorldFeatureMixMatchesSequentialMix(t *testing.T) {
 	}
 }
 
-func worldMixFixture() (manifest, []preparedWorldUnit, int) {
+func worldMixFixture() (phraseInput, []preparedWorldUnit, int) {
 	const frames, sourceFrames, fftSize = 240, 80, 512
 	bins := fftSize/2 + 1
-	input := manifest{F0Curve: make([]float64, frames)}
+	input := phraseInput{F0Curve: make([]float64, frames)}
 	prepared := make([]preparedWorldUnit, 12)
 	for frame := range input.F0Curve {
 		input.F0Curve[frame] = 180 + float64(frame%20)
@@ -295,7 +293,7 @@ func worldMixFixture() (manifest, []preparedWorldUnit, int) {
 			features.Spectrum[index] = 0.1 + float64((index+unitIndex)%17)/20
 			features.Aperiodicity[index] = 0.05 + float64((index+unitIndex)%11)/20
 		}
-		input.Units = append(input.Units, unit{
+		input.Units = append(input.Units, Unit{
 			PositionMS: float64(unitIndex * 160), LengthMS: 800,
 			RequiredLengthMS: 800, ConsonantMS: 100, ConsonantVelocity: 100,
 			FadeInMS: 40, FadeOutMS: 60, Volume: 100,

@@ -1,15 +1,14 @@
 package worldrender
 
 import (
-	"github.com/yh2237/UtauTTS/internal/provider"
 	"math"
 	"testing"
 )
 
 func TestCodaReleaseReachesBurstBeforeAudibleEnd(t *testing.T) {
 	// cupの破裂音は583msの原音内の約408msにある。
-	u := unit{ConsonantMS: 536, ConsonantVelocity: 100, RequiredLengthMS: 600, SkipMS: 68, LengthMS: 232,
-		Speech: &provider.WorldSpeechTiming{SourceOnsetMS: 250, TargetOnsetMS: 250, CodaRelease: true}}
+	u := Unit{ConsonantMS: 536, ConsonantVelocity: 100, RequiredLengthMS: 600, SkipMS: 68, LengthMS: 232,
+		Speech: &SpeechTiming{SourceOnsetMS: 250, TargetOnsetMS: 250, CodaRelease: true}}
 	a, ok := worldSpeechAnchors(u, 583)
 	if !ok {
 		t.Fatal("valid coda rejected")
@@ -55,7 +54,7 @@ func TestCodaReleaseReachesBurstBeforeAudibleEnd(t *testing.T) {
 }
 
 func TestCodaReleasePreservesStopTransient(t *testing.T) {
-	u := unit{SkipMS: 70, LengthMS: 60, Speech: &provider.WorldSpeechTiming{
+	u := Unit{SkipMS: 70, LengthMS: 60, Speech: &SpeechTiming{
 		SourceOnsetMS: 100, TargetOnsetMS: 100, CodaRelease: true, ProtectStop: true,
 	}}
 	a, ok := worldSpeechAnchors(u, 300)
@@ -65,7 +64,7 @@ func TestCodaReleasePreservesStopTransient(t *testing.T) {
 }
 
 func TestCodaReleaseSeparateReleaseMapsTailOneToOne(t *testing.T) {
-	u := unit{SkipMS: 0, LengthMS: 100, Speech: &provider.WorldSpeechTiming{
+	u := Unit{SkipMS: 0, LengthMS: 100, Speech: &SpeechTiming{
 		SourceOnsetMS: 20, TargetOnsetMS: 20, CodaRelease: true, ProtectStop: true,
 		SeparateRelease: true, ReleaseMS: 20,
 	}}
@@ -85,7 +84,7 @@ func TestCodaReleaseSeparateReleaseMapsTailOneToOne(t *testing.T) {
 	}
 	// 分離指定が無いときは従来の保護区間を使う。
 	plain := u
-	plain.Speech = &provider.WorldSpeechTiming{SourceOnsetMS: 20, TargetOnsetMS: 20, CodaRelease: true, ProtectStop: true}
+	plain.Speech = &SpeechTiming{SourceOnsetMS: 20, TargetOnsetMS: 20, CodaRelease: true, ProtectStop: true}
 	b, ok := worldSpeechAnchors(plain, 200)
 	if !ok || b.separateRelease {
 		t.Fatalf("default coda mapping changed: %+v", b)
@@ -93,7 +92,7 @@ func TestCodaReleaseSeparateReleaseMapsTailOneToOne(t *testing.T) {
 }
 
 func TestCodaReleaseSeparateReleaseUsesMeasuredTransient(t *testing.T) {
-	u := unit{SkipMS: 0, LengthMS: 100, Speech: &provider.WorldSpeechTiming{
+	u := Unit{SkipMS: 0, LengthMS: 100, Speech: &SpeechTiming{
 		SourceOnsetMS: 20, TargetOnsetMS: 20, SourceTransientMS: 120, CodaRelease: true,
 		ProtectStop: true, SeparateRelease: true, ReleaseMS: 20,
 	}}

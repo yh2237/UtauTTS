@@ -9,8 +9,6 @@ import (
 	"runtime"
 	"sync"
 	"time"
-
-	"github.com/yh2237/UtauTTS/internal/provider"
 )
 
 type cachedWorldUnit struct {
@@ -31,7 +29,7 @@ type worldMixUnit struct {
 
 type worldAnalysisJob struct {
 	key     string
-	item    unit
+	item    Unit
 	indexes []int
 }
 
@@ -51,21 +49,21 @@ type worldPhrasePipeline struct {
 	ctx        context.Context
 	engine     worldEngine
 	cache      *worldFeatureCache
-	input      manifest
+	input      phraseInput
 	prepared   []preparedWorldUnit
 	features   worldFeatures
 	wave       []float64
-	report     map[int]provider.WorldSpeechResult
+	report     map[int]SpeechResult
 	stopBursts map[int]float64
 	fftSize    int
 }
 
 // ctxは段の間と原音の解析ごとに確かめる。WORLDの合成の呼び出し自体は途中で止められない。
-func renderUtauTTSWorldPhrase(ctx context.Context, engine worldEngine, input manifest, cache *worldFeatureCache) ([]float32, error) {
+func renderUtauTTSWorldPhrase(ctx context.Context, engine worldEngine, input phraseInput, cache *worldFeatureCache) ([]float32, error) {
 	if len(input.F0Curve) < 2 {
 		return nil, fmt.Errorf("WORLD phrase has no frames")
 	}
-	pipeline := &worldPhrasePipeline{ctx: ctx, engine: engine, cache: cache, input: input, report: map[int]provider.WorldSpeechResult{}}
+	pipeline := &worldPhrasePipeline{ctx: ctx, engine: engine, cache: cache, input: input, report: map[int]SpeechResult{}}
 	stages := []worldPhraseStage{
 		{"analysis", (*worldPhrasePipeline).analyze},
 		{"mix", (*worldPhrasePipeline).mix},
@@ -182,7 +180,7 @@ func (p *worldPhrasePipeline) output() []float32 {
 }
 
 // writeWorldProfileはUTAUTTS_WORLD_PROFILEがあれば段ごとの時間を追記する。
-func writeWorldProfile(input manifest, timings map[string]float64, total time.Duration) error {
+func writeWorldProfile(input phraseInput, timings map[string]float64, total time.Duration) error {
 	path := os.Getenv("UTAUTTS_WORLD_PROFILE")
 	if path == "" {
 		return nil
@@ -192,7 +190,7 @@ func writeWorldProfile(input manifest, timings map[string]float64, total time.Du
 		return fmt.Errorf("open WORLD profile: %w", err)
 	}
 	profile := map[string]any{
-		"engine": input.Engine, "frames": len(input.F0Curve), "units": len(input.Units),
+		"frames": len(input.F0Curve), "units": len(input.Units),
 		"total_ms": float64(total.Microseconds()) / 1000,
 		"stages":   timings,
 		// 旧キー。mix_msはjoins/warpを、synthesis_msはburstsを含む。
@@ -208,7 +206,7 @@ func writeWorldProfile(input manifest, timings map[string]float64, total time.Du
 	return closeErr
 }
 
-func prepareWorldUnits(ctx context.Context, engine worldEngine, input manifest, cache *worldFeatureCache, workers int) ([]preparedWorldUnit, error) {
+func prepareWorldUnits(ctx context.Context, engine worldEngine, input phraseInput, cache *worldFeatureCache, workers int) ([]preparedWorldUnit, error) {
 	prepared := make([]preparedWorldUnit, len(input.Units))
 	jobs := make([]worldAnalysisJob, 0, len(input.Units))
 	jobByKey := make(map[string]int, len(input.Units))
@@ -271,7 +269,7 @@ func prepareWorldUnits(ctx context.Context, engine worldEngine, input manifest, 
 	return prepared, nil
 }
 
-func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, workers int) worldFeatures {
+func mixWorldFeatures(input phraseInput, prepared []preparedWorldUnit, fftSize, workers int) worldFeatures {
 	frames := len(input.F0Curve)
 	bins := fftSize/2 + 1
 	result := worldFeatures{
@@ -368,7 +366,7 @@ func mixWorldFeatures(input manifest, prepared []preparedWorldUnit, fftSize, wor
 }
 
 // 重なりの加算順は元のunit順を保つ。
-func worldFrameUnits(input manifest) ([]int, []int) {
+func worldFrameUnits(input phraseInput) ([]int, []int) {
 	frames := len(input.F0Curve)
 	type interval struct{ start, end int }
 	ranges := make([]interval, len(input.Units))
@@ -403,7 +401,7 @@ func worldFrameUnits(input manifest) ([]int, []int) {
 }
 
 // WORLDのパワースペクトルへ波形版と同じ音量係数を適用する。
-func worldUnitAmplitudeGain(item unit) float64 {
+func worldUnitAmplitudeGain(item Unit) float64 {
 	volume := item.Volume
 	if (!item.VolumeSet && volume <= 0) || volume < 0 ||
 		math.IsNaN(volume) || math.IsInf(volume, 0) {
@@ -420,12 +418,12 @@ func worldUnitAmplitudeGain(item unit) float64 {
 }
 
 // 時間写像がある場合は、その中で補正済みのoffset端数を再加算しない。
-func mapWorldFeatureTime(item unit, entry cachedWorldUnit, localMS float64) float64 {
+func mapWorldFeatureTime(item Unit, entry cachedWorldUnit, localMS float64) float64 {
 	mapping, ok := worldSpeechAnchors(item, entry.duration)
 	return mapWorldFeatureTimePrepared(item, entry, localMS, mapping, ok)
 }
 
-func mapWorldFeatureTimePrepared(item unit, entry cachedWorldUnit, localMS float64, mapping worldSpeechMap, retimed bool) float64 {
+func mapWorldFeatureTimePrepared(item Unit, entry cachedWorldUnit, localMS float64, mapping worldSpeechMap, retimed bool) float64 {
 	sourceMS := mapWorldSourceTimePrepared(item, entry.duration, localMS, mapping, retimed)
 	if item.LegacyMix || entry.sourceShiftMS == 0 {
 		return sourceMS
@@ -466,11 +464,11 @@ func parallelWorldWork(tasks, workers int, work func(int)) {
 	group.Wait()
 }
 
-func analyzeWorldUnit(engine worldEngine, item unit, samples []float64, sampleRate int) (worldFeatures, float64, error) {
+func analyzeWorldUnit(engine worldEngine, item Unit, samples []float64, sampleRate int) (worldFeatures, float64, error) {
 	hopSize := int(math.Round(worldFramePeriodMS * float64(sampleRate) / 1000))
 	fullFrames := len(samples)/hopSize + 1
 	startFrame := max(0, int(item.OffsetMS/worldFramePeriodMS))
-	endMS := provider.SourceEndMS(float64(len(samples))*1000/float64(sampleRate), item.OffsetMS, item.CutoffMS)
+	endMS := SourceEndMS(float64(len(samples))*1000/float64(sampleRate), item.OffsetMS, item.CutoffMS)
 	endFrame := min(fullFrames, int(math.Ceil(endMS/worldFramePeriodMS)))
 	if endFrame <= startFrame || endFrame-startFrame < 2 {
 		return worldFeatures{}, 0, fmt.Errorf("usable source region is too short")
@@ -484,8 +482,8 @@ func analyzeWorldUnit(engine worldEngine, item unit, samples []float64, sampleRa
 	}
 
 	var inputF0 []float64
-	if item.FrqPath != "" {
-		if frq, err := readWorldFRQ(item.FrqPath); err == nil {
+	if item.FRQPath != "" {
+		if frq, err := readWorldFRQ(item.FRQPath); err == nil {
 			fullF0 := sampleWorldFRQ(frq, fullFrames, hopSize, 71)
 			inputF0 = append([]float64(nil), fullF0[trimStart:trimEnd]...)
 		}
@@ -544,7 +542,7 @@ func worldAutoGain(segment, source, f0 []float64) float64 {
 	return math.Pow(0.5/peak, 0.86)
 }
 
-func mapWorldSourceTimePrepared(item unit, sourceDuration, localMS float64, mapping worldSpeechMap, retimed bool) float64 {
+func mapWorldSourceTimePrepared(item Unit, sourceDuration, localMS float64, mapping worldSpeechMap, retimed bool) float64 {
 	destinationMS := math.Max(0, item.SkipMS+localMS)
 	if retimed {
 		return mapping.sourceTime(destinationMS)
@@ -560,7 +558,7 @@ func mapWorldSourceTimePrepared(item unit, sourceDuration, localMS float64, mapp
 	return min(sourceDuration, sourceConsonant+(destinationMS-destinationConsonant)*sourceVowel/destinationVowel)
 }
 
-func worldEnvelopeWeight(item unit, localMS float64) float64 {
+func worldEnvelopeWeight(item Unit, localMS float64) float64 {
 	if !item.LegacyMix && len(item.Envelope) >= 2 {
 		// envelopeは先頭点基準、localMSは出力位置からの相対時間。
 		x := localMS + item.Envelope[0].XMS

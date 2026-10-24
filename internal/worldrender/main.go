@@ -5,43 +5,41 @@ import (
 	"fmt"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
-	"github.com/yh2237/UtauTTS/internal/provider"
 )
 
-type manifest struct {
-	SpeechResults   *[]provider.WorldSpeechResult `json:"-"`
-	Engine          string                        `json:"engine"`
-	WorldEnginePath string                        `json:"world_engine_path"`
-	SampleRate      int                           `json:"sample_rate"`
-	F0Curve         []float64                     `json:"f0_curve"`
-	Units           []unit                        `json:"units"`
+type phraseInput struct {
+	SpeechResults   *[]SpeechResult `json:"-"`
+	WorldEnginePath string          `json:"world_engine_path"`
+	SampleRate      int             `json:"sample_rate"`
+	F0Curve         []float64       `json:"f0_curve"`
+	Units           []Unit          `json:"units"`
 	timingWarp      *timingWarp
 }
 
-type unit struct {
-	Speech            *provider.WorldSpeechTiming `json:"speech,omitempty"`
-	LegacyMix         bool                        `json:"legacy_mix,omitempty"`
-	GapRepair         bool                        `json:"gap_repair,omitempty"`
-	CacheKey          string                      `json:"cache_key"`
-	Source            string                      `json:"source"`
-	FrqPath           string                      `json:"frq_path"`
-	PositionMS        float64                     `json:"position_ms"`
-	SkipMS            float64                     `json:"skip_ms"`
-	LengthMS          float64                     `json:"length_ms"`
-	FadeInMS          float64                     `json:"fade_in_ms"`
-	FadeOutMS         float64                     `json:"fade_out_ms"`
-	OffsetMS          float64                     `json:"offset_ms"`
-	RequiredLengthMS  float64                     `json:"required_length_ms"`
-	ConsonantMS       float64                     `json:"consonant_ms"`
-	CutoffMS          float64                     `json:"cutoff_ms"`
-	ConsonantVelocity float64                     `json:"consonant_velocity"`
-	Volume            float64                     `json:"volume"`
-	VolumeSet         bool                        `json:"volume_set"`
-	EnergyFactor      float64                     `json:"energy_factor"`
-	Envelope          []envelopePoint             `json:"envelope"`
+type Unit struct {
+	Speech            *SpeechTiming   `json:"speech,omitempty"`
+	LegacyMix         bool            `json:"legacy_mix,omitempty"`
+	GapRepair         bool            `json:"gap_repair,omitempty"`
+	CacheKey          string          `json:"cache_key"`
+	Source            string          `json:"source"`
+	FRQPath           string          `json:"frq_path"`
+	PositionMS        float64         `json:"position_ms"`
+	SkipMS            float64         `json:"skip_ms"`
+	LengthMS          float64         `json:"length_ms"`
+	FadeInMS          float64         `json:"fade_in_ms"`
+	FadeOutMS         float64         `json:"fade_out_ms"`
+	OffsetMS          float64         `json:"offset_ms"`
+	RequiredLengthMS  float64         `json:"required_length_ms"`
+	ConsonantMS       float64         `json:"consonant_ms"`
+	CutoffMS          float64         `json:"cutoff_ms"`
+	ConsonantVelocity float64         `json:"consonant_velocity"`
+	Volume            float64         `json:"volume"`
+	VolumeSet         bool            `json:"volume_set"`
+	EnergyFactor      float64         `json:"energy_factor"`
+	Envelope          []EnvelopePoint `json:"envelope"`
 }
 
-type envelopePoint struct {
+type EnvelopePoint struct {
 	XMS float64 `json:"x_ms"`
 	Y   float64 `json:"y"`
 }
@@ -62,11 +60,11 @@ func NewRenderer() *Renderer {
 	return &Renderer{state: newRendererState()}
 }
 
-// Renderは、原音の配置とF0曲線からWORLDで音声を作る。enginePathはWORLDのライブラリ。
-func (renderer *Renderer) Render(ctx context.Context, options provider.WorldlineOptions, enginePath string) (*audio.PCM, []provider.WorldSpeechResult, error) {
-	input, err := manifestFromOptions(options, enginePath)
-	if err != nil {
-		return nil, nil, err
+// Renderは句をWORLDで描画する。enginePathはWORLDのライブラリ。
+func (renderer *Renderer) Render(ctx context.Context, phrase Phrase, enginePath string) (*audio.PCM, []SpeechResult, error) {
+	input := phraseInput{
+		WorldEnginePath: enginePath, SampleRate: phrase.SampleRate,
+		F0Curve: phrase.F0Curve, Units: phrase.Units, timingWarp: timingWarpFromJob(phrase.TimingWarp),
 	}
 	samples, results, err := renderManifest(ctx, input, renderer.state)
 	if err != nil {
@@ -80,37 +78,8 @@ type rendererState struct {
 	worldUnits   *worldFeatureCache
 }
 
-func manifestFromOptions(options provider.WorldlineOptions, enginePath string) (manifest, error) {
-	if options.Engine != "utautts-world-phrase" {
-		return manifest{}, fmt.Errorf("unsupported worldline engine %q", options.Engine)
-	}
-	input := manifest{
-		Engine: options.Engine, SampleRate: options.SampleRate,
-		F0Curve: append([]float64(nil), options.F0Curve...), Units: make([]unit, len(options.Units)),
-		WorldEnginePath: enginePath,
-	}
-	input.timingWarp = timingWarpFromJob(options.TimingWarp)
-	for index, source := range options.Units {
-		target := unit{
-			Speech: source.Speech, LegacyMix: source.LegacyMix, GapRepair: source.GapRepair,
-			CacheKey: source.CacheKey, Source: source.Source, FrqPath: source.FRQPath,
-			PositionMS: source.PositionMS, SkipMS: source.SkipMS, LengthMS: source.LengthMS,
-			FadeInMS: source.FadeInMS, FadeOutMS: source.FadeOutMS, OffsetMS: source.OffsetMS,
-			RequiredLengthMS: source.RequiredLengthMS, ConsonantMS: source.ConsonantMS,
-			CutoffMS: source.CutoffMS, ConsonantVelocity: source.ConsonantVelocity,
-			Volume: source.Volume, VolumeSet: source.VolumeSet, EnergyFactor: source.EnergyFactor,
-			Envelope: make([]envelopePoint, len(source.Envelope)),
-		}
-		for pointIndex, point := range source.Envelope {
-			target.Envelope[pointIndex] = envelopePoint{XMS: point.XMS, Y: point.Y}
-		}
-		input.Units[index] = target
-	}
-	return input, nil
-}
-
-func renderManifest(ctx context.Context, input manifest, state *rendererState) ([]float32, []provider.WorldSpeechResult, error) {
-	input.SpeechResults = new([]provider.WorldSpeechResult)
+func renderManifest(ctx context.Context, input phraseInput, state *rendererState) ([]float32, []SpeechResult, error) {
+	input.SpeechResults = new([]SpeechResult)
 	var err error
 	if len(input.Units) == 0 || len(input.F0Curve) < 2 {
 		return nil, nil, fmt.Errorf("manifest has no synthesis data")

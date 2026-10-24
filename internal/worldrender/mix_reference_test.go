@@ -5,11 +5,9 @@ import (
 	"math/rand/v2"
 	"reflect"
 	"testing"
-
-	"github.com/yh2237/UtauTTS/internal/provider"
 )
 
-func mixWorldFeaturesReference(input manifest, prepared []preparedWorldUnit, fftSize, workers int) worldFeatures {
+func mixWorldFeaturesReference(input phraseInput, prepared []preparedWorldUnit, fftSize, workers int) worldFeatures {
 	frames, bins := len(input.F0Curve), fftSize/2+1
 	result := worldFeatures{Frames: frames, FFTSize: fftSize, F0: append([]float64(nil), input.F0Curve...),
 		Spectrum: make([]float64, frames*bins), Aperiodicity: make([]float64, frames*bins)}
@@ -89,19 +87,19 @@ func mixWorldFeaturesReference(input manifest, prepared []preparedWorldUnit, fft
 
 func TestWorldPreparedMixMatchesReference(t *testing.T) {
 	rng := rand.New(rand.NewPCG(7, 42))
-	input := manifest{F0Curve: make([]float64, 600)}
+	input := phraseInput{F0Curve: make([]float64, 600)}
 	for frame := range input.F0Curve {
 		input.F0Curve[frame] = 200
 	}
 	for range 100 {
-		input.Units = append(input.Units, unit{PositionMS: rng.Float64()*6000 - 100, LengthMS: rng.Float64() * 200,
+		input.Units = append(input.Units, Unit{PositionMS: rng.Float64()*6000 - 100, LengthMS: rng.Float64() * 200,
 			RequiredLengthMS: 120, ConsonantVelocity: 86, ConsonantMS: 10, FadeInMS: 15, FadeOutMS: 20,
 			Volume: rng.Float64() * 140, VolumeSet: true, EnergyFactor: .7 + rng.Float64()*.6, LegacyMix: rng.IntN(2) == 0})
 	}
 	prepared := flatPreparedUnits(len(input.Units))
 	for i := range input.Units {
 		if i%3 == 0 {
-			input.Units[i].Speech = &provider.WorldSpeechTiming{Anchors: []provider.SpeechAnchor{
+			input.Units[i].Speech = &SpeechTiming{Anchors: []SpeechAnchor{
 				{SourceMS: 0, TargetMS: 0}, {SourceMS: 8, TargetMS: 10}, {SourceMS: 18, TargetMS: 120}}}
 		}
 		prepared[i].cached.sourceShiftMS = .5

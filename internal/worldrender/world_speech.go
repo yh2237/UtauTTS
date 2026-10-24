@@ -2,12 +2,10 @@ package worldrender
 
 import (
 	"math"
-
-	"github.com/yh2237/UtauTTS/internal/provider"
 )
 
 type worldSpeechMap struct {
-	anchors                                                                             []provider.SpeechAnchor
+	anchors                                                                             []SpeechAnchor
 	coda                                                                                bool
 	separateRelease                                                                     bool
 	sourceOnset, targetOnset, sourceFixed, targetFixed, sourceEnd, targetEnd, protected float64
@@ -27,14 +25,14 @@ func (a worldSpeechMap) targetTime(source float64) (float64, bool) {
 	return 0, false
 }
 
-func worldSpeechAnchors(item unit, duration float64) (worldSpeechMap, bool) {
+func worldSpeechAnchors(item Unit, duration float64) (worldSpeechMap, bool) {
 	if item.Speech == nil || item.Speech.PreserveStopOnly {
 		return worldSpeechMap{}, false
 	}
 	// 解析はoto.offsetちょうどではなく直前のWORLDフレームから始まる。
 	shift := math.Max(0, item.OffsetMS) - math.Floor(math.Max(0, item.OffsetMS)/worldFramePeriodMS)*worldFramePeriodMS
 	if len(item.Speech.Anchors) > 0 {
-		anchors := append([]provider.SpeechAnchor(nil), item.Speech.Anchors...)
+		anchors := append([]SpeechAnchor(nil), item.Speech.Anchors...)
 		if len(anchors) < 2 {
 			return worldSpeechMap{}, false
 		}
@@ -178,8 +176,8 @@ func (a worldSpeechMap) sourceTime(t float64) float64 {
 }
 
 // 短い有声の母音接続だけを平滑化する。キャッシュと目標F0は変えない。
-func applyWorldSpeechJoins(input manifest, features *worldFeatures) map[int]provider.WorldSpeechResult {
-	report := make(map[int]provider.WorldSpeechResult)
+func applyWorldSpeechJoins(input phraseInput, features *worldFeatures) map[int]SpeechResult {
+	report := make(map[int]SpeechResult)
 	lastEnd := -1
 	for index, item := range input.Units {
 		if item.Speech == nil || !item.Speech.VowelJoin || index == 0 {
@@ -213,7 +211,7 @@ func applyWorldSpeechJoins(input manifest, features *worldFeatures) map[int]prov
 		if blocked || !smoothWorldVowel(features, start, end) {
 			continue
 		}
-		report[item.Speech.UnitIndex] = provider.WorldSpeechResult{UnitIndex: item.Speech.UnitIndex, JoinApplied: true}
+		report[item.Speech.UnitIndex] = SpeechResult{UnitIndex: item.Speech.UnitIndex, JoinApplied: true}
 		lastEnd = end
 	}
 	return report

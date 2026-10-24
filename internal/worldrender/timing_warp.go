@@ -3,7 +3,6 @@ package worldrender
 import (
 	"fmt"
 
-	"github.com/yh2237/UtauTTS/internal/provider"
 	"github.com/yh2237/UtauTTS/internal/speechtiming"
 )
 
@@ -13,7 +12,7 @@ type timingWarp struct {
 	Timeline speechtiming.Timeline
 }
 
-func timingWarpFromJob(job *provider.TimingWarp) *timingWarp {
+func timingWarpFromJob(job *TimingWarp) *timingWarp {
 	if job == nil || job.Strength <= 0 {
 		return nil
 	}

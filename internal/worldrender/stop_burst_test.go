@@ -4,8 +4,6 @@ import (
 	"math"
 	"path/filepath"
 	"testing"
-
-	"github.com/yh2237/UtauTTS/internal/provider"
 )
 
 func TestHighPassKeepsStopTransient(t *testing.T) {
@@ -28,9 +26,9 @@ func TestExplicitAnchorBurstUsesMappedTimeAndExactSourceOffset(t *testing.T) {
 	if err := writePCM16(path, rate, samples); err != nil {
 		t.Fatal(err)
 	}
-	item := unit{Source: path, OffsetMS: 13, PositionMS: 50, LengthMS: 100, RequiredLengthMS: 100, Volume: 100, Speech: &provider.WorldSpeechTiming{UnitIndex: 0, ProtectStop: true, SourceTransientMS: 110, SourceTransientDurationMS: 8, Anchors: []provider.SpeechAnchor{{SourceMS: 50, TargetMS: 0}, {SourceMS: 106, TargetMS: 40}, {SourceMS: 124, TargetMS: 58}, {SourceMS: 180, TargetMS: 100}}}}
+	item := Unit{Source: path, OffsetMS: 13, PositionMS: 50, LengthMS: 100, RequiredLengthMS: 100, Volume: 100, Speech: &SpeechTiming{UnitIndex: 0, ProtectStop: true, SourceTransientMS: 110, SourceTransientDurationMS: 8, Anchors: []SpeechAnchor{{SourceMS: 50, TargetMS: 0}, {SourceMS: 106, TargetMS: 40}, {SourceMS: 124, TargetMS: 58}, {SourceMS: 180, TargetMS: 100}}}}
 	wave := make([]float64, len(samples))
-	result := mixProtectedStopBursts(manifest{Units: []unit{item}}, []preparedWorldUnit{{cached: cachedWorldUnit{duration: 240}}}, wave, rate)
+	result := mixProtectedStopBursts(phraseInput{Units: []Unit{item}}, []preparedWorldUnit{{cached: cachedWorldUnit{duration: 240}}}, wave, rate)
 	if result[0] <= 0 || wave[rate*94/1000] <= .1 {
 		t.Fatal("burst missing at mapped time", result, wave[rate*94/1000])
 	}
@@ -38,7 +36,7 @@ func TestExplicitAnchorBurstUsesMappedTimeAndExactSourceOffset(t *testing.T) {
 		t.Fatal("burst used raw source time as target")
 	}
 	item.Speech.SourceTransientMS = 200 // 明示した保持区間の外。
-	if got := mixProtectedStopBursts(manifest{Units: []unit{item}}, []preparedWorldUnit{{cached: cachedWorldUnit{duration: 240}}}, make([]float64, len(samples)), rate); len(got) != 0 {
+	if got := mixProtectedStopBursts(phraseInput{Units: []Unit{item}}, []preparedWorldUnit{{cached: cachedWorldUnit{duration: 240}}}, make([]float64, len(samples)), rate); len(got) != 0 {
 		t.Fatal("out-of-range peak restored", got)
 	}
 }
@@ -87,7 +85,7 @@ func TestStopTransientPostMSUsesMeasuredDuration(t *testing.T) {
 }
 
 func TestStopBurstOnsetsPreserveDetectedSourceOffset(t *testing.T) {
-	item := unit{OffsetMS: 3, PositionMS: 100, SkipMS: 5, Speech: &provider.WorldSpeechTiming{
+	item := Unit{OffsetMS: 3, PositionMS: 100, SkipMS: 5, Speech: &SpeechTiming{
 		SourceOnsetMS: 60, SourceTransientMS: 45, TargetOnsetMS: 50,
 	}}
 	source, target := stopBurstOnsets(item, 10, 63, 50)
@@ -111,12 +109,12 @@ func TestMixProtectedStopBurstsAlignsTimingVariants(t *testing.T) {
 				t.Fatal(err)
 			}
 			wave := make([]float64, len(samples))
-			item := unit{
+			item := Unit{
 				Source: path, OffsetMS: 3, RequiredLengthMS: 100, ConsonantMS: 60,
 				PositionMS: 0, SkipMS: 0, LengthMS: 100, Volume: 100,
-				Speech: &provider.WorldSpeechTiming{SourceOnsetMS: 50, TargetOnsetMS: 50, ProtectStop: true, PreserveStopOnly: preserveOnly},
+				Speech: &SpeechTiming{SourceOnsetMS: 50, TargetOnsetMS: 50, ProtectStop: true, PreserveStopOnly: preserveOnly},
 			}
-			input := manifest{SampleRate: rate, Units: []unit{item}}
+			input := phraseInput{SampleRate: rate, Units: []Unit{item}}
 			prepared := []preparedWorldUnit{{cached: cachedWorldUnit{duration: 100}}}
 			mixProtectedStopBursts(input, prepared, wave, rate)
 			if wave[rate*50/1000] == 0 {

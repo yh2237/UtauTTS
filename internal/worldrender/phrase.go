@@ -1,4 +1,4 @@
-package provider
+package worldrender
 
 // FramePeriodMSはF0曲線とWORLD解析のフレーム間隔。
 const FramePeriodMS = 10.0
@@ -11,41 +11,13 @@ func SourceEndMS(sourceDurationMS, offsetMS, cutoffMS float64) float64 {
 	return sourceDurationMS - cutoffMS
 }
 
-type WorldlineOptions struct {
-	Engine     string `json:"engine"`
-	SampleRate int    `json:"sample_rate"`
+// Phraseは1つの句をWORLDで描画するための入力。
+type Phrase struct {
+	SampleRate int
+	F0Curve    []float64
+	Units      []Unit
 	// TimingWarpは日本語の時間伸縮の入力。nilは無効。
-	TimingWarp *TimingWarp     `json:"timing_warp,omitempty"`
-	F0Curve    []float64       `json:"f0_curve"`
-	Units      []WorldlineUnit `json:"units"`
-}
-
-type WorldlineUnit struct {
-	Speech            *WorldSpeechTiming       `json:"speech,omitempty"`
-	LegacyMix         bool                     `json:"legacy_mix,omitempty"`
-	GapRepair         bool                     `json:"gap_repair,omitempty"`
-	CacheKey          string                   `json:"cache_key,omitempty"`
-	Source            string                   `json:"source"`
-	FRQPath           string                   `json:"frq_path,omitempty"`
-	PositionMS        float64                  `json:"position_ms"`
-	SkipMS            float64                  `json:"skip_ms"`
-	LengthMS          float64                  `json:"length_ms"`
-	FadeInMS          float64                  `json:"fade_in_ms"`
-	FadeOutMS         float64                  `json:"fade_out_ms"`
-	OffsetMS          float64                  `json:"offset_ms"`
-	RequiredLengthMS  float64                  `json:"required_length_ms"`
-	ConsonantMS       float64                  `json:"consonant_ms"`
-	CutoffMS          float64                  `json:"cutoff_ms"`
-	Tone              int                      `json:"tone"`
-	ConsonantVelocity float64                  `json:"consonant_velocity"`
-	PitchStartMS      float64                  `json:"pitch_start_ms,omitempty"`
-	PitchLengthMS     float64                  `json:"pitch_length_ms,omitempty"`
-	Volume            float64                  `json:"volume,omitempty"`
-	VolumeSet         bool                     `json:"volume_set,omitempty"`
-	Modulation        float64                  `json:"modulation,omitempty"`
-	Tempo             float64                  `json:"tempo,omitempty"`
-	EnergyFactor      float64                  `json:"energy_factor,omitempty"`
-	Envelope          []WorldlineEnvelopePoint `json:"envelope,omitempty"`
+	TimingWarp *TimingWarp
 }
 
 // SpeechAnchorは切り出し原音の時刻を出力内の時刻へ対応付ける。
@@ -54,8 +26,8 @@ type SpeechAnchor struct {
 	TargetMS float64 `json:"target_ms"`
 }
 
-// WorldSpeechTimingは切り出し後の音源を基準とする位置を示す。
-type WorldSpeechTiming struct {
+// SpeechTimingは切り出し後の音源を基準とする位置を示す。
+type SpeechTiming struct {
 	Anchors                   []SpeechAnchor `json:"anchors,omitempty"`
 	CodaRelease               bool           `json:"coda_release,omitempty"`
 	SeparateRelease           bool           `json:"separate_release,omitempty"`
@@ -74,7 +46,7 @@ type WorldSpeechTiming struct {
 	TransitionRightPhone      string         `json:"transition_right_phone,omitempty"`
 }
 
-type WorldSpeechResult struct {
+type SpeechResult struct {
 	UnitIndex         int     `json:"unit_index"`
 	RetimeApplied     bool    `json:"retime_applied"`
 	TargetFixedMS     float64 `json:"target_fixed_ms"`
@@ -82,11 +54,6 @@ type WorldSpeechResult struct {
 	TransitionApplied bool    `json:"transition_applied,omitempty"`
 	StopBurstApplied  bool    `json:"stop_burst_applied,omitempty"`
 	StopBurstGain     float64 `json:"stop_burst_gain,omitempty"`
-}
-
-type WorldlineEnvelopePoint struct {
-	XMS float64 `json:"x_ms"`
-	Y   float64 `json:"y"`
 }
 
 // TimingWarpは時間伸縮の入力。タイムラインは本体で計算し、bridgeは消費するだけ。
