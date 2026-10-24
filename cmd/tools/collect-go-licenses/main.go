@@ -80,6 +80,16 @@ func run() error {
 			return fmt.Errorf("go list -m %s: %w", module, err)
 		}
 		moduleDir, moduleVersion, found := strings.Cut(info, "|")
+		// そのOSのビルドで使わないモジュール（Linuxだけのpuregoなど）は、まだ取得されていないことがある。
+		if found && moduleDir == "" && moduleVersion != "" {
+			if _, err := commandOutput(*goCommand, *root, "mod", "download", module); err != nil {
+				return fmt.Errorf("go mod download %s: %w", module, err)
+			}
+			if info, err = commandOutput(*goCommand, *root, "list", "-m", "-f", "{{.Dir}}|{{.Version}}", module); err != nil {
+				return fmt.Errorf("go list -m %s: %w", module, err)
+			}
+			moduleDir, moduleVersion, found = strings.Cut(info, "|")
+		}
 		if !found || moduleDir == "" || moduleVersion == "" {
 			return fmt.Errorf("could not resolve Go module metadata: %s", info)
 		}
