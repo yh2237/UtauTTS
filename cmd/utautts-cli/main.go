@@ -351,7 +351,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		synthesisRequest.CVVCTiming = cvvcTiming
 		synthesisRequest.CVVCTransitionGain = cvvcTransitionGain
 	}
-	if err := ctx.Err(); err != nil {
+	if err := contextError(ctx); err != nil {
 		return cliFailure("synthesis_error", err)
 	}
 	resolvedSynthesis, err := resolver.ResolveSynthesis(synthesisRequest)
@@ -363,7 +363,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	if err != nil {
 		return cliFailure("synthesis_error", err)
 	}
-	if err := ctx.Err(); err != nil {
+	if err := contextError(ctx); err != nil {
 		return cliFailure("synthesis_error", err)
 	}
 	exportText := text
@@ -390,7 +390,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	if ustxOut != "" {
 		project := ustxProjectFromSynthesis(resolvedSynthesis.Config, output.Plan, filepath.Base(filepath.Clean(voicebankPath)))
 		curves := ustxFrameCurves(resolvedSynthesis.Config, 1)
-		if err := ctx.Err(); err != nil {
+		if err := contextError(ctx); err != nil {
 			return cliFailure("synthesis_error", err)
 		}
 		data, err := openutau.ExportUSTX(project, openutau.ExportOptions{
@@ -404,7 +404,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		}
 	}
 
-	if err := ctx.Err(); err != nil {
+	if err := contextError(ctx); err != nil {
 		return cliFailure("synthesis_error", err)
 	}
 	duration := output.DurationMS / 1000
@@ -516,4 +516,16 @@ func loadPitchFactors(path, caseID string) ([]float64, error) {
 		}
 	}
 	return nil, fmt.Errorf("pitch contour case %q not found in %s", caseID, path)
+}
+
+// contextErrorは、期限を過ぎていればctx.Errがまだnilでも期限切れを返す。
+// Windowsではタイマーの粒度のため、短い期限が過ぎてもしばらく取り消されない。
+func contextError(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
+		return context.DeadlineExceeded
+	}
+	return nil
 }
