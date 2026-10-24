@@ -46,8 +46,8 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 	names := make([]string, len(request.Items))
 	seenNames := make(map[string]struct{}, len(request.Items))
 	for index, item := range request.Items {
-		name := filepath.Base(item.Name)
-		if name == "." || name == "" || name == ".." {
+		name := batchFileName(item.Name)
+		if name == "" {
 			name = fmt.Sprintf("utterance-%d.wav", index+1)
 		}
 		if !strings.EqualFold(filepath.Ext(name), ".wav") {
@@ -169,4 +169,14 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 	if _, err := io.Copy(w, output); err != nil {
 		log.Printf("write batch response: %v", err)
 	}
+}
+
+// batchFileNameは、ZIPに入れる名前をフォルダを含まない1つのファイル名にする。
+// どのOSで展開しても区切りとみなされる「/」「\」と、Windowsのドライブ指定の「:」を受け付けない。
+func batchFileName(name string) string {
+	name = name[strings.LastIndexAny(name, "/\\")+1:]
+	if name == "." || name == ".." || strings.ContainsAny(name, ":\x00") {
+		return ""
+	}
+	return name
 }

@@ -3,6 +3,7 @@ package synth
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/settings"
@@ -113,7 +114,7 @@ func resolveRendererSettings(request Request, cfg *tts.Config, options *render.P
 	applyRendererSettingsMap(rendererSettingSpecs, request.RendererSettings, cfg, options)
 }
 
-// 既知IDは設定へ、未知IDは実装固有値へ渡す。型不一致は診断を残して無視する。
+// 既知IDは設定へ、未知IDは実装固有値へ渡す。型不一致と範囲外の値は診断を残して無視する。
 func applyRendererSettingsMap(specs []rendererSettingSpec, settings map[string]json.RawMessage, cfg *tts.Config, options *render.ProviderOptions) {
 	if len(settings) == 0 {
 		return
@@ -165,6 +166,12 @@ func rendererSettingNumber(id string, raw json.RawMessage, options *render.Provi
 	if err := json.Unmarshal(raw, &value); err != nil {
 		options.RendererDiagnostics = append(options.RendererDiagnostics,
 			fmt.Sprintf("renderer setting %q expects a number: %v", id, err))
+		return 0, false
+	}
+	if setting, known := settings.Lookup(id); known &&
+		(math.IsNaN(value) || setting.Min != nil && value < *setting.Min || setting.Max != nil && value > *setting.Max) {
+		options.RendererDiagnostics = append(options.RendererDiagnostics,
+			fmt.Sprintf("renderer setting %q is outside the supported range: %v", id, value))
 		return 0, false
 	}
 	return value, true

@@ -104,6 +104,21 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 	}
 }
 
+func TestApplyRendererSettingsOutOfRangeIsIgnored(t *testing.T) {
+	cfg := tts.Config{MoraDurationMS: 140, PauseDurationMS: 180}
+	options := render.ProviderOptions{}
+	applyRendererSettingsMap(rendererSettingSpecs, map[string]json.RawMessage{
+		"mora_duration_ms":  json.RawMessage(`100000000`),
+		"pause_duration_ms": json.RawMessage(`-1`),
+	}, &cfg, &options)
+	if cfg.MoraDurationMS != 140 || cfg.PauseDurationMS != 180 {
+		t.Fatalf("out-of-range values changed config: %#v", cfg)
+	}
+	if len(options.RendererDiagnostics) != 2 {
+		t.Fatalf("diagnostics = %v", options.RendererDiagnostics)
+	}
+}
+
 func TestApplyRendererSettingsTypeMismatchIsIgnored(t *testing.T) {
 	cfg := tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)}
 	options := render.ProviderOptions{}
