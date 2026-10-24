@@ -21,6 +21,7 @@ var engine struct {
 type nativeEngine interface {
 	load(dictionary string) error
 	run(text string) (string, error)
+	close()
 }
 
 func runFrontend(ctx context.Context, text string, cfg Config) (*Analysis, error) {
@@ -38,6 +39,10 @@ func runFrontend(ctx context.Context, text string, cfg Config) (*Analysis, error
 		return nil, err
 	}
 	if engine.library == nil || engine.path != path {
+		if engine.library != nil {
+			engine.library.close()
+			engine.library = nil
+		}
 		library, err := openNativeEngine(path)
 		if err != nil {
 			return nil, fmt.Errorf("load Open JTalk engine %q: %w", path, err)

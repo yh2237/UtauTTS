@@ -23,5 +23,5 @@ func renderJob(ctx context.Context, job []byte, outputPath string) ([]provider.W
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return worldRenderer.RenderJob(job, outputPath)
+	return worldRenderer.RenderJob(ctx, job, outputPath)
 }

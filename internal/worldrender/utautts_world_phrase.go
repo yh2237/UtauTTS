@@ -1,6 +1,7 @@
 package worldrender
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -47,6 +48,7 @@ type worldPhraseStage struct {
 
 // worldPhrasePipelineはWORLDフレーズ合成の段階処理。各段はこの構造体だけを読み書きする。
 type worldPhrasePipeline struct {
+	ctx        context.Context
 	engine     worldEngine
 	cache      *worldFeatureCache
 	input      manifest
@@ -58,11 +60,12 @@ type worldPhrasePipeline struct {
 	fftSize    int
 }
 
-func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFeatureCache) ([]float32, error) {
+// ctxは段の間と原音の解析ごとに確かめる。WORLDの合成の呼び出し自体は途中で止められない。
+func renderUtauTTSWorldPhrase(ctx context.Context, engine worldEngine, input manifest, cache *worldFeatureCache) ([]float32, error) {
 	if len(input.F0Curve) < 2 {
 		return nil, fmt.Errorf("WORLD phrase has no frames")
 	}
-	pipeline := &worldPhrasePipeline{engine: engine, cache: cache, input: input, report: map[int]provider.WorldSpeechResult{}}
+	pipeline := &worldPhrasePipeline{ctx: ctx, engine: engine, cache: cache, input: input, report: map[int]provider.WorldSpeechResult{}}
 	stages := []worldPhraseStage{
 		{"analysis", (*worldPhrasePipeline).analyze},
 		{"mix", (*worldPhrasePipeline).mix},
@@ -74,6 +77,9 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 	timings := make(map[string]float64, len(stages))
 	started := time.Now()
 	for _, stage := range stages {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		stageStart := time.Now()
 		if err := stage.run(pipeline); err != nil {
 			return nil, fmt.Errorf("WORLD %s: %w", stage.name, err)
@@ -88,7 +94,7 @@ func renderUtauTTSWorldPhrase(engine worldEngine, input manifest, cache *worldFe
 }
 
 func (p *worldPhrasePipeline) analyze() error {
-	prepared, err := prepareWorldUnits(p.engine, p.input, p.cache, worldCPUWorkers(len(p.input.Units)))
+	prepared, err := prepareWorldUnits(p.ctx, p.engine, p.input, p.cache, worldCPUWorkers(len(p.input.Units)))
 	if err != nil {
 		return err
 	}
@@ -202,7 +208,7 @@ func writeWorldProfile(input manifest, timings map[string]float64, total time.Du
 	return closeErr
 }
 
-func prepareWorldUnits(engine worldEngine, input manifest, cache *worldFeatureCache, workers int) ([]preparedWorldUnit, error) {
+func prepareWorldUnits(ctx context.Context, engine worldEngine, input manifest, cache *worldFeatureCache, workers int) ([]preparedWorldUnit, error) {
 	prepared := make([]preparedWorldUnit, len(input.Units))
 	jobs := make([]worldAnalysisJob, 0, len(input.Units))
 	jobByKey := make(map[string]int, len(input.Units))
@@ -226,6 +232,10 @@ func prepareWorldUnits(engine worldEngine, input manifest, cache *worldFeatureCa
 	results := make([]worldAnalysisResult, len(jobs))
 	parallelWorldWork(len(jobs), workers, func(jobIndex int) {
 		job := jobs[jobIndex]
+		if err := ctx.Err(); err != nil {
+			results[jobIndex] = worldAnalysisResult{err: err}
+			return
+		}
 		sampleRate, samples, err := readPCM16(job.item.Source)
 		if err != nil {
 			err = fmt.Errorf("read WORLD unit %q: %w", job.item.Source, err)

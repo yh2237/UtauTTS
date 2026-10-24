@@ -1,6 +1,8 @@
 package worldrender
 
 import (
+	"context"
+	"errors"
 	"math"
 	"path/filepath"
 	"testing"
@@ -59,7 +61,7 @@ func TestWorldPhrasePipelineRunsStagesInOrder(t *testing.T) {
 			Volume: 100, VolumeSet: true, Speech: &provider.WorldSpeechTiming{UnitIndex: 0},
 		}},
 	}
-	output, err := renderUtauTTSWorldPhrase(engine, input, newWorldFeatureCache(4))
+	output, err := renderUtauTTSWorldPhrase(context.Background(), engine, input, newWorldFeatureCache(4))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +77,24 @@ func TestWorldPhrasePipelineRunsStagesInOrder(t *testing.T) {
 }
 
 func TestWorldPhrasePipelineRejectsShortPhrase(t *testing.T) {
-	if _, err := renderUtauTTSWorldPhrase(&fakeWorldEngine{}, manifest{F0Curve: []float64{200}}, nil); err == nil {
+	if _, err := renderUtauTTSWorldPhrase(context.Background(), &fakeWorldEngine{}, manifest{F0Curve: []float64{200}}, nil); err == nil {
 		t.Fatal("short phrase was accepted")
+	}
+}
+
+func TestWorldPhrasePipelineStopsWhenCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	engine := &fakeWorldEngine{}
+	input := manifest{
+		Engine: "utautts-world-phrase", SampleRate: 16000,
+		F0Curve: []float64{200, 200},
+		Units:   []unit{{Source: filepath.Join(t.TempDir(), "missing.wav"), LengthMS: 20}},
+	}
+	if _, err := renderUtauTTSWorldPhrase(ctx, engine, input, nil); !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled", err)
+	}
+	if engine.analyzeCalls != 0 || engine.synthCalls != 0 {
+		t.Fatalf("canceled render still ran WORLD: analyze=%d synth=%d", engine.analyzeCalls, engine.synthCalls)
 	}
 }

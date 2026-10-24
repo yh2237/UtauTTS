@@ -131,4 +131,14 @@ int UtauTTSOpenJTalkRun(const char* text, char* output, int output_capacity) {
 
 const char* UtauTTSOpenJTalkError(void) { return g_error; }
 
+// ライブラリを解放する前に、辞書と解析の資源を返す。
+void UtauTTSOpenJTalkClose(void) {
+  if (g_initialized) {
+    Mecab_clear(&g_mecab);
+    NJD_clear(&g_njd);
+  }
+  g_initialized = false;
+  g_loaded = false;
+}
+
 }  // extern "C"

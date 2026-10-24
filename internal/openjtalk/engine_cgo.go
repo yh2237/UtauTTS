@@ -10,7 +10,8 @@ package openjtalk
 typedef int (*OpenJTalkInitFn)(const char*);
 typedef int (*OpenJTalkRunFn)(const char*, char*, int);
 typedef const char* (*OpenJTalkErrorFn)(void);
-typedef struct { void* handle; OpenJTalkInitFn initialize; OpenJTalkRunFn run; OpenJTalkErrorFn error; } OpenJTalkEngine;
+typedef void (*OpenJTalkCloseFn)(void);
+typedef struct { void* handle; OpenJTalkInitFn initialize; OpenJTalkRunFn run; OpenJTalkErrorFn error; OpenJTalkCloseFn release; } OpenJTalkEngine;
 
 static OpenJTalkEngine* openjtalk_open(const char* path, const char** message) {
   OpenJTalkEngine* engine = (OpenJTalkEngine*)calloc(1, sizeof(OpenJTalkEngine));
@@ -26,7 +27,13 @@ static OpenJTalkEngine* openjtalk_open(const char* path, const char** message) {
     free(engine);
     return NULL;
   }
+  engine->release = (OpenJTalkCloseFn)dlsym(engine->handle, "UtauTTSOpenJTalkClose");
   return engine;
+}
+static void openjtalk_close(OpenJTalkEngine* engine) {
+  if (engine->release) engine->release();
+  dlclose(engine->handle);
+  free(engine);
 }
 static int openjtalk_init(OpenJTalkEngine* engine, const char* dictionary) { return engine->initialize(dictionary); }
 static int openjtalk_run(OpenJTalkEngine* engine, const char* text, char* output, int capacity) { return engine->run(text, output, capacity); }
@@ -81,6 +88,11 @@ func (engine *cgoEngine) run(text string) (string, error) {
 		capacity = -written
 	}
 	return "", errors.New("Open JTalk output buffer is too small")
+}
+
+func (engine *cgoEngine) close() {
+	C.openjtalk_close(engine.pointer)
+	engine.pointer = nil
 }
 
 func (engine *cgoEngine) err() error {

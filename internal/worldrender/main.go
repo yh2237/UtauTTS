@@ -1,6 +1,7 @@
 package worldrender
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -62,12 +63,12 @@ func NewRenderer() *Renderer {
 	return &Renderer{state: newRendererState()}
 }
 
-func (renderer *Renderer) RenderJob(jobJSON []byte, outputPath string) ([]provider.WorldSpeechResult, error) {
+func (renderer *Renderer) RenderJob(ctx context.Context, jobJSON []byte, outputPath string) ([]provider.WorldSpeechResult, error) {
 	input, err := decodeProviderJob(jobJSON, outputPath)
 	if err != nil {
 		return nil, err
 	}
-	result, err := renderManifestValue(input, outputPath, renderer.state)
+	result, err := renderManifestValue(ctx, input, outputPath, renderer.state)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +123,7 @@ func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
 	return input, nil
 }
 
-func renderManifestValue(input manifest, outputPath string, state *rendererState) (manifest, error) {
+func renderManifestValue(ctx context.Context, input manifest, outputPath string, state *rendererState) (manifest, error) {
 	input.SpeechResults = new([]provider.WorldSpeechResult)
 	var err error
 	if outputPath != "" {
@@ -144,6 +145,11 @@ func renderManifestValue(input manifest, outputPath string, state *rendererState
 			return manifest{}, err
 		}
 		if state != nil {
+			// 別のパスのライブラリは使わなくなったので解放する。
+			for path, previous := range state.worldEngines {
+				_ = previous.Close()
+				delete(state.worldEngines, path)
+			}
 			state.worldEngines[input.WorldEnginePath] = engine
 		} else {
 			defer engine.Close()
@@ -153,7 +159,7 @@ func renderManifestValue(input manifest, outputPath string, state *rendererState
 	if state != nil {
 		cache = state.worldUnits
 	}
-	samples, renderErr := renderUtauTTSWorldPhrase(engine, input, cache)
+	samples, renderErr := renderUtauTTSWorldPhrase(ctx, engine, input, cache)
 	if renderErr != nil {
 		return manifest{}, renderErr
 	}

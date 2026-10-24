@@ -11,7 +11,9 @@ import (
 )
 
 type windowsEngine struct {
+	dll                            *syscall.DLL
 	initialize, analyze, lastError *syscall.Proc
+	release                        *syscall.Proc
 }
 
 func openNativeEngine(path string) (nativeEngine, error) {
@@ -19,7 +21,7 @@ func openNativeEngine(path string) (nativeEngine, error) {
 	if err != nil {
 		return nil, err
 	}
-	var engine windowsEngine
+	engine := windowsEngine{dll: dll}
 	for name, proc := range map[string]**syscall.Proc{
 		"UtauTTSOpenJTalkInit":  &engine.initialize,
 		"UtauTTSOpenJTalkRun":   &engine.analyze,
@@ -30,7 +32,16 @@ func openNativeEngine(path string) (nativeEngine, error) {
 			return nil, err
 		}
 	}
+	// 古いライブラリにはない。なければ辞書を返さずに解放する。
+	engine.release, _ = dll.FindProc("UtauTTSOpenJTalkClose")
 	return &engine, nil
+}
+
+func (engine *windowsEngine) close() {
+	if engine.release != nil {
+		engine.release.Call()
+	}
+	_ = engine.dll.Release()
 }
 
 func (engine *windowsEngine) load(dictionary string) error {
