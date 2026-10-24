@@ -17,6 +17,8 @@ type Result struct {
 	Lab        string
 	// Logsは合成の途中経過。索引の作成など、時間のかかる処理を伝える。
 	Logs []string
+	// SettingDiagnosticsは使わなかった設定。
+	SettingDiagnostics []render.RenderDiagnostic
 }
 
 func NewResult(result *tts.Result, method string) (*Result, error) {
@@ -31,9 +33,9 @@ func NewResult(result *tts.Result, method string) (*Result, error) {
 	return &Result{Result: result, Method: method, DurationMS: durationMS, Lab: lab}, nil
 }
 
-// Diagnosticsは描画の診断を返す。
+// Diagnosticsは設定と描画の診断を返す。
 func (r *Result) Diagnostics() []render.RenderDiagnostic {
-	diagnostics := make([]render.RenderDiagnostic, 0)
+	diagnostics := append(make([]render.RenderDiagnostic, 0), r.SettingDiagnostics...)
 	if r.RenderReport != nil {
 		diagnostics = append(diagnostics, r.RenderReport.Diagnostics...)
 	}

@@ -16,14 +16,14 @@ func TestLegacyStopPreserveOnlyForReliableJapanese(t *testing.T) {
 		Morae:      []frontend.Mora{{Consonant: "k", Vowel: "a"}},
 	}
 	unit := plan.Unit{Position: 0, Role: "mora", AliasKind: "VCV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}}
-	if !e2bLegacyStopPreserve(p, unit, true, base.WorldlineProviderOptions{}) {
+	if !e2bLegacyStopPreserve(p, unit, true, base.WorldOptions{}) {
 		t.Fatal("reliable stop should get a preserve-only burst in legacy Japanese mix")
 	}
-	if e2bLegacyStopPreserve(p, unit, false, base.WorldlineProviderOptions{}) {
+	if e2bLegacyStopPreserve(p, unit, false, base.WorldOptions{}) {
 		t.Fatal("preserve-only burst is limited to legacy mix")
 	}
 	unit.SpeechProfile.TransientConfidence = .6
-	if e2bLegacyStopPreserve(p, unit, true, base.WorldlineProviderOptions{}) {
+	if e2bLegacyStopPreserve(p, unit, true, base.WorldOptions{}) {
 		t.Fatal("unreliable transient must not be preserved")
 	}
 }
@@ -35,14 +35,14 @@ func TestWorldlineStopProtectionProtectsEnglishCodaPlosive(t *testing.T) {
 		Morae:      []frontend.Mora{{Consonant: "m", Vowel: "iy"}},
 	}
 	profile := &voicebank.SpeechProfile{ReleaseTransientMS: 12, ReleaseTransientConfidence: .27}
-	if !worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: profile}, base.WorldlineProviderOptions{}) {
+	if !worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: profile}, base.WorldOptions{}) {
 		t.Fatal("word-final plosive must be protected")
 	}
-	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"s"}, SpeechProfile: profile}, base.WorldlineProviderOptions{}) {
+	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"s"}, SpeechProfile: profile}, base.WorldOptions{}) {
 		t.Fatal("fricative coda must not be protected")
 	}
 	silent := &voicebank.SpeechProfile{}
-	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: silent}, base.WorldlineProviderOptions{}) {
+	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: silent}, base.WorldOptions{}) {
 		t.Fatal("unmeasured release must not be protected")
 	}
 }
@@ -88,15 +88,15 @@ func TestWorldlineStopProtectionMatrix(t *testing.T) {
 		name    string
 		plan    *plan.Plan
 		unit    plan.Unit
-		options base.WorldlineProviderOptions
+		options base.WorldOptions
 		want    bool
 	}{
-		{"Japanese VCV without measurement has no burst", ja, plan.Unit{Role: "mora", AliasKind: "VCV"}, base.WorldlineProviderOptions{}, false},
-		{"English VCV keeps plosive protection", en, plan.Unit{Role: "mora", AliasKind: "VCV", SpeechProfile: reliable}, base.WorldlineProviderOptions{}, true},
-		{"Japanese CV keeps protection", ja, plan.Unit{Role: "mora", AliasKind: "CV", SpeechProfile: reliable}, base.WorldlineProviderOptions{}, true},
-		{"uncertain transient is skipped", ja, plan.Unit{Role: "mora", AliasKind: "CV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .2}}, base.WorldlineProviderOptions{}, false},
-		{"reliable Japanese VCV is protected", ja, plan.Unit{Role: "mora", AliasKind: "VCV", SpeechProfile: reliable}, base.WorldlineProviderOptions{}, true},
-		{"low confidence Japanese VCV is gated", ja, plan.Unit{Role: "mora", AliasKind: "VCV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .6}}, base.WorldlineProviderOptions{}, false},
+		{"Japanese VCV without measurement has no burst", ja, plan.Unit{Role: "mora", AliasKind: "VCV"}, base.WorldOptions{}, false},
+		{"English VCV keeps plosive protection", en, plan.Unit{Role: "mora", AliasKind: "VCV", SpeechProfile: reliable}, base.WorldOptions{}, true},
+		{"Japanese CV keeps protection", ja, plan.Unit{Role: "mora", AliasKind: "CV", SpeechProfile: reliable}, base.WorldOptions{}, true},
+		{"uncertain transient is skipped", ja, plan.Unit{Role: "mora", AliasKind: "CV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .2}}, base.WorldOptions{}, false},
+		{"reliable Japanese VCV is protected", ja, plan.Unit{Role: "mora", AliasKind: "VCV", SpeechProfile: reliable}, base.WorldOptions{}, true},
+		{"low confidence Japanese VCV is gated", ja, plan.Unit{Role: "mora", AliasKind: "VCV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .6}}, base.WorldOptions{}, false},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {

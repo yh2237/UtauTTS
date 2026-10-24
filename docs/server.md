@@ -84,7 +84,7 @@ API処理のエラーは `{"error":"説明","code":"分類"}` と対応するHTT
 - `intonation_strength` (number): 抑揚の強さ（0〜8、既定値 `4.0`）。
 - `mora_duration_ms` (number): 基本モーラ長（既定値 `120`）。
 - `pause_duration_ms` (number): 句読点などの休止長（既定値 `180`）。
-- `renderer_settings` (object): `/api/settings` の設定をIDで指定する（例: `{"timing_warp": false}`）。
+- `settings` (object): `/api/settings` の設定をIDで指定する（例: `{"timing_warp": false}`）。使えない値は結果の`diagnostics`で返す。
 
 ### レスポンス
 - 成功すると、`200` と `Content-Type: audio/wav` でWAVを返します。

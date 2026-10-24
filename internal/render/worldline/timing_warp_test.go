@@ -42,7 +42,7 @@ func TestTimingWarpJobBuildsPhraseTimeline(t *testing.T) {
 	}
 	off := false
 	cfg := base.Config{}
-	cfg.ProviderOptions.Worldline.TimingWarp = &off
+	cfg.World.TimingWarp = &off
 	if timingWarpJob(synthesisPlan, cfg, 40) != nil {
 		t.Fatal("disabled timing warp produced a job")
 	}

@@ -7,7 +7,7 @@ info:
     ローカル専用。loopbackで待ち受け、認証トークンは使わない。
     Hostはlocalhostまたはloopback IPに限定する。別サイトからのPOSTなどの操作要求はGo標準のCrossOriginProtectionで拒否する。
     ローカルの非ブラウザ呼出しにはOriginやSec-Fetch-Siteは不要。これは同じ端末のアプリ間の認証ではない。
-    JSON本文は単一オブジェクト。未知の項目は400。ただしrenderer_settingsのキーは任意。
+    JSON本文は単一オブジェクト。未知の項目は400。ただしsettingsのキーは任意。
     本文・文字数・配列・一括合成・並列数には固定の上限がある。x-default-* はその目安で、固定のスキーマ制約ではない。
     入力のdefaultはJSONデコード時の値。空・ゼロから決まる合成時の既定値は各項目の説明を参照。
     JSONスキーマだけでは音源・資源・モーラ位置などの合成時検証を表現しきれない。
@@ -88,7 +88,7 @@ paths:
     get:
       operationId: listSettings
       summary: 合成設定の一覧
-      description: renderer_settingsで指定できる設定の既定値と範囲。methodsは設定が効く方式で、空なら全方式。
+      description: settingsで指定できる設定の既定値と範囲。methodsは設定が効く方式で、空なら全方式。
       responses:
         '200':
           description: 設定の一覧
@@ -242,7 +242,7 @@ components:
       additionalProperties: false
       description: |
         textか有効な読みが必須。readingが空でなければkanaより優先し、読みがあればtextより優先する。
-        通常設定は直下、方式固有値はrenderer_settings。共通設定をmapに置く従来の互換指定も受け取り、map側を優先する。
+        設定は直下の項目かsettingsで指定する。同じ設定が両方にあればsettingsを優先する。
         nullのスカラーはデコード済みの既定値を変えない。nullの配列・任意オブジェクトは未指定扱い。
       required: [method, language, voicebank_id]
       anyOf:
@@ -276,11 +276,11 @@ components:
         boundary_tone: {type: boolean, nullable: true, default: true}
         stretch_adapt: {type: boolean, nullable: true, default: true}
         pause_context: {type: boolean, nullable: true, default: true}
-        renderer_settings:
+        settings:
           type: object
           nullable: true
           additionalProperties: true
-          description: 設定のmap。IDは /api/settings のもの。型が合わない値は診断を残して無視し、未知のIDもそのまま合成へ渡す。
+          description: 設定のmap。IDは /api/settings のもの。未知のID、型の合わない値、範囲外の値は使わず、結果のdiagnosticsで返す。
         mora_durations_ms:
           type: array
           nullable: true
@@ -302,8 +302,6 @@ components:
         boundary_tone_strength: {type: number, nullable: true, default: 1, description: 互換入力。ゼロは合成時の既定値1。}
         stretch_adapt_strength: {type: number, nullable: true, default: 1, description: 互換入力。ゼロは合成時の既定値1。}
         pause_context_strength: {type: number, nullable: true, default: 1, description: 互換入力。ゼロは合成時の既定値1。}
-        worldline:
-          $ref: '#/components/schemas/Worldline'
     DictionaryEntry:
       type: object
       additionalProperties: false
@@ -359,15 +357,6 @@ components:
         pitch_factor: {type: number, nullable: true, minimum: 0, exclusiveMinimum: true}
         energy_factor: {type: number, nullable: true, minimum: 0, exclusiveMinimum: true}
         resampler_volume: {type: integer, nullable: true, minimum: 0, maximum: 200}
-    Worldline:
-      type: object
-      nullable: true
-      additionalProperties: false
-      properties:
-        source_phone_mapping: {type: boolean, nullable: true, description: 未指定時は有効}
-        timing_warp: {type: boolean, nullable: true, description: 未指定時は有効}
-        microprosody: {type: boolean, nullable: true, description: 未指定時は有効}
-        ExactLength: {type: boolean, nullable: true, default: false, deprecated: true, description: 既存のホスト制御フィールド。通常は指定しない。}
     BatchRequest:
       type: object
       additionalProperties: false

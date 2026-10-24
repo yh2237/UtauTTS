@@ -111,7 +111,7 @@ type Request struct {
 	Method     string
 	Dictionary []DictionaryEntry
 	Options    Options
-	// 共通設定はOptionsで指定し、ここには方式固有のJSONだけを渡す。
+	// SettingsはOptionsにない設定をIDで指定する。IDはHTTPの/api/settingsと同じ。
 	Settings map[string]json.RawMessage
 }
 

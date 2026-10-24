@@ -32,7 +32,7 @@ type JSONRequest struct {
 	BoundaryTone       bool                       `json:"boundary_tone"`
 	StretchAdapt       bool                       `json:"stretch_adapt"`
 	PauseContext       bool                       `json:"pause_context"`
-	RendererSettings   map[string]json.RawMessage `json:"renderer_settings,omitempty"`
+	Settings           map[string]json.RawMessage `json:"settings,omitempty"`
 	editingRequest
 	compatibilityRequest
 }
@@ -46,17 +46,16 @@ type editingRequest struct {
 
 // 互換用の入力。settingsにも同じIDがあればそちらを優先する。
 type compatibilityRequest struct {
-	Kana                    string                          `json:"kana"`
-	ModelPath               string                          `json:"model_path"`
-	AliasPolicy             voicebank.AliasPolicy           `json:"alias_policy"`
-	LeadingPreutteranceMS   float64                         `json:"leading_preutterance_ms"`
-	ReleaseMS               float64                         `json:"release_ms"`
-	ReleaseSet              bool                            `json:"release_set"`
-	ContextDurationStrength float64                         `json:"context_duration_strength"`
-	BoundaryToneStrength    float64                         `json:"boundary_tone_strength"`
-	StretchAdaptStrength    float64                         `json:"stretch_adapt_strength"`
-	PauseContextStrength    float64                         `json:"pause_context_strength"`
-	Worldline               render.WorldlineProviderOptions `json:"worldline,omitempty"`
+	Kana                    string                `json:"kana"`
+	ModelPath               string                `json:"model_path"`
+	AliasPolicy             voicebank.AliasPolicy `json:"alias_policy"`
+	LeadingPreutteranceMS   float64               `json:"leading_preutterance_ms"`
+	ReleaseMS               float64               `json:"release_ms"`
+	ReleaseSet              bool                  `json:"release_set"`
+	ContextDurationStrength float64               `json:"context_duration_strength"`
+	BoundaryToneStrength    float64               `json:"boundary_tone_strength"`
+	StretchAdaptStrength    float64               `json:"stretch_adapt_strength"`
+	PauseContextStrength    float64               `json:"pause_context_strength"`
 }
 
 type jsonRequestAlias JSONRequest
@@ -109,7 +108,7 @@ func (request JSONRequest) publicRequest() utautts.Request {
 		VoicebankID: request.VoicebankID, ModelID: request.ModelID,
 		Tone: request.Tone, Color: request.Color, Dictionary: request.Dictionary,
 		Method:   request.Method,
-		Settings: request.RendererSettings,
+		Settings: request.Settings,
 		Options: utautts.Options{
 			MoraDurationMS: &request.MoraDurationMS, PauseDurationMS: &request.PauseDurationMS,
 			IntonationStrength: &request.IntonationStrength, ApplyPitch: &request.ApplyPitch,
@@ -131,6 +130,5 @@ func (request JSONRequest) InternalRequest() synth.Request {
 	input.BoundaryToneStrength = request.BoundaryToneStrength
 	input.StretchAdaptStrength = request.StretchAdaptStrength
 	input.PauseContextStrength = request.PauseContextStrength
-	input.Worldline = request.Worldline
 	return input
 }

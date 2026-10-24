@@ -47,7 +47,7 @@ func (r Request) internal() (synth.Request, error) {
 			return synth.Request{}, err
 		}
 	}
-	input.RendererSettings = make(map[string]json.RawMessage, len(r.Settings))
+	input.Settings = make(map[string]json.RawMessage, len(r.Settings))
 	for id, raw := range r.Settings {
 		switch id {
 		case "mora_duration_ms", "pause_duration_ms", "intonation_strength", "release_ms", "apply_pitch",
@@ -55,32 +55,33 @@ func (r Request) internal() (synth.Request, error) {
 			return synth.Request{}, fmt.Errorf("%w: %s belongs in Options", ErrInvalidRequest, id)
 		}
 		if !json.Valid(raw) || strings.TrimSpace(string(raw)) == "null" {
-			return synth.Request{}, fmt.Errorf("%w: renderer setting %q must contain a non-null JSON value", ErrInvalidRequest, id)
+			return synth.Request{}, fmt.Errorf("%w: setting %q must contain a non-null JSON value", ErrInvalidRequest, id)
 		}
-		// 未知の設定は、そのまま合成へ渡す。
-		if setting, known := settings.Lookup(id); known {
-			switch setting.Type {
-			case "number", "integer":
-				var value float64
-				if err := json.Unmarshal(raw, &value); err != nil || (setting.Type == "integer" && value != math.Trunc(value)) {
-					return synth.Request{}, fmt.Errorf("%w: renderer setting %q expects %s", ErrInvalidRequest, id, setting.Type)
-				}
-				if err := validateNumber(id, value, setting.Min, setting.Max); err != nil {
-					return synth.Request{}, err
-				}
-			case "boolean":
-				var value bool
-				if err := json.Unmarshal(raw, &value); err != nil {
-					return synth.Request{}, fmt.Errorf("%w: renderer setting %q expects boolean", ErrInvalidRequest, id)
-				}
-			case "string", "enum":
-				var value string
-				if err := json.Unmarshal(raw, &value); err != nil {
-					return synth.Request{}, fmt.Errorf("%w: renderer setting %q expects string", ErrInvalidRequest, id)
-				}
+		setting, known := settings.Lookup(id)
+		if !known {
+			return synth.Request{}, fmt.Errorf("%w: unknown setting %q", ErrInvalidRequest, id)
+		}
+		switch setting.Type {
+		case "number", "integer":
+			var value float64
+			if err := json.Unmarshal(raw, &value); err != nil || (setting.Type == "integer" && value != math.Trunc(value)) {
+				return synth.Request{}, fmt.Errorf("%w: setting %q expects %s", ErrInvalidRequest, id, setting.Type)
+			}
+			if err := validateNumber(id, value, setting.Min, setting.Max); err != nil {
+				return synth.Request{}, err
+			}
+		case "boolean":
+			var value bool
+			if err := json.Unmarshal(raw, &value); err != nil {
+				return synth.Request{}, fmt.Errorf("%w: setting %q expects boolean", ErrInvalidRequest, id)
+			}
+		case "string", "enum":
+			var value string
+			if err := json.Unmarshal(raw, &value); err != nil {
+				return synth.Request{}, fmt.Errorf("%w: setting %q expects string", ErrInvalidRequest, id)
 			}
 		}
-		input.RendererSettings[id] = append(json.RawMessage(nil), raw...)
+		input.Settings[id] = append(json.RawMessage(nil), raw...)
 	}
 	return input, nil
 }

@@ -247,7 +247,7 @@ func prepareWorldlinePitch(synthesisPlan *plan.Plan, cfg base.Config, cache *bas
 	for frame := range f0Curve {
 		f0Curve[frame] *= base.PitchCurveFactorAt(cfg.PitchCurve, curveStartMS+float64(frame)*frameMS)
 	}
-	if cfg.ApplyPitch && cfg.ProviderOptions.Worldline.MicroprosodyEnabled() && microprosodyAppliesTo(synthesisPlan.Language) {
+	if cfg.ApplyPitch && cfg.World.MicroprosodyEnabled() && microprosodyAppliesTo(synthesisPlan.Language) {
 		applyMicroprosody(synthesisPlan, f0Curve, curveStartMS, frameMS)
 	}
 	if cfg.TargetF0 != nil {
@@ -340,9 +340,6 @@ func (b worldlineUnitBuilder) build(i int) (worldrender.Unit, error) {
 	}
 	requiredLength := math.Max(math.Max(unit.DurationMS+durCorrection, envelopePoints[4].XMS+phoneTiming.Preutter)+skipMS, consonantLength)
 	requiredLength = math.Ceil(requiredLength/50+0.5) * 50
-	if cfg.ProviderOptions.Worldline.ExactLength {
-		requiredLength = unit.DurationMS
-	}
 	lengthMS := timing.PreutteranceMS + unit.DurationMS + cfg.ReleaseMS
 	consonantVelocity := 100.0
 	if positionMS < 0 {
@@ -367,7 +364,7 @@ func (b worldlineUnitBuilder) build(i int) (worldrender.Unit, error) {
 	codaRelease := worldCodaReleaseEligible(synthesisPlan, *unit)
 	if codaRelease {
 		envelopePoints, fadeOutMS = codaReleaseEnvelope(*unit, envelopePoints, fadeOutMS)
-		if closure, release, ok := worldCodaReleaseSplit(synthesisPlan, *unit, cfg.ProviderOptions.Worldline); ok {
+		if closure, release, ok := worldCodaReleaseSplit(synthesisPlan, *unit, cfg.World); ok {
 			unit.CodaClosureMS = closure
 			unit.CodaReleaseMS = release
 			unit.CodaReleaseSeparated = true
@@ -419,7 +416,7 @@ type worldlineSpeechStrategy struct {
 
 // resolveWorldlineSpeechStrategyはユニットの種類から方針を一度だけ決める。
 func (b worldlineUnitBuilder) resolveWorldlineSpeechStrategy(i int, codaRelease, singleCVUnit, vcvUnit bool) worldlineSpeechStrategy {
-	synthesisPlan, options := b.plan, b.cfg.ProviderOptions.Worldline
+	synthesisPlan, options := b.plan, b.cfg.World
 	unit := &synthesisPlan.Units[i]
 	strategy := worldlineSpeechStrategy{
 		codaRelease:    codaRelease,
@@ -569,7 +566,7 @@ func worldlineGapRepairEligible(synthesisPlan *plan.Plan, unitIndex int) bool {
 		previousMora.Vowel != "" && previousMora.Vowel == currentMora.Vowel
 }
 
-func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options base.WorldlineProviderOptions) bool {
+func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options base.WorldOptions) bool {
 	if synthesisPlan == nil {
 		return false
 	}
@@ -599,7 +596,7 @@ func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options b
 	return true
 }
 
-func e2bStopGeneralization(synthesisPlan *plan.Plan, unit plan.Unit, options base.WorldlineProviderOptions) bool {
+func e2bStopGeneralization(synthesisPlan *plan.Plan, unit plan.Unit, options base.WorldOptions) bool {
 	if synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
 		return false
 	}
@@ -607,7 +604,7 @@ func e2bStopGeneralization(synthesisPlan *plan.Plan, unit plan.Unit, options bas
 }
 
 // 低加工の連続音でも、信頼度の高い破裂音だけは補う。
-func e2bLegacyStopPreserve(synthesisPlan *plan.Plan, unit plan.Unit, legacyMix bool, options base.WorldlineProviderOptions) bool {
+func e2bLegacyStopPreserve(synthesisPlan *plan.Plan, unit plan.Unit, legacyMix bool, options base.WorldOptions) bool {
 	if !legacyMix || !e2bStopGeneralization(synthesisPlan, unit, options) {
 		return false
 	}
@@ -629,7 +626,7 @@ func worldEnvelope(points []base.WorldlineEnvelopePoint) []worldrender.EnvelopeP
 
 // CVVCの子音長にはVCを含める。タイムラインは本体で計算する。
 func timingWarpJob(synthesisPlan *plan.Plan, cfg base.Config, frames int) *worldrender.TimingWarp {
-	if synthesisPlan == nil || !cfg.ProviderOptions.Worldline.TimingWarpEnabled() {
+	if synthesisPlan == nil || !cfg.World.TimingWarpEnabled() {
 		return nil
 	}
 	japanese := isJapanesePlan(synthesisPlan)

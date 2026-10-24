@@ -20,7 +20,7 @@ func TestCLIJSONRequestMatchesFlags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := `{"kana":"あ","method":"waveform-synthesis","language":"ja","model_id":"none","apply_pitch":false,"mora_duration_ms":80,"renderer_settings":{"mora_duration_ms":160}}`
+	request := `{"kana":"あ","method":"waveform-synthesis","language":"ja","model_id":"none","apply_pitch":false,"mora_duration_ms":80,"settings":{"mora_duration_ms":160}}`
 	path := filepath.Join(root, "request.json")
 	if err := os.WriteFile(path, []byte(request), 0600); err != nil {
 		t.Fatal(err)

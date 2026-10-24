@@ -42,7 +42,7 @@ function run(ctx) {
     if (error.length)
         return error;
     const contextRequest = host.buildSynthesisRequest(host.current());
-    const contextSettings = contextRequest.renderer_settings || {};
+    const contextSettings = contextRequest.settings || {};
     error = check(contextSettings.context_duration === undefined
                   && contextSettings.context_duration_strength === undefined,
                   "context duration was injected into the normal request");
@@ -80,7 +80,7 @@ function run(ctx) {
     host.removeUtterance();
     host.appBackend.setSynthesisSetting("mora_duration_ms", originalDefaultMoraDuration);
     error = check(
-        (host.buildSynthesisRequest(host.current()).renderer_settings || {}).mora_duration_ms
+        (host.buildSynthesisRequest(host.current()).settings || {}).mora_duration_ms
             === undefined,
         "per-card mora duration was injected as a synthesis setting override");
     if (error.length)

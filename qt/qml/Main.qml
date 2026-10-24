@@ -749,7 +749,7 @@ ApplicationWindow {
                 delete settings[keys[index]];
         }
         if (Object.keys(settings).length)
-            request.renderer_settings = settings;
+            request.settings = settings;
         return request;
     }
 

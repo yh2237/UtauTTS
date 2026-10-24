@@ -77,7 +77,7 @@ type Request struct {
 	Method      string                `json:"method"`
 	AliasPolicy voicebank.AliasPolicy `json:"alias_policy"`
 	Dictionary  []DictionaryEntry     `json:"dictionary"`
-	// 互換用の固定フィールド。同じIDがrenderer_settingsにあればそちらを優先する。
+	// 互換用の固定フィールド。同じIDがsettingsにあればそちらを優先する。
 	MoraDurationMS        float64                  `json:"mora_duration_ms"`
 	PauseDurationMS       float64                  `json:"pause_duration_ms"`
 	LeadingPreutteranceMS float64                  `json:"leading_preutterance_ms"`
@@ -105,10 +105,10 @@ type Request struct {
 	CVVCTiming              string                 `json:"-"`
 	CVVCTransitionGain      float64                `json:"-"`
 	CVVCPreBoundaryFade     bool                   `json:"-"`
-	// 空文字とnilは既定値を使う。
-	Worldline render.WorldlineProviderOptions `json:"worldline,omitempty"`
-	// 未知の設定IDもエラーにせず、実装固有値として渡す。
-	RendererSettings map[string]json.RawMessage `json:"renderer_settings,omitempty"`
+	// WorldはCLIのフラグから指定する。JSONではsettingsのtiming_warpとmicroprosodyを使う。
+	World render.WorldOptions `json:"-"`
+	// Settingsは/api/settingsの設定をIDで指定する。使えない値は結果の診断で返す。
+	Settings map[string]json.RawMessage `json:"settings,omitempty"`
 }
 
 func (request Request) Normalized() Request {
@@ -120,8 +120,9 @@ func (request Request) Normalized() Request {
 
 // ResolvedRequestは合成へ渡す解決済み入力。CLIはUSTX出力にConfigを、GUI/HTTPは通常Synthesizeを使う。
 type ResolvedRequest struct {
-	Config          tts.Config
-	ProviderOptions render.ProviderOptions
+	Config tts.Config
+	// Diagnosticsは使わなかった設定。合成結果の診断に加える。
+	Diagnostics []render.RenderDiagnostic
 }
 
 type DictionaryEntry struct {
@@ -180,19 +181,24 @@ func (s *Service) SynthesizeContext(ctx context.Context, request Request) (*Resu
 }
 
 func (s *Service) ResolveSynthesis(request Request) (ResolvedRequest, error) {
-	cfg, providerOptions, err := s.config(request, true)
+	cfg, diagnostics, err := s.config(request, true)
 	if err != nil {
 		return ResolvedRequest{}, err
 	}
 	cfg.Context = s.bind(nil)
-	return ResolvedRequest{Config: cfg, ProviderOptions: providerOptions}, nil
+	return ResolvedRequest{Config: cfg, Diagnostics: diagnostics}, nil
 }
 
 func SynthesizeResolved(resolved ResolvedRequest) (*Result, error) {
-	return SynthesizeConfigWithOptions(resolved.Config, resolved.ProviderOptions)
+	result, err := SynthesizeConfig(resolved.Config)
+	if err != nil {
+		return nil, err
+	}
+	result.SettingDiagnostics = resolved.Diagnostics
+	return result, nil
 }
 
-func SynthesizeConfigWithOptions(cfg tts.Config, providerOptions render.ProviderOptions) (*Result, error) {
+func SynthesizeConfig(cfg tts.Config) (*Result, error) {
 	var logs []string
 	if cfg.Logf != nil {
 		// 呼出し側が受け取りたい場合はそちらへも流す。
@@ -212,7 +218,7 @@ func SynthesizeConfigWithOptions(cfg tts.Config, providerOptions render.Provider
 		defer release()
 		cfg.Context = ctx
 	}
-	result, err := tts.SynthesizeWithOptions(cfg, providerOptions)
+	result, err := tts.Synthesize(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -297,23 +303,23 @@ func (s *Service) begin(ctx context.Context) (context.Context, func(), error) {
 	return ctx, func() {}, ctx.Err()
 }
 
-func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, render.ProviderOptions, error) {
+func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, []render.RenderDiagnostic, error) {
 	request = request.Normalized()
 	if err := tts.ValidateMethod(request.Method); err != nil {
-		return tts.Config{}, render.ProviderOptions{}, err
+		return tts.Config{}, nil, err
 	}
 	if strings.TrimSpace(request.Language) == "" {
-		return tts.Config{}, render.ProviderOptions{}, fmt.Errorf("language is required: ja, en, zh, es, or pt")
+		return tts.Config{}, nil, fmt.Errorf("language is required: ja, en, zh, es, or pt")
 	}
 	if requireVoicebank && request.VoicebankID == "" && request.VoicebankPath == "" {
-		return tts.Config{}, render.ProviderOptions{}, fmt.Errorf("voicebank_id is required")
+		return tts.Config{}, nil, fmt.Errorf("voicebank_id is required")
 	}
 	modelPath := strings.TrimSpace(request.ModelPath)
 	if modelPath == "" {
 		var err error
 		modelPath, err = s.ResolveModel(request.ModelID)
 		if err != nil {
-			return tts.Config{}, render.ProviderOptions{}, err
+			return tts.Config{}, nil, err
 		}
 	}
 	reading := request.Reading
@@ -345,10 +351,9 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, re
 		CVVCTransitionGain:      request.CVVCTransitionGain,
 		CVVCPreBoundaryFade:     request.CVVCPreBoundaryFade,
 	}
-	providerOptions := render.ProviderOptions{}
-	// 型付き設定を先に入れ、renderer_settingsで上書きする。
-	providerOptions.Worldline = request.Worldline
-	resolveRendererSettings(request, &cfg, &providerOptions)
+	// 型付き設定を先に入れ、settingsで上書きする。
+	cfg.World = request.World
+	diagnostics := resolveSettings(request, &cfg)
 	voicebankPath := request.VoicebankPath
 	if voicebankPath == "" && s.voicebanks != nil && (requireVoicebank || request.VoicebankID != "") {
 		if path, ok := s.voicebanks.Resolve(request.VoicebankID); ok {
@@ -358,9 +363,9 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, re
 	if requireVoicebank {
 		if voicebankPath == "" {
 			if s.voicebanks == nil {
-				return tts.Config{}, render.ProviderOptions{}, fmt.Errorf("%w: voicebank resolver is not configured", ErrUnavailable)
+				return tts.Config{}, nil, fmt.Errorf("%w: voicebank resolver is not configured", ErrUnavailable)
 			}
-			return tts.Config{}, render.ProviderOptions{}, fmt.Errorf("%w: voicebank not found", ErrUnavailable)
+			return tts.Config{}, nil, fmt.Errorf("%w: voicebank not found", ErrUnavailable)
 		}
 	}
 	cfg.VoicebankPath = voicebankPath
@@ -368,7 +373,7 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, re
 	cfg.ReferenceDir = s.referenceDir()
 	// 見つからなければ空のまま渡し、WORLDを使うときに知らせる。
 	cfg.WorldEnginePath, _ = worldrender.ResolveEnginePath()
-	return cfg, providerOptions, nil
+	return cfg, diagnostics, nil
 }
 
 // PrepareReferenceIndexは音源の参照照合の索引がなければ裏で作り始める。モデルかWORLDエンジンがなければ何もしない。

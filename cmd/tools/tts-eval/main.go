@@ -74,7 +74,7 @@ func run() (runErr error) {
 	stretchAdaptStrength := flag.Float64("stretch-adapt-strength", 1.0, "stretch adaptation strength (0 uses the default 1.0)")
 	pauseContext := flag.Bool("pause-context", true, "context-aware punctuation pause length (B5)")
 	pauseContextStrength := flag.Float64("pause-context-strength", 1.0, "pause context strength (0 uses the default 1.0)")
-	timingWarp := flag.Bool("timing-warp", render.WorldlineProviderOptions{}.TimingWarpEnabled(), "warp Japanese WORLD output timing toward learned speech movement")
+	timingWarp := flag.Bool("timing-warp", render.WorldOptions{}.TimingWarpEnabled(), "warp Japanese WORLD output timing toward learned speech movement")
 	aliasPolicy := flag.String("alias-policy", "auto", "voicebank mode: auto or cv-only")
 	bank := flag.String("voicebank", "", "voicebank directory (required)")
 	diagnose := flag.Bool("diagnose", false, "write frontend and candidate diagnostics without rendering")

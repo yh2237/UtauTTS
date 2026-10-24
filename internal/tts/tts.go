@@ -80,7 +80,7 @@ type Config struct {
 	CVVCPreBoundaryFade     bool
 	PitchCurve              *render.PitchCurve
 	AliasPolicy             voicebank.AliasPolicy
-	ProviderOptions         render.ProviderOptions
+	World                   render.WorldOptions
 	// WorldEnginePathとReferenceDirは参照照合に使うWORLDエンジンとモデルのフォルダ。Rendererに関係なく使う。
 	WorldEnginePath string
 	ReferenceDir    string
@@ -246,8 +246,7 @@ func analyzeAndAlignRuntimeFeatures(ctx context.Context, morae []frontend.Mora, 
 	return alignRuntimeProsodyFeatures(morae, analysis)
 }
 
-func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (*Result, error) {
-	cfg.ProviderOptions = providerOptions
+func Synthesize(cfg Config) (*Result, error) {
 	if err := synthesisContextError(cfg.Context); err != nil {
 		return nil, err
 	}
@@ -319,7 +318,7 @@ func SynthesizeWithOptions(cfg Config, providerOptions render.ProviderOptions) (
 		LeadingPreutteranceMS: cfg.LeadingPreutteranceMS,
 		IntonationStrength:    pitch.RendererStrength,
 		ApplyPitch:            pitch.Apply,
-		ProviderOptions:       providerOptions,
+		World:                 cfg.World,
 		CVVCTiming:            cfg.CVVCTiming,
 		CVVCTransitionGain:    cfg.CVVCTransitionGain,
 		CVVCPreBoundaryFade:   cfg.CVVCPreBoundaryFade,

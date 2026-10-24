@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/yh2237/UtauTTS/internal/plugin"
-	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/tts"
 )
 
@@ -23,7 +22,7 @@ func TestDefaultRequestResolvesSynthesisSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg, options := resolved.Config, resolved.ProviderOptions
+	cfg := resolved.Config
 	if cfg.MoraDurationMS != 120 || cfg.PauseDurationMS != 180 || cfg.IntonationStrength != 4 || !cfg.ApplyPitch {
 		t.Fatalf("default timing/pitch = %#v", cfg)
 	}
@@ -38,8 +37,8 @@ func TestDefaultRequestResolvesSynthesisSettings(t *testing.T) {
 			t.Errorf("default %s = %v, want enabled", name, enabled)
 		}
 	}
-	if !options.Worldline.TimingWarpEnabled() || !options.Worldline.MicroprosodyEnabled() || len(options.RendererDiagnostics) != 0 {
-		t.Fatalf("default provider options = %#v", options)
+	if !cfg.World.TimingWarpEnabled() || !cfg.World.MicroprosodyEnabled() || len(resolved.Diagnostics) != 0 {
+		t.Fatalf("default WORLD options = %#v, diagnostics = %v", cfg.World, resolved.Diagnostics)
 	}
 }
 
@@ -66,9 +65,8 @@ func TestResolveSynthesisUsesDirectVoicebankPathAndNormalizesKana(t *testing.T) 
 	}
 }
 
-func TestApplyRendererSettingsKnownIDs(t *testing.T) {
+func TestApplySettingsKnownIDs(t *testing.T) {
 	cfg := tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)}
-	options := render.ProviderOptions{}
 	settings := map[string]json.RawMessage{
 		"mora_duration_ms":          json.RawMessage(`130`),
 		"pause_duration_ms":         json.RawMessage(`190`),
@@ -83,9 +81,8 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 		"pause_context":             json.RawMessage(`false`),
 		"pause_context_strength":    json.RawMessage(`0.5`),
 	}
-	applyRendererSettingsMap(rendererSettingSpecs, settings, &cfg, &options)
-	if len(options.RendererDiagnostics) != 0 {
-		t.Fatalf("unexpected diagnostics: %v", options.RendererDiagnostics)
+	if diagnostics := applySettingsMap(settingSpecs, settings, &cfg); len(diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", diagnostics)
 	}
 	if cfg.MoraDurationMS != 130 || cfg.PauseDurationMS != 190 || cfg.LeadingPreutteranceMS != 45 || cfg.IntonationStrength != 2.5 {
 		t.Fatalf("timing settings = %#v", cfg)
@@ -104,43 +101,41 @@ func TestApplyRendererSettingsKnownIDs(t *testing.T) {
 	}
 }
 
-func TestApplyRendererSettingsOutOfRangeIsIgnored(t *testing.T) {
+func TestApplySettingsOutOfRangeIsIgnored(t *testing.T) {
 	cfg := tts.Config{MoraDurationMS: 140, PauseDurationMS: 180}
-	options := render.ProviderOptions{}
-	applyRendererSettingsMap(rendererSettingSpecs, map[string]json.RawMessage{
+	diagnostics := applySettingsMap(settingSpecs, map[string]json.RawMessage{
 		"mora_duration_ms":  json.RawMessage(`100000000`),
 		"pause_duration_ms": json.RawMessage(`-1`),
-	}, &cfg, &options)
+	}, &cfg)
 	if cfg.MoraDurationMS != 140 || cfg.PauseDurationMS != 180 {
 		t.Fatalf("out-of-range values changed config: %#v", cfg)
 	}
-	if len(options.RendererDiagnostics) != 2 {
-		t.Fatalf("diagnostics = %v", options.RendererDiagnostics)
+	if len(diagnostics) != 2 {
+		t.Fatalf("diagnostics = %v", diagnostics)
 	}
 }
 
-func TestApplyRendererSettingsTypeMismatchIsIgnored(t *testing.T) {
+func TestApplySettingsTypeMismatchIsIgnored(t *testing.T) {
 	cfg := tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)}
-	options := render.ProviderOptions{}
-	applyRendererSettingsMap(rendererSettingSpecs, map[string]json.RawMessage{
+	diagnostics := applySettingsMap(settingSpecs, map[string]json.RawMessage{
 		"mora_duration_ms":    json.RawMessage(`true`),
 		"context_duration":    json.RawMessage(`"yes"`),
 		"intonation_strength": json.RawMessage(`"high"`),
-	}, &cfg, &options)
+	}, &cfg)
 	if cfg.MoraDurationMS != 140 || cfg.ContextDuration == nil || !*cfg.ContextDuration {
 		t.Fatalf("mismatched values changed config: %#v", cfg)
 	}
-	if len(options.RendererDiagnostics) != 3 {
-		t.Fatalf("diagnostics = %v", options.RendererDiagnostics)
+	if len(diagnostics) != 3 {
+		t.Fatalf("diagnostics = %v", diagnostics)
 	}
 }
 
-func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
+func TestConfigSettingsOverrideFixedFields(t *testing.T) {
 	service := NewService(&plugin.Catalog{}, "", "", nil)
-	cfg, options, err := service.config(Request{
+	cfg, diagnostics, err := service.config(Request{
 		ContextDuration: true, MoraDurationMS: 140,
 		Method: tts.MethodWaveformSynthesis, Language: "ja",
-		RendererSettings: map[string]json.RawMessage{
+		Settings: map[string]json.RawMessage{
 			"context_duration": json.RawMessage(`false`),
 			"mora_duration_ms": json.RawMessage(`123`),
 			"custom_option":    json.RawMessage(`"value"`),
@@ -150,13 +145,13 @@ func TestConfigRendererSettingsOverrideFixedFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.ContextDuration == nil || *cfg.ContextDuration || cfg.MoraDurationMS != 123 {
-		t.Fatalf("renderer settings did not override fixed fields: %#v", cfg)
+		t.Fatalf("settings did not override fixed fields: %#v", cfg)
 	}
-	if options.Renderer["custom_option"] != "value" {
-		t.Fatalf("unknown renderer setting = %#v", options.Renderer)
+	if len(diagnostics) != 1 || diagnostics[0].Code != "setting-ignored" {
+		t.Fatalf("unknown setting diagnostics = %v", diagnostics)
 	}
 
-	cfg, options, err = service.config(Request{Method: tts.MethodWaveformSynthesis, Language: "ja", ContextDuration: true, MoraDurationMS: 140}, false)
+	cfg, _, err = service.config(Request{Method: tts.MethodWaveformSynthesis, Language: "ja", ContextDuration: true, MoraDurationMS: 140}, false)
 	if err != nil {
 		t.Fatal(err)
 	}

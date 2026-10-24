@@ -54,7 +54,7 @@ func synthesizeCase(p prompt, o caseOptions) (*synth.Result, float64, error) {
 	request.StretchAdaptStrength = o.stretchAdaptStrength
 	request.PauseContext = o.pauseContext
 	request.PauseContextStrength = o.pauseContextStrength
-	request.Worldline = render.WorldlineProviderOptions{TimingWarp: new(!o.noTimingWarp)}
+	request.World = render.WorldOptions{TimingWarp: new(!o.noTimingWarp)}
 	ctx, cancel := context.WithTimeout(context.Background(), o.timeout)
 	defer cancel()
 	started := time.Now()

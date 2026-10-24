@@ -44,7 +44,7 @@ func testMoraTimingsIgnoreCodaAndTransitionUnits(t *testing.T) {
 func TestSynthesizeHonorsCanceledContextBeforeLoadingInputs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := SynthesizeWithOptions(Config{Context: ctx, VoicebankPath: filepath.Join(t.TempDir(), "missing")}, render.ProviderOptions{})
+	_, err := Synthesize(Config{Context: ctx, VoicebankPath: filepath.Join(t.TempDir(), "missing")})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}
@@ -68,7 +68,7 @@ func TestAnalyzeResolvesPronunciationWithoutLoadingProsodyModel(t *testing.T) {
 	}
 }
 
-func TestAliasProfilesBundleSelectionAndRendererSettings(t *testing.T) {
+func TestAliasProfilesBundleSelectionAndTimingSettings(t *testing.T) {
 	automatic := Config{AliasPolicy: voicebank.AliasPolicyAuto}
 	applyAliasProfile(nil, &automatic)
 	if automatic.AliasPolicy != voicebank.AliasPolicyAuto || automatic.CVVCTiming != render.CVVCTimingSequential {
@@ -288,7 +288,7 @@ func TestPreviewAndSynthesisShareCanonicalMoraDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := SynthesizeWithOptions(Config{VoicebankPath: root, Reading: "あか"}, render.ProviderOptions{})
+	result, err := Synthesize(Config{VoicebankPath: root, Reading: "あか"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -307,12 +307,12 @@ func TestSynthesizePitchOverrideDoesNotChangeCachedProsody(t *testing.T) {
 	t.Cleanup(ClearCaches)
 	cfg := Config{VoicebankPath: testSynthesisBank(t, "あ", "か"), Reading: "あか",
 		PitchFactors: []float64{1.1, 0.9}}
-	overridden, err := SynthesizeWithOptions(cfg, render.ProviderOptions{})
+	overridden, err := Synthesize(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	cfg.PitchFactors = nil
-	automatic, err := SynthesizeWithOptions(cfg, render.ProviderOptions{})
+	automatic, err := Synthesize(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -510,10 +510,10 @@ func TestVoicebankCacheInvalidatedByClearCaches(t *testing.T) {
 
 func TestSynthesizePropagatesAliasPolicyIntoPlan(t *testing.T) {
 	root := testSynthesisBank(t, "- あ", "a か", "あ", "か")
-	result, err := SynthesizeWithOptions(Config{
+	result, err := Synthesize(Config{
 		VoicebankPath: root, Reading: "あか", MoraDurationMS: 100,
 		AliasPolicy: voicebank.AliasPolicyCVOnly,
-	}, render.ProviderOptions{})
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -535,7 +535,7 @@ func TestSynthesizePropagatesAliasPolicyIntoPlan(t *testing.T) {
 
 func TestSynthesizeUsesCVVCTransitionInAutoMode(t *testing.T) {
 	root := testSynthesisBank(t, "あ", "か", "a k")
-	result, err := SynthesizeWithOptions(Config{VoicebankPath: root, Reading: "あか", MoraDurationMS: 100}, render.ProviderOptions{})
+	result, err := Synthesize(Config{VoicebankPath: root, Reading: "あか", MoraDurationMS: 100})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -15,7 +15,7 @@ type Config struct {
 	LeadingPreutteranceMS float64
 	IntonationStrength    float64
 	ApplyPitch            bool
-	ProviderOptions       ProviderOptions
+	World                 WorldOptions
 	CVVCTiming            string
 	CVVCTransitionGain    float64
 	CVVCPreBoundaryFade   bool
@@ -26,32 +26,22 @@ type Config struct {
 	StretchAdaptStrength float64
 }
 
-type ProviderOptions struct {
-	Worldline WorldlineProviderOptions
-	// Goが知らないrenderer_settingsも、実装固有の値として保持する。
-	Renderer            map[string]any
-	RendererDiagnostics []string
+// WorldOptionsはWORLDで描画するときの切り替え。nilは設定の既定値を使う。
+type WorldOptions struct {
+	// 日本語のモーラ内を学習した時間配分に合わせる。
+	TimingWarp *bool
+	// 日本語の子音前後に微細な音高変化を足す。
+	Microprosody *bool
 }
 
-type WorldlineProviderOptions struct {
-	// 原音区間ライブラリを使う。未指定は有効。
-	SourcePhoneMapping *bool `json:"source_phone_mapping,omitempty"`
-	// 試聴用の原音区間指定。通常の合成では未指定。
-	ExactLength bool
-	// 日本語のモーラ内を学習した時間配分に合わせる。nilは有効。
-	TimingWarp *bool `json:"timing_warp,omitempty"`
-	// 日本語の子音前後に微細な音高変化を足す。nilは有効。
-	Microprosody *bool `json:"microprosody,omitempty"`
-}
-
-func (options WorldlineProviderOptions) MicroprosodyEnabled() bool {
+func (options WorldOptions) MicroprosodyEnabled() bool {
 	if options.Microprosody == nil {
 		return settings.Bool("microprosody")
 	}
 	return *options.Microprosody
 }
 
-func (options WorldlineProviderOptions) TimingWarpEnabled() bool {
+func (options WorldOptions) TimingWarpEnabled() bool {
 	if options.TimingWarp == nil {
 		return settings.Bool("timing_warp")
 	}

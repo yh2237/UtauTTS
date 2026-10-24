@@ -155,6 +155,18 @@ func TestSynthesizeEndpointReportsWaveformRenderer(t *testing.T) {
 	}
 }
 
+func TestSynthesizeEndpointCountsIgnoredSettings(t *testing.T) {
+	server := newWaveformTestServer(t)
+	body := bytes.NewBufferString(`{"method":"waveform-synthesis","language":"ja","kana":"あ","voicebank_id":"test","settings":{"unknown_option":1}}`)
+	request := localRequest(http.MethodPost, "/api/synthesize/audio", body)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Header().Get("X-UtauTTS-Diagnostic-Count") != "1" {
+		t.Fatalf("status = %d, diagnostics = %q", response.Code, response.Header().Get("X-UtauTTS-Diagnostic-Count"))
+	}
+}
+
 func newWaveformTestServer(t *testing.T) *Server {
 	t.Helper()
 	root := t.TempDir()
@@ -230,7 +242,7 @@ func TestSynthesisInputCompatibility(t *testing.T) {
 		{"reading precedence", `"reading":"あ","kana":"unknown"`, `"reading":"あ"`, ""},
 		{"dictionary", `"text":"token","dictionary":[{"surface":"token","reading":"あ"}]`, `"reading":"ア"`, ""},
 		{"zero pause uses default", `"reading":"あ、あ","pause_duration_ms":0`, `"reading":"あ、あ"`, `"reading":"あ、あ","pause_duration_ms":40`},
-		{"map overrides typed duration", `"reading":"あ","mora_duration_ms":80,"renderer_settings":{"mora_duration_ms":160}`, `"reading":"あ","mora_duration_ms":160`, `"reading":"あ","mora_duration_ms":80`},
+		{"map overrides typed duration", `"reading":"あ","mora_duration_ms":80,"settings":{"mora_duration_ms":160}`, `"reading":"あ","mora_duration_ms":160`, `"reading":"あ","mora_duration_ms":80`},
 		{"edited duration", `"reading":"あ","mora_duration_ms":80,"mora_durations_ms":[160]`, `"reading":"あ","mora_duration_ms":160`, `"reading":"あ","mora_duration_ms":80`},
 	} {
 		t.Run(test.name, func(t *testing.T) {

@@ -112,6 +112,7 @@ func TestEngineRequestErrors(t *testing.T) {
 		{Reading: "あ", Options: utautts.Options{IntonationStrength: new(math.NaN())}},
 		{Reading: "あ", Settings: map[string]json.RawMessage{"timing_warp": json.RawMessage(`"false"`)}},
 		{Reading: "あ", Settings: map[string]json.RawMessage{"pause_duration_ms": json.RawMessage(`0`)}},
+		{Reading: "あ", Settings: map[string]json.RawMessage{"unknown_option": json.RawMessage(`1`)}},
 	} {
 		if _, err := engine.Synthesize(context.Background(), request); !errors.Is(err, utautts.ErrInvalidRequest) {
 			t.Errorf("invalid request returned %v", err)

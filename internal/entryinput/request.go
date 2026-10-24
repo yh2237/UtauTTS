@@ -21,6 +21,6 @@ func Apply(request utautts.Request, input synth.Request) synth.Request {
 		input.Dictionary[i] = synth.DictionaryEntry{Surface: entry.Surface, Reading: entry.Reading}
 	}
 	// 共通設定を含め、mapの値を型付き互換フィールドより優先する。
-	input.RendererSettings = request.Settings
+	input.Settings = request.Settings
 	return input
 }
