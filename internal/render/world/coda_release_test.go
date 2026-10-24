@@ -1,4 +1,4 @@
-package worldline
+package world
 
 import (
 	"math"
@@ -30,7 +30,7 @@ func TestMainCodaFadeScope(t *testing.T) {
 
 func TestCodaReleaseEnvelopeKeepsConsonantAudible(t *testing.T) {
 	u := plan.Unit{DurationMS: 30, CodaPhones: []string{"d"}}
-	points := []base.WorldlineEnvelopePoint{{XMS: -30}, {XMS: -20}, {XMS: 0}, {XMS: 0}, {XMS: 30}}
+	points := []base.EnvelopePoint{{XMS: -30}, {XMS: -20}, {XMS: 0}, {XMS: 0}, {XMS: 30}}
 	got, fade := codaReleaseEnvelope(u, points, 30)
 	if fade != 5 || got[3].XMS != 25 || got[4].XMS != 30 {
 		t.Fatalf("fade=%v points=%#v", fade, got)

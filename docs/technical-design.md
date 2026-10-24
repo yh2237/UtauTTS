@@ -67,7 +67,7 @@ WORLDの解析の設定は方式ごとに違います。
 | 発話設計 | 文脈（助詞・句末）に応じたモーラ長の補正 | `tts/japanese_duration.go` | `context_duration` |
 | 発話計画 | 句読点の種類に応じた休止長の調整 | `plan/pause_context.go` | `pause_context` |
 | 描画（本体） | 母音の伸ばしすぎの抑制（長音の音質を保つ） | `render/base/timing.go` | `stretch_adapt` |
-| 描画（本体） | 無声破裂音の直後の小さなピッチの上昇（Micro-prosody） | `render/worldline/microprosody.go` | `microprosody` |
+| 描画（本体） | 無声破裂音の直後の小さなピッチの上昇（Micro-prosody） | `render/world/microprosody.go` | `microprosody` |
 | 描画（WORLD）| 自然音声モデルに基づくモーラ内の音素長の調整 | `speechtiming`, `worldrender` | `timing_warp` |
 
 ---

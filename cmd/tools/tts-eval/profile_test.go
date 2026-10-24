@@ -7,16 +7,16 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/render/worldline"
+	"github.com/yh2237/UtauTTS/internal/render/world"
 	"github.com/yh2237/UtauTTS/internal/tts"
 )
 
 func TestEvaluationProfileRecordsCaseAndRestoresHooks(t *testing.T) {
-	oldTTS, oldWorld := tts.Trace, worldline.Trace
-	defer func() { tts.Trace, worldline.Trace = oldTTS, oldWorld }()
+	oldTTS, oldWorld := tts.Trace, world.Trace
+	defer func() { tts.Trace, world.Trace = oldTTS, oldWorld }()
 	calls := 0
 	tts.Trace = func(string) { calls++ }
-	worldline.Trace = nil
+	world.Trace = nil
 	dir := t.TempDir()
 	p, err := startEvaluationProfile(dir)
 	if err != nil {
@@ -25,12 +25,12 @@ func TestEvaluationProfileRecordsCaseAndRestoresHooks(t *testing.T) {
 	p.SetCase("first", 1)
 	tts.Trace("select: 12.5ms")
 	p.SetCase("second", 2)
-	worldline.Trace("bridge: 3.0ms")
+	world.Trace("bridge: 3.0ms")
 	if err := p.Close(); err != nil {
 		t.Fatal(err)
 	}
 	tts.Trace("restored")
-	if calls != 2 || worldline.Trace != nil {
+	if calls != 2 || world.Trace != nil {
 		t.Fatal("trace hooks were not forwarded/restored")
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "phase-profile.jsonl"))
@@ -48,7 +48,7 @@ func TestEvaluationProfileRecordsCaseAndRestoresHooks(t *testing.T) {
 		}
 		wantSource, wantPhase, wantMS := "tts", "select", 12.5
 		if i == 1 {
-			wantSource, wantPhase, wantMS = "worldline", "bridge", 3
+			wantSource, wantPhase, wantMS = "world", "bridge", 3
 		}
 		if row.Source != wantSource || row.Phase != wantPhase || *row.ElapsedMS != wantMS {
 			t.Fatalf("incorrect phase measurement: %+v", row)

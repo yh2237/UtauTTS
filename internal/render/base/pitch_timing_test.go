@@ -62,7 +62,7 @@ func TestOpenUtauSequentialCVVCTimingChainsTransitionAndMainPhone(t *testing.T) 
 }
 
 func TestCVVCPreBoundaryEnvelopeEndsAtFollowingMoraBoundary(t *testing.T) {
-	points := []WorldlineEnvelopePoint{
+	points := []EnvelopePoint{
 		{XMS: -80, Y: 0}, {XMS: -50, Y: 1}, {XMS: 0, Y: 1},
 		{XMS: 10, Y: 1}, {XMS: 30, Y: 0},
 	}
@@ -126,7 +126,7 @@ func TestSourceCacheReusesMonoAndNormalizedAudio(t *testing.T) {
 	}
 }
 
-func TestMeasureWorldlinePitchesHandlesMultipleUnits(t *testing.T) {
+func TestMeasureWorldPitchesHandlesMultipleUnits(t *testing.T) {
 	ClearWAVCache()
 	defer ClearWAVCache()
 	directory := t.TempDir()
@@ -142,7 +142,7 @@ func TestMeasureWorldlinePitchesHandlesMultipleUnits(t *testing.T) {
 		}
 		units[index] = plan.Unit{Position: index, Source: path, DurationMS: 150}
 	}
-	values, sampleRate, err := MeasureWorldlinePitches(&plan.Plan{Units: units}, &SourceCache{})
+	values, sampleRate, err := MeasureWorldPitches(&plan.Plan{Units: units}, &SourceCache{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestMeasureWorldlinePitchesHandlesMultipleUnits(t *testing.T) {
 	}
 }
 
-func TestStabilizeWorldlinePitches(t *testing.T) {
+func TestStabilizeWorldPitches(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		input []float64
@@ -170,7 +170,7 @@ func TestStabilizeWorldlinePitches(t *testing.T) {
 		{"corrects near half pitch", []float64{207, 115, 205}, []float64{207, 230, 205}, []float64{0, 1, 0}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := StabilizeWorldlinePitches(tc.input)
+			got := StabilizeWorldPitches(tc.input)
 			if len(got) != len(tc.want) {
 				t.Fatalf("pitches = %v, want %d values", got, len(tc.want))
 			}

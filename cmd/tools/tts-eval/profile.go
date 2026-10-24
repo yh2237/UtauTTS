@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/yh2237/UtauTTS/internal/render/worldline"
+	"github.com/yh2237/UtauTTS/internal/render/world"
 	"github.com/yh2237/UtauTTS/internal/tts"
 )
 
@@ -52,10 +52,10 @@ func startEvaluationProfile(dir string) (*evaluationProfile, error) {
 		return nil, err
 	}
 	p := &evaluationProfile{phases: phases, cpu: cpu, encoder: json.NewEncoder(phases), dir: dir,
-		oldTTS: tts.Trace, oldWorld: worldline.Trace}
+		oldTTS: tts.Trace, oldWorld: world.Trace}
 	runtime.ReadMemStats(&p.before)
 	tts.Trace = p.trace("tts", p.oldTTS)
-	worldline.Trace = p.trace("worldline", p.oldWorld)
+	world.Trace = p.trace("world", p.oldWorld)
 	return p, nil
 }
 
@@ -86,7 +86,7 @@ func (p *evaluationProfile) trace(source string, previous func(string)) func(str
 }
 
 func (p *evaluationProfile) Close() error {
-	tts.Trace, worldline.Trace = p.oldTTS, p.oldWorld
+	tts.Trace, world.Trace = p.oldTTS, p.oldWorld
 	pprof.StopCPUProfile()
 	var after runtime.MemStats
 	runtime.ReadMemStats(&after)

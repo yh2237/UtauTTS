@@ -8,7 +8,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/render/base"
-	"github.com/yh2237/UtauTTS/internal/render/worldline"
+	"github.com/yh2237/UtauTTS/internal/render/world"
 )
 
 func renderMutable(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
@@ -56,5 +56,5 @@ func renderMutable(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
 	if base.TestRenderer != nil {
 		return base.TestRenderer(synthesisPlan, cfg)
 	}
-	return worldline.Render(synthesisPlan, cfg)
+	return world.Render(synthesisPlan, cfg)
 }

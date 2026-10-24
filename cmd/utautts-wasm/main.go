@@ -8,7 +8,7 @@ import (
 	"os"
 	"syscall/js"
 
-	"github.com/yh2237/UtauTTS/internal/render/worldline"
+	"github.com/yh2237/UtauTTS/internal/render/world"
 	"github.com/yh2237/UtauTTS/internal/tts"
 )
 
@@ -30,7 +30,7 @@ func main() {
 			js.Global().Get("console").Call("log", "utautts "+message)
 		}
 		tts.Trace = log
-		worldline.Trace = log
+		world.Trace = log
 	}
 	// wasmのランタイムを生かしたままJSからの呼び出しを待つ。
 	keepAlive := make(chan struct{})

@@ -1,4 +1,4 @@
-package worldline
+package world
 
 import (
 	"context"
@@ -30,42 +30,42 @@ func traceMark(start *time.Time, label string) {
 	*start = now
 }
 
-const worldlineFrameMS = worldrender.FramePeriodMS
+const worldFrameMS = worldrender.FramePeriodMS
 
 // RenderはPlanをWORLDで描画する。
 func Render(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error) {
-	return renderWorldlineEngine(synthesisPlan, cfg)
+	return renderWorldEngine(synthesisPlan, cfg)
 }
 
-type worldlineManifestUnit struct {
-	Speech            *worldrender.SpeechTiming     `json:"speech,omitempty"`
-	LegacyMix         bool                          `json:"legacy_mix,omitempty"`
-	GapRepair         bool                          `json:"gap_repair,omitempty"`
-	CacheKey          string                        `json:"cache_key,omitempty"`
-	Source            string                        `json:"source"`
-	FRQPath           string                        `json:"frq_path,omitempty"`
-	PositionMS        float64                       `json:"position_ms"`
-	SkipMS            float64                       `json:"skip_ms"`
-	LengthMS          float64                       `json:"length_ms"`
-	FadeInMS          float64                       `json:"fade_in_ms"`
-	FadeOutMS         float64                       `json:"fade_out_ms"`
-	OffsetMS          float64                       `json:"offset_ms"`
-	RequiredLengthMS  float64                       `json:"required_length_ms"`
-	ConsonantMS       float64                       `json:"consonant_ms"`
-	CutoffMS          float64                       `json:"cutoff_ms"`
-	Tone              int                           `json:"tone"`
-	ConsonantVelocity float64                       `json:"consonant_velocity"`
-	PitchStartMS      float64                       `json:"pitch_start_ms,omitempty"`
-	PitchLengthMS     float64                       `json:"pitch_length_ms,omitempty"`
-	Volume            float64                       `json:"volume,omitempty"`
-	VolumeSet         bool                          `json:"volume_set,omitempty"`
-	Modulation        float64                       `json:"modulation,omitempty"`
-	Tempo             float64                       `json:"tempo,omitempty"`
-	EnergyFactor      float64                       `json:"energy_factor,omitempty"`
-	Envelope          []base.WorldlineEnvelopePoint `json:"envelope,omitempty"`
+type worldManifestUnit struct {
+	Speech            *worldrender.SpeechTiming `json:"speech,omitempty"`
+	LegacyMix         bool                      `json:"legacy_mix,omitempty"`
+	GapRepair         bool                      `json:"gap_repair,omitempty"`
+	CacheKey          string                    `json:"cache_key,omitempty"`
+	Source            string                    `json:"source"`
+	FRQPath           string                    `json:"frq_path,omitempty"`
+	PositionMS        float64                   `json:"position_ms"`
+	SkipMS            float64                   `json:"skip_ms"`
+	LengthMS          float64                   `json:"length_ms"`
+	FadeInMS          float64                   `json:"fade_in_ms"`
+	FadeOutMS         float64                   `json:"fade_out_ms"`
+	OffsetMS          float64                   `json:"offset_ms"`
+	RequiredLengthMS  float64                   `json:"required_length_ms"`
+	ConsonantMS       float64                   `json:"consonant_ms"`
+	CutoffMS          float64                   `json:"cutoff_ms"`
+	Tone              int                       `json:"tone"`
+	ConsonantVelocity float64                   `json:"consonant_velocity"`
+	PitchStartMS      float64                   `json:"pitch_start_ms,omitempty"`
+	PitchLengthMS     float64                   `json:"pitch_length_ms,omitempty"`
+	Volume            float64                   `json:"volume,omitempty"`
+	VolumeSet         bool                      `json:"volume_set,omitempty"`
+	Modulation        float64                   `json:"modulation,omitempty"`
+	Tempo             float64                   `json:"tempo,omitempty"`
+	EnergyFactor      float64                   `json:"energy_factor,omitempty"`
+	Envelope          []base.EnvelopePoint      `json:"envelope,omitempty"`
 }
 
-func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error) {
+func renderWorldEngine(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error) {
 	if synthesisPlan == nil || len(synthesisPlan.Units) == 0 {
 		return nil, errors.New("empty synthesis plan")
 	}
@@ -79,20 +79,20 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PC
 	}
 	legacyMix := legacyJapaneseContinuousMix(synthesisPlan)
 	cache := base.NewSourceCache()
-	timing := prepareWorldlineTiming(synthesisPlan, cfg)
+	timing := prepareWorldTiming(synthesisPlan, cfg)
 	traceMark(&started, "timing")
-	pitch, err := prepareWorldlinePitch(synthesisPlan, cfg, &cache, timing)
+	pitch, err := prepareWorldPitch(synthesisPlan, cfg, &cache, timing)
 	if err != nil {
 		return nil, err
 	}
 	traceMark(&started, "pitches")
 	// 一時ファイルは合成ごとに隔離する。
-	tempDir, err := os.MkdirTemp("", "utautts-worldline-")
+	tempDir, err := os.MkdirTemp("", "utautts-world-")
 	if err != nil {
 		return nil, err
 	}
 	defer os.RemoveAll(tempDir)
-	normalizedSources, err := normalizeWorldlineSources(synthesisPlan, &cache, pitch.sampleRate, tempDir)
+	normalizedSources, err := normalizeWorldSources(synthesisPlan, &cache, pitch.sampleRate, tempDir)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PC
 		F0Curve:    pitch.f0Curve,
 		TimingWarp: timingWarpJob(synthesisPlan, cfg, len(pitch.f0Curve)),
 	}
-	units := worldlineUnitBuilder{
+	units := worldUnitBuilder{
 		plan: synthesisPlan, cfg: cfg, cache: &cache, timing: timing, pitch: pitch,
 		normalizedSources: normalizedSources, legacyMix: legacyMix,
 	}
@@ -116,7 +116,7 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PC
 		phrase.Units = append(phrase.Units, item)
 	}
 	traceMark(&started, "units")
-	pcm, err := renderWorldline(synthesisPlan, cfg, phrase, worldEnginePath, &started)
+	pcm, err := renderPhrase(synthesisPlan, cfg, phrase, worldEnginePath, &started)
 	if err != nil {
 		return nil, err
 	}
@@ -146,13 +146,13 @@ func normalizeCVVCConfig(synthesisPlan *plan.Plan, cfg *base.Config) error {
 	return nil
 }
 
-type worldlineTimingResult struct {
+type worldTimingResult struct {
 	units     []base.EffectiveTiming
 	phones    []base.OpenUtauPhoneTiming
 	leadingMS float64
 }
 
-func prepareWorldlineTiming(synthesisPlan *plan.Plan, cfg base.Config) worldlineTimingResult {
+func prepareWorldTiming(synthesisPlan *plan.Plan, cfg base.Config) worldTimingResult {
 	phoneUnits := base.NormalizedPhoneTimingUnits(synthesisPlan, cfg.ReleaseMS)
 	if synthesisPlan.SingleCV {
 		for index := range phoneUnits {
@@ -168,7 +168,7 @@ func prepareWorldlineTiming(synthesisPlan *plan.Plan, cfg base.Config) worldline
 		}
 	}
 	phoneTimings, phraseStartMS := base.OpenUtauPhoneTimingsWithCoda(phoneUnits, cfg.CVVCTiming, true)
-	result := worldlineTimingResult{
+	result := worldTimingResult{
 		units:     make([]base.EffectiveTiming, len(synthesisPlan.Units)),
 		phones:    phoneTimings,
 		leadingMS: base.LimitLeadingPreutterance(math.Max(0, -phraseStartMS), cfg.LeadingPreutteranceMS),
@@ -186,7 +186,7 @@ func prepareWorldlineTiming(synthesisPlan *plan.Plan, cfg base.Config) worldline
 		unit.WorldRenderReason = "adaptive-default"
 		unit.WorldGapRepairEligible = false
 		unit.WorldGapRepairReason = "not-required"
-		timing := worldlineTiming(synthesisPlan, *unit, cfg.ReleaseMS)
+		timing := worldTiming(synthesisPlan, *unit, cfg.ReleaseMS)
 		timing = base.AdaptStretchTiming(*unit, timing, cfg.ReleaseMS, cfg.StretchAdapt, cfg.StretchAdaptStrength)
 		if len(phoneTimings) == len(synthesisPlan.Units) && !unit.Silent {
 			timing.PreutteranceMS = phoneTimings[i].Preutter
@@ -212,7 +212,7 @@ func prepareWorldlineTiming(synthesisPlan *plan.Plan, cfg base.Config) worldline
 	return result
 }
 
-type worldlinePitchResult struct {
+type worldPitchResult struct {
 	sampleRate   int
 	pitches      []float64
 	intonation   []float64
@@ -221,10 +221,10 @@ type worldlinePitchResult struct {
 	f0Curve      []float64
 }
 
-func prepareWorldlinePitch(synthesisPlan *plan.Plan, cfg base.Config, cache *base.SourceCache, timing worldlineTimingResult) (worldlinePitchResult, error) {
-	pitches, sampleRate, err := base.MeasureWorldlinePitches(synthesisPlan, cache)
+func prepareWorldPitch(synthesisPlan *plan.Plan, cfg base.Config, cache *base.SourceCache, timing worldTimingResult) (worldPitchResult, error) {
+	pitches, sampleRate, err := base.MeasureWorldPitches(synthesisPlan, cache)
 	if err != nil {
-		return worldlinePitchResult{}, err
+		return worldPitchResult{}, err
 	}
 	intonation := base.IdentityFactors(len(synthesisPlan.Units))
 	if cfg.ApplyPitch {
@@ -239,10 +239,10 @@ func prepareWorldlinePitch(synthesisPlan *plan.Plan, cfg base.Config, cache *bas
 		pitchFactors[i] = intonation[i] * base.EffectiveUnitPitchFactor(unit, cfg.ApplyPitch)
 	}
 	base.ApplyTonePitch(synthesisPlan, pitchFactors, reference)
-	frameMS := worldlineFrameMS
+	frameMS := worldFrameMS
 	curveStartMS := -timing.leadingMS
 	curveDurationMS := synthesisPlan.DurationMS + cfg.ReleaseMS + timing.leadingMS
-	f0Curve := worldlineF0CurveAtOffset(synthesisPlan, pitches, pitchFactors, reference,
+	f0Curve := worldF0CurveAtOffset(synthesisPlan, pitches, pitchFactors, reference,
 		max(2, int(math.Ceil(curveDurationMS/frameMS))+2), frameMS, curveStartMS)
 	for frame := range f0Curve {
 		f0Curve[frame] *= base.PitchCurveFactorAt(cfg.PitchCurve, curveStartMS+float64(frame)*frameMS)
@@ -253,13 +253,13 @@ func prepareWorldlinePitch(synthesisPlan *plan.Plan, cfg base.Config, cache *bas
 	if cfg.TargetF0 != nil {
 		*cfg.TargetF0 = base.F0Track{StartMS: curveStartMS, FrameMS: frameMS, Hz: append([]float64(nil), f0Curve...)}
 	}
-	return worldlinePitchResult{
+	return worldPitchResult{
 		sampleRate: sampleRate, pitches: pitches, intonation: intonation,
 		pitchFactors: pitchFactors, reference: reference, f0Curve: f0Curve,
 	}, nil
 }
 
-func normalizeWorldlineSources(synthesisPlan *plan.Plan, cache *base.SourceCache, sampleRate int, tempDir string) (map[string]string, error) {
+func normalizeWorldSources(synthesisPlan *plan.Plan, cache *base.SourceCache, sampleRate int, tempDir string) (map[string]string, error) {
 	normalizedSources := make(map[string]string)
 	for index := range synthesisPlan.Units {
 		unit := &synthesisPlan.Units[index]
@@ -289,17 +289,17 @@ func normalizeWorldlineSources(synthesisPlan *plan.Plan, cache *base.SourceCache
 	return normalizedSources, nil
 }
 
-type worldlineUnitBuilder struct {
+type worldUnitBuilder struct {
 	plan              *plan.Plan
 	cfg               base.Config
 	cache             *base.SourceCache
-	timing            worldlineTimingResult
-	pitch             worldlinePitchResult
+	timing            worldTimingResult
+	pitch             worldPitchResult
 	normalizedSources map[string]string
 	legacyMix         bool
 }
 
-func (b worldlineUnitBuilder) build(i int) (worldrender.Unit, error) {
+func (b worldUnitBuilder) build(i int) (worldrender.Unit, error) {
 	synthesisPlan, cfg := b.plan, b.cfg
 	unit := &synthesisPlan.Units[i]
 	timing := b.timing.units[i]
@@ -371,11 +371,11 @@ func (b worldlineUnitBuilder) build(i int) (worldrender.Unit, error) {
 		}
 	}
 	// 解析キャッシュは変換前の原音と既定の音量で引く。
-	cacheKey := worldlineAnalysisCacheKey(originalSource, frqPath, *unit)
+	cacheKey := worldAnalysisCacheKey(originalSource, frqPath, *unit)
 	cacheKey += fmt.Sprintf("|fs=%d", b.pitch.sampleRate)
-	strategy := b.resolveWorldlineSpeechStrategy(i, codaRelease, singleCVUnit, vcvUnit)
+	strategy := b.resolveWorldSpeechStrategy(i, codaRelease, singleCVUnit, vcvUnit)
 	speech := b.speechTiming(i, timing, skipMS, positionMS, strategy)
-	gapRepair := b.legacyMix && worldlineGapRepairEligible(synthesisPlan, i)
+	gapRepair := b.legacyMix && worldGapRepairEligible(synthesisPlan, i)
 	if b.legacyMix {
 		unit.WorldRenderMode = plan.WorldRenderModeV13Compatible
 		unit.WorldRenderReason = "japanese-continuous-low-processing"
@@ -404,7 +404,7 @@ func (b worldlineUnitBuilder) build(i int) (worldrender.Unit, error) {
 	return item, nil
 }
 
-type worldlineSpeechStrategy struct {
+type worldSpeechStrategy struct {
 	codaRelease      bool
 	singleCV         bool
 	stopProtected    bool
@@ -414,14 +414,14 @@ type worldlineSpeechStrategy struct {
 	singleCVLegato   bool
 }
 
-// resolveWorldlineSpeechStrategyはユニットの種類から方針を一度だけ決める。
-func (b worldlineUnitBuilder) resolveWorldlineSpeechStrategy(i int, codaRelease, singleCVUnit, vcvUnit bool) worldlineSpeechStrategy {
+// resolveWorldSpeechStrategyはユニットの種類から方針を一度だけ決める。
+func (b worldUnitBuilder) resolveWorldSpeechStrategy(i int, codaRelease, singleCVUnit, vcvUnit bool) worldSpeechStrategy {
 	synthesisPlan, options := b.plan, b.cfg.World
 	unit := &synthesisPlan.Units[i]
-	strategy := worldlineSpeechStrategy{
+	strategy := worldSpeechStrategy{
 		codaRelease:    codaRelease,
 		singleCV:       singleCVUnit,
-		stopProtected:  worldlineStopProtection(synthesisPlan, *unit, options),
+		stopProtected:  worldStopProtection(synthesisPlan, *unit, options),
 		singleCVLegato: singleCVLegato(synthesisPlan, *unit),
 	}
 	if base.SpeechStop(synthesisPlan, *unit) {
@@ -440,7 +440,7 @@ func (b worldlineUnitBuilder) resolveWorldlineSpeechStrategy(i int, codaRelease,
 	return strategy
 }
 
-func (b worldlineUnitBuilder) speechTiming(i int, timing base.EffectiveTiming, skipMS, positionMS float64, strategy worldlineSpeechStrategy) *worldrender.SpeechTiming {
+func (b worldUnitBuilder) speechTiming(i int, timing base.EffectiveTiming, skipMS, positionMS float64, strategy worldSpeechStrategy) *worldrender.SpeechTiming {
 	synthesisPlan := b.plan
 	unit := &synthesisPlan.Units[i]
 	leadingMS := b.timing.leadingMS
@@ -489,7 +489,7 @@ func (b worldlineUnitBuilder) speechTiming(i int, timing base.EffectiveTiming, s
 }
 
 // offsetから右ブランクまでの長さ(ms)。
-func (b worldlineUnitBuilder) sourceDurationMS(unit plan.Unit) (float64, error) {
+func (b worldUnitBuilder) sourceDurationMS(unit plan.Unit) (float64, error) {
 	mono, err := b.cache.LoadMono(unit.Source)
 	if err != nil {
 		return 0, err
@@ -498,7 +498,7 @@ func (b worldlineUnitBuilder) sourceDurationMS(unit plan.Unit) (float64, error) 
 	return worldrender.SourceEndMS(sourceDuration, unit.OffsetMS, unit.CutoffMS) - unit.OffsetMS, nil
 }
 
-func renderWorldline(synthesisPlan *plan.Plan, cfg base.Config, phrase worldrender.Phrase, enginePath string, started *time.Time) (*audio.PCM, error) {
+func renderPhrase(synthesisPlan *plan.Plan, cfg base.Config, phrase worldrender.Phrase, enginePath string, started *time.Time) (*audio.PCM, error) {
 	ctx := cfg.Context
 	if ctx == nil {
 		ctx = context.Background()
@@ -552,7 +552,7 @@ func legacyJapaneseContinuousMix(synthesisPlan *plan.Plan) bool {
 }
 
 // 低加工経路では同じ母音が直接続く境界だけを補間する。
-func worldlineGapRepairEligible(synthesisPlan *plan.Plan, unitIndex int) bool {
+func worldGapRepairEligible(synthesisPlan *plan.Plan, unitIndex int) bool {
 	if synthesisPlan == nil || unitIndex <= 0 || unitIndex >= len(synthesisPlan.Units) {
 		return false
 	}
@@ -566,7 +566,7 @@ func worldlineGapRepairEligible(synthesisPlan *plan.Plan, unitIndex int) bool {
 		previousMora.Vowel != "" && previousMora.Vowel == currentMora.Vowel
 }
 
-func worldlineStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options base.WorldOptions) bool {
+func worldStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options base.WorldOptions) bool {
 	if synthesisPlan == nil {
 		return false
 	}
@@ -608,15 +608,15 @@ func e2bLegacyStopPreserve(synthesisPlan *plan.Plan, unit plan.Unit, legacyMix b
 	if !legacyMix || !e2bStopGeneralization(synthesisPlan, unit, options) {
 		return false
 	}
-	return worldlineStopProtection(synthesisPlan, unit, options)
+	return worldStopProtection(synthesisPlan, unit, options)
 }
 
 // VCVはoto.iniの境界を使い、壊れた境界だけを補正する。
-func worldlineTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64) base.EffectiveTiming {
+func worldTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64) base.EffectiveTiming {
 	return base.NormalizePlanTiming(synthesisPlan, unit, releaseMS)
 }
 
-func worldEnvelope(points []base.WorldlineEnvelopePoint) []worldrender.EnvelopePoint {
+func worldEnvelope(points []base.EnvelopePoint) []worldrender.EnvelopePoint {
 	envelope := make([]worldrender.EnvelopePoint, len(points))
 	for index, point := range points {
 		envelope[index] = worldrender.EnvelopePoint{XMS: point.XMS, Y: point.Y}
@@ -700,7 +700,7 @@ func resolveWorldEngine(configured string) (string, error) {
 	return configured, nil
 }
 
-func worldlineAnalysisCacheKey(source, frqPath string, unit plan.Unit) string {
+func worldAnalysisCacheKey(source, frqPath string, unit plan.Unit) string {
 	identity := func(path string) string {
 		if path == "" {
 			return ""
@@ -715,7 +715,7 @@ func worldlineAnalysisCacheKey(source, frqPath string, unit plan.Unit) string {
 		identity(source), identity(frqPath), unit.OffsetMS, unit.CutoffMS)
 }
 
-func worldlineF0CurveAtOffset(synthesisPlan *plan.Plan, pitches, factors []float64, reference float64, length int, frameMS, startMS float64) []float64 {
+func worldF0CurveAtOffset(synthesisPlan *plan.Plan, pitches, factors []float64, reference float64, length int, frameMS, startMS float64) []float64 {
 	curve := make([]float64, length)
 	for frame := range curve {
 		timeMS := startMS + float64(frame)*frameMS

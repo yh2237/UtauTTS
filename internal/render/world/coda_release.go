@@ -1,4 +1,4 @@
-package worldline
+package world
 
 import (
 	"math"
@@ -16,7 +16,7 @@ func worldCodaReleaseEligible(p *plan.Plan, u plan.Unit) bool {
 	return p.Phonemizer == frontend.PhonemizerChinese && u.Role == "mora"
 }
 
-func codaReleaseEnvelope(u plan.Unit, points []base.WorldlineEnvelopePoint, fadeOut float64) ([]base.WorldlineEnvelopePoint, float64) {
+func codaReleaseEnvelope(u plan.Unit, points []base.EnvelopePoint, fadeOut float64) ([]base.EnvelopePoint, float64) {
 	if len(u.CodaPhones) == 0 || u.DurationMS <= 0 {
 		return points, fadeOut
 	}
@@ -24,7 +24,7 @@ func codaReleaseEnvelope(u plan.Unit, points []base.WorldlineEnvelopePoint, fade
 	if len(points) != 5 {
 		return points, fadeOut
 	}
-	result := append([]base.WorldlineEnvelopePoint(nil), points...)
+	result := append([]base.EnvelopePoint(nil), points...)
 	result[3].XMS = math.Max(result[2].XMS, result[4].XMS-fadeOut)
 	return result, fadeOut
 }
@@ -63,7 +63,7 @@ func codaClosureReleaseSplit(u plan.Unit) (float64, float64, bool) {
 }
 
 func worldCodaReleaseSplit(p *plan.Plan, u plan.Unit, options base.WorldOptions) (float64, float64, bool) {
-	if !worldCodaReleaseEligible(p, u) || !worldlineStopProtection(p, u, options) {
+	if !worldCodaReleaseEligible(p, u) || !worldStopProtection(p, u, options) {
 		return 0, 0, false
 	}
 	return codaClosureReleaseSplit(u)

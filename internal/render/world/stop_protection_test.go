@@ -1,4 +1,4 @@
-package worldline
+package world
 
 import (
 	"testing"
@@ -28,21 +28,21 @@ func TestLegacyStopPreserveOnlyForReliableJapanese(t *testing.T) {
 	}
 }
 
-func TestWorldlineStopProtectionProtectsEnglishCodaPlosive(t *testing.T) {
+func TestWorldStopProtectionProtectsEnglishCodaPlosive(t *testing.T) {
 	p := &plan.Plan{
 		Language:   "en",
 		Phonemizer: "en-delta",
 		Morae:      []frontend.Mora{{Consonant: "m", Vowel: "iy"}},
 	}
 	profile := &voicebank.SpeechProfile{ReleaseTransientMS: 12, ReleaseTransientConfidence: .27}
-	if !worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: profile}, base.WorldOptions{}) {
+	if !worldStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: profile}, base.WorldOptions{}) {
 		t.Fatal("word-final plosive must be protected")
 	}
-	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"s"}, SpeechProfile: profile}, base.WorldOptions{}) {
+	if worldStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"s"}, SpeechProfile: profile}, base.WorldOptions{}) {
 		t.Fatal("fricative coda must not be protected")
 	}
 	silent := &voicebank.SpeechProfile{}
-	if worldlineStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: silent}, base.WorldOptions{}) {
+	if worldStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: silent}, base.WorldOptions{}) {
 		t.Fatal("unmeasured release must not be protected")
 	}
 }
@@ -63,7 +63,7 @@ func TestSpeechSourceOnsetUsesReliableNearbyLandmark(t *testing.T) {
 	}
 }
 
-func TestWorldlineGapRepairOnlyAcceptsRepeatedVowelWithoutOnset(t *testing.T) {
+func TestWorldGapRepairOnlyAcceptsRepeatedVowelWithoutOnset(t *testing.T) {
 	p := &plan.Plan{
 		Morae: []frontend.Mora{{Vowel: "a"}, {Vowel: "a"}, {Consonant: "k", Vowel: "a"}},
 		Units: []plan.Unit{
@@ -72,15 +72,15 @@ func TestWorldlineGapRepairOnlyAcceptsRepeatedVowelWithoutOnset(t *testing.T) {
 			{Position: 2, Role: "mora"},
 		},
 	}
-	if !worldlineGapRepairEligible(p, 1) {
+	if !worldGapRepairEligible(p, 1) {
 		t.Fatal("repeated vowel boundary should allow gap repair")
 	}
-	if worldlineGapRepairEligible(p, 2) {
+	if worldGapRepairEligible(p, 2) {
 		t.Fatal("consonant onset boundary must preserve its unvoiced interval")
 	}
 }
 
-func TestWorldlineStopProtectionMatrix(t *testing.T) {
+func TestWorldStopProtectionMatrix(t *testing.T) {
 	ja := &plan.Plan{Language: "ja", Phonemizer: "ja-kana", Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
 	en := &plan.Plan{Language: "en", Phonemizer: "en-delta", Morae: []frontend.Mora{{Consonant: "k", Vowel: "ae"}}}
 	reliable := &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}
@@ -100,7 +100,7 @@ func TestWorldlineStopProtectionMatrix(t *testing.T) {
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
-			if got := worldlineStopProtection(test.plan, test.unit, test.options); got != test.want {
+			if got := worldStopProtection(test.plan, test.unit, test.options); got != test.want {
 				t.Fatalf("stop protection = %t, want %t", got, test.want)
 			}
 		})

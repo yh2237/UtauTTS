@@ -165,7 +165,7 @@ func AnalyzeIntonationFromPitches(synthesisPlan *plan.Plan, timings []EffectiveT
 	if synthesisPlan.SingleCV {
 		pitches = StabilizeSingleCVPitches(synthesisPlan, pitches)
 	} else {
-		pitches = StabilizeWorldlinePitches(pitches)
+		pitches = StabilizeWorldPitches(pitches)
 	}
 	voiced := NonzeroFloats(pitches)
 	reference := MedianFloat(voiced)
@@ -252,7 +252,7 @@ func AnalyzeIntonationFromPitches(synthesisPlan *plan.Plan, timings []EffectiveT
 
 // StabilizeSingleCVPitchesは単独音の倍音/分周誤検出を近傍へ補正する。
 func StabilizeSingleCVPitches(synthesisPlan *plan.Plan, values []float64) []float64 {
-	base := StabilizeWorldlinePitches(values)
+	base := StabilizeWorldPitches(values)
 	result := append([]float64(nil), base...)
 	if synthesisPlan == nil || !synthesisPlan.SingleCV {
 		return result
@@ -328,8 +328,8 @@ func singleCVPitchContext(synthesisPlan *plan.Plan, values []float64, index int)
 	return result
 }
 
-// StabilizeWorldlinePitchesは短い有声録音の倍音と分周誤検出を近い原音の高さへ補正する。
-func StabilizeWorldlinePitches(values []float64) []float64 {
+// StabilizeWorldPitchesは短い有声録音の倍音と分周誤検出を近い原音の高さへ補正する。
+func StabilizeWorldPitches(values []float64) []float64 {
 	result := append([]float64(nil), values...)
 	reference := MedianFloat(NonzeroFloats(values))
 	for index, value := range values {
@@ -355,7 +355,7 @@ func StabilizeWorldlinePitches(values []float64) []float64 {
 		if value <= 0 || result[index] != value {
 			continue
 		}
-		neighbor := nearestWorldlinePitch(result, index)
+		neighbor := nearestWorldPitch(result, index)
 		if neighbor <= 0 {
 			continue
 		}
@@ -375,7 +375,7 @@ func StabilizeWorldlinePitches(values []float64) []float64 {
 	return result
 }
 
-func nearestWorldlinePitch(values []float64, index int) float64 {
+func nearestWorldPitch(values []float64, index int) float64 {
 	for distance := 1; distance < len(values); distance++ {
 		left := index - distance
 		if left >= 0 && values[left] > 0 {
@@ -389,7 +389,7 @@ func nearestWorldlinePitch(values []float64, index int) float64 {
 	return 0
 }
 
-func MeasureWorldlinePitches(synthesisPlan *plan.Plan, cache *SourceCache) ([]float64, int, error) {
+func MeasureWorldPitches(synthesisPlan *plan.Plan, cache *SourceCache) ([]float64, int, error) {
 	values := make([]float64, len(synthesisPlan.Units))
 	sampleRate := 0
 	type pitchJob struct {
@@ -442,5 +442,5 @@ func MeasureWorldlinePitches(synthesisPlan *plan.Plan, cache *SourceCache) ([]fl
 	if synthesisPlan.SingleCV {
 		return StabilizeSingleCVPitches(synthesisPlan, values), sampleRate, nil
 	}
-	return StabilizeWorldlinePitches(values), sampleRate, nil
+	return StabilizeWorldPitches(values), sampleRate, nil
 }

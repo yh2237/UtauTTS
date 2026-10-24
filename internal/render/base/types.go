@@ -53,7 +53,7 @@ type RenderedUnit struct {
 	FadeInFrames int
 }
 
-type WorldlineEnvelopePoint struct {
+type EnvelopePoint struct {
 	XMS float64 `json:"x_ms"`
 	Y   float64 `json:"y"`
 }

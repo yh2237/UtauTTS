@@ -1,5 +1,5 @@
 //go:build !js
 
-package worldline
+package world
 
 func isWasm() bool { return false }

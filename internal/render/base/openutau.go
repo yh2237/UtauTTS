@@ -75,7 +75,7 @@ func OpenUtauPhoneTimingsWithCoda(units []plan.Unit, cvvcTiming string, protectC
 	return result, phraseStart
 }
 
-func OpenUtauEnvelopeFromTiming(unit plan.Unit, timing OpenUtauPhoneTiming) []WorldlineEnvelopePoint {
+func OpenUtauEnvelopeFromTiming(unit plan.Unit, timing OpenUtauPhoneTiming) []EnvelopePoint {
 	fadeIn := 5.0
 	if timing.Overlapped {
 		fadeIn = timing.Overlap
@@ -89,17 +89,17 @@ func OpenUtauEnvelopeFromTiming(unit plan.Unit, timing OpenUtauPhoneTiming) []Wo
 	p2 := math.Max(0, p1)
 	p4 := unit.DurationMS - timing.TailIntrude + timing.TailOverlap
 	p3 := math.Max(p2, p4-fadeOut)
-	return []WorldlineEnvelopePoint{
+	return []EnvelopePoint{
 		{XMS: p0, Y: 0}, {XMS: p1, Y: 1}, {XMS: p2, Y: 1},
 		{XMS: p3, Y: 1}, {XMS: p4, Y: 0},
 	}
 }
 
-func CVVCPreBoundaryEnvelope(points []WorldlineEnvelopePoint, timing OpenUtauPhoneTiming) []WorldlineEnvelopePoint {
+func CVVCPreBoundaryEnvelope(points []EnvelopePoint, timing OpenUtauPhoneTiming) []EnvelopePoint {
 	if len(points) != 5 {
 		return points
 	}
-	result := append([]WorldlineEnvelopePoint(nil), points...)
+	result := append([]EnvelopePoint(nil), points...)
 	fadeOut := math.Max(5, timing.TailOverlap)
 	fadeStart := math.Max(result[1].XMS, -fadeOut)
 	result[2].XMS = fadeStart

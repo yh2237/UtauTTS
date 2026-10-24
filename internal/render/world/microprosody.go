@@ -1,4 +1,4 @@
-package worldline
+package world
 
 import (
 	"math"
