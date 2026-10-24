@@ -2,7 +2,6 @@ package worldline
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -40,7 +39,6 @@ const worldlineFrameMS = provider.FramePeriodMS
 type worldlineManifest struct {
 	Engine          string                  `json:"engine,omitempty"`
 	WorldEnginePath string                  `json:"world_engine_path,omitempty"`
-	OutputPath      string                  `json:"output_path"`
 	SampleRate      int                     `json:"sample_rate"`
 	F0Curve         []float64               `json:"f0_curve"`
 	Units           []worldlineManifestUnit `json:"units"`
@@ -114,7 +112,6 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		WorldEnginePath: worldEnginePath,
 		SampleRate:      pitch.sampleRate,
 		F0Curve:         pitch.f0Curve,
-		OutputPath:      filepath.Join(tempDir, "output.wav"),
 	}
 	units := worldlineUnitBuilder{
 		plan: synthesisPlan, cfg: cfg, cache: &cache, timing: timing, pitch: pitch,
@@ -131,14 +128,10 @@ func renderWorldlineEngine(synthesisPlan *plan.Plan, cfg base.Config, providerID
 		manifest.Units = append(manifest.Units, item)
 	}
 	traceMark(&started, "units")
-	if err := renderWorldline(synthesisPlan, cfg, manifest, &started); err != nil {
+	pcm, err := renderWorldline(synthesisPlan, cfg, manifest, &started)
+	if err != nil {
 		return nil, err
 	}
-	pcm, err := audio.ReadWav(manifest.OutputPath)
-	if err != nil {
-		return nil, fmt.Errorf("read worldline output: %w", err)
-	}
-	traceMark(&started, "output")
 	minimumFrames := base.MsToFrames(synthesisPlan.DurationMS+cfg.ReleaseMS+timing.leadingMS, pcm.SampleRate)
 	if len(pcm.Data) < minimumFrames {
 		pcm.Data = append(pcm.Data, make([]int16, minimumFrames-len(pcm.Data))...)
@@ -525,15 +518,8 @@ func (b worldlineUnitBuilder) sourceDurationMS(unit plan.Unit) (float64, error) 
 	return provider.SourceEndMS(sourceDuration, unit.OffsetMS, unit.CutoffMS) - unit.OffsetMS, nil
 }
 
-func renderWorldline(synthesisPlan *plan.Plan, cfg base.Config, manifest worldlineManifest, started *time.Time) error {
-	job, err := worldlineProviderJob(synthesisPlan, cfg, manifest)
-	if err != nil {
-		return err
-	}
-	jobData, err := json.Marshal(job)
-	if err != nil {
-		return err
-	}
+func renderWorldline(synthesisPlan *plan.Plan, cfg base.Config, manifest worldlineManifest, started *time.Time) (*audio.PCM, error) {
+	options := worldlineOptions(synthesisPlan, cfg, manifest)
 	traceMark(started, "job")
 	ctx := cfg.Context
 	if ctx == nil {
@@ -541,17 +527,17 @@ func renderWorldline(synthesisPlan *plan.Plan, cfg base.Config, manifest worldli
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	speechResults, err := renderJob(ctx, jobData, manifest.OutputPath)
+	pcm, speechResults, err := renderWorld(ctx, options, manifest.WorldEnginePath)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return fmt.Errorf("WORLD render canceled: %w", ctxErr)
+			return nil, fmt.Errorf("WORLD render canceled: %w", ctxErr)
 		}
-		return fmt.Errorf("WORLD render failed: %w", err)
+		return nil, fmt.Errorf("WORLD render failed: %w", err)
 	}
 	traceMark(started, "world")
 	for _, result := range speechResults {
 		if result.UnitIndex < 0 || result.UnitIndex >= len(synthesisPlan.Units) {
-			return fmt.Errorf("invalid WORLD speech report unit %d", result.UnitIndex)
+			return nil, fmt.Errorf("invalid WORLD speech report unit %d", result.UnitIndex)
 		}
 		unit := &synthesisPlan.Units[result.UnitIndex]
 		unit.SpeechRetimeApplied = result.RetimeApplied
@@ -568,7 +554,7 @@ func renderWorldline(synthesisPlan *plan.Plan, cfg base.Config, manifest worldli
 			unit.EffectiveConsonantMS = result.TargetFixedMS
 		}
 	}
-	return nil
+	return pcm, nil
 }
 
 func speechSourceOnsetMS(unit plan.Unit) float64 {
@@ -652,17 +638,9 @@ func worldlineTiming(synthesisPlan *plan.Plan, unit plan.Unit, releaseMS float64
 	return base.NormalizePlanTiming(synthesisPlan, unit, releaseMS)
 }
 
-func worldlineProviderJob(synthesisPlan *plan.Plan, cfg base.Config, manifest worldlineManifest) (provider.UnitRendererJob, error) {
-	planData, err := json.Marshal(plan.Clone(synthesisPlan))
-	if err != nil {
-		return provider.UnitRendererJob{}, err
-	}
-	var resources map[string]string
-	if strings.TrimSpace(manifest.WorldEnginePath) != "" {
-		resources = map[string]string{"world_engine": manifest.WorldEnginePath}
-	}
+func worldlineOptions(synthesisPlan *plan.Plan, cfg base.Config, manifest worldlineManifest) provider.WorldlineOptions {
 	worldline := provider.WorldlineOptions{
-		Engine: manifest.Engine, SampleRate: manifest.SampleRate, ExactLength: cfg.ProviderOptions.Worldline.ExactLength,
+		Engine: manifest.Engine, SampleRate: manifest.SampleRate,
 		TimingWarp: timingWarpJob(synthesisPlan, cfg, len(manifest.F0Curve)),
 		F0Curve:    append([]float64(nil), manifest.F0Curve...),
 		Units:      make([]provider.WorldlineUnit, len(manifest.Units)),
@@ -685,24 +663,7 @@ func worldlineProviderJob(synthesisPlan *plan.Plan, cfg base.Config, manifest wo
 		}
 		worldline.Units[index] = converted
 	}
-	return provider.UnitRendererJob{
-		Version:         provider.UnitRendererJobVersion,
-		Contract:        "unit-renderer",
-		ContractVersion: 1,
-		Plan:            planData,
-		Options: provider.UnitRendererOptions{
-			ReleaseMS:             cfg.ReleaseMS,
-			LeadingPreutteranceMS: cfg.LeadingPreutteranceMS,
-			IntonationStrength:    cfg.IntonationStrength,
-			ApplyPitch:            cfg.ApplyPitch,
-			CVVCTiming:            cfg.CVVCTiming,
-			CVVCTransitionGain:    cfg.CVVCTransitionGain,
-			CVVCPreBoundaryFade:   cfg.CVVCPreBoundaryFade,
-			PitchCurve:            base.ProviderPitchCurve(cfg.PitchCurve),
-			Worldline:             &worldline,
-		},
-		Resources: resources,
-	}, nil
+	return worldline
 }
 
 // CVVCの子音長にはVCを含める。タイムラインは本体で計算する。

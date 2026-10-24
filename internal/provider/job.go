@@ -1,14 +1,5 @@
 package provider
 
-import "encoding/json"
-
-const (
-	CapabilityUnitRendererJobV2 = "unit_renderer_job_v2"
-	CapabilityNeuralScoreJobV1  = "neural_score_job_v1"
-)
-
-const UnitRendererJobVersion = 2
-
 // FramePeriodMSはF0曲線とWORLD解析のフレーム間隔。
 const FramePeriodMS = 10.0
 
@@ -20,31 +11,9 @@ func SourceEndMS(sourceDurationMS, offsetMS, cutoffMS float64) float64 {
 	return sourceDurationMS - cutoffMS
 }
 
-type UnitRendererJob struct {
-	Version         int                 `json:"version"`
-	Contract        string              `json:"contract"`
-	ContractVersion int                 `json:"contract_version"`
-	Plan            json.RawMessage     `json:"plan"`
-	Options         UnitRendererOptions `json:"options"`
-	Resources       map[string]string   `json:"resources,omitempty"`
-}
-
-type UnitRendererOptions struct {
-	ReleaseMS             float64           `json:"release_ms"`
-	LeadingPreutteranceMS float64           `json:"leading_preutterance_ms"`
-	IntonationStrength    float64           `json:"intonation_strength"`
-	ApplyPitch            bool              `json:"apply_pitch"`
-	CVVCTiming            string            `json:"cvvc_timing,omitempty"`
-	CVVCTransitionGain    float64           `json:"cvvc_transition_gain,omitempty"`
-	CVVCPreBoundaryFade   bool              `json:"cvvc_pre_boundary_fade,omitempty"`
-	PitchCurve            *PitchCurve       `json:"pitch_curve,omitempty"`
-	Worldline             *WorldlineOptions `json:"worldline,omitempty"`
-}
-
 type WorldlineOptions struct {
-	Engine      string `json:"engine"`
-	SampleRate  int    `json:"sample_rate"`
-	ExactLength bool   `json:"exact_length,omitempty"`
+	Engine     string `json:"engine"`
+	SampleRate int    `json:"sample_rate"`
 	// TimingWarpは日本語の時間伸縮の入力。nilは無効。
 	TimingWarp *TimingWarp     `json:"timing_warp,omitempty"`
 	F0Curve    []float64       `json:"f0_curve"`
@@ -78,10 +47,6 @@ type WorldlineUnit struct {
 	EnergyFactor      float64                  `json:"energy_factor,omitempty"`
 	Envelope          []WorldlineEnvelopePoint `json:"envelope,omitempty"`
 }
-
-const CapabilityWorldSpeechV1 = "world_speech_v1"
-const CapabilityCodaReleaseV1 = "coda_release_v1"
-const CapabilitySpeechAnchorsV1 = "speech_anchors_v1"
 
 // SpeechAnchorは切り出し原音の時刻を出力内の時刻へ対応付ける。
 type SpeechAnchor struct {
@@ -122,11 +87,6 @@ type WorldSpeechResult struct {
 type WorldlineEnvelopePoint struct {
 	XMS float64 `json:"x_ms"`
 	Y   float64 `json:"y"`
-}
-
-type PitchCurve struct {
-	FrameMS float64   `json:"frame_ms"`
-	Cents   []float64 `json:"cents"`
 }
 
 // TimingWarpは時間伸縮の入力。タイムラインは本体で計算し、bridgeは消費するだけ。

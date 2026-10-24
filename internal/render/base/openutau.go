@@ -4,7 +4,6 @@ import (
 	"math"
 
 	"github.com/yh2237/UtauTTS/internal/plan"
-	"github.com/yh2237/UtauTTS/internal/provider"
 )
 
 func OpenUtauPhoneTimingsWithCoda(units []plan.Unit, cvvcTiming string, protectCoda bool) ([]OpenUtauPhoneTiming, float64) {
@@ -107,11 +106,4 @@ func CVVCPreBoundaryEnvelope(points []WorldlineEnvelopePoint, timing OpenUtauPho
 	result[3].XMS = fadeStart
 	result[4].XMS = 0
 	return result
-}
-
-func ProviderPitchCurve(curve *PitchCurve) *provider.PitchCurve {
-	if curve == nil {
-		return nil
-	}
-	return &provider.PitchCurve{FrameMS: curve.FrameMS, Cents: append([]float64(nil), curve.Cents...)}
 }

@@ -2,9 +2,9 @@ package worldrender
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
+	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/UtauTTS/internal/provider"
 )
 
@@ -12,7 +12,6 @@ type manifest struct {
 	SpeechResults   *[]provider.WorldSpeechResult `json:"-"`
 	Engine          string                        `json:"engine"`
 	WorldEnginePath string                        `json:"world_engine_path"`
-	OutputPath      string                        `json:"output_path"`
 	SampleRate      int                           `json:"sample_rate"`
 	F0Curve         []float64                     `json:"f0_curve"`
 	Units           []unit                        `json:"units"`
@@ -63,19 +62,17 @@ func NewRenderer() *Renderer {
 	return &Renderer{state: newRendererState()}
 }
 
-func (renderer *Renderer) RenderJob(ctx context.Context, jobJSON []byte, outputPath string) ([]provider.WorldSpeechResult, error) {
-	input, err := decodeProviderJob(jobJSON, outputPath)
+// Renderは、原音の配置とF0曲線からWORLDで音声を作る。enginePathはWORLDのライブラリ。
+func (renderer *Renderer) Render(ctx context.Context, options provider.WorldlineOptions, enginePath string) (*audio.PCM, []provider.WorldSpeechResult, error) {
+	input, err := manifestFromOptions(options, enginePath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	result, err := renderManifestValue(ctx, input, outputPath, renderer.state)
+	samples, results, err := renderManifest(ctx, input, renderer.state)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if result.SpeechResults != nil {
-		return *result.SpeechResults, nil
-	}
-	return nil, nil
+	return &audio.PCM{SampleRate: input.SampleRate, Channels: 1, Data: pcm16(samples)}, results, nil
 }
 
 type rendererState struct {
@@ -83,25 +80,14 @@ type rendererState struct {
 	worldUnits   *worldFeatureCache
 }
 
-func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
-	var job provider.UnitRendererJob
-	if err := json.Unmarshal(data, &job); err != nil {
-		return manifest{}, fmt.Errorf("decode worldline job: %w", err)
-	}
-	if job.Version != provider.UnitRendererJobVersion || job.Contract != "unit-renderer" || job.ContractVersion != 1 {
-		return manifest{}, fmt.Errorf("unsupported worldline job contract")
-	}
-	if job.Options.Worldline == nil {
-		return manifest{}, fmt.Errorf("worldline job has no typed worldline options")
-	}
-	options := job.Options.Worldline
+func manifestFromOptions(options provider.WorldlineOptions, enginePath string) (manifest, error) {
 	if options.Engine != "utautts-world-phrase" {
 		return manifest{}, fmt.Errorf("unsupported worldline engine %q", options.Engine)
 	}
 	input := manifest{
-		Engine: options.Engine, OutputPath: outputPath, SampleRate: options.SampleRate,
+		Engine: options.Engine, SampleRate: options.SampleRate,
 		F0Curve: append([]float64(nil), options.F0Curve...), Units: make([]unit, len(options.Units)),
-		WorldEnginePath: job.Resources["world_engine"],
+		WorldEnginePath: enginePath,
 	}
 	input.timingWarp = timingWarpFromJob(options.TimingWarp)
 	for index, source := range options.Units {
@@ -123,17 +109,11 @@ func decodeProviderJob(data []byte, outputPath string) (manifest, error) {
 	return input, nil
 }
 
-func renderManifestValue(ctx context.Context, input manifest, outputPath string, state *rendererState) (manifest, error) {
+func renderManifest(ctx context.Context, input manifest, state *rendererState) ([]float32, []provider.WorldSpeechResult, error) {
 	input.SpeechResults = new([]provider.WorldSpeechResult)
 	var err error
-	if outputPath != "" {
-		input.OutputPath = outputPath
-	}
 	if len(input.Units) == 0 || len(input.F0Curve) < 2 {
-		return manifest{}, fmt.Errorf("manifest has no synthesis data")
-	}
-	if input.Engine != "utautts-world-phrase" {
-		return manifest{}, fmt.Errorf("unknown engine: %s", input.Engine)
+		return nil, nil, fmt.Errorf("manifest has no synthesis data")
 	}
 	var engine worldEngine
 	if state != nil {
@@ -142,7 +122,7 @@ func renderManifestValue(ctx context.Context, input manifest, outputPath string,
 	if engine == nil {
 		engine, err = openWorldEngine(input.WorldEnginePath)
 		if err != nil {
-			return manifest{}, err
+			return nil, nil, err
 		}
 		if state != nil {
 			// 別のパスのライブラリは使わなくなったので解放する。
@@ -159,9 +139,9 @@ func renderManifestValue(ctx context.Context, input manifest, outputPath string,
 	if state != nil {
 		cache = state.worldUnits
 	}
-	samples, renderErr := renderUtauTTSWorldPhrase(ctx, engine, input, cache)
-	if renderErr != nil {
-		return manifest{}, renderErr
+	samples, err := renderUtauTTSWorldPhrase(ctx, engine, input, cache)
+	if err != nil {
+		return nil, nil, err
 	}
-	return input, writePCM16(input.OutputPath, input.SampleRate, samples)
+	return samples, *input.SpeechResults, nil
 }

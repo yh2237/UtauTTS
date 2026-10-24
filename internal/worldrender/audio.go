@@ -1,11 +1,8 @@
 package worldrender
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math"
-	"os"
-	"path/filepath"
 
 	"github.com/yh2237/UtauTTS/internal/audio"
 )
@@ -28,6 +25,11 @@ func readPCM16(path string) (int, []float64, error) {
 }
 
 func writePCM16(path string, sampleRate int, samples []float32) error {
+	return audio.WriteWav(path, &audio.PCM{SampleRate: sampleRate, Channels: 1, Data: pcm16(samples)})
+}
+
+// pcm16は、ピークが0.98を超えるときだけ縮めて16bitにする。
+func pcm16(samples []float32) []int16 {
 	var peak float32
 	for _, sample := range samples {
 		if isFinite32(sample) && float32(math.Abs(float64(sample))) > peak {
@@ -38,34 +40,15 @@ func writePCM16(path string, sampleRate int, samples []float32) error {
 	if peak > 0.98 {
 		scale = 0.98 / peak
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	const headerSize = 44
-	dataSize := len(samples) * 2
-	buffer := make([]byte, headerSize+dataSize)
-	copy(buffer[0:], "RIFF")
-	binary.LittleEndian.PutUint32(buffer[4:], uint32(36+dataSize))
-	copy(buffer[8:], "WAVE")
-	copy(buffer[12:], "fmt ")
-	binary.LittleEndian.PutUint32(buffer[16:], 16)
-	binary.LittleEndian.PutUint16(buffer[20:], 1)
-	binary.LittleEndian.PutUint16(buffer[22:], 1)
-	binary.LittleEndian.PutUint32(buffer[24:], uint32(sampleRate))
-	binary.LittleEndian.PutUint32(buffer[28:], uint32(sampleRate*2))
-	binary.LittleEndian.PutUint16(buffer[32:], 2)
-	binary.LittleEndian.PutUint16(buffer[34:], 16)
-	copy(buffer[36:], "data")
-	binary.LittleEndian.PutUint32(buffer[40:], uint32(dataSize))
+	data := make([]int16, len(samples))
 	for index, sample := range samples {
 		if !isFinite32(sample) {
 			sample = 0
 		}
 		sample = max(-1, min(1, sample*scale))
-		value := int16(math.RoundToEven(float64(sample * 32767)))
-		binary.LittleEndian.PutUint16(buffer[headerSize+index*2:], uint16(value))
+		data[index] = int16(math.RoundToEven(float64(sample * 32767)))
 	}
-	return os.WriteFile(path, buffer, 0o644)
+	return data
 }
 
 func isFinite32(value float32) bool {
