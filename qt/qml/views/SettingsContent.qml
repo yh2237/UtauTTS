@@ -358,14 +358,18 @@ Item {
     }
 
     function defaultVoicebankIndex() {
-        const id = String(root.pendingDefaultVoicebankId || "");
-        if (!id.length)
-            return 0;
+        let id = String(root.pendingDefaultVoicebankId || "");
+        // 選んでいなければ、同梱の足立レイ（AppCore.standardVoicebank）を示す。
+        for (let index = 0; !id.length && index < root.backend.voicebanks.length; ++index) {
+            const voice = root.backend.voicebanks[index];
+            if (String(voice.id || "").indexOf("足立レイ") === 0 || String(voice.name || "").indexOf("足立レイ") >= 0)
+                id = String(voice.id);
+        }
         for (let index = 0; index < root.backend.voicebanks.length; ++index) {
             if (root.backend.voicebanks[index].id === id)
-                return index + 1;
+                return index;
         }
-        return 0;
+        return root.backend.voicebanks.length ? 0 : -1;
     }
 
     function validDefaultVoicebankId(value) {
@@ -843,10 +847,7 @@ Item {
                                             ComboBox {
                                                 id: defaultVoicebankCombo
                                                 Layout.preferredWidth: 240
-                                                model: [{
-                                                    id: "",
-                                                    name: root.translator.tr("settings.defaultVoicebank.auto")
-                                                }].concat(root.backend.voicebanks)
+                                                model: root.backend.voicebanks
                                                 textRole: "name"
                                                 valueRole: "id"
                                                 currentIndex: root.defaultVoicebankIndex()

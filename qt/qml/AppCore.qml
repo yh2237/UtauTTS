@@ -27,10 +27,21 @@ QtObject {
         return null;
     }
 
+    // 既定の音源を選んでいなければ、同梱の足立レイを使う。版でフォルダ名が変わるので名前で探す。
+    function standardVoicebank() {
+        const voices = core.backend.voicebanks;
+        for (let index = 0; index < voices.length; ++index) {
+            const voice = voices[index];
+            if (String(voice.id || "").indexOf("足立レイ") === 0 || String(voice.name || "").indexOf("足立レイ") >= 0)
+                return voice;
+        }
+        return voices.length ? voices[0] : null;
+    }
+
     function defaultVoicebank() {
         const configured = String(core.backend.defaultVoicebankId || "");
         const selected = configured.length ? core.voicebankById(configured) : null;
-        return selected || (core.backend.voicebanks.length ? core.backend.voicebanks[0] : null);
+        return selected || core.standardVoicebank();
     }
 
     // 保存済みのプロジェクトには、同梱から外したモデルのIDが残りうる。

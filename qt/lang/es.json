@@ -145,7 +145,6 @@
     "settings.defaultAliasPolicy": "Formato del voicebank",
     "settings.closeLogOnSuccess": "Cerrar el registro al terminar",
     "settings.defaultVoicebank": "Voicebank",
-    "settings.defaultVoicebank.auto": "Automático (primero de la lista)",
     "settings.defaultModel": "Modelo de entonación",
     "settings.defaultMoraDuration": "Duración de mora",
     "settings.defaultPauseDuration": "Duración de pausa",

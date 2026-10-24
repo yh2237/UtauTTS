@@ -145,7 +145,6 @@
     "settings.defaultAliasPolicy": "原音形式",
     "settings.closeLogOnSuccess": "成功時にログを閉じる",
     "settings.defaultVoicebank": "音源",
-    "settings.defaultVoicebank.auto": "自動（一覧の先頭）",
     "settings.defaultModel": "抑揚モデル",
     "settings.defaultMoraDuration": "モーラ長",
     "settings.defaultPauseDuration": "休止長",

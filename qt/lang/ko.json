@@ -145,7 +145,6 @@
     "settings.defaultAliasPolicy": "원음 형식",
     "settings.closeLogOnSuccess": "성공 시 로그 닫기",
     "settings.defaultVoicebank": "보이스뱅크",
-    "settings.defaultVoicebank.auto": "자동(목록의 첫 번째)",
     "settings.defaultModel": "억양 모델",
     "settings.defaultMoraDuration": "모라 길이",
     "settings.defaultPauseDuration": "휴지 길이",

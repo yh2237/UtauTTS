@@ -145,7 +145,6 @@
     "settings.defaultAliasPolicy": "音源格式",
     "settings.closeLogOnSuccess": "成功时自动关闭日志",
     "settings.defaultVoicebank": "音源",
-    "settings.defaultVoicebank.auto": "自动（列表中的第一个）",
     "settings.defaultModel": "韵律模型",
     "settings.defaultMoraDuration": "音拍时长",
     "settings.defaultPauseDuration": "停顿时长",

@@ -145,7 +145,6 @@
     "settings.defaultAliasPolicy": "Voicebank Format",
     "settings.closeLogOnSuccess": "Close Log on Success",
     "settings.defaultVoicebank": "Voicebank",
-    "settings.defaultVoicebank.auto": "Automatic (First in List)",
     "settings.defaultModel": "Intonation Model",
     "settings.defaultMoraDuration": "Mora Duration",
     "settings.defaultPauseDuration": "Pause Duration",
