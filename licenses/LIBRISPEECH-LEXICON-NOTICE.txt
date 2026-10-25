@@ -1,0 +1,20 @@
+LibriSpeech pronunciation lexicon
+=================================
+
+UtauTTS embeds a filtered subset of the LibriSpeech pronunciation lexicon for
+English words that are not in the bundled CMUdict.
+
+- Source: LibriSpeech language models, vocabulary and G2P models (OpenSLR SLR11)
+  https://www.openslr.org/11/
+- License: public domain
+- Embedded file: internal/g2p/lexicon/librispeech.dict.gz
+- Filtering: words already in CMUdict, non-alphabetic entries, one-letter
+  entries, and entries without a vowel were removed. Duplicate words keep the
+  first pronunciation.
+- Entries: 133,709
+- SHA-256:
+  596EEA4E72C0D162EFD1695C6198EBC52786E8F1131F0BBC49EA266CA39F1764
+
+The lexicon contains pronunciations for words in the LibriSpeech vocabulary,
+some of which were generated automatically by the LibriSpeech preparation
+scripts. CMUdict is always preferred when a word exists in both dictionaries.

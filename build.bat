@@ -13,7 +13,9 @@ if /I "%target%"=="-skip-package-test" (
     set "target=win"
 )
 if /I "%~2"=="-skip-tests" set "UTAUTTS_SKIP_TESTS=1"
+if /I "%~3"=="-skip-tests" set "UTAUTTS_SKIP_TESTS=1"
 if /I "%~2"=="-skip-package-test" set "UTAUTTS_SKIP_PACKAGE_TEST=1"
+if /I "%~3"=="-skip-package-test" set "UTAUTTS_SKIP_PACKAGE_TEST=1"
 
 if /I "%target%"=="win" goto build_win
 if /I "%target%"=="linux" goto build_linux

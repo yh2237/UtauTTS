@@ -396,6 +396,32 @@ Upstream source:
 https://github.com/cmusphinx/cmudict
 
 
+LibriSpeech pronunciation lexicon
+=================================
+
+UtauTTS embeds a filtered subset of the LibriSpeech pronunciation lexicon for
+English words not in CMUdict. The source is the LibriSpeech language models,
+vocabulary and G2P resource (OpenSLR SLR11), which is public domain. See
+licenses/LIBRISPEECH-LEXICON-NOTICE.txt.
+
+Upstream source:
+https://www.openslr.org/11/
+
+
+English OOV pronunciation model (g2p-en)
+=========================================
+
+UtauTTS embeds the out-of-vocabulary grapheme-to-phoneme GRU weights of g2p-en
+for English words that are not in CMUdict or LibriSpeech. Only the trained weights are
+converted to float32 and embedded as internal/g2p/en/english-g2p.bin. The
+model and its conversion are from g2p-en-plus 2.0.3 (Apache License 2.0), based
+on g2p-en by Kyubyong Park and Jongseok Kim. See licenses/G2P-EN-NOTICE.txt.
+
+Upstream source:
+https://github.com/Kyubyong/g2p
+https://pypi.org/project/g2p-en-plus/
+
+
 Bundled prosody models
 ======================
 

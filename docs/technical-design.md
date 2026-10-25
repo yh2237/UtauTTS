@@ -17,6 +17,7 @@ GUI、CLI、HTTP Serverは、どれも共通の`synth.Service`を通して処理
                 ▼
           synth.Service
           ├── Language Frontends （読み・音素・モーラ分解）
+          ├── g2p （数字・通貨・外来語・混在文字の前処理）
           ├── Open JTalk          （アクセント句・単語・品詞特徴の抽出）
           ├── Voicebank Resolver  （原音候補ラティスとViterbi経路探索）
           ├── Prosody Model       （10msピッチ曲線・モーラ音量スケール予測）

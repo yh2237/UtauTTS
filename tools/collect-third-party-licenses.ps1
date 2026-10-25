@@ -93,6 +93,11 @@ function Copy-FontLicenses {
     Copy-Required (Join-Path $root 'licenses/LINE-SEED-JP.txt') (Join-Path $licenseRoot 'LINE-SEED-JP.txt')
 }
 
+function Copy-EmbeddedModelNotices {
+    Copy-Required (Join-Path $root 'licenses/G2P-EN-NOTICE.txt') (Join-Path $licenseRoot 'G2P-EN-NOTICE.txt')
+    Copy-Required (Join-Path $root 'licenses/LIBRISPEECH-LEXICON-NOTICE.txt') (Join-Path $licenseRoot 'LIBRISPEECH-LEXICON-NOTICE.txt')
+}
+
 function Copy-WorldLicenses {
     Copy-Required (Join-Path $root 'third_party/world/LICENSE.txt') (Join-Path $licenseRoot 'WORLD/WORLD-LICENSE.txt')
     Copy-Required (Join-Path $root 'third_party/world/OOURA-NOTICE.txt') (Join-Path $licenseRoot 'WORLD/OOURA-NOTICE.txt')
@@ -285,6 +290,7 @@ Copy-GoLicenses
 Copy-OpenJTalkLicenses
 Copy-FontLicenses
 Copy-WorldLicenses
+Copy-EmbeddedModelNotices
 
 if ($Variant -eq 'windows-gui') {
     Copy-QtLicenses

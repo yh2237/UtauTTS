@@ -1,0 +1,21 @@
+English OOV pronunciation model (g2p-en)
+=========================================
+
+UtauTTS embeds the out-of-vocabulary grapheme-to-phoneme model of g2p-en for
+English words that are not in the bundled CMUdict or LibriSpeech lexicon. The model is a two-layer GRU
+encoder-decoder. Only the trained weights are converted to float32 and embedded
+as internal/g2p/en/english-g2p.bin; the Python implementation is not bundled.
+
+- Original project: g2p-en by Kyubyong Park and Jongseok Kim
+  https://github.com/Kyubyong/g2p
+- Weights and conversion: g2p-en-plus 2.0.3 (fork maintained by Myron)
+  https://pypi.org/project/g2p-en-plus/
+- Model file: checkpoint20.npz
+- Embedded file SHA-256:
+  397E9D54E21C44156DB4FC6ED0A80567644DF348AC3D7DB8E2133DD642EB84C0
+
+License: Apache License 2.0. The complete license text is included as
+licenses/APACHE-2.0.txt in each release package.
+
+The CMU Pronouncing Dictionary used for known words is covered separately by
+licenses/Go/CMUDICT-LICENSE.txt.

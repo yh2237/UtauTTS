@@ -8,7 +8,7 @@ UtauTTSのオリジナルコードは [`LICENSE`](./LICENSE)（MIT License）が
 
 ## 同梱モデル
 
-日本語の抑揚モデルおよび時間伸縮モデルの重みはMIT Licenseで配布しています。参照照合に使う`reference/`のモデル（Kokoro-82M、Kokoro-82M-v1.1-zh、misakiの英語辞書）はApache License 2.0、WavLM base+はMIT Licenseです。各モデルが参照するライセンス通知は `licenses/` に収録されています。
+日本語の抑揚モデルおよび時間伸縮モデルの重みはMIT Licenseで配布しています。参照照合に使う`reference/`のモデル（Kokoro-82M、Kokoro-82M-v1.1-zh、misakiの英語辞書）はApache License 2.0、WavLM base+はMIT Licenseです。英語の辞書にない語を読むGRUモデル（g2p-en）はApache License 2.0、LibriSpeechの発音辞書はパブリックドメインです。各モデルが参照するライセンス通知は `licenses/` に収録されています。
 
 | モデル | 適用ライセンス / 通知ファイル |
 | :--- | :--- |
@@ -17,6 +17,9 @@ UtauTTSのオリジナルコードは [`LICENSE`](./LICENSE)（MIT License）が
 | `reference/`（参照照合のモデル。Kokoro-82M、misakiの英語辞書） | Apache License 2.0 (`licenses/REFERENCE-MODELS.txt`, `licenses/APACHE-2.0.txt`) |
 | `reference/wavlm/`（WavLM base+） | MIT License (`licenses/REFERENCE-MODELS.txt`, `licenses/WAVLM-MIT.txt`) |
 | `reference/kokoro-zh/`（Kokoro-82M-v1.1-zh） | Apache License 2.0 (`licenses/CHINESE-REFERENCE-MODEL.txt`, `licenses/APACHE-2.0.txt`) |
+| `internal/g2p/lexicon/cmudict.dict.gz`（英語の基本辞書） | CMUdict license (`licenses/Go/CMUDICT-LICENSE.txt`) |
+| `internal/g2p/en/english-g2p.bin`（英語の辞書外の読み） | Apache License 2.0 (`licenses/G2P-EN-NOTICE.txt`, `licenses/APACHE-2.0.txt`) |
+| `internal/g2p/lexicon/librispeech.dict.gz`（英語の補助辞書） | Public domain (`licenses/LIBRISPEECH-LEXICON-NOTICE.txt`) |
 
 モデルを利用する際は、各モデルJSONに記載されたライセンス条項に従ってください。学習元コーパスの利用条件は、各配布元の規約に準拠します。詳細は [抑揚モデルのライセンス](./models/README.md) を参照してください。
 
