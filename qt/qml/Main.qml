@@ -97,6 +97,26 @@ ApplicationWindow {
     }
 
     Timer {
+        id: textAnalysisTimer
+        interval: 350
+        repeat: false
+        property int index: -1
+        onTriggered: {
+            if (index < 0 || index >= utterances.count)
+                return;
+            if (!utterances.get(index).content.trim()) {
+                window.appBackend.clearError();
+                return;
+            }
+            if (window.appBackend.busy) {
+                restart();
+                return;
+            }
+            window.analyzeUtterance(index);
+        }
+    }
+
+    Timer {
         id: intonationLabPrepareTimer
         interval: 100
         repeat: false
@@ -1478,6 +1498,7 @@ ApplicationWindow {
     function resolvedPhonemizer(language, phonemizer, voicebankId) { return core.resolvedPhonemizer(language, phonemizer, voicebankId); }
 
     function analyzeUtterance(index) {
+        textAnalysisTimer.stop();
         if (index < 0 || index >= utterances.count)
             return;
         const item = utterances.get(index);
@@ -1504,7 +1525,9 @@ ApplicationWindow {
         utterances.setProperty(selectedIndex, "phonemeOverridesJson", "[]");
         clearAutomaticProsody(selectedIndex);
         markUtteranceDirty(selectedIndex);
-        selectCombo(editorContent.modelCombo, current().modelId);
+        Qt.callLater(function() {
+            window.selectCombo(editorContent.modelCombo, window.current().modelId);
+        });
         window.analyzeUtterance(selectedIndex);
     }
 
@@ -1527,7 +1550,10 @@ ApplicationWindow {
             window.updateSpeechLanguage(options[0].id, "auto");
             selectCombo(editorContent.phonemizerCombo, "auto");
         }
-        selectCombo(editorContent.speechLanguageCombo, current().language || "ja");
+        Qt.callLater(function() {
+            window.selectCombo(editorContent.speechLanguageCombo, window.current().language || "ja");
+            window.selectCombo(editorContent.phonemizerCombo, window.current().phonemizer || "auto");
+        });
     }
 
     function updateSetting(name, value) {
@@ -1590,6 +1616,9 @@ ApplicationWindow {
         utterances.setProperty(index, "manualMoraDurationEdited", false);
         markUtteranceDirty(index);
         selectUtterance(index);
+        window.appBackend.clearError();
+        textAnalysisTimer.index = index;
+        textAnalysisTimer.restart();
         window.requestMissingProsodyPreview(index);
     }
 

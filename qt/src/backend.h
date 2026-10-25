@@ -175,6 +175,7 @@ public:
     Q_INVOKABLE void cancelUpdateDownload();
     void showUpdateError(const QString &title, const QString &text);
     Q_INVOKABLE void clearLogs();
+    Q_INVOKABLE void clearError();
     Q_INVOKABLE void setCloseLogOnSuccess(bool value);
     Q_INVOKABLE void setUpdateCheckEnabled(bool value);
     Q_INVOKABLE void setPreReleaseUpdateCheckEnabled(bool value);

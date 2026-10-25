@@ -2407,6 +2407,10 @@ void Backend::setBusy(bool value) {
     emit busyChanged();
 }
 
+void Backend::clearError() {
+    setError({});
+}
+
 void Backend::setError(const QString &value) {
     if (m_error == value) {
         return;

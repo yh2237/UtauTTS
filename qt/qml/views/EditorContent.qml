@@ -378,9 +378,11 @@ import UtauTTS.Media
                                     const method = window.defaultMethod(language);
                                     window.utterancesModel.setProperty(window.selectedIndex, "method", method);
                                     window.updateSpeechLanguage(language, phonemizer);
-                                    window.selectCombo(speechLanguageCombo, language);
-                                    window.selectCombo(methodCombo, method);
-                                    window.selectCombo(phonemizerCombo, phonemizer);
+                                    Qt.callLater(function() {
+                                        window.selectCombo(methodCombo, method);
+                                        window.selectCombo(speechLanguageCombo, language);
+                                        window.selectCombo(phonemizerCombo, phonemizer);
+                                    });
                                 }
 
                                 const item = window.current();
@@ -427,7 +429,9 @@ import UtauTTS.Media
                                 onActivated: {
                                     const selectedPhonemizer = "auto";
                                     window.updateSpeechLanguage(currentValue, selectedPhonemizer);
-                                    window.selectCombo(phonemizerCombo, selectedPhonemizer);
+                                    Qt.callLater(function() {
+                                        window.selectCombo(phonemizerCombo, selectedPhonemizer);
+                                    });
                                 }
                             }
                         }
