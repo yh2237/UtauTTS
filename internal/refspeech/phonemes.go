@@ -7,6 +7,8 @@ import (
 	"unicode"
 
 	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/g2p"
+	"github.com/yh2237/UtauTTS/internal/g2p/en"
 )
 
 var kokoroVowels = map[string]string{
@@ -49,12 +51,30 @@ func KokoroPieces(lexicon *Lexicon, text, reading, automatic string, dictionary 
 		if words != nil {
 			word = words[i]
 		}
-		phonemes, ok := "", false
+		phonemes := ""
 		if word != "" && dictionary[word] == "" && dictionary[strings.ToLower(word)] == "" &&
 			slices.Equal(parts[i], automaticParts[i]) {
-			phonemes, ok = lexicon.Word(word, context)
+			previous, next := "", ""
+			if words != nil {
+				if i > 0 {
+					previous = words[i-1]
+				}
+				if i+1 < len(words) {
+					next = words[i+1]
+				}
+			}
+			reading, err := en.ResolveInContextWithLexicon(word, previous, next, func(candidate string) (string, bool) {
+				return lexicon.Word(candidate, context)
+			})
+			if err == nil {
+				if reading.Notation == g2p.NotationKokoro {
+					phonemes = reading.Phones
+				} else {
+					phonemes = arpabetWord(strings.Fields(reading.Phones))
+				}
+			}
 		}
-		if !ok {
+		if phonemes == "" {
 			phonemes = arpabetWord(parts[i])
 		}
 		symbols[i] = strings.NewReplacer("ɾ", "T", "ʔ", "t").Replace(phonemes)

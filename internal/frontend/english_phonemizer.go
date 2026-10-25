@@ -408,13 +408,17 @@ func englishPronunciation(text, reading string, dictionary map[string]string) (s
 				value = dictionary[strings.ToLower(word)]
 			}
 			if value == "" {
+				previous, next := "", ""
+				if index > 0 {
+					previous = words[index-1]
+				}
+				if index+1 < len(words) {
+					next = words[index+1]
+				}
 				var err error
-				value, err = englishWordPronunciation(word)
+				value, err = englishWordPronunciationInContext(word, previous, next)
 				if err != nil {
 					return "", nil, err
-				}
-				if strings.EqualFold(word, "read") && englishReadIsBaseForm(words, index) {
-					value = "R IY1 D"
 				}
 			}
 			fields := strings.Fields(value)

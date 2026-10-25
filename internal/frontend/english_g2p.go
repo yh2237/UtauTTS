@@ -1,18 +1,15 @@
 package frontend
 
+import "github.com/yh2237/UtauTTS/internal/g2p/en"
+
+// englishWordPronunciationは、英語の1語を優先順位の高い候補から読む。
 func englishWordPronunciation(word string) (string, error) {
-	pronunciation, err := lookupEnglishDictionary(word)
-	if err != nil {
-		return "", err
-	}
-	if pronunciation != "" {
-		return pronunciation, nil
-	}
-	if pronunciation, err = englishInflectedPronunciation(word); err != nil || pronunciation != "" {
-		return pronunciation, err
-	}
-	if pronunciation, err = englishPrefixedPronunciation(word); err != nil || pronunciation != "" {
-		return pronunciation, err
-	}
-	return englishRulePronunciation(word)
+	reading, err := en.Resolve(word)
+	return reading.Phones, err
+}
+
+// englishWordPronunciationInContextは、前後の語で同綴異音語を選ぶ。
+func englishWordPronunciationInContext(word, previous, next string) (string, error) {
+	reading, err := en.ResolveInContext(word, previous, next)
+	return reading.Phones, err
 }
