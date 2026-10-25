@@ -6,6 +6,8 @@ import (
 	"unicode"
 
 	"golang.org/x/text/unicode/norm"
+
+	"github.com/yh2237/UtauTTS/internal/g2p"
 )
 
 // スペイン語の読みは、Kokoroの音素記号の音節を「.」で、語を空白でつなぐ（例「ˈo.la , kˈe tˈal ?」）。
@@ -156,6 +158,7 @@ type syllableToken struct {
 
 // SpanishReadingは文をスペイン語の読みにする。dictionaryの語（小文字）は、その読みを使う。
 func SpanishReading(text string, dictionary map[string]string) (string, error) {
+	text = g2p.Normalize(g2p.Spanish, text)
 	tokens := spanishTokens(text)
 	words := 0
 	for _, token := range tokens {
@@ -178,6 +181,11 @@ func SpanishReading(text string, dictionary map[string]string) (string, error) {
 			continue
 		}
 		if value := dictionary[token.word]; value != "" {
+			fields = append(fields, value)
+			prev = esLastPhone(value)
+			continue
+		}
+		if value, ok := g2p.ForeignReading(g2p.Spanish, token.word); ok {
 			fields = append(fields, value)
 			prev = esLastPhone(value)
 			continue

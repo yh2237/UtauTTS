@@ -30,7 +30,7 @@ func TestGenerateWritesDictionaryAndNotices(t *testing.T) {
 	if err := generate(checkout, root); err != nil {
 		t.Fatal(err)
 	}
-	target := filepath.Join(root, "internal", "frontend", "lexicon")
+	target := filepath.Join(root, "internal", "g2p", "lexicon")
 	compressed, err := os.ReadFile(filepath.Join(target, "cmudict.dict.gz"))
 	if err != nil {
 		t.Fatal(err)

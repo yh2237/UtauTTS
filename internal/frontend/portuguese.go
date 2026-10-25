@@ -6,6 +6,8 @@ import (
 	"unicode"
 
 	"golang.org/x/text/unicode/norm"
+
+	"github.com/yh2237/UtauTTS/internal/g2p"
 )
 
 // ポルトガル語（ブラジル）の読みは、スペイン語と同じ形（音節を「.」で、語を空白でつなぐ）。
@@ -56,6 +58,7 @@ var ptSecondaryWords = map[string]bool{
 
 // PortugueseReadingは文をポルトガル語の読みにする。dictionaryの語（小文字）は、その読みを使う。
 func PortugueseReading(text string, dictionary map[string]string) (string, error) {
+	text = g2p.Normalize(g2p.Portuguese, text)
 	tokens := ptTokens(text)
 	words := 0
 	for _, token := range tokens {
@@ -95,6 +98,9 @@ func PortugueseReading(text string, dictionary map[string]string) (string, error
 // ptWordReadingは1語の読みを返す。inSentenceなら機能語の強勢を弱める。
 func ptWordReading(word string, dictionary map[string]string, inSentence bool) (string, error) {
 	if value := dictionary[word]; value != "" {
+		return value, nil
+	}
+	if value, ok := g2p.ForeignReading(g2p.Portuguese, word); ok {
 		return value, nil
 	}
 	if value := ptWords[word]; value != "" {

@@ -1,63 +1,23 @@
 package frontend
 
 import (
-	"golang.org/x/text/unicode/norm"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"golang.org/x/text/unicode/norm"
+
+	"github.com/yh2237/UtauTTS/internal/g2p"
 )
 
 var numberPattern = regexp.MustCompile(`[0-9]+(?:\.[0-9]+)?`)
 var timePattern = regexp.MustCompile(`\b([0-9]{1,2}):([0-9]{2})\b`)
 var groupedNumberPattern = regexp.MustCompile(`\b[0-9]{1,3}(?:,[0-9]{3})+\b`)
-var enSmall = strings.Fields("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen")
-var enTens = strings.Fields("zero ten twenty thirty forty fifty sixty seventy eighty ninety")
+var percentPattern = regexp.MustCompile(`([0-9]+(?:\.[0-9]+)?)\s*%`)
 
-func englishCardinal(n uint64) string {
-	if n < 20 {
-		return enSmall[n]
-	}
-	if n < 100 {
-		result := enTens[n/10]
-		if n%10 != 0 {
-			result += " " + enSmall[n%10]
-		}
-		return result
-	}
-	for _, group := range []struct {
-		value uint64
-		name  string
-	}{{1000000000000, "trillion"}, {1000000000, "billion"}, {1000000, "million"}, {1000, "thousand"}, {100, "hundred"}} {
-		if n >= group.value {
-			result := englishCardinal(n/group.value) + " " + group.name
-			if n%group.value != 0 {
-				result += " " + englishCardinal(n%group.value)
-			}
-			return result
-		}
-	}
-	return ""
-}
+func englishCardinal(n uint64) string { return g2p.EnglishCardinal(n) }
 
-func englishNumber(s string) string {
-	integer, fraction, decimal := strings.Cut(s, ".")
-	n, err := strconv.ParseUint(integer, 10, 64)
-	result := ""
-	if err != nil || len(integer) > 15 || (len(integer) > 1 && integer[0] == '0') {
-		for _, digit := range integer {
-			result += " " + enSmall[digit-'0']
-		}
-	} else {
-		result = englishCardinal(n)
-	}
-	if decimal {
-		result += " point"
-		for _, digit := range fraction {
-			result += " " + enSmall[digit-'0']
-		}
-	}
-	return strings.TrimSpace(result)
-}
+func englishNumber(s string) string { return g2p.EnglishNumber(s) }
 
 func normalizeEnglishText(text string) string {
 	text = norm.NFKC.String(text)
@@ -119,6 +79,7 @@ func chineseCardinal(n uint64) string {
 func normalizeChineseText(text string) string {
 	text = norm.NFKC.String(text)
 	text = groupedNumberPattern.ReplaceAllStringFunc(text, func(s string) string { return strings.ReplaceAll(s, ",", "") })
+	text = percentPattern.ReplaceAllString(text, "百分之$1")
 	return numberPattern.ReplaceAllStringFunc(text, func(s string) string {
 		integer, fraction, decimal := strings.Cut(s, ".")
 		n, err := strconv.ParseUint(integer, 10, 64)

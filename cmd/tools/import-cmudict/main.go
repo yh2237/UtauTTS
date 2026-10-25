@@ -45,7 +45,7 @@ func generate(checkout, root string) error {
 	if err != nil {
 		return err
 	}
-	target := filepath.Join(root, "internal", "frontend", "lexicon")
+	target := filepath.Join(root, "internal", "g2p", "lexicon")
 	if err := os.MkdirAll(target, 0o755); err != nil {
 		return err
 	}
@@ -75,7 +75,9 @@ func generate(checkout, root string) error {
 		"利用条件は[LICENSE](LICENSE)と配布物の`licenses/Go/CMUDICT-LICENSE.txt`を参照してください。\n\n" +
 		"更新時はCMUdictのリポジトリを取得して、使用するrevisionへ切り替えます。" +
 		"UtauTTSのルートから`go run ./cmd/tools/import-cmudict <checkout>`を実行してください。" +
-		"`<checkout>`はCMUdictの作業ディレクトリです。辞書とライセンスに加えてこの出典情報も更新します。\n"
+		"`<checkout>`はCMUdictの作業ディレクトリです。辞書とライセンスに加えてこの出典情報も更新します。\n\n" +
+		"## LibriSpeech\n\n`librispeech.dict.gz`は、OpenSLR SLR11のLibriSpeech発音辞書（パブリックドメイン）から、CMUdictにない語だけを抽出した補助辞書です。" +
+		"出典・抽出条件・SHA-256は`licenses/LIBRISPEECH-LEXICON-NOTICE.txt`にあります。CMUdictにある語は常にCMUdictを優先します。\n"
 	return os.WriteFile(filepath.Join(target, "README.md"), []byte(readme), 0o644)
 }
 

@@ -45,6 +45,16 @@ func TestChineseFamilyTermsUseNeutralTone(t *testing.T) {
 	}
 }
 
+func TestChinesePercent(t *testing.T) {
+	reading, _, err := ParseChineseCVVC("50%的人同意。", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(reading, "bai3 fen1 zhi1 wu3 shi2") {
+		t.Fatalf("reading = %q", reading)
+	}
+}
+
 func TestChineseFamilyTermsPreserveExplicitPronunciation(t *testing.T) {
 	for _, tc := range []struct {
 		text       string

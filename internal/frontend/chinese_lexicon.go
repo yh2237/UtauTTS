@@ -8,6 +8,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/mozillazg/go-pinyin"
+
+	"github.com/yh2237/UtauTTS/internal/g2p"
 )
 
 var chineseWords = map[string]string{
@@ -82,6 +84,22 @@ func chineseReadingTokens(text string, dictionary map[string]string) ([]chineseT
 		if matched {
 			continue
 		}
+		if latin := leadingLatinRun(text); latin != "" {
+			reading, ok := g2p.ForeignReading(g2p.Chinese, strings.ToLower(latin))
+			if !ok {
+				reading = g2p.ChineseLatinReading(latin)
+			}
+			fields := strings.Fields(reading)
+			if len(fields) == 0 {
+				return nil, fmt.Errorf("cannot convert %q to Pinyin; specify --reading", latin)
+			}
+			for i, field := range fields {
+				result = append(result, chineseToken{reading: field, source: latin, word: word, end: i+1 == len(fields)})
+			}
+			text = strings.TrimPrefix(text, latin)
+			word++
+			continue
+		}
 		r, size := utf8.DecodeRuneInString(text)
 		text = text[size:]
 		if unicode.IsSpace(r) {
@@ -104,4 +122,16 @@ func chineseReadingTokens(text string, dictionary map[string]string) ([]chineseT
 		word++
 	}
 	return result, nil
+}
+
+// leadingLatinRunは、文の先頭にあるラテン文字・数字の並びを返す。
+func leadingLatinRun(text string) string {
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
+			continue
+		}
+		return text[:i]
+	}
+	return text
 }

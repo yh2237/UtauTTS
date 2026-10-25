@@ -32,6 +32,27 @@ func TestPortugueseReadingMatchesKokoroPhonemes(t *testing.T) {
 	}
 }
 
+func TestPortugueseNumbersAndCurrency(t *testing.T) {
+	cases := map[string][]string{
+		"O preço é R$ 3,50.":  {"trˈes xe.ˈIz", "sˌiŋ.kˈAŋ.tæ"},
+		"Custa R$ 1.000,00.":  {"mˈiʊ xe.ˈIs"},
+		"O preço é US$ 3,50.": {"trˈez dˈɔ.læ.ɾyz", "sˌiŋ.kˈAŋ.tæ"},
+		"São 3,50 metros.":    {"vˈiɾə.ɡu.læ", "sˌiŋ.kˈAŋ.tæ"},
+		"Estamos em 2026.":    {"mˈiʊ", "vˈiŋ"},
+	}
+	for text, wants := range cases {
+		reading, _, err := ParsePortuguese(text, "", nil)
+		if err != nil {
+			t.Fatalf("%q: %v", text, err)
+		}
+		for _, want := range wants {
+			if !strings.Contains(reading, want) {
+				t.Errorf("%q: reading %q does not contain %q", text, reading, want)
+			}
+		}
+	}
+}
+
 func TestPortugueseMoraeAreSyllables(t *testing.T) {
 	_, morae, err := ParseSyllableLanguage(LanguagePortuguese, PhonemizerPortuguese, "Bom dia, tudo bem?", "", nil)
 	if err != nil {

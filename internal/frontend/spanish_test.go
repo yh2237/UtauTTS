@@ -67,6 +67,40 @@ func TestSpanishMoraeAreSyllables(t *testing.T) {
 	}
 }
 
+func TestSpanishCurrencyAndPercent(t *testing.T) {
+	cases := map[string]string{
+		"El precio es 3,50 €.": "ˈeʊ.ɾos kon",
+		"El descuento es 50%.": "poɾ θjˈɛn.to",
+		"Cuesta US$ 3,50.":     "ðˈo.la.ɾes kon",
+		"Son 3,50 metros.":     "kˈo.ma",
+	}
+	for text, want := range cases {
+		got, _, err := ParseSpanish(text, "", nil)
+		if err != nil {
+			t.Fatalf("%q: %v", text, err)
+		}
+		if !strings.Contains(got, want) {
+			t.Errorf("%q: reading %q does not contain %q", text, got, want)
+		}
+	}
+}
+
+func TestSpanishForeignNamesUseDictionary(t *testing.T) {
+	cases := map[string]string{
+		"Google y ChatGPT.":   "ˈɡu.ɣel i ʧˈat.xe.pe.tˈe .",
+		"Microsoft y OpenAI.": "mˌi.kɾo.sˈoft i ˌo.pen.ˈaj .",
+	}
+	for text, want := range cases {
+		got, _, err := ParseSpanish(text, "", nil)
+		if err != nil {
+			t.Fatalf("%q: %v", text, err)
+		}
+		if got != want {
+			t.Errorf("%q: got %q, want %q", text, got, want)
+		}
+	}
+}
+
 func TestSpanishNumberWords(t *testing.T) {
 	cases := map[string]string{
 		"0": "cero", "21": "veintiuno", "35": "treinta y cinco", "100": "cien", "101": "ciento uno",
