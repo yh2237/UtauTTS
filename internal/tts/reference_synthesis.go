@@ -107,7 +107,10 @@ func referenceInputs(cfg Config, language, reading string) (*refspeech.Service, 
 	if err != nil {
 		return nil, nil, nil, refspeech.Options{}, err
 	}
-	options := refspeech.Options{Speed: 1, PitchScale: cfg.IntonationStrength / settings.Number("intonation_strength")}
+	options := refspeech.Options{
+		Speed:      1,
+		PitchScale: cfg.IntonationStrength / settings.Number("intonation_strength"),
+	}
 	if cfg.MoraDurationMS > 0 {
 		options.Speed = float32(plan.DefaultMoraDurationMS / cfg.MoraDurationMS)
 	}
@@ -163,11 +166,16 @@ func hasManualMoraDurations(durations []float64) bool {
 	return false
 }
 
-// englishPlanTimingは、手動の長さや抑揚があればKokoroで一度読んで、手動の長さに合わせた記号の長さと、モーラの長さを返す。
-// 手動の編集がなければnilを返し、Kokoroの予測した長さで読む。
+// referencePlanTimingは、手動の長さや抑揚があればKokoroの読み方を作る。
+// 手動の長さはモーラ全体でなく音素ごとに配分し、子音は元の長さを保って残りを母音へ渡す。
 func referencePlanTiming(cfg Config, language string, provider refspeech.Provider, pieces []refspeech.Piece, options refspeech.Options, reading string, morae []frontend.Mora) ([]int, []float64, error) {
 	manualPitch := cfg.ManualPitch != nil || cfg.ManualPitchPath != ""
-	if !hasManualMoraDurations(cfg.MoraDurationsMS) && !manualPitch && len(cfg.UnitOverrides) == 0 {
+	manualLength := hasManualMoraDurations(cfg.MoraDurationsMS)
+	plans, err := buildPhonePlans(cfg, morae)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !manualLength && !manualPitch && len(cfg.UnitOverrides) == 0 && len(plans) == 0 {
 		return nil, nil, nil
 	}
 	reference, err := provider.ReadProsody(pieces, options.Speed, nil)
@@ -175,12 +183,19 @@ func referencePlanTiming(cfg Config, language string, provider refspeech.Provide
 		return nil, nil, err
 	}
 	moraTokens := referenceMoraTokens(language, pieces, reference.Timing, reading, morae)
-	forced := referenceForcedDurations(reference.Timing, moraTokens, cfg.MoraDurationsMS)
-	return forced, referenceMoraDurations(moraTokens, refspeech.Timing{Durations: forced}, cfg.MoraDurationsMS), nil
+	phonePlans := referencePhonePlans(morae, moraTokens, reference.Timing, cfg.MoraDurationsMS, plans)
+	forced, err := referenceForcedDurations(reference.Timing, moraTokens, morae, phonePlans)
+	if err != nil {
+		return nil, nil, err
+	}
+	return forced, referencePlannedDurations(moraTokens, refspeech.Timing{Durations: forced}, cfg.MoraDurationsMS, phonePlans), nil
 }
 
 // synthesizeReferenceは文を参照TTSで読み、音源のフレームで合成し直す。
 func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer, reading string, morae []frontend.Mora) (*Result, error) {
+	if err := plan.ValidateMoraDurations(morae, cfg.MoraDurationsMS); err != nil {
+		return nil, err
+	}
 	ctx := cfg.Context
 	if ctx == nil {
 		ctx = context.Background()
@@ -214,18 +229,18 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	}
 	if forced != nil {
 		options.Durations = forced
-		if options.PitchCents, options.ReplacePitch, err = referenceManualPitch(cfg, reading, morae, planned); err != nil {
-			return nil, err
-		}
-		// 拡張編集のPITは、手動の抑揚の上に足す。
-		if pit := moraEnvelope(planned, unitCents, 0); pit != nil {
-			manual := options.PitchCents
-			options.PitchCents = func(ms float64) float64 {
-				if manual != nil {
-					return manual(ms) + pit(ms)
-				}
-				return pit(ms)
+	}
+	if options.PitchCents, options.ReplacePitch, err = referenceManualPitch(cfg, reading, morae, planned); err != nil {
+		return nil, err
+	}
+	// 拡張編集のPITは、手動の抑揚の上に足す。
+	if pit := moraEnvelope(planned, unitCents, 0); pit != nil {
+		manual := options.PitchCents
+		options.PitchCents = func(ms float64) float64 {
+			if manual != nil {
+				return manual(ms) + pit(ms)
 			}
+			return pit(ms)
 		}
 	}
 	refspeech.SetStage("参照音声を生成しています")
@@ -298,6 +313,9 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 // predictReferenceは、参照TTSの読みだけからモーラ長と抑揚を返す。音源は使わない。
 // 手動のモーラ長があれば、その長さで読んだときの抑揚を返す。
 func predictReference(cfg Config, language, reading string, morae []frontend.Mora) (*ProsodyPreview, error) {
+	if err := plan.ValidateMoraDurations(morae, cfg.MoraDurationsMS); err != nil {
+		return nil, err
+	}
 	referenceReading := reading
 	if frontend.NormalizeLanguage(language) == frontend.LanguageChinese {
 		referenceReading = chineseSurfaceReading(reading, morae)
@@ -310,13 +328,22 @@ func predictReference(cfg Config, language, reading string, morae []frontend.Mor
 	if err != nil {
 		return nil, fmt.Errorf("reference prosody: %w", err)
 	}
-	if hasManualMoraDurations(cfg.MoraDurationsMS) {
-		forced := referenceForcedDurations(reference.Timing, referenceMoraTokens(language, pieces, reference.Timing, reading, morae), cfg.MoraDurationsMS)
+	moraTokens := referenceMoraTokens(language, pieces, reference.Timing, reading, morae)
+	plans, err := buildPhonePlans(cfg, morae)
+	if err != nil {
+		return nil, fmt.Errorf("reference prosody: %w", err)
+	}
+	phonePlans := referencePhonePlans(morae, moraTokens, reference.Timing, cfg.MoraDurationsMS, plans)
+	forced, err := referenceForcedDurations(reference.Timing, moraTokens, morae, phonePlans)
+	if err != nil {
+		return nil, fmt.Errorf("reference prosody: %w", err)
+	}
+	if forced != nil {
 		if reference, err = provider.ReadProsody(pieces, options.Speed, forced); err != nil {
 			return nil, fmt.Errorf("reference prosody: %w", err)
 		}
 	}
-	durations := referenceMoraDurations(referenceMoraTokens(language, pieces, reference.Timing, reading, morae), reference.Timing, cfg.MoraDurationsMS)
+	durations := referencePlannedDurations(moraTokens, refspeech.Timing{Durations: forced}, cfg.MoraDurationsMS, phonePlans)
 	f0 := reference.ReferenceF0()
 	center := referenceCenterHz(f0)
 	leading := reference.LeadingMS()
@@ -416,7 +443,8 @@ func englishMoraTokens(pieces []refspeech.Piece, timing refspeech.Timing, readin
 	return result
 }
 
-// referenceMoraDurationsは、モーラに割り当てた記号の長さを足す。手動の長さがあるモーラはその値にする。
+// referenceMoraDurationsは、モーラに割り当てた記号の長さを足す。
+// 手動の長さがあるモーラはその値にする。
 func referenceMoraDurations(moraTokens [][]int, timing refspeech.Timing, manual []float64) []float64 {
 	durations := make([]float64, len(moraTokens))
 	for i, tokens := range moraTokens {
@@ -431,44 +459,16 @@ func referenceMoraDurations(moraTokens [][]int, timing refspeech.Timing, manual 
 	return durations
 }
 
-// referenceForcedDurationsは、手動の長さがあるモーラの記号の長さを、比を保って目標に合わせる。
-func referenceForcedDurations(timing refspeech.Timing, moraTokens [][]int, manual []float64) []int {
-	result := append([]int(nil), timing.Durations...)
-	for i, tokens := range moraTokens {
-		target, ok := plan.ConfiguredMoraDuration(i, manual)
-		if !ok || len(tokens) == 0 {
-			continue
-		}
-		frames := max(len(tokens), int(math.Round(target/refspeech.DurationUnitMS)))
-		current := 0
-		for _, token := range tokens {
-			current += timing.Durations[token]
-		}
-		type share struct {
-			token int
-			rest  float64
-		}
-		shares := make([]share, len(tokens))
-		assigned := 0
-		for k, token := range tokens {
-			exact := float64(frames) * float64(timing.Durations[token]) / float64(max(current, 1))
-			result[token] = max(1, int(math.Floor(exact)))
-			assigned += result[token]
-			shares[k] = share{token, exact - math.Floor(exact)}
-		}
-		sort.SliceStable(shares, func(a, b int) bool { return shares[a].rest > shares[b].rest })
-		for k := 0; assigned < frames; k = (k + 1) % len(shares) {
-			result[shares[k].token]++
-			assigned++
-		}
-		for k := len(shares) - 1; assigned > frames && k >= 0; k-- {
-			if result[shares[k].token] > 1 {
-				result[shares[k].token]--
-				assigned--
-			}
+// referencePlannedDurationsは、合成後の各モーラの長さを返す。
+// 音素の指定があるモーラは、その合計長を使う。
+func referencePlannedDurations(moraTokens [][]int, timing refspeech.Timing, manual []float64, plans []moraPhonePlan) []float64 {
+	durations := referenceMoraDurations(moraTokens, timing, manual)
+	for i := range durations {
+		if i < len(plans) && plans[i].total > 0 {
+			durations[i] = plans[i].total
 		}
 	}
-	return result
+	return durations
 }
 
 func splitEnglishReading(reading string) []string {

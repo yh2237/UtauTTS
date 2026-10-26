@@ -198,6 +198,16 @@ func TestBuildUsesCanonicalDurationDefaults(t *testing.T) {
 	}
 }
 
+func TestValidateMoraDurationsIncludesPauses(t *testing.T) {
+	morae := []frontend.Mora{{Text: "あ"}, {Pause: true}, {Text: "い"}}
+	if err := ValidateMoraDurations(morae, []float64{120, 180, 120}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateMoraDurations(morae, []float64{120, 120}); err == nil {
+		t.Fatal("mora durations without a pause entry were accepted")
+	}
+}
+
 func TestCVVCTransitionDurationCoversLongConsonants(t *testing.T) {
 	vc := oto.Entry{Preutterance: 250, Overlap: 83}
 	// 「す」の子音95msは、120msモーラの3/4まで確保する。

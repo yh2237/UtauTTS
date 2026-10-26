@@ -497,6 +497,19 @@ func transitionTarget(alias string) string {
 	return ""
 }
 
+// ValidateMoraDurationsは手動のモーラ長が、休止を含む全モーラ数と一致するか確かめる。
+// 休止を飛ばした配列を渡すと、値が後ろへずれて別のモーラが伸びるため、黙って受け付けない。
+// 日本語の波形合成は従来どおり部分的な配列を許すので、参照照合でのみ使う。
+func ValidateMoraDurations(morae []frontend.Mora, durations []float64) error {
+	if len(durations) == 0 {
+		return nil
+	}
+	if len(durations) != len(morae) {
+		return fmt.Errorf("mora_durations_ms must have %d entries including pauses, got %d", len(morae), len(durations))
+	}
+	return nil
+}
+
 // ConfiguredMoraDurationは手動指定のモーラ長を返す。
 func ConfiguredMoraDuration(position int, durations []float64) (float64, bool) {
 	if position < 0 || position >= len(durations) {

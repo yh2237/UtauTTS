@@ -54,6 +54,8 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		ustxOut                 string
 		dictionaryPath          string
 		moraDurationsPath       string
+		phoneWeightsPath        string
+		phoneLengthsPath        string
 		moraMS                  float64
 		pauseMS                 float64
 		leadingPreutteranceMS   float64
@@ -117,6 +119,8 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	flag.StringVar(&ustxOut, "ustx-out", "", "optional OpenUtau USTX project path")
 	flag.StringVar(&dictionaryPath, "dictionary", "", "optional user dictionary JSON path")
 	flag.StringVar(&moraDurationsPath, "mora-durations", "", "optional mora duration JSON path")
+	flag.StringVar(&phoneWeightsPath, "phone-weights", "", "optional per-mora phone weight JSON path")
+	flag.StringVar(&phoneLengthsPath, "phone-lengths", "", "optional per-mora consonant/vowel length JSON path")
 	flag.Float64Var(&moraMS, "mora-ms", synth.DefaultMoraDurationMS, "base mora duration in milliseconds")
 	flag.Float64Var(&pauseMS, "pause-ms", synth.DefaultPauseDurationMS, "punctuation pause in milliseconds")
 	flag.Float64Var(&leadingPreutteranceMS, "leading-preutterance-ms", 0, "leading preutterance in milliseconds (0 uses oto.ini)")
@@ -314,6 +318,14 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		if err != nil {
 			return cliFailure("input_error", err)
 		}
+		phoneWeights, err := loadPhoneWeights(phoneWeightsPath)
+		if err != nil {
+			return cliFailure("input_error", err)
+		}
+		consonantMS, vowelMS, err := loadPhoneLengths(phoneLengthsPath)
+		if err != nil {
+			return cliFailure("input_error", err)
+		}
 		request := utautts.Request{
 			Text: text, Reading: reading, Language: language, Phonemizer: phonemizer,
 			Tone: tone, Color: color, ModelID: prosodyPath, Dictionary: dictionary,
@@ -329,6 +341,9 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		synthesisRequest = entryinput.Apply(request, synth.Request{
 			VoicebankPath:           voicebankPath,
 			MoraDurationsMS:         moraDurations,
+			PhoneWeights:            phoneWeights,
+			ConsonantMS:             consonantMS,
+			VowelMS:                 vowelMS,
 			LeadingPreutteranceMS:   leadingPreutteranceMS,
 			ManualPitchPath:         manualPitchPath,
 			ProsodyFeatures:         prosodyFeatures,
@@ -473,6 +488,45 @@ func loadMoraDurations(path string) ([]float64, error) {
 		return nil, fmt.Errorf("decode mora durations: %w", err)
 	}
 	return value.MoraDurationsMS, nil
+}
+
+func loadPhoneWeights(path string) ([][]float64, error) {
+	if path == "" {
+		return nil, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var weights [][]float64
+	if err := json.Unmarshal(data, &weights); err == nil {
+		return weights, nil
+	}
+	var value struct {
+		PhoneWeights [][]float64 `json:"phone_weights"`
+	}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return nil, fmt.Errorf("decode phone weights: %w", err)
+	}
+	return value.PhoneWeights, nil
+}
+
+func loadPhoneLengths(path string) ([]float64, []float64, error) {
+	if path == "" {
+		return nil, nil, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	var value struct {
+		ConsonantMS []float64 `json:"consonant_ms"`
+		VowelMS     []float64 `json:"vowel_ms"`
+	}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return nil, nil, fmt.Errorf("decode phone lengths: %w", err)
+	}
+	return value.ConsonantMS, value.VowelMS, nil
 }
 
 func loadProsodyFeatures(path, caseID, text, reading string) ([]prosody.FeatureFrame, error) {

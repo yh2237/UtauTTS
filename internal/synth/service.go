@@ -82,6 +82,9 @@ type Request struct {
 	PauseDurationMS       float64                  `json:"pause_duration_ms"`
 	LeadingPreutteranceMS float64                  `json:"leading_preutterance_ms"`
 	MoraDurationsMS       []float64                `json:"mora_durations_ms"`
+	PhoneWeights          [][]float64              `json:"phone_weights,omitempty"`
+	ConsonantMS           []float64                `json:"consonant_ms,omitempty"`
+	VowelMS               []float64                `json:"vowel_ms,omitempty"`
 	UnitOverrides         []plan.UnitOverride      `json:"unit_overrides"`
 	ReleaseMS             float64                  `json:"release_ms"`
 	ReleaseSet            bool                     `json:"release_set"`
@@ -334,6 +337,9 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, []
 		Color:                   request.Color,
 		AliasPolicy:             request.AliasPolicy,
 		MoraDurationsMS:         request.MoraDurationsMS,
+		PhoneWeights:            request.PhoneWeights,
+		ConsonantMS:             request.ConsonantMS,
+		VowelMS:                 request.VowelMS,
 		UnitOverrides:           append([]plan.UnitOverride(nil), request.UnitOverrides...),
 		ReleaseMS:               request.ReleaseMS,
 		ReleaseSet:              request.ReleaseSet,

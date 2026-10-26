@@ -47,19 +47,25 @@ type Config struct {
 	// PauseContextStrengthはポーズ長補正の強度。0は既定1.0。
 	PauseContextStrength float64
 	// nilは既定で有効。
-	Context                 context.Context
-	VoicebankPath           string
-	Voicebank               *voicebank.Bank
-	Text                    string
-	Reading                 string
-	Language                string
-	Phonemizer              string
-	Dictionary              map[string]string
-	Tone                    string
-	Color                   string
-	MoraDurationMS          float64
-	PauseDurationMS         float64
-	MoraDurationsMS         []float64
+	Context         context.Context
+	VoicebankPath   string
+	Voicebank       *voicebank.Bank
+	Text            string
+	Reading         string
+	Language        string
+	Phonemizer      string
+	Dictionary      map[string]string
+	Tone            string
+	Color           string
+	MoraDurationMS  float64
+	PauseDurationMS float64
+	MoraDurationsMS []float64
+	// PhoneWeightsはモーラ内の音素時間比。参照照合で音素ごとに長さを配分する。
+	PhoneWeights [][]float64
+	// ConsonantMSとVowelMSは、休止を含む全モーラの子音長・母音長。
+	// どちらかを指定すると、その音素の長さを守って残りを母音へ渡す。
+	ConsonantMS             []float64
+	VowelMS                 []float64
 	UnitOverrides           []plan.UnitOverride
 	ReleaseMS               float64
 	ReleaseSet              bool

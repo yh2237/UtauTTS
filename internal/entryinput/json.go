@@ -39,6 +39,9 @@ type JSONRequest struct {
 
 type editingRequest struct {
 	MoraDurationsMS []float64                `json:"mora_durations_ms"`
+	PhoneWeights    [][]float64              `json:"phone_weights,omitempty"`
+	ConsonantMS     []float64                `json:"consonant_ms,omitempty"`
+	VowelMS         []float64                `json:"vowel_ms,omitempty"`
 	UnitOverrides   []plan.UnitOverride      `json:"unit_overrides"`
 	ManualPitch     *prosody.ManualPitchFile `json:"manual_pitch"`
 	PitchCurve      *render.PitchCurve       `json:"pitch_curve,omitempty"`
@@ -120,7 +123,9 @@ func (request JSONRequest) publicRequest() utautts.Request {
 
 func (request JSONRequest) InternalRequest() synth.Request {
 	input := Apply(request.publicRequest(), synth.DefaultRequest())
-	input.MoraDurationsMS, input.UnitOverrides = request.MoraDurationsMS, request.UnitOverrides
+	input.MoraDurationsMS, input.PhoneWeights = request.MoraDurationsMS, request.PhoneWeights
+	input.ConsonantMS, input.VowelMS = request.ConsonantMS, request.VowelMS
+	input.UnitOverrides = request.UnitOverrides
 	input.ManualPitch, input.PitchCurve = request.ManualPitch, request.PitchCurve
 	input.ModelPath = request.ModelPath
 	input.AliasPolicy = request.AliasPolicy
