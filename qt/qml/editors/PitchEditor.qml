@@ -927,6 +927,7 @@ Item {
     onMoraeChanged: canvas.requestPaint()
     onMoraDurationsChanged: canvas.requestPaint()
     onMoraPositionsChanged: canvas.requestPaint()
+    onConsonantDurationsChanged: canvas.requestPaint()
     onMoraWidthChanged: canvas.requestPaint()
     onDefaultMoraDurationChanged: canvas.requestPaint()
     onDefaultPauseDurationChanged: canvas.requestPaint()
