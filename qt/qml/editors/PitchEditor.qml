@@ -51,6 +51,28 @@ Item {
     readonly property real durationScale: defaultMoraDuration > 0 ? moraWidth / defaultMoraDuration : 0.5
     readonly property real graphWidth: Math.max(width, sidePadding * 2 + root.totalDuration() * durationScale)
 
+    // consonantAtは、指定された子音の長さを返す。0なら指定なし。
+    function consonantAt(index) {
+        if (index < 0 || index >= root.consonantDurations.length)
+            return 0;
+        const value = Number(root.consonantDurations[index]);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+    }
+
+    // phoneSplitAtは、ノーツの中の子音と母音の区切りを返す（モーラの始まりからのミリ秒）。
+    function phoneSplitAt(index) {
+        if (index < 0 || index >= root.morae.length || root.morae[index].pause)
+            return 0;
+        const consonant = root.consonantAt(index);
+        if (!(consonant > 0))
+            return 0;
+        return Math.min(root.durationAt(index), consonant);
+    }
+
+    function phoneSplitX(index) {
+        return root.pointX(index) + root.phoneSplitAt(index) * root.durationScale;
+    }
+
     function baseDurationAt(index) {
         const mora = index < root.morae.length ? root.morae[index] : null;
         if (!mora)
@@ -482,6 +504,24 @@ Item {
                         ctx.lineTo(x, height);
                         ctx.stroke();
                     }
+                    // ノーツの中の子音と母音の区切り。
+                    ctx.globalAlpha = 0.3;
+                    ctx.lineWidth = 1;
+                    for (let index = 0; index < root.morae.length; ++index) {
+                        if (!root.durationIsEditable(index))
+                            continue;
+                        const split = root.phoneSplitAt(index);
+                        if (split <= 0)
+                            continue;
+                        const splitX = root.phoneSplitX(index);
+                        if (!inView(splitX))
+                            continue;
+                        ctx.beginPath();
+                        ctx.moveTo(splitX, 0);
+                        ctx.lineTo(splitX, height);
+                        ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1;
                     if (root.durationIsEditable(root.morae.length - 1)) {
                         const endX = root.sidePadding + root.endTime() * root.durationScale;
                         if (inView(endX)) {
