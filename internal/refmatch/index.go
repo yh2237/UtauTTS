@@ -35,6 +35,12 @@ const (
 	minimumFileSec = 0.1
 )
 
+// SubFramesは1フレームあたりのWORLDの行数を返す。
+func SubFrames() int { return subFrames }
+
+// WorldFrameMSはWORLDの1行の長さ（ミリ秒）を返す。
+func WorldFrameMS() float64 { return worldFrameMS }
+
 // WorldはWORLDの解析と合成。worldrender.Worldが満たす。
 type World interface {
 	Analyze(samples []float64, sampleRate int, frameMS, d4cThreshold float64) (f0, spectrum, aperiodicity []float64, fftSize int, err error)

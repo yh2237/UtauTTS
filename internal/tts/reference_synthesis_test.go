@@ -1,4 +1,4 @@
-//go:build !js
+﻿//go:build !js
 
 package tts
 
@@ -35,27 +35,17 @@ func TestEnglishMoraTokensAndDurations(t *testing.T) {
 	if !reflect.DeepEqual(got, []float64{150, 100, 100, 250, 100}) {
 		t.Fatalf("durations = %v", got)
 	}
-	plans := []phonePlan{{weights: []float64{0.5, 0.5}}}
-	phonePlans := referencePhonePlans(morae, tokens, timing, []float64{0, 200, 0, 0, 0}, plans)
-	forced, err := referenceForcedDurations(timing, tokens, morae, phonePlans)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if forced[4] != 4 || forced[5] != 4 || forced[1] != 2 {
-		t.Fatalf("forced = %v", forced)
-	}
-	shorterPlans := []phonePlan{{weights: []float64{0.5, 0.5}}}
-	shorterPhonePlans := referencePhonePlans(morae, tokens, timing, []float64{0, 0, 0, 260}, shorterPlans)
-	shorter, err := referenceForcedDurations(timing, tokens, morae, shorterPhonePlans)
-	if err != nil {
-		t.Fatal(err)
-	}
-	total := 0
-	for _, token := range tokens[3] {
-		total += shorter[token]
-	}
-	if total != 10 {
-		t.Fatalf("forced word frames = %d, want 10", total)
+}
+
+// 音素の指定があるモーラは、その合計がモーラの長さになる。
+func TestReferencePlannedDurationsUsesPhonePlanTotal(t *testing.T) {
+	morae := []frontend.Mora{{Phones: []frontend.Phone{{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"}}}}
+	timing := refspeech.Timing{Durations: []int{2, 6}}
+	tokens := [][]int{{0, 1}}
+	phonePlans := referencePhonePlans(morae, tokens, timing, []float64{250}, nil)
+	got := referencePlannedDurations(tokens, timing, []float64{250}, phonePlans)
+	if len(got) != 1 || math.Abs(got[0]-250) > 1e-6 {
+		t.Fatalf("planned durations = %v, want 250", got)
 	}
 }
 
@@ -74,37 +64,6 @@ func TestBuildPhonePlansSplitsConsonantAndVowel(t *testing.T) {
 	}
 	if plans[1].consonantMS != 0 || plans[1].vowelMS != 0 {
 		t.Fatalf("pause plan = %v", plans[1])
-	}
-}
-
-func TestReferencePhoneWeightsSplitFramesByPhone(t *testing.T) {
-	morae := []frontend.Mora{{Phones: []frontend.Phone{{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"}}}}
-	timing := refspeech.Timing{Durations: []int{5, 5}}
-	plans := []phonePlan{{weights: []float64{0.2, 0.8}}}
-	phonePlans := referencePhonePlans(morae, [][]int{{0, 1}}, timing, nil, plans)
-	forced, err := referenceForcedDurations(timing, [][]int{{0, 1}}, morae, phonePlans)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if forced[0] != 2 || forced[1] != 8 {
-		t.Fatalf("forced = %v, want consonant 2 and vowel 8", forced)
-	}
-}
-
-func TestReferenceMoraLengthKeepsConsonantAndStretchesVowel(t *testing.T) {
-	morae := []frontend.Mora{{Phones: []frontend.Phone{{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"}}}}
-	timing := refspeech.Timing{Durations: []int{2, 6}}
-	// モーラ全体を250msへ伸ばす。子音50msはそのまま、母音は200msになる。
-	phonePlans := referencePhonePlans(morae, [][]int{{0, 1}}, timing, []float64{250}, nil)
-	forced, err := referenceForcedDurations(timing, [][]int{{0, 1}}, morae, phonePlans)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if forced[0] != 2 {
-		t.Fatalf("consonant frames = %d, want 2", forced[0])
-	}
-	if forced[1] != 8 {
-		t.Fatalf("vowel frames = %d, want 8", forced[1])
 	}
 }
 

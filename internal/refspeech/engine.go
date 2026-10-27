@@ -192,6 +192,9 @@ type Options struct {
 	Speed float32
 	// Durationsは入力記号ごとの長さ（Timing.Durationsと同じ並び）。nilならKokoroが予測する。
 	Durations []int
+	// Warpは参照の時間軸を出力の時間軸へ引き伸ばす対応。nilなら参照の時間軸のまま。
+	// Durationsと違い、読み直さずに長さを変えられる。
+	Warp *Warp
 	// CenterHzは出力のF0の中心。0なら音源のF0の中央値。
 	CenterHz float64
 	// PitchScaleはKokoroのF0の動きを何倍にするか。
@@ -409,6 +412,8 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 	featuresElapsed := time.Since(featuresStarted)
 	referenceF0 := refmatch.ReferenceF0(reference.F0, kokoroF0FrameMS, frames)
 	levels := refmatch.ReferenceLevels(samples, rate, frames*4)
+	// 長さの指定があれば、読み直さずに参照の時間軸を引き伸ばす。
+	features, referenceF0, levels, frames = warpSequence(options.Warp, reference.LeadingMS(), features, referenceF0, levels, index.Dims)
 	// 参照TTSのF0は語尾で途切れることがある。音量がある区間は有声として扱う。
 	refmatch.FillVoicedByLevel(referenceF0, levels, -35)
 	automaticF0 := index.OutputF0(referenceF0, options.CenterHz, options.PitchScale)

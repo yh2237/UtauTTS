@@ -1,4 +1,4 @@
-package tts
+﻿package tts
 
 import (
 	"fmt"
@@ -199,77 +199,6 @@ func referencePhonePlans(morae []frontend.Mora, moraTokens [][]int, timing refsp
 		result[i] = moraPhonePlan{phoneDurations: durations, total: target}
 	}
 	return result
-}
-
-// distributeFramesは、記号へフレーム数を割り当てる。
-// 現在の長さに比例させ、各記号に1フレーム以上を確保する。
-func distributeFrames(result []int, tokens []int, frames, current int) {
-	if len(tokens) == 0 || frames <= 0 {
-		return
-	}
-	if current <= 0 {
-		current = len(tokens)
-	}
-	type share struct {
-		token int
-		rest  float64
-	}
-	shares := make([]share, len(tokens))
-	assigned := 0
-	for i, token := range tokens {
-		exact := float64(frames) * float64(result[token]) / float64(current)
-		value := max(1, int(math.Floor(exact)))
-		result[token] = value
-		assigned += value
-		shares[i] = share{token: token, rest: exact - math.Floor(exact)}
-	}
-	for assigned < frames {
-		best := 0
-		for i := range shares {
-			if shares[i].rest > shares[best].rest {
-				best = i
-			}
-		}
-		result[shares[best].token]++
-		assigned++
-	}
-	for assigned > frames {
-		worst := -1
-		for i := range shares {
-			if result[shares[i].token] > 1 && (worst < 0 || result[shares[i].token] > result[shares[worst].token]) {
-				worst = i
-			}
-		}
-		if worst < 0 {
-			break
-		}
-		result[shares[worst].token]--
-		assigned--
-	}
-}
-
-// referenceForcedDurationsは、音素ごとの目標長に合わせてKokoroの記号長を組み替える。
-// 記号は音素ごとに分け、音素の目標長へ比例して配分する。
-func referenceForcedDurations(timing refspeech.Timing, moraTokens [][]int, morae []frontend.Mora, plans []moraPhonePlan) ([]int, error) {
-	result := append([]int(nil), timing.Durations...)
-	for i, tokens := range moraTokens {
-		if len(tokens) == 0 || i >= len(plans) || len(plans[i].phoneDurations) == 0 {
-			continue
-		}
-		groups := splitTokensByPhone(tokens, morae[i].Phones)
-		for j, group := range groups {
-			if len(group) == 0 {
-				continue
-			}
-			frames := max(len(group), int(math.Round(plans[i].phoneDurations[j]/refspeech.DurationUnitMS)))
-			current := 0
-			for _, token := range group {
-				current += timing.Durations[token]
-			}
-			distributeFrames(result, group, frames, current)
-		}
-	}
-	return result, nil
 }
 
 func sumDurations(values []float64) float64 {

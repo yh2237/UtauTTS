@@ -1,4 +1,4 @@
-//go:build !js
+﻿//go:build !js
 
 package tts
 
@@ -166,31 +166,6 @@ func hasManualMoraDurations(durations []float64) bool {
 	return false
 }
 
-// referencePlanTimingは、手動の長さや抑揚があればKokoroの読み方を作る。
-// 手動の長さはモーラ全体でなく音素ごとに配分し、子音は元の長さを保って残りを母音へ渡す。
-func referencePlanTiming(cfg Config, language string, provider refspeech.Provider, pieces []refspeech.Piece, options refspeech.Options, reading string, morae []frontend.Mora) ([]int, []float64, error) {
-	manualPitch := cfg.ManualPitch != nil || cfg.ManualPitchPath != ""
-	manualLength := hasManualMoraDurations(cfg.MoraDurationsMS)
-	plans, err := buildPhonePlans(cfg, morae)
-	if err != nil {
-		return nil, nil, err
-	}
-	if !manualLength && !manualPitch && len(cfg.UnitOverrides) == 0 && len(plans) == 0 {
-		return nil, nil, nil
-	}
-	reference, err := provider.ReadProsody(pieces, options.Speed, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	moraTokens := referenceMoraTokens(language, pieces, reference.Timing, reading, morae)
-	phonePlans := referencePhonePlans(morae, moraTokens, reference.Timing, cfg.MoraDurationsMS, plans)
-	forced, err := referenceForcedDurations(reference.Timing, moraTokens, morae, phonePlans)
-	if err != nil {
-		return nil, nil, err
-	}
-	return forced, referencePlannedDurations(moraTokens, refspeech.Timing{Durations: forced}, cfg.MoraDurationsMS, phonePlans), nil
-}
-
 // synthesizeReferenceは文を参照TTSで読み、音源のフレームで合成し直す。
 func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer, reading string, morae []frontend.Mora) (*Result, error) {
 	if err := plan.ValidateMoraDurations(morae, cfg.MoraDurationsMS); err != nil {
@@ -223,12 +198,33 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	if err != nil {
 		return nil, err
 	}
-	forced, planned, err := referencePlanTiming(cfg, language, provider, pieces, options, reading, morae)
+	refspeech.SetStage("参照音声を生成しています")
+	readStarted := time.Now()
+	reference, err := provider.Read(pieces, options.Speed, nil)
+	if err != nil {
+		refspeech.SetStage("")
+		return nil, fmt.Errorf("reference synthesis: %w", err)
+	}
+	rate := reference.SampleRate
+	if rate <= 0 {
+		rate = 24000
+	}
+	log(fmt.Sprintf("参照音声: %d Hz、%.2f 秒（生成 %d ms）",
+		rate, float64(len(reference.Audio))/float64(rate), time.Since(readStarted).Milliseconds()))
+	// 手動の長さがあれば、読み直さずに参照の時間軸を引き伸ばす。
+	moraTokens := referenceMoraTokens(language, pieces, reference.Timing, reading, morae)
+	plans, err := buildPhonePlans(cfg, morae)
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)
 	}
-	if forced != nil {
-		options.Durations = forced
+	sourceDurations := referenceMoraDurations(moraTokens, reference.Timing, nil)
+	planned := referencePlannedDurations(moraTokens, reference.Timing, cfg.MoraDurationsMS,
+		referencePhonePlans(morae, moraTokens, reference.Timing, cfg.MoraDurationsMS, plans))
+	if hasManualMoraDurations(cfg.MoraDurationsMS) || len(plans) > 0 {
+		options.Warp = refspeech.NewWarp(sourceDurations, planned)
+		if options.Warp == nil {
+			log("指定した長さを反映できませんでした")
+		}
 	}
 	if options.PitchCents, options.ReplacePitch, err = referenceManualPitch(cfg, reading, morae, planned); err != nil {
 		return nil, err
@@ -243,26 +239,13 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 			return pit(ms)
 		}
 	}
-	refspeech.SetStage("参照音声を生成しています")
-	readStarted := time.Now()
-	reference, err := provider.Read(pieces, options.Speed, options.Durations)
-	if err != nil {
-		refspeech.SetStage("")
-		return nil, fmt.Errorf("reference synthesis: %w", err)
-	}
-	rate := reference.SampleRate
-	if rate <= 0 {
-		rate = 24000
-	}
-	log(fmt.Sprintf("参照音声: %d Hz、%.2f 秒（生成 %d ms）",
-		rate, float64(len(reference.Audio))/float64(rate), time.Since(readStarted).Milliseconds()))
 	refspeech.SetStage("索引を準備しています")
 	speech, err := service.SpeakReference(ctx, bank.Root, referenceRecordings(bank, cfg.Color), cfg.WorldEnginePath, reference, options)
 	refspeech.SetStage("")
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)
 	}
-	durations := referenceMoraDurations(referenceMoraTokens(language, pieces, speech.Timing, reading, morae), speech.Timing, cfg.MoraDurationsMS)
+	durations := planned
 	leading := speech.LeadingMS()
 	// 拡張編集のVOLは、モーラの区間の音量に掛ける。
 	if volume := moraEnvelope(durations, unitGain, 1); volume != nil {
@@ -334,19 +317,14 @@ func predictReference(cfg Config, language, reading string, morae []frontend.Mor
 		return nil, fmt.Errorf("reference prosody: %w", err)
 	}
 	phonePlans := referencePhonePlans(morae, moraTokens, reference.Timing, cfg.MoraDurationsMS, plans)
-	forced, err := referenceForcedDurations(reference.Timing, moraTokens, morae, phonePlans)
-	if err != nil {
-		return nil, fmt.Errorf("reference prosody: %w", err)
-	}
-	if forced != nil {
-		if reference, err = provider.ReadProsody(pieces, options.Speed, forced); err != nil {
-			return nil, fmt.Errorf("reference prosody: %w", err)
-		}
-	}
-	durations := referencePlannedDurations(moraTokens, refspeech.Timing{Durations: forced}, cfg.MoraDurationsMS, phonePlans)
+	sourceDurations := referenceMoraDurations(moraTokens, reference.Timing, nil)
+	durations := referencePlannedDurations(moraTokens, reference.Timing, cfg.MoraDurationsMS, phonePlans)
 	f0 := reference.ReferenceF0()
-	center := referenceCenterHz(f0)
 	leading := reference.LeadingMS()
+	if hasManualMoraDurations(cfg.MoraDurationsMS) || len(plans) > 0 {
+		f0 = refspeech.WarpF0(refspeech.NewWarp(sourceDurations, durations), leading, f0)
+	}
+	center := referenceCenterHz(f0)
 	result := &ProsodyPreview{
 		Reading: reading, Morae: append([]frontend.Mora(nil), morae...), MoraDurationsMS: durations,
 		MoraPositionsMS: make([]float64, len(morae)), PitchPoints: make([]float64, len(morae)),
