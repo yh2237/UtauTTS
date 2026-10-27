@@ -1,4 +1,4 @@
-﻿//go:build !js
+//go:build !js
 
 package tts
 
@@ -217,11 +217,12 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)
 	}
-	sourceDurations := referenceMoraDurations(moraTokens, reference.Timing, nil)
-	planned := referencePlannedDurations(moraTokens, reference.Timing, cfg.MoraDurationsMS,
-		referencePhonePlans(morae, moraTokens, reference.Timing, cfg.MoraDurationsMS, plans))
+	phonePlans := referencePhonePlans(morae, moraTokens, reference.Timing, cfg.MoraDurationsMS, plans)
+	planned := referencePlannedDurations(moraTokens, reference.Timing, cfg.MoraDurationsMS, phonePlans)
+	// 手動の長さがあれば、読み直さずに音素ごとの時間軸を引き伸ばす。
 	if hasManualMoraDurations(cfg.MoraDurationsMS) || len(plans) > 0 {
-		options.Warp = refspeech.NewWarp(sourceDurations, planned)
+		sourcePhones, targetPhones := referencePhoneTimings(moraTokens, reference.Timing, morae, phonePlans)
+		options.Warp = refspeech.NewWarp(sourcePhones, targetPhones)
 		if options.Warp == nil {
 			log("指定した長さを反映できませんでした")
 		}
@@ -317,12 +318,12 @@ func predictReference(cfg Config, language, reading string, morae []frontend.Mor
 		return nil, fmt.Errorf("reference prosody: %w", err)
 	}
 	phonePlans := referencePhonePlans(morae, moraTokens, reference.Timing, cfg.MoraDurationsMS, plans)
-	sourceDurations := referenceMoraDurations(moraTokens, reference.Timing, nil)
 	durations := referencePlannedDurations(moraTokens, reference.Timing, cfg.MoraDurationsMS, phonePlans)
 	f0 := reference.ReferenceF0()
 	leading := reference.LeadingMS()
 	if hasManualMoraDurations(cfg.MoraDurationsMS) || len(plans) > 0 {
-		f0 = refspeech.WarpF0(refspeech.NewWarp(sourceDurations, durations), leading, f0)
+		sourcePhones, targetPhones := referencePhoneTimings(moraTokens, reference.Timing, morae, phonePlans)
+		f0 = refspeech.WarpF0(refspeech.NewWarp(sourcePhones, targetPhones), leading, f0)
 	}
 	center := referenceCenterHz(f0)
 	result := &ProsodyPreview{

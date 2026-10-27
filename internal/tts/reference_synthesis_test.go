@@ -1,4 +1,4 @@
-﻿//go:build !js
+//go:build !js
 
 package tts
 
@@ -11,8 +11,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/refspeech"
 )
 
-func TestEnglishMoraTokensAndDurations(t *testing.T) {
-	reading := "HH AH0 L OW1 | SP | W ER1 L D | SP"
+func TestEnglishMoraTokensAndDurations(t *testing.T) {	reading := "HH AH0 L OW1 | SP | W ER1 L D | SP"
 	pieces := []refspeech.Piece{
 		{Symbols: "həlˈO", Part: 0}, {Symbols: ",", Part: 1}, {Symbols: " ", Part: -1},
 		{Symbols: "wˈɜɹld", Part: 2}, {Symbols: ".", Part: -1},
@@ -81,5 +80,27 @@ func TestEnglishPitchCurveStartsAtFirstMoraAndBridgesUnvoiced(t *testing.T) {
 	}
 	if referencePitchCurve([]float64{0, 0}, 200, 0, 1) != nil {
 		t.Fatal("unvoiced reference produced a curve")
+	}
+}
+
+// 子音だけを指定すると、子音がその長さになり、母音は参照のまま残る。
+func TestReferencePhoneTimingsKeepsSpecifiedSide(t *testing.T) {
+	morae := []frontend.Mora{{Phones: []frontend.Phone{{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"}}}}
+	timing := refspeech.Timing{Durations: []int{2, 6}}
+	tokens := [][]int{{0, 1}}
+	plans, err := buildPhonePlans(Config{ConsonantMS: []float64{200}, VowelMS: []float64{0}}, morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	phonePlans := referencePhonePlans(morae, tokens, timing, nil, plans)
+	source, target := referencePhoneTimings(tokens, timing, morae, phonePlans)
+	if len(source) != 2 || len(target) != 2 {
+		t.Fatalf("timings = %v -> %v", source, target)
+	}
+	if math.Abs(source[0]-50) > 1e-6 || math.Abs(source[1]-150) > 1e-6 {
+		t.Fatalf("source = %v, want 50 and 150", source)
+	}
+	if math.Abs(target[0]-200) > 1e-6 || math.Abs(target[1]-150) > 1e-6 {
+		t.Fatalf("target = %v, want 200 and 150", target)
 	}
 }
