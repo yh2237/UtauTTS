@@ -1004,6 +1004,8 @@ import UtauTTS.Media
                                 onPointsEdited: points => window.updatePitchPoints(points)
                                 onTimingEdited: (durations, positions) =>
                                         window.updateMoraTiming(durations, positions)
+                                onPhoneLengthEdited: (index, consonantMs) =>
+                                        window.updatePhoneLength(index, consonantMs)
                             }
                             Item {
                                 id: basicPitchScrollFooter

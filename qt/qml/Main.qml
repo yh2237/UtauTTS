@@ -2029,6 +2029,7 @@ ApplicationWindow {
         editorContent.pitchEditor.defaultPauseDuration = item.pauseDuration;
         editorContent.pitchEditor.moraDurations = window.displayedMoraDurations(item);
         editorContent.pitchEditor.moraPositions = window.displayedMoraPositions(item);
+        editorContent.pitchEditor.consonantDurations = window.displayedConsonantDurations(item);
         editorContent.phonemeEditor.manualFrames = window.decodeSequence(item.pitchFramesJson);
         editorContent.phonemeEditor.autoFrames = window.automaticSequence(item, "autoPitchFramesJson");
         editorContent.phonemeEditor.frameMs = Number(item.autoFrameMs) > 0 ? Number(item.autoFrameMs) : 10;
@@ -2124,6 +2125,14 @@ ApplicationWindow {
         return automaticSequence(item, "autoMoraDurationsJson");
     }
 
+    // displayedConsonantDurationsは、区切り線に使う子音の長さを返す。
+    function displayedConsonantDurations(item) {
+        const manual = window.decodeSequence(item ? item.consonantMsJson : "");
+        if (manual.some(value => Number(value) > 0))
+            return manual;
+        return automaticSequence(item, "autoConsonantMsJson");
+    }
+
     function displayedMoraPositions(item) {
         if (hasManualMoraDurations(item))
             return window.normalizedMoraPositions(decodeSequence(item.moraPositionsJson));
@@ -2176,19 +2185,27 @@ ApplicationWindow {
         utterances.setProperty(index, "autoPitchFramesJson", "[]");
     }
 
-    function applyAutomaticProsody(index, automaticPoints, automaticDurations, automaticPositions) {
+    function applyAutomaticProsody(index, automaticPoints, automaticDurations, automaticPositions,
+                                   automaticConsonants, automaticVowels) {
         if (index < 0 || index >= utterances.count)
             return;
         const automaticStarts = window.moraStartsFromCenters(automaticPositions, automaticDurations);
+        const consonants = window.copySequence(automaticConsonants);
+        const vowels = window.copySequence(automaticVowels);
         utterances.setProperty(index, "autoPointsJson", JSON.stringify(automaticPoints));
         utterances.setProperty(index, "autoMoraDurationsJson", JSON.stringify(automaticDurations));
         utterances.setProperty(index, "autoMoraPositionsJson", JSON.stringify(automaticStarts));
+        utterances.setProperty(index, "autoConsonantMsJson", JSON.stringify(consonants));
+        utterances.setProperty(index, "autoVowelMsJson", JSON.stringify(vowels));
         if (index === window.selectedIndex) {
             const item = utterances.get(index);
             editorContent.pitchEditor.autoPoints = automaticPoints.slice();
             editorContent.pitchEditor.moraDurations = hasManualMoraDurations(item)
                     ? decodeSequence(item.moraDurationsJson) : automaticDurations.slice();
             editorContent.pitchEditor.moraPositions = window.displayedMoraPositions(item);
+            const manualConsonants = window.decodeSequence(item.consonantMsJson);
+            editorContent.pitchEditor.consonantDurations =
+                    manualConsonants.some(value => Number(value) > 0) ? manualConsonants : consonants;
         }
     }
 

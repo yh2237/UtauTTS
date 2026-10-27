@@ -23,6 +23,12 @@ Item {
     property var morae: []
     property var moraDurations: []
     property var moraPositions: []
+    // 子音と母音の長さ（モーラごと、0は指定なし）。区切り線の位置に使う。
+    property var consonantDurations: []
+    property var vowelDurations: []
+    property int hoveredPhone: -1
+    property int phoneDragIndex: -1
+    property real phoneDragConsonant: 0
     property int defaultMoraDuration: 120
     property int defaultPauseDuration: 180
     property int minimumMoraDuration: 20
@@ -40,6 +46,8 @@ Item {
     signal pointsEdited(var points)
     signal pitchPointTouched(int index)
     signal timingEdited(var durations, var positions)
+    // 子音の長さを変えたとき。母音は指定がなければ参照の長さが残る。
+    signal phoneLengthEdited(int index, real consonantMs)
     property alias horizontalOffset: viewport.contentX
     readonly property real contentWidth: viewport.contentWidth
     readonly property real horizontalMaximum: Math.max(0, viewport.contentWidth - viewport.width)
@@ -48,6 +56,28 @@ Item {
 
     readonly property real durationScale: defaultMoraDuration > 0 ? moraWidth / defaultMoraDuration : 0.5
     readonly property real graphWidth: Math.max(width, sidePadding * 2 + root.totalDuration() * durationScale)
+
+    // consonantAtは、指定された子音の長さを返す。0なら指定なし。
+    function consonantAt(index) {
+        if (index < 0 || index >= root.consonantDurations.length)
+            return 0;
+        const value = Number(root.consonantDurations[index]);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+    }
+
+    // phoneSplitAtは、ノーツの中の子音と母音の区切り（モーラの始まりからのミリ秒）を返す。
+    function phoneSplitAt(index) {
+        if (index < 0 || index >= root.morae.length || root.morae[index].pause)
+            return 0;
+        const consonant = root.phoneDragIndex === index ? root.phoneDragConsonant : root.consonantAt(index);
+        if (!(consonant > 0))
+            return 0;
+        return Math.max(0, Math.min(root.durationAt(index), consonant));
+    }
+
+    function phoneSplitX(index) {
+        return root.pointX(index) + root.phoneSplitAt(index) * root.durationScale;
+    }
 
     function baseDurationAt(index) {
         const mora = index < root.morae.length ? root.morae[index] : null;
@@ -480,6 +510,27 @@ Item {
                         ctx.lineTo(x, height);
                         ctx.stroke();
                     }
+                    // ノーツの中の子音と母音の区切り。
+                    for (let index = 0; index < root.morae.length; ++index) {
+                        if (!root.durationIsEditable(index))
+                            continue;
+                        const split = root.phoneSplitAt(index);
+                        if (split <= 0)
+                            continue;
+                        const splitX = root.phoneSplitX(index);
+                        if (!inView(splitX))
+                            continue;
+                        const active = index === root.hoveredPhone;
+                        ctx.strokeStyle = active ? root.accentColor : root.axisColor;
+                        ctx.globalAlpha = active ? 0.9 : 0.3;
+                        ctx.lineWidth = active ? 2 : 1;
+                        ctx.beginPath();
+                        ctx.moveTo(splitX, 0);
+                        ctx.lineTo(splitX, height);
+                        ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1;
+                    ctx.lineWidth = 1;
                     if (root.durationIsEditable(root.morae.length - 1)) {
                         const endX = root.sidePadding + root.endTime() * root.durationScale;
                         if (inView(endX)) {
@@ -638,6 +689,65 @@ Item {
                                 anchors.fill: parent
                                 onDoubleClicked: root.resetDurationAt(pointColumn.index)
                             }
+                        }
+                    }
+                }
+            }
+
+            // 子音と母音の区切りをドラッグして、子音の長さを変える。
+            Repeater {
+                model: root.morae
+                delegate: Item {
+                    required property var modelData
+                    required property int index
+                    visible: root.durationIsEditable(index) && root.phoneSplitAt(index) > 0
+                    x: root.phoneSplitX(index) - width / 2
+                    width: 14
+                    height: parent.height
+                    z: 3
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.SizeHorCursor
+                        hoverEnabled: true
+                        property bool dragging: false
+                        onContainsMouseChanged: {
+                            if (containsMouse) {
+                                root.hoveredPhone = index;
+                            } else if (root.hoveredPhone === index && !dragging) {
+                                root.hoveredPhone = -1;
+                            }
+                            canvas.requestPaint();
+                        }
+                        onPressed: mouse => {
+                            dragging = true;
+                            root.phoneDragIndex = index;
+                            root.phoneDragConsonant = root.phoneSplitAt(index);
+                            mouse.accepted = true;
+                        }
+                        onPositionChanged: mouse => {
+                            if (!dragging)
+                                return;
+                            const point = mapToItem(graph, mouse.x, mouse.y);
+                            const consonant = (point.x - root.pointX(index)) / root.durationScale;
+                            const limit = Math.max(root.minimumMoraDuration,
+                                                   root.durationAt(index) - root.minimumMoraDuration);
+                            root.phoneDragConsonant = Math.max(1, Math.min(limit, consonant));
+                            canvas.requestPaint();
+                        }
+                        onReleased: {
+                            if (!dragging)
+                                return;
+                            dragging = false;
+                            const value = root.phoneDragConsonant;
+                            root.phoneDragIndex = -1;
+                            root.phoneLengthEdited(index, value);
+                            canvas.requestPaint();
+                        }
+                        onCanceled: {
+                            dragging = false;
+                            root.phoneDragIndex = -1;
+                            canvas.requestPaint();
                         }
                     }
                 }
