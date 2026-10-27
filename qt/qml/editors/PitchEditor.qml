@@ -23,6 +23,8 @@ Item {
     property var morae: []
     property var moraDurations: []
     property var moraPositions: []
+    // モーラごとの子音の長さ。0なら指定なし。
+    property var consonantDurations: []
     property int defaultMoraDuration: 120
     property int defaultPauseDuration: 180
     property int minimumMoraDuration: 20

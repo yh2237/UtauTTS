@@ -1417,6 +1417,7 @@ ApplicationWindow {
                 autoPitchFramesJson: JSON.stringify(window.copySequence(saved.automatic_frame_pitch)),
                 autoFrameMs: Number(saved.automatic_frame_ms) || 10,
                 autoMoraDurationsJson: JSON.stringify(automaticDurations),
+                autoConsonantMsJson: "[]",
                 autoMoraPositionsJson: JSON.stringify(automaticPositions),
                 phonemeOverridesJson: JSON.stringify(window.copySequence(saved.phoneme_overrides)),
                 manualPitchEdited: saved.manual_pitch_edited === undefined
@@ -2029,6 +2030,7 @@ ApplicationWindow {
         editorContent.pitchEditor.defaultPauseDuration = item.pauseDuration;
         editorContent.pitchEditor.moraDurations = window.displayedMoraDurations(item);
         editorContent.pitchEditor.moraPositions = window.displayedMoraPositions(item);
+        editorContent.pitchEditor.consonantDurations = window.displayedConsonantDurations(item);
         editorContent.phonemeEditor.manualFrames = window.decodeSequence(item.pitchFramesJson);
         editorContent.phonemeEditor.autoFrames = window.automaticSequence(item, "autoPitchFramesJson");
         editorContent.phonemeEditor.frameMs = Number(item.autoFrameMs) > 0 ? Number(item.autoFrameMs) : 10;
@@ -2124,6 +2126,14 @@ ApplicationWindow {
         return automaticSequence(item, "autoMoraDurationsJson");
     }
 
+    // displayedConsonantDurationsは、子音の長さを返す。指定があればそれ、なければ参照の配分。
+    function displayedConsonantDurations(item) {
+        const manual = window.decodeSequence(item ? item.consonantMsJson : "");
+        if (manual.some(value => Number(value) > 0))
+            return manual;
+        return automaticSequence(item, "autoConsonantMsJson");
+    }
+
     function displayedMoraPositions(item) {
         if (hasManualMoraDurations(item))
             return window.normalizedMoraPositions(decodeSequence(item.moraPositionsJson));
@@ -2173,22 +2183,27 @@ ApplicationWindow {
         utterances.setProperty(index, "autoPointsJson", "[]");
         utterances.setProperty(index, "autoMoraDurationsJson", "[]");
         utterances.setProperty(index, "autoMoraPositionsJson", "[]");
+        utterances.setProperty(index, "autoConsonantMsJson", "[]");
         utterances.setProperty(index, "autoPitchFramesJson", "[]");
     }
 
-    function applyAutomaticProsody(index, automaticPoints, automaticDurations, automaticPositions) {
+    function applyAutomaticProsody(index, automaticPoints, automaticDurations, automaticPositions,
+                                   automaticConsonants) {
         if (index < 0 || index >= utterances.count)
             return;
         const automaticStarts = window.moraStartsFromCenters(automaticPositions, automaticDurations);
+        const consonants = window.copySequence(automaticConsonants);
         utterances.setProperty(index, "autoPointsJson", JSON.stringify(automaticPoints));
         utterances.setProperty(index, "autoMoraDurationsJson", JSON.stringify(automaticDurations));
         utterances.setProperty(index, "autoMoraPositionsJson", JSON.stringify(automaticStarts));
+        utterances.setProperty(index, "autoConsonantMsJson", JSON.stringify(consonants));
         if (index === window.selectedIndex) {
             const item = utterances.get(index);
             editorContent.pitchEditor.autoPoints = automaticPoints.slice();
             editorContent.pitchEditor.moraDurations = hasManualMoraDurations(item)
                     ? decodeSequence(item.moraDurationsJson) : automaticDurations.slice();
             editorContent.pitchEditor.moraPositions = window.displayedMoraPositions(item);
+            editorContent.pitchEditor.consonantDurations = window.displayedConsonantDurations(item);
         }
     }
 
@@ -2251,6 +2266,7 @@ ApplicationWindow {
             autoPitchFramesJson: "[]",
             autoFrameMs: 10,
             autoMoraDurationsJson: "[]",
+            autoConsonantMsJson: "[]",
             autoMoraPositionsJson: "[]",
             phonemeOverridesJson: "[]",
             manualPitchEdited: false,
