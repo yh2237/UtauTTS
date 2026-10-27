@@ -1,4 +1,4 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 
 import QtQuick
 import "UnitOverrides.js" as UnitOverrides
@@ -1722,7 +1722,8 @@ ApplicationWindow {
         window.scheduleAutoPreview();
     }
 
-    function updateTimingAndPitch(durations, positions, points) {        if (!utterances.count)
+    function updateTimingAndPitch(durations, positions, points) {
+        if (!utterances.count)
             return;
         const item = current();
         const durationsJson = JSON.stringify(durations);
