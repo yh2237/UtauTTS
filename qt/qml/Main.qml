@@ -1223,6 +1223,8 @@ ApplicationWindow {
                 pitch_frames: window.decodeSequence(item.pitchFramesJson),
                 mora_durations_ms: window.decodeSequence(item.moraDurationsJson),
                 mora_positions_ms: window.decodeSequence(item.moraPositionsJson),
+                consonant_ms: window.decodeSequence(item.consonantMsJson),
+                vowel_ms: window.decodeSequence(item.vowelMsJson),
                 automatic_pitch_points: window.automaticSequence(item, "autoPointsJson"),
                 automatic_frame_pitch: window.automaticSequence(item, "autoPitchFramesJson"),
                 automatic_frame_ms: Number(item.autoFrameMs) || 10,
@@ -1409,6 +1411,8 @@ ApplicationWindow {
                 pitchFramesJson: JSON.stringify(pitchFrames),
                 moraDurationsJson: JSON.stringify(manualDurations),
                 moraPositionsJson: JSON.stringify(manualPositions),
+                consonantMsJson: JSON.stringify(window.copySequence(saved.consonant_ms)),
+                vowelMsJson: JSON.stringify(window.copySequence(saved.vowel_ms)),
                 autoPointsJson: JSON.stringify(window.copySequence(saved.automatic_pitch_points)),
                 autoPitchFramesJson: JSON.stringify(window.copySequence(saved.automatic_frame_pitch)),
                 autoFrameMs: Number(saved.automatic_frame_ms) || 10,
@@ -1687,8 +1691,38 @@ ApplicationWindow {
         window.scheduleAutoPreview();
     }
 
-    function updateTimingAndPitch(durations, positions, points) {
-        if (!utterances.count)
+    // phoneLengthValuesは、発話の子音長と母音長（モーラごと、0は指定なし）を返す。
+    function phoneLengthValues(item) {
+        return {
+            consonant: window.decodeSequence(item ? item.consonantMsJson : ""),
+            vowel: window.decodeSequence(item ? item.vowelMsJson : "")
+        };
+    }
+
+    // updatePhoneLengthは、モーラの子音の長さを変える。指定のない母音は参照の長さが残る。
+    function updatePhoneLength(position, consonantMs) {
+        if (!utterances.count || position < 0)
+            return;
+        const item = current();
+        const values = window.phoneLengthValues(item);
+        while (values.consonant.length <= position)
+            values.consonant.push(0);
+        while (values.vowel.length <= position)
+            values.vowel.push(0);
+        values.consonant[position] = Math.max(0, Math.round(consonantMs));
+        const consonantJson = JSON.stringify(values.consonant);
+        const vowelJson = JSON.stringify(values.vowel);
+        if (item.consonantMsJson === consonantJson && item.vowelMsJson === vowelJson)
+            return;
+        window.beginHistoryChange("phone:" + item.utteranceId + ":" + position, true);
+        utterances.setProperty(selectedIndex, "consonantMsJson", consonantJson);
+        utterances.setProperty(selectedIndex, "vowelMsJson", vowelJson);
+        markUtteranceDirty(selectedIndex);
+        window.scheduleTimingProsodyPreview(selectedIndex);
+        window.scheduleAutoPreview();
+    }
+
+    function updateTimingAndPitch(durations, positions, points) {        if (!utterances.count)
             return;
         const item = current();
         const durationsJson = JSON.stringify(durations);
@@ -2211,6 +2245,8 @@ ApplicationWindow {
             pitchFramesJson: "[]",
             moraDurationsJson: "[]",
             moraPositionsJson: "[]",
+            consonantMsJson: "[]",
+            vowelMsJson: "[]",
             autoPointsJson: "[]",
             autoPitchFramesJson: "[]",
             autoFrameMs: 10,
@@ -2447,6 +2483,8 @@ ApplicationWindow {
             pause_duration_ms: item.pauseDuration,
             leading_preutterance_ms: item.leadingPreutterance,
             mora_durations_ms: manualDurations,
+            consonant_ms: window.decodeSequence(item.consonantMsJson),
+            vowel_ms: window.decodeSequence(item.vowelMsJson),
             intonation_strength: item.intonation,
             apply_pitch: item.applyPitch,
             unit_overrides: window.decodeSequence(item.phonemeOverridesJson)
@@ -2500,6 +2538,8 @@ ApplicationWindow {
             pause_duration_ms: item.pauseDuration,
             mora_durations_ms: window.hasManualMoraDurations(item)
                     ? window.decodeSequence(item.moraDurationsJson) : [],
+            consonant_ms: window.decodeSequence(item.consonantMsJson),
+            vowel_ms: window.decodeSequence(item.vowelMsJson),
             intonation_strength: item.intonation,
             apply_pitch: item.applyPitch
         };
