@@ -17,8 +17,10 @@ const (
 	smoothingFrames = 3
 	postfilterBeta  = 0.4
 	// 参照の音量がピークからquietLevelDBより下がった分だけ、出力も最大maxQuietCutDBまで下げる。
-	quietLevelDB   = 40.0
-	maxQuietCutDB  = 40.0
+	quietLevelDB = 40.0
+	// maxQuietCutDBは、参照が無音に近いところで出力を下げる上限。
+	// 索引に静かなフレームが無いので、下げが足りないと無音に声が残る。
+	maxQuietCutDB  = 80.0
 	matchBlockRows = 32
 )
 
