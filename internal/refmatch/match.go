@@ -336,6 +336,39 @@ func ReferenceF0(f0 []float32, f0FrameMS float64, frames int) []float64 {
 	return out
 }
 
+// FillVoicedByLevelは、参照の音量が十分あるのに無声になった区間へ、前後のF0を埋める。
+// 参照TTSのF0が語尾で途切れ、鼻音などが無声として合成されるのを防ぐ。
+func FillVoicedByLevel(f0, levels []float64, thresholdDB float64) {
+	n := len(f0)
+	if n == 0 || len(levels) < n {
+		return
+	}
+	previous := -1
+	for i := range n {
+		if f0[i] <= 0 {
+			continue
+		}
+		if previous >= 0 {
+			for k := previous + 1; k < i; k++ {
+				if levels[k] <= thresholdDB {
+					continue
+				}
+				f0[k] = f0[previous] + (f0[i]-f0[previous])*float64(k-previous)/float64(i-previous)
+			}
+		}
+		previous = i
+	}
+	// 末尾側も、音量が残っていれば最後のF0を続ける。
+	if previous >= 0 {
+		for k := previous + 1; k < n; k++ {
+			if levels[k] <= thresholdDB {
+				break
+			}
+			f0[k] = f0[previous]
+		}
+	}
+}
+
 // interpClampedはnumpy.interpと同じく範囲外を端の値にする。
 func interpClamped(x, y []float64, at float64) float64 {
 	if at <= x[0] {

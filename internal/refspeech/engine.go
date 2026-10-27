@@ -408,6 +408,9 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 	}
 	featuresElapsed := time.Since(featuresStarted)
 	referenceF0 := refmatch.ReferenceF0(reference.F0, kokoroF0FrameMS, frames)
+	levels := refmatch.ReferenceLevels(samples, rate, frames*4)
+	// 参照TTSのF0は語尾で途切れることがある。音量がある区間は有声として扱う。
+	refmatch.FillVoicedByLevel(referenceF0, levels, -35)
 	automaticF0 := index.OutputF0(referenceF0, options.CenterHz, options.PitchScale)
 	outF0 := append([]float64(nil), automaticF0...)
 	if options.PitchCents != nil {
@@ -432,7 +435,7 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 	SetStage("照合と波形の合成をしています")
 	audio, err := index.Synthesize(world, refmatch.Request{
 		Features: features, Frames: frames, ReferenceF0: referenceF0, OutputF0: outF0,
-		ReferenceLevel: refmatch.ReferenceLevels(samples, rate, frames*4),
+		ReferenceLevel: levels,
 	})
 	if err != nil {
 		return Speech{}, err
