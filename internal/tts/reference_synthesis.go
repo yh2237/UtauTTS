@@ -326,8 +326,10 @@ func predictReference(cfg Config, language, reading string, morae []frontend.Mor
 		f0 = refspeech.WarpF0(refspeech.NewWarp(sourcePhones, targetPhones), leading, f0)
 	}
 	center := referenceCenterHz(f0)
+	consonant, vowel := referencePhoneSplit(morae, moraTokens, reference.Timing, phonePlans)
 	result := &ProsodyPreview{
 		Reading: reading, Morae: append([]frontend.Mora(nil), morae...), MoraDurationsMS: durations,
+		ConsonantDurationsMS: consonant, VowelDurationsMS: vowel,
 		MoraPositionsMS: make([]float64, len(morae)), PitchPoints: make([]float64, len(morae)),
 		FramePitchCurve: referencePitchCurve(f0, center, leading, options.PitchScale),
 	}

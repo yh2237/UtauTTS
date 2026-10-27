@@ -211,6 +211,34 @@ func referencePhonePlans(morae []frontend.Mora, moraTokens [][]int, timing refsp
 	return result
 }
 
+// referencePhoneSplitは、モーラごとの子音と母音の長さを返す。
+// 指定があればその値、なければ参照の長さを使う。休止は0。
+func referencePhoneSplit(morae []frontend.Mora, moraTokens [][]int, timing refspeech.Timing, plans []moraPhonePlan) ([]float64, []float64) {
+	consonant := make([]float64, len(morae))
+	vowel := make([]float64, len(morae))
+	for i, tokens := range moraTokens {
+		if i >= len(morae) || len(morae[i].Phones) == 0 || len(tokens) == 0 {
+			continue
+		}
+		groups := splitTokensByPhone(tokens, morae[i].Phones)
+		for j, group := range groups {
+			var ms float64
+			for _, token := range group {
+				ms += timing.MS(token)
+			}
+			if i < len(plans) && j < len(plans[i].phoneDurations) && plans[i].phoneDurations[j] > 0 {
+				ms = plans[i].phoneDurations[j]
+			}
+			if j < len(morae[i].Phones) && morae[i].Phones[j].Role == "nucleus" {
+				vowel[i] += ms
+			} else {
+				consonant[i] += ms
+			}
+		}
+	}
+	return consonant, vowel
+}
+
 // referencePhoneTimingsは、参照と出力の音素ごとの長さを返す。時間伸縮の対応表に使う。
 // 目標が無い音素は参照の長さをそのまま返す。
 func referencePhoneTimings(moraTokens [][]int, timing refspeech.Timing, morae []frontend.Mora, plans []moraPhonePlan) ([]float64, []float64) {
