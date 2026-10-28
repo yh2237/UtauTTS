@@ -139,10 +139,11 @@ for chinese_file in kokoro-zh/kokoro-v1_1-zh.pth kokoro-zh/config.json kokoro-zh
     exit 1
   fi
 done
+wld_dir="$(cd "${root_dir}" && "${go_command}" list -m -f '{{.Dir}}' github.com/yh2237/UtauWLD)"
 for package_dir in "${gui_dir}" "${server_dir}"; do
   (cd "${root_dir}" && "${go_command}" run ./cmd/tools/copy-model-license-notices \
     --models "${root_dir}/models" \
-    --embedded-models "${root_dir}/internal/speechtiming" \
+    --embedded-models "${wld_dir}/speechtiming" \
     --repository-root "${root_dir}" \
     --package-root "${package_dir}")
 done

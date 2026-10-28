@@ -251,11 +251,12 @@ try {
     }
     Copy-Item -LiteralPath $modelReadmePath -Destination $guiModelsPath
     Copy-Item -LiteralPath $modelReadmePath -Destination $serverModelsPath
+    $wldDir = (& go list -m -f '{{.Dir}}' github.com/yh2237/UtauWLD | Select-Object -First 1).Trim()
     foreach ($packagePath in @($guiPath, $serverPath)) {
         Invoke-Checked 'go' @(
             'run', './cmd/tools/copy-model-license-notices',
             '--models', (Join-Path $packagePath 'models'),
-            '--embedded-models', (Join-Path $root 'internal/speechtiming'),
+            '--embedded-models', (Join-Path $wldDir 'speechtiming'),
             '--repository-root', $root,
             '--package-root', $packagePath
         )
