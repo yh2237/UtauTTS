@@ -416,7 +416,7 @@ func referenceTiming(cfg Config, language string, pieces []refspeech.Piece, timi
 		return nil, nil, nil, nil, err
 	}
 	source = referenceMoraDurations(moraTokens, timing, nil)
-	target = referencePlannedDurations(moraTokens, timing, cfg.MoraDurationsMS,
+	target = referencePlannedDurations(morae, moraTokens, timing, cfg.MoraDurationsMS,
 		referencePhonePlans(morae, moraTokens, timing, cfg.MoraDurationsMS, plans))
 	return moraTokens, plans, source, target, nil
 }
@@ -437,14 +437,33 @@ func referenceMoraDurations(moraTokens [][]int, timing refspeech.Timing, manual 
 
 // referencePlannedDurationsは、合成後の各モーラの長さを返す。
 // 音素の指定があるモーラは、その合計長を使う。
-func referencePlannedDurations(moraTokens [][]int, timing refspeech.Timing, manual []float64, plans []moraPhonePlan) []float64 {
+// 参照TTSの休止は短いことがあるので、手で指定されていない休止には下限を設ける。
+func referencePlannedDurations(morae []frontend.Mora, moraTokens [][]int, timing refspeech.Timing, manual []float64, plans []moraPhonePlan) []float64 {
 	durations := referenceMoraDurations(moraTokens, timing, manual)
 	for i := range durations {
 		if i < len(plans) && plans[i].total > 0 {
 			durations[i] = plans[i].total
 		}
+		if i < len(morae) && morae[i].Pause {
+			if _, ok := configuredMoraDuration(i, manual); !ok {
+				durations[i] = math.Max(durations[i], referencePauseFloor(morae[i].PauseKind))
+			}
+		}
 	}
 	return durations
+}
+
+// referencePauseFloorは、休止の種類ごとの下限の長さを返す。
+func referencePauseFloor(kind string) float64 {
+	switch kind {
+	case frontend.PauseKindComma:
+		return 150
+	case frontend.PauseKindPeriod, frontend.PauseKindQuestion:
+		return 250
+	case frontend.PauseKindEllipsis:
+		return 350
+	}
+	return 150
 }
 
 func splitEnglishReading(reading string) []string {

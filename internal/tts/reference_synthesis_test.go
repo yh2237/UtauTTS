@@ -43,7 +43,7 @@ func TestReferencePlannedDurationsUsesPhonePlanTotal(t *testing.T) {
 	timing := refspeech.Timing{Durations: []int{2, 6}}
 	tokens := [][]int{{0, 1}}
 	phonePlans := referencePhonePlans(morae, tokens, timing, []float64{250}, nil)
-	got := referencePlannedDurations(tokens, timing, []float64{250}, phonePlans)
+	got := referencePlannedDurations(morae, tokens, timing, []float64{250}, phonePlans)
 	if len(got) != 1 || math.Abs(got[0]-250) > 1e-6 {
 		t.Fatalf("planned durations = %v, want 250", got)
 	}
