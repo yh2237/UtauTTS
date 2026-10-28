@@ -53,7 +53,7 @@ Item {
             contentWidth: availableWidth
             // スクロールバーは右端に重ねて置かれるので、スクロールするときはその分だけボタンの幅を空ける。
             rightPadding: ScrollBar.vertical.size < 1 ? ScrollBar.vertical.width + 6 : 0
-            // デスクトップのメニューバーと同じ順に並べる。スマホで使わない項目（終了・フォルダを開く・プラグイン・exo）と、
+            // デスクトップのメニューバーと同じ順に並べる。スマホで使わない項目（終了・フォルダを開く・exo）と、
             // 同じ動作になる項目（Webでは「名前を付けて保存」は「保存」と同じ）は置かない。元に戻す・やり直すは見出しにある。
             ColumnLayout {
                 width: menuScroll.availableWidth

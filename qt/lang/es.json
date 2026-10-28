@@ -221,7 +221,7 @@
     "voicebankDetails.title": "Detalles del voicebank",
     "menu.file.exportUstx": "Exportar como USTX...",
     "menu.file.export": "Exportar",
-    "menu.file.voicebanks": "Voicebanks y complementos",
+    "menu.file.voicebanks": "Bancos de voz",
     "main.ustxExportTitle": "Exportar USTX",
     "main.ustxExportSuccess": "Se exportó el USTX.\n{0}",
     "main.ustxExportFailed": "No se pudo exportar el USTX.\n{0}",
