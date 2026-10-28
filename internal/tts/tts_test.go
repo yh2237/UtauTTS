@@ -164,7 +164,7 @@ func testMergeManualPitchCurveCanReplaceLearnedCurve(t *testing.T) {
 	}
 }
 
-func TestScaleAutomaticPitchCurveUsesTheConfiguredStrength(t *testing.T) {
+func TestScaleAutomaticPitchCurve(t *testing.T) {
 	base := &render.PitchCurve{FrameMS: 10, Cents: []float64{20, -40}}
 	if got := scaleAutomaticPitchCurve(base, 0); got != nil {
 		t.Fatal("zero intonation strength kept the automatic curve")
@@ -172,19 +172,17 @@ func TestScaleAutomaticPitchCurveUsesTheConfiguredStrength(t *testing.T) {
 	if got := scaleAutomaticPitchCurve(base, 1); !reflect.DeepEqual(got.Cents, base.Cents) {
 		t.Fatalf("normal intonation strength changed the curve: %#v", got)
 	}
-	got := scaleAutomaticPitchCurve(base, 2)
-	if !reflect.DeepEqual(got.Cents, []float64{40, -80}) {
+	if got := scaleAutomaticPitchCurve(base, 2); !reflect.DeepEqual(got.Cents, []float64{40, -80}) {
 		t.Fatalf("amplified curve = %#v", got)
 	}
 	if !reflect.DeepEqual(base.Cents, []float64{20, -40}) {
 		t.Fatal("amplifying the curve mutated the source")
 	}
-}
 
-func TestScaleAutomaticPitchCurveExpandsLargeMovementsAboveTwo(t *testing.T) {
-	base := &render.PitchCurve{FrameMS: 10, Cents: []float64{2, -2, 150, -150}}
-	two := scaleAutomaticPitchCurve(base, 2)
-	four := scaleAutomaticPitchCurve(base, 4)
+	// 強さ2を超えると、小さな動きはそのまま、大きな動きだけを伸ばす。
+	wide := &render.PitchCurve{FrameMS: 10, Cents: []float64{2, -2, 150, -150}}
+	two := scaleAutomaticPitchCurve(wide, 2)
+	four := scaleAutomaticPitchCurve(wide, 4)
 	if math.Abs(four.Cents[0]-two.Cents[0]) > 0.01 || math.Abs(four.Cents[1]-two.Cents[1]) > 0.01 {
 		t.Fatalf("small movements changed above strength 2: %v -> %v", two.Cents, four.Cents)
 	}
@@ -194,7 +192,7 @@ func TestScaleAutomaticPitchCurveExpandsLargeMovementsAboveTwo(t *testing.T) {
 			t.Fatalf("large movement %d was not expanded toward strength 4: ratio %.3f", index, ratio)
 		}
 	}
-	eight := scaleAutomaticPitchCurve(base, MaxIntonationStrength)
+	eight := scaleAutomaticPitchCurve(wide, MaxIntonationStrength)
 	if eight.Cents[2] <= four.Cents[2] || eight.Cents[2] > two.Cents[2]*MaxIntonationStrength/2 {
 		t.Fatalf("maximum strength expansion = %v", eight.Cents)
 	}
