@@ -125,10 +125,6 @@ type ProsodyPreview struct {
 	MoraDurationsMS []float64
 	MoraPositionsMS []float64
 	PitchPoints     []float64
-	// ConsonantDurationsMSとVowelDurationsMSは、モーラの子音と母音の長さ。
-	// 参照照合でだけ入る（休止は0）。
-	ConsonantDurationsMS []float64
-	VowelDurationsMS     []float64
 	// FramePitchCurveは強度適用後の10ms単位のピッチ曲線。
 	FramePitchCurve *render.PitchCurve
 }

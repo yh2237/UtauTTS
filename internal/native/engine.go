@@ -266,16 +266,14 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 		morae[index] = map[string]any{"position": index, "mora": mora.Text, "pause": mora.Pause}
 	}
 	response := map[string]any{
-		"request_id":             request.RequestID,
-		"reading":                preview.Reading,
-		"morae":                  morae,
-		"features":               preview.Features,
-		"mora_durations_ms":      preview.MoraDurationsMS,
-		"mora_positions_ms":      preview.MoraPositionsMS,
-		"consonant_durations_ms": preview.ConsonantDurationsMS,
-		"vowel_durations_ms":     preview.VowelDurationsMS,
-		"pitch_points":           preview.PitchPoints,
-		"prosody_model_applied":  e.synth.ModelAvailable(request.ModelID),
+		"request_id":            request.RequestID,
+		"reading":               preview.Reading,
+		"morae":                 morae,
+		"features":              preview.Features,
+		"mora_durations_ms":     preview.MoraDurationsMS,
+		"mora_positions_ms":     preview.MoraPositionsMS,
+		"pitch_points":          preview.PitchPoints,
+		"prosody_model_applied": e.synth.ModelAvailable(request.ModelID),
 	}
 	if preview.FramePitchCurve != nil && preview.FramePitchCurve.FrameMS > 0 {
 		response["frame_ms"] = preview.FramePitchCurve.FrameMS

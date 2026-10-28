@@ -1,4 +1,4 @@
-package tts
+﻿package tts
 
 import (
 	"fmt"
@@ -172,28 +172,18 @@ func referencePhonePlans(morae []frontend.Mora, moraTokens [][]int, timing refsp
 					consonants++
 				}
 			}
-			// 指定のない側は、参照の自然の長さを保つ。
-			consonantTotal, vowelTotal := plan.consonantMS, plan.vowelMS
-			for j, phone := range mora.Phones {
-				if phone.Role == "nucleus" && vowelTotal <= 0 {
-					vowelTotal += natural[j]
-				}
-				if phone.Role != "nucleus" && consonantTotal <= 0 {
-					consonantTotal += natural[j]
-				}
-			}
 			durations := make([]float64, len(mora.Phones))
 			for j, phone := range mora.Phones {
 				switch {
 				case phone.Role == "nucleus" && nuclei > 0:
-					durations[j] = vowelTotal / float64(nuclei)
+					durations[j] = plan.vowelMS / float64(nuclei)
 				case phone.Role != "nucleus" && consonants > 0:
-					durations[j] = consonantTotal / float64(consonants)
+					durations[j] = plan.consonantMS / float64(consonants)
 				default:
-					durations[j] = natural[j]
+					durations[j] = 0
 				}
 			}
-			result[i] = moraPhonePlan{phoneDurations: durations, total: consonantTotal + vowelTotal}
+			result[i] = moraPhonePlan{phoneDurations: durations, total: plan.consonantMS + plan.vowelMS}
 			continue
 		}
 		if len(plan.weights) == len(mora.Phones) {
@@ -211,63 +201,8 @@ func referencePhonePlans(morae []frontend.Mora, moraTokens [][]int, timing refsp
 	return result
 }
 
-// referencePhoneSplitは、モーラごとの子音と母音の長さを返す。
-// 指定があればその値、なければ参照の長さを使う。休止は0。
-func referencePhoneSplit(morae []frontend.Mora, moraTokens [][]int, timing refspeech.Timing, plans []moraPhonePlan) ([]float64, []float64) {
-	consonant := make([]float64, len(morae))
-	vowel := make([]float64, len(morae))
-	for i, tokens := range moraTokens {
-		if i >= len(morae) || len(morae[i].Phones) == 0 || len(tokens) == 0 {
-			continue
-		}
-		groups := splitTokensByPhone(tokens, morae[i].Phones)
-		for j, group := range groups {
-			var ms float64
-			for _, token := range group {
-				ms += timing.MS(token)
-			}
-			if i < len(plans) && j < len(plans[i].phoneDurations) && plans[i].phoneDurations[j] > 0 {
-				ms = plans[i].phoneDurations[j]
-			}
-			if j < len(morae[i].Phones) && morae[i].Phones[j].Role == "nucleus" {
-				vowel[i] += ms
-			} else {
-				consonant[i] += ms
-			}
-		}
-	}
-	return consonant, vowel
-}
-
-// referencePhoneTimingsは、参照と出力の音素ごとの長さを返す。時間伸縮の対応表に使う。
-// 目標が無い音素は参照の長さをそのまま返す。
-func referencePhoneTimings(moraTokens [][]int, timing refspeech.Timing, morae []frontend.Mora, plans []moraPhonePlan) ([]float64, []float64) {
-	var source, target []float64
-	for i, tokens := range moraTokens {
-		if i >= len(morae) || len(morae[i].Phones) == 0 || len(tokens) == 0 {
-			continue
-		}
-		groups := splitTokensByPhone(tokens, morae[i].Phones)
-		for j, group := range groups {
-			var natural float64
-			for _, token := range group {
-				natural += timing.MS(token)
-			}
-			if natural <= 0 {
-				continue
-			}
-			want := natural
-			if i < len(plans) && j < len(plans[i].phoneDurations) && plans[i].phoneDurations[j] > 0 {
-				want = plans[i].phoneDurations[j]
-			}
-			source = append(source, natural)
-			target = append(target, want)
-		}
-	}
-	return source, target
-}
-
-func sumDurations(values []float64) float64 {	var total float64
+func sumDurations(values []float64) float64 {
+	var total float64
 	for _, value := range values {
 		total += value
 	}

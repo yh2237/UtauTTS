@@ -1041,8 +1041,6 @@ import UtauTTS.Media
                             dividerColor: window.borderColor
                             showTimelineFrame: false
                             timingEditor: pitchEditor
-                            onPhoneLengthEdited: (position, consonantMs) =>
-                                    window.updatePhoneLength(position, consonantMs)
                             units: window.extendedEditorUnits(pitchEditor.morae,
                                                               pitchEditor.moraDurations,
                                                               pitchEditor.moraPositions,

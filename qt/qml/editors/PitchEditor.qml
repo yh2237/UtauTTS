@@ -1,4 +1,4 @@
-﻿pragma ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
@@ -23,8 +23,6 @@ Item {
     property var morae: []
     property var moraDurations: []
     property var moraPositions: []
-    // モーラごとの子音の長さ。0なら指定なし。
-    property var consonantDurations: []
     property int defaultMoraDuration: 120
     property int defaultPauseDuration: 180
     property int minimumMoraDuration: 20
@@ -50,7 +48,6 @@ Item {
 
     readonly property real durationScale: defaultMoraDuration > 0 ? moraWidth / defaultMoraDuration : 0.5
     readonly property real graphWidth: Math.max(width, sidePadding * 2 + root.totalDuration() * durationScale)
-
 
     function baseDurationAt(index) {
         const mora = index < root.morae.length ? root.morae[index] : null;

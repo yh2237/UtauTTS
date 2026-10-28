@@ -90,8 +90,7 @@ function handleProsodyChanged(ctx) {
     const automaticPoints = host.copySequence(result.pitch_points);
     const automaticDurations = host.copySequence(result.mora_durations_ms);
     const automaticPositions = host.copySequence(result.mora_positions_ms);
-    host.applyAutomaticProsody(index, automaticPoints, automaticDurations, automaticPositions,
-            host.copySequence(result.consonant_durations_ms));
+    host.applyAutomaticProsody(index, automaticPoints, automaticDurations, automaticPositions);
     host.applyAutomaticFramePitch(index, host.copySequence(result.frame_pitch_cents),
             Number(result.frame_ms) || 10);
     host.scheduleExtendedEditorWaveform();

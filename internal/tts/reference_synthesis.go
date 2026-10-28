@@ -1,4 +1,4 @@
-//go:build !js
+﻿//go:build !js
 
 package tts
 
@@ -217,12 +217,11 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)
 	}
-	phonePlans := referencePhonePlans(morae, moraTokens, reference.Timing, cfg.MoraDurationsMS, plans)
-	planned := referencePlannedDurations(moraTokens, reference.Timing, cfg.MoraDurationsMS, phonePlans)
-	// 手動の長さがあれば、読み直さずに音素ごとの時間軸を引き伸ばす。
+	sourceDurations := referenceMoraDurations(moraTokens, reference.Timing, nil)
+	planned := referencePlannedDurations(moraTokens, reference.Timing, cfg.MoraDurationsMS,
+		referencePhonePlans(morae, moraTokens, reference.Timing, cfg.MoraDurationsMS, plans))
 	if hasManualMoraDurations(cfg.MoraDurationsMS) || len(plans) > 0 {
-		sourcePhones, targetPhones := referencePhoneTimings(moraTokens, reference.Timing, morae, phonePlans)
-		options.Warp = refspeech.NewWarp(sourcePhones, targetPhones)
+		options.Warp = refspeech.NewWarp(sourceDurations, planned)
 		if options.Warp == nil {
 			log("指定した長さを反映できませんでした")
 		}
@@ -318,18 +317,16 @@ func predictReference(cfg Config, language, reading string, morae []frontend.Mor
 		return nil, fmt.Errorf("reference prosody: %w", err)
 	}
 	phonePlans := referencePhonePlans(morae, moraTokens, reference.Timing, cfg.MoraDurationsMS, plans)
+	sourceDurations := referenceMoraDurations(moraTokens, reference.Timing, nil)
 	durations := referencePlannedDurations(moraTokens, reference.Timing, cfg.MoraDurationsMS, phonePlans)
 	f0 := reference.ReferenceF0()
 	leading := reference.LeadingMS()
 	if hasManualMoraDurations(cfg.MoraDurationsMS) || len(plans) > 0 {
-		sourcePhones, targetPhones := referencePhoneTimings(moraTokens, reference.Timing, morae, phonePlans)
-		f0 = refspeech.WarpF0(refspeech.NewWarp(sourcePhones, targetPhones), leading, f0)
+		f0 = refspeech.WarpF0(refspeech.NewWarp(sourceDurations, durations), leading, f0)
 	}
 	center := referenceCenterHz(f0)
-	consonant, vowel := referencePhoneSplit(morae, moraTokens, reference.Timing, phonePlans)
 	result := &ProsodyPreview{
 		Reading: reading, Morae: append([]frontend.Mora(nil), morae...), MoraDurationsMS: durations,
-		ConsonantDurationsMS: consonant, VowelDurationsMS: vowel,
 		MoraPositionsMS: make([]float64, len(morae)), PitchPoints: make([]float64, len(morae)),
 		FramePitchCurve: referencePitchCurve(f0, center, leading, options.PitchScale),
 	}
