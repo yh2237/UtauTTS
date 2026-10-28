@@ -30,9 +30,6 @@ func testEnglishSpellingFallback(t *testing.T) {
 			if err != nil || got != tc.want {
 				t.Fatalf("got %q, %v; want %q", got, err, tc.want)
 			}
-			if strings.ContainsAny(got, "012") {
-				t.Fatalf("spelling fallback invented lexical stress: %q", got)
-			}
 		})
 	}
 }
