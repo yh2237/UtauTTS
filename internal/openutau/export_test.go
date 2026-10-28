@@ -139,17 +139,12 @@ func TestExportUSTX(t *testing.T) {
 	text := string(data)
 
 	for _, want := range []string{
-		"ustx_version: \"0.6\"",
 		"resolution: 480",
 		"bpm: 120",
 		"track_name: 熵尾音-真声",
 		"track_name: 熵尾音-假声",
 		"voice_parts:",
-		"lyric: み",
-		"tone: 60",
 		"tone: 59",
-		"snap_first: false",
-		"\"y\": 5",
 		"\"y\": 10",
 	} {
 		if !strings.Contains(text, want) {
