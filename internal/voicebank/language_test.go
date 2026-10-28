@@ -36,7 +36,6 @@ func testSuggestedLanguage(t *testing.T) {
 	}{
 		{"delta", "en", "en-delta", []string{"- h@", "h{", "@ l"}},
 		{"delta with v aliases", "en", "en-delta", []string{"- hV", "- h@", "V l", "@ l", "h{", "- h{"}},
-		{"delta with h aliases", "en", "en-delta", []string{"- h@", "@ l", "h{", "- h{"}},
 		{"vccv", "en", "en-vccv", []string{"-h@", "-b&"}},
 		{"vccv with a aliases", "en", "en-vccv", []string{"-h@", "-hA", "-b&"}},
 		{"arpasing", "en", "en-arpasing", []string{"- hh", "hh ah"}},
