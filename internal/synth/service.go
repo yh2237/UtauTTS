@@ -391,6 +391,19 @@ func (s *Service) PrepareReferenceIndex(bank *voicebank.Bank) {
 	tts.PrepareReferenceIndex(s.referenceDir(), bank, worldEnginePath)
 }
 
+// BuildReferenceIndexは指定した音源と声色の索引を裏で準備する。
+func (s *Service) BuildReferenceIndex(request Request) (bool, error) {
+	cfg, _, err := s.config(request, true)
+	if err != nil {
+		return false, err
+	}
+	bank, err := voicebank.Load(cfg.VoicebankPath)
+	if err != nil {
+		return false, err
+	}
+	return tts.PrepareReferenceIndexStatus(cfg.ReferenceDir, bank, cfg.Color, cfg.WorldEnginePath)
+}
+
 // FeatureDeviceは、直近の特徴量計算に使ったデバイスを返す。
 func (s *Service) FeatureDevice() string {
 	return hubert.LastDevice()

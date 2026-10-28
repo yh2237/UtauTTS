@@ -22,4 +22,8 @@ func predictReference(Config, string, string, []frontend.Mora) (*ProsodyPreview,
 
 func PrepareReferenceIndex(string, *voicebank.Bank, string) {}
 
+func PrepareReferenceIndexStatus(string, *voicebank.Bank, string, string) (bool, error) {
+	return false, errReferenceUnavailable
+}
+
 func ReferenceIndexProgress() struct{} { return struct{}{} }

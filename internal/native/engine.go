@@ -13,6 +13,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/openutau"
 	"github.com/yh2237/UtauTTS/internal/plugin"
+	"github.com/yh2237/UtauTTS/internal/refspeech"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/synth"
@@ -119,6 +120,36 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 		result, err = e.writeSidecars(requestJSON)
 	case "referenceIndexes":
 		result = tts.ReferenceIndexProgress()
+	case "listReferenceIndexes":
+		var dir string
+		dir, err = refspeech.DefaultCacheDir()
+		if err == nil {
+			var indexes []refspeech.IndexInfo
+			indexes, err = refspeech.ListIndexes(dir)
+			result = map[string]any{"indexes": indexes}
+		}
+	case "deleteReferenceIndex":
+		var request struct {
+			Name string `json:"name"`
+		}
+		if err = json.Unmarshal(requestJSON, &request); err == nil {
+			var dir string
+			dir, err = refspeech.DefaultCacheDir()
+			if err == nil {
+				var deleted bool
+				deleted, err = refspeech.DeleteIndex(dir, request.Name)
+				result = map[string]bool{"deleted": deleted}
+			}
+		}
+	case "buildReferenceIndex":
+		var request struct {
+			VoicebankID string `json:"voicebank_id"`
+			Color       string `json:"color"`
+		}
+		if err = json.Unmarshal(requestJSON, &request); err == nil {
+			_, err = e.synth.BuildReferenceIndex(synth.Request{VoicebankID: request.VoicebankID, Color: request.Color, Language: "en", Method: tts.MethodReferenceMatching})
+			result = map[string]bool{"started": true}
+		}
 	case "installVoicebank":
 		result, err = e.installVoicebank(requestJSON)
 	default:
@@ -257,7 +288,17 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 	if request.Text == "" && request.ReadingOrKana() == "" {
 		return nil, fmt.Errorf("text or reading is required")
 	}
-	preview, err := e.synth.PredictProsodyContext(e.ctx, request.InternalRequest())
+	internal := request.InternalRequest().Normalized()
+	if internal.Method == tts.MethodReferenceMatching && (internal.VoicebankID != "" || internal.VoicebankPath != "") {
+		building, err := e.synth.BuildReferenceIndex(internal)
+		if err != nil {
+			return nil, err
+		}
+		if building {
+			return map[string]any{"request_id": request.RequestID, "reference_index_building": true}, nil
+		}
+	}
+	preview, err := e.synth.PredictProsodyContext(e.ctx, internal)
 	if err != nil {
 		return nil, err
 	}

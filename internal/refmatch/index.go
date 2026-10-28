@@ -77,6 +77,7 @@ type Header struct {
 	F0Median   float64  `json:"f0_median"`
 	Files      []string `json:"files"`
 	Source     string   `json:"source"`
+	CacheKey   string   `json:"cache_key,omitempty"`
 }
 
 // Recordingは索引に使う録音と、その録音を使う原音のoto.iniの範囲。

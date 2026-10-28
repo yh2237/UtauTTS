@@ -65,6 +65,16 @@ func PrepareReferenceIndex(dir string, bank *voicebank.Bank, worldEnginePath str
 	}
 }
 
+// PrepareReferenceIndexStatusは声色の索引を裏で準備し、作成中かどうかを返す。
+func PrepareReferenceIndexStatus(dir string, bank *voicebank.Bank, color, world string) (bool, error) {
+	service, err := ReferenceService(dir)
+	if err != nil {
+		return false, err
+	}
+	status := service.PrepareStatus(bank.Root, referenceRecordings(bank, color), world)
+	return status.State == refspeech.IndexBuilding, nil
+}
+
 // referenceRecordingsは索引に使う録音と、それを使う原音のoto.iniの範囲を返す。
 func referenceRecordings(bank *voicebank.Bank, color string) []refmatch.Recording {
 	recordings := bank.ReferenceRecordings(color)

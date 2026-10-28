@@ -40,8 +40,10 @@ type Service struct {
 	models   Models
 	cacheDir string
 
-	mu      sync.Mutex
-	buildMu sync.Mutex
+	mu       sync.Mutex
+	buildMu  sync.Mutex
+	engineMu sync.Mutex
+	worldMu  sync.Mutex
 	// foregroundは読み上げの間に持つ。索引の作成は、ファイルごとに読み上げが終わるのを待つ。
 	foreground sync.RWMutex
 	engine     *Engine
@@ -177,8 +179,8 @@ func migrateLegacyCacheDir(base, dir string) {
 }
 
 func (s *Service) openEngine() (*Engine, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.engineMu.Lock()
+	defer s.engineMu.Unlock()
 	if s.engine == nil {
 		engine, err := Open(s.models)
 		if err != nil {
@@ -197,8 +199,8 @@ func (s *Service) open(worldEnginePath string) (*Engine, *worldrender.World, err
 	if worldEnginePath == "" {
 		return nil, nil, errors.New("English synthesis needs the UtauTTS WORLD engine")
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.worldMu.Lock()
+	defer s.worldMu.Unlock()
 	world := s.worlds[worldEnginePath]
 	if world == nil {
 		world, err = worldrender.OpenWorld(worldEnginePath)
@@ -229,7 +231,7 @@ func (s *Service) dropStale(bankRoot string, recordings []refmatch.Recording) {
 	if index == nil {
 		return
 	}
-	if _, key, err := bankRecordings(bankRoot, recordings); err == nil && key != index.Source {
+	if _, key, err := bankRecordings(bankRoot, recordings); err == nil && !matchesSource(index, bankRoot, key) {
 		s.mu.Lock()
 		if s.indexes[id] == entry {
 			delete(s.indexes, id)
@@ -349,7 +351,7 @@ func (s *Service) loadOrBuild(bankRoot string, recordings []refmatch.Recording, 
 		return nil, false, err
 	}
 	path := filepath.Join(s.cacheDir, key+".idx")
-	if index, err := refmatch.LoadIndex(path); err == nil && index.Model == FeatureModel && index.Source == key {
+	if index, err := refmatch.LoadIndex(path); err == nil && index.Model == FeatureModel && matchesSource(index, bankRoot, key) {
 		// 使った記録を残し、上限を超えたときに古いものから消せるようにする。
 		now := time.Now()
 		_ = os.Chtimes(path, now, now)
@@ -371,7 +373,8 @@ func (s *Service) loadOrBuild(bankRoot string, recordings []refmatch.Recording, 
 	if err != nil {
 		return nil, false, err
 	}
-	index.Source = key
+	index.Source = filepath.Clean(bankRoot)
+	index.CacheKey = key
 	if err := os.MkdirAll(s.cacheDir, 0o755); err != nil {
 		return nil, false, err
 	}
