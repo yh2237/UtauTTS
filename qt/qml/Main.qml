@@ -1,9 +1,10 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 
 import QtQuick
 import "UnitOverrides.js" as UnitOverrides
 import "MoraPositions.js" as MoraPositions
 import "QmlCore.js" as QmlCore
+import "UtteranceData.js" as UtteranceData
 import "UtteranceCore.js" as UtteranceCore
 import "HistoryCore.js" as HistoryCore
 import "IntonationLab.js" as IntonationLab
@@ -2019,13 +2020,11 @@ ApplicationWindow {
     }
 
     function hasManualMoraDurations(item) {
-        if (item && item.manualMoraDurationEdited)
-            return true;
-        return decodeSequence(item ? item.moraDurationsJson : "").some(value => Number(value) > 0);
+        return UtteranceData.hasManualMoraDurations(item);
     }
 
     function automaticSequence(item, name) {
-        return decodeSequence(item ? item[name] : "[]");
+        return UtteranceData.sequence(item, name);
     }
 
     function automaticProsodyReady(item) {
@@ -2098,15 +2097,11 @@ ApplicationWindow {
     }
 
     function displayedMoraDurations(item) {
-        if (hasManualMoraDurations(item))
-            return decodeSequence(item.moraDurationsJson);
-        return automaticSequence(item, "autoMoraDurationsJson");
+        return UtteranceData.displayedMoraDurations(item);
     }
 
     function displayedMoraPositions(item) {
-        if (hasManualMoraDurations(item))
-            return window.normalizedMoraPositions(decodeSequence(item.moraPositionsJson));
-        return window.normalizedMoraPositions(automaticSequence(item, "autoMoraPositionsJson"));
+        return UtteranceData.displayedMoraPositions(item);
     }
 
     function normalizedMoraPositions(positions) {

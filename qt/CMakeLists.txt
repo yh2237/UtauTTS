@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+﻿cmake_minimum_required(VERSION 3.21)
 
 set(UTAUTTS_APPINFO_FILE "${CMAKE_CURRENT_LIST_DIR}/../internal/appinfo/appinfo.json")
 file(READ "${UTAUTTS_APPINFO_FILE}" UTAUTTS_APPINFO_JSON)
@@ -99,6 +99,7 @@ set_source_files_properties(qml/UnitOverrides.js PROPERTIES QT_QML_SKIP_QMLDIR_E
 set_source_files_properties(qml/MoraPositions.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/QmlCore.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/UtteranceCore.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
+set_source_files_properties(qml/UtteranceData.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/EditorValues.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/HistoryCore.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/IntonationLab.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
@@ -116,6 +117,7 @@ qt_add_qml_module(utautts
         qml/MoraPositions.js
         qml/QmlCore.js
         qml/UtteranceCore.js
+    qml/UtteranceData.js
         qml/EditorValues.js
         qml/HistoryCore.js
         qml/IntonationLab.js
