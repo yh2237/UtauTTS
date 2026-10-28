@@ -212,14 +212,10 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	log(fmt.Sprintf("参照音声: %d Hz、%.2f 秒（生成 %d ms）",
 		rate, float64(len(reference.Audio))/float64(rate), time.Since(readStarted).Milliseconds()))
 	// 手動の長さがあれば、読み直さずに参照の時間軸を引き伸ばす。
-	moraTokens := referenceMoraTokens(language, pieces, reference.Timing, reading, morae)
-	plans, err := buildPhonePlans(cfg, morae)
+	_, plans, sourceDurations, planned, err := referenceTiming(cfg, language, pieces, reference.Timing, reading, morae)
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)
 	}
-	sourceDurations := referenceMoraDurations(moraTokens, reference.Timing, nil)
-	planned := referencePlannedDurations(moraTokens, reference.Timing, cfg.MoraDurationsMS,
-		referencePhonePlans(morae, moraTokens, reference.Timing, cfg.MoraDurationsMS, plans))
 	if hasManualMoraDurations(cfg.MoraDurationsMS) || len(plans) > 0 {
 		options.Warp = refspeech.NewWarp(sourceDurations, planned)
 		if options.Warp == nil {
@@ -311,14 +307,10 @@ func predictReference(cfg Config, language, reading string, morae []frontend.Mor
 	if err != nil {
 		return nil, fmt.Errorf("reference prosody: %w", err)
 	}
-	moraTokens := referenceMoraTokens(language, pieces, reference.Timing, reading, morae)
-	plans, err := buildPhonePlans(cfg, morae)
+	_, plans, sourceDurations, durations, err := referenceTiming(cfg, language, pieces, reference.Timing, reading, morae)
 	if err != nil {
 		return nil, fmt.Errorf("reference prosody: %w", err)
 	}
-	phonePlans := referencePhonePlans(morae, moraTokens, reference.Timing, cfg.MoraDurationsMS, plans)
-	sourceDurations := referenceMoraDurations(moraTokens, reference.Timing, nil)
-	durations := referencePlannedDurations(moraTokens, reference.Timing, cfg.MoraDurationsMS, phonePlans)
 	f0 := reference.ReferenceF0()
 	leading := reference.LeadingMS()
 	if hasManualMoraDurations(cfg.MoraDurationsMS) || len(plans) > 0 {
@@ -423,6 +415,19 @@ func englishMoraTokens(pieces []refspeech.Piece, timing refspeech.Timing, readin
 
 // referenceMoraDurationsは、モーラに割り当てた記号の長さを足す。
 // 手動の長さがあるモーラはその値にする。
+// referenceTimingは、参照の記号の範囲と、参照・出力それぞれのモーラの長さを求める。
+func referenceTiming(cfg Config, language string, pieces []refspeech.Piece, timing refspeech.Timing, reading string, morae []frontend.Mora) (moraTokens [][]int, plans []phonePlan, source []float64, target []float64, err error) {
+	moraTokens = referenceMoraTokens(language, pieces, timing, reading, morae)
+	plans, err = buildPhonePlans(cfg, morae)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	source = referenceMoraDurations(moraTokens, timing, nil)
+	target = referencePlannedDurations(moraTokens, timing, cfg.MoraDurationsMS,
+		referencePhonePlans(morae, moraTokens, timing, cfg.MoraDurationsMS, plans))
+	return moraTokens, plans, source, target, nil
+}
+
 func referenceMoraDurations(moraTokens [][]int, timing refspeech.Timing, manual []float64) []float64 {
 	durations := make([]float64, len(moraTokens))
 	for i, tokens := range moraTokens {

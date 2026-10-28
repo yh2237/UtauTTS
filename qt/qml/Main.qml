@@ -1449,12 +1449,7 @@ ApplicationWindow {
 
         if (!utterances.count) {
             selectedIndex = 0;
-            editorContent.pitchEditor.points = [];
-            editorContent.pitchEditor.morae = [];
-            editorContent.pitchEditor.moraDurations = [];
-            editorContent.pitchEditor.moraPositions = [];
-            editorContent.phonemeEditor.manualFrames = [];
-            editorContent.phonemeEditor.autoFrames = [];
+            window.clearEditors();
             window.resetHistory(false);
             return;
         }
@@ -1988,16 +1983,7 @@ ApplicationWindow {
         editorContent.pauseSlider.value = item.pauseDuration;
         editorContent.leadingPreutteranceSlider.value = item.leadingPreutterance;
         editorContent.intonationSlider.value = item.intonation;
-        editorContent.pitchEditor.points = window.decodeSequence(item.pointsJson);
-        editorContent.pitchEditor.autoPoints = window.automaticSequence(item, "autoPointsJson");
-        editorContent.pitchEditor.morae = window.decodeSequence(item.moraeJson);
-        editorContent.pitchEditor.defaultMoraDuration = item.moraDuration;
-        editorContent.pitchEditor.defaultPauseDuration = item.pauseDuration;
-        editorContent.pitchEditor.moraDurations = window.displayedMoraDurations(item);
-        editorContent.pitchEditor.moraPositions = window.displayedMoraPositions(item);
-        editorContent.phonemeEditor.manualFrames = window.decodeSequence(item.pitchFramesJson);
-        editorContent.phonemeEditor.autoFrames = window.automaticSequence(item, "autoPitchFramesJson");
-        editorContent.phonemeEditor.frameMs = Number(item.autoFrameMs) > 0 ? Number(item.autoFrameMs) : 10;
+        window.syncEditors(item);
         selectCombo(editorContent.voiceCombo, item.voicebankId);
         selectCombo(editorContent.speechLanguageCombo, item.language || "ja");
         selectCombo(editorContent.methodCombo,
@@ -2082,6 +2068,33 @@ ApplicationWindow {
                 return;
             window.requestProsodyPreview(currentIndex);
         });
+    }
+
+    // syncEditorsは、発話の内容を編集画面へまとめて反映する。
+    function syncEditors(item) {
+        if (!item)
+            return clearEditors();
+        editorContent.pitchEditor.points = window.decodeSequence(item.pointsJson);
+        editorContent.pitchEditor.autoPoints = window.automaticSequence(item, "autoPointsJson");
+        editorContent.pitchEditor.morae = window.decodeSequence(item.moraeJson);
+        editorContent.pitchEditor.defaultMoraDuration = item.moraDuration;
+        editorContent.pitchEditor.defaultPauseDuration = item.pauseDuration;
+        editorContent.pitchEditor.moraDurations = window.displayedMoraDurations(item);
+        editorContent.pitchEditor.moraPositions = window.displayedMoraPositions(item);
+        editorContent.phonemeEditor.manualFrames = window.decodeSequence(item.pitchFramesJson);
+        editorContent.phonemeEditor.autoFrames = window.automaticSequence(item, "autoPitchFramesJson");
+        editorContent.phonemeEditor.frameMs = Number(item.autoFrameMs) > 0 ? Number(item.autoFrameMs) : 10;
+    }
+
+    // clearEditorsは、編集画面を空にする。
+    function clearEditors() {
+        editorContent.pitchEditor.points = [];
+        editorContent.pitchEditor.autoPoints = [];
+        editorContent.pitchEditor.morae = [];
+        editorContent.pitchEditor.moraDurations = [];
+        editorContent.pitchEditor.moraPositions = [];
+        editorContent.phonemeEditor.manualFrames = [];
+        editorContent.phonemeEditor.autoFrames = [];
     }
 
     function displayedMoraDurations(item) {
@@ -2257,10 +2270,7 @@ ApplicationWindow {
         window.projectDirty = true;
         if (!utterances.count) {
             selectedIndex = 0;
-            editorContent.pitchEditor.points = [];
-            editorContent.pitchEditor.morae = [];
-            editorContent.phonemeEditor.manualFrames = [];
-            editorContent.phonemeEditor.autoFrames = [];
+            window.clearEditors();
             return;
         }
         selectedIndex = Math.min(selectedIndex, utterances.count - 1);
