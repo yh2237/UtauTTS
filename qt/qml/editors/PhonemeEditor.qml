@@ -43,6 +43,20 @@ Item {
     property bool snapEnabled: true
     property real currentScrollX: 0
     property var timingEditor: null
+    // 子音と母音の区切りをドラッグしたときの仮の位置（モーラ番号と子音の長さ）。
+    property int phoneDragPosition: -1
+    property real phoneDragMs: 0
+    signal phoneLengthEdited(int position, real consonantMs)
+
+    // consonantMsAtは、モーラの子音の長さを返す。0なら指定なし。
+    function consonantMsAt(position) {
+        if (root.phoneDragPosition === position)
+            return root.phoneDragMs;
+        const values = root.timingEditor ? root.timingEditor.consonantDurations : null;
+        const value = values && position >= 0 && position < values.length
+                ? Number(values[position]) : 0;
+        return value > 0 ? value : 0;
+    }
     // 縦の表示範囲と編集できる範囲（±セント）。
     readonly property real pitchRange: 800
     readonly property real maximumPitchCents: 800
@@ -1329,6 +1343,56 @@ Item {
                         font.pixelSize: 9
                         elide: Text.ElideRight
                         visible: parent.width >= 28 && unitBand.editable
+                    }
+
+                    // 子音と母音の区切り。ドラッグで子音の長さを変える。
+                    readonly property real consonantMs: unitBand.editable
+                            ? root.consonantMsAt(Number(unitBand.modelData.position)) : 0
+                    Rectangle {
+                        visible: unitBand.consonantMs > 0
+                        x: Math.round(unitBand.consonantMs * root.pixelsPerMs) - 1
+                        width: 2
+                        height: parent.height
+                        color: root.labelColor
+                        opacity: 0.6
+                    }
+                    Item {
+                        visible: unitBand.consonantMs > 0
+                        x: Math.round(unitBand.consonantMs * root.pixelsPerMs) - 6
+                        width: 12
+                        height: parent.height
+                        z: 5
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.SizeHorCursor
+                            property bool dragging: false
+                            onPressed: mouse => {
+                                dragging = true;
+                                root.phoneDragPosition = Number(unitBand.modelData.position);
+                                root.phoneDragMs = unitBand.consonantMs;
+                                mouse.accepted = true;
+                            }
+                            onPositionChanged: mouse => {
+                                if (!dragging)
+                                    return;
+                                const point = mapToItem(unitBand, mouse.x, mouse.y);
+                                root.phoneDragMs = Math.max(1, Math.min(unitBand.width,
+                                        point.x) / root.pixelsPerMs);
+                            }
+                            onReleased: {
+                                if (!dragging)
+                                    return;
+                                dragging = false;
+                                const value = unitBand.consonantMs;
+                                root.phoneDragPosition = -1;
+                                root.phoneLengthEdited(Number(unitBand.modelData.position), value);
+                            }
+                            onCanceled: {
+                                dragging = false;
+                                root.phoneDragPosition = -1;
+                            }
+                        }
                     }
 
                     Rectangle {
