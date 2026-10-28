@@ -7,6 +7,7 @@ import "QmlCore.js" as QmlCore
 import "UtteranceData.js" as UtteranceData
 import "ProjectIO.js" as ProjectIO
 import "SynthesisRequest.js" as SynthesisRequest
+import "SettingsIO.js" as SettingsIO
 import "UtteranceCore.js" as UtteranceCore
 import "HistoryCore.js" as HistoryCore
 import "IntonationLab.js" as IntonationLab
@@ -835,50 +836,19 @@ ApplicationWindow {
     }
 
     function saveSettings(closeAfter) {
-        const shortcuts = [settingsWindowRef.view.pendingSynthesizeShortcut,
-                           settingsWindowRef.view.pendingSaveProjectShortcut,
-                           settingsWindowRef.view.pendingReloadVoicebanksShortcut,
-                           settingsWindowRef.view.pendingAddUtteranceShortcut,
-                           settingsWindowRef.view.pendingRemoveUtteranceShortcut,
-                           settingsWindowRef.view.pendingUndoShortcut,
-                           settingsWindowRef.view.pendingRedoShortcut];
-        const usedShortcuts = [];
-        for (let index = 0; index < shortcuts.length; ++index) {
-            const shortcut = String(shortcuts[index] || "").trim();
-            if (!shortcut.length)
-                continue;
-            const normalized = window.qtShortcutSequence(shortcut).toLowerCase();
-            if (usedShortcuts.indexOf(normalized) >= 0) {
-                dialogs.shortcutConflictDialog.open();
-                return;
-            }
-            usedShortcuts.push(normalized);
+        if (SettingsIO.shortcutConflict([
+                settingsWindowRef.view.pendingSynthesizeShortcut,
+                settingsWindowRef.view.pendingSaveProjectShortcut,
+                settingsWindowRef.view.pendingReloadVoicebanksShortcut,
+                settingsWindowRef.view.pendingAddUtteranceShortcut,
+                settingsWindowRef.view.pendingRemoveUtteranceShortcut,
+                settingsWindowRef.view.pendingUndoShortcut,
+                settingsWindowRef.view.pendingRedoShortcut
+            ], shortcut => window.qtShortcutSequence(shortcut).toLowerCase())) {
+            dialogs.shortcutConflictDialog.open();
+            return;
         }
-        window.appBackend.setSynthesisDefaults(settingsWindowRef.view.pendingDefaultModelId,
-                                               settingsWindowRef.view.pendingDefaultTone,
-                                               settingsWindowRef.view.pendingDefaultAliasPolicy);
-        window.appBackend.setDarkMode(settingsWindowRef.view.pendingDarkMode);
-        window.appBackend.setLanguage(settingsWindowRef.view.pendingLanguage);
-        window.appBackend.setFfmpegPath(settingsWindowRef.view.pendingFfmpegPath);
-        window.appBackend.setAudioOutputDeviceId(settingsWindowRef.view.pendingAudioOutputDeviceId);
-        window.appBackend.setCloseLogOnSuccess(settingsWindowRef.view.pendingCloseLogOnSuccess);
-        window.appBackend.setUpdateCheckEnabled(settingsWindowRef.view.pendingUpdateCheckEnabled);
-        window.appBackend.setPreReleaseUpdateCheckEnabled(
-                    settingsWindowRef.view.pendingPreReleaseUpdateCheckEnabled);
-        window.appBackend.setPreviewCacheFileCount(settingsWindowRef.view.pendingPreviewCacheFileCount);
-        window.appBackend.setAutoPreviewEnabled(settingsWindowRef.view.pendingAutoPreviewEnabled);
-        window.appBackend.setExtendedDetailsVisible(settingsWindowRef.view.pendingExtendedDetailsVisible);
-        window.appBackend.setDefaultVoicebank(settingsWindowRef.view.pendingDefaultVoicebankId);
-        window.appBackend.setExportSettings(settingsWindowRef.view.pendingExportTextWithWav,
-                                            settingsWindowRef.view.pendingExportLabWithWav,
-                                            settingsWindowRef.view.pendingExportTextEncoding);
-        window.appBackend.setShortcutSequences(settingsWindowRef.view.pendingSynthesizeShortcut,
-                                               settingsWindowRef.view.pendingSaveProjectShortcut,
-                                               settingsWindowRef.view.pendingReloadVoicebanksShortcut,
-                                               settingsWindowRef.view.pendingAddUtteranceShortcut,
-                                               settingsWindowRef.view.pendingRemoveUtteranceShortcut,
-                                               settingsWindowRef.view.pendingUndoShortcut,
-                                               settingsWindowRef.view.pendingRedoShortcut);
+        SettingsIO.applySettings(settingsWindowRef.view, window.appBackend);
         if (closeAfter) {
             const settingsWindow = window.settingsWindowRef;
             if (settingsWindow) {

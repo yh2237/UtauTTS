@@ -102,6 +102,7 @@ set_source_files_properties(qml/UtteranceCore.js PROPERTIES QT_QML_SKIP_QMLDIR_E
 set_source_files_properties(qml/UtteranceData.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/ProjectIO.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/SynthesisRequest.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
+set_source_files_properties(qml/SettingsIO.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/EditorValues.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/HistoryCore.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/IntonationLab.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
@@ -122,6 +123,7 @@ qt_add_qml_module(utautts
     qml/UtteranceData.js
     qml/ProjectIO.js
     qml/SynthesisRequest.js
+    qml/SettingsIO.js
         qml/EditorValues.js
         qml/HistoryCore.js
         qml/IntonationLab.js
