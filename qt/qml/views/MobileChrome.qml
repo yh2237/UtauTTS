@@ -96,17 +96,6 @@ Item {
                     onClicked: { menuDrawer.close(); root.window.openSaveAllDialog(); }
                 }
                 MenuButton {
-                    text: root.window.translator.tr("menu.file.saveWavWithSidecars")
-                    enabled: !root.backend.busy && !root.window.batchExportActive && root.window.utterancesModel.count > 0
-                             && root.window.current().reading.length > 0
-                    onClicked: { menuDrawer.close(); root.window.saveCurrentAudio(true); }
-                }
-                MenuButton {
-                    text: root.window.translator.tr("menu.file.saveAllWavWithSidecars")
-                    enabled: !root.backend.busy && !root.window.batchExportActive && root.window.hasExportableText()
-                    onClicked: { menuDrawer.close(); root.window.openSaveAllDialog(true); }
-                }
-                MenuButton {
                     text: root.window.translator.tr("menu.file.exportUstx")
                     enabled: !root.backend.busy && !root.window.batchExportActive && root.window.utterancesModel.count > 0
                     onClicked: { menuDrawer.close(); root.window.openUstxExportDialog(); }
@@ -200,11 +189,15 @@ Item {
     MobilePageDialog {
         id: settingsDialog
         title: root.window.translator.tr("menu.settings")
+        property bool exportText: false
+        property bool exportLab: false
         property string exportEncoding: "utf-8"
         onOpened: {
+            exportText = root.backend.exportTextWithWav;
+            exportLab = root.backend.exportLabWithWav;
             exportEncoding = root.backend.exportTextEncoding;
         }
-        onClosed: root.backend.setExportTextEncoding(exportEncoding)
+        onClosed: root.backend.setExportSettings(exportText, exportLab, exportEncoding)
         contentItem: ScrollView {
             id: settingsScroll
             implicitWidth: 0
@@ -229,6 +222,16 @@ Item {
                     text: root.window.translator.tr("settings.theme.dark")
                     checked: root.backend.darkMode
                     onToggled: root.backend.setDarkMode(checked)
+                }
+                CheckBox {
+                    text: root.window.translator.tr("settings.exportTextWithWav")
+                    checked: settingsDialog.exportText
+                    onToggled: settingsDialog.exportText = checked
+                }
+                CheckBox {
+                    text: root.window.translator.tr("settings.exportLabWithWav")
+                    checked: settingsDialog.exportLab
+                    onToggled: settingsDialog.exportLab = checked
                 }
                 ComboBox {
                     Layout.fillWidth: true
