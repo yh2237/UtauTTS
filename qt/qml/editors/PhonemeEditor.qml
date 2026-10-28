@@ -140,8 +140,25 @@ Item {
         return Number.isFinite(value) ? value : 0;
     }
 
+    // unitPitchCentsAtFrameは、その時刻を覆う原音のピッチ係数をセントに直して返す。
+    // ノーツを上下に動かしたとき、どの範囲がどれだけ高くなったかを曲線に出すために使う。
+    function unitPitchCentsAtFrame(frame) {
+        const time = root.frameTimeMs(frame);
+        for (let index = 0; index < root.units.length; ++index) {
+            const unit = root.units[index];
+            if (!unit || String(unit.role) !== "mora")
+                continue;
+            const start = root.unitNoteStart(unit);
+            if (time < start || time >= start + Math.max(1, root.unitDuration(unit)))
+                continue;
+            const factor = root.unitNumber(index, "pitch_factor", 1);
+            return factor > 0 ? 1200 * Math.log(factor) / Math.LN2 : 0;
+        }
+        return 0;
+    }
+
     function frameTotalAt(index) {
-        return root.frameAutoAt(index) + root.frameManualAt(index);
+        return root.frameAutoAt(index) + root.frameManualAt(index) + root.unitPitchCentsAtFrame(index);
     }
 
     function frameTimeMs(index) {
