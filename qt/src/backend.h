@@ -195,7 +195,7 @@ public:
     Q_INVOKABLE QVariant synthesisSetting(const QString &settingId, const QVariant &fallback = {}) const;
     Q_INVOKABLE void setSynthesisSetting(const QString &settingId, const QVariant &value);
     Q_INVOKABLE void setDefaultVoicebank(const QString &value);
-    void setExportSettings(bool writeText, bool writeLab, const QString &textEncoding);
+    Q_INVOKABLE void setExportSettings(bool writeText, bool writeLab, const QString &textEncoding);
     Q_INVOKABLE void setExportTextEncoding(const QString &textEncoding);
     Q_INVOKABLE void setShortcutSequences(const QString &synthesize,
                                           const QString &saveProject,
