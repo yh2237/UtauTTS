@@ -8,6 +8,10 @@ github.com/ikawaha/kagome/v2 v2.11.0 h1:R914EkRzay9qtUbsFzEbcdZ3wHwwSPvbPkuBI1oI
 github.com/ikawaha/kagome/v2 v2.11.0/go.mod h1:6mYPezBou+iNVnX9uNa00Sfu6S6t2zcM8Nv1EW9Y9so=
 github.com/mozillazg/go-pinyin v0.21.0 h1:Wo8/NT45z7P3er/9YSLHA3/kjZzbLz5hR7i+jGeIGao=
 github.com/mozillazg/go-pinyin v0.21.0/go.mod h1:iR4EnMMRXkfpFVV5FMi4FNB6wGq9NV6uDWbUuPhP4Yc=
+github.com/yh2237/UtauIDX v0.1.0 h1:1Ij1KlNXPC2kYYzi+UNMW9oBk9P78H4yJ1D8UC5224w=
+github.com/yh2237/UtauIDX v0.1.0/go.mod h1:2rzw4OkYJDE3nw/+WPywjYrP8VeiXv4rX87MTfhk/e4=
+github.com/yh2237/UtauWLD v0.1.0 h1:H7lIEb6ggYyCkhE4iVtRUx4CBc0ptJg77wfZeM+fX/s=
+github.com/yh2237/UtauWLD v0.1.0/go.mod h1:m6nwlybo38TT/qGuWOwedcqDHdVRqmtF+ig+YIdLS0Q=
 github.com/yh2237/audiodsp v0.5.2 h1:T8+t7FwtS5hAnHFkLVHOhAFxvs9/FaZo/3imEL0GWOo=
 github.com/yh2237/audiodsp v0.5.2/go.mod h1:Cv0D5PXZpjZW/Ty+326DBv2JmdZfu4d6zMhlNOfpWF8=
 github.com/yh2237/gograd v1.8.0 h1:hIVmxjentk/rn92diDT4TA59OlAXHVHHFB9H0+jGUtY=
