@@ -369,7 +369,7 @@ import UtauTTS.Media
                                 textRole: "name"
                                 valueRole: "id"
                                 onActivated: {
-                                window.updateSetting("voicebankId", currentValue);
+                                window.updateUtteranceField("voicebankId", currentValue);
                                 const voice = window.voicebankById(currentValue);
                                 window.utterancesModel.setProperty(window.selectedIndex, "imagePath", voice ? voice.image_path : "");
                                 if (voice && voice.suggested_language) {
@@ -388,7 +388,7 @@ import UtauTTS.Media
                                 const item = window.current();
                                 if (!window.voicebankHasColor(currentValue, item.color || "")) {
                                     const options = window.voicebankTypeOptions(currentValue);
-                                    window.updateSetting("color", options.length ? options[0].color : "");
+                                    window.updateUtteranceField("color", options.length ? options[0].color : "");
                                 }
                                 Qt.callLater(() => window.selectCombo(colorCombo,
                                         window.typeIdForColor(currentValue, window.current().color || "")));
@@ -463,7 +463,7 @@ import UtauTTS.Media
                                 onActivated: {
                                     const type = window.voicebankTypeOptionAt(window.current().voicebankId,
                                             currentIndex, window.current().color || "");
-                                    window.updateSetting("color", type ? type.color : "");
+                                    window.updateUtteranceField("color", type ? type.color : "");
                                 }
                             }
                         }
@@ -486,7 +486,7 @@ import UtauTTS.Media
                                 valueFromText: text => Math.round(parseFloat(text) * 100)
                                 onValueModified: {
                                     intonationSlider.value = value / 100;
-                                    window.updateSetting("intonation", value / 100);
+                                    window.updateUtteranceField("intonation", value / 100);
                                 }
                             }
                         }
@@ -496,7 +496,7 @@ import UtauTTS.Media
                             from: 0
                             to: window.maxIntonationStrength
                             stepSize: .05
-                            onMoved: window.updateSetting("intonation", value)
+                            onMoved: window.updateUtteranceField("intonation", value)
                             onResetRequested: window.resetIntonation()
                         }
 
@@ -513,7 +513,7 @@ import UtauTTS.Media
                                 value: Math.round(toneSlider.value)
                                 onToneModified: tone => {
                                     toneSlider.value = value;
-                                    window.updateSetting("tone", tone);
+                                    window.updateUtteranceField("tone", tone);
                                 }
                             }
                         }
@@ -522,7 +522,7 @@ import UtauTTS.Media
                             Layout.fillWidth: true
                             from: toneInput.from
                             to: toneInput.to
-                            onMoved: window.updateSetting("tone", toneInput.valueToTone(Math.round(value)))
+                            onMoved: window.updateUtteranceField("tone", toneInput.valueToTone(Math.round(value)))
                             onResetRequested: window.resetTone()
                         }
 
@@ -544,7 +544,7 @@ import UtauTTS.Media
                                 valueFromText: text => parseInt(text)
                                 onValueModified: {
                                     moraSlider.value = value;
-                                    window.updateSetting("moraDuration", value);
+                                    window.updateUtteranceField("moraDuration", value);
                                 }
                             }
                         }
@@ -554,7 +554,7 @@ import UtauTTS.Media
                             from: 60
                             to: 300
                             stepSize: 5
-                            onMoved: window.updateSetting("moraDuration", value)
+                            onMoved: window.updateUtteranceField("moraDuration", value)
                             onResetRequested: window.resetMoraDuration()
                         }
 
@@ -577,7 +577,7 @@ import UtauTTS.Media
                                 valueFromText: text => parseInt(text)
                                 onValueModified: {
                                     pauseSlider.value = value;
-                                    window.updateSetting("pauseDuration", value);
+                                    window.updateUtteranceField("pauseDuration", value);
                                 }
                             }
                         }
@@ -588,7 +588,7 @@ import UtauTTS.Media
                             from: 0
                             to: 800
                             stepSize: 10
-                            onMoved: window.updateSetting("pauseDuration", value)
+                            onMoved: window.updateUtteranceField("pauseDuration", value)
                             onResetRequested: window.resetPauseDuration()
                         }
 
@@ -614,7 +614,7 @@ import UtauTTS.Media
                                         ? window.current().language || "ja" : "ja")
                                 textRole: "display_name"
                                 valueRole: "id"
-                                onActivated: window.updateSetting("phonemizer", currentValue)
+                                onActivated: window.updateUtteranceField("phonemizer", currentValue)
                             }
                         }
 
@@ -638,7 +638,7 @@ import UtauTTS.Media
                                 ]
                                 textRole: "display_name"
                                 valueRole: "id"
-                                onActivated: window.updateSetting("aliasPolicy", currentValue)
+                                onActivated: window.updateUtteranceField("aliasPolicy", currentValue)
                             }
                         }
 
@@ -659,7 +659,7 @@ import UtauTTS.Media
                                 }].concat(window.appBackend.models)
                                 textRole: "display_name"
                                 valueRole: "id"
-                                onActivated: window.updateSetting("modelId", currentValue)
+                                onActivated: window.updateUtteranceField("modelId", currentValue)
                             }
                         }
 
@@ -695,7 +695,7 @@ import UtauTTS.Media
                                 }
                                 onValueModified: {
                                     leadingPreutteranceSlider.value = value;
-                                    window.updateSetting("leadingPreutterance", value);
+                                    window.updateUtteranceField("leadingPreutterance", value);
                                 }
                             }
                         }
@@ -706,7 +706,7 @@ import UtauTTS.Media
                             from: 0
                             to: 300
                             stepSize: 5
-                            onMoved: window.updateSetting("leadingPreutterance", value)
+                            onMoved: window.updateUtteranceField("leadingPreutterance", value)
                             onResetRequested: window.resetLeadingPreutterance()
                         }
 

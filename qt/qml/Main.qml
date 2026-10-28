@@ -1,4 +1,4 @@
-﻿pragma ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import "UnitOverrides.js" as UnitOverrides
@@ -1410,7 +1410,7 @@ ApplicationWindow {
         });
     }
 
-    function updateSetting(name, value) {
+    function updateUtteranceField(name, value) {
         if (!utterances.count)
             return;
         const item = current();
@@ -2037,27 +2037,27 @@ ApplicationWindow {
 
     function resetMoraDuration() {
         editorContent.moraSlider.value = 120;
-        window.updateSetting("moraDuration", 120);
+        window.updateUtteranceField("moraDuration", 120);
     }
 
     function resetIntonation() {
         editorContent.intonationSlider.value = window.defaultIntonationStrength;
-        window.updateSetting("intonation", window.defaultIntonationStrength);
+        window.updateUtteranceField("intonation", window.defaultIntonationStrength);
     }
 
     function resetPauseDuration() {
         editorContent.pauseSlider.value = 180;
-        window.updateSetting("pauseDuration", 180);
+        window.updateUtteranceField("pauseDuration", 180);
     }
 
     function resetTone() {
         editorContent.toneSlider.value = editorContent.toneInput.automaticValue;
-        window.updateSetting("tone", "");
+        window.updateUtteranceField("tone", "");
     }
 
     function resetLeadingPreutterance() {
         editorContent.leadingPreutteranceSlider.value = 0;
-        window.updateSetting("leadingPreutterance", 0);
+        window.updateUtteranceField("leadingPreutterance", 0);
     }
 
     function addUtterance(markDirty) {
