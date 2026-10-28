@@ -83,3 +83,27 @@ func TestEnglishPitchCurveStartsAtFirstMoraAndBridgesUnvoiced(t *testing.T) {
 		t.Fatal("unvoiced reference produced a curve")
 	}
 }
+
+// 片側だけ指定したときは、指定していない側が参照の長さを保つ。
+func TestReferencePhonePlansKeepsUnspecifiedSide(t *testing.T) {
+	morae := []frontend.Mora{{Phones: []frontend.Phone{{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"}}}}
+	timing := refspeech.Timing{Durations: []int{2, 6}}
+	tokens := [][]int{{0, 1}}
+	plans, err := buildPhonePlans(Config{ConsonantMS: []float64{200}, VowelMS: []float64{0}}, morae)
+	if err != nil {
+		t.Fatal(err)
+	}
+	phonePlans := referencePhonePlans(morae, tokens, timing, nil, plans)
+	if len(phonePlans[0].phoneDurations) != 2 {
+		t.Fatalf("phone durations = %v", phonePlans[0].phoneDurations)
+	}
+	if math.Abs(phonePlans[0].phoneDurations[0]-200) > 1e-6 {
+		t.Fatalf("consonant = %v, want 200", phonePlans[0].phoneDurations[0])
+	}
+	if math.Abs(phonePlans[0].phoneDurations[1]-150) > 1e-6 {
+		t.Fatalf("vowel = %v, want 150", phonePlans[0].phoneDurations[1])
+	}
+	if math.Abs(phonePlans[0].total-350) > 1e-6 {
+		t.Fatalf("total = %v, want 350", phonePlans[0].total)
+	}
+}

@@ -1,4 +1,4 @@
-﻿package tts
+package tts
 
 import (
 	"fmt"
@@ -172,18 +172,28 @@ func referencePhonePlans(morae []frontend.Mora, moraTokens [][]int, timing refsp
 					consonants++
 				}
 			}
+			// 指定のない側は、参照の自然の長さを保つ。
+			consonantTotal, vowelTotal := plan.consonantMS, plan.vowelMS
+			for j, phone := range mora.Phones {
+				if phone.Role == "nucleus" && vowelTotal <= 0 {
+					vowelTotal += natural[j]
+				}
+				if phone.Role != "nucleus" && consonantTotal <= 0 {
+					consonantTotal += natural[j]
+				}
+			}
 			durations := make([]float64, len(mora.Phones))
 			for j, phone := range mora.Phones {
 				switch {
 				case phone.Role == "nucleus" && nuclei > 0:
-					durations[j] = plan.vowelMS / float64(nuclei)
+					durations[j] = vowelTotal / float64(nuclei)
 				case phone.Role != "nucleus" && consonants > 0:
-					durations[j] = plan.consonantMS / float64(consonants)
+					durations[j] = consonantTotal / float64(consonants)
 				default:
-					durations[j] = 0
+					durations[j] = natural[j]
 				}
 			}
-			result[i] = moraPhonePlan{phoneDurations: durations, total: plan.consonantMS + plan.vowelMS}
+			result[i] = moraPhonePlan{phoneDurations: durations, total: consonantTotal + vowelTotal}
 			continue
 		}
 		if len(plan.weights) == len(mora.Phones) {

@@ -55,7 +55,7 @@
 | `--mora-durations <path>` | | 手動のモーラ長JSON。休止を含む全モーラ数と同じ要素数を指定する。休止を飛ばすと値がずれるため、要素数が合わなければエラーになる |
 | `--manual-pitch <path>` | | 手動ピッチJSON。`points[].position`は休止を含む全モーラ番号で、休止の位置は指定できない |
 | `--phone-weights <path>` | | モーラ内の音素時間比JSON。休止を含む全モーラ番号の配列で、各要素はそのモーラの音素数と同じ長さの比を指定する |
-| `--phone-lengths <path>` | | モーラごとの子音長・母音長JSON。`consonant_ms`と`vowel_ms`は休止を含む全モーラ数と同じ長さで、休止は0にする。子音だけまたは母音だけのモーラでは、0.sideだけを指定できる |
+| `--phone-lengths <path>` | | モーラごとの子音長・母音長JSON。`consonant_ms`と`vowel_ms`は休止を含む全モーラ数と同じ長さで、休止は0にする。片方だけ0にすると、その側は参照の長さを保つ |
 | `--intonation-strength` | `4` | 自動抑揚の強さ（0〜8） |
 | `--apply-pitch` | `true` | ピッチ補正・抑揚曲線を波形に適用するか |
 | `--boundary-tone` | `true` | 文末音調（疑問文の語尾上げ等）の適用 |
