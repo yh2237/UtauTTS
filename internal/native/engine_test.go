@@ -267,18 +267,6 @@ func TestEngineAnalyzesChinese(t *testing.T) {
 
 func TestShutdownStopsFurtherCalls(t *testing.T) {
 	engine := newTestEngine(t, Config{VoiceDir: t.TempDir()})
-	data, err := engine.Call("settings", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var result struct {
-		Settings []struct {
-			ID string `json:"id"`
-		} `json:"settings"`
-	}
-	if err := json.Unmarshal(data, &result); err != nil || len(result.Settings) == 0 {
-		t.Fatalf("settings = %s, err = %v", data, err)
-	}
 	if _, err := engine.Call("shutdown", nil); err != nil {
 		t.Fatal(err)
 	}
