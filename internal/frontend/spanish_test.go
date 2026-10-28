@@ -101,15 +101,3 @@ func TestSpanishForeignNamesUseDictionary(t *testing.T) {
 	}
 }
 
-func TestSpanishNumberWords(t *testing.T) {
-	cases := map[string]string{
-		"0": "cero", "21": "veintiuno", "35": "treinta y cinco", "100": "cien", "101": "ciento uno",
-		"500": "quinientos", "1000": "mil", "2024": "dos mil veinticuatro", "21000": "veintiún mil",
-		"1000000": "un millón", "3500000": "tres millones quinientos mil",
-	}
-	for digits, want := range cases {
-		if got := spanishNumberWords(digits); got != want {
-			t.Errorf("%s: got %q, want %q", digits, got, want)
-		}
-	}
-}

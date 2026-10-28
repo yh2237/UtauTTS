@@ -28,17 +28,23 @@ func TestNormalizePortugueseNumbers(t *testing.T) {
 }
 
 func TestLookupEnglishSources(t *testing.T) {
-	tests := map[string]Source{
-		"google":   SourceCMU,
-		"untended": SourceLibriSpeech,
+	tests := map[string]struct {
+		phones string
+		source Source
+	}{
+		"google":    {"G UW1 G AH0 L", SourceCMU},
+		"untended":  {"AH0 N T EH1 N D IH0 D", SourceLibriSpeech},
+		"reckoners": {"R EH1 K AH0 N ER0 Z", SourceLibriSpeech},
+		"faynie's":  {"F EY1 N IY0 Z", SourceLibriSpeech},
+		"thakane":   {"TH AA1 K EY1 N", SourceLibriSpeech},
 	}
 	for word, want := range tests {
 		entry, err := LookupEnglish(word)
 		if err != nil {
 			t.Fatalf("%s: %v", word, err)
 		}
-		if entry.Phones == "" || entry.Source != want {
-			t.Errorf("%s: entry = %+v, want source %q", word, entry, want)
+		if entry.Phones != want.phones || entry.Source != want.source {
+			t.Errorf("%s = %q (%s), want %q (%s)", word, entry.Phones, entry.Source, want.phones, want.source)
 		}
 	}
 }
@@ -79,8 +85,13 @@ func TestEnglishNumberWords(t *testing.T) {
 
 func TestSpanishNumberWords(t *testing.T) {
 	tests := map[string]string{
+		"0":       "cero",
 		"21":      "veintiuno",
 		"35":      "treinta y cinco",
+		"100":     "cien",
+		"101":     "ciento uno",
+		"500":     "quinientos",
+		"1000":    "mil",
 		"2024":    "dos mil veinticuatro",
 		"21000":   "veintiún mil",
 		"1000000": "un millón",
