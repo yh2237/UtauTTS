@@ -21,7 +21,9 @@ type AudioOptions struct {
 	PitchSemitones *float64
 	// TargetPhonemesは20msごとの索引音素ID。nilなら音素で絞らない。
 	TargetPhonemes []int32
-	Logf           func(string)
+	// PhonemeFallbackは指定した音素に近い単位が無いとき制約を外す。
+	PhonemeFallback bool
+	Logf            func(string)
 }
 
 func synthesizeAudio(index *refmatch.Index, world refmatch.World, features []float32, frames int, referenceF0, levels []float64, options AudioOptions) (Speech, error) {

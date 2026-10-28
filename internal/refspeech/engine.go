@@ -12,6 +12,7 @@ import (
 
 	"github.com/yh2237/UtauIDX/hubert"
 	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauIDX/render"
 	"github.com/yh2237/UtauTTS/internal/kokoro"
 	"github.com/yh2237/gograd/dsp"
 	"github.com/yh2237/gograd/torchrng"
@@ -490,48 +491,23 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 // SpeakAudioは参照の音声から、音源のフレームで合成し直す。言語に依存しない入口。
 // 参照の音声とF0を使う。TargetPhonemesを渡すと音素ごとに検索を絞る。
 func (e *Engine) SpeakAudio(index *refmatch.Index, world refmatch.World, audio []float64, sampleRate int, options AudioOptions) (Speech, error) {
-	if err := options.FeatureMode.Validate(); err != nil {
-		return Speech{}, err
-	}
-	if options.FeatureMode == refmatch.FeatureCepstrum {
-		features, frames, f0, referenceAP, err := analyzeCepstrumAP(index, world, audio, sampleRate, options.UseReferenceAP)
-		if err != nil {
-			return Speech{}, err
-		}
-		f0Values := make([]float32, len(f0))
-		for i, v := range f0 {
-			f0Values[i] = float32(v)
-		}
-		referenceF0 := refmatch.ReferenceF0(f0Values, refmatch.WorldFrameMS(), frames)
-		levels := refmatch.ReferenceLevels(audio, sampleRate, frames*4)
-		if !options.UseReferenceAP {
-			referenceAP = nil
-		}
-		return synthesizeAudioAP(index, world, features, frames, referenceF0, levels, referenceAP, options)
-	}
-	if index.Model != FeatureModel {
-		return Speech{}, fmt.Errorf("voicebank index uses %q, want %q", index.Model, FeatureModel)
-	}
-	f0, _, ap, fftSize, err := world.Analyze(audio, sampleRate, refmatch.FrameMS, 0.85)
-	if err != nil {
-		return Speech{}, fmt.Errorf("analyze reference: %w", err)
-	}
-	features, frames, _, err := e.Features(audio, sampleRate)
+	result, err := render.FromAudio(index, world, e.Features, audio, sampleRate, render.Options{
+		FeatureMode:     options.FeatureMode,
+		ExpectModel:     FeatureModel,
+		UseReferenceAP:  options.UseReferenceAP,
+		ContinuityBonus: options.ContinuityBonus,
+		PhonemeFallback: options.PhonemeFallback,
+		PitchSemitones:  options.PitchSemitones,
+		TargetPhonemes:  options.TargetPhonemes,
+		Logf:            options.Logf,
+	})
 	if err != nil {
 		return Speech{}, err
 	}
-	f0Values := make([]float32, len(f0))
-	for i, v := range f0 {
-		f0Values[i] = float32(v)
-	}
-	referenceF0 := refmatch.ReferenceF0(f0Values, refmatch.FrameMS, frames)
-	levels := refmatch.ReferenceLevels(audio, sampleRate, frames*4)
-	var referenceAP []float32
-	if options.UseReferenceAP {
-		referenceAP, err = referenceAPRows(ap, sampleRate, fftSize, refmatch.FrameMS, frames*refmatch.SubFrames())
-		if err != nil {
-			return Speech{}, err
-		}
-	}
-	return synthesizeAudioAP(index, world, features, frames, referenceF0, levels, referenceAP, options)
+	voicing := result.Voicing
+	return Speech{
+		Audio: result.Audio, SampleRate: result.SampleRate,
+		F0: result.F0, AutomaticF0: result.F0,
+		ReferenceVoicing: &VoicingStats{Frames: voicing.Frames, Before: voicing.Before, After: voicing.After},
+	}, nil
 }
