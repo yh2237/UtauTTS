@@ -100,4 +100,3 @@ func TestSpanishForeignNamesUseDictionary(t *testing.T) {
 		}
 	}
 }
-

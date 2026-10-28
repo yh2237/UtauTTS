@@ -93,7 +93,6 @@ func TestApplyBoundaryToneHoldsAfterEnd(t *testing.T) {
 	}
 }
 
-
 func TestApplyBoundaryToneNilIsSafe(t *testing.T) {
 	if got := applyBoundaryTone(nil, 300, true, 1); got != nil {
 		t.Fatalf("nil curve = %#v, want nil", got)

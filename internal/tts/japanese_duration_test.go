@@ -16,7 +16,6 @@ func testMorae(texts ...string) []frontend.Mora {
 	return morae
 }
 
-
 func TestJapaneseContextDurationFactorsAccentPhraseEndIsLong(t *testing.T) {
 	morae := testMorae("は", "な")
 	features := []prosody.FeatureFrame{

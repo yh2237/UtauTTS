@@ -77,4 +77,3 @@ func TestZhuyinPiecesNeedReading(t *testing.T) {
 		t.Fatal("expected an error for an unknown syllable")
 	}
 }
-

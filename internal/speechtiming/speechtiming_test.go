@@ -127,7 +127,6 @@ func TestPhoneTimelineUsesExplicitSpans(t *testing.T) {
 	}
 }
 
-
 func TestWarpKeepsIdenticalTargetAndProtectsEnds(t *testing.T) {
 	frames := 60
 	rows := make([][]float64, frames)

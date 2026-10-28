@@ -381,7 +381,6 @@ func TestResolveResetsContextAtPause(t *testing.T) {
 	}
 }
 
-
 func TestResolveLongMarkUsesPreviousVowel(t *testing.T) {
 	bank := &Bank{Entries: map[string][]oto.Entry{
 		"す":   {{Alias: "す"}},

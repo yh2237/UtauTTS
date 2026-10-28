@@ -55,7 +55,6 @@ func TestModelWithoutIdentityIsNotCatalogued(t *testing.T) {
 	}
 }
 
-
 func TestInvalidModelIsReported(t *testing.T) {
 	directory := t.TempDir()
 	if err := os.WriteFile(filepath.Join(directory, "broken.json"), []byte(`{"version":`), 0o600); err != nil {
