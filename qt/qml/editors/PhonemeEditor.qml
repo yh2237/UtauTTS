@@ -140,8 +140,42 @@ Item {
         return Number.isFinite(value) ? value : 0;
     }
 
+    // moraPitchCentsAtFrameは、その時刻のモーラの音高（ノーツの上下で決まるセント）を返す。
+    // モーラの中心どうしを直線でつなぐ。
+    function moraPitchCentsAtFrame(frame) {
+        if (!root.timingEditor)
+            return 0;
+        const time = root.frameTimeMs(frame);
+        let previousTime = null;
+        let previousCents = 0;
+        let nextTime = null;
+        let nextCents = 0;
+        for (let index = 0; index < root.units.length; ++index) {
+            const unit = root.units[index];
+            if (!unit || String(unit.role) !== "mora")
+                continue;
+            const start = root.unitNoteStart(unit);
+            const center = start + Math.max(1, root.unitDuration(unit)) / 2;
+            const cents = Number(root.timingEditor.pitchAt(Number(unit.position)));
+            if (!Number.isFinite(cents))
+                continue;
+            if (center <= time) {
+                previousTime = center;
+                previousCents = cents;
+            } else if (nextTime === null) {
+                nextTime = center;
+                nextCents = cents;
+            }
+        }
+        if (previousTime === null)
+            return nextTime === null ? 0 : nextCents;
+        if (nextTime === null)
+            return previousCents;
+        const span = Math.max(1e-6, nextTime - previousTime);
+        return previousCents + (nextCents - previousCents) * (time - previousTime) / span;
+    }
+
     // unitPitchCentsAtFrameは、その時刻を覆う原音のピッチ係数をセントに直して返す。
-    // ノーツを上下に動かしたとき、どの範囲がどれだけ高くなったかを曲線に出すために使う。
     function unitPitchCentsAtFrame(frame) {
         const time = root.frameTimeMs(frame);
         for (let index = 0; index < root.units.length; ++index) {
@@ -158,7 +192,8 @@ Item {
     }
 
     function frameTotalAt(index) {
-        return root.frameAutoAt(index) + root.frameManualAt(index) + root.unitPitchCentsAtFrame(index);
+        return root.frameAutoAt(index) + root.frameManualAt(index)
+                + root.moraPitchCentsAtFrame(index) + root.unitPitchCentsAtFrame(index);
     }
 
     function frameTimeMs(index) {
@@ -1620,9 +1655,13 @@ Item {
         scheduleSelectedFieldRefresh();
         waveformCanvas.requestPaint();
     }
-    onAutoFramesChanged: waveformCanvas.requestPaint()
     onManualFramesChanged: waveformCanvas.requestPaint()
     onFrameMsChanged: waveformCanvas.requestPaint()
+    // ノーツの上下で変わるモーラの音高も、曲線に出す。
+    Connections {
+        target: root.timingEditor
+        function onPointsChanged() { waveformCanvas.requestPaint(); }
+    }
     onUnitsChanged: {
         if (!!root.gesture && !root.gestureModelMatches()) {
             root.restoreDrag();
