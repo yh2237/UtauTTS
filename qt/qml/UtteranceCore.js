@@ -83,6 +83,10 @@ function handleProsodyChanged(ctx) {
     } catch (error) {
         return;
     }
+    if (result.reference_index_building === true) {
+        host.onReferenceIndexBuilding(index);
+        return;
+    }
     // 解析を省いた要求では、予測結果から読みを補う。
     if (!ctx.utterances.get(index).reading && result.reading) {
         host.applyPronunciation(index, result.reading, host.copySequence(result.morae));

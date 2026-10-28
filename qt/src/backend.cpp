@@ -1576,11 +1576,64 @@ void Backend::reloadVoicebanks() {
     });
 }
 
+void Backend::refreshReferenceIndexes() {
+    callAsync("listReferenceIndexes", {}, [this](const QVariantMap &result) {
+        if (result.contains("_error")) {
+            setError(result.value("_error").toString());
+            return;
+        }
+        m_referenceIndexes = result.value("indexes").toList();
+        emit referenceIndexesChanged();
+    });
+}
+
+void Backend::deleteReferenceIndex(const QString &name) {
+    if (m_busy) {
+        return;
+    }
+    setError({});
+    callAsync("deleteReferenceIndex", {{"name", name}}, [this](const QVariantMap &result) {
+        if (result.contains("_error")) {
+            setError(result.value("_error").toString());
+        } else if (!result.value("deleted").toBool()) {
+            setError(tr("索引を削除できませんでした"));
+        } else {
+            refreshReferenceIndexes();
+        }
+    });
+}
+
+void Backend::buildReferenceIndex(const QString &voicebankId, const QString &color) {
+    if (m_busy) {
+        return;
+    }
+    setError({});
+    callAsync("buildReferenceIndex", {{"voicebank_id", voicebankId}, {"color", color}},
+              [this](const QVariantMap &result) {
+        if (result.contains("_error")) {
+            setError(result.value("_error").toString());
+        } else if (!result.value("started").toBool()) {
+            setError(tr("索引の作成を開始できませんでした"));
+        } else {
+            m_referenceIndexBuildPending = true;
+            startIndexProgressLog();
+            checkReferenceIndexes();
+        }
+    });
+}
+
 // 英語向けの音源の索引は、音源一覧を読み込んだときに裏で作り始める。作り終えるまで進み具合を読む。
 void Backend::checkReferenceIndexes() {
 #ifndef UTAUTTS_WASM
     callAsync("referenceIndexes", {}, [this](const QVariantMap &result) {
         if (result.contains("_error")) {
+            setError(result.value("_error").toString());
+            if (m_referenceIndexBuildPending) {
+                m_referenceIndexBuildPending = false;
+                if (!m_busy) {
+                    stopIndexProgressLog();
+                }
+            }
             return;
         }
         const bool building = result.value("building").toBool();
@@ -1596,6 +1649,12 @@ void Backend::checkReferenceIndexes() {
         }
         if (building) {
             QTimer::singleShot(500, this, &Backend::checkReferenceIndexes);
+        } else if (m_referenceIndexBuildPending) {
+            m_referenceIndexBuildPending = false;
+            if (!m_busy) {
+                stopIndexProgressLog();
+            }
+            refreshReferenceIndexes();
         }
     });
 #endif
@@ -1616,6 +1675,9 @@ void Backend::startIndexProgressLog() {
 }
 
 void Backend::stopIndexProgressLog() {
+    if (m_referenceIndexBuildPending) {
+        return;
+    }
     if (m_indexProgressTimer) {
         m_indexProgressTimer->stop();
     }
@@ -1625,6 +1687,7 @@ void Backend::logIndexProgress() {
 #ifndef UTAUTTS_WASM
     callAsync("referenceIndexes", {}, [this](const QVariantMap &result) {
         if (result.contains("_error")) {
+            setError(result.value("_error").toString());
             return;
         }
         const QString stage = result.value("stage").toString();
@@ -1806,6 +1869,14 @@ void Backend::predictProsody(const QVariantMap &request) {
                     if (value.contains("_error")) {
                         setError(value.value("_error").toString());
                     } else {
+                        if (value.value("reference_index_building").toBool() && !m_referenceIndexBuildPending) {
+                            m_referenceIndexBuildPending = true;
+                            m_referenceIndexBuilding = true;
+                            m_referenceIndexProgress = 0;
+                            emit referenceIndexChanged();
+                            startIndexProgressLog();
+                            checkReferenceIndexes();
+                        }
                         m_prosodyRequestId = requestId;
                         m_prosodyJson = QString::fromUtf8(
                             QJsonDocument::fromVariant(value).toJson(QJsonDocument::Compact));

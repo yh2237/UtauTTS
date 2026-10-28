@@ -82,6 +82,37 @@ ApplicationWindow {
     property bool updateSuppressVersion: false
     property bool metadataReloadActive: false
     property string metadataReloadStage: "voicebanks"
+    property string referenceIndexPreviewUtteranceId: ""
+    property int referenceIndexPreviewRevision: -1
+    property string referenceIndexRetriedUtteranceId: ""
+    property int referenceIndexRetriedRevision: -1
+
+    Timer {
+        id: referenceIndexPreviewTimer
+        interval: 500
+        repeat: true
+        onTriggered: {
+            if (window.appBackend.referenceIndexBuilding)
+                return;
+            stop();
+            const utteranceId = window.referenceIndexPreviewUtteranceId;
+            const revision = window.referenceIndexPreviewRevision;
+            window.referenceIndexPreviewUtteranceId = "";
+            window.referenceIndexPreviewRevision = -1;
+            if (!window.metadataReloadActive && window.metadataReloadStage === "referenceIndex")
+                dialogs.metadataReloadDialog.close();
+            if (window.appBackend.error.length)
+                return;
+            const index = window.utteranceIndex(utteranceId);
+            if (index < 0 || utterances.get(index).revision !== revision
+                    || (window.referenceIndexRetriedUtteranceId === utteranceId
+                        && window.referenceIndexRetriedRevision === revision))
+                return;
+            window.referenceIndexRetriedUtteranceId = utteranceId;
+            window.referenceIndexRetriedRevision = revision;
+            window.requestProsodyPreview(index);
+        }
+    }
     property var synthesisUnits: []
     property var synthesisWaveformMin: []
     property var synthesisWaveformMax: []
@@ -592,6 +623,11 @@ ApplicationWindow {
             if (window.appBackend.error.length) {
                 window.pendingProsodyInFlight = false;
                 window.pendingProsodyUtteranceId = "";
+                referenceIndexPreviewTimer.stop();
+                window.referenceIndexPreviewUtteranceId = "";
+                window.referenceIndexPreviewRevision = -1;
+                if (!window.metadataReloadActive && window.metadataReloadStage === "referenceIndex")
+                    dialogs.metadataReloadDialog.close();
             }
             if (window.metadataReloadActive && window.appBackend.error.length) {
                 window.metadataReloadActive = false;
@@ -2297,6 +2333,17 @@ ApplicationWindow {
 
     function buildProsodyRequest(item, requestId) {
         return SynthesisRequest.prosody(item, requestId, { host: window });
+    }
+
+    function onReferenceIndexBuilding(index) {
+        if (index < 0 || index >= utterances.count)
+            return;
+        const item = utterances.get(index);
+        window.referenceIndexPreviewUtteranceId = item.utteranceId;
+        window.referenceIndexPreviewRevision = item.revision;
+        window.metadataReloadStage = "referenceIndex";
+        dialogs.metadataReloadDialog.open();
+        referenceIndexPreviewTimer.restart();
     }
 
     function requestProsodyPreview(index) {

@@ -28,6 +28,7 @@ class Backend final : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool connected READ connected NOTIFY connectedChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
+    Q_PROPERTY(QVariantList referenceIndexes READ referenceIndexes NOTIFY referenceIndexesChanged)
     Q_PROPERTY(bool referenceIndexBuilding READ referenceIndexBuilding NOTIFY referenceIndexChanged)
     Q_PROPERTY(double referenceIndexProgress READ referenceIndexProgress NOTIFY referenceIndexChanged)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
@@ -97,6 +98,7 @@ public:
     QString prosodyJson() const { return m_prosodyJson; }
     QString synthesisJson() const { return m_synthesisJson; }
     QUrl previewUrl() const { return m_previewUrl; }
+    QVariantList referenceIndexes() const { return m_referenceIndexes; }
     bool referenceIndexBuilding() const { return m_referenceIndexBuilding; }
     double referenceIndexProgress() const { return m_referenceIndexProgress; }
     bool darkMode() const { return m_darkMode; }
@@ -133,6 +135,9 @@ public:
     Q_INVOKABLE void initialize();
     void initializeAsync();
     Q_INVOKABLE void reloadVoicebanks();
+    Q_INVOKABLE void refreshReferenceIndexes();
+    Q_INVOKABLE void deleteReferenceIndex(const QString &name);
+    Q_INVOKABLE void buildReferenceIndex(const QString &voicebankId, const QString &color);
     void refreshMetadataFromWasm();
     Q_INVOKABLE bool openVoiceDirectory();
     Q_INVOKABLE void beginAddVoicebanks();
@@ -207,6 +212,7 @@ signals:
     void metadataReloadStarted();
     void metadataReloadStageChanged(const QString &stage);
     void referenceIndexChanged();
+    void referenceIndexesChanged();
     void metadataChanged();
     void analysisChanged();
     void prosodyChanged();
@@ -268,6 +274,8 @@ private:
     void logIndexProgress();
     uintptr_t m_handle = 0;
     bool m_busy = false;
+    QVariantList m_referenceIndexes;
+    bool m_referenceIndexBuildPending = false;
     bool m_referenceIndexBuilding = false;
     double m_referenceIndexProgress = 0;
     QTimer *m_indexProgressTimer = nullptr;

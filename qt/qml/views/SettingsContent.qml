@@ -237,7 +237,17 @@ Item {
         }
     }
 
+    function referenceIndexVoicebankName(voicebank) {
+        const voicebanks = root.backend.voicebanks;
+        for (let index = 0; index < voicebanks.length; ++index) {
+            if (String(voicebanks[index].id) === String(voicebank))
+                return String(voicebanks[index].name);
+        }
+        return String(voicebank || "");
+    }
+
     function loadCurrent() {
+        root.backend.refreshReferenceIndexes();
         SettingsIO.loadCurrent(draftObject, root.backend, {
             voicebank: value => root.validDefaultVoicebankId(value),
             model: value => root.validDefaultModelId(value)
@@ -851,6 +861,106 @@ Item {
                                             SettingsResetButton {
                                                 translator: root.translator
                                                 onResetRequested: root.resetDefaultModel()
+                                            }
+                                        }
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Label {
+                                                Layout.fillWidth: true
+                                                text: root.translator.tr("settings.referenceIndexes.title")
+                                                font.bold: true
+                                            }
+                                            Button {
+                                                text: root.translator.tr("settings.referenceIndexes.create")
+                                                enabled: root.pendingDefaultVoicebankId.length > 0
+                                                        && !root.backend.busy && !root.backend.referenceIndexBuilding
+                                                onClicked: root.backend.buildReferenceIndex(root.pendingDefaultVoicebankId, "")
+                                            }
+                                        }
+                                        ProgressBar {
+                                            Layout.fillWidth: true
+                                            visible: root.backend.referenceIndexBuilding
+                                            from: 0
+                                            to: 1
+                                            value: root.backend.referenceIndexProgress
+                                        }
+                                        ScrollView {
+                                            id: referenceIndexScroll
+                                            Layout.fillWidth: true
+                                            Layout.preferredHeight: referenceIndexTable.implicitHeight + 16
+                                            contentWidth: referenceIndexTable.width
+                                            contentHeight: referenceIndexTable.implicitHeight
+                                            clip: true
+                                            ScrollBar.vertical.policy: ScrollBar.AlwaysOff
+
+                                            ColumnLayout {
+                                                id: referenceIndexTable
+                                                width: Math.max(referenceIndexScroll.availableWidth, 800)
+                                                spacing: 4
+                                                readonly property var columnWidths: [160, 140, 48, 80, 160]
+
+                                                RowLayout {
+                                                    Layout.fillWidth: true
+                                                    Repeater {
+                                                        model: ["voicebank", "model", "version", "size", "modified"]
+                                                        delegate: Label {
+                                                            required property int index
+                                                            required property string modelData
+                                                            Layout.fillWidth: index === 0
+                                                            Layout.minimumWidth: referenceIndexTable.columnWidths[index]
+                                                            Layout.preferredWidth: referenceIndexTable.columnWidths[index]
+                                                            text: root.translator.tr("settings.referenceIndexes." + modelData)
+                                                            font.bold: true
+                                                        }
+                                                    }
+                                                    Item { Layout.preferredWidth: 80 }
+                                                }
+                                                Repeater {
+                                                    model: root.backend.referenceIndexes
+                                                    delegate: RowLayout {
+                                                        id: referenceIndexRow
+                                                        required property var modelData
+                                                        Layout.fillWidth: true
+
+                                                        Repeater {
+                                                            model: [
+                                                                root.referenceIndexVoicebankName(referenceIndexRow.modelData.voicebank),
+                                                                String(referenceIndexRow.modelData.model || ""),
+                                                                String(referenceIndexRow.modelData.version ?? ""),
+                                                                root.translator.tr("settings.referenceIndexes.sizeMb",
+                                                                    (Number(referenceIndexRow.modelData.size_bytes || 0) / (1024 * 1024)).toFixed(1)),
+                                                                Qt.formatDateTime(new Date(Number(referenceIndexRow.modelData.modified_ms)),
+                                                                    Qt.DefaultLocaleShortDate)
+                                                            ]
+                                                            delegate: Label {
+                                                                required property int index
+                                                                required property string modelData
+                                                                Layout.fillWidth: index === 0
+                                                                Layout.minimumWidth: referenceIndexTable.columnWidths[index]
+                                                                Layout.preferredWidth: referenceIndexTable.columnWidths[index]
+                                                                Layout.maximumWidth: index === 0 ? Number.POSITIVE_INFINITY
+                                                                        : referenceIndexTable.columnWidths[index]
+                                                                text: modelData
+                                                                elide: Text.ElideRight
+                                                            }
+                                                        }
+                                                        Button {
+                                                            Layout.preferredWidth: 80
+                                                            text: root.translator.tr("settings.referenceIndexes.delete")
+                                                            enabled: !root.backend.busy && !root.backend.referenceIndexBuilding
+                                                            onClicked: root.backend.deleteReferenceIndex(String(referenceIndexRow.modelData.name))
+                                                        }
+                                                    }
+                                                }
+                                                Label {
+                                                    visible: root.backend.referenceIndexes.length === 0
+                                                    text: root.translator.tr("settings.referenceIndexes.empty")
+                                                }
                                             }
                                         }
                                     }
