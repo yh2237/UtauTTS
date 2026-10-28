@@ -1336,61 +1336,12 @@ ApplicationWindow {
         for (let index = 0; index < loadedUtterances.length; ++index) {
             const saved = loadedUtterances[index] || {};
             const voicebankId = String(saved.voicebank_id || "");
-            const voice = window.voicebankById(voicebankId);
-            const points = window.copySequence(saved.pitch_points);
-            const pitchFrames = window.copySequence(saved.pitch_frames);
-            const content = String(saved.text || "");
-            const manualDurations = window.copySequence(saved.mora_durations_ms);
-            const automaticDurations = window.copySequence(saved.automatic_mora_durations_ms);
-            let manualPositions = window.copySequence(saved.mora_positions_ms);
-            let automaticPositions = window.copySequence(saved.automatic_mora_positions_ms);
-            if (projectFormatVersion < 2) {
-                manualPositions = window.moraStartsFromCenters(manualPositions, manualDurations);
-                automaticPositions = window.moraStartsFromCenters(automaticPositions, automaticDurations);
-            }
-            utterances.append({
-                utteranceId: "utterance-" + window.nextUtteranceId++,
-                content: content,
-                language: String(saved.language || "ja"),
-                phonemizer: String(saved.phonemizer || window.defaultPhonemizer(saved.language || "ja")),
-                method: window.normalizeMethod(saved.method, saved.language || "ja"),
-                reading: "",
-                moraeJson: "[]",
-                pointsJson: JSON.stringify(points),
-                pitchFramesJson: JSON.stringify(pitchFrames),
-                moraDurationsJson: JSON.stringify(manualDurations),
-                moraPositionsJson: JSON.stringify(manualPositions),
-                autoPointsJson: JSON.stringify(window.copySequence(saved.automatic_pitch_points)),
-                autoPitchFramesJson: JSON.stringify(window.copySequence(saved.automatic_frame_pitch)),
-                autoFrameMs: Number(saved.automatic_frame_ms) || 10,
-                autoMoraDurationsJson: JSON.stringify(automaticDurations),
-                autoMoraPositionsJson: JSON.stringify(automaticPositions),
-                phonemeOverridesJson: JSON.stringify(window.copySequence(saved.phoneme_overrides)),
-                manualPitchEdited: saved.manual_pitch_edited === undefined
-                        ? points.some(value => Math.abs(Number(value)) > .1)
-                          || pitchFrames.some(value => Math.abs(Number(value)) > .1)
-                        : !!saved.manual_pitch_edited,
-                manualMoraDurationEdited: saved.manual_mora_duration_edited === undefined
-                        ? window.copySequence(saved.mora_durations_ms).some(value => Number(value) > 0)
-                        : !!saved.manual_mora_duration_edited,
-                trainingAccepted: !!saved.training_accepted,
-                labEntryId: String(saved.lab_entry_id || ""),
-                voicebankId: voicebankId,
-                imagePath: voice ? voice.image_path || "" : "",
-                modelId: window.normalizeModelId(saved.model_id, saved.language || "ja"),
-                aliasPolicy: saved.alias_policy === undefined
-                        ? window.appBackend.defaultAliasPolicy : window.normalizeAliasPolicy(saved.alias_policy),
-                // 形式8までは指定なしもC4で保存していた。
-                tone: projectFormatVersion < 9 && String(saved.tone) === "C4"
-                        ? "" : String(saved.tone === undefined ? window.appBackend.defaultTone : saved.tone),
-                color: String(saved.color || ""),
-                moraDuration: window.projectNumber(saved.mora_duration_ms, window.appBackend.defaultMoraDuration, 20, 1000, true),
-                pauseDuration: window.projectNumber(saved.pause_duration_ms, window.appBackend.defaultPauseDuration, 0, 3000, true),
-                leadingPreutterance: window.projectNumber(saved.leading_preutterance_ms, 0, 0, 300, true),
-                intonation: window.projectNumber(saved.intonation, window.defaultIntonationStrength, 0, window.maxIntonationStrength, false),
-                applyPitch: saved.apply_pitch === undefined ? true : !!saved.apply_pitch,
-                revision: 0
-            });
+            utterances.append(ProjectIO.utteranceFromSaved(saved, {
+                host: window,
+                voicebank: window.voicebankById(voicebankId),
+                id: window.nextUtteranceId++,
+                formatVersion: projectFormatVersion
+            }));
         }
 
         window.projectDirty = false;

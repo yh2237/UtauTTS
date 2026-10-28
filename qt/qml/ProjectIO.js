@@ -63,3 +63,65 @@ function projectData(ctx) {
     }
     return project;
 }
+
+// utteranceFromSavedは、保存された発話から、模型へ入れる項目を作る。
+// ctxはhost（Main.qmlのwindow）、voicebank、id（発話ID）、formatVersionを持つ。
+function utteranceFromSaved(saved, ctx) {
+    const host = ctx.host;
+    const bank = ctx.voicebank;
+    const language = String(saved.language || "ja");
+    const voicebankId = String(saved.voicebank_id || "");
+    const points = host.copySequence(saved.pitch_points);
+    const pitchFrames = host.copySequence(saved.pitch_frames);
+    const manualDurations = host.copySequence(saved.mora_durations_ms);
+    const automaticDurations = host.copySequence(saved.automatic_mora_durations_ms);
+    let manualPositions = host.copySequence(saved.mora_positions_ms);
+    let automaticPositions = host.copySequence(saved.automatic_mora_positions_ms);
+    if (ctx.formatVersion < 2) {
+        manualPositions = host.moraStartsFromCenters(manualPositions, manualDurations);
+        automaticPositions = host.moraStartsFromCenters(automaticPositions, automaticDurations);
+    }
+    return {
+        utteranceId: "utterance-" + ctx.id,
+        content: String(saved.text || ""),
+        language: language,
+        phonemizer: String(saved.phonemizer || host.defaultPhonemizer(language)),
+        method: host.normalizeMethod(saved.method, language),
+        reading: "",
+        moraeJson: "[]",
+        pointsJson: JSON.stringify(points),
+        pitchFramesJson: JSON.stringify(pitchFrames),
+        moraDurationsJson: JSON.stringify(manualDurations),
+        moraPositionsJson: JSON.stringify(manualPositions),
+        autoPointsJson: JSON.stringify(host.copySequence(saved.automatic_pitch_points)),
+        autoPitchFramesJson: JSON.stringify(host.copySequence(saved.automatic_frame_pitch)),
+        autoFrameMs: Number(saved.automatic_frame_ms) || 10,
+        autoMoraDurationsJson: JSON.stringify(automaticDurations),
+        autoMoraPositionsJson: JSON.stringify(automaticPositions),
+        phonemeOverridesJson: JSON.stringify(host.copySequence(saved.phoneme_overrides)),
+        manualPitchEdited: saved.manual_pitch_edited === undefined
+                ? points.some(value => Math.abs(Number(value)) > .1)
+                  || pitchFrames.some(value => Math.abs(Number(value)) > .1)
+                : !!saved.manual_pitch_edited,
+        manualMoraDurationEdited: saved.manual_mora_duration_edited === undefined
+                ? manualDurations.some(value => Number(value) > 0)
+                : !!saved.manual_mora_duration_edited,
+        trainingAccepted: !!saved.training_accepted,
+        labEntryId: String(saved.lab_entry_id || ""),
+        voicebankId: voicebankId,
+        imagePath: bank ? bank.image_path || "" : "",
+        modelId: host.normalizeModelId(saved.model_id, language),
+        aliasPolicy: saved.alias_policy === undefined
+                ? host.appBackend.defaultAliasPolicy : host.normalizeAliasPolicy(saved.alias_policy),
+        // 形式8までは指定なしもC4で保存していた。
+        tone: ctx.formatVersion < 9 && String(saved.tone) === "C4"
+                ? "" : String(saved.tone === undefined ? host.appBackend.defaultTone : saved.tone),
+        color: String(saved.color || ""),
+        moraDuration: host.projectNumber(saved.mora_duration_ms, host.appBackend.defaultMoraDuration, 20, 1000, true),
+        pauseDuration: host.projectNumber(saved.pause_duration_ms, host.appBackend.defaultPauseDuration, 0, 3000, true),
+        leadingPreutterance: host.projectNumber(saved.leading_preutterance_ms, 0, 0, 300, true),
+        intonation: host.projectNumber(saved.intonation, host.defaultIntonationStrength, 0, host.maxIntonationStrength, false),
+        applyPitch: saved.apply_pitch === undefined ? true : !!saved.apply_pitch,
+        revision: 0
+    };
+}
