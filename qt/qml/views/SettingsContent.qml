@@ -244,102 +244,30 @@ Item {
         });
     }
 
-    function resetDefaultVoicebank() {
-        pendingDefaultVoicebankId = "";
-    }
-
-    function resetDefaultAliasPolicy() {
-        pendingDefaultAliasPolicy = "auto";
-    }
-
-    function resetDefaultModel() {
-        // 既定はカタログの先頭（default_priorityが最大のモデル）。
-        pendingDefaultModelId = root.backend.models.length ? String(root.backend.models[0].id) : "none";
-    }
-
-    function resetDefaultTone() {
-        pendingDefaultTone = "";
-    }
-
-    function resetPreviewCacheFileCount() {
-        pendingPreviewCacheFileCount = 32;
-    }
-
-    function resetExportTextWithWav() {
-        pendingExportTextWithWav = false;
-    }
-
-    function resetExportTextEncoding() {
-        pendingExportTextEncoding = "utf-8";
-    }
-
-    function resetExportLabWithWav() {
-        pendingExportLabWithWav = false;
-    }
-
-    function resetTheme() {
-        pendingDarkMode = false;
-    }
-
-    function resetLanguage() {
-        pendingLanguage = "auto";
-    }
-
-    function resetFfmpegPath() {
-        pendingFfmpegPath = "";
-    }
-
-    function resetAudioOutputDevice() {
-        pendingAudioOutputDeviceId = "";
-    }
-
-    function resetUpdateCheckEnabled() {
-        pendingUpdateCheckEnabled = true;
-    }
-
-    function resetPreReleaseUpdateCheckEnabled() {
-        pendingPreReleaseUpdateCheckEnabled = false;
-    }
-
-    function resetAutoPreviewEnabled() {
-        pendingAutoPreviewEnabled = true;
-    }
-
-    function resetExtendedDetailsVisible() {
-        pendingExtendedDetailsVisible = false;
-    }
-
-    function resetCloseLogOnSuccess() {
-        pendingCloseLogOnSuccess = true;
-    }
-
-    function resetSynthesizeShortcut() {
-        pendingSynthesizeShortcut = "Ctrl+Enter";
-    }
-
-    function resetSaveProjectShortcut() {
-        pendingSaveProjectShortcut = "Ctrl+S";
-    }
-
-    function resetReloadVoicebanksShortcut() {
-        pendingReloadVoicebanksShortcut = "Ctrl+O";
-    }
-
-    function resetAddUtteranceShortcut() {
-        pendingAddUtteranceShortcut = "Ctrl+D";
-    }
-
-    function resetRemoveUtteranceShortcut() {
-        pendingRemoveUtteranceShortcut = "Delete";
-    }
-
-    function resetUndoShortcut() {
-        pendingUndoShortcut = "Ctrl+Z";
-    }
-
-    function resetRedoShortcut() {
-        pendingRedoShortcut = "Ctrl+Y";
-    }
+    function resetDefaultVoicebank() { SettingsIO.reset(draftObject, "defaultVoicebankId"); }
+    function resetDefaultAliasPolicy() { SettingsIO.reset(draftObject, "defaultAliasPolicy"); }
+    function resetDefaultModel() { SettingsIO.reset(draftObject, "defaultModelId", root.backend); }
+    function resetDefaultTone() { SettingsIO.reset(draftObject, "defaultTone"); }
+    function resetPreviewCacheFileCount() { SettingsIO.reset(draftObject, "previewCacheFileCount"); }
+    function resetExportTextWithWav() { SettingsIO.reset(draftObject, "exportTextWithWav"); }
+    function resetExportTextEncoding() { SettingsIO.reset(draftObject, "exportTextEncoding"); }
+    function resetExportLabWithWav() { SettingsIO.reset(draftObject, "exportLabWithWav"); }
+    function resetTheme() { SettingsIO.reset(draftObject, "darkMode"); }
+    function resetLanguage() { SettingsIO.reset(draftObject, "language"); }
+    function resetFfmpegPath() { SettingsIO.reset(draftObject, "ffmpegPath"); }
+    function resetAudioOutputDevice() { SettingsIO.reset(draftObject, "audioOutputDeviceId"); }
+    function resetUpdateCheckEnabled() { SettingsIO.reset(draftObject, "updateCheckEnabled"); }
+    function resetPreReleaseUpdateCheckEnabled() { SettingsIO.reset(draftObject, "preReleaseUpdateCheckEnabled"); }
+    function resetAutoPreviewEnabled() { SettingsIO.reset(draftObject, "autoPreviewEnabled"); }
+    function resetExtendedDetailsVisible() { SettingsIO.reset(draftObject, "extendedDetailsVisible"); }
+    function resetCloseLogOnSuccess() { SettingsIO.reset(draftObject, "closeLogOnSuccess"); }
+    function resetSynthesizeShortcut() { SettingsIO.reset(draftObject, "synthesizeShortcut"); }
+    function resetSaveProjectShortcut() { SettingsIO.reset(draftObject, "saveProjectShortcut"); }
+    function resetReloadVoicebanksShortcut() { SettingsIO.reset(draftObject, "reloadVoicebanksShortcut"); }
+    function resetAddUtteranceShortcut() { SettingsIO.reset(draftObject, "addUtteranceShortcut"); }
+    function resetRemoveUtteranceShortcut() { SettingsIO.reset(draftObject, "removeUtteranceShortcut"); }
+    function resetUndoShortcut() { SettingsIO.reset(draftObject, "undoShortcut"); }
+    function resetRedoShortcut() { SettingsIO.reset(draftObject, "redoShortcut"); }
 
     function defaultVoicebankIndex() {
         let id = String(root.pendingDefaultVoicebankId || "");

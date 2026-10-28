@@ -72,3 +72,40 @@ function loadCurrent(draft, backend, valid) {
     draft.undoShortcut = backend.undoShortcut;
     draft.redoShortcut = backend.redoShortcut;
 }
+
+// defaultsは、各項目の初期値。defaultModelIdだけはカタログの先頭を使う。
+const defaults = {
+    defaultVoicebankId: "",
+    defaultAliasPolicy: "auto",
+    defaultTone: "",
+    exportTextWithWav: false,
+    exportLabWithWav: false,
+    exportTextEncoding: "utf-8",
+    darkMode: false,
+    language: "auto",
+    ffmpegPath: "",
+    audioOutputDeviceId: "",
+    closeLogOnSuccess: true,
+    updateCheckEnabled: true,
+    preReleaseUpdateCheckEnabled: false,
+    previewCacheFileCount: 32,
+    autoPreviewEnabled: true,
+    extendedDetailsVisible: false,
+    synthesizeShortcut: "Ctrl+Enter",
+    saveProjectShortcut: "Ctrl+S",
+    reloadVoicebanksShortcut: "Ctrl+O",
+    addUtteranceShortcut: "Ctrl+D",
+    removeUtteranceShortcut: "Delete",
+    undoShortcut: "Ctrl+Z",
+    redoShortcut: "Ctrl+Y"
+};
+
+// resetは、編集中の値を初期値へ戻す。
+function reset(draft, field, backend) {
+    if (field === "defaultModelId") {
+        draft.defaultModelId = backend.models.length ? String(backend.models[0].id) : "none";
+        return;
+    }
+    if (Object.prototype.hasOwnProperty.call(defaults, field))
+        draft[field] = defaults[field];
+}
