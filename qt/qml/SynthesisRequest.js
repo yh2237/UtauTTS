@@ -87,3 +87,27 @@ function prosody(item, requestId, ctx) {
     host.addSynthesisSettings(request);
     return request;
 }
+
+// settingContextは、合成に効く設定の現在値をまとめる。
+function settingContext(host) {
+    const context = {};
+    const settings = host.appBackend.settingDefinitions;
+    for (let index = 0; index < settings.length; ++index) {
+        const setting = settings[index];
+        context[String(setting.id)] = host.appBackend.synthesisSetting(setting.id, setting.default);
+    }
+    return context;
+}
+
+// addSettingsは、要求にまだ入っていない設定だけを足す。
+function addSettings(request, host) {
+    const settings = settingContext(host);
+    const keys = Object.keys(settings);
+    for (let index = 0; index < keys.length; ++index) {
+        if (Object.prototype.hasOwnProperty.call(request, keys[index]))
+            delete settings[keys[index]];
+    }
+    if (Object.keys(settings).length)
+        request.settings = settings;
+    return request;
+}

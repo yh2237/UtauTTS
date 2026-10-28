@@ -755,25 +755,11 @@ ApplicationWindow {
     }
 
     function synthesisSettingContext() {
-        const context = {};
-        const settings = window.appBackend.settingDefinitions;
-        for (let index = 0; index < settings.length; ++index) {
-            const setting = settings[index];
-            context[String(setting.id)] = window.appBackend.synthesisSetting(setting.id, setting.default);
-        }
-        return context;
+        return SynthesisRequest.settingContext(window);
     }
 
     function addSynthesisSettings(request) {
-        const settings = window.synthesisSettingContext();
-        const keys = Object.keys(settings);
-        for (let index = 0; index < keys.length; ++index) {
-            if (Object.prototype.hasOwnProperty.call(request, keys[index]))
-                delete settings[keys[index]];
-        }
-        if (Object.keys(settings).length)
-            request.settings = settings;
-        return request;
+        return SynthesisRequest.addSettings(request, window);
     }
 
     function diagnosticContext() {
