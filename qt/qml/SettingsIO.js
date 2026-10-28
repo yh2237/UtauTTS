@@ -1,4 +1,4 @@
-.pragma library
+﻿.pragma library
 
 // shortcutConflictは、同じショートカットが2つ以上あるかを返す。
 // normalizeは、比較用の文字列へ直す関数。
@@ -16,30 +16,30 @@ function shortcutConflict(shortcuts, normalize) {
     return false;
 }
 
-// applySettingsは、設定画面の値を保存する。
-function applySettings(view, backend) {
-    backend.setSynthesisDefaults(view.pendingDefaultModelId,
-                                 view.pendingDefaultTone,
-                                 view.pendingDefaultAliasPolicy);
-    backend.setDarkMode(view.pendingDarkMode);
-    backend.setLanguage(view.pendingLanguage);
-    backend.setFfmpegPath(view.pendingFfmpegPath);
-    backend.setAudioOutputDeviceId(view.pendingAudioOutputDeviceId);
-    backend.setCloseLogOnSuccess(view.pendingCloseLogOnSuccess);
-    backend.setUpdateCheckEnabled(view.pendingUpdateCheckEnabled);
-    backend.setPreReleaseUpdateCheckEnabled(view.pendingPreReleaseUpdateCheckEnabled);
-    backend.setPreviewCacheFileCount(view.pendingPreviewCacheFileCount);
-    backend.setAutoPreviewEnabled(view.pendingAutoPreviewEnabled);
-    backend.setExtendedDetailsVisible(view.pendingExtendedDetailsVisible);
-    backend.setDefaultVoicebank(view.pendingDefaultVoicebankId);
-    backend.setExportSettings(view.pendingExportTextWithWav,
-                             view.pendingExportLabWithWav,
-                             view.pendingExportTextEncoding);
-    backend.setShortcutSequences(view.pendingSynthesizeShortcut,
-                                 view.pendingSaveProjectShortcut,
-                                 view.pendingReloadVoicebanksShortcut,
-                                 view.pendingAddUtteranceShortcut,
-                                 view.pendingRemoveUtteranceShortcut,
-                                 view.pendingUndoShortcut,
-                                 view.pendingRedoShortcut);
+// applySettingsは、編集中の設定をまとめて保存する。
+function applySettings(draft, backend) {
+    backend.setSynthesisDefaults(draft.defaultModelId,
+                                 draft.defaultTone,
+                                 draft.defaultAliasPolicy);
+    backend.setDarkMode(draft.darkMode);
+    backend.setLanguage(draft.language);
+    backend.setFfmpegPath(draft.ffmpegPath);
+    backend.setAudioOutputDeviceId(draft.audioOutputDeviceId);
+    backend.setCloseLogOnSuccess(draft.closeLogOnSuccess);
+    backend.setUpdateCheckEnabled(draft.updateCheckEnabled);
+    backend.setPreReleaseUpdateCheckEnabled(draft.preReleaseUpdateCheckEnabled);
+    backend.setPreviewCacheFileCount(draft.previewCacheFileCount);
+    backend.setAutoPreviewEnabled(draft.autoPreviewEnabled);
+    backend.setExtendedDetailsVisible(draft.extendedDetailsVisible);
+    backend.setDefaultVoicebank(draft.defaultVoicebankId);
+    backend.setExportSettings(draft.exportTextWithWav,
+                             draft.exportLabWithWav,
+                             draft.exportTextEncoding);
+    backend.setShortcutSequences(draft.synthesizeShortcut,
+                                 draft.saveProjectShortcut,
+                                 draft.reloadVoicebanksShortcut,
+                                 draft.addUtteranceShortcut,
+                                 draft.removeUtteranceShortcut,
+                                 draft.undoShortcut,
+                                 draft.redoShortcut);
 }

@@ -124,6 +124,7 @@ qt_add_qml_module(utautts
     qml/ProjectIO.js
     qml/SynthesisRequest.js
     qml/SettingsIO.js
+    qml/SettingsDraft.qml
         qml/EditorValues.js
         qml/HistoryCore.js
         qml/IntonationLab.js

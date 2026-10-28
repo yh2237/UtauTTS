@@ -1,4 +1,4 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
@@ -20,31 +20,34 @@ Item {
 
 
     property int currentPage: 0
-    property string pendingDefaultVoicebankId: ""
-    property string pendingDefaultModelId: "frame-intonation-tcn-v12"
-    property string pendingDefaultAliasPolicy: "auto"
-    property string pendingDefaultTone: ""
-    property bool pendingExportTextWithWav: false
-    property bool pendingExportLabWithWav: false
-    property string pendingExportTextEncoding: "utf-8"
-    property bool pendingDarkMode: false
-    property string pendingLanguage: "auto"
-    property string pendingFfmpegPath: ""
-    property string pendingAudioOutputDeviceId: ""
+    SettingsDraft { id: draftObject }
+    // draftは、設定画面の編集中の値。保存時にまとめて書き出す。
+    property QtObject draft: draftObject
+    property alias pendingDefaultVoicebankId: draftObject.defaultVoicebankId
+    property alias pendingDefaultModelId: draftObject.defaultModelId
+    property alias pendingDefaultAliasPolicy: draftObject.defaultAliasPolicy
+    property alias pendingDefaultTone: draftObject.defaultTone
+    property alias pendingExportTextWithWav: draftObject.exportTextWithWav
+    property alias pendingExportLabWithWav: draftObject.exportLabWithWav
+    property alias pendingExportTextEncoding: draftObject.exportTextEncoding
+    property alias pendingDarkMode: draftObject.darkMode
+    property alias pendingLanguage: draftObject.language
+    property alias pendingFfmpegPath: draftObject.ffmpegPath
+    property alias pendingAudioOutputDeviceId: draftObject.audioOutputDeviceId
+    property alias pendingCloseLogOnSuccess: draftObject.closeLogOnSuccess
+    property alias pendingUpdateCheckEnabled: draftObject.updateCheckEnabled
+    property alias pendingPreReleaseUpdateCheckEnabled: draftObject.preReleaseUpdateCheckEnabled
+    property alias pendingPreviewCacheFileCount: draftObject.previewCacheFileCount
+    property alias pendingAutoPreviewEnabled: draftObject.autoPreviewEnabled
+    property alias pendingExtendedDetailsVisible: draftObject.extendedDetailsVisible
+    property alias pendingSynthesizeShortcut: draftObject.synthesizeShortcut
+    property alias pendingSaveProjectShortcut: draftObject.saveProjectShortcut
+    property alias pendingReloadVoicebanksShortcut: draftObject.reloadVoicebanksShortcut
+    property alias pendingAddUtteranceShortcut: draftObject.addUtteranceShortcut
+    property alias pendingRemoveUtteranceShortcut: draftObject.removeUtteranceShortcut
+    property alias pendingUndoShortcut: draftObject.undoShortcut
+    property alias pendingRedoShortcut: draftObject.redoShortcut
     property var languageCodes: root.backend.languageCodes()
-    property bool pendingCloseLogOnSuccess: true
-    property bool pendingUpdateCheckEnabled: true
-    property bool pendingPreReleaseUpdateCheckEnabled: false
-    property int pendingPreviewCacheFileCount: 32
-    property bool pendingAutoPreviewEnabled: true
-    property bool pendingExtendedDetailsVisible: false
-    property string pendingSynthesizeShortcut: "Ctrl+Enter"
-    property string pendingSaveProjectShortcut: "Ctrl+S"
-    property string pendingReloadVoicebanksShortcut: "Ctrl+O"
-    property string pendingAddUtteranceShortcut: "Ctrl+D"
-    property string pendingRemoveUtteranceShortcut: "Delete"
-    property string pendingUndoShortcut: "Ctrl+Z"
-    property string pendingRedoShortcut: "Ctrl+Y"
     function languageLabels() {
         const labels = [];
         for (let index = 0; index < root.languageCodes.length; ++index) {

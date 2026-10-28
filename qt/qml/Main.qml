@@ -1,4 +1,4 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 
 import QtQuick
 import "UnitOverrides.js" as UnitOverrides
@@ -848,7 +848,7 @@ ApplicationWindow {
             dialogs.shortcutConflictDialog.open();
             return;
         }
-        SettingsIO.applySettings(settingsWindowRef.view, window.appBackend);
+        SettingsIO.applySettings(settingsWindowRef.view.draft, window.appBackend);
         if (closeAfter) {
             const settingsWindow = window.settingsWindowRef;
             if (settingsWindow) {
