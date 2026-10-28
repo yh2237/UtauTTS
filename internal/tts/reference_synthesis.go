@@ -243,24 +243,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	}
 	durations := planned
 	leading := speech.LeadingMS()
-	// 拡張編集のVOLは、モーラの区間の音量に掛ける。
-	if volume := moraEnvelope(durations, unitGain, 1); volume != nil {
-		for i := range speech.Audio {
-			speech.Audio[i] *= volume(float64(i)*1000/float64(speech.SampleRate) - leading)
-		}
-	}
-	peak := 0.0
-	for _, v := range speech.Audio {
-		peak = math.Max(peak, math.Abs(v))
-	}
-	scale := 1.0
-	if peak > 0.98 {
-		scale = 0.98 / peak
-	}
-	pcm := &audio.PCM{SampleRate: speech.SampleRate, Channels: 1, Data: make([]int16, len(speech.Audio))}
-	for i, v := range speech.Audio {
-		pcm.Data[i] = int16(math.Round(math.Max(-1, math.Min(1, v*scale)) * 32767))
-	}
+	pcm := referenceAudio(speech, durations, unitGain)
 	synthesisPlan := &plan.Plan{
 		Version: plan.Version, Voicebank: bank.Root, Text: cfg.Text, Reading: reading,
 		Language: language, Phonemizer: phonemizer, Tone: cfg.Tone, Color: cfg.Color,
@@ -530,4 +513,28 @@ func referenceCentsBetween(f0 []float64, center, startMS, endMS float64) float64
 		return 0
 	}
 	return 1200 * sum / float64(count)
+}
+
+// referenceAudioは、合成した波形にモーラごとの音量を掛け、16ビットへ直す。
+func referenceAudio(speech refspeech.Speech, durations []float64, unitGain map[int]float64) *audio.PCM {
+	leading := speech.LeadingMS()
+	// 拡張編集のVOLは、モーラの区間の音量に掛ける。
+	if volume := moraEnvelope(durations, unitGain, 1); volume != nil {
+		for i := range speech.Audio {
+			speech.Audio[i] *= volume(float64(i)*1000/float64(speech.SampleRate) - leading)
+		}
+	}
+	peak := 0.0
+	for _, v := range speech.Audio {
+		peak = math.Max(peak, math.Abs(v))
+	}
+	scale := 1.0
+	if peak > 0.98 {
+		scale = 0.98 / peak
+	}
+	pcm := &audio.PCM{SampleRate: speech.SampleRate, Channels: 1, Data: make([]int16, len(speech.Audio))}
+	for i, v := range speech.Audio {
+		pcm.Data[i] = int16(math.Round(math.Max(-1, math.Min(1, v*scale)) * 32767))
+	}
+	return pcm
 }
