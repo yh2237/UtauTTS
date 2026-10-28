@@ -2,7 +2,7 @@ package sidecar
 
 import (
 	"fmt"
-	"github.com/yh2237/UtauTTS/internal/atomicfile"
+	"github.com/yh2237/UtauIDX/atomicfile"
 	"path/filepath"
 	"strings"
 

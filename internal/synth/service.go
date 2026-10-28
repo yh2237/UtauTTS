@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/hubert"
+	"github.com/yh2237/UtauIDX/hubert"
 	"github.com/yh2237/UtauTTS/internal/lifecycle"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/plugin"
@@ -18,7 +18,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/tts"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
-	"github.com/yh2237/UtauTTS/internal/worldrender"
+	"github.com/yh2237/UtauWLD/worldrender"
 )
 
 var ErrUnavailable = errors.New("unavailable")

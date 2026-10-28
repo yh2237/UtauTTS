@@ -3,7 +3,7 @@ package refspeech
 import (
 	"math"
 
-	"github.com/yh2237/UtauTTS/internal/refmatch"
+	"github.com/yh2237/UtauIDX/refmatch"
 )
 
 // Warpは参照の音声の時間軸を、出力の時間軸へ引き伸ばす対応。

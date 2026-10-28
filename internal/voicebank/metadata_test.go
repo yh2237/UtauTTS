@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/text/encoding/japanese"
 
-	"github.com/yh2237/UtauTTS/internal/audio"
+	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/oto"
 )

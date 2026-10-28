@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/acoustic"
-	"github.com/yh2237/UtauTTS/internal/audio"
 )
 
 func writeFixture(t *testing.T, path string, value int16) *audio.PCM {

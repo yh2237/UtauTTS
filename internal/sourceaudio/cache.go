@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/acoustic"
-	"github.com/yh2237/UtauTTS/internal/audio"
 )
 
 type cachedSource struct {

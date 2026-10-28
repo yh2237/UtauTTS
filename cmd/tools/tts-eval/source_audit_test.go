@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/yh2237/UtauTTS/internal/audio"
+	"github.com/yh2237/UtauIDX/audio"
 	"testing"
 )
 

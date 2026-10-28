@@ -14,9 +14,9 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/yh2237/UtauIDX/audio"
 	utautts "github.com/yh2237/UtauTTS"
 	"github.com/yh2237/UtauTTS/internal/appinfo"
-	"github.com/yh2237/UtauTTS/internal/audio"
 	"github.com/yh2237/UtauTTS/internal/entryinput"
 	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/render"

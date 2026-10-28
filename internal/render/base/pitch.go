@@ -7,7 +7,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/yh2237/UtauTTS/internal/audio"
+	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/pitch"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/voicebank"

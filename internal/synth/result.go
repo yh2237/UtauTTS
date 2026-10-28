@@ -3,7 +3,7 @@ package synth
 import (
 	"fmt"
 
-	"github.com/yh2237/UtauTTS/internal/audio"
+	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/label"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/sidecar"

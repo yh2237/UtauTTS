@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/yh2237/UtauTTS/internal/atomicfile"
+	"github.com/yh2237/UtauIDX/atomicfile"
 )
 
 // missing_phone_rateは、必須音が欠けた位置の割合。

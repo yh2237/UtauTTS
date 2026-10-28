@@ -11,7 +11,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
 	"github.com/yh2237/UtauTTS/internal/synth"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
-	"github.com/yh2237/UtauTTS/internal/worldrender"
+	"github.com/yh2237/UtauWLD/worldrender"
 )
 
 var doctorFlags = map[string]bool{

@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yh2237/UtauTTS/internal/hubert"
+	"github.com/yh2237/UtauIDX/hubert"
+	"github.com/yh2237/UtauIDX/refmatch"
 	"github.com/yh2237/UtauTTS/internal/kokoro"
-	"github.com/yh2237/UtauTTS/internal/refmatch"
 	"github.com/yh2237/gograd/dsp"
 	"github.com/yh2237/gograd/torchrng"
 )

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/yh2237/UtauTTS/internal/runtimepath"
+	"github.com/yh2237/UtauWLD/runtimepath"
 )
 
 // ライブラリは辞書を1つだけ持つので、呼び出しを直列にする。

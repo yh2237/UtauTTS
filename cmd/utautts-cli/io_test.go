@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/runtimepath"
+	"github.com/yh2237/UtauWLD/runtimepath"
 	"github.com/yh2237/audiodsp/wav"
 )
 

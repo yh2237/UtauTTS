@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yh2237/UtauTTS/internal/hubert"
-	"github.com/yh2237/UtauTTS/internal/refmatch"
-	"github.com/yh2237/UtauTTS/internal/worldrender"
+	"github.com/yh2237/UtauIDX/hubert"
+	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauWLD/worldrender"
 )
 
 // IndexStateは音源の索引の状態。

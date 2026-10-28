@@ -1,54 +1,12 @@
-package speechtiming
+package speechtimeline
 
 import (
-	"encoding/json"
 	"math"
-	"os"
 	"reflect"
 	"testing"
+
+	"github.com/yh2237/UtauWLD/speechtiming"
 )
-
-func TestDefaultTargetMatchesPyTorch(t *testing.T) {
-	data, err := os.ReadFile("testdata/target-v1-parity.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var fixture struct {
-		IDs    [][3]int     `json:"ids"`
-		Cont   [][4]float32 `json:"cont"`
-		Output [][]float32  `json:"output"`
-	}
-	if err := json.Unmarshal(data, &fixture); err != nil {
-		t.Fatal(err)
-	}
-	model, err := DefaultTarget()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := model.Predict(fixture.IDs, fixture.Cont)
-	if err != nil {
-		t.Fatal(err)
-	}
-	worst := 0.0
-	for frame := range fixture.Output {
-		for channel, want := range fixture.Output[frame] {
-			worst = math.Max(worst, math.Abs(float64(got[frame][channel]-want)))
-		}
-	}
-	if worst > 1e-3 {
-		t.Fatalf("max abs difference from PyTorch = %g", worst)
-	}
-}
-
-func TestPointwiseKeepsBiasOrderAndRemainingOutput(t *testing.T) {
-	got := pointwise([]float32{-1e8, 1e8, 1}, 1, 3,
-		[]float32{1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 2, 1, 1, 1},
-		[]float32{1, 1, 1, 1, 1}, 5)
-	want := []float32{1, -1e8, 1e8, 3, 1}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("pointwise = %v, want %v", got, want)
-	}
-}
 
 func TestMoraPhones(t *testing.T) {
 	cases := map[string][]string{
@@ -64,7 +22,7 @@ func TestMoraPhones(t *testing.T) {
 	if got := moraPhones("ー", "o"); !reflect.DeepEqual(got, []string{"o"}) {
 		t.Errorf("long vowel = %v", got)
 	}
-	model, err := DefaultTarget()
+	model, err := speechtiming.DefaultTarget()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +40,7 @@ func TestMoraPhones(t *testing.T) {
 }
 
 func TestPhoneTimelineMarksPhraseEnds(t *testing.T) {
-	morae := []Mora{
+	morae := []speechtiming.Mora{
 		{Text: "か", NoteStartMS: 0, DurationMS: 120, EffectivePreutteranceMS: 40},
 		{Text: "な", NoteStartMS: 120, DurationMS: 120, EffectivePreutteranceMS: 30},
 		{Text: "た", NoteStartMS: 400, DurationMS: 120, EffectivePreutteranceMS: 40},
@@ -100,8 +58,8 @@ func TestPhoneTimelineMarksPhraseEnds(t *testing.T) {
 }
 
 func TestPhoneTimelineUsesExplicitSpans(t *testing.T) {
-	morae := []Mora{{Text: "w3", NoteStartMS: 0, DurationMS: 120, EffectivePreutteranceMS: 40,
-		Spans: []Span{
+	morae := []speechtiming.Mora{{Text: "w3", NoteStartMS: 0, DurationMS: 120, EffectivePreutteranceMS: 40,
+		Spans: []speechtiming.Span{
 			{Label: "w", Start: 0.05, End: 0.08},
 			{Label: "er", Start: 0.08, End: 0.13},
 			{Label: "l", Start: 0.13, End: 0.15},
@@ -127,29 +85,8 @@ func TestPhoneTimelineUsesExplicitSpans(t *testing.T) {
 	}
 }
 
-func TestWarpKeepsIdenticalTargetAndProtectsEnds(t *testing.T) {
-	frames := 60
-	rows := make([][]float64, frames)
-	for frame := range rows {
-		rows[frame] = []float64{math.Sin(float64(frame) * 0.3), math.Cos(float64(frame) * 0.17)}
-	}
-	mapping := warpMap(rows, rows, []float64{20, 40}, frames)
-	for frame, value := range mapping {
-		if math.Abs(value-float64(frame)) > 1e-9 {
-			t.Fatalf("identity mapping[%d] = %v", frame, value)
-		}
-	}
-	weight := protectPhraseEnds(100, []float64{0.1, 0.3, 0.5}, []float64{0.62})
-	if weight[20] != 1 || weight[38] != 0 || weight[64] != 0 || weight[65] != 1 {
-		t.Fatalf("weights = %v", weight)
-	}
-	if weight[35] <= 0 || weight[35] >= 1 {
-		t.Fatalf("ramp weight = %v", weight[35])
-	}
-}
-
 func TestPhoneTimelineKeepsConsonantsInContinuousSpeech(t *testing.T) {
-	morae := []Mora{
+	morae := []speechtiming.Mora{
 		{Text: "あ", NoteStartMS: 0, DurationMS: 120},
 		{Text: "さ", NoteStartMS: 120, DurationMS: 120, EffectivePreutteranceMS: 70},
 	}

@@ -6,7 +6,7 @@ import (
 	"math"
 
 	"github.com/yh2237/UtauTTS/internal/render"
-	"github.com/yh2237/UtauTTS/internal/speechtiming"
+	"github.com/yh2237/UtauWLD/speechtiming"
 )
 
 const maxUnifiedProsodyCacheBytes = 16 << 20

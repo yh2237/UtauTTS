@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yh2237/UtauTTS/internal/refmatch"
+	"github.com/yh2237/UtauIDX/refmatch"
 )
 
 // writeIndexは、指定の版とモデルで最小の索引を書き出す。

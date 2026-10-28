@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yh2237/UtauTTS/internal/refmatch"
+	"github.com/yh2237/UtauIDX/refmatch"
 )
 
 func TestListAndDeleteIndexes(t *testing.T) {

@@ -10,12 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yh2237/UtauTTS/internal/audio"
+	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/render/base"
-	"github.com/yh2237/UtauTTS/internal/speechtiming"
-	"github.com/yh2237/UtauTTS/internal/worldrender"
+	"github.com/yh2237/UtauTTS/internal/speechtimeline"
+	"github.com/yh2237/UtauWLD/speechtiming"
+	"github.com/yh2237/UtauWLD/worldrender"
 )
 
 // nilなら計測ログを出さない。
@@ -661,7 +662,7 @@ func timingWarpJob(synthesisPlan *plan.Plan, cfg base.Config, frames int) *world
 		}
 		morae = append(morae, entry)
 	}
-	timeline := speechtiming.PhoneTimeline(morae, margin, frames)
+	timeline := speechtimeline.PhoneTimeline(morae, margin, frames)
 	spans := make([]worldrender.TimingWarpSpan, 0, len(timeline.Spans))
 	for _, span := range timeline.Spans {
 		spans = append(spans, worldrender.TimingWarpSpan{Label: span.Label, Start: span.Start, End: span.End})

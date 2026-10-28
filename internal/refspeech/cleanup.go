@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yh2237/UtauTTS/internal/refmatch"
+	"github.com/yh2237/UtauIDX/refmatch"
 )
 
 // partRetentionは、使われていない部分キャッシュを残す期間。

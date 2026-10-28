@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yh2237/UtauTTS/internal/atomicfile"
+	"github.com/yh2237/UtauIDX/atomicfile"
 	"github.com/yh2237/UtauTTS/internal/synth"
 )
 

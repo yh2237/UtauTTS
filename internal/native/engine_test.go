@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/audio"
+	"github.com/yh2237/UtauIDX/audio"
 )
 
 func newTestEngine(t *testing.T, config Config) *Engine {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yh2237/UtauTTS/internal/refmatch"
+	"github.com/yh2237/UtauIDX/refmatch"
 )
 
 // TestTrimIndexCacheは、上限を超えた索引が古い順に消えることを確かめる。

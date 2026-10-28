@@ -7,7 +7,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/yh2237/UtauTTS/internal/audio"
+	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/sourceaudio"
 	"github.com/yh2237/audiodsp/stretch"
 )

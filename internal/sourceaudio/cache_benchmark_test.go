@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/audio"
+	"github.com/yh2237/UtauIDX/audio"
 )
 
 func writeBenchmarkSources(b *testing.B, count int) []string {

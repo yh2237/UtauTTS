@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/yh2237/UtauTTS/internal/frontend"
-	"github.com/yh2237/UtauTTS/internal/speechtiming"
+	"github.com/yh2237/UtauWLD/speechtiming"
 )
 
 const (

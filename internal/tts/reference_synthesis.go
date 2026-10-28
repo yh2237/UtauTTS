@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yh2237/UtauTTS/internal/audio"
+	"github.com/yh2237/UtauIDX/audio"
+	"github.com/yh2237/UtauIDX/refmatch"
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
-	"github.com/yh2237/UtauTTS/internal/refmatch"
 	"github.com/yh2237/UtauTTS/internal/refspeech"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/settings"

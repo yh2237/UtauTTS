@@ -12,7 +12,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/speechtiming"
+	"github.com/yh2237/UtauWLD/speechtiming"
 
 	"github.com/yh2237/gograd/autograd"
 	"github.com/yh2237/gograd/cuda"

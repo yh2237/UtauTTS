@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/refmatch"
-	"github.com/yh2237/UtauTTS/internal/worldrender"
+	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauWLD/worldrender"
 )
 
 func TestPrepareRebuildsWhenRecordingsChange(t *testing.T) {

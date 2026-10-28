@@ -3,8 +3,8 @@ package world
 import (
 	"context"
 
-	"github.com/yh2237/UtauTTS/internal/audio"
-	"github.com/yh2237/UtauTTS/internal/worldrender"
+	"github.com/yh2237/UtauIDX/audio"
+	"github.com/yh2237/UtauWLD/worldrender"
 )
 
 // WORLDは同じプロセスで動かし、読み込んだエンジンと分析結果を合成間で使い回す。そのため同時には1つだけ合成する。

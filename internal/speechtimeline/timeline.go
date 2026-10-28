@@ -1,35 +1,24 @@
-package speechtiming
+package speechtimeline
 
 import (
 	"math"
 
 	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauWLD/speechtiming"
 )
 
-// Spanはフレーズ先頭基準の音素区間（秒）。
-type Span struct {
-	Label string
-	Start float64
-	End   float64
-}
-
-// Timelineはフレーズ全体の音素区間と伸縮の固定点（秒）。
-type Timeline struct {
-	Spans  []Span
-	Starts []float64
-	Ends   []float64
-}
+const longPauseSec = 0.15
 
 // PhoneTimelineはモーラ列からフレーズの音素区間と固定点を作る。
 // Mora.Spansは余白込みのフレーズ時刻（秒）としてそのまま使う。
-func PhoneTimeline(morae []Mora, marginMS float64, frames int) Timeline {
+func PhoneTimeline(morae []speechtiming.Mora, marginMS float64, frames int) speechtiming.Timeline {
 	spans, starts, ends := phoneTimeline(morae, marginMS, frames)
-	return Timeline{Spans: spans, Starts: starts, Ends: ends}
+	return speechtiming.Timeline{Spans: spans, Starts: starts, Ends: ends}
 }
 
 // phoneTimelineは音素区間と固定点（秒）を作る。startsはノート開始、endsは休止直前と発話末。
-func phoneTimeline(morae []Mora, marginMS float64, frames int) ([]Span, []float64, []float64) {
-	var phones []Span
+func phoneTimeline(morae []speechtiming.Mora, marginMS float64, frames int) ([]speechtiming.Span, []float64, []float64) {
+	var phones []speechtiming.Span
 	var starts, ends []float64
 	cursor := 0.0
 	previousVowel := ""
@@ -50,9 +39,9 @@ func phoneTimeline(morae []Mora, marginMS float64, frames int) ([]Span, []float6
 					if len(phones) > 0 && start-cursor <= longPauseSec {
 						label = phones[len(phones)-1].Label
 					}
-					phones = append(phones, Span{Label: label, Start: cursor, End: start})
+					phones = append(phones, speechtiming.Span{Label: label, Start: cursor, End: start})
 				}
-				phones = append(phones, Span{Label: span.Label, Start: start, End: stop})
+				phones = append(phones, speechtiming.Span{Label: span.Label, Start: start, End: stop})
 				if stop > cursor {
 					cursor = stop
 				}
@@ -62,7 +51,7 @@ func phoneTimeline(morae []Mora, marginMS float64, frames int) ([]Span, []float6
 				if len(phones) > 0 && end-cursor <= longPauseSec {
 					label = phones[len(phones)-1].Label
 				}
-				phones = append(phones, Span{Label: label, Start: cursor, End: end})
+				phones = append(phones, speechtiming.Span{Label: label, Start: cursor, End: end})
 				cursor = end
 			}
 			starts = append(starts, note)
@@ -78,7 +67,7 @@ func phoneTimeline(morae []Mora, marginMS float64, frames int) ([]Span, []float6
 		// 子音は前の母音に食い込むため、母音を子音開始で切る。
 		if onset < cursor && len(phones) > 0 {
 			last := &phones[len(phones)-1]
-			onset = math.Max(onset, last.Start+FrameMS/1000)
+			onset = math.Max(onset, last.Start+speechtiming.FrameMS/1000)
 			last.End = math.Min(last.End, onset)
 		}
 		onset = math.Max(onset, 0)
@@ -87,16 +76,16 @@ func phoneTimeline(morae []Mora, marginMS float64, frames int) ([]Span, []float6
 			if len(phones) > 0 && onset-cursor <= longPauseSec {
 				label = phones[len(phones)-1].Label
 			}
-			phones = append(phones, Span{Label: label, Start: cursor, End: onset})
+			phones = append(phones, speechtiming.Span{Label: label, Start: cursor, End: onset})
 		}
 		if len(consonants) > 0 && note > onset {
 			step := (note - onset) / float64(len(consonants))
 			for index, consonant := range consonants {
-				phones = append(phones, Span{Label: consonant, Start: onset + float64(index)*step, End: onset + float64(index+1)*step})
+				phones = append(phones, speechtiming.Span{Label: consonant, Start: onset + float64(index)*step, End: onset + float64(index+1)*step})
 			}
 		}
 		end = (marginMS + mora.NoteStartMS + mora.DurationMS) / 1000
-		phones = append(phones, Span{Label: vowel, Start: note, End: end})
+		phones = append(phones, speechtiming.Span{Label: vowel, Start: note, End: end})
 		if len(starts) > 0 && note > cursor+1e-3 {
 			ends = append(ends, cursor)
 		}
@@ -108,8 +97,8 @@ func phoneTimeline(morae []Mora, marginMS float64, frames int) ([]Span, []float6
 		}
 	}
 	ends = append(ends, cursor)
-	if total := float64(frames) * FrameMS / 1000; total > cursor {
-		phones = append(phones, Span{Label: "sil", Start: cursor, End: total})
+	if total := float64(frames) * speechtiming.FrameMS / 1000; total > cursor {
+		phones = append(phones, speechtiming.Span{Label: "sil", Start: cursor, End: total})
 	}
 	return phones, starts, ends
 }

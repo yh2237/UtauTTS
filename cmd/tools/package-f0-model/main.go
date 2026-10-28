@@ -16,7 +16,7 @@ import (
 
 	"github.com/yh2237/UtauTTS/cmd/tools/internal/toolutil"
 	"github.com/yh2237/UtauTTS/internal/prosody"
-	"github.com/yh2237/UtauTTS/internal/speechtiming"
+	"github.com/yh2237/UtauWLD/speechtiming"
 )
 
 type options struct {

@@ -10,7 +10,8 @@ import (
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/settings"
-	"github.com/yh2237/UtauTTS/internal/speechtiming"
+	"github.com/yh2237/UtauTTS/internal/speechtimeline"
+	"github.com/yh2237/UtauWLD/speechtiming"
 )
 
 // unifiedF0Headは選んだ抑揚モデルが持つ統合韻律モデル（F0ヘッド）。持たなければnil。
@@ -168,7 +169,7 @@ func unifiedProsodyContext(model *speechtiming.TCN, language string, features []
 	if frames < 2 {
 		return nil, nil, nil, fmt.Errorf("unified prosody unavailable")
 	}
-	timeline := speechtiming.PhoneTimeline(morae, synthesisPlan.LeadingMarginMS, frames)
+	timeline := speechtimeline.PhoneTimeline(morae, synthesisPlan.LeadingMarginMS, frames)
 	extras := make([][]float32, frames)
 	var positions [][speechtiming.PositionFeatures]float32
 	if model.F0Position() {
