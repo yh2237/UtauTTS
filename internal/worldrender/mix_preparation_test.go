@@ -44,15 +44,8 @@ func BenchmarkWorldMixPrepared(b *testing.B) {
 		input.Units[i] = Unit{PositionMS: float64(i) * 60, LengthMS: 120, RequiredLengthMS: 120, ConsonantVelocity: 100}
 	}
 	prepared := flatPreparedUnits(len(input.Units))
-	for _, tc := range []struct {
-		name string
-		run  func(phraseInput, []preparedWorldUnit, int, int) worldFeatures
-	}{{"reference", mixWorldFeaturesReference}, {"prepared", mixWorldFeatures}} {
-		b.Run(tc.name, func(b *testing.B) {
-			b.ReportAllocs()
-			for b.Loop() {
-				tc.run(input, prepared, 2, 1)
-			}
-		})
+	b.ReportAllocs()
+	for b.Loop() {
+		mixWorldFeatures(input, prepared, 2, 1)
 	}
 }

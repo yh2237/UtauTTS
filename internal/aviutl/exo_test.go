@@ -1,9 +1,9 @@
 package aviutl
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"golang.org/x/text/encoding/japanese"
@@ -30,53 +30,42 @@ func TestWriteExoMatchesAviUtlAudioLayout(t *testing.T) {
 	writeWAV(t, first, 1000, 1000)
 	writeWAV(t, second, 1000, 2000)
 
-	output := filepath.Join(dir, "utautts.exo")
-	if err := WriteExo(output, []string{first, second}, 60); err != nil {
-		t.Fatal(err)
-	}
+	for _, tc := range []struct {
+		rate       int
+		header     string
+		firstClip  string
+		secondClip string
+	}{
+		{30, "rate=30\nscale=1\nlength=90\n", "start=1\nend=30\n", "start=31\nend=90\n"},
+		{60, "rate=60\nscale=1\nlength=180\n", "start=1\nend=60\n", "start=61\nend=180\n"},
+	} {
+		t.Run(fmt.Sprintf("%dfps", tc.rate), func(t *testing.T) {
+			output := filepath.Join(t.TempDir(), "utautts.exo")
+			if err := WriteExo(output, []string{first, second}, tc.rate); err != nil {
+				t.Fatal(err)
+			}
 
-	data, err := os.ReadFile(output)
-	if err != nil {
-		t.Fatal(err)
-	}
-	decoded, _, err := transform.Bytes(japanese.ShiftJIS.NewDecoder(), data)
-	if err != nil {
-		t.Fatalf("exo is not Shift_JIS: %v", err)
-	}
-	content := string(decoded)
+			data, err := os.ReadFile(output)
+			if err != nil {
+				t.Fatal(err)
+			}
+			decoded, _, err := transform.Bytes(japanese.ShiftJIS.NewDecoder(), data)
+			if err != nil {
+				t.Fatalf("exo is not Shift_JIS: %v", err)
+			}
+			content := string(decoded)
 
-	want := "[exedit]\nwidth=1920\nheight=1080\nrate=60\nscale=1\nlength=180\naudio_rate=48000\naudio_ch=2\n" +
-		"[0]\nstart=1\nend=60\nlayer=1\noverlay=1\naudio=1\n" +
-		"[0.0]\n_name=音声ファイル\n再生位置=0.00\n再生速度=100.0\nループ再生=0\n動画ファイルと連携=0\nfile=" + toExoPath(first) + "\n" +
-		"[0.1]\n_name=標準再生\n音量=100.0\n左右=0.0\n" +
-		"[1]\nstart=61\nend=180\nlayer=1\noverlay=1\naudio=1\n" +
-		"[1.0]\n_name=音声ファイル\n再生位置=0.00\n再生速度=100.0\nループ再生=0\n動画ファイルと連携=0\nfile=" + toExoPath(second) + "\n" +
-		"[1.1]\n_name=標準再生\n音量=100.0\n左右=0.0\n"
-	if content != want {
-		t.Fatalf("exo layout mismatch:\n--- got ---\n%s\n--- want ---\n%s", content, want)
-	}
-}
-
-func TestWriteExoHonorsFrameRate(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "clip.wav")
-	writeWAV(t, path, 1000, 1000)
-
-	output := filepath.Join(dir, "utautts.exo")
-	if err := WriteExo(output, []string{path}, 30); err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(output)
-	if err != nil {
-		t.Fatal(err)
-	}
-	decoded, _, err := transform.Bytes(japanese.ShiftJIS.NewDecoder(), data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	content := string(decoded)
-	if !strings.Contains(content, "rate=30\n") || !strings.Contains(content, "[0]\nstart=1\nend=30\n") {
-		t.Fatalf("frame rate not applied:\n%s", content)
+			want := "[exedit]\nwidth=1920\nheight=1080\n" + tc.header + "audio_rate=48000\naudio_ch=2\n" +
+				"[0]\n" + tc.firstClip + "layer=1\noverlay=1\naudio=1\n" +
+				"[0.0]\n_name=音声ファイル\n再生位置=0.00\n再生速度=100.0\nループ再生=0\n動画ファイルと連携=0\nfile=" + toExoPath(first) + "\n" +
+				"[0.1]\n_name=標準再生\n音量=100.0\n左右=0.0\n" +
+				"[1]\n" + tc.secondClip + "layer=1\noverlay=1\naudio=1\n" +
+				"[1.0]\n_name=音声ファイル\n再生位置=0.00\n再生速度=100.0\nループ再生=0\n動画ファイルと連携=0\nfile=" + toExoPath(second) + "\n" +
+				"[1.1]\n_name=標準再生\n音量=100.0\n左右=0.0\n"
+			if content != want {
+				t.Fatalf("exo layout mismatch:\n--- got ---\n%s\n--- want ---\n%s", content, want)
+			}
+		})
 	}
 }
 

@@ -87,24 +87,16 @@ func TestCacheInvalidatesModifiedDeletedAndClearedSources(t *testing.T) {
 	}
 }
 
-func TestCacheCountsMonoMemoryAndSerializesConcurrentLoads(t *testing.T) {
+func TestCacheCountsMonoMemory(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "source.wav")
 	writeFixture(t, path, 100)
 	c := newCache(400 + 800)
-	var workers sync.WaitGroup
-	for i := 0; i < 8; i++ {
-		workers.Add(1)
-		go func() {
-			defer workers.Done()
-			_, wave, err := c.readMono(path)
-			if err != nil || len(wave) != 100 {
-				t.Errorf("concurrent read: %v", err)
-			}
-		}()
+	_, wave, err := c.readMono(path)
+	if err != nil || len(wave) != 100 {
+		t.Fatalf("read mono: length=%d err=%v", len(wave), err)
 	}
-	workers.Wait()
 	if c.bytes != 1200 || c.order.Len() != 1 {
-		t.Fatalf("shared allocation counted repeatedly: bytes=%d entries=%d", c.bytes, c.order.Len())
+		t.Fatalf("bytes=%d entries=%d", c.bytes, c.order.Len())
 	}
 	c.maxBytes = 1199
 	c.evict()

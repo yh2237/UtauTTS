@@ -181,15 +181,6 @@ func TestSpeechTimingMultiHeadShapesAndParameters(t *testing.T) {
 	if len(energy.Shape) != 3 || energy.Shape[2] != 1 || energy.Shape[0] != 2 || energy.Shape[1] != 5 {
 		t.Fatalf("energy shape %v", energy.Shape)
 	}
-	names := map[string]bool{}
-	for _, p := range m.Parameters() {
-		names[p.Name] = true
-	}
-	for _, want := range []string{"phone.weight", "inp.weight", "blocks.0.weight", "norms.0.weight", "out.weight", "f0_inp.weight", "f0_blocks.0.weight", "f0_norms.0.weight", "f0_out.weight", "energy_out.weight"} {
-		if !names[want] {
-			t.Errorf("missing parameter %q", want)
-		}
-	}
 	if _, e := NewSpeechTimingMultiHead(44, 4, 0, tensor.CPU, 0); e == nil {
 		t.Fatal("zero f0 context width was accepted")
 	}

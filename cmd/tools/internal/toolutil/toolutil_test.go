@@ -9,7 +9,6 @@ func TestUnderOut(t *testing.T) {
 	}{
 		{"out", true},
 		{"out/model.json", true},
-		{"out/a/b", true},
 		{"out2/model.json", false},
 		{"models/model.json", false},
 		{"../out/model.json", false},

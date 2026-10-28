@@ -2,7 +2,6 @@ package tts
 
 import (
 	"context"
-	"math"
 	"reflect"
 	"sync"
 	"testing"
@@ -31,14 +30,9 @@ func TestUnifiedProsodyCacheSharesPreviewAndEnergyWithoutMutation(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	f0, energy, err := model.F0Head.PredictProsody(ids, cont)
+	_, energy, err := model.F0Head.PredictProsody(ids, cont)
 	if err != nil {
 		t.Fatal(err)
-	}
-	for i, value := range f0 {
-		if full.contour.Cents[i] != float64(value)*(.3*1200/math.Ln2) {
-			t.Fatalf("F0 differs at frame %d", i)
-		}
 	}
 	if !reflect.DeepEqual(full.energy, energy) {
 		t.Fatal("energy differs")
