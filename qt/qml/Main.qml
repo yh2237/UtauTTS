@@ -6,6 +6,7 @@ import "MoraPositions.js" as MoraPositions
 import "QmlCore.js" as QmlCore
 import "UtteranceData.js" as UtteranceData
 import "ProjectIO.js" as ProjectIO
+import "SynthesisRequest.js" as SynthesisRequest
 import "UtteranceCore.js" as UtteranceCore
 import "HistoryCore.js" as HistoryCore
 import "IntonationLab.js" as IntonationLab
@@ -2332,85 +2333,14 @@ ApplicationWindow {
     }
 
     function buildSynthesisRequest(item) {
-        const points = window.decodeSequence(item.pointsJson);
-        const morae = window.decodeSequence(item.moraeJson);
-        const manualPitch = window.hasManualPitch(item);
-        const manualDurations = window.hasManualMoraDurations(item)
-                ? window.decodeSequence(item.moraDurationsJson) : [];
-        const request = {
-            text: item.content,
-            reading: item.reading || "",
-            language: item.language || "ja",
-            phonemizer: window.resolvedPhonemizer(item.language, item.phonemizer, item.voicebankId),
-            method: window.normalizeMethod(item.method, item.language || "ja"),
-            dictionary: window.appBackend.dictionaryEntries,
-            voicebank_id: item.voicebankId || editorContent.voiceCombo.currentValue,
-            model_id: item.modelId,
-            alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
-            tone: item.tone,
-            color: item.color || "",
-            mora_duration_ms: item.moraDuration,
-            pause_duration_ms: item.pauseDuration,
-            leading_preutterance_ms: item.leadingPreutterance,
-            mora_durations_ms: manualDurations,
-            intonation_strength: item.intonation,
-            apply_pitch: item.applyPitch,
-            unit_overrides: window.decodeSequence(item.phonemeOverridesJson)
-        };
-        window.addSynthesisSettings(request);
-        const frameOffsets = window.decodeSequence(item.pitchFramesJson);
-        const hasFrameOffsets = frameOffsets.some(value => Math.abs(Number(value)) > .1);
-        if (item.applyPitch && item.reading && manualPitch && hasFrameOffsets) {
-            request.manual_pitch = {
-                version: 1,
-                reading: item.reading,
-                mode: "frames",
-                frames: frameOffsets.map(value => Math.max(-4800, Math.min(4800, Number(value) || 0)))
-            };
-        } else if (item.applyPitch && item.reading && manualPitch && points.some(value => Math.abs(Number(value)) > .1)) {
-            const manualPoints = [];
-            for (let index = 0; index < points.length; ++index) {
-                const mora = index < morae.length ? morae[index] : null;
-                if (mora && mora.pause)
-                    continue;
-                manualPoints.push({
-                    position: index,
-                    mora: mora ? mora.mora || "" : "",
-                    cents: Math.max(-4800, Math.min(4800, Number(points[index]) || 0))
-                });
-            }
-            request.manual_pitch = {
-                version: 1,
-                reading: item.reading,
-                mode: "offset",
-                points: manualPoints
-            };
-        }
-        if (window.intonationLab)
-            request.model_path = window.intonationLabBaseModelPath();
-        return request;
+        return SynthesisRequest.synthesis(item, {
+            host: window,
+            voicebankFallback: editorContent.voiceCombo.currentValue
+        });
     }
 
     function buildProsodyRequest(item, requestId) {
-        const request = {
-            request_id: requestId,
-            text: item.content,
-            reading: item.reading || "",
-            language: item.language || "ja",
-            phonemizer: window.resolvedPhonemizer(item.language, item.phonemizer, item.voicebankId),
-            method: window.normalizeMethod(item.method, item.language || "ja"),
-            dictionary: window.appBackend.dictionaryEntries,
-            model_id: item.modelId,
-            model_path: window.intonationLab ? window.intonationLabBaseModelPath() : "",
-            mora_duration_ms: item.moraDuration,
-            pause_duration_ms: item.pauseDuration,
-            mora_durations_ms: window.hasManualMoraDurations(item)
-                    ? window.decodeSequence(item.moraDurationsJson) : [],
-            intonation_strength: item.intonation,
-            apply_pitch: item.applyPitch
-        };
-        window.addSynthesisSettings(request);
-        return request;
+        return SynthesisRequest.prosody(item, requestId, { host: window });
     }
 
     function requestProsodyPreview(index) {
