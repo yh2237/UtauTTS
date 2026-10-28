@@ -81,6 +81,7 @@ func referenceRecordings(bank *voicebank.Bank, color string) []refmatch.Recordin
 	result := make([]refmatch.Recording, len(recordings))
 	for i, recording := range recordings {
 		result[i].Path = recording.Path
+		result[i].Phoneme = bank.ReferenceRecordingPhoneme(recording.Entries)
 		for _, entry := range recording.Entries {
 			result[i].Regions = append(result[i].Regions, refmatch.Region{Offset: entry.Offset, Blank: entry.Blank})
 		}

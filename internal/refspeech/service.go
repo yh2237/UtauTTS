@@ -393,6 +393,9 @@ func indexID(bankRoot string, recordings []refmatch.Recording) string {
 	paths := make([]string, len(recordings))
 	for i, recording := range recordings {
 		paths[i] = recording.Path
+		if recording.Phoneme != "" {
+			paths[i] += "\x00phoneme\x00" + recording.Phoneme
+		}
 	}
 	sort.Strings(paths)
 	hash := sha256.New()
@@ -418,6 +421,9 @@ func bankRecordings(bankRoot string, recordings []refmatch.Recording) ([]refmatc
 		}
 		files = append(files, recording)
 		fmt.Fprintf(hash, "%s\x00%d\x00%d\x00", recording.Path, info.Size(), info.ModTime().UnixNano())
+		if recording.Phoneme != "" {
+			fmt.Fprintf(hash, "phoneme\x00%s\x00", recording.Phoneme)
+		}
 		for _, region := range recording.Regions {
 			fmt.Fprintf(hash, "%g\x00%g\x00", region.Offset, region.Blank)
 		}
@@ -470,7 +476,7 @@ func (s *Service) SpeakReference(ctx context.Context, bankRoot string, recording
 }
 
 // SpeakAudioは参照の音声から、音源のフレームで合成し直す。言語に依存しない入口。
-func (s *Service) SpeakAudio(ctx context.Context, bankRoot string, recordings []refmatch.Recording, worldEnginePath string, audio []float64, sampleRate int) (Speech, error) {
+func (s *Service) SpeakAudio(ctx context.Context, bankRoot string, recordings []refmatch.Recording, worldEnginePath string, audio []float64, sampleRate int, options AudioOptions) (Speech, error) {
 	index, err := s.Index(ctx, bankRoot, recordings, worldEnginePath)
 	if err != nil {
 		return Speech{}, err
@@ -481,7 +487,7 @@ func (s *Service) SpeakAudio(ctx context.Context, bankRoot string, recordings []
 	}
 	s.foreground.RLock()
 	defer s.foreground.RUnlock()
-	return engine.SpeakAudio(index, world, audio, sampleRate)
+	return engine.SpeakAudio(index, world, audio, sampleRate, options)
 }
 
 // ReadProsodyは音素列をKokoroで読み、記号ごとの長さとF0を返す。音源と索引は使わない。

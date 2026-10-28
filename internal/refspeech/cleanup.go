@@ -56,9 +56,9 @@ func Cleanup(dir string) (CleanupResult, error) {
 			continue
 		}
 		path := filepath.Join(dir, entry.Name())
-		// 版か特徴量モデルが違う索引は、作り直しになるので消す。
+		// 読めない版か特徴量モデルが違う索引は、作り直しになるので消す。
 		header, err := refmatch.ReadHeader(path)
-		if err == nil && header.Version == refmatch.Version() && header.Model == FeatureModel {
+		if err == nil && (header.Version == refmatch.Version() || header.Version == 7 || header.Version == 6) && header.Model == FeatureModel {
 			continue
 		}
 		if info, statErr := entry.Info(); statErr == nil {

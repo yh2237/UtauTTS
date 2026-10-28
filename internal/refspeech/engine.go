@@ -188,6 +188,10 @@ func (e *Engine) Features(samples []float64, sampleRate int) ([]float32, int, in
 }
 
 type Options struct {
+	// FeatureModeはwavlm（空なら既定）またはcepstrum。
+	FeatureMode refmatch.FeatureMode
+	// ContinuityBonusは同じ録音の次の位置を優先する強さ。0なら従来どおり。
+	ContinuityBonus float64
 	// SpeedはKokoroの話速。1が標準。Durationsを指定したときは使わない。
 	Speed float32
 	// Durationsは入力記号ごとの長さ（Timing.Durationsと同じ並び）。nilならKokoroが予測する。
@@ -236,6 +240,13 @@ type Speech struct {
 	Timing
 	// F0は出力のF0（Hz、F0FrameMSごと、0は無声）。AutomaticF0は手動の抑揚を足す前のF0。
 	F0, AutomaticF0 []float64
+	// ReferenceVoicingはSpeakAudioの有声判定の補正前後のフレーム数。テキスト経路ではnil。
+	ReferenceVoicing *VoicingStats
+}
+
+// VoicingStatsは5msごとの参照F0の有声フレーム数。
+type VoicingStats struct {
+	Frames, Before, After int
 }
 
 // ReferenceはKokoroの読み。
@@ -377,7 +388,10 @@ func (e *Engine) Speak(id string, index *refmatch.Index, world refmatch.World, p
 // SpeakReferenceは、参照の読み（Reference）から、音源のフレームで合成し直す。
 // 参照TTSが何であっても、音声とF0があれば同じように合成できる。
 func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, reference Reference, options Options) (Speech, error) {
-	if index.Model != FeatureModel {
+	if err := options.FeatureMode.Validate(); err != nil {
+		return Speech{}, err
+	}
+	if options.FeatureMode != refmatch.FeatureCepstrum && index.Model != FeatureModel {
 		return Speech{}, fmt.Errorf("voicebank index uses %q, want %q", index.Model, FeatureModel)
 	}
 	rate := reference.SampleRate
@@ -391,13 +405,20 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 	var features []float32
 	var frames int
 	featuresFromCache := false
-	if reference.Key != "" {
+	if options.FeatureMode != refmatch.FeatureCepstrum && reference.Key != "" {
 		if cached := e.cachedFeatures(reference.Key); cached != nil {
 			features, frames = cached.values, cached.frames
 			featuresFromCache = true
 		}
 	}
 	featuresStarted := time.Now()
+	if options.FeatureMode == refmatch.FeatureCepstrum {
+		var err error
+		features, frames, _, err = analyzeCepstrum(index, world, samples, rate)
+		if err != nil {
+			return Speech{}, err
+		}
+	}
 	if features == nil {
 		SetStage("特徴量を計算しています")
 		var dims int
@@ -413,7 +434,11 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 	referenceF0 := refmatch.ReferenceF0(reference.F0, kokoroF0FrameMS, frames)
 	levels := refmatch.ReferenceLevels(samples, rate, frames*4)
 	// 長さの指定があれば、読み直さずに参照の時間軸を引き伸ばす。
-	features, referenceF0, levels, frames = warpSequence(options.Warp, reference.LeadingMS(), features, referenceF0, levels, index.Dims)
+	dims := index.Dims
+	if options.FeatureMode == refmatch.FeatureCepstrum {
+		dims = refmatch.CepstrumDims
+	}
+	features, referenceF0, levels, frames = warpSequence(options.Warp, reference.LeadingMS(), features, referenceF0, levels, dims)
 	// 参照TTSのF0は語尾で途切れることがある。音量がある区間は有声として扱う。
 	refmatch.FillVoicedByLevel(referenceF0, levels, -35)
 	automaticF0 := index.OutputF0(referenceF0, options.CenterHz, options.PitchScale)
@@ -438,10 +463,15 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 	}
 	synthesizeStarted := time.Now()
 	SetStage("照合と波形の合成をしています")
-	audio, err := index.Synthesize(world, refmatch.Request{
-		Features: features, Frames: frames, ReferenceF0: referenceF0, OutputF0: outF0,
-		ReferenceLevel: levels,
-	})
+	request := refmatch.Request{
+		FeatureMode: options.FeatureMode,
+		Features:    features, Frames: frames, ReferenceF0: referenceF0, OutputF0: outF0,
+		ReferenceLevel: levels, ContinuityBonus: options.ContinuityBonus,
+	}
+	if options.FeatureMode == refmatch.FeatureCepstrum {
+		request.Cepstrum, request.Features = features, nil
+	}
+	audio, err := synthesizeWithSelectStats(index, world, request, options.Logf)
 	if err != nil {
 		return Speech{}, err
 	}
@@ -458,12 +488,31 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 }
 
 // SpeakAudioは参照の音声から、音源のフレームで合成し直す。言語に依存しない入口。
-// 音素の並びや長さは使わず、参照の音声と、そこから測ったF0だけを使う。
-func (e *Engine) SpeakAudio(index *refmatch.Index, world refmatch.World, audio []float64, sampleRate int) (Speech, error) {
+// 参照の音声とF0を使う。TargetPhonemesを渡すと音素ごとに検索を絞る。
+func (e *Engine) SpeakAudio(index *refmatch.Index, world refmatch.World, audio []float64, sampleRate int, options AudioOptions) (Speech, error) {
+	if err := options.FeatureMode.Validate(); err != nil {
+		return Speech{}, err
+	}
+	if options.FeatureMode == refmatch.FeatureCepstrum {
+		features, frames, f0, referenceAP, err := analyzeCepstrumAP(index, world, audio, sampleRate, options.UseReferenceAP)
+		if err != nil {
+			return Speech{}, err
+		}
+		f0Values := make([]float32, len(f0))
+		for i, v := range f0 {
+			f0Values[i] = float32(v)
+		}
+		referenceF0 := refmatch.ReferenceF0(f0Values, refmatch.WorldFrameMS(), frames)
+		levels := refmatch.ReferenceLevels(audio, sampleRate, frames*4)
+		if !options.UseReferenceAP {
+			referenceAP = nil
+		}
+		return synthesizeAudioAP(index, world, features, frames, referenceF0, levels, referenceAP, options)
+	}
 	if index.Model != FeatureModel {
 		return Speech{}, fmt.Errorf("voicebank index uses %q, want %q", index.Model, FeatureModel)
 	}
-	f0, _, _, _, err := world.Analyze(audio, sampleRate, refmatch.FrameMS, 0.85)
+	f0, _, ap, fftSize, err := world.Analyze(audio, sampleRate, refmatch.FrameMS, 0.85)
 	if err != nil {
 		return Speech{}, fmt.Errorf("analyze reference: %w", err)
 	}
@@ -476,13 +525,13 @@ func (e *Engine) SpeakAudio(index *refmatch.Index, world refmatch.World, audio [
 		f0Values[i] = float32(v)
 	}
 	referenceF0 := refmatch.ReferenceF0(f0Values, refmatch.FrameMS, frames)
-	automaticF0 := index.OutputF0(referenceF0, 0, 1)
-	rendered, err := index.Synthesize(world, refmatch.Request{
-		Features: features, Frames: frames, ReferenceF0: referenceF0, OutputF0: automaticF0,
-		ReferenceLevel: refmatch.ReferenceLevels(audio, sampleRate, frames*4),
-	})
-	if err != nil {
-		return Speech{}, err
+	levels := refmatch.ReferenceLevels(audio, sampleRate, frames*4)
+	var referenceAP []float32
+	if options.UseReferenceAP {
+		referenceAP, err = referenceAPRows(ap, sampleRate, fftSize, refmatch.FrameMS, frames*refmatch.SubFrames())
+		if err != nil {
+			return Speech{}, err
+		}
 	}
-	return Speech{Audio: rendered, SampleRate: index.SampleRate, F0: automaticF0}, nil
+	return synthesizeAudioAP(index, world, features, frames, referenceF0, levels, referenceAP, options)
 }

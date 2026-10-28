@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -421,6 +422,11 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 
 	if err := contextError(ctx); err != nil {
 		return cliFailure("synthesis_error", err)
+	}
+	for _, line := range output.Logs {
+		if strings.HasPrefix(line, "SelectStats ") {
+			fmt.Fprintln(stderr, line)
+		}
 	}
 	duration := output.DurationMS / 1000
 	summary := stdout

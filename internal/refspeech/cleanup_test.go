@@ -37,7 +37,8 @@ func writeIndex(t *testing.T, dir, name string, version int, model string) strin
 func TestCleanupRemovesUnusableIndexes(t *testing.T) {
 	dir := t.TempDir()
 	current := writeIndex(t, dir, "current.idx", refmatch.Version(), FeatureModel)
-	oldVersion := writeIndex(t, dir, "old-version.idx", refmatch.Version()-1, FeatureModel)
+	compatible := writeIndex(t, dir, "v6.idx", 6, FeatureModel)
+	oldVersion := writeIndex(t, dir, "old-version.idx", 5, FeatureModel)
 	otherModel := writeIndex(t, dir, "other-model.idx", refmatch.Version(), "hubert-base-layer6")
 	broken := filepath.Join(dir, "broken.idx")
 	if err := os.WriteFile(broken, []byte("not an index"), 0o644); err != nil {
@@ -56,7 +57,7 @@ func TestCleanupRemovesUnusableIndexes(t *testing.T) {
 	if result.Indexes != 3 {
 		t.Fatalf("removed %d indexes, want 3", result.Indexes)
 	}
-	for _, path := range []string{current, keep} {
+	for _, path := range []string{current, compatible, keep} {
 		if _, err := os.Stat(path); err != nil {
 			t.Errorf("%s should remain: %v", filepath.Base(path), err)
 		}
