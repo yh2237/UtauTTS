@@ -70,7 +70,6 @@ Item {
         {key: "resampler_volume", code: "VOL"}
     ]
     readonly property real exprLaneH: 22
-    readonly property real exprAreaH: root.exprLanes.length * root.exprLaneH + 8
     property var hoveredExpr: ({u: -1, l: -1})
 
     function noteCenterY() {
@@ -232,23 +231,10 @@ Item {
             / Math.max(1, root.timelineDuration * root.pixelsPerMs)
     readonly property real minimumZoom: Math.min(1, root.fitZoom)
     readonly property real maximumZoom: 24
-    readonly property real displayDuration: Math.max(1, Number(root.waveformDuration) || 1)
     readonly property real timelineDuration: root.gesture ? root.gestureDuration : root.contentDuration
     readonly property var selectedUnit: root.unitAt(root.selectedUnitIndex)
     readonly property real msPerZoomStep: 1.25
     readonly property int dragSnapMs: 10
-    readonly property var unitOptions: {
-        const values = [];
-        for (let index = 0; index < root.units.length; ++index) {
-            const unit = root.units[index];
-            const name = root.displayName(unit);
-            values.push({
-                label: (index + 1) + ": " + (name.length ? name : "(silent)"),
-                index: index
-            });
-        }
-        return values;
-    }
 
     function unitAt(index) {
         return EditorValues.unitAt(root.units, index);
