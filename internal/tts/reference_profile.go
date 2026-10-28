@@ -1,51 +1,52 @@
+//go:build !js
+
 package tts
 
 import (
+	"fmt"
+
 	"github.com/yh2237/UtauTTS/internal/frontend"
-	"github.com/yh2237/UtauTTS/internal/prosody"
-	"github.com/yh2237/UtauTTS/internal/render"
+	"github.com/yh2237/UtauTTS/internal/refspeech"
 )
 
-// referenceProfileは、参照照合で読む言語（英語、中国語、スペイン語、ポルトガル語）。
-// 長さと抑揚は参照TTSの読みから決めるので、原音接続用の処理は持たない。
-type referenceProfile struct {
-	language string
-	parse    func(cfg Config, phonemizer string) (string, []frontend.Mora, error)
+type referenceMatchingProfile struct {
+	provider   func(Config, *refspeech.Service) (refspeech.Provider, error)
+	reading    func(string, []frontend.Mora) string
+	moraTokens func([]refspeech.Piece, refspeech.Timing, string, []frontend.Mora) [][]int
 }
 
-func (p referenceProfile) Language() string { return p.language }
-
-func (p referenceProfile) ParsePronunciation(cfg Config, phonemizer string) (string, []frontend.Mora, error) {
-	return p.parse(cfg, phonemizer)
-}
-
-func (referenceProfile) ApplySpeechProfile(*Config) {}
-
-func (referenceProfile) SupportsStretchAdapt() bool { return false }
-
-func (referenceProfile) PhoneTiming(Config, []frontend.Mora, bool) ([][]float64, string) {
-	return nil, ""
-}
-
-func (referenceProfile) Predict(morae []frontend.Mora) []prosody.Prediction {
-	return make([]prosody.Prediction, len(morae))
-}
-
-func (referenceProfile) AdjustPredictions(_ Config, _ *prosody.Model, _ []frontend.Mora, predictions []prosody.Prediction, _ []prosody.FeatureFrame) []prosody.Prediction {
-	return predictions
-}
-
-func (referenceProfile) AutomaticPitchCurve(Config, *prosody.Model, []frontend.Mora, []prosody.MoraTiming, float64) (*render.PitchCurve, bool) {
-	return nil, false
-}
-
-func (referenceProfile) ApplyBoundaryTone(_ Config, curve *render.PitchCurve, _ float64, _ bool) *render.PitchCurve {
-	return curve
-}
-
-// parseSyllableLanguageは、音節を1モーラにして読む言語（スペイン語、ポルトガル語）の読みを返す。
-func parseSyllableLanguage(language string) func(Config, string) (string, []frontend.Mora, error) {
-	return func(cfg Config, phonemizer string) (string, []frontend.Mora, error) {
-		return frontend.ParseSyllableLanguage(language, phonemizer, cfg.Text, cfg.Reading, cfg.Dictionary)
+func referenceProfileFor(language string) referenceMatchingProfile {
+	profile := referenceMatchingProfile{
+		provider: func(Config, *refspeech.Service) (refspeech.Provider, error) {
+			return nil, fmt.Errorf("reference synthesis is not available for %q", language)
+		},
+		reading: func(reading string, _ []frontend.Mora) string { return reading },
+		moraTokens: func(pieces []refspeech.Piece, timing refspeech.Timing, _ string, morae []frontend.Mora) [][]int {
+			return simpleMoraTokens(pieces, timing, morae)
+		},
 	}
+	switch normalized := frontend.NormalizeLanguage(language); normalized {
+	case frontend.LanguageChinese:
+		profile.provider = func(_ Config, service *refspeech.Service) (refspeech.Provider, error) {
+			return refspeech.NewKokoroChineseProvider(service), nil
+		}
+		profile.reading = chineseSurfaceReading
+	case frontend.LanguageSpanish, frontend.LanguagePortuguese:
+		profile.provider = func(_ Config, service *refspeech.Service) (refspeech.Provider, error) {
+			return refspeech.NewKokoroSyllableProvider(service, normalized), nil
+		}
+		profile.moraTokens = func(pieces []refspeech.Piece, timing refspeech.Timing, _ string, morae []frontend.Mora) [][]int {
+			return partMoraTokens(pieces, timing, morae)
+		}
+	case frontend.LanguageEnglish:
+		profile.provider = func(cfg Config, service *refspeech.Service) (refspeech.Provider, error) {
+			lexicon, err := englishLexicon(cfg.ReferenceDir)
+			if err != nil {
+				return nil, err
+			}
+			return refspeech.NewKokoroProvider(service, lexicon, cfg.Dictionary), nil
+		}
+		profile.moraTokens = englishMoraTokens
+	}
+	return profile
 }

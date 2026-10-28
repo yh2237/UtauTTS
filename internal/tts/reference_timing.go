@@ -53,11 +53,5 @@ func partMoraTokens(pieces []refspeech.Piece, timing refspeech.Timing, morae []f
 
 // referenceMoraTokensは、言語に合った割り当て方で、Kokoroの入力記号をモーラへ割り当てる。
 func referenceMoraTokens(language string, pieces []refspeech.Piece, timing refspeech.Timing, reading string, morae []frontend.Mora) [][]int {
-	switch frontend.NormalizeLanguage(language) {
-	case frontend.LanguageEnglish:
-		return englishMoraTokens(pieces, timing, reading, morae)
-	case frontend.LanguageSpanish, frontend.LanguagePortuguese:
-		return partMoraTokens(pieces, timing, morae)
-	}
-	return simpleMoraTokens(pieces, timing, morae)
+	return referenceProfileFor(language).moraTokens(pieces, timing, reading, morae)
 }

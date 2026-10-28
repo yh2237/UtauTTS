@@ -113,7 +113,7 @@ func referenceInputs(cfg Config, language, reading string) (*refspeech.Service, 
 	if err != nil {
 		return nil, nil, nil, refspeech.Options{}, err
 	}
-	provider, err := referenceProvider(cfg, language, reading, service)
+	provider, err := referenceProfileFor(language).provider(cfg, service)
 	if err != nil {
 		return nil, nil, nil, refspeech.Options{}, err
 	}
@@ -132,23 +132,6 @@ func referenceInputs(cfg Config, language, reading string) (*refspeech.Service, 
 		return nil, nil, nil, refspeech.Options{}, err
 	}
 	return service, provider, pieces, options, nil
-}
-
-// referenceProviderは、言語に合う参照TTSを返す。
-func referenceProvider(cfg Config, language, reading string, service *refspeech.Service) (refspeech.Provider, error) {
-	switch frontend.NormalizeLanguage(language) {
-	case frontend.LanguageChinese:
-		return refspeech.NewKokoroChineseProvider(service), nil
-	case frontend.LanguageSpanish, frontend.LanguagePortuguese:
-		return refspeech.NewKokoroSyllableProvider(service, frontend.NormalizeLanguage(language)), nil
-	case frontend.LanguageEnglish:
-		lexicon, err := englishLexicon(cfg.ReferenceDir)
-		if err != nil {
-			return nil, err
-		}
-		return refspeech.NewKokoroProvider(service, lexicon, cfg.Dictionary), nil
-	}
-	return nil, fmt.Errorf("reference synthesis is not available for %q", language)
 }
 
 // englishManualPitchは手動の抑揚を、最初のモーラの始まりからのミリ秒ごとのセントにする。
@@ -191,12 +174,9 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	}
 	started := time.Now()
 	// 参照TTSへは、連続変調を反映した読みを渡す。編集画面などに出す読みは辞書の声調のまま。
-	referenceReading := reading
-	if frontend.NormalizeLanguage(language) == frontend.LanguageChinese {
-		referenceReading = chineseSurfaceReading(reading, morae)
-		if referenceReading != reading {
-			log(fmt.Sprintf("参照の読み: %s", referenceReading))
-		}
+	referenceReading := referenceProfileFor(language).reading(reading, morae)
+	if referenceReading != reading {
+		log(fmt.Sprintf("参照の読み: %s", referenceReading))
 	}
 	service, provider, pieces, options, err := referenceInputs(cfg, language, referenceReading)
 	if err != nil {
@@ -288,10 +268,7 @@ func predictReference(cfg Config, language, reading string, morae []frontend.Mor
 	if err := plan.ValidateMoraDurations(morae, cfg.MoraDurationsMS); err != nil {
 		return nil, err
 	}
-	referenceReading := reading
-	if frontend.NormalizeLanguage(language) == frontend.LanguageChinese {
-		referenceReading = chineseSurfaceReading(reading, morae)
-	}
+	referenceReading := referenceProfileFor(language).reading(reading, morae)
 	_, provider, pieces, options, err := referenceInputs(cfg, language, referenceReading)
 	if err != nil {
 		return nil, fmt.Errorf("reference prosody: %w", err)
