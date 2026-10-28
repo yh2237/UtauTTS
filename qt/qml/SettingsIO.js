@@ -43,3 +43,32 @@ function applySettings(draft, backend) {
                                  draft.undoShortcut,
                                  draft.redoShortcut);
 }
+
+// loadCurrentは、バックエンドの設定を編集中の値へ読み込む。
+// validは既定の音源とモデルが今も使えるかを確かめる関数を持つ。
+function loadCurrent(draft, backend, valid) {
+    draft.defaultVoicebankId = valid.voicebank(backend.defaultVoicebankId);
+    draft.defaultModelId = valid.model(backend.defaultModelId);
+    draft.defaultAliasPolicy = backend.defaultAliasPolicy;
+    draft.defaultTone = backend.defaultTone;
+    draft.exportTextWithWav = backend.exportTextWithWav;
+    draft.exportLabWithWav = backend.exportLabWithWav;
+    draft.exportTextEncoding = backend.exportTextEncoding;
+    draft.darkMode = backend.darkMode;
+    draft.language = backend.language;
+    draft.ffmpegPath = backend.ffmpegPath;
+    draft.audioOutputDeviceId = backend.audioOutputDeviceId;
+    draft.closeLogOnSuccess = backend.closeLogOnSuccess;
+    draft.updateCheckEnabled = backend.updateCheckEnabled;
+    draft.preReleaseUpdateCheckEnabled = backend.preReleaseUpdateCheckEnabled;
+    draft.previewCacheFileCount = backend.previewCacheFileCount;
+    draft.autoPreviewEnabled = backend.autoPreviewEnabled;
+    draft.extendedDetailsVisible = backend.extendedDetailsVisible;
+    draft.synthesizeShortcut = backend.synthesizeShortcut;
+    draft.saveProjectShortcut = backend.saveProjectShortcut;
+    draft.reloadVoicebanksShortcut = backend.reloadVoicebanksShortcut;
+    draft.addUtteranceShortcut = backend.addUtteranceShortcut;
+    draft.removeUtteranceShortcut = backend.removeUtteranceShortcut;
+    draft.undoShortcut = backend.undoShortcut;
+    draft.redoShortcut = backend.redoShortcut;
+}

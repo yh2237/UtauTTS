@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
+import "../SettingsIO.js" as SettingsIO
 import UtauTTS.Platform 1.0
 
 Item {
@@ -237,30 +238,10 @@ Item {
     }
 
     function loadCurrent() {
-        pendingDefaultVoicebankId = root.validDefaultVoicebankId(root.backend.defaultVoicebankId);
-        pendingDefaultModelId = root.validDefaultModelId(root.backend.defaultModelId);
-        pendingDefaultAliasPolicy = root.backend.defaultAliasPolicy;
-        pendingDefaultTone = root.backend.defaultTone;
-        pendingExportTextWithWav = root.backend.exportTextWithWav;
-        pendingExportLabWithWav = root.backend.exportLabWithWav;
-        pendingExportTextEncoding = root.backend.exportTextEncoding;
-        pendingDarkMode = root.backend.darkMode;
-        pendingLanguage = root.backend.language;
-        pendingFfmpegPath = root.backend.ffmpegPath;
-        pendingAudioOutputDeviceId = root.backend.audioOutputDeviceId;
-        pendingCloseLogOnSuccess = root.backend.closeLogOnSuccess;
-        pendingUpdateCheckEnabled = root.backend.updateCheckEnabled;
-        pendingPreReleaseUpdateCheckEnabled = root.backend.preReleaseUpdateCheckEnabled;
-        pendingPreviewCacheFileCount = root.backend.previewCacheFileCount;
-        pendingAutoPreviewEnabled = root.backend.autoPreviewEnabled;
-        pendingExtendedDetailsVisible = root.backend.extendedDetailsVisible;
-        pendingSynthesizeShortcut = root.backend.synthesizeShortcut;
-        pendingSaveProjectShortcut = root.backend.saveProjectShortcut;
-        pendingReloadVoicebanksShortcut = root.backend.reloadVoicebanksShortcut;
-        pendingAddUtteranceShortcut = root.backend.addUtteranceShortcut;
-        pendingRemoveUtteranceShortcut = root.backend.removeUtteranceShortcut;
-        pendingUndoShortcut = root.backend.undoShortcut;
-        pendingRedoShortcut = root.backend.redoShortcut;
+        SettingsIO.loadCurrent(draftObject, root.backend, {
+            voicebank: value => root.validDefaultVoicebankId(value),
+            model: value => root.validDefaultModelId(value)
+        });
     }
 
     function resetDefaultVoicebank() {
