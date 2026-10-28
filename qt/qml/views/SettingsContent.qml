@@ -1133,6 +1133,7 @@ Item {
 
                 Item {
                     id: referenceIndexesSettingsPage
+                    readonly property var columnWidths: [160, 140, 48, 80, 160]
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -1160,78 +1161,82 @@ Item {
                             to: 1
                             value: root.backend.referenceIndexProgress
                         }
-                        ScrollView {
-                            id: referenceIndexScroll
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.rightMargin: root.compact ? 0 : 16
+                            spacing: root.compact ? 8 : 4
+
+                            Repeater {
+                                model: ["voicebank", "model", "version", "size", "modified"]
+                                delegate: Label {
+                                    required property int index
+                                    required property string modelData
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
+                                    Layout.preferredWidth: referenceIndexesSettingsPage.columnWidths[index]
+                                    text: root.translator.tr("settings.referenceIndexes." + modelData)
+                                    font.bold: true
+                                    elide: Text.ElideRight
+                                }
+                            }
+                            Item {
+                                Layout.preferredWidth: 80
+                                Layout.minimumWidth: 80
+                                Layout.maximumWidth: 80
+                            }
+                        }
+                        ListView {
+                            id: referenceIndexList
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            rightPadding: 12
-                            contentWidth: referenceIndexTable.width
-                            contentHeight: referenceIndexTable.implicitHeight
                             clip: true
+                            spacing: 2
+                            model: root.backend.referenceIndexes
+                            ScrollBar.vertical: ScrollBar {
+                                policy: root.compact ? ScrollBar.AlwaysOff : ScrollBar.AlwaysOn
+                            }
 
-                            ColumnLayout {
-                                id: referenceIndexTable
-                                width: Math.max(referenceIndexScroll.availableWidth, 800)
-                                spacing: 4
-                                readonly property var columnWidths: [160, 140, 48, 80, 160]
+                            delegate: RowLayout {
+                                id: referenceIndexRow
+                                required property var modelData
+                                width: Math.max(0, referenceIndexList.width - (root.compact ? 0 : 16))
+                                height: root.compact ? 48 : 36
+                                spacing: root.compact ? 8 : 4
 
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Repeater {
-                                        model: ["voicebank", "model", "version", "size", "modified"]
-                                        delegate: Label {
-                                            required property int index
-                                            required property string modelData
-                                            Layout.fillWidth: index === 0
-                                            Layout.minimumWidth: referenceIndexTable.columnWidths[index]
-                                            Layout.preferredWidth: referenceIndexTable.columnWidths[index]
-                                            text: root.translator.tr("settings.referenceIndexes." + modelData)
-                                            font.bold: true
-                                        }
-                                    }
-                                    Item { Layout.preferredWidth: 80 }
-                                }
                                 Repeater {
-                                    model: root.backend.referenceIndexes
-                                    delegate: RowLayout {
-                                        id: referenceIndexRow
-                                        required property var modelData
+                                    model: [
+                                        root.referenceIndexVoicebankName(referenceIndexRow.modelData.voicebank),
+                                        String(referenceIndexRow.modelData.model || ""),
+                                        String(referenceIndexRow.modelData.version ?? ""),
+                                        root.translator.tr("settings.referenceIndexes.sizeMb",
+                                            (Number(referenceIndexRow.modelData.size_bytes || 0) / (1024 * 1024)).toFixed(1)),
+                                        Qt.formatDateTime(new Date(Number(referenceIndexRow.modelData.modified_ms)),
+                                            Qt.DefaultLocaleShortDate)
+                                    ]
+                                    delegate: Label {
+                                        required property int index
+                                        required property string modelData
                                         Layout.fillWidth: true
-
-                                        Repeater {
-                                            model: [
-                                                root.referenceIndexVoicebankName(referenceIndexRow.modelData.voicebank),
-                                                String(referenceIndexRow.modelData.model || ""),
-                                                String(referenceIndexRow.modelData.version ?? ""),
-                                                root.translator.tr("settings.referenceIndexes.sizeMb",
-                                                    (Number(referenceIndexRow.modelData.size_bytes || 0) / (1024 * 1024)).toFixed(1)),
-                                                Qt.formatDateTime(new Date(Number(referenceIndexRow.modelData.modified_ms)),
-                                                    Qt.DefaultLocaleShortDate)
-                                            ]
-                                            delegate: Label {
-                                                required property int index
-                                                required property string modelData
-                                                Layout.fillWidth: index === 0
-                                                Layout.minimumWidth: referenceIndexTable.columnWidths[index]
-                                                Layout.preferredWidth: referenceIndexTable.columnWidths[index]
-                                                Layout.maximumWidth: index === 0 ? Number.POSITIVE_INFINITY
-                                                        : referenceIndexTable.columnWidths[index]
-                                                text: modelData
-                                                elide: Text.ElideRight
-                                            }
-                                        }
-                                        Button {
-                                            Layout.preferredWidth: 80
-                                            text: root.translator.tr("settings.referenceIndexes.delete")
-                                            enabled: !root.backend.busy && !root.backend.referenceIndexBuilding
-                                            onClicked: root.backend.deleteReferenceIndex(String(referenceIndexRow.modelData.name))
-                                        }
+                                        Layout.minimumWidth: 0
+                                        Layout.preferredWidth: referenceIndexesSettingsPage.columnWidths[index]
+                                        text: modelData
+                                        elide: Text.ElideRight
                                     }
                                 }
-                                Label {
-                                    visible: root.backend.referenceIndexes.length === 0
-                                    text: root.translator.tr("settings.referenceIndexes.empty")
+                                Button {
+                                    Layout.preferredWidth: 80
+                                    Layout.minimumWidth: 80
+                                    Layout.maximumWidth: 80
+                                    text: root.translator.tr("settings.referenceIndexes.delete")
+                                    enabled: !root.backend.busy && !root.backend.referenceIndexBuilding
+                                    onClicked: root.backend.deleteReferenceIndex(String(referenceIndexRow.modelData.name))
                                 }
+                            }
+                            Label {
+                                width: referenceIndexList.width
+                                visible: referenceIndexList.count === 0
+                                text: root.translator.tr("settings.referenceIndexes.empty")
+                                wrapMode: Text.WordWrap
                             }
                         }
                     }
