@@ -31,6 +31,8 @@ GUI版の初期音源「足立レイ ver3.5.0」は、UtauTTS本体とは独立�
 
 Qt、WORLD、Open JTalk、Go依存ライブラリ、外部FFmpeg等には、各開発元が定めるライセンスが適用されます。ライセンス全文は [`licenses/`](./licenses/)、概要は [第三者通知](./THIRD_PARTY_NOTICES.txt) に記載されています。また、互換処理にあたって参照した公開コードは [第三者コードの出典](./docs/third-party-provenance.md) を参照してください。
 
+`licenses/Qt/GPL-3.0.txt`は、Qtが使うLGPLv3がGPLv3の条項を参照しているために同梱しているものです。UtauTTS本体のMIT Licenseは変わりません。
+
 ## リリースパッケージの構成
 
 - **GUI版**: モデル、ランタイム、ライセンス文書、初期ボイスバンク、プラットフォーム固有の通知
