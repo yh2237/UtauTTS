@@ -32,9 +32,7 @@ function applySettings(draft, backend) {
     backend.setAutoPreviewEnabled(draft.autoPreviewEnabled);
     backend.setExtendedDetailsVisible(draft.extendedDetailsVisible);
     backend.setDefaultVoicebank(draft.defaultVoicebankId);
-    backend.setExportSettings(draft.exportTextWithWav,
-                             draft.exportLabWithWav,
-                             draft.exportTextEncoding);
+    backend.setExportTextEncoding(draft.exportTextEncoding);
     backend.setShortcutSequences(draft.synthesizeShortcut,
                                  draft.saveProjectShortcut,
                                  draft.reloadVoicebanksShortcut,
@@ -51,8 +49,6 @@ function loadCurrent(draft, backend, valid) {
     draft.defaultModelId = valid.model(backend.defaultModelId);
     draft.defaultAliasPolicy = backend.defaultAliasPolicy;
     draft.defaultTone = backend.defaultTone;
-    draft.exportTextWithWav = backend.exportTextWithWav;
-    draft.exportLabWithWav = backend.exportLabWithWav;
     draft.exportTextEncoding = backend.exportTextEncoding;
     draft.darkMode = backend.darkMode;
     draft.language = backend.language;
@@ -78,8 +74,6 @@ const defaults = {
     defaultVoicebankId: "",
     defaultAliasPolicy: "auto",
     defaultTone: "",
-    exportTextWithWav: false,
-    exportLabWithWav: false,
     exportTextEncoding: "utf-8",
     darkMode: false,
     language: "auto",

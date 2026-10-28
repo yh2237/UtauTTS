@@ -119,7 +119,7 @@ function handlePreviewReady(ctx) {
                 : host.appBackend.defaultSaveFile(fileName);
         host.pendingUtteranceId = "";
         host.pendingRevision = -1;
-        if (!destination.toString().length || !host.appBackend.savePreview(destination)) {
+        if (!destination.toString().length || !host.appBackend.savePreview(destination, host.batchExportWithSidecars)) {
             host.finishBatchExport(false);
             return;
         }
@@ -146,7 +146,7 @@ function handlePreviewReady(ctx) {
             ctx.saveDialog.currentFile = audioDestination;
             ctx.saveDialog.open();
         } else {
-            host.appBackend.savePreview(audioDestination);
+            host.appBackend.savePreview(audioDestination, host.saveWithSidecars);
         }
         return;
     }

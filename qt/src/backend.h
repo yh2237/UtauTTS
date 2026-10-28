@@ -150,7 +150,7 @@ public:
                                    const QString &voicebankId);
     Q_INVOKABLE void predictProsody(const QVariantMap &request);
     Q_INVOKABLE void synthesize(const QVariantMap &request);
-    Q_INVOKABLE bool savePreview(const QUrl &destination);
+    Q_INVOKABLE bool savePreview(const QUrl &destination, bool withSidecars = false);
     Q_INVOKABLE bool startFileDrag(const QVariantList &files);
     Q_INVOKABLE QUrl writeDragExo(const QUrl &directory, const QVariantList &files, int frameRate);
     Q_INVOKABLE QUrl defaultSaveFile(const QString &fileName) const;
@@ -195,7 +195,8 @@ public:
     Q_INVOKABLE QVariant synthesisSetting(const QString &settingId, const QVariant &fallback = {}) const;
     Q_INVOKABLE void setSynthesisSetting(const QString &settingId, const QVariant &value);
     Q_INVOKABLE void setDefaultVoicebank(const QString &value);
-    Q_INVOKABLE void setExportSettings(bool writeText, bool writeLab, const QString &textEncoding);
+    void setExportSettings(bool writeText, bool writeLab, const QString &textEncoding);
+    Q_INVOKABLE void setExportTextEncoding(const QString &textEncoding);
     Q_INVOKABLE void setShortcutSequences(const QString &synthesize,
                                           const QString &saveProject,
                                           const QString &reloadVoicebanks,

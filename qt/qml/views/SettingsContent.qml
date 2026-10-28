@@ -28,8 +28,6 @@ Item {
     property alias pendingDefaultModelId: draftObject.defaultModelId
     property alias pendingDefaultAliasPolicy: draftObject.defaultAliasPolicy
     property alias pendingDefaultTone: draftObject.defaultTone
-    property alias pendingExportTextWithWav: draftObject.exportTextWithWav
-    property alias pendingExportLabWithWav: draftObject.exportLabWithWav
     property alias pendingExportTextEncoding: draftObject.exportTextEncoding
     property alias pendingDarkMode: draftObject.darkMode
     property alias pendingLanguage: draftObject.language
@@ -266,9 +264,7 @@ Item {
     function resetDefaultModel() { SettingsIO.reset(draftObject, "defaultModelId", root.backend); }
     function resetDefaultTone() { SettingsIO.reset(draftObject, "defaultTone"); }
     function resetPreviewCacheFileCount() { SettingsIO.reset(draftObject, "previewCacheFileCount"); }
-    function resetExportTextWithWav() { SettingsIO.reset(draftObject, "exportTextWithWav"); }
     function resetExportTextEncoding() { SettingsIO.reset(draftObject, "exportTextEncoding"); }
-    function resetExportLabWithWav() { SettingsIO.reset(draftObject, "exportLabWithWav"); }
     function resetTheme() { SettingsIO.reset(draftObject, "darkMode"); }
     function resetLanguage() { SettingsIO.reset(draftObject, "language"); }
     function resetFfmpegPath() { SettingsIO.reset(draftObject, "ffmpegPath"); }
@@ -687,29 +683,11 @@ Item {
                             Layout.fillWidth: true
                             Label {
                                 Layout.fillWidth: true
-                                text: root.translator.tr("settings.exportTextWithWav")
-                            }
-                            Switch {
-                                id: exportTextWithWavSwitch
-                                checked: root.pendingExportTextWithWav
-                                onToggled: root.pendingExportTextWithWav = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetExportTextWithWav()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
                                 text: root.translator.tr("settings.exportTextEncoding")
                             }
                             ComboBox {
                                 id: exportTextEncodingCombo
                                 Layout.preferredWidth: 180
-                                enabled: root.pendingExportTextWithWav
                                 model: ["UTF-8", "Shift_JIS (CP932)"]
                                 currentIndex: root.pendingExportTextEncoding === "shift_jis" ? 1 : 0
                                 onActivated: root.pendingExportTextEncoding = currentIndex === 1 ? "shift_jis" : "utf-8"
@@ -720,22 +698,6 @@ Item {
                             }
                         }
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.exportLabWithWav")
-                            }
-                            Switch {
-                                id: exportLabWithWavSwitch
-                                checked: root.pendingExportLabWithWav
-                                onToggled: root.pendingExportLabWithWav = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetExportLabWithWav()
-                            }
-                        }
                     }
                 }
 

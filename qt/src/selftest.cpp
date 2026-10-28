@@ -370,6 +370,31 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
             || !require(labelValid, QStringLiteral("label sidecar is invalid")))
         return 1;
 
+    for (int flags = 0; flags < 4; ++flags) {
+        for (const bool withSidecars : {false, true}) {
+            const bool writeText = flags & 1;
+            const bool writeLab = flags & 2;
+            backend.setExportSettings(writeText, writeLab, QStringLiteral("utf-8"));
+            backend.setExportTextEncoding(QStringLiteral("shift_jis"));
+            const QString base = QStringLiteral("sidecars-%1-%2").arg(flags).arg(withSidecars);
+            const bool saved = backend.savePreview(
+                    QUrl::fromLocalFile(temporary.filePath(base + QStringLiteral(".wav"))), withSidecars);
+            const QString error = backend.error();
+            const bool settingsUnchanged = backend.exportTextWithWav() == writeText
+                    && backend.exportLabWithWav() == writeLab
+                    && backend.exportTextEncoding() == QStringLiteral("shift_jis");
+            const bool expectedFiles = QFileInfo::exists(temporary.filePath(base + QStringLiteral(".txt")))
+                            == (withSidecars || writeText)
+                    && QFileInfo::exists(temporary.filePath(base + QStringLiteral(".lab")))
+                            == (withSidecars || writeLab);
+            backend.setExportSettings(previousExportText, previousExportLab, previousExportEncoding);
+            if (!require(saved, error)
+                    || !require(expectedFiles, QStringLiteral("sidecar export did not respect the request and settings"))
+                    || !require(settingsUnchanged, QStringLiteral("sidecar export changed persistent settings")))
+                return 1;
+        }
+    }
+
     const QUrl exoURL = backend.writeDragExo(QUrl::fromLocalFile(temporary.path()), QVariantList{wavURL}, 30);
     if (!require(exoURL.isLocalFile() && QFileInfo::exists(exoURL.toLocalFile()),
                  QStringLiteral("exo export failed: ") + backend.error()))

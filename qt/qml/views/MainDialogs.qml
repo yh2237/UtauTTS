@@ -31,12 +31,12 @@ Item {
         fileMode: FileDialog.SaveFile
         nameFilters: [host.translator.tr("main.wavFilter")]
         defaultSuffix: "wav"
-        onAccepted: host.appBackend.savePreview(selectedFile)
+        onAccepted: host.appBackend.savePreview(selectedFile, host.saveWithSidecars)
     }
 
     FolderDialog {
         id: saveAllDialog
-        onAccepted: host.startBatchExport(selectedFolder)
+        onAccepted: host.startBatchExport(selectedFolder, host.saveAllWithSidecars)
     }
 
     FolderDialog {

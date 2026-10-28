@@ -73,6 +73,16 @@ MenuBar {
                 onTriggered: root.host.openSaveAllDialog()
             }
             GrayscaleMenuItem {
+                text: root.host.translator.tr("menu.file.saveWavWithSidecars")
+                enabled: utterances.count > 0 && !root.host.appBackend.busy && !root.host.batchExportActive && root.host.current().reading.length > 0
+                onTriggered: root.host.saveCurrentAudio(true)
+            }
+            GrayscaleMenuItem {
+                text: root.host.translator.tr("menu.file.saveAllWavWithSidecars")
+                enabled: !root.host.appBackend.busy && !root.host.batchExportActive && root.host.hasPlayableTextFrom(0)
+                onTriggered: root.host.openSaveAllDialog(true)
+            }
+            GrayscaleMenuItem {
                 text: root.host.translator.tr("menu.file.exportUstx")
                 enabled: utterances.count > 0 && !root.host.appBackend.busy && !root.host.batchExportActive
                 onTriggered: root.host.openUstxExportDialog()

@@ -869,6 +869,10 @@ void Backend::setPreviewCacheFileCount(int value) {
     emit cacheSettingsChanged();
 }
 
+void Backend::setExportTextEncoding(const QString &textEncoding) {
+    setExportSettings(m_exportTextWithWav, m_exportLabWithWav, textEncoding);
+}
+
 void Backend::setExportSettings(bool writeText, bool writeLab, const QString &textEncoding) {
     const QString normalizedEncoding = textEncoding.trimmed().toLower() == QStringLiteral("shift_jis")
             ? QStringLiteral("shift_jis") : QStringLiteral("utf-8");
@@ -2015,7 +2019,9 @@ void Backend::clearPreviewCache() {
     emit synthesisChanged();
 }
 
-bool Backend::savePreview(const QUrl &destination) {
+bool Backend::savePreview(const QUrl &destination, bool withSidecars) {
+    const bool writeText = withSidecars || m_exportTextWithWav;
+    const bool writeLab = withSidecars || m_exportLabWithWav;
 #ifdef UTAUTTS_WASM
     if (m_previewPath.isEmpty()) {
         setError(tr("保存できるプレビュー音声がありません"));
@@ -2032,11 +2038,9 @@ bool Backend::savePreview(const QUrl &destination) {
         }
         wasmDownloadBytes(name, data);
     }
-    if (m_exportTextWithWav || m_exportLabWithWav) {
+    if (writeText || writeLab) {
         const QString sidecarBase = m_previewPath.left(m_previewPath.lastIndexOf('.'));
         const QString downloadBase = name.left(name.lastIndexOf('.'));
-        const bool writeText = m_exportTextWithWav;
-        const bool writeLab = m_exportLabWithWav;
         callAsync("writeSidecars", QVariantMap{
             {"wav_path", m_previewPath},
             {"text", m_previewText},
@@ -2090,15 +2094,15 @@ bool Backend::savePreview(const QUrl &destination) {
         setError(tr("WAVを保存できませんでした"));
         return false;
     }
-    if (m_exportTextWithWav || m_exportLabWithWav) {
+    if (writeText || writeLab) {
         try {
             call("writeSidecars", QVariantMap{
                 {"wav_path", destination.toLocalFile()},
                 {"text", m_previewText},
                 {"lab", m_previewLab},
                 {"encoding", m_exportTextEncoding},
-                {"write_text", m_exportTextWithWav},
-                {"write_lab", m_exportLabWithWav},
+                {"write_text", writeText},
+                {"write_lab", writeLab},
             });
         } catch (const std::exception &exception) {
             setError(tr("付随するTXT／LABファイルを保存できませんでした: %1")

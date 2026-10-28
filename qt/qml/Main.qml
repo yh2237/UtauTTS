@@ -217,6 +217,9 @@ ApplicationWindow {
     property int pendingProsodyPreviewIndex: -1
     property bool pendingProsodyPreviewRefresh: false
     property bool saveRequestPending: false
+    property bool saveWithSidecars: false
+    property bool saveAllWithSidecars: false
+    property bool batchExportWithSidecars: false
     property bool playbackRequested: false
     property string playbackError: ""
     property bool batchExportActive: false
@@ -1102,11 +1105,12 @@ ApplicationWindow {
 
     function dragAudioFileName(item, index) { return core.dragAudioFileName(item, index); }
 
-    function saveCurrentAudio() {
+    function saveCurrentAudio(withSidecars) {
         if (!utterances.count || window.appBackend.busy || window.batchExportActive || !window.current().reading.length)
             return;
         const item = window.current();
         window.clearPlayback();
+        window.saveWithSidecars = withSidecars === true;
         window.saveRequestPending = true;
         window.pendingUtteranceId = item.utteranceId;
         window.pendingRevision = item.revision;
@@ -1115,13 +1119,14 @@ ApplicationWindow {
         window.appBackend.synthesize(window.buildSynthesisRequest(item));
     }
 
-    function openSaveAllDialog() {
+    function openSaveAllDialog(withSidecars) {
         if (!utterances.count || window.appBackend.busy || window.batchExportActive)
             return;
+        window.saveAllWithSidecars = withSidecars === true;
         if (Platform.hasNativeFileDialog) {
             dialogs.saveAllDialog.open();
         } else {
-            window.startBatchExport(window.appBackend.defaultSaveFile("utautts.wav"));
+            window.startBatchExport(window.appBackend.defaultSaveFile("utautts.wav"), window.saveAllWithSidecars);
         }
     }
 
@@ -2364,11 +2369,12 @@ ApplicationWindow {
         return queue;
     }
 
-    function beginBatchExport(directory, mode, queue) {
+    function beginBatchExport(directory, mode, queue, withSidecars) {
         if (!directory || !directory.toString().length || !queue.length || window.appBackend.busy)
             return;
         window.batchExportDirectory = directory;
         window.batchExportMode = mode;
+        window.batchExportWithSidecars = withSidecars === true;
         window.batchExportQueue = queue;
         window.batchExportOriginalIndex = window.selectedIndex;
         window.batchExportIndex = 0;
@@ -2388,14 +2394,14 @@ ApplicationWindow {
         Qt.callLater(function() { window.synthesizeBatchItem(); });
     }
 
-    function startBatchExport(directory) {
+    function startBatchExport(directory, withSidecars) {
         const queue = [];
         for (let index = 0; index < utterances.count; ++index) {
             const item = utterances.get(index);
             if (item.reading.length || item.content.trim().length)
                 queue.push(index);
         }
-        window.beginBatchExport(directory, "save", queue);
+        window.beginBatchExport(directory, "save", queue, withSidecars);
     }
 
     function startDragExport(directory) {
