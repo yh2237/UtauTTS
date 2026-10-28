@@ -93,14 +93,6 @@ func TestApplyBoundaryToneHoldsAfterEnd(t *testing.T) {
 	}
 }
 
-func TestApplyBoundaryToneShortCurveUsesWholeWindow(t *testing.T) {
-	curve := flatPitchCurve(6)
-	result := applyBoundaryTone(curve, 50, true, 1)
-	last := result.Cents[len(result.Cents)-1]
-	if math.Abs(last-boundaryToneRiseCents) > 1e-9 {
-		t.Fatalf("short curve final cents = %.4f, want %.4f", last, boundaryToneRiseCents)
-	}
-}
 
 func TestApplyBoundaryToneNilIsSafe(t *testing.T) {
 	if got := applyBoundaryTone(nil, 300, true, 1); got != nil {

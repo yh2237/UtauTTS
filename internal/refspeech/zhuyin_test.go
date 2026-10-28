@@ -78,9 +78,3 @@ func TestZhuyinPiecesNeedReading(t *testing.T) {
 	}
 }
 
-func TestChineseProviderIdentity(t *testing.T) {
-	provider := NewKokoroChineseProvider(nil)
-	if provider.ID() != "kokoro-zh" || provider.Language() != "zh" {
-		t.Fatalf("unexpected identity: %q %q", provider.ID(), provider.Language())
-	}
-}

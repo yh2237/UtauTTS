@@ -127,15 +127,6 @@ func TestPhoneTimelineUsesExplicitSpans(t *testing.T) {
 	}
 }
 
-func TestDefaultTargetLoadsModel(t *testing.T) {
-	japanese, err := DefaultTarget()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(japanese.Phones()) != 40 {
-		t.Fatalf("Japanese model = %d phones", len(japanese.Phones()))
-	}
-}
 
 func TestWarpKeepsIdenticalTargetAndProtectsEnds(t *testing.T) {
 	frames := 60

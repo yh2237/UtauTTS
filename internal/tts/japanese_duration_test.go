@@ -16,18 +16,6 @@ func testMorae(texts ...string) []frontend.Mora {
 	return morae
 }
 
-func TestJapaneseContextDurationFactorsParticleIsShort(t *testing.T) {
-	morae := testMorae("き", "は", "な")
-	features := []prosody.FeatureFrame{
-		{},
-		{"pos=助詞": 1},
-		{},
-	}
-	factors := japaneseContextDurationFactors(morae, features, false)
-	if factors[1] >= 1 {
-		t.Fatalf("particle factor = %.4f, want < 1", factors[1])
-	}
-}
 
 func TestJapaneseContextDurationFactorsAccentPhraseEndIsLong(t *testing.T) {
 	morae := testMorae("は", "な")

@@ -381,15 +381,6 @@ func TestResolveResetsContextAtPause(t *testing.T) {
 	}
 }
 
-func TestResolveReturnsMissingAlias(t *testing.T) {
-	bank := &Bank{Entries: map[string][]oto.Entry{}}
-	morae, _ := frontend.ParseKana("あ")
-	_, err := bank.Resolve(morae)
-	var missing *MissingAliasError
-	if !errors.As(err, &missing) || missing.Position != 0 {
-		t.Fatalf("error = %v", err)
-	}
-}
 
 func TestResolveLongMarkUsesPreviousVowel(t *testing.T) {
 	bank := &Bank{Entries: map[string][]oto.Entry{

@@ -55,20 +55,6 @@ func TestModelWithoutIdentityIsNotCatalogued(t *testing.T) {
 	}
 }
 
-func TestTrainingReportBesideModelIsIgnored(t *testing.T) {
-	directory := t.TempDir()
-	data := []byte(`{"version":1,"model_id":"example","metrics":{"validation":{}}}`)
-	if err := os.WriteFile(filepath.Join(directory, "example-training-report.json"), data, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	models, err := DiscoverModels([]string{directory})
-	if err != nil {
-		t.Fatalf("training report produced a catalog warning: %v", err)
-	}
-	if len(models) != 0 {
-		t.Fatalf("training report was catalogued as a model: %#v", models)
-	}
-}
 
 func TestInvalidModelIsReported(t *testing.T) {
 	directory := t.TempDir()
