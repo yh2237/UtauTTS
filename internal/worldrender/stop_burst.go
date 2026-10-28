@@ -2,8 +2,6 @@ package worldrender
 
 import (
 	"math"
-
-	"github.com/yh2237/UtauTTS/internal/speechwindow"
 )
 
 type protectedStopSource struct {
@@ -103,8 +101,12 @@ func mixProtectedStopBursts(input phraseInput, prepared []preparedWorldUnit, wav
 	return result
 }
 
+// stopTransientPostMSは、過渡区間の終端を基準位置から後ろへ広げる幅を返す。
 func stopTransientPostMS(durationMS, fallback float64) float64 {
-	return speechwindow.TransientTailMS(durationMS, fallback)
+	if durationMS <= 0 || math.IsNaN(durationMS) || math.IsInf(durationMS, 0) {
+		return fallback
+	}
+	return math.Max(10, math.Min(24, durationMS+6))
 }
 
 func stopBurstOnsets(item Unit, sourceBaseMS, sourceAnchorMS, targetAnchorMS float64) (float64, float64) {
