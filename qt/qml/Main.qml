@@ -5,6 +5,7 @@ import "UnitOverrides.js" as UnitOverrides
 import "MoraPositions.js" as MoraPositions
 import "QmlCore.js" as QmlCore
 import "UtteranceData.js" as UtteranceData
+import "ProjectIO.js" as ProjectIO
 import "UtteranceCore.js" as UtteranceCore
 import "HistoryCore.js" as HistoryCore
 import "IntonationLab.js" as IntonationLab
@@ -1202,63 +1203,12 @@ ApplicationWindow {
         IntonationLab.completeEntry(window.intonationLabContext);
     }
     function projectData() {
-        const savedUtterances = [];
-        for (let index = 0; index < utterances.count; ++index) {
-            const item = utterances.get(index);
-            const saved = {
-                text: item.content || "",
-                language: item.language || "ja",
-                phonemizer: item.phonemizer || window.defaultPhonemizer(item.language || "ja"),
-                method: window.normalizeMethod(item.method, item.language || "ja"),
-                voicebank_id: item.voicebankId || "",
-                model_id: window.normalizeModelId(item.modelId, item.language || "ja"),
-                alias_policy: window.normalizeAliasPolicy(item.aliasPolicy),
-                tone: item.tone || "",
-                color: item.color || "",
-                mora_duration_ms: item.moraDuration,
-                pause_duration_ms: item.pauseDuration,
-                leading_preutterance_ms: item.leadingPreutterance,
-                intonation: item.intonation,
-                apply_pitch: !!item.applyPitch,
-                pitch_points: window.decodeSequence(item.pointsJson),
-                pitch_frames: window.decodeSequence(item.pitchFramesJson),
-                mora_durations_ms: window.decodeSequence(item.moraDurationsJson),
-                mora_positions_ms: window.decodeSequence(item.moraPositionsJson),
-                automatic_pitch_points: window.automaticSequence(item, "autoPointsJson"),
-                automatic_frame_pitch: window.automaticSequence(item, "autoPitchFramesJson"),
-                automatic_frame_ms: Number(item.autoFrameMs) || 10,
-                automatic_mora_durations_ms: window.automaticSequence(item, "autoMoraDurationsJson"),
-                automatic_mora_positions_ms: window.automaticSequence(item, "autoMoraPositionsJson"),
-                manual_pitch_edited: window.hasManualPitch(item),
-                manual_mora_duration_edited: window.hasManualMoraDurations(item),
-                phoneme_overrides: window.decodeSequence(item.phonemeOverridesJson),
-                analysis_cache: {
-                    reading: item.reading || "",
-                    morae: window.decodeSequence(item.moraeJson)
-                }
-            };
-            if (window.intonationLab) {
-                saved.training_accepted = !!item.trainingAccepted;
-                saved.lab_entry_id = item.labEntryId || "";
-            }
-            savedUtterances.push(saved);
-        }
-        const project = {
-            format: "utautts-project",
-            format_version: 9,
-            app_version: Qt.application.version,
-            utterances: savedUtterances,
-            selected_index: utterances.count ? selectedIndex : 0
-        };
-        if (window.intonationLab) {
-            project.intonation_lab = {
-                version: 2,
-                corpus: "japanese-v1",
-                base_model_path: window.intonationLabBaseModelPath(),
-                completed: window.intonationLabFirstIncomplete() < 0
-            };
-        }
-        return project;
+        return ProjectIO.projectData({
+            utterances: utterances,
+            selectedIndex: selectedIndex,
+            host: window,
+            appVersion: Qt.application.version
+        });
     }
 
     function reanalyzeAll() {
