@@ -1,4 +1,4 @@
-﻿pragma ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
@@ -194,6 +194,12 @@ Item {
             onActivated: root.backend.setSynthesisSetting(
                 String(settingRow.modelData.id),
                 currentValue)
+        }
+        SettingsResetButton {
+            translator: root.translator
+            onResetRequested: root.backend.setSynthesisSetting(
+                String(settingRow.modelData.id),
+                settingRow.modelData.default)
         }
     }
     }
