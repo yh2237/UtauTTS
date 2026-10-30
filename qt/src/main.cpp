@@ -3,6 +3,7 @@
 #include "platform/platform.h"
 #include "selftest.h"
 #include <QDir>
+#include <QDebug>
 #include <QEventLoop>
 #include <QTimer>
 #include <QDateTime>
@@ -16,7 +17,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQmlApplicationEngine>
+#include <QQmlError>
 #include <QQuickStyle>
+#include <QTextStream>
 #include <QUrl>
 #include <QVariantList>
 #include <QStandardPaths>
@@ -128,6 +131,12 @@ bool updateProcessAlive(qint64 pid) {
     const bool alive = GetExitCodeProcess(process, &exitCode) && exitCode == STILL_ACTIVE;
     CloseHandle(process);
     return alive;
+#elif defined(Q_OS_LINUX)
+    // PIDは再利用されるため、番号だけでなく実行ファイル名も確かめる。
+    QFile file(QStringLiteral("/proc/%1/cmdline").arg(pid));
+    if (!file.open(QIODevice::ReadOnly))
+        return false;
+    return file.readAll().contains("utautts-updater");
 #else
     if (::kill(static_cast<pid_t>(pid), 0) == 0)
         return true;
@@ -135,15 +144,15 @@ bool updateProcessAlive(qint64 pid) {
 #endif
 }
 
+// さすがに30分は超えん
+constexpr qint64 maxUpdateLockAgeMS = 30 * 60 * 1000;
+
 bool updateLockActive(const QFileInfo &info) {
     QFile file(info.absoluteFilePath());
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
         return info.lastModified().msecsTo(QDateTime::currentDateTimeUtc()) < 60 * 1000;
     const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
     const QJsonObject state = document.isObject() ? document.object() : QJsonObject{};
-    const qint64 pid = state.value(QStringLiteral("updater_pid")).toInteger();
-    if (pid > 0 && updateProcessAlive(pid))
-        return true;
     QDateTime startedAt = QDateTime::fromString(
         state.value(QStringLiteral("started_at")).toString(), Qt::ISODateWithMs);
     if (!startedAt.isValid())
@@ -151,7 +160,43 @@ bool updateLockActive(const QFileInfo &info) {
     if (!startedAt.isValid())
         return false;
     const qint64 ageMS = startedAt.toUTC().msecsTo(QDateTime::currentDateTimeUtc());
+    const qint64 pid = state.value(QStringLiteral("updater_pid")).toInteger();
+    if (pid > 0 && updateProcessAlive(pid))
+        return true;
+    if (ageMS >= maxUpdateLockAgeMS)
+        return false;
     return ageMS >= -5000 && ageMS < 60 * 1000;
+}
+
+void reportStartupFailure(const QStringList &errors, bool showWindow) {
+    QStringList lines{
+        QStringLiteral("UtauTTSを起動できませんでした。"),
+        QStringLiteral("Qt: %1（ビルド時 %2）").arg(QString::fromLatin1(qVersion()),
+                                                  QString::fromLatin1(QT_VERSION_STR)),
+        QStringLiteral("原因:"),
+    };
+    lines.append(errors.isEmpty() ? QStringList{QStringLiteral("不明")} : errors);
+    const QString message = lines.join(QLatin1Char('\n'));
+    qCritical().noquote() << message;
+    QFile log(QDir(QCoreApplication::applicationDirPath())
+                  .filePath(QStringLiteral("startup-error.log")));
+    if (log.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream(&log) << message << '\n';
+    }
+    if (!showWindow)
+        return;
+    QString escaped = message.left(4000);
+    escaped.replace(QLatin1Char('\\'), QStringLiteral("\\\\"));
+    escaped.replace(QLatin1Char('"'), QStringLiteral("\\\""));
+    escaped.replace(QLatin1Char('\n'), QStringLiteral("\\n"));
+    const QByteArray qml = QStringLiteral(
+            "import QtQuick\n"
+            "Window { width: 760; height: 380; visible: true; color: \"#1b1b1b\"\n"
+            "  Text { anchors.fill: parent; anchors.margins: 16; wrapMode: Text.WrapAnywhere\n"
+            "    color: \"#f2f2f2\"; font.pixelSize: 13; text: \"%1\" } }\n")
+            .arg(escaped).toUtf8();
+    QQmlApplicationEngine fallback;
+    fallback.loadData(qml, QUrl(QStringLiteral("qrc:/startup-error.qml")));
 }
 
 bool updateInProgress() {
@@ -170,19 +215,31 @@ bool updateInProgress() {
     const QStringList lockPaths = updateLockPaths(root.absolutePath());
     bool active = false;
     QStringList stalePaths;
+    QStringList activePaths;
     for (const QString &path : lockPaths) {
         if (QFileInfo::exists(path)) {
             const QFileInfo info(path);
-            if (updateLockActive(info))
+            if (updateLockActive(info)) {
                 active = true;
-            else
+                activePaths.append(path);
+            } else {
                 stalePaths.append(path);
+            }
         }
     }
     for (const QString &path : stalePaths)
         QFile::remove(path);
     if (!active)
         return false;
+    const QString message = QStringLiteral(
+            "更新中のロックが残っているため起動しませんでした: %1\n"
+            "更新が中断された場合は、このファイルを削除してから起動してください。")
+            .arg(activePaths.join(QStringLiteral(", ")));
+    qCritical().noquote() << message;
+    QFile log(QDir(QCoreApplication::applicationDirPath())
+                  .filePath(QStringLiteral("startup-error.log")));
+    if (log.open(QIODevice::WriteOnly | QIODevice::Text))
+        QTextStream(&log) << message << '\n';
 #ifdef Q_OS_WIN
     const QString title = QStringLiteral("UtauTTS 更新中");
     const QString text = QStringLiteral(
@@ -253,7 +310,9 @@ int main(int argc, char *argv[]) {
     }
 
     if (updateInProgress())
-        return 0;
+        return 2;
+
+    const bool startupCheck = app.arguments().contains(QStringLiteral("--startup-check"));
 
     QIcon appIcon;
     appIcon.addFile(QStringLiteral(":/icons/icon16.png"));
@@ -266,6 +325,16 @@ int main(int argc, char *argv[]) {
 
     Backend backend;
     QQmlApplicationEngine engine;
+    QStringList startupErrors;
+    QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
+                     [&startupErrors](const QUrl &url) {
+                         startupErrors.append(QStringLiteral("作成に失敗: %1").arg(url.toString()));
+                     });
+    QObject::connect(&engine, &QQmlApplicationEngine::warnings, &app,
+                     [&startupErrors](const QList<QQmlError> &warnings) {
+                         for (const QQmlError &warning : warnings)
+                             startupErrors.append(warning.toString());
+                     });
     QVariantMap initialProperties{
         {"injectedBackend", QVariant::fromValue(static_cast<QObject *>(&backend))},
         {"injectedLegalDocuments", legalDocuments()},
@@ -279,7 +348,17 @@ int main(int argc, char *argv[]) {
     // レイアウト切替で編集状態を失わないよう、QMLは一度だけ読み込む。
     engine.loadFromModule("UtauTTS", "Main");
     if (engine.rootObjects().isEmpty()) {
-        return -1;
+        reportStartupFailure(startupErrors, !startupCheck);
+        if (!startupCheck) {
+            QTimer::singleShot(60 * 1000, &app, &QCoreApplication::quit);
+            app.exec();
+        }
+        return 3;
+    }
+    if (startupCheck) {
+        QTextStream(stdout) << "UtauTTS startup check passed (Qt "
+                            << QString::fromLatin1(qVersion()) << ")\n";
+        return 0;
     }
 
     if (intonationLabSmokeTest) {

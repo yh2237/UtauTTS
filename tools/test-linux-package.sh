@@ -218,6 +218,15 @@ else
   echo 'Skipping packaged Linux GUI self-test: no PipeWire/PulseAudio session was detected'
 fi
 
+(
+  cd "${gui_root}"
+  QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+    timeout 60 ./utautts --startup-check >"${work_dir}/gui-startup.log" 2>&1
+) || {
+  cat "${work_dir}/gui-startup.log" >&2 || true
+  fail 'packaged Linux GUI failed the startup check'
+}
+
 smoke_text='こんにちは'
 "${gui_root}/tools/utautts-cli" --voicebank "${voicebank}" --text "${smoke_text}" \
   --method waveform-synthesis --prosody frame-intonation-tcn-v12 \

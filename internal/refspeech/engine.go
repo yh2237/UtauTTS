@@ -111,7 +111,12 @@ type cachedFeatures struct {
 
 const cachedReads = 8
 
-func Open(models Models) (*Engine, error) {
+func Open(models Models) (engine *Engine, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			engine, err = nil, fmt.Errorf("参照照合のモデルを読み込めませんでした: %v", recovered)
+		}
+	}()
 	if path := os.Getenv("UTAUTTS_HUBERT_PATH"); path != "" {
 		models.HuBERT = path
 	}

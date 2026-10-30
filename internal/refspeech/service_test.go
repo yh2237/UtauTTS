@@ -70,3 +70,22 @@ func TestIndexRebuildsWhenRecordingsChange(t *testing.T) {
 		t.Fatal("changed recordings kept the old index")
 	}
 }
+
+func TestBuildReleasesWaitersOnFailure(t *testing.T) {
+	bank := t.TempDir()
+	recordings := []refmatch.Recording{{Path: filepath.Join(bank, "a.wav")}}
+	entry := &indexEntry{status: IndexStatus{State: IndexBuilding}, done: make(chan struct{})}
+	s := &Service{cacheDir: t.TempDir(), worlds: map[string]*worldrender.World{}, indexes: map[string]*indexEntry{}}
+	s.build(bank, recordings, filepath.Join(bank, "missing-world-engine.so"), entry)
+	select {
+	case <-entry.done:
+	default:
+		t.Fatal("build did not release the waiter")
+	}
+	s.mu.Lock()
+	state := entry.status.State
+	s.mu.Unlock()
+	if state != IndexFailed {
+		t.Fatalf("state = %v, want %v", state, IndexFailed)
+	}
+}

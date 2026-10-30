@@ -297,6 +297,22 @@ func (s *Service) entry(bankRoot string, recordings []refmatch.Recording, worldE
 
 // buildは索引を1つずつ作る。どの索引の作成も全コアを使うため。
 func (s *Service) build(bankRoot string, recordings []refmatch.Recording, worldEnginePath string, entry *indexEntry) {
+	defer close(entry.done)
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			message := fmt.Sprintf("索引の作成を中止しました: %v", recovered)
+			fmt.Fprintln(os.Stderr, "UtauTTS:", message)
+			batchMu.Lock()
+			batch.done++
+			batch.current = 0
+			batch.failed = append(batch.failed, fmt.Sprintf("%s: %v", filepath.Base(bankRoot), recovered))
+			batchMu.Unlock()
+			s.mu.Lock()
+			entry.logs = append(entry.logs, message)
+			entry.status = IndexStatus{State: IndexFailed, Error: message}
+			s.mu.Unlock()
+		}
+	}()
 	s.buildMu.Lock()
 	defer s.buildMu.Unlock()
 	var logs []string
@@ -340,7 +356,6 @@ func (s *Service) build(bankRoot string, recordings []refmatch.Recording, worldE
 		entry.index = index
 	}
 	s.mu.Unlock()
-	close(entry.done)
 }
 
 // loadOrBuildは索引をキャッシュから読み、なければ作る。fromCacheは読み込んだだけならtrue。
@@ -365,8 +380,9 @@ func (s *Service) loadOrBuild(bankRoot string, recordings []refmatch.Recording, 
 		return nil, false, err
 	}
 	features := func(samples []float64, rate int) ([]float32, int, int, error) {
+		// エンジンは索引の作成と発話の合成で共有するため、同時に使わない。
 		s.foreground.Lock()
-		s.foreground.Unlock()
+		defer s.foreground.Unlock()
 		return engine.Features(samples, rate)
 	}
 	index, err := refmatch.BuildIndex(files, FeatureModel, world, features, progress, refmatch.OpenPartCache(filepath.Join(s.cacheDir, "parts")))

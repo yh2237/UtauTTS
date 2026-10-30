@@ -8,6 +8,7 @@ import "C"
 
 import (
 	"encoding/json"
+	"fmt"
 	"runtime/cgo"
 	"sync"
 	"unsafe"
@@ -28,17 +29,27 @@ var lastCreateError struct {
 	message string
 }
 
+func setLastCreateError(message string) {
+	lastCreateError.Lock()
+	lastCreateError.message = message
+	lastCreateError.Unlock()
+}
+
 //export UtauTTSCreate
-func UtauTTSCreate(configJSON *C.char) C.uintptr_t {
+func UtauTTSCreate(configJSON *C.char) (handle C.uintptr_t) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			setLastCreateError(fmt.Sprintf("エンジンを初期化できませんでした: %v", recovered))
+			handle = 0
+		}
+	}()
 	var data []byte
 	if configJSON != nil {
 		data = []byte(C.GoString(configJSON))
 	}
 	engine, err := native.NewJSON(data)
 	if err != nil {
-		lastCreateError.Lock()
-		lastCreateError.message = err.Error()
-		lastCreateError.Unlock()
+		setLastCreateError(err.Error())
 		return 0
 	}
 	return C.uintptr_t(cgo.NewHandle(engine))

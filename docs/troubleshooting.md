@@ -11,6 +11,11 @@
 
 ## 起動・解析エラー
 
+### 起動しない（ウィンドウが出ない）
+- 実行ファイルと同じフォルダの `startup-error.log` に、理由とQtのバージョンが残ります。端末から `./utautts` を実行した場合も同じ内容が表示されます。
+- 起動できるかだけを確かめるには `./utautts --startup-check` を使います。音声と合成は行いません。
+- 報告するときは、`startup-error.log` か端末の出力を添えてください。終了コードが 2 のときは更新中のロックが残っています。表示された `*.update-lock.json` を削除すると起動できます。
+
 ### `utautts-openjtalk-engine.dll not found` と表示される
 - Open JTalkのライブラリ（Windowsは`runtime/utautts-openjtalk-engine.dll`、Linuxは`.so`、macOSは`.dylib`）が見つかりません。セキュリティソフトが誤検知して隔離していないか確認し、ZIPを展開し直してください。
 

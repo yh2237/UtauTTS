@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	goruntime "runtime"
 	"sort"
 	"sync"
@@ -65,13 +66,19 @@ func New(config Config) (*Engine, error) {
 }
 
 // 初回操作の待ち時間を減らすため、モデルと辞書を事前に準備する。失敗しても起動は続ける。
+// 起動直後に走るため、ここで起きたpanicはプロセスを落とさず報告だけにする。
 func (e *Engine) warmUp() {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			fmt.Fprintf(os.Stderr, "UtauTTS: 事前準備に失敗しました: %v\n", recovered)
+		}
+	}()
 	modelID := ""
 	if e.catalog != nil && len(e.catalog.Models) > 0 {
 		modelID = e.catalog.Models[0].ID
 	}
 	_, _ = e.synth.PredictProsodyContext(e.ctx, synth.Request{
-		Text: "あ", Language: "ja", ModelID: modelID,
+		Text: "あ", Language: "ja", ModelID: modelID, Method: tts.MethodWaveformSynthesis,
 	})
 }
 
@@ -186,7 +193,7 @@ func (e *Engine) voicebankList() []map[string]any {
 	for range min(goruntime.GOMAXPROCS(0), len(items)) {
 		wait.Go(func() {
 			for index := range next {
-				entries[index] = e.voicebankEntry(items[index])
+				entries[index] = e.voicebankEntrySafe(items[index])
 			}
 		})
 	}
@@ -198,6 +205,20 @@ func (e *Engine) voicebankList() []map[string]any {
 	list := append(make([]map[string]any, 0, len(entries)), entries...)
 	sort.Slice(list, func(i, j int) bool { return list[i]["name"].(string) < list[j]["name"].(string) })
 	return list
+}
+
+func (e *Engine) voicebankEntrySafe(libraryItem voicebank.LibraryItem) (entry map[string]any) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			item := libraryItem.Summary
+			fmt.Fprintf(os.Stderr, "UtauTTS: 音源を読み込めませんでした (%s): %v\n", item.Path, recovered)
+			entry = map[string]any{
+				"id": libraryItem.ID, "name": item.Name, "path": item.Path, "kind": item.Kind,
+				"image_path": item.ImagePath, "readme_path": item.ReadmePath, "readme_text": "",
+			}
+		}
+	}()
+	return e.voicebankEntry(libraryItem)
 }
 
 func (e *Engine) voicebankEntry(libraryItem voicebank.LibraryItem) map[string]any {
