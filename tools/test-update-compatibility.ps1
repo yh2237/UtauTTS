@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$PreviousVersion = 'v1.3.0',
     [string]$CandidateZip = '',
     [string]$PreviousZip = '',
@@ -38,7 +38,7 @@ function Stop-InstalledProcesses([string]$InstallRoot) {
                     $matched += $process
                 }
             } catch {
-                # システムプロセスは実行パスを取得できない場合がある。
+                # Some system processes do not expose their executable path.
             }
         }
         foreach ($process in $matched) {
@@ -103,6 +103,10 @@ try {
     Assert-Path $oldUpdater ($PreviousVersion + ' updater')
     Assert-Path $candidateUpdater ($candidateVersion + ' updater')
 
+    # The updater stopped carrying renderer definitions in v1.7.0, so only
+    # check them when updating from a version that still carries them.
+    $carriesRenderers = Test-Path -LiteralPath (Join-Path $installRoot 'renderer')
+
     $configMarker = [Guid]::NewGuid().ToString('N')
     $configFixture = '[update_compatibility]' + [Environment]::NewLine +
         'marker=' + $configMarker + [Environment]::NewLine
@@ -111,9 +115,12 @@ try {
         'voice/update-compatibility/marker.txt' = 'voice marker'
         'Resamplers/update-compatibility/marker.txt' = 'resampler marker'
         'Wavtools/update-compatibility/marker.txt' = 'wavtool marker'
-        'renderer/update-compatibility/marker.txt' = 'renderer marker'
     }
-    # 旧更新処理はDependenciesを保持しないため、旧版に存在する場合だけ検査する。
+    if ($carriesRenderers) {
+        $preservedFiles['renderer/update-compatibility/marker.txt'] = 'renderer marker'
+    }
+    # Updaters before v1.7.0 do not keep Dependencies, so check it only when
+    # the previous install has it.
     if (Test-Path -LiteralPath (Join-Path $installRoot 'Dependencies')) {
         $preservedFiles['Dependencies/update-compatibility/marker.txt'] = 'vocoder dependency marker'
     }
@@ -122,14 +129,16 @@ try {
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $path) | Out-Null
         [IO.File]::WriteAllText($path, $preservedFiles[$relative])
     }
-    $rendererManifest = @{
-        manifest_version = 2
-        kind = 'synthesis-engine'
-        id = 'update-compatibility'
-        display_name = 'Update compatibility fixture'
-        update_managed = $false
-    } | ConvertTo-Json
-    [IO.File]::WriteAllText((Join-Path $installRoot 'renderer/update-compatibility/renderer.json'), $rendererManifest)
+    if ($carriesRenderers) {
+        $rendererManifest = @{
+            manifest_version = 2
+            kind = 'synthesis-engine'
+            id = 'update-compatibility'
+            display_name = 'Update compatibility fixture'
+            update_managed = $false
+        } | ConvertTo-Json
+        [IO.File]::WriteAllText((Join-Path $installRoot 'renderer/update-compatibility/renderer.json'), $rendererManifest)
+    }
 
     $obsoletePath = Join-Path $installRoot 'obsolete-update-compatibility.txt'
     [IO.File]::WriteAllText($obsoletePath, 'this file must disappear')
@@ -163,7 +172,7 @@ try {
         throw ('Old install backup was not removed after relaunch: {0}' -f $oldInstall)
     }
 
-    # 更新で起動したアプリのうち、テスト用インストールのプロセスだけを停止する。
+    # Stop only the processes that the test install launched.
     Stop-InstalledProcesses $installRoot
 
     $installedConfig = Join-Path $installRoot 'config.ini'
