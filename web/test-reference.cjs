@@ -66,26 +66,28 @@ function mountTree(virtualFs, hostDir, guestDir) {
 
   const providers = result("referenceProviders", {}).reference_providers.map(p => p.language);
   assert.ok(providers.includes("en"), "providers=" + providers);
-  const request = {
-    text: process.argv[2] || "Could you help me with this box?", language: "en", method: "reference-matching",
-    voicebank_id: result("voicebanks", {}).voicebanks[0].id, tone: "C4", output_path: "/out/reference.wav",
-  };
-  const logs = [];
-  let response = JSON.parse(call("synthesize", JSON.stringify(request)));
-  let rounds = 0;
-  const started = Date.now();
-  while (Array.isArray(response.need) && rounds < 8) {
-    console.log("round", ++rounds, response.need.length, "jobs:", [...new Set(response.need.map(job => job.kind))].join(","));
-    await inference.run(response.need, call, logs);
-    response = JSON.parse(call("synthesize", JSON.stringify(request)));
-  }
-  if (!response.ok) throw new Error(response.error);
-  for (const line of logs.concat(response.result.logs || [])) console.log("log:", line);
-  const wav = virtualFs.readFile("/out/reference.wav");
-  assert.ok(wav && wav.length > 44, "no WAV");
+  const voicebank = result("voicebanks", {}).voicebanks[0].id;
+  const texts = process.argv.length > 2 ? process.argv.slice(2) : ["Could you help me with this box?"];
   fs.mkdirSync(path.join(DIST, "out"), { recursive: true });
-  fs.writeFileSync(path.join(DIST, "out", "reference.wav"), Buffer.from(wav));
-  console.log("rounds", rounds, "seconds", ((Date.now() - started) / 1000).toFixed(1), "wav bytes", wav.length);
+  for (const [number, text] of texts.entries()) {
+    const request = { text, language: "en", method: "reference-matching", voicebank_id: voicebank, tone: "C4", output_path: "/out/reference.wav" };
+    const logs = [];
+    let response = JSON.parse(call("synthesize", JSON.stringify(request)));
+    let rounds = 0;
+    const started = Date.now();
+    while (Array.isArray(response.need) && rounds < 8) {
+      console.log("round", ++rounds, response.need.length, "jobs:", [...new Set(response.need.map(job => job.kind))].join(","));
+      await inference.run(response.need, call, logs);
+      response = JSON.parse(call("synthesize", JSON.stringify(request)));
+    }
+    if (!response.ok) throw new Error(response.error);
+    for (const line of logs.concat(response.result.logs || [])) console.log("log:", line);
+    const wav = virtualFs.readFile("/out/reference.wav");
+    assert.ok(wav && wav.length > 44, "no WAV");
+    const name = texts.length > 1 ? "reference-" + (number + 1) + ".wav" : "reference.wav";
+    fs.writeFileSync(path.join(DIST, "out", name), Buffer.from(wav));
+    console.log(name, "rounds", rounds, "seconds", ((Date.now() - started) / 1000).toFixed(1), "wav bytes", wav.length);
+  }
   process.exit(0);
 })().catch(error => {
   console.error(error);

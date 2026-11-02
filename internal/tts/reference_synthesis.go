@@ -26,9 +26,10 @@ var englishLexicons sync.Map
 // ReferenceModelsは参照照合に使うモデルの場所を返す。
 func ReferenceModels(dir string) (refspeech.Models, string, string) {
 	shared := map[string]string{}
+	have := referenceFiles(dir)
 	for id, name := range sharedReferenceVoices {
-		if path := filepath.Join(dir, name); exists(path) {
-			shared[id] = path
+		if have(name) {
+			shared[id] = filepath.Join(dir, name)
 		}
 	}
 	return refspeech.Models{
