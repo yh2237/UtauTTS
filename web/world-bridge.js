@@ -4,8 +4,8 @@ function createWorldBridge(Module) {
   const FRAME_MS = 10.0;
   const ERROR_SIZE = 512;
   const shapeFn = Module.cwrap("UtauTTSWorldAnalysisShape", "number", ["number", "number", "number"]);
-  const analyzeFlat = Module.cwrap("UtauTTSWorldAnalyzeFlat", "number", [
-    "number", "number", "number", "number", "number", "number",
+  const analyzeFlat = Module.cwrap("UtauTTSWorldAnalyzeD4CFlat", "number", [
+    "number", "number", "number", "number", "number", "number", "number",
     "number", "number", "number", "number", "number",
   ]);
   const synthesizeFlat = Module.cwrap("UtauTTSWorldSynthesizeFlat", "number", [
@@ -19,13 +19,14 @@ function createWorldBridge(Module) {
 
   return {
     ready: true,
-    analyze(samples, sampleRate, inputF0) {
+    // frameMSとd4cThresholdを省くと、10 msとthreshold 0（従来の解析）になる。
+    analyze(samples, sampleRate, inputF0, frameMS = FRAME_MS, d4cThreshold = 0) {
       const errorPtr = Module._malloc(ERROR_SIZE);
       const shapePtr = Module._malloc(32);
       try {
         Module.HEAP32[shapePtr >> 2] = samples.length;
         Module.HEAP32[(shapePtr >> 2) + 1] = sampleRate;
-        Module.HEAPF64[(shapePtr >> 3) + 1] = FRAME_MS;
+        Module.HEAPF64[(shapePtr >> 3) + 1] = frameMS;
         if (!shapeFn(shapePtr, errorPtr, ERROR_SIZE)) return fail(errorPtr);
         let frames = Module.HEAP32[(shapePtr >> 2) + 4];
         const fftSize = Module.HEAP32[(shapePtr >> 2) + 5];
@@ -42,8 +43,8 @@ function createWorldBridge(Module) {
           Module.HEAPF64.set(samples, samplesPtr >> 3);
           if (useInput) Module.HEAPF64.set(inputF0, inputPtr >> 3);
           const ok = analyzeFlat(
-            samplesPtr, samples.length, sampleRate, FRAME_MS,
-            inputPtr, useInput ? inputF0.length : 0,
+            samplesPtr, samples.length, sampleRate, frameMS,
+            inputPtr, useInput ? inputF0.length : 0, d4cThreshold,
             f0Ptr, spectrumPtr, apPtr, errorPtr, ERROR_SIZE
           );
           if (!ok) return fail(errorPtr);
@@ -67,8 +68,8 @@ function createWorldBridge(Module) {
         Module._free(errorPtr);
       }
     },
-    synthesize(f0, spectrum, aperiodicity, frames, fftSize, sampleRate) {
-      const required = frames < 2 ? 0 : Math.trunc(((frames - 1) * FRAME_MS) / 1000 * sampleRate) + 1;
+    synthesize(f0, spectrum, aperiodicity, frames, fftSize, sampleRate, frameMS = FRAME_MS) {
+      const required = frames < 2 ? 0 : Math.trunc(((frames - 1) * frameMS) / 1000 * sampleRate) + 1;
       if (required <= 0) return { ok: false, error: "invalid synthesis length" };
       const errorPtr = Module._malloc(ERROR_SIZE);
       const f0Ptr = Module._malloc(frames * 8);
@@ -80,7 +81,7 @@ function createWorldBridge(Module) {
         Module.HEAPF64.set(spectrum, spectrumPtr >> 3);
         Module.HEAPF64.set(aperiodicity, apPtr >> 3);
         const ok = synthesizeFlat(
-          f0Ptr, frames, spectrumPtr, apPtr, fftSize, FRAME_MS, sampleRate,
+          f0Ptr, frames, spectrumPtr, apPtr, fftSize, frameMS, sampleRate,
           outputPtr, required, errorPtr, ERROR_SIZE
         );
         if (!ok) return fail(errorPtr);

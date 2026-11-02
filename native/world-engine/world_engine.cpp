@@ -283,6 +283,24 @@ int UtauTTSWorldAnalyzeFlat(const double* samples, int sample_count,
   return UtauTTSWorldAnalyze(&request, error, error_capacity);
 }
 
+int UtauTTSWorldAnalyzeD4CFlat(const double* samples, int sample_count,
+                               int sample_rate, double frame_period_ms,
+                               const double* input_f0, int input_f0_count,
+                               double d4c_threshold, double* f0,
+                               double* spectrum, double* aperiodicity,
+                               char* error, int error_capacity) {
+  UtauTTSWorldAnalysisRequest request{samples,
+                                      sample_count,
+                                      sample_rate,
+                                      frame_period_ms,
+                                      input_f0,
+                                      input_f0_count,
+                                      f0,
+                                      spectrum,
+                                      aperiodicity};
+  return UtauTTSWorldAnalyzeD4C(&request, d4c_threshold, error, error_capacity);
+}
+
 int UtauTTSWorldSynthesizeFlat(const double* f0, int frame_count,
                                const double* spectrum,
                                const double* aperiodicity, int fft_size,

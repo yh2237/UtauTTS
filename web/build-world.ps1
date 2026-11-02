@@ -17,7 +17,7 @@ $sources = @(
     (Join-Path $worldSrc 'matlabfunctions.cpp'),
     (Join-Path $worldSrc 'synthesis.cpp')
 )
-$exported = '_UtauTTSWorldF0,_UtauTTSWorldAnalysisShape,_UtauTTSWorldAnalyze,_UtauTTSWorldSynthesize,_UtauTTSWorldAnalyzeFlat,_UtauTTSWorldSynthesizeFlat,_malloc,_free'
+$exported = '_UtauTTSWorldF0,_UtauTTSWorldAnalysisShape,_UtauTTSWorldAnalyze,_UtauTTSWorldSynthesize,_UtauTTSWorldAnalyzeFlat,_UtauTTSWorldAnalyzeD4CFlat,_UtauTTSWorldSynthesizeFlat,_malloc,_free'
 
 $arguments = @(
     '-O3', '-msimd128', '-std=c++17', "-I$worldSrc"

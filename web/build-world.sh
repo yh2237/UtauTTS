@@ -9,7 +9,7 @@ mkdir -p "${out_dir}"
 
 emcc="${EMXX:-em++}"
 world_src="${root_dir}/third_party/world/src"
-exported='_UtauTTSWorldF0,_UtauTTSWorldAnalysisShape,_UtauTTSWorldAnalyze,_UtauTTSWorldSynthesize,_UtauTTSWorldAnalyzeFlat,_UtauTTSWorldSynthesizeFlat,_malloc,_free'
+exported='_UtauTTSWorldF0,_UtauTTSWorldAnalysisShape,_UtauTTSWorldAnalyze,_UtauTTSWorldSynthesize,_UtauTTSWorldAnalyzeFlat,_UtauTTSWorldAnalyzeD4CFlat,_UtauTTSWorldSynthesizeFlat,_malloc,_free'
 
 "${emcc}" -O3 -msimd128 -std=c++17 "-I${world_src}" \
   "${root_dir}/native/world-engine/world_engine.cpp" \
