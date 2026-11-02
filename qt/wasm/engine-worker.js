@@ -6,14 +6,20 @@ const paths = createUtauTTSAssetPaths(location.href, config);
 const ENGINE_BASE = paths.engineBaseURL;
 importScripts(...[
   "wasm_exec.js", "fs-shim.js", "openjtalk-bridge.js", "world-bridge.js",
-  "openjtalk/utautts-openjtalk.js", "world/utautts-world.js",
+  "openjtalk/utautts-openjtalk.js", "world/utautts-world.js", "reference-inference.js",
 ].map(file => paths.engine(file)));
+const REFERENCE_BASE = ENGINE_BASE + "reference/";
+// 参照照合の索引はGoが作る。作るのに時間がかかるため、Cache Storageに残して次に開いたときに戻す。
+const INDEX_DIR = "/cache/UtauTTS/reference-index/";
+const INDEX_CACHE = "utautts-reference-index-v1";
 const DICT_PATH = "/dict";
 const MIRROR_EXTENSIONS = new Set([
   "wav", "txt", "lab", "ustx", "exo", "png", "jpg", "jpeg", "bmp", "gif",
 ]);
 
 let virtualFs = null;
+let referenceInference = null;
+let referenceLexicon = null;
 
 async function fetchAsset(url) {
   const response = await fetch(url);
@@ -106,9 +112,81 @@ async function loadModels() {
   ]);
 }
 
+// mountReferenceFilesは、Goが参照照合で読む設定を置く。モデルはONNX Runtime Webが読むので置かない。
+async function mountReferenceFiles() {
+  let listed;
+  try {
+    listed = await (await fetchAsset(REFERENCE_BASE + "fs/inference.json")).arrayBuffer();
+  } catch (error) {
+    return;
+  }
+  virtualFs.mountFile("/models/reference/inference.json", new Uint8Array(listed));
+  const configs = ["config.json"];
+  if (JSON.parse(new TextDecoder().decode(listed)).models.includes("kokoro-v1_1-zh")) configs.push("kokoro-zh/config.json");
+  await Promise.all(configs.map(async name => {
+    virtualFs.mountFile("/models/reference/" + name, new Uint8Array(await (await fetchAsset(REFERENCE_BASE + "fs/" + name)).arrayBuffer()));
+  }));
+  referenceInference = createReferenceInference({
+    baseURL: REFERENCE_BASE, ortURL: ENGINE_BASE + "ort/", virtualFs, status,
+  });
+}
+
+async function restoreIndexes() {
+  try {
+    const cache = await caches.open(INDEX_CACHE);
+    for (const request of await cache.keys()) {
+      const name = new URL(request.url).pathname.split("/").pop();
+      virtualFs.mountFile(INDEX_DIR + name, new Uint8Array(await (await cache.match(request)).arrayBuffer()));
+    }
+  } catch (error) {
+    console.warn("reference index cache unavailable", error);
+  }
+}
+
+// storeIndexesは、この呼び出しで作った索引を残し、Goが消した索引を消す。
+async function storeIndexes(before) {
+  const after = virtualFs.fileVersions();
+  const changed = [], removed = [];
+  for (const [path, version] of after)
+    if (path.startsWith(INDEX_DIR) && path.endsWith(".idx") && before.get(path) !== version) changed.push(path);
+  for (const path of before.keys())
+    if (path.startsWith(INDEX_DIR) && path.endsWith(".idx") && !after.has(path)) removed.push(path);
+  if (changed.length === 0 && removed.length === 0) return;
+  try {
+    const cache = await caches.open(INDEX_CACHE);
+    const url = path => new URL(path.slice(INDEX_DIR.length), "https://utautts.invalid/index/").href;
+    for (const path of changed) await cache.put(url(path), new Response(virtualFs.readFile(path).slice()));
+    for (const path of removed) await cache.delete(url(path));
+  } catch (error) {
+    console.warn("reference index was not stored", error);
+  }
+}
+
+// mountLexiconは、英語の辞書（約6MB）を英語を初めて使うときに置く。
+function mountLexicon() {
+  if (!referenceLexicon) {
+    referenceLexicon = Promise.all(["us_gold.json", "us_silver.json"].map(async name => {
+      virtualFs.mountFile("/models/reference/" + name, new Uint8Array(await (await fetchAsset(REFERENCE_BASE + "fs/" + name)).arrayBuffer()));
+    })).catch(error => {
+      referenceLexicon = null;
+      throw error;
+    });
+  }
+  return referenceLexicon;
+}
+
+function requestLanguage(requestJSON) {
+  try {
+    return JSON.parse(requestJSON || "{}").language || "";
+  } catch (error) {
+    return "";
+  }
+}
+
 async function init() {
   status("エンジンを初期化中…");
   const go = new Go();
+  go.env = { ...go.env, TMPDIR: "/tmp", XDG_CACHE_HOME: "/cache" };
   const wasm = (async () => {
     const response = await fetchAsset(ENGINE_BASE + "utautts.wasm");
     if (response.headers.get("Content-Type")?.split(";")[0].trim() === "application/wasm")
@@ -130,7 +208,8 @@ async function init() {
         files: voiceManifest.files,
       } : null,
     });
-    await loadModels();
+    await Promise.all([loadModels(), mountReferenceFiles()]);
+    if (referenceInference) await restoreIndexes();
   })();
   const [{ instance }] = await Promise.all([wasm, assets]);
   go.run(instance);
@@ -183,8 +262,22 @@ async function handleCall(id, method, requestJSON) {
         await virtualFs.prefetchFiles(prepared.result);
       }
     }
-    const raw = globalThis.utauttsWasm.call(method, requestJSON || "{}");
-    response = JSON.parse(raw);
+    const language = requestLanguage(requestJSON);
+    if (referenceInference && language === "en") await mountLexicon();
+    const call = (name, json) => globalThis.utauttsWasm.call(name, json || "{}");
+    response = JSON.parse(call(method, requestJSON));
+    // 参照照合の推論はGoの中で待てないため、ここで求めて渡し、同じ呼び出しをやり直す。
+    // 読み、索引の特徴量、照合の特徴量の順に頼まれることがある。
+    const logs = [];
+    for (let round = 0; referenceInference && response && Array.isArray(response.need) && round < 8; round++) {
+      await referenceInference.run(response.need, call, logs);
+      response = JSON.parse(call(method, requestJSON));
+    }
+    if (logs.length > 0 && response && response.ok && response.result) {
+      response.result.logs = logs.concat(response.result.logs || []);
+    } else if (logs.length > 0 && response && !response.ok) {
+      response.error = logs.concat(response.error).join("\n");
+    }
   } catch (error) {
     response = { ok: false, error: String((error && error.message) || error) };
   }
@@ -196,6 +289,7 @@ async function handleCall(id, method, requestJSON) {
       }
     }
   }
+  if (referenceInference) await storeIndexes(before);
   const files = changedFiles(before);
   const after = virtualFs.fileVersions();
   const removed = Array.from(before.keys()).filter(path => !after.has(path));

@@ -23,6 +23,30 @@ Copy-Item -LiteralPath (Join-Path $goroot 'lib/wasm/wasm_exec.js') -Destination 
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'fs-shim.js') -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'openjtalk-bridge.js') -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'world-bridge.js') -Destination $dist -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'reference-inference.js') -Destination $dist -Force
+
+# 参照照合の推論に使うONNX Runtime Web（MIT）。版とハッシュを固定して取る。
+$ortVersion = '1.23.2'
+$ortSha256 = '0b8707d7efab9a2bea63564d66cad79e897cfd0bd627e5ae000488ffc1c45c7d'
+$ortDir = Join-Path $dist 'ort'
+$ortVersionFile = Join-Path $ortDir 'version'
+if (-not (Test-Path -LiteralPath $ortVersionFile) -or (Get-Content -LiteralPath $ortVersionFile -Raw).Trim() -ne $ortVersion) {
+    $ortTgz = Join-Path ([IO.Path]::GetTempPath()) "onnxruntime-web-$ortVersion.tgz"
+    Invoke-WebRequest -Uri "https://registry.npmjs.org/onnxruntime-web/-/onnxruntime-web-$ortVersion.tgz" -OutFile $ortTgz
+    if ((Get-FileHash -LiteralPath $ortTgz -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ortSha256) { throw "onnxruntime-web hash mismatch" }
+    if (Test-Path -LiteralPath $ortDir) { Remove-Item -LiteralPath $ortDir -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $ortDir | Out-Null
+    & tar -xzf $ortTgz -C $ortDir --strip-components=2 package/dist/ort.wasm.min.js package/dist/ort-wasm-simd-threaded.mjs package/dist/ort-wasm-simd-threaded.wasm
+    if ($LASTEXITCODE -ne 0) { throw "tar failed with exit code $LASTEXITCODE" }
+    Set-Content -LiteralPath $ortVersionFile -Value $ortVersion -Encoding ascii
+    Remove-Item -LiteralPath $ortTgz -Force
+}
+# 参照照合のモデル（tools/web-reference/export.pyで作る）は大きいので、UTAUTTS_WEB_REFERENCE を指定したときだけ写す。
+if ($env:UTAUTTS_WEB_REFERENCE) {
+    $referenceDir = Join-Path $dist 'reference'
+    if (Test-Path -LiteralPath $referenceDir) { Remove-Item -LiteralPath $referenceDir -Recurse -Force }
+    Copy-Item -LiteralPath $env:UTAUTTS_WEB_REFERENCE -Destination $referenceDir -Recurse
+}
 # 同梱から外したモデルが前回のビルドから残らないよう、先に消す。
 Get-ChildItem -Path (Join-Path $dist 'models') -Filter *.json -File | Remove-Item -Force
 $modelFiles = Get-ChildItem -Path (Join-Path $root 'models') -Filter *.json -File

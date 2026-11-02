@@ -1305,16 +1305,21 @@ void Backend::initializeAsync() {
         callAsync("voicebanks", {}, [this](const QVariantMap &voices) {
             callAsync("models", {}, [this, voices](const QVariantMap &models) {
                 callAsync("settings", {}, [this, voices, models](const QVariantMap &settings) {
-                    setBusy(false);
-                    if (voices.contains("_error") || models.contains("_error") || settings.contains("_error")) {
-                        setError(voices.value("_error",
-                                              models.value("_error",
-                                                           settings.value("_error"))).toString());
-                    } else {
-                        applyMetadata(voices, models, settings);
-                        setError({});
-                    }
-                    emit metadataChanged();
+                    callAsync("referenceProviders", {}, [this, voices, models, settings](const QVariantMap &providers) {
+                        setBusy(false);
+                        if (voices.contains("_error") || models.contains("_error") || settings.contains("_error")) {
+                            setError(voices.value("_error",
+                                                  models.value("_error",
+                                                               settings.value("_error"))).toString());
+                        } else {
+                            QVariantMap merged = settings;
+                            merged.insert(QStringLiteral("reference_providers"),
+                                          providers.value(QStringLiteral("reference_providers")));
+                            applyMetadata(voices, models, merged);
+                            setError({});
+                        }
+                        emit metadataChanged();
+                    });
                 });
             });
         });
