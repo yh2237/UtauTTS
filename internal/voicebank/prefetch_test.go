@@ -106,3 +106,19 @@ func tone(t *testing.T, name string) int {
 	}
 	return number
 }
+
+func TestReferenceRecordingsSkipBreathAliases(t *testing.T) {
+	bank := &Bank{Entries: map[string][]oto.Entry{
+		"- あ": {{Filename: "a.wav"}}, "a R吸": {{Filename: "breath.wav"}}, "息1": {{Filename: "extra.wav"}},
+		"ｘた": {{Filename: "extra.wav", Offset: 900}}, "- br": {{Filename: "br.wav"}}, "breath2": {{Filename: "br2.wav"}},
+		"bra": {{Filename: "bra.wav"}},
+	}}
+	got := bank.ReferenceRecordings("")
+	if paths := recordingPaths(got); !reflect.DeepEqual(paths, []string{"a.wav", "bra.wav", "extra.wav"}) {
+		t.Fatalf("recordings=%v", paths)
+	}
+	// 息の別名と同じ録音にある別名は残し、範囲は息の別名を除いて決める。
+	if entries := got[2].Entries; len(entries) != 1 || entries[0].Offset != 900 {
+		t.Fatalf("extra entries=%v", entries)
+	}
+}

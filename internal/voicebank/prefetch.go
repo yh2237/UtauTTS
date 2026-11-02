@@ -103,7 +103,7 @@ func (b *Bank) ReferenceRecordings(color string) []ReferenceRecording {
 	collect := func(affixed bool) map[string][]oto.Entry {
 		paths := make(map[string][]oto.Entry)
 		for alias, entries := range b.Entries {
-			if affixed && (!matches(alias, affix) || belongsElsewhere(alias)) {
+			if isBreathAlias(alias) || affixed && (!matches(alias, affix) || belongsElsewhere(alias)) {
 				continue
 			}
 			for _, entry := range entries {
@@ -119,7 +119,10 @@ func (b *Bank) ReferenceRecordings(color string) []ReferenceRecording {
 		// 既定の音高の別名が見つからない音源は、すべての録音を使う。
 		paths = collect(false)
 	}
-	for _, entries := range b.Entries {
+	for alias, entries := range b.Entries {
+		if isBreathAlias(alias) {
+			continue
+		}
 		for _, entry := range entries {
 			if list, ok := paths[entry.Filename]; ok {
 				paths[entry.Filename] = append(list, entry)
@@ -138,4 +141,18 @@ func (b *Bank) ReferenceRecordings(color string) []ReferenceRecording {
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Path < result[j].Path })
 	return result
+}
+
+// isBreathAliasは息の印（吸・息・breath、単独の語のbr）が付いた別名を判定する。
+// 息の録音が索引に入ると、静かな子音や文末に雑音として選ばれる。
+func isBreathAlias(alias string) bool {
+	if strings.ContainsAny(alias, "吸息") || strings.Contains(strings.ToLower(alias), "breath") {
+		return true
+	}
+	for _, field := range strings.Fields(strings.ToLower(alias)) {
+		if strings.TrimRight(field, "0123456789") == "br" {
+			return true
+		}
+	}
+	return false
 }
