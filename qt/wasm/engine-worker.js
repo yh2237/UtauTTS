@@ -8,7 +8,7 @@ importScripts(...[
   "wasm_exec.js", "fs-shim.js", "openjtalk-bridge.js", "world-bridge.js",
   "openjtalk/utautts-openjtalk.js", "world/utautts-world.js", "reference-inference.js",
 ].map(file => paths.engine(file)));
-const REFERENCE_BASE = ENGINE_BASE + "reference/";
+const REFERENCE_BASE = paths.referenceBaseURL;
 // 参照照合の索引はGoが作る。作るのに時間がかかるため、Cache Storageに残して次に開いたときに戻す。
 const INDEX_DIR = "/cache/UtauTTS/reference-index/";
 const INDEX_CACHE = "utautts-reference-index-v1";

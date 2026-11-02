@@ -28,6 +28,14 @@ var hostFiles = []string{"config.js", "asset-paths.js", "bootstrap.js", "engine-
 const pageLimit = 25 << 20
 const immutableCache = "public, max-age=31536000, immutable"
 
+// referencePrefixは、参照照合のモデル（tools/web-reference/export.pyの出力）を置くR2の場所。
+// モデルは大きいので配信ごとには置かず、書き出し直したときだけ版を上げる。
+const referencePrefix = "utautts/reference/2026-11-03"
+
+// isolationHeadersは、参照照合の推論を複数スレッドで動かすためのcross-origin isolation。
+// R2から読む素材にCORPが要らないよう、COEPはcredentiallessにする（対応しないブラウザは1スレッドで動く）。
+const isolationHeaders = "  Cross-Origin-Opener-Policy: same-origin\n  Cross-Origin-Embedder-Policy: credentialless\n"
+
 type asset struct {
 	Path        string `json:"path"`
 	Key         string `json:"key"`
@@ -144,7 +152,7 @@ func checkedFile(root, relative string) (string, error) {
 }
 func assetFiles(source string) ([]string, error) {
 	files := []string{"utautts.wasm"}
-	for _, name := range []string{"utautts.wasm", "wasm_exec.js", "fs-shim.js", "openjtalk-bridge.js", "world-bridge.js", "openjtalk/utautts-openjtalk.js", "openjtalk/utautts-openjtalk.wasm", "world/utautts-world.js", "world/utautts-world.wasm", "openjtalk/dict-manifest.json", "models/manifest.json", "voice/manifest.json"} {
+	for _, name := range []string{"utautts.wasm", "wasm_exec.js", "fs-shim.js", "openjtalk-bridge.js", "world-bridge.js", "openjtalk/utautts-openjtalk.js", "openjtalk/utautts-openjtalk.wasm", "world/utautts-world.js", "world/utautts-world.wasm", "reference-inference.js", "ort/ort.wasm.min.js", "ort/ort-wasm-simd-threaded.mjs", "ort/ort-wasm-simd-threaded.wasm", "openjtalk/dict-manifest.json", "models/manifest.json", "voice/manifest.json"} {
 		files = append(files, "web/dist/"+name)
 	}
 	for _, spec := range []struct{ manifest, field, prefix string }{
@@ -181,7 +189,7 @@ func contentType(file string) string {
 	switch strings.ToLower(filepath.Ext(file)) {
 	case ".wasm":
 		return "application/wasm"
-	case ".js":
+	case ".js", ".mjs":
 		return "application/javascript"
 	case ".json":
 		return "application/json"
@@ -293,8 +301,9 @@ func assemble(source, output, publicURL, id, version, revision, channel, siteDir
 			return result, err
 		}
 	}
-	config, _ := json.Marshal(map[string]string{"assetBaseURL": result.AssetBaseURL})
-	if err := os.WriteFile(filepath.Join(app, "config.js"), []byte("globalThis.UtauTTSConfig = "+strings.Replace(string(config), ":\"", ": \"", 1)+";\n"), 0644); err != nil {
+	config, _ := json.Marshal(map[string]string{"assetBaseURL": result.AssetBaseURL,
+		"referenceBaseURL": strings.TrimRight(publicURL, "/") + "/" + referencePrefix + "/"})
+	if err := os.WriteFile(filepath.Join(app, "config.js"), []byte("globalThis.UtauTTSConfig = "+strings.ReplaceAll(string(config), `":"`, `": "`)+";\n"), 0644); err != nil {
 		return result, err
 	}
 	html, err := os.ReadFile(filepath.Join(source, "index.html"))
@@ -313,7 +322,8 @@ func assemble(source, output, publicURL, id, version, revision, channel, siteDir
 	if err := os.MkdirAll(filepath.Join(pages, "editor"), 0755); err != nil {
 		return result, err
 	}
-	headers := "/*\n  X-Content-Type-Options: nosniff\n/\n  Cache-Control: no-cache\n/index.html\n  Cache-Control: no-cache\n/editor/\n  Cache-Control: no-cache\n/editor/index.html\n  Cache-Control: no-cache\n/deployment.json\n  Cache-Control: no-cache\n/app/*\n  Cache-Control: " + immutableCache + "\n/assets/*\n  Cache-Control: " + immutableCache + "\n"
+	headers := "/*\n  X-Content-Type-Options: nosniff\n/\n  Cache-Control: no-cache\n/index.html\n  Cache-Control: no-cache\n/editor/\n  Cache-Control: no-cache\n/editor/index.html\n  Cache-Control: no-cache\n/deployment.json\n  Cache-Control: no-cache\n/app/*\n  Cache-Control: " + immutableCache + "\n/assets/*\n  Cache-Control: " + immutableCache + "\n" +
+		"/editor/*\n" + isolationHeaders + "/app/*\n" + isolationHeaders
 	for file, value := range map[string]string{"editor/index.html": page, "404.html": "<!doctype html><meta charset=utf-8><title>404</title>Not found\n", "_headers": headers} {
 		if err := os.WriteFile(filepath.Join(pages, filepath.FromSlash(file)), []byte(value), 0644); err != nil {
 			return result, err
@@ -490,7 +500,7 @@ func checkPublic(output, pagesURL string, client *http.Client) error {
 
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("expected plan, package, upload, verify, or verify-assets")
+		return errors.New("expected plan, package, package-reference, upload, verify, or verify-assets")
 	}
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	switch args[0] {
@@ -531,6 +541,13 @@ func run(args []string) error {
 		}
 		_, err := assemble(*source, *output, *publicURL, *id, *version, *revision, *channel, *site)
 		return err
+	case "package-reference":
+		source := f.String("source", "web/dist/reference", "")
+		output := f.String("output", "out/cloudflare-reference", "")
+		if err := f.Parse(args[1:]); err != nil {
+			return err
+		}
+		return packageReference(*source, *output)
 	case "upload", "verify", "verify-assets":
 		output := f.String("output", "out/cloudflare", "")
 		bucket := f.String("bucket", os.Getenv("CF_R2_BUCKET"), "")
@@ -557,4 +574,47 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// packageReferenceは、参照照合のモデルをreferencePrefixに置くための荷物をoutputに作る。uploadでR2へ送る。
+func packageReference(source, output string) error {
+	if err := toolutil.RequireUnderOut(output, "output", false); err != nil {
+		return err
+	}
+	if _, err := os.Stat(output); err == nil {
+		return fmt.Errorf("refusing to overwrite %s", output)
+	}
+	result := manifest{Channel: "reference", R2Prefix: referencePrefix}
+	err := filepath.Walk(source, func(file string, info os.FileInfo, err error) error {
+		if err != nil || !info.Mode().IsRegular() {
+			return err
+		}
+		rel, err := filepath.Rel(source, file)
+		if err != nil {
+			return err
+		}
+		name := filepath.ToSlash(rel)
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		dst := filepath.Join(output, "r2", filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(dst, data, 0644); err != nil {
+			return err
+		}
+		sum := sha256.Sum256(data)
+		result.Assets = append(result.Assets, asset{name, referencePrefix + "/" + name, int64(len(data)), hex.EncodeToString(sum[:]), contentType(file)})
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if len(result.Assets) == 0 {
+		return fmt.Errorf("no reference files in %s", source)
+	}
+	fmt.Printf("R2: %d files under %s\n", len(result.Assets), referencePrefix)
+	return writeJSON(filepath.Join(output, "upload-manifest.json"), result)
 }

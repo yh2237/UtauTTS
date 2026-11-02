@@ -15,6 +15,8 @@ function createUtauTTSAssetPaths(scriptURL, config = {}) {
     asset: file => new URL(file, assetBaseURL).href,
     engine: file => new URL(file, engineBaseURL).href,
     dictBaseURL: directory(config.dictBaseURL || "openjtalk/dict/", engineBaseURL),
+    // 参照照合のモデルは大きいので、配信ごとではなく固定の場所に置く。
+    referenceBaseURL: directory(config.referenceBaseURL || "reference/", engineBaseURL),
     dictManifestURL: new URL(config.dictManifestURL || "openjtalk/dict-manifest.json", engineBaseURL).href,
   });
 }

@@ -150,7 +150,8 @@ func upload(output, bucket, account string) error {
 	if err != nil {
 		return err
 	}
-	client := &http.Client{Timeout: 2 * time.Minute}
+	// 参照照合のモデルは1つ150MBあるため、余裕を持たせる。
+	client := &http.Client{Timeout: 10 * time.Minute}
 	jobs := make(chan asset)
 	failures := make(chan error, len(m.Assets))
 	var workers sync.WaitGroup
