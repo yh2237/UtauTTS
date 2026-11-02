@@ -80,6 +80,8 @@ const (
 type voiceSet struct {
 	model *kokoro.Model
 	voice *kokoro.Voice
+	// modelNameとvoiceNameは、推論を外に頼むときに渡すファイル名。
+	modelName, voiceName string
 }
 
 type Engine struct {
@@ -94,6 +96,13 @@ type Engine struct {
 	// featuresは最近の参照音声の特徴量。同じ文を続けて合成するときに計算し直さない。
 	featuresMu sync.Mutex
 	features   []*cachedFeatures
+
+	// externalなら推論を外（Web版のONNX Runtime Web）に頼む。pendingは結果待ちの読み、
+	// providedは渡された特徴量（16 kHzの音声の中身がキー）、collectingは集めている推論。
+	external   bool
+	pending    map[string]Reference
+	provided   map[string]providedFeatures
+	collecting *[]InferenceJob
 }
 
 type cachedRead struct {
@@ -117,6 +126,9 @@ func Open(models Models) (engine *Engine, err error) {
 			engine, err = nil, fmt.Errorf("参照照合のモデルを読み込めませんでした: %v", recovered)
 		}
 	}()
+	if externalInference {
+		return openExternal(models)
+	}
 	if path := os.Getenv("UTAUTTS_HUBERT_PATH"); path != "" {
 		models.HuBERT = path
 	}
@@ -174,6 +186,9 @@ func (e *Engine) voiceSetFor(id string) (*voiceSet, error) {
 
 // FeaturesはHuBERT Baseの6層目を20msごとに返す。refmatch.FeatureFuncとして使う。
 func (e *Engine) Features(samples []float64, sampleRate int) ([]float32, int, int, error) {
+	if e.external {
+		return e.externalFeatures(samples, sampleRate)
+	}
 	wave := make([]float32, len(samples))
 	for i, v := range samples {
 		wave[i] = float32(v)
@@ -345,19 +360,17 @@ func (e *Engine) read(id string, pieces []Piece, speed float32, durations []int,
 		}
 	}
 	e.readsMu.Unlock()
+	if entry == nil && e.external {
+		skeleton := Reference{SampleRate: kokoroRate, Key: key, Timing: Timing{PieceTokens: pieceTokens(set.model, pieces)}}
+		return Reference{}, e.readJob(set, key, phonemes.String(), speed, durations, withAudio, skeleton)
+	}
 	if entry == nil {
 		prosody, err := set.model.ReadProsody(phonemes.String(), set.voice, speed, durations)
 		if err != nil {
 			return Reference{}, err
 		}
 		entry = &cachedRead{key: key, prosody: prosody, reference: Reference{F0: prosody.F0, SampleRate: kokoroRate, Key: key,
-			Timing: Timing{Durations: prosody.Durations, PieceTokens: make([][2]int, len(pieces))}}}
-		token := 1
-		for i, piece := range pieces {
-			start := token
-			token += len(set.model.Tokens(piece.Symbols))
-			entry.reference.PieceTokens[i] = [2]int{start, token}
-		}
+			Timing: Timing{Durations: prosody.Durations, PieceTokens: pieceTokens(set.model, pieces)}}}
 		e.readsMu.Lock()
 		e.reads = append(e.reads, entry)
 		if len(e.reads) > cachedReads {
@@ -370,6 +383,9 @@ func (e *Engine) read(id string, pieces []Piece, speed float32, durations []int,
 	e.readsMu.Unlock()
 	if !withAudio || reference.Audio != nil {
 		return reference, nil
+	}
+	if e.external {
+		return Reference{}, e.readJob(set, key, phonemes.String(), speed, reference.Durations, true, reference)
 	}
 	audio, err := set.model.Decode(entry.prosody, torchrng.New(kokoroSeed))
 	if err != nil {
@@ -515,4 +531,16 @@ func (e *Engine) SpeakAudio(index *refmatch.Index, world refmatch.World, audio [
 		F0: result.F0, AutomaticF0: result.F0,
 		ReferenceVoicing: &VoicingStats{Frames: voicing.Frames, Before: voicing.Before, After: voicing.After},
 	}, nil
+}
+
+// pieceTokensは、区切りごとの記号の範囲（先頭の0を数えた位置）を返す。
+func pieceTokens(model *kokoro.Model, pieces []Piece) [][2]int {
+	spans := make([][2]int, len(pieces))
+	token := 1
+	for i, piece := range pieces {
+		start := token
+		token += len(model.Tokens(piece.Symbols))
+		spans[i] = [2]int{start, token}
+	}
+	return spans
 }

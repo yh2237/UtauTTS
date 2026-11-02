@@ -43,17 +43,34 @@ type Result struct {
 	F0        []float32
 }
 
-func Load(pthPath, configPath string) (*Model, error) {
+func readConfig(configPath string) (Config, error) {
+	var cfg Config
 	b, e := os.ReadFile(configPath)
 	if e != nil {
-		return nil, e
+		return cfg, e
 	}
-	var cfg Config
 	if e = json.Unmarshal(b, &cfg); e != nil {
-		return nil, e
+		return cfg, e
 	}
 	if cfg.HiddenDim != 512 || cfg.StyleDim != 128 || cfg.MaxDur != 50 {
-		return nil, fmt.Errorf("kokoro: unsupported config dimensions")
+		return cfg, fmt.Errorf("kokoro: unsupported config dimensions")
+	}
+	return cfg, nil
+}
+
+// LoadConfigは重みを読まずに設定だけを読む。Inputsで推論の入力を作るのに使う（Web版は推論をONNX Runtime Webで行う）。
+func LoadConfig(configPath string) (*Model, error) {
+	cfg, err := readConfig(configPath)
+	if err != nil {
+		return nil, err
+	}
+	return &Model{config: cfg}, nil
+}
+
+func Load(pthPath, configPath string) (*Model, error) {
+	cfg, e := readConfig(configPath)
+	if e != nil {
+		return nil, e
 	}
 	w, e := torchpth.Read(pthPath)
 	if e != nil {
@@ -406,22 +423,30 @@ func (m *Model) ReadProsody(phonemes string, voice *Voice, speed float32, durati
 			return nil, fmt.Errorf("kokoro: durations must be positive")
 		}
 	}
+	ids, style, err := m.Inputs(phonemes, durations)
+	if err != nil {
+		return nil, err
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	ids := m.Tokens(phonemes)
+	return m.prosody(ids, voice.data[style*256:(style+1)*256], speed, durations), nil
+}
+
+// Inputsは推論の入力を返す。idsは前後に0を付けた記号の番号、styleは声の表の行。
+func (m *Model) Inputs(phonemes string, durations []int) (ids []int, style int, err error) {
+	ids = m.Tokens(phonemes)
 	if len(ids)+2 > m.config.PLBERT.MaxPosition {
-		return nil, fmt.Errorf("kokoro: too many tokens")
+		return nil, 0, fmt.Errorf("kokoro: too many tokens")
 	}
 	runes := []rune(phonemes)
 	if len(runes) < 1 || len(runes) > 510 {
-		return nil, fmt.Errorf("kokoro: voice length out of range")
+		return nil, 0, fmt.Errorf("kokoro: voice length out of range")
 	}
-	ref := voice.data[(len(runes)-1)*256 : len(runes)*256]
 	ids = append(append([]int{0}, ids...), 0)
 	if durations != nil && len(durations) != len(ids) {
-		return nil, fmt.Errorf("kokoro: %d durations for %d tokens", len(durations), len(ids))
+		return nil, 0, fmt.Errorf("kokoro: %d durations for %d tokens", len(durations), len(ids))
 	}
-	return m.prosody(ids, ref, speed, durations), nil
+	return ids, len(runes) - 1, nil
 }
 
 // Decodeは、ReadProsodyの結果から24 kHzの波形を作る。

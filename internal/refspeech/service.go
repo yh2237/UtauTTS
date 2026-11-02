@@ -63,6 +63,8 @@ type indexEntry struct {
 	logs []string
 	// builtはこのプロセスで索引を作ったかどうか（キャッシュから読んだだけならfalse）。
 	built bool
+	// needは、索引を作るのに外の推論が要るときの頼みごと。
+	need *NeedInference
 }
 
 var (
@@ -265,6 +267,9 @@ func (s *Service) index(ctx context.Context, bankRoot string, recordings []refma
 			logf(line)
 		}
 	}
+	if entry.need != nil {
+		return nil, entry.need
+	}
 	if entry.index == nil {
 		if logf != nil {
 			logf(fmt.Sprintf("索引: %s の作成に失敗しました（%.1f 秒）: %s",
@@ -339,16 +344,19 @@ func (s *Service) build(bankRoot string, recordings []refmatch.Recording, worldE
 				filepath.Base(bankRoot), step*10, done, total)
 		}
 	})
+	var need *NeedInference
+	errors.As(err, &need)
 	batchMu.Lock()
 	batch.done++
 	batch.current = 0
-	if err != nil {
+	if err != nil && need == nil {
 		batch.failed = append(batch.failed, fmt.Sprintf("%s: %v", filepath.Base(bankRoot), err))
 	}
 	batchMu.Unlock()
 	s.mu.Lock()
 	entry.logs = logs
 	entry.built = !fromCache
+	entry.need = need
 	if err != nil {
 		entry.status = IndexStatus{State: IndexFailed, Error: err.Error()}
 	} else {
@@ -385,7 +393,23 @@ func (s *Service) loadOrBuild(bankRoot string, recordings []refmatch.Recording, 
 		defer s.foreground.Unlock()
 		return engine.Features(samples, rate)
 	}
-	index, err := refmatch.BuildIndex(files, FeatureModel, world, features, progress, refmatch.OpenPartCache(filepath.Join(s.cacheDir, "parts")))
+	if engine.external {
+		// 外の推論はJSの側でしか待てないため、特徴量の要る録音を先に集めて、まとめて頼む。
+		jobs := engine.collectFeatures(func() {
+			_, _ = refmatch.BuildIndex(files, FeatureModel, dryWorld{}, engine.Features, nil, nil)
+		})
+		if len(jobs) > 0 {
+			logf("索引: %s の特徴量を %d 件の録音で求めます", filepath.Base(bankRoot), len(jobs))
+			return nil, false, &NeedInference{Jobs: jobs}
+		}
+		defer engine.dropProvided()
+	}
+	// Web版の仮想FSはメモリなので、録音ごとの途中結果は残さない。
+	var parts *refmatch.PartCache
+	if !engine.external {
+		parts = refmatch.OpenPartCache(filepath.Join(s.cacheDir, "parts"))
+	}
+	index, err := refmatch.BuildIndex(files, FeatureModel, world, features, progress, parts)
 	if err != nil {
 		return nil, false, err
 	}
@@ -515,4 +539,22 @@ func (s *Service) ReadProsody(id string, pieces []Piece, speed float32, duration
 	s.foreground.RLock()
 	defer s.foreground.RUnlock()
 	return engine.ReadProsody(id, pieces, speed, durations)
+}
+
+// ProvideReadは、外で求めた読みを渡す（Web版）。
+func (s *Service) ProvideRead(key string, durations []int, f0, audio []float32) error {
+	engine, err := s.openEngine()
+	if err != nil {
+		return err
+	}
+	return engine.ProvideRead(key, durations, f0, audio)
+}
+
+// ProvideFeaturesは、外で求めたWavLMの特徴量を渡す（Web版）。
+func (s *Service) ProvideFeatures(key string, values []float32, frames, dims int) error {
+	engine, err := s.openEngine()
+	if err != nil {
+		return err
+	}
+	return engine.ProvideFeatures(key, values, frames, dims)
 }

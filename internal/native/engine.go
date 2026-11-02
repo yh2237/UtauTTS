@@ -125,6 +125,9 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 		result, err = e.exportUstx(requestJSON)
 	case "writeSidecars":
 		result, err = e.writeSidecars(requestJSON)
+	case "provideInference":
+		err = e.provideInference(requestJSON)
+		result = map[string]bool{"ok": err == nil}
 	case "referenceIndexes":
 		result = tts.ReferenceIndexProgress()
 	case "listReferenceIndexes":

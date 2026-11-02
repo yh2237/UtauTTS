@@ -409,6 +409,11 @@ func (s *Service) FeatureDevice() string {
 	return hubert.LastDevice()
 }
 
+// ProvideReferenceInferenceは、Web版で外に頼んだ推論の結果を渡す。
+func (s *Service) ProvideReferenceInference(reads []tts.ReferenceRead, features []tts.ReferenceFeatures) error {
+	return tts.ProvideReferenceInference(s.referenceDir(), reads, features)
+}
+
 // ReferenceProvidersは、使える参照TTSを返す。
 func (s *Service) ReferenceProviders() []tts.ReferenceProviderInfo {
 	return tts.ReferenceProviders(s.referenceDir())
