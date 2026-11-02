@@ -452,7 +452,10 @@ Reference matching uses Kokoro-82M, Kokoro-82M-v1.1-zh and the misaki
 English lexicon from models/reference, redistributed unmodified under the Apache License 2.0, and
 WavLM base+ (microsoft/wavlm-base-plus), redistributed under the MIT License;
 see licenses/REFERENCE-MODELS.txt, licenses/CHINESE-REFERENCE-MODEL.txt and
-licenses/WAVLM-MIT.txt.
+licenses/WAVLM-MIT.txt. The web version serves these models converted to ONNX
+by tools/web-reference/export.py (Kokoro split into duration, prosody and
+synthesis graphs; WavLM cut after its sixth layer; weights stored as float16)
+under the same licenses.
 
 UtauTTS source code uses the repository MIT License; models, prompts,
 voicebanks, and other third-party assets use their respective notices.
@@ -497,6 +500,34 @@ context-dependent word readings of misaki (https://github.com/hexgrad/misaki),
 which is licensed under the Apache License 2.0.
 
 The Apache License 2.0 text is in licenses/APACHE-2.0.txt.
+
+
+ONNX Runtime Web
+================
+
+The web version runs the reference matching models with ONNX Runtime Web
+(https://github.com/microsoft/onnxruntime), which is licensed under the MIT
+License:
+
+Copyright (c) Microsoft Corporation
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 
 Material Symbols (icon font subset)
