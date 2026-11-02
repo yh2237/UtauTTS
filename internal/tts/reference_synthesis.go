@@ -75,6 +75,10 @@ func PrepareReferenceIndexStatus(dir string, bank *voicebank.Bank, color, world 
 	return status.State == refspeech.IndexBuilding, nil
 }
 
+// referenceContinuityBonusは、同じ録音の続きの位置を選びやすくする強さ。
+// 20msごとに別の録音へ入れ替わるとつなぎ目が目立つ。
+const referenceContinuityBonus = 0.05
+
 // referenceRecordingsは索引に使う録音と、それを使う原音のoto.iniの範囲を返す。
 func referenceRecordings(bank *voicebank.Bank, color string) []refmatch.Recording {
 	recordings := bank.ReferenceRecordings(color)
@@ -119,8 +123,9 @@ func referenceInputs(cfg Config, language, reading string) (*refspeech.Service, 
 		return nil, nil, nil, refspeech.Options{}, err
 	}
 	options := refspeech.Options{
-		Speed:      1,
-		PitchScale: cfg.IntonationStrength / settings.Number("intonation_strength"),
+		Speed:           1,
+		PitchScale:      cfg.IntonationStrength / settings.Number("intonation_strength"),
+		ContinuityBonus: referenceContinuityBonus,
 	}
 	if cfg.MoraDurationMS > 0 {
 		options.Speed = float32(plan.DefaultMoraDurationMS / cfg.MoraDurationMS)
