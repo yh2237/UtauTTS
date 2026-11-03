@@ -319,9 +319,12 @@ self.onmessage = (event) => {
     if (data.type === "inferencePort") {
       resolveInferencePort(data.port);
     } else if (data.type === "mountFile") {
-      handleMountFile(data.path, data.bytes);
+      callChain = callChain.then(() => handleMountFile(data.path, data.bytes))
+        .catch(error => self.postMessage({ type: "error", message: String(error) }));
     } else if (data.type === "removeFile") {
-      if (virtualFs && virtualFs.readFile(data.path)) virtualFs._unlink(data.path);
+      callChain = callChain.then(() => {
+        if (virtualFs && virtualFs.readFile(data.path)) virtualFs._unlink(data.path);
+      }).catch(error => self.postMessage({ type: "error", message: String(error) }));
     } else if (data.type === "call") {
       // 非同期のランタイム読み込みを含むため直列化する。
       callChain = callChain

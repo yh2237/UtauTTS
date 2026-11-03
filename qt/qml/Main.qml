@@ -136,11 +136,12 @@ ApplicationWindow {
         id: textAnalysisTimer
         interval: 350
         repeat: false
-        property int index: -1
+        property string utteranceId: ""
         onTriggered: {
-            if (index < 0 || index >= utterances.count)
+            const currentIndex = window.utteranceIndex(utteranceId);
+            if (currentIndex < 0)
                 return;
-            if (!utterances.get(index).content.trim()) {
+            if (!utterances.get(currentIndex).content.trim()) {
                 window.appBackend.clearError();
                 return;
             }
@@ -148,7 +149,7 @@ ApplicationWindow {
                 restart();
                 return;
             }
-            window.analyzeUtterance(index);
+            window.analyzeUtterance(currentIndex);
         }
     }
 
@@ -1513,7 +1514,7 @@ ApplicationWindow {
         markUtteranceDirty(index);
         selectUtterance(index);
         window.appBackend.clearError();
-        textAnalysisTimer.index = index;
+        textAnalysisTimer.utteranceId = utterances.get(index).utteranceId;
         textAnalysisTimer.restart();
         window.requestMissingProsodyPreview(index);
     }
@@ -1633,7 +1634,7 @@ ApplicationWindow {
 
     readonly property var menuDialogs: ({about: dialogs.aboutDialog})
 
-    readonly property var selfTestContext: ({window: window, utterances: utterances, editorContent: editorContent, analyzeTimer: analyzeTimer})
+    readonly property var selfTestContext: ({window: window, utterances: utterances, editorContent: editorContent, analyzeTimer: analyzeTimer, textAnalysisTimer: textAnalysisTimer})
 
     readonly property var intonationLabContext: ({window: window, utterances: utterances, prepareTimer: intonationLabPrepareTimer, qt: Qt})
 

@@ -35,9 +35,26 @@ function update(values, unitIndex, key, value) {
 }
 
 function updateMany(values, unitIndices, key, value) {
-    let result = normalize(values);
-    for (const unitIndex of unitIndices || [])
-        result = update(result, unitIndex, key, value);
+    const result = normalize(values);
+    if (!String(key || "") || key === "unit_index" || value === undefined || value === null
+            || (typeof value === "number" && !Number.isFinite(value)))
+        return result;
+    const entries = new Map();
+    for (const item of result)
+        if (!entries.has(item.unit_index))
+            entries.set(item.unit_index, item);
+    for (const unitIndex of unitIndices || []) {
+        const number = Number(unitIndex);
+        if (!Number.isInteger(number) || number < 0)
+            continue;
+        let entry = entries.get(number);
+        if (!entry) {
+            entry = {unit_index: number};
+            entries.set(number, entry);
+            result.push(entry);
+        }
+        entry[String(key)] = value;
+    }
     return result;
 }
 

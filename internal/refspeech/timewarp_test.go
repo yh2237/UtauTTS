@@ -30,6 +30,15 @@ func TestWarpRefusesBadSegments(t *testing.T) {
 	if NewWarp([]float64{100}, []float64{100, 100}) != nil {
 		t.Fatal("different lengths should be refused")
 	}
+	for _, bad := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		if NewWarp([]float64{100, bad}, []float64{100, 100}) != nil ||
+			NewWarp([]float64{100, 100}, []float64{100, bad}) != nil {
+			t.Fatalf("non-finite segment %v should be refused", bad)
+		}
+	}
+	if NewWarp([]float64{math.MaxFloat64, math.MaxFloat64}, []float64{100, 100}) != nil {
+		t.Fatal("overflowing cumulative duration should be refused")
+	}
 }
 
 func TestWarpSequenceStretchesFrames(t *testing.T) {

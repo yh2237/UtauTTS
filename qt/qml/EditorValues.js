@@ -40,9 +40,16 @@ function voicedUnitIndices(units) {
 // commonUnitValueは、無音以外の原音で最も多い値。全部同じならその値になる。
 function commonUnitValue(units, overrides, key) {
     const counts = new Map();
+    const byIndex = new Map();
+    for (const override of overrides || []) {
+        if (override && !byIndex.has(Number(override.unit_index)))
+            byIndex.set(Number(override.unit_index), override);
+    }
     let best = paramRange(key).def, bestCount = 0;
     for (const index of voicedUnitIndices(units)) {
-        const value = Number(unitValue(units, overrides, null, index, key));
+        const override = byIndex.get(index);
+        const value = Number(override && override[key] !== undefined
+                             ? override[key] : unitValue(units, [], null, index, key));
         const count = (counts.get(value) || 0) + 1;
         counts.set(value, count);
         if (count > bestCount) {

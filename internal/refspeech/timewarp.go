@@ -24,16 +24,22 @@ func NewWarp(source, target []float64) *Warp {
 		Target: make([]float64, len(target)+1),
 	}
 	for i, v := range source {
-		if v <= 0 {
+		if v <= 0 || math.IsNaN(v) || math.IsInf(v, 0) {
 			return nil
 		}
 		warp.Source[i+1] = warp.Source[i] + v
+		if math.IsInf(warp.Source[i+1], 0) {
+			return nil
+		}
 	}
 	for i, v := range target {
-		if v <= 0 {
+		if v <= 0 || math.IsNaN(v) || math.IsInf(v, 0) {
 			return nil
 		}
 		warp.Target[i+1] = warp.Target[i] + v
+		if math.IsInf(warp.Target[i+1], 0) {
+			return nil
+		}
 	}
 	return warp
 }

@@ -47,6 +47,17 @@ func TestApplyUnitOverridesRejectsInvalidValues(t *testing.T) {
 	}
 }
 
+func TestApplyUnitOverridesDoesNotPartiallyApplyInvalidBatch(t *testing.T) {
+	units := []Unit{{OffsetMS: 10}, {OffsetMS: 20}}
+	err := ApplyUnitOverrides(units, []UnitOverride{
+		{Index: 0, OffsetMS: float64Pointer(30)},
+		{Index: 2, OffsetMS: float64Pointer(40)},
+	})
+	if err == nil || units[0].OffsetMS != 10 {
+		t.Fatalf("err = %v, first offset = %v", err, units[0].OffsetMS)
+	}
+}
+
 func float64Pointer(value float64) *float64 { return &value }
 
 func intPointer(value int) *int { return &value }

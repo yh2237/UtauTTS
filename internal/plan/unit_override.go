@@ -31,7 +31,9 @@ func ApplyUnitOverrides(units []Unit, overrides []UnitOverride) error {
 		if err := validateUnitOverride(override); err != nil {
 			return fmt.Errorf("unit override %d: %w", override.Index, err)
 		}
+	}
 
+	for _, override := range overrides {
 		unit := &units[override.Index]
 		if override.OffsetMS != nil {
 			unit.OffsetMS = *override.OffsetMS

@@ -174,6 +174,39 @@ test("Worker waits for candidate prefetch before synthesis and still mirrors out
   assert.equal(result.files[0].path, "/tmp/output.wav");
 });
 
+test("Worker applies file messages in order around an asynchronous call", async () => {
+  const vfs = createVirtualFs();
+  const messages = [];
+  const context = vm.createContext({
+    importScripts() {}, console, Uint8Array, URL, testFs: vfs,
+    location: {href: "https://example.test/app/engine-worker.js"}, createUtauTTSAssetPaths,
+    self: {postMessage(message) { messages.push(message); }},
+    utauttsWasm: {call() { return '{"ok":true,"result":{}}'; }},
+  });
+  const worker = source("qt/wasm/engine-worker.js");
+  vm.runInContext(worker.slice(0, worker.indexOf("\ninit().catch(")), context);
+  vm.runInContext("virtualFs = testFs", context);
+  let finish;
+  context.handleCall = () => new Promise(resolve => { finish = resolve; });
+  context.self.onmessage({data: {type: "call", id: 1, method: "settings", request: "{}"}});
+  await new Promise(resolve => setImmediate(resolve));
+  context.self.onmessage({data: {type: "mountFile", path: "/tmp/late", bytes: new Uint8Array([7]).buffer}});
+  assert.equal(vfs.readFile("/tmp/late"), null);
+  finish();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(Array.from(vfs.readFile("/tmp/late")), [7]);
+  assert.equal(messages.length, 0);
+});
+
+test("bulk overrides preserve update semantics", () => {
+  const initial = [{unit_index: 3, energy_factor: 1.5}, {unit_index: 1, pitch_factor: 2}];
+  const indices = [1, 3, 5, 1, -1, 2.5];
+  let expected = initial;
+  for (const index of indices) expected = UnitOverrides.update(expected, index, "resampler_volume", 80);
+  assert.deepEqual(UnitOverrides.updateMany(initial, indices, "resampler_volume", 80), expected);
+  assert.equal(EditorValues.commonUnitValue([{}, {}, {}, {}, {}, {}], expected, "resampler_volume"), 100);
+});
+
 test("unit edits preserve sparse identity through project state and editor preview", () => {
   const item = { utteranceId: "a", revision: 0, phonemeOverridesJson: "[]" };
   const context = sharedState([item]);
@@ -247,7 +280,7 @@ test("Worker failure after ready completes pending calls and preserves queued re
   const context = vm.createContext({
     URL, URLSearchParams, Uint8Array, console: { error() {} }, createVirtualFs,
     location: { href: "https://example.test/app/index.html", search: "" },
-    Worker: class { constructor() { worker = this; } postMessage() {} },
+    Worker: class { constructor() { worker = this; } postMessage() {} terminate() { this.terminated = true; } },
   });
   context.window = context;
   context.utauttsAssetPaths = createUtauTTSAssetPaths(context.location.href);
@@ -256,6 +289,7 @@ test("Worker failure after ready completes pending calls and preserves queued re
   await context.utauttsEngineReady;
   context.utauttsCallAsync("synthesize", "{}", 4);
   worker.onerror({ message: "worker crashed" });
+  assert.equal(worker.terminated, true);
   assert.equal(context.utauttsPendingResults[0].id, 4);
   context.utauttsFlushPendingResults(); // Qt module not attached yet.
   assert.equal(context.utauttsPendingResults.length, 1);

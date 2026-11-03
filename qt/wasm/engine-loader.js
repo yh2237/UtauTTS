@@ -86,6 +86,7 @@
     });
     const pendingCalls = new Set();
     let workerError = null;
+    let inferenceWorker = null;
 
     function complete(id, response) {
       pendingCalls.delete(id);
@@ -102,7 +103,13 @@
     }
 
     function failWorker(message) {
+      if (workerError) return;
       workerError = String(message);
+      worker.terminate();
+      if (inferenceWorker) {
+        inferenceWorker.terminate();
+        inferenceWorker = null;
+      }
       rejectReady(new Error(workerError));
       for (const id of Array.from(pendingCalls))
         complete(id, { ok: false, error: workerError });
@@ -120,13 +127,19 @@
         return;
       }
       if (data.type === "needInferencePort") {
-        // 参照照合の推論はページから作ったWorkerで動かす（reference-inference.jsのserveOrt）。
-        const channel = new MessageChannel();
-        const source = "importScripts(" + JSON.stringify(ENGINE_BASE + "reference-inference.js") + "); serveOrt(" +
-          JSON.stringify(ENGINE_BASE + "ort/") + ");";
-        const inference = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
-        inference.postMessage(null, [channel.port1]);
-        worker.postMessage({ type: "inferencePort", port: channel.port2 }, [channel.port2]);
+        try {
+          // 参照照合の推論はページから作ったWorkerで動かす（reference-inference.jsのserveOrt）。
+          const channel = new MessageChannel();
+          const source = "importScripts(" + JSON.stringify(ENGINE_BASE + "reference-inference.js") + "); serveOrt(" +
+            JSON.stringify(ENGINE_BASE + "ort/") + ");";
+          inferenceWorker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
+          inferenceWorker.onerror = event => failWorker((event && event.message) || "inference worker error");
+          inferenceWorker.onmessageerror = () => failWorker("inference worker message could not be decoded");
+          inferenceWorker.postMessage(null, [channel.port1]);
+          worker.postMessage({ type: "inferencePort", port: channel.port2 }, [channel.port2]);
+        } catch (error) {
+          failWorker(error);
+        }
         return;
       }
       if (data.type === "status") {

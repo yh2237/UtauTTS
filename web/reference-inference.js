@@ -74,15 +74,26 @@ function createReferenceInference({ baseURL, virtualFs, status, requestPort }) {
     const pending = new Map();
     let next = 0, sessionCount = 0;
     port.onmessage = ({ data }) => {
+      if (!data) return;
       const entry = pending.get(data.id);
+      if (!entry) return;
       pending.delete(data.id);
       if (data.error) entry.reject(new Error(data.error));
       else entry.resolve(data.outputs);
     };
+    port.onmessageerror = () => {
+      for (const entry of pending.values()) entry.reject(new Error("inference port message could not be decoded"));
+      pending.clear();
+    };
     const request = (message, transfer) => new Promise((resolve, reject) => {
       const id = next++;
       pending.set(id, { resolve, reject });
-      port.postMessage({ ...message, id }, transfer || []);
+      try {
+        port.postMessage({ ...message, id }, transfer || []);
+      } catch (error) {
+        pending.delete(id);
+        reject(error);
+      }
     });
     return {
       async create(data) {

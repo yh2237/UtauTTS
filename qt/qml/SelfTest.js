@@ -1,5 +1,5 @@
 // GUIセルフテスト。QMLのidに依存せず、ctxで受け取る。
-// ctx = {window, utterances, editorContent, analyzeTimer}
+// ctx = {window, utterances, editorContent, analyzeTimer, textAnalysisTimer}
 
 function run(ctx) {
     const host = ctx.window;
@@ -168,12 +168,22 @@ function run(ctx) {
     if (error.length)
         return error;
     host.selectUtterance(1);
+    host.updateUtteranceText(1, "テスト");
+    const scheduledAnalysisId = ctx.textAnalysisTimer.utteranceId;
+    error = check(scheduledAnalysisId === host.current().utteranceId,
+                  "text analysis timer did not capture the utterance");
+    if (error.length)
+        return error;
     host.moveUtterance(-1);
-    error = check(host.selectedIndex === 0, "utterance move failed");
+    error = check(host.selectedIndex === 0
+                  && host.utteranceIndex(scheduledAnalysisId) === 0,
+                  "utterance move failed or analysis target changed");
     if (error.length)
         return error;
     host.removeUtterance();
-    error = check(ctx.utterances.count === 1, "utterance remove failed");
+    error = check(ctx.utterances.count === 1
+                  && host.utteranceIndex(scheduledAnalysisId) < 0,
+                  "utterance remove failed or stale analysis target survived");
     if (error.length)
         return error;
     const project = host.projectData();
