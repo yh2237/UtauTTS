@@ -17,10 +17,15 @@ type ReferenceFeatures struct {
 }
 
 // ProvideReferenceInferenceは、refspeech.NeedInferenceで頼まれた推論の結果を渡す（Web版）。
-func ProvideReferenceInference(dir string, reads []ReferenceRead, features []ReferenceFeatures) error {
+func ProvideReferenceInference(dir string, reads []ReferenceRead, features []ReferenceFeatures, prefetched []string) error {
 	service, err := ReferenceService(dir)
 	if err != nil {
 		return err
+	}
+	for _, key := range prefetched {
+		if err := service.ProvidePrefetched(key); err != nil {
+			return err
+		}
 	}
 	for _, read := range reads {
 		if err := service.ProvideRead(read.Key, read.Durations, read.F0, read.Audio); err != nil {

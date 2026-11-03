@@ -26,6 +26,7 @@ func (e *Engine) provideInference(requestJSON []byte) error {
 			Frames int    `json:"frames"`
 			Dims   int    `json:"dims"`
 		} `json:"features"`
+		Prefetched []string `json:"prefetched"`
 	}
 	if err := json.Unmarshal(requestJSON, &request); err != nil {
 		return fmt.Errorf("decode inference results: %w", err)
@@ -49,7 +50,7 @@ func (e *Engine) provideInference(requestJSON []byte) error {
 		}
 		features[i] = tts.ReferenceFeatures{Key: item.Key, Values: values, Frames: item.Frames, Dims: item.Dims}
 	}
-	return e.synth.ProvideReferenceInference(reads, features)
+	return e.synth.ProvideReferenceInference(reads, features, request.Prefetched)
 }
 
 func takeFloat32File(path string) ([]float32, error) {

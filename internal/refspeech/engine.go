@@ -103,6 +103,7 @@ type Engine struct {
 	pending    map[string]Reference
 	provided   map[string]providedFeatures
 	collecting *[]InferenceJob
+	prefetched map[string]bool
 }
 
 type cachedRead struct {

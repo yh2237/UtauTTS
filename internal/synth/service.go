@@ -410,8 +410,8 @@ func (s *Service) FeatureDevice() string {
 }
 
 // ProvideReferenceInferenceは、Web版で外に頼んだ推論の結果を渡す。
-func (s *Service) ProvideReferenceInference(reads []tts.ReferenceRead, features []tts.ReferenceFeatures) error {
-	return tts.ProvideReferenceInference(s.referenceDir(), reads, features)
+func (s *Service) ProvideReferenceInference(reads []tts.ReferenceRead, features []tts.ReferenceFeatures, prefetched []string) error {
+	return tts.ProvideReferenceInference(s.referenceDir(), reads, features, prefetched)
 }
 
 // ReferenceProvidersは、使える参照TTSを返す。

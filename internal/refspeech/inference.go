@@ -26,7 +26,7 @@ func (n *NeedInference) Error() string {
 
 // InferenceJobは外に頼む推論の1件。
 type InferenceJob struct {
-	// Kindはkokoro（読み）かfeatures（WavLMの6層目）。
+	// Kindはkokoro（読み）、features（WavLMの6層目）、files（索引を作る前に録音をまとめて取得する）。
 	Kind string `json:"kind"`
 	Key  string `json:"key"`
 	// Modelは重みのファイル名（拡張子なし）、Voiceは声のファイル名（拡張子なし）、Styleは声の表の行。
@@ -40,6 +40,8 @@ type InferenceJob struct {
 	Audio     bool  `json:"audio,omitempty"`
 	// Samplesはfeaturesの16 kHzの音声。
 	Samples []float32 `json:"-"`
+	// Pathsはfilesで取得する録音。
+	Paths []string `json:"paths,omitempty"`
 }
 
 type providedFeatures struct {
@@ -70,7 +72,8 @@ func openExternal(models Models) (*Engine, error) {
 			return nil, err
 		}
 	}
-	return &Engine{voices: voices, external: true, provided: map[string]providedFeatures{}, pending: map[string]Reference{}}, nil
+	return &Engine{voices: voices, external: true, provided: map[string]providedFeatures{}, pending: map[string]Reference{},
+		prefetched: map[string]bool{}}, nil
 }
 
 func stem(path string) string {
@@ -188,6 +191,28 @@ func (e *Engine) collectFeatures(run func()) []InferenceJob {
 	e.collecting = nil
 	e.featuresMu.Unlock()
 	return jobs
+}
+
+// ProvidePrefetchedは、filesで頼んだ録音を取得し終えたことを渡す。
+func (e *Engine) ProvidePrefetched(key string) {
+	e.featuresMu.Lock()
+	defer e.featuresMu.Unlock()
+	e.prefetched[key] = true
+}
+
+// filesJobは、索引を作る前に録音をまとめて取得するよう頼む。Web版の音源は読むときに1つずつ取得するため、
+// 索引を作る途中で読むと長く止まる。取得済みならnilを返す。
+func (e *Engine) filesJob(key string, files []refmatch.Recording) error {
+	e.featuresMu.Lock()
+	defer e.featuresMu.Unlock()
+	if e.prefetched[key] {
+		return nil
+	}
+	paths := make([]string, len(files))
+	for i, file := range files {
+		paths[i] = file.Path
+	}
+	return &NeedInference{Jobs: []InferenceJob{{Kind: "files", Key: key, Paths: paths}}}
 }
 
 // dropProvidedは、索引を作り終えた録音の特徴量を捨てる。

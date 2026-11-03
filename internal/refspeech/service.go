@@ -394,6 +394,9 @@ func (s *Service) loadOrBuild(bankRoot string, recordings []refmatch.Recording, 
 		return engine.Features(samples, rate)
 	}
 	if engine.external {
+		if err := engine.filesJob(key, files); err != nil {
+			return nil, false, err
+		}
 		// 外の推論はJSの側でしか待てないため、特徴量の要る録音を先に集めて、まとめて頼む。
 		jobs := engine.collectFeatures(func() {
 			_, _ = refmatch.BuildIndex(files, FeatureModel, dryWorld{}, engine.Features, nil, nil)
@@ -548,6 +551,16 @@ func (s *Service) ProvideRead(key string, durations []int, f0, audio []float32) 
 		return err
 	}
 	return engine.ProvideRead(key, durations, f0, audio)
+}
+
+// ProvidePrefetchedは、索引を作る前に録音を取得し終えたことを渡す（Web版）。
+func (s *Service) ProvidePrefetched(key string) error {
+	engine, err := s.openEngine()
+	if err != nil {
+		return err
+	}
+	engine.ProvidePrefetched(key)
+	return nil
 }
 
 // ProvideFeaturesは、外で求めたWavLMの特徴量を渡す（Web版）。

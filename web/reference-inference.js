@@ -233,13 +233,26 @@ function createReferenceInference({ baseURL, virtualFs, status, requestPort }) {
   }
 
   // runは、Goが返した推論の頼みごとを実行し、結果をGoへ渡す。
+  async function prefetch(jobs, logs) {
+    const keys = [];
+    for (const job of jobs) {
+      const started = performance.now();
+      status("音源の録音を取得中…（" + job.paths.length + " 件）");
+      await virtualFs.prefetchFiles(job.paths);
+      logs.push("音源の録音を取得しました（" + job.paths.length + " 件、" + ((performance.now() - started) / 1000).toFixed(1) + " 秒）");
+      keys.push(job.key);
+    }
+    return keys;
+  }
+
   async function run(jobs, call, logs) {
+    const prefetched = await prefetch(jobs.filter(job => job.kind === "files"), logs);
     const reads = [];
     for (const [number, job] of jobs.entries()) {
       if (job.kind === "kokoro") reads.push(await read(job, number, logs));
     }
     const provided = await features(jobs.filter(job => job.kind === "features"), logs);
-    const response = JSON.parse(call("provideInference", JSON.stringify({ reads, features: provided })));
+    const response = JSON.parse(call("provideInference", JSON.stringify({ reads, features: provided, prefetched })));
     if (!response.ok) throw new Error(response.error || "provideInference failed");
   }
 
