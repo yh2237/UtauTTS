@@ -62,7 +62,7 @@ function mountTree(virtualFs, hostDir, guestDir) {
     if (!parsed.ok) throw new Error(method + ": " + parsed.error);
     return parsed.result;
   };
-  const inference = createReferenceInference({ baseURL, ortURL: null, virtualFs, status: text => console.log("status:", text) });
+  const inference = createReferenceInference({ baseURL, virtualFs, status: text => console.log("status:", text) });
 
   const providers = result("referenceProviders", {}).reference_providers.map(p => p.language);
   assert.ok(providers.includes("en"), "providers=" + providers);

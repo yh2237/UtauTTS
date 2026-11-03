@@ -119,6 +119,16 @@
         failWorker(data.message);
         return;
       }
+      if (data.type === "needInferencePort") {
+        // 参照照合の推論はページから作ったWorkerで動かす（reference-inference.jsのserveOrt）。
+        const channel = new MessageChannel();
+        const source = "importScripts(" + JSON.stringify(ENGINE_BASE + "reference-inference.js") + "); serveOrt(" +
+          JSON.stringify(ENGINE_BASE + "ort/") + ");";
+        const inference = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
+        inference.postMessage(null, [channel.port1]);
+        worker.postMessage({ type: "inferencePort", port: channel.port2 }, [channel.port2]);
+        return;
+      }
       if (data.type === "status") {
         window.utauttsEngineStatus = data.text;
         return;

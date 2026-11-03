@@ -3,28 +3,105 @@
 // 参照照合のKokoroとWavLMを、ONNX Runtime Webで推論する（Web Worker内）。
 // Goは推論が要ると {ok:false, need:[...]} を返す。ここで求めた結果をprovideInferenceで渡し、同じ呼び出しをやり直す。
 // モデルは要る言語の分だけ、初めて使うときに読み込む。ダウンロードしたものはCache Storageに残す。
-function createReferenceInference({ baseURL, ortURL, virtualFs, status }) {
+// ONNX Runtime Webは、ページが作った専用のWorker（serveOrt）で動かし、requestPortで受け取ったMessagePortで頼む。
+// エンジンのWorkerの中や、そこから作ったWorkerでは、推論の途中でWorkerが応答しなくなった。
+function inferenceThreads() {
+  return globalThis.crossOriginIsolated ? Math.min(8, navigator.hardwareConcurrency || 1) : 1;
+}
+
+// serveOrtは推論用のWorkerで動き、最初のメッセージで受け取ったMessagePortからの頼みを処理する。
+function serveOrt(ortURL) {
+  importScripts(ortURL + "ort.wasm.min.js");
+  ort.env.wasm.wasmPaths = ortURL;
+  ort.env.wasm.numThreads = inferenceThreads();
+  const sessions = new Map();
+  self.onmessage = ({ ports }) => {
+    const port = ports[0];
+    port.onmessage = async ({ data }) => {
+      try {
+        if (data.op === "create") {
+          sessions.set(data.session, await ort.InferenceSession.create(new Uint8Array(data.bytes), { executionProviders: ["wasm"] }));
+          port.postMessage({ id: data.id });
+          return;
+        }
+        const feeds = {};
+        for (const [name, value] of Object.entries(data.feeds)) feeds[name] = new ort.Tensor(value.type, value.data, value.dims);
+        const outputs = await sessions.get(data.session).run(feeds);
+        const result = {}, transfer = [];
+        for (const [name, value] of Object.entries(outputs)) {
+          result[name] = { data: value.data, dims: value.dims };
+          transfer.push(value.data.buffer);
+        }
+        port.postMessage({ id: data.id, outputs: result }, transfer);
+      } catch (error) {
+        port.postMessage({ id: data.id, error: String((error && error.message) || error) });
+      }
+    };
+  };
+}
+
+function createReferenceInference({ baseURL, virtualFs, status, requestPort }) {
   const CACHE = "utautts-reference-v1";
   const OUT_DIR = "/tmp/utautts-inference";
-  let ortReady = null;
+  let runtime = null;
   const sessions = new Map();
   const voices = new Map();
 
+  function tensor(type, data, dims) {
+    return { type, data, dims };
+  }
+
+  // directRuntimeは、ortを読み込み済みの環境（nodeの試験）で、その場で推論する。
+  function directRuntime(threads) {
+    ort.env.wasm.numThreads = threads;
+    return {
+      async create(data) {
+        const session = await ort.InferenceSession.create(data, { executionProviders: ["wasm"] });
+        return async feeds => {
+          const inputs = {};
+          for (const [name, value] of Object.entries(feeds)) inputs[name] = new ort.Tensor(value.type, value.data, value.dims);
+          const outputs = await session.run(inputs);
+          const result = {};
+          for (const [name, value] of Object.entries(outputs)) result[name] = { data: value.data, dims: value.dims };
+          return result;
+        };
+      },
+    };
+  }
+
+  // portRuntimeは、ページが作った推論用のWorker（serveOrt）にMessagePortで頼む。
+  function portRuntime(port) {
+    const pending = new Map();
+    let next = 0, sessionCount = 0;
+    port.onmessage = ({ data }) => {
+      const entry = pending.get(data.id);
+      pending.delete(data.id);
+      if (data.error) entry.reject(new Error(data.error));
+      else entry.resolve(data.outputs);
+    };
+    const request = (message, transfer) => new Promise((resolve, reject) => {
+      const id = next++;
+      pending.set(id, { resolve, reject });
+      port.postMessage({ ...message, id }, transfer || []);
+    });
+    return {
+      async create(data) {
+        const session = sessionCount++;
+        const bytes = data.slice().buffer;
+        await request({ op: "create", session, bytes }, [bytes]);
+        return feeds => request({ op: "run", session, feeds });
+      },
+    };
+  }
+
   function loadOrt(logs) {
-    if (!ortReady) {
-      ortReady = (async () => {
-        if (!globalThis.ort) {
-          importScripts(ortURL + "ort.wasm.min.js");
-          ort.env.wasm.wasmPaths = ortURL;
-        }
-        ort.env.wasm.numThreads = globalThis.crossOriginIsolated ? Math.min(8, navigator.hardwareConcurrency || 1) : 1;
-        logs.push("推論: ONNX Runtime Web（" + ort.env.wasm.numThreads + " スレッド）");
-      })().catch(error => {
-        ortReady = null;
-        throw error;
-      });
+    if (!runtime) {
+      const threads = inferenceThreads();
+      runtime = globalThis.ort ? Promise.resolve(directRuntime(threads)) : requestPort().then(portRuntime);
+      runtime.catch(() => { runtime = null; });
+      logs.push("推論: ONNX Runtime Web（" + threads + " スレッド）");
     }
-    return ortReady;
+    return runtime;
   }
 
   async function fetchCached(file, logs) {
@@ -72,11 +149,10 @@ function createReferenceInference({ baseURL, ortURL, virtualFs, status }) {
   async function session(file, logs) {
     if (!sessions.has(file)) {
       const pending = (async () => {
-        await loadOrt(logs);
         const data = await fetchCached(file, logs);
         status("モデルを読み込み中: " + file);
         const started = performance.now();
-        const result = await ort.InferenceSession.create(data, { executionProviders: ["wasm"] });
+        const result = await (await loadOrt(logs)).create(data);
         logs.push("モデルを読み込みました: " + file + "（" + ((performance.now() - started) / 1000).toFixed(1) + " 秒）");
         return result;
       })();
@@ -102,27 +178,26 @@ function createReferenceInference({ baseURL, ortURL, virtualFs, status }) {
   }
 
   async function read(job, number, logs) {
-    await loadOrt(logs);
     const started = performance.now();
     const table = await voice(job.voice, logs);
-    const ids = new ort.Tensor("int64", BigInt64Array.from(job.tokens.map(BigInt)), [1, job.tokens.length]);
-    const ref = new ort.Tensor("float32", table.slice(job.style * 256, (job.style + 1) * 256), [1, 256]);
+    const ids = tensor("int64", BigInt64Array.from(job.tokens.map(BigInt)), [1, job.tokens.length]);
+    const ref = tensor("float32", table.slice(job.style * 256, (job.style + 1) * 256), [1, 256]);
     let durations = job.durations;
     if (!durations || durations.length === 0) {
-      const predicted = await (await session(job.model + "/duration.onnx", logs)).run({
-        input_ids: ids, ref_s: ref, speed: new ort.Tensor("float32", Float32Array.from([job.speed || 1]), [1]),
+      const predicted = await (await session(job.model + "/duration.onnx", logs))({
+        input_ids: ids, ref_s: ref, speed: tensor("float32", Float32Array.from([job.speed || 1]), [1]),
       });
       durations = Array.from(predicted.duration.data, value => Math.max(1, Math.round(value)));
     }
-    const lengths = new ort.Tensor("int64", BigInt64Array.from(durations.map(BigInt)), [durations.length]);
+    const lengths = tensor("int64", BigInt64Array.from(durations.map(BigInt)), [durations.length]);
     const result = { key: job.key, durations };
     if (job.audio) {
       status("参照の音声を作成中…");
-      const out = await (await session(job.model + "/synth.onnx", logs)).run({ input_ids: ids, ref_s: ref, pred_dur: lengths });
+      const out = await (await session(job.model + "/synth.onnx", logs))({ input_ids: ids, ref_s: ref, pred_dur: lengths });
       result.f0 = Array.from(out.f0.data);
       result.audio_path = writeFloat32(OUT_DIR + "/read-" + number + ".f32", out.audio.data);
     } else {
-      const out = await (await session(job.model + "/prosody.onnx", logs)).run({ input_ids: ids, ref_s: ref, pred_dur: lengths });
+      const out = await (await session(job.model + "/prosody.onnx", logs))({ input_ids: ids, ref_s: ref, pred_dur: lengths });
       result.f0 = Array.from(out.f0.data);
     }
     logs.push("参照TTS: " + job.model + "（" + job.voice + "）で読みました（" +
@@ -143,7 +218,7 @@ function createReferenceInference({ baseURL, ortURL, virtualFs, status }) {
       const samples = new Float32Array(bytes.slice().buffer);
       virtualFs._unlink(job.samples_path);
       seconds += samples.length / 16000;
-      const out = await wavlm.run({ audio: new ort.Tensor("float32", samples, [1, samples.length]) });
+      const out = await wavlm({ audio: tensor("float32", samples, [1, samples.length]) });
       const [frames, dims] = out.features.dims;
       results.push({ key: job.key, path: writeFloat32(OUT_DIR + "/features-" + i + ".f32", out.features.data), frames, dims });
       const step = Math.floor((i + 1) * 10 / jobs.length);

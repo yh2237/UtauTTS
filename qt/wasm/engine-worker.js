@@ -20,6 +20,15 @@ const MIRROR_EXTENSIONS = new Set([
 let virtualFs = null;
 let referenceInference = null;
 let referenceLexicon = null;
+let resolveInferencePort = null;
+
+// requestInferencePortは、ページに推論用のWorkerを作ってもらい、そのMessagePortを受け取る。
+function requestInferencePort() {
+  return new Promise(resolve => {
+    resolveInferencePort = resolve;
+    self.postMessage({ type: "needInferencePort" });
+  });
+}
 
 async function fetchAsset(url) {
   const response = await fetch(url);
@@ -126,9 +135,7 @@ async function mountReferenceFiles() {
   await Promise.all(configs.map(async name => {
     virtualFs.mountFile("/models/reference/" + name, new Uint8Array(await (await fetchAsset(REFERENCE_BASE + "fs/" + name)).arrayBuffer()));
   }));
-  referenceInference = createReferenceInference({
-    baseURL: REFERENCE_BASE, ortURL: ENGINE_BASE + "ort/", virtualFs, status,
-  });
+  referenceInference = createReferenceInference({ baseURL: REFERENCE_BASE, virtualFs, status, requestPort: requestInferencePort });
 }
 
 async function restoreIndexes() {
@@ -309,7 +316,9 @@ let callChain = Promise.resolve();
 self.onmessage = (event) => {
   const data = event.data || {};
   try {
-    if (data.type === "mountFile") {
+    if (data.type === "inferencePort") {
+      resolveInferencePort(data.port);
+    } else if (data.type === "mountFile") {
       handleMountFile(data.path, data.bytes);
     } else if (data.type === "removeFile") {
       if (virtualFs && virtualFs.readFile(data.path)) virtualFs._unlink(data.path);
