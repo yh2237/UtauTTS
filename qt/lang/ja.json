@@ -39,6 +39,7 @@
     "main.param.intonationModel": "抑揚モデル",
     "main.param.moraDuration": "モーラ長",
     "main.param.pauseDuration": "休止長",
+    "main.param.volume": "音量",
     "main.param.leadingPreutterance": "文頭の長さ",
     "main.param.tone": "音高",
     "main.param.voicebankType": "タイプ",

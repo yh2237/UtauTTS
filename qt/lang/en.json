@@ -39,6 +39,7 @@
     "main.param.intonationModel": "Intonation Model",
     "main.param.moraDuration": "Mora Duration",
     "main.param.pauseDuration": "Pause Duration",
+    "main.param.volume": "Volume",
     "main.param.leadingPreutterance": "Leading Length",
     "main.param.tone": "Pitch Reference",
     "main.param.voicebankType": "Voicebank Type",

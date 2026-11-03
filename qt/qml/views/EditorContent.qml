@@ -10,6 +10,9 @@ import UtauTTS.Media
         readonly property bool mobileLayout: window.mobileLayout
         readonly property bool extendedPitchEditorVisible: pitchModeTabs.currentIndex === 1
         readonly property bool referenceMatching: methodCombo.currentValue === "reference-matching"
+        // 合成後に音量を動かすと、次のプレビューまで原音エディタはモーラ単位の仮の並びになる。番号がずれないよう、同じ文章の合成結果を使う。
+        readonly property var volumeUnits: window.hasCurrentSynthesisLayout() && window.synthesisUnits.length
+                                           ? window.synthesisUnits : phonemeEditor.units
 
         property alias pitchEditor: pitchEditor
         property alias phonemeEditor: phonemeEditor
@@ -29,6 +32,7 @@ import UtauTTS.Media
         property alias moraSlider: moraSlider
         property alias pauseInput: pauseInput
         property alias pauseSlider: pauseSlider
+        property alias volumeSlider: volumeSlider
         property alias leadingPreutteranceInput: leadingPreutteranceInput
         property alias leadingPreutteranceSlider: leadingPreutteranceSlider
 
@@ -590,6 +594,47 @@ import UtauTTS.Media
                             stepSize: 10
                             onMoved: window.updateUtteranceField("pauseDuration", value)
                             onResetRequested: window.resetPauseDuration()
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            enabled: editorSplitView.volumeUnits.length > 0
+                            Label {
+                                text: window.translator.tr("main.param.volume")
+                                Layout.fillWidth: true
+                            }
+                            SpinBox {
+                                id: volumeInput
+                                Layout.preferredWidth: 96
+                                from: 0
+                                to: 200
+                                stepSize: 5
+                                editable: true
+                                value: Math.round(volumeSlider.value)
+                                textFromValue: value => value + " %"
+                                valueFromText: text => parseInt(text)
+                                onValueModified: {
+                                    volumeSlider.value = value;
+                                    window.updateAllUnitVolume(editorSplitView.volumeUnits, value);
+                                }
+                            }
+                        }
+                        ParameterSlider {
+                            id: volumeSlider
+                            Layout.fillWidth: true
+                            enabled: editorSplitView.volumeUnits.length > 0
+                            from: 0
+                            to: 200
+                            stepSize: 5
+                            onMoved: window.updateAllUnitVolume(editorSplitView.volumeUnits, value)
+                            onResetRequested: window.resetAllUnitVolume()
+                        }
+                        Binding {
+                            target: volumeSlider
+                            property: "value"
+                            value: window.commonUnitVolume(editorSplitView.volumeUnits, phonemeEditor.overrides)
+                            when: !volumeSlider.pressed
+                            restoreMode: Binding.RestoreNone
                         }
 
                         Item {

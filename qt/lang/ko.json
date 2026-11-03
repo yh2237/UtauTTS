@@ -39,6 +39,7 @@
     "main.param.intonationModel": "억양 모델",
     "main.param.moraDuration": "모라 길이",
     "main.param.pauseDuration": "휴지 길이",
+    "main.param.volume": "음량",
     "main.param.leadingPreutterance": "문두 길이",
     "main.param.tone": "음높이",
     "main.param.voicebankType": "타입",

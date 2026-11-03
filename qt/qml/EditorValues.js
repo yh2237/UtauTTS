@@ -28,6 +28,31 @@ function unitValue(units, overrides, previewUnit, index, key) {
     return unit && unit[key] !== undefined ? unit[key] : paramRange(key).def;
 }
 
+function voicedUnitIndices(units) {
+    const result = [];
+    for (let index = 0; index < units.length; ++index) {
+        if (units[index] && !units[index].silent)
+            result.push(index);
+    }
+    return result;
+}
+
+// commonUnitValueは、無音以外の原音で最も多い値。全部同じならその値になる。
+function commonUnitValue(units, overrides, key) {
+    const counts = new Map();
+    let best = paramRange(key).def, bestCount = 0;
+    for (const index of voicedUnitIndices(units)) {
+        const value = Number(unitValue(units, overrides, null, index, key));
+        const count = (counts.get(value) || 0) + 1;
+        counts.set(value, count);
+        if (count > bestCount) {
+            best = value;
+            bestCount = count;
+        }
+    }
+    return best;
+}
+
 function paramRange(key) {
     switch (String(key)) {
     case "pitch_factor":
@@ -48,4 +73,4 @@ function paramRange(key) {
 }
 
 if (typeof module !== "undefined" && module.exports)
-    module.exports = {unitAt, overrideAt, unitValue, paramRange};
+    module.exports = {unitAt, overrideAt, unitValue, voicedUnitIndices, commonUnitValue, paramRange};

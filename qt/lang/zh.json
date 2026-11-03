@@ -39,6 +39,7 @@
     "main.param.intonationModel": "语调模型",
     "main.param.moraDuration": "音拍时长",
     "main.param.pauseDuration": "停顿时长",
+    "main.param.volume": "音量",
     "main.param.leadingPreutterance": "句首长度",
     "main.param.tone": "基准音高",
     "main.param.voicebankType": "音源类型",

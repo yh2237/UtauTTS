@@ -199,6 +199,23 @@ test("unit edits preserve sparse identity through project state and editor previ
   assert.equal(UnitOverrides.normalize([null, { pitch_factor: 2 }])[0].unit_index, 1);
 });
 
+test("volume edits every voiced unit and resets only VOL", () => {
+  const item = { utteranceId: "a", revision: 0, phonemeOverridesJson: '[{"unit_index":0,"pitch_factor":2}]' };
+  const context = sharedState([item]);
+  const units = [{}, { silent: true }, {}, {}];
+  const indices = EditorValues.voicedUnitIndices(units);
+  assert.deepEqual(indices, [0, 2, 3]);
+  UtteranceCore.updateAllUnitOverrides(context, indices, "resampler_volume", 70);
+  UtteranceCore.updateUnitOverride(context, 3, "resampler_volume", 120);
+  let values = JSON.parse(item.phonemeOverridesJson);
+  assert.equal(EditorValues.commonUnitValue(units, values, "resampler_volume"), 70);
+  assert.equal(EditorValues.unitValue(units, values, null, 1, "resampler_volume"), 100);
+  UtteranceCore.clearAllUnitOverrides(context, "resampler_volume");
+  values = JSON.parse(item.phonemeOverridesJson);
+  assert.deepEqual(values, [{ unit_index: 0, pitch_factor: 2 }]);
+  assert.equal(EditorValues.commonUnitValue(units, values, "resampler_volume"), 100);
+});
+
 test("Worker mirrors same-size output rewrites, excludes source WAVs and reports deletion", async () => {
   const vfs = createVirtualFs();
   vfs.mountText("/tmp/out.txt", "old");

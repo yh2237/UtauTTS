@@ -141,6 +141,18 @@ function run(ctx) {
     if (error.length)
         return error;
 
+    host.updateAllUnitVolume(ctx.editorContent.volumeUnits, 70);
+    error = check(host.current().phonemeOverridesJson === JSON.stringify([{unit_index: 0, resampler_volume: 70}])
+                  && ctx.editorContent.volumeSlider.value === 70,
+                  "volume did not set VOL on every voiced unit");
+    if (error.length)
+        return error;
+    host.resetAllUnitVolume();
+    error = check(host.current().phonemeOverridesJson === "[]" && ctx.editorContent.volumeSlider.value === 100,
+                  "volume reset did not clear VOL");
+    if (error.length)
+        return error;
+
     host.addUtterance();
     error = check(ctx.utterances.count === 2, "utterance add failed");
     if (error.length)

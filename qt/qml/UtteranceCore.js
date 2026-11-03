@@ -12,13 +12,7 @@ function updateUnitOverride(ctx, unitIndex, key, value) {
         return;
     const values = ctx.overrides.update(host.decodeSequence(item.phonemeOverridesJson),
                                         unitIndex, normalizedKey, value);
-    const encoded = JSON.stringify(values);
-    if (item.phonemeOverridesJson === encoded)
-        return;
-    host.beginHistoryChange("unit:" + item.utteranceId + ":" + unitIndex + ":" + normalizedKey, true);
-    ctx.utterances.setProperty(host.selectedIndex, "phonemeOverridesJson", encoded);
-    host.markUtteranceDirty(host.selectedIndex);
-    host.scheduleAutoPreview();
+    commitUnitOverrides(ctx, item, values, unitIndex + ":" + normalizedKey);
 }
 
 function clearUnitOverride(ctx, unitIndex) {
@@ -27,10 +21,32 @@ function clearUnitOverride(ctx, unitIndex) {
     const host = ctx.window;
     const item = host.current();
     const values = ctx.overrides.remove(host.decodeSequence(item.phonemeOverridesJson), unitIndex);
+    commitUnitOverrides(ctx, item, values, unitIndex + ":clear");
+}
+
+function updateAllUnitOverrides(ctx, unitIndices, key, value) {
+    if (!ctx.utterances.count || !unitIndices.length || typeof value !== "number" || !Number.isFinite(value))
+        return;
+    const item = ctx.window.current();
+    const values = ctx.overrides.updateMany(ctx.window.decodeSequence(item.phonemeOverridesJson),
+                                            unitIndices, key, value);
+    commitUnitOverrides(ctx, item, values, "all:" + key);
+}
+
+function clearAllUnitOverrides(ctx, key) {
+    if (!ctx.utterances.count)
+        return;
+    const item = ctx.window.current();
+    const values = ctx.overrides.removeKey(ctx.window.decodeSequence(item.phonemeOverridesJson), key);
+    commitUnitOverrides(ctx, item, values, "all:" + key + ":clear");
+}
+
+function commitUnitOverrides(ctx, item, values, historyKey) {
+    const host = ctx.window;
     const encoded = JSON.stringify(values);
     if (item.phonemeOverridesJson === encoded)
         return;
-    host.beginHistoryChange("unit:" + item.utteranceId + ":" + unitIndex + ":clear", true);
+    host.beginHistoryChange("unit:" + item.utteranceId + ":" + historyKey, true);
     ctx.utterances.setProperty(host.selectedIndex, "phonemeOverridesJson", encoded);
     host.markUtteranceDirty(host.selectedIndex);
     host.scheduleAutoPreview();
@@ -193,4 +209,4 @@ function handlePreviewReady(ctx) {
 }
 
 if (typeof module !== "undefined" && module.exports)
-    module.exports = {updateUnitOverride, clearUnitOverride, requestProsodyPreview, handleProsodyChanged, handlePreviewReady};
+    module.exports = {updateUnitOverride, clearUnitOverride, updateAllUnitOverrides, clearAllUnitOverrides, requestProsodyPreview, handleProsodyChanged, handlePreviewReady};

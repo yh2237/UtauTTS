@@ -2,6 +2,7 @@
 
 import QtQuick
 import "UnitOverrides.js" as UnitOverrides
+import "EditorValues.js" as EditorValues
 import "MoraPositions.js" as MoraPositions
 import "QmlCore.js" as QmlCore
 import "UtteranceData.js" as UtteranceData
@@ -1654,6 +1655,19 @@ ApplicationWindow {
 
     function clearUnitOverride(unitIndex) {
         UtteranceCore.clearUnitOverride(window.utteranceCoreContext, unitIndex);
+    }
+
+    function updateAllUnitVolume(units, value) {
+        UtteranceCore.updateAllUnitOverrides(window.utteranceCoreContext, EditorValues.voicedUnitIndices(units),
+                                             "resampler_volume", Math.round(value));
+    }
+
+    function resetAllUnitVolume() {
+        UtteranceCore.clearAllUnitOverrides(window.utteranceCoreContext, "resampler_volume");
+    }
+
+    function commonUnitVolume(units, overrides) {
+        return EditorValues.commonUnitValue(units, overrides, "resampler_volume");
     }
 
     function clearSynthesisView() {

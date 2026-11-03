@@ -34,9 +34,24 @@ function update(values, unitIndex, key, value) {
     return result;
 }
 
+function updateMany(values, unitIndices, key, value) {
+    let result = normalize(values);
+    for (const unitIndex of unitIndices || [])
+        result = update(result, unitIndex, key, value);
+    return result;
+}
+
+function removeKey(values, key) {
+    return normalize(normalize(values).map(item => {
+        const copy = Object.assign({}, item);
+        delete copy[String(key)];
+        return copy;
+    }));
+}
+
 function remove(values, unitIndex) {
     return normalize(values).filter(item => item.unit_index !== Number(unitIndex));
 }
 
 if (typeof module !== "undefined" && module.exports)
-    module.exports = {normalize, update, remove};
+    module.exports = {normalize, update, updateMany, removeKey, remove};
