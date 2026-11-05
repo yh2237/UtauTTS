@@ -89,3 +89,39 @@ func TestExternalFeaturesAskCollectAndProvide(t *testing.T) {
 		t.Fatalf("frames=%d err=%v", frames, err)
 	}
 }
+
+// 波形を後から渡したときも、待ち合わせの記録を残さない。
+func TestExternalProvideReadClearsPendingAfterAudioUpgrade(t *testing.T) {
+	engine := externalTestEngine(t)
+	pieces := []Piece{{Symbols: "ab"}}
+	_, err := engine.ReadProsody(kokoroSpanish, pieces, 1, nil)
+	var need *NeedInference
+	if !errors.As(err, &need) || len(need.Jobs) != 1 {
+		t.Fatalf("err=%v", err)
+	}
+	job := need.Jobs[0]
+	durations := []int{1, 2, 3, 2}
+	if err := engine.ProvideRead(job.Key, durations, []float32{100, 110}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := engine.Read(kokoroSpanish, pieces, 1, nil); !errors.As(err, &need) {
+		t.Fatalf("expected an audio request, got %v", err)
+	}
+	if err := engine.ProvideRead(job.Key, durations, []float32{100, 110}, []float32{0.1, 0.2}); err != nil {
+		t.Fatal(err)
+	}
+	engine.readsMu.Lock()
+	pending := len(engine.pending)
+	engine.readsMu.Unlock()
+	if pending != 0 {
+		t.Fatalf("pending reads = %d, want 0", pending)
+	}
+}
+
+// 桁あふれする形の特徴量は受け取らない。
+func TestProvideFeaturesRejectsOverflowingShape(t *testing.T) {
+	engine := externalTestEngine(t)
+	if err := engine.ProvideFeatures("key", nil, 1<<32, 1<<32); err == nil {
+		t.Fatal("accepted an overflowing feature shape")
+	}
+}

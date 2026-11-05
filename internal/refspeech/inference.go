@@ -105,6 +105,8 @@ func (e *Engine) ProvideRead(key string, durations []int, f0, audio []float32) e
 			if audio != nil {
 				entry.reference.Audio = audio
 			}
+			// 波形だけを後から頼んだときの待ち合わせは、この結果で満たされた。
+			delete(e.pending, key)
 			return nil
 		}
 	}
@@ -123,7 +125,8 @@ func (e *Engine) ProvideRead(key string, durations []int, f0, audio []float32) e
 
 // ProvideFeaturesは、外で求めたWavLMの特徴量（frames×dims）を渡す。
 func (e *Engine) ProvideFeatures(key string, values []float32, frames, dims int) error {
-	if frames*dims != len(values) || dims <= 0 {
+	// frames*dimsが桁あふれしないよう、割り算で先に確かめる。
+	if dims <= 0 || frames < 0 || frames > len(values)/dims || frames*dims != len(values) {
 		return fmt.Errorf("features %q: %d values for %d×%d", key, len(values), frames, dims)
 	}
 	e.featuresMu.Lock()
