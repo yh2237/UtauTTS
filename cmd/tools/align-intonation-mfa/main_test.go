@@ -75,3 +75,33 @@ func TestPrepareImport(t *testing.T) {
 		t.Fatalf("expected external MFA invocation error: %v", err)
 	}
 }
+
+// 録音のIDが整列のフォルダの外を指すときは、そのファイルを読まない。
+func TestImportRejectsRecordIDOutsideAlignments(t *testing.T) {
+	os.MkdirAll("out", 0755)
+	dir, err := os.MkdirTemp("out", "mfa-import-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	record := sourcephone.Object{"id": "../outside", "tokens": []any{sourcephone.Object{"mora": "か", "pause": false}}}
+	data, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dataset := filepath.Join(dir, "data.jsonl")
+	if err := os.WriteFile(dataset, append(data, '\n'), 0644); err != nil {
+		t.Fatal(err)
+	}
+	alignments := filepath.Join(dir, "alignments")
+	if err := os.MkdirAll(alignments, 0755); err != nil {
+		t.Fatal(err)
+	}
+	alignment := sourcephone.Object{"tiers": sourcephone.Object{"words": sourcephone.Object{"entries": []any{[]any{0.0, .1, "outside_000"}}}, "phones": sourcephone.Object{"entries": []any{[]any{0.0, .1, "a"}}}}}
+	if err := sourcephone.Write(filepath.Join(dir, "outside.json"), alignment); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := importAlignments([]string{dataset}, alignments, filepath.Join(dir, "aligned.jsonl")); err == nil {
+		t.Fatal("imported a record whose id escapes the alignments directory")
+	}
+}

@@ -195,7 +195,11 @@ func importAlignments(paths []string, alignments, out string) (int, int, error) 
 	writer := bufio.NewWriter(file)
 	written, skipped := 0, 0
 	err = eachRecord(paths, func(record sourcephone.Object) error {
-		path := filepath.Join(alignments, sourcephone.String(record["id"])+".json")
+		id := sourcephone.String(record["id"])
+		if !safeID(id) {
+			return fmt.Errorf("invalid record id: %q", id)
+		}
+		path := filepath.Join(alignments, id+".json")
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			skipped++
 			return nil
