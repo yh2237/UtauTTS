@@ -77,11 +77,11 @@ notices remain under licenses/Go in the release package.
 utauio
 ======
 
-UtauTTS uses github.com/yh2237/utauio v0.4.0 for oto.ini, presamp.ini, prefix.map,
+UtauTTS uses github.com/yh2237/utauio v0.4.1 for oto.ini, presamp.ini, prefix.map,
 and character metadata parsing and Japanese text decoding. The library was extracted from UtauTTS and is
 distributed under the MIT License, Copyright (c) 2026 yh.
 Its license is included as
-licenses/Go/github_com_yh2237_utauio-v0.4.0-LICENSE.txt.
+licenses/Go/github_com_yh2237_utauio-v0.4.1-LICENSE.txt.
 
 Source: https://github.com/yh2237/utauio
 
@@ -95,7 +95,7 @@ correlation, PCM/IEEE float WAV reading, and 16-bit PCM WAV writing.
 The library was extracted from UtauTTS and is distributed under the
 MIT License, Copyright (c) 2026 yh. It has no external module dependencies.
 Its license text is identical to utauio's and is included once as
-licenses/Go/github_com_yh2237_utauio-v0.4.0-LICENSE.txt.
+licenses/Go/github_com_yh2237_utauio-v0.4.1-LICENSE.txt.
 
 Source: https://github.com/yh2237/audiodsp
 
@@ -103,13 +103,13 @@ Source: https://github.com/yh2237/audiodsp
 gograd
 ======
 
-UtauTTS uses github.com/yh2237/gograd v1.8.0 for matrix multiplication,
+UtauTTS uses github.com/yh2237/gograd v1.8.1 for matrix multiplication,
 CPU, CUDA, DirectML and Vulkan inference, PyTorch checkpoint reading,
 PyTorch-compatible random numbers and resampling, and in its training tools
 for automatic differentiation and CUDA training. The library is distributed
 under the MIT License, Copyright (c) 2026 yh. Its license text is identical to
 utauio's and is included once as
-licenses/Go/github_com_yh2237_utauio-v0.4.0-LICENSE.txt. On Linux, its Vulkan
+licenses/Go/github_com_yh2237_utauio-v0.4.1-LICENSE.txt. On Linux, its Vulkan
 calls use github.com/ebitengine/purego (see below).
 
 gograd/torchrng ports the float32 approximations of log, sin and cos that

@@ -149,7 +149,10 @@ try {
         Assert-Path (Join-Path $packageRoot 'LICENSE-SCOPE.md') 'license scope summary'
         Assert-Path (Join-Path $packageRoot 'THIRD_PARTY_NOTICES.txt') 'third-party notices'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/GO-LICENSE.txt') 'Go runtime license'
-        Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_yh2237_utauio-v0.4.0-LICENSE.txt') 'utauio license'
+        $utauioLicenses = @(Get-ChildItem -LiteralPath (Join-Path $packageRoot 'licenses/Go') -Filter 'github_com_yh2237_utauio-v*-LICENSE.txt' -File)
+        if ($utauioLicenses.Count -ne 1) {
+            throw "Missing utauio license: $($utauioLicenses.Count) matches in $packageRoot/licenses/Go"
+        }
         Assert-Path (Join-Path $packageRoot 'licenses/Go/CMUDICT-LICENSE.txt') 'CMUdict license'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/PINYIN-DATA-NOTICE.txt') 'pinyin data provenance notice'
         Assert-Path (Join-Path $packageRoot 'licenses/Go/github_com_ikawaha_kagome_v2-v2.11.0-LICENSE.txt') 'kagome v2 license'

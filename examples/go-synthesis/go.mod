@@ -10,9 +10,11 @@ require (
 	github.com/ikawaha/kagome-dict/ipa v1.2.6 // indirect
 	github.com/ikawaha/kagome/v2 v2.11.0 // indirect
 	github.com/mozillazg/go-pinyin v0.21.0 // indirect
+	github.com/yh2237/UtauIDX v0.1.6 // indirect
+	github.com/yh2237/UtauWLD v0.1.2 // indirect
 	github.com/yh2237/audiodsp v0.5.2 // indirect
-	github.com/yh2237/gograd v1.8.0 // indirect
-	github.com/yh2237/utauio v0.4.0 // indirect
+	github.com/yh2237/gograd v1.8.1 // indirect
+	github.com/yh2237/utauio v0.4.1 // indirect
 	golang.org/x/text v0.39.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
