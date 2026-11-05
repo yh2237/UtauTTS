@@ -304,6 +304,46 @@ test("Worker failure after ready completes pending calls and preserves queued re
   assert.equal(completed[1].result.ok, false);
 });
 
+test("extended editor draws only the combined pitch curve", () => {
+  const qml = source("qt/qml/editors/PhonemeEditor.qml");
+  const canvas = qml.slice(qml.indexOf("id: waveformCanvas"));
+  const paint = canvas.match(/onPaint: \{([\s\S]*?)\r?\n                \}\r?\n\r?\n                onWidthChanged/);
+  assert.ok(paint);
+  const strokes = [];
+  let points = [];
+  const ctx = {
+    reset() {}, clearRect() {}, translate() {}, fill() {}, arc() {},
+    beginPath() { points = []; },
+    moveTo(x, y) { points.push([x, y]); },
+    lineTo(x, y) { points.push([x, y]); },
+    stroke() { strokes.push({ color: this.strokeStyle, points: points.slice() }); },
+  };
+  const autoFrames = [100, 200, 100];
+  const manualFrames = [0, 30, 0];
+  const editor = {
+    autoFrames, manualFrames, frameDisplayCount: 3,
+    timelineDuration: 20, leadingMargin: 0, sidePadding: 0, pixelsPerMs: 1,
+    timingEditor: {}, pitchRange: 800, noteLaneH: 110,
+    gridColor: "grid", axisColor: "axis", accentColor: "accent",
+    exprLanes: [], morae: [], units: [], waveformMin: [], waveformMax: [],
+    zoomedWidth: () => 20, frameStepMs: () => 10, frameTimeMs: i => i * 10,
+    xToTime: x => x, timeToX: time => time, noteCenterY: () => 75,
+    frameHasPronunciation: () => true, frameY: value => value,
+    frameAutoAt: i => autoFrames[i], frameManualAt: i => manualFrames[i],
+    frameTotalAt: i => autoFrames[i] + manualFrames[i],
+  };
+  vm.runInNewContext(paint[1], {
+    root: editor, getContext: () => ctx, width: 560, height: 240, x: 0,
+    timelineViewport: { contentX: 0, width: 560, contentWidth: 560 },
+  });
+  assert.equal(strokes.filter(stroke => stroke.color === "axis").length, 0);
+  const curves = strokes.filter(stroke => stroke.color === "accent");
+  assert.equal(curves.length, 1);
+  assert.deepEqual(curves[0].points, [[0, 100], [10, 230], [20, 100]]);
+  assert.deepEqual(autoFrames, [100, 200, 100]);
+  assert.deepEqual(manualFrames, [0, 30, 0]);
+});
+
 function sharedState(items) {
   const context = {
     console,

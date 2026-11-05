@@ -945,26 +945,6 @@ Item {
                             ctx.lineTo(Math.min(timelineViewport.contentWidth, viewRight), y);
                             ctx.stroke();
                         }
-                        ctx.strokeStyle = root.axisColor;
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        let autoStarted = false;
-                        for (let fi = firstFrame; fi <= Math.min(lastFrame, root.autoFrames.length - 1); ++fi) {
-                            if (!root.frameHasPronunciation(fi)) {
-                                autoStarted = false;
-                                continue;
-                            }
-                            const fx = root.timeToX(root.frameTimeMs(fi) + root.leadingMargin);
-                            if (!inView(fx)) {
-                                autoStarted = false;
-                                continue;
-                            }
-                            const fy = root.frameY(root.frameAutoAt(fi));
-                            if (autoStarted) ctx.lineTo(fx, fy);
-                            else ctx.moveTo(fx, fy);
-                            autoStarted = true;
-                        }
-                        ctx.stroke();
                         ctx.strokeStyle = root.accentColor;
                         ctx.lineWidth = 2;
                         ctx.beginPath();
