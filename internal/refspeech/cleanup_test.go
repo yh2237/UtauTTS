@@ -1,6 +1,8 @@
 package refspeech
 
 import (
+	"encoding/binary"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -34,11 +36,34 @@ func writeIndex(t *testing.T, dir, name string, version int, model string) strin
 	return path
 }
 
+// writeIndexHeader writes only the magic and JSON header. Cleanup reads no
+// payload, and an unsupported version cannot be produced through Save.
+func writeIndexHeader(t *testing.T, dir, name string, header refmatch.Header) string {
+	t.Helper()
+	data, err := json.Marshal(header)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contents := append([]byte("UTRM"), make([]byte, 4)...)
+	binary.LittleEndian.PutUint32(contents[4:], uint32(len(data)))
+	contents = append(contents, data...)
+	path := filepath.Join(dir, name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, contents, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 func TestCleanupRemovesUnusableIndexes(t *testing.T) {
 	dir := t.TempDir()
 	current := writeIndex(t, dir, "current.idx", refmatch.Version(), FeatureModel)
 	compatible := writeIndex(t, dir, "v6.idx", 6, FeatureModel)
-	oldVersion := writeIndex(t, dir, "old-version.idx", 5, FeatureModel)
+	oldVersion := writeIndexHeader(t, dir, "old-version.idx", refmatch.Header{
+		Version: 5, Model: FeatureModel, SampleRate: 44100, APBands: 5, FFTSize: 1024, Dims: 4, Frames: 2,
+	})
 	otherModel := writeIndex(t, dir, "other-model.idx", refmatch.Version(), "hubert-base-layer6")
 	broken := filepath.Join(dir, "broken.idx")
 	if err := os.WriteFile(broken, []byte("not an index"), 0o644); err != nil {

@@ -22,7 +22,20 @@ func TestReferenceIndexCommands(t *testing.T) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	index := &refmatch.Index{Header: refmatch.Header{Version: refmatch.Version(), Model: "dummy", Source: filepath.Join(cache, "voicebank"), CacheKey: "dummy"}}
+	// A minimal index that passes the current on-disk validation; the test
+	// only exercises listing and deleting, not matching.
+	const spectrumDims = 60
+	index := &refmatch.Index{
+		Header: refmatch.Header{
+			Version: refmatch.Version(), Model: "dummy", Source: filepath.Join(cache, "voicebank"), CacheKey: "dummy",
+			SampleRate: 16000, FFTSize: 2, APBands: 1, Dims: 1, Frames: 1,
+		},
+		Features:     []float32{0},
+		Spectrum:     make([]float32, refmatch.SubFrames()*spectrumDims),
+		Aperiodicity: make([]float32, refmatch.SubFrames()),
+		F0:           make([]float32, refmatch.SubFrames()),
+		File:         []int32{0},
+	}
 	if err := index.Save(filepath.Join(dir, "dummy.idx")); err != nil {
 		t.Fatal(err)
 	}
