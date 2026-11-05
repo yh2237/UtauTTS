@@ -6,9 +6,14 @@ import (
 	"fmt"
 	"math"
 	"os"
+	pathpkg "path"
+	"strings"
 
 	"github.com/yh2237/UtauTTS/internal/tts"
 )
+
+// InferenceDirは、Web版の推論の結果（float32）を置く仮想FSのフォルダ。
+const InferenceDir = "/tmp/utautts-inference"
 
 // provideInferenceは、Web版でONNX Runtime Webが求めた推論の結果を受け取る。
 // 大きい配列（音声と特徴量）は仮想FSのfloat32のファイルで受け取り、読んだら消す。
@@ -54,11 +59,25 @@ func (e *Engine) provideInference(requestJSON []byte) error {
 }
 
 func takeFloat32File(path string) ([]float32, error) {
-	data, err := os.ReadFile(path)
+	return takeFloat32FileIn(InferenceDir, path)
+}
+
+// takeFloat32FileInは、dirの下にある推論の結果だけを読んで消す。
+// 仮想FSのパスはスラッシュで区切るため、Windowsでも同じ規則で比べる。
+func takeFloat32FileIn(dir, path string) ([]float32, error) {
+	root := pathpkg.Clean(strings.ReplaceAll(dir, "\\", "/"))
+	clean := pathpkg.Clean(strings.ReplaceAll(path, "\\", "/"))
+	if !strings.HasPrefix(clean, root+"/") {
+		return nil, fmt.Errorf("%s: not an inference result", path)
+	}
+	// Read and delete the path that was checked. On Unix a backslash is a
+	// literal filename character, so the original spelling can resolve
+	// somewhere else than the slash-normalized path.
+	data, err := os.ReadFile(clean)
 	if err != nil {
 		return nil, err
 	}
-	_ = os.Remove(path)
+	_ = os.Remove(clean)
 	if len(data)%4 != 0 {
 		return nil, fmt.Errorf("%s: %d bytes is not float32", path, len(data))
 	}

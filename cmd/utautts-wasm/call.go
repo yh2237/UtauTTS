@@ -16,7 +16,7 @@ import (
 )
 
 // inferenceDirは、JSへ渡す推論の入力（16 kHzの音声）を置く仮想FSのフォルダ。
-const inferenceDir = "/tmp/utautts-inference"
+const inferenceDir = native.InferenceDir
 
 // needJSONは、ONNX Runtime Webで求める推論を返す。JSは結果をprovideInferenceで渡して同じ呼び出しをやり直す。
 // featuresの音声はfloat32のファイルにして、samples_pathで渡す。
