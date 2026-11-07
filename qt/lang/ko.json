@@ -18,7 +18,7 @@
     "log.synthesizing": "음성을 합성하는 중…",
     "log.completed": "음성 합성이 완료되었습니다",
     "log.title": "음성 합성 로그",
-    "main.aboutInformative": "UTAU 보이스뱅크의 원음을 연결하고 학습 기반 억양 보정을 더한 일본어 TTS",
+    "main.aboutInformative": "UTAU 보이스뱅크의 원음 연결과 프레임 선택에 학습 기반 억양 보정을 적용한 TTS",
     "main.aboutText": "UtauTTS {0}\n\nDeveloped by yh",
     "main.aboutTitle": "UtauTTS 정보",
     "main.addTooltip": "추가",

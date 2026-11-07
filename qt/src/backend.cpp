@@ -1046,7 +1046,7 @@ bool Backend::showNativeAboutDialog() {
     const QString text = QStringLiteral(
         "UtauTTS %1\n\n"
         "Developed by yh\n\n"
-        "UTAUボイスバンクの原音接続に学習ベースのイントネーション調整を加えた日本語TTS"
+        "UTAUボイスバンクの原音接続とフレーム選択に、学習ベースのイントネーション調整を用いたTTS"
         ).arg(QCoreApplication::applicationVersion());
     MessageBoxW(GetActiveWindow(),
                 reinterpret_cast<LPCWSTR>(text.utf16()),

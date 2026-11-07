@@ -18,7 +18,7 @@
     "log.synthesizing": "音声合成を実行中です…",
     "log.completed": "合成音声の実行が完了しました",
     "log.title": "音声合成ログ",
-    "main.aboutInformative": "UTAUボイスバンクの原音接続に学習ベースのイントネーション調整を加えた日本語TTS",
+    "main.aboutInformative": "UTAUボイスバンクの原音接続とフレーム選択に、学習ベースのイントネーション調整を用いたTTS",
     "main.aboutText": "UtauTTS {0}\n\nDeveloped by yh",
     "main.aboutTitle": "UtauTTSについて",
     "main.addTooltip": "追加",

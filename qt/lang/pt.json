@@ -18,7 +18,7 @@
     "log.synthesizing": "Sintetizando áudio…",
     "log.completed": "Síntese concluída",
     "log.title": "Registro de síntese",
-    "main.aboutInformative": "TTS japonês com ajuste de entonação baseado em aprendizado para voicebanks UTAU contínuos",
+    "main.aboutInformative": "TTS que aplica ajuste de entonação baseado em aprendizado à concatenação de amostras e à seleção de quadros de voicebanks UTAU",
     "main.aboutText": "UtauTTS {0}\n\nDesenvolvido por yh",
     "main.aboutTitle": "Sobre o UtauTTS",
     "main.addTooltip": "Adicionar",

@@ -18,7 +18,7 @@
     "log.synthesizing": "Synthesizing audio…",
     "log.completed": "Synthesis finished",
     "log.title": "Synthesis Log",
-    "main.aboutInformative": "Japanese TTS with learning-based intonation adjustment for connected UTAU voicebanks",
+    "main.aboutInformative": "TTS that applies learning-based intonation adjustment to UTAU voicebank sample concatenation and frame selection",
     "main.aboutText": "UtauTTS {0}\n\nDeveloped by yh",
     "main.aboutTitle": "About UtauTTS",
     "main.addTooltip": "Add",
