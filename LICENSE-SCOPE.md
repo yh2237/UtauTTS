@@ -37,7 +37,7 @@ Qt、WORLD、Open JTalk、Go依存ライブラリ、外部FFmpeg等には、各�
 
 - **GUI版**: モデル、ランタイム、ライセンス文書、初期ボイスバンク、プラットフォーム固有の通知
 - **Server版**: モデル、ランタイム、ライセンス文書
-- **Web版**: ブラウザで動くwasmと参照照合のモデル。ライセンス文書はWebサイトの[利用条件](https://github.com/yh2237/UtauTTS/blob/main/web/site/terms/index.njk)から参照できます
+- **Web版**: ブラウザで動くwasmと参照照合のモデル。
 
 全パッケージ共通で [`LICENSE`](./LICENSE)、`LICENSE-SCOPE.md`、[`THIRD_PARTY_NOTICES.txt`](./THIRD_PARTY_NOTICES.txt)、[`licenses/`](./licenses/) を同梱しています。
 
