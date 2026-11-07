@@ -18,7 +18,7 @@
 - [抑揚モデルの追加](models.md) - 学習済みモデルの置き方
 - [モデルの学習手順](model-training.md) - 独自の抑揚モデルの学習
 - [開発環境とビルド](building.md) - ソースコードからのビルドとテスト
-- [Qt WebAssembly版の構成](wasm-architecture.md) - Web版の非同期通信と仮想ファイルシステム
+- [Qt WebAssembly版の構成](wasm-architecture.md) - Web版の非同期通信、仮想ファイルシステム、参照照合の推論
 - [リリーステスト](release-testing.md) - 配布パッケージの作成と検査、更新の互換性の確認
 - [第三者コードの出典](third-party-provenance.md) - 互換処理で参照した公開実装
 - [ライセンスの適用範囲](../LICENSE-SCOPE.md) - 成果物とライセンスの対応表

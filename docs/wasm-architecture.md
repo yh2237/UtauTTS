@@ -38,3 +38,15 @@ Main Thread (Qt / UI)               Web Worker (Go / DSP / Synthesis)
 
 - 発話IDと変更番号: 解析や合成の結果は、UIの行番号ではなく、発話ごとのIDと変更番号に結び付けて管理します。続けて編集しても、古い合成結果で最新のUIの状態を上書きすることはありません。
 - ファイルの同期: Workerは呼び出しの前後でファイルの更新番号を比べ、Worker内で書き出したWAVなどのファイルをメインスレッドのFSミラーに写します。これでQtからファイルを同期的に読めます。
+
+---
+
+## 4. 参照照合の推論
+
+参照照合の重い処理（KokoroとWavLM）は、GoのwasmではなくONNX Runtime Webで動かします。
+
+- 推論用のWorkerはページが作り、エンジンのWorkerとはMessagePortでつなぎます。エンジンのWorkerの中で推論を動かすと、合成の途中で応答しなくなりました。
+- エンジンは推論が要ると `{ok: false, need: [...]}` を返します。ページがONNXで計算し、結果を `provideInference` で渡すと、エンジンが同じ呼び出しをやり直します（最大8回）。GoのwasmからJavaScriptのPromiseは待てないため、この往復で処理します。
+- モデルは使う言語の分だけ、初めて使うときにダウンロードし、Cache Storage（`utautts-reference-v1`）に残します。英語・スペイン語・ポルトガル語で約310MB、中国語で約210MBです。
+- 推論のスレッド数は、cross-origin isolation（COOP/COEP）があるページで最大8、ないページで1です。
+- 作った索引はCache Storage（`utautts-reference-index-v1`）に残し、次に開いたときに戻します。
