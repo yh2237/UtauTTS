@@ -440,7 +440,7 @@ with Irodori-TTS v4.1-Small (MIT License); the generated audio, scripts and
 the text-to-speech model are not bundled. See
 licenses/IRODORI-TEACHER-NOTICE.txt.
 
-The speech-timing-target-v1 weights (internal/speechtiming, embedded in the
+The speech-timing-target-v1 weights (UtauWLD/speechtiming, embedded in the
 UtauTTS binaries) are UtauTTS weights distributed under the MIT License. They were
 trained on the same Tsukuyomi-chan Corpus Vol.1 and Minnade JSUT basic5000
 BASIC5000_0001-0600 data as the base model of frame-intonation-tcn-v12 with the same notices

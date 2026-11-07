@@ -22,7 +22,7 @@
 
 配布用のZIPは `release/` にできます。
 
-参照照合に使うモデル（約0.7GB）はGitで管理していません。ビルドの前に、Windowsでは`tools/fetch-reference-models.ps1`、Linux・macOSでは`tools/fetch-reference-models.sh`を実行して、`models/reference/`に取得してください。
+参照照合に使うモデル（約1GB）はGitで管理していません。ビルドの前に、Windowsでは`tools/fetch-reference-models.ps1`、Linux・macOSでは`tools/fetch-reference-models.sh`を実行して、`models/reference/`に取得してください。
 
 ---
 
@@ -33,6 +33,18 @@
 - Linux / macOS: `./dev.sh`
 
 WORLDとOpen JTalkのライブラリ、Open JTalkの辞書は`runtime/`から読み込みます。初回は、Windowsでは`tools/build-native-engines.ps1`、Linux・macOSでは`tools/build-native-engines.sh`を実行して用意してください。
+
+---
+
+## Web版のビルド
+
+Web版は、GoのwasmとQtのwasmを別々に作ってから組み立てます。
+
+1. emsdkを有効にします。
+2. `web/build.ps1`（Linux・macOSは`web/build.sh`）で、Goのwasm、JSのブリッジ、ONNX Runtime Web、同梱モデルと音源を`web/dist`に用意します。
+3. `qt/wasm/build.ps1`（Linux・macOSは`qt/wasm/build.sh`）で、Qtのwasmを作り、`build/web-release`にまとめます。Linux・macOSでは`QT_WASM_DIR`と`QT_HOST_PATH`を指定します。
+
+参照照合のモデルは大きいので、`tools/web-reference/export.py`で作ったフォルダを`UTAUTTS_WEB_REFERENCE`に指定したときだけ写します。
 
 ---
 
