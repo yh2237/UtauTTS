@@ -13,7 +13,9 @@
 #include <QDrag>
 #include <QFile>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QMimeData>
+#include <QWindow>
 #ifndef UTAUTTS_WASM
 #include <QFutureWatcher>
 #endif
@@ -51,6 +53,9 @@
 
 namespace {
 constexpr int maxRecentProjects = 10;
+// 読み書きできるプロジェクト形式の版。ProjectIO.jsが書き出す値と合わせる。
+// これより新しい版は、増えた項目を落として保存し直さないよう読み込みを拒否する。
+constexpr int projectFormatVersion = 9;
 constexpr int fallbackMoraDurationMS = 120;
 constexpr int fallbackPauseDurationMS = 180;
 constexpr int fallbackLeadingPreutteranceMS = 0;
@@ -394,6 +399,45 @@ static QByteArray readGoFsBytes(const QString &path) {
     view.call<void>("set", bytes);
     return data;
 }
+
+// タブを閉じたときの警告と自動保存のため、未保存の状態と内容をブラウザへ渡す。
+// QMLの窓はC++から直接は見えないため、最上位の窓から読む。
+void publishWasmProjectState() {
+    QObject *root = nullptr;
+    for (QWindow *window : QGuiApplication::topLevelWindows()) {
+        if (window->property("projectDirty").isValid()) {
+            root = window;
+            break;
+        }
+    }
+    if (!root) {
+        return;
+    }
+    const bool dirty = root->property("projectDirty").toBool();
+    emscripten::val setUnsaved = emscripten::val::global("utauttsSetUnsaved");
+    if (!setUnsaved.isUndefined()) {
+        setUnsaved(dirty);
+    }
+    if (!dirty) {
+        return;
+    }
+    // 内容の書き出しは重いので、間隔を空ける。
+    static qint64 lastSnapshotMS = 0;
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (now - lastSnapshotMS < 20000) {
+        return;
+    }
+    lastSnapshotMS = now;
+    QVariant data;
+    if (!QMetaObject::invokeMethod(root, "projectData", Q_RETURN_ARG(QVariant, data))) {
+        return;
+    }
+    const QByteArray json = QJsonDocument::fromVariant(data).toJson(QJsonDocument::Compact);
+    emscripten::val autosave = emscripten::val::global("utauttsAutosave");
+    if (!autosave.isUndefined() && !json.isEmpty()) {
+        autosave(std::string(json.constData(), static_cast<size_t>(json.size())));
+    }
+}
 #endif
 
 Backend::Backend(QObject *parent)
@@ -434,6 +478,11 @@ Backend::Backend(QObject *parent)
     g_wasmBackend = this;
     emscripten::val asyncFlag = emscripten::val::global("utauttsAsyncMode");
     m_wasmAsync = !asyncFlag.isUndefined() && asyncFlag.as<bool>();
+    // タブを閉じても作業を失わないよう、未保存の内容をブラウザへ定期的に渡す。
+    auto *autosaveTimer = new QTimer(this);
+    autosaveTimer->setInterval(2000);
+    connect(autosaveTimer, &QTimer::timeout, this, [] { publishWasmProjectState(); });
+    autosaveTimer->start();
 #endif
     // 旧設定のC4は指定なしの既定値だったので引き継がない。
     const QString legacyTone = portableSettingValue("synthesis/defaultTone", QString()).toString().trimmed();
@@ -1616,6 +1665,11 @@ void Backend::buildReferenceIndex(const QString &voicebankId, const QString &col
     if (m_busy) {
         return;
     }
+#ifdef UTAUTTS_WASM
+    // Web版は索引を作れない。押しても何も起きないより、理由を出す。
+    setError(tr("Web版では参照索引を作成できません"));
+    return;
+#endif
     setError({});
     callAsync("buildReferenceIndex", {{"voicebank_id", voicebankId}, {"color", color}},
               [this](const QVariantMap &result) {
@@ -1866,6 +1920,9 @@ void Backend::predictProsody(const QVariantMap &request) {
     if (m_busy) {
         return;
     }
+#ifdef UTAUTTS_WASM
+    static bool wasmIndexFallbackLogged = false;
+#endif
     QString requestId = request.value("request_id").toString();
     if (requestId.isEmpty()) {
         requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -1873,11 +1930,26 @@ void Backend::predictProsody(const QVariantMap &request) {
     const quint64 generation = ++m_nextProsodyGeneration;
     QVariantMap callRequest = request;
     callRequest.insert("request_id", requestId);
-    callAsync("predictProsody", callRequest, [this, generation, requestId](const QVariantMap &value) {
+    callAsync("predictProsody", callRequest, [this, generation, requestId, callRequest](const QVariantMap &value) {
                 if (generation == m_nextProsodyGeneration) {
                     if (value.contains("_error")) {
                         setError(value.value("_error").toString());
                     } else {
+#ifdef UTAUTTS_WASM
+                        // Web版は索引を作れない。進捗のモーダルを開かず、索引を使わない方式で予測し直す。
+                        if (value.value("reference_index_building").toBool()) {
+                            if (callRequest.value("method").toString() != QStringLiteral("waveform-synthesis")) {
+                                if (!wasmIndexFallbackLogged) {
+                                    wasmIndexFallbackLogged = true;
+                                    appendLog(tr("Web版では参照索引を作成できないため、波形合成で抑揚を予測します。"));
+                                }
+                                QVariantMap fallback = callRequest;
+                                fallback.insert("method", QStringLiteral("waveform-synthesis"));
+                                predictProsody(fallback);
+                            }
+                            return;
+                        }
+#endif
                         if (value.value("reference_index_building").toBool() && !m_referenceIndexBuildPending) {
                             m_referenceIndexBuildPending = true;
                             m_referenceIndexBuilding = true;
@@ -2203,6 +2275,10 @@ bool Backend::saveProject(const QUrl &destination, const QVariantMap &project) {
     if (wasmName.isEmpty())
         wasmName = QStringLiteral("untitled.utautts");
     wasmDownloadBytes(wasmName, wasmDocument.toJson(QJsonDocument::Indented));
+    // 保存できたので、再読み込み時の復元提案は出さない。
+    emscripten::val clearAutosave = emscripten::val::global("utauttsClearAutosave");
+    if (!clearAutosave.isUndefined())
+        clearAutosave();
     setError({});
     return true;
 #endif
@@ -2268,6 +2344,11 @@ bool Backend::validateProject(const QByteArray &data, QVariantMap *project) {
         setError(tr("対応していないプロジェクト形式です"));
         return false;
     }
+    // 新しい版で増えた項目を落として保存し直さないよう、読めない版は開かない。
+    if (parsed.value("format_version").toInt() > projectFormatVersion) {
+        setError(tr("このファイルは新しい版のUtauTTSで作成されています"));
+        return false;
+    }
     *project = parsed;
     setError({});
     return true;
@@ -2306,13 +2387,20 @@ void Backend::handlePickedProject() {
 #ifdef UTAUTTS_WASM
     const QByteArray data = readGoFsBytes(QStringLiteral("/tmp/utautts-open-project.utautts"));
     QVariantMap project;
-    if (!validateProject(data, &project))
+    if (!validateProject(data, &project)) {
+        // 理由はvalidateProjectが設定済み。ログにも残して、開けなかったことを分かるようにする。
+        appendLog(error());
         return;
+    }
     emit projectPicked(project);
 #endif
 }
 
 void Backend::rememberRecentProject(const QUrl &source) {
+#ifdef UTAUTTS_WASM
+    // ブラウザからは保存したファイルを開き直せないため、最近使った一覧には残さない。
+    return;
+#endif
     if (!source.isLocalFile())
         return;
     const QString path = QFileInfo(source.toLocalFile()).absoluteFilePath();

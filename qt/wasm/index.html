@@ -16,11 +16,17 @@
   .spinner { width: 28px; height: 28px; border: 3px solid #aeb4ba; border-top-color: #d35f6b; border-radius: 50%; animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   #status { font-size: 13px; color: #6b7075; }
+  #notice { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); max-width: min(560px, calc(100% - 32px)); padding: 12px 16px; border-radius: 8px; background: #fff; box-shadow: 0 4px 16px rgba(0, 0, 0, .18); z-index: 20; font-size: 13px; line-height: 1.5; }
+  #notice.hidden { display: none; }
+  #notice .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+  #notice button { font: inherit; padding: 4px 12px; border-radius: 4px; border: 1px solid #c6cbd0; background: #f6f6f6; color: #000; cursor: pointer; }
+  #notice button.primary { background: #d35f6b; border-color: #d35f6b; color: #fff; }
 </style>
 </head>
 <body>
 <div id="loading"><div class="spinner"></div><div id="status">エンジンを読み込み中…</div></div>
 <div id="screen"></div>
+<div id="notice" class="hidden"></div>
 
 <script src="./config.js"></script>
 <script src="./asset-paths.js"></script>
