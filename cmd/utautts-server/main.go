@@ -40,6 +40,7 @@ func run() (runErr error) {
 	var port int
 	var host string
 	var showVersion bool
+	var writeTimeout time.Duration
 	var config api.Config
 	flag.BoolVar(&showVersion, "version", false, "print application version")
 	flag.IntVar(&port, "port", 8080, "port")
@@ -47,6 +48,10 @@ func run() (runErr error) {
 	flag.StringVar(&config.VoiceDir, "voice-dir", "voice", "directory containing voicebanks")
 	flag.StringVar(&config.OpenJTalkPath, "openjtalk-engine", "", "path to the Open JTalk engine library")
 	flag.StringVar(&config.OpenJTalkDictionary, "openjtalk-dictionary", "", "path to Open JTalk dictionary")
+	flag.IntVar(&config.MaxConcurrentSynthesis, "max-concurrent-synthesis", 4, "concurrent synthesis and analysis limit")
+	flag.IntVar(&config.MaxConcurrentBatches, "max-concurrent-batches", 2, "concurrent batch limit")
+	flag.DurationVar(&config.QueueTimeout, "queue-timeout", 30*time.Second, "how long a request waits for a free slot before 429; negative waits until the client disconnects")
+	flag.DurationVar(&writeTimeout, "write-timeout", 10*time.Minute, "response write timeout")
 	flag.Func("model-dir", "prosody model directory (repeatable)", func(value string) error {
 		config.ModelDirectories = append(config.ModelDirectories, value)
 		return nil
@@ -55,6 +60,12 @@ func run() (runErr error) {
 	if showVersion {
 		fmt.Printf("%s %s\n", appinfo.Name(), appinfo.Version())
 		return nil
+	}
+	if config.MaxConcurrentSynthesis < 1 || config.MaxConcurrentBatches < 1 {
+		return errors.New("--max-concurrent-synthesis and --max-concurrent-batches must be at least 1")
+	}
+	if writeTimeout <= 0 {
+		return errors.New("--write-timeout must be positive")
 	}
 	address, err := localListenAddress(host, port)
 	if err != nil {
@@ -76,7 +87,7 @@ func run() (runErr error) {
 	url := "http://" + listener.Addr().String()
 	fmt.Printf("UTAUTTS_READY=%s\n", url)
 	log.Printf("listening on %s", url)
-	server := &http.Server{Handler: apiServer.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 10 * time.Minute, IdleTimeout: 60 * time.Second}
+	server := &http.Server{Handler: apiServer.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: writeTimeout, IdleTimeout: 60 * time.Second}
 	server.BaseContext = func(net.Listener) context.Context { return ctx }
 	served := make(chan error, 1)
 	go func() { served <- server.Serve(listener) }()

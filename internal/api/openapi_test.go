@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -57,12 +58,42 @@ func TestOpenAPIPaths(t *testing.T) {
 	doc := readSpec(t)
 	handler := newWaveformTestServer(t).Handler()
 	for path, operations := range doc.Paths {
+		if strings.Contains(path, "{") {
+			// パラメータ付きのパスは実在する値で呼ぶ必要がある。
+			continue
+		}
 		for method := range operations {
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, localRequest(strings.ToUpper(method), path, strings.NewReader(`{}`)))
 			if response.Code == http.StatusNotFound || response.Code == http.StatusMethodNotAllowed || response.Code >= 500 {
 				t.Errorf("documented route %s %s returned %d: %s", method, path, response.Code, response.Body.String())
 			}
+		}
+	}
+}
+
+func TestOpenAPICLIAliasesMatchCode(t *testing.T) {
+	var document struct {
+		Components struct {
+			Schemas map[string]struct {
+				Aliases    map[string]string `yaml:"x-cli-code-aliases"`
+				Properties map[string]struct {
+					Enum []string `yaml:"enum"`
+				} `yaml:"properties"`
+			} `yaml:"schemas"`
+		} `yaml:"components"`
+	}
+	if err := yaml.Unmarshal(openAPISpec, &document); err != nil {
+		t.Fatal(err)
+	}
+	errorSchema := document.Components.Schemas["Error"]
+	if !reflect.DeepEqual(errorSchema.Aliases, cliErrorCodeAliases) {
+		t.Errorf("x-cli-code-aliases = %#v, want %#v", errorSchema.Aliases, cliErrorCodeAliases)
+	}
+	codes := errorSchema.Properties["code"].Enum
+	for cli, code := range errorSchema.Aliases {
+		if !slices.Contains(codes, code) {
+			t.Errorf("alias %q maps to undocumented code %q", cli, code)
 		}
 	}
 }

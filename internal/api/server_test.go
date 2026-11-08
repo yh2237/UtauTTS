@@ -30,7 +30,7 @@ func TestSynthesisWaitHonorsRequestCancellation(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	request := localRequest(http.MethodPost, "/api/synthesize/audio", bytes.NewBufferString(`{"method":"waveform-synthesis","language":"ja","kana":"あ"}`)).WithContext(ctx)
+	request := localRequest(http.MethodPost, "/api/synthesize/audio", bytes.NewBufferString(`{"method":"waveform-synthesis","language":"ja","voicebank_id":"test","kana":"あ"}`)).WithContext(ctx)
 	response := httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusRequestTimeout {
@@ -262,12 +262,26 @@ func TestHealthReportsStatus(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
-	var payload map[string]string
+	var payload struct {
+		Status    string `json:"status"`
+		Version   string `json:"version"`
+		Synthesis struct {
+			Limit  int `json:"limit"`
+			Active int `json:"active"`
+			Queued int `json:"queued"`
+		} `json:"synthesis"`
+		Batch struct {
+			Limit int `json:"limit"`
+		} `json:"batch"`
+	}
 	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload["status"] != "ok" || payload["version"] == "" {
+	if payload.Status != "ok" || payload.Version == "" {
 		t.Fatalf("unexpected response: %#v", payload)
+	}
+	if payload.Synthesis.Limit != maxConcurrentSynthesis || payload.Batch.Limit != maxConcurrentBatches {
+		t.Fatalf("concurrency limits = %#v", payload)
 	}
 }
 

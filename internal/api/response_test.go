@@ -28,6 +28,23 @@ func assertAPIError(t *testing.T, response *httptest.ResponseRecorder, status in
 	}
 }
 
+func TestErrorCodeForCLIUsesHTTPVocabulary(t *testing.T) {
+	for cli, want := range map[string]string{
+		"invalid_arguments":    "invalid_request",
+		"flag_parse_error":     "invalid_request",
+		"input_error":          "invalid_request",
+		"initialization_error": "unavailable",
+		"shutdown_error":       "internal_error",
+		"output_error":         "internal_error",
+		"synthesis_error":      "synthesis_error",
+		"not_a_cli_code":       "not_a_cli_code",
+	} {
+		if got := ErrorCodeForCLI(cli); got != want {
+			t.Errorf("ErrorCodeForCLI(%q) = %q, want %q", cli, got, want)
+		}
+	}
+}
+
 func TestAPIErrorCodesPreserveLegacyMessageAndStatus(t *testing.T) {
 	server := newWaveformTestServer(t)
 	for _, test := range []struct {
@@ -62,9 +79,11 @@ func TestAPIClassifiesCanceledAndExpiredRequests(t *testing.T) {
 		cancel()
 		server := mustNewServer(t, Config{VoiceDir: t.TempDir()})
 		for _, path := range []string{"/api/analyze", "/api/synthesize/audio", "/api/synthesize/label", "/api/synthesize/batch"} {
-			body := `{"text":"あ"}`
+			body := `{"language":"ja","text":"あ"}`
 			if strings.HasSuffix(path, "/batch") {
-				body = `{"items":[{"request":{"method":"waveform-synthesis","language":"ja","reading":"あ"}}]}`
+				body = `{"items":[{"request":{"method":"waveform-synthesis","language":"ja","voicebank_id":"test","reading":"あ"}}]}`
+			} else if strings.HasPrefix(path, "/api/synthesize") {
+				body = `{"method":"waveform-synthesis","language":"ja","voicebank_id":"test","reading":"あ"}`
 			}
 			response := httptest.NewRecorder()
 			request := localRequest(http.MethodPost, path, strings.NewReader(body)).WithContext(ctx)
@@ -80,6 +99,6 @@ func TestClosedServerRejectsSynthesis(t *testing.T) {
 		t.Fatal(err)
 	}
 	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/audio", strings.NewReader(`{"method":"waveform-synthesis","language":"ja","reading":"あ"}`)))
+	server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/audio", strings.NewReader(`{"method":"waveform-synthesis","language":"ja","voicebank_id":"test","reading":"あ"}`)))
 	assertAPIError(t, response, 503, "unavailable")
 }

@@ -139,6 +139,10 @@
         <tr><td><span class="tag post">POST</span></td><td><code>/api/analyze</code></td><td>文章→読み・モーラ列（<code>{"text":"..."}</code>、任意で<code>dictionary</code>）</td></tr>
         <tr><td><span class="tag post">POST</span></td><td><code>/api/synthesize/audio</code></td><td>単一発話の合成。WAVを返す。ヘッダー<code>X-UtauTTS-Method</code>・<code>X-UtauTTS-Reading</code></td></tr>
         <tr><td><span class="tag post">POST</span></td><td><code>/api/synthesize/label</code></td><td>単一発話の合成。HTK形式の音素ラベルを返す</td></tr>
+        <tr><td><span class="tag post">POST</span></td><td><code>/api/synthesize/report</code></td><td>単一発話の合成。診断の詳細をJSONで返す</td></tr>
+        <tr><td><span class="tag post">POST</span></td><td><code>/api/synthesize/jobs</code></td><td>合成を非同期で開始し、ジョブIDを返す</td></tr>
+        <tr><td><span class="tag get">GET</span></td><td><code>/api/synthesize/jobs/{job_id}</code></td><td>ジョブの状態と進捗</td></tr>
+        <tr><td><span class="tag get">GET</span></td><td><code>/api/synthesize/jobs/{job_id}/audio</code></td><td>完了したジョブのWAV</td></tr>
         <tr><td><span class="tag post">POST</span></td><td><code>/api/synthesize/batch</code></td><td>複数発話の合成。ZIPを返す（16発話・256 MiBまで）</td></tr>
       </tbody>
     </table>

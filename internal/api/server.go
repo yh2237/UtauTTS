@@ -12,7 +12,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/yh2237/UtauIDX/audio"
 	utautts "github.com/yh2237/UtauTTS"
@@ -39,18 +42,25 @@ var uiFS = func() fs.FS {
 
 const (
 	maxJSONRequestBytes    = 1 << 20
-	maxTextRunes           = 500
+	maxTextRunes           = entryinput.MaxTextRunes
 	maxBatchItems          = 16
 	maxBatchWAVBytes       = 256 << 20
 	maxManualPitchPoints   = 1000
 	maxConcurrentSynthesis = 4
 	maxConcurrentBatches   = 2
+	defaultQueueTimeout    = 30 * time.Second
 )
 
 type Config struct {
 	VoiceDir                           string
 	OpenJTalkPath, OpenJTalkDictionary string
 	ModelDirectories                   []string
+	// MaxConcurrentSynthesisは同時に実行する合成と読み解析の上限。0なら既定値。
+	MaxConcurrentSynthesis int
+	// MaxConcurrentBatchesは同時に実行する一括合成の上限。0なら既定値。
+	MaxConcurrentBatches int
+	// QueueTimeoutは実行枠が空くのを待つ上限。0なら既定値、負なら要求の切断まで待つ。
+	QueueTimeout time.Duration
 }
 
 type Voicebank struct {
@@ -75,6 +85,12 @@ type Server struct {
 	voicebanks          map[string]Voicebank
 	synthesisSem        chan struct{}
 	batchSem            chan struct{}
+	synthesisWaiting    atomic.Int64
+	batchWaiting        atomic.Int64
+	queueTimeout        time.Duration
+	jobs                *jobStore
+	jobCtx              context.Context
+	jobCancel           context.CancelFunc
 	openJTalkPath       string
 	openJTalkDictionary string
 	voiceDir            string
@@ -101,11 +117,16 @@ func New(config Config) (*Server, error) {
 	voiceDir := voicebank.ResolveDirectory(config.VoiceDir)
 	srv := &Server{
 		voicebanks:    map[string]Voicebank{},
-		synthesisSem:  make(chan struct{}, maxConcurrentSynthesis),
-		batchSem:      make(chan struct{}, maxConcurrentBatches),
+		synthesisSem:  make(chan struct{}, concurrencyLimit(config.MaxConcurrentSynthesis, maxConcurrentSynthesis)),
+		batchSem:      make(chan struct{}, concurrencyLimit(config.MaxConcurrentBatches, maxConcurrentBatches)),
+		queueTimeout:  config.QueueTimeout,
+		jobs:          newJobStore(),
 		voiceDir:      voiceDir,
 		openJTalkPath: config.OpenJTalkPath, openJTalkDictionary: config.OpenJTalkDictionary,
 		voiceLibrary: voicebank.NewLibrary(voiceDir),
+	}
+	if srv.queueTimeout == 0 {
+		srv.queueTimeout = defaultQueueTimeout
 	}
 	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
 		OpenJTalkPath: config.OpenJTalkPath, OpenJTalkDictionary: config.OpenJTalkDictionary,
@@ -123,11 +144,23 @@ func New(config Config) (*Server, error) {
 	if len(srv.voicebanks) == 0 {
 		log.Printf("warning: no voicebanks found in %s", voiceDir)
 	}
+	srv.jobCtx, srv.jobCancel = context.WithCancel(context.Background())
 
 	return srv, nil
 }
 
+// concurrencyLimitは、設定値が正ならそれを、そうでなければ既定値を使う。
+func concurrencyLimit(configured, fallback int) int {
+	if configured > 0 {
+		return configured
+	}
+	return fallback
+}
+
 func (s *Server) Close() error {
+	if s.jobCancel != nil {
+		s.jobCancel()
+	}
 	if s.runtime == nil {
 		return nil
 	}
@@ -142,7 +175,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/voicebanks/reload", s.handleReloadVoicebanks)
 	mux.HandleFunc("POST /api/synthesize/audio", s.handleSynthesizeAudio)
 	mux.HandleFunc("POST /api/synthesize/label", s.handleSynthesizeLabel)
+	mux.HandleFunc("POST /api/synthesize/report", s.handleSynthesizeReport)
 	mux.HandleFunc("POST /api/synthesize/batch", s.handleSynthesizeBatch)
+	mux.HandleFunc("POST /api/synthesize/jobs", s.handleCreateSynthesisJob)
+	mux.HandleFunc("GET /api/synthesize/jobs/{job_id}", s.handleSynthesisJob)
+	mux.HandleFunc("GET /api/synthesize/jobs/{job_id}/audio", s.handleSynthesisJobAudio)
 	mux.HandleFunc("GET /api/models", s.handleModels)
 	mux.HandleFunc("GET /api/settings", s.handleSettings)
 	mux.HandleFunc("POST /api/analyze", s.handleAnalyze)
@@ -150,7 +187,7 @@ func (s *Server) Handler() http.Handler {
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	})
 	mux.Handle("GET /", http.FileServer(http.FS(uiFS)))
-	return localOnly(mux)
+	return localOnly(jsonRouterErrors(mux))
 }
 
 func (s *Server) loadVoiceDirectory() error {
@@ -220,7 +257,16 @@ func inspectVoicebank(path string) (Voicebank, error) {
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": appinfo.Version()})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status": "ok", "version": appinfo.Version(),
+		"synthesis": s.concurrencyStatus(s.synthesisSem, &s.synthesisWaiting),
+		"batch":     s.concurrencyStatus(s.batchSem, &s.batchWaiting),
+	})
+}
+
+// concurrencyStatusは、実行枠の上限と使用中・待機中の件数を返す。
+func (s *Server) concurrencyStatus(sem chan struct{}, waiting *atomic.Int64) map[string]int64 {
+	return map[string]int64{"limit": int64(cap(sem)), "active": int64(len(sem)), "queued": waiting.Load()}
 }
 
 func (s *Server) handleModels(w http.ResponseWriter, _ *http.Request) {
@@ -242,22 +288,23 @@ func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if request.Text == "" {
-		writeAPIError(w, http.StatusBadRequest, errors.New("text is required"))
+		writeAPIError(w, http.StatusBadRequest, invalidInput("text", "1-500 characters", "text is required"))
 		return
 	}
 	if len([]rune(request.Text)) > maxTextRunes {
-		writeAPIError(w, http.StatusRequestEntityTooLarge, fmt.Errorf("text is limited to %d characters", maxTextRunes))
+		writeAPIError(w, http.StatusRequestEntityTooLarge, invalidInput("text", fmt.Sprintf("at most %d characters", maxTextRunes), fmt.Sprintf("text is limited to %d characters", maxTextRunes)))
 		return
 	}
-	if s.synthesisSem != nil {
-		select {
-		case s.synthesisSem <- struct{}{}:
-			defer func() { <-s.synthesisSem }()
-		case <-r.Context().Done():
-			writeAPIError(w, http.StatusRequestTimeout, r.Context().Err())
-			return
-		}
+	if strings.TrimSpace(request.Language) == "" {
+		writeAPIError(w, http.StatusBadRequest, invalidInput("language", "ja, en, zh, es, or pt", "language is required"))
+		return
 	}
+	release, status, err := s.acquire(r.Context(), s.synthesisSem, &s.synthesisWaiting)
+	if err != nil {
+		writeAPIError(w, status, err)
+		return
+	}
+	defer release()
 	preview, err := s.synthesisService().AnalyzeContext(r.Context(), entryinput.Apply(utautts.Request{
 		Text: request.Text, Language: request.Language, Dictionary: request.Dictionary,
 	}, synth.DefaultRequest()))
@@ -337,38 +384,34 @@ func (s *Server) handleSynthesizeLabel(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) handleSynthesizeReport(w http.ResponseWriter, r *http.Request) {
+	var request SynthesisRequest
+	if err := decodeJSONBody(w, r, &request); err != nil {
+		writeAPIError(w, jsonDecodeStatus(err), err)
+		return
+	}
+	result, status, err := s.synthesize(r.Context(), request)
+	if err != nil {
+		writeAPIError(w, status, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result.Report())
+}
+
 func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*synth.Result, int, error) {
-	if s.synthesisSem != nil {
-		select {
-		case s.synthesisSem <- struct{}{}:
-		case <-ctx.Done():
-			return nil, http.StatusRequestTimeout, ctx.Err()
-		}
-		defer func() { <-s.synthesisSem }()
+	if status, err := validateSynthesisRequest(request); err != nil {
+		return nil, status, err
 	}
-	if request.ReadingOrKana() == "" && request.Text == "" {
-		return nil, http.StatusBadRequest, fmt.Errorf("text or reading is required")
+	release, status, err := s.acquire(ctx, s.synthesisSem, &s.synthesisWaiting)
+	if err != nil {
+		return nil, status, err
 	}
-	if len([]rune(request.Text)) > maxTextRunes || len([]rune(request.ReadingOrKana())) > maxTextRunes {
-		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("text and reading are limited to %d characters", maxTextRunes)
-	}
-	if request.MoraDurationMS < 0 || request.MoraDurationMS > 1000 || request.PauseDurationMS < 0 || request.PauseDurationMS > 3000 || request.LeadingPreutteranceMS < 0 || request.LeadingPreutteranceMS > 1000 {
-		return nil, http.StatusBadRequest, fmt.Errorf("duration settings are outside the supported range")
-	}
-	if len(request.MoraDurationsMS) > maxTextRunes {
-		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("mora duration settings contain too many values")
-	}
-	for _, duration := range request.MoraDurationsMS {
-		if duration < 0 || duration > 1000 {
-			return nil, http.StatusBadRequest, fmt.Errorf("mora duration settings are outside the supported range")
-		}
-	}
-	if request.IntonationStrength < 0 || request.IntonationStrength > tts.MaxIntonationStrength {
-		return nil, http.StatusBadRequest, fmt.Errorf("intonation_strength must be between 0 and %.0f", tts.MaxIntonationStrength)
-	}
-	if request.ManualPitch != nil && len(request.ManualPitch.Points) > maxManualPitchPoints {
-		return nil, http.StatusRequestEntityTooLarge, fmt.Errorf("manual pitch supports at most %d points", maxManualPitchPoints)
-	}
+	defer release()
+	return s.synthesizeAdmitted(ctx, request)
+}
+
+// synthesizeAdmittedは、入力の検証と実行枠の取得を済ませたあとの合成。
+func (s *Server) synthesizeAdmitted(ctx context.Context, request SynthesisRequest) (*synth.Result, int, error) {
 	result, err := s.synthesisService().SynthesizeContext(ctx, request.InternalRequest())
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -380,6 +423,80 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 		return nil, http.StatusUnprocessableEntity, err
 	}
 	return result, http.StatusOK, nil
+}
+
+// validateSynthesisRequestは、合成の前に要求の形を確かめる。
+// 必須項目の欠落と範囲外の値は400、上限超過は413で返す。
+func validateSynthesisRequest(request SynthesisRequest) (int, error) {
+	reading := request.ReadingOrKana()
+	if reading == "" && request.Text == "" {
+		return http.StatusBadRequest, invalidInput("text", "text, reading, or kana with 1-500 characters", "text or reading is required")
+	}
+	if len([]rune(request.Text)) > maxTextRunes || len([]rune(reading)) > maxTextRunes {
+		return http.StatusRequestEntityTooLarge, invalidInput("text", fmt.Sprintf("at most %d characters", maxTextRunes), fmt.Sprintf("text and reading are limited to %d characters", maxTextRunes))
+	}
+	if err := tts.ValidateMethod(request.Method); err != nil {
+		return http.StatusBadRequest, &inputError{
+			field: "method", expected: fmt.Sprintf("%q or %q", tts.MethodWaveformSynthesis, tts.MethodReferenceMatching), err: err,
+		}
+	}
+	if strings.TrimSpace(request.Language) == "" {
+		return http.StatusBadRequest, invalidInput("language", "ja, en, zh, es, or pt", "language is required")
+	}
+	if strings.TrimSpace(request.VoicebankID) == "" {
+		return http.StatusBadRequest, invalidInput("voicebank_id", "a registered voicebank ID from GET /api/voicebanks", "voicebank_id is required")
+	}
+	for _, duration := range []struct {
+		field string
+		value float64
+		max   float64
+	}{
+		{"mora_duration_ms", request.MoraDurationMS, 1000},
+		{"pause_duration_ms", request.PauseDurationMS, 3000},
+		{"leading_preutterance_ms", request.LeadingPreutteranceMS, 1000},
+	} {
+		if duration.value < 0 || duration.value > duration.max {
+			return http.StatusBadRequest, invalidInput(duration.field, fmt.Sprintf("0..%g", duration.max), fmt.Sprintf("%s must be between 0 and %g", duration.field, duration.max))
+		}
+	}
+	if len(request.MoraDurationsMS) > maxTextRunes {
+		return http.StatusRequestEntityTooLarge, invalidInput("mora_durations_ms", fmt.Sprintf("at most %d values", maxTextRunes), "mora duration settings contain too many values")
+	}
+	for _, duration := range request.MoraDurationsMS {
+		if duration < 0 || duration > 1000 {
+			return http.StatusBadRequest, invalidInput("mora_durations_ms", "each value 0..1000", "mora duration settings are outside the supported range")
+		}
+	}
+	if request.IntonationStrength < 0 || request.IntonationStrength > tts.MaxIntonationStrength {
+		return http.StatusBadRequest, invalidInput("intonation_strength", fmt.Sprintf("0..%g", tts.MaxIntonationStrength), fmt.Sprintf("intonation_strength must be between 0 and %.0f", tts.MaxIntonationStrength))
+	}
+	if request.ManualPitch != nil && len(request.ManualPitch.Points) > maxManualPitchPoints {
+		return http.StatusRequestEntityTooLarge, invalidInput("manual_pitch.points", fmt.Sprintf("at most %d points", maxManualPitchPoints), fmt.Sprintf("manual pitch supports at most %d points", maxManualPitchPoints))
+	}
+	return http.StatusOK, nil
+}
+
+// acquireは実行枠を取る。枠が空かないままQueueTimeoutを過ぎたら429を返す。
+func (s *Server) acquire(ctx context.Context, sem chan struct{}, waiting *atomic.Int64) (func(), int, error) {
+	if sem == nil {
+		return func() {}, http.StatusOK, nil
+	}
+	waiting.Add(1)
+	defer waiting.Add(-1)
+	var expired <-chan time.Time
+	if s.queueTimeout > 0 {
+		timer := time.NewTimer(s.queueTimeout)
+		defer timer.Stop()
+		expired = timer.C
+	}
+	select {
+	case sem <- struct{}{}:
+		return func() { <-sem }, http.StatusOK, nil
+	case <-ctx.Done():
+		return nil, http.StatusRequestTimeout, ctx.Err()
+	case <-expired:
+		return nil, http.StatusTooManyRequests, errors.New("synthesis queue is full; retry later")
+	}
 }
 
 func contextErrorStatus(err error, fallback int) int {

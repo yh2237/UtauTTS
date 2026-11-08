@@ -30,16 +30,16 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(request.Items) == 0 {
-		writeAPIError(w, http.StatusBadRequest, errors.New("items are required"))
+		writeAPIError(w, http.StatusBadRequest, invalidInput("items", "1-16 items", "items are required"))
 		return
 	}
 	if len(request.Items) > maxBatchItems {
-		writeAPIError(w, http.StatusRequestEntityTooLarge, fmt.Errorf("batch supports at most %d items", maxBatchItems))
+		writeAPIError(w, http.StatusRequestEntityTooLarge, invalidInput("items", fmt.Sprintf("at most %d items", maxBatchItems), fmt.Sprintf("batch supports at most %d items", maxBatchItems)))
 		return
 	}
 	if request.WriteText {
 		if _, err := sidecar.TextBytes("", request.TextEncoding); err != nil {
-			writeAPIError(w, http.StatusBadRequest, err)
+			writeAPIError(w, http.StatusBadRequest, &inputError{field: "text_encoding", expected: "utf-8 or shift_jis", err: err})
 			return
 		}
 	}
@@ -54,21 +54,18 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 			name += ".wav"
 		}
 		if _, exists := seenNames[name]; exists {
-			writeAPIError(w, http.StatusBadRequest, fmt.Errorf("duplicate batch filename %q", name))
+			writeAPIError(w, http.StatusBadRequest, invalidInput(fmt.Sprintf("items[%d].name", index), "a unique file name", fmt.Sprintf("duplicate batch filename %q", name)))
 			return
 		}
 		seenNames[name] = struct{}{}
 		names[index] = name
 	}
-	if s.batchSem != nil {
-		select {
-		case s.batchSem <- struct{}{}:
-			defer func() { <-s.batchSem }()
-		case <-r.Context().Done():
-			writeAPIError(w, http.StatusRequestTimeout, r.Context().Err())
-			return
-		}
+	release, status, err := s.acquire(r.Context(), s.batchSem, &s.batchWaiting)
+	if err != nil {
+		writeAPIError(w, status, err)
+		return
 	}
+	defer release()
 	output, err := os.CreateTemp("", "utautts-batch-*.zip")
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, err)

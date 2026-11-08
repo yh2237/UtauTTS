@@ -4,6 +4,8 @@ info:
   version: development
   description: |
     現行の開発版HTTP API。
+    エラーは常に {"error":"説明","code":"分類"} のJSONで返す。未定義のパスは404 not_found、
+    対応していないメソッドは405 method_not_allowed で、どちらも同じ形式。
 servers:
   - url: /
 paths:
@@ -18,10 +20,12 @@ paths:
             application/yaml:
               schema: {type: string}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
   /api/health:
     get:
       operationId: getHealth
-      summary: 稼働確認
+      summary: 稼働確認と実行枠の使用状況
       description: サーバーが稼働していれば200を返す。音源の状態は /api/voicebanks で確認する。
       responses:
         '200':
@@ -30,6 +34,8 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/Health'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
   /api/voicebanks:
     get:
       operationId: listVoicebanks
@@ -47,6 +53,8 @@ paths:
                     type: array
                     items: {$ref: '#/components/schemas/Voicebank'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
   /api/voicebanks/reload:
     post:
       operationId: reloadVoicebanks
@@ -55,6 +63,8 @@ paths:
       responses:
         '200': *voicebanksResponse
         '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /api/models:
@@ -75,6 +85,8 @@ paths:
                     nullable: true
                     items: {$ref: '#/components/schemas/Model'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
   /api/settings:
     get:
       operationId: listSettings
@@ -87,6 +99,8 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/SettingCatalog'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
   /api/analyze:
     post:
       operationId: analyze
@@ -115,9 +129,12 @@ paths:
               schema: {$ref: '#/components/schemas/Analysis'}
         '400': {$ref: '#/components/responses/InvalidRequest'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
         '408': {$ref: '#/components/responses/Timeout'}
         '413': {$ref: '#/components/responses/LimitExceeded'}
         '422': {$ref: '#/components/responses/SynthesisError'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /api/synthesize/audio:
     post: &synthesisOperation
@@ -135,16 +152,19 @@ paths:
               description: 使用した読み
               schema: {type: string}
             X-UtauTTS-Diagnostic-Count:
-              description: 描画の診断と不足音素の警告の件数
+              description: 描画の診断と不足音素の警告の件数。詳細は /api/synthesize/report で取得する。
               schema: {type: integer, minimum: 0}
           content:
             audio/wav:
               schema: {type: string, format: binary}
         '400': {$ref: '#/components/responses/InvalidRequest'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
         '408': {$ref: '#/components/responses/Timeout'}
         '413': {$ref: '#/components/responses/LimitExceeded'}
         '422': {$ref: '#/components/responses/SynthesisError'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /api/synthesize/label:
     post:
@@ -159,6 +179,89 @@ paths:
           content:
             text/plain:
               schema: {type: string}
+  /api/synthesize/report:
+    post:
+      operationId: synthesizeReport
+      summary: 単一発話を合成し、診断を含む結果情報をJSONで取得
+      description: 波形は返さない。X-UtauTTS-Diagnostic-Count が数える診断の詳細を diagnostics で返す。
+      requestBody: {$ref: '#/components/requestBodies/Synthesis'}
+      responses:
+        '200':
+          description: 合成結果の情報
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SynthesisReport'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
+        '408': {$ref: '#/components/responses/Timeout'}
+        '413': {$ref: '#/components/responses/LimitExceeded'}
+        '422': {$ref: '#/components/responses/SynthesisError'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/synthesize/jobs:
+    post:
+      operationId: createSynthesisJob
+      summary: 合成を非同期で開始し、ジョブIDを返す
+      description: |
+        202でジョブIDを返し、合成は実行枠の空きを待って進む。要求の検証は受け付け時に行い、
+        入力不正は202ではなく400・413で返す。進捗は GET /api/synthesize/jobs/{job_id} を繰り返し呼んで取得する。
+      requestBody: {$ref: '#/components/requestBodies/Synthesis'}
+      responses:
+        '202':
+          description: 受け付けた
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SynthesisJobCreated'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
+        '413': {$ref: '#/components/responses/LimitExceeded'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/synthesize/jobs/{job_id}:
+    get:
+      operationId: getSynthesisJob
+      summary: 合成ジョブの状態と進捗
+      description: |
+        完了するまで繰り返し呼ぶ。queuedは実行枠待ちで、queue_positionが先に並んでいる件数。
+        runningは合成中。succeededならresultに合成結果の情報が入る。failedならerrorとcodeが入る。
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: ジョブの状態
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SynthesisJob'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
+  /api/synthesize/jobs/{job_id}/audio:
+    get:
+      operationId: getSynthesisJobAudio
+      summary: 完了した合成ジョブのWAV
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: 合成完了後のWAV全体
+          headers: *synthesisHeaders
+          content:
+            audio/wav:
+              schema: {type: string, format: binary}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
+        '409': {$ref: '#/components/responses/NotReady'}
   /api/synthesize/batch:
     post:
       operationId: synthesizeBatch
@@ -182,9 +285,12 @@ paths:
               schema: {type: string, format: binary}
         '400': {$ref: '#/components/responses/InvalidRequest'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
         '408': {$ref: '#/components/responses/Timeout'}
         '413': {$ref: '#/components/responses/LimitExceeded'}
         '422': {$ref: '#/components/responses/SynthesisError'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/Unavailable'}
 components:
@@ -197,12 +303,18 @@ components:
           example: {reading: ア, apply_pitch: false}
   responses:
     InvalidRequest:
-      description: JSON・必須項目・範囲等の入力不正はinvalid_request。資源不足は既存の400を維持してunavailable。
+      description: JSON・必須項目・範囲等の入力不正はinvalid_request。項目名はfield、期待する形式はexpectedに入る。資源不足は既存の400を維持してunavailable。
       content: &errorContent
         application/json:
           schema: {$ref: '#/components/schemas/Error'}
     Forbidden:
       description: Hostが非ローカル、または別サイトからのブラウザ操作。codeはforbidden。
+      content: *errorContent
+    NotFound:
+      description: 未定義のパス、または存在しないジョブ。codeはnot_found。
+      content: *errorContent
+    MethodNotAllowed:
+      description: パスはあるがメソッドが違う。codeはmethod_not_allowed。Allowヘッダーに使えるメソッドを返す。
       content: *errorContent
     Timeout:
       description: 要求キャンセルはcanceled、要求の期限切れはdeadline_exceeded。切断後は受信できない場合がある。
@@ -212,6 +324,12 @@ components:
       content: *errorContent
     SynthesisError:
       description: 読み解析・合成の失敗。codeはsynthesis_error。
+      content: *errorContent
+    TooManyRequests:
+      description: 実行枠が空かないまま待ち時間の上限を過ぎた。codeはtoo_many_requests。Retry-After秒後に再試行する。
+      content: *errorContent
+    NotReady:
+      description: ジョブがまだ完了していない。codeはnot_ready。
       content: *errorContent
     InternalError:
       description: 再読込・一時ファイル・ZIP出力等の失敗。codeはinternal_error。
@@ -223,11 +341,22 @@ components:
     Error:
       type: object
       required: [error, code]
+      description: |
+        codeはHTTPの語彙。CLIのエラーコードはx-cli-code-aliasesの表でこの語彙へ対応づける。
+      x-cli-code-aliases:
+        invalid_arguments: invalid_request
+        flag_parse_error: invalid_request
+        input_error: invalid_request
+        initialization_error: unavailable
+        shutdown_error: internal_error
+        output_error: internal_error
       properties:
         error: {type: string, description: 既存クライアント向けの説明文字列。一括合成ではitem Nを含む。}
         code:
           type: string
-          enum: [invalid_request, limit_exceeded, unavailable, synthesis_error, canceled, deadline_exceeded, forbidden, internal_error]
+          enum: [invalid_request, limit_exceeded, unavailable, synthesis_error, canceled, deadline_exceeded, forbidden, internal_error, not_found, method_not_allowed, too_many_requests, not_ready]
+        field: {type: string, description: '入力不正の項目名。JSONの項目名か、一括合成のitemsのnameのような位置。'}
+        expected: {type: string, description: その項目に期待する形式。}
     SynthesisRequest:
       type: object
       additionalProperties: false
@@ -369,10 +498,19 @@ components:
               request: {$ref: '#/components/schemas/SynthesisRequest'}
     Health:
       type: object
-      required: [status, version]
+      required: [status, version, synthesis, batch]
       properties:
         status: {type: string, enum: [ok]}
         version: {type: string}
+        synthesis: {$ref: '#/components/schemas/Concurrency'}
+        batch: {$ref: '#/components/schemas/Concurrency'}
+    Concurrency:
+      type: object
+      required: [limit, active, queued]
+      properties:
+        limit: {type: integer, minimum: 0, description: 同時に実行できる件数}
+        active: {type: integer, minimum: 0, description: 実行中の件数}
+        queued: {type: integer, minimum: 0, description: 実行枠を待っている件数}
     Analysis:
       type: object
       required: [reading, morae]
@@ -389,6 +527,51 @@ components:
               consonant: {type: string}
               vowel: {type: string}
               pause: {type: boolean}
+    SynthesisReport:
+      type: object
+      required: [reading, method, duration_ms, sample_rate, channels, unit_count, phoneme_labels, diagnostics]
+      properties:
+        reading: {type: string}
+        method: {type: string}
+        duration_ms: {type: number}
+        sample_rate: {type: integer}
+        channels: {type: integer}
+        unit_count: {type: integer}
+        phoneme_labels: {type: string, description: HTK形式LAB。100 ns単位。}
+        diagnostics:
+          type: array
+          items: {$ref: '#/components/schemas/Diagnostic'}
+        logs: {type: array, nullable: true, items: {type: string}, description: 索引の作成など時間のかかる処理の途中経過。}
+    Diagnostic:
+      type: object
+      required: [message]
+      properties:
+        severity: {type: string}
+        code: {type: string}
+        message: {type: string}
+    SynthesisJobCreated:
+      type: object
+      required: [job_id, status, status_url]
+      properties:
+        job_id: {type: string}
+        status: {type: string, enum: [queued]}
+        status_url: {type: string}
+    SynthesisJob:
+      type: object
+      required: [job_id, status, queue_position, created_at, elapsed_ms]
+      properties:
+        job_id: {type: string}
+        status: {type: string, enum: [queued, running, succeeded, failed]}
+        queue_position: {type: integer, minimum: 0, description: 実行枠を待っている間に先に並んでいるジョブの数。queued以外は0。}
+        created_at: {type: string, format: date-time}
+        started_at: {type: string, format: date-time, nullable: true}
+        finished_at: {type: string, format: date-time, nullable: true}
+        elapsed_ms: {type: integer, description: 開始からの経過。未開始なら受け付けからの経過。}
+        result: {$ref: '#/components/schemas/SynthesisReport'}
+        error: {type: string, description: 失敗したときの説明。}
+        code: {type: string, description: 失敗したときのエラーコード。Error.codeと同じ語彙。}
+        field: {type: string}
+        expected: {type: string}
     Voicebank:
       type: object
       required: [id, name, path, oto_file_count, phoneme_count, diagnostic_count, alias_counts, vcv_contexts, vc_contexts, has_vc, has_initial_vcv, has_n_context_vcv]
