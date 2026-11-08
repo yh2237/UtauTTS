@@ -85,6 +85,7 @@ func inspectEnvironment(voicePath, modelID string, config synth.RuntimeConfig) (
 func writeDoctor(output io.Writer, report *cliDoctorReport) error {
 	var text strings.Builder
 	fmt.Fprintf(&text, "%s %s (%s/%s)\n", appinfo.Name(), report.Version, report.OS, report.Arch)
+	text.WriteString("status\tcheck\tmessage\tpath\n")
 	for _, check := range report.Checks {
 		fmt.Fprintf(&text, "%s\t%s\t%s", check.Status, check.ID, check.Message)
 		if check.Path != "" {
@@ -92,6 +93,38 @@ func writeDoctor(output io.Writer, report *cliDoctorReport) error {
 		}
 		text.WriteByte('\n')
 	}
+	fmt.Fprintf(&text, "summary: %s\n", doctorSummary(report.Checks))
 	_, err := io.WriteString(output, text.String())
 	return err
+}
+
+// doctorSummaryはエラーと警告の件数を1行にまとめる。
+func doctorSummary(checks []cliDoctorCheck) string {
+	var errors, warnings int
+	for _, check := range checks {
+		switch check.Status {
+		case "error":
+			errors++
+		case "warning":
+			warnings++
+		}
+	}
+	if errors == 0 && warnings == 0 {
+		return "no problems"
+	}
+	parts := make([]string, 0, 2)
+	if errors > 0 {
+		parts = append(parts, countLabel(errors, "error"))
+	}
+	if warnings > 0 {
+		parts = append(parts, countLabel(warnings, "warning"))
+	}
+	return strings.Join(parts, ", ")
+}
+
+func countLabel(count int, noun string) string {
+	if count == 1 {
+		return fmt.Sprintf("1 %s", noun)
+	}
+	return fmt.Sprintf("%d %ss", count, noun)
 }

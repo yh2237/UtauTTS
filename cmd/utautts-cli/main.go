@@ -31,16 +31,28 @@ func main() {
 }
 
 func executeCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	err := runCLI(args, stdin, stdout, stderr)
-	if err != nil {
+	var jsonOutput bool
+	err := runCLIOutput(args, stdin, stdout, stderr, &jsonOutput)
+	// --jsonでは結果JSONと重複するため、stderrへは出さない。
+	if err != nil && !jsonOutput {
 		log.New(stderr, "", log.LstdFlags).Print(err)
+		if hint := cliErrorHint(err); hint != "" {
+			fmt.Fprintf(stderr, "hint: %s\n", strings.ReplaceAll(hint, "\n", "\n      "))
+		}
 	}
 	return cliExitCode(err)
 }
 
-func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr error) {
+func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	return runCLIOutput(args, stdin, stdout, stderr, new(bool))
+}
+
+// runCLIOutputはJSONを出したかをjsonOutputへ書き戻す。
+func runCLIOutput(args []string, stdin io.Reader, stdout, stderr io.Writer, jsonOutput *bool) (runErr error) {
 	flag := flagpkg.NewFlagSet("utautts-cli", flagpkg.ContinueOnError)
-	flag.SetOutput(stderr)
+	// 解析エラーは自前で整形し、--helpはstdoutへ出す。
+	flag.SetOutput(io.Discard)
+	flag.Usage = func() {}
 	var (
 		voicebankPath           string
 		reading                 string
@@ -94,18 +106,17 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		writeLab                bool
 		textEncoding            string
 		showVersion             bool
-		jsonOutput              bool
 		listKind                string
 		doctor                  bool
 		timeout                 time.Duration
 	)
 	flag.BoolVar(&showVersion, "version", false, "print application version")
-	flag.BoolVar(&jsonOutput, "json", false, "print result, catalog, doctor, version or error JSON to standard output")
+	flag.BoolVar(jsonOutput, "json", false, "print result, catalog, doctor, version or error JSON to standard output")
 	flag.StringVar(&listKind, "list", "", "list voicebanks or models without synthesizing")
 	flag.BoolVar(&doctor, "doctor", false, "inspect selected resources without synthesizing")
 	flag.DurationVar(&timeout, "timeout", 0, "synthesis timeout after input and initialization (e.g. 30s; 0 disables)")
 	flag.StringVar(&voicebankPath, "voicebank", "", "path to a UTAU voicebank directory")
-	flag.StringVar(&reading, "kana", "", "kana reading to synthesize")
+	flag.StringVar(&reading, "kana", "", "alias of --reading")
 	flag.StringVar(&reading, "reading", "", "pronunciation to synthesize (kana, ARPAbet, or Pinyin)")
 	flag.StringVar(&text, "text", "", "text to synthesize")
 	flag.StringVar(&textFile, "text-file", "", "UTF-8 text file (- reads standard input; exclusive with --text)")
@@ -155,28 +166,36 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	flag.BoolVar(&writeText, "write-text", false, "write a text file next to the WAV")
 	flag.BoolVar(&writeLab, "write-lab", false, "write an HTK label file next to the WAV")
 	flag.StringVar(&textEncoding, "text-encoding", sidecar.EncodingUTF8, "text sidecar encoding: utf-8 or shift_jis")
-	flag.Func("model-dir", "prosody model directory (repeatable)", func(value string) error { modelDirectories = append(modelDirectories, value); return nil })
+	flag.Func("model-dir", "prosody model `directory` (repeatable)", func(value string) error { modelDirectories = append(modelDirectories, value); return nil })
+	// 解析に失敗してもJSONで返せるよう、--jsonを先に読む。
+	*jsonOutput = jsonRequested(flag, args)
 	if err := flag.Parse(args); err != nil {
 		if errors.Is(err, flagpkg.ErrHelp) {
-			return nil
+			return cliFailure("output_error", writeUsage(stdout, flag))
 		}
-		return cliFailure("flag_parse_error", err)
+		failure := cliFailureHint("flag_parse_error", "run utautts-cli --help to see the flags", err)
+		if *jsonOutput {
+			if writeErr := writeJSONResponse(stdout, cliResponse{Error: errorReport(failure)}); writeErr != nil {
+				return errors.Join(failure, cliFailure("output_error", fmt.Errorf("write result JSON: %w", writeErr)))
+			}
+		}
+		return failure
 	}
 	var report cliResponse
-	if jsonOutput {
+	if *jsonOutput {
 		// Runtimeの終了まで待ち、終了・出力の失敗もJSON結果へ反映する。
 		defer func() {
 			report.OK = runErr == nil
 			if runErr != nil {
-				report = cliResponse{Doctor: report.Doctor, Error: &cliErrorReport{Code: cliErrorCode(runErr), Message: runErr.Error()}}
+				report = cliResponse{Doctor: report.Doctor, Error: errorReport(runErr)}
 			}
-			if err := json.NewEncoder(stdout).Encode(report); err != nil {
+			if err := writeJSONResponse(stdout, report); err != nil {
 				runErr = errors.Join(runErr, cliFailure("output_error", fmt.Errorf("write result JSON: %w", err)))
 			}
 		}()
 	}
 	if showVersion {
-		if jsonOutput {
+		if *jsonOutput {
 			report.Version = &cliVersionReport{Name: appinfo.Name(), Version: appinfo.Version()}
 			return nil
 		}
@@ -184,7 +203,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		return cliFailure("output_error", err)
 	}
 	if timeout < 0 {
-		return cliFailure("invalid_arguments", errors.New("--timeout must not be negative"))
+		return cliFailureHint("invalid_arguments", "use 0 to disable the timeout", errors.New("--timeout must not be negative"))
 	}
 	runtimeConfig := synth.RuntimeConfig{
 		OpenJTalkPath: openJTalkPath, OpenJTalkDictionary: openJTalkDictionaryPath,
@@ -195,7 +214,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 			return cliFailure("invalid_arguments", fmt.Errorf("--doctor cannot be combined with --%s", conflict))
 		}
 		diagnosis, err := inspectEnvironment(voicebankPath, prosodyPath, runtimeConfig)
-		if jsonOutput {
+		if *jsonOutput {
 			report.Doctor = diagnosis
 			return err
 		}
@@ -212,17 +231,20 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		if err != nil {
 			return err
 		}
-		if jsonOutput {
+		if *jsonOutput {
 			report.Catalog = catalog
 			return nil
 		}
 		return cliFailure("output_error", writeCatalog(stdout, catalog))
 	}
-	if voicebankPath == "" || outPath == "" {
-		if !jsonOutput {
-			flag.Usage()
-		}
-		return cliFailure("invalid_arguments", errors.New("--voicebank and --out are required"))
+	if voicebankPath == "" {
+		return cliFailureHint("invalid_arguments", flagHelp(flag, "voicebank"), errors.New("--voicebank is required"))
+	}
+	if outPath == "" {
+		return cliFailureHint("invalid_arguments", flagHelp(flag, "out"), errors.New("--out is required"))
+	}
+	if err := validateRanges(flag); err != nil {
+		return err
 	}
 	var textSpecified, readingSpecified bool
 	flag.Visit(func(option *flagpkg.Flag) {
@@ -235,20 +257,25 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 	})
 	if requestFile != "" {
 		if conflict := flagOutside(flag, requestTransportFlags); conflict != "" {
-			return cliFailure("invalid_arguments", fmt.Errorf("--request cannot be combined with --%s; put utterance settings in JSON", conflict))
+			return cliFailureHint("invalid_arguments", requestJSONHint(conflict),
+				fmt.Errorf("--request cannot be combined with --%s", conflict))
 		}
 	}
 	if textFile != "" && textSpecified || readingFile != "" && readingSpecified {
-		return cliFailure("invalid_arguments", errors.New("--text-file conflicts with --text; --reading-file conflicts with --reading/--kana"))
+		return cliFailureHint("invalid_arguments", "pass the text either as a flag or as a file, not both",
+			errors.New("--text-file conflicts with --text; --reading-file conflicts with --reading/--kana"))
 	}
 	if textFile == "-" && readingFile == "-" {
-		return cliFailure("invalid_arguments", errors.New("only one input can read standard input"))
+		return cliFailureHint("invalid_arguments", "read one input from standard input and the other from a file",
+			errors.New("only one input can read standard input"))
 	}
 	if outPath == "-" && (writeText || writeLab) {
-		return cliFailure("invalid_arguments", errors.New("--write-text and --write-lab require a WAV file path"))
+		return cliFailureHint("invalid_arguments", "write the WAV to a file to use --write-text or --write-lab",
+			errors.New("--write-text and --write-lab require a WAV file path"))
 	}
-	if outPath == "-" && jsonOutput {
-		return cliFailure("invalid_arguments", errors.New("--json cannot be combined with WAV output to standard output"))
+	if outPath == "-" && *jsonOutput {
+		return cliFailureHint("invalid_arguments", "write the WAV to a file to use --json",
+			errors.New("--json cannot be combined with WAV output to standard output"))
 	}
 	if textFile != "" {
 		var err error
@@ -272,15 +299,20 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 			return cliFailure("input_error", fmt.Errorf("read request JSON: %w", err))
 		}
 		if jsonRequest.VoicebankID != "" {
-			return cliFailure("invalid_arguments", errors.New("CLI request cannot select voicebank_id; use --voicebank"))
+			return cliFailureHint("invalid_arguments", "select the voicebank with --voicebank",
+				errors.New("CLI request cannot select voicebank_id"))
 		}
 		text, reading = jsonRequest.Text, jsonRequest.ReadingOrKana()
 	}
 	if reading == "" && text == "" {
-		if !jsonOutput {
-			flag.Usage()
-		}
-		return cliFailure("invalid_arguments", errors.New("either --text, --reading, --text-file, --reading-file or --request is required"))
+		return cliFailureHint("invalid_arguments", flagHelp(flag, "text", "reading", "text-file", "reading-file", "request"),
+			errors.New("input text is required"))
+	}
+	if jsonRequest == nil && text != "" && reading != "" {
+		fmt.Fprintln(stderr, "warning: reading takes precedence over text; text is used only for the text sidecar (--write-text)")
+	}
+	if err := validateUtteranceLength(text, reading); err != nil {
+		return err
 	}
 	runtime, err := synth.NewRuntime(runtimeConfig, nil)
 	if err != nil {
@@ -437,7 +469,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) (runErr er
 		}
 		summary = stderr
 	}
-	if jsonOutput {
+	if *jsonOutput {
 		report.Result = synthesisReport(outPath, output)
 		return nil
 	}

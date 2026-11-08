@@ -39,6 +39,9 @@ func TestCLIDoctorReportsPlacementWithoutRunningHelper(t *testing.T) {
 	if code := executeCLI(append(base[:6:6], "--doctor"), strings.NewReader(""), &stdout, &stderr); code != 0 || !strings.Contains(stdout.String(), "world_engine\t") {
 		t.Fatalf("text diagnosis: exit=%d, stdout=%q, stderr=%q", code, stdout.String(), stderr.String())
 	}
+	if !strings.Contains(stdout.String(), "status\tcheck\tmessage\tpath\n") || !strings.Contains(stdout.String(), "\nsummary: ") {
+		t.Fatalf("text diagnosis has no heading or summary: %q", stdout.String())
+	}
 }
 
 func doctorChecks(t *testing.T, doctor map[string]any) map[string]map[string]any {
@@ -49,6 +52,26 @@ func doctorChecks(t *testing.T, doctor map[string]any) map[string]map[string]any
 		result[check["id"].(string)] = check
 	}
 	return result
+}
+
+func TestDoctorSummary(t *testing.T) {
+	for _, test := range []struct {
+		statuses []string
+		want     string
+	}{
+		{[]string{"ok", "ok"}, "no problems"},
+		{[]string{"ok", "warning"}, "1 warning"},
+		{[]string{"error", "warning", "warning"}, "1 error, 2 warnings"},
+		{[]string{"error", "error"}, "2 errors"},
+	} {
+		checks := make([]cliDoctorCheck, len(test.statuses))
+		for index, status := range test.statuses {
+			checks[index] = cliDoctorCheck{Status: status}
+		}
+		if got := doctorSummary(checks); got != test.want {
+			t.Fatalf("summary(%v) = %q, want %q", test.statuses, got, test.want)
+		}
+	}
 }
 
 func TestCLIDoctorKeepsChecksOnFailure(t *testing.T) {
@@ -68,7 +91,7 @@ func TestCLIDoctorKeepsChecksOnFailure(t *testing.T) {
 			code := executeCLI(append(args, test.flags...), strings.NewReader(""), &stdout, &stderr)
 			response := decodeResponse(t, stdout.Bytes())
 			checks := doctorChecks(t, response["doctor"].(map[string]any))
-			if code != 1 || response["ok"] != false || response["error"].(map[string]any)["code"] != "unavailable" || checks[test.id]["status"] != "error" || len(checks) < 5 {
+			if code != exitResource || response["ok"] != false || response["error"].(map[string]any)["code"] != "unavailable" || checks[test.id]["status"] != "error" || len(checks) < 5 {
 				t.Fatalf("failed diagnosis: exit=%d, response=%#v", code, response)
 			}
 		})
@@ -89,12 +112,12 @@ func TestCLIDoctorRejectsOtherModesAndOutputFailure(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		code := executeCLI(append([]string{"--doctor", "--json"}, flags...), strings.NewReader(""), &stdout, &stderr)
 		response := decodeResponse(t, stdout.Bytes())
-		if code != 1 || response["error"].(map[string]any)["code"] != "invalid_arguments" {
+		if code != exitUsage || response["error"].(map[string]any)["code"] != "invalid_arguments" {
 			t.Fatalf("conflict: exit=%d, response=%#v", code, response)
 		}
 	}
 	base := synthesisArgs(t)
-	if code := executeCLI(append(base[:6:6], "--doctor"), strings.NewReader(""), failingWriter{io.ErrClosedPipe}, io.Discard); code != 1 {
+	if code := executeCLI(append(base[:6:6], "--doctor"), strings.NewReader(""), failingWriter{io.ErrClosedPipe}, io.Discard); code != exitOutput {
 		t.Fatalf("doctor write error: exit=%d", code)
 	}
 }

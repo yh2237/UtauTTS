@@ -73,11 +73,19 @@ func TestCLICatalogConflictsAndOutputFailure(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		code := executeCLI(args, strings.NewReader(""), &stdout, &stderr)
 		response := decodeResponse(t, stdout.Bytes())
-		if code != 1 || response["error"].(map[string]any)["code"] != "invalid_arguments" {
+		if code != exitUsage || response["error"].(map[string]any)["code"] != "invalid_arguments" {
 			t.Fatalf("invalid catalog command: exit=%d, response=%#v", code, response)
 		}
 	}
-	if code := executeCLI([]string{"--list", "voicebanks", "--voicebank", t.TempDir()}, strings.NewReader(""), failingWriter{io.ErrClosedPipe}, io.Discard); code != 1 {
+	var stdout, stderr bytes.Buffer
+	if code := executeCLI([]string{"--json", "--list", "unknown"}, strings.NewReader(""), &stdout, &stderr); code != exitUsage {
+		t.Fatalf("unknown kind exit=%d", code)
+	}
+	hint := decodeResponse(t, stdout.Bytes())["error"].(map[string]any)["hint"]
+	if hint != "valid kinds are voicebanks, models" {
+		t.Fatalf("unknown kind hint = %#v", hint)
+	}
+	if code := executeCLI([]string{"--list", "voicebanks", "--voicebank", t.TempDir()}, strings.NewReader(""), failingWriter{io.ErrClosedPipe}, io.Discard); code != exitOutput {
 		t.Fatalf("catalog output failure exit=%d", code)
 	}
 }

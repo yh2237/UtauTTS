@@ -46,16 +46,17 @@ func TestCLIJSONRequestRejectsConflictsAndInvalidData(t *testing.T) {
 	base := synthesisArgs(t)
 	for _, test := range []struct {
 		name, input, want string
+		exit              int
 		flags             []string
 	}{
-		{"text conflict", `{}`, "invalid_arguments", []string{"--text", "あ"}},
-		{"stdin conflict", `{}`, "invalid_arguments", []string{"--reading-file", "-"}},
-		{"evaluation conflict", `{}`, "invalid_arguments", []string{"--prosody-pitch-only"}},
-		{"null", `null`, "input_error", nil},
-		{"multiple objects", `{} {}`, "input_error", nil},
-		{"unknown field", `{"reading":"あ","voicebank_path":"ignored"}`, "input_error", nil},
-		{"voicebank ID", `{"reading":"あ","voicebank_id":"not-supported"}`, "invalid_arguments", nil},
-		{"empty utterance", `{}`, "invalid_arguments", nil},
+		{"text conflict", `{}`, "invalid_arguments", exitUsage, []string{"--text", "あ"}},
+		{"stdin conflict", `{}`, "invalid_arguments", exitUsage, []string{"--reading-file", "-"}},
+		{"evaluation conflict", `{}`, "invalid_arguments", exitUsage, []string{"--prosody-pitch-only"}},
+		{"null", `null`, "input_error", exitInput, nil},
+		{"multiple objects", `{} {}`, "input_error", exitInput, nil},
+		{"unknown field", `{"reading":"あ","voicebank_path":"ignored"}`, "input_error", exitInput, nil},
+		{"voicebank ID", `{"reading":"あ","voicebank_id":"not-supported"}`, "invalid_arguments", exitUsage, nil},
+		{"empty utterance", `{}`, "invalid_arguments", exitUsage, nil},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			args := append(base[:4:4], "--json", "--request", "-", "--out", filepath.Join(t.TempDir(), "speech.wav"))
@@ -63,9 +64,22 @@ func TestCLIJSONRequestRejectsConflictsAndInvalidData(t *testing.T) {
 			code := executeCLI(append(args, test.flags...), strings.NewReader(test.input), &stdout, &stderr)
 			response := decodeResponse(t, stdout.Bytes())
 			detail, ok := response["error"].(map[string]any)
-			if code != 1 || response["ok"] != false || !ok || detail["code"] != test.want {
+			if code != test.exit || response["ok"] != false || !ok || detail["code"] != test.want {
 				t.Fatalf("rejected request: exit=%d, response=%#v, stderr=%q", code, response, stderr.String())
 			}
 		})
+	}
+}
+
+func TestCLIJSONRequestNamesReplacementField(t *testing.T) {
+	base := synthesisArgs(t)
+	var stdout, stderr bytes.Buffer
+	args := append(base[:4:4], "--json", "--request", "-", "--prosody", "none", "--out", filepath.Join(t.TempDir(), "speech.wav"))
+	if code := executeCLI(args, strings.NewReader(`{"reading":"あ"}`), &stdout, &stderr); code != exitUsage {
+		t.Fatalf("exit=%d, stderr=%q", code, stderr.String())
+	}
+	detail := decodeResponse(t, stdout.Bytes())["error"].(map[string]any)
+	if detail["message"] != "--request cannot be combined with --prosody" || detail["hint"] != `set "model_id" in the request JSON instead` {
+		t.Fatalf("conflict detail = %#v", detail)
 	}
 }

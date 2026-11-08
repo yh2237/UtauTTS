@@ -110,6 +110,22 @@ func TestCLIRejectsInvalidStreamInputs(t *testing.T) {
 	}
 }
 
+func TestCLIWarnsWhenReadingOverridesText(t *testing.T) {
+	args := synthesisArgs(t)
+	path := filepath.Join(t.TempDir(), "speech.wav")
+	var stdout, stderr bytes.Buffer
+	if code := executeCLI(append(args, "--text", "あ", "--reading", "あ", "--out", path), strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("exit=%d, stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "warning: reading takes precedence over text") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	stderr.Reset()
+	if code := executeCLI(append(args, "--reading", "あ", "--out", path), strings.NewReader(""), &stdout, &stderr); code != 0 || strings.Contains(stderr.String(), "warning:") {
+		t.Fatalf("single input: exit=%d, stderr=%q", code, stderr.String())
+	}
+}
+
 type failingWriter struct{ err error }
 
 func (w failingWriter) Write([]byte) (int, error) { return 0, w.err }

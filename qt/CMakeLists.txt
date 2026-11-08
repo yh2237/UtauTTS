@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.21)
 
 set(UTAUTTS_APPINFO_FILE "${CMAKE_CURRENT_LIST_DIR}/../internal/appinfo/appinfo.json")
 file(READ "${UTAUTTS_APPINFO_FILE}" UTAUTTS_APPINFO_JSON)

@@ -14,9 +14,9 @@ func TestCLITimeoutValidationAndSuccess(t *testing.T) {
 		duration, want string
 		code           int
 	}{
-		{"-1s", "invalid_arguments", 1},
-		{"1ns", "deadline_exceeded", 1},
-		{"30s", "", 0},
+		{"-1s", "invalid_arguments", exitUsage},
+		{"1ns", "deadline_exceeded", exitSynthesis},
+		{"30s", "", exitOK},
 	} {
 		t.Run(test.duration, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
@@ -27,7 +27,7 @@ func TestCLITimeoutValidationAndSuccess(t *testing.T) {
 			if code != test.code {
 				t.Fatalf("exit=%d, response=%#v, stderr=%q", code, response, stderr.String())
 			}
-			if test.code == 0 {
+			if test.code == exitOK {
 				if response["ok"] != true {
 					t.Fatalf("success response=%#v", response)
 				}

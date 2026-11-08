@@ -16,6 +16,9 @@ var catalogFlags = map[string]bool{
 	"openjtalk-engine": true, "openjtalk-dictionary": true,
 }
 
+// catalogKindsは--listの有効値。
+var catalogKinds = []string{"voicebanks", "models"}
+
 type cliCatalogReport struct {
 	Kind      string           `json:"kind"`
 	DefaultID string           `json:"default_id,omitempty"`
@@ -50,7 +53,8 @@ func loadCatalog(kind, voiceDirectory string, config synth.RuntimeConfig) (repor
 		return report, nil
 	case "models":
 	default:
-		return nil, cliFailure("invalid_arguments", fmt.Errorf("unknown --list kind %q", kind))
+		return nil, cliFailureHint("invalid_arguments", "valid kinds are "+strings.Join(catalogKinds, ", "),
+			fmt.Errorf("unknown --list kind %q", kind))
 	}
 	runtime, err := synth.NewRuntime(config, nil)
 	if err != nil {
