@@ -1,10 +1,61 @@
 .pragma library
 
+// hashStringは、入力の一致判定に使う指紋を作る。暗号用途ではない。
+function hashString(value) {
+    let first = 0;
+    let second = 0;
+    for (let index = 0; index < value.length; ++index) {
+        const code = value.charCodeAt(index);
+        first = (first * 31 + code) | 0;
+        second = (second * 131 + code) | 0;
+    }
+    return (first >>> 0).toString(36) + "-" + (second >>> 0).toString(36);
+}
+
+// analysisInputContextは、全発話で共通の解析入力をまとめる。
+// 判定方法を変えたら版の値を上げる。保存済みのキャッシュは使わなくなる。
+function analysisInputContext(host, appVersion) {
+    return [
+        "analysis-cache-1",
+        String(appVersion || ""),
+        host.appBackend.dictionaryFingerprint(),
+        JSON.stringify(host.synthesisSettingContext()),
+        host.intonationLab ? host.intonationLabBaseModelPath() : ""
+    ].join("\u0001");
+}
+
+// analysisInputHashは、発話ごとの解析入力を指紋にする。
+// 読み・原音境界・自動抑揚に効く値をすべて含める。
+function analysisInputHash(item, host, context) {
+    return hashString([
+        context,
+        item.content,
+        item.language,
+        host.resolvedPhonemizer(item.language, item.phonemizer, item.voicebankId),
+        item.method,
+        item.voicebankId,
+        item.modelId,
+        item.intonation,
+        item.applyPitch ? "1" : "0",
+        item.moraDuration,
+        item.pauseDuration,
+        host.hasManualMoraDurations(item)
+                ? JSON.stringify(host.decodeSequence(item.moraDurationsJson)) : ""
+    ].join("\u0001"));
+}
+
+// analysisCacheableは、保存した解析キャッシュを使ってよい発話かを返す。
+// 英語の読みは音源の arpasing.yaml にも依存する。その内容は指紋にできないため、英語は使わない。
+function analysisCacheable(item) {
+    return String(item.language || "ja") !== "en";
+}
+
 // projectDataは、発話の一覧をプロジェクトの形式へまとめる。
 // ctxはutterances（模型）、selectedIndex、host（Main.qmlのwindow）、appVersionを持つ。
 function projectData(ctx) {
     const utterances = ctx.utterances;
     const host = ctx.host;
+    const inputContext = analysisInputContext(host, ctx.appVersion);
     const savedUtterances = [];
     for (let index = 0; index < utterances.count; ++index) {
         const item = utterances.get(index);
@@ -37,7 +88,8 @@ function projectData(ctx) {
             phoneme_overrides: host.decodeSequence(item.phonemeOverridesJson),
             analysis_cache: {
                 reading: item.reading || "",
-                morae: host.decodeSequence(item.moraeJson)
+                morae: host.decodeSequence(item.moraeJson),
+                input_hash: analysisInputHash(item, host, inputContext)
             }
         };
         if (host.intonationLab) {
@@ -65,7 +117,7 @@ function projectData(ctx) {
 }
 
 // utteranceFromSavedは、保存された発話から、模型へ入れる項目を作る。
-// ctxはhost（Main.qmlのwindow）、voicebank、id（発話ID）、formatVersionを持つ。
+// ctxはhost（Main.qmlのwindow）、voicebank、id（発話ID）、formatVersion、analysisContextを持つ。
 function utteranceFromSaved(saved, ctx) {
     const host = ctx.host;
     const bank = ctx.voicebank;
@@ -81,7 +133,7 @@ function utteranceFromSaved(saved, ctx) {
         manualPositions = host.moraStartsFromCenters(manualPositions, manualDurations);
         automaticPositions = host.moraStartsFromCenters(automaticPositions, automaticDurations);
     }
-    return {
+    const item = {
         utteranceId: "utterance-" + ctx.id,
         content: String(saved.text || ""),
         language: language,
@@ -124,6 +176,21 @@ function utteranceFromSaved(saved, ctx) {
         applyPitch: saved.apply_pitch === undefined ? true : !!saved.apply_pitch,
         revision: 0
     };
+    // 解析の入力が保存時と同じときだけ、保存した読みと自動抑揚を使う。
+    const cache = saved.analysis_cache || {};
+    const cachedMorae = host.copySequence(cache.morae);
+    if (analysisCacheable(item) && String(cache.reading || "").length && cachedMorae.length
+            && String(cache.input_hash || "") === analysisInputHash(item, host, ctx.analysisContext)) {
+        item.reading = String(cache.reading);
+        item.moraeJson = JSON.stringify(cachedMorae);
+    } else {
+        // 入力が変わった。古い自動抑揚は使わず、解析し直してから予測させる。
+        item.autoPointsJson = "[]";
+        item.autoPitchFramesJson = "[]";
+        item.autoMoraDurationsJson = "[]";
+        item.autoMoraPositionsJson = "[]";
+    }
+    return item;
 }
 
 // missingVoicebanksは、保存された発話が指す音源のうち、今の環境に無いもののIDを返す。

@@ -1421,9 +1421,11 @@ ApplicationWindow {
 
         window.projectDirty = false;
         window.clearPlayback();
+        window.clearSynthesisView();
         utterances.clear();
         window.nextUtteranceId = 1;
         const projectFormatVersion = Number(project.format_version) || 1;
+        const analysisContext = ProjectIO.analysisInputContext(window, Qt.application.version);
         for (let index = 0; index < loadedUtterances.length; ++index) {
             const saved = loadedUtterances[index] || {};
             const voicebankId = String(saved.voicebank_id || "");
@@ -1431,7 +1433,8 @@ ApplicationWindow {
                 host: window,
                 voicebank: window.voicebankById(voicebankId),
                 id: window.nextUtteranceId++,
-                formatVersion: projectFormatVersion
+                formatVersion: projectFormatVersion,
+                analysisContext: analysisContext
             }));
         }
         if (missingVoicebanks.length)
@@ -1461,7 +1464,8 @@ ApplicationWindow {
         } else {
             for (let index = 0; index < utterances.count; ++index) {
                 const item = utterances.get(index);
-                if (item.content.trim())
+                // 解析キャッシュを使えた発話は読みが入っている。解析し直すと自動抑揚が消える。
+                if (item.content.trim() && !item.reading.length)
                     window.analyzeUtterance(index);
             }
         }
