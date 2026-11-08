@@ -250,6 +250,9 @@ ApplicationWindow {
     readonly property bool canRedo: redoStack.length > 0
     property bool metadataInitialized: false
     property bool closeAfterProjectSave: false
+    property bool loadAfterProjectSave: false
+    property url pendingProjectSource
+    property var pendingProjectData: null
     property bool closeBypass: false
     property bool intonationLabInitialized: false
     property string intonationLabStatus: ""
@@ -535,7 +538,7 @@ ApplicationWindow {
         }
 
         function onProjectPicked(project) {
-            window.applyLoadedProject(project);
+            window.requestPickedProject(project);
         }
 
         function onLanguageChanged() {
@@ -838,13 +841,27 @@ ApplicationWindow {
         return slash >= 0 ? normalized.slice(slash + 1) : normalized;
     }
 
+    // displayPathは、file:// のURLを人が読めるパスに直す。
+    function displayPath(value) {
+        let text = String(value || "");
+        if (text.indexOf("file:///") === 0)
+            text = text.slice(8);
+        else if (text.indexOf("file://") === 0)
+            text = text.slice(7);
+        try {
+            text = decodeURIComponent(text);
+        } catch (error) {
+        }
+        return text;
+    }
+
     function loadRecentProject(path) {
         const normalized = String(path || "").replace(/\\/g, "/");
         if (!normalized.length)
             return;
         const encoded = normalized.split("/").map(segment => encodeURIComponent(segment)).join("/");
         const url = normalized.startsWith("/") ? "file://" + encoded : "file:///" + encoded;
-        window.loadProjectFrom(url);
+        window.requestProjectLoad(url);
     }
 
     function showVoicebankDetails() {
@@ -1285,6 +1302,11 @@ ApplicationWindow {
         const saved = window.appBackend.saveProject(destination, window.projectData());
         if (!saved) {
             window.closeAfterProjectSave = false;
+            window.loadAfterProjectSave = false;
+            window.clearPendingProjectLoad();
+            dialogs.projectSaveErrorDialog.text = window.translator.tr(
+                    "main.projectSaveError", window.displayPath(destination));
+            dialogs.projectSaveErrorDialog.open();
             return;
         }
         window.projectFile = destination;
@@ -1295,7 +1317,75 @@ ApplicationWindow {
         if (window.closeAfterProjectSave) {
             window.closeAfterProjectSave = false;
             window.quitWithoutWarning();
+            return;
         }
+        if (window.loadAfterProjectSave) {
+            window.loadAfterProjectSave = false;
+            window.finishPendingProjectLoad(false);
+        }
+    }
+
+    function cancelProjectSave() {
+        window.closeAfterProjectSave = false;
+        window.loadAfterProjectSave = false;
+        window.clearPendingProjectLoad();
+    }
+
+    // 未保存の変更があるときは、読み込みの前に保存するか尋ねる。
+    function requestProjectLoad(source) {
+        if (!source || !source.toString().length || window.appBackend.busy || window.batchExportActive)
+            return;
+        if (!window.projectDirty) {
+            window.loadProjectFrom(source);
+            return;
+        }
+        window.pendingProjectSource = source;
+        window.pendingProjectData = null;
+        dialogs.projectOpenWarningDialog.open();
+    }
+
+    function requestPickedProject(project) {
+        if (!project)
+            return;
+        if (!window.projectDirty) {
+            window.applyLoadedProject(project);
+            return;
+        }
+        window.pendingProjectSource = "";
+        window.pendingProjectData = project;
+        dialogs.projectOpenWarningDialog.open();
+    }
+
+    function clearPendingProjectLoad() {
+        window.pendingProjectSource = "";
+        window.pendingProjectData = null;
+    }
+
+    function cancelPendingProjectLoad() {
+        if (window.loadAfterProjectSave)
+            return;
+        window.clearPendingProjectLoad();
+    }
+
+    // finishPendingProjectLoadは、保留していた読み込みを実行する。closeDialogは確認ダイアログを閉じるか。
+    function finishPendingProjectLoad(closeDialog) {
+        const source = window.pendingProjectSource;
+        const project = window.pendingProjectData;
+        window.clearPendingProjectLoad();
+        if (closeDialog)
+            dialogs.projectOpenWarningDialog.close();
+        if (project)
+            window.applyLoadedProject(project);
+        else if (source.toString().length)
+            window.loadProjectFrom(source);
+    }
+
+    function saveAndContinueProjectLoad() {
+        if (window.appBackend.busy || window.batchExportActive)
+            return;
+        window.loadAfterProjectSave = true;
+        dialogs.projectOpenWarningDialog.close();
+        window.saveCurrentProject();
     }
 
     function loadProjectFrom(source) {
@@ -1327,6 +1417,7 @@ ApplicationWindow {
             return;
         }
         const loadedUtterances = window.copySequence(project.utterances);
+        const missingVoicebanks = ProjectIO.missingVoicebanks(loadedUtterances, window);
 
         window.projectDirty = false;
         window.clearPlayback();
@@ -1343,6 +1434,8 @@ ApplicationWindow {
                 formatVersion: projectFormatVersion
             }));
         }
+        if (missingVoicebanks.length)
+            Qt.callLater(function() { window.showMissingVoicebanks(missingVoicebanks); });
 
         window.projectDirty = false;
         window.projectFile = source || "";
@@ -1374,6 +1467,15 @@ ApplicationWindow {
         }
         editorContent.utteranceList.positionViewAtIndex(selectedIndex, ListView.Contain);
         window.resetHistory(false);
+    }
+
+    // showMissingVoicebanksは、読み込んだプロジェクトで見つからなかった音源を知らせる。
+    function showMissingVoicebanks(ids) {
+        if (!ids.length)
+            return;
+        dialogs.missingVoicebankDialog.text = window.translator.tr(
+                "main.missingVoicebanks", ids.join("\n"));
+        dialogs.missingVoicebankDialog.open();
     }
 
     function localImageUrl(path) {
@@ -1494,7 +1596,8 @@ ApplicationWindow {
         const item = utterances.get(index);
         if (item.content === text)
             return;
-        window.clearEditHistory();
+        // 連続した入力を1回の取り消しにまとめる。
+        window.beginHistoryChange("text:" + item.utteranceId, true);
         if (index === window.selectedIndex)
             window.clearSynthesisView();
         utterances.setProperty(index, "content", text);
@@ -2170,20 +2273,37 @@ ApplicationWindow {
         });
     }
 
+    // focusedUtteranceTextは、焦点のある発話のテキスト欄を返す。
+    function focusedUtteranceText() {
+        let item = window.activeFocusItem;
+        while (item) {
+            if (String(item.objectName || "").indexOf("utteranceText") === 0)
+                return item;
+            item = item.parent;
+        }
+        return null;
+    }
+
     function removeUtterance() {
         if (!utterances.count)
             return;
-        window.clearEditHistory();
+        // テキスト欄のDeleteは文字削除に譲る。発話は消さない。
+        const editor = window.focusedUtteranceText();
+        if (editor && String(editor.text || "").length)
+            return;
+        window.beginHistoryChange("remove:" + window.current().utteranceId, false);
         clearPlayback();
         utterances.remove(selectedIndex);
         window.projectDirty = true;
         if (!utterances.count) {
             selectedIndex = 0;
             window.clearEditors();
+            window.endHistoryGesture();
             return;
         }
         selectedIndex = Math.min(selectedIndex, utterances.count - 1);
         selectUtterance(selectedIndex);
+        window.endHistoryGesture();
     }
 
     function moveUtterance(delta) {

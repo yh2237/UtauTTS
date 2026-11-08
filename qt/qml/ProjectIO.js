@@ -125,3 +125,15 @@ function utteranceFromSaved(saved, ctx) {
         revision: 0
     };
 }
+
+// missingVoicebanksは、保存された発話が指す音源のうち、今の環境に無いもののIDを返す。
+function missingVoicebanks(savedUtterances, host) {
+    const missing = [];
+    const items = savedUtterances || [];
+    for (let index = 0; index < items.length; ++index) {
+        const id = String((items[index] || {}).voicebank_id || "");
+        if (id.length && !host.voicebankById(id) && missing.indexOf(id) < 0)
+            missing.push(id);
+    }
+    return missing;
+}

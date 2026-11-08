@@ -21,6 +21,9 @@ Item {
     property alias closeWarningDialog : closeWarningDialog
     property alias shortcutConflictDialog : shortcutConflictDialog
     property alias projectLoadErrorDialog : projectLoadErrorDialog
+    property alias projectSaveErrorDialog : projectSaveErrorDialog
+    property alias projectOpenWarningDialog : projectOpenWarningDialog
+    property alias missingVoicebankDialog : missingVoicebankDialog
     property alias aboutDialog : aboutDialog
     property alias updateDialog : updateDialog
     property alias updateProgressDialog : updateProgressDialog
@@ -105,7 +108,7 @@ Item {
         nameFilters: [host.translator.tr("main.projectFilter")]
         defaultSuffix: "utautts"
         onAccepted: host.saveProjectTo(selectedFile)
-        onRejected: host.closeAfterProjectSave = false
+        onRejected: host.cancelProjectSave()
     }
 
     FileDialog {
@@ -120,7 +123,7 @@ Item {
         id: projectOpenDialog
         fileMode: FileDialog.OpenFile
         nameFilters: [host.translator.tr("main.projectFilter")]
-        onAccepted: host.loadProjectFrom(selectedFile)
+        onAccepted: host.requestProjectLoad(selectedFile)
     }
 
     FileDialog {
@@ -148,7 +151,9 @@ Item {
         modal: true
         width: Math.min(host.width - 40, 460)
         anchors.centerIn: Overlay.overlay
-        closePolicy: Popup.NoAutoClose
+        closePolicy: Popup.CloseOnEscape
+        focus: true
+        onOpened: closeWarningCancelButton.forceActiveFocus()
 
         contentItem: ColumnLayout {
             spacing: 12
@@ -170,13 +175,20 @@ Item {
                 }
 
                 Button {
+                    id: closeWarningCancelButton
+                    // EscとEnterは安全側の「中止」に割り当てる。
+                    focus: true
                     text: host.translator.tr("main.cancel")
+                    Keys.onReturnPressed: closeWarningDialog.close()
+                    Keys.onEnterPressed: closeWarningDialog.close()
                     onClicked: closeWarningDialog.close()
                 }
 
                 Button {
                     text: host.translator.tr("main.saveAndQuit")
                     enabled: host.projectDirty && !host.appBackend.busy && !host.batchExportActive
+                    Keys.onReturnPressed: closeWarningDialog.close()
+                    Keys.onEnterPressed: closeWarningDialog.close()
                     onClicked: {
                         closeWarningDialog.close();
                         host.closeAfterProjectSave = true;
@@ -186,6 +198,8 @@ Item {
 
                 Button {
                     text: host.translator.tr("main.quitWithoutSaving")
+                    Keys.onReturnPressed: closeWarningDialog.close()
+                    Keys.onEnterPressed: closeWarningDialog.close()
                     onClicked: {
                         closeWarningDialog.close();
                         host.quitWithoutWarning();
@@ -206,6 +220,74 @@ Item {
         id: projectLoadErrorDialog
         title: host.translator.tr("main.projectOpenErrorTitle")
         buttons: MessageDialog.Ok
+    }
+
+    MessageDialog {
+        id: projectSaveErrorDialog
+        title: host.translator.tr("main.projectSaveErrorTitle")
+        buttons: MessageDialog.Ok
+    }
+
+    MessageDialog {
+        id: missingVoicebankDialog
+        title: host.translator.tr("main.missingVoicebanksTitle")
+        buttons: MessageDialog.Ok
+    }
+
+    Dialog {
+        id: projectOpenWarningDialog
+        title: host.translator.tr("main.projectOpenConfirmTitle")
+        modal: true
+        width: Math.min(host.width - 40, 460)
+        anchors.centerIn: Overlay.overlay
+        closePolicy: Popup.CloseOnEscape
+        focus: true
+        onOpened: projectOpenCancelButton.forceActiveFocus()
+        onClosed: host.cancelPendingProjectLoad()
+
+        contentItem: ColumnLayout {
+            spacing: 12
+
+            Label {
+                Layout.fillWidth: true
+                text: host.translator.tr("main.projectOpenUnsaved")
+                wrapMode: Text.WordWrap
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                Button {
+                    id: projectOpenCancelButton
+                    // EscとEnterは安全側の「中止」に割り当てる。
+                    focus: true
+                    text: host.translator.tr("main.cancel")
+                    Keys.onReturnPressed: projectOpenWarningDialog.close()
+                    Keys.onEnterPressed: projectOpenWarningDialog.close()
+                    onClicked: projectOpenWarningDialog.close()
+                }
+
+                Button {
+                    text: host.translator.tr("main.saveAndOpen")
+                    enabled: !host.appBackend.busy && !host.batchExportActive
+                    Keys.onReturnPressed: projectOpenWarningDialog.close()
+                    Keys.onEnterPressed: projectOpenWarningDialog.close()
+                    onClicked: host.saveAndContinueProjectLoad()
+                }
+
+                Button {
+                    text: host.translator.tr("main.openWithoutSaving")
+                    Keys.onReturnPressed: projectOpenWarningDialog.close()
+                    Keys.onEnterPressed: projectOpenWarningDialog.close()
+                    onClicked: host.finishPendingProjectLoad(true)
+                }
+            }
+        }
     }
 
     Dialog {
