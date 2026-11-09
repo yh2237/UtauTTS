@@ -17,9 +17,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
 if(EMSCRIPTEN)
-    find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 QuickControls2Fusion)
+    find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 QuickControls2Fusion LinguistTools)
 else()
-    find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Concurrent)
+    find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Concurrent LinguistTools)
 endif()
 qt_standard_project_setup(REQUIRES 6.5)
 qt_policy(SET QTP0004 NEW)
@@ -265,6 +265,20 @@ qt_add_resources(utautts "lang"
     PREFIX "/lang"
     FILES
         ${lang_files}
+)
+
+# C++側のtr()はQMLのJSONとは別に.qmを使う。.tsは手で訳し、.qmはビルド時に作って資源へ入れる。
+qt_add_translations(utautts
+    SOURCE_TARGETS utautts
+    TS_FILES
+        i18n/utautts_ja.ts
+        i18n/utautts_en.ts
+        i18n/utautts_zh.ts
+        i18n/utautts_ko.ts
+        i18n/utautts_es.ts
+        i18n/utautts_pt.ts
+    RESOURCE_PREFIX "/i18n"
+    LUPDATE_OPTIONS -locations relative
 )
 
 # licenses/MATERIAL-SYMBOLS.txtの帰属表示に従うこと。

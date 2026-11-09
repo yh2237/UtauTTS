@@ -39,6 +39,7 @@
 #include <QSysInfo>
 #include <QUuid>
 #include <QTimer>
+#include <QTranslator>
 #ifndef UTAUTTS_WASM
 #include <QtConcurrent>
 #endif
@@ -445,6 +446,7 @@ Backend::Backend(QObject *parent)
       m_darkMode(portableSettingValue("appearance/darkMode", false).toBool()),
       m_onboardingCompleted(portableSettingValue("appearance/onboardingCompleted", false).toBool()),
       m_language(portableSettingValue("appearance/language", QStringLiteral("auto")).toString()),
+      m_translator(new QTranslator(this)),
       m_closeLogOnSuccess(portableSettingValue("logging/closeOnSuccess", true).toBool()),
       m_updateCheckEnabled(portableSettingValue("appearance/updateCheckEnabled", true).toBool()),
       m_preReleaseUpdateCheckEnabled(portableSettingValue(
@@ -484,6 +486,8 @@ Backend::Backend(QObject *parent)
     connect(autosaveTimer, &QTimer::timeout, this, [] { publishWasmProjectState(); });
     autosaveTimer->start();
 #endif
+    // C++側のtr()はQMLのJSONとは別に.qmを使う。起動時にも現在の言語を当てる。
+    applyLanguage();
     // 旧設定のC4は指定なしの既定値だったので引き継がない。
     const QString legacyTone = portableSettingValue("synthesis/defaultTone", QString()).toString().trimmed();
     if (m_defaultTone.isEmpty() && legacyTone.compare(QStringLiteral("C4"), Qt::CaseInsensitive) != 0)
@@ -718,6 +722,7 @@ void Backend::setLanguage(const QString &value) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("appearance/language", normalized);
     settings.sync();
+    applyLanguage();
     emit languageChanged();
 }
 
@@ -770,6 +775,15 @@ QString Backend::resolvedLanguage() const {
             return matched;
     }
     return QStringLiteral("en");
+}
+
+// 翻訳が無い言語・文言はQTranslatorの標準動作で原文のまま出る。
+void Backend::applyLanguage() {
+    if (!m_translator)
+        return;
+    QCoreApplication::removeTranslator(m_translator);
+    if (m_translator->load(QStringLiteral(":/i18n/utautts_%1.qm").arg(resolvedLanguage())))
+        QCoreApplication::installTranslator(m_translator);
 }
 
 QHash<QString, QString> Backend::languageDisplayNames() const {
@@ -1092,7 +1106,7 @@ void Backend::clearLogs() {
 bool Backend::showNativeAboutDialog() {
 #ifdef Q_OS_WIN
     const QString title = tr("About UtauTTS");
-    const QString text = QStringLiteral(
+    const QString text = tr(
         "UtauTTS %1\n\n"
         "Developed by yh\n\n"
         "UTAUボイスバンクの原音接続とフレーム選択に、学習ベースのイントネーション調整を用いたTTS"
@@ -2471,8 +2485,12 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
     const QString homePath = QDir::toNativeSeparators(QDir::homePath());
     const QString applicationPath = QDir::toNativeSeparators(resourceRoot().absolutePath());
     QStringList logs;
+    // 見出しは翻訳されるため、伏せ字の対象は翻訳後の文言から作る。
+    QString synthesisHeading = tr("音声合成を開始しました: %1");
+    synthesisHeading.remove(QStringLiteral("%1"));
     const QRegularExpression synthesisText(
-        QStringLiteral("^(\\[[^\\]]+\\]\\s+音声合成を開始しました:\\s*).*$"));
+        QStringLiteral("^(\\[[^\\]]+\\]\\s+%1\\s*).*$")
+            .arg(QRegularExpression::escape(synthesisHeading.trimmed())));
     for (QString line : m_logLines) {
         line.replace(synthesisText, QStringLiteral("\\1<redacted>"));
         if (!homePath.isEmpty())

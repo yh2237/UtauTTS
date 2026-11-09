@@ -21,6 +21,7 @@
 class QFile;
 class QNetworkAccessManager;
 class QNetworkReply;
+class QTranslator;
 
 QStringList updateLockPaths(const QString &target);
 
@@ -313,6 +314,7 @@ private:
     bool m_darkMode = false;
     bool m_onboardingCompleted = false;
     QString m_language;
+    QTranslator *m_translator = nullptr;
     mutable QHash<QString, QString> m_languageNames;
     mutable bool m_languageNamesLoaded = false;
     bool m_closeLogOnSuccess = true;
@@ -350,5 +352,6 @@ private:
 
     void appendLog(const QString &message);
     QHash<QString, QString> languageDisplayNames() const;
+    void applyLanguage();
     void configureFfmpegPath(const QString &path);
 };
