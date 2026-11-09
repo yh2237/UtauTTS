@@ -4,7 +4,13 @@
 <context>
     <name>Backend</name>
     <message>
-        <location filename="../src/backend.cpp" line="+1108"/>
+        <location filename="../src/backend.cpp" line="+735"/>
+        <location line="+1210"/>
+        <source>設定を保存できませんでした: %1</source>
+        <translation>No se pudieron guardar los ajustes: %1</translation>
+    </message>
+    <message>
+        <location line="-782"/>
         <source>About UtauTTS</source>
         <translation>Acerca de UtauTTS</translation>
     </message>
@@ -128,17 +134,45 @@ Actualiza manualmente desde la página de la versión o inténtalo más tarde.</
     </message>
     <message>
         <location line="+56"/>
-        <location line="+260"/>
+        <location line="+411"/>
         <source>使用デバイス: %1</source>
         <translation>Dispositivo: %1</translation>
     </message>
     <message>
-        <location line="-249"/>
+        <location line="-400"/>
         <source>索引を作成中: %1%</source>
         <translation>Creando índice: %1%</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+35"/>
+        <source>Web版では設定フォルダを開けません</source>
+        <translation>La versión web no puede abrir la carpeta de configuración</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>設定フォルダを開けませんでした</source>
+        <translation>No se pudo abrir la carpeta de configuración</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+11"/>
+        <location line="+7"/>
+        <source>設定を書き出せませんでした</source>
+        <translation>No se pudieron exportar los ajustes</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <location line="+5"/>
+        <source>設定ファイルを読み込めませんでした</source>
+        <translation>No se pudo leer el archivo de configuración</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>設定ファイルの形式が正しくありません</source>
+        <translation>El formato del archivo de configuración no es válido</translation>
+    </message>
+    <message>
+        <location line="+94"/>
         <location line="+3"/>
         <source>音源のZIPを選択できませんでした</source>
         <translation>No se pudo seleccionar el ZIP del voicebank</translation>
@@ -175,12 +209,12 @@ Actualiza manualmente desde la página de la versión o inténtalo más tarde.</
     </message>
     <message>
         <location line="+17"/>
-        <location line="+483"/>
+        <location line="+609"/>
         <source>音声合成を開始しました: %1</source>
         <translation>Síntesis iniciada: %1</translation>
     </message>
     <message>
-        <location line="-479"/>
+        <location line="-605"/>
         <location line="+28"/>
         <source>方式: %1</source>
         <translation>Método: %1</translation>
@@ -203,17 +237,19 @@ Actualiza manualmente desde la página de la versión o inténtalo más tarde.</
     <message>
         <location line="+46"/>
         <location line="+43"/>
+        <location line="+81"/>
         <source>保存できるプレビュー音声がありません</source>
         <translation>No hay audio de vista previa para guardar</translation>
     </message>
     <message>
-        <location line="-34"/>
+        <location line="-115"/>
         <location line="+48"/>
+        <location line="+75"/>
         <source>プレビューWAVを読み込めませんでした</source>
         <translation>No se pudo leer el WAV de vista previa</translation>
     </message>
     <message>
-        <location line="-8"/>
+        <location line="-83"/>
         <source>WAVの保存先を開けませんでした</source>
         <translation>No se pudo abrir el destino del WAV</translation>
     </message>
@@ -229,7 +265,15 @@ Actualiza manualmente desde la página de la versión o inténtalo más tarde.</
         <translation>No se pudieron guardar los archivos TXT/LAB adjuntos: %1</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+22"/>
+        <location line="+17"/>
+        <location line="+17"/>
+        <location line="+59"/>
+        <source>書き出し用のZIPを作成できませんでした</source>
+        <translation>No se pudo crear el ZIP para la exportación</translation>
+    </message>
+    <message>
+        <location line="+24"/>
         <location line="+29"/>
         <source>ドラッグするWAVファイルが見つかりません</source>
         <translation>No se encontró el archivo WAV que se va a arrastrar</translation>
@@ -297,7 +341,7 @@ Actualiza manualmente desde la página de la versión o inténtalo más tarde.</
         <translation>No se pudo abrir el proyecto</translation>
     </message>
     <message>
-        <location line="+56"/>
+        <location line="+58"/>
         <source>診断情報の保存先が無効です</source>
         <translation>El destino del diagnóstico no es válido</translation>
     </message>

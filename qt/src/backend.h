@@ -18,10 +18,13 @@
 #include <functional>
 #include <utility>
 
+class QBuffer;
 class QFile;
 class QNetworkAccessManager;
 class QNetworkReply;
+class QSettings;
 class QTranslator;
+class QZipWriter;
 
 QStringList updateLockPaths(const QString &target);
 
@@ -78,6 +81,7 @@ class Backend final : public QObject {
     Q_PROPERTY(QString redoShortcut READ redoShortcut NOTIFY shortcutSettingsChanged)
     Q_PROPERTY(QStringList recentProjects READ recentProjects NOTIFY recentProjectsChanged)
     Q_PROPERTY(QStringList logLines READ logLines NOTIFY logsChanged)
+    Q_PROPERTY(QString settingsError READ settingsError NOTIFY settingsErrorChanged)
 public:
     explicit Backend(QObject *parent = nullptr);
     ~Backend() override;
@@ -132,6 +136,7 @@ public:
     QString redoShortcut() const { return m_redoShortcut; }
     QStringList recentProjects() const { return m_recentProjects; }
     QStringList logLines() const { return m_logLines; }
+    QString settingsError() const { return m_settingsError; }
 
     Q_INVOKABLE void initialize();
     void initializeAsync();
@@ -152,6 +157,11 @@ public:
     Q_INVOKABLE void predictProsody(const QVariantMap &request);
     Q_INVOKABLE void synthesize(const QVariantMap &request);
     Q_INVOKABLE bool savePreview(const QUrl &destination, bool withSidecars = false);
+    // Web版の一括書き出しは、1件ずつダウンロードせずZIPにまとめる。
+    Q_INVOKABLE bool beginBatchArchive(const QString &fileName);
+    Q_INVOKABLE bool addPreviewToBatchArchive(const QString &fileName, bool withSidecars);
+    Q_INVOKABLE bool finishBatchArchive();
+    Q_INVOKABLE void cancelBatchArchive();
     Q_INVOKABLE bool startFileDrag(const QVariantList &files);
     Q_INVOKABLE QUrl writeDragExo(const QUrl &directory, const QVariantList &files, int frameRate);
     Q_INVOKABLE QUrl defaultSaveFile(const QString &fileName) const;
@@ -239,6 +249,7 @@ signals:
     void projectPicked(const QVariantMap &project);
     void dictionaryChanged();
     void logsChanged();
+    void settingsErrorChanged();
     void updateDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
     void updateDownloadFinished(bool success, const QString &localZip);
 
@@ -262,6 +273,7 @@ private:
     void refreshMetadata();
     void setBusy(bool value);
     void setError(const QString &value);
+    void reportSettingsStatus(QSettings &settings);
     void runStartupMigrations();
     QByteArray previewCacheKey(const QVariantMap &request) const;
     QVariant settingOrDefault(const QString &settingId, const QVariant &fallback) const;
@@ -291,6 +303,12 @@ private:
     QTemporaryDir m_previewDirectory;
     QHash<QByteArray, PreviewCacheEntry> m_previewCache;
     QList<QByteArray> m_previewCacheOrder;
+    std::unique_ptr<QBuffer> m_batchArchiveBuffer;
+    std::unique_ptr<QZipWriter> m_batchArchiveWriter;
+    QString m_batchArchiveName;
+    int m_batchArchivePending = 0;
+    bool m_batchArchiveFinishRequested = false;
+    quint64 m_batchArchiveGeneration = 0;
 #ifndef UTAUTTS_WASM
     QFutureSynchronizer<QVariantMap> m_activeCalls;
     QFuture<QVariantMap> m_initializationFuture;
@@ -341,6 +359,7 @@ private:
     QString m_redoShortcut;
     QStringList m_recentProjects;
     QStringList m_logLines;
+    QString m_settingsError;
     QNetworkAccessManager *m_updateNetwork = nullptr;
     QNetworkReply *m_updateReply = nullptr;
     QFile *m_updateFile = nullptr;

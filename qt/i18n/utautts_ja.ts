@@ -4,7 +4,13 @@
 <context>
     <name>Backend</name>
     <message>
-        <location filename="../src/backend.cpp" line="+1108"/>
+        <location filename="../src/backend.cpp" line="+735"/>
+        <location line="+1210"/>
+        <source>設定を保存できませんでした: %1</source>
+        <translation>設定を保存できませんでした: %1</translation>
+    </message>
+    <message>
+        <location line="-782"/>
         <source>About UtauTTS</source>
         <translation>About UtauTTS</translation>
     </message>
@@ -128,17 +134,45 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
     </message>
     <message>
         <location line="+56"/>
-        <location line="+260"/>
+        <location line="+411"/>
         <source>使用デバイス: %1</source>
         <translation>使用デバイス: %1</translation>
     </message>
     <message>
-        <location line="-249"/>
+        <location line="-400"/>
         <source>索引を作成中: %1%</source>
         <translation>索引を作成中: %1%</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+35"/>
+        <source>Web版では設定フォルダを開けません</source>
+        <translation>Web版では設定フォルダを開けません</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>設定フォルダを開けませんでした</source>
+        <translation>設定フォルダを開けませんでした</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+11"/>
+        <location line="+7"/>
+        <source>設定を書き出せませんでした</source>
+        <translation>設定を書き出せませんでした</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <location line="+5"/>
+        <source>設定ファイルを読み込めませんでした</source>
+        <translation>設定ファイルを読み込めませんでした</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>設定ファイルの形式が正しくありません</source>
+        <translation>設定ファイルの形式が正しくありません</translation>
+    </message>
+    <message>
+        <location line="+94"/>
         <location line="+3"/>
         <source>音源のZIPを選択できませんでした</source>
         <translation>音源のZIPを選択できませんでした</translation>
@@ -175,12 +209,12 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
     </message>
     <message>
         <location line="+17"/>
-        <location line="+483"/>
+        <location line="+609"/>
         <source>音声合成を開始しました: %1</source>
         <translation>音声合成を開始しました: %1</translation>
     </message>
     <message>
-        <location line="-479"/>
+        <location line="-605"/>
         <location line="+28"/>
         <source>方式: %1</source>
         <translation>方式: %1</translation>
@@ -203,17 +237,19 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
     <message>
         <location line="+46"/>
         <location line="+43"/>
+        <location line="+81"/>
         <source>保存できるプレビュー音声がありません</source>
         <translation>保存できるプレビュー音声がありません</translation>
     </message>
     <message>
-        <location line="-34"/>
+        <location line="-115"/>
         <location line="+48"/>
+        <location line="+75"/>
         <source>プレビューWAVを読み込めませんでした</source>
         <translation>プレビューWAVを読み込めませんでした</translation>
     </message>
     <message>
-        <location line="-8"/>
+        <location line="-83"/>
         <source>WAVの保存先を開けませんでした</source>
         <translation>WAVの保存先を開けませんでした</translation>
     </message>
@@ -229,7 +265,15 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
         <translation>付随するTXT／LABファイルを保存できませんでした: %1</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+22"/>
+        <location line="+17"/>
+        <location line="+17"/>
+        <location line="+59"/>
+        <source>書き出し用のZIPを作成できませんでした</source>
+        <translation>書き出し用のZIPを作成できませんでした</translation>
+    </message>
+    <message>
+        <location line="+24"/>
         <location line="+29"/>
         <source>ドラッグするWAVファイルが見つかりません</source>
         <translation>ドラッグするWAVファイルが見つかりません</translation>
@@ -297,7 +341,7 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
         <translation>プロジェクトを開けませんでした</translation>
     </message>
     <message>
-        <location line="+56"/>
+        <location line="+58"/>
         <source>診断情報の保存先が無効です</source>
         <translation>診断情報の保存先が無効です</translation>
     </message>

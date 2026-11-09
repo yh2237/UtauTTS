@@ -261,6 +261,8 @@ ApplicationWindow {
     property string batchExportMode: ""
     property var batchExportQueue: []
     property bool batchExportCancelRequested: false
+    // Web版の一括書き出しをZIPにまとめているか。デスクトップでは常にfalse。
+    property bool batchArchiveActive: false
     // 書き出しの終わりを伝える文言のキー。空なら何も出さない。
     property string batchExportNotice: ""
     property url batchExportDirectory
@@ -2698,6 +2700,10 @@ ApplicationWindow {
     function beginBatchExport(directory, mode, queue, withSidecars) {
         if (!directory || !directory.toString().length || !queue.length || window.appBackend.busy)
             return;
+        // Web版は1件ずつダウンロードせず、ZIPにまとめて最後に1回だけ保存する。
+        // デスクトップではbeginBatchArchiveがfalseを返すので、フォルダへ保存する。
+        window.batchArchiveActive = mode === "save"
+                && window.appBackend.beginBatchArchive("utautts-wav.zip");
         window.batchExportDirectory = directory;
         window.batchExportMode = mode;
         window.batchExportWithSidecars = withSidecars === true;
@@ -2790,6 +2796,14 @@ ApplicationWindow {
             return;
         const cancelled = window.batchExportCancelRequested;
         const wasDragExport = window.batchExportMode === "drag";
+        // Web版の一括書き出しは、ここでZIPを1回だけ保存する。
+        if (window.batchArchiveActive) {
+            window.batchArchiveActive = false;
+            if (success && !window.appBackend.finishBatchArchive())
+                success = false;
+            else if (!success)
+                window.appBackend.cancelBatchArchive();
+        }
         const dragExportSucceeded = success && wasDragExport;
         const files = window.dragExportFiles.slice();
         window.batchExportActive = false;

@@ -4,7 +4,13 @@
 <context>
     <name>Backend</name>
     <message>
-        <location filename="../src/backend.cpp" line="+1108"/>
+        <location filename="../src/backend.cpp" line="+735"/>
+        <location line="+1210"/>
+        <source>設定を保存できませんでした: %1</source>
+        <translation>无法保存设置: %1</translation>
+    </message>
+    <message>
+        <location line="-782"/>
         <source>About UtauTTS</source>
         <translation>关于 UtauTTS</translation>
     </message>
@@ -128,17 +134,45 @@ Developed by yh
     </message>
     <message>
         <location line="+56"/>
-        <location line="+260"/>
+        <location line="+411"/>
         <source>使用デバイス: %1</source>
         <translation>使用设备: %1</translation>
     </message>
     <message>
-        <location line="-249"/>
+        <location line="-400"/>
         <source>索引を作成中: %1%</source>
         <translation>正在创建索引: %1%</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+35"/>
+        <source>Web版では設定フォルダを開けません</source>
+        <translation>Web 版无法打开设置文件夹</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>設定フォルダを開けませんでした</source>
+        <translation>无法打开设置文件夹</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+11"/>
+        <location line="+7"/>
+        <source>設定を書き出せませんでした</source>
+        <translation>无法导出设置</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <location line="+5"/>
+        <source>設定ファイルを読み込めませんでした</source>
+        <translation>无法读取设置文件</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>設定ファイルの形式が正しくありません</source>
+        <translation>设置文件的格式不正确</translation>
+    </message>
+    <message>
+        <location line="+94"/>
         <location line="+3"/>
         <source>音源のZIPを選択できませんでした</source>
         <translation>无法选择音源 ZIP</translation>
@@ -175,12 +209,12 @@ Developed by yh
     </message>
     <message>
         <location line="+17"/>
-        <location line="+483"/>
+        <location line="+609"/>
         <source>音声合成を開始しました: %1</source>
         <translation>开始语音合成: %1</translation>
     </message>
     <message>
-        <location line="-479"/>
+        <location line="-605"/>
         <location line="+28"/>
         <source>方式: %1</source>
         <translation>合成方式: %1</translation>
@@ -203,17 +237,19 @@ Developed by yh
     <message>
         <location line="+46"/>
         <location line="+43"/>
+        <location line="+81"/>
         <source>保存できるプレビュー音声がありません</source>
         <translation>没有可保存的预览音频</translation>
     </message>
     <message>
-        <location line="-34"/>
+        <location line="-115"/>
         <location line="+48"/>
+        <location line="+75"/>
         <source>プレビューWAVを読み込めませんでした</source>
         <translation>无法读取预览 WAV</translation>
     </message>
     <message>
-        <location line="-8"/>
+        <location line="-83"/>
         <source>WAVの保存先を開けませんでした</source>
         <translation>无法打开 WAV 保存位置</translation>
     </message>
@@ -229,7 +265,15 @@ Developed by yh
         <translation>无法保存附带的 TXT/LAB 文件: %1</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+22"/>
+        <location line="+17"/>
+        <location line="+17"/>
+        <location line="+59"/>
+        <source>書き出し用のZIPを作成できませんでした</source>
+        <translation>无法创建导出用的 ZIP</translation>
+    </message>
+    <message>
+        <location line="+24"/>
         <location line="+29"/>
         <source>ドラッグするWAVファイルが見つかりません</source>
         <translation>找不到要拖动的 WAV 文件</translation>
@@ -297,7 +341,7 @@ Developed by yh
         <translation>无法打开工程</translation>
     </message>
     <message>
-        <location line="+56"/>
+        <location line="+58"/>
         <source>診断情報の保存先が無効です</source>
         <translation>诊断信息保存位置无效</translation>
     </message>

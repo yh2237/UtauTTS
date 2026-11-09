@@ -5,6 +5,7 @@
 #include <emscripten/val.h>
 #endif
 
+#include <QBuffer>
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -37,9 +38,12 @@
 #include <QStandardPaths>
 #include <QSettings>
 #include <QSysInfo>
+#include <QTemporaryFile>
 #include <QUuid>
 #include <QTimer>
 #include <QTranslator>
+// Web版の一括書き出しでZIPを作る。Qtに公開APIが無いため内部実装を使う。
+#include <private/qzipwriter_p.h>
 #ifndef UTAUTTS_WASM
 #include <QtConcurrent>
 #endif
@@ -702,6 +706,22 @@ void Backend::configureFfmpegPath(const QString &path) {
 #endif
 }
 
+// 設定の保存に失敗したことを画面へ伝える。次に保存できたら消す。
+void Backend::reportSettingsStatus(QSettings &settings) {
+    if (settings.status() == QSettings::NoError) {
+        if (m_settingsError.isEmpty())
+            return;
+        m_settingsError.clear();
+        emit settingsErrorChanged();
+        return;
+    }
+    const QString message = tr("設定を保存できませんでした: %1").arg(portableSettingsPath());
+    if (m_settingsError == message)
+        return;
+    m_settingsError = message;
+    emit settingsErrorChanged();
+}
+
 void Backend::setDarkMode(bool value) {
     if (m_darkMode == value) {
         return;
@@ -710,6 +730,7 @@ void Backend::setDarkMode(bool value) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("appearance/darkMode", value);
     settings.sync();
+    reportSettingsStatus(settings);
     emit themeChanged();
 }
 
@@ -722,6 +743,7 @@ void Backend::setLanguage(const QString &value) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("appearance/language", normalized);
     settings.sync();
+    reportSettingsStatus(settings);
     applyLanguage();
     emit languageChanged();
 }
@@ -734,6 +756,7 @@ void Backend::setOnboardingCompleted(bool value) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("appearance/onboardingCompleted", value);
     settings.sync();
+    reportSettingsStatus(settings);
     emit onboardingChanged();
 }
 
@@ -817,6 +840,7 @@ void Backend::setSuppressedUpdateVersion(const QString &version) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue(QStringLiteral("appearance/suppressedUpdateVersion"), version);
     settings.sync();
+    reportSettingsStatus(settings);
 }
 
 void Backend::setCloseLogOnSuccess(bool value) {
@@ -827,6 +851,7 @@ void Backend::setCloseLogOnSuccess(bool value) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("logging/closeOnSuccess", value);
     settings.sync();
+    reportSettingsStatus(settings);
     emit logSettingsChanged();
 }
 
@@ -838,6 +863,7 @@ void Backend::setUpdateCheckEnabled(bool value) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("appearance/updateCheckEnabled", value);
     settings.sync();
+    reportSettingsStatus(settings);
     emit updateSettingsChanged();
 }
 
@@ -848,6 +874,7 @@ void Backend::setPreReleaseUpdateCheckEnabled(bool value) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue(QStringLiteral("appearance/preReleaseUpdateCheckEnabled"), value);
     settings.sync();
+    reportSettingsStatus(settings);
     emit updateSettingsChanged();
 }
 
@@ -858,6 +885,7 @@ void Backend::setAutoPreviewEnabled(bool value) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue(QStringLiteral("editor/autoPreview"), value);
     settings.sync();
+    reportSettingsStatus(settings);
     emit editorSettingsChanged();
 }
 
@@ -868,6 +896,7 @@ void Backend::setExtendedDetailsVisible(bool value) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue(QStringLiteral("editor/extendedDetails"), value);
     settings.sync();
+    reportSettingsStatus(settings);
     emit editorSettingsChanged();
 }
 
@@ -882,6 +911,7 @@ void Backend::setFfmpegPath(const QString &value) {
     else
         settings.setValue(QStringLiteral("media/ffmpegPath"), m_ffmpegPath);
     settings.sync();
+    reportSettingsStatus(settings);
     configureFfmpegPath(m_ffmpegPath);
     emit ffmpegSettingsChanged();
 }
@@ -897,6 +927,7 @@ void Backend::setAudioOutputDeviceId(const QString &value) {
     else
         settings.setValue(QStringLiteral("media/audioOutputDeviceId"), m_audioOutputDeviceId);
     settings.sync();
+    reportSettingsStatus(settings);
     emit audioOutputSettingsChanged();
 }
 
@@ -917,6 +948,7 @@ void Backend::setDefaultVoicebank(const QString &value) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("voicebank/defaultId", m_defaultVoicebankId);
     settings.sync();
+    reportSettingsStatus(settings);
     emit voicebankSettingsChanged();
 }
 
@@ -928,6 +960,7 @@ void Backend::setPreviewCacheFileCount(int value) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue(QStringLiteral("performance/previewCacheFileCount"), bounded);
     settings.sync();
+    reportSettingsStatus(settings);
     trimPreviewCache();
     emit cacheSettingsChanged();
 }
@@ -952,6 +985,7 @@ void Backend::setExportSettings(bool writeText, bool writeLab, const QString &te
     settings.setValue("export/writeLabWithWav", m_exportLabWithWav);
     settings.setValue("export/textEncoding", m_exportTextEncoding);
     settings.sync();
+    reportSettingsStatus(settings);
     emit exportSettingsChanged();
 }
 
@@ -979,6 +1013,7 @@ void Backend::setSynthesisDefaults(const QString &modelId, const QString &tone,
     settings.setValue("synthesis/defaultBaseTone", m_defaultTone);
     settings.setValue("synthesis/defaultAliasPolicy", m_defaultAliasPolicy);
     settings.sync();
+    reportSettingsStatus(settings);
     emit synthesisDefaultsChanged();
 }
 
@@ -1023,6 +1058,7 @@ void Backend::setSynthesisSetting(const QString &settingId, const QVariant &valu
                       QJsonDocument(QJsonObject::fromVariantMap(m_synthesisSettings))
                           .toJson(QJsonDocument::Compact));
     settings.sync();
+    reportSettingsStatus(settings);
     emit synthesisSettingsChanged();
     emit synthesisDefaultsChanged();
 }
@@ -1059,6 +1095,7 @@ void Backend::setShortcutSequences(const QString &synthesize,
     settings.setValue("shortcuts/undo", m_undoShortcut);
     settings.setValue("shortcuts/redo", m_redoShortcut);
     settings.sync();
+    reportSettingsStatus(settings);
     emit shortcutSettingsChanged();
 }
 
@@ -1079,6 +1116,7 @@ void Backend::setDictionaryEntries(const QVariantList &entries) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("dictionary/entries", QJsonDocument(QJsonArray::fromVariantList(m_dictionaryEntries)).toJson(QJsonDocument::Compact));
     settings.sync();
+    reportSettingsStatus(settings);
     emit dictionaryChanged();
 }
 
@@ -2205,6 +2243,130 @@ bool Backend::savePreview(const QUrl &destination, bool withSidecars) {
     return true;
 }
 
+// Web版の一括書き出しは、1件ずつダウンロードせずZIPにまとめて最後に1回だけ保存する。
+bool Backend::beginBatchArchive(const QString &fileName) {
+#ifndef UTAUTTS_WASM
+    Q_UNUSED(fileName);
+    return false;
+#else
+    cancelBatchArchive();
+    m_batchArchiveName = fileName.trimmed();
+    if (m_batchArchiveName.isEmpty())
+        m_batchArchiveName = QStringLiteral("utautts-wav.zip");
+    m_batchArchiveBuffer = std::make_unique<QBuffer>();
+    if (!m_batchArchiveBuffer->open(QIODevice::WriteOnly)) {
+        cancelBatchArchive();
+        setError(tr("書き出し用のZIPを作成できませんでした"));
+        return false;
+    }
+    m_batchArchiveWriter = std::make_unique<QZipWriter>(m_batchArchiveBuffer.get());
+    m_batchArchiveWriter->setCompressionPolicy(QZipWriter::AutoCompress);
+    setError({});
+    return true;
+#endif
+}
+
+bool Backend::addPreviewToBatchArchive(const QString &fileName, bool withSidecars) {
+#ifndef UTAUTTS_WASM
+    Q_UNUSED(fileName);
+    Q_UNUSED(withSidecars);
+    return false;
+#else
+    if (!m_batchArchiveWriter) {
+        setError(tr("書き出し用のZIPを作成できませんでした"));
+        return false;
+    }
+    if (m_previewPath.isEmpty()) {
+        setError(tr("保存できるプレビュー音声がありません"));
+        return false;
+    }
+    QString name = fileName.trimmed();
+    if (name.isEmpty())
+        name = QStringLiteral("utautts.wav");
+    const QByteArray data = readGoFsBytes(m_previewPath);
+    if (data.isEmpty()) {
+        setError(tr("プレビューWAVを読み込めませんでした"));
+        return false;
+    }
+    m_batchArchiveWriter->addFile(name, data);
+    if (m_batchArchiveWriter->status() != QZipWriter::NoError) {
+        setError(tr("書き出し用のZIPを作成できませんでした"));
+        return false;
+    }
+    const bool writeText = withSidecars || m_exportTextWithWav;
+    const bool writeLab = withSidecars || m_exportLabWithWav;
+    if (!writeText && !writeLab)
+        return true;
+    // 付随ファイルはGo側で文字コードを変換して書くため、書き終わりを待ってから読む。
+    const QString sidecarBase = m_previewPath.left(m_previewPath.lastIndexOf('.'));
+    const QString downloadBase = name.left(name.lastIndexOf('.'));
+    const quint64 generation = m_batchArchiveGeneration;
+    ++m_batchArchivePending;
+    callAsync("writeSidecars", QVariantMap{
+        {"wav_path", m_previewPath},
+        {"text", m_previewText},
+        {"lab", m_previewLab},
+        {"encoding", m_exportTextEncoding},
+        {"write_text", writeText},
+        {"write_lab", writeLab},
+    }, [this, generation, writeText, writeLab, sidecarBase, downloadBase](const QVariantMap &result) {
+        if (generation != m_batchArchiveGeneration)
+            return;
+        if (!result.contains("_error") && m_batchArchiveWriter) {
+            if (writeText) {
+                const QByteArray text = readGoFsBytes(sidecarBase + QStringLiteral(".txt"));
+                if (!text.isEmpty())
+                    m_batchArchiveWriter->addFile(downloadBase + QStringLiteral(".txt"), text);
+            }
+            if (writeLab) {
+                const QByteArray lab = readGoFsBytes(sidecarBase + QStringLiteral(".lab"));
+                if (!lab.isEmpty())
+                    m_batchArchiveWriter->addFile(downloadBase + QStringLiteral(".lab"), lab);
+            }
+        }
+        --m_batchArchivePending;
+        if (m_batchArchiveFinishRequested && m_batchArchivePending == 0)
+            finishBatchArchive();
+    });
+    return true;
+#endif
+}
+
+bool Backend::finishBatchArchive() {
+#ifndef UTAUTTS_WASM
+    return false;
+#else
+    if (!m_batchArchiveWriter)
+        return false;
+    // 付随ファイルの書き込みが残っていれば、終わってから保存する。
+    if (m_batchArchivePending > 0) {
+        m_batchArchiveFinishRequested = true;
+        return true;
+    }
+    m_batchArchiveWriter->close();
+    const bool written = m_batchArchiveWriter->status() == QZipWriter::NoError;
+    m_batchArchiveWriter.reset();
+    const QByteArray data = m_batchArchiveBuffer ? m_batchArchiveBuffer->data() : QByteArray();
+    m_batchArchiveBuffer.reset();
+    if (!written || data.isEmpty()) {
+        setError(tr("書き出し用のZIPを作成できませんでした"));
+        return false;
+    }
+    wasmDownloadBytes(m_batchArchiveName, data);
+    setError({});
+    return true;
+#endif
+}
+
+void Backend::cancelBatchArchive() {
+    ++m_batchArchiveGeneration;
+    m_batchArchivePending = 0;
+    m_batchArchiveFinishRequested = false;
+    m_batchArchiveWriter.reset();
+    m_batchArchiveBuffer.reset();
+    m_batchArchiveName.clear();
+}
+
 bool Backend::startFileDrag(const QVariantList &files) {
     QList<QUrl> urls;
     urls.reserve(files.size());
@@ -2434,6 +2596,7 @@ void Backend::rememberRecentProject(const QUrl &source) {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue(QStringLiteral("projects/recent"), m_recentProjects);
     settings.sync();
+    reportSettingsStatus(settings);
     emit recentProjectsChanged();
 }
 
@@ -2444,6 +2607,7 @@ void Backend::clearRecentProjects() {
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.remove(QStringLiteral("projects/recent"));
     settings.sync();
+    reportSettingsStatus(settings);
     emit recentProjectsChanged();
 }
 

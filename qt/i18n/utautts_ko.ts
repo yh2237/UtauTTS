@@ -4,7 +4,13 @@
 <context>
     <name>Backend</name>
     <message>
-        <location filename="../src/backend.cpp" line="+1108"/>
+        <location filename="../src/backend.cpp" line="+735"/>
+        <location line="+1210"/>
+        <source>設定を保存できませんでした: %1</source>
+        <translation>설정을 저장하지 못했습니다: %1</translation>
+    </message>
+    <message>
+        <location line="-782"/>
         <source>About UtauTTS</source>
         <translation>UtauTTS 정보</translation>
     </message>
@@ -128,17 +134,45 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
     </message>
     <message>
         <location line="+56"/>
-        <location line="+260"/>
+        <location line="+411"/>
         <source>使用デバイス: %1</source>
         <translation>사용 장치: %1</translation>
     </message>
     <message>
-        <location line="-249"/>
+        <location line="-400"/>
         <source>索引を作成中: %1%</source>
         <translation>색인 생성 중: %1%</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+35"/>
+        <source>Web版では設定フォルダを開けません</source>
+        <translation>웹 버전에서는 설정 폴더를 열지 못합니다</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>設定フォルダを開けませんでした</source>
+        <translation>설정 폴더를 열지 못했습니다</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+11"/>
+        <location line="+7"/>
+        <source>設定を書き出せませんでした</source>
+        <translation>설정을 내보내지 못했습니다</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <location line="+5"/>
+        <source>設定ファイルを読み込めませんでした</source>
+        <translation>설정 파일을 읽지 못했습니다</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>設定ファイルの形式が正しくありません</source>
+        <translation>설정 파일의 형식이 올바르지 않습니다</translation>
+    </message>
+    <message>
+        <location line="+94"/>
         <location line="+3"/>
         <source>音源のZIPを選択できませんでした</source>
         <translation>음원 ZIP을 선택하지 못했습니다</translation>
@@ -175,12 +209,12 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
     </message>
     <message>
         <location line="+17"/>
-        <location line="+483"/>
+        <location line="+609"/>
         <source>音声合成を開始しました: %1</source>
         <translation>음성 합성을 시작했습니다: %1</translation>
     </message>
     <message>
-        <location line="-479"/>
+        <location line="-605"/>
         <location line="+28"/>
         <source>方式: %1</source>
         <translation>방식: %1</translation>
@@ -203,17 +237,19 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
     <message>
         <location line="+46"/>
         <location line="+43"/>
+        <location line="+81"/>
         <source>保存できるプレビュー音声がありません</source>
         <translation>저장할 미리 듣기 음성이 없습니다</translation>
     </message>
     <message>
-        <location line="-34"/>
+        <location line="-115"/>
         <location line="+48"/>
+        <location line="+75"/>
         <source>プレビューWAVを読み込めませんでした</source>
         <translation>미리 듣기 WAV를 읽지 못했습니다</translation>
     </message>
     <message>
-        <location line="-8"/>
+        <location line="-83"/>
         <source>WAVの保存先を開けませんでした</source>
         <translation>WAV 저장 위치를 열지 못했습니다</translation>
     </message>
@@ -229,7 +265,15 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
         <translation>함께 저장하는 TXT/LAB 파일을 저장하지 못했습니다: %1</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+22"/>
+        <location line="+17"/>
+        <location line="+17"/>
+        <location line="+59"/>
+        <source>書き出し用のZIPを作成できませんでした</source>
+        <translation>내보내기용 ZIP을 만들지 못했습니다</translation>
+    </message>
+    <message>
+        <location line="+24"/>
         <location line="+29"/>
         <source>ドラッグするWAVファイルが見つかりません</source>
         <translation>드래그할 WAV 파일을 찾을 수 없습니다</translation>
@@ -297,7 +341,7 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
         <translation>프로젝트를 열지 못했습니다</translation>
     </message>
     <message>
-        <location line="+56"/>
+        <location line="+58"/>
         <source>診断情報の保存先が無効です</source>
         <translation>진단 정보 저장 위치가 올바르지 않습니다</translation>
     </message>

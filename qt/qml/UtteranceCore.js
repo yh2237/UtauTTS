@@ -130,11 +130,19 @@ function handlePreviewReady(ctx) {
         const fileName = host.batchExportMode === "drag"
                 ? host.dragAudioFileName(ctx.utterances.get(index), index)
                 : host.audioFileName(ctx.utterances.get(index));
-        const destination = ctx.platform.hasNativeFileDialog
-                ? host.appBackend.fileInDirectory(host.batchExportDirectory, fileName)
-                : host.appBackend.defaultSaveFile(fileName);
         host.pendingUtteranceId = "";
         host.pendingRevision = -1;
+        // Web版は1件ずつダウンロードせず、ZIPにまとめて最後に1回だけ保存する。
+        if (host.batchArchiveActive) {
+            if (!host.appBackend.addPreviewToBatchArchive(fileName, host.batchExportWithSidecars)) {
+                host.finishBatchExport(false);
+                return;
+            }
+            ++host.batchExportCompleted;
+            ctx.qt.callLater(function() { host.synthesizeBatchItem(); });
+            return;
+        }
+        const destination = host.appBackend.fileInDirectory(host.batchExportDirectory, fileName);
         if (!destination.toString().length || !host.appBackend.savePreview(destination, host.batchExportWithSidecars)) {
             host.finishBatchExport(false);
             return;
