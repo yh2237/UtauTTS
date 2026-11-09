@@ -192,6 +192,8 @@
     "settings.group.pronunciation": "Pronunciation",
     "settings.group.correction": "Synthesis Corrections",
     "settings.exportTextEncoding": "Text file encoding",
+    "settings.exportTextWithWav": "Write TXT next to WAV",
+    "settings.exportLabWithWav": "Write LAB next to WAV",
     "settings.shortcut.addUtterance": "Add Utterance",
     "settings.shortcut.reloadVoicebanks": "Reload Voicebanks",
     "settings.shortcut.removeUtterance": "Remove Utterance",

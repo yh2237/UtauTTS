@@ -39,6 +39,27 @@ bool Platform::isMobile() const {
     return m_mobile;
 }
 
+namespace {
+
+// タッチ端末かどうかは画面幅ではなく入力方式で決める。
+bool hasCoarsePointer() {
+#ifdef UTAUTTS_WASM
+    const auto window = emscripten::val::global("window");
+    if (window["matchMedia"].isUndefined())
+        return false;
+    const auto query = window.call<emscripten::val>("matchMedia",
+                                                    std::string("(pointer: coarse)"));
+    if (query.isNull() || query.isUndefined())
+        return false;
+    const auto matches = query["matches"];
+    return !matches.isUndefined() && matches.as<bool>();
+#else
+    return false;
+#endif
+}
+
+} // namespace
+
 void Platform::updateViewportWidth(qreal width) {
 #ifdef UTAUTTS_WASM
     // QMLの初期サイズや窓装飾に左右されないブラウザの表示幅を使う。
@@ -46,8 +67,10 @@ void Platform::updateViewportWidth(qreal width) {
     if (!viewport.isUndefined())
         width = viewport.as<double>();
 #endif
+    // タッチ端末は向きに関係なくモバイル扱いにする。幅はタッチ非対応の端末だけで使う。
     const bool mobile = isWeb() && (m_mobileOverride >= 0
-            ? m_mobileOverride == 1 : width > 0 && width < 768);
+            ? m_mobileOverride == 1
+            : hasCoarsePointer() || (width > 0 && width < 768));
 #ifdef UTAUTTS_WASM
     const auto screen = emscripten::val::global("document")
             .call<emscripten::val>("getElementById", std::string("screen"));

@@ -48,6 +48,8 @@ Item {
     property color labelColor: "#66565a"
     property real moraWidth: 64
     Behavior on moraWidth {
+        // ピンチ中は指の動きに直接追従させる。
+        enabled: !pinch.active
         NumberAnimation { duration: 90; easing.type: Easing.OutCubic }
     }
     property real sidePadding: moraWidth / 2 + 4
@@ -286,6 +288,24 @@ Item {
             return;
         root.verticalZoom = next;
         canvas.requestPaint();
+    }
+
+    // 横方向の倍率を変え、指の下の時刻が動かないようにスクロール位置を合わせる。
+    function zoomHorizontal(factor, anchorX, anchorTime) {
+        const next = Math.max(32, Math.min(192, root.moraWidth * factor));
+        if (next === root.moraWidth)
+            return;
+        root.moraWidth = next;
+        // 倍率は Behavior で補間されるため、新しい倍率から直接計算する。
+        const scale = root.defaultMoraDuration > 0 ? next / root.defaultMoraDuration : 0.5;
+        const padding = next / 2 + 4;
+        const contentWidth = Math.max(root.width, padding * 2 + root.totalDuration() * scale);
+        const maximum = Math.max(0, contentWidth - viewport.width);
+        viewport.contentX = Math.max(0, Math.min(maximum, padding + anchorTime * scale - anchorX));
+    }
+
+    function timeAtViewportX(x) {
+        return Math.max(0, (viewport.contentX + x - root.sidePadding) / root.durationScale);
     }
 
     function tr(key, ...args) {
@@ -1162,6 +1182,29 @@ Item {
                 y: Math.max(4, Math.min(graph.height - height - 4, root.hudY))
                 hudText: root.hudText
                 z: 10
+            }
+        }
+
+        // 2本指のピンチで横方向に拡大・縮小する。1本指はそのままスクロールになる。
+        PinchHandler {
+            id: pinch
+            property real lastScale: 1
+            property real anchorX: 0
+            property real anchorTime: 0
+            onActiveChanged: {
+                if (!active)
+                    return;
+                lastScale = 1;
+                // centroid は contentItem の座標なので、表示位置に直す。
+                anchorX = viewport.mapFromItem(null, centroid.scenePosition).x;
+                anchorTime = root.timeAtViewportX(anchorX);
+            }
+            onScaleChanged: {
+                if (!active || scale <= 0 || lastScale <= 0)
+                    return;
+                const factor = scale / lastScale;
+                lastScale = scale;
+                root.zoomHorizontal(factor, anchorX, anchorTime);
             }
         }
 

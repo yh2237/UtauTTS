@@ -192,6 +192,8 @@
     "settings.group.pronunciation": "Pronunciación",
     "settings.group.correction": "Correcciones de síntesis",
     "settings.exportTextEncoding": "Codificación del archivo de texto",
+    "settings.exportTextWithWav": "Guardar TXT junto al WAV",
+    "settings.exportLabWithWav": "Guardar LAB junto al WAV",
     "settings.shortcut.addUtterance": "Añadir frase",
     "settings.shortcut.reloadVoicebanks": "Recargar voicebanks",
     "settings.shortcut.removeUtterance": "Eliminar frase",

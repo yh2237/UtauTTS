@@ -192,6 +192,8 @@
     "settings.group.pronunciation": "发音",
     "settings.group.correction": "合成修正",
     "settings.exportTextEncoding": "文本文件编码",
+    "settings.exportTextWithWav": "与 WAV 一起写出 TXT",
+    "settings.exportLabWithWav": "与 WAV 一起写出 LAB",
     "settings.shortcut.addUtterance": "添加台词",
     "settings.shortcut.reloadVoicebanks": "重新加载音源",
     "settings.shortcut.removeUtterance": "删除台词",

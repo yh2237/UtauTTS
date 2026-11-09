@@ -192,6 +192,8 @@
     "settings.group.pronunciation": "発音",
     "settings.group.correction": "音声補正",
     "settings.exportTextEncoding": "テキストファイルの文字コード",
+    "settings.exportTextWithWav": "WAVと一緒にTXTを書き出す",
+    "settings.exportLabWithWav": "WAVと一緒にLABを書き出す",
     "settings.shortcut.addUtterance": "テキスト追加",
     "settings.shortcut.reloadVoicebanks": "ボイスバンク再読み込み",
     "settings.shortcut.removeUtterance": "テキスト削除",
