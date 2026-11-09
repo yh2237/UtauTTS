@@ -1,4 +1,4 @@
-﻿pragma ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import "UnitOverrides.js" as UnitOverrides
@@ -71,6 +71,10 @@ ApplicationWindow {
     readonly property var licenseDocuments: injectedLegalDocuments
     readonly property real defaultIntonationStrength: appBackend.defaultIntonationStrength
     readonly property real maxIntonationStrength: 8.0
+    readonly property string projectDisplayName: {
+        const name = window.projectFileName(window.displayPath(window.projectFile));
+        return name.length ? name : window.translator.tr("main.untitled");
+    }
 
     property var translator: translatorInstance
     property string updateAvailableVersion: ""
@@ -130,6 +134,12 @@ ApplicationWindow {
         interval: 260
         repeat: false
         onTriggered: window.refreshPreview()
+    }
+
+    Timer {
+        id: batchExportNoticeTimer
+        interval: 5000
+        onTriggered: window.batchExportNotice = ""
     }
 
     Timer {
@@ -231,6 +241,9 @@ ApplicationWindow {
     property int batchExportCompleted: 0
     property string batchExportMode: ""
     property var batchExportQueue: []
+    property bool batchExportCancelRequested: false
+    // 書き出しの終わりを伝える文言のキー。空なら何も出さない。
+    property string batchExportNotice: ""
     property url batchExportDirectory
     property var dragExportFiles: []
     property bool dragExportSelectedOnly: false
@@ -795,6 +808,48 @@ ApplicationWindow {
         visible: window.mobileLayout
     }
 
+    // 一括書き出しの進み具合と中止、終わったことを窓の下端に出す。
+    footer: Rectangle {
+        visible: window.batchExportActive || window.batchExportNotice.length > 0
+        height: visible ? 48 : 0
+        color: window.palette.alternateBase
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            spacing: 12
+
+            Label {
+                visible: window.batchExportActive
+                text: window.translator.tr("main.batchExport.running")
+            }
+            ProgressBar {
+                Layout.fillWidth: true
+                visible: window.batchExportActive
+                from: 0
+                to: Math.max(1, window.batchExportQueue.length)
+                value: window.batchExportCompleted
+            }
+            Label {
+                visible: window.batchExportActive
+                text: window.translator.tr("main.batchExport.count",
+                                           window.batchExportCompleted,
+                                           window.batchExportQueue.length)
+            }
+            Button {
+                visible: window.batchExportActive
+                text: window.translator.tr("main.cancel")
+                onClicked: window.cancelBatchExport()
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: !window.batchExportActive && window.batchExportNotice.length > 0
+                text: window.translator.tr(window.batchExportNotice)
+            }
+        }
+    }
+
     function current() {
         return QmlCore.currentUtterance(utterances, selectedIndex);
     }
@@ -835,10 +890,15 @@ ApplicationWindow {
         return parts.join("+");
     }
 
-    function recentProjectLabel(path) {
+    // projectFileNameは、パスからファイル名だけを返す。
+    function projectFileName(path) {
         const normalized = String(path || "").replace(/\\/g, "/");
         const slash = normalized.lastIndexOf("/");
         return slash >= 0 ? normalized.slice(slash + 1) : normalized;
+    }
+
+    function recentProjectLabel(path) {
+        return window.projectFileName(path);
     }
 
     // displayPathは、file:// のURLを人が読めるパスに直す。
@@ -2518,6 +2578,9 @@ ApplicationWindow {
         window.batchExportOriginalIndex = window.selectedIndex;
         window.batchExportIndex = 0;
         window.batchExportCompleted = 0;
+        window.batchExportCancelRequested = false;
+        window.batchExportNotice = "";
+        batchExportNoticeTimer.stop();
         window.dragExportFiles = [];
         window.batchExportActive = true;
         window.batchAnalysisUtteranceId = "";
@@ -2557,6 +2620,10 @@ ApplicationWindow {
     function synthesizeBatchItem() {
         if (!window.batchExportActive)
             return;
+        if (window.batchExportCancelRequested) {
+            window.finishBatchExport(false);
+            return;
+        }
         if (window.batchAnalysisUtteranceId.length)
             return;
         if (window.appBackend.busy) {
@@ -2582,18 +2649,33 @@ ApplicationWindow {
         window.finishBatchExport(true);
     }
 
+    // cancelBatchExportは、書き出しの途中で止める。合成中の1件は終わってから止める。
+    function cancelBatchExport() {
+        if (!window.batchExportActive)
+            return;
+        window.batchExportCancelRequested = true;
+        if (!window.appBackend.busy)
+            window.finishBatchExport(false);
+    }
+
     function finishBatchExport(success) {
         if (!window.batchExportActive)
             return;
+        const cancelled = window.batchExportCancelRequested;
         const wasDragExport = window.batchExportMode === "drag";
         const dragExportSucceeded = success && wasDragExport;
         const files = window.dragExportFiles.slice();
         window.batchExportActive = false;
+        window.batchExportCancelRequested = false;
         window.batchAnalysisUtteranceId = "";
         window.batchExportMode = "";
         window.batchExportQueue = [];
         window.pendingUtteranceId = "";
         window.pendingRevision = -1;
+        window.batchExportNotice = success ? "main.batchExport.done"
+                                           : cancelled ? "main.batchExport.cancelled"
+                                                       : "main.batchExport.failed";
+        batchExportNoticeTimer.restart();
         if (utterances.count)
             window.selectUtterance(Math.min(window.batchExportOriginalIndex, utterances.count - 1));
         if (success && (window.appBackend.closeLogOnSuccess || wasDragExport))
