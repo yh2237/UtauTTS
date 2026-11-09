@@ -9,6 +9,7 @@ import "../EditorValues.js" as EditorValues
 
 Item {
     id: root
+    activeFocusOnTab: true
 
     property var translator: ({})
     property var units: []
@@ -287,6 +288,11 @@ Item {
     readonly property var selectedUnit: root.unitAt(root.selectedUnitIndex)
     readonly property real msPerZoomStep: 1.25
     readonly property int dragSnapMs: 10
+    // キーボード操作の移動量。Shift で微調整する。
+    readonly property int keyboardStepMs: 10
+    readonly property int fineStepMs: 1
+    readonly property int keyboardStepCents: 10
+    readonly property int fineStepCents: 1
 
     function unitAt(index) {
         return EditorValues.unitAt(root.units, index);
@@ -833,6 +839,95 @@ Item {
         }
     }
 
+    function editableUnitIndices() {
+        const values = [];
+        for (let index = 0; index < root.units.length; ++index) {
+            const unit = root.units[index];
+            if (!unit || unit.silent || String(unit.role || "") !== "mora")
+                continue;
+            values.push(index);
+        }
+        return values;
+    }
+
+    // stepUnitSelectionは、選択を隣のノートへ移す。端まで来たら false を返してフォーカス移動に譲る。
+    function stepUnitSelection(direction) {
+        const indices = root.editableUnitIndices();
+        if (!indices.length)
+            return false;
+        let position = indices.indexOf(root.selectedUnitIndex);
+        if (position < 0)
+            position = direction > 0 ? -1 : indices.length;
+        const next = position + direction;
+        if (next < 0 || next >= indices.length)
+            return false;
+        root.selectedUnitIndex = indices[next];
+        root.selectedBoundary = Number(root.units[indices[next]].position);
+        return true;
+    }
+
+    function selectedNoteHasManualPitch() {
+        const unit = root.selectedUnit;
+        if (!unit || !root.timingEditor)
+            return false;
+        const position = Number(unit.position);
+        if (!root.timingEditor.pointIsEditable(position))
+            return false;
+        const value = Number(root.timingEditor.points[position]);
+        return Number.isFinite(value) && value !== 0;
+    }
+
+    function nudgeSelectedNotePitch(deltaCents) {
+        const unit = root.selectedUnit;
+        if (!unit || !root.timingEditor)
+            return;
+        const position = Number(unit.position);
+        if (!root.timingEditor.pointIsEditable(position))
+            return;
+        const values = root.timingEditor.points.slice();
+        const automatic = Number(root.timingEditor.autoPoints[position]) || 0;
+        const current = Number(values[position]) || 0;
+        const total = Math.max(-root.maximumPitchCents, Math.min(root.maximumPitchCents,
+                automatic + current + deltaCents));
+        values[position] = Math.round(total - automatic);
+        root.timingEditor.points = values;
+        root.timingEditor.pointsEdited(values.slice());
+    }
+
+    function nudgeSelectedNoteStart(deltaMs) {
+        const unit = root.selectedUnit;
+        if (!unit || !root.timingEditor)
+            return;
+        const position = Number(unit.position);
+        if (position <= 0)
+            return;
+        const start = root.moraStartAt(position, unit.note_start_ms);
+        root.moraStartEdited(position, Math.max(0, start + deltaMs));
+    }
+
+    function resetSelectedNotePitch() {
+        const unit = root.selectedUnit;
+        if (!unit || !root.timingEditor)
+            return;
+        const position = Number(unit.position);
+        if (!root.timingEditor.pointIsEditable(position))
+            return;
+        root.timingEditor.resetPitchAt(position);
+    }
+
+    // 文字入力中はキー操作を奪わない。
+    readonly property bool keyboardActive: {
+        if (!root.activeFocus)
+            return false;
+        let item = Window.activeFocusItem;
+        while (item) {
+            if (item instanceof TextInput || item instanceof TextEdit)
+                return false;
+            item = item.parent;
+        }
+        return true;
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 6
@@ -1069,6 +1164,7 @@ Item {
                 cursorShape: dragCursor !== 0 ? dragCursor : root.timelineCursor
                 hoverEnabled: true
                 onPressed: mouse => {
+                    root.forceActiveFocus();
                     doublePending = seekTimer.running;
                     seekTimer.stop();
                     if (!!root.gesture || !!root.valueGesture)
@@ -1612,6 +1708,49 @@ Item {
                 }
             }
         }
+        }
+    }
+
+    // Delete は発話削除のショートカットと競合する。消す値があるときだけ編集側が受け取る。
+    Keys.onShortcutOverride: event => {
+        if (root.keyboardActive && root.selectedNoteHasManualPitch()
+                && (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace))
+            event.accepted = true;
+    }
+
+    Keys.onPressed: event => {
+        if (!root.keyboardActive)
+            return;
+        const shift = (event.modifiers & Qt.ShiftModifier) !== 0;
+        const control = (event.modifiers & Qt.ControlModifier) !== 0;
+        switch (event.key) {
+        case Qt.Key_Left:
+            if (control)
+                root.nudgeSelectedNoteStart(shift ? -root.fineStepMs : -root.keyboardStepMs);
+            else
+                root.stepUnitSelection(-1);
+            event.accepted = true;
+            return;
+        case Qt.Key_Right:
+            if (control)
+                root.nudgeSelectedNoteStart(shift ? root.fineStepMs : root.keyboardStepMs);
+            else
+                root.stepUnitSelection(1);
+            event.accepted = true;
+            return;
+        case Qt.Key_Up:
+            root.nudgeSelectedNotePitch(shift ? root.fineStepCents : root.keyboardStepCents);
+            event.accepted = true;
+            return;
+        case Qt.Key_Down:
+            root.nudgeSelectedNotePitch(shift ? -root.fineStepCents : -root.keyboardStepCents);
+            event.accepted = true;
+            return;
+        case Qt.Key_Delete:
+        case Qt.Key_Backspace:
+            root.resetSelectedNotePitch();
+            event.accepted = true;
+            return;
         }
     }
 

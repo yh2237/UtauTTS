@@ -7,6 +7,7 @@ import "../MoraPositions.js" as MoraPositions
 
 Item {
     id: root
+    activeFocusOnTab: true
     property var translator: ({})
     property string hudText: ""
     property real hudX: 0
@@ -17,6 +18,19 @@ Item {
     property bool hoveredEnd: false
     property var points: []
     property var autoPoints: []
+    // 選択中の点（インデックス）。複数選択できる。
+    property var selectedPoints: []
+    // 矩形選択の範囲（グラフ座標）。ドラッグ中だけ値が入る。
+    property var selectionBand: null
+    // 縦方向の倍率。1 で全体を表示する。
+    property real verticalZoom: 1
+    readonly property real minimumVerticalZoom: 1
+    readonly property real maximumVerticalZoom: 8
+    // ピッチのスナップ。ドラッグ中だけ効く。
+    property bool snapEnabled: true
+    readonly property int snapCents: 10
+    readonly property int keyboardStepCents: 10
+    readonly property int fineStepCents: 1
     // 縦の表示範囲と編集できる範囲（±セント）。
     readonly property real pitchRange: 800
     readonly property real maximumPitchCents: 800
@@ -144,6 +158,140 @@ Item {
         if (index < 0 || index >= root.points.length || index >= root.morae.length)
             return false;
         return !root.morae[index].pause;
+    }
+
+    function editablePointIndices() {
+        const values = [];
+        for (let index = 0; index < root.points.length; ++index) {
+            if (root.pointIsEditable(index))
+                values.push(index);
+        }
+        return values;
+    }
+
+    function isPointSelected(index) {
+        return root.selectedPoints.indexOf(index) >= 0;
+    }
+
+    function setSelectedPoints(values) {
+        const unique = [];
+        for (const value of values) {
+            const index = Number(value);
+            if (index >= 0 && index < root.points.length && root.pointIsEditable(index)
+                    && unique.indexOf(index) < 0)
+                unique.push(index);
+        }
+        unique.sort((a, b) => a - b);
+        if (unique.length === root.selectedPoints.length
+                && unique.every((value, position) => value === root.selectedPoints[position]))
+            return;
+        root.selectedPoints = unique;
+        canvas.requestPaint();
+    }
+
+    function selectPoint(index, additive) {
+        if (!root.pointIsEditable(index))
+            return;
+        if (!additive) {
+            root.setSelectedPoints([index]);
+            return;
+        }
+        const values = root.selectedPoints.slice();
+        const position = values.indexOf(index);
+        if (position >= 0)
+            values.splice(position, 1);
+        else
+            values.push(index);
+        root.setSelectedPoints(values);
+    }
+
+    function clearSelection() {
+        root.setSelectedPoints([]);
+    }
+
+    function selectAllPoints() {
+        root.setSelectedPoints(root.editablePointIndices());
+    }
+
+    // stepSelectionは、選択を隣の点へ移す。端まで来たら false を返してフォーカス移動に譲る。
+    function stepSelection(direction) {
+        const indices = root.editablePointIndices();
+        if (!indices.length)
+            return false;
+        const current = root.selectedPoints.length
+                ? root.selectedPoints[root.selectedPoints.length - 1] : -1;
+        let position = indices.indexOf(current);
+        if (position < 0)
+            position = direction > 0 ? -1 : indices.length;
+        const next = position + direction;
+        if (next < 0 || next >= indices.length)
+            return false;
+        root.setSelectedPoints([indices[next]]);
+        return true;
+    }
+
+    // extendSelectionは、Shift+矢印で選択範囲を広げる・縮める。
+    function extendSelection(direction) {
+        const indices = root.editablePointIndices();
+        if (!indices.length)
+            return false;
+        if (direction < 0) {
+            if (!root.selectedPoints.length)
+                return false;
+            const values = root.selectedPoints.slice();
+            values.pop();
+            root.setSelectedPoints(values);
+            return true;
+        }
+        const last = root.selectedPoints.length
+                ? root.selectedPoints[root.selectedPoints.length - 1] : -1;
+        const next = indices.indexOf(last) + 1;
+        if (next >= indices.length)
+            return false;
+        const values = root.selectedPoints.slice();
+        values.push(indices[next]);
+        root.setSelectedPoints(values);
+        return true;
+    }
+
+    function pointsInBand(band) {
+        const values = [];
+        if (!band)
+            return values;
+        const left = Math.min(band.x0, band.x1);
+        const right = Math.max(band.x0, band.x1);
+        const top = Math.min(band.y0, band.y1);
+        const bottom = Math.max(band.y0, band.y1);
+        for (let index = 0; index < root.points.length; ++index) {
+            if (!root.pointIsEditable(index))
+                continue;
+            const x = root.pointX(index);
+            const y = root.pointY(index);
+            if (x >= left && x <= right && y >= top && y <= bottom)
+                values.push(index);
+        }
+        return values;
+    }
+
+    function snapPitch(cents) {
+        if (!root.snapEnabled)
+            return cents;
+        return Math.round(cents / root.snapCents) * root.snapCents;
+    }
+
+    function zoomVertical(factor) {
+        const next = Math.max(root.minimumVerticalZoom,
+                              Math.min(root.maximumVerticalZoom, root.verticalZoom * factor));
+        if (next === root.verticalZoom)
+            return;
+        root.verticalZoom = next;
+        canvas.requestPaint();
+    }
+
+    function tr(key, ...args) {
+        if (!root.translator || !root.translator.tr)
+            return key;
+        return root.translator.tr(key, ...args);
     }
 
     function pointX(index) {
@@ -312,33 +460,102 @@ Item {
         canvas.requestPaint();
     }
 
-    function updatePitchAt(index, y) {
+    function updatePitchAt(index, y, snap) {
         if (index < 0 || index >= root.points.length || !root.pointIsEditable(index))
             return;
-        const values = root.points.slice();
         const center = canvas.height / 2;
         const desired = Math.max(-root.maximumPitchCents, Math.min(root.maximumPitchCents,
                 (center - y) / root.pitchScale(canvas.height)));
         const automatic = index < root.autoPoints.length ? Number(root.autoPoints[index]) : 0;
-        values[index] = Math.round(desired - (Number.isFinite(automatic) ? automatic : 0));
+        const target = Math.round((snap === false ? desired : root.snapPitch(desired))
+                - (Number.isFinite(automatic) ? automatic : 0));
+        root.moveSelectedPoints(index, target);
+    }
+
+    // pitchMoveRangeは、選択中の点が編集範囲を出ない移動量を返す。
+    function pitchMoveRange(indices, values) {
+        let lower = Number.NEGATIVE_INFINITY;
+        let upper = Number.POSITIVE_INFINITY;
+        for (const position of indices) {
+            const automatic = position < root.autoPoints.length
+                    ? Number(root.autoPoints[position]) : 0;
+            const base = Number.isFinite(automatic) ? automatic : 0;
+            const value = Number(values[position]) || 0;
+            lower = Math.max(lower, -root.maximumPitchCents - base - value);
+            upper = Math.min(upper, root.maximumPitchCents - base - value);
+        }
+        return {lower: lower, upper: upper};
+    }
+
+    // moveSelectedPointsは、選択中の点を同じ量だけ動かす。
+    function moveSelectedPoints(index, target) {
+        const values = root.points.slice();
+        const current = Number(values[index]);
+        const delta = Number(target) - (Number.isFinite(current) ? current : 0);
+        if (!Number.isFinite(delta))
+            return;
+        const indices = root.isPointSelected(index) ? root.selectedPoints.slice() : [index];
+        const range = root.pitchMoveRange(indices, values);
+        const moved = Math.max(range.lower, Math.min(range.upper, delta));
+        if (Math.abs(moved) < 1e-9)
+            return;
+        for (const position of indices)
+            values[position] = (Number(values[position]) || 0) + moved;
         root.pitchPointTouched(index);
         root.points = values;
         canvas.requestPaint();
     }
 
-    function resetPitchAt(index) {
-        if (index < 0 || index >= root.points.length || !root.pointIsEditable(index))
+    function nudgeSelectedPitch(deltaCents) {
+        const indices = root.selectedPoints.slice();
+        if (!indices.length)
             return;
         const values = root.points.slice();
-        root.pitchPointTouched(index);
-        values[index] = 0;
+        const range = root.pitchMoveRange(indices, values);
+        const moved = Math.max(range.lower, Math.min(range.upper, deltaCents));
+        if (Math.abs(moved) < 1e-9)
+            return;
+        for (const position of indices)
+            values[position] = (Number(values[position]) || 0) + moved;
+        root.pitchPointTouched(indices[0]);
         root.points = values;
         root.pointsEdited(values.slice());
         canvas.requestPaint();
     }
 
+    // resetPointsは、指定した点を自動の値に戻す。
+    function resetPoints(indices) {
+        const values = root.points.slice();
+        let changed = false;
+        for (const position of indices) {
+            if (!root.pointIsEditable(position))
+                continue;
+            if (Number(values[position]) !== 0) {
+                values[position] = 0;
+                changed = true;
+            }
+        }
+        if (!changed)
+            return;
+        root.pitchPointTouched(indices[0]);
+        root.points = values;
+        root.pointsEdited(values.slice());
+        canvas.requestPaint();
+    }
+
+    function resetPitchAt(index) {
+        if (!root.pointIsEditable(index))
+            return;
+        root.resetPoints([index]);
+    }
+
+    function resetSelectedPoints() {
+        root.resetPoints(root.selectedPoints.slice());
+    }
+
     function pitchScale(height) {
-        return Math.max(.05, Math.min(.36, height / 760)) * 300 / root.pitchRange;
+        return Math.max(.05, Math.min(.36, height / 760)) * 300 / root.pitchRange
+                * root.verticalZoom;
     }
 
     function pitchAt(index) {
@@ -452,7 +669,10 @@ Item {
                     const viewLeft = viewport.contentX - 40;
                     const viewRight = viewport.contentX + viewport.width + 40;
                     const inView = x => x >= viewLeft && x <= viewRight;
-                    for (let cents = -root.pitchRange; cents <= root.pitchRange; cents += 400) {
+                    const gridStep = root.verticalZoom >= 4 ? 100
+                            : root.verticalZoom >= 2 ? 200 : 400;
+                    for (let cents = -root.pitchRange; cents <= root.pitchRange;
+                         cents += gridStep) {
                         ctx.strokeStyle = cents === 0 ? root.axisColor : root.gridColor;
                         ctx.setLineDash(cents === 0 ? [] : [4, 5]);
                         ctx.beginPath();
@@ -525,19 +745,39 @@ Item {
                         const px = root.pointX(index);
                         if (!inView(px))
                             continue;
+                        const py = center - root.pitchAt(index) * scale;
                         const hot = index === root.hoveredPoint;
                         ctx.beginPath();
-                        ctx.arc(px, center - root.pitchAt(index) * scale,
-                                hot ? 9 : 6, 0, Math.PI * 2);
+                        ctx.arc(px, py, hot ? 9 : 6, 0, Math.PI * 2);
                         ctx.fill();
                         if (hot) {
                             ctx.globalAlpha = 0.25;
                             ctx.beginPath();
-                            ctx.arc(px, center - root.pitchAt(index) * scale,
-                                    13, 0, Math.PI * 2);
+                            ctx.arc(px, py, 13, 0, Math.PI * 2);
                             ctx.fill();
                             ctx.globalAlpha = 1;
                         }
+                        if (root.isPointSelected(index)) {
+                            ctx.strokeStyle = root.labelColor;
+                            ctx.lineWidth = 2;
+                            ctx.beginPath();
+                            ctx.arc(px, py, 10, 0, Math.PI * 2);
+                            ctx.stroke();
+                            ctx.lineWidth = 1;
+                        }
+                    }
+                    if (root.selectionBand) {
+                        const band = root.selectionBand;
+                        const left = Math.min(band.x0, band.x1);
+                        const top = Math.min(band.y0, band.y1);
+                        ctx.fillStyle = Qt.rgba(root.accentColor.r, root.accentColor.g,
+                                                root.accentColor.b, 0.12);
+                        ctx.fillRect(left, top, Math.abs(band.x1 - band.x0),
+                                     Math.abs(band.y1 - band.y0));
+                        ctx.strokeStyle = root.accentColor;
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(left, top, Math.abs(band.x1 - band.x0),
+                                       Math.abs(band.y1 - band.y0));
                     }
                 }
             }
@@ -554,19 +794,64 @@ Item {
                 cursorShape: Qt.OpenHandCursor
                 property real startContentX: 0
                 property real startFingerX: 0
+                property real pressX: 0
+                property real pressY: 0
+                property bool moved: false
+                property bool banding: false
+                property bool additive: false
                 onPressed: mouse => {
+                    root.forceActiveFocus();
                     startContentX = viewport.contentX;
                     startFingerX = mapToItem(viewport, mouse.x, mouse.y).x;
+                    const point = mapToItem(graph, mouse.x, mouse.y);
+                    pressX = point.x;
+                    pressY = point.y;
+                    moved = false;
+                    banding = false;
+                    additive = (mouse.modifiers & Qt.ShiftModifier) !== 0;
                 }
                 onPositionChanged: mouse => {
                     if (!pressed)
                         return;
+                    const point = mapToItem(graph, mouse.x, mouse.y);
+                    if (Math.max(Math.abs(point.x - pressX), Math.abs(point.y - pressY)) >= 3)
+                        moved = true;
+                    // Shift+ドラッグは矩形選択、それ以外は横スクロール。
+                    if (additive) {
+                        if (!moved)
+                            return;
+                        banding = true;
+                        root.selectionBand = {x0: pressX, y0: pressY,
+                                              x1: point.x, y1: point.y};
+                        canvas.requestPaint();
+                        return;
+                    }
                     const maximum = Math.max(0, viewport.contentWidth - viewport.width);
                     if (maximum <= 0)
                         return;
                     const fingerX = mapToItem(viewport, mouse.x, mouse.y).x;
                     viewport.contentX = Math.max(0, Math.min(maximum,
                             startContentX - (fingerX - startFingerX)));
+                }
+                onReleased: {
+                    if (banding) {
+                        const values = root.selectedPoints.slice();
+                        for (const index of root.pointsInBand(root.selectionBand)) {
+                            if (values.indexOf(index) < 0)
+                                values.push(index);
+                        }
+                        root.setSelectedPoints(values);
+                    } else if (!additive && !moved) {
+                        root.clearSelection();
+                    }
+                    banding = false;
+                    root.selectionBand = null;
+                    canvas.requestPaint();
+                }
+                onCanceled: {
+                    banding = false;
+                    root.selectionBand = null;
+                    canvas.requestPaint();
                 }
             }
 
@@ -803,6 +1088,11 @@ Item {
                         hoverEnabled: true
                         preventStealing: true
                         cursorShape: Qt.SizeVerCursor
+                        property real pressX: 0
+                        property real pressY: 0
+                        property bool dragging: false
+                        property bool additive: false
+                        property bool wasSelected: false
 
                         onEntered: {
                             root.hoveredPoint = index;
@@ -813,30 +1103,55 @@ Item {
                                 root.hoveredPoint = -1;
                             canvas.requestPaint();
                         }
-                        onPressed: mouse => updatePitch(mouse)
+                        // 押下では選択だけ行い、値は動かさない。
+                        onPressed: mouse => {
+                            const point = mapToItem(graph, mouse.x, mouse.y);
+                            pressX = point.x;
+                            pressY = point.y;
+                            dragging = false;
+                            additive = (mouse.modifiers & Qt.ShiftModifier) !== 0;
+                            wasSelected = root.isPointSelected(index);
+                            root.forceActiveFocus();
+                            if (additive)
+                                root.selectPoint(index, true);
+                            else if (!wasSelected)
+                                root.selectPoint(index, false);
+                            root.hoveredPoint = index;
+                            canvas.requestPaint();
+                        }
                         onPositionChanged: mouse => {
-                            if (pressed)
-                                updatePitch(mouse);
+                            if (!pressed)
+                                return;
+                            const point = mapToItem(graph, mouse.x, mouse.y);
+                            if (!dragging) {
+                                if (Math.max(Math.abs(point.x - pressX),
+                                             Math.abs(point.y - pressY)) < 3)
+                                    return;
+                                dragging = true;
+                            }
+                            root.hoveredPoint = index;
+                            root.updatePitchAt(index, point.y,
+                                    (mouse.modifiers & Qt.AltModifier) === 0);
+                            root.showHud(point.x + 14, point.y - 40, root.pitchTextAt(index));
                         }
                         onReleased: {
-                            root.pointsEdited(root.points.slice());
-                            root.hideHud();
+                            if (dragging) {
+                                root.pointsEdited(root.points.slice());
+                                root.hideHud();
+                            } else if (!additive && wasSelected) {
+                                root.selectPoint(index, false);
+                            }
+                            dragging = false;
                             if (!containsMouse)
                                 root.hoveredPoint = -1;
                             canvas.requestPaint();
                         }
                         onDoubleClicked: root.resetPitchAt(index)
                         onCanceled: {
+                            dragging = false;
                             root.hideHud();
                             root.hoveredPoint = -1;
                             canvas.requestPaint();
-                        }
-
-                        function updatePitch(mouse) {
-                            const point = mapToItem(graph, mouse.x, mouse.y);
-                            root.hoveredPoint = index;
-                            root.updatePitchAt(index, point.y);
-                            root.showHud(point.x + 14, point.y - 40, root.pitchTextAt(index));
                         }
                     }
                 }
@@ -856,6 +1171,11 @@ Item {
                 if ((event.modifiers & Qt.ControlModifier) !== 0) {
                     const factor = event.angleDelta.y > 0 ? 1.15 : 1 / 1.15;
                     root.moraWidth = Math.max(32, Math.min(192, root.moraWidth * factor));
+                } else if ((event.modifiers & Qt.ShiftModifier) !== 0) {
+                    const delta = event.angleDelta.y !== 0 ? event.angleDelta.y
+                                                           : event.angleDelta.x;
+                    if (delta !== 0)
+                        root.zoomVertical(delta > 0 ? 1.25 : 1 / 1.25);
                 } else {
                     const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x;
                     const maximum = Math.max(0, viewport.contentWidth - viewport.width);
@@ -877,15 +1197,105 @@ Item {
         }
     }
 
-    onPointsChanged: canvas.requestPaint()
+    // 文字入力中はキー操作を奪わない。
+    readonly property bool keyboardActive: {
+        if (!root.activeFocus)
+            return false;
+        let item = Window.activeFocusItem;
+        while (item) {
+            if (item instanceof TextInput || item instanceof TextEdit)
+                return false;
+            item = item.parent;
+        }
+        return true;
+    }
+
+    // Delete は発話削除のショートカットと競合する。点を選んでいるときだけ編集側が受け取る。
+    Keys.onShortcutOverride: event => {
+        if (root.keyboardActive && root.selectedPoints.length > 0
+                && (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace))
+            event.accepted = true;
+    }
+
+    Keys.onPressed: event => {
+        if (!root.keyboardActive)
+            return;
+        const shift = (event.modifiers & Qt.ShiftModifier) !== 0;
+        const control = (event.modifiers & Qt.ControlModifier) !== 0;
+        switch (event.key) {
+        case Qt.Key_Left:
+            if (shift ? root.extendSelection(-1) : root.stepSelection(-1))
+                event.accepted = true;
+            return;
+        case Qt.Key_Right:
+            if (shift ? root.extendSelection(1) : root.stepSelection(1))
+                event.accepted = true;
+            return;
+        case Qt.Key_Up:
+            root.nudgeSelectedPitch(shift ? root.fineStepCents : root.keyboardStepCents);
+            event.accepted = true;
+            return;
+        case Qt.Key_Down:
+            root.nudgeSelectedPitch(shift ? -root.fineStepCents : -root.keyboardStepCents);
+            event.accepted = true;
+            return;
+        case Qt.Key_Delete:
+        case Qt.Key_Backspace:
+            root.resetSelectedPoints();
+            event.accepted = true;
+            return;
+        case Qt.Key_A:
+            if (control) {
+                root.selectAllPoints();
+                event.accepted = true;
+            }
+            return;
+        case Qt.Key_Escape:
+            root.clearSelection();
+            event.accepted = true;
+            return;
+        case Qt.Key_S:
+            if (!control) {
+                root.snapEnabled = !root.snapEnabled;
+                event.accepted = true;
+            }
+            return;
+        case Qt.Key_Plus:
+        case Qt.Key_Equal:
+            root.zoomVertical(1.25);
+            event.accepted = true;
+            return;
+        case Qt.Key_Minus:
+            root.zoomVertical(1 / 1.25);
+            event.accepted = true;
+            return;
+        case Qt.Key_0:
+            root.verticalZoom = 1;
+            event.accepted = true;
+            return;
+        }
+    }
+
+    onPointsChanged: {
+        // 点が減ったら選択から外す。
+        if (root.selectedPoints.length)
+            root.setSelectedPoints(root.selectedPoints);
+        canvas.requestPaint();
+    }
     onAutoPointsChanged: canvas.requestPaint()
     onAccentColorChanged: canvas.requestPaint()
     onAxisColorChanged: canvas.requestPaint()
     onGridColorChanged: canvas.requestPaint()
-    onMoraeChanged: canvas.requestPaint()
+    onMoraeChanged: {
+        if (root.selectedPoints.length)
+            root.setSelectedPoints(root.selectedPoints);
+        canvas.requestPaint();
+    }
     onMoraDurationsChanged: canvas.requestPaint()
     onMoraPositionsChanged: canvas.requestPaint()
     onMoraWidthChanged: canvas.requestPaint()
     onDefaultMoraDurationChanged: canvas.requestPaint()
     onDefaultPauseDurationChanged: canvas.requestPaint()
+    onSelectedPointsChanged: canvas.requestPaint()
+    onVerticalZoomChanged: canvas.requestPaint()
 }
