@@ -96,6 +96,7 @@
     "main.openWithoutSaving": "Abrir sem salvar",
     "main.projectFilter": "Projeto do UtauTTS (*.utautts)",
     "main.projectLoadError": "Não foi possível carregar o arquivo de projeto",
+    "main.projectNameTitle": "Nome do projeto",
     "main.projectNoUtterances": "O arquivo de projeto não contém frases",
     "main.projectOpenConfirmTitle": "Confirmar antes de abrir",
     "main.projectOpenErrorTitle": "Não é possível abrir o projeto",

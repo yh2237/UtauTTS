@@ -96,6 +96,7 @@
     "main.openWithoutSaving": "Open Without Saving",
     "main.projectFilter": "UtauTTS Project (*.utautts)",
     "main.projectLoadError": "Failed to load the project file",
+    "main.projectNameTitle": "Project name",
     "main.projectNoUtterances": "The project file contains no utterances",
     "main.projectOpenConfirmTitle": "Confirm Before Opening",
     "main.projectOpenErrorTitle": "Cannot Open Project",

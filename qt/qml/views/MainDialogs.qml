@@ -13,6 +13,7 @@ Item {
     property alias voicebankAddDialog : voicebankAddDialog
     property alias frameRateDialog : frameRateDialog
     property alias projectSaveDialog : projectSaveDialog
+    property alias projectNameDialog : projectNameDialog
     property alias ustxExportFileDialog : ustxExportFileDialog
     property alias projectOpenDialog : projectOpenDialog
     property alias diagnosticSaveDialog : diagnosticSaveDialog
@@ -109,6 +110,45 @@ Item {
         defaultSuffix: "utautts"
         onAccepted: host.saveProjectTo(selectedFile)
         onRejected: host.cancelProjectSave()
+    }
+
+    // Web版は保存先を選べないため、保存名だけを決める。
+    Dialog {
+        id: projectNameDialog
+        title: root.host.translator.tr("main.projectNameTitle")
+        modal: true
+        width: Math.min(root.host.width - 40, 400)
+        anchors.centerIn: Overlay.overlay
+        closePolicy: Popup.CloseOnEscape
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        property alias projectName: projectNameField.text
+        onOpened: {
+            projectNameField.forceActiveFocus();
+            projectNameField.selectAll();
+        }
+        onAccepted: root.host.saveProjectAsNamed(projectNameField.text)
+
+        contentItem: ColumnLayout {
+            spacing: 8
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                TextField {
+                    id: projectNameField
+                    Layout.fillWidth: true
+                    placeholderText: root.host.translator.tr("main.untitled")
+                    selectByMouse: true
+                    onAccepted: projectNameDialog.accept()
+                }
+
+                Label {
+                    text: ".utautts"
+                    color: root.host.mutedText
+                }
+            }
+        }
     }
 
     FileDialog {
@@ -443,9 +483,9 @@ Item {
 
     Dialog {
         id: metadataReloadDialog
-        title: host.translator.tr("metadata.loading." + host.metadataReloadStage)
+        title: root.host.translator.tr("metadata.loading." + root.host.metadataReloadStage)
         modal: true
-        width: Math.min(host.width - 40, 440)
+        width: Math.min(root.host.width - 40, 440)
         anchors.centerIn: Overlay.overlay
         closePolicy: Popup.NoAutoClose
         standardButtons: Dialog.NoButton
@@ -455,8 +495,8 @@ Item {
 
             ProgressBar {
                 Layout.fillWidth: true
-                indeterminate: host.metadataReloadStage !== "referenceIndex"
-                value: host.appBackend.referenceIndexProgress
+                indeterminate: root.host.metadataReloadStage !== "referenceIndex"
+                value: root.host.appBackend.referenceIndexProgress
             }
         }
     }

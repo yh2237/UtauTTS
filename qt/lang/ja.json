@@ -96,6 +96,7 @@
     "main.openWithoutSaving": "保存せずに開く",
     "main.projectFilter": "UtauTTSプロジェクト (*.utautts)",
     "main.projectLoadError": "プロジェクトファイルを読み込めませんでした",
+    "main.projectNameTitle": "プロジェクト名",
     "main.projectNoUtterances": "プロジェクトファイルにセリフデータがありません",
     "main.projectOpenConfirmTitle": "プロジェクトを開く前に確認",
     "main.projectOpenErrorTitle": "プロジェクトを開けません",

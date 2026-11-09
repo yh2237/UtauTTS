@@ -96,6 +96,7 @@
     "main.openWithoutSaving": "저장하지 않고 열기",
     "main.projectFilter": "UtauTTS 프로젝트 (*.utautts)",
     "main.projectLoadError": "프로젝트 파일을 불러오지 못했습니다",
+    "main.projectNameTitle": "프로젝트 이름",
     "main.projectNoUtterances": "프로젝트 파일에 대사 데이터가 없습니다",
     "main.projectOpenConfirmTitle": "프로젝트를 열기 전 확인",
     "main.projectOpenErrorTitle": "프로젝트를 열 수 없음",

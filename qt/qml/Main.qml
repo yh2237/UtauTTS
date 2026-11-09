@@ -87,6 +87,8 @@ ApplicationWindow {
     property bool updateSuppressVersion: false
     property bool metadataReloadActive: false
     property string metadataReloadStage: "voicebanks"
+    // 索引の作成中ダイアログは、作成が始まったときだけ開く。閉じたあとは開き直さない。
+    property bool referenceIndexDialogShown: false
     property string referenceIndexPreviewUtteranceId: ""
     property int referenceIndexPreviewRevision: -1
     property string referenceIndexRetriedUtteranceId: ""
@@ -588,11 +590,12 @@ ApplicationWindow {
 
         function onReferenceIndexChanged() {
             if (window.appBackend.referenceIndexBuilding) {
-                window.metadataReloadStage = "referenceIndex";
-                dialogs.metadataReloadDialog.open();
-            } else if (window.metadataReloadStage === "referenceIndex" && !window.metadataReloadActive) {
-                dialogs.metadataReloadDialog.close();
+                window.showReferenceIndexDialog();
+                return;
             }
+            window.referenceIndexDialogShown = false;
+            if (window.metadataReloadStage === "referenceIndex" && !window.metadataReloadActive)
+                dialogs.metadataReloadDialog.close();
         }
 
         function onMetadataChanged() {
@@ -1305,14 +1308,32 @@ ApplicationWindow {
     function openProjectSaveDialog() {
         if (window.appBackend.busy || window.batchExportActive)
             return;
-        const destination = window.projectFile.toString().length
-                ? window.projectFile : window.appBackend.defaultSaveFile("untitled.utautts");
         if (Platform.hasNativeFileDialog) {
+            const destination = window.projectFile.toString().length
+                    ? window.projectFile : window.appBackend.defaultSaveFile("untitled.utautts");
             dialogs.projectSaveDialog.currentFile = destination;
             dialogs.projectSaveDialog.open();
-        } else {
-            window.saveProjectTo(destination);
+            return;
         }
+        // Web版は保存先を選べないため、名前を決めてからダウンロードする。
+        dialogs.projectNameDialog.projectName = window.projectNameWithoutSuffix();
+        dialogs.projectNameDialog.open();
+    }
+
+    // projectNameWithoutSuffixは、保存名の入力欄に出す名前を返す。
+    function projectNameWithoutSuffix() {
+        const name = window.projectDisplayName;
+        return name.toLowerCase().endsWith(".utautts") ? name.slice(0, -8) : name;
+    }
+
+    // saveProjectAsNamedは、Web版の保存名から保存先を作る。ファイル名に使えない文字は置き換える。
+    function saveProjectAsNamed(name) {
+        let base = String(name || "").replace(/[\\/:*?"<>|]/g, "_").trim();
+        if (base.toLowerCase().endsWith(".utautts"))
+            base = base.slice(0, -8).trim();
+        if (!base.length)
+            base = window.translator.tr("main.untitled");
+        window.saveProjectTo(window.appBackend.defaultSaveFile(base + ".utautts"));
     }
 
     function saveCurrentProject() {
@@ -2545,9 +2566,17 @@ ApplicationWindow {
         const item = utterances.get(index);
         window.referenceIndexPreviewUtteranceId = item.utteranceId;
         window.referenceIndexPreviewRevision = item.revision;
-        window.metadataReloadStage = "referenceIndex";
-        dialogs.metadataReloadDialog.open();
+        window.showReferenceIndexDialog();
         referenceIndexPreviewTimer.restart();
+    }
+
+    // 索引の作成中ダイアログは、作成が始まったときだけ開く。
+    function showReferenceIndexDialog() {
+        window.metadataReloadStage = "referenceIndex";
+        if (window.referenceIndexDialogShown)
+            return;
+        window.referenceIndexDialogShown = true;
+        dialogs.metadataReloadDialog.open();
     }
 
     function requestProsodyPreview(index) {
@@ -2683,8 +2712,8 @@ ApplicationWindow {
         if (dragExportSucceeded && files.length) {
             window.dragExportFiles = window.dragFilesWithExo(files);
             window.dragExportReady = true;
-            if (dragTargetWindow)
-                window.showAuxiliaryWindow(dragTargetWindow);
+            if (dragTargetWindowLoader.item)
+                window.showAuxiliaryWindow(dragTargetWindowLoader.item);
         } else if (!success && wasDragExport) {
             window.dragExportReady = false;
         }

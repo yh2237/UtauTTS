@@ -27,9 +27,11 @@
     const notice = document.getElementById("notice");
     if (!notice) return;
     notice.textContent = "";
-    const message = document.createElement("div");
-    message.textContent = text;
-    notice.appendChild(message);
+    for (const line of Array.isArray(text) ? text : [text]) {
+      const message = document.createElement("div");
+      message.textContent = line;
+      notice.appendChild(message);
+    }
     if (actions && actions.length) {
       const row = document.createElement("div");
       row.className = "actions";
@@ -50,6 +52,47 @@
     const notice = document.getElementById("notice");
     if (notice) notice.classList.add("hidden");
   }
+
+  // 辞書とWORLDの読み込みはQtの起動後に始まる。画面が出たあとも、
+  // 状態が変わる間だけ小さく出す。2秒変わらなければ終わったとみなす。
+  let uiLoaded = false;
+  let engineStatus = "";
+  let engineStatusStrip = null;
+  let engineStatusTimer = null;
+
+  function showEngineStatus(text) {
+    if (!engineStatusStrip) {
+      engineStatusStrip = document.createElement("div");
+      engineStatusStrip.style.cssText = "position:absolute;left:50%;"
+        + "bottom:calc(12px + env(safe-area-inset-bottom));transform:translateX(-50%);"
+        + "max-width:calc(100% - 32px);padding:6px 12px;border-radius:6px;"
+        + "background:rgba(32,33,36,.86);color:#fff;font-size:12px;z-index:15;"
+        + "pointer-events:none;";
+      document.body.appendChild(engineStatusStrip);
+    }
+    engineStatusStrip.textContent = text;
+    engineStatusStrip.style.display = "block";
+    clearTimeout(engineStatusTimer);
+    engineStatusTimer = setTimeout(() => {
+      engineStatusStrip.style.display = "none";
+    }, 2000);
+  }
+
+  // エンジンの状態は、読み込み画面では#statusに、画面が出たあとは下部に出す。
+  Object.defineProperty(window, "utauttsEngineStatus", {
+    configurable: true,
+    get: () => engineStatus,
+    set: value => {
+      engineStatus = String(value || "");
+      if (!engineStatus) return;
+      if (uiLoaded) {
+        showEngineStatus(engineStatus);
+        return;
+      }
+      const status = document.getElementById("status");
+      if (status) status.textContent = engineStatus;
+    },
+  });
 
   function readAutosave() {
     try {
@@ -173,15 +216,6 @@
     const setStatus = text => {
       status.textContent = text;
     };
-    // エンジン側の状態が変わったときだけ上書きし、読み込み率を消さない。
-    let lastEngineStatus = "";
-    const statusTimer = setInterval(() => {
-      const engineStatus = window.utauttsEngineStatus || "";
-      if (engineStatus && engineStatus !== lastEngineStatus) {
-        lastEngineStatus = engineStatus;
-        status.textContent = engineStatus;
-      }
-    }, 200);
     let timeout;
     try {
       const uiModule = loadUiModule(ratio => {
@@ -208,7 +242,6 @@
         }),
       ]);
       clearTimeout(timeout);
-      clearInterval(statusTimer);
       setStatus("UIを起動中…");
       const qtInstance = await qtLoad({
         locateFile: file => paths.asset(file),
@@ -216,6 +249,7 @@
           module: uiModule,
           fontDpi: 96,
           onLoaded: () => {
+            uiLoaded = true;
             loading.classList.add("hidden");
             // QMLが要求を受け取れるようになるまで少し待つ。
             setTimeout(offerRestore, 800);
@@ -238,7 +272,6 @@
         window.utauttsFlushPendingResults();
     } catch (error) {
       clearTimeout(timeout);
-      clearInterval(statusTimer);
       setStatus("エラー: " + error);
       console.error(error);
     }
