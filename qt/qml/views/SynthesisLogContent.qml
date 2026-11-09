@@ -10,13 +10,19 @@ ColumnLayout {
     required property var translator
     signal closeRequested()
 
+    // 成否はbackend.errorで判断する。合成を始めるときに消える。
+    readonly property bool failed: !content.backend.busy && content.backend.error.length > 0
+
     Label {
         Layout.fillWidth: true
         visible: content.backend.busy || content.backend.logLines.length > 0
         text: content.backend.busy
               ? content.translator.tr("log.synthesizing")
-              : content.translator.tr("log.completed")
+              : content.failed ? content.translator.tr("log.failed")
+                               : content.translator.tr("log.completed")
+        color: content.failed ? "#b42318" : content.palette.text
         font.bold: true
+        wrapMode: Text.Wrap
     }
 
     ScrollView {

@@ -58,6 +58,7 @@ ApplicationWindow {
     readonly property bool intonationLab: injectedIntonationLab
     readonly property bool mobileLayout: Platform.isMobile && !window.intonationLab
     onWidthChanged: Platform.updateViewportWidth(width)
+    onPlaybackErrorChanged: window.errorBannerDismissed = false
     onMobileLayoutChanged: {
         if (!mobileLayout && window.showOnboarding && onboardingWindowLoader)
             onboardingWindowLoader.active = true;
@@ -142,6 +143,12 @@ ApplicationWindow {
         id: batchExportNoticeTimer
         interval: 5000
         onTriggered: window.batchExportNotice = ""
+    }
+
+    Timer {
+        id: statusNoticeTimer
+        interval: 5000
+        onTriggered: window.statusNotice = ""
     }
 
     Timer {
@@ -236,6 +243,16 @@ ApplicationWindow {
     property bool batchExportWithSidecars: false
     property bool playbackRequested: false
     property string playbackError: ""
+    // 画面上部のエラーバナー。閉じたあとは同じエラーでは開き直さない。
+    property bool errorBannerDismissed: false
+    readonly property string errorBannerText: window.errorBannerDismissed ? ""
+                                             : window.appBackend.error.length ? window.appBackend.error
+                                             : window.playbackError
+    // 窓の下端に出す短い通知。書き出しの完了などに使う。
+    property string statusNotice: ""
+    readonly property string footerNotice: window.batchExportNotice.length > 0
+                                           ? window.translator.tr(window.batchExportNotice)
+                                           : window.statusNotice
     property bool batchExportActive: false
     property string batchAnalysisUtteranceId: ""
     property int batchExportIndex: -1
@@ -645,6 +662,7 @@ ApplicationWindow {
 
         function onErrorChanged() {
             if (window.appBackend.error.length) {
+                window.errorBannerDismissed = false;
                 window.pendingProsodyInFlight = false;
                 window.pendingProsodyUtteranceId = "";
                 referenceIndexPreviewTimer.stop();
@@ -811,9 +829,9 @@ ApplicationWindow {
         visible: window.mobileLayout
     }
 
-    // 一括書き出しの進み具合と中止、終わったことを窓の下端に出す。
+    // 一括書き出しの進み具合と中止、書き出しの結果を窓の下端に出す。
     footer: Rectangle {
-        visible: window.batchExportActive || window.batchExportNotice.length > 0
+        visible: window.batchExportActive || window.footerNotice.length > 0
         height: visible ? 48 : 0
         color: window.palette.alternateBase
 
@@ -846,9 +864,64 @@ ApplicationWindow {
                 onClicked: window.cancelBatchExport()
             }
             Label {
+                id: footerNoticeLabel
                 Layout.fillWidth: true
-                visible: !window.batchExportActive && window.batchExportNotice.length > 0
-                text: window.translator.tr(window.batchExportNotice)
+                visible: !window.batchExportActive && window.footerNotice.length > 0
+                text: window.footerNotice
+                elide: Text.ElideMiddle
+                ToolTip.visible: footerNoticeHover.hovered && footerNoticeLabel.truncated
+                ToolTip.text: footerNoticeLabel.text
+
+                HoverHandler {
+                    id: footerNoticeHover
+                }
+            }
+        }
+    }
+
+    // 合成の失敗などは画面上部のバナーに出す。詳細はログ、閉じるで消す。
+    Rectangle {
+        id: errorBanner
+        objectName: "errorBanner"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: visible ? errorBannerLayout.implicitHeight + 16 : 0
+        visible: window.errorBannerText.length > 0
+        color: window.darkMode ? "#4a1d18" : "#fdecea"
+        border.color: "#b42318"
+        z: 900
+
+        RowLayout {
+            id: errorBannerLayout
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 8
+            spacing: 8
+
+            Label {
+                Layout.fillWidth: true
+                text: window.errorBannerText
+                color: window.darkMode ? "#f6c9c4" : "#7a1c14"
+                wrapMode: Text.Wrap
+                maximumLineCount: 3
+                elide: Text.ElideRight
+            }
+
+            Button {
+                // モバイルにはログの窓が無いため、詳細はバナーの本文で伝える。
+                visible: !window.mobileLayout
+                text: window.translator.tr("main.error.showLog")
+                onClicked: window.showLogWindow()
+            }
+
+            ToolButton {
+                text: "✕"
+                Accessible.name: window.translator.tr("common.close")
+                ToolTip.visible: hovered
+                ToolTip.text: window.translator.tr("common.close")
+                onClicked: window.dismissErrorBanner()
             }
         }
     }
@@ -1199,6 +1272,31 @@ ApplicationWindow {
         window.appBackend.clearLogs();
         window.showLogWindow();
         window.appBackend.synthesize(window.buildSynthesisRequest(item));
+    }
+
+    // WAVの保存は成否を窓の下端に出す。失敗の理由はバナーとログに出る。
+    function saveAudioTo(destination, withSidecars) {
+        if (!destination || !destination.toString().length)
+            return false;
+        if (window.appBackend.savePreview(destination, withSidecars === true)) {
+            window.showStatusNotice(window.translator.tr("main.saveWavDone",
+                                                         window.displayPath(destination)));
+            return true;
+        }
+        window.errorBannerDismissed = false;
+        return false;
+    }
+
+    function showStatusNotice(text) {
+        window.statusNotice = String(text || "");
+        if (window.statusNotice.length)
+            statusNoticeTimer.restart();
+        else
+            statusNoticeTimer.stop();
+    }
+
+    function dismissErrorBanner() {
+        window.errorBannerDismissed = true;
     }
 
     function openSaveAllDialog(withSidecars) {

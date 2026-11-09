@@ -35,7 +35,7 @@ Item {
         fileMode: FileDialog.SaveFile
         nameFilters: [host.translator.tr("main.wavFilter")]
         defaultSuffix: "wav"
-        onAccepted: host.appBackend.savePreview(selectedFile, host.saveWithSidecars)
+        onAccepted: host.saveAudioTo(selectedFile, host.saveWithSidecars)
     }
 
     FolderDialog {

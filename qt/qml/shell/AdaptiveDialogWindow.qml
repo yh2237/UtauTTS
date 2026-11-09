@@ -11,6 +11,8 @@ ApplicationWindow {
     property int dialogWidth: 720
     property int dialogHeight: 540
     property bool centerInHost: false
+    // 合成ログのように、開いたまま本体を操作したい窓はfalseにする。
+    property bool applicationModal: true
     readonly property bool compact: Platform.isWeb && Platform.isMobile
     width: dialogWidth
     height: dialogHeight
@@ -19,7 +21,7 @@ ApplicationWindow {
     minimumHeight: dialogHeight
     maximumHeight: dialogHeight
     transientParent: hostWindow
-    modality: Qt.ApplicationModal
+    modality: root.applicationModal ? Qt.ApplicationModal : Qt.NonModal
     flags: Platform.isWeb ? Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint : Qt.Dialog
 
     // 非表示のwasm窓にはハンドルがなく、サイズ更新で削除済みDOMへの参照が残りうる。

@@ -162,7 +162,7 @@ function handlePreviewReady(ctx) {
             ctx.saveDialog.currentFile = audioDestination;
             ctx.saveDialog.open();
         } else {
-            host.appBackend.savePreview(audioDestination, host.saveWithSidecars);
+            host.saveAudioTo(audioDestination, host.saveWithSidecars);
         }
         return;
     }

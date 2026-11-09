@@ -16,6 +16,8 @@ AdaptiveDialogWindow {
     visible: false
     dialogWidth: 720
     dialogHeight: 420
+    // 合成中に閉じても合成は続く。本体は操作できるままにする。
+    applicationModal: false
     palette: hostPalette
     color: palette.window
 
