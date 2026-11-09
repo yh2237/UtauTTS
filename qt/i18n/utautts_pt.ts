@@ -5,12 +5,12 @@
     <name>Backend</name>
     <message>
         <location filename="../src/backend.cpp" line="+735"/>
-        <location line="+1210"/>
+        <location line="+1209"/>
         <source>設定を保存できませんでした: %1</source>
         <translation>Não foi possível salvar as configurações: %1</translation>
     </message>
     <message>
-        <location line="-782"/>
+        <location line="-781"/>
         <source>About UtauTTS</source>
         <translation>Sobre o UtauTTS</translation>
     </message>
@@ -113,7 +113,7 @@ Atualize manualmente pela página da versão ou tente novamente mais tarde.</tra
         <translation>Não foi possível iniciar o atualizador.</translation>
     </message>
     <message>
-        <location line="+371"/>
+        <location line="+370"/>
         <source>索引を削除できませんでした</source>
         <translation>Não foi possível excluir o índice</translation>
     </message>
@@ -134,12 +134,12 @@ Atualize manualmente pela página da versão ou tente novamente mais tarde.</tra
     </message>
     <message>
         <location line="+56"/>
-        <location line="+411"/>
+        <location line="+414"/>
         <source>使用デバイス: %1</source>
         <translation>Dispositivo: %1</translation>
     </message>
     <message>
-        <location line="-400"/>
+        <location line="-403"/>
         <source>索引を作成中: %1%</source>
         <translation>Criando índice: %1%</translation>
     </message>
@@ -172,18 +172,19 @@ Atualize manualmente pela página da versão ou tente novamente mais tarde.</tra
         <translation>O formato do arquivo de configurações não é válido</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+99"/>
         <location line="+3"/>
         <source>音源のZIPを選択できませんでした</source>
         <translation>Não foi possível selecionar o ZIP do voicebank</translation>
     </message>
     <message>
         <location line="+32"/>
+        <location line="+899"/>
         <source>音源のZIPが選択されていません</source>
         <translation>Nenhum ZIP de voicebank foi selecionado</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="-892"/>
         <source>音源を追加しています...</source>
         <translation>Adicionando voicebanks...</translation>
     </message>
@@ -193,7 +194,7 @@ Atualize manualmente pela página da versão ou tente novamente mais tarde.</tra
         <translation>Não foi possível adicionar o voicebank: %1</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+6"/>
         <source>音源を追加しました。</source>
         <translation>Voicebank adicionado.</translation>
     </message>
@@ -209,23 +210,23 @@ Atualize manualmente pela página da versão ou tente novamente mais tarde.</tra
     </message>
     <message>
         <location line="+17"/>
-        <location line="+609"/>
+        <location line="+607"/>
         <source>音声合成を開始しました: %1</source>
         <translation>Síntese iniciada: %1</translation>
     </message>
     <message>
-        <location line="-605"/>
-        <location line="+28"/>
+        <location line="-603"/>
+        <location line="+27"/>
         <source>方式: %1</source>
         <translation>Método: %1</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-18"/>
         <source>音声合成に失敗しました: %1</source>
         <translation>Falha na síntese: %1</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+22"/>
         <source>音声合成が完了しました。</source>
         <translation>Síntese concluída.</translation>
     </message>
@@ -310,7 +311,7 @@ Atualize manualmente pela página da versão ou tente novamente mais tarde.</tra
         <translation>O destino do USTX é inválido</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+30"/>
         <source>プロジェクトファイルの形式が正しくありません</source>
         <translation>O formato do arquivo de projeto não é válido</translation>
     </message>
@@ -349,6 +350,151 @@ Atualize manualmente pela página da versão ou tente novamente mais tarde.</tra
         <location line="+118"/>
         <source>診断情報を書き出せませんでした: %1</source>
         <translation>Não foi possível exportar o diagnóstico: %1</translation>
+    </message>
+    <message>
+        <location line="-1331"/>
+        <source>エンジンを非同期で呼び出せません</source>
+        <translation>Não foi possível chamar o motor de forma assíncrona</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>エンジンの応答を読み取れませんでした</source>
+        <translation>Não foi possível ler a resposta do motor</translation>
+    </message>
+    <message>
+        <location line="+255"/>
+        <source>音源フォルダを作成できませんでした</source>
+        <translation>Não foi possível criar a pasta de voicebanks</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>音源フォルダを開けませんでした</source>
+        <translation>Não foi possível abrir a pasta de voicebanks</translation>
+    </message>
+    <message>
+        <location line="+1096"/>
+        <source>テキストを入力してください</source>
+        <translation>Digite um texto</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>テキストまたは読みを入力してください</source>
+        <translation>Digite um texto ou uma leitura</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>テキストが入力されていません</source>
+        <translation>Nenhum texto foi inserido</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>出力先が指定されていません</source>
+        <translation>O destino de saída não foi definido</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>言語が指定されていません</source>
+        <translation>O idioma não foi definido</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>音源が選択されていません</source>
+        <translation>Nenhum voicebank foi selecionado</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>合成方法が指定されていません</source>
+        <translation>O método de síntese não foi definido</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>合成方法「%1」は使えません</source>
+        <translation>O método de síntese &quot;%1&quot; não está disponível</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>音源が見つかりません</source>
+        <translation>O voicebank não foi encontrado</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>音源フォルダが設定されていません</source>
+        <translation>A pasta de voicebanks não está configurada</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>モデルの一覧を読み込めていません</source>
+        <translation>A lista de modelos não foi carregada</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>音源に oto.ini がありません</source>
+        <translation>O voicebank não tem oto.ini</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>抑揚モデル「%1」は廃止されました。「%2」を使ってください</source>
+        <translation>O modelo de entonação &quot;%1&quot; foi descontinuado. Use &quot;%2&quot;</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>抑揚モデル「%1」が見つかりません</source>
+        <translation>O modelo de entonação &quot;%1&quot; não foi encontrado</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>参照合成のモデルが models/%1 にありません</source>
+        <translation>Os modelos de síntese de referência não estão em models/%1</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>参照TTS「%1」がインストールされていません</source>
+        <translation>O TTS de referência &quot;%1&quot; não está instalado</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 では参照合成を使えません</source>
+        <translation>A síntese de referência não está disponível para %1</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>音源のZIPを開けませんでした: %1</source>
+        <translation>Não foi possível abrir o ZIP do voicebank: %1</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>音源のZIPが空です</source>
+        <translation>O ZIP do voicebank está vazio</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>音源のフォルダ名を決められませんでした</source>
+        <translation>Não foi possível determinar o nome da pasta do voicebank</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>音声が生成されませんでした</source>
+        <translation>Nenhum áudio foi gerado</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>合成を中止しました</source>
+        <translation>A síntese foi cancelada</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>参照索引を作成中です</source>
+        <translation>Criando o índice de referência</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>未翻訳のエラー: %1</source>
+        <translation>Erro não traduzido: %1</translation>
+    </message>
+    <message>
+        <location line="-2408"/>
+        <source>起動時の移行状態を保存できませんでした</source>
+        <translation>Não foi possível salvar o estado de migração da inicialização</translation>
     </message>
 </context>
 </TS>

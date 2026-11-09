@@ -180,7 +180,8 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
         timer.start(asyncTimeoutMS);
         loop.exec();
     }
-    if (!require(!backend.busy() && backend.error().startsWith(QStringLiteral("open voicebank archive:")),
+    // エラー文は表示言語に翻訳されるため、翻訳されないGo側の詳細で判定する。
+    if (!require(!backend.busy() && backend.error().contains(QStringLiteral("not a valid zip file")),
                  QStringLiteral("voicebank archive error was not returned: ") + backend.error()))
         return 1;
 

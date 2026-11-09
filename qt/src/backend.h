@@ -8,6 +8,7 @@
 #endif
 #include <QHash>
 #include <QList>
+#include <QSet>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QUrl>
@@ -273,6 +274,9 @@ private:
     void refreshMetadata();
     void setBusy(bool value);
     void setError(const QString &value);
+    // Goエンジンは英語のメッセージだけを返すため、既知のものを訳す。
+    QString translateEngineError(const QString &message);
+    QString setEngineError(const QVariantMap &result);
     void reportSettingsStatus(QSettings &settings);
     void runStartupMigrations();
     QByteArray previewCacheKey(const QVariantMap &request) const;
@@ -360,6 +364,8 @@ private:
     QStringList m_recentProjects;
     QStringList m_logLines;
     QString m_settingsError;
+    // 訳せなかったエラーを毎回ログに出さないための控え。
+    QSet<QString> m_loggedEngineErrors;
     QNetworkAccessManager *m_updateNetwork = nullptr;
     QNetworkReply *m_updateReply = nullptr;
     QFile *m_updateFile = nullptr;

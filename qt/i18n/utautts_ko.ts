@@ -5,12 +5,12 @@
     <name>Backend</name>
     <message>
         <location filename="../src/backend.cpp" line="+735"/>
-        <location line="+1210"/>
+        <location line="+1209"/>
         <source>設定を保存できませんでした: %1</source>
         <translation>설정을 저장하지 못했습니다: %1</translation>
     </message>
     <message>
-        <location line="-782"/>
+        <location line="-781"/>
         <source>About UtauTTS</source>
         <translation>UtauTTS 정보</translation>
     </message>
@@ -113,7 +113,7 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
         <translation>업데이터를 실행하지 못했습니다.</translation>
     </message>
     <message>
-        <location line="+371"/>
+        <location line="+370"/>
         <source>索引を削除できませんでした</source>
         <translation>색인을 삭제하지 못했습니다</translation>
     </message>
@@ -134,12 +134,12 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
     </message>
     <message>
         <location line="+56"/>
-        <location line="+411"/>
+        <location line="+414"/>
         <source>使用デバイス: %1</source>
         <translation>사용 장치: %1</translation>
     </message>
     <message>
-        <location line="-400"/>
+        <location line="-403"/>
         <source>索引を作成中: %1%</source>
         <translation>색인 생성 중: %1%</translation>
     </message>
@@ -172,18 +172,19 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
         <translation>설정 파일의 형식이 올바르지 않습니다</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+99"/>
         <location line="+3"/>
         <source>音源のZIPを選択できませんでした</source>
         <translation>음원 ZIP을 선택하지 못했습니다</translation>
     </message>
     <message>
         <location line="+32"/>
+        <location line="+899"/>
         <source>音源のZIPが選択されていません</source>
         <translation>음원 ZIP이 선택되지 않았습니다</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="-892"/>
         <source>音源を追加しています...</source>
         <translation>음원을 추가하는 중...</translation>
     </message>
@@ -193,7 +194,7 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
         <translation>음원을 추가하지 못했습니다: %1</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+6"/>
         <source>音源を追加しました。</source>
         <translation>음원을 추가했습니다.</translation>
     </message>
@@ -209,23 +210,23 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
     </message>
     <message>
         <location line="+17"/>
-        <location line="+609"/>
+        <location line="+607"/>
         <source>音声合成を開始しました: %1</source>
         <translation>음성 합성을 시작했습니다: %1</translation>
     </message>
     <message>
-        <location line="-605"/>
-        <location line="+28"/>
+        <location line="-603"/>
+        <location line="+27"/>
         <source>方式: %1</source>
         <translation>방식: %1</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-18"/>
         <source>音声合成に失敗しました: %1</source>
         <translation>음성 합성에 실패했습니다: %1</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+22"/>
         <source>音声合成が完了しました。</source>
         <translation>음성 합성이 끝났습니다.</translation>
     </message>
@@ -310,7 +311,7 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
         <translation>USTX 저장 위치가 올바르지 않습니다</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+30"/>
         <source>プロジェクトファイルの形式が正しくありません</source>
         <translation>프로젝트 파일 형식이 올바르지 않습니다</translation>
     </message>
@@ -349,6 +350,151 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
         <location line="+118"/>
         <source>診断情報を書き出せませんでした: %1</source>
         <translation>진단 정보를 내보내지 못했습니다: %1</translation>
+    </message>
+    <message>
+        <location line="-1331"/>
+        <source>エンジンを非同期で呼び出せません</source>
+        <translation>엔진을 비동기로 호출하지 못했습니다</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>エンジンの応答を読み取れませんでした</source>
+        <translation>엔진 응답을 읽지 못했습니다</translation>
+    </message>
+    <message>
+        <location line="+255"/>
+        <source>音源フォルダを作成できませんでした</source>
+        <translation>음원 폴더를 만들지 못했습니다</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>音源フォルダを開けませんでした</source>
+        <translation>음원 폴더를 열지 못했습니다</translation>
+    </message>
+    <message>
+        <location line="+1096"/>
+        <source>テキストを入力してください</source>
+        <translation>텍스트를 입력하세요</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>テキストまたは読みを入力してください</source>
+        <translation>텍스트 또는 읽기를 입력하세요</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>テキストが入力されていません</source>
+        <translation>텍스트가 입력되지 않았습니다</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>出力先が指定されていません</source>
+        <translation>출력 위치가 지정되지 않았습니다</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>言語が指定されていません</source>
+        <translation>언어가 지정되지 않았습니다</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>音源が選択されていません</source>
+        <translation>음원이 선택되지 않았습니다</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>合成方法が指定されていません</source>
+        <translation>합성 방식이 지정되지 않았습니다</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>合成方法「%1」は使えません</source>
+        <translation>합성 방식 &quot;%1&quot;은(는) 사용할 수 없습니다</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>音源が見つかりません</source>
+        <translation>음원을 찾을 수 없습니다</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>音源フォルダが設定されていません</source>
+        <translation>음원 폴더가 설정되지 않았습니다</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>モデルの一覧を読み込めていません</source>
+        <translation>모델 목록을 읽지 못했습니다</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>音源に oto.ini がありません</source>
+        <translation>음원에 oto.ini가 없습니다</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>抑揚モデル「%1」は廃止されました。「%2」を使ってください</source>
+        <translation>억양 모델 &quot;%1&quot;은(는) 폐지되었습니다. &quot;%2&quot;을(를) 사용하세요</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>抑揚モデル「%1」が見つかりません</source>
+        <translation>억양 모델 &quot;%1&quot;을(를) 찾을 수 없습니다</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>参照合成のモデルが models/%1 にありません</source>
+        <translation>models/%1에 참조 합성 모델이 없습니다</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>参照TTS「%1」がインストールされていません</source>
+        <translation>참조 TTS &quot;%1&quot;이(가) 설치되지 않았습니다</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 では参照合成を使えません</source>
+        <translation>%1에서는 참조 합성을 사용할 수 없습니다</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>音源のZIPを開けませんでした: %1</source>
+        <translation>음원 ZIP을 열지 못했습니다: %1</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>音源のZIPが空です</source>
+        <translation>음원 ZIP이 비어 있습니다</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>音源のフォルダ名を決められませんでした</source>
+        <translation>음원 폴더 이름을 정하지 못했습니다</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>音声が生成されませんでした</source>
+        <translation>음성이 생성되지 않았습니다</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>合成を中止しました</source>
+        <translation>합성을 중단했습니다</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>参照索引を作成中です</source>
+        <translation>참조 색인을 만드는 중입니다</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>未翻訳のエラー: %1</source>
+        <translation>번역되지 않은 오류: %1</translation>
+    </message>
+    <message>
+        <location line="-2408"/>
+        <source>起動時の移行状態を保存できませんでした</source>
+        <translation>시작 시 마이그레이션 상태를 저장하지 못했습니다</translation>
     </message>
 </context>
 </TS>

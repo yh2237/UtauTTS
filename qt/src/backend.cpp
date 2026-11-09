@@ -607,7 +607,7 @@ void Backend::runStartupMigrations() {
                       QCoreApplication::applicationVersion());
     settings.sync();
     if (settings.status() != QSettings::NoError) {
-        m_startupMigrationError = QStringLiteral("could not save startup migration state");
+        m_startupMigrationError = tr("起動時の移行状態を保存できませんでした");
     }
 }
 Backend::~Backend() {
@@ -1369,7 +1369,7 @@ void Backend::initialize() {
     try {
         const QVariantMap result = initializeNative(nativeConfigJSON(), nullptr);
         if (result.contains(QStringLiteral("_error"))) {
-            setError(result.value(QStringLiteral("_error")).toString());
+            setEngineError(result);
             return;
         }
         m_handle = static_cast<uintptr_t>(
@@ -1388,7 +1388,7 @@ void Backend::initialize() {
         else
             setError({});
     } catch (const std::exception &exception) {
-        setError(QString::fromUtf8(exception.what()));
+        setError(translateEngineError(QString::fromUtf8(exception.what())));
     }
 }
 void Backend::initializeAsync() {
@@ -1409,9 +1409,8 @@ void Backend::initializeAsync() {
                     callAsync("referenceProviders", {}, [this, voices, models, settings](const QVariantMap &providers) {
                         setBusy(false);
                         if (voices.contains("_error") || models.contains("_error") || settings.contains("_error")) {
-                            setError(voices.value("_error",
-                                                  models.value("_error",
-                                                               settings.value("_error"))).toString());
+                            setEngineError(voices.contains("_error") ? voices
+                                    : models.contains("_error") ? models : settings);
                         } else {
                             QVariantMap merged = settings;
                             merged.insert(QStringLiteral("reference_providers"),
@@ -1453,7 +1452,7 @@ void Backend::initializeAsync() {
     connect(watcher, &QFutureWatcher<QVariantMap>::finished, this, [this, watcher]() {
         const QVariantMap result = watcher->result();
         if (result.contains(QStringLiteral("_error"))) {
-            setError(result.value(QStringLiteral("_error")).toString());
+            setEngineError(result);
         } else {
             m_handle = static_cast<uintptr_t>(
                 result.value(QStringLiteral("_handle")).toULongLong());
@@ -1553,7 +1552,7 @@ void Backend::callAsync(const QByteArray &method, const QVariantMap &request,
         if (function.isUndefined()) {
             if (completed) {
                 completed(QVariantMap{{QStringLiteral("_error"),
-                                       QStringLiteral("async engine unavailable")}});
+                                       tr("エンジンを非同期で呼び出せません")}});
             }
             return;
         }
@@ -1587,7 +1586,7 @@ void Backend::handleWasmCallCompleted() {
     QVariantMap result;
     const QJsonDocument document = QJsonDocument::fromJson(json.toUtf8());
     if (!document.isObject()) {
-        result = {{QStringLiteral("_error"), QStringLiteral("invalid async engine response")}};
+        result = {{QStringLiteral("_error"), tr("エンジンの応答を読み取れませんでした")}};
     } else {
         const QJsonObject object = document.object();
         if (!object.value(QStringLiteral("ok")).toBool()) {
@@ -1646,7 +1645,7 @@ void Backend::refreshMetadataFromWasm() {
         refreshMetadata();
         emit metadataChanged();
     } catch (const std::exception &exception) {
-        setError(QString::fromUtf8(exception.what()));
+        setError(translateEngineError(QString::fromUtf8(exception.what())));
     }
 }
 
@@ -1676,7 +1675,7 @@ void Backend::reloadVoicebanks() {
     callAsync("reloadVoicebanks", {}, [this](const QVariantMap &result) {
         setBusy(false);
         if (result.contains("_error")) {
-            setError(result.value("_error").toString());
+            setEngineError(result);
         } else {
             clearPreviewCache();
             m_voicebanks = result.value("voicebanks").toList();
@@ -1689,7 +1688,7 @@ void Backend::reloadVoicebanks() {
 void Backend::refreshReferenceIndexes() {
     callAsync("listReferenceIndexes", {}, [this](const QVariantMap &result) {
         if (result.contains("_error")) {
-            setError(result.value("_error").toString());
+            setEngineError(result);
             return;
         }
         m_referenceIndexes = result.value("indexes").toList();
@@ -1704,7 +1703,7 @@ void Backend::deleteReferenceIndex(const QString &name) {
     setError({});
     callAsync("deleteReferenceIndex", {{"name", name}}, [this](const QVariantMap &result) {
         if (result.contains("_error")) {
-            setError(result.value("_error").toString());
+            setEngineError(result);
         } else if (!result.value("deleted").toBool()) {
             setError(tr("索引を削除できませんでした"));
         } else {
@@ -1726,7 +1725,7 @@ void Backend::buildReferenceIndex(const QString &voicebankId, const QString &col
     callAsync("buildReferenceIndex", {{"voicebank_id", voicebankId}, {"color", color}},
               [this](const QVariantMap &result) {
         if (result.contains("_error")) {
-            setError(result.value("_error").toString());
+            setEngineError(result);
         } else if (!result.value("started").toBool()) {
             setError(tr("索引の作成を開始できませんでした"));
         } else {
@@ -1742,7 +1741,7 @@ void Backend::checkReferenceIndexes() {
 #ifndef UTAUTTS_WASM
     callAsync("referenceIndexes", {}, [this](const QVariantMap &result) {
         if (result.contains("_error")) {
-            setError(result.value("_error").toString());
+            setEngineError(result);
             if (m_referenceIndexBuildPending) {
                 m_referenceIndexBuildPending = false;
                 if (!m_busy) {
@@ -1802,7 +1801,7 @@ void Backend::logIndexProgress() {
 #ifndef UTAUTTS_WASM
     callAsync("referenceIndexes", {}, [this](const QVariantMap &result) {
         if (result.contains("_error")) {
-            setError(result.value("_error").toString());
+            setEngineError(result);
             return;
         }
         const QString stage = result.value("stage").toString();
@@ -1842,12 +1841,12 @@ bool Backend::openVoiceDirectory() {
 #else
     const QDir voiceDirectory(resourceRoot().filePath(QStringLiteral("voice")));
     if (!voiceDirectory.exists() && !QDir().mkpath(voiceDirectory.absolutePath())) {
-        setError(QStringLiteral("Failed to create the voice directory."));
+        setError(tr("音源フォルダを作成できませんでした"));
         return false;
     }
     const bool opened = QDesktopServices::openUrl(QUrl::fromLocalFile(voiceDirectory.absolutePath()));
     if (!opened) {
-        setError(QStringLiteral("Failed to open the voice directory."));
+        setError(tr("音源フォルダを開けませんでした"));
         return false;
     }
     setError({});
@@ -1908,9 +1907,8 @@ void Backend::installVoicebankArchives(const QVariantList &archives) {
         [this](const QVariantMap &result) {
             setBusy(false);
             if (result.contains("_error")) {
-                const QString error = result.value("_error").toString();
+                const QString error = setEngineError(result);
                 appendLog(tr("音源を追加できませんでした: %1").arg(error));
-                setError(error);
                 return;
             }
             m_voicebanks = result.value("voicebanks").toList();
@@ -1955,7 +1953,7 @@ void Backend::analyzeSpeech(const QString &text, const QString &requestId,
                 if (m_analysisGenerations.value(requestId) == generation) {
                     m_analysisGenerations.remove(requestId);
                     if (value.contains("_error")) {
-                        setError(value.value("_error").toString());
+                        setEngineError(value);
                     } else {
                         m_analysisRequestId = requestId;
                         m_analysisSourceText = text;
@@ -1985,7 +1983,7 @@ void Backend::predictProsody(const QVariantMap &request) {
     callAsync("predictProsody", callRequest, [this, generation, requestId, callRequest](const QVariantMap &value) {
                 if (generation == m_nextProsodyGeneration) {
                     if (value.contains("_error")) {
-                        setError(value.value("_error").toString());
+                        setEngineError(value);
                     } else {
 #ifdef UTAUTTS_WASM
                         // Web版は索引を作れない。進捗のモーダルを開かず、索引を使わない方式で予測し直す。
@@ -2053,9 +2051,8 @@ void Backend::synthesize(const QVariantMap &input) {
                 stopIndexProgressLog();
                 setBusy(false);
                 if (result.contains("_error")) {
-                    const QString error = result.value("_error").toString();
+                    const QString error = setEngineError(result);
                     appendLog(tr("音声合成に失敗しました: %1").arg(error));
-                    setError(error);
                 } else {
                     m_previewPath = outputPath;
                     m_previewText = previewText;
@@ -2413,7 +2410,7 @@ QUrl Backend::writeDragExo(const QUrl &directory, const QVariantList &files, int
     try {
         call("writeExo", request);
     } catch (const std::exception &exception) {
-        setError(QString::fromUtf8(exception.what()));
+        setError(translateEngineError(QString::fromUtf8(exception.what())));
         return {};
     }
     setError({});
@@ -2493,8 +2490,7 @@ void Backend::exportUstx(const QUrl &destination, const QVariantMap &project) {
     callAsync("exportUstx", request, [this, outputPath](const QVariantMap &result) {
         setBusy(false);
         if (result.contains("_error")) {
-            const QString error = result.value("_error").toString();
-            setError(error);
+            const QString error = setEngineError(result);
             emit ustxExportFinished(false, error);
         } else {
 #ifdef UTAUTTS_WASM
@@ -2767,4 +2763,111 @@ void Backend::setError(const QString &value) {
     }
     m_error = value;
     emit errorChanged();
+}
+
+// Goエンジンは英語のメッセージだけを返す。UIは日本語なので、既知のメッセージを
+// パターンで分類して訳す。分類できないものは原文のまま出し、ログに残す。
+QString Backend::translateEngineError(const QString &message) {
+    if (message.isEmpty())
+        return message;
+    // Go側の "unavailable: " は分類用の接頭辞で、利用者には意味がない。
+    static const QString unavailablePrefix = QStringLiteral("unavailable: ");
+    const QString detail = message.startsWith(unavailablePrefix)
+            ? message.mid(unavailablePrefix.size()) : message;
+    // Go側は "load voicebank: ..." のように包むことがあるため、末尾で照合する。
+    const auto endsWith = [&detail](const char *leaf) {
+        return detail.endsWith(QLatin1String(leaf));
+    };
+    // 前置きの後ろに詳細が続くメッセージから、詳細だけを取り出す。
+    const auto after = [&detail](const char *prefix) {
+        const int index = detail.indexOf(QLatin1String(prefix));
+        return index < 0 ? QString() : detail.mid(index + int(qstrlen(prefix)));
+    };
+
+    // 入力の不足。利用者が直せる。
+    if (endsWith("text is required"))
+        return tr("テキストを入力してください");
+    if (endsWith("text or reading is required"))
+        return tr("テキストまたは読みを入力してください");
+    if (endsWith("empty text"))
+        return tr("テキストが入力されていません");
+    if (endsWith("output_path is required"))
+        return tr("出力先が指定されていません");
+    if (endsWith("zip_path is required"))
+        return tr("音源のZIPが選択されていません");
+    if (endsWith("language is required: ja, en, zh, es, or pt"))
+        return tr("言語が指定されていません");
+    if (endsWith("voicebank_id is required"))
+        return tr("音源が選択されていません");
+    if (detail.contains(QStringLiteral("method is required:")))
+        return tr("合成方法が指定されていません");
+    static const QRegularExpression unknownMethod(
+            QStringLiteral("unknown method \"(.+?)\":"));
+    if (const auto match = unknownMethod.match(detail); match.hasMatch())
+        return tr("合成方法「%1」は使えません").arg(match.captured(1));
+
+    // 音源とモデル。
+    if (endsWith("voicebank not found"))
+        return tr("音源が見つかりません");
+    if (endsWith("voicebank resolver is not configured")
+            || endsWith("voicebank library is not configured"))
+        return tr("音源フォルダが設定されていません");
+    if (endsWith("model catalog is not initialized"))
+        return tr("モデルの一覧を読み込めていません");
+    if (endsWith("voicebank contains no oto.ini"))
+        return tr("音源に oto.ini がありません");
+    static const QRegularExpression prosodyModelRetired(
+            QStringLiteral("prosody model \"(.+?)\" was retired; use \"(.+?)\"$"));
+    if (const auto match = prosodyModelRetired.match(detail); match.hasMatch())
+        return tr("抑揚モデル「%1」は廃止されました。「%2」を使ってください")
+                .arg(match.captured(1), match.captured(2));
+    static const QRegularExpression prosodyModelNotFound(
+            QStringLiteral("prosody model \"(.+?)\" not found$"));
+    if (const auto match = prosodyModelNotFound.match(detail); match.hasMatch())
+        return tr("抑揚モデル「%1」が見つかりません").arg(match.captured(1));
+    static const QRegularExpression referenceModelsMissing(
+            QStringLiteral("reference synthesis models are not installed in models/(.+)$"));
+    if (const auto match = referenceModelsMissing.match(detail); match.hasMatch())
+        return tr("参照合成のモデルが models/%1 にありません").arg(match.captured(1));
+    static const QRegularExpression referenceTTSMissing(
+            QStringLiteral("reference TTS \"(.+?)\" is not installed$"));
+    if (const auto match = referenceTTSMissing.match(detail); match.hasMatch())
+        return tr("参照TTS「%1」がインストールされていません").arg(match.captured(1));
+    static const QRegularExpression referenceUnavailable(
+            QStringLiteral("reference synthesis is not available for \"(.+?)\"$"));
+    if (const auto match = referenceUnavailable.match(detail); match.hasMatch())
+        return tr("%1 では参照合成を使えません").arg(match.captured(1));
+
+    // 音源ZIPの取り込み。
+    if (const QString archive = after("open voicebank archive: "); !archive.isEmpty())
+        return tr("音源のZIPを開けませんでした: %1").arg(archive);
+    if (endsWith("voicebank archive is empty"))
+        return tr("音源のZIPが空です");
+    if (endsWith("could not determine voicebank folder name"))
+        return tr("音源のフォルダ名を決められませんでした");
+
+    // 合成。
+    if (endsWith("synthesis result contains no audio"))
+        return tr("音声が生成されませんでした");
+    if (detail.contains(QStringLiteral("synthesis canceled: ")))
+        return tr("合成を中止しました");
+
+    // 索引。
+    if (endsWith("reference indexes are building"))
+        return tr("参照索引を作成中です");
+
+    // 分類できないものは原文のまま出し、訳せなかったことをログに残す。
+    if (!m_loggedEngineErrors.contains(message)) {
+        m_loggedEngineErrors.insert(message);
+        appendLog(tr("未翻訳のエラー: %1").arg(message));
+    }
+    return message;
+}
+
+// Goエンジンのエラーを訳して設定する。訳せなかったものは原文のまま返す。
+QString Backend::setEngineError(const QVariantMap &result) {
+    const QString message =
+            translateEngineError(result.value(QStringLiteral("_error")).toString());
+    setError(message);
+    return message;
 }

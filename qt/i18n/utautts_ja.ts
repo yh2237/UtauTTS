@@ -5,12 +5,12 @@
     <name>Backend</name>
     <message>
         <location filename="../src/backend.cpp" line="+735"/>
-        <location line="+1210"/>
+        <location line="+1209"/>
         <source>設定を保存できませんでした: %1</source>
         <translation>設定を保存できませんでした: %1</translation>
     </message>
     <message>
-        <location line="-782"/>
+        <location line="-781"/>
         <source>About UtauTTS</source>
         <translation>About UtauTTS</translation>
     </message>
@@ -113,7 +113,7 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
         <translation>アップデーターを起動できませんでした。</translation>
     </message>
     <message>
-        <location line="+371"/>
+        <location line="+370"/>
         <source>索引を削除できませんでした</source>
         <translation>索引を削除できませんでした</translation>
     </message>
@@ -134,12 +134,12 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
     </message>
     <message>
         <location line="+56"/>
-        <location line="+411"/>
+        <location line="+414"/>
         <source>使用デバイス: %1</source>
         <translation>使用デバイス: %1</translation>
     </message>
     <message>
-        <location line="-400"/>
+        <location line="-403"/>
         <source>索引を作成中: %1%</source>
         <translation>索引を作成中: %1%</translation>
     </message>
@@ -172,18 +172,19 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
         <translation>設定ファイルの形式が正しくありません</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+99"/>
         <location line="+3"/>
         <source>音源のZIPを選択できませんでした</source>
         <translation>音源のZIPを選択できませんでした</translation>
     </message>
     <message>
         <location line="+32"/>
+        <location line="+899"/>
         <source>音源のZIPが選択されていません</source>
         <translation>音源のZIPが選択されていません</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="-892"/>
         <source>音源を追加しています...</source>
         <translation>音源を追加しています...</translation>
     </message>
@@ -193,7 +194,7 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
         <translation>音源を追加できませんでした: %1</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+6"/>
         <source>音源を追加しました。</source>
         <translation>音源を追加しました。</translation>
     </message>
@@ -209,23 +210,23 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
     </message>
     <message>
         <location line="+17"/>
-        <location line="+609"/>
+        <location line="+607"/>
         <source>音声合成を開始しました: %1</source>
         <translation>音声合成を開始しました: %1</translation>
     </message>
     <message>
-        <location line="-605"/>
-        <location line="+28"/>
+        <location line="-603"/>
+        <location line="+27"/>
         <source>方式: %1</source>
         <translation>方式: %1</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-18"/>
         <source>音声合成に失敗しました: %1</source>
         <translation>音声合成に失敗しました: %1</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+22"/>
         <source>音声合成が完了しました。</source>
         <translation>音声合成が完了しました。</translation>
     </message>
@@ -310,7 +311,7 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
         <translation>USTXの保存先が無効です</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+30"/>
         <source>プロジェクトファイルの形式が正しくありません</source>
         <translation>プロジェクトファイルの形式が正しくありません</translation>
     </message>
@@ -349,6 +350,151 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
         <location line="+118"/>
         <source>診断情報を書き出せませんでした: %1</source>
         <translation>診断情報を書き出せませんでした: %1</translation>
+    </message>
+    <message>
+        <location line="-1331"/>
+        <source>エンジンを非同期で呼び出せません</source>
+        <translation>エンジンを非同期で呼び出せません</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>エンジンの応答を読み取れませんでした</source>
+        <translation>エンジンの応答を読み取れませんでした</translation>
+    </message>
+    <message>
+        <location line="+255"/>
+        <source>音源フォルダを作成できませんでした</source>
+        <translation>音源フォルダを作成できませんでした</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>音源フォルダを開けませんでした</source>
+        <translation>音源フォルダを開けませんでした</translation>
+    </message>
+    <message>
+        <location line="+1096"/>
+        <source>テキストを入力してください</source>
+        <translation>テキストを入力してください</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>テキストまたは読みを入力してください</source>
+        <translation>テキストまたは読みを入力してください</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>テキストが入力されていません</source>
+        <translation>テキストが入力されていません</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>出力先が指定されていません</source>
+        <translation>出力先が指定されていません</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>言語が指定されていません</source>
+        <translation>言語が指定されていません</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>音源が選択されていません</source>
+        <translation>音源が選択されていません</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>合成方法が指定されていません</source>
+        <translation>合成方法が指定されていません</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>合成方法「%1」は使えません</source>
+        <translation>合成方法「%1」は使えません</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>音源が見つかりません</source>
+        <translation>音源が見つかりません</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>音源フォルダが設定されていません</source>
+        <translation>音源フォルダが設定されていません</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>モデルの一覧を読み込めていません</source>
+        <translation>モデルの一覧を読み込めていません</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>音源に oto.ini がありません</source>
+        <translation>音源に oto.ini がありません</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>抑揚モデル「%1」は廃止されました。「%2」を使ってください</source>
+        <translation>抑揚モデル「%1」は廃止されました。「%2」を使ってください</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>抑揚モデル「%1」が見つかりません</source>
+        <translation>抑揚モデル「%1」が見つかりません</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>参照合成のモデルが models/%1 にありません</source>
+        <translation>参照合成のモデルが models/%1 にありません</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>参照TTS「%1」がインストールされていません</source>
+        <translation>参照TTS「%1」がインストールされていません</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 では参照合成を使えません</source>
+        <translation>%1 では参照合成を使えません</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>音源のZIPを開けませんでした: %1</source>
+        <translation>音源のZIPを開けませんでした: %1</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>音源のZIPが空です</source>
+        <translation>音源のZIPが空です</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>音源のフォルダ名を決められませんでした</source>
+        <translation>音源のフォルダ名を決められませんでした</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>音声が生成されませんでした</source>
+        <translation>音声が生成されませんでした</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>合成を中止しました</source>
+        <translation>合成を中止しました</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>参照索引を作成中です</source>
+        <translation>参照索引を作成中です</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>未翻訳のエラー: %1</source>
+        <translation>未翻訳のエラー: %1</translation>
+    </message>
+    <message>
+        <location line="-2408"/>
+        <source>起動時の移行状態を保存できませんでした</source>
+        <translation>起動時の移行状態を保存できませんでした</translation>
     </message>
 </context>
 </TS>
