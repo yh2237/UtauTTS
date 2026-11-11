@@ -43,6 +43,7 @@ qt_add_executable(utautts
     src/backend.h
     src/selftest.cpp
     src/selftest.h
+    src/startuptrace.h
     src/utautts_abi.h
     src/platform/engine.h
     src/platform/media.h

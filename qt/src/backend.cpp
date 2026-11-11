@@ -1,4 +1,5 @@
 #include "backend.h"
+#include "startuptrace.h"
 #include "platform/engine.h"
 #ifdef UTAUTTS_WASM
 #include <emscripten.h>
@@ -1474,6 +1475,7 @@ void Backend::initializeAsync() {
             checkReferenceIndexes();
         }
         setBusy(false);
+        startupTrace("backend metadata applied");
         watcher->deleteLater();
         m_initializationFuture = {};
         if (--m_activeCallCount == 0) {

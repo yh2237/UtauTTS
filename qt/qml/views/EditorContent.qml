@@ -100,6 +100,7 @@ import UtauTTSStyle
 
                 ListView {
                     id: utteranceList
+                    objectName: "utteranceList"
                     readonly property real scrollBarWidth: utteranceScrollBar.visible ? utteranceScrollBar.width : 0
                     anchors.fill: parent
                     model: window.utterancesModel
@@ -894,6 +895,7 @@ import UtauTTSStyle
                             Item {
                             PhonemeEditor {
                             id: phonemeEditor
+                            objectName: "phonemeEditor"
                             anchors.fill: parent
                             anchors.margins: Theme.spacing
                             translator: window.translator

@@ -5,11 +5,14 @@
 #include <QDir>
 #include <QEventLoop>
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJSValue>
+#include <QCoreApplication>
+#include <QMouseEvent>
 #include <QMetaObject>
 #include <QQuickItem>
 #include <QQuickWindow>
@@ -21,6 +24,7 @@
 #include <QVariantMap>
 #include <tuple>
 #include <utility>
+#include <algorithm>
 
 namespace {
 constexpr int asyncTimeoutMS = 60000;
@@ -188,6 +192,208 @@ void captureSynthesized(QObject *rootObject, const QString &directory) {
     window->hide();
 }
 
+// UTAUTTS_PERF_UTTERANCES=N のとき、N 行のプロジェクトで主な操作の時間を測る。
+double waitForFrame(QQuickWindow *window) {
+    QElapsedTimer timer;
+    timer.start();
+    QEventLoop loop;
+    const auto connection = QObject::connect(window, &QQuickWindow::frameSwapped, &loop, &QEventLoop::quit);
+    QTimer::singleShot(2000, &loop, &QEventLoop::quit);
+    window->requestUpdate();
+    loop.exec();
+    QObject::disconnect(connection);
+    return timer.nsecsElapsed() / 1e6;
+}
+
+QString utteranceReading(QObject *model, int index) {
+    QJSValue item;
+    QMetaObject::invokeMethod(model, "get", Q_RETURN_ARG(QJSValue, item), Q_ARG(int, index));
+    return item.property(QStringLiteral("reading")).toString();
+}
+
+void reportPerf(const char *name, const QList<double> &syncMs, const QList<double> &frameMs) {
+    const auto stats = [](QList<double> values) {
+        if (values.isEmpty())
+            return QString();
+        std::sort(values.begin(), values.end());
+        double sum = 0;
+        for (double value : values)
+            sum += value;
+        return QStringLiteral("avg %1 ms, median %2 ms, max %3 ms")
+                .arg(sum / values.size(), 0, 'f', 2)
+                .arg(values.at(values.size() / 2), 0, 'f', 2)
+                .arg(values.last(), 0, 'f', 2);
+    };
+    qInfo().noquote() << "perf" << name << "| call:" << stats(syncMs) << "| until frame:" << stats(frameMs);
+}
+
+int runPerfBench(QObject *rootObject, int count) {
+    auto *window = qobject_cast<QQuickWindow *>(rootObject);
+    auto *model = rootObject->property("utterancesModel").value<QObject *>();
+    if (!window || !model)
+        return 1;
+    window->show();
+    waitForFrame(window);
+
+    const QStringList sentences{
+        QStringLiteral("こんにちは、今日はいい天気ですね。"),
+        QStringLiteral("散歩に出かけるのはどうでしょう。"),
+        QStringLiteral("明日の会議は午後三時から始まります。"),
+        QStringLiteral("駅前の新しいパン屋さんに行ってみました。"),
+        QStringLiteral("この資料を来週までにまとめておいてください。"),
+        QStringLiteral("夜になると、星がとてもきれいに見えます。"),
+        QStringLiteral("電車が遅れているので、少し遅刻しそうです。"),
+        QStringLiteral("週末は家でゆっくり本を読むつもりです。"),
+    };
+    QVariantList utterances;
+    for (int index = 0; index < count; ++index) {
+        utterances.append(QVariantMap{
+                {"text", QStringLiteral("%1番目。").arg(index + 1) + sentences.at(index % sentences.size())},
+                {"language", "ja"}, {"voicebank_id", ""}, {"method", "waveform-synthesis"}});
+    }
+    const QVariantMap project{{"format", "utautts-project"}, {"format_version", 9},
+                              {"utterances", utterances}, {"selected_index", 0}};
+
+    QElapsedTimer timer;
+    timer.start();
+    QMetaObject::invokeMethod(rootObject, "applyLoadedProject",
+                              Q_ARG(QVariant, QVariant(project)), Q_ARG(QVariant, QVariant()));
+    const double loadCall = timer.nsecsElapsed() / 1e6;
+    const double loadFrame = waitForFrame(window) + loadCall;
+    int analyzed = 0;
+    while (timer.elapsed() < 600000) {
+        analyzed = 0;
+        for (int index = 0; index < count; ++index)
+            analyzed += utteranceReading(model, index).isEmpty() ? 0 : 1;
+        if (analyzed == count)
+            break;
+        QEventLoop loop;
+        QTimer::singleShot(50, &loop, &QEventLoop::quit);
+        loop.exec();
+    }
+    qInfo().noquote() << "perf load" << count << "utterances | call:" << loadCall << "ms | first frame:"
+                      << loadFrame << "ms | all analyzed:" << timer.elapsed() << "ms (" << analyzed << "/" << count << ")";
+    // 解析のあとの抑揚の予測などが落ち着くのを待つ。
+    {
+        QEventLoop loop;
+        QTimer::singleShot(3000, &loop, &QEventLoop::quit);
+        loop.exec();
+    }
+
+    {
+        int frames = 0;
+        const auto counter = QObject::connect(window, &QQuickWindow::frameSwapped, window, [&frames] { ++frames; });
+        QEventLoop loop;
+        QTimer::singleShot(2000, &loop, &QEventLoop::quit);
+        loop.exec();
+        QObject::disconnect(counter);
+        qInfo().noquote() << "perf idle frames in 2 s:" << frames;
+    }
+    QList<double> callMs;
+    QList<double> frameMs;
+    for (int step = 0; step < 20; ++step) {
+        const int index = (step * 37) % count;
+        timer.restart();
+        QMetaObject::invokeMethod(rootObject, "selectUtterance", Q_ARG(QVariant, index), Q_ARG(QVariant, QVariant()));
+        const double call = timer.nsecsElapsed() / 1e6;
+        callMs.append(call);
+        frameMs.append(call + waitForFrame(window));
+    }
+    reportPerf("select", callMs, frameMs);
+
+    callMs.clear();
+    frameMs.clear();
+    const int typingIndex = count / 2;
+    QString text = sentences.first();
+    for (int step = 0; step < 30; ++step) {
+        text += QChar(0x3042 + (step % 10) * 2);
+        timer.restart();
+        QMetaObject::invokeMethod(rootObject, "updateUtteranceText",
+                                  Q_ARG(QVariant, typingIndex), Q_ARG(QVariant, text));
+        const double call = timer.nsecsElapsed() / 1e6;
+        callMs.append(call);
+        frameMs.append(call + waitForFrame(window));
+    }
+    reportPerf("typing", callMs, frameMs);
+
+    callMs.clear();
+    frameMs.clear();
+    if (QObject *list = rootObject->findChild<QObject *>(QStringLiteral("utteranceList"))) {
+        const double height = list->property("contentHeight").toDouble();
+        for (int step = 0; step < 30; ++step) {
+            timer.restart();
+            list->setProperty("contentY", height * step / 30.0);
+            const double call = timer.nsecsElapsed() / 1e6;
+            callMs.append(call);
+            frameMs.append(call + waitForFrame(window));
+        }
+        reportPerf("scroll", callMs, frameMs);
+    }
+
+    QString longText;
+    for (int index = 0; index < 8; ++index)
+        longText += sentences.at(index);
+    timer.restart();
+    {
+        QEventLoop loop;
+        QObject::connect(rootObject->property("injectedBackend").value<QObject *>(), SIGNAL(analysisChanged()),
+                         &loop, SLOT(quit()));
+        QTimer::singleShot(10000, &loop, &QEventLoop::quit);
+        QMetaObject::invokeMethod(rootObject, "updateUtteranceText", Q_ARG(QVariant, 0), Q_ARG(QVariant, longText));
+        loop.exec();
+    }
+    qInfo().noquote() << "perf long text" << longText.size() << "chars, analyzed in" << timer.elapsed() << "ms";
+    {
+        QEventLoop loop;
+        QTimer::singleShot(4000, &loop, &QEventLoop::quit);
+        loop.exec();
+    }
+    callMs.clear();
+    frameMs.clear();
+    for (int step = 0; step < 10; ++step) {
+        QMetaObject::invokeMethod(rootObject, "selectUtterance", Q_ARG(QVariant, 1), Q_ARG(QVariant, QVariant()));
+        waitForFrame(window);
+        timer.restart();
+        QMetaObject::invokeMethod(rootObject, "selectUtterance", Q_ARG(QVariant, 0), Q_ARG(QVariant, QVariant()));
+        const double call = timer.nsecsElapsed() / 1e6;
+        callMs.append(call);
+        frameMs.append(call + waitForFrame(window));
+    }
+    reportPerf("select long", callMs, frameMs);
+
+    const auto hover = [&](const char *name, QQuickItem *item) {
+        if (!item)
+            return;
+        QList<double> calls;
+        QList<double> frames;
+        const QPointF origin = item->mapToScene(QPointF(0, 0));
+        for (int step = 0; step < 40; ++step) {
+            const QPointF scene = origin + QPointF(item->width() * (step + 0.5) / 40.0, item->height() * 0.4);
+            QMouseEvent event(QEvent::MouseMove, scene, scene, window->mapToGlobal(scene),
+                              Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+            QElapsedTimer moveTimer;
+            moveTimer.start();
+            QCoreApplication::sendEvent(window, &event);
+            const double call = moveTimer.nsecsElapsed() / 1e6;
+            calls.append(call);
+            frames.append(call + waitForFrame(window));
+        }
+        reportPerf(name, calls, frames);
+    };
+    hover("hover basic", rootObject->findChild<QQuickItem *>(QStringLiteral("pitchEditor")));
+    if (QObject *tabs = rootObject->findChild<QObject *>(QStringLiteral("pitchModeTabs"))) {
+        timer.restart();
+        tabs->setProperty("currentIndex", 1);
+        const double call = timer.nsecsElapsed() / 1e6;
+        qInfo().noquote() << "perf open extended | call:" << call << "ms | until frame:" << call + waitForFrame(window) << "ms";
+        QEventLoop loop;
+        QTimer::singleShot(3000, &loop, &QEventLoop::quit);
+        loop.exec();
+        hover("hover extended", rootObject->findChild<QQuickItem *>(QStringLiteral("phonemeEditor")));
+    }
+    return 0;
+}
+
 QString firstID(const QVariantList &items) {
     return items.isEmpty() ? QString() : items.first().toMap().value(QStringLiteral("id")).toString();
 }
@@ -207,6 +413,8 @@ QVariantMap sampleProject(const QString &voicebankID, const QString &modelID) {
 }
 
 int runSelfTest(Backend &backend, QObject *rootObject) {
+    if (const int perfUtterances = qEnvironmentVariableIntValue("UTAUTTS_PERF_UTTERANCES"); perfUtterances > 0)
+        return runPerfBench(rootObject, perfUtterances);
     const QString selfTestDirectory = qEnvironmentVariable("UTAUTTS_SELF_TEST_DIRECTORY");
     if (!require(backend.connected(), QStringLiteral("native backend is not connected"))
             || !require(QFileInfo::exists(QDir(selfTestDirectory).filePath(QStringLiteral("config.ini"))),

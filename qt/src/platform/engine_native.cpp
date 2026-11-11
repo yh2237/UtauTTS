@@ -1,6 +1,7 @@
 #include "platform/engine.h"
 
 #include "utautts_abi.h"
+#include "startuptrace.h"
 
 #include <QJsonDocument>
 #include <QProcess>
@@ -42,7 +43,9 @@ QVariantMap callNative(uintptr_t handle, const QByteArray &method,
 QVariantMap initializeNative(const QByteArray &encoded,
                              const std::function<void(int)> &progress) {
     QByteArray config = encoded;
+    startupTrace("native create begin");
     const uintptr_t handle = UtauTTSCreate(config.data());
+    startupTrace("native create end");
     if (!handle) {
         std::unique_ptr<char, decltype(&UtauTTSFree)> detail(
             UtauTTSLastError(), &UtauTTSFree);
@@ -56,15 +59,18 @@ QVariantMap initializeNative(const QByteArray &encoded,
             progress(0);
         }
         const QVariantMap voices = callNative(handle, "voicebanks");
+        startupTrace("native voicebanks");
         if (progress) {
             progress(1);
         }
         const QVariantMap models = callNative(handle, "models");
+        startupTrace("native models");
         if (progress) {
             progress(2);
         }
         const QVariantMap settings = callNative(handle, "settings");
         const QVariantMap providers = callNative(handle, "referenceProviders");
+        startupTrace("native settings and providers");
         return {
             {"_handle", QVariant::fromValue<qulonglong>(static_cast<qulonglong>(handle))},
             {"voicebanks", voices.value("voicebanks")},

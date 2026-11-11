@@ -2,6 +2,7 @@
 #include "platform/media.h"
 #include "platform/platform.h"
 #include "selftest.h"
+#include "startuptrace.h"
 #include <QDir>
 #include <QDebug>
 #include <QEventLoop>
@@ -17,9 +18,11 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQmlApplicationEngine>
+#include <QQmlDebuggingEnabler>
 #include <QQmlError>
 #include <QApplication>
 #include <QQuickStyle>
+#include <QQuickWindow>
 #include <QtQml/qqmlextensionplugin.h>
 #include <QTextStream>
 #include <QUrl>
@@ -27,6 +30,7 @@
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <memory>
+#include <utility>
 
 Q_IMPORT_QML_PLUGIN(UtauTTSStylePlugin)
 
@@ -256,6 +260,9 @@ bool updateInProgress() {
 }
 
 int main(int argc, char *argv[]) {
+    startupTrace("main");
+    if (qEnvironmentVariableIsSet("UTAUTTS_QML_PROFILE"))
+        QQmlDebuggingEnabler::enableDebugging(true);
 #if !defined(Q_OS_WIN) && !defined(Q_OS_MACOS)
     // Linuxデスクトップ統合（特にKDE Plasmaのplatform theme）が
     // QQuickStyle::setStyleを上書きしてBreeze等に切り替えるため、
@@ -273,6 +280,7 @@ int main(int argc, char *argv[]) {
     app.setApplicationDisplayName(UTAUTTS_APP_NAME);
     app.setApplicationVersion(UTAUTTS_VERSION);
     app.setOrganizationName(UTAUTTS_APP_ORGANIZATION);
+    startupTrace("application created");
 
     const QStringList uiFontFamilies = QFontDatabase::applicationFontFamilies(
             QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/LINESeedJP-Regular.ttf")));
@@ -326,7 +334,9 @@ int main(int argc, char *argv[]) {
     appIcon.addFile(QStringLiteral(":/icons/icon512.png"));
     app.setWindowIcon(appIcon);
 
+    startupTrace("fonts and icons");
     Backend backend;
+    startupTrace("backend constructed");
     QQmlApplicationEngine engine;
     QStringList startupErrors;
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
@@ -350,6 +360,16 @@ int main(int argc, char *argv[]) {
     engine.setInitialProperties(initialProperties);
     // レイアウト切替で編集状態を失わないよう、QMLは一度だけ読み込む。
     engine.loadFromModule("UtauTTS", "Main");
+    startupTrace("qml loaded");
+    if (auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().value(0))) {
+        QObject::connect(window, &QQuickWindow::sceneGraphInitialized, window,
+                         [] { startupTrace("scene graph initialized"); }, Qt::DirectConnection);
+        auto reported = std::make_shared<bool>(false);
+        QObject::connect(window, &QQuickWindow::frameSwapped, window, [reported] {
+            if (!std::exchange(*reported, true))
+                startupTrace("first frame");
+        });
+    }
     if (engine.rootObjects().isEmpty()) {
         reportStartupFailure(startupErrors, !startupCheck);
         if (!startupCheck) {
