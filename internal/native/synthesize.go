@@ -1,6 +1,7 @@
 package native
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -117,6 +118,31 @@ func waveformPeaks(result *synth.Result, maximumPoints int) (mins, maxs []float6
 	return pcmPeaks(result.Audio.Data, result.Audio.Channels, maximumPoints)
 }
 
+func (e *Engine) beginSynthesis() (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(e.ctx)
+	e.synthesisMu.Lock()
+	e.synthesisCancel = cancel
+	e.synthesisMu.Unlock()
+	return ctx, cancel
+}
+
+func (e *Engine) endSynthesis(cancel context.CancelFunc) {
+	cancel()
+	e.synthesisMu.Lock()
+	e.synthesisCancel = nil
+	e.synthesisMu.Unlock()
+}
+
+// cancelSynthesis は実行中の synthesize を止める。合成は工程の区切りで context を見て中断する。
+func (e *Engine) cancelSynthesis() {
+	e.synthesisMu.Lock()
+	cancel := e.synthesisCancel
+	e.synthesisMu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+}
+
 func (e *Engine) synthesize(data []byte) (any, error) {
 	request, err := decodeSynthesizeRequest(data)
 	if err != nil {
@@ -128,7 +154,9 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 	if request.OutputPath == "" {
 		return nil, fmt.Errorf("output_path is required")
 	}
-	result, err := e.synth.SynthesizeContext(e.ctx, request.InternalRequest())
+	ctx, cancel := e.beginSynthesis()
+	defer e.endSynthesis(cancel)
+	result, err := e.synth.SynthesizeContext(ctx, request.InternalRequest())
 	if err != nil {
 		return nil, err
 	}

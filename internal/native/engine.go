@@ -37,6 +37,9 @@ type Engine struct {
 	catalog    *plugin.Catalog
 	synth      *synth.Service
 	runtime    *synth.Runtime
+
+	synthesisMu     sync.Mutex
+	synthesisCancel context.CancelFunc
 }
 
 func New(config Config) (*Engine, error) {
@@ -119,6 +122,9 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 		result, err = e.predictProsody(requestJSON)
 	case "synthesize":
 		result, err = e.synthesize(requestJSON)
+	case "cancelSynthesis":
+		e.cancelSynthesis()
+		result = map[string]bool{"ok": true}
 	case "writeExo":
 		result, err = e.writeExo(requestJSON)
 	case "exportUstx":
