@@ -8,7 +8,6 @@ string(JSON UTAUTTS_UPDATE_SCHEMA GET "${UTAUTTS_APPINFO_JSON}" update_schema)
 string(JSON UTAUTTS_MIGRATION_SCHEMA GET "${UTAUTTS_APPINFO_JSON}" migration_schema)
 string(JSON UTAUTTS_APP_ORGANIZATION GET "${UTAUTTS_APPINFO_JSON}" organization)
 string(JSON UTAUTTS_APP_REPOSITORY GET "${UTAUTTS_APPINFO_JSON}" repository)
-# CMakeのVERSIONは数字だけなので、ベータ版の接尾辞（-beta.N）を外す。
 string(REGEX REPLACE "^v([0-9]+\\.[0-9]+\\.[0-9]+).*$" "\\1" UTAUTTS_CMAKE_VERSION "${UTAUTTS_APP_VERSION}")
 project(UtauTTSQt VERSION ${UTAUTTS_CMAKE_VERSION} LANGUAGES CXX)
 
@@ -17,9 +16,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
 if(EMSCRIPTEN)
-    find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 QuickControls2Fusion LinguistTools)
+    find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 QuickControls2Fusion Widgets LinguistTools)
 else()
-    find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Concurrent LinguistTools)
+    find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Concurrent Widgets LinguistTools)
 endif()
 qt_standard_project_setup(REQUIRES 6.5)
 qt_policy(SET QTP0004 NEW)
@@ -61,7 +60,6 @@ if(WIN32)
     target_sources(utautts PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/utautts.rc")
     set_target_properties(utautts PROPERTIES WIN32_EXECUTABLE TRUE)
 elseif(APPLE)
-    # 同梱資源は.appの外に置き、resourceRoot()で解決する。
     set_target_properties(utautts PROPERTIES
         MACOSX_BUNDLE TRUE
         MACOSX_RPATH TRUE
@@ -69,7 +67,6 @@ elseif(APPLE)
         INSTALL_RPATH "@loader_path/../Frameworks"
     )
 elseif(EMSCRIPTEN)
-    # ホスト資産だけの変更でQt本体を再リンクしないよう、コピーを別ターゲットにする。
     add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/wasm-host.stamp"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/wasm/index.html"
@@ -158,6 +155,51 @@ qt_add_qml_module(utautts
         qml/editors/IntonationEditorSurface.qml
         qml/editors/PitchHorizontalScrollBar.qml
 )
+
+qt_add_library(utautts_style STATIC)
+set_target_properties(utautts_style PROPERTIES POSITION_INDEPENDENT_CODE ON)
+qt_add_qml_module(utautts_style
+    URI UtauTTSStyle
+    VERSION 1.0
+    IMPORTS QtQuick.Controls.Fusion
+    SOURCES
+        style/fusionstyle.cpp
+        style/fusionstyle.h
+        style/styleitem.cpp
+        style/styleitem.h
+    QML_FILES
+        style/Button.qml
+        style/CheckBox.qml
+        style/ComboBox.qml
+        style/Dialog.qml
+        style/DialogButtonBox.qml
+        style/Frame.qml
+        style/ItemDelegate.qml
+        style/Menu.qml
+        style/MenuBar.qml
+        style/MenuBarItem.qml
+        style/MenuItem.qml
+        style/MenuSeparator.qml
+        style/ProgressBar.qml
+        style/RadioButton.qml
+        style/RoundButton.qml
+        style/ScrollBar.qml
+        style/ScrollView.qml
+        style/Slider.qml
+        style/SpinBox.qml
+        style/SplitView.qml
+        style/Switch.qml
+        style/TabBar.qml
+        style/TabButton.qml
+        style/TextArea.qml
+        style/TextField.qml
+        style/ToolBar.qml
+        style/ToolButton.qml
+        style/ToolTip.qml
+)
+target_include_directories(utautts_style PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/style")
+target_link_libraries(utautts_style PRIVATE Qt6::Quick Qt6::Widgets)
+target_link_libraries(utautts PRIVATE utautts_styleplugin Qt6::Widgets)
 
 set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/../icons/icon16.png"

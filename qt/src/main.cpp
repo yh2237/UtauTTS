@@ -18,7 +18,9 @@
 #include <QJsonObject>
 #include <QQmlApplicationEngine>
 #include <QQmlError>
+#include <QApplication>
 #include <QQuickStyle>
+#include <QtQml/qqmlextensionplugin.h>
 #include <QTextStream>
 #include <QUrl>
 #include <QVariantList>
@@ -26,10 +28,11 @@
 #include <QTemporaryDir>
 #include <memory>
 
+Q_IMPORT_QML_PLUGIN(UtauTTSStylePlugin)
+
 #ifdef UTAUTTS_WASM
 #include <emscripten.h>
 
-// wasmの窓装飾はQMLの外にあるため、Shadow DOMにも同梱フォントを適用する。
 EM_JS(void, installWasmWindowTitleFont, (const char *data, int size), {
     const font = new FontFace("LINE Seed JP", HEAPU8.slice(data, data + size));
     document.fonts.add(font);
@@ -255,17 +258,17 @@ bool updateInProgress() {
 int main(int argc, char *argv[]) {
 #if !defined(Q_OS_WIN) && !defined(Q_OS_MACOS)
     // Linuxデスクトップ統合（特にKDE Plasmaのplatform theme）が
-    // QQuickStyle::setStyle("Fusion")を上書きしてBreeze等に切り替えるため、
-    // 起動前にデスクトップ統合を無効化しWindows版と同一のFusion UIを維持する。
+    // QQuickStyle::setStyleを上書きしてBreeze等に切り替えるため、
+    // 起動前にデスクトップ統合を無効化しWindows版と同一のUIを維持する。
     qputenv("XDG_CURRENT_DESKTOP", "X-Generic");
     qputenv("XDG_SESSION_DESKTOP", "X-Generic");
     qputenv("DESKTOP_SESSION", "default");
     qputenv("KDE_FULL_SESSION", "");
 #endif
-    QQuickStyle::setStyle("Fusion");
+    QQuickStyle::setStyle(QStringLiteral("UtauTTSStyle"));
     registerMediaTypes();
     registerPlatformSingleton();
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);
     app.setApplicationName(UTAUTTS_APP_NAME);
     app.setApplicationDisplayName(UTAUTTS_APP_NAME);
     app.setApplicationVersion(UTAUTTS_VERSION);
