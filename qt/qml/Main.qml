@@ -33,7 +33,8 @@ ApplicationWindow {
     minimumWidth: Platform.isWeb ? 0 : 880
     minimumHeight: Platform.isWeb ? 0 : 600
     visible: !injectedSelfTest
-    title: intonationLab ? "UtauTTS Intonation Lab" : injectedAppName
+    title: intonationLab ? "UtauTTS Intonation Lab"
+                         : (projectDirty ? "*" : "") + projectNameWithoutSuffix() + " - " + injectedAppName
     color: palette.window
     palette: Palette {
         window: Theme.window
