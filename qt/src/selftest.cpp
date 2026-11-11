@@ -331,6 +331,30 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  QStringLiteral("current preview was generated twice")))
         return 1;
 
+    {
+        QVariantMap cancelRequest = commonRequest;
+        cancelRequest.insert(QStringLiteral("text"), QStringLiteral("中止の確認です。"));
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        bool finished = false;
+        const auto finish = [&] {
+            finished = true;
+            loop.quit();
+        };
+        const auto canceled = QObject::connect(&backend, &Backend::synthesisCanceled, &loop, finish);
+        const auto ready = QObject::connect(&backend, &Backend::previewReady, &loop, finish);
+        QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        backend.synthesize(cancelRequest);
+        backend.cancelSynthesis();
+        timer.start(asyncTimeoutMS);
+        loop.exec();
+        QObject::disconnect(canceled);
+        QObject::disconnect(ready);
+        if (!require(finished && !backend.busy() && backend.error().isEmpty(),
+                     QStringLiteral("canceling synthesis did not finish cleanly: ") + backend.error()))
+            return 1;
+    }
     if (!waitFor(backend, &Backend::previewReady,
                  [&] { backend.synthesize(commonRequest); }, QStringLiteral("synthesis")))
         return 1;

@@ -51,6 +51,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -2044,13 +2045,18 @@ void Backend::synthesize(const QVariantMap &input) {
     const QString requestedMethod = request.value("method").toString();
     if (!requestedMethod.isEmpty())
         appendLog(tr("方式: %1").arg(requestedMethod));
+    m_synthesisCancelRequested = false;
     setBusy(true);
     setError({});
     startIndexProgressLog();
     callAsync("synthesize", request, [this, outputPath, previewText, cacheKey, requestedMethod](const QVariantMap &result) {
                 stopIndexProgressLog();
+                const bool canceled = std::exchange(m_synthesisCancelRequested, false);
                 setBusy(false);
-                if (result.contains("_error")) {
+                if (result.contains("_error") && canceled) {
+                    appendLog(tr("音声合成を中止しました"));
+                    emit synthesisCanceled();
+                } else if (result.contains("_error")) {
                     const QString error = setEngineError(result);
                     appendLog(tr("音声合成に失敗しました: %1").arg(error));
                 } else {
@@ -2078,6 +2084,13 @@ void Backend::synthesize(const QVariantMap &input) {
                     emit previewReady();
                 }
             });
+}
+
+void Backend::cancelSynthesis() {
+    if (!m_busy)
+        return;
+    m_synthesisCancelRequested = true;
+    callAsync("cancelSynthesis", {}, [](const QVariantMap &) {});
 }
 
 QByteArray Backend::previewCacheKey(const QVariantMap &request) const {

@@ -157,6 +157,7 @@ public:
                                    const QString &voicebankId);
     Q_INVOKABLE void predictProsody(const QVariantMap &request);
     Q_INVOKABLE void synthesize(const QVariantMap &request);
+    Q_INVOKABLE void cancelSynthesis();
     Q_INVOKABLE bool savePreview(const QUrl &destination, bool withSidecars = false);
     // Web版の一括書き出しは、1件ずつダウンロードせずZIPにまとめる。
     Q_INVOKABLE bool beginBatchArchive(const QString &fileName);
@@ -231,6 +232,7 @@ signals:
     void prosodyChanged();
     void synthesisChanged();
     void previewReady();
+    void synthesisCanceled();
     void themeChanged();
     void languageChanged();
     void onboardingChanged();
@@ -292,6 +294,7 @@ private:
     void logIndexProgress();
     uintptr_t m_handle = 0;
     bool m_busy = false;
+    bool m_synthesisCancelRequested = false;
     QVariantList m_referenceIndexes;
     bool m_referenceIndexBuildPending = false;
     bool m_referenceIndexBuilding = false;

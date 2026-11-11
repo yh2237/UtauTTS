@@ -4,13 +4,12 @@
 <context>
     <name>Backend</name>
     <message>
-        <location filename="../src/backend.cpp" line="+735"/>
-        <location line="+1209"/>
+        <location filename="../src/backend.cpp" line="+719"/>
         <source>設定を保存できませんでした: %1</source>
         <translation>无法保存设置: %1</translation>
     </message>
     <message>
-        <location line="-781"/>
+        <location line="+428"/>
         <source>About UtauTTS</source>
         <translation>关于 UtauTTS</translation>
     </message>
@@ -78,22 +77,20 @@ Developed by yh
 请从发布页手动更新，或稍后重试。</translation>
     </message>
     <message>
-        <location line="+15"/>
         <source>アップデーターが同梱されていません。リリースページから手動で更新してください。</source>
-        <translation>未附带更新程序。请从发布页手动更新。</translation>
+        <translation type="vanished">未附带更新程序。请从发布页手动更新。</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+21"/>
         <source>ダウンロードした更新ファイルが見つかりません。</source>
         <translation>找不到已下载的更新文件。</translation>
     </message>
     <message>
-        <location line="+14"/>
         <source>アップデーターを一時ディレクトリに配置できませんでした。</source>
-        <translation>无法将更新程序放入临时目录。</translation>
+        <translation type="vanished">无法将更新程序放入临时目录。</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+24"/>
         <source>アップデーターへ実行権限を設定できませんでした。</source>
         <translation>无法为更新程序设置执行权限。</translation>
     </message>
@@ -108,12 +105,11 @@ Developed by yh
         <translation>无法保存更新后的迁移信息。</translation>
     </message>
     <message>
-        <location line="+15"/>
         <source>アップデーターを起動できませんでした。</source>
-        <translation>无法启动更新程序。</translation>
+        <translation type="vanished">无法启动更新程序。</translation>
     </message>
     <message>
-        <location line="+370"/>
+        <location line="+385"/>
         <source>索引を削除できませんでした</source>
         <translation>无法删除索引</translation>
     </message>
@@ -134,57 +130,49 @@ Developed by yh
     </message>
     <message>
         <location line="+56"/>
-        <location line="+414"/>
+        <location line="+263"/>
         <source>使用デバイス: %1</source>
         <translation>使用设备: %1</translation>
     </message>
     <message>
-        <location line="-403"/>
+        <location line="-252"/>
         <source>索引を作成中: %1%</source>
         <translation>正在创建索引: %1%</translation>
     </message>
     <message>
-        <location line="+35"/>
         <source>Web版では設定フォルダを開けません</source>
-        <translation>Web 版无法打开设置文件夹</translation>
+        <translation type="vanished">Web 版无法打开设置文件夹</translation>
     </message>
     <message>
-        <location line="+6"/>
         <source>設定フォルダを開けませんでした</source>
-        <translation>无法打开设置文件夹</translation>
+        <translation type="vanished">无法打开设置文件夹</translation>
     </message>
     <message>
-        <location line="+11"/>
-        <location line="+11"/>
-        <location line="+7"/>
         <source>設定を書き出せませんでした</source>
-        <translation>无法导出设置</translation>
+        <translation type="vanished">无法导出设置</translation>
     </message>
     <message>
-        <location line="+10"/>
-        <location line="+5"/>
         <source>設定ファイルを読み込めませんでした</source>
-        <translation>无法读取设置文件</translation>
+        <translation type="vanished">无法读取设置文件</translation>
     </message>
     <message>
-        <location line="+6"/>
         <source>設定ファイルの形式が正しくありません</source>
-        <translation>设置文件的格式不正确</translation>
+        <translation type="vanished">设置文件的格式不正确</translation>
     </message>
     <message>
-        <location line="+99"/>
+        <location line="+34"/>
         <location line="+3"/>
         <source>音源のZIPを選択できませんでした</source>
         <translation>无法选择音源 ZIP</translation>
     </message>
     <message>
         <location line="+32"/>
-        <location line="+899"/>
+        <location line="+984"/>
         <source>音源のZIPが選択されていません</source>
         <translation>未选择音源 ZIP</translation>
     </message>
     <message>
-        <location line="-892"/>
+        <location line="-977"/>
         <source>音源を追加しています...</source>
         <translation>正在添加音源...</translation>
     </message>
@@ -210,18 +198,23 @@ Developed by yh
     </message>
     <message>
         <location line="+17"/>
-        <location line="+607"/>
+        <location line="+619"/>
         <source>音声合成を開始しました: %1</source>
         <translation>开始语音合成: %1</translation>
     </message>
     <message>
-        <location line="-603"/>
-        <location line="+27"/>
+        <location line="-615"/>
+        <location line="+32"/>
         <source>方式: %1</source>
         <translation>合成方式: %1</translation>
     </message>
     <message>
-        <location line="-18"/>
+        <location line="-22"/>
+        <source>音声合成を中止しました</source>
+        <translation>已取消语音合成</translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>音声合成に失敗しました: %1</source>
         <translation>语音合成失败: %1</translation>
     </message>
@@ -231,7 +224,7 @@ Developed by yh
         <translation>语音合成完成。</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+37"/>
         <source>キャッシュ済みの音声を使用しました。</source>
         <translation>使用了缓存的音频。</translation>
     </message>
@@ -352,12 +345,27 @@ Developed by yh
         <translation>无法导出诊断信息: %1</translation>
     </message>
     <message>
-        <location line="-1331"/>
+        <location line="-1187"/>
         <source>エンジンを非同期で呼び出せません</source>
         <translation>无法异步调用引擎</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="-292"/>
+        <source>アップデータが同梱されていません。リリースページから手動で更新してください。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>アップデータを一時ディレクトリに配置できませんでした。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+55"/>
+        <source>アップデータを起動できませんでした。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+251"/>
         <source>エンジンの応答を読み取れませんでした</source>
         <translation>无法读取引擎的响应</translation>
     </message>
@@ -372,7 +380,7 @@ Developed by yh
         <translation>无法打开音源文件夹</translation>
     </message>
     <message>
-        <location line="+1096"/>
+        <location line="+1025"/>
         <source>テキストを入力してください</source>
         <translation>请输入文本</translation>
     </message>
@@ -492,7 +500,7 @@ Developed by yh
         <translation>未翻译的错误: %1</translation>
     </message>
     <message>
-        <location line="-2408"/>
+        <location line="-2337"/>
         <source>起動時の移行状態を保存できませんでした</source>
         <translation>无法保存启动时的迁移状态</translation>
     </message>

@@ -4,13 +4,12 @@
 <context>
     <name>Backend</name>
     <message>
-        <location filename="../src/backend.cpp" line="+735"/>
-        <location line="+1209"/>
+        <location filename="../src/backend.cpp" line="+719"/>
         <source>設定を保存できませんでした: %1</source>
         <translation>설정을 저장하지 못했습니다: %1</translation>
     </message>
     <message>
-        <location line="-781"/>
+        <location line="+428"/>
         <source>About UtauTTS</source>
         <translation>UtauTTS 정보</translation>
     </message>
@@ -78,22 +77,20 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
 릴리스 페이지에서 직접 업데이트하거나 잠시 후 다시 시도하세요.</translation>
     </message>
     <message>
-        <location line="+15"/>
         <source>アップデーターが同梱されていません。リリースページから手動で更新してください。</source>
-        <translation>업데이터가 포함되어 있지 않습니다. 릴리스 페이지에서 직접 업데이트하세요.</translation>
+        <translation type="vanished">업데이터가 포함되어 있지 않습니다. 릴리스 페이지에서 직접 업데이트하세요.</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+21"/>
         <source>ダウンロードした更新ファイルが見つかりません。</source>
         <translation>다운로드한 업데이트 파일을 찾을 수 없습니다.</translation>
     </message>
     <message>
-        <location line="+14"/>
         <source>アップデーターを一時ディレクトリに配置できませんでした。</source>
-        <translation>업데이터를 임시 디렉터리에 배치하지 못했습니다.</translation>
+        <translation type="vanished">업데이터를 임시 디렉터리에 배치하지 못했습니다.</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+24"/>
         <source>アップデーターへ実行権限を設定できませんでした。</source>
         <translation>업데이터에 실행 권한을 설정하지 못했습니다.</translation>
     </message>
@@ -108,12 +105,11 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
         <translation>업데이트 후 마이그레이션 정보를 저장하지 못했습니다.</translation>
     </message>
     <message>
-        <location line="+15"/>
         <source>アップデーターを起動できませんでした。</source>
-        <translation>업데이터를 실행하지 못했습니다.</translation>
+        <translation type="vanished">업데이터를 실행하지 못했습니다.</translation>
     </message>
     <message>
-        <location line="+370"/>
+        <location line="+385"/>
         <source>索引を削除できませんでした</source>
         <translation>색인을 삭제하지 못했습니다</translation>
     </message>
@@ -134,57 +130,49 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
     </message>
     <message>
         <location line="+56"/>
-        <location line="+414"/>
+        <location line="+263"/>
         <source>使用デバイス: %1</source>
         <translation>사용 장치: %1</translation>
     </message>
     <message>
-        <location line="-403"/>
+        <location line="-252"/>
         <source>索引を作成中: %1%</source>
         <translation>색인 생성 중: %1%</translation>
     </message>
     <message>
-        <location line="+35"/>
         <source>Web版では設定フォルダを開けません</source>
-        <translation>웹 버전에서는 설정 폴더를 열지 못합니다</translation>
+        <translation type="vanished">웹 버전에서는 설정 폴더를 열지 못합니다</translation>
     </message>
     <message>
-        <location line="+6"/>
         <source>設定フォルダを開けませんでした</source>
-        <translation>설정 폴더를 열지 못했습니다</translation>
+        <translation type="vanished">설정 폴더를 열지 못했습니다</translation>
     </message>
     <message>
-        <location line="+11"/>
-        <location line="+11"/>
-        <location line="+7"/>
         <source>設定を書き出せませんでした</source>
-        <translation>설정을 내보내지 못했습니다</translation>
+        <translation type="vanished">설정을 내보내지 못했습니다</translation>
     </message>
     <message>
-        <location line="+10"/>
-        <location line="+5"/>
         <source>設定ファイルを読み込めませんでした</source>
-        <translation>설정 파일을 읽지 못했습니다</translation>
+        <translation type="vanished">설정 파일을 읽지 못했습니다</translation>
     </message>
     <message>
-        <location line="+6"/>
         <source>設定ファイルの形式が正しくありません</source>
-        <translation>설정 파일의 형식이 올바르지 않습니다</translation>
+        <translation type="vanished">설정 파일의 형식이 올바르지 않습니다</translation>
     </message>
     <message>
-        <location line="+99"/>
+        <location line="+34"/>
         <location line="+3"/>
         <source>音源のZIPを選択できませんでした</source>
         <translation>음원 ZIP을 선택하지 못했습니다</translation>
     </message>
     <message>
         <location line="+32"/>
-        <location line="+899"/>
+        <location line="+984"/>
         <source>音源のZIPが選択されていません</source>
         <translation>음원 ZIP이 선택되지 않았습니다</translation>
     </message>
     <message>
-        <location line="-892"/>
+        <location line="-977"/>
         <source>音源を追加しています...</source>
         <translation>음원을 추가하는 중...</translation>
     </message>
@@ -210,18 +198,23 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
     </message>
     <message>
         <location line="+17"/>
-        <location line="+607"/>
+        <location line="+619"/>
         <source>音声合成を開始しました: %1</source>
         <translation>음성 합성을 시작했습니다: %1</translation>
     </message>
     <message>
-        <location line="-603"/>
-        <location line="+27"/>
+        <location line="-615"/>
+        <location line="+32"/>
         <source>方式: %1</source>
         <translation>방식: %1</translation>
     </message>
     <message>
-        <location line="-18"/>
+        <location line="-22"/>
+        <source>音声合成を中止しました</source>
+        <translation>음성 합성을 중지했습니다</translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>音声合成に失敗しました: %1</source>
         <translation>음성 합성에 실패했습니다: %1</translation>
     </message>
@@ -231,7 +224,7 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
         <translation>음성 합성이 끝났습니다.</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+37"/>
         <source>キャッシュ済みの音声を使用しました。</source>
         <translation>캐시된 음성을 사용했습니다.</translation>
     </message>
@@ -352,12 +345,27 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
         <translation>진단 정보를 내보내지 못했습니다: %1</translation>
     </message>
     <message>
-        <location line="-1331"/>
+        <location line="-1187"/>
         <source>エンジンを非同期で呼び出せません</source>
         <translation>엔진을 비동기로 호출하지 못했습니다</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="-292"/>
+        <source>アップデータが同梱されていません。リリースページから手動で更新してください。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>アップデータを一時ディレクトリに配置できませんでした。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+55"/>
+        <source>アップデータを起動できませんでした。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+251"/>
         <source>エンジンの応答を読み取れませんでした</source>
         <translation>엔진 응답을 읽지 못했습니다</translation>
     </message>
@@ -372,7 +380,7 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
         <translation>음원 폴더를 열지 못했습니다</translation>
     </message>
     <message>
-        <location line="+1096"/>
+        <location line="+1025"/>
         <source>テキストを入力してください</source>
         <translation>텍스트를 입력하세요</translation>
     </message>
@@ -492,7 +500,7 @@ UTAU 음원의 원음 연결과 프레임 선택에 학습 기반 억양 조정�
         <translation>번역되지 않은 오류: %1</translation>
     </message>
     <message>
-        <location line="-2408"/>
+        <location line="-2337"/>
         <source>起動時の移行状態を保存できませんでした</source>
         <translation>시작 시 마이그레이션 상태를 저장하지 못했습니다</translation>
     </message>
