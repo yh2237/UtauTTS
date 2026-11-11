@@ -308,6 +308,7 @@ ApplicationWindow {
     property url pendingProjectSource
     property var pendingProjectData: null
     property bool pendingNewProject: false
+    property bool audioOutputDeviceChosen: false
     property bool closeBypass: false
     property bool intonationLabInitialized: false
     property string intonationLabStatus: ""
@@ -325,8 +326,12 @@ ApplicationWindow {
     }
 
     function applyAudioOutputDevice() {
-        const devices = mediaDevices.audioOutputs || [];
         const requested = String(window.appBackend.audioOutputDeviceId || "");
+        // 既定の出力先のままなら、時間のかかる出力先の一覧を読まない。
+        if (!requested.length && !window.audioOutputDeviceChosen)
+            return;
+        window.audioOutputDeviceChosen = requested.length > 0;
+        const devices = mediaDevices.audioOutputs || [];
         let selected = mediaDevices.defaultAudioOutput;
         if (requested.length) {
             for (let index = 0; index < devices.length; ++index) {
@@ -733,6 +738,13 @@ ApplicationWindow {
         }
     }
 
+    // 通信の初期化で最初の画面が遅れないよう、更新の確認は起動の後に行う。
+    Timer {
+        id: updateCheckTimer
+        interval: 3000
+        onTriggered: window.checkForUpdates()
+    }
+
     Component.onCompleted: {
         Platform.updateViewportWidth(width);
         if (!window.mobileLayout && window.showOnboarding)
@@ -745,7 +757,7 @@ ApplicationWindow {
             addUtterance(false);
         window.resetHistory(false);
         if (!window.injectedSelfTest && window.appBackend.updateCheckEnabled)
-            window.checkForUpdates();
+            updateCheckTimer.start();
     }
 
     onClosing: close => {
@@ -803,7 +815,7 @@ ApplicationWindow {
                 glyphSize: Theme.iconLarge
                 Layout.preferredWidth: Theme.touchTarget
                 Layout.preferredHeight: Theme.touchTarget
-                onClicked: mobileChrome.openMenu()
+                onClicked: mobileChromeLoader.item.openMenu()
             }
         }
 
@@ -852,11 +864,13 @@ ApplicationWindow {
         anchors.fill: parent
     }
 
-    MobileChrome {
-        id: mobileChrome
+    Loader {
+        id: mobileChromeLoader
         anchors.fill: parent
-        window: window
-        visible: window.mobileLayout
+        active: window.mobileLayout
+        sourceComponent: MobileChrome {
+            window: window
+        }
     }
 
     // 一括書き出しの進み具合と中止、書き出しの結果を窓の下端に出す。
@@ -947,8 +961,8 @@ ApplicationWindow {
                 onClicked: window.showLogWindow()
             }
 
-            ToolButton {
-                text: "✕"
+            IconButton {
+                glyph: "\ue5cd"
                 Accessible.name: window.translator.tr("common.close")
                 ToolTip.visible: hovered
                 ToolTip.text: window.translator.tr("common.close")

@@ -20,10 +20,10 @@ ToolBar {
             font.bold: true
             elide: Text.ElideRight
         }
-        ToolButton {
+        IconButton {
             Layout.rightMargin: root.closeButtonMargin
-            text: "✕"
-            font.pixelSize: Theme.icon
+            glyph: "\ue5cd"
+            glyphSize: Theme.icon
             Layout.preferredWidth: Theme.touchTarget
             Layout.preferredHeight: Theme.touchTarget
             onClicked: root.closeClicked()
