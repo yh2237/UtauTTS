@@ -64,7 +64,30 @@ Item {
     readonly property real durationScale: defaultMoraDuration > 0 ? moraWidth / defaultMoraDuration : 0.5
     readonly property real graphWidth: Math.max(width, sidePadding * 2 + root.totalDuration() * durationScale)
 
-    function baseDurationAt(index) {
+    // モーラの長さ・位置・累積を入力が変わったときに一度だけ求め、描画のたびに先頭から足し直さない。
+    readonly property var timing: {
+        const count = root.morae.length;
+        const base = new Array(count);
+        const prefix = new Array(count + 1);
+        prefix[0] = 0;
+        for (let index = 0; index < count; ++index) {
+            base[index] = root.computeBaseDuration(index);
+            prefix[index + 1] = prefix[index] + base[index];
+        }
+        const positions = new Array(count);
+        let complete = count > 0 && root.moraPositions.length >= count;
+        for (let index = 0; index < count; ++index) {
+            const raw = index < root.moraPositions.length ? root.moraPositions[index] : undefined;
+            const value = Number(raw);
+            const finite = raw !== null && raw !== undefined && Number.isFinite(value);
+            if (!finite)
+                complete = false;
+            positions[index] = index === 0 ? 0 : finite ? Math.max(0, value) : prefix[index];
+        }
+        return {base: base, prefix: prefix, positions: positions, complete: complete};
+    }
+
+    function computeBaseDuration(index) {
         const mora = index < root.morae.length ? root.morae[index] : null;
         if (!mora)
             return Math.max(1, root.defaultMoraDuration);
@@ -76,16 +99,13 @@ Item {
         return Math.max(root.minimumDurationAt(index), fallback);
     }
 
+    function baseDurationAt(index) {
+        return index >= 0 && index < root.timing.base.length ? root.timing.base[index]
+                                                              : root.computeBaseDuration(index);
+    }
+
     function hasCompletePositions() {
-        if (!root.morae.length || root.moraPositions.length < root.morae.length)
-            return false;
-        for (let index = 0; index < root.morae.length; ++index) {
-            if (root.moraPositions[index] === null || root.moraPositions[index] === undefined)
-                return false;
-            if (!Number.isFinite(Number(root.moraPositions[index])))
-                return false;
-        }
-        return true;
+        return root.timing.complete;
     }
 
     function normalizedPositions(values) {
@@ -93,8 +113,8 @@ Item {
     }
 
     function positionAt(index) {
-        if (index === 0 && root.morae.length)
-            return 0;
+        if (index >= 0 && index < root.timing.positions.length)
+            return root.timing.positions[index];
         if (index >= 0 && index < root.moraPositions.length) {
             const value = Number(root.moraPositions[index]);
             if (Number.isFinite(value))
@@ -129,15 +149,17 @@ Item {
     function totalDuration() {
         if (root.hasCompletePositions() && root.morae.length)
             return root.endTime();
-        let total = 0;
-        for (let index = 0; index < root.morae.length; ++index)
-            total += root.baseDurationAt(index);
-        return total;
+        return root.timing.prefix[root.morae.length];
     }
 
     function durationBefore(index) {
-        let total = 0;
-        for (let position = 0; position < index; ++position)
+        const prefix = root.timing.prefix;
+        if (index <= 0)
+            return 0;
+        if (index < prefix.length)
+            return prefix[index];
+        let total = prefix[prefix.length - 1];
+        for (let position = prefix.length - 1; position < index; ++position)
             total += root.baseDurationAt(position);
         return total;
     }
@@ -454,7 +476,9 @@ Item {
                                      root.endTime() + root.maximumDurationAt(index));
             positions[index + 1] = Math.max(lower, Math.min(upper, positions[index] + targetDuration));
         } else {
-            root.moraDurations[index] = targetDuration;
+            const durations = (root.moraDurations || []).slice();
+            durations[index] = targetDuration;
+            root.moraDurations = durations;
         }
         root.moraPositions = root.normalizedPositions(positions);
         return true;
@@ -873,11 +897,11 @@ Item {
                 anchors.left: parent.left
                 anchors.bottom: parent.bottom
                 Repeater {
-                    model: root.morae
+                    model: root.visible ? root.morae.length : 0
                     delegate: Column {
                         id: pointColumn
-                        required property var modelData
                         required property int index
+                        readonly property var moraData: root.morae[index] || ({})
                         width: root.columnWidth(pointColumn.index)
                         height: parent.height
                         x: root.pointX(pointColumn.index) - width / 2
@@ -886,7 +910,7 @@ Item {
 
                         Text {
                             width: parent.width
-                            text: pointColumn.modelData.mora || root.translator.tr("pitch.emptyMora")
+                            text: pointColumn.moraData.mora || root.translator.tr("pitch.emptyMora")
                             horizontalAlignment: Text.AlignHCenter
                             color: root.labelColor
                             elide: Text.ElideRight
@@ -941,9 +965,8 @@ Item {
             }
 
             Repeater {
-                model: root.morae
+                model: root.visible ? root.morae.length : 0
                 delegate: Item {
-                    required property var modelData
                     required property int index
                     visible: index > 0 && root.durationIsEditable(index)
                     x: root.pointX(index) - width / 2
@@ -1089,7 +1112,7 @@ Item {
                 z: 3
 
                 Repeater {
-                    model: root.morae
+                    model: root.visible ? root.morae.length : 0
                     delegate: MouseArea {
                         required property int index
                         visible: root.pointIsEditable(index)

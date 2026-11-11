@@ -1853,6 +1853,10 @@ ApplicationWindow {
             return;
         // 連続した入力を1回の取り消しにまとめる。
         window.beginHistoryChange("text:" + item.utteranceId, true);
+        // 書き換える前の文章の合成は使わないので、待たずに止めて解析と次のプレビューを先に進める。
+        if (window.pendingUtteranceId === item.utteranceId && !window.playbackQueueActive
+                && !window.saveRequestPending)
+            window.cancelSynthesis();
         if (index === window.selectedIndex)
             window.clearSynthesisView();
         utterances.setProperty(index, "content", text);

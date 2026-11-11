@@ -138,50 +138,100 @@ Item {
         return Number.isFinite(value) ? value : 0;
     }
 
+    // フレームごとに全モーラを走査しないよう、モーラの中心と音高、区間とピッチ係数を入力が変わったときに一度だけ並べる。
+    readonly property var moraPitchAnchors: {
+        const anchors = [];
+        let sorted = true;
+        if (root.timingEditor) {
+            for (let index = 0; index < root.units.length; ++index) {
+                const unit = root.units[index];
+                if (!unit || String(unit.role) !== "mora")
+                    continue;
+                const start = root.unitNoteStart(unit);
+                const center = start + Math.max(1, root.unitDuration(unit)) / 2;
+                const cents = Number(root.timingEditor.pitchAt(Number(unit.position)));
+                if (!Number.isFinite(cents))
+                    continue;
+                if (anchors.length && anchors[anchors.length - 1].center > center)
+                    sorted = false;
+                anchors.push({center: center, cents: cents});
+            }
+        }
+        return {list: anchors, sorted: sorted};
+    }
+
+    readonly property var unitPitchSpans: {
+        const spans = [];
+        let sorted = true;
+        for (let index = 0; index < root.units.length; ++index) {
+            const unit = root.units[index];
+            if (!unit || String(unit.role) !== "mora")
+                continue;
+            const start = root.unitNoteStart(unit);
+            const end = start + Math.max(1, root.unitDuration(unit));
+            const factor = root.unitNumber(index, "pitch_factor", 1);
+            if (spans.length && spans[spans.length - 1].end > start)
+                sorted = false;
+            spans.push({start: start, end: end, cents: factor > 0 ? 1200 * Math.log(factor) / Math.LN2 : 0});
+        }
+        return {list: spans, sorted: sorted};
+    }
+
     function moraPitchCentsAtFrame(frame) {
         if (!root.timingEditor)
             return 0;
         const time = root.frameTimeMs(frame);
-        let previousTime = null;
-        let previousCents = 0;
-        let nextTime = null;
-        let nextCents = 0;
-        for (let index = 0; index < root.units.length; ++index) {
-            const unit = root.units[index];
-            if (!unit || String(unit.role) !== "mora")
-                continue;
-            const start = root.unitNoteStart(unit);
-            const center = start + Math.max(1, root.unitDuration(unit)) / 2;
-            const cents = Number(root.timingEditor.pitchAt(Number(unit.position)));
-            if (!Number.isFinite(cents))
-                continue;
-            if (center <= time) {
-                previousTime = center;
-                previousCents = cents;
-            } else if (nextTime === null) {
-                nextTime = center;
-                nextCents = cents;
+        const anchors = root.moraPitchAnchors.list;
+        let previous = -1;
+        let next = -1;
+        if (root.moraPitchAnchors.sorted) {
+            let low = 0;
+            let high = anchors.length;
+            while (low < high) {
+                const middle = (low + high) >> 1;
+                if (anchors[middle].center <= time)
+                    low = middle + 1;
+                else
+                    high = middle;
+            }
+            previous = low - 1;
+            next = low < anchors.length ? low : -1;
+        } else {
+            for (let index = 0; index < anchors.length; ++index) {
+                if (anchors[index].center <= time)
+                    previous = index;
+                else if (next < 0)
+                    next = index;
             }
         }
-        if (previousTime === null)
-            return nextTime === null ? 0 : nextCents;
-        if (nextTime === null)
-            return previousCents;
-        const span = Math.max(1e-6, nextTime - previousTime);
-        return previousCents + (nextCents - previousCents) * (time - previousTime) / span;
+        if (previous < 0)
+            return next < 0 ? 0 : anchors[next].cents;
+        if (next < 0)
+            return anchors[previous].cents;
+        const previousTime = anchors[previous].center;
+        const span = Math.max(1e-6, anchors[next].center - previousTime);
+        return anchors[previous].cents + (anchors[next].cents - anchors[previous].cents) * (time - previousTime) / span;
     }
 
     function unitPitchCentsAtFrame(frame) {
         const time = root.frameTimeMs(frame);
-        for (let index = 0; index < root.units.length; ++index) {
-            const unit = root.units[index];
-            if (!unit || String(unit.role) !== "mora")
-                continue;
-            const start = root.unitNoteStart(unit);
-            if (time < start || time >= start + Math.max(1, root.unitDuration(unit)))
-                continue;
-            const factor = root.unitNumber(index, "pitch_factor", 1);
-            return factor > 0 ? 1200 * Math.log(factor) / Math.LN2 : 0;
+        const spans = root.unitPitchSpans.list;
+        if (root.unitPitchSpans.sorted) {
+            let low = 0;
+            let high = spans.length;
+            while (low < high) {
+                const middle = (low + high) >> 1;
+                if (spans[middle].start <= time)
+                    low = middle + 1;
+                else
+                    high = middle;
+            }
+            const index = low - 1;
+            return index >= 0 && time < spans[index].end ? spans[index].cents : 0;
+        }
+        for (const span of spans) {
+            if (time >= span.start && time < span.end)
+                return span.cents;
         }
         return 0;
     }
@@ -1370,17 +1420,17 @@ Item {
             }
 
             Repeater {
-                model: root.units
+                model: root.visible ? root.units.length : 0
                 delegate: Rectangle {
                     id: unitBand
-                    required property var modelData
                     required property int index
+                    readonly property var unitData: root.units[index] || ({})
 
-                    readonly property bool editable: String(modelData.role) === "mora"
-                    readonly property real start: root.unitNoteStart(modelData) + root.leadingMargin
-                    readonly property real end: start + Math.max(1, root.unitDuration(modelData))
+                    readonly property bool editable: String(unitData.role) === "mora"
+                    readonly property real start: root.unitNoteStart(unitData) + root.leadingMargin
+                    readonly property real end: start + Math.max(1, root.unitDuration(unitData))
                     readonly property real centerY: unitBand.editable
-                            ? root.noteY(Number(modelData.position)) : 29
+                            ? root.noteY(Number(unitData.position)) : 29
                     x: root.timeToX(start)
                     y: unitBand.editable ? unitBand.centerY - 11 : 24
                     width: Math.max(2, root.timeToX(end) - x - 1)
@@ -1400,7 +1450,7 @@ Item {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.margins: Theme.spacingXSmall
-                        text: root.displayName(unitBand.modelData)
+                        text: root.displayName(unitBand.unitData)
                         color: root.labelColor
                         font.pixelSize: Theme.fontXSmall
                         elide: Text.ElideRight
