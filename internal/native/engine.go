@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	goruntime "runtime"
 	"sort"
 	"sync"
@@ -76,6 +77,7 @@ func (e *Engine) warmUp() {
 			fmt.Fprintf(os.Stderr, "UtauTTS: 事前準備に失敗しました: %v\n", recovered)
 		}
 	}()
+	prefetchFiles(e.ctx, e.config.OpenJTalkDictionary)
 	modelID := ""
 	if e.catalog != nil && len(e.catalog.Models) > 0 {
 		modelID = e.catalog.Models[0].ID
@@ -83,6 +85,34 @@ func (e *Engine) warmUp() {
 	_, _ = e.synth.PredictProsodyContext(e.ctx, synth.Request{
 		Text: "あ", Language: "ja", ModelID: modelID, Method: tts.MethodWaveformSynthesis,
 	})
+}
+
+// prefetchFiles はフォルダ直下のファイルを頭から読み、OS のファイルキャッシュに載せる。
+// Open JTalk は 100MB ほどの辞書を飛び飛びに読むので、HDD で冷えたままだと最初の予測に数秒から数十秒かかる。
+func prefetchFiles(ctx context.Context, dir string) {
+	if dir == "" {
+		return
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	buffer := make([]byte, 1<<20)
+	for _, entry := range entries {
+		if !entry.Type().IsRegular() || ctx.Err() != nil {
+			continue
+		}
+		file, err := os.Open(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			continue
+		}
+		for ctx.Err() == nil {
+			if _, err := file.Read(buffer); err != nil {
+				break
+			}
+		}
+		_ = file.Close()
+	}
 }
 
 func NewJSON(data []byte) (*Engine, error) {
