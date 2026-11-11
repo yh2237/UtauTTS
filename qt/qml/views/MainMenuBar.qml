@@ -11,6 +11,11 @@ MenuBar {
         id: fileMenu
         title: root.host.translator.tr("menu.file")
         MenuItem {
+            text: root.host.translator.tr("menu.file.new")
+            enabled: !root.host.appBackend.busy && !root.host.batchExportActive
+            onTriggered: root.host.requestNewProject()
+        }
+        MenuItem {
             text: root.host.translator.tr("menu.file.open")
             enabled: !root.host.appBackend.busy && !root.host.batchExportActive
             onTriggered: root.host.openProject()

@@ -288,7 +288,7 @@ Item {
 
     Dialog {
         id: projectOpenWarningDialog
-        title: host.translator.tr("main.projectOpenConfirmTitle")
+        title: host.translator.tr(host.pendingNewProject ? "main.projectNewConfirmTitle" : "main.projectOpenConfirmTitle")
         modal: true
         width: Math.min(host.width - Theme.spacingXLarge * 2, Theme.dialogWidthWide)
         anchors.centerIn: Overlay.overlay
@@ -302,7 +302,7 @@ Item {
 
             Label {
                 Layout.fillWidth: true
-                text: host.translator.tr("main.projectOpenUnsaved")
+                text: host.translator.tr(host.pendingNewProject ? "main.projectNewUnsaved" : "main.projectOpenUnsaved")
                 wrapMode: Text.WordWrap
             }
 
@@ -325,7 +325,7 @@ Item {
                 }
 
                 Button {
-                    text: host.translator.tr("main.saveAndOpen")
+                    text: host.translator.tr(host.pendingNewProject ? "main.saveAndNew" : "main.saveAndOpen")
                     enabled: !host.appBackend.busy && !host.batchExportActive
                     Keys.onReturnPressed: projectOpenWarningDialog.close()
                     Keys.onEnterPressed: projectOpenWarningDialog.close()
@@ -333,7 +333,7 @@ Item {
                 }
 
                 Button {
-                    text: host.translator.tr("main.openWithoutSaving")
+                    text: host.translator.tr(host.pendingNewProject ? "main.newWithoutSaving" : "main.openWithoutSaving")
                     Keys.onReturnPressed: projectOpenWarningDialog.close()
                     Keys.onEnterPressed: projectOpenWarningDialog.close()
                     onClicked: host.finishPendingProjectLoad(true)

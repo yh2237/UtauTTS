@@ -73,6 +73,11 @@ Item {
 
                 SectionLabel { text: root.window.translator.tr("menu.file"); Layout.topMargin: 0 }
                 MenuButton {
+                    text: root.window.translator.tr("menu.file.new")
+                    enabled: !root.backend.busy && !root.window.batchExportActive
+                    onClicked: { menuDrawer.close(); root.window.requestNewProject(); }
+                }
+                MenuButton {
                     text: root.window.translator.tr("menu.file.open")
                     enabled: !root.backend.busy && !root.window.batchExportActive
                     onClicked: { menuDrawer.close(); root.window.openProject(); }

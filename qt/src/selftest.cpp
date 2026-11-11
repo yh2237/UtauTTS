@@ -593,6 +593,24 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  QStringLiteral("application settings failed")))
         return 1;
 
+    const auto utteranceCount = [&] {
+        auto *model = rootObject->property("utterancesModel").value<QObject *>();
+        return model ? model->property("count").toInt() : -1;
+    };
+    rootObject->setProperty("projectDirty", false);
+    QMetaObject::invokeMethod(rootObject, "requestNewProject");
+    if (!require(utteranceCount() == 1 && rootObject->property("projectFile").toUrl().isEmpty()
+                 && !rootObject->property("projectDirty").toBool(),
+                 QStringLiteral("new project did not start empty")))
+        return 1;
+    rootObject->setProperty("projectDirty", true);
+    QMetaObject::invokeMethod(rootObject, "requestNewProject");
+    const bool waitedForConfirmation = rootObject->property("pendingNewProject").toBool();
+    QMetaObject::invokeMethod(rootObject, "finishPendingProjectLoad", Q_ARG(QVariant, true));
+    if (!require(waitedForConfirmation && utteranceCount() == 1 && !rootObject->property("projectDirty").toBool(),
+                 QStringLiteral("new project did not ask before discarding changes")))
+        return 1;
+
     qInfo() << "UtauTTS self-test passed";
     return 0;
 }

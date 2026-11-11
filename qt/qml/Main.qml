@@ -306,6 +306,7 @@ ApplicationWindow {
     property bool loadAfterProjectSave: false
     property url pendingProjectSource
     property var pendingProjectData: null
+    property bool pendingNewProject: false
     property bool closeBypass: false
     property bool intonationLabInitialized: false
     property string intonationLabStatus: ""
@@ -346,6 +347,12 @@ ApplicationWindow {
     }
 
 
+
+    Shortcut {
+        sequence: StandardKey.New
+        enabled: !window.settingsWindowVisible && !window.appBackend.busy && !window.batchExportActive
+        onActivated: window.requestNewProject()
+    }
 
     Shortcut {
         sequence: window.qtShortcutSequence(window.appBackend.saveProjectShortcut)
@@ -1561,6 +1568,30 @@ ApplicationWindow {
     function clearPendingProjectLoad() {
         window.pendingProjectSource = "";
         window.pendingProjectData = null;
+        window.pendingNewProject = false;
+    }
+
+    function requestNewProject() {
+        if (window.appBackend.busy || window.batchExportActive)
+            return;
+        if (!window.projectDirty) {
+            window.newProject();
+            return;
+        }
+        window.clearPendingProjectLoad();
+        window.pendingNewProject = true;
+        dialogs.projectOpenWarningDialog.open();
+    }
+
+    function newProject() {
+        window.projectDirty = false;
+        window.clearPlayback();
+        window.clearSynthesisView();
+        utterances.clear();
+        window.nextUtteranceId = 1;
+        window.projectFile = "";
+        window.addUtterance(false);
+        window.resetHistory(false);
     }
 
     function cancelPendingProjectLoad() {
@@ -1573,10 +1604,13 @@ ApplicationWindow {
     function finishPendingProjectLoad(closeDialog) {
         const source = window.pendingProjectSource;
         const project = window.pendingProjectData;
+        const createNew = window.pendingNewProject;
         window.clearPendingProjectLoad();
         if (closeDialog)
             dialogs.projectOpenWarningDialog.close();
-        if (project)
+        if (createNew)
+            window.newProject();
+        else if (project)
             window.applyLoadedProject(project);
         else if (source.toString().length)
             window.loadProjectFrom(source);
