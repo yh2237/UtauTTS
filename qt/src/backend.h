@@ -178,6 +178,8 @@ public:
     Q_INVOKABLE void clearRecentProjects();
     Q_INVOKABLE bool exportDiagnosticReport(const QUrl &destination, const QVariantMap &context);
     Q_INVOKABLE QString dictionaryFingerprint() const;
+    Q_INVOKABLE QVariantMap importDictionary(const QUrl &source) const;
+    Q_INVOKABLE bool exportDictionary(const QUrl &destination, const QVariantList &entries) const;
     Q_INVOKABLE void setDarkMode(bool value);
     Q_INVOKABLE void setLanguage(const QString &value);
     Q_INVOKABLE void setOnboardingCompleted(bool value);

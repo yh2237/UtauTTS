@@ -425,6 +425,14 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  QStringLiteral("exo export failed: ") + backend.error()))
         return 1;
 
+    const QUrl dictionaryURL = QUrl::fromLocalFile(temporary.filePath(QStringLiteral("dictionary.csv")));
+    const QVariantList csvEntries{
+            QVariantMap{{"surface", QStringLiteral("A,B")}, {"reading", QStringLiteral("えー\"びー")}},
+            QVariantMap{{"surface", QStringLiteral("足立レイ")}, {"reading", QStringLiteral("あだちれい")}}};
+    if (!require(backend.exportDictionary(dictionaryURL, csvEntries)
+                 && backend.importDictionary(dictionaryURL).value(QStringLiteral("entries")).toList() == csvEntries,
+                 QStringLiteral("dictionary CSV round trip failed")))
+        return 1;
     backend.setDictionaryEntries(QVariantList{QVariantMap{{"surface", "UtauTTS"}, {"reading", "うたうてぃーてぃーえす"}}});
     if (!require(backend.dictionaryEntries().size() == 1 && !backend.dictionaryFingerprint().isEmpty(),
                  QStringLiteral("dictionary settings failed")))

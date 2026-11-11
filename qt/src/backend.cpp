@@ -2753,6 +2753,79 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
 
 
 
+namespace {
+// 表記と読みの2列の CSV（RFC 4180 の引用符）。
+QStringList splitCsvLine(const QString &line) {
+    QStringList fields;
+    QString field;
+    bool quoted = false;
+    for (qsizetype index = 0; index < line.size(); ++index) {
+        const QChar character = line.at(index);
+        if (quoted) {
+            if (character == u'"' && index + 1 < line.size() && line.at(index + 1) == u'"') {
+                field += u'"';
+                ++index;
+            } else if (character == u'"') {
+                quoted = false;
+            } else {
+                field += character;
+            }
+        } else if (character == u'"') {
+            quoted = true;
+        } else if (character == u',') {
+            fields.append(field);
+            field.clear();
+        } else {
+            field += character;
+        }
+    }
+    fields.append(field);
+    return fields;
+}
+
+QString csvField(QString value) {
+    if (!value.contains(u',') && !value.contains(u'"') && !value.contains(u'\n'))
+        return value;
+    return u'"' + value.replace(u'"', QStringLiteral("\"\"")) + u'"';
+}
+}
+
+QVariantMap Backend::importDictionary(const QUrl &source) const {
+    QFile file(source.toLocalFile());
+    if (!file.open(QIODevice::ReadOnly))
+        return {{QStringLiteral("_error"), file.errorString()}};
+    QString text = QString::fromUtf8(file.readAll());
+    if (text.startsWith(QChar(0xfeff)))
+        text.remove(0, 1);
+    QVariantList entries;
+    for (const QString &rawLine : text.split(u'\n')) {
+        const QString line = rawLine.endsWith(u'\r') ? rawLine.chopped(1) : rawLine;
+        if (line.trimmed().isEmpty())
+            continue;
+        const QStringList fields = splitCsvLine(line);
+        const QString surface = fields.value(0).trimmed();
+        const QString reading = fields.value(1).trimmed();
+        if (surface.isEmpty() || reading.isEmpty())
+            continue;
+        entries.append(QVariantMap{{QStringLiteral("surface"), surface}, {QStringLiteral("reading"), reading}});
+    }
+    return {{QStringLiteral("entries"), entries}};
+}
+
+bool Backend::exportDictionary(const QUrl &destination, const QVariantList &entries) const {
+    QSaveFile file(destination.toLocalFile());
+    if (!file.open(QIODevice::WriteOnly))
+        return false;
+    QString text;
+    for (const QVariant &value : entries) {
+        const QVariantMap entry = value.toMap();
+        text += csvField(entry.value(QStringLiteral("surface")).toString()) + u','
+                + csvField(entry.value(QStringLiteral("reading")).toString()) + QStringLiteral("\r\n");
+    }
+    file.write(text.toUtf8());
+    return file.commit();
+}
+
 QString Backend::dictionaryFingerprint() const {
     const QByteArray data = QJsonDocument::fromVariant(m_dictionaryEntries).toJson(QJsonDocument::Compact);
     return QString::fromLatin1(QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex());
