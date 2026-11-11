@@ -101,6 +101,7 @@
     "main.pitch.volume": "Volume",
     "main.playback.generateAndPlay": "생성 후 재생",
     "main.playback.paused": "일시정지",
+    "main.playback.cancel": "합성 중지",
     "main.openWithoutSaving": "저장하지 않고 열기",
     "main.projectFilter": "UtauTTS 프로젝트 (*.utautts)",
     "main.projectLoadError": "프로젝트 파일을 불러오지 못했습니다",

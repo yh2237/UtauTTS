@@ -679,6 +679,12 @@ ApplicationWindow {
             UtteranceCore.handlePreviewReady(window.utteranceCoreContext);
         }
 
+        function onSynthesisCanceled() {
+            window.autoplayPreview = false;
+            window.saveRequestPending = false;
+            window.stopPlaybackQueue();
+        }
+
         function onErrorChanged() {
             if (window.appBackend.error.length) {
                 window.errorBannerDismissed = false;
@@ -2607,6 +2613,15 @@ ApplicationWindow {
         window.appBackend.clearLogs();
         window.showLogWindow();
         window.appBackend.synthesize(window.buildSynthesisRequest(item));
+    }
+
+    function cancelSynthesis() {
+        if (!window.appBackend.busy || window.batchExportActive || !window.pendingUtteranceId.length)
+            return;
+        autoPreviewTimer.stop();
+        window.autoPreviewPending = false;
+        window.autoplayPreview = false;
+        window.appBackend.cancelSynthesis();
     }
 
     function scheduleAutoPreview() {

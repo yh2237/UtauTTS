@@ -101,6 +101,7 @@
     "main.pitch.volume": "Volumen",
     "main.playback.generateAndPlay": "Generar y reproducir",
     "main.playback.paused": "En pausa",
+    "main.playback.cancel": "Cancelar síntesis",
     "main.openWithoutSaving": "Abrir sin guardar",
     "main.projectFilter": "Proyecto de UtauTTS (*.utautts)",
     "main.projectLoadError": "No se pudo cargar el archivo de proyecto",

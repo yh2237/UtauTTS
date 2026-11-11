@@ -101,6 +101,7 @@
     "main.pitch.volume": "Volume",
     "main.playback.generateAndPlay": "生成并播放",
     "main.playback.paused": "已暂停",
+    "main.playback.cancel": "取消合成",
     "main.openWithoutSaving": "不保存并打开",
     "main.projectFilter": "UtauTTS 工程文件 (*.utautts)",
     "main.projectLoadError": "无法读取工程文件",

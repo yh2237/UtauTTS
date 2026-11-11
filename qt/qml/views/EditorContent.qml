@@ -957,6 +957,9 @@ import UtauTTSStyle
                     position: window.playerMedia.position
                     duration: window.playerMedia.duration
                     errorText: window.appBackend.error.length ? window.appBackend.error : window.playbackError
+                    cancellable: window.appBackend.busy && !window.batchExportActive
+                                 && window.pendingUtteranceId.length > 0
+                    onCancelRequested: window.cancelSynthesis()
                     onPrimaryClicked: {
                         if (window.playerMedia.playbackState === MediaPlayer.PlayingState)
                             window.playerMedia.pause();

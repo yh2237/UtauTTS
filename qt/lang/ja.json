@@ -101,6 +101,7 @@
     "main.pitch.volume": "Volume",
     "main.playback.generateAndPlay": "生成して再生",
     "main.playback.paused": "一時停止",
+    "main.playback.cancel": "合成を中止",
     "main.openWithoutSaving": "保存せずに開く",
     "main.projectFilter": "UtauTTSプロジェクト (*.utautts)",
     "main.projectLoadError": "プロジェクトファイルを読み込めませんでした",

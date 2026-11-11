@@ -8,22 +8,19 @@ RowLayout {
     id: root
     required property var translator
 
-    FontLoader {
-        id: iconFont
-        source: "qrc:/fonts/MaterialSymbolsOutlined-subset.ttf"
-    }
-    property color mutedText
     property bool busy: false
     property bool playing: false
     property bool hasAudio: false
     property bool canGenerate: false
+    property bool cancellable: false
     property real position: 0
     property real duration: 0
     property string errorText: ""
     signal primaryClicked()
+    signal cancelRequested()
     signal seekRequested(real position)
 
-    spacing: 8
+    spacing: Theme.spacing
 
     function formatTime(milliseconds) {
         const seconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -32,27 +29,30 @@ RowLayout {
     }
 
     readonly property bool waiting: root.busy && !root.playing && !root.hasAudio
+    readonly property bool showCancel: root.waiting && root.cancellable && playbackButton.hovered
 
-    RoundButton {
+    AccentRoundButton {
         id: playbackButton
-        Layout.preferredWidth: 40
-        Layout.preferredHeight: 40
-        highlighted: true
-        enabled: root.playing || root.hasAudio || root.canGenerate
-        onClicked: root.primaryClicked()
+        enabled: root.playing || root.hasAudio || root.canGenerate || root.cancellable
+        onClicked: {
+            if (root.waiting && root.cancellable)
+                root.cancelRequested();
+            else
+                root.primaryClicked();
+        }
         ToolTip.visible: hovered
-        ToolTip.text: root.errorText.length ? root.errorText
+        ToolTip.text: root.waiting && root.cancellable ? root.translator.tr("main.playback.cancel")
+                      : root.errorText.length ? root.errorText
                       : root.playing ? root.translator.tr("main.playback.paused")
                       : root.translator.tr("main.playback.generateAndPlay")
 
         contentItem: Text {
             objectName: "previewPlaybackIcon"
-            anchors.centerIn: parent
-            visible: !root.waiting
-            text: root.playing ? "\ue034" : "\ue037"
-            color: playbackButton.palette.buttonText
-            font.family: iconFont.name
-            font.pixelSize: 22
+            opacity: root.waiting && !root.showCancel ? 0 : 1
+            text: root.showCancel ? "\ue047" : root.playing ? "\ue034" : "\ue037"
+            color: playbackButton.enabled ? Theme.buttonText : Theme.disabledText
+            font.family: Theme.iconFont
+            font.pixelSize: Theme.icon
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }
@@ -61,14 +61,14 @@ RowLayout {
             id: waitingIndicator
             objectName: "previewWaitingIndicator"
             anchors.centerIn: parent
-            width: 22
-            height: 22
-            visible: root.waiting
+            width: Theme.icon
+            height: Theme.icon
+            visible: root.waiting && !root.showCancel
 
             Canvas {
                 id: waitingArc
                 anchors.fill: parent
-                property color strokeColor: playbackButton.palette.buttonText
+                property color strokeColor: Theme.buttonText
                 onStrokeColorChanged: requestPaint()
                 onPaint: {
                     const context = getContext("2d");
@@ -114,7 +114,7 @@ RowLayout {
 
     Label {
         text: root.formatTime(root.position) + " / " + root.formatTime(root.duration)
-        color: root.mutedText
-        font.pixelSize: 11
+        color: Theme.inactiveText
+        font.pixelSize: Theme.fontSmall
     }
 }
