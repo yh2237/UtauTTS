@@ -34,10 +34,10 @@ Item {
         y: 0
         modal: root.window.mobileLayout
         interactive: root.window.mobileLayout
-        leftPadding: 16
-        rightPadding: 16
-        topPadding: 16
-        bottomPadding: 16
+        leftPadding: Theme.spacingXLarge
+        rightPadding: Theme.spacingXLarge
+        topPadding: Theme.spacingXLarge
+        bottomPadding: Theme.spacingXLarge
         exit: Transition {
             NumberAnimation {
                 property: "position"
@@ -52,23 +52,23 @@ Item {
             implicitWidth: 0
             contentWidth: availableWidth
             // スクロールバーは右端に重ねて置かれるので、スクロールするときはその分だけボタンの幅を空ける。
-            rightPadding: ScrollBar.vertical.size < 1 ? ScrollBar.vertical.width + 6 : 0
+            rightPadding: ScrollBar.vertical.size < 1 ? ScrollBar.vertical.width + Theme.spacingMedium : 0
             // デスクトップのメニューバーと同じ順に並べる。スマホで使わない項目（終了・フォルダを開く・exo）と、
             // 同じ動作になる項目（Webでは「名前を付けて保存」は「保存」と同じ）は置かない。元に戻す・やり直すは見出しにある。
             ColumnLayout {
                 width: menuScroll.availableWidth
-                spacing: 6
+                spacing: Theme.spacingMedium
 
                 component SectionLabel: Label {
                     Layout.fillWidth: true
-                    Layout.topMargin: 8
+                    Layout.topMargin: Theme.spacing
                     font.bold: true
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.fontMedium
                     opacity: 0.6
                 }
                 component MenuButton: Button {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 44
+                    Layout.preferredHeight: Theme.touchTarget
                 }
 
                 SectionLabel { text: root.window.translator.tr("menu.file"); Layout.topMargin: 0 }
@@ -202,10 +202,10 @@ Item {
             id: settingsScroll
             implicitWidth: 0
             contentWidth: availableWidth
-            rightPadding: ScrollBar.vertical.size < 1 ? ScrollBar.vertical.width + 6 : 0
+            rightPadding: ScrollBar.vertical.size < 1 ? ScrollBar.vertical.width + Theme.spacingMedium : 0
             ColumnLayout {
                 width: settingsScroll.availableWidth
-                spacing: 12
+                spacing: Theme.spacingLarge
                 Label { text: root.window.translator.tr("settings.language"); font.bold: true }
                 ComboBox {
                     Layout.fillWidth: true

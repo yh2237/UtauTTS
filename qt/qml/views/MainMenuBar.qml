@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import UtauTTS.Platform 1.0
-import "../controls"
 
 MenuBar {
     id: root
@@ -11,7 +10,7 @@ MenuBar {
     Menu {
         id: fileMenu
         title: root.host.translator.tr("menu.file")
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.file.open")
             enabled: !root.host.appBackend.busy && !root.host.batchExportActive
             onTriggered: root.host.openProject()
@@ -22,7 +21,7 @@ MenuBar {
 
             Instantiator {
                 model: root.host.appBackend.recentProjects
-                delegate: GrayscaleMenuItem {
+                delegate: MenuItem {
                     required property string modelData
                     text: root.host.recentProjectLabel(modelData)
                     enabled: !root.host.appBackend.busy && !root.host.batchExportActive
@@ -35,25 +34,25 @@ MenuBar {
                 onObjectRemoved: (index, object) => recentProjectsMenu.removeItem(object)
             }
 
-            GrayscaleMenuItem {
+            MenuItem {
                 text: root.host.translator.tr("menu.file.recent.empty")
                 enabled: false
                 visible: root.host.appBackend.recentProjects.length === 0
             }
             MenuSeparator {}
-            GrayscaleMenuItem {
+            MenuItem {
                 text: root.host.translator.tr("menu.file.recent.clear")
                 enabled: root.host.appBackend.recentProjects.length > 0
                 onTriggered: root.host.appBackend.clearRecentProjects()
             }
         }
         MenuSeparator {}
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.file.save")
             enabled: !root.host.appBackend.busy && !root.host.batchExportActive
             onTriggered: root.host.saveCurrentProject()
         }
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.file.saveAs")
             enabled: !root.host.appBackend.busy && !root.host.batchExportActive
             onTriggered: root.host.openProjectSaveDialog()
@@ -62,27 +61,27 @@ MenuBar {
         Menu {
             id: exportMenu
             title: root.host.translator.tr("menu.file.export")
-            GrayscaleMenuItem {
+            MenuItem {
                 text: root.host.translator.tr("menu.file.saveWav")
                 enabled: utterances.count > 0 && !root.host.appBackend.busy && !root.host.batchExportActive && root.host.current().reading.length > 0
                 onTriggered: root.host.saveCurrentAudio()
             }
-            GrayscaleMenuItem {
+            MenuItem {
                 text: root.host.translator.tr("menu.file.saveAllWav")
                 enabled: !root.host.appBackend.busy && !root.host.batchExportActive && root.host.hasPlayableTextFrom(0)
                 onTriggered: root.host.openSaveAllDialog()
             }
-            GrayscaleMenuItem {
+            MenuItem {
                 text: root.host.translator.tr("menu.file.saveWavWithSidecars")
                 enabled: utterances.count > 0 && !root.host.appBackend.busy && !root.host.batchExportActive && root.host.current().reading.length > 0
                 onTriggered: root.host.saveCurrentAudio(true)
             }
-            GrayscaleMenuItem {
+            MenuItem {
                 text: root.host.translator.tr("menu.file.saveAllWavWithSidecars")
                 enabled: !root.host.appBackend.busy && !root.host.batchExportActive && root.host.hasPlayableTextFrom(0)
                 onTriggered: root.host.openSaveAllDialog(true)
             }
-            GrayscaleMenuItem {
+            MenuItem {
                 text: root.host.translator.tr("menu.file.exportUstx")
                 enabled: utterances.count > 0 && !root.host.appBackend.busy && !root.host.batchExportActive
                 onTriggered: root.host.openUstxExportDialog()
@@ -94,7 +93,7 @@ MenuBar {
             }
             Instantiator {
                 model: Platform.hasNativeFileDialog ? ["selected", "all"] : []
-                delegate: GrayscaleMenuItem {
+                delegate: MenuItem {
                     required property string modelData
                     text: modelData === "selected"
                           ? root.host.translator.tr("menu.file.exportExo")
@@ -111,12 +110,12 @@ MenuBar {
         Menu {
             id: voicebankMenu
             title: root.host.translator.tr("menu.file.voicebanks")
-            GrayscaleMenuItem {
+            MenuItem {
                 text: root.host.translator.tr("menu.file.addVoicebank")
                 enabled: !root.host.appBackend.busy && !root.host.batchExportActive
                 onTriggered: root.host.addVoicebanks()
             }
-            GrayscaleMenuItem {
+            MenuItem {
                 text: root.host.translator.tr("menu.file.reloadVoicebanks")
                 enabled: !root.host.appBackend.busy
                 onTriggered: root.host.reloadVoicebanks()
@@ -125,7 +124,7 @@ MenuBar {
             // 音源フォルダを開く操作はWeb以外（「音源を追加」の次）。
             Instantiator {
                 model: Platform.isWeb ? 0 : 1
-                delegate: GrayscaleMenuItem {
+                delegate: MenuItem {
                     text: root.host.translator.tr("menu.file.openVoiceDirectory")
                     enabled: !root.host.appBackend.busy && !root.host.batchExportActive
                     onTriggered: root.host.appBackend.openVoiceDirectory()
@@ -140,7 +139,7 @@ MenuBar {
         }
         Instantiator {
             model: Platform.isDesktop ? 1 : 0
-            delegate: GrayscaleMenuItem {
+            delegate: MenuItem {
                 text: root.host.translator.tr("menu.file.quit")
                 onTriggered: Qt.quit()
             }
@@ -150,13 +149,13 @@ MenuBar {
     }
     Menu {
         title: root.host.translator.tr("menu.edit")
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.edit.undo")
             enabled: root.host.canUndo && !root.host.appBackend.busy && !root.host.batchExportActive
                      && !root.host.playbackQueueActive
             onTriggered: root.host.undo()
         }
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.edit.redo")
             enabled: root.host.canRedo && !root.host.appBackend.busy && !root.host.batchExportActive
                      && !root.host.playbackQueueActive
@@ -165,26 +164,26 @@ MenuBar {
     }
     Menu {
         title: root.host.translator.tr("menu.playback")
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.playback.current")
             enabled: utterances.count > 0 && !root.host.appBackend.busy && !root.host.batchExportActive
                      && !root.host.playbackQueueActive && root.host.current().reading.length > 0
             onTriggered: root.host.synthesizeCurrent()
         }
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.playback.all")
             enabled: !root.host.appBackend.busy && !root.host.batchExportActive && !root.host.playbackQueueActive
                      && root.host.hasPlayableTextFrom(0)
             onTriggered: root.host.startPlaybackQueue(0)
         }
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.playback.fromSelected")
             enabled: !root.host.appBackend.busy && !root.host.batchExportActive && !root.host.playbackQueueActive
                      && root.host.hasPlayableTextFrom(root.host.selectedIndex)
             onTriggered: root.host.startPlaybackQueue(root.host.selectedIndex)
         }
         MenuSeparator {}
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.playback.replay")
             enabled: !root.host.appBackend.busy && !root.host.batchExportActive && !root.host.playbackQueueActive
                      && root.host.hasCachedAudio()
@@ -193,38 +192,38 @@ MenuBar {
     }
     Menu {
         title: root.host.translator.tr("menu.settings")
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.settings.settings")
             onTriggered: root.host.openSettings()
         }
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.settings.dictionary")
             onTriggered: root.host.openDictionarySettings()
         }
     }
     Menu {
         title: root.host.translator.tr("menu.help")
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.help.about")
             onTriggered: {
                 if (!root.host.appBackend.showNativeAboutDialog())
                     root.host.menuDialogs.about.open();
             }
         }
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.help.repository")
             onTriggered: Qt.openUrlExternally(root.host.repositoryUrl)
         }
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.help.license")
             onTriggered: root.host.openLicense()
         }
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.help.voicebankDetails")
             enabled: root.host.appBackend.voicebanks.length > 0
             onTriggered: root.host.showVoicebankDetails()
         }
-        GrayscaleMenuItem {
+        MenuItem {
             text: root.host.translator.tr("menu.help.exportDiagnostics")
             onTriggered: {
                 const destination = root.host.appBackend.defaultSaveFile("utautts-diagnostics.json");

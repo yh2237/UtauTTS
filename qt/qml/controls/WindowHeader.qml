@@ -7,7 +7,7 @@ import QtQuick.Layouts
 ToolBar {
     id: root
     property string heading: ""
-    property int contentMargin: 12
+    property int contentMargin: Theme.spacingLarge
     property int closeButtonMargin: 0
     signal closeClicked()
 
@@ -23,9 +23,9 @@ ToolBar {
         ToolButton {
             Layout.rightMargin: root.closeButtonMargin
             text: "✕"
-            font.pixelSize: 22
-            Layout.preferredWidth: 52
-            Layout.preferredHeight: 48
+            font.pixelSize: Theme.icon
+            Layout.preferredWidth: Theme.touchTarget
+            Layout.preferredHeight: Theme.touchTarget
             onClicked: root.closeClicked()
         }
     }

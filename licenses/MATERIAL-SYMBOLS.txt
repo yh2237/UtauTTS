@@ -7,14 +7,14 @@ font, containing only the glyphs used by the UtauTTS interface:
 - pan_tool (U+E925, hand tool)
 - edit (U+E3C9, pen tool)
 - more_vert (U+E5D4, card menu)
-- close (U+E5CD, remove entry)
 - add (U+E145, add utterance)
 - play_arrow (U+E037, play)
 - pause (U+E034, pause)
-- more_horiz (U+E5D3, busy indicator)
+- stop (U+E047, cancel synthesis)
 - refresh (U+E5D5, reset to default)
 - undo (U+E166, undo on mobile)
 - redo (U+E15A, redo on mobile)
+- menu (U+E5D2, menu on mobile)
 
 Source
 ------

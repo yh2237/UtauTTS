@@ -20,17 +20,18 @@ ColumnLayout {
               ? content.translator.tr("log.synthesizing")
               : content.failed ? content.translator.tr("log.failed")
                                : content.translator.tr("log.completed")
-        color: content.failed ? "#b42318" : content.palette.text
+        color: content.failed ? Theme.negative : content.palette.text
         font.bold: true
         wrapMode: Text.Wrap
     }
 
     ScrollView {
+        id: synthesisLogScroll
         Layout.fillWidth: true
         Layout.fillHeight: true
         TextArea {
             id: synthesisLogText
-            width: content.width - 24
+            width: synthesisLogScroll.availableWidth
             text: content.backend.logLines.join("\n")
             readOnly: true
             selectByMouse: true

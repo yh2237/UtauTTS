@@ -11,6 +11,7 @@
 #include <QJsonObject>
 #include <QJSValue>
 #include <QMetaObject>
+#include <QQuickItem>
 #include <QQuickWindow>
 #include <QSettings>
 #include <QTemporaryDir>
@@ -18,6 +19,7 @@
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
+#include <tuple>
 #include <utility>
 
 namespace {
@@ -49,6 +51,141 @@ bool waitFor(Backend &backend, Signal signal, Trigger trigger, const QString &op
     loop.exec();
     return require(backend.error().isEmpty(), operation + QStringLiteral(": ") + backend.error())
         && require(completed, operation + QStringLiteral(" timed out"));
+}
+
+void settle() {
+    QEventLoop loop;
+    QTimer::singleShot(300, &loop, &QEventLoop::quit);
+    loop.exec();
+}
+
+bool captureInterface(QObject *rootObject, QQuickWindow *window, QQuickWindow *settings,
+                      const QString &directory) {
+    const QDir output(directory);
+    if (!require(QDir().mkpath(directory), QStringLiteral("UI capture could not be initialized")))
+        return false;
+    window->show();
+    settle();
+    if (!require(window->grabWindow().save(output.filePath(QStringLiteral("normal.png"))),
+                 QStringLiteral("UI capture failed")))
+        return false;
+    // 開いた状態の部品も撮る。メニューは利用者がクリックしたときと同じく、項目の triggered で開く。
+    if (QObject *menuBar = rootObject->findChild<QObject *>(QStringLiteral("mainMenuBar"))) {
+        QQuickItem *firstItem = nullptr;
+        for (QQuickItem *item : menuBar->findChildren<QQuickItem *>()) {
+            if (item->inherits("QQuickMenuBarItem")) {
+                firstItem = item;
+                break;
+            }
+        }
+        if (firstItem) {
+            QMetaObject::invokeMethod(firstItem, "triggered");
+            settle();
+            window->grabWindow().save(output.filePath(QStringLiteral("menu-open.png")));
+            QMetaObject::invokeMethod(firstItem, "triggered");
+            settle();
+        }
+    }
+    if (QObject *combo = rootObject->findChild<QObject *>(QStringLiteral("voicebankCombo"))) {
+        if (auto *popup = combo->property("popup").value<QObject *>()) {
+            QMetaObject::invokeMethod(popup, "open");
+            settle();
+            window->grabWindow().save(output.filePath(QStringLiteral("combo-open.png")));
+            QMetaObject::invokeMethod(popup, "close");
+            settle();
+        }
+    }
+    if (QObject *tabs = rootObject->findChild<QObject *>(QStringLiteral("pitchModeTabs"))) {
+        tabs->setProperty("currentIndex", 1);
+        settle();
+        window->grabWindow().save(output.filePath(QStringLiteral("editor-extended.png")));
+        tabs->setProperty("currentIndex", 0);
+        settle();
+    }
+    if (QObject *dialogs = rootObject->findChild<QObject *>(QStringLiteral("mainDialogs"))) {
+        for (const char *name : {"aboutDialog", "closeWarningDialog", "projectNameDialog"}) {
+            auto *dialog = dialogs->property(name).value<QObject *>();
+            if (!dialog)
+                continue;
+            QMetaObject::invokeMethod(dialog, "open");
+            settle();
+            window->grabWindow().save(output.filePath(QString::fromLatin1(name) + QStringLiteral(".png")));
+            QMetaObject::invokeMethod(dialog, "close");
+            settle();
+        }
+    }
+    window->hide();
+    settings->show();
+    for (const auto &[page, name] : {
+             std::pair{1, QStringLiteral("settings-synthesis.png")},
+             std::pair{2, QStringLiteral("settings-shortcuts.png")},
+             std::pair{3, QStringLiteral("settings-index.png")},
+             std::pair{0, QStringLiteral("settings-behavior.png")}}) {
+        settings->setProperty("currentPage", page);
+        settle();
+        if (!require(settings->grabWindow().save(output.filePath(name)),
+                     QStringLiteral("settings UI capture failed")))
+            return false;
+    }
+    if (QObject *table = settings->findChild<QObject *>(QStringLiteral("referenceIndexTable"))) {
+        settings->setProperty("currentPage", 3);
+        QMetaObject::invokeMethod(table, "sortBy", Q_ARG(QVariant, 3));
+        settle();
+        settings->grabWindow().save(output.filePath(QStringLiteral("settings-index-sorted.png")));
+        table->setProperty("sortColumn", -1);
+        QMetaObject::invokeMethod(table, "rebuildOrder");
+        settings->setProperty("currentPage", 0);
+    }
+    settings->hide();
+    // 補助の窓は遅延生成なので、開いてから探す。
+    for (const auto &[opener, objectName, fileName] : {
+             std::tuple{"openLicense", QStringLiteral("licenseWindow"), QStringLiteral("license.png")},
+             std::tuple{"openDictionarySettings", QStringLiteral("dictionaryWindow"), QStringLiteral("dictionary.png")},
+             std::tuple{"showVoicebankDetails", QStringLiteral("voicebankDetailsWindow"), QStringLiteral("voicebank-details.png")}}) {
+        QMetaObject::invokeMethod(rootObject, opener);
+        settle();
+        if (auto *auxiliary = rootObject->findChild<QQuickWindow *>(objectName)) {
+            auxiliary->grabWindow().save(output.filePath(fileName));
+            if (QObject *table = auxiliary->findChild<QObject *>(QStringLiteral("dictionaryTable"))) {
+                QMetaObject::invokeMethod(table, "editCell", Q_ARG(QVariant, 0), Q_ARG(QVariant, 1));
+                settle();
+                auxiliary->grabWindow().save(output.filePath(QStringLiteral("dictionary-editing.png")));
+                QMetaObject::invokeMethod(table, "finishEditing");
+            }
+            auxiliary->hide();
+        }
+    }
+    return true;
+}
+
+void captureSynthesized(QObject *rootObject, const QString &directory) {
+    auto *window = qobject_cast<QQuickWindow *>(rootObject);
+    if (!window)
+        return;
+    const QDir output(directory);
+    window->show();
+    settle();
+    window->grabWindow().save(output.filePath(QStringLiteral("synthesized.png")));
+    if (QObject *pitchEditor = rootObject->findChild<QObject *>(QStringLiteral("pitchEditor"))) {
+        const QVariant moraWidth = pitchEditor->property("moraWidth");
+        const int windowWidth = window->width();
+        pitchEditor->setProperty("moraWidth", 192);
+        window->setWidth(window->minimumWidth());
+        settle();
+        settle();
+        window->grabWindow().save(output.filePath(QStringLiteral("synthesized-scrolled.png")));
+        pitchEditor->setProperty("moraWidth", moraWidth);
+        window->setWidth(windowWidth);
+        settle();
+    }
+    if (QObject *tabs = rootObject->findChild<QObject *>(QStringLiteral("pitchModeTabs"))) {
+        tabs->setProperty("currentIndex", 1);
+        settle();
+        window->grabWindow().save(output.filePath(QStringLiteral("synthesized-extended.png")));
+        tabs->setProperty("currentIndex", 0);
+        settle();
+    }
+    window->hide();
 }
 
 QString firstID(const QVariantList &items) {
@@ -126,31 +263,20 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                      QStringLiteral("settings UI could not be opened for capture")))
             return 1;
         auto *settings = rootObject->findChild<QQuickWindow *>(QStringLiteral("settingsWindow"));
-        if (!require(window && settings && QDir().mkpath(captureDirectory),
-                     QStringLiteral("UI capture could not be initialized")))
+        if (!require(window && settings, QStringLiteral("UI capture could not be initialized")))
             return 1;
-        window->show();
-        QEventLoop loop;
-        QTimer::singleShot(300, &loop, &QEventLoop::quit);
-        loop.exec();
-        const QString capturePath = QDir(captureDirectory).filePath(QStringLiteral("normal.png"));
-        if (!require(window->grabWindow().save(capturePath),
-                     QStringLiteral("UI capture failed")))
-            return 1;
-        window->hide();
-        settings->show();
-        for (const auto &[page, name] : {
-                 std::pair{1, QStringLiteral("settings-synthesis.png")},
-                 std::pair{0, QStringLiteral("settings-behavior.png")}}) {
-            settings->setProperty("currentPage", page);
-            QEventLoop loop;
-            QTimer::singleShot(300, &loop, &QEventLoop::quit);
-            loop.exec();
-            if (!require(settings->grabWindow().save(QDir(captureDirectory).filePath(name)),
-                         QStringLiteral("settings UI capture failed")))
+        backend.setDictionaryEntries(QVariantList{
+                QVariantMap{{"surface", "UtauTTS"}, {"reading", QStringLiteral("うたうてぃーてぃーえす")}},
+                QVariantMap{{"surface", QStringLiteral("足立レイ")}, {"reading", QStringLiteral("あだちれい")}}});
+        const bool previousDarkMode = backend.darkMode();
+        for (const bool dark : {false, true}) {
+            backend.setDarkMode(dark);
+            if (!captureInterface(rootObject, window, settings,
+                                  dark ? QDir(captureDirectory).filePath(QStringLiteral("dark")) : captureDirectory))
                 return 1;
         }
-        settings->hide();
+        backend.setDarkMode(previousDarkMode);
+        backend.setDictionaryEntries(QVariantList{});
     }
     if (!require(temporary.isValid(), QStringLiteral("temporary directory is unavailable")))
         return 1;
@@ -327,6 +453,15 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     previewLoop.exec();
     QObject::disconnect(previewConnection);
     backend.setAutoPreviewEnabled(previousAutoPreview);
+    if (!captureDirectory.isEmpty()) {
+        const bool previousDarkMode = backend.darkMode();
+        for (const bool dark : {false, true}) {
+            backend.setDarkMode(dark);
+            captureSynthesized(rootObject, dark ? QDir(captureDirectory).filePath(QStringLiteral("dark"))
+                                                : captureDirectory);
+        }
+        backend.setDarkMode(previousDarkMode);
+    }
     if (!require(extraPreviews == 0 && !rootObject->property("autoPreviewPending").toBool(),
                  QStringLiteral("current preview was generated twice")))
         return 1;

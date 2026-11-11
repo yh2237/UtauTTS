@@ -7,6 +7,16 @@ Item {
     id: root
     required property var host
     visible: false
+
+    // 標準ボタンの文言は Qt の翻訳ファイルから来るので、アプリの翻訳で置き換える。
+    function translateStandardButtons(dialog) {
+        const ok = dialog.standardButton(Dialog.Ok);
+        if (ok)
+            ok.text = root.host.translator.tr("common.ok");
+        const cancel = dialog.standardButton(Dialog.Cancel);
+        if (cancel)
+            cancel.text = root.host.translator.tr("common.cancel");
+    }
     property alias saveDialog : saveDialog
     property alias saveAllDialog : saveAllDialog
     property alias dragSaveDialog : dragSaveDialog
@@ -60,9 +70,10 @@ Item {
 
     Dialog {
         id: frameRateDialog
+        onAboutToShow: root.translateStandardButtons(frameRateDialog)
         title: host.translator.tr("main.exoFrameRateTitle")
         modal: true
-        width: Math.min(host.width - 40, 400)
+        width: Math.min(host.width - Theme.spacingXLarge * 2, Theme.dialogWidth)
         anchors.centerIn: Overlay.overlay
         closePolicy: Popup.CloseOnEscape
         standardButtons: Dialog.Ok | Dialog.Cancel
@@ -72,18 +83,18 @@ Item {
         }
 
         contentItem: ColumnLayout {
-            spacing: 12
+            spacing: Theme.spacingLarge
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.spacing
 
                 Label {
                     text: host.translator.tr("main.frameRate")
                 }
                 SpinBox {
                     id: frameRateSpin
-                    Layout.preferredWidth: 120
+                    Layout.preferredWidth: Theme.fieldWidthSmall
                     from: 1
                     to: 240
                     stepSize: 1
@@ -92,7 +103,7 @@ Item {
                 }
                 Label {
                     text: host.translator.tr("main.fps")
-                    color: host.mutedText
+                    color: Theme.inactiveText
                 }
                 Item {
                     Layout.fillWidth: true
@@ -115,9 +126,10 @@ Item {
     // Web版は保存先を選べないため、保存名だけを決める。
     Dialog {
         id: projectNameDialog
+        onAboutToShow: root.translateStandardButtons(projectNameDialog)
         title: root.host.translator.tr("main.projectNameTitle")
         modal: true
-        width: Math.min(root.host.width - 40, 400)
+        width: Math.min(root.host.width - Theme.spacingXLarge * 2, Theme.dialogWidth)
         anchors.centerIn: Overlay.overlay
         closePolicy: Popup.CloseOnEscape
         standardButtons: Dialog.Ok | Dialog.Cancel
@@ -129,11 +141,11 @@ Item {
         onAccepted: root.host.saveProjectAsNamed(projectNameField.text)
 
         contentItem: ColumnLayout {
-            spacing: 8
+            spacing: Theme.spacing
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: Theme.spacingMedium
 
                 TextField {
                     id: projectNameField
@@ -145,7 +157,7 @@ Item {
 
                 Label {
                     text: ".utautts"
-                    color: root.host.mutedText
+                    color: Theme.inactiveText
                 }
             }
         }
@@ -189,14 +201,14 @@ Item {
         id: closeWarningDialog
         title: host.translator.tr("main.closeConfirmTitle")
         modal: true
-        width: Math.min(host.width - 40, 460)
+        width: Math.min(host.width - Theme.spacingXLarge * 2, Theme.dialogWidthWide)
         anchors.centerIn: Overlay.overlay
         closePolicy: Popup.CloseOnEscape
         focus: true
         onOpened: closeWarningCancelButton.forceActiveFocus()
 
         contentItem: ColumnLayout {
-            spacing: 12
+            spacing: Theme.spacingLarge
 
             Label {
                 Layout.fillWidth: true
@@ -208,7 +220,7 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.spacingMedium
 
                 Item {
                     Layout.fillWidth: true
@@ -278,7 +290,7 @@ Item {
         id: projectOpenWarningDialog
         title: host.translator.tr("main.projectOpenConfirmTitle")
         modal: true
-        width: Math.min(host.width - 40, 460)
+        width: Math.min(host.width - Theme.spacingXLarge * 2, Theme.dialogWidthWide)
         anchors.centerIn: Overlay.overlay
         closePolicy: Popup.CloseOnEscape
         focus: true
@@ -286,7 +298,7 @@ Item {
         onClosed: host.cancelPendingProjectLoad()
 
         contentItem: ColumnLayout {
-            spacing: 12
+            spacing: Theme.spacingLarge
 
             Label {
                 Layout.fillWidth: true
@@ -296,7 +308,7 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.spacingMedium
 
                 Item {
                     Layout.fillWidth: true
@@ -332,15 +344,16 @@ Item {
 
     Dialog {
         id: aboutDialog
+        onAboutToShow: root.translateStandardButtons(aboutDialog)
         title: host.translator.tr("main.aboutTitle")
         modal: true
         anchors.centerIn: Overlay.overlay
-        width: Math.min(host.width - 40, 440)
+        width: Math.min(host.width - Theme.spacingXLarge * 2, Theme.dialogWidth)
         closePolicy: Popup.CloseOnEscape
         standardButtons: Dialog.Ok
 
         contentItem: ColumnLayout {
-            spacing: 8
+            spacing: Theme.spacing
             Label {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
@@ -349,7 +362,7 @@ Item {
             Label {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                color: host.mutedText
+                color: Theme.inactiveText
                 text: host.translator.tr("main.aboutInformative")
             }
         }
@@ -359,13 +372,13 @@ Item {
         id: updateDialog
         title: host.translator.tr("update.title")
         modal: true
-        width: Math.min(host.width - 40, 480)
+        width: Math.min(host.width - Theme.spacingXLarge * 2, Theme.dialogWidthWide)
         anchors.centerIn: Overlay.overlay
         closePolicy: Popup.CloseOnEscape
         standardButtons: Dialog.NoButton
 
         contentItem: ColumnLayout {
-            spacing: 12
+            spacing: Theme.spacingLarge
 
             Label {
                 Layout.fillWidth: true
@@ -378,8 +391,8 @@ Item {
                 visible: host.updateAvailablePreRelease
                 text: host.translator.tr("update.preReleaseNotice")
                 wrapMode: Text.WordWrap
-                color: host.mutedText
-                font.pixelSize: 11
+                color: Theme.inactiveText
+                font.pixelSize: Theme.fontSmall
             }
 
             ScrollView {
@@ -397,8 +410,8 @@ Item {
                 Layout.fillWidth: true
                 text: host.translator.tr("update.preserveNote")
                 wrapMode: Text.WordWrap
-                color: host.mutedText
-                font.pixelSize: 11
+                color: Theme.inactiveText
+                font.pixelSize: Theme.fontSmall
             }
 
             CheckBox {
@@ -414,7 +427,7 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: Theme.spacingMedium
 
                 Button {
                     text: host.translator.tr("update.button")
@@ -437,13 +450,13 @@ Item {
         id: updateProgressDialog
         title: host.translator.tr("update.title")
         modal: true
-        width: Math.min(host.width - 40, 440)
+        width: Math.min(host.width - Theme.spacingXLarge * 2, Theme.dialogWidth)
         anchors.centerIn: Overlay.overlay
         closePolicy: Popup.NoAutoClose
         standardButtons: Dialog.NoButton
 
         contentItem: ColumnLayout {
-            spacing: 12
+            spacing: Theme.spacingLarge
 
             Label {
                 Layout.fillWidth: true
@@ -465,8 +478,8 @@ Item {
                     ? Math.floor(host.updateDownloadReceived / 1048576) + " / "
                       + Math.floor(host.updateDownloadTotal / 1048576) + " MB"
                     : ""
-                color: host.mutedText
-                font.pixelSize: 11
+                color: Theme.inactiveText
+                font.pixelSize: Theme.fontSmall
                 horizontalAlignment: Text.AlignHCenter
             }
 
@@ -485,13 +498,13 @@ Item {
         id: metadataReloadDialog
         title: root.host.translator.tr("metadata.loading." + root.host.metadataReloadStage)
         modal: true
-        width: Math.min(root.host.width - 40, 440)
+        width: Math.min(root.host.width - Theme.spacingXLarge * 2, Theme.dialogWidth)
         anchors.centerIn: Overlay.overlay
         closePolicy: Popup.NoAutoClose
         standardButtons: Dialog.NoButton
 
         contentItem: ColumnLayout {
-            spacing: 12
+            spacing: Theme.spacingLarge
 
             ProgressBar {
                 Layout.fillWidth: true

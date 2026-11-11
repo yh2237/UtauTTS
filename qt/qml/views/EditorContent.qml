@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import UtauTTS.Media
+import UtauTTSStyle
     SplitView {
         id: editorSplitView
         required property var window
@@ -36,11 +37,6 @@ import UtauTTS.Media
         property alias leadingPreutteranceInput: leadingPreutteranceInput
         property alias leadingPreutteranceSlider: leadingPreutteranceSlider
 
-        FontLoader {
-            id: iconFont
-            source: "qrc:/fonts/MaterialSymbolsOutlined-subset.ttf"
-        }
-
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Shift && !event.isAutoRepeat) {
                 pitchEditor.setShiftPreview(true);
@@ -56,19 +52,35 @@ import UtauTTS.Media
 
         anchors.fill: parent
         orientation: Qt.Vertical
+        // 隣に枠が無いので、左右の仕切りと同じく両脇に枠の線を引く。
         handle: Item {
-            implicitWidth: editorSplitView.width
-            implicitHeight: editorSplitView.mobileLayout ? 0 : 10
+            id: verticalHandle
+            readonly property bool hovered: SplitHandle.hovered
+            readonly property bool pressed: SplitHandle.pressed
+            implicitHeight: verticalGrip.extent + 2
 
             Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
+                width: parent.width
                 height: 1
-                color: window.borderColor
+                color: Theme.frameLine
+            }
+            StyleItem {
+                id: verticalGrip
+                y: 1
+                width: parent.width
+                height: extent
+                element: StyleItem.Splitter
+                orientation: Qt.Vertical
+                hovered: verticalHandle.hovered
+                pressed: verticalHandle.pressed
+            }
+            Rectangle {
+                y: parent.height - 1
+                width: parent.width
+                height: 1
+                color: Theme.frameLine
             }
         }
-
         SplitView {
             id: utteranceSplitView
             SplitView.fillHeight: !window.intonationLab
@@ -81,25 +93,26 @@ import UtauTTS.Media
                 SplitView.fillWidth: true
                 SplitView.minimumWidth: window.intonationLab || editorSplitView.mobileLayout
                         ? 0 : Math.min(560, Math.max(0, editorSplitView.width - 280))
-                padding: editorSplitView.mobileLayout ? 12 : 10
+                padding: 0
                 background: Rectangle {
                     color: window.palette.window
                 }
 
                 ListView {
                     id: utteranceList
+                    readonly property real scrollBarWidth: utteranceScrollBar.visible ? utteranceScrollBar.width : 0
                     anchors.fill: parent
                     model: window.utterancesModel
                     clip: true
-                    spacing: 4
+                    spacing: Theme.spacingSmall
                     boundsBehavior: Flickable.StopAtBounds
-                    bottomMargin: window.intonationLab ? 0 : 64
+                    leftMargin: Theme.spacingLarge
+                    rightMargin: Theme.spacingLarge + scrollBarWidth
+                    topMargin: Theme.spacingLarge
+                    bottomMargin: window.intonationLab ? Theme.spacingLarge : addButton.height + Theme.spacingLarge * 2
                     ScrollBar.vertical: ScrollBar {
                         id: utteranceScrollBar
-                        parent: editorSplitView.mobileLayout ? utteranceList.parent : utteranceList
-                        width: editorSplitView.mobileLayout ? 8 : implicitWidth
                         anchors.right: parent.right
-                        anchors.rightMargin: editorSplitView.mobileLayout ? -10 : 0
                         anchors.top: parent.top
                         anchors.bottom: parent.bottom
                         policy: window.intonationLab ? ScrollBar.AlwaysOff : ScrollBar.AlwaysOn
@@ -114,25 +127,26 @@ import UtauTTS.Media
                         property alias textEditor: utteranceEditor
 
                         visible: !window.intonationLab || card.index === window.selectedIndex
-                        width: Math.max(0, utteranceList.width - (editorSplitView.mobileLayout ? 0 : 16))
-                        height: visible ? 46 : 0
+                        width: Math.max(0, utteranceList.width - utteranceList.leftMargin - utteranceList.rightMargin)
+                        height: visible ? cardRow.implicitHeight : 0
 
                         RowLayout {
+                            id: cardRow
                             anchors.fill: parent
-                            spacing: 6
+                            spacing: Theme.spacingMedium
 
                             Rectangle {
                                 id: imageHandle
                                 visible: !window.intonationLab
-                                Layout.preferredWidth: 42
-                                Layout.preferredHeight: 42
-                                radius: 2
+                                Layout.preferredWidth: Theme.cardHeight
+                                Layout.preferredHeight: Theme.cardHeight
+                                radius: Theme.radius
                                 color: window.palette.alternateBase
-                                border.color: card.index === window.selectedIndex ? window.accent : window.borderColor
+                                border.color: card.index === window.selectedIndex ? Theme.selection : Theme.border
 
                                 Image {
                                     anchors.fill: parent
-                                    anchors.margins: 2
+                                    anchors.margins: Theme.spacingXSmall
                                     source: window.localImageUrl(card.imagePath)
                                     fillMode: Image.PreserveAspectFit
                                     asynchronous: true
@@ -141,8 +155,8 @@ import UtauTTS.Media
                                     anchors.centerIn: parent
                                     visible: !card.imagePath
                                     text: window.translator.tr("main.card.icon")
-                                    color: window.mutedText
-                                    font.pixelSize: 9
+                                    color: Theme.inactiveText
+                                    font.pixelSize: Theme.fontXSmall
                                 }
 
                                 DragHandler {
@@ -172,9 +186,9 @@ import UtauTTS.Media
                                 Accessible.name: window.translator.tr("main.textPlaceholder")
                                 readOnly: window.intonationLab || window.batchExportActive
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 42
+                                Layout.preferredHeight: Theme.cardHeight
                                 text: card.content
-                                font.pixelSize: 16
+                                font.pixelSize: Theme.fontLarge
                                 placeholderText: window.translator.tr("main.textPlaceholder")
                                 selectByMouse: true
 
@@ -202,20 +216,11 @@ import UtauTTS.Media
                                 }
                             }
 
-                            ToolButton {
+                            IconButton {
                                 id: cardMenuButton
                                 enabled: !window.batchExportActive
-                                contentItem: Text {
-                                    anchors.centerIn: parent
-                                    width: 22
-                                    height: 22
-                                    text: editorSplitView.mobileLayout ? "\ue3c9" : "\ue5d4"
-                                    color: cardMenuButton.palette.buttonText
-                                    font.family: iconFont.name
-                                    font.pixelSize: 20
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                }
+                                glyph: editorSplitView.mobileLayout ? "\ue3c9" : "\ue5d4"
+                                glyphSize: Theme.icon
                                 visible: !window.intonationLab && (editorSplitView.mobileLayout || card.index === window.selectedIndex)
                                 onClicked: {
                                     if (editorSplitView.mobileLayout) {
@@ -260,12 +265,12 @@ import UtauTTS.Media
 
                         Rectangle {
                             id: dragProxy
-                            width: 42
-                            height: 42
-                            radius: 2
+                            width: imageHandle.width
+                            height: imageHandle.height
+                            radius: Theme.radius
                             visible: imageDrag.active
                             color: window.palette.alternateBase
-                            border.color: window.accent
+                            border.color: Theme.selection
                             opacity: 0.8
                             z: 20
                             Drag.active: imageDrag.active
@@ -276,7 +281,7 @@ import UtauTTS.Media
 
                             Image {
                                 anchors.fill: parent
-                                anchors.margins: 2
+                                anchors.margins: Theme.spacingXSmall
                                 source: window.localImageUrl(card.imagePath)
                                 fillMode: Image.PreserveAspectFit
                             }
@@ -302,27 +307,16 @@ import UtauTTS.Media
                     }
                 }
 
-                RoundButton {
+                AccentRoundButton {
                     id: addButton
                     enabled: !window.batchExportActive
                     visible: !window.intonationLab
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    anchors.rightMargin: editorSplitView.mobileLayout ? 0 : 24
-                    anchors.bottomMargin: editorSplitView.mobileLayout ? 0 : 8
-                    width: editorSplitView.mobileLayout ? 52 : 48
-                    height: width
-                    highlighted: true
+                    anchors.rightMargin: Theme.spacingLarge + utteranceList.scrollBarWidth
+                    anchors.bottomMargin: Theme.spacingLarge
                     z: 2
-                    contentItem: Text {
-                        anchors.centerIn: parent
-                        text: "\ue145"
-                        color: addButton.palette.buttonText
-                        font.family: iconFont.name
-                        font.pixelSize: 28
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
+                    glyph: "\ue145"
                     onClicked: window.addUtterance()
                     ToolTip.visible: hovered
                     ToolTip.text: window.translator.tr("main.addTooltip")
@@ -338,36 +332,41 @@ import UtauTTS.Media
                 SplitView.preferredWidth: visible ? 268 : 0
                 SplitView.minimumWidth: visible ? 238 : 0
                 SplitView.maximumWidth: visible ? 340 : 0
-                padding: editorSplitView.mobileLayout ? 0 : 14
-                background: Rectangle {
-                    color: window.palette.window
-                    border.color: window.borderColor
-                    border.width: editorSplitView.mobileLayout ? 0 : 1
+                padding: editorSplitView.mobileLayout ? 0 : parameterFrame.paddingLeft
+                background: StyleItem {
+                    id: parameterFrame
+                    visible: !editorSplitView.mobileLayout
+                    element: StyleItem.Frame
                 }
 
                 ScrollView {
                     id: parameterScroll
                     anchors.fill: parent
                     contentWidth: availableWidth
+                    contentHeight: parameterColumn.implicitHeight + Theme.spacingLarge * 2
                     ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
                     ColumnLayout {
-                        width: Math.max(0, parameterScroll.availableWidth - (editorSplitView.mobileLayout ? 0 : 14))
-                        spacing: 12
+                        id: parameterColumn
+                        x: Theme.spacingLarge
+                        y: Theme.spacingLarge
+                        width: Math.max(0, parameterScroll.availableWidth - Theme.spacingLarge * 2)
+                        spacing: Theme.spacingLarge
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 6
+                            spacing: Theme.spacingMedium
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 4
+                            spacing: Theme.spacingSmall
                             Label {
                                 text: window.translator.tr("main.param.voicebank")
                                 Layout.fillWidth: true
                             }
                             ComboBox {
                                 id: voiceCombo
+                                objectName: "voicebankCombo"
                                 Layout.fillWidth: true
                                 model: window.appBackend.voicebanks
                                 textRole: "name"
@@ -402,7 +401,7 @@ import UtauTTS.Media
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 4
+                            spacing: Theme.spacingSmall
                             Label {
                                 text: window.translator.tr("main.param.method")
                                 Layout.fillWidth: true
@@ -419,7 +418,7 @@ import UtauTTS.Media
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 4
+                            spacing: Theme.spacingSmall
                             Label {
                                 text: window.translator.tr("main.param.language")
                                 Layout.fillWidth: true
@@ -446,12 +445,12 @@ import UtauTTS.Media
                             text: window.appBackend.error.length > 0 ? window.appBackend.error : window.playbackError
                             color: window.palette.text
                             wrapMode: Text.Wrap
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.fontSmall
                         }
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 4
+                            spacing: Theme.spacingSmall
                             Label {
                                 text: window.translator.tr("main.param.voicebankType")
                                 Layout.fillWidth: true
@@ -480,7 +479,7 @@ import UtauTTS.Media
                             }
                             SpinBox {
                                 id: intonationInput
-                                Layout.preferredWidth: 96
+                                Layout.preferredWidth: Theme.fieldWidthSmall
                                 from: 0
                                 to: Math.round(window.maxIntonationStrength * 100)
                                 stepSize: 5
@@ -512,7 +511,7 @@ import UtauTTS.Media
                             }
                             ToneSpinBox {
                                 id: toneInput
-                                Layout.preferredWidth: 96
+                                Layout.preferredWidth: Theme.fieldWidthSmall
                                 automaticText: window.translator.tr("main.aliasPolicy.auto")
                                 value: Math.round(toneSlider.value)
                                 onToneModified: tone => {
@@ -538,7 +537,7 @@ import UtauTTS.Media
                             }
                             SpinBox {
                                 id: moraInput
-                                Layout.preferredWidth: 96
+                                Layout.preferredWidth: Theme.fieldWidthSmall
                                 from: 60
                                 to: 300
                                 stepSize: 5
@@ -571,7 +570,7 @@ import UtauTTS.Media
                             }
                             SpinBox {
                                 id: pauseInput
-                                Layout.preferredWidth: 96
+                                Layout.preferredWidth: Theme.fieldWidthSmall
                                 from: 0
                                 to: 800
                                 stepSize: 10
@@ -605,7 +604,7 @@ import UtauTTS.Media
                             }
                             SpinBox {
                                 id: volumeInput
-                                Layout.preferredWidth: 96
+                                Layout.preferredWidth: Theme.fieldWidthSmall
                                 from: 0
                                 to: 200
                                 stepSize: 5
@@ -639,15 +638,15 @@ import UtauTTS.Media
 
                         Item {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 24
+                            Layout.preferredHeight: Theme.spacingXLarge + Theme.spacing
                         }
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 6
+                            spacing: Theme.spacingMedium
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 4
+                            spacing: Theme.spacingSmall
                             Label {
                                 text: window.translator.tr("main.param.phonemizer")
                                 Layout.fillWidth: true
@@ -666,7 +665,7 @@ import UtauTTS.Media
                         ColumnLayout {
                             Layout.fillWidth: true
                             visible: !editorSplitView.referenceMatching
-                            spacing: 4
+                            spacing: Theme.spacingSmall
                             Label {
                                 text: window.translator.tr("main.param.aliasPolicy")
                                 Layout.fillWidth: true
@@ -689,7 +688,7 @@ import UtauTTS.Media
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 4
+                            spacing: Theme.spacingSmall
                             visible: !editorSplitView.referenceMatching && (!window.utterancesModel.count || ["ja", "en"].indexOf(window.current().language || "ja") >= 0)
                             Label {
                                 text: window.translator.tr("main.param.intonationModel")
@@ -711,14 +710,14 @@ import UtauTTS.Media
                         RowLayout {
                             Layout.fillWidth: true
                             visible: !editorSplitView.referenceMatching
-                            Layout.topMargin: 8
+                            Layout.topMargin: Theme.spacing
                             Label {
                                 text: window.translator.tr("main.param.leadingPreutterance")
                                 Layout.fillWidth: true
                             }
                             SpinBox {
                                 id: leadingPreutteranceInput
-                                Layout.preferredWidth: 96
+                                Layout.preferredWidth: Theme.fieldWidthSmall
                                 from: 0
                                 to: 300
                                 stepSize: 5
@@ -779,10 +778,6 @@ import UtauTTS.Media
             }
 
             ButtonGroup {
-                id: pitchTabMode
-                exclusive: true
-            }
-            ButtonGroup {
                 id: pitchToolMode
                 exclusive: true
             }
@@ -794,239 +789,77 @@ import UtauTTS.Media
                 Item {
                     id: pitchEditorStage
                     Layout.fillWidth: true
-                    Layout.leftMargin: 12
-                    Layout.rightMargin: 12
+                    Layout.leftMargin: Theme.spacingLarge
+                    Layout.rightMargin: Theme.spacingLarge
                     Layout.fillHeight: true
-                    Layout.bottomMargin: 8
+                    Layout.topMargin: Theme.spacing
+                    Layout.bottomMargin: Theme.spacing
 
-                    Rectangle {
-                        id: pitchEditorHeader
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.leftMargin: 1
-                        anchors.rightMargin: 1
-                        anchors.topMargin: 1
-                        height: 35
-                        radius: 3
-                        color: editorSplitView.mobileLayout ? "transparent" : window.palette.alternateBase
-                        z: 1
-
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: 4
-                            color: parent.color
-                        }
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: 1
-                            color: window.borderColor
-                        }
-                        Rectangle {
-                            id: activePitchHeaderFill
-                            property var activeTab: pitchModeTabs.currentIndex === 1
-                                                    ? extendedPitchTab : basicPitchTab
-                            x: activeTab ? activeTab.mapToItem(pitchEditorHeader, 0, 0).x : 0
-                            width: activeTab ? activeTab.width : 0
-                            height: parent.height
-                            color: window.palette.base
-                        }
-                    }
-
-                    Item {
+                    TabBar {
                         id: pitchModeTabs
+                        objectName: "pitchModeTabs"
                         anchors.left: parent.left
                         anchors.top: parent.top
-                        anchors.leftMargin: 1
-                        anchors.topMargin: 1
-                        width: basicPitchTab.width + extendedPitchTab.width
-                        height: pitchEditorHeader.height
+                        font.pixelSize: Theme.fontMedium
                         z: 3
-                        readonly property int currentIndex: extendedPitchTab.checked ? 1 : 0
 
-                        Row {
-                            anchors.fill: parent
-                            spacing: 0
-
-                        ToolButton {
+                        DocumentTabButton {
                             id: basicPitchTab
-                            width: Math.max(96, basicPitchLabel.implicitWidth + 24)
-                            height: parent.height
-                            ButtonGroup.group: pitchTabMode
-                            checkable: true
-                            checked: true
+                            width: implicitWidth
                             text: window.translator.tr("main.pitch.basic")
-
-                            background: Rectangle {
-                                color: basicPitchTab.checked
-                                       ? window.palette.base
-                                       : basicPitchTab.hovered
-                                         ? Qt.rgba(window.palette.alternateBase.r,
-                                                   window.palette.alternateBase.g,
-                                                   window.palette.alternateBase.b, 0.42)
-                                         : "transparent"
-                                Rectangle {
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.bottom: parent.bottom
-                                    height: 1
-                                    color: basicPitchTab.checked ? window.palette.base : "transparent"
-                                }
-                                Rectangle {
-                                    anchors.right: parent.right
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 1
-                                    height: 18
-                                    color: window.borderColor
-                                }
-                            }
-                            contentItem: Text {
-                                id: basicPitchLabel
-                                anchors.centerIn: parent
-                                text: basicPitchTab.text
-                                color: basicPitchTab.checked
-                                       ? window.palette.text : window.palette.placeholderText
-                                font.pixelSize: 13
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
                         }
-                        ToolButton {
+                        DocumentTabButton {
                             id: extendedPitchTab
-                            width: Math.max(96, extendedPitchLabel.implicitWidth + 24)
-                            height: parent.height
-                            ButtonGroup.group: pitchTabMode
-                            checkable: true
+                            width: implicitWidth
                             text: window.translator.tr("main.pitch.extended")
                             onCheckedChanged: {
                                 if (checked)
                                     window.scheduleExtendedEditorWaveform();
                             }
-
-                            background: Rectangle {
-                                color: extendedPitchTab.checked
-                                       ? window.palette.base
-                                       : extendedPitchTab.hovered
-                                         ? Qt.rgba(window.palette.alternateBase.r,
-                                                   window.palette.alternateBase.g,
-                                                   window.palette.alternateBase.b, 0.42)
-                                         : "transparent"
-                                Rectangle {
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.bottom: parent.bottom
-                                    height: 1
-                                    color: extendedPitchTab.checked ? window.palette.base : "transparent"
-                                }
-                            }
-                            contentItem: Text {
-                                id: extendedPitchLabel
-                                anchors.centerIn: parent
-                                text: extendedPitchTab.text
-                                color: extendedPitchTab.checked
-                                       ? window.palette.text : window.palette.placeholderText
-                                font.pixelSize: 13
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                        }
                         }
                     }
-                    Rectangle {
-                        id: pitchToolGroupFrame
+                    RowLayout {
                         visible: pitchModeTabs.currentIndex === 1
                         anchors.left: pitchModeTabs.right
-                        anchors.top: parent.top
-                        anchors.leftMargin: 12
-                        anchors.topMargin: 1
-                        width: visible ? 65 : 0
-                        height: 35
+                        anchors.leftMargin: Theme.spacingLarge
+                        anchors.verticalCenter: pitchModeTabs.verticalCenter
+                        spacing: Theme.spacingXSmall
                         z: 3
-                        color: "transparent"
 
-                        RowLayout {
-                            anchors.fill: parent
-                            spacing: 0
-
-                            ToolButton {
-                                id: handTool
-                                ButtonGroup.group: pitchToolMode
-                                checkable: true
-                                checked: true
-                                Layout.preferredWidth: 32
-                                Layout.fillHeight: true
-                                ToolTip.visible: hovered
-                                ToolTip.text: window.translator.tr("tool.hand")
-                                background: Rectangle {
-                                    radius: 3
-                                    color: handTool.checked
-                                           ? Qt.rgba(window.accent.r, window.accent.g,
-                                                     window.accent.b, 0.16)
-                                           : handTool.hovered
-                                             ? Qt.rgba(window.palette.mid.r, window.palette.mid.g,
-                                                       window.palette.mid.b, 0.18)
-                                             : "transparent"
-                                }
-
-                                contentItem: Text {
-                                    anchors.centerIn: parent
-                                    text: "\ue925"
-                                    color: handTool.checked ? window.accent : handTool.palette.buttonText
-                                    font.family: iconFont.name
-                                    font.pixelSize: 16
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                }
-                            }
-                            Rectangle {
-                                Layout.preferredWidth: 1
-                                Layout.preferredHeight: 14
-                                Layout.alignment: Qt.AlignVCenter
-                                color: window.borderColor
-                            }
-                            ToolButton {
-                                id: penTool
-                                ButtonGroup.group: pitchToolMode
-                                checkable: true
-                                Layout.preferredWidth: 32
-                                Layout.fillHeight: true
-                                ToolTip.visible: hovered
-                                ToolTip.text: window.translator.tr("tool.pen")
-                                background: Rectangle {
-                                    radius: 3
-                                    color: penTool.checked
-                                           ? Qt.rgba(window.accent.r, window.accent.g,
-                                                     window.accent.b, 0.16)
-                                           : penTool.hovered
-                                             ? Qt.rgba(window.palette.mid.r, window.palette.mid.g,
-                                                       window.palette.mid.b, 0.18)
-                                             : "transparent"
-                                }
-
-                                contentItem: Text {
-                                    anchors.centerIn: parent
-                                    text: "\ue3c9"
-                                    color: penTool.checked ? window.accent : penTool.palette.buttonText
-                                    font.family: iconFont.name
-                                    font.pixelSize: 16
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                }
-                            }
+                        ToolModeButton {
+                            id: handTool
+                            ButtonGroup.group: pitchToolMode
+                            checked: true
+                            glyph: "\ue925"
+                            ToolTip.visible: hovered
+                            ToolTip.text: window.translator.tr("tool.hand") + " (V)"
+                        }
+                        ToolModeButton {
+                            id: penTool
+                            ButtonGroup.group: pitchToolMode
+                            glyph: "\ue3c9"
+                            ToolTip.visible: hovered
+                            ToolTip.text: window.translator.tr("tool.pen") + " (P)"
                         }
                     }
-                    IntonationEditorSurface {
+                    Shortcut {
+                        sequence: "V"
+                        enabled: editorSplitView.extendedPitchEditorVisible
+                        onActivated: handTool.checked = true
+                    }
+                    Shortcut {
+                        sequence: "P"
+                        enabled: editorSplitView.extendedPitchEditorVisible
+                        onActivated: penTool.checked = true
+                    }
+                    DocumentFrame {
                         id: pitchEditorSurface
-                        anchors.fill: parent
-                        surfaceColor: window.palette.base
-                        borderColor: window.borderColor
-                        contentMargin: 8
-                        topContentMargin: 44
-                        showSideBorders: false
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        anchors.top: pitchModeTabs.bottom
+                        anchors.topMargin: -overlap
+                        contentMargin: frameWidth
 
                         StackLayout {
                             id: pitchModeStack
@@ -1037,53 +870,33 @@ import UtauTTS.Media
                                 spacing: 0
                             PitchEditor {
                                 id: pitchEditor
+                                objectName: "pitchEditor"
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
+                                Layout.leftMargin: Theme.spacing
+                                Layout.rightMargin: Theme.spacing
+                                Layout.topMargin: Theme.spacing
+                                Layout.bottomMargin: basicPitchScrollBar.visible ? 0 : Theme.spacing
                                 translator: window.translator
-                                accentColor: window.accent
-                                axisColor: window.palette.mid
-                                gridColor: window.palette.alternateBase
-                                labelColor: window.palette.text
                                 defaultMoraDuration: window.appBackend.defaultMoraDuration
                                 defaultPauseDuration: window.appBackend.defaultPauseDuration
                                 onPointsEdited: points => window.updatePitchPoints(points)
                                 onTimingEdited: (durations, positions) =>
                                         window.updateMoraTiming(durations, positions)
                             }
-                            Item {
-                                id: basicPitchScrollFooter
-                                visible: basicPitchScrollBar.visible
+                            PitchHorizontalScrollBar {
+                                id: basicPitchScrollBar
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: visible ? 18 : 0
-                                Rectangle {
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.top: parent.top
-                                    height: 1
-                                    color: window.borderColor
-                                }
-                                PitchHorizontalScrollBar {
-                                    id: basicPitchScrollBar
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.bottom: parent.bottom
-                                    anchors.bottomMargin: 2
-                                    editor: pitchEditor
-                                    trackColor: window.palette.mid
-                                    thumbColor: window.accent
-                                }
+                                editor: pitchEditor
                             }
                         }
 
+                            Item {
                             PhonemeEditor {
                             id: phonemeEditor
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacing
                             translator: window.translator
-                            accentColor: window.accent
-                            axisColor: window.palette.mid
-                            gridColor: window.palette.alternateBase
-                            labelColor: window.palette.text
-                            mutedText: window.mutedText
-                            dividerColor: window.borderColor
                             showTimelineFrame: false
                             timingEditor: pitchEditor
                             units: window.extendedEditorUnits(pitchEditor.morae,
@@ -1121,16 +934,17 @@ import UtauTTS.Media
                                     window.seekPreview(positionMs)
                             onFramesEdited: frames => window.updatePitchFrames(frames)
                         }
+                            }
                     }
                 }
             }
                 PlaybackControls {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 48
-                    Layout.leftMargin: 12
-                    Layout.rightMargin: 12
+                    Layout.preferredHeight: Theme.touchTarget
+                    Layout.leftMargin: Theme.spacingLarge
+                    Layout.rightMargin: Theme.spacingLarge
+                    Layout.bottomMargin: Theme.spacingLarge - (Theme.touchTarget - Theme.largeButton) / 2
                     translator: window.translator
-                    mutedText: window.mutedText
                     busy: window.appBackend.busy
                     playing: !window.batchExportActive
                              && window.playerMedia.playbackState === MediaPlayer.PlayingState

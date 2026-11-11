@@ -8,16 +8,15 @@ Rectangle {
     property string hudText: ""
 
     visible: hudText.length > 0
-    width: hudLabel.implicitWidth + 16
-    height: hudLabel.implicitHeight + 8
-    radius: 4
-    color: "#ee222222"
+    width: hudLabel.implicitWidth + Theme.spacingXLarge
+    height: hudLabel.implicitHeight + Theme.spacing
+    radius: Theme.radiusLarge
+    color: Theme.overlay
 
     Label {
         id: hudLabel
         anchors.centerIn: parent
         text: root.hudText
-        color: "white"
-        font.pixelSize: 12
+        color: Theme.overlayText
     }
 }

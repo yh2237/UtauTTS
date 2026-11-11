@@ -21,13 +21,13 @@ ColumnLayout {
     }
 
     anchors.margins: 28
-    spacing: 18
+    spacing: Theme.spacingXLarge
 
     Label {
         Layout.fillWidth: true
-        Layout.bottomMargin: 16
+        Layout.bottomMargin: Theme.spacingXLarge
         text: content.translator.tr("onboarding.title")
-        font.pixelSize: 20
+        font.pixelSize: Theme.fontTitle
         font.bold: true
         horizontalAlignment: Text.AlignHCenter
     }
@@ -40,7 +40,7 @@ ColumnLayout {
         }
         ComboBox {
             id: languageCombo
-            Layout.preferredWidth: 200
+            Layout.preferredWidth: Theme.fieldWidth
             model: content.languageLabels()
             currentIndex: content.backend.languageCodes().indexOf(content.backend.language)
             onActivated: content.backend.setLanguage(content.backend.languageCodes()[currentIndex])
@@ -55,7 +55,7 @@ ColumnLayout {
         }
         ComboBox {
             id: themeCombo
-            Layout.preferredWidth: 200
+            Layout.preferredWidth: Theme.fieldWidth
             model: [content.translator.tr("settings.theme.light"),
                     content.translator.tr("settings.theme.dark")]
             currentIndex: content.backend.darkMode ? 1 : 0
@@ -66,7 +66,6 @@ ColumnLayout {
     Label {
         Layout.fillWidth: true
         text: content.translator.tr("onboarding.translationNotice")
-        font.pixelSize: 12
         wrapMode: Text.WordWrap
     }
 

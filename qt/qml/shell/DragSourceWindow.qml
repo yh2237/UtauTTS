@@ -12,8 +12,6 @@ Window {
     required property var files
     required property url exportDirectory
     required property bool ready
-    required property color accent
-    required property color mutedText
     signal dragError()
 
     title: root.translator.tr("drag.title")
@@ -33,8 +31,8 @@ Window {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 12
+        anchors.margins: Theme.spacingXLarge
+        spacing: Theme.spacingLarge
 
         Rectangle {
             id: dragSourceArea
@@ -43,7 +41,7 @@ Window {
             Layout.minimumHeight: 130
             color: palette.alternateBase
             border.width: 2
-            border.color: root.accent
+            border.color: Theme.selection
 
             Label {
                 anchors.centerIn: parent
@@ -83,7 +81,7 @@ Window {
             Layout.fillWidth: true
             text: root.translator.tr("drag.saveDestination", root.exportDirectory.toString())
             elide: Text.ElideMiddle
-            color: root.mutedText
+            color: Theme.inactiveText
         }
 
         RowLayout {

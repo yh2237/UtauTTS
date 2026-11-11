@@ -2,7 +2,9 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
+import UtauTTS.Platform 1.0
 
 ColumnLayout {
     id: content
@@ -10,16 +12,11 @@ ColumnLayout {
     required property var translator
     required property var hostWindow
     readonly property bool compact: !!hostWindow && hostWindow.mobileLayout === true
-    readonly property real surfaceWidth: compact ? Math.max(0, (width - 40 - 16) / 2) : 280
     signal closeRequested()
 
-    anchors.margins: 12
-    spacing: 10
+    anchors.margins: Theme.spacingLarge
+    spacing: Theme.spacingLarge
 
-    FontLoader {
-        id: iconFont
-        source: "qrc:/fonts/MaterialSymbolsOutlined-subset.ttf"
-    }
 
     ListModel {
         id: dictionaryEntriesModel
@@ -38,8 +35,95 @@ ColumnLayout {
     }
 
     function addEntry() {
+        dictionaryFilterField.text = "";
         dictionaryEntriesModel.append({surface: "", reading: ""});
-        dictionaryList.positionViewAtEnd();
+        dictionaryTable.editCell(dictionaryEntriesModel.count - 1, 0);
+    }
+
+    function deleteSelected() {
+        const row = dictionaryTable.selectedRow;
+        if (row < 0 || row >= dictionaryEntriesModel.count)
+            return;
+        dictionaryEntriesModel.remove(row);
+        dictionaryTable.selectedRow = Math.min(row, dictionaryEntriesModel.count - 1);
+    }
+
+    function currentEntries() {
+        const entries = [];
+        for (let index = 0; index < dictionaryEntriesModel.count; ++index) {
+            const entry = dictionaryEntriesModel.get(index);
+            entries.push({surface: String(entry.surface || ""), reading: String(entry.reading || "")});
+        }
+        return entries;
+    }
+
+    function importEntries(source) {
+        const result = content.backend.importDictionary(source);
+        if (!result || result._error !== undefined) {
+            dictionaryMessage.text = content.translator.tr("dictionary.importFailed");
+            dictionaryMessage.open();
+            return;
+        }
+        const existing = {};
+        for (const entry of content.currentEntries())
+            existing[JSON.stringify([entry.surface, entry.reading])] = true;
+        for (const entry of result.entries) {
+            if (existing[JSON.stringify([entry.surface, entry.reading])])
+                continue;
+            existing[JSON.stringify([entry.surface, entry.reading])] = true;
+            dictionaryEntriesModel.append({surface: entry.surface, reading: entry.reading});
+        }
+    }
+
+    function exportEntries(destination) {
+        if (!content.backend.exportDictionary(destination, content.currentEntries())) {
+            dictionaryMessage.text = content.translator.tr("dictionary.exportFailed");
+            dictionaryMessage.open();
+        }
+    }
+
+    FileDialog {
+        id: dictionaryImportDialog
+        fileMode: FileDialog.OpenFile
+        nameFilters: [content.translator.tr("dictionary.fileFilter")]
+        onAccepted: content.importEntries(selectedFile)
+    }
+
+    FileDialog {
+        id: dictionaryExportDialog
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "csv"
+        nameFilters: [content.translator.tr("dictionary.fileFilter")]
+        currentFile: content.backend.defaultSaveFile("dictionary.csv")
+        onAccepted: content.exportEntries(selectedFile)
+    }
+
+    MessageDialog {
+        id: dictionaryMessage
+        buttons: MessageDialog.Ok
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.spacingMedium
+
+        TextField {
+            id: dictionaryFilterField
+            Layout.fillWidth: true
+            Layout.preferredHeight: content.compact ? Theme.touchTarget : implicitHeight
+            placeholderText: content.translator.tr("dictionary.filter")
+            selectByMouse: true
+        }
+        Button {
+            visible: Platform.hasNativeFileDialog
+            text: content.translator.tr("dictionary.import")
+            onClicked: dictionaryImportDialog.open()
+        }
+        Button {
+            visible: Platform.hasNativeFileDialog
+            text: content.translator.tr("dictionary.export")
+            onClicked: dictionaryExportDialog.open()
+        }
     }
 
     function saveCurrent(closeAfter) {
@@ -58,99 +142,54 @@ ColumnLayout {
             content.closeRequested();
     }
 
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: 8
-
-        Label {
-            Layout.preferredWidth: content.surfaceWidth
-            text: content.translator.tr("dictionary.surface")
-            font.bold: true
-        }
-        Label {
-            Layout.fillWidth: true
-            text: content.translator.tr("dictionary.reading")
-            font.bold: true
-        }
-        Item {
-            Layout.preferredWidth: content.compact ? 40 : 32
-        }
-    }
-
-    ListView {
-        id: dictionaryList
+    DataTable {
+        id: dictionaryTable
+        objectName: "dictionaryTable"
         Layout.fillWidth: true
         Layout.fillHeight: true
-        clip: true
-        spacing: 2
+        compact: content.compact
+        editable: true
+        columns: [
+            {title: content.translator.tr("dictionary.surface"), width: Theme.fieldWidthLarge},
+            {title: content.translator.tr("dictionary.reading"), width: Theme.fieldWidthLarge}
+        ]
+        placeholders: [content.translator.tr("dictionary.surfaceExample"),
+                       content.translator.tr("dictionary.readingExample")]
         model: dictionaryEntriesModel
-        ScrollBar.vertical: ScrollBar {
-            id: dictionaryScrollBar
-            policy: content.compact ? ScrollBar.AlwaysOff : ScrollBar.AlwaysOn
+        cellValue: (row, column) => column === 0 ? row.surface : row.reading
+        filter: {
+            const query = dictionaryFilterField.text.trim().toLowerCase();
+            if (!query.length)
+                return null;
+            return row => String(row.surface).toLowerCase().includes(query)
+                    || String(row.reading).toLowerCase().includes(query);
         }
-
-        delegate: RowLayout {
-            id: dictionaryEntryRow
-            width: Math.max(0, dictionaryList.width - (content.compact ? 0 : 16))
-            height: content.compact ? 48 : 36
-            spacing: content.compact ? 8 : 4
-
-            required property int index
-            required property string surface
-            required property string reading
-
-            TextField {
-                Layout.preferredWidth: content.surfaceWidth
-                placeholderText: content.translator.tr("dictionary.surfaceExample")
-                text: dictionaryEntryRow.surface
-                selectByMouse: true
-                onTextEdited: dictionaryEntriesModel.setProperty(dictionaryEntryRow.index, "surface", text)
-            }
-
-            TextField {
-                Layout.fillWidth: true
-                placeholderText: content.translator.tr("dictionary.readingExample")
-                text: dictionaryEntryRow.reading
-                selectByMouse: true
-                onTextEdited: dictionaryEntriesModel.setProperty(dictionaryEntryRow.index, "reading", text)
-            }
-
-            ToolButton {
-                id: dictionaryDeleteButton
-                Layout.preferredWidth: content.compact ? 40 : 24
-                Layout.minimumWidth: content.compact ? 40 : 24
-                Layout.maximumWidth: content.compact ? 40 : 24
-                Layout.preferredHeight: content.compact ? 40 : 24
-                Layout.alignment: Qt.AlignVCenter
-                contentItem: Text {
-                    anchors.centerIn: parent
-                    width: 18
-                    height: 18
-                    text: "\ue5cd"
-                    color: dictionaryDeleteButton.palette.buttonText
-                    font.family: iconFont.name
-                    font.pixelSize: 20
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                onClicked: dictionaryEntriesModel.remove(dictionaryEntryRow.index)
-                ToolTip.visible: hovered
-                ToolTip.text: content.translator.tr("dictionary.delete")
-            }
+        onCellEdited: (row, column, text) => {
+            if (row >= 0 && row < dictionaryEntriesModel.count)
+                dictionaryEntriesModel.setProperty(row, column === 0 ? "surface" : "reading", text);
         }
+        onDeleteRequested: content.deleteSelected()
     }
 
     GridLayout {
         Layout.fillWidth: true
-        columns: content.compact ? 2 : 5
-        columnSpacing: content.compact ? 8 : 5
-        rowSpacing: 8
+        columns: content.compact ? 2 : 6
+        columnSpacing: content.compact ? Theme.spacing : Theme.spacingMedium
+        rowSpacing: Theme.spacing
 
         Button {
             Layout.fillWidth: content.compact
-            Layout.preferredHeight: content.compact ? 48 : implicitHeight
+            Layout.preferredHeight: content.compact ? Theme.touchTarget : implicitHeight
             text: content.translator.tr("dictionary.addEntry")
             onClicked: content.addEntry()
+        }
+
+        Button {
+            Layout.fillWidth: content.compact
+            Layout.preferredHeight: content.compact ? Theme.touchTarget : implicitHeight
+            text: content.translator.tr("dictionary.delete")
+            enabled: dictionaryTable.selectedRow >= 0
+            onClicked: content.deleteSelected()
         }
 
         Item {
@@ -160,7 +199,7 @@ ColumnLayout {
 
         Button {
             Layout.fillWidth: content.compact
-            Layout.preferredHeight: content.compact ? 48 : implicitHeight
+            Layout.preferredHeight: content.compact ? Theme.touchTarget : implicitHeight
             text: content.translator.tr("common.ok")
             highlighted: true
             onClicked: content.saveCurrent(true)
@@ -168,7 +207,7 @@ ColumnLayout {
 
         Button {
             Layout.fillWidth: content.compact
-            Layout.preferredHeight: content.compact ? 48 : implicitHeight
+            Layout.preferredHeight: content.compact ? Theme.touchTarget : implicitHeight
             text: content.translator.tr("common.cancel")
             onClicked: {
                 content.loadCurrent();
@@ -178,7 +217,7 @@ ColumnLayout {
 
         Button {
             Layout.fillWidth: content.compact
-            Layout.preferredHeight: content.compact ? 48 : implicitHeight
+            Layout.preferredHeight: content.compact ? Theme.touchTarget : implicitHeight
             text: content.translator.tr("common.apply")
             onClicked: content.saveCurrent(false)
         }

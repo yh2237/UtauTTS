@@ -7,6 +7,7 @@ import UtauTTS.Platform 1.0
 
 AdaptiveDialogWindow {
     id: root
+    objectName: "dictionaryWindow"
     required property var hostPalette
     required property var backend
     required property var translator

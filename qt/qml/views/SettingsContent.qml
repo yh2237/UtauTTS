@@ -6,6 +6,7 @@ import QtQuick.Dialogs
 import QtQuick.Layouts
 import "../SettingsIO.js" as SettingsIO
 import UtauTTS.Platform 1.0
+import UtauTTSStyle
 
 Item {
     id: root
@@ -17,8 +18,6 @@ Item {
     property var audioOutputDevices: []
     signal applyRequested(bool closeAfter)
     signal closeRequested()
-
-
 
     property int currentPage: 0
     SettingsDraft { id: draftObject }
@@ -161,7 +160,7 @@ Item {
         SpinBox {
             visible: settingRow.settingType === "integer"
                      || settingRow.settingType === "number"
-            Layout.preferredWidth: 180
+            Layout.preferredWidth: Theme.fieldWidth
             Layout.alignment: Qt.AlignVCenter
             from: Math.round(settingRow.minimum()
                              * settingRow.factor)
@@ -184,7 +183,7 @@ Item {
         }
         ComboBox {
             visible: settingRow.settingType === "enum"
-            Layout.preferredWidth: 240
+            Layout.preferredWidth: Theme.fieldWidthLarge
             model: settingRow.enumModel()
             textRole: "label"
             valueRole: "value"
@@ -415,59 +414,50 @@ Item {
         return keyName ? parts.concat([keyName]).join("+") : "";
     }
 
-    GridLayout {
+    ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 12
-        columns: root.compact ? 1 : 3
-        columnSpacing: 12
-        rowSpacing: 12
+        anchors.margins: Theme.spacingLarge
+        spacing: 0
 
-        ListView {
-            id: settingsNavigation
-            Layout.preferredWidth: root.compact ? -1 : 170
-            Layout.preferredHeight: root.compact ? 48 : -1
-            Layout.fillWidth: root.compact
-            Layout.fillHeight: !root.compact
-            orientation: root.compact ? ListView.Horizontal : ListView.Vertical
-            clip: true
-            model: root.settingsPageLabels()
+        TabBar {
+            id: settingsTabs
+            z: 1
             currentIndex: root.currentPage
+            onCurrentIndexChanged: root.currentPage = currentIndex
 
-            delegate: ItemDelegate {
-                required property int index
-                required property string modelData
-                width: root.compact ? Math.max(96, implicitWidth) : ListView.view.width
-                text: modelData
-                highlighted: ListView.isCurrentItem
-                onClicked: root.currentPage = index
+            Repeater {
+                model: root.settingsPageLabels()
+                delegate: TabButton {
+                    required property string modelData
+                    width: implicitWidth
+                    text: modelData
+                }
             }
         }
 
-        Rectangle {
-            visible: !root.compact
-            Layout.preferredWidth: 1
-            Layout.fillHeight: true
-            color: root.hostWindow.borderColor
-        }
-
-        ColumnLayout {
+        TabFrame {
+            id: settingsFrame
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 10
+            Layout.topMargin: -overlap
+            contentMargin: frameWidth
 
             StackLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                anchors.fill: parent
                 currentIndex: root.currentPage
 
                 ScrollView {
                     id: appearanceSettingsPage
                     contentWidth: availableWidth
-                    rightPadding: 12
+                    contentHeight: appearanceSettingsColumn.implicitHeight + 2 * Theme.spacingLarge
+                    rightPadding: ScrollBar.vertical.width
 
                     ColumnLayout {
-                        width: appearanceSettingsPage.availableWidth
-                        spacing: 8
+                        id: appearanceSettingsColumn
+                        x: Theme.spacingLarge
+                        y: Theme.spacingLarge
+                        width: appearanceSettingsPage.availableWidth - 2 * Theme.spacingLarge
+                        spacing: Theme.spacing
 
                         RowLayout {
                             Layout.fillWidth: true
@@ -477,7 +467,7 @@ Item {
                             }
                             ComboBox {
                                 id: themeCombo
-                                Layout.preferredWidth: 180
+                                Layout.preferredWidth: Theme.fieldWidth
                                 model: [root.translator.tr("settings.theme.light"), root.translator.tr("settings.theme.dark")]
                                 currentIndex: root.pendingDarkMode ? 1 : 0
                                 onActivated: root.pendingDarkMode = currentIndex === 1
@@ -496,7 +486,7 @@ Item {
                             }
                             ComboBox {
                                 id: languageCombo
-                                Layout.preferredWidth: 180
+                                Layout.preferredWidth: Theme.fieldWidth
                                 model: root.languageLabels()
                                 currentIndex: root.languageCodes.indexOf(root.pendingLanguage)
                                 onActivated: root.pendingLanguage = root.languageCodes[currentIndex]
@@ -515,7 +505,7 @@ Item {
                             }
                             ComboBox {
                                 id: audioOutputCombo
-                                Layout.preferredWidth: 300
+                                Layout.preferredWidth: Theme.fieldWidthLarge
                                 model: root.audioOutputDeviceModel()
                                 textRole: "name"
                                 valueRole: "id"
@@ -651,7 +641,7 @@ Item {
                             }
                             SpinBox {
                                 id: previewCacheSpin
-                                Layout.preferredWidth: 180
+                                Layout.preferredWidth: Theme.fieldWidth
                                 from: 1
                                 to: 256
                                 value: root.pendingPreviewCacheFileCount
@@ -687,7 +677,7 @@ Item {
                             }
                             ComboBox {
                                 id: exportTextEncodingCombo
-                                Layout.preferredWidth: 180
+                                Layout.preferredWidth: Theme.fieldWidth
                                 model: ["UTF-8", "Shift_JIS (CP932)"]
                                 currentIndex: root.pendingExportTextEncoding === "shift_jis" ? 1 : 0
                                 onActivated: root.pendingExportTextEncoding = currentIndex === 1 ? "shift_jis" : "utf-8"
@@ -706,22 +696,26 @@ Item {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        spacing: 8
+                        spacing: Theme.spacing
 
                         ScrollView {
                             id: synthesisSettingsPage
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             contentWidth: availableWidth
-                            rightPadding: 12
+                            contentHeight: synthesisSettingsColumn.implicitHeight + 2 * Theme.spacingLarge
+                            rightPadding: ScrollBar.vertical.width
 
                             ColumnLayout {
-                                width: synthesisSettingsPage.availableWidth
-                                spacing: 14
+                                id: synthesisSettingsColumn
+                                x: Theme.spacingLarge
+                                y: Theme.spacingLarge
+                                width: synthesisSettingsPage.availableWidth - 2 * Theme.spacingLarge
+                                spacing: Theme.spacingXLarge
 
                                 ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: 8
+                                    spacing: Theme.spacing
 
                                     Label {
                                         Layout.fillWidth: true
@@ -737,7 +731,7 @@ Item {
                                             }
                                             ComboBox {
                                                 id: defaultVoicebankCombo
-                                                Layout.preferredWidth: 240
+                                                Layout.preferredWidth: Theme.fieldWidthLarge
                                                 model: root.backend.voicebanks
                                                 textRole: "name"
                                                 valueRole: "id"
@@ -757,7 +751,7 @@ Item {
                                             }
                                             ToneSpinBox {
                                                 id: defaultToneInput
-                                                Layout.preferredWidth: 180
+                                                Layout.preferredWidth: Theme.fieldWidth
                                                 automaticText: root.translator.tr("main.aliasPolicy.auto")
                                                 onToneModified: tone => root.pendingDefaultTone = tone
                                                 Binding on value {
@@ -776,7 +770,7 @@ Item {
                                     }
                                     ColumnLayout {
                                         Layout.fillWidth: true
-                                        spacing: 8
+                                        spacing: Theme.spacing
 
                                         Label {
                                             Layout.fillWidth: true
@@ -791,7 +785,7 @@ Item {
                                             }
                                             ComboBox {
                                                 id: defaultAliasPolicyCombo
-                                                Layout.preferredWidth: 240
+                                                Layout.preferredWidth: Theme.fieldWidthLarge
                                                 model: [
                                                     { id: "auto", display_name: root.translator.tr("main.aliasPolicy.auto") },
                                                     { id: "cvvc-enhanced", display_name: root.translator.tr("main.aliasPolicy.cvvcEnhanced") },
@@ -817,7 +811,7 @@ Item {
                                             }
                                             ComboBox {
                                                 id: defaultModelCombo
-                                                Layout.preferredWidth: 240
+                                                Layout.preferredWidth: Theme.fieldWidthLarge
                                                 model: [{
                                                     id: "none",
                                                     display_name: root.translator.tr("main.modelNone")
@@ -839,7 +833,7 @@ Item {
                                             id: settingGroup
                                             required property var modelData
                                             Layout.fillWidth: true
-                                            spacing: 8
+                                            spacing: Theme.spacing
 
                                             Label {
                                                 Layout.fillWidth: true
@@ -861,11 +855,15 @@ Item {
                 ScrollView {
                     id: shortcutSettingsPage
                     contentWidth: availableWidth
-                    rightPadding: 12
+                    contentHeight: shortcutSettingsColumn.implicitHeight + 2 * Theme.spacingLarge
+                    rightPadding: ScrollBar.vertical.width
 
                     ColumnLayout {
-                        width: shortcutSettingsPage.availableWidth
-                        spacing: 12
+                        id: shortcutSettingsColumn
+                        x: Theme.spacingLarge
+                        y: Theme.spacingLarge
+                        width: shortcutSettingsPage.availableWidth - 2 * Theme.spacingLarge
+                        spacing: Theme.spacingLarge
 
                         Label {
                             Layout.fillWidth: true
@@ -881,7 +879,7 @@ Item {
                             }
                             TextField {
                                 id: undoShortcutField
-                                Layout.preferredWidth: 180
+                                Layout.preferredWidth: Theme.fieldWidth
                                 text: root.pendingUndoShortcut
                                 readOnly: true
                                 selectByMouse: false
@@ -913,7 +911,7 @@ Item {
                             }
                             TextField {
                                 id: redoShortcutField
-                                Layout.preferredWidth: 180
+                                Layout.preferredWidth: Theme.fieldWidth
                                 text: root.pendingRedoShortcut
                                 readOnly: true
                                 selectByMouse: false
@@ -945,7 +943,7 @@ Item {
                             }
                             TextField {
                                 id: synthesizeShortcutField
-                                Layout.preferredWidth: 180
+                                Layout.preferredWidth: Theme.fieldWidth
                                 text: root.pendingSynthesizeShortcut
                                 readOnly: true
                                 selectByMouse: false
@@ -977,7 +975,7 @@ Item {
                             }
                             TextField {
                                 id: saveProjectShortcutField
-                                Layout.preferredWidth: 180
+                                Layout.preferredWidth: Theme.fieldWidth
                                 text: root.pendingSaveProjectShortcut
                                 readOnly: true
                                 selectByMouse: false
@@ -1009,7 +1007,7 @@ Item {
                             }
                             TextField {
                                 id: reloadVoicebanksShortcutField
-                                Layout.preferredWidth: 180
+                                Layout.preferredWidth: Theme.fieldWidth
                                 text: root.pendingReloadVoicebanksShortcut
                                 readOnly: true
                                 selectByMouse: false
@@ -1041,7 +1039,7 @@ Item {
                             }
                             TextField {
                                 id: addUtteranceShortcutField
-                                Layout.preferredWidth: 180
+                                Layout.preferredWidth: Theme.fieldWidth
                                 text: root.pendingAddUtteranceShortcut
                                 readOnly: true
                                 selectByMouse: false
@@ -1073,7 +1071,7 @@ Item {
                             }
                             TextField {
                                 id: removeUtteranceShortcutField
-                                Layout.preferredWidth: 180
+                                Layout.preferredWidth: Theme.fieldWidth
                                 text: root.pendingRemoveUtteranceShortcut
                                 readOnly: true
                                 selectByMouse: false
@@ -1101,25 +1099,46 @@ Item {
 
                 Item {
                     id: referenceIndexesSettingsPage
-                    readonly property var columnWidths: [160, 140, 48, 80, 160]
+                    readonly property var selectedIndex: referenceIndexTable.selectedRow >= 0
+                            ? root.backend.referenceIndexes[referenceIndexTable.selectedRow] : undefined
+                    readonly property bool editable: !root.backend.busy && !root.backend.referenceIndexBuilding
+
+                    function deleteSelected() {
+                        if (selectedIndex && editable)
+                            root.backend.deleteReferenceIndex(String(selectedIndex.name));
+                    }
 
                     ColumnLayout {
                         anchors.fill: parent
-                        spacing: 8
+                        anchors.margins: Theme.spacingLarge
+                        spacing: Theme.spacing
 
                         RowLayout {
                             Layout.fillWidth: true
+                            spacing: Theme.spacingMedium
                             Label {
                                 Layout.fillWidth: true
                                 text: root.translator.tr("settings.referenceIndexes.title")
                                 font.bold: true
                                 wrapMode: Text.WordWrap
                             }
+                            ComboBox {
+                                id: referenceIndexVoicebankCombo
+                                Layout.preferredWidth: Theme.fieldWidthLarge
+                                model: root.backend.voicebanks
+                                textRole: "name"
+                                valueRole: "id"
+                                currentIndex: root.defaultVoicebankIndex()
+                            }
                             Button {
                                 text: root.translator.tr("settings.referenceIndexes.create")
-                                enabled: root.pendingDefaultVoicebankId.length > 0
-                                        && !root.backend.busy && !root.backend.referenceIndexBuilding
-                                onClicked: root.backend.buildReferenceIndex(root.pendingDefaultVoicebankId, "")
+                                enabled: !!referenceIndexVoicebankCombo.currentValue && referenceIndexesSettingsPage.editable
+                                onClicked: root.backend.buildReferenceIndex(String(referenceIndexVoicebankCombo.currentValue), "")
+                            }
+                            Button {
+                                text: root.translator.tr("settings.referenceIndexes.delete")
+                                enabled: !!referenceIndexesSettingsPage.selectedIndex && referenceIndexesSettingsPage.editable
+                                onClicked: referenceIndexesSettingsPage.deleteSelected()
                             }
                         }
                         ProgressBar {
@@ -1129,109 +1148,69 @@ Item {
                             to: 1
                             value: root.backend.referenceIndexProgress
                         }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Layout.rightMargin: root.compact ? 0 : 16
-                            spacing: root.compact ? 8 : 4
-
-                            Repeater {
-                                model: ["voicebank", "model", "version", "size", "modified"]
-                                delegate: Label {
-                                    required property int index
-                                    required property string modelData
-                                    Layout.fillWidth: true
-                                    Layout.minimumWidth: 0
-                                    Layout.preferredWidth: referenceIndexesSettingsPage.columnWidths[index]
-                                    text: root.translator.tr("settings.referenceIndexes." + modelData)
-                                    font.bold: true
-                                    elide: Text.ElideRight
-                                }
-                            }
-                            Item {
-                                Layout.preferredWidth: 80
-                                Layout.minimumWidth: 80
-                                Layout.maximumWidth: 80
-                            }
-                        }
-                        ListView {
-                            id: referenceIndexList
+                        DataTable {
+                            id: referenceIndexTable
+                            objectName: "referenceIndexTable"
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            clip: true
-                            spacing: 2
+                            compact: root.compact
+                            columns: [
+                                {title: root.translator.tr("settings.referenceIndexes.voicebank"), width: 160},
+                                {title: root.translator.tr("settings.referenceIndexes.model"), width: 140},
+                                {title: root.translator.tr("settings.referenceIndexes.version"), width: 48},
+                                {title: root.translator.tr("settings.referenceIndexes.size"), width: 80},
+                                {title: root.translator.tr("settings.referenceIndexes.modified"), width: 160}
+                            ]
                             model: root.backend.referenceIndexes
-                            ScrollBar.vertical: ScrollBar {
-                                policy: root.compact ? ScrollBar.AlwaysOff : ScrollBar.AlwaysOn
-                            }
-
-                            delegate: RowLayout {
-                                id: referenceIndexRow
-                                required property var modelData
-                                width: Math.max(0, referenceIndexList.width - (root.compact ? 0 : 16))
-                                height: root.compact ? 48 : 36
-                                spacing: root.compact ? 8 : 4
-
-                                Repeater {
-                                    model: [
-                                        root.referenceIndexVoicebankName(referenceIndexRow.modelData.voicebank),
-                                        String(referenceIndexRow.modelData.model || ""),
-                                        String(referenceIndexRow.modelData.version ?? ""),
-                                        root.translator.tr("settings.referenceIndexes.sizeMb",
-                                            (Number(referenceIndexRow.modelData.size_bytes || 0) / (1024 * 1024)).toFixed(1)),
-                                        Qt.formatDateTime(new Date(Number(referenceIndexRow.modelData.modified_ms)),
-                                            Qt.DefaultLocaleShortDate)
-                                    ]
-                                    delegate: Label {
-                                        required property int index
-                                        required property string modelData
-                                        Layout.fillWidth: true
-                                        Layout.minimumWidth: 0
-                                        Layout.preferredWidth: referenceIndexesSettingsPage.columnWidths[index]
-                                        text: modelData
-                                        elide: Text.ElideRight
-                                    }
-                                }
-                                Button {
-                                    Layout.preferredWidth: 80
-                                    Layout.minimumWidth: 80
-                                    Layout.maximumWidth: 80
-                                    text: root.translator.tr("settings.referenceIndexes.delete")
-                                    enabled: !root.backend.busy && !root.backend.referenceIndexBuilding
-                                    onClicked: root.backend.deleteReferenceIndex(String(referenceIndexRow.modelData.name))
+                            cellValue: (row, column) => {
+                                const item = row || {};
+                                switch (column) {
+                                case 0: return root.referenceIndexVoicebankName(item.voicebank);
+                                case 1: return String(item.model || "");
+                                case 2: return String(item.version ?? "");
+                                case 3: return root.translator.tr("settings.referenceIndexes.sizeMb",
+                                                                  (Number(item.size_bytes || 0) / (1024 * 1024)).toFixed(1));
+                                default: return Qt.formatDateTime(new Date(Number(item.modified_ms)), Qt.DefaultLocaleShortDate);
                                 }
                             }
-                            Label {
-                                width: referenceIndexList.width
-                                visible: referenceIndexList.count === 0
-                                text: root.translator.tr("settings.referenceIndexes.empty")
-                                wrapMode: Text.WordWrap
+                            sortValue: (row, column) => {
+                                switch (column) {
+                                case 2: return Number(row.version ?? 0);
+                                case 3: return Number(row.size_bytes || 0);
+                                case 4: return Number(row.modified_ms || 0);
+                                default: return referenceIndexTable.cellValue(row, column);
+                                }
                             }
+                            emptyText: root.translator.tr("settings.referenceIndexes.empty")
+                            onDeleteRequested: referenceIndexesSettingsPage.deleteSelected()
                         }
                     }
                 }
-
             }
+        }
 
-            RowLayout {
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: Theme.spacingLarge
+            spacing: Theme.spacingMedium
+            Item {
                 Layout.fillWidth: true
-                Item {
-                    Layout.fillWidth: true
+            }
+            Button {
+                text: root.translator.tr("common.ok")
+                highlighted: true
+                onClicked: root.applyRequested(true)
+            }
+            Button {
+                text: root.translator.tr("common.cancel")
+                onClicked: {
+                    root.loadCurrent();
+                    root.closeRequested();
                 }
-                Button {
-                    text: root.translator.tr("common.ok")
-                    onClicked: root.applyRequested(true)
-                }
-                Button {
-                    text: root.translator.tr("common.cancel")
-                    onClicked: {
-                        root.loadCurrent();
-                        root.closeRequested();
-                    }
-                }
-                Button {
-                    text: root.translator.tr("common.apply")
-                    onClicked: root.applyRequested(false)
-                }
+            }
+            Button {
+                text: root.translator.tr("common.apply")
+                onClicked: root.applyRequested(false)
             }
         }
     }

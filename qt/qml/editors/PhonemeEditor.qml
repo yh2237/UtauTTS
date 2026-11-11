@@ -25,12 +25,11 @@ Item {
     property real frameMs: 10
     property bool framePaintMode: false
     property var overrides: []
-    property color accentColor: "#d35f6b"
-    property color axisColor: "#c79298"
-    property color gridColor: "#eadcdf"
-    property color labelColor: "#66565a"
-    property color mutedText: "#777777"
-    property color dividerColor: "#c79298"
+    property color accentColor: Theme.selection
+    property color axisColor: Theme.axisLine
+    property color labelColor: Theme.viewText
+    property color mutedText: Theme.inactiveText
+    property color dividerColor: Theme.border
     property bool showTimelineFrame: true
     property int selectedUnitIndex: -1
     property real zoomFactor: 1
@@ -44,7 +43,6 @@ Item {
     property bool snapEnabled: true
     property real currentScrollX: 0
     property var timingEditor: null
-    // 縦の表示範囲と編集できる範囲（±セント）。
     readonly property real pitchRange: 800
     readonly property real maximumPitchCents: 800
     readonly property real sidePadding: timingEditor ? timingEditor.sidePadding : 36
@@ -86,7 +84,6 @@ Item {
     readonly property int frameDisplayCount: Math.max(root.autoFrames.length,
             root.manualFrames.length, root.frameCapacity(), 2)
 
-    // 時間・音素の変更時だけ区間を作り直し、再描画やペン操作では検索だけ行う。
     readonly property var pronunciationSpans: {
         const spans = [];
         for (const unit of root.units || []) {
@@ -141,8 +138,6 @@ Item {
         return Number.isFinite(value) ? value : 0;
     }
 
-    // moraPitchCentsAtFrameは、その時刻のモーラの音高（ノーツの上下で決まるセント）を返す。
-    // モーラの中心どうしを直線でつなぐ。
     function moraPitchCentsAtFrame(frame) {
         if (!root.timingEditor)
             return 0;
@@ -176,7 +171,6 @@ Item {
         return previousCents + (nextCents - previousCents) * (time - previousTime) / span;
     }
 
-    // unitPitchCentsAtFrameは、その時刻を覆う原音のピッチ係数をセントに直して返す。
     function unitPitchCentsAtFrame(frame) {
         const time = root.frameTimeMs(frame);
         for (let index = 0; index < root.units.length; ++index) {
@@ -288,7 +282,6 @@ Item {
     readonly property var selectedUnit: root.unitAt(root.selectedUnitIndex)
     readonly property real msPerZoomStep: 1.25
     readonly property int dragSnapMs: 10
-    // キーボード操作の移動量。Shift で微調整する。
     readonly property int keyboardStepMs: 10
     readonly property int fineStepMs: 1
     readonly property int keyboardStepCents: 10
@@ -427,7 +420,6 @@ Item {
     function boundaryHit(canvasX) {
         let best = -1;
         let bestDistance = 7;
-        // 最初の発音は常に音声時刻0から始まる。
         for (let i = 1; i < root.morae.length; ++i) {
             const distance = Math.abs(root.timeToX(root.boundaryTime(i)) - canvasX);
             if (distance <= bestDistance) {
@@ -850,7 +842,6 @@ Item {
         return values;
     }
 
-    // stepUnitSelectionは、選択を隣のノートへ移す。端まで来たら false を返してフォーカス移動に譲る。
     function stepUnitSelection(direction) {
         const indices = root.editableUnitIndices();
         if (!indices.length)
@@ -915,7 +906,6 @@ Item {
         root.timingEditor.resetPitchAt(position);
     }
 
-    // 文字入力中はキー操作を奪わない。
     readonly property bool keyboardActive: {
         if (!root.activeFocus)
             return false;
@@ -930,7 +920,7 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 6
+        spacing: Theme.spacingMedium
 
         Rectangle {
             id: waveformFrame
@@ -977,20 +967,6 @@ Item {
                             (viewLeft - root.sidePadding) * frameScale - frameOffset) - 1);
                     const lastFrame = Math.min(root.frameDisplayCount - 1, Math.ceil(
                             (viewRight - root.sidePadding) * frameScale - frameOffset) + 1);
-                    const step = Math.pow(10, Math.floor(Math.log10(100 / root.pixelsPerMs)));
-                    const tick = step * (step * root.pixelsPerMs < 50 ? 5 : 1);
-                    const tickStart = Math.max(0, Math.floor(root.xToTime(viewLeft) / tick) * tick);
-                    for (let time = tickStart; time <= Math.min(root.timelineDuration,
-                            root.xToTime(viewRight)); time += tick) {
-                        const x = root.timeToX(time);
-                        if (!inView(x))
-                            continue;
-                        ctx.strokeStyle = root.gridColor;
-                        ctx.beginPath();
-                        ctx.moveTo(x, 20);
-                        ctx.lineTo(x, height);
-                        ctx.stroke();
-                    }
                     for (let li = 0; li < root.exprLanes.length; ++li) {
                         const laneKey = root.exprLanes[li].key;
                         const code = String(root.exprLanes[li].code);
@@ -998,11 +974,6 @@ Item {
                         const laneTop = root.exprLaneY(li);
                         const laneH = root.exprLaneH - 2;
                         const barY = laneTop + (laneH - 10) / 2;
-                        ctx.strokeStyle = root.gridColor;
-                        ctx.beginPath();
-                        ctx.moveTo(timelineViewport.contentX, laneTop + laneH);
-                        ctx.lineTo(timelineViewport.contentX + width, laneTop + laneH);
-                        ctx.stroke();
                         for (let ei = 0; ei < root.units.length; ++ei) {
                             const eunit = root.units[ei];
                             if (!eunit || eunit.silent)
@@ -1026,20 +997,11 @@ Item {
                             }
                         }
                         ctx.fillStyle = root.mutedText;
-                        ctx.font = "9px sans-serif";
+                        ctx.font = Theme.fontXSmall + "px sans-serif";
                         ctx.fillText(code, timelineViewport.contentX + 4, laneTop + 12);
                     }
-                    ctx.font = "10px sans-serif";
+                    ctx.font = Theme.fontXSmall + "px sans-serif";
                     if (root.timingEditor) {
-                        const middle = root.noteCenterY();
-                        for (let cents = -root.pitchRange; cents <= root.pitchRange; cents += 400) {
-                            const y = middle - cents * root.noteLaneH / (2 * root.pitchRange);
-                            ctx.strokeStyle = root.gridColor;
-                            ctx.beginPath();
-                            ctx.moveTo(Math.max(0, viewLeft), y);
-                            ctx.lineTo(Math.min(timelineViewport.contentWidth, viewRight), y);
-                            ctx.stroke();
-                        }
                         ctx.strokeStyle = root.accentColor;
                         ctx.lineWidth = 2;
                         ctx.beginPath();
@@ -1423,7 +1385,7 @@ Item {
                     y: unitBand.editable ? unitBand.centerY - 11 : 24
                     width: Math.max(2, root.timeToX(end) - x - 1)
                     height: editable ? 22 : 10
-                    radius: 3
+                    radius: Theme.radius
                     clip: true
                     color: Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b,
                                    index === root.selectedUnitIndex ? 0.45
@@ -1437,10 +1399,10 @@ Item {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        anchors.margins: 2
+                        anchors.margins: Theme.spacingXSmall
                         text: root.displayName(unitBand.modelData)
                         color: root.labelColor
-                        font.pixelSize: 9
+                        font.pixelSize: Theme.fontXSmall
                         elide: Text.ElideRight
                         visible: parent.width >= 28 && unitBand.editable
                     }
@@ -1448,7 +1410,7 @@ Item {
                     Rectangle {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        anchors.rightMargin: 3
+                        anchors.rightMargin: Theme.spacingXSmall
                         width: 2
                         height: 12
                         color: root.accentColor
@@ -1547,20 +1509,20 @@ Item {
 
             ColumnLayout {
                 width: Math.max(0, parent.width - 12)
-                spacing: 6
+                spacing: Theme.spacingMedium
 
             GridLayout {
                 Layout.fillWidth: true
                 columns: 4
-                columnSpacing: 8
-                rowSpacing: 4
+                columnSpacing: Theme.spacing
+                rowSpacing: Theme.spacingSmall
 
                 Label {
                     text: root.translator.tr("main.pitch.position")
                 }
                 SpinBox {
                     id: positionSpin
-                    Layout.preferredWidth: 108
+                    Layout.preferredWidth: Theme.fieldWidthSmall
                     from: 0
                     to: 100000
                     editable: true
@@ -1581,7 +1543,7 @@ Item {
                 }
                 SpinBox {
                     id: durationSpin
-                    Layout.preferredWidth: 108
+                    Layout.preferredWidth: Theme.fieldWidthSmall
                     from: 1
                     to: 100000
                     editable: true
@@ -1600,7 +1562,7 @@ Item {
                 Label { text: root.translator.tr("main.pitch.offset") }
                 SpinBox {
                     id: offsetSpin
-                    Layout.preferredWidth: 108
+                    Layout.preferredWidth: Theme.fieldWidthSmall
                     from: -60000
                     to: 60000
                     editable: true
@@ -1613,7 +1575,7 @@ Item {
                 Label { text: root.translator.tr("main.pitch.cutoff") }
                 SpinBox {
                     id: cutoffSpin
-                    Layout.preferredWidth: 108
+                    Layout.preferredWidth: Theme.fieldWidthSmall
                     from: -60000
                     to: 60000
                     editable: true
@@ -1627,7 +1589,7 @@ Item {
                 Label { text: root.translator.tr("main.pitch.consonant") }
                 SpinBox {
                     id: consonantSpin
-                    Layout.preferredWidth: 108
+                    Layout.preferredWidth: Theme.fieldWidthSmall
                     from: 0
                     to: 60000
                     editable: true
@@ -1640,7 +1602,7 @@ Item {
                 Label { text: root.translator.tr("main.pitch.preutterance") }
                 SpinBox {
                     id: preutteranceSpin
-                    Layout.preferredWidth: 108
+                    Layout.preferredWidth: Theme.fieldWidthSmall
                     from: 0
                     to: 60000
                     editable: true
@@ -1654,7 +1616,7 @@ Item {
                 Label { text: root.translator.tr("main.pitch.overlap") }
                 SpinBox {
                     id: overlapSpin
-                    Layout.preferredWidth: 108
+                    Layout.preferredWidth: Theme.fieldWidthSmall
                     from: 0
                     to: 60000
                     editable: true
@@ -1667,7 +1629,7 @@ Item {
                 Label { text: root.translator.tr("main.pitch.pitchFactor") }
                 TextField {
                     id: pitchFactorField
-                    Layout.preferredWidth: 108
+                    Layout.preferredWidth: Theme.fieldWidthSmall
                     enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit
                     text: enabled ? root.unitNumber(root.selectedUnitIndex, "pitch_factor", 1).toFixed(3) : ""
                     validator: DoubleValidator { bottom: 0.001; top: 100.0 }
@@ -1676,7 +1638,7 @@ Item {
                 Label { text: root.translator.tr("main.pitch.energyFactor") }
                 TextField {
                     id: energyFactorField
-                    Layout.preferredWidth: 108
+                    Layout.preferredWidth: Theme.fieldWidthSmall
                     enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit
                     text: enabled ? root.unitNumber(root.selectedUnitIndex, "energy_factor", 1).toFixed(3) : ""
                     validator: DoubleValidator { bottom: 0.001; top: 100.0 }
@@ -1686,7 +1648,7 @@ Item {
                 Label { text: root.translator.tr("main.pitch.volume") }
                 SpinBox {
                     id: volumeSpin
-                    Layout.preferredWidth: 108
+                    Layout.preferredWidth: Theme.fieldWidthSmall
                     from: 0
                     to: 200
                     enabled: root.selectedUnitIndex >= 0 && !!root.selectedUnit
@@ -1704,14 +1666,13 @@ Item {
                           : ""
                     color: root.mutedText
                     elide: Text.ElideMiddle
-                    font.pixelSize: 10
+                    font.pixelSize: Theme.fontXSmall
                 }
             }
         }
         }
     }
 
-    // Delete は発話削除のショートカットと競合する。消す値があるときだけ編集側が受け取る。
     Keys.onShortcutOverride: event => {
         if (root.keyboardActive && root.selectedNoteHasManualPitch()
                 && (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace))
@@ -1761,14 +1722,17 @@ Item {
     onLeadingMarginChanged: waveformCanvas.requestPaint()
     onWaveformDurationChanged: waveformCanvas.requestPaint()
     onMoraPositionsChanged: {
-        waveformCanvas.requestPaint();        
+        waveformCanvas.requestPaint();
+        
         scheduleSelectedFieldRefresh();
     }
     onMoraDurationsChanged: scheduleSelectedFieldRefresh()
     onSelectedUnitIndexChanged: {
-        scheduleSelectedFieldRefresh();    }
+        scheduleSelectedFieldRefresh();
+    }
     onSelectedBoundaryChanged: {
-                waveformCanvas.requestPaint();
+        
+        waveformCanvas.requestPaint();
     }
     onOverridesChanged: {
         scheduleSelectedFieldRefresh();
@@ -1776,7 +1740,10 @@ Item {
     }
     onManualFramesChanged: waveformCanvas.requestPaint()
     onFrameMsChanged: waveformCanvas.requestPaint()
-    // ノーツの上下で変わるモーラの音高も、曲線に出す。
+    Connections {
+        target: Theme
+        function onDarkChanged() { waveformCanvas.requestPaint(); }
+    }
     Connections {
         target: root.timingEditor
         function onPointsChanged() { waveformCanvas.requestPaint(); }
@@ -1795,7 +1762,8 @@ Item {
             root.hudText = "";
         }
         ensureUnitSelection();
-        waveformCanvas.requestPaint();        scheduleSelectedFieldRefresh();
+        waveformCanvas.requestPaint();
+        scheduleSelectedFieldRefresh();
     }
     onWidthChanged: waveformCanvas.requestPaint()
 }

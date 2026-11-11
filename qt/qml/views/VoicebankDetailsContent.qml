@@ -15,41 +15,33 @@ GridLayout {
                                      && voicebankDetailsList.currentIndex < content.backend.voicebanks.length
                                      ? content.backend.voicebanks[voicebankDetailsList.currentIndex] : null
 
-    anchors.margins: 10
+    anchors.margins: Theme.spacingLarge
     columns: compact ? 1 : 2
-    columnSpacing: 8
-    rowSpacing: 8
+    columnSpacing: Theme.spacingLarge
+    rowSpacing: Theme.spacingLarge
 
-    ListView {
+    SideList {
         id: voicebankDetailsList
-        Layout.preferredWidth: content.compact ? -1 : 210
-        Layout.preferredHeight: content.compact ? 48 : -1
+        Layout.preferredWidth: content.compact ? -1 : Theme.sidebarWidth
+        Layout.preferredHeight: content.compact ? Theme.touchTarget : -1
         Layout.fillWidth: content.compact
         Layout.fillHeight: !content.compact
-        orientation: content.compact ? ListView.Horizontal : ListView.Vertical
-        clip: true
+        compact: content.compact
         model: content.backend.voicebanks
+        textRole: "name"
         currentIndex: 0
-
-        delegate: ItemDelegate {
-            required property int index
-            required property var modelData
-            width: content.compact ? Math.max(120, implicitWidth) : ListView.view.width
-            text: modelData.name
-            highlighted: ListView.isCurrentItem
-            onClicked: voicebankDetailsList.currentIndex = index
-        }
+        onClicked: index => voicebankDetailsList.currentIndex = index
     }
 
     ColumnLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
-        spacing: 10
+        spacing: Theme.spacingLarge
 
         Label {
             Layout.fillWidth: true
             text: content.selectedVoicebank ? content.selectedVoicebank.name : ""
-            font.pixelSize: 18
+            font.pixelSize: Theme.fontTitle
             font.bold: true
         }
         Label {
@@ -64,7 +56,7 @@ GridLayout {
                                              counts["VC"] || 0);
             }
             wrapMode: Text.Wrap
-            color: palette.mid
+            color: Theme.inactiveText
         }
         Label {
             Layout.fillWidth: true
@@ -76,11 +68,16 @@ GridLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             contentWidth: availableWidth
-            Label {
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            // 出入りで幅が変わると折り返しと高さが循環するので、縦のスクロールバーは常に出す。
+            ScrollBar.vertical.policy: ScrollBar.AlwaysOn
+            TextArea {
                 width: voicebankReadmeScroll.availableWidth
                 text: content.selectedVoicebank ? (content.selectedVoicebank.readme_text || content.translator.tr("voicebankDetails.noReadme")) : ""
-                wrapMode: Text.Wrap
-                padding: 4
+                textFormat: TextEdit.PlainText
+                readOnly: true
+                selectByMouse: true
+                wrapMode: TextEdit.Wrap
             }
         }
     }

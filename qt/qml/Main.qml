@@ -36,22 +36,41 @@ ApplicationWindow {
     title: intonationLab ? "UtauTTS Intonation Lab" : injectedAppName
     color: palette.window
     palette: Palette {
-        window: window.darkMode ? "#202124" : "#f6f6f6"
-        windowText: window.darkMode ? "#e8eaed" : "#000000"
-        base: window.darkMode ? "#292a2d" : "#ffffff"
-        alternateBase: window.darkMode ? "#303134" : "#f0f1f2"
-        text: window.darkMode ? "#e8eaed" : "#000000"
-        button: window.darkMode ? "#303134" : "#f0f1f2"
-        buttonText: window.darkMode ? "#e8eaed" : "#000000"
-        highlight: window.darkMode ? "#e8837d" : "#d35f6b"
-        highlightedText: window.darkMode ? "#202124" : "#ffffff"
-        placeholderText: window.darkMode ? "#9aa0a6" : "#6b7075"
-        mid: window.darkMode ? "#5f6368" : "#aeb4ba"
+        window: Theme.window
+        base: Theme.view
+        alternateBase: Theme.viewAlternate
+        highlightedText: Theme.selectionText
+        placeholderText: Theme.placeholderText
+        mid: Theme.border
+        light: Theme.light
+        midlight: Theme.midlight
+        dark: Theme.shade
+        shadow: Theme.shadow
+        toolTipBase: Theme.toolTipBase
+        toolTipText: Theme.toolTipText
+        // 最上位の色は全ての群に入り、disabled との評価順で上書きし合うため、群ごとに書く。
+        active.windowText: Theme.windowText
+        active.text: Theme.viewText
+        active.buttonText: Theme.buttonText
+        inactive.windowText: Theme.windowText
+        inactive.text: Theme.viewText
+        inactive.buttonText: Theme.buttonText
+        active.button: Theme.button
+        inactive.button: Theme.button
+        active.highlight: Theme.selection
+        inactive.highlight: Theme.selection
+        disabled.windowText: Theme.disabledText
+        disabled.text: Theme.disabledText
+        disabled.buttonText: Theme.disabledText
+        disabled.button: Theme.disabledButton
+        disabled.highlight: Theme.selectionDisabled
+    }
+    Binding {
+        target: Theme
+        property: "dark"
+        value: window.darkMode
     }
 
-    property color accent: palette.highlight
-    property color borderColor: palette.mid
-    property color mutedText: palette.text
     readonly property url repositoryUrl: injectedRepositoryUrl
     readonly property var appBackend: injectedBackend
     readonly property bool darkMode: appBackend.darkMode
@@ -420,7 +439,7 @@ ApplicationWindow {
         }
     }
 
-    MainDialogs { id: dialogs; host: window }
+    MainDialogs { id: dialogs; objectName: "mainDialogs"; host: window }
     Loader {
         id: dragTargetWindowLoader
         active: Platform.hasNativeFileDialog
@@ -431,8 +450,6 @@ ApplicationWindow {
             files: window.dragExportFiles
             exportDirectory: window.batchExportDirectory
             ready: window.dragExportReady
-            accent: window.accent
-            mutedText: window.mutedText
             onDragError: window.showLogWindow()
         }
     }
@@ -729,37 +746,34 @@ ApplicationWindow {
     }
 
     menuBar: MainMenuBar {
+        objectName: "mainMenuBar"
         host: window
     }
 
     header: ToolBar {
         visible: window.intonationLab || window.mobileLayout
-        height: window.mobileLayout ? 56 : window.intonationLab ? 44 : 0
+        height: visible ? Theme.touchTarget : 0
 
         RowLayout {
             anchors.fill: parent
             visible: window.mobileLayout
             spacing: 0
-            FontLoader {
-                id: headerIconFont
-                source: "qrc:/fonts/MaterialSymbolsOutlined-subset.ttf"
-            }
             Repeater {
                 model: [
-                    { icon: "", tip: "menu.edit.undo", redo: false },
-                    { icon: "", tip: "menu.edit.redo", redo: true }
+                    { icon: "\ue166", tip: "menu.edit.undo", redo: false },
+                    { icon: "\ue15a", tip: "menu.edit.redo", redo: true }
                 ]
                 delegate: ToolButton {
                     id: historyButton
                     required property var modelData
-                    Layout.preferredWidth: 52
-                    Layout.preferredHeight: 56
+                    Layout.preferredWidth: Theme.touchTarget
+                    Layout.preferredHeight: Theme.touchTarget
                     enabled: (historyButton.modelData.redo ? window.canRedo : window.canUndo)
                              && !window.appBackend.busy && !window.batchExportActive && !window.playbackQueueActive
                     contentItem: Text {
                         text: historyButton.modelData.icon
-                        font.family: headerIconFont.name
-                        font.pixelSize: 26
+                        font.family: Theme.iconFont
+                        font.pixelSize: Theme.iconLarge
                         color: historyButton.palette.buttonText
                         opacity: historyButton.enabled ? 1 : 0.35
                         horizontalAlignment: Text.AlignHCenter
@@ -770,11 +784,11 @@ ApplicationWindow {
                 }
             }
             Item { Layout.fillWidth: true }
-            ToolButton {
-                text: "☰"
-                font.pixelSize: 30
-                Layout.preferredWidth: 64
-                Layout.preferredHeight: 56
+            IconButton {
+                glyph: "\ue5d2"
+                glyphSize: Theme.iconLarge
+                Layout.preferredWidth: Theme.touchTarget
+                Layout.preferredHeight: Theme.touchTarget
                 onClicked: mobileChrome.openMenu()
             }
         }
@@ -782,9 +796,9 @@ ApplicationWindow {
         RowLayout {
             visible: window.intonationLab
             anchors.fill: parent
-            anchors.leftMargin: 14
-            anchors.rightMargin: 10
-            spacing: 10
+            anchors.leftMargin: Theme.spacingLarge
+            anchors.rightMargin: Theme.spacingLarge
+            spacing: Theme.spacing
 
             Label {
                 text: "イントネーション調整"
@@ -799,14 +813,14 @@ ApplicationWindow {
                     }
                     return completed + " / " + window.utterancesModel.count;
                 }
-                color: window.mutedText
+                color: Theme.inactiveText
             }
             Item { Layout.fillWidth: true }
             Label {
                 Layout.maximumWidth: 360
                 visible: text.length > 0
                 text: window.intonationLabStatus
-                color: window.appBackend.error.length ? "#b42318" : window.mutedText
+                color: window.appBackend.error.length ? Theme.negative : Theme.inactiveText
                 elide: Text.ElideRight
             }
             Button {
@@ -834,14 +848,15 @@ ApplicationWindow {
     // 一括書き出しの進み具合と中止、書き出しの結果を窓の下端に出す。
     footer: Rectangle {
         visible: window.batchExportActive || window.footerNotice.length > 0
-        height: visible ? 48 : 0
+        height: visible ? footerRow.implicitHeight + Theme.spacing * 2 : 0
         color: window.palette.alternateBase
 
         RowLayout {
+            id: footerRow
             anchors.fill: parent
-            anchors.leftMargin: 12
-            anchors.rightMargin: 12
-            spacing: 12
+            anchors.leftMargin: Theme.spacingLarge
+            anchors.rightMargin: Theme.spacingLarge
+            spacing: Theme.spacingLarge
 
             Label {
                 visible: window.batchExportActive
@@ -888,10 +903,10 @@ ApplicationWindow {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        height: visible ? errorBannerLayout.implicitHeight + 16 : 0
+        height: visible ? errorBannerLayout.implicitHeight + Theme.spacing * 2 : 0
         visible: window.errorBannerText.length > 0
-        color: window.darkMode ? "#4a1d18" : "#fdecea"
-        border.color: "#b42318"
+        color: Theme.negativeBackground
+        border.color: Theme.negative
         z: 900
 
         RowLayout {
@@ -899,13 +914,13 @@ ApplicationWindow {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.margins: 8
-            spacing: 8
+            anchors.margins: Theme.spacing
+            spacing: Theme.spacing
 
             Label {
                 Layout.fillWidth: true
                 text: window.errorBannerText
-                color: window.darkMode ? "#f6c9c4" : "#7a1c14"
+                color: Theme.negativeText
                 wrapMode: Text.Wrap
                 maximumLineCount: 3
                 elide: Text.ElideRight

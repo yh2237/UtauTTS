@@ -7,6 +7,7 @@ import UtauTTS.Platform 1.0
 
 AdaptiveDialogWindow {
     id: root
+    objectName: "licenseWindow"
     required property var hostPalette
     required property var translator
     property alias documents: content.documents

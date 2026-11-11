@@ -104,6 +104,7 @@ set_source_files_properties(qml/EditorValues.js PROPERTIES QT_QML_SKIP_QMLDIR_EN
 set_source_files_properties(qml/HistoryCore.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/IntonationLab.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/SelfTest.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
+set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 qt_add_qml_module(utautts
     URI UtauTTS
     VERSION 1.0
@@ -113,6 +114,7 @@ qt_add_qml_module(utautts
         qml/views/MainMenuBar.qml
         qml/views/MobileChrome.qml
         qml/AppCore.qml
+        qml/Theme.qml
         qml/UnitOverrides.js
         qml/MoraPositions.js
         qml/QmlCore.js
@@ -145,14 +147,22 @@ qt_add_qml_module(utautts
         qml/controls/WindowHeader.qml
         qml/controls/MobilePageDialog.qml
         qml/controls/SettingsResetButton.qml
-        qml/controls/GrayscaleMenuItem.qml
+        qml/controls/IconButton.qml
+        qml/controls/TabFrame.qml
+        qml/controls/ColumnHeader.qml
+        qml/controls/DataTable.qml
+        qml/controls/AccentRoundButton.qml
+        qml/controls/DocumentTabButton.qml
+        qml/controls/DocumentFrame.qml
+        qml/controls/ToolModeButton.qml
+        qml/controls/ListFrame.qml
+        qml/controls/SideList.qml
         qml/controls/PlaybackControls.qml
         qml/controls/ParameterSlider.qml
         qml/controls/ToneSpinBox.qml
         qml/controls/DragHud.qml
         qml/editors/PitchEditor.qml
         qml/editors/PhonemeEditor.qml
-        qml/editors/IntonationEditorSurface.qml
         qml/editors/PitchHorizontalScrollBar.qml
 )
 

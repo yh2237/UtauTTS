@@ -42,10 +42,9 @@ Item {
     property int minimumMoraDuration: 20
     property int maximumMoraDuration: 1000
     property int maximumPauseDuration: 3000
-    property color accentColor: "#d35f6b"
-    property color axisColor: "#c79298"
-    property color gridColor: "#eadcdf"
-    property color labelColor: "#66565a"
+    property color accentColor: Theme.selection
+    property color axisColor: Theme.axisLine
+    property color labelColor: Theme.viewText
     property real moraWidth: 64
     Behavior on moraWidth {
         // ピンチ中は指の動きに直接追従させる。
@@ -689,18 +688,11 @@ Item {
                     const viewLeft = viewport.contentX - 40;
                     const viewRight = viewport.contentX + viewport.width + 40;
                     const inView = x => x >= viewLeft && x <= viewRight;
-                    const gridStep = root.verticalZoom >= 4 ? 100
-                            : root.verticalZoom >= 2 ? 200 : 400;
-                    for (let cents = -root.pitchRange; cents <= root.pitchRange;
-                         cents += gridStep) {
-                        ctx.strokeStyle = cents === 0 ? root.axisColor : root.gridColor;
-                        ctx.setLineDash(cents === 0 ? [] : [4, 5]);
-                        ctx.beginPath();
-                        ctx.moveTo(Math.max(0, viewLeft), center - cents * scale);
-                        ctx.lineTo(Math.min(graph.width, viewRight), center - cents * scale);
-                        ctx.stroke();
-                    }
-                    ctx.setLineDash([]);
+                    ctx.strokeStyle = root.axisColor;
+                    ctx.beginPath();
+                    ctx.moveTo(Math.max(0, viewLeft), center);
+                    ctx.lineTo(Math.min(graph.width, viewRight), center);
+                    ctx.stroke();
                     ctx.strokeStyle = root.axisColor;
                     ctx.globalAlpha = 0.45;
                     ctx.lineWidth = 1;
@@ -937,7 +929,7 @@ Item {
                             elide: Text.ElideRight
                             color: root.labelColor
                             opacity: 0.75
-                            font.pixelSize: 10
+                            font.pixelSize: Theme.fontXSmall
 
                             MouseArea {
                                 anchors.fill: parent
@@ -1328,7 +1320,6 @@ Item {
     onAutoPointsChanged: canvas.requestPaint()
     onAccentColorChanged: canvas.requestPaint()
     onAxisColorChanged: canvas.requestPaint()
-    onGridColorChanged: canvas.requestPaint()
     onMoraeChanged: {
         if (root.selectedPoints.length)
             root.setSelectedPoints(root.selectedPoints);
@@ -1341,4 +1332,8 @@ Item {
     onDefaultPauseDurationChanged: canvas.requestPaint()
     onSelectedPointsChanged: canvas.requestPaint()
     onVerticalZoomChanged: canvas.requestPaint()
+    Connections {
+        target: Theme
+        function onDarkChanged() { canvas.requestPaint(); }
+    }
 }

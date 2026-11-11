@@ -25,7 +25,7 @@ AdaptiveDialogWindow {
 
     SynthesisLogContent {
         anchors.fill: parent
-        anchors.margins: 12
+        anchors.margins: Theme.spacingLarge
         backend: root.backend
         translator: root.translator
         onCloseRequested: root.close()

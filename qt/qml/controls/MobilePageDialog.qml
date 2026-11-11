@@ -3,10 +3,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 
-// Fusionの辺別余白が優先されるため、paddingだけでなく各辺を指定する。
 Dialog {
     id: root
-    readonly property int pageMargin: 16
+    readonly property int pageMargin: Theme.spacingXLarge
     parent: Overlay.overlay
     modal: true
     width: parent ? parent.width : 0
