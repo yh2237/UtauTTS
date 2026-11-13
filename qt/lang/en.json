@@ -43,7 +43,6 @@
     "main.closeConfirmTitle": "Confirm Exit",
     "main.closeUnsaved": "You have unsaved changes. Exit without saving?",
     "main.closeWhileBusy": "Speech synthesis is running. Exit anyway?",
-    "main.error.showLog": "Show log",
     "main.exoFrameRateTitle": "exo Frame Rate",
     "main.fps": "fps",
     "main.frameRate": "Frame Rate",

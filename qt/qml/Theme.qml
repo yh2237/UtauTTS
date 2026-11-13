@@ -35,8 +35,6 @@ QtObject {
     readonly property color axisLine: dark ? "#4a4a4a" : "#c5c5c5"
 
     readonly property color negative: dark ? "#ff99a4" : "#c42b1c"
-    readonly property color negativeBackground: dark ? "#442726" : "#fde7e9"
-    readonly property color negativeText: dark ? "#ffffff" : "#1a1a1a"
 
     readonly property color overlay: "#ee222222"
     readonly property color overlayText: "#ffffff"

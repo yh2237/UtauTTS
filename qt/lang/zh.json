@@ -43,7 +43,6 @@
     "main.closeConfirmTitle": "确认退出",
     "main.closeUnsaved": "有未保存的更改。是否不保存并退出？",
     "main.closeWhileBusy": "正在进行语音合成，是否仍要退出？",
-    "main.error.showLog": "显示日志",
     "main.exoFrameRateTitle": "exo 帧率",
     "main.fps": "fps",
     "main.frameRate": "帧率",

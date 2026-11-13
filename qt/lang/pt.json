@@ -43,7 +43,6 @@
     "main.closeConfirmTitle": "Confirmar saída",
     "main.closeUnsaved": "Há alterações não salvas. Sair sem salvar?",
     "main.closeWhileBusy": "A síntese de voz está em andamento. Sair mesmo assim?",
-    "main.error.showLog": "Mostrar registro",
     "main.exoFrameRateTitle": "Taxa de quadros do exo",
     "main.fps": "fps",
     "main.frameRate": "Taxa de quadros",

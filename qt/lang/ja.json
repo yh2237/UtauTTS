@@ -43,7 +43,6 @@
     "main.closeConfirmTitle": "終了の確認",
     "main.closeUnsaved": "未保存の変更があります。保存せずに終了しますか？",
     "main.closeWhileBusy": "音声合成が実行中です。終了しますか？",
-    "main.error.showLog": "ログを表示",
     "main.exoFrameRateTitle": "exoのフレームレート",
     "main.fps": "fps",
     "main.frameRate": "フレームレート",

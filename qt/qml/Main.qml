@@ -78,7 +78,6 @@ ApplicationWindow {
     readonly property bool intonationLab: injectedIntonationLab
     readonly property bool mobileLayout: Platform.isMobile && !window.intonationLab
     onWidthChanged: Platform.updateViewportWidth(width)
-    onPlaybackErrorChanged: window.errorBannerDismissed = false
     onMobileLayoutChanged: {
         if (!mobileLayout && window.showOnboarding && onboardingWindowLoader)
             onboardingWindowLoader.active = true;
@@ -263,11 +262,6 @@ ApplicationWindow {
     property bool batchExportWithSidecars: false
     property bool playbackRequested: false
     property string playbackError: ""
-    // 画面上部のエラーバナー。閉じたあとは同じエラーでは開き直さない。
-    property bool errorBannerDismissed: false
-    readonly property string errorBannerText: window.errorBannerDismissed ? ""
-                                             : window.appBackend.error.length ? window.appBackend.error
-                                             : window.playbackError
     // 窓の下端に出す短い通知。書き出しの完了などに使う。
     property string statusNotice: ""
     readonly property string footerNotice: window.batchExportNotice.length > 0
@@ -704,7 +698,6 @@ ApplicationWindow {
 
         function onErrorChanged() {
             if (window.appBackend.error.length) {
-                window.errorBannerDismissed = false;
                 window.pendingProsodyInFlight = false;
                 window.pendingProsodyUtteranceId = "";
                 referenceIndexPreviewTimer.stop();
@@ -924,53 +917,6 @@ ApplicationWindow {
                 HoverHandler {
                     id: footerNoticeHover
                 }
-            }
-        }
-    }
-
-    // 合成の失敗などは画面上部のバナーに出す。詳細はログ、閉じるで消す。
-    Rectangle {
-        id: errorBanner
-        objectName: "errorBanner"
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        height: visible ? errorBannerLayout.implicitHeight + Theme.spacing * 2 : 0
-        visible: window.errorBannerText.length > 0
-        color: Theme.negativeBackground
-        border.color: Theme.negative
-        z: 900
-
-        RowLayout {
-            id: errorBannerLayout
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: Theme.spacing
-            spacing: Theme.spacing
-
-            Label {
-                Layout.fillWidth: true
-                text: window.errorBannerText
-                color: Theme.negativeText
-                wrapMode: Text.Wrap
-                maximumLineCount: 3
-                elide: Text.ElideRight
-            }
-
-            Button {
-                // モバイルにはログの窓が無いため、詳細はバナーの本文で伝える。
-                visible: !window.mobileLayout
-                text: window.translator.tr("main.error.showLog")
-                onClicked: window.showLogWindow()
-            }
-
-            IconButton {
-                glyph: "\ue5cd"
-                Accessible.name: window.translator.tr("common.close")
-                ToolTip.visible: hovered
-                ToolTip.text: window.translator.tr("common.close")
-                onClicked: window.dismissErrorBanner()
             }
         }
     }
@@ -1323,7 +1269,7 @@ ApplicationWindow {
         window.appBackend.synthesize(window.buildSynthesisRequest(item));
     }
 
-    // WAVの保存は成否を窓の下端に出す。失敗の理由はバナーとログに出る。
+    // WAVの保存は成否を窓の下端に出す。失敗の理由は編集画面とログに出る。
     function saveAudioTo(destination, withSidecars) {
         if (!destination || !destination.toString().length)
             return false;
@@ -1332,7 +1278,6 @@ ApplicationWindow {
                                                          window.displayPath(destination)));
             return true;
         }
-        window.errorBannerDismissed = false;
         return false;
     }
 
@@ -1342,10 +1287,6 @@ ApplicationWindow {
             statusNoticeTimer.restart();
         else
             statusNoticeTimer.stop();
-    }
-
-    function dismissErrorBanner() {
-        window.errorBannerDismissed = true;
     }
 
     function openSaveAllDialog(withSidecars) {
