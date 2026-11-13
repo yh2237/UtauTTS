@@ -19,7 +19,7 @@ func TestChineseFamilyTermsUseNeutralTone(t *testing.T) {
 		{"爸爸", "ba4 ba5", 4},
 	} {
 		t.Run(tc.text, func(t *testing.T) {
-			reading, units, err := ParseChineseCVVC(tc.text+"。", "", nil)
+			reading, units, err := ParseChineseCVVCWithConfig(tc.text+"。", "", nil, PresampConfig{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -39,14 +39,14 @@ func TestChineseFamilyTermsUseNeutralTone(t *testing.T) {
 			}
 		})
 	}
-	reading, _, err := ParseChineseCVVC("爷爷和奶奶。", "", nil)
+	reading, _, err := ParseChineseCVVCWithConfig("爷爷和奶奶。", "", nil, PresampConfig{})
 	if err != nil || reading != "ye2 ye5 he2 nai3 nai5 |" {
 		t.Fatalf("embedded terms = %q, %v", reading, err)
 	}
 }
 
 func TestChinesePercent(t *testing.T) {
-	reading, _, err := ParseChineseCVVC("50%的人同意。", "", nil)
+	reading, _, err := ParseChineseCVVCWithConfig("50%的人同意。", "", nil, PresampConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestChineseFamilyTermsPreserveExplicitPronunciation(t *testing.T) {
 		{"爺。", "", nil, "ye2 |"},
 		{"奶。", "", nil, "nai3 |"},
 	} {
-		reading, _, err := ParseChineseCVVC(tc.text, tc.explicit, tc.dictionary)
+		reading, _, err := ParseChineseCVVCWithConfig(tc.text, tc.explicit, tc.dictionary, PresampConfig{})
 		if err != nil || reading != tc.want {
 			t.Errorf("%q explicit %q: got %q, %v, want %q", tc.text, tc.explicit, reading, err, tc.want)
 		}
@@ -77,11 +77,11 @@ func TestChineseFamilyTermsPreserveExplicitPronunciation(t *testing.T) {
 
 func TestChineseFamilyToneChangesPreserveAliasesAndPhones(t *testing.T) {
 	for _, tc := range []struct{ text, before string }{{"爷爷。", "ye2 ye2 |"}, {"奶奶。", "nai3 nai3 |"}} {
-		_, automatic, err := ParseChineseCVVC(tc.text, "", nil)
+		_, automatic, err := ParseChineseCVVCWithConfig(tc.text, "", nil, PresampConfig{})
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, before, err := ParseChineseCVVC(tc.text, tc.before, nil)
+		_, before, err := ParseChineseCVVCWithConfig(tc.text, tc.before, nil, PresampConfig{})
 		if err != nil {
 			t.Fatal(err)
 		}

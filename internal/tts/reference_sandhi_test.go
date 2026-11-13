@@ -17,7 +17,7 @@ func TestChineseSurfaceReading(t *testing.T) {
 		// 軽声が続くときは変調しない。
 		{"我们。", "wo3 men5 |"},
 	} {
-		reading, morae, err := frontend.ParseChineseCVVC(test.text, "", nil)
+		reading, morae, err := frontend.ParseChineseCVVCWithConfig(test.text, "", nil, frontend.PresampConfig{})
 		if err != nil {
 			t.Fatal(err)
 		}

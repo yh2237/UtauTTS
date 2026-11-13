@@ -25,6 +25,14 @@ import (
 
 var hostFiles = []string{"config.js", "asset-paths.js", "bootstrap.js", "engine-loader.js", "engine-worker.js", "utautts.js", "qtloader.js"}
 
+var (
+	releaseVersionPattern = regexp.MustCompile(releaseVersion)
+	revisionPattern       = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	numericPattern        = regexp.MustCompile(`^[0-9]+$`)
+	previewPattern        = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,39}$`)
+	deploymentIDPattern   = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,159}$`)
+)
+
 const pageLimit = 25 << 20
 const immutableCache = "public, max-age=31536000, immutable"
 
@@ -55,7 +63,6 @@ type manifest struct {
 	Assets       []asset `json:"assets,omitempty"`
 }
 
-func match(pattern, value string) bool { return regexp.MustCompile(pattern).MatchString(value) }
 func inside(parent, child string) bool {
 	rel, err := filepath.Rel(parent, child)
 	return err == nil && (rel == "." || (!filepath.IsAbs(rel) && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))))
@@ -65,13 +72,13 @@ func inside(parent, child string) bool {
 const releaseVersion = `^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$`
 
 func deploymentPlan(event, ref, preview, revision, runID, attempt, version string) (map[string]string, error) {
-	if !match(releaseVersion, version) {
+	if !releaseVersionPattern.MatchString(version) {
 		return nil, errors.New("appinfo version must have the form vX.X.X or vX.X.X-beta.N")
 	}
-	if !match(`^[0-9a-f]{40}$`, revision) {
+	if !revisionPattern.MatchString(revision) {
 		return nil, errors.New("revision must be a full git SHA")
 	}
-	if !match(`^[0-9]+$`, runID) || !match(`^[0-9]+$`, attempt) {
+	if !numericPattern.MatchString(runID) || !numericPattern.MatchString(attempt) {
 		return nil, errors.New("run id and attempt must be numeric")
 	}
 	tagged := event == "push" && strings.HasPrefix(ref, "refs/tags/")
@@ -79,7 +86,7 @@ func deploymentPlan(event, ref, preview, revision, runID, attempt, version strin
 	label := preview
 	if tagged {
 		tag := strings.TrimPrefix(ref, "refs/tags/")
-		if !match(releaseVersion, tag) {
+		if !releaseVersionPattern.MatchString(tag) {
 			return nil, errors.New("release tag must have the form vX.X.X or vX.X.X-beta.N")
 		}
 		if tag != version {
@@ -92,7 +99,7 @@ func deploymentPlan(event, ref, preview, revision, runID, attempt, version strin
 			label = strings.NewReplacer(".", "-").Replace(tag)
 		}
 	} else if event == "workflow_dispatch" {
-		if !match(`^[a-z0-9][a-z0-9-]{0,39}$`, preview) {
+		if !previewPattern.MatchString(preview) {
 			return nil, errors.New("preview name must be 1-40 lowercase letters, digits or hyphens")
 		}
 	} else {
@@ -271,7 +278,7 @@ func assemble(source, output, publicURL, id, version, revision, channel, siteDir
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return result, err
 	}
-	if !match(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,159}$`, id) {
+	if !deploymentIDPattern.MatchString(id) {
 		return result, errors.New("deployment id must be a single URL-safe path component")
 	}
 	if channel != "releases" && channel != "previews" {

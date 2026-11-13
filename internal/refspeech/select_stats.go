@@ -18,15 +18,3 @@ func synthesizeWithSelectStats(index *refmatch.Index, world refmatch.World, requ
 	}
 	return index.Synthesize(world, request)
 }
-
-func indexWithFeatures(index *refmatch.Index, features []float32) *refmatch.Index {
-	if clone, ok := any(index).(interface {
-		WithFeatures([]float32) *refmatch.Index
-	}); ok {
-		return clone.WithFeatures(features)
-	}
-	return &refmatch.Index{
-		Header: index.Header, Features: features, Spectrum: index.Spectrum,
-		Aperiodicity: index.Aperiodicity, F0: index.F0, File: index.File,
-	}
-}

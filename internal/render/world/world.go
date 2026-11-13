@@ -38,34 +38,6 @@ func Render(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error) {
 	return renderWorldEngine(synthesisPlan, cfg)
 }
 
-type worldManifestUnit struct {
-	Speech            *worldrender.SpeechTiming `json:"speech,omitempty"`
-	LegacyMix         bool                      `json:"legacy_mix,omitempty"`
-	GapRepair         bool                      `json:"gap_repair,omitempty"`
-	CacheKey          string                    `json:"cache_key,omitempty"`
-	Source            string                    `json:"source"`
-	FRQPath           string                    `json:"frq_path,omitempty"`
-	PositionMS        float64                   `json:"position_ms"`
-	SkipMS            float64                   `json:"skip_ms"`
-	LengthMS          float64                   `json:"length_ms"`
-	FadeInMS          float64                   `json:"fade_in_ms"`
-	FadeOutMS         float64                   `json:"fade_out_ms"`
-	OffsetMS          float64                   `json:"offset_ms"`
-	RequiredLengthMS  float64                   `json:"required_length_ms"`
-	ConsonantMS       float64                   `json:"consonant_ms"`
-	CutoffMS          float64                   `json:"cutoff_ms"`
-	Tone              int                       `json:"tone"`
-	ConsonantVelocity float64                   `json:"consonant_velocity"`
-	PitchStartMS      float64                   `json:"pitch_start_ms,omitempty"`
-	PitchLengthMS     float64                   `json:"pitch_length_ms,omitempty"`
-	Volume            float64                   `json:"volume,omitempty"`
-	VolumeSet         bool                      `json:"volume_set,omitempty"`
-	Modulation        float64                   `json:"modulation,omitempty"`
-	Tempo             float64                   `json:"tempo,omitempty"`
-	EnergyFactor      float64                   `json:"energy_factor,omitempty"`
-	Envelope          []base.EnvelopePoint      `json:"envelope,omitempty"`
-}
-
 func renderWorldEngine(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error) {
 	if synthesisPlan == nil || len(synthesisPlan.Units) == 0 {
 		return nil, errors.New("empty synthesis plan")

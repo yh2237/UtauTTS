@@ -302,8 +302,8 @@ func TestChineseCVVCUsesPresampClasses(t *testing.T) {
 	}
 }
 
-func TestParseChineseCVVC(t *testing.T) {
-	reading, units, err := ParseChineseCVVC("你好", "", nil)
+func TestParseChineseCVVCWithConfig(t *testing.T) {
+	reading, units, err := ParseChineseCVVCWithConfig("你好", "", nil, PresampConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -322,9 +322,9 @@ func TestParseChineseCVVC(t *testing.T) {
 }
 
 func TestParseChineseCVVCUsesLongestDictionaryEntry(t *testing.T) {
-	reading, _, err := ParseChineseCVVC("重庆人", "", map[string]string{
+	reading, _, err := ParseChineseCVVCWithConfig("重庆人", "", map[string]string{
 		"重": "zhong", "重庆": "chong qing",
-	})
+	}, PresampConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}

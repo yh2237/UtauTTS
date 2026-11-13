@@ -14,7 +14,7 @@ func TestChineseReadsLatinWordsWithoutError(t *testing.T) {
 		"OpenAI发布了新模型。": "ou1 pen1 ei1 ai4 fa1 bu4",
 	}
 	for text, want := range cases {
-		reading, morae, err := ParseChineseCVVC(text, "", nil)
+		reading, morae, err := ParseChineseCVVCWithConfig(text, "", nil, PresampConfig{})
 		if err != nil {
 			t.Fatalf("%q: %v", text, err)
 		}
@@ -28,13 +28,13 @@ func TestChineseReadsLatinWordsWithoutError(t *testing.T) {
 }
 
 func TestChineseAllLetterNamesAreReadable(t *testing.T) {
-	if _, _, err := ParseChineseCVVC("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "", nil); err != nil {
+	if _, _, err := ParseChineseCVVCWithConfig("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "", nil, PresampConfig{}); err != nil {
 		t.Fatalf("%v", err)
 	}
 }
 
 func TestChineseUnknownLatinFallsBackToLetterNames(t *testing.T) {
-	reading, _, err := ParseChineseCVVC("XYZ测试。", "", nil)
+	reading, _, err := ParseChineseCVVCWithConfig("XYZ测试。", "", nil, PresampConfig{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

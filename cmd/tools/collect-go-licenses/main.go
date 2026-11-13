@@ -74,6 +74,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	moduleNameReplacer := strings.NewReplacer("/", "_", ".", "_")
+	pathReplacer := strings.NewReplacer("/", "__", "\\", "__")
 	for _, module := range modules {
 		info, err := commandOutput(*goCommand, *root, "list", "-m", "-f", "{{.Dir}}|{{.Version}}", module)
 		if err != nil {
@@ -93,7 +95,7 @@ func run() error {
 		if !found || moduleDir == "" || moduleVersion == "" {
 			return fmt.Errorf("could not resolve Go module metadata: %s", info)
 		}
-		safeName := strings.NewReplacer("/", "_", ".", "_").Replace(module)
+		safeName := moduleNameReplacer.Replace(module)
 
 		var sources []string
 		err = filepath.WalkDir(moduleDir, func(path string, entry fs.DirEntry, walkErr error) error {
@@ -118,7 +120,7 @@ func run() error {
 			if err != nil {
 				return err
 			}
-			destinationName := strings.NewReplacer("/", "__", "\\", "__").Replace(relative)
+			destinationName := pathReplacer.Replace(relative)
 			switch relative {
 			case "LICENSE":
 				destinationName = "LICENSE.txt"

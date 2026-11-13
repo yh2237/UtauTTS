@@ -24,12 +24,6 @@ const (
 	englishG2PMaxSteps  = 20
 )
 
-var englishG2PVocabulary = []string{
-	"<pad>", "<unk>", "</s>",
-	"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
-	"n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
-}
-
 var englishG2PPhonemeVocabulary = []string{
 	"<pad>", "<unk>", "<s>", "</s>",
 	"AA0", "AA1", "AA2", "AE0", "AE1", "AE2", "AH0", "AH1", "AH2",

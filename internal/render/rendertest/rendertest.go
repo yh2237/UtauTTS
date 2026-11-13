@@ -46,8 +46,8 @@ func renderConcat(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error)
 		if err != nil {
 			return nil, fmt.Errorf("trim unit %q: %w", unit.Alias, err)
 		}
-		wave := base.PcmFloats(trimmed.Data)
-		start := max(0, base.MsToFramesSigned(unit.NoteStartMS-unit.PreutteranceMS, sampleRate))
+		wave := pcmFloats(trimmed.Data)
+		start := max(0, msToFramesSigned(unit.NoteStartMS-unit.PreutteranceMS, sampleRate))
 		length := min(len(wave), base.MsToFrames(unit.PreutteranceMS+unit.DurationMS, sampleRate))
 		if end := start + length; end > len(mix) {
 			mix = append(mix, make([]float64, end-len(mix))...)
@@ -65,5 +65,26 @@ func renderConcat(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error)
 	for frame, value := range mix {
 		mix[frame] = math.Max(-1, math.Min(1, value))
 	}
-	return &audio.PCM{SampleRate: sampleRate, Channels: 1, Data: base.FloatPCM(mix)}, nil
+	return &audio.PCM{SampleRate: sampleRate, Channels: 1, Data: floatPCM(mix)}, nil
+}
+
+func pcmFloats(data []int16) []float64 {
+	result := make([]float64, len(data))
+	for i, value := range data {
+		result[i] = float64(value) / 32768
+	}
+	return result
+}
+
+func msToFramesSigned(ms float64, sampleRate int) int {
+	return int(math.Round(ms * float64(sampleRate) / 1000))
+}
+
+func floatPCM(data []float64) []int16 {
+	result := make([]int16, len(data))
+	for i, value := range data {
+		value = math.Max(-1, math.Min(1, value))
+		result[i] = int16(math.Round(value * 32767))
+	}
+	return result
 }

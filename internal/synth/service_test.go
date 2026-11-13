@@ -122,32 +122,33 @@ func TestApplySettingsKnownIDs(t *testing.T) {
 	}
 }
 
-func TestApplySettingsOutOfRangeIsIgnored(t *testing.T) {
-	cfg := tts.Config{MoraDurationMS: 140, PauseDurationMS: 180}
-	diagnostics := applySettingsMap(map[string]json.RawMessage{
-		"mora_duration_ms":  json.RawMessage(`100000000`),
-		"pause_duration_ms": json.RawMessage(`-1`),
-	}, &cfg)
-	if cfg.MoraDurationMS != 140 || cfg.PauseDurationMS != 180 {
-		t.Fatalf("out-of-range values changed config: %#v", cfg)
-	}
-	if len(diagnostics) != 2 {
-		t.Fatalf("diagnostics = %v", diagnostics)
-	}
-}
-
-func TestApplySettingsTypeMismatchIsIgnored(t *testing.T) {
-	cfg := tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)}
-	diagnostics := applySettingsMap(map[string]json.RawMessage{
-		"mora_duration_ms":    json.RawMessage(`true`),
-		"context_duration":    json.RawMessage(`"yes"`),
-		"intonation_strength": json.RawMessage(`"high"`),
-	}, &cfg)
-	if cfg.MoraDurationMS != 140 || cfg.ContextDuration == nil || !*cfg.ContextDuration {
-		t.Fatalf("mismatched values changed config: %#v", cfg)
-	}
-	if len(diagnostics) != 3 {
-		t.Fatalf("diagnostics = %v", diagnostics)
+func TestApplySettingsInvalidValuesAreIgnored(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		cfg         tts.Config
+		settings    map[string]json.RawMessage
+		diagnostics int
+		unchanged   func(tts.Config) bool
+	}{
+		{"out of range", tts.Config{MoraDurationMS: 140, PauseDurationMS: 180},
+			map[string]json.RawMessage{"mora_duration_ms": json.RawMessage(`100000000`), "pause_duration_ms": json.RawMessage(`-1`)},
+			2, func(cfg tts.Config) bool { return cfg.MoraDurationMS == 140 && cfg.PauseDurationMS == 180 }},
+		{"type mismatch", tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)},
+			map[string]json.RawMessage{"mora_duration_ms": json.RawMessage(`true`), "context_duration": json.RawMessage(`"yes"`), "intonation_strength": json.RawMessage(`"high"`)},
+			3, func(cfg tts.Config) bool {
+				return cfg.MoraDurationMS == 140 && cfg.ContextDuration != nil && *cfg.ContextDuration
+			}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := test.cfg
+			diagnostics := applySettingsMap(test.settings, &cfg)
+			if !test.unchanged(cfg) {
+				t.Fatalf("invalid values changed config: %#v", cfg)
+			}
+			if len(diagnostics) != test.diagnostics {
+				t.Fatalf("diagnostics = %v, want %d", diagnostics, test.diagnostics)
+			}
+		})
 	}
 }
 

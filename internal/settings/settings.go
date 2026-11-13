@@ -94,7 +94,6 @@ func (setting Setting) AppliesToLanguage(language string) bool {
 	return false
 }
 
-// ForProviderはproviderのGUIに出す設定を表の順で返す。
 // Visibleは、GUIに出す設定を表示順に返す。
 func Visible() []Setting {
 	var result []Setting

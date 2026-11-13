@@ -25,19 +25,9 @@ func englishCandidateList() []englishCandidate {
 // 返す文字列はKokoroの音素記号として扱う。
 type ContextLexicon func(word string) (string, bool)
 
-// Resolveは英語の1語を読み、出所つきで返す。
-func Resolve(word string) (g2p.Reading, error) {
-	return englishResolve(word)
-}
-
 // ResolveInContextは、前後の語を使って同綴異音語の読みを選ぶ。
 func ResolveInContext(word, previous, next string) (g2p.Reading, error) {
 	return ResolveInContextWithLexicon(word, previous, next, nil)
-}
-
-// ResolveWithContextは、文脈つきの辞書を引く。前後の語は使わない。
-func ResolveWithContext(word string, context ContextLexicon) (g2p.Reading, error) {
-	return ResolveInContextWithLexicon(word, "", "", context)
 }
 
 // ResolveInContextWithLexiconは、頭字語・固有名詞・同綴異音語・文脈辞書・通常の解決器の順に読む。

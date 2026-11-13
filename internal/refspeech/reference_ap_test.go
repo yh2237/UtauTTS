@@ -3,10 +3,26 @@ package refspeech
 import (
 	"math"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/yh2237/UtauIDX/refmatch"
 )
+
+func TestSpeakAudioRejectsMismatchedTargetPhonemes(t *testing.T) {
+	index := &refmatch.Index{Header: refmatch.Header{Frames: 2, Dims: 1, SampleRate: 16000, FFTSize: 512, APBands: 1},
+		Features: make([]float32, 2), Cepstrum: make([]float32, 2*refmatch.CepstrumDims), Spectrum: make([]float32, 8*60),
+		Aperiodicity: make([]float32, 8), F0: make([]float32, 8), File: make([]int32, 2)}
+	wave := make([]float64, 960)
+	for i := range wave {
+		wave[i] = 0.1
+	}
+	_, err := (&Engine{}).SpeakAudio(index, &referenceAPWorld{}, wave, 24000,
+		AudioOptions{FeatureMode: refmatch.FeatureCepstrum, TargetPhonemes: []int32{-1}})
+	if err == nil || !strings.Contains(err.Error(), "phoneme") {
+		t.Fatalf("target not validated: %v", err)
+	}
+}
 
 func TestReferenceAPRows(t *testing.T) {
 	// 8kHz/FFT16では低域の先頭4ビンだけを使う。高域のAPは判定へ混ぜない。
@@ -76,20 +92,5 @@ func TestSpeakAudioPassesAPToSynthesis(t *testing.T) {
 	}
 	if world.analyses != 2 || world.rate != 16000 || world.period != 5 {
 		t.Fatalf("unexpected analyses: %+v", world.cepstrumWorld)
-	}
-}
-
-func TestSynthesizeAudioAPOverridesLevel(t *testing.T) {
-	index := &refmatch.Index{Header: refmatch.Header{Frames: 1, Dims: 1, SampleRate: 16000, FFTSize: 512, APBands: 1, F0Median: 200}, Features: []float32{1}, Spectrum: make([]float32, 4*60), Aperiodicity: []float32{-40, -40, -40, -40}, F0: []float32{200, 200, 200, 200}, File: []int32{0}}
-	world := &audioTestWorld{}
-	speech, err := synthesizeAudioAP(index, world, []float32{1}, 1, []float64{200, 200, 0, 200}, []float64{0, 0, 0, -60}, []float32{0.1, 1, 0.1, 0.1}, AudioOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(world.f0, []float64{200, 0, 0, 200}) || !slices.Equal(speech.F0, world.f0) {
-		t.Fatalf("F0 = %v", world.f0)
-	}
-	if speech.ReferenceVoicing.After != 2 {
-		t.Fatalf("voicing = %+v", speech.ReferenceVoicing)
 	}
 }

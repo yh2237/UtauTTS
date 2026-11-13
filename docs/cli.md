@@ -24,7 +24,7 @@
 ```
 
 - `--out -` を指定すると、合成が終わってからWAV全体を標準出力へ書き出します。完了表示は標準エラーへ出します。
-- テキストは `--text-file <path>` でファイルから、`--text-file -` で標準入力から読み込めます。
+- テキストは `--text-file <path>`、読みは `--reading-file <path>` でファイルから読み込めます。どちらも `-` で標準入力から読み込めます。
 
 `--out -` は `--json`、`--write-text`、`--write-lab` と併用できません。Windows PowerShell 5.1など、外部コマンドの出力を文字列に変換する環境ではWAVをリダイレクトせず、`--out out.wav` で直接保存してください。リダイレクトにはバイナリ出力を保つPowerShell 7.4以降などを使います。
 
@@ -57,6 +57,7 @@
 | `--text <文字列>` | | 読み上げる文章 |
 | `--reading <読み>` | | 読み（かな、ARPAbet、Pinyin）を直接指定（`--kana` も可） |
 | `--text-file <path>` | | 入力テキストファイル（`-` で標準入力） |
+| `--reading-file <path>` | | 入力する読みのファイル（`-` で標準入力。`--reading`・`--kana` と併用不可） |
 | `--prosody <id>` | | 抑揚モデルID（例: `frame-intonation-tcn-v12`） |
 | `--language <id>` | `ja` | 言語（`ja`, `en`, `zh`, `es`, `pt`） |
 | `--phonemizer <id>` | 自動 | 発音形式（`ja-kana`, `en-arpasing`, `zh-cvvc` 等） |

@@ -23,7 +23,7 @@ func TestPhoneEnglishWordCodas(t *testing.T) {
 
 func TestChineseNasalCodaPreservesAliases(t *testing.T) {
 	for _, tc := range []struct{ reading, nucleus, coda string }{{"ban1", "a", "n"}, {"bang1", "a", "ng"}, {"jin1", "i", "n"}, {"jing1", "i", "ng"}, {"ma1", "a", ""}} {
-		_, m, err := ParseChineseCVVC("", tc.reading, nil)
+		_, m, err := ParseChineseCVVCWithConfig("", tc.reading, nil, PresampConfig{})
 		if err != nil {
 			t.Fatal(err)
 		}

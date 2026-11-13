@@ -13,7 +13,7 @@ import (
 
 func TestReferenceProfileReading(t *testing.T) {
 	for _, text := range []string{"你好。", "很好。", "我们。", "不是。", "一个。", "一天。"} {
-		reading, morae, err := frontend.ParseChineseCVVC(text, "", nil)
+		reading, morae, err := frontend.ParseChineseCVVCWithConfig(text, "", nil, frontend.PresampConfig{})
 		if err != nil {
 			t.Fatal(err)
 		}

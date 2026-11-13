@@ -9,7 +9,7 @@ import (
 
 // TestSimpleMoraTokensは、1音節が1モーラになる言語で、記号とモーラが1対1になることを確かめる。
 func TestSimpleMoraTokens(t *testing.T) {
-	reading, morae, err := frontend.ParseChineseCVVC("你好，今天。", "", nil)
+	reading, morae, err := frontend.ParseChineseCVVCWithConfig("你好，今天。", "", nil, frontend.PresampConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}

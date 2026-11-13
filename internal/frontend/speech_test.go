@@ -7,7 +7,7 @@ import (
 
 func TestDictionaryPreservesStressBeyondMiniDictionary(t *testing.T) {
 	for _, word := range []string{"hello", "international", "pronunciation", "beautiful"} {
-		reading, err := englishWordPronunciation(word)
+		reading, _, err := ParseEnglishARPAsing(word, "", nil)
 		if err != nil || !strings.Contains(reading, "1") {
 			t.Fatalf("%s: %q %v", word, reading, err)
 		}
@@ -37,14 +37,14 @@ func TestSpeechNumberNormalization(t *testing.T) {
 }
 
 func TestChineseWordReadingAndWhitespace(t *testing.T) {
-	reading, units, err := ParseChineseCVVC("银行行长来了。", "", nil)
+	reading, units, err := ParseChineseCVVCWithConfig("银行行长来了。", "", nil, PresampConfig{})
 	if err != nil || reading != "yin2 hang2 hang2 zhang3 lai2 le5 |" {
 		t.Fatalf("%q %v", reading, err)
 	}
 	if units[0].WordEnd || !units[1].WordEnd || units[0].WordIndex != units[1].WordIndex {
 		t.Fatalf("word boundaries: %+v", units)
 	}
-	reading, _, err = ParseChineseCVVC("你好 世界", "", nil)
+	reading, _, err = ParseChineseCVVCWithConfig("你好 世界", "", nil, PresampConfig{})
 	if err != nil || strings.Contains(reading, "|") {
 		t.Fatalf("spaces became pauses: %q %v", reading, err)
 	}

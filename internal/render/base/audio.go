@@ -169,17 +169,7 @@ func msToFrames(ms float64, sampleRate int) int {
 	return int(math.Round(ms * float64(sampleRate) / 1000))
 }
 
-func msToFramesSigned(ms float64, sampleRate int) int {
-	return int(math.Round(ms * float64(sampleRate) / 1000))
-}
-
 func MsToFrames(ms float64, sampleRate int) int { return msToFrames(ms, sampleRate) }
-
-func MsToFramesSigned(ms float64, sampleRate int) int { return msToFramesSigned(ms, sampleRate) }
-
-func PcmFloats(data []int16) []float64 { return pcmFloats(data) }
-
-func FloatPCM(data []float64) []int16 { return floatPCM(data) }
 
 func ContextError(ctx context.Context) error {
 	if ctx == nil {

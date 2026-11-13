@@ -94,13 +94,12 @@ func (m *Model) snake(x []float32, t, ch int, alpha []float32) {
 }
 func (m *Model) resBlock(x []float32, t, ch, kernel int, dilations []int, style []float32, name string) []float32 {
 	for j, dilation := range dilations {
-		base := fmt.Sprintf("%s", name)
-		y := m.adaIN(x, t, ch, style, fmt.Sprintf("%s.adain1.%d", base, j))
-		m.snake(y, t, ch, m.value(fmt.Sprintf("%s.alpha1.%d", base, j)))
-		y, _ = m.conv(y, t, ch, ch, kernel, 1, (kernel*dilation-dilation)/2, dilation, 1, fmt.Sprintf("%s.convs1.%d", base, j))
-		y = m.adaIN(y, t, ch, style, fmt.Sprintf("%s.adain2.%d", base, j))
-		m.snake(y, t, ch, m.value(fmt.Sprintf("%s.alpha2.%d", base, j)))
-		y, _ = m.conv(y, t, ch, ch, kernel, 1, (kernel-1)/2, 1, 1, fmt.Sprintf("%s.convs2.%d", base, j))
+		y := m.adaIN(x, t, ch, style, fmt.Sprintf("%s.adain1.%d", name, j))
+		m.snake(y, t, ch, m.value(fmt.Sprintf("%s.alpha1.%d", name, j)))
+		y, _ = m.conv(y, t, ch, ch, kernel, 1, (kernel*dilation-dilation)/2, dilation, 1, fmt.Sprintf("%s.convs1.%d", name, j))
+		y = m.adaIN(y, t, ch, style, fmt.Sprintf("%s.adain2.%d", name, j))
+		m.snake(y, t, ch, m.value(fmt.Sprintf("%s.alpha2.%d", name, j)))
+		y, _ = m.conv(y, t, ch, ch, kernel, 1, (kernel-1)/2, 1, 1, fmt.Sprintf("%s.convs2.%d", name, j))
 		for i := range x {
 			x[i] += y[i]
 		}

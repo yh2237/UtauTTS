@@ -15,7 +15,7 @@ func TestChineseSandhiUsesWordsAndCharacters(t *testing.T) {
 		{"不对", []int{2, 4}}, {"布对", []int{4, 4}}, {"一天", []int{4, 1}}, {"一定", []int{2, 4}}, {"第一天", []int{4, 1, 1}},
 		{"我很好", []int{3, 2, 3}}, {"你好", []int{2, 3}}, {"你，好", []int{3, 0, 3}},
 	} {
-		_, m, err := frontend.ParseChineseCVVC(tc.text, "", nil)
+		_, m, err := frontend.ParseChineseCVVCWithConfig(tc.text, "", nil, frontend.PresampConfig{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -27,11 +27,11 @@ func TestChineseSandhiUsesWordsAndCharacters(t *testing.T) {
 
 func TestChinesePreviewReadingRoundTripKeepsLexicalContext(t *testing.T) {
 	for _, text := range []string{"我很好", "不对", "一天"} {
-		reading, first, err := frontend.ParseChineseCVVC(text, "", nil)
+		reading, first, err := frontend.ParseChineseCVVCWithConfig(text, "", nil, frontend.PresampConfig{})
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, second, err := frontend.ParseChineseCVVC(text, reading, nil)
+		_, second, err := frontend.ParseChineseCVVCWithConfig(text, reading, nil, frontend.PresampConfig{})
 		if err != nil || !reflect.DeepEqual(mandarinSurfaceTones(first), mandarinSurfaceTones(second)) {
 			t.Fatalf("round trip %s: %+v %v", text, second, err)
 		}

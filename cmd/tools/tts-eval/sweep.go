@@ -244,7 +244,7 @@ func unitsFrom(row measurement) sweepUnits {
 func buildSweepJSON(req sweepRequest, selected []preset, promptData []sweepPromptData, modelIdentity, corpusSHA string, buildInfo *debug.BuildInfo) sweepJSON {
 	report := sweepJSON{CorpusSHA256: corpusSHA, Voicebank: req.bank, Model: modelIdentity, Build: buildInfo}
 	for _, ps := range selected {
-		report.Presets = append(report.Presets, sweepPresetJSON{ps.Name, ps.ApplyPitch})
+		report.Presets = append(report.Presets, sweepPresetJSON(ps))
 	}
 	for index, p := range req.prompts {
 		out := sweepPromptJSON{ID: p.ID, Text: p.Text, SelectionSHA256: promptData[index].selectionSHA, AudioMS: promptData[index].audioMS, Units: promptData[index].units}

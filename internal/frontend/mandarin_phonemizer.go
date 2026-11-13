@@ -5,10 +5,6 @@ import (
 	"strings"
 )
 
-func ParseChineseCVVC(text, reading string, dictionary map[string]string) (string, []Mora, error) {
-	return ParseChineseCVVCWithConfig(text, reading, dictionary, PresampConfig{})
-}
-
 func ParseChineseCVVCWithConfig(text, reading string, dictionary map[string]string, config PresampConfig) (string, []Mora, error) {
 	var syllables []string
 	var tokens []chineseToken

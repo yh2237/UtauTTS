@@ -18,7 +18,7 @@ func TestMandarinArticulationsKeepVoicebankAliases(t *testing.T) {
 		{"jun1", []Phone{{"j", "onset"}, {"v", "nucleus"}, {"n", "coda"}}},
 		{"jue2", []Phone{{"j", "onset"}, {"v", "medial"}, {"e", "nucleus"}}},
 	} {
-		_, m, err := ParseChineseCVVC("", tc.reading, nil)
+		_, m, err := ParseChineseCVVCWithConfig("", tc.reading, nil, PresampConfig{})
 		if err != nil || !reflect.DeepEqual(m[0].Phones, tc.parts) {
 			t.Fatal(tc.reading, m, err)
 		}

@@ -7,7 +7,7 @@ import (
 )
 
 func TestResolveWithContextPrefersAcronyms(t *testing.T) {
-	reading, err := ResolveWithContext("AI", func(string) (string, bool) {
+	reading, err := ResolveInContextWithLexicon("AI", "", "", func(string) (string, bool) {
 		return "ˈaɪ", true
 	})
 	if err != nil {
@@ -19,7 +19,7 @@ func TestResolveWithContextPrefersAcronyms(t *testing.T) {
 }
 
 func TestResolveWithContextUsesContextThenFallsBack(t *testing.T) {
-	reading, err := ResolveWithContext("google", func(string) (string, bool) {
+	reading, err := ResolveInContextWithLexicon("google", "", "", func(string) (string, bool) {
 		return "ɡˈuɡᵊl", true
 	})
 	if err != nil {
@@ -28,7 +28,7 @@ func TestResolveWithContextUsesContextThenFallsBack(t *testing.T) {
 	if reading.Source != g2p.SourceMisaki || reading.Notation != g2p.NotationKokoro {
 		t.Fatalf("google = %+v, want misaki Kokoro", reading)
 	}
-	reading, err = ResolveWithContext("google", func(string) (string, bool) {
+	reading, err = ResolveInContextWithLexicon("google", "", "", func(string) (string, bool) {
 		return "", false
 	})
 	if err != nil {
