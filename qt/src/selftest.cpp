@@ -99,6 +99,20 @@ bool captureInterface(QObject *rootObject, QQuickWindow *window, QQuickWindow *s
             settle();
         }
     }
+    // 参照照合のときだけ出る欄も撮る。カードは変えず、欄の選択だけ切り替えて戻す。
+    if (QObject *method = rootObject->findChild<QObject *>(QStringLiteral("methodCombo"))) {
+        const QVariant selected = method->property("currentIndex");
+        int reference = -1;
+        QMetaObject::invokeMethod(method, "indexOfValue", Q_RETURN_ARG(int, reference),
+                                  Q_ARG(QVariant, QStringLiteral("reference-matching")));
+        if (reference >= 0) {
+            method->setProperty("currentIndex", reference);
+            settle();
+            window->grabWindow().save(output.filePath(QStringLiteral("reference-matching.png")));
+            method->setProperty("currentIndex", selected);
+            settle();
+        }
+    }
     if (QObject *tabs = rootObject->findChild<QObject *>(QStringLiteral("pitchModeTabs"))) {
         tabs->setProperty("currentIndex", 1);
         settle();

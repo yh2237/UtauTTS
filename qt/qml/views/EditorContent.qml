@@ -409,6 +409,7 @@ import UtauTTSStyle
                             }
                             ComboBox {
                                 id: methodCombo
+                                objectName: "methodCombo"
                                 Layout.fillWidth: true
                                 model: window.methodOptions()
                                 textRole: "display_name"
@@ -468,6 +469,38 @@ import UtauTTSStyle
                                     const type = window.voicebankTypeOptionAt(window.current().voicebankId,
                                             currentIndex, window.current().color || "");
                                     window.updateUtteranceField("color", type ? type.color : "");
+                                }
+                            }
+                        }
+
+                        // 音源ごとに保存する。同じ音源のカードすべてに効く。
+                        ColumnLayout {
+                            id: referenceBlendField
+                            readonly property string value: {
+                                const options = window.appBackend.voicebankOptions[String(voiceCombo.currentValue || "")];
+                                return options && options.reference_blend === "off" ? "off" : "on";
+                            }
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingSmall
+                            visible: editorSplitView.referenceMatching
+                            Label {
+                                text: window.translator.tr("main.param.referenceBlend")
+                                Layout.fillWidth: true
+                            }
+                            ComboBox {
+                                objectName: "referenceBlendCombo"
+                                Layout.fillWidth: true
+                                model: [
+                                    { value: "on", label: window.translator.tr("main.referenceBlend.on") },
+                                    { value: "off", label: window.translator.tr("main.referenceBlend.off") }
+                                ]
+                                textRole: "label"
+                                valueRole: "value"
+                                currentIndex: referenceBlendField.value === "off" ? 1 : 0
+                                onActivated: {
+                                    if (currentValue !== referenceBlendField.value)
+                                        window.appBackend.setVoicebankOption(String(voiceCombo.currentValue || ""),
+                                                                             "reference_blend", currentValue);
                                 }
                             }
                         }
