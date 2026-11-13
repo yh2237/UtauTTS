@@ -1,6 +1,6 @@
 # コマンドライン（CLI）
 
-`tools/utautts-cli`（Windowsでは `utautts-cli.exe`）で、ターミナルや外部プログラムから音声合成を実行します。
+`tools/utautts-cli`（Windowsでは `tools/utautts-cli.exe`）で、ターミナルや外部プログラムから音声合成を実行します。
 
 ## 基本コマンド
 

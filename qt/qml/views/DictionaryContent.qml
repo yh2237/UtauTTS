@@ -68,9 +68,10 @@ ColumnLayout {
         for (const entry of content.currentEntries())
             existing[JSON.stringify([entry.surface, entry.reading])] = true;
         for (const entry of result.entries) {
-            if (existing[JSON.stringify([entry.surface, entry.reading])])
+            const key = JSON.stringify([entry.surface, entry.reading]);
+            if (existing[key])
                 continue;
-            existing[JSON.stringify([entry.surface, entry.reading])] = true;
+            existing[key] = true;
             dictionaryEntriesModel.append({surface: entry.surface, reading: entry.reading});
         }
     }

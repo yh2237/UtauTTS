@@ -29,12 +29,3 @@ function displayedMoraPositions(item) {
                 QmlCore.decodeSequence(item.moraPositionsJson));
     return MoraPositions.normalizedMoraPositions(sequence(item, "autoMoraPositionsJson"));
 }
-
-// prosodyReadyは、抑揚のプレビューが揃っているかを返す。
-function prosodyReady(item) {
-    const moraCount = QmlCore.decodeSequence(item ? item.moraeJson : "[]").length;
-    return moraCount > 0
-            && sequence(item, "autoPointsJson").length === moraCount
-            && sequence(item, "autoMoraDurationsJson").length === moraCount
-            && sequence(item, "autoMoraPositionsJson").length === moraCount;
-}
