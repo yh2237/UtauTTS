@@ -400,7 +400,7 @@ components:
           type: object
           nullable: true
           additionalProperties: true
-          description: 設定のmap。IDは /api/settings のもの。未知のID、型の合わない値、範囲外の値は使わず、結果のdiagnosticsで返す。
+          description: 設定のmap。IDは /api/settings のものと、参照照合の reference_blend（on か off、既定値 on）。未知のID、型の合わない値、範囲外の値は使わず、結果のdiagnosticsで返す。
         mora_durations_ms:
           type: array
           nullable: true

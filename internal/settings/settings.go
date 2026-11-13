@@ -21,14 +21,17 @@ type Setting struct {
 	Methods []string `json:"methods,omitempty"`
 	// Languagesは設定が効く言語（正規化済みの言語コード）。空は全言語。
 	Languages []string `json:"languages,omitempty"`
-	// HiddenはGUIに出さない設定（CLI・APIの互換用）。
+	// Hiddenは設定の一覧（GUIの設定画面、/api/settings）に出さない設定。
 	Hidden bool `json:"-"`
 }
 
 func value(v float64) *float64 { return &v }
 
-// waveformは波形合成の方式名（tts.MethodWaveformSynthesis）。
-const waveform = "waveform-synthesis"
+// waveformとreferenceは方式名（tts.MethodWaveformSynthesisとtts.MethodReferenceMatching）。
+const (
+	waveform  = "waveform-synthesis"
+	reference = "reference-matching"
+)
 
 // Tableは設定の定義。順序はGUIの表示順。
 var Table = []Setting{
@@ -47,6 +50,9 @@ var Table = []Setting{
 	{ID: "boundary_tone_strength", Type: "number", Default: 1.0, Hidden: true},
 	{ID: "stretch_adapt_strength", Type: "number", Default: 1.0, Hidden: true},
 	{ID: "pause_context_strength", Type: "number", Default: 1.0, Hidden: true},
+	// 音源で決まる設定。offは近い録音のフレームを混ぜずに、いちばん近い1つをそのまま使う。
+	{ID: "reference_blend", Type: "enum", Default: "on", Hidden: true, Methods: []string{reference},
+		Options: []Option{{Value: "on"}, {Value: "off"}}},
 }
 
 func Lookup(id string) (Setting, bool) {
@@ -71,6 +77,9 @@ func Bool(id string) bool { return mustLookup(id).Default.(bool) }
 
 // Numberはnumber・integer設定の既定値。
 func Number(id string) float64 { return mustLookup(id).Default.(float64) }
+
+// Textはenum・string設定の既定値。
+func Text(id string) string { return mustLookup(id).Default.(string) }
 
 // AppliesToLanguageは設定が言語（正規化済み）に効くかを返す。
 func (setting Setting) AppliesToLanguage(language string) bool {

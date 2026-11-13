@@ -14,6 +14,11 @@ GridLayout {
                                      && voicebankDetailsList.currentIndex >= 0
                                      && voicebankDetailsList.currentIndex < content.backend.voicebanks.length
                                      ? content.backend.voicebanks[voicebankDetailsList.currentIndex] : null
+    readonly property string referenceBlend: {
+        const options = content.selectedVoicebank
+                ? content.backend.voicebankOptions[content.selectedVoicebank.id] : null;
+        return options && options.reference_blend === "off" ? "off" : "on";
+    }
 
     anchors.margins: Theme.spacingLarge
     columns: compact ? 1 : 2
@@ -57,6 +62,29 @@ GridLayout {
             }
             wrapMode: Text.Wrap
             color: Theme.inactiveText
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            Label {
+                Layout.fillWidth: true
+                text: content.translator.tr("voicebankDetails.referenceBlend")
+            }
+            ComboBox {
+                objectName: "voicebankReferenceBlend"
+                Layout.preferredWidth: Theme.fieldWidth
+                enabled: content.selectedVoicebank !== null
+                model: [
+                    { value: "on", label: content.translator.tr("voicebankDetails.referenceBlend.on") },
+                    { value: "off", label: content.translator.tr("voicebankDetails.referenceBlend.off") }
+                ]
+                textRole: "label"
+                valueRole: "value"
+                currentIndex: content.referenceBlend === "off" ? 1 : 0
+                onActivated: {
+                    if (currentValue !== content.referenceBlend)
+                        content.backend.setVoicebankOption(content.selectedVoicebank.id, "reference_blend", currentValue);
+                }
+            }
         }
         Label {
             Layout.fillWidth: true

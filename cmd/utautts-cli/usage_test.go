@@ -73,7 +73,7 @@ func TestUsageListsEveryFlagOnce(t *testing.T) {
 		"--text", "--reading", "--kana", "--text-file", "--reading-file", "--request",
 		"--language", "--phonemizer", "--dictionary", "--method",
 		"--out", "--plan-out", "--ustx-out", "--write-text", "--write-lab", "--text-encoding",
-		"--voicebank", "--tone", "--color", "--alias-policy", "--openjtalk-engine", "--openjtalk-dictionary",
+		"--voicebank", "--tone", "--color", "--alias-policy", "--reference-blend", "--openjtalk-engine", "--openjtalk-dictionary",
 		"--prosody", "--model-dir", "--pitch-contours", "--pitch-case", "--apply-pitch", "--intonation-strength",
 		"--manual-pitch", "--prosody-features", "--prosody-feature-case", "--prosody-pitch-only",
 		"--context-duration", "--context-duration-strength", "--boundary-tone", "--boundary-tone-strength",

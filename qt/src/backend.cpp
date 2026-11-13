@@ -533,6 +533,7 @@ Backend::Backend(QObject *parent)
         return document.isObject() ? document.object().toVariantMap() : QVariantMap{};
     };
     m_synthesisSettings = readSettingsMap("synthesis/settings");
+    m_voicebankOptions = readSettingsMap("synthesis/voicebankOptions");
     // 以前はRendererごとに「<id>/<設定>」で保存し、共通の値だけ「common/<設定>」に置いていた。
     const QVariantMap legacySettings = readSettingsMap("synthesis/rendererSettings");
     if (!legacySettings.isEmpty()) {
@@ -1063,6 +1064,21 @@ void Backend::setSynthesisSetting(const QString &settingId, const QVariant &valu
     reportSettingsStatus(settings);
     emit synthesisSettingsChanged();
     emit synthesisDefaultsChanged();
+}
+
+void Backend::setVoicebankOption(const QString &voicebankId, const QString &settingId, const QVariant &value) {
+    QVariantMap options = m_voicebankOptions.value(voicebankId).toMap();
+    if (voicebankId.isEmpty() || settingId.isEmpty() || options.value(settingId) == value)
+        return;
+    options.insert(settingId, value);
+    m_voicebankOptions.insert(voicebankId, options);
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    settings.setValue("synthesis/voicebankOptions",
+                      QJsonDocument(QJsonObject::fromVariantMap(m_voicebankOptions))
+                          .toJson(QJsonDocument::Compact));
+    settings.sync();
+    reportSettingsStatus(settings);
+    emit voicebankOptionsChanged(voicebankId);
 }
 
 void Backend::setShortcutSequences(const QString &synthesize,
@@ -2711,6 +2727,7 @@ bool Backend::exportDiagnosticReport(const QUrl &destination, const QVariantMap 
             {"default_voicebank_id", m_defaultVoicebankId},
             {"default_model_id", m_defaultModelId},
             {"synthesis_settings", m_synthesisSettings},
+            {"voicebank_options", m_voicebankOptions},
             {"default_tone", m_defaultTone},
             {"default_alias_policy", m_defaultAliasPolicy},
             {"export_text_with_wav", m_exportTextWithWav},

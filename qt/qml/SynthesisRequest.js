@@ -99,9 +99,14 @@ function settingContext(host) {
     return context;
 }
 
-// addSettingsは、要求にまだ入っていない設定だけを足す。
+// addSettingsは、要求にまだ入っていない設定だけを足す。参照照合では音源ごとの設定も足す。
 function addSettings(request, host) {
     const settings = settingContext(host);
+    if (request.method === "reference-matching") {
+        const options = (host.appBackend.voicebankOptions || {})[String(request.voicebank_id || "")] || {};
+        for (const id in options)
+            settings[id] = options[id];
+    }
     const keys = Object.keys(settings);
     for (let index = 0; index < keys.length; ++index) {
         if (Object.prototype.hasOwnProperty.call(request, keys[index]))

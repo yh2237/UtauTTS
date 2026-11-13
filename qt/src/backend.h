@@ -68,6 +68,7 @@ class Backend final : public QObject {
     Q_PROPERTY(int defaultLeadingPreutterance READ defaultLeadingPreutterance NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(double defaultIntonationStrength READ defaultIntonationStrength NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(QVariantMap synthesisSettings READ synthesisSettings NOTIFY synthesisSettingsChanged)
+    Q_PROPERTY(QVariantMap voicebankOptions READ voicebankOptions NOTIFY voicebankOptionsChanged)
     Q_PROPERTY(QString defaultTone READ defaultTone NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(QString defaultAliasPolicy READ defaultAliasPolicy NOTIFY synthesisDefaultsChanged)
     Q_PROPERTY(bool exportTextWithWav READ exportTextWithWav NOTIFY exportSettingsChanged)
@@ -123,6 +124,8 @@ public:
     int defaultLeadingPreutterance() const;
     double defaultIntonationStrength() const;
     QVariantMap synthesisSettings() const { return m_synthesisSettings; }
+    // 音源のIDごとの合成設定（設定のID→値）。
+    QVariantMap voicebankOptions() const { return m_voicebankOptions; }
     QString defaultTone() const { return m_defaultTone; }
     QString defaultAliasPolicy() const { return m_defaultAliasPolicy; }
     bool exportTextWithWav() const { return m_exportTextWithWav; }
@@ -209,6 +212,7 @@ public:
                                           const QString &aliasPolicy);
     Q_INVOKABLE QVariant synthesisSetting(const QString &settingId, const QVariant &fallback = {}) const;
     Q_INVOKABLE void setSynthesisSetting(const QString &settingId, const QVariant &value);
+    Q_INVOKABLE void setVoicebankOption(const QString &voicebankId, const QString &settingId, const QVariant &value);
     Q_INVOKABLE void setDefaultVoicebank(const QString &value);
     Q_INVOKABLE void setExportSettings(bool writeText, bool writeLab, const QString &textEncoding);
     Q_INVOKABLE void setExportTextEncoding(const QString &textEncoding);
@@ -246,6 +250,7 @@ signals:
     void audioOutputSettingsChanged();
     void synthesisDefaultsChanged();
     void synthesisSettingsChanged();
+    void voicebankOptionsChanged(const QString &voicebankId);
     void exportSettingsChanged();
     void voicebankSettingsChanged();
     void ustxExportFinished(bool success, const QString &detail);
@@ -354,6 +359,7 @@ private:
     QString m_ffmpegPath;
     QString m_audioOutputDeviceId;
     QVariantMap m_synthesisSettings;
+    QVariantMap m_voicebankOptions;
     QString m_defaultTone;
     QString m_defaultAliasPolicy = QStringLiteral("auto");
     bool m_exportTextWithWav = false;

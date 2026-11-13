@@ -90,6 +90,17 @@ function run(ctx) {
         "per-card mora duration was injected as a synthesis setting override");
     if (error.length)
         return error;
+    host.appBackend.setVoicebankOption("self-test-voice", "reference_blend", "off");
+    error = check(
+        (host.addSynthesisSettings({ method: "reference-matching", voicebank_id: "self-test-voice" }).settings || {})
+            .reference_blend === "off"
+        && (host.addSynthesisSettings({ method: "waveform-synthesis", voicebank_id: "self-test-voice" }).settings || {})
+            .reference_blend === undefined
+        && (host.addSynthesisSettings({ method: "reference-matching", voicebank_id: "other" }).settings || {})
+            .reference_blend === undefined,
+        "voicebank option was not limited to its voicebank and reference matching");
+    if (error.length)
+        return error;
     host.resetHistory(false);
     error = check(ctx.utterances.get(0).intonation === host.defaultIntonationStrength,
                   "initial intonation strength is incorrect");

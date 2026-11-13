@@ -62,6 +62,7 @@
 | `--phonemizer <id>` | 自動 | 発音形式（`ja-kana`, `en-arpasing`, `zh-cvvc` 等） |
 | `--tone <音高>` | | 基準の音程（`C4` など）。音程ごとの原音がある音源では、近い音程の原音を使う |
 | `--color <声色>` | | 音源の声色（`character.yaml` のサブバンク） |
+| `--reference-blend <on\|off>` | `on` | 参照照合で近い録音の音を混ぜるか。声がこもって聞こえる音源では `off` にする |
 | `--dictionary <path>` | | ユーザー辞書（JSON） |
 | `--json` | `false` | 結果（読み、音声の長さ、合成単位の数など）やエラーをJSONで標準出力に出力 |
 

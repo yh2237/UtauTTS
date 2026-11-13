@@ -7,7 +7,7 @@ require (
 	github.com/ikawaha/kagome-dict/ipa v1.2.6
 	github.com/ikawaha/kagome/v2 v2.11.0
 	github.com/mozillazg/go-pinyin v0.21.0
-	github.com/yh2237/UtauIDX v0.1.6
+	github.com/yh2237/UtauIDX v0.1.7
 	github.com/yh2237/UtauWLD v0.1.2
 	github.com/yh2237/audiodsp v0.5.2
 	github.com/yh2237/gograd v1.8.1

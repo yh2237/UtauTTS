@@ -214,6 +214,8 @@ type Options struct {
 	FeatureMode refmatch.FeatureMode
 	// ContinuityBonusは同じ録音の次の位置を優先する強さ。0なら従来どおり。
 	ContinuityBonus float64
+	// Unblendedを真にすると、近い録音のフレームを混ぜず、いちばん近い1つを使う。
+	Unblended bool
 	// SpeedはKokoroの話速。1が標準。Durationsを指定したときは使わない。
 	Speed float32
 	// Durationsは入力記号ごとの長さ（Timing.Durationsと同じ並び）。nilならKokoroが予測する。
@@ -489,7 +491,7 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 	request := refmatch.Request{
 		FeatureMode: options.FeatureMode,
 		Features:    features, Frames: frames, ReferenceF0: referenceF0, OutputF0: outF0,
-		ReferenceLevel: levels, ContinuityBonus: options.ContinuityBonus,
+		ReferenceLevel: levels, ContinuityBonus: options.ContinuityBonus, Unblended: options.Unblended,
 	}
 	if options.FeatureMode == refmatch.FeatureCepstrum {
 		request.Cepstrum, request.Features = features, nil

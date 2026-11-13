@@ -21,6 +21,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/openutau"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
+	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/sidecar"
 	"github.com/yh2237/UtauTTS/internal/synth"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
@@ -100,6 +101,7 @@ func runCLIOutput(args []string, stdin io.Reader, stdout, stderr io.Writer, json
 		language                string
 		phonemizer              string
 		aliasPolicy             string
+		referenceBlend          string
 		method                  string
 		modelDirectories        []string
 		writeText               bool
@@ -162,6 +164,7 @@ func runCLIOutput(args []string, stdin io.Reader, stdout, stderr io.Writer, json
 	flag.Float64Var(&cvvcTransitionGain, "cvvc-transition-gain", 1, "CVVC transition volume multiplier (0..1)")
 	flag.BoolVar(&cvvcPreBoundaryFade, "cvvc-pre-boundary-fade", false, "fade CVVC transitions out before the following CV consonant")
 	flag.StringVar(&aliasPolicy, "alias-policy", string(voicebank.AliasPolicyAuto), "voicebank mode: auto, cvvc-enhanced, vcv-prefer, cvvc-prefer, or cv-only")
+	flag.StringVar(&referenceBlend, "reference-blend", settings.Text("reference_blend"), "reference matching: on blends the nearest recorded frames, off uses only the nearest one (clearer for voicebanks that sound muffled)")
 	flag.StringVar(&method, "method", "", "synthesis method (required): waveform-synthesis or reference-matching")
 	flag.BoolVar(&writeText, "write-text", false, "write a text file next to the WAV")
 	flag.BoolVar(&writeLab, "write-lab", false, "write an HTK label file next to the WAV")
@@ -359,10 +362,16 @@ func runCLIOutput(args []string, stdin io.Reader, stdout, stderr io.Writer, json
 		if err != nil {
 			return cliFailure("input_error", err)
 		}
+		blend, _ := settings.Lookup("reference_blend")
+		if err := blend.Check(referenceBlend); err != nil {
+			return cliFailure("input_error", err)
+		}
+		blendJSON, _ := json.Marshal(referenceBlend)
 		request := utautts.Request{
 			Text: text, Reading: reading, Language: language, Phonemizer: phonemizer,
 			Tone: tone, Color: color, ModelID: prosodyPath, Dictionary: dictionary,
-			Method: method,
+			Method:   method,
+			Settings: map[string]json.RawMessage{"reference_blend": blendJSON},
 			Options: utautts.Options{
 				MoraDurationMS: &moraMS, PauseDurationMS: &pauseMS, ReleaseMS: &releaseMS,
 				IntonationStrength: &intonationStrength, ApplyPitch: &applyPitch,

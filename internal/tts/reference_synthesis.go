@@ -125,6 +125,7 @@ func referenceInputs(cfg Config, language, reading string) (*refspeech.Service, 
 		Speed:           1,
 		PitchScale:      cfg.IntonationStrength / settings.Number("intonation_strength"),
 		ContinuityBonus: referenceContinuityBonus,
+		Unblended:       cfg.ReferenceUnblended,
 	}
 	if cfg.MoraDurationMS > 0 {
 		options.Speed = float32(plan.DefaultMoraDurationMS / cfg.MoraDurationMS)

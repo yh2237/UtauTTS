@@ -47,6 +47,10 @@ var settingTargets = map[string]settingTarget{
 		func(value bool, cfg *tts.Config) { cfg.World.TimingWarp = &value }),
 	"microprosody": boolean(func(r Request) bool { return r.World.MicroprosodyEnabled() },
 		func(value bool, cfg *tts.Config) { cfg.World.Microprosody = &value }),
+	"reference_blend": {
+		typed: func(Request) any { return settings.Text("reference_blend") },
+		apply: func(value any, cfg *tts.Config) { cfg.ReferenceUnblended = value.(string) == "off" },
+	},
 }
 
 func number(typed func(Request) float64, apply func(float64, *tts.Config)) settingTarget {
