@@ -85,10 +85,10 @@ func ParseKana(reading string) ([]Mora, error) {
 			continue
 		}
 
-		hiragana := toHiragana(r)
+		hiragana := ToHiragana(r)
 		if isCombiningSmallKana(hiragana) && len(result) > 0 && !result[len(result)-1].Pause {
 			result[len(result)-1].Text += string(hiragana)
-			result[len(result)-1].Vowel = vowelOf(hiragana, result[len(result)-1].Vowel)
+			result[len(result)-1].Vowel = KanaVowel(hiragana, result[len(result)-1].Vowel)
 			continue
 		}
 		if hiragana == 'ー' {
@@ -98,7 +98,7 @@ func ParseKana(reading string) ([]Mora, error) {
 			result = append(result, Mora{Text: "ー", Vowel: result[len(result)-1].Vowel})
 			continue
 		}
-		result = append(result, Mora{Text: string(hiragana), Vowel: vowelOf(hiragana, "")})
+		result = append(result, Mora{Text: string(hiragana), Vowel: KanaVowel(hiragana, "")})
 	}
 	for index := range result {
 		if !result[index].Pause {
@@ -138,7 +138,8 @@ func strongerPauseKind(current, candidate string) string {
 	return current
 }
 
-func toHiragana(r rune) rune {
+// ToHiraganaは片仮名を平仮名にする。ほかの文字はそのまま返す。
+func ToHiragana(r rune) rune {
 	if r >= 'ァ' && r <= 'ヶ' {
 		return r - 0x60
 	}
@@ -149,7 +150,8 @@ func isCombiningSmallKana(r rune) bool {
 	return strings.ContainsRune("ぁぃぅぇぉゃゅょゎ", r)
 }
 
-func vowelOf(r rune, fallback string) string {
+// KanaVowelは平仮名1文字の母音（a i u e o、ん=n、っ=cl）を返す。母音のない文字はfallbackを返す。
+func KanaVowel(r rune, fallback string) string {
 	switch {
 	case strings.ContainsRune("あかがさざただなはばぱまやらわぁゃゎ", r):
 		return "a"

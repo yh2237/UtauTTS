@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/text/unicode/norm"
 
+	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 )
 
@@ -52,18 +53,6 @@ type kanaMora struct {
 var punctuation = map[rune]bool{
 	'、': true, '。': true, '？': true, '！': true,
 	',': true, '.': true, '?': true, '!': true,
-}
-
-// frontend.ParseKanaと同じ母音対応を使う。
-var vowelGroups = []struct {
-	characters string
-	vowel      string
-}{
-	{"あかがさざただなはばぱまやらわぁゃゎ", "a"},
-	{"いきぎしじちぢにひびぴみりゐぃ", "i"},
-	{"うくぐすずつづぬふぶぷむゆるゔぅゅ", "u"},
-	{"えけげせぜてでねへべぺめれゑぇ", "e"},
-	{"おこごそぞとどのほぼぽもよろをぉょ", "o"},
 }
 
 const smallKana = "ぁぃぅぇぉゃゅょゎゕゖ"
@@ -325,10 +314,10 @@ func splitMorae(reading string) []kanaMora {
 			}
 			continue
 		}
-		mora := toHiragana(character)
+		mora := frontend.ToHiragana(character)
 		if strings.ContainsRune(smallKana, mora) && len(result) > 0 && !result[len(result)-1].pause {
 			result[len(result)-1].mora += string(mora)
-			result[len(result)-1].vowel = vowelOf(mora, result[len(result)-1].vowel)
+			result[len(result)-1].vowel = frontend.KanaVowel(mora, result[len(result)-1].vowel)
 			continue
 		}
 		if mora == 'ー' {
@@ -339,31 +328,9 @@ func splitMorae(reading string) []kanaMora {
 			result = append(result, kanaMora{mora: "ー", vowel: previous})
 			continue
 		}
-		result = append(result, kanaMora{mora: string(mora), vowel: vowelOf(mora, "")})
+		result = append(result, kanaMora{mora: string(mora), vowel: frontend.KanaVowel(mora, "")})
 	}
 	return result
-}
-
-func toHiragana(character rune) rune {
-	if character >= 0x30A1 && character <= 0x30F6 {
-		return character - 0x60
-	}
-	return character
-}
-
-func vowelOf(character rune, fallback string) string {
-	for _, group := range vowelGroups {
-		if strings.ContainsRune(group.characters, character) {
-			return group.vowel
-		}
-	}
-	switch character {
-	case 'ん':
-		return "n"
-	case 'っ':
-		return "cl"
-	}
-	return fallback
 }
 
 func isHigh(position, accent int) bool {
