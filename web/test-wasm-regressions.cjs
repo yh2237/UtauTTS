@@ -333,7 +333,7 @@ test("extended editor draws only the combined pitch curve", () => {
     frameTotalAt: i => autoFrames[i] + manualFrames[i],
   };
   vm.runInNewContext(paint[1], {
-    root: editor, getContext: () => ctx, width: 560, height: 240, x: 0,
+    root: editor, getContext: () => ctx, width: 560, height: 240, x: 0, Theme: { fontXSmall: 10 },
     timelineViewport: { contentX: 0, width: 560, contentWidth: 560 },
   });
   assert.equal(strokes.filter(stroke => stroke.color === "axis").length, 0);
