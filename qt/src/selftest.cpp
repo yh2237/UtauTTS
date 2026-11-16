@@ -1,6 +1,7 @@
 #include "selftest.h"
 
 #include "backend.h"
+#include "platform/platform.h"
 
 #include <QDir>
 #include <QEventLoop>
@@ -203,6 +204,22 @@ void captureSynthesized(QObject *rootObject, const QString &directory) {
         tabs->setProperty("currentIndex", 0);
         settle();
     }
+    // モバイルの画面は Web 版にしか出ないので、ここで切り替えて撮る。
+    const QSize size = window->size();
+    Platform::instance()->setMobilePreview(true);
+    window->resize(390, 844);
+    settle();
+    settle();
+    window->grabWindow().save(output.filePath(QStringLiteral("mobile.png")));
+    if (QObject *chrome = rootObject->findChild<QObject *>(QStringLiteral("mobileChrome"))) {
+        QMetaObject::invokeMethod(chrome, "openMenu");
+        settle();
+        settle();
+        window->grabWindow().save(output.filePath(QStringLiteral("mobile-menu.png")));
+    }
+    Platform::instance()->setMobilePreview(false);
+    window->resize(size);
+    settle();
     window->hide();
 }
 

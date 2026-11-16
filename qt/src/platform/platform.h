@@ -21,12 +21,16 @@ public:
     bool hasExternalTools() const;
     QString name() const;
     Q_INVOKABLE void updateViewportWidth(qreal width);
+    // セルフテストが、デスクトップ版でモバイルの画面を撮るのに使う。
+    void setMobilePreview(bool mobile);
+    static Platform *instance();
 
 signals:
     void layoutChanged();
 
 private:
     int m_mobileOverride = -1;
+    bool m_mobilePreview = false;
     bool m_mobile = false;
 };
 

@@ -68,9 +68,9 @@ void Platform::updateViewportWidth(qreal width) {
         width = viewport.as<double>();
 #endif
     // タッチ端末は向きに関係なくモバイル扱いにする。幅はタッチ非対応の端末だけで使う。
-    const bool mobile = isWeb() && (m_mobileOverride >= 0
+    const bool mobile = m_mobilePreview || (isWeb() && (m_mobileOverride >= 0
             ? m_mobileOverride == 1
-            : hasCoarsePointer() || (width > 0 && width < 768));
+            : hasCoarsePointer() || (width > 0 && width < 768)));
 #ifdef UTAUTTS_WASM
     const auto screen = emscripten::val::global("document")
             .call<emscripten::val>("getElementById", std::string("screen"));
@@ -98,7 +98,16 @@ QString Platform::name() const {
     return isMobile() ? QStringLiteral("web-mobile") : QStringLiteral("web");
 }
 
-void registerPlatformSingleton() {
+void Platform::setMobilePreview(bool mobile) {
+    m_mobilePreview = mobile;
+    updateViewportWidth(0);
+}
+
+Platform *Platform::instance() {
     static Platform *instance = new Platform();
-    qmlRegisterSingletonInstance("UtauTTS.Platform", 1, 0, "Platform", instance);
+    return instance;
+}
+
+void registerPlatformSingleton() {
+    qmlRegisterSingletonInstance("UtauTTS.Platform", 1, 0, "Platform", Platform::instance());
 }
