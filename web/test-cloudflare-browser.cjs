@@ -135,13 +135,14 @@ async function checkMobilePagesAndDrag(page) {
   await page.setViewportSize({ width: 390, height: 844 });
   await expectMobileLayout(page, true);
   await openMobileMenu(page, "top");
-  await page.mouse.click(140, 674); // Settings in the 16px-inset Drawer.
+  await page.mouse.click(140, 771); // Settings in the 16px-inset Drawer.
   await page.waitForTimeout(250);
   await page.screenshot({ path: path.join(output, "mobile-settings-insets.png") });
   await page.mouse.click(348, 24); // Common page header's close button.
   await openMobileMenu(page, "top");
-  await page.mouse.click(140, 724); // Dictionary settings.
+  await page.mouse.click(140, 815); // Dictionary settings.
   await page.waitForTimeout(250);
+  await page.screenshot({ path: path.join(output, "mobile-dictionary-open.png") });
   await page.mouse.click(100, 748); // Add an entry in the compact action grid.
   await page.waitForTimeout(100);
   await page.screenshot({ path: path.join(output, "mobile-dictionary-insets.png") });
@@ -174,7 +175,7 @@ async function checkMobileSaveAll(page) {
   const downloads = [];
   page.on("download", download => downloads.push(download.suggestedFilename()));
   await openMobileMenu(page, "top");
-  await page.mouse.click(140, 237); // Save all WAV.
+  await page.mouse.click(140, 305); // Save all WAV.
   for (let i = 0; i < 360 && downloads.length < 1; ++i) await page.waitForTimeout(500);
   if (downloads.length < 1) {
     console.error("save-all trace:", await page.evaluate(() => window.utauttsCallTrace));
