@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import UtauTTS.Media
-import UtauTTSStyle
     SplitView {
         id: editorSplitView
         required property var window
@@ -52,35 +51,6 @@ import UtauTTSStyle
 
         anchors.fill: parent
         orientation: Qt.Vertical
-        // 隣に枠が無いので、左右の仕切りと同じく両脇に枠の線を引く。
-        handle: Item {
-            id: verticalHandle
-            readonly property bool hovered: SplitHandle.hovered
-            readonly property bool pressed: SplitHandle.pressed
-            implicitHeight: verticalGrip.extent + 2
-
-            Rectangle {
-                width: parent.width
-                height: 1
-                color: Theme.frameLine
-            }
-            StyleItem {
-                id: verticalGrip
-                y: 1
-                width: parent.width
-                height: extent
-                element: StyleItem.Splitter
-                orientation: Qt.Vertical
-                hovered: verticalHandle.hovered
-                pressed: verticalHandle.pressed
-            }
-            Rectangle {
-                y: parent.height - 1
-                width: parent.width
-                height: 1
-                color: Theme.frameLine
-            }
-        }
         SplitView {
             id: utteranceSplitView
             SplitView.fillHeight: !window.intonationLab
@@ -333,12 +303,7 @@ import UtauTTSStyle
                 SplitView.preferredWidth: visible ? 268 : 0
                 SplitView.minimumWidth: visible ? 238 : 0
                 SplitView.maximumWidth: visible ? 340 : 0
-                padding: editorSplitView.mobileLayout ? 0 : parameterFrame.paddingLeft
-                background: StyleItem {
-                    id: parameterFrame
-                    visible: !editorSplitView.mobileLayout
-                    element: StyleItem.Frame
-                }
+                padding: 0
 
                 ScrollView {
                     id: parameterScroll

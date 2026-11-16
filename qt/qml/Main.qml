@@ -29,8 +29,8 @@ ApplicationWindow {
     required property string injectedIntonationLabExamples
     width: 1240
     height: 850
-    minimumWidth: Platform.isWeb ? 0 : 880
-    minimumHeight: Platform.isWeb ? 0 : 600
+    minimumWidth: Platform.isWeb || Platform.isMobile ? 0 : 880
+    minimumHeight: Platform.isWeb || Platform.isMobile ? 0 : 600
     visible: !injectedSelfTest
     title: intonationLab ? "UtauTTS Intonation Lab"
                          : (projectDirty ? "*" : "") + projectNameWithoutSuffix() + " - " + injectedAppName
@@ -774,12 +774,10 @@ ApplicationWindow {
 
     header: ToolBar {
         visible: window.intonationLab || window.mobileLayout
-        height: visible ? Theme.touchTarget : 0
-        // ボタンは touchTarget の高さなので、上下の余白を取るとヘッダーからはみ出す。
-        topPadding: 0
-        bottomPadding: 0
+        contentHeight: window.mobileLayout ? mobileToolRow.implicitHeight : Theme.touchTarget
 
         RowLayout {
+            id: mobileToolRow
             anchors.fill: parent
             visible: window.mobileLayout
             spacing: 0
@@ -868,6 +866,7 @@ ApplicationWindow {
         anchors.fill: parent
         active: window.mobileLayout
         sourceComponent: MobileChrome {
+            objectName: "mobileChrome"
             window: window
         }
     }
