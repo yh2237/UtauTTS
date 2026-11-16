@@ -550,3 +550,14 @@ by LY Corporation, RixFont, and Fontworks. Upstream: https://github.com/line/see
 (Google Fonts source: https://github.com/google/fonts/tree/main/ofl/lineseedjp).
 Licensed under the SIL Open Font License, Version 1.1. Its notice is
 licenses/LINE-SEED-JP.txt.
+
+
+Noto Sans KR / Noto Sans SC (fallback fonts of the web version)
+===============================================================
+
+The web version bundles the Regular weight of Noto Sans KR and Noto Sans SC
+(version 2.004, region-specific subset OTF) and uses them for characters that
+LINE Seed JP does not contain. Copyright (c) 2014-2021 Adobe
+(http://www.adobe.com/). Noto is a trademark of Google Inc. Upstream:
+https://github.com/notofonts/noto-cjk. Licensed under the SIL Open Font
+License, Version 1.1. Its notice is licenses/NOTO-SANS-CJK.txt.

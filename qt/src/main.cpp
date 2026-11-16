@@ -302,6 +302,21 @@ int main(int argc, char *argv[]) {
 #endif
     }
 
+#ifdef UTAUTTS_WASM
+    // Web版のQtは端末のフォントを使えない。LINE Seed JPに無い文字は同梱のNotoで出す。
+    const auto addFallbackFont = [](const QString &file, std::initializer_list<QChar::Script> scripts) {
+        const QStringList families = QFontDatabase::applicationFontFamilies(
+                QFontDatabase::addApplicationFont(file));
+        for (const QString &family : families) {
+            for (const QChar::Script script : scripts)
+                QFontDatabase::addApplicationFallbackFontFamily(script, family);
+        }
+    };
+    // ピンインの声調つきの母音もLINE Seed JPに無いので、ラテン文字にも当てる。
+    addFallbackFont(QStringLiteral(":/fonts/NotoSansSC-Regular.otf"), {QChar::Script_Han, QChar::Script_Latin});
+    addFallbackFont(QStringLiteral(":/fonts/NotoSansKR-Regular.otf"), {QChar::Script_Hangul});
+#endif
+
     const bool intonationLabSmokeTest = app.arguments().contains(
             QStringLiteral("--intonation-lab-smoke-test"));
     const bool selfTest = app.arguments().contains(QStringLiteral("--self-test"))

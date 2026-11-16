@@ -337,6 +337,14 @@ qt_add_translations(utautts
 file(GLOB font_files CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/fonts/*.ttf"
 )
+if(EMSCRIPTEN)
+    # Web版は端末のフォントを使えないので、LINE Seed JPに無い文字の分を持たせる。
+    # licenses/NOTO-SANS-CJK.txtの帰属表示に従うこと。
+    file(GLOB web_font_files CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/fonts/web/*.otf"
+    )
+    list(APPEND font_files ${web_font_files})
+endif()
 foreach(font_file ${font_files})
     get_filename_component(font_name "${font_file}" NAME)
     set_source_files_properties("${font_file}" PROPERTIES QT_RESOURCE_ALIAS "${font_name}")
