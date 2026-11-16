@@ -68,14 +68,16 @@ class MediaPlayer : public QObject {
 public:
     enum PlaybackState { StoppedState = 0, PlayingState = 1, PausedState = 2 };
     Q_ENUM(PlaybackState)
+    // 値は QMediaPlayer::MediaStatus と同じにする。デスクトップ版はその値をそのまま返す。
     enum MediaStatus {
         NoMedia = 0,
         LoadingMedia = 1,
         LoadedMedia = 2,
-        BufferedMedia = 3,
-        StalledMedia = 4,
-        EndOfMedia = 5,
-        InvalidMedia = 6
+        StalledMedia = 3,
+        BufferingMedia = 4,
+        BufferedMedia = 5,
+        EndOfMedia = 6,
+        InvalidMedia = 7
     };
     Q_ENUM(MediaStatus)
 

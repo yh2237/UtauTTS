@@ -139,6 +139,18 @@ void MediaPlayer::setAudioOutput(QObject *value) {
     }
     emit audioOutputChanged();
 }
+static_assert(int(MediaPlayer::StoppedState) == int(QMediaPlayer::StoppedState)
+              && int(MediaPlayer::PlayingState) == int(QMediaPlayer::PlayingState)
+              && int(MediaPlayer::PausedState) == int(QMediaPlayer::PausedState));
+static_assert(int(MediaPlayer::NoMedia) == int(QMediaPlayer::NoMedia)
+              && int(MediaPlayer::LoadingMedia) == int(QMediaPlayer::LoadingMedia)
+              && int(MediaPlayer::LoadedMedia) == int(QMediaPlayer::LoadedMedia)
+              && int(MediaPlayer::StalledMedia) == int(QMediaPlayer::StalledMedia)
+              && int(MediaPlayer::BufferingMedia) == int(QMediaPlayer::BufferingMedia)
+              && int(MediaPlayer::BufferedMedia) == int(QMediaPlayer::BufferedMedia)
+              && int(MediaPlayer::EndOfMedia) == int(QMediaPlayer::EndOfMedia)
+              && int(MediaPlayer::InvalidMedia) == int(QMediaPlayer::InvalidMedia));
+
 int MediaPlayer::playbackState() const {
     return static_cast<int>(m_impl->player ? m_impl->player->playbackState() : QMediaPlayer::StoppedState);
 }
