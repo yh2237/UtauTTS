@@ -155,7 +155,6 @@ qt_add_qml_module(utautts
         qml/controls/AccentRoundButton.qml
         qml/controls/DocumentTabButton.qml
         qml/controls/DocumentFrame.qml
-        qml/controls/ToolModeButton.qml
         qml/controls/ListFrame.qml
         qml/controls/SideList.qml
         qml/controls/PlaybackControls.qml

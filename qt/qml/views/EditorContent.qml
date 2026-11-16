@@ -836,6 +836,7 @@ import UtauTTSStyle
                         anchors.top: parent.top
                         font.pixelSize: Theme.fontMedium
                         z: 3
+                        spacing: -1
 
                         DocumentTabButton {
                             id: basicPitchTab
@@ -852,24 +853,26 @@ import UtauTTSStyle
                             }
                         }
                     }
-                    RowLayout {
+                    Row {
                         visible: pitchModeTabs.currentIndex === 1
                         anchors.left: pitchModeTabs.right
                         anchors.leftMargin: Theme.spacingLarge
-                        anchors.verticalCenter: pitchModeTabs.verticalCenter
-                        spacing: Theme.spacingXSmall
+                        anchors.bottom: pitchModeTabs.bottom
+                        spacing: -1
                         z: 3
 
-                        ToolModeButton {
+                        DocumentTabButton {
                             id: handTool
+                            height: pitchModeTabs.height
                             ButtonGroup.group: pitchToolMode
                             checked: true
                             glyph: "\ue925"
                             ToolTip.visible: hovered
                             ToolTip.text: window.translator.tr("tool.hand") + " (V)"
                         }
-                        ToolModeButton {
+                        DocumentTabButton {
                             id: penTool
+                            height: pitchModeTabs.height
                             ButtonGroup.group: pitchToolMode
                             glyph: "\ue3c9"
                             ToolTip.visible: hovered
