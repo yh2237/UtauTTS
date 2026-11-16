@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/yh2237/UtauTTS/internal/entryinput"
+	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/synth"
 )
 
@@ -33,11 +34,7 @@ func decodeSynthesizeRequest(data []byte) (synthesizeRequest, error) {
 	return request, nil
 }
 
-func synthesisUnits(result *synth.Result) []map[string]any {
-	if result == nil {
-		return nil
-	}
-	synthesisPlan := result.RenderedPlan()
+func synthesisUnits(synthesisPlan *plan.Plan) []map[string]any {
 	if synthesisPlan == nil {
 		return nil
 	}
@@ -111,34 +108,30 @@ func pcmPeaks(data []int16, channels int, maximumPoints int) (mins, maxs []float
 	return mins, maxs
 }
 
-func waveformPeaks(result *synth.Result, maximumPoints int) (mins, maxs []float64) {
-	if result == nil || result.Audio == nil {
-		return nil, nil
-	}
-	return pcmPeaks(result.Audio.Data, result.Audio.Channels, maximumPoints)
-}
-
-func (e *Engine) beginSynthesis() (context.Context, context.CancelFunc) {
+// beginSynthesis は中止できる context を返す。返した関数は合成の終わりに呼ぶ。
+func (e *Engine) beginSynthesis() (context.Context, func()) {
 	ctx, cancel := context.WithCancel(e.ctx)
 	e.synthesisMu.Lock()
-	e.synthesisCancel = cancel
+	e.synthesisSeq++
+	id := e.synthesisSeq
+	if e.synthesisCancels == nil {
+		e.synthesisCancels = make(map[uint64]context.CancelFunc)
+	}
+	e.synthesisCancels[id] = cancel
 	e.synthesisMu.Unlock()
-	return ctx, cancel
+	return ctx, func() {
+		cancel()
+		e.synthesisMu.Lock()
+		delete(e.synthesisCancels, id)
+		e.synthesisMu.Unlock()
+	}
 }
 
-func (e *Engine) endSynthesis(cancel context.CancelFunc) {
-	cancel()
-	e.synthesisMu.Lock()
-	e.synthesisCancel = nil
-	e.synthesisMu.Unlock()
-}
-
-// cancelSynthesis は実行中の synthesize を止める。合成は工程の区切りで context を見て中断する。
+// cancelSynthesis は実行中の synthesize をすべて止める。合成は工程の区切りで context を見て中断する。
 func (e *Engine) cancelSynthesis() {
 	e.synthesisMu.Lock()
-	cancel := e.synthesisCancel
-	e.synthesisMu.Unlock()
-	if cancel != nil {
+	defer e.synthesisMu.Unlock()
+	for _, cancel := range e.synthesisCancels {
 		cancel()
 	}
 }
@@ -154,8 +147,8 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 	if request.OutputPath == "" {
 		return nil, fmt.Errorf("output_path is required")
 	}
-	ctx, cancel := e.beginSynthesis()
-	defer e.endSynthesis(cancel)
+	ctx, end := e.beginSynthesis()
+	defer end()
 	result, err := e.synth.SynthesizeContext(ctx, request.InternalRequest())
 	if err != nil {
 		return nil, err
@@ -175,7 +168,7 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 	if renderedPlan != nil {
 		leadingMarginMS = renderedPlan.LeadingMarginMS
 	}
-	waveformMin, waveformMax := waveformPeaks(result, 2400)
+	waveformMin, waveformMax := pcmPeaks(result.Audio.Data, result.Audio.Channels, 2400)
 	return map[string]any{
 		"output_path":           outputPath,
 		"reading":               result.Plan.Reading,
@@ -186,7 +179,7 @@ func (e *Engine) synthesize(data []byte) (any, error) {
 		"mora_durations_ms":     result.MoraDurationsMS,
 		"mora_positions_ms":     result.MoraPositionsMS,
 		"pitch_points":          result.PitchPoints,
-		"units":                 synthesisUnits(result),
+		"units":                 synthesisUnits(renderedPlan),
 		"waveform_min":          waveformMin,
 		"waveform_max":          waveformMax,
 		"waveform_sample_rate":  result.Audio.SampleRate,

@@ -39,8 +39,9 @@ type Engine struct {
 	synth      *synth.Service
 	runtime    *synth.Runtime
 
-	synthesisMu     sync.Mutex
-	synthesisCancel context.CancelFunc
+	synthesisMu      sync.Mutex
+	synthesisCancels map[uint64]context.CancelFunc
+	synthesisSeq     uint64
 }
 
 func New(config Config) (*Engine, error) {
