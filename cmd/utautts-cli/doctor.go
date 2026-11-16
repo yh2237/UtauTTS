@@ -98,7 +98,6 @@ func writeDoctor(output io.Writer, report *cliDoctorReport) error {
 	return err
 }
 
-// doctorSummaryはエラーと警告の件数を1行にまとめる。
 func doctorSummary(checks []cliDoctorCheck) string {
 	var errors, warnings int
 	for _, check := range checks {

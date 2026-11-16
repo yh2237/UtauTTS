@@ -81,7 +81,6 @@ var foreignReadings = map[Language]map[string]string{
 	},
 }
 
-// ForeignReadingは、外来語・ブランド名の読みを返す。
 func ForeignReading(language Language, word string) (string, bool) {
 	entries := foreignReadings[language]
 	if entries == nil {

@@ -48,7 +48,6 @@ func cliFailure(code string, err error) error {
 	return cliFailureHint(code, "", err)
 }
 
-// cliFailureHintは次に取る手順を添えた失敗を返す。
 func cliFailureHint(code, hint string, err error) error {
 	if err == nil {
 		return nil
@@ -81,7 +80,6 @@ func cliErrorHint(err error) string {
 	return defaultHints[cliErrorCode(err)]
 }
 
-// defaultHintsはコードごとの既定の対処。
 var defaultHints = map[string]string{
 	"flag_parse_error":     "run utautts-cli --help to see the flags",
 	"invalid_arguments":    "run utautts-cli --help to see the flags",
@@ -105,7 +103,6 @@ const (
 	exitOutput    = 6
 )
 
-// exitCodesはエラーコードごとの終了コード。
 var exitCodes = map[string]int{
 	"flag_parse_error":     exitUsage,
 	"invalid_arguments":    exitUsage,

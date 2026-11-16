@@ -88,7 +88,6 @@ func writeUsage(output io.Writer, flags *flagpkg.FlagSet) error {
 	return err
 }
 
-// describeFlagは1つのフラグの表記と説明を返す。
 func describeFlag(flags *flagpkg.FlagSet, name string) (usageLine, bool) {
 	if name == "help" {
 		return usageLine{spec: "--help", description: "show this message"}, true

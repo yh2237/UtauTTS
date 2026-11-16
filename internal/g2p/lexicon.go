@@ -10,7 +10,6 @@ import (
 	"sync"
 )
 
-// Sourceは読みをどこから得たか。
 type Source string
 
 const (
@@ -27,7 +26,6 @@ const (
 	SourceRules       Source = "rules"
 )
 
-// Notationは読みの書き方。
 type Notation string
 
 const (
@@ -35,7 +33,6 @@ const (
 	NotationKokoro  Notation = "kokoro"
 )
 
-// Readingは1語の読みと、その出所。
 type Reading struct {
 	Phones     string
 	Notation   Notation
@@ -43,7 +40,6 @@ type Reading struct {
 	Confidence float64
 }
 
-// EnglishEntryは英語辞書の1項目。
 type EnglishEntry struct {
 	Phones string
 	Source Source

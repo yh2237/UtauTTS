@@ -3,7 +3,6 @@
 // internal/frontendやvoicebankをimportしないので、あとから別リポジトリへ移せる。
 package g2p
 
-// Languageは読みの言語。
 type Language string
 
 const (

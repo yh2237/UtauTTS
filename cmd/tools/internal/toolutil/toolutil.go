@@ -36,7 +36,6 @@ func ScanJSONL(path string, handle func(line []byte) error) error {
 	return ScanJSONLBytes(data, handle)
 }
 
-// CreateExclusiveは既存ファイルを上書きせずに新規作成する。
 func CreateExclusive(path string) (*os.File, error) {
 	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 }

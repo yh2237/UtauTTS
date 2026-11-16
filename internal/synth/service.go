@@ -414,7 +414,6 @@ func (s *Service) ProvideReferenceInference(reads []tts.ReferenceRead, features 
 	return tts.ProvideReferenceInference(s.referenceDir(), reads, features, prefetched)
 }
 
-// ReferenceProvidersは、使える参照TTSを返す。
 func (s *Service) ReferenceProviders() []tts.ReferenceProviderInfo {
 	return tts.ReferenceProviders(s.referenceDir())
 }

@@ -54,7 +54,6 @@ func init() {
 	}
 }
 
-// Modelsは同梱するモデルのファイル。
 type Models struct {
 	KokoroWeights string
 	KokoroConfig  string
@@ -76,7 +75,6 @@ const (
 	kokoroPortuguese = "kokoro-pt"
 )
 
-// voiceSetは1つの参照TTSのモデルと声。
 type voiceSet struct {
 	model *kokoro.Model
 	voice *kokoro.Voice
@@ -243,7 +241,6 @@ type Timing struct {
 	PieceTokens [][2]int
 }
 
-// MSは記号の長さをミリ秒で返す。
 func (t Timing) MS(token int) float64 { return float64(t.Durations[token]) * DurationUnitMS }
 
 // LeadingMSは、音声の中で最初のモーラが始まる時刻。

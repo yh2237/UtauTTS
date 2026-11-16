@@ -55,7 +55,6 @@ type errorResponse struct {
 	Expected string `json:"expected,omitempty"`
 }
 
-// inputErrorは、入力不正の項目名と期待する形式を添える。
 type inputError struct {
 	field    string
 	expected string
@@ -65,7 +64,6 @@ type inputError struct {
 func (e *inputError) Error() string { return e.err.Error() }
 func (e *inputError) Unwrap() error { return e.err }
 
-// invalidInputは、項目名と期待する形式を持つ入力不正のエラーを作る。
 func invalidInput(field, expected, message string) error {
 	return &inputError{field: field, expected: expected, err: errors.New(message)}
 }
@@ -96,7 +94,6 @@ func errorCodeForStatus(status int) string {
 	return codeInternalError
 }
 
-// apiErrorは、エラーのHTTPステータスと応答本文を組み立てる。
 func apiError(status int, err error) (int, errorResponse) {
 	code := errorCodeForStatus(status)
 	switch {

@@ -16,7 +16,6 @@ var catalogFlags = map[string]bool{
 	"openjtalk-engine": true, "openjtalk-dictionary": true,
 }
 
-// catalogKindsは--listの有効値。
 var catalogKinds = []string{"voicebanks", "models"}
 
 type cliCatalogReport struct {

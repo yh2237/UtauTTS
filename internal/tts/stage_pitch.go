@@ -79,7 +79,6 @@ func f0HeadPitchCurve(cfg Config, loadedProsody *prosody.Model, morae []frontend
 	return offsetPitchCurve(curve, loadedProsody.F0HeadPitchOffsetCents)
 }
 
-// offsetPitchCurveは曲線全体へ一定の高さを足す。
 func offsetPitchCurve(curve *render.PitchCurve, cents float64) *render.PitchCurve {
 	if curve == nil || cents == 0 {
 		return curve

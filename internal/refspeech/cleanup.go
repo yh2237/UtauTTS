@@ -22,7 +22,6 @@ const (
 	indexCacheMaxFiles       = 24
 )
 
-// CleanupResultは削除した索引と部分キャッシュの数。
 type CleanupResult struct {
 	Indexes int
 	Parts   int

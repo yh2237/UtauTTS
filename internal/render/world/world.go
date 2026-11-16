@@ -33,7 +33,6 @@ func traceMark(start *time.Time, label string) {
 
 const worldFrameMS = worldrender.FramePeriodMS
 
-// RenderはPlanをWORLDで描画する。
 func Render(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error) {
 	return renderWorldEngine(synthesisPlan, cfg)
 }

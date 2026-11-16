@@ -19,7 +19,6 @@ import (
 	"github.com/yh2237/UtauWLD/worldrender"
 )
 
-// IndexStateは音源の索引の状態。
 type IndexState string
 
 const (
@@ -85,7 +84,6 @@ type indexBatch struct {
 	failed      []string
 }
 
-// Progressは索引の作成の進み具合。
 type Progress struct {
 	Building bool     `json:"building"`
 	Progress float64  `json:"progress"`
@@ -477,7 +475,6 @@ func bankRecordings(bankRoot string, recordings []refmatch.Recording) ([]refmatc
 	return files, hex.EncodeToString(hash.Sum(nil))[:32], nil
 }
 
-// Speakは音源の索引を使って音素列を合成する。
 func (s *Service) Speak(ctx context.Context, id, bankRoot string, recordings []refmatch.Recording, worldEnginePath string, pieces []Piece, options Options) (Speech, error) {
 	index, err := s.index(ctx, bankRoot, recordings, worldEnginePath, options.Logf)
 	if err != nil {

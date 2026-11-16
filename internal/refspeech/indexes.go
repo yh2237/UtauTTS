@@ -9,7 +9,6 @@ import (
 	"github.com/yh2237/UtauIDX/refmatch"
 )
 
-// IndexInfoは保存済みの索引の情報。
 type IndexInfo struct {
 	Name       string `json:"name"`
 	Path       string `json:"path"`

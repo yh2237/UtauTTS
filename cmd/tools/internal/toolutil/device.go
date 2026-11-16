@@ -7,7 +7,6 @@ import (
 	"github.com/yh2237/gograd/tensor"
 )
 
-// ResolveDeviceはauto/cuda/cpu指定を検証して学習デバイスを返す。
 func ResolveDevice(name string) (tensor.Device, error) {
 	switch name {
 	case "auto":

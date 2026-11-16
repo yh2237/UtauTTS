@@ -8,7 +8,6 @@ import (
 var enSmall = strings.Fields("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen")
 var enTens = strings.Fields("zero ten twenty thirty forty fifty sixty seventy eighty ninety")
 
-// EnglishCardinalは0以上の整数を英語の語にする。
 func EnglishCardinal(n uint64) string {
 	if n < 20 {
 		return enSmall[n]

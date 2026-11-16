@@ -159,7 +159,6 @@ func ptTokens(text string) []syllableToken {
 	return tokens
 }
 
-// ptPhoneは語の中の1つの音。
 type ptPhone struct {
 	symbol string
 	vowel  bool
@@ -544,7 +543,6 @@ func ptPenultimateStress(word string) bool {
 	return false
 }
 
-// ptRenderは音節を読みにする。
 func ptRender(syllables []ptSyllable) string {
 	primary := -1
 	for i, syllable := range syllables {
@@ -771,7 +769,6 @@ func ptConsonant(phone ptPhone, onset []ptPhone, i int, vowel string) string {
 	return phone.symbol
 }
 
-// ptCodaは音節末の子音を書く。
 func ptCoda(phone ptPhone, next, vowel string, lastSyllable bool) string {
 	switch {
 	case phone.codaNasal:

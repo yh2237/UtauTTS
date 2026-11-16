@@ -148,7 +148,6 @@ var esWordExceptions = map[string]string{
 	"xavier": "sa.βjˈeɾ",
 }
 
-// syllableTokenは文を区切った語か記号。
 type syllableToken struct {
 	word  string
 	pause string
@@ -335,7 +334,6 @@ type esPhone struct {
 	fromY bool
 }
 
-// esSyllableは1つの音節。
 type esSyllable struct {
 	onset   []esPhone
 	nucleus []esPhone

@@ -33,7 +33,6 @@ func NewResult(result *tts.Result, method string) (*Result, error) {
 	return &Result{Result: result, Method: method, DurationMS: durationMS, Lab: lab}, nil
 }
 
-// Diagnosticsは設定と描画の診断を返す。
 func (r *Result) Diagnostics() []render.RenderDiagnostic {
 	diagnostics := append(make([]render.RenderDiagnostic, 0), r.SettingDiagnostics...)
 	if r.RenderReport != nil {
