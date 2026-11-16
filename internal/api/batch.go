@@ -53,11 +53,12 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 		if !strings.EqualFold(filepath.Ext(name), ".wav") {
 			name += ".wav"
 		}
-		if _, exists := seenNames[name]; exists {
+		key := strings.ToLower(strings.TrimSuffix(name, filepath.Ext(name)))
+		if _, exists := seenNames[key]; exists {
 			writeAPIError(w, http.StatusBadRequest, invalidInput(fmt.Sprintf("items[%d].name", index), "a unique file name", fmt.Sprintf("duplicate batch filename %q", name)))
 			return
 		}
-		seenNames[name] = struct{}{}
+		seenNames[key] = struct{}{}
 		names[index] = name
 	}
 	release, status, err := s.acquire(r.Context(), s.batchSem, &s.batchWaiting)
@@ -81,7 +82,6 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 	for index, item := range request.Items {
 		result, status, err := s.synthesize(r.Context(), item.Request)
 		if err != nil {
-			_ = archive.Close()
 			writeAPIError(w, status, fmt.Errorf("item %d: %w", index+1, err))
 			return
 		}
@@ -89,18 +89,10 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 		wav := audio.PCMToWavBytes(result.Audio)
 		totalWAVBytes += len(wav)
 		if totalWAVBytes > maxBatchWAVBytes {
-			_ = archive.Close()
 			writeAPIError(w, http.StatusRequestEntityTooLarge, errors.New("batch audio exceeds 256 MiB"))
 			return
 		}
-		entry, err := archive.Create(name)
-		if err != nil {
-			_ = archive.Close()
-			writeAPIError(w, http.StatusInternalServerError, err)
-			return
-		}
-		if _, err := entry.Write(wav); err != nil {
-			_ = archive.Close()
+		if err := addZipFile(archive, name, wav); err != nil {
 			writeAPIError(w, http.StatusInternalServerError, err)
 			return
 		}
@@ -112,18 +104,10 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 			}
 			data, err := sidecar.TextBytes(text, request.TextEncoding)
 			if err != nil {
-				_ = archive.Close()
 				writeAPIError(w, http.StatusBadRequest, err)
 				return
 			}
-			entry, err := archive.Create(base + ".txt")
-			if err != nil {
-				_ = archive.Close()
-				writeAPIError(w, http.StatusInternalServerError, err)
-				return
-			}
-			if _, err := entry.Write(data); err != nil {
-				_ = archive.Close()
+			if err := addZipFile(archive, base+".txt", data); err != nil {
 				writeAPIError(w, http.StatusInternalServerError, err)
 				return
 			}
@@ -131,18 +115,10 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 		if request.WriteLab {
 			data, err := sidecar.LabBytes(result.Lab)
 			if err != nil {
-				_ = archive.Close()
 				writeAPIError(w, http.StatusUnprocessableEntity, err)
 				return
 			}
-			entry, err := archive.Create(base + ".lab")
-			if err != nil {
-				_ = archive.Close()
-				writeAPIError(w, http.StatusInternalServerError, err)
-				return
-			}
-			if _, err := entry.Write(data); err != nil {
-				_ = archive.Close()
+			if err := addZipFile(archive, base+".lab", data); err != nil {
 				writeAPIError(w, http.StatusInternalServerError, err)
 				return
 			}
@@ -166,6 +142,15 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 	if _, err := io.Copy(w, output); err != nil {
 		log.Printf("write batch response: %v", err)
 	}
+}
+
+func addZipFile(archive *zip.Writer, name string, data []byte) error {
+	entry, err := archive.Create(name)
+	if err != nil {
+		return err
+	}
+	_, err = entry.Write(data)
+	return err
 }
 
 // batchFileNameは、ZIPに入れる名前をフォルダを含まない1つのファイル名にする。

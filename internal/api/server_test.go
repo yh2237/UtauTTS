@@ -131,6 +131,13 @@ func TestBatchRejectsDuplicateArchiveNamesBeforeSynthesis(t *testing.T) {
 		t.Fatalf("duplicate batch response = %d %s", response.Code, response.Body.String())
 	}
 
+	request = localRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(`{"items":[{"name":"audio.wav"},{"name":"Audio.WAV"}]}`))
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "duplicate batch filename") {
+		t.Fatalf("case-insensitive duplicate batch response = %d %s", response.Code, response.Body.String())
+	}
+
 	request = localRequest(http.MethodPost, "/api/synthesize/batch", strings.NewReader(`{"items":[{"name":".."},{"name":"utterance-1.wav"}]}`))
 	response = httptest.NewRecorder()
 	server.Handler().ServeHTTP(response, request)
