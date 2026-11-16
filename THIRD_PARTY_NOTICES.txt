@@ -103,7 +103,7 @@ Source: https://github.com/yh2237/audiodsp
 gograd
 ======
 
-UtauTTS uses github.com/yh2237/gograd v1.8.1 for matrix multiplication,
+UtauTTS uses github.com/yh2237/gograd v1.9.0 for matrix multiplication,
 CPU, CUDA, DirectML and Vulkan inference, PyTorch checkpoint reading,
 PyTorch-compatible random numbers and resampling, and in its training tools
 for automatic differentiation and CUDA training. The library is distributed
