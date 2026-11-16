@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import "../controls"
 import "../MoraPositions.js" as MoraPositions
 
@@ -530,7 +529,6 @@ Item {
         return {lower: lower, upper: upper};
     }
 
-    // moveSelectedPointsは、選択中の点を同じ量だけ動かす。
     function moveSelectedPoints(index, target) {
         const values = root.points.slice();
         const current = Number(values[index]);
@@ -566,7 +564,6 @@ Item {
         canvas.requestPaint();
     }
 
-    // resetPointsは、指定した点を自動の値に戻す。
     function resetPoints(indices) {
         const values = root.points.slice();
         let changed = false;

@@ -1,8 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
-import QtQuick.Layouts
 import UtauTTS.Platform 1.0
 
 AdaptiveDialogWindow {

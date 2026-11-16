@@ -64,7 +64,6 @@ function synthesis(item, ctx) {
     return request;
 }
 
-// prosodyは、発話から抑揚のプレビューの要求を作る。
 function prosody(item, requestId, ctx) {
     const host = ctx.host;
     const request = {
@@ -88,7 +87,6 @@ function prosody(item, requestId, ctx) {
     return request;
 }
 
-// settingContextは、合成に効く設定の現在値をまとめる。
 function settingContext(host) {
     const context = {};
     const settings = host.appBackend.settingDefinitions;

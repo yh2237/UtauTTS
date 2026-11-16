@@ -16,7 +16,6 @@ function shortcutConflict(shortcuts, normalize) {
     return false;
 }
 
-// applySettingsは、編集中の設定をまとめて保存する。
 function applySettings(draft, backend) {
     backend.setSynthesisDefaults(draft.defaultModelId,
                                  draft.defaultTone,
@@ -94,7 +93,6 @@ const defaults = {
     redoShortcut: "Ctrl+Y"
 };
 
-// resetは、編集中の値を初期値へ戻す。
 function reset(draft, field, backend) {
     if (field === "defaultModelId") {
         draft.defaultModelId = backend.models.length ? String(backend.models[0].id) : "none";

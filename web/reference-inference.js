@@ -243,7 +243,6 @@ function createReferenceInference({ baseURL, virtualFs, status, requestPort }) {
     return results;
   }
 
-  // runは、Goが返した推論の頼みごとを実行し、結果をGoへ渡す。
   async function prefetch(jobs, logs) {
     const keys = [];
     for (const job of jobs) {
@@ -256,6 +255,7 @@ function createReferenceInference({ baseURL, virtualFs, status, requestPort }) {
     return keys;
   }
 
+  // runは、Goが返した推論の頼みごとを実行し、結果をGoへ渡す。
   async function run(jobs, call, logs) {
     const prefetched = await prefetch(jobs.filter(job => job.kind === "files"), logs);
     const reads = [];

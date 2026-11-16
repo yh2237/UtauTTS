@@ -39,7 +39,6 @@ function historyUtterance(item) {
     };
 }
 
-// savedUtteranceItemは、控えた項目から模型へ入れる発話を作る。
 function savedUtteranceItem(saved) {
     return {
         utteranceId: String(saved.utteranceId || ""),

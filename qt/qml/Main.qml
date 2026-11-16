@@ -16,7 +16,6 @@ import "SelfTest.js" as SelfTest
 import QtQuick.Controls
 import QtQuick.Layouts
 import UtauTTS.Platform 1.0
-import QtQuick.Dialogs
 import UtauTTS.Media
 
 ApplicationWindow {
@@ -961,7 +960,6 @@ ApplicationWindow {
         return parts.join("+");
     }
 
-    // projectFileNameは、パスからファイル名だけを返す。
     function projectFileName(path) {
         const normalized = String(path || "").replace(/\\/g, "/");
         const slash = normalized.lastIndexOf("/");
@@ -972,7 +970,6 @@ ApplicationWindow {
         return window.projectFileName(path);
     }
 
-    // displayPathは、file:// のURLを人が読めるパスに直す。
     function displayPath(value) {
         let text = String(value || "");
         if (text.indexOf("file:///") === 0)
@@ -2301,7 +2298,6 @@ ApplicationWindow {
         });
     }
 
-    // syncEditorsは、発話の内容を編集画面へまとめて反映する。
     function syncEditors(item) {
         if (!item)
             return clearEditors();
@@ -2317,7 +2313,6 @@ ApplicationWindow {
         editorContent.phonemeEditor.frameMs = Number(item.autoFrameMs) > 0 ? Number(item.autoFrameMs) : 10;
     }
 
-    // clearEditorsは、編集画面を空にする。
     function clearEditors() {
         editorContent.pitchEditor.points = [];
         editorContent.pitchEditor.autoPoints = [];
