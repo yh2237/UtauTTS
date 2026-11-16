@@ -184,6 +184,24 @@ async function checkMobileSaveAll(page) {
   assert.equal(downloads.length, 1, "save all must analyze text first and download one ZIP");
   assert.ok(downloads[0].endsWith(".zip"), "save all must produce a ZIP file");
   console.log("Mobile save-all-WAV analyzed text and downloaded:", downloads.join(", "));
+  await checkMobilePlayAll(page);
+}
+
+// 一括書き出しのあとは、どの発話にも読みがある。
+async function checkMobilePlayAll(page) {
+  const before = await page.evaluate(() => (window.utauttsPlaybackEnds || []).length);
+  await openMobileMenu(page, "top");
+  await page.mouse.click(156, 580); // Play all.
+  try {
+    await page.waitForFunction(count => (window.utauttsPlaybackEnds || []).length >= count + 2, before, { timeout: 120000 });
+  } catch (error) {
+    console.error("play-all ends:", await page.evaluate(() => window.utauttsPlaybackEnds));
+    await page.screenshot({ path: path.join(output, "mobile-play-all-failure.png") });
+    throw error;
+  }
+  const ends = await page.evaluate(count => window.utauttsPlaybackEnds.slice(count), before);
+  assert.ok(ends.every(ratio => ratio > 0.95), "play all must play every utterance to its end: " + ends.join(", "));
+  console.log("Mobile play-all played", ends.length, "utterances to the end");
 }
 
 async function checkResponsiveState(page) {
@@ -309,7 +327,10 @@ async function checkResponsiveState(page) {
           get: () => audio,
           set: value => {
             audio = value;
-            value.addEventListener("ended", () => { window.utauttsPlaybackEnded = true; });
+            value.addEventListener("ended", () => {
+              window.utauttsPlaybackEnded = true;
+              (window.utauttsPlaybackEnds = window.utauttsPlaybackEnds || []).push(value.currentTime / value.duration);
+            });
           },
         });
         const methods = new Map();
