@@ -9,7 +9,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
-	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,7 +21,6 @@ import (
 	utautts "github.com/yh2237/UtauTTS"
 	"github.com/yh2237/UtauTTS/internal/appinfo"
 	"github.com/yh2237/UtauTTS/internal/entryinput"
-	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/synth"
@@ -81,48 +80,37 @@ type Voicebank struct {
 }
 
 type Server struct {
-	mu                  sync.RWMutex
-	voicebanks          map[string]Voicebank
-	synthesisSem        chan struct{}
-	batchSem            chan struct{}
-	synthesisWaiting    atomic.Int64
-	batchWaiting        atomic.Int64
-	queueTimeout        time.Duration
-	jobs                *jobStore
-	jobCtx              context.Context
-	jobCancel           context.CancelFunc
-	openJTalkPath       string
-	openJTalkDictionary string
-	voiceDir            string
-	catalog             *plugin.Catalog
-	service             *synth.Service
-	voiceLibrary        *voicebank.Library
-	runtime             *synth.Runtime
+	mu               sync.RWMutex
+	voicebanks       map[string]Voicebank
+	synthesisSem     chan struct{}
+	batchSem         chan struct{}
+	synthesisWaiting atomic.Int64
+	batchWaiting     atomic.Int64
+	queueTimeout     time.Duration
+	jobs             *jobStore
+	jobCtx           context.Context
+	jobCancel        context.CancelFunc
+	voiceLibrary     *voicebank.Library
+	runtime          *synth.Runtime
 }
 
 type apiVoicebankResolver struct {
-	server *Server
+	library *voicebank.Library
 }
 
 func (r apiVoicebankResolver) Resolve(id string) (string, bool) {
-	if r.server.voiceLibrary != nil {
-		summary, ok := r.server.voiceLibrary.Resolve(id)
-		return summary.Path, ok
-	}
-	voicebank, ok := r.server.resolveVoicebank(id)
-	return voicebank.Path, ok
+	summary, ok := r.library.Resolve(id)
+	return summary.Path, ok
 }
 
 func New(config Config) (*Server, error) {
 	voiceDir := voicebank.ResolveDirectory(config.VoiceDir)
 	srv := &Server{
-		voicebanks:    map[string]Voicebank{},
-		synthesisSem:  make(chan struct{}, concurrencyLimit(config.MaxConcurrentSynthesis, maxConcurrentSynthesis)),
-		batchSem:      make(chan struct{}, concurrencyLimit(config.MaxConcurrentBatches, maxConcurrentBatches)),
-		queueTimeout:  config.QueueTimeout,
-		jobs:          newJobStore(),
-		voiceDir:      voiceDir,
-		openJTalkPath: config.OpenJTalkPath, openJTalkDictionary: config.OpenJTalkDictionary,
+		voicebanks:   map[string]Voicebank{},
+		synthesisSem: make(chan struct{}, concurrencyLimit(config.MaxConcurrentSynthesis, maxConcurrentSynthesis)),
+		batchSem:     make(chan struct{}, concurrencyLimit(config.MaxConcurrentBatches, maxConcurrentBatches)),
+		queueTimeout: config.QueueTimeout,
+		jobs:         newJobStore(),
 		voiceLibrary: voicebank.NewLibrary(voiceDir),
 	}
 	if srv.queueTimeout == 0 {
@@ -131,11 +119,10 @@ func New(config Config) (*Server, error) {
 	runtime, err := synth.NewRuntime(synth.RuntimeConfig{
 		OpenJTalkPath: config.OpenJTalkPath, OpenJTalkDictionary: config.OpenJTalkDictionary,
 		ModelDirectories: config.ModelDirectories,
-	}, apiVoicebankResolver{server: srv})
+	}, apiVoicebankResolver{library: srv.voiceLibrary})
 	if err != nil {
 		return nil, err
 	}
-	srv.catalog, srv.service = runtime.Catalog, runtime.Service
 	srv.runtime = runtime
 	if err := srv.loadVoiceDirectory(); err != nil {
 		_ = runtime.Close()
@@ -160,9 +147,6 @@ func concurrencyLimit(configured, fallback int) int {
 func (s *Server) Close() error {
 	if s.jobCancel != nil {
 		s.jobCancel()
-	}
-	if s.runtime == nil {
-		return nil
 	}
 	return s.runtime.Close()
 }
@@ -191,16 +175,10 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) loadVoiceDirectory() error {
-	if s.runtime != nil {
-		return s.runtime.Reload(s.reloadVoiceDirectory)
-	}
-	return s.reloadVoiceDirectory()
+	return s.runtime.Reload(s.reloadVoiceDirectory)
 }
 
 func (s *Server) reloadVoiceDirectory() error {
-	if s.voiceLibrary == nil {
-		s.voiceLibrary = voicebank.NewLibrary(s.voiceDir)
-	}
 	if err := s.voiceLibrary.Reload(); err != nil {
 		s.mu.Lock()
 		s.voicebanks = map[string]Voicebank{}
@@ -208,27 +186,37 @@ func (s *Server) reloadVoiceDirectory() error {
 		return err
 	}
 	items := s.voiceLibrary.List()
+	inspected := make([]Voicebank, len(items))
+	var wait sync.WaitGroup
+	indexes := make(chan int)
+	for range min(runtime.GOMAXPROCS(0), len(items)) {
+		wait.Go(func() {
+			for index := range indexes {
+				id, summary := items[index].ID, items[index].Summary
+				item, err := inspectVoicebank(summary.Path)
+				if err != nil {
+					log.Printf("voicebank metadata: %s: %v", summary.Path, err)
+					item = Voicebank{Name: summary.Name, Path: summary.Path, Kind: summary.Kind}
+				}
+				item.ID = id
+				inspected[index] = item
+			}
+		})
+	}
+	for index := range items {
+		indexes <- index
+	}
+	close(indexes)
+	wait.Wait()
 	next := make(map[string]Voicebank, len(items))
-	for _, entry := range items {
-		id, summary := entry.ID, entry.Summary
-		item := Voicebank{ID: id, Name: summary.Name, Path: summary.Path, Kind: summary.Kind}
-		if inspected, inspectErr := inspectVoicebank(summary.Path); inspectErr != nil {
-			log.Printf("voicebank metadata: %s: %v", summary.Path, inspectErr)
-		} else {
-			item = inspected
-		}
-		item.ID = id
-		next[id] = item
-		log.Printf("voicebank: %s (%s)", summary.Name, id)
+	for _, item := range inspected {
+		next[item.ID] = item
+		log.Printf("voicebank: %s (%s)", item.Name, item.ID)
 	}
 	s.mu.Lock()
 	s.voicebanks = next
 	s.mu.Unlock()
-	if s.runtime != nil {
-		render.ClearWAVCache()
-	} else {
-		tts.ClearCaches()
-	}
+	render.ClearWAVCache()
 	return nil
 }
 
@@ -239,7 +227,6 @@ func inspectVoicebank(path string) (Voicebank, error) {
 	}
 	capabilities := bank.AliasCapabilities()
 	return Voicebank{
-		ID:              filepath.Base(bank.Root),
 		Name:            bank.Name,
 		Path:            bank.Root,
 		Kind:            "utau",
@@ -270,11 +257,11 @@ func (s *Server) concurrencyStatus(sem chan struct{}, waiting *atomic.Int64) map
 }
 
 func (s *Server) handleModels(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"models": s.pluginCatalog().Models})
+	writeJSON(w, http.StatusOK, map[string]any{"models": s.runtime.Catalog.Models})
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"settings": settings.Visible(), "problems": s.pluginCatalog().Problems})
+	writeJSON(w, http.StatusOK, map[string]any{"settings": settings.Visible(), "problems": s.runtime.Catalog.Problems})
 }
 
 func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
@@ -305,7 +292,7 @@ func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer release()
-	preview, err := s.synthesisService().AnalyzeContext(r.Context(), entryinput.Apply(utautts.Request{
+	preview, err := s.runtime.Service.AnalyzeContext(r.Context(), entryinput.Apply(utautts.Request{
 		Text: request.Text, Language: request.Language, Dictionary: request.Dictionary,
 	}, synth.DefaultRequest()))
 	if err != nil {
@@ -342,60 +329,55 @@ func (s *Server) handleReloadVoicebanks(w http.ResponseWriter, _ *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]any{"voicebanks": s.voicebankList()})
 }
 
-func (s *Server) handleSynthesizeAudio(w http.ResponseWriter, r *http.Request) {
+// synthesizeBodyは要求の本文を読んで合成する。失敗したら応答を書いてfalseを返す。
+func (s *Server) synthesizeBody(w http.ResponseWriter, r *http.Request) (*synth.Result, bool) {
 	var request SynthesisRequest
 	if err := decodeJSONBody(w, r, &request); err != nil {
 		writeAPIError(w, jsonDecodeStatus(err), err)
-		return
+		return nil, false
 	}
 	result, status, err := s.synthesize(r.Context(), request)
 	if err != nil {
 		writeAPIError(w, status, err)
+		return nil, false
+	}
+	return result, true
+}
+
+func writeSynthesisHeaders(w http.ResponseWriter, contentType string, report synth.Report) {
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("X-UtauTTS-Method", report.Method)
+	w.Header().Set("X-UtauTTS-Reading", report.Reading)
+	w.Header().Set("X-UtauTTS-Diagnostic-Count", strconv.Itoa(len(report.Diagnostics)))
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleSynthesizeAudio(w http.ResponseWriter, r *http.Request) {
+	result, ok := s.synthesizeBody(w, r)
+	if !ok {
 		return
 	}
-	w.Header().Set("Content-Type", "audio/wav")
-	w.Header().Set("X-UtauTTS-Method", result.Method)
-	w.Header().Set("X-UtauTTS-Reading", result.Plan.Reading)
-	w.Header().Set("X-UtauTTS-Diagnostic-Count", strconv.Itoa(len(result.Diagnostics())))
-	w.WriteHeader(http.StatusOK)
+	writeSynthesisHeaders(w, "audio/wav", result.Report())
 	if _, err := w.Write(audio.PCMToWavBytes(result.Audio)); err != nil {
 		log.Printf("write synthesis response: %v", err)
 	}
 }
 
 func (s *Server) handleSynthesizeLabel(w http.ResponseWriter, r *http.Request) {
-	var request SynthesisRequest
-	if err := decodeJSONBody(w, r, &request); err != nil {
-		writeAPIError(w, jsonDecodeStatus(err), err)
+	result, ok := s.synthesizeBody(w, r)
+	if !ok {
 		return
 	}
-	result, status, err := s.synthesize(r.Context(), request)
-	if err != nil {
-		writeAPIError(w, status, err)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("X-UtauTTS-Method", result.Method)
-	w.Header().Set("X-UtauTTS-Reading", result.Plan.Reading)
-	w.Header().Set("X-UtauTTS-Diagnostic-Count", strconv.Itoa(len(result.Diagnostics())))
-	w.WriteHeader(http.StatusOK)
+	writeSynthesisHeaders(w, "text/plain; charset=utf-8", result.Report())
 	if _, err := io.WriteString(w, result.Lab); err != nil {
 		log.Printf("write label response: %v", err)
 	}
 }
 
 func (s *Server) handleSynthesizeReport(w http.ResponseWriter, r *http.Request) {
-	var request SynthesisRequest
-	if err := decodeJSONBody(w, r, &request); err != nil {
-		writeAPIError(w, jsonDecodeStatus(err), err)
-		return
+	if result, ok := s.synthesizeBody(w, r); ok {
+		writeJSON(w, http.StatusOK, result.Report())
 	}
-	result, status, err := s.synthesize(r.Context(), request)
-	if err != nil {
-		writeAPIError(w, status, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, result.Report())
 }
 
 func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*synth.Result, int, error) {
@@ -412,15 +394,12 @@ func (s *Server) synthesize(ctx context.Context, request SynthesisRequest) (*syn
 
 // synthesizeAdmittedは、入力の検証と実行枠の取得を済ませたあとの合成。
 func (s *Server) synthesizeAdmitted(ctx context.Context, request SynthesisRequest) (*synth.Result, int, error) {
-	result, err := s.synthesisService().SynthesizeContext(ctx, request.InternalRequest())
+	result, err := s.runtime.Service.SynthesizeContext(ctx, request.InternalRequest())
 	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return nil, http.StatusRequestTimeout, err
-		}
 		if errors.Is(err, synth.ErrUnavailable) {
 			return nil, http.StatusBadRequest, err
 		}
-		return nil, http.StatusUnprocessableEntity, err
+		return nil, contextErrorStatus(err, http.StatusUnprocessableEntity), err
 	}
 	return result, http.StatusOK, nil
 }
@@ -478,9 +457,6 @@ func validateSynthesisRequest(request SynthesisRequest) (int, error) {
 
 // acquireは実行枠を取る。枠が空かないままQueueTimeoutを過ぎたら429を返す。
 func (s *Server) acquire(ctx context.Context, sem chan struct{}, waiting *atomic.Int64) (func(), int, error) {
-	if sem == nil {
-		return func() {}, http.StatusOK, nil
-	}
 	waiting.Add(1)
 	defer waiting.Add(-1)
 	var expired <-chan time.Time
@@ -504,31 +480,4 @@ func contextErrorStatus(err error, fallback int) int {
 		return http.StatusRequestTimeout
 	}
 	return fallback
-}
-
-func (s *Server) synthesisService() *synth.Service {
-	if s.service != nil {
-		return s.service
-	}
-	return synth.NewService(s.pluginCatalog(),
-		s.openJTalkPath, s.openJTalkDictionary, apiVoicebankResolver{server: s})
-}
-
-func (s *Server) pluginCatalog() *plugin.Catalog {
-	if s.catalog == nil {
-		return &plugin.Catalog{}
-	}
-	return s.catalog
-}
-
-func (s *Server) resolveVoicebank(id string) (Voicebank, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	if id != "" {
-		vb, ok := s.voicebanks[id]
-		return vb, ok
-	}
-	first := voicebank.DefaultSortedKey(s.voicebanks)
-	vb, ok := s.voicebanks[first]
-	return vb, ok
 }

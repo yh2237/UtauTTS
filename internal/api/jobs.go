@@ -257,11 +257,7 @@ func (s *Server) handleSynthesisJobAudio(w http.ResponseWriter, r *http.Request)
 		writeAPIError(w, http.StatusConflict, errors.New("synthesis job has no audio yet"))
 		return
 	}
-	w.Header().Set("Content-Type", "audio/wav")
-	w.Header().Set("X-UtauTTS-Method", report.Method)
-	w.Header().Set("X-UtauTTS-Reading", report.Reading)
-	w.Header().Set("X-UtauTTS-Diagnostic-Count", strconv.Itoa(len(report.Diagnostics)))
-	w.WriteHeader(http.StatusOK)
+	writeSynthesisHeaders(w, "audio/wav", *report)
 	if _, err := w.Write(wav); err != nil {
 		log.Printf("write job audio response: %v", err)
 	}
