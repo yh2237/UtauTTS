@@ -85,7 +85,7 @@ async function installTestCalls(page) {
 async function closeStartupWindow(page) {
   await page.locator("#qt-shadow-container .qt-window").evaluateAll(windows => {
     for (const window of windows) {
-      if (window.querySelector(".window-name")?.textContent === "UtauTTS") continue;
+      if (/(^| - )UtauTTS$/.test(window.querySelector(".window-name")?.textContent || "")) continue;
       if (getComputedStyle(window).display === "none") continue;
       const buttons = window.querySelectorAll(".title-bar .action-button");
       buttons[buttons.length - 1]?.click();
@@ -108,23 +108,27 @@ async function projectSnapshot(page) {
   await page.evaluate(() => {
     const shadow = document.querySelector("#qt-shadow-container").shadowRoot;
     const main = Array.from(shadow.querySelectorAll(".qt-window"))
-      .find(value => value.querySelector(".window-name")?.textContent === "UtauTTS");
+      .find(value => /(^| - )UtauTTS$/.test(value.querySelector(".window-name")?.textContent || ""));
     main.querySelector("canvas").focus();
   });
   const download = page.waitForEvent("download", { timeout: 30000 });
   await page.keyboard.press("Control+s");
+  await page.waitForTimeout(400); // 保存名のダイアログが開いて入力欄にフォーカスが移るまで。
+  await page.keyboard.press("Enter");
   const stream = await (await download).createReadStream();
   const chunks = [];
   for await (const chunk of stream) chunks.push(chunk);
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
+let menuShots = 0;
 async function openMobileMenu(page, edge) {
   await page.mouse.click(354, 28);
   await page.waitForTimeout(250);
   await page.mouse.move(150, 420);
   await page.mouse.wheel(0, edge === "bottom" ? 3000 : -3000);
   await page.waitForTimeout(1000); // スクロールが止まる前のタップはスクロールを止めるだけになる。
+  await page.screenshot({ path: path.join(output, "mobile-menu-" + edge + "-" + (++menuShots) + ".png") });
 }
 
 async function checkMobilePagesAndDrag(page) {
@@ -171,13 +175,13 @@ async function checkMobileSaveAll(page) {
   page.on("download", download => downloads.push(download.suggestedFilename()));
   await openMobileMenu(page, "top");
   await page.mouse.click(140, 237); // Save all WAV.
-  for (let i = 0; i < 360 && downloads.length < 2; ++i) await page.waitForTimeout(500);
-  if (downloads.length < 2) {
+  for (let i = 0; i < 360 && downloads.length < 1; ++i) await page.waitForTimeout(500);
+  if (downloads.length < 1) {
     console.error("save-all trace:", await page.evaluate(() => window.utauttsCallTrace));
     await page.screenshot({ path: path.join(output, "mobile-save-all-failure.png") });
   }
-  assert.equal(downloads.length, 2, "save all must download one WAV per utterance and analyze text first");
-  assert.ok(downloads.every(name => name.endsWith(".wav")), "save all must produce WAV files");
+  assert.equal(downloads.length, 1, "save all must analyze text first and download one ZIP");
+  assert.ok(downloads[0].endsWith(".zip"), "save all must produce a ZIP file");
   console.log("Mobile save-all-WAV analyzed text and downloaded:", downloads.join(", "));
 }
 
@@ -203,7 +207,7 @@ async function checkResponsiveState(page) {
     window.utauttsQtModule._utauttsProjectFilePicked();
     const shadow = document.querySelector("#qt-shadow-container").shadowRoot;
     window.utauttsOriginalCanvas = Array.from(shadow.querySelectorAll(".qt-window"))
-      .find(value => value.querySelector(".window-name")?.textContent === "UtauTTS").querySelector("canvas");
+      .find(value => /(^| - )UtauTTS$/.test(value.querySelector(".window-name")?.textContent || "")).querySelector("canvas");
   }, project);
   await page.evaluate(() => window.utauttsTestCall("models"));
   await page.waitForFunction(() => window.utauttsCallTrace.some(call =>
@@ -348,8 +352,14 @@ async function checkResponsiveState(page) {
       console.log("Qt booted:", mode);
       await closeStartupWindow(page);
       await expectMobileLayout(page, mobile);
-      if (mode === "responsive") await checkResponsiveState(page);
-      else if (mode === "automatic-mobile") {
+      if (mode === "responsive") {
+        try {
+          await checkResponsiveState(page);
+        } catch (error) {
+          await page.screenshot({ path: path.join(output, "responsive-failure.png") });
+          throw error;
+        }
+      } else if (mode === "automatic-mobile") {
         await page.setViewportSize({ width: 1024, height: 844 });
         await expectMobileLayout(page, false);
         await closeStartupWindow(page);

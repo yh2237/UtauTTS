@@ -187,6 +187,13 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/wasm-browser" --no-package-lock --no-save playwright@1.51.1
           "$RUNNER_TEMP/wasm-browser/node_modules/.bin/playwright" install --with-deps chromium
           NODE_PATH="$RUNNER_TEMP/wasm-browser/node_modules" node web/test-cloudflare-browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: utautts-browser-smoke
+          path: out/cloudflare-smoke-*/*.png
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Split Pages and R2 assets
         env:
           R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
