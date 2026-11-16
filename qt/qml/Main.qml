@@ -775,6 +775,9 @@ ApplicationWindow {
     header: ToolBar {
         visible: window.intonationLab || window.mobileLayout
         height: visible ? Theme.touchTarget : 0
+        // ボタンは touchTarget の高さなので、上下の余白を取るとヘッダーからはみ出す。
+        topPadding: 0
+        bottomPadding: 0
 
         RowLayout {
             anchors.fill: parent
