@@ -143,12 +143,12 @@ async function checkMobilePagesAndDrag(page) {
   await page.mouse.click(140, 815); // Dictionary settings.
   await page.waitForTimeout(250);
   await page.screenshot({ path: path.join(output, "mobile-dictionary-open.png") });
-  await page.mouse.click(100, 748); // Add an entry in the compact action grid.
+  await page.mouse.click(103, 691); // Add an entry in the compact action grid.
   await page.waitForTimeout(100);
   await page.screenshot({ path: path.join(output, "mobile-dictionary-insets.png") });
   await page.mouse.click(348, 24);
   await openMobileMenu(page, "bottom");
-  await page.mouse.click(140, 656); // License page.
+  await page.mouse.click(140, 642); // License page.
   await page.waitForTimeout(250);
   await page.screenshot({ path: path.join(output, "mobile-license.png") });
   await page.mouse.click(348, 24);
