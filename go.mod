@@ -10,7 +10,7 @@ require (
 	github.com/yh2237/UtauIDX v0.1.7
 	github.com/yh2237/UtauWLD v0.1.2
 	github.com/yh2237/audiodsp v0.5.2
-	github.com/yh2237/gograd v1.8.1
+	github.com/yh2237/gograd v1.9.0
 	github.com/yh2237/utauio v0.4.1
 	golang.org/x/text v0.39.0
 	gopkg.in/yaml.v3 v3.0.1
