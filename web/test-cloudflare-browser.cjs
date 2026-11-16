@@ -43,6 +43,46 @@ async function listen(server) {
   return "http://127.0.0.1:" + server.address().port;
 }
 
+// 実機に近い条件（タッチ、画素密度3倍）での見た目を写しに残す。
+async function capturePhone(browser, pagesURL) {
+  const context = await browser.newContext({ locale: "ja-JP", viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  try {
+    await page.goto(pagesURL + "/editor/");
+    await page.waitForSelector("#loading.hidden", { state: "attached", timeout: 180000 });
+    await page.waitForFunction(() => window.utauttsQtModule && window.utauttsQtModule._utauttsCallCompleted);
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: path.join(output, "phone-start.png") });
+    await closeStartupWindow(page);
+    await page.waitForTimeout(500);
+    // LINE Seed JPに無い文字（ハングル、簡体字、ピンインの声調）が出ることを写しで確かめる。
+    await page.evaluate(value => {
+      window.utauttsMountFile("/tmp/utautts-open-project.utautts", new TextEncoder().encode(JSON.stringify(value)));
+      window.utauttsQtModule._utauttsProjectFilePicked();
+    }, { format: "utautts-project", format_version: 5, selected_index: 0, utterances: [
+      { text: "한국어 텍스트입니다", language: "ja" },
+      { text: "简体字：为习仅仓优值关 nǐ hǎo", language: "ja" },
+      { text: "日本語の文章です。", language: "ja" },
+    ] });
+    await page.waitForTimeout(2500);
+    await page.screenshot({ path: path.join(output, "phone-main.png") });
+    const session = await context.newCDPSession(page);
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 354, y: 26 }] });
+    await page.waitForTimeout(250);
+    await page.screenshot({ path: path.join(output, "phone-header-pressed.png") });
+    await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: path.join(output, "phone-menu.png") });
+    console.log("Phone layout:", await page.locator("#screen").getAttribute("data-layout"),
+      "dpr", await page.evaluate(() => window.devicePixelRatio));
+  } catch (error) {
+    console.error("phone capture failed:", error);
+  } finally {
+    await context.close();
+  }
+}
+
 async function checkWebsite(browser, pagesURL) {
   const page = await browser.newPage();
   try {
@@ -394,6 +434,7 @@ async function checkResponsiveState(page) {
       assert.deepEqual(errors, [], "layout JavaScript/QML errors");
       await page.close();
     }
+    await capturePhone(browser, pagesURL);
     assert.ok(requests.includes("utautts.wasm"), "Qt wasm must load from the asset origin");
     assert.ok(requests.includes("web/dist/openjtalk/dict/sys.dic"));
     assert.ok(requests.some(file => file.startsWith("web/dist/voice/") && file.endsWith(".wav")));
