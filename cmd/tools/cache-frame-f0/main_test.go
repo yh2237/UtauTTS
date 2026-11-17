@@ -9,7 +9,7 @@ import (
 
 func TestNumPyHeaderAndCacheKey(t *testing.T) {
 	r := record{ID: "sample", Tokens: []token{{Start: 0, End: 100}, {Start: 100, End: 200, Pause: true}}}
-	if got := filepath.Base(cachePath("out", r)); got == "" || filepath.Ext(got) != ".npy" {
+	if got := filepath.Base(cachePath("out", r)); got != "20d4c32b3904508b1e562a6ca0a9abbd87954aa6.npy" {
 		t.Fatal(got)
 	}
 	var b bytes.Buffer

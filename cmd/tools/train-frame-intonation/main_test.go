@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/yh2237/UtauTTS/cmd/tools/internal/f0cache"
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/gograd/tensor"
@@ -52,7 +53,7 @@ func TestWorldHarvestParity(t *testing.T) {
 	if e != nil {
 		t.Skip(e)
 	}
-	f0, e := worldF0(rows[0], 10, dll)
+	f0, e := f0cache.WorldF0(rows[0].AudioPath, 10, dll)
 	if e != nil {
 		t.Fatal(e)
 	}

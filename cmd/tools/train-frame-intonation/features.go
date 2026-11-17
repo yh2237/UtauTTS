@@ -1,18 +1,16 @@
 package main
 
 import (
-	"crypto/sha1"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math"
 	"os"
-	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 
+	"github.com/yh2237/UtauTTS/cmd/tools/internal/f0cache"
 	"github.com/yh2237/UtauTTS/cmd/tools/internal/toolutil"
 )
 
@@ -115,30 +113,14 @@ func splitRecords(rows []record, holdout bool) (train, valid, test []record) {
 	}
 	return
 }
+func (t token) F0Timing() (float64, float64, bool) {
+	return t.Start, t.End, t.Pause
+}
 func timeGrid(r record, step float64) []float64 {
-	start, end := r.Start, r.End
-	if end <= start {
-		start = r.Tokens[0].Start
-		end = r.Tokens[len(r.Tokens)-1].End
-	}
-	n := max(1, int(math.Ceil((end-start)/step)))
-	out := make([]float64, n)
-	for i := range out {
-		out[i] = start + (float64(i)+.5)*step
-	}
-	return out
+	return f0cache.TimeGrid(r.Start, r.End, r.Tokens, step)
 }
 func tokenAt(ts []token, t float64) int {
-	for i, x := range ts {
-		end := math.Max(x.Start+1e-6, x.End)
-		if x.Start <= t && t < end {
-			return i
-		}
-	}
-	if t < ts[0].Start {
-		return 0
-	}
-	return len(ts) - 1
+	return f0cache.TokenAt(ts, t)
 }
 func tokenFeatures(ts []token, i int) map[string]float64 {
 	t := ts[i]
@@ -305,28 +287,6 @@ func npyF64(path string) ([]float64, error) {
 	}
 	return out, nil
 }
-func pyFloat(v float64) string {
-	s := strconv.FormatFloat(math.Round(v*1000)/1000, 'f', -1, 64)
-	if !strings.Contains(s, ".") {
-		s += ".0"
-	}
-	return s
-}
 func cachePathTag(dir string, r record, step float64, tag string) string {
-	var b strings.Builder
-	b.WriteByte('[')
-	for i, t := range r.Tokens {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		b.WriteString("[" + pyFloat(t.Start) + ", " + pyFloat(t.End) + ", " + map[bool]string{true: "true", false: "false"}[t.Pause] + "]")
-	}
-	b.WriteByte(']')
-	id := r.RecordID
-	if id == "" {
-		id = r.ID
-	}
-	key := fmt.Sprintf("%s|%g|%s|%s", id, step, tag, b.String())
-	h := sha1.Sum([]byte(key))
-	return filepath.Join(dir, fmt.Sprintf("%x.npy", h))
+	return f0cache.Path(dir, r.ID, r.RecordID, r.Tokens, step, tag)
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/yh2237/UtauIDX/audio"
+	"github.com/yh2237/UtauTTS/cmd/tools/internal/f0cache"
 	"github.com/yh2237/UtauTTS/cmd/tools/internal/toolutil"
 )
 
@@ -25,25 +26,7 @@ func median(x []float64) float64 {
 	return (a[n/2-1] + a[n/2]) * .5
 }
 func interpolateF0(track []float64, times []float64, step float64) []float64 {
-	out := make([]float64, len(times))
-	for i, t := range times {
-		p := t / step
-		l := int(math.Floor(p))
-		if l < 0 || l >= len(track) {
-			continue
-		}
-		if math.Abs(p-float64(l)) < 1e-9 {
-			out[i] = track[l]
-			continue
-		}
-		h := l + 1
-		if h >= len(track) || track[l] <= 0 || track[h] <= 0 {
-			continue
-		}
-		w := p - float64(l)
-		out[i] = math.Exp(math.Log(track[l])*(1-w) + math.Log(track[h])*w)
-	}
-	return out
+	return f0cache.Interpolate(track, times, step)
 }
 func internalF0(r record, step float64) ([]float64, error) {
 	path := strings.ReplaceAll(r.AudioPath, "\\", string(filepath.Separator))
@@ -151,7 +134,7 @@ func internalF0(r record, step float64) ([]float64, error) {
 func loadF0Source(r record, step float64, cache string, times []float64, source, worldPath string) ([]float64, error) {
 	tag := "internal_autocorrelation"
 	if source == "world" {
-		tag = "utautts_world_harvest"
+		tag = f0cache.WorldHarvest
 	}
 	path := cachePathTag(cache, r, step, tag)
 	if x, e := npyF64(path); e == nil && len(x) == len(times) {
@@ -160,7 +143,7 @@ func loadF0Source(r record, step float64, cache string, times []float64, source,
 	var track []float64
 	var e error
 	if source == "world" {
-		track, e = worldF0(r, step, worldPath)
+		track, e = f0cache.WorldF0(r.AudioPath, step, worldPath)
 	} else {
 		track, e = internalF0(r, step)
 	}
@@ -190,24 +173,7 @@ func writeNPY(path string, x []float64) error {
 		return e
 	}
 	defer f.Close()
-	header := "{'descr': '<f8', 'fortran_order': False, 'shape': (" + fmt.Sprint(len(x)) + ",), }"
-	pad := 16 - (10+len(header)+1)%16
-	header += strings.Repeat(" ", pad) + "\n"
-	var pre []byte
-	pre = append(pre, []byte("\x93NUMPY\x01\x00")...)
-	pre = append(pre, byte(len(header)), byte(len(header)>>8))
-	pre = append(pre, header...)
-	if _, e = f.Write(pre); e != nil {
-		return e
-	}
-	for _, v := range x {
-		bits := math.Float64bits(v)
-		b := []byte{byte(bits), byte(bits >> 8), byte(bits >> 16), byte(bits >> 24), byte(bits >> 32), byte(bits >> 40), byte(bits >> 48), byte(bits >> 56)}
-		if _, e = f.Write(b); e != nil {
-			return e
-		}
-	}
-	return nil
+	return f0cache.WriteNPY(f, x, 16)
 }
 func targetF0(f0 []float64, mask []bool, step, smooth, low, high float64) []float32 {
 	n := len(f0)

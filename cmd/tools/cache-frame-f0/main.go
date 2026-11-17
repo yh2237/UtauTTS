@@ -1,20 +1,17 @@
 package main
 
 import (
-	"crypto/sha1"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/yh2237/UtauTTS/cmd/tools/internal/f0cache"
 	"github.com/yh2237/UtauTTS/cmd/tools/internal/toolutil"
 )
 
@@ -48,75 +45,20 @@ func records(path string) ([]record, error) {
 	return rows, err
 }
 
-func pyFloat(v float64) string {
-	s := strconv.FormatFloat(math.Round(v*1000)/1000, 'f', -1, 64)
-	if !strings.Contains(s, ".") {
-		s += ".0"
-	}
-	return s
+func (t token) F0Timing() (float64, float64, bool) {
+	return t.Start, t.End, t.Pause
 }
 func cachePath(dir string, r record) string {
-	var b strings.Builder
-	b.WriteByte('[')
-	for i, t := range r.Tokens {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		b.WriteString("[" + pyFloat(t.Start) + ", " + pyFloat(t.End) + ", " + map[bool]string{true: "true", false: "false"}[t.Pause] + "]")
-	}
-	b.WriteByte(']')
-	id := r.RecordID
-	if id == "" {
-		id = r.ID
-	}
-	key := fmt.Sprintf("%s|10|utautts_world_harvest|%s", id, b.String())
-	h := sha1.Sum([]byte(key))
-	return filepath.Join(dir, fmt.Sprintf("%x.npy", h))
+	return f0cache.Path(dir, r.ID, r.RecordID, r.Tokens, 10, f0cache.WorldHarvest)
 }
 func times(r record) []float64 {
-	start, end := r.Start, r.End
-	if end <= start {
-		start = r.Tokens[0].Start
-		end = r.Tokens[len(r.Tokens)-1].End
-	}
-	n := max(1, int(math.Ceil((end-start)/10)))
-	out := make([]float64, n)
-	for i := range out {
-		out[i] = start + (float64(i)+.5)*10
-	}
-	return out
+	return f0cache.TimeGrid(r.Start, r.End, r.Tokens, 10)
 }
 func tokenAt(ts []token, t float64) int {
-	for i, x := range ts {
-		if x.Start <= t && t < math.Max(x.Start+1e-6, x.End) {
-			return i
-		}
-	}
-	if t < ts[0].Start {
-		return 0
-	}
-	return len(ts) - 1
+	return f0cache.TokenAt(ts, t)
 }
 func interpolate(track []float64, ts []float64) []float64 {
-	out := make([]float64, len(ts))
-	for i, t := range ts {
-		p := t / 10
-		l := int(math.Floor(p))
-		if l < 0 || l >= len(track) {
-			continue
-		}
-		if math.Abs(p-float64(l)) < 1e-9 {
-			out[i] = track[l]
-			continue
-		}
-		h := l + 1
-		if h >= len(track) || track[l] <= 0 || track[h] <= 0 {
-			continue
-		}
-		w := p - float64(l)
-		out[i] = math.Exp(math.Log(track[l])*(1-w) + math.Log(track[h])*w)
-	}
-	return out
+	return f0cache.Interpolate(track, ts, 10)
 }
 func resolveAudio(path, dataset string) string {
 	norm := strings.ReplaceAll(path, "\\", string(filepath.Separator))
@@ -143,15 +85,7 @@ func resolveAudio(path, dataset string) string {
 	return path
 }
 func writeNPY(w io.Writer, x []float64) error {
-	header := "{'descr': '<f8', 'fortran_order': False, 'shape': (" + fmt.Sprint(len(x)) + ",), }"
-	pad := 64 - (10+len(header)+1)%64
-	header += strings.Repeat(" ", pad) + "\n"
-	pre := append([]byte("\x93NUMPY\x01\x00"), byte(len(header)), byte(len(header)>>8))
-	pre = append(pre, header...)
-	if _, e := w.Write(pre); e != nil {
-		return e
-	}
-	return binary.Write(w, binary.LittleEndian, x)
+	return f0cache.WriteNPY(w, x, 64)
 }
 func cacheOne(r record, dataset, dir, engine string) (bool, error) {
 	path := cachePath(dir, r)
@@ -159,7 +93,7 @@ func cacheOne(r record, dataset, dir, engine string) (bool, error) {
 		return false, nil
 	}
 	r.AudioPath = resolveAudio(r.AudioPath, dataset)
-	track, e := worldF0(r, 10, engine)
+	track, e := f0cache.WorldF0(r.AudioPath, 10, engine)
 	if e != nil {
 		return false, e
 	}
