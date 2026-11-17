@@ -107,6 +107,32 @@ func TestMergeManualPitchCurve(t *testing.T) {
 	t.Run("keeps a mora-level fall edit", testManualPitchConstraintKeepsMoraFall)
 }
 
+func TestResolveManualPitchCombinesLayersBeforeConstraining(t *testing.T) {
+	manual := &prosody.ManualPitchFile{Version: 1, Reading: "ア", Mode: "frames", FrameMS: 10,
+		Points: []prosody.ManualPitchPoint{{Position: 0, Cents: 100}}, Frames: []float64{0, 25, 0}}
+	curve, mode, err := resolveManualPitchCurve(Config{ManualPitch: manual}, "ア",
+		[]frontend.Mora{{Text: "ア"}}, []prosody.MoraTiming{{DurationMS: 100}}, 100)
+	if err != nil || mode != "frames" {
+		t.Fatalf("mode=%q error=%v", mode, err)
+	}
+	values := make([]float64, 11)
+	for index := range values {
+		values[index] = 100
+	}
+	values[1] += 25
+	want := constrainManualPitchContour(&prosody.PitchContour{FrameMS: 10, Cents: values})
+	if !reflect.DeepEqual(curve, want) {
+		t.Fatalf("combined curve=%v, want=%v", curve, want)
+	}
+	base := &render.PitchCurve{FrameMS: 10, Cents: []float64{50, 50}}
+	merged := mergeManualPitchCurve(base, curve, mode)
+	for index, cents := range merged.Cents {
+		if cents != want.Cents[index]+50 {
+			t.Fatalf("frame=%d got=%g want=%g", index, cents, want.Cents[index]+50)
+		}
+	}
+}
+
 func testManualPitchConstraintKeepsLearnedFall(t *testing.T) {
 	base := &render.PitchCurve{FrameMS: 10, Cents: make([]float64, 20)}
 	for index := 15; index < len(base.Cents); index++ {

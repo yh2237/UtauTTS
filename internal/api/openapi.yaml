@@ -434,7 +434,7 @@ components:
       nullable: true
       additionalProperties: false
       required: [version]
-      description: モーラ位置・重複・休止への指定は合成時にも検証する。framesモードはpointsと併用不可。
+      description: モーラ位置・重複・休止への指定は合成時にも検証する。framesモードでpointsも指定すると、両方の補正を加算する。
       properties:
         version: {type: integer, enum: [1]}
         reading: {type: string, nullable: true, default: ''}
@@ -447,15 +447,20 @@ components:
         frames:
           type: array
           nullable: true
-          description: framesモードでは最大20000個、10 ms単位、各値±1200 cent。その他のモードでは使わない。
-          items: {type: number}
+          description: framesモードでは最大20000個、各値±4800 cent。その他のモードでは使わない。
+          items: {type: number, minimum: -4800, maximum: 4800}
+        frame_ms:
+          type: number
+          default: 0
+          minimum: 0
+          description: framesモードの補正値の間隔（ミリ秒）。正なら先頭から指定間隔で適用し、配列の範囲外は0。省略または0なら発話全体へ伸縮する。
     ManualPitchPoint:
       type: object
       additionalProperties: false
       properties:
         position: {type: integer, nullable: true, minimum: 0, default: 0}
         mora: {type: string, nullable: true, default: ''}
-        cents: {type: number, nullable: true, minimum: -1200, maximum: 1200, default: 0}
+        cents: {type: number, nullable: true, minimum: -4800, maximum: 4800, default: 0}
     PitchCurve:
       type: object
       nullable: true

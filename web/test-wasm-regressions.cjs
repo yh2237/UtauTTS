@@ -373,6 +373,35 @@ function sharedState(items) {
   return context;
 }
 
+test("synthesis requests preserve both pitch layers and the frame sample interval", () => {
+  const synthesis = vm.runInNewContext(source("qt/qml/SynthesisRequest.js")
+    .replace(/^\.pragma library\s*/, "") + "; synthesis");
+  const host = {
+    decodeSequence: QmlCore.decodeSequence, hasManualPitch: () => true,
+    hasManualMoraDurations: () => false, resolvedPhonemizer: () => "auto",
+    normalizeMethod: value => value, normalizeAliasPolicy: value => value,
+    addSynthesisSettings() {}, appBackend: { dictionaryEntries: [] },
+  };
+  const item = {
+    content: "あ、い", reading: "ア、イ", applyPitch: true, autoFrameMs: 20,
+    method: "waveform-synthesis", pointsJson: "[100,999,-50]", pitchFramesJson: "[0,25,0]",
+    moraeJson: '[{"mora":"ア"},{"pause":true},{"mora":"イ"}]',
+  };
+  const manual = () => JSON.parse(JSON.stringify(synthesis(item, { host }).manual_pitch || null));
+  const points = [{ position: 0, mora: "ア", cents: 100 }, { position: 2, mora: "イ", cents: -50 }];
+  assert.deepEqual(manual(), { version: 1, reading: item.reading, mode: "frames",
+    points, frame_ms: 20, frames: [0, 25, 0] });
+  item.pitchFramesJson = "[]";
+  assert.deepEqual(manual(), { version: 1, reading: item.reading, mode: "offset", points });
+  item.pitchFramesJson = "[25]";
+  item.pointsJson = "[]";
+  item.autoFrameMs = 0;
+  assert.deepEqual(manual(), { version: 1, reading: item.reading, mode: "frames",
+    frame_ms: 10, frames: [25] });
+  item.applyPitch = false;
+  assert.equal(manual(), null);
+});
+
 test("pitch history restores pitch application and the saved project state", () => {
   for (const edit of [{ pointsJson: "[100]", manualPitchEdited: true },
                       { pitchFramesJson: "[100]", manualPitchEdited: true }, {}]) {

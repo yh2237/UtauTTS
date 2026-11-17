@@ -149,7 +149,7 @@ Item {
                     continue;
                 const start = root.unitNoteStart(unit);
                 const center = start + Math.max(1, root.unitDuration(unit)) / 2;
-                const cents = Number(root.timingEditor.pitchAt(Number(unit.position)));
+                const cents = Number(root.timingEditor.points[Number(unit.position)]) || 0;
                 if (!Number.isFinite(cents))
                     continue;
                 if (anchors.length && anchors[anchors.length - 1].center > center)
@@ -304,7 +304,8 @@ Item {
                 fromFrame < 0 ? target : Math.max(fromFrame, target));
         for (let index = lo; index <= hi; ++index) {
             if (root.frameHasPronunciation(index))
-                values[index] = Math.round((desired - root.frameAutoAt(index)) * 10) / 10;
+                values[index] = Math.round((desired - root.frameAutoAt(index)
+                        - root.moraPitchCentsAtFrame(index) - root.unitPitchCentsAtFrame(index)) * 10) / 10;
         }
         root.manualFrames = values;
         const total = root.frameTotalAt(target);

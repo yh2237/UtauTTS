@@ -32,32 +32,28 @@ function synthesis(item, ctx) {
     host.addSynthesisSettings(request);
     const frameOffsets = host.decodeSequence(item.pitchFramesJson);
     const hasFrameOffsets = frameOffsets.some(value => Math.abs(Number(value)) > .1);
-    if (item.applyPitch && item.reading && manualPitch && hasFrameOffsets) {
-        request.manual_pitch = {
-            version: 1,
-            reading: item.reading,
-            mode: "frames",
-            frames: frameOffsets.map(value => Math.max(-4800, Math.min(4800, Number(value) || 0)))
-        };
-    } else if (item.applyPitch && item.reading && manualPitch
-               && points.some(value => Math.abs(Number(value)) > .1)) {
-        const manualPoints = [];
-        for (let index = 0; index < points.length; ++index) {
-            const mora = index < morae.length ? morae[index] : null;
-            if (mora && mora.pause)
-                continue;
-            manualPoints.push({
-                position: index,
-                mora: mora ? mora.mora || "" : "",
-                cents: Math.max(-4800, Math.min(4800, Number(points[index]) || 0))
-            });
+    const hasPoints = points.some(value => Math.abs(Number(value)) > .1);
+    if (item.applyPitch && item.reading && manualPitch && (hasFrameOffsets || hasPoints)) {
+        const pitch = {version: 1, reading: item.reading, mode: hasFrameOffsets ? "frames" : "offset"};
+        if (hasPoints) {
+            pitch.points = [];
+            for (let index = 0; index < points.length; ++index) {
+                const mora = index < morae.length ? morae[index] : null;
+                if (mora && mora.pause)
+                    continue;
+                pitch.points.push({
+                    position: index,
+                    mora: mora ? mora.mora || "" : "",
+                    cents: Math.max(-4800, Math.min(4800, Number(points[index]) || 0))
+                });
+            }
         }
-        request.manual_pitch = {
-            version: 1,
-            reading: item.reading,
-            mode: "offset",
-            points: manualPoints
-        };
+        if (hasFrameOffsets) {
+            const frameMs = Number(item.autoFrameMs);
+            pitch.frame_ms = Number.isFinite(frameMs) && frameMs > 0 ? frameMs : 10;
+            pitch.frames = frameOffsets.map(value => Math.max(-4800, Math.min(4800, Number(value) || 0)));
+        }
+        request.manual_pitch = pitch;
     }
     if (host.intonationLab)
         request.model_path = host.intonationLabBaseModelPath();

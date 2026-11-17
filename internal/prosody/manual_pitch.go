@@ -17,13 +17,14 @@ const ManualPitchVersion = 1
 const ManualPitchCentsLimit = 4800
 
 // ManualPitchFileはモデル輪郭に対する相対補正を保持する。
-// mode=offset: モーラ単位の補正。mode=frames: 時刻基準の10ms単位フレーム補正。
+// framesモードではモーラ補正にフレーム補正を加える。FrameMSが0なら発話全体へ伸縮する。
 type ManualPitchFile struct {
 	Version int                `json:"version"`
 	Reading string             `json:"reading,omitempty"`
 	Mode    string             `json:"mode,omitempty"`
 	Points  []ManualPitchPoint `json:"points,omitempty"`
 	Frames  []float64          `json:"frames,omitempty"`
+	FrameMS float64            `json:"frame_ms,omitempty"`
 }
 
 type ManualPitchPoint struct {
@@ -72,8 +73,8 @@ func (file *ManualPitchFile) Validate() error {
 		}
 	}
 	if file.Mode == "frames" {
-		if len(file.Points) > 0 {
-			return fmt.Errorf("manual pitch frames mode must not carry mora points")
+		if math.IsNaN(file.FrameMS) || math.IsInf(file.FrameMS, 0) || file.FrameMS < 0 {
+			return fmt.Errorf("manual pitch frame_ms must be finite and non-negative")
 		}
 		if len(file.Frames) > 20000 {
 			return fmt.Errorf("manual pitch frames are limited to 20000 entries")
@@ -88,14 +89,25 @@ func (file *ManualPitchFile) Validate() error {
 }
 
 // Curveは疎なモーラ補正を滑らかな10msフレーム輪郭へ変換する。
-// framesモードでは時刻基準の補正列を現在の長さへ伸縮して返す。
 func (file *ManualPitchFile) Curve(morae []frontend.Mora, timings []MoraTiming, durationMS float64) (*PitchContour, error) {
 	if file == nil {
 		return nil, nil
 	}
-	if file.Mode == "frames" {
-		return file.frameCurve(durationMS)
+	curve, err := file.pointCurve(morae, timings, durationMS)
+	if err != nil || file.Mode != "frames" {
+		return curve, err
 	}
+	frames, err := file.frameCurve(durationMS)
+	if err != nil || curve == nil {
+		return frames, err
+	}
+	for index := range curve.Cents {
+		curve.Cents[index] += frames.Cents[index]
+	}
+	return curve, nil
+}
+
+func (file *ManualPitchFile) pointCurve(morae []frontend.Mora, timings []MoraTiming, durationMS float64) (*PitchContour, error) {
 	if len(file.Points) == 0 {
 		return nil, nil
 	}
@@ -153,6 +165,21 @@ func (file *ManualPitchFile) frameCurve(durationMS float64) (*PitchContour, erro
 	length := max(2, int(math.Ceil(durationMS/frameMS))+1)
 	curve := make([]float64, length)
 	if len(file.Frames) == 0 {
+		return &PitchContour{FrameMS: frameMS, Cents: curve}, nil
+	}
+	if file.FrameMS > 0 {
+		for index := range curve {
+			position := float64(index) * frameMS / file.FrameMS
+			if position >= float64(len(file.Frames)) {
+				continue
+			}
+			left := int(math.Floor(position))
+			progress := position - float64(left)
+			curve[index] = file.Frames[left] * (1 - progress)
+			if left+1 < len(file.Frames) {
+				curve[index] += file.Frames[left+1] * progress
+			}
+		}
 		return &PitchContour{FrameMS: frameMS, Cents: curve}, nil
 	}
 	if len(file.Frames) == 1 {
