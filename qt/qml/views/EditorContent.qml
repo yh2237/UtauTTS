@@ -170,6 +170,7 @@ import UtauTTS.Media
                                 Keys.onPressed: event => {
                                     if (event.key === Qt.Key_Delete
                                             && event.modifiers === Qt.NoModifier
+                                            && utteranceEditor.length === 0
                                             && window.qtShortcutSequence(window.appBackend.removeUtteranceShortcut).toLowerCase() === "delete"
                                             && !window.settingsWindowVisible
                                             && !window.appBackend.busy

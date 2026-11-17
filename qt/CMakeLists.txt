@@ -382,4 +382,44 @@ else()
     target_link_libraries(utautts PRIVATE Qt6::Multimedia Qt6::Concurrent)
 endif()
 
+option(UTAUTTS_BUILD_QML_TESTS "Build the desktop Qt Quick tests" OFF)
+if(UTAUTTS_BUILD_QML_TESTS AND NOT EMSCRIPTEN)
+    enable_testing()
+    find_package(Qt6 REQUIRED COMPONENTS QuickTest)
+    qt_add_executable(utautts_qmltests
+        tests/quicktest.cpp
+        src/platform/media.h
+        src/platform/media_native.cpp
+        src/platform/media_register.cpp
+        src/platform/platform.h
+        src/platform/platform.cpp
+    )
+    get_target_property(utautts_qml_files utautts QT_QML_MODULE_QML_FILES)
+    set(utautts_test_qml_files)
+    foreach(qml_file IN LISTS utautts_qml_files)
+        file(RELATIVE_PATH qml_relative "${CMAKE_CURRENT_SOURCE_DIR}" "${qml_file}")
+        list(APPEND utautts_test_qml_files "${qml_relative}")
+    endforeach()
+    qt_add_qml_module(utautts_qmltests
+        URI UtauTTS
+        VERSION 1.0
+        OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests/UtauTTS"
+        NO_CACHEGEN
+        QML_FILES ${utautts_test_qml_files}
+    )
+    qt_add_resources(utautts_qmltests "testIconFont"
+        PREFIX "/fonts"
+        FILES "${CMAKE_CURRENT_SOURCE_DIR}/fonts/MaterialSymbolsOutlined-subset.ttf"
+    )
+    target_include_directories(utautts_qmltests PRIVATE src)
+    target_compile_definitions(utautts_qmltests PRIVATE
+        QUICK_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests"
+    )
+    target_link_libraries(utautts_qmltests PRIVATE
+        Qt6::QuickTest Qt6::QuickControls2 Qt6::Multimedia Qt6::Widgets
+        utautts_styleplugin
+    )
+    add_test(NAME utautts_qmltests COMMAND utautts_qmltests -platform offscreen)
+endif()
+
 install(TARGETS utautts RUNTIME DESTINATION . BUNDLE DESTINATION .)
