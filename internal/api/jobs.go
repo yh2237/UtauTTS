@@ -74,7 +74,10 @@ func (s *jobStore) create() (string, bool) {
 	defer s.mu.Unlock()
 	s.pruneLocked(time.Now())
 	if len(s.jobs) >= maxSynthesisJobs {
-		return "", false
+		s.evictOldestFinishedLocked()
+		if len(s.jobs) >= maxSynthesisJobs {
+			return "", false
+		}
 	}
 	s.nextSeq++
 	job := &synthesisJob{id: newJobID(), sequence: s.nextSeq, status: jobQueued, createdAt: time.Now()}
@@ -94,13 +97,15 @@ func (s *jobStore) update(id string, apply func(*synthesisJob)) {
 func (s *jobStore) response(id string) (synthesisJobResponse, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	now := time.Now()
+	s.pruneLocked(now)
 	job, ok := s.jobs[id]
 	if !ok {
 		return synthesisJobResponse{}, false
 	}
 	response := synthesisJobResponse{
 		JobID: job.id, Status: job.status, CreatedAt: job.createdAt,
-		ElapsedMS: job.elapsedMS(time.Now()),
+		ElapsedMS: job.elapsedMS(now),
 	}
 	if job.status == jobQueued {
 		for _, other := range s.jobs {
@@ -132,6 +137,7 @@ func (s *jobStore) response(id string) (synthesisJobResponse, bool) {
 func (s *jobStore) audioOf(id string) (wav []byte, report *synth.Report, found, ready bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.pruneLocked(time.Now())
 	job, ok := s.jobs[id]
 	if !ok {
 		return nil, nil, false, false
@@ -148,20 +154,20 @@ func (s *jobStore) pruneLocked(now time.Time) {
 			delete(s.jobs, id)
 		}
 	}
-	for len(s.jobs) >= maxSynthesisJobs {
-		oldest := ""
-		var oldestTime time.Time
-		for id, job := range s.jobs {
-			if job.finishedAt.IsZero() {
-				continue
-			}
-			if oldest == "" || job.finishedAt.Before(oldestTime) {
-				oldest, oldestTime = id, job.finishedAt
-			}
+}
+
+func (s *jobStore) evictOldestFinishedLocked() {
+	oldest := ""
+	var oldestTime time.Time
+	for id, job := range s.jobs {
+		if job.finishedAt.IsZero() {
+			continue
 		}
-		if oldest == "" {
-			return
+		if oldest == "" || job.finishedAt.Before(oldestTime) {
+			oldest, oldestTime = id, job.finishedAt
 		}
+	}
+	if oldest != "" {
 		delete(s.jobs, oldest)
 	}
 }
