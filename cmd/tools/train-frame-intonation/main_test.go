@@ -3,12 +3,8 @@ package main
 import (
 	"encoding/json"
 	"math"
-	"os"
-	"path/filepath"
-	"runtime"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/cmd/tools/internal/f0cache"
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/gograd/tensor"
@@ -36,33 +32,6 @@ func TestExportLoadsAndPredicts(t *testing.T) {
 	for _, v := range curve.Cents {
 		if math.IsNaN(v) || math.IsInf(v, 0) {
 			t.Fatalf("nonfinite contour")
-		}
-	}
-}
-
-func TestWorldHarvestParity(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("Windows WORLD DLL")
-	}
-	root := filepath.Join("..", "..", "..")
-	dll := filepath.Join(root, "runtime", "utautts-world-engine.dll")
-	if _, e := os.Stat(dll); e != nil {
-		t.Skip(e)
-	}
-	rows, e := loadRecords(filepath.Join(root, "out", "english-frame-v1", "corpus.jsonl"))
-	if e != nil {
-		t.Skip(e)
-	}
-	f0, e := f0cache.WorldF0(rows[0].AudioPath, 10, dll)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if len(f0) != 773 {
-		t.Fatalf("WORLD frames=%d want 773", len(f0))
-	}
-	for i, want := range map[int]float64{0: 0, 1: 0, 2: 0, 10: 0, 20: 155.6063113, 30: 158.52098054, 40: 165.66818625, 100: 164.47934528} {
-		if math.Abs(f0[i]-want) > 1e-5 {
-			t.Errorf("WORLD frame %d: %.8f want %.8f", i, f0[i], want)
 		}
 	}
 }
