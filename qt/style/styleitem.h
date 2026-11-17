@@ -18,6 +18,7 @@ class StyleItem : public QQuickPaintedItem {
     Q_PROPERTY(bool partiallyChecked MEMBER m_partiallyChecked WRITE setPartiallyChecked NOTIFY stateChanged)
     Q_PROPERTY(bool focused MEMBER m_focused WRITE setFocused NOTIFY stateChanged)
     Q_PROPERTY(bool flat MEMBER m_flat WRITE setFlat NOTIFY metricsChanged)
+    Q_PROPERTY(bool outlineOnly MEMBER m_outlineOnly WRITE setOutlineOnly NOTIFY stateChanged)
     Q_PROPERTY(bool highlighted MEMBER m_highlighted WRITE setHighlighted NOTIFY stateChanged)
     Q_PROPERTY(bool editable MEMBER m_editable WRITE setEditable NOTIFY metricsChanged)
     Q_PROPERTY(bool checkable MEMBER m_checkable WRITE setCheckable NOTIFY stateChanged)
@@ -97,6 +98,7 @@ public:
     void setPartiallyChecked(bool value) { assign(m_partiallyChecked, value); }
     void setFocused(bool value) { assign(m_focused, value); }
     void setFlat(bool value) { assignMetric(m_flat, value); }
+    void setOutlineOnly(bool value) { assign(m_outlineOnly, value); }
     void setHighlighted(bool value) { assign(m_highlighted, value); }
     void setEditable(bool value) { assignMetric(m_editable, value); }
     void setCheckable(bool value) { assign(m_checkable, value); }
@@ -168,6 +170,7 @@ private:
     bool m_partiallyChecked = false;
     bool m_focused = false;
     bool m_flat = false;
+    bool m_outlineOnly = false;
     bool m_highlighted = false;
     bool m_editable = false;
     bool m_checkable = false;

@@ -859,6 +859,7 @@ ApplicationWindow {
         id: editorContent
         window: window
         anchors.fill: parent
+        anchors.topMargin: -1
     }
 
     Loader {

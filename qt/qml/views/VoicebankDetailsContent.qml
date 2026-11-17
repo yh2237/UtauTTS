@@ -63,21 +63,23 @@ GridLayout {
             text: "readme.txt"
             font.bold: true
         }
-        ScrollView {
-            id: voicebankReadmeScroll
+        ListFrame {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            contentWidth: availableWidth
-            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-            // 出入りで幅が変わると折り返しと高さが循環するので、縦のスクロールバーは常に出す。
-            ScrollBar.vertical.policy: ScrollBar.AlwaysOn
-            TextArea {
-                width: voicebankReadmeScroll.availableWidth
-                text: content.selectedVoicebank ? (content.selectedVoicebank.readme_text || content.translator.tr("voicebankDetails.noReadme")) : ""
-                textFormat: TextEdit.PlainText
-                readOnly: true
-                selectByMouse: true
-                wrapMode: TextEdit.Wrap
+            ScrollView {
+                id: voicebankReadmeScroll
+                anchors.fill: parent
+                contentWidth: availableWidth
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                ScrollBar.vertical.policy: ScrollBar.AlwaysOn
+                TextArea {
+                    width: voicebankReadmeScroll.availableWidth
+                    text: content.selectedVoicebank ? (content.selectedVoicebank.readme_text || content.translator.tr("voicebankDetails.noReadme")) : ""
+                    textFormat: TextEdit.PlainText
+                    readOnly: true
+                    selectByMouse: true
+                    wrapMode: TextEdit.Wrap
+                }
             }
         }
     }

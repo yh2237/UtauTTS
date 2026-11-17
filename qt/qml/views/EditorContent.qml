@@ -10,7 +10,6 @@ import UtauTTS.Media
         readonly property bool mobileLayout: window.mobileLayout
         readonly property bool extendedPitchEditorVisible: pitchModeTabs.currentIndex === 1
         readonly property bool referenceMatching: methodCombo.currentValue === "reference-matching"
-        // 合成後に音量を動かすと、次のプレビューまで原音エディタはモーラ単位の仮の並びになる。番号がずれないよう、同じ文章の合成結果を使う。
         readonly property var volumeUnits: window.hasCurrentSynthesisLayout() && window.synthesisUnits.length
                                            ? window.synthesisUnits : phonemeEditor.units
 
@@ -304,6 +303,15 @@ import UtauTTS.Media
                 SplitView.minimumWidth: visible ? 238 : 0
                 SplitView.maximumWidth: visible ? 340 : 0
                 padding: 0
+                background: Rectangle {
+                    color: window.palette.window
+                    Rectangle {
+                        visible: !editorSplitView.mobileLayout
+                        width: 1
+                        height: parent.height
+                        color: Theme.frameLine
+                    }
+                }
 
                 ScrollView {
                     id: parameterScroll
@@ -774,6 +782,11 @@ import UtauTTS.Media
             clip: true
             background: Rectangle {
                 color: window.palette.window
+                Rectangle {
+                    width: parent.width
+                    height: 1
+                    color: Theme.frameLine
+                }
             }
 
             ButtonGroup {
@@ -861,7 +874,7 @@ import UtauTTS.Media
                         anchors.bottom: parent.bottom
                         anchors.top: pitchModeTabs.bottom
                         anchors.topMargin: -overlap
-                        contentMargin: frameWidth
+                        contentMargin: 0
 
                         StackLayout {
                             id: pitchModeStack

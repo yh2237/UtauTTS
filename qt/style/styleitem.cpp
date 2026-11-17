@@ -560,7 +560,6 @@ void StyleItem::paint(QPainter *painter) {
         case OnlyOneTab: option.position = QStyleOptionTab::OnlyOneTab; break;
         }
         option.selectedPosition = QStyleOptionTab::NotAdjacent;
-        // QTabWidget の中のタブと同じく、地を枠の色にそろえる。
         option.features |= QStyleOptionTab::HasFrame;
         if (m_checked)
             option.state |= QStyle::State_Selected;
@@ -572,6 +571,10 @@ void StyleItem::paint(QPainter *painter) {
         initOption(option);
         option.shape = QTabBar::RoundedNorth;
         option.lineWidth = style->pixelMetric(QStyle::PM_DefaultFrameWidth);
+        if (m_outlineOnly)
+            painter->setClipRegion(QRegion(option.rect)
+                                   - QRegion(option.rect.adjusted(option.lineWidth, option.lineWidth,
+                                                                  -option.lineWidth, -option.lineWidth - 1)));
         style->drawPrimitive(QStyle::PE_FrameTabWidget, &option, painter);
         break;
     }
@@ -658,7 +661,6 @@ void StyleItem::paint(QPainter *painter) {
         }
         style->drawControl(QStyle::CE_HeaderSection, &option, painter);
         if (m_sortIndicator != Unsorted) {
-            // QHeaderView と同じく、昇順を SortDown として渡す（Windows では上向きの矢印になる）。
             option.sortIndicator = m_sortIndicator == Ascending ? QStyleOptionHeader::SortDown
                                                                 : QStyleOptionHeader::SortUp;
             option.rect = style->subElementRect(QStyle::SE_HeaderArrow, &option);

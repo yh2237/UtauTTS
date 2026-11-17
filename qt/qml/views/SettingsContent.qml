@@ -21,7 +21,6 @@ Item {
 
     property int currentPage: 0
     SettingsDraft { id: draftObject }
-    // draftは、設定画面の編集中の値。保存時にまとめて書き出す。
     property QtObject draft: draftObject
     property alias pendingDefaultVoicebankId: draftObject.defaultVoicebankId
     property alias pendingDefaultModelId: draftObject.defaultModelId
@@ -440,7 +439,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.topMargin: -overlap
-            contentMargin: frameWidth
+            contentMargin: 0
 
             StackLayout {
                 anchors.fill: parent

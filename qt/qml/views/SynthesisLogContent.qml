@@ -10,7 +10,6 @@ ColumnLayout {
     required property var translator
     signal closeRequested()
 
-    // 成否はbackend.errorで判断する。合成を始めるときに消える。
     readonly property bool failed: !content.backend.busy && content.backend.error.length > 0
 
     Label {
@@ -25,18 +24,21 @@ ColumnLayout {
         wrapMode: Text.Wrap
     }
 
-    ScrollView {
-        id: synthesisLogScroll
+    ListFrame {
         Layout.fillWidth: true
         Layout.fillHeight: true
-        TextArea {
-            id: synthesisLogText
-            width: synthesisLogScroll.availableWidth
-            text: content.backend.logLines.join("\n")
-            readOnly: true
-            selectByMouse: true
-            wrapMode: TextEdit.Wrap
-            onTextChanged: cursorPosition = length
+        ScrollView {
+            id: synthesisLogScroll
+            anchors.fill: parent
+            TextArea {
+                id: synthesisLogText
+                width: synthesisLogScroll.availableWidth
+                text: content.backend.logLines.join("\n")
+                readOnly: true
+                selectByMouse: true
+                wrapMode: TextEdit.Wrap
+                onTextChanged: cursorPosition = length
+            }
         }
     }
 

@@ -69,24 +69,27 @@ GridLayout {
         onClicked: index => content.currentIndex = index
     }
 
-    ScrollView {
-        id: documentScroll
+    ListFrame {
         Layout.fillWidth: true
         Layout.fillHeight: true
-        contentWidth: availableWidth
-        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-        // 出入りで幅が変わると折り返しと高さが循環するので、縦のスクロールバーは常に出す。
-        ScrollBar.vertical.policy: ScrollBar.AlwaysOn
-        TextArea {
-            width: documentScroll.availableWidth
-            text: content.currentDocument ? content.currentDocument.text : ""
-            textFormat: TextEdit.PlainText
-            font: content.compact ? Qt.font({family: Qt.application.font.family, pixelSize: Theme.fontMedium}) : Qt.application.font
-            leftPadding: content.compact ? 0 : Theme.spacingMedium
-            rightPadding: content.compact ? 0 : Theme.spacingMedium
-            readOnly: true
-            selectByMouse: true
-            wrapMode: TextEdit.Wrap
+        framed: !content.compact
+        ScrollView {
+            id: documentScroll
+            anchors.fill: parent
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: ScrollBar.AlwaysOn
+            TextArea {
+                width: documentScroll.availableWidth
+                text: content.currentDocument ? content.currentDocument.text : ""
+                textFormat: TextEdit.PlainText
+                font: content.compact ? Qt.font({family: Qt.application.font.family, pixelSize: Theme.fontMedium}) : Qt.application.font
+                leftPadding: content.compact ? 0 : Theme.spacingMedium
+                rightPadding: content.compact ? 0 : Theme.spacingMedium
+                readOnly: true
+                selectByMouse: true
+                wrapMode: TextEdit.Wrap
+            }
         }
     }
 }

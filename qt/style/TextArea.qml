@@ -12,7 +12,6 @@ T.TextArea {
                              implicitBackgroundHeight + topInset + bottomInset,
                              placeholder.implicitHeight + topPadding + bottomPadding)
 
-    // QTextEdit と同じく、枠の内側に文書の余白（QTextDocument の既定値4）を空ける。
     padding: painter.pixelMetric(StyleItem.DefaultFrameWidth) + 4
     color: control.palette.text
     selectionColor: control.palette.highlight
@@ -34,10 +33,9 @@ T.TextArea {
         renderType: control.renderType
     }
 
-    // ScrollView に入れたときは、枠を ScrollView 側に任せて二重にしない。
     background: StyleItem {
         id: painter
-        visible: !(control.parent instanceof Flickable)
+        visible: !(control.parent && control.parent.parent instanceof Flickable)
         element: StyleItem.TextField
         hovered: control.hovered
         focused: control.activeFocus

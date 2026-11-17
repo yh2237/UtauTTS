@@ -395,14 +395,17 @@ Item {
                 font.pixelSize: Theme.fontSmall
             }
 
-            ScrollView {
+            ListFrame {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 150
-                clip: true
-                TextArea {
-                    readOnly: true
-                    wrapMode: Text.WordWrap
-                    text: host.updateReleaseNotes + (host.updateReleaseNotes.length ? "\n\n" : "") + host.updateReleaseUrl
+                ScrollView {
+                    anchors.fill: parent
+                    clip: true
+                    TextArea {
+                        readOnly: true
+                        wrapMode: Text.WordWrap
+                        text: host.updateReleaseNotes + (host.updateReleaseNotes.length ? "\n\n" : "") + host.updateReleaseUrl
+                    }
                 }
             }
 

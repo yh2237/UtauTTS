@@ -7,7 +7,6 @@ Item {
     id: root
 
     readonly property int overlap: frame.pixelMetric(StyleItem.TabBarBaseOverlap)
-    readonly property real frameWidth: frame.paddingLeft
     property int contentMargin: Theme.spacing
     default property alias content: contentHost.data
 
@@ -21,6 +20,13 @@ Item {
         id: contentHost
         anchors.fill: parent
         anchors.margins: root.contentMargin
+        anchors.bottomMargin: root.contentMargin + 1
         clip: true
+    }
+
+    StyleItem {
+        anchors.fill: parent
+        element: StyleItem.TabFrame
+        outlineOnly: true
     }
 }
