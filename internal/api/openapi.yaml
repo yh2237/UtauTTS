@@ -452,8 +452,10 @@ components:
         frame_ms:
           type: number
           default: 0
-          minimum: 0
-          description: framesモードの補正値の間隔（ミリ秒）。正なら先頭から指定間隔で適用し、配列の範囲外は0。省略または0なら発話全体へ伸縮する。
+          oneOf:
+            - enum: [0]
+            - minimum: 1
+          description: framesモードの補正値の間隔（ミリ秒）。1以上なら先頭から指定間隔で適用し、配列の範囲外は0。省略または0なら発話全体へ伸縮する。
     ManualPitchPoint:
       type: object
       additionalProperties: false

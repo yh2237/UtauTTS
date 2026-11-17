@@ -73,8 +73,8 @@ func (file *ManualPitchFile) Validate() error {
 		}
 	}
 	if file.Mode == "frames" {
-		if math.IsNaN(file.FrameMS) || math.IsInf(file.FrameMS, 0) || file.FrameMS < 0 {
-			return fmt.Errorf("manual pitch frame_ms must be finite and non-negative")
+		if math.IsNaN(file.FrameMS) || math.IsInf(file.FrameMS, 0) || file.FrameMS < 0 || (file.FrameMS > 0 && file.FrameMS < 1) {
+			return fmt.Errorf("manual pitch frame_ms must be 0 or at least 1 millisecond")
 		}
 		if len(file.Frames) > 20000 {
 			return fmt.Errorf("manual pitch frames are limited to 20000 entries")
@@ -88,16 +88,20 @@ func (file *ManualPitchFile) Validate() error {
 	return nil
 }
 
-// Curveは疎なモーラ補正を滑らかな10msフレーム輪郭へ変換する。
+// Curveはモーラ補正とフレーム補正を同じ時間軸へ補間して合算する。
 func (file *ManualPitchFile) Curve(morae []frontend.Mora, timings []MoraTiming, durationMS float64) (*PitchContour, error) {
 	if file == nil {
 		return nil, nil
 	}
-	curve, err := file.pointCurve(morae, timings, durationMS)
+	frameMS := 10.0
+	if file.Mode == "frames" && file.FrameMS > 0 {
+		frameMS = min(frameMS, file.FrameMS)
+	}
+	curve, err := file.pointCurve(morae, timings, durationMS, frameMS)
 	if err != nil || file.Mode != "frames" {
 		return curve, err
 	}
-	frames, err := file.frameCurve(durationMS)
+	frames, err := file.frameCurve(durationMS, frameMS)
 	if err != nil || curve == nil {
 		return frames, err
 	}
@@ -107,7 +111,7 @@ func (file *ManualPitchFile) Curve(morae []frontend.Mora, timings []MoraTiming, 
 	return curve, nil
 }
 
-func (file *ManualPitchFile) pointCurve(morae []frontend.Mora, timings []MoraTiming, durationMS float64) (*PitchContour, error) {
+func (file *ManualPitchFile) pointCurve(morae []frontend.Mora, timings []MoraTiming, durationMS, frameMS float64) (*PitchContour, error) {
 	if len(file.Points) == 0 {
 		return nil, nil
 	}
@@ -144,7 +148,6 @@ func (file *ManualPitchFile) pointCurve(morae []frontend.Mora, timings []MoraTim
 		centers = append(centers, timings[index].StartMS+timings[index].DurationMS/2)
 		centerValues = append(centerValues, values[index])
 	}
-	frameMS := 10.0
 	length := max(2, int(math.Ceil(durationMS/frameMS))+1)
 	curve := make([]float64, length)
 	if len(centers) == 0 {
@@ -157,8 +160,7 @@ func (file *ManualPitchFile) pointCurve(morae []frontend.Mora, timings []MoraTim
 	return &PitchContour{FrameMS: frameMS, Cents: curve}, nil
 }
 
-func (file *ManualPitchFile) frameCurve(durationMS float64) (*PitchContour, error) {
-	frameMS := 10.0
+func (file *ManualPitchFile) frameCurve(durationMS, frameMS float64) (*PitchContour, error) {
 	if durationMS <= 0 {
 		return nil, fmt.Errorf("manual pitch duration must be positive")
 	}

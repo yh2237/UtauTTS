@@ -132,9 +132,9 @@ function call(method, request) {
   assert.equal(prediction.prosody_model_applied, true);
   assert.ok(prediction.frame_pitch_cents.length > 0);
   const data = call("synthesize", { ...base, output_path: OUTPUT_PATH });
-  assert.equal(data.engine, "utautts-world-phrase");
+  assert.equal(data.method, base.method);
   assert.ok(data.reading.length > 0 && data.duration_ms > 0 && data.units.length > 0);
-  console.log("synthesize:", data.engine, data.reading, data.duration_ms.toFixed(1) + "ms");
+  console.log("synthesize:", data.method, data.reading, data.duration_ms.toFixed(1) + "ms");
 
   const wav = virtualFs.readFile(OUTPUT_PATH);
   if (!wav) throw new Error("output WAV not found in virtual fs");
@@ -145,6 +145,21 @@ function call(method, request) {
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, "utautts.wav"), Buffer.from(wav));
   console.log("wav bytes:", wav.length, "->", path.join(outDir, "utautts.wav"));
+
+  const firstMora = prediction.morae.findIndex(mora => !mora.pause);
+  assert.ok(firstMora >= 0);
+  const editedPath = "/out/utautts-edited.wav";
+  const edited = call("synthesize", { ...base, output_path: editedPath, manual_pitch: {
+    version: 1, reading: data.reading, mode: "frames", frame_ms: 5,
+    frames: [0, 20, 0], points: [{ position: firstMora, cents: 100 }],
+  } });
+  assert.equal(edited.method, base.method);
+  assert.equal(edited.reading, data.reading);
+  const editedWav = virtualFs.readFile(editedPath);
+  assert.ok(editedWav && editedWav.length > 44);
+  assert.notDeepEqual(Buffer.from(editedWav), Buffer.from(wav));
+  fs.writeFileSync(path.join(outDir, "utautts-edited.wav"), Buffer.from(editedWav));
+  console.log("combined manual pitch:", editedWav.length, "bytes");
   process.exit(0);
 })().catch((error) => {
   console.error(error);

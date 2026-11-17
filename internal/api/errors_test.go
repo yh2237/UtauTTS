@@ -99,13 +99,17 @@ func TestSynthesisReportReturnsDiagnostics(t *testing.T) {
 
 func TestSynthesisAcceptsCombinedManualPitch(t *testing.T) {
 	server := newWaveformTestServer(t)
-	body := `{"method":"waveform-synthesis","language":"ja","kana":"あ","voicebank_id":"test",` +
-		`"manual_pitch":{"version":1,"mode":"frames","frame_ms":10,"frames":[0,25,0],` +
-		`"points":[{"position":0,"cents":100}]}}`
-	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/report", strings.NewReader(body)))
-	if response.Code != http.StatusOK {
-		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	for _, step := range []string{"0", "1", "2.5", "5", "10"} {
+		t.Run(step+"ms", func(t *testing.T) {
+			body := `{"method":"waveform-synthesis","language":"ja","kana":"あ","voicebank_id":"test",` +
+				`"manual_pitch":{"version":1,"mode":"frames","frame_ms":` + step + `,"frames":[0,25,0],` +
+				`"points":[{"position":0,"cents":100}]}}`
+			response := httptest.NewRecorder()
+			server.Handler().ServeHTTP(response, localRequest(http.MethodPost, "/api/synthesize/report", strings.NewReader(body)))
+			if response.Code != http.StatusOK {
+				t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+			}
+		})
 	}
 }
 

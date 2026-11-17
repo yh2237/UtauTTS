@@ -88,6 +88,36 @@ func TestManualPitchFramesKeepTheirSampleTimes(t *testing.T) {
 	}
 }
 
+func TestManualPitchFramesPreserveSubTenMillisecondEdits(t *testing.T) {
+	for _, step := range []float64{1, 2.5, 5} {
+		for _, baseline := range []float64{0, 40} {
+			file := &ManualPitchFile{Version: 1, Mode: "frames", FrameMS: step, Frames: []float64{0, 100, 0}}
+			if baseline != 0 {
+				file.Points = []ManualPitchPoint{{Position: 0, Cents: baseline}}
+			}
+			if err := file.Validate(); err != nil {
+				t.Fatal(err)
+			}
+			curve, err := file.Curve([]frontend.Mora{{Text: "あ"}}, []MoraTiming{{DurationMS: 100}}, 100)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if curve.FrameMS != step || len(curve.Cents) != int(math.Ceil(100/step))+1 {
+				t.Fatalf("step=%g: curve metadata=%+v", step, curve)
+			}
+			for index, got := range curve.Cents {
+				want := baseline
+				if index == 1 {
+					want += 100
+				}
+				if got != want {
+					t.Fatalf("step=%g baseline=%g frame=%d got=%g want=%g", step, baseline, index, got, want)
+				}
+			}
+		}
+	}
+}
+
 func TestManualPitchFramesAddMoraOffsets(t *testing.T) {
 	file := &ManualPitchFile{Version: 1, Mode: "frames", FrameMS: 10, Frames: []float64{0, 25, 0},
 		Points: []ManualPitchPoint{{Position: 0, Cents: 100}, {Position: 2, Cents: 200}}}
@@ -112,7 +142,7 @@ func TestManualPitchFramesAddMoraOffsets(t *testing.T) {
 }
 
 func TestManualPitchFrameStepRejectsInvalidValues(t *testing.T) {
-	for _, step := range []float64{-1, math.Inf(1), math.NaN()} {
+	for _, step := range []float64{-1, 0.5, math.Inf(1), math.NaN()} {
 		file := &ManualPitchFile{Version: 1, Mode: "frames", FrameMS: step, Frames: []float64{0}}
 		if err := file.Validate(); err == nil {
 			t.Fatalf("frame_ms=%g was accepted", step)

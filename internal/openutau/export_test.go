@@ -174,8 +174,8 @@ func TestExportUSTX(t *testing.T) {
 	}
 	pitch := firstNote["pitch"].(map[string]any)
 	points := pitch["data"].([]any)
-	if len(points) != 2 {
-		t.Fatalf("pitch points = %d, want 2", len(points))
+	if len(points) != 15 {
+		t.Fatalf("pitch points = %d, want 15", len(points))
 	}
 	firstPoint := points[0].(map[string]any)
 	if y := firstPoint["y"]; y != 0 && y != float64(0) {
@@ -184,8 +184,8 @@ func TestExportUSTX(t *testing.T) {
 	secondNote := notes[1].(map[string]any)
 	pitch2 := secondNote["pitch"].(map[string]any)
 	pts2 := pitch2["data"].([]any)
-	if y := pts2[0].(map[string]any)["y"]; y != float64(5) && y != 5 {
-		t.Errorf("second note pitch y = %v, want 5 (50 cents / 10)", y)
+	if y := pts2[0].(map[string]any)["y"]; y != float64(2.5) {
+		t.Errorf("second note pitch y = %v, want 2.5 (25 cents at the note boundary / 10)", y)
 	}
 
 	if pos := firstPart["track_no"]; pos != 0 {

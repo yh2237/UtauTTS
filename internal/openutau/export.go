@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/prosody"
 	"gopkg.in/yaml.v3"
 )
 
@@ -257,49 +259,80 @@ func utteranceToVoicePart(utterance UtauTTSUtterance, trackIndex int, msToTicks 
 			positions = nil
 		}
 	}
-	var manualCurve *FrameCurve
-	if utterance.ManualPitchEdited {
-		for _, cents := range utterance.PitchFrames {
-			if math.Abs(cents) > 0.1 {
-				// GUIのフレーム補正は10ms刻みで、保存列より後は0として扱う。
-				frames := append(append([]float64(nil), utterance.PitchFrames...), 0)
-				manualCurve = &FrameCurve{FrameMS: 10, Cents: frames}
-				break
-			}
-		}
-	}
-
-	cursorTicks := 0
+	timings := make([]prosody.MoraTiming, len(utterance.AnalysisCache.Morae))
 	cursorMS := 0.0
+	durationMS := 0.0
 	usedPositions := len(positions) > 0
 	for index, mora := range utterance.AnalysisCache.Morae {
 		if mora.Pause {
 			if !usedPositions {
-				cursorTicks += msToTicks(pauseDuration)
+				timings[index] = prosody.MoraTiming{StartMS: cursorMS, DurationMS: pauseDuration}
 				cursorMS += pauseDuration
+				durationMS = math.Max(durationMS, cursorMS)
 			}
 			continue
 		}
-		durationMS := moraDuration
+		duration := moraDuration
 		if index < len(durations) && durations[index] > 0 {
-			durationMS = durations[index]
+			duration = durations[index]
 		}
-		positionMS := cursorMS
+		position := cursorMS
 		if usedPositions && index < len(positions) {
-			positionMS = positions[index]
+			position = positions[index]
 		}
+		timings[index] = prosody.MoraTiming{StartMS: position, DurationMS: duration}
+		cursorMS = position + duration
+		durationMS = math.Max(durationMS, cursorMS)
+	}
+
+	var manualCurve *FrameCurve
+	if utterance.ManualPitchEdited && (len(utterance.PitchPoints) > 0 || len(utterance.PitchFrames) > 0) {
+		manual := prosody.ManualPitchFile{Version: prosody.ManualPitchVersion, Mode: "offset"}
+		for _, cents := range utterance.PitchFrames {
+			if math.Abs(cents) > 0.1 {
+				manual.Mode = "frames"
+				manual.FrameMS = utterance.AutomaticFrameMS
+				if manual.FrameMS <= 0 {
+					manual.FrameMS = 10
+				}
+				manual.Frames = utterance.PitchFrames
+				break
+			}
+		}
+		morae := make([]frontend.Mora, len(timings))
+		for index, mora := range utterance.AnalysisCache.Morae {
+			morae[index] = frontend.Mora{Text: mora.Mora, Pause: mora.Pause}
+			if !mora.Pause && index < len(utterance.PitchPoints) {
+				manual.Points = append(manual.Points, prosody.ManualPitchPoint{Position: index, Cents: utterance.PitchPoints[index]})
+			}
+		}
+		if err := manual.Validate(); err != nil {
+			return USTXVoicePart{}, fmt.Errorf("manual pitch: %w", err)
+		}
+		contour, err := manual.Curve(morae, timings, durationMS)
+		if err != nil {
+			return USTXVoicePart{}, fmt.Errorf("manual pitch: %w", err)
+		}
+		if contour != nil {
+			manualCurve = &FrameCurve{FrameMS: contour.FrameMS, Cents: contour.Cents}
+		}
+	}
+
+	for index, mora := range utterance.AnalysisCache.Morae {
+		if mora.Pause {
+			continue
+		}
+		positionMS := timings[index].StartMS
+		durationMS := timings[index].DurationMS
 		positionTicks := msToTicks(positionMS)
 		durationTicks := msToTicks(durationMS)
 
-		manualOffset := 0.0
-		if manualCurve == nil && utterance.ManualPitchEdited && index < len(utterance.PitchPoints) {
-			manualOffset = utterance.PitchPoints[index]
+		automaticOffset := 0.0
+		if curve == nil && index < len(utterance.AutomaticPitchPoints) {
+			automaticOffset = utterance.AutomaticPitchPoints[index]
 		}
 		var pitchData []USTXPitchPoint
 		if curve != nil || manualCurve != nil {
-			if curve == nil && index < len(utterance.AutomaticPitchPoints) {
-				manualOffset += utterance.AutomaticPitchPoints[index]
-			}
 			// 発話全体のフレーム時刻を保ち、ノート境界でも曲線を切り落とさない。
 			span := math.Max(1, durationMS)
 			times := []float64{0, span}
@@ -320,17 +353,13 @@ func utteranceToVoicePart(utterance UtauTTSUtterance, trackIndex int, msToTicks 
 				if len(pitchData) > 0 && math.Abs(pitchData[len(pitchData)-1].X-t) < 1e-9 {
 					continue
 				}
-				cents := curveCentsAt(curve, positionMS+t) + curveCentsAt(manualCurve, positionMS+t) + manualOffset
+				cents := curveCentsAt(curve, positionMS+t) + curveCentsAt(manualCurve, positionMS+t) + automaticOffset
 				pitchData = append(pitchData, USTXPitchPoint{X: t, Y: cents / 10, Shape: "l"})
 			}
 		} else {
-			cents := manualOffset
-			if index < len(utterance.AutomaticPitchPoints) {
-				cents += utterance.AutomaticPitchPoints[index]
-			}
 			pitchData = []USTXPitchPoint{
-				{X: 0, Y: cents / 10, Shape: "io"},
-				{X: durationMS, Y: cents / 10, Shape: "io"},
+				{X: 0, Y: automaticOffset / 10, Shape: "io"},
+				{X: durationMS, Y: automaticOffset / 10, Shape: "io"},
 			}
 		}
 		// USTXのピッチ形式: Xはノート先頭からのms、Yは0.1半音単位。
@@ -347,8 +376,6 @@ func utteranceToVoicePart(utterance UtauTTSUtterance, trackIndex int, msToTicks 
 			},
 		}
 		part.Notes = append(part.Notes, note)
-		cursorTicks = positionTicks + durationTicks
-		cursorMS = positionMS + durationMS
 	}
 	if len(part.Notes) == 0 {
 		return USTXVoicePart{}, fmt.Errorf("no notes to export")
