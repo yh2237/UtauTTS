@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +15,24 @@ const maxJSONLLineBytes = 16 << 20
 
 // ScanJSONLBytesはBOMと空行を除き、各行をhandleへ渡す。lineは次のScanまで有効。
 func ScanJSONLBytes(data []byte, handle func(line []byte) error) error {
-	scanner := bufio.NewScanner(bytes.NewReader(bytes.TrimPrefix(data, []byte("\ufeff"))))
+	return scanJSONL(bytes.NewReader(data), handle)
+}
+
+func ScanJSONL(path string, handle func(line []byte) error) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return scanJSONL(file, handle)
+}
+
+func scanJSONL(reader io.Reader, handle func(line []byte) error) error {
+	buffered := bufio.NewReader(reader)
+	if prefix, _ := buffered.Peek(3); bytes.Equal(prefix, []byte("\ufeff")) {
+		_, _ = buffered.Discard(3)
+	}
+	scanner := bufio.NewScanner(buffered)
 	scanner.Buffer(make([]byte, 4096), maxJSONLLineBytes)
 	for scanner.Scan() {
 		line := scanner.Bytes()
@@ -26,14 +44,6 @@ func ScanJSONLBytes(data []byte, handle func(line []byte) error) error {
 		}
 	}
 	return scanner.Err()
-}
-
-func ScanJSONL(path string, handle func(line []byte) error) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	return ScanJSONLBytes(data, handle)
 }
 
 func CreateExclusive(path string) (*os.File, error) {

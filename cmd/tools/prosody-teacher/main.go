@@ -6,11 +6,14 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
+	"github.com/yh2237/UtauTTS/cmd/tools/internal/toolutil"
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 )
@@ -100,38 +103,40 @@ func main() {
 	outPath := flag.String("out", "out/speech-timing-target/ja-v10-teacher.jsonl", "teacher output JSONL")
 	flag.Parse()
 
-	model, err := prosody.LoadModel(*modelPath)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "load model:", err)
-		os.Exit(1)
-	}
-	file, err := os.Open(*dataset)
+	count, err := run(*dataset, *modelPath, *outPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	defer file.Close()
-	output, err := os.Create(*outPath)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	defer output.Close()
-	writer := bufio.NewWriter(output)
-	defer writer.Flush()
+	fmt.Printf("teacher done: %d\n", count)
+}
 
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 4096), 16<<20)
-	count := 0
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
+func run(dataset, modelPath, outPath string) (count int, err error) {
+	model, err := prosody.LoadModel(modelPath)
+	if err != nil {
+		return 0, fmt.Errorf("load model: %w", err)
+	}
+	output, err := toolutil.CreateExclusive(outPath)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		err = errors.Join(err, output.Close())
+		if err != nil {
+			err = errors.Join(err, os.Remove(output.Name()))
 		}
+	}()
+	return writeTeacher(model, dataset, output)
+}
+
+func writeTeacher(model *prosody.Model, dataset string, output io.Writer) (int, error) {
+	writer := bufio.NewWriter(output)
+	encoder := json.NewEncoder(writer)
+	count := 0
+	err := toolutil.ScanJSONL(dataset, func(line []byte) error {
 		var r record
-		if err := json.Unmarshal([]byte(line), &r); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+		if err := json.Unmarshal(line, &r); err != nil {
+			return err
 		}
 		morae := make([]frontend.Mora, len(r.Tokens))
 		frames := make([]prosody.FeatureFrame, len(r.Tokens))
@@ -149,20 +154,19 @@ func main() {
 		question := strings.HasSuffix(text, "?") || strings.HasSuffix(text, "？")
 		contour := model.PredictFrameContour(morae, frames, timings, durationMS, question)
 		if contour == nil {
-			fmt.Fprintln(os.Stderr, "no contour:", r.ID)
-			os.Exit(1)
+			return fmt.Errorf("no contour: %s", r.ID)
 		}
-		encoded, err := json.Marshal(teacherLine{ID: r.ID, FrameMS: contour.FrameMS, Cents: contour.Cents})
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+		if err := encoder.Encode(teacherLine{ID: r.ID, FrameMS: contour.FrameMS, Cents: contour.Cents}); err != nil {
+			return err
 		}
-		writer.Write(encoded)
-		writer.WriteByte('\n')
 		count++
 		if count%200 == 0 {
 			fmt.Printf("teacher %d\n", count)
 		}
+		return nil
+	})
+	if err != nil {
+		return count, err
 	}
-	fmt.Printf("teacher done: %d\n", count)
+	return count, writer.Flush()
 }
