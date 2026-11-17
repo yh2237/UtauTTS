@@ -11,6 +11,7 @@ const UtteranceCore = require("../qt/qml/UtteranceCore.js");
 const UnitOverrides = require("../qt/qml/UnitOverrides.js");
 const QmlCore = require("../qt/qml/QmlCore.js");
 const EditorValues = require("../qt/qml/EditorValues.js");
+const HistoryCore = require("../qt/qml/HistoryCore.js");
 const root = path.join(__dirname, "..");
 const source = name => fs.readFileSync(path.join(root, name), "utf8");
 
@@ -371,6 +372,47 @@ function sharedState(items) {
   context.qt = context.Qt;
   return context;
 }
+
+test("pitch history restores pitch application and the saved project state", () => {
+  for (const edit of [{ pointsJson: "[100]", manualPitchEdited: true },
+                      { pitchFramesJson: "[100]", manualPitchEdited: true }, {}]) {
+    const item = {
+      utteranceId: "a", content: "あ", language: "ja", phonemizer: "auto",
+      method: "waveform-synthesis", reading: "ア", moraeJson: '[{"mora":"ア"}]',
+      pointsJson: "[0]", pitchFramesJson: "[]", moraDurationsJson: "[]", moraPositionsJson: "[]",
+      autoPointsJson: "[]", autoPitchFramesJson: "[]", autoFrameMs: 10,
+      autoMoraDurationsJson: "[]", autoMoraPositionsJson: "[]", phonemeOverridesJson: "[]",
+      manualPitchEdited: false, manualMoraDurationEdited: false, trainingAccepted: false,
+      labEntryId: "", voicebankId: "voice", imagePath: "", modelId: "none", aliasPolicy: "auto",
+      tone: "", color: "", moraDuration: 120, pauseDuration: 180, leadingPreutterance: 0,
+      intonation: 1, applyPitch: false, revision: 0,
+    };
+    const host = sharedState([item]);
+    host.undoStack = [];
+    host.redoStack = [];
+    host.clearPlayback = () => {};
+    host.selectUtterance = () => {};
+    host.markUtteranceDirty = () => item.revision++;
+    Object.defineProperties(host, {
+      canUndo: { get: () => host.undoStack.length > 0 },
+      canRedo: { get: () => host.redoStack.length > 0 },
+    });
+    const context = { window: host, utterances: host.utterances,
+      mergeTimer: { restart() {}, stop() {} } };
+    host.savedProjectFingerprint = HistoryCore.editableFingerprint(context);
+    HistoryCore.beginHistoryChange(context, "pitch:a", false);
+    Object.assign(item, edit, { applyPitch: true });
+    HistoryCore.undo(context);
+    assert.equal(item.applyPitch, false);
+    assert.equal(item.manualPitchEdited, false);
+    assert.equal(host.projectDirty, false);
+    HistoryCore.redo(context);
+    assert.equal(item.applyPitch, true);
+    for (const [key, value] of Object.entries(edit))
+      assert.equal(item[key], value);
+    assert.equal(host.projectDirty, true);
+  }
+});
 
 test("shared controller rejects outdated prosody and resolves moved utterances by identity", () => {
   const items = [ { utteranceId: "a", revision: 2 }, { utteranceId: "b", revision: 0 } ];

@@ -203,6 +203,7 @@ function restoreHistorySnapshot(ctx, snapshot) {
         if (index < 0)
             continue;
         const item = ctx.utterances.get(index);
+        const savedApplyPitch = saved.applyPitch === undefined ? true : !!saved.applyPitch;
         if (item.content === saved.content
                 && item.reading === saved.reading
                 && item.moraeJson === saved.moraeJson
@@ -212,7 +213,8 @@ function restoreHistorySnapshot(ctx, snapshot) {
                 && item.moraPositionsJson === saved.moraPositionsJson
                 && item.phonemeOverridesJson === saved.phonemeOverridesJson
                 && item.manualPitchEdited === !!saved.manualPitchEdited
-                && item.manualMoraDurationEdited === !!saved.manualMoraDurationEdited)
+                && item.manualMoraDurationEdited === !!saved.manualMoraDurationEdited
+                && item.applyPitch === savedApplyPitch)
             continue;
         ctx.utterances.setProperty(index, "content", String(saved.content || ""));
         ctx.utterances.setProperty(index, "reading", String(saved.reading || ""));
@@ -225,6 +227,7 @@ function restoreHistorySnapshot(ctx, snapshot) {
                                    String(saved.phonemeOverridesJson || "[]"));
         ctx.utterances.setProperty(index, "manualPitchEdited", !!saved.manualPitchEdited);
         ctx.utterances.setProperty(index, "manualMoraDurationEdited", !!saved.manualMoraDurationEdited);
+        ctx.utterances.setProperty(index, "applyPitch", savedApplyPitch);
         host.markUtteranceDirty(index, false);
     }
     if (ctx.utterances.count) {
