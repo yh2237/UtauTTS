@@ -32,13 +32,15 @@ function applySettings(draft, backend) {
     backend.setExtendedDetailsVisible(draft.extendedDetailsVisible);
     backend.setDefaultVoicebank(draft.defaultVoicebankId);
     backend.setExportTextEncoding(draft.exportTextEncoding);
+    backend.setExportDirectory(draft.exportDirectory);
     backend.setShortcutSequences(draft.synthesizeShortcut,
                                  draft.saveProjectShortcut,
                                  draft.reloadVoicebanksShortcut,
                                  draft.addUtteranceShortcut,
                                  draft.removeUtteranceShortcut,
                                  draft.undoShortcut,
-                                 draft.redoShortcut);
+                                 draft.redoShortcut,
+                                 draft.exportShortcut);
 }
 
 // loadCurrentは、バックエンドの設定を編集中の値へ読み込む。
@@ -49,6 +51,7 @@ function loadCurrent(draft, backend, valid) {
     draft.defaultAliasPolicy = backend.defaultAliasPolicy;
     draft.defaultTone = backend.defaultTone;
     draft.exportTextEncoding = backend.exportTextEncoding;
+    draft.exportDirectory = backend.exportDirectory;
     draft.darkMode = backend.darkMode;
     draft.language = backend.language;
     draft.ffmpegPath = backend.ffmpegPath;
@@ -66,6 +69,7 @@ function loadCurrent(draft, backend, valid) {
     draft.removeUtteranceShortcut = backend.removeUtteranceShortcut;
     draft.undoShortcut = backend.undoShortcut;
     draft.redoShortcut = backend.redoShortcut;
+    draft.exportShortcut = backend.exportShortcut;
 }
 
 // defaultsは、各項目の初期値。defaultModelIdだけはカタログの先頭を使う。
@@ -90,12 +94,17 @@ const defaults = {
     addUtteranceShortcut: "Ctrl+D",
     removeUtteranceShortcut: "Delete",
     undoShortcut: "Ctrl+Z",
-    redoShortcut: "Ctrl+Y"
+    redoShortcut: "Ctrl+Y",
+    exportShortcut: "Ctrl+E"
 };
 
 function reset(draft, field, backend) {
     if (field === "defaultModelId") {
         draft.defaultModelId = backend.models.length ? String(backend.models[0].id) : "none";
+        return;
+    }
+    if (field === "exportDirectory") {
+        draft.exportDirectory = backend.defaultExportDirectory;
         return;
     }
     if (Object.prototype.hasOwnProperty.call(defaults, field))

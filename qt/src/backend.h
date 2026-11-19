@@ -74,6 +74,8 @@ class Backend final : public QObject {
     Q_PROPERTY(bool exportTextWithWav READ exportTextWithWav NOTIFY exportSettingsChanged)
     Q_PROPERTY(bool exportLabWithWav READ exportLabWithWav NOTIFY exportSettingsChanged)
     Q_PROPERTY(QString exportTextEncoding READ exportTextEncoding NOTIFY exportSettingsChanged)
+    Q_PROPERTY(QString exportDirectory READ exportDirectory NOTIFY exportSettingsChanged)
+    Q_PROPERTY(QString defaultExportDirectory READ defaultExportDirectory CONSTANT)
     Q_PROPERTY(QString synthesizeShortcut READ synthesizeShortcut NOTIFY shortcutSettingsChanged)
     Q_PROPERTY(QString saveProjectShortcut READ saveProjectShortcut NOTIFY shortcutSettingsChanged)
     Q_PROPERTY(QString reloadVoicebanksShortcut READ reloadVoicebanksShortcut NOTIFY shortcutSettingsChanged)
@@ -81,6 +83,7 @@ class Backend final : public QObject {
     Q_PROPERTY(QString removeUtteranceShortcut READ removeUtteranceShortcut NOTIFY shortcutSettingsChanged)
     Q_PROPERTY(QString undoShortcut READ undoShortcut NOTIFY shortcutSettingsChanged)
     Q_PROPERTY(QString redoShortcut READ redoShortcut NOTIFY shortcutSettingsChanged)
+    Q_PROPERTY(QString exportShortcut READ exportShortcut NOTIFY shortcutSettingsChanged)
     Q_PROPERTY(QStringList recentProjects READ recentProjects NOTIFY recentProjectsChanged)
     Q_PROPERTY(QStringList logLines READ logLines NOTIFY logsChanged)
     Q_PROPERTY(QString settingsError READ settingsError NOTIFY settingsErrorChanged)
@@ -131,6 +134,8 @@ public:
     bool exportTextWithWav() const { return m_exportTextWithWav; }
     bool exportLabWithWav() const { return m_exportLabWithWav; }
     QString exportTextEncoding() const { return m_exportTextEncoding; }
+    QString exportDirectory() const { return m_exportDirectory.isEmpty() ? defaultExportDirectory() : m_exportDirectory; }
+    QString defaultExportDirectory() const;
     QString synthesizeShortcut() const { return m_synthesizeShortcut; }
     QString saveProjectShortcut() const { return m_saveProjectShortcut; }
     QString reloadVoicebanksShortcut() const { return m_reloadVoicebanksShortcut; }
@@ -138,6 +143,7 @@ public:
     QString removeUtteranceShortcut() const { return m_removeUtteranceShortcut; }
     QString undoShortcut() const { return m_undoShortcut; }
     QString redoShortcut() const { return m_redoShortcut; }
+    QString exportShortcut() const { return m_exportShortcut; }
     QStringList recentProjects() const { return m_recentProjects; }
     QStringList logLines() const { return m_logLines; }
     QString settingsError() const { return m_settingsError; }
@@ -162,7 +168,6 @@ public:
     Q_INVOKABLE void synthesize(const QVariantMap &request);
     Q_INVOKABLE void cancelSynthesis();
     Q_INVOKABLE bool savePreview(const QUrl &destination, bool withSidecars = false);
-    // Web版の一括書き出しは、1件ずつダウンロードせずZIPにまとめる。
     Q_INVOKABLE bool beginBatchArchive(const QString &fileName);
     Q_INVOKABLE bool addPreviewToBatchArchive(const QString &fileName, bool withSidecars);
     Q_INVOKABLE bool finishBatchArchive();
@@ -171,6 +176,7 @@ public:
     Q_INVOKABLE QUrl writeDragExo(const QUrl &directory, const QVariantList &files, int frameRate);
     Q_INVOKABLE QUrl defaultSaveFile(const QString &fileName) const;
     Q_INVOKABLE QUrl fileInDirectory(const QUrl &directory, const QString &fileName) const;
+    Q_INVOKABLE QUrl newExportFile(const QString &directory, const QString &fileName) const;
     Q_INVOKABLE QString localFileUrl(const QString &path) const;
     Q_INVOKABLE bool saveProject(const QUrl &destination, const QVariantMap &project);
     Q_INVOKABLE void exportUstx(const QUrl &destination, const QVariantMap &project);
@@ -216,13 +222,15 @@ public:
     Q_INVOKABLE void setDefaultVoicebank(const QString &value);
     Q_INVOKABLE void setExportSettings(bool writeText, bool writeLab, const QString &textEncoding);
     Q_INVOKABLE void setExportTextEncoding(const QString &textEncoding);
+    Q_INVOKABLE void setExportDirectory(const QString &path);
     Q_INVOKABLE void setShortcutSequences(const QString &synthesize,
                                           const QString &saveProject,
                                           const QString &reloadVoicebanks,
                                           const QString &addUtterance,
                                           const QString &removeUtterance,
                                           const QString &undo,
-                                          const QString &redo);
+                                          const QString &redo,
+                                          const QString &exportAudio);
     Q_INVOKABLE void setDictionaryEntries(const QVariantList &entries);
 
 signals:
@@ -365,6 +373,7 @@ private:
     bool m_exportTextWithWav = false;
     bool m_exportLabWithWav = false;
     QString m_exportTextEncoding = QStringLiteral("utf-8");
+    QString m_exportDirectory;
     QString m_synthesizeShortcut;
     QString m_saveProjectShortcut;
     QString m_reloadVoicebanksShortcut;
@@ -372,6 +381,7 @@ private:
     QString m_removeUtteranceShortcut;
     QString m_undoShortcut;
     QString m_redoShortcut;
+    QString m_exportShortcut;
     QStringList m_recentProjects;
     QStringList m_logLines;
     QString m_settingsError;

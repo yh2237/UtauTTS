@@ -706,6 +706,25 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
         return 1;
 
     {
+        const QString previousExportDirectory = backend.exportDirectory();
+        const QDir exportDirectory(temporary.filePath(QStringLiteral("export")));
+        QDir().mkpath(exportDirectory.path());
+        backend.setExportDirectory(exportDirectory.path());
+        QStringList files;
+        bool exported = true;
+        for (int round = 0; round < 2 && exported; ++round) {
+            exported = waitFor(backend, &Backend::previewReady, [&] {
+                QMetaObject::invokeMethod(rootObject, "exportCurrentAudio");
+            }, QStringLiteral("export to the export folder"));
+        }
+        files = exportDirectory.entryList(QDir::Files, QDir::Name);
+        backend.setExportDirectory(previousExportDirectory);
+        if (!exported || !require(files.size() == 6 && files.filter(QStringLiteral(" (2).")).size() == 3,
+                                  QStringLiteral("export to the export folder wrote: ") + files.join(QStringLiteral(", "))))
+            return 1;
+    }
+
+    {
         QVariantMap cancelRequest = commonRequest;
         cancelRequest.insert(QStringLiteral("text"), QStringLiteral("中止の確認です。"));
         QEventLoop loop;
@@ -794,6 +813,26 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
         }
     }
 
+    const QUrl firstExport = backend.newExportFile(temporary.path(), QStringLiteral("smoke.wav"));
+    const QUrl freshExport = backend.newExportFile(temporary.path(), QStringLiteral("export.wav"));
+    const QUrl createdExport = backend.newExportFile(temporary.filePath(QStringLiteral("created/export")),
+                                                     QStringLiteral("export.wav"));
+    if (!require(firstExport.toLocalFile() == temporary.filePath(QStringLiteral("smoke (2).wav"))
+                         && freshExport.toLocalFile() == temporary.filePath(QStringLiteral("export.wav"))
+                         && createdExport.toLocalFile() == temporary.filePath(QStringLiteral("created/export/export.wav"))
+                         && QFileInfo(temporary.filePath(QStringLiteral("created/export"))).isDir(),
+                 QStringLiteral("export file naming failed")))
+        return 1;
+    {
+        const QString previousExportDirectory = backend.exportDirectory();
+        backend.setExportDirectory(QString());
+        const bool defaulted = backend.exportDirectory() == backend.defaultExportDirectory()
+                && backend.defaultExportDirectory().endsWith(QStringLiteral("UtauTTS"));
+        backend.setExportDirectory(previousExportDirectory);
+        if (!require(defaulted, QStringLiteral("export folder default failed")))
+            return 1;
+    }
+
     const QUrl exoURL = backend.writeDragExo(QUrl::fromLocalFile(temporary.path()), QVariantList{wavURL}, 30);
     if (!require(exoURL.isLocalFile() && QFileInfo::exists(exoURL.toLocalFile()),
                  QStringLiteral("exo export failed: ") + backend.error()))
@@ -819,7 +858,7 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     backend.setSynthesisSetting(QStringLiteral("intonation_strength"), 2.5);
     backend.setSynthesisSetting(QStringLiteral("boundary_tone"), false);
     backend.setPreviewCacheFileCount(7);
-    backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y");
+    backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y", "Ctrl+E");
     if (!require(backend.defaultMoraDuration() == 130 && backend.defaultPauseDuration() == 190
                  && backend.defaultLeadingPreutterance() == 45
                  && backend.defaultModelId() == QStringLiteral("frame-intonation-tcn-v12")
@@ -828,7 +867,8 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  && backend.defaultTone() == QStringLiteral("D4")
                  && backend.defaultAliasPolicy() == QStringLiteral("cv-only")
                  && backend.synthesisSetting(QStringLiteral("boundary_tone"), true).toBool() == false
-                 && backend.undoShortcut() == QStringLiteral("Ctrl+Z"),
+                 && backend.undoShortcut() == QStringLiteral("Ctrl+Z")
+                 && backend.exportShortcut() == QStringLiteral("Ctrl+E"),
                  QStringLiteral("application settings failed")))
         return 1;
 

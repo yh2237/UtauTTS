@@ -163,9 +163,19 @@ function handlePreviewReady(ctx) {
         host.saveRequestPending = false;
         host.pendingUtteranceId = "";
         host.pendingRevision = -1;
-        const audioDestination = host.appBackend.defaultSaveFile(host.audioFileName(ctx.utterances.get(index)));
         if (host.appBackend.closeLogOnSuccess)
             host.closeLogWindow();
+        if (host.saveToExportDirectory) {
+            host.saveToExportDirectory = false;
+            const exportDestination = host.appBackend.newExportFile(host.appBackend.exportDirectory,
+                                                                    host.audioFileName(ctx.utterances.get(index)));
+            if (exportDestination.toString().length)
+                host.saveAudioTo(exportDestination, true);
+            else
+                host.showStatusNotice(host.translator.tr("main.exportDirectoryUnavailable", host.appBackend.exportDirectory));
+            return;
+        }
+        const audioDestination = host.appBackend.defaultSaveFile(host.audioFileName(ctx.utterances.get(index)));
         if (ctx.platform.hasNativeFileDialog) {
             ctx.saveDialog.currentFile = audioDestination;
             ctx.saveDialog.open();

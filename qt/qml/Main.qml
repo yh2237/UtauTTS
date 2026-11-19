@@ -257,6 +257,7 @@ ApplicationWindow {
     property bool pendingProsodyPreviewRefresh: false
     property bool saveRequestPending: false
     property bool saveWithSidecars: false
+    property bool saveToExportDirectory: false
     property bool saveAllWithSidecars: false
     property bool batchExportWithSidecars: false
     property bool playbackRequested: false
@@ -346,6 +347,13 @@ ApplicationWindow {
     }
 
 
+
+    Shortcut {
+        sequence: window.qtShortcutSequence(window.appBackend.exportShortcut)
+        enabled: Platform.hasNativeFileDialog && !window.settingsWindowVisible && !window.appBackend.busy
+                 && !window.batchExportActive && utterances.count > 0 && window.current().reading.length > 0
+        onActivated: window.exportCurrentAudio()
+    }
 
     Shortcut {
         sequence: StandardKey.New
@@ -1032,7 +1040,8 @@ ApplicationWindow {
                 settingsWindowRef.view.pendingAddUtteranceShortcut,
                 settingsWindowRef.view.pendingRemoveUtteranceShortcut,
                 settingsWindowRef.view.pendingUndoShortcut,
-                settingsWindowRef.view.pendingRedoShortcut
+                settingsWindowRef.view.pendingRedoShortcut,
+                settingsWindowRef.view.pendingExportShortcut
             ], shortcut => window.qtShortcutSequence(shortcut).toLowerCase())) {
             dialogs.shortcutConflictDialog.open();
             return;
@@ -1255,18 +1264,23 @@ ApplicationWindow {
 
     function dragAudioFileName(item, index) { return core.dragAudioFileName(item, index); }
 
-    function saveCurrentAudio(withSidecars) {
+    function saveCurrentAudio(withSidecars, toExportDirectory) {
         if (!utterances.count || window.appBackend.busy || window.batchExportActive || !window.current().reading.length)
             return;
         const item = window.current();
         window.clearPlayback();
         window.saveWithSidecars = withSidecars === true;
+        window.saveToExportDirectory = toExportDirectory === true;
         window.saveRequestPending = true;
         window.pendingUtteranceId = item.utteranceId;
         window.pendingRevision = item.revision;
         window.appBackend.clearLogs();
         window.showLogWindow();
         window.appBackend.synthesize(window.buildSynthesisRequest(item));
+    }
+
+    function exportCurrentAudio() {
+        window.saveCurrentAudio(true, true);
     }
 
     // WAVの保存は成否を窓の下端に出す。失敗の理由は編集画面とログに出る。

@@ -27,6 +27,7 @@ Item {
     property alias pendingDefaultAliasPolicy: draftObject.defaultAliasPolicy
     property alias pendingDefaultTone: draftObject.defaultTone
     property alias pendingExportTextEncoding: draftObject.exportTextEncoding
+    property alias pendingExportDirectory: draftObject.exportDirectory
     property alias pendingDarkMode: draftObject.darkMode
     property alias pendingLanguage: draftObject.language
     property alias pendingFfmpegPath: draftObject.ffmpegPath
@@ -44,6 +45,7 @@ Item {
     property alias pendingRemoveUtteranceShortcut: draftObject.removeUtteranceShortcut
     property alias pendingUndoShortcut: draftObject.undoShortcut
     property alias pendingRedoShortcut: draftObject.redoShortcut
+    property alias pendingExportShortcut: draftObject.exportShortcut
     property var languageCodes: root.backend.languageCodes()
     function languageLabels() {
         const labels = [];
@@ -240,6 +242,16 @@ Item {
         }
     }
 
+    FolderDialog {
+        id: exportFolderDialog
+        title: root.translator.tr("settings.exportDirectory")
+        onAccepted: {
+            const path = selectedFolder.toLocalFile();
+            if (path.length)
+                root.pendingExportDirectory = path;
+        }
+    }
+
     function referenceIndexVoicebankName(voicebank) {
         const voicebanks = root.backend.voicebanks;
         for (let index = 0; index < voicebanks.length; ++index) {
@@ -263,6 +275,7 @@ Item {
     function resetDefaultTone() { SettingsIO.reset(draftObject, "defaultTone"); }
     function resetPreviewCacheFileCount() { SettingsIO.reset(draftObject, "previewCacheFileCount"); }
     function resetExportTextEncoding() { SettingsIO.reset(draftObject, "exportTextEncoding"); }
+    function resetExportDirectory() { SettingsIO.reset(draftObject, "exportDirectory", root.backend); }
     function resetTheme() { SettingsIO.reset(draftObject, "darkMode"); }
     function resetLanguage() { SettingsIO.reset(draftObject, "language"); }
     function resetFfmpegPath() { SettingsIO.reset(draftObject, "ffmpegPath"); }
@@ -279,6 +292,7 @@ Item {
     function resetRemoveUtteranceShortcut() { SettingsIO.reset(draftObject, "removeUtteranceShortcut"); }
     function resetUndoShortcut() { SettingsIO.reset(draftObject, "undoShortcut"); }
     function resetRedoShortcut() { SettingsIO.reset(draftObject, "redoShortcut"); }
+    function resetExportShortcut() { SettingsIO.reset(draftObject, "exportShortcut"); }
 
     function defaultVoicebankIndex() {
         let id = String(root.pendingDefaultVoicebankId || "");
@@ -687,6 +701,30 @@ Item {
                             }
                         }
 
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: Platform.hasNativeFileDialog
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.exportDirectory")
+                            }
+                            TextField {
+                                id: exportDirectoryField
+                                Layout.preferredWidth: ffmpegPathField.visible ? ffmpegPathField.width : Theme.fieldWidthLarge
+                                text: root.pendingExportDirectory
+                                selectByMouse: true
+                                onTextEdited: root.pendingExportDirectory = text
+                            }
+                            Button {
+                                text: root.translator.tr("settings.exportDirectory.choose")
+                                onClicked: exportFolderDialog.open()
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetExportDirectory()
+                            }
+                        }
+
                     }
                 }
 
@@ -1091,6 +1129,39 @@ Item {
                             SettingsResetButton {
                                 translator: root.translator
                                 onResetRequested: root.resetRemoveUtteranceShortcut()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: Platform.hasNativeFileDialog
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.shortcut.export")
+                            }
+                            TextField {
+                                id: exportShortcutField
+                                Layout.preferredWidth: Theme.fieldWidth
+                                text: root.pendingExportShortcut
+                                readOnly: true
+                                selectByMouse: false
+                                onActiveFocusChanged: if (activeFocus) selectAll()
+                                Keys.onPressed: event => {
+                                    if (event.key === Qt.Key_Backspace || event.key === Qt.Key_Delete) {
+                                        root.pendingExportShortcut = "";
+                                        event.accepted = true;
+                                        return;
+                                    }
+                                    const sequence = root.shortcutFromEvent(event);
+                                    if (sequence.length) {
+                                        root.pendingExportShortcut = sequence;
+                                        event.accepted = true;
+                                    }
+                                }
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetExportShortcut()
                             }
                         }
                     }

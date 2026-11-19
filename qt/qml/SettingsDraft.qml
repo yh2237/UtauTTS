@@ -7,6 +7,7 @@ QtObject {
     property string defaultAliasPolicy: "auto"
     property string defaultTone: ""
     property string exportTextEncoding: "utf-8"
+    property string exportDirectory: ""
     property bool darkMode: false
     property string language: "auto"
     property string ffmpegPath: ""
@@ -24,4 +25,5 @@ QtObject {
     property string removeUtteranceShortcut: "Delete"
     property string undoShortcut: "Ctrl+Z"
     property string redoShortcut: "Ctrl+Y"
+    property string exportShortcut: "Ctrl+E"
 }
