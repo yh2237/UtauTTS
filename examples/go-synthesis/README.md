@@ -21,4 +21,4 @@ UtauTTS/
     open_jtalk_dic_utf_8-1.11/
 ```
 
-開発環境でOpen JTalkのライブラリや辞書が別の場所にある場合は、`-openjtalk-engine`と`-openjtalk-dictionary`で指定します。音源の配置は`-voice-dir`で変更できます。資源と音源の利用・再配布条件は、それぞれのライセンスに従ってください。
+開発環境でOpen JTalkのライブラリや辞書が別の場所にある場合は、`-openjtalk-engine` と `-openjtalk-dictionary` で指定します。音源ディレクトリは `-voice-dir` で変更できます。同梱データや音源の利用・再配布条件はそれぞれのライセンスに従ってください。

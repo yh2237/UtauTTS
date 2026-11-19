@@ -23,7 +23,7 @@
 
 ## F0ヘッドを持つモデル
 
-`frame-intonation-tcn-v12`のように、基準モデルにF0ヘッドを重ねるモデルは、`base_model_data`（または`base_model`）と`f0_head`を持ちます。
+`frame-intonation-tcn-v12` のように基準モデルへF0ヘッドを重ねるモデルは、`base_model_data`（または `base_model`）と `f0_head` を持ちます。
 
 ```json
 {
@@ -42,8 +42,8 @@
 }
 ```
 
-- `base_model_data`は基準モデルのJSONをそのまま埋め込みます。`base_model`に同じフォルダのJSONのパスを書くこともできます。
-- `f0_head`はF0（とエネルギー）ヘッドを持つsafetensorsをbase64にしたものです。
-- `use_energy`はエネルギーヘッドでモーラの音量を変えるか（未指定は使う）。
-- `base_blend`は基準モデルの抑揚曲線を混ぜる重み（0〜1）。
-- `pitch_offset_cents`はF0ヘッドの曲線全体へ足す高さ（-1200〜1200セント）。
+- `base_model_data`: 基準モデルのJSONをそのまま埋め込みます（`base_model` に同じフォルダ内のJSONパスを書くこともできます）。
+- `f0_head`: F0（およびエネルギー）ヘッドを持つsafetensorsをBase64エンコードした文字列。
+- `use_energy`: エネルギーヘッドでモーラ音量を変えるか（未指定時は有効）。
+- `base_blend`: 基準モデルの抑揚曲線を混ぜる重み（0〜1）。
+- `pitch_offset_cents`: F0ヘッドの曲線全体へ足す高さ（-1200〜1200セント）。

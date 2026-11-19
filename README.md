@@ -6,7 +6,7 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
 
 あとスター付けてくれるとめっちゃ喜びます
 
-> ボイスバンクを使う前に、各音源の利用規約を確認してください。UtauTTSはボイスバンクの利用で生じた問題について責任を負いません。
+> UtauTTSを使用する前に、各ボイスバンクの利用規約を確認してください。UtauTTSはボイスバンクの利用で生じた問題について責任を負いません。
 
 ## インストール
 
@@ -21,7 +21,7 @@ UTAUボイスバンクの原音接続とフレーム選択に、学習ベース�
 | `UtauTTS-Server-linux-x64.zip` | Linux x64向け HTTP Server単体版 |
 | `UtauTTS-Server-mac-arm64.zip` | Apple Silicon Mac向け HTTP Server単体版 |
 
-- Windows: ZIPを展開し、中の `utautts.exe` を実行します。
+- Windows: ZIPを展開し、`utautts.exe` を実行します。
 - Linux / macOS: 実行権限の付与などが必要です。[インストール手順](docs/installation.md) を参照してください。
 
 GUI版には初期音源として「足立レイ ver3.5.0」を同梱しています。利用条件は [同梱音源](docs/voicebank.md) と音源付属のライセンス文書を確認してください。
@@ -29,7 +29,7 @@ GUI版には初期音源として「足立レイ ver3.5.0」を同梱してい�
 ## 基本的な使い方
 
 1. 読み上げる文章を入力します。
-2. 必要なら、画面下部の「基本編集」で制御点や境界線をドラッグして、イントネーションと発音の長さを調整します。
+2. 必要に応じて画面下部の「基本編集」で制御点や境界線をドラッグし、イントネーションと発音の長さを調整します。
 3. `Ctrl + Enter` か再生ボタンで合成して再生します。
 4. 「ファイル」→「書き出し」→「WAVを保存...」で保存します。
 
@@ -39,7 +39,7 @@ GUI版には初期音源として「足立レイ ver3.5.0」を同梱してい�
 
 ## Web版
 
-インストールせずにブラウザで使えます。[Web版エディタ](https://utautts.yh.contact/editor/)。初回はエンジンやモデルの読み込みに時間がかかります。
+[Web版エディタ](https://utautts.yh.contact/editor/) からインストールせずにブラウザで使えます。初回はエンジンやモデルの読み込みに時間がかかります。
 
 ## CLI & HTTP Server
 
@@ -56,7 +56,7 @@ GUI版の `tools/utautts-cli.exe`（Linux / macOSは `tools/utautts-cli`）を�
 ```
 
 ### HTTP Server
-GUI版に同梱の `utautts-server.exe`（Linux / macOSは `utautts-server`）を実行します。GUIとは別に起動できます。
+同梱の `utautts-server.exe`（Linux / macOSは `utautts-server`）を実行します。GUIとは別に起動できます。
 
 ```powershell
 .\utautts-server.exe

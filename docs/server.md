@@ -8,21 +8,21 @@
 .\utautts-server.exe --voice-dir "voice" --port 8080
 ```
 
-起動後、ブラウザで `http://127.0.0.1:8080/` を開くとWebコンソールUIを使えます。
+起動後、ブラウザで `http://127.0.0.1:8080/` を開くとWebコンソールを使えます。
 
 > サーバーはローカル専用です。`--host` に指定できるのは `localhost` とloopback IP（`127.0.0.1`、`::1` など）だけで、既定は `127.0.0.1` です。`localhost` を指定すると、DNSを使わずに `127.0.0.1` で待ち受けます。
 
 | オプション | 既定値 | 内容 |
 | :--- | :--- | :--- |
 | `--port` | `8080` | 待ち受けポート |
-| `--host` | `127.0.0.1` | 待ち受けホスト。loopbackのみ |
+| `--host` | `127.0.0.1` | 待ち受けホスト（loopbackのみ） |
 | `--voice-dir` | `voice` | 音源のディレクトリ |
 | `--openjtalk-engine` / `--openjtalk-dictionary` | 空 | Open JTalkのライブラリと辞書 |
-| `--model-dir` | 空 | 抑揚モデルのディレクトリ。繰り返し指定できる |
+| `--model-dir` | 空 | 抑揚モデルのディレクトリ（繰り返し指定可） |
 | `--max-concurrent-synthesis` | `4` | 同時に実行する合成と読み解析の件数 |
 | `--max-concurrent-batches` | `2` | 同時に実行する一括合成の件数 |
-| `--queue-timeout` | `30s` | 実行枠が空くのを待つ上限。負なら要求の切断まで待つ |
-| `--write-timeout` | `10m` | 応答の書き込み期限 |
+| `--queue-timeout` | `30s` | 実行枠が空くまでの待機上限（負の値なら接続が切れるまで待機） |
+| `--write-timeout` | `10m` | レスポンスの書き込みタイムアウト |
 
 ---
 
@@ -52,44 +52,44 @@
 ## 共通の入力制限とエラー
 
 - JSON本文は1 MiBまでで、単一のJSONオブジェクトを指定します。未知のJSONフィールドは400で拒否します。
-- 1発話の `text` と有効な読み（`reading`、なければ `kana`）は、それぞれ500文字までです。
+- 1発話の `text` と有効な読み（`reading`、なければ `kana`）はそれぞれ500文字までです。
 - `manual_pitch.points` は最大1000個、`mora_durations_ms` は最大500要素です。
-- `mora_durations_ms` は休止を含む全モーラ数と同じ要素数を指定します。各値は0〜1000のミリ秒です。参照照合では、休止を飛ばすと値が別のモーラへずれるため、要素数が合わない要求はエラーになります。波形合成では部分的な配列も使えます。
+- `mora_durations_ms` は休止を含む全モーラ数と同じ要素数を指定します（各値は0〜1000ミリ秒）。参照照合では休止を飛ばすと値が別のモーラへずれるため、要素数が合わないリクエストはエラーになります。波形合成では部分配列も使えます。
 - `manual_pitch.points[].position` は休止を含む全モーラ番号で、休止の位置は指定できません。
-- `phone_weights` は休止を含む全モーラ番号の配列です。各要素はそのモーラの音素数と同じ長さの非負の比で、参照照合ではモーラ内の音素の長さの配分に使います。休止は空配列にします。
-- `consonant_ms`と`vowel_ms`は休止を含む全モーラ数と同じ長さの配列です。子音だけまたは母音だけのモーラでは、片方だけを指定できます。休止は0にします。
-- batchは最大16発話で、非圧縮WAVの合計は256 MiBまでです。
-- 同時に実行する合成と読み解析は既定で4件まで、batchの要求はさらに2件までです。件数は起動オプションで変えられます。空きを待つ順番は保証しません。
+- `phone_weights` は休止を含む全モーラ番号の配列です。各要素はそのモーラの音素数と同じ長さの非負の比で、参照照合ではモーラ内の音素の長さ配分に使います。休止は空配列にします。
+- `consonant_ms` と `vowel_ms` は休止を含む全モーラ数と同じ長さの配列です。子音だけまたは母音だけのモーラでは片方だけを指定できます。休止は0にします。
+- batchは最大16発話、非圧縮WAVの合計は256 MiBまでです。
+- 同時に実行する合成と読み解析は既定で4件まで、batchのリクエストはさらに2件までです（起動オプションで変更可）。空きを待つ順番は保証しません。
 
-文字数・要素数・発話数の上限は固定です。必要なら呼出し側で要求を分けてください。上限を超えると413を返します。
+文字数・要素数・発話数の上限は固定です。必要なら呼び出し側でリクエストを分けてください。上限を超えると413を返します。
 
-実行枠が空かないまま `--queue-timeout` を過ぎた要求は429を返します。`Retry-After` の秒数だけ待って再試行してください。現在の使用状況は `/api/health` の `synthesis` と `batch`（`limit`・`active`・`queued`）で分かります。
+実行枠が空かないまま `--queue-timeout` を過ぎると429を返します。`Retry-After` の秒数だけ待ってから再試行してください。現在の使用状況は `/api/health` の `synthesis` と `batch`（`limit`・`active`・`queued`）で確認できます。
 
 ### エラーの形式
 
-API処理のエラーは `{"error":"説明","code":"分類"}` と対応するHTTPステータスで返します。入力不正のときは、どの項目が悪いかを `field`、期待する形式を `expected` で添えます。
+エラー時は `{"error":"説明","code":"分類"}` と対応するHTTPステータスを返します。入力不正の場合は、該当項目を `field`、期待する形式を `expected` で添えます。
 
 ```json
 {"error":"mora_duration_ms must be between 0 and 1000","code":"invalid_request","field":"mora_duration_ms","expected":"0..1000"}
 ```
 
-未定義のパスへの404と、対応していないメソッドへの405も同じ形式です。405は `Allow` ヘッダーに使えるメソッドを返します。
+未定義のパスへの404と、未対応メソッドへの405も同じ形式です。405では `Allow` ヘッダーに許可メソッドを返します。
 
 | `code` | 内容・HTTPステータス |
 | :--- | :--- |
 | `invalid_request` | JSON・必須項目・範囲・ファイル名などの入力不正（400） |
 | `limit_exceeded` | 本文・文字数・編集要素・一括合成の上限超過（413） |
-| `unavailable` | 音源・モデル等の不足（400）、終了済みRuntime（503） |
+| `unavailable` | 音源・モデルなどの不足（400）、終了済みRuntime（503） |
 | `synthesis_error` | 読み解析・合成の失敗（422） |
-| `canceled` / `deadline_exceeded` | 要求のキャンセル・期限切れ（408） |
+| `canceled` / `deadline_exceeded` | リクエストのキャンセル・期限切れ（408） |
 | `forbidden` | 非ローカルのHost、別サイトからのブラウザ操作（403） |
 | `not_found` | 未定義のパス、存在しないジョブ（404） |
 | `method_not_allowed` | パスはあるがメソッドが違う（405） |
-| `too_many_requests` | 実行枠が空かないまま待ち時間の上限を過ぎた（429） |
+| `too_many_requests` | 実行枠が空かないまま待機上限を超過（429） |
 | `not_ready` | ジョブがまだ完了していない（409） |
 | `internal_error` | 再読込・一時ファイル・ZIP出力などの内部エラー（500） |
 
-CLIの `--json` が返す `error.code` は語彙が違います。同じ失敗は次のように対応します。
+CLIの `--json` が返す `error.code` とはコード名が異なります。対応関係は次のとおりです。
 
 | CLIの `code` | HTTPの `code` |
 | :--- | :--- |
@@ -119,25 +119,25 @@ CLIの `--json` が返す `error.code` は語彙が違います。同じ失敗�
 
 ### 主なパラメータ
 - `text` (string): 読み上げる文章（`reading` がなければ必須）。
-- `reading` (string): 読み（かな、ARPAbet、Pinyin）を直接指定するときに使用。
+- `reading` (string): 読み（かな、ARPAbet、Pinyin）を直接指定する場合に使用。
 - `language` (string): 言語（`ja`、`en`、`zh`、`es`、`pt`）。必須。
-- `method` (string): 合成の方式（`waveform-synthesis` か `reference-matching`）。必須。
+- `method` (string): 合成方式（`waveform-synthesis` または `reference-matching`）。必須。
 - `voicebank_id` (string): 音源ID。必須。
 - `model_id` (string): 抑揚モデルID。
 - `intonation_strength` (number): 抑揚の強さ（0〜8、既定値 `4.0`）。
 - `mora_duration_ms` (number): 基本モーラ長（既定値 `120`）。
 - `pause_duration_ms` (number): 句読点などの休止長（既定値 `180`）。
-- `settings` (object): `/api/settings` の設定をIDで指定する（例: `{"timing_warp": false}`）。使えない値は結果の`diagnostics`で返す。参照照合では `reference_blend`（`on` か `off`、既定値 `on`）も指定できる。`off` は近い録音の音を混ぜずに合成する。
+- `settings` (object): `/api/settings` の設定をIDで指定（例: `{"timing_warp": false}`）。無効な値は結果の `diagnostics` に返る。参照照合では `reference_blend`（`on` / `off`、既定値 `on`）も指定でき、`off` にすると近い録音の音を混ぜずに合成する。
 
 ### レスポンス
-- 成功すると、`200` と `Content-Type: audio/wav` でWAVを返します。
-- レスポンスヘッダーには解析した読みの `X-UtauTTS-Reading`、合成の方式の `X-UtauTTS-Method`、使えなかった設定などの診断の数の `X-UtauTTS-Diagnostic-Count` が付きます。
+- 成功すると `200` と `Content-Type: audio/wav` でWAVを返します。
+- レスポンスヘッダーには `X-UtauTTS-Reading`（解析した読み）、`X-UtauTTS-Method`（合成方式）、`X-UtauTTS-Diagnostic-Count`（無効な設定などの診断件数）が付きます。
 
 ---
 
 ## 診断の詳細（`POST /api/synthesize/report`）
 
-`X-UtauTTS-Diagnostic-Count` は件数だけなので、内容はこのエンドポイントで取得します。要求の形式は `/api/synthesize/audio` と同じで、WAVの代わりに合成結果の情報をJSONで返します。
+`X-UtauTTS-Diagnostic-Count` では件数しか分からないため、詳細は `/api/synthesize/report` で取得します。リクエスト形式は `/api/synthesize/audio` と同じで、WAVの代わりに合成結果の情報をJSONで返します。
 
 ```json
 {
@@ -155,13 +155,13 @@ CLIの `--json` が返す `error.code` は語彙が違います。同じ失敗�
 }
 ```
 
-`diagnostics` は使えなかった設定と描画時の警告です。`logs` は索引の作成など時間のかかる処理の途中経過です。
+`diagnostics` には無効な設定や合成時の警告、`logs` には索引の作成など時間のかかる処理の途中経過が入ります。
 
 ---
 
 ## 非同期合成（`POST /api/synthesize/jobs`）
 
-長い合成の進捗を知りたいときは、ジョブを作って状態を繰り返し問い合わせます。要求の形式は `/api/synthesize/audio` と同じです。入力不正は受け付け時に400・413で返るので、202が返れば要求は妥当です。
+長い合成の進捗を確認したい場合は、ジョブを作成して状態を繰り返し問い合わせます。リクエスト形式は `/api/synthesize/audio` と同じです。入力不正は受け付け時に400または413で返るため、202が返ればリクエストは受理されています。
 
 ```json
 {"job_id": "8f14e45fceea167a", "status": "queued", "status_url": "/api/synthesize/jobs/8f14e45fceea167a"}
@@ -180,12 +180,12 @@ CLIの `--json` が返す `error.code` は語彙が違います。同じ失敗�
 ```
 
 - `status` は `queued`（実行枠待ち）、`running`（合成中）、`succeeded`、`failed` のいずれかです。
-- `queue_position` は先に並んでいるジョブの数です。`queued` 以外では0です。
+- `queue_position` は先に並んでいるジョブの数です（`queued` 以外では0）。
 - `succeeded` になると `result` に `/api/synthesize/report` と同じ内容が入ります。
-- `failed` になると `error`・`code`・`field`・`expected` に失敗の内容が入ります。`code` は上の表と同じ語彙です。
-- 合成の途中経過は段階（`queued` / `running`）までで、進捗の割合は返しません。
+- `failed` になると `error`・`code`・`field`・`expected` に失敗内容が入ります（`code` は上のエラーコード表と共通）。
+- 途中経過は段階（`queued` / `running`）のみで、進捗率は返しません。
 
-完了したジョブの音声は `GET /api/synthesize/jobs/{job_id}/audio` で取得します。まだ完了していなければ409です。ジョブは完了から10分で消え、同時に保持するのは32件までです。あふれた要求は429を返します。
+完了したジョブの音声は `GET /api/synthesize/jobs/{job_id}/audio` で取得します（未完了なら409）。ジョブは完了から10分で消え、同時保持数は最大32件です。上限を超えたリクエストは429を返します。
 
 ---
 
@@ -208,8 +208,8 @@ GUIで調声したピッチ曲線を反映するときは、`manual_pitch` にce
 }
 ```
 - `mode`: `"offset"`（自動予測値に加算）、`"replace"`（手動値だけを使う）、`"frames"`（`frames` に並べた補正値を自動予測値に加算）。
-- `frame_ms`: `"frames"` モードの補正値の間隔（ミリ秒）。1以上の値を指定すると、発話の先頭からその間隔で適用し、配列の範囲外は0centとします。省略または0なら、配列全体を発話の長さに合わせて伸縮します。
+- `frame_ms`: `"frames"` モードの補正値の間隔（ミリ秒）。1以上の値を指定すると発話の先頭からその間隔で適用し、配列の範囲外は0centとします。省略または0なら配列全体を発話の長さに合わせて伸縮します。
 
-`position` は、読みのモーラ配列での0始まりの位置です。`mora` も指定すると、その位置のモーラと一致するかを検証します。休止のモーラは編集できず、指定していないモーラの補正は0centです。手動の曲線は原則10ms間隔に補間し、`frames` モードで `frame_ms` が1以上10未満ならその間隔を使います。急な変化は抑えます。
+`position` は読みのモーラ配列における0始まりの位置です。`mora` も指定すると、その位置のモーラと一致するか検証します。休止モーラは編集できず、未指定のモーラの補正は0centです。手動の曲線は原則10ms間隔に補間され（`frames` モードで `frame_ms` が1以上10未満ならその間隔を使用）、急激な変化は抑えます。
 
-`points` と `frames` の各補正値は±4800cent以内です。`frames` モードで `points` も指定すると、モーラ単位とフレーム単位の補正を加算します。`frames` は最大20000個です。補正値は自動予測値との差なので、GUIのピッチ欄が扱う±800centより大きくなることがあります。
+`points` と `frames` の各補正値は±4800cent以内、`frames` は最大20000個です。`frames` モードで `points` も指定すると、モーラ単位とフレーム単位の補正を加算します。補正値は自動予測値との差分のため、GUIのピッチ欄が扱う±800centを超えることがあります。

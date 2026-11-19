@@ -26,7 +26,7 @@
 
 ## macOS（Apple Silicon）
 
-署名と公証が済んでいないため、初回の起動時にセキュリティの警告が出る場合があります。
+署名と公証が済んでいないため、初回起動時にセキュリティ警告が出る場合があります。
 
 1. `UtauTTS-mac-arm64.zip` を展開します。
 2. ターミナルで展開先に移動し、隔離属性（quarantine）を外して起動します。
@@ -42,7 +42,7 @@
 
 Linux GUI版にはQt 6.5以降（Qt Quick, Qt Quick Controls, Qt Multimedia）と日本語フォントが必要です。
 
-Debian / Ubuntu系での導入例:
+Debian / Ubuntu系では次のコマンドで導入できます。
 ```bash
 sudo apt-get update
 sudo apt-get install -y fontconfig fonts-noto-cjk \
@@ -60,13 +60,13 @@ chmod +x utautts tools/*
 
 ## 更新
 
-更新にはアプリ内のアップデーターを使ってください。ZIPを手で上書きしないでください。更新では `voice/` と `config.ini` を残します。
+更新にはアプリ内のアップデーターを使ってください。ZIPを手動で上書きしないでください。更新しても `voice/` と `config.ini` は残ります。
 
 ---
 
 ## ボイスバンクの追加
 
-実行ファイルと同じ階層の `voice/` に、音源フォルダをそのまま置いてください（macOS版は `utautts.app` と同じ階層の `voice/`）。
+実行ファイルと同じ階層の `voice/` に音源フォルダをそのまま置いてください（macOS版は `utautts.app` と同じ階層の `voice/`）。
 
 ```text
 voice/
@@ -75,8 +75,8 @@ voice/
         └── *.wav
 ```
 
-- 置いたあとは、アプリを再起動するか「音源を再読込」を実行すると読み込まれます。
-- 配布ZIPは「音源を追加...」で選ぶと `voice/` 直下へ展開して登録します。
+- 配置後はアプリを再起動するか、「音源を再読込」を実行すると読み込まれます。
+- 配布ZIPは「音源を追加...」から選ぶと `voice/` 直下へ展開して登録されます。
 
 GUI版には「足立レイ ver3.5.0」を同梱しています。利用条件は [同梱音源](voicebank.md) を確認してください。
 
@@ -84,21 +84,23 @@ GUI版には「足立レイ ver3.5.0」を同梱しています。利用条件�
 
 ## HTTP Serverの起動
 
-GUI版でもServer単体版でも、展開先のフォルダで次のコマンドを実行します。GUIとは別に起動できます。
+GUI版でもServer単体版でも、展開先フォルダで次のコマンドを実行します。GUIとは別に起動できます。
 
-- Windows:
-  ```powershell
-  .\utautts-server.exe --voice-dir ".\voice"
-  ```
-- Linux:
-  ```bash
-  chmod +x utautts-server
-  ./utautts-server --voice-dir ./voice
-  ```
-- macOS:
-  ```bash
-  xattr -rc "utautts-server" runtime
-  ./utautts-server --voice-dir ./voice
-  ```
+### Windows
+```powershell
+.\utautts-server.exe --voice-dir ".\voice"
+```
 
-起動後、ブラウザで `http://127.0.0.1:8080/` を開くとWebコンソールが開きます。詳細は [UtauTTS Server](server.md) を参照してください。
+### Linux
+```bash
+chmod +x utautts-server
+./utautts-server --voice-dir ./voice
+```
+
+### macOS
+```bash
+xattr -rc "utautts-server" runtime
+./utautts-server --voice-dir ./voice
+```
+
+起動後、ブラウザで `http://127.0.0.1:8080/` を開くとWebコンソールが使えます。詳細は [UtauTTS Server](server.md) を参照してください。
