@@ -94,6 +94,13 @@ MenuBar {
                 onTriggered: root.host.exportCurrentAudio()
             }
             MenuItem {
+                text: root.host.translator.tr("menu.file.saveAllToExportDirectory")
+                visible: Platform.hasNativeFileDialog
+                height: visible ? implicitHeight : 0
+                enabled: !root.host.appBackend.busy && !root.host.batchExportActive && root.host.hasPlayableTextFrom(0)
+                onTriggered: root.host.exportAllAudio()
+            }
+            MenuItem {
                 text: root.host.translator.tr("menu.file.exportUstx")
                 enabled: utterances.count > 0 && !root.host.appBackend.busy && !root.host.batchExportActive
                 onTriggered: root.host.openUstxExportDialog()

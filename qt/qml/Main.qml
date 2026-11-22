@@ -158,18 +158,6 @@ ApplicationWindow {
     }
 
     Timer {
-        id: batchExportNoticeTimer
-        interval: 5000
-        onTriggered: window.batchExportNotice = ""
-    }
-
-    Timer {
-        id: statusNoticeTimer
-        interval: 5000
-        onTriggered: window.statusNotice = ""
-    }
-
-    Timer {
         id: textAnalysisTimer
         interval: 350
         repeat: false
@@ -262,11 +250,8 @@ ApplicationWindow {
     property bool batchExportWithSidecars: false
     property bool playbackRequested: false
     property string playbackError: ""
-    // 窓の下端に出す短い通知。書き出しの完了などに使う。
+    // 窓の中央に文字だけで出す短い通知。書き出しの結果などに使う。
     property string statusNotice: ""
-    readonly property string footerNotice: window.batchExportNotice.length > 0
-                                           ? window.translator.tr(window.batchExportNotice)
-                                           : window.statusNotice
     property bool batchExportActive: false
     property string batchAnalysisUtteranceId: ""
     property int batchExportIndex: -1
@@ -277,9 +262,9 @@ ApplicationWindow {
     property bool batchExportCancelRequested: false
     // Web版の一括書き出しをZIPにまとめているか。デスクトップでは常にfalse。
     property bool batchArchiveActive: false
-    // 書き出しの終わりを伝える文言のキー。空なら何も出さない。
-    property string batchExportNotice: ""
     property url batchExportDirectory
+    // 書き出し先への一括書き出しで、ファイル名ごとに使った数。
+    property var batchExportNameCounts: ({})
     property var dragExportFiles: []
     property bool dragExportSelectedOnly: false
     property int dragExportFrameRate: 60
@@ -353,6 +338,13 @@ ApplicationWindow {
         enabled: Platform.hasNativeFileDialog && !window.settingsWindowVisible && !window.appBackend.busy
                  && !window.batchExportActive && utterances.count > 0 && window.current().reading.length > 0
         onActivated: window.exportCurrentAudio()
+    }
+
+    Shortcut {
+        sequence: window.qtShortcutSequence(window.appBackend.exportAllShortcut)
+        enabled: Platform.hasNativeFileDialog && !window.settingsWindowVisible && !window.appBackend.busy
+                 && !window.batchExportActive && window.hasPlayableTextFrom(0)
+        onActivated: window.exportAllAudio()
     }
 
     Shortcut {
@@ -880,9 +872,28 @@ ApplicationWindow {
         }
     }
 
-    // 一括書き出しの進み具合と中止、書き出しの結果を窓の下端に出す。
+    Label {
+        id: statusNoticeLabel
+        anchors.centerIn: parent
+        width: Math.min(implicitWidth, parent.width - Theme.spacingXLarge * 2)
+        horizontalAlignment: Text.AlignHCenter
+        elide: Text.ElideMiddle
+        text: window.statusNotice
+        opacity: 0
+        visible: opacity > 0
+    }
+
+    SequentialAnimation {
+        id: statusNoticeAnimation
+        PropertyAction { target: statusNoticeLabel; property: "opacity"; value: 1 }
+        PauseAnimation { duration: 2000 }
+        NumberAnimation { target: statusNoticeLabel; property: "opacity"; to: 0; duration: 400 }
+        ScriptAction { script: window.statusNotice = "" }
+    }
+
+    // 一括書き出しの進み具合と中止を窓の下端に出す。
     footer: Rectangle {
-        visible: window.batchExportActive || window.footerNotice.length > 0
+        visible: window.batchExportActive
         height: visible ? footerRow.implicitHeight + Theme.spacing * 2 : 0
         color: window.palette.alternateBase
 
@@ -894,39 +905,22 @@ ApplicationWindow {
             spacing: Theme.spacingLarge
 
             Label {
-                visible: window.batchExportActive
                 text: window.translator.tr("main.batchExport.running")
             }
             ProgressBar {
                 Layout.fillWidth: true
-                visible: window.batchExportActive
                 from: 0
                 to: Math.max(1, window.batchExportQueue.length)
                 value: window.batchExportCompleted
             }
             Label {
-                visible: window.batchExportActive
                 text: window.translator.tr("main.batchExport.count",
                                            window.batchExportCompleted,
                                            window.batchExportQueue.length)
             }
             Button {
-                visible: window.batchExportActive
                 text: window.translator.tr("main.cancel")
                 onClicked: window.cancelBatchExport()
-            }
-            Label {
-                id: footerNoticeLabel
-                Layout.fillWidth: true
-                visible: !window.batchExportActive && window.footerNotice.length > 0
-                text: window.footerNotice
-                elide: Text.ElideMiddle
-                ToolTip.visible: footerNoticeHover.hovered && footerNoticeLabel.truncated
-                ToolTip.text: footerNoticeLabel.text
-
-                HoverHandler {
-                    id: footerNoticeHover
-                }
             }
         }
     }
@@ -1041,7 +1035,8 @@ ApplicationWindow {
                 settingsWindowRef.view.pendingRemoveUtteranceShortcut,
                 settingsWindowRef.view.pendingUndoShortcut,
                 settingsWindowRef.view.pendingRedoShortcut,
-                settingsWindowRef.view.pendingExportShortcut
+                settingsWindowRef.view.pendingExportShortcut,
+                settingsWindowRef.view.pendingExportAllShortcut
             ], shortcut => window.qtShortcutSequence(shortcut).toLowerCase())) {
             dialogs.shortcutConflictDialog.open();
             return;
@@ -1283,13 +1278,25 @@ ApplicationWindow {
         window.saveCurrentAudio(true, true);
     }
 
-    // WAVの保存は成否を窓の下端に出す。失敗の理由は編集画面とログに出る。
+    function exportAllAudio() {
+        if (!utterances.count || window.appBackend.busy || window.batchExportActive)
+            return;
+        const directory = window.appBackend.exportDirectory;
+        // 書き出し先を作れないときは、合成を始める前に知らせる。
+        if (!window.appBackend.exportFile(directory, "utautts.wav").toString().length) {
+            window.showStatusNotice(window.translator.tr("main.exportDirectoryUnavailable", directory));
+            return;
+        }
+        window.startBatchExport(window.appBackend.localFileUrl(directory), true, "export");
+    }
+
+    // WAVの保存は、できたときだけファイル名を知らせる。失敗の理由は編集画面とログに出る。
     function saveAudioTo(destination, withSidecars) {
         if (!destination || !destination.toString().length)
             return false;
         if (window.appBackend.savePreview(destination, withSidecars === true)) {
             window.showStatusNotice(window.translator.tr("main.saveWavDone",
-                                                         window.displayPath(destination)));
+                                                         window.projectFileName(window.displayPath(destination))));
             return true;
         }
         return false;
@@ -1297,10 +1304,7 @@ ApplicationWindow {
 
     function showStatusNotice(text) {
         window.statusNotice = String(text || "");
-        if (window.statusNotice.length)
-            statusNoticeTimer.restart();
-        else
-            statusNoticeTimer.stop();
+        statusNoticeAnimation.restart();
     }
 
     function openSaveAllDialog(withSidecars) {
@@ -2759,12 +2763,11 @@ ApplicationWindow {
         window.batchExportMode = mode;
         window.batchExportWithSidecars = withSidecars === true;
         window.batchExportQueue = queue;
+        window.batchExportNameCounts = ({});
         window.batchExportOriginalIndex = window.selectedIndex;
         window.batchExportIndex = 0;
         window.batchExportCompleted = 0;
         window.batchExportCancelRequested = false;
-        window.batchExportNotice = "";
-        batchExportNoticeTimer.stop();
         window.dragExportFiles = [];
         window.batchExportActive = true;
         window.batchAnalysisUtteranceId = "";
@@ -2780,14 +2783,14 @@ ApplicationWindow {
         Qt.callLater(function() { window.synthesizeBatchItem(); });
     }
 
-    function startBatchExport(directory, withSidecars) {
+    function startBatchExport(directory, withSidecars, mode) {
         const queue = [];
         for (let index = 0; index < utterances.count; ++index) {
             const item = utterances.get(index);
             if (item.reading.length || item.content.trim().length)
                 queue.push(index);
         }
-        window.beginBatchExport(directory, "save", queue, withSidecars);
+        window.beginBatchExport(directory, mode || "save", queue, withSidecars);
     }
 
     function startDragExport(directory) {
@@ -2864,10 +2867,9 @@ ApplicationWindow {
         window.batchExportQueue = [];
         window.pendingUtteranceId = "";
         window.pendingRevision = -1;
-        window.batchExportNotice = success ? "main.batchExport.done"
-                                           : cancelled ? "main.batchExport.cancelled"
-                                                       : "main.batchExport.failed";
-        batchExportNoticeTimer.restart();
+        window.showStatusNotice(window.translator.tr(success ? "main.batchExport.done"
+                                                     : cancelled ? "main.batchExport.cancelled"
+                                                                 : "main.batchExport.failed"));
         if (utterances.count)
             window.selectUtterance(Math.min(window.batchExportOriginalIndex, utterances.count - 1));
         if (success && (window.appBackend.closeLogOnSuccess || wasDragExport))

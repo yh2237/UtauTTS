@@ -185,6 +185,10 @@ void captureSynthesized(QObject *rootObject, const QString &directory) {
     window->show();
     settle();
     window->grabWindow().save(output.filePath(QStringLiteral("synthesized.png")));
+    QMetaObject::invokeMethod(rootObject, "showStatusNotice", Q_ARG(QVariant, QStringLiteral("utautts.wav")));
+    settle();
+    window->grabWindow().save(output.filePath(QStringLiteral("status-notice.png")));
+    QMetaObject::invokeMethod(rootObject, "showStatusNotice", Q_ARG(QVariant, QString()));
     if (QObject *pitchEditor = rootObject->findChild<QObject *>(QStringLiteral("pitchEditor"))) {
         const QVariant moraWidth = pitchEditor->property("moraWidth");
         const int windowWidth = window->width();
@@ -712,15 +716,76 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
         backend.setExportDirectory(exportDirectory.path());
         QStringList files;
         bool exported = true;
-        for (int round = 0; round < 2 && exported; ++round) {
+        for (int round = 0; round < 3 && exported; ++round) {
+            backend.setExportOverwrite(round == 2);
             exported = waitFor(backend, &Backend::previewReady, [&] {
+                rootObject->setProperty("statusNotice", QString());
                 QMetaObject::invokeMethod(rootObject, "exportCurrentAudio");
             }, QStringLiteral("export to the export folder"));
         }
         files = exportDirectory.entryList(QDir::Files, QDir::Name);
+        // 通知には、上書きしたファイルの名前だけを出す。
+        const QString notice = rootObject->property("statusNotice").toString();
+        const bool noticed = notice.contains(QStringLiteral(".wav")) && !notice.contains(QStringLiteral(" (2)"))
+                && !notice.contains(exportDirectory.path());
+        backend.setExportOverwrite(false);
         backend.setExportDirectory(previousExportDirectory);
         if (!exported || !require(files.size() == 6 && files.filter(QStringLiteral(" (2).")).size() == 3,
-                                  QStringLiteral("export to the export folder wrote: ") + files.join(QStringLiteral(", "))))
+                                  QStringLiteral("export to the export folder wrote: ") + files.join(QStringLiteral(", ")))
+                || !require(noticed, QStringLiteral("export to the export folder showed: ") + notice))
+            return 1;
+    }
+
+    {
+        const auto waitUntil = [](auto condition) {
+            QElapsedTimer elapsed;
+            elapsed.start();
+            while (!condition() && elapsed.elapsed() < asyncTimeoutMS) {
+                QEventLoop loop;
+                QTimer::singleShot(50, &loop, &QEventLoop::quit);
+                loop.exec();
+            }
+            return condition();
+        };
+        // 同じ文章のカードを2枚入れて、一度の書き出しの中で名前が重なる場合も確かめる。
+        QVariantMap batchProject = sampleProject(voicebankID, modelID);
+        const QVariant first = batchProject.value(QStringLiteral("utterances")).toList().first();
+        QVariantMap second = first.toMap();
+        second.insert(QStringLiteral("text"), QStringLiteral("さようなら"));
+        batchProject.insert(QStringLiteral("utterances"), QVariantList{first, second, first});
+        QMetaObject::invokeMethod(rootObject, "applyLoadedProject",
+                                  Q_ARG(QVariant, QVariant(batchProject)), Q_ARG(QVariant, QVariant()));
+        const QString previousExportDirectory = backend.exportDirectory();
+        const QDir exportDirectory(temporary.filePath(QStringLiteral("export-all")));
+        backend.setExportDirectory(exportDirectory.path());
+        const auto exportAll = [&] {
+            rootObject->setProperty("statusNotice", QString());
+            const bool started = waitUntil([&] {
+                if (!backend.busy())
+                    QMetaObject::invokeMethod(rootObject, "exportAllAudio");
+                return rootObject->property("batchExportActive").toBool();
+            });
+            return started && waitUntil([&] { return !rootObject->property("batchExportActive").toBool(); })
+                    && !rootObject->property("statusNotice").toString().isEmpty();
+        };
+        const bool numbered = exportAll();
+        const QStringList files = exportDirectory.entryList(QDir::Files, QDir::Name);
+        backend.setExportOverwrite(true);
+        const bool overwritten = exportAll();
+        const QStringList overwrittenFiles = exportDirectory.entryList(QDir::Files, QDir::Name);
+        backend.setExportOverwrite(false);
+        backend.setExportDirectory(invalidArchive.fileName() + QStringLiteral("/export"));
+        const bool refused = waitUntil([&] { return !backend.busy(); })
+                && QMetaObject::invokeMethod(rootObject, "exportAllAudio")
+                && !rootObject->property("batchExportActive").toBool()
+                && rootObject->property("statusNotice").toString().contains(backend.exportDirectory());
+        backend.setExportDirectory(previousExportDirectory);
+        if (!require(numbered && files.size() == 9 && files.filter(QStringLiteral("こんにちは (2).")).size() == 3
+                             && files.filter(QStringLiteral("さようなら")).size() == 3,
+                     QStringLiteral("export all to the export folder wrote: ") + files.join(QStringLiteral(", ")))
+                || !require(overwritten && overwrittenFiles == files,
+                            QStringLiteral("export all with overwrite wrote: ") + overwrittenFiles.join(QStringLiteral(", ")))
+                || !require(refused, QStringLiteral("export all did not refuse an unusable export folder")))
             return 1;
     }
 
@@ -813,14 +878,20 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
         }
     }
 
-    const QUrl firstExport = backend.newExportFile(temporary.path(), QStringLiteral("smoke.wav"));
-    const QUrl freshExport = backend.newExportFile(temporary.path(), QStringLiteral("export.wav"));
-    const QUrl createdExport = backend.newExportFile(temporary.filePath(QStringLiteral("created/export")),
-                                                     QStringLiteral("export.wav"));
+    const QUrl firstExport = backend.exportFile(temporary.path(), QStringLiteral("smoke.wav"));
+    const QUrl freshExport = backend.exportFile(temporary.path(), QStringLiteral("export.wav"));
+    const QUrl createdExport = backend.exportFile(temporary.filePath(QStringLiteral("created/export")),
+                                                  QStringLiteral("export.wav"));
+    backend.setExportOverwrite(true);
+    const QUrl replacedExport = backend.exportFile(temporary.path(), QStringLiteral("smoke.wav"));
+    const QUrl repeatedExport = backend.exportFile(temporary.path(), QStringLiteral("smoke.wav"), 1);
+    backend.setExportOverwrite(false);
     if (!require(firstExport.toLocalFile() == temporary.filePath(QStringLiteral("smoke (2).wav"))
                          && freshExport.toLocalFile() == temporary.filePath(QStringLiteral("export.wav"))
                          && createdExport.toLocalFile() == temporary.filePath(QStringLiteral("created/export/export.wav"))
-                         && QFileInfo(temporary.filePath(QStringLiteral("created/export"))).isDir(),
+                         && QFileInfo(temporary.filePath(QStringLiteral("created/export"))).isDir()
+                         && replacedExport.toLocalFile() == temporary.filePath(QStringLiteral("smoke.wav"))
+                         && repeatedExport.toLocalFile() == temporary.filePath(QStringLiteral("smoke (2).wav")),
                  QStringLiteral("export file naming failed")))
         return 1;
     {
@@ -858,7 +929,8 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
     backend.setSynthesisSetting(QStringLiteral("intonation_strength"), 2.5);
     backend.setSynthesisSetting(QStringLiteral("boundary_tone"), false);
     backend.setPreviewCacheFileCount(7);
-    backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y", "Ctrl+E");
+    backend.setShortcutSequences("Ctrl+Enter", "Ctrl+S", "Ctrl+O", "Ctrl+D", "Delete", "Ctrl+Z", "Ctrl+Y", "Ctrl+E",
+                                 "Ctrl+Shift+E");
     if (!require(backend.defaultMoraDuration() == 130 && backend.defaultPauseDuration() == 190
                  && backend.defaultLeadingPreutterance() == 45
                  && backend.defaultModelId() == QStringLiteral("frame-intonation-tcn-v12")
@@ -868,7 +940,8 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
                  && backend.defaultAliasPolicy() == QStringLiteral("cv-only")
                  && backend.synthesisSetting(QStringLiteral("boundary_tone"), true).toBool() == false
                  && backend.undoShortcut() == QStringLiteral("Ctrl+Z")
-                 && backend.exportShortcut() == QStringLiteral("Ctrl+E"),
+                 && backend.exportShortcut() == QStringLiteral("Ctrl+E")
+                 && backend.exportAllShortcut() == QStringLiteral("Ctrl+Shift+E"),
                  QStringLiteral("application settings failed")))
         return 1;
 

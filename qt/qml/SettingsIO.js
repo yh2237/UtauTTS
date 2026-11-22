@@ -33,6 +33,7 @@ function applySettings(draft, backend) {
     backend.setDefaultVoicebank(draft.defaultVoicebankId);
     backend.setExportTextEncoding(draft.exportTextEncoding);
     backend.setExportDirectory(draft.exportDirectory);
+    backend.setExportOverwrite(draft.exportOverwrite);
     backend.setShortcutSequences(draft.synthesizeShortcut,
                                  draft.saveProjectShortcut,
                                  draft.reloadVoicebanksShortcut,
@@ -40,7 +41,8 @@ function applySettings(draft, backend) {
                                  draft.removeUtteranceShortcut,
                                  draft.undoShortcut,
                                  draft.redoShortcut,
-                                 draft.exportShortcut);
+                                 draft.exportShortcut,
+                                 draft.exportAllShortcut);
 }
 
 // loadCurrentは、バックエンドの設定を編集中の値へ読み込む。
@@ -52,6 +54,7 @@ function loadCurrent(draft, backend, valid) {
     draft.defaultTone = backend.defaultTone;
     draft.exportTextEncoding = backend.exportTextEncoding;
     draft.exportDirectory = backend.exportDirectory;
+    draft.exportOverwrite = backend.exportOverwrite;
     draft.darkMode = backend.darkMode;
     draft.language = backend.language;
     draft.ffmpegPath = backend.ffmpegPath;
@@ -70,6 +73,7 @@ function loadCurrent(draft, backend, valid) {
     draft.undoShortcut = backend.undoShortcut;
     draft.redoShortcut = backend.redoShortcut;
     draft.exportShortcut = backend.exportShortcut;
+    draft.exportAllShortcut = backend.exportAllShortcut;
 }
 
 // defaultsは、各項目の初期値。defaultModelIdだけはカタログの先頭を使う。
@@ -78,6 +82,7 @@ const defaults = {
     defaultAliasPolicy: "auto",
     defaultTone: "",
     exportTextEncoding: "utf-8",
+    exportOverwrite: false,
     darkMode: false,
     language: "auto",
     ffmpegPath: "",
@@ -95,7 +100,8 @@ const defaults = {
     removeUtteranceShortcut: "Delete",
     undoShortcut: "Ctrl+Z",
     redoShortcut: "Ctrl+Y",
-    exportShortcut: "Ctrl+E"
+    exportShortcut: "Ctrl+E",
+    exportAllShortcut: "Ctrl+Shift+E"
 };
 
 function reset(draft, field, backend) {

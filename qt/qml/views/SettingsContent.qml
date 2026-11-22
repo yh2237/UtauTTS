@@ -28,6 +28,7 @@ Item {
     property alias pendingDefaultTone: draftObject.defaultTone
     property alias pendingExportTextEncoding: draftObject.exportTextEncoding
     property alias pendingExportDirectory: draftObject.exportDirectory
+    property alias pendingExportOverwrite: draftObject.exportOverwrite
     property alias pendingDarkMode: draftObject.darkMode
     property alias pendingLanguage: draftObject.language
     property alias pendingFfmpegPath: draftObject.ffmpegPath
@@ -46,6 +47,7 @@ Item {
     property alias pendingUndoShortcut: draftObject.undoShortcut
     property alias pendingRedoShortcut: draftObject.redoShortcut
     property alias pendingExportShortcut: draftObject.exportShortcut
+    property alias pendingExportAllShortcut: draftObject.exportAllShortcut
     property var languageCodes: root.backend.languageCodes()
     function languageLabels() {
         const labels = [];
@@ -276,6 +278,7 @@ Item {
     function resetPreviewCacheFileCount() { SettingsIO.reset(draftObject, "previewCacheFileCount"); }
     function resetExportTextEncoding() { SettingsIO.reset(draftObject, "exportTextEncoding"); }
     function resetExportDirectory() { SettingsIO.reset(draftObject, "exportDirectory", root.backend); }
+    function resetExportOverwrite() { SettingsIO.reset(draftObject, "exportOverwrite"); }
     function resetTheme() { SettingsIO.reset(draftObject, "darkMode"); }
     function resetLanguage() { SettingsIO.reset(draftObject, "language"); }
     function resetFfmpegPath() { SettingsIO.reset(draftObject, "ffmpegPath"); }
@@ -293,6 +296,7 @@ Item {
     function resetUndoShortcut() { SettingsIO.reset(draftObject, "undoShortcut"); }
     function resetRedoShortcut() { SettingsIO.reset(draftObject, "redoShortcut"); }
     function resetExportShortcut() { SettingsIO.reset(draftObject, "exportShortcut"); }
+    function resetExportAllShortcut() { SettingsIO.reset(draftObject, "exportAllShortcut"); }
 
     function defaultVoicebankIndex() {
         let id = String(root.pendingDefaultVoicebankId || "");
@@ -722,6 +726,25 @@ Item {
                             SettingsResetButton {
                                 translator: root.translator
                                 onResetRequested: root.resetExportDirectory()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: Platform.hasNativeFileDialog
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.exportOverwrite")
+                            }
+                            Switch {
+                                id: exportOverwriteSwitch
+                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                checked: root.pendingExportOverwrite
+                                onToggled: root.pendingExportOverwrite = checked
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetExportOverwrite()
                             }
                         }
 
@@ -1162,6 +1185,39 @@ Item {
                             SettingsResetButton {
                                 translator: root.translator
                                 onResetRequested: root.resetExportShortcut()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: Platform.hasNativeFileDialog
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.translator.tr("settings.shortcut.exportAll")
+                            }
+                            TextField {
+                                id: exportAllShortcutField
+                                Layout.preferredWidth: Theme.fieldWidth
+                                text: root.pendingExportAllShortcut
+                                readOnly: true
+                                selectByMouse: false
+                                onActiveFocusChanged: if (activeFocus) selectAll()
+                                Keys.onPressed: event => {
+                                    if (event.key === Qt.Key_Backspace || event.key === Qt.Key_Delete) {
+                                        root.pendingExportAllShortcut = "";
+                                        event.accepted = true;
+                                        return;
+                                    }
+                                    const sequence = root.shortcutFromEvent(event);
+                                    if (sequence.length) {
+                                        root.pendingExportAllShortcut = sequence;
+                                        event.accepted = true;
+                                    }
+                                }
+                            }
+                            SettingsResetButton {
+                                translator: root.translator
+                                onResetRequested: root.resetExportAllShortcut()
                             }
                         }
                     }

@@ -8,6 +8,7 @@ QtObject {
     property string defaultTone: ""
     property string exportTextEncoding: "utf-8"
     property string exportDirectory: ""
+    property bool exportOverwrite: false
     property bool darkMode: false
     property string language: "auto"
     property string ffmpegPath: ""
@@ -26,4 +27,5 @@ QtObject {
     property string undoShortcut: "Ctrl+Z"
     property string redoShortcut: "Ctrl+Y"
     property string exportShortcut: "Ctrl+E"
+    property string exportAllShortcut: "Ctrl+Shift+E"
 }

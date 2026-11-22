@@ -142,7 +142,14 @@ function handlePreviewReady(ctx) {
             ctx.qt.callLater(function() { host.synthesizeBatchItem(); });
             return;
         }
-        const destination = host.appBackend.fileInDirectory(host.batchExportDirectory, fileName);
+        let destination;
+        if (host.batchExportMode === "export") {
+            const used = host.batchExportNameCounts[fileName] || 0;
+            host.batchExportNameCounts[fileName] = used + 1;
+            destination = host.appBackend.exportFile(host.appBackend.exportDirectory, fileName, used);
+        } else {
+            destination = host.appBackend.fileInDirectory(host.batchExportDirectory, fileName);
+        }
         if (!destination.toString().length || !host.appBackend.savePreview(destination, host.batchExportWithSidecars)) {
             host.finishBatchExport(false);
             return;
@@ -167,8 +174,8 @@ function handlePreviewReady(ctx) {
             host.closeLogWindow();
         if (host.saveToExportDirectory) {
             host.saveToExportDirectory = false;
-            const exportDestination = host.appBackend.newExportFile(host.appBackend.exportDirectory,
-                                                                    host.audioFileName(ctx.utterances.get(index)));
+            const exportDestination = host.appBackend.exportFile(host.appBackend.exportDirectory,
+                                                                 host.audioFileName(ctx.utterances.get(index)));
             if (exportDestination.toString().length)
                 host.saveAudioTo(exportDestination, true);
             else

@@ -474,6 +474,7 @@ Backend::Backend(QObject *parent)
       m_exportLabWithWav(portableSettingValue("export/writeLabWithWav", false).toBool()),
       m_exportTextEncoding(portableSettingValue("export/textEncoding", QStringLiteral("utf-8")).toString().trimmed().toLower()),
       m_exportDirectory(portableSettingValue("export/directory", QString()).toString().trimmed()),
+      m_exportOverwrite(portableSettingValue("export/overwrite", false).toBool()),
       m_synthesizeShortcut(portableSettingValue("shortcuts/synthesize", QStringLiteral("Ctrl+Enter")).toString()),
       m_saveProjectShortcut(portableSettingValue("shortcuts/saveProject", QStringLiteral("Ctrl+S")).toString()),
       m_reloadVoicebanksShortcut(portableSettingValue("shortcuts/reloadVoicebanks", QStringLiteral("Ctrl+O")).toString()),
@@ -482,6 +483,7 @@ Backend::Backend(QObject *parent)
       m_undoShortcut(portableSettingValue("shortcuts/undo", QStringLiteral("Ctrl+Z")).toString()),
       m_redoShortcut(portableSettingValue("shortcuts/redo", QStringLiteral("Ctrl+Y")).toString()),
       m_exportShortcut(portableSettingValue("shortcuts/export", QStringLiteral("Ctrl+E")).toString()),
+      m_exportAllShortcut(portableSettingValue("shortcuts/exportAll", QStringLiteral("Ctrl+Shift+E")).toString()),
       m_recentProjects(portableSettingValue("projects/recent", QStringList()).toStringList()),
       m_updateNetwork(new QNetworkAccessManager(this)) {
 #ifdef UTAUTTS_WASM
@@ -1025,6 +1027,17 @@ void Backend::setExportDirectory(const QString &path) {
     emit exportSettingsChanged();
 }
 
+void Backend::setExportOverwrite(bool overwrite) {
+    if (m_exportOverwrite == overwrite)
+        return;
+    m_exportOverwrite = overwrite;
+    QSettings settings(portableSettingsPath(), QSettings::IniFormat);
+    settings.setValue(QStringLiteral("export/overwrite"), m_exportOverwrite);
+    settings.sync();
+    reportSettingsStatus(settings);
+    emit exportSettingsChanged();
+}
+
 void Backend::setSynthesisDefaults(const QString &modelId, const QString &tone,
                                    const QString &aliasPolicy) {
     const QString normalizedModelId = modelId.trimmed();
@@ -1121,7 +1134,8 @@ void Backend::setShortcutSequences(const QString &synthesize,
                                    const QString &removeUtterance,
                                    const QString &undo,
                                    const QString &redo,
-                                   const QString &exportAudio) {
+                                   const QString &exportAudio,
+                                   const QString &exportAllAudio) {
     if (m_synthesizeShortcut == synthesize.trimmed()
             && m_saveProjectShortcut == saveProject.trimmed()
             && m_reloadVoicebanksShortcut == reloadVoicebanks.trimmed()
@@ -1129,7 +1143,8 @@ void Backend::setShortcutSequences(const QString &synthesize,
             && m_removeUtteranceShortcut == removeUtterance.trimmed()
             && m_undoShortcut == undo.trimmed()
             && m_redoShortcut == redo.trimmed()
-            && m_exportShortcut == exportAudio.trimmed()) {
+            && m_exportShortcut == exportAudio.trimmed()
+            && m_exportAllShortcut == exportAllAudio.trimmed()) {
         return;
     }
     m_synthesizeShortcut = synthesize.trimmed();
@@ -1140,6 +1155,7 @@ void Backend::setShortcutSequences(const QString &synthesize,
     m_undoShortcut = undo.trimmed();
     m_redoShortcut = redo.trimmed();
     m_exportShortcut = exportAudio.trimmed();
+    m_exportAllShortcut = exportAllAudio.trimmed();
     QSettings settings(portableSettingsPath(), QSettings::IniFormat);
     settings.setValue("shortcuts/synthesize", m_synthesizeShortcut);
     settings.setValue("shortcuts/saveProject", m_saveProjectShortcut);
@@ -1149,6 +1165,7 @@ void Backend::setShortcutSequences(const QString &synthesize,
     settings.setValue("shortcuts/undo", m_undoShortcut);
     settings.setValue("shortcuts/redo", m_redoShortcut);
     settings.setValue("shortcuts/export", m_exportShortcut);
+    settings.setValue("shortcuts/exportAll", m_exportAllShortcut);
     settings.sync();
     reportSettingsStatus(settings);
     emit shortcutSettingsChanged();
@@ -2505,18 +2522,19 @@ QUrl Backend::fileInDirectory(const QUrl &directory, const QString &fileName) co
     return QUrl::fromLocalFile(QDir(directory.toLocalFile()).filePath(fileName));
 }
 
-QUrl Backend::newExportFile(const QString &directory, const QString &fileName) const {
+// skipは、同じ一括書き出しで先に使った同名の数。上書きするときも、その数だけ番号を進める。
+QUrl Backend::exportFile(const QString &directory, const QString &fileName, int skip) const {
     const QFileInfo fileInfo(fileName);
     const QDir dir(directory);
     if (directory.trimmed().isEmpty() || fileName.isEmpty() || fileInfo.fileName() != fileName
             || (!dir.exists() && !QDir().mkpath(directory)))
         return {};
     const QString base = fileInfo.completeBaseName();
-    for (int number = 1; number < 10000; ++number) {
+    for (int number = qMax(1, skip + 1); number < 10000; ++number) {
         const QString name = number == 1 ? base : QStringLiteral("%1 (%2)").arg(base).arg(number);
         bool used = false;
         for (const QString &suffix : {QStringLiteral(".wav"), QStringLiteral(".lab"), QStringLiteral(".txt")})
-            used = used || QFileInfo::exists(dir.filePath(name + suffix));
+            used = used || (!m_exportOverwrite && QFileInfo::exists(dir.filePath(name + suffix)));
         if (!used)
             return QUrl::fromLocalFile(dir.filePath(name + QStringLiteral(".wav")));
     }
