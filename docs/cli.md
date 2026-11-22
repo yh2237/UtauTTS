@@ -177,9 +177,9 @@ utautts-cli --voicebank "voice/足立レイver3.5.0" --request request.json --ou
 `--version` は `version`、`--list` は `catalog`、`--doctor` は `doctor` を `result` の代わりに返します。
 
 ```json
-{"ok": true, "version": {"name": "UtauTTS", "version": "v1.7.3"}}
+{"ok": true, "version": {"name": "UtauTTS", "version": "v1.7.4"}}
 {"ok": true, "catalog": {"kind": "models", "default_id": "none", "items": [], "problems": []}}
-{"ok": true, "doctor": {"version": "v1.7.3", "os": "windows", "arch": "amd64", "checks": []}}
+{"ok": true, "doctor": {"version": "v1.7.4", "os": "windows", "arch": "amd64", "checks": []}}
 ```
 
 ### 失敗時
