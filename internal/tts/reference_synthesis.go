@@ -152,7 +152,6 @@ func referenceInputs(cfg Config, utterance linguistics.Utterance) (*refspeech.Se
 	options := refspeech.Options{
 		Speed:      1,
 		PitchScale: cfg.IntonationStrength / settings.Number("intonation_strength"),
-		Unblended:  cfg.ReferenceUnblended,
 	}
 	if cfg.MoraDurationMS > 0 {
 		options.Speed = float32(plan.DefaultMoraDurationMS / cfg.MoraDurationMS)

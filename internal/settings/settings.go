@@ -50,9 +50,6 @@ var Table = []Setting{
 	{ID: "boundary_tone_strength", Type: "number", Default: 1.0, Hidden: true},
 	{ID: "stretch_adapt_strength", Type: "number", Default: 1.0, Hidden: true},
 	{ID: "pause_context_strength", Type: "number", Default: 1.0, Hidden: true},
-	// 音源で決まる設定。offは近い録音のフレームを混ぜずに、いちばん近い1つをそのまま使う。
-	{ID: "reference_blend", Type: "enum", Default: "on", Hidden: true, Methods: []string{reference},
-		Options: []Option{{Value: "on"}, {Value: "off"}}},
 }
 
 func Lookup(id string) (Setting, bool) {

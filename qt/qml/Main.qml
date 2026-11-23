@@ -620,10 +620,6 @@ ApplicationWindow {
                 Qt.quit();
         }
 
-        function onVoicebankOptionsChanged(voicebankId) {
-            window.markVoicebankDirty(voicebankId);
-        }
-
         function onMetadataReloadStarted() {
             window.metadataReloadActive = true;
             window.metadataReloadStage = "voicebanks";
@@ -2100,17 +2096,6 @@ ApplicationWindow {
             window.synthesisViewStale = true;
         if (window.audioUtteranceId === item.utteranceId)
             clearPlayback();
-    }
-
-    // 音源ごとの設定はプロジェクトに入れないので、合成し直す対象にするだけにする。
-    function markVoicebankDirty(voicebankId) {
-        for (let index = 0; index < utterances.count; ++index) {
-            const item = utterances.get(index);
-            if (item.voicebankId === voicebankId
-                    && window.normalizeMethod(item.method, item.language || "ja") === "reference-matching")
-                markUtteranceDirty(index, false);
-        }
-        window.scheduleAutoPreview();
     }
 
     function hasCurrentAudio() {

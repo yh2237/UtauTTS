@@ -11,7 +11,6 @@ import (
 
 type AudioOptions struct {
 	ContinuityBonus *float64
-	Unblended       bool
 	CenterHz        float64
 	PitchScale      float64
 	PitchSemitones  *float64
@@ -48,7 +47,7 @@ func (e *Engine) SpeakAudio(idx *index.Index, world index.World, audio []float64
 	} else {
 		f0 = outputF0(idx, analysis.F0, options.CenterHz, options.PitchScale)
 	}
-	output, err := synthesizeQuery(idx, world, channels, analysis, f0, options.ContinuityBonus, options.Unblended, options.Logf)
+	output, err := synthesizeQuery(idx, world, channels, analysis, f0, options.ContinuityBonus, options.Logf)
 	if err != nil {
 		return Speech{}, err
 	}

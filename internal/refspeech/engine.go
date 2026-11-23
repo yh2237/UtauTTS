@@ -152,8 +152,6 @@ func (e *Engine) voiceSetFor(id string) (*voiceSet, error) {
 type Options struct {
 	// ContinuityBonusは同じ録音の続きのフレームを優先する強さ。nilなら既定値を使う。
 	ContinuityBonus *float64
-	// Unblendedを真にすると、近い録音のフレームを混ぜず、いちばん近い1つを使う。
-	Unblended bool
 	// SpeedはKokoroの話速。1が標準。Durationsを指定したときは使わない。
 	Speed float32
 	// Durationsは入力記号ごとの長さ（Timing.Durationsと同じ並び）。nilならKokoroが予測する。
@@ -381,7 +379,7 @@ func (e *Engine) SpeakReference(idx *index.Index, world index.World, reference R
 			outF0[i] = v * math.Exp2(cents/1200)
 		}
 	}
-	audio, err := synthesizeQuery(idx, world, channels, analysis, outF0, options.ContinuityBonus, options.Unblended, options.Logf)
+	audio, err := synthesizeQuery(idx, world, channels, analysis, outF0, options.ContinuityBonus, options.Logf)
 	if err != nil {
 		return Speech{}, err
 	}
@@ -410,7 +408,7 @@ func outputF0(idx *index.Index, f0 []float64, centerHz, pitchScale float64) []fl
 }
 
 func synthesizeQuery(idx *index.Index, world index.World, channels map[string][]float32, analysis vocoder.ReferenceAnalysis,
-	outF0 []float64, continuity *float64, unblended bool, logf func(string)) ([]float64, error) {
+	outF0 []float64, continuity *float64, logf func(string)) ([]float64, error) {
 	SetStage("照合と波形の合成をしています")
 	query := matcher.Query{
 		Frames: analysis.Frames, Channels: channels, MouthStatic: analysis.MouthStatic,
@@ -425,7 +423,7 @@ func synthesizeQuery(idx *index.Index, world index.World, channels map[string][]
 	}
 	audio, err := (&vocoder.WorldVocoder{World: world}).Synthesize(idx, result, vocoder.SynthRequest{
 		ReferenceF0: analysis.F0, OutputF0: outF0, ReferenceLevel: analysis.Levels,
-		ReferenceAP: analysis.SafeRefAP, Config: &cfg, Unblended: unblended,
+		ReferenceAP: analysis.SafeRefAP, Config: &cfg,
 	})
 	if err != nil {
 		return nil, err

@@ -96,8 +96,6 @@ type Config struct {
 	ReferenceDir    string
 	// MethodはMethodWaveformSynthesisかMethodReferenceMatching。参照照合はRendererを使わない。
 	Method string
-	// ReferenceUnblendedを真にすると、参照照合で近いフレームを平均せず最も近い1つを使う。
-	ReferenceUnblended bool
 	// Logfは合成の途中経過を伝える。nilなら何も伝えない。
 	Logf func(string)
 }

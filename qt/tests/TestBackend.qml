@@ -15,7 +15,6 @@ QtObject {
     property var retiredModels: ({})
     property var settingDefinitions: []
     property var synthesisSettings: ({})
-    property var voicebankOptions: ({})
     property var referenceProviders: []
     property var referenceIndexes: []
     property bool referenceIndexBuilding: false

@@ -127,7 +127,7 @@ CLIの `--json` が返す `error.code` とはコード名が異なります。�
 - `intonation_strength` (number): 抑揚の強さ（0〜8、既定値 `4.0`）。
 - `mora_duration_ms` (number): 基本モーラ長（既定値 `120`）。
 - `pause_duration_ms` (number): 句読点などの休止長（既定値 `180`）。
-- `settings` (object): `/api/settings` の設定をIDで指定（例: `{"timing_warp": false}`）。無効な値は結果の `diagnostics` に返る。参照照合では `reference_blend`（`on` / `off`、既定値 `on`）も指定でき、`off` にすると近い録音の音を混ぜずに合成する。
+- `settings` (object): `/api/settings` の設定をIDで指定（例: `{"timing_warp": false}`）。無効な値は結果の `diagnostics` に返る。
 
 ### レスポンス
 - 成功すると `200` と `Content-Type: audio/wav` でWAVを返します。

@@ -94,7 +94,6 @@ func TestApplySettingsKnownIDs(t *testing.T) {
 		"stretch_adapt_strength":    json.RawMessage(`0.5`),
 		"pause_context":             json.RawMessage(`false`),
 		"pause_context_strength":    json.RawMessage(`0.5`),
-		"reference_blend":           json.RawMessage(`"off"`),
 	}
 	if diagnostics := applySettingsMap(settings, &cfg); len(diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", diagnostics)
@@ -113,12 +112,6 @@ func TestApplySettingsKnownIDs(t *testing.T) {
 	}
 	if cfg.PauseContext == nil || *cfg.PauseContext || cfg.PauseContextStrength != 0.5 {
 		t.Fatalf("pause context settings = %#v", cfg)
-	}
-	if !cfg.ReferenceUnblended {
-		t.Fatal("reference_blend off was not applied")
-	}
-	if diagnostics := applySettingsMap(map[string]json.RawMessage{"reference_blend": json.RawMessage(`"auto"`)}, &cfg); len(diagnostics) != 1 || !cfg.ReferenceUnblended {
-		t.Fatalf("unknown reference_blend option: diagnostics %v, unblended %v", diagnostics, cfg.ReferenceUnblended)
 	}
 }
 
