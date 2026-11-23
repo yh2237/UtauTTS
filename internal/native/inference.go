@@ -9,7 +9,7 @@ import (
 	pathpkg "path"
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/tts"
+	"github.com/yh2237/UtauTTS/internal/synth"
 )
 
 // InferenceDirは、Web版の推論の結果（float32）を置く仮想FSのフォルダ。
@@ -37,9 +37,9 @@ func (e *Engine) provideInference(requestJSON []byte) error {
 	if err := json.Unmarshal(requestJSON, &request); err != nil {
 		return fmt.Errorf("decode inference results: %w", err)
 	}
-	reads := make([]tts.ReferenceRead, len(request.Reads))
+	reads := make([]synth.ReferenceRead, len(request.Reads))
 	for i, read := range request.Reads {
-		reads[i] = tts.ReferenceRead{Key: read.Key, Durations: read.Durations, F0: read.F0}
+		reads[i] = synth.ReferenceRead{Key: read.Key, Durations: read.Durations, F0: read.F0}
 		if read.AudioPath != "" {
 			audio, err := takeFloat32File(read.AudioPath)
 			if err != nil {
@@ -48,13 +48,13 @@ func (e *Engine) provideInference(requestJSON []byte) error {
 			reads[i].Audio = audio
 		}
 	}
-	features := make([]tts.ReferenceFeatures, len(request.Features))
+	features := make([]synth.ReferenceFeatures, len(request.Features))
 	for i, item := range request.Features {
 		values, err := takeFloat32File(item.Path)
 		if err != nil {
 			return err
 		}
-		features[i] = tts.ReferenceFeatures{EncoderID: item.EncoderID, Key: item.Key, Values: values, Frames: item.Frames, Dims: item.Dims}
+		features[i] = synth.ReferenceFeatures{EncoderID: item.EncoderID, Key: item.Key, Values: values, Frames: item.Frames, Dims: item.Dims}
 	}
 	return e.synth.ProvideReferenceInference(reads, features, request.Prefetched)
 }

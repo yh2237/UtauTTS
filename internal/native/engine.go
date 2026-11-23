@@ -13,13 +13,10 @@ import (
 	"github.com/yh2237/UtauTTS/internal/appinfo"
 	"github.com/yh2237/UtauTTS/internal/entryinput"
 	"github.com/yh2237/UtauTTS/internal/linguistics"
-	"github.com/yh2237/UtauTTS/internal/openutau"
 	"github.com/yh2237/UtauTTS/internal/plugin"
-	"github.com/yh2237/UtauTTS/internal/refspeech"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/synth"
-	"github.com/yh2237/UtauTTS/internal/tts"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
@@ -84,7 +81,7 @@ func (e *Engine) warmUp() {
 		modelID = e.catalog.Models[0].ID
 	}
 	_, _ = e.synth.PredictProsodyContext(e.ctx, synth.Request{
-		Text: "あ", Language: "ja", ModelID: modelID, Method: tts.MethodWaveformSynthesis,
+		Text: "あ", Language: "ja", ModelID: modelID, Method: synth.MethodWaveformSynthesis,
 	})
 }
 
@@ -166,27 +163,18 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 		err = e.provideInference(requestJSON)
 		result = map[string]bool{"ok": err == nil}
 	case "referenceIndexes":
-		result = tts.ReferenceIndexProgress()
+		result = e.synth.ReferenceIndexProgress()
 	case "listReferenceIndexes":
-		var dir string
-		dir, err = refspeech.DefaultCacheDir()
-		if err == nil {
-			var indexes []refspeech.IndexInfo
-			indexes, err = refspeech.ListIndexes(dir)
-			result = map[string]any{"indexes": indexes}
-		}
+		indexes, listErr := e.synth.ReferenceIndexes()
+		result, err = map[string]any{"indexes": indexes}, listErr
 	case "deleteReferenceIndex":
 		var request struct {
 			Name string `json:"name"`
 		}
 		if err = json.Unmarshal(requestJSON, &request); err == nil {
-			var dir string
-			dir, err = refspeech.DefaultCacheDir()
-			if err == nil {
-				var deleted bool
-				deleted, err = refspeech.DeleteIndex(dir, request.Name)
-				result = map[string]bool{"deleted": deleted}
-			}
+			var deleted bool
+			deleted, err = e.synth.DeleteReferenceIndex(request.Name)
+			result = map[string]bool{"deleted": deleted}
 		}
 	case "buildReferenceIndex":
 		var request struct {
@@ -194,7 +182,7 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 			Color       string `json:"color"`
 		}
 		if err = json.Unmarshal(requestJSON, &request); err == nil {
-			_, err = e.synth.BuildReferenceIndex(synth.Request{VoicebankID: request.VoicebankID, Color: request.Color, Language: "en", Method: tts.MethodReferenceMatching})
+			_, err = e.synth.BuildReferenceIndex(synth.Request{VoicebankID: request.VoicebankID, Color: request.Color, Language: "en", Method: synth.MethodReferenceMatching})
 			result = map[string]bool{"started": true}
 		}
 	case "installVoicebank":
@@ -350,7 +338,7 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 		return nil, fmt.Errorf("text or reading is required")
 	}
 	internal := request.InternalRequest().Normalized()
-	if internal.Method == tts.MethodReferenceMatching && (internal.VoicebankID != "" || internal.VoicebankPath != "") {
+	if internal.Method == synth.MethodReferenceMatching && (internal.VoicebankID != "" || internal.VoicebankPath != "") {
 		building, err := e.synth.BuildReferenceIndex(internal)
 		if err != nil {
 			return nil, err
@@ -382,15 +370,4 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 		response["frame_pitch_cents"] = append([]float64(nil), preview.FramePitchCurve.Cents...)
 	}
 	return response, nil
-}
-
-func previewMorae(morae []linguistics.Mora) []openutau.UtauTTSMora {
-	result := make([]openutau.UtauTTSMora, len(morae))
-	for index, mora := range morae {
-		result[index] = openutau.UtauTTSMora{
-			Position: index, Mora: mora.Text, Pause: mora.Pause,
-			Consonant: mora.Consonant, Vowel: mora.Vowel,
-		}
-	}
-	return result
 }

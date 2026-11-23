@@ -90,9 +90,7 @@ func (e *Engine) exportUstx(data []byte) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	options := openutau.ExportOptions{}
-	options.Curves = e.enrichAndCurves(project)
-	output, err := openutau.ExportUSTX(project, options)
+	output, err := e.synth.ExportUSTX(e.ctx, project)
 	if err != nil {
 		return nil, err
 	}
@@ -107,48 +105,4 @@ func (e *Engine) exportUstx(data []byte) (any, error) {
 		return nil, err
 	}
 	return map[string]any{"ustx_path": outputPath}, nil
-}
-
-// 輪郭を作れない発話はnilを返し、出力側でモーラ値を使う。
-func (e *Engine) enrichAndCurves(project *openutau.UtauTTSProject) []openutau.FrameCurve {
-	curves := make([]openutau.FrameCurve, len(project.Utterances))
-	for index := range project.Utterances {
-		utterance := &project.Utterances[index]
-		if utterance.Text == "" && utterance.AnalysisCache.Reading == "" {
-			continue
-		}
-		needsAnalysis := len(utterance.AnalysisCache.Morae) == 0
-		needsCurve := utterance.ModelID != "" && len(utterance.AutomaticFramePitch) == 0
-		if !needsAnalysis && !needsCurve {
-			continue
-		}
-		strength := utterance.Intonation
-		if strength <= 0 {
-			strength = 1
-		}
-		preview, err := e.synth.PredictProsody(synth.Request{
-			Text:               utterance.Text,
-			Kana:               utterance.AnalysisCache.Reading,
-			ModelID:            utterance.ModelID,
-			MoraDurationMS:     utterance.MoraDurationMS,
-			PauseDurationMS:    utterance.PauseDurationMS,
-			MoraDurationsMS:    utterance.MoraDurationsMS,
-			IntonationStrength: strength,
-			ApplyPitch:         true,
-		})
-		if err != nil || preview == nil {
-			continue
-		}
-		if needsAnalysis {
-			utterance.AnalysisCache.Reading = preview.Reading
-			utterance.AnalysisCache.Morae = previewMorae(preview.Morae)
-		}
-		if preview.FramePitchCurve != nil {
-			curves[index] = openutau.FrameCurve{
-				FrameMS: preview.FramePitchCurve.FrameMS,
-				Cents:   preview.FramePitchCurve.Cents,
-			}
-		}
-	}
-	return curves
 }

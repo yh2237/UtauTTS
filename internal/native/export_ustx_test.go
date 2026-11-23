@@ -48,3 +48,36 @@ func TestExportUstxKeepsSavedPitchWithoutModelResources(t *testing.T) {
 		t.Fatalf("saved pitch and frame edit were not exported: %+v", points)
 	}
 }
+
+func TestExportUstxAnalyzesUtteranceWithoutMorae(t *testing.T) {
+	engine := newTestEngine(t, Config{VoiceDir: t.TempDir()})
+	outputPath := filepath.Join(t.TempDir(), "out.ustx")
+	request, err := json.Marshal(map[string]any{
+		"output_path": outputPath,
+		"project": map[string]any{
+			"format": "utautts-project", "format_version": 8,
+			"utterances": []any{map[string]any{
+				"voicebank_id": "bank", "tone": "C4", "language": "ja", "method": "waveform-synthesis",
+				"mora_duration_ms": 120, "pause_duration_ms": 180,
+				"analysis_cache": map[string]any{"reading": "アカ"},
+			}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := engine.Call("exportUstx", request); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got openutau.USTXProject
+	if err := yaml.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.VoiceParts) != 1 || len(got.VoiceParts[0].Notes) != 2 {
+		t.Fatalf("reading was not analyzed into notes: %+v", got.VoiceParts)
+	}
+}

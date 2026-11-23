@@ -1,4 +1,4 @@
-package main
+package synth
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/tts"
 )
 
-func TestUstxProjectFromSynthesisCarriesPlanTiming(t *testing.T) {
+func TestProjectFromPlanCarriesPlanTiming(t *testing.T) {
 	p := &plan.Plan{
 		Version: 1,
 		Reading: "カキ",
@@ -19,7 +19,7 @@ func TestUstxProjectFromSynthesisCarriesPlanTiming(t *testing.T) {
 	}
 	cfg := tts.Config{Text: "カキ", MoraDurationMS: 140, PauseDurationMS: 180}
 
-	project := ustxProjectFromSynthesis(cfg, p, "bank")
+	project := projectFromPlan(cfg, p, "bank")
 	utterance := project.Utterances[0]
 	if len(utterance.AnalysisCache.Morae) != 2 {
 		t.Fatalf("morae = %d, want 2", len(utterance.AnalysisCache.Morae))

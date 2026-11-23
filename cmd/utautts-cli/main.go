@@ -18,7 +18,6 @@ import (
 	utautts "github.com/yh2237/UtauTTS"
 	"github.com/yh2237/UtauTTS/internal/appinfo"
 	"github.com/yh2237/UtauTTS/internal/entryinput"
-	"github.com/yh2237/UtauTTS/internal/openutau"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/sidecar"
@@ -436,14 +435,10 @@ func runCLIOutput(args []string, stdin io.Reader, stdout, stderr io.Writer, json
 		}
 	}
 	if ustxOut != "" {
-		project := ustxProjectFromSynthesis(resolvedSynthesis.Config, output.Plan, filepath.Base(filepath.Clean(voicebankPath)))
-		curves := ustxFrameCurves(resolvedSynthesis.Config, 1)
+		data, err := synth.USTXFromSynthesis(resolvedSynthesis, output, filepath.Base(filepath.Clean(voicebankPath)))
 		if err := contextError(ctx); err != nil {
 			return cliFailure("synthesis_error", err)
 		}
-		data, err := openutau.ExportUSTX(project, openutau.ExportOptions{
-			Curves: curves,
-		})
 		if err != nil {
 			return cliFailure("output_error", err)
 		}

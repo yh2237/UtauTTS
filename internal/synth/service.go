@@ -14,6 +14,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/prosody"
+	"github.com/yh2237/UtauTTS/internal/refspeech"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/tts"
@@ -22,6 +23,23 @@ import (
 )
 
 var ErrUnavailable = errors.New("unavailable")
+
+// 合成の方式。Request.Methodに入れる。
+const (
+	MethodWaveformSynthesis = tts.MethodWaveformSynthesis
+	MethodReferenceMatching = tts.MethodReferenceMatching
+)
+
+// ReferenceReadとReferenceFeaturesは、Web版が外で計算した参照照合の推論結果。
+type (
+	ReferenceRead     = tts.ReferenceRead
+	ReferenceFeatures = tts.ReferenceFeatures
+)
+
+// SourcePathsは、合成で読む原音のパスを返す。Web版が先に読み込むために使う。
+func SourcePaths(resolved ResolvedRequest) ([]string, error) {
+	return tts.SynthesisSourcePaths(resolved.Config)
+}
 
 const DefaultApplyPitch = true
 
@@ -409,6 +427,21 @@ func (s *Service) PrepareReferenceIndex(bank *voicebank.Bank) {
 		return
 	}
 	tts.PrepareReferenceIndex(s.referenceDir(), bank, worldEnginePath)
+}
+
+// ReferenceIndexProgressは索引の作成の進み具合を返す。
+func (s *Service) ReferenceIndexProgress() refspeech.Progress {
+	return tts.ReferenceIndexProgress()
+}
+
+// ReferenceIndexesは保存済みの索引を返す。
+func (s *Service) ReferenceIndexes() ([]refspeech.IndexInfo, error) {
+	return tts.ReferenceIndexes()
+}
+
+// DeleteReferenceIndexは保存済みの索引を名前で消す。作成中の索引があれば消さない。
+func (s *Service) DeleteReferenceIndex(name string) (bool, error) {
+	return tts.DeleteReferenceIndex(name)
 }
 
 // BuildReferenceIndexは指定した音源と声色の索引を裏で準備する。

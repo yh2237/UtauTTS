@@ -30,6 +30,9 @@ type UtauTTSProject struct {
 type UtauTTSUtterance struct {
 	Text                 string               `json:"text"`
 	VoicebankID          string               `json:"voicebank_id"`
+	Language             string               `json:"language,omitempty"`
+	Phonemizer           string               `json:"phonemizer,omitempty"`
+	Method               string               `json:"method,omitempty"`
 	ModelID              string               `json:"model_id,omitempty"`
 	RendererID           string               `json:"renderer_id,omitempty"`
 	AliasPolicy          string               `json:"alias_policy,omitempty"`

@@ -118,6 +118,24 @@ func ReferenceIndexProgress() refspeech.Progress {
 	return refspeech.CurrentProgress()
 }
 
+// ReferenceIndexesは保存済みの索引を返す。
+func ReferenceIndexes() ([]refspeech.IndexInfo, error) {
+	dir, err := refspeech.DefaultCacheDir()
+	if err != nil {
+		return nil, err
+	}
+	return refspeech.ListIndexes(dir)
+}
+
+// DeleteReferenceIndexは保存済みの索引を名前で消す。
+func DeleteReferenceIndex(name string) (bool, error) {
+	dir, err := refspeech.DefaultCacheDir()
+	if err != nil {
+		return false, err
+	}
+	return refspeech.DeleteIndex(dir, name)
+}
+
 func englishLexicon(dir string) (*refspeech.Lexicon, error) {
 	_, gold, silver := ReferenceModels(dir)
 	if cached, ok := englishLexicons.Load(gold); ok {

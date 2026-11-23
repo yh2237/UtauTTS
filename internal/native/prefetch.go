@@ -1,6 +1,6 @@
 package native
 
-import "github.com/yh2237/UtauTTS/internal/tts"
+import "github.com/yh2237/UtauTTS/internal/synth"
 
 func (e *Engine) SynthesisSourcePaths(data []byte) ([]string, error) {
 	request, err := decodeSynthesizeRequest(data)
@@ -11,5 +11,5 @@ func (e *Engine) SynthesisSourcePaths(data []byte) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return tts.SynthesisSourcePaths(resolved.Config)
+	return synth.SourcePaths(resolved)
 }
