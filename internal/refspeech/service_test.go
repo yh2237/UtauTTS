@@ -2,13 +2,16 @@ package refspeech
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/yh2237/UtauIDX/encoder"
 	"github.com/yh2237/UtauIDX/index"
 	"github.com/yh2237/UtauIDX/speechpool"
 	"github.com/yh2237/UtauWLD/worldrender"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func TestPrepareRebuildsWhenRecordingsChange(t *testing.T) {
@@ -88,5 +91,54 @@ func TestBuildReleasesWaitersOnFailure(t *testing.T) {
 	s.mu.Unlock()
 	if state != IndexFailed {
 		t.Fatalf("state = %v, want %v", state, IndexFailed)
+	}
+}
+
+func TestExternalLoadOrBuildKeepsBabbleBeforeWorldAndSeparatesDir(t *testing.T) {
+	dir := t.TempDir()
+	cacheDir := filepath.Join(dir, "cache")
+	bankDir := filepath.Join(dir, "bank")
+	if err := os.MkdirAll(bankDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const sr = 16000
+	aWav := filepath.Join(bankDir, "a.wav")
+	if err := wav.WriteFile(aWav, &wav.PCM{SampleRate: sr, Channels: 1, Data: make([]int16, sr/2)}); err != nil {
+		t.Fatal(err)
+	}
+	entries := []speechpool.Entry{{Path: aWav, Layer: speechpool.LayerRaw}}
+	_, source, err := bankRecordings(bankDir, "", entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if babbleDirPath(cacheDir, source, false) == babbleDirPath(cacheDir, source, true) {
+		t.Fatal("external babbleDir should be isolated from native babbleDir")
+	}
+	babbleDir := babbleDirPath(cacheDir, source, true)
+	babbleWav := filepath.Join(babbleDir, "babble_000.wav")
+	if err := os.MkdirAll(babbleDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := wav.WriteFile(babbleWav, &wav.PCM{SampleRate: sr, Channels: 1, Data: make([]int16, sr/2)}); err != nil {
+		t.Fatal(err)
+	}
+	summaryBytes, err := json.Marshal(speechpool.BabbleSummary{Phrases: 1, Files: []string{babbleWav}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(babbleDir, babbleSummaryName), summaryBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := encoder.NewExternalStore()
+	reg := encoder.NewRegistry(store.Encoder(encoder.IDWavLMBasePlusL6, 768, encoder.DefaultFrameMS, encoder.ConvFrameCount))
+	key := indexCacheKey(source, reg.IDs(), configuredPoolMode())
+	eng := &Engine{external: true, registry: reg, externalStore: store, prefetched: map[string]bool{}}
+	eng.ProvidePrefetched(key)
+	s := &Service{cacheDir: cacheDir, engine: eng, worlds: map[string]*worldrender.World{}, indexes: map[string]*indexEntry{}}
+	if _, _, err := s.loadOrBuild(bankDir, "", entries, filepath.Join(dir, "missing-world"), func(string, ...any) {}, nil); err == nil {
+		t.Fatal("expected missing WORLD error")
+	}
+	if _, err := os.Stat(babbleDir); err != nil {
+		t.Fatalf("babbleDir removed on failed build: %v", err)
 	}
 }

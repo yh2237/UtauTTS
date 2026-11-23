@@ -420,11 +420,13 @@ func (s *Service) loadOrBuild(bankRoot string, color string, entries []speechpoo
 		opts.Cache = index.OpenPartCache(filepath.Join(s.cacheDir, "parts"))
 	}
 	poolEntries := files
+	var babbleDir string
 	if effectiveMode != speechpool.PoolRawOnly {
-		babble, err := s.ensureBabbleEntries(context.Background(), bankRoot, color, source, worldEnginePath, files, engine.external)
+		babble, dir, err := s.ensureBabbleEntries(context.Background(), bankRoot, color, source, worldEnginePath, files, engine.external)
 		if err != nil {
 			return nil, false, err
 		}
+		babbleDir = dir
 		poolEntries = babble
 		if effectiveMode == speechpool.PoolMerge {
 			poolEntries = append(poolEntries, files...)
@@ -435,10 +437,11 @@ func (s *Service) loadOrBuild(bankRoot string, color string, entries []speechpoo
 		return nil, false, wrapNeedInference(err)
 	}
 	if poolMode == speechpool.PoolAuto && effectiveMode == speechpool.PoolRawOnly && idx.C35 > 1.25 && canGenerate {
-		babble, err := s.ensureBabbleEntries(context.Background(), bankRoot, color, source, worldEnginePath, files, engine.external)
+		babble, dir, err := s.ensureBabbleEntries(context.Background(), bankRoot, color, source, worldEnginePath, files, engine.external)
 		if err != nil {
 			return nil, false, err
 		}
+		babbleDir = dir
 		idx, err = index.Build(babble, world, encoders, opts)
 		if err != nil {
 			return nil, false, wrapNeedInference(err)
@@ -454,6 +457,9 @@ func (s *Service) loadOrBuild(bankRoot string, color string, entries []speechpoo
 		s.foreground.Lock()
 		engine.externalStore.Clear()
 		s.foreground.Unlock()
+		if babbleDir != "" {
+			_ = os.RemoveAll(babbleDir)
+		}
 	}
 	logf("索引: %s を保存しました（%d フレーム、F0 の中央値 %.0f Hz）",
 		filepath.Base(bankRoot), idx.Frames, idx.F0Median)

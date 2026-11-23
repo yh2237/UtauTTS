@@ -46,22 +46,26 @@ const babbleSummaryName = "babble_summary.json"
 
 var babbleMu sync.Mutex
 
-func (s *Service) ensureBabbleEntries(ctx context.Context, root, color, source, worldPath string, files []speechpool.Entry, external bool) ([]speechpool.Entry, error) {
-	babbleMu.Lock()
-	defer babbleMu.Unlock()
-
+func babbleDirPath(cacheDir, source string, external bool) string {
 	babbleKey := "oto-babble-v1-" + source
 	if external {
 		babbleKey += "-external"
 	}
-	dir := filepath.Join(s.cacheDir, "babble", babbleKey)
+	return filepath.Join(cacheDir, "babble", babbleKey)
+}
+
+func (s *Service) ensureBabbleEntries(ctx context.Context, root, color, source, worldPath string, files []speechpool.Entry, external bool) ([]speechpool.Entry, string, error) {
+	babbleMu.Lock()
+	defer babbleMu.Unlock()
+
+	dir := babbleDirPath(s.cacheDir, source, external)
 	path := filepath.Join(dir, babbleSummaryName)
 	if data, err := os.ReadFile(path); err == nil {
 		var summary speechpool.BabbleSummary
 		if json.Unmarshal(data, &summary) == nil && hasBabbleFiles(summary, dir) {
 			now := time.Now()
 			_ = os.Chtimes(path, now, now)
-			return speechpool.BabbleEntries(summary), nil
+			return speechpool.BabbleEntries(summary), dir, nil
 		}
 	}
 	opts := speechpool.BabbleOptions{BankDir: root, WorldPath: worldPath, OutDir: dir, TargetSec: 180}
@@ -72,16 +76,16 @@ func (s *Service) ensureBabbleEntries(ctx context.Context, root, color, source, 
 	}
 	summary, err := speechpool.GenerateBabble(ctx, opts)
 	if err != nil {
-		return nil, fmt.Errorf("generate Oto-Babble: %w", err)
+		return nil, dir, fmt.Errorf("generate Oto-Babble: %w", err)
 	}
 	data, err := json.Marshal(summary)
 	if err != nil {
-		return nil, err
+		return nil, dir, err
 	}
 	if err := atomicfile.WriteFile(path, data); err != nil {
-		return nil, err
+		return nil, dir, err
 	}
-	return speechpool.BabbleEntries(summary), nil
+	return speechpool.BabbleEntries(summary), dir, nil
 }
 
 func hasBabbleFiles(summary speechpool.BabbleSummary, dir string) bool {
