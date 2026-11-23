@@ -208,6 +208,24 @@ Item {
                 compare(appWindow.utterancesModel.count, 2);
             }
 
+            function test_pitchScrollBarsAlwaysVisibleInBothModes() {
+                const basicBar = findChild(appWindow.contentItem, "basicPitchScrollBar");
+                const extendedBar = findChild(appWindow.contentItem, "extendedPitchScrollBar");
+                const tabs = findChild(appWindow.contentItem, "pitchModeTabs");
+                const phonemeEditor = findChild(appWindow.contentItem, "phonemeEditor");
+                verify(basicBar !== null);
+                verify(extendedBar !== null);
+                verify(tabs !== null);
+                verify(phonemeEditor !== null);
+                compare(tabs.currentIndex, 0);
+                compare(basicBar.visible, true);
+                tabs.currentIndex = 1;
+                waitForRendering(appWindow.contentItem);
+                compare(extendedBar.visible, true);
+                compare(extendedBar.editor, phonemeEditor);
+                tabs.currentIndex = 0;
+            }
+
             function cleanupTestCase() {
                 testBackend.busy = false;
                 appWindow.playbackQueueActive = false;

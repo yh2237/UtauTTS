@@ -19,12 +19,16 @@ ListFrame {
         anchors.fill: parent
         orientation: root.compact ? ListView.Horizontal : ListView.Vertical
         clip: true
-        ScrollBar.vertical: ScrollBar {}
+        ScrollBar.vertical: ScrollBar {
+            id: scrollBar
+            policy: root.compact ? ScrollBar.AlwaysOff : ScrollBar.AlwaysOn
+        }
 
         delegate: ItemDelegate {
             required property int index
             required property var modelData
-            width: root.compact ? Math.max(Theme.fieldWidthSmall, implicitWidth) : ListView.view.width
+            width: root.compact ? Math.max(Theme.fieldWidthSmall, implicitWidth)
+                                : ListView.view.width - (scrollBar.visible ? scrollBar.width : 0)
             leftPadding: Theme.spacing
             rightPadding: Theme.spacing
             topPadding: Theme.spacingMedium

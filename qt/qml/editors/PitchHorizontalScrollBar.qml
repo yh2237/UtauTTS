@@ -8,7 +8,7 @@ ScrollBar {
     required property var editor
 
     orientation: Qt.Horizontal
-    policy: root.editor.horizontalMaximum > 0 ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+    policy: ScrollBar.AlwaysOn
     size: root.editor.horizontalVisibleRatio
 
     Binding on position {
@@ -22,7 +22,10 @@ ScrollBar {
         if (travel <= 0)
             return;
         const offset = Math.max(0, Math.min(1, root.position / travel)) * root.editor.horizontalMaximum;
-        if (Math.abs(offset - root.editor.horizontalOffset) > 0.5)
+        if (Math.abs(offset - root.editor.horizontalOffset) > 0.5) {
+            if (root.editor.stopScrollAnimation)
+                root.editor.stopScrollAnimation();
             root.editor.horizontalOffset = offset;
+        }
     }
 }

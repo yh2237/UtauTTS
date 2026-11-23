@@ -399,9 +399,12 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 150
                 ScrollView {
+                    id: updateNotesScroll
                     anchors.fill: parent
+                    contentWidth: availableWidth
                     clip: true
                     TextArea {
+                        width: updateNotesScroll.availableWidth
                         readOnly: true
                         wrapMode: Text.WordWrap
                         text: host.updateReleaseNotes + (host.updateReleaseNotes.length ? "\n\n" : "") + host.updateReleaseUrl

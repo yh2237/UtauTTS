@@ -42,6 +42,13 @@ Item {
     readonly property real exprTop: 156
     property bool snapEnabled: true
     property real currentScrollX: 0
+    property alias horizontalOffset: timelineViewport.contentX
+    readonly property real contentWidth: timelineViewport.contentWidth
+    readonly property real horizontalMaximum: Math.max(0, timelineViewport.contentWidth - timelineViewport.width)
+    readonly property real horizontalVisibleRatio: timelineViewport.contentWidth > 0
+            ? Math.min(1, timelineViewport.width / timelineViewport.contentWidth) : 1
+    readonly property real horizontalPosition: horizontalMaximum > 0
+            ? timelineViewport.contentX / horizontalMaximum : 0
     property var timingEditor: null
     readonly property real pitchRange: 800
     readonly property real maximumPitchCents: 800
@@ -646,6 +653,10 @@ Item {
         return root.xToTime(root.currentScrollX + anchorX);
     }
 
+    function stopScrollAnimation() {
+        timelineScrollAnimation.stop();
+    }
+
     function beginDrag(position, mode, x, y, following) {
         if (!root.timingEditor)
             return;
@@ -995,6 +1006,14 @@ Item {
                 onContentXChanged: {
                     root.currentScrollX = contentX;
                     waveformCanvas.requestPaint();
+                }
+                onContentWidthChanged: {
+                    if (contentX > root.horizontalMaximum)
+                        contentX = root.horizontalMaximum;
+                }
+                onWidthChanged: {
+                    if (contentX > root.horizontalMaximum)
+                        contentX = root.horizontalMaximum;
                 }
 
             Canvas {
@@ -1554,12 +1573,14 @@ Item {
             visible: root.showDetails
             Layout.fillWidth: true
             Layout.preferredHeight: root.showDetails ? 190 : 0
+            contentWidth: availableWidth
             clip: true
             background: Rectangle { color: "transparent" }
-            ScrollBar.vertical.policy: ScrollBar.AsNeeded
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: ScrollBar.AlwaysOn
 
             ColumnLayout {
-                width: Math.max(0, parent.width - 12)
+                width: Math.max(0, detailsPanel.availableWidth - Theme.spacing)
                 spacing: Theme.spacingMedium
 
             GridLayout {

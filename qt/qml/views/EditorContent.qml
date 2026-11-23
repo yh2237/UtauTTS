@@ -319,7 +319,8 @@ import UtauTTS.Media
                     anchors.fill: parent
                     contentWidth: availableWidth
                     contentHeight: parameterColumn.implicitHeight + Theme.spacingLarge * 2
-                    ScrollBar.vertical.policy: ScrollBar.AsNeeded
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    ScrollBar.vertical.policy: ScrollBar.AlwaysOn
 
                     ColumnLayout {
                         id: parameterColumn
@@ -891,17 +892,23 @@ import UtauTTS.Media
                             }
                             PitchHorizontalScrollBar {
                                 id: basicPitchScrollBar
+                                objectName: "basicPitchScrollBar"
                                 Layout.fillWidth: true
                                 editor: pitchEditor
                             }
                         }
 
-                            Item {
+                            ColumnLayout {
+                                spacing: 0
                             PhonemeEditor {
                             id: phonemeEditor
                             objectName: "phonemeEditor"
-                            anchors.fill: parent
-                            anchors.margins: Theme.spacing
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            Layout.leftMargin: Theme.spacing
+                            Layout.rightMargin: Theme.spacing
+                            Layout.topMargin: Theme.spacing
+                            Layout.bottomMargin: extendedPitchScrollBar.visible ? 0 : Theme.spacing
                             translator: window.translator
                             showTimelineFrame: false
                             timingEditor: pitchEditor
@@ -940,6 +947,12 @@ import UtauTTS.Media
                                     window.seekPreview(positionMs)
                             onFramesEdited: frames => window.updatePitchFrames(frames)
                         }
+                            PitchHorizontalScrollBar {
+                                id: extendedPitchScrollBar
+                                objectName: "extendedPitchScrollBar"
+                                Layout.fillWidth: true
+                                editor: phonemeEditor
+                            }
                             }
                     }
                 }

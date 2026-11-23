@@ -18,6 +18,7 @@ T.ScrollView {
         y: 0
         height: control.height - (control.ScrollBar.horizontal.visible ? control.ScrollBar.horizontal.height : 0)
         active: control.ScrollBar.horizontal.active
+        policy: T.ScrollBar.AlwaysOn
     }
 
     ScrollBar.horizontal: ScrollBar {
@@ -26,5 +27,6 @@ T.ScrollView {
         y: control.height - height
         width: control.width - (control.ScrollBar.vertical.visible ? control.ScrollBar.vertical.width : 0)
         active: control.ScrollBar.vertical.active
+        policy: T.ScrollBar.AlwaysOff
     }
 }

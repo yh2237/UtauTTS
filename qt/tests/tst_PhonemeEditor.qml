@@ -73,4 +73,15 @@ TestCase {
         compare(editor.frameManualAt(10), 0);
         compare(editor.frameManualAt(25), 0);
     }
+
+    function test_horizontalScrollBarMetricsSyncWithZoomAndOffset() {
+        editor.zoomAt(3, 120);
+        verify(editor.horizontalMaximum > 0);
+        verify(editor.horizontalVisibleRatio < 1);
+        editor.horizontalOffset = editor.horizontalMaximum / 2;
+        fuzzyCompare(editor.currentScrollX, editor.horizontalOffset, 0.01);
+        fuzzyCompare(editor.horizontalPosition, 0.5, 0.01);
+        editor.zoomFactor = 1;
+        editor.horizontalOffset = 0;
+    }
 }
