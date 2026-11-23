@@ -631,9 +631,18 @@ void StyleItem::paint(QPainter *painter) {
     case Splitter: {
         QStyleOption option;
         initOption(option);
-        if (m_pressed)
-            option.state |= QStyle::State_Sunken;
-        style->drawControl(QStyle::CE_Splitter, &option, painter);
+        const QRect rect = option.rect;
+        if (rect.width() <= 1 || rect.height() <= 1)
+            break;
+        QColor grip = option.palette.color(QPalette::WindowText);
+        grip.setAlphaF(0.4f);
+        const QPoint center = rect.center();
+        for (int offset = -6; offset < 12; offset += 3) {
+            if (m_orientation == Qt::Horizontal)
+                painter->fillRect(center.x() + 1, center.y() + offset, 2, 2, grip);
+            else
+                painter->fillRect(center.x() + offset, center.y(), 2, 2, grip);
+        }
         break;
     }
     case ItemView: {
