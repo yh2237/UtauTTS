@@ -5,8 +5,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/plan"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func TestUnitPitchUsesTrimmedVowelAndPreservesSource(t *testing.T) {
@@ -21,7 +22,7 @@ func TestUnitPitchUsesTrimmedVowelAndPreservesSource(t *testing.T) {
 		}
 		data[index] = int16(6000 * math.Sin(2*math.Pi*frequency*float64(index)/16000))
 	}
-	if err := audio.WriteWav(path, &audio.PCM{SampleRate: 16000, Channels: 1, Data: data}); err != nil {
+	if err := wavfile.Write(path, &wav.PCM{SampleRate: 16000, Channels: 1, Data: data}); err != nil {
 		t.Fatal(err)
 	}
 	cache := NewSourceCache()

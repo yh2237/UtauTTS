@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/cmd/tools/internal/f0cache"
 	"github.com/yh2237/UtauTTS/cmd/tools/internal/toolutil"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func median(x []float64) float64 {
@@ -30,7 +30,7 @@ func interpolateF0(track []float64, times []float64, step float64) []float64 {
 }
 func internalF0(r record, step float64) ([]float64, error) {
 	path := strings.ReplaceAll(r.AudioPath, "\\", string(filepath.Separator))
-	pcm, e := audio.ReadWav(path)
+	pcm, e := wav.ReadFile(path)
 	if e != nil {
 		return nil, e
 	}

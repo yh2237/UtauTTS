@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauIDX/speechpool"
 	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
@@ -20,6 +19,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 var englishLexicons sync.Map
@@ -467,7 +467,7 @@ func referenceCentsBetween(f0 []float64, center, startMS, endMS float64) float64
 }
 
 // referenceAudioは、合成した波形にモーラごとの音量を掛け、16ビットへ直す。
-func referenceAudio(speech refspeech.Speech, durations []float64, unitGain map[int]float64) *audio.PCM {
+func referenceAudio(speech refspeech.Speech, durations []float64, unitGain map[int]float64) *wav.PCM {
 	leading := speech.LeadingMS()
 	// 拡張編集のVOLは、モーラの区間の音量に掛ける。
 	if volume := moraEnvelope(durations, unitGain, 1); volume != nil {
@@ -483,7 +483,7 @@ func referenceAudio(speech refspeech.Speech, durations []float64, unitGain map[i
 	if peak > 0.98 {
 		scale = 0.98 / peak
 	}
-	pcm := &audio.PCM{SampleRate: speech.SampleRate, Channels: 1, Data: make([]int16, len(speech.Audio))}
+	pcm := &wav.PCM{SampleRate: speech.SampleRate, Channels: 1, Data: make([]int16, len(speech.Audio))}
 	for i, v := range speech.Audio {
 		pcm.Data[i] = int16(math.Round(math.Max(-1, math.Min(1, v*scale)) * 32767))
 	}

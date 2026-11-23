@@ -3,8 +3,8 @@ package world
 import (
 	"context"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauWLD/worldrender"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 // WORLDは同じプロセスで動かし、読み込んだエンジンと分析結果を合成間で使い回す。そのため同時には1つだけ合成する。
@@ -13,7 +13,7 @@ var (
 	worldGate     = make(chan struct{}, 1)
 )
 
-func renderWorld(ctx context.Context, options worldrender.Phrase, enginePath string) (*audio.PCM, []worldrender.SpeechResult, error) {
+func renderWorld(ctx context.Context, options worldrender.Phrase, enginePath string) (*wav.PCM, []worldrender.SpeechResult, error) {
 	select {
 	case worldGate <- struct{}{}:
 	case <-ctx.Done():

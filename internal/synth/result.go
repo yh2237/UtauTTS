@@ -3,11 +3,11 @@ package synth
 import (
 	"fmt"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/label"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/sidecar"
 	"github.com/yh2237/UtauTTS/internal/tts"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
 )
 
 type Result struct {
@@ -74,7 +74,7 @@ func WriteFiles(wavPath string, result *Result, options ExportOptions) error {
 	if result == nil || result.Audio == nil {
 		return fmt.Errorf("synthesis result contains no audio")
 	}
-	if err := audio.WriteWav(wavPath, result.Audio); err != nil {
+	if err := wavfile.Write(wavPath, result.Audio); err != nil {
 		return err
 	}
 	return WriteSidecars(wavPath, options, result.Lab)

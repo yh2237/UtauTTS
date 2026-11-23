@@ -5,9 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/acoustic"
 	"github.com/yh2237/UtauTTS/internal/oto"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func TestSpeechContextUsesRetainedRegionInsteadOfOtoOverlap(t *testing.T) {
@@ -21,7 +22,7 @@ func TestSpeechContextUsesRetainedRegionInsteadOfOtoOverlap(t *testing.T) {
 		}
 		data[i] = int16(8000 * math.Sin(2*math.Pi*frequency*float64(i)/rate))
 	}
-	if err := audio.WriteWav(path, &audio.PCM{SampleRate: rate, Channels: 1, Data: data}); err != nil {
+	if err := wavfile.Write(path, &wav.PCM{SampleRate: rate, Channels: 1, Data: data}); err != nil {
 		t.Fatal(err)
 	}
 	cache := NewExtractor()
@@ -56,7 +57,7 @@ func TestBoundaryClampsFrameAtStartOfWAV(t *testing.T) {
 	for index := range data {
 		data[index] = int16(8000 * math.Sin(2*math.Pi*220*float64(index)/sampleRate))
 	}
-	if err := audio.WriteWav(path, &audio.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
+	if err := wavfile.Write(path, &wav.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
 		t.Fatal(err)
 	}
 	boundary := NewExtractor().Boundary(oto.Entry{Filename: path, Offset: 0, Preutterance: 10})
@@ -72,7 +73,7 @@ func TestPairMeasuresPitchSynchronousWaveformCorrelation(t *testing.T) {
 	for index := range data {
 		data[index] = int16(8000 * math.Sin(2*math.Pi*220*float64(index)/sampleRate))
 	}
-	if err := audio.WriteWav(path, &audio.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
+	if err := wavfile.Write(path, &wav.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
 		t.Fatal(err)
 	}
 	extractor := NewExtractor()

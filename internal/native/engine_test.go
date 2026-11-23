@@ -9,7 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func newTestEngine(t *testing.T, config Config) *Engine {
@@ -53,7 +54,7 @@ func TestEngineListsAnalyzesAndSynthesizes(t *testing.T) {
 	for index := range samples {
 		samples[index] = 4000
 	}
-	if err := audio.WriteWav(filepath.Join(bankDir, "a.wav"), &audio.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
+	if err := wavfile.Write(filepath.Join(bankDir, "a.wav"), &wav.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\na.wav=a k,0,0,0,0,0\n"), 0644); err != nil {
@@ -162,7 +163,7 @@ func TestEngineListsAllVoicebankTypes(t *testing.T) {
 	for index := range samples {
 		samples[index] = 4000
 	}
-	if err := audio.WriteWav(filepath.Join(bankDir, "a.wav"), &audio.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
+	if err := wavfile.Write(filepath.Join(bankDir, "a.wav"), &wav.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte("a.wav=縺・0,0,0,0,0\n"), 0644); err != nil {
@@ -205,7 +206,7 @@ func TestEngineFallsBackToOpenJTalkForEnglish(t *testing.T) {
 	for index := range samples {
 		samples[index] = 4000
 	}
-	if err := audio.WriteWav(filepath.Join(bankDir, "a.wav"), &audio.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
+	if err := wavfile.Write(filepath.Join(bankDir, "a.wav"), &wav.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
 		t.Fatal(err)
 	}
 	var oto strings.Builder
@@ -292,7 +293,7 @@ func TestEngineWritesDragExo(t *testing.T) {
 		for frame := range data {
 			data[frame] = 4000
 		}
-		if err := audio.WriteWav(paths[index], &audio.PCM{SampleRate: 1000, Channels: 1, Data: data}); err != nil {
+		if err := wavfile.Write(paths[index], &wav.PCM{SampleRate: 1000, Channels: 1, Data: data}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -321,7 +322,7 @@ func TestNativeRequestsUseSharedFields(t *testing.T) {
 	for index := range samples {
 		samples[index] = 4000
 	}
-	if err := audio.WriteWav(filepath.Join(bankDir, "a.wav"), &audio.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
+	if err := wavfile.Write(filepath.Join(bankDir, "a.wav"), &wav.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0644); err != nil {

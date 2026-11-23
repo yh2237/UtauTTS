@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/render/base"
 	"github.com/yh2237/UtauTTS/internal/render/world"
+	"github.com/yh2237/audiodsp/wav"
 )
 
-func renderMutable(synthesisPlan *plan.Plan, cfg Config) (*audio.PCM, error) {
+func renderMutable(synthesisPlan *plan.Plan, cfg Config) (*wav.PCM, error) {
 	if err := base.ContextError(cfg.Context); err != nil {
 		return nil, err
 	}

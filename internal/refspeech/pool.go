@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yh2237/UtauIDX/atomicfile"
 	"github.com/yh2237/UtauIDX/index"
 	"github.com/yh2237/UtauIDX/speechpool"
+	"github.com/yh2237/UtauTTS/internal/atomicfile"
 	"github.com/yh2237/audiodsp/wav"
 )
 

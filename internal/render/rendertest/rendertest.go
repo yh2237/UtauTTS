@@ -7,16 +7,17 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/render/base"
+	"github.com/yh2237/UtauTTS/internal/sourceaudio"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func init() {
 	base.TestRenderer = renderConcat
 }
 
-func renderConcat(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error) {
+func renderConcat(synthesisPlan *plan.Plan, cfg base.Config) (*wav.PCM, error) {
 	if synthesisPlan == nil || len(synthesisPlan.Units) == 0 {
 		return nil, errors.New("empty synthesis plan")
 	}
@@ -42,7 +43,7 @@ func renderConcat(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error)
 				return nil, fmt.Errorf("normalize unit %q: %w", unit.Alias, err)
 			}
 		}
-		trimmed, err := audio.TrimPCM(mono, unit.OffsetMS, unit.CutoffMS)
+		trimmed, err := sourceaudio.TrimPCM(mono, unit.OffsetMS, unit.CutoffMS)
 		if err != nil {
 			return nil, fmt.Errorf("trim unit %q: %w", unit.Alias, err)
 		}
@@ -65,7 +66,7 @@ func renderConcat(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error)
 	for frame, value := range mix {
 		mix[frame] = math.Max(-1, math.Min(1, value))
 	}
-	return &audio.PCM{SampleRate: sampleRate, Channels: 1, Data: floatPCM(mix)}, nil
+	return &wav.PCM{SampleRate: sampleRate, Channels: 1, Data: floatPCM(mix)}, nil
 }
 
 func pcmFloats(data []int16) []float64 {

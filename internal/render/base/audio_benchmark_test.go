@@ -5,10 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
-var benchmarkCachedPCM *audio.PCM
+var benchmarkCachedPCM *wav.PCM
 
 func benchmarkSource() []float64 {
 	wave := make([]float64, 4800)
@@ -21,8 +22,8 @@ func benchmarkSource() []float64 {
 // missはGo側のキャッシュだけを空にする。OSのファイルキャッシュは制御しない。
 func BenchmarkWAVCache(b *testing.B) {
 	path := filepath.Join(b.TempDir(), "source.wav")
-	pcm := &audio.PCM{SampleRate: 16000, Channels: 1, Data: floatPCM(benchmarkSource())}
-	if err := audio.WriteWav(path, pcm); err != nil {
+	pcm := &wav.PCM{SampleRate: 16000, Channels: 1, Data: floatPCM(benchmarkSource())}
+	if err := wavfile.Write(path, pcm); err != nil {
 		b.Fatal(err)
 	}
 	for _, mode := range []string{"hit", "miss"} {

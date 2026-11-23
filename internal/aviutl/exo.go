@@ -9,7 +9,7 @@ import (
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
 
-	"github.com/yh2237/UtauIDX/audio"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 const (
@@ -33,7 +33,7 @@ func WriteExo(path string, wavPaths []string, frameRate int) error {
 	clips := make([]clip, 0, len(wavPaths))
 	totalFrames := 0
 	for _, wavPath := range wavPaths {
-		pcm, err := audio.ReadWav(wavPath)
+		pcm, err := wav.ReadFile(wavPath)
 		if err != nil {
 			return fmt.Errorf("read %s: %w", wavPath, err)
 		}

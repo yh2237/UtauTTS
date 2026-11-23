@@ -13,8 +13,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func localRequest(method, target string, body io.Reader) *http.Request {
@@ -186,7 +187,7 @@ func newWaveformTestServer(t *testing.T) *Server {
 	for i := range samples {
 		samples[i] = 8000
 	}
-	if err := audio.WriteWav(wavPath, &audio.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
+	if err := wavfile.Write(wavPath, &wav.PCM{SampleRate: 1000, Channels: 1, Data: samples}); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(bank, "oto.ini"), []byte("a.wav=あ,0,0,0,0,0\n"), 0o644); err != nil {

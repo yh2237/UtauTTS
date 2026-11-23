@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/yh2237/UtauIDX/atomicfile"
-	"github.com/yh2237/UtauIDX/audio"
+	"github.com/yh2237/UtauTTS/internal/atomicfile"
 	"github.com/yh2237/UtauTTS/internal/synth"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 	"math"
 	"os"
 	"path/filepath"
@@ -30,7 +31,7 @@ func writeSourceAudit(dir string, result *synth.Result) error {
 		if u.Source == "" || u.Silent {
 			continue
 		}
-		pcm, err := audio.ReadWav(u.Source)
+		pcm, err := wav.ReadFile(u.Source)
 		if err != nil {
 			return err
 		}
@@ -44,9 +45,9 @@ func writeSourceAudit(dir string, result *synth.Result) error {
 		mixed, mixStart, mixEnd := auditClip(result.Audio, p.LeadingMarginMS+u.NoteStartMS-u.PreutteranceMS, p.LeadingMarginMS+u.NoteStartMS+u.DurationMS)
 		for _, clip := range []struct {
 			name string
-			pcm  *audio.PCM
+			pcm  *wav.PCM
 		}{{"selected", selected}, {"original-context", excerpt}, {"mixed-output", mixed}} {
-			if err := audio.WriteWav(filepath.Join(dir, fmt.Sprintf("%03d-%s.wav", i, clip.name)), clip.pcm); err != nil {
+			if err := wavfile.Write(filepath.Join(dir, fmt.Sprintf("%03d-%s.wav", i, clip.name)), clip.pcm); err != nil {
 				return err
 			}
 		}
@@ -59,11 +60,11 @@ func writeSourceAudit(dir string, result *synth.Result) error {
 	return atomicfile.WriteFile(filepath.Join(dir, "sources.json"), data)
 }
 
-func auditClip(pcm *audio.PCM, start, end float64) (*audio.PCM, float64, float64) {
+func auditClip(pcm *wav.PCM, start, end float64) (*wav.PCM, float64, float64) {
 	frames := len(pcm.Data) / pcm.Channels
 	first := int(math.Round(start * float64(pcm.SampleRate) / 1000))
 	last := int(math.Round(end * float64(pcm.SampleRate) / 1000))
 	first = max(0, min(frames, first))
 	last = max(first, min(frames, last))
-	return &audio.PCM{SampleRate: pcm.SampleRate, Channels: pcm.Channels, Data: append([]int16(nil), pcm.Data[first*pcm.Channels:last*pcm.Channels]...)}, float64(first) * 1000 / float64(pcm.SampleRate), float64(last) * 1000 / float64(pcm.SampleRate)
+	return &wav.PCM{SampleRate: pcm.SampleRate, Channels: pcm.Channels, Data: append([]int16(nil), pcm.Data[first*pcm.Channels:last*pcm.Channels]...)}, float64(first) * 1000 / float64(pcm.SampleRate), float64(last) * 1000 / float64(pcm.SampleRate)
 }

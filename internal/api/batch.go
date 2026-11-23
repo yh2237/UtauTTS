@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/sidecar"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
 )
 
 func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +86,7 @@ func (s *Server) handleSynthesizeBatch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		name := names[index]
-		wav := audio.PCMToWavBytes(result.Audio)
+		wav := wavfile.Bytes(result.Audio)
 		totalWAVBytes += len(wav)
 		if totalWAVBytes > maxBatchWAVBytes {
 			writeAPIError(w, http.StatusRequestEntityTooLarge, errors.New("batch audio exceeds 256 MiB"))

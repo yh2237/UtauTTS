@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
 	"github.com/yh2237/UtauWLD/runtimepath"
 	"github.com/yh2237/UtauWLD/worldrender"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func TestWorldF0NativeReferenceParity(t *testing.T) {
@@ -98,7 +99,7 @@ func TestWorldF0NativeReferenceParity(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			pcm := &audio.PCM{SampleRate: tc.rate, Channels: tc.channels, Data: make([]int16, tc.count*tc.channels)}
+			pcm := &wav.PCM{SampleRate: tc.rate, Channels: tc.channels, Data: make([]int16, tc.count*tc.channels)}
 			mono := make([]float64, tc.count)
 			for i := range mono {
 				sample := int16(math.Round(32767 * tc.signal(float64(i)/float64(tc.rate))))
@@ -112,7 +113,7 @@ func TestWorldF0NativeReferenceParity(t *testing.T) {
 				}
 			}
 			path := filepath.Join(t.TempDir(), "input.wav")
-			if err := audio.WriteWav(path, pcm); err != nil {
+			if err := wavfile.Write(path, pcm); err != nil {
 				t.Fatal(err)
 			}
 			for stepIndex, step := range []float64{10, 2.5} {

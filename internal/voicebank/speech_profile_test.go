@@ -1,8 +1,9 @@
 package voicebank
 
 import (
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/oto"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 	"math"
 	"os"
 	"path/filepath"
@@ -12,11 +13,11 @@ import (
 
 func TestSpeechProfileBoundedAndInvalidated(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "source.wav")
-	pcm := &audio.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 8000)}
+	pcm := &wav.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 8000)}
 	for i := 800; i < 7200; i++ {
 		pcm.Data[i] = int16(8000 * math.Sin(2*math.Pi*200*float64(i)/16000))
 	}
-	if err := audio.WriteWav(path, pcm); err != nil {
+	if err := wavfile.Write(path, pcm); err != nil {
 		t.Fatal(err)
 	}
 	entry := oto.Entry{Filename: path, Preutterance: 60, Fixed: 100}
@@ -37,7 +38,7 @@ func TestSpeechProfileBoundedAndInvalidated(t *testing.T) {
 	for i := range pcm.Data {
 		pcm.Data[i] = 0
 	}
-	if err := audio.WriteWav(path, pcm); err != nil {
+	if err := wavfile.Write(path, pcm); err != nil {
 		t.Fatal(err)
 	}
 	stamp := time.Now().Add(time.Second)

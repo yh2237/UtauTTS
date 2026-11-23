@@ -10,13 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/render/base"
 	"github.com/yh2237/UtauTTS/internal/speechtimeline"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
 	"github.com/yh2237/UtauWLD/speechtiming"
 	"github.com/yh2237/UtauWLD/worldrender"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 // nilなら計測ログを出さない。
@@ -33,11 +34,11 @@ func traceMark(start *time.Time, label string) {
 
 const worldFrameMS = worldrender.FramePeriodMS
 
-func Render(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error) {
+func Render(synthesisPlan *plan.Plan, cfg base.Config) (*wav.PCM, error) {
 	return renderWorldEngine(synthesisPlan, cfg)
 }
 
-func renderWorldEngine(synthesisPlan *plan.Plan, cfg base.Config) (*audio.PCM, error) {
+func renderWorldEngine(synthesisPlan *plan.Plan, cfg base.Config) (*wav.PCM, error) {
 	if synthesisPlan == nil || len(synthesisPlan.Units) == 0 {
 		return nil, errors.New("empty synthesis plan")
 	}
@@ -253,7 +254,7 @@ func normalizeWorldSources(synthesisPlan *plan.Plan, cache *base.SourceCache, sa
 			return nil, fmt.Errorf("normalize unit %q to %d Hz: %w", unit.Alias, sampleRate, err)
 		}
 		tempPath := filepath.Join(tempDir, fmt.Sprintf("resampled-%d.wav", index))
-		if err := audio.WriteWav(tempPath, resampled); err != nil {
+		if err := wavfile.Write(tempPath, resampled); err != nil {
 			return nil, fmt.Errorf("write resampled unit %q: %w", unit.Alias, err)
 		}
 		normalizedSources[unit.Source] = tempPath
@@ -470,7 +471,7 @@ func (b worldUnitBuilder) sourceDurationMS(unit plan.Unit) (float64, error) {
 	return worldrender.SourceEndMS(sourceDuration, unit.OffsetMS, unit.CutoffMS) - unit.OffsetMS, nil
 }
 
-func renderPhrase(synthesisPlan *plan.Plan, cfg base.Config, phrase worldrender.Phrase, enginePath string, started *time.Time) (*audio.PCM, error) {
+func renderPhrase(synthesisPlan *plan.Plan, cfg base.Config, phrase worldrender.Phrase, enginePath string, started *time.Time) (*wav.PCM, error) {
 	ctx := cfg.Context
 	if ctx == nil {
 		ctx = context.Background()

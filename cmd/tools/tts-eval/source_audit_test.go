@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/yh2237/UtauIDX/audio"
+	"github.com/yh2237/audiodsp/wav"
 	"testing"
 )
 
 func TestAuditClipClampsStereoAndCopies(t *testing.T) {
-	p := &audio.PCM{SampleRate: 1000, Channels: 2, Data: []int16{1, 2, 3, 4, 5, 6, 7, 8}}
+	p := &wav.PCM{SampleRate: 1000, Channels: 2, Data: []int16{1, 2, 3, 4, 5, 6, 7, 8}}
 	c, start, end := auditClip(p, -20, 3)
 	if start != 0 || end != 3 || len(c.Data) != 6 || c.Data[5] != 6 {
 		t.Fatal(c, start, end)

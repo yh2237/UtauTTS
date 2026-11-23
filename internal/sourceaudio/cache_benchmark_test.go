@@ -6,7 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func writeBenchmarkSources(b *testing.B, count int) []string {
@@ -14,12 +15,12 @@ func writeBenchmarkSources(b *testing.B, count int) []string {
 	dir := b.TempDir()
 	paths := make([]string, count)
 	for i := range paths {
-		pcm := &audio.PCM{SampleRate: 48000, Channels: 2, Data: make([]int16, 48000*2)}
+		pcm := &wav.PCM{SampleRate: 48000, Channels: 2, Data: make([]int16, 48000*2)}
 		for j := range pcm.Data {
 			pcm.Data[j] = int16((j*31 + i*7) % 20000)
 		}
 		paths[i] = filepath.Join(dir, fmt.Sprintf("source-%d.wav", i))
-		if err := audio.WriteWav(paths[i], pcm); err != nil {
+		if err := wavfile.Write(paths[i], pcm); err != nil {
 			b.Fatal(err)
 		}
 	}

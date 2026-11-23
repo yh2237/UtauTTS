@@ -17,7 +17,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/yh2237/UtauIDX/audio"
 	utautts "github.com/yh2237/UtauTTS"
 	"github.com/yh2237/UtauTTS/internal/appinfo"
 	"github.com/yh2237/UtauTTS/internal/entryinput"
@@ -26,6 +25,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/synth"
 	"github.com/yh2237/UtauTTS/internal/tts"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
 )
 
 //go:embed ui/index.html
@@ -358,7 +358,7 @@ func (s *Server) handleSynthesizeAudio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeSynthesisHeaders(w, "audio/wav", result.Report())
-	if _, err := w.Write(audio.PCMToWavBytes(result.Audio)); err != nil {
+	if _, err := w.Write(wavfile.Bytes(result.Audio)); err != nil {
 		log.Printf("write synthesis response: %v", err)
 	}
 }

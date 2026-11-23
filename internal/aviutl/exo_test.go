@@ -9,7 +9,8 @@ import (
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
 
-	"github.com/yh2237/UtauIDX/audio"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func writeWAV(t *testing.T, path string, sampleRate int, samples int) {
@@ -18,7 +19,7 @@ func writeWAV(t *testing.T, path string, sampleRate int, samples int) {
 	for index := range data {
 		data[index] = 1000
 	}
-	if err := audio.WriteWav(path, &audio.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
+	if err := wavfile.Write(path, &wav.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
 		t.Fatal(err)
 	}
 }

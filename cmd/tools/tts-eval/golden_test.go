@@ -7,11 +7,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/synth"
 	"github.com/yh2237/UtauTTS/internal/tts"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 // 原音選択・時間配分を意図的に変えた場合だけ更新する。
@@ -26,7 +27,7 @@ func TestSelectionPlanGolden(t *testing.T) {
 	for index := range samples {
 		samples[index] = int16(2000 * math.Sin(2*math.Pi*220*float64(index)/16000))
 	}
-	if err := audio.WriteWav(filepath.Join(bankDir, "a.wav"), &audio.PCM{SampleRate: 16000, Channels: 1, Data: samples}); err != nil {
+	if err := wavfile.Write(filepath.Join(bankDir, "a.wav"), &wav.PCM{SampleRate: 16000, Channels: 1, Data: samples}); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(bankDir, "oto.ini"), []byte("a.wav=か,0,40,0,60,30\na.wav=さ,0,50,0,70,35\n"), 0644); err != nil {

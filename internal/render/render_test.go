@@ -7,8 +7,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/plan"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func TestRenderHonorsCanceledContext(t *testing.T) {
@@ -80,7 +81,7 @@ func TestRenderWithReportKeepsSelectionPlanImmutable(t *testing.T) {
 	for index := range data {
 		data[index] = 9000
 	}
-	if err := audio.WriteWav(path, &audio.PCM{SampleRate: 1000, Channels: 1, Data: data}); err != nil {
+	if err := wavfile.Write(path, &wav.PCM{SampleRate: 1000, Channels: 1, Data: data}); err != nil {
 		t.Fatal(err)
 	}
 	input := &plan.Plan{DurationMS: 140, Units: []plan.Unit{{

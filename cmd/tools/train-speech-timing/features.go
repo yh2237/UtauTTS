@@ -13,9 +13,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/cmd/tools/internal/toolutil"
 	"github.com/yh2237/UtauTTS/internal/linguistics"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 type utterance struct {
@@ -381,7 +381,7 @@ func featurize(world *worldEngine, rec trainingRecord, alignDir string, vocab *v
 	if rec.PlanTiming {
 		return featurizePlan(rec, vocab, teacher)
 	}
-	pcm, e := audio.ReadWav(rec.AudioPath)
+	pcm, e := wav.ReadFile(rec.AudioPath)
 	if e != nil {
 		return utterance{}, e
 	}

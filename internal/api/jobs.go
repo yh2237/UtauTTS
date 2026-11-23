@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/synth"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
 )
 
 const (
@@ -230,7 +230,7 @@ func (s *Server) runSynthesisJob(id string, request SynthesisRequest) {
 		return
 	}
 	report := result.Report()
-	wav := audio.PCMToWavBytes(result.Audio)
+	wav := wavfile.Bytes(result.Audio)
 	s.jobs.update(id, func(job *synthesisJob) {
 		job.status, job.report, job.audio, job.finishedAt = jobSucceeded, &report, wav, time.Now()
 	})

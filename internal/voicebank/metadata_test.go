@@ -8,9 +8,10 @@ import (
 
 	"golang.org/x/text/encoding/japanese"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func TestLoadCharacterNameAndPrefixMap(t *testing.T) {
@@ -172,7 +173,7 @@ func TestResolverRejectsUnreadableAndSilentWAVCandidates(t *testing.T) {
 	good := filepath.Join(root, "good.wav")
 	bad := filepath.Join(root, "bad.wav")
 	writeTestTone(t, good, 220, 7000)
-	if err := audio.WriteWav(bad, &audio.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 1600)}); err != nil {
+	if err := wavfile.Write(bad, &wav.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 1600)}); err != nil {
 		t.Fatal(err)
 	}
 	write(t, filepath.Join(root, "oto.ini"), "bad.wav=あ,0,0,0,0,0\ngood.wav=あ,0,0,0,0,0\n")
@@ -203,7 +204,7 @@ func writeTestTone(t *testing.T, path string, frequency float64, amplitude int16
 	for index := range data {
 		data[index] = int16(float64(amplitude) * math.Sin(2*math.Pi*frequency*float64(index)/sampleRate))
 	}
-	if err := audio.WriteWav(path, &audio.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
+	if err := wavfile.Write(path, &wav.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
 		t.Fatal(err)
 	}
 }

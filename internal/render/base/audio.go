@@ -7,15 +7,15 @@ import (
 	"math"
 	"sync"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/sourceaudio"
 	"github.com/yh2237/audiodsp/stretch"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 type SourceCache struct {
-	raw        map[string]*audio.PCM
-	mono       map[string]*audio.PCM
-	normalized map[sourceCacheKey]*audio.PCM
+	raw        map[string]*wav.PCM
+	mono       map[string]*wav.PCM
+	normalized map[sourceCacheKey]*wav.PCM
 }
 
 type sourceCacheKey struct {
@@ -25,9 +25,9 @@ type sourceCacheKey struct {
 
 func NewSourceCache() SourceCache {
 	return SourceCache{
-		raw:        make(map[string]*audio.PCM),
-		mono:       make(map[string]*audio.PCM),
-		normalized: make(map[sourceCacheKey]*audio.PCM),
+		raw:        make(map[string]*wav.PCM),
+		mono:       make(map[string]*wav.PCM),
+		normalized: make(map[sourceCacheKey]*wav.PCM),
 	}
 }
 
@@ -50,7 +50,7 @@ var globalUnitPitchCache = struct {
 	order   *list.List
 }{entries: make(map[unitPitchCacheKey]*list.Element), order: list.New()}
 
-func loadWAVCached(path string) (*audio.PCM, error) {
+func loadWAVCached(path string) (*wav.PCM, error) {
 	return sourceaudio.ReadWav(path)
 }
 
@@ -64,17 +64,17 @@ func ClearWAVCache() {
 
 func (c *SourceCache) ensureMaps() {
 	if c.raw == nil {
-		c.raw = make(map[string]*audio.PCM)
+		c.raw = make(map[string]*wav.PCM)
 	}
 	if c.mono == nil {
-		c.mono = make(map[string]*audio.PCM)
+		c.mono = make(map[string]*wav.PCM)
 	}
 	if c.normalized == nil {
-		c.normalized = make(map[sourceCacheKey]*audio.PCM)
+		c.normalized = make(map[sourceCacheKey]*wav.PCM)
 	}
 }
 
-func (c *SourceCache) load(path string) (*audio.PCM, error) {
+func (c *SourceCache) load(path string) (*wav.PCM, error) {
 	c.ensureMaps()
 	if pcm, ok := c.raw[path]; ok {
 		return pcm, nil
@@ -87,7 +87,7 @@ func (c *SourceCache) load(path string) (*audio.PCM, error) {
 	return pcm, nil
 }
 
-func (c *SourceCache) LoadMono(path string) (*audio.PCM, error) {
+func (c *SourceCache) LoadMono(path string) (*wav.PCM, error) {
 	c.ensureMaps()
 	if pcm, ok := c.mono[path]; ok {
 		return pcm, nil
@@ -101,7 +101,7 @@ func (c *SourceCache) LoadMono(path string) (*audio.PCM, error) {
 	return pcm, nil
 }
 
-func (c *SourceCache) LoadNormalized(path string, sampleRate int) (*audio.PCM, error) {
+func (c *SourceCache) LoadNormalized(path string, sampleRate int) (*wav.PCM, error) {
 	if sampleRate <= 0 {
 		return c.LoadMono(path)
 	}
@@ -123,7 +123,7 @@ func (c *SourceCache) LoadNormalized(path string, sampleRate int) (*audio.PCM, e
 	return pcm, nil
 }
 
-func toMono(pcm *audio.PCM) *audio.PCM {
+func toMono(pcm *wav.PCM) *wav.PCM {
 	if pcm.Channels == 1 {
 		return pcm
 	}
@@ -136,13 +136,13 @@ func toMono(pcm *audio.PCM) *audio.PCM {
 		}
 		data[frame] = int16(sum / pcm.Channels)
 	}
-	return &audio.PCM{SampleRate: pcm.SampleRate, Channels: 1, Data: data}
+	return &wav.PCM{SampleRate: pcm.SampleRate, Channels: 1, Data: data}
 }
 
-func resampleRate(pcm *audio.PCM, targetRate int) *audio.PCM {
+func resampleRate(pcm *wav.PCM, targetRate int) *wav.PCM {
 	frames := len(pcm.Data)
 	targetFrames := int(math.Round(float64(frames) * float64(targetRate) / float64(pcm.SampleRate)))
-	return &audio.PCM{SampleRate: targetRate, Channels: 1, Data: floatPCM(linearResample(pcmFloats(pcm.Data), targetFrames))}
+	return &wav.PCM{SampleRate: targetRate, Channels: 1, Data: floatPCM(linearResample(pcmFloats(pcm.Data), targetFrames))}
 }
 
 func pcmFloats(data []int16) []float64 {

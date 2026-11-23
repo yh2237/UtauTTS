@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/oto"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func TestAuditSingleCVReportsSourceTiming(t *testing.T) {
@@ -16,7 +17,7 @@ func TestAuditSingleCVReportsSourceTiming(t *testing.T) {
 	for i := range data {
 		data[i] = int16(5000 * math.Sin(2*math.Pi*180*float64(i)/1000))
 	}
-	if err := audio.WriteWav(path, &audio.PCM{SampleRate: 1000, Channels: 1, Data: data}); err != nil {
+	if err := wavfile.Write(path, &wav.PCM{SampleRate: 1000, Channels: 1, Data: data}); err != nil {
 		t.Fatal(err)
 	}
 	bank := &Bank{Root: dir, Entries: map[string][]oto.Entry{

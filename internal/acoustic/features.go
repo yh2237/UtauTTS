@@ -5,8 +5,8 @@ import (
 
 	"github.com/yh2237/audiodsp/spectrum"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/pitch"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 type Frame struct {
@@ -38,7 +38,7 @@ func AnalyzeFrame(values []float64, sampleRate, bands int, normalizeSpectrum boo
 	return result
 }
 
-func Mono(pcm *audio.PCM) []float64 {
+func Mono(pcm *wav.PCM) []float64 {
 	frames := len(pcm.Data) / pcm.Channels
 	result := make([]float64, frames)
 	for frame := range result {

@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func TestAnalyzeFrameFindsPitchAndNormalizesSpectrum(t *testing.T) {
@@ -43,7 +43,7 @@ func TestSpectralTiltDeltaTracksSpectralShapeDifference(t *testing.T) {
 }
 
 func TestMonoAveragesChannels(t *testing.T) {
-	pcm := &audio.PCM{SampleRate: 8000, Channels: 2, Data: []int16{1000, 3000, -2000, 2000}}
+	pcm := &wav.PCM{SampleRate: 8000, Channels: 2, Data: []int16{1000, 3000, -2000, 2000}}
 	got := Mono(pcm)
 	if len(got) != 2 || math.Abs(got[0]-2000.0/32768) > 1e-9 || got[1] != 0 {
 		t.Fatalf("mono = %#v", got)

@@ -10,13 +10,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func TestMoraTimings(t *testing.T) {
@@ -295,7 +296,7 @@ func testSynthesisBank(t *testing.T, aliases ...string) string {
 	for index := range samples {
 		samples[index] = int16(3000 * math.Sin(2*math.Pi*220*float64(index)/16000))
 	}
-	if err := audio.WriteWav(filepath.Join(root, "source.wav"), &audio.PCM{SampleRate: 16000, Channels: 1, Data: samples}); err != nil {
+	if err := wavfile.Write(filepath.Join(root, "source.wav"), &wav.PCM{SampleRate: 16000, Channels: 1, Data: samples}); err != nil {
 		t.Fatal(err)
 	}
 	var oto strings.Builder

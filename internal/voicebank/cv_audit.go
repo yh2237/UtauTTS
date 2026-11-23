@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/acoustic"
 	"github.com/yh2237/UtauTTS/internal/oto"
 	"github.com/yh2237/UtauTTS/internal/sourceaudio"
@@ -91,7 +90,7 @@ func (b *Bank) AuditSingleCV() (*SingleCVAudit, error) {
 				row.Warnings = append(row.Warnings, "missing-source")
 			} else if pcm, err := sourceaudio.ReadWav(filepath.Clean(entry.Filename)); err != nil {
 				row.Warnings = append(row.Warnings, "wav-read")
-			} else if trimmed, err := audio.TrimPCM(pcm, entry.Offset, entry.Blank); err != nil {
+			} else if trimmed, err := sourceaudio.TrimPCM(pcm, entry.Offset, entry.Blank); err != nil {
 				row.Warnings = append(row.Warnings, "trim-range")
 			} else if pcm.SampleRate <= 0 || pcm.Channels <= 0 {
 				row.Warnings = append(row.Warnings, "invalid-format")

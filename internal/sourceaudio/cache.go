@@ -6,14 +6,14 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/acoustic"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 type cachedSource struct {
 	path          string
 	size, modTime int64
-	pcm           *audio.PCM
+	pcm           *wav.PCM
 	monoOnce      sync.Once
 	mono          []float64
 }
@@ -42,13 +42,13 @@ func newCache(limit int64) *cache {
 }
 
 // 試験で読込の開始・完了を制御するために差し替える。
-var readWavFile = audio.ReadWav
+var readWavFile = wav.ReadFile
 
 // アプリ内の原音専用。生PCMと解析用モノラルを合わせて256MiBまで保持する。
 var shared = newCache(256 << 20)
 
 // ReadWavとReadMonoが返す配列は共有・読取専用。編集する場合は呼び出し側で複製する。
-func ReadWav(path string) (*audio.PCM, error) {
+func ReadWav(path string) (*wav.PCM, error) {
 	entry, err := shared.load(path)
 	if err != nil {
 		return nil, err
@@ -56,20 +56,20 @@ func ReadWav(path string) (*audio.PCM, error) {
 	return entry.pcm, nil
 }
 
-func ReadMono(path string) (*audio.PCM, []float64, error) {
+func ReadMono(path string) (*wav.PCM, []float64, error) {
 	return shared.readMono(path)
 }
 
-func TrimmedMono(path string, offset, blank float64) (*audio.PCM, []float64, error) {
+func TrimmedMono(path string, offset, blank float64) (*wav.PCM, []float64, error) {
 	pcm, wave, err := ReadMono(path)
 	if err != nil {
 		return nil, nil, err
 	}
-	start, end, err := audio.TrimFrames(pcm, offset, blank)
+	start, end, err := TrimFrames(pcm, offset, blank)
 	if err != nil {
 		return nil, nil, err
 	}
-	return &audio.PCM{SampleRate: pcm.SampleRate, Channels: pcm.Channels,
+	return &wav.PCM{SampleRate: pcm.SampleRate, Channels: pcm.Channels,
 		Data: pcm.Data[start*pcm.Channels : end*pcm.Channels]}, wave[start:end], nil
 }
 
@@ -149,7 +149,7 @@ func (c *cache) load(path string) (*cachedSource, error) {
 	return pending.entry, pending.err
 }
 
-func (c *cache) readMono(path string) (*audio.PCM, []float64, error) {
+func (c *cache) readMono(path string) (*wav.PCM, []float64, error) {
 	entry, err := c.load(path)
 	if err != nil {
 		return nil, nil, err

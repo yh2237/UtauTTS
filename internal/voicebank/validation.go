@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/acoustic"
 	"github.com/yh2237/UtauTTS/internal/oto"
 	"github.com/yh2237/UtauTTS/internal/sourceaudio"
@@ -78,7 +77,7 @@ func inspectEntryWAV(entry oto.Entry) EntryValidation {
 	if err != nil {
 		return EntryValidation{Status: "unusable", Reason: fmt.Sprintf("wav-read: %v", err)}
 	}
-	start, end, err := audio.TrimFrames(pcm, entry.Offset, entry.Blank)
+	start, end, err := sourceaudio.TrimFrames(pcm, entry.Offset, entry.Blank)
 	if err != nil {
 		return EntryValidation{Status: "unusable", Reason: fmt.Sprintf("trim-range: %v", err)}
 	}

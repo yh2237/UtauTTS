@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/g2p"
 	_ "github.com/yh2237/UtauTTS/internal/g2p/all"
 	"github.com/yh2237/UtauTTS/internal/g2p/ja"
@@ -18,6 +17,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 // nilなら計測ログを出さない。
@@ -103,7 +103,7 @@ type Config struct {
 type Result struct {
 	Voicebank       *voicebank.Bank
 	Plan            *plan.Plan
-	Audio           *audio.PCM
+	Audio           *wav.PCM
 	RenderReport    *render.RenderReport
 	MoraDurationsMS []float64
 	MoraPositionsMS []float64

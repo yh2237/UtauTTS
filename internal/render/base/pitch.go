@@ -7,10 +7,11 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/pitch"
 	"github.com/yh2237/UtauTTS/internal/plan"
+	"github.com/yh2237/UtauTTS/internal/sourceaudio"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 // ApplyTonePitchは音高が指定されたとき、原音の高さの中央値がその音程になるよう係数を掛ける。
@@ -58,7 +59,7 @@ func F0AtTime(synthesisPlan *plan.Plan, pitches, factors []float64, reference, t
 	return value
 }
 
-func EstimateUnitPitch(unit plan.Unit, mono *audio.PCM) (float64, error) {
+func EstimateUnitPitch(unit plan.Unit, mono *wav.PCM) (float64, error) {
 	key := unitPitchCacheKey{
 		path: unit.Source, offset: math.Float64bits(unit.OffsetMS), cutoff: math.Float64bits(unit.CutoffMS),
 		consonant: math.Float64bits(unit.ConsonantMS),
@@ -76,7 +77,7 @@ func EstimateUnitPitch(unit plan.Unit, mono *audio.PCM) (float64, error) {
 	}
 	globalUnitPitchCache.Unlock()
 
-	trimStart, trimEnd, err := audio.TrimFrames(mono, unit.OffsetMS, unit.CutoffMS)
+	trimStart, trimEnd, err := sourceaudio.TrimFrames(mono, unit.OffsetMS, unit.CutoffMS)
 	if err != nil {
 		return 0, err
 	}
@@ -395,7 +396,7 @@ func MeasureWorldPitches(synthesisPlan *plan.Plan, cache *SourceCache) ([]float6
 	type pitchJob struct {
 		index int
 		unit  plan.Unit
-		mono  *audio.PCM
+		mono  *wav.PCM
 	}
 	jobs := make([]pitchJob, 0, len(synthesisPlan.Units))
 	for index, unit := range synthesisPlan.Units {

@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/cmd/tools/internal/sourcephone"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func TestPrepareImport(t *testing.T) {
@@ -18,11 +19,11 @@ func TestPrepareImport(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(dir) })
-	wav := filepath.Join(dir, "sample.wav")
-	if err := audio.WriteWav(wav, &audio.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 4800)}); err != nil {
+	samplePath := filepath.Join(dir, "sample.wav")
+	if err := wavfile.Write(samplePath, &wav.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 4800)}); err != nil {
 		t.Fatal(err)
 	}
-	record := sourcephone.Object{"id": "TEST01", "audio_path": sourcephone.Absolute(wav), "tokens": []any{sourcephone.Object{"mora": "か", "pause": false}, sourcephone.Object{"mora": "き", "pause": false}}}
+	record := sourcephone.Object{"id": "TEST01", "audio_path": sourcephone.Absolute(samplePath), "tokens": []any{sourcephone.Object{"mora": "か", "pause": false}, sourcephone.Object{"mora": "き", "pause": false}}}
 	data, err := json.Marshal(record)
 	if err != nil {
 		t.Fatal(err)

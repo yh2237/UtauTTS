@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/connection"
 	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func TestMissingEndingDoesNotDropRemainingConsonants(t *testing.T) {
@@ -418,11 +419,11 @@ func TestResolvePrefersHealthyDuplicateOverClippedRecording(t *testing.T) {
 	dir := t.TempDir()
 	clipped := filepath.Join(dir, "clipped.wav")
 	healthy := filepath.Join(dir, "healthy.wav")
-	clippedPCM := &audio.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 16000/3)}
+	clippedPCM := &wav.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 16000/3)}
 	for index := range clippedPCM.Data {
 		clippedPCM.Data[index] = 32767
 	}
-	if err := audio.WriteWav(clipped, clippedPCM); err != nil {
+	if err := wavfile.Write(clipped, clippedPCM); err != nil {
 		t.Fatal(err)
 	}
 	writeResolverTone(t, healthy, 220)
@@ -539,7 +540,7 @@ func writeResolverTone(t *testing.T, path string, hz float64) {
 	for i := range data {
 		data[i] = int16(8000 * math.Sin(2*math.Pi*hz*float64(i)/sampleRate))
 	}
-	if err := audio.WriteWav(path, &audio.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
+	if err := wavfile.Write(path, &wav.PCM{SampleRate: sampleRate, Channels: 1, Data: data}); err != nil {
 		t.Fatal(err)
 	}
 }

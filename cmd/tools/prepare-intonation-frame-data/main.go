@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/cmd/tools/internal/toolutil"
 	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func activeBounds(samples []int16, rate int) (float64, float64, error) {
@@ -242,12 +242,12 @@ func run(corpus, out string, limit int, allowMismatch bool, cfg openjtalk.Config
 			skipped++
 			continue
 		}
-		wav, e := audio.ReadWav(wavPath)
-		if e != nil || wav.Channels != 1 {
+		pcm, e := wav.ReadFile(wavPath)
+		if e != nil || pcm.Channels != 1 {
 			skipped++
 			continue
 		}
-		start, end, e := activeBounds(wav.Data, wav.SampleRate)
+		start, end, e := activeBounds(pcm.Data, pcm.SampleRate)
 		if e != nil {
 			skipped++
 			continue

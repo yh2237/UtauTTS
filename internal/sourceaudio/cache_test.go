@@ -8,17 +8,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/acoustic"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
-func writeFixture(t *testing.T, path string, value int16) *audio.PCM {
+func writeFixture(t *testing.T, path string, value int16) *wav.PCM {
 	t.Helper()
-	pcm := &audio.PCM{SampleRate: 1000, Channels: 2, Data: make([]int16, 200)}
+	pcm := &wav.PCM{SampleRate: 1000, Channels: 2, Data: make([]int16, 200)}
 	for i := range pcm.Data {
 		pcm.Data[i] = value + int16(i%2)
 	}
-	if err := audio.WriteWav(path, pcm); err != nil {
+	if err := wavfile.Write(path, pcm); err != nil {
 		t.Fatal(err)
 	}
 	return pcm
@@ -29,7 +30,7 @@ func TestSharedSourceTrimMatchesIndependentConversionAndDoesNotMutate(t *testing
 	t.Cleanup(Clear)
 	path := filepath.Join(t.TempDir(), "source.wav")
 	original := writeFixture(t, path, -1)
-	want, err := audio.TrimPCM(original, 10, -30)
+	want, err := TrimPCM(original, 10, -30)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +42,7 @@ func TestSharedSourceTrimMatchesIndependentConversionAndDoesNotMutate(t *testing
 	if err != nil || &wave[0] != &whole[10] {
 		t.Fatal("mono conversion was not reused")
 	}
-	copyPCM, err := audio.TrimPCM(got, 0, 0)
+	copyPCM, err := TrimPCM(got, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +114,7 @@ func blockReads(t *testing.T) (started chan string, release chan struct{}, calls
 	calls = new(int)
 	mu = new(sync.Mutex)
 	original := readWavFile
-	readWavFile = func(path string) (*audio.PCM, error) {
+	readWavFile = func(path string) (*wav.PCM, error) {
 		mu.Lock()
 		*calls++
 		mu.Unlock()
@@ -130,7 +131,7 @@ func TestCacheSharesInFlightLoadOfSameSource(t *testing.T) {
 	writeFixture(t, path, 100)
 	c := newCache(1 << 20)
 	started, release, calls, mu := blockReads(t)
-	results := make(chan *audio.PCM, 4)
+	results := make(chan *wav.PCM, 4)
 	for i := 0; i < 4; i++ {
 		go func() {
 			pcm, _, err := c.readMono(path)
@@ -248,7 +249,7 @@ func TestOlderLoadDoesNotReplaceNewerEntry(t *testing.T) {
 	started, release := make(chan struct{}), make(chan struct{})
 	var once sync.Once
 	original := readWavFile
-	readWavFile = func(path string) (*audio.PCM, error) {
+	readWavFile = func(path string) (*wav.PCM, error) {
 		first := false
 		once.Do(func() { first = true })
 		if first {

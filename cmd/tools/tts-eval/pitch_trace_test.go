@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/synth"
 	"github.com/yh2237/UtauTTS/internal/tts"
+	"github.com/yh2237/audiodsp/wav"
 	"math"
 	"os"
 	"path/filepath"
@@ -13,7 +13,7 @@ import (
 )
 
 func TestPitchTraceUsesAudioMarginAndMeasuresKnownTone(t *testing.T) {
-	pcm := &audio.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 3200)}
+	pcm := &wav.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 3200)}
 	for i := range pcm.Data {
 		pcm.Data[i] = int16(12000 * math.Sin(2*math.Pi*200*float64(i)/16000))
 	}

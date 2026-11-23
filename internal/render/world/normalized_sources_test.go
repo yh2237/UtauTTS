@@ -5,14 +5,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/render/base"
+	"github.com/yh2237/UtauTTS/internal/wavfile"
+	"github.com/yh2237/audiodsp/wav"
 )
 
 func TestNormalizeWorldSourcesWritesOncePerSource(t *testing.T) {
 	source := filepath.Join(t.TempDir(), "source.wav")
-	if err := audio.WriteWav(source, &audio.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 1600)}); err != nil {
+	if err := wavfile.Write(source, &wav.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 1600)}); err != nil {
 		t.Fatal(err)
 	}
 	output := t.TempDir()
@@ -26,7 +27,7 @@ func TestNormalizeWorldSourcesWritesOncePerSource(t *testing.T) {
 	if err != nil || len(files) != 1 || len(normalized) != 1 {
 		t.Fatalf("files=%v, normalized=%v, err=%v", files, normalized, err)
 	}
-	pcm, err := audio.ReadWav(normalized[source])
+	pcm, err := wav.ReadFile(normalized[source])
 	if err != nil || pcm.SampleRate != 44100 || len(pcm.Data) != 4410 {
 		t.Fatalf("pcm=%v, err=%v", pcm, err)
 	}
