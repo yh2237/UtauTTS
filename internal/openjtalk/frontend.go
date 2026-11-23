@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/yh2237/UtauTTS/internal/prosody"
 )
 
 type Config struct {
@@ -15,10 +13,10 @@ type Config struct {
 }
 
 type Analysis struct {
-	Version  int                    `json:"version"`
-	Reading  string                 `json:"reading"`
-	Morae    []string               `json:"morae"`
-	Features []prosody.FeatureFrame `json:"features"`
+	Version  int                  `json:"version"`
+	Reading  string               `json:"reading"`
+	Morae    []string             `json:"morae"`
+	Features []map[string]float64 `json:"features"`
 }
 
 func Analyze(text string, cfg Config) (*Analysis, error) {

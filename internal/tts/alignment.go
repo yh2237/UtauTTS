@@ -181,7 +181,7 @@ func runtimeAnalyzedMoraVowel(analyzed string) string {
 	return parsed[0].Vowel
 }
 
-func nearestRuntimeFeature(indices []int, features []prosody.FeatureFrame, target int) prosody.FeatureFrame {
+func nearestRuntimeFeature(indices []int, features []map[string]float64, target int) prosody.FeatureFrame {
 	for distance := 1; distance < len(indices)+1; distance++ {
 		left := target - distance
 		if left >= 0 && indices[left] >= 0 {

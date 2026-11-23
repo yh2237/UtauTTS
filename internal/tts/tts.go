@@ -129,21 +129,6 @@ type ProsodyPreview struct {
 	FramePitchCurve *render.PitchCurve
 }
 
-func ConvertToReadingContext(ctx context.Context, text string, dictionary map[string]string, openJTalk openjtalk.Config) (string, error) {
-	if err := synthesisContextError(ctx); err != nil {
-		return "", err
-	}
-	reading, frontendErr := ja.ToKanaWithDictionary(text, dictionary)
-	if frontendErr == nil {
-		return reading, nil
-	}
-	analysis, openJTalkErr := analyzeOpenJTalkCached(ctx, ja.ApplyDictionaryForAnalysis(text, dictionary), openJTalk)
-	if openJTalkErr != nil {
-		return "", fmt.Errorf("convert text to reading: %v; Open JTalk fallback: %w", frontendErr, openJTalkErr)
-	}
-	return analysis.Reading, nil
-}
-
 func ResolvePronunciation(cfg Config) (string, string, string, []linguistics.Mora, error) {
 	utterance, err := resolvePronunciation(cfg)
 	if err != nil {

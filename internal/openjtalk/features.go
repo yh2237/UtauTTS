@@ -9,7 +9,6 @@ import (
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/yh2237/UtauTTS/internal/linguistics"
-	"github.com/yh2237/UtauTTS/internal/prosody"
 )
 
 // 列順: string, pos, pos_group1, ctype, cform, orig, read, pron, acc, mora_size, chain_rule, chain_flag
@@ -129,7 +128,7 @@ func buildAnalysis(nodes []njdNode) *Analysis {
 		Version:  1,
 		Reading:  reading,
 		Morae:    make([]string, len(tokens)),
-		Features: make([]prosody.FeatureFrame, len(tokens)),
+		Features: make([]map[string]float64, len(tokens)),
 	}
 	for index, token := range tokens {
 		analysis.Morae[index] = token.Mora
@@ -344,9 +343,9 @@ func isHigh(position, accent int) bool {
 	}
 }
 
-func (token moraToken) sparseFeatures() prosody.FeatureFrame {
+func (token moraToken) sparseFeatures() map[string]float64 {
 	if token.Pause {
-		return prosody.FeatureFrame{}
+		return map[string]float64{}
 	}
 	phraseLength := token.AccentPhraseLength
 	if phraseLength < 1 {
@@ -362,7 +361,7 @@ func (token moraToken) sparseFeatures() prosody.FeatureFrame {
 	if posGroup1 == "" {
 		posGroup1 = "*"
 	}
-	result := prosody.FeatureFrame{
+	result := map[string]float64{
 		"accent_position":         float64(phrasePosition) / float64(phraseLength),
 		"accent_from_end":         float64(phraseLength-phrasePosition) / float64(phraseLength),
 		"accent_nucleus_position": float64(nucleus) / float64(phraseLength),

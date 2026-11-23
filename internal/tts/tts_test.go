@@ -411,7 +411,7 @@ func testAlignRuntimeProsodyFeaturesAcceptsAlternatePronunciations(t *testing.T)
 	}
 	analysis := &openjtalk.Analysis{
 		Morae: []string{"\u304a", "\u3053", "\u308a"},
-		Features: []prosody.FeatureFrame{
+		Features: []map[string]float64{
 			{"source": 0},
 			{"source": 1},
 			{"source": 2},
@@ -432,7 +432,7 @@ func testAlignRuntimeProsodyFeaturesAcceptsLongVowelNotation(t *testing.T) {
 	morae := []linguistics.Mora{{Text: "\u305b", Vowel: "e"}, {Text: "\u3044", Vowel: "i"}, {Text: "\u3044", Vowel: "i"}}
 	analysis := &openjtalk.Analysis{
 		Morae:    []string{"\u305b", "\u30fc", "\u3044"},
-		Features: []prosody.FeatureFrame{{"source": 0}, {"source": 1}, {"source": 2}},
+		Features: []map[string]float64{{"source": 0}, {"source": 1}, {"source": 2}},
 	}
 	aligned, err := alignRuntimeProsodyFeatures(morae, analysis)
 	if err != nil {
@@ -447,7 +447,7 @@ func testAlignRuntimeProsodyFeaturesFillsMissingGoMora(t *testing.T) {
 	morae := []linguistics.Mora{{Text: "こ"}, {Text: "れ"}, {Text: "い"}}
 	analysis := &openjtalk.Analysis{
 		Morae:    []string{"こ", "れ"},
-		Features: []prosody.FeatureFrame{{"source": 0}, {"source": 1}},
+		Features: []map[string]float64{{"source": 0}, {"source": 1}},
 	}
 	aligned, err := alignRuntimeProsodyFeatures(morae, analysis)
 	if err != nil {
@@ -462,7 +462,7 @@ func testAlignRuntimeProsodyFeaturesSkipsExtraOpenJTalkMorae(t *testing.T) {
 	morae := []linguistics.Mora{{Text: "\u3053"}, {Text: "\u3044"}}
 	analysis := &openjtalk.Analysis{
 		Morae: []string{"\u3053", "\u304f", "\u3089", "\u3044"},
-		Features: []prosody.FeatureFrame{
+		Features: []map[string]float64{
 			{"source": 0},
 			{"source": 1},
 			{"source": 2},
@@ -495,9 +495,10 @@ func TestValidateConfig(t *testing.T) {
 	}
 }
 
-func TestConvertToReadingReportsOpenJTalkFallback(t *testing.T) {
-	_, err := ConvertToReadingContext(context.Background(), "2024年です。", nil, openjtalk.Config{
-		EnginePath: filepath.Join(t.TempDir(), "missing-helper"),
+func TestReadingConversionReportsOpenJTalkFallback(t *testing.T) {
+	_, err := resolvePronunciation(Config{
+		Language: linguistics.LanguageJapanese, Text: "2024年です。",
+		OpenJTalkPath: filepath.Join(t.TempDir(), "missing-helper"),
 	})
 	if err == nil {
 		t.Fatal("text the tokenizer cannot read was silently accepted")
