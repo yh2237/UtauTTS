@@ -1,17 +1,15 @@
 package refspeech
 
 import (
-	"encoding/binary"
+	"errors"
 	"fmt"
-	"hash/fnv"
 	"math"
 	"path/filepath"
-	"slices"
 	"strings"
 
-	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauIDX/encoder"
+	"github.com/yh2237/UtauIDX/speechpool"
 	"github.com/yh2237/UtauTTS/internal/kokoro"
-	"github.com/yh2237/gograd/dsp"
 )
 
 // NeedInferenceは、KokoroやWavLMの推論を外（Web版のONNX Runtime Web）に頼む必要があることを表す。
@@ -26,9 +24,10 @@ func (n *NeedInference) Error() string {
 
 // InferenceJobは外に頼む推論の1件。
 type InferenceJob struct {
-	// Kindはkokoro（読み）、features（WavLMの6層目）、files（索引を作る前に録音をまとめて取得する）。
-	Kind string `json:"kind"`
-	Key  string `json:"key"`
+	// Kindはkokoro（読み）、features（音声の特徴量）、files（索引を作る前に録音をまとめて取得する）。
+	Kind      string `json:"kind"`
+	Key       string `json:"key"`
+	EncoderID string `json:"encoder_id,omitempty"`
 	// Modelは重みのファイル名（拡張子なし）、Voiceは声のファイル名（拡張子なし）、Styleは声の表の行。
 	Model  string  `json:"model,omitempty"`
 	Voice  string  `json:"voice,omitempty"`
@@ -42,12 +41,6 @@ type InferenceJob struct {
 	Samples []float32 `json:"-"`
 	// Pathsはfilesで取得する録音。
 	Paths []string `json:"paths,omitempty"`
-}
-
-type providedFeatures struct {
-	values []float32
-	frames int
-	dims   int
 }
 
 // openExternalは重みを読まずに、推論の入力を作るための設定だけを読む。
@@ -72,8 +65,32 @@ func openExternal(models Models) (*Engine, error) {
 			return nil, err
 		}
 	}
-	return &Engine{voices: voices, external: true, provided: map[string]providedFeatures{}, pending: map[string]Reference{},
-		prefetched: map[string]bool{}}, nil
+	ids := models.ExternalEncoders
+	if len(ids) == 0 {
+		ids = []string{encoder.IDWavLMBasePlusL6}
+	}
+	store := encoder.NewExternalStore()
+	reg := encoder.NewRegistry()
+	for _, id := range ids {
+		if !encoderEnabled(id) {
+			continue
+		}
+		switch id {
+		case encoder.IDWavLMBasePlusL6:
+			reg.Register(store.Encoder(id, 768, encoder.DefaultFrameMS, encoder.ConvFrameCount))
+		case encoder.IDWav2Vec2EspeakL20:
+			reg.Register(store.Encoder(id, 1024, encoder.DefaultFrameMS, encoder.ConvFrameCount))
+		case encoder.IDWhisperSmallL12PosInv:
+			reg.Register(store.Encoder(id, 768, encoder.DefaultFrameMS, encoder.WhisperFrameCount))
+		default:
+			return nil, fmt.Errorf("unknown external encoder %q", id)
+		}
+	}
+	if len(reg.IDs()) == 0 {
+		return nil, errors.New("no external reference encoders enabled")
+	}
+	return &Engine{voices: voices, registry: reg, external: true, externalStore: store,
+		pending: map[string]Reference{}, prefetched: map[string]bool{}}, nil
 }
 
 func stem(path string) string {
@@ -123,77 +140,30 @@ func (e *Engine) ProvideRead(key string, durations []int, f0, audio []float32) e
 	return nil
 }
 
-// ProvideFeaturesは、外で求めたWavLMの特徴量（frames×dims）を渡す。
-func (e *Engine) ProvideFeatures(key string, values []float32, frames, dims int) error {
-	// frames*dimsが桁あふれしないよう、割り算で先に確かめる。
-	if dims <= 0 || frames < 0 || frames > len(values)/dims || frames*dims != len(values) {
+// ProvideFeatures supplies one external encoder result.
+func (e *Engine) ProvideFeatures(encoderID, key string, values []float32, frames, dims int) error {
+	if dims <= 0 || frames < 0 || frames > math.MaxInt/dims || frames*dims != len(values) {
 		return fmt.Errorf("features %q: %d values for %d×%d", key, len(values), frames, dims)
 	}
-	e.featuresMu.Lock()
-	defer e.featuresMu.Unlock()
-	e.provided[key] = providedFeatures{values: values, frames: frames, dims: dims}
-	return nil
+	if e.externalStore == nil {
+		return errors.New("external feature inference is disabled")
+	}
+	if encoderID == "" {
+		encoderID = encoder.IDWavLMBasePlusL6
+	}
+	return e.externalStore.Provide(encoderID, key, values, frames, dims)
 }
 
-// externalFeaturesは、16 kHzにした音声の中身をキーに、外で求めた特徴量を返す。
-// 集める途中（collectingが非nil）は、頼む推論を記録して同じ形の0を返す。
-func (e *Engine) externalFeatures(samples []float64, sampleRate int) ([]float32, int, int, error) {
-	wave := make([]float32, len(samples))
-	for i, v := range samples {
-		wave[i] = float32(v)
+func wrapNeedInference(err error) error {
+	var need *encoder.NeedInference
+	if !errors.As(err, &need) {
+		return err
 	}
-	wave = dsp.Resample(wave, sampleRate, hubertRate)
-	key := featuresKey(wave)
-	e.featuresMu.Lock()
-	defer e.featuresMu.Unlock()
-	if p, ok := e.provided[key]; ok {
-		return p.values, p.frames, p.dims, nil
+	jobs := make([]InferenceJob, len(need.Jobs))
+	for i, job := range need.Jobs {
+		jobs[i] = InferenceJob{Kind: "features", EncoderID: job.EncoderID, Key: job.Key, Samples: job.Samples}
 	}
-	job := InferenceJob{Kind: "features", Key: key, Samples: wave}
-	if e.collecting == nil {
-		return nil, 0, 0, &NeedInference{Jobs: []InferenceJob{job}}
-	}
-	if !slices.ContainsFunc(*e.collecting, func(other InferenceJob) bool { return other.Key == key }) {
-		*e.collecting = append(*e.collecting, job)
-	}
-	frames := wavlmFrames(len(wave))
-	if frames < 1 {
-		return nil, 0, 0, fmt.Errorf("audio is too short for HuBERT")
-	}
-	return make([]float32, frames*wavlmDims), frames, wavlmDims, nil
-}
-
-const wavlmDims = 768
-
-// wavlmFramesはWavLMの畳み込み（窓400、間隔320）が出すフレーム数。
-func wavlmFrames(samples int) int {
-	if samples < 400 {
-		return 0
-	}
-	return (samples-400)/320 + 1
-}
-
-func featuresKey(wave []float32) string {
-	hash := fnv.New64a()
-	var buffer [4]byte
-	for _, v := range wave {
-		binary.LittleEndian.PutUint32(buffer[:], math.Float32bits(v))
-		hash.Write(buffer[:])
-	}
-	return fmt.Sprintf("f%d-%x", len(wave), hash.Sum64())
-}
-
-// collectFeaturesは、runの中で特徴量を求めようとした録音を集めて返す。runの結果は使わない。
-func (e *Engine) collectFeatures(run func()) []InferenceJob {
-	var jobs []InferenceJob
-	e.featuresMu.Lock()
-	e.collecting = &jobs
-	e.featuresMu.Unlock()
-	run()
-	e.featuresMu.Lock()
-	e.collecting = nil
-	e.featuresMu.Unlock()
-	return jobs
+	return &NeedInference{Jobs: jobs}
 }
 
 // ProvidePrefetchedは、filesで頼んだ録音を取得し終えたことを渡す。
@@ -205,7 +175,7 @@ func (e *Engine) ProvidePrefetched(key string) {
 
 // filesJobは、索引を作る前に録音をまとめて取得するよう頼む。Web版の音源は読むときに1つずつ取得するため、
 // 索引を作る途中で読むと長く止まる。取得済みならnilを返す。
-func (e *Engine) filesJob(key string, files []refmatch.Recording) error {
+func (e *Engine) filesJob(key string, files []speechpool.Entry) error {
 	e.featuresMu.Lock()
 	defer e.featuresMu.Unlock()
 	if e.prefetched[key] {
@@ -217,31 +187,3 @@ func (e *Engine) filesJob(key string, files []refmatch.Recording) error {
 	}
 	return &NeedInference{Jobs: []InferenceJob{{Kind: "files", Key: key, Paths: paths}}}
 }
-
-// dropProvidedは、索引を作り終えた録音の特徴量を捨てる。
-func (e *Engine) dropProvided() {
-	e.featuresMu.Lock()
-	defer e.featuresMu.Unlock()
-	e.provided = map[string]providedFeatures{}
-}
-
-// dryWorldは、特徴量を頼む録音を集めるときに、WORLDの解析を省く。
-type dryWorld struct{}
-
-func (dryWorld) Analyze(samples []float64, sampleRate int, frameMS, _ float64) ([]float64, []float64, []float64, int, error) {
-	const fftSize = 2048
-	frames := int(float64(len(samples))/float64(sampleRate)*1000/frameMS) + 1
-	bins := fftSize/2 + 1
-	spectrum := make([]float64, frames*bins)
-	aperiodicity := make([]float64, frames*bins)
-	for i := range spectrum {
-		spectrum[i], aperiodicity[i] = 1e-6, 1
-	}
-	return make([]float64, frames), spectrum, aperiodicity, fftSize, nil
-}
-
-func (dryWorld) Synthesize([]float64, []float64, []float64, int, int, float64) ([]float64, error) {
-	return nil, fmt.Errorf("dry WORLD cannot synthesize")
-}
-
-var _ refmatch.World = dryWorld{}

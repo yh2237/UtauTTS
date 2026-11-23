@@ -2,8 +2,10 @@ package tts
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -11,7 +13,7 @@ import (
 	"time"
 
 	"github.com/yh2237/UtauIDX/audio"
-	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauIDX/speechpool"
 	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
@@ -32,7 +34,7 @@ func ReferenceModels(dir string) (refspeech.Models, string, string) {
 			shared[id] = filepath.Join(dir, name)
 		}
 	}
-	return refspeech.Models{
+	models := refspeech.Models{
 		SharedVoices:  shared,
 		KokoroWeights: filepath.Join(dir, "kokoro-v1_0.pth"),
 		KokoroConfig:  filepath.Join(dir, "config.json"),
@@ -40,8 +42,32 @@ func ReferenceModels(dir string) (refspeech.Models, string, string) {
 		ZhWeights:     filepath.Join(dir, "kokoro-zh", "kokoro-v1_1-zh.pth"),
 		ZhConfig:      filepath.Join(dir, "kokoro-zh", "config.json"),
 		ZhVoice:       filepath.Join(dir, "kokoro-zh", "zf_001.pt"),
-		HuBERT:        filepath.Join(dir, "wavlm", "wavlm-base-plus.safetensors"),
-	}, filepath.Join(dir, "us_gold.json"), filepath.Join(dir, "us_silver.json")
+		WavLM:         filepath.Join(dir, "wavlm", "wavlm-base-plus.safetensors"),
+	}
+	models.Espeak = firstReferenceFile(dir, "espeak/model.safetensors", "espeak/wav2vec2-espeak.safetensors")
+	models.EspeakConfig = firstReferenceFile(dir, "espeak/config.json")
+	models.EspeakPreprocessor = firstReferenceFile(dir, "espeak/preprocessor_config.json")
+	models.Whisper = firstReferenceFile(dir, "whisper/model.safetensors", "whisper/whisper-small.safetensors")
+	models.WhisperConfig = firstReferenceFile(dir, "whisper/config.json")
+	if data, err := os.ReadFile(filepath.Join(dir, "inference.json")); err == nil {
+		var manifest struct {
+			Encoders []string `json:"encoders"`
+		}
+		if json.Unmarshal(data, &manifest) == nil {
+			models.ExternalEncoders = manifest.Encoders
+		}
+	}
+	return models, filepath.Join(dir, "us_gold.json"), filepath.Join(dir, "us_silver.json")
+}
+
+func firstReferenceFile(dir string, names ...string) string {
+	for _, name := range names {
+		path := filepath.Join(dir, name)
+		if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
+			return path
+		}
+	}
+	return ""
 }
 
 // ReferenceServiceは参照照合と音源の索引作成を受け持つServiceを返す。
@@ -60,7 +86,7 @@ func ReferenceService(dir string) (*refspeech.Service, error) {
 // PrepareReferenceIndexは音源の通常の声の参照の索引がなければ裏で作り始める。モデルがなければ何もしない。
 func PrepareReferenceIndex(dir string, bank *voicebank.Bank, worldEnginePath string) {
 	if service, err := ReferenceService(dir); err == nil {
-		service.Prepare(bank.Root, referenceRecordings(bank, ""), worldEnginePath)
+		service.Prepare(bank.Root, "", referenceRecordings(bank, ""), worldEnginePath)
 	}
 }
 
@@ -70,23 +96,19 @@ func PrepareReferenceIndexStatus(dir string, bank *voicebank.Bank, color, world 
 	if err != nil {
 		return false, err
 	}
-	status := service.PrepareStatus(bank.Root, referenceRecordings(bank, color), world)
+	status := service.PrepareStatus(bank.Root, color, referenceRecordings(bank, color), world)
 	return status.State == refspeech.IndexBuilding, nil
 }
 
-// referenceContinuityBonusは、同じ録音の続きの位置を選びやすくする強さ。
-// 20msごとに別の録音へ入れ替わるとつなぎ目が目立つ。
-const referenceContinuityBonus = 0.05
-
 // referenceRecordingsは索引に使う録音と、それを使う原音のoto.iniの範囲を返す。
-func referenceRecordings(bank *voicebank.Bank, color string) []refmatch.Recording {
+func referenceRecordings(bank *voicebank.Bank, color string) []speechpool.Entry {
 	recordings := bank.ReferenceRecordings(color)
-	result := make([]refmatch.Recording, len(recordings))
+	result := make([]speechpool.Entry, len(recordings))
 	for i, recording := range recordings {
 		result[i].Path = recording.Path
-		result[i].Phoneme = bank.ReferenceRecordingPhoneme(recording.Entries)
+		result[i].Layer = speechpool.LayerRaw
 		for _, entry := range recording.Entries {
-			result[i].Regions = append(result[i].Regions, refmatch.Region{Offset: entry.Offset, Blank: entry.Blank})
+			result[i].Regions = append(result[i].Regions, speechpool.Region{Offset: entry.Offset, Blank: entry.Blank})
 		}
 	}
 	return result
@@ -122,10 +144,9 @@ func referenceInputs(cfg Config, language, reading string) (*refspeech.Service, 
 		return nil, nil, nil, refspeech.Options{}, err
 	}
 	options := refspeech.Options{
-		Speed:           1,
-		PitchScale:      cfg.IntonationStrength / settings.Number("intonation_strength"),
-		ContinuityBonus: referenceContinuityBonus,
-		Unblended:       cfg.ReferenceUnblended,
+		Speed:      1,
+		PitchScale: cfg.IntonationStrength / settings.Number("intonation_strength"),
+		Unblended:  cfg.ReferenceUnblended,
 	}
 	if cfg.MoraDurationMS > 0 {
 		options.Speed = float32(plan.DefaultMoraDurationMS / cfg.MoraDurationMS)
@@ -232,7 +253,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 		}
 	}
 	refspeech.SetStage("索引を準備しています")
-	speech, err := service.SpeakReference(ctx, bank.Root, referenceRecordings(bank, cfg.Color), cfg.WorldEnginePath, reference, options)
+	speech, err := service.SpeakReference(ctx, bank.Root, cfg.Color, referenceRecordings(bank, cfg.Color), cfg.WorldEnginePath, reference, options)
 	refspeech.SetStage("")
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)

@@ -1,54 +1,59 @@
 package refspeech
 
 import (
-	"fmt"
+	"errors"
 	"math"
+	"time"
 
-	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauIDX/index"
+	"github.com/yh2237/UtauIDX/vocoder"
 )
 
-// AudioOptionsは参照音声からの合成に使う設定。テキスト経路には適用しない。
 type AudioOptions struct {
-	// FeatureModeはwavlm（空なら既定）またはcepstrum。
-	FeatureMode refmatch.FeatureMode
-	// UseReferenceAPは参照APによる有声判定と混合を有効にする。falseなら従来どおり。
-	UseReferenceAP bool
-	// ContinuityBonusは同じ録音の次の位置を優先する強さ。0なら従来どおり。
-	ContinuityBonus float64
-	// PitchSemitonesは参照から移す半音数。nilなら音源の音域に自動で合わせる。
-	// 自動・手動とも倍率を0.5〜2に制限する。
-	PitchSemitones *float64
-	// TargetPhonemesは20msごとの索引音素ID。nilなら音素で絞らない。
-	TargetPhonemes []int32
-	// PhonemeFallbackは指定した音素に近い単位が無いとき制約を外す。
-	PhonemeFallback bool
+	ContinuityBonus *float64
+	Unblended       bool
+	CenterHz        float64
+	PitchScale      float64
+	PitchSemitones  *float64
 	Logf            func(string)
 }
 
-// referenceAPRowsはWORLDの線形APを合成の5ms行に合わせる。
-// 高域は母音でも非周期的なので、1500Hz以下の平均を有声判定と混合に使う。
-func referenceAPRows(ap []float64, rate, fftSize int, frameMS float64, rows int) ([]float32, error) {
-	bins := fftSize/2 + 1
-	if rate <= 0 || fftSize <= 0 || frameMS <= 0 || len(ap) == 0 || len(ap)%bins != 0 || rows <= 0 {
-		return nil, fmt.Errorf("invalid reference AP dimensions")
+func (e *Engine) SpeakAudio(idx *index.Index, world index.World, audio []float64, sampleRate int, options AudioOptions) (Speech, error) {
+	if err := validateSynthesis(idx, world, options.ContinuityBonus); err != nil {
+		return Speech{}, err
 	}
-	sourceRows := len(ap) / bins
-	lowBins := min(bins, int(1500*float64(fftSize)/float64(rate))+1)
-	means := make([]float64, sourceRows)
-	for row := range sourceRows {
-		for _, value := range ap[row*bins : row*bins+lowBins] {
-			if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > 1 {
-				return nil, fmt.Errorf("invalid reference AP value")
-			}
-			means[row] += value / float64(lowBins)
+	if len(audio) == 0 || sampleRate <= 0 {
+		return Speech{}, errors.New("reference audio and a positive sample rate are required")
+	}
+	if semitones := options.PitchSemitones; semitones != nil && (math.IsNaN(*semitones) || math.IsInf(*semitones, 0)) {
+		return Speech{}, errors.New("pitch semitones must be finite")
+	}
+	started := time.Now()
+	channels, _, frames, err := e.queryFeatures(idx, audio, sampleRate, "")
+	if err != nil {
+		return Speech{}, err
+	}
+	analysis, err := vocoder.AnalyzeReference(world, audio, sampleRate, frames, nil, 0)
+	if err != nil {
+		return Speech{}, err
+	}
+	vocoder.FillVoicedByLevel(analysis.F0, analysis.Levels, -35)
+	var f0 []float64
+	if semitones := options.PitchSemitones; semitones != nil {
+		ratio := max(0.5, min(2.0, math.Exp2(*semitones/12)))
+		f0 = make([]float64, len(analysis.F0))
+		for i, hz := range analysis.F0 {
+			f0[i] = hz * ratio
 		}
+	} else {
+		f0 = outputF0(idx, analysis.F0, options.CenterHz, options.PitchScale)
 	}
-	out := make([]float32, rows)
-	for row := range rows {
-		position := math.Min(float64(sourceRows-1), float64(row)*refmatch.WorldFrameMS()/frameMS)
-		left := int(position)
-		fraction := position - float64(left)
-		out[row] = float32(means[left]*(1-fraction) + means[min(left+1, sourceRows-1)]*fraction)
+	output, err := synthesizeQuery(idx, world, channels, analysis, f0, options.ContinuityBonus, options.Unblended, options.Logf)
+	if err != nil {
+		return Speech{}, err
 	}
-	return out, nil
+	if options.Logf != nil {
+		options.Logf("合成: 全体 " + time.Since(started).Round(time.Millisecond).String())
+	}
+	return Speech{Audio: output, SampleRate: idx.SampleRate, F0: f0, AutomaticF0: f0}, nil
 }

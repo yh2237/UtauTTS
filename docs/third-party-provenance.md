@@ -19,6 +19,6 @@ UtauTTSが互換処理や移植のために参照した公開コードと、該�
 次のモジュールはPython実装をGoへ移植、または出力照合に参照したものです。
 
 - Kokoro-82Mの推論（`internal/kokoro/`）: kokoroのPythonパッケージ（Apache License 2.0）。一部はStyleTTS 2（MIT License）の改変
-- WavLM base+の特徴量（`UtauIDX/hubert`）: Hugging Face Transformersの実装（Apache License 2.0）と出力を照合
+- WavLM base+の特徴量（`UtauIDX/encoder`）: Hugging Face Transformersの実装（Apache License 2.0）と出力を照合
 - 英語の辞書参照（`internal/refspeech/lexicon.go`）: misaki（Apache License 2.0）の辞書引きと、前後の語に応じた読みの切り替え
 - 中国語の音素変換（`internal/refspeech/zhuyin.go`）: misaki（Apache License 2.0）の中国語G2Pが使う注音符号の対応表

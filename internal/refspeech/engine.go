@@ -4,70 +4,45 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/yh2237/UtauIDX/hubert"
-	"github.com/yh2237/UtauIDX/refmatch"
-	"github.com/yh2237/UtauIDX/render"
+	"github.com/yh2237/UtauIDX/encoder"
+	"github.com/yh2237/UtauIDX/index"
+	"github.com/yh2237/UtauIDX/matcher"
+	"github.com/yh2237/UtauIDX/vocoder"
 	"github.com/yh2237/UtauTTS/internal/kokoro"
-	"github.com/yh2237/gograd/dsp"
 	"github.com/yh2237/gograd/torchrng"
 )
 
 const (
-	hubertRate = 16000
-	kokoroRate = 24000
-	// DurationUnitMSはKokoroの音素長の単位（600サンプル）。
-	DurationUnitMS = 25.0
-	// kokoroSamplesPerTokenは長さ1あたりのKokoroの出力のサンプル数。
-	kokoroSamplesPerToken = 600
+	F0FrameMS             = index.WorldFrameMS
+	DurationUnitMS        = 25.0
+	kokoroRate            = 24000
 	kokoroF0FrameMS       = 12.5
+	kokoroSamplesPerToken = 600
 	kokoroSeed            = 0
-	// F0FrameMSはSpeech.F0の周期。
-	F0FrameMS = refmatch.FrameMS / 4
+	kokoroAudioLeadMS     = 50.0
 )
-
-// FeatureModelは索引の特徴量の種類。変えたら索引を作り直す。
-// UTAUTTS_FEATURE_MODELとUTAUTTS_HUBERT_LAYERで変えられる（実験用）。
-var (
-	FeatureModel = "wavlm-base-plus-layer6"
-	hubertLayer  = 6
-)
-
-func init() {
-	layerChanged := false
-	if value := os.Getenv("UTAUTTS_HUBERT_LAYER"); value != "" {
-		layer, err := strconv.Atoi(value)
-		if err == nil && layer > 0 {
-			hubertLayer = layer
-			layerChanged = true
-		}
-	}
-	if name := os.Getenv("UTAUTTS_FEATURE_MODEL"); name != "" {
-		FeatureModel = fmt.Sprintf("%s-layer%d", name, hubertLayer)
-	} else if layerChanged {
-		FeatureModel = fmt.Sprintf("wavlm-base-plus-layer%d", hubertLayer)
-	}
-}
 
 type Models struct {
-	KokoroWeights string
-	KokoroConfig  string
-	KokoroVoice   string
-	// ZhWeights、ZhConfig、ZhVoiceは中国語のKokoro。空なら中国語の参照は使わない。
-	ZhWeights string
-	ZhConfig  string
-	ZhVoice   string
-	// SharedVoicesは、英語と同じKokoro v1.0のモデルで読む声（参照TTSのIDごとの声のファイル）。
-	SharedVoices map[string]string
-	HuBERT       string
+	KokoroWeights      string
+	KokoroConfig       string
+	KokoroVoice        string
+	ZhWeights          string
+	ZhConfig           string
+	ZhVoice            string
+	SharedVoices       map[string]string
+	WavLM              string
+	Espeak             string
+	EspeakConfig       string
+	EspeakPreprocessor string
+	Whisper            string
+	WhisperConfig      string
+	ExternalEncoders   []string
 }
 
-// 参照TTSのID。Provider.ID()と対応する。
 const (
 	kokoroEnglish    = "kokoro-en"
 	kokoroChinese    = "kokoro-zh"
@@ -83,24 +58,17 @@ type voiceSet struct {
 }
 
 type Engine struct {
-	// voicesは参照TTSのIDごとのモデルと声。
-	voices map[string]*voiceSet
-	hubert *hubert.Model
+	voices        map[string]*voiceSet
+	registry      *encoder.Registry
+	external      bool
+	externalStore *encoder.ExternalStore
 
-	// readsは最近のKokoroの読み。予測と合成で同じ文を読み直さないために使う。
 	readsMu sync.Mutex
 	reads   []*cachedRead
+	pending map[string]Reference
 
-	// featuresは最近の参照音声の特徴量。同じ文を続けて合成するときに計算し直さない。
 	featuresMu sync.Mutex
-	features   []*cachedFeatures
-
-	// externalなら推論を外（Web版のONNX Runtime Web）に頼む。pendingは結果待ちの読み、
-	// providedは渡された特徴量（16 kHzの音声の中身がキー）、collectingは集めている推論。
-	external   bool
-	pending    map[string]Reference
-	provided   map[string]providedFeatures
-	collecting *[]InferenceJob
+	features   []*cachedQueryFeatures
 	prefetched map[string]bool
 }
 
@@ -110,11 +78,11 @@ type cachedRead struct {
 	prosody   *kokoro.Prosody
 }
 
-type cachedFeatures struct {
-	key    string
-	values []float32
-	frames int
-	dims   int
+type cachedQueryFeatures struct {
+	key      string
+	channels map[string][]float32
+	frames   int
+	dims     map[string]int
 }
 
 const cachedReads = 8
@@ -128,9 +96,7 @@ func Open(models Models) (engine *Engine, err error) {
 	if externalInference {
 		return openExternal(models)
 	}
-	if path := os.Getenv("UTAUTTS_HUBERT_PATH"); path != "" {
-		models.HuBERT = path
-	}
+
 	voices := map[string]*voiceSet{}
 	english, err := loadVoiceSet(kokoroEnglish, models.KokoroWeights, models.KokoroConfig, models.KokoroVoice)
 	if err != nil {
@@ -151,11 +117,11 @@ func Open(models Models) (engine *Engine, err error) {
 		}
 		voices[kokoroChinese] = chinese
 	}
-	features, err := hubert.Load(models.HuBERT)
+	reg, err := loadEncoders(models)
 	if err != nil {
-		return nil, fmt.Errorf("load HuBERT: %w", err)
+		return nil, err
 	}
-	return &Engine{voices: voices, hubert: features}, nil
+	return &Engine{voices: voices, registry: reg}, nil
 }
 
 // loadVoiceSetは、1つのKokoroのモデルと声を読む。
@@ -183,35 +149,9 @@ func (e *Engine) voiceSetFor(id string) (*voiceSet, error) {
 	return set, nil
 }
 
-// FeaturesはHuBERT Baseの6層目を20msごとに返す。refmatch.FeatureFuncとして使う。
-func (e *Engine) Features(samples []float64, sampleRate int) ([]float32, int, int, error) {
-	if e.external {
-		return e.externalFeatures(samples, sampleRate)
-	}
-	wave := make([]float32, len(samples))
-	for i, v := range samples {
-		wave[i] = float32(v)
-	}
-	rows, err := e.hubert.FeaturesAccelerated(dsp.Resample(wave, sampleRate, hubertRate), hubertLayer)
-	if err != nil {
-		return nil, 0, 0, err
-	}
-	if len(rows) == 0 {
-		return nil, 0, 0, errors.New("audio is too short for HuBERT")
-	}
-	dims := len(rows[0])
-	values := make([]float32, 0, len(rows)*dims)
-	for _, row := range rows {
-		values = append(values, row...)
-	}
-	return values, len(rows), dims, nil
-}
-
 type Options struct {
-	// FeatureModeはwavlm（空なら既定）またはcepstrum。
-	FeatureMode refmatch.FeatureMode
-	// ContinuityBonusは同じ録音の次の位置を優先する強さ。0なら従来どおり。
-	ContinuityBonus float64
+	// ContinuityBonusは同じ録音の続きのフレームを優先する強さ。nilなら既定値を使う。
+	ContinuityBonus *float64
 	// Unblendedを真にすると、近い録音のフレームを混ぜず、いちばん近い1つを使う。
 	Unblended bool
 	// SpeedはKokoroの話速。1が標準。Durationsを指定したときは使わない。
@@ -253,21 +193,12 @@ func (t Timing) LeadingMS() float64 {
 	return max(0, t.MS(0)-kokoroAudioLeadMS)
 }
 
-const kokoroAudioLeadMS = 50.0
-
 type Speech struct {
 	Audio      []float64
 	SampleRate int
 	Timing
 	// F0は出力のF0（Hz、F0FrameMSごと、0は無声）。AutomaticF0は手動の抑揚を足す前のF0。
 	F0, AutomaticF0 []float64
-	// ReferenceVoicingはSpeakAudioの有声判定の補正前後のフレーム数。テキスト経路ではnil。
-	ReferenceVoicing *VoicingStats
-}
-
-// VoicingStatsは5msごとの参照F0の有声フレーム数。
-type VoicingStats struct {
-	Frames, Before, After int
 }
 
 // ReferenceはKokoroの読み。
@@ -288,8 +219,8 @@ func (r Reference) ReferenceF0() []float64 {
 	for _, d := range r.Durations {
 		samples += d * kokoroSamplesPerToken
 	}
-	frames := samples * 1000 / kokoroRate / int(refmatch.FrameMS)
-	return refmatch.ReferenceF0(r.F0, kokoroF0FrameMS, frames)
+	frames := samples * 1000 / kokoroRate / int(index.FrameMS)
+	return vocoder.ReferenceF0(r.F0, kokoroF0FrameMS, frames)
 }
 
 // Readは音素列を参照TTSで読む。durationsを渡すと、その長さで読む。返す値は書き換えない。
@@ -303,7 +234,7 @@ func readKey(id string, symbols []string, speed float32, durations []int) string
 }
 
 // cachedFeaturesは、同じ読みの参照音声から作った特徴量を返す。
-func (e *Engine) cachedFeatures(key string) *cachedFeatures {
+func (e *Engine) cachedFeatures(key string) *cachedQueryFeatures {
 	e.featuresMu.Lock()
 	defer e.featuresMu.Unlock()
 	for _, entry := range e.features {
@@ -315,10 +246,10 @@ func (e *Engine) cachedFeatures(key string) *cachedFeatures {
 }
 
 // storeFeaturesは、参照音声の特徴量を覚えておく。
-func (e *Engine) storeFeatures(key string, values []float32, frames, dims int) {
+func (e *Engine) storeFeatures(key string, channels map[string][]float32, frames int, dims map[string]int) {
 	e.featuresMu.Lock()
 	defer e.featuresMu.Unlock()
-	entry := &cachedFeatures{key: key, values: values, frames: frames, dims: dims}
+	entry := &cachedQueryFeatures{key: key, channels: channels, frames: frames, dims: dims}
 	for i, cached := range e.features {
 		if cached.key == key {
 			e.features[i] = entry
@@ -399,22 +330,17 @@ func (e *Engine) read(id string, pieces []Piece, speed float32, durations []int,
 }
 
 // Speakは音素列を参照TTSで読み、その特徴量に近い音源のフレームで合成し直す。
-func (e *Engine) Speak(id string, index *refmatch.Index, world refmatch.World, pieces []Piece, options Options) (Speech, error) {
+func (e *Engine) Speak(id string, idx *index.Index, world index.World, pieces []Piece, options Options) (Speech, error) {
 	reference, err := e.Read(id, pieces, options.Speed, options.Durations)
 	if err != nil {
 		return Speech{}, err
 	}
-	return e.SpeakReference(index, world, reference, options)
+	return e.SpeakReference(idx, world, reference, options)
 }
 
-// SpeakReferenceは、参照の読み（Reference）から、音源のフレームで合成し直す。
-// 参照TTSが何であっても、音声とF0があれば同じように合成できる。
-func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, reference Reference, options Options) (Speech, error) {
-	if err := options.FeatureMode.Validate(); err != nil {
+func (e *Engine) SpeakReference(idx *index.Index, world index.World, reference Reference, options Options) (Speech, error) {
+	if err := validateSynthesis(idx, world, options.ContinuityBonus); err != nil {
 		return Speech{}, err
-	}
-	if options.FeatureMode != refmatch.FeatureCepstrum && index.Model != FeatureModel {
-		return Speech{}, fmt.Errorf("voicebank index uses %q, want %q", index.Model, FeatureModel)
 	}
 	rate := reference.SampleRate
 	if rate <= 0 {
@@ -424,51 +350,24 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 	for i, v := range reference.Audio {
 		samples[i] = float64(v)
 	}
-	var features []float32
-	var frames int
-	featuresFromCache := false
-	if options.FeatureMode != refmatch.FeatureCepstrum && reference.Key != "" {
-		if cached := e.cachedFeatures(reference.Key); cached != nil {
-			features, frames = cached.values, cached.frames
-			featuresFromCache = true
-		}
+	started := time.Now()
+	channels, dims, frames, err := e.queryFeatures(idx, samples, rate, reference.Key)
+	if err != nil {
+		return Speech{}, err
 	}
-	featuresStarted := time.Now()
-	if options.FeatureMode == refmatch.FeatureCepstrum {
-		var err error
-		features, frames, _, err = analyzeCepstrum(index, world, samples, rate)
-		if err != nil {
-			return Speech{}, err
-		}
+	featuresElapsed := time.Since(started)
+	analysis, err := vocoder.AnalyzeReference(world, samples, rate, frames, reference.F0, kokoroF0FrameMS)
+	if err != nil {
+		return Speech{}, err
 	}
-	if features == nil {
-		SetStage("特徴量を計算しています")
-		var dims int
-		var err error
-		if features, frames, dims, err = e.Features(samples, rate); err != nil {
-			return Speech{}, err
-		}
-		if reference.Key != "" {
-			e.storeFeatures(reference.Key, features, frames, dims)
-		}
-	}
-	featuresElapsed := time.Since(featuresStarted)
-	referenceF0 := refmatch.ReferenceF0(reference.F0, kokoroF0FrameMS, frames)
-	levels := refmatch.ReferenceLevels(samples, rate, frames*4)
-	// 長さの指定があれば、読み直さずに参照の時間軸を引き伸ばす。
-	dims := index.Dims
-	if options.FeatureMode == refmatch.FeatureCepstrum {
-		dims = refmatch.CepstrumDims
-	}
-	features, referenceF0, levels, frames = warpSequence(options.Warp, reference.LeadingMS(), features, referenceF0, levels, dims)
-	// 参照TTSのF0は語尾で途切れることがある。音量がある区間は有声として扱う。
-	refmatch.FillVoicedByLevel(referenceF0, levels, -35)
-	automaticF0 := index.OutputF0(referenceF0, options.CenterHz, options.PitchScale)
+	warpQuery(options.Warp, reference.LeadingMS(), channels, dims, &analysis)
+	vocoder.FillVoicedByLevel(analysis.F0, analysis.Levels, -35)
+	automaticF0 := outputF0(idx, analysis.F0, options.CenterHz, options.PitchScale)
 	outF0 := append([]float64(nil), automaticF0...)
 	if options.PitchCents != nil {
 		center := options.CenterHz
 		if center <= 0 {
-			center = index.F0Median
+			center = idx.F0Median
 		}
 		leading := reference.LeadingMS()
 		for i, v := range outF0 {
@@ -477,60 +376,67 @@ func (e *Engine) SpeakReference(index *refmatch.Index, world refmatch.World, ref
 			}
 			cents := options.PitchCents(float64(i)*F0FrameMS - leading)
 			if options.ReplacePitch {
-				outF0[i] = center * math.Exp2(cents/1200)
-			} else {
-				outF0[i] = v * math.Exp2(cents/1200)
+				v = center
 			}
+			outF0[i] = v * math.Exp2(cents/1200)
 		}
 	}
-	synthesizeStarted := time.Now()
-	SetStage("照合と波形の合成をしています")
-	request := refmatch.Request{
-		FeatureMode: options.FeatureMode,
-		Features:    features, Frames: frames, ReferenceF0: referenceF0, OutputF0: outF0,
-		ReferenceLevel: levels, ContinuityBonus: options.ContinuityBonus, Unblended: options.Unblended,
-	}
-	if options.FeatureMode == refmatch.FeatureCepstrum {
-		request.Cepstrum, request.Features = features, nil
-	}
-	audio, err := synthesizeWithSelectStats(index, world, request, options.Logf)
+	audio, err := synthesizeQuery(idx, world, channels, analysis, outF0, options.ContinuityBonus, options.Unblended, options.Logf)
 	if err != nil {
 		return Speech{}, err
 	}
 	if options.Logf != nil {
-		source := "計算"
-		if featuresFromCache {
-			source = "キャッシュ"
-		}
-		options.Logf(fmt.Sprintf("合成: 特徴量 %s %d ms、照合と波形 %d ms（%d フレーム、%d サンプル）",
-			source, featuresElapsed.Milliseconds(), time.Since(synthesizeStarted).Milliseconds(),
-			frames, len(audio)))
+		options.Logf(fmt.Sprintf("合成: 特徴量 %d ms、全体 %d ms（%d フレーム、%d サンプル）",
+			featuresElapsed.Milliseconds(), time.Since(started).Milliseconds(), analysis.Frames, len(audio)))
 	}
-	return Speech{Audio: audio, SampleRate: index.SampleRate, Timing: reference.Timing, F0: outF0, AutomaticF0: automaticF0}, nil
+	return Speech{Audio: audio, SampleRate: idx.SampleRate, Timing: reference.Timing, F0: outF0, AutomaticF0: automaticF0}, nil
 }
 
-// SpeakAudioは参照の音声から、音源のフレームで合成し直す。言語に依存しない入口。
-// 参照の音声とF0を使う。TargetPhonemesを渡すと音素ごとに検索を絞る。
-func (e *Engine) SpeakAudio(index *refmatch.Index, world refmatch.World, audio []float64, sampleRate int, options AudioOptions) (Speech, error) {
-	result, err := render.FromAudio(index, world, e.Features, audio, sampleRate, render.Options{
-		FeatureMode:     options.FeatureMode,
-		ExpectModel:     FeatureModel,
-		UseReferenceAP:  options.UseReferenceAP,
-		ContinuityBonus: options.ContinuityBonus,
-		PhonemeFallback: options.PhonemeFallback,
-		PitchSemitones:  options.PitchSemitones,
-		TargetPhonemes:  options.TargetPhonemes,
-		Logf:            options.Logf,
+func validateSynthesis(idx *index.Index, world index.World, continuity *float64) error {
+	if idx == nil || world == nil {
+		return errors.New("reference synthesis needs an index and WORLD engine")
+	}
+	if continuity != nil && (*continuity < 0 || math.IsNaN(*continuity) || math.IsInf(*continuity, 0)) {
+		return errors.New("continuity bonus must be finite and nonnegative")
+	}
+	return nil
+}
+
+func outputF0(idx *index.Index, f0 []float64, centerHz, pitchScale float64) []float64 {
+	if pitchScale == 0 {
+		pitchScale = 1
+	}
+	return vocoder.OutputF0(f0, idx.F0Median, centerHz, pitchScale)
+}
+
+func synthesizeQuery(idx *index.Index, world index.World, channels map[string][]float32, analysis vocoder.ReferenceAnalysis,
+	outF0 []float64, continuity *float64, unblended bool, logf func(string)) ([]float64, error) {
+	SetStage("照合と波形の合成をしています")
+	query := matcher.Query{
+		Frames: analysis.Frames, Channels: channels, MouthStatic: analysis.MouthStatic,
+		MouthDelta: analysis.MouthDelta, Level5ms: analysis.Levels,
+	}
+	profile := matcher.ComputeAutoProfile(idx, query)
+	cfg := vocoder.AutoSynthConfig(profile)
+	query.Voiced = analysis.Voiced20ms(cfg.UseSafeRefAP)
+	result, err := matcher.Match(idx, query, matcher.Options{Profile: &profile, ContinuityBonus: continuity})
+	if err != nil {
+		return nil, err
+	}
+	audio, err := (&vocoder.WorldVocoder{World: world}).Synthesize(idx, result, vocoder.SynthRequest{
+		ReferenceF0: analysis.F0, OutputF0: outF0, ReferenceLevel: analysis.Levels,
+		ReferenceAP: analysis.SafeRefAP, Config: &cfg, Unblended: unblended,
 	})
 	if err != nil {
-		return Speech{}, err
+		return nil, err
 	}
-	voicing := result.Voicing
-	return Speech{
-		Audio: result.Audio, SampleRate: result.SampleRate,
-		F0: result.F0, AutomaticF0: result.F0,
-		ReferenceVoicing: &VoicingStats{Frames: voicing.Frames, Before: voicing.Before, After: voicing.After},
-	}, nil
+	if logf != nil {
+		logf(fmt.Sprintf("Profile: Gap=%.6f Xling=%.6f Weights=%v SafeRefAP=%t", profile.Gap, profile.Xling, profile.ChannelWeights, cfg.UseSafeRefAP))
+		stats := result.Stats
+		logf(fmt.Sprintf("SelectStats (top1, 5ms): Frames=%d Runs=%d Switches=%d MeanRunFrames=%.6f UniqueUnits=%d",
+			stats.Frames, stats.Runs, stats.Switches, stats.MeanRunFrames, stats.UniqueUnits))
+	}
+	return audio, nil
 }
 
 // pieceTokensは、区切りごとの記号の範囲（先頭の0を数えた位置）を返す。

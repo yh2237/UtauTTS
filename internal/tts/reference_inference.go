@@ -8,12 +8,13 @@ type ReferenceRead struct {
 	Audio     []float32
 }
 
-// ReferenceFeaturesは外で求めたWavLMの特徴量（Frames×Dims）。
+// ReferenceFeaturesは外で求めた音声の特徴量（Frames×Dims）。
 type ReferenceFeatures struct {
-	Key    string
-	Values []float32
-	Frames int
-	Dims   int
+	EncoderID string
+	Key       string
+	Values    []float32
+	Frames    int
+	Dims      int
 }
 
 // ProvideReferenceInferenceは、refspeech.NeedInferenceで頼まれた推論の結果を渡す（Web版）。
@@ -33,7 +34,7 @@ func ProvideReferenceInference(dir string, reads []ReferenceRead, features []Ref
 		}
 	}
 	for _, item := range features {
-		if err := service.ProvideFeatures(item.Key, item.Values, item.Frames, item.Dims); err != nil {
+		if err := service.ProvideFeatures(item.EncoderID, item.Key, item.Values, item.Frames, item.Dims); err != nil {
 			return err
 		}
 	}

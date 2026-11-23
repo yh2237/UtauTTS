@@ -3,7 +3,8 @@ package refspeech
 import (
 	"math"
 
-	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauIDX/index"
+	"github.com/yh2237/UtauIDX/vocoder"
 )
 
 // Warpは参照の音声の時間軸を、出力の時間軸へ引き伸ばす対応。
@@ -76,7 +77,7 @@ func WarpF0(warp *Warp, leadingMS float64, f0 []float64) []float64 {
 	if warp == nil || len(f0) == 0 {
 		return f0
 	}
-	worldFrameMS := refmatch.WorldFrameMS()
+	worldFrameMS := index.WorldFrameMS
 	length := float64(len(f0))*worldFrameMS + warp.Target[len(warp.Target)-1] - warp.Source[len(warp.Source)-1]
 	rows := int(math.Round(length / worldFrameMS))
 	if rows <= 0 {
@@ -92,38 +93,47 @@ func WarpF0(warp *Warp, leadingMS float64, f0 []float64) []float64 {
 	return out
 }
 
-// warpSequenceは、特徴量・F0・音量を出力の時間軸へ引き伸ばす。
-func warpSequence(warp *Warp, leadingMS float64, features []float32, f0, levels []float64, dims int) ([]float32, []float64, []float64, int) {
-	subFrames := int(refmatch.FrameMS / refmatch.WorldFrameMS())
-	sourceFrames := len(features) / dims
-	if warp == nil || sourceFrames == 0 || len(f0) < sourceFrames*subFrames {
-		return features, f0, levels, sourceFrames
+// warpQuery maps the feature frames and WORLD rows to the same output timeline.
+func warpQuery(warp *Warp, leadingMS float64, channels map[string][]float32, channelDims map[string]int, analysis *vocoder.ReferenceAnalysis) {
+	if warp == nil || analysis.Frames == 0 {
+		return
 	}
-	worldFrameMS := refmatch.WorldFrameMS()
-	sourceLength := float64(len(f0)) / float64(subFrames) * refmatch.FrameMS
-	outLength := sourceLength + warp.Target[len(warp.Target)-1] - warp.Source[len(warp.Source)-1]
-	outFrames := int(math.Round(outLength / refmatch.FrameMS))
-	if outFrames <= 0 {
-		return features, f0, levels, sourceFrames
+	length := float64(analysis.Frames)*index.FrameMS + warp.Target[len(warp.Target)-1] - warp.Source[len(warp.Source)-1]
+	frames := int(math.Round(length / index.FrameMS))
+	if frames <= 0 {
+		return
 	}
-	outFeatures := make([]float32, outFrames*dims)
-	for i := range outFrames {
-		at := (float64(i)+0.5)*refmatch.FrameMS - leadingMS
-		source := leadingMS + warp.Map(at)
-		frame := max(0, min(int(source/refmatch.FrameMS), sourceFrames-1))
-		copy(outFeatures[i*dims:(i+1)*dims], features[frame*dims:(frame+1)*dims])
+	frameMap := warpRows(warp, leadingMS, index.FrameMS, analysis.Frames, frames)
+	rowMap := warpRows(warp, leadingMS, index.WorldFrameMS, analysis.Frames*index.SubFrames, frames*index.SubFrames)
+	for id, values := range channels {
+		channels[id] = remap(values, frameMap, channelDims[id])
 	}
-	rows := outFrames * subFrames
-	outF0 := make([]float64, rows)
-	outLevels := make([]float64, rows)
+	analysis.MouthStatic = remap(analysis.MouthStatic, frameMap, len(analysis.MouthStatic)/analysis.Frames)
+	analysis.MouthDelta = remap(analysis.MouthDelta, frameMap, len(analysis.MouthDelta)/analysis.Frames)
+	analysis.IsUV20 = remap(analysis.IsUV20, frameMap, 1)
+	analysis.F0 = remap(analysis.F0, rowMap, 1)
+	analysis.Levels = remap(analysis.Levels, rowMap, 1)
+	analysis.SafeRefAP = remap(analysis.SafeRefAP, rowMap, 1)
+	analysis.Frames = frames
+}
+
+func warpRows(warp *Warp, leadingMS, frameMS float64, sourceRows, targetRows int) []int {
+	rows := make([]int, targetRows)
 	for i := range rows {
-		at := (float64(i)+0.5)*worldFrameMS - leadingMS
+		at := (float64(i)+0.5)*frameMS - leadingMS
 		source := leadingMS + warp.Map(at)
-		row := max(0, min(int(source/worldFrameMS), len(f0)-1))
-		outF0[i] = f0[row]
-		if len(levels) > row {
-			outLevels[i] = levels[row]
-		}
+		rows[i] = max(0, min(int(source/frameMS), sourceRows-1))
 	}
-	return outFeatures, outF0, outLevels, outFrames
+	return rows
+}
+
+func remap[T any](values []T, rows []int, width int) []T {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]T, len(rows)*width)
+	for i, row := range rows {
+		copy(out[i*width:(i+1)*width], values[row*width:(row+1)*width])
+	}
+	return out
 }

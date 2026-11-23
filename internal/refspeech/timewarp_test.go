@@ -3,6 +3,8 @@ package refspeech
 import (
 	"math"
 	"testing"
+
+	"github.com/yh2237/UtauIDX/vocoder"
 )
 
 func TestWarpStretchesOneSegment(t *testing.T) {
@@ -41,7 +43,7 @@ func TestWarpRefusesBadSegments(t *testing.T) {
 	}
 }
 
-func TestWarpSequenceStretchesFrames(t *testing.T) {
+func TestWarpQueryStretchesFrames(t *testing.T) {
 	const dims = 4
 	source := make([]float32, 15*dims)
 	for i := range 15 {
@@ -55,7 +57,19 @@ func TestWarpSequenceStretchesFrames(t *testing.T) {
 		f0[i] = 100
 	}
 	warp := NewWarp([]float64{100, 100, 100}, []float64{100, 300, 100})
-	features, outF0, outLevels, frames := warpSequence(warp, 0, source, f0, levels, dims)
+	channels := map[string][]float32{"a": source, "b": source}
+	analysis := vocoder.ReferenceAnalysis{
+		Frames: 15, F0: f0, Levels: levels, MouthStatic: source, MouthDelta: source,
+		SafeRefAP: make([]float32, 60), IsUV20: make([]bool, 15),
+	}
+	analysis.SafeRefAP[27] = 0.9
+	analysis.IsUV20[6] = true
+	warpQuery(warp, 0, channels, map[string]int{"a": dims, "b": dims}, &analysis)
+	features, outF0, outLevels, frames := channels["a"], analysis.F0, analysis.Levels, analysis.Frames
+	if channels["b"][10*dims] != 6 || analysis.MouthStatic[10*dims] != 6 || analysis.MouthDelta[10*dims] != 6 ||
+		!analysis.IsUV20[10] || analysis.SafeRefAP[41] != 0.9 {
+		t.Fatal("query channels or analysis were not warped together")
+	}
 	// 参照は300ms（15フレーム）、出力は500ms（25フレーム）。
 	if frames != 25 {
 		t.Fatalf("frames = %d, want 25", frames)

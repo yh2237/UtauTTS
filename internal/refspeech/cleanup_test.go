@@ -1,57 +1,34 @@
 package refspeech
 
 import (
-	"encoding/binary"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauIDX/encoder"
+	"github.com/yh2237/UtauIDX/index"
 )
 
-// writeIndexは、指定の版とモデルで最小の索引を書き出す。
-func writeIndex(t *testing.T, dir, name string, version int, model string) string {
-	t.Helper()
-	const frames, dims, apBands = 2, 4, 5
-	index := &refmatch.Index{
-		Header: refmatch.Header{
-			Version: version, Model: model, SampleRate: 44100, APBands: apBands,
-			FFTSize: 1024, Dims: dims, Frames: frames,
+func testIndex(model string, frames, dims int) *index.Index {
+	const apBands = 1
+	return &index.Index{
+		Header: index.Header{
+			Version: index.Version, SampleRate: 16000, APBands: apBands, FFTSize: 512, Frames: frames,
+			Channels: []index.ChannelMeta{{ID: model, Dims: dims}},
 		},
-		Features:     make([]float32, frames*dims),
-		Spectrum:     make([]float32, frames*4*60),
-		Aperiodicity: make([]float32, frames*4*apBands),
-		F0:           make([]float32, frames*4),
-		File:         make([]int32, frames),
+		Channels:     map[string][]float32{model: make([]float32, frames*dims)},
+		Spectrum:     make([]float32, frames*index.SubFrames*index.SpectrumDims),
+		Aperiodicity: make([]float32, frames*index.SubFrames*apBands),
+		F0:           make([]float32, frames*index.SubFrames),
+		FileID:       make([]int32, frames), Position: make([]int32, frames), GlitchPenalty: make([]float32, frames),
 	}
-	path := filepath.Join(dir, name)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := index.Save(path); err != nil {
-		t.Fatal(err)
-	}
-	return path
 }
 
-// writeIndexHeader writes only the magic and JSON header. Cleanup reads no
-// payload, and an unsupported version cannot be produced through Save.
-func writeIndexHeader(t *testing.T, dir, name string, header refmatch.Header) string {
+func writeIndex(t *testing.T, dir, name, model string) string {
 	t.Helper()
-	data, err := json.Marshal(header)
-	if err != nil {
-		t.Fatal(err)
-	}
-	contents := append([]byte("UTRM"), make([]byte, 4)...)
-	binary.LittleEndian.PutUint32(contents[4:], uint32(len(data)))
-	contents = append(contents, data...)
 	path := filepath.Join(dir, name)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, contents, 0o644); err != nil {
+	if err := testIndex(model, 2, 4).Save(path); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -59,13 +36,13 @@ func writeIndexHeader(t *testing.T, dir, name string, header refmatch.Header) st
 
 func TestCleanupRemovesUnusableIndexes(t *testing.T) {
 	dir := t.TempDir()
-	current := writeIndex(t, dir, "current.idx", refmatch.Version(), FeatureModel)
-	compatible := writeIndex(t, dir, "v6.idx", 6, FeatureModel)
-	oldVersion := writeIndexHeader(t, dir, "old-version.idx", refmatch.Header{
-		Version: 5, Model: FeatureModel, SampleRate: 44100, APBands: 5, FFTSize: 1024, Dims: 4, Frames: 2,
-	})
-	otherModel := writeIndex(t, dir, "other-model.idx", refmatch.Version(), "hubert-base-layer6")
-	broken := filepath.Join(dir, "broken.idx")
+	current := writeIndex(t, dir, "current.utsp", encoder.IDWavLMBasePlusL6)
+	otherModel := writeIndex(t, dir, "other-model.utsp", encoder.IDWhisperSmallL12PosInv)
+	oldVersion := filepath.Join(dir, "legacy.idx")
+	if err := os.WriteFile(oldVersion, []byte("UTRM"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	broken := filepath.Join(dir, "broken.utsp")
 	if err := os.WriteFile(broken, []byte("not an index"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -79,15 +56,15 @@ func TestCleanupRemovesUnusableIndexes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Indexes != 3 {
-		t.Fatalf("removed %d indexes, want 3", result.Indexes)
+	if result.Indexes != 2 {
+		t.Fatalf("removed %d indexes, want 2", result.Indexes)
 	}
-	for _, path := range []string{current, compatible, keep} {
+	for _, path := range []string{current, otherModel, keep} {
 		if _, err := os.Stat(path); err != nil {
 			t.Errorf("%s should remain: %v", filepath.Base(path), err)
 		}
 	}
-	for _, path := range []string{oldVersion, otherModel, broken} {
+	for _, path := range []string{oldVersion, broken} {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Errorf("%s should be removed", filepath.Base(path))
 		}
@@ -100,30 +77,63 @@ func TestCleanupRemovesUnusedParts(t *testing.T) {
 	if err := os.MkdirAll(parts, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	stale := filepath.Join(parts, "abcd.part")
 	fresh := filepath.Join(parts, "abce.part")
-	for _, path := range []string{stale, fresh} {
+	stale := []string{filepath.Join(parts, "old.part"), filepath.Join(parts, "old.world"), filepath.Join(parts, "old.chan")}
+	for _, path := range append([]string{fresh}, stale...) {
 		if err := os.WriteFile(path, []byte("part"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
 	old := time.Now().Add(-partRetention - 24*time.Hour)
-	if err := os.Chtimes(stale, old, old); err != nil {
-		t.Fatal(err)
+	for _, path := range stale {
+		if err := os.Chtimes(path, old, old); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	result, err := Cleanup(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Parts != 1 {
-		t.Fatalf("removed %d parts, want 1", result.Parts)
+	if result.Parts != len(stale) {
+		t.Fatalf("removed %d parts, want %d", result.Parts, len(stale))
 	}
-	if _, err := os.Stat(stale); !os.IsNotExist(err) {
-		t.Error("the stale part should be removed")
+	for _, path := range stale {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Errorf("stale part %s should be removed", path)
+		}
 	}
 	if _, err := os.Stat(fresh); err != nil {
 		t.Errorf("the fresh part should remain: %v", err)
+	}
+}
+
+func TestCleanupRemovesStaleBabble(t *testing.T) {
+	dir := t.TempDir()
+	babble := filepath.Join(dir, "babble")
+	stale, fresh := filepath.Join(babble, "stale"), filepath.Join(babble, "fresh")
+	for _, path := range []string{stale, fresh} {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(path, babbleSummaryName), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old := time.Now().Add(-partRetention - time.Hour)
+	path := filepath.Join(stale, babbleSummaryName)
+	if err := os.Chtimes(path, old, old); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Cleanup(dir)
+	if err != nil || result.Parts != 1 || result.Bytes != 2 {
+		t.Fatalf("cleanup = %+v, %v", result, err)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatalf("stale babble directory: %v", err)
+	}
+	if _, err := os.Stat(fresh); err != nil {
+		t.Fatalf("fresh babble directory: %v", err)
 	}
 }
 

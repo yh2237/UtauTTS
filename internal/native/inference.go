@@ -26,10 +26,11 @@ func (e *Engine) provideInference(requestJSON []byte) error {
 			AudioPath string    `json:"audio_path"`
 		} `json:"reads"`
 		Features []struct {
-			Key    string `json:"key"`
-			Path   string `json:"path"`
-			Frames int    `json:"frames"`
-			Dims   int    `json:"dims"`
+			EncoderID string `json:"encoder_id"`
+			Key       string `json:"key"`
+			Path      string `json:"path"`
+			Frames    int    `json:"frames"`
+			Dims      int    `json:"dims"`
 		} `json:"features"`
 		Prefetched []string `json:"prefetched"`
 	}
@@ -53,7 +54,7 @@ func (e *Engine) provideInference(requestJSON []byte) error {
 		if err != nil {
 			return err
 		}
-		features[i] = tts.ReferenceFeatures{Key: item.Key, Values: values, Frames: item.Frames, Dims: item.Dims}
+		features[i] = tts.ReferenceFeatures{EncoderID: item.EncoderID, Key: item.Key, Values: values, Frames: item.Frames, Dims: item.Dims}
 	}
 	return e.synth.ProvideReferenceInference(reads, features, request.Prefetched)
 }

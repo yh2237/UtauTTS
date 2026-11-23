@@ -6,10 +6,14 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/yh2237/UtauIDX/encoder"
+	"github.com/yh2237/UtauIDX/index"
 )
 
-func externalTestEngine(t *testing.T) *Engine {
+func externalTestEngine(t *testing.T, ids ...string) *Engine {
 	t.Helper()
+	t.Setenv("UTAUTTS_ENCODERS", "wavlm-base-plus-l6, whisper-small-l12-posinv")
 	dir := t.TempDir()
 	config := filepath.Join(dir, "config.json")
 	data := `{"vocab":{"a":1,"b":2," ":3},"hidden_dim":512,"style_dim":128,"max_dur":50,"n_layer":3,"text_encoder_kernel_size":5,"plbert":{"max_position_embeddings":512}}`
@@ -17,7 +21,7 @@ func externalTestEngine(t *testing.T) *Engine {
 		t.Fatal(err)
 	}
 	engine, err := openExternal(Models{KokoroWeights: filepath.Join(dir, "kokoro-v1_0.pth"), KokoroConfig: config,
-		KokoroVoice: filepath.Join(dir, "af_heart.pt"), SharedVoices: map[string]string{kokoroSpanish: filepath.Join(dir, "ef_dora.pt")}})
+		KokoroVoice: filepath.Join(dir, "af_heart.pt"), ExternalEncoders: ids, SharedVoices: map[string]string{kokoroSpanish: filepath.Join(dir, "ef_dora.pt")}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,34 +63,43 @@ func TestExternalReadAsksThenUsesProvidedResult(t *testing.T) {
 	}
 }
 
-func TestExternalFeaturesAskCollectAndProvide(t *testing.T) {
-	engine := externalTestEngine(t)
+func TestExternalFeaturesBatchSharedAudioAndAlignFrames(t *testing.T) {
+	wavlm, whisper := encoder.IDWavLMBasePlusL6, encoder.IDWhisperSmallL12PosInv
+	engine := externalTestEngine(t, wavlm, whisper)
+	const dims = 768
+	idx := &index.Index{Header: index.Header{Channels: []index.ChannelMeta{{ID: wavlm, Dims: dims}, {ID: whisper, Dims: dims}}}}
 	samples := make([]float64, 16000)
-	for i := range samples {
-		samples[i] = float64(i%50) / 50
-	}
-	_, _, _, err := engine.Features(samples, 16000)
+	_, _, _, err := engine.queryFeatures(idx, samples, 16000, "read")
 	var need *NeedInference
-	if !errors.As(err, &need) || need.Jobs[0].Kind != "features" || len(need.Jobs[0].Samples) != 16000 {
-		t.Fatalf("err=%v", err)
+	if !errors.As(err, &need) || len(need.Jobs) != 2 {
+		t.Fatalf("expected two inference jobs, got %v", err)
 	}
-	jobs := engine.collectFeatures(func() {
-		values, frames, dims, err := engine.Features(samples, 16000)
-		if err != nil || frames != 49 || dims != wavlmDims || len(values) != frames*dims {
-			t.Errorf("collect: frames=%d dims=%d err=%v", frames, dims, err)
+	for i, job := range need.Jobs {
+		if job.Kind != "features" || len(job.Samples) != 16000 || job.Key != need.Jobs[0].Key ||
+			job.EncoderID != idx.Header.Channels[i].ID {
+			t.Fatalf("job %d: %s %s %s with %d samples", i, job.Kind, job.EncoderID, job.Key, len(job.Samples))
 		}
-	})
-	if len(jobs) != 1 || jobs[0].Key != need.Jobs[0].Key {
-		t.Fatalf("jobs=%v", jobs)
+		frames := 49 + i
+		values := make([]float32, frames*dims)
+		values[0] = float32(i + 1)
+		id := job.EncoderID
+		if id == wavlm {
+			id = "" // Legacy callers can omit the WavLM ID.
+		}
+		if err := engine.ProvideFeatures(id, job.Key, values, frames, dims); err != nil {
+			t.Fatal(err)
+		}
 	}
-	values := make([]float32, 49*wavlmDims)
-	values[0] = 1
-	if err := engine.ProvideFeatures(jobs[0].Key, values, 49, wavlmDims); err != nil {
-		t.Fatal(err)
-	}
-	got, frames, _, err := engine.Features(samples, 16000)
-	if err != nil || frames != 49 || got[0] != 1 {
+	got, _, frames, err := engine.queryFeatures(idx, samples, 16000, "read")
+	if err != nil || frames != 49 || len(got[whisper]) != 49*dims || got[wavlm][0] != 1 || got[whisper][0] != 2 {
 		t.Fatalf("frames=%d err=%v", frames, err)
+	}
+	engine.externalStore.Clear()
+	if _, _, frames, err := engine.queryFeatures(idx, samples, 16000, "read"); err != nil || frames != 49 {
+		t.Fatalf("cache retry: frames=%d err=%v", frames, err)
+	}
+	if _, _, _, err := engine.queryFeatures(idx, samples[:100], 16000, "short"); err == nil || errors.As(err, &need) {
+		t.Fatalf("short audio returned %v, want a validation error", err)
 	}
 }
 
@@ -121,7 +134,7 @@ func TestExternalProvideReadClearsPendingAfterAudioUpgrade(t *testing.T) {
 // 桁あふれする形の特徴量は受け取らない。
 func TestProvideFeaturesRejectsOverflowingShape(t *testing.T) {
 	engine := externalTestEngine(t)
-	if err := engine.ProvideFeatures("key", nil, 1<<32, 1<<32); err == nil {
+	if err := engine.ProvideFeatures("", "key", nil, int(^uint(0)>>1), 2); err == nil {
 		t.Fatal("accepted an overflowing feature shape")
 	}
 }

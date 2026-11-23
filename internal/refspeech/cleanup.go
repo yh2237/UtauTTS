@@ -5,10 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
-	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauIDX/index"
 )
 
 // partRetentionは、使われていない部分キャッシュを残す期間。
@@ -51,14 +50,15 @@ func Cleanup(dir string) (CleanupResult, error) {
 		return result, err
 	}
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".idx") {
+		ext := filepath.Ext(entry.Name())
+		if !entry.Type().IsRegular() || (ext != ".idx" && ext != ".utsp") {
 			continue
 		}
 		path := filepath.Join(dir, entry.Name())
-		// 読めない版か特徴量モデルが違う索引は、作り直しになるので消す。
-		header, err := refmatch.ReadHeader(path)
-		if err == nil && (header.Version == refmatch.Version() || header.Version == 7 || header.Version == 6) && header.Model == FeatureModel {
-			continue
+		if ext == ".utsp" {
+			if header, err := index.ReadHeader(path); err == nil && header.Version == index.Version {
+				continue
+			}
 		}
 		if info, statErr := entry.Info(); statErr == nil {
 			result.Indexes++
@@ -68,15 +68,22 @@ func Cleanup(dir string) (CleanupResult, error) {
 			return result, fmt.Errorf("remove %s: %w", path, err)
 		}
 	}
+	cutoff := time.Now().Add(-partRetention)
 	partsDir := filepath.Join(dir, "parts")
 	if info, err := os.Stat(partsDir); err == nil && info.IsDir() {
-		count, bytes, err := removeUnusedParts(partsDir, time.Now().Add(-partRetention))
+		count, bytes, err := removeUnusedParts(partsDir, cutoff)
 		result.Parts, result.Bytes = count, result.Bytes+bytes
 		if err != nil {
 			return result, err
 		}
 	}
 	// 上限を超えた分は、最後に使ったのが古いものから消す。
+	count, bytes, err := removeUnusedBabble(filepath.Join(dir, "babble"), cutoff)
+	result.Parts += count
+	result.Bytes += bytes
+	if err != nil {
+		return result, err
+	}
 	trimmed, trimmedBytes := trimIndexCache(dir)
 	result.Indexes += trimmed
 	result.Bytes += trimmedBytes
@@ -97,7 +104,7 @@ func trimIndexCache(dir string) (int, int64) {
 	var indexes []cachedIndex
 	var total int64
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".idx") {
+		if !entry.Type().IsRegular() || filepath.Ext(entry.Name()) != ".utsp" {
 			continue
 		}
 		info, err := entry.Info()
@@ -138,7 +145,12 @@ func removeUnusedParts(dir string, cutoff time.Time) (int, int64, error) {
 		if err != nil {
 			return nil
 		}
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".part") {
+		if !entry.Type().IsRegular() {
+			return nil
+		}
+		switch filepath.Ext(entry.Name()) {
+		case ".world", ".chan", ".part":
+		default:
 			return nil
 		}
 		info, statErr := entry.Info()
@@ -154,6 +166,55 @@ func removeUnusedParts(dir string, cutoff time.Time) (int, int64, error) {
 	})
 	if err != nil {
 		return count, bytes, err
+	}
+	return count, bytes, nil
+}
+
+func removeUnusedBabble(dir string, cutoff time.Time) (int, int64, error) {
+	babbleMu.Lock()
+	defer babbleMu.Unlock()
+
+	info, err := os.Lstat(dir)
+	if os.IsNotExist(err) || (err == nil && !info.IsDir()) {
+		return 0, 0, nil
+	}
+	if err != nil {
+		return 0, 0, err
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return 0, 0, err
+	}
+	var count int
+	var bytes int64
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		path := filepath.Join(dir, entry.Name())
+		info, err := os.Lstat(filepath.Join(path, babbleSummaryName))
+		if os.IsNotExist(err) {
+			info, err = entry.Info()
+		}
+		if err != nil || info.ModTime().After(cutoff) {
+			continue
+		}
+		var size int64
+		if err := filepath.WalkDir(path, func(_ string, ent os.DirEntry, err error) error {
+			if err == nil && ent.Type().IsRegular() {
+				if info, err := ent.Info(); err == nil {
+					size += info.Size()
+				}
+			}
+			return nil
+		}); err != nil {
+			return count, bytes, err
+		}
+		if err := os.RemoveAll(path); err != nil {
+			return count, bytes, err
+		}
+		count++
+		bytes += size
 	}
 	return count, bytes, nil
 }

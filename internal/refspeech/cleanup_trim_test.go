@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauIDX/encoder"
 )
 
 // TestTrimIndexCacheは、上限を超えた索引が古い順に消えることを確かめる。
@@ -16,7 +16,7 @@ func TestTrimIndexCache(t *testing.T) {
 	base := time.Now().Add(-time.Hour)
 	var paths []string
 	for i := 0; i < indexCacheMaxFiles+3; i++ {
-		path := writeIndex(t, dir, fmt.Sprintf("index-%02d.idx", i), refmatch.Version(), FeatureModel)
+		path := writeIndex(t, dir, fmt.Sprintf("index-%02d.utsp", i), encoder.IDWavLMBasePlusL6)
 		stamp := base.Add(time.Duration(i) * time.Minute)
 		if err := os.Chtimes(path, stamp, stamp); err != nil {
 			t.Fatal(err)
@@ -27,7 +27,7 @@ func TestTrimIndexCache(t *testing.T) {
 	if count != 3 {
 		t.Fatalf("trimmed %d indexes, want 3", count)
 	}
-	remaining, err := filepath.Glob(filepath.Join(dir, "*.idx"))
+	remaining, err := filepath.Glob(filepath.Join(dir, "*.utsp"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestTrimIndexCache(t *testing.T) {
 // TestTrimIndexCacheKeepsSmallCacheは、上限以内なら何も消さないことを確かめる。
 func TestTrimIndexCacheKeepsSmallCache(t *testing.T) {
 	dir := t.TempDir()
-	path := writeIndex(t, dir, "only.idx", refmatch.Version(), FeatureModel)
+	path := writeIndex(t, dir, "only.utsp", encoder.IDWavLMBasePlusL6)
 	if count, _ := trimIndexCache(dir); count != 0 {
 		t.Fatalf("trimmed %d indexes from a small cache", count)
 	}

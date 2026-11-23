@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
-	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauIDX/index"
+	"github.com/yh2237/UtauIDX/speechpool"
 )
 
 type IndexInfo struct {
@@ -30,66 +32,47 @@ func ListIndexes(dir string) ([]IndexInfo, error) {
 		return nil, err
 	}
 	for _, entry := range entries {
-		if !entry.Type().IsRegular() || !strings.HasSuffix(entry.Name(), ".idx") {
+		if !entry.Type().IsRegular() || !strings.HasSuffix(entry.Name(), ".utsp") {
 			continue
 		}
 		path := filepath.Join(dir, entry.Name())
-		header, err := refmatch.ReadIndexInfo(path)
+		header, err := index.ReadHeader(path)
 		if err != nil {
 			continue
 		}
-		root := header.Source
-		// 旧索引のSourceはハッシュ。録音の共通ディレクトリを表示に使う。
-		if header.CacheKey == "" && isLegacySource(root) {
-			root = ""
-			for _, file := range header.Files {
-				if root == "" {
-					root = filepath.Dir(file)
-					continue
-				}
-				for {
-					rel, err := filepath.Rel(root, file)
-					if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-						break
-					}
-					parent := filepath.Dir(root)
-					if parent == root {
-						root = ""
-						break
-					}
-					root = parent
-				}
-			}
+		info, err := entry.Info()
+		if err != nil {
+			continue
 		}
 		name := ""
-		if root != "" {
-			name = filepath.Base(filepath.Clean(root))
+		if header.Source != "" {
+			name = filepath.Base(filepath.Clean(header.Source))
 		}
-		result = append(result, IndexInfo{Name: entry.Name(), Path: path, Voicebank: name, Model: header.Model, Version: header.Version, SizeBytes: header.SizeBytes, ModifiedMS: header.ModifiedMS})
+		result = append(result, IndexInfo{
+			Name: entry.Name(), Path: path, Voicebank: name, Model: strings.Join(indexChannelIDs(header), ","),
+			Version: header.Version, SizeBytes: info.Size(), ModifiedMS: info.ModTime().UnixMilli(),
+		})
 	}
 	return result, nil
 }
 
-func isLegacySource(source string) bool {
-	if len(source) != 32 {
-		return false
+func indexChannelIDs(header index.Header) []string {
+	ids := make([]string, len(header.Channels))
+	for i, channel := range header.Channels {
+		ids[i] = channel.ID
 	}
-	for _, c := range source {
-		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
-			return false
-		}
-	}
-	return true
+	slices.Sort(ids)
+	return ids
 }
 
-func matchesSource(index *refmatch.Index, root, key string) bool {
-	return index.Source == key || index.Source == filepath.Clean(root) && index.CacheKey == key
+func matchesSource(idx *index.Index, root, key string) bool {
+	return idx.Source == filepath.Clean(root) && idx.CacheKey == key
 }
 
 // PrepareStatusは索引の準備を開始し、完成を待たずに状態を返す。
-func (s *Service) PrepareStatus(root string, recordings []refmatch.Recording, world string) IndexStatus {
-	s.dropStale(root, recordings)
-	entry := s.entry(root, recordings, world)
+func (s *Service) PrepareStatus(root string, color string, entries []speechpool.Entry, world string) IndexStatus {
+	s.dropStale(root, color, entries)
+	entry := s.entry(root, color, entries, world)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return entry.status
@@ -97,7 +80,7 @@ func (s *Service) PrepareStatus(root string, recordings []refmatch.Recording, wo
 
 // DeleteIndexはキャッシュ内の索引を削除し、読み込み済みの索引も捨てる。
 func DeleteIndex(dir, name string) (bool, error) {
-	if name == "" || filepath.Base(name) != name || strings.ContainsAny(name, `/\\:`) || !strings.HasSuffix(name, ".idx") {
+	if name == "" || filepath.Base(name) != name || strings.ContainsAny(name, `/\\:`) || !strings.HasSuffix(name, ".utsp") {
 		return false, fmt.Errorf("invalid reference index name %q", name)
 	}
 	sharedMu.Lock()
@@ -132,9 +115,9 @@ func DeleteIndex(dir, name string) (bool, error) {
 		return false, err
 	}
 	for _, service := range services {
-		key := strings.TrimSuffix(name, ".idx")
+		key := strings.TrimSuffix(name, ".utsp")
 		for id, entry := range service.indexes {
-			if entry.index != nil && (entry.index.CacheKey == key || entry.index.Source == key) {
+			if entry.index != nil && entry.index.CacheKey == key {
 				delete(service.indexes, id)
 			}
 		}

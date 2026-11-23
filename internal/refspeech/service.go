@@ -14,8 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yh2237/UtauIDX/hubert"
-	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauIDX/encoder"
+	"github.com/yh2237/UtauIDX/index"
+	"github.com/yh2237/UtauIDX/speechpool"
 	"github.com/yh2237/UtauWLD/worldrender"
 )
 
@@ -56,7 +57,7 @@ type Service struct {
 
 type indexEntry struct {
 	status IndexStatus
-	index  *refmatch.Index
+	index  *index.Index
 	done   chan struct{}
 	// logsは索引を作ったときの途中経過。待っていた側へまとめて渡す。
 	logs []string
@@ -103,13 +104,13 @@ func CurrentProgress() Progress {
 	batchMu.Lock()
 	defer batchMu.Unlock()
 	if batch.total == 0 || batch.done >= batch.total {
-		progress := Progress{Failed: batch.failed, Stage: stage, Device: hubert.LastDevice()}
+		progress := Progress{Failed: batch.failed, Stage: stage, Device: encoder.LastDevice()}
 		batch = indexBatch{}
 		return progress
 	}
 	return Progress{
 		Building: true, Progress: (float64(batch.done) + batch.current) / float64(batch.total),
-		Stage: stage, Device: hubert.LastDevice(),
+		Stage: stage, Device: encoder.LastDevice(),
 	}
 }
 
@@ -122,7 +123,8 @@ func SetStage(stage string) {
 
 // Sharedはモデルの置き場所ごとに1つのServiceを返す。
 func Shared(models Models, cacheDir string) *Service {
-	key := strings.Join([]string{models.KokoroWeights, models.HuBERT, cacheDir}, "\x00")
+	key := strings.Join([]string{models.KokoroWeights, models.WavLM, models.Espeak, models.EspeakConfig,
+		models.EspeakPreprocessor, models.Whisper, models.WhisperConfig, strings.Join(models.ExternalEncoders, ","), cacheDir}, "\x00")
 	sharedMu.Lock()
 	defer sharedMu.Unlock()
 	if service, ok := sharedServices[key]; ok {
@@ -213,25 +215,25 @@ func (s *Service) open(worldEnginePath string) (*Engine, *worldrender.World, err
 }
 
 // Prepareは音源の索引がないか、録音が変わっていれば、裏で作り始める。
-func (s *Service) Prepare(bankRoot string, recordings []refmatch.Recording, worldEnginePath string) {
-	s.dropStale(bankRoot, recordings)
-	s.entry(bankRoot, recordings, worldEnginePath)
+func (s *Service) Prepare(bankRoot string, color string, entries []speechpool.Entry, worldEnginePath string) {
+	s.dropStale(bankRoot, color, entries)
+	s.entry(bankRoot, color, entries, worldEnginePath)
 }
 
 // dropStaleは、作った後に録音のファイルが変わった索引を捨てる。
-func (s *Service) dropStale(bankRoot string, recordings []refmatch.Recording) {
-	id := indexID(bankRoot, recordings)
+func (s *Service) dropStale(bankRoot string, color string, entries []speechpool.Entry) {
+	id := indexID(bankRoot, color, entries)
 	s.mu.Lock()
 	entry := s.indexes[id]
-	var index *refmatch.Index
+	var idx *index.Index
 	if entry != nil {
-		index = entry.index
+		idx = entry.index
 	}
 	s.mu.Unlock()
-	if index == nil {
+	if idx == nil {
 		return
 	}
-	if _, key, err := bankRecordings(bankRoot, recordings); err == nil && !matchesSource(index, bankRoot, key) {
+	if _, source, err := bankRecordings(bankRoot, color, entries); err != nil || !matchesSource(idx, bankRoot, indexCacheKey(source, indexChannelIDs(idx.Header), configuredPoolMode())) {
 		s.mu.Lock()
 		if s.indexes[id] == entry {
 			delete(s.indexes, id)
@@ -241,16 +243,16 @@ func (s *Service) dropStale(bankRoot string, recordings []refmatch.Recording) {
 }
 
 // Indexは音源の索引を返す。索引がなければ作り、でき上がるまで待つ。
-func (s *Service) Index(ctx context.Context, bankRoot string, recordings []refmatch.Recording, worldEnginePath string) (*refmatch.Index, error) {
-	return s.index(ctx, bankRoot, recordings, worldEnginePath, nil)
+func (s *Service) Index(ctx context.Context, bankRoot string, color string, entries []speechpool.Entry, worldEnginePath string) (*index.Index, error) {
+	return s.index(ctx, bankRoot, color, entries, worldEnginePath, nil)
 }
 
 // indexは索引を返し、作成の経過をlogfへ伝える。logfがnilなら何も伝えない。
-func (s *Service) index(ctx context.Context, bankRoot string, recordings []refmatch.Recording, worldEnginePath string, logf func(string)) (*refmatch.Index, error) {
+func (s *Service) index(ctx context.Context, bankRoot string, color string, entries []speechpool.Entry, worldEnginePath string, logf func(string)) (*index.Index, error) {
 	start := time.Now()
 	SetStage("索引を準備しています")
-	s.dropStale(bankRoot, recordings)
-	entry := s.entry(bankRoot, recordings, worldEnginePath)
+	s.dropStale(bankRoot, color, entries)
+	entry := s.entry(bankRoot, color, entries, worldEnginePath)
 	select {
 	case <-entry.done:
 	case <-ctx.Done():
@@ -282,8 +284,8 @@ func (s *Service) index(ctx context.Context, bankRoot string, recordings []refma
 	return entry.index, nil
 }
 
-func (s *Service) entry(bankRoot string, recordings []refmatch.Recording, worldEnginePath string) *indexEntry {
-	id := indexID(bankRoot, recordings)
+func (s *Service) entry(bankRoot string, color string, entries []speechpool.Entry, worldEnginePath string) *indexEntry {
+	id := indexID(bankRoot, color, entries)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if entry, ok := s.indexes[id]; ok && entry.status.State != IndexFailed {
@@ -294,12 +296,12 @@ func (s *Service) entry(bankRoot string, recordings []refmatch.Recording, worldE
 	batchMu.Lock()
 	batch.total++
 	batchMu.Unlock()
-	go s.build(bankRoot, recordings, worldEnginePath, entry)
+	go s.build(bankRoot, color, entries, worldEnginePath, entry)
 	return entry
 }
 
 // buildは索引を1つずつ作る。どの索引の作成も全コアを使うため。
-func (s *Service) build(bankRoot string, recordings []refmatch.Recording, worldEnginePath string, entry *indexEntry) {
+func (s *Service) build(bankRoot string, color string, entries []speechpool.Entry, worldEnginePath string, entry *indexEntry) {
 	defer close(entry.done)
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -327,7 +329,7 @@ func (s *Service) build(bankRoot string, recordings []refmatch.Recording, worldE
 	if summary := s.CleanupCache(); summary != "" {
 		log("%s", summary)
 	}
-	index, fromCache, err := s.loadOrBuild(bankRoot, recordings, worldEnginePath, log, func(done, total int) {
+	index, fromCache, err := s.loadOrBuild(bankRoot, color, entries, worldEnginePath, log, func(done, total int) {
 		progress := float64(done) / float64(max(total, 1))
 		s.mu.Lock()
 		entry.status.Progress = progress
@@ -364,119 +366,170 @@ func (s *Service) build(bankRoot string, recordings []refmatch.Recording, worldE
 	s.mu.Unlock()
 }
 
-// loadOrBuildは索引をキャッシュから読み、なければ作る。fromCacheは読み込んだだけならtrue。
-func (s *Service) loadOrBuild(bankRoot string, recordings []refmatch.Recording, worldEnginePath string,
-	logf func(string, ...any), progress func(done, total int)) (*refmatch.Index, bool, error) {
-	files, key, err := bankRecordings(bankRoot, recordings)
+func (s *Service) loadOrBuild(bankRoot string, color string, entries []speechpool.Entry, worldEnginePath string,
+	logf func(string, ...any), progress func(done, total int)) (*index.Index, bool, error) {
+	files, source, err := bankRecordings(bankRoot, color, entries)
 	if err != nil {
 		return nil, false, err
 	}
-	path := filepath.Join(s.cacheDir, key+".idx")
-	if index, err := refmatch.LoadIndex(path); err == nil && index.Model == FeatureModel && matchesSource(index, bankRoot, key) {
-		// 使った記録を残し、上限を超えたときに古いものから消せるようにする。
+	engine, err := s.openEngine()
+	if err != nil {
+		return nil, false, err
+	}
+	active := engine.registry.List()
+	ids := engine.registry.IDs()
+	poolMode := configuredPoolMode()
+	key := indexCacheKey(source, ids, poolMode)
+	path := filepath.Join(s.cacheDir, key+".utsp")
+	if idx, err := index.Load(path); err == nil && matchesSource(idx, bankRoot, key) && hasEncoders(idx, active) {
 		now := time.Now()
 		_ = os.Chtimes(path, now, now)
-		logf("索引: %s の作成済みの索引を読み込みました（録音 %d 件、フレーム %d）",
-			filepath.Base(bankRoot), len(index.Files), index.Frames)
-		return index, true, nil
-	}
-	logf("索引: %s を作成します（録音 %d 件、モデル %s）", filepath.Base(bankRoot), len(files), FeatureModel)
-	engine, world, err := s.open(worldEnginePath)
-	if err != nil {
-		return nil, false, err
-	}
-	features := func(samples []float64, rate int) ([]float32, int, int, error) {
-		// エンジンは索引の作成と発話の合成で共有するため、同時に使わない。
-		s.foreground.Lock()
-		defer s.foreground.Unlock()
-		return engine.Features(samples, rate)
+		logf("索引: %s のキャッシュを読み込みました（録音 %d 件、%d フレーム）",
+			filepath.Base(bankRoot), len(idx.Files), idx.Frames)
+		return idx, true, nil
 	}
 	if engine.external {
 		if err := engine.filesJob(key, files); err != nil {
 			return nil, false, err
 		}
-		// 外の推論はJSの側でしか待てないため、特徴量の要る録音を先に集めて、まとめて頼む。
-		jobs := engine.collectFeatures(func() {
-			_, _ = refmatch.BuildIndex(files, FeatureModel, dryWorld{}, engine.Features, nil, nil)
-		})
-		if len(jobs) > 0 {
-			logf("索引: %s の特徴量を %d 件の録音で求めます", filepath.Base(bankRoot), len(jobs))
-			return nil, false, &NeedInference{Jobs: jobs}
-		}
-		defer engine.dropProvided()
 	}
-	// Web版の仮想FSはメモリなので、録音ごとの途中結果は残さない。
-	var parts *refmatch.PartCache
-	if !engine.external {
-		parts = refmatch.OpenPartCache(filepath.Join(s.cacheDir, "parts"))
-	}
-	index, err := refmatch.BuildIndex(files, FeatureModel, world, features, progress, parts)
+	_, world, err := s.open(worldEnginePath)
 	if err != nil {
 		return nil, false, err
 	}
-	index.Source = filepath.Clean(bankRoot)
-	index.CacheKey = key
+	logf("索引: %s を作成します（録音 %d 件、モデル %s）", filepath.Base(bankRoot), len(files), strings.Join(ids, ", "))
+
+	effectiveMode := speechpool.PoolRawOnly
+	_, profile, scanErr := speechpool.ScanRawVoicebank(bankRoot)
+	canGenerate := scanErr == nil && profile.UsableUnits >= 4
+	if canGenerate {
+		for i := range files {
+			files[i].Penalty += speechpool.CleanFilePenalty(files[i].Path, profile.IsSmallJPCV)
+		}
+		effectiveMode = poolMode
+		if poolMode == speechpool.PoolAuto {
+			effectiveMode = speechpool.ResolvePoolMode(poolMode, profile, estimateRawFrames(files), 0)
+		}
+	}
+	encoders := make([]encoder.Encoder, len(active))
+	for i, enc := range active {
+		encoders[i] = lockedEncoder{enc, &s.foreground}
+	}
+	opts := index.BuildOptions{Source: filepath.Clean(bankRoot), CacheKey: key, Progress: progress}
+	if !engine.external {
+		opts.Cache = index.OpenPartCache(filepath.Join(s.cacheDir, "parts"))
+	}
+	poolEntries := files
+	if effectiveMode != speechpool.PoolRawOnly {
+		babble, err := s.ensureBabbleEntries(context.Background(), bankRoot, color, source, worldEnginePath, files, engine.external)
+		if err != nil {
+			return nil, false, err
+		}
+		poolEntries = babble
+		if effectiveMode == speechpool.PoolMerge {
+			poolEntries = append(poolEntries, files...)
+		}
+	}
+	idx, err := index.Build(poolEntries, world, encoders, opts)
+	if err != nil {
+		return nil, false, wrapNeedInference(err)
+	}
+	if poolMode == speechpool.PoolAuto && effectiveMode == speechpool.PoolRawOnly && idx.C35 > 1.25 && canGenerate {
+		babble, err := s.ensureBabbleEntries(context.Background(), bankRoot, color, source, worldEnginePath, files, engine.external)
+		if err != nil {
+			return nil, false, err
+		}
+		idx, err = index.Build(babble, world, encoders, opts)
+		if err != nil {
+			return nil, false, wrapNeedInference(err)
+		}
+	}
 	if err := os.MkdirAll(s.cacheDir, 0o755); err != nil {
 		return nil, false, err
 	}
-	if err := index.Save(path); err != nil {
+	if err := idx.Save(path); err != nil {
 		return nil, false, err
 	}
-	logf("索引: %s を保存しました（フレーム %d、F0 の中央値 %.0f Hz）",
-		filepath.Base(bankRoot), index.Frames, index.F0Median)
-	return index, false, nil
+	if engine.external {
+		s.foreground.Lock()
+		engine.externalStore.Clear()
+		s.foreground.Unlock()
+	}
+	logf("索引: %s を保存しました（%d フレーム、F0 の中央値 %.0f Hz）",
+		filepath.Base(bankRoot), idx.Frames, idx.F0Median)
+	return idx, false, nil
 }
 
-// bankRecordingsは索引に使う録音と、その一覧・範囲・大きさ・更新時刻から作るキーを返す。
-// indexIDは、作った索引を覚えておくための名前。同じ音源でも声色ごとに録音が違うので、録音の一覧で分ける。
-// ファイルの更新はbankRecordingsの名前で見分ける。
-func indexID(bankRoot string, recordings []refmatch.Recording) string {
-	paths := make([]string, len(recordings))
-	for i, recording := range recordings {
-		paths[i] = recording.Path
-		if recording.Phoneme != "" {
-			paths[i] += "\x00phoneme\x00" + recording.Phoneme
+type lockedEncoder struct {
+	encoder.Encoder
+	mu *sync.RWMutex
+}
+
+func (e lockedEncoder) Extract(wave []float32) ([]float32, int, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.Encoder.Extract(wave)
+}
+
+func hasEncoders(idx *index.Index, encoders []encoder.Encoder) bool {
+	for _, enc := range encoders {
+		if idx.ChannelDims(enc.ID()) != enc.Dims() {
+			return false
 		}
+	}
+	return true
+}
+
+func indexID(bankRoot string, color string, entries []speechpool.Entry) string {
+	paths := make([]string, len(entries))
+	for i, entry := range entries {
+		paths[i] = entry.Path
 	}
 	sort.Strings(paths)
 	hash := sha256.New()
+	fmt.Fprintf(hash, "%s\x00%s\x00%s\x00", filepath.Clean(bankRoot), color, configuredPoolMode())
 	for _, path := range paths {
 		fmt.Fprintf(hash, "%s\x00", path)
 	}
-	return filepath.Clean(bankRoot) + "\x00" + hex.EncodeToString(hash.Sum(nil))[:16]
+	return hex.EncodeToString(hash.Sum(nil))[:32]
 }
 
-func bankRecordings(bankRoot string, recordings []refmatch.Recording) ([]refmatch.Recording, string, error) {
-	sorted := append([]refmatch.Recording(nil), recordings...)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Path < sorted[j].Path })
+func bankRecordings(bankRoot string, color string, entries []speechpool.Entry) ([]speechpool.Entry, string, error) {
+	sorted := append([]speechpool.Entry(nil), entries...)
+	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Path < sorted[j].Path })
 	hash := sha256.New()
-	fmt.Fprintf(hash, "%s\x00%s\x00", FeatureModel, filepath.Clean(bankRoot))
-	var files []refmatch.Recording
-	for _, recording := range sorted {
-		info, err := os.Stat(recording.Path)
+	fmt.Fprintf(hash, "%s\x00%s\x00", filepath.Clean(bankRoot), color)
+	var files []speechpool.Entry
+	for _, entry := range sorted {
+		info, err := os.Stat(entry.Path)
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
 		}
 		if err != nil {
 			return nil, "", err
 		}
-		files = append(files, recording)
-		fmt.Fprintf(hash, "%s\x00%d\x00%d\x00", recording.Path, info.Size(), info.ModTime().UnixNano())
-		if recording.Phoneme != "" {
-			fmt.Fprintf(hash, "phoneme\x00%s\x00", recording.Phoneme)
+		if !info.Mode().IsRegular() {
+			continue
 		}
-		for _, region := range recording.Regions {
+		files = append(files, entry)
+		fmt.Fprintf(hash, "%s\x00%d\x00%d\x00%s\x00%g\x00", entry.Path, info.Size(), info.ModTime().UnixNano(), entry.Layer, entry.Penalty)
+		for _, region := range entry.Regions {
 			fmt.Fprintf(hash, "%g\x00%g\x00", region.Offset, region.Blank)
 		}
 	}
 	if len(files) == 0 {
 		return nil, "", fmt.Errorf("no WAV files in %s", bankRoot)
 	}
-	return files, hex.EncodeToString(hash.Sum(nil))[:32], nil
+	return files, hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func (s *Service) Speak(ctx context.Context, id, bankRoot string, recordings []refmatch.Recording, worldEnginePath string, pieces []Piece, options Options) (Speech, error) {
-	index, err := s.index(ctx, bankRoot, recordings, worldEnginePath, options.Logf)
+func indexCacheKey(source string, encoderIDs []string, mode speechpool.PoolMode) string {
+	key := sha256.Sum256([]byte("utsp-v1\x00" + strings.Join(encoderIDs, ",") + "\x00" + string(mode) + "\x00" + source))
+	return hex.EncodeToString(key[:16])
+}
+
+func (s *Service) Speak(ctx context.Context, id, bankRoot string, color string, entries []speechpool.Entry, worldEnginePath string, pieces []Piece, options Options) (Speech, error) {
+	index, err := s.index(ctx, bankRoot, color, entries, worldEnginePath, options.Logf)
 	if err != nil {
 		return Speech{}, err
 	}
@@ -501,8 +554,8 @@ func (s *Service) Read(id string, pieces []Piece, speed float32, durations []int
 }
 
 // SpeakReferenceは、参照の読みから音源のフレームで合成し直す。参照TTSの種類に依存しない入口。
-func (s *Service) SpeakReference(ctx context.Context, bankRoot string, recordings []refmatch.Recording, worldEnginePath string, reference Reference, options Options) (Speech, error) {
-	index, err := s.index(ctx, bankRoot, recordings, worldEnginePath, options.Logf)
+func (s *Service) SpeakReference(ctx context.Context, bankRoot string, color string, entries []speechpool.Entry, worldEnginePath string, reference Reference, options Options) (Speech, error) {
+	index, err := s.index(ctx, bankRoot, color, entries, worldEnginePath, options.Logf)
 	if err != nil {
 		return Speech{}, err
 	}
@@ -516,8 +569,8 @@ func (s *Service) SpeakReference(ctx context.Context, bankRoot string, recording
 }
 
 // SpeakAudioは参照の音声から、音源のフレームで合成し直す。言語に依存しない入口。
-func (s *Service) SpeakAudio(ctx context.Context, bankRoot string, recordings []refmatch.Recording, worldEnginePath string, audio []float64, sampleRate int, options AudioOptions) (Speech, error) {
-	index, err := s.Index(ctx, bankRoot, recordings, worldEnginePath)
+func (s *Service) SpeakAudio(ctx context.Context, bankRoot string, color string, entries []speechpool.Entry, worldEnginePath string, audio []float64, sampleRate int, options AudioOptions) (Speech, error) {
+	index, err := s.index(ctx, bankRoot, color, entries, worldEnginePath, options.Logf)
 	if err != nil {
 		return Speech{}, err
 	}
@@ -560,11 +613,11 @@ func (s *Service) ProvidePrefetched(key string) error {
 	return nil
 }
 
-// ProvideFeaturesは、外で求めたWavLMの特徴量を渡す（Web版）。
-func (s *Service) ProvideFeatures(key string, values []float32, frames, dims int) error {
+// ProvideFeaturesは、外で求めた音声の特徴量を渡す（Web版）。
+func (s *Service) ProvideFeatures(encoderID, key string, values []float32, frames, dims int) error {
 	engine, err := s.openEngine()
 	if err != nil {
 		return err
 	}
-	return engine.ProvideFeatures(key, values, frames, dims)
+	return engine.ProvideFeatures(encoderID, key, values, frames, dims)
 }

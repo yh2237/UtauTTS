@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yh2237/UtauIDX/hubert"
+	"github.com/yh2237/UtauIDX/encoder"
 	"github.com/yh2237/UtauTTS/internal/lifecycle"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/plugin"
@@ -406,7 +406,7 @@ func (s *Service) BuildReferenceIndex(request Request) (bool, error) {
 
 // FeatureDeviceは、直近の特徴量計算に使ったデバイスを返す。
 func (s *Service) FeatureDevice() string {
-	return hubert.LastDevice()
+	return encoder.LastDevice()
 }
 
 // ProvideReferenceInferenceは、Web版で外に頼んだ推論の結果を渡す。

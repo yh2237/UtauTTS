@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauIDX/index"
 	"github.com/yh2237/UtauTTS/internal/refspeech"
 )
 
@@ -22,21 +22,21 @@ func TestReferenceIndexCommands(t *testing.T) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	// A minimal index that passes the current on-disk validation; the test
-	// only exercises listing and deleting, not matching.
-	const spectrumDims = 60
-	index := &refmatch.Index{
-		Header: refmatch.Header{
-			Version: refmatch.Version(), Model: "dummy", Source: filepath.Join(cache, "voicebank"), CacheKey: "dummy",
-			SampleRate: 16000, FFTSize: 2, APBands: 1, Dims: 1, Frames: 1,
+	idx := &index.Index{
+		Header: index.Header{
+			Version: index.Version, Source: filepath.Join(cache, "voicebank"), CacheKey: "dummy",
+			SampleRate: 16000, FFTSize: 2, APBands: 1, Frames: 1,
+			Channels: []index.ChannelMeta{{ID: "dummy", Dims: 1}},
 		},
-		Features:     []float32{0},
-		Spectrum:     make([]float32, refmatch.SubFrames()*spectrumDims),
-		Aperiodicity: make([]float32, refmatch.SubFrames()),
-		F0:           make([]float32, refmatch.SubFrames()),
-		File:         []int32{0},
+		Channels:      map[string][]float32{"dummy": {0}},
+		Spectrum:      make([]float32, index.SubFrames*index.SpectrumDims),
+		Aperiodicity:  make([]float32, index.SubFrames),
+		F0:            make([]float32, index.SubFrames),
+		FileID:        []int32{0},
+		Position:      []int32{0},
+		GlitchPenalty: []float32{0},
 	}
-	if err := index.Save(filepath.Join(dir, "dummy.idx")); err != nil {
+	if err := idx.Save(filepath.Join(dir, "dummy.utsp")); err != nil {
 		t.Fatal(err)
 	}
 	engine := &Engine{}
@@ -50,10 +50,10 @@ func TestReferenceIndexCommands(t *testing.T) {
 	if err := json.Unmarshal(response, &listed); err != nil {
 		t.Fatal(err)
 	}
-	if len(listed.Indexes) != 1 || listed.Indexes[0].Voicebank != "voicebank" || listed.Indexes[0].Name != "dummy.idx" {
+	if len(listed.Indexes) != 1 || listed.Indexes[0].Voicebank != "voicebank" || listed.Indexes[0].Name != "dummy.utsp" {
 		t.Fatalf("list=%s", response)
 	}
-	response, err = engine.Call("deleteReferenceIndex", []byte(`{"name":"dummy.idx"}`))
+	response, err = engine.Call("deleteReferenceIndex", []byte(`{"name":"dummy.utsp"}`))
 	if err != nil || string(response) != `{"deleted":true}` {
 		t.Fatalf("delete=%s err=%v", response, err)
 	}
@@ -61,7 +61,7 @@ func TestReferenceIndexCommands(t *testing.T) {
 	if err != nil || string(response) != `{"indexes":[]}` {
 		t.Fatalf("empty list=%s err=%v", response, err)
 	}
-	if _, err := engine.Call("deleteReferenceIndex", []byte(`{"name":"../outside.idx"}`)); err == nil {
+	if _, err := engine.Call("deleteReferenceIndex", []byte(`{"name":"../outside.utsp"}`)); err == nil {
 		t.Fatal("accepted path traversal")
 	}
 }

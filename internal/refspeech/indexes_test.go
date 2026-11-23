@@ -6,19 +6,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yh2237/UtauIDX/refmatch"
+	"github.com/yh2237/UtauIDX/encoder"
+	"github.com/yh2237/UtauIDX/index"
 )
 
 func TestListAndDeleteIndexes(t *testing.T) {
 	dir := t.TempDir()
-	path := writeIndex(t, dir, "sample.idx", refmatch.Version(), FeatureModel)
-	index, err := refmatch.LoadIndex(path)
+	path := writeIndex(t, dir, "sample.utsp", encoder.IDWavLMBasePlusL6)
+	idx, err := index.Load(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	index.Source = filepath.Join(dir, "voice", "bank")
-	index.CacheKey = "sample"
-	if err := index.Save(path); err != nil {
+	idx.Source = filepath.Join(dir, "voice", "bank")
+	idx.CacheKey = "sample"
+	if err := idx.Save(path); err != nil {
 		t.Fatal(err)
 	}
 	modified := time.UnixMilli(1712345678000)
@@ -29,7 +30,7 @@ func TestListAndDeleteIndexes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "broken.idx"), []byte("broken"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "broken.utsp"), []byte("broken"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	indexes, err := ListIndexes(dir)
@@ -37,11 +38,11 @@ func TestListAndDeleteIndexes(t *testing.T) {
 		t.Fatalf("indexes=%+v err=%v", indexes, err)
 	}
 	got := indexes[0]
-	if got.Name != "sample.idx" || got.Path != path || got.Voicebank != "bank" || got.Model != FeatureModel || got.Version != refmatch.Version() || got.SizeBytes != info.Size() || got.ModifiedMS != info.ModTime().UnixMilli() {
+	if got.Name != "sample.utsp" || got.Path != path || got.Voicebank != "bank" || got.Model != encoder.IDWavLMBasePlusL6 || got.Version != index.Version || got.SizeBytes != info.Size() || got.ModifiedMS != info.ModTime().UnixMilli() {
 		t.Fatalf("unexpected index: %+v", got)
 	}
 	service := Shared(Models{}, dir)
-	service.indexes["test"] = &indexEntry{index: index, status: IndexStatus{State: IndexReady}}
+	service.indexes["test"] = &indexEntry{index: idx, status: IndexStatus{State: IndexReady}}
 	deleted, err := DeleteIndex(dir, got.Name)
 	if err != nil || !deleted {
 		t.Fatalf("deleted=%v err=%v", deleted, err)
@@ -58,7 +59,7 @@ func TestListAndDeleteIndexes(t *testing.T) {
 }
 
 func TestDeleteIndexRejectsPaths(t *testing.T) {
-	for _, name := range []string{"", "../outside.idx", `..\outside.idx`, "C:outside.idx", "notes.txt", ".idx/other.idx"} {
+	for _, name := range []string{"", "../outside.utsp", `..\outside.utsp`, "C:outside.utsp", "notes.txt", ".utsp/other.utsp"} {
 		if _, err := DeleteIndex(t.TempDir(), name); err == nil {
 			t.Errorf("accepted %q", name)
 		}
@@ -78,8 +79,8 @@ func TestPrepareStatusDoesNotWaitForBuild(t *testing.T) {
 	service.buildMu.Lock()
 	service.engineMu.Lock()
 	service.worldMu.Lock()
-	status := service.PrepareStatus(root, nil, "")
-	entry := service.entry(root, nil, "")
+	status := service.PrepareStatus(root, "", nil, "")
+	entry := service.entry(root, "", nil, "")
 	service.worldMu.Unlock()
 	service.engineMu.Unlock()
 	service.buildMu.Unlock()
@@ -93,14 +94,10 @@ func TestPrepareStatusDoesNotWaitForBuild(t *testing.T) {
 	}
 }
 
-func TestMatchesSourceCompatibility(t *testing.T) {
+func TestMatchesSource(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "bank")
-	for _, header := range []refmatch.Header{{Source: "key"}, {Source: root, CacheKey: "key"}} {
-		if !matchesSource(&refmatch.Index{Header: header}, root, "key") {
-			t.Fatalf("did not match %+v", header)
-		}
-	}
-	if matchesSource(&refmatch.Index{Header: refmatch.Header{Source: root, CacheKey: "old"}}, root, "key") {
-		t.Fatal("matched stale index")
+	idx := &index.Index{Header: index.Header{Source: root, CacheKey: "key"}}
+	if !matchesSource(idx, root, "key") || matchesSource(idx, root, "old") || matchesSource(idx, root+"-other", "key") {
+		t.Fatal("source or cache key mismatch")
 	}
 }

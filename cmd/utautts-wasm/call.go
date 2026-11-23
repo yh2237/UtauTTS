@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"os"
 	"sync"
@@ -34,7 +35,7 @@ func needJSON(need *refspeech.NeedInference) string {
 		if err := os.MkdirAll(inferenceDir, 0o755); err != nil {
 			return errorJSON(err)
 		}
-		path := inferenceDir + "/" + item.Key + ".f32"
+		path := fmt.Sprintf("%s/%d-%s.f32", inferenceDir, i, item.Key)
 		data := make([]byte, len(item.Samples)*4)
 		for k, v := range item.Samples {
 			binary.LittleEndian.PutUint32(data[k*4:], math.Float32bits(v))
