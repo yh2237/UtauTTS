@@ -1,8 +1,8 @@
 "use strict";
 
-// 参照照合のKokoroとWavLMを、ONNX Runtime Webで推論する（Web Worker内）。
+// 参照照合のKokoroと音声エンコーダを、ONNX Runtime Webで推論する（Web Worker内）。
 // Goは推論が要ると {ok:false, need:[...]} を返す。ここで求めた結果をprovideInferenceで渡し、同じ呼び出しをやり直す。
-// モデルは要る言語の分だけ、初めて使うときに読み込む。ダウンロードしたものはCache Storageに残す。
+// モデルは要る分だけ、初めて使うときに読み込む。ダウンロードしたものはCache Storageに残す。
 // ONNX Runtime Webは、ページが作った専用のWorker（serveOrt）で動かし、requestPortで受け取ったMessagePortで頼む。
 // エンジンのWorkerの中や、そこから作ったWorkerでは、推論の途中でWorkerが応答しなくなった。
 function inferenceThreads() {
@@ -216,6 +216,34 @@ function createReferenceInference({ baseURL, virtualFs, status, requestPort }) {
     return result;
   }
 
+  const WHISPER_WINDOW_SAMPLES = 32000;
+  const WHISPER_CENTER_FRAMES = 25;
+  const WHISPER_STEP_FRAMES = 50;
+  const WHISPER_HOP_SAMPLES = 320;
+
+  async function extractWhisperPosInv(extract, samples) {
+    const totalFrames = Math.max(1, Math.round(samples.length / WHISPER_HOP_SAMPLES));
+    const segment = new Float32Array(WHISPER_WINDOW_SAMPLES);
+    let dims = 0;
+    let combined = null;
+    for (let f0 = 0; f0 < totalFrames; f0 += WHISPER_STEP_FRAMES) {
+      segment.fill(0);
+      const start = (f0 - WHISPER_CENTER_FRAMES) * WHISPER_HOP_SAMPLES;
+      const end = Math.min(samples.length, start + WHISPER_WINDOW_SAMPLES);
+      const offset = Math.max(0, start);
+      if (offset < end) segment.set(samples.subarray(offset, end), offset - start);
+      const out = await extract({ audio: tensor("float32", segment.slice(), [1, WHISPER_WINDOW_SAMPLES]) });
+      const [winRows, winDims] = out.features.dims;
+      if (!combined) {
+        dims = winDims;
+        combined = new Float32Array(totalFrames * dims);
+      }
+      const take = Math.min(WHISPER_STEP_FRAMES, totalFrames - f0, winRows);
+      combined.set(out.features.data.subarray(0, take * dims), f0 * dims);
+    }
+    return { data: combined, frames: totalFrames, dims };
+  }
+
   async function features(jobs, logs) {
     const results = [];
     if (jobs.length === 0) return results;
@@ -233,9 +261,15 @@ function createReferenceInference({ baseURL, virtualFs, status, requestPort }) {
       encoderIDs.add(encoderID);
       const file = encoderID === "wavlm-base-plus-l6" ? "wavlm6.onnx" : encoderID + ".onnx";
       const extract = await session(file, logs);
-      const out = await extract({ audio: tensor("float32", samples, [1, samples.length]) });
-      const [frames, dims] = out.features.dims;
-      results.push({ encoder_id: encoderID, key: job.key, path: writeFloat32(OUT_DIR + "/features-" + i + ".f32", out.features.data), frames, dims });
+      let data, frames, dims;
+      if (encoderID === "whisper-small-l12-posinv") {
+        ({ data, frames, dims } = await extractWhisperPosInv(extract, samples));
+      } else {
+        const out = await extract({ audio: tensor("float32", samples, [1, samples.length]) });
+        [frames, dims] = out.features.dims;
+        data = out.features.data;
+      }
+      results.push({ encoder_id: encoderID, key: job.key, path: writeFloat32(OUT_DIR + "/features-" + i + ".f32", data), frames, dims });
       const step = Math.floor((i + 1) * 10 / jobs.length);
       if (jobs.length > 1 && step !== shown) {
         shown = step;

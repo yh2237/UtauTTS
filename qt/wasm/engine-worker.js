@@ -66,6 +66,7 @@ function changedFiles(before) {
     if (!MIRROR_EXTENSIONS.has(ext)) {
       continue;
     }
+    if (path.startsWith("/cache/") || path.startsWith("/tmp/utautts-inference/")) continue;
     if (path.startsWith("/voice/") && ext === "wav") continue;
     const data = virtualFs.readFile(path);
     if (!data) continue;

@@ -511,3 +511,126 @@ test("shared controller does not display or play synthesis from an older revisio
   assert.equal(plays, 0);
   assert.equal(context.autoplayPreview, true);
 });
+
+test("Worker excludes internal cache and inference files from mirroring and stores utsp indexes", async () => {
+  const vfs = createVirtualFs();
+  const messages = [];
+  const stored = new Map();
+  const context = vm.createContext({
+    importScripts() {}, console, Uint8Array, URL, Response, testFs: vfs,
+    location: { href: "https://example.test/app/engine-worker.js" }, createUtauTTSAssetPaths,
+    self: { postMessage(message) { messages.push(message); } },
+    caches: {
+      async open() {
+        return {
+          async keys() { return Array.from(stored.keys()).map(url => ({ url })); },
+          async match(req) { return stored.get(req.url || req); },
+          async put(url, res) { stored.set(url, res); },
+          async delete(url) { stored.delete(url); },
+        };
+      },
+    },
+    utauttsWasm: { call() {
+      vfs.mountFile("/cache/UtauTTS/reference-index/babble/oto-babble-v1-abc/babble_000.wav", new Uint8Array([1, 2]));
+      vfs.mountFile("/tmp/utautts-inference/0-f16000-abc.f32", new Uint8Array([3, 4, 5, 6]));
+      vfs.mountFile("/cache/UtauTTS/reference-index/bank.utsp", new Uint8Array([9, 8, 7]));
+      vfs._unlink("/cache/UtauTTS/reference-index/stale.idx");
+      vfs.mountText("/tmp/output.wav", "wavdata");
+      return '{"ok":true,"result":{}}';
+    } },
+  });
+  const worker = source("qt/wasm/engine-worker.js");
+  vm.runInContext(worker.slice(0, worker.indexOf("\ninit().catch(")), context);
+  vfs.mountFile("/cache/UtauTTS/reference-index/stale.idx", new Uint8Array([0]));
+  stored.set("https://utautts.invalid/index/stale.idx", new Response(new Uint8Array([0])));
+  vm.runInContext("virtualFs = testFs; referenceInference = {}; runtimePromise = Promise.resolve();", context);
+  await context.handleCall(1, "synthesize", "{}");
+  const result = messages.find(message => message.type === "callResult");
+  assert.deepEqual(Array.from(result.files, file => file.path), ["/tmp/output.wav"]);
+  assert.ok(stored.has("https://utautts.invalid/index/bank.utsp"));
+  assert.ok(!stored.has("https://utautts.invalid/index/stale.idx"));
+  assert.ok(!Array.from(stored.keys()).some(k => k.includes("babble")));
+});
+
+test("createReferenceInference routes multiple encoders and stitches Whisper PosInv 2s sliding windows", async () => {
+  const { createReferenceInference } = require("./reference-inference.js");
+  const vfs = createVirtualFs();
+  const sampleCount = 48000;
+  const wave = new Float32Array(sampleCount);
+  for (let i = 0; i < sampleCount; i++) wave[i] = Math.sin(i * 0.01);
+  const rawBytes = new Uint8Array(wave.buffer.slice(0));
+  vfs.mountFile("/tmp/utautts-inference/0-key1.f32", rawBytes.slice());
+  vfs.mountFile("/tmp/utautts-inference/1-key1.f32", rawBytes.slice());
+  vfs.mountFile("/tmp/utautts-inference/2-key1.f32", rawBytes.slice());
+
+  const loadedSessions = [];
+  const whisperInputs = [];
+  globalThis.ort = {
+    env: { wasm: {} },
+    Tensor: class { constructor(type, data, dims) { this.type = type; this.data = data; this.dims = dims; } },
+    InferenceSession: {
+      async create(bytes) {
+        const name = new TextDecoder().decode(bytes);
+        loadedSessions.push(name);
+        return {
+          async run(feeds) {
+            const audio = feeds.audio.data;
+            if (name === "whisper-small-l12-posinv.onnx") {
+              whisperInputs.push(Float32Array.from(audio));
+              const out = new Float32Array(50 * 768);
+              out.fill(whisperInputs.length);
+              return { features: { data: out, dims: [50, 768] } };
+            }
+            const dims = name === "wav2vec2-espeak-l20.onnx" ? 1024 : 768;
+            const out = new Float32Array(149 * dims).fill(dims);
+            return { features: { data: out, dims: [149, dims] } };
+          },
+        };
+      },
+    },
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async url => ({ ok: true, headers: { get: () => "0" }, body: { getReader() {
+    let sent = false;
+    return { async read() {
+      if (sent) return { done: true };
+      sent = true;
+      return { done: false, value: new TextEncoder().encode(String(url).replace("mock:/", "")) };
+    } };
+  } } });
+  try {
+    const inference = createReferenceInference({ baseURL: "mock:/", virtualFs: vfs, status() {} });
+    const logs = [];
+    let provided = null;
+    const call = (method, body) => {
+      assert.equal(method, "provideInference");
+      provided = JSON.parse(body);
+      return '{"ok":true}';
+    };
+    await inference.run([
+      { kind: "features", encoder_id: "wavlm-base-plus-l6", key: "key1", samples_path: "/tmp/utautts-inference/0-key1.f32" },
+      { kind: "features", encoder_id: "wav2vec2-espeak-l20", key: "key1", samples_path: "/tmp/utautts-inference/1-key1.f32" },
+      { kind: "features", encoder_id: "whisper-small-l12-posinv", key: "key1", samples_path: "/tmp/utautts-inference/2-key1.f32" },
+    ], call, logs);
+    assert.deepEqual(loadedSessions, ["wavlm6.onnx", "wav2vec2-espeak-l20.onnx", "whisper-small-l12-posinv.onnx"]);
+    assert.equal(whisperInputs.length, 3);
+    assert.equal(whisperInputs[0][7999], 0);
+    assert.ok(Math.abs(whisperInputs[0][8000] - wave[0]) < 1e-6);
+    assert.ok(Math.abs(whisperInputs[1][0] - wave[(50 - 25) * 320]) < 1e-6);
+    assert.ok(Math.abs(whisperInputs[2][0] - wave[(100 - 25) * 320]) < 1e-6);
+    assert.equal(provided.features.length, 3);
+    assert.deepEqual(provided.features.map(f => [f.encoder_id, f.key, f.frames, f.dims]), [
+      ["wavlm-base-plus-l6", "key1", 149, 768],
+      ["wav2vec2-espeak-l20", "key1", 149, 1024],
+      ["whisper-small-l12-posinv", "key1", 150, 768],
+    ]);
+    for (let i = 0; i < 3; i++) {
+      const whData = new Float32Array(vfs.readFile(provided.features[2].path).slice().buffer);
+      assert.equal(whData[(i * 50) * 768], i + 1);
+      assert.equal(vfs.readFile(`/tmp/utautts-inference/${i}-key1.f32`), null);
+    }
+  } finally {
+    delete globalThis.ort;
+    globalThis.fetch = originalFetch;
+  }
+});
