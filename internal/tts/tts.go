@@ -8,8 +8,12 @@ import (
 	"time"
 
 	"github.com/yh2237/UtauIDX/audio"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/g2p"
+	_ "github.com/yh2237/UtauTTS/internal/g2p/all"
+	"github.com/yh2237/UtauTTS/internal/g2p/ja"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
+	"github.com/yh2237/UtauTTS/internal/phonemizer"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
@@ -92,7 +96,7 @@ type Config struct {
 	ReferenceDir    string
 	// MethodはMethodWaveformSynthesisかMethodReferenceMatching。参照照合はRendererを使わない。
 	Method string
-	// ReferenceUnblendedを真にすると、参照照合で近い録音のフレームを混ぜず、いちばん近い1つを使う。
+	// ReferenceUnblendedを真にすると、参照照合で近いフレームを平均せず最も近い1つを使う。
 	ReferenceUnblended bool
 	// Logfは合成の途中経過を伝える。nilなら何も伝えない。
 	Logf func(string)
@@ -122,7 +126,7 @@ func (result *Result) RenderedPlan() *plan.Plan {
 
 type ProsodyPreview struct {
 	Reading         string
-	Morae           []frontend.Mora
+	Morae           []linguistics.Mora
 	Features        []prosody.FeatureFrame
 	MoraDurationsMS []float64
 	MoraPositionsMS []float64
@@ -135,28 +139,23 @@ func ConvertToReadingContext(ctx context.Context, text string, dictionary map[st
 	if err := synthesisContextError(ctx); err != nil {
 		return "", err
 	}
-	reading, frontendErr := frontend.ToKanaWithDictionary(text, dictionary)
+	reading, frontendErr := ja.ToKanaWithDictionary(text, dictionary)
 	if frontendErr == nil {
 		return reading, nil
 	}
-	analysis, openJTalkErr := analyzeOpenJTalkCached(ctx, frontend.ApplyDictionaryForAnalysis(text, dictionary), openJTalk)
+	analysis, openJTalkErr := analyzeOpenJTalkCached(ctx, ja.ApplyDictionaryForAnalysis(text, dictionary), openJTalk)
 	if openJTalkErr != nil {
 		return "", fmt.Errorf("convert text to reading: %v; Open JTalk fallback: %w", frontendErr, openJTalkErr)
 	}
 	return analysis.Reading, nil
 }
 
-func resolveReading(cfg Config) (string, error) {
-	if cfg.Reading != "" {
-		return cfg.Reading, nil
+func ResolvePronunciation(cfg Config) (string, string, string, []linguistics.Mora, error) {
+	utterance, err := resolvePronunciation(cfg)
+	if err != nil {
+		return "", "", "", nil, err
 	}
-	return ConvertToReadingContext(cfg.Context, cfg.Text, cfg.Dictionary, openjtalk.Config{
-		EnginePath: cfg.OpenJTalkPath, DictionaryPath: cfg.OpenJTalkDictionaryPath,
-	})
-}
-
-func ResolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, error) {
-	return resolvePronunciation(cfg)
+	return utterance.Language, utterance.Phonemizer, utterance.Reading, utterance.Morae, nil
 }
 
 // 読みとモーラだけを解析する。時間やピッチの予測にはPredictProsodyを使う。
@@ -167,20 +166,20 @@ func Analyze(cfg Config) (*ProsodyPreview, error) {
 	if err := validateConfig(cfg); err != nil {
 		return nil, err
 	}
-	_, _, reading, morae, err := resolvePronunciation(cfg)
+	utterance, err := resolvePronunciation(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
 	return &ProsodyPreview{
-		Reading: reading,
-		Morae:   append([]frontend.Mora(nil), morae...),
+		Reading: utterance.Reading,
+		Morae:   append([]linguistics.Mora(nil), utterance.Morae...),
 	}, nil
 }
 
 // 明示指定、音源の推定、言語既定の順に選ぶ。言語に合わない推定は使わない。
 func resolveLanguagePhonemizer(cfg Config) (string, string, error) {
 	if strings.TrimSpace(cfg.Phonemizer) != "" {
-		return frontend.ResolveLanguage(cfg.Language, cfg.Phonemizer)
+		return g2p.ResolveLanguage(cfg.Language, cfg.Phonemizer)
 	}
 	bank := cfg.Voicebank
 	if bank == nil && strings.TrimSpace(cfg.VoicebankPath) != "" {
@@ -192,25 +191,36 @@ func resolveLanguagePhonemizer(cfg Config) (string, string, error) {
 	if bank != nil {
 		suggestedLanguage, suggestedPhonemizer := bank.SuggestedLanguage()
 		if strings.TrimSpace(cfg.Language) == "" {
-			return frontend.ResolveLanguage(suggestedLanguage, suggestedPhonemizer)
+			return g2p.ResolveLanguage(suggestedLanguage, suggestedPhonemizer)
 		}
-		if language, phonemizer, err := frontend.ResolveLanguage(cfg.Language, suggestedPhonemizer); err == nil {
+		if language, phonemizer, err := g2p.ResolveLanguage(cfg.Language, suggestedPhonemizer); err == nil {
 			return language, phonemizer, nil
 		}
 	}
-	return frontend.ResolveLanguage(cfg.Language, "")
+	return g2p.ResolveLanguage(cfg.Language, "")
 }
 
-func resolvePronunciation(cfg Config) (string, string, string, []frontend.Mora, error) {
-	language, phonemizer, err := resolveLanguagePhonemizer(cfg)
+func resolvePronunciation(cfg Config) (linguistics.Utterance, error) {
+	language, phonemizerID, err := resolveLanguagePhonemizer(cfg)
 	if err != nil {
-		return "", "", "", nil, err
+		return linguistics.Utterance{}, err
 	}
-	reading, morae, err := languageProfileFor(language).ParsePronunciation(cfg, phonemizer)
-	if err != nil {
-		return "", "", "", nil, err
+	openJTalk := openjtalk.Config{
+		EnginePath: cfg.OpenJTalkPath, DictionaryPath: cfg.OpenJTalkDictionaryPath,
 	}
-	return language, phonemizer, reading, morae, nil
+	return g2p.Analyze(cfg.Context, language, g2p.Input{
+		Text:       cfg.Text,
+		Reading:    cfg.Reading,
+		Phonemizer: phonemizerID,
+		Dictionary: cfg.Dictionary,
+		ReadingFallback: func(ctx context.Context, analyzedText string) (string, error) {
+			analysis, err := analyzeOpenJTalkCached(ctx, analyzedText, openJTalk)
+			if err != nil {
+				return "", fmt.Errorf("Open JTalk fallback: %w", err)
+			}
+			return analysis.Reading, nil
+		},
+	})
 }
 
 func resolveProsodyModel(cfg Config) (*prosody.Model, error) {
@@ -223,11 +233,11 @@ func resolveProsodyModel(cfg Config) (*prosody.Model, error) {
 	return loadProsodyModelCached(cfg.Context, cfg.ProsodyModelPath)
 }
 
-func resolveProsodyFeatures(cfg Config, model *prosody.Model, morae []frontend.Mora, reading string) ([]prosody.FeatureFrame, error) {
+func resolveProsodyFeatures(cfg Config, model *prosody.Model, morae []linguistics.Mora, reading string) ([]prosody.FeatureFrame, error) {
 	if model == nil || !model.RequiresExternalFeatures() || len(cfg.ProsodyFeatures) > 0 {
 		return cfg.ProsodyFeatures, nil
 	}
-	runtimeText := frontend.ApplyDictionaryForAnalysis(cfg.Text, cfg.Dictionary)
+	runtimeText := ja.ApplyDictionaryForAnalysis(cfg.Text, cfg.Dictionary)
 	if strings.TrimSpace(runtimeText) == "" {
 		// かなだけの入力では読みを表層テキストとして解析する。
 		runtimeText = reading
@@ -246,7 +256,7 @@ func resolveProsodyFeatures(cfg Config, model *prosody.Model, morae []frontend.M
 	return fallback, nil
 }
 
-func analyzeAndAlignRuntimeFeatures(ctx context.Context, morae []frontend.Mora, text string, cfg openjtalk.Config) ([]prosody.FeatureFrame, error) {
+func analyzeAndAlignRuntimeFeatures(ctx context.Context, morae []linguistics.Mora, text string, cfg openjtalk.Config) ([]prosody.FeatureFrame, error) {
 	analysis, err := analyzeOpenJTalkCached(ctx, text, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("analyze runtime prosody features: %w", err)
@@ -278,16 +288,22 @@ func Synthesize(cfg Config) (*Result, error) {
 	applyAliasProfile(bank, &cfg)
 	applyVoicebankDictionary(bank, &cfg)
 	traceMark(&start, "setup")
-	language, phonemizer, reading, morae, err := resolvePronunciation(cfg)
+	utterance, err := resolvePronunciation(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
 	if cfg.Method == MethodReferenceMatching {
-		return synthesizeReference(cfg, bank, language, phonemizer, reading, morae)
+		return synthesizeReference(cfg, bank, utterance)
 	}
-	if err := requireReferenceOnly(language); err != nil {
-		return nil, err
+	ph, err := phonemizer.Resolve(utterance.Phonemizer)
+	if err != nil {
+		return nil, fmt.Errorf("language %q does not support method %q: %w", utterance.Language, MethodWaveformSynthesis, err)
 	}
+	aliases, err := ph.Aliases(utterance, bank.Presamp.Config())
+	if err != nil {
+		return nil, fmt.Errorf("phonemize aliases: %w", err)
+	}
+	language, phonemizerID, reading, morae := utterance.Language, utterance.Phonemizer, utterance.Reading, utterance.Morae
 	profile := languageProfileFor(language)
 	profile.ApplySpeechProfile(&cfg)
 	traceMark(&start, "phonemize")
@@ -302,13 +318,13 @@ func Synthesize(cfg Config) (*Result, error) {
 	}
 	traceMark(&start, "prosody")
 	selections, err := bank.ResolveWithConfig(morae, voicebank.ResolveConfig{
-		Tone: cfg.Tone, Color: cfg.Color, AliasPolicy: cfg.AliasPolicy,
+		Tone: cfg.Tone, Color: cfg.Color, AliasPolicy: cfg.AliasPolicy, Aliases: aliases,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("resolve voicebank units: %w", err)
 	}
 	traceMark(&start, "select")
-	synthesisPlan, stretchAdapt, err := buildSynthesisPlan(cfg, profile, bank, reading, language, phonemizer, morae, selections, predictions, requestedAliasPolicy)
+	synthesisPlan, stretchAdapt, err := buildSynthesisPlan(cfg, profile, bank, reading, language, phonemizerID, morae, selections, predictions, requestedAliasPolicy)
 	if err != nil {
 		return nil, err
 	}
@@ -418,16 +434,17 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 		cfg.ReleaseMS = render.DefaultReleaseMS
 	}
 
-	language, _, reading, morae, err := resolvePronunciation(cfg)
+	utterance, err := resolvePronunciation(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("phonemize: %w", err)
 	}
 	if cfg.Method == MethodReferenceMatching {
-		return predictReference(cfg, language, reading, morae)
+		return predictReference(cfg, utterance)
 	}
-	if err := requireReferenceOnly(language); err != nil {
-		return nil, err
+	if _, err := phonemizer.Resolve(utterance.Phonemizer); err != nil {
+		return nil, fmt.Errorf("language %q does not support method %q: %w", utterance.Language, MethodWaveformSynthesis, err)
 	}
+	language, reading, morae := utterance.Language, utterance.Reading, utterance.Morae
 	profile := languageProfileFor(language)
 	loadedProsody, err := resolveProsodyModelForProfile(cfg, profile)
 	if err != nil {
@@ -440,7 +457,7 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 	}
 	timings := make([]prosody.MoraTiming, len(morae))
 	result := &ProsodyPreview{
-		Reading: reading, Morae: append([]frontend.Mora(nil), morae...),
+		Reading: reading, Morae: append([]linguistics.Mora(nil), morae...),
 		Features:        append([]prosody.FeatureFrame(nil), prosodyFeatures...),
 		MoraDurationsMS: make([]float64, len(morae)),
 		MoraPositionsMS: make([]float64, len(morae)),
@@ -508,7 +525,7 @@ func synthesisContextError(ctx context.Context) error {
 	}
 }
 
-func moraTimings(morae []frontend.Mora, synthesisPlan *plan.Plan) []prosody.MoraTiming {
+func moraTimings(morae []linguistics.Mora, synthesisPlan *plan.Plan) []prosody.MoraTiming {
 	byPosition := make(map[int]plan.Unit, len(synthesisPlan.Units))
 	for _, unit := range synthesisPlan.Units {
 		if unit.Role == "transition" || unit.Role == "ending" {
@@ -552,14 +569,6 @@ const (
 	MethodWaveformSynthesis = "waveform-synthesis"
 	MethodReferenceMatching = "reference-matching"
 )
-
-// requireReferenceOnlyは、参照照合でしか合成できない言語なら誤りを返す。
-func requireReferenceOnly(language string) error {
-	if frontend.IsSyllableLanguage(language) || language == frontend.LanguageChinese {
-		return fmt.Errorf("language %q is available only with method %q", language, MethodReferenceMatching)
-	}
-	return nil
-}
 
 // ValidateMethodは、合成の方式の指定を確かめる。方式は必須で、既定値はない。
 func ValidateMethod(method string) error {

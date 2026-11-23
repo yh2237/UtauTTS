@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/refspeech"
 )
 
@@ -22,12 +22,13 @@ func TestEnglishMoraTokensAndDurations(t *testing.T) {
 		durations[i] = 2
 	}
 	timing := refspeech.Timing{Durations: durations, PieceTokens: [][2]int{{1, 6}, {6, 7}, {7, 8}, {8, 14}, {14, 15}}}
-	two := []frontend.Phone{{Symbol: "a"}, {Symbol: "b"}}
-	morae := []frontend.Mora{
+	two := []linguistics.Phone{{Symbol: "a"}, {Symbol: "b"}}
+	morae := []linguistics.Mora{
 		{WordIndex: 0, Phones: two}, {WordIndex: 0, Phones: two}, {Pause: true},
 		{WordIndex: 2, Phones: append(two, two...)}, {Pause: true},
 	}
-	tokens := englishMoraTokens(pieces, timing, reading, morae)
+	utterance := linguistics.Utterance{Language: linguistics.LanguageEnglish, Reading: reading, Morae: morae}
+	tokens := refspeech.NewKokoroProvider(nil, nil, nil).AlignMoraTokens(pieces, timing, utterance)
 	if !reflect.DeepEqual(tokens, [][]int{{1, 2, 3}, {4, 5}, {6, 7}, {8, 9, 10, 11, 12, 13}, {14, 15}}) {
 		t.Fatalf("tokens = %v", tokens)
 	}
@@ -39,7 +40,7 @@ func TestEnglishMoraTokensAndDurations(t *testing.T) {
 
 // 音素の指定があるモーラは、その合計がモーラの長さになる。
 func TestReferencePlannedDurationsUsesPhonePlanTotal(t *testing.T) {
-	morae := []frontend.Mora{{Phones: []frontend.Phone{{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"}}}}
+	morae := []linguistics.Mora{{Phones: []linguistics.Phone{{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"}}}}
 	timing := refspeech.Timing{Durations: []int{2, 6}}
 	tokens := [][]int{{0, 1}}
 	phonePlans := referencePhonePlans(morae, tokens, timing, []float64{250}, nil)
@@ -50,8 +51,8 @@ func TestReferencePlannedDurationsUsesPhonePlanTotal(t *testing.T) {
 }
 
 func TestBuildPhonePlansSplitsConsonantAndVowel(t *testing.T) {
-	morae := []frontend.Mora{
-		{Phones: []frontend.Phone{{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"}, {Symbol: "n", Role: "coda"}}},
+	morae := []linguistics.Mora{
+		{Phones: []linguistics.Phone{{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"}, {Symbol: "n", Role: "coda"}}},
 		{Pause: true},
 	}
 	cfg := Config{ConsonantMS: []float64{80, 0}, VowelMS: []float64{160, 0}}
@@ -86,7 +87,7 @@ func TestEnglishPitchCurveStartsAtFirstMoraAndBridgesUnvoiced(t *testing.T) {
 
 // 片側だけ指定したときは、指定していない側が参照の長さを保つ。
 func TestReferencePhonePlansKeepsUnspecifiedSide(t *testing.T) {
-	morae := []frontend.Mora{{Phones: []frontend.Phone{{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"}}}}
+	morae := []linguistics.Mora{{Phones: []linguistics.Phone{{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"}}}}
 	timing := refspeech.Timing{Durations: []int{2, 6}}
 	tokens := [][]int{{0, 1}}
 	plans, err := buildPhonePlans(Config{ConsonantMS: []float64{200}, VowelMS: []float64{0}}, morae)

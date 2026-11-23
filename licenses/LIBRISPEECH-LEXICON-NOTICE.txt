@@ -7,7 +7,7 @@ English words that are not in the bundled CMUdict.
 - Source: LibriSpeech language models, vocabulary and G2P models (OpenSLR SLR11)
   https://www.openslr.org/11/
 - License: public domain
-- Embedded file: internal/g2p/lexicon/librispeech.dict.gz
+- Embedded file: internal/g2p/en/lexicon/librispeech.dict.gz
 - Filtering: words already in CMUdict, non-alphabetic entries, one-letter
   entries, and entries without a vowel were removed. Duplicate words keep the
   first pronunciation.

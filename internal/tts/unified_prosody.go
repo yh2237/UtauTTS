@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
@@ -143,7 +143,7 @@ func unifiedProsodyExtraVector(frame prosody.FeatureFrame, width int, pos, group
 
 // unifiedProsodyContextはjaのプランからタイムラインとアクセント特徴を組み、文脈トランクの入力と発話マスクを返す。
 func unifiedProsodyContext(model *speechtiming.TCN, language string, features []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, synthesisPlan *plan.Plan, question bool) ([][3]int, [][]float32, []bool, error) {
-	if model == nil || synthesisPlan == nil || frontend.NormalizeLanguage(language) != "ja" {
+	if model == nil || synthesisPlan == nil || linguistics.NormalizeLanguage(language) != "ja" {
 		return nil, nil, nil, fmt.Errorf("unified prosody unavailable")
 	}
 	transition := map[int]float64{}
@@ -261,7 +261,7 @@ func predictUnifiedProsody(ctx context.Context, model *speechtiming.TCN, languag
 
 // previewPlanは音源を読まないプレビュー用に、モーラの時刻からF0ヘッドの入力に足りるプランを組む。
 // 合成でも曲線を作る時点の先行発声と余白は0なので、休止と促音（無音の単位）を除くだけで同じ入力になる。
-func previewPlan(morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) *plan.Plan {
+func previewPlan(morae []linguistics.Mora, timings []prosody.MoraTiming, durationMS float64) *plan.Plan {
 	result := &plan.Plan{DurationMS: durationMS}
 	for index, mora := range morae {
 		if index >= len(timings) || mora.Pause || mora.Text == "っ" || mora.Text == "ッ" {

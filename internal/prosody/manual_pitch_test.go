@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 )
 
 func TestManualPitchCurveInterpolatesMoraCenters(t *testing.T) {
@@ -12,7 +12,7 @@ func TestManualPitchCurveInterpolatesMoraCenters(t *testing.T) {
 		{Position: 0, Mora: "あ", Cents: 0},
 		{Position: 2, Mora: "う", Cents: 100},
 	}}
-	morae := []frontend.Mora{{Text: "あ"}, {Text: "い"}, {Text: "う"}}
+	morae := []linguistics.Mora{{Text: "あ"}, {Text: "い"}, {Text: "う"}}
 	timings := []MoraTiming{{StartMS: 0, DurationMS: 100}, {StartMS: 100, DurationMS: 100}, {StartMS: 200, DurationMS: 100}}
 	curve, err := file.Curve(morae, timings, 300)
 	if err != nil {
@@ -28,7 +28,7 @@ func TestManualPitchCurveInterpolatesMoraCenters(t *testing.T) {
 
 func TestManualPitchCurveKeepsUnspecifiedMoraeAtZero(t *testing.T) {
 	file := &ManualPitchFile{Version: 1, Points: []ManualPitchPoint{{Position: 1, Cents: 80}}}
-	morae := []frontend.Mora{{Text: "あ"}, {Text: "い"}, {Text: "う"}}
+	morae := []linguistics.Mora{{Text: "あ"}, {Text: "い"}, {Text: "う"}}
 	timings := []MoraTiming{{StartMS: 0, DurationMS: 100}, {StartMS: 100, DurationMS: 100}, {StartMS: 200, DurationMS: 100}}
 	curve, err := file.Curve(morae, timings, 300)
 	if err != nil {
@@ -41,7 +41,7 @@ func TestManualPitchCurveKeepsUnspecifiedMoraeAtZero(t *testing.T) {
 
 func TestManualPitchFramesModeResamplesToDuration(t *testing.T) {
 	file := &ManualPitchFile{Version: 1, Mode: "frames", Frames: []float64{0, 100, 0}}
-	morae := []frontend.Mora{{Text: "あ"}, {Text: "い"}}
+	morae := []linguistics.Mora{{Text: "あ"}, {Text: "い"}}
 	timings := []MoraTiming{{StartMS: 0, DurationMS: 100}, {StartMS: 100, DurationMS: 100}}
 	if err := file.Validate(); err != nil {
 		t.Fatal(err)
@@ -98,7 +98,7 @@ func TestManualPitchFramesPreserveSubTenMillisecondEdits(t *testing.T) {
 			if err := file.Validate(); err != nil {
 				t.Fatal(err)
 			}
-			curve, err := file.Curve([]frontend.Mora{{Text: "あ"}}, []MoraTiming{{DurationMS: 100}}, 100)
+			curve, err := file.Curve([]linguistics.Mora{{Text: "あ"}}, []MoraTiming{{DurationMS: 100}}, 100)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -121,7 +121,7 @@ func TestManualPitchFramesPreserveSubTenMillisecondEdits(t *testing.T) {
 func TestManualPitchFramesAddMoraOffsets(t *testing.T) {
 	file := &ManualPitchFile{Version: 1, Mode: "frames", FrameMS: 10, Frames: []float64{0, 25, 0},
 		Points: []ManualPitchPoint{{Position: 0, Cents: 100}, {Position: 2, Cents: 200}}}
-	morae := []frontend.Mora{{Text: "あ"}, {Pause: true}, {Text: "い"}}
+	morae := []linguistics.Mora{{Text: "あ"}, {Pause: true}, {Text: "い"}}
 	timings := []MoraTiming{{DurationMS: 100}, {StartMS: 100, DurationMS: 50}, {StartMS: 150, DurationMS: 100}}
 	if err := file.Validate(); err != nil {
 		t.Fatal(err)
@@ -161,7 +161,7 @@ func TestManualPitchValidateDefaultsModeToOffset(t *testing.T) {
 }
 
 func TestManualPitchValidationRejectsInvalidInputs(t *testing.T) {
-	morae := []frontend.Mora{{Text: "あ"}, {Pause: true}}
+	morae := []linguistics.Mora{{Text: "あ"}, {Pause: true}}
 	timings := []MoraTiming{{StartMS: 0, DurationMS: 100}, {StartMS: 100, DurationMS: 100}}
 	for _, file := range []*ManualPitchFile{
 		{Version: 1, Points: []ManualPitchPoint{{Position: 1, Cents: 10}}},

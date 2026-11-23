@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 )
 
@@ -83,7 +83,7 @@ func TestRunWritesRuntimeContour(t *testing.T) {
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatal(err)
 	}
-	contour := model.PredictFrameContour([]frontend.Mora{{Language: "ja", Text: "あ", Vowel: "a"}},
+	contour := model.PredictFrameContour([]linguistics.Mora{{Language: "ja", Text: "あ", Vowel: "a"}},
 		[]prosody.FeatureFrame{accentFrame(token{})}, []prosody.MoraTiming{{DurationMS: 100}}, 100, false)
 	want, err := json.Marshal(teacherLine{ID: "sample", FrameMS: contour.FrameMS, Cents: contour.Cents})
 	if err != nil {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/refspeech"
 )
 
@@ -19,7 +19,7 @@ type phonePlan struct {
 
 // buildPhonePlansは、設定された音素の指定をモーラごとの計画へまとめる。
 // 配列は休止を含む全モーラと同じ長さで、休止は0にする。
-func buildPhonePlans(cfg Config, morae []frontend.Mora) ([]phonePlan, error) {
+func buildPhonePlans(cfg Config, morae []linguistics.Mora) ([]phonePlan, error) {
 	if len(cfg.ConsonantMS) == 0 && len(cfg.VowelMS) == 0 && len(cfg.PhoneWeights) == 0 {
 		return nil, nil
 	}
@@ -78,7 +78,7 @@ func buildPhonePlans(cfg Config, morae []frontend.Mora) ([]phonePlan, error) {
 
 // splitTokensByPhoneは、モーラの記号を音素ごとに分ける。
 // 記号数と音素数が違うときは、音素の数に比例して割り当てる。
-func splitTokensByPhone(tokens []int, phones []frontend.Phone) [][]int {
+func splitTokensByPhone(tokens []int, phones []linguistics.Phone) [][]int {
 	groups := make([][]int, len(phones))
 	if len(phones) == 0 {
 		return groups
@@ -104,7 +104,7 @@ func splitTokensByPhone(tokens []int, phones []frontend.Phone) [][]int {
 
 // phoneDurationsForTargetは、目標のモラ長を音素へ配分する。
 // 子音は元の長さを保ち、余った時間を母音へ渡す。縮める場合は全体を比例配分する。
-func phoneDurationsForTarget(phones []frontend.Phone, natural []float64, targetMS float64) []float64 {
+func phoneDurationsForTarget(phones []linguistics.Phone, natural []float64, targetMS float64) []float64 {
 	result := make([]float64, len(phones))
 	var consonant, vowel, total float64
 	for i, phone := range phones {
@@ -146,7 +146,7 @@ type moraPhonePlan struct {
 
 // referencePhonePlansは、モーラごとの目標長と音素の配分を求める。
 // 目標が無いモーラはnilを返す。
-func referencePhonePlans(morae []frontend.Mora, moraTokens [][]int, timing refspeech.Timing, manual []float64, plans []phonePlan) []moraPhonePlan {
+func referencePhonePlans(morae []linguistics.Mora, moraTokens [][]int, timing refspeech.Timing, manual []float64, plans []phonePlan) []moraPhonePlan {
 	result := make([]moraPhonePlan, len(morae))
 	for i, mora := range morae {
 		if mora.Pause || len(mora.Phones) == 0 || i >= len(moraTokens) {
@@ -197,7 +197,7 @@ func referencePhonePlans(morae []frontend.Mora, moraTokens [][]int, timing refsp
 			continue
 		}
 		if len(plan.weights) == len(mora.Phones) {
-			durations := frontend.PhoneSpansFromWeights(plan.weights, sumDurations(natural))
+			durations := linguistics.PhoneSpansFromWeights(plan.weights, sumDurations(natural))
 			result[i] = moraPhonePlan{phoneDurations: durations, total: sumDurations(durations)}
 			continue
 		}

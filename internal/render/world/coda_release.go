@@ -3,7 +3,7 @@ package world
 import (
 	"math"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/render/base"
 )
@@ -13,7 +13,7 @@ func worldCodaReleaseEligible(p *plan.Plan, u plan.Unit) bool {
 	if len(u.CodaPhones) == 0 {
 		return false
 	}
-	return p.Phonemizer == frontend.PhonemizerChinese && u.Role == "mora"
+	return p.Phonemizer == linguistics.PhonemizerChinese && u.Role == "mora"
 }
 
 func codaReleaseEnvelope(u plan.Unit, points []base.EnvelopePoint, fadeOut float64) ([]base.EnvelopePoint, float64) {

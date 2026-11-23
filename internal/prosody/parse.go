@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauWLD/speechtiming"
 )
 
@@ -149,7 +149,7 @@ func (m *Model) SupportsLanguage(language string) bool {
 	}
 	declared := strings.TrimSpace(m.Language)
 	if declared == "" {
-		return language == frontend.LanguageJapanese
+		return language == linguistics.LanguageJapanese
 	}
 	return strings.EqualFold(declared, strings.TrimSpace(language))
 }

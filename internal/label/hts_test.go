@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 )
 
@@ -37,7 +37,7 @@ func TestHTSUsesLeadingMarginAndEffectivePreutterance(t *testing.T) {
 func TestHTSUsesAnalyzedEnglishUnits(t *testing.T) {
 	p := &plan.Plan{
 		Reading: "HH AH L OW", LeadingMarginMS: 20,
-		Morae: []frontend.Mora{
+		Morae: []linguistics.Mora{
 			{Text: "hV", Consonant: "h", Vowel: "V"},
 			{Text: "loU", Consonant: "l", Vowel: "oU"},
 		},

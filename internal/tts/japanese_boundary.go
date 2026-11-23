@@ -3,7 +3,7 @@ package tts
 import (
 	"math"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/settings"
@@ -77,7 +77,7 @@ func boundaryToneStrength(cfg Config) float64 {
 	return cfg.BoundaryToneStrength
 }
 
-func finalPhraseEndMS(morae []frontend.Mora, timings []prosody.MoraTiming) float64 {
+func finalPhraseEndMS(morae []linguistics.Mora, timings []prosody.MoraTiming) float64 {
 	for index := len(morae) - 1; index >= 0; index-- {
 		if morae[index].Pause {
 			continue

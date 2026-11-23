@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
@@ -24,10 +24,10 @@ func TestResolvePronunciationUsesVoicebankSuggestedPhonemizer(t *testing.T) {
 		aliases        []string
 		wantPhonemizer string
 	}{
-		{"delta", []string{"- hV", "- h@", "V l", "@ l", "h{", "- h{"}, frontend.PhonemizerEnglishDelta},
-		{"vccv", []string{"-h@", "-hA", "-b&"}, frontend.PhonemizerEnglishVCCV},
-		{"cv", []string{"- aa", "- ah", "- ao", "aa -", "ah -", "ao -"}, frontend.PhonemizerEnglishCV},
-		{"arpasing", []string{"- hh", "hh ah", "ah l"}, frontend.PhonemizerEnglish},
+		{"delta", []string{"- hV", "- h@", "V l", "@ l", "h{", "- h{"}, linguistics.PhonemizerEnglishDelta},
+		{"vccv", []string{"-h@", "-hA", "-b&"}, linguistics.PhonemizerEnglishVCCV},
+		{"cv", []string{"- aa", "- ah", "- ao", "aa -", "ah -", "ao -"}, linguistics.PhonemizerEnglishCV},
+		{"arpasing", []string{"- hh", "hh ah", "ah l"}, linguistics.PhonemizerEnglish},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -35,7 +35,7 @@ func TestResolvePronunciationUsesVoicebankSuggestedPhonemizer(t *testing.T) {
 				Text: "Hello", Language: "en", Reading: "HH AH0 L OW1",
 				Voicebank: bankWithAliases(test.aliases...),
 			}
-			language, phonemizer, _, _, err := resolvePronunciation(cfg)
+			language, phonemizer, _, _, err := ResolvePronunciation(cfg)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -49,15 +49,15 @@ func TestResolvePronunciationUsesVoicebankSuggestedPhonemizer(t *testing.T) {
 func TestResolvePronunciationPrefersExplicitPhonemizer(t *testing.T) {
 	cfg := Config{
 		Text: "Hello", Language: "en", Reading: "HH AH0 L OW1",
-		Phonemizer: frontend.PhonemizerEnglishVCCV,
+		Phonemizer: linguistics.PhonemizerEnglishVCCV,
 		Voicebank:  bankWithAliases("- hV", "- h@", "V l", "@ l", "h{", "- h{"),
 	}
-	language, phonemizer, _, _, err := resolvePronunciation(cfg)
+	language, phonemizer, _, _, err := ResolvePronunciation(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if language != "en" || phonemizer != frontend.PhonemizerEnglishVCCV {
-		t.Fatalf("got %s/%s, want en/%s", language, phonemizer, frontend.PhonemizerEnglishVCCV)
+	if language != "en" || phonemizer != linguistics.PhonemizerEnglishVCCV {
+		t.Fatalf("got %s/%s, want en/%s", language, phonemizer, linguistics.PhonemizerEnglishVCCV)
 	}
 }
 
@@ -67,12 +67,12 @@ func TestResolvePronunciationFallsBackWhenLanguageDiffers(t *testing.T) {
 		Language:  "ja",
 		Voicebank: bankWithAliases("- hV", "- h@", "V l", "@ l", "h{", "- h{"),
 	}
-	language, phonemizer, _, _, err := resolvePronunciation(cfg)
+	language, phonemizer, _, _, err := ResolvePronunciation(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if language != "ja" || phonemizer != frontend.PhonemizerJapanese {
-		t.Fatalf("got %s/%s, want ja/%s", language, phonemizer, frontend.PhonemizerJapanese)
+	if language != "ja" || phonemizer != linguistics.PhonemizerJapanese {
+		t.Fatalf("got %s/%s, want ja/%s", language, phonemizer, linguistics.PhonemizerJapanese)
 	}
 }
 
@@ -90,11 +90,11 @@ func TestResolvePronunciationUsesVoicebankPath(t *testing.T) {
 	cfg := Config{
 		Text: "Hello", Language: "en", Reading: "HH AH0 L OW1", VoicebankPath: root,
 	}
-	language, phonemizer, _, _, err := resolvePronunciation(cfg)
+	language, phonemizer, _, _, err := ResolvePronunciation(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if language != "en" || phonemizer != frontend.PhonemizerEnglishDelta {
-		t.Fatalf("got %s/%s, want en/%s", language, phonemizer, frontend.PhonemizerEnglishDelta)
+	if language != "en" || phonemizer != linguistics.PhonemizerEnglishDelta {
+		t.Fatalf("got %s/%s, want en/%s", language, phonemizer, linguistics.PhonemizerEnglishDelta)
 	}
 }

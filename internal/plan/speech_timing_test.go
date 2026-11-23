@@ -1,7 +1,7 @@
 package plan
 
 import (
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 	"math"
@@ -9,14 +9,14 @@ import (
 )
 
 func TestBuildUsesTargetPhoneWeightsAndAnchor(t *testing.T) {
-	mora := frontend.Mora{Text: "か", Vowel: "a", Phones: []frontend.Phone{
+	mora := linguistics.Mora{Text: "か", Vowel: "a", Phones: []linguistics.Phone{
 		{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"},
 	}}
 	selection := voicebank.Selection{
 		Position: 0, Mora: mora, Alias: "か", Kind: voicebank.AliasCV,
 		Entry: oto.Entry{Filename: "main.wav", Preutterance: 40, Fixed: 80},
 	}
-	got, err := Build(&voicebank.Bank{Root: "bank"}, "か", []frontend.Mora{mora}, []voicebank.Selection{selection}, Config{
+	got, err := Build(&voicebank.Bank{Root: "bank"}, "か", []linguistics.Mora{mora}, []voicebank.Selection{selection}, Config{
 		MoraDurationMS: 100, PhoneWeights: [][]float64{{0.7, 0.3}}, PhoneWeightsSource: "target",
 	})
 	if err != nil {

@@ -4,7 +4,7 @@ import (
 	"math"
 
 	"github.com/yh2237/UtauTTS/internal/connection"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
 )
 
@@ -121,7 +121,7 @@ func joinScore(previous, current oto.Entry, cache *connection.Extractor) float64
 }
 
 func speechContextJoinScore(previous, current oto.Entry, language string, context bool, cache *connection.Extractor) float64 {
-	if context && language == frontend.LanguageChinese {
+	if context && language == linguistics.LanguageChinese {
 		return cache.ScoreSpeechContext(previous, current) + sourceGroupContinuityScore(previous, current)
 	}
 	return joinScore(previous, current, cache)

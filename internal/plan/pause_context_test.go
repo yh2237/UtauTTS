@@ -4,16 +4,16 @@ import (
 	"math"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
-func pauseMorae(kind string, final bool) []frontend.Mora {
-	morae := []frontend.Mora{{Text: "あ", Vowel: "a"}, {Pause: true, PauseKind: kind}}
+func pauseMorae(kind string, final bool) []linguistics.Mora {
+	morae := []linguistics.Mora{{Text: "あ", Vowel: "a"}, {Pause: true, PauseKind: kind}}
 	if !final {
-		morae = append(morae, frontend.Mora{Text: "い", Vowel: "i"})
+		morae = append(morae, linguistics.Mora{Text: "い", Vowel: "i"})
 	}
 	return morae
 }
@@ -21,23 +21,23 @@ func pauseMorae(kind string, final bool) []frontend.Mora {
 func TestPauseContextKindOrdering(t *testing.T) {
 	cfg := Config{PauseContext: true, PauseContextStrength: 1}
 	factor := func(kind string, final bool) float64 { return pauseContextFactor(pauseMorae(kind, final), 1, cfg) }
-	comma, period, question, ellipsis := factor(frontend.PauseKindComma, false), factor(frontend.PauseKindPeriod, false),
-		factor(frontend.PauseKindQuestion, false), factor(frontend.PauseKindEllipsis, false)
+	comma, period, question, ellipsis := factor(linguistics.PauseKindComma, false), factor(linguistics.PauseKindPeriod, false),
+		factor(linguistics.PauseKindQuestion, false), factor(linguistics.PauseKindEllipsis, false)
 	if !(comma < period && period < question && question < ellipsis) {
 		t.Fatalf("kind ordering = comma:%v period:%v question:%v ellipsis:%v", comma, period, question, ellipsis)
 	}
-	for _, kind := range []string{frontend.PauseKindSpace, frontend.PauseKindBracket, frontend.PauseKindOther, ""} {
+	for _, kind := range []string{linguistics.PauseKindSpace, linguistics.PauseKindBracket, linguistics.PauseKindOther, ""} {
 		if got := factor(kind, false); got != period {
 			t.Errorf("kind %q factor = %v, want neutral %v", kind, got, period)
 		}
 	}
-	if final := factor(frontend.PauseKindPeriod, true); final <= period {
+	if final := factor(linguistics.PauseKindPeriod, true); final <= period {
 		t.Fatalf("utterance final pause was not longer: final=%v nonFinal=%v", final, period)
 	}
 }
 
 func TestPauseContextStrengthAndDisable(t *testing.T) {
-	morae := pauseMorae(frontend.PauseKindComma, false)
+	morae := pauseMorae(linguistics.PauseKindComma, false)
 	if got := pauseContextFactor(morae, 1, Config{PauseContext: false, PauseContextStrength: 1}); got != 1 {
 		t.Fatalf("disabled factor = %v, want 1", got)
 	}
@@ -51,14 +51,14 @@ func TestPauseContextStrengthAndDisable(t *testing.T) {
 	if math.Abs(half-0.85) > 1e-9 {
 		t.Fatalf("half strength factor = %v, want 0.85", half)
 	}
-	capped := pauseContextFactor(pauseMorae(frontend.PauseKindEllipsis, false), 1, Config{PauseContext: true, PauseContextStrength: 5})
-	limit := pauseContextFactor(pauseMorae(frontend.PauseKindEllipsis, false), 1, Config{PauseContext: true, PauseContextStrength: pauseContextMaxStrength})
+	capped := pauseContextFactor(pauseMorae(linguistics.PauseKindEllipsis, false), 1, Config{PauseContext: true, PauseContextStrength: 5})
+	limit := pauseContextFactor(pauseMorae(linguistics.PauseKindEllipsis, false), 1, Config{PauseContext: true, PauseContextStrength: pauseContextMaxStrength})
 	if math.Abs(capped-limit) > 1e-9 {
 		t.Fatalf("strength clamp = %v, want %v", capped, limit)
 	}
 }
 
-func buildPausePlan(t *testing.T, morae []frontend.Mora, cfg Config) *Plan {
+func buildPausePlan(t *testing.T, morae []linguistics.Mora, cfg Config) *Plan {
 	t.Helper()
 	bank := &voicebank.Bank{Root: "bank"}
 	selections := []voicebank.Selection{
@@ -73,9 +73,9 @@ func buildPausePlan(t *testing.T, morae []frontend.Mora, cfg Config) *Plan {
 }
 
 func TestBuildAppliesPauseContext(t *testing.T) {
-	morae := []frontend.Mora{
+	morae := []linguistics.Mora{
 		{Text: "あ", Vowel: "a"},
-		{Pause: true, PauseKind: frontend.PauseKindComma},
+		{Pause: true, PauseKind: linguistics.PauseKindComma},
 		{Text: "い", Vowel: "i"},
 	}
 	base := Config{MoraDurationMS: 100, PauseDurationMS: 200}
@@ -91,9 +91,9 @@ func TestBuildAppliesPauseContext(t *testing.T) {
 }
 
 func TestBuildPauseContextManualOverrideWins(t *testing.T) {
-	morae := []frontend.Mora{
+	morae := []linguistics.Mora{
 		{Text: "あ", Vowel: "a"},
-		{Pause: true, PauseKind: frontend.PauseKindComma},
+		{Pause: true, PauseKind: linguistics.PauseKindComma},
 		{Text: "い", Vowel: "i"},
 	}
 	got := buildPausePlan(t, morae, Config{
@@ -107,9 +107,9 @@ func TestBuildPauseContextManualOverrideWins(t *testing.T) {
 }
 
 func TestBuildPauseContextPredictionWins(t *testing.T) {
-	morae := []frontend.Mora{
+	morae := []linguistics.Mora{
 		{Text: "あ", Vowel: "a"},
-		{Pause: true, PauseKind: frontend.PauseKindComma},
+		{Pause: true, PauseKind: linguistics.PauseKindComma},
 		{Text: "い", Vowel: "i"},
 	}
 	got := buildPausePlan(t, morae, Config{

@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
@@ -22,7 +22,7 @@ func TestNormalizePlanTiming(t *testing.T) {
 		}
 	})
 	t.Run("applies onset overlap", func(t *testing.T) {
-		p := &plan.Plan{Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
+		p := &plan.Plan{Morae: []linguistics.Mora{{Consonant: "k", Vowel: "a"}}}
 		unit := plan.Unit{Role: "mora", Position: 0, AliasKind: "CV", DurationMS: 140,
 			PreutteranceMS: 100, OverlapMS: 60, ConsonantMS: 120}
 		if got := NormalizePlanTiming(p, unit, 20); got.OverlapMS != 10 {
@@ -32,7 +32,7 @@ func TestNormalizePlanTiming(t *testing.T) {
 }
 
 func TestNormalizeSingleCVTimingProtectsOnsetAndVowelTail(t *testing.T) {
-	p := &plan.Plan{SingleCV: true, Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
+	p := &plan.Plan{SingleCV: true, Morae: []linguistics.Mora{{Consonant: "k", Vowel: "a"}}}
 	unit := plan.Unit{
 		Role: "mora", Position: 0, DurationMS: 140, PreutteranceMS: 126,
 		ConsonantMS: 184, OverlapMS: 0,
@@ -104,7 +104,7 @@ func TestNormalizedPhoneTimingUnitsKeepValidVCVAnchors(t *testing.T) {
 
 func TestSingleCVWorldOverlap(t *testing.T) {
 	t.Run("keeps onset fade controlled", func(t *testing.T) {
-		p := &plan.Plan{SingleCV: true, Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
+		p := &plan.Plan{SingleCV: true, Morae: []linguistics.Mora{{Consonant: "k", Vowel: "a"}}}
 		unit := plan.Unit{Position: 0, PreutteranceMS: 126, OverlapMS: 80}
 		if got := SingleCVWorldOverlapMS(p, unit, 84); got != 18 {
 			t.Fatalf("world overlap = %.3f, want 18", got)
@@ -115,7 +115,7 @@ func TestSingleCVWorldOverlap(t *testing.T) {
 		}
 	})
 	t.Run("adds vowel boundary blend", func(t *testing.T) {
-		p := &plan.Plan{SingleCV: true, Morae: []frontend.Mora{
+		p := &plan.Plan{SingleCV: true, Morae: []linguistics.Mora{
 			{Vowel: "a"}, {Vowel: "a"}, {Vowel: "i"}, {Consonant: "k", Vowel: "a"},
 		}}
 		if got := SingleCVWorldOverlapMS(p, plan.Unit{Position: 1}, 0); got != SingleCVSameVowelOverlapMS {

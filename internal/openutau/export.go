@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"gopkg.in/yaml.v3"
 )
@@ -299,9 +299,9 @@ func utteranceToVoicePart(utterance UtauTTSUtterance, trackIndex int, msToTicks 
 				break
 			}
 		}
-		morae := make([]frontend.Mora, len(timings))
+		morae := make([]linguistics.Mora, len(timings))
 		for index, mora := range utterance.AnalysisCache.Morae {
-			morae[index] = frontend.Mora{Text: mora.Mora, Pause: mora.Pause}
+			morae[index] = linguistics.Mora{Text: mora.Mora, Pause: mora.Pause}
 			if !mora.Pause && index < len(utterance.PitchPoints) {
 				manual.Points = append(manual.Points, prosody.ManualPitchPoint{Position: index, Cents: utterance.PitchPoints[index]})
 			}

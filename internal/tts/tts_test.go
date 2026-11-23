@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/yh2237/UtauIDX/audio"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
@@ -26,7 +26,7 @@ func TestMoraTimings(t *testing.T) {
 }
 
 func testMoraTimingsIgnoreCodaAndTransitionUnits(t *testing.T) {
-	morae := []frontend.Mora{{Text: "test"}, {Pause: true}, {Text: "a"}}
+	morae := []linguistics.Mora{{Text: "test"}, {Pause: true}, {Text: "a"}}
 	p := &plan.Plan{DurationMS: 400, Units: []plan.Unit{
 		{Position: 0, Role: "mora", NoteStartMS: 0, DurationMS: 200},
 		{Position: 0, Role: "ending", NoteStartMS: 150, DurationMS: 25},
@@ -53,8 +53,8 @@ func TestSynthesizeHonorsCanceledContextBeforeLoadingInputs(t *testing.T) {
 func TestAnalyzeResolvesPronunciationWithoutLoadingProsodyModel(t *testing.T) {
 	preview, err := Analyze(Config{
 		Reading:          "コンニチハ",
-		Language:         frontend.LanguageJapanese,
-		Phonemizer:       frontend.PhonemizerJapanese,
+		Language:         linguistics.LanguageJapanese,
+		Phonemizer:       linguistics.PhonemizerJapanese,
 		ProsodyModelPath: filepath.Join(t.TempDir(), "missing-model.json"),
 	})
 	if err != nil {
@@ -89,7 +89,7 @@ func TestAliasProfilesBundleSelectionAndTimingSettings(t *testing.T) {
 }
 
 func testMoraTimingsIncludePausesMissingFromPlanUnits(t *testing.T) {
-	morae := []frontend.Mora{{Text: "a"}, {Pause: true}, {Text: "i"}}
+	morae := []linguistics.Mora{{Text: "a"}, {Pause: true}, {Text: "i"}}
 	p := &plan.Plan{DurationMS: 380, Units: []plan.Unit{
 		{Position: 0, NoteStartMS: 0, DurationMS: 100},
 		{Position: 2, NoteStartMS: 280, DurationMS: 100},
@@ -112,7 +112,7 @@ func TestResolveManualPitchCombinesLayersBeforeConstraining(t *testing.T) {
 		manual := &prosody.ManualPitchFile{Version: 1, Reading: "ア", Mode: "frames", FrameMS: step,
 			Points: []prosody.ManualPitchPoint{{Position: 0, Cents: 100}}, Frames: []float64{0, 25, 0}}
 		curve, mode, err := resolveManualPitchCurve(Config{ManualPitch: manual}, "ア",
-			[]frontend.Mora{{Text: "ア"}}, []prosody.MoraTiming{{DurationMS: 100}}, 100)
+			[]linguistics.Mora{{Text: "ア"}}, []prosody.MoraTiming{{DurationMS: 100}}, 100)
 		if err != nil || mode != "frames" {
 			t.Fatalf("mode=%q error=%v", mode, err)
 		}
@@ -353,7 +353,7 @@ func TestSynthesizePitchOverrideDoesNotChangeCachedProsody(t *testing.T) {
 }
 
 func testMoraTimingsDistributeConsecutiveTrailingPauses(t *testing.T) {
-	morae := []frontend.Mora{{Text: "a"}, {Pause: true}, {Pause: true}}
+	morae := []linguistics.Mora{{Text: "a"}, {Pause: true}, {Pause: true}}
 	p := &plan.Plan{DurationMS: 300, Units: []plan.Unit{{Position: 0, NoteStartMS: 0, DurationMS: 100}}}
 	got := moraTimings(morae, p)
 	if got[1].DurationMS != 100 || got[2].StartMS != 200 || got[2].DurationMS != 100 {
@@ -402,7 +402,7 @@ func TestAlignRuntimeProsodyFeatures(t *testing.T) {
 }
 
 func testAlignRuntimeProsodyFeaturesAcceptsAlternatePronunciations(t *testing.T) {
-	morae := []frontend.Mora{
+	morae := []linguistics.Mora{
 		{Text: "\u3044", Vowel: "i"},
 		{Text: "\u304b", Vowel: "a"},
 		{Text: "\u308a", Vowel: "i"},
@@ -427,7 +427,7 @@ func testAlignRuntimeProsodyFeaturesAcceptsAlternatePronunciations(t *testing.T)
 }
 
 func testAlignRuntimeProsodyFeaturesAcceptsLongVowelNotation(t *testing.T) {
-	morae := []frontend.Mora{{Text: "\u305b", Vowel: "e"}, {Text: "\u3044", Vowel: "i"}, {Text: "\u3044", Vowel: "i"}}
+	morae := []linguistics.Mora{{Text: "\u305b", Vowel: "e"}, {Text: "\u3044", Vowel: "i"}, {Text: "\u3044", Vowel: "i"}}
 	analysis := &openjtalk.Analysis{
 		Morae:    []string{"\u305b", "\u30fc", "\u3044"},
 		Features: []prosody.FeatureFrame{{"source": 0}, {"source": 1}, {"source": 2}},
@@ -442,7 +442,7 @@ func testAlignRuntimeProsodyFeaturesAcceptsLongVowelNotation(t *testing.T) {
 }
 
 func testAlignRuntimeProsodyFeaturesFillsMissingGoMora(t *testing.T) {
-	morae := []frontend.Mora{{Text: "こ"}, {Text: "れ"}, {Text: "い"}}
+	morae := []linguistics.Mora{{Text: "こ"}, {Text: "れ"}, {Text: "い"}}
 	analysis := &openjtalk.Analysis{
 		Morae:    []string{"こ", "れ"},
 		Features: []prosody.FeatureFrame{{"source": 0}, {"source": 1}},
@@ -457,7 +457,7 @@ func testAlignRuntimeProsodyFeaturesFillsMissingGoMora(t *testing.T) {
 }
 
 func testAlignRuntimeProsodyFeaturesSkipsExtraOpenJTalkMorae(t *testing.T) {
-	morae := []frontend.Mora{{Text: "\u3053"}, {Text: "\u3044"}}
+	morae := []linguistics.Mora{{Text: "\u3053"}, {Text: "\u3044"}}
 	analysis := &openjtalk.Analysis{
 		Morae: []string{"\u3053", "\u304f", "\u3089", "\u3044"},
 		Features: []prosody.FeatureFrame{

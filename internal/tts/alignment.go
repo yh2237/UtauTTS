@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 )
 
-func alignRuntimeProsodyFeatures(morae []frontend.Mora, analysis *openjtalk.Analysis) ([]prosody.FeatureFrame, error) {
+func alignRuntimeProsodyFeatures(morae []linguistics.Mora, analysis *openjtalk.Analysis) ([]prosody.FeatureFrame, error) {
 	if analysis == nil {
 		return nil, fmt.Errorf("Open JTalk analysis is nil")
 	}
@@ -49,7 +49,7 @@ const (
 	runtimeAlignmentChangeCost = 1.8
 )
 
-func alignRuntimeMoraIndices(morae []frontend.Mora, analyzed []string) []int {
+func alignRuntimeMoraIndices(morae []linguistics.Mora, analyzed []string) []int {
 	rows := len(morae) + 1
 	columns := len(analyzed) + 1
 	cells := make([][]runtimeMoraAlignmentCell, rows)
@@ -144,7 +144,7 @@ func runtimeAlignmentPriority(operation byte) int {
 	}
 }
 
-func runtimeMoraCost(mora frontend.Mora, analyzed string) float64 {
+func runtimeMoraCost(mora linguistics.Mora, analyzed string) float64 {
 	if mora.Pause || analyzed == "" {
 		if mora.Pause && analyzed == "" {
 			return 0
@@ -174,7 +174,7 @@ func isRuntimeVowel(vowel string) bool {
 }
 
 func runtimeAnalyzedMoraVowel(analyzed string) string {
-	parsed, err := frontend.ParseKana(analyzed)
+	parsed, err := linguistics.ParseKana(analyzed)
 	if err != nil || len(parsed) != 1 || parsed[0].Pause {
 		return ""
 	}

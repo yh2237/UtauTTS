@@ -3,14 +3,14 @@ package world
 import (
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 )
 
 func legatoPlan() *plan.Plan {
 	return &plan.Plan{
 		Language: "ja", SingleCV: true,
-		Morae: []frontend.Mora{
+		Morae: []linguistics.Mora{
 			{Text: "よ", Consonant: "y", Vowel: "o"}, {Text: "い", Vowel: "i"}, {Text: "、", Pause: true}, {Text: "い", Vowel: "i"}, {Text: "か", Consonant: "k", Vowel: "a"},
 		},
 	}

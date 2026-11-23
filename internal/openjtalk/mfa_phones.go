@@ -3,7 +3,7 @@ package openjtalk
 import (
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 )
 
 var mfaConsonants = map[string]string{"k": "k", "g": "ɡ", "s": "s", "sh": "ɕ", "z": "z", "j": "dʑ", "t": "t", "ch": "tɕ", "ts": "ts", "d": "d", "n": "n", "h": "h", "f": "ɸ", "b": "b", "p": "p", "m": "m", "y": "j", "r": "ɾ", "w": "w", "v": "v", "dy": "dʲ", "ty": "tʲ", "ky": "c", "gy": "ɟ", "ny": "ɲ", "hy": "ç", "my": "mʲ", "ry": "ɾʲ", "by": "bʲ", "py": "pʲ"}
@@ -13,7 +13,7 @@ var mfaForeignConsonants = map[string]string{"てぃ": "t", "でぃ": "d", "ふ�
 // MoraPhones はMFA用の仮名をOpen JTalkの音素表記へ変換する。
 // 独立した長音は前モーラを必要とするため呼び出し側で処理する。
 func MoraPhones(text string) []string {
-	morae, err := frontend.ParseKana(text)
+	morae, err := linguistics.ParseKana(text)
 	if err != nil || len(morae) == 0 {
 		return nil
 	}

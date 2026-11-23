@@ -9,7 +9,7 @@ import (
 
 	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/internal/connection"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
 )
 
@@ -18,9 +18,9 @@ func TestMissingEndingDoesNotDropRemainingConsonants(t *testing.T) {
 		"a":   {{Alias: "a", Filename: "a.wav"}},
 		"s t": {{Alias: "s t", Filename: "st.wav"}},
 	}}
-	selections, err := bank.Resolve([]frontend.Mora{{Text: "a", Vowel: "a", Aliases: &frontend.AliasHints{
-		Main: []string{"a"}, Endings: [][]string{{"a s"}, {"s t"}},
-	}}})
+	selections, err := bank.ResolveWithConfig([]linguistics.Mora{{Text: "a", Vowel: "a"}}, ResolveConfig{
+		Aliases: []AliasHints{{Main: []string{"a"}, Endings: [][]string{{"a s"}, {"s t"}}}},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestResolvePrefersVCVAndFallsBackToCV(t *testing.T) {
 		"o ん": {{Alias: "o ん", Filename: "vcv.wav"}},
 		"に":   {{Alias: "に", Filename: "cv.wav"}},
 	}}
-	morae, err := frontend.ParseKana("こんに")
+	morae, err := linguistics.ParseKana("こんに")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestResolveUsesCVVCTransitionWhenVCVIsUnavailable(t *testing.T) {
 		"か":   {{Alias: "か", Filename: "ka.wav"}},
 		"a k": {{Alias: "a k", Filename: "ak.wav"}},
 	}}
-	morae, err := frontend.ParseKana("あか")
+	morae, err := linguistics.ParseKana("あか")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,14 +74,15 @@ func TestResolveUsesPhonemizerAliasHints(t *testing.T) {
 		"i h":  {{Alias: "i h", Filename: "ih.wav"}},
 		"ao R": {{Alias: "ao R", Filename: "aor.wav"}},
 	}}
-	morae := []frontend.Mora{
-		{Text: "ni", Vowel: "i", Aliases: &frontend.AliasHints{Main: []string{"- ni", "ni"}, MainKinds: []string{"vcv", "cv"}}},
-		{Text: "hao", Consonant: "h", Vowel: "ao", Aliases: &frontend.AliasHints{
-			Main: []string{"i hao", "hao"}, MainKinds: []string{"vcv", "cv"},
-			Transition: []string{"i h"}, Endings: [][]string{{"ao R"}},
-		}},
+	morae := []linguistics.Mora{
+		{Text: "ni", Vowel: "i"},
+		{Text: "hao", Consonant: "h", Vowel: "ao"},
 	}
-	got, err := bank.Resolve(morae)
+	aliases := []AliasHints{
+		{Main: []string{"- ni", "ni"}, MainKinds: []string{"vcv", "cv"}},
+		{Main: []string{"i hao", "hao"}, MainKinds: []string{"vcv", "cv"}, Transition: []string{"i h"}, Endings: [][]string{{"ao R"}}},
+	}
+	got, err := bank.ResolveWithConfig(morae, ResolveConfig{Aliases: aliases})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +101,7 @@ func TestResolveDoesNotInventClosureTransition(t *testing.T) {
 		"か":    {{Alias: "か", Filename: "ka.wav"}},
 		"cl k": {{Alias: "cl k", Filename: "clk.wav"}},
 	}}
-	morae, err := frontend.ParseKana("っか")
+	morae, err := linguistics.ParseKana("っか")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +123,7 @@ func TestResolveDoesNotMakeCVVCFromAffixedWildcard(t *testing.T) {
 		},
 		PrefixMap: map[string]Affix{"C4": {Prefix: "強", Suffix: "_C4"}},
 	}
-	morae, err := frontend.ParseKana("あか")
+	morae, err := linguistics.ParseKana("あか")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +143,7 @@ func TestResolveVCVBeatsCVVCInAutoButCVVCPreferCanOverride(t *testing.T) {
 		"a k": {{Alias: "a k", Filename: "ak.wav"}},
 		"a か": {{Alias: "a か", Filename: "aka.wav"}},
 	}}
-	morae, err := frontend.ParseKana("あか")
+	morae, err := linguistics.ParseKana("あか")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +170,7 @@ func TestAuditLattice(t *testing.T) {
 			"か":   {{Alias: "か", Filename: "ka.wav"}},
 			"a k": {{Alias: "a k", Filename: "ak.wav"}},
 		}}
-		morae, err := frontend.ParseKana("あか")
+		morae, err := linguistics.ParseKana("あか")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -191,7 +192,7 @@ func TestAuditLattice(t *testing.T) {
 			"あ":   {{Alias: "あ", Filename: "cv.wav"}},
 			"か":   {{Alias: "か", Filename: "cv.wav"}},
 		}}
-		morae, err := frontend.ParseKana("あか")
+		morae, err := linguistics.ParseKana("あか")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -215,7 +216,7 @@ func TestResolveCVOnlySuppressesVCVCandidates(t *testing.T) {
 		"あ":   {{Alias: "あ"}},
 		"か":   {{Alias: "か"}},
 	}}
-	morae, err := frontend.ParseKana("あか")
+	morae, err := linguistics.ParseKana("あか")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +285,7 @@ func TestAliasCandidatesHandleSpecialMoraContexts(t *testing.T) {
 }
 
 func TestResolvePrefersOriginalKanaWhenBothRecordingsExist(t *testing.T) {
-	morae, err := frontend.ParseKana("あを")
+	morae, err := linguistics.ParseKana("あを")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +335,7 @@ func TestResolvePrefersOriginalKanaWhenBothRecordingsExist(t *testing.T) {
 }
 
 func TestResolvePrefersOriginalCVOverEquivalentVCV(t *testing.T) {
-	morae, err := frontend.ParseKana("あを")
+	morae, err := linguistics.ParseKana("あを")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -368,7 +369,7 @@ func TestResolveResetsContextAtPause(t *testing.T) {
 		"- あ": {{Alias: "- あ"}},
 		"- い": {{Alias: "- い"}},
 	}}
-	morae, err := frontend.ParseKana("あ、い")
+	morae, err := linguistics.ParseKana("あ、い")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,7 +387,7 @@ func TestResolveLongMarkUsesPreviousVowel(t *testing.T) {
 		"す":   {{Alias: "す"}},
 		"u う": {{Alias: "u う"}},
 	}}
-	morae, _ := frontend.ParseKana("スー")
+	morae, _ := linguistics.ParseKana("スー")
 	got, err := bank.Resolve(morae)
 	if err != nil {
 		t.Fatal(err)
@@ -403,7 +404,7 @@ func TestResolveScoresDuplicateEntriesByOtoConsistency(t *testing.T) {
 			{Alias: "- あ", Filename: "usable.wav", Fixed: 100, Preutterance: 60, Overlap: 20},
 		},
 	}}
-	morae, _ := frontend.ParseKana("あ")
+	morae, _ := linguistics.ParseKana("あ")
 	got, err := bank.Resolve(morae)
 	if err != nil {
 		t.Fatal(err)
@@ -431,7 +432,7 @@ func TestResolvePrefersHealthyDuplicateOverClippedRecording(t *testing.T) {
 			{Alias: "- あ", Filename: healthy, Fixed: 90, Preutterance: 50, Overlap: 20},
 		},
 	}}
-	morae, err := frontend.ParseKana("あ")
+	morae, err := linguistics.ParseKana("あ")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -450,7 +451,7 @@ func TestResolveCanRejectBrokenVCVForCVFallback(t *testing.T) {
 		"a い": {{Alias: "a い", Filename: "broken.wav", Fixed: 0, Preutterance: 200, Overlap: 250}},
 		"い":   {{Alias: "い", Filename: "cv.wav", Fixed: 100, Preutterance: 50, Overlap: 10}},
 	}}
-	morae, _ := frontend.ParseKana("あい")
+	morae, _ := linguistics.ParseKana("あい")
 	got, err := bank.Resolve(morae)
 	if err != nil {
 		t.Fatal(err)
@@ -468,7 +469,7 @@ func TestResolveUsesPhrasePathInsteadOfGreedyDuplicateChoice(t *testing.T) {
 		},
 		"a い": {{Alias: "a い", Filename: "continuous.wav", Offset: 200, Fixed: 100, Preutterance: 60, Overlap: 20}},
 	}}
-	morae, _ := frontend.ParseKana("あい")
+	morae, _ := linguistics.ParseKana("あい")
 	got, err := bank.Resolve(morae)
 	if err != nil {
 		t.Fatal(err)
@@ -483,7 +484,7 @@ func TestResolveUsesSilentClosureWhenVoicebankHasNoSmallTsu(t *testing.T) {
 		"- あ": {{Alias: "- あ", Filename: "a.wav"}},
 		"か":   {{Alias: "か", Filename: "ka.wav"}},
 	}}
-	morae, err := frontend.ParseKana("あっか")
+	morae, err := linguistics.ParseKana("あっか")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -569,7 +570,7 @@ func TestPruneCandidates(t *testing.T) {
 			altEntries = append(altEntries, oto.Entry{Alias: "あ", Filename: fmt.Sprintf("alt-%d.wav", index), Offset: 10, Fixed: 100, Preutterance: 60, Overlap: 20})
 		}
 		bank := &Bank{Entries: map[string][]oto.Entry{"- あ": mainEntries, "あ": altEntries}}
-		morae, err := frontend.ParseKana("あ")
+		morae, err := linguistics.ParseKana("あ")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -594,7 +595,7 @@ func TestPruneCandidates(t *testing.T) {
 }
 
 func TestResolvePrefersWildcardCVInsidePhrase(t *testing.T) {
-	morae, err := frontend.ParseKana("あお、お")
+	morae, err := linguistics.ParseKana("あお、お")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -613,7 +614,7 @@ func TestResolvePrefersWildcardCVInsidePhrase(t *testing.T) {
 }
 
 func TestResolveCutsSteadyVowelWhenSameVowelAliasIsMissing(t *testing.T) {
-	morae, err := frontend.ParseKana("かあかー")
+	morae, err := linguistics.ParseKana("かあかー")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -655,7 +656,7 @@ func TestResolveCutsSteadyVowelWhenSameVowelAliasIsMissing(t *testing.T) {
 }
 
 func TestResolveUsesHeadVCVAfterClosureOnlyWhenNoCVExists(t *testing.T) {
-	morae, err := frontend.ParseKana("かって")
+	morae, err := linguistics.ParseKana("かって")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -686,7 +687,7 @@ func TestResolveUsesHeadVCVAfterClosureOnlyWhenNoCVExists(t *testing.T) {
 }
 
 func TestResolveVCVPreferPolicy(t *testing.T) {
-	morae, err := frontend.ParseKana("あか")
+	morae, err := linguistics.ParseKana("あか")
 	if err != nil {
 		t.Fatal(err)
 	}

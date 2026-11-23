@@ -4,7 +4,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauWLD/speechtiming"
 )
 
@@ -96,11 +96,11 @@ type Metrics struct {
 	BaselineEnergyMAEDB   float64 `json:"baseline_energy_mae_db,omitempty"`
 }
 
-func (m *Model) Predict(morae []frontend.Mora) []Prediction {
+func (m *Model) Predict(morae []linguistics.Mora) []Prediction {
 	return m.PredictWithFeatures(morae, nil)
 }
 
-func (m *Model) PredictWithFeatures(morae []frontend.Mora, _ []FeatureFrame) []Prediction {
+func (m *Model) PredictWithFeatures(morae []linguistics.Mora, _ []FeatureFrame) []Prediction {
 	result := make([]Prediction, len(morae))
 	for i := range result {
 		result[i] = Prediction{DurationFactor: 1, PitchFactor: 1, EnergyFactor: 1}
@@ -125,7 +125,7 @@ func (m *Model) HasFrameContour() bool {
 	return m != nil && m.FramePitch != nil
 }
 
-func (m *Model) PredictFrameContour(morae []frontend.Mora, frames []FeatureFrame, timings []MoraTiming, durationMS float64, question bool) *PitchContour {
+func (m *Model) PredictFrameContour(morae []linguistics.Mora, frames []FeatureFrame, timings []MoraTiming, durationMS float64, question bool) *PitchContour {
 	model := m.FramePitch
 	if model == nil || len(morae) == 0 || len(timings) != len(morae) || (!model.validated && validateFramePitch(model) != nil) {
 		return nil

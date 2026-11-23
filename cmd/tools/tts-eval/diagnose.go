@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/yh2237/UtauIDX/atomicfile"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/g2p"
+	_ "github.com/yh2237/UtauTTS/internal/g2p/all"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
+	"github.com/yh2237/UtauTTS/internal/phonemizer"
 	"github.com/yh2237/UtauTTS/internal/tts"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 	"math"
@@ -23,7 +26,7 @@ func validatePrompts(prompts []prompt) error {
 		if strings.TrimSpace(p.Text) == "" && strings.TrimSpace(p.Reading) == "" {
 			return fmt.Errorf("case %s has no text or reading", p.ID)
 		}
-		if _, _, err := frontend.ResolveLanguage(p.Language, p.Phonemizer); err != nil {
+		if _, _, err := g2p.ResolveLanguage(p.Language, p.Phonemizer); err != nil {
 			return fmt.Errorf("case %s: %w", p.ID, err)
 		}
 		for _, duration := range p.MoraDurationsMS {
@@ -52,7 +55,7 @@ type diagnostic struct {
 	Language     string                  `json:"language"`
 	Phonemizer   string                  `json:"phonemizer"`
 	Reading      string                  `json:"reading"`
-	Units        []frontend.Mora         `json:"units"`
+	Units        []linguistics.Mora      `json:"units"`
 	Lattice      *voicebank.LatticeAudit `json:"lattice,omitempty"`
 	Coverage     *voicebank.Coverage     `json:"coverage,omitempty"`
 	Stage        string                  `json:"error_stage,omitempty"`
@@ -78,13 +81,25 @@ func diagnoseCorpus(bankPath, out string, prompts []prompt) error {
 		if err != nil {
 			row.Stage = "frontend"
 		} else {
-			row.Coverage, err = bank.AuditCoverage(row.Units, "C4")
-			if err != nil {
-				return err
+			var aliases []voicebank.AliasHints
+			if ph, ok := phonemizer.Lookup(row.Phonemizer); ok {
+				aliases, err = ph.Aliases(linguistics.Utterance{
+					Language: row.Language, Phonemizer: row.Phonemizer, Text: row.Text, Reading: row.Reading, Morae: row.Units,
+				}, bank.Presamp.Config())
+				if err != nil {
+					row.Stage = "frontend"
+				}
 			}
-			row.Lattice, err = bank.AuditLattice(row.Units, "C4")
-			if err != nil {
-				row.Stage = "candidate_selection"
+			if err == nil {
+				resolveCfg := voicebank.ResolveConfig{Tone: "C4", Aliases: aliases}
+				row.Coverage, err = bank.AuditCoverageWithConfig(row.Units, resolveCfg)
+				if err != nil {
+					return err
+				}
+				row.Lattice, err = bank.AuditLatticeWithConfig(row.Units, resolveCfg)
+				if err != nil {
+					row.Stage = "candidate_selection"
+				}
 			}
 		}
 		if err != nil {

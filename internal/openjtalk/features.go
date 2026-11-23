@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/text/unicode/norm"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 )
 
@@ -314,10 +314,10 @@ func splitMorae(reading string) []kanaMora {
 			}
 			continue
 		}
-		mora := frontend.ToHiragana(character)
+		mora := linguistics.ToHiragana(character)
 		if strings.ContainsRune(smallKana, mora) && len(result) > 0 && !result[len(result)-1].pause {
 			result[len(result)-1].mora += string(mora)
-			result[len(result)-1].vowel = frontend.KanaVowel(mora, result[len(result)-1].vowel)
+			result[len(result)-1].vowel = linguistics.KanaVowel(mora, result[len(result)-1].vowel)
 			continue
 		}
 		if mora == 'ー' {
@@ -328,7 +328,7 @@ func splitMorae(reading string) []kanaMora {
 			result = append(result, kanaMora{mora: "ー", vowel: previous})
 			continue
 		}
-		result = append(result, kanaMora{mora: string(mora), vowel: frontend.KanaVowel(mora, "")})
+		result = append(result, kanaMora{mora: string(mora), vowel: linguistics.KanaVowel(mora, "")})
 	}
 	return result
 }

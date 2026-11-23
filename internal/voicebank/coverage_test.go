@@ -2,14 +2,15 @@ package voicebank
 
 import (
 	"errors"
-	"github.com/yh2237/UtauTTS/internal/frontend"
-	"github.com/yh2237/UtauTTS/internal/oto"
 	"testing"
+
+	"github.com/yh2237/UtauTTS/internal/linguistics"
+	"github.com/yh2237/UtauTTS/internal/oto"
 )
 
 func TestCoverageContinuesWithContextAndPreservesStrictFailure(t *testing.T) {
 	bank := &Bank{Entries: map[string][]oto.Entry{}}
-	morae := []frontend.Mora{{Text: "か", Consonant: "k", Vowel: "a"}, {Text: "き", Consonant: "k", Vowel: "i"}, {Pause: true}, {Text: "く", Consonant: "k", Vowel: "u"}}
+	morae := []linguistics.Mora{{Text: "か", Consonant: "k", Vowel: "a"}, {Text: "き", Consonant: "k", Vowel: "i"}, {Pause: true}, {Text: "く", Consonant: "k", Vowel: "u"}}
 	coverage, err := bank.AuditCoverage(morae, "C4")
 	if err != nil {
 		t.Fatal(err)
@@ -38,7 +39,7 @@ func TestCoverageContinuesWithContextAndPreservesStrictFailure(t *testing.T) {
 
 func TestCoverageCountsClosureButNotPause(t *testing.T) {
 	bank := &Bank{Entries: map[string][]oto.Entry{}}
-	result, err := bank.AuditCoverage([]frontend.Mora{{Pause: true}, {Text: "っ", Vowel: "cl"}, {Text: "あ", Vowel: "a"}}, "C4")
+	result, err := bank.AuditCoverage([]linguistics.Mora{{Pause: true}, {Text: "っ", Vowel: "cl"}, {Text: "あ", Vowel: "a"}}, "C4")
 	if err != nil {
 		t.Fatal(err)
 	}

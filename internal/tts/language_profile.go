@@ -3,41 +3,64 @@ package tts
 import (
 	"fmt"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
 )
 
-// 言語固有処理をまとめる。レンダラーの判定は共通処理のcapabilityへ委ねる。
+// 波形合成での言語固有の韻律・音素長処理をまとめる。G2Pとエイリアス解決は別層が担当する。
 type languageProfile interface {
 	Language() string
-	ParsePronunciation(cfg Config, phonemizer string) (string, []frontend.Mora, error)
 	ApplySpeechProfile(cfg *Config)
 	SupportsStretchAdapt() bool
 	// 無効時はnilを返す。
-	PhoneTiming(cfg Config, morae []frontend.Mora, singleCV bool) ([][]float64, string)
-	Predict(morae []frontend.Mora) []prosody.Prediction
-	AdjustPredictions(cfg Config, model *prosody.Model, morae []frontend.Mora, predictions []prosody.Prediction, features []prosody.FeatureFrame) []prosody.Prediction
+	PhoneTiming(cfg Config, morae []linguistics.Mora, singleCV bool) ([][]float64, string)
+	Predict(morae []linguistics.Mora) []prosody.Prediction
+	AdjustPredictions(cfg Config, model *prosody.Model, morae []linguistics.Mora, predictions []prosody.Prediction, features []prosody.FeatureFrame) []prosody.Prediction
 	// enablePitchはピッチ適用を強制するかを表す。
-	AutomaticPitchCurve(cfg Config, model *prosody.Model, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*render.PitchCurve, bool)
+	AutomaticPitchCurve(cfg Config, model *prosody.Model, morae []linguistics.Mora, timings []prosody.MoraTiming, durationMS float64) (*render.PitchCurve, bool)
 	ApplyBoundaryTone(cfg Config, curve *render.PitchCurve, durationMS float64, question bool) *render.PitchCurve
 }
 
-// 未知の言語は日本語として扱う。
 func languageProfileFor(language string) languageProfile {
-	switch language {
-	case frontend.LanguageEnglish:
-		return referenceProfile{language: language, parse: parseEnglishPronunciation}
-	case frontend.LanguageChinese:
-		return referenceProfile{language: language, parse: parseChinesePronunciation}
-	case frontend.LanguageSpanish, frontend.LanguagePortuguese:
-		return referenceProfile{language: language, parse: parseSyllableLanguage(language)}
-	default:
+	normalized := linguistics.NormalizeLanguage(language)
+	if normalized == linguistics.LanguageJapanese {
 		return japaneseProfile{}
 	}
+	return defaultWaveformProfile{language: normalized}
 }
 
-func predictMorae(cfg Config, profile languageProfile, model *prosody.Model, morae []frontend.Mora, features []prosody.FeatureFrame) ([]prosody.Prediction, error) {
+type defaultWaveformProfile struct {
+	language string
+}
+
+func (p defaultWaveformProfile) Language() string { return p.language }
+
+func (defaultWaveformProfile) ApplySpeechProfile(*Config) {}
+
+func (defaultWaveformProfile) SupportsStretchAdapt() bool { return false }
+
+func (defaultWaveformProfile) PhoneTiming(Config, []linguistics.Mora, bool) ([][]float64, string) {
+	return nil, ""
+}
+
+func (defaultWaveformProfile) Predict(morae []linguistics.Mora) []prosody.Prediction {
+	return make([]prosody.Prediction, len(morae))
+}
+
+func (defaultWaveformProfile) AdjustPredictions(_ Config, _ *prosody.Model, _ []linguistics.Mora, predictions []prosody.Prediction, _ []prosody.FeatureFrame) []prosody.Prediction {
+	return predictions
+}
+
+func (defaultWaveformProfile) AutomaticPitchCurve(Config, *prosody.Model, []linguistics.Mora, []prosody.MoraTiming, float64) (*render.PitchCurve, bool) {
+	return nil, false
+}
+
+func (defaultWaveformProfile) ApplyBoundaryTone(_ Config, curve *render.PitchCurve, _ float64, _ bool) *render.PitchCurve {
+	return curve
+}
+
+func predictMorae(cfg Config, profile languageProfile, model *prosody.Model, morae []linguistics.Mora, features []prosody.FeatureFrame) ([]prosody.Prediction, error) {
 	predictions := profile.Predict(morae)
 	if model != nil {
 		if model.RequiresExternalFeatures() && len(features) != len(morae) {

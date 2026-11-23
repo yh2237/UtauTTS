@@ -3,7 +3,7 @@ package world
 import (
 	"math"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/settings"
 )
@@ -44,7 +44,7 @@ func microprosodyClass(consonant string) string {
 // microprosodyAppliesToは微細韻律が言語に効くかを設定表で判定する。空の言語は日本語として扱う。
 func microprosodyAppliesTo(language string) bool {
 	setting, _ := settings.Lookup("microprosody")
-	return setting.AppliesToLanguage(frontend.NormalizeLanguage(language))
+	return setting.AppliesToLanguage(linguistics.NormalizeLanguage(language))
 }
 
 // curveは計画時刻curveStartMSからframeMS間隔のF0(Hz)。
@@ -56,7 +56,7 @@ func applyMicroprosody(synthesisPlan *plan.Plan, curve []float64, curveStartMS, 
 		if unit.Role != "mora" || unit.Silent {
 			continue
 		}
-		parsed, err := frontend.ParseKana(unit.Mora)
+		parsed, err := linguistics.ParseKana(unit.Mora)
 		if err != nil || len(parsed) == 0 {
 			continue
 		}

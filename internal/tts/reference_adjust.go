@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 )
 
 // moraAdjustRampMSは、隣のモーラと値が違うときに、境界の前後でなめらかにつなぐ長さ。
@@ -12,7 +12,7 @@ const moraAdjustRampMS = 20.0
 
 // referenceUnitAdjustmentsは、拡張編集のPIT（pitch_factor）とVOL（resampler_volume・energy_factor）を、
 // モーラの番号ごとのセントと音量の倍率にする。参照照合の音素は休止でないモーラの順に並ぶ。
-func referenceUnitAdjustments(cfg Config, morae []frontend.Mora) (map[int]float64, map[int]float64, error) {
+func referenceUnitAdjustments(cfg Config, morae []linguistics.Mora) (map[int]float64, map[int]float64, error) {
 	var units []int
 	for index, mora := range morae {
 		if !mora.Pause {

@@ -5,13 +5,13 @@ import (
 	"strings"
 
 	"github.com/yh2237/UtauTTS/internal/connection"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
 )
 
 type Selection struct {
 	Position            int
-	Mora                frontend.Mora
+	Mora                linguistics.Mora
 	Alias               string
 	Kind                AliasKind
 	Composite           bool
@@ -55,6 +55,7 @@ type ResolveConfig struct {
 	Tone        string
 	Color       string
 	AliasPolicy AliasPolicy
+	Aliases     []AliasHints
 }
 
 type MissingAliasError struct {
@@ -72,15 +73,15 @@ func (e *MissingAliasError) Error() string {
 	return message
 }
 
-func (b *Bank) Resolve(morae []frontend.Mora) ([]Selection, error) {
+func (b *Bank) Resolve(morae []linguistics.Mora) ([]Selection, error) {
 	return b.ResolveWithConfig(morae, ResolveConfig{})
 }
 
-func (b *Bank) ResolveAtTone(morae []frontend.Mora, tone string) ([]Selection, error) {
+func (b *Bank) ResolveAtTone(morae []linguistics.Mora, tone string) ([]Selection, error) {
 	return b.ResolveWithConfig(morae, ResolveConfig{Tone: tone})
 }
 
-func (b *Bank) ResolveWithConfig(morae []frontend.Mora, cfg ResolveConfig) ([]Selection, error) {
+func (b *Bank) ResolveWithConfig(morae []linguistics.Mora, cfg ResolveConfig) ([]Selection, error) {
 	policy := cfg.AliasPolicy
 	if policy == "" {
 		policy = AliasPolicyAuto
@@ -88,7 +89,7 @@ func (b *Bank) ResolveWithConfig(morae []frontend.Mora, cfg ResolveConfig) ([]Se
 	if !policy.valid() {
 		return nil, fmt.Errorf("unknown alias policy %q", policy)
 	}
-	layers, err := b.candidateLayersWithPolicy(morae, cfg.Tone, cfg.Color, policy)
+	layers, err := b.candidateLayersDiagnostic(morae, cfg.Aliases, cfg.Tone, cfg.Color, policy, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -99,11 +100,18 @@ func (b *Bank) ResolveWithConfig(morae []frontend.Mora, cfg ResolveConfig) ([]Se
 	return selectBestPaths(layers, extractor), nil
 }
 
-func (b *Bank) candidateLayersWithPolicy(morae []frontend.Mora, tone, color string, policy AliasPolicy) ([][]Selection, error) {
-	return b.candidateLayersDiagnostic(morae, tone, color, policy, nil)
+func (b *Bank) candidateLayersWithPolicy(morae []linguistics.Mora, tone, color string, policy AliasPolicy) ([][]Selection, error) {
+	return b.candidateLayersDiagnostic(morae, nil, tone, color, policy, nil)
 }
 
-func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color string, policy AliasPolicy, missing *[]MissingAliasError) ([][]Selection, error) {
+func aliasesAt(aliases []AliasHints, position int) *AliasHints {
+	if position < 0 || position >= len(aliases) || aliases[position].Empty() {
+		return nil
+	}
+	return &aliases[position]
+}
+
+func (b *Bank) candidateLayersDiagnostic(morae []linguistics.Mora, aliases []AliasHints, tone, color string, policy AliasPolicy, missing *[]MissingAliasError) ([][]Selection, error) {
 	layers := make([][]Selection, 0, len(morae))
 	affix, subbank, hasAffix := b.AffixForToneAndColor(tone, color)
 	requestedTone := strings.ToUpper(strings.TrimSpace(tone))
@@ -132,7 +140,7 @@ func (b *Bank) candidateLayersDiagnostic(morae []frontend.Mora, tone, color stri
 			previousLayer = nil
 			continue
 		}
-		candidates, failure := search.positionCandidates(position, mora, previousVowel, phraseStart, previousLayer)
+		candidates, failure := search.positionCandidates(position, mora, aliasesAt(aliases, position), previousVowel, phraseStart, previousLayer)
 		if failure != nil {
 			if missing == nil {
 				return nil, failure

@@ -5,7 +5,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
@@ -39,28 +39,28 @@ type Config struct {
 }
 
 type Plan struct {
-	SingleCV             bool            `json:"single_cv,omitempty"`
-	PhoneTimings         []PhoneTiming   `json:"phone_timings,omitempty"`
-	PhoneTimingSource    string          `json:"phone_timing_source,omitempty"`
-	Version              int             `json:"version"`
-	Voicebank            string          `json:"voicebank"`
-	Text                 string          `json:"text,omitempty"`
-	Reading              string          `json:"reading"`
-	Language             string          `json:"language,omitempty"`
-	Phonemizer           string          `json:"phonemizer,omitempty"`
-	Tone                 string          `json:"tone,omitempty"`
-	Color                string          `json:"color,omitempty"`
-	SelectionMode        string          `json:"selection_mode"`
-	AliasPolicy          string          `json:"alias_policy"`
-	RequestedAliasPolicy string          `json:"requested_alias_policy,omitempty"`
-	JoinCostMode         string          `json:"join_cost_mode"`
-	CVVCTiming           string          `json:"cvvc_timing,omitempty"`
-	CVVCTransitionGain   float64         `json:"cvvc_transition_gain,omitempty"`
-	CVVCPreBoundaryFade  bool            `json:"cvvc_pre_boundary_fade,omitempty"`
-	LeadingMarginMS      float64         `json:"leading_margin_ms,omitempty"`
-	DurationMS           float64         `json:"duration_ms"`
-	Units                []Unit          `json:"units"`
-	Morae                []frontend.Mora `json:"linguistic_units,omitempty"`
+	SingleCV             bool               `json:"single_cv,omitempty"`
+	PhoneTimings         []PhoneTiming      `json:"phone_timings,omitempty"`
+	PhoneTimingSource    string             `json:"phone_timing_source,omitempty"`
+	Version              int                `json:"version"`
+	Voicebank            string             `json:"voicebank"`
+	Text                 string             `json:"text,omitempty"`
+	Reading              string             `json:"reading"`
+	Language             string             `json:"language,omitempty"`
+	Phonemizer           string             `json:"phonemizer,omitempty"`
+	Tone                 string             `json:"tone,omitempty"`
+	Color                string             `json:"color,omitempty"`
+	SelectionMode        string             `json:"selection_mode"`
+	AliasPolicy          string             `json:"alias_policy"`
+	RequestedAliasPolicy string             `json:"requested_alias_policy,omitempty"`
+	JoinCostMode         string             `json:"join_cost_mode"`
+	CVVCTiming           string             `json:"cvvc_timing,omitempty"`
+	CVVCTransitionGain   float64            `json:"cvvc_transition_gain,omitempty"`
+	CVVCPreBoundaryFade  bool               `json:"cvvc_pre_boundary_fade,omitempty"`
+	LeadingMarginMS      float64            `json:"leading_margin_ms,omitempty"`
+	DurationMS           float64            `json:"duration_ms"`
+	Units                []Unit             `json:"units"`
+	Morae                []linguistics.Mora `json:"linguistic_units,omitempty"`
 }
 
 // Cloneはレンダラー用の独立したコピーを返す。診断結果を選択計画へ戻さない。
@@ -88,7 +88,7 @@ func Clone(source *Plan) *Plan {
 		result.Units[index].CandidateRejections = append([]voicebank.CandidateRejection(nil), source.Units[index].CandidateRejections...)
 	}
 	if source.Morae != nil {
-		result.Morae = make([]frontend.Mora, len(source.Morae))
+		result.Morae = make([]linguistics.Mora, len(source.Morae))
 		for index, mora := range source.Morae {
 			result.Morae[index] = cloneMora(mora)
 		}
@@ -96,38 +96,8 @@ func Clone(source *Plan) *Plan {
 	return &result
 }
 
-func cloneMora(mora frontend.Mora) frontend.Mora {
-	mora.Phones = append([]frontend.Phone(nil), mora.Phones...)
-	if mora.Aliases == nil {
-		return mora
-	}
-	hints := *mora.Aliases
-	if mora.Aliases.MainMissing != nil {
-		hints.MainMissing = make(map[string][]string, len(mora.Aliases.MainMissing))
-		for alias, phones := range mora.Aliases.MainMissing {
-			hints.MainMissing[alias] = append([]string(nil), phones...)
-		}
-	}
-	hints.EndingPhones = make([][]string, len(mora.Aliases.EndingPhones))
-	for i, phones := range mora.Aliases.EndingPhones {
-		hints.EndingPhones[i] = append([]string(nil), phones...)
-	}
-	hints.EndingFallbacks = make([][]frontend.CodaAlias, len(mora.Aliases.EndingFallbacks))
-	for i, edges := range mora.Aliases.EndingFallbacks {
-		hints.EndingFallbacks[i] = append([]frontend.CodaAlias(nil), edges...)
-		for j := range edges {
-			hints.EndingFallbacks[i][j].Aliases = append([]string(nil), edges[j].Aliases...)
-			hints.EndingFallbacks[i][j].Phones = append([]string(nil), edges[j].Phones...)
-		}
-	}
-	hints.Main = append([]string(nil), mora.Aliases.Main...)
-	hints.MainKinds = append([]string(nil), mora.Aliases.MainKinds...)
-	hints.Transition = append([]string(nil), mora.Aliases.Transition...)
-	hints.Endings = make([][]string, len(mora.Aliases.Endings))
-	for index, endings := range mora.Aliases.Endings {
-		hints.Endings[index] = append([]string(nil), endings...)
-	}
-	mora.Aliases = &hints
+func cloneMora(mora linguistics.Mora) linguistics.Mora {
+	mora.Phones = append([]linguistics.Phone(nil), mora.Phones...)
 	return mora
 }
 
@@ -211,7 +181,7 @@ type Unit struct {
 	CandidateRejections     []voicebank.CandidateRejection `json:"candidate_rejections,omitempty"`
 }
 
-func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selections []voicebank.Selection, cfg Config) (*Plan, error) {
+func Build(bank *voicebank.Bank, reading string, morae []linguistics.Mora, selections []voicebank.Selection, cfg Config) (*Plan, error) {
 	if math.IsNaN(cfg.MoraDurationMS) || math.IsInf(cfg.MoraDurationMS, 0) {
 		return nil, fmt.Errorf("mora duration must be finite, got %v", cfg.MoraDurationMS)
 	}
@@ -241,7 +211,7 @@ func Build(bank *voicebank.Bank, reading string, morae []frontend.Mora, selectio
 	result := &Plan{
 		SingleCV: voicebank.IsSingleCVSelections(selections),
 		Version:  Version, Voicebank: bank.Root, Reading: reading,
-		Morae: append([]frontend.Mora(nil), morae...),
+		Morae: append([]linguistics.Mora(nil), morae...),
 		Tone:  cfg.Tone, Color: cfg.Color,
 		SelectionMode: "viterbi", AliasPolicy: string(aliasPolicy), JoinCostMode: "handcrafted",
 		PhoneTimingSource: cfg.PhoneWeightsSource,
@@ -348,13 +318,13 @@ func stopPhone(phone string) bool {
 	}
 }
 
-func japaneseSpeechMora(mora frontend.Mora) bool {
-	return mora.Language == "" || mora.Language == frontend.LanguageJapanese
+func japaneseSpeechMora(mora linguistics.Mora) bool {
+	return mora.Language == "" || mora.Language == linguistics.LanguageJapanese
 }
 
-func phoneSpansForMora(mora frontend.Mora, duration float64, weights [][]float64, position int) ([]float64, error) {
+func phoneSpansForMora(mora linguistics.Mora, duration float64, weights [][]float64, position int) ([]float64, error) {
 	if position < 0 || position >= len(weights) || weights[position] == nil {
-		return frontend.PhoneSpans(mora.Phones, duration), nil
+		return linguistics.PhoneSpans(mora.Phones, duration), nil
 	}
 	if len(weights[position]) != len(mora.Phones) {
 		return nil, fmt.Errorf("phone weights at position %d: got %d values for %d phones", position, len(weights[position]), len(mora.Phones))
@@ -369,11 +339,11 @@ func phoneSpansForMora(mora frontend.Mora, duration float64, weights [][]float64
 	if len(weights[position]) > 0 && (sum <= 0 || math.IsNaN(sum) || math.IsInf(sum, 0)) {
 		return nil, fmt.Errorf("phone weights at position %d have no positive value", position)
 	}
-	return frontend.PhoneSpansFromWeights(weights[position], duration), nil
+	return linguistics.PhoneSpansFromWeights(weights[position], duration), nil
 }
 
-func applyPhoneTimingAnchor(unit *Unit, mora frontend.Mora, spans []float64) {
-	if unit == nil || len(spans) != len(mora.Phones) || mora.Language == frontend.LanguageEnglish {
+func applyPhoneTimingAnchor(unit *Unit, mora linguistics.Mora, spans []float64) {
+	if unit == nil || len(spans) != len(mora.Phones) || mora.Language == linguistics.LanguageEnglish {
 		return
 	}
 	onsetMS := 0.0
@@ -428,7 +398,7 @@ func unitFromSelection(selection *voicebank.Selection, position int, noteStart, 
 		JoinScore:           selection.JoinScore,
 		PathScore:           selection.PathScore,
 	}
-	if selection.Mora.Language == frontend.LanguageEnglish {
+	if selection.Mora.Language == linguistics.LanguageEnglish {
 		fixed := entry.Fixed
 		unit.SourceFixedMS = &fixed
 	}
@@ -500,7 +470,7 @@ func transitionTarget(alias string) string {
 // ValidateMoraDurationsは手動のモーラ長が、休止を含む全モーラ数と一致するか確かめる。
 // 休止を飛ばした配列を渡すと、値が後ろへずれて別のモーラが伸びるため、黙って受け付けない。
 // 日本語の波形合成は従来どおり部分的な配列を許すので、参照照合でのみ使う。
-func ValidateMoraDurations(morae []frontend.Mora, durations []float64) error {
+func ValidateMoraDurations(morae []linguistics.Mora, durations []float64) error {
 	if len(durations) == 0 {
 		return nil
 	}
@@ -533,7 +503,7 @@ func PredictedDuration(base float64, prediction prosody.Prediction) float64 {
 	return base
 }
 
-func DurationFor(mora frontend.Mora, base float64) float64 {
+func DurationFor(mora linguistics.Mora, base float64) float64 {
 	if mora.DurationScale > 0 {
 		return base * mora.DurationScale
 	}

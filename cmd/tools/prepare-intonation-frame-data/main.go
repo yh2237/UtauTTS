@@ -12,7 +12,7 @@ import (
 
 	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/cmd/tools/internal/toolutil"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
 )
 
@@ -50,7 +50,7 @@ func activeBounds(samples []int16, rate int) (float64, float64, error) {
 }
 
 func tokensFor(a *openjtalk.Analysis, start, end float64) ([]map[string]any, error) {
-	kana, err := frontend.ParseKana(a.Reading)
+	kana, err := linguistics.ParseKana(a.Reading)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func tokensFor(a *openjtalk.Analysis, start, end float64) ([]map[string]any, err
 
 // 無声化母音も小文字に揃え、元データと比較する。
 func phonesFor(a *openjtalk.Analysis) (string, error) {
-	morae, err := frontend.ParseKana(a.Reading)
+	morae, err := linguistics.ParseKana(a.Reading)
 	if err != nil {
 		return "", err
 	}

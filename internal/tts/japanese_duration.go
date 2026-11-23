@@ -3,7 +3,7 @@ package tts
 import (
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/settings"
@@ -22,7 +22,7 @@ const (
 )
 
 // 特徴がない、またはモーラ数と合わない場合は全て1倍にする。
-func japaneseContextDurationFactors(morae []frontend.Mora, features []prosody.FeatureFrame, question bool) []float64 {
+func japaneseContextDurationFactors(morae []linguistics.Mora, features []prosody.FeatureFrame, question bool) []float64 {
 	factors := make([]float64, len(morae))
 	for i := range factors {
 		factors[i] = 1
@@ -61,7 +61,7 @@ func japaneseContextDurationFactors(morae []frontend.Mora, features []prosody.Fe
 }
 
 // 強度0は既定の1倍、負値は無効。
-func applyJapaneseContextDuration(cfg Config, morae []frontend.Mora, features []prosody.FeatureFrame, predictions []prosody.Prediction, question bool) []prosody.Prediction {
+func applyJapaneseContextDuration(cfg Config, morae []linguistics.Mora, features []prosody.FeatureFrame, predictions []prosody.Prediction, question bool) []prosody.Prediction {
 	if !contextDurationEnabled(cfg) {
 		return predictions
 	}
@@ -139,7 +139,7 @@ func isParticleLikeFeature(feature prosody.FeatureFrame) bool {
 	return false
 }
 
-func isPhraseFinalMora(morae []frontend.Mora, index int) bool {
+func isPhraseFinalMora(morae []linguistics.Mora, index int) bool {
 	if index+1 >= len(morae) {
 		return true
 	}

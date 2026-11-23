@@ -6,7 +6,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/g2p"
 	"github.com/yh2237/UtauTTS/internal/g2p/en"
 )
@@ -34,7 +33,7 @@ type Piece struct {
 // 語の並びが読みやautomaticと合わないときは、すべて読みから直す。
 func KokoroPieces(lexicon *Lexicon, text, reading, automatic string, dictionary map[string]string) []Piece {
 	parts := readingWords(reading)
-	words := frontend.EnglishWords(text)
+	words := en.Words(text)
 	automaticParts := readingWords(automatic)
 	if lexicon == nil || len(words) != len(parts) || len(automaticParts) != len(parts) {
 		words = nil

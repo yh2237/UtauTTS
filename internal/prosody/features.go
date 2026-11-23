@@ -4,7 +4,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 )
 
 // SmoothPitchPhrasesは休止をまたがずにGaussian平滑化する。
@@ -74,7 +74,7 @@ func absolutePercentile(values []float64, mask []bool, quantile float64) float64
 	return selected[max(0, min(len(selected)-1, index))]
 }
 
-func featuresFor(morae []frontend.Mora, position int) map[string]float64 {
+func featuresFor(morae []linguistics.Mora, position int) map[string]float64 {
 	current := morae[position]
 	denominator := float64(max(1, len(morae)-1))
 	pos := float64(position) / denominator
@@ -108,7 +108,7 @@ type indexedFeature struct {
 	value  float64
 }
 
-func indexedFeatureVectors(morae []frontend.Mora, frames []FeatureFrame, index map[string]int) [][]indexedFeature {
+func indexedFeatureVectors(morae []linguistics.Mora, frames []FeatureFrame, index map[string]int) [][]indexedFeature {
 	result := make([][]indexedFeature, len(morae))
 	for position := range morae {
 		features := featuresFor(morae, position)
@@ -140,7 +140,7 @@ func addIndexedFeature(state []float64, weights [][]float64, index map[string]in
 	}
 }
 
-func addCategorical(features map[string]float64, prefix string, mora frontend.Mora) {
+func addCategorical(features map[string]float64, prefix string, mora linguistics.Mora) {
 	if mora.Pause {
 		features[prefix+"=<PAUSE>"] = 1
 		return

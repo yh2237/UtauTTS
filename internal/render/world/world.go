@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/yh2237/UtauIDX/audio"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/render/base"
 	"github.com/yh2237/UtauTTS/internal/speechtimeline"
@@ -520,7 +520,7 @@ func legacyJapaneseContinuousMix(synthesisPlan *plan.Plan) bool {
 	if synthesisPlan == nil || synthesisPlan.SingleCV {
 		return false
 	}
-	return frontend.JapanesePlan(synthesisPlan.Language, synthesisPlan.Phonemizer)
+	return linguistics.JapanesePlan(synthesisPlan.Language, synthesisPlan.Phonemizer)
 }
 
 // 低加工経路では同じ母音が直接続く境界だけを補間する。
@@ -558,7 +558,7 @@ func worldStopProtection(synthesisPlan *plan.Plan, unit plan.Unit, options base.
 	}
 	language := strings.ToLower(strings.TrimSpace(synthesisPlan.Language))
 	phonemizer := strings.ToLower(strings.TrimSpace(synthesisPlan.Phonemizer))
-	japanese := frontend.JapanesePlan(language, phonemizer)
+	japanese := linguistics.JapanesePlan(language, phonemizer)
 	if japanese && strings.EqualFold(strings.TrimSpace(unit.AliasKind), "VCV") {
 		return unit.SpeechProfile.TransientConfidence >= stopTransientVCVFloor
 	}
@@ -572,7 +572,7 @@ func e2bStopGeneralization(synthesisPlan *plan.Plan, unit plan.Unit, options bas
 	if synthesisPlan == nil || unit.Silent || unit.Role != "mora" {
 		return false
 	}
-	return frontend.JapanesePlan(synthesisPlan.Language, synthesisPlan.Phonemizer)
+	return linguistics.JapanesePlan(synthesisPlan.Language, synthesisPlan.Phonemizer)
 }
 
 // 低加工の連続音でも、信頼度の高い破裂音だけは補う。
@@ -642,7 +642,7 @@ func timingWarpJob(synthesisPlan *plan.Plan, cfg base.Config, frames int) *world
 }
 
 func isJapanesePlan(synthesisPlan *plan.Plan) bool {
-	return frontend.NormalizeLanguage(synthesisPlan.Language) == "ja"
+	return linguistics.NormalizeLanguage(synthesisPlan.Language) == "ja"
 }
 
 func findFRQPath(wavPath string) string {

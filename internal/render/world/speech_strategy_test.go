@@ -3,7 +3,7 @@ package world
 import (
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
@@ -16,7 +16,7 @@ func TestResolveWorldSpeechStrategy(t *testing.T) {
 		if vcv {
 			aliasKind = "VCV"
 		}
-		return &plan.Plan{Language: "ja", Morae: []frontend.Mora{{Vowel: "a"}, {Consonant: "k", Vowel: "a"}},
+		return &plan.Plan{Language: "ja", Morae: []linguistics.Mora{{Vowel: "a"}, {Consonant: "k", Vowel: "a"}},
 			Units: []plan.Unit{{Position: 0, Role: "mora"}, {Position: 1, Role: "mora", AliasKind: aliasKind, SpeechProfile: profile}}}
 	}
 	cases := []struct {
@@ -35,7 +35,7 @@ func TestResolveWorldSpeechStrategy(t *testing.T) {
 			worldSpeechStrategy{stopProtected: true, preserveStopOnly: true}},
 		{"legacy japanese E2B stop", japaneseStop(true), true, 1, false, false, true,
 			worldSpeechStrategy{stopProtected: true, legacyE2BStop: true}},
-		{"stretch adapted mora", &plan.Plan{Language: "ja", Morae: []frontend.Mora{{Vowel: "a"}},
+		{"stretch adapted mora", &plan.Plan{Language: "ja", Morae: []linguistics.Mora{{Vowel: "a"}},
 			Units: []plan.Unit{{Position: 0, Role: "mora", StretchAdapted: true}}}, false, 0, false, false, false,
 			worldSpeechStrategy{stretch: true}},
 		{"coda release ending", &plan.Plan{Language: "ja", Units: []plan.Unit{
@@ -45,7 +45,7 @@ func TestResolveWorldSpeechStrategy(t *testing.T) {
 			Units: []plan.Unit{{Position: 0, Role: "mora"}}}, false, 0, false, false, false,
 			worldSpeechStrategy{}},
 		{"single CV legato", &plan.Plan{SingleCV: true, Language: "ja",
-			Morae: []frontend.Mora{{Vowel: "a"}, {Vowel: "a"}},
+			Morae: []linguistics.Mora{{Vowel: "a"}, {Vowel: "a"}},
 			Units: []plan.Unit{{Position: 0, Role: "mora"}, {Position: 1, Role: "mora"}}}, false, 1, false, true, false,
 			worldSpeechStrategy{singleCV: true, singleCVLegato: true}},
 	}

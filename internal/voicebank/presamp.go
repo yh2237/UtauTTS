@@ -4,8 +4,6 @@ import (
 	"os"
 
 	presampfile "github.com/yh2237/utauio/presamp"
-
-	"github.com/yh2237/UtauTTS/internal/frontend"
 )
 
 type Presamp struct {
@@ -16,11 +14,12 @@ type Presamp struct {
 	Endings      []string
 }
 
-func (p *Presamp) FrontendConfig() frontend.PresampConfig {
+// Configはpresamp.iniの設定をエイリアス生成用の型へ変換して返す。
+func (p *Presamp) Config() PresampConfig {
 	if p == nil {
-		return frontend.PresampConfig{}
+		return PresampConfig{}
 	}
-	return frontend.PresampConfig{
+	return PresampConfig{
 		Vowels: p.Vowels, Consonants: p.Consonants,
 		Replacements: p.Replacements, Endings: p.Endings,
 	}

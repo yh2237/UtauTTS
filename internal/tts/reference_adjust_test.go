@@ -6,12 +6,12 @@ import (
 	"math"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 )
 
 func TestReferenceUnitAdjustmentsSkipPauses(t *testing.T) {
-	morae := []frontend.Mora{{Text: "a"}, {Pause: true}, {Text: "i"}}
+	morae := []linguistics.Mora{{Text: "a"}, {Pause: true}, {Text: "i"}}
 	pitch, volume := 2.0, 50
 	cents, gain, err := referenceUnitAdjustments(Config{UnitOverrides: []plan.UnitOverride{
 		{Index: 1, PitchFactor: &pitch, ResamplerVolume: &volume},

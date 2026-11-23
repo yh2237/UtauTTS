@@ -1,6 +1,6 @@
 package plan
 
-import "github.com/yh2237/UtauTTS/internal/frontend"
+import "github.com/yh2237/UtauTTS/internal/linguistics"
 
 // 句読点の種類と発話末の位置に応じて休止長を調整する。
 const (
@@ -16,12 +16,12 @@ const (
 )
 
 // PauseContextFactorは合成と同じ規則の休止長の倍率（音源を読まないプレビュー用）。
-func PauseContextFactor(morae []frontend.Mora, position int, enabled bool, strength float64) float64 {
+func PauseContextFactor(morae []linguistics.Mora, position int, enabled bool, strength float64) float64 {
 	return pauseContextFactor(morae, position, Config{PauseContext: enabled, PauseContextStrength: strength})
 }
 
 // 無効時と負の強度は1倍。
-func pauseContextFactor(morae []frontend.Mora, position int, cfg Config) float64 {
+func pauseContextFactor(morae []linguistics.Mora, position int, cfg Config) float64 {
 	if !cfg.PauseContext {
 		return 1
 	}
@@ -35,7 +35,7 @@ func pauseContextFactor(morae []frontend.Mora, position int, cfg Config) float64
 	if strength > pauseContextMaxStrength {
 		strength = pauseContextMaxStrength
 	}
-	kind := frontend.PauseKindOther
+	kind := linguistics.PauseKindOther
 	if position >= 0 && position < len(morae) {
 		kind = morae[position].PauseKind
 	}
@@ -49,13 +49,13 @@ func pauseContextFactor(morae []frontend.Mora, position int, cfg Config) float64
 
 func pauseKindFactor(kind string) float64 {
 	switch kind {
-	case frontend.PauseKindComma:
+	case linguistics.PauseKindComma:
 		return pauseContextCommaFactor
-	case frontend.PauseKindPeriod:
+	case linguistics.PauseKindPeriod:
 		return pauseContextPeriodFactor
-	case frontend.PauseKindQuestion:
+	case linguistics.PauseKindQuestion:
 		return pauseContextQuestionFactor
-	case frontend.PauseKindEllipsis:
+	case linguistics.PauseKindEllipsis:
 		return pauseContextEllipsisFactor
 	default:
 		return pauseContextNeutralFactor
@@ -63,7 +63,7 @@ func pauseKindFactor(kind string) float64 {
 }
 
 // IsUtteranceFinalMoraは指定位置より後ろが休止だけかを返す。
-func IsUtteranceFinalMora(morae []frontend.Mora, position int) bool {
+func IsUtteranceFinalMora(morae []linguistics.Mora, position int) bool {
 	for index := position + 1; index < len(morae); index++ {
 		if !morae[index].Pause {
 			return false

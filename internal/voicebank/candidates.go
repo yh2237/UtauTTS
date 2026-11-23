@@ -3,27 +3,27 @@ package voicebank
 import (
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
 )
 
-func (c candidateContext) positionCandidates(position int, mora frontend.Mora, previousVowel string, phraseStart bool, previousLayer []Selection) ([]Selection, *MissingAliasError) {
+func (c candidateContext) positionCandidates(position int, mora linguistics.Mora, aliases *AliasHints, previousVowel string, phraseStart bool, previousLayer []Selection) ([]Selection, *MissingAliasError) {
 	b, policy, affix, hasAffix := c.bank, c.policy, c.affix, c.hasAffix
 	candidateSpecs := aliasCandidatesWithPolicy(mora.Text, previousVowel, phraseStart, policy)
 	consonant := mora.Consonant
 	if consonant == "" {
-		consonant = frontend.ConsonantOf(mora.Text)
+		consonant = linguistics.ConsonantOf(mora.Text)
 	}
 	transitionSpecs := vcAliasCandidates(previousVowel, consonant, policy)
-	explicitCandidates := mora.Aliases != nil && len(mora.Aliases.Main) > 0
+	explicitCandidates := aliases != nil && len(aliases.Main) > 0
 	if explicitCandidates {
-		candidateSpecs = explicitMainAliasCandidates(mora.Aliases.Main, mora.Aliases.MainKinds, mora.Text)
-		transitionSpecs = explicitAliasCandidates(mora.Aliases.Transition, AliasVC)
+		candidateSpecs = explicitMainAliasCandidates(aliases.Main, aliases.MainKinds, mora.Text)
+		transitionSpecs = explicitAliasCandidates(aliases.Transition, AliasVC)
 	}
 	var endingSpecs [][]aliasCandidate
-	if mora.Aliases != nil {
-		for _, aliases := range mora.Aliases.Endings {
-			endingSpecs = append(endingSpecs, explicitAliasCandidates(aliases, AliasOther))
+	if aliases != nil {
+		for _, endingAliases := range aliases.Endings {
+			endingSpecs = append(endingSpecs, explicitAliasCandidates(endingAliases, AliasOther))
 		}
 	}
 	if hasAffix {
@@ -61,7 +61,7 @@ func (c candidateContext) positionCandidates(position int, mora frontend.Mora, p
 	if !explicitCandidates {
 		candidateSpecs = preferOriginalKanaCandidates(b, candidateSpecs)
 	}
-	endings := c.endingPlan(mora, endingSpecs)
+	endings := c.endingPlan(aliases, endingSpecs)
 	allSpecs := append(append([]aliasCandidate{}, candidateSpecs...), transitionSpecs...)
 	for _, specs := range endings.specs {
 		allSpecs = append(allSpecs, specs...)
@@ -143,14 +143,14 @@ type endingPlan struct {
 	starts, originalStarts []int
 }
 
-func (c candidateContext) endingPlan(mora frontend.Mora, endingSpecs [][]aliasCandidate) endingPlan {
+func (c candidateContext) endingPlan(aliases *AliasHints, endingSpecs [][]aliasCandidate) endingPlan {
 	endingPhones := make([][]string, len(endingSpecs))
 	endingStarts := make([]int, len(endingSpecs))
 	codaStart := 0
 	for i := range endingSpecs {
 		endingStarts[i] = codaStart
-		if mora.Aliases != nil && i < len(mora.Aliases.EndingPhones) {
-			endingPhones[i] = mora.Aliases.EndingPhones[i]
+		if aliases != nil && i < len(aliases.EndingPhones) {
+			endingPhones[i] = aliases.EndingPhones[i]
 			codaStart += len(endingPhones[i])
 		}
 	}
@@ -170,7 +170,7 @@ type validatedEntry struct {
 type positionBuilder struct {
 	context    candidateContext
 	position   int
-	mora       frontend.Mora
+	mora       linguistics.Mora
 	candidates []string
 	endings    endingPlan
 	rejections []CandidateRejection

@@ -6,7 +6,7 @@ import (
 	"math"
 	"os"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 )
 
 const ManualPitchVersion = 1
@@ -89,7 +89,7 @@ func (file *ManualPitchFile) Validate() error {
 }
 
 // Curveはモーラ補正とフレーム補正を同じ時間軸へ補間して合算する。
-func (file *ManualPitchFile) Curve(morae []frontend.Mora, timings []MoraTiming, durationMS float64) (*PitchContour, error) {
+func (file *ManualPitchFile) Curve(morae []linguistics.Mora, timings []MoraTiming, durationMS float64) (*PitchContour, error) {
 	if file == nil {
 		return nil, nil
 	}
@@ -111,7 +111,7 @@ func (file *ManualPitchFile) Curve(morae []frontend.Mora, timings []MoraTiming, 
 	return curve, nil
 }
 
-func (file *ManualPitchFile) pointCurve(morae []frontend.Mora, timings []MoraTiming, durationMS, frameMS float64) (*PitchContour, error) {
+func (file *ManualPitchFile) pointCurve(morae []linguistics.Mora, timings []MoraTiming, durationMS, frameMS float64) (*PitchContour, error) {
 	if len(file.Points) == 0 {
 		return nil, nil
 	}

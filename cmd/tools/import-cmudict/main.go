@@ -45,7 +45,7 @@ func generate(checkout, root string) error {
 	if err != nil {
 		return err
 	}
-	target := filepath.Join(root, "internal", "g2p", "lexicon")
+	target := filepath.Join(root, "internal", "g2p", "en", "lexicon")
 	if err := os.MkdirAll(target, 0o755); err != nil {
 		return err
 	}

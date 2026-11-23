@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
 func TestBuildPlacesMoraeAndPause(t *testing.T) {
-	morae, err := frontend.ParseKana("あ、んっ")
+	morae, err := linguistics.ParseKana("あ、んっ")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestBuildPlacesMoraeAndPause(t *testing.T) {
 }
 
 func TestBuildMarksStandaloneCVPlan(t *testing.T) {
-	morae, err := frontend.ParseKana("\u304b\u304d")
+	morae, err := linguistics.ParseKana("\u304b\u304d")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestBuildMarksStandaloneCVPlan(t *testing.T) {
 }
 
 func TestBuildUsesPerMoraAndPauseDurationOverrides(t *testing.T) {
-	morae, err := frontend.ParseKana("あ、い")
+	morae, err := linguistics.ParseKana("あ、い")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestBuildUsesPerMoraAndPauseDurationOverrides(t *testing.T) {
 }
 
 func TestBuildAddsCVVCTransitionWithoutChangingMoraTimeline(t *testing.T) {
-	morae, err := frontend.ParseKana("あか")
+	morae, err := linguistics.ParseKana("あか")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestBuildAddsCVVCTransitionWithoutChangingMoraTimeline(t *testing.T) {
 }
 
 func TestBuildPlacesEndingInsideLastMora(t *testing.T) {
-	mora := frontend.Mora{Text: "hao", Vowel: "ao"}
+	mora := linguistics.Mora{Text: "hao", Vowel: "ao"}
 	ending := &voicebank.Selection{
 		Position: 0, Mora: mora, Alias: "ao R",
 		Entry: oto.Entry{Filename: "ending.wav", Preutterance: 80, Overlap: 20},
@@ -140,7 +140,7 @@ func TestBuildPlacesEndingInsideLastMora(t *testing.T) {
 	selections := []voicebank.Selection{{
 		Position: 0, Mora: mora, Alias: "hao", Entry: oto.Entry{Filename: "hao.wav"}, Endings: []voicebank.Selection{*ending},
 	}}
-	got, err := Build(&voicebank.Bank{Root: "bank"}, "hao", []frontend.Mora{mora}, selections, Config{MoraDurationMS: 180})
+	got, err := Build(&voicebank.Bank{Root: "bank"}, "hao", []linguistics.Mora{mora}, selections, Config{MoraDurationMS: 180})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +153,7 @@ func TestBuildPlacesEndingInsideLastMora(t *testing.T) {
 }
 
 func TestBuildAttachesProfilesForStretchAdapt(t *testing.T) {
-	morae, err := frontend.ParseKana("あ")
+	morae, err := linguistics.ParseKana("あ")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestBuildAttachesProfilesForStretchAdapt(t *testing.T) {
 }
 
 func TestBuildUsesCanonicalDurationDefaults(t *testing.T) {
-	morae, err := frontend.ParseKana("あ、")
+	morae, err := linguistics.ParseKana("あ、")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +199,7 @@ func TestBuildUsesCanonicalDurationDefaults(t *testing.T) {
 }
 
 func TestValidateMoraDurationsIncludesPauses(t *testing.T) {
-	morae := []frontend.Mora{{Text: "あ"}, {Pause: true}, {Text: "い"}}
+	morae := []linguistics.Mora{{Text: "あ"}, {Pause: true}, {Text: "い"}}
 	if err := ValidateMoraDurations(morae, []float64{120, 180, 120}); err != nil {
 		t.Fatal(err)
 	}

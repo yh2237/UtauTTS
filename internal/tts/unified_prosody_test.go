@@ -5,18 +5,18 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 )
 
-func unifiedProsodyFixture(t testing.TB) (*prosody.Model, []frontend.Mora, []prosody.FeatureFrame, *plan.Plan) {
+func unifiedProsodyFixture(t testing.TB) (*prosody.Model, []linguistics.Mora, []prosody.FeatureFrame, *plan.Plan) {
 	t.Helper()
 	model, err := prosody.LoadModel(filepath.Join("..", "..", "models", "frame-intonation-tcn-v12.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	morae, err := frontend.ParseKana("あか、さな")
+	morae, err := linguistics.ParseKana("あか、さな")
 	if err != nil {
 		t.Fatal(err)
 	}

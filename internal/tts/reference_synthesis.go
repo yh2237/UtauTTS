@@ -8,13 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauIDX/speechpool"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/refspeech"
@@ -134,12 +133,19 @@ func englishLexicon(dir string) (*refspeech.Lexicon, error) {
 
 // referenceInputsは、言語に合う参照TTSを選び、モーラ長を話速に、抑揚の強さをF0の動きの幅に、
 // 音高をF0の中心に直す。
-func referenceInputs(cfg Config, language, reading string) (*refspeech.Service, refspeech.Provider, []refspeech.Piece, refspeech.Options, error) {
+func referenceInputs(cfg Config, utterance linguistics.Utterance) (*refspeech.Service, refspeech.Provider, []refspeech.Piece, refspeech.Options, error) {
+	if !refspeech.SupportsProviderLanguage(utterance.Language) {
+		return nil, nil, nil, refspeech.Options{}, fmt.Errorf("reference synthesis is not available for %q", utterance.Language)
+	}
 	service, err := ReferenceService(cfg.ReferenceDir)
 	if err != nil {
 		return nil, nil, nil, refspeech.Options{}, err
 	}
-	provider, err := referenceProfileFor(language).provider(cfg, service)
+	provider, err := refspeech.NewProvider(utterance.Language, refspeech.ProviderConfig{
+		Service:     service,
+		LoadLexicon: func() (*refspeech.Lexicon, error) { return englishLexicon(cfg.ReferenceDir) },
+		Dictionary:  cfg.Dictionary,
+	})
 	if err != nil {
 		return nil, nil, nil, refspeech.Options{}, err
 	}
@@ -154,15 +160,15 @@ func referenceInputs(cfg Config, language, reading string) (*refspeech.Service, 
 	if frequency, ok := voicebank.ToneFrequency(cfg.Tone); ok {
 		options.CenterHz = frequency
 	}
-	pieces, err := provider.Pieces(cfg.Text, reading)
+	pieces, err := provider.Pieces(utterance)
 	if err != nil {
 		return nil, nil, nil, refspeech.Options{}, err
 	}
 	return service, provider, pieces, options, nil
 }
 
-// englishManualPitchは手動の抑揚を、最初のモーラの始まりからのミリ秒ごとのセントにする。
-func referenceManualPitch(cfg Config, reading string, morae []frontend.Mora, durations []float64) (func(float64) float64, bool, error) {
+// referenceManualPitchは手動の抑揚を、最初のモーラの始まりからのミリ秒ごとのセントにする。
+func referenceManualPitch(cfg Config, reading string, morae []linguistics.Mora, durations []float64) (func(float64) float64, bool, error) {
 	timings := make([]prosody.MoraTiming, len(morae))
 	cursor := 0.0
 	for i, d := range durations {
@@ -187,7 +193,11 @@ func hasManualMoraDurations(durations []float64) bool {
 }
 
 // synthesizeReferenceは文を参照TTSで読み、音源のフレームで合成し直す。
-func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer, reading string, morae []frontend.Mora) (*Result, error) {
+func synthesizeReference(cfg Config, bank *voicebank.Bank, utterance linguistics.Utterance) (*Result, error) {
+	morae := utterance.Morae
+	language := utterance.Language
+	phonemizerID := utterance.Phonemizer
+	reading := utterance.Reading
 	if err := plan.ValidateMoraDurations(morae, cfg.MoraDurationsMS); err != nil {
 		return nil, err
 	}
@@ -200,12 +210,10 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 		log = func(string) {}
 	}
 	started := time.Now()
-	// 参照TTSへは、連続変調を反映した読みを渡す。編集画面などに出す読みは辞書の声調のまま。
-	referenceReading := referenceProfileFor(language).reading(reading, morae)
-	if referenceReading != reading {
-		log(fmt.Sprintf("参照の読み: %s", referenceReading))
+	if surface := utterance.EffectiveReading(); surface != reading {
+		log(fmt.Sprintf("参照の読み: %s", surface))
 	}
-	service, provider, pieces, options, err := referenceInputs(cfg, language, referenceReading)
+	service, provider, pieces, options, err := referenceInputs(cfg, utterance)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +237,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	log(fmt.Sprintf("参照音声: %d Hz、%.2f 秒（生成 %d ms）",
 		rate, float64(len(reference.Audio))/float64(rate), time.Since(readStarted).Milliseconds()))
 	// 手動の長さがあれば、読み直さずに参照の時間軸を引き伸ばす。
-	_, plans, sourceDurations, planned, err := referenceTiming(cfg, language, pieces, reference.Timing, reading, morae)
+	_, plans, sourceDurations, planned, err := referenceTiming(cfg, provider, pieces, reference.Timing, utterance)
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)
 	}
@@ -263,9 +271,9 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 	pcm := referenceAudio(speech, durations, unitGain)
 	synthesisPlan := &plan.Plan{
 		Version: plan.Version, Voicebank: bank.Root, Text: cfg.Text, Reading: reading,
-		Language: language, Phonemizer: phonemizer, Tone: cfg.Tone, Color: cfg.Color,
+		Language: language, Phonemizer: phonemizerID, Tone: cfg.Tone, Color: cfg.Color,
 		SelectionMode: "reference", AliasPolicy: "reference", JoinCostMode: "none",
-		LeadingMarginMS: leading, Morae: append([]frontend.Mora(nil), morae...),
+		LeadingMarginMS: leading, Morae: append([]linguistics.Mora(nil), morae...),
 		DurationMS: float64(len(speech.Audio)) * 1000 / float64(speech.SampleRate),
 	}
 	result := &Result{Voicebank: bank, Plan: synthesisPlan, Audio: pcm,
@@ -291,12 +299,13 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, language, phonemizer,
 
 // predictReferenceは、参照TTSの読みだけからモーラ長と抑揚を返す。音源は使わない。
 // 手動のモーラ長があれば、その長さで読んだときの抑揚を返す。
-func predictReference(cfg Config, language, reading string, morae []frontend.Mora) (*ProsodyPreview, error) {
+func predictReference(cfg Config, utterance linguistics.Utterance) (*ProsodyPreview, error) {
+	morae := utterance.Morae
+	reading := utterance.Reading
 	if err := plan.ValidateMoraDurations(morae, cfg.MoraDurationsMS); err != nil {
 		return nil, err
 	}
-	referenceReading := referenceProfileFor(language).reading(reading, morae)
-	_, provider, pieces, options, err := referenceInputs(cfg, language, referenceReading)
+	_, provider, pieces, options, err := referenceInputs(cfg, utterance)
 	if err != nil {
 		return nil, fmt.Errorf("reference prosody: %w", err)
 	}
@@ -304,7 +313,7 @@ func predictReference(cfg Config, language, reading string, morae []frontend.Mor
 	if err != nil {
 		return nil, fmt.Errorf("reference prosody: %w", err)
 	}
-	_, plans, sourceDurations, durations, err := referenceTiming(cfg, language, pieces, reference.Timing, reading, morae)
+	_, plans, sourceDurations, durations, err := referenceTiming(cfg, provider, pieces, reference.Timing, utterance)
 	if err != nil {
 		return nil, fmt.Errorf("reference prosody: %w", err)
 	}
@@ -315,7 +324,7 @@ func predictReference(cfg Config, language, reading string, morae []frontend.Mor
 	}
 	center := referenceCenterHz(f0)
 	result := &ProsodyPreview{
-		Reading: reading, Morae: append([]frontend.Mora(nil), morae...), MoraDurationsMS: durations,
+		Reading: reading, Morae: append([]linguistics.Mora(nil), morae...), MoraDurationsMS: durations,
 		MoraPositionsMS: make([]float64, len(morae)), PitchPoints: make([]float64, len(morae)),
 		FramePitchCurve: referencePitchCurve(f0, center, leading, options.PitchScale),
 	}
@@ -331,90 +340,10 @@ func predictReference(cfg Config, language, reading string, morae []frontend.Mor
 	return result, nil
 }
 
-// englishMoraTokensは、Kokoroの入力記号をモーラへ割り当てる。
-// 語の記号は、語の中のモーラへ音素の数の比で順に分け、語の後ろの空白は語の最後のモーラに入れる。
-// 休止のモーラには読点を、文末の休止には文末の記号と末尾の境界記号も入れる。
-// 文末に休止がなければ、それらは最後のモーラに入れる。先頭の境界記号はどのモーラにも入れない。
-func englishMoraTokens(pieces []refspeech.Piece, timing refspeech.Timing, reading string, morae []frontend.Mora) [][]int {
-	parts := splitEnglishReading(reading)
-	own := map[int][]int{}
-	tail := map[int][]int{}
-	lastPart := -1
-	for i, piece := range pieces {
-		tokens := make([]int, 0)
-		for token := timing.PieceTokens[i][0]; token < timing.PieceTokens[i][1]; token++ {
-			tokens = append(tokens, token)
-		}
-		if piece.Part >= 0 {
-			lastPart = piece.Part
-			own[piece.Part] = append(own[piece.Part], tokens...)
-		} else if lastPart >= 0 {
-			tail[lastPart] = append(tail[lastPart], tokens...)
-		}
-	}
-	if lastPart >= 0 && len(timing.Durations) > 0 {
-		tail[lastPart] = append(tail[lastPart], len(timing.Durations)-1)
-		if last := len(parts) - 1; last > lastPart && parts[last] == "SP" {
-			own[last] = append(own[last], tail[lastPart]...)
-			tail[lastPart] = nil
-		}
-	}
-	result := make([][]int, len(morae))
-	pause := 0
-	var pauseParts []int
-	for index, part := range parts {
-		if part == "SP" {
-			pauseParts = append(pauseParts, index)
-		}
-	}
-	for start := 0; start < len(morae); {
-		mora := morae[start]
-		if mora.Pause {
-			if pause < len(pauseParts) {
-				part := pauseParts[pause]
-				result[start] = append(append([]int(nil), own[part]...), tail[part]...)
-			}
-			pause++
-			start++
-			continue
-		}
-		end := start
-		for end+1 < len(morae) && !morae[end+1].Pause && morae[end+1].WordIndex == mora.WordIndex {
-			end++
-		}
-		tokens := own[mora.WordIndex]
-		if assigned := englishWordAssignment(pieces, timing, tokens, morae[start:end+1]); assigned != nil {
-			for i, mora := range assigned {
-				result[start+i] = mora
-			}
-			result[end] = append(result[end], tail[mora.WordIndex]...)
-			start = end + 1
-			continue
-		}
-		weights := make([]int, end-start+1)
-		total := 0
-		for i := range weights {
-			weights[i] = max(1, len(morae[start+i].Phones))
-			total += weights[i]
-		}
-		cumulative, at := 0, 0
-		for i := range weights {
-			cumulative += weights[i]
-			next := int(math.Round(float64(len(tokens)) * float64(cumulative) / float64(total)))
-			result[start+i] = append([]int(nil), tokens[at:next]...)
-			at = next
-		}
-		result[end] = append(result[end], tail[mora.WordIndex]...)
-		start = end + 1
-	}
-	return result
-}
-
-// referenceMoraDurationsは、モーラに割り当てた記号の長さを足す。
-// 手動の長さがあるモーラはその値にする。
 // referenceTimingは、参照の記号の範囲と、参照・出力それぞれのモーラの長さを求める。
-func referenceTiming(cfg Config, language string, pieces []refspeech.Piece, timing refspeech.Timing, reading string, morae []frontend.Mora) (moraTokens [][]int, plans []phonePlan, source []float64, target []float64, err error) {
-	moraTokens = referenceMoraTokens(language, pieces, timing, reading, morae)
+func referenceTiming(cfg Config, provider refspeech.Provider, pieces []refspeech.Piece, timing refspeech.Timing, utterance linguistics.Utterance) (moraTokens [][]int, plans []phonePlan, source []float64, target []float64, err error) {
+	morae := utterance.Morae
+	moraTokens = provider.AlignMoraTokens(pieces, timing, utterance)
 	plans, err = buildPhonePlans(cfg, morae)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -442,7 +371,7 @@ func referenceMoraDurations(moraTokens [][]int, timing refspeech.Timing, manual 
 // referencePlannedDurationsは、合成後の各モーラの長さを返す。
 // 音素の指定があるモーラは、その合計長を使う。
 // 参照TTSの休止は短いことがあるので、手で指定されていない休止には下限を設ける。
-func referencePlannedDurations(morae []frontend.Mora, moraTokens [][]int, timing refspeech.Timing, manual []float64, plans []moraPhonePlan) []float64 {
+func referencePlannedDurations(morae []linguistics.Mora, moraTokens [][]int, timing refspeech.Timing, manual []float64, plans []moraPhonePlan) []float64 {
 	durations := referenceMoraDurations(moraTokens, timing, manual)
 	for i := range durations {
 		if i < len(plans) && plans[i].total > 0 {
@@ -460,24 +389,14 @@ func referencePlannedDurations(morae []frontend.Mora, moraTokens [][]int, timing
 // referencePauseFloorは、休止の種類ごとの下限の長さを返す。
 func referencePauseFloor(kind string) float64 {
 	switch kind {
-	case frontend.PauseKindComma:
+	case linguistics.PauseKindComma:
 		return 150
-	case frontend.PauseKindPeriod, frontend.PauseKindQuestion:
+	case linguistics.PauseKindPeriod, linguistics.PauseKindQuestion:
 		return 250
-	case frontend.PauseKindEllipsis:
+	case linguistics.PauseKindEllipsis:
 		return 350
 	}
 	return 150
-}
-
-func splitEnglishReading(reading string) []string {
-	var parts []string
-	for _, part := range strings.Split(reading, "|") {
-		if fields := strings.Fields(part); len(fields) > 0 {
-			parts = append(parts, strings.Join(fields, " "))
-		}
-	}
-	return parts
 }
 
 // referencePitchCurveは、最初のモーラの始まりを0とするセントの曲線。無声区間は前後の有声区間を直線でつなぐ。

@@ -15,7 +15,7 @@ import (
 
 	"github.com/yh2237/UtauIDX/audio"
 	"github.com/yh2237/UtauTTS/cmd/tools/internal/toolutil"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 )
 
 type utterance struct {
@@ -593,7 +593,7 @@ func planPhones(tokens []datasetToken) []phone {
 		end := token.EndMS / 1000
 		vowel := token.Vowel
 		consonant := ""
-		if parsed, err := frontend.ParseKana(token.Mora); err == nil && len(parsed) > 0 {
+		if parsed, err := linguistics.ParseKana(token.Mora); err == nil && len(parsed) > 0 {
 			consonant = parsed[0].Consonant
 			if vowel == "" {
 				vowel = parsed[0].Vowel

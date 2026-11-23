@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/yh2237/UtauIDX/audio"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 )
 
@@ -186,10 +186,10 @@ func TestStabilizeWorldPitches(t *testing.T) {
 func TestStabilizeSingleCVPitches(t *testing.T) {
 	planFor := func(vowels ...string) *plan.Plan {
 		units := make([]plan.Unit, len(vowels))
-		morae := make([]frontend.Mora, len(vowels))
+		morae := make([]linguistics.Mora, len(vowels))
 		for index, vowel := range vowels {
 			units[index] = plan.Unit{Role: "mora", Position: index}
-			morae[index] = frontend.Mora{Vowel: vowel}
+			morae[index] = linguistics.Mora{Vowel: vowel}
 		}
 		return &plan.Plan{SingleCV: true, Units: units, Morae: morae}
 	}

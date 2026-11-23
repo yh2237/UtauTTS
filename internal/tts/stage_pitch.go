@@ -3,7 +3,7 @@ package tts
 import (
 	"fmt"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
@@ -17,7 +17,7 @@ type synthesisPitch struct {
 }
 
 // 自動輪郭に境界音調を加え、最後に手動補正を適用する。
-func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *prosody.Model, morae []frontend.Mora, prosodyFeatures []prosody.FeatureFrame, reading, language string, synthesisPlan *plan.Plan) (synthesisPitch, error) {
+func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *prosody.Model, morae []linguistics.Mora, prosodyFeatures []prosody.FeatureFrame, reading, language string, synthesisPlan *plan.Plan) (synthesisPitch, error) {
 	pitchCurve := cfg.PitchCurve
 	applyPitch := applyPitchEnabled(cfg)
 	curveTimings := moraTimings(morae, synthesisPlan)
@@ -65,7 +65,7 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 }
 
 // F0ヘッドの曲線へ強さ、基準モデルとの混合、高さの補正を適用する。
-func f0HeadPitchCurve(cfg Config, loadedProsody *prosody.Model, morae []frontend.Mora, prosodyFeatures []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, contour *render.PitchCurve) *render.PitchCurve {
+func f0HeadPitchCurve(cfg Config, loadedProsody *prosody.Model, morae []linguistics.Mora, prosodyFeatures []prosody.FeatureFrame, timings []prosody.MoraTiming, durationMS float64, contour *render.PitchCurve) *render.PitchCurve {
 	if contour == nil {
 		return nil
 	}
@@ -91,7 +91,7 @@ func offsetPitchCurve(curve *render.PitchCurve, cents float64) *render.PitchCurv
 }
 
 // resolveManualPitchCurveは手動ピッチを読み込み、検証して制限済みの補正曲線を返す。
-func resolveManualPitchCurve(cfg Config, reading string, morae []frontend.Mora, timings []prosody.MoraTiming, durationMS float64) (*prosody.PitchContour, string, error) {
+func resolveManualPitchCurve(cfg Config, reading string, morae []linguistics.Mora, timings []prosody.MoraTiming, durationMS float64) (*prosody.PitchContour, string, error) {
 	manual := cfg.ManualPitch
 	if manual == nil && cfg.ManualPitchPath != "" {
 		loaded, err := prosody.LoadManualPitch(cfg.ManualPitchPath)

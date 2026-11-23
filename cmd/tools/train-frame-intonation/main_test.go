@@ -5,7 +5,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/gograd/tensor"
 )
@@ -25,7 +25,7 @@ func TestExportLoadsAndPredicts(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	curve := model.PredictFrameContour([]frontend.Mora{{Text: "あ", Vowel: "a"}}, nil, []prosody.MoraTiming{{StartMS: 0, DurationMS: 100}}, 100, false)
+	curve := model.PredictFrameContour([]linguistics.Mora{{Text: "あ", Vowel: "a"}}, nil, []prosody.MoraTiming{{StartMS: 0, DurationMS: 100}}, 100, false)
 	if curve == nil || len(curve.Cents) == 0 {
 		t.Fatalf("no contour: %#v", curve)
 	}

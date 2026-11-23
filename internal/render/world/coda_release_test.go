@@ -4,14 +4,14 @@ import (
 	"math"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/render/base"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
 func TestMainCodaFadeScope(t *testing.T) {
-	for _, phonemizer := range []string{frontend.PhonemizerChinese} {
+	for _, phonemizer := range []string{linguistics.PhonemizerChinese} {
 		p := &plan.Plan{Phonemizer: phonemizer}
 		u := plan.Unit{Role: "mora", CodaPhones: []string{"n"}, DurationMS: 60}
 		if !worldCodaReleaseEligible(p, u) {

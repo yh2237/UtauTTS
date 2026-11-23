@@ -8,7 +8,7 @@ UtauTTSが互換処理や移植のために参照した公開コードと、該�
 
 - 音素のタイミング（`internal/render/world/`）: 音素境界の決め方と閉鎖音・破裂音の処理
 - プロジェクトの入出力（`internal/openutau/`、`cmd/tools/utautts-ustx/`）: OpenUtauのプロジェクトファイル（USTX）の書き出し
-- 英語C+Vの発音形式（`internal/frontend/english_phonemizer.go`）: Cadlaxa氏のEnglish C+V Phonemizerに基づくエイリアスの探索順
+- 英語C+Vの発音形式（`internal/phonemizer/english.go`）: Cadlaxa氏のEnglish C+V Phonemizerに基づくエイリアスの探索順
 
 ## WORLD
 

@@ -3,7 +3,7 @@ package main
 import (
 	"math"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/openutau"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/tts"
@@ -86,7 +86,7 @@ func ustxProjectFromSynthesis(cfg tts.Config, p *plan.Plan, voicebankID string) 
 
 // 長音の母音を保つため、計画と同じ方法で再解析する。
 func planMorae(p *plan.Plan) []openutau.UtauTTSMora {
-	morae, err := frontend.ParseKana(p.Reading)
+	morae, err := linguistics.ParseKana(p.Reading)
 	if err == nil && len(morae) > 0 {
 		result := make([]openutau.UtauTTSMora, len(morae))
 		for index, mora := range morae {

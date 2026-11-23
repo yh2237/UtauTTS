@@ -3,7 +3,7 @@ package voicebank
 import (
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
 	"golang.org/x/text/unicode/norm"
 )
@@ -11,7 +11,7 @@ import (
 // ReferencePhonemeはエイリアスを参照索引用の音素ラベルへ直す。
 // ラベルは録音単位なので、CVは子音と母音をつないだ形（kaなど）で表す。
 // 対応: あ/ア/a/- あ/a あ→a、か/カ/ka/- か/a か→ka。
-// 他の仮名もfrontend.ParseKanaの子音+母音へ直す（し→shi、ち→chi、つ→tsu、ふ→fu、じ/ぢ→ji）。
+// 他の仮名もlinguistics.ParseKanaの子音+母音へ直す（し→shi、ち→chi、つ→tsu、ふ→fu、じ/ぢ→ji）。
 // 子音が未定義の仮名は平仮名で保持する（ウィ/うぃ→うぃ）。
 // ん/ン/n→n、っ/ッ/cl→cl。VCの「a k」はkへ直す。
 // 文脈の母音・語頭記号は除き、判別できない別名は空にする。
@@ -46,7 +46,7 @@ func (b *Bank) ReferencePhoneme(alias string) string {
 			}
 			return r
 		}, norm.NFC.String(alias))
-		morae, err := frontend.ParseKana(alias)
+		morae, err := linguistics.ParseKana(alias)
 		if err != nil || len(morae) != 1 || morae[0].Pause {
 			return ""
 		}
@@ -55,7 +55,7 @@ func (b *Bank) ReferencePhoneme(alias string) string {
 			return ""
 		}
 		if mora.Consonant == "" && (len([]rune(mora.Text)) != 1 || !strings.Contains("あいうえおぁぃぅぇぉゐゑ", mora.Text)) {
-			// frontendに子音の定義がない拗音・外来音は平仮名で残し、別の母音へ混ぜない。
+			// 子音の定義がない拗音・外来音は平仮名で残し、別の母音へ混ぜない。
 			return mora.Text
 		}
 		if mora.Vowel == "n" || mora.Vowel == "cl" {

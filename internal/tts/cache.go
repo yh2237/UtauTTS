@@ -9,8 +9,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
 	"github.com/yh2237/UtauTTS/internal/lifecycle"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
@@ -64,7 +64,7 @@ type analysisCacheKey struct {
 }
 
 type prosodyComputation struct {
-	morae       []frontend.Mora
+	morae       []linguistics.Mora
 	features    []prosody.FeatureFrame
 	predictions []prosody.Prediction
 }
@@ -136,7 +136,7 @@ func prosodyComputationKeyFor(cfg Config) prosodyComputationKey {
 	}
 }
 
-func moraeEqual(a, b []frontend.Mora) bool {
+func moraeEqual(a, b []linguistics.Mora) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -149,7 +149,7 @@ func moraeEqual(a, b []frontend.Mora) bool {
 	return true
 }
 
-func resolveProsodyComputation(cfg Config, profile languageProfile, model *prosody.Model, morae []frontend.Mora, reading string) ([]prosody.FeatureFrame, []prosody.Prediction, error) {
+func resolveProsodyComputation(cfg Config, profile languageProfile, model *prosody.Model, morae []linguistics.Mora, reading string) ([]prosody.FeatureFrame, []prosody.Prediction, error) {
 	if len(cfg.ProsodyFeatures) > 0 {
 		features := cfg.ProsodyFeatures
 		predictions, err := predictMorae(cfg, profile, model, morae, features)
@@ -179,7 +179,7 @@ func resolveProsodyComputation(cfg Config, profile languageProfile, model *proso
 		cache.computationOrder = append(cache.computationOrder, key)
 	}
 	cache.computations[key] = prosodyComputation{
-		morae: append([]frontend.Mora(nil), morae...), features: features, predictions: predictions,
+		morae: append([]linguistics.Mora(nil), morae...), features: features, predictions: predictions,
 	}
 	if len(cache.computationOrder) > maxProsodyCacheEntries {
 		oldest := cache.computationOrder[0]

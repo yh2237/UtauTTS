@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/yh2237/UtauTTS/internal/connection"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
 )
 
@@ -76,11 +76,11 @@ type CandidateAudit struct {
 	BestJoinScore       float64              `json:"best_join_score,omitempty"`
 }
 
-func (b *Bank) AuditLattice(morae []frontend.Mora, tone string) (*LatticeAudit, error) {
+func (b *Bank) AuditLattice(morae []linguistics.Mora, tone string) (*LatticeAudit, error) {
 	return b.AuditLatticeWithConfig(morae, ResolveConfig{Tone: tone})
 }
 
-func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) (*LatticeAudit, error) {
+func (b *Bank) AuditLatticeWithConfig(morae []linguistics.Mora, cfg ResolveConfig) (*LatticeAudit, error) {
 	policy := cfg.AliasPolicy
 	if policy == "" {
 		policy = AliasPolicyAuto
@@ -88,7 +88,7 @@ func (b *Bank) AuditLatticeWithConfig(morae []frontend.Mora, cfg ResolveConfig) 
 	if !policy.valid() {
 		return nil, fmt.Errorf("unknown alias policy %q", policy)
 	}
-	layers, err := b.candidateLayersWithPolicy(morae, cfg.Tone, cfg.Color, policy)
+	layers, err := b.candidateLayersDiagnostic(morae, cfg.Aliases, cfg.Tone, cfg.Color, policy, nil)
 	if err != nil {
 		return nil, err
 	}

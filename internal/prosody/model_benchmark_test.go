@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 )
 
 func BenchmarkPredictFrameContour(b *testing.B) {
@@ -15,10 +15,10 @@ func BenchmarkPredictFrameContour(b *testing.B) {
 	}
 	for _, count := range []int{100, 500} {
 		b.Run(fmt.Sprintf("%d-morae", count), func(b *testing.B) {
-			morae := make([]frontend.Mora, count)
+			morae := make([]linguistics.Mora, count)
 			timings := make([]MoraTiming, count)
 			for i := range morae {
-				morae[i] = frontend.Mora{Text: "あ", Vowel: "a"}
+				morae[i] = linguistics.Mora{Text: "あ", Vowel: "a"}
 				timings[i] = MoraTiming{StartMS: float64(i) * 120, DurationMS: 120}
 			}
 			b.ReportAllocs()

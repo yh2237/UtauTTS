@@ -92,7 +92,7 @@ func englishAcronymCandidate(word string) (g2p.Reading, bool, error) {
 }
 
 func englishLexiconCandidate(word string) (g2p.Reading, bool, error) {
-	entry, err := g2p.LookupEnglish(word)
+	entry, err := LookupEnglish(word)
 	if err != nil {
 		return g2p.Reading{}, false, err
 	}

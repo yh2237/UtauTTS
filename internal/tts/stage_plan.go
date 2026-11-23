@@ -3,13 +3,13 @@ package tts
 import (
 	"fmt"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
-func buildSynthesisPlan(cfg Config, profile languageProfile, bank *voicebank.Bank, reading, language, phonemizer string, morae []frontend.Mora, selections []voicebank.Selection, predictions []prosody.Prediction, requestedAliasPolicy voicebank.AliasPolicy) (*plan.Plan, bool, error) {
+func buildSynthesisPlan(cfg Config, profile languageProfile, bank *voicebank.Bank, reading, language, phonemizer string, morae []linguistics.Mora, selections []voicebank.Selection, predictions []prosody.Prediction, requestedAliasPolicy voicebank.AliasPolicy) (*plan.Plan, bool, error) {
 	phoneWeights, phoneTimingSource := profile.PhoneTiming(cfg, morae, voicebank.IsSingleCVSelections(selections))
 	if len(cfg.PitchFactors) > 0 {
 		if len(cfg.PitchFactors) != len(morae) {

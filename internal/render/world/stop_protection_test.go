@@ -3,7 +3,7 @@ package world
 import (
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/render/base"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
@@ -13,7 +13,7 @@ func TestLegacyStopPreserveOnlyForReliableJapanese(t *testing.T) {
 	p := &plan.Plan{
 		Language:   "ja",
 		Phonemizer: "ja-kana",
-		Morae:      []frontend.Mora{{Consonant: "k", Vowel: "a"}},
+		Morae:      []linguistics.Mora{{Consonant: "k", Vowel: "a"}},
 	}
 	unit := plan.Unit{Position: 0, Role: "mora", AliasKind: "VCV", SpeechProfile: &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}}
 	if !e2bLegacyStopPreserve(p, unit, true, base.WorldOptions{}) {
@@ -32,7 +32,7 @@ func TestWorldStopProtectionProtectsEnglishCodaPlosive(t *testing.T) {
 	p := &plan.Plan{
 		Language:   "en",
 		Phonemizer: "en-delta",
-		Morae:      []frontend.Mora{{Consonant: "m", Vowel: "iy"}},
+		Morae:      []linguistics.Mora{{Consonant: "m", Vowel: "iy"}},
 	}
 	profile := &voicebank.SpeechProfile{ReleaseTransientMS: 12, ReleaseTransientConfidence: .27}
 	if !worldStopProtection(p, plan.Unit{Position: 0, Role: "ending", CodaPhones: []string{"t"}, SpeechProfile: profile}, base.WorldOptions{}) {
@@ -65,7 +65,7 @@ func TestSpeechSourceOnsetUsesReliableNearbyLandmark(t *testing.T) {
 
 func TestWorldGapRepairOnlyAcceptsRepeatedVowelWithoutOnset(t *testing.T) {
 	p := &plan.Plan{
-		Morae: []frontend.Mora{{Vowel: "a"}, {Vowel: "a"}, {Consonant: "k", Vowel: "a"}},
+		Morae: []linguistics.Mora{{Vowel: "a"}, {Vowel: "a"}, {Consonant: "k", Vowel: "a"}},
 		Units: []plan.Unit{
 			{Position: 0, Role: "mora"},
 			{Position: 1, Role: "mora"},
@@ -81,8 +81,8 @@ func TestWorldGapRepairOnlyAcceptsRepeatedVowelWithoutOnset(t *testing.T) {
 }
 
 func TestWorldStopProtectionMatrix(t *testing.T) {
-	ja := &plan.Plan{Language: "ja", Phonemizer: "ja-kana", Morae: []frontend.Mora{{Consonant: "k", Vowel: "a"}}}
-	en := &plan.Plan{Language: "en", Phonemizer: "en-delta", Morae: []frontend.Mora{{Consonant: "k", Vowel: "ae"}}}
+	ja := &plan.Plan{Language: "ja", Phonemizer: "ja-kana", Morae: []linguistics.Mora{{Consonant: "k", Vowel: "a"}}}
+	en := &plan.Plan{Language: "en", Phonemizer: "en-delta", Morae: []linguistics.Mora{{Consonant: "k", Vowel: "ae"}}}
 	reliable := &voicebank.SpeechProfile{TransientMS: 70, TransientConfidence: .8}
 	cases := []struct {
 		name    string

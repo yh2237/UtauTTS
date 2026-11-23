@@ -12,7 +12,7 @@ import (
 
 	"github.com/yh2237/UtauTTS/internal/appinfo"
 	"github.com/yh2237/UtauTTS/internal/entryinput"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/openutau"
 	"github.com/yh2237/UtauTTS/internal/plugin"
 	"github.com/yh2237/UtauTTS/internal/refspeech"
@@ -276,7 +276,7 @@ func (e *Engine) voicebankEntry(libraryItem voicebank.LibraryItem) map[string]an
 	if bank, err := voicebank.Load(item.Path); err == nil {
 		capabilities := bank.AliasCapabilities()
 		language, phonemizer := bank.SuggestedLanguage()
-		if language == frontend.LanguageEnglish {
+		if language == linguistics.LanguageEnglish {
 			e.synth.PrepareReferenceIndex(bank)
 		}
 		entry["suggested_language"] = language
@@ -384,7 +384,7 @@ func (e *Engine) predictProsody(data []byte) (any, error) {
 	return response, nil
 }
 
-func previewMorae(morae []frontend.Mora) []openutau.UtauTTSMora {
+func previewMorae(morae []linguistics.Mora) []openutau.UtauTTSMora {
 	result := make([]openutau.UtauTTSMora, len(morae))
 	for index, mora := range morae {
 		result[index] = openutau.UtauTTSMora{

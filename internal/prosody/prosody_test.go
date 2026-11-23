@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 )
 
 func TestFramePitchModelPredictsBoundedContinuousContour(t *testing.T) {
@@ -18,7 +18,7 @@ func TestFramePitchModelPredictsBoundedContinuousContour(t *testing.T) {
 			OutputWeight: []float64{100}, FrameMS: 10, LowCents: -60, HighCents: 60,
 		},
 	}
-	morae := []frontend.Mora{{Text: "a", Vowel: "a"}, {Pause: true}, {Text: "i", Vowel: "i"}}
+	morae := []linguistics.Mora{{Text: "a", Vowel: "a"}, {Pause: true}, {Text: "i", Vowel: "i"}}
 	timings := []MoraTiming{{StartMS: 0, DurationMS: 100}, {StartMS: 100, DurationMS: 50}, {StartMS: 150, DurationMS: 100}}
 	curve := model.PredictFrameContour(morae, nil, timings, 250, false)
 	if curve == nil || curve.FrameMS != 10 || len(curve.Cents) != 26 {
@@ -47,7 +47,7 @@ func TestFramePitchModelAppliesRendererStrengthAfterCentering(t *testing.T) {
 			},
 		}
 	}
-	morae := []frontend.Mora{{Text: "a", Vowel: "a"}}
+	morae := []linguistics.Mora{{Text: "a", Vowel: "a"}}
 	timings := []MoraTiming{{StartMS: 0, DurationMS: 100}}
 	full := makeModel(1).PredictFrameContour(morae, nil, timings, 100, false)
 	half := makeModel(0.5).PredictFrameContour(morae, nil, timings, 100, false)
@@ -68,7 +68,7 @@ func TestFramePitchModelSafetyLimitsEffectiveContour(t *testing.T) {
 		},
 	}
 	curve := model.PredictFrameContour(
-		[]frontend.Mora{{Text: "a", Vowel: "a"}}, nil,
+		[]linguistics.Mora{{Text: "a", Vowel: "a"}}, nil,
 		[]MoraTiming{{StartMS: 0, DurationMS: 200}}, 200, false,
 	)
 	mask := make([]bool, len(curve.Cents))

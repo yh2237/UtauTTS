@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/yh2237/UtauTTS/cmd/tools/internal/toolutil"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 )
 
@@ -138,12 +138,12 @@ func writeTeacher(model *prosody.Model, dataset string, output io.Writer) (int, 
 		if err := json.Unmarshal(line, &r); err != nil {
 			return err
 		}
-		morae := make([]frontend.Mora, len(r.Tokens))
+		morae := make([]linguistics.Mora, len(r.Tokens))
 		frames := make([]prosody.FeatureFrame, len(r.Tokens))
 		timings := make([]prosody.MoraTiming, len(r.Tokens))
 		durationMS := 0.0
 		for i, t := range r.Tokens {
-			morae[i] = frontend.Mora{Language: "ja", Text: t.Mora, Vowel: t.Vowel, Pause: t.Pause}
+			morae[i] = linguistics.Mora{Language: "ja", Text: t.Mora, Vowel: t.Vowel, Pause: t.Pause}
 			frames[i] = accentFrame(t)
 			timings[i] = prosody.MoraTiming{StartMS: t.StartMS, DurationMS: t.EndMS - t.StartMS}
 			if t.EndMS > durationMS {

@@ -9,7 +9,7 @@ import (
 	"golang.org/x/text/encoding/japanese"
 
 	"github.com/yh2237/UtauIDX/audio"
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
 )
 
@@ -70,7 +70,7 @@ func TestResolveAtToneUsesAffixedAliases(t *testing.T) {
 		},
 		PrefixMap: map[string]Affix{"C4": {Suffix: "_C4"}},
 	}
-	morae, _ := frontend.ParseKana("あか")
+	morae, _ := linguistics.ParseKana("あか")
 	selections, err := bank.ResolveAtTone(morae, "C4")
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +120,7 @@ func TestCharacterYAMLSubbankSelectionByToneAndColor(t *testing.T) {
 		},
 		Subbanks: subbanks,
 	}
-	morae, err := frontend.ParseKana("あ")
+	morae, err := linguistics.ParseKana("あ")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +180,7 @@ func TestResolverRejectsUnreadableAndSilentWAVCandidates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	morae, err := frontend.ParseKana("あ")
+	morae, err := linguistics.ParseKana("あ")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,6 +3,8 @@ package refspeech
 import (
 	"fmt"
 	"strings"
+
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 )
 
 // KokoroChineseProviderは中国語の参照TTS（Kokoro-82M-v1.1-zh）。
@@ -15,11 +17,12 @@ func NewKokoroChineseProvider(service *Service) *KokoroChineseProvider {
 	return &KokoroChineseProvider{kokoroVoice{service: service, id: kokoroChinese}}
 }
 
-func (p *KokoroChineseProvider) Language() string { return "zh" }
+func (p *KokoroChineseProvider) Language() string { return linguistics.LanguageChinese }
 
 // Piecesは、ピンインの読み（「ni3 hao3 | ...」）を注音の音素列にする。
 // 休止は読点にする。1つの音節が1つの断片になる。
-func (p *KokoroChineseProvider) Pieces(text, reading string) ([]Piece, error) {
+func (p *KokoroChineseProvider) Pieces(utterance linguistics.Utterance) ([]Piece, error) {
+	reading := utterance.EffectiveReading()
 	if strings.TrimSpace(reading) == "" {
 		return nil, fmt.Errorf("Chinese reference synthesis needs a Pinyin reading")
 	}
@@ -42,4 +45,8 @@ func (p *KokoroChineseProvider) Pieces(text, reading string) ([]Piece, error) {
 		return nil, fmt.Errorf("Chinese reference synthesis needs a Pinyin reading")
 	}
 	return pieces, nil
+}
+
+func (p *KokoroChineseProvider) AlignMoraTokens(pieces []Piece, timing Timing, utterance linguistics.Utterance) [][]int {
+	return simpleMoraTokens(pieces, timing, utterance.Morae)
 }

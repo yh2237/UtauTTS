@@ -3,6 +3,8 @@ package refspeech
 import (
 	"strings"
 	"testing"
+
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 )
 
 func TestPinyinToZhuyin(t *testing.T) {
@@ -49,7 +51,7 @@ func TestPinyinToZhuyin(t *testing.T) {
 
 func TestZhuyinPieces(t *testing.T) {
 	provider := NewKokoroChineseProvider(nil)
-	pieces, err := provider.Pieces("", "ni3 hao3 | jin1 tian1 tian1 qi4 |")
+	pieces, err := provider.Pieces(linguistics.Utterance{Reading: "ni3 hao3 | jin1 tian1 tian1 qi4 |"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,10 +72,10 @@ func TestZhuyinPieces(t *testing.T) {
 
 func TestZhuyinPiecesNeedReading(t *testing.T) {
 	provider := NewKokoroChineseProvider(nil)
-	if _, err := provider.Pieces("你好", ""); err == nil {
+	if _, err := provider.Pieces(linguistics.Utterance{Text: "你好"}); err == nil {
 		t.Fatal("expected an error without a reading")
 	}
-	if _, err := provider.Pieces("", "ni3 nope"); err == nil {
+	if _, err := provider.Pieces(linguistics.Utterance{Reading: "ni3 nope"}); err == nil {
 		t.Fatal("expected an error for an unknown syllable")
 	}
 }

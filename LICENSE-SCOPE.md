@@ -17,9 +17,9 @@ UtauTTS本体のソースコードには [`LICENSE`](./LICENSE)（MIT License）
 | `reference/`（参照照合モデル: Kokoro-82M、misakiの英語辞書） | Apache License 2.0 (`licenses/REFERENCE-MODELS.txt`, `licenses/APACHE-2.0.txt`) |
 | `reference/wavlm/`（WavLM base+） | MIT License (`licenses/REFERENCE-MODELS.txt`, `licenses/WAVLM-MIT.txt`) |
 | `reference/kokoro-zh/`（Kokoro-82M-v1.1-zh） | Apache License 2.0 (`licenses/CHINESE-REFERENCE-MODEL.txt`, `licenses/APACHE-2.0.txt`) |
-| `internal/g2p/lexicon/cmudict.dict.gz`（英語の基本辞書） | CMUdict license (`licenses/Go/CMUDICT-LICENSE.txt`) |
+| `internal/g2p/en/lexicon/cmudict.dict.gz`（英語の基本辞書） | CMUdict license (`licenses/Go/CMUDICT-LICENSE.txt`) |
 | `internal/g2p/en/english-g2p.bin`（英語の辞書外語用GRUモデル: g2p-en） | Apache License 2.0 (`licenses/G2P-EN-NOTICE.txt`, `licenses/APACHE-2.0.txt`) |
-| `internal/g2p/lexicon/librispeech.dict.gz`（英語の補助辞書: LibriSpeech） | Public domain (`licenses/LIBRISPEECH-LEXICON-NOTICE.txt`) |
+| `internal/g2p/en/lexicon/librispeech.dict.gz`（英語の補助辞書: LibriSpeech） | Public domain (`licenses/LIBRISPEECH-LEXICON-NOTICE.txt`) |
 
 モデルを利用する際は、各モデルJSONのライセンス条項に従ってください。学習元コーパスの利用条件は各配布元の規約に従います。詳細は [抑揚モデルのライセンス](./models/README.md) を参照してください。
 

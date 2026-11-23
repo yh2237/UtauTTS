@@ -4,12 +4,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/oto"
 )
 
 // 先読み用の候補を返す。WAVの検証と原音選択は合成時に行う。
-func (b *Bank) CandidateSourcePaths(morae []frontend.Mora, cfg ResolveConfig) []string {
+func (b *Bank) CandidateSourcePaths(morae []linguistics.Mora, cfg ResolveConfig) []string {
 	policy := cfg.AliasPolicy
 	if policy == "" {
 		policy = AliasPolicyAuto
@@ -29,14 +29,15 @@ func (b *Bank) CandidateSourcePaths(morae []frontend.Mora, cfg ResolveConfig) []
 		}
 	}
 	previous, initial := "", true
-	for _, mora := range morae {
+	for position, mora := range morae {
 		if mora.Pause {
 			previous, initial = "", true
 			continue
 		}
-		if mora.Aliases != nil && len(mora.Aliases.Main) > 0 {
-			collect(explicitMainAliasCandidates(mora.Aliases.Main, mora.Aliases.MainKinds, mora.Text))
-			collect(explicitAliasCandidates(mora.Aliases.Transition, AliasVC))
+		aliases := aliasesAt(cfg.Aliases, position)
+		if aliases != nil && len(aliases.Main) > 0 {
+			collect(explicitMainAliasCandidates(aliases.Main, aliases.MainKinds, mora.Text))
+			collect(explicitAliasCandidates(aliases.Transition, AliasVC))
 		} else {
 			collect(aliasCandidatesWithPolicy(mora.Text, previous, initial, policy))
 			if previous == "cl" {
@@ -44,15 +45,15 @@ func (b *Bank) CandidateSourcePaths(morae []frontend.Mora, cfg ResolveConfig) []
 			}
 			consonant := mora.Consonant
 			if consonant == "" {
-				consonant = frontend.ConsonantOf(mora.Text)
+				consonant = linguistics.ConsonantOf(mora.Text)
 			}
 			collect(vcAliasCandidates(previous, consonant, policy))
 		}
-		if mora.Aliases != nil {
-			for _, aliases := range mora.Aliases.Endings {
-				collect(explicitAliasCandidates(aliases, AliasOther))
+		if aliases != nil {
+			for _, endingAliases := range aliases.Endings {
+				collect(explicitAliasCandidates(endingAliases, AliasOther))
 			}
-			for _, alternatives := range mora.Aliases.EndingFallbacks {
+			for _, alternatives := range aliases.EndingFallbacks {
 				for _, alternative := range alternatives {
 					collect(explicitAliasCandidates(alternative.Aliases, AliasOther))
 				}

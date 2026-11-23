@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 )
 
 func TestFrameContourRegression(t *testing.T) {
@@ -22,7 +22,7 @@ func TestFrameContourRegression(t *testing.T) {
 			},
 		}},
 	}}
-	morae := []frontend.Mora{{Text: "あ", Vowel: "a"}, {Pause: true}, {Text: "い", Vowel: "i"}}
+	morae := []linguistics.Mora{{Text: "あ", Vowel: "a"}, {Pause: true}, {Text: "い", Vowel: "i"}}
 	timings := []MoraTiming{{StartMS: 0, DurationMS: 40}, {StartMS: 40, DurationMS: 20}, {StartMS: 60, DurationMS: 40}}
 	// 個別フレーム確保での出力を保持し、配列の共有や計算順の変更を検出する。
 	wants := [][]float64{

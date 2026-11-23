@@ -3,7 +3,7 @@ package speechtimeline
 import (
 	"math"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauWLD/speechtiming"
 )
 
@@ -117,7 +117,7 @@ func moraPhones(text, previousVowel string) []string {
 	case "を", "ヲ":
 		return []string{"o"}
 	}
-	parsed, err := frontend.ParseKana(text)
+	parsed, err := linguistics.ParseKana(text)
 	if err != nil || len(parsed) == 0 {
 		return []string{"<unk>"}
 	}

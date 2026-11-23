@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 )
 
@@ -28,7 +28,7 @@ func HTS(synthesisPlan *plan.Plan, moraDurationsMS []float64, audioDurationMS fl
 	morae := synthesisPlan.Morae
 	if len(morae) == 0 {
 		var err error
-		morae, err = frontend.ParseKana(synthesisPlan.Reading)
+		morae, err = linguistics.ParseKana(synthesisPlan.Reading)
 		if err != nil {
 			return "", fmt.Errorf("parse reading: %w", err)
 		}

@@ -4,14 +4,14 @@ import (
 	"math"
 	"testing"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 )
 
-func testMorae(texts ...string) []frontend.Mora {
-	morae := make([]frontend.Mora, len(texts))
+func testMorae(texts ...string) []linguistics.Mora {
+	morae := make([]linguistics.Mora, len(texts))
 	for i, text := range texts {
-		morae[i] = frontend.Mora{Text: text, Vowel: "a"}
+		morae[i] = linguistics.Mora{Text: text, Vowel: "a"}
 	}
 	return morae
 }
@@ -39,7 +39,7 @@ func TestJapaneseContextDurationFactorsQuestionFinalIsLongest(t *testing.T) {
 }
 
 func TestJapaneseContextDurationFactorsQuestionOnlyAtUtteranceEnd(t *testing.T) {
-	morae := []frontend.Mora{
+	morae := []linguistics.Mora{
 		{Text: "き", Vowel: "i"},
 		{Text: "は", Vowel: "a"},
 		{Pause: true},

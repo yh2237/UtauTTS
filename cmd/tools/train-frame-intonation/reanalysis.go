@@ -5,7 +5,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/yh2237/UtauTTS/internal/frontend"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/openjtalk"
 )
 
@@ -80,7 +80,7 @@ func applyAnalysis(row *record, a *openjtalk.Analysis) {
 		}
 		start = end
 	}
-	morae, err := frontend.ParseKana(a.Reading)
+	morae, err := linguistics.ParseKana(a.Reading)
 	if err == nil && len(morae) == len(row.Tokens) {
 		for i := range row.Tokens {
 			if row.Tokens[i].Vowel == "" {
