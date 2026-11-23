@@ -1,8 +1,9 @@
 //go:build !js
 
-package tts
+package reference
 
 import (
+	"github.com/yh2237/UtauTTS/internal/tts"
 	"math"
 	"reflect"
 	"testing"
@@ -55,7 +56,7 @@ func TestBuildPhonePlansSplitsConsonantAndVowel(t *testing.T) {
 		{Phones: []linguistics.Phone{{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"}, {Symbol: "n", Role: "coda"}}},
 		{Pause: true},
 	}
-	cfg := Config{ConsonantMS: []float64{80, 0}, VowelMS: []float64{160, 0}}
+	cfg := tts.Config{ConsonantMS: []float64{80, 0}, VowelMS: []float64{160, 0}}
 	plans, err := buildPhonePlans(cfg, morae)
 	if err != nil {
 		t.Fatal(err)
@@ -90,7 +91,7 @@ func TestReferencePhonePlansKeepsUnspecifiedSide(t *testing.T) {
 	morae := []linguistics.Mora{{Phones: []linguistics.Phone{{Symbol: "k", Role: "onset"}, {Symbol: "a", Role: "nucleus"}}}}
 	timing := refspeech.Timing{Durations: []int{2, 6}}
 	tokens := [][]int{{0, 1}}
-	plans, err := buildPhonePlans(Config{ConsonantMS: []float64{200}, VowelMS: []float64{0}}, morae)
+	plans, err := buildPhonePlans(tts.Config{ConsonantMS: []float64{200}, VowelMS: []float64{0}}, morae)
 	if err != nil {
 		t.Fatal(err)
 	}

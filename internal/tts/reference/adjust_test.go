@@ -1,8 +1,9 @@
 //go:build !js
 
-package tts
+package reference
 
 import (
+	"github.com/yh2237/UtauTTS/internal/tts"
 	"math"
 	"testing"
 
@@ -13,7 +14,7 @@ import (
 func TestReferenceUnitAdjustmentsSkipPauses(t *testing.T) {
 	morae := []linguistics.Mora{{Text: "a"}, {Pause: true}, {Text: "i"}}
 	pitch, volume := 2.0, 50
-	cents, gain, err := referenceUnitAdjustments(Config{UnitOverrides: []plan.UnitOverride{
+	cents, gain, err := referenceUnitAdjustments(tts.Config{UnitOverrides: []plan.UnitOverride{
 		{Index: 1, PitchFactor: &pitch, ResamplerVolume: &volume},
 	}}, morae)
 	if err != nil {
@@ -22,7 +23,7 @@ func TestReferenceUnitAdjustmentsSkipPauses(t *testing.T) {
 	if math.Abs(cents[2]-1200) > 1e-9 || gain[2] != 0.5 || len(cents) != 1 || len(gain) != 1 {
 		t.Fatalf("cents = %v, gain = %v", cents, gain)
 	}
-	if _, _, err := referenceUnitAdjustments(Config{UnitOverrides: []plan.UnitOverride{{Index: 2}}}, morae); err == nil {
+	if _, _, err := referenceUnitAdjustments(tts.Config{UnitOverrides: []plan.UnitOverride{{Index: 2}}}, morae); err == nil {
 		t.Fatal("out-of-range unit was accepted")
 	}
 }

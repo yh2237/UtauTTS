@@ -112,7 +112,7 @@ func TestResolveManualPitchCombinesLayersBeforeConstraining(t *testing.T) {
 	for _, step := range []float64{5, 10} {
 		manual := &prosody.ManualPitchFile{Version: 1, Reading: "ア", Mode: "frames", FrameMS: step,
 			Points: []prosody.ManualPitchPoint{{Position: 0, Cents: 100}}, Frames: []float64{0, 25, 0}}
-		curve, mode, err := resolveManualPitchCurve(Config{ManualPitch: manual}, "ア",
+		curve, mode, err := ResolveManualPitchCurve(Config{ManualPitch: manual}, "ア",
 			[]linguistics.Mora{{Text: "ア"}}, []prosody.MoraTiming{{DurationMS: 100}}, 100)
 		if err != nil || mode != "frames" {
 			t.Fatalf("mode=%q error=%v", mode, err)
@@ -243,6 +243,7 @@ func TestAutomaticPitchCurveKeepsLowSourceIntonationBlend(t *testing.T) {
 func TestPredictProsodyDoesNotRenderAudio(t *testing.T) {
 	features := []prosody.FeatureFrame{{"marker": 1}, {"marker": 2}, {"marker": 3}}
 	preview, err := PredictProsody(Config{
+		Method:          MethodWaveformSynthesis,
 		Reading:         "あいう",
 		ProsodyFeatures: features,
 		MoraDurationMS:  100,
@@ -270,7 +271,7 @@ func TestPredictProsodyDoesNotRenderAudio(t *testing.T) {
 }
 
 func TestPredictProsodyUsesDefaultPauseDuration(t *testing.T) {
-	pause, err := PredictProsody(Config{Reading: "あ・い"})
+	pause, err := PredictProsody(Config{Method: MethodWaveformSynthesis, Reading: "あ・い"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,11 +312,11 @@ func testSynthesisBank(t *testing.T, aliases ...string) string {
 
 func TestPreviewAndSynthesisShareCanonicalMoraDefault(t *testing.T) {
 	root := testSynthesisBank(t, "あ", "か")
-	preview, err := PredictProsody(Config{VoicebankPath: root, Reading: "あか"})
+	preview, err := PredictProsody(Config{Method: MethodWaveformSynthesis, VoicebankPath: root, Reading: "あか"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := Synthesize(Config{VoicebankPath: root, Reading: "あか"})
+	result, err := Synthesize(Config{Method: MethodWaveformSynthesis, VoicebankPath: root, Reading: "あか"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -332,7 +333,7 @@ func TestPreviewAndSynthesisShareCanonicalMoraDefault(t *testing.T) {
 func TestSynthesizePitchOverrideDoesNotChangeCachedProsody(t *testing.T) {
 	ClearCaches()
 	t.Cleanup(ClearCaches)
-	cfg := Config{VoicebankPath: testSynthesisBank(t, "あ", "か"), Reading: "あか",
+	cfg := Config{Method: MethodWaveformSynthesis, VoicebankPath: testSynthesisBank(t, "あ", "か"), Reading: "あか",
 		PitchFactors: []float64{1.1, 0.9}}
 	overridden, err := Synthesize(cfg)
 	if err != nil {
@@ -538,6 +539,7 @@ func TestVoicebankCacheInvalidatedByClearCaches(t *testing.T) {
 func TestSynthesizePropagatesAliasPolicyIntoPlan(t *testing.T) {
 	root := testSynthesisBank(t, "- あ", "a か", "あ", "か")
 	result, err := Synthesize(Config{
+		Method:        MethodWaveformSynthesis,
 		VoicebankPath: root, Reading: "あか", MoraDurationMS: 100,
 		AliasPolicy: voicebank.AliasPolicyCVOnly,
 	})
@@ -562,7 +564,7 @@ func TestSynthesizePropagatesAliasPolicyIntoPlan(t *testing.T) {
 
 func TestSynthesizeUsesCVVCTransitionInAutoMode(t *testing.T) {
 	root := testSynthesisBank(t, "あ", "か", "a k")
-	result, err := Synthesize(Config{VoicebankPath: root, Reading: "あか", MoraDurationMS: 100})
+	result, err := Synthesize(Config{Method: MethodWaveformSynthesis, VoicebankPath: root, Reading: "あか", MoraDurationMS: 100})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,7 +1,8 @@
-package tts
+package reference
 
 import (
 	"fmt"
+	"github.com/yh2237/UtauTTS/internal/tts"
 	"math"
 
 	"github.com/yh2237/UtauTTS/internal/linguistics"
@@ -19,7 +20,7 @@ type phonePlan struct {
 
 // buildPhonePlansは、設定された音素の指定をモーラごとの計画へまとめる。
 // 配列は休止を含む全モーラと同じ長さで、休止は0にする。
-func buildPhonePlans(cfg Config, morae []linguistics.Mora) ([]phonePlan, error) {
+func buildPhonePlans(cfg tts.Config, morae []linguistics.Mora) ([]phonePlan, error) {
 	if len(cfg.ConsonantMS) == 0 && len(cfg.VowelMS) == 0 && len(cfg.PhoneWeights) == 0 {
 		return nil, nil
 	}

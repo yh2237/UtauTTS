@@ -1,4 +1,4 @@
-package tts
+package reference
 
 // ReferenceReadは外で求めたKokoroの読み。AudioがnilならDurationsとF0だけ。
 type ReferenceRead struct {

@@ -53,7 +53,7 @@ func resolveSynthesisPitch(cfg Config, profile languageProfile, loadedProsody *p
 		pitchCurve = profile.ApplyBoundaryTone(cfg, pitchCurve, finalPhraseEndMS(morae, curveTimings), finalPhraseIsQuestion(cfg.Text))
 	}
 	automaticPitchCurve := pitchCurve
-	manualContour, manualMode, err := resolveManualPitchCurve(cfg, reading, morae, curveTimings, curveDurationMS)
+	manualContour, manualMode, err := ResolveManualPitchCurve(cfg, reading, morae, curveTimings, curveDurationMS)
 	if err != nil {
 		return synthesisPitch{}, err
 	}
@@ -91,7 +91,7 @@ func offsetPitchCurve(curve *render.PitchCurve, cents float64) *render.PitchCurv
 }
 
 // resolveManualPitchCurveは手動ピッチを読み込み、検証して制限済みの補正曲線を返す。
-func resolveManualPitchCurve(cfg Config, reading string, morae []linguistics.Mora, timings []prosody.MoraTiming, durationMS float64) (*prosody.PitchContour, string, error) {
+func ResolveManualPitchCurve(cfg Config, reading string, morae []linguistics.Mora, timings []prosody.MoraTiming, durationMS float64) (*prosody.PitchContour, string, error) {
 	manual := cfg.ManualPitch
 	if manual == nil && cfg.ManualPitchPath != "" {
 		loaded, err := prosody.LoadManualPitch(cfg.ManualPitchPath)

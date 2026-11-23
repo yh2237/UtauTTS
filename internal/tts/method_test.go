@@ -42,14 +42,6 @@ func TestMethodCapabilityGating(t *testing.T) {
 		t.Fatalf("Synthesize zh waveform error = %v", err)
 	}
 
-	if _, err := PredictProsody(Config{
-		Method:   MethodReferenceMatching,
-		Language: linguistics.LanguageJapanese,
-		Reading:  "コンニチハ",
-	}); err == nil || !strings.Contains(err.Error(), `reference synthesis is not available for "ja"`) {
-		t.Fatalf("PredictProsody ja reference error = %v", err)
-	}
-
 	preview, err := PredictProsody(Config{
 		Method:     MethodWaveformSynthesis,
 		Language:   linguistics.LanguageEnglish,

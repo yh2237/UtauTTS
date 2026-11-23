@@ -1,7 +1,8 @@
-package tts
+package reference
 
 import (
 	"fmt"
+	"github.com/yh2237/UtauTTS/internal/tts"
 	"math"
 
 	"github.com/yh2237/UtauTTS/internal/linguistics"
@@ -12,7 +13,7 @@ const moraAdjustRampMS = 20.0
 
 // referenceUnitAdjustmentsは、拡張編集のPIT（pitch_factor）とVOL（resampler_volume・energy_factor）を、
 // モーラの番号ごとのセントと音量の倍率にする。参照照合の音素は休止でないモーラの順に並ぶ。
-func referenceUnitAdjustments(cfg Config, morae []linguistics.Mora) (map[int]float64, map[int]float64, error) {
+func referenceUnitAdjustments(cfg tts.Config, morae []linguistics.Mora) (map[int]float64, map[int]float64, error) {
 	var units []int
 	for index, mora := range morae {
 		if !mora.Pause {

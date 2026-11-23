@@ -1,9 +1,10 @@
-package tts
+package reference
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/yh2237/UtauTTS/internal/tts"
 	"math"
 	"os"
 	"path/filepath"
@@ -151,7 +152,7 @@ func englishLexicon(dir string) (*refspeech.Lexicon, error) {
 
 // referenceInputsは、言語に合う参照TTSを選び、モーラ長を話速に、抑揚の強さをF0の動きの幅に、
 // 音高をF0の中心に直す。
-func referenceInputs(cfg Config, utterance linguistics.Utterance) (*refspeech.Service, refspeech.Provider, []refspeech.Piece, refspeech.Options, error) {
+func referenceInputs(cfg tts.Config, utterance linguistics.Utterance) (*refspeech.Service, refspeech.Provider, []refspeech.Piece, refspeech.Options, error) {
 	if !refspeech.SupportsProviderLanguage(utterance.Language) {
 		return nil, nil, nil, refspeech.Options{}, fmt.Errorf("reference synthesis is not available for %q", utterance.Language)
 	}
@@ -185,14 +186,14 @@ func referenceInputs(cfg Config, utterance linguistics.Utterance) (*refspeech.Se
 }
 
 // referenceManualPitchは手動の抑揚を、最初のモーラの始まりからのミリ秒ごとのセントにする。
-func referenceManualPitch(cfg Config, reading string, morae []linguistics.Mora, durations []float64) (func(float64) float64, bool, error) {
+func referenceManualPitch(cfg tts.Config, reading string, morae []linguistics.Mora, durations []float64) (func(float64) float64, bool, error) {
 	timings := make([]prosody.MoraTiming, len(morae))
 	cursor := 0.0
 	for i, d := range durations {
 		timings[i] = prosody.MoraTiming{StartMS: cursor, DurationMS: d}
 		cursor += d
 	}
-	contour, mode, err := resolveManualPitchCurve(cfg, reading, morae, timings, cursor)
+	contour, mode, err := tts.ResolveManualPitchCurve(cfg, reading, morae, timings, cursor)
 	if err != nil || contour == nil {
 		return nil, false, err
 	}
@@ -210,7 +211,7 @@ func hasManualMoraDurations(durations []float64) bool {
 }
 
 // synthesizeReferenceは文を参照TTSで読み、音源のフレームで合成し直す。
-func synthesizeReference(cfg Config, bank *voicebank.Bank, utterance linguistics.Utterance) (*Result, error) {
+func synthesizeReference(cfg tts.Config, bank *voicebank.Bank, utterance linguistics.Utterance) (*tts.Result, error) {
 	morae := utterance.Morae
 	language := utterance.Language
 	phonemizerID := utterance.Phonemizer
@@ -293,7 +294,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, utterance linguistics
 		LeadingMarginMS: leading, Morae: append([]linguistics.Mora(nil), morae...),
 		DurationMS: float64(len(speech.Audio)) * 1000 / float64(speech.SampleRate),
 	}
-	result := &Result{Voicebank: bank, Plan: synthesisPlan, Audio: pcm,
+	result := &tts.Result{Voicebank: bank, Plan: synthesisPlan, Audio: pcm,
 		MoraDurationsMS: durations, MoraPositionsMS: make([]float64, len(morae)), PitchPoints: make([]float64, len(morae))}
 	center := referenceCenterHz(speech.AutomaticF0)
 	cursor := 0.0
@@ -316,7 +317,7 @@ func synthesizeReference(cfg Config, bank *voicebank.Bank, utterance linguistics
 
 // predictReferenceは、参照TTSの読みだけからモーラ長と抑揚を返す。音源は使わない。
 // 手動のモーラ長があれば、その長さで読んだときの抑揚を返す。
-func predictReference(cfg Config, utterance linguistics.Utterance) (*ProsodyPreview, error) {
+func predictReference(cfg tts.Config, utterance linguistics.Utterance) (*tts.ProsodyPreview, error) {
 	morae := utterance.Morae
 	reading := utterance.Reading
 	if err := plan.ValidateMoraDurations(morae, cfg.MoraDurationsMS); err != nil {
@@ -340,7 +341,7 @@ func predictReference(cfg Config, utterance linguistics.Utterance) (*ProsodyPrev
 		f0 = refspeech.WarpF0(refspeech.NewWarp(sourceDurations, durations), leading, f0)
 	}
 	center := referenceCenterHz(f0)
-	result := &ProsodyPreview{
+	result := &tts.ProsodyPreview{
 		Reading: reading, Morae: append([]linguistics.Mora(nil), morae...), MoraDurationsMS: durations,
 		MoraPositionsMS: make([]float64, len(morae)), PitchPoints: make([]float64, len(morae)),
 		FramePitchCurve: referencePitchCurve(f0, center, leading, options.PitchScale),
@@ -358,7 +359,7 @@ func predictReference(cfg Config, utterance linguistics.Utterance) (*ProsodyPrev
 }
 
 // referenceTimingは、参照の記号の範囲と、参照・出力それぞれのモーラの長さを求める。
-func referenceTiming(cfg Config, provider refspeech.Provider, pieces []refspeech.Piece, timing refspeech.Timing, utterance linguistics.Utterance) (moraTokens [][]int, plans []phonePlan, source []float64, target []float64, err error) {
+func referenceTiming(cfg tts.Config, provider refspeech.Provider, pieces []refspeech.Piece, timing refspeech.Timing, utterance linguistics.Utterance) (moraTokens [][]int, plans []phonePlan, source []float64, target []float64, err error) {
 	morae := utterance.Morae
 	moraTokens = provider.AlignMoraTokens(pieces, timing, utterance)
 	plans, err = buildPhonePlans(cfg, morae)
@@ -506,4 +507,17 @@ func referenceAudio(speech refspeech.Speech, durations []float64, unitGain map[i
 		pcm.Data[i] = int16(math.Round(math.Max(-1, math.Min(1, v*scale)) * 32767))
 	}
 	return pcm
+}
+
+// methodは、参照TTSの読み上げに近いフレームを音源から選んで合成する方式。
+type method struct{}
+
+func init() { tts.RegisterMethod(tts.MethodReferenceMatching, method{}) }
+
+func (method) Synthesize(cfg tts.Config, utterance linguistics.Utterance) (*tts.Result, error) {
+	return synthesizeReference(cfg, cfg.Voicebank, utterance)
+}
+
+func (method) PredictProsody(cfg tts.Config, utterance linguistics.Utterance) (*tts.ProsodyPreview, error) {
+	return predictReference(cfg, utterance)
 }

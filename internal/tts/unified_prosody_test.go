@@ -58,7 +58,7 @@ func TestUnifiedProsodyReleaseBaseline(t *testing.T) {
 			t.Fatalf("energy[%d] = %g, want %g", index, got, want)
 		}
 	}
-	preview, err := PredictProsody(Config{Reading: "あか、さな", ProsodyModel: model, ProsodyFeatures: features,
+	preview, err := PredictProsody(Config{Method: MethodWaveformSynthesis, Reading: "あか、さな", ProsodyModel: model, ProsodyFeatures: features,
 		ApplyPitch: true, IntonationStrength: 4,
 		ReleaseSet: true})
 	if err != nil {

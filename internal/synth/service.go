@@ -18,6 +18,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/tts"
+	"github.com/yh2237/UtauTTS/internal/tts/reference"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 	"github.com/yh2237/UtauWLD/worldrender"
 )
@@ -32,8 +33,8 @@ const (
 
 // ReferenceReadとReferenceFeaturesは、Web版が外で計算した参照照合の推論結果。
 type (
-	ReferenceRead     = tts.ReferenceRead
-	ReferenceFeatures = tts.ReferenceFeatures
+	ReferenceRead     = reference.ReferenceRead
+	ReferenceFeatures = reference.ReferenceFeatures
 )
 
 // SourcePathsは、合成で読む原音のパスを返す。Web版が先に読み込むために使う。
@@ -426,22 +427,22 @@ func (s *Service) PrepareReferenceIndex(bank *voicebank.Bank) {
 	if err != nil {
 		return
 	}
-	tts.PrepareReferenceIndex(s.referenceDir(), bank, worldEnginePath)
+	reference.PrepareReferenceIndex(s.referenceDir(), bank, worldEnginePath)
 }
 
 // ReferenceIndexProgressは索引の作成の進み具合を返す。
 func (s *Service) ReferenceIndexProgress() refspeech.Progress {
-	return tts.ReferenceIndexProgress()
+	return reference.ReferenceIndexProgress()
 }
 
 // ReferenceIndexesは保存済みの索引を返す。
 func (s *Service) ReferenceIndexes() ([]refspeech.IndexInfo, error) {
-	return tts.ReferenceIndexes()
+	return reference.ReferenceIndexes()
 }
 
 // DeleteReferenceIndexは保存済みの索引を名前で消す。作成中の索引があれば消さない。
 func (s *Service) DeleteReferenceIndex(name string) (bool, error) {
-	return tts.DeleteReferenceIndex(name)
+	return reference.DeleteReferenceIndex(name)
 }
 
 // BuildReferenceIndexは指定した音源と声色の索引を裏で準備する。
@@ -454,7 +455,7 @@ func (s *Service) BuildReferenceIndex(request Request) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return tts.PrepareReferenceIndexStatus(cfg.ReferenceDir, bank, cfg.Color, cfg.WorldEnginePath)
+	return reference.PrepareReferenceIndexStatus(cfg.ReferenceDir, bank, cfg.Color, cfg.WorldEnginePath)
 }
 
 // FeatureDeviceは、直近の特徴量計算に使ったデバイスを返す。
@@ -463,12 +464,12 @@ func (s *Service) FeatureDevice() string {
 }
 
 // ProvideReferenceInferenceは、Web版で外に頼んだ推論の結果を渡す。
-func (s *Service) ProvideReferenceInference(reads []tts.ReferenceRead, features []tts.ReferenceFeatures, prefetched []string) error {
-	return tts.ProvideReferenceInference(s.referenceDir(), reads, features, prefetched)
+func (s *Service) ProvideReferenceInference(reads []reference.ReferenceRead, features []reference.ReferenceFeatures, prefetched []string) error {
+	return reference.ProvideReferenceInference(s.referenceDir(), reads, features, prefetched)
 }
 
-func (s *Service) ReferenceProviders() []tts.ReferenceProviderInfo {
-	return tts.ReferenceProviders(s.referenceDir())
+func (s *Service) ReferenceProviders() []reference.ReferenceProviderInfo {
+	return reference.ReferenceProviders(s.referenceDir())
 }
 
 // referenceDirは、抑揚モデルのあるフォルダのうち、参照照合のモデルを置いたフォルダを返す。
@@ -477,7 +478,7 @@ func (s *Service) referenceDir() string {
 		return ""
 	}
 	for _, model := range s.catalog.Models {
-		dir := filepath.Join(filepath.Dir(model.Path), tts.ReferenceDir)
+		dir := filepath.Join(filepath.Dir(model.Path), reference.ReferenceDir)
 		if info, err := os.Stat(dir); err == nil && info.IsDir() {
 			return dir
 		}
