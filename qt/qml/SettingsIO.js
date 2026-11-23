@@ -43,6 +43,12 @@ function applySettings(draft, backend) {
                                  draft.redoShortcut,
                                  draft.exportShortcut,
                                  draft.exportAllShortcut);
+    const synthesisSettings = draft.synthesisSettings || {};
+    const settingIds = Object.keys(synthesisSettings);
+    for (let index = 0; index < settingIds.length; ++index) {
+        const id = settingIds[index];
+        backend.setSynthesisSetting(id, synthesisSettings[id]);
+    }
 }
 
 // loadCurrentは、バックエンドの設定を編集中の値へ読み込む。
@@ -74,6 +80,17 @@ function loadCurrent(draft, backend, valid) {
     draft.redoShortcut = backend.redoShortcut;
     draft.exportShortcut = backend.exportShortcut;
     draft.exportAllShortcut = backend.exportAllShortcut;
+
+    const synthesisSettings = {};
+    const definitions = backend.settingDefinitions || [];
+    for (let index = 0; index < definitions.length; ++index) {
+        const setting = definitions[index] || {};
+        const id = String(setting.id || "");
+        if (!id.length)
+            continue;
+        synthesisSettings[id] = backend.synthesisSetting(id, setting.default);
+    }
+    draft.synthesisSettings = synthesisSettings;
 }
 
 // defaultsは、各項目の初期値。defaultModelIdだけはカタログの先頭を使う。

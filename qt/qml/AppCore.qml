@@ -63,6 +63,20 @@ QtObject {
                 ? configured : (core.backend.models.length ? core.backend.models[0].id : "none");
     }
 
+    function modelsForLanguage(language) {
+        const normalized = String(language || "ja").toLowerCase();
+        const result = [];
+        const list = core.backend.models || [];
+        for (let index = 0; index < list.length; ++index) {
+            const model = list[index];
+            const modelLanguage = String((model && model.language) || "").trim().toLowerCase();
+            if (normalized === "ja" ? (!modelLanguage.length || modelLanguage === "ja")
+                                    : modelLanguage === normalized)
+                result.push(model);
+        }
+        return result;
+    }
+
     function defaultModelIdForLanguage(language) {
         const normalized = String(language || "ja").toLowerCase();
         if (normalized === "en" || normalized === "zh") {

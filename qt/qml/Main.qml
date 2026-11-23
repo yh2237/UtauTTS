@@ -1244,6 +1244,7 @@ ApplicationWindow {
     function defaultModelId() { return core.defaultModelId(); }
 
     function defaultModelIdForLanguage(language) { return core.defaultModelIdForLanguage(language); }
+    function modelsForLanguage(language) { return core.modelsForLanguage(language); }
 
     function normalizeAliasPolicy(value) { return core.normalizeAliasPolicy(value); }
 

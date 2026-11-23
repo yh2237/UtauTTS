@@ -373,6 +373,56 @@ function sharedState(items) {
   return context;
 }
 
+test("synthesis settings stay in the draft until Apply or OK", () => {
+  const settings = vm.runInNewContext(source("qt/qml/SettingsIO.js")
+    .replace(/^\uFEFF?\.pragma library\s*/, "") + "\n({ loadCurrent, applySettings })");
+  const saved = { intonation_strength: 4 };
+  const writes = [];
+  const backend = {
+    settingDefinitions: [
+      { id: "intonation_strength", default: 2 },
+      { id: "boundary_tone", default: true },
+      { id: "alias_policy", default: "auto" },
+      { id: "" },
+      null,
+    ],
+    synthesisSetting: (id, fallback) => saved[id] ?? fallback,
+    setSynthesisSetting(id, value) {
+      writes.push([id, value]);
+      saved[id] = value;
+    },
+  };
+  for (const setter of [
+    "setSynthesisDefaults", "setDarkMode", "setLanguage", "setFfmpegPath",
+    "setAudioOutputDeviceId", "setCloseLogOnSuccess", "setUpdateCheckEnabled",
+    "setPreReleaseUpdateCheckEnabled", "setPreviewCacheFileCount",
+    "setAutoPreviewEnabled", "setExtendedDetailsVisible", "setDefaultVoicebank",
+    "setExportTextEncoding", "setExportDirectory", "setExportOverwrite", "setShortcutSequences",
+  ]) {
+    backend[setter] = () => {};
+  }
+  const draft = {};
+  const valid = { voicebank: value => value, model: value => value };
+  const initial = { intonation_strength: 4, boundary_tone: true, alias_policy: "auto" };
+  const edited = { intonation_strength: 0, boundary_tone: false, alias_policy: "cv-only" };
+
+  settings.loadCurrent(draft, backend, valid);
+  assert.deepEqual({ ...draft.synthesisSettings }, initial);
+  draft.synthesisSettings = { ...draft.synthesisSettings, ...edited };
+  assert.deepEqual(saved, { intonation_strength: 4 });
+  settings.loadCurrent(draft, backend, valid);
+  assert.deepEqual({ ...draft.synthesisSettings }, initial);
+  assert.deepEqual(writes, []);
+  assert.deepEqual(saved, { intonation_strength: 4 });
+
+  draft.synthesisSettings = { ...draft.synthesisSettings, ...edited };
+  settings.applySettings(draft, backend);
+  assert.deepEqual(writes, Object.entries(edited));
+  assert.deepEqual(saved, edited);
+  settings.loadCurrent(draft, backend, valid);
+  assert.deepEqual({ ...draft.synthesisSettings }, edited);
+});
+
 test("synthesis requests preserve both pitch layers and the frame sample interval", () => {
   const synthesis = vm.runInNewContext(source("qt/qml/SynthesisRequest.js")
     .replace(/^\.pragma library\s*/, "") + "; synthesis");

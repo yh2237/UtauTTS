@@ -350,7 +350,7 @@ import UtauTTS.Media
                                 window.updateUtteranceField("voicebankId", currentValue);
                                 const voice = window.voicebankById(currentValue);
                                 window.utterancesModel.setProperty(window.selectedIndex, "imagePath", voice ? voice.image_path : "");
-                                if (voice && voice.suggested_language) {
+                                if (voice && voice.suggested_language && !String(window.current().content || "").trim().length) {
                                     const language = String(voice.suggested_language);
                                     const phonemizer = "auto";
                                     const method = window.defaultMethod(language);
@@ -419,7 +419,7 @@ import UtauTTS.Media
                             Layout.fillWidth: true
                             visible: window.appBackend.error.length > 0 || window.playbackError.length > 0
                             text: window.appBackend.error.length > 0 ? window.appBackend.error : window.playbackError
-                            color: window.palette.text
+                            color: Theme.negative
                             wrapMode: Text.Wrap
                             font.pixelSize: Theme.fontSmall
                         }
@@ -494,6 +494,11 @@ import UtauTTS.Media
                                 editable: true
                                 value: Math.round(intonationSlider.value * 100)
                                 textFromValue: value => (value / 100).toFixed(2)
+                                Binding {
+                                    target: intonationInput.contentItem
+                                    property: "text"
+                                    value: intonationInput.textFromValue(intonationInput.value, intonationInput.locale)
+                                }
                                 valueFromText: text => Math.round(parseFloat(text) * 100)
                                 onValueModified: {
                                     intonationSlider.value = value / 100;
@@ -552,6 +557,11 @@ import UtauTTS.Media
                                 editable: true
                                 value: Math.round(moraSlider.value)
                                 textFromValue: value => value + " ms"
+                                Binding {
+                                    target: moraInput.contentItem
+                                    property: "text"
+                                    value: moraInput.textFromValue(moraInput.value, moraInput.locale)
+                                }
                                 valueFromText: text => parseInt(text)
                                 onValueModified: {
                                     moraSlider.value = value;
@@ -585,6 +595,11 @@ import UtauTTS.Media
                                 editable: true
                                 value: Math.round(pauseSlider.value)
                                 textFromValue: value => value + " ms"
+                                Binding {
+                                    target: pauseInput.contentItem
+                                    property: "text"
+                                    value: pauseInput.textFromValue(pauseInput.value, pauseInput.locale)
+                                }
                                 valueFromText: text => parseInt(text)
                                 onValueModified: {
                                     pauseSlider.value = value;
@@ -619,6 +634,11 @@ import UtauTTS.Media
                                 editable: true
                                 value: Math.round(volumeSlider.value)
                                 textFromValue: value => value + " %"
+                                Binding {
+                                    target: volumeInput.contentItem
+                                    property: "text"
+                                    value: volumeInput.textFromValue(volumeInput.value, volumeInput.locale)
+                                }
                                 valueFromText: text => parseInt(text)
                                 onValueModified: {
                                     volumeSlider.value = value;
@@ -697,7 +717,7 @@ import UtauTTS.Media
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: Theme.spacingSmall
-                            visible: !editorSplitView.referenceMatching && (!window.utterancesModel.count || ["ja", "en"].indexOf(window.current().language || "ja") >= 0)
+                            visible: !editorSplitView.referenceMatching
                             Label {
                                 text: window.translator.tr("main.param.intonationModel")
                                 Layout.fillWidth: true
@@ -708,7 +728,8 @@ import UtauTTS.Media
                                 model: [{
                                     id: "none",
                                     display_name: window.translator.tr("main.modelNone")
-                                }].concat(window.appBackend.models)
+                                }].concat(window.modelsForLanguage(window.utterancesModel.count
+                                        ? window.current().language || "ja" : "ja"))
                                 textRole: "display_name"
                                 valueRole: "id"
                                 onActivated: window.updateUtteranceField("modelId", currentValue)

@@ -66,6 +66,22 @@ Item {
             root.translator.tr("settings.page.indexes")];
     }
 
+    function pendingSynthesisSetting(id, fallback) {
+        const map = root.draft.synthesisSettings || {};
+        const key = String(id);
+        return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : fallback;
+    }
+
+    function setPendingSynthesisSetting(id, value) {
+        const current = root.draft.synthesisSettings || {};
+        const key = String(id);
+        if (current[key] === value)
+            return;
+        const next = Object.assign({}, current);
+        next[key] = value;
+        root.draft.synthesisSettings = next;
+    }
+
     // 参照照合でも使う設定。方式ごとの欄の上に並べる。
     readonly property var commonSettingIds: ["intonation_strength", "mora_duration_ms"]
 
@@ -95,9 +111,7 @@ Item {
             return settingRow.modelData.default;
         }
         function storedValue() {
-            // 変更の通知を受けるためにsynthesisSettingsを読む。
-            root.backend.synthesisSettings;
-            return root.backend.synthesisSetting(
+            return root.pendingSynthesisSetting(
                 String(settingRow.modelData.id),
                 settingRow.settingFallback());
         }
@@ -137,7 +151,7 @@ Item {
                     : Math.round(parsed * settingRow.factor);
         }
         function applyValue(value) {
-            root.backend.setSynthesisSetting(
+            root.setPendingSynthesisSetting(
                 String(settingRow.modelData.id),
                 settingRow.actualValue(value));
         }
@@ -161,6 +175,7 @@ Item {
                       || settingRow.modelData.id)
         }
         SpinBox {
+            id: settingSpinBox
             visible: settingRow.settingType === "integer"
                      || settingRow.settingType === "number"
             Layout.preferredWidth: Theme.fieldWidth
@@ -173,6 +188,11 @@ Item {
             value: settingRow.scaledValue()
             editable: true
             textFromValue: value => settingRow.textValue(value)
+            Binding {
+                target: settingSpinBox.contentItem
+                property: "text"
+                value: settingSpinBox.textFromValue(settingSpinBox.value, settingSpinBox.locale)
+            }
             valueFromText: text => settingRow.parsedValue(text)
             onValueModified: settingRow.applyValue(value)
         }
@@ -180,7 +200,7 @@ Item {
             visible: settingRow.settingType === "boolean"
             Layout.alignment: Qt.AlignVCenter
             checked: !!settingRow.storedValue()
-            onToggled: root.backend.setSynthesisSetting(
+            onToggled: root.setPendingSynthesisSetting(
                 String(settingRow.modelData.id),
                 checked)
         }
@@ -191,13 +211,13 @@ Item {
             textRole: "label"
             valueRole: "value"
             currentIndex: count > 0 ? indexOfValue(String(settingRow.storedValue())) : -1
-            onActivated: root.backend.setSynthesisSetting(
+            onActivated: root.setPendingSynthesisSetting(
                 String(settingRow.modelData.id),
                 currentValue)
         }
         SettingsResetButton {
             translator: root.translator
-            onResetRequested: root.backend.setSynthesisSetting(
+            onResetRequested: root.setPendingSynthesisSetting(
                 String(settingRow.modelData.id),
                 settingRow.modelData.default)
         }
@@ -474,280 +494,323 @@ Item {
                         x: Theme.spacingLarge
                         y: Theme.spacingLarge
                         width: appearanceSettingsPage.availableWidth - 2 * Theme.spacingLarge
-                        spacing: Theme.spacing
+                        spacing: Theme.spacingXLarge
 
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
+                            spacing: Theme.spacing
+
                             Label {
                                 Layout.fillWidth: true
-                                text: root.translator.tr("settings.theme")
+                                font.bold: true
+                                text: root.translator.tr("settings.section.display")
                             }
-                            ComboBox {
-                                id: themeCombo
-                                Layout.preferredWidth: Theme.fieldWidth
-                                model: [root.translator.tr("settings.theme.light"), root.translator.tr("settings.theme.dark")]
-                                currentIndex: root.pendingDarkMode ? 1 : 0
-                                onActivated: root.pendingDarkMode = currentIndex === 1
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetTheme()
-                            }
-                        }
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
+                            RowLayout {
                                 Layout.fillWidth: true
-                                text: root.translator.tr("settings.language")
-                            }
-                            ComboBox {
-                                id: languageCombo
-                                Layout.preferredWidth: Theme.fieldWidth
-                                model: root.languageLabels()
-                                currentIndex: root.languageCodes.indexOf(root.pendingLanguage)
-                                onActivated: root.pendingLanguage = root.languageCodes[currentIndex]
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetLanguage()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.audioOutput")
-                            }
-                            ComboBox {
-                                id: audioOutputCombo
-                                Layout.preferredWidth: Theme.fieldWidthLarge
-                                model: root.audioOutputDeviceModel()
-                                textRole: "name"
-                                valueRole: "id"
-                                currentIndex: root.audioOutputDeviceIndex()
-                                onActivated: root.pendingAudioOutputDeviceId = currentValue
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetAudioOutputDevice()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            visible: Platform.hasExternalTools
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.ffmpegPath")
-                            }
-                            TextField {
-                                id: ffmpegPathField
-                                Layout.fillWidth: true
-                                placeholderText: root.translator.tr("settings.ffmpegPath.placeholder")
-                                text: root.pendingFfmpegPath
-                                selectByMouse: true
-                                onTextEdited: root.pendingFfmpegPath = text
-                            }
-                            Button {
-                                text: root.translator.tr("settings.ffmpegPath.choose")
-                                onClicked: ffmpegFolderDialog.open()
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetFfmpegPath()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.updateCheckEnabled")
-                            }
-                            Switch {
-                                id: updateCheckSwitch
-                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                checked: root.pendingUpdateCheckEnabled
-                                onToggled: root.pendingUpdateCheckEnabled = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetUpdateCheckEnabled()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.preReleaseUpdateCheckEnabled")
-                            }
-                            Switch {
-                                id: preReleaseUpdateSwitch
-                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                checked: root.pendingPreReleaseUpdateCheckEnabled
-                                onToggled: root.pendingPreReleaseUpdateCheckEnabled = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetPreReleaseUpdateCheckEnabled()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.autoPreview")
-                            }
-                            Switch {
-                                id: autoPreviewSwitch
-                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                checked: root.pendingAutoPreviewEnabled
-                                onToggled: root.pendingAutoPreviewEnabled = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetAutoPreviewEnabled()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.extendedDetails")
-                            }
-                            Switch {
-                                id: extendedDetailsSwitch
-                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                checked: root.pendingExtendedDetailsVisible
-                                onToggled: root.pendingExtendedDetailsVisible = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetExtendedDetailsVisible()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.translator.tr("settings.closeLogOnSuccess")
-                            }
-                            Switch {
-                                id: closeLogOnSuccessSwitch
-                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                checked: root.pendingCloseLogOnSuccess
-                                onToggled: root.pendingCloseLogOnSuccess = checked
-                            }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetCloseLogOnSuccess()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Label {
-                                text: root.translator.tr("settings.previewCacheFileCount")
-                                Layout.fillWidth: true
-                            }
-                            SpinBox {
-                                id: previewCacheSpin
-                                Layout.preferredWidth: Theme.fieldWidth
-                                from: 1
-                                to: 256
-                                value: root.pendingPreviewCacheFileCount
-                                editable: true
-                                property string unitText: root.translator.tr("settings.previewCacheFileCount.unit")
-                                textFromValue: value => value + " " + previewCacheSpin.unitText
-                                Binding {
-                                    target: previewCacheSpin.contentItem
-                                    property: "text"
-                                    value: previewCacheSpin.textFromValue(
-                                               previewCacheSpin.value,
-                                               previewCacheSpin.locale)
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: root.translator.tr("settings.theme")
                                 }
-                                valueFromText: text => parseInt(text)
-                                onValueModified: root.pendingPreviewCacheFileCount = value
-                                TapHandler {
-                                    acceptedButtons: Qt.LeftButton
-                                    grabPermissions: PointerHandler.CanTakeOverFromAnything
-                                    onDoubleTapped: root.pendingPreviewCacheFileCount = 32
+                                ComboBox {
+                                    id: themeCombo
+                                    Layout.preferredWidth: Theme.fieldWidth
+                                    model: [root.translator.tr("settings.theme.light"), root.translator.tr("settings.theme.dark")]
+                                    currentIndex: root.pendingDarkMode ? 1 : 0
+                                    onActivated: root.pendingDarkMode = currentIndex === 1
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetTheme()
                                 }
                             }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetPreviewCacheFileCount()
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: root.translator.tr("settings.language")
+                                }
+                                ComboBox {
+                                    id: languageCombo
+                                    Layout.preferredWidth: Theme.fieldWidth
+                                    model: root.languageLabels()
+                                    currentIndex: root.languageCodes.indexOf(root.pendingLanguage)
+                                    onActivated: root.pendingLanguage = root.languageCodes[currentIndex]
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetLanguage()
+                                }
                             }
                         }
 
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
+                            spacing: Theme.spacing
+
                             Label {
                                 Layout.fillWidth: true
-                                text: root.translator.tr("settings.exportTextEncoding")
+                                font.bold: true
+                                text: root.translator.tr("settings.section.audio")
                             }
-                            ComboBox {
-                                id: exportTextEncodingCombo
-                                Layout.preferredWidth: Theme.fieldWidth
-                                model: ["UTF-8", "Shift_JIS (CP932)"]
-                                currentIndex: root.pendingExportTextEncoding === "shift_jis" ? 1 : 0
-                                onActivated: root.pendingExportTextEncoding = currentIndex === 1 ? "shift_jis" : "utf-8"
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: root.translator.tr("settings.audioOutput")
+                                }
+                                ComboBox {
+                                    id: audioOutputCombo
+                                    Layout.preferredWidth: Theme.fieldWidthLarge
+                                    model: root.audioOutputDeviceModel()
+                                    textRole: "name"
+                                    valueRole: "id"
+                                    currentIndex: root.audioOutputDeviceIndex()
+                                    onActivated: root.pendingAudioOutputDeviceId = currentValue
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetAudioOutputDevice()
+                                }
                             }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetExportTextEncoding()
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                visible: Platform.hasExternalTools
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: root.translator.tr("settings.ffmpegPath")
+                                }
+                                TextField {
+                                    id: ffmpegPathField
+                                    Layout.fillWidth: true
+                                    placeholderText: root.translator.tr("settings.ffmpegPath.placeholder")
+                                    text: root.pendingFfmpegPath
+                                    selectByMouse: true
+                                    onTextEdited: root.pendingFfmpegPath = text
+                                }
+                                Button {
+                                    text: root.translator.tr("settings.ffmpegPath.choose")
+                                    onClicked: ffmpegFolderDialog.open()
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetFfmpegPath()
+                                }
                             }
                         }
 
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            visible: Platform.hasNativeFileDialog
+                            spacing: Theme.spacing
+
                             Label {
                                 Layout.fillWidth: true
-                                text: root.translator.tr("settings.exportDirectory")
+                                font.bold: true
+                                text: root.translator.tr("settings.section.behavior")
                             }
-                            TextField {
-                                id: exportDirectoryField
-                                Layout.preferredWidth: ffmpegPathField.visible ? ffmpegPathField.width : Theme.fieldWidthLarge
-                                text: root.pendingExportDirectory
-                                selectByMouse: true
-                                onTextEdited: root.pendingExportDirectory = text
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: root.translator.tr("settings.updateCheckEnabled")
+                                }
+                                Switch {
+                                    id: updateCheckSwitch
+                                    Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                    checked: root.pendingUpdateCheckEnabled
+                                    onToggled: root.pendingUpdateCheckEnabled = checked
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetUpdateCheckEnabled()
+                                }
                             }
-                            Button {
-                                text: root.translator.tr("settings.exportDirectory.choose")
-                                onClicked: exportFolderDialog.open()
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: root.translator.tr("settings.preReleaseUpdateCheckEnabled")
+                                }
+                                Switch {
+                                    id: preReleaseUpdateSwitch
+                                    Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                    checked: root.pendingPreReleaseUpdateCheckEnabled
+                                    onToggled: root.pendingPreReleaseUpdateCheckEnabled = checked
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetPreReleaseUpdateCheckEnabled()
+                                }
                             }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetExportDirectory()
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: root.translator.tr("settings.autoPreview")
+                                }
+                                Switch {
+                                    id: autoPreviewSwitch
+                                    Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                    checked: root.pendingAutoPreviewEnabled
+                                    onToggled: root.pendingAutoPreviewEnabled = checked
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetAutoPreviewEnabled()
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: root.translator.tr("settings.extendedDetails")
+                                }
+                                Switch {
+                                    id: extendedDetailsSwitch
+                                    Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                    checked: root.pendingExtendedDetailsVisible
+                                    onToggled: root.pendingExtendedDetailsVisible = checked
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetExtendedDetailsVisible()
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: root.translator.tr("settings.closeLogOnSuccess")
+                                }
+                                Switch {
+                                    id: closeLogOnSuccessSwitch
+                                    Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                    checked: root.pendingCloseLogOnSuccess
+                                    onToggled: root.pendingCloseLogOnSuccess = checked
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetCloseLogOnSuccess()
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: root.translator.tr("settings.previewCacheFileCount")
+                                    Layout.fillWidth: true
+                                }
+                                SpinBox {
+                                    id: previewCacheSpin
+                                    Layout.preferredWidth: Theme.fieldWidth
+                                    from: 1
+                                    to: 256
+                                    value: root.pendingPreviewCacheFileCount
+                                    editable: true
+                                    property string unitText: root.translator.tr("settings.previewCacheFileCount.unit")
+                                    textFromValue: value => value + " " + previewCacheSpin.unitText
+                                    Binding {
+                                        target: previewCacheSpin.contentItem
+                                        property: "text"
+                                        value: previewCacheSpin.textFromValue(
+                                                   previewCacheSpin.value,
+                                                   previewCacheSpin.locale)
+                                    }
+                                    valueFromText: text => parseInt(text)
+                                    onValueModified: root.pendingPreviewCacheFileCount = value
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton
+                                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                                        onDoubleTapped: root.resetPreviewCacheFileCount()
+                                    }
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetPreviewCacheFileCount()
+                                }
                             }
                         }
 
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            visible: Platform.hasNativeFileDialog
+                            spacing: Theme.spacing
+
                             Label {
                                 Layout.fillWidth: true
-                                text: root.translator.tr("settings.exportOverwrite")
+                                font.bold: true
+                                text: root.translator.tr("settings.section.export")
                             }
-                            Switch {
-                                id: exportOverwriteSwitch
-                                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                checked: root.pendingExportOverwrite
-                                onToggled: root.pendingExportOverwrite = checked
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: root.translator.tr("settings.exportTextEncoding")
+                                }
+                                ComboBox {
+                                    id: exportTextEncodingCombo
+                                    Layout.preferredWidth: Theme.fieldWidth
+                                    model: ["UTF-8", "Shift_JIS (CP932)"]
+                                    currentIndex: root.pendingExportTextEncoding === "shift_jis" ? 1 : 0
+                                    onActivated: root.pendingExportTextEncoding = currentIndex === 1 ? "shift_jis" : "utf-8"
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetExportTextEncoding()
+                                }
                             }
-                            SettingsResetButton {
-                                translator: root.translator
-                                onResetRequested: root.resetExportOverwrite()
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                visible: Platform.hasNativeFileDialog
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: root.translator.tr("settings.exportDirectory")
+                                }
+                                TextField {
+                                    id: exportDirectoryField
+                                    Layout.preferredWidth: ffmpegPathField.visible ? ffmpegPathField.width : Theme.fieldWidthLarge
+                                    text: root.pendingExportDirectory
+                                    selectByMouse: true
+                                    onTextEdited: root.pendingExportDirectory = text
+                                }
+                                Button {
+                                    text: root.translator.tr("settings.exportDirectory.choose")
+                                    onClicked: exportFolderDialog.open()
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetExportDirectory()
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                visible: Platform.hasNativeFileDialog
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: root.translator.tr("settings.exportOverwrite")
+                                }
+                                Switch {
+                                    id: exportOverwriteSwitch
+                                    Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                                    checked: root.pendingExportOverwrite
+                                    onToggled: root.pendingExportOverwrite = checked
+                                }
+                                SettingsResetButton {
+                                    translator: root.translator
+                                    onResetRequested: root.resetExportOverwrite()
+                                }
                             }
                         }
-
                     }
                 }
 

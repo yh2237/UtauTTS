@@ -25,7 +25,7 @@
   .row > div.auto { flex: 0 0 auto; }
   pre { background: #f5f5f5; border: 1px solid #ccc; padding: 8px; overflow-x: auto; font-size: 12px; }
   .error { color: #ff0000; }
-  .ok { color: #00ff62; }
+    .ok { color: #1b7f37; }
   .muted { color: #777; font-size: 12px; }
   code { background: #f0f0f0; padding: 1px 4px; font-size: 12px; }
   audio { width: 100%; margin-top: 8px; }
@@ -54,6 +54,14 @@
 
   <section id="analyze">
     <h2>解析 <span class="muted">POST /api/analyze</span></h2>
+    <label for="ana-language">言語</label>
+    <select id="ana-language">
+      <option value="ja">日本語</option>
+      <option value="en">英語</option>
+      <option value="zh">中国語</option>
+      <option value="es">スペイン語</option>
+      <option value="pt">ポルトガル語（ブラジル）</option>
+    </select>
     <label for="ana-text">文章（500文字まで）</label>
     <textarea id="ana-text">こんにちは、今日はいい天気です。</textarea>
     <label for="ana-dictionary">ユーザー辞書（任意、JSON配列）</label>
@@ -68,7 +76,14 @@
     <textarea id="syn-text">こんにちは、今日はいい天気です。</textarea>
     <div class="row">
       <div><label for="syn-reading">読み（任意：かな／ARPAbet／Pinyin）</label><input type="text" id="syn-reading"></div>
-      <div><label for="syn-language">言語</label><select id="syn-language"><option value="ja">日本語</option><option value="en">英語</option><option value="zh">中国語</option></select></div>
+      <div>
+        <label for="syn-method">合成方式</label>
+        <select id="syn-method">
+          <option value="waveform-synthesis">波形合成</option>
+          <option value="reference-matching">（beta）参照照合</option>
+        </select>
+      </div>
+      <div><label for="syn-language">言語</label><select id="syn-language"></select></div>
       <div><label for="syn-phonemizer">発音形式</label><select id="syn-phonemizer"></select></div>
       <div><label for="syn-tone">音高</label><input type="text" id="syn-tone" value=""></div>
     </div>
@@ -136,7 +151,7 @@
         <tr><td><span class="tag post">POST</span></td><td><code>/api/voicebanks/reload</code></td><td>音源ディレクトリの再読込</td></tr>
         <tr><td><span class="tag get">GET</span></td><td><code>/api/models</code></td><td>抑揚モデル一覧</td></tr>
         <tr><td><span class="tag get">GET</span></td><td><code>/api/settings</code></td><td>合成設定の一覧（既定値・範囲）</td></tr>
-        <tr><td><span class="tag post">POST</span></td><td><code>/api/analyze</code></td><td>文章→読み・モーラ列（<code>{"text":"..."}</code>、任意で<code>dictionary</code>）</td></tr>
+        <tr><td><span class="tag post">POST</span></td><td><code>/api/analyze</code></td><td>文章→読み・モーラ列（<code>{"text":"...","language":"ja"}</code>、任意で<code>dictionary</code>）</td></tr>
         <tr><td><span class="tag post">POST</span></td><td><code>/api/synthesize/audio</code></td><td>単一発話の合成。WAVを返す。ヘッダー<code>X-UtauTTS-Method</code>・<code>X-UtauTTS-Reading</code></td></tr>
         <tr><td><span class="tag post">POST</span></td><td><code>/api/synthesize/label</code></td><td>単一発話の合成。HTK形式の音素ラベルを返す</td></tr>
         <tr><td><span class="tag post">POST</span></td><td><code>/api/synthesize/report</code></td><td>単一発話の合成。診断の詳細をJSONで返す</td></tr>
@@ -168,6 +183,12 @@ const languageOptions = {
   ja: ["ja-kana"],
   en: ["en-arpasing", "en-delta", "en-vccv", "en-cv"],
   zh: ["zh-cvvc"],
+  es: ["es-syllable"],
+  pt: ["pt-syllable"],
+};
+const methodLanguages = {
+  "waveform-synthesis": ["ja"],
+  "reference-matching": ["en", "zh", "es", "pt"],
 };
 const languageModels = {
   ja: "frame-intonation-tcn-v12",
@@ -176,6 +197,8 @@ const exampleTexts = {
   ja: "こんにちは、今日はいい天気です。",
   en: "Hello world.",
   zh: "你好，今天天气很好。",
+  es: "Hola, hoy hace buen tiempo.",
+  pt: "Olá, hoje o tempo está bom.",
 };
 async function api(path, options) {
   const response = await fetch(path, options);
@@ -212,10 +235,14 @@ function parseJSONInput(id, expected) {
   return parsed;
 }
 
+function updateExampleText(id, language) {
+  const text = document.getElementById(id);
+  if (Object.values(exampleTexts).includes(text.value)) text.value = exampleTexts[language];
+}
+
 function updateLanguage() {
   const language = document.getElementById("syn-language").value;
-  const text = document.getElementById("syn-text");
-  if (Object.values(exampleTexts).includes(text.value)) text.value = exampleTexts[language];
+  updateExampleText("syn-text", language);
   const select = document.getElementById("syn-phonemizer");
   select.innerHTML = '<option value="">自動</option>' + languageOptions[language].map((id) =>
     '<option value="' + id + '">' + id + '</option>'
@@ -223,8 +250,23 @@ function updateLanguage() {
   const model = document.getElementById("syn-model");
   model.value = modelList.some((item) => item.id === languageModels[language]) ? languageModels[language] : "";
 }
+
+function updateSynthesisMethod() {
+  const method = document.getElementById("syn-method").value;
+  const analysisLanguages = document.getElementById("ana-language").options;
+  const select = document.getElementById("syn-language");
+  select.replaceChildren(...Array.from(analysisLanguages)
+    .filter((option) => methodLanguages[method].includes(option.value))
+    .map((option) => new Option(option.text, option.value)));
+  updateLanguage();
+}
+
+document.getElementById("ana-language").addEventListener("change", (event) => {
+  updateExampleText("ana-text", event.target.value);
+});
+document.getElementById("syn-method").addEventListener("change", updateSynthesisMethod);
 document.getElementById("syn-language").addEventListener("change", updateLanguage);
-updateLanguage();
+updateSynthesisMethod();
 
 async function loadHealth() {
   try {
@@ -326,10 +368,11 @@ document.getElementById("vb-refresh").addEventListener("click", async () => {
 
 document.getElementById("ana-run").addEventListener("click", async () => {
   const text = document.getElementById("ana-text").value;
+  const language = document.getElementById("ana-language").value;
   setResult("ana-result", "", "");
   try {
     const dictionary = parseJSONInput("ana-dictionary", "array");
-    const payload = dictionary ? { text, dictionary } : { text };
+    const payload = dictionary ? { text, language, dictionary } : { text, language };
     const { data } = await api("/api/analyze", {
       method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload),
     });
@@ -359,8 +402,7 @@ function buildSynthesisPayload() {
   if (voicebank) payload.voicebank_id = voicebank;
   if (reading) payload.reading = reading;
   payload.language = language;
-  // 波形合成は日本語だけ。ほかの言語は参照照合で読む。
-  payload.method = language === "ja" ? "waveform-synthesis" : "reference-matching";
+  payload.method = document.getElementById("syn-method").value;
   if (phonemizer) payload.phonemizer = phonemizer;
   if (tone) payload.tone = tone;
   if (color) payload.color = color;
@@ -404,7 +446,7 @@ document.getElementById("syn-run").addEventListener("click", async () => {
 
   try {
     const response = await postFile("/api/synthesize/audio", buildSynthesisPayload());
-    const engine = response.headers.get("X-UtauTTS-Engine");
+    const method = response.headers.get("X-UtauTTS-Method");
     const reading = response.headers.get("X-UtauTTS-Reading");
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
@@ -414,7 +456,7 @@ document.getElementById("syn-run").addEventListener("click", async () => {
     download.download = "utautts-synthesize.wav";
     download.style.display = "inline";
     let info = '<span class="ok">合成成功</span> (' + (blob.size / 1024).toFixed(1) + " KiB)";
-    if (engine) info += "<br>engine: <code>" + escapeHtml(engine) + "</code>";
+    if (method) info += "<br>method: <code>" + escapeHtml(method) + "</code>";
     if (reading) info += "<br>reading: <code>" + escapeHtml(reading) + "</code>";
     setResult("syn-result", info, "");
   } catch (error) {

@@ -6,6 +6,7 @@ QtObject {
     property string defaultModelId: "frame-intonation-tcn-v12"
     property string defaultAliasPolicy: "auto"
     property string defaultTone: ""
+    property var synthesisSettings: ({})
     property string exportTextEncoding: "utf-8"
     property string exportDirectory: ""
     property bool exportOverwrite: false
