@@ -8,13 +8,11 @@ T.ToolButton {
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
                             implicitContentWidth + leftPadding + rightPadding)
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
-                             implicitContentHeight + topPadding + bottomPadding)
+                             implicitContentHeight + topPadding + bottomPadding,
+                             20)
 
-    leftPadding: painter.paddingLeft
-    topPadding: painter.paddingTop
-    rightPadding: painter.paddingRight
-    bottomPadding: painter.paddingBottom
-    spacing: painter.spacing
+    padding: 6
+    spacing: 6
     icon.width: painter.extent
     icon.height: painter.extent
 

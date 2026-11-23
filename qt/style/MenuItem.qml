@@ -9,12 +9,13 @@ T.MenuItem {
                             implicitContentWidth + leftPadding + rightPadding,
                             painter.minimumWidth)
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
-                             implicitContentHeight + topPadding + bottomPadding)
+                             implicitContentHeight + topPadding + bottomPadding,
+                             20)
 
     leftPadding: painter.paddingLeft
-    topPadding: painter.paddingTop
+    topPadding: 6
     rightPadding: painter.paddingRight
-    bottomPadding: painter.paddingBottom
+    bottomPadding: 6
     icon.width: painter.extent
     icon.height: painter.extent
 

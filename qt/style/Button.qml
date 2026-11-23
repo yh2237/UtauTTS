@@ -9,7 +9,8 @@ T.Button {
                             implicitContentWidth + leftPadding + rightPadding,
                             text.length ? painter.minimumWidth : 0)
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
-                             implicitContentHeight + topPadding + bottomPadding)
+                             implicitContentHeight + topPadding + bottomPadding,
+                             24)
 
     leftPadding: painter.paddingLeft
     topPadding: painter.paddingTop

@@ -7,7 +7,8 @@ T.ToolBar {
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
                             contentWidth + leftPadding + rightPadding)
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
-                             contentHeight + topPadding + bottomPadding)
+                             contentHeight + topPadding + bottomPadding,
+                             26)
 
     leftPadding: painter.paddingLeft
     topPadding: painter.paddingTop

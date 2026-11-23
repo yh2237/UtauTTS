@@ -7,7 +7,8 @@ T.ProgressBar {
     implicitWidth: Math.max(implicitBackgroundWidth + leftInset + rightInset,
                             implicitContentWidth + leftPadding + rightPadding)
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
-                             implicitContentHeight + topPadding + bottomPadding)
+                             implicitContentHeight + topPadding + bottomPadding,
+                             24)
 
     topPadding: painter.paddingTop
     bottomPadding: painter.paddingBottom

@@ -12,9 +12,9 @@ T.RadioButton {
 
     leftPadding: 0
     rightPadding: 0
-    topPadding: indicator.paddingTop
-    bottomPadding: indicator.paddingBottom
-    spacing: indicator.spacing
+    topPadding: 6
+    bottomPadding: 6
+    spacing: 6
 
     indicator: StyleItem {
         implicitWidth: extent

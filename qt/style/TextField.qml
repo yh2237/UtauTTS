@@ -9,7 +9,8 @@ T.TextField {
                    || Math.max(contentWidth, placeholder.implicitWidth) + leftPadding + rightPadding
     implicitHeight: Math.max(implicitBackgroundHeight + topInset + bottomInset,
                              contentHeight + topPadding + bottomPadding,
-                             placeholder.implicitHeight + topPadding + bottomPadding)
+                             placeholder.implicitHeight + topPadding + bottomPadding,
+                             24)
 
     leftPadding: painter.paddingLeft
     topPadding: painter.paddingTop
