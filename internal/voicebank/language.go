@@ -1,36 +1,34 @@
 package voicebank
 
-import "strings"
+import (
+	"strings"
 
-const (
-	LanguageJapanese = "ja"
-	LanguageEnglish  = "en"
-	LanguageChinese  = "zh"
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 )
 
 func (b *Bank) SuggestedLanguage() (string, string) {
 	configured := strings.ToLower(b.DefaultPhonemizer)
 	if strings.Contains(configured, "chinese") {
-		return LanguageChinese, "zh-cvvc"
+		return linguistics.LanguageChinese, linguistics.PhonemizerChinese
 	}
 	if strings.Contains(configured, "englishvccv") {
-		return LanguageEnglish, "en-vccv"
+		return linguistics.LanguageEnglish, linguistics.PhonemizerEnglishVCCV
 	}
 	if strings.Contains(configured, "cpv") || strings.Contains(configured, "c+v") {
-		return LanguageEnglish, "en-cv"
+		return linguistics.LanguageEnglish, linguistics.PhonemizerEnglishCV
 	}
 	if strings.Contains(configured, "arpasing") {
-		return LanguageEnglish, "en-arpasing"
+		return linguistics.LanguageEnglish, linguistics.PhonemizerEnglish
 	}
 	if strings.Contains(configured, "xsampa") {
-		return LanguageEnglish, "en-delta"
+		return linguistics.LanguageEnglish, linguistics.PhonemizerEnglishDelta
 	}
 	// OpenUtauの英語の発音変換は、音源の直下にある自分の設定ファイルを読む。
 	for _, config := range []struct{ file, phonemizer string }{
-		{"envccv.yaml", "en-vccv"}, {"en-xsampa.yaml", "en-delta"}, {"en-cPv.yaml", "en-cv"},
+		{"envccv.yaml", linguistics.PhonemizerEnglishVCCV}, {"en-xsampa.yaml", linguistics.PhonemizerEnglishDelta}, {"en-cPv.yaml", linguistics.PhonemizerEnglishCV},
 	} {
 		if b.Root != "" && findRootFile(b.Root, config.file) != "" {
-			return LanguageEnglish, config.phonemizer
+			return linguistics.LanguageEnglish, config.phonemizer
 		}
 	}
 	// 音高ごとの収録は、別名に接頭辞・接尾辞が付く。
@@ -61,28 +59,28 @@ func (b *Bank) SuggestedLanguage() (string, string) {
 		return false
 	}
 	if has("-h@", "-hA", "-b&") {
-		return LanguageEnglish, "en-vccv"
+		return linguistics.LanguageEnglish, linguistics.PhonemizerEnglishVCCV
 	}
 	if has("- hV", "- h@", "V l", "@ l") && has("h{", "- h{") {
-		return LanguageEnglish, "en-delta"
+		return linguistics.LanguageEnglish, linguistics.PhonemizerEnglishDelta
 	}
 	// C+VはARPAbetの子音・母音を単音で録音し、-C/-V, C/V, C-/V- を持つ。
 	// 子音文脈のCV/VCを含むARPAsingとは「V -」終端と単音母音の有無で区別する。
 	if has("- aa", "- ah", "- ao") && has("aa -", "ah -", "ao -") && !has("hh ah", "ah l") {
-		return LanguageEnglish, "en-cv"
+		return linguistics.LanguageEnglish, linguistics.PhonemizerEnglishCV
 	}
 	// ARPAsingは「- hh」「hh ah」のような子音文脈の別名を持つ。単音だけのC+Vより先に見る。
 	if has("- hh", "hh ah", "ah l") || len(b.ARPAsing) > 0 {
-		return LanguageEnglish, "en-arpasing"
+		return linguistics.LanguageEnglish, linguistics.PhonemizerEnglish
 	}
 	// OpenUtauのC+V（en-cPv.yaml）は、ARPAbetの子音と母音を区切りなしの単音で録音する。
 	if has("aa", "ah", "ao", "eh", "ih", "iy") && has("hh", "jh", "dh", "ng") {
-		return LanguageEnglish, "en-cv"
+		return linguistics.LanguageEnglish, linguistics.PhonemizerEnglishCV
 	}
 	if has("- ni", "ni") && has("hao", "- hao") {
-		return LanguageChinese, "zh-cvvc"
+		return linguistics.LanguageChinese, linguistics.PhonemizerChinese
 	}
-	return LanguageJapanese, "ja-kana"
+	return linguistics.LanguageJapanese, linguistics.PhonemizerJapanese
 }
 
 // splitToneSuffixは別名の末尾の音高（B3、A#3など）を分ける。

@@ -14,6 +14,9 @@ import (
 // 録音1本ごとの解析結果なので、消しても索引の作成で作り直せる。
 const partRetention = 30 * 24 * time.Hour
 
+// partCacheMaxBytesは部分キャッシュの上限。超えた分は古いものから消す。
+const partCacheMaxBytes int64 = 4 << 30
+
 // 索引のキャッシュの上限。録音を変えると別の索引になるため、放っておくと増え続ける。
 // 超えた分は、最後に使ったのが古いものから消す。
 const (
@@ -76,6 +79,9 @@ func Cleanup(dir string) (CleanupResult, error) {
 		if err != nil {
 			return result, err
 		}
+		count, bytes = trimParts(partsDir, partCacheMaxBytes)
+		result.Parts += count
+		result.Bytes += bytes
 	}
 	// 上限を超えた分は、最後に使ったのが古いものから消す。
 	count, bytes, err := removeUnusedBabble(filepath.Join(dir, "babble"), cutoff)
@@ -137,6 +143,53 @@ func trimIndexCache(dir string) (int, int64) {
 	return count, bytes
 }
 
+// trimPartsは、部分キャッシュの合計がmaxBytesを超えていれば、更新の古いものから消す。
+func trimParts(dir string, maxBytes int64) (int, int64) {
+	type part struct {
+		path    string
+		size    int64
+		modTime time.Time
+	}
+	var parts []part
+	var total int64
+	_ = filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || !entry.Type().IsRegular() || !isPartFile(entry.Name()) {
+			return nil
+		}
+		if info, err := entry.Info(); err == nil {
+			parts = append(parts, part{path: path, size: info.Size(), modTime: info.ModTime()})
+			total += info.Size()
+		}
+		return nil
+	})
+	if total <= maxBytes {
+		return 0, 0
+	}
+	sort.Slice(parts, func(i, j int) bool { return parts[i].modTime.Before(parts[j].modTime) })
+	var count int
+	var bytes int64
+	for _, p := range parts {
+		if total <= maxBytes {
+			break
+		}
+		if err := os.Remove(p.path); err != nil {
+			continue
+		}
+		count++
+		bytes += p.size
+		total -= p.size
+	}
+	return count, bytes
+}
+
+func isPartFile(name string) bool {
+	switch filepath.Ext(name) {
+	case ".world", ".chan", ".part":
+		return true
+	}
+	return false
+}
+
 // removeUnusedPartsは、しばらく使われていない部分キャッシュを削除する。
 func removeUnusedParts(dir string, cutoff time.Time) (int, int64, error) {
 	var count int
@@ -148,9 +201,7 @@ func removeUnusedParts(dir string, cutoff time.Time) (int, int64, error) {
 		if !entry.Type().IsRegular() {
 			return nil
 		}
-		switch filepath.Ext(entry.Name()) {
-		case ".world", ".chan", ".part":
-		default:
+		if !isPartFile(entry.Name()) {
 			return nil
 		}
 		info, statErr := entry.Info()
