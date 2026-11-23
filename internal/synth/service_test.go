@@ -27,18 +27,26 @@ func TestDefaultRequestResolvesSynthesisSettings(t *testing.T) {
 	if cfg.MoraDurationMS != 120 || cfg.PauseDurationMS != 180 || cfg.IntonationStrength != 4 || !cfg.ApplyPitch {
 		t.Fatalf("default timing/pitch = %#v", cfg)
 	}
-	if cfg.ContextDuration == nil || *cfg.ContextDuration {
+	if cfg.ContextDuration {
 		t.Fatalf("default context duration = %v", cfg.ContextDuration)
 	}
-	for name, enabled := range map[string]*bool{
+	for name, enabled := range map[string]bool{
 		"boundary_tone": cfg.BoundaryTone, "stretch_adapt": cfg.StretchAdapt,
 		"pause_context": cfg.PauseContext,
 	} {
-		if enabled == nil || !*enabled {
+		if !enabled {
 			t.Errorf("default %s = %v, want enabled", name, enabled)
 		}
 	}
-	if !cfg.World.TimingWarpEnabled() || !cfg.World.MicroprosodyEnabled() || len(resolved.Diagnostics) != 0 {
+	for name, strength := range map[string]float64{
+		"context_duration": cfg.ContextDurationStrength, "boundary_tone": cfg.BoundaryToneStrength,
+		"stretch_adapt": cfg.StretchAdaptStrength, "pause_context": cfg.PauseContextStrength,
+	} {
+		if strength != 1 {
+			t.Errorf("default %s strength = %v, want 1", name, strength)
+		}
+	}
+	if !cfg.World.TimingWarp || !cfg.World.Microprosody || len(resolved.Diagnostics) != 0 {
 		t.Fatalf("default WORLD options = %#v, diagnostics = %v", cfg.World, resolved.Diagnostics)
 	}
 }
@@ -80,7 +88,7 @@ func TestEverySettingHasATarget(t *testing.T) {
 }
 
 func TestApplySettingsKnownIDs(t *testing.T) {
-	cfg := tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)}
+	cfg := tts.Config{MoraDurationMS: 140, ContextDuration: true}
 	settings := map[string]json.RawMessage{
 		"mora_duration_ms":          json.RawMessage(`130`),
 		"pause_duration_ms":         json.RawMessage(`190`),
@@ -101,16 +109,16 @@ func TestApplySettingsKnownIDs(t *testing.T) {
 	if cfg.MoraDurationMS != 130 || cfg.PauseDurationMS != 190 || cfg.LeadingPreutteranceMS != 45 || cfg.IntonationStrength != 2.5 {
 		t.Fatalf("timing settings = %#v", cfg)
 	}
-	if cfg.ContextDuration == nil || *cfg.ContextDuration || cfg.ContextDurationStrength != 0.5 {
+	if cfg.ContextDuration || cfg.ContextDurationStrength != 0.5 {
 		t.Fatalf("context duration settings = %#v", cfg)
 	}
-	if cfg.BoundaryTone == nil || *cfg.BoundaryTone || cfg.BoundaryToneStrength != 0.5 {
+	if cfg.BoundaryTone || cfg.BoundaryToneStrength != 0.5 {
 		t.Fatalf("boundary tone settings = %#v", cfg)
 	}
-	if cfg.StretchAdapt == nil || *cfg.StretchAdapt || cfg.StretchAdaptStrength != 0.5 {
+	if cfg.StretchAdapt || cfg.StretchAdaptStrength != 0.5 {
 		t.Fatalf("stretch adapt settings = %#v", cfg)
 	}
-	if cfg.PauseContext == nil || *cfg.PauseContext || cfg.PauseContextStrength != 0.5 {
+	if cfg.PauseContext || cfg.PauseContextStrength != 0.5 {
 		t.Fatalf("pause context settings = %#v", cfg)
 	}
 }
@@ -126,10 +134,10 @@ func TestApplySettingsInvalidValuesAreIgnored(t *testing.T) {
 		{"out of range", tts.Config{MoraDurationMS: 140, PauseDurationMS: 180},
 			map[string]json.RawMessage{"mora_duration_ms": json.RawMessage(`100000000`), "pause_duration_ms": json.RawMessage(`-1`)},
 			2, func(cfg tts.Config) bool { return cfg.MoraDurationMS == 140 && cfg.PauseDurationMS == 180 }},
-		{"type mismatch", tts.Config{MoraDurationMS: 140, ContextDuration: boolPointer(true)},
+		{"type mismatch", tts.Config{MoraDurationMS: 140, ContextDuration: true},
 			map[string]json.RawMessage{"mora_duration_ms": json.RawMessage(`true`), "context_duration": json.RawMessage(`"yes"`), "intonation_strength": json.RawMessage(`"high"`)},
 			3, func(cfg tts.Config) bool {
-				return cfg.MoraDurationMS == 140 && cfg.ContextDuration != nil && *cfg.ContextDuration
+				return cfg.MoraDurationMS == 140 && cfg.ContextDuration
 			}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -159,7 +167,7 @@ func TestConfigSettingsOverrideFixedFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.ContextDuration == nil || *cfg.ContextDuration || cfg.MoraDurationMS != 123 {
+	if cfg.ContextDuration || cfg.MoraDurationMS != 123 {
 		t.Fatalf("settings did not override fixed fields: %#v", cfg)
 	}
 	if len(diagnostics) != 1 || diagnostics[0].Code != "setting-ignored" {
@@ -170,7 +178,7 @@ func TestConfigSettingsOverrideFixedFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.ContextDuration == nil || !*cfg.ContextDuration || cfg.MoraDurationMS != 140 {
+	if !cfg.ContextDuration || cfg.MoraDurationMS != 140 {
 		t.Fatalf("fixed fields without a map changed: %#v", cfg)
 	}
 }

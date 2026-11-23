@@ -102,13 +102,3 @@ func TestApplyBoundaryToneNilIsSafe(t *testing.T) {
 		t.Fatalf("empty curve = %#v, want identity", got)
 	}
 }
-
-func TestBoundaryToneEnabledDefaultsOn(t *testing.T) {
-	if !boundaryToneEnabled(Config{}) {
-		t.Fatal("nil BoundaryTone should default to enabled")
-	}
-	disabled := false
-	if boundaryToneEnabled(Config{BoundaryTone: &disabled}) {
-		t.Fatal("explicit false should disable boundary tone")
-	}
-}

@@ -16,7 +16,7 @@ func TestTimingWarpJobBuildsPhraseTimeline(t *testing.T) {
 		{Position: 2, Role: "mora", Mora: "か", NoteStartMS: 240, DurationMS: 120, EffectivePreutteranceMS: 60},
 		{Position: 3, Role: "mora", Mora: "", Silent: true, NoteStartMS: 360, DurationMS: 180},
 	}}
-	warp := timingWarpJob(synthesisPlan, base.Config{}, 40)
+	warp := timingWarpJob(synthesisPlan, base.Config{World: base.WorldOptions{TimingWarp: true}}, 40)
 	if warp == nil || warp.Strength != 1 || warp.Language != "ja" {
 		t.Fatalf("warp = %+v", warp)
 	}
@@ -40,9 +40,7 @@ func TestTimingWarpJobBuildsPhraseTimeline(t *testing.T) {
 	if len(warp.Ends) != 1 || math.Abs(warp.Ends[0]-0.38) > 1e-9 {
 		t.Fatalf("ends = %v", warp.Ends)
 	}
-	off := false
 	cfg := base.Config{}
-	cfg.World.TimingWarp = &off
 	if timingWarpJob(synthesisPlan, cfg, 40) != nil {
 		t.Fatal("disabled timing warp produced a job")
 	}
@@ -56,7 +54,7 @@ func TestTimingWarpJobUsesPlanSpansForEnglish(t *testing.T) {
 		{Position: 0, Symbol: "er", Role: "nucleus", StartMS: 30, DurationMS: 50},
 		{Position: 0, Symbol: "l", Role: "coda", StartMS: 80, DurationMS: 20},
 	}}
-	warp := timingWarpJob(english, base.Config{}, 15)
+	warp := timingWarpJob(english, base.Config{World: base.WorldOptions{TimingWarp: true}}, 15)
 	// sil, w, er, l, モーラ末尾を埋めるl
 	if warp == nil || warp.Language != "en" || len(warp.Spans) != 5 {
 		t.Fatalf("English warp = %+v", warp)

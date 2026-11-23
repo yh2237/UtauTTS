@@ -220,7 +220,7 @@ func prepareWorldPitch(synthesisPlan *plan.Plan, cfg base.Config, cache *base.So
 	for frame := range f0Curve {
 		f0Curve[frame] *= base.PitchCurveFactorAt(cfg.PitchCurve, curveStartMS+float64(frame)*frameMS)
 	}
-	if cfg.ApplyPitch && cfg.World.MicroprosodyEnabled() && microprosodyAppliesTo(synthesisPlan.Language) {
+	if cfg.ApplyPitch && cfg.World.Microprosody {
 		applyMicroprosody(synthesisPlan, f0Curve, curveStartMS, frameMS)
 	}
 	if cfg.TargetF0 != nil {
@@ -599,7 +599,7 @@ func worldEnvelope(points []base.EnvelopePoint) []worldrender.EnvelopePoint {
 
 // CVVCの子音長にはVCを含める。タイムラインは本体で計算する。
 func timingWarpJob(synthesisPlan *plan.Plan, cfg base.Config, frames int) *worldrender.TimingWarp {
-	if synthesisPlan == nil || !cfg.World.TimingWarpEnabled() {
+	if synthesisPlan == nil || !cfg.World.TimingWarp {
 		return nil
 	}
 	japanese := isJapanesePlan(synthesisPlan)

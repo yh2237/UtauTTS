@@ -38,7 +38,29 @@ var (
 	DefaultStretchAdaptStrength    = settings.Number("stretch_adapt_strength")
 	DefaultPauseContext            = settings.Bool("pause_context")
 	DefaultPauseContextStrength    = settings.Number("pause_context_strength")
+	DefaultTimingWarp              = settings.Bool("timing_warp")
+	DefaultMicroprosody            = settings.Bool("microprosody")
 )
+
+// WorldOptionsはCLIのフラグで指定するWORLDの切り替え。nilは設定の既定値を使う。
+type WorldOptions struct {
+	TimingWarp   *bool
+	Microprosody *bool
+}
+
+func (options WorldOptions) timingWarp() bool {
+	if options.TimingWarp == nil {
+		return DefaultTimingWarp
+	}
+	return *options.TimingWarp
+}
+
+func (options WorldOptions) microprosody() bool {
+	if options.Microprosody == nil {
+		return DefaultMicroprosody
+	}
+	return *options.Microprosody
+}
 
 const DefaultReleaseMS = render.DefaultReleaseMS
 
@@ -109,7 +131,7 @@ type Request struct {
 	CVVCTransitionGain      float64                `json:"-"`
 	CVVCPreBoundaryFade     bool                   `json:"-"`
 	// WorldはCLIのフラグから指定する。JSONではsettingsのtiming_warpとmicroprosodyを使う。
-	World render.WorldOptions `json:"-"`
+	World WorldOptions `json:"-"`
 	// Settingsは/api/settingsの設定をIDで指定する。使えない値は結果の診断で返す。
 	Settings map[string]json.RawMessage `json:"settings,omitempty"`
 }
@@ -357,8 +379,6 @@ func (s *Service) config(request Request, requireVoicebank bool) (tts.Config, []
 		CVVCTransitionGain:      request.CVVCTransitionGain,
 		CVVCPreBoundaryFade:     request.CVVCPreBoundaryFade,
 	}
-	// 型付き設定を先に入れ、settingsで上書きする。
-	cfg.World = request.World
 	diagnostics := resolveSettings(request, &cfg)
 	voicebankPath := request.VoicebankPath
 	if voicebankPath == "" && s.voicebanks != nil && (requireVoicebank || request.VoicebankID != "") {

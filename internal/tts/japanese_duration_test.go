@@ -86,12 +86,11 @@ func TestApplyJapaneseContextDurationMultipliesExistingFactor(t *testing.T) {
 		{DurationFactor: 2, PitchFactor: 1, EnergyFactor: 1},
 		{DurationFactor: 2, PitchFactor: 1, EnergyFactor: 1},
 	}
-	enabled := true
 	for _, tc := range []struct {
 		strength, want float64
-	}{{0, 1.7}, {0.5, 1.85}, {1, 1.7}} {
+	}{{0, 2}, {0.5, 1.85}, {1, 1.7}} {
 		input := append([]prosody.Prediction(nil), predictions...)
-		result := applyJapaneseContextDuration(Config{ContextDuration: &enabled, ContextDurationStrength: tc.strength}, morae, features, input, false)
+		result := applyJapaneseContextDuration(Config{ContextDuration: true, ContextDurationStrength: tc.strength}, morae, features, input, false)
 		if math.Abs(result[1].DurationFactor-tc.want) > 1e-9 {
 			t.Fatalf("strength %v: particle factor = %.4f, want %.4f", tc.strength, result[1].DurationFactor, tc.want)
 		}
@@ -108,17 +107,16 @@ func TestApplyJapaneseContextDurationIdentityAndDefaults(t *testing.T) {
 			{DurationFactor: factor, PitchFactor: 1, EnergyFactor: 1},
 		}
 	}
-	disabled, enabled := false, true
 	tests := []struct {
 		name string
 		cfg  Config
 		in   []prosody.Prediction
 		want float64 // 助詞（位置1）の倍率
 	}{
-		{"disabled", Config{ContextDuration: &disabled}, factors(2), 2},
-		{"default", Config{}, factors(1), 1},
-		{"zero strength uses default", Config{ContextDuration: &enabled, ContextDurationStrength: 0}, factors(1), japaneseParticleFactor},
-		{"fills missing predictions", Config{ContextDuration: &enabled}, nil, japaneseParticleFactor},
+		{"disabled", Config{ContextDuration: false, ContextDurationStrength: 1}, factors(2), 2},
+		{"zero strength is identity", Config{ContextDuration: true}, factors(1), 1},
+		{"full strength", Config{ContextDuration: true, ContextDurationStrength: 1}, factors(1), japaneseParticleFactor},
+		{"fills missing predictions", Config{ContextDuration: true, ContextDurationStrength: 1}, nil, japaneseParticleFactor},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

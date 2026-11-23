@@ -6,7 +6,6 @@ import (
 	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/prosody"
-	"github.com/yh2237/UtauTTS/internal/settings"
 )
 
 // 読み上げ向けに、文脈による伸縮を控えめにする。
@@ -60,12 +59,12 @@ func japaneseContextDurationFactors(morae []linguistics.Mora, features []prosody
 	return factors
 }
 
-// 強度0は既定の1倍、負値は無効。
+// 強度が0以下なら補正しない。
 func applyJapaneseContextDuration(cfg Config, morae []linguistics.Mora, features []prosody.FeatureFrame, predictions []prosody.Prediction, question bool) []prosody.Prediction {
-	if !contextDurationEnabled(cfg) {
+	if !cfg.ContextDuration {
 		return predictions
 	}
-	strength := contextDurationStrength(cfg)
+	strength := cfg.ContextDurationStrength
 	if strength <= 0 {
 		return predictions
 	}
@@ -89,20 +88,6 @@ func applyJapaneseContextDuration(cfg Config, morae []linguistics.Mora, features
 		predictions[i].DurationFactor *= 1 + (factors[i]-1)*strength
 	}
 	return predictions
-}
-
-func contextDurationEnabled(cfg Config) bool {
-	if cfg.ContextDuration == nil {
-		return settings.Bool("context_duration")
-	}
-	return *cfg.ContextDuration
-}
-
-func contextDurationStrength(cfg Config) float64 {
-	if cfg.ContextDurationStrength == 0 {
-		return settings.Number("context_duration_strength")
-	}
-	return cfg.ContextDurationStrength
 }
 
 func hasJapaneseContextFeatures(features []prosody.FeatureFrame) bool {

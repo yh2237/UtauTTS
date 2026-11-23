@@ -1,10 +1,6 @@
 package base
 
-import (
-	"context"
-
-	"github.com/yh2237/UtauTTS/internal/settings"
-)
+import "context"
 
 type Config struct {
 	TargetF0              *F0Track
@@ -26,26 +22,12 @@ type Config struct {
 	StretchAdaptStrength float64
 }
 
-// WorldOptionsはWORLDで描画するときの切り替え。nilは設定の既定値を使う。
+// WorldOptionsはWORLDで描画するときの切り替え。
 type WorldOptions struct {
 	// 日本語のモーラ内を学習した時間配分に合わせる。
-	TimingWarp *bool
-	// 日本語の子音前後に微細な音高変化を足す。
-	Microprosody *bool
-}
-
-func (options WorldOptions) MicroprosodyEnabled() bool {
-	if options.Microprosody == nil {
-		return settings.Bool("microprosody")
-	}
-	return *options.Microprosody
-}
-
-func (options WorldOptions) TimingWarpEnabled() bool {
-	if options.TimingWarp == nil {
-		return settings.Bool("timing_warp")
-	}
-	return *options.TimingWarp
+	TimingWarp bool
+	// 日本語の子音前後に微細な音高変化を足す。言語に効くかは合成側で決めてから渡す。
+	Microprosody bool
 }
 
 const (

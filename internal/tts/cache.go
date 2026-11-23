@@ -77,16 +77,6 @@ type prosodyComputationKey struct {
 	dictionaryHash, moraDurationsHash   string
 }
 
-func optionalBoolKey(value *bool) string {
-	if value == nil {
-		return "nil"
-	}
-	if *value {
-		return "true"
-	}
-	return "false"
-}
-
 func hashStringMap(values map[string]string) string {
 	if len(values) == 0 {
 		return ""
@@ -123,8 +113,8 @@ func prosodyComputationKeyFor(cfg Config) prosodyComputationKey {
 			"cd=%v cds=%v bt=%v bts=%v sa=%v sas=%v pc=%v pcs=%v tone=%v color=%v",
 		cfg.MoraDurationMS, cfg.PauseDurationMS, cfg.PauseDurationSet, cfg.ProsodyPitchOnly, cfg.ApplyPitch,
 		cfg.IntonationStrength, cfg.ReleaseMS,
-		optionalBoolKey(cfg.ContextDuration), cfg.ContextDurationStrength, optionalBoolKey(cfg.BoundaryTone), cfg.BoundaryToneStrength,
-		optionalBoolKey(cfg.StretchAdapt), cfg.StretchAdaptStrength, optionalBoolKey(cfg.PauseContext), cfg.PauseContextStrength,
+		cfg.ContextDuration, cfg.ContextDurationStrength, cfg.BoundaryTone, cfg.BoundaryToneStrength,
+		cfg.StretchAdapt, cfg.StretchAdaptStrength, cfg.PauseContext, cfg.PauseContextStrength,
 		cfg.Tone, cfg.Color)
 	return prosodyComputationKey{
 		text: cfg.Text, reading: cfg.Reading, language: cfg.Language, phonemizer: cfg.Phonemizer,

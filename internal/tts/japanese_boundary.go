@@ -6,7 +6,6 @@ import (
 	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/prosody"
 	"github.com/yh2237/UtauTTS/internal/render"
-	"github.com/yh2237/UtauTTS/internal/settings"
 )
 
 const (
@@ -61,20 +60,6 @@ func applyBoundaryTone(curve *render.PitchCurve, durationMS float64, question bo
 		result.Cents[index] += deviation * weight
 	}
 	return result
-}
-
-func boundaryToneEnabled(cfg Config) bool {
-	if cfg.BoundaryTone == nil {
-		return settings.Bool("boundary_tone")
-	}
-	return *cfg.BoundaryTone
-}
-
-func boundaryToneStrength(cfg Config) float64 {
-	if cfg.BoundaryToneStrength == 0 {
-		return settings.Number("boundary_tone_strength")
-	}
-	return cfg.BoundaryToneStrength
 }
 
 func finalPhraseEndMS(morae []linguistics.Mora, timings []prosody.MoraTiming) float64 {

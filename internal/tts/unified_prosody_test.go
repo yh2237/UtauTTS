@@ -36,8 +36,7 @@ func unifiedProsodyFixture(t testing.TB) (*prosody.Model, []linguistics.Mora, []
 
 func TestUnifiedProsodyReleaseBaseline(t *testing.T) {
 	model, morae, features, synthesisPlan := unifiedProsodyFixture(t)
-	disabled := false
-	cfg := Config{ApplyPitch: true, IntonationStrength: 4, BoundaryTone: &disabled}
+	cfg := Config{ApplyPitch: true, IntonationStrength: 4}
 	pitch, err := resolveSynthesisPitch(cfg, japaneseProfile{}, model, morae, features, "あか、さな", "ja", synthesisPlan)
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +59,7 @@ func TestUnifiedProsodyReleaseBaseline(t *testing.T) {
 		}
 	}
 	preview, err := PredictProsody(Config{Reading: "あか、さな", ProsodyModel: model, ProsodyFeatures: features,
-		ApplyPitch: true, IntonationStrength: 4, BoundaryTone: &disabled, PauseContext: &disabled,
+		ApplyPitch: true, IntonationStrength: 4,
 		ReleaseSet: true})
 	if err != nil {
 		t.Fatal(err)
@@ -89,8 +88,7 @@ func TestUnifiedProsodyReleaseBaseline(t *testing.T) {
 
 func BenchmarkResolveUnifiedProsody(b *testing.B) {
 	model, morae, features, synthesisPlan := unifiedProsodyFixture(b)
-	disabled := false
-	cfg := Config{ApplyPitch: true, IntonationStrength: 4, BoundaryTone: &disabled}
+	cfg := Config{ApplyPitch: true, IntonationStrength: 4}
 	for _, mode := range []string{"cold", "warm"} {
 		b.Run(mode, func(b *testing.B) {
 			b.ReportAllocs()

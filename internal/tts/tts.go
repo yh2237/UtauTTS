@@ -34,21 +34,16 @@ func traceMark(start *time.Time, label string) {
 
 type Config struct {
 	PauseDurationSet bool
-	// nilは無効。
-	ContextDuration *bool
-	// ContextDurationStrengthは文脈連動の強度。0は既定1.0。
+	// 補正の有無と強度は、合成側（internal/synth）で既定値を入れてから渡す。強度が0以下なら補正しない。
+	ContextDuration         bool
 	ContextDurationStrength float64
-	// nilは既定で有効。境界音調。
-	BoundaryTone *bool
-	// BoundaryToneStrengthは境界音調の強度。0は既定1.0。
+	// BoundaryToneは境界音調。
+	BoundaryTone         bool
 	BoundaryToneStrength float64
-	// nilは既定で有効。伸縮補正。
-	StretchAdapt *bool
-	// StretchAdaptStrengthは伸縮補正の強度。0は既定1.0。
+	// StretchAdaptは伸縮補正。
+	StretchAdapt         bool
 	StretchAdaptStrength float64
-	// nilは既定で有効。
-	PauseContext *bool
-	// PauseContextStrengthはポーズ長補正の強度。0は既定1.0。
+	PauseContext         bool
 	PauseContextStrength float64
 	// nilは既定で有効。
 	Context         context.Context
@@ -346,7 +341,7 @@ func Synthesize(cfg Config) (*Result, error) {
 		CVVCPreBoundaryFade:   cfg.CVVCPreBoundaryFade,
 		PitchCurve:            pitch.Curve,
 		StretchAdapt:          stretchAdapt,
-		StretchAdaptStrength:  stretchAdaptStrength(cfg),
+		StretchAdaptStrength:  cfg.StretchAdaptStrength,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("render: %w", err)
@@ -470,7 +465,7 @@ func PredictProsody(cfg Config) (*ProsodyPreview, error) {
 				prediction = predictions[index]
 			}
 			if mora.Pause {
-				duration = plan.PredictedDuration(cfg.PauseDurationMS*plan.PauseContextFactor(morae, index, pauseContextEnabled(cfg), pauseContextStrength(cfg)), prediction)
+				duration = plan.PredictedDuration(cfg.PauseDurationMS*plan.PauseContextFactor(morae, index, cfg.PauseContext, cfg.PauseContextStrength), prediction)
 			} else {
 				duration = plan.PredictedDuration(plan.DurationFor(mora, cfg.MoraDurationMS), prediction)
 			}

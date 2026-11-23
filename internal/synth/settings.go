@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/yh2237/UtauTTS/internal/linguistics"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/settings"
 	"github.com/yh2237/UtauTTS/internal/tts"
@@ -28,25 +29,25 @@ var settingTargets = map[string]settingTarget{
 	"intonation_strength": number(func(r Request) float64 { return r.IntonationStrength },
 		func(value float64, cfg *tts.Config) { cfg.IntonationStrength = value }),
 	"context_duration": boolean(func(r Request) bool { return r.ContextDuration },
-		func(value bool, cfg *tts.Config) { cfg.ContextDuration = &value }),
+		func(value bool, cfg *tts.Config) { cfg.ContextDuration = value }),
 	"context_duration_strength": number(func(r Request) float64 { return r.ContextDurationStrength },
 		func(value float64, cfg *tts.Config) { cfg.ContextDurationStrength = value }),
 	"boundary_tone": boolean(func(r Request) bool { return r.BoundaryTone },
-		func(value bool, cfg *tts.Config) { cfg.BoundaryTone = &value }),
+		func(value bool, cfg *tts.Config) { cfg.BoundaryTone = value }),
 	"boundary_tone_strength": number(func(r Request) float64 { return r.BoundaryToneStrength },
 		func(value float64, cfg *tts.Config) { cfg.BoundaryToneStrength = value }),
 	"stretch_adapt": boolean(func(r Request) bool { return r.StretchAdapt },
-		func(value bool, cfg *tts.Config) { cfg.StretchAdapt = &value }),
+		func(value bool, cfg *tts.Config) { cfg.StretchAdapt = value }),
 	"stretch_adapt_strength": number(func(r Request) float64 { return r.StretchAdaptStrength },
 		func(value float64, cfg *tts.Config) { cfg.StretchAdaptStrength = value }),
 	"pause_context": boolean(func(r Request) bool { return r.PauseContext },
-		func(value bool, cfg *tts.Config) { cfg.PauseContext = &value }),
+		func(value bool, cfg *tts.Config) { cfg.PauseContext = value }),
 	"pause_context_strength": number(func(r Request) float64 { return r.PauseContextStrength },
 		func(value float64, cfg *tts.Config) { cfg.PauseContextStrength = value }),
-	"timing_warp": boolean(func(r Request) bool { return r.World.TimingWarpEnabled() },
-		func(value bool, cfg *tts.Config) { cfg.World.TimingWarp = &value }),
-	"microprosody": boolean(func(r Request) bool { return r.World.MicroprosodyEnabled() },
-		func(value bool, cfg *tts.Config) { cfg.World.Microprosody = &value }),
+	"timing_warp": boolean(func(r Request) bool { return r.World.timingWarp() },
+		func(value bool, cfg *tts.Config) { cfg.World.TimingWarp = value }),
+	"microprosody": boolean(func(r Request) bool { return r.World.microprosody() },
+		func(value bool, cfg *tts.Config) { cfg.World.Microprosody = value }),
 }
 
 func number(typed func(Request) float64, apply func(float64, *tts.Config)) settingTarget {
@@ -69,7 +70,31 @@ func resolveSettings(request Request, cfg *tts.Config) []render.RenderDiagnostic
 		target := settingTargets[setting.ID]
 		target.apply(target.typed(request), cfg)
 	}
-	return applySettingsMap(request.Settings, cfg)
+	diagnostics := applySettingsMap(request.Settings, cfg)
+	settleDefaults(request.Language, cfg)
+	return diagnostics
+}
+
+// settleDefaultsは、強度の0を既定値に直し、言語に効かない設定を切る。
+// 合成の下の層は、ここで決めた値をそのまま使う。
+func settleDefaults(language string, cfg *tts.Config) {
+	for _, strength := range []struct {
+		id    string
+		value *float64
+	}{
+		{"context_duration_strength", &cfg.ContextDurationStrength},
+		{"boundary_tone_strength", &cfg.BoundaryToneStrength},
+		{"stretch_adapt_strength", &cfg.StretchAdaptStrength},
+		{"pause_context_strength", &cfg.PauseContextStrength},
+	} {
+		if *strength.value == 0 {
+			*strength.value = settings.Number(strength.id)
+		}
+	}
+	microprosody, _ := settings.Lookup("microprosody")
+	if !microprosody.AppliesToLanguage(linguistics.NormalizeLanguage(language)) {
+		cfg.World.Microprosody = false
+	}
 }
 
 // 未知のID、型の合わない値、範囲外の値は使わず、診断を返す。

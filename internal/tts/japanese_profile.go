@@ -35,8 +35,8 @@ func (japaneseProfile) AutomaticPitchCurve(Config, *prosody.Model, []linguistics
 }
 
 func (japaneseProfile) ApplyBoundaryTone(cfg Config, curve *render.PitchCurve, durationMS float64, question bool) *render.PitchCurve {
-	if !boundaryToneEnabled(cfg) {
+	if !cfg.BoundaryTone {
 		return curve
 	}
-	return applyBoundaryTone(curve, durationMS, question, boundaryToneStrength(cfg))
+	return applyBoundaryTone(curve, durationMS, question, cfg.BoundaryToneStrength)
 }

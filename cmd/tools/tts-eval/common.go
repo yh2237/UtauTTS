@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/yh2237/UtauTTS/internal/plan"
-	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/synth"
 	"github.com/yh2237/UtauTTS/internal/tts"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
@@ -59,7 +58,7 @@ func synthesizeCase(p prompt, o caseOptions) (*synth.Result, float64, error) {
 	request.StretchAdaptStrength = o.stretchAdaptStrength
 	request.PauseContext = o.pauseContext
 	request.PauseContextStrength = o.pauseContextStrength
-	request.World = render.WorldOptions{TimingWarp: new(!o.noTimingWarp)}
+	request.World = synth.WorldOptions{TimingWarp: new(!o.noTimingWarp)}
 	ctx, cancel := context.WithTimeout(context.Background(), o.timeout)
 	defer cancel()
 	started := time.Now()
