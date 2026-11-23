@@ -11,6 +11,7 @@ import (
 	"github.com/yh2237/UtauTTS/internal/plan"
 	"github.com/yh2237/UtauTTS/internal/render"
 	"github.com/yh2237/UtauTTS/internal/synth"
+	"github.com/yh2237/UtauTTS/internal/tts"
 	"github.com/yh2237/UtauTTS/internal/voicebank"
 )
 
@@ -38,7 +39,11 @@ func synthesizeCase(p prompt, o caseOptions) (*synth.Result, float64, error) {
 	request.Text = p.Text
 	request.Reading = p.Reading
 	request.Language = p.Language
+	if request.Language == "" {
+		request.Language = "ja"
+	}
 	request.Phonemizer = p.Phonemizer
+	request.Method = tts.MethodWaveformSynthesis
 	request.VoicebankPath = o.bank
 	request.AliasPolicy = voicebank.AliasPolicy(o.aliasPolicy)
 	request.MoraDurationMS = o.moraMS
