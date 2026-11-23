@@ -155,9 +155,9 @@ async function storeIndexes(before) {
   const after = virtualFs.fileVersions();
   const changed = [], removed = [];
   for (const [path, version] of after)
-    if (path.startsWith(INDEX_DIR) && path.endsWith(".idx") && before.get(path) !== version) changed.push(path);
+    if (path.startsWith(INDEX_DIR) && path.endsWith(".utsp") && before.get(path) !== version) changed.push(path);
   for (const path of before.keys())
-    if (path.startsWith(INDEX_DIR) && path.endsWith(".idx") && !after.has(path)) removed.push(path);
+    if (path.startsWith(INDEX_DIR) && (path.endsWith(".utsp") || path.endsWith(".idx")) && !after.has(path)) removed.push(path);
   if (changed.length === 0 && removed.length === 0) return;
   try {
     const cache = await caches.open(INDEX_CACHE);

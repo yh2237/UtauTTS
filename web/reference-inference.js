@@ -220,7 +220,7 @@ function createReferenceInference({ baseURL, virtualFs, status, requestPort }) {
     const results = [];
     if (jobs.length === 0) return results;
     const started = performance.now();
-    const wavlm = await session("wavlm6.onnx", logs);
+    const encoderIDs = new Set();
     let seconds = 0, shown = -1;
     for (let i = 0; i < jobs.length; i++) {
       const job = jobs[i];
@@ -229,16 +229,20 @@ function createReferenceInference({ baseURL, virtualFs, status, requestPort }) {
       const samples = new Float32Array(bytes.slice().buffer);
       virtualFs._unlink(job.samples_path);
       seconds += samples.length / 16000;
-      const out = await wavlm({ audio: tensor("float32", samples, [1, samples.length]) });
+      const encoderID = job.encoder_id || "wavlm-base-plus-l6";
+      encoderIDs.add(encoderID);
+      const file = encoderID === "wavlm-base-plus-l6" ? "wavlm6.onnx" : encoderID + ".onnx";
+      const extract = await session(file, logs);
+      const out = await extract({ audio: tensor("float32", samples, [1, samples.length]) });
       const [frames, dims] = out.features.dims;
-      results.push({ key: job.key, path: writeFloat32(OUT_DIR + "/features-" + i + ".f32", out.features.data), frames, dims });
+      results.push({ encoder_id: encoderID, key: job.key, path: writeFloat32(OUT_DIR + "/features-" + i + ".f32", out.features.data), frames, dims });
       const step = Math.floor((i + 1) * 10 / jobs.length);
       if (jobs.length > 1 && step !== shown) {
         shown = step;
         status("特徴量を計算中…（" + step * 10 + "%）");
       }
     }
-    logs.push("特徴量: WavLM で " + jobs.length + " 件（音声 " + seconds.toFixed(1) + " 秒、" +
+    logs.push("特徴量: " + [...encoderIDs].join(", ") + " で " + jobs.length + " 件（音声 " + seconds.toFixed(1) + " 秒、" +
       ((performance.now() - started) / 1000).toFixed(1) + " 秒）");
     return results;
   }
