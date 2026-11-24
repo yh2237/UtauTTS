@@ -8,3 +8,5 @@ github.com/mozillazg/go-pinyin
 gopkg.in/yaml.v3
 github.com/yh2237/gograd
 github.com/ebitengine/purego
+github.com/yh2237/UtauIDX
+github.com/yh2237/UtauWLD

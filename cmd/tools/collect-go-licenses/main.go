@@ -66,8 +66,10 @@ func run() error {
 		return err
 	}
 	primaryHashes := map[string]bool{}
-	if data, err := os.ReadFile(goLicense); err == nil {
-		primaryHashes[contentHash(data)] = true
+	for _, seeded := range []string{goLicense, filepath.Join(*root, "third_party", "world", "LICENSE.txt")} {
+		if data, err := os.ReadFile(seeded); err == nil {
+			primaryHashes[contentHash(data)] = true
+		}
 	}
 
 	modules, err := readLines(*modulesPath)
@@ -229,6 +231,7 @@ func writeFile(destination string, data []byte) error {
 }
 
 func contentHash(data []byte) string {
-	sum := sha256.Sum256(data)
+	normalized := strings.TrimSpace(strings.ReplaceAll(string(data), "\r\n", "\n"))
+	sum := sha256.Sum256([]byte(normalized))
 	return hex.EncodeToString(sum[:])
 }

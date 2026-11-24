@@ -89,7 +89,7 @@ Source: https://github.com/yh2237/utauio
 audiodsp
 ========
 
-UtauTTS uses github.com/yh2237/audiodsp v0.5.2 for pitch estimation,
+UtauTTS uses github.com/yh2237/audiodsp v0.6.0 for pitch estimation,
 WSOLA time stretching, linear interpolation, log-frequency amplitudes,
 correlation, PCM/IEEE float WAV reading, and 16-bit PCM WAV writing.
 The library was extracted from UtauTTS and is distributed under the
@@ -98,6 +98,32 @@ Its license text is identical to utauio's and is included once as
 licenses/Go/github_com_yh2237_utauio-v0.4.1-LICENSE.txt.
 
 Source: https://github.com/yh2237/audiodsp
+
+
+UtauIDX
+=======
+
+UtauTTS uses github.com/yh2237/UtauIDX v0.2.1 for reference speech index
+construction, feature encoding, frame selection, and speech pool policies.
+The library was extracted from UtauTTS and is distributed under the MIT
+License, Copyright (c) 2026 yh. Its license text is identical to utauio's and
+is included once as licenses/Go/github_com_yh2237_utauio-v0.4.1-LICENSE.txt.
+
+Source: https://github.com/yh2237/UtauIDX
+
+
+UtauWLD
+=======
+
+UtauTTS uses github.com/yh2237/UtauWLD v0.2.0 for WORLD analysis/synthesis
+wrapping, timing models, and phrase rendering helpers. The library was
+extracted from UtauTTS and is distributed under the MIT License,
+Copyright (c) 2026 yh. Its license text is identical to utauio's and is
+included once as licenses/Go/github_com_yh2237_utauio-v0.4.1-LICENSE.txt;
+the WORLD license in its world/ subdirectory is included as
+licenses/WORLD/WORLD-LICENSE.txt.
+
+Source: https://github.com/yh2237/UtauWLD
 
 
 gograd
@@ -490,7 +516,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-internal/hubert reimplements in Go the WavLM base+ feature extractor and is
+UtauIDX/encoder reimplements in Go the WavLM base+ feature extractor and is
 checked against the Hugging Face Transformers implementation
 (https://github.com/huggingface/transformers), which is licensed under the
 Apache License 2.0.
