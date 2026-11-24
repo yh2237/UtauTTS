@@ -408,7 +408,9 @@ func (s *Service) loadOrBuild(bankRoot string, color string, entries []speechpoo
 		}
 		effectiveMode = poolMode
 		if poolMode == speechpool.PoolAuto {
-			effectiveMode = speechpool.ResolvePoolMode(poolMode, profile, estimateRawFrames(files), 0)
+			rawFrames, p90SpanMS := speechpool.MeasureEntries(files)
+			profile.P90SpanMS = p90SpanMS
+			effectiveMode = speechpool.ResolvePoolMode(poolMode, profile, rawFrames, 0)
 		}
 	}
 	encoders := make([]encoder.Encoder, len(active))
@@ -530,7 +532,7 @@ func bankRecordings(bankRoot string, color string, entries []speechpool.Entry) (
 }
 
 func indexCacheKey(source string, encoderIDs []string, mode speechpool.PoolMode) string {
-	key := sha256.Sum256([]byte("utsp-v1\x00" + strings.Join(encoderIDs, ",") + "\x00" + string(mode) + "\x00" + source))
+	key := sha256.Sum256([]byte("utsp-v2\x00" + strings.Join(encoderIDs, ",") + "\x00" + string(mode) + "\x00" + source))
 	return hex.EncodeToString(key[:16])
 }
 

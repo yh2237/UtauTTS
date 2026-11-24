@@ -429,7 +429,7 @@ func synthesizeQuery(idx *index.Index, world index.World, channels map[string][]
 		return nil, err
 	}
 	if logf != nil {
-		logf(fmt.Sprintf("Profile: Gap=%.6f Xling=%.6f Weights=%v SafeRefAP=%t", profile.Gap, profile.Xling, profile.ChannelWeights, cfg.UseSafeRefAP))
+		logf(fmt.Sprintf("Profile: Gap=%.6f Xling=%.6f RawPool=%t Weights=%v SafeRefAP=%t", profile.Gap, profile.Xling, profile.IsRawPool, profile.ChannelWeights, cfg.UseSafeRefAP))
 		stats := result.Stats
 		logf(fmt.Sprintf("SelectStats (top1, 5ms): Frames=%d Runs=%d Switches=%d MeanRunFrames=%.6f UniqueUnits=%d",
 			stats.Frames, stats.Runs, stats.Switches, stats.MeanRunFrames, stats.UniqueUnits))

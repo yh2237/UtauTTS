@@ -122,3 +122,22 @@ func TestReferenceRecordingsSkipBreathAliases(t *testing.T) {
 		t.Fatalf("extra entries=%v", entries)
 	}
 }
+
+func TestReferenceRecordingsSkipAuxGroupsAndBlankEntries(t *testing.T) {
+	bank := &Bank{Entries: map[string][]oto.Entry{
+		"- あ": {{Filename: "a.wav", SourceGroup: "root"}},
+		"demo": {
+			{Filename: "sample/demo.wav", SourceGroup: "sample"},
+			{Filename: "art/ref.wav", SourceGroup: "立ち絵/png"},
+			{Filename: "preset/p.wav", SourceGroup: "PrefixMapプリセット"},
+		},
+		"": {
+			{Filename: "VCCV DEMO.wav", SourceGroup: "root"},
+			{Filename: "named_zero.wav", SourceGroup: "root", Blank: -100},
+		},
+	}}
+	got := bank.ReferenceRecordings("")
+	if paths := recordingPaths(got); !reflect.DeepEqual(paths, []string{"a.wav", "named_zero.wav"}) {
+		t.Fatalf("recordings=%v", paths)
+	}
+}

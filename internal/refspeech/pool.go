@@ -10,10 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yh2237/UtauIDX/index"
 	"github.com/yh2237/UtauIDX/speechpool"
 	"github.com/yh2237/UtauTTS/internal/atomicfile"
-	"github.com/yh2237/audiodsp/wav"
 )
 
 func configuredPoolMode() speechpool.PoolMode {
@@ -23,23 +21,6 @@ func configuredPoolMode() speechpool.PoolMode {
 	default:
 		return speechpool.PoolAuto
 	}
-}
-
-func estimateRawFrames(files []speechpool.Entry) int {
-	var frames int
-	for _, file := range files {
-		pcm, err := wav.ReadFile(file.Path)
-		if err != nil || pcm.Channels <= 0 || pcm.SampleRate <= 0 {
-			continue
-		}
-		durationMS := float64(len(pcm.Data)/pcm.Channels) * 1000 / float64(pcm.SampleRate)
-		if durationMS < index.MinimumFileSec*1000 {
-			continue
-		}
-		start, end := index.RecordingSpan(file.Regions, durationMS)
-		frames += int((end - start) / index.FrameMS)
-	}
-	return frames
 }
 
 const babbleSummaryName = "babble_summary.json"

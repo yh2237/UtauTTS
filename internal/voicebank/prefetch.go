@@ -1,6 +1,7 @@
 package voicebank
 
 import (
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -108,7 +109,7 @@ func (b *Bank) ReferenceRecordings(color string) []ReferenceRecording {
 				continue
 			}
 			for _, entry := range entries {
-				if entry.Filename != "" {
+				if entry.Filename != "" && !shouldSkipReferenceGroup(entry.SourceGroup) && !isUnsegmentedBlankEntry(alias, entry) {
 					paths[entry.Filename] = nil
 				}
 			}
@@ -125,6 +126,9 @@ func (b *Bank) ReferenceRecordings(color string) []ReferenceRecording {
 			continue
 		}
 		for _, entry := range entries {
+			if shouldSkipReferenceGroup(entry.SourceGroup) || isUnsegmentedBlankEntry(alias, entry) {
+				continue
+			}
 			if list, ok := paths[entry.Filename]; ok {
 				paths[entry.Filename] = append(list, entry)
 			}
@@ -156,4 +160,36 @@ func isBreathAlias(alias string) bool {
 		}
 	}
 	return false
+}
+
+// shouldSkipReferenceGroupはサンプル・立ち絵・呼吸・PresetMap用の補助フォルダを除外する。
+func shouldSkipReferenceGroup(group string) bool {
+	if group == "" || group == "root" {
+		return false
+	}
+	for _, seg := range strings.Split(filepath.ToSlash(group), "/") {
+		low := strings.ToLower(strings.TrimSpace(seg))
+		if low == "" {
+			continue
+		}
+		if strings.Contains(low, "sample") ||
+			strings.Contains(seg, "サンプル") ||
+			strings.Contains(low, "art") ||
+			strings.Contains(seg, "立ち絵") ||
+			low == "br" ||
+			low == "息" ||
+			strings.Contains(low, "息 br") ||
+			strings.Contains(low, "prefixmapプリセット") ||
+			strings.Contains(low, "preset") {
+			return true
+		}
+	}
+	return false
+}
+
+// isUnsegmentedBlankEntryは別名が空でotoパラメータもすべて0の未設定行（デモ曲など）を除外する。
+func isUnsegmentedBlankEntry(alias string, entry oto.Entry) bool {
+	return strings.TrimSpace(alias) == "" &&
+		entry.Offset == 0 && entry.Fixed == 0 && entry.Blank == 0 &&
+		entry.Preutterance == 0 && entry.Overlap == 0
 }
