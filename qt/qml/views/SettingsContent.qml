@@ -258,7 +258,7 @@ Item {
         id: ffmpegFolderDialog
         title: root.translator.tr("settings.ffmpegPath.choose")
         onAccepted: {
-            const path = selectedFolder.toLocalFile();
+            const path = root.backend.localFilePath(selectedFolder);
             if (path.length)
                 root.pendingFfmpegPath = path;
         }
@@ -268,7 +268,7 @@ Item {
         id: exportFolderDialog
         title: root.translator.tr("settings.exportDirectory")
         onAccepted: {
-            const path = selectedFolder.toLocalFile();
+            const path = root.backend.localFilePath(selectedFolder);
             if (path.length)
                 root.pendingExportDirectory = path;
         }

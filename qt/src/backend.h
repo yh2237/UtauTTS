@@ -179,6 +179,7 @@ public:
     Q_INVOKABLE QUrl fileInDirectory(const QUrl &directory, const QString &fileName) const;
     Q_INVOKABLE QUrl exportFile(const QString &directory, const QString &fileName, int skip = 0) const;
     Q_INVOKABLE QString localFileUrl(const QString &path) const;
+    Q_INVOKABLE QString localFilePath(const QUrl &url) const;
     Q_INVOKABLE bool saveProject(const QUrl &destination, const QVariantMap &project);
     Q_INVOKABLE void exportUstx(const QUrl &destination, const QVariantMap &project);
     Q_INVOKABLE QVariantMap loadProject(const QUrl &source);

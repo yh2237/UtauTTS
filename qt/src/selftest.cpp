@@ -713,6 +713,11 @@ int runSelfTest(Backend &backend, QObject *rootObject) {
         const QString previousExportDirectory = backend.exportDirectory();
         const QDir exportDirectory(temporary.filePath(QStringLiteral("export")));
         QDir().mkpath(exportDirectory.path());
+        const QString expectedExportPath = QDir::toNativeSeparators(QDir::cleanPath(exportDirectory.path()));
+        if (!require(backend.localFilePath(QUrl::fromLocalFile(exportDirectory.path())) == expectedExportPath
+                             && backend.localFilePath(QUrl(QStringLiteral("https://example.com/export"))).isEmpty(),
+                     QStringLiteral("localFilePath converts local folder URLs")))
+            return 1;
         backend.setExportDirectory(exportDirectory.path());
         QStringList files;
         bool exported = true;

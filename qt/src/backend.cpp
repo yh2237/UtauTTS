@@ -1721,6 +1721,17 @@ QString Backend::localFileUrl(const QString &path) const {
 #endif
 }
 
+QString Backend::localFilePath(const QUrl &url) const {
+    if (!url.isLocalFile()) {
+        return QString();
+    }
+    const QString path = url.toLocalFile();
+    if (path.isEmpty()) {
+        return QString();
+    }
+    return QDir::toNativeSeparators(QDir::cleanPath(path));
+}
+
 void Backend::reloadVoicebanks() {
     if (m_busy) {
         return;

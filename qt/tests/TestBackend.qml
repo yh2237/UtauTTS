@@ -58,4 +58,5 @@ QtObject {
     function analyzeSpeech() {}
     function predictProsody() {}
     function localFileUrl(path) { return path; }
+    function localFilePath(url) { return String(url || "").replace(/^file:\/\/\/([A-Za-z]:)/, "$1").replace(/^file:\/\//, ""); }
 }
