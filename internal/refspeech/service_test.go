@@ -25,7 +25,7 @@ func TestPrepareRebuildsWhenRecordingsChange(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := &Service{cacheDir: t.TempDir(), worlds: map[string]*worldrender.World{}, indexes: map[string]*indexEntry{}}
-	current := &indexEntry{status: IndexStatus{State: IndexReady}, index: &index.Index{Header: index.Header{Source: bank, CacheKey: indexCacheKey(key, nil, configuredPoolMode())}}, done: make(chan struct{})}
+	current := &indexEntry{status: IndexStatus{State: IndexReady}, index: &index.Index{Header: index.Header{Source: bank, CacheKey: indexCacheKey(key, nil, configuredPoolMode(), configuredReversedPool())}}, done: make(chan struct{})}
 	s.indexes[indexID(bank, "", recordings)] = current
 	s.Prepare(bank, "", recordings, "")
 	if s.indexes[indexID(bank, "", recordings)] != current {
@@ -56,7 +56,7 @@ func TestIndexRebuildsWhenRecordingsChange(t *testing.T) {
 	s := &Service{cacheDir: t.TempDir(), worlds: map[string]*worldrender.World{}, indexes: map[string]*indexEntry{}}
 	done := make(chan struct{})
 	close(done)
-	current := &indexEntry{status: IndexStatus{State: IndexReady}, index: &index.Index{Header: index.Header{Source: bank, CacheKey: indexCacheKey(key, nil, configuredPoolMode())}}, done: done}
+	current := &indexEntry{status: IndexStatus{State: IndexReady}, index: &index.Index{Header: index.Header{Source: bank, CacheKey: indexCacheKey(key, nil, configuredPoolMode(), configuredReversedPool())}}, done: done}
 	s.indexes[indexID(bank, "", recordings)] = current
 	if index, err := s.Index(context.Background(), bank, "", recordings, ""); err != nil || index != current.index {
 		t.Fatalf("unchanged recordings: index=%p err=%v", index, err)
@@ -131,7 +131,7 @@ func TestExternalLoadOrBuildKeepsBabbleBeforeWorldAndSeparatesDir(t *testing.T) 
 	}
 	store := encoder.NewExternalStore()
 	reg := encoder.NewRegistry(store.Encoder(encoder.IDWavLMBasePlusL6, 768, encoder.DefaultFrameMS, encoder.ConvFrameCount))
-	key := indexCacheKey(source, reg.IDs(), configuredPoolMode())
+	key := indexCacheKey(source, reg.IDs(), configuredPoolMode(), configuredReversedPool())
 	eng := &Engine{external: true, registry: reg, externalStore: store, prefetched: map[string]bool{}}
 	eng.ProvidePrefetched(key)
 	s := &Service{cacheDir: cacheDir, engine: eng, worlds: map[string]*worldrender.World{}, indexes: map[string]*indexEntry{}}
@@ -140,5 +140,27 @@ func TestExternalLoadOrBuildKeepsBabbleBeforeWorldAndSeparatesDir(t *testing.T) 
 	}
 	if _, err := os.Stat(babbleDir); err != nil {
 		t.Fatalf("babbleDir removed on failed build: %v", err)
+	}
+}
+
+func TestConfiguredReversedPoolAndCacheKey(t *testing.T) {
+	if !configuredReversedPool() {
+		t.Fatal("configuredReversedPool() = false by default, want true")
+	}
+	bank := t.TempDir()
+	entries := []speechpool.Entry{{Path: filepath.Join(bank, "a.wav")}}
+	idOn := indexID(bank, "", entries)
+	keyOn := indexCacheKey("src", []string{"enc"}, speechpool.PoolAuto, configuredReversedPool())
+
+	for _, val := range []string{"0", "false", "off", "no", " FALSE "} {
+		t.Setenv("UTAUTTS_REVERSED_POOL", val)
+		if configuredReversedPool() {
+			t.Fatalf("configuredReversedPool() = true for %q, want false", val)
+		}
+	}
+	idOff := indexID(bank, "", entries)
+	keyOff := indexCacheKey("src", []string{"enc"}, speechpool.PoolAuto, configuredReversedPool())
+	if idOn == idOff || keyOn == keyOff {
+		t.Fatalf("cache keys matched across reversed toggle: id=(%s,%s) key=(%s,%s)", idOn, idOff, keyOn, keyOff)
 	}
 }

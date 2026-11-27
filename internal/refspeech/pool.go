@@ -23,6 +23,15 @@ func configuredPoolMode() speechpool.PoolMode {
 	}
 }
 
+func configuredReversedPool() bool {
+	switch strings.TrimSpace(strings.ToLower(os.Getenv("UTAUTTS_REVERSED_POOL"))) {
+	case "0", "false", "off", "no":
+		return false
+	default:
+		return true
+	}
+}
+
 const babbleSummaryName = "babble_summary.json"
 
 var babbleMu sync.Mutex

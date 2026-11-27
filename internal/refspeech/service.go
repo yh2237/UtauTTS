@@ -233,7 +233,7 @@ func (s *Service) dropStale(bankRoot string, color string, entries []speechpool.
 	if idx == nil {
 		return
 	}
-	if _, source, err := bankRecordings(bankRoot, color, entries); err != nil || !matchesSource(idx, bankRoot, indexCacheKey(source, indexChannelIDs(idx.Header), configuredPoolMode())) {
+	if _, source, err := bankRecordings(bankRoot, color, entries); err != nil || !matchesSource(idx, bankRoot, indexCacheKey(source, indexChannelIDs(idx.Header), configuredPoolMode(), configuredReversedPool())) {
 		s.mu.Lock()
 		if s.indexes[id] == entry {
 			delete(s.indexes, id)
@@ -379,7 +379,8 @@ func (s *Service) loadOrBuild(bankRoot string, color string, entries []speechpoo
 	active := engine.registry.List()
 	ids := engine.registry.IDs()
 	poolMode := configuredPoolMode()
-	key := indexCacheKey(source, ids, poolMode)
+	reversedPool := configuredReversedPool()
+	key := indexCacheKey(source, ids, poolMode, reversedPool)
 	path := filepath.Join(s.cacheDir, key+".utsp")
 	if idx, err := index.Load(path); err == nil && matchesSource(idx, bankRoot, key) && hasEncoders(idx, active) {
 		now := time.Now()
@@ -433,6 +434,9 @@ func (s *Service) loadOrBuild(bankRoot string, color string, entries []speechpoo
 		if effectiveMode == speechpool.PoolMerge {
 			poolEntries = append(poolEntries, files...)
 		}
+	}
+	if reversedPool {
+		poolEntries = speechpool.WithReversed(poolEntries)
 	}
 	idx, err := index.Build(poolEntries, world, encoders, opts)
 	if err != nil {
@@ -495,7 +499,7 @@ func indexID(bankRoot string, color string, entries []speechpool.Entry) string {
 	}
 	sort.Strings(paths)
 	hash := sha256.New()
-	fmt.Fprintf(hash, "%s\x00%s\x00%s\x00", filepath.Clean(bankRoot), color, configuredPoolMode())
+	fmt.Fprintf(hash, "%s\x00%s\x00%s\x00%t\x00", filepath.Clean(bankRoot), color, configuredPoolMode(), configuredReversedPool())
 	for _, path := range paths {
 		fmt.Fprintf(hash, "%s\x00", path)
 	}
@@ -531,8 +535,12 @@ func bankRecordings(bankRoot string, color string, entries []speechpool.Entry) (
 	return files, hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func indexCacheKey(source string, encoderIDs []string, mode speechpool.PoolMode) string {
-	key := sha256.Sum256([]byte("utsp-v2\x00" + strings.Join(encoderIDs, ",") + "\x00" + string(mode) + "\x00" + source))
+func indexCacheKey(source string, encoderIDs []string, mode speechpool.PoolMode, reversed bool) string {
+	prefix := "utsp-v2\x00"
+	if reversed {
+		prefix = "utsp-v3\x00"
+	}
+	key := sha256.Sum256([]byte(prefix + strings.Join(encoderIDs, ",") + "\x00" + string(mode) + "\x00" + source))
 	return hex.EncodeToString(key[:16])
 }
 
