@@ -2,14 +2,12 @@ module github.com/yh2237/UtauTTS
 
 go 1.27.0
 
-replace github.com/yh2237/UtauIDX => ../UtauIDX
-
 require (
 	github.com/ikawaha/kagome-dict v1.1.7
 	github.com/ikawaha/kagome-dict/ipa v1.2.6
 	github.com/ikawaha/kagome/v2 v2.11.0
 	github.com/mozillazg/go-pinyin v0.21.0
-	github.com/yh2237/UtauIDX v0.2.2
+	github.com/yh2237/UtauIDX v0.2.3
 	github.com/yh2237/UtauWLD v0.2.0
 	github.com/yh2237/audiodsp v0.6.0
 	github.com/yh2237/gograd v1.9.0

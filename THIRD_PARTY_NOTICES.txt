@@ -103,7 +103,7 @@ Source: https://github.com/yh2237/audiodsp
 UtauIDX
 =======
 
-UtauTTS uses github.com/yh2237/UtauIDX v0.2.2 for reference speech index
+UtauTTS uses github.com/yh2237/UtauIDX v0.2.3 for reference speech index
 construction, feature encoding, frame selection, and speech pool policies.
 The library was extracted from UtauTTS and is distributed under the MIT
 License, Copyright (c) 2026 yh. Its license text is identical to utauio's and

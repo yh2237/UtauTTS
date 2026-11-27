@@ -8,8 +8,8 @@ github.com/ikawaha/kagome/v2 v2.11.0 h1:R914EkRzay9qtUbsFzEbcdZ3wHwwSPvbPkuBI1oI
 github.com/ikawaha/kagome/v2 v2.11.0/go.mod h1:6mYPezBou+iNVnX9uNa00Sfu6S6t2zcM8Nv1EW9Y9so=
 github.com/mozillazg/go-pinyin v0.21.0 h1:Wo8/NT45z7P3er/9YSLHA3/kjZzbLz5hR7i+jGeIGao=
 github.com/mozillazg/go-pinyin v0.21.0/go.mod h1:iR4EnMMRXkfpFVV5FMi4FNB6wGq9NV6uDWbUuPhP4Yc=
-github.com/yh2237/UtauIDX v0.2.2 h1:0NE8tfmFsZn1lC0FoT4HdXy9lTmCLM8cGIhFm+fCj10=
-github.com/yh2237/UtauIDX v0.2.2/go.mod h1:Ij1JQhuD0o2bOBGeg0De1pbR73GcNYFQ/yiDk+P5NDo=
+github.com/yh2237/UtauIDX v0.2.3 h1:kcTrC7Xipw/ydoXsY4G7B0zMep2CRSdaVvZu8f8vYNQ=
+github.com/yh2237/UtauIDX v0.2.3/go.mod h1:Ij1JQhuD0o2bOBGeg0De1pbR73GcNYFQ/yiDk+P5NDo=
 github.com/yh2237/UtauWLD v0.2.0 h1:M2mZggv6FV613Atj8lymSxtczHVcntVWHTs/DrtAUQc=
 github.com/yh2237/UtauWLD v0.2.0/go.mod h1:nRFnLT+96+yEsvqoHRQPMZTUNxhcCfZb4BV1jrYODCo=
 github.com/yh2237/audiodsp v0.6.0 h1:tZygceOL0weI+4RCufMbzKj52E9ndeAuzfSgCoCDb1k=
