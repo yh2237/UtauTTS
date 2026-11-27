@@ -164,3 +164,42 @@ func TestConfiguredReversedPoolAndCacheKey(t *testing.T) {
 		t.Fatalf("cache keys matched across reversed toggle: id=(%s,%s) key=(%s,%s)", idOn, idOff, keyOn, keyOff)
 	}
 }
+
+func TestDifferentToneRecordingsUseDistinctCacheKeys(t *testing.T) {
+	bank := t.TempDir()
+	b3Dir, d4Dir := filepath.Join(bank, "B3"), filepath.Join(bank, "D#4")
+	if err := os.MkdirAll(b3Dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(d4Dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	b3Wav := filepath.Join(b3Dir, "a.wav")
+	d4Wav := filepath.Join(d4Dir, "a.wav")
+	for _, p := range []string{b3Wav, d4Wav} {
+		if err := wav.WriteFile(p, &wav.PCM{SampleRate: 16000, Channels: 1, Data: make([]int16, 8000)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	b3Entries := []speechpool.Entry{{Path: b3Wav, Layer: speechpool.LayerRaw}}
+	d4Entries := []speechpool.Entry{{Path: d4Wav, Layer: speechpool.LayerRaw}}
+	if indexID(bank, "", b3Entries) == indexID(bank, "", d4Entries) {
+		t.Fatal("different tone recording sets produced the same indexID")
+	}
+	_, srcB3, err := bankRecordings(bank, "", b3Entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, srcD4, err := bankRecordings(bank, "", d4Entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if srcB3 == srcD4 {
+		t.Fatal("different tone recording sets produced the same source hash")
+	}
+	keyB3 := indexCacheKey(srcB3, []string{"enc"}, configuredPoolMode(), configuredReversedPool())
+	keyD4 := indexCacheKey(srcD4, []string{"enc"}, configuredPoolMode(), configuredReversedPool())
+	if keyB3 == keyD4 || babbleDirPath("/cache", srcB3, false) == babbleDirPath("/cache", srcD4, false) {
+		t.Fatalf("different tone recording sets shared cache or babble keys: (%s, %s)", keyB3, keyD4)
+	}
+}

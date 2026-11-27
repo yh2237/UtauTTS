@@ -179,10 +179,11 @@ func (e *Engine) Call(method string, requestJSON []byte) ([]byte, error) {
 	case "buildReferenceIndex":
 		var request struct {
 			VoicebankID string `json:"voicebank_id"`
+			Tone        string `json:"tone"`
 			Color       string `json:"color"`
 		}
 		if err = json.Unmarshal(requestJSON, &request); err == nil {
-			_, err = e.synth.BuildReferenceIndex(synth.Request{VoicebankID: request.VoicebankID, Color: request.Color, Language: "en", Method: synth.MethodReferenceMatching})
+			_, err = e.synth.BuildReferenceIndex(synth.Request{VoicebankID: request.VoicebankID, Tone: request.Tone, Color: request.Color, Language: "en", Method: synth.MethodReferenceMatching})
 			result = map[string]bool{"started": true}
 		}
 	case "installVoicebank":

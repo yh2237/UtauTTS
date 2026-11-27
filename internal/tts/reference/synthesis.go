@@ -86,23 +86,23 @@ func ReferenceService(dir string) (*refspeech.Service, error) {
 // PrepareReferenceIndexは音源の通常の声の参照の索引がなければ裏で作り始める。モデルがなければ何もしない。
 func PrepareReferenceIndex(dir string, bank *voicebank.Bank, worldEnginePath string) {
 	if service, err := ReferenceService(dir); err == nil {
-		service.Prepare(bank.Root, "", referenceRecordings(bank, ""), worldEnginePath)
+		service.Prepare(bank.Root, "", referenceRecordings(bank, "", ""), worldEnginePath)
 	}
 }
 
-// PrepareReferenceIndexStatusは声色の索引を裏で準備し、作成中かどうかを返す。
-func PrepareReferenceIndexStatus(dir string, bank *voicebank.Bank, color, world string) (bool, error) {
+// PrepareReferenceIndexStatusは音高と声色に合う索引を裏で準備し、作成中かどうかを返す。
+func PrepareReferenceIndexStatus(dir string, bank *voicebank.Bank, tone, color, world string) (bool, error) {
 	service, err := ReferenceService(dir)
 	if err != nil {
 		return false, err
 	}
-	status := service.PrepareStatus(bank.Root, color, referenceRecordings(bank, color), world)
+	status := service.PrepareStatus(bank.Root, color, referenceRecordings(bank, tone, color), world)
 	return status.State == refspeech.IndexBuilding, nil
 }
 
 // referenceRecordingsは索引に使う録音と、それを使う原音のoto.iniの範囲を返す。
-func referenceRecordings(bank *voicebank.Bank, color string) []speechpool.Entry {
-	recordings := bank.ReferenceRecordings(color)
+func referenceRecordings(bank *voicebank.Bank, tone, color string) []speechpool.Entry {
+	recordings := bank.ReferenceRecordings(tone, color)
 	result := make([]speechpool.Entry, len(recordings))
 	for i, recording := range recordings {
 		result[i].Path = recording.Path
@@ -279,7 +279,7 @@ func synthesizeReference(cfg tts.Config, bank *voicebank.Bank, utterance linguis
 		}
 	}
 	refspeech.SetStage("索引を準備しています")
-	speech, err := service.SpeakReference(ctx, bank.Root, cfg.Color, referenceRecordings(bank, cfg.Color), cfg.WorldEnginePath, reference, options)
+	speech, err := service.SpeakReference(ctx, bank.Root, cfg.Color, referenceRecordings(bank, cfg.Tone, cfg.Color), cfg.WorldEnginePath, reference, options)
 	refspeech.SetStage("")
 	if err != nil {
 		return nil, fmt.Errorf("reference synthesis: %w", err)

@@ -445,7 +445,7 @@ func (s *Service) DeleteReferenceIndex(name string) (bool, error) {
 	return reference.DeleteReferenceIndex(name)
 }
 
-// BuildReferenceIndexは指定した音源と声色の索引を裏で準備する。
+// BuildReferenceIndexは指定した音源・音高・声色の索引を裏で準備する。
 func (s *Service) BuildReferenceIndex(request Request) (bool, error) {
 	cfg, _, err := s.config(request, true)
 	if err != nil {
@@ -455,7 +455,7 @@ func (s *Service) BuildReferenceIndex(request Request) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return reference.PrepareReferenceIndexStatus(cfg.ReferenceDir, bank, cfg.Color, cfg.WorldEnginePath)
+	return reference.PrepareReferenceIndexStatus(cfg.ReferenceDir, bank, cfg.Tone, cfg.Color, cfg.WorldEnginePath)
 }
 
 // FeatureDeviceは、直近の特徴量計算に使ったデバイスを返す。

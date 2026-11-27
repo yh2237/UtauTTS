@@ -76,12 +76,12 @@ type ReferenceRecording struct {
 	Entries []oto.Entry
 }
 
-// ReferenceRecordingsは参照照合の索引に使う録音を返す。音高や声色ごとの収録があれば、既定の音高のcolorの声だけを使う。
-// colorがない音源では通常の声を使う。録音の範囲を決めるため、同じ録音を使う原音はすべて返す。
-func (b *Bank) ReferenceRecordings(color string) []ReferenceRecording {
-	affix, _, hasAffix := b.AffixForToneAndColor("", color)
+// ReferenceRecordingsは参照照合の索引に使う録音を返す。音高や声色ごとの収録があれば、toneとcolorに合う声だけを使う。
+// toneが空のときは既定の音高（C4）を使い、colorがない音源では通常の声を使う。録音の範囲を決めるため、同じ録音を使う原音はすべて返す。
+func (b *Bank) ReferenceRecordings(tone, color string) []ReferenceRecording {
+	affix, _, hasAffix := b.AffixForToneAndColor(tone, color)
 	if !hasAffix && color != "" {
-		affix, _, hasAffix = b.AffixForToneAndColor("", "")
+		affix, _, hasAffix = b.AffixForToneAndColor(tone, "")
 	}
 	// 接頭辞も接尾辞も空の通常の声は、どの別名にも当てはまる。他の声色や音高の別名は除く。
 	var others []Affix
@@ -118,7 +118,7 @@ func (b *Bank) ReferenceRecordings(color string) []ReferenceRecording {
 	}
 	paths := collect(hasAffix)
 	if len(paths) == 0 {
-		// 既定の音高の別名が見つからない音源は、すべての録音を使う。
+		// 該当する別名が見つからない音源は、すべての録音を使う。
 		paths = collect(false)
 	}
 	for alias, entries := range b.Entries {

@@ -59,10 +59,8 @@ func (s *Service) ensureBabbleEntries(ctx context.Context, root, color, source, 
 		}
 	}
 	opts := speechpool.BabbleOptions{BankDir: root, WorldPath: worldPath, OutDir: dir, TargetSec: 180}
-	if color != "" || external {
-		for _, file := range files {
-			opts.SourcePaths = append(opts.SourcePaths, file.Path)
-		}
+	for _, file := range files {
+		opts.SourcePaths = append(opts.SourcePaths, file.Path)
 	}
 	summary, err := speechpool.GenerateBabble(ctx, opts)
 	if err != nil {
